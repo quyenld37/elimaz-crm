@@ -4,9 +4,11 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-15-crm-m0-nen-tang-ban-5.md`
 
 ## Ảnh hưởng
 
-- Repo mới `apps/crm`, chưa có mã Go hay TypeScript: không có ký hiệu, gói, operation, bảng nào bị chạm.
-- Ngoài repo: CLAUDE.md gốc của thư mục "Thời trang" (luật website) — **chưa sửa**, chờ chủ shop chọn cách (xem "Việc còn mở").
-- Cài đặt Claude Code: hai plugin `gopls-lsp`, `typescript-lsp` — **chưa cài**, cần Go và các công cụ (xem "Việc còn mở").
+- Repo mới `apps/crm`, chưa có mã Go hay TypeScript: không ký hiệu, gói, operation, bảng nào bị chạm.
+- Ngoài repo, đã sửa theo lựa chọn của chủ shop (15/11):
+  - CLAUDE.md gốc của thư mục "Thời trang": **chỉ thêm** một đoạn "Scope" ở đầu (luật website không áp dụng cho `apps/crm`); không dời, không sửa luật website. Chủ shop chọn cách này thay cho "dời sang `.claude/rules/website.md`" vì luật theo đường dẫn chỉ nạp khi agent đã chạm tệp website.
+  - Máy Mac: cài Go 1.27.4 (Homebrew), gopls v0.24.0, gofumpt v0.12.0, goimports v0.52.0 vào `~/go/bin`; thêm `~/go/bin` vào PATH ở cuối `~/.zshrc` (bản cũ: `~/.zshrc.bak-2026-11-15-crm`).
+  - Claude Code: plugin `gopls-lsp@claude-plugins-official`, phạm vi project (ghi trong `.claude/settings.json` của CRM).
 
 ## Tái dùng
 
@@ -26,7 +28,7 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-15-crm-m0-nen-tang-ban-5.md`
 
 ## Bằng chứng
 
-Thử trong một repo tạm có cùng script (`scratchpad/hooktest`), ngày 15/11/2026:
+Hook thử trong hai repo tạm có cùng script (`scratchpad/hooktest`, `hooktest2`), ngày 15/11/2026:
 
 | Tiêu chí | Cách thử | Kết quả |
 |---|---|---|
@@ -34,21 +36,31 @@ Thử trong một repo tạm có cùng script (`scratchpad/hooktest`), ngày 15/
 | Sửa migration đã commit bị chặn | `guard-edit.sh` với `migrations/0001_a.sql` đã commit | Thoát 2 |
 | Migration mới, tệp thường không bị chặn | `migrations/0002_b.sql`, `internal/platform/queue/q.go` | Thoát 0 |
 | Test bị xóa, `t.Skip` mới, bớt câu kiểm ở vùng cao bị báo khi chưa ghi lý do | Xóa `b_test.go`; thêm `t.Skip` và bớt một `t.Errorf` trong `internal/platform/queue/a_test.go` | Thoát 1, nêu đủ ba mục |
-| Đã ghi tên và lý do thì qua | Ghi hai tệp vào mục "Test bị xóa hoặc tắt" | Thoát 0 |
-| Hook Stop chặn khi có tệp Go đổi mà thiếu công cụ | `stop-check.sh` với `go.mod` và tệp `.go`, máy chưa có Go | Thoát 2, "Thiếu công cụ 'go'" |
-| Sửa lỗi tìm thấy khi thử | Lần đầu đếm câu kiểm theo dòng nên bỏ sót; đổi sang đếm từng câu | Lần thử lại báo "số câu kiểm giảm từ 2 xuống 1" |
+| Đã ghi tên và lý do thì qua | Ghi các tệp vào mục "Test bị xóa hoặc tắt" | Thoát 0 |
+| Định dạng sau mỗi lần sửa | `format.sh` trên `func   A( ) int {return 1}` | Thành `func A() int { return 1 }` |
+| Tính gói bị ảnh hưởng | Đổi `internal/a`; `b` nhập `a`, `c` không | `affected.py` trả `a` và `b`, không có `c` |
+| Hook Stop qua khi sạch, chặn khi test của gói phụ thuộc hỏng | Đổi `a.A()` làm `TestB` sai | Thoát 0 khi sạch; thoát 2, nêu `FAIL example.com/t/internal/b` |
+| Hook Stop chặn khi build hỏng | `return "x"` trong hàm trả `int` | Thoát 2, nêu lỗi biên dịch |
+| Hook Stop chặn khi thiếu công cụ | Trước khi cài Go | Thoát 2, "Thiếu công cụ 'go'" |
+| Phiên CRM nạp đúng luật, có LSP | `claude --print` trong `apps/crm` | Nạp CLAUDE.md gốc (có đoạn Scope) và `apps/crm/CLAUDE.md`; luật cổng 4175 của website không áp dụng; có công cụ `LSP` |
+| Phiên website không bị ảnh hưởng | `claude --print` ở thư mục gốc, hỏi về đổi màu nút trang sản phẩm | Vẫn theo đủ: mockup trước, DESIGN.md, test theo phạm vi, `radius-scale.spec.ts` |
+| Skill không có quyền công cụ, script, lệnh cài, ký tự ẩn | Quét `.claude/skills/` | Không thấy; thư viện ngoài ADR-44 chỉ còn được nhắc ở dạng "không dùng" |
+| Sửa lỗi tìm thấy khi thử | Lần đầu `test-guard.sh` đếm câu kiểm theo dòng nên bỏ sót | Đổi sang đếm từng câu; lần thử lại báo "số câu kiểm giảm từ 2 xuống 1" |
 
-Chưa thử được (cần Go): định dạng `gofumpt`, cổng build/vet/lint/test trên gói thật, tính gói phụ thuộc ngược bằng `affected.py`, plugin LSP. Thử lại ngay sau khi cài Go.
+Chưa thử: `golangci-lint` và jscpd trong hook (chưa cài; Task 3 cài và thử); plugin LSP trên mã thật của CRM (từ Task 3).
 
 ## Test bị xóa hoặc tắt
 
 (không có)
 
+## Khác kế hoạch
+
+- Đề xuất 2: chủ shop chọn giữ luật website tại chỗ và thêm đoạn phạm vi, không dời sang `.claude/rules/website.md`.
+- Đề xuất 15: chỉ cài `gopls-lsp`. `typescript-lsp` để sang Task 17: TypeScript 7.0.2 trên npm chỉ có lệnh `tsc`, không có `tsserver` mà `typescript-language-server` cần; quyết cùng câu hỏi tương thích TypeScript 7 của Task 17.
+
 ## Việc còn mở
 
-1. Cài Go và công cụ (cần chủ shop OK việc tải về).
-2. Cách xử lý luật website trong CLAUDE.md gốc (cần chủ shop chọn).
-3. Kiểm tách luật bằng một phiên CRM và một phiên website (Step 3 của Task 0), sau khi chọn cách ở mục 2.
+- Skill concurrency giữ `errgroup`, `singleflight` của `golang.org/x/sync` với ghi chú "cần duyệt": thư viện này ngoài ADR-44, chỉ dùng khi có task cần và ghi vào `docs/phu-thuoc.md`.
 
 ## Reviewer
 
