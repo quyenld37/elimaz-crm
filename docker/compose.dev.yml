@@ -1,0 +1,36 @@
+# Hạ tầng dev của CRM (kế hoạch M0 bản 5, Task 1). Image ghim theo digest.
+# Cổng đọc từ biến môi trường để nhiều phiên chạy song song trên một máy;
+# mặc định đúng cổng của kế hoạch: PostgreSQL 5442, Jaeger UI 16686, OTLP 4318.
+#   docker compose -f docker/compose.dev.yml up -d --wait
+#   CRM_PG_PORT=5452 docker compose -p crm-khac -f docker/compose.dev.yml up -d --wait
+name: crm
+
+services:
+  postgres:
+    # postgres:18 (18.7), digest của image index đa nền tảng, lấy ngày 18/11/2026
+    image: postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc
+    environment:
+      POSTGRES_DB: crm
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_dev
+    ports:
+      - "127.0.0.1:${CRM_PG_PORT:-5442}:5432"
+    shm_size: 256mb
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d crm"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  jaeger:
+    # jaegertracing/jaeger:2.23.0 (Jaeger v2), digest lấy ngày 18/11/2026
+    image: jaegertracing/jaeger:2.23.0@sha256:3823829974ccfc2485d2e48b165579091f32295022ae80ca49704e2f4834116e
+    ports:
+      - "127.0.0.1:${CRM_JAEGER_UI_PORT:-16686}:16686"
+      - "127.0.0.1:${CRM_OTLP_PORT:-4318}:4318"
+
+volumes:
+  pgdata:
