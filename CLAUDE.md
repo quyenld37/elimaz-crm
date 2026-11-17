@@ -17,6 +17,8 @@ Tệp này viết tay, giữ dưới 200 dòng. Chỉ ghi điều không đọc 
 
 ## Cách làm mỗi task
 
+Quy trình đầy đủ (vai trò, các loại việc, danh sách kiểm kiến trúc và đồng thời, khi nào dừng hỏi): `docs/quy-trinh-lam-viec.md`. Đọc trước mỗi task. Tóm tắt:
+
 1. Viết `docs/tasks/task-NN.md` **trước khi viết test**, theo mẫu ở mục "Cách làm mỗi task" của kế hoạch:
    - **Ảnh hưởng:** ký hiệu Go xuất ra ngoài sẽ đổi và số chỗ tham chiếu (công cụ LSP `findReferences`), gói phụ thuộc ngược (`go list`), operation OpenAPI bị chạm và oasdiff có báo không, chỗ dùng trên màn hình, câu sqlc và bảng, pha migration, test sẽ chạy.
    - **Tái dùng:** đã kiểm gì trong `docs/danh-muc-dung-chung.md`; dùng lại cái nào, hoặc viết mới vì sao.

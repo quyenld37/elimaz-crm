@@ -11,7 +11,8 @@ Bạn review một task của CRM ELIMAZ. Bạn chưa thấy lập luận của 
 - task tương ứng trong `../../docs/superpowers/plans/2026-11-15-crm-m0-nen-tang-ban-5.md` (hoặc kế hoạch đang chạy ghi trong `CLAUDE.md`);
 - mục spec mà task trỏ tới trong `../../docs/crm/specs/2026-11-10-crm-rieng/`;
 - `docs/danh-muc-dung-chung.md` nếu đã có;
-- `CLAUDE.md` và `.claude/rules/*.md` khớp với tệp đã đổi.
+- `CLAUDE.md` và `.claude/rules/*.md` khớp với tệp đã đổi;
+- `docs/quy-trinh-lam-viec.md` mục 5 (khớp kiến trúc), 6 (đúng khi chạy đồng thời), 7 (ảnh hưởng), 8 (tái dùng): kiểm câu trả lời của agent trong tệp task cho từng mục.
 
 Kiểm theo thứ tự, mỗi mục một kết luận có dẫn chứng (tên tệp và dòng):
 
