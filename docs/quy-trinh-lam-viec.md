@@ -208,9 +208,39 @@ Chủ shop chốt ngày 18/11/2026. Áp dụng mỗi khi viết kế hoạch cho
 
 1. **Nguồn chung:** mọi kế hoạch dựa trên spec (bảng ở `05-du-lieu-erd.md`, module ở `04-kien-truc.md`, ADR, ca kiểm thử ở `11-kich-ban-kiem-thu.md`), viết đúng khuôn kế hoạch M0 (Files, Interfaces, test thất bại có số liệu, Step R, commit). Phủ đủ tính năng của mốc trong ma trận tính năng; cuối kế hoạch liệt kê ca kiểm thử của mốc chưa được task nào phủ (phải bằng 0 hoặc có lý do).
 2. **Viết song song được:** kế hoạch các mốc viết song song (mỗi mốc một agent) vì cùng dựa trên spec. Chỗ nào dùng Interface của mốc khác mà kế hoạch mốc đó chưa có, phải ghi vào mục "Giả định về mốc trước".
-3. **Soát chéo bắt buộc** khi có từ hai kế hoạch viết song song trở lên: một agent riêng đọc mọi kế hoạch, đối chiếu từng mục "Giả định về mốc trước" với Interfaces thật của mốc đó (tên gói, hàm, bảng, operation, mã lỗi), báo và sửa chỗ lệch, trùng việc, sót việc. Chưa soát chéo thì chưa bắt đầu viết mã của mốc.
+3. **Soát chéo bắt buộc** khi có từ hai kế hoạch viết song song trở lên, làm đúng mục 13c. Chưa đạt 13c thì chưa viết mã của mốc.
 4. **Đối chiếu với mã thật:** trước khi bắt đầu một mốc, đối chiếu Interfaces trong kế hoạch với mã đã gộp vào `main` của các mốc trước; lệch thì sửa kế hoạch trước, ghi lại đã sửa gì.
 5. **Viết mã theo thứ tự phụ thuộc** ghi ở đầu mỗi kế hoạch (bảng "Phụ thuộc và chạy song song"). Hiện tại: M0 → M1 → M2 → (M3 và M4 song song) → M5 → M6 → M7; M5 cần M1, M2; M6 cần M2, M3.
+
+## 13c. Soát chéo kế hoạch: làm gì, ghi ra đâu, thế nào là đạt
+
+**Ai làm:** một agent riêng (`general-purpose`), không phải agent đã viết các kế hoạch đó. Agent soát chỉ báo cáo, không tự sửa kế hoạch. Phiên điều phối sửa theo báo cáo, rồi chạy soát lại.
+
+**Đầu vào:** mọi kế hoạch của các mốc chưa làm xong trong `../../docs/superpowers/plans/`, spec (`05-du-lieu-erd.md`, `04-kien-truc.md`, `07-adr.md`, `01-ma-tran-tinh-nang.md`, `11-kich-ban-kiem-thu.md`), và mã đã gộp vào `main` (nếu có).
+
+**Kiểm 8 mục, theo thứ tự:**
+
+| # | Kiểm | Cách kiểm | Lệch khi |
+|---|---|---|---|
+| 1 | Giả định khớp thật | Mỗi dòng "Giả định về mốc trước" của kế hoạch B so với Interfaces của kế hoạch A (hoặc mã thật) | Khác tên gói, tên hàm, chữ ký, kiểu trả về, mã lỗi sentinel, tên operation OpenAPI, tên bảng hoặc cột |
+| 2 | Bảng có một chủ | Mỗi bảng trong mọi kế hoạch: mốc nào tạo (migration), mốc nào chỉ đọc, ghi | Hai mốc cùng tạo một bảng; mốc dùng bảng trước khi mốc tạo nó chạy; cột không có trong `05-du-lieu-erd.md` mà không ghi lý do |
+| 3 | Operation có một chủ | Mỗi đường API (`METHOD /path`) và `operationId` | Trùng đường, trùng `operationId`, cùng việc mà hai tên |
+| 4 | Thứ tự phụ thuộc | Mỗi task dùng gì của task nào; đối chiếu bảng "Phụ thuộc và chạy song song" | Dùng thứ chưa có ở thời điểm đó; hai task ghi "song song" nhưng chạm cùng tệp |
+| 5 | Phủ tính năng | Mỗi dòng của `01-ma-tran-tinh-nang.md` thuộc các mốc đang soát → task nào làm | Tính năng không có task; tính năng có ở hai mốc |
+| 6 | Phủ ca kiểm thử | Mỗi mã ca trong `11-kich-ban-kiem-thu.md` thuộc các mốc đang soát → test nào trong task nào | Ca không có test; test ghi mã ca không tồn tại |
+| 7 | Đúng ADR | Thư viện (ADR-44), RLS và `seller_id` (ADR-29), chống trùng (ADR-41), thử lại và thứ tự khóa (ADR-46), việc ra ngoài qua hàng đợi, không gọi Nhanh | Bất kỳ chỗ trái ADR |
+| 8 | Việc cần chủ shop | Gộp các bảng "Việc cần chủ shop" của mọi kế hoạch | Việc ngoài máy (tài khoản, khóa, máy chủ) nằm lẫn trong task mà không ghi ra bảng |
+
+**Ghi ra:** `../../docs/superpowers/plans/soat-cheo-<ngày>.md`, gồm:
+- Bảng phát hiện: `| # | Mục (1–8) | Kế hoạch, task | Lệch gì | Bằng chứng (trích dòng hai bên) | Sửa ở đâu |`. Mức: **chặn** (làm sai hoặc không làm được nếu chạy) hay **nên sửa**.
+- Bảng chủ của bảng dữ liệu và operation (mục 2, 3); bảng phủ tính năng và phủ ca (mục 5, 6), mỗi dòng một tính năng hoặc ca.
+- Dòng cuối, đúng chữ: `Kết luận soát chéo: ĐẠT` hoặc `Kết luận soát chéo: CHƯA ĐẠT (<n> chặn)`.
+
+**Đạt khi:** 0 phát hiện mức chặn; mục 5 và 6 không còn dòng trống (hoặc có lý do được ghi vào "Quyết định thay chủ shop"). Phát hiện "nên sửa" sửa luôn nếu nhỏ, còn lại ghi vào kế hoạch.
+
+**Sau khi sửa:** phiên điều phối ghi ở đầu mỗi kế hoạch đã sửa một dòng "Đã soát chéo ngày …, sửa theo phát hiện #…", rồi chạy lại soát chéo (chỉ mục bị ảnh hưởng) tới khi ĐẠT. Phát hiện cần đổi spec thì không tự đổi spec ngoài quyền được giao: ghi vào báo cáo cho chủ shop.
+
+**Lặp lại khi:** thêm hoặc sửa lớn một kế hoạch; trước khi bắt đầu mỗi mốc (kèm mục 13b bước 4, đối chiếu với mã thật).
 
 ## 14. Quy trình được đóng gói thế nào để không bị "quên"
 
