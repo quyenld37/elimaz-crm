@@ -46,7 +46,10 @@ if [ -f go.mod ] && has '(\.go|go\.mod|go\.sum)$'; then
       run "go vet (gói bị ảnh hưởng)" go vet $pkgs
       if [ -f .golangci.yml ] && need golangci-lint "lint"; then
         # shellcheck disable=SC2086
-        run "golangci-lint (gói bị ảnh hưởng)" golangci-lint run $pkgs
+        # golangci-lint cần đường dẫn thư mục, không nhận tên gói dạng elimaz.com.vn/... (Task 4 phát hiện).
+        lintdirs=$(go list -f '{{.Dir}}' $pkgs 2>/dev/null | sed "s#^$(pwd)/#./#")
+        # shellcheck disable=SC2086
+        run "golangci-lint (gói bị ảnh hưởng)" golangci-lint run $lintdirs
       fi
       # shellcheck disable=SC2086
       run "go test -race (gói đổi và gói phụ thuộc)" go test -race -count=1 $pkgs
