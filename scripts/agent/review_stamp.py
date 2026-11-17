@@ -19,10 +19,11 @@ if not msg and tp and os.path.exists(tp):
         if t.strip():
             msg = t
 code_hash = os.environ.get("CODE_HASH", "")
-os.makedirs(".git/crm-review", exist_ok=True)
+rd = os.environ.get("REVIEW_DIR") or ".git/crm-review"
+os.makedirs(rd, exist_ok=True)
 ok = any(l.strip().startswith("## Kết luận: ĐẠT") for l in msg.splitlines())
-with open(".git/crm-review/log", "a", encoding="utf-8") as log:
+with open(os.path.join(rd, "log"), "a", encoding="utf-8") as log:
     log.write(f"{datetime.datetime.now().isoformat(timespec='seconds')} code={code_hash} verdict={'DAT' if ok else 'KHONG'} msg_chars={len(msg)}\n")
 if ok and code_hash:
-    with open(f".git/crm-review/{code_hash}", "w", encoding="utf-8") as f:
+    with open(os.path.join(rd, code_hash), "w", encoding="utf-8") as f:
         f.write(msg)

@@ -43,3 +43,6 @@ staged_code_hash() {
   # shellcheck disable=SC2086
   git ls-files --stage -- $CODE_PATHS 2>/dev/null | shasum -a 256 | cut -c1-40
 }
+
+# Thư mục lưu dấu duyệt reviewer, đúng cả trong git worktree (ở đó .git là một tệp).
+review_dir() { echo "$(git rev-parse --git-dir)/crm-review"; }

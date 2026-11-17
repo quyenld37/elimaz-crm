@@ -13,7 +13,7 @@ if git diff --cached --name-only | grep -E -q '^(internal|cmd|tools|tests|consol
     echo "Cổng commit: tệp task chưa đủ mục." >&2; exit 1
   fi
   tree=$(staged_code_hash)
-  if [ ! -f ".git/crm-review/$tree" ]; then
+  if [ ! -f "$(review_dir)/$tree" ]; then
     echo "Cổng commit: chưa có kết luận ĐẠT của reviewer cho đúng phần đã stage (mã băm $tree). Stage xong rồi chạy agent reviewer; sửa gì sau khi review thì phải review lại." >&2; exit 1
   fi
 fi

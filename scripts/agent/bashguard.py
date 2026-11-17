@@ -13,7 +13,7 @@ def block(msg):
     sys.exit(2)
 
 # Đường dẫn được bảo vệ: chỉ chủ shop (hoặc phiên cài đặt ngoài apps/crm) được sửa.
-PROTECTED = [r"\.claude/", r"scripts/agent/", r"\.githooks", r"\.git/", r"docs/tasks/hien-tai\.md", r"core\.hooksPath"]
+PROTECTED = [r"\.claude/", r"scripts/agent/", r"\.githooks", r"\.git/", r"crm-review", r"docs/tasks/hien-tai\.md", r"core\.hooksPath"]
 WRITE_HINT = re.compile(r"(>|\brm\b|\bmv\b|\bcp\b|\btee\b|\bsed\b[^|;&]*\s-i|\bchmod\b|\bln\b|\btruncate\b|\binstall\b|\bpython3?\b|\bperl\b|\bruby\b|\bnode\b|\bdd\b|\bunlink\b|\bgit\s+(rm|mv|checkout|restore|update-index|config)\b)")
 for pat in PROTECTED:
     if re.search(pat, cmd) and WRITE_HINT.search(cmd):
