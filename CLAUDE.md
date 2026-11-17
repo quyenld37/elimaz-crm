@@ -17,22 +17,20 @@ Tệp này viết tay, giữ dưới 200 dòng. Chỉ ghi điều không đọc 
 
 ## Cách làm mỗi task
 
-Quy trình đầy đủ (vai trò, các loại việc, danh sách kiểm kiến trúc và đồng thời, khi nào dừng hỏi): `docs/quy-trinh-lam-viec.md`. Đọc trước mỗi task.
+Quy trình đầy đủ: `docs/quy-trinh-lam-viec.md`. Mỗi task một phiên sạch (`/clear` giữa hai task).
 
-- Phiên chính là **điều phối**: dùng skill `crm-dieu-phoi`, không tự sửa mã. Mã chỉ do agent `crm-implementer` sửa (skill `crm-task` nạp sẵn); hook chặn mọi nơi khác.
-- Commit có mã chỉ qua khi tệp task đủ mục và reviewer kết luận ĐẠT (hook chặn).
-
-Tóm tắt các bước:
-
-1. Viết `docs/tasks/task-NN.md` **trước khi viết test**, theo mẫu ở mục "Cách làm mỗi task" của kế hoạch:
-   - **Ảnh hưởng:** ký hiệu Go xuất ra ngoài sẽ đổi và số chỗ tham chiếu (công cụ LSP `findReferences`), gói phụ thuộc ngược (`go list`), operation OpenAPI bị chạm và oasdiff có báo không, chỗ dùng trên màn hình, câu sqlc và bảng, pha migration, test sẽ chạy.
+0. Tạo tệp task: `scripts/agent/new-task.sh NN "Tên task"` (tạo từ mẫu `docs/tasks/_mau.md`, đặt làm task đang chạy).
+1. Đọc task trong kế hoạch, Interfaces của các task nó dùng, mục spec và ADR liên quan. Spec mơ hồ hay mâu thuẫn, cần đổi thiết kế, cần việc ngoài máy: dừng và hỏi chủ shop.
+2. **Trước khi viết test**, điền tệp task:
+   - **Ảnh hưởng:** ký hiệu Go xuất ra ngoài sẽ đổi và số chỗ tham chiếu (công cụ LSP `findReferences`), gói phụ thuộc ngược (`go list`), operation OpenAPI, chỗ dùng trên màn hình, câu sqlc và bảng, pha migration, test sẽ chạy.
    - **Tái dùng:** đã kiểm gì trong `docs/danh-muc-dung-chung.md`; dùng lại cái nào, hoặc viết mới vì sao.
-2. Test thất bại trước, rồi code cho qua, rồi dọn code. Thay đổi cấu trúc (dời, đổi tên, tách) và thay đổi hành vi nằm ở hai commit khác nhau.
-3. Trước khi sửa định nghĩa một ký hiệu được dùng ở nơi khác: tìm mọi chỗ tham chiếu bằng LSP, sửa hết trong cùng task. Đổi tên dùng rename của gopls, không thay chữ hàng loạt.
-4. Chuyển từ cách cũ sang cách mới thì **xóa** cách cũ khi đã hết nơi dùng; không bọc cách cũ trong một điều kiện để giữ lại.
-5. Trước khi báo xong: hook Stop tự chạy `scripts/agent/stop-check.sh`. Không qua thì sửa tiếp. Hook chặn tới lần thứ 8 liền thì dừng và báo chủ shop, không tìm cách vượt hook.
-6. Điều phối chạy reviewer chỉ đọc `.claude/agents/reviewer.md` trên diff của task (một vòng review duy nhất), rồi mới commit. Chỉ sửa phát hiện ảnh hưởng tính đúng; phát hiện về phong cách thì bỏ qua.
-7. Điền bảng bằng chứng trong tệp task: tiêu chí → tên test → lệnh đã chạy → trích kết quả. "Mọi test đều qua" một mình không phải bằng chứng.
+   - **Soát thiết kế:** chỉ những câu ở mục 5, 6 của quy trình liên quan tới phần sẽ chạm (database, tiền, quyền, hàng đợi…).
+3. Test thất bại trước, rồi code cho qua, rồi dọn code. Thay đổi cấu trúc (dời, đổi tên, tách) và thay đổi hành vi ở hai commit khác nhau.
+4. Sửa định nghĩa một ký hiệu thì sửa mọi chỗ dùng trong cùng task (đổi tên dùng rename của gopls). Chuyển sang cách mới thì **xóa** cách cũ, không bọc cách cũ trong một điều kiện.
+5. Trước khi báo xong: hook Stop tự chạy build, vet, lint, test của gói đổi và gói phụ thuộc. Không qua thì sửa tiếp. Hook chặn tới lần thứ 8 liền thì dừng và báo chủ shop, không tìm cách vượt hook.
+6. Task có mã: chạy reviewer chỉ đọc (agent `reviewer`) trên phần đã đổi, chép kết luận vào mục Reviewer của tệp task. Chỉ sửa phát hiện ảnh hưởng tính đúng; bỏ qua phong cách. Task chỉ đổi tài liệu, cấu hình: không cần reviewer.
+7. Điền bảng bằng chứng: tiêu chí → tên test → lệnh đã chạy → trích kết quả. "Mọi test đều qua" một mình không phải bằng chứng.
+8. Commit cục bộ (commit có mã bị hook chặn khi tệp task chưa đủ hoặc reviewer chưa ĐẠT), đặt `Trạng thái: xong` trong `docs/tasks/hien-tai.md`, báo chủ shop bằng tiếng Việt.
 
 Dấu hiệu đang chệch hướng, gặp là dừng và báo: chạy vòng lặp sửa đi sửa lại; làm thêm thứ không ai yêu cầu; muốn tắt, xóa hay nới một test.
 

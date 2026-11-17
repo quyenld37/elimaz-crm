@@ -70,7 +70,7 @@ fi
 # Test không được lặng lẽ biến mất.
 run "test-guard (so với HEAD)" scripts/agent/test-guard.sh HEAD
 
-# Agent crm-implementer: tệp task phải đủ mục (hoặc có mục "Dừng để hỏi").
+# --task: tệp task phải đủ mục (hoặc có mục "Dừng để hỏi").
 if [ "${1:-}" = "--task" ]; then
   run "tệp task chưa đủ (docs/tasks/task-NN.md)" scripts/agent/task-check.sh
 fi

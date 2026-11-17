@@ -52,3 +52,5 @@ references
 - Không thấy script, hook, lệnh mạng hay telemetry.
 
 - 17/11/2026: bỏ trường `paths:` khỏi frontmatter để skill được nạp sẵn vào agent `crm-implementer` (khai trong `skills:` của agent).
+
+- 18/11/2026: thêm lại `paths:` sau khi bỏ agent crm-implementer (không còn nạp sẵn).
