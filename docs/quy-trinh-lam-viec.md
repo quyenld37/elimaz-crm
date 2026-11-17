@@ -210,7 +210,7 @@ Chủ shop chốt ngày 18/11/2026. Áp dụng mỗi khi viết kế hoạch cho
 2. **Viết song song được:** kế hoạch các mốc viết song song (mỗi mốc một agent) vì cùng dựa trên spec. Chỗ nào dùng Interface của mốc khác mà kế hoạch mốc đó chưa có, phải ghi vào mục "Giả định về mốc trước".
 3. **Soát chéo bắt buộc** khi có từ hai kế hoạch viết song song trở lên, làm đúng mục 13c. Chưa đạt 13c thì chưa viết mã của mốc.
 4. **Đối chiếu với mã thật:** trước khi bắt đầu một mốc, đối chiếu Interfaces trong kế hoạch với mã đã gộp vào `main` của các mốc trước; lệch thì sửa kế hoạch trước, ghi lại đã sửa gì.
-5. **Viết mã theo thứ tự phụ thuộc** ghi ở đầu mỗi kế hoạch (bảng "Phụ thuộc và chạy song song"). Hiện tại: M0 → M1 → M2 → (M3 và M4 song song) → M5 → M6 → M7; M5 cần M1, M2; M6 cần M2, M3.
+5. **Viết mã theo thứ tự phụ thuộc** ghi ở đầu mỗi kế hoạch (bảng "Phụ thuộc và chạy song song"). Hiện tại: M0 → M1 → M2 → (M3 và M4 song song) → M5 → M6 → M7; M5 cần M1, M2, M3; M6 cần M1–M4; M7 cần M1–M6. Riêng M4 Task 22 và Task 42 chạy sau khi M3 đóng.
 
 ## 13c. Soát chéo kế hoạch: làm gì, ghi ra đâu, thế nào là đạt
 
