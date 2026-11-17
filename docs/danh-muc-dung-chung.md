@@ -122,6 +122,50 @@ type Secret string
 func (Secret) LogValue() slog.Value
 ```
 
+## `internal/platform/metrics` (gói `metrics`)
+
+Package metrics gom chỉ số của tiến trình trong bộ nhớ và ghi mỗi phút một lần vào platform.metrics_minute (spec 04 mục "Đo lường"; không có /metrics, ADR C6), ghi nhịp sống vào platform.process_heartbeats và gửi nhịp sống ra dịch vụ bên ngoài (ADR-38).
+
+**Khi nào không dùng:** Không mở endpoint /metrics hay thêm thư viện chỉ số (ADR C6); không tạo Registry thứ hai trong một tiến trình (cmd/crm tạo một cái và truyền xuống). Không đặt đường dẫn thật, tham số, SĐT hay mã khách vào tên hoặc nhãn chỉ số (nhãn route dùng mẫu của ServeMux). Không dùng Flusher cho dữ liệu nghiệp vụ hay số phải chính xác tuyệt đối: lỗi commit không rõ kết quả có thể ghi một lô hai lần.
+
+```go
+func HeartbeatAge(ctx context.Context, d *db.DB, process string) (time.Duration, error)
+func Middleware(reg *Registry, next http.Handler) http.Handler
+func P95FromHist(hist []int) float64
+func ProcessName(role config.Role) string
+type Flusher struct {
+	DB      *db.DB
+	Reg     *Registry
+	Process string
+	Role    config.Role
+	Pinger  *Pinger
+	Log     *slog.Logger
+}
+func (f *Flusher) Beat(ctx context.Context, now time.Time) error
+func (f *Flusher) Flush(ctx context.Context, now time.Time) error
+func (f *Flusher) Run(ctx context.Context)
+type Kind string
+type Pinger struct {
+	URL    string
+	Client *http.Client
+}
+func (p *Pinger) Ping(ctx context.Context) error
+type Registry struct {
+}
+func NewRegistry() *Registry
+func (r *Registry) Drain() []Row
+func (r *Registry) Gauge(name string, v float64, label string)
+func (r *Registry) Inc(name, label string, by int64)
+func (r *Registry) Observe(name string, v float64, label string)
+type Row struct {
+	Name, Label string
+	Kind        Kind
+	Count       int64
+	Sum, Max    float64
+	Hist        []int
+}
+```
+
 ## `internal/platform/observability` (gói `observability`)
 
 Package observability phục vụ các điểm kiểm sức khỏe của tiến trình (/health/live, /health/ready).
