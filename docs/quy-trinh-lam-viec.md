@@ -199,7 +199,18 @@ Mỗi lỗi agent mắc lần thứ hai thêm một dòng vào mục "Bẫy đã
 - Mỗi task một phiên sạch (`/clear` hoặc phiên mới) để không mang trí nhớ của task trước; mọi thứ cần biết nằm trong kế hoạch, spec, tệp task và CLAUDE.md.
 - Một vòng review mỗi task có mã bằng agent `reviewer`; không chạy thêm `/code-review` chồng lên.
 - Chỉ chạy song song khi hai task không dùng chung tệp và không cần kết quả của nhau, mỗi task một worktree.
+- Chạy song song (chủ shop chốt 18/11/2026): mỗi task một phiên Claude chạy nền (`claude --print`) trong worktree riêng `.worktrees/task-NN`, nhánh `task-NN`, tên dự án Docker `crm-tNN` và cổng riêng (đọc từ biến môi trường, ví dụ `CRM_PG_PORT`). Không dùng subagent để viết mã, vì hook `Stop` không chạy cho subagent. Phiên điều phối gộp nhánh vào `main` theo thứ tự kế hoạch, chạy lại test sau mỗi lần gộp, rồi mới mở đợt sau từ `main` mới.
 - Đi lệch hướng (lặp vòng sửa, làm thêm việc không ai yêu cầu, muốn tắt test): dừng, ghi lại, bắt đầu lại trong phiên mới với yêu cầu rõ hơn; không sửa lần ba trong cùng phiên.
+
+## 13b. Viết kế hoạch cho các mốc (M1, M2, …)
+
+Chủ shop chốt ngày 18/11/2026. Áp dụng mỗi khi viết kế hoạch cho một mốc mới.
+
+1. **Nguồn chung:** mọi kế hoạch dựa trên spec (bảng ở `05-du-lieu-erd.md`, module ở `04-kien-truc.md`, ADR, ca kiểm thử ở `11-kich-ban-kiem-thu.md`), viết đúng khuôn kế hoạch M0 (Files, Interfaces, test thất bại có số liệu, Step R, commit). Phủ đủ tính năng của mốc trong ma trận tính năng; cuối kế hoạch liệt kê ca kiểm thử của mốc chưa được task nào phủ (phải bằng 0 hoặc có lý do).
+2. **Viết song song được:** kế hoạch các mốc viết song song (mỗi mốc một agent) vì cùng dựa trên spec. Chỗ nào dùng Interface của mốc khác mà kế hoạch mốc đó chưa có, phải ghi vào mục "Giả định về mốc trước".
+3. **Soát chéo bắt buộc** khi có từ hai kế hoạch viết song song trở lên: một agent riêng đọc mọi kế hoạch, đối chiếu từng mục "Giả định về mốc trước" với Interfaces thật của mốc đó (tên gói, hàm, bảng, operation, mã lỗi), báo và sửa chỗ lệch, trùng việc, sót việc. Chưa soát chéo thì chưa bắt đầu viết mã của mốc.
+4. **Đối chiếu với mã thật:** trước khi bắt đầu một mốc, đối chiếu Interfaces trong kế hoạch với mã đã gộp vào `main` của các mốc trước; lệch thì sửa kế hoạch trước, ghi lại đã sửa gì.
+5. **Viết mã theo thứ tự phụ thuộc** ghi ở đầu mỗi kế hoạch (bảng "Phụ thuộc và chạy song song"). Hiện tại: M0 → M1 → M2 → (M3 và M4 song song) → M5 → M6 → M7; M5 cần M1, M2; M6 cần M2, M3.
 
 ## 14. Quy trình được đóng gói thế nào để không bị "quên"
 
