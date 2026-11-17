@@ -13,15 +13,16 @@ def block(msg):
     sys.exit(2)
 
 # Đường dẫn được bảo vệ: chỉ chủ shop (hoặc phiên cài đặt ngoài apps/crm) được sửa.
-PROTECTED = [r"\.claude/", r"scripts/agent/", r"\.githooks", r"\.git/", r"crm-review", r"docs/tasks/hien-tai\.md", r"core\.hooksPath"]
-WRITE_HINT = re.compile(r"(>|\brm\b|\bmv\b|\bcp\b|\btee\b|\bsed\b[^|;&]*\s-i|\bchmod\b|\bln\b|\btruncate\b|\binstall\b|\bpython3?\b|\bperl\b|\bruby\b|\bnode\b|\bdd\b|\bunlink\b|\bgit\s+(rm|mv|checkout|restore|update-index|config)\b)")
-for pat in PROTECTED:
-    if re.search(pat, cmd) and WRITE_HINT.search(cmd):
-        block(f"lệnh có thể sửa tệp được bảo vệ ({pat.replace(chr(92), '')}). Hook, cấu hình agent, git hook, trạng thái task chỉ chủ shop đổi. Đổi trạng thái task bằng scripts/agent/new-task.sh hoặc finish-task.sh.")
+# Lệnh nhắc tới đường dẫn được bảo vệ chỉ được qua khi MỌI lệnh đơn trong đó là lệnh đọc hoặc script quy trình được phép
+# (danh sách cho phép, không phải danh sách cấm: bài thử phá 18/11 vượt danh sách cấm bằng mkdir + touch).
+PROTECTED = [r"\.claude", r"scripts/agent/", r"\.githooks", r"\.git/", r"\.git\b", r"crm-review", r"docs/tasks/hien-tai\.md", r"core\.hooksPath", r"git-dir", r"git-common-dir", r"GIT_DIR"]
+SAFE_READ = re.compile(r"^(cd|pwd|echo|printf|true|cat|ls|head|tail|grep|rg|wc|stat|file|diff|jq|git (diff|log|show|status|ls-files|rev-parse --show-toplevel|blame))\b")
+SANCTIONED = re.compile(r"^(\./)?scripts/agent/(new-task|finish-task|task-check|stop-check)\.sh\b")
 
-# Tách lệnh ghép thành các lệnh đơn.
+# Tách lệnh ghép thành các lệnh đơn. Bỏ trước các chuyển hướng vô hại (2>&1, >/dev/null) để chúng không bị đọc thành đường dẫn.
+cmd_parse = re.sub(r"\d*>&\d+|\d*>>?\s*/dev/null", " ", cmd)
 try:
-    lex = shlex.shlex(cmd, posix=True, punctuation_chars=";&|()\n")
+    lex = shlex.shlex(cmd_parse, posix=True, punctuation_chars=";&|()\n")
     lex.whitespace_split = True
     tokens = list(lex)
 except ValueError:
@@ -33,6 +34,18 @@ for t in tokens:
     else:
         cur.append(t)
 if cur: parts.append(cur)
+
+hit = [p for p in PROTECTED if re.search(p, cmd)]
+if hit:
+    stripped = re.sub(r"\d?>\s*/dev/null|2>&1", "", cmd)
+    def ok(argv):
+        while argv and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", argv[0]): argv = argv[1:]
+        line = " ".join(argv)
+        if SANCTIONED.match(line): return True
+        if not SAFE_READ.match(line): return False
+        return True
+    if ">" in stripped or "`" in cmd or "$(" in cmd or not all(ok(a) for a in parts):
+        block(f"lệnh nhắc tới phần cấu hình quy trình ({hit[0].replace(chr(92), '')}) nhưng không phải lệnh chỉ đọc. Hook, cấu hình agent, git hook, dấu duyệt, trạng thái task chỉ chủ shop đổi. Đổi trạng thái task bằng scripts/agent/new-task.sh hoặc finish-task.sh; dấu duyệt do hook ghi khi reviewer kết luận.")
 
 GIT_OPTS_WITH_ARG = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--config-env"}
 subs = []
@@ -65,6 +78,7 @@ for argv in parts:
         skip = False
         for r in rest:
             if skip: skip = False; continue
+            if re.match(r"^\d*[<>]", r): skip = not re.match(r"^\d*[<>]+\S", r); continue  # chuyển hướng ra tệp, không phải đường dẫn
             if r in ("-m", "-F", "--message", "--file", "--author", "--date", "-C", "-c", "--fixup", "--squash", "--cleanup", "-S"): skip = True; continue
             if r == "--" or not r.startswith("-"):
                 block("commit kèm đường dẫn sẽ lấy cả phần chưa review. Stage trước, commit không kèm đường dẫn.")

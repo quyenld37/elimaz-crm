@@ -10,6 +10,11 @@ path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // .tool_input.notebo
 [ -z "$path" ] && exit 0
 
 case "$path" in
+  */.claude/*|*/.git/*|*crm-review*)
+    echo "Chặn: $path thuộc phần cấu hình hoặc bản ghi của Claude Code, git. Agent không sửa." >&2
+    exit 2 ;;
+esac
+case "$path" in
   /*) rel=$(rel_to_root "$path"); [ -z "$rel" ] && exit 0 ;;   # ngoài repo CRM: không phải việc của hook này
   *) rel=$path ;;
 esac

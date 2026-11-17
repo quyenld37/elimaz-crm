@@ -26,4 +26,4 @@ with open(os.path.join(rd, "log"), "a", encoding="utf-8") as log:
     log.write(f"{datetime.datetime.now().isoformat(timespec='seconds')} code={code_hash} verdict={'DAT' if ok else 'KHONG'} msg_chars={len(msg)}\n")
 if ok and code_hash:
     with open(os.path.join(rd, code_hash), "w", encoding="utf-8") as f:
-        f.write(msg)
+        json.dump({"code": code_hash, "transcript": tp or ""}, f, ensure_ascii=False)

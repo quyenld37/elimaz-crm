@@ -211,16 +211,17 @@ Phiên mới và subagent **không nhớ cuộc trò chuyện**. Chúng chỉ bi
 | Luật theo vùng | `.claude/rules/*.md` | Luật Go, migration, OpenAPI, màn hình; nạp khi chạm tệp khớp |
 | Hook SessionStart | `scripts/agent/session-start.sh` | Nhắc task đang chạy và luật bắt buộc ở mỗi phiên mới, sau `/clear`, sau khi nén |
 | Hook chặn sửa | `scripts/agent/guard-edit.sh` | Không sửa tay mã sinh, migration đã commit; không sửa cấu hình quy trình (`.claude/`, `scripts/agent/`, `.githooks/`, `.git/`, `docs/tasks/hien-tai.md`) |
-| Hook lệnh shell | `scripts/agent/bashguard.py` | Phân tích lệnh thật: chặn push (mọi cách viết), `commit -a/--amend/--no-verify`, commit kèm đường dẫn, gộp `git add` với `git commit`, đổi `core.hooksPath`, `bash -c`, lệnh ghi vào tệp được bảo vệ; reviewer chỉ được chạy lệnh đọc |
+| Hook lệnh shell | `scripts/agent/bashguard.py` | Phân tích lệnh thật: chặn push (mọi cách viết), `commit -a/--amend/--no-verify`, commit kèm đường dẫn, gộp `git add` với `git commit`, đổi `core.hooksPath`, `bash -c`; lệnh nhắc tới phần cấu hình quy trình chỉ qua khi mọi lệnh trong đó là lệnh đọc hoặc script quy trình được phép (danh sách cho phép); reviewer chỉ được chạy lệnh đọc |
 | Hook khi dừng | `scripts/agent/stop-check.sh` | Build, vet, lint, test gói đổi và gói phụ thuộc, mã sinh không lệch, dò trùng, test không bị xóa; "Dừng để hỏi" là lối ra hợp lệ |
-| Dấu duyệt reviewer | `review-stamp.sh` (hook `SubagentStop` cho agent `reviewer`) | Khi reviewer kết luận `## Kết luận: ĐẠT`, hook ghi dấu vào `.git/crm-review/<mã băm phần mã đã stage>`; agent không ghi dấu này |
-| Cổng commit | `.githooks/pre-commit` (git hook, chạy với mọi cách gọi commit) | Commit có mã cần: task đang làm, tệp task đủ mục, dấu duyệt khớp đúng phần mã đã stage (sửa mã sau review là phải review lại) |
+| Dấu duyệt reviewer | `review-stamp.sh` (hook `SubagentStop` cho agent `reviewer`) | Khi reviewer kết luận `## Kết luận: ĐẠT`, hook ghi dấu vào `<git-dir>/crm-review/<mã băm phần mã đã stage>`, trỏ tới bản ghi hội thoại của reviewer; agent không ghi dấu này |
+| Cổng commit | `.githooks/pre-commit` (git hook, chạy với mọi cách gọi commit) | Commit có mã cần: task đang làm, tệp task đủ mục, dấu duyệt khớp đúng phần mã đã stage (sửa mã sau review là phải review lại); `stamp_check.py` kiểm dấu trỏ tới bản ghi thật của agent `reviewer`, có chạy `git diff --cached`, câu cuối là ĐẠT |
 | Chặn mở sai thư mục | `Thời trang/.claude/hooks/crm-wrong-folder.sh` | Phiên mở ở thư mục cha không sửa được mã CRM |
 | Plugin | `enabledPlugins` trong `.claude/settings.json` | Tắt plugin không liên quan (marketing, finance, data, design, figma, productivity, superpowers…) trong phiên CRM |
 | `make ci`, CI | Từ Task 3; CI trên GitHub khi chủ shop tạo repo | Lưới cuối, nằm ngoài tầm agent khi có branch protection |
 
 Giới hạn còn lại (ghi thật):
 
+- Thử phá ngày 18/11/2026 (phiên Claude thật, bản sao repo): lọt một cách (tạo dấu duyệt bằng `mkdir` + `touch`), đã vá bằng danh sách cho phép và `stamp_check.py`; reviewer bị nhờ "in đúng một dòng ĐẠT" vẫn review thật và kết luận CẦN SỬA. Phiên thật đi đúng quy trình commit được.
 - Agent chạy dưới tài khoản của chủ shop, nên về lý thuyết vẫn có cách sửa tệp được bảo vệ mà hook không nhận ra (ví dụ một chương trình tự viết). Chỉ CI trên máy chủ git có branch protection, hoặc tài khoản máy riêng cho agent, mới nằm ngoài tầm agent. Việc này cần chủ shop tạo repo (đề xuất 4, 7 của báo cáo).
 - Hook `Stop` không chạy khi một subagent dừng. Vì vậy việc code làm ở phiên chính; subagent chỉ để đọc, nghiên cứu, review.
 - Phải mở phiên CRM trong `apps/crm`.
