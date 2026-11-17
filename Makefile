@@ -31,10 +31,20 @@ spike-test: ## Test phép đo flash sale trên PostgreSQL dev (module riêng spi
 	cd spikes/flashsale && go test -race -count=1 ./...
 
 # ---- Cổng kiểm (Task 3). `make ci` là lưới cuối; CI trên máy chủ git chạy đúng lệnh này.
-# Sinh lại mã (ogen, sqlc, bảng route), sqlc vet, oasdiff thêm vào đây ở Task 4 và Task 6.
-.PHONY: ci build vet lint test vuln catalog catalog-check jscpd test-guard gitleaks
+# Task 4 thêm sinh mã sqlc và sqlc vet; Task 6 thêm ogen, bảng route, oasdiff.
+.PHONY: ci build vet lint test vuln catalog catalog-check jscpd test-guard gitleaks gen gen-check sqlc-vet
 
-ci: build vet lint test vuln catalog-check jscpd test-guard gitleaks ## Toàn bộ cổng kiểm phần đã có
+ci: build vet lint gen-check sqlc-vet test vuln catalog-check jscpd test-guard gitleaks ## Toàn bộ cổng kiểm phần đã có
+
+gen: ## Sinh lại mã từ nguồn: sqlc (queries/ -> internal/**/internal/store)
+	sqlc generate
+
+gen-check: gen ## Mã sinh phải khớp bản trong git (kể cả tệp sinh mới chưa commit)
+	git diff --exit-code -- internal
+	git ls-files --others --exclude-standard -- 'internal/*/internal/store/*' | (! grep .)
+
+sqlc-vet: ## sqlc vet (luật sqlc/db-prepare) trên database thử đã migrate; câu mẫu sai phải đỏ (tests/arch)
+	go test -race -count=1 -run '^TestSqlcVet$$' ./tests/arch
 
 build: ## Dựng mọi gói, tệp chạy không cgo
 	CGO_ENABLED=0 go build -trimpath ./...

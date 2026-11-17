@@ -51,6 +51,47 @@ type Role string
 func ParseRole(s string) (Role, error)
 ```
 
+## `internal/platform/db` (gói `db`)
+
+Package db mở pool pgx có giới hạn thời gian (ADR-26), chạy transaction có thử lại (db.RetryTx, ADR-46) và chạy migration goose có checksum và luật mở rộng trước (Migrate, LintContract).
+
+**Khi nào không dùng:** Không mở transaction bằng Begin/BeginTx/pgx.BeginFunc ở gói khác (txusage_test chặn) và không tự viết vòng thử lại: dùng RetryTx (hoặc tenancy.WithTenant từ Task 5). Hàm trong RetryTx không gọi mạng, không cộng dồn vào biến bên ngoài vì có thể chạy tới 4 lần. Không gọi Migrate ngoài vai trò migrate; không mở pool thứ hai cho cùng vai trò.
+
+```go
+func Backoff(n int, rnd func() float64) time.Duration
+func LintContract(sql string) []string
+func Migrate(ctx context.Context, ownerURL string) (applied []string, err error)
+func TransientCode(err error) (code string, ok bool)
+type DB struct {
+	Pool *pgxpool.Pool
+
+	OnRetry func(code string, attempt int)
+
+	OnExhausted func(code string)
+}
+func Open(ctx context.Context, url string, o PoolOptions) (*DB, error)
+func (d *DB) RetryTx(ctx context.Context, o TxOptions, fn func(pgx.Tx) error) error
+type PoolOptions struct {
+	MaxConns         int32
+	StatementTimeout time.Duration
+	IdleInTxTimeout  time.Duration
+	LockTimeout      time.Duration
+
+	DefaultTx TxOptions
+
+	Tracing bool
+}
+type Setting struct {
+	Name, Value string
+}
+type TxOptions struct {
+	LockTimeout      time.Duration
+	StatementTimeout time.Duration
+	IsoLevel         pgx.TxIsoLevel
+	Settings         []Setting
+}
+```
+
 ## `internal/platform/logging` (gói `logging`)
 
 Package logging dựng logger JSON của CRM: che sâu dữ liệu cá nhân và bí mật ở mọi cấp, thêm trace_id/span_id từ ctx, và khi có LOG_DIR thì ghi thêm vào tệp theo ngày.
