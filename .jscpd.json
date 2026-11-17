@@ -1,0 +1,19 @@
+{
+  "format": ["go", "typescript", "tsx"],
+  "minTokens": 50,
+  "minLines": 5,
+  "similarity": 0.8,
+  "ignore": [
+    "**/internal/httpapi/gen/**",
+    "**/internal/store/**",
+    "**/internal/httpapi/routes_gen.go",
+    "**/console/src/api/**",
+    "**/testdata/**",
+    "**/node_modules/**",
+    "spikes/**",
+    "**/.worktrees/**"
+  ],
+  "reporters": ["console"],
+  "gitignore": true,
+  "exitCode": 1
+}

@@ -1,0 +1,16 @@
+# gitleaks 8.x: luật mặc định cộng vài ngoại lệ có lý do. Chạy trong `make ci` (cả lịch sử git lẫn thư mục làm việc).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Chuỗi giả có chủ ý"
+paths = [
+  # Ví dụ "ĐỪNG làm" trong tài liệu skill đã đọc và ghim ở Task 0.
+  '''^\.claude/skills/.+\.md$''',
+]
+regexes = [
+  # Bí mật giả 32 ký tự dùng trong test (config, e2e).
+  '''0123456789abcdef0123456789abcdef''',
+  # Tên tệp log theo ngày trong test (api-2026-11-18.log) bị nhận nhầm là khóa API.
+  '''[a-z]+-\d{4}-\d{2}-\d{2}\.log''',
+]
