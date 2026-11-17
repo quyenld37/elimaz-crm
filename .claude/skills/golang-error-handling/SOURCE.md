@@ -46,3 +46,5 @@ references/error-wrapping.md
 
 - Biến sentinel `var ErrX = errors.New(...)` giữ nguyên: CLAUDE.md của CRM cho phép rõ.
 - Không thấy script, hook, lệnh mạng hay telemetry trong các tệp này.
+
+- 17/11/2026: bỏ trường `paths:` khỏi frontmatter để skill được nạp sẵn vào agent `crm-implementer` (khai trong `skills:` của agent).

@@ -7,7 +7,7 @@ cd "${CLAUDE_PROJECT_DIR:-$(pwd)}" || exit 0
 export HIGH_RISK_DIRS
 
 changed=$(changed_files)
-[ -z "$changed" ] && exit 0
+if [ -z "$changed" ] && [ "${1:-}" != "--task" ]; then exit 0; fi
 
 fail=""
 run() {  # run "<mô tả>" lệnh...
@@ -69,6 +69,11 @@ fi
 
 # Test không được lặng lẽ biến mất.
 run "test-guard (so với HEAD)" scripts/agent/test-guard.sh HEAD
+
+# Agent crm-implementer: tệp task phải đủ mục (hoặc có mục "Dừng để hỏi").
+if [ "${1:-}" = "--task" ]; then
+  run "tệp task chưa đủ (docs/tasks/task-NN.md)" scripts/agent/task-check.sh
+fi
 
 if [ -n "$fail" ]; then
   printf 'Chưa được báo xong. Sửa các mục dưới rồi thử lại (không tắt hook, không nới test):\n%s' "$fail" >&2

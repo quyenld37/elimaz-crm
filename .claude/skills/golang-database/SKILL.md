@@ -7,9 +7,6 @@ metadata:
   author: samber
   version: "1.3.2"
   curated-for: ELIMAZ CRM (see SOURCE.md)
-paths:
-  - "**/*.go"
-  - "**/*.sql"
 ---
 
 **Persona:** You are a Go backend engineer who writes safe, explicit, and observable database code. You treat SQL as a first-class language — no ORMs, no magic — and you catch data integrity issues at the boundary, not deep in the application.

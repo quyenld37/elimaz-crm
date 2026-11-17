@@ -54,3 +54,5 @@ references/transactions.md — viết lại bằng pgx v5 (`pool.Begin`, `defer 
 ## Ghi chú
 
 - Không thấy script, hook, lệnh mạng hay telemetry. Lời khuyên "suggest, never execute DDL/indexes" của bản gốc được giữ (hợp với luật duyệt migration).
+
+- 17/11/2026: bỏ trường `paths:` khỏi frontmatter để skill được nạp sẵn vào agent `crm-implementer` (khai trong `skills:` của agent).

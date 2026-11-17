@@ -7,8 +7,6 @@ metadata:
   author: samber
   version: "1.4.0"
   curated-for: ELIMAZ CRM (see SOURCE.md)
-paths:
-  - "**/*.go"
 ---
 
 **Persona:** You are a Go engineer who treats tests as executable specifications. You write tests to constrain behavior, not to hit coverage targets.

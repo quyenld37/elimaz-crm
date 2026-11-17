@@ -17,7 +17,12 @@ Tệp này viết tay, giữ dưới 200 dòng. Chỉ ghi điều không đọc 
 
 ## Cách làm mỗi task
 
-Quy trình đầy đủ (vai trò, các loại việc, danh sách kiểm kiến trúc và đồng thời, khi nào dừng hỏi): `docs/quy-trinh-lam-viec.md`. Đọc trước mỗi task. Tóm tắt:
+Quy trình đầy đủ (vai trò, các loại việc, danh sách kiểm kiến trúc và đồng thời, khi nào dừng hỏi): `docs/quy-trinh-lam-viec.md`. Đọc trước mỗi task.
+
+- Phiên chính là **điều phối**: dùng skill `crm-dieu-phoi`, không tự sửa mã. Mã chỉ do agent `crm-implementer` sửa (skill `crm-task` nạp sẵn); hook chặn mọi nơi khác.
+- Commit có mã chỉ qua khi tệp task đủ mục và reviewer kết luận ĐẠT (hook chặn).
+
+Tóm tắt các bước:
 
 1. Viết `docs/tasks/task-NN.md` **trước khi viết test**, theo mẫu ở mục "Cách làm mỗi task" của kế hoạch:
    - **Ảnh hưởng:** ký hiệu Go xuất ra ngoài sẽ đổi và số chỗ tham chiếu (công cụ LSP `findReferences`), gói phụ thuộc ngược (`go list`), operation OpenAPI bị chạm và oasdiff có báo không, chỗ dùng trên màn hình, câu sqlc và bảng, pha migration, test sẽ chạy.
@@ -26,7 +31,7 @@ Quy trình đầy đủ (vai trò, các loại việc, danh sách kiểm kiến 
 3. Trước khi sửa định nghĩa một ký hiệu được dùng ở nơi khác: tìm mọi chỗ tham chiếu bằng LSP, sửa hết trong cùng task. Đổi tên dùng rename của gopls, không thay chữ hàng loạt.
 4. Chuyển từ cách cũ sang cách mới thì **xóa** cách cũ khi đã hết nơi dùng; không bọc cách cũ trong một điều kiện để giữ lại.
 5. Trước khi báo xong: hook Stop tự chạy `scripts/agent/stop-check.sh`. Không qua thì sửa tiếp. Hook chặn tới lần thứ 8 liền thì dừng và báo chủ shop, không tìm cách vượt hook.
-6. Chạy reviewer chỉ đọc `.claude/agents/reviewer.md` trên diff của task (một vòng review duy nhất). Chỉ sửa phát hiện ảnh hưởng tính đúng; phát hiện về phong cách thì bỏ qua.
+6. Điều phối chạy reviewer chỉ đọc `.claude/agents/reviewer.md` trên diff của task (một vòng review duy nhất), rồi mới commit. Chỉ sửa phát hiện ảnh hưởng tính đúng; phát hiện về phong cách thì bỏ qua.
 7. Điền bảng bằng chứng trong tệp task: tiêu chí → tên test → lệnh đã chạy → trích kết quả. "Mọi test đều qua" một mình không phải bằng chứng.
 
 Dấu hiệu đang chệch hướng, gặp là dừng và báo: chạy vòng lặp sửa đi sửa lại; làm thêm thứ không ai yêu cầu; muốn tắt, xóa hay nới một test.

@@ -23,3 +23,16 @@ changed_files() {
     { git ls-files; git ls-files --others --exclude-standard; } | sort -u
   fi
 }
+
+# Đường dẫn tương đối so với gốc repo. Chuẩn hóa Unicode (NFC) cả hai phía, vì macOS và git có thể
+# trả cùng một tên thư mục có dấu ("Thời trang") theo hai cách mã hóa khác nhau.
+# In ra rỗng nếu tệp nằm ngoài repo.
+rel_to_root() {
+  python3 - "$1" "$(crm_root)" <<'PY'
+import os, sys, unicodedata
+n = lambda p: unicodedata.normalize("NFC", os.path.abspath(p))
+path, root = n(sys.argv[1]), n(sys.argv[2])
+if path == root or path.startswith(root + os.sep):
+    print(os.path.relpath(path, root))
+PY
+}

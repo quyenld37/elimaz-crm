@@ -7,12 +7,11 @@ cd "${CLAUDE_PROJECT_DIR:-$(pwd)}" || exit 0
 
 input=$(cat)
 path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // .tool_input.notebook_path // empty')
+agent=$(printf '%s' "$input" | jq -r '.agent_type // empty')
 [ -z "$path" ] && exit 0
 
-root=$(crm_root)
 case "$path" in
-  "$root"/*) rel=${path#"$root"/} ;;
-  /*) exit 0 ;;   # ngoài repo CRM: không phải việc của hook này
+  /*) rel=$(rel_to_root "$path"); [ -z "$rel" ] && exit 0 ;;   # ngoài repo CRM: không phải việc của hook này
   *) rel=$path ;;
 esac
 
@@ -20,6 +19,15 @@ if is_generated_path "$rel"; then
   echo "Chặn: $rel là mã sinh tự động. Sửa nguồn (openapi/openapi.yaml hoặc queries/**/*.sql) rồi chạy 'make gen'." >&2
   exit 2
 fi
+
+# Mã chỉ do agent crm-implementer sửa (quy trình mục 1, 13). Phiên chính và agent khác chỉ sửa tài liệu, cấu hình agent.
+case "$rel" in
+  internal/*|cmd/*|tools/*|tests/*|console/src/*|migrations/*|queries/*|openapi/*|go.mod|go.sum|Makefile|sqlc.yaml|.golangci.yml)
+    if [ "$agent" != "crm-implementer" ]; then
+      echo "Chặn: $rel là mã. Mã chỉ do agent crm-implementer sửa (docs/quy-trinh-lam-viec.md mục 13). Nếu bạn là phiên chính: giao việc cho agent crm-implementer theo skill crm-dieu-phoi. Nếu bạn là agent khác: dừng và báo lại người giao việc." >&2
+      exit 2
+    fi ;;
+esac
 
 case "$rel" in
   migrations/*.sql)

@@ -1,6 +1,6 @@
 # Quy trình làm việc của AI agent cho CRM ELIMAZ
 
-*Bản 1, 17/11/2026. Chờ chủ shop duyệt. Áp dụng cho mọi việc trong `apps/crm` từ Task 1 của M0.*
+*Bản 2, 17/11/2026. Chờ chủ shop duyệt. Áp dụng cho mọi việc trong `apps/crm` từ Task 1 của M0. Bản 2 thêm mục 14: quy trình được đóng gói vào repo để mọi phiên mới và mọi subagent đều phải theo.*
 
 Tài liệu này nói **ai làm gì, theo thứ tự nào, máy kiểm gì, và khi nào phải dừng hỏi chủ shop**, để mỗi task được làm đúng, khớp kiến trúc, dễ mở rộng. Nó không thay spec: spec nói *làm cái gì*, tài liệu này nói *làm như thế nào*.
 
@@ -13,8 +13,8 @@ Nguồn của từng bước: `reports/Quy trình AI agent viết code.md` (có 
 | Vai | Là ai | Làm gì | Không được làm |
 |---|---|---|---|
 | Chủ shop | Bạn | Duyệt spec, kế hoạch, mockup; quyết ở các điểm dừng; OK riêng cho mọi việc ngoài máy này | — |
-| Điều phối | Phiên Claude chính | Giao từng task cho một agent mới, đưa đúng tài liệu cần đọc, nhận kết quả, chạy reviewer, báo chủ shop | Tự viết code của task trong phiên điều phối |
-| Agent làm task | Một agent mới cho mỗi task, phiên sạch, bản sao code riêng (worktree) | Làm đúng một task theo mục 4 | Làm việc ngoài task; push, deploy, vào máy chủ, tạo tài khoản |
+| Điều phối | Phiên Claude chính, theo skill `crm-dieu-phoi` | Giao từng task cho một agent `crm-implementer` mới, đưa đúng tài liệu cần đọc, nhận kết quả, chạy reviewer, kiểm tệp task, commit, báo chủ shop | Sửa mã (hook chặn) |
+| Agent làm task | `crm-implementer`, một agent mới cho mỗi task, theo skill `crm-task` | Làm đúng một task theo mục 4; là agent duy nhất được sửa mã | Làm việc ngoài task; commit; push, deploy, vào máy chủ, tạo tài khoản |
 | Reviewer | Một agent khác, chỉ có quyền đọc (`.claude/agents/reviewer.md`) | Đối chiếu kết quả với kế hoạch, spec và mục 5–8 của tài liệu này | Sửa file; đòi thêm tầng trừu tượng hay sửa phong cách |
 | Máy | Hook, `make ci`, test kiến trúc | Chặn những luật không có ngoại lệ (mục 9) | — |
 
@@ -64,7 +64,7 @@ Thiếu một điều: dừng, bổ sung kế hoạch hoặc hỏi chủ shop.
 | 5 | Cổng máy | Hook | Định dạng sau mỗi lần sửa; khi định báo xong: build, vet, lint, test của gói đổi và gói phụ thuộc, mã sinh không lệch, dò trùng, test không bị xóa hay tắt | **Máy chặn** |
 | 6 | Review | Reviewer | Kết luận ĐẠT hoặc CẦN SỬA, kèm dẫn chứng | Điều phối đọc; chỉ sửa phát hiện về tính đúng, an toàn, kiến trúc |
 | 7 | Bằng chứng | Agent | Bảng trong tệp task: tiêu chí → test → lệnh → trích kết quả. Vùng rủi ro cao thêm mutation testing khi đóng mốc | Reviewer, `make ci` |
-| 8 | Commit và báo | Agent, điều phối | Commit cục bộ; điều phối gửi chủ shop tóm tắt tiếng Việt (mục 11) | Chủ shop |
+| 8 | Commit và báo | Điều phối | Commit cục bộ sau khi reviewer ĐẠT và `task-check.sh --commit` qua; gửi chủ shop tóm tắt tiếng Việt (mục 11) | Hook chặn commit có mã khi chưa đủ; chủ shop |
 
 ### 4.3 Định nghĩa "xong"
 
@@ -197,7 +197,36 @@ Mỗi lỗi agent mắc lần thứ hai thêm một dòng vào mục "Bẫy đã
 ## 13. Điều phối nhiều task
 
 - M0 chạy **lần lượt từng task** theo thứ tự kế hoạch, vì task sau dùng Interfaces của task trước.
-- Mỗi task một agent mới (skill `superpowers:subagent-driven-development`), đưa đúng: văn bản task, Interfaces của các task nó dùng, đường dẫn tài liệu này và CLAUDE.md. Không đưa lịch sử trò chuyện.
+- Mỗi task một agent `crm-implementer` mới (cách chủ shop chọn ngày 17/11; skill `crm-dieu-phoi` thay cho `superpowers:subagent-driven-development` trong repo này), đưa đúng: văn bản task, Interfaces của các task nó dùng, mục spec, quyết định liên quan của chủ shop. Không đưa lịch sử trò chuyện. Các task M0 chạy lần lượt trên cùng một bản code; worktree chỉ dùng khi chạy song song.
 - Một vòng review mỗi task bằng `reviewer.md`; không chạy thêm `/code-review` chồng lên.
 - Chỉ chạy song song khi hai task không dùng chung tệp và không cần kết quả của nhau, mỗi task một worktree; ghép lại theo thứ tự kế hoạch.
 - Agent làm task đi lệch hướng (lặp vòng sửa, làm thêm việc không ai yêu cầu, muốn tắt test): điều phối dừng agent đó, ghi lại, giao lại với yêu cầu rõ hơn trong phiên mới, không sửa lần ba trong cùng phiên.
+
+## 14. Quy trình được đóng gói thế nào để không bị "quên"
+
+Phiên mới và subagent **không nhớ cuộc trò chuyện**. Chúng chỉ biết những gì Claude Code tự nạp hoặc tự chạy. Vì vậy quy trình nằm trong repo `apps/crm` (đi cùng code trong git), ở các chỗ dưới đây. Nguồn: tài liệu Claude Code về subagent, hook, bộ nhớ, ngữ cảnh (đọc ngày 17/11/2026).
+
+| Cơ chế | Nằm ở | Khi nào có hiệu lực | Giữ điều gì |
+|---|---|---|---|
+| `CLAUDE.md` | gốc `apps/crm` | Mọi phiên mở trong `apps/crm`, mọi subagent tự định nghĩa và agent chung; nạp lại sau khi phiên bị nén | Luật chung, lệnh, chỗ để mã chung, lỗi và log |
+| Luật theo vùng | `.claude/rules/*.md` | Khi phiên hay subagent chạm tệp khớp đường dẫn | Luật Go, migration, OpenAPI, màn hình |
+| Hook SessionStart | `scripts/agent/session-start.sh` | Mỗi phiên mới, phiên tiếp tục, sau `/clear`, sau khi nén | Nhắc task đang chạy và các luật bắt buộc nhất |
+| Hook SubagentStart | `scripts/agent/subagent-start.sh` | Mỗi agent chung được tạo | Nhắc agent chung không được sửa mã |
+| Agent `crm-implementer` | `.claude/agents/crm-implementer.md` | Mỗi lần điều phối giao task | Lời dặn hệ thống của agent; **nạp sẵn** skill `crm-task` và ba skill Go (error-handling, testing, database) |
+| Agent `reviewer` | `.claude/agents/reviewer.md` | Sau mỗi task | Chỉ có quyền đọc; kiểm theo mục 5–8 |
+| Skill `crm-task`, `crm-dieu-phoi` | `.claude/skills/` | Nạp sẵn vào implementer; phiên chính gọi khi làm task | Các bước bắt buộc, đúng thứ tự |
+| Hook chặn sửa | `guard-edit.sh` | Mọi lần sửa tệp, ở phiên chính và mọi subagent | Mã chỉ do `crm-implementer` sửa; không sửa mã sinh, migration đã commit |
+| Hook định dạng | `format.sh` | Sau mỗi lần sửa | Một cách định dạng |
+| Hook khi dừng | `stop-check.sh` (phiên chính và implementer), `task-check.sh` (implementer) | Khi định báo xong | Build, vet, lint, test gói đổi và gói phụ thuộc, mã sinh không lệch, dò trùng, test không bị xóa; tệp task đủ mục |
+| Hook lệnh shell | `guard-bash.sh` | Trước mỗi lệnh shell | Chặn push; chặn commit có mã khi tệp task chưa đủ hoặc reviewer chưa ĐẠT |
+| Tệp task, mẫu, trạng thái | `docs/tasks/_mau.md`, `task-NN.md`, `hien-tai.md` | Mỗi task | Ảnh hưởng, Tái dùng, soát thiết kế, bằng chứng, kết luận reviewer |
+| `make ci`, CI | Từ Task 3, Task 23 | Mỗi lần kiểm toàn bộ, mỗi lần đẩy lên GitHub | Lưới cuối cho mọi thứ lọt hook |
+
+Giới hạn đã biết:
+
+- Hook chỉ chặn công cụ sửa tệp và lệnh shell có chứa `git commit`/`git push` nguyên chữ. Sửa tệp bằng lệnh shell thì lọt hook chặn sửa; lưới đỡ là `make ci`, `test-guard.sh` và reviewer.
+- Agent `Explore` và `Plan` có sẵn của Claude Code không nạp `CLAUDE.md`; chỉ dùng chúng để đọc, không giao việc.
+- Hook chặn khi dừng: Claude Code bỏ qua sau 8 lần chặn liền ở phiên chính; với subagent, tài liệu chưa nói. Luật: tới mức đó thì dừng và báo.
+- Hook trong định nghĩa agent của dự án chỉ chạy khi thư mục `apps/crm` đã được tin cậy trong Claude Code.
+- Mở phiên ở thư mục cha "Thời trang" thì hook và luật của CRM không chạy. Luôn mở phiên CRM trong `apps/crm`.
+
