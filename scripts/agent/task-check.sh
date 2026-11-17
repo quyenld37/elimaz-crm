@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Kiểm tệp task của task đang chạy đã điền đủ chưa.
-# Dùng: task-check.sh [--commit]   (--commit: đòi thêm reviewer kết luận ĐẠT)
+# Dùng: task-check.sh [--commit]   (--commit: không chấp nhận lối ra "Dừng để hỏi"; dấu duyệt reviewer do .githooks/pre-commit kiểm)
 # Thoát 0: đủ, hoặc không có task đang chạy. Thoát 1: thiếu (in danh sách ra stderr).
 set -u
 cd "${CLAUDE_PROJECT_DIR:-$(pwd)}" || exit 0
@@ -23,9 +23,6 @@ done
 grep -q "CHƯA ĐIỀN" "$f" && miss="${miss}- còn chỗ ghi \"CHƯA ĐIỀN\"\n"
 rows=$(awk '/^## Bằng chứng/{on=1;next} /^## /{on=0} on && /^\|/ && !/^\|---/ && !/Tiêu chí/' "$f" | wc -l | tr -d ' ')
 [ "$rows" -ge 1 ] || miss="${miss}- bảng Bằng chứng chưa có dòng nào\n"
-if [ "${1:-}" = "--commit" ]; then
-  grep -q "^Kết luận: ĐẠT" "$f" || miss="${miss}- reviewer chưa kết luận ĐẠT (mục Reviewer phải có dòng \"Kết luận: ĐẠT\")\n"
-fi
 if [ -n "$miss" ]; then
   printf "task-check: tệp %s chưa đủ:\n%b" "$f" "$miss" >&2
   exit 1

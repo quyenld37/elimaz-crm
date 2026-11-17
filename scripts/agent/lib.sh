@@ -36,3 +36,10 @@ if path == root or path.startswith(root + os.sep):
     print(os.path.relpath(path, root))
 PY
 }
+
+# Mã băm của phần MÃ đã stage (không tính tài liệu, tệp task), dùng cho dấu duyệt reviewer.
+CODE_PATHS="internal cmd tools tests console/src migrations queries openapi go.mod go.sum Makefile sqlc.yaml .golangci.yml"
+staged_code_hash() {
+  # shellcheck disable=SC2086
+  git ls-files --stage -- $CODE_PATHS 2>/dev/null | shasum -a 256 | cut -c1-40
+}

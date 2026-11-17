@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Cổng commit: chạy với mọi cách gọi git commit. Commit có mã cần:
+#  1) có task đang làm và tệp task đủ mục;
+#  2) dấu duyệt của reviewer cho đúng phần mã đã stage (.git/crm-review/<staged_code_hash>).
+cd "$(git rev-parse --show-toplevel)" || exit 1
+. scripts/agent/lib.sh
+if git diff --cached --name-only | grep -E -q '^(internal|cmd|tools|tests|console/src|migrations|queries|openapi)/|^(go\.mod|go\.sum|Makefile|sqlc\.yaml|\.golangci\.yml)$'; then
+  st=$(sed -n 's/^Trạng thái: *//p' docs/tasks/hien-tai.md 2>/dev/null | head -1)
+  if [ "$st" != "đang làm" ]; then
+    echo "Cổng commit: commit có mã cần một task đang làm (scripts/agent/new-task.sh)." >&2; exit 1
+  fi
+  if ! CLAUDE_PROJECT_DIR=$(pwd) scripts/agent/task-check.sh --commit; then
+    echo "Cổng commit: tệp task chưa đủ mục." >&2; exit 1
+  fi
+  tree=$(staged_code_hash)
+  if [ ! -f ".git/crm-review/$tree" ]; then
+    echo "Cổng commit: chưa có kết luận ĐẠT của reviewer cho đúng phần đã stage (mã băm $tree). Stage xong rồi chạy agent reviewer; sửa gì sau khi review thì phải review lại." >&2; exit 1
+  fi
+fi
+exit 0

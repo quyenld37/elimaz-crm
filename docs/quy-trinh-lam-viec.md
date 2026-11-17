@@ -203,26 +203,24 @@ Mỗi lỗi agent mắc lần thứ hai thêm một dòng vào mục "Bẫy đã
 
 ## 14. Quy trình được đóng gói thế nào để không bị "quên"
 
-Phiên mới và subagent **không nhớ cuộc trò chuyện**. Chúng chỉ biết những gì Claude Code tự nạp hoặc tự chạy. Vì vậy quy trình nằm trong repo `apps/crm` (đi cùng code trong git), ở các chỗ dưới đây. Nguồn: tài liệu Claude Code về subagent, hook, bộ nhớ, ngữ cảnh (đọc ngày 17/11/2026).
+Phiên mới và subagent **không nhớ cuộc trò chuyện**. Chúng chỉ biết những gì Claude Code tự nạp hoặc tự chạy. Vì vậy quy trình nằm trong repo `apps/crm` (đi cùng code trong git). Bản 3 (18/11) vá năm cách lọt mà báo cáo `reports/Chuẩn hóa quy trình AI agent.md` tìm ra.
 
-| Cơ chế | Nằm ở | Khi nào có hiệu lực | Giữ điều gì |
-|---|---|---|---|
-| `CLAUDE.md` | gốc `apps/crm` | Mọi phiên mở trong `apps/crm` và mọi subagent (trừ Explore, Plan); nạp lại sau khi phiên bị nén | Luật chung, các bước làm task, lệnh, chỗ để mã chung, lỗi và log |
-| Luật theo vùng | `.claude/rules/*.md` | Khi phiên hay subagent chạm tệp khớp đường dẫn | Luật Go, migration, OpenAPI, màn hình |
-| Hook SessionStart | `scripts/agent/session-start.sh` | Mỗi phiên mới, phiên tiếp tục, sau `/clear`, sau khi nén | Nhắc task đang chạy và các luật bắt buộc nhất |
-| Agent `reviewer` | `.claude/agents/reviewer.md` | Sau mỗi task | Chỉ có quyền đọc; kiểm theo mục 5–8 |
-| Hook chặn sửa | `guard-edit.sh` | Mọi lần sửa tệp, ở phiên chính và mọi subagent | Không sửa tay mã sinh, migration đã commit |
-| Hook định dạng | `format.sh` | Sau mỗi lần sửa | Một cách định dạng |
-| Hook khi dừng | `stop-check.sh` (`Stop`) | Khi định báo xong | Build, vet, lint, test gói đổi và gói phụ thuộc, mã sinh không lệch, dò trùng, test không bị xóa |
-| Hook lệnh shell | `guard-bash.sh` | Trước mỗi lệnh shell | Chặn push; chặn commit có mã khi tệp task chưa đủ hoặc reviewer chưa ĐẠT |
-| Tệp task, mẫu, trạng thái | `docs/tasks/_mau.md`, `task-NN.md`, `hien-tai.md` | Mỗi task | Ảnh hưởng, Tái dùng, soát thiết kế, bằng chứng, kết luận reviewer |
-| `make ci`, CI | Từ Task 3, Task 23 | Mỗi lần kiểm toàn bộ, mỗi lần đẩy lên GitHub | Lưới cuối cho mọi thứ lọt hook |
+| Cơ chế | Nằm ở | Giữ điều gì |
+|---|---|---|
+| `CLAUDE.md` | gốc `apps/crm` | Luật chung, các bước làm task, lệnh; nạp ở mọi phiên và subagent (trừ Explore, Plan), nạp lại sau khi nén |
+| Luật theo vùng | `.claude/rules/*.md` | Luật Go, migration, OpenAPI, màn hình; nạp khi chạm tệp khớp |
+| Hook SessionStart | `scripts/agent/session-start.sh` | Nhắc task đang chạy và luật bắt buộc ở mỗi phiên mới, sau `/clear`, sau khi nén |
+| Hook chặn sửa | `scripts/agent/guard-edit.sh` | Không sửa tay mã sinh, migration đã commit; không sửa cấu hình quy trình (`.claude/`, `scripts/agent/`, `.githooks/`, `.git/`, `docs/tasks/hien-tai.md`) |
+| Hook lệnh shell | `scripts/agent/bashguard.py` | Phân tích lệnh thật: chặn push (mọi cách viết), `commit -a/--amend/--no-verify`, commit kèm đường dẫn, gộp `git add` với `git commit`, đổi `core.hooksPath`, `bash -c`, lệnh ghi vào tệp được bảo vệ; reviewer chỉ được chạy lệnh đọc |
+| Hook khi dừng | `scripts/agent/stop-check.sh` | Build, vet, lint, test gói đổi và gói phụ thuộc, mã sinh không lệch, dò trùng, test không bị xóa; "Dừng để hỏi" là lối ra hợp lệ |
+| Dấu duyệt reviewer | `review-stamp.sh` (hook `SubagentStop` cho agent `reviewer`) | Khi reviewer kết luận `## Kết luận: ĐẠT`, hook ghi dấu vào `.git/crm-review/<mã băm phần mã đã stage>`; agent không ghi dấu này |
+| Cổng commit | `.githooks/pre-commit` (git hook, chạy với mọi cách gọi commit) | Commit có mã cần: task đang làm, tệp task đủ mục, dấu duyệt khớp đúng phần mã đã stage (sửa mã sau review là phải review lại) |
+| Chặn mở sai thư mục | `Thời trang/.claude/hooks/crm-wrong-folder.sh` | Phiên mở ở thư mục cha không sửa được mã CRM |
+| Plugin | `enabledPlugins` trong `.claude/settings.json` | Tắt plugin không liên quan (marketing, finance, data, design, figma, productivity, superpowers…) trong phiên CRM |
+| `make ci`, CI | Từ Task 3; CI trên GitHub khi chủ shop tạo repo | Lưới cuối, nằm ngoài tầm agent khi có branch protection |
 
-Giới hạn đã biết:
+Giới hạn còn lại (ghi thật):
 
-- Hook chỉ chặn công cụ sửa tệp và lệnh shell có chứa `git commit`/`git push` nguyên chữ. Sửa tệp bằng lệnh shell thì lọt hook chặn sửa; lưới đỡ là `make ci`, `test-guard.sh` và reviewer.
-- Agent `Explore` và `Plan` có sẵn của Claude Code không nạp `CLAUDE.md`; chỉ dùng chúng để đọc, không giao việc.
-- Hook chặn khi dừng: Claude Code bỏ qua sau 8 lần chặn liền ở phiên chính; với subagent, tài liệu chưa nói. Luật: tới mức đó thì dừng và báo.
-- Hook `Stop` không chạy khi một subagent dừng (chỉ `SubagentStop` mới chạy). Vì vậy việc code làm ở phiên chính, không giao cho subagent; subagent chỉ dùng để đọc, nghiên cứu, review.
-- Mở phiên ở thư mục cha "Thời trang" thì hook và luật của CRM không chạy. Luôn mở phiên CRM trong `apps/crm`.
-
+- Agent chạy dưới tài khoản của chủ shop, nên về lý thuyết vẫn có cách sửa tệp được bảo vệ mà hook không nhận ra (ví dụ một chương trình tự viết). Chỉ CI trên máy chủ git có branch protection, hoặc tài khoản máy riêng cho agent, mới nằm ngoài tầm agent. Việc này cần chủ shop tạo repo (đề xuất 4, 7 của báo cáo).
+- Hook `Stop` không chạy khi một subagent dừng. Vì vậy việc code làm ở phiên chính; subagent chỉ để đọc, nghiên cứu, review.
+- Phải mở phiên CRM trong `apps/crm`.

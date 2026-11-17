@@ -14,6 +14,12 @@ case "$path" in
   *) rel=$path ;;
 esac
 
+case "$rel" in
+  .claude/*|scripts/agent/*|.githooks/*|.git/*|docs/tasks/hien-tai.md)
+    echo "Chặn: $rel thuộc phần cấu hình quy trình (hook, agent, git hook, trạng thái task). Chỉ chủ shop đổi. Đổi trạng thái task bằng scripts/agent/new-task.sh hoặc finish-task.sh." >&2
+    exit 2 ;;
+esac
+
 if is_generated_path "$rel"; then
   echo "Chặn: $rel là mã sinh tự động. Sửa nguồn (openapi/openapi.yaml hoặc queries/**/*.sql) rồi chạy 'make gen'." >&2
   exit 2
