@@ -1,0 +1,234 @@
+// Lệnh crm là tệp chạy duy nhất của CRM. CRM_ROLE chọn vai trò: ingest, api, worker, migrate.
+// `crm healthcheck` kiểm tiến trình cùng cấu hình đang sống (dùng trong image không có shell).
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"elimaz.com.vn/crm/internal/platform/config"
+	"elimaz.com.vn/crm/internal/platform/logging"
+	"elimaz.com.vn/crm/internal/platform/observability"
+	"elimaz.com.vn/crm/internal/platform/telemetry"
+)
+
+// Thời hạn tắt êm: tổng dưới 25 s (kế hoạch M0, Task 3).
+const (
+	httpShutdownTimeout  = 20 * time.Second
+	traceShutdownTimeout = 3 * time.Second
+	heartbeatEvery       = 15 * time.Second
+	heartbeatTimeout     = time.Second
+	healthcheckTimeout   = 3 * time.Second
+	readHeaderTimeout    = 10 * time.Second
+)
+
+// Mã thoát.
+const (
+	exitOK     = 0
+	exitFail   = 1
+	exitConfig = 2
+)
+
+var errMigrateNotYet = errors.New("vai trò migrate chưa có: Task 4 thêm db.Migrate")
+
+func main() {
+	os.Exit(run(context.Background(), os.Args[1:], config.FromOS, os.Stdout, os.Stderr))
+}
+
+func run(ctx context.Context, args []string, getenv func(string) string, stdout, stderr io.Writer) int {
+	role, err := config.ParseRole(getenv("CRM_ROLE"))
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, err)
+		return exitConfig
+	}
+	cfg, err := config.Load(role, getenv)
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, err)
+		return exitConfig
+	}
+	switch {
+	case len(args) == 1 && args[0] == "healthcheck":
+		if err := healthcheck(ctx, cfg); err != nil {
+			_, _ = fmt.Fprintln(stderr, "healthcheck:", err)
+			return exitFail
+		}
+		return exitOK
+	case len(args) > 0:
+		_, _ = fmt.Fprintf(stderr, "lệnh lạ %q; chỉ có `crm` hoặc `crm healthcheck`\n", args)
+		return exitConfig
+	}
+
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGTERM, os.Interrupt)
+	defer stop()
+	logger, closer, err := logging.NewLogger(cfg, stdout)
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, err)
+		return exitConfig
+	}
+	defer func() { _ = closer.Close() }()
+
+	if err := serve(ctx, cfg, logger); err != nil {
+		logger.Error("tiến trình dừng vì lỗi", slog.String("error", err.Error()))
+		return exitFail
+	}
+	logger.Info("đã tắt êm")
+	return exitOK
+}
+
+// serve dựng dấu vết và pool, chạy vai trò tới khi ctx bị hủy, rồi dọn dẹp.
+func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	if cfg.Role == config.RoleMigrate {
+		return errMigrateNotYet
+	}
+	shutdownTraces, err := telemetry.Setup(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("dựng dấu vết: %w", err)
+	}
+	defer func() {
+		tctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), traceShutdownTimeout)
+		defer cancel()
+		if err := shutdownTraces(tctx); err != nil {
+			logger.Warn("đẩy nốt dấu vết", slog.String("error", err.Error()))
+		}
+	}()
+	pool, err := openPool(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	logger.Info("khởi động", slog.Any("config", cfg))
+	switch cfg.Role {
+	case config.RoleIngest, config.RoleAPI:
+		return serveHTTP(ctx, cfg, pool, logger)
+	case config.RoleWorker:
+		runWorker(ctx, pool, logger)
+		return nil
+	case config.RoleMigrate:
+	}
+	return errMigrateNotYet
+}
+
+// openPool mở pool pgx tạm của Task 3; Task 4 thay bằng db.Open (giới hạn thời gian ADR-26, otelpgx).
+func openPool(ctx context.Context, cfg config.Config) (*pgxpool.Pool, error) {
+	pc, err := pgxpool.ParseConfig(cfg.DatabaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("đọc DATABASE_URL: %w", err)
+	}
+	pc.MaxConns = cfg.DBMaxConns
+	pc.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeCacheStatement
+	pool, err := pgxpool.NewWithConfig(ctx, pc)
+	if err != nil {
+		return nil, fmt.Errorf("mở pool database: %w", err)
+	}
+	return pool, nil
+}
+
+// serveHTTP phục vụ /health/* tới khi ctx bị hủy, rồi tắt êm trong httpShutdownTimeout.
+func serveHTTP(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger) error {
+	mux := http.NewServeMux()
+	observability.NewHealth(pool).Register(mux)
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort("", strconv.Itoa(cfg.Port)))
+	if err != nil {
+		return fmt.Errorf("mở cổng %d: %w", cfg.Port, err)
+	}
+	srv := &http.Server{Handler: mux, ReadHeaderTimeout: readHeaderTimeout}
+	errCh := make(chan error, 1)
+	go func() { errCh <- srv.Serve(ln) }()
+	logger.Info("đang nghe", slog.Int("port", cfg.Port))
+
+	select {
+	case err := <-errCh:
+		return fmt.Errorf("máy chủ HTTP dừng: %w", err)
+	case <-ctx.Done():
+	}
+	sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), httpShutdownTimeout)
+	defer cancel()
+	shutdownErr := srv.Shutdown(sctx)
+	if err := <-errCh; err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("máy chủ HTTP dừng: %w", err)
+	}
+	if shutdownErr != nil {
+		return fmt.Errorf("tắt máy chủ HTTP: %w", shutdownErr)
+	}
+	return nil
+}
+
+// runWorker là vòng của worker ở Task 3: chỉ có nhịp sống (Ping database mỗi 15 s, lần đầu ngay lập tức).
+// Task 10 thay bằng ghi platform.process_heartbeats; Task 11 thêm hàng đợi.
+func runWorker(ctx context.Context, pool *pgxpool.Pool, logger *slog.Logger) {
+	beat := func() {
+		pctx, cancel := context.WithTimeout(ctx, heartbeatTimeout)
+		defer cancel()
+		if err := pool.Ping(pctx); err != nil {
+			logger.Warn("worker heartbeat lỗi", slog.String("error", err.Error()))
+			return
+		}
+		logger.Info("worker heartbeat")
+	}
+	beat()
+	t := time.NewTicker(heartbeatEvery)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			beat()
+		}
+	}
+}
+
+// healthcheck: ingest và api gọi /health/live của chính nó; worker hỏi database (Task 10 đổi sang tuổi
+// platform.process_heartbeats dưới 90 s).
+func healthcheck(ctx context.Context, cfg config.Config) error {
+	ctx, cancel := context.WithTimeout(ctx, healthcheckTimeout)
+	defer cancel()
+	switch cfg.Role {
+	case config.RoleIngest, config.RoleAPI:
+		return checkLive(ctx, cfg.Port)
+	case config.RoleWorker:
+		pool, err := openPool(ctx, cfg)
+		if err != nil {
+			return err
+		}
+		defer pool.Close()
+		if err := pool.Ping(ctx); err != nil {
+			return fmt.Errorf("hỏi database: %w", err)
+		}
+		return nil
+	case config.RoleMigrate:
+	}
+	return errMigrateNotYet
+}
+
+func checkLive(ctx context.Context, port int) error {
+	url := "http://" + net.JoinHostPort("127.0.0.1", strconv.Itoa(port)) + "/health/live"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("tạo yêu cầu: %w", err)
+	}
+	resp, err := (&http.Client{Timeout: healthcheckTimeout}).Do(req)
+	if err != nil {
+		return fmt.Errorf("gọi %s: %w", url, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%s trả %d", url, resp.StatusCode)
+	}
+	return nil
+}

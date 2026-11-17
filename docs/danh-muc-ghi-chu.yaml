@@ -1,0 +1,7 @@
+# Ghi chú viết tay cho docs/danh-muc-dung-chung.md: "khi nào KHÔNG dùng" từng gói trong internal/platform.
+# Dạng: mỗi dòng `đường/dẫn/gói: câu` (tập con của YAML, tools/catalog tự đọc). Gói mới chưa có dòng ở đây thì
+# `make catalog` ghi "CẦN GHI CHÚ" và thoát khác 0.
+internal/platform/config: "Không đọc biến môi trường ở gói khác (linter chặn os.Getenv); không thêm cấu hình nghiệp vụ thay đổi lúc chạy (cái đó nằm trong database). Truyền Config đã kiểm vào hàm khởi tạo."
+internal/platform/logging: "Không tự dựng slog.Handler khác hay ghi thẳng ra stdout; không dựa vào che theo tên khóa cho nội dung tự do (chuỗi trong thông điệp không bị che): dữ liệu cá nhân đi bằng kiểu Phone, Address, Secret hoặc khóa có tên đúng."
+internal/platform/observability: "Không đặt kiểm tra nghiệp vụ hay dữ liệu khách vào /health/*; kiểm sâu (/health/deep, cần token) thuộc Task 19."
+internal/platform/telemetry: "Không tự tạo TracerProvider hay exporter ở gói khác; không gắn SĐT, địa chỉ, nội dung tin, token vào thuộc tính span. Gọi Setup một lần trong cmd/crm."

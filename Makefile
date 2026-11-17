@@ -29,3 +29,40 @@ db-reset: ## Xóa container và volume dữ liệu của dự án compose này
 
 spike-test: ## Test phép đo flash sale trên PostgreSQL dev (module riêng spikes/flashsale)
 	cd spikes/flashsale && go test -race -count=1 ./...
+
+# ---- Cổng kiểm (Task 3). `make ci` là lưới cuối; CI trên máy chủ git chạy đúng lệnh này.
+# Sinh lại mã (ogen, sqlc, bảng route), sqlc vet, oasdiff thêm vào đây ở Task 4 và Task 6.
+.PHONY: ci build vet lint test vuln catalog catalog-check jscpd test-guard gitleaks
+
+ci: build vet lint test vuln catalog-check jscpd test-guard gitleaks ## Toàn bộ cổng kiểm phần đã có
+
+build: ## Dựng mọi gói, tệp chạy không cgo
+	CGO_ENABLED=0 go build -trimpath ./...
+
+vet:
+	go vet ./...
+
+lint: ## golangci-lint theo .golangci.yml
+	golangci-lint run ./...
+
+test: ## Mọi test, có -race, với PostgreSQL dev (make db-up trước)
+	go test -race -count=1 ./...
+
+vuln:
+	govulncheck ./...
+
+catalog: ## Sinh lại docs/danh-muc-dung-chung.md
+	go run ./tools/catalog
+
+catalog-check: catalog ## Danh mục dùng chung phải khớp mã
+	git diff --exit-code -- docs/danh-muc-dung-chung.md
+
+jscpd: ## Chỉ báo đoạn trùng mới so với mốc nền jscpd-baseline.json
+	jscpd --config .jscpd.json --similarity --baseline jscpd-baseline.json --fail-on-new-clones=0 .
+
+test-guard: ## Test không bị xóa, tắt, nới mà không ghi lý do (so với main)
+	scripts/agent/test-guard.sh main
+
+gitleaks: ## Không có bí mật trong lịch sử git và thư mục làm việc
+	gitleaks git --no-banner --redact .
+	gitleaks dir --no-banner --redact .
