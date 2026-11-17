@@ -5,6 +5,19 @@
 #     hội thoại thật của reviewer (scripts/agent/stamp_check.py).
 cd "$(git rev-parse --show-toplevel)" || exit 1
 . scripts/agent/lib.sh
+# Commit gộp nhánh task đã review: cho qua khi mọi tệp mã đã stage giống hệt bản trên nhánh được gộp
+# (MERGE_HEAD). Tệp mã bị sửa tay khi gộp (giải xung đột) thì phải qua đủ cổng như commit thường.
+gd=$(git rev-parse --git-dir)
+if [ -f "$gd/MERGE_HEAD" ]; then
+  mh=$(head -1 "$gd/MERGE_HEAD"); bad=""
+  for f in $(git diff --cached --name-only HEAD | grep -E "$(code_paths_regex)"); do
+    staged=$(git rev-parse -q --verify ":$f" 2>/dev/null || echo deleted)
+    theirs=$(git rev-parse -q --verify "$mh:$f" 2>/dev/null || echo deleted)
+    [ "$staged" = "$theirs" ] || bad="$bad $f"
+  done
+  if [ -z "$bad" ]; then exit 0; fi
+  echo "Cổng commit (gộp nhánh): các tệp mã sau khác bản đã review trên nhánh được gộp:$bad" >&2
+fi
 if git diff --cached --name-only | grep -E -q "$(code_paths_regex)"; then
   st=$(sed -n 's/^Trạng thái: *//p' docs/tasks/hien-tai.md 2>/dev/null | head -1)
   if [ "$st" != "đang làm" ]; then
