@@ -13,12 +13,14 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/logging"
+	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/observability"
 	"elimaz.com.vn/crm/internal/platform/telemetry"
 )
@@ -27,8 +29,6 @@ import (
 const (
 	httpShutdownTimeout  = 20 * time.Second
 	traceShutdownTimeout = 3 * time.Second
-	heartbeatEvery       = 15 * time.Second
-	heartbeatTimeout     = time.Second
 	healthcheckTimeout   = 3 * time.Second
 	readHeaderTimeout    = 10 * time.Second
 )
@@ -40,7 +40,10 @@ const (
 	exitConfig = 2
 )
 
-var errNoHealthcheck = errors.New("vai trò migrate chạy một lần rồi thoát, không có healthcheck")
+var (
+	errNoHealthcheck  = errors.New("vai trò migrate chạy một lần rồi thoát, không có healthcheck")
+	errStaleHeartbeat = errors.New("worker không còn ghi nhịp sống")
+)
 
 func main() {
 	os.Exit(run(context.Background(), os.Args[1:], config.FromOS, os.Stdout, os.Stderr))
@@ -110,11 +113,23 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	defer d.Pool.Close()
 
 	logger.Info("khởi động", slog.Any("config", cfg))
+	reg := metrics.NewRegistry()
+	d.OnRetry = func(code string, _ int) { reg.Inc("tx_retry", code, 1) }
+	d.OnExhausted = func(code string) { reg.Inc("tx_retry_exhausted", code, 1) }
+	flusher := &metrics.Flusher{DB: d, Reg: reg, Process: metrics.ProcessName(cfg.Role), Role: cfg.Role, Log: logger}
 	if cfg.Role == config.RoleWorker {
-		runWorker(ctx, d, logger)
+		// Chỉ worker gửi nhịp sống ra ngoài (ADR-38): api còn sống không được che việc worker đã chết.
+		flusher.Pinger = &metrics.Pinger{URL: cfg.HeartbeatURL}
+		flusher.Run(ctx) // Task 11 thêm hàng đợi chạy song song
 		return nil
 	}
-	return serveHTTP(ctx, cfg, d, logger)
+	var wg sync.WaitGroup
+	defer wg.Wait() // lần ghi chỉ số cuối (tối đa 5 s, song song với lúc tắt HTTP) xong rồi mới đóng pool
+	// fctx dừng vòng ghi cả khi serveHTTP trả lỗi trước tín hiệu tắt (defer chạy ngược: cancel trước Wait).
+	fctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	wg.Go(func() { flusher.Run(fctx) })
+	return serveHTTP(ctx, cfg, d, reg, logger)
 }
 
 // poolOptions: ngân sách kết nối theo vai trò (cfg.DBMaxConns, ADR-42), giới hạn theo transaction của vai trò
@@ -143,15 +158,15 @@ func runMigrate(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 	return nil
 }
 
-// serveHTTP phục vụ /health/* tới khi ctx bị hủy, rồi tắt êm trong httpShutdownTimeout.
-func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, logger *slog.Logger) error {
+// serveHTTP phục vụ /health/* (đo http_ms theo route) tới khi ctx bị hủy, rồi tắt êm trong httpShutdownTimeout.
+func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Registry, logger *slog.Logger) error {
 	mux := http.NewServeMux()
 	observability.NewHealth(d.Pool).Register(mux)
 	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort("", strconv.Itoa(cfg.Port)))
 	if err != nil {
 		return fmt.Errorf("mở cổng %d: %w", cfg.Port, err)
 	}
-	srv := &http.Server{Handler: mux, ReadHeaderTimeout: readHeaderTimeout}
+	srv := &http.Server{Handler: metrics.Middleware(reg, mux), ReadHeaderTimeout: readHeaderTimeout}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Serve(ln) }()
 	logger.Info("đang nghe", slog.Int("port", cfg.Port))
@@ -173,33 +188,8 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, logger *slog.Lo
 	return nil
 }
 
-// runWorker là vòng của worker ở Task 3: chỉ có nhịp sống (Ping database mỗi 15 s, lần đầu ngay lập tức).
-// Task 10 thay bằng ghi platform.process_heartbeats; Task 11 thêm hàng đợi.
-func runWorker(ctx context.Context, d *db.DB, logger *slog.Logger) {
-	beat := func() {
-		pctx, cancel := context.WithTimeout(ctx, heartbeatTimeout)
-		defer cancel()
-		if err := d.Pool.Ping(pctx); err != nil {
-			logger.Warn("worker heartbeat lỗi", slog.String("error", err.Error()))
-			return
-		}
-		logger.Info("worker heartbeat")
-	}
-	beat()
-	t := time.NewTicker(heartbeatEvery)
-	defer t.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-			beat()
-		}
-	}
-}
-
-// healthcheck: ingest và api gọi /health/live của chính nó; worker hỏi database (Task 10 đổi sang tuổi
-// platform.process_heartbeats dưới 90 s).
+// healthcheck: ingest và api gọi /health/live của chính nó; worker đòi nhịp sống của chính nó
+// (platform.process_heartbeats, cùng tên máy) mới hơn metrics.HeartbeatMaxAge (90 s).
 func healthcheck(ctx context.Context, cfg config.Config) error {
 	ctx, cancel := context.WithTimeout(ctx, healthcheckTimeout)
 	defer cancel()
@@ -212,8 +202,12 @@ func healthcheck(ctx context.Context, cfg config.Config) error {
 			return fmt.Errorf("mở database: %w", err)
 		}
 		defer d.Pool.Close()
-		if err := d.Pool.Ping(ctx); err != nil {
-			return fmt.Errorf("hỏi database: %w", err)
+		age, err := metrics.HeartbeatAge(ctx, d, metrics.ProcessName(cfg.Role))
+		if err != nil {
+			return fmt.Errorf("hỏi nhịp sống: %w", err)
+		}
+		if age > metrics.HeartbeatMaxAge {
+			return fmt.Errorf("%w: nhịp sống cũ %v, quá %v", errStaleHeartbeat, age.Round(time.Second), metrics.HeartbeatMaxAge)
 		}
 		return nil
 	case config.RoleMigrate:

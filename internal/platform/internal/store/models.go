@@ -10,9 +10,26 @@ import (
 	"github.com/google/uuid"
 )
 
+type PlatformMetricsMinute struct {
+	Bucket  time.Time
+	Process string
+	Name    string
+	Label   string
+	Count   int64
+	Sum     float64
+	Max     float64
+	Hist    []int32
+}
+
 type PlatformMigrationChecksum struct {
 	Version string
 	Sha256  string
+}
+
+type PlatformProcessHeartbeat struct {
+	Process string
+	Role    string
+	At      time.Time
 }
 
 type PlatformTenant struct {

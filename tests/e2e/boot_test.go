@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"elimaz.com.vn/crm/internal/testkit"
 )
 
 const secret32 = "0123456789abcdef0123456789abcdef"
@@ -116,28 +118,35 @@ func waitReady(ctx context.Context, url string) error {
 	}
 }
 
-func waitLog(ctx context.Context, out *lineBuffer, needle string) error {
+// waitHealthcheck chạy `crm healthcheck` với env tới khi thoát 0.
+func waitHealthcheck(ctx context.Context, bin string, env []string) error {
 	for {
-		if strings.Contains(out.String(), needle) {
+		cmd := exec.CommandContext(ctx, bin, "healthcheck")
+		cmd.Env = env
+		var stderr strings.Builder
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		if err == nil {
 			return nil
 		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("chờ dòng log %q: %w", needle, ctx.Err())
-		case <-time.After(100 * time.Millisecond):
+			return fmt.Errorf("chờ healthcheck: %w (lần cuối: %w %s)", ctx.Err(), err, stderr.String())
+		case <-time.After(200 * time.Millisecond):
 		}
 	}
 }
 
 func TestBootEachRoleThenGracefulStop(t *testing.T) {
 	bin := buildBinary(t)
-	dbURL := databaseURL(t)
+	_, _, dbURL := testkit.StartPostgres(t) // đã migrate: cả ba vai trò ghi chỉ số và nhịp sống
 	for _, role := range []string{"ingest", "api", "worker"} {
 		t.Run(role, func(t *testing.T) { bootAndStop(t, bin, dbURL, role) })
 	}
 }
 
-// bootAndStop chạy một vai trò, chờ sẵn sàng trong 10 s, gửi SIGTERM, đòi thoát mã 0 trong 25 s.
+// bootAndStop chạy một vai trò, chờ sẵn sàng trong 10 s (worker: `crm healthcheck` thấy nhịp sống), gửi SIGTERM,
+// đòi thoát mã 0 trong 25 s.
 func bootAndStop(t *testing.T, bin, dbURL, role string) {
 	t.Helper()
 	port := freePort(t)
@@ -156,7 +165,7 @@ func bootAndStop(t *testing.T, bin, dbURL, role string) {
 	defer cancel()
 	var err error
 	if role == "worker" {
-		err = waitLog(ctx, &stdout, `"msg":"worker heartbeat"`)
+		err = waitHealthcheck(ctx, bin, roleEnv(role, dbURL, port))
 	} else {
 		err = waitReady(ctx, fmt.Sprintf("http://127.0.0.1:%d/health/ready", port))
 	}
@@ -269,18 +278,58 @@ func TestHealthcheckCommand(t *testing.T) {
 		t.Fatalf("api đang chạy mà healthcheck lỗi: %v", err)
 	}
 
-	// worker: healthcheck kiểm database (Task 10 đổi sang tuổi process_heartbeats).
-	wenv := roleEnv("worker", dbURL, 0)
-	wctx, wcancel := context.WithTimeout(t.Context(), 10*time.Second)
+	// worker: healthcheck kiểm tuổi platform.process_heartbeats của chính tiến trình dưới 90 s.
+	_, _, migrated := testkit.StartPostgres(t)
+	wenv := roleEnv("worker", migrated, 0)
+	wctx, wcancel := context.WithTimeout(t.Context(), 20*time.Second)
 	defer wcancel()
-	w := exec.CommandContext(wctx, bin, "healthcheck")
-	w.Env = wenv
-	if err := w.Run(); err != nil {
-		t.Fatalf("healthcheck worker với database sống phải 0: %v", err)
+	idle := exec.CommandContext(wctx, bin, "healthcheck")
+	idle.Env = wenv
+	if err := idle.Run(); err == nil {
+		t.Fatal("chưa có worker chạy (chưa có nhịp sống) mà healthcheck worker vẫn 0")
+	}
+	worker := exec.CommandContext(t.Context(), bin)
+	worker.Env = wenv
+	if err := worker.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = worker.Process.Signal(syscall.SIGTERM); _ = worker.Wait() })
+	if err := waitHealthcheck(wctx, bin, wenv); err != nil {
+		t.Fatalf("worker đang chạy mà healthcheck không về 0: %v", err)
 	}
 	bad := exec.CommandContext(wctx, bin, "healthcheck")
 	bad.Env = roleEnv("worker", "postgres://crm_app:x@127.0.0.1:1/crm?sslmode=disable&connect_timeout=1", 0)
 	if err := bad.Run(); err == nil {
 		t.Fatal("healthcheck worker với database chết phải khác 0")
+	}
+}
+
+// Máy chủ HTTP lỗi sớm (cổng đã bị chiếm) → tiến trình thoát khác 0 ngay, không treo vì vòng ghi chỉ số còn chạy.
+func TestBootPortTakenExitsWithError(t *testing.T) {
+	bin := buildBinary(t)
+	_, _, dbURL := testkit.StartPostgres(t)
+	l, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = l.Close() }()
+	port := l.Addr().(*net.TCPAddr).Port
+
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, bin)
+	cmd.Env = roleEnv("api", dbURL, port)
+	var stdout lineBuffer
+	cmd.Stdout = &stdout
+	err = cmd.Run()
+	if ctx.Err() != nil {
+		t.Fatalf("api treo khi cổng %d đã bị chiếm (không thoát trong 10 s)\nstdout:\n%s", port, stdout.String())
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() == 0 {
+		t.Fatalf("cổng bị chiếm phải thoát khác 0, nhận %v", err)
+	}
+	if !strings.Contains(stdout.String(), "tiến trình dừng vì lỗi") {
+		t.Fatalf("phải log lỗi dừng:\n%s", stdout.String())
 	}
 }
