@@ -217,7 +217,7 @@ Phiên mới và subagent **không nhớ cuộc trò chuyện**. Chúng chỉ bi
 | Skill `crm-task`, `crm-dieu-phoi` | `.claude/skills/` | Nạp sẵn vào implementer; phiên chính gọi khi làm task | Các bước bắt buộc, đúng thứ tự |
 | Hook chặn sửa | `guard-edit.sh` | Mọi lần sửa tệp, ở phiên chính và mọi subagent | Mã chỉ do `crm-implementer` sửa; không sửa mã sinh, migration đã commit |
 | Hook định dạng | `format.sh` | Sau mỗi lần sửa | Một cách định dạng |
-| Hook khi dừng | `stop-check.sh` (phiên chính và implementer), `task-check.sh` (implementer) | Khi định báo xong | Build, vet, lint, test gói đổi và gói phụ thuộc, mã sinh không lệch, dò trùng, test không bị xóa; tệp task đủ mục |
+| Hook khi dừng | `stop-check.sh` (phiên chính: `Stop`; implementer: `SubagentStop` với `--task`, kiểm thêm tệp task) | Khi định báo xong | Build, vet, lint, test gói đổi và gói phụ thuộc, mã sinh không lệch, dò trùng, test không bị xóa; tệp task đủ mục |
 | Hook lệnh shell | `guard-bash.sh` | Trước mỗi lệnh shell | Chặn push; chặn commit có mã khi tệp task chưa đủ hoặc reviewer chưa ĐẠT |
 | Tệp task, mẫu, trạng thái | `docs/tasks/_mau.md`, `task-NN.md`, `hien-tai.md` | Mỗi task | Ảnh hưởng, Tái dùng, soát thiết kế, bằng chứng, kết luận reviewer |
 | `make ci`, CI | Từ Task 3, Task 23 | Mỗi lần kiểm toàn bộ, mỗi lần đẩy lên GitHub | Lưới cuối cho mọi thứ lọt hook |
@@ -227,6 +227,6 @@ Giới hạn đã biết:
 - Hook chỉ chặn công cụ sửa tệp và lệnh shell có chứa `git commit`/`git push` nguyên chữ. Sửa tệp bằng lệnh shell thì lọt hook chặn sửa; lưới đỡ là `make ci`, `test-guard.sh` và reviewer.
 - Agent `Explore` và `Plan` có sẵn của Claude Code không nạp `CLAUDE.md`; chỉ dùng chúng để đọc, không giao việc.
 - Hook chặn khi dừng: Claude Code bỏ qua sau 8 lần chặn liền ở phiên chính; với subagent, tài liệu chưa nói. Luật: tới mức đó thì dừng và báo.
-- Hook trong định nghĩa agent của dự án chỉ chạy khi thư mục `apps/crm` đã được tin cậy trong Claude Code.
+- Hook đặt trong định nghĩa agent không chạy trong phép thử ngày 17/11 (tài liệu nói chúng cần thư mục được tin cậy). Vì vậy mọi hook đặt trong `.claude/settings.json`; hook khi implementer dừng là `SubagentStop` với bộ lọc `crm-implementer`.
 - Mở phiên ở thư mục cha "Thời trang" thì hook và luật của CRM không chạy. Luôn mở phiên CRM trong `apps/crm`.
 

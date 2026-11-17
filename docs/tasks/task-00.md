@@ -65,3 +65,21 @@ Chưa thử: `golangci-lint` và jscpd trong hook (chưa cài; Task 3 cài và t
 ## Reviewer
 
 Chưa chạy (Task 0 không có mã ứng dụng; reviewer dùng từ Task 3).
+
+## Bổ sung 17/11/2026: đóng gói quy trình
+
+Chủ shop yêu cầu quy trình được đóng gói để mọi phiên mới và mọi subagent đều phải theo. Đã thêm: agent `crm-implementer` (nạp sẵn skill `crm-task` và ba skill Go), skill `crm-task`, `crm-dieu-phoi`, hook `SessionStart`, `SubagentStart`, `SubagentStop`, hook chặn lệnh shell (push, commit chưa đủ), mẫu tệp task, tệp trạng thái task, `docs/quy-trinh-lam-viec.md` mục 14.
+
+| Phép thử (phiên Claude thật, `claude --print` trong `apps/crm`) | Kết quả |
+|---|---|
+| Phiên mới nhận đoạn nhắc từ `SessionStart` | Có, đúng nguyên văn |
+| Phiên chính ghi `internal/probe/main_session.go` | Bị chặn bởi `guard-edit.sh` |
+| Agent `crm-implementer` ghi `internal/probe/implementer.go` | Ghi được; thấy CLAUDE.md của CRM |
+| Agent `general-purpose` ghi `internal/probe/general.go` | Bị chặn; nhận đoạn nhắc từ `SubagentStart` |
+| Skill nạp sẵn vào implementer | Lần đầu chỉ `crm-task` (ba skill Go có trường `paths:`); bỏ `paths:` thì cả bốn được nạp, agent trích đúng tiêu đề mà không gọi công cụ nào |
+| Hook dừng của implementer khi tệp task còn trống | Đặt trong định nghĩa agent: không chạy; `task-check.sh` trả mã 1 (không chặn). Sửa: gộp vào `stop-check.sh --task` (mã 2), đặt ở `settings.json` dưới `SubagentStop`. Thử lại: bị chặn đúng, agent ghi mục "Dừng để hỏi" rồi mới dừng được |
+| Đường dẫn có dấu "Thời trang" | Lỗi tìm ra: `pwd` và `git` mã hóa chữ "ờ" khác nhau nên `guard-edit.sh` coi mọi tệp là ngoài repo và cho qua (kể cả luật migration đã commit từ Task 0; phép thử Task 0 chạy trong thư mục tạm không dấu nên không lộ). Sửa: chuẩn hóa NFC trong `lib.sh`; thử lại 7 trường hợp đều đúng |
+| `guard-bash.sh`: push; commit có mã khi tệp task chưa đủ | Chặn cả hai (thử bằng dữ liệu giả) |
+
+Tệp thử (`internal/probe/`, `docs/tasks/task-98.md`, `task-99.md`) đã xóa.
+
