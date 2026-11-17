@@ -5,7 +5,7 @@
 #     hội thoại thật của reviewer (scripts/agent/stamp_check.py).
 cd "$(git rev-parse --show-toplevel)" || exit 1
 . scripts/agent/lib.sh
-if git diff --cached --name-only | grep -E -q '^(internal|cmd|tools|tests|console/src|migrations|queries|openapi)/|^(go\.mod|go\.sum|Makefile|sqlc\.yaml|\.golangci\.yml)$'; then
+if git diff --cached --name-only | grep -E -q "$(code_paths_regex)"; then
   st=$(sed -n 's/^Trạng thái: *//p' docs/tasks/hien-tai.md 2>/dev/null | head -1)
   if [ "$st" != "đang làm" ]; then
     echo "Cổng commit: commit có mã cần một task đang làm (scripts/agent/new-task.sh)." >&2; exit 1

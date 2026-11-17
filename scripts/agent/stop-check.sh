@@ -54,6 +54,14 @@ if [ -f go.mod ] && has '(\.go|go\.mod|go\.sum)$'; then
   fi
 fi
 
+# Module Go riêng trong spikes/ (go.mod riêng, ngoài ./... của module gốc): build, vet, test module có tệp đổi.
+for mod in $(printf '%s\n' "$changed" | sed -n 's#^\(spikes/[^/]*\)/.*#\1#p' | sort -u); do
+  if [ -f "$mod/go.mod" ] && need go "build và test $mod"; then
+    run "go vet ($mod)" sh -c "cd '$mod' && go vet ./..."
+    run "go test -race ($mod)" sh -c "cd '$mod' && go test -race -count=1 ./..."
+  fi
+done
+
 # Mã sinh không được lệch nguồn.
 if has '^(openapi/|queries/|sqlc\.yaml)' && [ -f Makefile ] && grep -q '^gen:' Makefile; then
   run "make gen" make gen

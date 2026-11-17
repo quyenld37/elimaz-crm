@@ -38,7 +38,9 @@ PY
 }
 
 # Mã băm của phần MÃ đã stage (không tính tài liệu, tệp task), dùng cho dấu duyệt reviewer.
-CODE_PATHS="internal cmd tools tests console/src migrations queries openapi go.mod go.sum Makefile sqlc.yaml .golangci.yml"
+CODE_PATHS="internal cmd tools tests console/src migrations queries openapi spikes docker scripts/backup deploy go.mod go.sum Makefile sqlc.yaml .golangci.yml"
+# Mẫu grep -E khớp đúng CODE_PATHS (dùng ở cổng commit), sinh từ cùng danh sách để hai nơi không lệch nhau.
+code_paths_regex() { printf '%s\n' $CODE_PATHS | sed 's/\./\\./g' | awk '{printf "%s^%s(/|$)", (NR>1?"|":""), $0}'; }
 staged_code_hash() {
   # shellcheck disable=SC2086
   git ls-files --stage -- $CODE_PATHS 2>/dev/null | shasum -a 256 | cut -c1-40
