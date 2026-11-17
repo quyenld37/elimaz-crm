@@ -7,6 +7,8 @@ description = "Chuỗi giả có chủ ý"
 paths = [
   # Ví dụ "ĐỪNG làm" trong tài liệu skill đã đọc và ghim ở Task 0.
   '''^\.claude/skills/.+\.md$''',
+  # Bản sao repo của các task đang chạy song song (git worktree, đã nằm trong .gitignore); mỗi bản tự quét khi chạy make ci của nó.
+  '''^\.worktrees/''',
 ]
 regexes = [
   # Bí mật giả 32 ký tự dùng trong test (config, e2e).
