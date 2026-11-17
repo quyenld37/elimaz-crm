@@ -10,3 +10,4 @@ Luật (ADR-32, kế hoạch M0 bản 5): thêm thư viện hay công cụ ngoà
 | typescript-language-server | 6.1.0 | Apache-2.0 (theo npm; GitHub không tự nhận ra giấy phép) | Máy chủ ngôn ngữ TypeScript cho plugin `typescript-lsp` | Như trên, cho màn hình | 15/11/2026, Task 0 |
 | jscpd | 5.4.3 | MIT | Dò đoạn code trùng ở cả Go và TypeScript | `dupl` chỉ cho Go và chỉ bắt trùng gần nguyên văn | 15/11/2026, Task 0 |
 | oasdiff | v1.38.0 | Apache-2.0 (GitHub API, 15/11/2026) | Báo thay đổi phá vỡ của `openapi.yaml` | Không có công cụ tương đương trong ADR-44 | 15/11/2026, Task 0 |
+| k6 (Grafana) | v2.0.0 (Homebrew, đã có sẵn trên máy) | AGPL-3.0-or-later | Công cụ đo tải chạy ngoài ứng dụng: bài đo flash sale (Task 1), bài thử tải M0 (Task 22). Không phải thư viện, không vào image hay mã sản phẩm | Có trong Tech Stack của kế hoạch nhưng không có trong bảng ADR-44; thư viện chuẩn không có công cụ sinh tải theo tốc độ đến | 18/11/2026, Task 1 |

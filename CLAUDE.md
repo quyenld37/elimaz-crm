@@ -43,7 +43,9 @@ Có dần theo kế hoạch; lệnh nào chưa có thì task tương ứng sẽ 
 - Chọn test: chỉ gói vừa đổi và gói nhập chúng. Ngoại lệ: chạm vào vùng rủi ro cao thì chạy cả bộ của vùng đó. Vùng rủi ro cao: `internal/platform/{tenancy,queue,commands,idempotency}`, `internal/modules/identity`, `internal/httpapi/guard.go`.
 - `make gen` — sinh lại mã ogen, sqlc, bảng route (từ Task 4 và Task 6).
 - Màn hình (từ Task 17): `cd console && npm test`, `npx tsc --noEmit`, `npx eslint .`
-- PostgreSQL dev: `docker compose -f docker/compose.dev.yml up -d` (cổng 5442). Không dùng cổng 4175, 4176, 4180, 4181.
+- PostgreSQL dev: `make db-up` (PostgreSQL 5442, Jaeger 16686, OTLP 4318). Không dùng cổng 4175, 4176, 4180, 4181.
+- Nhiều phiên song song trên một máy: mỗi phiên một tên dự án compose và cổng riêng, `make db-up COMPOSE_PROJECT=crm-tNN CRM_PG_PORT=54x2` (thêm `CRM_JAEGER_UI_PORT`, `CRM_OTLP_PORT` nếu cần); test đọc `CRM_TEST_DATABASE_URL` (crm_app, Makefile dựng từ `CRM_PG_PORT`). Chỉ xóa container, volume của dự án compose của mình.
+- Phép đo flash sale (module riêng `spikes/flashsale`): `make spike-test`; cách đo tải ở `docs/do-luong/flash-sale-go.md`.
 
 ## Không được sửa tay
 

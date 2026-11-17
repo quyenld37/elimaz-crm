@@ -10,3 +10,4 @@ console/node_modules/
 console/dist/
 .DS_Store
 .worktrees/
+/spikes/flashsale/flashsale
