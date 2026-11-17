@@ -240,6 +240,8 @@ Chủ shop chốt ngày 18/11/2026. Áp dụng mỗi khi viết kế hoạch cho
 
 **Sau khi sửa:** phiên điều phối ghi ở đầu mỗi kế hoạch đã sửa một dòng "Đã soát chéo ngày …, sửa theo phát hiện #…", rồi chạy lại soát chéo (chỉ mục bị ảnh hưởng) tới khi ĐẠT. Phát hiện cần đổi spec thì không tự đổi spec ngoài quyền được giao: ghi vào báo cáo cho chủ shop.
 
+**Sửa sau soát chéo (bài học 18/11/2026):** trước khi giao sửa, phiên điều phối viết một bảng quyết định chốt **tên cuối cùng** cho mọi chỗ lệch (bảng, cột, trạng thái, hàm, view, operation, nhóm khóa), theo luật "mốc trước là chuẩn". Agent sửa chỉ làm theo bảng, không tự đặt tên mới. Vòng 1 ngày 18/11 giao sửa song song khi chưa chốt tên, nên các mốc đổi cùng một tên theo hai hướng (ví dụ trạng thái vận đơn `creating` và `requested`) và vòng 2 còn 23 chặn mới.
+
 **Lặp lại khi:** thêm hoặc sửa lớn một kế hoạch; trước khi bắt đầu mỗi mốc (kèm mục 13b bước 4, đối chiếu với mã thật).
 
 ## 14. Quy trình được đóng gói thế nào để không bị "quên"
