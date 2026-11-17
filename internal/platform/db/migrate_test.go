@@ -23,7 +23,8 @@ func migrationNames(t *testing.T) []string {
 	return names
 }
 
-// realPlus trả FS gồm mọi migration thật cộng các tệp thêm.
+// realPlus trả FS gồm mọi migration thật cộng các tệp thêm. Tệp thêm dùng số 9xxx, ngoài mọi dải migration thật
+// (Q-X7), để không trùng số khi mốc thêm migration.
 func realPlus(t *testing.T, extra map[string]string) fstest.MapFS {
 	t.Helper()
 	m := fstest.MapFS{}
@@ -93,7 +94,7 @@ func TestMigrateConcurrentRunsApplyOnce(t *testing.T) {
 
 func TestMigrateRejectsChangedAppliedFile(t *testing.T) {
 	_, owner, _ := testkit.CreateDatabase(t)
-	const name = "0002_probe.sql"
+	const name = "9001_probe.sql"
 	v1 := realPlus(t, map[string]string{name: "-- +goose Up\nCREATE TABLE platform.probe_a (id int);\n"})
 	if _, err := db.MigrateFS(t.Context(), owner, v1); err != nil {
 		t.Fatal(err)
@@ -107,7 +108,7 @@ func TestMigrateRejectsChangedAppliedFile(t *testing.T) {
 
 func TestMigrateFailedFileLeavesNoTable(t *testing.T) {
 	_, owner, _ := testkit.CreateDatabase(t)
-	bad := realPlus(t, map[string]string{"0002_bad.sql": "-- +goose Up\n" +
+	bad := realPlus(t, map[string]string{"9002_bad.sql": "-- +goose Up\n" +
 		"CREATE TABLE platform.probe_a (id int);\n" +
 		"CREATE TABLE platform.probe_b (id no_such_type);\n"})
 	if _, err := db.MigrateFS(t.Context(), owner, bad); err == nil {
@@ -123,7 +124,7 @@ func TestMigrateFailedFileLeavesNoTable(t *testing.T) {
 
 func TestMigrateRejectsContractWithoutMarker(t *testing.T) {
 	_, owner, _ := testkit.StartPostgres(t)
-	const name = "0002_drop.sql"
+	const name = "9003_drop.sql"
 	bad := realPlus(t, map[string]string{name: "-- +goose Up\nDROP TABLE platform.tenant_routes;\n"})
 	_, err := db.MigrateFS(t.Context(), owner, bad)
 	if err == nil || !strings.Contains(err.Error(), name) {
