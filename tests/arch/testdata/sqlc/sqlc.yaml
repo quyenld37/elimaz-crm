@@ -1,0 +1,12 @@
+# Cấu hình mẫu cho sqlcvet_test: một câu sai tên cột phải làm sqlc vet đỏ.
+version: "2"
+sql:
+  - engine: postgresql
+    schema: ../../../../migrations
+    queries: bad.sql
+    database:
+      uri: ${CRM_SQLC_DATABASE_URL}
+    analyzer:
+      database: false
+    rules:
+      - sqlc/db-prepare

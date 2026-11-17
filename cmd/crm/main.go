@@ -16,10 +16,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-
 	"elimaz.com.vn/crm/internal/platform/config"
+	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/observability"
 	"elimaz.com.vn/crm/internal/platform/telemetry"
@@ -42,7 +40,7 @@ const (
 	exitConfig = 2
 )
 
-var errMigrateNotYet = errors.New("vai trò migrate chưa có: Task 4 thêm db.Migrate")
+var errNoHealthcheck = errors.New("vai trò migrate chạy một lần rồi thoát, không có healthcheck")
 
 func main() {
 	os.Exit(run(context.Background(), os.Args[1:], config.FromOS, os.Stdout, os.Stderr))
@@ -88,10 +86,11 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 	return exitOK
 }
 
-// serve dựng dấu vết và pool, chạy vai trò tới khi ctx bị hủy, rồi dọn dẹp.
+// serve dựng dấu vết và pool, chạy vai trò tới khi ctx bị hủy, rồi dọn dẹp. Vai trò migrate áp dụng migration
+// bằng chuỗi chủ bảng rồi thoát.
 func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	if cfg.Role == config.RoleMigrate {
-		return errMigrateNotYet
+		return runMigrate(ctx, cfg, logger)
 	}
 	shutdownTraces, err := telemetry.Setup(ctx, cfg)
 	if err != nil {
@@ -104,43 +103,50 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 			logger.Warn("đẩy nốt dấu vết", slog.String("error", err.Error()))
 		}
 	}()
-	pool, err := openPool(ctx, cfg)
+	d, err := db.Open(ctx, cfg.DatabaseURL, poolOptions(cfg))
 	if err != nil {
-		return err
+		return fmt.Errorf("mở database: %w", err)
 	}
-	defer pool.Close()
+	defer d.Pool.Close()
 
 	logger.Info("khởi động", slog.Any("config", cfg))
-	switch cfg.Role {
-	case config.RoleIngest, config.RoleAPI:
-		return serveHTTP(ctx, cfg, pool, logger)
-	case config.RoleWorker:
-		runWorker(ctx, pool, logger)
+	if cfg.Role == config.RoleWorker {
+		runWorker(ctx, d, logger)
 		return nil
-	case config.RoleMigrate:
 	}
-	return errMigrateNotYet
+	return serveHTTP(ctx, cfg, d, logger)
 }
 
-// openPool mở pool pgx tạm của Task 3; Task 4 thay bằng db.Open (giới hạn thời gian ADR-26, otelpgx).
-func openPool(ctx context.Context, cfg config.Config) (*pgxpool.Pool, error) {
-	pc, err := pgxpool.ParseConfig(cfg.DatabaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("đọc DATABASE_URL: %w", err)
+// poolOptions: ngân sách kết nối theo vai trò (cfg.DBMaxConns, ADR-42), giới hạn theo transaction của vai trò
+// (ADR-46), dấu vết SQL khi OTEL bật. Ba giới hạn của kết nối giữ mặc định ADR-26.
+func poolOptions(cfg config.Config) db.PoolOptions {
+	o := db.PoolOptions{MaxConns: cfg.DBMaxConns, Tracing: cfg.OTelEnabled}
+	switch cfg.Role {
+	case config.RoleAPI:
+		o.DefaultTx = db.TxAPI
+	case config.RoleIngest:
+		o.DefaultTx = db.TxIngest
+	case config.RoleWorker:
+		o.DefaultTx = db.TxWorker
+	case config.RoleMigrate:
 	}
-	pc.MaxConns = cfg.DBMaxConns
-	pc.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeCacheStatement
-	pool, err := pgxpool.NewWithConfig(ctx, pc)
+	return o
+}
+
+// runMigrate áp dụng migration nhúng trong tệp chạy (db.Migrate) và log tên các tệp vừa áp dụng.
+func runMigrate(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	applied, err := db.Migrate(ctx, cfg.Migrate.OwnerURL)
 	if err != nil {
-		return nil, fmt.Errorf("mở pool database: %w", err)
+		return fmt.Errorf("migrate: %w", err)
 	}
-	return pool, nil
+	logger.Info("migrate xong", slog.Any("applied", applied), slog.Int("count", len(applied)))
+	return nil
 }
 
 // serveHTTP phục vụ /health/* tới khi ctx bị hủy, rồi tắt êm trong httpShutdownTimeout.
-func serveHTTP(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger) error {
+func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, logger *slog.Logger) error {
 	mux := http.NewServeMux()
-	observability.NewHealth(pool).Register(mux)
+	observability.NewHealth(d.Pool).Register(mux)
 	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort("", strconv.Itoa(cfg.Port)))
 	if err != nil {
 		return fmt.Errorf("mở cổng %d: %w", cfg.Port, err)
@@ -169,11 +175,11 @@ func serveHTTP(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, logge
 
 // runWorker là vòng của worker ở Task 3: chỉ có nhịp sống (Ping database mỗi 15 s, lần đầu ngay lập tức).
 // Task 10 thay bằng ghi platform.process_heartbeats; Task 11 thêm hàng đợi.
-func runWorker(ctx context.Context, pool *pgxpool.Pool, logger *slog.Logger) {
+func runWorker(ctx context.Context, d *db.DB, logger *slog.Logger) {
 	beat := func() {
 		pctx, cancel := context.WithTimeout(ctx, heartbeatTimeout)
 		defer cancel()
-		if err := pool.Ping(pctx); err != nil {
+		if err := d.Pool.Ping(pctx); err != nil {
 			logger.Warn("worker heartbeat lỗi", slog.String("error", err.Error()))
 			return
 		}
@@ -201,18 +207,18 @@ func healthcheck(ctx context.Context, cfg config.Config) error {
 	case config.RoleIngest, config.RoleAPI:
 		return checkLive(ctx, cfg.Port)
 	case config.RoleWorker:
-		pool, err := openPool(ctx, cfg)
+		d, err := db.Open(ctx, cfg.DatabaseURL, db.PoolOptions{MaxConns: 1})
 		if err != nil {
-			return err
+			return fmt.Errorf("mở database: %w", err)
 		}
-		defer pool.Close()
-		if err := pool.Ping(ctx); err != nil {
+		defer d.Pool.Close()
+		if err := d.Pool.Ping(ctx); err != nil {
 			return fmt.Errorf("hỏi database: %w", err)
 		}
 		return nil
 	case config.RoleMigrate:
 	}
-	return errMigrateNotYet
+	return errNoHealthcheck
 }
 
 func checkLive(ctx context.Context, port int) error {
