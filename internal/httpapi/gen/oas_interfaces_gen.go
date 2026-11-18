@@ -309,6 +309,10 @@ type ListJobsRes interface {
 	listJobsRes()
 }
 
+type ListLostFilesRes interface {
+	listLostFilesRes()
+}
+
 type ListOrderDuplicatesRes interface {
 	listOrderDuplicatesRes()
 }
@@ -503,4 +507,8 @@ type UpdateTrafficSourceRes interface {
 
 type UpdateVariantRes interface {
 	updateVariantRes()
+}
+
+type VerifyFilesRes interface {
+	verifyFilesRes()
 }

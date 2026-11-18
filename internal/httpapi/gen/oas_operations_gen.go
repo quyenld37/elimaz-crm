@@ -84,6 +84,7 @@ const (
 	ListCustomerTagsOperation            OperationName = "ListCustomerTags"
 	ListCustomersOperation               OperationName = "ListCustomers"
 	ListJobsOperation                    OperationName = "ListJobs"
+	ListLostFilesOperation               OperationName = "ListLostFiles"
 	ListOrderDuplicatesOperation         OperationName = "ListOrderDuplicates"
 	ListOrdersOperation                  OperationName = "ListOrders"
 	ListPermissionsOperation             OperationName = "ListPermissions"
@@ -133,4 +134,5 @@ const (
 	UpdateSupplierOperation              OperationName = "UpdateSupplier"
 	UpdateTrafficSourceOperation         OperationName = "UpdateTrafficSource"
 	UpdateVariantOperation               OperationName = "UpdateVariant"
+	VerifyFilesOperation                 OperationName = "VerifyFiles"
 )

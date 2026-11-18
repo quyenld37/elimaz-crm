@@ -514,6 +514,13 @@ type Handler interface {
 	//
 	// GET /api/v1/platform/jobs
 	ListJobs(ctx context.Context, params ListJobsParams) (ListJobsRes, error)
+	// ListLostFiles implements listLostFiles operation.
+	//
+	// Tệp có trong CRM nhưng kho tệp không còn (status lost), mất gần nhất trước; trang
+	// theo con trỏ.
+	//
+	// GET /api/v1/platform/files/lost
+	ListLostFiles(ctx context.Context, params ListLostFilesParams) (ListLostFilesRes, error)
 	// ListOrderDuplicates implements listOrderDuplicates operation.
 	//
 	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
@@ -828,6 +835,13 @@ type Handler interface {
 	//
 	// PATCH /api/v1/catalog/variants/{id}
 	UpdateVariant(ctx context.Context, req *UpdateVariantRequest, params UpdateVariantParams) (UpdateVariantRes, error)
+	// VerifyFiles implements verifyFiles operation.
+	//
+	// Kiểm lại mọi tệp ready trên kho tệp (lệnh file.verify nền, một lệnh mỗi
+	// tenant); tệp thiếu đối tượng thành lost.
+	//
+	// POST /api/v1/platform/files/verify
+	VerifyFiles(ctx context.Context, params VerifyFilesParams) (VerifyFilesRes, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and

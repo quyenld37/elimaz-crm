@@ -7157,6 +7157,95 @@ func (s *Server) handleListJobsRequest(args [0]string, argsEscaped bool, w http.
 	}
 }
 
+// handleListLostFilesRequest handles listLostFiles operation.
+//
+// Tệp có trong CRM nhưng kho tệp không còn (status lost), mất gần nhất trước; trang
+// theo con trỏ.
+//
+// GET /api/v1/platform/files/lost
+func (s *Server) handleListLostFilesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListLostFilesOperation,
+			ID:   "listLostFiles",
+		}
+	)
+	params, err := decodeListLostFilesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListLostFilesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListLostFilesOperation,
+			OperationSummary: "Tệp có trong CRM nhưng kho tệp không còn (status lost), mất gần nhất trước; trang theo con trỏ",
+			OperationID:      "listLostFiles",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListLostFilesParams
+			Response = ListLostFilesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListLostFilesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListLostFiles(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListLostFiles(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListLostFilesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleListOrderDuplicatesRequest handles listOrderDuplicates operation.
 //
 // Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
@@ -11798,6 +11887,91 @@ func (s *Server) handleUpdateVariantRequest(args [1]string, argsEscaped bool, w 
 	}
 
 	if err := encodeUpdateVariantResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleVerifyFilesRequest handles verifyFiles operation.
+//
+// Kiểm lại mọi tệp ready trên kho tệp (lệnh file.verify nền, một lệnh mỗi
+// tenant); tệp thiếu đối tượng thành lost.
+//
+// POST /api/v1/platform/files/verify
+func (s *Server) handleVerifyFilesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: VerifyFilesOperation,
+			ID:   "verifyFiles",
+		}
+	)
+	params, err := decodeVerifyFilesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response VerifyFilesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    VerifyFilesOperation,
+			OperationSummary: "Kiểm lại mọi tệp ready trên kho tệp (lệnh file.verify nền, một lệnh mỗi tenant); tệp thiếu đối tượng thành lost",
+			OperationID:      "verifyFiles",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = VerifyFilesParams
+			Response = VerifyFilesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackVerifyFilesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.VerifyFiles(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.VerifyFiles(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeVerifyFilesResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

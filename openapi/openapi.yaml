@@ -373,6 +373,52 @@ paths:
                 $ref: "#/components/schemas/RegenerateImagesResult"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/platform/files/verify:
+    post:
+      operationId: verifyFiles
+      summary: Kiểm lại mọi tệp ready trên kho tệp (lệnh file.verify nền, một lệnh mỗi tenant); tệp thiếu đối tượng thành lost
+      x-permission: platform.files.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Đã nhận; việc chạy nền
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyFilesAccepted"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/platform/files/lost:
+    get:
+      operationId: listLostFiles
+      summary: Tệp có trong CRM nhưng kho tệp không còn (status lost), mất gần nhất trước; trang theo con trỏ
+      x-permission: platform.files.manage
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Trang tệp mất
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LostFilePage"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/platform/jobs:
     get:
       operationId: listJobs
@@ -3612,6 +3658,43 @@ components:
           type: integer
           format: int32
           description: Số lệnh file.regenerate mới xếp (tệp đã có lệnh cho bản này không tính)
+    VerifyFilesAccepted:
+      type: object
+      required: [jobId]
+      properties:
+        jobId:
+          type: string
+          format: uuid
+    LostFilePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LostFile"
+        nextCursor:
+          type: string
+          description: Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+    LostFile:
+      type: object
+      required: [fileId, purpose, lostAt]
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        purpose:
+          type: string
+          description: Khóa mục đích tệp (product_image, catalog_import, …)
+        productId:
+          type: string
+          format: uuid
+          description: Mẫu dùng tệp (đọc qua catalog.products_v); không có khi tệp không gắn mẫu
+        productCode:
+          type: string
+        lostAt:
+          type: string
+          format: date-time
     CreateUploadRequest:
       type: object
       required: [purpose, fileName, contentType, sizeBytes]

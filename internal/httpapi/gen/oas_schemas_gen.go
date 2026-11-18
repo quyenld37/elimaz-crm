@@ -5468,6 +5468,7 @@ func (*ErrorStatusCode) listCustomerMergeCandidatesRes() {}
 func (*ErrorStatusCode) listCustomerTagsRes()            {}
 func (*ErrorStatusCode) listCustomersRes()               {}
 func (*ErrorStatusCode) listJobsRes()                    {}
+func (*ErrorStatusCode) listLostFilesRes()               {}
 func (*ErrorStatusCode) listOrderDuplicatesRes()         {}
 func (*ErrorStatusCode) listOrdersRes()                  {}
 func (*ErrorStatusCode) listPermissionsRes()             {}
@@ -5517,6 +5518,7 @@ func (*ErrorStatusCode) updateRoleRes()                  {}
 func (*ErrorStatusCode) updateSupplierRes()              {}
 func (*ErrorStatusCode) updateTrafficSourceRes()         {}
 func (*ErrorStatusCode) updateVariantRes()               {}
+func (*ErrorStatusCode) verifyFilesRes()                 {}
 
 // Một loại lỗi ứng dụng gộp theo dấu vân tay (Task 20). message đã lọc chuỗi từ
 // 8 chữ số và email.
@@ -6218,6 +6220,96 @@ func (*ListTagsOKApplicationJSON) listTagsRes() {}
 type ListWarehousesOKApplicationJSON []Warehouse
 
 func (*ListWarehousesOKApplicationJSON) listWarehousesRes() {}
+
+// Ref: #/components/schemas/LostFile
+type LostFile struct {
+	FileId uuid.UUID `json:"fileId"`
+	// Khóa mục đích tệp (product_image, catalog_import, …).
+	Purpose string `json:"purpose"`
+	// Mẫu dùng tệp (đọc qua catalog.products_v); không có khi tệp không gắn mẫu.
+	ProductId   OptUUID   `json:"productId"`
+	ProductCode OptString `json:"productCode"`
+	LostAt      time.Time `json:"lostAt"`
+}
+
+// GetFileId returns the value of FileId.
+func (s *LostFile) GetFileId() uuid.UUID {
+	return s.FileId
+}
+
+// GetPurpose returns the value of Purpose.
+func (s *LostFile) GetPurpose() string {
+	return s.Purpose
+}
+
+// GetProductId returns the value of ProductId.
+func (s *LostFile) GetProductId() OptUUID {
+	return s.ProductId
+}
+
+// GetProductCode returns the value of ProductCode.
+func (s *LostFile) GetProductCode() OptString {
+	return s.ProductCode
+}
+
+// GetLostAt returns the value of LostAt.
+func (s *LostFile) GetLostAt() time.Time {
+	return s.LostAt
+}
+
+// SetFileId sets the value of FileId.
+func (s *LostFile) SetFileId(val uuid.UUID) {
+	s.FileId = val
+}
+
+// SetPurpose sets the value of Purpose.
+func (s *LostFile) SetPurpose(val string) {
+	s.Purpose = val
+}
+
+// SetProductId sets the value of ProductId.
+func (s *LostFile) SetProductId(val OptUUID) {
+	s.ProductId = val
+}
+
+// SetProductCode sets the value of ProductCode.
+func (s *LostFile) SetProductCode(val OptString) {
+	s.ProductCode = val
+}
+
+// SetLostAt sets the value of LostAt.
+func (s *LostFile) SetLostAt(val time.Time) {
+	s.LostAt = val
+}
+
+// Ref: #/components/schemas/LostFilePage
+type LostFilePage struct {
+	Items []LostFile `json:"items"`
+	// Có khi còn trang sau; gửi lại nguyên ở tham số cursor.
+	NextCursor OptString `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *LostFilePage) GetItems() []LostFile {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *LostFilePage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *LostFilePage) SetItems(val []LostFile) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *LostFilePage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*LostFilePage) listLostFilesRes() {}
 
 // Ref: #/components/schemas/Me
 type Me struct {
@@ -15849,6 +15941,23 @@ func (s *VariantStatus) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+// Ref: #/components/schemas/VerifyFilesAccepted
+type VerifyFilesAccepted struct {
+	JobId uuid.UUID `json:"jobId"`
+}
+
+// GetJobId returns the value of JobId.
+func (s *VerifyFilesAccepted) GetJobId() uuid.UUID {
+	return s.JobId
+}
+
+// SetJobId sets the value of JobId.
+func (s *VerifyFilesAccepted) SetJobId(val uuid.UUID) {
+	s.JobId = val
+}
+
+func (*VerifyFilesAccepted) verifyFilesRes() {}
 
 // Ref: #/components/schemas/VersionRequest
 type VersionRequest struct {
