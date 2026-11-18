@@ -681,7 +681,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "GET":
 							r.name = StreamOperation
-							r.summary = "Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 15)"
+							r.summary = "Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 16)"
 							r.operationID = "stream"
 							r.operationGroup = ""
 							r.pathPattern = "/api/v1/stream"

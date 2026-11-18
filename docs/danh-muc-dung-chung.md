@@ -391,6 +391,65 @@ type WorkerOptions struct {
 }
 ```
 
+## `internal/platform/realtime` (gói `realtime`)
+
+Package realtime phát báo hiệu "đối tượng X vừa đổi" tới màn hình nhân viên qua SSE (spec 04 mục 6, ADR-05, ADR-17).
+
+**Khi nào không dùng:** Không gửi dữ liệu nghiệp vụ hay dữ liệu cá nhân qua báo hiệu: Signal chỉ mang tenant, chủ đề, quyền, phạm vi và mã đối tượng; màn hình tải lại bằng API. Không dùng làm hàng đợi hay sự kiện nội bộ (báo hiệu được phép mất: dùng events.Emit, commands). Không phát ngoài transaction nghiệp vụ (Publish nhận tx để chỉ phát khi commit) và không tự gọi pg_notify, LISTEN ở gói khác. Không tạo PGHub thứ hai trong một tiến trình.
+
+```go
+func ServeSSE(w http.ResponseWriter, r *http.Request, bus Bus, u identity.AuthUser, o SSEOptions)
+type Bus interface {
+	Publish(ctx context.Context, tx pgx.Tx, s Signal) error
+
+	Subscribe(u identity.AuthUser, send func(Frame)) (cancel func())
+
+	Status() (listening bool, clients int)
+}
+type Entity struct {
+	Type string `json:"type"`
+	ID   string `json:"id"`
+}
+type Frame struct {
+	Event string
+	Data  json.RawMessage
+}
+type PGHub struct {
+}
+func NewPGHub(o PGHubOptions) *PGHub
+func (h *PGHub) Publish(ctx context.Context, tx pgx.Tx, s Signal) error
+func (h *PGHub) Run(ctx context.Context)
+func (h *PGHub) Status() (listening bool, clients int)
+func (h *PGHub) Subscribe(u identity.AuthUser, send func(Frame)) (cancel func())
+type PGHubOptions struct {
+	URL     string
+	Metrics *metrics.Registry
+	Logger  *slog.Logger
+
+	MinBackoff, MaxBackoff time.Duration
+
+	CheckEvery time.Duration
+
+	PingTimeout time.Duration
+}
+type SSEOptions struct {
+	Batch time.Duration
+
+	Heartbeat time.Duration
+
+	MaxPending int
+
+	Stop <-chan struct{}
+}
+type Signal struct {
+	TenantID uuid.UUID
+	Topic    string
+	Requires identity.Permission
+	Scope    *identity.Scope
+	Entity   Entity
+}
+```
+
 ## `internal/platform/schedules` (gói `schedules`)
 
 Package schedules là việc định kỳ (spec 04 mục 5.1) và dọn dữ liệu: lịch nằm trong platform.schedules; tới kỳ, Ticker của vai trò worker ghi một việc (lịch toàn hệ thống) hoặc mỗi tenant một việc (lịch theo tenant) lên hàng đợi chung, với DedupeKey theo kỳ nên nhiều worker không tạo trùng.

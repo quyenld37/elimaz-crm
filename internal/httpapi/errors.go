@@ -35,6 +35,7 @@ const (
 	codeNotImplemented         = "not_implemented"
 	codeRateLimited            = "rate_limited"
 	codeRetryLater             = "retry_later"
+	codeStreamUnavailable      = "stream_unavailable"
 	codeUnauthenticated        = "unauthenticated"
 	codeUnsupportedMedia       = "unsupported_media_type"
 )
