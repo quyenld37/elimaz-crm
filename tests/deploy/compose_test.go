@@ -5,6 +5,7 @@ package deploy_test
 
 import (
 	"encoding/json"
+	"os"
 	"os/exec"
 	"slices"
 	"strconv"
@@ -48,6 +49,7 @@ type service struct {
 }
 
 type port struct {
+	HostIP    string `json:"host_ip"`
 	Published string `json:"published"`
 	Target    int    `json:"target"`
 }
@@ -58,18 +60,28 @@ type healthcheck struct {
 }
 
 type volume struct {
-	Type   string `json:"type"`
-	Source string `json:"source"`
-	Target string `json:"target"`
+	Type     string `json:"type"`
+	Source   string `json:"source"`
+	Target   string `json:"target"`
+	ReadOnly bool   `json:"read_only"`
 }
 
 // config đọc tệp compose (đường dẫn tính từ gốc repo) qua docker compose config.
 func config(t *testing.T, args ...string) project {
 	t.Helper()
+	return configEnv(t, nil, args...)
+}
+
+// configEnv như config, thêm biến môi trường env ("K=V") cho lệnh docker compose (các biến khác của phiên giữ nguyên).
+func configEnv(t *testing.T, env []string, args ...string) project {
+	t.Helper()
 	full := append([]string{"compose", "--project-directory", "../../docker"}, args...)
 	full = append(full, "config", "--format", "json")
 	cmd := exec.CommandContext(t.Context(), "docker", full...)
 	cmd.Dir = "../.."
+	if env != nil {
+		cmd.Env = append(os.Environ(), env...)
+	}
 	out, err := cmd.Output()
 	if err != nil {
 		var stderr string
