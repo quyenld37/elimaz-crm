@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M1 — Nhập Excel</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="m1.css">
+<style>
+.etbl .c-row { width: 80px; } .etbl .c-col { width: 160px; }
+</style>
+</head>
+<body data-page="nhap-excel" data-title="Nhập Excel">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><h1>Nhập sản phẩm từ Excel</h1><p class="sub">Một dòng mỗi biến thể, khớp theo SKU: có rồi thì cập nhật, chưa có thì tạo. Kiểm hết trước; có một lỗi là không ghi gì.</p></div>
+</div>
+<ol class="steps"><li class="is-done"><b>1</b>Tải tệp mẫu</li><li class="is-done"><b>2</b>Chọn tệp</li><li class="is-on"><b>3</b>Kiểm</li><li><b>4</b>Áp dụng</li></ol>
+
+<section class="st"><p class="xs">TRẠNG THÁI A</p><h2>Bắt đầu: tải tệp mẫu, chọn tệp</h2></section>
+<div class="cols">
+	<div class="card">
+		<h2>1. Tải tệp mẫu</h2>
+		<p>Tệp mẫu có sẵn danh sách danh mục, trạng thái và một cột cho mỗi thuộc tính đang có. Trang "Hướng dẫn" trong tệp ghi cách điền.</p>
+		<button class="btn btn-line" style="margin-top:16px">Tải tệp mẫu (.xlsx)</button>
+		<p class="hint" style="margin-top:8px">Không nhận tệp xuất từ Nhanh: chép dữ liệu sang tệp mẫu của CRM.</p>
+	</div>
+	<div class="card">
+		<h2>2. Chọn tệp đã điền</h2>
+		<div class="drop"><p><b>Kéo tệp .xlsx vào đây</b> hoặc</p><button class="btn btn-dark">Chọn tệp</button><p class="hint">Tối đa 5 MB, 20.000 dòng. Ô có công thức sẽ bị từ chối.</p></div>
+	</div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Đang tải lên, rồi đang kiểm</h2></section>
+<div class="stack">
+	<div class="card"><div class="row-between"><b>san-pham-thang-11.xlsx</b><span class="small muted num">2,4 MB · 68%</span></div><div class="bar" style="margin-top:8px"><i style="width:68%"></i></div></div>
+	<div class="card"><div class="row-between"><b>san-pham-thang-11.xlsx</b><span class="chip">Đang kiểm</span></div><p class="small muted" style="margin-top:8px">Đang đọc và kiểm từng dòng, thường dưới một phút. Có thể rời trang; kết quả giữ ở đây.</p><div class="bar" style="margin-top:8px"><i style="width:35%"></i></div></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Tệp có 7 lỗi: không ghi gì, bảng lỗi theo dòng</h2></section>
+<div class="box box-err" style="margin-bottom:16px"><b>Chưa ghi gì: tệp có 7 lỗi.</b> <span>Sửa các dòng dưới trong tệp rồi tải lên lại. Số dòng là số dòng trong Excel (dòng 1 là tiêu đề).</span><div class="row" style="margin-top:8px"><button class="btn btn-dark">Chọn tệp đã sửa</button></div></div>
+<div class="tbl-frame">
+<table class="tbl etbl">
+	<thead><tr><th class="c-row">Dòng</th><th class="c-col">Cột</th><th>Lỗi</th></tr></thead>
+	<tbody>
+	<tr><td data-label="Dòng" class="num bold">5</td><td data-label="Cột">Tên mẫu</td><td data-label="Lỗi">Thiếu tên mẫu (cột bắt buộc)</td></tr>
+	<tr><td data-label="Dòng" class="num bold">9</td><td data-label="Cột">Giá bán</td><td data-label="Lỗi">Giá "350,5" không hợp lệ: giá là số đồng nguyên, ví dụ 350000 hoặc 350.000</td></tr>
+	<tr><td data-label="Dòng" class="num bold">12</td><td data-label="Cột">SKU</td><td data-label="Lỗi">SKU trùng với dòng 3 trong cùng tệp</td></tr>
+	<tr><td data-label="Dòng" class="num bold">20</td><td data-label="Cột">Danh mục</td><td data-label="Lỗi">Không có danh mục "Áo &gt; Không có"</td></tr>
+	<tr><td data-label="Dòng" class="num bold">31</td><td data-label="Cột">Mã màu</td><td data-label="Lỗi">Mã màu "red" không hợp lệ: dùng dạng #RRGGBB, ví dụ #C0392B</td></tr>
+	<tr><td data-label="Dòng" class="num bold">44</td><td data-label="Cột">Trạng thái</td><td data-label="Lỗi">Trạng thái "Bán" không hợp lệ: chọn Đang nhập, Đang bán hoặc Ngừng bán</td></tr>
+	<tr><td data-label="Dòng" class="num bold">50</td><td data-label="Cột">Tên mẫu</td><td data-label="Lỗi">Tên mẫu khác dòng 49 cùng Mã mẫu: các cột của mẫu phải giống nhau ở mọi dòng</td></tr>
+	</tbody>
+</table>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI D</p><h2>Tệp hợp lệ: xem trước số tạo, cập nhật, giữ nguyên</h2></section>
+<div class="card">
+	<div class="row-between"><h2>san-pham-thang-11.xlsx sẵn sàng</h2><span class="chip chip-ok">Hợp lệ</span></div>
+	<div class="kpis">
+		<div class="kpi"><span class="small muted">Mẫu</span><div class="v">200</div></div>
+		<div class="kpi"><span class="small muted">Biến thể tạo mới</span><div class="v">997</div></div>
+		<div class="kpi"><span class="small muted">Biến thể cập nhật</span><div class="v">3</div></div>
+		<div class="kpi"><span class="small muted">Giữ nguyên</span><div class="v">0</div></div>
+	</div>
+	<p class="small muted" style="margin-top:16px">Áp dụng ghi tất cả trong một lần: hoặc đủ 1.000 biến thể, hoặc không gì cả. Người bán: ELIMAZ.</p>
+	<div class="savebar" style="margin-top:16px"><button class="btn btn-line">Chọn tệp khác</button><button class="btn btn-dark">Áp dụng…</button></div>
+</div>
+<div class="backdrop" style="margin-top:16px">
+	<div class="dlg" role="dialog" aria-labelledby="d1">
+		<div class="dlg-h"><h3 id="d1">Áp dụng tệp nhập?</h3></div>
+		<div class="dlg-b"><p>Tạo <b>997</b> biến thể, cập nhật <b>3</b> biến thể của <b>200</b> mẫu. Giá đổi của mẫu đang bán hiện trên web ngay sau đó.</p></div>
+		<div class="dlg-f"><button class="btn btn-line">Quay lại</button><button class="btn btn-dark">Áp dụng</button></div>
+	</div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI E</p><h2>Đang áp dụng, đã áp dụng</h2></section>
+<div class="stack">
+	<div class="card"><div class="row-between"><b>Đang áp dụng…</b><span class="chip">Đang ghi</span></div><div class="bar" style="margin-top:8px"><i style="width:60%"></i></div><p class="small muted" style="margin-top:8px">Thường dưới 20 giây cho 1.000 biến thể.</p></div>
+	<div class="box box-ok"><b class="ok-text">Đã nhập xong.</b> 200 mẫu: tạo 997 biến thể, cập nhật 3. Áp dụng bởi Lan lúc 10:02 18/11.<div class="row" style="margin-top:8px"><a class="btn btn-line" href="san-pham-danh-sach.html">Xem danh sách sản phẩm</a></div></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI F</p><h2>Cùng tệp nhập lần hai; tệp sai định dạng; áp dụng thất bại vì dữ liệu vừa đổi</h2></section>
+<div class="stack">
+	<div class="box box-info"><b>Tệp này đã nhập lúc 10:02 18/11.</b> Nội dung giống hệt lần đó nên không có gì thay đổi. Muốn sửa thì sửa tệp rồi tải lên lại.</div>
+	<div class="box box-err"><b>Không đọc được tệp.</b> <span>Tệp không phải Excel (.xlsx), hoặc quá 5 MB, hoặc quá 20.000 dòng. Lưu lại bằng Excel dạng .xlsx từ tệp mẫu.</span></div>
+	<div class="box box-err"><b>Không ghi được, không có gì thay đổi.</b> <span>Dòng 14: SKU AO01-DEN-S vừa được thêm cho mẫu khác sau lúc kiểm. Sửa SKU trong tệp rồi tải lên lại.</span></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

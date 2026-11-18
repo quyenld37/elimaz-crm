@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup các màn M1 — CRM ELIMAZ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="m1.css">
+<style>
+.doc { max-width: 1320px; margin: 0 auto; padding: 24px 40px 64px; display: grid; gap: 24px; }
+@media (max-width: 999px) { .doc { padding: 16px 16px 48px; } }
+.pair { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; align-items: start; }
+.pair figure { margin: 0; display: grid; gap: 4px; }
+.pair img { width: 100%; height: 520px; object-fit: cover; object-position: top; border: 1px solid var(--rule); border-radius: var(--r-box); display: block; }
+.pair a { display: block; }
+.pair figcaption a { display: inline-flex; min-height: var(--tap); align-items: center; }
+@media (max-width: 759px) { .pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .pair img { height: 280px; } }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+.btbl td:first-child { width: 64px; } .btbl td:nth-child(2) { width: 140px; } .btbl td:last-child { width: 120px; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="stack-sm">
+	<p class="xs label">CRM ELIMAZ · M1 · TASK M1-49 · 18/11/2026</p>
+	<h1>Mockup các màn M1: Sản phẩm, Kho, Nhập Excel, Hệ thống, Nhân viên, Vai trò</h1>
+	<p class="muted">Đề xuất cho 12 màn nội bộ của CRM, vẽ theo hệ thiết kế đã duyệt (<code>apps/storefront-giftstatus/DESIGN.md</code>): chỉ màu, cỡ chữ, bốn cỡ bo góc có sẵn; không có gì chỉ hiện khi rê chuột; nút trên điện thoại cao ít nhất 44 px. Mỗi màn có nhiều <b>trạng thái</b> xếp dọc (khung viền đứt là ghi chú của mockup, không phải giao diện).</p>
+	<div class="box box-soft"><b>Trạng thái duyệt: chờ điều phối viên duyệt (Điểm dừng M1-C, quyết định Q-X8).</b> Chủ shop xem lại ảnh sau; mỗi dòng ở bảng "Thay đổi hành vi" cần chủ shop OK riêng nhưng không chặn việc làm màn.</div>
+</header>
+
+<section class="card">
+	<h2>Đọc trang này thế nào</h2>
+	<ul class="small" style="margin:8px 0 0;padding-left:20px">
+		<li><b>Hiện tại</b>: CRM chưa có màn hình nào; việc này đang làm trên Nhanh (và admin của website). Không có ảnh chụp Nhanh; cột "Hiện tại" ở bảng hành vi ghi cách làm hiện nay theo spec 01 và khảo sát, "chưa khảo sát" khi chưa biết.</li>
+		<li><b>Đề xuất</b>: ảnh chụp mockup ở 1512 × 767 (laptop của chủ shop) và 390 × 844 (điện thoại); thêm 360 cho màn có chữ dễ tràn. Bấm ảnh để xem cả trang.</li>
+		<li>Kiểm kho thiết kế cho điện thoại trước (Q23); các màn khác cho laptop và không vỡ ở 390.</li>
+		<li>Ảnh chụp và tự soát sinh lại bằng <code>docs/mockups/m1/soat.mjs</code> (chữ tràn, mục chạm, token màu, cỡ chữ, bo góc, ô chọn).</li>
+	</ul>
+	<div class="toc" style="margin-top:16px">
+<a class="btn btn-quiet" href="#san-pham-danh-sach">(1) Danh sách sản phẩm</a><a class="btn btn-quiet" href="#san-pham-sua">(2) Sửa mẫu</a><a class="btn btn-quiet" href="#kho-ton">(3) Tồn kho</a><a class="btn btn-quiet" href="#kho-phieu">(4) Phiếu kho</a><a class="btn btn-quiet" href="#kho-nha-cung-cap">(4b) Nhà cung cấp</a><a class="btn btn-quiet" href="#kho-kiem-kho">(5) Kiểm kho trên điện thoại</a><a class="btn btn-quiet" href="#nhap-excel">(6) Nhập Excel</a><a class="btn btn-quiet" href="#suc-khoe">(7) Sức khỏe hệ thống</a><a class="btn btn-quiet" href="#su-kien-loi">(8) Sự kiện lỗi</a><a class="btn btn-quiet" href="#tep-bi-mat">(9) Tệp bị mất</a><a class="btn btn-quiet" href="#nhan-vien">(10) Nhân viên và quyền</a><a class="btn btn-quiet" href="#vai-tro">(11) Vai trò</a>
+		<a class="btn btn-quiet" href="#hanh-vi">Thay đổi hành vi</a>
+	</div>
+</section>
+
+<section class="card scr" id="san-pham-danh-sach">
+	<div class="row-between"><h2>(1) Danh sách sản phẩm</h2><a class="btn btn-quiet" href="san-pham-danh-sach.html">Mở mockup</a></div>
+	<p class="small muted">Tìm, lọc trạng thái, danh mục, nhãn; ảnh, mã, tên, giá, có thể bán. 0 / 1 / 200 mẫu, tên 80 ký tự, chưa có ảnh, ảnh bị mất, tồn âm, ngừng bán.</p>
+	<div class="pair">
+		<figure><a href="png/san-pham-danh-sach-1512.png"><img src="png/san-pham-danh-sach-1512.png" alt="Danh sách sản phẩm ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure class="ph"><a href="png/san-pham-danh-sach-390.png"><img src="png/san-pham-danh-sach-390.png" alt="Danh sách sản phẩm ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="png/san-pham-danh-sach-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="san-pham-sua">
+	<div class="row-between"><h2>(2) Sửa mẫu</h2><a class="btn btn-quiet" href="san-pham-sua.html">Mở mockup</a></div>
+	<p class="small muted">Thông tin, mô tả ngắn, trình soạn bài viết dạng khối (0 và 30 khối, xem trước), phân loại, bảng biến thể 2 màu × 3 size, ảnh: tải nhiều (đang xử lý, bị từ chối theo từng lý do), sắp xếp, gắn màu, xóa có hoàn tác, ảnh gốc, ảnh mất.</p>
+	<div class="pair">
+		<figure><a href="png/san-pham-sua-1512.png"><img src="png/san-pham-sua-1512.png" alt="Sửa mẫu ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure class="ph"><a href="png/san-pham-sua-390.png"><img src="png/san-pham-sua-390.png" alt="Sửa mẫu ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="png/san-pham-sua-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="kho-ton">
+	<div class="row-between"><h2>(3) Tồn kho</h2><a class="btn btn-quiet" href="kho-ton.html">Mở mockup</a></div>
+	<p class="small muted">Bảng tồn bốn ngăn và có thể bán, lọc "Thiếu so với phần giữ".</p>
+	<div class="pair">
+		<figure><a href="png/kho-ton-1512.png"><img src="png/kho-ton-1512.png" alt="Tồn kho ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure class="ph"><a href="png/kho-ton-390.png"><img src="png/kho-ton-390.png" alt="Tồn kho ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844</figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="kho-phieu">
+	<div class="row-between"><h2>(4) Phiếu kho</h2><a class="btn btn-quiet" href="kho-phieu.html">Mở mockup</a></div>
+	<p class="small muted">Danh sách phiếu; soạn phiếu nhập, thêm nhanh nhà cung cấp, thêm dòng bằng quét mã; ghi sổ có xác nhận; phiếu xuất không đủ hàng; phiếu đã ghi sổ.</p>
+	<div class="pair">
+		<figure><a href="png/kho-phieu-1512.png"><img src="png/kho-phieu-1512.png" alt="Phiếu kho ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure class="ph"><a href="png/kho-phieu-390.png"><img src="png/kho-phieu-390.png" alt="Phiếu kho ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844</figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="kho-nha-cung-cap">
+	<div class="row-between"><h2>(4b) Nhà cung cấp</h2><a class="btn btn-quiet" href="kho-nha-cung-cap.html">Mở mockup</a></div>
+	<p class="small muted">Danh bạ: danh sách, thêm, sửa, lưu trữ; tên 200 ký tự.</p>
+	<div class="pair">
+		<figure><a href="png/kho-nha-cung-cap-1512.png"><img src="png/kho-nha-cung-cap-1512.png" alt="Nhà cung cấp ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure class="ph"><a href="png/kho-nha-cung-cap-390.png"><img src="png/kho-nha-cung-cap-390.png" alt="Nhà cung cấp ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="png/kho-nha-cung-cap-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="kho-kiem-kho">
+	<div class="row-between"><h2>(5) Kiểm kho trên điện thoại</h2><a class="btn btn-quiet" href="kho-kiem-kho.html">Mở mockup</a></div>
+	<p class="small muted">Quét barcode cộng dồn, sửa số, xem trước chênh lệch (đang giao không chỉnh, thiếu so với phần giữ), áp dụng.</p>
+	<div class="pair">
+		<figure><a href="png/kho-kiem-kho-1512.png"><img src="png/kho-kiem-kho-1512.png" alt="Kiểm kho trên điện thoại ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure class="ph"><a href="png/kho-kiem-kho-390.png"><img src="png/kho-kiem-kho-390.png" alt="Kiểm kho trên điện thoại ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="png/kho-kiem-kho-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="nhap-excel">
+	<div class="row-between"><h2>(6) Nhập Excel</h2><a class="btn btn-quiet" href="nhap-excel.html">Mở mockup</a></div>
+	<p class="small muted">Tải mẫu, tải tệp, tiến trình, bảng lỗi 7 dòng, xem trước tạo/cập nhật, áp dụng, tệp trùng, thất bại.</p>
+	<div class="pair">
+		<figure><a href="png/nhap-excel-1512.png"><img src="png/nhap-excel-1512.png" alt="Nhập Excel ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure class="ph"><a href="png/nhap-excel-390.png"><img src="png/nhap-excel-390.png" alt="Nhập Excel ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844</figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="suc-khoe">
+	<div class="row-between"><h2>(7) Sức khỏe hệ thống</h2><a class="btn btn-quiet" href="suc-khoe.html">Mở mockup</a></div>
+	<p class="small muted">Dữ liệu GET /api/v1/platform/health: tiến trình (worker ngừng 3 phút), hàng đợi, sao lưu, lỗi, cảnh báo gấp và thường.</p>
+	<div class="pair">
+		<figure><a href="png/suc-khoe-1512.png"><img src="png/suc-khoe-1512.png" alt="Sức khỏe hệ thống ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure class="ph"><a href="png/suc-khoe-390.png"><img src="png/suc-khoe-390.png" alt="Sức khỏe hệ thống ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844</figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="su-kien-loi">
+	<div class="row-between"><h2>(8) Sự kiện lỗi</h2><a class="btn btn-quiet" href="su-kien-loi.html">Mở mockup</a></div>
+	<p class="small muted">10 loại lỗi nhiều nhất: lần đầu, lần cuối, số lần, thông báo 300 ký tự.</p>
+	<div class="pair">
+		<figure><a href="png/su-kien-loi-1512.png"><img src="png/su-kien-loi-1512.png" alt="Sự kiện lỗi ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure class="ph"><a href="png/su-kien-loi-390.png"><img src="png/su-kien-loi-390.png" alt="Sự kiện lỗi ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="png/su-kien-loi-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="tep-bi-mat">
+	<div class="row-between"><h2>(9) Tệp bị mất</h2><a class="btn btn-quiet" href="tep-bi-mat.html">Mở mockup</a></div>
+	<p class="small muted">Danh sách tệp mất kèm mã mẫu, nút Kiểm lại.</p>
+	<div class="pair">
+		<figure><a href="png/tep-bi-mat-1512.png"><img src="png/tep-bi-mat-1512.png" alt="Tệp bị mất ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure class="ph"><a href="png/tep-bi-mat-390.png"><img src="png/tep-bi-mat-390.png" alt="Tệp bị mất ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844</figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="nhan-vien">
+	<div class="row-between"><h2>(10) Nhân viên và quyền</h2><a class="btn btn-quiet" href="nhan-vien.html">Mở mockup</a></div>
+	<p class="small muted">Danh sách, thêm, gán vai trò theo phạm vi, khóa; câu báo tự sửa, vượt quyền, Chủ cuối cùng.</p>
+	<div class="pair">
+		<figure><a href="png/nhan-vien-1512.png"><img src="png/nhan-vien-1512.png" alt="Nhân viên và quyền ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure class="ph"><a href="png/nhan-vien-390.png"><img src="png/nhan-vien-390.png" alt="Nhân viên và quyền ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="png/nhan-vien-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="vai-tro">
+	<div class="row-between"><h2>(11) Vai trò</h2><a class="btn btn-quiet" href="vai-tro.html">Mở mockup</a></div>
+	<p class="small muted">Vai trò mẫu và tự tạo, sửa bằng danh sách quyền nhóm theo khu vực, quyền người sửa không có hiện mờ kèm lý do, Chủ chỉ xem (40 quyền), lưu trữ bị chặn.</p>
+	<div class="pair">
+		<figure><a href="png/vai-tro-1512.png"><img src="png/vai-tro-1512.png" alt="Vai trò ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure class="ph"><a href="png/vai-tro-390.png"><img src="png/vai-tro-390.png" alt="Vai trò ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="png/vai-tro-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+
+<section class="card" id="hanh-vi">
+	<div class="row-between"><h2>Thay đổi hành vi so với công cụ cũ (35 dòng)</h2><span class="small muted">Mỗi dòng cần chủ shop OK riêng</span></div>
+	<div class="tbl-frame">
+	<table class="tbl btbl">
+		<thead><tr><th>#</th><th>Màn</th><th>Hành vi đề xuất</th><th>Chủ shop OK</th></tr></thead>
+		<tbody>
+	<tr><td data-label="#" class="num">H01</td><td data-label="Màn">Phiếu kho</td><td class="full"><b>Ghi sổ phiếu cần bấm xác nhận lần hai (hộp "Ghi sổ phiếu …?"); phiếu nháp chưa đổi tồn.</b><br><span class="small muted">Hiện tại: Phiếu nhập, xuất có trên Nhanh; cách duyệt cụ thể chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H02</td><td data-label="Màn">Phiếu kho</td><td class="full"><b>Soạn phiếu và ghi sổ là hai quyền: Kho soạn nháp, Chủ hoặc Quản lý ghi sổ (Q7). Người chỉ soạn thấy nút Ghi sổ mờ kèm lý do.</b><br><span class="small muted">Hiện tại: Chưa rõ trên Nhanh (câu hỏi Q08 còn mở).</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H03</td><td data-label="Màn">Phiếu kho</td><td class="full"><b>Phiếu đã ghi sổ không sửa, không hủy được; sửa sai bằng phiếu điều chỉnh.</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H04</td><td data-label="Màn">Phiếu kho</td><td class="full"><b>Phiếu xuất (và chuyển hàng lỗi) không được lấy vào hàng đang giữ cho đơn: báo "Không đủ hàng: còn N", phiếu vẫn là nháp.</b><br><span class="small muted">Hiện tại: Nhanh dùng cùng công thức Có thể bán; chặn khi xuất chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H05</td><td data-label="Màn">Phiếu kho</td><td class="full"><b>Gõ tên nhà cung cấp chưa có ngay trong ô chọn của phiếu nhập → nút "+ Thêm nhà cung cấp …".</b><br><span class="small muted">Hiện tại: Nhà cung cấp trên Nhanh: chưa rõ có dùng.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H06</td><td data-label="Màn">Nhà cung cấp</td><td class="full"><b>Không xóa nhà cung cấp, chỉ lưu trữ; phiếu cũ giữ tên; dùng lại được.</b><br><span class="small muted">Hiện tại: Chưa rõ.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H07</td><td data-label="Màn">Kiểm kho</td><td class="full"><b>Kiểm kho trên điện thoại: quét cùng mã thì cộng 1, số tự lưu khi ngừng quét; sửa bằng nút − + hoặc gõ số.</b><br><span class="small muted">Hiện tại: Nhanh có kiểm kho (tháng 6–10); cách đếm trên điện thoại chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H08</td><td data-label="Màn">Kiểm kho</td><td class="full"><b>So số đếm với "Tồn − Đang giao" chụp lúc đếm từng mã: hàng đã giao cho hãng không bị tính là thiếu.</b><br><span class="small muted">Hiện tại: Chưa khảo sát cách Nhanh tính.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H09</td><td data-label="Màn">Kiểm kho</td><td class="full"><b>Đếm thiếu dưới phần đang giữ: không hủy, không đổi đơn đã giữ; Có thể bán âm, hiện đỏ "Thiếu N so với phần giữ", gửi một cảnh báo thường (Q8).</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H10</td><td data-label="Màn">Kiểm kho</td><td class="full"><b>Mỗi kho chỉ một phiên kiểm mở, nhiều người đếm chung; áp dụng cần quyền riêng (Chủ, Quản lý) và bấm xác nhận.</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H11</td><td data-label="Màn">Nhập Excel</td><td class="full"><b>Kiểm cả tệp trước; có một lỗi là không ghi gì; bảng lỗi theo dòng và cột.</b><br><span class="small muted">Hiện tại: Nhập Excel trên Nhanh: chưa rõ có dùng.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H12</td><td data-label="Màn">Nhập Excel</td><td class="full"><b>Chỉ nhận tệp mẫu của CRM, không nhận tệp xuất từ Nhanh (ADR-11).</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H13</td><td data-label="Màn">Nhập Excel</td><td class="full"><b>Nhập lại đúng tệp đã nhập thì không đổi gì, báo "Tệp này đã nhập lúc …".</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H14</td><td data-label="Màn">Nhập Excel</td><td class="full"><b>Áp dụng cần bấm xác nhận; giá đổi của mẫu đang bán hiện trên web ngay.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H15</td><td data-label="Màn">Sửa mẫu</td><td class="full"><b>Bài viết chi tiết soạn bằng khối (đoạn văn, tiêu đề, danh sách, ảnh của mẫu), đổi thứ tự bằng nút ↑ ↓; không dán HTML, không định dạng tự do (Q34).</b><br><span class="small muted">Hiện tại: Web đang đọc bài viết từ Nhanh.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H16</td><td data-label="Màn">Sửa mẫu</td><td class="full"><b>Xóa ảnh: ảnh biến mất ngay, thông báo có nút "Hoàn tác" 10 giây; khôi phục được trong 30 ngày.</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H17</td><td data-label="Màn">Sửa mẫu</td><td class="full"><b>Sắp xếp ảnh bằng kéo thả hoặc nút ← → luôn hiện; mỗi ảnh gắn một màu.</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H18</td><td data-label="Màn">Sửa mẫu</td><td class="full"><b>Ảnh chỉ nhận JPEG, PNG, WebP; tối đa 20 MB và 40 triệu điểm ảnh; không nhận HEIC (Q11, Q12). Ảnh bị từ chối báo lý do ở dòng "Đang tải lên".</b><br><span class="small muted">Hiện tại: Ảnh đang ở Nhanh.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H19</td><td data-label="Màn">Sửa mẫu</td><td class="full"><b>"Ảnh gốc" tải về bản gốc qua đường dẫn hết hạn sau 5 phút.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H20</td><td data-label="Màn">Sửa mẫu</td><td class="full"><b>Barcode để trống thì tự sinh EAN-13 bắt đầu bằng 2 khi lưu (Q5).</b><br><span class="small muted">Hiện tại: Nhanh tự sinh barcode theo cấu hình của shop.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H21</td><td data-label="Màn">Sửa mẫu</td><td class="full"><b>Hai người cùng sửa một mẫu: người lưu sau nhận "Mẫu đã thay đổi, tải lại", không ghi đè.</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H22</td><td data-label="Màn">Sửa mẫu</td><td class="full"><b>Biến thể đã lưu không xóa, chỉ "Ngừng bán" (không lên đơn mới, đơn cũ vẫn tra).</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H23</td><td data-label="Màn">Sản phẩm</td><td class="full"><b>Trạng thái "Đang nhập" ẩn mẫu với khách (Q6).</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H24</td><td data-label="Màn">Nhân viên</td><td class="full"><b>Không ai tự sửa quyền hay khóa chính mình: dòng của chính mình không có nút.</b><br><span class="small muted">Hiện tại: Nhanh: chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H25</td><td data-label="Màn">Nhân viên</td><td class="full"><b>Chỉ gán được vai trò mà người gán có đủ quyền; vai trò vượt quyền hiện mờ kèm lý do.</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H26</td><td data-label="Màn">Nhân viên</td><td class="full"><b>Luôn còn ít nhất một Chủ đang hoạt động: chặn khóa hay gỡ Chủ cuối cùng.</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H27</td><td data-label="Màn">Nhân viên</td><td class="full"><b>Mỗi vai trò gán kèm phạm vi: toàn shop hoặc một kho.</b><br><span class="small muted">Hiện tại: Nhanh phân quyền xem theo kho, theo Page (cấu hình).</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H28</td><td data-label="Màn">Vai trò</td><td class="full"><b>Vai trò Chủ chỉ xem, luôn đủ mọi quyền; vai trò còn người giữ không lưu trữ được; sửa vai trò mẫu thì bản cập nhật sau không thêm lại quyền đã gỡ.</b><br><span class="small muted">Hiện tại: Nhanh có 11 nhóm quyền có sẵn.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H29</td><td data-label="Màn">Hệ thống</td><td class="full"><b>Ba màn mới: Sức khỏe hệ thống (tự tải lại mỗi 20 giây), Sự kiện lỗi, Tệp bị mất.</b><br><span class="small muted">Hiện tại: Không có trên Nhanh.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H30</td><td data-label="Màn">Khung</td><td class="full"><b>Menu trái từ 1000 px; dưới 1000 px thanh trên 56 px và menu trượt từ trái. Mục không có quyền không hiện; mở thẳng đường dẫn thì "Không có quyền".</b><br><span class="small muted">Hiện tại: Khung CRM mới.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H31</td><td data-label="Màn">Nhân viên</td><td class="full"><b>Khóa nhân viên cần bấm xác nhận; người bị khóa không dùng được CRM từ thao tác kế tiếp, vai trò giữ nguyên, mở khóa là dùng lại được.</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H32</td><td data-label="Màn">Nhà cung cấp</td><td class="full"><b>Lưu trữ nhà cung cấp cần bấm xác nhận; nhà cung cấp đã lưu trữ có nút "Dùng lại".</b><br><span class="small muted">Hiện tại: Chưa rõ.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H33</td><td data-label="Màn">Vai trò</td><td class="full"><b>Lưu trữ vai trò cần bấm xác nhận; vai trò đã lưu trữ không còn trong danh sách gán ở màn Nhân viên.</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H34</td><td data-label="Màn">Kiểm kho</td><td class="full"><b>"Hủy phiên" kiểm đang mở: tồn không đổi, mở phiên mới được ngay.</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+	<tr><td data-label="#" class="num">H35</td><td data-label="Màn">Sửa mẫu</td><td class="full"><b>Ảnh mới tải lên nằm ở mục "Đang tải lên" tới khi xử lý xong rồi tự vào cuối lưới ảnh; ảnh bị từ chối không vào mẫu, có nút "Bỏ".</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+		</tbody>
+	</table>
+	</div>
+</section>
+
+<section class="card">
+	<h2>Kết luận duyệt (điều phối viên, Điểm dừng M1-C)</h2>
+	<p class="muted">Chưa duyệt. Điều phối viên ghi kết luận từng màn và từng dòng hành vi ở đây, kèm kết quả agent design-critic trên ảnh chụp.</p>
+</section>
+
+</div>
+</body>
+</html>

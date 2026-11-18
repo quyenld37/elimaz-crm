@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M1 — Sự kiện lỗi</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="m1.css">
+<style>
+.msg { margin-top: 4px; max-width: 640px; }
+.msg summary { list-style: none; cursor: pointer; min-height: var(--tap); display: flex; align-items: center; color: var(--muted); }
+.msg summary::-webkit-details-marker { display: none; }
+.msg[open] summary { display: none; }
+.msg p { color: var(--muted); }
+.see { font-size: 13px; text-decoration: underline; }
+</style>
+</head>
+<body data-page="su-kien-loi" data-title="Sự kiện lỗi">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><h1>Sự kiện lỗi</h1><p class="sub">10 loại lỗi xảy ra nhiều nhất trong 24 giờ qua. Lỗi cùng chỗ gộp làm một dòng. Nội dung đã che số điện thoại, email.</p></div>
+	<button class="btn btn-quiet">Tải lại</button>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI A</p><h2>Đủ 10 loại, có thông báo dài 300 ký tự (bấm vào để mở đủ)</h2></section>
+<div class="tbl-frame">
+<table class="tbl">
+	<thead><tr><th>Lỗi</th><th>Tiến trình</th><th class="r">Số lần</th><th>Lần đầu</th><th>Lần cuối</th></tr></thead>
+	<tbody>
+	<tr><td class="full"><b>pgconn.ConnectError</b><span class="xs muted"> · a3f9c1</span>
+		<details class="msg"><summary><span class="clamp2 small">failed to connect to `host=postgres user=crm_app database=crm`: dial error (dial tcp 172.18.0.2:5432: connect: connection refused)</span></summary><p class="small wrap-any">failed to connect to `host=postgres user=crm_app database=crm`: dial error (dial tcp 172.18.0.2:5432: connect: connection refused)</p></details></td>
+		<td data-label="Tiến trình">worker</td><td data-label="Số lần" class="r num bold">1.204</td><td data-label="Lần đầu" class="num nowrap">06:12 18/11</td><td data-label="Lần cuối" class="num nowrap">14:28 18/11</td></tr>
+	<tr><td class="full"><b>imager: timeout</b><span class="xs muted"> · 7be210</span>
+		<details class="msg"><summary><span class="clamp2 small">imager request timed out after 30s for file [đã che]; command file.process will retry</span></summary><p class="small wrap-any">imager request timed out after 30s for file [đã che]; command file.process will retry</p></details></td>
+		<td data-label="Tiến trình">worker</td><td data-label="Số lần" class="r num bold">37</td><td data-label="Lần đầu" class="num nowrap">09:55 18/11</td><td data-label="Lần cuối" class="num nowrap">14:27 18/11</td></tr>
+	<tr><td class="full"><b>catalog import: unique violation</b><span class="xs muted"> · 0c4d88</span>
+		<details class="msg"><summary><span class="clamp2 small">ERROR: duplicate key value violates unique constraint "variants_tenant_id_seller_id_sku_key" (SQLSTATE 23505) while applying catalog import plan batch 3 of 5; request_id=01JD8Q2K7Y; detail: Key (tenant_id, seller_id, sku)=(…, …, AO01-DEN-S) already exists; retry would not help because the plan conflicts with current data</span></summary><p class="small wrap-any">ERROR: duplicate key value violates unique constraint "variants_tenant_id_seller_id_sku_key" (SQLSTATE 23505) while applying catalog import plan batch 3 of 5; request_id=01JD8Q2K7Y; detail: Key (tenant_id, seller_id, sku)=(…, …, AO01-DEN-S) already exists; retry would not help because the plan conflicts with current data</p></details></td>
+		<td data-label="Tiến trình">worker</td><td data-label="Số lần" class="r num bold">9</td><td data-label="Lần đầu" class="num nowrap">10:01 18/11</td><td data-label="Lần cuối" class="num nowrap">10:03 18/11</td></tr>
+	<tr><td class="full"><b>context deadline exceeded</b><span class="xs muted"> · 91aa07</span>
+		<details class="msg"><summary><span class="clamp2 small">GET /api/v1/catalog/products: context deadline exceeded</span></summary><p class="small wrap-any">GET /api/v1/catalog/products: context deadline exceeded</p></details></td>
+		<td data-label="Tiến trình">api</td><td data-label="Số lần" class="r num bold">5</td><td data-label="Lần đầu" class="num nowrap">12:58 18/11</td><td data-label="Lần cuối" class="num nowrap">13:02 18/11</td></tr>
+	<tr><td class="full"><b>realtime: client write failed</b><span class="xs muted"> · 55e1b3</span>
+		<details class="msg"><summary><span class="clamp2 small">write: broken pipe</span></summary><p class="small wrap-any">write: broken pipe</p></details></td>
+		<td data-label="Tiến trình">api</td><td data-label="Số lần" class="r num bold">4</td><td data-label="Lần đầu" class="num nowrap">08:00 18/11</td><td data-label="Lần cuối" class="num nowrap">12:40 18/11</td></tr>
+	<tr><td class="full"><b>commands: in_doubt</b><span class="xs muted"> · e02f6c</span>
+		<details class="msg"><summary><span class="clamp2 small">fakecarrier create shipment: response not received within 30s; marked in_doubt</span></summary><p class="small wrap-any">fakecarrier create shipment: response not received within 30s; marked in_doubt</p></details></td>
+		<td data-label="Tiến trình">worker</td><td data-label="Số lần" class="r num bold">3</td><td data-label="Lần đầu" class="num nowrap">07:30 18/11</td><td data-label="Lần cuối" class="num nowrap">11:15 18/11</td></tr>
+	<tr><td class="full"><b>files: head object not found</b><span class="xs muted"> · 4d7a19</span>
+		<details class="msg"><summary><span class="clamp2 small">verify: object orig/[đã che] not found in bucket crm-originals</span></summary><p class="small wrap-any">verify: object orig/[đã che] not found in bucket crm-originals</p></details></td>
+		<td data-label="Tiến trình">worker</td><td data-label="Số lần" class="r num bold">2</td><td data-label="Lần đầu" class="num nowrap">03:00 18/11</td><td data-label="Lần cuối" class="num nowrap">03:00 18/11</td></tr>
+	<tr><td class="full"><b>panic: index out of range</b><span class="xs muted"> · b81c3e</span>
+		<details class="msg"><summary><span class="clamp2 small">runtime error: index out of range [3] with length 3</span></summary><p class="small wrap-any">runtime error: index out of range [3] with length 3</p></details></td>
+		<td data-label="Tiến trình">api</td><td data-label="Số lần" class="r num bold">2</td><td data-label="Lần đầu" class="num nowrap">11:20 18/11</td><td data-label="Lần cuối" class="num nowrap">11:21 18/11</td></tr>
+	<tr><td class="full"><b>ingest: spool fsync</b><span class="xs muted"> · cc0918</span>
+		<details class="msg"><summary><span class="clamp2 small">fsync /var/lib/crm/spool/000123.ndjson: no space left on device</span></summary><p class="small wrap-any">fsync /var/lib/crm/spool/000123.ndjson: no space left on device</p></details></td>
+		<td data-label="Tiến trình">ingest</td><td data-label="Số lần" class="r num bold">1</td><td data-label="Lần đầu" class="num nowrap">05:44 18/11</td><td data-label="Lần cuối" class="num nowrap">05:44 18/11</td></tr>
+	<tr><td class="full"><b>idempotency: request_in_progress</b><span class="xs muted"> · 3f6b72</span>
+		<details class="msg"><summary><span class="clamp2 small">key already being processed by another request</span></summary><p class="small wrap-any">key already being processed by another request</p></details></td>
+		<td data-label="Tiến trình">api</td><td data-label="Số lần" class="r num bold">1</td><td data-label="Lần đầu" class="num nowrap">14:01 18/11</td><td data-label="Lần cuối" class="num nowrap">14:01 18/11</td></tr>
+	</tbody>
+</table>
+</div>
+<p class="mk" style="margin-top:16px"><b>Mockup:</b> dòng chữ xám dưới tên lỗi là thông báo đã che, cắt còn 2 dòng; bấm vào thì mở đủ (không cần rê chuột). Mã sau dấu · là mã nhận diện (6 ký tự đầu) để tìm trong log.</p>
+
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Không có lỗi trong 24 giờ</h2></section>
+<div class="empty"><h2>Không có lỗi nào trong 24 giờ qua</h2><p class="muted">Lần kiểm 14:32:05.</p></div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

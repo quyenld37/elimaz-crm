@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M1 — Sức khỏe hệ thống</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="m1.css">
+<style>
+.kpi .st-l { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; margin-top: 4px; }
+.alerts .row-between { padding: 10px 0; border-top: 1px solid var(--rule); }
+</style>
+</head>
+<body data-page="suc-khoe" data-title="Sức khỏe hệ thống">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><h1>Sức khỏe hệ thống</h1><p class="sub">Tự cập nhật mỗi 20 giây · lần cuối 14:32:05</p></div>
+	<button class="btn btn-quiet">Tải lại ngay</button>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI A</p><h2>Worker ngừng 3 phút (nhịp sống cũ 200 giây), có việc hỏng và việc không chắc đã gửi</h2></section>
+<div class="stack">
+	<div class="box box-err"><b>1 tiến trình ngừng: worker.</b> <span>Việc nền (xử lý ảnh, gửi lệnh ra hãng) đang chờ. Đã gửi cảnh báo gấp lúc 14:29.</span></div>
+
+	<div>
+		<h2>Tiến trình</h2>
+		<div class="kpis" style="margin-top:8px">
+			<div class="kpi"><span class="small muted">api</span><div class="st-l ok-text"><span class="dot dot-ok"></span>ĐANG CHẠY</div><p class="small muted">Nhịp sống 4 giây trước</p></div>
+			<div class="kpi is-bad"><span class="small muted">worker</span><div class="st-l err-text"><span class="dot dot-err"></span>NGỪNG 3 PHÚT</div><p class="small">Nhịp sống cuối 200 giây trước</p></div>
+			<div class="kpi"><span class="small muted">ingest</span><div class="st-l ok-text"><span class="dot dot-ok"></span>ĐANG CHẠY</div><p class="small muted">Nhịp sống 6 giây trước</p></div>
+		</div>
+	</div>
+
+	<div>
+		<h2>Hàng đợi việc nền</h2>
+		<div class="kpis" style="margin-top:8px">
+			<div class="kpi"><span class="small muted">Việc chờ lâu nhất</span><div class="v">45 giây</div></div>
+			<div class="kpi"><span class="small muted">Đang chờ</span><div class="v">12</div></div>
+			<div class="kpi is-bad"><span class="small muted">Hỏng (đã thử hết lần)</span><div class="v">2</div><p class="small">Cần người xem</p></div>
+			<div class="kpi is-bad"><span class="small muted">Không chắc đã gửi</span><div class="v">1</div><p class="small">Không tự gửi lại; cần tra ở bên nhận</p></div>
+		</div>
+	</div>
+
+	<div class="cols">
+		<div class="stack">
+			<div class="kpis">
+				<div class="kpi"><span class="small muted">Tin chờ ghi (ingest)</span><div class="v">0</div><p class="small muted">tệp đệm trên đĩa</p></div>
+				<div class="kpi"><span class="small muted">Sao lưu đầy đủ gần nhất</span><div class="v">6 giờ</div><p class="small muted">trước</p></div>
+				<div class="kpi"><span class="small muted">Diễn tập khôi phục gần nhất</span><div class="v">5 ngày</div><div class="st-l ok-text"><span class="dot dot-ok"></span>ĐẠT</div></div>
+			</div>
+			<div class="card">
+				<div class="row-between"><h2>Lỗi nhiều nhất 24 giờ</h2><a class="btn btn-quiet" href="su-kien-loi.html">Xem đủ 10 loại</a></div>
+				<div class="alerts">
+					<div class="row-between"><span class="grow"><b>pgconn.ConnectError</b><br><span class="small muted">worker · lần cuối 14:28</span></span><span class="num bold">1.204 lần</span></div>
+					<div class="row-between"><span class="grow"><b>imager: timeout</b><br><span class="small muted">worker · lần cuối 14:27</span></span><span class="num bold">37 lần</span></div>
+					<div class="row-between"><span class="grow"><b>context deadline exceeded</b><br><span class="small muted">api · lần cuối 13:02</span></span><span class="num bold">5 lần</span></div>
+				</div>
+			</div>
+		</div>
+		<div class="card">
+			<h2>Cảnh báo đã gửi 24 giờ</h2>
+			<div class="alerts">
+				<div class="row-between"><span class="grow"><b>worker-down</b><br><span class="small muted">14:29 18/11</span></span><span class="chip chip-err">GẤP</span></div>
+				<div class="row-between"><span class="grow"><b>new-error:imager-timeout</b><br><span class="small muted">11:40 18/11</span></span><span class="chip">Thường</span></div>
+				<div class="row-between"><span class="grow"><b>stock-shortage:KK-0007</b><br><span class="small muted">16:40 17/11</span></span><span class="chip">Thường</span></div>
+			</div>
+			<p class="hint" style="margin-top:8px">Gấp: cần xử lý ngay. Thường: xem trong ngày.</p>
+		</div>
+	</div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Mọi thứ bình thường</h2></section>
+<div class="stack">
+	<div class="box box-ok"><b class="ok-text">Mọi tiến trình đang chạy.</b> Không có việc hỏng, không có cảnh báo trong 24 giờ.</div>
+	<div class="kpis">
+		<div class="kpi"><span class="small muted">api</span><div class="st-l ok-text"><span class="dot dot-ok"></span>ĐANG CHẠY</div></div>
+		<div class="kpi"><span class="small muted">worker</span><div class="st-l ok-text"><span class="dot dot-ok"></span>ĐANG CHẠY</div></div>
+		<div class="kpi"><span class="small muted">ingest</span><div class="st-l ok-text"><span class="dot dot-ok"></span>ĐANG CHẠY</div></div>
+		<div class="kpi"><span class="small muted">Hỏng / Không chắc đã gửi</span><div class="v">0 / 0</div></div>
+	</div>
+	<div class="kpis">
+		<div class="kpi"><span class="small muted">Sao lưu đầy đủ gần nhất</span><div class="v">—</div><p class="small muted">Chưa có bản nào (máy dev)</p></div>
+		<div class="kpi"><span class="small muted">Diễn tập khôi phục gần nhất</span><div class="v">—</div><p class="small muted">Chưa diễn tập</p></div>
+	</div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Không có quyền xem (mở thẳng đường dẫn)</h2></section>
+<div class="empty"><h2>Không có quyền</h2><p class="muted">Tài khoản của bạn không được xem Sức khỏe hệ thống. Cần thì nhờ Chủ shop cấp quyền.</p><a class="btn btn-line" href="san-pham-danh-sach.html">Về trang Sản phẩm</a></div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>
