@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/logging"
@@ -98,10 +99,13 @@ func NewIngest(o IngestOptions) (*Ingest, error) {
 	return in, nil
 }
 
-// Register đăng ký GET /hooks/{source}, POST /hooks/{source} và GET /health vào mux.
+// Register đăng ký GET /hooks/{source}, POST /hooks/{source} và GET /health vào mux. POST mở span máy chủ (otelhttp)
+// làm gốc dấu vết của webhook: việc tách gói ghi trace_context từ span này, nên ingest, worker và báo hiệu realtime
+// nằm trên một dấu vết. Điểm công khai: dấu vết bên gửi đưa tới chỉ thành liên kết, không thành cha.
 func (in *Ingest) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /hooks/{source}", in.challenge)
-	mux.HandleFunc("POST /hooks/{source}", in.receive)
+	const receivePattern = "POST /hooks/{source}"
+	mux.Handle(receivePattern, otelhttp.NewHandler(http.HandlerFunc(in.receive), receivePattern, otelhttp.WithPublicEndpointFn(func(*http.Request) bool { return true })))
 	mux.HandleFunc("GET /health", in.health)
 }
 
