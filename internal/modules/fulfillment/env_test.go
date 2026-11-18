@@ -10,19 +10,17 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/fulfillment/internal/carriers/fake"
 	"elimaz.com.vn/crm/internal/modules/inventory"
-	"elimaz.com.vn/crm/internal/modules/inventory/invtest"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/events"
-	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/platform/webhooks"
 	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/testkit/shiptest"
 )
 
 // TestMain đặt số lượt rapid 200, trừ khi người chạy đã đặt -rapid.checks hay RAPID_CHECKS.
@@ -32,14 +30,12 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-const accountRef = "fake-1"
-
-// shipEnv: database thử, tenant A (invtest.Shop), tài khoản hãng giả fake-1 ở kho MAIN, hãng giả trong bộ nhớ, worker
+// shipEnv: database thử, tenant A (shiptest.Shop: tài khoản hãng giả fake-1 ở kho MAIN), hãng giả trong bộ nhớ, worker
 // chạy hai lệnh của fulfillment.
 type shipEnv struct {
 	t       *testing.T
 	staff   *testkit.Staff
-	shop    *invtest.Shop
+	shop    *shiptest.Shop
 	tenant  uuid.UUID
 	account uuid.UUID
 	carrier *fake.Carrier
@@ -54,13 +50,9 @@ func newShipEnv(t *testing.T) *shipEnv {
 	e.tenant = e.staff.Tenant(t, "A")
 	e.actor = fulfillment.Actor{TenantID: e.tenant, UserID: e.staff.User(t, e.tenant, "kho@elimaz.test", "active")}
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
-		e.shop = invtest.NewShop(t, tx, e.tenant)
-		var err error
-		e.account, err = fulfillment.EnsureCarrierAccount(t.Context(), tx, fulfillment.AccountInput{
-			SellerID: e.shop.Seller, WarehouseID: e.shop.Warehouse, CarrierKey: fake.Key, Name: "Hãng giả",
-			ExternalAccountRef: accountRef,
-		})
-		return err //nolint:wrapcheck // test
+		e.shop = shiptest.NewShop(t, tx, e.tenant)
+		e.account = e.shop.Account
+		return nil
 	})
 	o := fulfillment.CommandOptions{
 		DB: e.staff.App, Adapters: []fulfillment.CarrierAdapter{e.carrier},
@@ -86,17 +78,8 @@ func (e *shipEnv) order(qty int32) (order.Order, uuid.UUID) {
 		return nil
 	})
 	var o order.Order
-	if err := e.app(func(tx pgx.Tx) error {
-		c, err := customer.Create(e.t.Context(), tx, "Chị Lan")
-		if err != nil {
-			return err //nolint:wrapcheck // test
-		}
-		w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}}
-		o, err = w.CreateManual(e.t.Context(), tx, order.CreateManualInput{
-			IdempotencyKey: uuid.New(), SellerID: e.shop.Seller, CustomerID: c, ShippingFee: 30000,
-			Items:       []order.ItemInput{{VariantID: v, Qty: qty}},
-			ShipAddress: order.ShipAddress{Name: "Chị Lan", Phone: logging.Phone("0901234567"), Line: "12 Lê Lợi, Q1"},
-		}, order.Actor{TenantID: e.tenant, UserID: e.actor.UserID})
+	if err := e.app(func(tx pgx.Tx) (err error) {
+		o, err = e.shop.Order(e.t.Context(), tx, e.actor.UserID, 30000, order.ItemInput{VariantID: v, Qty: qty})
 		return err //nolint:wrapcheck // test
 	}); err != nil {
 		e.t.Fatalf("tạo đơn: %v", err)
@@ -106,9 +89,8 @@ func (e *shipEnv) order(qty int32) (order.Order, uuid.UUID) {
 
 func (e *shipEnv) createShipment(orderID uuid.UUID) (fulfillment.Shipment, error) {
 	var s fulfillment.Shipment
-	err := e.app(func(tx pgx.Tx) error {
-		var err error
-		s, err = fulfillment.CreateForOrder(e.t.Context(), tx, orderID, e.account, e.actor)
+	err := e.app(func(tx pgx.Tx) (err error) {
+		s, err = e.shop.Shipment(e.t.Context(), tx, orderID, e.actor.UserID)
 		return err //nolint:wrapcheck // test
 	})
 	return s, err
@@ -200,7 +182,7 @@ func (e *shipEnv) count(q string, args ...any) int {
 func (e *shipEnv) signal(tracking, eventID string) {
 	e.t.Helper()
 	data, err := json.Marshal(fulfillment.Signal{
-		CarrierKey: fake.Key, AccountKey: accountRef, TrackingCode: tracking, EventID: eventID,
+		CarrierKey: fake.Key, AccountKey: shiptest.AccountRef, TrackingCode: tracking, EventID: eventID,
 	})
 	if err != nil {
 		e.t.Fatal(err)
