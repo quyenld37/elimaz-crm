@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
@@ -28,6 +29,8 @@ type Deps struct {
 	Access identity.Verifier
 	// RateLimit: ngưỡng giới hạn tần suất theo nhân viên; để trống lấy mặc định 300 yêu cầu / 60 s.
 	RateLimit RateLimit
+	// WriteLockTimeout > 0 thay lock_timeout của db.TxAPI cho WriteTx (test ca retry_later); 0: db.TxAPI.
+	WriteLockTimeout time.Duration
 
 	limiter *userLimiter // một bộ đếm chung cho mọi route của server (prepare)
 }
@@ -54,7 +57,7 @@ func newMux(d Deps) (*http.ServeMux, int) {
 		pinger = d.DB.Pool
 	}
 	api, err := gen.NewServer(
-		&handler{health: observability.NewHealth(pinger)},
+		&handler{d: d, health: observability.NewHealth(pinger)},
 		gen.WithErrorHandler(func(_ context.Context, w http.ResponseWriter, r *http.Request, err error) {
 			writeHandlerError(d, w, r, err)
 		}),

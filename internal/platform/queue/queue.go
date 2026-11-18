@@ -69,3 +69,15 @@ type Handler interface {
 type TerminalHook interface {
 	OnTerminal(ctx context.Context, j Job, status string, tx pgx.Tx) error
 }
+
+// CommandRunner chạy việc mode command (lệnh ra ngoài, spec 04 mục 5.3; commands.Runner hiện thực). Worker nhận việc
+// command chỉ khi WorkerOptions.Commands khác nil; giữ chỗ hết hạn và hết hạn sống của lệnh vẫn do Worker quét.
+type CommandRunner interface {
+	// Kinds là các loại lệnh runner chạy được (Policy.Mode = ModeCommand).
+	Kinds() []Kind
+	// TerminalHook của loại kind, nil khi không có; Worker gọi khi lệnh thành in_doubt vì hết giữ chỗ hoặc expired.
+	TerminalHook(kind string) TerminalHook
+	// Run chạy lệnh j đang running do workerID giữ chỗ và tự ghi trạng thái sau đó; ctx hết hạn sau Policy.Timeout và
+	// bị hủy khi Stop quá grace. Trả trạng thái đã ghi ("done", "pending", "dead", "in_doubt"; rỗng khi mất giữ chỗ).
+	Run(ctx context.Context, j Job, workerID string) (status string, err error)
+}
