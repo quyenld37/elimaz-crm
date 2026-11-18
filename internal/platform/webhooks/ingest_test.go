@@ -140,7 +140,7 @@ func TestHeadersStoredRedacted(t *testing.T) {
 	d := openDB(t)
 	r := newRig(t, d, nil)
 	const token = "Bearer rat-bi-mat-1234567890"
-	extra := http.Header{"Authorization": {token}, "Cookie": {"sid=bi-mat-cookie"}, "X-Request-Note": {"giu-lai"}}
+	extra := http.Header{"Authorization": {token}, "Cookie": {"sid=bi-mat-cookie"}, "X-Request-Tag": {"giu-lai"}}
 	if got := r.post(t, "selftest", pingBody("h"), "", "", extra); got.status != http.StatusOK {
 		t.Fatalf("POST = %d", got.status)
 	}

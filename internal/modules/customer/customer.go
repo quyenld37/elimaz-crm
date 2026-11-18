@@ -23,6 +23,28 @@ var ErrInvalidInput = errors.New("customer: dữ liệu khách không hợp lệ
 
 const maxNameRunes = 120
 
+// Lifecycle là giai đoạn của hồ sơ khách (cột customers.lifecycle, 05 mục 1): lead khi mới nhắn hay được tạo, customer
+// từ đơn đầu tiên.
+type Lifecycle string
+
+// Giá trị của Lifecycle; khớp CHECK customers_lifecycle_check (migration 0201).
+const (
+	LifecycleLead     Lifecycle = "lead"
+	LifecycleCustomer Lifecycle = "customer"
+)
+
+// IdentityKind là loại danh tính của khách (cột customer_identities.kind, 05 mục 1).
+type IdentityKind string
+
+// Giá trị của IdentityKind; khớp CHECK của customer_identities.kind (migration 0201). fb_psid có scope là mã Page.
+const (
+	IdentityPhone      IdentityKind = "phone"
+	IdentityFBPSID     IdentityKind = "fb_psid"
+	IdentityZaloUID    IdentityKind = "zalo_uid"
+	IdentityEmail      IdentityKind = "email"
+	IdentityWebAccount IdentityKind = "web_account"
+)
+
 // Create tạo khách mới (hồ sơ chưa gộp: root_id = id) trong tx của bên gọi (tenancy.WithTenant) và trả mã khách.
 // fullName được bỏ khoảng trắng hai đầu; phải 1–120 ký tự, không ký tự điều khiển.
 func Create(ctx context.Context, tx pgx.Tx, fullName string) (uuid.UUID, error) {

@@ -101,11 +101,12 @@ func TestM2Contract_Operations(t *testing.T) {
 }
 
 // TestM2Contract_ViewsDoc: dòng docs/views.md của view mới M2 có đúng cột của kế hoạch (Task M2-03, 05, 06); hai dòng
-// view M1 chưa sửa ở task này (R13: sửa cùng migration ở Task M2-03, M2-05).
+// view M1 sửa cùng migration (R13): customers_v ở Task M2-03 (nối 11 cột), orders_v ở Task M2-05.
 func TestM2Contract_ViewsDoc(t *testing.T) {
 	doc := readViewsDoc(t, repoRoot(t))
 	want := map[string]string{
-		"customer.customers_v":           "id, root_id, full_name, created_at",
+		"customer.customers_v": "id, root_id, full_name, created_at, tenant_id, code, lifecycle, birthday, order_count, " +
+			"delivered_count, returned_count, total_spent, last_order_at, updated_at, version",
 		"ord.orders_v":                   "id, tenant_id, code, seller_id, customer_id, status, channel, grand_total, cod_amount, current_shipment_id, created_at",
 		"customer.customer_identities_v": "tenant_id, id, customer_id, kind, scope, value, verified_at, source, created_at",
 		"customer.customer_addresses_v":  "tenant_id, id, customer_id, recipient_name, phone, province_code, ward_code, street, is_default",

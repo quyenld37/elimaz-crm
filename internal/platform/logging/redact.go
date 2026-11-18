@@ -20,8 +20,9 @@ const (
 // DefaultDepth là độ sâu mặc định khi che một giá trị lồng nhau.
 const DefaultDepth = 8
 
-// sensitiveKey là mẫu khóa phải che ở mọi cấp (Global Constraints của kế hoạch M0).
-var sensitiveKey = regexp.MustCompile(`(?i)phone|address|token|secret|password|authorization|cookie|body|text|id_number|bank_account`)
+// sensitiveKey là mẫu khóa phải che ở mọi cấp (Global Constraints của kế hoạch M0; full_name, recipient, birthday,
+// email, note thêm ở kế hoạch M2 Task M2-03, Q21).
+var sensitiveKey = regexp.MustCompile(`(?i)phone|address|token|secret|password|authorization|cookie|body|text|id_number|bank_account|full_name|recipient|birthday|email|note`)
 
 // SensitiveKey báo khóa key có phải bị che giá trị không. Khóa được so cả nguyên dạng lẫn dạng snake_case, để tên
 // trường Go như BankAccount, IDNumber cũng khớp bank_account, id_number.

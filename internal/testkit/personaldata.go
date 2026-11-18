@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"testing"
@@ -11,6 +12,9 @@ import (
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+
+	"elimaz.com.vn/crm/internal/platform/config"
+	"elimaz.com.vn/crm/internal/platform/logging"
 )
 
 // Dữ liệu cá nhân giả cho test "không lọt qua nội dung lỗi" (Task 319): SĐT, địa chỉ, token.
@@ -31,6 +35,19 @@ var ErrPersonalBase = errors.New("hỏng")
 // PersonalDataError trả một lỗi bọc hai lớp có SĐT, địa chỉ, token trong nội dung, như lỗi do mã đưa dữ liệu khách vào.
 func PersonalDataError() error {
 	return fmt.Errorf("lưu khách: %w", fmt.Errorf("thẻ %s, giao tới %s, gọi %s: %w", FakeToken, FakeAddress, FakePhone, ErrPersonalBase))
+}
+
+// CaptureLog trả bộ ghi log thật của ứng dụng (logging.NewLogger, vai trò api: che theo khóa và theo kiểu) ghi vào một
+// bộ đệm, để test quét dòng log tìm dữ liệu cá nhân. Logger đóng khi test xong.
+func CaptureLog(t testing.TB) (*slog.Logger, *bytes.Buffer) {
+	t.Helper()
+	buf := &bytes.Buffer{}
+	l, closer, err := logging.NewLogger(config.Config{Role: config.RoleAPI}, buf)
+	if err != nil {
+		t.Fatalf("testkit: dựng logger: %v", err)
+	}
+	t.Cleanup(func() { _ = closer.Close() })
+	return l, buf
 }
 
 // AssertNoPersonalData báo lỗi khi s (một dòng log, nội dung bảng, văn bản span) còn mẩu dữ liệu cá nhân giả nào.
