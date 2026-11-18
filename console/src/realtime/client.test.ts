@@ -1,7 +1,7 @@
 // Test lớp realtime trên máy chủ HTTP giả (node:http) và fetch thật của Node (kế hoạch M0 Task 17, spec 04 mục 6).
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRealtimeClient, type ChangedEvent, type RealtimeState } from "./client";
 
 type Handler = (req: IncomingMessage, res: ServerResponse) => void;
@@ -88,15 +88,52 @@ async function until(cond: () => boolean, timeoutMs = 2000) {
   }
 }
 
+// heldStreams là fetch giả cho test chạy bằng đồng hồ giả: mỗi lần gọi trả ngay 200 với luồng SSE do test giữ (ghi bằng
+// send); hủy qua signal thì luồng báo lỗi như fetch thật. Không có mạng nên không phụ thuộc máy bận hay rảnh.
+function heldStreams() {
+  const streams: ReadableStreamDefaultController<Uint8Array>[] = [];
+  const fetchImpl: typeof fetch = (_input, init) => {
+    const body = new ReadableStream<Uint8Array>({
+      start(ctl) {
+        streams.push(ctl);
+        init?.signal?.addEventListener("abort", () => {
+          ctl.error(new DOMException("aborted", "AbortError"));
+        });
+      },
+    });
+    return Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } }));
+  };
+  const send = (i: number, frame: string) => {
+    streams[i]?.enqueue(new TextEncoder().encode(frame));
+  };
+  return { fetchImpl, send, calls: () => streams.length };
+}
+
 describe("createRealtimeClient", () => {
+  // Đồng hồ giả: watchdog canh cả lúc chờ header, nên với máy chủ thật và đồng hồ thật, lần fetch nguội đầu tiên của
+  // worker dưới tải chậm hơn watchdogMs làm thứ tự thành reconnecting, connected, … (Task 400).
   it("200 rồi im lặng: sau watchdogMs thì reconnecting và mở yêu cầu thứ hai", async () => {
-    handlers = [stream(RESYNC)];
-    const t = start({ watchdogMs: 200 });
-    await until(() => t.states.includes("connected"));
-    await until(() => t.states.length >= 3, 1500);
-    await sleep(50);
-    expect(t.states).toEqual(["connected", "reconnecting", "connected"]);
-    expect(requests).toBe(2);
+    vi.useFakeTimers();
+    try {
+      const sse = heldStreams();
+      const t = start({ watchdogMs: 200, fetchImpl: sse.fetchImpl });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(t.states).toEqual(["connected"]);
+      sse.send(0, RESYNC);
+      await vi.advanceTimersByTimeAsync(199);
+      expect(t.resyncs()).toBe(1);
+      expect(t.states).toEqual(["connected"]);
+      expect(sse.calls()).toBe(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(t.states).toEqual(["connected", "reconnecting"]);
+      await vi.advanceTimersByTimeAsync(19);
+      expect(sse.calls()).toBe(1);
+      await vi.advanceTimersByTimeAsync(1); // backoffMs[0] = 20
+      expect(t.states).toEqual(["connected", "reconnecting", "connected"]);
+      expect(sse.calls()).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("máy chủ không trả header nào: sau watchdogMs thì reconnecting và mở yêu cầu thứ hai", async () => {

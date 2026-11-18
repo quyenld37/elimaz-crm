@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -15,12 +14,10 @@ import (
 // Câu nhận việc khi hàng chờ dài (Task 394, thử tải M0 phát hiện 2): trước đây câu con "việc đứng trước" so tenant bằng
 // IS NOT DISTINCT FROM nên không dùng được index, quét tuần tự jobs cho mỗi ứng viên (2,4 s ở 78.000 việc chờ).
 
-// claimBudget là trần thời gian chạy của câu nhận việc ở 100.000 việc chờ (kế hoạch M0, Task 394 Step 1).
-const claimBudget = 50 * time.Millisecond
-
 // claimBufferBudget là trần số trang (8 KiB) câu nhận việc chạm ở bộ dữ liệu của fillLongQueue: mỗi việc bị chặn đứng
 // trước trong hàng chờ tốn ~4 trang (đọc việc, dò index jobs_order_key, đọc việc đứng trước), 10.000 việc → ~40.000.
-// Đây là tiêu chí không phụ thuộc máy bận hay rảnh (thời gian thì có). Câu cũ quét bảng: hàng triệu trang.
+// Đây là tiêu chí không phụ thuộc máy bận hay rảnh (thời gian thì có). Câu cũ quét bảng: hàng triệu trang. Trần thời
+// gian 50 ms nằm ở test có nhãn perf (claimplan_perf_test.go, make perf-test), không ở đây (Task 400).
 const claimBufferBudget = 60_000
 
 // planStats là phần của kế hoạch EXPLAIN ANALYZE mà test cần.
@@ -117,9 +114,11 @@ func fillLongQueue(t *testing.T, e *env, mode string, headRunning bool) {
 	)
 }
 
-// 100.000 việc chờ, 10.000 cùng order_key của một tenant ở đầu hàng: câu nhận việc không Seq Scan trên jobs và chạy
-// dưới 50 ms, ở cả hai chế độ thứ tự, khi việc đầu của khóa nóng đang chờ hay đang running.
-func TestClaimLongQueueSameOrderKey(t *testing.T) {
+// eachLongQueueCase chạy check (mỗi ca một subtest, database riêng) với kết quả EXPLAIN ANALYZE của câu nhận việc trên
+// hàng chờ dài của fillLongQueue, ở bốn ca: hai chế độ thứ tự, việc đầu của khóa nóng đang chờ hay đang running. Dùng
+// chung cho test đúng/sai ở đây và test thời gian (claimplan_perf_test.go, nhãn perf).
+func eachLongQueueCase(t *testing.T, check func(t *testing.T, s planStats)) {
+	t.Helper()
 	for _, c := range []struct {
 		mode        string
 		headRunning bool
@@ -127,21 +126,26 @@ func TestClaimLongQueueSameOrderKey(t *testing.T) {
 		t.Run(fmt.Sprintf("%s/head_running=%v", c.mode, c.headRunning), func(t *testing.T) {
 			e := newEnv(t)
 			fillLongQueue(t, e, c.mode, c.headRunning)
-			s := explainAnalyze(t, e, 5, claimSQL(t), int64(90000), "explain", false, int32(10))
-			t.Logf("ClaimJobs ở 100.000 việc chờ: %.2f ms, %d trang, Seq Scan %v", s.execMs, s.buffers, s.seqScans)
-			for _, rel := range s.seqScans {
-				if rel == "jobs" {
-					t.Errorf("kế hoạch có Seq Scan trên jobs")
-				}
-			}
-			if s.buffers > claimBufferBudget {
-				t.Errorf("ClaimJobs chạm %d trang, trần %d", s.buffers, claimBufferBudget)
-			}
-			if s.execMs > float64(claimBudget.Milliseconds()) {
-				t.Errorf("ClaimJobs %.2f ms, trần %v", s.execMs, claimBudget)
-			}
+			check(t, explainAnalyze(t, e, 5, claimSQL(t), int64(90000), "explain", false, int32(10)))
 		})
 	}
+}
+
+// 100.000 việc chờ, 10.000 cùng order_key của một tenant ở đầu hàng: câu nhận việc không Seq Scan trên jobs và chạm
+// dưới claimBufferBudget trang, ở cả bốn ca của eachLongQueueCase. Thời gian đo ở TestClaimLongQueueTimeBudget (nhãn
+// perf).
+func TestClaimLongQueueSameOrderKey(t *testing.T) {
+	eachLongQueueCase(t, func(t *testing.T, s planStats) {
+		t.Logf("ClaimJobs ở 100.000 việc chờ: %.2f ms, %d trang, Seq Scan %v", s.execMs, s.buffers, s.seqScans)
+		for _, rel := range s.seqScans {
+			if rel == "jobs" {
+				t.Errorf("kế hoạch có Seq Scan trên jobs")
+			}
+		}
+		if s.buffers > claimBufferBudget {
+			t.Errorf("ClaimJobs chạm %d trang, trần %d", s.buffers, claimBufferBudget)
+		}
+	})
 }
 
 // Việc không tenant (chưa định tuyến) vẫn theo thứ tự trong nhóm không tenant: việc đầu chờ thử lại chặn việc sau cùng
