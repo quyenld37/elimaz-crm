@@ -1,0 +1,166 @@
+package customer_test
+
+import (
+	"os"
+	"regexp"
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/tenancy"
+	"elimaz.com.vn/crm/internal/testkit"
+)
+
+// storeSQL trả câu SQL sqlc đã sinh cho truy vấn name (đúng câu ứng dụng chạy) từ mã sinh của store.
+func storeSQL(t *testing.T, name string) string {
+	t.Helper()
+	src, err := os.ReadFile("internal/store/search.sql.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	re := regexp.MustCompile("(?s)const " + regexp.QuoteMeta(name) + " = `(.*?)`")
+	m := re.FindSubmatch(src)
+	if m == nil {
+		t.Fatalf("không thấy câu %s trong store", name)
+	}
+	return string(m[1])
+}
+
+// explainFixture: 100.000 khách và 130.000 danh tính SĐT trong tenant A (sinh bằng generate_series), 2.000 khách trong
+// tenant B, ANALYZE; auto_explain bật cho crm_app để đọc kế hoạch bên trong hàm.
+func explainFixture(t *testing.T) (*db.DB, uuid.UUID) {
+	t.Helper()
+	adminURL, ownerURL, appURL := testkit.StartPostgres(t)
+	var owner, app *db.DB
+	for dst, url := range map[**db.DB]string{&owner: ownerURL, &app: appURL} {
+		d, err := db.Open(t.Context(), url, db.PoolOptions{MaxConns: 2})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(d.Pool.Close)
+		*dst = d
+	}
+	s := &testkit.Staff{Owner: owner}
+	a, b := s.Tenant(t, "A"), s.Tenant(t, "B")
+	seed := func(tenant uuid.UUID, n int, prefix string) {
+		s.Exec(t, tenant, func(tx pgx.Tx) error {
+			for _, q := range []string{
+				`INSERT INTO customer.customers (tenant_id, full_name, name_search, last_order_at)
+				SELECT current_setting('app.tenant_id')::uuid, n, n,
+				       CASE WHEN g % 3 = 0 THEN now() - g * interval '1 minute' END
+				FROM generate_series(1, $1::int) AS g,
+				     LATERAL (SELECT (ARRAY['nguyen','tran','le','pham','hoang','huynh','phan','vu','vo','dang'])[1 + g % 10] || ' ' ||
+				        (ARRAY['thi','van','ngoc','minh','thu','hoang','thanh','duc'])[1 + (g / 10) % 8] || ' ' ||
+				        (ARRAY['anh','hoa','lan','tuyet','mai','huong','linh','trang','phuong','nga','hung','nam'])[1 + (g / 80) % 12]
+				        || ' ' || g AS n) AS x`,
+				// Mỗi khách một SĐT; 30% khách có thêm SĐT thứ hai.
+				`INSERT INTO customer.customer_identities (tenant_id, customer_id, kind, value, value_reversed, source)
+				SELECT tenant_id, id, 'phone', v, reverse(substr(v, 2)), 'import'
+				FROM (SELECT tenant_id, id, '+84` + prefix + `' || lpad((row_number() OVER (ORDER BY id))::text, 8, '0') AS v
+				      FROM customer.customers) AS s`,
+				`INSERT INTO customer.customer_identities (tenant_id, customer_id, kind, value, value_reversed, source)
+				SELECT tenant_id, id, 'phone', v, reverse(substr(v, 2)), 'import'
+				FROM (SELECT tenant_id, id, '+843' || lpad((row_number() OVER (ORDER BY id))::text, 8, '0') AS v, random() AS r
+				      FROM customer.customers) AS s
+				WHERE r < 0.3`,
+				// Hai nhãn; 20% khách có nhãn thứ nhất, 5% có nhãn thứ hai.
+				`INSERT INTO customer.customer_tags (tenant_id, name, color)
+				VALUES (current_setting('app.tenant_id')::uuid, 'VIP', 'red'), (current_setting('app.tenant_id')::uuid, 'Sỉ', 'blue')`,
+				`INSERT INTO customer.customer_tag_links (tenant_id, customer_id, tag_id, source)
+				SELECT c.tenant_id, c.id, t.id, 'staff'
+				FROM customer.customers AS c
+				JOIN customer.customer_tags AS t ON t.tenant_id = c.tenant_id
+				WHERE (t.name = 'VIP' AND abs(hashtext(c.id::text)) % 5 = 0) OR (t.name = 'Sỉ' AND abs(hashtext(c.id::text)) % 20 = 1)`,
+			} {
+				args := []any{}
+				if strings.Contains(q, "$1") {
+					args = append(args, n)
+				}
+				if _, err := tx.Exec(t.Context(), q, args...); err != nil {
+					return err //nolint:wrapcheck // test
+				}
+			}
+			return nil
+		})
+	}
+	seed(a, 100000, "9")
+	seed(b, 2000, "8")
+	var ids int
+	s.Exec(t, a, func(tx pgx.Tx) error {
+		return tx.QueryRow(t.Context(), "SELECT count(*) FROM customer.customer_identities").Scan(&ids)
+	})
+	if ids < 125000 || ids > 135000 {
+		t.Fatalf("danh tính của A: %d, muốn ~130.000", ids)
+	}
+	if _, err := owner.Pool.Exec(t.Context(), "ANALYZE customer.customers, customer.customer_identities, customer.customer_tag_links"); err != nil {
+		t.Fatal(err)
+	}
+	// auto_explain áp cho kết nối mở sau lời gọi: ExplainAsApp mở kết nối riêng mỗi lần.
+	testkit.EnableAutoExplain(t, adminURL)
+	return app, a
+}
+
+// Kế hoạch các câu tìm và danh sách bằng crm_app trong ngữ cảnh tenant: không Seq Scan (đuôi số bằng câu khoảng trên
+// index value_reversed; tên qua hàm dùng GIN trigram, đọc bằng auto_explain); LIKE thẳng trên bảng có RLS là Seq Scan
+// (lý do phải đi qua hàm).
+func TestSearchPlans(t *testing.T) {
+	app, a := explainFixture(t)
+	tag := uuid.New()
+	roots := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
+	after := []any{nil, nil, nil, int32(51)}
+	cases := []struct {
+		name string
+		sql  string
+		args []any
+	}{
+		{"đuôi số 4 chữ số", storeSQL(t, "searchPhoneTail"), []any{"8765", "8766", int32(200)}},
+		{"đuôi số 6 chữ số", storeSQL(t, "searchPhoneTail"), []any{"876543", "876544", int32(200)}},
+		{"SĐT đủ", storeSQL(t, "searchPhoneExact"), []any{"+84900012345"}},
+		{"mã khách", storeSQL(t, "searchCode"), []any{"KH000042"}},
+		{"tên qua hàm", storeSQL(t, "searchByName"), []any{[]string{"tuyet", "123"}, int32(200)}},
+		{"tên một từ qua hàm", storeSQL(t, "searchByName"), []any{[]string{"huong"}, int32(200)}},
+		{"dòng gốc của kết quả", storeSQL(t, "listSearchRoots"), []any{roots, nil, int32(20)}},
+		{"dòng gốc của kết quả lọc nhãn", storeSQL(t, "listSearchRoots"), []any{roots, tag, int32(20)}},
+		{"SĐT của nhóm", storeSQL(t, "listGroupPhones"), []any{roots}},
+		{"danh sách trang đầu", storeSQL(t, "listRoots"), after},
+		{"danh sách lọc nhãn", storeSQL(t, "listRoots"), []any{nil, nil, tag, int32(51)}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			nodes, err := testkit.ExplainAsApp(t.Context(), app, a, c.sql, c.args...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			testkit.RequireNoSeqScan(t, nodes)
+			if strings.HasPrefix(c.name, "tên") && !slices.Contains(nodes, "Bitmap Index Scan") {
+				t.Errorf("hàm tên phải dùng index trigram: %v", nodes)
+			}
+		})
+	}
+	plain, err := testkit.ExplainAsApp(t.Context(), app, a,
+		`SELECT id FROM customer.customers WHERE name_search LIKE $1
+		ORDER BY last_order_at DESC NULLS LAST, id LIMIT 20`, "%tuyet%123%")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(plain, "Seq Scan") {
+		t.Fatalf("LIKE thẳng bằng crm_app trên bảng có RLS phải là Seq Scan, nhận %v", plain)
+	}
+	// Kết quả hàm trên dữ liệu lớn khớp câu thẳng (cùng tenant).
+	var viaFn, direct int
+	err = tenancy.WithTenant(t.Context(), app, a, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(t.Context(), "SELECT count(*) FROM customer.search_by_name($1, 500)",
+			[]string{"tuyet", "1234"}).Scan(&viaFn); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		return tx.QueryRow(t.Context(),
+			"SELECT count(*) FROM customer.customers WHERE name_search LIKE '%tuyet%' AND name_search LIKE '%1234%'").Scan(&direct)
+	})
+	if err != nil || viaFn == 0 || viaFn != direct {
+		t.Fatalf("hàm %d dòng, câu thẳng %d (err %v)", viaFn, direct, err)
+	}
+}

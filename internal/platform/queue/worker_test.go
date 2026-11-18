@@ -311,10 +311,9 @@ func TestHandlerTimeout(t *testing.T) {
 			return nil, ctx.Err()
 		})
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
-	start := time.Now()
 	runOnce(t, worker(e, "w1", h), 10)
-	if time.Since(start) > 2*time.Second || !sawErr {
-		t.Fatalf("handler phải bị hủy sau Timeout: %v, ctx.Err %v", time.Since(start), sawErr)
+	if !sawErr { // không bị hủy thì handler chờ hết 5 s và thấy ctx còn sống: phân biệt bằng sự kiện, không bằng giờ
+		t.Fatal("handler phải bị hủy sau Timeout")
 	}
 	r := e.job(t, id)
 	if r.Status != "pending" || r.LastError == nil || !strings.Contains(*r.LastError, "deadline") {
@@ -385,26 +384,48 @@ func TestRunAtInFutureNotClaimed(t *testing.T) {
 	}
 }
 
-// Việc mới được ghi khi worker đang chờ: NOTIFY đánh thức, nhận trong dưới 1 s dù Poll là 1 phút.
+// Việc mới được ghi khi worker đang chờ: NOTIFY đánh thức. Poll là 1 giờ và việc ghi sau khi vòng đầu đã nhận việc
+// xong, nên chỉ NOTIFY mới làm worker nhận nó; test chờ theo sự kiện, không lấy giờ thật làm tiêu chí (Task 420).
 func TestNotifyWakesWorker(t *testing.T) {
 	e := newEnv(t)
-	got := make(chan time.Time, 1)
+	got := make(chan struct{}, 1)
 	h := newFH(kind("t.wake"), func(context.Context, queue.Job, pgx.Tx) (json.RawMessage, error) {
-		got <- time.Now()
+		got <- struct{}{}
 		return nil, nil
 	})
-	startWorker(t, e, time.Minute, h)
-	time.Sleep(200 * time.Millisecond) // vòng đầu đã chạy xong, worker đang chờ
-	at := time.Now()
+	reg := metrics.NewRegistry()
+	w := queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Poll: time.Hour, Metrics: reg})
+	if err := w.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = w.Stop(time.Second) })
+	waitFirstRound(t, reg)
 	e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
 	select {
-	case handled := <-got:
-		if d := handled.Sub(at); d > time.Second {
-			t.Fatalf("nhận sau %v", d)
-		}
-	case <-time.After(3 * time.Second):
+	case <-got:
+	case <-time.After(hangGuard):
 		t.Fatal("NOTIFY không đánh thức worker")
 	}
+}
+
+// hangGuard chỉ chặn test treo: rộng hơn mọi độ trễ do tải máy, ngắn hơn hẳn Poll 1 giờ của test dùng nó.
+const hangGuard = 30 * time.Second
+
+// waitFirstRound chờ vòng nhận việc đầu tiên của worker chạy nền xong câu nhận việc: dispatch đặt gauge
+// jobs_oldest_pending_age_s ngay sau câu nhận việc, nên khi thấy gauge thì việc ghi sau đó chỉ được nhận ở vòng sau.
+// Start đã LISTEN xong trước khi trả (listenConn chạy đồng bộ), nên NOTIFY của việc đó không lỡ.
+func waitFirstRound(t *testing.T, reg *metrics.Registry) {
+	t.Helper()
+	deadline := time.Now().Add(hangGuard)
+	for time.Now().Before(deadline) {
+		for _, r := range reg.Drain() {
+			if r.Name == "jobs_oldest_pending_age_s" {
+				return
+			}
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("vòng nhận việc đầu tiên chưa xong")
 }
 
 // Poll vẫn chạy làm lưới an toàn: việc tới hạn (run_at qua) được nhận dù không có NOTIFY mới.
@@ -419,7 +440,7 @@ func TestPollPicksDueJob(t *testing.T) {
 	startWorker(t, e, 100*time.Millisecond, h)
 	select {
 	case <-got:
-	case <-time.After(3 * time.Second):
+	case <-time.After(hangGuard):
 		t.Fatal("Poll không nhận việc tới hạn")
 	}
 }

@@ -13,7 +13,13 @@ import (
 	"github.com/google/uuid"
 )
 
-// Validate đọc raw (mảng JSON các khối) và kiểm lược đồ: rỗng → không khối; tối đa MaxRawBytes byte, MaxBlocks khối;
+// maxInputBytes chặn đầu vào quá lớn trước khi giải mã. Trần thật (MaxRawBytes) do Check kiểm trên dạng JSON gọn,
+// vì cột jsonb đọc ra có thêm dấu cách sau mỗi ':' và ',' (dài hơn bản đã lưu, không quá gấp đôi): kiểm MaxRawBytes
+// trên byte thô sẽ khóa mẫu có bài viết sát trần sau khi lưu (B-02, review độc lập M1).
+const maxInputBytes = 2 * MaxRawBytes
+
+// Validate đọc raw (mảng JSON các khối) và kiểm lược đồ: rỗng → không khối; tối đa MaxRawBytes byte ở dạng JSON gọn
+// (Check), MaxBlocks khối;
 // loại lạ, trường lạ, trường của loại khác, khóa trùng, giá trị null, chuỗi có ký tự điều khiển (trừ xuống dòng trong
 // text của paragraph), UTF-8 hỏng, vượt giới hạn → ErrInvalid. fileId chỉ kiểm dạng uuid; tệp được kiểm khi lưu mẫu (catalog, Task M1-44b).
 func Validate(raw json.RawMessage) ([]Block, error) {
@@ -21,7 +27,7 @@ func Validate(raw json.RawMessage) ([]Block, error) {
 	if len(trimmed) == 0 {
 		return []Block{}, nil
 	}
-	if len(trimmed) > MaxRawBytes || !utf8.Valid(trimmed) {
+	if len(trimmed) > maxInputBytes || !utf8.Valid(trimmed) {
 		return nil, ErrInvalid
 	}
 	dec := json.NewDecoder(bytes.NewReader(trimmed))

@@ -260,6 +260,44 @@ func (q *Queries) InsertImport(ctx context.Context, arg InsertImportParams) (Ins
 	return i, err
 }
 
+const listVariantSKUsByBarcodes = `-- name: ListVariantSKUsByBarcodes :many
+SELECT v.barcode, v.sku
+FROM catalog.variants AS v
+WHERE v.seller_id = $1 AND v.barcode = ANY($2::text[])
+`
+
+type ListVariantSKUsByBarcodesParams struct {
+	SellerID uuid.UUID
+	Barcodes []string
+}
+
+type ListVariantSKUsByBarcodesRow struct {
+	Barcode string
+	Sku     string
+}
+
+// SKU của các biến thể có sẵn của người bán mang một trong các barcode gõ tay có trong tệp nhập (bước kiểm bắt barcode
+// đã thuộc biến thể có SKU không nằm trong tệp; unique (tenant_id, seller_id, barcode)).
+func (q *Queries) ListVariantSKUsByBarcodes(ctx context.Context, arg ListVariantSKUsByBarcodesParams) ([]ListVariantSKUsByBarcodesRow, error) {
+	rows, err := q.db.Query(ctx, listVariantSKUsByBarcodes, arg.SellerID, arg.Barcodes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVariantSKUsByBarcodesRow{}
+	for rows.Next() {
+		var i ListVariantSKUsByBarcodesRow
+		if err := rows.Scan(&i.Barcode, &i.Sku); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listVariantsByProductCodes = `-- name: ListVariantsByProductCodes :many
 SELECT p.id AS product_id, p.code, v.sku, v.color, v.size
 FROM catalog.products AS p
