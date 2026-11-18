@@ -291,21 +291,9 @@ func TestInventoryAPI_PostIdempotent(t *testing.T) {
 	}
 
 	id2, ver2 := e.draft(invManager, "export", e.w1, "", fmt.Sprintf(`[{"variantId":%q,"quantity":1}]`, v))
-	pair := make([]*httptest.ResponseRecorder, 2)
-	for i := range pair {
-		wg.Go(func() { pair[i] = e.post(id2, ver2, invManager, fmt.Sprintf("k2-%d", i)) })
-	}
-	wg.Wait()
-	codes := map[int]int{pair[0].Code: 1}
-	codes[pair[1].Code]++
-	if codes[http.StatusOK] != 1 || codes[http.StatusConflict] != 1 {
-		t.Fatalf("hai khóa: %d %s / %d %s", pair[0].Code, pair[0].Body.String(), pair[1].Code, pair[1].Body.String())
-	}
-	for _, rec := range pair {
-		if rec.Code == http.StatusConflict && errCode(t, rec) != "document_not_draft" {
-			t.Fatalf("409 phải document_not_draft: %s", rec.Body.String())
-		}
-	}
+	oneWinsOneConflict(t, "document_not_draft", func(i int) *httptest.ResponseRecorder {
+		return e.post(id2, ver2, invManager, fmt.Sprintf("k2-%d", i))
+	})
 	if n := e.staff.CountIn(t, e.tenant, "SELECT count(*) FROM inventory.stock_ledger WHERE doc_id = $1", id2); n != 1 {
 		t.Fatalf("sổ phiếu 2: mong 1 dòng, có %d", n)
 	}

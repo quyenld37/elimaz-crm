@@ -26,6 +26,13 @@ type Handler interface {
 	//
 	// POST /api/v1/catalog/products/{id}/variants
 	AddVariant(ctx context.Context, req *AddVariantRequest, params AddVariantParams) (AddVariantRes, error)
+	// ApplyStocktake implements applyStocktake operation.
+	//
+	// Áp dụng phiên (cộng chênh lệch vào tồn, không đụng phần giữ); trả danh sách
+	// thiếu so với phần giữ.
+	//
+	// POST /api/v1/inventory/stocktakes/{id}/apply
+	ApplyStocktake(ctx context.Context, req *VersionRequest, params ApplyStocktakeParams) (ApplyStocktakeRes, error)
 	// ArchiveCategory implements archiveCategory operation.
 	//
 	// Lưu trữ danh mục khi không còn danh mục con active hay mẫu active.
@@ -38,6 +45,12 @@ type Handler interface {
 	//
 	// POST /api/v1/inventory/documents/{id}/cancel
 	CancelStockDocument(ctx context.Context, req *StockDocumentVersion, params CancelStockDocumentParams) (CancelStockDocumentRes, error)
+	// CancelStocktake implements cancelStocktake operation.
+	//
+	// Hủy phiên đang mở (tồn không đổi).
+	//
+	// POST /api/v1/inventory/stocktakes/{id}/cancel
+	CancelStocktake(ctx context.Context, req *VersionRequest, params CancelStocktakeParams) (CancelStocktakeRes, error)
 	// CompleteUpload implements completeUpload operation.
 	//
 	// Báo đã tải xong; máy chủ kiểm kho rồi chuyển tệp sang uploaded (ảnh thì xếp
@@ -154,6 +167,12 @@ type Handler interface {
 	//
 	// GET /api/v1/inventory/documents/{id}
 	GetStockDocument(ctx context.Context, params GetStockDocumentParams) (GetStockDocumentRes, error)
+	// GetStocktake implements getStocktake operation.
+	//
+	// Phiên kiểm kho kèm dòng đếm và xem trước chênh lệch.
+	//
+	// GET /api/v1/inventory/stocktakes/{id}
+	GetStocktake(ctx context.Context, params GetStocktakeParams) (GetStocktakeRes, error)
 	// HealthDeep implements healthDeep operation.
 	//
 	// Kiểm sâu cho dịch vụ canh ngoài (Bearer HEALTH_TOKEN, Task 20); không có dữ liệu
@@ -244,6 +263,13 @@ type Handler interface {
 	//
 	// POST /api/v1/inventory/documents/{id}/post
 	PostStockDocument(ctx context.Context, req *StockDocumentVersion, params PostStockDocumentParams) (PostStockDocumentRes, error)
+	// RecordStocktakeCount implements recordStocktakeCount operation.
+	//
+	// Ghi số đếm của một biến thể (chụp tồn trên kệ = on_hand − in_transit lúc
+	// ghi); ghi lại cần lineVersion.
+	//
+	// PUT /api/v1/inventory/stocktakes/{id}/lines/{variantId}
+	RecordStocktakeCount(ctx context.Context, req *RecordStocktakeCountRequest, params RecordStocktakeCountParams) (RecordStocktakeCountRes, error)
 	// ReplaceStaffGrants implements replaceStaffGrants operation.
 	//
 	// Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không
@@ -277,6 +303,13 @@ type Handler interface {
 	//
 	// PUT /api/v1/catalog/products/{id}/classification
 	SetProductClassification(ctx context.Context, req *SetClassificationRequest, params SetProductClassificationParams) (SetProductClassificationRes, error)
+	// StartStocktake implements startStocktake operation.
+	//
+	// Mở phiên kiểm kho ở một kho (một phiên mở mỗi kho; kho đã đóng →
+	// invalid_input).
+	//
+	// POST /api/v1/inventory/stocktakes
+	StartStocktake(ctx context.Context, req *StartStocktakeRequest, params StartStocktakeParams) (StartStocktakeRes, error)
 	// Stream implements stream operation.
 	//
 	// Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 16).

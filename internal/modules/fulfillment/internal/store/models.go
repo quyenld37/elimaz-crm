@@ -428,6 +428,36 @@ type InventoryStockReservation struct {
 	CreatedAt      time.Time
 }
 
+type InventoryStocktake struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	WarehouseID uuid.UUID
+	Code        string
+	Status      string
+	StartedBy   pgtype.UUID
+	AppliedBy   pgtype.UUID
+	AppliedAt   pgtype.Timestamptz
+	CancelledBy pgtype.UUID
+	CancelledAt pgtype.Timestamptz
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Version     int64
+}
+
+type InventoryStocktakeLine struct {
+	ID              uuid.UUID
+	TenantID        uuid.UUID
+	StocktakeID     uuid.UUID
+	VariantID       uuid.UUID
+	SellerID        uuid.UUID
+	ExpectedOnShelf int32
+	Counted         int32
+	Delta           pgtype.Int4
+	CountedAt       time.Time
+	CountedBy       pgtype.UUID
+	Version         int64
+}
+
 type InventorySupplier struct {
 	ID         uuid.UUID
 	TenantID   uuid.UUID

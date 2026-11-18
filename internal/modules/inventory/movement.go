@@ -38,6 +38,7 @@ const (
 	condDamaged   cond = "damaged"   // damaged ≥ q
 	condHeld      cond = "held"      // held ≥ q
 	condInTransit cond = "in_transit"
+	condOnShelf   cond = "on_shelf" // on_hand − in_transit ≥ q (kiểm kho giảm, Task M1-35)
 )
 
 // doc là chứng từ gây ra thay đổi: doc_type, doc_id của sổ.

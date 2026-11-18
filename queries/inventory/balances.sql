@@ -12,7 +12,8 @@ ON CONFLICT (tenant_id, variant_id, warehouse_id) DO NOTHING;
 -- name: ApplyDelta :one
 -- Câu đổi số dư duy nhất: cộng delta vào đúng một ngăn khi điều kiện cố định đúng trên bản mới nhất của dòng
 -- (READ COMMITTED đánh giá lại WHERE sau khi chờ khóa). Không dòng nào → thiếu (hoặc chưa có dòng số dư).
--- cond: none | available (on_hand − damaged − held − in_transit ≥ q) | on_hand | damaged | held | in_transit (ngăn ≥ q).
+-- cond: none | available (on_hand − damaged − held − in_transit ≥ q) | on_hand | damaged | held | in_transit (ngăn ≥ q)
+-- | on_shelf (on_hand − in_transit ≥ q: kiểm kho giảm, hàng đang giao vẫn còn trong on_hand để giao xong trừ được).
 UPDATE inventory.stock_balances
 SET on_hand    = on_hand + CASE WHEN @bucket::text = 'on_hand' THEN @delta::int ELSE 0 END,
     held       = held + CASE WHEN @bucket::text = 'held' THEN @delta::int ELSE 0 END,
@@ -28,6 +29,7 @@ WHERE variant_id = @variant_id::uuid AND warehouse_id = @warehouse_id::uuid
         WHEN 'damaged' THEN damaged >= @q::int
         WHEN 'held' THEN held >= @q::int
         WHEN 'in_transit' THEN in_transit >= @q::int
+        WHEN 'on_shelf' THEN on_hand - in_transit >= @q::int
         ELSE false
       END
 RETURNING tenant_id, seller_id, version;

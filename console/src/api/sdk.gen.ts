@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, AddAttributeValueData, AddAttributeValueErrors, AddAttributeValueResponses, AddVariantData, AddVariantErrors, AddVariantResponses, ArchiveCategoryData, ArchiveCategoryErrors, ArchiveCategoryResponses, CancelStockDocumentData, CancelStockDocumentErrors, CancelStockDocumentResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateAttributeData, CreateAttributeErrors, CreateAttributeResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateOrderData, CreateOrderErrors, CreateOrderResponses, CreateProductData, CreateProductErrors, CreateProductResponses, CreateShipmentData, CreateShipmentErrors, CreateShipmentResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, CreateStockDocumentData, CreateStockDocumentErrors, CreateStockDocumentResponses, CreateSupplierData, CreateSupplierErrors, CreateSupplierResponses, CreateTagData, CreateTagErrors, CreateTagResponses, CreateUploadData, CreateUploadErrors, CreateUploadResponses, GetFileData, GetFileErrors, GetFileResponses, GetMeData, GetMeErrors, GetMeResponses, GetOrderData, GetOrderErrors, GetOrderResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, GetProductData, GetProductErrors, GetProductResponses, GetShipmentData, GetShipmentErrors, GetShipmentResponses, GetStockDocumentData, GetStockDocumentErrors, GetStockDocumentResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ListAttributesData, ListAttributesErrors, ListAttributesResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListProductsData, ListProductsErrors, ListProductsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListStaffData, ListStaffErrors, ListStaffResponses, ListStockDocumentsData, ListStockDocumentsErrors, ListStockDocumentsResponses, ListSuppliersData, ListSuppliersErrors, ListSuppliersResponses, ListTagsData, ListTagsErrors, ListTagsResponses, LockStaffData, LockStaffErrors, LockStaffResponses, PostStockDocumentData, PostStockDocumentErrors, PostStockDocumentResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, ReplaceStockDocumentLinesData, ReplaceStockDocumentLinesErrors, ReplaceStockDocumentLinesResponses, RetryJobData, RetryJobErrors, RetryJobResponses, SearchVariantsData, SearchVariantsErrors, SearchVariantsResponses, SetProductClassificationData, SetProductClassificationErrors, SetProductClassificationResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateProductData, UpdateProductErrors, UpdateProductResponses, UpdateSupplierData, UpdateSupplierErrors, UpdateSupplierResponses, UpdateVariantData, UpdateVariantErrors, UpdateVariantResponses } from './types.gen';
+import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, AddAttributeValueData, AddAttributeValueErrors, AddAttributeValueResponses, AddVariantData, AddVariantErrors, AddVariantResponses, ApplyStocktakeData, ApplyStocktakeErrors, ApplyStocktakeResponses, ArchiveCategoryData, ArchiveCategoryErrors, ArchiveCategoryResponses, CancelStockDocumentData, CancelStockDocumentErrors, CancelStockDocumentResponses, CancelStocktakeData, CancelStocktakeErrors, CancelStocktakeResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateAttributeData, CreateAttributeErrors, CreateAttributeResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateOrderData, CreateOrderErrors, CreateOrderResponses, CreateProductData, CreateProductErrors, CreateProductResponses, CreateShipmentData, CreateShipmentErrors, CreateShipmentResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, CreateStockDocumentData, CreateStockDocumentErrors, CreateStockDocumentResponses, CreateSupplierData, CreateSupplierErrors, CreateSupplierResponses, CreateTagData, CreateTagErrors, CreateTagResponses, CreateUploadData, CreateUploadErrors, CreateUploadResponses, GetFileData, GetFileErrors, GetFileResponses, GetMeData, GetMeErrors, GetMeResponses, GetOrderData, GetOrderErrors, GetOrderResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, GetProductData, GetProductErrors, GetProductResponses, GetShipmentData, GetShipmentErrors, GetShipmentResponses, GetStockDocumentData, GetStockDocumentErrors, GetStockDocumentResponses, GetStocktakeData, GetStocktakeErrors, GetStocktakeResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ListAttributesData, ListAttributesErrors, ListAttributesResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListProductsData, ListProductsErrors, ListProductsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListStaffData, ListStaffErrors, ListStaffResponses, ListStockDocumentsData, ListStockDocumentsErrors, ListStockDocumentsResponses, ListSuppliersData, ListSuppliersErrors, ListSuppliersResponses, ListTagsData, ListTagsErrors, ListTagsResponses, LockStaffData, LockStaffErrors, LockStaffResponses, PostStockDocumentData, PostStockDocumentErrors, PostStockDocumentResponses, RecordStocktakeCountData, RecordStocktakeCountErrors, RecordStocktakeCountResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, ReplaceStockDocumentLinesData, ReplaceStockDocumentLinesErrors, ReplaceStockDocumentLinesResponses, RetryJobData, RetryJobErrors, RetryJobResponses, SearchVariantsData, SearchVariantsErrors, SearchVariantsResponses, SetProductClassificationData, SetProductClassificationErrors, SetProductClassificationResponses, StartStocktakeData, StartStocktakeErrors, StartStocktakeResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateProductData, UpdateProductErrors, UpdateProductResponses, UpdateSupplierData, UpdateSupplierErrors, UpdateSupplierResponses, UpdateVariantData, UpdateVariantErrors, UpdateVariantResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -419,3 +419,56 @@ export const createShipment = <ThrowOnError extends boolean = false>(options: Op
  * Quyền fulfillment.read theo đích kho của tài khoản hãng của vận đơn.
  */
 export const getShipment = <ThrowOnError extends boolean = false>(options: Options<GetShipmentData, ThrowOnError>): RequestResult<GetShipmentResponses, GetShipmentErrors, ThrowOnError> => (options.client ?? client).get<GetShipmentResponses, GetShipmentErrors, ThrowOnError>({ url: '/api/v1/shipments/{id}', ...options });
+
+/**
+ * Mở phiên kiểm kho ở một kho (một phiên mở mỗi kho; kho đã đóng → invalid_input)
+ */
+export const startStocktake = <ThrowOnError extends boolean = false>(options: Options<StartStocktakeData, ThrowOnError>): RequestResult<StartStocktakeResponses, StartStocktakeErrors, ThrowOnError> => (options.client ?? client).post<StartStocktakeResponses, StartStocktakeErrors, ThrowOnError>({
+    url: '/api/v1/inventory/stocktakes',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Phiên kiểm kho kèm dòng đếm và xem trước chênh lệch
+ */
+export const getStocktake = <ThrowOnError extends boolean = false>(options: Options<GetStocktakeData, ThrowOnError>): RequestResult<GetStocktakeResponses, GetStocktakeErrors, ThrowOnError> => (options.client ?? client).get<GetStocktakeResponses, GetStocktakeErrors, ThrowOnError>({ url: '/api/v1/inventory/stocktakes/{id}', ...options });
+
+/**
+ * Ghi số đếm của một biến thể (chụp tồn trên kệ = on_hand − in_transit lúc ghi); ghi lại cần lineVersion
+ */
+export const recordStocktakeCount = <ThrowOnError extends boolean = false>(options: Options<RecordStocktakeCountData, ThrowOnError>): RequestResult<RecordStocktakeCountResponses, RecordStocktakeCountErrors, ThrowOnError> => (options.client ?? client).put<RecordStocktakeCountResponses, RecordStocktakeCountErrors, ThrowOnError>({
+    url: '/api/v1/inventory/stocktakes/{id}/lines/{variantId}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Áp dụng phiên (cộng chênh lệch vào tồn, không đụng phần giữ); trả danh sách thiếu so với phần giữ
+ */
+export const applyStocktake = <ThrowOnError extends boolean = false>(options: Options<ApplyStocktakeData, ThrowOnError>): RequestResult<ApplyStocktakeResponses, ApplyStocktakeErrors, ThrowOnError> => (options.client ?? client).post<ApplyStocktakeResponses, ApplyStocktakeErrors, ThrowOnError>({
+    url: '/api/v1/inventory/stocktakes/{id}/apply',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Hủy phiên đang mở (tồn không đổi)
+ */
+export const cancelStocktake = <ThrowOnError extends boolean = false>(options: Options<CancelStocktakeData, ThrowOnError>): RequestResult<CancelStocktakeResponses, CancelStocktakeErrors, ThrowOnError> => (options.client ?? client).post<CancelStocktakeResponses, CancelStocktakeErrors, ThrowOnError>({
+    url: '/api/v1/inventory/stocktakes/{id}/cancel',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});

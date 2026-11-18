@@ -40,6 +40,16 @@ func (UnimplementedHandler) AddVariant(ctx context.Context, req *AddVariantReque
 	return r, ht.ErrNotImplemented
 }
 
+// ApplyStocktake implements applyStocktake operation.
+//
+// Áp dụng phiên (cộng chênh lệch vào tồn, không đụng phần giữ); trả danh sách
+// thiếu so với phần giữ.
+//
+// POST /api/v1/inventory/stocktakes/{id}/apply
+func (UnimplementedHandler) ApplyStocktake(ctx context.Context, req *VersionRequest, params ApplyStocktakeParams) (r ApplyStocktakeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ArchiveCategory implements archiveCategory operation.
 //
 // Lưu trữ danh mục khi không còn danh mục con active hay mẫu active.
@@ -55,6 +65,15 @@ func (UnimplementedHandler) ArchiveCategory(ctx context.Context, req *VersionReq
 //
 // POST /api/v1/inventory/documents/{id}/cancel
 func (UnimplementedHandler) CancelStockDocument(ctx context.Context, req *StockDocumentVersion, params CancelStockDocumentParams) (r CancelStockDocumentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CancelStocktake implements cancelStocktake operation.
+//
+// Hủy phiên đang mở (tồn không đổi).
+//
+// POST /api/v1/inventory/stocktakes/{id}/cancel
+func (UnimplementedHandler) CancelStocktake(ctx context.Context, req *VersionRequest, params CancelStocktakeParams) (r CancelStocktakeRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -228,6 +247,15 @@ func (UnimplementedHandler) GetStockDocument(ctx context.Context, params GetStoc
 	return r, ht.ErrNotImplemented
 }
 
+// GetStocktake implements getStocktake operation.
+//
+// Phiên kiểm kho kèm dòng đếm và xem trước chênh lệch.
+//
+// GET /api/v1/inventory/stocktakes/{id}
+func (UnimplementedHandler) GetStocktake(ctx context.Context, params GetStocktakeParams) (r GetStocktakeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // HealthDeep implements healthDeep operation.
 //
 // Kiểm sâu cho dịch vụ canh ngoài (Bearer HEALTH_TOKEN, Task 20); không có dữ liệu
@@ -360,6 +388,16 @@ func (UnimplementedHandler) PostStockDocument(ctx context.Context, req *StockDoc
 	return r, ht.ErrNotImplemented
 }
 
+// RecordStocktakeCount implements recordStocktakeCount operation.
+//
+// Ghi số đếm của một biến thể (chụp tồn trên kệ = on_hand − in_transit lúc
+// ghi); ghi lại cần lineVersion.
+//
+// PUT /api/v1/inventory/stocktakes/{id}/lines/{variantId}
+func (UnimplementedHandler) RecordStocktakeCount(ctx context.Context, req *RecordStocktakeCountRequest, params RecordStocktakeCountParams) (r RecordStocktakeCountRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ReplaceStaffGrants implements replaceStaffGrants operation.
 //
 // Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không
@@ -405,6 +443,16 @@ func (UnimplementedHandler) SearchVariants(ctx context.Context, params SearchVar
 //
 // PUT /api/v1/catalog/products/{id}/classification
 func (UnimplementedHandler) SetProductClassification(ctx context.Context, req *SetClassificationRequest, params SetProductClassificationParams) (r SetProductClassificationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// StartStocktake implements startStocktake operation.
+//
+// Mở phiên kiểm kho ở một kho (một phiên mở mỗi kho; kho đã đóng →
+// invalid_input).
+//
+// POST /api/v1/inventory/stocktakes
+func (UnimplementedHandler) StartStocktake(ctx context.Context, req *StartStocktakeRequest, params StartStocktakeParams) (r StartStocktakeRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
