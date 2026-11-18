@@ -67,6 +67,15 @@ function variant(i: number, color: string, size: string, extra: Partial<Variant>
   };
 }
 
+/** Ảnh sẵn sàng thứ n của mẫu. */
+const IMG = (n: number): ProductImage => ({
+  id: `0195f3b2-0000-7000-8000-0000000002${String(n).padStart(2, "0")}`,
+  fileId: `0195f3b2-0000-7000-8000-0000000003${String(n).padStart(2, "0")}`,
+  position: n,
+  status: "ready",
+  variants: [{ width: 400, format: "jpeg", url: `https://anh.test/${String(n)}.jpg` }],
+});
+
 let product: Product;
 let cls: ProductClassification;
 
@@ -330,13 +339,6 @@ describe("ProductEdit — sửa mẫu", () => {
 });
 
 describe("ProductEdit — khối Ảnh (Task 325)", () => {
-  const IMG = (n: number): ProductImage => ({
-    id: `0195f3b2-0000-7000-8000-0000000002${String(n).padStart(2, "0")}`,
-    fileId: `0195f3b2-0000-7000-8000-0000000003${String(n).padStart(2, "0")}`,
-    position: n,
-    status: "ready",
-    variants: [{ width: 400, format: "jpeg", url: `https://anh.test/${String(n)}.jpg` }],
-  });
   const UPLOAD_GRANTS: Grant[] = [...MANAGER, { permission: "files.upload", scope: { type: "all", id: "" } }];
 
   it("số ảnh ở đầu trang và trên khối theo ảnh hiện tại; xóa ảnh → số giảm", async () => {
@@ -417,5 +419,125 @@ describe("ProductEdit — khối Ảnh (Task 325)", () => {
     renderEdit(mockApi(UPLOAD_GRANTS), "/san-pham/moi");
     await screen.findByRole("heading", { name: "Thêm mẫu" });
     expect(screen.queryByRole("heading", { name: "Ảnh" })).toBeNull();
+  });
+});
+
+describe("ProductEdit — bài viết (Task 326)", () => {
+  const blockEls = () => screen.getAllByTestId("article-block");
+
+  it("sửa bài viết → updateProduct gửi article đúng thứ tự, chỉ khi bài khác bản đã lưu", async () => {
+    product = {
+      ...product,
+      article: [
+        { type: "heading", text: "Chất liệu", level: 2 },
+        { type: "paragraph", text: "Lụa Hàn." },
+      ],
+    };
+    renderEdit(mockApi(), `/san-pham/${PID}`);
+    await screen.findByRole("heading", { name: NAME_80 });
+    expect(screen.getByText("2 khối")).toBeTruthy();
+    expect(screen.queryByText("Có thay đổi chưa lưu")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Đưa khối 2 lên" }));
+    fireEvent.click(screen.getByRole("button", { name: "+ Danh sách" }));
+    typeIn("Khối 3 · Danh sách", "Giặt tay\nKhông vắt");
+    const sent: unknown[] = [];
+    vi.mocked(api.updateProduct).mockImplementation((o) => {
+      sent.push(o.body);
+      return ok({ ...product, version: 6 });
+    });
+    clickSave();
+    await waitFor(() => {
+      expect(sent).toEqual([
+        {
+          version: 5,
+          article: [
+            { type: "paragraph", text: "Lụa Hàn." },
+            { type: "heading", text: "Chất liệu", level: 2 },
+            { type: "list", items: ["Giặt tay", "Không vắt"] },
+          ],
+        },
+      ]);
+    });
+  });
+
+  it("khối sai trước khi gửi → không gửi, hộp lỗi trạng thái C, khối tô đỏ", async () => {
+    renderEdit(mockApi(), `/san-pham/${PID}`);
+    await screen.findByRole("heading", { name: NAME_80 });
+    fireEvent.click(screen.getByRole("button", { name: "+ Đoạn văn" }));
+    fireEvent.click(screen.getByRole("button", { name: "+ Danh sách" }));
+    typeIn("Khối 1 · Đoạn văn", "Ổn");
+    clickSave();
+    expect(await screen.findByText("Chưa lưu: bài viết có 1 khối sai.")).toBeTruthy();
+    expect(
+      screen.getByText("Khối 2 (Danh sách): danh sách cần ít nhất một dòng. Sửa khối được tô đỏ rồi lưu lại."),
+    ).toBeTruthy();
+    expect(blockEls()[1]?.className).toContain("is-err");
+    expect(api.updateProduct).not.toHaveBeenCalled();
+    // Sửa khối → lỗi tắt.
+    typeIn("Khối 2 · Danh sách", "Một");
+    expect(screen.queryByText("Chưa lưu: bài viết có 1 khối sai.")).toBeNull();
+  });
+
+  it("máy chủ trả invalid_article (khối ảnh trỏ ảnh đã xóa) → lỗi hiện tại đúng khối đó", async () => {
+    const gone = "0195f3b2-0000-7000-8000-00000000f0ff";
+    product = {
+      ...product,
+      images: [IMG(1)],
+      article: [
+        { type: "paragraph", text: "Đoạn 1" },
+        { type: "image", fileId: gone },
+        { type: "paragraph", text: "Đoạn 3" },
+      ],
+    };
+    renderEdit(mockApi(), `/san-pham/${PID}`);
+    await screen.findByRole("heading", { name: NAME_80 });
+    typeIn("Khối 3 · Đoạn văn", "Đoạn 3 sửa");
+    vi.mocked(api.updateProduct).mockImplementation(() => fail(422, "invalid_article"));
+    clickSave();
+    expect(await screen.findByText("Chưa lưu: bài viết có 1 khối sai.")).toBeTruthy();
+    expect(
+      screen.getByText("Khối 2 (Ảnh): ảnh này không còn dùng được, chọn ảnh khác. Sửa khối được tô đỏ rồi lưu lại."),
+    ).toBeTruthy();
+    const second = blockEls()[1];
+    if (second === undefined) throw new Error("thiếu khối 2");
+    expect(second.className).toContain("is-err");
+    expect(within(second).getByText("Ảnh này không còn dùng được, chọn ảnh khác.")).toBeTruthy();
+    expect(blockEls().filter((b) => b.className.includes("is-err")).length).toBe(1);
+    // Chọn ảnh khác → khối hết đỏ.
+    fireEvent.change(screen.getByRole("combobox", { name: "Chọn từ ảnh của mẫu (khối 2)" }), {
+      target: { value: IMG(1).fileId },
+    });
+    expect(blockEls()[1]?.className).not.toContain("is-err");
+  });
+
+  it("máy chủ trả invalid_article mà màn không tìm ra khối → câu chung", async () => {
+    renderEdit(mockApi(), `/san-pham/${PID}`);
+    await screen.findByRole("heading", { name: NAME_80 });
+    fireEvent.click(screen.getByRole("button", { name: "+ Đoạn văn" }));
+    typeIn("Khối 1 · Đoạn văn", "Ổn");
+    vi.mocked(api.updateProduct).mockImplementation(() => fail(422, "invalid_article"));
+    clickSave();
+    expect(await screen.findByText("Bài viết có khối không hợp lệ. Kiểm tra lại các khối được đánh dấu")).toBeTruthy();
+  });
+
+  it("tạo mẫu kèm bài viết → createProduct gửi article; trang thêm mẫu tắt + Ảnh", async () => {
+    renderEdit(mockApi(), "/san-pham/moi");
+    await screen.findByRole("heading", { name: "Thêm mẫu" });
+    typeIn("Mã mẫu *", "DAM0123");
+    typeIn("Tên mẫu *", "Đầm");
+    addVia("Thêm màu", "Đen");
+    addVia("Thêm size", "S");
+    fireEvent.change(screen.getByRole("textbox", { name: "Giá bán của Đen · S" }), { target: { value: "350000" } });
+    expect(screen.getByRole("button", { name: "+ Ảnh" }).matches(":disabled")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "+ Tiêu đề" }));
+    typeIn("Khối 1 · Tiêu đề", "Form dáng");
+    vi.mocked(api.createProduct).mockImplementation(() => ok({ ...product, version: 1 }, 201));
+    clickSave();
+    await waitFor(() => {
+      expect(api.createProduct).toHaveBeenCalledTimes(1);
+    });
+    expect(vi.mocked(api.createProduct).mock.calls[0]?.[0].body.article).toEqual([
+      { type: "heading", text: "Form dáng", level: 2 },
+    ]);
   });
 });

@@ -12,6 +12,7 @@ import type {
   Variant,
   VariantStatus,
 } from "../../api";
+import { articleBody, checkArticle, editBlocks, sameArticle, type EditBlock } from "./articleRules";
 
 const NUM = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 });
 
@@ -54,6 +55,8 @@ export interface Draft {
   colors: string[];
   sizes: string[];
   rows: VariantRow[];
+  /** Bài viết dạng khối (Task 326). */
+  article: EditBlock[];
 }
 
 export type OptionKind = "color" | "size";
@@ -141,6 +144,7 @@ export function emptyDraft(): Draft {
     colors: [],
     sizes: [],
     rows: [],
+    article: [],
   };
 }
 
@@ -167,6 +171,7 @@ export function draftFromProduct(p: Product, c: ProductClassification): Draft {
     colors,
     sizes,
     rows: sortRows(p.variants.map(savedRow), colors, sizes),
+    article: editBlocks(p.article),
   };
 }
 
@@ -244,8 +249,10 @@ export interface RowErrors {
 
 export interface Validation {
   ok: boolean;
-  fields: { code?: string; name?: string; description?: string; variants?: string };
+  fields: { code?: string; name?: string; description?: string; variants?: string; article?: string };
   rows: Record<string, RowErrors>;
+  /** Khóa khối bài viết → câu lỗi. */
+  article: Record<string, string>;
 }
 
 export const TEXT_SKU_DUP = "Trùng SKU với dòng khác";
@@ -264,6 +271,8 @@ export function validate(d: Draft, mode: "create" | "edit"): Validation {
   else if (nameLen > MAX_NAME) fields.name = "Tên mẫu tối đa 200 ký tự";
   if (charCount(d.description) > MAX_DESCRIPTION) fields.description = "Mô tả ngắn tối đa 1.000 ký tự";
   if (d.rows.length > MAX_VARIANTS) fields.variants = "Một mẫu tối đa 200 biến thể";
+  const art = checkArticle(d.article);
+  if (art.article !== undefined) fields.article = art.article;
 
   const skuCount = new Map<string, number>();
   for (const r of d.rows) {
@@ -285,7 +294,12 @@ export function validate(d: Draft, mode: "create" | "edit"): Validation {
     if (r.costPrice.trim() !== "" && parseMoney(r.costPrice) === null) e.costPrice = TEXT_BAD_PRICE;
     if (Object.keys(e).length > 0) rows[r.key] = e;
   }
-  return { ok: Object.keys(fields).length === 0 && Object.keys(rows).length === 0, fields, rows };
+  return {
+    ok: Object.keys(fields).length === 0 && Object.keys(rows).length === 0 && Object.keys(art.blocks).length === 0,
+    fields,
+    rows,
+    article: art.blocks,
+  };
 }
 
 // Gọi sau validate: ô giá đã đọc được.
@@ -314,6 +328,7 @@ export function createBody(d: Draft): CreateProductRequest {
     variants: d.rows.map(variantInput),
   };
   if (d.description !== "") out.description = d.description;
+  if (d.article.length > 0) out.article = articleBody(d.article);
   return out;
 }
 
@@ -360,6 +375,7 @@ export function savePlan(base: Draft, edit: Draft): SaveStep[] {
   if (edit.name.trim() !== base.name) p.name = edit.name.trim();
   if (edit.description !== base.description) p.description = edit.description;
   if (edit.status !== base.status) p.status = edit.status;
+  if (!sameArticle(base.article, edit.article)) p.article = articleBody(edit.article);
   if (Object.keys(p).length > 0) steps.push({ kind: "product", body: p });
   if (classificationChanged(base, edit)) steps.push({ kind: "classification", body: classificationBody(edit) });
   for (const r of edit.rows) if (r.id === undefined) steps.push({ kind: "add", key: r.key, body: variantInput(r) });
@@ -383,10 +399,17 @@ export interface Pair {
   edit: Draft;
 }
 
-/** Bước sửa mẫu xong: bản đã lưu nhận tên, mô tả, trạng thái mới; cả hai nhận version mới. */
+/** Bước sửa mẫu xong: bản đã lưu nhận tên, mô tả, trạng thái, bài viết mới; cả hai nhận version mới. */
 export function applyProduct({ base, edit }: Pair, p: Product): Pair {
   return {
-    base: { ...base, name: p.name, description: p.description, status: p.status, version: p.version },
+    base: {
+      ...base,
+      name: p.name,
+      description: p.description,
+      status: p.status,
+      article: editBlocks(p.article),
+      version: p.version,
+    },
     edit: { ...edit, version: p.version },
   };
 }

@@ -4384,8 +4384,13 @@ type Product struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	Article     []ArticleBlock `json:"article"`
-	// HTML bài viết dựng bằng catalog.RenderArticleHTML (chỉ thẻ trong danh sách cho phép,
-	// R7).
+	// HTML bài viết dựng bằng catalog.RenderArticleHTML (R7), chỉ thẻ trong danh sách cho
+	// phép: p, br, h2, h3, ul, li và cho khối ảnh figure, picture, source, img, figcaption. Khối
+	// ảnh thành figure > picture với source avif, source webp và img JPEG (URL công khai của các
+	// biến thể ảnh sẵn sàng, srcset theo chiều rộng, alt là chú thích, loading=lazy), kèm
+	// figcaption khi có chú thích; khối ảnh trỏ tệp chưa sẵn sàng hoặc bị mất thì
+	// bỏ. Mọi chữ đã thoát ký tự. Bàn điều khiển không hiển thị trường này
+	// (trình soạn dùng khối article).
 	ArticleHtml string        `json:"articleHtml"`
 	Status      ProductStatus `json:"status"`
 	Version     int64         `json:"version"`
