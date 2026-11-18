@@ -129,6 +129,7 @@ Mục 6 (đúng khi chạy đồng thời):
 4. **Lịch `platform.resolve_in_doubt` chưa nối ở task này.** `commands.ResolveInDoubt` thuộc Task 12, đang làm song
    song ở worktree khác, chưa có trong nhánh này. Cơ chế `Define` đã sẵn; khi gộp sau Task 12 chỉ cần một handler gọi
    `ResolveInDoubt` và một dòng `Define` (ghi ở Việc phát hiện thêm). Phương án khác: chờ Task 12 (chặn task).
+   (Đã nối ở Task 14 lượt 2, xem `docs/tasks/task-14.md`.)
 5. **Kỳ của lịch:** `slot` = mốc `next_run_at + k·every` lớn nhất ≤ now (lịch trễ 10 giờ chạy đúng một kỳ, kỳ mới
    nhất); `next_run_at` mới = `slot + every` (> now). Lịch mới định nghĩa có `next_run_at = now` (chạy ngay kỳ đầu).
 6. **Chính sách việc dọn:** `MaxAttempts: 1`, `ExpiresAfter` = một kỳ (spec 04 mục 5.1: việc định kỳ lỗi thì thử lại
@@ -173,12 +174,14 @@ có mã: `go test ./internal/platform/events/ ./internal/platform/schedules/` �
 
 ## Việc phát hiện thêm
 
-- Khi gộp sau Task 12: nối lịch `platform.resolve_in_doubt` (30 s) gọi `commands.ResolveInDoubt` (Quyết định 4).
+- ~~Khi gộp sau Task 12: nối lịch `platform.resolve_in_doubt` (30 s) gọi `commands.ResolveInDoubt` (Quyết định 4).~~
+  **Đã làm ở Task 14 lượt 2:** `commands.NewInDoubtResolver` + `Define` trong `runWorker` (`cmd/crm/main.go`).
 - Khi có consumer đầu tiên (mốc sau): vai trò `api` phải dựng sổ bằng `newEvents()` trong `cmd/crm` và truyền xuống
   module để `Emit` thấy cùng danh sách consumer như worker (reviewer).
 - Việc dọn thành `dead` (MaxAttempts 1) không bị xóa: lỗi kéo dài dồn mỗi giờ một việc mỗi tenant; chỉ số `jobs_dead`
   báo, cảnh báo Telegram là Task 19 (reviewer).
-- Task 14: đăng ký dọn `webhook_deliveries` quá 30 ngày bằng `Cleanup.RegisterCleanup` trong `cmd/crm`.
+- ~~Task 14: đăng ký dọn `webhook_deliveries` quá 30 ngày bằng `Cleanup.RegisterCleanup` trong `cmd/crm`.~~
+  **Đã làm ở Task 14 lượt 2:** `cleanup.RegisterCleanup(webhooks.CleanupDeliveries)` trong `runWorker`.
 
 ## Reviewer
 

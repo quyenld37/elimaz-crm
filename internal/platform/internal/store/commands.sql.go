@@ -13,6 +13,41 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const commandPastExpiry = `-- name: CommandPastExpiry :one
+SELECT coalesce(expires_at <= now(), false)::bool AS past FROM platform.jobs WHERE id = $1
+`
+
+// Chắc chắn chưa gửi: lệnh đã quá hạn của loại chưa (cùng now() của transaction với RescheduleNotSent nên hai câu không
+// trái nhau). Không khóa dòng: hook OnTerminal chạy trước câu đổi jobs (ADR-46).
+func (q *Queries) CommandPastExpiry(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, commandPastExpiry, id)
+	var past bool
+	err := row.Scan(&past)
+	return past, err
+}
+
+const expireNotSent = `-- name: ExpireNotSent :execrows
+UPDATE platform.jobs
+SET status = 'expired', last_error = $1::text, finished_at = now(), lease_until = NULL,
+    locked_by = NULL
+WHERE id = $2 AND status = 'running' AND locked_by = $3::text
+`
+
+type ExpireNotSentParams struct {
+	LastError string
+	ID        uuid.UUID
+	LockedBy  string
+}
+
+// Chắc chắn chưa gửi và đã quá hạn của loại: expired (spec 04 mục 5.3), không dead. Câu cuối của transaction OnTerminal.
+func (q *Queries) ExpireNotSent(ctx context.Context, arg ExpireNotSentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, expireNotSent, arg.LastError, arg.ID, arg.LockedBy)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const listInDoubt = `-- name: ListInDoubt :many
 SELECT id, tenant_id, kind, payload, attempts, created_at, finished_at
 FROM platform.jobs

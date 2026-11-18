@@ -2,7 +2,9 @@ package commands_test
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -104,5 +106,48 @@ func TestResolveStaleLookupIgnored(t *testing.T) {
 	}
 	if st := e.job(t, id).Status; st != "in_doubt" {
 		t.Fatalf("muốn còn in_doubt, có %s", st)
+	}
+}
+
+// Lịch platform.resolve_in_doubt (lượt 2 Task 14): việc tra lại chạy qua Runner (ngoài transaction) như một lệnh,
+// gọi ResolveInDoubt cho các handler có Looker rồi done với số đếm; không gửi gì thêm ra ngoài.
+func TestInDoubtResolverJob(t *testing.T) {
+	e := newEnv(t)
+	h := &lookH{cmdH: newCmd("command.look", &testkit.FakeExternal{})}
+	sent := inDoubtJob(t, e, h, "a", true)
+	unsent := inDoubtJob(t, e, h, "b", false)
+	res := commands.NewInDoubtResolver(e.app, []commands.Handler{h})
+	if p := res.Kind().Policy; p.Mode != queue.ModeCommand || p.OnLeaseExpired != queue.LeaseRetry ||
+		p.ExpiresAfter != commands.ResolveInDoubtEvery || p.Timeout <= 0 || p.Timeout > 30*time.Second {
+		t.Fatalf("chính sách của việc tra lại: %+v", p)
+	}
+	rid := e.enqueueJob(t, res.Kind(), queue.NewJob{DedupeKey: "slot-1"}) // không tenant, như Ticker
+	runOnce(t, worker(e, "wr", h, res))
+	r := e.job(t, rid)
+	if r.Status != "done" || string(r.Result) != `{"done": 1, "still": 0, "requeued": 1}` {
+		t.Fatalf("muốn việc tra lại done kèm số đếm: %+v (%s)", r, r.Result)
+	}
+	if e.job(t, sent).Status != "done" || e.job(t, unsent).Status != "pending" || len(h.ext.Calls()) != 1 {
+		t.Fatalf("tra lại sai: %s %s, calls %v", e.job(t, sent).Status, e.job(t, unsent).Status, h.ext.Calls())
+	}
+}
+
+// Tra lại lỗi (bên ngoài không trả lời): việc tra lại về hàng chờ (chạy lại an toàn, chỉ đọc), lý do là mã cố định;
+// lệnh vẫn in_doubt.
+func TestInDoubtResolverJobLookupFails(t *testing.T) {
+	e := newEnv(t)
+	h := &lookH{cmdH: newCmd("command.look", &testkit.FakeExternal{}), look: func(context.Context, queue.Job) (string, error) {
+		return "", errors.New("upstream 0912345678 lỗi")
+	}}
+	id := inDoubtJob(t, e, h, "a", true)
+	res := commands.NewInDoubtResolver(e.app, []commands.Handler{h})
+	rid := e.enqueueJob(t, res.Kind(), queue.NewJob{DedupeKey: "slot-1"}) // không tenant, như Ticker
+	runOnce(t, worker(e, "wr", h, res))
+	r := e.job(t, rid)
+	if r.Status != "pending" || r.LastError == nil || *r.LastError != "not_sent: lookup_failed" {
+		t.Fatalf("muốn pending, lý do mã cố định: %+v", r)
+	}
+	if e.job(t, id).Status != "in_doubt" {
+		t.Fatal("lệnh phải còn in_doubt")
 	}
 }

@@ -135,6 +135,25 @@ Mục 6 (đúng khi chạy đồng thời):
    worktree khác, chưa có trên nhánh này. Việc đăng ký là một dòng khi gộp sau Task 13 (xem Việc phát hiện thêm).
 9. **Thêm `testkit.Do`** thay vì để hai hàm test giống nhau ở `webhooks` và `tests/e2e` (jscpd chặn đoạn trùng mới).
 
+Lượt 2:
+
+10. **`not_sent` quá hạn → `expired` có ưu tiên** trước hẹn lại và trước `dead`, kể cả ở lần thử cuối và với loại không
+    tự gửi lại (theo quyết định của điều phối viên, spec 04 mục 5.3). `not_sent` còn trong hạn nhưng loại không tự gửi
+    lại (tạo vận đơn) hoặc hết lượt thì vẫn `dead` ("hết lượt thử"). Đảo ngược dễ: một nhánh `case past` trong
+    `Runner.notSent`. Phương án khác: chỉ `expired` khi loại tự gửi lại — để lệnh quá hạn thành `dead` lẫn với lệnh bị
+    từ chối, trái ý spec.
+11. **Việc tra lại là lệnh `command` (chạy qua `Runner`), không phải handler transactional.** `Lookup` gọi bên ngoài,
+    handler transactional cấm gọi mạng và sẽ giữ transaction mở suốt lần tra. Chính sách riêng: `OnLeaseExpired =
+    retry` (chạy lại an toàn, chỉ đọc), 3 lượt, hạn sống 30 s (một kỳ), `Timeout` 25 s, mỗi lần tối đa 50 lệnh. Tra lỗi
+    → `not_sent` lý do cố định `lookup_failed` (không chép chuỗi lỗi bên ngoài vì có thể chứa dữ liệu cá nhân).
+    Tên loại `task.platform.resolve_in_doubt` theo cách đặt tên việc định kỳ của Task 13. Phương án khác: thêm một
+    chế độ thứ ba vào `queue` (vùng rủi ro cao, ngoài phạm vi) hoặc vòng lặp riêng trong `runWorker` (trái luật của
+    `schedules`: không tự viết vòng `time.Ticker`).
+12. **`cmd/crm` nối `WorkerOptions.Commands` ngay ở M0** (danh sách lệnh thật rỗng, `newCommands()`), vì việc tra lại
+    cần `Runner`. Module của mốc sau chỉ thêm handler vào `newCommands`.
+13. **Bổ sung ghi chú "khi nào không dùng" của `webhooks`, `selftest`** trong `docs/danh-muc-ghi-chu.yaml`: lượt 1
+    để `CẦN GHI CHÚ` nên `make catalog` (một phần của `make ci`) đỏ sau gộp.
+
 ## Bằng chứng
 
 | Tiêu chí | Test | Lệnh | Kết quả |
@@ -162,6 +181,13 @@ Mục 6 (đúng khi chạy đồng thời):
 | `selftest`: chữ ký HMAC, `Challenge`, `Split` (ping, loại lạ, thiếu trường, không phải JSON) | `TestKeyIsSelftest`, `TestVerifySignature`, `TestChallenge`, `TestSplit` | `go test -race -count=1 -v ./internal/platform/selftest/` | 4 × `--- PASS`, `ok … selftest 1.593s` |
 | Gói phụ thuộc và vùng rủi ro cao không vỡ | các bộ test của gói | `go test -race -count=1 ./tests/... ./cmd/... ./internal/platform/{queue,db,tenancy,metrics,idempotency}/...` | `ok` cho arch, e2e, queue (41.8s), db, tenancy, metrics, idempotency |
 | Cổng kiểm `make ci` phần chạy được trên máy | build, vet, lint, sqlc vet (trong tests/arch), govulncheck, oasdiff, jscpd, test-guard, gitleaks, catalog | `make build vet lint vuln oasdiff jscpd test-guard gitleaks catalog` | `0 issues.`, `No vulnerabilities found.`, `Found 0 clones.`, `no leaks found` |
+| Lượt 2 — gộp: không mất phần nào của hai bên, mọi gói qua | toàn bộ test của các gói chạm tới | `go test -race -count=1 ./internal/platform/... ./internal/httpapi/... ./cmd/... ./tests/...` (trước commit gộp 2561f90) | `ok` cho mọi gói (commands 25.3s, queue 43.9s, schedules 15.2s, webhooks 13.5s, e2e 22.6s, arch 11.1s) |
+| Lượt 2 — not_sent khi đã quá hạn (tự gửi lại / không / lần thử cuối) → expired, OnTerminal("expired") 1 lần, không gửi lại | `TestNotSentPastExpiryExpires` | `go test -race -count=1 -v -run 'TestNotSent\|TestCommandExpires\|Resolver' ./internal/platform/commands/` | đỏ trước sửa: `muốn expired … {Status:dead …} terminals […:dead]` (3 ca); sau sửa `--- PASS: TestNotSentPastExpiryExpires (0.58s)`; `TestNotSent` (no-auto → dead), `TestNotSentLastAttemptDead`, `TestCommandExpires` vẫn PASS |
+| Lượt 2 — việc tra lại: in_doubt đã gửi → done, chưa gửi → pending, không gửi thêm; kết quả số đếm | `TestInDoubtResolverJob` | như trên | đỏ trước (không biên dịch: `undefined: commands.NewInDoubtResolver`); sau `--- PASS: TestInDoubtResolverJob (0.32s)` |
+| Lượt 2 — tra lỗi → việc tra lại pending, `last_error` = `not_sent: lookup_failed` (không chép chuỗi lỗi có SĐT) | `TestInDoubtResolverJobLookupFails` | như trên | `--- PASS: TestInDoubtResolverJobLookupFails (0.22s)` |
+| Lượt 2 — vai trò worker: 3 lịch (2 dọn + `platform.resolve_in_doubt`), việc tra lại done, bản webhook 31 ngày bị xóa | e2e `TestWorkerRoleRunsSchedules` | `go test -race -count=1 -run TestWorkerRoleRunsSchedules ./tests/e2e/` | đỏ khi bỏ phần nối trong `main.go`: `worker không chạy lịch dọn: … deadline exceeded`; sau `--- PASS: TestWorkerRoleRunsSchedules (1.37s)` |
+| Lượt 2 — gói đổi, gói phụ thuộc, vùng rủi ro cao | cả bộ | `go test -race -count=1 ./internal/platform/commands/... ./internal/platform/queue/... ./internal/platform/schedules/... ./internal/platform/webhooks/... ./cmd/... ./tests/...` | `ok` commands 19.8s, queue 30.0s, schedules 10.3s, webhooks 11.9s, arch 10.8s, e2e 22.2s |
+| Lượt 2 — cổng kiểm | lint, gen-check, vuln, jscpd, gitleaks, oasdiff, catalog, test-guard | `make lint gen-check vuln test-guard gitleaks oasdiff catalog jscpd` (gen-check sau khi stage) | `0 issues.`, gen-check thoát 0, `No vulnerabilities found.`, `Found 0 clones.`, `no leaks found`, catalog thoát 0 |
 
 ## Test bị xóa hoặc tắt
 
@@ -177,12 +203,18 @@ Mục 6 (đúng khi chạy đồng thời):
 
 ## Việc phát hiện thêm
 
-- Khi gộp sau Task 13: đăng ký `webhooks.CleanupDeliveries` vào `RegisterCleanup` ở `cmd/crm` (vai trò worker), đúng
-  dòng "`webhook_deliveries` quá 30 ngày (từ Task 14)" của Interfaces Task 13. Chưa làm vì nhánh này chưa có Task 13.
+- ~~Khi gộp sau Task 13: đăng ký `webhooks.CleanupDeliveries` vào `RegisterCleanup`~~ — đã làm ở lượt 2.
 - `cf-connecting-ip` chỉ đáng tin khi `crm-ingest` chỉ nhận kết nối từ Cloudflare (spec 04 mục 11). Lúc cài máy chủ
   (Traefik của Coolify) cần kiểm cổng của ingest không mở thẳng ra ngoài; nếu không, kẻ gửi đổi header để né bộ chặn.
 - Thư mục `SPOOL_DIR` không được kiểm lúc khởi động: thiếu hoặc không ghi được chỉ lộ ra khi database lỗi (503) và ở
   `/health` (`degraded`). Có thể thêm kiểm lúc khởi động hoặc vào `/health/ready` (Task 19, 20).
+
+- (Lượt 2) Kế hoạch M0 bản 5, Interfaces Task 12 còn ghi "`not_sent` … ngược lại `dead`": cần sửa chữ thành
+  "quá `expires_at` → `expired`" theo quyết định của điều phối viên (tệp kế hoạch nằm ngoài repo `apps/crm`, chưa sửa).
+- (Lượt 2) Việc tra lại chết giữa chừng 3 lần (giữ chỗ hết hạn) thành `dead` không tenant; việc dọn chỉ xóa
+  `done`/`expired` nên dòng đó ở lại (hiếm; chỉ số `jobs_dead` báo). Lỗi tra chỉ thấy qua `last_error` mã cố định,
+  chưa có chỉ số riêng (Task 19 cảnh báo).
+- (Lượt 2) Chưa có chỉ số `jobs_expired` cho lệnh hết hạn (cả quét pending lẫn ca mới); Task 19 nên thêm nếu cần báo.
 
 ## Reviewer
 
@@ -198,3 +230,71 @@ Kết luận: ĐẠT (agent reviewer, lần 1, trên `git diff --cached`).
   - `t.Fatalf` từ goroutine phụ trong hai test đồng thời: test vẫn đỏ khi lỗi; không ảnh hưởng tính đúng.
   - Test e2e không đếm `platform.jobs`: tiêu chí này đã có ở test gói.
   - Gauge `spool_files` đặt trước lượt nạp, trễ tới 5 s: chấp nhận được với cảnh báo 5 phút.
+
+## Lượt 2 — gộp main (Task 12, 13) và nối việc còn treo
+
+Việc giao: (1) `git merge main` (không rebase), giải xung đột `cmd/crm/main.go`; (2) nối lịch
+`platform.resolve_in_doubt` của Task 13 vào `commands.ResolveInDoubt` của Task 12, đăng ký
+`webhooks.CleanupDeliveries` vào lịch dọn, xử lý mọi chỗ "chờ Task 12/14" trong `docs/tasks/task-13.md`; (3) quyết
+định của điều phối viên: lệnh chưa gửi mà quá hạn theo loại → `expired`, không `dead` (spec 04 mục 5.3:
+`pending --> expired: quá hạn của loại lệnh`; `dead` chỉ khi bên ngoài từ chối hoặc hết lượt thử).
+
+### Ảnh hưởng (lượt 2)
+
+- Gộp: xung đột duy nhất ở khối import của `cmd/crm/main.go` (HEAD thêm `selftest`, main thêm `schedules`); giữ cả
+  hai. Các tệp khác tự gộp (`docs/danh-muc-dung-chung.md`, hai `store/models.go` sinh mã). `make gen` sau gộp không
+  đổi tệp nào. Migration: main có `0008_events_schedules.sql`, nhánh này `0009_webhook_deliveries.sql`: đúng thứ tự,
+  không trùng số.
+- `internal/platform/commands` (vùng rủi ro cao): `Runner.notSent` đổi hành vi ở ca quá `expires_at` (→ `expired` +
+  `OnTerminal("expired")` thay cho `dead`); câu SQL mới trong `queries/platform/commands.sql` (đọc đã quá hạn chưa,
+  đổi `running` → `expired` có điều kiện `locked_by`), sinh lại `internal/platform/internal/store/commands.sql.go`.
+  Ký hiệu xuất ra mới: `commands.NewInDoubtResolver`, `commands.ResolveInDoubtSchedule` (tên lịch, chu kỳ). Không ký
+  hiệu xuất ra nào cũ đổi chữ ký. Gói nhập `commands`: chỉ `cmd/crm` (`go list`). Không đổi operation OpenAPI, màn
+  hình, migration.
+- `cmd/crm/main.go` (`runWorker`): nối `WorkerOptions.Commands` = `commands.NewRunner` (M0 chưa có lệnh thật, chỉ có
+  việc tra lại), định nghĩa lịch `platform.resolve_in_doubt` 30 s, đăng ký `webhooks.CleanupDeliveries` bằng
+  `Cleanup.RegisterCleanup`.
+- Bảng: `platform.jobs` (cập nhật trạng thái lệnh), `platform.schedules` (thêm một dòng lịch lúc chạy),
+  `platform.webhook_deliveries` (xóa quá 30 ngày; `crm_app` đã có `DELETE` từ 0009).
+- Test sẽ chạy: `./internal/platform/commands/...`, `./internal/platform/queue/...` (vùng rủi ro cao, cả bộ),
+  `./internal/platform/schedules/...`, `./internal/platform/webhooks/...`, `./cmd/...`, `./tests/...` (e2e vai trò
+  worker, kiến trúc), cộng hook Stop.
+
+### Tái dùng (lượt 2)
+
+- Đã đọc `docs/danh-muc-dung-chung.md` mục `commands`, `queue`, `schedules`, `webhooks`.
+- Dùng lại: `commands.ResolveInDoubt` (không viết lại phần tra), `commands.Runner` + `queue.WorkerOptions.Commands`
+  để chạy việc tra lại ngoài transaction, `schedules.Registry.Define`, `Cleanup.RegisterCleanup`,
+  `webhooks.CleanupDeliveries`, `queue.ErrorText`, `apply`/`record`/`terminalFn` sẵn có trong `runner.go`.
+- Viết mới: một `commands.Handler` mỏng (`inDoubtResolver`) bọc `ResolveInDoubt`, vì handler transactional của queue
+  không được gọi mạng (Lookup gọi bên ngoài) nên không dùng `queue.Handler` được. Đặt trong `commands` (không ở
+  `schedules`) để `schedules` không phụ thuộc `commands`.
+
+### Soát thiết kế (lượt 2)
+
+1. Tiền: không chạm.
+2. Quyền, tenant: lệnh có tenant ghi kết quả trong `WithTenant` của lệnh (giữ `runTx`); việc tra lại không tenant.
+3. Hàng đợi: việc tra lại là việc `command` (chạy ngoài transaction) nhưng `OnLeaseExpired = retry` vì chạy lại an
+   toàn (chỉ đọc bên ngoài, kết quả tra chỉ áp khi `finished_at` không đổi); hết hạn sống 30 s (một kỳ) để kỳ cũ
+   chưa chạy thành `expired` (bị dọn sau 30 ngày), không dồn.
+4. Không gửi lần hai: ca mới `expired` chỉ áp khi `Execute` báo `not_sent` (chắc chắn chưa gửi); `expired` không tự
+   chạy lại (chỉ người có quyền `retry`). Câu đổi trạng thái có điều kiện `running` + `locked_by` như các câu khác.
+5. Khóa (ADR-46): hook `OnTerminal` chạy trước câu đổi `jobs`; câu đọc "đã quá hạn chưa" là `SELECT` không khóa, dùng
+   cùng `now()` của transaction với câu hẹn lại, nên hai câu không thể cho kết quả trái nhau.
+6. Log, dữ liệu cá nhân: kết quả của việc tra lại chỉ có số đếm; lý do lỗi là mã cố định, không chép chuỗi lỗi của
+   bên ngoài.
+
+### Reviewer (lượt 2)
+
+Commit gộp 2561f90 (merge main): **ĐẠT** (agent reviewer, lần 1, trên `git diff --cached`). Không có phát hiện phải
+sửa. Reviewer so ba chiều `cmd/crm/main.go` (ingest giữ Drainer + `ingestHandler` của HEAD; worker giữ Cleanup,
+Ticker, handlers của main), hai `store/models.go` là hợp của hai bên, migration 0008/0009 liên tục, `git diff --cached
+--check` sạch. Ghi chú: hai mục danh mục `CẦN GHI CHÚ` (đã sửa ở commit hành vi, Quyết định 13); worker chưa có
+handler `webhook.split` (Task 15).
+
+Commit hành vi lượt 2: **ĐẠT** (agent reviewer, lần 1, trên `git diff --cached`). Không có phát hiện phải sửa.
+Reviewer kiểm: `ExpireNotSent` có điều kiện `running` + `locked_by`, 0 dòng thì lùi cả hook; hook `OnTerminal` trước
+câu đổi `jobs` (ADR-46); `CommandPastExpiry` và `RescheduleNotSent` cùng `now()` nên bù nhau; `expired` chỉ sau
+`not_sent` và không gửi lại; việc tra lại chạy chồng vẫn an toàn (`finished_at` đã thấy), lỗi tra chỉ ghi mã cố định;
+`OnLeaseExpired = retry` hợp lệ với mode command. Ghi chú không bắt buộc (đã có ở Việc phát hiện thêm): chưa có chỉ số
+`expired`; lỗi gốc của lần tra không lưu; `Timeout` thực tế ≤ Lease/2; chữ của kế hoạch Task 12 cần sửa.

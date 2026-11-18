@@ -59,8 +59,8 @@ func (r *Runner) TerminalHook(kind string) queue.TerminalHook { //nolint:ireturn
 // Run chạy lệnh j (đang running, đã commit, do workerID giữ chỗ): gọi Execute ngoài transaction rồi ghi kết quả trong
 // một transaction có tenant của lệnh, mọi câu có điều kiện running + locked_by = workerID:
 //   - done → done (kèm Result) + DoneHook; ghi done lỗi → in_doubt (bên ngoài đã nhận, không gửi lại);
-//   - not_sent → AutoRetryNotSent, còn lượt và chưa quá expires_at: pending sau RetryAfter hoặc queue.NextDelay;
-//     ngược lại dead + OnTerminal;
+//   - not_sent → đã quá expires_at: expired + OnTerminal (spec 04 mục 5.3, kể cả ở lần thử cuối); ngược lại
+//     AutoRetryNotSent và còn lượt: pending sau RetryAfter hoặc queue.NextDelay; ngược lại dead + OnTerminal;
 //   - rejected → dead + OnTerminal;
 //   - unknown, trạng thái lạ, Execute trả lỗi, quá Timeout, Stop hủy giữa chừng → in_doubt + OnTerminal.
 //
@@ -108,7 +108,8 @@ func (r *Runner) recordCtx(ctx context.Context) (context.Context, context.Cancel
 	return context.WithTimeout(context.WithoutCancel(ctx), r.recordTimeout)
 }
 
-// notSent: hẹn gửi lại khi được phép, ngược lại dead (cùng một transaction: thử hẹn lại trước, 0 dòng thì dead).
+// notSent: chắc chắn chưa gửi. Trong một transaction: quá hạn của loại → expired; ngược lại thử hẹn lại khi được phép,
+// 0 dòng (hết lượt) hoặc không tự gửi lại thì dead.
 func (r *Runner) notSent(ctx context.Context, h Handler, j queue.Job, workerID string, out Outcome) (string, error) {
 	msg := queue.ErrorText(errors.New("not_sent: " + out.Reason))
 	delay := out.RetryAfter
@@ -116,9 +117,22 @@ func (r *Runner) notSent(ctx context.Context, h Handler, j queue.Job, workerID s
 		delay = queue.NextDelay(j.Attempts, rand.Float64)
 	}
 	onDead := r.terminalFn(j, queue.StatusDead)
+	onExpired := r.terminalFn(j, queue.StatusExpired)
 	status := ""
 	err := r.inTx(ctx, j.TenantID, func(tx pgx.Tx) error {
 		q := store.New(tx)
+		past, err := q.CommandPastExpiry(ctx, j.ID)
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return errLostLease
+		case err != nil:
+			return fmt.Errorf("đọc hạn của lệnh: %w", err)
+		case past:
+			status = queue.StatusExpired
+			return apply(ctx, tx, onExpired, status, func() (int64, error) {
+				return q.ExpireNotSent(ctx, store.ExpireNotSentParams{LastError: msg, ID: j.ID, LockedBy: workerID})
+			})
+		}
 		if h.AutoRetryNotSent() {
 			n, err := q.RescheduleNotSent(ctx, store.RescheduleNotSentParams{
 				DelayMs: delay.Milliseconds(), LastError: msg, ID: j.ID, LockedBy: workerID,

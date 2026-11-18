@@ -22,6 +22,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/adapters/cfaccess"
 	"elimaz.com.vn/crm/internal/httpapi"
+	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/events"
@@ -161,21 +162,33 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 // module của mốc sau đăng ký ở đây.
 func newEvents() *events.Registry { return events.NewRegistry() }
 
-// runWorker chạy hàng đợi (queue.Worker) với handler của sự kiện nội bộ và dọn dữ liệu, Ticker của việc định kỳ, và
-// vòng ghi chỉ số, nhịp sống tới khi ctx bị hủy (SIGTERM); rồi tắt êm hàng đợi (Stop, tối đa workerStopGrace) trước,
-// ghi chỉ số lần cuối sau. Ticker dừng ngay khi ctx bị hủy.
+// newCommands là các loại lệnh ra ngoài của tiến trình; M0 chưa có lệnh thật, module của mốc sau thêm ở đây.
+func newCommands() []commands.Handler { return nil }
+
+// runWorker chạy hàng đợi (queue.Worker) với handler của sự kiện nội bộ và dọn dữ liệu, lệnh ra ngoài (Runner, kèm
+// việc tra lại lệnh in_doubt), Ticker của việc định kỳ, và vòng ghi chỉ số, nhịp sống tới khi ctx bị hủy (SIGTERM);
+// rồi tắt êm hàng đợi (Stop, tối đa workerStopGrace) trước, ghi chỉ số lần cuối sau. Ticker dừng ngay khi ctx bị hủy.
 func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *metrics.Flusher, cfg config.Config,
 	logger *slog.Logger,
 ) error {
 	cleanup := schedules.NewCleanup()
+	cleanup.RegisterCleanup(webhooks.CleanupDeliveries) // bảng nền tảng không RLS: lịch platform.cleanup
 	plan := schedules.NewRegistry()
 	if err := cleanup.Define(plan); err != nil {
 		return fmt.Errorf("định nghĩa lịch dọn: %w", err)
+	}
+	cmds := newCommands()
+	resolver := commands.NewInDoubtResolver(d, cmds)
+	if err := plan.Define(schedules.Schedule{
+		Name: commands.ResolveInDoubtSchedule, Every: commands.ResolveInDoubtEvery, Kind: resolver.Kind(),
+	}); err != nil {
+		return fmt.Errorf("định nghĩa lịch tra lại lệnh: %w", err)
 	}
 	handlers := append(newEvents().JobHandlers(), cleanup.Handlers()...)
 	w := queue.NewWorker(d, handlers, queue.WorkerOptions{
 		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
 		Metrics:  reg, Logger: logger,
+		Commands: commands.NewRunner(d, append(cmds, resolver)),
 	})
 	if err := w.Start(ctx); err != nil {
 		return fmt.Errorf("chạy hàng đợi: %w", err)

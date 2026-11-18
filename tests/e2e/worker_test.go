@@ -50,8 +50,9 @@ func TestWorkerRoleRunsQueue(t *testing.T) {
 	stopWorker(t, cmd, done, stdout, stderr)
 }
 
-// Vai trò worker chạy việc định kỳ (Task 13): khi khởi động, Ticker ghi hai lịch dọn vào platform.schedules và tạo
-// việc dọn; worker có handler nên việc dọn thành done (không dead "no handler"); việc done quá 30 ngày bị xóa.
+// Vai trò worker chạy việc định kỳ (Task 13): khi khởi động, Ticker ghi hai lịch dọn và lịch tra lại lệnh in_doubt
+// (Task 12, nối ở lượt 2 Task 14) vào platform.schedules và tạo việc; worker có handler nên việc dọn và việc tra lại
+// thành done (không dead "no handler"); việc done và bản nhận webhook quá 30 ngày bị xóa.
 func TestWorkerRoleRunsSchedules(t *testing.T) {
 	bin := buildBinary(t)
 	_, ownerURL, appURL := testkit.StartPostgres(t)
@@ -64,18 +65,23 @@ func TestWorkerRoleRunsSchedules(t *testing.T) {
 	defer func() { _ = owner.Close(context.Background()) }()
 	if _, err := owner.Exec(ctx, `INSERT INTO platform.tenants (name) VALUES ('a');
 		INSERT INTO platform.jobs (kind, mode, dedupe_key, on_lease_expired, max_attempts, status, finished_at)
-		VALUES ('e2e.old', 'transactional', 'k', 'retry', 8, 'done', now() - interval '31 days')`); err != nil {
+		VALUES ('e2e.old', 'transactional', 'k', 'retry', 8, 'done', now() - interval '31 days');
+		INSERT INTO platform.webhook_deliveries (source, body_sha256, headers, body, received_at)
+		VALUES ('selftest', repeat('a', 64), '{}', '\x7b7d', now() - interval '31 days')`); err != nil {
 		t.Fatal(err)
 	}
 	cmd, done, stdout, stderr := startRole(t, bin, roleEnv("worker", appURL, 0))
 	for {
-		var schedules, finished, old int
-		if err := owner.QueryRow(ctx, `SELECT (SELECT count(*) FROM platform.schedules WHERE name IN ('platform.cleanup', 'platform.cleanup_tenant')),
+		var schedules, finished, resolved, old int
+		if err := owner.QueryRow(ctx, `SELECT (SELECT count(*) FROM platform.schedules
+				WHERE name IN ('platform.cleanup', 'platform.cleanup_tenant', 'platform.resolve_in_doubt')),
 			(SELECT count(*) FROM platform.jobs WHERE kind LIKE 'task.platform.cleanup%' AND status = 'done'),
-			(SELECT count(*) FROM platform.jobs WHERE kind = 'e2e.old')`).Scan(&schedules, &finished, &old); err != nil {
+			(SELECT count(*) FROM platform.jobs WHERE kind = 'task.platform.resolve_in_doubt' AND status = 'done'),
+			(SELECT count(*) FROM platform.jobs WHERE kind = 'e2e.old') +
+			(SELECT count(*) FROM platform.webhook_deliveries)`).Scan(&schedules, &finished, &resolved, &old); err != nil {
 			t.Fatalf("worker không chạy lịch dọn: %v\n%s\n%s", err, stdout.String(), stderr.String())
 		}
-		if schedules == 2 && finished == 2 && old == 0 {
+		if schedules == 3 && finished == 2 && resolved >= 1 && old == 0 {
 			break
 		}
 		time.Sleep(50 * time.Millisecond)

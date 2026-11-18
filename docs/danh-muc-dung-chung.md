@@ -21,6 +21,7 @@ type Handler interface {
 
 	Execute(ctx context.Context, j queue.Job) (Outcome, error)
 }
+func NewInDoubtResolver(d *db.DB, hs []Handler) Handler
 type Looker interface {
 	Lookup(ctx context.Context, j queue.Job) (string, error)
 }
@@ -433,7 +434,7 @@ type TickerOptions struct {
 
 Package selftest là nguồn webhook thử "selftest" (/hooks/selftest) dùng để kiểm cả đường vào khi chưa có kênh thật: ký bằng HMAC-SHA256 với SELFTEST_WEBHOOK_SECRET, có bước GET xác minh, tách gói {"events":[…]}.
 
-**Khi nào không dùng:** CẦN GHI CHÚ
+**Khi nào không dùng:** Chỉ để thử đường vào khi chưa có kênh thật: không dùng làm mẫu xác thực cho nguồn thật (mỗi kênh tự hiện thực webhooks.Source theo cách ký của nhà cung cấp) và không định tuyến sự kiện ping vào nghiệp vụ.
 
 ```go
 type Source struct {
@@ -476,7 +477,7 @@ func WithTenant(ctx context.Context, d *db.DB, tenantID uuid.UUID, fn func(pgx.T
 
 Package webhooks là đường vào webhook ở vai trò ingest (spec 04 mục 5.2, 11): kiểm chữ ký trên thân gốc, lưu nguyên văn vào platform.webhook_deliveries cùng một việc tách gói trong một transaction rồi trả 200; database không ghi được thì ghi tệp tạm (Spool) và nạp lại sau (Drainer); chặn địa chỉ gửi sai chữ ký dồn dập (Lockout).
 
-**Khi nào không dùng:** CẦN GHI CHÚ
+**Khi nào không dùng:** Không nhận webhook ở vai trò khác ingest hay bằng handler tự viết: thêm một Source (VerifySignature trên thân gốc, Challenge, Split) vào IngestOptions.Sources. Không đọc, sửa platform.webhook_deliveries ở gói khác (bảng không RLS, không tenant: xử lý nghiệp vụ đi qua việc webhook.split chỉ mang deliveryId). Không log hay đưa thân, header vào chỉ số, dấu vết; không xóa tệp tạm bằng tay khi database còn lỗi.
 
 ```go
 func CleanupDeliveries(ctx context.Context, tx pgx.Tx, now time.Time) (int64, error)
