@@ -425,6 +425,109 @@ func (s *Server) handleArchiveCategoryRequest(args [1]string, argsEscaped bool, 
 	}
 }
 
+// handleCancelStockDocumentRequest handles cancelStockDocument operation.
+//
+// Hủy phiếu nháp.
+//
+// POST /api/v1/inventory/documents/{id}/cancel
+func (s *Server) handleCancelStockDocumentRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CancelStockDocumentOperation,
+			ID:   "cancelStockDocument",
+		}
+	)
+	params, err := decodeCancelStockDocumentParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCancelStockDocumentRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response CancelStockDocumentRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CancelStockDocumentOperation,
+			OperationSummary: "Hủy phiếu nháp",
+			OperationID:      "cancelStockDocument",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *StockDocumentVersion
+			Params   = CancelStockDocumentParams
+			Response = CancelStockDocumentRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCancelStockDocumentParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CancelStockDocument(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CancelStockDocument(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCancelStockDocumentResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleCompleteUploadRequest handles completeUpload operation.
 //
 // Báo đã tải xong; máy chủ kiểm kho rồi chuyển tệp sang uploaded (ảnh thì xếp
@@ -903,6 +1006,205 @@ func (s *Server) handleCreateStaffRequest(args [0]string, argsEscaped bool, w ht
 	}
 
 	if err := encodeCreateStaffResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleCreateStockDocumentRequest handles createStockDocument operation.
+//
+// Tạo phiếu kho nháp (nhập, xuất, hàng lỗi, xuất hàng lỗi, điều chỉnh); nhà
+// cung cấp chỉ cho phiếu nhập.
+//
+// POST /api/v1/inventory/documents
+func (s *Server) handleCreateStockDocumentRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CreateStockDocumentOperation,
+			ID:   "createStockDocument",
+		}
+	)
+	params, err := decodeCreateStockDocumentParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateStockDocumentRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response CreateStockDocumentRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CreateStockDocumentOperation,
+			OperationSummary: "Tạo phiếu kho nháp (nhập, xuất, hàng lỗi, xuất hàng lỗi, điều chỉnh); nhà cung cấp chỉ cho phiếu nhập",
+			OperationID:      "createStockDocument",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *CreateStockDocumentRequest
+			Params   = CreateStockDocumentParams
+			Response = CreateStockDocumentRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCreateStockDocumentParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CreateStockDocument(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CreateStockDocument(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCreateStockDocumentResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleCreateSupplierRequest handles createSupplier operation.
+//
+// Tạo nhà cung cấp (tên không trùng trong shop).
+//
+// POST /api/v1/inventory/suppliers
+func (s *Server) handleCreateSupplierRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CreateSupplierOperation,
+			ID:   "createSupplier",
+		}
+	)
+	params, err := decodeCreateSupplierParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateSupplierRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response CreateSupplierRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CreateSupplierOperation,
+			OperationSummary: "Tạo nhà cung cấp (tên không trùng trong shop)",
+			OperationID:      "createSupplier",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *CreateSupplierRequest
+			Params   = CreateSupplierParams
+			Response = CreateSupplierRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCreateSupplierParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CreateSupplier(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CreateSupplier(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCreateSupplierResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -1402,6 +1704,90 @@ func (s *Server) handleGetProductRequest(args [1]string, argsEscaped bool, w htt
 	}
 
 	if err := encodeGetProductResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetStockDocumentRequest handles getStockDocument operation.
+//
+// Một phiếu kho kèm dòng.
+//
+// GET /api/v1/inventory/documents/{id}
+func (s *Server) handleGetStockDocumentRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetStockDocumentOperation,
+			ID:   "getStockDocument",
+		}
+	)
+	params, err := decodeGetStockDocumentParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetStockDocumentRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetStockDocumentOperation,
+			OperationSummary: "Một phiếu kho kèm dòng",
+			OperationID:      "getStockDocument",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetStockDocumentParams
+			Response = GetStockDocumentRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetStockDocumentParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetStockDocument(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetStockDocument(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetStockDocumentResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -1955,6 +2341,195 @@ func (s *Server) handleListStaffRequest(args [0]string, argsEscaped bool, w http
 	}
 }
 
+// handleListStockDocumentsRequest handles listStockDocuments operation.
+//
+// Phiếu kho mới nhất trước, của các kho người gọi được xem (lọc kho, trạng
+// thái, loại; trang theo con trỏ).
+//
+// GET /api/v1/inventory/documents
+func (s *Server) handleListStockDocumentsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListStockDocumentsOperation,
+			ID:   "listStockDocuments",
+		}
+	)
+	params, err := decodeListStockDocumentsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListStockDocumentsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListStockDocumentsOperation,
+			OperationSummary: "Phiếu kho mới nhất trước, của các kho người gọi được xem (lọc kho, trạng thái, loại; trang theo con trỏ)",
+			OperationID:      "listStockDocuments",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "warehouseId",
+					In:   "query",
+				}: params.WarehouseId,
+				{
+					Name: "status",
+					In:   "query",
+				}: params.Status,
+				{
+					Name: "kind",
+					In:   "query",
+				}: params.Kind,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListStockDocumentsParams
+			Response = ListStockDocumentsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListStockDocumentsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListStockDocuments(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListStockDocuments(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListStockDocumentsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleListSuppliersRequest handles listSuppliers operation.
+//
+// Nhà cung cấp theo tên (tối đa 200); q tìm theo tên bỏ dấu.
+//
+// GET /api/v1/inventory/suppliers
+func (s *Server) handleListSuppliersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListSuppliersOperation,
+			ID:   "listSuppliers",
+		}
+	)
+	params, err := decodeListSuppliersParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListSuppliersRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListSuppliersOperation,
+			OperationSummary: "Nhà cung cấp theo tên (tối đa 200); q tìm theo tên bỏ dấu",
+			OperationID:      "listSuppliers",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+				{
+					Name: "includeArchived",
+					In:   "query",
+				}: params.IncludeArchived,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListSuppliersParams
+			Response = ListSuppliersRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListSuppliersParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListSuppliers(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListSuppliers(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListSuppliersResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleListTagsRequest handles listTags operation.
 //
 // Mọi nhãn kệ hàng của shop theo mã.
@@ -2108,6 +2683,110 @@ func (s *Server) handleLockStaffRequest(args [1]string, argsEscaped bool, w http
 	}
 }
 
+// handlePostStockDocumentRequest handles postStockDocument operation.
+//
+// Ghi sổ phiếu nháp (đổi tồn); thiếu hàng ở một dòng thì cả phiếu không ghi
+// (insufficient_stock).
+//
+// POST /api/v1/inventory/documents/{id}/post
+func (s *Server) handlePostStockDocumentRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: PostStockDocumentOperation,
+			ID:   "postStockDocument",
+		}
+	)
+	params, err := decodePostStockDocumentParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodePostStockDocumentRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response PostStockDocumentRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    PostStockDocumentOperation,
+			OperationSummary: "Ghi sổ phiếu nháp (đổi tồn); thiếu hàng ở một dòng thì cả phiếu không ghi (insufficient_stock)",
+			OperationID:      "postStockDocument",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *StockDocumentVersion
+			Params   = PostStockDocumentParams
+			Response = PostStockDocumentRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackPostStockDocumentParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.PostStockDocument(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.PostStockDocument(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodePostStockDocumentResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleReplaceStaffGrantsRequest handles replaceStaffGrants operation.
 //
 // Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không
@@ -2204,6 +2883,109 @@ func (s *Server) handleReplaceStaffGrantsRequest(args [1]string, argsEscaped boo
 	}
 
 	if err := encodeReplaceStaffGrantsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleReplaceStockDocumentLinesRequest handles replaceStockDocumentLines operation.
+//
+// Thay toàn bộ dòng của phiếu nháp khi version còn khớp.
+//
+// PUT /api/v1/inventory/documents/{id}/lines
+func (s *Server) handleReplaceStockDocumentLinesRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ReplaceStockDocumentLinesOperation,
+			ID:   "replaceStockDocumentLines",
+		}
+	)
+	params, err := decodeReplaceStockDocumentLinesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeReplaceStockDocumentLinesRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response ReplaceStockDocumentLinesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ReplaceStockDocumentLinesOperation,
+			OperationSummary: "Thay toàn bộ dòng của phiếu nháp khi version còn khớp",
+			OperationID:      "replaceStockDocumentLines",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ReplaceStockDocumentLinesRequest
+			Params   = ReplaceStockDocumentLinesParams
+			Response = ReplaceStockDocumentLinesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackReplaceStockDocumentLinesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ReplaceStockDocumentLines(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ReplaceStockDocumentLines(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeReplaceStockDocumentLinesResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -2756,6 +3538,109 @@ func (s *Server) handleUpdateProductRequest(args [1]string, argsEscaped bool, w 
 	}
 
 	if err := encodeUpdateProductResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleUpdateSupplierRequest handles updateSupplier operation.
+//
+// Sửa hoặc lưu trữ nhà cung cấp khi version còn khớp.
+//
+// PATCH /api/v1/inventory/suppliers/{id}
+func (s *Server) handleUpdateSupplierRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: UpdateSupplierOperation,
+			ID:   "updateSupplier",
+		}
+	)
+	params, err := decodeUpdateSupplierParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateSupplierRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response UpdateSupplierRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    UpdateSupplierOperation,
+			OperationSummary: "Sửa hoặc lưu trữ nhà cung cấp khi version còn khớp",
+			OperationID:      "updateSupplier",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *UpdateSupplierRequest
+			Params   = UpdateSupplierParams
+			Response = UpdateSupplierRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackUpdateSupplierParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.UpdateSupplier(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.UpdateSupplier(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeUpdateSupplierResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

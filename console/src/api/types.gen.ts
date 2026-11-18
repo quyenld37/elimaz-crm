@@ -10,6 +10,14 @@ export type Error = {
      */
     error: string;
     request_id: string;
+    /**
+     * Chỉ có ở insufficient_stock — biến thể đầu tiên không đủ hàng
+     */
+    variantId?: string;
+    /**
+     * Chỉ có ở insufficient_stock — số còn làm được của biến thể đó (xuất hàng lỗi là số hàng lỗi)
+     */
+    available?: number;
 };
 
 export type HealthStatus = {
@@ -440,6 +448,86 @@ export type ProductClassification = {
     tagIds: Array<string>;
 };
 
+export type Supplier = {
+    id: string;
+    name: string;
+    phone: string;
+    note: string;
+    status: SupplierStatus;
+    version: number;
+};
+
+export type SupplierStatus = 'active' | 'archived';
+
+export type CreateSupplierRequest = {
+    name: string;
+    phone?: string;
+    note?: string;
+};
+
+export type UpdateSupplierRequest = {
+    version: number;
+    name?: string;
+    phone?: string;
+    note?: string;
+    status?: SupplierStatus;
+};
+
+export type StockDocumentKind = 'import' | 'export' | 'damage' | 'damage_export' | 'adjust';
+
+export type StockDocumentStatus = 'draft' | 'posted' | 'cancelled';
+
+export type StockDocumentLine = {
+    variantId: string;
+    /**
+     * > 0; phiếu điều chỉnh: khác 0, âm là giảm tồn
+     */
+    quantity: number;
+    unitCost?: Money;
+};
+
+export type StockDocument = {
+    id: string;
+    code: string;
+    warehouseId: string;
+    kind: StockDocumentKind;
+    status: StockDocumentStatus;
+    supplierId?: string;
+    /**
+     * Tên nhà cung cấp (cả khi đã lưu trữ); rỗng khi không có
+     */
+    supplierName: string;
+    note: string;
+    version: number;
+    createdAt: string;
+    postedAt?: string;
+    /**
+     * Rỗng ở danh sách
+     */
+    lines: Array<StockDocumentLine>;
+};
+
+export type StockDocumentPage = {
+    items: Array<StockDocument>;
+    nextCursor?: string;
+};
+
+export type CreateStockDocumentRequest = {
+    warehouseId: string;
+    kind: StockDocumentKind;
+    supplierId?: string;
+    note?: string;
+};
+
+export type ReplaceStockDocumentLinesRequest = {
+    version: number;
+    lines: Array<StockDocumentLine>;
+};
+
+export type StockDocumentVersion = {
+    version: number;
+};
+
 export type ProductWritable = {
     id: string;
     code: string;
@@ -469,6 +557,10 @@ export type VariantId = string;
 export type CategoryId = string;
 
 export type AttributeId = string;
+
+export type SupplierId = string;
+
+export type StockDocumentId = string;
 
 export type HealthLiveData = {
     body?: never;
@@ -1436,3 +1528,283 @@ export type SetProductClassificationResponses = {
 };
 
 export type SetProductClassificationResponse = SetProductClassificationResponses[keyof SetProductClassificationResponses];
+
+export type ListSuppliersData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+        includeArchived?: boolean;
+    };
+    url: '/api/v1/inventory/suppliers';
+};
+
+export type ListSuppliersErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListSuppliersError = ListSuppliersErrors[keyof ListSuppliersErrors];
+
+export type ListSuppliersResponses = {
+    /**
+     * Nhà cung cấp
+     */
+    200: Array<Supplier>;
+};
+
+export type ListSuppliersResponse = ListSuppliersResponses[keyof ListSuppliersResponses];
+
+export type CreateSupplierData = {
+    body: CreateSupplierRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/inventory/suppliers';
+};
+
+export type CreateSupplierErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateSupplierError = CreateSupplierErrors[keyof CreateSupplierErrors];
+
+export type CreateSupplierResponses = {
+    /**
+     * Nhà cung cấp vừa tạo
+     */
+    201: Supplier;
+};
+
+export type CreateSupplierResponse = CreateSupplierResponses[keyof CreateSupplierResponses];
+
+export type UpdateSupplierData = {
+    body: UpdateSupplierRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/suppliers/{id}';
+};
+
+export type UpdateSupplierErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UpdateSupplierError = UpdateSupplierErrors[keyof UpdateSupplierErrors];
+
+export type UpdateSupplierResponses = {
+    /**
+     * Nhà cung cấp sau khi sửa
+     */
+    200: Supplier;
+};
+
+export type UpdateSupplierResponse = UpdateSupplierResponses[keyof UpdateSupplierResponses];
+
+export type ListStockDocumentsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        warehouseId?: string;
+        status?: StockDocumentStatus;
+        kind?: StockDocumentKind;
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/inventory/documents';
+};
+
+export type ListStockDocumentsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListStockDocumentsError = ListStockDocumentsErrors[keyof ListStockDocumentsErrors];
+
+export type ListStockDocumentsResponses = {
+    /**
+     * Một trang phiếu (không kèm dòng)
+     */
+    200: StockDocumentPage;
+};
+
+export type ListStockDocumentsResponse = ListStockDocumentsResponses[keyof ListStockDocumentsResponses];
+
+export type CreateStockDocumentData = {
+    body: CreateStockDocumentRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/inventory/documents';
+};
+
+export type CreateStockDocumentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateStockDocumentError = CreateStockDocumentErrors[keyof CreateStockDocumentErrors];
+
+export type CreateStockDocumentResponses = {
+    /**
+     * Phiếu nháp vừa tạo
+     */
+    201: StockDocument;
+};
+
+export type CreateStockDocumentResponse = CreateStockDocumentResponses[keyof CreateStockDocumentResponses];
+
+export type GetStockDocumentData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/documents/{id}';
+};
+
+export type GetStockDocumentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetStockDocumentError = GetStockDocumentErrors[keyof GetStockDocumentErrors];
+
+export type GetStockDocumentResponses = {
+    /**
+     * Phiếu
+     */
+    200: StockDocument;
+};
+
+export type GetStockDocumentResponse = GetStockDocumentResponses[keyof GetStockDocumentResponses];
+
+export type ReplaceStockDocumentLinesData = {
+    body: ReplaceStockDocumentLinesRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/documents/{id}/lines';
+};
+
+export type ReplaceStockDocumentLinesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ReplaceStockDocumentLinesError = ReplaceStockDocumentLinesErrors[keyof ReplaceStockDocumentLinesErrors];
+
+export type ReplaceStockDocumentLinesResponses = {
+    /**
+     * Phiếu sau khi thay dòng
+     */
+    200: StockDocument;
+};
+
+export type ReplaceStockDocumentLinesResponse = ReplaceStockDocumentLinesResponses[keyof ReplaceStockDocumentLinesResponses];
+
+export type PostStockDocumentData = {
+    body: StockDocumentVersion;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/documents/{id}/post';
+};
+
+export type PostStockDocumentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type PostStockDocumentError = PostStockDocumentErrors[keyof PostStockDocumentErrors];
+
+export type PostStockDocumentResponses = {
+    /**
+     * Phiếu đã ghi sổ
+     */
+    200: StockDocument;
+};
+
+export type PostStockDocumentResponse = PostStockDocumentResponses[keyof PostStockDocumentResponses];
+
+export type CancelStockDocumentData = {
+    body: StockDocumentVersion;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/documents/{id}/cancel';
+};
+
+export type CancelStockDocumentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CancelStockDocumentError = CancelStockDocumentErrors[keyof CancelStockDocumentErrors];
+
+export type CancelStockDocumentResponses = {
+    /**
+     * Phiếu đã hủy
+     */
+    200: StockDocument;
+};
+
+export type CancelStockDocumentResponse = CancelStockDocumentResponses[keyof CancelStockDocumentResponses];

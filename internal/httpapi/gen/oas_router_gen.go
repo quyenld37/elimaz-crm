@@ -11,13 +11,13 @@ import (
 )
 
 var (
-	rn18AllowedHeaders = map[string]string{
+	rn21AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
 	rn7AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn19AllowedHeaders = map[string]string{
+	rn22AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
 	rn13AllowedHeaders = map[string]string{
@@ -26,46 +26,64 @@ var (
 	rn14AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn20AllowedHeaders = map[string]string{
+	rn23AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
 	rn10AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type,Idempotency-Key",
 	}
-	rn43AllowedHeaders = map[string]string{
+	rn53AllowedHeaders = map[string]string{
 		"PUT": "Content-Type,Idempotency-Key",
 	}
 	rn11AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn22AllowedHeaders = map[string]string{
+	rn29AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn47AllowedHeaders = map[string]string{
+	rn59AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type,Idempotency-Key",
 	}
-	rn23AllowedHeaders = map[string]string{
+	rn30AllowedHeaders = map[string]string{
+		"POST": "Content-Type,Idempotency-Key",
+	}
+	rn20AllowedHeaders = map[string]string{
+		"POST": "Idempotency-Key",
+	}
+	rn25AllowedHeaders = map[string]string{
+		"POST": "Content-Type,Idempotency-Key",
+	}
+	rn48AllowedHeaders = map[string]string{
+		"PUT": "Content-Type,Idempotency-Key",
+	}
+	rn44AllowedHeaders = map[string]string{
+		"POST": "Idempotency-Key",
+	}
+	rn55AllowedHeaders = map[string]string{
+		"POST": "Idempotency-Key",
+	}
+	rn26AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
 	rn17AllowedHeaders = map[string]string{
-		"POST": "Idempotency-Key",
-	}
-	rn21AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn39AllowedHeaders = map[string]string{
+	rn49AllowedHeaders = map[string]string{
 		"PUT": "Content-Type,Idempotency-Key",
 	}
-	rn37AllowedHeaders = map[string]string{
-		"POST": "Idempotency-Key",
+	rn46AllowedHeaders = map[string]string{
+		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn45AllowedHeaders = map[string]string{
-		"POST": "Idempotency-Key",
+	rn28AllowedHeaders = map[string]string{
+		"POST": "Content-Type,Idempotency-Key",
+	}
+	rn57AllowedHeaders = map[string]string{
+		"PATCH": "Content-Type,Idempotency-Key",
 	}
 	rn3AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
-	rn41AllowedHeaders = map[string]string{
+	rn51AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
 )
@@ -162,7 +180,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn18AllowedHeaders,
+									allowedHeaders: rn21AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -240,7 +258,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn19AllowedHeaders,
+									allowedHeaders: rn22AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -330,7 +348,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn20AllowedHeaders,
+									allowedHeaders: rn23AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -408,7 +426,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "PUT",
-												allowedHeaders: rn43AllowedHeaders,
+												allowedHeaders: rn53AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "",
 											})
@@ -468,7 +486,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn22AllowedHeaders,
+									allowedHeaders: rn29AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -504,7 +522,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "PATCH",
-									allowedHeaders: rn47AllowedHeaders,
+									allowedHeaders: rn59AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "application/json",
 								})
@@ -543,7 +561,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn23AllowedHeaders,
+									allowedHeaders: rn30AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -599,7 +617,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn17AllowedHeaders,
+									allowedHeaders: rn20AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -610,9 +628,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 					}
 
-				case 'i': // Prefix: "identity/"
+				case 'i': // Prefix: "i"
 
-					if l := len("identity/"); len(elem) >= l && elem[0:l] == "identity/" {
+					if l := len("i"); len(elem) >= l && elem[0:l] == "i" {
 						elem = elem[l:]
 					} else {
 						break
@@ -622,76 +640,67 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 					switch elem[0] {
-					case 'r': // Prefix: "roles"
+					case 'd': // Prefix: "dentity/"
 
-						if l := len("roles"); len(elem) >= l && elem[0:l] == "roles" {
+						if l := len("dentity/"); len(elem) >= l && elem[0:l] == "dentity/" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
 						if len(elem) == 0 {
-							// Leaf node.
-							switch r.Method {
-							case "GET":
-								s.handleListRolesRequest([0]string{}, elemIsEscaped, w, r)
-							default:
-								s.notAllowed(w, r, notAllowedParams{
-									allowedMethods: "GET",
-									allowedHeaders: nil,
-									acceptPost:     "",
-									acceptPatch:    "",
-								})
-							}
-
-							return
-						}
-
-					case 'u': // Prefix: "users"
-
-						if l := len("users"); len(elem) >= l && elem[0:l] == "users" {
-							elem = elem[l:]
-						} else {
 							break
-						}
-
-						if len(elem) == 0 {
-							switch r.Method {
-							case "GET":
-								s.handleListStaffRequest([0]string{}, elemIsEscaped, w, r)
-							case "POST":
-								s.handleCreateStaffRequest([0]string{}, elemIsEscaped, w, r)
-							default:
-								s.notAllowed(w, r, notAllowedParams{
-									allowedMethods: "GET,POST",
-									allowedHeaders: rn21AllowedHeaders,
-									acceptPost:     "application/json",
-									acceptPatch:    "",
-								})
-							}
-
-							return
 						}
 						switch elem[0] {
-						case '/': // Prefix: "/"
+						case 'r': // Prefix: "roles"
 
-							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+							if l := len("roles"); len(elem) >= l && elem[0:l] == "roles" {
 								elem = elem[l:]
 							} else {
 								break
 							}
 
-							// Param: "id"
-							// Match until "/"
-							idx := strings.IndexByte(elem, '/')
-							if idx < 0 {
-								idx = len(elem)
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "GET":
+									s.handleListRolesRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "GET",
+										allowedHeaders: nil,
+										acceptPost:     "",
+										acceptPatch:    "",
+									})
+								}
+
+								return
 							}
-							args[0] = elem[:idx]
-							elem = elem[idx:]
+
+						case 'u': // Prefix: "users"
+
+							if l := len("users"); len(elem) >= l && elem[0:l] == "users" {
+								elem = elem[l:]
+							} else {
+								break
+							}
 
 							if len(elem) == 0 {
-								break
+								switch r.Method {
+								case "GET":
+									s.handleListStaffRequest([0]string{}, elemIsEscaped, w, r)
+								case "POST":
+									s.handleCreateStaffRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "GET,POST",
+										allowedHeaders: rn25AllowedHeaders,
+										acceptPost:     "application/json",
+										acceptPatch:    "",
+									})
+								}
+
+								return
 							}
 							switch elem[0] {
 							case '/': // Prefix: "/"
@@ -702,91 +711,352 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									break
 								}
 
+								// Param: "id"
+								// Match until "/"
+								idx := strings.IndexByte(elem, '/')
+								if idx < 0 {
+									idx = len(elem)
+								}
+								args[0] = elem[:idx]
+								elem = elem[idx:]
+
 								if len(elem) == 0 {
 									break
 								}
 								switch elem[0] {
-								case 'g': // Prefix: "grants"
+								case '/': // Prefix: "/"
 
-									if l := len("grants"); len(elem) >= l && elem[0:l] == "grants" {
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										// Leaf node.
-										switch r.Method {
-										case "PUT":
-											s.handleReplaceStaffGrantsRequest([1]string{
-												args[0],
-											}, elemIsEscaped, w, r)
-										default:
-											s.notAllowed(w, r, notAllowedParams{
-												allowedMethods: "PUT",
-												allowedHeaders: rn39AllowedHeaders,
-												acceptPost:     "",
-												acceptPatch:    "",
-											})
+										break
+									}
+									switch elem[0] {
+									case 'g': // Prefix: "grants"
+
+										if l := len("grants"); len(elem) >= l && elem[0:l] == "grants" {
+											elem = elem[l:]
+										} else {
+											break
 										}
 
-										return
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "PUT":
+												s.handleReplaceStaffGrantsRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "PUT",
+													allowedHeaders: rn48AllowedHeaders,
+													acceptPost:     "",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									case 'l': // Prefix: "lock"
+
+										if l := len("lock"); len(elem) >= l && elem[0:l] == "lock" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleLockStaffRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: rn44AllowedHeaders,
+													acceptPost:     "",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									case 'u': // Prefix: "unlock"
+
+										if l := len("unlock"); len(elem) >= l && elem[0:l] == "unlock" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleUnlockStaffRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: rn55AllowedHeaders,
+													acceptPost:     "",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
 									}
 
-								case 'l': // Prefix: "lock"
+								}
 
-									if l := len("lock"); len(elem) >= l && elem[0:l] == "lock" {
+							}
+
+						}
+
+					case 'n': // Prefix: "nventory/"
+
+						if l := len("nventory/"); len(elem) >= l && elem[0:l] == "nventory/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case 'd': // Prefix: "documents"
+
+							if l := len("documents"); len(elem) >= l && elem[0:l] == "documents" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								switch r.Method {
+								case "GET":
+									s.handleListStockDocumentsRequest([0]string{}, elemIsEscaped, w, r)
+								case "POST":
+									s.handleCreateStockDocumentRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "GET,POST",
+										allowedHeaders: rn26AllowedHeaders,
+										acceptPost:     "application/json",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
+
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "id"
+								// Match until "/"
+								idx := strings.IndexByte(elem, '/')
+								if idx < 0 {
+									idx = len(elem)
+								}
+								args[0] = elem[:idx]
+								elem = elem[idx:]
+
+								if len(elem) == 0 {
+									switch r.Method {
+									case "GET":
+										s.handleGetStockDocumentRequest([1]string{
+											args[0],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, notAllowedParams{
+											allowedMethods: "GET",
+											allowedHeaders: nil,
+											acceptPost:     "",
+											acceptPatch:    "",
+										})
+									}
+
+									return
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										// Leaf node.
-										switch r.Method {
-										case "POST":
-											s.handleLockStaffRequest([1]string{
-												args[0],
-											}, elemIsEscaped, w, r)
-										default:
-											s.notAllowed(w, r, notAllowedParams{
-												allowedMethods: "POST",
-												allowedHeaders: rn37AllowedHeaders,
-												acceptPost:     "",
-												acceptPatch:    "",
-											})
-										}
-
-										return
-									}
-
-								case 'u': // Prefix: "unlock"
-
-									if l := len("unlock"); len(elem) >= l && elem[0:l] == "unlock" {
-										elem = elem[l:]
-									} else {
 										break
 									}
+									switch elem[0] {
+									case 'c': // Prefix: "cancel"
 
-									if len(elem) == 0 {
-										// Leaf node.
-										switch r.Method {
-										case "POST":
-											s.handleUnlockStaffRequest([1]string{
-												args[0],
-											}, elemIsEscaped, w, r)
-										default:
-											s.notAllowed(w, r, notAllowedParams{
-												allowedMethods: "POST",
-												allowedHeaders: rn45AllowedHeaders,
-												acceptPost:     "",
-												acceptPatch:    "",
-											})
+										if l := len("cancel"); len(elem) >= l && elem[0:l] == "cancel" {
+											elem = elem[l:]
+										} else {
+											break
 										}
 
-										return
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleCancelStockDocumentRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: rn17AllowedHeaders,
+													acceptPost:     "application/json",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									case 'l': // Prefix: "lines"
+
+										if l := len("lines"); len(elem) >= l && elem[0:l] == "lines" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "PUT":
+												s.handleReplaceStockDocumentLinesRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "PUT",
+													allowedHeaders: rn49AllowedHeaders,
+													acceptPost:     "",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									case 'p': // Prefix: "post"
+
+										if l := len("post"); len(elem) >= l && elem[0:l] == "post" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handlePostStockDocumentRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: rn46AllowedHeaders,
+													acceptPost:     "application/json",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
 									}
 
+								}
+
+							}
+
+						case 's': // Prefix: "suppliers"
+
+							if l := len("suppliers"); len(elem) >= l && elem[0:l] == "suppliers" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								switch r.Method {
+								case "GET":
+									s.handleListSuppliersRequest([0]string{}, elemIsEscaped, w, r)
+								case "POST":
+									s.handleCreateSupplierRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "GET,POST",
+										allowedHeaders: rn28AllowedHeaders,
+										acceptPost:     "application/json",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
+
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "id"
+								// Leaf parameter, slashes are prohibited
+								idx := strings.IndexByte(elem, '/')
+								if idx >= 0 {
+									break
+								}
+								args[0] = elem
+								elem = ""
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "PATCH":
+										s.handleUpdateSupplierRequest([1]string{
+											args[0],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, notAllowedParams{
+											allowedMethods: "PATCH",
+											allowedHeaders: rn57AllowedHeaders,
+											acceptPost:     "",
+											acceptPatch:    "application/json",
+										})
+									}
+
+									return
 								}
 
 							}
@@ -959,7 +1229,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn41AllowedHeaders,
+												allowedHeaders: rn51AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "",
 											})
@@ -1689,9 +1959,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 					}
 
-				case 'i': // Prefix: "identity/"
+				case 'i': // Prefix: "i"
 
-					if l := len("identity/"); len(elem) >= l && elem[0:l] == "identity/" {
+					if l := len("i"); len(elem) >= l && elem[0:l] == "i" {
 						elem = elem[l:]
 					} else {
 						break
@@ -1701,83 +1971,74 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						break
 					}
 					switch elem[0] {
-					case 'r': // Prefix: "roles"
+					case 'd': // Prefix: "dentity/"
 
-						if l := len("roles"); len(elem) >= l && elem[0:l] == "roles" {
+						if l := len("dentity/"); len(elem) >= l && elem[0:l] == "dentity/" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
 						if len(elem) == 0 {
-							// Leaf node.
-							switch method {
-							case "GET":
-								r.name = ListRolesOperation
-								r.summary = "Vai trò của shop và quyền của từng vai trò"
-								r.operationID = "listRoles"
-								r.operationGroup = ""
-								r.pathPattern = "/api/v1/identity/roles"
-								r.args = args
-								r.count = 0
-								return r, true
-							default:
-								return
-							}
-						}
-
-					case 'u': // Prefix: "users"
-
-						if l := len("users"); len(elem) >= l && elem[0:l] == "users" {
-							elem = elem[l:]
-						} else {
 							break
-						}
-
-						if len(elem) == 0 {
-							switch method {
-							case "GET":
-								r.name = ListStaffOperation
-								r.summary = "Mọi nhân viên của shop kèm vai trò theo phạm vi"
-								r.operationID = "listStaff"
-								r.operationGroup = ""
-								r.pathPattern = "/api/v1/identity/users"
-								r.args = args
-								r.count = 0
-								return r, true
-							case "POST":
-								r.name = CreateStaffOperation
-								r.summary = "Tạo nhân viên mới (chưa có vai trò nào)"
-								r.operationID = "createStaff"
-								r.operationGroup = ""
-								r.pathPattern = "/api/v1/identity/users"
-								r.args = args
-								r.count = 0
-								return r, true
-							default:
-								return
-							}
 						}
 						switch elem[0] {
-						case '/': // Prefix: "/"
+						case 'r': // Prefix: "roles"
 
-							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+							if l := len("roles"); len(elem) >= l && elem[0:l] == "roles" {
 								elem = elem[l:]
 							} else {
 								break
 							}
 
-							// Param: "id"
-							// Match until "/"
-							idx := strings.IndexByte(elem, '/')
-							if idx < 0 {
-								idx = len(elem)
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "GET":
+									r.name = ListRolesOperation
+									r.summary = "Vai trò của shop và quyền của từng vai trò"
+									r.operationID = "listRoles"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/identity/roles"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
 							}
-							args[0] = elem[:idx]
-							elem = elem[idx:]
+
+						case 'u': // Prefix: "users"
+
+							if l := len("users"); len(elem) >= l && elem[0:l] == "users" {
+								elem = elem[l:]
+							} else {
+								break
+							}
 
 							if len(elem) == 0 {
-								break
+								switch method {
+								case "GET":
+									r.name = ListStaffOperation
+									r.summary = "Mọi nhân viên của shop kèm vai trò theo phạm vi"
+									r.operationID = "listStaff"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/identity/users"
+									r.args = args
+									r.count = 0
+									return r, true
+								case "POST":
+									r.name = CreateStaffOperation
+									r.summary = "Tạo nhân viên mới (chưa có vai trò nào)"
+									r.operationID = "createStaff"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/identity/users"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
 							}
 							switch elem[0] {
 							case '/': // Prefix: "/"
@@ -1788,85 +2049,350 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									break
 								}
 
+								// Param: "id"
+								// Match until "/"
+								idx := strings.IndexByte(elem, '/')
+								if idx < 0 {
+									idx = len(elem)
+								}
+								args[0] = elem[:idx]
+								elem = elem[idx:]
+
 								if len(elem) == 0 {
 									break
 								}
 								switch elem[0] {
-								case 'g': // Prefix: "grants"
+								case '/': // Prefix: "/"
 
-									if l := len("grants"); len(elem) >= l && elem[0:l] == "grants" {
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										// Leaf node.
-										switch method {
-										case "PUT":
-											r.name = ReplaceStaffGrantsOperation
-											r.summary = "Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không vượt quyền của mình)"
-											r.operationID = "replaceStaffGrants"
-											r.operationGroup = ""
-											r.pathPattern = "/api/v1/identity/users/{id}/grants"
-											r.args = args
-											r.count = 1
-											return r, true
-										default:
-											return
+										break
+									}
+									switch elem[0] {
+									case 'g': // Prefix: "grants"
+
+										if l := len("grants"); len(elem) >= l && elem[0:l] == "grants" {
+											elem = elem[l:]
+										} else {
+											break
 										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "PUT":
+												r.name = ReplaceStaffGrantsOperation
+												r.summary = "Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không vượt quyền của mình)"
+												r.operationID = "replaceStaffGrants"
+												r.operationGroup = ""
+												r.pathPattern = "/api/v1/identity/users/{id}/grants"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
+										}
+
+									case 'l': // Prefix: "lock"
+
+										if l := len("lock"); len(elem) >= l && elem[0:l] == "lock" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = LockStaffOperation
+												r.summary = "Khóa nhân viên (không khóa Chủ còn hoạt động cuối cùng)"
+												r.operationID = "lockStaff"
+												r.operationGroup = ""
+												r.pathPattern = "/api/v1/identity/users/{id}/lock"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
+										}
+
+									case 'u': // Prefix: "unlock"
+
+										if l := len("unlock"); len(elem) >= l && elem[0:l] == "unlock" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = UnlockStaffOperation
+												r.summary = "Mở khóa nhân viên"
+												r.operationID = "unlockStaff"
+												r.operationGroup = ""
+												r.pathPattern = "/api/v1/identity/users/{id}/unlock"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
+										}
+
 									}
 
-								case 'l': // Prefix: "lock"
+								}
 
-									if l := len("lock"); len(elem) >= l && elem[0:l] == "lock" {
+							}
+
+						}
+
+					case 'n': // Prefix: "nventory/"
+
+						if l := len("nventory/"); len(elem) >= l && elem[0:l] == "nventory/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case 'd': // Prefix: "documents"
+
+							if l := len("documents"); len(elem) >= l && elem[0:l] == "documents" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								switch method {
+								case "GET":
+									r.name = ListStockDocumentsOperation
+									r.summary = "Phiếu kho mới nhất trước, của các kho người gọi được xem (lọc kho, trạng thái, loại; trang theo con trỏ)"
+									r.operationID = "listStockDocuments"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/inventory/documents"
+									r.args = args
+									r.count = 0
+									return r, true
+								case "POST":
+									r.name = CreateStockDocumentOperation
+									r.summary = "Tạo phiếu kho nháp (nhập, xuất, hàng lỗi, xuất hàng lỗi, điều chỉnh); nhà cung cấp chỉ cho phiếu nhập"
+									r.operationID = "createStockDocument"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/inventory/documents"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
+
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "id"
+								// Match until "/"
+								idx := strings.IndexByte(elem, '/')
+								if idx < 0 {
+									idx = len(elem)
+								}
+								args[0] = elem[:idx]
+								elem = elem[idx:]
+
+								if len(elem) == 0 {
+									switch method {
+									case "GET":
+										r.name = GetStockDocumentOperation
+										r.summary = "Một phiếu kho kèm dòng"
+										r.operationID = "getStockDocument"
+										r.operationGroup = ""
+										r.pathPattern = "/api/v1/inventory/documents/{id}"
+										r.args = args
+										r.count = 1
+										return r, true
+									default:
+										return
+									}
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										// Leaf node.
-										switch method {
-										case "POST":
-											r.name = LockStaffOperation
-											r.summary = "Khóa nhân viên (không khóa Chủ còn hoạt động cuối cùng)"
-											r.operationID = "lockStaff"
-											r.operationGroup = ""
-											r.pathPattern = "/api/v1/identity/users/{id}/lock"
-											r.args = args
-											r.count = 1
-											return r, true
-										default:
-											return
-										}
-									}
-
-								case 'u': // Prefix: "unlock"
-
-									if l := len("unlock"); len(elem) >= l && elem[0:l] == "unlock" {
-										elem = elem[l:]
-									} else {
 										break
 									}
+									switch elem[0] {
+									case 'c': // Prefix: "cancel"
 
-									if len(elem) == 0 {
-										// Leaf node.
-										switch method {
-										case "POST":
-											r.name = UnlockStaffOperation
-											r.summary = "Mở khóa nhân viên"
-											r.operationID = "unlockStaff"
-											r.operationGroup = ""
-											r.pathPattern = "/api/v1/identity/users/{id}/unlock"
-											r.args = args
-											r.count = 1
-											return r, true
-										default:
-											return
+										if l := len("cancel"); len(elem) >= l && elem[0:l] == "cancel" {
+											elem = elem[l:]
+										} else {
+											break
 										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = CancelStockDocumentOperation
+												r.summary = "Hủy phiếu nháp"
+												r.operationID = "cancelStockDocument"
+												r.operationGroup = ""
+												r.pathPattern = "/api/v1/inventory/documents/{id}/cancel"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
+										}
+
+									case 'l': // Prefix: "lines"
+
+										if l := len("lines"); len(elem) >= l && elem[0:l] == "lines" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "PUT":
+												r.name = ReplaceStockDocumentLinesOperation
+												r.summary = "Thay toàn bộ dòng của phiếu nháp khi version còn khớp"
+												r.operationID = "replaceStockDocumentLines"
+												r.operationGroup = ""
+												r.pathPattern = "/api/v1/inventory/documents/{id}/lines"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
+										}
+
+									case 'p': // Prefix: "post"
+
+										if l := len("post"); len(elem) >= l && elem[0:l] == "post" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = PostStockDocumentOperation
+												r.summary = "Ghi sổ phiếu nháp (đổi tồn); thiếu hàng ở một dòng thì cả phiếu không ghi (insufficient_stock)"
+												r.operationID = "postStockDocument"
+												r.operationGroup = ""
+												r.pathPattern = "/api/v1/inventory/documents/{id}/post"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
+										}
+
 									}
 
+								}
+
+							}
+
+						case 's': // Prefix: "suppliers"
+
+							if l := len("suppliers"); len(elem) >= l && elem[0:l] == "suppliers" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								switch method {
+								case "GET":
+									r.name = ListSuppliersOperation
+									r.summary = "Nhà cung cấp theo tên (tối đa 200); q tìm theo tên bỏ dấu"
+									r.operationID = "listSuppliers"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/inventory/suppliers"
+									r.args = args
+									r.count = 0
+									return r, true
+								case "POST":
+									r.name = CreateSupplierOperation
+									r.summary = "Tạo nhà cung cấp (tên không trùng trong shop)"
+									r.operationID = "createSupplier"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/inventory/suppliers"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
+
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "id"
+								// Leaf parameter, slashes are prohibited
+								idx := strings.IndexByte(elem, '/')
+								if idx >= 0 {
+									break
+								}
+								args[0] = elem
+								elem = ""
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "PATCH":
+										r.name = UpdateSupplierOperation
+										r.summary = "Sửa hoặc lưu trữ nhà cung cấp khi version còn khớp"
+										r.operationID = "updateSupplier"
+										r.operationGroup = ""
+										r.pathPattern = "/api/v1/inventory/suppliers/{id}"
+										r.args = args
+										r.count = 1
+										return r, true
+									default:
+										return
+									}
 								}
 
 							}

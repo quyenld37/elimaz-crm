@@ -12,6 +12,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/identity"
+	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/idempotency"
@@ -67,16 +68,34 @@ const (
 	codeFileTypeNotAllowed    = "file_type_not_allowed"
 	codeFilePurposeNotAllowed = "file_purpose_not_allowed"
 	codeUploadMissing         = "upload_missing"
+
+	// Kho (kế hoạch M1 Task M1-29).
+	codeInsufficientStock  = "insufficient_stock"
+	codeDocumentNotDraft   = "document_not_draft"
+	codeSupplierNameTaken  = "supplier_name_taken"
+	codeSupplierArchived   = "supplier_archived"
+	codeSupplierNotForKind = "supplier_not_for_kind"
 )
+
+// errForbiddenTarget: người gọi có quyền (guard đã cho qua) nhưng không ở đích của yêu cầu (kho của phiếu): 403.
+var errForbiddenTarget = errors.New("httpapi: không có quyền trên đích")
 
 type errorBody struct {
 	Error     string `json:"error"`
 	RequestID string `json:"request_id"`
+	// Chỉ có ở insufficient_stock (Task M1-29): biến thể đầu tiên không đủ và số còn làm được.
+	VariantID *string `json:"variantId,omitempty"`
+	Available *int32  `json:"available,omitempty"`
 }
 
 // writeError ghi lỗi theo dạng duy nhất {"error": "<mã>", "request_id": "<id>"}; không bao giờ có vết lỗi.
 func writeError(w http.ResponseWriter, r *http.Request, status int, code string) {
-	b, _ := json.Marshal(errorBody{Error: code, RequestID: RequestID(r.Context())}) //nolint:errchkjson // hai chuỗi, không lỗi
+	writeErrorBody(w, status, errorBody{Error: code, RequestID: RequestID(r.Context())})
+}
+
+// writeErrorBody ghi thân lỗi body (mã, request_id, chi tiết tùy chọn không bao giờ là vết lỗi).
+func writeErrorBody(w http.ResponseWriter, status int, body errorBody) {
+	b, _ := json.Marshal(body) //nolint:errchkjson // chuỗi và số, không lỗi
 	h := w.Header()
 	h.Set("Content-Type", "application/json")
 	h.Set("Cache-Control", "no-store")
@@ -112,6 +131,17 @@ func writeHandlerError(d Deps, w http.ResponseWriter, r *http.Request, err error
 		return
 	}
 	if status, code, ok := filesError(err); ok {
+		writeError(w, r, status, code)
+		return
+	}
+	if ie, ok := errors.AsType[*inventory.InsufficientError](err); ok {
+		vid, avail := ie.VariantID.String(), ie.Available
+		writeErrorBody(w, http.StatusConflict, errorBody{
+			Error: codeInsufficientStock, RequestID: RequestID(r.Context()), VariantID: &vid, Available: &avail,
+		})
+		return
+	}
+	if status, code, ok := inventoryError(err); ok {
 		writeError(w, r, status, code)
 		return
 	}
@@ -235,6 +265,32 @@ func filesError(err error) (status int, code string, ok bool) {
 		{files.ErrInvalidFile, http.StatusBadRequest, codeInvalidInput},
 		{files.ErrUploadMissing, http.StatusConflict, codeUploadMissing},
 		{files.ErrNotFound, http.StatusNotFound, codeNotFound},
+	} {
+		if errors.Is(err, m.err) {
+			return m.status, m.code, true
+		}
+	}
+	return 0, "", false
+}
+
+// inventoryError đổi lỗi nghiệp vụ của kho (và thiếu quyền ở kho của yêu cầu) sang mã HTTP. ErrNotFound: phiếu, nhà
+// cung cấp, kho không có hoặc của tenant khác (không cho biết là có). InsufficientError có thân riêng ở
+// writeHandlerError (kèm variantId, available).
+func inventoryError(err error) (status int, code string, ok bool) {
+	for _, m := range []struct {
+		err    error
+		status int
+		code   string
+	}{
+		{errForbiddenTarget, http.StatusForbidden, codeForbidden},
+		{inventory.ErrInsufficient, http.StatusConflict, codeInsufficientStock},
+		{inventory.ErrNotFound, http.StatusNotFound, codeNotFound},
+		{inventory.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
+		{inventory.ErrDocumentNotDraft, http.StatusConflict, codeDocumentNotDraft},
+		{inventory.ErrSupplierNameTaken, http.StatusConflict, codeSupplierNameTaken},
+		{inventory.ErrSupplierArchived, http.StatusUnprocessableEntity, codeSupplierArchived},
+		{inventory.ErrSupplierNotForKind, http.StatusUnprocessableEntity, codeSupplierNotForKind},
+		{inventory.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

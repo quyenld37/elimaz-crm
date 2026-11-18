@@ -49,6 +49,15 @@ func (UnimplementedHandler) ArchiveCategory(ctx context.Context, req *VersionReq
 	return r, ht.ErrNotImplemented
 }
 
+// CancelStockDocument implements cancelStockDocument operation.
+//
+// Hủy phiếu nháp.
+//
+// POST /api/v1/inventory/documents/{id}/cancel
+func (UnimplementedHandler) CancelStockDocument(ctx context.Context, req *StockDocumentVersion, params CancelStockDocumentParams) (r CancelStockDocumentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CompleteUpload implements completeUpload operation.
 //
 // Báo đã tải xong; máy chủ kiểm kho rồi chuyển tệp sang uploaded (ảnh thì xếp
@@ -93,6 +102,25 @@ func (UnimplementedHandler) CreateProduct(ctx context.Context, req *CreateProduc
 //
 // POST /api/v1/identity/users
 func (UnimplementedHandler) CreateStaff(ctx context.Context, req *CreateStaffRequest, params CreateStaffParams) (r CreateStaffRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateStockDocument implements createStockDocument operation.
+//
+// Tạo phiếu kho nháp (nhập, xuất, hàng lỗi, xuất hàng lỗi, điều chỉnh); nhà
+// cung cấp chỉ cho phiếu nhập.
+//
+// POST /api/v1/inventory/documents
+func (UnimplementedHandler) CreateStockDocument(ctx context.Context, req *CreateStockDocumentRequest, params CreateStockDocumentParams) (r CreateStockDocumentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateSupplier implements createSupplier operation.
+//
+// Tạo nhà cung cấp (tên không trùng trong shop).
+//
+// POST /api/v1/inventory/suppliers
+func (UnimplementedHandler) CreateSupplier(ctx context.Context, req *CreateSupplierRequest, params CreateSupplierParams) (r CreateSupplierRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -150,6 +178,15 @@ func (UnimplementedHandler) GetPlatformHealth(ctx context.Context) (r GetPlatfor
 //
 // GET /api/v1/catalog/products/{id}
 func (UnimplementedHandler) GetProduct(ctx context.Context, params GetProductParams) (r GetProductRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetStockDocument implements getStockDocument operation.
+//
+// Một phiếu kho kèm dòng.
+//
+// GET /api/v1/inventory/documents/{id}
+func (UnimplementedHandler) GetStockDocument(ctx context.Context, params GetStockDocumentParams) (r GetStockDocumentRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -227,6 +264,25 @@ func (UnimplementedHandler) ListStaff(ctx context.Context) (r ListStaffRes, _ er
 	return r, ht.ErrNotImplemented
 }
 
+// ListStockDocuments implements listStockDocuments operation.
+//
+// Phiếu kho mới nhất trước, của các kho người gọi được xem (lọc kho, trạng
+// thái, loại; trang theo con trỏ).
+//
+// GET /api/v1/inventory/documents
+func (UnimplementedHandler) ListStockDocuments(ctx context.Context, params ListStockDocumentsParams) (r ListStockDocumentsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListSuppliers implements listSuppliers operation.
+//
+// Nhà cung cấp theo tên (tối đa 200); q tìm theo tên bỏ dấu.
+//
+// GET /api/v1/inventory/suppliers
+func (UnimplementedHandler) ListSuppliers(ctx context.Context, params ListSuppliersParams) (r ListSuppliersRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListTags implements listTags operation.
 //
 // Mọi nhãn kệ hàng của shop theo mã.
@@ -245,6 +301,16 @@ func (UnimplementedHandler) LockStaff(ctx context.Context, params LockStaffParam
 	return r, ht.ErrNotImplemented
 }
 
+// PostStockDocument implements postStockDocument operation.
+//
+// Ghi sổ phiếu nháp (đổi tồn); thiếu hàng ở một dòng thì cả phiếu không ghi
+// (insufficient_stock).
+//
+// POST /api/v1/inventory/documents/{id}/post
+func (UnimplementedHandler) PostStockDocument(ctx context.Context, req *StockDocumentVersion, params PostStockDocumentParams) (r PostStockDocumentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ReplaceStaffGrants implements replaceStaffGrants operation.
 //
 // Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không
@@ -252,6 +318,15 @@ func (UnimplementedHandler) LockStaff(ctx context.Context, params LockStaffParam
 //
 // PUT /api/v1/identity/users/{id}/grants
 func (UnimplementedHandler) ReplaceStaffGrants(ctx context.Context, req *ReplaceGrantsRequest, params ReplaceStaffGrantsParams) (r ReplaceStaffGrantsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ReplaceStockDocumentLines implements replaceStockDocumentLines operation.
+//
+// Thay toàn bộ dòng của phiếu nháp khi version còn khớp.
+//
+// PUT /api/v1/inventory/documents/{id}/lines
+func (UnimplementedHandler) ReplaceStockDocumentLines(ctx context.Context, req *ReplaceStockDocumentLinesRequest, params ReplaceStockDocumentLinesParams) (r ReplaceStockDocumentLinesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -308,6 +383,15 @@ func (UnimplementedHandler) UpdateCategory(ctx context.Context, req *UpdateCateg
 //
 // PATCH /api/v1/catalog/products/{id}
 func (UnimplementedHandler) UpdateProduct(ctx context.Context, req *UpdateProductRequest, params UpdateProductParams) (r UpdateProductRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateSupplier implements updateSupplier operation.
+//
+// Sửa hoặc lưu trữ nhà cung cấp khi version còn khớp.
+//
+// PATCH /api/v1/inventory/suppliers/{id}
+func (UnimplementedHandler) UpdateSupplier(ctx context.Context, req *UpdateSupplierRequest, params UpdateSupplierParams) (r UpdateSupplierRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

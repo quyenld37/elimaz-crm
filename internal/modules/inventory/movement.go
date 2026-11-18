@@ -34,6 +34,7 @@ type cond string
 const (
 	condNone      cond = "none"
 	condAvailable cond = "available" // on_hand − damaged − held − in_transit ≥ q
+	condOnHand    cond = "on_hand"   // on_hand ≥ q (xuất hàng lỗi, Task M1-29)
 	condDamaged   cond = "damaged"   // damaged ≥ q
 	condHeld      cond = "held"      // held ≥ q
 	condInTransit cond = "in_transit"

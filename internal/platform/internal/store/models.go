@@ -281,6 +281,36 @@ type InventoryStockBalance struct {
 	UpdatedAt   time.Time
 }
 
+type InventoryStockDocument struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	WarehouseID uuid.UUID
+	Code        string
+	Kind        string
+	Status      string
+	SupplierID  pgtype.UUID
+	Note        string
+	CreatedBy   pgtype.UUID
+	PostedBy    pgtype.UUID
+	PostedAt    pgtype.Timestamptz
+	CancelledBy pgtype.UUID
+	CancelledAt pgtype.Timestamptz
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Version     int64
+}
+
+type InventoryStockDocumentLine struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	DocumentID uuid.UUID
+	VariantID  uuid.UUID
+	SellerID   uuid.UUID
+	Quantity   int32
+	UnitCost   pgtype.Int8
+	CreatedAt  time.Time
+}
+
 type InventoryStockLedger struct {
 	ID          uuid.UUID
 	TenantID    uuid.UUID
@@ -322,6 +352,19 @@ type InventoryStockReservation struct {
 	ExpiresAt      pgtype.Timestamptz
 	StateChangedAt time.Time
 	CreatedAt      time.Time
+}
+
+type InventorySupplier struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	Name       string
+	NameSearch string
+	Phone      string
+	Note       string
+	Status     string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	Version    int64
 }
 
 type InventoryWarehouse struct {

@@ -164,39 +164,15 @@ func (h *handler) UpdateVariant(ctx context.Context, req *gen.UpdateVariantReque
 	return out.(*gen.Variant), nil //nolint:forcetypeassert // fn trên trả *gen.Variant
 }
 
-// catalogWrite chạy change trong WriteTx với một catalog.Writer của yêu cầu (sự kiện, báo hiệu, audit do catalog ghi
-// trong cùng transaction). Lỗi nghiệp vụ của catalog là câu trả lời không đổi gì: tx lùi, không lưu vào khóa chống
-// trùng (final = false), gửi lại cùng khóa thì xét lại; lỗi đổi sang HTTP ở errors.go.
+// catalogWrite chạy change trong refusableWrite với một catalog.Writer của yêu cầu (sự kiện, báo hiệu, audit do catalog
+// ghi trong cùng transaction). Lỗi nghiệp vụ của catalog là câu trả lời không đổi gì (không lưu vào khóa chống trùng).
 func (h *handler) catalogWrite(ctx context.Context, status int,
 	change func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) (any, error),
 ) (any, error) {
-	u, ok := authUser(ctx)
-	if !ok {
-		return nil, errNoAuthUser
-	}
 	w := catalog.Writer{Events: h.d.Events, Queue: queue.NewQueue(), Realtime: h.d.Realtime, RequestID: RequestID(ctx)}
-	var out any
-	var refused error
-	err := WriteTx(ctx, h.d, u.TenantID, func(tx pgx.Tx) (int, any, bool, error) {
-		out, refused = nil, nil // fn có thể chạy lại (ADR-46): gán lại mỗi lần
-		body, err := change(tx, w, u)
-		switch {
-		case isCatalogRefusal(err):
-			refused = err
-			return 0, nil, false, nil
-		case err != nil:
-			return 0, nil, false, err
-		}
-		out = body
-		return status, body, true, nil
+	return h.refusableWrite(ctx, status, isCatalogRefusal, "ghi catalog", func(tx pgx.Tx, u identity.AuthUser) (any, error) {
+		return change(tx, w, u)
 	})
-	switch {
-	case err != nil:
-		return nil, err
-	case refused != nil:
-		return nil, fmt.Errorf("ghi catalog: %w", refused)
-	}
-	return out, nil
 }
 
 func isCatalogRefusal(err error) bool {
