@@ -5,7 +5,7 @@
 // API dev thật (4190, dữ liệu seed-dev); đường đó còn cần thẻ Cloudflare Access cho máy dev (docs/tasks/task-48.md,
 // "Việc phát hiện thêm").
 // `api`: API giả bằng page.route, đúng kiểu của client sinh (src/api/types.gen.ts).
-import { test as base, expect, type Route } from "@playwright/test";
+import { test as base, expect, type Page, type Route } from "@playwright/test";
 import type { Grant, Me } from "../src/api";
 
 /** Laptop của chủ shop và điện thoại (mockup M1). */
@@ -68,6 +68,12 @@ export function writeRecorder(log: WriteLog) {
       return true;
     },
   };
+}
+
+/** Trang không cuộn ngang (khung hẹp 390, 360). */
+export async function noHorizontalScroll(page: Page) {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
 }
 
 const realApi = process.env.CRM_E2E_REAL_API === "1";

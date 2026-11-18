@@ -4,7 +4,16 @@
 // mới hiện ở màn Nhân viên.
 import type { Page } from "@playwright/test";
 import type { Grant, PermissionInfo, Role, StaffMember } from "../src/api";
-import { expect, forEachViewport, json, test, writeRecorder, type FakeApi, type WriteLog } from "./fixtures";
+import {
+  expect,
+  forEachViewport,
+  noHorizontalScroll,
+  json,
+  test,
+  writeRecorder,
+  type FakeApi,
+  type WriteLog,
+} from "./fixtures";
 
 const ME = "0195f3b2-0000-7000-8000-000000000001";
 const MINH = "0195f3b2-0000-7000-8000-000000000004";
@@ -115,11 +124,6 @@ async function rolesApi(api: FakeApi, grants: Grant[] = MANAGER_GRANTS): Promise
     return json(r, 200, target);
   });
   return fake;
-}
-
-async function noHorizontalScroll(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  expect(overflow).toBeLessThanOrEqual(0);
 }
 
 const permBox = (page: Page, key: string) =>

@@ -105,6 +105,10 @@ type GetPlatformHealthRes interface {
 	getPlatformHealthRes()
 }
 
+type GetProductClassificationRes interface {
+	getProductClassificationRes()
+}
+
 type GetProductRes interface {
 	getProductRes()
 }
@@ -131,6 +135,10 @@ type HealthReadyRes interface {
 
 type ListAttributesRes interface {
 	listAttributesRes()
+}
+
+type ListBalancesRes interface {
+	listBalancesRes()
 }
 
 type ListCategoriesRes interface {
@@ -167,6 +175,10 @@ type ListSuppliersRes interface {
 
 type ListTagsRes interface {
 	listTagsRes()
+}
+
+type ListWarehousesRes interface {
+	listWarehousesRes()
 }
 
 type LockStaffRes interface {

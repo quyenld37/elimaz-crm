@@ -21,13 +21,7 @@ func TestListsAPI(t *testing.T) {
 	e := newInvAPIEnv(t)
 	e.variant(e.w1, 7)
 	e.variant(e.w1, 3)
-	reader := e.staff.User(t, e.tenant, listReaderW1, "active")
-	e.staff.Grant(t, e.tenant, reader, []string{"catalog.read"}, "all", "")
-	e.staff.Grant(t, e.tenant, reader, []string{"inventory.read"}, "warehouse", e.w1.String())
-	e.staff.Grant(t, e.tenant, e.staff.User(t, e.tenant, listCatalogOnly, "active"), []string{"catalog.read"}, "all", "")
-	b := e.staff.Tenant(t, "B2")
-	seedSellerWarehouse(t, e.staff, b)
-	e.staff.Grant(t, b, e.staff.User(t, b, listOtherB, "active"), []string{"catalog.read"}, "all", "")
+	e.listUsers(true, "catalog.read")
 
 	expect(t, "không có catalog.read", e.do(http.MethodGet, "/api/v1/catalog/products", invManager, "", ""),
 		http.StatusForbidden, "forbidden")
@@ -95,6 +89,21 @@ func TestListsAPI(t *testing.T) {
 	}
 }
 
+// listUsers tạo người đọc của test danh sách: listReaderW1 (inventory.read chỉ ở kho w1, thêm catalog.read mọi nơi khi
+// readerCatalog), listCatalogOnly (catalog.read), listOtherB ở tenant B2 với quyền otherB mọi nơi.
+func (e *invAPIEnv) listUsers(readerCatalog bool, otherB string) {
+	t := e.t
+	reader := e.staff.User(t, e.tenant, listReaderW1, "active")
+	if readerCatalog {
+		e.staff.Grant(t, e.tenant, reader, []string{"catalog.read"}, "all", "")
+	}
+	e.staff.Grant(t, e.tenant, reader, []string{"inventory.read"}, "warehouse", e.w1.String())
+	e.staff.Grant(t, e.tenant, e.staff.User(t, e.tenant, listCatalogOnly, "active"), []string{"catalog.read"}, "all", "")
+	b := e.staff.Tenant(t, "B2")
+	seedSellerWarehouse(t, e.staff, b)
+	e.staff.Grant(t, b, e.staff.User(t, b, listOtherB, "active"), []string{otherB}, "all", "")
+}
+
 // mustOKArray đòi 200 và thân là mảng JSON.
 func mustOKArray(t *testing.T, name string, rec *httptest.ResponseRecorder) []any {
 	t.Helper()
@@ -106,4 +115,62 @@ func mustOKArray(t *testing.T, name string, rec *httptest.ResponseRecorder) []an
 		t.Fatalf("%s: đọc JSON: %v (%s)", name, err, rec.Body.String())
 	}
 	return out
+}
+
+// Danh sách tồn qua HTTP (Task 334): phạm vi kho, warehouseId bắt buộc, lọc "Thiếu so với phần giữ" sau ca KH07
+// (on_hand 2, held 4: đếm thiếu dưới phần giữ, đơn giữ nguyên), con trỏ hỏng, tenant khác.
+func TestListBalancesAPI(t *testing.T) {
+	e := newInvAPIEnv(t)
+	short := e.variant(e.w1, 5)
+	e.variant(e.w1, 3)
+	e.variant(e.w2, 9)
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(), `UPDATE inventory.stock_balances SET on_hand = 2, held = 4
+			WHERE variant_id = $1 AND warehouse_id = $2`, short, e.w1)
+		return err //nolint:wrapcheck // test
+	})
+	e.listUsers(false, "inventory.read")
+
+	base := "/api/v1/inventory/balances?warehouseId="
+	expect(t, "không có inventory.read", e.do(http.MethodGet, base+e.w1.String(), listCatalogOnly, "", ""),
+		http.StatusForbidden, "forbidden")
+	expect(t, "kho w2 bằng quyền kho w1", e.do(http.MethodGet, base+e.w2.String(), listReaderW1, "", ""),
+		http.StatusForbidden, "forbidden")
+	expect(t, "thiếu warehouseId", e.do(http.MethodGet, "/api/v1/inventory/balances", listReaderW1, "", ""),
+		http.StatusBadRequest, "bad_request")
+	expect(t, "con trỏ hỏng", e.do(http.MethodGet, base+e.w1.String()+"&cursor=xyz", listReaderW1, "", ""),
+		http.StatusBadRequest, "invalid_input")
+
+	lst := mustOK(t, "listBalances w1", e.do(http.MethodGet, base+e.w1.String(), listReaderW1, "", ""), http.StatusOK)
+	if items := lst["items"].([]any); len(items) != 2 { //nolint:forcetypeassert // test
+		t.Fatalf("w1 có 2 biến thể: %v", lst)
+	}
+	lst = mustOK(t, "onlyShort", e.do(http.MethodGet, base+e.w1.String()+"&onlyShort=true", listReaderW1, "", ""), http.StatusOK)
+	items := lst["items"].([]any) //nolint:forcetypeassert // test
+	if len(items) != 1 {
+		t.Fatalf("sau KH07 muốn đúng 1 dòng thiếu: %v", lst)
+	}
+	it := items[0].(map[string]any) //nolint:forcetypeassert // test
+	if it["variantId"] != short.String() || it["onHand"] != float64(2) || it["held"] != float64(4) ||
+		it["available"] != float64(-2) || it["sku"] != "QK01-1" || it["productName"] != "Quần kho" ||
+		it["productStatus"] != "active" || it["variantStatus"] != "active" {
+		t.Fatalf("dòng thiếu sai: %v", it)
+	}
+
+	// Trang 1 dòng: có nextCursor; trang sau là dòng còn lại, không còn trang.
+	lst = mustOK(t, "trang 1", e.do(http.MethodGet, base+e.w1.String()+"&limit=1", listReaderW1, "", ""), http.StatusOK)
+	cur, _ := lst["nextCursor"].(string)
+	if cur == "" {
+		t.Fatalf("trang 1 thiếu nextCursor: %v", lst)
+	}
+	lst = mustOK(t, "trang 2", e.do(http.MethodGet, base+e.w1.String()+"&limit=1&cursor="+url.QueryEscape(cur),
+		listReaderW1, "", ""), http.StatusOK)
+	if _, more := lst["nextCursor"]; more || len(lst["items"].([]any)) != 1 { //nolint:forcetypeassert // test
+		t.Fatalf("trang 2: %v", lst)
+	}
+
+	lst = mustOK(t, "tenant B", e.do(http.MethodGet, base+e.w1.String(), listOtherB, "", ""), http.StatusOK)
+	if len(lst["items"].([]any)) != 0 { //nolint:forcetypeassert // test
+		t.Fatalf("tenant B thấy số dư của A: %v", lst)
+	}
 }

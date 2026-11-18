@@ -8,7 +8,7 @@
 // stock_reservations theo id tăng dần. Reserve cập nhật số dư theo thứ tự rồi chèn giữ hàng (dòng mới); Release,
 // StartTransit, Consume khóa số dư trước rồi mới khóa và đổi dòng giữ hàng.
 //
-// Phần công khai: hàm đọc (Availability, DefaultWarehouse), tạo kho mặc định (EnsureDefaultWarehouse, chủ bảng) và
+// Phần công khai: hàm đọc (Availability, DefaultWarehouse, ListWarehouses), tạo kho mặc định (EnsureDefaultWarehouse, chủ bảng) và
 // Writer (mọi đường đổi tồn: tự ghi sổ, sự kiện stock.changed và báo hiệu inventory.balance trong tx của bên gọi).
 // Đối chiếu tồn hằng đêm (reconcile.go): Reconcile, lịch ReconcileSchedule, handler và lệnh cảnh báo lệch sổ; chỉ
 // báo lệch, không sửa số.
@@ -101,6 +101,28 @@ func Availability(ctx context.Context, tx pgx.Tx, warehouseID uuid.UUID, variant
 			b.OnHand, b.Held, b.InTransit, b.Damaged, b.Available = r.OnHand, r.Held, r.InTransit, r.Damaged, r.Available
 		}
 		out = append(out, b)
+	}
+	return out, nil
+}
+
+// Warehouse là một kho của tenant. Status: active | closed.
+type Warehouse struct {
+	ID     uuid.UUID
+	Code   string
+	Name   string
+	Status string
+}
+
+// ListWarehouses trả mọi kho của tenant trong ngữ cảnh của tx (cả kho đã đóng), kho MAIN trước rồi theo mã. Bên gọi
+// tự lọc theo phạm vi quyền của người xem.
+func ListWarehouses(ctx context.Context, tx pgx.Tx) ([]Warehouse, error) {
+	rows, err := store.New(tx).ListWarehouses(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("đọc danh sách kho: %w", err)
+	}
+	out := make([]Warehouse, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, Warehouse{ID: r.ID, Code: r.Code, Name: r.Name, Status: r.Status})
 	}
 	return out, nil
 }

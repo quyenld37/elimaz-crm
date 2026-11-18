@@ -282,6 +282,7 @@ func TestCatalogAPI_Classification(t *testing.T) {
 	}
 	expect(t, "version cũ", e.do(http.MethodPut, "/api/v1/catalog/products/"+pid+"/classification", catalogManager, "c3", classBody),
 		http.StatusConflict, "version_conflict")
+	e.checkReadClassification(pid, vayID, valID, len(tagIDs))
 	expect(t, "lưu trữ khi còn mẫu active", e.do(http.MethodPost, "/api/v1/catalog/categories/"+vayID+"/archive", catalogManager, "r1",
 		`{"version":1}`), http.StatusConflict, "category_in_use")
 
@@ -310,4 +311,26 @@ func (e *catalogAPIEnv) checkClassificationLists() {
 	if !strings.Contains(attrs.Body.String(), `"value":"Lụa"`) {
 		t.Errorf("listAttributes thiếu giá trị: %s", attrs.Body.String())
 	}
+}
+
+// checkReadClassification: người chỉ có catalog.read đọc lại phân loại vừa gán (Task 324: màn sửa mẫu); tenant B và
+// mẫu không có → 404.
+func (e *catalogAPIEnv) checkReadClassification(pid, categoryID, valueID string, tags int) {
+	t := e.t
+	t.Helper()
+	rec := e.do(http.MethodGet, "/api/v1/catalog/products/"+pid+"/classification", catalogViewer, "", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("getProductClassification: %d %s", rec.Code, rec.Body.String())
+	}
+	c := decodeJSON(t, rec)
+	vals, _ := c["attributeValueIds"].([]any)
+	tagIDs, _ := c["tagIds"].([]any)
+	if c["productId"] != pid || c["version"] != float64(3) || c["categoryId"] != categoryID || len(vals) != 1 ||
+		vals[0] != valueID || len(tagIDs) != tags {
+		t.Errorf("phân loại đọc lại: %v", c)
+	}
+	expect(t, "B đọc phân loại của A", e.do(http.MethodGet, "/api/v1/catalog/products/"+pid+"/classification", catalogOtherB, "", ""),
+		http.StatusNotFound, "not_found")
+	expect(t, "mẫu không có", e.do(http.MethodGet, "/api/v1/catalog/products/"+uuid.NewString()+"/classification", catalogViewer, "", ""),
+		http.StatusNotFound, "not_found")
 }

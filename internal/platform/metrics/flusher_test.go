@@ -88,7 +88,7 @@ func TestFlushHistogram(t *testing.T) {
 	if r.count != 100 || r.max != 900 || r.sum != 95*40+5*900 {
 		t.Fatalf("dòng sai: %+v", r)
 	}
-	if p := metrics.P95FromHist(toInts(r.hist)); p != 50 {
+	if p := metrics.QuantileFromHist(toInts(r.hist), 95); p != 50 {
 		t.Fatalf("P95 = %v, muốn 50 (hist %v)", p, r.hist)
 	}
 	var bucket time.Time

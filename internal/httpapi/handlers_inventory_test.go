@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -344,4 +345,31 @@ func (b *lockedBuffer) text() string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.buf.String()
+}
+
+// Danh sách kho (Task 51): chỉ kho người gọi có inventory.read; quyền toàn shop thấy mọi kho, MAIN trước; tenant khác
+// không thấy kho của A; không có inventory.read → 403.
+func TestListWarehousesAPI(t *testing.T) {
+	e := newInvAPIEnv(t)
+	e.staff.Grant(t, e.tenant, e.staff.User(t, e.tenant, listCatalogOnly, "active"), []string{"catalog.read"}, "all", "")
+	names := func(email string) []string {
+		t.Helper()
+		var out []string
+		for _, w := range mustOKArray(t, "listWarehouses "+email, e.do(http.MethodGet, "/api/v1/inventory/warehouses", email, "", "")) {
+			m := w.(map[string]any) //nolint:forcetypeassert // test
+			out = append(out, fmt.Sprintf("%s/%s/%s", m["code"], m["name"], m["status"]))
+		}
+		return out
+	}
+	if got := names(invManager); !slices.Equal(got, []string{"MAIN/Kho chính/active", "W2/Kho phụ/active"}) {
+		t.Fatalf("toàn shop: %v", got)
+	}
+	if got := names(invPostW1); !slices.Equal(got, []string{"MAIN/Kho chính/active"}) {
+		t.Fatalf("phạm vi w1 thấy kho khác: %v", got)
+	}
+	if got := names(invOtherB); len(got) != 1 || got[0] != "MAIN/Kho chính/active" {
+		t.Fatalf("tenant B: %v", got)
+	}
+	expect(t, "không có inventory.read", e.do(http.MethodGet, "/api/v1/inventory/warehouses", listCatalogOnly, "", ""),
+		http.StatusForbidden, "forbidden")
 }

@@ -12,7 +12,7 @@ import (
 	"elimaz.com.vn/crm/internal/queries"
 )
 
-// Một database dựng một lần cho mọi ca (10.000 mẫu, 50.000 biến thể).
+// Một database dựng một lần cho mọi ca (10.000 mẫu, 50.000 biến thể), kể cả danh sách tồn (balances_dynsql_test.go).
 func TestProducts(t *testing.T) {
 	f := newFixture(t)
 	t.Run("SearchByName", func(t *testing.T) { testSearchByName(t, f) })
@@ -27,6 +27,8 @@ func TestProducts(t *testing.T) {
 	t.Run("ListFilters", func(t *testing.T) { testListFilters(t, f) })
 	t.Run("ListInvalid", func(t *testing.T) { testListInvalid(t, f) })
 	t.Run("CursorRoundTrip", testCursorRoundTrip)
+	t.Run("Balances", func(t *testing.T) { testBalances(t, f) })
+	t.Run("BalanceCursorRoundTrip", testBalanceCursorRoundTrip)
 }
 
 func search(t *testing.T, f *fixture, tenant, seller uuid.UUID, q string, limit int) []queries.VariantHit {

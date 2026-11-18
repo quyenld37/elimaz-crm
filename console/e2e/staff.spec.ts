@@ -336,7 +336,11 @@ forEachViewport(() => {
 test("menu: mục Nhân viên chỉ hiện với người có quyền quản lý nhân viên", async ({ page, api }) => {
   await page.setViewportSize(DESKTOP);
   await staffApi(api, MINH, ["catalog.read", "inventory.read"].map(all));
-  // Không mở "/": trang đầu chuyển tới màn đầu tiên người này thấy (Sản phẩm, Task 50) và gọi API sản phẩm.
+  // "/" mở màn được phép đầu tiên (Danh sách sản phẩm, Task 50): khai các đường của nó.
+  await api.catalog();
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: "Nhân viên" })).toHaveCount(0);
+  // Mở thẳng /nhan-vien: không có trang này với người thiếu quyền.
   await page.goto("/nhan-vien");
   await expect(page.getByText("Không có trang này, hoặc bạn chưa được cấp quyền xem")).toBeVisible();
   await expect(page.getByRole("link", { name: "Nhân viên" })).toHaveCount(0);

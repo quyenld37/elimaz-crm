@@ -169,3 +169,52 @@ func queriesError(err error) (status int, code string, ok bool) {
 	}
 	return 0, "", false
 }
+
+// ListBalances (GET /api/v1/inventory/balances, inventory.read ở đúng kho warehouseId): một trang số dư của người
+// bán mặc định ở kho đó.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ListBalances(ctx context.Context, params gen.ListBalancesParams) (gen.ListBalancesRes, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
+	if err := canAt(u, params.WarehouseId, permInvRead); err != nil {
+		return nil, err
+	}
+	f := queries.BalanceFilter{
+		WarehouseID: params.WarehouseId, Q: params.Q.Value, OnlyShort: params.OnlyShort.Or(false),
+		Limit: int(params.Limit.Or(defaultProductPage)),
+	}
+	if params.Cursor.Set {
+		c, err := queries.ParseBalanceCursor(params.Cursor.Value)
+		if err != nil {
+			return nil, fmt.Errorf("đọc tham số cursor: %w", err)
+		}
+		f.Cursor = &c
+	}
+	var rows []queries.BalanceRow
+	var next *queries.BalanceCursor
+	err := h.readAsDefaultSeller(ctx, u, func(tx pgx.Tx, seller uuid.UUID) error {
+		f.SellerID = seller
+		var err error
+		rows, next, err = queries.ListBalances(ctx, tx, f)
+		return err //nolint:wrapcheck // sentinel của queries
+	})
+	if err != nil {
+		return nil, fmt.Errorf("đọc danh sách tồn: %w", err)
+	}
+	page := &gen.BalancePage{Items: make([]gen.Balance, 0, len(rows))}
+	for _, r := range rows {
+		page.Items = append(page.Items, gen.Balance{
+			VariantId: r.VariantID, Sku: r.SKU, Barcode: r.Barcode, ProductCode: r.ProductCode, ProductName: r.ProductName,
+			Color: r.Color, Size: r.Size, ProductStatus: gen.ProductStatus(r.ProductStatus),
+			VariantStatus: gen.VariantStatus(r.VariantStatus), OnHand: r.OnHand, Held: r.Held, InTransit: r.InTransit,
+			Damaged: r.Damaged, Available: r.Available,
+		})
+	}
+	if next != nil {
+		page.NextCursor = gen.NewOptString(next.String())
+	}
+	return page, nil
+}

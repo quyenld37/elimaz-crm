@@ -2610,6 +2610,91 @@ func (s *Server) handleGetProductRequest(args [1]string, argsEscaped bool, w htt
 	}
 }
 
+// handleGetProductClassificationRequest handles getProductClassification operation.
+//
+// Danh mục, giá trị thuộc tính, nhãn đang gán cho mẫu và version hiện tại của
+// mẫu (màn sửa mẫu).
+//
+// GET /api/v1/catalog/products/{id}/classification
+func (s *Server) handleGetProductClassificationRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetProductClassificationOperation,
+			ID:   "getProductClassification",
+		}
+	)
+	params, err := decodeGetProductClassificationParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetProductClassificationRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetProductClassificationOperation,
+			OperationSummary: "Danh mục, giá trị thuộc tính, nhãn đang gán cho mẫu và version hiện tại của mẫu (màn sửa mẫu)",
+			OperationID:      "getProductClassification",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetProductClassificationParams
+			Response = GetProductClassificationRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetProductClassificationParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetProductClassification(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetProductClassification(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetProductClassificationResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetShipmentRequest handles getShipment operation.
 //
 // Quyền fulfillment.read theo đích kho của tài khoản hãng của vận đơn.
@@ -3115,6 +3200,109 @@ func (s *Server) handleListAttributesRequest(args [0]string, argsEscaped bool, w
 	}
 
 	if err := encodeListAttributesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleListBalancesRequest handles listBalances operation.
+//
+// Cần inventory.read ở đúng kho warehouseId, không có → 403. Chỉ biến thể đã có
+// dòng số dư ở kho đó. available = onHand − damaged − held − inTransit, có thể âm
+// sau kiểm kho đếm thiếu (Q8); onlyShort=true chỉ trả dòng available < 0. Biến thể
+// khớp q tối đa 100.
+//
+// GET /api/v1/inventory/balances
+func (s *Server) handleListBalancesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListBalancesOperation,
+			ID:   "listBalances",
+		}
+	)
+	params, err := decodeListBalancesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListBalancesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListBalancesOperation,
+			OperationSummary: "Số dư từng biến thể ở một kho (tồn, lỗi, đang giữ, đang giao, có thể bán), biến thể mới tạo trước; lọc \"Thiếu so với phần giữ\", tìm theo barcode, SKU, mã mẫu, tên không dấu; trang theo con trỏ",
+			OperationID:      "listBalances",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "warehouseId",
+					In:   "query",
+				}: params.WarehouseId,
+				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+				{
+					Name: "onlyShort",
+					In:   "query",
+				}: params.OnlyShort,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListBalancesParams
+			Response = ListBalancesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListBalancesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListBalances(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListBalances(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListBalancesResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -3829,6 +4017,72 @@ func (s *Server) handleListTagsRequest(args [0]string, argsEscaped bool, w http.
 	}
 
 	if err := encodeListTagsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleListWarehousesRequest handles listWarehouses operation.
+//
+// Các kho người gọi được xem (có inventory.read ở kho đó hoặc toàn shop), kho chính
+// trước rồi theo mã; gồm cả kho đã đóng.
+//
+// GET /api/v1/inventory/warehouses
+func (s *Server) handleListWarehousesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response ListWarehousesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListWarehousesOperation,
+			OperationSummary: "Các kho người gọi được xem (có inventory.read ở kho đó hoặc toàn shop), kho chính trước rồi theo mã; gồm cả kho đã đóng",
+			OperationID:      "listWarehouses",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = ListWarehousesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListWarehouses(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListWarehouses(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListWarehousesResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

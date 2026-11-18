@@ -4,6 +4,27 @@ Tiêu đề: Task 56 (M1-56). Kế hoạch: `../../docs/superpowers/plans/2026-1
 
 ## Ảnh hưởng
 
+**Lượt 2** (gộp main lần 3; quyền xem danh sách vai trò):
+- Gộp main (Task 22 thử tải, 51 màn Tồn kho, 324 màn sửa mẫu): xung đột `console/e2e/staff.spec.ts` (test menu: giữ cả
+  bản của main — mở "/" có khai API sản phẩm — lẫn bản của task — mở `/nhan-vien` thấy câu không có trang) và mã sinh
+  (`oas_router_gen.go`, `console/src/api/{index,sdk.gen}.ts`: lấy một bên rồi `make gen` từ `openapi.yaml` đã gộp).
+- Sau gộp, jscpd báo `noHorizontalScroll` trùng giữa `console/e2e/inventory.spec.ts` (main) và `roles.spec.ts`: dời vào
+  `console/e2e/fixtures.ts`, hai spec import.
+- Ký hiệu Go: không đổi ký hiệu xuất ra; `handler` thêm phương thức `ListRolesToManage` (ogen sinh interface mới,
+  1 hiện thực). Phần chung đọc vai trò của `ListRoles` tách thành `(*handler).roles` (2 chỗ gọi).
+- Operation OpenAPI: mới `listRolesToManage` (GET /api/v1/identity/roles/manage, `identity.roles.manage`, cùng schema
+  `Role`); `listRoles` giữ nguyên (`identity.users.manage`, màn Nhân viên cần để gán vai trò). Thêm route: oasdiff
+  không phá vỡ. Guard (vùng cao) không đổi: mỗi route vẫn một quyền.
+- Màn: `console/src/features/roles/roleData.ts` gọi `listRolesToManage`, khóa `["identity.roles","manage"]` (con của
+  khóa `identity.roles` nên `invalidateQueries(ROLES_KEY)` sau khi ghi làm mới cả hai màn); `console/e2e/roles.spec.ts`
+  (khai đường mới; ca người chỉ có `identity.roles.manage`).
+- sqlc, bảng, migration: không đổi (dùng `identity.ListRoles` có sẵn).
+- Test sẽ chạy: `go test -race ./internal/httpapi/ -run 'RolesAPI|Route'`, `./tests/arch/...` (bảng route), `make gen`;
+  console `npx vitest run`, `tsc`, `eslint`, Playwright `e2e/roles.spec.ts`, `e2e/staff.spec.ts` (chromium); `make ci`
+  một lần sau gộp main (commit 1) và một lần trước review commit 2.
+
+Lượt 1:
+
 - Ký hiệu Go xuất ra ngoài sẽ đổi (LSP findReferences): thêm `identity.RoleInput`, `CreateRole`,
   `UpdateRole`, `ArchiveRole`, `RoleChange`, `PermissionInfo`, `PermissionCatalog`, sentinel `ErrOwnerRoleLocked`,
   `ErrRoleInUse`, `ErrUnknownPermission`, `ErrRoleNameTaken`, `ErrRoleArchived`, `ErrRoleNotFound`. Đổi:
@@ -37,6 +58,9 @@ Tiêu đề: Task 56 (M1-56). Kế hoạch: `../../docs/superpowers/plans/2026-1
 
 ## Tái dùng
 
+- Lượt 2: dùng lại `identity.ListRoles`, `roleOut`, `tenancy.WithTenant` (tách thân `ListRoles` thành `h.roles` để
+  hai operation dùng chung, tránh trùng); schema `Role` có sẵn; `fixtures.ts` `api.on`. Không viết mới hàm nghiệp vụ.
+
 - Đã kiểm trong danh mục dùng chung và tìm theo tên, theo việc: `docs/danh-muc-dung-chung.md` mục identity, httpapi
   (`WriteTx`, `RecordAudit`, `authUser`), console shared (`useWriteAction`, `unwrap`, `errorMessage`, `queryKey`);
   trong identity: `Can`, `hasAllPermissions`, `roleIndex`, `isUniqueViolation`, `ListRoles`, mẫu `staffWrite`.
@@ -51,6 +75,11 @@ Tiêu đề: Task 56 (M1-56). Kế hoạch: `../../docs/superpowers/plans/2026-1
   của quyền.
 
 ## Soát thiết kế
+
+Lượt 2: 5.9 operation đọc mới khai `x-permission: identity.roles.manage` (guard mặc định từ chối, không đổi guard);
+5.7 đọc trong `WithTenant` của tenant người gọi như `listRoles`; 6.13 mặc định từ chối giữ nguyên — người thiếu cả hai
+quyền vẫn 403 ở cả hai đường; không ghi, không khóa, 6.1–6.12 không áp dụng (chỉ đọc).
+
 
 Mục 5:
 - 5.1–5.3: dữ liệu vai trò thuộc `identity` (04 mục 3); chỉ đọc, ghi bảng của schema `identity`.
@@ -84,6 +113,19 @@ Mục 6:
   all; vai trò Chủ khóa; quyền của vai trò đã lưu trữ không còn hiệu lực (LoadUser bỏ qua).
 
 ## Quyết định thay chủ shop
+
+Lượt 2:
+12. **Xem danh sách vai trò bằng `identity.roles.manage`** (quyết định của điều phối viên; thay Quyết định 6): thêm
+    operation đọc `listRolesToManage` (GET /api/v1/identity/roles/manage, quyền `identity.roles.manage`) cho màn Vai trò;
+    `listRoles` giữ `identity.users.manage` vì màn Nhân viên cần danh sách vai trò để gán, mà người chỉ có
+    `identity.users.manage` không được thấy màn Vai trò. Không có quyền "xem vai trò" riêng nên không thêm. Phương án
+    khác: cho `x-permission` nhận danh sách quyền (đủ một trong số đó) — phải đổi guard, routegen (vùng rủi ro cao)
+    cho một route; đổi `listRoles` sang `identity.roles.manage` — làm hỏng màn Nhân viên của người chỉ quản lý nhân
+    viên. Đảo ngược: xóa operation, màn quay lại `listRoles`.
+13. **Gộp xung đột test menu** (`staff.spec.ts`): giữ cả hai ý — mở "/" (main: khai API sản phẩm, menu không có Nhân
+    viên) rồi mở `/nhan-vien` (task: câu "không có trang này") — một test kiểm cả hai.
+
+Lượt 1:
 
 1. **Số tệp task là 56** theo lệnh của phiên (bảng số toàn cục ghi M1-56 → 55). Giữ `task-56.md`, tiêu đề "Task 56
    (M1-56)". Phương án khác: tạo `task-55.md` — trái lệnh giao việc.
@@ -121,6 +163,7 @@ Mục 6:
 
 | Tiêu chí | Test | Lệnh | Kết quả |
 |---|---|---|---|
+| Lượt 2, commit 1: gộp main lần 3 (Task 22, 51, 324) không hỏng gì; test menu giữ ca của cả hai bên | `make ci`; `staff.spec.ts` "menu: mục Nhân viên…" | `make ci CRM_PG_PORT=5600`; sau khi dời `noHorizontalScroll` vào `fixtures.ts`: `make jscpd gen-check test-guard gitleaks console-check`; `CRM_E2E_PORT=5156 npx playwright test --project=chromium` | `go test -race ./...` 47 gói ok, 0 FAIL (identity 535s, httpapi 522s, tests/e2e 117s); lint `0 issues`; jscpd lần đầu báo 1 clone mới (`noHorizontalScroll` ở `inventory.spec.ts` của main và `roles.spec.ts`) → dời vào `fixtures.ts` → `Found 0 clones`; gen-check, test-guard qua; gitleaks `no leaks found`; vitest `174 passed`; Playwright chromium `66 passed`, sau khi dời `40 passed` (roles, inventory, staff) |
 | Tạo vai trò có quyền người tạo thiếu → từ chối; có đủ → tạo, khóa `custom_` + 8 ký tự | `TestCustomRole_CannotExceedActor`; `TestRolesAPI_CreateUpdateArchive` | `go test -race -v ./internal/modules/identity/`; `go test -race ./internal/httpapi/ -run 'RolesAPI|StaffAPI|ErrorCodes|Route'` | `--- PASS: TestCustomRole_CannotExceedActor (3.49s)`; `ok elimaz.com.vn/crm/internal/httpapi 81.230s` (403 `grant_exceeds_actor`, 201) |
 | Không tự nâng quyền qua vai trò mình giữ; gỡ quyền mình không có, lưu trữ vai trò có quyền mình không có đều bị chặn; quyền theo kho chỉ ở một kho không đủ | `TestCustomRole_CannotExceedActor` | `go test -race -v ./internal/modules/identity/` | PASS |
 | Vai trò Chủ không sửa, không lưu trữ (409 `owner_role_locked`) | `TestCustomRole_OwnerLocked`; `TestRolesAPI_CreateUpdateArchive` | `go test -race -v ./internal/modules/identity/`; `go test -race ./internal/httpapi/ -run 'RolesAPI|StaffAPI|ErrorCodes|Route'` | PASS |
@@ -175,10 +218,16 @@ TestBinaryWorkerHandlesSelftest hết hạn chờ ingest, chạy lại qua), tes
   đã lưu trữ có thể còn `holderCount` > 0. Không mất an toàn (vai trò đã lưu trữ không cho quyền), chỉ là số hiển thị.
 
 - Chưa có "khôi phục" vai trò đã lưu trữ (kế hoạch không có). Cần thì thêm operation `restoreRole`.
-- `listRoles` vẫn đòi `identity.users.manage`; người chỉ có `identity.roles.manage` mở màn Vai trò sẽ thấy câu thiếu
-  quyền. Nếu chủ shop muốn tách hai quyền, đổi `x-permission` của `listRoles` (cần dòng breaking-approved).
+- ~~`listRoles` vẫn đòi `identity.users.manage`…~~ Đã xử lý ở lượt 2 (Quyết định 12).
 
 ## Reviewer
+
+Kết luận lượt 2, commit 1/2 (gộp main lần 3: Task 22, 51, 324): **ĐẠT**. Không có phát hiện về tính đúng; đã đối chiếu
+test menu (chỉ thêm, không nới điều kiện nào), `openapi.yaml` đã gộp đủ operation của hai bên, mã sinh khớp (go vet
+qua), `noHorizontalScroll` dời nguyên thân, `screens.tsx` giữ đủ màn. Ghi chú không bắt buộc (không sửa): ba spec cũ
+(`products`, `staff`, `product-edit`) còn bản cục bộ của `noHorizontalScroll` (jscpd không bắt).
+
+Lượt 1:
 
 Kết luận commit 1/2 (đổi cấu trúc: `identityWrite` generic, `freshGrants`, `nonNil` generic): **ĐẠT**. Không có phát
 hiện về tính đúng; đã đối chiếu thứ tự lỗi nghiệp vụ → lỗi khác → audit, `final=false`, before rỗng khi tạo, fn chạy lại

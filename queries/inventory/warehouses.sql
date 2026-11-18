@@ -8,3 +8,8 @@ ON CONFLICT (tenant_id, code) DO NOTHING;
 
 -- name: GetWarehouseByCode :one
 SELECT id FROM inventory.warehouses WHERE code = @code;
+
+-- name: ListWarehouses :many
+-- Mọi kho của tenant (cả kho đã đóng), kho MAIN trước rồi theo mã (Task M1-51).
+SELECT id, code, name, status FROM inventory.warehouses
+ORDER BY (code = 'MAIN') DESC, code;
