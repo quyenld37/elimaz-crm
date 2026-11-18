@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+
+	"elimaz.com.vn/crm/internal/adapters/cfaccess"
 )
 
 // AccessMFAClaim là tên trường bước hai mặc định của thẻ thử (cấu hình thật: ACCESS_MFA_CLAIM).
@@ -78,6 +80,19 @@ func AccessKeyServer(t testing.TB) *AccessKeys {
 	k.TeamDomain = u.Host
 	k.Client = srv.Client()
 	return k
+}
+
+// Verifier dựng bộ kiểm thẻ thật (cfaccess) trỏ tới máy chủ khóa thử: AUD aud, bước hai AccessMFAClaim với giá trị
+// "mfa" (thẻ Sign có MFA: []string{"mfa"} qua được).
+func (k *AccessKeys) Verifier(t testing.TB, aud string) *cfaccess.Verifier {
+	t.Helper()
+	v, err := cfaccess.New(cfaccess.Options{
+		TeamDomain: k.TeamDomain, AUD: aud, MFAClaim: AccessMFAClaim, MFAValues: []string{"mfa"}, HTTPClient: k.Client,
+	})
+	if err != nil {
+		t.Fatalf("testkit: dựng bộ kiểm thẻ Access: %v", err)
+	}
+	return v
 }
 
 // Rotate thay khóa đang phục vụ bằng khóa mới có kid mới; trả kid mới.

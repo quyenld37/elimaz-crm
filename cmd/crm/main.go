@@ -31,6 +31,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/observability"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime"
 	"elimaz.com.vn/crm/internal/platform/schedules"
 	"elimaz.com.vn/crm/internal/platform/selftest"
 	"elimaz.com.vn/crm/internal/platform/telemetry"
@@ -156,7 +157,13 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		drainer := &webhooks.Drainer{Spool: spool, DB: d, Metrics: reg, Logger: logger}
 		wg.Go(func() { drainer.Run(fctx) })
 	}
-	return serveHTTP(ctx, cfg, d, reg, logger)
+	var hub *realtime.PGHub
+	if cfg.Role == config.RoleAPI {
+		// Kết nối LISTEN riêng của api (ngoài pool, ADR-42 tính thêm 1 kết nối), tự nối lại, dừng cùng vòng ghi chỉ số.
+		hub = realtime.NewPGHub(realtime.PGHubOptions{URL: cfg.DatabaseURL, Metrics: reg, Logger: logger})
+		wg.Go(func() { hub.Run(fctx) })
+	}
+	return serveHTTP(ctx, cfg, d, reg, hub, logger)
 }
 
 // newEvents dựng sổ consumer của sự kiện nội bộ, dùng chung cho api (Emit) và worker (handler); M0 chưa có consumer,
@@ -274,8 +281,11 @@ func syncDefaultRoles(ctx context.Context, cfg config.Config, logger *slog.Logge
 
 // serveHTTP phục vụ HTTP (đo http_ms theo route) tới khi ctx bị hủy, rồi tắt êm trong httpShutdownTimeout. api phục
 // vụ mọi route của hợp đồng (httpapi.NewServer); ingest chỉ có /hooks/*, /health và /health/live, /health/ready.
-func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Registry, logger *slog.Logger) error {
+func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Registry, hub *realtime.PGHub,
+	logger *slog.Logger,
+) error {
 	var handler http.Handler
+	streamStop := make(chan struct{}) // đóng khi Shutdown bắt đầu: luồng SSE kết thúc, client tự nối lại máy mới
 	if cfg.Role == config.RoleAPI {
 		access, err := cfaccess.New(cfaccess.Options{
 			TeamDomain: cfg.AccessTeamDomain, AUD: cfg.AccessAUD,
@@ -284,7 +294,10 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 		if err != nil {
 			return fmt.Errorf("dựng bộ kiểm thẻ Access: %w", err)
 		}
-		handler = httpapi.NewServer(httpapi.Deps{Config: cfg, DB: d, Logger: logger, Access: access})
+		handler = httpapi.NewServer(httpapi.Deps{
+			Config: cfg, DB: d, Logger: logger, Access: access,
+			Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop},
+		})
 	} else {
 		h, err := ingestHandler(cfg, d, reg, logger)
 		if err != nil {
@@ -297,6 +310,7 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 		return fmt.Errorf("mở cổng %d: %w", cfg.Port, err)
 	}
 	srv := &http.Server{Handler: metrics.Middleware(reg, handler), ReadHeaderTimeout: readHeaderTimeout}
+	srv.RegisterOnShutdown(func() { close(streamStop) })
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Serve(ln) }()
 	logger.Info("đang nghe", slog.Int("port", cfg.Port))

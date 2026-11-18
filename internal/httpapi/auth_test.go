@@ -71,14 +71,7 @@ func newAuthEnv(t *testing.T, rl RateLimit) *authEnv {
 // verifier: bộ kiểm thẻ thật (cfaccess) trỏ tới máy chủ khóa thử.
 func (e *authEnv) verifier() *cfaccess.Verifier {
 	e.t.Helper()
-	v, err := cfaccess.New(cfaccess.Options{
-		TeamDomain: e.keys.TeamDomain, AUD: testAUD, MFAClaim: testkit.AccessMFAClaim, MFAValues: []string{"mfa"},
-		HTTPClient: e.keys.Client,
-	})
-	if err != nil {
-		e.t.Fatal(err)
-	}
-	return v
+	return e.keys.Verifier(e.t, testAUD)
 }
 
 // get gửi GET path với thẻ tok trong header cf-access-jwt-assertion (rỗng: không header).

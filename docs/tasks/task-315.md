@@ -135,9 +135,26 @@ không có quyền và không phải route ghi, routegen và `tests/arch` chặn
 `SeedOwner`, hai lần đồng bộ khóa cùng thứ tự; `openOwner` đóng pool, lỗi bọc một lần; Ảnh hưởng khớp diff; câu kiểm
 đổi kỳ vọng là đổi hành vi theo kế hoạch, đã ghi.
 
-Ghi chú không bắt buộc (không sửa trong task này): (1) `checkAuthority` của test rapid dùng chính `Can` làm chuẩn —
+Lượt 1 (commit `13fe6d7`). Ghi chú không bắt buộc (không sửa trong task này): (1) `checkAuthority` của test rapid dùng chính `Can` làm chuẩn —
 câu "không tự nâng quyền" dựa vào lập luận Q3 cộng `Can` khớp `canModel`; (2) chủ shop nên biết: gán `owner`/`manager`
 theo một kho cho toàn bộ quyền `none` của vai trò trên toàn shop; khi Task M1-56 cho sửa vai trò, thêm
 `identity.users.manage` vào vai trò hay gán theo kho sẽ mở quản lý nhân viên toàn shop; (3) Task M1-56: transaction
 sửa vai trò khóa `roles` trước `role_permissions` (ADR-46 nhóm 2), làm ngược có thể deadlock với `FOR SHARE` của bước
 đồng bộ; (4) `TestSyncDefaultRoles` giả định mỗi test một database riêng (đúng với testkit hiện tại).
+
+## Lượt 2
+
+Giao ngày 18/11/2026 (điều phối viên): (1) gộp `main` (Task 16 realtime, luật `x-authenticated` trong luật hợp đồng
+API); (2) quyền quản trị chỉ có hiệu lực từ gán vai trò toàn shop. Hai commit, mỗi commit qua reviewer.
+
+### 2a. Gộp main (commit merge)
+
+- `git merge main` (không rebase). Tự gộp: `cmd/crm/main.go`, `openapi/openapi.yaml`, `internal/httpapi/auth_test.go`,
+  mã sinh ogen. Xung đột duy nhất: tệp trạng thái task (giữ "Task 315, đang làm" bằng `new-task.sh`).
+- Sau gộp: `make gen` không chênh với bản đã gộp (gen-check của `make ci` qua); `make ci` `exit=0`
+  (`ok …/tests/arch`, `ok …/tests/e2e`, govulncheck, oasdiff, jscpd 0 clone, test-guard, gitleaks).
+- Việc phát hiện thêm của lượt 1 về luật `openapi.md`: `main` đã có mục 7 `x-authenticated` — xong.
+- Reviewer (commit merge): **ĐẠT**, không phát hiện phải sửa. Kiểm: `main.go` giữ `syncDefaultRoles` và hub realtime;
+  `getMe` giữ `x-authenticated`, `stream` giữ `x-permission: realtime.subscribe`; `routes_gen.go` khớp; `auth_test.go`
+  dùng `testkit.AccessKeys.Verifier` mới, ca `/me` của 315 còn đủ; hub SSE lọc bằng chính `identity.Can` nên theo
+  nghĩa mới. Gợi ý cho 2b: thêm ca SSE "báo hiệu cần quyền quản trị không tới người chỉ có quyền đó theo trang".
