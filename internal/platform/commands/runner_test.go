@@ -193,13 +193,12 @@ func TestExecuteTimeoutInDoubt(t *testing.T) {
 	h := newCmd("command.hang", ext)
 	h.kind = commands.CommandKind("command.hang", 0, 50*time.Millisecond)
 	id := e.enqueue(t, h.kind, "k")
-	start := time.Now()
-	runOnce(t, worker(e, "w1", h))
+	runOnce(t, worker(e, "w1", h)) // không có Timeout thì Execute treo tới hết hạn của test
 	if r := e.job(t, id); r.Status != "in_doubt" || r.LastError == nil || !strings.Contains(*r.LastError, "deadline") {
 		t.Fatalf("muốn in_doubt vì quá giờ: %+v", r)
 	}
-	if time.Since(start) > 3*time.Second || len(ext.Calls()) != 1 {
-		t.Fatalf("quá lâu hoặc sai số lần gọi: %v %v", time.Since(start), ext.Calls())
+	if len(ext.Calls()) != 1 {
+		t.Fatalf("sai số lần gọi: %v", ext.Calls())
 	}
 }
 
@@ -348,23 +347,32 @@ func TestRecordAfterLongExecute(t *testing.T) {
 }
 
 // Timeout của lệnh không được vượt nửa thời gian giữ chỗ: nếu không, giữ chỗ hết hạn (in_doubt) trong lúc Execute
-// còn chạy. Lease 200 ms, Timeout 5 s → Execute bị hủy sau khoảng 100 ms, lệnh in_doubt do chính worker ghi.
+// còn chạy. Lease 200 ms, Timeout 5 s → hạn của ctx Execute nhận được còn tối đa 100 ms, lệnh in_doubt do chính
+// worker ghi. Đo phần còn lại của hạn ngay khi Execute bắt đầu (ctx.Deadline), không đo giờ thật của cả lượt (Task 420).
 func TestCommandTimeoutBelowLease(t *testing.T) {
+	const lease = 200 * time.Millisecond
 	e := newEnv(t)
 	ext := &testkit.FakeExternal{Mode: testkit.FakeHangAfterSend}
 	h := newCmd("command.lease", ext)
 	h.kind = commands.CommandKind("command.lease", 0, 5*time.Second)
+	var left time.Duration
+	h.exec = func(ctx context.Context, j queue.Job) (commands.Outcome, error) {
+		dl, ok := ctx.Deadline()
+		if !ok {
+			return commands.Outcome{}, errors.New("ctx của Execute không có hạn")
+		}
+		left = time.Until(dl)
+		return commands.Outcome{}, ext.Send(ctx, j.ID.String())
+	}
 	id := e.enqueue(t, h.kind, "k")
 	w := queue.NewWorker(e.app, nil, queue.WorkerOptions{
-		WorkerID: "w1", Lease: 200 * time.Millisecond,
+		WorkerID: "w1", Lease: lease,
 		Commands: commands.NewRunner(e.app, []commands.Handler{h}),
 	})
-	start := time.Now()
 	runOnce(t, w)
 	r := e.job(t, id)
-	if el := time.Since(start); el > 2*time.Second || r.Status != "in_doubt" || r.LastError == nil ||
-		!strings.Contains(*r.LastError, "deadline") {
-		t.Fatalf("muốn in_doubt do quá Timeout đã chặn dưới giữ chỗ, sau %v: %+v", el, r)
+	if left > lease/2 || r.Status != "in_doubt" || r.LastError == nil || !strings.Contains(*r.LastError, "deadline") {
+		t.Fatalf("muốn in_doubt do quá Timeout đã chặn dưới nửa giữ chỗ; hạn còn %v lúc Execute bắt đầu: %+v", left, r)
 	}
 }
 

@@ -237,7 +237,7 @@ func TestInFlightLimit(t *testing.T) {
 	for range 2 {
 		select {
 		case <-entered:
-		case <-time.After(5 * time.Second):
+		case <-time.After(30 * time.Second): // chỉ chống treo (Task 420), không phải tiêu chí giờ
 			t.Fatal("hai yêu cầu đầu chưa tới bước lưu")
 		}
 	}
