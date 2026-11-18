@@ -3,6 +3,7 @@ import type { ScreenRoute } from "../../app/loadScreens";
 import { Balances } from "./Balances";
 import { DocumentEdit } from "./DocumentEdit";
 import { DocumentList } from "./DocumentList";
+import { StocktakeSession, StocktakeStart } from "./Stocktake";
 import { Suppliers } from "./Suppliers";
 
 export const screens: readonly ScreenRoute[] = [
@@ -34,6 +35,26 @@ export const screens: readonly ScreenRoute[] = [
     hidden: true,
     order: 20,
     element: <DocumentEdit />,
+  },
+  // Task 329: Kiểm kho trên điện thoại (mockup docs/mockups/m1/kho-kiem-kho.html). Thứ tự theo khung.js: Tồn kho, Phiếu
+  // kho, Kiểm kho, Nhà cung cấp. Mỗi phiên có đường dẫn riêng để gửi cho người cùng đếm.
+  {
+    path: "/kho/kiem-kho",
+    label: "Kiểm kho",
+    group: "Kho",
+    permission: "inventory.stocktake",
+    order: 30,
+    also: ["/kho/kiem-kho/:id"],
+    element: <StocktakeStart />,
+  },
+  {
+    path: "/kho/kiem-kho/:id",
+    label: "Kiểm kho",
+    group: "Kho",
+    permission: "inventory.stocktake",
+    order: 31,
+    hidden: true,
+    element: <StocktakeSession />,
   },
   // Task 327: Nhà cung cấp (mockup docs/mockups/m1/kho-nha-cung-cap.html).
   {

@@ -1117,6 +1117,7 @@ export { ApiError, ERROR_MESSAGES, NetworkError, TEXT_NETWORK, TEXT_UNKNOWN_ERRO
 export type { ClientResult } from "../app/errors";
 export { TOPICS, createQueryClient, onRealtimeChanged, onRealtimeResync, queryKey, shouldRetry } from "../app/queryClient"; // Lớp lấy dữ liệu: khóa truy vấn theo chủ đề realtime, nối báo hiệu changed/resync vào TanStack Query.
 export type { Topic } from "../app/queryClient";
+export { VN_TIME_ZONE, shortTime } from "../app/time"; // Giờ hiện trên màn hình theo múi Việt Nam: "HH:mm dd/MM".
 export { NAV_GROUPS, allowedScreens, hasPermission, navSections } from "../app/nav"; // Menu và định tuyến: mỗi màn tự đăng ký bằng src/screens/<tên>/route.tsx (src/app/loadScreens.ts); menu chỉ hiện màn có quyền.
 export type { NavGroup, NavSection, Screen } from "../app/nav";
 export { Layout } from "../shell/Layout"; // Khung điều hướng theo mockup M1: menu trái, thanh trên 56 px, menu trượt trên điện thoại.
