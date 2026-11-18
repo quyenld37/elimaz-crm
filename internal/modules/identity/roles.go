@@ -133,8 +133,8 @@ func roleIndex(roles []RoleRow) map[string]RoleRow {
 }
 
 // hasAllPermissions: mỗi quyền của role thỏa Can(actor, p, &scope). Quyền ScopeNone có hiệu lực toàn shop từ grant ở
-// bất kỳ phạm vi nào (Task 315), nên actor chỉ cần có nó ở một grant: người được gán không nhận được quyền hiệu lực
-// nào mà actor không có.
+// bất kỳ phạm vi nào (Task 315), nên actor chỉ cần có nó ở một grant; quyền ScopeShop đòi actor có nó ở phạm vi all
+// dù gán theo kho (Task 315 lượt 2): người được gán không nhận được quyền hiệu lực nào mà actor không có.
 func hasAllPermissions(actor AuthUser, role RoleRow, scope Scope) bool {
 	return !slices.ContainsFunc(role.Permissions, func(p Permission) bool { return !Can(actor, p, &scope) })
 }

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -159,8 +160,8 @@ func TestAuthUsersAndGrants(t *testing.T) {
 
 	expect(t, "email không có định tuyến", e.get("/api/v1/_probe", e.token("la@elimaz.test")), 403, "forbidden")
 	expect(t, "user locked", e.get("/api/v1/_probe", e.token("khoa@elimaz.test")), 403, "forbidden")
-	// Task 315: quyền không theo đích (audit.read) có hiệu lực từ grant ở bất kỳ phạm vi nào.
-	expect(t, "audit.read chỉ trên page:p1", e.get("/api/v1/_probe", e.token("page@elimaz.test")), 200, "")
+	// Task 315 lượt 2: audit.read là quyền quản trị (toàn shop), grant theo page không có hiệu lực.
+	expect(t, "audit.read chỉ trên page:p1", e.get("/api/v1/_probe", e.token("page@elimaz.test")), 403, "forbidden")
 	for _, p := range []string{"/api/v1/_probe", "/api/v1/_probe/page/p1", "/api/v1/_probe/stream"} {
 		expect(t, "không grant "+p, e.get(p, e.token("moi@elimaz.test")), 403, "forbidden")
 	}
@@ -262,5 +263,82 @@ func TestWarehouseScopedRole(t *testing.T) {
 	moi := e.token("moi@elimaz.test")
 	for _, p := range []string{"/api/v1/_probe", "/api/v1/_probe/catalog", "/api/v1/_probe/warehouse/kho-a"} {
 		expect(t, "không gán "+p, e.get(p, moi), 403, "forbidden")
+	}
+}
+
+// Task 315 lượt 2: quyền quản trị chỉ hiệu lực từ gán toàn shop. Chủ gán theo kho A: không quản lý được nhân viên
+// (403), không xem nhật ký (403), vẫn đọc sản phẩm và ghi phiếu kho A (200); /me không liệt kê quyền quản trị không
+// hiệu lực mà trả kèm cảnh báo. Chủ gán toàn shop quản lý được (200), /me không cảnh báo.
+func TestOwnerScopedToWarehouse(t *testing.T) {
+	e := newAuthEnv(t, RateLimit{})
+	a := e.staff.Tenant(t, "A")
+	e.staff.Exec(t, a, func(tx pgx.Tx) error { return identity.EnsureDefaultRoles(t.Context(), tx, a) })
+	for email, scope := range map[string][2]string{"chukho@elimaz.test": {"warehouse", "kho-a"}, "chu@elimaz.test": {"all", ""}} {
+		uid := e.staff.User(t, a, email, "active")
+		e.staff.Exec(t, a, func(tx pgx.Tx) error {
+			_, err := tx.Exec(t.Context(), `INSERT INTO identity.user_role_grants (tenant_id, user_id, role_id, scope_type, scope_id)
+				SELECT $1, $2, id, $3, $4 FROM identity.roles WHERE key = 'owner'`, a, uid, scope[0], scope[1])
+			return err //nolint:wrapcheck // test
+		})
+	}
+	srv := NewServer(Deps{Config: config.Config{}, DB: e.staff.App, Logger: slog.New(slog.NewJSONHandler(e.logs, nil)), Access: e.verifier()})
+	serve := func(path, email string) *httptest.ResponseRecorder {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
+		req.Header.Set("Cf-Access-Jwt-Assertion", e.token(email))
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+		return rec
+	}
+	chuKho, chu := e.token("chukho@elimaz.test"), e.token("chu@elimaz.test")
+	expect(t, "Chủ theo kho A → quản lý nhân viên", serve("/api/v1/identity/users", "chukho@elimaz.test"), 403, "forbidden")
+	expect(t, "Chủ theo kho A → việc nền", serve("/api/v1/platform/jobs", "chukho@elimaz.test"), 403, "forbidden")
+	expect(t, "Chủ theo kho A → nhật ký", e.get("/api/v1/_probe", chuKho), 403, "forbidden")
+	expect(t, "Chủ theo kho A → đọc sản phẩm", e.get("/api/v1/_probe/catalog", chuKho), 200, "")
+	expect(t, "Chủ theo kho A → phiếu kho A", e.get("/api/v1/_probe/warehouse/kho-a", chuKho), 200, "")
+	expect(t, "Chủ theo kho A → phiếu kho B", e.get("/api/v1/_probe/warehouse/kho-b", chuKho), 403, "forbidden")
+	expect(t, "Chủ toàn shop → quản lý nhân viên", serve("/api/v1/identity/users", "chu@elimaz.test"), 200, "")
+	expect(t, "Chủ toàn shop → nhật ký", e.get("/api/v1/_probe", chu), 200, "")
+
+	type grantJSON struct {
+		Permission string `json:"permission"`
+	}
+	type meBody struct {
+		Grants   []grantJSON `json:"grants"`
+		Warnings []struct {
+			Code        string   `json:"code"`
+			Message     string   `json:"message"`
+			ScopeType   string   `json:"scopeType"`
+			ScopeID     string   `json:"scopeId"`
+			Permissions []string `json:"permissions"`
+		} `json:"warnings"`
+	}
+	me := func(email string) meBody {
+		rec := serve("/api/v1/me", email)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("/me của %s: %d %s", email, rec.Code, rec.Body.String())
+		}
+		var b meBody
+		if err := json.Unmarshal(rec.Body.Bytes(), &b); err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+	mk := me("chukho@elimaz.test")
+	for _, g := range mk.Grants {
+		if k := identity.KindOf(identity.Permission(g.Permission)); k == identity.ScopeShop {
+			t.Errorf("/me của Chủ theo kho liệt kê quyền quản trị không hiệu lực %s", g.Permission)
+		}
+	}
+	if len(mk.Grants) == 0 || len(mk.Warnings) != 1 {
+		t.Fatalf("/me của Chủ theo kho: mong grant thường và đúng 1 cảnh báo, có %+v", mk)
+	}
+	w := mk.Warnings[0]
+	if w.Code != "admin_needs_shop_scope" || w.Message != "Quyền quản trị chỉ hiệu lực khi gán toàn shop" ||
+		w.ScopeType != "warehouse" || w.ScopeID != "kho-a" || !slices.Contains(w.Permissions, "identity.users.manage") ||
+		slices.Contains(w.Permissions, "catalog.read") {
+		t.Fatalf("cảnh báo sai: %+v", w)
+	}
+	if mc := me("chu@elimaz.test"); len(mc.Warnings) != 0 || !slices.Contains(mc.Grants, grantJSON{"identity.users.manage"}) {
+		t.Fatalf("/me của Chủ toàn shop: mong có identity.users.manage, không cảnh báo, có %+v", mc)
 	}
 }

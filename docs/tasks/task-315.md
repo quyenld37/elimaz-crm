@@ -118,7 +118,7 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
 ## Việc phát hiện thêm
 
 - (Xong trên main, mục 7 của luật `openapi.md`.) ~~Tệp luật hợp đồng API cần thêm `x-authenticated`.~~
-- `make ci` đỏ trên mọi nhánh có `console/node_modules` (từ Task 17): gói npm `flatted` chứa tệp Go
+- (Xong trên main ở `aa981b3`, `console/go.mod`; đã gộp ở lần 4.) `make ci` đỏ trên mọi nhánh có `console/node_modules` (từ Task 17): gói npm `flatted` chứa tệp Go
   (`golang/pkg/flatted`), `go list ./...` gồm nó nên `golangci-lint run ./...` và `TestLintCleanOnRealCode` đỏ
   (cũng lọt vào vet, test, govulncheck). Cách sửa gợi ý cho một task riêng: một `go.mod` rỗng trong
   `console/node_modules` (bước `console-deps`) hoặc lọc `node_modules` khỏi danh sách gói của Makefile và test lint.
@@ -176,3 +176,120 @@ API); (2) quyền quản trị chỉ có hiệu lực từ gán vai trò toàn s
     (tệp Go trong gói npm, `go list ./...` gồm nó) — lỗi của `main` từ Task 17, không do gộp; lint trên mọi gói trừ
     `node_modules`: `0 issues`; `go test ./tests/arch/ -skip TestLintCleanOnRealCode` `ok`. Ghi ở Việc phát hiện thêm.
   - `internal/imager` hai test đo thời gian đỏ khi máy tải 20 trên 10 lõi; chạy riêng `-count=2` `ok`.
+### 2b. Quyền quản trị chỉ hiệu lực khi gán toàn shop
+
+Quyết định của điều phối viên (18/11): hệ quả Q3 của lượt 1 (gán Chủ/Quản lý cho một kho thì có quyền quản trị cả
+shop) không chấp nhận. Thêm loại phạm vi thứ ba cho quyền.
+
+#### Ảnh hưởng (2b)
+
+- Ký hiệu Go xuất ra ngoài:
+  - Mới: `identity.ScopeShop` (loại phạm vi "toàn shop": chỉ hiệu lực từ grant `all`). Sáu quyền đổi từ `ScopeNone`
+    sang `ScopeShop`: `identity.users.manage`, `identity.roles.manage`, `platform.jobs.manage`, `platform.health.read`,
+    `platform.files.manage`, `audit.read` (Q6).
+  - `identity.Can` giữ chữ ký, thêm nhánh `ScopeShop` (11 chỗ gọi ngoài gói + trong gói như lượt 1; không chỗ nào sửa
+    mã: `guard.go`, `checkActor`, `hasAllPermissions`/`canTouch`, hub realtime `pghub.go` đều theo nghĩa mới).
+  - Mới: `identity.Effective(g Grant) bool`, `identity.ScopeWarning` + `identity.ShopOnlyWarnings(roles, grants)`;
+    `identity.StaffRow` thêm trường `Warnings` (điền ở `ListStaff`, `GetStaff`; 16 chỗ dùng `StaffRow` ở
+    `staff.go`, `handlers_identity.go`, `staff_test.go` — thêm trường, không đổi chỗ dùng cũ).
+  - `realtime/bus.go`: chỉ đọc `KindOf == ScopeByTarget`, không đổi.
+- Gói phụ thuộc ngược: `cmd/crm`, `internal/adapters/cfaccess`, `internal/httpapi`, `internal/platform/realtime`,
+  `tests/arch`, `tests/e2e`.
+- Operation OpenAPI: `getMe` (`Me` thêm `warnings` không bắt buộc; `grants` chỉ còn grant có hiệu lực — Q7),
+  `listStaff`, `createStaff`, `replaceStaffGrants`, `lockStaff`, `unlockStaff` (`StaffMember` thêm `warnings` không
+  bắt buộc). Lược đồ mới `ScopeWarning`. Thêm trường trả về không bắt buộc: không phá vỡ (oasdiff).
+- Màn hình: chưa có màn nhân viên (Task M1-56); console chỉ đọc `/me`.
+- Câu sqlc, bảng, migration: không đổi (vai trò, grant giữ nguyên; chỉ đổi cách tính hiệu lực).
+- Test sẽ chạy: vùng cao → cả bộ `./internal/modules/identity/...`, `./internal/httpapi/...`; `./internal/platform/realtime/...`
+  (hub lọc bằng `Can`), `./tests/arch/...`, `./tests/e2e/...`; rồi `make ci`.
+
+#### Tái dùng (2b)
+
+- Kiểm `docs/danh-muc-dung-chung.md`, tìm "scope", "warning", "effective" trong mã: chưa có hàm tính grant hiệu lực
+  hay cảnh báo. Dùng lại `identity.KindOf`, `identity.ListRoles` (quyền của vai trò, cho cảnh báo), `roleIndex`.
+  Không thêm câu SQL.
+
+#### Soát thiết kế (2b)
+
+- 5.1 Luật hiệu lực của quyền thuộc `identity` (`Can`, `Effective`, `ShopOnlyWarnings`); `httpapi` chỉ đổi sang JSON
+  và gắn câu báo.
+- 5.8 Module không nhập `net/http`; câu báo tiếng Việt ở `httpapi`.
+- 6.11 Quy luật `Can` có rapid (`TestCanProperty`, `canModel` thêm nhánh `ScopeShop`); PQ07
+  (`TestStaffInvariantsProperty`) phải vẫn đạt.
+- 6.13 Mặc định từ chối chặt hơn: quyền quản trị chỉ từ grant `all`. Gán quyền (PQ07) không đổi mã: `hasAllPermissions`
+  gọi `Can(actor, p, &scope)`, quyền `toàn shop` đòi người gán có nó ở `all`, nên Chủ theo kho không gán, khóa, mở
+  được ai (đã bị guard chặn trước ở `identity.users.manage`). Không ai nhận quyền hiệu lực mà người gán không có.
+- 6.2, 6.4, 6.5: không đường ghi mới, không khóa mới. 6.10: không tiền. 6.12: cảnh báo chỉ có khóa vai trò, phạm vi,
+  khóa quyền; không email.
+
+#### Gộp main lần 3, 4 (trong lúc làm 2b)
+
+- Lần 3 (`b8d2f61`): Task 18 (test e2e, selftest). Lần 4 (`2e34891`): Task 41 (FileStore, `openapi.yaml` thêm
+  `/api/v1/files/*`) và `console/go.mod` (sửa lỗi lint `node_modules`). Cả hai gộp không xung đột, git tự tạo commit
+  merge (cổng commit cho qua vì mọi tệp trùng bản đã duyệt của `main`). Phần 2b cất bằng stash có nhãn rồi lấy lại;
+  ở lần 4 mã sinh (`console/src/api/index.ts`) xung đột → sinh lại bằng `make gen`, không sửa tay.
+
+#### Quyết định thay chủ shop (2b)
+
+- **Q6 — Danh sách quyền quản trị.** Điều phối viên nêu `identity.staff.*` (CRM đặt tên `identity.users.manage`),
+  `identity.roles.*`, `platform.*`, mọi quyền ghi chính sách toàn shop. Chọn sáu quyền `toàn shop`:
+  `identity.users.manage`, `identity.roles.manage`, `platform.jobs.manage`, `platform.health.read`,
+  `platform.files.manage`, và thêm `audit.read`. Vì `audit.read`: nhật ký ghi thao tác của cả shop (gồm quản lý nhân
+  viên), spec 07 (ADR về một nơi quản lý) xếp "Nhật ký thao tác" cùng nhóm vận hành/quản trị; chặt hơn là an toàn.
+  M1 chưa có quyền ghi chính sách toàn shop (cài đặt, mã giảm giá, phí ship…); `docs/quyen.md` ghi luật: quyền như vậy
+  thêm sau là `toàn shop`. `catalog.manage`, `catalog.import`, `inventory.suppliers.manage`, `order.*`, `files.upload`
+  giữ `none` (dữ liệu nghiệp vụ, không phải chính sách). Đảo ngược: đổi một dòng trong `Permissions` và `docs/quyen.md`.
+- **Q7 — `/me` liệt kê gì.** Chọn: `grants` chỉ còn grant có hiệu lực (`identity.Effective`), grant quản trị theo kho
+  chuyển sang `warnings` (gộp theo phạm vi, quyền đã sắp, không có `roleKey`). Vì: màn hình dựa vào `grants` để hiện
+  menu; liệt kê quyền không hiệu lực sẽ hiện nút bấm ra 403. Phương án khác: giữ nguyên `grants` và chỉ thêm
+  `warnings` (màn hình phải tự lọc).
+- **Q8 — Cảnh báo ở đâu, dạng gì.** Lược đồ `ScopeWarning {code: admin_needs_shop_scope, message, roleKey?, scopeType,
+  scopeId, permissions}` ở `StaffMember.warnings` (mọi thao tác nhân viên và danh sách) và `Me.warnings`; câu báo
+  "Quyền quản trị chỉ hiệu lực khi gán toàn shop" đặt ở `httpapi` (module không chứa chữ cho màn hình). Thêm trường
+  trả về không bắt buộc: oasdiff không coi là phá vỡ. Gán vẫn lưu, không lỗi (đúng lệnh điều phối viên).
+- **Q9 — Luật gán (PQ07) không đổi mã.** `hasAllPermissions` dùng `Can`, nên gán (hay khóa người có) vai trò chứa quyền
+  `toàn shop`, dù theo kho, đòi người gán có quyền đó ở gán toàn shop. Chặt hơn lượt 1; không ai cấp được quyền mình
+  không có hiệu lực.
+- **Q10 — Ngoại lệ luật "không đổi loại phạm vi của quyền đã có"** (`docs/quyen.md`): đổi sáu quyền theo lệnh của điều
+  phối viên; ghi ngoại lệ ngay trong luật.
+
+#### Khác kế hoạch, test đổi kỳ vọng (2b)
+
+- `TestAuthUsersAndGrants`: "audit.read chỉ trên page:p1" 200 → 403 (lượt 1 đã đổi 403 → 200; giờ `audit.read` là
+  quyền quản trị). `TestCanTable`: các ca dùng `audit.read` cho "quyền không theo đích từ grant theo phạm vi" chuyển
+  sang `realtime.subscribe`/`catalog.read`; thêm ca quản trị. `TestPermissionsList`: sáu quyền mong `ScopeShop`.
+  `canModel` thêm nhánh `ScopeShop`. Không xóa, không tắt test.
+- Ca SSE mới (gợi ý của reviewer lượt 2a) viết riêng thì jscpd báo trùng; gộp vào `TestHubFiltersByRequiredPermissionNotScopeOnly`
+  (cùng người dùng `audit.read` theo `page:p2`), thêm báo hiệu cần `audit.read`.
+
+#### Bằng chứng (2b)
+
+Test đỏ trước (trước khi có mã): `go vet` báo `undefined: identity.ScopeShop` ở `permissions_doc_test.go`,
+`auth_test.go`; ca SSE: `--- FAIL … khung đầu phải là marker (báo hiệu audit.read bị lọc), có changed {"topic":"t.audit"…}`.
+
+| Tiêu chí | Test | Lệnh | Kết quả |
+|---|---|---|---|
+| Chủ gán theo kho A: quản lý nhân viên 403, việc nền 403, nhật ký 403; đọc sản phẩm 200, phiếu kho A 200, kho B 403; Chủ toàn shop: quản lý nhân viên 200, nhật ký 200 | `TestOwnerScopedToWarehouse` | `go test -race -count=1 -v ./internal/modules/identity/... ./internal/httpapi/... ./internal/platform/realtime/... ./tests/e2e/... …` | `--- PASS: TestOwnerScopedToWarehouse (1.82s)` |
+| `/me` của Chủ theo kho: không liệt kê quyền quản trị, 1 cảnh báo `admin_needs_shop_scope` đúng câu, đúng kho, có `identity.users.manage`, không có `catalog.read`; Chủ toàn shop: không cảnh báo | `TestOwnerScopedToWarehouse` | như trên | như trên |
+| Gán `owner` theo kho w1: 200, thân và `listStaff` kèm cảnh báo (vai trò, phạm vi, quyền); người được gán liệt kê nhân viên 403; gán lại toàn shop: không cảnh báo, 200 | `TestStaffAPI_AdminRoleScopedWarning` | như trên | `--- PASS: TestStaffAPI_AdminRoleScopedWarning (0.65s)` |
+| `Can`: quyền toàn shop chỉ từ grant all; quyền `none` vẫn từ mọi phạm vi; theo đích không đổi | `TestCanTable`, `TestCanProperty` (rapid), `TestEffective` | như trên | `--- PASS` cả ba |
+| Cảnh báo tính đúng (chỉ gán hẹp, chỉ quyền toàn shop, sắp, vai trò lạ bỏ qua) | `TestShopOnlyWarnings` | như trên | `--- PASS: TestShopOnlyWarnings` |
+| Hub SSE không gửi báo hiệu `audit.read` cho grant theo trang | `TestHubFiltersByRequiredPermissionNotScopeOnly` | như trên | `--- PASS (0.70s)` |
+| PQ07 vẫn đúng | `TestStaffInvariantsProperty` (200 lượt) | như trên | `--- PASS (23.48s)` |
+| `docs/quyen.md` khớp mã (loại `toàn shop`) | `TestPermissionsDoc_MatchesCode`, `TestPermissionsList` | như trên | `--- PASS` |
+| Ca lượt 1 còn đúng | `TestWarehouseScopedRole`, `TestGetMe`, `TestAuthUsersAndGrants` | như trên | `--- PASS` cả ba |
+| Toàn bộ cổng kiểm sau gộp lần 4 | — | `make ci` (lint `0 issues`, mọi gói `ok`); `TestLintCleanOnRealCode` lần đầu đỏ vì golangci-lint của phiên khác đang chạy (khóa), chạy lại `go test -race ./tests/arch/` `ok`; `make vuln oasdiff catalog-check jscpd test-guard gitleaks` | `exit=0`; console `tsc --noEmit` qua, `npm test` 35 qua |
+
+
+#### Reviewer (2b)
+
+Kết luận: **ĐẠT** (lần 1, không có phát hiện phải sửa). Reviewer kiểm: mọi nhánh của `Can` mới (quyền lạ, `all`,
+`ScopeShop` bỏ grant hẹp, `ScopeNone`/theo đích giữ như cũ); không đường kiểm quyền nào vượt `Can` (guard, hub SSE,
+`checkActor`, `CreateStaff`, `afterChecks`, `hasAllPermissions`/`canTouch`; `ScopesFor` chưa có chỗ gọi); PQ07 chặt
+hơn, không tự nâng quyền; `ListRoles` thêm trong `GetStaff` là SELECT thường, không đổi thứ tự khóa ADR-46; `/me` lọc
+bằng `Effective`; hợp đồng thêm trường không bắt buộc, mã sinh khớp; audit không ghi cảnh báo.
+
+Ghi chú không bắt buộc (không sửa trong task này): (1) `canModel` có cùng cấu trúc với `Can`, phần độc lập do
+`TestCanTable` bù; (2) chú thích "50 yêu cầu song song…" trong `handlers_identity_test.go` giờ nằm trên test mới thay
+vì trên `TestStaffAPI_ReplaceGrantsIdempotent` (chỉ tài liệu); (3) nếu sau này dùng `ScopesFor` cho quyền
+`toàn shop` thì phải lọc bằng `Effective`.
