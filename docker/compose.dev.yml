@@ -96,7 +96,8 @@ services:
       seaweedfs-offsite:
         condition: service_healthy
 
-  # Giải mã ảnh (ADR-45, Task M1-42). Không biến bí mật, không database; chỉ mạng `imaging` với kho tệp.
+  # Giải mã ảnh (ADR-45, Task M1-42). Không biến bí mật, không database; chỉ mạng `imaging` (internal) với kho tệp.
+  # Không mở cổng: Docker bỏ cổng mở của container chỉ nằm trên mạng internal; cổng ra máy qua imager-port.
   imager:
     profiles: [imager]
     build:
@@ -108,8 +109,6 @@ services:
       IMAGER_MAX_PARALLEL: "2"
       IMAGER_STEP_TIMEOUT: 10s
       IMAGER_STEP_MEMORY: "1073741824"
-    ports:
-      - "127.0.0.1:${CRM_IMAGER_PORT:-4193}:4193"
     networks: [imaging]
     read_only: true
     tmpfs:
@@ -119,6 +118,23 @@ services:
     user: "65534:65534"
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
+
+  # Chuyển cổng 127.0.0.1:4193 của máy tới imager:4193 cho worker dev chạy trên máy (Task M1-42, Q1 của task-42.md).
+  # Chỉ chuyển đúng một đích; imager gọi tới đây chỉ quay về chính nó. Production không có dịch vụ này (worker nằm
+  # trong mạng imaging).
+  imager-port:
+    profiles: [imager]
+    # alpine/socat:1.8.0.3, digest lấy ngày 18/11/2026; chỉ dev
+    image: alpine/socat:1.8.0.3@sha256:beb4a68d9e4fe6b0f21ea774a0fde6c31f580dde6368939ed70100c5385b015e
+    command: ["TCP-LISTEN:4193,fork,reuseaddr", "TCP:imager:4193"]
+    ports:
+      - "127.0.0.1:${CRM_IMAGER_PORT:-4193}:4193"
+    networks: [default, imaging]
+    read_only: true
+    user: "65534:65534"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on: [imager]
 
   # Hãng vận chuyển giả (Task M1-31), chỉ dev và staging.
   fakecarrier:
@@ -142,10 +158,12 @@ services:
         condition: service_healthy
 
 networks:
-  # Mạng riêng của imager: chỉ imager, kho tệp chính (và worker khi worker chạy trong compose). Không `internal: true`
-  # ở dev: Docker bỏ cổng mở ra máy của container chỉ nằm trên mạng internal (đo 18/11/2026, task-40.md Q3), mà worker
-  # dev chạy trên máy cần gọi 127.0.0.1:4193. Chặn imager ra internet là việc của compose production.
-  imaging: {}
+  # Mạng riêng của imager: chỉ imager, kho tệp chính, imager-port (và worker khi worker chạy trong compose).
+  # `internal: true` (Task M1-42): mạng bridge thường có gateway, và trên Docker 29 của máy dev container ở mạng này
+  # nối được PostgreSQL theo IP của mạng default qua gateway (đo 18/11/2026, task-42.md Q1); internal thì không có
+  # gateway, imager không ra internet, không tới mạng khác. Compose production làm đúng như vậy.
+  imaging:
+    internal: true
 
 volumes:
   pgdata:

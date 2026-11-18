@@ -9,6 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.10
 	github.com/aws/smithy-go v1.28.9
 	github.com/exaring/otelpgx v0.13.0
+	github.com/gabriel-vasile/mimetype v1.4.16
 	github.com/go-faster/errors v0.8.0
 	github.com/go-faster/jx v1.2.0
 	github.com/golang-jwt/jwt/v5 v5.3.1

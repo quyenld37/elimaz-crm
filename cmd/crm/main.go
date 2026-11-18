@@ -342,7 +342,10 @@ func healthcheck(ctx context.Context, cfg config.Config) error {
 	defer cancel()
 	switch cfg.Role {
 	case config.RoleIngest, config.RoleAPI:
-		return checkLive(ctx, cfg.Port)
+		if err := observability.CheckLive(ctx, cfg.Port, healthcheckTimeout); err != nil {
+			return fmt.Errorf("kiểm /health/live: %w", err)
+		}
+		return nil
 	case config.RoleWorker:
 		d, err := db.Open(ctx, cfg.DatabaseURL, db.PoolOptions{MaxConns: 1})
 		if err != nil {
@@ -360,22 +363,4 @@ func healthcheck(ctx context.Context, cfg config.Config) error {
 	case config.RoleMigrate:
 	}
 	return errNoHealthcheck
-}
-
-func checkLive(ctx context.Context, port int) error {
-	url := "http://" + net.JoinHostPort("127.0.0.1", strconv.Itoa(port)) + "/health/live"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return fmt.Errorf("tạo yêu cầu: %w", err)
-	}
-	resp, err := (&http.Client{Timeout: healthcheckTimeout}).Do(req)
-	if err != nil {
-		return fmt.Errorf("gọi %s: %w", url, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	_, _ = io.Copy(io.Discard, resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s trả %d", url, resp.StatusCode)
-	}
-	return nil
 }
