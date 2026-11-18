@@ -94,6 +94,9 @@ Lệnh chung: `go test -race -count=1 -run '<tên>' <gói>`.
 | Ingest: panic → 500 `internal`, dòng panic role ingest, log/span sạch, phục vụ tiếp; database ngừng (quá hạn ctx, `PgError` 57014, 57P01, 53300, 08006, lỗi lúc nối) → không ghi; tệp tạm lỗi → ghi | `TestIngestPanicRecordedAndScrubbed`, `TestIngestDatabaseDownNotRecorded`, `TestIngestSpoolErrorRecorded` | như trên | `--- PASS` (trước khi sửa: panic làm rớt kết nối `EOF`, không có dòng) |
 | Test kiến trúc cấm `x.Error()` và biến lỗi thô trong lời gọi slog | `TestRawErrorLogReportsSample` (4 mẫu), `TestRawErrorLogProductCode` | lệnh chung, `./tests/arch/` | `ok` (trước khi sửa: FAIL, 9 chỗ ở `cmd/crm`, `cmd/imager`, `metrics`, `realtime`, `schedules`) |
 | Toàn bộ mã Go không vỡ (sau khi gộp main lần hai tới `6099b06`; lần ba tới `f76f26e` chỉ đổi tài liệu và test-guard) | cả bộ | `CRM_S3_PORT=9119 go test -race -count=1 ./internal/... ./cmd/... ./tests/arch/...` | 25 gói `ok`; 2 gói đỏ ở test nhạy thời gian khi mọi gói chạy cùng lúc (`imager`: `TestImager_HangKilledWithinDeadline`, `TestExecRunner_TimeoutKillsProcessGroup` — gói không bị task chạm; `queue`: `TestStopAfterLongHandlerReleases`), chạy riêng 3/3 `ok`, cả bộ `queue` và `imager` chạy lại `ok`. Lần gộp đầu (`8f437db`): `TestBestEffortConcurrentConversation` đỏ 1 lần tương tự, chạy riêng 3/3 `ok` |
+| Lượt 2, gộp main tới `f01620f` (Task 28, 34, 398, 399, 19): xung đột `classification_test.go` và `danh-muc-dung-chung.md` lấy bản main (danh mục sinh lại bằng `go run ./tools/catalog`), mã sinh `make gen` không chênh; build, vet | — | `git merge main --no-commit`; `go build ./... && go vet ./...`; `make gen-check` | `OK`; gen-check qua |
+| Lượt 2: lời gọi log mới của Task 19 (`alertjobs.go`) dùng `logging.Err`; test kiến trúc dùng chung khung quét `findSelectorCalls` (hết đoạn trùng `errlog`/`txusage`) | `TestRawErrorLogProductCode`, `TestRawErrorLogReportsSample`, `TestTxUsage*` | `go test -race -count=1 ./tests/arch/ ./internal/platform/observability/...` | 3 gói `ok` (trước khi sửa: FAIL ở `alertjobs.go:84`) |
+| Lượt 2: `make ci` trên bản gộp | cả bộ | `make ci` rồi chạy lại từng cổng | mọi gói `ok` trừ `queue.TestHandlerErrorRollsBackAndReschedules` (run_at 3,96 s, mong 4–6 s, máy bận): chạy riêng 3/3 `ok`, cả bộ `queue` chạy lại `ok`; golangci-lint `0 issues`; govulncheck sạch; gitleaks `no leaks found` (sau Quyết định 7); console-check qua; jscpd: 2 đoạn trùng có sẵn trên `main` `f01620f` (Việc phát hiện thêm 6) |
 | Lint toàn mã | golangci-lint | `golangci-lint run ./...` | `0 issues.` |
 
 ## Test bị xóa hoặc tắt
@@ -140,6 +143,15 @@ Lệnh chung: `go test -race -count=1 -run '<tên>' <gói>`.
    (chỉ có `Signals()`). Gói `catalog` không biên dịch được test, chặn hook và golangci-lint của mọi task nhập `queue`.
    Sửa: đếm `len(e.bus.Signals())` trước bước cần kiểm rồi so phần mới; không đổi điều test kiểm. Vì sao: nhỏ, chỉ
    trong test, dễ đảo; phương án khác (chờ điều phối viên sửa) làm task này không qua được cổng kiểm.
+   Lượt 2: main (Task 398) đã sửa cùng chỗ; giữ bản của main.
+7. **Lượt 2 — gitleaks:** token giả trong test của lượt 1 (JWT giả, phần đầu JWT, khóa mẫu công khai của Stripe) nay
+   nằm trong lịch sử git nên `gitleaks git` báo 6 chỗ. Thêm vào `.gitleaks.toml` ngoại lệ khớp **đúng từng chuỗi**
+   (neo `^…$`), không khớp mọi JWT. Phương án khác: đổi chuỗi trong test (không xóa được khỏi lịch sử đã commit).
+8. **Lượt 2 — gộp main mới:** main đổi sang `f01620f` (Task 19) trong lúc chạy `make ci`; hủy lần gộp chưa commit và gộp
+   lại. Task 19 thêm một `slog.String("error", err.Error())` (`alertjobs.go`) mà test kiến trúc của task này cấm: đổi
+   sang `logging.Err(err)` (cùng khóa `error`, nội dung qua bộ che). jscpd báo đoạn trùng mới giữa `errlog_test.go` và
+   `txusage_test.go` (baseline của Task 399 không còn che): tách khung quét chung `findSelectorCalls` vào `scan_test.go`
+   (chỉ test kiến trúc, cùng commit gộp). Hai đoạn trùng còn lại do Task 19 mang vào không sửa (ngoài phạm vi).
 
 ## Việc phát hiện thêm
 
@@ -152,6 +164,11 @@ Lệnh chung: `go test -race -count=1 -run '<tên>' <gói>`.
    vào mốc nền.
 5. Main tại `6099b06` không biên dịch test `catalog` (Quyết định 6): người gộp nên chạy `go vet ./...` sau mỗi lần gộp
    hai task chạm cùng gói test.
+6. Main `f01620f` (Task 19) không qua `make jscpd`: 2 đoạn trùng mới (`metrics/flusher_test.go` ↔
+   `observability/helpers_test.go`; `observability/alerter.go:186` ↔ `scripts/external-probe/probe.go:196`). Đã kiểm
+   trên bản sạch của main: cùng lỗi. Cần task sửa riêng hoặc cập nhật baseline.
+7. `queue.TestHandlerErrorRollsBackAndReschedules` đỏ một lần khi chạy cả bộ (run_at 3,96 s, biên 4 s): cùng loại hạn
+   thời gian sát như mục 3.
 
 ## Reviewer
 
@@ -180,5 +197,10 @@ Lượt 3 (bản gộp tới `f76f26e`): ĐẠT, không phát hiện phải sử
 `*PanicError`, log đủ trường, chỉ trả 500 khi chưa gửi header), Flush của SSE qua `Unwrap`, `debug.Stack()` vẫn chạy
 trong lúc xử lý panic, dấu vân tay không đổi, không còn `headerWriter` cũ. Ghi chú: lần gộp tới `f76f26e` chỉ đổi tài
 liệu và `test-guard.sh` (không đổi mã); sau đó đã chạy lại test của observability, webhooks, httpapi, tests/arch: `ok`.
+
+Lượt 4 (lượt 2 của task, bản gộp tới `f01620f`): ĐẠT, không phát hiện phải sửa. Xác nhận `classification_test.go`
+giống main, không nới câu kiểm; `alertjobs.go` vẫn log một lần ở mép, lý do `not_sent` cố định; `findSelectorCalls`
+giữ đúng điều kiện lọc và vẫn duyệt lời gọi lồng, mẫu testdata vẫn được kiểm; hai regex của `.gitleaks.toml` neo hai
+đầu, chỉ khớp đúng chuỗi giả (lệch đi thì gitleaks lại báo).
 
 Kết luận: ĐẠT

@@ -43,6 +43,9 @@ type Flusher struct {
 	Role    config.Role
 	Pinger  *Pinger
 	Log     *slog.Logger
+	// DiskPaths: nhãn → đường dẫn; mỗi lần Flush ghi gauge disk_used_pct (phần trăm đĩa đã dùng) cho từng nhãn, để
+	// luật disk:<process> của Task 19 đọc. Nhãn là tên cố định ("root", "spool"), không phải đường dẫn. Rỗng: không đo.
+	DiskPaths map[string]string
 
 	pending []pendingRow
 }
@@ -68,6 +71,7 @@ func ProcessName(role config.Role) string {
 // gửi chỉ log và đếm heartbeat_ping_failed, không làm Flush lỗi.
 func (f *Flusher) Flush(ctx context.Context, now time.Time) error {
 	bucket := now.UTC().Truncate(time.Minute)
+	f.measureDisks()
 	for _, r := range f.Reg.Drain() {
 		f.pending = append(f.pending, pendingRow{bucket: bucket, row: r})
 	}
@@ -92,6 +96,16 @@ func (f *Flusher) Flush(ctx context.Context, now time.Time) error {
 		f.logger().WarnContext(ctx, "gửi nhịp sống ra ngoài lỗi", logging.Err(err))
 	}
 	return nil
+}
+
+// measureDisks ghi gauge disk_used_pct của từng nhãn trong DiskPaths; đo lỗi thì bỏ qua nhãn đó (luật đĩa không có
+// số mới, nhịp sống vẫn ghi).
+func (f *Flusher) measureDisks() {
+	for label, path := range f.DiskPaths {
+		if pct, err := DiskUsedPct(path); err == nil {
+			f.Reg.Gauge("disk_used_pct", pct, label)
+		}
+	}
 }
 
 // Beat ghi nhịp sống (at = now) của tiến trình trong một transaction riêng.

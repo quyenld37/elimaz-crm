@@ -103,10 +103,7 @@ func TestLostLeaseRollsBack(t *testing.T) {
 
 func TestPermanentErrorGoesDeadOnce(t *testing.T) {
 	e := newEnv(t)
-	h := newFH(kind("t.perm"), func(context.Context, queue.Job, pgx.Tx) (json.RawMessage, error) {
-		return nil, fmt.Errorf("payload sai: %w", queue.ErrPermanent)
-	})
-	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
+	h, id := e.enqueuePermanentError(t)
 	reg := metrics.NewRegistry()
 	w := queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Metrics: reg})
 	runOnce(t, w, 10)
@@ -334,6 +331,19 @@ func TestPendingPastExpiryExpires(t *testing.T) {
 	}
 	if got := h.terminalList(); len(got) != 1 || got[0] != id.String()+":expired" {
 		t.Fatalf("OnTerminal: %v", got)
+	}
+}
+
+// Việc pending quá hạn sống → expired được đếm jobs_expired theo kind (Task 19 cảnh báo, việc treo của Task 14).
+func TestExpiredCountsMetric(t *testing.T) {
+	e := newEnv(t)
+	h := newFH(queue.Kind{Name: "t.expm", Policy: queue.Policy{ExpiresAfter: time.Hour}}, nil)
+	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
+	e.ownerExec(t, fmt.Sprintf("UPDATE platform.jobs SET expires_at = now() - interval '1 second' WHERE id = '%s'", id))
+	reg := metrics.NewRegistry()
+	runOnce(t, queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Metrics: reg}), 10)
+	if !hasCounter(reg.Drain(), "jobs_expired", "t.expm", 1) {
+		t.Fatal("việc expired phải đếm jobs_expired")
 	}
 }
 

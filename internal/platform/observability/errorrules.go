@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	// newErrorWindow: loại lỗi gặp lần đầu trong chừng này là lỗi mới (luật new-error).
-	newErrorWindow = 60 * time.Second
+	// newErrorLookback: loại lỗi gặp lần đầu trong chừng này mà chưa từng được báo là lỗi mới (luật new-error). Dài
+	// hơn chu kỳ 60 s của platform.alerts để Telegram lỗi hay lịch chạy trễ không làm mất cảnh báo.
+	newErrorLookback = time.Hour
 	// spikeWindow, spikeThreshold: quá spikeThreshold lỗi trong spikeWindow là tăng vọt (luật error-spike).
 	spikeWindow    = 5 * time.Minute
 	spikeThreshold = 50
@@ -28,13 +29,16 @@ type RuleHit struct {
 }
 
 // ErrorRules trả hai luật về lỗi ứng dụng tại now (spec 04 mục "Gom lỗi ứng dụng"):
-//   - new-error:<8 ký tự đầu dấu vân tay> (normal): loại lỗi có first_seen_at trong 60 s qua;
+//   - new-error:<8 ký tự đầu dấu vân tay> (normal): loại lỗi có first_seen_at trong 1 giờ qua và chưa có
+//     alert_events của key đó (báo một lần, lần gửi hỏng thì lượt sau báo lại);
 //   - error-spike (normal): tổng counter errors của mọi tiến trình trong 5 phút gần nhất vượt 50.
 //
 // Bộ chạy luật (CheckRules, Task 19) gửi từng RuleHit qua Alerter.
 func ErrorRules(ctx context.Context, d *db.DB, now time.Time) ([]RuleHit, error) {
 	q := store.New(d.Pool)
-	fps, err := q.ListNewErrorFingerprints(ctx, now.Add(-newErrorWindow))
+	fps, err := q.ListNewErrorFingerprints(ctx, store.ListNewErrorFingerprintsParams{
+		Since: now.Add(-newErrorLookback), PrefixLen: keyPrefixLen,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("đọc lỗi mới: %w", err)
 	}

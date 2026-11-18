@@ -233,7 +233,7 @@ func TestServerRouting(t *testing.T) {
 	}{
 		{http.MethodGet, "/health/live", http.StatusOK, ""},
 		{http.MethodGet, "/health/ready", http.StatusOK, ""},
-		{http.MethodGet, "/health/deep", http.StatusNotImplemented, "not_implemented"},
+		{http.MethodGet, "/health/deep", http.StatusUnauthorized, "unauthenticated"}, // thiếu thẻ HEALTH_TOKEN (Task 19)
 		{http.MethodGet, "/khong-co", http.StatusNotFound, "not_found"},
 		{http.MethodGet, "/api/v1/khong-co", http.StatusNotFound, "not_found"},
 		{http.MethodDelete, "/health/live", http.StatusNotFound, "not_found"},

@@ -3,6 +3,7 @@ package queue_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -223,4 +224,13 @@ func startWorker(t testing.TB, e *env, poll time.Duration, hs ...queue.Handler) 
 	}
 	t.Cleanup(func() { _ = w.Stop(time.Second) })
 	return w
+}
+
+// enqueuePermanentError ghi một việc mà handler luôn trả ErrPermanent (lỗi đã lường trước, không thử lại).
+func (e *env) enqueuePermanentError(t testing.TB) (*fh, uuid.UUID) {
+	t.Helper()
+	h := newFH(kind("t.perm"), func(context.Context, queue.Job, pgx.Tx) (json.RawMessage, error) {
+		return nil, fmt.Errorf("payload sai: %w", queue.ErrPermanent)
+	})
+	return h, e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
 }

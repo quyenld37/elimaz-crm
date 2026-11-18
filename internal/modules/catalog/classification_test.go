@@ -355,7 +355,7 @@ func TestSetClassification_ReplaceAll(t *testing.T) {
 	}); !errors.Is(err, catalog.ErrAlreadyExists) {
 		t.Errorf("mã nhãn trùng (khác hoa thường): mong ErrAlreadyExists, có %v", err)
 	}
-	signalsBefore := len(e.bus.Signals())
+	sigsBefore := len(e.bus.Signals())
 	want := catalog.Classification{
 		CategoryID:        &vay.ID,
 		AttributeValueIDs: vals,
@@ -392,8 +392,8 @@ func TestSetClassification_ReplaceAll(t *testing.T) {
 	if n := e.count("SELECT count(*) FROM identity.audit_logs WHERE action = 'catalog.product.classify' AND entity_id = $1", p.ID.String()); n != 1 {
 		t.Errorf("mong 1 dòng audit phân loại, có %d", n)
 	}
-	if got := e.bus.Signals()[signalsBefore:]; len(got) != 1 || got[0].Topic != "catalog.product" {
-		t.Errorf("mong 1 báo hiệu catalog.product: %+v", got)
+	if sigs := e.bus.Signals()[sigsBefore:]; len(sigs) != 1 || sigs[0].Topic != "catalog.product" {
+		t.Errorf("mong 1 báo hiệu catalog.product: %+v", sigs)
 	}
 
 	// Thay toàn bộ: chỉ còn 1 nhãn, bỏ danh mục và thuộc tính.

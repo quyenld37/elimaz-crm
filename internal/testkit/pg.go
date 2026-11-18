@@ -51,7 +51,8 @@ func OpenAppDB(t testing.TB, o db.PoolOptions) *db.DB {
 }
 
 // CreateDatabase như StartPostgres nhưng chưa migrate (test của chính Migrate và vai trò migrate). Người quản trị tạo
-// sẵn extension pg_stat_statements (không phải extension "trusted" nên crm_owner không tự tạo được).
+// sẵn extension pg_stat_statements (không phải extension "trusted" nên crm_owner không tự tạo được) và cho crm_owner
+// quyền cấp pg_monitor (migration 0010).
 //
 // Máy chủ PostgreSQL: CRM_TEST_ADMIN_URL nếu có; không thì lấy máy và cổng từ CRM_TEST_DATABASE_URL (Makefile dựng
 // từ CRM_PG_PORT) với role dev. Thiếu cả hai thì test đỏ, không bỏ qua.
@@ -68,6 +69,8 @@ func CreateDatabase(t testing.TB) (adminURL, ownerURL, appURL string) {
 	admin := connect(ctx, t, withDB(base, nil, base.Path))
 	defer func() { _ = admin.Close(context.WithoutCancel(ctx)) }()
 	exec(ctx, t, admin, "CREATE DATABASE "+name+" OWNER crm_owner")
+	// Migration 0010 cấp pg_monitor cho crm_app; cụm dev dựng trước Task 19 chưa có dòng này trong 01-roles.sql.
+	exec(ctx, t, admin, "GRANT pg_monitor TO crm_owner WITH ADMIN OPTION")
 	t.Cleanup(func() {
 		cctx, ccancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer ccancel()

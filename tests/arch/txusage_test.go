@@ -11,29 +11,14 @@ import (
 // (ADR-46: transaction chỉ mở qua db.RetryTx). Bỏ qua internal/platform/db và tệp _test.go.
 func findTxOpeners(t *testing.T, root string, includeTestdata bool) []string {
 	t.Helper()
-	files := parseGoFiles(t, root, func(rel string) bool {
-		return !strings.HasSuffix(rel, "_test.go") && !strings.HasPrefix(rel, "internal/platform/db/") &&
-			(includeTestdata || !isTestdata(rel))
-	})
-	var out []string
-	for _, g := range files {
-		ast.Inspect(g.file, func(n ast.Node) bool {
-			call, ok := n.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok {
-				return true
-			}
+	return findSelectorCalls(t, root, includeTestdata, "internal/platform/db/",
+		func(g goFile, call *ast.CallExpr, sel *ast.SelectorExpr) []string {
 			switch sel.Sel.Name {
 			case "Begin", "BeginTx", "BeginFunc", "BeginTxFunc":
-				out = append(out, g.pos(call.Pos())+": "+sel.Sel.Name)
+				return []string{g.pos(call.Pos()) + ": " + sel.Sel.Name}
 			}
-			return true
+			return nil
 		})
-	}
-	return out
 }
 
 func TestTxUsageReportsSample(t *testing.T) {

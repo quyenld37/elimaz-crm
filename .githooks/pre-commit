@@ -10,11 +10,21 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 gd=$(git rev-parse --git-dir)
 if [ -f "$gd/MERGE_HEAD" ]; then
   mh=$(head -1 "$gd/MERGE_HEAD"); bad=""
+  gen=""
   for f in $(git diff --cached --name-only HEAD | grep -E "$(code_paths_regex)"); do
     staged=$(git rev-parse -q --verify ":$f" 2>/dev/null || echo deleted)
     theirs=$(git rev-parse -q --verify "$mh:$f" 2>/dev/null || echo deleted)
-    [ "$staged" = "$theirs" ] || bad="$bad $f"
+    [ "$staged" = "$theirs" ] && continue
+    # Mã sinh là hàm cố định của nguồn: cho khác bản nhánh, nhưng phải đúng bằng `make gen` từ nguồn đã gộp (kiểm dưới).
+    if is_generated_path "$f"; then gen=1; continue; fi
+    bad="$bad $f"
   done
+  if [ -z "$bad" ] && [ -n "$gen" ]; then
+    export PATH="$HOME/go/bin:$PATH"
+    if ! make gen >/dev/null 2>&1 || ! git diff --quiet -- internal/httpapi/gen internal/httpapi/routes_gen.go console/src/api $(git ls-files 'internal/*/internal/store/*' 'internal/store/*'); then
+      echo "Cổng commit (gộp nhánh): mã sinh đã stage không khớp 'make gen' từ nguồn đã gộp. Chạy make gen, git add mã sinh, rồi commit lại." >&2; exit 1
+    fi
+  fi
   if [ -z "$bad" ]; then exit 0; fi
   echo "Cổng commit (gộp nhánh): các tệp mã sau khác bản đã review trên nhánh được gộp:$bad" >&2
 fi

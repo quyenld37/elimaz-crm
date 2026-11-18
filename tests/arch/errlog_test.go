@@ -22,30 +22,19 @@ func isSlogCallName(name string) bool {
 // Bỏ qua tệp _test.go và chính gói logging.
 func findRawErrorLogs(t *testing.T, root string, includeTestdata bool) []string {
 	t.Helper()
-	files := parseGoFiles(t, root, func(rel string) bool {
-		return !strings.HasSuffix(rel, "_test.go") && !strings.HasPrefix(rel, "internal/platform/logging/") &&
-			(includeTestdata || !isTestdata(rel))
-	})
-	var out []string
-	for _, g := range files {
-		ast.Inspect(g.file, func(n ast.Node) bool {
-			call, ok := n.(*ast.CallExpr)
-			if !ok {
-				return true
+	return findSelectorCalls(t, root, includeTestdata, "internal/platform/logging/",
+		func(g goFile, call *ast.CallExpr, sel *ast.SelectorExpr) []string {
+			if !isSlogCallName(sel.Sel.Name) || !isSlogReceiver(sel.X) {
+				return nil
 			}
-			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || !isSlogCallName(sel.Sel.Name) || !isSlogReceiver(sel.X) {
-				return true
-			}
+			var out []string
 			for _, a := range call.Args {
 				if isRawError(a) {
 					out = append(out, g.pos(a.Pos())+": nội dung lỗi thô trong "+sel.Sel.Name)
 				}
 			}
-			return true
+			return out
 		})
-	}
-	return out
 }
 
 // isSlogReceiver: gói slog, hoặc biểu thức có tên gợi logger (logger, log, l, Logger, ….Logger, ….logger()).

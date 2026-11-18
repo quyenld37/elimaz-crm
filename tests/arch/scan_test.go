@@ -85,3 +85,29 @@ func assertMentions(t *testing.T, findings []string, wantFiles ...string) {
 		}
 	}
 }
+
+// findSelectorCalls quét mã dưới root (bỏ tệp _test.go, tệp có đường dẫn bắt đầu bằng skipPrefix, và testdata khi
+// includeTestdata là false) và trả mọi phát hiện mà report trả cho từng lời gọi dạng x.Tên(...).
+func findSelectorCalls(t *testing.T, root string, includeTestdata bool, skipPrefix string,
+	report func(g goFile, call *ast.CallExpr, sel *ast.SelectorExpr) []string,
+) []string {
+	t.Helper()
+	files := parseGoFiles(t, root, func(rel string) bool {
+		return !strings.HasSuffix(rel, "_test.go") && !strings.HasPrefix(rel, skipPrefix) &&
+			(includeTestdata || !isTestdata(rel))
+	})
+	var out []string
+	for _, g := range files {
+		ast.Inspect(g.file, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+				out = append(out, report(g, call, sel)...)
+			}
+			return true
+		})
+	}
+	return out
+}

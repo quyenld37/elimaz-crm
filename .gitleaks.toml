@@ -15,4 +15,8 @@ regexes = [
   '''0123456789abcdef0123456789abcdef''',
   # Tên tệp log theo ngày trong test (api-2026-11-18.log) bị nhận nhầm là khóa API.
   '''[a-z]+-\d{4}-\d{2}-\d{2}\.log''',
+  # Token giả của test bộ che dữ liệu cá nhân (Task 319): JWT có payload {"sub":"123"}, chữ ký "signature123";
+  # phần đầu JWT đứng riêng; khóa mẫu công khai trong tài liệu Stripe.
+  '''^eyJhbGciOiJIUzI1NiJ9(\.eyJzdWIiOiIxMjMifQ\.c2lnbmF0dXJlMTIz)?$''',
+  '''^(sk_live_)?4eC39HqLyjWDarjtT1zdp7dc$''',
 ]

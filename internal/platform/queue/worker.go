@@ -541,6 +541,8 @@ func (w *Worker) runCommand(ctx context.Context, span trace.Span, j Job) error {
 		w.count("jobs_dead", j.Kind)
 	case StatusInDoubt:
 		w.count("jobs_in_doubt", j.Kind)
+	case StatusExpired:
+		w.count("jobs_expired", j.Kind)
 	}
 	if err != nil {
 		span.SetStatus(codes.Error, "lệnh lỗi")
@@ -612,6 +614,8 @@ func (w *Worker) finish(ctx context.Context, j Job, status string, upd func(*sto
 		w.count("jobs_dead", j.Kind)
 	case StatusInDoubt:
 		w.count("jobs_in_doubt", j.Kind)
+	case StatusExpired:
+		w.count("jobs_expired", j.Kind)
 	}
 	return nil
 }

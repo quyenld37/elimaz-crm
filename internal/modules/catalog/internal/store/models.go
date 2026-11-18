@@ -292,7 +292,7 @@ type InventoryStockLedger struct {
 	DocID       uuid.UUID
 	Step        string
 	ActorType   string
-	ActorID     pgtype.UUID
+	ActorID     *uuid.UUID
 	CreatedAt   time.Time
 }
 
@@ -306,7 +306,7 @@ type InventoryStockLedgerV struct {
 	DocID       uuid.UUID
 	Step        string
 	ActorType   string
-	ActorID     pgtype.UUID
+	ActorID     *uuid.UUID
 	CreatedAt   time.Time
 }
 
@@ -342,6 +342,23 @@ type InventoryWarehousesV struct {
 	Code               string
 	Name               string
 	Status             string
+}
+
+type PlatformAlertEvent struct {
+	ID       uuid.UUID
+	Key      string
+	Severity string
+	Text     string
+	SentAt   time.Time
+}
+
+type PlatformBackupRun struct {
+	ID              uuid.UUID
+	Kind            string
+	Ok              bool
+	FinishedAt      time.Time
+	DurationSeconds pgtype.Int4
+	Detail          pgtype.Text
 }
 
 type PlatformDomainEvent struct {
