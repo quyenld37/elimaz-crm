@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M1 — Tồn kho</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="m1.css">
+<style>
+.v-cell { display: grid; gap: 2px; min-width: 0; max-width: 420px; }
+.v-cell .sku { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.v-cell .clamp2 { color: var(--name); font-weight: 600; }
+.avail { font-weight: 700; font-variant-numeric: tabular-nums; }
+@media (max-width: 759px) {
+	.v-cell { max-width: none; }
+	.stk tr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 8px; }
+	.stk td.lead, .stk td.av { grid-column: 1 / -1; }
+	.stk td[data-label]:not(.av) { display: grid; justify-items: start; text-align: left; gap: 0; }
+	.stk td.av { border-top: 1px solid var(--rule) !important; margin-top: 4px; padding-top: 8px; }
+}
+</style>
+</head>
+<body data-page="kho-ton" data-title="Tồn kho">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><h1>Tồn kho</h1><p class="sub">Có thể bán = Tồn − Lỗi − Đang giữ − Đang giao · số tự cập nhật khi có phiếu, đơn, kiểm kho</p></div>
+	<div class="row"><a class="btn btn-line" href="kho-kiem-kho.html">Kiểm kho</a><a class="btn btn-dark" href="kho-phieu.html">Tạo phiếu kho</a></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI A</p><h2>Kho chính, mọi mã hàng; có mã thiếu so với phần giữ, hàng lỗi, đang giao, hết hàng, ngừng bán</h2></section>
+<div class="toolbar">
+	<div class="select-wrap"><select aria-label="Kho"><option>Kho chính</option><option>Kho phụ</option></select></div>
+	<input class="input is-search" type="search" placeholder="Tìm theo SKU, barcode, mã mẫu, tên" aria-label="Tìm mã hàng">
+	<button class="toggle" aria-pressed="false">Thiếu so với phần giữ</button>
+</div>
+<div class="tbl-frame">
+<table class="tbl stk">
+	<thead><tr><th>Mã hàng</th><th class="r">Tồn</th><th class="r">Lỗi</th><th class="r">Đang giữ</th><th class="r">Đang giao</th><th class="r">Có thể bán</th></tr></thead>
+	<tbody>
+	<tr><td class="lead"><span class="v-cell"><span class="sku">DAM0123-DEN-S · 2000000000015</span><span class="clamp2">Đầm suông công sở cổ vuông tay lỡ phối nút ngọc trai dáng dài qua gối màu be sữa · Đen · S</span></span></td>
+		<td data-label="Tồn" class="r num">10</td><td data-label="Lỗi" class="r num">1</td><td data-label="Đang giữ" class="r num">2</td><td data-label="Đang giao" class="r num">3</td><td data-label="Có thể bán" class="av r avail">4</td></tr>
+	<tr class="is-err"><td class="lead"><span class="v-cell"><span class="sku">QU0789-DEN-M · 2000000000213</span><span class="clamp2">Quần âu ống đứng cạp cao · Đen · M</span></span></td>
+		<td data-label="Tồn" class="r num">2</td><td data-label="Lỗi" class="r num">0</td><td data-label="Đang giữ" class="r num">4</td><td data-label="Đang giao" class="r num">0</td><td data-label="Có thể bán" class="av r"><span><span class="avail err-text">−2</span><br><span class="xs err-text">Thiếu 2 so với phần giữ</span></span></td></tr>
+	<tr class="is-err"><td class="lead"><span class="v-cell"><span class="sku">AO0321-HONG-M · 2000000000305</span><span class="clamp2">Áo kiểu cổ nơ tay phồng · Hồng phấn · M</span></span></td>
+		<td data-label="Tồn" class="r num">1</td><td data-label="Lỗi" class="r num">0</td><td data-label="Đang giữ" class="r num">1</td><td data-label="Đang giao" class="r num">1</td><td data-label="Có thể bán" class="av r"><span><span class="avail err-text">−1</span><br><span class="xs err-text">Thiếu 1 so với phần giữ</span></span></td></tr>
+	<tr><td class="lead"><span class="v-cell"><span class="sku">SET0012-XAM-M · 2000000000411</span><span class="clamp2">Set vest blazer và chân váy chữ A · Xám · M</span></span></td>
+		<td data-label="Tồn" class="r num">10</td><td data-label="Lỗi" class="r num">2</td><td data-label="Đang giữ" class="r num">0</td><td data-label="Đang giao" class="r num">0</td><td data-label="Có thể bán" class="av r avail">8</td></tr>
+	<tr><td class="lead"><span class="v-cell"><span class="sku">AO0456-TRANG-S · 2000000000121</span><span class="clamp2">Áo sơ mi lụa cổ đức tay dài · Trắng · S</span></span></td>
+		<td data-label="Tồn" class="r num">12</td><td data-label="Lỗi" class="r num">0</td><td data-label="Đang giữ" class="r num">0</td><td data-label="Đang giao" class="r num">0</td><td data-label="Có thể bán" class="av r avail">12</td></tr>
+	<tr><td class="lead"><span class="v-cell"><span class="sku">VAY0101-DEN-S · 2000000000503</span><span class="clamp2">Chân váy bút chì xẻ sau · Đen · S</span></span></td>
+		<td data-label="Tồn" class="r num">0</td><td data-label="Lỗi" class="r num">0</td><td data-label="Đang giữ" class="r num">0</td><td data-label="Đang giao" class="r num">0</td><td data-label="Có thể bán" class="av r"><span><span class="avail">0</span> <span class="xs muted">Hết hàng</span></span></td></tr>
+	<tr class="is-muted"><td class="lead"><span class="v-cell"><span class="sku">DAM0055-HOA-M · 2000000000602</span><span class="clamp2">Đầm xòe hoa nhí thu đông 2025 · Hoa nhí · M <span class="chip chip-line">Ngừng bán</span></span></span></td>
+		<td data-label="Tồn" class="r num">3</td><td data-label="Lỗi" class="r num">0</td><td data-label="Đang giữ" class="r num">0</td><td data-label="Đang giao" class="r num">0</td><td data-label="Có thể bán" class="av r avail">3</td></tr>
+	</tbody>
+</table>
+</div>
+<div class="more"><span>Đang hiện 50 mã hàng đầu ở Kho chính.</span><button class="btn btn-quiet">Tải thêm 50</button></div>
+<p class="mk" style="margin-top:16px"><b>Mockup:</b> "Đang giữ" là hàng đã giữ cho đơn chưa gửi; "Đang giao" là hàng đã giao cho hãng. "Có thể bán" âm chỉ xảy ra sau kiểm kho đếm thiếu (Q8): đơn đã giữ không bị hủy, dòng tô đỏ kèm chữ. Ô chọn kho chỉ có các kho người xem có quyền (nhân viên phạm vi Kho chính không thấy Kho phụ).</p>
+
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Bật lọc "Thiếu so với phần giữ"</h2></section>
+<div class="toolbar">
+	<div class="select-wrap"><select aria-label="Kho"><option>Kho chính</option></select></div>
+	<input class="input is-search" type="search" placeholder="Tìm theo SKU, barcode, mã mẫu, tên" aria-label="Tìm mã hàng">
+	<button class="toggle" aria-pressed="true">Thiếu so với phần giữ ×</button>
+</div>
+<div class="box box-soft" style="margin-bottom:16px"><b>Các mã dưới đang thiếu so với hàng đã giữ cho đơn.</b> Các đơn đã giữ vẫn giữ nguyên. Cần nhập thêm hàng, hoặc báo khách đổi mẫu và hủy phần giữ ở đơn.</div>
+<div class="tbl-frame">
+<table class="tbl stk">
+	<thead><tr><th>Mã hàng</th><th class="r">Tồn</th><th class="r">Lỗi</th><th class="r">Đang giữ</th><th class="r">Đang giao</th><th class="r">Có thể bán</th></tr></thead>
+	<tbody>
+	<tr class="is-err"><td class="lead"><span class="v-cell"><span class="sku">QU0789-DEN-M · 2000000000213</span><span class="clamp2">Quần âu ống đứng cạp cao · Đen · M</span></span></td>
+		<td data-label="Tồn" class="r num">2</td><td data-label="Lỗi" class="r num">0</td><td data-label="Đang giữ" class="r num">4</td><td data-label="Đang giao" class="r num">0</td><td data-label="Có thể bán" class="av r"><span><span class="avail err-text">−2</span><br><span class="xs err-text">Thiếu 2 so với phần giữ</span></span></td></tr>
+	<tr class="is-err"><td class="lead"><span class="v-cell"><span class="sku">AO0321-HONG-M · 2000000000305</span><span class="clamp2">Áo kiểu cổ nơ tay phồng · Hồng phấn · M</span></span></td>
+		<td data-label="Tồn" class="r num">1</td><td data-label="Lỗi" class="r num">0</td><td data-label="Đang giữ" class="r num">1</td><td data-label="Đang giao" class="r num">1</td><td data-label="Có thể bán" class="av r"><span><span class="avail err-text">−1</span><br><span class="xs err-text">Thiếu 1 so với phần giữ</span></span></td></tr>
+	</tbody>
+</table>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Lọc bật nhưng không có mã nào thiếu; kho chưa có hàng</h2></section>
+<div class="stack">
+	<div class="empty"><h2>Không có mã hàng nào thiếu so với phần giữ</h2><button class="btn btn-line">Tắt lọc</button></div>
+	<div class="empty"><h2>Kho phụ chưa có hàng</h2><p class="muted">Tồn kho tăng khi ghi sổ phiếu nhập.</p><a class="btn btn-dark" href="kho-phieu.html">Tạo phiếu nhập</a></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

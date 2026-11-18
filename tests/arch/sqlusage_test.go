@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -146,35 +147,73 @@ func schemaOfModule(module string) string {
 	return module
 }
 
-// checkSQL trả vi phạm trong một đoạn SQL của module: bảng thiếu schema, hoặc nhắc schema của module khác.
-func checkSQL(where, module, sql string) []string {
+// moduleOfSchema: ngược của schemaOfModule.
+func moduleOfSchema(schema string) string {
+	if schema == "ord" {
+		return "order"
+	}
+	return schema
+}
+
+// queriesPkg: tên "module" của gói internal/queries (ghép view cho màn danh sách): không có schema riêng, chỉ được nhắc
+// view _v đã công bố.
+const queriesPkg = "queries"
+
+// checkRef trả vi phạm (rỗng nếu không) của một lần nhắc ident (đã có schema) từ module. views: view công bố của
+// docs/views.md.
+func checkRef(module, ident string, views map[string][]string) string {
+	schema, name, _ := strings.Cut(ident, ".")
+	if schema == "pg_catalog" || schema == "information_schema" || (module != queriesPkg && schema == schemaOfModule(module)) {
+		return ""
+	}
+	if !strings.HasSuffix(name, "_v") {
+		if module == queriesPkg {
+			return "internal/queries chỉ được nhắc view _v đã công bố (" + ident + ")"
+		}
+		return "module " + module + " nhắc schema " + schema + " (" + ident + ")"
+	}
+	if _, ok := views[ident]; !ok {
+		return "view " + ident + " chưa công bố trong docs/views.md"
+	}
+	if module == queriesPkg || schema == "platform" {
+		return ""
+	}
+	if dst := moduleOfSchema(schema); !slices.Contains(moduleCalls()[module], dst) {
+		return "module " + module + " không được gọi " + dst + " (cột \"Được gọi\" của 04 mục 3; " + ident + ")"
+	}
+	return ""
+}
+
+// checkSQL trả vi phạm trong một đoạn SQL của module: bảng thiếu schema; nhắc bảng của schema khác; nhắc view _v của
+// module khác mà module không được gọi, hoặc view chưa có trong docs/views.md. View platform.*_v đã công bố thì mọi
+// module được nhắc; gói internal/queries chỉ được nhắc view đã công bố.
+func checkSQL(where, module, sql string, views map[string][]string) []string {
 	sql = strLitRe.ReplaceAllString(lineCmtRe.ReplaceAllString(sql, ""), "''")
 	ctes := map[string]bool{}
 	for _, m := range cteRe.FindAllStringSubmatch(sql, -1) {
 		ctes[strings.ToLower(m[1])] = true
 	}
-	own := schemaOfModule(module)
 	var out []string
 	for _, ident := range tableRefs(sql) {
 		if ctes[strings.ToLower(ident)] {
 			continue
 		}
-		schema, _, qualified := strings.Cut(ident, ".")
-		switch {
-		case !qualified:
+		if !strings.Contains(ident, ".") {
 			out = append(out, where+": bảng thiếu tên schema: "+ident)
-		case schema == "pg_catalog" || schema == "information_schema":
-		case schema != own:
-			out = append(out, where+": module "+module+" nhắc schema "+schema+" ("+ident+")")
+			continue
+		}
+		if v := checkRef(module, strings.ToLower(ident), views); v != "" {
+			out = append(out, where+": "+v)
 		}
 	}
 	return out
 }
 
 // findSQLUsage quét root/queries/<module>/**.sql và mọi *_dynsql.go (module lấy từ đường dẫn
-// internal/modules/<module>/… hoặc internal/platform/… → platform).
+// internal/modules/<module>/…, internal/queries/… → queries, còn lại → platform); view công bố đọc ở root/docs/views.md.
 func findSQLUsage(t *testing.T, root string, includeTestdata bool) []string {
 	t.Helper()
+	views := readViewsDoc(t, root).views
 	var out []string
 	qdir := filepath.Join(root, "queries")
 	if _, err := os.Stat(qdir); err == nil {
@@ -188,7 +227,7 @@ func findSQLUsage(t *testing.T, root string, includeTestdata bool) []string {
 			if err != nil {
 				return fmt.Errorf("đọc queries/%s: %w", rel, err)
 			}
-			out = append(out, checkSQL("queries/"+rel, module, string(b))...)
+			out = append(out, checkSQL("queries/"+rel, module, string(b), views)...)
 			return nil
 		})
 		if err != nil {
@@ -206,7 +245,7 @@ func findSQLUsage(t *testing.T, root string, includeTestdata bool) []string {
 				return true
 			}
 			if s, err := strconv.Unquote(lit.Value); err == nil {
-				out = append(out, checkSQL(g.pos(lit.Pos()), module, s)...)
+				out = append(out, checkSQL(g.pos(lit.Pos()), module, s, views)...)
 			}
 			return true
 		})
@@ -215,6 +254,9 @@ func findSQLUsage(t *testing.T, root string, includeTestdata bool) []string {
 }
 
 func moduleOfPath(rel string) string {
+	if hasPathPrefix(rel, "internal/queries") {
+		return queriesPkg
+	}
 	if rest, ok := strings.CutPrefix(rel, "internal/modules/"); ok {
 		m, _, _ := strings.Cut(rest, "/")
 		return m
@@ -242,5 +284,38 @@ func TestSQLUsageReportsSample(t *testing.T) {
 func TestSQLUsageProductCode(t *testing.T) {
 	if got := findSQLUsage(t, repoRoot(t), false); len(got) != 0 {
 		t.Fatalf("SQL sai luật schema:\n%s", strings.Join(got, "\n"))
+	}
+}
+
+// Luật view giữa module (kế hoạch M1, Task M1-25): mỗi tệp mẫu báo đúng số dòng ghi ở đây, tệp đúng luật không báo.
+func TestSQLUsageViewRules(t *testing.T) {
+	got := findSQLUsage(t, filepath.Join(repoRoot(t), "tests/arch/testdata/sqlusage"), true)
+	want := map[string]int{
+		"queries/inventory/view_ok.sql":         0,
+		"queries/inventory/table.sql":           1, // catalog.variants
+		"queries/inventory/unlisted.sql":        1, // catalog.secret_v chưa công bố
+		"queries/catalog/not_called.sql":        1, // catalog không được gọi inventory
+		"internal/queries/list_dynsql.go":       2, // platform.file_variants, catalog.products
+		"queries/identity/cross.sql":            1,
+		"internal/modules/identity/x_dynsql.go": 1,
+	}
+	for file, n := range want {
+		var lines []string
+		for _, f := range got {
+			if strings.HasPrefix(f, file+":") {
+				lines = append(lines, f)
+			}
+		}
+		if len(lines) != n {
+			t.Errorf("%s: muốn %d dòng, nhận %d: %q", file, n, len(lines), lines)
+		}
+	}
+	for _, must := range []string{
+		"table.sql:", "catalog.variants)", "unlisted.sql:", "docs/views.md", "not_called.sql:", "không được gọi inventory",
+		"list_dynsql.go:", "platform.file_variants", "catalog.products",
+	} {
+		if !slices.ContainsFunc(got, func(f string) bool { return strings.Contains(f, must) }) {
+			t.Errorf("không dòng nào chứa %q: %q", must, got)
+		}
 	}
 }

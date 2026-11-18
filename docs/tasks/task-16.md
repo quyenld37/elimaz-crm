@@ -170,3 +170,56 @@ Kết luận: ĐẠT
   → gộp thành `testkit.(*AccessKeys).Verifier`, cả hai test dùng nó. Cần review lại phần này.
 - Lượt 3 (toàn bộ phần stage, sau khi gộp `Verifier`): ĐẠT, không phát hiện phải sửa; không vòng nhập gói
   (`cfaccess_test` là gói ngoài), không vi phạm luật ranh giới, hành vi test auth không đổi.
+
+## Lượt 2 (gộp main)
+
+Việc: `git merge main` vào `task-16` (không rebase) sau khi `main` nhận Task 314, 25, 26, 40, 49. Điểm tách nhánh
+`7923a49`; main lúc gộp `badcaae`.
+
+### Ảnh hưởng (lượt 2)
+
+- Tệp cả hai bên cùng đổi: `docs/danh-muc-ghi-chu.yaml` (xung đột), `docs/danh-muc-dung-chung.md`,
+  `openapi/openapi.yaml`, `internal/httpapi/errors.go`, mã sinh `internal/httpapi/gen/{oas_handlers,oas_router,
+  oas_server,oas_unimplemented}_gen.go` (git tự trộn). Các tệp khác chỉ một bên đổi.
+- Ký hiệu Go xuất ra ngoài: không đổi thêm gì so với lượt 1; phần của main (identity PQ07, queue `OrderMode`, gói
+  `internal/queries`) vào nguyên vẹn. `errors.go` giữ cả `codeStreamUnavailable` (task 16) và `identityError` + mã
+  PQ07 (Task 26).
+- Operation OpenAPI: hợp đồng sau gộp = route nhân viên, vai trò của main + `stream` (chỉ sửa `summary`). Mã sinh
+  không sửa tay: `make gen` trên `openapi.yaml` đã trộn, so `git diff` → không chênh với bản git tự trộn.
+- Chỗ dùng trên màn hình, câu sqlc, migration: không thêm gì; migration của Task 25 vào từ main, không sửa tệp cũ.
+- Test sẽ chạy: `make ci` toàn bộ (gộp chạm nhiều gói, có vùng rủi ro cao `queue`, `identity`, `tenancy` từ main).
+
+### Tái dùng (lượt 2)
+
+- Không viết mã mới. Giải xung đột danh mục: giữ cả dòng `internal/platform/realtime` (task 16) và
+  `internal/queries` (Task 25); `make catalog` sinh lại `danh-muc-dung-chung.md`.
+
+### Soát thiết kế (lượt 2)
+
+- Chỉ áp dụng phần trộn: `errors.go` vẫn là một chỗ đổi lỗi sang HTTP; `stream_unavailable` và mã identity không
+  trùng nhau, `identityError` chạy trước `switch` không bắt lỗi của realtime (realtime không trả sentinel identity).
+- Ngân sách kết nối (ADR-42): main không đổi `poolOptions`; kết nối `LISTEN` riêng của api vẫn là +1 như lượt 1.
+- Các mục 5.x, 6.x khác: không áp dụng (không có mã mới; mã của main đã được review ở task của nó).
+
+### Quyết định thay chủ shop (lượt 2)
+
+1. **Cổng compose khi chạy `make ci`**: 8333 bị dự án khác chiếm, nên dựng `crm-t16` với `CRM_S3_PORT=8516`,
+   `CRM_S3_OFFSITE_PORT=8517` (Makefile, compose đã có biến này). Chỉ ảnh hưởng máy này, đảo ngược bằng `down -v`.
+
+### Bằng chứng (lượt 2)
+
+| Tiêu chí | Test | Lệnh | Kết quả |
+|---|---|---|---|
+| Không còn dấu xung đột | — | `grep -c '<<<<' docs/danh-muc-ghi-chu.yaml` | `0` |
+| Mã sinh khớp nguồn đã trộn | bước gen của `make ci` | `make gen` rồi `git diff --exit-code -- internal` | không chênh |
+| Realtime vẫn đúng sau gộp | gói `realtime`, `httpapi` | `make ci` (`go test -race ./...`) | `ok .../internal/platform/realtime 39.268s`, `ok .../internal/httpapi 64.839s` |
+| Phần của main vẫn đúng | gói `identity`, `queue`, `tests/arch`, `tests/e2e` | `make ci` | `ok .../identity 107.752s`, `ok .../queue 108.348s`, `ok .../tests/arch 12.286s`, `ok .../tests/e2e 43.591s` |
+| Lint, hợp đồng, danh mục, trùng, test-guard, bí mật | cổng của `make ci` | `make ci` | `0 issues.`; apicheck so `main` qua; danh mục không chênh; jscpd `Found 0 clones`; test-guard qua; gitleaks `no leaks found`; exit 0, 0 dòng `FAIL` |
+
+### Reviewer (lượt 2)
+
+Kết luận: ĐẠT, không phát hiện phải sửa. Phần task-16 mang vào so với `main` đúng 24 tệp của lượt 1, không còn dấu
+xung đột; `openapi.yaml` và mã sinh chỉ khác `summary` của `stream`; `errors.go` chỉ thêm `codeStreamUnavailable`
+(handler SSE gọi thẳng `writeError`, không qua `identityError`); `routes_gen.go` như main, chỉ `stream` có
+`Stream: true`, route nhân viên mới đi ogen; `realtime` nhập `identity` hợp luật (c) của `boundaries_test.go`;
+`realtime.sql` không đọc bảng hay view nên không thuộc luật view của Task 25. Ghi chú: dọn compose `crm-t16` khi xong.

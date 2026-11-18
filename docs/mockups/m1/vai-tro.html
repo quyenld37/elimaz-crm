@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M1 — Vai trò</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="m1.css">
+<style>
+.rtbl .c-act { width: 1%; white-space: nowrap; }
+.perm .chip { margin-left: 4px; }
+@media (max-width: 759px) { .rtbl td.c-act { justify-content: flex-end; } }
+</style>
+</head>
+<body data-page="vai-tro" data-title="Vai trò">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><h1>Vai trò</h1><p class="sub">Vai trò là một bộ quyền. Năm vai trò mẫu có sẵn; tự tạo thêm từ danh sách quyền. Phạm vi (toàn shop hay một kho) chọn khi gán vai trò cho người ở màn Nhân viên.</p></div>
+	<button class="btn btn-dark">Tạo vai trò</button>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI A</p><h2>Danh sách: vai trò mẫu, mẫu đã sửa, tự tạo, đã lưu trữ</h2></section>
+<div class="tbl-frame">
+<table class="tbl rtbl">
+	<thead><tr><th>Vai trò</th><th>Loại</th><th class="r">Số quyền</th><th class="r">Người đang giữ</th><th>Trạng thái</th><th class="c-act"><span class="sr">Thao tác</span></th></tr></thead>
+	<tbody>
+	<tr><td class="lead"><b>Chủ</b></td><td data-label="Loại">Mẫu · luôn đủ mọi quyền</td><td data-label="Số quyền" class="r num">40</td><td data-label="Người đang giữ" class="r num">2</td><td data-label="Trạng thái"><span class="chip chip-ok">Đang dùng</span></td><td class="c-act"><button class="btn btn-quiet">Xem</button></td></tr>
+	<tr><td class="lead"><b>Quản lý</b></td><td data-label="Loại">Mẫu</td><td data-label="Số quyền" class="r num">35</td><td data-label="Người đang giữ" class="r num">1</td><td data-label="Trạng thái"><span class="chip chip-ok">Đang dùng</span></td><td class="c-act"><button class="btn btn-quiet">Sửa</button></td></tr>
+	<tr><td class="lead"><b>Bán hàng</b></td><td data-label="Loại">Mẫu</td><td data-label="Số quyền" class="r num">7</td><td data-label="Người đang giữ" class="r num">3</td><td data-label="Trạng thái"><span class="chip chip-ok">Đang dùng</span></td><td class="c-act"><button class="btn btn-quiet">Sửa</button></td></tr>
+	<tr><td class="lead"><b>Kho</b></td><td data-label="Loại">Mẫu đã sửa</td><td data-label="Số quyền" class="r num">7</td><td data-label="Người đang giữ" class="r num">2</td><td data-label="Trạng thái"><span class="chip chip-ok">Đang dùng</span></td><td class="c-act"><button class="btn btn-quiet">Sửa</button></td></tr>
+	<tr><td class="lead"><b>Kế toán</b></td><td data-label="Loại">Mẫu</td><td data-label="Số quyền" class="r num">5</td><td data-label="Người đang giữ" class="r num">1</td><td data-label="Trạng thái"><span class="chip chip-ok">Đang dùng</span></td><td class="c-act"><button class="btn btn-quiet">Sửa</button></td></tr>
+	<tr><td class="lead"><b>Kho phụ</b></td><td data-label="Loại">Tự tạo</td><td data-label="Số quyền" class="r num">3</td><td data-label="Người đang giữ" class="r num">1</td><td data-label="Trạng thái"><span class="chip chip-ok">Đang dùng</span></td><td class="c-act"><button class="btn btn-quiet">Sửa</button></td></tr>
+	<tr class="is-muted"><td class="lead"><b>Thời vụ Tết</b></td><td data-label="Loại">Tự tạo</td><td data-label="Số quyền" class="r num">4</td><td data-label="Người đang giữ" class="r num">0</td><td data-label="Trạng thái"><span class="chip chip-line">Đã lưu trữ</span></td><td class="c-act"><button class="btn btn-quiet">Xem</button></td></tr>
+	</tbody>
+</table>
+</div>
+<p class="mk" style="margin-top:16px"><b>Mockup:</b> "Mẫu đã sửa": vai trò mẫu đã bị sửa thì bản cập nhật sau không tự thêm lại quyền đã gỡ. Danh sách quyền có 40 dòng để thử độ dài: 22 quyền thật của M0–M1 và 18 quyền <b>ví dụ</b> của mốc sau (nhãn "mốc sau"); tên thật lấy từ <code>listPermissions</code>.</p>
+
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Xem vai trò Chủ: 40 quyền, chỉ xem</h2></section>
+<div class="card">
+	<div class="row-between"><h2>Chủ</h2><span class="chip">Chỉ xem</span></div>
+	<div class="box box-info">Vai trò Chủ luôn có mọi quyền, kể cả quyền mới thêm sau này. Không sửa, không lưu trữ được.</div>
+	<div class="stack" style="margin-top:16px">
+<div class="perm-g"><div class="row-between"><h3>Sản phẩm</h3><span class="small muted">3/3</span></div><div class="perm-list">
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Xem sản phẩm<br><code>catalog.read</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Sửa sản phẩm, ảnh, phân loại<br><code>catalog.manage</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Nhập sản phẩm từ Excel<br><code>catalog.import</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Kho</h3><span class="small muted">6/6</span></div><div class="perm-list">
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Xem tồn kho và phiếu <span class="chip">theo kho</span><br><code>inventory.read</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Soạn phiếu kho <span class="chip">theo kho</span><br><code>inventory.documents.create</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Ghi sổ phiếu kho <span class="chip">theo kho</span><br><code>inventory.documents.post</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Đếm kiểm kho <span class="chip">theo kho</span><br><code>inventory.stocktake</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Áp dụng kiểm kho <span class="chip">theo kho</span><br><code>inventory.stocktake.apply</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Quản lý nhà cung cấp<br><code>inventory.suppliers.manage</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Đơn hàng</h3><span class="small muted">5/5</span></div><div class="perm-list">
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Lên đơn<br><code>order.create</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Xem đơn<br><code>order.read</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Sửa đơn <span class="chip chip-line">mốc sau</span><br><code>order.update</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Hủy đơn <span class="chip chip-line">mốc sau</span><br><code>order.cancel</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Xuất danh sách đơn <span class="chip chip-line">mốc sau</span><br><code>order.export</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Vận chuyển và tiền</h3><span class="small muted">5/5</span></div><div class="perm-list">
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Xem vận đơn <span class="chip">theo kho</span><br><code>fulfillment.read</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Tạo vận đơn, giao hàng <span class="chip">theo kho</span><br><code>fulfillment.ship</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Hủy vận đơn <span class="chip">theo kho</span> <span class="chip chip-line">mốc sau</span><br><code>fulfillment.cancel</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Xem sổ COD <span class="chip chip-line">mốc sau</span><br><code>cash.read</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Đối soát COD <span class="chip chip-line">mốc sau</span><br><code>cash.reconcile</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Khách hàng</h3><span class="small muted">4/4</span></div><div class="perm-list">
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Xem khách <span class="chip chip-line">mốc sau</span><br><code>customer.read</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Sửa khách <span class="chip chip-line">mốc sau</span><br><code>customer.manage</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Nhập khách từ Excel <span class="chip chip-line">mốc sau</span><br><code>customer.import</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Xuất danh sách khách <span class="chip chip-line">mốc sau</span><br><code>customer.export</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Hội thoại</h3><span class="small muted">4/4</span></div><div class="perm-list">
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Xem hội thoại <span class="chip">theo Page</span><br><code>conversation.read</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Trả lời hội thoại <span class="chip">theo Page</span> <span class="chip chip-line">mốc sau</span><br><code>conversation.reply</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Chia hội thoại <span class="chip">theo Page</span> <span class="chip chip-line">mốc sau</span><br><code>conversation.assign</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Ẩn bình luận <span class="chip">theo Page</span> <span class="chip chip-line">mốc sau</span><br><code>conversation.comment.hide</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Khuyến mại, báo cáo, cộng tác viên</h3><span class="small muted">4/4</span></div><div class="perm-list">
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Quản lý mã giảm giá <span class="chip chip-line">mốc sau</span><br><code>promotion.manage</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Xem báo cáo <span class="chip chip-line">mốc sau</span><br><code>report.read</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Xuất báo cáo <span class="chip chip-line">mốc sau</span><br><code>report.export</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Quản lý cộng tác viên <span class="chip chip-line">mốc sau</span><br><code>affiliate.manage</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Tệp</h3><span class="small muted">2/2</span></div><div class="perm-list">
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Tải tệp lên<br><code>files.upload</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Kiểm tệp, tạo lại cỡ ảnh<br><code>platform.files.manage</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Hệ thống</h3><span class="small muted">5/5</span></div><div class="perm-list">
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Nhận cập nhật tức thì<br><code>realtime.subscribe</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Xem sức khỏe hệ thống<br><code>platform.health.read</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Xử lý việc nền hỏng<br><code>platform.jobs.manage</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Xem nhật ký thao tác<br><code>audit.read</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Xuất nhật ký thao tác <span class="chip chip-line">mốc sau</span><br><code>audit.export</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Quản trị</h3><span class="small muted">2/2</span></div><div class="perm-list">
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Quản lý nhân viên<br><code>identity.users.manage</code></span></label>
+<label class="perm is-off"><input type="checkbox" checked disabled><span>Quản lý vai trò<br><code>identity.roles.manage</code></span></label>
+</div></div>
+	</div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Sửa vai trò tự tạo "Kho phụ" (người sửa là Quản lý được cấp thêm quyền quản lý vai trò): quyền người sửa không có hiện mờ kèm lý do</h2></section>
+<div class="card">
+	<div class="row-between"><h2>Sửa vai trò</h2><span class="small muted">Tự tạo · 1 người đang giữ</span></div>
+	<label class="field"><span>Tên vai trò *</span><input class="input" value="Kho phụ"></label>
+	<div class="row-between" style="margin-top:16px"><b>Quyền (3 đã chọn)</b><span class="small muted">Thêm hay gỡ một quyền thì bạn phải có quyền đó trên toàn shop.</span></div>
+	<div class="stack" style="margin-top:8px">
+<div class="perm-g"><div class="row-between"><h3>Sản phẩm</h3><span class="small muted">1/3</span></div><div class="perm-list">
+<label class="perm"><input type="checkbox" checked><span>Xem sản phẩm<br><code>catalog.read</code></span></label>
+<label class="perm"><input type="checkbox"><span>Sửa sản phẩm, ảnh, phân loại<br><code>catalog.manage</code></span></label>
+<label class="perm"><input type="checkbox"><span>Nhập sản phẩm từ Excel<br><code>catalog.import</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Kho</h3><span class="small muted">2/6</span></div><div class="perm-list">
+<label class="perm"><input type="checkbox" checked><span>Xem tồn kho và phiếu <span class="chip">theo kho</span><br><code>inventory.read</code></span></label>
+<label class="perm"><input type="checkbox"><span>Soạn phiếu kho <span class="chip">theo kho</span><br><code>inventory.documents.create</code></span></label>
+<label class="perm"><input type="checkbox"><span>Ghi sổ phiếu kho <span class="chip">theo kho</span><br><code>inventory.documents.post</code></span></label>
+<label class="perm"><input type="checkbox" checked><span>Đếm kiểm kho <span class="chip">theo kho</span><br><code>inventory.stocktake</code></span></label>
+<label class="perm"><input type="checkbox"><span>Áp dụng kiểm kho <span class="chip">theo kho</span><br><code>inventory.stocktake.apply</code></span></label>
+<label class="perm"><input type="checkbox"><span>Quản lý nhà cung cấp<br><code>inventory.suppliers.manage</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Đơn hàng</h3><span class="small muted">0/5</span></div><div class="perm-list">
+<label class="perm"><input type="checkbox"><span>Lên đơn<br><code>order.create</code></span></label>
+<label class="perm"><input type="checkbox"><span>Xem đơn<br><code>order.read</code></span></label>
+<label class="perm"><input type="checkbox"><span>Sửa đơn <span class="chip chip-line">mốc sau</span><br><code>order.update</code></span></label>
+<label class="perm"><input type="checkbox"><span>Hủy đơn <span class="chip chip-line">mốc sau</span><br><code>order.cancel</code></span></label>
+<label class="perm"><input type="checkbox"><span>Xuất danh sách đơn <span class="chip chip-line">mốc sau</span><br><code>order.export</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Vận chuyển và tiền</h3><span class="small muted">0/5</span></div><div class="perm-list">
+<label class="perm"><input type="checkbox"><span>Xem vận đơn <span class="chip">theo kho</span><br><code>fulfillment.read</code></span></label>
+<label class="perm"><input type="checkbox"><span>Tạo vận đơn, giao hàng <span class="chip">theo kho</span><br><code>fulfillment.ship</code></span></label>
+<label class="perm"><input type="checkbox"><span>Hủy vận đơn <span class="chip">theo kho</span> <span class="chip chip-line">mốc sau</span><br><code>fulfillment.cancel</code></span></label>
+<label class="perm"><input type="checkbox"><span>Xem sổ COD <span class="chip chip-line">mốc sau</span><br><code>cash.read</code></span></label>
+<label class="perm"><input type="checkbox"><span>Đối soát COD <span class="chip chip-line">mốc sau</span><br><code>cash.reconcile</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Khách hàng</h3><span class="small muted">0/4</span></div><div class="perm-list">
+<label class="perm"><input type="checkbox"><span>Xem khách <span class="chip chip-line">mốc sau</span><br><code>customer.read</code></span></label>
+<label class="perm"><input type="checkbox"><span>Sửa khách <span class="chip chip-line">mốc sau</span><br><code>customer.manage</code></span></label>
+<label class="perm"><input type="checkbox"><span>Nhập khách từ Excel <span class="chip chip-line">mốc sau</span><br><code>customer.import</code></span></label>
+<label class="perm"><input type="checkbox"><span>Xuất danh sách khách <span class="chip chip-line">mốc sau</span><br><code>customer.export</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Hội thoại</h3><span class="small muted">0/4</span></div><div class="perm-list">
+<label class="perm"><input type="checkbox"><span>Xem hội thoại <span class="chip">theo Page</span><br><code>conversation.read</code></span></label>
+<label class="perm"><input type="checkbox"><span>Trả lời hội thoại <span class="chip">theo Page</span> <span class="chip chip-line">mốc sau</span><br><code>conversation.reply</code></span></label>
+<label class="perm"><input type="checkbox"><span>Chia hội thoại <span class="chip">theo Page</span> <span class="chip chip-line">mốc sau</span><br><code>conversation.assign</code></span></label>
+<label class="perm"><input type="checkbox"><span>Ẩn bình luận <span class="chip">theo Page</span> <span class="chip chip-line">mốc sau</span><br><code>conversation.comment.hide</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Khuyến mại, báo cáo, cộng tác viên</h3><span class="small muted">0/4</span></div><div class="perm-list">
+<label class="perm"><input type="checkbox"><span>Quản lý mã giảm giá <span class="chip chip-line">mốc sau</span><br><code>promotion.manage</code></span></label>
+<label class="perm"><input type="checkbox"><span>Xem báo cáo <span class="chip chip-line">mốc sau</span><br><code>report.read</code></span></label>
+<label class="perm"><input type="checkbox"><span>Xuất báo cáo <span class="chip chip-line">mốc sau</span><br><code>report.export</code></span></label>
+<label class="perm"><input type="checkbox"><span>Quản lý cộng tác viên <span class="chip chip-line">mốc sau</span><br><code>affiliate.manage</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Tệp</h3><span class="small muted">0/2</span></div><div class="perm-list">
+<label class="perm"><input type="checkbox"><span>Tải tệp lên<br><code>files.upload</code></span></label>
+<label class="perm is-off"><input type="checkbox" disabled><span>Kiểm tệp, tạo lại cỡ ảnh<br><code>platform.files.manage</code></span><span class="why">Bạn không có quyền này nên không cấp được</span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Hệ thống</h3><span class="small muted">0/5</span></div><div class="perm-list">
+<label class="perm"><input type="checkbox"><span>Nhận cập nhật tức thì<br><code>realtime.subscribe</code></span></label>
+<label class="perm is-off"><input type="checkbox" disabled><span>Xem sức khỏe hệ thống<br><code>platform.health.read</code></span><span class="why">Bạn không có quyền này nên không cấp được</span></label>
+<label class="perm is-off"><input type="checkbox" disabled><span>Xử lý việc nền hỏng<br><code>platform.jobs.manage</code></span><span class="why">Bạn không có quyền này nên không cấp được</span></label>
+<label class="perm"><input type="checkbox"><span>Xem nhật ký thao tác<br><code>audit.read</code></span></label>
+<label class="perm"><input type="checkbox"><span>Xuất nhật ký thao tác <span class="chip chip-line">mốc sau</span><br><code>audit.export</code></span></label>
+</div></div>
+<div class="perm-g"><div class="row-between"><h3>Quản trị</h3><span class="small muted">0/2</span></div><div class="perm-list">
+<label class="perm is-off"><input type="checkbox" disabled><span>Quản lý nhân viên<br><code>identity.users.manage</code></span><span class="why">Bạn không có quyền này nên không cấp được</span></label>
+<label class="perm"><input type="checkbox"><span>Quản lý vai trò<br><code>identity.roles.manage</code></span></label>
+</div></div>
+	</div>
+	<div class="savebar is-sticky" style="margin-top:16px"><button class="btn btn-danger">Lưu trữ vai trò</button><button class="btn btn-line">Hủy</button><button class="btn btn-dark">Lưu</button></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI D</p><h2>Lưu trữ bị chặn vì còn người giữ; xác nhận lưu trữ; các câu báo khác</h2></section>
+<div class="stack">
+	<div class="box box-err"><b>Không lưu trữ được: còn 1 người đang giữ vai trò "Kho phụ".</b> <span>Lê Văn Minh. Gỡ vai trò này khỏi họ ở màn Nhân viên trước.</span><div class="row" style="margin-top:8px"><a class="btn btn-line" href="nhan-vien.html">Mở màn Nhân viên</a></div></div>
+	<div class="backdrop">
+		<div class="dlg" role="dialog" aria-labelledby="d1">
+			<div class="dlg-h"><h3 id="d1">Lưu trữ vai trò "Thời vụ Tết"?</h3></div>
+			<div class="dlg-b"><p>Vai trò không còn trong danh sách gán ở màn Nhân viên. Không ai đang giữ vai trò này.</p></div>
+			<div class="dlg-f"><button class="btn btn-line">Quay lại</button><button class="btn btn-dark">Lưu trữ</button></div>
+		</div>
+	</div>
+	<div class="box box-err"><b>Tên vai trò đã có.</b> <span>Đặt tên khác.</span></div>
+	<div class="box box-err"><b>Bạn không thể cấp quyền mà chính bạn không có.</b> <span>Vai trò có quyền "Kiểm tệp, tạo lại cỡ ảnh" mà tài khoản của bạn không có.</span></div>
+	<div class="box box-err"><b>Vai trò vừa được người khác sửa, tải lại.</b> <span>Thay đổi của bạn chưa được lưu.</span><div class="row" style="margin-top:8px"><button class="btn btn-dark">Tải lại</button></div></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

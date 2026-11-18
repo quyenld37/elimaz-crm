@@ -18,7 +18,8 @@ const seedTenantName = "ELIMAZ"
 var errSeedRole = errors.New("seed-dev chỉ chạy với CRM_ROLE=migrate (cần DATABASE_OWNER_URL: crm_app chỉ đọc platform.tenant_routes)")
 
 // seedDev (`crm seed-dev <email>`) dựng dữ liệu dev trên database đã migrate, bằng chuỗi chủ bảng: tenant "ELIMAZ",
-// vai trò owner có mọi quyền phạm vi all, user theo email, dòng tenant_routes('staff_email', email). Chạy lại được.
+// năm vai trò mẫu (identity.EnsureDefaultRoles; owner có mọi quyền), user theo email được gán owner phạm vi all,
+// dòng tenant_routes('staff_email', email). Chạy lại được.
 func seedDev(ctx context.Context, cfg config.Config, email string, logger *slog.Logger) error {
 	if cfg.Role != config.RoleMigrate || cfg.Migrate == nil {
 		return errSeedRole

@@ -22,6 +22,15 @@ func (UnimplementedHandler) AbandonJob(ctx context.Context, params AbandonJobPar
 	return r, ht.ErrNotImplemented
 }
 
+// CreateStaff implements createStaff operation.
+//
+// Tạo nhân viên mới (chưa có vai trò nào).
+//
+// POST /api/v1/identity/users
+func (UnimplementedHandler) CreateStaff(ctx context.Context, req *CreateStaffRequest, params CreateStaffParams) (r CreateStaffRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetMe implements getMe operation.
 //
 // Người dùng đang đăng nhập và quyền của họ.
@@ -77,6 +86,43 @@ func (UnimplementedHandler) ListJobs(ctx context.Context, params ListJobsParams)
 	return r, ht.ErrNotImplemented
 }
 
+// ListRoles implements listRoles operation.
+//
+// Vai trò của shop và quyền của từng vai trò.
+//
+// GET /api/v1/identity/roles
+func (UnimplementedHandler) ListRoles(ctx context.Context) (r ListRolesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListStaff implements listStaff operation.
+//
+// Mọi nhân viên của shop kèm vai trò theo phạm vi.
+//
+// GET /api/v1/identity/users
+func (UnimplementedHandler) ListStaff(ctx context.Context) (r ListStaffRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// LockStaff implements lockStaff operation.
+//
+// Khóa nhân viên (không khóa Chủ còn hoạt động cuối cùng).
+//
+// POST /api/v1/identity/users/{id}/lock
+func (UnimplementedHandler) LockStaff(ctx context.Context, params LockStaffParams) (r LockStaffRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ReplaceStaffGrants implements replaceStaffGrants operation.
+//
+// Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không
+// vượt quyền của mình).
+//
+// PUT /api/v1/identity/users/{id}/grants
+func (UnimplementedHandler) ReplaceStaffGrants(ctx context.Context, req *ReplaceGrantsRequest, params ReplaceStaffGrantsParams) (r ReplaceStaffGrantsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // RetryJob implements retryJob operation.
 //
 // Đưa việc dead, in_doubt hoặc expired về pending.
@@ -92,5 +138,14 @@ func (UnimplementedHandler) RetryJob(ctx context.Context, params RetryJobParams)
 //
 // GET /api/v1/stream
 func (UnimplementedHandler) Stream(ctx context.Context) (r StreamRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UnlockStaff implements unlockStaff operation.
+//
+// Mở khóa nhân viên.
+//
+// POST /api/v1/identity/users/{id}/unlock
+func (UnimplementedHandler) UnlockStaff(ctx context.Context, params UnlockStaffParams) (r UnlockStaffRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

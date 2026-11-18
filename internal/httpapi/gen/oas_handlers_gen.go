@@ -116,6 +116,105 @@ func (s *Server) handleAbandonJobRequest(args [1]string, argsEscaped bool, w htt
 	}
 }
 
+// handleCreateStaffRequest handles createStaff operation.
+//
+// Tạo nhân viên mới (chưa có vai trò nào).
+//
+// POST /api/v1/identity/users
+func (s *Server) handleCreateStaffRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CreateStaffOperation,
+			ID:   "createStaff",
+		}
+	)
+	params, err := decodeCreateStaffParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateStaffRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response CreateStaffRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CreateStaffOperation,
+			OperationSummary: "Tạo nhân viên mới (chưa có vai trò nào)",
+			OperationID:      "createStaff",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *CreateStaffRequest
+			Params   = CreateStaffParams
+			Response = CreateStaffRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCreateStaffParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CreateStaff(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CreateStaff(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCreateStaffResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetMeRequest handles getMe operation.
 //
 // Người dùng đang đăng nhập và quyền của họ.
@@ -530,6 +629,328 @@ func (s *Server) handleListJobsRequest(args [0]string, argsEscaped bool, w http.
 	}
 }
 
+// handleListRolesRequest handles listRoles operation.
+//
+// Vai trò của shop và quyền của từng vai trò.
+//
+// GET /api/v1/identity/roles
+func (s *Server) handleListRolesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response ListRolesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListRolesOperation,
+			OperationSummary: "Vai trò của shop và quyền của từng vai trò",
+			OperationID:      "listRoles",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = ListRolesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListRoles(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListRoles(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListRolesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleListStaffRequest handles listStaff operation.
+//
+// Mọi nhân viên của shop kèm vai trò theo phạm vi.
+//
+// GET /api/v1/identity/users
+func (s *Server) handleListStaffRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response ListStaffRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListStaffOperation,
+			OperationSummary: "Mọi nhân viên của shop kèm vai trò theo phạm vi",
+			OperationID:      "listStaff",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = ListStaffRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListStaff(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListStaff(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListStaffResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleLockStaffRequest handles lockStaff operation.
+//
+// Khóa nhân viên (không khóa Chủ còn hoạt động cuối cùng).
+//
+// POST /api/v1/identity/users/{id}/lock
+func (s *Server) handleLockStaffRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: LockStaffOperation,
+			ID:   "lockStaff",
+		}
+	)
+	params, err := decodeLockStaffParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response LockStaffRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    LockStaffOperation,
+			OperationSummary: "Khóa nhân viên (không khóa Chủ còn hoạt động cuối cùng)",
+			OperationID:      "lockStaff",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = LockStaffParams
+			Response = LockStaffRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackLockStaffParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.LockStaff(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.LockStaff(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeLockStaffResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleReplaceStaffGrantsRequest handles replaceStaffGrants operation.
+//
+// Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không
+// vượt quyền của mình).
+//
+// PUT /api/v1/identity/users/{id}/grants
+func (s *Server) handleReplaceStaffGrantsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ReplaceStaffGrantsOperation,
+			ID:   "replaceStaffGrants",
+		}
+	)
+	params, err := decodeReplaceStaffGrantsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeReplaceStaffGrantsRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response ReplaceStaffGrantsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ReplaceStaffGrantsOperation,
+			OperationSummary: "Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không vượt quyền của mình)",
+			OperationID:      "replaceStaffGrants",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ReplaceGrantsRequest
+			Params   = ReplaceStaffGrantsParams
+			Response = ReplaceStaffGrantsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackReplaceStaffGrantsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ReplaceStaffGrants(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ReplaceStaffGrants(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeReplaceStaffGrantsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleRetryJobRequest handles retryJob operation.
 //
 // Đưa việc dead, in_doubt hoặc expired về pending.
@@ -675,6 +1096,94 @@ func (s *Server) handleStreamRequest(args [0]string, argsEscaped bool, w http.Re
 	}
 
 	if err := encodeStreamResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleUnlockStaffRequest handles unlockStaff operation.
+//
+// Mở khóa nhân viên.
+//
+// POST /api/v1/identity/users/{id}/unlock
+func (s *Server) handleUnlockStaffRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: UnlockStaffOperation,
+			ID:   "unlockStaff",
+		}
+	)
+	params, err := decodeUnlockStaffParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response UnlockStaffRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    UnlockStaffOperation,
+			OperationSummary: "Mở khóa nhân viên",
+			OperationID:      "unlockStaff",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = UnlockStaffParams
+			Response = UnlockStaffRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackUnlockStaffParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.UnlockStaff(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.UnlockStaff(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeUnlockStaffResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

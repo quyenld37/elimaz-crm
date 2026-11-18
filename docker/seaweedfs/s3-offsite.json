@@ -1,0 +1,18 @@
+{
+  "identities": [
+    {
+      "name": "crm-admin",
+      "credentials": [{"accessKey": "crm-admin-dev", "secretKey": "crm-admin-dev-only-not-a-secret"}],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    },
+    {
+      "name": "crm-filesync",
+      "credentials": [{"accessKey": "crm-filesync-dev", "secretKey": "crm-filesync-dev-only-not-a-secret"}],
+      "actions": [
+        "Read:crm-public", "Write:crm-public", "List:crm-public",
+        "Read:crm-originals", "Write:crm-originals", "List:crm-originals",
+        "Read:crm-private", "Write:crm-private", "List:crm-private"
+      ]
+    }
+  ]
+}

@@ -79,6 +79,37 @@ func moduleOf(rel string) (string, bool) {
 
 func hasPathPrefix(p, prefix string) bool { return p == prefix || strings.HasPrefix(p, prefix+"/") }
 
+// imagerForbidden: imager chỉ ra mạng tới kho tệp, không nối database, không giữ bí mật (Global Constraints M1).
+func imagerForbidden(imp string) bool {
+	if hasPathPrefix(imp, "github.com/jackc/pgx") {
+		return true
+	}
+	rel, ok := strings.CutPrefix(imp, modPrefix)
+	if !ok {
+		return false
+	}
+	if hasPathPrefix(rel, "internal/modules") {
+		return true
+	}
+	for _, p := range []string{"db", "tenancy", "config", "idempotency", "queue", "commands"} {
+		if hasPathPrefix(rel, "internal/platform/"+p) {
+			return true
+		}
+	}
+	return false
+}
+
+// readerViolation: luật (f), (g) của M1 (Task M1-25) cho gói chỉ đọc view và cho imager.
+func readerViolation(pkg, imp string) string {
+	switch {
+	case hasPathPrefix(pkg, "internal/queries") && hasPathPrefix(imp, modPrefix+"internal/modules"):
+		return "(f) internal/queries chỉ đọc view, không nhập internal/modules/**"
+	case (hasPathPrefix(pkg, "internal/imager") || hasPathPrefix(pkg, "cmd/imager")) && imagerForbidden(imp):
+		return "(g) imager không nhập internal/modules/**, database, cấu hình, hàng đợi, pgx"
+	}
+	return ""
+}
+
 // boundaryViolation trả lời vi phạm (rỗng nếu không) của một lần nhập imp từ gói pkg (đường dẫn tương đối so với
 // gốc module). Mỗi lần nhập báo tối đa một luật.
 func boundaryViolation(pkg, imp string) string {
@@ -93,6 +124,9 @@ func boundaryViolation(pkg, imp string) string {
 	case !strings.HasPrefix(pkg, "internal/platform/") &&
 		(hasPathPrefix(imp, "github.com/valkey-io/valkey-go") || hasPathPrefix(imp, "github.com/aws/aws-sdk-go-v2")):
 		return "(d) chỉ internal/platform được nhập valkey-go, aws-sdk-go-v2"
+	}
+	if v := readerViolation(pkg, imp); v != "" {
+		return v
 	}
 	if !internalImp {
 		return ""
@@ -117,7 +151,7 @@ func boundaryViolation(pkg, imp string) string {
 	return ""
 }
 
-// checkBoundaries trả mọi vi phạm luật a–e trong dir (một module Go có đường dẫn elimaz.com.vn/crm).
+// checkBoundaries trả mọi vi phạm luật a–g trong dir (một module Go có đường dẫn elimaz.com.vn/crm).
 func checkBoundaries(t *testing.T, dir string) []string {
 	t.Helper()
 	var out []string
@@ -139,10 +173,14 @@ func checkBoundaries(t *testing.T, dir string) []string {
 func TestBoundariesTestdata(t *testing.T) {
 	got := checkBoundaries(t, filepath.Join("testdata", "boundaries"))
 	want := []string{
+		"cmd/imager nhập elimaz.com.vn/crm/internal/platform/config: (g)",
+		"internal/imager nhập github.com/jackc/pgx/v5: (g)",
 		"internal/modules/catalog nhập elimaz.com.vn/crm/internal/modules/order/internal/store: (a)",
 		"internal/modules/customer nhập github.com/valkey-io/valkey-go: (d)",
 		"internal/modules/identity nhập net/http: (b)",
+		"internal/modules/inventory nhập elimaz.com.vn/crm/internal/modules/order: (a)",
 		"internal/platform/queue nhập elimaz.com.vn/crm/internal/modules/order: (c)",
+		"internal/queries nhập elimaz.com.vn/crm/internal/modules/catalog: (f)",
 		"tools/probe nhập elimaz.com.vn/crm/spikes/flashsale: (e)",
 	}
 	if len(got) != len(want) {
@@ -169,6 +207,23 @@ func TestBoundariesNotCalledModule(t *testing.T) {
 		{"internal/modules/order", modPrefix + "internal/httpapi/gen", "(b)"},
 		{"internal/modules/order", "net/http/httptest", "(b)"},
 		{"internal/httpapi", "net/http", ""},
+		{"internal/modules/inventory", modPrefix + "internal/modules/order", "(a)"},
+		{"internal/modules/inventory", modPrefix + "internal/modules/catalog", ""},
+		{"internal/modules/cash", modPrefix + "internal/modules/fulfillment", ""},
+		{"internal/modules/fulfillment", modPrefix + "internal/modules/inventory", "(a)"},
+		{"internal/queries", modPrefix + "internal/modules/catalog", "(f)"},
+		{"internal/queries/x", modPrefix + "internal/modules/identity/internal/store", "(f)"},
+		{"internal/queries", modPrefix + "internal/platform/db", ""},
+		{"internal/imager", modPrefix + "internal/modules/catalog", "(g)"},
+		{"internal/imager/pipe", "github.com/jackc/pgx/v5/pgxpool", "(g)"},
+		{"cmd/imager", modPrefix + "internal/platform/tenancy", "(g)"},
+		{"cmd/imager", modPrefix + "internal/platform/idempotency", "(g)"},
+		{"cmd/imager", modPrefix + "internal/platform/queue", "(g)"},
+		{"cmd/imager", modPrefix + "internal/platform/commands", "(g)"},
+		{"cmd/imager", modPrefix + "internal/platform/db", "(g)"},
+		{"cmd/imager", modPrefix + "internal/imager", ""},
+		{"cmd/imager", modPrefix + "internal/platform/logging", ""},
+		{"cmd/imagerx", "github.com/jackc/pgx/v5", ""},
 	}
 	for _, c := range cases {
 		got := boundaryViolation(c.pkg, c.imp)

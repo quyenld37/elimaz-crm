@@ -3,7 +3,7 @@
 Tệp này viết tay, giữ dưới 200 dòng. Chỉ ghi điều không đọc được từ code. Kiến trúc và lý do nằm ở spec, không chép lại ở đây.
 
 - Spec (bản 2.1): `../../docs/crm/specs/2026-11-10-crm-rieng/`. ADR-44 là danh sách thư viện được dùng.
-- Kế hoạch đang chạy: `../../docs/superpowers/plans/2026-11-15-crm-m0-nen-tang-ban-5.md`.
+- Kế hoạch đang chạy: M0 `../../docs/superpowers/plans/2026-11-15-crm-m0-nen-tang-ban-5.md`, M1 `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md`; các mốc sau cùng thư mục. Số task toàn cục: `../../docs/superpowers/plans/danh-so-task-toan-cuc.md`.
 - Luật của website (Playwright, cổng 4175/4176, mockup DESIGN.md) **không áp dụng** ở đây.
 - Mở phiên CRM với thư mục làm việc là `apps/crm`. Hook (`.claude/settings.json`) và luật theo vùng (`.claude/rules/`) chỉ có hiệu lực khi phiên bắt đầu ở đây.
 

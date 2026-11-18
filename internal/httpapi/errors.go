@@ -38,6 +38,13 @@ const (
 	codeStreamUnavailable      = "stream_unavailable"
 	codeUnauthenticated        = "unauthenticated"
 	codeUnsupportedMedia       = "unsupported_media_type"
+	// Quản lý nhân viên (PQ07, kế hoạch M1 Task M1-26).
+	codeCannotModifySelf  = "cannot_modify_self"
+	codeGrantExceedsActor = "grant_exceeds_actor"
+	codeLastOwner         = "last_owner"
+	codeEmailTaken        = "email_taken"
+	codeVersionConflict   = "version_conflict"
+	codeInvalidInput      = "invalid_input"
 )
 
 type errorBody struct {
@@ -72,6 +79,10 @@ func writeHandlerError(d Deps, w http.ResponseWriter, r *http.Request, err error
 	}
 	if oe, ok := errors.AsType[ogenerrors.Error](err); ok && oe.Code() >= 400 && oe.Code() < 500 {
 		writeError(w, r, oe.Code(), codeBadRequest)
+		return
+	}
+	if status, code, ok := identityError(err); ok {
+		writeError(w, r, status, code)
 		return
 	}
 	switch {
@@ -120,4 +131,29 @@ func writeAuthError(d Deps, w http.ResponseWriter, r *http.Request, err error) {
 	default:
 		writeHandlerError(d, w, r, err)
 	}
+}
+
+// identityError đổi lỗi nghiệp vụ của quản lý nhân viên (PQ07) sang mã HTTP. ErrLocked ở đây là người thao tác vừa bị
+// khóa giữa lúc xác thực và lúc ghi: như bước xác thực, 403 forbidden. ErrStaffNotFound: không có hoặc của tenant
+// khác, không cho biết là có.
+func identityError(err error) (status int, code string, ok bool) {
+	for _, m := range []struct {
+		err    error
+		status int
+		code   string
+	}{
+		{identity.ErrSelfModify, http.StatusForbidden, codeCannotModifySelf},
+		{identity.ErrGrantExceedsActor, http.StatusForbidden, codeGrantExceedsActor},
+		{identity.ErrLocked, http.StatusForbidden, codeForbidden},
+		{identity.ErrLastOwner, http.StatusConflict, codeLastOwner},
+		{identity.ErrEmailTaken, http.StatusConflict, codeEmailTaken},
+		{identity.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
+		{identity.ErrStaffNotFound, http.StatusNotFound, codeNotFound},
+		{identity.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
+	} {
+		if errors.Is(err, m.err) {
+			return m.status, m.code, true
+		}
+	}
+	return 0, "", false
 }

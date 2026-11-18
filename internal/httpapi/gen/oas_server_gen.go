@@ -14,6 +14,12 @@ type Handler interface {
 	//
 	// POST /api/v1/platform/jobs/{id}/abandon
 	AbandonJob(ctx context.Context, params AbandonJobParams) (AbandonJobRes, error)
+	// CreateStaff implements createStaff operation.
+	//
+	// Tạo nhân viên mới (chưa có vai trò nào).
+	//
+	// POST /api/v1/identity/users
+	CreateStaff(ctx context.Context, req *CreateStaffRequest, params CreateStaffParams) (CreateStaffRes, error)
 	// GetMe implements getMe operation.
 	//
 	// Người dùng đang đăng nhập và quyền của họ.
@@ -51,6 +57,31 @@ type Handler interface {
 	//
 	// GET /api/v1/platform/jobs
 	ListJobs(ctx context.Context, params ListJobsParams) (ListJobsRes, error)
+	// ListRoles implements listRoles operation.
+	//
+	// Vai trò của shop và quyền của từng vai trò.
+	//
+	// GET /api/v1/identity/roles
+	ListRoles(ctx context.Context) (ListRolesRes, error)
+	// ListStaff implements listStaff operation.
+	//
+	// Mọi nhân viên của shop kèm vai trò theo phạm vi.
+	//
+	// GET /api/v1/identity/users
+	ListStaff(ctx context.Context) (ListStaffRes, error)
+	// LockStaff implements lockStaff operation.
+	//
+	// Khóa nhân viên (không khóa Chủ còn hoạt động cuối cùng).
+	//
+	// POST /api/v1/identity/users/{id}/lock
+	LockStaff(ctx context.Context, params LockStaffParams) (LockStaffRes, error)
+	// ReplaceStaffGrants implements replaceStaffGrants operation.
+	//
+	// Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không
+	// vượt quyền của mình).
+	//
+	// PUT /api/v1/identity/users/{id}/grants
+	ReplaceStaffGrants(ctx context.Context, req *ReplaceGrantsRequest, params ReplaceStaffGrantsParams) (ReplaceStaffGrantsRes, error)
 	// RetryJob implements retryJob operation.
 	//
 	// Đưa việc dead, in_doubt hoặc expired về pending.
@@ -63,6 +94,12 @@ type Handler interface {
 	//
 	// GET /api/v1/stream
 	Stream(ctx context.Context) (StreamRes, error)
+	// UnlockStaff implements unlockStaff operation.
+	//
+	// Mở khóa nhân viên.
+	//
+	// POST /api/v1/identity/users/{id}/unlock
+	UnlockStaff(ctx context.Context, params UnlockStaffParams) (UnlockStaffRes, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and

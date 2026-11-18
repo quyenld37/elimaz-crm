@@ -62,10 +62,11 @@ func (r *Registry) Register(c Consumer) error {
 	return nil
 }
 
-// ConsumerKind là loại việc của consumer name: event.<name>, chính sách mặc định kèm BlockOnDead (spec 04 mục 5.1).
+// ConsumerKind là loại việc của consumer name: event.<name>, chính sách mặc định với thứ tự nghiêm OrderStrict (việc
+// đầu hàng dead chặn việc sau của đúng đối tượng đó, spec 04 mục 5.1).
 func ConsumerKind(name string) queue.Kind {
 	p := queue.DefaultPolicy
-	p.BlockOnDead = true
+	p.OrderMode = queue.OrderStrict
 	return queue.Kind{Name: "event." + name, Policy: p}
 }
 

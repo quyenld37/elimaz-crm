@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M1 — Phiếu kho</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="m1.css">
+<style>
+.combo { position: relative; }
+.combo-list { position: absolute; left: 0; right: 0; top: 100%; z-index: 3; border: 1px solid var(--rule); border-radius: var(--r-box); box-shadow: var(--shadow); background: var(--paper); margin-top: 4px; overflow: hidden; }
+.combo-opt { display: flex; align-items: center; width: 100%; min-height: var(--field); padding: 6px 12px; border: 0; border-bottom: 1px solid var(--rule); background: var(--paper); font: 14px/1.4 var(--font-body); text-align: left; color: var(--ink); cursor: pointer; }
+.combo-opt:last-child { border-bottom: 0; }
+.combo-opt.is-add { font-weight: 700; background: var(--surface); }
+.v-cell { display: grid; gap: 2px; min-width: 0; }
+.v-cell .sku { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.v-cell .clamp2 { color: var(--name); font-weight: 600; }
+.ltbl .c-q { width: 150px; } .ltbl .c-c { width: 160px; } .ltbl .c-x { width: 56px; }
+.ltbl td .input { width: 100%; }
+.totals { display: flex; justify-content: flex-end; gap: 24px; flex-wrap: wrap; padding: 12px; font-size: 14px; }
+@media (max-width: 759px) {
+	.ltbl td .input, .ltbl td .stepper { flex: 0 1 60%; }
+	.ltbl td.c-x { justify-content: flex-end; }
+	.totals { justify-content: space-between; padding: 8px 0; }
+}
+</style>
+</head>
+<body data-page="kho-phieu" data-title="Phiếu kho">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><h1>Phiếu kho</h1><p class="sub">Phiếu nháp chưa đổi tồn. Chỉ khi ghi sổ tồn kho mới thay đổi; phiếu đã ghi sổ không sửa được.</p></div>
+	<div class="row"><button class="btn btn-dark">Tạo phiếu</button></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI A</p><h2>Danh sách phiếu: nháp, đã ghi sổ, đã hủy, đủ năm loại</h2></section>
+<div class="toolbar">
+	<div class="select-wrap"><select aria-label="Kho"><option>Kho chính</option></select></div>
+	<div class="select-wrap"><select aria-label="Trạng thái phiếu"><option>Mọi trạng thái</option><option>Nháp</option><option>Đã ghi sổ</option><option>Đã hủy</option></select></div>
+	<div class="select-wrap"><select aria-label="Loại phiếu"><option>Mọi loại</option><option>Nhập hàng</option><option>Xuất khác</option><option>Chuyển hàng lỗi</option><option>Xuất hàng lỗi</option><option>Điều chỉnh</option></select></div>
+</div>
+<div class="tbl-frame">
+<table class="tbl">
+	<thead><tr><th>Phiếu</th><th>Loại</th><th>Nhà cung cấp</th><th class="r">Số lượng</th><th>Trạng thái</th><th>Tạo</th></tr></thead>
+	<tbody>
+	<tr><td class="lead"><a href="#soan" class="bold cell-a">PN-000124</a></td><td data-label="Loại">Nhập hàng</td><td data-label="Nhà cung cấp">Xưởng Hoa</td><td data-label="Số lượng" class="r num">22 cái · 3 mã</td><td data-label="Trạng thái"><span class="chip">Nháp</span></td><td data-label="Tạo" class="small">Minh · 15:10 18/11</td></tr>
+	<tr><td class="lead"><a href="#da-ghi" class="bold cell-a">PN-000123</a></td><td data-label="Loại">Nhập hàng</td><td data-label="Nhà cung cấp"><span class="clamp2" style="max-width:360px">Công ty TNHH Sản xuất Thương mại và Dịch vụ May mặc Xuất khẩu Thanh Bình Hưng Thịnh Phát, chi nhánh Khu công nghiệp Phố Nối A, tỉnh Hưng Yên, xưởng số 3 chuyên hàng lụa và voan cao cấp cho thương hiệu</span></td><td data-label="Số lượng" class="r num">120 cái · 18 mã</td><td data-label="Trạng thái"><span class="chip chip-ok">Đã ghi sổ</span></td><td data-label="Tạo" class="small">Minh · 09:02 18/11</td></tr>
+	<tr><td class="lead"><a href="#xuat" class="bold cell-a">PX-000045</a></td><td data-label="Loại">Xuất khác</td><td data-label="Nhà cung cấp" class="muted">—</td><td data-label="Số lượng" class="r num">5 cái · 2 mã</td><td data-label="Trạng thái"><span class="chip">Nháp</span></td><td data-label="Tạo" class="small">Minh · 14:30 18/11</td></tr>
+	<tr><td class="lead"><a href="#" class="bold cell-a">PL-000012</a></td><td data-label="Loại">Chuyển hàng lỗi</td><td data-label="Nhà cung cấp" class="muted">—</td><td data-label="Số lượng" class="r num">2 cái · 1 mã</td><td data-label="Trạng thái"><span class="chip chip-ok">Đã ghi sổ</span></td><td data-label="Tạo" class="small">Minh · 11:20 17/11</td></tr>
+	<tr><td class="lead"><a href="#" class="bold cell-a">XL-000004</a></td><td data-label="Loại">Xuất hàng lỗi</td><td data-label="Nhà cung cấp" class="muted">—</td><td data-label="Số lượng" class="r num">2 cái · 1 mã</td><td data-label="Trạng thái"><span class="chip chip-ok">Đã ghi sổ</span></td><td data-label="Tạo" class="small">Lan · 16:05 17/11</td></tr>
+	<tr class="is-muted"><td class="lead"><a href="#" class="bold cell-a">DC-000003</a></td><td data-label="Loại">Điều chỉnh</td><td data-label="Nhà cung cấp">—</td><td data-label="Số lượng" class="r num">−1 cái · 1 mã</td><td data-label="Trạng thái"><span class="chip chip-line">Đã hủy</span></td><td data-label="Tạo" class="small">Hùng · 10:00 16/11</td></tr>
+	</tbody>
+</table>
+</div>
+
+<section class="st" id="soan"><p class="xs">TRẠNG THÁI B</p><h2>Soạn phiếu nhập nháp: gõ tên nhà cung cấp chưa có và thêm nhanh; thêm dòng bằng quét mã</h2></section>
+<div class="card">
+	<div class="row-between"><div><h2>Phiếu nhập PN-000124</h2><p class="small muted">Nháp · Kho chính · tạo bởi Minh lúc 15:10 18/11</p></div><span class="chip">Nháp</span></div>
+	<div class="grid-f">
+		<label class="field"><span>Loại phiếu</span><span class="select-wrap"><select><option>Nhập hàng</option><option>Xuất khác</option><option>Chuyển hàng lỗi</option><option>Xuất hàng lỗi</option><option>Điều chỉnh</option></select></span></label>
+		<label class="field"><span>Kho</span><span class="select-wrap"><select><option>Kho chính</option></select></span></label>
+		<div class="field combo"><label for="ncc">Nhà cung cấp</label><input id="ncc" class="input" value="Xưởng Hoa" role="combobox" aria-expanded="true">
+			<div class="combo-list" role="listbox">
+				<button class="combo-opt" role="option">Xưởng may Hoa Sen</button>
+				<button class="combo-opt is-add" role="option">+ Thêm nhà cung cấp "Xưởng Hoa"</button>
+			</div></div>
+		<label class="field"><span>Ghi chú</span><input class="input" value="Hàng về đợt 2 tháng 11"></label>
+	</div>
+
+	<div class="field" style="margin-top:24px"><label for="scan">Thêm dòng</label>
+		<input id="scan" class="input is-search" placeholder="Quét barcode hoặc gõ SKU, tên mẫu rồi Enter" style="font-variant-numeric:tabular-nums">
+		<span class="hint">Máy quét dạng bàn phím: quét cùng mã nhiều lần thì số lượng cộng thêm 1.</span></div>
+
+	<div class="tbl-frame" style="margin-top:16px">
+	<table class="tbl ltbl">
+		<thead><tr><th>Mã hàng</th><th class="c-q">Số lượng</th><th class="c-c">Giá nhập (₫)</th><th class="r">Thành tiền</th><th class="c-x"><span class="sr">Xóa</span></th></tr></thead>
+		<tbody>
+		<tr><td class="lead"><span class="v-cell"><span class="sku">DAM0123-DEN-S</span><span class="clamp2">Đầm suông công sở cổ vuông tay lỡ phối nút ngọc trai dáng dài qua gối màu be sữa · Đen · S</span></span></td>
+			<td data-label="Số lượng"><span class="stepper"><button class="ibtn" aria-label="Bớt 1">−</button><input class="input" value="10" aria-label="Số lượng"><button class="ibtn" aria-label="Thêm 1">+</button></span></td>
+			<td data-label="Giá nhập"><input class="input num" value="180.000"></td><td data-label="Thành tiền" class="r money">1.800.000 ₫</td><td class="c-x"><button class="ibtn" aria-label="Xóa dòng DAM0123-DEN-S">×</button></td></tr>
+		<tr><td class="lead"><span class="v-cell"><span class="sku">DAM0123-BE-M</span><span class="clamp2">Đầm suông công sở cổ vuông … · Be · M</span></span></td>
+			<td data-label="Số lượng"><span class="stepper"><button class="ibtn" aria-label="Bớt 1">−</button><input class="input" value="7" aria-label="Số lượng"><button class="ibtn" aria-label="Thêm 1">+</button></span></td>
+			<td data-label="Giá nhập"><input class="input num" value="180.000"></td><td data-label="Thành tiền" class="r money">1.260.000 ₫</td><td class="c-x"><button class="ibtn" aria-label="Xóa dòng DAM0123-BE-M">×</button></td></tr>
+		<tr><td class="lead"><span class="v-cell"><span class="sku">AO0456-TRANG-S</span><span class="clamp2">Áo sơ mi lụa cổ đức tay dài · Trắng · S</span></span></td>
+			<td data-label="Số lượng"><span class="stepper"><button class="ibtn" aria-label="Bớt 1">−</button><input class="input" value="5" aria-label="Số lượng"><button class="ibtn" aria-label="Thêm 1">+</button></span></td>
+			<td data-label="Giá nhập"><input class="input num" placeholder="Không bắt buộc"></td><td data-label="Thành tiền" class="r muted">—</td><td class="c-x"><button class="ibtn" aria-label="Xóa dòng AO0456-TRANG-S">×</button></td></tr>
+		</tbody>
+	</table>
+	</div>
+	<div class="totals"><span>3 mã · <b class="num">22</b> cái</span><span>Tổng giá nhập: <b class="money">3.060.000 ₫</b></span></div>
+	<div class="savebar is-sticky" style="margin-top:8px"><button class="btn btn-danger">Hủy phiếu</button><button class="btn btn-line">Lưu nháp</button><button class="btn btn-dark">Ghi sổ…</button></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Bấm "Ghi sổ…": hộp xác nhận lần hai</h2></section>
+<div class="backdrop">
+	<div class="dlg" role="dialog" aria-labelledby="dlg1">
+		<div class="dlg-h"><h3 id="dlg1">Ghi sổ phiếu PN-000124?</h3></div>
+		<div class="dlg-b">
+			<p>Tồn ở <b>Kho chính</b> tăng <b class="num">22</b> cái (3 mã). Nhà cung cấp: Xưởng Hoa.</p>
+			<p class="small muted">Sau khi ghi sổ phiếu không sửa, không hủy được. Muốn sửa sai thì tạo phiếu điều chỉnh.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-line">Quay lại</button><button class="btn btn-dark">Ghi sổ</button></div>
+	</div>
+</div>
+<p class="mk" style="margin-top:8px"><b>Mockup:</b> bấm "Ghi sổ" → nút thành "Đang ghi sổ…" và khóa; bấm đúp chỉ gửi một lần (khóa chống trùng). Ghi xong: phiếu chuyển "Đã ghi sổ", bảng tồn cập nhật ngay.</p>
+
+<section class="st"><p class="xs">TRẠNG THÁI D</p><h2>Nhân viên Kho (chỉ có quyền soạn): nút ghi sổ không bấm được, có lý do</h2></section>
+<div class="savebar"><button class="btn btn-line">Lưu nháp</button><button class="btn" disabled>Ghi sổ…</button></div>
+<p class="reason" style="text-align:right;margin-top:4px">Cần quyền ghi sổ phiếu kho (vai trò Chủ hoặc Quản lý). Lưu nháp rồi báo người duyệt.</p>
+
+<section class="st" id="xuat"><p class="xs">TRẠNG THÁI E</p><h2>Phiếu xuất: không có ô nhà cung cấp; ghi sổ bị từ chối vì không đủ hàng</h2></section>
+<div class="card">
+	<div class="row-between"><div><h2>Phiếu xuất PX-000045</h2><p class="small muted">Nháp · Kho chính · Xuất khác</p></div><span class="chip">Nháp</span></div>
+	<div class="grid-f">
+		<label class="field"><span>Loại phiếu</span><span class="select-wrap"><select><option>Xuất khác</option></select></span></label>
+		<label class="field"><span>Kho</span><span class="select-wrap"><select><option>Kho chính</option></select></span></label>
+		<label class="field"><span>Ghi chú</span><input class="input" value="Xuất mẫu cho buổi chụp ảnh"></label>
+	</div>
+	<div class="box box-err" style="margin-top:16px"><b>Không đủ hàng: còn 2.</b> <span>Mã QU0789-DEN-M chỉ còn 2 có thể bán (4 cái đang giữ cho đơn). Phiếu vẫn là nháp, tồn chưa đổi. Giảm số lượng rồi ghi sổ lại.</span></div>
+	<div class="tbl-frame" style="margin-top:16px">
+	<table class="tbl ltbl">
+		<thead><tr><th>Mã hàng</th><th class="c-q">Số lượng</th><th class="r">Có thể bán</th><th class="c-x"><span class="sr">Xóa</span></th></tr></thead>
+		<tbody>
+		<tr class="is-err"><td class="lead"><span class="v-cell"><span class="sku">QU0789-DEN-M</span><span class="clamp2">Quần âu ống đứng cạp cao · Đen · M</span><span class="field-err">Không đủ hàng: còn 2</span></span></td>
+			<td data-label="Số lượng"><span class="stepper"><button class="ibtn" aria-label="Bớt 1">−</button><input class="input is-err" value="3" aria-label="Số lượng"><button class="ibtn" aria-label="Thêm 1">+</button></span></td>
+			<td data-label="Có thể bán" class="r num">2</td><td class="c-x"><button class="ibtn" aria-label="Xóa dòng QU0789-DEN-M">×</button></td></tr>
+		<tr><td class="lead"><span class="v-cell"><span class="sku">VAY0101-BE-M</span><span class="clamp2">Chân váy bút chì xẻ sau · Be · M</span></span></td>
+			<td data-label="Số lượng"><span class="stepper"><button class="ibtn" aria-label="Bớt 1">−</button><input class="input" value="2" aria-label="Số lượng"><button class="ibtn" aria-label="Thêm 1">+</button></span></td>
+			<td data-label="Có thể bán" class="r num">9</td><td class="c-x"><button class="ibtn" aria-label="Xóa dòng VAY0101-BE-M">×</button></td></tr>
+		</tbody>
+	</table>
+	</div>
+	<p class="hint" style="margin-top:8px">Phiếu xuất, chuyển hàng lỗi, xuất hàng lỗi không có nhà cung cấp. Phiếu điều chỉnh nhận số âm (bớt) và số dương (thêm).</p>
+</div>
+
+<section class="st" id="da-ghi"><p class="xs">TRẠNG THÁI F</p><h2>Phiếu đã ghi sổ (chỉ xem), nhà cung cấp tên 200 ký tự</h2></section>
+<div class="card">
+	<div class="row-between"><div><h2>Phiếu nhập PN-000123</h2><p class="small muted">Ghi sổ lúc 09:15 18/11 bởi Lan · tạo bởi Minh</p></div><span class="chip chip-ok">Đã ghi sổ</span></div>
+	<dl class="grid-f" style="margin:0">
+		<div class="field"><dt class="label">Nhà cung cấp</dt><dd style="margin:0" class="wrap-any">Công ty TNHH Sản xuất Thương mại và Dịch vụ May mặc Xuất khẩu Thanh Bình Hưng Thịnh Phát, chi nhánh Khu công nghiệp Phố Nối A, tỉnh Hưng Yên, xưởng số 3 chuyên hàng lụa và voan cao cấp cho thương hiệu</dd></div>
+		<div class="field"><dt class="label">Kho</dt><dd style="margin:0">Kho chính</dd></div>
+		<div class="field"><dt class="label">Tổng</dt><dd style="margin:0"><span class="num">120</span> cái · 18 mã · <span class="money">21.600.000 ₫</span></dd></div>
+	</dl>
+	<p class="small muted" style="margin-top:16px">Phiếu đã ghi sổ không sửa được. Sửa sai bằng phiếu điều chỉnh.</p>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

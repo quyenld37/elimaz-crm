@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M1 — Sửa mẫu</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="m1.css">
+<style>
+.opt-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.opt-row .tag { min-height: var(--tap); }
+.opt-row .tag button { border: 0; background: none; min-width: var(--tap); min-height: var(--tap); font-size: 14px; cursor: pointer; color: var(--ink); }
+.opt-row .input { width: 160px; }
+.vtbl td .input, .vtbl td .select-wrap { min-width: 0; }
+.vtbl td .input { width: 100%; }
+.vtbl .c-sku { width: 190px; } .vtbl .c-bar { width: 170px; } .vtbl .c-pr { width: 140px; } .vtbl .c-st { width: 150px; }
+.attr { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px; align-items: center; }
+@media (max-width: 759px) {
+	.vtbl td .input, .vtbl td .select-wrap { flex: 0 1 62%; }
+	.vtbl td.v-name { font-weight: 700; justify-content: flex-start; }
+	.vtbl td.v-err { display: block; text-align: left; }
+	.attr { grid-template-columns: 1fr; gap: 4px; }
+}
+.up-row { display: flex; gap: 12px; align-items: center; border: 1px solid var(--rule); border-radius: var(--r-box); padding: 8px 12px; }
+.up-row.is-bad { background: var(--soft-sale); }
+.reasons td:first-child { font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+</style>
+</head>
+<body data-page="san-pham-sua" data-title="Sửa mẫu DAM0123">
+<div class="app"><main class="main">
+
+<p class="crumb"><a href="san-pham-danh-sach.html">Sản phẩm</a> / DAM0123</p>
+<div class="page-h">
+	<div class="grow" style="max-width:860px"><h1>Đầm suông công sở cổ vuông tay lỡ phối nút ngọc trai dáng dài qua gối màu be sữa</h1>
+	<div class="row" style="margin-top:8px"><span class="chip chip-ok">Đang bán</span><span class="small muted">Sửa lần cuối 14:02 18/11 · 6 biến thể · 3 ảnh</span></div></div>
+	<div class="savebar desk-only"><span class="small muted">Có thay đổi chưa lưu</span><button class="btn btn-dark">Lưu mẫu</button></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI A</p><h2>Mẫu đầy đủ: tên 80 ký tự, bài viết 30 khối, 2 màu × 3 size, ảnh ở mọi trạng thái</h2></section>
+
+<div class="cols">
+<div class="stack">
+	<div class="card">
+		<h2>Thông tin</h2>
+		<div class="grid-f">
+			<label class="field"><span>Mã mẫu *</span><input class="input" value="DAM0123"></label>
+			<label class="field"><span>Trạng thái</span><span class="select-wrap"><select><option>Đang bán</option><option>Đang nhập · ẩn với khách</option><option>Ngừng bán</option></select></span></label>
+		</div>
+		<div class="stack" style="margin-top:16px">
+			<label class="field"><span>Tên mẫu *</span><input class="input" value="Đầm suông công sở cổ vuông tay lỡ phối nút ngọc trai dáng dài qua gối màu be sữa"><span class="hint">80 ký tự</span></label>
+			<label class="field"><span>Mô tả ngắn</span><textarea class="input">Đầm suông dáng dài, cổ vuông thanh lịch, nút ngọc trai trang trí. Chất lụa mềm, không nhăn, hợp đi làm và dự tiệc nhẹ.</textarea><span class="hint">118 / 1.000 ký tự · chữ thường, không định dạng</span></label>
+			<p class="small muted">Người bán: ELIMAZ</p>
+		</div>
+	</div>
+
+	<div class="card">
+		<div class="row-between"><h2>Bài viết chi tiết</h2><span class="small muted">30 khối</span></div>
+		<div class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="true">Soạn</button><button class="tab" role="tab" aria-selected="false">Xem trước</button></div>
+		<div class="blocks" style="margin-top:16px">
+			<div class="block">
+				<div class="block-h"><span class="grow">1 · Tiêu đề</span><button class="ibtn" aria-label="Đưa khối 1 lên" disabled>↑</button><button class="ibtn" aria-label="Đưa khối 1 xuống">↓</button><button class="ibtn" aria-label="Xóa khối 1">×</button></div>
+				<input class="input" value="Chất liệu và form dáng">
+			</div>
+			<div class="block">
+				<div class="block-h"><span class="grow">2 · Đoạn văn</span><button class="ibtn" aria-label="Đưa khối 2 lên">↑</button><button class="ibtn" aria-label="Đưa khối 2 xuống">↓</button><button class="ibtn" aria-label="Xóa khối 2">×</button></div>
+				<textarea class="input">Lụa Hàn cao cấp, mặt vải mịn, rủ tự nhiên. Form suông che khuyết điểm vòng hai, dài qua gối 5 cm với người cao 1m60.</textarea>
+			</div>
+			<div class="block">
+				<div class="block-h"><span class="grow">3 · Danh sách</span><button class="ibtn" aria-label="Đưa khối 3 lên">↑</button><button class="ibtn" aria-label="Đưa khối 3 xuống">↓</button><button class="ibtn" aria-label="Xóa khối 3">×</button></div>
+				<textarea class="input">Giặt tay nước lạnh
+Không vắt mạnh
+Là ở nhiệt độ thấp</textarea>
+				<span class="hint">Mỗi dòng là một ý</span>
+			</div>
+			<div class="block">
+				<div class="block-h"><span class="grow">4 · Ảnh</span><button class="ibtn" aria-label="Đưa khối 4 lên">↑</button><button class="ibtn" aria-label="Đưa khối 4 xuống">↓</button><button class="ibtn" aria-label="Xóa khối 4">×</button></div>
+				<div class="row"><span class="thumb"></span><label class="field grow"><span>Chọn từ ảnh của mẫu</span><span class="select-wrap"><select><option>Ảnh 2 · Be</option><option>Ảnh 1 · Đen</option></select></span></label></div>
+			</div>
+			<button class="block-gap btn-quiet" style="text-align:left;min-height:var(--tap);cursor:pointer;background:var(--paper)">Khối 5–28 (24 khối) đang thu gọn — bấm để mở</button>
+			<div class="block">
+				<div class="block-h"><span class="grow">29 · Đoạn văn</span><button class="ibtn" aria-label="Đưa khối 29 lên">↑</button><button class="ibtn" aria-label="Đưa khối 29 xuống">↓</button><button class="ibtn" aria-label="Xóa khối 29">×</button></div>
+				<textarea class="input">Mẹo phối: đi cùng giày mũi nhọn và túi hộp nhỏ. &lt;img src=x onerror=alert(1)&gt;</textarea>
+				<span class="hint">Chữ được giữ nguyên văn, kể cả ký tự &lt; &gt;; không có định dạng HTML.</span>
+			</div>
+			<div class="block is-err">
+				<div class="block-h"><span class="grow">30 · Danh sách</span><button class="ibtn" aria-label="Đưa khối 30 lên">↑</button><button class="ibtn" aria-label="Đưa khối 30 xuống" disabled>↓</button><button class="ibtn" aria-label="Xóa khối 30">×</button></div>
+				<textarea class="input is-err"></textarea>
+				<span class="field-err">Danh sách cần ít nhất một dòng.</span>
+			</div>
+		</div>
+		<div class="addbar" style="margin-top:16px"><span class="small muted">Thêm khối:</span><button class="btn btn-quiet">+ Đoạn văn</button><button class="btn btn-quiet">+ Tiêu đề</button><button class="btn btn-quiet">+ Danh sách</button><button class="btn btn-quiet">+ Ảnh</button></div>
+	</div>
+</div>
+
+<div class="stack">
+	<div class="card">
+		<div class="row-between"><h2>Ảnh</h2><span class="small muted">3 ảnh</span></div>
+		<div class="drop">
+			<p><b>Kéo ảnh vào đây</b> hoặc</p>
+			<button class="btn btn-line">Chọn ảnh từ máy</button>
+			<p class="hint">JPEG, PNG, WebP · tối đa 20 MB và 40 triệu điểm ảnh mỗi ảnh · chọn nhiều ảnh một lần</p>
+		</div>
+		<div class="stack-sm" style="margin-top:16px">
+			<p class="label">Đang tải lên (chưa thuộc mẫu)</p>
+			<div class="up-row"><span class="thumb is-proc">…</span><span class="grow"><b class="small">IMG_2040.jpg</b><br><span class="xs muted">Đang xử lý ảnh, thường dưới 30 giây. Xong thì ảnh tự vào cuối lưới.</span></span></div>
+			<div class="up-row is-bad"><span class="thumb is-empty">×</span><span class="grow"><b class="small err-text">Tệp không phải ảnh</b><br><span class="xs muted">bang-gia.jpg · không được thêm vào mẫu</span></span><button class="btn btn-quiet">Bỏ</button></div>
+			<div class="up-row is-bad"><span class="thumb is-empty">×</span><span class="grow"><b class="small err-text">Ảnh quá lớn (trên 40 triệu điểm ảnh)</b><br><span class="xs muted">IMG_2041.png · không được thêm vào mẫu</span></span><button class="btn btn-quiet">Bỏ</button></div>
+		</div>
+		<div class="imgs" style="margin-top:16px">
+			<div class="img-tile"><div class="img-ph"><span class="chip chip-dark img-pos">1 · Ảnh bìa</span></div>
+				<div class="img-b"><span class="select-wrap"><select aria-label="Màu của ảnh 1"><option>Màu: Đen</option><option>Màu: Be</option><option>Chưa gắn</option></select></span>
+				<div class="img-act"><button class="ibtn" aria-label="Dời ảnh 1 sang trái" disabled>←</button><button class="ibtn" aria-label="Dời ảnh 1 sang phải">→</button><button class="btn btn-quiet grow">Ảnh gốc</button><button class="ibtn" aria-label="Xóa ảnh 1">×</button></div></div></div>
+			<div class="img-tile"><div class="img-ph"><span class="chip img-pos">2</span></div>
+				<div class="img-b"><span class="select-wrap"><select aria-label="Màu của ảnh 2"><option>Màu: Be</option></select></span>
+				<div class="img-act"><button class="ibtn" aria-label="Dời ảnh 2 sang trái">←</button><button class="ibtn" aria-label="Dời ảnh 2 sang phải">→</button><button class="btn btn-quiet grow">Ảnh gốc</button><button class="ibtn" aria-label="Xóa ảnh 2">×</button></div></div></div>
+			<div class="img-tile"><div class="img-ph is-lost"><span class="chip img-pos">3</span><span><b>Ảnh bị mất</b><br><span class="xs">Kho tệp không còn ảnh này. Tải lại ảnh.</span></span></div>
+				<div class="img-b"><span class="select-wrap"><select aria-label="Màu của ảnh 3"><option>Màu: Đen</option></select></span>
+				<div class="img-act"><button class="btn btn-line grow">Tải lại</button><button class="ibtn" aria-label="Xóa ảnh 3">×</button></div></div></div>
+		</div>
+		<p class="mk" style="margin-top:16px"><b>Mockup:</b> sắp xếp bằng kéo thả <b>hoặc</b> nút ← → (luôn hiện, dùng được trên điện thoại). "Ảnh gốc" mở đường dẫn ký sẵn hạn 5 phút, tải về tên <code>DAM0123-1.jpg</code>. Xóa thì ảnh biến mất ngay và hiện thông báo có nút Hoàn tác (trạng thái D); khôi phục được trong 30 ngày.</p>
+	</div>
+
+	<div class="card">
+		<h2>Phân loại</h2>
+		<div class="stack">
+			<label class="field"><span>Danh mục</span><span class="select-wrap"><select><option>Váy &gt; Váy dài</option><option>Váy &gt; Váy dài &gt; Váy maxi</option><option>Áo &gt; Áo sơ mi</option></select></span></label>
+			<div class="field"><span>Nhãn (điều khiển kệ hàng trên web)</span>
+				<div class="opt-row"><span class="tag">Hàng mới <button aria-label="Bỏ nhãn Hàng mới">×</button></span><span class="tag">Công sở <button aria-label="Bỏ nhãn Công sở">×</button></span><span class="select-wrap"><select aria-label="Thêm nhãn"><option>+ Thêm nhãn</option><option>Bán chạy</option></select></span></div></div>
+			<div class="field"><span>Thuộc tính</span>
+				<div class="stack-sm">
+					<label class="attr"><span class="small">Chất liệu</span><span class="select-wrap"><select><option>Lụa</option><option>Voan</option></select></span></label>
+					<label class="attr"><span class="small">Kiểu dáng</span><span class="select-wrap"><select><option>Suông</option></select></span></label>
+					<label class="attr"><span class="small">Độ dài</span><span class="select-wrap"><select><option>Qua gối</option></select></span></label>
+					<label class="attr"><span class="small">Cổ áo</span><span class="select-wrap"><select><option>Chưa chọn</option><option>Cổ vuông</option></select></span></label>
+				</div></div>
+		</div>
+	</div>
+</div>
+</div>
+
+<div class="card" style="margin-top:24px">
+	<div class="row-between"><h2>Biến thể</h2><span class="small muted">2 màu × 3 size = 6 biến thể</span></div>
+	<div class="grid-f">
+		<div class="field"><span>Màu</span><div class="opt-row"><span class="tag">Đen <button aria-label="Bỏ màu Đen">×</button></span><span class="tag">Be <button aria-label="Bỏ màu Be">×</button></span><input class="input" placeholder="Thêm màu" aria-label="Thêm màu"></div></div>
+		<div class="field"><span>Size</span><div class="opt-row"><span class="tag">S <button aria-label="Bỏ size S">×</button></span><span class="tag">M <button aria-label="Bỏ size M">×</button></span><span class="tag">L <button aria-label="Bỏ size L">×</button></span><input class="input" placeholder="Thêm size" aria-label="Thêm size"></div></div>
+	</div>
+	<div class="tbl-frame" style="margin-top:16px">
+	<table class="tbl vtbl">
+		<thead><tr><th>Biến thể</th><th class="c-sku">SKU *</th><th class="c-bar">Barcode</th><th class="c-pr">Giá bán *</th><th class="c-pr">Giá nhập</th><th class="c-st">Trạng thái</th></tr></thead>
+		<tbody>
+		<tr><td class="v-name lead">Đen · S</td><td data-label="SKU"><input class="input" value="DAM0123-DEN-S"></td><td data-label="Barcode"><input class="input num" value="2000000000015"></td><td data-label="Giá bán"><input class="input num" value="350.000"></td><td data-label="Giá nhập"><input class="input num" value="180.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Đang bán</option><option>Ngừng bán</option></select></span></td></tr>
+		<tr><td class="v-name lead">Đen · M</td><td data-label="SKU"><input class="input" value="DAM0123-DEN-M"></td><td data-label="Barcode"><input class="input num" value="2000000000022"></td><td data-label="Giá bán"><input class="input num" value="350.000"></td><td data-label="Giá nhập"><input class="input num" value="180.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Đang bán</option></select></span></td></tr>
+		<tr class="is-err"><td class="v-name lead">Đen · L</td><td data-label="SKU"><span class="stack-sm" style="gap:2px;flex:0 1 62%"><input class="input is-err" value="AO0456-DEN-L"><span class="field-err">Mã hàng đã có</span></span></td><td data-label="Barcode"><input class="input num" placeholder="Tự sinh khi lưu"></td><td data-label="Giá bán"><input class="input num" value="420.000"></td><td data-label="Giá nhập"><input class="input num" placeholder="Không bắt buộc"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Đang bán</option></select></span></td></tr>
+		<tr><td class="v-name lead">Be · S</td><td data-label="SKU"><input class="input" value="DAM0123-BE-S"></td><td data-label="Barcode"><input class="input num" value="2000000000039"></td><td data-label="Giá bán"><input class="input num" value="350.000"></td><td data-label="Giá nhập"><input class="input num" value="180.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Đang bán</option></select></span></td></tr>
+		<tr><td class="v-name lead">Be · M</td><td data-label="SKU"><input class="input" value="DAM0123-BE-M"></td><td data-label="Barcode"><input class="input num" value="2000000000046"></td><td data-label="Giá bán"><input class="input num" value="350.000"></td><td data-label="Giá nhập"><input class="input num" value="180.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Đang bán</option></select></span></td></tr>
+		<tr class="is-muted"><td class="v-name lead">Be · L</td><td data-label="SKU"><input class="input" value="DAM0123-BE-L"></td><td data-label="Barcode"><input class="input num" value="2000000000053"></td><td data-label="Giá bán"><input class="input num" value="420.000"></td><td data-label="Giá nhập"><input class="input num" value="190.000"></td><td data-label="Trạng thái"><span class="select-wrap"><select><option>Ngừng bán</option><option>Đang bán</option></select></span></td></tr>
+		</tbody>
+	</table>
+	</div>
+	<p class="hint" style="margin-top:8px">Barcode để trống thì CRM tự sinh mã EAN-13 bắt đầu bằng 2 khi lưu; sửa được từng biến thể. Biến thể đã lưu không xóa, chỉ chuyển "Ngừng bán" (không lên đơn mới được, đơn cũ vẫn tra được); nút × ở màu, size chỉ bỏ được biến thể chưa lưu.</p>
+</div>
+
+<div class="savebar is-sticky" style="margin-top:24px"><button class="btn btn-line">Hủy thay đổi</button><button class="btn btn-dark">Lưu mẫu</button></div>
+<p class="mk" style="margin-top:8px"><b>Mockup:</b> dưới 1000 px thanh "Hủy thay đổi / Lưu mẫu" dính đáy màn hình (ảnh chụp cả trang vẽ nó ở cuối); từ 1000 px nút Lưu nằm cả ở đầu trang.</p>
+
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Bài viết 0 khối, và thẻ "Xem trước" của một bài có đủ bốn loại khối</h2></section>
+<div class="cols">
+	<div class="card">
+		<div class="row-between"><h2>Bài viết chi tiết</h2><span class="small muted">0 khối</span></div>
+		<div class="empty" style="margin-top:16px"><p class="muted">Bài viết chưa có khối nào. Website chỉ hiện mô tả ngắn.</p>
+		<div class="addbar" style="justify-content:center"><button class="btn btn-quiet">+ Đoạn văn</button><button class="btn btn-quiet">+ Tiêu đề</button><button class="btn btn-quiet">+ Danh sách</button><button class="btn btn-quiet">+ Ảnh</button></div></div>
+	</div>
+	<div class="card">
+		<div class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="false">Soạn</button><button class="tab" role="tab" aria-selected="true">Xem trước</button></div>
+		<div class="preview" style="margin-top:16px">
+			<h3>Chất liệu và form dáng</h3>
+			<p>Lụa Hàn cao cấp, mặt vải mịn, rủ tự nhiên. Form suông che khuyết điểm vòng hai, dài qua gối 5 cm với người cao 1m60.</p>
+			<ul><li>Giặt tay nước lạnh</li><li>Không vắt mạnh</li><li>Là ở nhiệt độ thấp</li></ul>
+			<div class="img-ph" style="border-radius:var(--r-box);max-width:240px">Ảnh 2 · Be</div>
+			<p>Mẹo phối: đi cùng giày mũi nhọn và túi hộp nhỏ. &lt;img src=x onerror=alert(1)&gt;</p>
+		</div>
+		<p class="hint" style="margin-top:8px">Xem trước dựng giống trang sản phẩm trên web: chữ hiện nguyên văn, không chạy mã.</p>
+	</div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Lưu khi người khác vừa lưu (version_conflict), và lỗi bài viết từ máy chủ</h2></section>
+<div class="stack">
+	<div class="box box-err"><b>Mẫu đã thay đổi, tải lại.</b> <span>Có người vừa lưu mẫu này. Thay đổi của bạn chưa được lưu.</span><div class="row" style="margin-top:8px"><button class="btn btn-dark">Tải lại mẫu</button></div></div>
+	<div class="box box-err"><b>Chưa lưu: bài viết có 1 khối sai.</b> <span>Khối 30 (Danh sách) không có dòng nào. Sửa khối được tô đỏ rồi lưu lại.</span></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI D</p><h2>Vừa xóa một ảnh: thông báo có Hoàn tác trong 10 giây</h2></section>
+<div class="toast"><span class="grow">Đã xóa ảnh 2. Khôi phục được trong 30 ngày.</span><button class="btn">Hoàn tác (10)</button></div>
+
+<section class="st"><p class="xs">TRẠNG THÁI E</p><h2>Câu báo cho từng lý do ảnh bị từ chối</h2></section>
+<div class="tbl-frame">
+<table class="tbl reasons">
+	<thead><tr><th>Lý do (máy chủ)</th><th>Câu hiện trên ô ảnh</th></tr></thead>
+	<tbody>
+	<tr><td data-label="Lý do">not_image</td><td data-label="Câu">Tệp không phải ảnh</td></tr>
+	<tr><td data-label="Lý do">type_not_allowed</td><td data-label="Câu">Loại ảnh không nhận, chọn JPEG, PNG hoặc WebP</td></tr>
+	<tr><td data-label="Lý do">too_large</td><td data-label="Câu">Ảnh quá 20 MB</td></tr>
+	<tr><td data-label="Lý do">too_many_pixels</td><td data-label="Câu">Ảnh quá lớn (trên 40 triệu điểm ảnh)</td></tr>
+	<tr><td data-label="Lý do">decode_failed</td><td data-label="Câu">Ảnh hỏng, không mở được</td></tr>
+	<tr><td data-label="Lý do">size_mismatch</td><td data-label="Câu">Tải lên chưa trọn, chọn lại ảnh</td></tr>
+	<tr><td data-label="Lý do">processing_failed, timeout, upload_failed</td><td data-label="Câu">Xử lý ảnh không xong, chọn lại ảnh</td></tr>
+	</tbody>
+</table>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>
