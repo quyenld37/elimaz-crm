@@ -31,6 +31,7 @@ const (
 	GetOrderOperation                  OperationName = "GetOrder"
 	GetPlatformHealthOperation         OperationName = "GetPlatformHealth"
 	GetProductOperation                OperationName = "GetProduct"
+	GetProductClassificationOperation  OperationName = "GetProductClassification"
 	GetShipmentOperation               OperationName = "GetShipment"
 	GetStockDocumentOperation          OperationName = "GetStockDocument"
 	GetStocktakeOperation              OperationName = "GetStocktake"

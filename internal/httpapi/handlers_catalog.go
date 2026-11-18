@@ -414,6 +414,27 @@ func (h *handler) CreateTag(ctx context.Context, req *gen.CreateTagRequest, _ ge
 	return out.(*gen.Tag), nil //nolint:forcetypeassert // fn trên trả *gen.Tag
 }
 
+// GetProductClassification (GET /api/v1/catalog/products/{id}/classification, catalog.read) trả danh mục, giá trị thuộc
+// tính, nhãn đang gán và version hiện tại của mẫu (của người bán mặc định).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) GetProductClassification(ctx context.Context, params gen.GetProductClassificationParams) (gen.GetProductClassificationRes, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
+	var pc catalog.ProductClassification
+	err := h.readAsDefaultSeller(ctx, u, func(tx pgx.Tx, seller uuid.UUID) error {
+		var err error
+		pc, err = catalog.GetClassification(ctx, tx, seller, params.ID)
+		return err //nolint:wrapcheck // sentinel của catalog
+	})
+	if err != nil {
+		return nil, fmt.Errorf("đọc phân loại của mẫu: %w", err)
+	}
+	return classificationOut(pc), nil
+}
+
 // SetProductClassification (PUT /api/v1/catalog/products/{id}/classification, catalog.manage) thay toàn bộ phân loại
 // của mẫu khi version còn khớp.
 //
@@ -428,18 +449,23 @@ func (h *handler) SetProductClassification(ctx context.Context, req *gen.SetClas
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của catalog
 		}
-		res := &gen.ProductClassification{
-			ProductId: pc.ProductID, Version: pc.Version, AttributeValueIds: pc.AttributeValueIDs, TagIds: pc.TagIDs,
-		}
-		if pc.CategoryID != nil {
-			res.CategoryId = gen.NewOptUUID(*pc.CategoryID)
-		}
-		return res, nil
+		return classificationOut(pc), nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	return out.(*gen.ProductClassification), nil //nolint:forcetypeassert // fn trên trả *gen.ProductClassification
+}
+
+// classificationOut đổi phân loại của mẫu sang kiểu của hợp đồng.
+func classificationOut(pc catalog.ProductClassification) *gen.ProductClassification {
+	res := &gen.ProductClassification{
+		ProductId: pc.ProductID, Version: pc.Version, AttributeValueIds: pc.AttributeValueIDs, TagIds: pc.TagIDs,
+	}
+	if pc.CategoryID != nil {
+		res.CategoryId = gen.NewOptUUID(*pc.CategoryID)
+	}
+	return res
 }
 
 // catalogRead chạy fn trong tenancy.WithTenant của người gọi (đọc phân loại dùng chung cả cửa hàng).
