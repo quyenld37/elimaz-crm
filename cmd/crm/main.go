@@ -28,7 +28,9 @@ import (
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/observability"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/selftest"
 	"elimaz.com.vn/crm/internal/platform/telemetry"
+	"elimaz.com.vn/crm/internal/platform/webhooks"
 )
 
 // Thời hạn tắt êm: tổng dưới 25 s (kế hoạch M0, Task 3).
@@ -144,6 +146,12 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	fctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	wg.Go(func() { flusher.Run(fctx) })
+	if cfg.Role == config.RoleIngest {
+		// Nạp lại tệp tạm webhook (database trở lại sau khi lỗi), mỗi 5 s, dừng cùng vòng ghi chỉ số.
+		spool := &webhooks.Spool{Dir: cfg.SpoolDir}
+		drainer := &webhooks.Drainer{Spool: spool, DB: d, Metrics: reg, Logger: logger}
+		wg.Go(func() { drainer.Run(fctx) })
+	}
 	return serveHTTP(ctx, cfg, d, reg, logger)
 }
 
@@ -200,7 +208,7 @@ func runMigrate(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 }
 
 // serveHTTP phục vụ HTTP (đo http_ms theo route) tới khi ctx bị hủy, rồi tắt êm trong httpShutdownTimeout. api phục
-// vụ mọi route của hợp đồng (httpapi.NewServer); ingest tới Task 14 chỉ có /health/live, /health/ready.
+// vụ mọi route của hợp đồng (httpapi.NewServer); ingest chỉ có /hooks/*, /health và /health/live, /health/ready.
 func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Registry, logger *slog.Logger) error {
 	var handler http.Handler
 	if cfg.Role == config.RoleAPI {
@@ -213,9 +221,11 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 		}
 		handler = httpapi.NewServer(httpapi.Deps{Config: cfg, DB: d, Logger: logger, Access: access})
 	} else {
-		mux := http.NewServeMux()
-		observability.NewHealth(d.Pool).Register(mux)
-		handler = mux
+		h, err := ingestHandler(cfg, d, reg, logger)
+		if err != nil {
+			return err
+		}
+		handler = h
 	}
 	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort("", strconv.Itoa(cfg.Port)))
 	if err != nil {
@@ -241,6 +251,26 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 		return fmt.Errorf("tắt máy chủ HTTP: %w", shutdownErr)
 	}
 	return nil
+}
+
+// ingestHandler dựng các route của vai trò ingest: /hooks/{source} (GET xác minh, POST nhận), /health (số tệp tạm)
+// và /health/live, /health/ready. Không có route nào của api.
+func ingestHandler(cfg config.Config, d *db.DB, reg *metrics.Registry, logger *slog.Logger) (http.Handler, error) {
+	in, err := webhooks.NewIngest(webhooks.IngestOptions{
+		DB:      d,
+		Sources: []webhooks.Source{selftest.NewSource(cfg.SelftestWebhookSecret)},
+		Spool:   &webhooks.Spool{Dir: cfg.SpoolDir},
+		Lockout: webhooks.NewLockout(webhooks.LockoutOptions{}),
+		Metrics: reg,
+		Logger:  logger,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("dựng ingest: %w", err)
+	}
+	mux := http.NewServeMux()
+	observability.NewHealth(d.Pool).Register(mux)
+	in.Register(mux)
+	return mux, nil
 }
 
 // healthcheck: ingest và api gọi /health/live của chính nó; worker đòi nhịp sống của chính nó
