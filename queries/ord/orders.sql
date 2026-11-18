@@ -14,3 +14,10 @@ FOR UPDATE;
 UPDATE ord.orders
 SET current_shipment_id = @shipment_id, version = version + 1, updated_at = now()
 WHERE seller_id = @seller_id AND id = @id AND status = 'confirmed' AND current_shipment_id IS NULL;
+
+-- name: ClearCurrentShipment :execrows
+-- Gỡ vận đơn hiện hành; chỉ khi đúng vận đơn đó (đã khóa bằng LockOrder). Lệnh tạo vận đơn kết thúc hỏng (D-03).
+UPDATE ord.orders
+SET current_shipment_id = NULL, version = version + 1, updated_at = now()
+WHERE seller_id = @seller_id AND id = @id AND current_shipment_id = @shipment_id;
+

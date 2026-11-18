@@ -1,0 +1,50 @@
+package order_test
+
+import (
+	"testing"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"elimaz.com.vn/crm/internal/modules/order"
+)
+
+// Codes trả mã đơn theo id của đúng người bán (ADR-29); đơn của người bán khác, id không có, tenant khác bị bỏ; danh
+// sách rỗng → map rỗng.
+func TestCodes(t *testing.T) {
+	e := newOrderEnv(t)
+	v := e.variant(1000, 5)
+	mine := e.mustCreate(e.input(0, order.ItemInput{VariantID: v, Qty: 1}))
+	e.seller = e.partner
+	pv := e.variant(1000, 5)
+	partner := e.mustCreate(e.input(0, order.ItemInput{VariantID: pv, Qty: 1}))
+	codes := func(tenant, seller uuid.UUID, ids []uuid.UUID) map[uuid.UUID]string {
+		t.Helper()
+		var m map[uuid.UUID]string
+		e.staff.Exec(t, tenant, func(tx pgx.Tx) (err error) {
+			m, err = order.Codes(t.Context(), tx, seller, ids)
+			return err //nolint:wrapcheck // test
+		})
+		return m
+	}
+	ids := []uuid.UUID{mine.ID, partner.ID, uuid.New()}
+	var got map[uuid.UUID]string
+	if err := e.app(func(tx pgx.Tx) (err error) {
+		got, err = order.Codes(t.Context(), tx, e.shop.Seller, ids)
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[mine.ID] != mine.Code {
+		t.Fatalf("mã đơn của người bán ELIMAZ: %v", got)
+	}
+	if m := codes(e.tenant, e.shop.Partner, ids); len(m) != 1 || m[partner.ID] != partner.Code {
+		t.Fatalf("mã đơn của PARTNER1: %v", m)
+	}
+	if m := codes(e.staff.Tenant(t, "B"), e.shop.Seller, ids); len(m) != 0 {
+		t.Fatalf("tenant khác: %v", m)
+	}
+	if m := codes(e.tenant, e.shop.Seller, nil); m == nil || len(m) != 0 {
+		t.Fatalf("rỗng: %v", m)
+	}
+}

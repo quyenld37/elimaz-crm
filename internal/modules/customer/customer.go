@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/customer/internal/store"
 	"elimaz.com.vn/crm/internal/platform/events"
@@ -150,19 +151,21 @@ func getOne(ctx context.Context, tx pgx.Tx, id uuid.UUID) (Customer, error) {
 	c := Customer{
 		ID: r.ID, RootID: r.RootID, Code: r.Code, FullName: Name(r.FullName), Lifecycle: r.Lifecycle,
 		Birthday: birthdayOf(r.Birthday), Version: r.Version, CreatedAt: r.CreatedAt,
-		Stats: Stats{
-			OrderCount: int(r.OrderCount), DeliveredCount: int(r.DeliveredCount), ReturnedCount: int(r.ReturnedCount),
-			TotalSpent: r.TotalSpent,
-		},
-	}
-	if r.LastOrderAt.Valid {
-		t := r.LastOrderAt.Time
-		c.Stats.LastOrderAt = &t
-	}
-	if done := c.Stats.DeliveredCount + c.Stats.ReturnedCount; done > 0 {
-		c.Stats.ReturnRateBP = c.Stats.ReturnedCount * 10000 / done
+		Stats: statsOf(r.OrderCount, r.DeliveredCount, r.ReturnedCount, r.TotalSpent, r.LastOrderAt),
 	}
 	return c, nil
+}
+
+// statsOf dựng Stats từ cột chỉ số của hồ sơ gốc; ReturnRateBP tính khi đọc.
+func statsOf(orders, delivered, returned int32, spent int64, last pgtype.Timestamptz) Stats {
+	s := Stats{
+		OrderCount: int(orders), DeliveredCount: int(delivered), ReturnedCount: int(returned), TotalSpent: spent,
+		LastOrderAt: timeOf(last),
+	}
+	if done := s.DeliveredCount + s.ReturnedCount; done > 0 {
+		s.ReturnRateBP = s.ReturnedCount * 10000 / done
+	}
+	return s
 }
 
 func isControl(r rune) bool { return r < 0x20 || (r >= 0x7f && r <= 0x9f) }

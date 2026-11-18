@@ -21,6 +21,12 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m2-khach-don.md` (Tas
 - Không đổi OpenAPI, câu sqlc, bảng, migration, màn hình. Tài liệu: `docs/danh-muc-ghi-chu.yaml` (ghi chú `db`), `docs/danh-muc-dung-chung.md` (`make catalog`).
 - Test sẽ chạy: `go test -race ./internal/platform/db/ ./internal/modules/customer/... ./internal/modules/order/...`, rồi cổng kiểm của task (ci-task) một lần trọn vẹn (vùng rủi ro cao `platform/db`, `order` → cả bộ của vùng).
 
+**Lượt 3 (gộp main: Task 408, 68, 71):**
+
+- Xung đột duy nhất: `queries/ord/orders.sql` (và mã sinh `internal/modules/order/internal/store/orders.sql.go`). Giữ câu `ClearCurrentShipment` của Task 408 (chỗ gọi: `order.DetachShipment` ở `shipment_progress.go:72`, dùng bởi `fulfillment/create_shipment.go`); bỏ `SetOrderStatus` mà main còn giữ — nhánh này đã thay bằng `UpdateOrderStatus` trong `queries/ord/transition.sql` (lượt 1). grep `SetOrderStatus` trong `*.go`, `*.sql`: 0 chỗ (mã sinh cũ cũng mất sau `make gen`). Mã sinh không sửa tay: lấy bản main rồi `make gen`.
+- Không ký hiệu xuất ra ngoài nào của nhánh đổi; không đổi OpenAPI, migration, màn hình. Gói chạm bởi bản gộp: `order`, `fulfillment`, `customer`, `httpapi`, `promotion`… (mã của main, đã được duyệt ở task của họ).
+- Test sẽ chạy: `go test -race ./internal/modules/order/... ./internal/modules/fulfillment/... ./tests/arch/...`, rồi ci-task một lần.
+
 ## Tái dùng
 
 - Đã kiểm trong danh mục dùng chung và tìm theo tên, theo việc: `docs/danh-muc-dung-chung.md` (events, realtime, logging.Phone/Address); `order/internal/pricing.Compute` (Task 64), `order/internal/state.Check` (Task 65), `internal/queries/orderview.Label` (Q32); `customer.Writer.FindOrCreateForOrder`, `customer.ValidateUnits`, `customer.NormalizePhone`, `ReverseDigits`; `catalog.VariantsForSale`, `VariantForSale`, `DefaultSeller`; `inventory.Writer.Reserve`, `inventory.DefaultWarehouse`; `order.ActiveSource`, `LoadSettings`, `nextCode`, `mergeLines`, `normalizedShipPhone`, `Writer.emit`; `httpapi.WriteTx`, `orderError`/`stockShortage` ở `errors.go`.
@@ -28,6 +34,8 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m2-khach-don.md` (Tas
 - Dùng lại / viết mới vì: dùng lại toàn bộ các mục trên; tính tiền chỉ qua `pricing.Compute` (bỏ `sumLines`/`mulMoney`/`addMoney` của M1 — cách mới thay cách cũ). Viết mới: `create_m2.go` (điều phối), `transition.go` (`recordCreated`, `applyTransition`, ghi lịch sử, báo hiệu), dấu vân tay nội dung lần gửi lại (không có hàm sẵn), câu `VariantExists` (catalog không có hàm "biến thể có ở người bán nào trong shop không"; đọc view được phép theo G9). Không sentinel mới.
 
 **Lượt 2:** jscpd (lúc điều phối viên gộp) báo `customer/search.go` `optUUID` trùng `order/create_m2.go` `nullUUID`. Đã đọc `docs/danh-muc-dung-chung.md` mục `db` và mọi gói `internal/platform`: chưa có hàm đổi `*uuid.UUID` → `pgtype.UUID`. Thêm `db.NullUUID` vào gói `db` (gói sở hữu việc nói chuyện với PostgreSQL qua pgx; không tạo gói `util`/`common`). Tìm thêm theo việc: `queue.pgUUID` (`pgstore.go`) giống hệt → jscpd báo trùng với `db.NullUUID`, đã chuyển `queue` sang `db.NullUUID` và xóa `pgUUID` (QĐ9). `inventory.pgUUID` (`documents.go`, viết qua `deref`, jscpd không báo) cùng nghĩa; `files.optUUID(uuid.UUID)` khác nghĩa (`uuid.Nil` → NULL). Hai chỗ này ngoài phạm vi → Việc phát hiện thêm.
+
+**Lượt 3:** không viết mã mới, chỉ giải xung đột; không có gì để tái dùng. `ClearCurrentShipment` (408) là câu đổi `current_shipment_id`, không gán `status` nên hợp luật `order_status_sql_test`.
 
 ## Soát thiết kế
 
@@ -61,6 +69,8 @@ Mục 6:
 
 **Lượt 2:** chỉ là đổi cấu trúc (gom một hàm thuần, không I/O): không chạm database, tiền, quyền, hàng đợi, khóa. Mục 5, 6 không áp dụng. Hành vi giữ nguyên: nil → NULL, khác nil → giá trị (kể cả `uuid.Nil` không nil → giá trị, giống hai hàm cũ).
 
+**Lượt 3:** chỉ giải xung đột gộp. `ClearCurrentShipment` có `version = version + 1` trên đơn đã khóa bằng `LockOrder` — cùng mẫu `SetCurrentShipment`, không đụng trạng thái, không đụng `applyTransition`. Mục 5, 6 không có câu mới áp dụng.
+
 ## Quyết định thay chủ shop
 
 - **QĐ1 — "So mã băm của `in`" làm bằng dấu vân tay tính lại từ đơn đã lưu**, không thêm cột băm: SHA-256 của phần nội dung lưu trên đơn (người bán, kho, kênh, nguồn, mã ngoài, khách khi gửi `CustomerID`, dòng (biến thể, số lượng, giảm dòng, theo thứ tự), phí ship, giảm cấp đơn, ghi chú hãng, người phụ trách, hội thoại, tài khoản kênh, loại đơn, phiếu trả thay thế, địa chỉ giao). Vì sao: không có cột lưu băm, thêm migration giữa dải số đã cấp (0200–0208) dễ đụng task song song; test M1 `TestCreateManual_DuplicateBusinessKey` (khách khác → `ErrDuplicateOrder`) vẫn đạt. Hệ quả: đơn đã bị sửa (Task M2-20) rồi gửi lại khóa cũ → `ErrDuplicateOrder` (an toàn: không tạo đơn thứ hai). Phương án khác: cột `create_fingerprint` (migration mới). Đảo ngược: thêm cột, so băm đã lưu.
@@ -73,6 +83,8 @@ Mục 6:
 - **QĐ8 — `markDelivered` (M1) chuyển sang `applyTransition`** ở commit hành vi: đơn đã khóa nên điều kiện version tương đương điều kiện trạng thái cũ; lịch sử và sự kiện giữ như M1.
 
 - **QĐ9 (lượt 2) — Hàm chung đặt ở `internal/platform/db` (`db.NullUUID`), và `queue.pgUUID` cũng chuyển sang nó**: gói `db` là chỗ nói chuyện với PostgreSQL qua pgx, chưa có helper `pgtype` nào trong `internal/platform`; luật cấm `util`/`common`. jscpd báo hàm mới trùng `queue.pgUUID` (giống từng dòng) nên theo luật "chuyển sang cách mới thì xóa cách cũ" `queue` dùng `db.NullUUID` (`queue` vốn đã nhập `db` trực tiếp ở `worker.go`; `db` không nhập `queue`, `customer`, `order` nên không vòng nhập). Phương án khác: gói mới `internal/platform/pgconv` (thêm gói cho một hàm), hoặc thêm `queue.pgUUID` vào baseline jscpd (giữ trùng). Đảo ngược: chép lại hàm vào từng gói.
+
+- **QĐ10 (lượt 3) — Xung đột `orders.sql`: giữ `ClearCurrentShipment` (408), bỏ `SetOrderStatus`** như điều phối viên chỉ định: luật dự án đòi đổi trạng thái đơn chỉ qua `applyTransition`/`transition.sql`; giữ `SetOrderStatus` sẽ làm `TestOrderStatusSQL_OnlyInTransition` đỏ. Phương án khác: giữ cả hai (trái luật). Đảo ngược: thêm lại câu.
 
 ## Bằng chứng
 
@@ -103,6 +115,8 @@ Mục 6:
 | Lượt 2: `db.NullUUID` nil → NULL, có giá trị → giá trị, `uuid.Nil` không nil → giá trị | `TestNullUUID` (thất bại trước: `undefined: db.NullUUID`) | `go test -race -count=1 -run TestNullUUID ./internal/platform/db/` | `ok platform/db 1.5s` |
 | Lượt 2: gom `customer.optUUID`, `order.nullUUID`, `queue.pgUUID` không đổi hành vi | toàn bộ test của gói đổi và gói phụ thuộc | cổng kiểm ci-task lần 1 (test toàn bộ vì nhánh có đổi testkit); sau khi chuyển `queue`: `go test -race -count=1 ./internal/platform/queue/... ./tests/arch/`, `golangci-lint run` 4 gói, `make jscpd` | Lần 1: build, vet, lint, sqlc-vet, gitleaks, oasdiff, test-guard xanh; `ok customer`, `ok order`, `ok db`, `ok httpapi`… ; đỏ gen-check, catalog-check (chỉ vì chưa stage), jscpd (`db.NullUUID` ~ `queue.pgUUID` → QĐ9), `queue` `TestRecordAfterLongHandler` (commit quá hạn do máy tải nặng; chạy riêng 3 lần ok). Sau sửa: `ok queue 52.5s`, `ok tests/arch 20.2s`, `0 issues.`, jscpd `Found 0 clones` |
 | Lượt 2: cổng kiểm trọn vẹn trên bản đã gộp main và đã stage | mọi cổng tĩnh + test toàn bộ (nhánh có đổi testkit) | cổng kiểm ci-task lần 2 | `CI-TASK XANH (so với điểm tách nhánh 87ec126)`: build, vet, lint, gen-check, sqlc-vet, catalog-check, jscpd, gitleaks, oasdiff, test-guard, mọi gói `ok` (gồm `queue`, `db`, `customer`, `order`, `httpapi 57.1s`, `tests/e2e`). Hook Stop chạy chồng cùng lúc báo một gói đỏ ở phần bị cắt; chạy lại `go test -race -count=1 ./cmd/... ./internal/adapters/... ./internal/httpapi/... ./internal/imager/...` → tất cả `ok` |
+| Lượt 3: giải xung đột gộp main (giữ `ClearCurrentShipment` của 408, bỏ `SetOrderStatus`) không làm hỏng order, fulfillment, luật SQL trạng thái | toàn bộ test `order`, `fulfillment` (gồm `terminal_test.go` của 408: `create_shipment.go` → `order.DetachShipment` → `ClearCurrentShipment`), `tests/arch` (`TestOrderStatusSQL_*`) | `make gen`; `go build ./...`; `go test -race ./internal/modules/order/... ./internal/modules/fulfillment/... ./tests/arch/...`; grep `SetOrderStatus` | `ok order 96.5s`, `ok pricing`, `ok state`, `ok fulfillment 13.5s`, `ok tests/arch 48.0s`; grep `SetOrderStatus` ngoài mã sinh: 0 |
+| Lượt 3: cổng kiểm của task trên bản đã gộp | mọi cổng tĩnh + test toàn bộ (nhánh có đổi testkit) | `ci-task.sh` (một lần) | `CI-TASK XANH (so với điểm tách nhánh 87ec126)`; `ok platform/files 136.4s` (hook Stop chạy chồng trước đó báo `TestPublicVariants` đỏ một lần do tải SeaweedFS dùng chung; chạy riêng `-run TestPublicVariants` → `ok 2.4s`; nhánh không chạm `files`) |
 
 ## Test bị xóa hoặc tắt
 
@@ -138,3 +152,5 @@ Commit 2, review lại sau khi dời helper danh mục hành chính vào `intern
 Commit 1 (cấu trúc): **ĐẠT** — không phát hiện phải sửa; `markDelivered` và hai câu SQL dời nguyên văn, mã sinh khớp nguồn, test kiến trúc không báo nhầm câu chỉ có `status` trong WHERE. Ghi chú không bắt buộc: thêm dòng "Khác kế hoạch" về cách hiểu luật (đã thêm); các dạng `UPDATE ONLY`, tên có ngoặc kép, `SET (a, b) = …` không bị bắt (không có trong mã).
 
 Lượt 2 (gộp main + gom `db.NullUUID`, commit cấu trúc): **ĐẠT** — không phát hiện phải sửa. Đã kiểm: ba hàm cũ cùng luật với `db.NullUUID` (nil → NULL, con trỏ tới `uuid.Nil` → giá trị), không còn chỗ gọi tên cũ (`files.optUUID`, `httpapi.optUUID` là hàm khác nghĩa/kiểu; `inventory.pgUUID` đã ghi Việc phát hiện thêm), không vòng nhập, danh mục sinh lại khớp, mục Ảnh hưởng khớp diff. Ghi chú không bắt buộc: câu "nhập `db` gián tiếp" trong QĐ9 sai (đã sửa thành trực tiếp); mục Ảnh hưởng chưa kê gói phụ thuộc ngược của `queue` (ci-task chạy toàn bộ test nên đã bao); xem lại `TestRecordAfterLongHandler` ở ci-task lần 2 (đã qua).
+
+Lượt 3 (gộp main: 408, 68, 71; giải xung đột `queries/ord/orders.sql`): **ĐẠT** — không phát hiện phải sửa. Đã kiểm: so với `main` chỉ còn tệp của Task 73 (mã của 408/68/71 giữ nguyên); mã sinh khớp nguồn (có `ClearCurrentShipment`, không còn `SetOrderStatus`, 0 chỗ gọi); `DetachShipment` dùng `lockOrder` mới nhất quán, `markDelivered` đi qua `applyTransition`; `fulfillment/create_shipment.go` gọi đúng chữ ký; `docs/views.md` đủ hai bên; bằng chứng khớp log ci-task. Ghi chú không bắt buộc: `order.DetachShipment` (408) tăng version đơn mà không phát sự kiện `order.*` — thiết kế của 408, ngoài phạm vi.

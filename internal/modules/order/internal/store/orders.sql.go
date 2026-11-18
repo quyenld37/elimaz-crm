@@ -12,6 +12,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearCurrentShipment = `-- name: ClearCurrentShipment :execrows
+UPDATE ord.orders
+SET current_shipment_id = NULL, version = version + 1, updated_at = now()
+WHERE seller_id = $1 AND id = $2 AND current_shipment_id = $3
+`
+
+type ClearCurrentShipmentParams struct {
+	SellerID   uuid.UUID
+	ID         uuid.UUID
+	ShipmentID pgtype.UUID
+}
+
+// Gỡ vận đơn hiện hành; chỉ khi đúng vận đơn đó (đã khóa bằng LockOrder). Lệnh tạo vận đơn kết thúc hỏng (D-03).
+func (q *Queries) ClearCurrentShipment(ctx context.Context, arg ClearCurrentShipmentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCurrentShipment, arg.SellerID, arg.ID, arg.ShipmentID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const lockOrder = `-- name: LockOrder :one
 
 SELECT id, tenant_id, seller_id, customer_id, status, pending_reason, current_shipment_id, address_complete, version

@@ -13,6 +13,23 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const cancelCreatingShipment = `-- name: CancelCreatingShipment :one
+UPDATE fulfillment.shipments
+SET status = 'cancelled', last_status_at = now(), updated_at = now(), version = version + 1
+WHERE id = $1 AND status = 'creating' AND create_in_doubt_at IS NULL
+RETURNING version
+`
+
+// Vận đơn còn creating (dòng đã khóa) → cancelled khi lệnh tạo kết thúc mà chắc chắn hãng chưa tạo; trả version mới.
+// Không còn creating, hay lệnh tạo từng in_doubt (create_in_doubt_at: hãng có thể đã có kiện) → không dòng nào
+// (pgx.ErrNoRows).
+func (q *Queries) CancelCreatingShipment(ctx context.Context, id uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, cancelCreatingShipment, id)
+	var version int64
+	err := row.Scan(&version)
+	return version, err
+}
+
 const getShipment = `-- name: GetShipment :one
 SELECT s.id, s.code, s.order_id, s.carrier_key, s.carrier_account_id, s.tracking_code, s.status, s.cod_amount, s.fee,
        s.version, s.created_at, a.warehouse_id, a.seller_id, a.external_account_ref
@@ -138,6 +155,19 @@ func (q *Queries) LockShipment(ctx context.Context, id uuid.UUID) (LockShipmentR
 		&i.Version,
 	)
 	return i, err
+}
+
+const markCreateInDoubt = `-- name: MarkCreateInDoubt :exec
+UPDATE fulfillment.shipments
+SET create_in_doubt_at = COALESCE(create_in_doubt_at, now()), updated_at = now()
+WHERE id = $1 AND status = 'creating'
+`
+
+// Lệnh tạo vào in_doubt: ghi dấu "hãng có thể đã nhận" cho vận đơn còn creating (giữ mốc lần đầu). Không đổi trạng
+// thái, không tăng version (không phải đổi của người dùng, không phát sự kiện).
+func (q *Queries) MarkCreateInDoubt(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markCreateInDoubt, id)
+	return err
 }
 
 const shipmentByTracking = `-- name: ShipmentByTracking :one

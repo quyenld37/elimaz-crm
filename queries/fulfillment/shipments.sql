@@ -43,3 +43,19 @@ SET status = @status,
     last_status_at = now(), updated_at = now(), version = version + 1
 WHERE id = @id
 RETURNING version;
+
+-- name: CancelCreatingShipment :one
+-- Vận đơn còn creating (dòng đã khóa) → cancelled khi lệnh tạo kết thúc mà chắc chắn hãng chưa tạo; trả version mới.
+-- Không còn creating, hay lệnh tạo từng in_doubt (create_in_doubt_at: hãng có thể đã có kiện) → không dòng nào
+-- (pgx.ErrNoRows).
+UPDATE fulfillment.shipments
+SET status = 'cancelled', last_status_at = now(), updated_at = now(), version = version + 1
+WHERE id = @id AND status = 'creating' AND create_in_doubt_at IS NULL
+RETURNING version;
+
+-- name: MarkCreateInDoubt :exec
+-- Lệnh tạo vào in_doubt: ghi dấu "hãng có thể đã nhận" cho vận đơn còn creating (giữ mốc lần đầu). Không đổi trạng
+-- thái, không tăng version (không phải đổi của người dùng, không phát sự kiện).
+UPDATE fulfillment.shipments
+SET create_in_doubt_at = COALESCE(create_in_doubt_at, now()), updated_at = now()
+WHERE id = @id AND status = 'creating';

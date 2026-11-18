@@ -46,6 +46,8 @@ type Deps struct {
 	Events *events.Registry
 	// Metrics đếm counter errors khi ghi lỗi 500 (cmd/crm nối registry của tiến trình); nil: không đếm.
 	Metrics *metrics.Registry
+	// Now là đồng hồ của nghiệp vụ cần "bây giờ" (kiểm mã giảm giá); nil → time.Now (test cắm ngày cố định).
+	Now func() time.Time
 
 	limiter *userLimiter // một bộ đếm chung cho mọi route của server (prepare)
 }

@@ -129,7 +129,8 @@ type Handler interface {
 	CancelStocktake(ctx context.Context, req *VersionRequest, params CancelStocktakeParams) (CancelStocktakeRes, error)
 	// CheckCoupon implements checkCoupon operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Kiểm mã cho form lên đơn: số giảm, lý do từ chối, lượt còn; không đổi lượt
+	// dùng (Task M2-14).
 	//
 	// GET /api/v1/coupon-check
 	CheckCoupon(ctx context.Context, params CheckCouponParams) (CheckCouponRes, error)
@@ -181,13 +182,14 @@ type Handler interface {
 	CreateCategory(ctx context.Context, req *CreateCategoryRequest, params CreateCategoryParams) (CreateCategoryRes, error)
 	// CreateCoupon implements createCoupon operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Tạo mã giảm giá (để trống code thì sinh mã); trùng → 409 code_taken (Task M2-14).
 	//
 	// POST /api/v1/coupons
 	CreateCoupon(ctx context.Context, req *CreateCouponRequest, params CreateCouponParams) (CreateCouponRes, error)
 	// CreateCouponBatch implements createCouponBatch operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Tạo đợt mã: quantity mã dùng một lần, hoặc mỗi SĐT trong boundPhones một mã
+	// gắn SĐT đó (Task M2-14).
 	//
 	// POST /api/v1/coupon-batches
 	CreateCouponBatch(ctx context.Context, req *CreateCouponBatchRequest, params CreateCouponBatchParams) (CreateCouponBatchRes, error)
@@ -308,13 +310,13 @@ type Handler interface {
 	GetCatalogImportTemplate(ctx context.Context) (GetCatalogImportTemplateRes, error)
 	// GetCoupon implements getCoupon operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Một mã kèm số lượt đã dùng, còn lại (Task M2-14).
 	//
 	// GET /api/v1/coupons/{couponId}
 	GetCoupon(ctx context.Context, params GetCouponParams) (GetCouponRes, error)
 	// GetCouponBatch implements getCouponBatch operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Một đợt mã (Task M2-14).
 	//
 	// GET /api/v1/coupon-batches/{batchId}
 	GetCouponBatch(ctx context.Context, params GetCouponBatchParams) (GetCouponBatchRes, error)
@@ -481,13 +483,13 @@ type Handler interface {
 	ListCategories(ctx context.Context) (ListCategoriesRes, error)
 	// ListCouponRedemptions implements listCouponRedemptions operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Lượt dùng của một mã: mã đơn, số giảm, trạng thái; không SĐT (Task M2-14).
 	//
 	// GET /api/v1/coupons/{couponId}/redemptions
 	ListCouponRedemptions(ctx context.Context, params ListCouponRedemptionsParams) (ListCouponRedemptionsRes, error)
 	// ListCoupons implements listCoupons operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Mã giảm giá, mới nhất trước; q theo mã hoặc tên (Task M2-14).
 	//
 	// GET /api/v1/coupons
 	ListCoupons(ctx context.Context, params ListCouponsParams) (ListCouponsRes, error)
@@ -770,7 +772,8 @@ type Handler interface {
 	UpdateCategory(ctx context.Context, req *UpdateCategoryRequest, params UpdateCategoryParams) (UpdateCategoryRes, error)
 	// UpdateCoupon implements updateCoupon operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Sửa mã khi version còn khớp; mã đã dùng chỉ đổi tên, hạn cuối, số lượt
+	// tối đa, trạng thái (409 coupon_locked_after_use) (Task M2-14).
 	//
 	// PATCH /api/v1/coupons/{couponId}
 	UpdateCoupon(ctx context.Context, req *UpdateCouponRequest, params UpdateCouponParams) (UpdateCouponRes, error)

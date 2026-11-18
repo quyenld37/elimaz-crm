@@ -87,7 +87,9 @@ hay bỏ khóa đã có.
 | `order.delivered` | `order` (mã đơn) | `{orderId, sellerId, version, customerId, status}` | vận đơn hiện hành báo giao xong, đơn sang Đã giao | 333 |
 | `order.<trạng thái>` (`order.new`, `order.cancelled`, `order.cancel_requested`, `order.returned`, `order.draft`) | `order` (mã đơn) | `{orderId, sellerId, version, customerId, status}` | mọi lần đổi trạng thái qua `order.applyTransition` (seq = version mới) | 73 |
 | `customer.created` | `customer` (mã hồ sơ) | `{customerId, version}` | tạo khách (seq 1; kể cả lớp bọc `customer.Create` của M1) | 66 |
-| `shipment.status_changed` | `shipment` (mã vận đơn) | `{shipmentId, status, codAmount}` | vận đơn tiến trạng thái (`awaiting_pickup`, `shipping`, `delivered`; chỉ tiến) | 31 |
+| `customer.merged` | `customer_merge` (mã lần gộp) | `{mergeId, survivorRootId, mergedRootId}` | gộp nhóm khách (seq 1; chỉ đổi `root_id`) | 68 |
+| `customer.merge_undone` | `customer_merge` (mã lần gộp) | `{mergeId, survivorRootId, mergedRootId}` | hoàn tác lần gộp (seq 2) | 68 |
+| `shipment.status_changed` | `shipment` (mã vận đơn) | `{shipmentId, status, codAmount}` | vận đơn tiến trạng thái (`awaiting_pickup`, `shipping`, `delivered`; chỉ tiến), hoặc `creating` → `cancelled` khi lệnh tạo kết thúc mà hãng chắc chắn chưa tạo (Task 408) | 31, 408 |
 
 ## Ngoại lệ luật (g)
 
