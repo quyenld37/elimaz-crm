@@ -34,7 +34,7 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `inventory.stock_available_v` (view số dư duy nhất; B11: không có `stock_balances_v`, `availability_v`) | `variant_id, warehouse_id, seller_id, on_hand, held, in_transit, damaged, available, updated_at` | 28 | M2–M7 |
 | `inventory.stock_ledger_v` | `ledger_id, variant_id, warehouse_id, bucket, delta, doc_type, doc_id, step, actor_type, actor_id, created_at` | 28 | M6, M7 |
 | `inventory.reconcile_runs_v` | `run_id, ran_at, ok, checked, mismatch_count` | 36 | M6, M7 |
-| `customer.customers_v` (tối thiểu; M2 mở rộng) | `id, root_id, full_name, created_at` | 30 | M2 trở đi |
+| `customer.customers_v` (M1 Task 30; M2 Task 60 nối 11 cột sau `created_at`; chỉ số chỉ đúng ở dòng `id = root_id`) | `id, root_id, full_name, created_at, tenant_id, code, lifecycle, birthday, order_count, delivered_count, returned_count, total_spent, last_order_at, updated_at, version` | 30, 60 | M2 trở đi |
 | `ord.orders_v` (tối thiểu; M2 mở rộng) | `id, tenant_id, code, seller_id, customer_id, status, channel, grand_total, cod_amount, current_shipment_id, created_at` | 30 | M2 trở đi |
 | `customer.customer_identities_v` (M2, viết trước ở Task 59) | `tenant_id, id, customer_id, kind, scope, value, verified_at, source, created_at` | 60 | M3–M6 |
 | `customer.customer_addresses_v` (chỉ địa chỉ chưa xóa) | `tenant_id, id, customer_id, recipient_name, phone, province_code, ward_code, street, is_default` | 60 | M3, M5 |

@@ -18,7 +18,7 @@ import (
 func TestRedactNested(t *testing.T) {
 	in := map[string]any{
 		"a": map[string]any{
-			"b": []any{map[string]any{"customerPhone": "0912345678", "note": "ok"}},
+			"b": []any{map[string]any{"customerPhone": "0912345678", "status": "ok"}},
 		},
 		"headers":     map[string]any{"authorization": "Bearer x"},
 		"messageText": "xin chào",
@@ -100,12 +100,15 @@ func TestSensitiveKey(t *testing.T) {
 	for _, k := range []string{
 		"phone", "customerPhone", "ADDRESS", "access_token", "client_secret", "password",
 		"Authorization", "cookie", "body", "messageText", "id_number", "bank_account",
+		// Q21 (kế hoạch M2, Task M2-03): tên khách, người nhận, ngày sinh, email, ghi chú.
+		"full_name", "FullName", "recipient_name", "recipientPhone", "birthday", "Birthday", "email", "customerEmail",
+		"note", "internal_note",
 	} {
 		if !logging.SensitiveKey(k) {
 			t.Errorf("%q phải bị che", k)
 		}
 	}
-	for _, k := range []string{"note", "status", "trace_id", "request_id", "city"} {
+	for _, k := range []string{"status", "trace_id", "request_id", "city", "name", "display_name"} {
 		if logging.SensitiveKey(k) {
 			t.Errorf("%q không được che", k)
 		}

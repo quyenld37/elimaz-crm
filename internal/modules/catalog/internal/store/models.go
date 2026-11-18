@@ -267,20 +267,176 @@ type CatalogVariantsV struct {
 }
 
 type CustomerCustomer struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	RootID         uuid.UUID
+	FullName       string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	Version        int64
+	Code           string
+	NameSearch     string
+	Lifecycle      string
+	Birthday       pgtype.Date
+	LevelID        *uuid.UUID
+	OrderCount     int32
+	DeliveredCount int32
+	ReturnedCount  int32
+	TotalSpent     int64
+	LastOrderAt    pgtype.Timestamptz
+	StatsUpdatedAt pgtype.Timestamptz
+	CreatedBy      *uuid.UUID
+}
+
+type CustomerCustomerAddress struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	CustomerID    uuid.UUID
+	RecipientName string
+	Phone         string
+	ProvinceCode  string
+	WardCode      string
+	Street        string
+	IsDefault     bool
+	DeletedAt     pgtype.Timestamptz
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	Version       int64
+}
+
+type CustomerCustomerAddressesV struct {
+	TenantID      uuid.UUID
+	ID            uuid.UUID
+	CustomerID    uuid.UUID
+	RecipientName string
+	Phone         string
+	ProvinceCode  string
+	WardCode      string
+	Street        string
+	IsDefault     bool
+}
+
+type CustomerCustomerIdentitiesV struct {
+	TenantID   uuid.UUID
+	ID         uuid.UUID
+	CustomerID uuid.UUID
+	Kind       string
+	Scope      string
+	Value      string
+	VerifiedAt pgtype.Timestamptz
+	Source     string
+	CreatedAt  time.Time
+}
+
+type CustomerCustomerIdentity struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	CustomerID    uuid.UUID
+	Kind          string
+	Scope         string
+	Value         string
+	ValueReversed string
+	VerifiedAt    pgtype.Timestamptz
+	Source        string
+	CreatedBy     *uuid.UUID
+	CreatedAt     time.Time
+}
+
+type CustomerCustomerImport struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	FileID      uuid.UUID
+	Status      string
+	TotalRows   pgtype.Int4
+	OkRows      pgtype.Int4
+	SkippedRows pgtype.Int4
+	ErrorRows   pgtype.Int4
+	Errors      []byte
+	CreatedBy   uuid.UUID
+	CreatedAt   time.Time
+	FinishedAt  pgtype.Timestamptz
+}
+
+type CustomerCustomerMerge struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	SurvivorID uuid.UUID
+	MergedID   uuid.UUID
+	MovedIds   []uuid.UUID
+	MatchedBy  string
+	ActorID    uuid.UUID
+	CreatedAt  time.Time
+	UndoneAt   pgtype.Timestamptz
+	UndoneBy   *uuid.UUID
+}
+
+type CustomerCustomerNote struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	CustomerID uuid.UUID
+	Body       string
+	AuthorID   uuid.UUID
+	CreatedAt  time.Time
+}
+
+type CustomerCustomerTag struct {
 	ID        uuid.UUID
 	TenantID  uuid.UUID
-	RootID    uuid.UUID
-	FullName  string
+	Name      string
+	Color     string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Version   int64
 }
 
+type CustomerCustomerTagLink struct {
+	TenantID   uuid.UUID
+	CustomerID uuid.UUID
+	TagID      uuid.UUID
+	Source     string
+	CreatedBy  *uuid.UUID
+	CreatedAt  time.Time
+}
+
+type CustomerCustomerTagLinksV struct {
+	TenantID   uuid.UUID
+	CustomerID uuid.UUID
+	TagID      uuid.UUID
+	Source     string
+}
+
+type CustomerCustomerTagRule struct {
+	TenantID   uuid.UUID
+	TagID      uuid.UUID
+	Conditions []byte
+	Enabled    bool
+	Version    int64
+	UpdatedAt  time.Time
+}
+
+type CustomerCustomerTagsV struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	Name     string
+	Color    string
+}
+
 type CustomerCustomersV struct {
-	ID        uuid.UUID
-	RootID    uuid.UUID
-	FullName  string
-	CreatedAt time.Time
+	ID             uuid.UUID
+	RootID         uuid.UUID
+	FullName       string
+	CreatedAt      time.Time
+	TenantID       uuid.UUID
+	Code           string
+	Lifecycle      string
+	Birthday       pgtype.Date
+	OrderCount     int32
+	DeliveredCount int32
+	ReturnedCount  int32
+	TotalSpent     int64
+	LastOrderAt    pgtype.Timestamptz
+	UpdatedAt      time.Time
+	Version        int64
 }
 
 type FulfillmentCarrierAccount struct {
