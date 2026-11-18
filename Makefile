@@ -32,16 +32,26 @@ spike-test: ## Test phép đo flash sale trên PostgreSQL dev (module riêng spi
 
 # ---- Cổng kiểm (Task 3). `make ci` là lưới cuối; CI trên máy chủ git chạy đúng lệnh này.
 # Task 4 thêm sinh mã sqlc và sqlc vet; Task 6 thêm ogen, bảng route, oasdiff.
-.PHONY: ci build vet lint test vuln catalog catalog-check jscpd test-guard gitleaks gen gen-check sqlc-vet
+.PHONY: ci build vet lint test vuln catalog catalog-check jscpd test-guard gitleaks gen gen-check sqlc-vet oasdiff
 
-ci: build vet lint gen-check sqlc-vet test vuln catalog-check jscpd test-guard gitleaks ## Toàn bộ cổng kiểm phần đã có
+ci: build vet lint gen-check sqlc-vet test vuln oasdiff catalog-check jscpd test-guard gitleaks ## Toàn bộ cổng kiểm phần đã có
 
-gen: ## Sinh lại mã từ nguồn: sqlc (queries/ -> internal/**/internal/store)
+gen: ## Sinh lại mã từ nguồn: sqlc (queries/ -> internal/**/internal/store), ogen và bảng route (openapi/openapi.yaml)
 	sqlc generate
+	ogen -config openapi/ogen.yml -target internal/httpapi/gen -package gen -clean openapi/openapi.yaml
+	go run ./tools/routegen -in openapi/openapi.yaml -out internal/httpapi/routes_gen.go
 
 gen-check: gen ## Mã sinh phải khớp bản trong git (kể cả tệp sinh mới chưa commit)
 	git diff --exit-code -- internal
-	git ls-files --others --exclude-standard -- 'internal/*/internal/store/*' | (! grep .)
+	git ls-files --others --exclude-standard -- 'internal/*/internal/store/*' 'internal/httpapi/gen/*' internal/httpapi/routes_gen.go | (! grep .)
+
+# Thay đổi phá vỡ của hợp đồng so với nhánh main phải có dòng trong breaking-approved.yaml (tools/apicheck gọi
+# oasdiff). Thử với tệp mẫu: make oasdiff OASDIFF_BASE=-base=<tệp gốc> OASDIFF_REV=<tệp mới>
+OASDIFF_BASE ?= -base-ref=main
+OASDIFF_REV ?= openapi/openapi.yaml
+OASDIFF_APPROVED ?= openapi/breaking-approved.yaml
+oasdiff: ## Chặn thay đổi phá vỡ openapi.yaml chưa được duyệt (so với main; lần đầu main chưa có tệp thì bỏ qua)
+	go run ./tools/apicheck $(OASDIFF_BASE) -rev $(OASDIFF_REV) -approved $(OASDIFF_APPROVED)
 
 sqlc-vet: ## sqlc vet (luật sqlc/db-prepare) trên database thử đã migrate; câu mẫu sai phải đỏ (tests/arch)
 	go test -race -count=1 -run '^TestSqlcVet$$' ./tests/arch

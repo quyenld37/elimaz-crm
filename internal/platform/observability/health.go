@@ -4,6 +4,7 @@ package observability
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -34,11 +35,19 @@ func (h *Health) live(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, `{"status":"ok"}`)
 }
 
-// ready trả 200 khi database trả lời trong 1 s, ngược lại 503. Không nêu lỗi gốc ra ngoài.
-func (h *Health) ready(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), readyTimeout)
+// Check hỏi database với hạn 1 s; nil nghĩa là sẵn sàng. Dùng chung cho /health/ready của mọi vai trò.
+func (h *Health) Check(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, readyTimeout)
 	defer cancel()
 	if err := h.db.Ping(ctx); err != nil {
+		return fmt.Errorf("hỏi database: %w", err)
+	}
+	return nil
+}
+
+// ready trả 200 khi database trả lời trong 1 s, ngược lại 503. Không nêu lỗi gốc ra ngoài.
+func (h *Health) ready(w http.ResponseWriter, r *http.Request) {
+	if err := h.Check(r.Context()); err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, `{"status":"unavailable","checks":{"db":"down"}}`)
 		return
 	}

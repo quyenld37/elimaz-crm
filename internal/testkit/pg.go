@@ -38,6 +38,18 @@ func StartPostgres(t testing.TB) (adminURL, ownerURL, appURL string) {
 	return adminURL, ownerURL, appURL
 }
 
+// OpenAppDB tạo database thử như StartPostgres và mở pool bằng crm_app với tùy chọn o; pool đóng khi test xong.
+func OpenAppDB(t testing.TB, o db.PoolOptions) *db.DB {
+	t.Helper()
+	_, _, appURL := StartPostgres(t)
+	d, err := db.Open(t.Context(), appURL, o)
+	if err != nil {
+		t.Fatalf("testkit: mở database thử bằng crm_app: %v", err)
+	}
+	t.Cleanup(d.Pool.Close)
+	return d
+}
+
 // CreateDatabase như StartPostgres nhưng chưa migrate (test của chính Migrate và vai trò migrate). Người quản trị tạo
 // sẵn extension pg_stat_statements (không phải extension "trusted" nên crm_owner không tự tạo được).
 //

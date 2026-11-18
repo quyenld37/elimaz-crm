@@ -1,0 +1,6 @@
+# Thay đổi phá vỡ của openapi.yaml đã được chủ shop OK (luật hợp đồng API mục 5; `make oasdiff`, tools/apicheck).
+# Mỗi dòng một operation, đúng dạng:
+#   - {operationId: <id>, reason: "<lý do bằng lời nghiệp vụ>", approvedOn: YYYY-MM-DD}
+# Dòng thiếu một trong ba trường không được tính. Xóa dòng sau khi thay đổi đã gộp vào main (dòng còn lại sẽ cho
+# qua mọi thay đổi phá vỡ sau này của cùng operation).
+approved: []

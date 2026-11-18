@@ -1,0 +1,17 @@
+openapi: 3.0.3
+info: {title: t, version: "1"}
+paths:
+  /api/v1/a:
+    get:
+      operationId: publicFalse
+      x-public: false
+      responses: {"200": {description: ok}}
+  /api/v1/b:
+    get:
+      operationId: emptyPermission
+      x-permission: ""
+      responses: {"200": {description: ok}}
+  /api/v1/c:
+    get:
+      x-permission: audit.read
+      responses: {"200": {description: ok}}
