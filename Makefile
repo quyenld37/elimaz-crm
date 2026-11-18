@@ -160,17 +160,22 @@ test-guard: ## Test không bị xóa, tắt, nới mà không ghi lý do (so v�
 # ---- Mutation testing vùng rủi ro cao (Task 23; ADR-25). Không nằm trong `ci` (vài giờ trên máy dev); CI chạy theo lịch.
 # GOFLAGS=-count=1: gremlins đặt hạn mỗi lượt theo thời gian chạy test đo lúc đầu; kết quả test lấy từ cache thì hạn gần 0
 # và mọi đột biến thành TIMED OUT (không tính vào hiệu quả, điểm 100% giả).
-# Cùng danh sách vùng cao HIGH_RISK_DIRS của hook (tests/deploy kiểm hai nơi khớp nhau). internal/httpapi: chỉ guard.go.
-MUTATION_DIRS := internal/platform/tenancy internal/platform/queue internal/platform/commands internal/platform/idempotency internal/modules/identity
-MUTATION_HTTPAPI_EXCLUDE := -E '^gen/' -E '^(auth|errors|handlers_[a-z_]+|idempotency|middleware|origin|ratelimit|refusal|routes_gen|server)\.go$$'
+# Một nguồn danh sách (Task 392): đọc thẳng HIGH_RISK_DIRS của hook trong scripts/agent/lib.sh, không chép lại ở đây.
+# Mục là thư mục: đột biến cả gói. Mục là tệp .go (guard.go của internal/httpapi): đột biến gói chứa nó nhưng loại mọi thư
+# mục con và mọi tệp .go khác của gói (tính lúc chạy, nên tệp thêm sau này cũng bị loại).
+MUTATION_HIGH_RISK := $(shell sed -n 's/^HIGH_RISK_DIRS="\(.*\)"$$/\1/p' scripts/agent/lib.sh)
+MUTATION_DIRS := $(filter-out %.go,$(MUTATION_HIGH_RISK))
+MUTATION_FILES := $(filter %.go,$(MUTATION_HIGH_RISK))
+mutation_exclude = -E '/' $(foreach g,$(filter-out $(1) %_test.go,$(wildcard $(dir $(1))*.go)),-E '^$(subst .,\.,$(notdir $(g)))$$')
 MUTATION_OUT ?= .mutation
 mutation: ## Đột biến mã vùng cao bằng gremlins (.gremlins.yaml, ngưỡng 80%); JSON trong $(MUTATION_OUT)/; make db-up trước
+	@test -n "$(MUTATION_DIRS)" || { echo "không đọc được HIGH_RISK_DIRS trong scripts/agent/lib.sh"; exit 1; }
 	@mkdir -p $(MUTATION_OUT)
 	rc=0; for d in $(MUTATION_DIRS); do \
 		echo "== $$d"; GOFLAGS=-count=1 gremlins unleash --config .gremlins.yaml -o $(MUTATION_OUT)/$$(basename $$d).json ./$$d || rc=1; \
 	done; \
-	echo "== internal/httpapi/guard.go"; \
-	GOFLAGS=-count=1 gremlins unleash --config .gremlins.yaml $(MUTATION_HTTPAPI_EXCLUDE) -o $(MUTATION_OUT)/guard.json ./internal/httpapi || rc=1; \
+	$(foreach f,$(MUTATION_FILES),echo "== $(f)"; \
+	GOFLAGS=-count=1 gremlins unleash --config .gremlins.yaml $(call mutation_exclude,$(f)) -o $(MUTATION_OUT)/$(basename $(notdir $(f))).json ./$(patsubst %/,%,$(dir $(f))) || rc=1; ) \
 	exit $$rc
 
 # ---- Công cụ cho máy CI (Task 23): đúng phiên bản ghim ở tools/versions.mk.

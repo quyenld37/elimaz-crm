@@ -287,8 +287,9 @@ func TestMakeCI_RunsEveryGate(t *testing.T) {
 	}
 }
 
-// Danh sách thư mục của make mutation trùng đúng vùng rủi ro cao của hook (scripts/agent/lib.sh, HIGH_RISK_DIRS).
-func TestMakeMutation_CoversHighRiskDirs(t *testing.T) {
+// HIGH_RISK_DIRS của hook (scripts/agent/lib.sh): nguồn duy nhất của danh sách vùng rủi ro cao.
+func highRiskDirs(t *testing.T) []string {
+	t.Helper()
 	lib, err := os.ReadFile("../../scripts/agent/lib.sh")
 	if err != nil {
 		t.Fatal(err)
@@ -297,8 +298,13 @@ func TestMakeMutation_CoversHighRiskDirs(t *testing.T) {
 	if m == nil {
 		t.Fatal("không đọc được HIGH_RISK_DIRS trong scripts/agent/lib.sh")
 	}
+	return strings.Fields(string(m[1]))
+}
+
+// Danh sách thư mục của make mutation trùng đúng vùng rủi ro cao của hook (scripts/agent/lib.sh, HIGH_RISK_DIRS).
+func TestMakeMutation_CoversHighRiskDirs(t *testing.T) {
 	out := makeDry(t, "mutation")
-	for d := range strings.FieldsSeq(string(m[1])) {
+	for _, d := range highRiskDirs(t) {
 		dir := d
 		if strings.HasSuffix(d, ".go") { // tệp lẻ: đột biến cả gói nhưng loại mọi tệp khác
 			dir = d[:strings.LastIndex(d, "/")]
@@ -309,6 +315,70 @@ func TestMakeMutation_CoversHighRiskDirs(t *testing.T) {
 	}
 	if !strings.Contains(out, "--config .gremlins.yaml") {
 		t.Error("make mutation phải dùng .gremlins.yaml (ngưỡng 80%)")
+	}
+}
+
+// Một nguồn danh sách (Task 392): Makefile đọc HIGH_RISK_DIRS từ scripts/agent/lib.sh, không chép lại; mục là tệp lẻ
+// (internal/httpapi/guard.go) thì loại mọi tệp .go khác cùng gói và mọi thư mục con, kể cả tệp thêm sau này.
+func TestMakeMutation_SingleSourceAndFileEntries(t *testing.T) {
+	dirs := highRiskDirs(t)
+	mk, err := os.ReadFile("../../Makefile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range dirs {
+		if strings.Contains(string(mk), d) {
+			t.Errorf("Makefile chép lại mục %s của HIGH_RISK_DIRS; phải đọc từ scripts/agent/lib.sh", d)
+		}
+	}
+	out := makeDry(t, "mutation")
+	for _, f := range dirs {
+		if strings.HasSuffix(f, ".go") {
+			checkSingleFileMutation(t, out, f)
+		}
+	}
+}
+
+// checkSingleFileMutation: lượt gremlins của gói chứa tệp f loại mọi thứ trong gói (thư mục con, tệp .go khác) trừ f.
+func checkSingleFileMutation(t *testing.T, out, f string) {
+	t.Helper()
+	dir, name := f[:strings.LastIndex(f, "/")], f[strings.LastIndex(f, "/")+1:]
+	pkg := regexp.MustCompile(`\./` + regexp.QuoteMeta(dir) + `(\s|;|$)`)
+	var line string
+	for l := range strings.SplitSeq(out, "\n") {
+		if strings.Contains(l, "gremlins unleash") && pkg.MatchString(l) {
+			line = l
+		}
+	}
+	if line == "" {
+		t.Errorf("make mutation không có lượt gremlins cho gói %s (tệp %s)", dir, f)
+		return
+	}
+	var excludes []*regexp.Regexp
+	for _, e := range regexp.MustCompile(`-E '([^']+)'`).FindAllStringSubmatch(line, -1) {
+		excludes = append(excludes, regexp.MustCompile(e[1]))
+	}
+	excluded := func(p string) bool {
+		return slices.ContainsFunc(excludes, func(re *regexp.Regexp) bool { return re.MatchString(p) })
+	}
+	if excluded(name) {
+		t.Errorf("make mutation loại chính tệp %s", f)
+	}
+	entries, err := os.ReadDir("../../" + dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		p := e.Name()
+		switch {
+		case e.IsDir():
+			p += "/x.go"
+		case p == name || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go"):
+			continue
+		}
+		if !excluded(p) {
+			t.Errorf("make mutation không loại %s/%s (chỉ được đột biến %s)", dir, p, name)
+		}
 	}
 }
 
