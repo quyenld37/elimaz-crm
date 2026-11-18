@@ -86,6 +86,6 @@ Theo luật "Behaviour changes need own OK": mỗi dòng cần chủ shop OK ri�
 
 | Màn | Kết luận | Người chốt | Ngày |
 |---|---|---|---|
-| (1)–(9) | Chờ điều phối viên duyệt | — | — |
+| (1)–(9) | **Chốt hình** (đã xem Lên đơn 1512, Danh sách đơn 390: đủ trạng thái, đúng hệ thiết kế, không tràn chữ). Các dòng THAY ĐỔI HÀNH VI (phím tắt F2/F3/Ctrl+Enter, nút nổi bật "Lưu và xác nhận", ba nhóm menu mới đứng đầu, che giữa SĐT trong gợi ý, sửa đơn dùng lại form Lên đơn…) **chờ chủ shop OK riêng**, không chặn Task M2-27–30 (làm theo mockup, bật hành vi mới khi chủ shop OK) | Điều phối viên (Q-X8) | 18/11/2026 |
 
 Điều phối viên ghi kết luận từng màn và từng dòng hành vi ở bảng trên (chốt / sửa gì). Không bắt đầu Task M2-27–30 cho màn chưa chốt.
