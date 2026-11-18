@@ -335,3 +335,51 @@ func TestLock(t *testing.T) {
 		t.Fatalf("Lock bằng người bán khác: %v, muốn ErrNotFound", err)
 	}
 }
+
+// detach gỡ vận đơn s khỏi đơn o của người bán seller bằng crm_app.
+func (e *orderEnv) detach(seller, o, s uuid.UUID) error {
+	return e.app(func(tx pgx.Tx) error {
+		return order.DetachShipment(e.t.Context(), tx, seller, o, s)
+	})
+}
+
+// D-03: gỡ vận đơn hiện hành chỉ khi đúng vận đơn đó (version +1); vận đơn khác, gỡ lần hai → không đổi, không lỗi;
+// đơn không có hay của người bán khác → ErrNotFound; gỡ xong gắn lại vận đơn mới được.
+func TestDetachShipment(t *testing.T) {
+	eachSeller(t, testDetachShipment)
+}
+
+func testDetachShipment(t *testing.T, e *orderEnv) {
+	o, _, s := e.attachedOrder(1)
+	attached := e.get(o.ID)
+	if err := e.detach(e.seller, o.ID, uuid.New()); err != nil {
+		t.Fatalf("gỡ vận đơn khác: %v", err)
+	}
+	if got := e.get(o.ID); got.CurrentShipmentID == nil || *got.CurrentShipmentID != s || got.Version != attached.Version {
+		t.Fatalf("gỡ vận đơn khác đổi đơn: %v, %d", got.CurrentShipmentID, got.Version)
+	}
+	other := e.partner
+	if other == e.seller {
+		other = e.shop.Seller
+	}
+	if err := e.detach(other, o.ID, s); !errors.Is(err, order.ErrNotFound) {
+		t.Fatalf("gỡ bằng người bán khác: %v; muốn ErrNotFound", err)
+	}
+	if err := e.detach(e.seller, uuid.New(), s); !errors.Is(err, order.ErrNotFound) {
+		t.Fatalf("đơn không có: %v; muốn ErrNotFound", err)
+	}
+	if err := e.detach(e.seller, o.ID, s); err != nil {
+		t.Fatalf("gỡ: %v", err)
+	}
+	got := e.get(o.ID)
+	if got.CurrentShipmentID != nil || got.Version != attached.Version+1 || got.Status != order.StatusConfirmed {
+		t.Fatalf("sau gỡ: %v, version %d (trước %d), %s", got.CurrentShipmentID, got.Version, attached.Version, got.Status)
+	}
+	if err := e.detach(e.seller, o.ID, s); err != nil || e.get(o.ID).Version != got.Version {
+		t.Fatalf("gỡ lần hai: %v, version %d", err, e.get(o.ID).Version)
+	}
+	s2 := uuid.New()
+	if err := e.attach(o.ID, s2); err != nil {
+		t.Fatalf("gắn lại sau gỡ: %v", err)
+	}
+}

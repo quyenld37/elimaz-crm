@@ -21,6 +21,8 @@ const (
 	ModeOK                 = "ok"
 	ModeTimeoutAfterCreate = "timeout_after_create"
 	ModeFailBeforeCreate   = "fail_before_create"
+	// ModeReject: hãng từ chối yêu cầu tạo (4xx), không tạo kiện.
+	ModeReject = "reject"
 )
 
 // Trạng thái thô của kiện.
@@ -90,13 +92,16 @@ func (c *Carrier) Advance(tracking, raw string) {
 // Key trả "fake".
 func (*Carrier) Key() string { return Key }
 
-// CreateShipment theo chế độ: fail_before_create → ErrNotSent; timeout_after_create → tạo kiện rồi trả lỗi không rõ;
+// CreateShipment theo chế độ: fail_before_create → ErrNotSent; reject → ErrRejected; timeout_after_create → tạo kiện rồi trả lỗi không rõ;
 // ok → tạo (hoặc trả kiện cũ cùng mã).
 func (c *Carrier) CreateShipment(_ context.Context, _ fulfillment.Account, r fulfillment.CreateRequest) (fulfillment.CreateResult, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.mode == ModeFailBeforeCreate {
 		return fulfillment.CreateResult{}, fulfillment.ErrNotSent
+	}
+	if c.mode == ModeReject {
+		return fulfillment.CreateResult{}, fulfillment.ErrRejected
 	}
 	p, ok := c.byCode[r.Code]
 	if !ok {

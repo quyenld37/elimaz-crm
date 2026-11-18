@@ -480,6 +480,7 @@ type FulfillmentShipment struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Version          int64
+	CreateInDoubtAt  pgtype.Timestamptz
 }
 
 type FulfillmentShipmentEvent struct {
