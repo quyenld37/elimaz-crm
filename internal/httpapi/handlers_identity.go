@@ -39,10 +39,35 @@ func (h *handler) ListStaff(ctx context.Context) (gen.ListStaffRes, error) {
 	return &out, nil
 }
 
-// ListRoles (GET /api/v1/identity/roles, identity.users.manage): vai trò của tenant và quyền của từng vai trò.
+// ListRoles (GET /api/v1/identity/roles, identity.users.manage): vai trò của tenant và quyền của từng vai trò, cho
+// màn Nhân viên (gán vai trò).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) ListRoles(ctx context.Context) (gen.ListRolesRes, error) {
+	out, err := h.roles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	res := gen.ListRolesOKApplicationJSON(out)
+	return &res, nil
+}
+
+// ListRolesToManage (GET /api/v1/identity/roles/manage, identity.roles.manage): cùng dữ liệu của ListRoles cho màn
+// Vai trò, để người chỉ quản lý vai trò (không quản lý nhân viên) mở được danh sách. Guard chỉ nhận một quyền mỗi
+// route nên hai route.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ListRolesToManage(ctx context.Context) (gen.ListRolesToManageRes, error) {
+	out, err := h.roles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	res := gen.ListRolesToManageOKApplicationJSON(out)
+	return &res, nil
+}
+
+// roles đọc vai trò của tenant người gọi kèm quyền, version, số người giữ (phần chung của hai route đọc vai trò).
+func (h *handler) roles(ctx context.Context) ([]gen.Role, error) {
 	u, ok := authUser(ctx)
 	if !ok {
 		return nil, errNoAuthUser
@@ -56,11 +81,11 @@ func (h *handler) ListRoles(ctx context.Context) (gen.ListRolesRes, error) {
 	if err != nil {
 		return nil, fmt.Errorf("liệt kê vai trò: %w", err)
 	}
-	out := make(gen.ListRolesOKApplicationJSON, 0, len(rows))
+	out := make([]gen.Role, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, *roleOut(r))
 	}
-	return &out, nil
+	return out, nil
 }
 
 // ListPermissions (GET /api/v1/identity/permissions, identity.roles.manage): mọi quyền kèm nhóm, nhãn, loại phạm vi.

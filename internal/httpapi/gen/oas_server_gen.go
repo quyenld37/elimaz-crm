@@ -278,6 +278,13 @@ type Handler interface {
 	//
 	// GET /api/v1/identity/roles
 	ListRoles(ctx context.Context) (ListRolesRes, error)
+	// ListRolesToManage implements listRolesToManage operation.
+	//
+	// Vai trò của shop cho màn Vai trò (cùng dữ liệu listRoles, chỉ cần quyền quản lý
+	// vai trò).
+	//
+	// GET /api/v1/identity/roles/manage
+	ListRolesToManage(ctx context.Context) (ListRolesToManageRes, error)
 	// ListStaff implements listStaff operation.
 	//
 	// Mọi nhân viên của shop kèm vai trò theo phạm vi.

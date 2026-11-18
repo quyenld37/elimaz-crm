@@ -161,6 +161,10 @@ type ListRolesRes interface {
 	listRolesRes()
 }
 
+type ListRolesToManageRes interface {
+	listRolesToManageRes()
+}
+
 type ListStaffRes interface {
 	listStaffRes()
 }

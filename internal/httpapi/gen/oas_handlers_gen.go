@@ -3706,6 +3706,72 @@ func (s *Server) handleListRolesRequest(args [0]string, argsEscaped bool, w http
 	}
 }
 
+// handleListRolesToManageRequest handles listRolesToManage operation.
+//
+// Vai trò của shop cho màn Vai trò (cùng dữ liệu listRoles, chỉ cần quyền quản lý
+// vai trò).
+//
+// GET /api/v1/identity/roles/manage
+func (s *Server) handleListRolesToManageRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response ListRolesToManageRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListRolesToManageOperation,
+			OperationSummary: "Vai trò của shop cho màn Vai trò (cùng dữ liệu listRoles, chỉ cần quyền quản lý vai trò)",
+			OperationID:      "listRolesToManage",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = ListRolesToManageRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListRolesToManage(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListRolesToManage(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListRolesToManageResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleListStaffRequest handles listStaff operation.
 //
 // Mọi nhân viên của shop kèm vai trò theo phạm vi.

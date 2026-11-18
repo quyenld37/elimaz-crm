@@ -406,6 +406,16 @@ func (UnimplementedHandler) ListRoles(ctx context.Context) (r ListRolesRes, _ er
 	return r, ht.ErrNotImplemented
 }
 
+// ListRolesToManage implements listRolesToManage operation.
+//
+// Vai trò của shop cho màn Vai trò (cùng dữ liệu listRoles, chỉ cần quyền quản lý
+// vai trò).
+//
+// GET /api/v1/identity/roles/manage
+func (UnimplementedHandler) ListRolesToManage(ctx context.Context) (r ListRolesToManageRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListStaff implements listStaff operation.
 //
 // Mọi nhân viên của shop kèm vai trò theo phạm vi.

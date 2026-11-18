@@ -163,6 +163,9 @@ Lượt 1:
 
 | Tiêu chí | Test | Lệnh | Kết quả |
 |---|---|---|---|
+| Lượt 2, commit 2: người chỉ có `identity.roles.manage` (không `identity.users.manage`) mở được danh sách vai trò; `listRoles` vẫn đòi `identity.users.manage`; người thiếu quyền 403 | `TestRolesAPI_PermissionsAndEffect` (đỏ trước: `X liệt kê vai trò để quản lý: 404 not_found`) | `go test -race -count=1 -v -run 'TestRolesAPI|TestRoutes' ./internal/httpapi/ ./tests/arch/` | `--- PASS: TestRolesAPI_PermissionsAndEffect (5.08s)`; `TestRoutesPublicSetAndPermissions`, `TestRoutesAllServed` PASS |
+| Lượt 2, commit 2: màn Vai trò với người chỉ quản lý vai trò hiện danh sách, mở được vai trò; menu không có Nhân viên; API giả đòi đúng quyền như máy chủ | `roles.spec.ts` "chỉ có quyền quản lý vai trò (không quản lý nhân viên)…" (đỏ trước: không thấy dòng "Kho phụ") + mọi ca cũ của roles, staff | `CRM_E2E_PORT=5156 npx playwright test e2e/roles.spec.ts e2e/staff.spec.ts --project=chromium`; `npx vitest run`, `tsc`, `eslint` | `33 passed (18.6s)`; `Tests 174 passed` |
+| Lượt 2, commit 2: cổng kiểm | `make ci` | `make ci CRM_PG_PORT=5600` (sau khi stage); oasdiff và test-guard so với bản main đã gộp `4b752d1` | build, vet, lint `0 issues`, gen-check, sqlc-vet, `go test -race ./...` 47 gói ok (identity 346s, httpapi 312s, tests/e2e 83s), govulncheck `0 vulnerabilities` trong mã; `oasdiff` so với main hiện tại đỏ vì main đã có thêm Task 321 (`getOriginalImageURL`) sau lần gộp (không gộp lại theo lệnh) → `go run ./tools/apicheck -base-ref=4b752d1 …` thoát 0; `test-guard` so với main hiện tại báo hai tệp test của Task 321 "bị xóa" (cùng lý do) → `git diff --diff-filter=D 4b752d1 HEAD -- '*_test.go' '*.spec.ts'` rỗng; catalog-check, jscpd `Found 0 clones`, gitleaks `no leaks found`, console-check vitest `174 passed` |
 | Lượt 2, commit 1: gộp main lần 3 (Task 22, 51, 324) không hỏng gì; test menu giữ ca của cả hai bên | `make ci`; `staff.spec.ts` "menu: mục Nhân viên…" | `make ci CRM_PG_PORT=5600`; sau khi dời `noHorizontalScroll` vào `fixtures.ts`: `make jscpd gen-check test-guard gitleaks console-check`; `CRM_E2E_PORT=5156 npx playwright test --project=chromium` | `go test -race ./...` 47 gói ok, 0 FAIL (identity 535s, httpapi 522s, tests/e2e 117s); lint `0 issues`; jscpd lần đầu báo 1 clone mới (`noHorizontalScroll` ở `inventory.spec.ts` của main và `roles.spec.ts`) → dời vào `fixtures.ts` → `Found 0 clones`; gen-check, test-guard qua; gitleaks `no leaks found`; vitest `174 passed`; Playwright chromium `66 passed`, sau khi dời `40 passed` (roles, inventory, staff) |
 | Tạo vai trò có quyền người tạo thiếu → từ chối; có đủ → tạo, khóa `custom_` + 8 ký tự | `TestCustomRole_CannotExceedActor`; `TestRolesAPI_CreateUpdateArchive` | `go test -race -v ./internal/modules/identity/`; `go test -race ./internal/httpapi/ -run 'RolesAPI|StaffAPI|ErrorCodes|Route'` | `--- PASS: TestCustomRole_CannotExceedActor (3.49s)`; `ok elimaz.com.vn/crm/internal/httpapi 81.230s` (403 `grant_exceeds_actor`, 201) |
 | Không tự nâng quyền qua vai trò mình giữ; gỡ quyền mình không có, lưu trữ vai trò có quyền mình không có đều bị chặn; quyền theo kho chỉ ở một kho không đủ | `TestCustomRole_CannotExceedActor` | `go test -race -v ./internal/modules/identity/` | PASS |
@@ -221,6 +224,11 @@ TestBinaryWorkerHandlesSelftest hết hạn chờ ingest, chạy lại qua), tes
 - ~~`listRoles` vẫn đòi `identity.users.manage`…~~ Đã xử lý ở lượt 2 (Quyết định 12).
 
 ## Reviewer
+
+Kết luận lượt 2, commit 2/2 (`listRolesToManage`, màn Vai trò chỉ cần `identity.roles.manage`): **ĐẠT**. Không có
+phát hiện về tính đúng; đã đối chiếu router ogen (nhánh `manage` chỉ khớp đúng đường, `/roles/{id}` và `/archive` giữ
+nguyên; `PUT /roles/manage` nay 405), guard mặc định từ chối (K 403), khóa truy vấn con của `ROLES_KEY` nên làm mới sau
+khi ghi vẫn đúng, regex e2e không bắt nhầm GET `/roles/manage`, oasdiff/test-guard so với bản main đã gộp hợp lệ.
 
 Kết luận lượt 2, commit 1/2 (gộp main lần 3: Task 22, 51, 324): **ĐẠT**. Không có phát hiện về tính đúng; đã đối chiếu
 test menu (chỉ thêm, không nới điều kiện nào), `openapi.yaml` đã gộp đủ operation của hai bên, mã sinh khớp (go vet

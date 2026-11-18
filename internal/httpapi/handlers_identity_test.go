@@ -477,4 +477,17 @@ func TestRolesAPI_PermissionsAndEffect(t *testing.T) {
 	}
 	expect(t, "X đọc danh sách quyền", e.do(http.MethodGet, "/api/v1/identity/permissions", "x@elimaz.test", "", ""), http.StatusOK, "")
 	expect(t, "X liệt kê nhân viên", e.do(http.MethodGet, "/api/v1/identity/users", "x@elimaz.test", "", ""), http.StatusForbidden, "forbidden")
+	// Lượt 2: X chỉ có identity.roles.manage (không có identity.users.manage) vẫn mở được danh sách vai trò của màn Vai
+	// trò; đường của màn Nhân viên (listRoles) vẫn đòi identity.users.manage; K thiếu cả hai → 403.
+	rec = e.do(http.MethodGet, "/api/v1/identity/roles/manage", "x@elimaz.test", "", "")
+	var roles []map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &roles); err != nil || rec.Code != http.StatusOK {
+		t.Fatalf("X liệt kê vai trò để quản lý: %d %s", rec.Code, rec.Body.String())
+	}
+	if !slices.ContainsFunc(roles, func(r map[string]any) bool { return r["key"] == key && r["holderCount"] == float64(1) }) ||
+		!slices.ContainsFunc(roles, func(r map[string]any) bool { return r["key"] == "owner" }) {
+		t.Fatalf("danh sách vai trò thiếu vai trò mới (1 người giữ) hoặc Chủ: %v", roles)
+	}
+	expect(t, "X liệt kê vai trò của màn Nhân viên", e.do(http.MethodGet, "/api/v1/identity/roles", "x@elimaz.test", "", ""), http.StatusForbidden, "forbidden")
+	expect(t, "K liệt kê vai trò để quản lý", e.do(http.MethodGet, "/api/v1/identity/roles/manage", staffK, "", ""), http.StatusForbidden, "forbidden")
 }

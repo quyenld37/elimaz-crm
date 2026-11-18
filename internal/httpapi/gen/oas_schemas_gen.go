@@ -1634,6 +1634,7 @@ func (*ErrorStatusCode) listJobsRes()                  {}
 func (*ErrorStatusCode) listPermissionsRes()           {}
 func (*ErrorStatusCode) listProductsRes()              {}
 func (*ErrorStatusCode) listRolesRes()                 {}
+func (*ErrorStatusCode) listRolesToManageRes()         {}
 func (*ErrorStatusCode) listStaffRes()                 {}
 func (*ErrorStatusCode) listStockDocumentsRes()        {}
 func (*ErrorStatusCode) listSuppliersRes()             {}
@@ -2254,6 +2255,10 @@ func (*ListPermissionsOKApplicationJSON) listPermissionsRes() {}
 type ListRolesOKApplicationJSON []Role
 
 func (*ListRolesOKApplicationJSON) listRolesRes() {}
+
+type ListRolesToManageOKApplicationJSON []Role
+
+func (*ListRolesToManageOKApplicationJSON) listRolesToManageRes() {}
 
 type ListStaffOKApplicationJSON []StaffMember
 

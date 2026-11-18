@@ -2,7 +2,7 @@
 // trạng thái (e2e/fixtures.ts). Luật thật nằm ở API (identity.CreateRole, UpdateRole, ArchiveRole); ở đây kiểm màn gửi
 // đúng yêu cầu, làm mờ quyền người sửa không có kèm lý do, vai trò Chủ chỉ xem, câu báo khi máy chủ chặn, và vai trò
 // mới hiện ở màn Nhân viên.
-import type { Page } from "@playwright/test";
+import type { Page, Route } from "@playwright/test";
 import type { Grant, PermissionInfo, Role, StaffMember } from "../src/api";
 import {
   expect,
@@ -95,12 +95,15 @@ async function rolesApi(api: FakeApi, grants: Grant[] = MANAGER_GRANTS): Promise
   const fake: Fake = { roles: seedRoles(), writes: [], failNext: null };
   await api.live({ userId: ME, grants });
   const { record, fail } = writeRecorder(fake);
+  const can = (p: string) => grants.some((g) => g.permission === p);
+  const forbidden = (r: Route) => json(r, 403, { error: "forbidden", request_id: "e2e" });
   await api.on("**/api/v1/identity/permissions", (r) => json(r, 200, CATALOG));
   await api.on("**/api/v1/identity/users", (r) =>
     json(r, 200, [staffMember(ME, "Phạm Thu Hà", "manager"), staffMember(MINH, "Lê Văn Minh", "custom_ab12cd34")]),
   );
   await api.on("**/api/v1/identity/roles", async (r) => {
-    if (r.request().method() === "GET") return json(r, 200, fake.roles);
+    // GET của màn Nhân viên (listRoles) đòi identity.users.manage như máy chủ.
+    if (r.request().method() === "GET") return can("identity.users.manage") ? json(r, 200, fake.roles) : forbidden(r);
     const body = record(r) as { name: string; permissions: string[] };
     if (await fail(r)) return;
     const created = role(fake.roles.length + 10, "custom_new00001", body.name, body.permissions, { customized: true });
@@ -123,6 +126,11 @@ async function rolesApi(api: FakeApi, grants: Grant[] = MANAGER_GRANTS): Promise
     target.version++;
     return json(r, 200, target);
   });
+  // Khai sau đường sửa/lưu trữ ở trên nên Playwright gọi trước: danh sách của màn Vai trò (listRolesToManage) chỉ đòi
+  // identity.roles.manage.
+  await api.on("**/api/v1/identity/roles/manage", (r) =>
+    can("identity.roles.manage") ? json(r, 200, fake.roles) : forbidden(r),
+  );
   return fake;
 }
 
@@ -262,6 +270,26 @@ forEachViewport(() => {
     await page.goto("/vai-tro");
     await expect(page.getByRole("heading", { name: "Vai trò", level: 1 })).toBeVisible();
   });
+});
+
+test("chỉ có quyền quản lý vai trò (không quản lý nhân viên): vẫn mở được danh sách và vai trò", async ({
+  page,
+  api,
+}) => {
+  await page.setViewportSize({ width: 1512, height: 767 });
+  await rolesApi(
+    api,
+    ["catalog.read", "identity.roles.manage"].map((permission) => ({ permission, scope: { type: "all", id: "" } })),
+  );
+  await page.goto("/vai-tro");
+  await expect(page.getByRole("heading", { name: "Vai trò", level: 1 })).toBeVisible();
+  const row = (name: string) => page.locator("tbody tr").filter({ hasText: name });
+  await expect(row("Kho phụ")).toContainText("Tự tạo");
+  await expect(row(LONG_NAME)).toBeVisible();
+  await row("Kho phụ").getByRole("link", { name: "Sửa Kho phụ" }).click();
+  await expect(page.getByLabel("Tên vai trò")).toHaveValue("Kho phụ");
+  // Không quản lý nhân viên: không có mục Nhân viên trong menu.
+  await expect(page.getByRole("link", { name: "Nhân viên" })).toHaveCount(0);
 });
 
 test("không có quyền quản lý vai trò: không có màn Vai trò", async ({ page, api }) => {

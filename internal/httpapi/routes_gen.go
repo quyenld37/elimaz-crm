@@ -52,6 +52,7 @@ var Routes = []Route{
 	{Method: "GET", Pattern: "GET /api/v1/identity/permissions", OperationID: "listPermissions", Permission: "identity.roles.manage"},
 	{Method: "GET", Pattern: "GET /api/v1/identity/roles", OperationID: "listRoles", Permission: "identity.users.manage"},
 	{Method: "POST", Pattern: "POST /api/v1/identity/roles", OperationID: "createRole", Permission: "identity.roles.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "GET", Pattern: "GET /api/v1/identity/roles/manage", OperationID: "listRolesToManage", Permission: "identity.roles.manage"},
 	{Method: "PUT", Pattern: "PUT /api/v1/identity/roles/{id}", OperationID: "updateRole", Permission: "identity.roles.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "POST", Pattern: "POST /api/v1/identity/roles/{id}/archive", OperationID: "archiveRole", Permission: "identity.roles.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/identity/users", OperationID: "listStaff", Permission: "identity.users.manage"},

@@ -1165,6 +1165,31 @@ export type CreateRoleResponses = {
 
 export type CreateRoleResponse = CreateRoleResponses[keyof CreateRoleResponses];
 
+export type ListRolesToManageData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/identity/roles/manage';
+};
+
+export type ListRolesToManageErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListRolesToManageError = ListRolesToManageErrors[keyof ListRolesToManageErrors];
+
+export type ListRolesToManageResponses = {
+    /**
+     * Vai trò
+     */
+    200: Array<Role>;
+};
+
+export type ListRolesToManageResponse = ListRolesToManageResponses[keyof ListRolesToManageResponses];
+
 export type UpdateRoleData = {
     body: UpdateRoleRequest;
     headers: {

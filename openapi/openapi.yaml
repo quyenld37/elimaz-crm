@@ -188,6 +188,22 @@ paths:
                 $ref: "#/components/schemas/Role"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/identity/roles/manage:
+    get:
+      operationId: listRolesToManage
+      summary: Vai trò của shop cho màn Vai trò (cùng dữ liệu listRoles, chỉ cần quyền quản lý vai trò)
+      x-permission: identity.roles.manage
+      responses:
+        "200":
+          description: Vai trò
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Role"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/identity/roles/{id}:
     put:
       operationId: updateRole
