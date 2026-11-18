@@ -1,5 +1,6 @@
-// Menu của khung (mockup M1 docs/mockups/m1/khung.js): bốn nhóm cố định theo thứ tự; mỗi màn tự khai một Screen
-// trong src/app/screens.tsx. Menu chỉ hiện màn người dùng có quyền (bất kỳ phạm vi nào); API vẫn kiểm quyền thật.
+// Menu của khung (mockup M1 docs/mockups/m1/khung.js): bốn nhóm cố định theo thứ tự; mỗi màn tự khai Screen trong
+// route.tsx của thư mục màn (quy ước src/app/loadScreens.ts). Menu chỉ hiện màn người dùng có quyền (bất kỳ phạm vi
+// nào); API vẫn kiểm quyền thật.
 import type { ReactNode } from "react";
 import { matchPath } from "react-router";
 import type { Grant } from "../api";
