@@ -40,6 +40,16 @@ func (UnimplementedHandler) AddVariant(ctx context.Context, req *AddVariantReque
 	return r, ht.ErrNotImplemented
 }
 
+// ApplyStocktake implements applyStocktake operation.
+//
+// Áp dụng phiên (cộng chênh lệch vào tồn, không đụng phần giữ); trả danh sách
+// thiếu so với phần giữ.
+//
+// POST /api/v1/inventory/stocktakes/{id}/apply
+func (UnimplementedHandler) ApplyStocktake(ctx context.Context, req *VersionRequest, params ApplyStocktakeParams) (r ApplyStocktakeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ArchiveCategory implements archiveCategory operation.
 //
 // Lưu trữ danh mục khi không còn danh mục con active hay mẫu active.
@@ -49,12 +59,33 @@ func (UnimplementedHandler) ArchiveCategory(ctx context.Context, req *VersionReq
 	return r, ht.ErrNotImplemented
 }
 
+// AttachProductImage implements attachProductImage operation.
+//
+// Color (không bắt buộc) là một màu đang có của biến thể trong mẫu. Tệp chưa
+// ready hay không phải ảnh sản phẩm → 409 file_not_ready; tệp đang gắn → 409
+// already_exists; tệp đã gắn rồi xóa → hồi lại ảnh cũ ở cuối. Tối đa 50
+// ảnh.
+//
+// POST /api/v1/catalog/products/{id}/images
+func (UnimplementedHandler) AttachProductImage(ctx context.Context, req *AttachProductImageRequest, params AttachProductImageParams) (r AttachProductImageRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CancelStockDocument implements cancelStockDocument operation.
 //
 // Hủy phiếu nháp.
 //
 // POST /api/v1/inventory/documents/{id}/cancel
 func (UnimplementedHandler) CancelStockDocument(ctx context.Context, req *StockDocumentVersion, params CancelStockDocumentParams) (r CancelStockDocumentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CancelStocktake implements cancelStocktake operation.
+//
+// Hủy phiên đang mở (tồn không đổi).
+//
+// POST /api/v1/inventory/stocktakes/{id}/cancel
+func (UnimplementedHandler) CancelStocktake(ctx context.Context, req *VersionRequest, params CancelStocktakeParams) (r CancelStocktakeRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -106,6 +137,16 @@ func (UnimplementedHandler) CreateProduct(ctx context.Context, req *CreateProduc
 	return r, ht.ErrNotImplemented
 }
 
+// CreateShipment implements createShipment operation.
+//
+// Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa
+// hủy → shipment_exists.
+//
+// POST /api/v1/orders/{id}/shipments
+func (UnimplementedHandler) CreateShipment(ctx context.Context, req *CreateShipmentRequest, params CreateShipmentParams) (r CreateShipmentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateStaff implements createStaff operation.
 //
 // Tạo nhân viên mới (chưa có vai trò nào).
@@ -150,6 +191,16 @@ func (UnimplementedHandler) CreateTag(ctx context.Context, req *CreateTagRequest
 //
 // POST /api/v1/files/uploads
 func (UnimplementedHandler) CreateUpload(ctx context.Context, req *CreateUploadRequest, params CreateUploadParams) (r CreateUploadRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// DeleteProductImage implements deleteProductImage operation.
+//
+// Xóa mềm một ảnh của mẫu (khôi phục được trong 30 ngày); ảnh đã xóa thì
+// không đổi gì.
+//
+// DELETE /api/v1/catalog/products/{id}/images/{imageId}
+func (UnimplementedHandler) DeleteProductImage(ctx context.Context, params DeleteProductImageParams) (r DeleteProductImageRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -200,12 +251,30 @@ func (UnimplementedHandler) GetProduct(ctx context.Context, params GetProductPar
 	return r, ht.ErrNotImplemented
 }
 
+// GetShipment implements getShipment operation.
+//
+// Quyền fulfillment.read theo đích kho của tài khoản hãng của vận đơn.
+//
+// GET /api/v1/shipments/{id}
+func (UnimplementedHandler) GetShipment(ctx context.Context, params GetShipmentParams) (r GetShipmentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetStockDocument implements getStockDocument operation.
 //
 // Một phiếu kho kèm dòng.
 //
 // GET /api/v1/inventory/documents/{id}
 func (UnimplementedHandler) GetStockDocument(ctx context.Context, params GetStockDocumentParams) (r GetStockDocumentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetStocktake implements getStocktake operation.
+//
+// Phiên kiểm kho kèm dòng đếm và xem trước chênh lệch.
+//
+// GET /api/v1/inventory/stocktakes/{id}
+func (UnimplementedHandler) GetStocktake(ctx context.Context, params GetStocktakeParams) (r GetStocktakeRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -341,6 +410,26 @@ func (UnimplementedHandler) PostStockDocument(ctx context.Context, req *StockDoc
 	return r, ht.ErrNotImplemented
 }
 
+// RecordStocktakeCount implements recordStocktakeCount operation.
+//
+// Ghi số đếm của một biến thể (chụp tồn trên kệ = on_hand − in_transit lúc
+// ghi); ghi lại cần lineVersion.
+//
+// PUT /api/v1/inventory/stocktakes/{id}/lines/{variantId}
+func (UnimplementedHandler) RecordStocktakeCount(ctx context.Context, req *RecordStocktakeCountRequest, params RecordStocktakeCountParams) (r RecordStocktakeCountRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ReorderProductImages implements reorderProductImages operation.
+//
+// Đặt thứ tự ảnh đang hiện của mẫu (đúng đủ mã ảnh đang hiện) khi version
+// còn khớp.
+//
+// PUT /api/v1/catalog/products/{id}/images/order
+func (UnimplementedHandler) ReorderProductImages(ctx context.Context, req *ReorderProductImagesRequest, params ReorderProductImagesParams) (r ReorderProductImagesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ReplaceStaffGrants implements replaceStaffGrants operation.
 //
 // Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không
@@ -357,6 +446,16 @@ func (UnimplementedHandler) ReplaceStaffGrants(ctx context.Context, req *Replace
 //
 // PUT /api/v1/inventory/documents/{id}/lines
 func (UnimplementedHandler) ReplaceStockDocumentLines(ctx context.Context, req *ReplaceStockDocumentLinesRequest, params ReplaceStockDocumentLinesParams) (r ReplaceStockDocumentLinesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// RestoreProductImage implements restoreProductImage operation.
+//
+// Khôi phục ảnh đã xóa về vị trí cũ; quá 30 ngày → 410 restore_expired; ảnh đang
+// hiện thì không đổi gì.
+//
+// POST /api/v1/catalog/products/{id}/images/{imageId}/restore
+func (UnimplementedHandler) RestoreProductImage(ctx context.Context, params RestoreProductImageParams) (r RestoreProductImageRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -386,6 +485,16 @@ func (UnimplementedHandler) SearchVariants(ctx context.Context, params SearchVar
 //
 // PUT /api/v1/catalog/products/{id}/classification
 func (UnimplementedHandler) SetProductClassification(ctx context.Context, req *SetClassificationRequest, params SetProductClassificationParams) (r SetProductClassificationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// StartStocktake implements startStocktake operation.
+//
+// Mở phiên kiểm kho ở một kho (một phiên mở mỗi kho; kho đã đóng →
+// invalid_input).
+//
+// POST /api/v1/inventory/stocktakes
+func (UnimplementedHandler) StartStocktake(ctx context.Context, req *StartStocktakeRequest, params StartStocktakeParams) (r StartStocktakeRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

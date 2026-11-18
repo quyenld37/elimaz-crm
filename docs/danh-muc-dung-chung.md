@@ -402,6 +402,7 @@ type VariantURL struct {
 	Format string
 	URL    string
 }
+func SelectPreset(vs []VariantURL, want int) []VariantURL
 ```
 
 ## `internal/platform/idempotency` (gói `idempotency`)

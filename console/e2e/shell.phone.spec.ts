@@ -7,16 +7,18 @@ test.use({ viewport: PHONE, hasTouch: true });
 
 test("☰ mở menu; nền mờ đóng; nút chạm 44 px", async ({ page, api }) => {
   await api.live();
+  await api.catalog();
   await page.goto("/");
   const open = page.getByRole("button", { name: "Mở menu" });
   const box = await open.boundingBox();
   expect(box?.height).toBeGreaterThanOrEqual(44);
   expect(box?.width).toBeGreaterThanOrEqual(44);
   await open.tap();
-  // Menu trượt (chưa có màn nào nên chỉ có chữ ELIMAZ và ô người dùng).
+  // Menu trượt: chữ ELIMAZ, mục Danh sách sản phẩm (Task 50), ô người dùng.
   const nav = page.locator("aside.side");
   await expect(nav).toBeVisible();
   await expect(nav.getByText("lan@elimaz.vn")).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Danh sách sản phẩm" })).toBeVisible();
   expect((await nav.boundingBox())?.width).toBeCloseTo(300, 0);
   await expect(open).toHaveAttribute("aria-expanded", "true");
   await page.getByRole("button", { name: "Đóng menu" }).tap({ position: { x: 370, y: 400 } });

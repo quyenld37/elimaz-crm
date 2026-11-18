@@ -12,6 +12,35 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type CashCodBalancesV struct {
+	ShipmentID uuid.UUID
+	Account    string
+	Balance    int64
+}
+
+type CashCodLedgerEntry struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	TransferID uuid.UUID
+	Account    string
+	Amount     int64
+	CreatedAt  time.Time
+}
+
+type CashCodTransfer struct {
+	ID                 uuid.UUID
+	TenantID           uuid.UUID
+	ShipmentID         uuid.UUID
+	Kind               string
+	StatementLineID    pgtype.UUID
+	ReversesTransferID pgtype.UUID
+	IdempotencyKey     string
+	Reason             string
+	ActorType          string
+	ActorID            pgtype.UUID
+	CreatedAt          time.Time
+}
+
 type CatalogAttribute struct {
 	ID        uuid.UUID
 	TenantID  uuid.UUID
@@ -99,6 +128,27 @@ type CatalogProductAttributeValue struct {
 type CatalogProductAttributeValuesV struct {
 	ProductID        uuid.UUID
 	AttributeValueID uuid.UUID
+}
+
+type CatalogProductImage struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	ProductID uuid.UUID
+	FileID    uuid.UUID
+	Color     pgtype.Text
+	Position  int32
+	CreatedBy pgtype.UUID
+	CreatedAt time.Time
+	DeletedAt pgtype.Timestamptz
+	DeletedBy pgtype.UUID
+}
+
+type CatalogProductImagesV struct {
+	ImageID   uuid.UUID
+	ProductID uuid.UUID
+	FileID    uuid.UUID
+	Color     pgtype.Text
+	Position  int32
 }
 
 type CatalogProductTag struct {
@@ -214,6 +264,63 @@ type CustomerCustomersV struct {
 	CreatedAt time.Time
 }
 
+type FulfillmentCarrierAccount struct {
+	ID                 uuid.UUID
+	TenantID           uuid.UUID
+	SellerID           uuid.UUID
+	CarrierKey         string
+	Name               string
+	ExternalAccountRef string
+	WarehouseID        uuid.UUID
+	CredentialEnc      []byte
+	Status             string
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	Version            int64
+}
+
+type FulfillmentShipment struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	Code             string
+	OrderID          uuid.UUID
+	CarrierKey       string
+	CarrierAccountID uuid.UUID
+	TrackingCode     pgtype.Text
+	Status           string
+	CodAmount        int64
+	Fee              pgtype.Int8
+	LastStatusAt     pgtype.Timestamptz
+	CreatedBy        pgtype.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	Version          int64
+}
+
+type FulfillmentShipmentEvent struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	ShipmentID uuid.UUID
+	EventKey   string
+	RawStatus  string
+	Status     string
+	OccurredAt time.Time
+	Raw        []byte
+	RecordedAt time.Time
+}
+
+type FulfillmentShipmentsV struct {
+	ID               uuid.UUID
+	OrderID          uuid.UUID
+	Code             string
+	CarrierKey       string
+	CarrierAccountID uuid.UUID
+	TrackingCode     pgtype.Text
+	Status           string
+	CodAmount        int64
+	Fee              pgtype.Int8
+}
+
 type IdentityAuditLog struct {
 	ID            uuid.UUID
 	TenantID      uuid.UUID
@@ -271,6 +378,23 @@ type IdentityUsersV struct {
 	ID          uuid.UUID
 	DisplayName string
 	Status      string
+}
+
+type InventoryReconcileRun struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	RanAt      time.Time
+	Ok         bool
+	Checked    int32
+	Mismatches []byte
+}
+
+type InventoryReconcileRunsV struct {
+	RunID         uuid.UUID
+	RanAt         time.Time
+	Ok            bool
+	Checked       int32
+	MismatchCount int32
 }
 
 type InventoryStockAvailableV struct {
@@ -369,6 +493,36 @@ type InventoryStockReservation struct {
 	ExpiresAt      pgtype.Timestamptz
 	StateChangedAt time.Time
 	CreatedAt      time.Time
+}
+
+type InventoryStocktake struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	WarehouseID uuid.UUID
+	Code        string
+	Status      string
+	StartedBy   pgtype.UUID
+	AppliedBy   pgtype.UUID
+	AppliedAt   pgtype.Timestamptz
+	CancelledBy pgtype.UUID
+	CancelledAt pgtype.Timestamptz
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Version     int64
+}
+
+type InventoryStocktakeLine struct {
+	ID              uuid.UUID
+	TenantID        uuid.UUID
+	StocktakeID     uuid.UUID
+	VariantID       uuid.UUID
+	SellerID        uuid.UUID
+	ExpectedOnShelf int32
+	Counted         int32
+	Delta           pgtype.Int4
+	CountedAt       time.Time
+	CountedBy       pgtype.UUID
+	Version         int64
 }
 
 type InventorySupplier struct {
@@ -555,6 +709,14 @@ type PlatformFileVariant struct {
 	Key           string
 	SizeBytes     int64
 	CreatedAt     time.Time
+}
+
+type PlatformFileVariantsV struct {
+	FileID        uuid.UUID
+	PresetVersion int32
+	Width         int32
+	Format        string
+	Key           string
 }
 
 type PlatformIdempotencyKey struct {

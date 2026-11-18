@@ -13,12 +13,24 @@ type AddVariantRes interface {
 	addVariantRes()
 }
 
+type ApplyStocktakeRes interface {
+	applyStocktakeRes()
+}
+
 type ArchiveCategoryRes interface {
 	archiveCategoryRes()
 }
 
+type AttachProductImageRes interface {
+	attachProductImageRes()
+}
+
 type CancelStockDocumentRes interface {
 	cancelStockDocumentRes()
+}
+
+type CancelStocktakeRes interface {
+	cancelStocktakeRes()
 }
 
 type CompleteUploadRes interface {
@@ -41,6 +53,10 @@ type CreateProductRes interface {
 	createProductRes()
 }
 
+type CreateShipmentRes interface {
+	createShipmentRes()
+}
+
 type CreateStaffRes interface {
 	createStaffRes()
 }
@@ -59,6 +75,10 @@ type CreateTagRes interface {
 
 type CreateUploadRes interface {
 	createUploadRes()
+}
+
+type DeleteProductImageRes interface {
+	deleteProductImageRes()
 }
 
 type GetFileRes interface {
@@ -81,8 +101,16 @@ type GetProductRes interface {
 	getProductRes()
 }
 
+type GetShipmentRes interface {
+	getShipmentRes()
+}
+
 type GetStockDocumentRes interface {
 	getStockDocumentRes()
+}
+
+type GetStocktakeRes interface {
+	getStocktakeRes()
 }
 
 type HealthDeepRes interface {
@@ -137,12 +165,24 @@ type PostStockDocumentRes interface {
 	postStockDocumentRes()
 }
 
+type RecordStocktakeCountRes interface {
+	recordStocktakeCountRes()
+}
+
+type ReorderProductImagesRes interface {
+	reorderProductImagesRes()
+}
+
 type ReplaceStaffGrantsRes interface {
 	replaceStaffGrantsRes()
 }
 
 type ReplaceStockDocumentLinesRes interface {
 	replaceStockDocumentLinesRes()
+}
+
+type RestoreProductImageRes interface {
+	restoreProductImageRes()
 }
 
 type RetryJobRes interface {
@@ -155,6 +195,10 @@ type SearchVariantsRes interface {
 
 type SetProductClassificationRes interface {
 	setProductClassificationRes()
+}
+
+type StartStocktakeRes interface {
+	startStocktakeRes()
 }
 
 type StreamRes interface {

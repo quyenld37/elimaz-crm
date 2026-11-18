@@ -26,16 +26,22 @@ import (
 
 const secret32 = "0123456789abcdef0123456789abcdef"
 
-// buildBinary dựng cmd/crm một lần cho cả gói test.
+// buildBinary dựng cmd/crm vào thư mục tạm của test.
 func buildBinary(t *testing.T) string {
+	t.Helper()
+	return buildPackage(t, "./cmd/crm")
+}
+
+// buildPackage dựng gói main pkg (đường dẫn so với gốc module) vào thư mục tạm của test; trả đường dẫn tệp chạy.
+func buildPackage(t *testing.T, pkg string) string {
 	t.Helper()
 	out, err := exec.CommandContext(t.Context(), "go", "env", "GOMOD").Output()
 	if err != nil {
 		t.Fatal(err)
 	}
 	root := filepath.Dir(strings.TrimSpace(string(out)))
-	bin := filepath.Join(t.TempDir(), "crm")
-	cmd := exec.CommandContext(t.Context(), "go", "build", "-trimpath", "-o", bin, "./cmd/crm")
+	bin := filepath.Join(t.TempDir(), filepath.Base(pkg))
+	cmd := exec.CommandContext(t.Context(), "go", "build", "-trimpath", "-o", bin, pkg)
 	cmd.Dir = root
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if b, err := cmd.CombinedOutput(); err != nil {

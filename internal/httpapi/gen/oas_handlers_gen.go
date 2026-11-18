@@ -322,6 +322,110 @@ func (s *Server) handleAddVariantRequest(args [1]string, argsEscaped bool, w htt
 	}
 }
 
+// handleApplyStocktakeRequest handles applyStocktake operation.
+//
+// Áp dụng phiên (cộng chênh lệch vào tồn, không đụng phần giữ); trả danh sách
+// thiếu so với phần giữ.
+//
+// POST /api/v1/inventory/stocktakes/{id}/apply
+func (s *Server) handleApplyStocktakeRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ApplyStocktakeOperation,
+			ID:   "applyStocktake",
+		}
+	)
+	params, err := decodeApplyStocktakeParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeApplyStocktakeRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response ApplyStocktakeRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ApplyStocktakeOperation,
+			OperationSummary: "Áp dụng phiên (cộng chênh lệch vào tồn, không đụng phần giữ); trả danh sách thiếu so với phần giữ",
+			OperationID:      "applyStocktake",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *VersionRequest
+			Params   = ApplyStocktakeParams
+			Response = ApplyStocktakeRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackApplyStocktakeParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ApplyStocktake(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ApplyStocktake(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeApplyStocktakeResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleArchiveCategoryRequest handles archiveCategory operation.
 //
 // Lưu trữ danh mục khi không còn danh mục con active hay mẫu active.
@@ -425,6 +529,112 @@ func (s *Server) handleArchiveCategoryRequest(args [1]string, argsEscaped bool, 
 	}
 }
 
+// handleAttachProductImageRequest handles attachProductImage operation.
+//
+// Color (không bắt buộc) là một màu đang có của biến thể trong mẫu. Tệp chưa
+// ready hay không phải ảnh sản phẩm → 409 file_not_ready; tệp đang gắn → 409
+// already_exists; tệp đã gắn rồi xóa → hồi lại ảnh cũ ở cuối. Tối đa 50
+// ảnh.
+//
+// POST /api/v1/catalog/products/{id}/images
+func (s *Server) handleAttachProductImageRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: AttachProductImageOperation,
+			ID:   "attachProductImage",
+		}
+	)
+	params, err := decodeAttachProductImageParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeAttachProductImageRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response AttachProductImageRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    AttachProductImageOperation,
+			OperationSummary: "Gắn tệp ảnh đã xử lý xong (mục đích product_image) vào cuối danh sách ảnh của mẫu khi version còn khớp",
+			OperationID:      "attachProductImage",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *AttachProductImageRequest
+			Params   = AttachProductImageParams
+			Response = AttachProductImageRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackAttachProductImageParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.AttachProductImage(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.AttachProductImage(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeAttachProductImageResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleCancelStockDocumentRequest handles cancelStockDocument operation.
 //
 // Hủy phiếu nháp.
@@ -520,6 +730,109 @@ func (s *Server) handleCancelStockDocumentRequest(args [1]string, argsEscaped bo
 	}
 
 	if err := encodeCancelStockDocumentResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleCancelStocktakeRequest handles cancelStocktake operation.
+//
+// Hủy phiên đang mở (tồn không đổi).
+//
+// POST /api/v1/inventory/stocktakes/{id}/cancel
+func (s *Server) handleCancelStocktakeRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CancelStocktakeOperation,
+			ID:   "cancelStocktake",
+		}
+	)
+	params, err := decodeCancelStocktakeParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCancelStocktakeRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response CancelStocktakeRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CancelStocktakeOperation,
+			OperationSummary: "Hủy phiên đang mở (tồn không đổi)",
+			OperationID:      "cancelStocktake",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *VersionRequest
+			Params   = CancelStocktakeParams
+			Response = CancelStocktakeRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCancelStocktakeParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CancelStocktake(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CancelStocktake(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCancelStocktakeResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -1007,6 +1320,110 @@ func (s *Server) handleCreateProductRequest(args [0]string, argsEscaped bool, w 
 	}
 
 	if err := encodeCreateProductResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleCreateShipmentRequest handles createShipment operation.
+//
+// Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa
+// hủy → shipment_exists.
+//
+// POST /api/v1/orders/{id}/shipments
+func (s *Server) handleCreateShipmentRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CreateShipmentOperation,
+			ID:   "createShipment",
+		}
+	)
+	params, err := decodeCreateShipmentParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateShipmentRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response CreateShipmentRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CreateShipmentOperation,
+			OperationSummary: "Tạo vận đơn cho đơn bằng một tài khoản hãng (vận đơn creating, lệnh tạo ở hãng chạy nền)",
+			OperationID:      "createShipment",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *CreateShipmentRequest
+			Params   = CreateShipmentParams
+			Response = CreateShipmentRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCreateShipmentParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CreateShipment(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CreateShipment(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCreateShipmentResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -1512,6 +1929,99 @@ func (s *Server) handleCreateUploadRequest(args [0]string, argsEscaped bool, w h
 	}
 }
 
+// handleDeleteProductImageRequest handles deleteProductImage operation.
+//
+// Xóa mềm một ảnh của mẫu (khôi phục được trong 30 ngày); ảnh đã xóa thì
+// không đổi gì.
+//
+// DELETE /api/v1/catalog/products/{id}/images/{imageId}
+func (s *Server) handleDeleteProductImageRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: DeleteProductImageOperation,
+			ID:   "deleteProductImage",
+		}
+	)
+	params, err := decodeDeleteProductImageParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response DeleteProductImageRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    DeleteProductImageOperation,
+			OperationSummary: "Xóa mềm một ảnh của mẫu (khôi phục được trong 30 ngày); ảnh đã xóa thì không đổi gì",
+			OperationID:      "deleteProductImage",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "imageId",
+					In:   "path",
+				}: params.ImageId,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = DeleteProductImageParams
+			Response = DeleteProductImageRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackDeleteProductImageParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.DeleteProductImage(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.DeleteProductImage(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeDeleteProductImageResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetFileRequest handles getFile operation.
 //
 // Trạng thái tệp và các biến thể ảnh công khai.
@@ -1896,6 +2406,90 @@ func (s *Server) handleGetProductRequest(args [1]string, argsEscaped bool, w htt
 	}
 }
 
+// handleGetShipmentRequest handles getShipment operation.
+//
+// Quyền fulfillment.read theo đích kho của tài khoản hãng của vận đơn.
+//
+// GET /api/v1/shipments/{id}
+func (s *Server) handleGetShipmentRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetShipmentOperation,
+			ID:   "getShipment",
+		}
+	)
+	params, err := decodeGetShipmentParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetShipmentRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetShipmentOperation,
+			OperationSummary: "Một vận đơn",
+			OperationID:      "getShipment",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetShipmentParams
+			Response = GetShipmentRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetShipmentParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetShipment(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetShipment(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetShipmentResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetStockDocumentRequest handles getStockDocument operation.
 //
 // Một phiếu kho kèm dòng.
@@ -1972,6 +2566,90 @@ func (s *Server) handleGetStockDocumentRequest(args [1]string, argsEscaped bool,
 	}
 
 	if err := encodeGetStockDocumentResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetStocktakeRequest handles getStocktake operation.
+//
+// Phiên kiểm kho kèm dòng đếm và xem trước chênh lệch.
+//
+// GET /api/v1/inventory/stocktakes/{id}
+func (s *Server) handleGetStocktakeRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetStocktakeOperation,
+			ID:   "getStocktake",
+		}
+	)
+	params, err := decodeGetStocktakeParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetStocktakeRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetStocktakeOperation,
+			OperationSummary: "Phiên kiểm kho kèm dòng đếm và xem trước chênh lệch",
+			OperationID:      "getStocktake",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetStocktakeParams
+			Response = GetStocktakeRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetStocktakeParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetStocktake(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetStocktake(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetStocktakeResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -3081,6 +3759,218 @@ func (s *Server) handlePostStockDocumentRequest(args [1]string, argsEscaped bool
 	}
 }
 
+// handleRecordStocktakeCountRequest handles recordStocktakeCount operation.
+//
+// Ghi số đếm của một biến thể (chụp tồn trên kệ = on_hand − in_transit lúc
+// ghi); ghi lại cần lineVersion.
+//
+// PUT /api/v1/inventory/stocktakes/{id}/lines/{variantId}
+func (s *Server) handleRecordStocktakeCountRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: RecordStocktakeCountOperation,
+			ID:   "recordStocktakeCount",
+		}
+	)
+	params, err := decodeRecordStocktakeCountParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeRecordStocktakeCountRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response RecordStocktakeCountRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    RecordStocktakeCountOperation,
+			OperationSummary: "Ghi số đếm của một biến thể (chụp tồn trên kệ = on_hand − in_transit lúc ghi); ghi lại cần lineVersion",
+			OperationID:      "recordStocktakeCount",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "variantId",
+					In:   "path",
+				}: params.VariantId,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *RecordStocktakeCountRequest
+			Params   = RecordStocktakeCountParams
+			Response = RecordStocktakeCountRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackRecordStocktakeCountParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.RecordStocktakeCount(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.RecordStocktakeCount(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeRecordStocktakeCountResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleReorderProductImagesRequest handles reorderProductImages operation.
+//
+// Đặt thứ tự ảnh đang hiện của mẫu (đúng đủ mã ảnh đang hiện) khi version
+// còn khớp.
+//
+// PUT /api/v1/catalog/products/{id}/images/order
+func (s *Server) handleReorderProductImagesRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ReorderProductImagesOperation,
+			ID:   "reorderProductImages",
+		}
+	)
+	params, err := decodeReorderProductImagesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeReorderProductImagesRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response ReorderProductImagesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ReorderProductImagesOperation,
+			OperationSummary: "Đặt thứ tự ảnh đang hiện của mẫu (đúng đủ mã ảnh đang hiện) khi version còn khớp",
+			OperationID:      "reorderProductImages",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ReorderProductImagesRequest
+			Params   = ReorderProductImagesParams
+			Response = ReorderProductImagesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackReorderProductImagesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ReorderProductImages(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ReorderProductImages(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeReorderProductImagesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleReplaceStaffGrantsRequest handles replaceStaffGrants operation.
 //
 // Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không
@@ -3280,6 +4170,99 @@ func (s *Server) handleReplaceStockDocumentLinesRequest(args [1]string, argsEsca
 	}
 
 	if err := encodeReplaceStockDocumentLinesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleRestoreProductImageRequest handles restoreProductImage operation.
+//
+// Khôi phục ảnh đã xóa về vị trí cũ; quá 30 ngày → 410 restore_expired; ảnh đang
+// hiện thì không đổi gì.
+//
+// POST /api/v1/catalog/products/{id}/images/{imageId}/restore
+func (s *Server) handleRestoreProductImageRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: RestoreProductImageOperation,
+			ID:   "restoreProductImage",
+		}
+	)
+	params, err := decodeRestoreProductImageParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response RestoreProductImageRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    RestoreProductImageOperation,
+			OperationSummary: "Khôi phục ảnh đã xóa về vị trí cũ; quá 30 ngày → 410 restore_expired; ảnh đang hiện thì không đổi gì",
+			OperationID:      "restoreProductImage",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "imageId",
+					In:   "path",
+				}: params.ImageId,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = RestoreProductImageParams
+			Response = RestoreProductImageRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackRestoreProductImageParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.RestoreProductImage(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.RestoreProductImage(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeRestoreProductImageResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -3561,6 +4544,106 @@ func (s *Server) handleSetProductClassificationRequest(args [1]string, argsEscap
 	}
 
 	if err := encodeSetProductClassificationResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleStartStocktakeRequest handles startStocktake operation.
+//
+// Mở phiên kiểm kho ở một kho (một phiên mở mỗi kho; kho đã đóng →
+// invalid_input).
+//
+// POST /api/v1/inventory/stocktakes
+func (s *Server) handleStartStocktakeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: StartStocktakeOperation,
+			ID:   "startStocktake",
+		}
+	)
+	params, err := decodeStartStocktakeParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeStartStocktakeRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response StartStocktakeRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    StartStocktakeOperation,
+			OperationSummary: "Mở phiên kiểm kho ở một kho (một phiên mở mỗi kho; kho đã đóng → invalid_input)",
+			OperationID:      "startStocktake",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *StartStocktakeRequest
+			Params   = StartStocktakeParams
+			Response = StartStocktakeRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackStartStocktakeParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.StartStocktake(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.StartStocktake(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeStartStocktakeResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

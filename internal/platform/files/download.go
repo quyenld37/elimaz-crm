@@ -2,6 +2,8 @@ package files
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -54,8 +56,8 @@ func MarkDeleted(ctx context.Context, tx pgx.Tx, fileID uuid.UUID, actor uuid.UU
 // DownloadURL ký GET hạn ttl tới tệp trong tenant của tx, không gọi mạng. Tệp phải ready, chưa xóa, chưa mất, chưa
 // hết hạn: không có/đã xóa/mất → ErrNotFound; quá expires_at → ErrExpired; awaiting_upload/uploaded/processing →
 // ErrNotReady; rejected → ErrRejected. Tệp của mục đích chế độ private (R10) không bao giờ được ký tới bản thô: ký
-// biến thể JPEG lớn nhất (đã bỏ siêu dữ liệu) của bộ kích thước của tệp trên BucketPrivate. Bên gọi kiểm quyền của
-// mình trước.
+// biến thể JPEG lớn nhất (đã bỏ siêu dữ liệu) của bộ kích thước của tệp trên BucketPrivate. Ảnh của mục đích chế độ
+// standard ký tới ảnh gốc OriginalKey(content_sha256) trên BucketOriginals. Bên gọi kiểm quyền của mình trước.
 func DownloadURL(ctx context.Context, tx pgx.Tx, fs FileStore, fileID uuid.UUID, ttl time.Duration, attachmentName string) (string, error) {
 	row, err := getFile(ctx, tx, fileID)
 	if err != nil {
@@ -76,10 +78,17 @@ func DownloadURL(ctx context.Context, tx pgx.Tx, fs FileStore, fileID uuid.UUID,
 		return "", fmt.Errorf("tải tệp %s: %w", fileID, ErrNotReady)
 	}
 	bucket, key := Bucket(row.Bucket), row.Key
-	if p.Private {
+	switch {
+	case p.Private:
 		if bucket, key, err = largestPrivateJPEG(ctx, tx, row); err != nil {
 			return "", err
 		}
+	case p.Image:
+		// Ảnh standard: dòng tệp giữ khóa tmp/… (tự xóa sau 24 giờ, Task M1-43 Q6); ảnh gốc bất biến ở orig/<sha>.
+		if len(row.ContentSha256) != sha256.Size {
+			return "", fmt.Errorf("tải tệp %s: %w", fileID, ErrNotReady)
+		}
+		bucket, key = BucketOriginals, OriginalKey(hex.EncodeToString(row.ContentSha256))
 	}
 	url, err := fs.PresignGet(ctx, bucket, key, ttl, attachmentName)
 	if err != nil {

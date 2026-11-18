@@ -115,3 +115,10 @@ JOIN platform.file_purposes p ON p.key = f.purpose
 WHERE v.file_id = ANY(@file_ids::uuid[]) AND v.bucket = 'public' AND f.status = 'ready' AND f.deleted_at IS NULL
     AND p.mode = 'standard'
 ORDER BY v.file_id, v.preset_version, v.format, v.width;
+
+-- name: SetFileLost :execrows
+-- Đánh dấu tệp mất trên kho (dựng lại kho tệp, TP12): chỉ từ ready. Task M1-44 dùng trong filestest; Task M1-46 dùng
+-- khi đối chiếu.
+UPDATE platform.files
+SET status = 'lost', lost_at = now(), updated_at = now(), version = version + 1
+WHERE id = @id AND status = 'ready';

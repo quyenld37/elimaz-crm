@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
+	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/queries"
 )
@@ -35,16 +36,42 @@ func (h *handler) ListProducts(ctx context.Context, params gen.ListProductsParam
 	}
 	var rows []queries.ProductRow
 	var next *queries.Cursor
+	var covers map[uuid.UUID]catalog.Image
 	err = h.readAsDefaultSeller(ctx, u, func(tx pgx.Tx, seller uuid.UUID) error {
 		f.SellerID = seller
 		var err error
 		rows, next, err = queries.ListProducts(ctx, tx, f)
-		return err //nolint:wrapcheck // sentinel của queries
+		if err != nil {
+			return err //nolint:wrapcheck // sentinel của queries
+		}
+		covers, err = h.productCovers(ctx, tx, rows)
+		return err
 	})
 	if err != nil {
 		return nil, fmt.Errorf("đọc danh sách mẫu: %w", err)
 	}
-	return productPageOut(rows, next), nil
+	return productPageOut(rows, next, covers), nil
+}
+
+// productCovers lấy biến thể ảnh bìa của cả trang bằng một lời gọi catalog.ResolveImages (một câu PublicVariants), theo
+// mã mẫu.
+func (h *handler) productCovers(ctx context.Context, tx pgx.Tx, rows []queries.ProductRow) (map[uuid.UUID]catalog.Image, error) {
+	var imgs []catalog.Image
+	var owners []uuid.UUID
+	for _, r := range rows {
+		if r.CoverImageID != nil && r.CoverFileID != nil {
+			imgs = append(imgs, catalog.Image{ID: *r.CoverImageID, FileID: *r.CoverFileID})
+			owners = append(owners, r.ProductID)
+		}
+	}
+	if err := catalog.ResolveImages(ctx, tx, imgs, h.imageView()); err != nil {
+		return nil, err //nolint:wrapcheck // lỗi của catalog đã bọc
+	}
+	out := make(map[uuid.UUID]catalog.Image, len(imgs))
+	for i, img := range imgs {
+		out[owners[i]] = img
+	}
+	return out, nil
 }
 
 // productFilter đổi tham số của listProducts thành bộ lọc (chưa có người bán). warehouseId cần inventory.read ở kho đó
@@ -76,7 +103,7 @@ func productFilter(u identity.AuthUser, params gen.ListProductsParams) (queries.
 	return f, nil
 }
 
-func productPageOut(rows []queries.ProductRow, next *queries.Cursor) *gen.ProductPage {
+func productPageOut(rows []queries.ProductRow, next *queries.Cursor, covers map[uuid.UUID]catalog.Image) *gen.ProductPage {
 	page := &gen.ProductPage{Items: make([]gen.ProductListItem, 0, len(rows))}
 	for _, r := range rows {
 		it := gen.ProductListItem{
@@ -94,6 +121,11 @@ func productPageOut(rows []queries.ProductRow, next *queries.Cursor) *gen.Produc
 		}
 		if r.Available != nil {
 			it.Available = gen.NewOptInt64(*r.Available)
+		}
+		if c, ok := covers[r.ProductID]; ok {
+			it.Cover = gen.NewOptProductCover(gen.ProductCover{
+				ImageId: c.ID, Status: gen.ProductCoverStatus(c.Status), Variants: imageVariantsOut(c.Variants),
+			})
 		}
 		page.Items = append(page.Items, it)
 	}

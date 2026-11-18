@@ -87,6 +87,18 @@ SELECT tenant_id, seller_id, id, 'NOSTOCK-S', 'Ab12Cd', 'Đỏ', 'S', 90000 FROM
 INSERT INTO catalog.product_tags (tenant_id, product_id, tag_id)
 SELECT tenant_id, id, $11 FROM catalog.products WHERE tenant_id = $1 AND code LIKE 'P%' AND substr(code, 2)::int % 7 = 0;
 
+-- Ảnh (Task M1-44): mỗi mẫu P… của tenant A có 3 ảnh (ảnh thứ 3 đã xóa mềm ở mẫu chẵn), tệp ready; ảnh bìa của
+-- danh sách đọc catalog.product_images_v theo index (tenant_id, product_id, position, id).
+INSERT INTO platform.files (tenant_id, purpose, bucket, key, original_name, declared_type, size_bytes, status)
+SELECT p.tenant_id, 'product_image', 'tmp', 'tmp/' || p.id || '/' || k, 'anh.jpg', 'image/jpeg', 1000, 'ready'
+FROM catalog.products AS p CROSS JOIN generate_series(1, 3) AS k
+WHERE p.tenant_id = $1 AND p.code LIKE 'P%';
+INSERT INTO catalog.product_images (tenant_id, product_id, file_id, position, deleted_at)
+SELECT f.tenant_id, split_part(f.key, '/', 2)::uuid, f.id, split_part(f.key, '/', 3)::int,
+	CASE WHEN split_part(f.key, '/', 3) = '3' AND p.code ~ '[02468]$' THEN now() END
+FROM platform.files AS f JOIN catalog.products AS p ON p.id = split_part(f.key, '/', 2)::uuid
+WHERE f.purpose = 'product_image';
+
 -- Tenant C: 250 mẫu, 50 cái (g ≤ 50) cùng updated_at.
 INSERT INTO catalog.products (tenant_id, seller_id, code, name, name_search, status, updated_at)
 SELECT $3, $6, 'C' || g, 'Mẫu ' || g, 'mau ' || g, 'active',

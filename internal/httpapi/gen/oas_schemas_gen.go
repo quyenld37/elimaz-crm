@@ -207,6 +207,48 @@ func (s *AlertSummarySeverity) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/ApplyStocktakeResult
+type ApplyStocktakeResult struct {
+	Stocktake Stocktake `json:"stocktake"`
+	// Số dòng đã chỉnh tồn.
+	Adjusted int32 `json:"adjusted"`
+	// Biến thể vừa chỉnh có "có thể bán" âm (thiếu so với phần đang giữ; đơn
+	// không bị đụng).
+	Shortages []StocktakeShortage `json:"shortages"`
+}
+
+// GetStocktake returns the value of Stocktake.
+func (s *ApplyStocktakeResult) GetStocktake() Stocktake {
+	return s.Stocktake
+}
+
+// GetAdjusted returns the value of Adjusted.
+func (s *ApplyStocktakeResult) GetAdjusted() int32 {
+	return s.Adjusted
+}
+
+// GetShortages returns the value of Shortages.
+func (s *ApplyStocktakeResult) GetShortages() []StocktakeShortage {
+	return s.Shortages
+}
+
+// SetStocktake sets the value of Stocktake.
+func (s *ApplyStocktakeResult) SetStocktake(val Stocktake) {
+	s.Stocktake = val
+}
+
+// SetAdjusted sets the value of Adjusted.
+func (s *ApplyStocktakeResult) SetAdjusted(val int32) {
+	s.Adjusted = val
+}
+
+// SetShortages sets the value of Shortages.
+func (s *ApplyStocktakeResult) SetShortages(val []StocktakeShortage) {
+	s.Shortages = val
+}
+
+func (*ApplyStocktakeResult) applyStocktakeRes() {}
+
 // Ref: #/components/schemas/ArticleBlock
 type ArticleBlock struct {
 	Type    ArticleBlockType     `json:"type"`
@@ -348,6 +390,43 @@ func (s *ArticleBlockType) UnmarshalText(data []byte) error {
 }
 
 type ArticleInput []jx.Raw
+
+// Ref: #/components/schemas/AttachProductImageRequest
+type AttachProductImageRequest struct {
+	ProductVersion int64     `json:"productVersion"`
+	FileId         uuid.UUID `json:"fileId"`
+	Color          OptString `json:"color"`
+}
+
+// GetProductVersion returns the value of ProductVersion.
+func (s *AttachProductImageRequest) GetProductVersion() int64 {
+	return s.ProductVersion
+}
+
+// GetFileId returns the value of FileId.
+func (s *AttachProductImageRequest) GetFileId() uuid.UUID {
+	return s.FileId
+}
+
+// GetColor returns the value of Color.
+func (s *AttachProductImageRequest) GetColor() OptString {
+	return s.Color
+}
+
+// SetProductVersion sets the value of ProductVersion.
+func (s *AttachProductImageRequest) SetProductVersion(val int64) {
+	s.ProductVersion = val
+}
+
+// SetFileId sets the value of FileId.
+func (s *AttachProductImageRequest) SetFileId(val uuid.UUID) {
+	s.FileId = val
+}
+
+// SetColor sets the value of Color.
+func (s *AttachProductImageRequest) SetColor(val OptString) {
+	s.Color = val
+}
 
 // Ref: #/components/schemas/Attribute
 type Attribute struct {
@@ -901,6 +980,21 @@ func (s *CreateProductRequest) SetVariants(val []VariantInput) {
 	s.Variants = val
 }
 
+// Ref: #/components/schemas/CreateShipmentRequest
+type CreateShipmentRequest struct {
+	CarrierAccountId uuid.UUID `json:"carrierAccountId"`
+}
+
+// GetCarrierAccountId returns the value of CarrierAccountId.
+func (s *CreateShipmentRequest) GetCarrierAccountId() uuid.UUID {
+	return s.CarrierAccountId
+}
+
+// SetCarrierAccountId sets the value of CarrierAccountId.
+func (s *CreateShipmentRequest) SetCarrierAccountId(val uuid.UUID) {
+	s.CarrierAccountId = val
+}
+
 // Ref: #/components/schemas/CreateStaffRequest
 type CreateStaffRequest struct {
 	Email       string `json:"email"`
@@ -1271,24 +1365,31 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 func (*ErrorStatusCode) abandonJobRes()                {}
 func (*ErrorStatusCode) addAttributeValueRes()         {}
 func (*ErrorStatusCode) addVariantRes()                {}
+func (*ErrorStatusCode) applyStocktakeRes()            {}
 func (*ErrorStatusCode) archiveCategoryRes()           {}
+func (*ErrorStatusCode) attachProductImageRes()        {}
 func (*ErrorStatusCode) cancelStockDocumentRes()       {}
+func (*ErrorStatusCode) cancelStocktakeRes()           {}
 func (*ErrorStatusCode) completeUploadRes()            {}
 func (*ErrorStatusCode) createAttributeRes()           {}
 func (*ErrorStatusCode) createCategoryRes()            {}
 func (*ErrorStatusCode) createOrderRes()               {}
 func (*ErrorStatusCode) createProductRes()             {}
+func (*ErrorStatusCode) createShipmentRes()            {}
 func (*ErrorStatusCode) createStaffRes()               {}
 func (*ErrorStatusCode) createStockDocumentRes()       {}
 func (*ErrorStatusCode) createSupplierRes()            {}
 func (*ErrorStatusCode) createTagRes()                 {}
 func (*ErrorStatusCode) createUploadRes()              {}
+func (*ErrorStatusCode) deleteProductImageRes()        {}
 func (*ErrorStatusCode) getFileRes()                   {}
 func (*ErrorStatusCode) getMeRes()                     {}
 func (*ErrorStatusCode) getOrderRes()                  {}
 func (*ErrorStatusCode) getPlatformHealthRes()         {}
 func (*ErrorStatusCode) getProductRes()                {}
+func (*ErrorStatusCode) getShipmentRes()               {}
 func (*ErrorStatusCode) getStockDocumentRes()          {}
+func (*ErrorStatusCode) getStocktakeRes()              {}
 func (*ErrorStatusCode) healthDeepRes()                {}
 func (*ErrorStatusCode) listAttributesRes()            {}
 func (*ErrorStatusCode) listCategoriesRes()            {}
@@ -1301,11 +1402,15 @@ func (*ErrorStatusCode) listSuppliersRes()             {}
 func (*ErrorStatusCode) listTagsRes()                  {}
 func (*ErrorStatusCode) lockStaffRes()                 {}
 func (*ErrorStatusCode) postStockDocumentRes()         {}
+func (*ErrorStatusCode) recordStocktakeCountRes()      {}
+func (*ErrorStatusCode) reorderProductImagesRes()      {}
 func (*ErrorStatusCode) replaceStaffGrantsRes()        {}
 func (*ErrorStatusCode) replaceStockDocumentLinesRes() {}
+func (*ErrorStatusCode) restoreProductImageRes()       {}
 func (*ErrorStatusCode) retryJobRes()                  {}
 func (*ErrorStatusCode) searchVariantsRes()            {}
 func (*ErrorStatusCode) setProductClassificationRes()  {}
+func (*ErrorStatusCode) startStocktakeRes()            {}
 func (*ErrorStatusCode) streamRes()                    {}
 func (*ErrorStatusCode) unlockStaffRes()               {}
 func (*ErrorStatusCode) updateCategoryRes()            {}
@@ -2798,6 +2903,52 @@ func (o OptPosition) Or(d Position) Position {
 	return d
 }
 
+// NewOptProductCover returns new OptProductCover with value set to v.
+func NewOptProductCover(v ProductCover) OptProductCover {
+	return OptProductCover{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptProductCover is optional ProductCover.
+type OptProductCover struct {
+	Value ProductCover
+	Set   bool
+}
+
+// IsSet returns true if OptProductCover was set.
+func (o OptProductCover) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptProductCover) Reset() {
+	var v ProductCover
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptProductCover) SetTo(v ProductCover) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptProductCover) Get() (v ProductCover, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptProductCover) Or(d ProductCover) ProductCover {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptProductStatus returns new OptProductStatus with value set to v.
 func NewOptProductStatus(v ProductStatus) OptProductStatus {
 	return OptProductStatus{
@@ -3520,6 +3671,8 @@ type Product struct {
 	Status      ProductStatus `json:"status"`
 	Version     int64         `json:"version"`
 	Variants    []Variant     `json:"variants"`
+	// Ảnh đang hiện theo thứ tự (ảnh đầu là ảnh bìa).
+	Images []ProductImage `json:"images"`
 }
 
 // GetID returns the value of ID.
@@ -3567,6 +3720,11 @@ func (s *Product) GetVariants() []Variant {
 	return s.Variants
 }
 
+// GetImages returns the value of Images.
+func (s *Product) GetImages() []ProductImage {
+	return s.Images
+}
+
 // SetID sets the value of ID.
 func (s *Product) SetID(val uuid.UUID) {
 	s.ID = val
@@ -3612,9 +3770,18 @@ func (s *Product) SetVariants(val []Variant) {
 	s.Variants = val
 }
 
-func (*Product) createProductRes() {}
-func (*Product) getProductRes()    {}
-func (*Product) updateProductRes() {}
+// SetImages sets the value of Images.
+func (s *Product) SetImages(val []ProductImage) {
+	s.Images = val
+}
+
+func (*Product) attachProductImageRes()   {}
+func (*Product) createProductRes()        {}
+func (*Product) deleteProductImageRes()   {}
+func (*Product) getProductRes()           {}
+func (*Product) reorderProductImagesRes() {}
+func (*Product) restoreProductImageRes()  {}
+func (*Product) updateProductRes()        {}
 
 // Ref: #/components/schemas/ProductClassification
 type ProductClassification struct {
@@ -3678,6 +3845,200 @@ func (s *ProductClassification) SetTagIds(val []uuid.UUID) {
 
 func (*ProductClassification) setProductClassificationRes() {}
 
+// Ref: #/components/schemas/ProductCover
+type ProductCover struct {
+	ImageId  uuid.UUID          `json:"imageId"`
+	Status   ProductCoverStatus `json:"status"`
+	Variants []FileVariant      `json:"variants"`
+}
+
+// GetImageId returns the value of ImageId.
+func (s *ProductCover) GetImageId() uuid.UUID {
+	return s.ImageId
+}
+
+// GetStatus returns the value of Status.
+func (s *ProductCover) GetStatus() ProductCoverStatus {
+	return s.Status
+}
+
+// GetVariants returns the value of Variants.
+func (s *ProductCover) GetVariants() []FileVariant {
+	return s.Variants
+}
+
+// SetImageId sets the value of ImageId.
+func (s *ProductCover) SetImageId(val uuid.UUID) {
+	s.ImageId = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ProductCover) SetStatus(val ProductCoverStatus) {
+	s.Status = val
+}
+
+// SetVariants sets the value of Variants.
+func (s *ProductCover) SetVariants(val []FileVariant) {
+	s.Variants = val
+}
+
+type ProductCoverStatus string
+
+const (
+	ProductCoverStatusReady ProductCoverStatus = "ready"
+	ProductCoverStatusLost  ProductCoverStatus = "lost"
+)
+
+// AllValues returns all ProductCoverStatus values.
+func (ProductCoverStatus) AllValues() []ProductCoverStatus {
+	return []ProductCoverStatus{
+		ProductCoverStatusReady,
+		ProductCoverStatusLost,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ProductCoverStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ProductCoverStatusReady:
+		return []byte(s), nil
+	case ProductCoverStatusLost:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ProductCoverStatus) UnmarshalText(data []byte) error {
+	switch ProductCoverStatus(data) {
+	case ProductCoverStatusReady:
+		*s = ProductCoverStatusReady
+		return nil
+	case ProductCoverStatusLost:
+		*s = ProductCoverStatusLost
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ProductImage
+type ProductImage struct {
+	ID     uuid.UUID `json:"id"`
+	FileId uuid.UUID `json:"fileId"`
+	// Màu của biến thể mà ảnh thuộc về; không có là ảnh chung.
+	Color    OptString `json:"color"`
+	Position int32     `json:"position"`
+	// Lost — tệp mất trên kho, màn hình hiện ô trống có ghi chú (không có variants).
+	Status ProductImageStatus `json:"status"`
+	// Biến thể của bộ kích thước IMAGE_PRESET_VERSION (lùi về bản trước khi chưa
+	// đủ); chỉ có khi ready.
+	Variants []FileVariant `json:"variants"`
+}
+
+// GetID returns the value of ID.
+func (s *ProductImage) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetFileId returns the value of FileId.
+func (s *ProductImage) GetFileId() uuid.UUID {
+	return s.FileId
+}
+
+// GetColor returns the value of Color.
+func (s *ProductImage) GetColor() OptString {
+	return s.Color
+}
+
+// GetPosition returns the value of Position.
+func (s *ProductImage) GetPosition() int32 {
+	return s.Position
+}
+
+// GetStatus returns the value of Status.
+func (s *ProductImage) GetStatus() ProductImageStatus {
+	return s.Status
+}
+
+// GetVariants returns the value of Variants.
+func (s *ProductImage) GetVariants() []FileVariant {
+	return s.Variants
+}
+
+// SetID sets the value of ID.
+func (s *ProductImage) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetFileId sets the value of FileId.
+func (s *ProductImage) SetFileId(val uuid.UUID) {
+	s.FileId = val
+}
+
+// SetColor sets the value of Color.
+func (s *ProductImage) SetColor(val OptString) {
+	s.Color = val
+}
+
+// SetPosition sets the value of Position.
+func (s *ProductImage) SetPosition(val int32) {
+	s.Position = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ProductImage) SetStatus(val ProductImageStatus) {
+	s.Status = val
+}
+
+// SetVariants sets the value of Variants.
+func (s *ProductImage) SetVariants(val []FileVariant) {
+	s.Variants = val
+}
+
+// Lost — tệp mất trên kho, màn hình hiện ô trống có ghi chú (không có variants).
+type ProductImageStatus string
+
+const (
+	ProductImageStatusReady ProductImageStatus = "ready"
+	ProductImageStatusLost  ProductImageStatus = "lost"
+)
+
+// AllValues returns all ProductImageStatus values.
+func (ProductImageStatus) AllValues() []ProductImageStatus {
+	return []ProductImageStatus{
+		ProductImageStatusReady,
+		ProductImageStatusLost,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ProductImageStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ProductImageStatusReady:
+		return []byte(s), nil
+	case ProductImageStatusLost:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ProductImageStatus) UnmarshalText(data []byte) error {
+	switch ProductImageStatus(data) {
+	case ProductImageStatusReady:
+		*s = ProductImageStatusReady
+		return nil
+	case ProductImageStatusLost:
+		*s = ProductImageStatusLost
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/ProductListItem
 type ProductListItem struct {
 	ID         uuid.UUID     `json:"id"`
@@ -3691,8 +4052,9 @@ type ProductListItem struct {
 	MinPrice     OptMoney `json:"minPrice"`
 	MaxPrice     OptMoney `json:"maxPrice"`
 	// Tổng có thể bán ở kho của warehouseId (có thể âm); chỉ có khi gửi warehouseId.
-	Available OptInt64  `json:"available"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	Available OptInt64        `json:"available"`
+	Cover     OptProductCover `json:"cover"`
+	UpdatedAt time.Time       `json:"updatedAt"`
 }
 
 // GetID returns the value of ID.
@@ -3743,6 +4105,11 @@ func (s *ProductListItem) GetMaxPrice() OptMoney {
 // GetAvailable returns the value of Available.
 func (s *ProductListItem) GetAvailable() OptInt64 {
 	return s.Available
+}
+
+// GetCover returns the value of Cover.
+func (s *ProductListItem) GetCover() OptProductCover {
+	return s.Cover
 }
 
 // GetUpdatedAt returns the value of UpdatedAt.
@@ -3798,6 +4165,11 @@ func (s *ProductListItem) SetMaxPrice(val OptMoney) {
 // SetAvailable sets the value of Available.
 func (s *ProductListItem) SetAvailable(val OptInt64) {
 	s.Available = val
+}
+
+// SetCover sets the value of Cover.
+func (s *ProductListItem) SetCover(val OptProductCover) {
+	s.Cover = val
 }
 
 // SetUpdatedAt sets the value of UpdatedAt.
@@ -3929,6 +4301,60 @@ func (s *QueueHealth) SetDead(val int64) {
 // SetInDoubt sets the value of InDoubt.
 func (s *QueueHealth) SetInDoubt(val int64) {
 	s.InDoubt = val
+}
+
+// Ref: #/components/schemas/RecordStocktakeCountRequest
+type RecordStocktakeCountRequest struct {
+	Counted int32 `json:"counted"`
+	// Bắt buộc khi ghi lại dòng đã có (version của dòng); bỏ trống khi đếm lần
+	// đầu.
+	LineVersion OptInt64 `json:"lineVersion"`
+}
+
+// GetCounted returns the value of Counted.
+func (s *RecordStocktakeCountRequest) GetCounted() int32 {
+	return s.Counted
+}
+
+// GetLineVersion returns the value of LineVersion.
+func (s *RecordStocktakeCountRequest) GetLineVersion() OptInt64 {
+	return s.LineVersion
+}
+
+// SetCounted sets the value of Counted.
+func (s *RecordStocktakeCountRequest) SetCounted(val int32) {
+	s.Counted = val
+}
+
+// SetLineVersion sets the value of LineVersion.
+func (s *RecordStocktakeCountRequest) SetLineVersion(val OptInt64) {
+	s.LineVersion = val
+}
+
+// Ref: #/components/schemas/ReorderProductImagesRequest
+type ReorderProductImagesRequest struct {
+	ProductVersion int64       `json:"productVersion"`
+	ImageIds       []uuid.UUID `json:"imageIds"`
+}
+
+// GetProductVersion returns the value of ProductVersion.
+func (s *ReorderProductImagesRequest) GetProductVersion() int64 {
+	return s.ProductVersion
+}
+
+// GetImageIds returns the value of ImageIds.
+func (s *ReorderProductImagesRequest) GetImageIds() []uuid.UUID {
+	return s.ImageIds
+}
+
+// SetProductVersion sets the value of ProductVersion.
+func (s *ReorderProductImagesRequest) SetProductVersion(val int64) {
+	s.ProductVersion = val
+}
+
+// SetImageIds sets the value of ImageIds.
+func (s *ReorderProductImagesRequest) SetImageIds(val []uuid.UUID) {
+	s.ImageIds = val
 }
 
 // Ref: #/components/schemas/ReplaceGrantsRequest
@@ -4403,6 +4829,187 @@ func (s *ShipAddress) SetLine(val string) {
 	s.Line = val
 }
 
+// Ref: #/components/schemas/Shipment
+type Shipment struct {
+	ID      uuid.UUID `json:"id"`
+	OrderId uuid.UUID `json:"orderId"`
+	// Mã vận đơn của CRM (E + yyMMdd + 6 ký tự).
+	Code             string    `json:"code"`
+	CarrierKey       string    `json:"carrierKey"`
+	CarrierAccountId uuid.UUID `json:"carrierAccountId"`
+	// Mã của hãng; chưa có khi vận đơn còn creating.
+	TrackingCode OptString      `json:"trackingCode"`
+	Status       ShipmentStatus `json:"status"`
+	CodAmount    Money          `json:"codAmount"`
+	Fee          OptMoney       `json:"fee"`
+	CreatedAt    time.Time      `json:"createdAt"`
+}
+
+// GetID returns the value of ID.
+func (s *Shipment) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *Shipment) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetCode returns the value of Code.
+func (s *Shipment) GetCode() string {
+	return s.Code
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *Shipment) GetCarrierKey() string {
+	return s.CarrierKey
+}
+
+// GetCarrierAccountId returns the value of CarrierAccountId.
+func (s *Shipment) GetCarrierAccountId() uuid.UUID {
+	return s.CarrierAccountId
+}
+
+// GetTrackingCode returns the value of TrackingCode.
+func (s *Shipment) GetTrackingCode() OptString {
+	return s.TrackingCode
+}
+
+// GetStatus returns the value of Status.
+func (s *Shipment) GetStatus() ShipmentStatus {
+	return s.Status
+}
+
+// GetCodAmount returns the value of CodAmount.
+func (s *Shipment) GetCodAmount() Money {
+	return s.CodAmount
+}
+
+// GetFee returns the value of Fee.
+func (s *Shipment) GetFee() OptMoney {
+	return s.Fee
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *Shipment) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetID sets the value of ID.
+func (s *Shipment) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *Shipment) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetCode sets the value of Code.
+func (s *Shipment) SetCode(val string) {
+	s.Code = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *Shipment) SetCarrierKey(val string) {
+	s.CarrierKey = val
+}
+
+// SetCarrierAccountId sets the value of CarrierAccountId.
+func (s *Shipment) SetCarrierAccountId(val uuid.UUID) {
+	s.CarrierAccountId = val
+}
+
+// SetTrackingCode sets the value of TrackingCode.
+func (s *Shipment) SetTrackingCode(val OptString) {
+	s.TrackingCode = val
+}
+
+// SetStatus sets the value of Status.
+func (s *Shipment) SetStatus(val ShipmentStatus) {
+	s.Status = val
+}
+
+// SetCodAmount sets the value of CodAmount.
+func (s *Shipment) SetCodAmount(val Money) {
+	s.CodAmount = val
+}
+
+// SetFee sets the value of Fee.
+func (s *Shipment) SetFee(val OptMoney) {
+	s.Fee = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *Shipment) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+func (*Shipment) createShipmentRes() {}
+func (*Shipment) getShipmentRes()    {}
+
+type ShipmentStatus string
+
+const (
+	ShipmentStatusCreating       ShipmentStatus = "creating"
+	ShipmentStatusAwaitingPickup ShipmentStatus = "awaiting_pickup"
+	ShipmentStatusShipping       ShipmentStatus = "shipping"
+	ShipmentStatusDelivered      ShipmentStatus = "delivered"
+	ShipmentStatusCancelled      ShipmentStatus = "cancelled"
+)
+
+// AllValues returns all ShipmentStatus values.
+func (ShipmentStatus) AllValues() []ShipmentStatus {
+	return []ShipmentStatus{
+		ShipmentStatusCreating,
+		ShipmentStatusAwaitingPickup,
+		ShipmentStatusShipping,
+		ShipmentStatusDelivered,
+		ShipmentStatusCancelled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ShipmentStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ShipmentStatusCreating:
+		return []byte(s), nil
+	case ShipmentStatusAwaitingPickup:
+		return []byte(s), nil
+	case ShipmentStatusShipping:
+		return []byte(s), nil
+	case ShipmentStatusDelivered:
+		return []byte(s), nil
+	case ShipmentStatusCancelled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ShipmentStatus) UnmarshalText(data []byte) error {
+	switch ShipmentStatus(data) {
+	case ShipmentStatusCreating:
+		*s = ShipmentStatusCreating
+		return nil
+	case ShipmentStatusAwaitingPickup:
+		*s = ShipmentStatusAwaitingPickup
+		return nil
+	case ShipmentStatusShipping:
+		*s = ShipmentStatusShipping
+		return nil
+	case ShipmentStatusDelivered:
+		*s = ShipmentStatusDelivered
+		return nil
+	case ShipmentStatusCancelled:
+		*s = ShipmentStatusCancelled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/StaffGrant
 type StaffGrant struct {
 	RoleKey   string              `json:"roleKey"`
@@ -4625,6 +5232,21 @@ func (s *StaffMemberStatus) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Ref: #/components/schemas/StartStocktakeRequest
+type StartStocktakeRequest struct {
+	WarehouseId uuid.UUID `json:"warehouseId"`
+}
+
+// GetWarehouseId returns the value of WarehouseId.
+func (s *StartStocktakeRequest) GetWarehouseId() uuid.UUID {
+	return s.WarehouseId
+}
+
+// SetWarehouseId sets the value of WarehouseId.
+func (s *StartStocktakeRequest) SetWarehouseId(val uuid.UUID) {
+	s.WarehouseId = val
 }
 
 // Ref: #/components/schemas/StockDocument
@@ -4962,6 +5584,320 @@ func (s *StockDocumentVersion) GetVersion() int64 {
 // SetVersion sets the value of Version.
 func (s *StockDocumentVersion) SetVersion(val int64) {
 	s.Version = val
+}
+
+// Ref: #/components/schemas/Stocktake
+type Stocktake struct {
+	ID          uuid.UUID       `json:"id"`
+	Code        string          `json:"code"`
+	WarehouseId uuid.UUID       `json:"warehouseId"`
+	Status      StocktakeStatus `json:"status"`
+	Version     int64           `json:"version"`
+	CreatedAt   time.Time       `json:"createdAt"`
+	AppliedAt   OptDateTime     `json:"appliedAt"`
+	Lines       []StocktakeLine `json:"lines"`
+}
+
+// GetID returns the value of ID.
+func (s *Stocktake) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCode returns the value of Code.
+func (s *Stocktake) GetCode() string {
+	return s.Code
+}
+
+// GetWarehouseId returns the value of WarehouseId.
+func (s *Stocktake) GetWarehouseId() uuid.UUID {
+	return s.WarehouseId
+}
+
+// GetStatus returns the value of Status.
+func (s *Stocktake) GetStatus() StocktakeStatus {
+	return s.Status
+}
+
+// GetVersion returns the value of Version.
+func (s *Stocktake) GetVersion() int64 {
+	return s.Version
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *Stocktake) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetAppliedAt returns the value of AppliedAt.
+func (s *Stocktake) GetAppliedAt() OptDateTime {
+	return s.AppliedAt
+}
+
+// GetLines returns the value of Lines.
+func (s *Stocktake) GetLines() []StocktakeLine {
+	return s.Lines
+}
+
+// SetID sets the value of ID.
+func (s *Stocktake) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCode sets the value of Code.
+func (s *Stocktake) SetCode(val string) {
+	s.Code = val
+}
+
+// SetWarehouseId sets the value of WarehouseId.
+func (s *Stocktake) SetWarehouseId(val uuid.UUID) {
+	s.WarehouseId = val
+}
+
+// SetStatus sets the value of Status.
+func (s *Stocktake) SetStatus(val StocktakeStatus) {
+	s.Status = val
+}
+
+// SetVersion sets the value of Version.
+func (s *Stocktake) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *Stocktake) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetAppliedAt sets the value of AppliedAt.
+func (s *Stocktake) SetAppliedAt(val OptDateTime) {
+	s.AppliedAt = val
+}
+
+// SetLines sets the value of Lines.
+func (s *Stocktake) SetLines(val []StocktakeLine) {
+	s.Lines = val
+}
+
+func (*Stocktake) cancelStocktakeRes() {}
+func (*Stocktake) getStocktakeRes()    {}
+func (*Stocktake) startStocktakeRes()  {}
+
+// Ref: #/components/schemas/StocktakeLine
+type StocktakeLine struct {
+	VariantId uuid.UUID `json:"variantId"`
+	// On_hand − in_transit lúc ghi số đếm.
+	ExpectedOnShelf int32 `json:"expectedOnShelf"`
+	Counted         int32 `json:"counted"`
+	// Counted − expectedOnShelf; cộng vào tồn khi áp dụng.
+	Delta     int32     `json:"delta"`
+	CountedAt time.Time `json:"countedAt"`
+	Version   int64     `json:"version"`
+	// Tồn hiện tại (xem trước).
+	OnHand    int32 `json:"onHand"`
+	Held      int32 `json:"held"`
+	InTransit int32 `json:"inTransit"`
+	Damaged   int32 `json:"damaged"`
+	// Có thể bán hiện tại.
+	Available int32 `json:"available"`
+	// Có thể bán sau khi áp dụng (âm là thiếu so với phần đang giữ).
+	AvailableAfter int32 `json:"availableAfter"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *StocktakeLine) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetExpectedOnShelf returns the value of ExpectedOnShelf.
+func (s *StocktakeLine) GetExpectedOnShelf() int32 {
+	return s.ExpectedOnShelf
+}
+
+// GetCounted returns the value of Counted.
+func (s *StocktakeLine) GetCounted() int32 {
+	return s.Counted
+}
+
+// GetDelta returns the value of Delta.
+func (s *StocktakeLine) GetDelta() int32 {
+	return s.Delta
+}
+
+// GetCountedAt returns the value of CountedAt.
+func (s *StocktakeLine) GetCountedAt() time.Time {
+	return s.CountedAt
+}
+
+// GetVersion returns the value of Version.
+func (s *StocktakeLine) GetVersion() int64 {
+	return s.Version
+}
+
+// GetOnHand returns the value of OnHand.
+func (s *StocktakeLine) GetOnHand() int32 {
+	return s.OnHand
+}
+
+// GetHeld returns the value of Held.
+func (s *StocktakeLine) GetHeld() int32 {
+	return s.Held
+}
+
+// GetInTransit returns the value of InTransit.
+func (s *StocktakeLine) GetInTransit() int32 {
+	return s.InTransit
+}
+
+// GetDamaged returns the value of Damaged.
+func (s *StocktakeLine) GetDamaged() int32 {
+	return s.Damaged
+}
+
+// GetAvailable returns the value of Available.
+func (s *StocktakeLine) GetAvailable() int32 {
+	return s.Available
+}
+
+// GetAvailableAfter returns the value of AvailableAfter.
+func (s *StocktakeLine) GetAvailableAfter() int32 {
+	return s.AvailableAfter
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *StocktakeLine) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetExpectedOnShelf sets the value of ExpectedOnShelf.
+func (s *StocktakeLine) SetExpectedOnShelf(val int32) {
+	s.ExpectedOnShelf = val
+}
+
+// SetCounted sets the value of Counted.
+func (s *StocktakeLine) SetCounted(val int32) {
+	s.Counted = val
+}
+
+// SetDelta sets the value of Delta.
+func (s *StocktakeLine) SetDelta(val int32) {
+	s.Delta = val
+}
+
+// SetCountedAt sets the value of CountedAt.
+func (s *StocktakeLine) SetCountedAt(val time.Time) {
+	s.CountedAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *StocktakeLine) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetOnHand sets the value of OnHand.
+func (s *StocktakeLine) SetOnHand(val int32) {
+	s.OnHand = val
+}
+
+// SetHeld sets the value of Held.
+func (s *StocktakeLine) SetHeld(val int32) {
+	s.Held = val
+}
+
+// SetInTransit sets the value of InTransit.
+func (s *StocktakeLine) SetInTransit(val int32) {
+	s.InTransit = val
+}
+
+// SetDamaged sets the value of Damaged.
+func (s *StocktakeLine) SetDamaged(val int32) {
+	s.Damaged = val
+}
+
+// SetAvailable sets the value of Available.
+func (s *StocktakeLine) SetAvailable(val int32) {
+	s.Available = val
+}
+
+// SetAvailableAfter sets the value of AvailableAfter.
+func (s *StocktakeLine) SetAvailableAfter(val int32) {
+	s.AvailableAfter = val
+}
+
+func (*StocktakeLine) recordStocktakeCountRes() {}
+
+// Ref: #/components/schemas/StocktakeShortage
+type StocktakeShortage struct {
+	VariantId uuid.UUID `json:"variantId"`
+	Available int32     `json:"available"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *StocktakeShortage) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetAvailable returns the value of Available.
+func (s *StocktakeShortage) GetAvailable() int32 {
+	return s.Available
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *StocktakeShortage) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetAvailable sets the value of Available.
+func (s *StocktakeShortage) SetAvailable(val int32) {
+	s.Available = val
+}
+
+// Ref: #/components/schemas/StocktakeStatus
+type StocktakeStatus string
+
+const (
+	StocktakeStatusOpen      StocktakeStatus = "open"
+	StocktakeStatusApplied   StocktakeStatus = "applied"
+	StocktakeStatusCancelled StocktakeStatus = "cancelled"
+)
+
+// AllValues returns all StocktakeStatus values.
+func (StocktakeStatus) AllValues() []StocktakeStatus {
+	return []StocktakeStatus{
+		StocktakeStatusOpen,
+		StocktakeStatusApplied,
+		StocktakeStatusCancelled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s StocktakeStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case StocktakeStatusOpen:
+		return []byte(s), nil
+	case StocktakeStatusApplied:
+		return []byte(s), nil
+	case StocktakeStatusCancelled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *StocktakeStatus) UnmarshalText(data []byte) error {
+	switch StocktakeStatus(data) {
+	case StocktakeStatusOpen:
+		*s = StocktakeStatusOpen
+		return nil
+	case StocktakeStatusApplied:
+		*s = StocktakeStatusApplied
+		return nil
+	case StocktakeStatusCancelled:
+		*s = StocktakeStatusCancelled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type StreamOK struct {

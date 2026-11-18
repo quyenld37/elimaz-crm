@@ -480,6 +480,91 @@ paths:
                 $ref: "#/components/schemas/Variant"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/catalog/products/{id}/images:
+    post:
+      operationId: attachProductImage
+      summary: Gắn tệp ảnh đã xử lý xong (mục đích product_image) vào cuối danh sách ảnh của mẫu khi version còn khớp
+      description: >-
+        color (không bắt buộc) là một màu đang có của biến thể trong mẫu. Tệp chưa ready hay không phải ảnh sản phẩm →
+        409 file_not_ready; tệp đang gắn → 409 already_exists; tệp đã gắn rồi xóa → hồi lại ảnh cũ ở cuối. Tối đa 50 ảnh.
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttachProductImageRequest"
+      responses:
+        "201":
+          description: Mẫu sau khi gắn (kèm ảnh, version mới)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/products/{id}/images/order:
+    put:
+      operationId: reorderProductImages
+      summary: Đặt thứ tự ảnh đang hiện của mẫu (đúng đủ mã ảnh đang hiện) khi version còn khớp
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderProductImagesRequest"
+      responses:
+        "200":
+          description: Mẫu sau khi sắp lại
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/products/{id}/images/{imageId}:
+    delete:
+      operationId: deleteProductImage
+      summary: Xóa mềm một ảnh của mẫu (khôi phục được trong 30 ngày); ảnh đã xóa thì không đổi gì
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+        - $ref: "#/components/parameters/ImageID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Mẫu sau khi xóa ảnh
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/products/{id}/images/{imageId}/restore:
+    post:
+      operationId: restoreProductImage
+      summary: Khôi phục ảnh đã xóa về vị trí cũ; quá 30 ngày → 410 restore_expired; ảnh đang hiện thì không đổi gì
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+        - $ref: "#/components/parameters/ImageID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Mẫu sau khi khôi phục ảnh
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/catalog/variants/search:
     get:
       operationId: searchVariants
@@ -1002,6 +1087,160 @@ paths:
                 $ref: "#/components/schemas/Order"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/orders/{id}/shipments:
+    post:
+      operationId: createShipment
+      summary: Tạo vận đơn cho đơn bằng một tài khoản hãng (vận đơn creating, lệnh tạo ở hãng chạy nền)
+      description: Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa hủy → shipment_exists.
+      x-permission: fulfillment.ship
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateShipmentRequest"
+      responses:
+        "202":
+          description: Vận đơn vừa tạo (creating); mã hãng có sau khi lệnh chạy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipments/{id}:
+    get:
+      operationId: getShipment
+      summary: Một vận đơn
+      description: Quyền fulfillment.read theo đích kho của tài khoản hãng của vận đơn.
+      x-permission: fulfillment.read
+      parameters:
+        - $ref: "#/components/parameters/ShipmentID"
+      responses:
+        "200":
+          description: Vận đơn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/stocktakes:
+    post:
+      operationId: startStocktake
+      summary: Mở phiên kiểm kho ở một kho (một phiên mở mỗi kho; kho đã đóng → invalid_input)
+      x-permission: inventory.stocktake
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartStocktakeRequest"
+      responses:
+        "201":
+          description: Phiên đã mở
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stocktake"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/stocktakes/{id}:
+    get:
+      operationId: getStocktake
+      summary: Phiên kiểm kho kèm dòng đếm và xem trước chênh lệch
+      x-permission: inventory.read
+      parameters:
+        - $ref: "#/components/parameters/StocktakeID"
+      responses:
+        "200":
+          description: Phiên kiểm
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stocktake"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/stocktakes/{id}/lines/{variantId}:
+    put:
+      operationId: recordStocktakeCount
+      summary: Ghi số đếm của một biến thể (chụp tồn trên kệ = on_hand − in_transit lúc ghi); ghi lại cần lineVersion
+      x-permission: inventory.stocktake
+      parameters:
+        - $ref: "#/components/parameters/StocktakeID"
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordStocktakeCountRequest"
+      responses:
+        "200":
+          description: Dòng đếm sau khi ghi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StocktakeLine"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/stocktakes/{id}/apply:
+    post:
+      operationId: applyStocktake
+      summary: Áp dụng phiên (cộng chênh lệch vào tồn, không đụng phần giữ); trả danh sách thiếu so với phần giữ
+      x-permission: inventory.stocktake.apply
+      parameters:
+        - $ref: "#/components/parameters/StocktakeID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VersionRequest"
+      responses:
+        "200":
+          description: Phiên đã áp dụng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplyStocktakeResult"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/stocktakes/{id}/cancel:
+    post:
+      operationId: cancelStocktake
+      summary: Hủy phiên đang mở (tồn không đổi)
+      x-permission: inventory.stocktake
+      parameters:
+        - $ref: "#/components/parameters/StocktakeID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VersionRequest"
+      responses:
+        "200":
+          description: Phiên đã hủy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stocktake"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -1035,6 +1274,13 @@ components:
         format: uuid
     ProductID:
       name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ImageID:
+      name: imageId
       in: path
       required: true
       schema:
@@ -1075,7 +1321,21 @@ components:
       schema:
         type: string
         format: uuid
+    ShipmentID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     StockDocumentID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    StocktakeID:
       name: id
       in: path
       required: true
@@ -1665,6 +1925,44 @@ components:
           $ref: "#/components/schemas/Money"
         netAmount:
           $ref: "#/components/schemas/Money"
+    CreateShipmentRequest:
+      type: object
+      required: [carrierAccountId]
+      properties:
+        carrierAccountId:
+          type: string
+          format: uuid
+    Shipment:
+      type: object
+      required: [id, orderId, code, carrierKey, carrierAccountId, status, codAmount, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        code:
+          type: string
+          description: Mã vận đơn của CRM (E + yyMMdd + 6 ký tự)
+        carrierKey:
+          type: string
+        carrierAccountId:
+          type: string
+          format: uuid
+        trackingCode:
+          type: string
+          description: Mã của hãng; chưa có khi vận đơn còn creating
+        status:
+          type: string
+          enum: [creating, awaiting_pickup, shipping, delivered, cancelled]
+        codAmount:
+          $ref: "#/components/schemas/Money"
+        fee:
+          $ref: "#/components/schemas/Money"
+        createdAt:
+          type: string
+          format: date-time
     Money:
       type: integer
       format: int64
@@ -1857,7 +2155,7 @@ components:
           format: int64
     Product:
       type: object
-      required: [id, code, name, description, article, articleHtml, status, version, variants]
+      required: [id, code, name, description, article, articleHtml, status, version, variants, images]
       properties:
         id:
           type: string
@@ -1885,6 +2183,81 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Variant"
+        images:
+          type: array
+          description: Ảnh đang hiện theo thứ tự (ảnh đầu là ảnh bìa)
+          items:
+            $ref: "#/components/schemas/ProductImage"
+    ProductImage:
+      type: object
+      required: [id, fileId, position, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fileId:
+          type: string
+          format: uuid
+        color:
+          type: string
+          description: Màu của biến thể mà ảnh thuộc về; không có là ảnh chung
+        position:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum: [ready, lost]
+          description: lost — tệp mất trên kho, màn hình hiện ô trống có ghi chú (không có variants)
+        variants:
+          type: array
+          description: Biến thể của bộ kích thước IMAGE_PRESET_VERSION (lùi về bản trước khi chưa đủ); chỉ có khi ready
+          items:
+            $ref: "#/components/schemas/FileVariant"
+    ProductCover:
+      type: object
+      required: [imageId, status]
+      properties:
+        imageId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [ready, lost]
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/FileVariant"
+    AttachProductImageRequest:
+      type: object
+      additionalProperties: false
+      required: [productVersion, fileId]
+      properties:
+        productVersion:
+          type: integer
+          format: int64
+        fileId:
+          type: string
+          format: uuid
+        color:
+          type: string
+          minLength: 1
+          maxLength: 50
+    ReorderProductImagesRequest:
+      type: object
+      additionalProperties: false
+      required: [productVersion, imageIds]
+      properties:
+        productVersion:
+          type: integer
+          format: int64
+        imageIds:
+          type: array
+          minItems: 1
+          maxItems: 50
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
     ProductPage:
       type: object
       required: [items]
@@ -1928,6 +2301,8 @@ components:
           type: integer
           format: int64
           description: Tổng có thể bán ở kho của warehouseId (có thể âm); chỉ có khi gửi warehouseId
+        cover:
+          $ref: "#/components/schemas/ProductCover"
         updatedAt:
           type: string
           format: date-time
@@ -2308,6 +2683,126 @@ components:
           maxItems: 500
           items:
             $ref: "#/components/schemas/StockDocumentLine"
+    StartStocktakeRequest:
+      type: object
+      required: [warehouseId]
+      properties:
+        warehouseId:
+          type: string
+          format: uuid
+    RecordStocktakeCountRequest:
+      type: object
+      required: [counted]
+      properties:
+        counted:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000000
+        lineVersion:
+          type: integer
+          format: int64
+          description: Bắt buộc khi ghi lại dòng đã có (version của dòng); bỏ trống khi đếm lần đầu
+    StocktakeStatus:
+      type: string
+      enum: [open, applied, cancelled]
+    StocktakeLine:
+      type: object
+      required: [variantId, expectedOnShelf, counted, delta, countedAt, version, onHand, held, inTransit, damaged, available, availableAfter]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        expectedOnShelf:
+          type: integer
+          format: int32
+          description: on_hand − in_transit lúc ghi số đếm
+        counted:
+          type: integer
+          format: int32
+        delta:
+          type: integer
+          format: int32
+          description: counted − expectedOnShelf; cộng vào tồn khi áp dụng
+        countedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+        onHand:
+          type: integer
+          format: int32
+          description: Tồn hiện tại (xem trước)
+        held:
+          type: integer
+          format: int32
+        inTransit:
+          type: integer
+          format: int32
+        damaged:
+          type: integer
+          format: int32
+        available:
+          type: integer
+          format: int32
+          description: Có thể bán hiện tại
+        availableAfter:
+          type: integer
+          format: int32
+          description: Có thể bán sau khi áp dụng (âm là thiếu so với phần đang giữ)
+    Stocktake:
+      type: object
+      required: [id, code, warehouseId, status, version, createdAt, lines]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        warehouseId:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/StocktakeStatus"
+        version:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        appliedAt:
+          type: string
+          format: date-time
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/StocktakeLine"
+    StocktakeShortage:
+      type: object
+      required: [variantId, available]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        available:
+          type: integer
+          format: int32
+    ApplyStocktakeResult:
+      type: object
+      required: [stocktake, adjusted, shortages]
+      properties:
+        stocktake:
+          $ref: "#/components/schemas/Stocktake"
+        adjusted:
+          type: integer
+          format: int32
+          description: Số dòng đã chỉnh tồn
+        shortages:
+          type: array
+          description: Biến thể vừa chỉnh có "có thể bán" âm (thiếu so với phần đang giữ; đơn không bị đụng)
+          items:
+            $ref: "#/components/schemas/StocktakeShortage"
     StockDocumentVersion:
       type: object
       required: [version]

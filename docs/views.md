@@ -29,7 +29,7 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `catalog.product_tags_v` | `product_id, tag_id` | 34 | M5–M7 |
 | `catalog.product_attribute_values_v` | `product_id, attribute_value_id` | 34 | M5–M7 |
 | `catalog.product_images_v` (chỉ ảnh chưa xóa) | `image_id, product_id, file_id, color, position` | 44 | M5, M7 |
-| `platform.file_variants_v` (A2-12; chỉ tệp `ready`, chưa xóa; đường dẫn = `FILES_PUBLIC_BASE_URL` + `/` + `key`; ghép với `catalog.product_images_v` theo `file_id`) | `file_id, preset_version, width, format, key` | 44 | M5 |
+| `platform.file_variants_v` (A2-12; chỉ tệp `ready`, chưa xóa, mục đích chế độ `standard`, biến thể `public` — R10; đường dẫn = `FILES_PUBLIC_BASE_URL` + `/` + `key`; ghép với `catalog.product_images_v` theo `file_id`) | `file_id, preset_version, width, format, key` | 44 | M5 |
 | `inventory.warehouses_v` (M3 thêm cột địa chỉ, SĐT vào cuối) | `warehouse_id, operated_by_seller_id, code, name, status` | 28 | M2–M7 |
 | `inventory.stock_available_v` (view số dư duy nhất; B11: không có `stock_balances_v`, `availability_v`) | `variant_id, warehouse_id, seller_id, on_hand, held, in_transit, damaged, available, updated_at` | 28 | M2–M7 |
 | `inventory.stock_ledger_v` | `ledger_id, variant_id, warehouse_id, bucket, delta, doc_type, doc_id, step, actor_type, actor_id, created_at` | 28 | M6, M7 |
@@ -64,6 +64,7 @@ hay bỏ khóa đã có.
 | `order.created` | `order` (mã đơn) | `{orderId, sellerId, version}` | tạo đơn (seq 1) | 30 |
 | `order.confirmed` | `order` (mã đơn) | `{orderId, sellerId, version}` | đơn sang Đã xác nhận (đơn nhập tay: ngay khi tạo, seq 2) | 30 |
 | `order.delivered` | `order` (mã đơn) | `{orderId, sellerId, version}` | vận đơn hiện hành báo giao xong, đơn sang Đã giao | 333 |
+| `shipment.status_changed` | `shipment` (mã vận đơn) | `{shipmentId, status, codAmount}` | vận đơn tiến trạng thái (`awaiting_pickup`, `shipping`, `delivered`; chỉ tiến) | 31 |
 
 ## Ngoại lệ luật (g)
 
@@ -76,3 +77,4 @@ dưới; `viewsdoc_test` đòi hai tập bằng nhau.
 |---|---|---|
 | `ord.orders_code_key` | mã đơn duy nhất trên cả shop (05, Q26: một sequence sinh mã) | 30 |
 | `ord.orders_idempotency_key_key` | khóa nghiệp vụ của lần tạo đơn duy nhất trên cả shop (05, 04 mục 5.5) | 30 |
+| `fulfillment.carrier_accounts_ref_key` | một tài khoản ở hãng (`carrier_key`, `external_account_ref`) chỉ thuộc một người bán trong shop | 31 |

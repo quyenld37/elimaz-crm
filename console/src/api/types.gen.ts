@@ -255,6 +255,29 @@ export type OrderItem = {
     netAmount: Money;
 };
 
+export type CreateShipmentRequest = {
+    carrierAccountId: string;
+};
+
+export type Shipment = {
+    id: string;
+    orderId: string;
+    /**
+     * Mã vận đơn của CRM (E + yyMMdd + 6 ký tự)
+     */
+    code: string;
+    carrierKey: string;
+    carrierAccountId: string;
+    /**
+     * Mã của hãng; chưa có khi vận đơn còn creating
+     */
+    trackingCode?: string;
+    status: 'creating' | 'awaiting_pickup' | 'shipping' | 'delivered' | 'cancelled';
+    codAmount: Money;
+    fee?: Money;
+    createdAt: string;
+};
+
 /**
  * Tiền, số nguyên đồng
  */
@@ -375,6 +398,45 @@ export type Product = {
     status: ProductStatus;
     version: number;
     variants: Array<Variant>;
+    /**
+     * Ảnh đang hiện theo thứ tự (ảnh đầu là ảnh bìa)
+     */
+    images: Array<ProductImage>;
+};
+
+export type ProductImage = {
+    id: string;
+    fileId: string;
+    /**
+     * Màu của biến thể mà ảnh thuộc về; không có là ảnh chung
+     */
+    color?: string;
+    position: number;
+    /**
+     * lost — tệp mất trên kho, màn hình hiện ô trống có ghi chú (không có variants)
+     */
+    status: 'ready' | 'lost';
+    /**
+     * Biến thể của bộ kích thước IMAGE_PRESET_VERSION (lùi về bản trước khi chưa đủ); chỉ có khi ready
+     */
+    variants?: Array<FileVariant>;
+};
+
+export type ProductCover = {
+    imageId: string;
+    status: 'ready' | 'lost';
+    variants?: Array<FileVariant>;
+};
+
+export type AttachProductImageRequest = {
+    productVersion: number;
+    fileId: string;
+    color?: string;
+};
+
+export type ReorderProductImagesRequest = {
+    productVersion: number;
+    imageIds: Array<string>;
 };
 
 export type ProductPage = {
@@ -402,6 +464,7 @@ export type ProductListItem = {
      * Tổng có thể bán ở kho của warehouseId (có thể âm); chỉ có khi gửi warehouseId
      */
     available?: number;
+    cover?: ProductCover;
     updatedAt: string;
 };
 
@@ -614,6 +677,78 @@ export type ReplaceStockDocumentLinesRequest = {
     lines: Array<StockDocumentLine>;
 };
 
+export type StartStocktakeRequest = {
+    warehouseId: string;
+};
+
+export type RecordStocktakeCountRequest = {
+    counted: number;
+    /**
+     * Bắt buộc khi ghi lại dòng đã có (version của dòng); bỏ trống khi đếm lần đầu
+     */
+    lineVersion?: number;
+};
+
+export type StocktakeStatus = 'open' | 'applied' | 'cancelled';
+
+export type StocktakeLine = {
+    variantId: string;
+    /**
+     * on_hand − in_transit lúc ghi số đếm
+     */
+    expectedOnShelf: number;
+    counted: number;
+    /**
+     * counted − expectedOnShelf; cộng vào tồn khi áp dụng
+     */
+    delta: number;
+    countedAt: string;
+    version: number;
+    /**
+     * Tồn hiện tại (xem trước)
+     */
+    onHand: number;
+    held: number;
+    inTransit: number;
+    damaged: number;
+    /**
+     * Có thể bán hiện tại
+     */
+    available: number;
+    /**
+     * Có thể bán sau khi áp dụng (âm là thiếu so với phần đang giữ)
+     */
+    availableAfter: number;
+};
+
+export type Stocktake = {
+    id: string;
+    code: string;
+    warehouseId: string;
+    status: StocktakeStatus;
+    version: number;
+    createdAt: string;
+    appliedAt?: string;
+    lines: Array<StocktakeLine>;
+};
+
+export type StocktakeShortage = {
+    variantId: string;
+    available: number;
+};
+
+export type ApplyStocktakeResult = {
+    stocktake: Stocktake;
+    /**
+     * Số dòng đã chỉnh tồn
+     */
+    adjusted: number;
+    /**
+     * Biến thể vừa chỉnh có "có thể bán" âm (thiếu so với phần đang giữ; đơn không bị đụng)
+     */
+    shortages: Array<StocktakeShortage>;
+};
+
 export type StockDocumentVersion = {
     version: number;
 };
@@ -627,6 +762,10 @@ export type ProductWritable = {
     status: ProductStatus;
     version: number;
     variants: Array<Variant>;
+    /**
+     * Ảnh đang hiện theo thứ tự (ảnh đầu là ảnh bìa)
+     */
+    images: Array<ProductImage>;
 };
 
 /**
@@ -642,6 +781,8 @@ export type StaffId = string;
 
 export type ProductId = string;
 
+export type ImageId = string;
+
 export type OrderId = string;
 
 export type VariantId = string;
@@ -652,7 +793,11 @@ export type AttributeId = string;
 
 export type SupplierId = string;
 
+export type ShipmentId = string;
+
 export type StockDocumentId = string;
+
+export type StocktakeId = string;
 
 export type HealthLiveData = {
     body?: never;
@@ -1320,6 +1465,140 @@ export type AddVariantResponses = {
 };
 
 export type AddVariantResponse = AddVariantResponses[keyof AddVariantResponses];
+
+export type AttachProductImageData = {
+    body: AttachProductImageRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}/images';
+};
+
+export type AttachProductImageErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type AttachProductImageError = AttachProductImageErrors[keyof AttachProductImageErrors];
+
+export type AttachProductImageResponses = {
+    /**
+     * Mẫu sau khi gắn (kèm ảnh, version mới)
+     */
+    201: Product;
+};
+
+export type AttachProductImageResponse = AttachProductImageResponses[keyof AttachProductImageResponses];
+
+export type ReorderProductImagesData = {
+    body: ReorderProductImagesRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}/images/order';
+};
+
+export type ReorderProductImagesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ReorderProductImagesError = ReorderProductImagesErrors[keyof ReorderProductImagesErrors];
+
+export type ReorderProductImagesResponses = {
+    /**
+     * Mẫu sau khi sắp lại
+     */
+    200: Product;
+};
+
+export type ReorderProductImagesResponse = ReorderProductImagesResponses[keyof ReorderProductImagesResponses];
+
+export type DeleteProductImageData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+        imageId: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}/images/{imageId}';
+};
+
+export type DeleteProductImageErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type DeleteProductImageError = DeleteProductImageErrors[keyof DeleteProductImageErrors];
+
+export type DeleteProductImageResponses = {
+    /**
+     * Mẫu sau khi xóa ảnh
+     */
+    200: Product;
+};
+
+export type DeleteProductImageResponse = DeleteProductImageResponses[keyof DeleteProductImageResponses];
+
+export type RestoreProductImageData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+        imageId: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}/images/{imageId}/restore';
+};
+
+export type RestoreProductImageErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RestoreProductImageError = RestoreProductImageErrors[keyof RestoreProductImageErrors];
+
+export type RestoreProductImageResponses = {
+    /**
+     * Mẫu sau khi khôi phục ảnh
+     */
+    200: Product;
+};
+
+export type RestoreProductImageResponse = RestoreProductImageResponses[keyof RestoreProductImageResponses];
 
 export type SearchVariantsData = {
     body?: never;
@@ -2019,3 +2298,221 @@ export type GetOrderResponses = {
 };
 
 export type GetOrderResponse = GetOrderResponses[keyof GetOrderResponses];
+
+export type CreateShipmentData = {
+    body: CreateShipmentRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/orders/{id}/shipments';
+};
+
+export type CreateShipmentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateShipmentError = CreateShipmentErrors[keyof CreateShipmentErrors];
+
+export type CreateShipmentResponses = {
+    /**
+     * Vận đơn vừa tạo (creating); mã hãng có sau khi lệnh chạy
+     */
+    202: Shipment;
+};
+
+export type CreateShipmentResponse = CreateShipmentResponses[keyof CreateShipmentResponses];
+
+export type GetShipmentData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/shipments/{id}';
+};
+
+export type GetShipmentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetShipmentError = GetShipmentErrors[keyof GetShipmentErrors];
+
+export type GetShipmentResponses = {
+    /**
+     * Vận đơn
+     */
+    200: Shipment;
+};
+
+export type GetShipmentResponse = GetShipmentResponses[keyof GetShipmentResponses];
+
+export type StartStocktakeData = {
+    body: StartStocktakeRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/inventory/stocktakes';
+};
+
+export type StartStocktakeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type StartStocktakeError = StartStocktakeErrors[keyof StartStocktakeErrors];
+
+export type StartStocktakeResponses = {
+    /**
+     * Phiên đã mở
+     */
+    201: Stocktake;
+};
+
+export type StartStocktakeResponse = StartStocktakeResponses[keyof StartStocktakeResponses];
+
+export type GetStocktakeData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/stocktakes/{id}';
+};
+
+export type GetStocktakeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetStocktakeError = GetStocktakeErrors[keyof GetStocktakeErrors];
+
+export type GetStocktakeResponses = {
+    /**
+     * Phiên kiểm
+     */
+    200: Stocktake;
+};
+
+export type GetStocktakeResponse = GetStocktakeResponses[keyof GetStocktakeResponses];
+
+export type RecordStocktakeCountData = {
+    body: RecordStocktakeCountRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+        variantId: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/stocktakes/{id}/lines/{variantId}';
+};
+
+export type RecordStocktakeCountErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RecordStocktakeCountError = RecordStocktakeCountErrors[keyof RecordStocktakeCountErrors];
+
+export type RecordStocktakeCountResponses = {
+    /**
+     * Dòng đếm sau khi ghi
+     */
+    200: StocktakeLine;
+};
+
+export type RecordStocktakeCountResponse = RecordStocktakeCountResponses[keyof RecordStocktakeCountResponses];
+
+export type ApplyStocktakeData = {
+    body: VersionRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/stocktakes/{id}/apply';
+};
+
+export type ApplyStocktakeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ApplyStocktakeError = ApplyStocktakeErrors[keyof ApplyStocktakeErrors];
+
+export type ApplyStocktakeResponses = {
+    /**
+     * Phiên đã áp dụng
+     */
+    200: ApplyStocktakeResult;
+};
+
+export type ApplyStocktakeResponse = ApplyStocktakeResponses[keyof ApplyStocktakeResponses];
+
+export type CancelStocktakeData = {
+    body: VersionRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/stocktakes/{id}/cancel';
+};
+
+export type CancelStocktakeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CancelStocktakeError = CancelStocktakeErrors[keyof CancelStocktakeErrors];
+
+export type CancelStocktakeResponses = {
+    /**
+     * Phiên đã hủy
+     */
+    200: Stocktake;
+};
+
+export type CancelStocktakeResponse = CancelStocktakeResponses[keyof CancelStocktakeResponses];

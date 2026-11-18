@@ -28,7 +28,7 @@ const (
 )
 
 // Block là một khối. Trường nào dùng cho loại nào: paragraph {text}; heading {text, level 2|3}; list {items};
-// image {fileId, caption?}. Image không lưu, không nhận từ JSON: chỉ điền lúc dựng HTML (Task M1-44).
+// image {fileId, caption?}. Image không lưu, không nhận từ JSON: chỉ điền lúc dựng HTML (catalog.ResolveArticleImages, Task M1-44b).
 type Block struct {
 	Type    string     `json:"type"`
 	Text    string     `json:"text,omitempty"`

@@ -216,6 +216,11 @@ func TestBoundariesNotCalledModule(t *testing.T) {
 		{"internal/modules/inventory", modPrefix + "internal/modules/catalog", ""},
 		{"internal/modules/cash", modPrefix + "internal/modules/fulfillment", ""},
 		{"internal/modules/fulfillment", modPrefix + "internal/modules/inventory", "(a)"},
+		// Task M1-31: handler tín hiệu webhook và lệnh của fulfillment không gọi mạng trực tiếp; client hãng ở adapters.
+		{"internal/modules/fulfillment", "net/http", "(b)"},
+		{"internal/modules/fulfillment/internal/carriers/fake", "net/http", "(b)"},
+		{"internal/modules/fulfillment", modPrefix + "internal/modules/order", ""},
+		{"internal/adapters/fakecarrier", "net/http", ""},
 		{"internal/queries", modPrefix + "internal/modules/catalog", "(f)"},
 		{"internal/queries/x", modPrefix + "internal/modules/identity/internal/store", "(f)"},
 		{"internal/queries", modPrefix + "internal/platform/db", ""},

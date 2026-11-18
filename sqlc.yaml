@@ -134,3 +134,43 @@ sql:
             go_type: github.com/google/uuid.UUID
           - db_type: timestamptz
             go_type: time.Time
+  - engine: postgresql
+    schema: migrations
+    queries: queries/fulfillment
+    database:
+      uri: ${CRM_SQLC_DATABASE_URL}
+    analyzer:
+      database: false
+    rules:
+      - sqlc/db-prepare
+    gen:
+      go:
+        package: store
+        out: internal/modules/fulfillment/internal/store
+        sql_package: pgx/v5
+        emit_empty_slices: true
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: timestamptz
+            go_type: time.Time
+  - engine: postgresql
+    schema: migrations
+    queries: queries/cash
+    database:
+      uri: ${CRM_SQLC_DATABASE_URL}
+    analyzer:
+      database: false
+    rules:
+      - sqlc/db-prepare
+    gen:
+      go:
+        package: store
+        out: internal/modules/cash/internal/store
+        sql_package: pgx/v5
+        emit_empty_slices: true
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: timestamptz
+            go_type: time.Time
