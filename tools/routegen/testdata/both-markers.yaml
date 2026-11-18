@@ -1,0 +1,9 @@
+openapi: 3.0.3
+info: {title: t, version: "1"}
+paths:
+  /api/v1/both:
+    get:
+      operationId: bothMarkers
+      x-permission: audit.read
+      x-public: true
+      responses: {"200": {description: ok}}

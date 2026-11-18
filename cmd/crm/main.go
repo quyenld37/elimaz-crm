@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/logging"
@@ -158,15 +159,22 @@ func runMigrate(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 	return nil
 }
 
-// serveHTTP phục vụ /health/* (đo http_ms theo route) tới khi ctx bị hủy, rồi tắt êm trong httpShutdownTimeout.
+// serveHTTP phục vụ HTTP (đo http_ms theo route) tới khi ctx bị hủy, rồi tắt êm trong httpShutdownTimeout. api phục
+// vụ mọi route của hợp đồng (httpapi.NewServer); ingest tới Task 14 chỉ có /health/live, /health/ready.
 func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Registry, logger *slog.Logger) error {
-	mux := http.NewServeMux()
-	observability.NewHealth(d.Pool).Register(mux)
+	var handler http.Handler
+	if cfg.Role == config.RoleAPI {
+		handler = httpapi.NewServer(httpapi.Deps{Config: cfg, DB: d, Logger: logger})
+	} else {
+		mux := http.NewServeMux()
+		observability.NewHealth(d.Pool).Register(mux)
+		handler = mux
+	}
 	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort("", strconv.Itoa(cfg.Port)))
 	if err != nil {
 		return fmt.Errorf("mở cổng %d: %w", cfg.Port, err)
 	}
-	srv := &http.Server{Handler: metrics.Middleware(reg, mux), ReadHeaderTimeout: readHeaderTimeout}
+	srv := &http.Server{Handler: metrics.Middleware(reg, handler), ReadHeaderTimeout: readHeaderTimeout}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Serve(ln) }()
 	logger.Info("đang nghe", slog.Int("port", cfg.Port))

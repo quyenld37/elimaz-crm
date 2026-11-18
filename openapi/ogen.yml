@@ -1,0 +1,10 @@
+# Cấu hình ogen (v1.25.0, tools/versions.mk) cho `make gen`. Chỉ sinh phần máy chủ; dấu vết do otelhttp trong
+# internal/httpapi đảm nhận (tắt ogen/otel để mỗi yêu cầu chỉ có một span máy chủ). Lỗi đi một đường duy nhất qua
+# ErrorHandler (internal/httpapi/errors.go), nên tắt "convenient errors".
+generator:
+  features:
+    disable_all: true
+    enable:
+      - paths/server
+      - ogen/unimplemented
+  convenient_errors: "off"

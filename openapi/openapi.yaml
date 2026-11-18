@@ -1,0 +1,386 @@
+# Hợp đồng API của CRM (kế hoạch M0 bản 5, Task 6). Đây là nguồn: mã máy chủ (ogen, internal/httpapi/gen), bảng
+# route (tools/routegen -> internal/httpapi/routes_gen.go) và client của màn hình đều sinh từ tệp này (`make gen`).
+# Luật: .claude/rules/openapi.md. Mỗi operation có đúng một trong `x-permission` hoặc `x-public: true`; mọi operation
+# ghi có tham số IdempotencyKey. Thay đổi phá vỡ cần dòng trong openapi/breaking-approved.yaml (`make oasdiff`).
+openapi: 3.0.3
+info:
+  title: CRM ELIMAZ
+  version: 0.1.0
+paths:
+  /health/live:
+    get:
+      operationId: healthLive
+      summary: Tiến trình còn sống
+      x-public: true
+      responses:
+        "200":
+          description: Còn sống
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /health/ready:
+    get:
+      operationId: healthReady
+      summary: Sẵn sàng nhận yêu cầu (database trả lời trong 1 s)
+      x-public: true
+      responses:
+        "200":
+          description: Sẵn sàng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "503":
+          description: Database không trả lời
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /health/deep:
+    get:
+      operationId: healthDeep
+      summary: Kiểm sâu cho dịch vụ canh ngoài (Bearer HEALTH_TOKEN, Task 20); không có dữ liệu khách
+      x-public: true
+      responses:
+        "200":
+          description: Mọi chỉ số trong ngưỡng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeepHealth"
+        "503":
+          description: Có chỉ số quá ngưỡng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeepHealth"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/me:
+    get:
+      operationId: getMe
+      summary: Người dùng đang đăng nhập và quyền của họ
+      x-permission: realtime.subscribe
+      responses:
+        "200":
+          description: Người dùng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/stream:
+    get:
+      operationId: stream
+      summary: Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 15)
+      x-permission: realtime.subscribe
+      responses:
+        "200":
+          description: Luồng sự kiện
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/platform/jobs:
+    get:
+      operationId: listJobs
+      summary: Việc nền cần người xử lý của tenant người gọi (không có payload)
+      x-permission: platform.jobs.manage
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [dead, in_doubt, expired]
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Danh sách việc
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Job"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/platform/jobs/{id}/retry:
+    post:
+      operationId: retryJob
+      summary: Đưa việc dead, in_doubt hoặc expired về pending
+      x-permission: platform.jobs.manage
+      parameters:
+        - $ref: "#/components/parameters/JobID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Việc sau khi đổi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/platform/jobs/{id}/abandon:
+    post:
+      operationId: abandonJob
+      summary: Bỏ việc (chuyển sang expired)
+      x-permission: platform.jobs.manage
+      parameters:
+        - $ref: "#/components/parameters/JobID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Việc sau khi đổi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/platform/health:
+    get:
+      operationId: getPlatformHealth
+      summary: Tình trạng tiến trình, hàng đợi, sao lưu, lỗi và cảnh báo 24 giờ
+      x-permission: platform.health.read
+      responses:
+        "200":
+          description: Tình trạng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformHealth"
+        default:
+          $ref: "#/components/responses/Error"
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9_-]{1,128}$"
+    JobID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Error:
+      description: Lỗi; không bao giờ có vết lỗi
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    Error:
+      type: object
+      required: [error, request_id]
+      properties:
+        error:
+          type: string
+          description: Mã lỗi máy đọc được
+        request_id:
+          type: string
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, unavailable]
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+    DeepHealth:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+        workerHeartbeatAgeS:
+          type: integer
+          format: int64
+        ingestHeartbeatAgeS:
+          type: integer
+          format: int64
+        oldestPendingAgeS:
+          type: integer
+          format: int64
+        dead:
+          type: integer
+          format: int64
+        inDoubt:
+          type: integer
+          format: int64
+        spoolFiles:
+          type: integer
+          format: int64
+        lastWalArchivedAgeS:
+          type: integer
+          format: int64
+        lastBackupAgeH:
+          type: integer
+          format: int64
+    Scope:
+      type: object
+      required: [type, id]
+      properties:
+        type:
+          type: string
+          enum: [all, page, warehouse]
+        id:
+          type: string
+    Grant:
+      type: object
+      required: [permission, scope]
+      properties:
+        permission:
+          type: string
+        scope:
+          $ref: "#/components/schemas/Scope"
+    Me:
+      type: object
+      required: [userId, email, grants]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+        grants:
+          type: array
+          items:
+            $ref: "#/components/schemas/Grant"
+    Job:
+      type: object
+      required: [id, kind, status, attempts, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        status:
+          type: string
+        attempts:
+          type: integer
+          format: int32
+        lastError:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    ProcessHealth:
+      type: object
+      required: [role, lastHeartbeatAgeS]
+      properties:
+        role:
+          type: string
+        lastHeartbeatAgeS:
+          type: integer
+          format: int64
+    QueueHealth:
+      type: object
+      required: [oldestPendingAgeS, pending, dead, inDoubt]
+      properties:
+        oldestPendingAgeS:
+          type: integer
+          format: int64
+        pending:
+          type: integer
+          format: int64
+        dead:
+          type: integer
+          format: int64
+        inDoubt:
+          type: integer
+          format: int64
+    IngestHealth:
+      type: object
+      required: [spoolFiles]
+      properties:
+        spoolFiles:
+          type: integer
+          format: int64
+    BackupHealth:
+      type: object
+      properties:
+        lastBaseAgeH:
+          type: integer
+          format: int64
+        lastDrillAgeH:
+          type: integer
+          format: int64
+        lastDrillOk:
+          type: boolean
+    ErrorSummary:
+      type: object
+      required: [fingerprint, name, role, count, lastSeenAt]
+      properties:
+        fingerprint:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        count:
+          type: integer
+          format: int64
+        lastSeenAt:
+          type: string
+          format: date-time
+    AlertSummary:
+      type: object
+      required: [key, severity, sentAt]
+      properties:
+        key:
+          type: string
+        severity:
+          type: string
+          enum: [normal, urgent]
+        sentAt:
+          type: string
+          format: date-time
+    PlatformHealth:
+      type: object
+      required: [processes, queue, ingest, backup, errors, alerts]
+      properties:
+        processes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProcessHealth"
+        queue:
+          $ref: "#/components/schemas/QueueHealth"
+        ingest:
+          $ref: "#/components/schemas/IngestHealth"
+        backup:
+          $ref: "#/components/schemas/BackupHealth"
+        errors:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/ErrorSummary"
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlertSummary"

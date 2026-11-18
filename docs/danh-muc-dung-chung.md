@@ -176,6 +176,7 @@ Package observability phục vụ các điểm kiểm sức khỏe của tiến 
 type Health struct {
 }
 func NewHealth(db Pinger) *Health
+func (h *Health) Check(ctx context.Context) error
 func (h *Health) Register(mux *http.ServeMux)
 type Pinger interface {
 	Ping(ctx context.Context) error

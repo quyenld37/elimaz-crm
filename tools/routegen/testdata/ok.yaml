@@ -1,0 +1,41 @@
+openapi: 3.0.3
+info: {title: t, version: "1"}
+paths:
+  /health/live:
+    get:
+      operationId: live
+      x-public: true
+      responses: {"200": {description: ok}}
+  /api/v1/things/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdempotencyKey"
+    put:
+      operationId: putThing
+      x-permission: things.write
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses: {"200": {description: ok}}
+  /api/v1/things:
+    post:
+      operationId: createThing
+      x-permission: things.write
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: {"200": {description: ok}}
+  /api/v1/events:
+    get:
+      operationId: events
+      x-permission: things.read
+      responses:
+        "200":
+          description: ok
+          content:
+            text/event-stream:
+              schema: {type: string, format: binary}
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string}
