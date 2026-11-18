@@ -54,3 +54,104 @@
     margin: 0;
   }
 }
+
+/* Màn Sửa mẫu (Task 324), chép từ mockup đã duyệt (docs/mockups/m1/san-pham-sua.html, khối <style>). */
+.fs-plain {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.p-title {
+  max-width: 860px;
+}
+.p-meta,
+.p-info-more {
+  margin-top: 8px;
+}
+.p-info-more {
+  margin-top: 16px;
+}
+.p-box {
+  margin-bottom: 16px;
+}
+.p-box-act {
+  margin-top: 8px;
+}
+.p-savebar,
+.v-card {
+  margin-top: 24px;
+}
+.opt-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.opt-row .tag {
+  min-height: var(--tap);
+}
+.opt-row .tag button {
+  border: 0;
+  background: none;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.opt-row .input {
+  width: 160px;
+}
+.v-frame,
+.v-empty {
+  margin-top: 16px;
+}
+.v-hint {
+  margin-top: 8px;
+}
+.vtbl td .input,
+.vtbl td .select-wrap {
+  min-width: 0;
+}
+.vtbl td .input {
+  width: 100%;
+}
+.vtbl .c-sku {
+  width: 190px;
+}
+.vtbl .c-bar {
+  width: 170px;
+}
+.vtbl .c-pr {
+  width: 140px;
+}
+.vtbl .c-st {
+  width: 150px;
+}
+.v-f {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.attr {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+@media (max-width: 759px) {
+  .vtbl td .input,
+  .vtbl td .select-wrap,
+  .vtbl td .v-f {
+    flex: 0 1 62%;
+  }
+  .vtbl td.v-name {
+    font-weight: 700;
+    justify-content: flex-start;
+  }
+  .attr {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

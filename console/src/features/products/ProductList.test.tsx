@@ -1,14 +1,12 @@
 // @vitest-environment jsdom
 // Màn Danh sách sản phẩm (kế hoạch M1 Task 50; mockup docs/mockups/m1/san-pham-danh-sach.html, trạng thái A–E):
 // 0 / 1 / 200 mẫu, tên 80 ký tự, lọc, tìm không thấy, cột "Có thể bán" theo kho người xem có quyền, lỗi API.
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
-import type { Category, Grant, ListProductsData, Me, ProductListItem, ProductPage, Tag } from "../../api";
-import { queryKey } from "../../app/queryClient";
+import type { Grant, ListProductsData, Me, ProductListItem, ProductPage, Tag } from "../../api";
 import { ProductList, TEXT_EMPTY_SHOP } from "./ProductList";
+import { CATS, NAME_80, renderAt, VAY } from "./productsTestkit";
 
 vi.mock("../../api", async (orig) => ({
   ...(await orig<typeof import("../../api")>()),
@@ -19,11 +17,8 @@ vi.mock("../../api", async (orig) => ({
 }));
 
 const KHO = "0195f3b2-0000-7000-8000-00000000a001";
-const VAY = "0195f3b2-0000-7000-8000-00000000c001";
 const HANG_MOI = "0195f3b2-0000-7000-8000-00000000d001";
-const NAME_80 = "Đầm suông công sở cổ vuông tay lỡ phối nút ngọc trai dáng dài qua gối màu be sữa";
 
-const CATS: Category[] = [{ id: VAY, name: "Váy", slug: "vay", depth: 0, position: 1, status: "active", version: 1 }];
 const TAGS: Tag[] = [{ id: HANG_MOI, code: "moi", name: "Hàng mới" }];
 
 function product(i: number, extra: Partial<ProductListItem> = {}): ProductListItem {
@@ -64,15 +59,7 @@ function mockApi(grants: Grant[] = [{ permission: "catalog.read", scope: { type:
 }
 
 function renderList(me: Me, path = "/san-pham") {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  qc.setQueryData(queryKey("identity.me"), me);
-  return render(
-    <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[path]}>
-        <ProductList />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  return renderAt(me, path, <ProductList />);
 }
 
 beforeEach(() => {

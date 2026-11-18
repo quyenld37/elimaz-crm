@@ -171,6 +171,13 @@ type Handler interface {
 	//
 	// GET /api/v1/catalog/products/{id}
 	GetProduct(ctx context.Context, params GetProductParams) (GetProductRes, error)
+	// GetProductClassification implements getProductClassification operation.
+	//
+	// Danh mục, giá trị thuộc tính, nhãn đang gán cho mẫu và version hiện tại của
+	// mẫu (màn sửa mẫu).
+	//
+	// GET /api/v1/catalog/products/{id}/classification
+	GetProductClassification(ctx context.Context, params GetProductClassificationParams) (GetProductClassificationRes, error)
 	// GetShipment implements getShipment operation.
 	//
 	// Quyền fulfillment.read theo đích kho của tài khoản hãng của vận đơn.

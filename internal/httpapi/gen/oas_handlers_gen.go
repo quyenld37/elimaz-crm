@@ -2406,6 +2406,91 @@ func (s *Server) handleGetProductRequest(args [1]string, argsEscaped bool, w htt
 	}
 }
 
+// handleGetProductClassificationRequest handles getProductClassification operation.
+//
+// Danh mục, giá trị thuộc tính, nhãn đang gán cho mẫu và version hiện tại của
+// mẫu (màn sửa mẫu).
+//
+// GET /api/v1/catalog/products/{id}/classification
+func (s *Server) handleGetProductClassificationRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetProductClassificationOperation,
+			ID:   "getProductClassification",
+		}
+	)
+	params, err := decodeGetProductClassificationParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetProductClassificationRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetProductClassificationOperation,
+			OperationSummary: "Danh mục, giá trị thuộc tính, nhãn đang gán cho mẫu và version hiện tại của mẫu (màn sửa mẫu)",
+			OperationID:      "getProductClassification",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetProductClassificationParams
+			Response = GetProductClassificationRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetProductClassificationParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetProductClassification(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetProductClassification(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetProductClassificationResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetShipmentRequest handles getShipment operation.
 //
 // Quyền fulfillment.read theo đích kho của tài khoản hãng của vận đơn.

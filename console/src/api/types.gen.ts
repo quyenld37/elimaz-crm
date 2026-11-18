@@ -1928,6 +1928,33 @@ export type CreateTagResponses = {
 
 export type CreateTagResponse = CreateTagResponses[keyof CreateTagResponses];
 
+export type GetProductClassificationData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}/classification';
+};
+
+export type GetProductClassificationErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetProductClassificationError = GetProductClassificationErrors[keyof GetProductClassificationErrors];
+
+export type GetProductClassificationResponses = {
+    /**
+     * Phân loại của mẫu
+     */
+    200: ProductClassification;
+};
+
+export type GetProductClassificationResponse = GetProductClassificationResponses[keyof GetProductClassificationResponses];
+
 export type SetProductClassificationData = {
     body: SetClassificationRequest;
     headers: {

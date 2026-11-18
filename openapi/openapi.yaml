@@ -802,6 +802,21 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /api/v1/catalog/products/{id}/classification:
+    get:
+      operationId: getProductClassification
+      summary: Danh mục, giá trị thuộc tính, nhãn đang gán cho mẫu và version hiện tại của mẫu (màn sửa mẫu)
+      x-permission: catalog.read
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+      responses:
+        "200":
+          description: Phân loại của mẫu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductClassification"
+        default:
+          $ref: "#/components/responses/Error"
     put:
       operationId: setProductClassification
       summary: Thay toàn bộ danh mục, giá trị thuộc tính, nhãn của mẫu khi version của mẫu còn khớp
