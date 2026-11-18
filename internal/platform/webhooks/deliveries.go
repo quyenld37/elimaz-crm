@@ -2,8 +2,6 @@ package webhooks
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/internal/store"
@@ -24,14 +23,15 @@ const (
 	emptyHeadersObject = "{}"
 )
 
-// Entry là một lần nhận webhook: nguồn, header đã che, thân gốc, giờ nhận. Cũng là nội dung một tệp tạm
-// (JSON {source, headers, bodyBase64, receivedAt}).
+// Entry là một lần nhận webhook: nguồn, header đã che, thân gốc, giờ nhận, khóa tuyến (đường /hooks/{source}/{routeKey};
+// rỗng với /hooks/{source}). Cũng là nội dung một tệp tạm (JSON {source, headers, bodyBase64, receivedAt, routeKey?}).
 type Entry struct {
 	Source string `json:"source"`
 	// Headers là JSON của header đã qua logging.Redact.
 	Headers    json.RawMessage `json:"headers"`
 	Body       []byte          `json:"bodyBase64"`
 	ReceivedAt time.Time       `json:"receivedAt"`
+	RouteKey   string          `json:"routeKey,omitempty"`
 }
 
 // splitPayload là payload của việc tách gói: chỉ mang mã bản nhận (spec 04 mục 11).
@@ -39,10 +39,9 @@ type splitPayload struct {
 	DeliveryID uuid.UUID `json:"deliveryId"`
 }
 
-// Save lưu e trong một transaction (db.RetryTx): chèn platform.webhook_deliveries (trùng (source, sha256 của thân)
-// thì không chèn) và, chỉ khi vừa chèn, ghi việc SplitKind với DedupeKey là mã bản nhận. created báo đã chèn dòng mới.
+// Save lưu e trong một transaction (db.RetryTx): chèn platform.webhook_deliveries (trùng (source, sha256 của thân —
+// của route key cùng thân khi có route key, packetHash) thì không chèn) và, chỉ khi vừa chèn, ghi việc SplitKind với DedupeKey là mã bản nhận. created báo đã chèn dòng mới.
 func Save(ctx context.Context, d *db.DB, e Entry) (created bool, err error) {
-	sum := sha256.Sum256(e.Body)
 	headers := e.Headers
 	if len(headers) == 0 || string(headers) == "null" {
 		headers = []byte(emptyHeadersObject)
@@ -51,10 +50,11 @@ func Save(ctx context.Context, d *db.DB, e Entry) (created bool, err error) {
 		created = false
 		id, err := store.New(tx).InsertWebhookDelivery(ctx, store.InsertWebhookDeliveryParams{
 			Source:     e.Source,
-			BodySha256: hex.EncodeToString(sum[:]),
+			BodySha256: packetHash(e.RouteKey, e.Body),
 			Headers:    headers,
 			Body:       e.Body,
 			ReceivedAt: e.ReceivedAt.UTC(),
+			RouteKey:   pgtype.Text{String: e.RouteKey, Valid: e.RouteKey != ""},
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil // trùng: bản trước đã có việc tách gói của nó

@@ -166,6 +166,9 @@ func readEntry(path string) (Entry, error) {
 	if e.Source == "" || e.ReceivedAt.IsZero() {
 		return Entry{}, errors.New("thiếu source hoặc receivedAt")
 	}
+	if e.RouteKey != "" && !routeKeyPattern.MatchString(e.RouteKey) {
+		return Entry{}, errors.New("routeKey sai mẫu")
+	}
 	return e, nil
 }
 

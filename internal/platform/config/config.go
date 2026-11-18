@@ -12,6 +12,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"elimaz.com.vn/crm/internal/platform/fieldcrypt/keyspec"
 )
 
 // Role là vai trò của tiến trình, chọn bằng CRM_ROLE.
@@ -107,6 +109,11 @@ type Config struct {
 	// nhiêu ngày rồi lịch dọn xóa (Task 394).
 	JobsDoneRetentionDays int
 
+	// FieldEncKeys (api, worker; FIELD_ENC_KEYS, Task M2-33) là chuỗi khóa mã hóa trường đã kiểm định dạng
+	// (fieldcrypt/keyspec); dựng bằng fieldcrypt.ParseKeyring(logging.Secret(…)) ở cmd/crm. Rỗng khi vắng mặt: M0–M2
+	// không cần; vai trò nào bắt buộc thì mốc dùng (M3, M4, M7) thêm một dòng yêu cầu trong Load.
+	FieldEncKeys string
+
 	// Migrate chỉ khác nil khi Role là RoleMigrate: vai trò khác không bao giờ giữ chuỗi kết nối của chủ bảng.
 	Migrate *MigrateConfig
 }
@@ -136,6 +143,7 @@ func (c Config) LogValue() slog.Value {
 		slog.Int64("db_disk_budget_bytes", c.DBDiskBudgetBytes),
 		slog.Int("db_conn_budget", c.DBConnBudget),
 		slog.Int("jobs_done_retention_days", c.JobsDoneRetentionDays),
+		slog.Bool("field_enc_keys_set", c.FieldEncKeys != ""),
 	)
 }
 
@@ -191,6 +199,7 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		r.files(&cfg)
 		// getProduct chọn bộ kích thước ảnh theo cùng biến với worker (Task M1-44).
 		cfg.ImagePresetVersion = r.integer("IMAGE_PRESET_VERSION", 1, 1, 1000)
+		cfg.FieldEncKeys = r.fieldEncKeys()
 	case RoleMigrate:
 		cfg.Migrate = &MigrateConfig{OwnerURL: r.required("DATABASE_OWNER_URL")}
 	case RoleWorker:
@@ -207,6 +216,7 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 			cfg.S3ImagerEndpoint = r.httpURL("S3_IMAGER_ENDPOINT")
 		}
 		r.fakeCarrier(&cfg)
+		cfg.FieldEncKeys = r.fieldEncKeys()
 	}
 
 	if len(r.problems) > 0 {
@@ -261,6 +271,19 @@ func (r *reader) secret(key string) string {
 }
 
 // files đọc nhóm kho tệp, bắt buộc với api và worker (Task M1-41; Task 25 để tùy chọn, quyết định D1).
+// fieldEncKeys đọc FIELD_ENC_KEYS (tùy chọn): có mặt thì kiểm định dạng bằng keyspec; lỗi chỉ nêu tên biến và vị trí
+// mục, không in giá trị.
+func (r *reader) fieldEncKeys() string {
+	v := r.optional("FIELD_ENC_KEYS")
+	if v == "" {
+		return ""
+	}
+	if _, err := keyspec.Parse(v); err != nil {
+		r.problems = append(r.problems, "FIELD_ENC_KEYS sai định dạng: "+err.Error())
+	}
+	return v
+}
+
 func (r *reader) files(cfg *Config) {
 	cfg.S3Region = r.optional("S3_REGION")
 	if cfg.S3Region == "" {

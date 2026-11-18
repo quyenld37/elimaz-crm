@@ -65,13 +65,16 @@ type splitResult struct {
 }
 
 // inboundPayload là payload của việc InboundKind: chỉ mang mã (spec 04 mục 11), không mang nội dung sự kiện. Handler
-// đọc lại nội dung từ bản nhận (Index là vị trí trong SplitResult.Events của bản nhận DeliveryID).
+// đọc lại nội dung từ bản nhận (Index là vị trí trong SplitResult.Events của bản nhận DeliveryID). ReceivedAt, Via
+// (Task M2-33) trống ở việc ghi trước đó.
 type inboundPayload struct {
 	Type       string    `json:"type"`
 	DeliveryID uuid.UUID `json:"deliveryId"`
 	Index      int       `json:"index"`
 	DedupeKey  string    `json:"dedupeKey"`
 	OccurredAt time.Time `json:"occurredAt"`
+	ReceivedAt time.Time `json:"receivedAt"`
+	Via        string    `json:"via"`
 }
 
 // Handle tách gói của việc j. Payload sai, bản nhận không còn, nguồn lạ hay thân không đọc được là lỗi vĩnh viễn
@@ -81,10 +84,11 @@ func (h *SplitHandler) Handle(ctx context.Context, j queue.Job, tx pgx.Tx) (json
 	if err := json.Unmarshal(j.Payload, &p); err != nil || p.DeliveryID == uuid.Nil {
 		return nil, fmt.Errorf("việc tách %s: payload không hợp lệ: %w", j.ID, queue.ErrPermanent)
 	}
-	srcKey, res, err := loadPacket(ctx, tx, h.sources, p.DeliveryID)
+	pk, err := loadPacket(ctx, tx, h.sources, p.DeliveryID)
 	if err != nil {
 		return nil, fmt.Errorf("việc tách %s: %w", j.ID, err)
 	}
+	srcKey, res := pk.source, pk.res
 	out := splitResult{Events: len(res.Events)}
 	for typ, n := range res.Skipped {
 		out.Skipped += n
@@ -101,7 +105,8 @@ func (h *SplitHandler) Handle(ctx context.Context, j queue.Job, tx pgx.Tx) (json
 			h.inc(metricUnrouted, srcKey, 1)
 			continue
 		}
-		created, err := enqueueEvent(ctx, tx, h.q, *tenant, srcKey, e, packetRef{DeliveryID: p.DeliveryID, Index: i})
+		created, err := enqueueEvent(ctx, tx, h.q, *tenant, srcKey, e,
+			packetRef{DeliveryID: p.DeliveryID, Index: i, ReceivedAt: pk.receivedAt, Via: ViaWebhook})
 		if err != nil {
 			return nil, fmt.Errorf("việc tách %s, sự kiện %d: %w", j.ID, i, err)
 		}
@@ -148,26 +153,46 @@ func eventDedupeKey(e InboundEvent, deliveryID uuid.UUID, i int) string {
 	return deliveryID.String() + ":" + strconv.Itoa(i)
 }
 
-// loadPacket đọc bản nhận id trong tx và tách bằng nguồn của nó. Bản nhận không còn, nguồn lạ, thân không đọc được
-// là queue.ErrPermanent.
-func loadPacket(ctx context.Context, tx pgx.Tx, sources map[string]Source, id uuid.UUID) (string, SplitResult, error) {
+// packet là một bản nhận đã đọc lại và tách: nguồn, các sự kiện, giờ nhận.
+type packet struct {
+	source     string
+	res        SplitResult
+	receivedAt time.Time
+}
+
+// loadPacket đọc bản nhận id trong tx và tách: thân gốc có route_key bằng SplitRouted của nguồn (RoutedSource), thân
+// gốc khác bằng Split, sự kiện ghi bằng EnqueueInbound (body_kind event) thành đúng một sự kiện. Bản nhận không còn,
+// nguồn lạ hay không phải RoutedSource khi có route_key, thân không đọc được là queue.ErrPermanent.
+func loadPacket(ctx context.Context, tx pgx.Tx, sources map[string]Source, id uuid.UUID) (packet, error) {
 	row, err := store.New(tx).GetWebhookDelivery(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", SplitResult{}, fmt.Errorf("bản nhận %s không còn: %w", id, queue.ErrPermanent)
+		return packet{}, fmt.Errorf("bản nhận %s không còn: %w", id, queue.ErrPermanent)
 	}
 	if err != nil {
-		return "", SplitResult{}, fmt.Errorf("đọc bản nhận %s: %w", id, err)
+		return packet{}, fmt.Errorf("đọc bản nhận %s: %w", id, err)
 	}
 	src, ok := sources[row.Source]
 	if !ok {
-		return "", SplitResult{}, fmt.Errorf("bản nhận %s: nguồn %q không có: %w", id, row.Source, queue.ErrPermanent)
+		return packet{}, fmt.Errorf("bản nhận %s: nguồn %q không có: %w", id, row.Source, queue.ErrPermanent)
 	}
-	res, err := src.Split(row.Body)
+	var res SplitResult
+	switch {
+	case row.BodyKind == bodyKindEvent:
+		res, err = decodeStoredEvent(row.Body)
+	case row.RouteKey.Valid:
+		rs, routed := src.(RoutedSource)
+		if !routed {
+			return packet{}, fmt.Errorf("bản nhận %s: nguồn %q không nhận route key: %w", id, row.Source, queue.ErrPermanent)
+		}
+		res, err = rs.SplitRouted(row.Body, row.RouteKey.String)
+	default:
+		res, err = src.Split(row.Body)
+	}
 	if err != nil {
 		// Không bọc err của Split: có thể trích nội dung thân.
-		return "", SplitResult{}, fmt.Errorf("bản nhận %s: thân không đọc được: %w", id, queue.ErrPermanent)
+		return packet{}, fmt.Errorf("bản nhận %s: thân không đọc được: %w", id, queue.ErrPermanent)
 	}
-	return row.Source, res, nil
+	return packet{source: row.Source, res: res, receivedAt: row.ReceivedAt}, nil
 }
 
 func sourceMap(ss []Source) (map[string]Source, error) {

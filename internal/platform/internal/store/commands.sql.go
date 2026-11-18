@@ -13,6 +13,30 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const abandonCommand = `-- name: AbandonCommand :execrows
+UPDATE platform.jobs
+SET status = 'expired', finished_at = now(), last_error = $1::text, lease_until = NULL,
+    locked_by = NULL
+WHERE id = $2 AND mode = 'command' AND status IN ('pending', 'in_doubt')
+  AND tenant_id IS NOT DISTINCT FROM NULLIF(current_setting('app.tenant_id', true), '')::uuid
+`
+
+type AbandonCommandParams struct {
+	LastError string
+	ID        uuid.UUID
+}
+
+// Bỏ lệnh do mã nghiệp vụ quyết (commands.Abandon): pending, in_doubt → expired. Chỉ lệnh (mode command) của tenant
+// trong ngữ cảnh của transaction (jobs không RLS: lọc tường minh; ngoài ngữ cảnh chỉ thấy lệnh không tenant). Câu cuối
+// của transaction nghiệp vụ (ADR-46 nhóm 13).
+func (q *Queries) AbandonCommand(ctx context.Context, arg AbandonCommandParams) (int64, error) {
+	result, err := q.db.Exec(ctx, abandonCommand, arg.LastError, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const commandPastExpiry = `-- name: CommandPastExpiry :one
 SELECT coalesce(expires_at <= now(), false)::bool AS past FROM platform.jobs WHERE id = $1
 `
@@ -24,6 +48,20 @@ func (q *Queries) CommandPastExpiry(ctx context.Context, id uuid.UUID) (bool, er
 	var past bool
 	err := row.Scan(&past)
 	return past, err
+}
+
+const commandStatus = `-- name: CommandStatus :one
+SELECT status FROM platform.jobs
+WHERE id = $1 AND mode = 'command'
+  AND tenant_id IS NOT DISTINCT FROM NULLIF(current_setting('app.tenant_id', true), '')::uuid
+`
+
+// Trạng thái của một lệnh trong ngữ cảnh tenant như AbandonCommand (không có dòng: không có hoặc của tenant khác).
+func (q *Queries) CommandStatus(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, commandStatus, id)
+	var status string
+	err := row.Scan(&status)
+	return status, err
 }
 
 const expireNotSent = `-- name: ExpireNotSent :execrows
@@ -149,6 +187,27 @@ func (q *Queries) RescheduleNotSent(ctx context.Context, arg RescheduleNotSentPa
 		arg.ID,
 		arg.LockedBy,
 	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const resolveInDoubtDead = `-- name: ResolveInDoubtDead :execrows
+UPDATE platform.jobs
+SET status = 'dead', finished_at = now(), last_error = 'confirmed_not_sent'
+WHERE id = $1 AND status = 'in_doubt' AND finished_at = $2::timestamptz
+`
+
+type ResolveInDoubtDeadParams struct {
+	ID             uuid.UUID
+	SeenFinishedAt time.Time
+}
+
+// Q-5 (Task M2-33): handler không tự gửi lại (AutoRetryNotSent = false) mà tra thấy chắc chắn chưa gửi → dead, người
+// quyết gửi lại (04 mục 5.3). Cùng điều kiện "đúng lần in_doubt đã thấy" như hai câu trên.
+func (q *Queries) ResolveInDoubtDead(ctx context.Context, arg ResolveInDoubtDeadParams) (int64, error) {
+	result, err := q.db.Exec(ctx, resolveInDoubtDead, arg.ID, arg.SeenFinishedAt)
 	if err != nil {
 		return 0, err
 	}

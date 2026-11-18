@@ -64,6 +64,22 @@ func (q *Queries) ListTenantIDs(ctx context.Context) ([]uuid.UUID, error) {
 	return items, nil
 }
 
+const putTenantRoute = `-- name: PutTenantRoute :exec
+SELECT platform.put_tenant_route($1::text, $2::text)
+`
+
+type PutTenantRouteParams struct {
+	Kind        string
+	ExternalKey string
+}
+
+// Ghi tuyến kind/key cho tenant trong ngữ cảnh (app.tenant_id) qua hàm SECURITY DEFINER của 0290 (crm_app không có
+// INSERT trên bảng). Khóa đã thuộc tenant khác → SQLSTATE 23505.
+func (q *Queries) PutTenantRoute(ctx context.Context, arg PutTenantRouteParams) error {
+	_, err := q.db.Exec(ctx, putTenantRoute, arg.Kind, arg.ExternalKey)
+	return err
+}
+
 const resolveTenantRoute = `-- name: ResolveTenantRoute :one
 
 SELECT tenant_id

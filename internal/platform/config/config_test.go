@@ -318,3 +318,51 @@ func TestLoadJobsDoneRetentionDays(t *testing.T) {
 		t.Fatalf("api không giữ hạn của worker: %d, %v", cfg.JobsDoneRetentionDays, err)
 	}
 }
+
+// fieldKeys là FIELD_ENC_KEYS hợp lệ (hai khóa 32 byte, base64).
+const fieldKeys = "k2:AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=,k1:AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+
+// FIELD_ENC_KEYS (Task M2-33): vắng mặt thì mọi vai trò của M0–M2 vẫn khởi động; có mặt ở api, worker thì được kiểm định
+// dạng và giữ trong Config (không lộ qua LogValue); sai định dạng → lỗi nêu tên biến, không in giá trị.
+func TestLoadFieldEncKeys(t *testing.T) {
+	roles := map[config.Role]map[string]string{
+		config.RoleAPI: apiEnv(), config.RoleWorker: workerEnv(), config.RoleIngest: ingestEnv(),
+		config.RoleMigrate: with(base(), "DATABASE_OWNER_URL", ownerURL),
+	}
+	for role, m := range roles {
+		cfg, err := config.Load(role, env(m))
+		if err != nil || cfg.FieldEncKeys != "" {
+			t.Fatalf("%s không có FIELD_ENC_KEYS: %v, FieldEncKeys %q", role, err, cfg.FieldEncKeys)
+		}
+	}
+	for _, role := range []config.Role{config.RoleAPI, config.RoleWorker} {
+		cfg, err := config.Load(role, env(with(roles[role], "FIELD_ENC_KEYS", " "+fieldKeys+" ")))
+		if err != nil || cfg.FieldEncKeys != fieldKeys {
+			t.Fatalf("%s FIELD_ENC_KEYS hợp lệ: %v, %q", role, err, cfg.FieldEncKeys)
+		}
+		if s := cfg.LogValue().String(); strings.Contains(s, "AgICAg") || strings.Contains(s, "AQEBAQ") ||
+			!strings.Contains(s, "field_enc_keys_set=true") {
+			t.Fatalf("%s LogValue: %s", role, s)
+		}
+		checkBadFieldKeys(t, role, roles[role])
+	}
+}
+
+// checkBadFieldKeys: FIELD_ENC_KEYS sai (31 byte, trùng key_id, thiếu key_id) → ErrInvalid nêu tên biến, không in khóa.
+func checkBadFieldKeys(t *testing.T, role config.Role, m map[string]string) {
+	t.Helper()
+	bad := []string{
+		"k1:AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ==",
+		fieldKeys + ",k1:AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+		"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+	}
+	for _, v := range bad {
+		_, err := config.Load(role, env(with(m, "FIELD_ENC_KEYS", v)))
+		if !errors.Is(err, config.ErrInvalid) || !strings.Contains(err.Error(), "FIELD_ENC_KEYS") {
+			t.Fatalf("%s FIELD_ENC_KEYS sai phải lỗi nêu tên biến: %v", role, err)
+		}
+		if strings.Contains(err.Error(), "AQEBAQ") || strings.Contains(err.Error(), "AgICAg") {
+			t.Fatalf("%s lỗi in giá trị khóa: %v", role, err)
+		}
+	}
+}

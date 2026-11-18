@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"regexp"
 	"time"
 
 	"elimaz.com.vn/crm/internal/platform/queue"
@@ -50,6 +51,37 @@ type Source interface {
 	VerifySignature(raw []byte, h http.Header) bool
 	// Split tách một gói thành các sự kiện; lỗi nghĩa là thân không đọc được.
 	Split(raw []byte) (SplitResult, error)
+}
+
+// RoutedSource là nguồn nhận ở đường /hooks/<Key>/<routeKey> (M3 Q-8: mỗi tài khoản hãng một khóa tuyến ngẫu nhiên
+// 32 ký tự): ingest lưu routeKey cùng thân gốc, worker tách bằng SplitRouted với đúng khóa đó (thường đặt
+// Route{Kind, ExternalKey: routeKey} cho mọi sự kiện). Bản nhận không có routeKey (đường /hooks/<Key>) vẫn tách bằng
+// Split. Nguồn không hiện thực RoutedSource gọi đường có routeKey → 404.
+type RoutedSource interface {
+	Source
+	// SplitRouted tách một gói nhận ở đường có routeKey; lỗi nghĩa là thân không đọc được.
+	SplitRouted(raw []byte, routeKey string) (SplitResult, error)
+}
+
+// routeKeyPattern là mẫu của routeKey trên đường dẫn và cột route_key (migration 0291).
+var routeKeyPattern = regexp.MustCompile(`^[A-Za-z0-9]{32}$`)
+
+// Đường sự kiện vào tới (Inbound.Via): webhook qua ingest, hoặc do worker đọc chủ động (M4) rồi ghi bằng EnqueueInbound.
+const (
+	ViaWebhook     = "webhook"
+	ViaLiveStream  = "live_stream"
+	ViaLivePoll    = "live_poll"
+	ViaCommentPoll = "comment_poll"
+	ViaBackfill    = "backfill"
+	ViaHistory     = "history"
+)
+
+func validVia(v string) bool {
+	switch v {
+	case ViaWebhook, ViaLiveStream, ViaLivePoll, ViaCommentPoll, ViaBackfill, ViaHistory:
+		return true
+	}
+	return false
 }
 
 // SplitKind là loại việc tách gói (việc chưa định tuyến, TenantID nil; payload {"deliveryId"}).
