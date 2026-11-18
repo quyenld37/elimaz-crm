@@ -111,7 +111,7 @@ func newStack(t *testing.T, o stackOptions) *stack {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	// Sổ consumer dùng chung cho api, lệnh vận chuyển và worker, như newEvents của cmd/crm.
+	// Sổ consumer dùng chung cho api, lệnh vận chuyển và worker, như newModules của cmd/crm.
 	evs := events.NewRegistry()
 	if err := evs.Register(cash.Consumer{}); err != nil {
 		t.Fatal(err)

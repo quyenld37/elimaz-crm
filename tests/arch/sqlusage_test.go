@@ -159,6 +159,15 @@ func moduleOfSchema(schema string) string {
 // view _v đã công bố.
 const queriesPkg = "queries"
 
+// viewReadExceptions: ngoại lệ "chỉ đọc view, không nhập Go" (kế hoạch M2, Q19, Task M2-02): module ở khóa được nhắc
+// đúng các view trong danh sách dù không được gọi module chủ. Lý do ghi ở cột "Mốc đọc" của dòng docs/views.md.
+func viewReadExceptions() map[string][]string {
+	return map[string][]string{
+		// customer tính chỉ số, gợi ý gộp, dòng thời gian từ đơn (Task M2-11, 12, 25) mà không nhập gói order.
+		"customer": {"ord.orders_v", "ord.order_items_v", "ord.order_status_history_v", "ord.returns_v"},
+	}
+}
+
 // checkRef trả vi phạm (rỗng nếu không) của một lần nhắc ident (đã có schema) từ module. views: view công bố của
 // docs/views.md.
 func checkRef(module, ident string, views map[string][]string) string {
@@ -176,6 +185,9 @@ func checkRef(module, ident string, views map[string][]string) string {
 		return "view " + ident + " chưa công bố trong docs/views.md"
 	}
 	if module == queriesPkg || schema == "platform" {
+		return ""
+	}
+	if slices.Contains(viewReadExceptions()[module], ident) {
 		return ""
 	}
 	if dst := moduleOfSchema(schema); !slices.Contains(moduleCalls()[module], dst) {
@@ -298,6 +310,11 @@ func TestSQLUsageViewRules(t *testing.T) {
 		"internal/queries/list_dynsql.go":       2, // platform.file_variants, catalog.products
 		"queries/identity/cross.sql":            1,
 		"internal/modules/identity/x_dynsql.go": 1,
+		// Kế hoạch M2 (Task M2-02): ngoại lệ chỉ đọc view của customer với bốn view ord.
+		"queries/customer/m2_view_ok.sql":    0,
+		"queries/customer/m2_table.sql":      1, // ord.orders
+		"queries/customer/m2_other_view.sql": 1, // ord.traffic_sources_v không thuộc ngoại lệ
+		"queries/promotion/m2_view.sql":      1, // promotion không có ngoại lệ
 	}
 	for file, n := range want {
 		var lines []string

@@ -1390,7 +1390,13 @@ paths:
   /api/v1/orders:
     post:
       operationId: createOrder
-      summary: Lên đơn nhập tay (tạo khách mới, đơn ở Đã xác nhận, giữ hàng cùng transaction)
+      summary: Lên đơn (M1, mở rộng ở M2) — tạo khách mới hoặc dùng khách có sẵn, đơn và giữ hàng cùng transaction
+      description: >-
+        Thân kiểu M1 (không intent, có customer.fullName, shipAddress name/phone/line) tạo thẳng đơn Đã xác nhận như
+        M1. Trường M2 (customerId, intent, giảm giá, mã, nguồn, ghi chú hãng, người phụ trách, mã tỉnh/xã…) có nghiệp vụ
+        từ Task M2-16, M2-17; trước đó gửi trường M2 → 501 not_implemented. Đúng một trong customerId, customer (sai →
+        400 invalid_input). Khóa nghiệp vụ của đơn dựng từ Idempotency-Key và nhân viên (Q-T57-4); cùng khóa nghiệp vụ,
+        cùng nội dung sau khi bản ghi chống trùng hết hạn → 200 trả đơn đã có.
       x-permission: order.create
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -1401,6 +1407,12 @@ paths:
             schema:
               $ref: "#/components/schemas/CreateOrderRequest"
       responses:
+        "200":
+          description: Đơn đã tạo trước đó với cùng khóa nghiệp vụ, cùng nội dung (gửi lại)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
         "201":
           description: Đơn vừa tạo
           content:
@@ -1409,16 +1421,140 @@ paths:
                 $ref: "#/components/schemas/Order"
         default:
           $ref: "#/components/responses/Error"
+    get:
+      operationId: listOrders
+      summary: 'Danh sách đơn, mới nhất trước, keyset; lọc theo nhãn, trạng thái, nguồn, người phụ trách, khách (cả nhóm), ngày, q (Task M2-24)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.read
+      parameters:
+        - name: label
+          in: query
+          required: false
+          description: 'Nhãn gộp (lặp tham số cho nhiều nhãn); nhãn của vận đơn lọc được từ M3'
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: "#/components/schemas/OrderLabel"
+          explode: true
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: "#/components/schemas/OrderStatus"
+          explode: true
+        - name: pendingReason
+          in: query
+          required: false
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: "#/components/schemas/PendingReason"
+          explode: true
+        - name: channel
+          in: query
+          required: false
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              $ref: "#/components/schemas/OrderChannel"
+          explode: true
+        - name: trafficSourceId
+          in: query
+          required: false
+          schema:
+            type: array
+            maxItems: 100
+            items:
+              type: string
+              format: uuid
+          explode: true
+        - name: careBy
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: customerId
+          in: query
+          required: false
+          description: 'Cả nhóm gốc của khách'
+          schema:
+            type: string
+            format: uuid
+        - name: createdFrom
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: createdTo
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: q
+          in: query
+          required: false
+          description: 'Mã đơn DH…, SĐT người nhận (đủ hay đuôi) hoặc tên khách; không ghi vào log'
+          schema:
+            type: string
+            maxLength: 100
+        - name: duplicateSuspect
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listOrders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderPage"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/orders/{id}:
     get:
       operationId: getOrder
-      summary: Một đơn kèm dòng đơn (tên, SKU chụp lúc đặt)
+      summary: Một đơn kèm dòng đơn (tên, SKU chụp lúc đặt); M2 (Task M2-24) thêm nhãn, khách, giảm giá, phạm vi được sửa, phiếu trả
       x-permission: order.read
       parameters:
         - $ref: "#/components/parameters/OrderID"
       responses:
         "200":
           description: Đơn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        default:
+          $ref: "#/components/responses/Error"
+    patch:
+      operationId: updateOrder
+      summary: 'Sửa đơn khi version còn khớp: dòng, giảm giá, mã, phí, địa chỉ, ghi chú hãng, người phụ trách, nguồn (Task M2-20); đã gửi hãng → 409 order_locked_by_shipment'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.update
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrderRequest"
+      responses:
+        "200":
+          description: updateOrder
           content:
             application/json:
               schema:
@@ -1579,6 +1715,1198 @@ paths:
                 $ref: "#/components/schemas/Stocktake"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/customers:
+    get:
+      operationId: listCustomers
+      summary: 'Danh sách khách gốc: q rỗng → mới nhất trước; q là mã khách, SĐT (đủ hay đuôi), hoặc tên (Task M2-10); tagId lọc nhóm có nhãn'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.read
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: 'Mã KH…, SĐT, đuôi SĐT hay tên; không ghi vào log'
+          schema:
+            type: string
+            maxLength: 100
+        - name: tagId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listCustomers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerPage"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createCustomer
+      summary: 'Tạo khách (Task M2-09); SĐT đã thuộc khách khác → 409 identity_taken kèm ownerId'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.write
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCustomerRequest"
+      responses:
+        "201":
+          description: createCustomer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customers/{id}:
+    get:
+      operationId: getCustomer
+      summary: 'Hồ sơ khách theo gốc: mọi hồ sơ con, danh tính, địa chỉ, nhãn, chỉ số của gốc (Task M2-09)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.read
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+      responses:
+        "200":
+          description: getCustomer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        default:
+          $ref: "#/components/responses/Error"
+    patch:
+      operationId: updateCustomer
+      summary: 'Sửa hồ sơ khách khi version còn khớp (Task M2-09)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.write
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCustomerRequest"
+      responses:
+        "200":
+          description: updateCustomer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customers/{id}/identities:
+    post:
+      operationId: addCustomerIdentity
+      summary: 'Thêm danh tính (SĐT, email, Zalo) cho khách; đã thuộc khách khác → 409 identity_taken (Task M2-09)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.write
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCustomerIdentityRequest"
+      responses:
+        "201":
+          description: addCustomerIdentity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customers/{id}/identities/{identityId}:
+    delete:
+      operationId: removeCustomerIdentity
+      summary: 'Gỡ một danh tính của khách (không gỡ fb_psid: M4 quản) (Task M2-09)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.write
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - $ref: "#/components/parameters/CustomerIdentityID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: removeCustomerIdentity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customers/{id}/addresses:
+    post:
+      operationId: addCustomerAddress
+      summary: 'Thêm địa chỉ giao cho khách; mã tỉnh, xã kiểm theo danh mục (Task M2-09)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.write
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerAddressInput"
+      responses:
+        "201":
+          description: addCustomerAddress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customers/{id}/addresses/{addressId}:
+    patch:
+      operationId: updateCustomerAddress
+      summary: 'Sửa địa chỉ khi version còn khớp (Task M2-09)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.write
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - $ref: "#/components/parameters/CustomerAddressID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCustomerAddressRequest"
+      responses:
+        "200":
+          description: updateCustomerAddress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteCustomerAddress
+      summary: 'Xóa mềm một địa chỉ (Task M2-09)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.write
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - $ref: "#/components/parameters/CustomerAddressID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: deleteCustomerAddress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/admin-units:
+    get:
+      operationId: listAdminUnits
+      summary: 'Danh mục đơn vị hành chính hai cấp: parent rỗng → tỉnh; có parent → xã của tỉnh đó, lọc theo q (Task M2-04)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.read
+      parameters:
+        - name: parent
+          in: query
+          required: false
+          description: 'Mã tỉnh'
+          schema:
+            type: string
+            maxLength: 16
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        "200":
+          description: listAdminUnits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUnitList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customers/{id}/merge-candidates:
+    get:
+      operationId: listCustomerMergeCandidates
+      summary: 'Gợi ý "có thể là cùng một khách" theo SĐT trùng; không bao giờ tự gộp (Task M2-11)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.read
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+      responses:
+        "200":
+          description: listCustomerMergeCandidates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MergeCandidateList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customers/{id}/merge:
+    post:
+      operationId: mergeCustomer
+      summary: 'Gộp nhóm của mergedId vào nhóm của khách id (Task M2-11); đã cùng gốc → 422 merge_same_customer'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.merge
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MergeCustomerRequest"
+      responses:
+        "200":
+          description: mergeCustomer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerMerge"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customer-merges/{mergeId}/undo:
+    post:
+      operationId: undoCustomerMerge
+      summary: 'Hoàn tác một lần gộp trong 30 ngày khi còn là lần gần nhất (Q14); không thì 409 merge_not_latest kèm blockingMergeId (Task M2-11)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.merge
+      parameters:
+        - $ref: "#/components/parameters/CustomerMergeID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: undoCustomerMerge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerMerge"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customers/{id}/timeline:
+    get:
+      operationId: getCustomerTimeline
+      summary: 'Dòng thời gian của cả nhóm khách: đơn, đổi trạng thái, ghi chú, gộp (Task M2-12)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.read
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: getCustomerTimeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimelinePage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customers/{id}/notes:
+    post:
+      operationId: addCustomerNote
+      summary: 'Thêm ghi chú về khách (chỉ ghi thêm) (Task M2-12)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.write
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCustomerNoteRequest"
+      responses:
+        "201":
+          description: addCustomerNote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customer-tags:
+    get:
+      operationId: listCustomerTags
+      summary: 'Mọi nhãn khách của shop (Task M2-12)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.read
+      responses:
+        "200":
+          description: listCustomerTags
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerTagList"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createCustomerTag
+      summary: 'Tạo nhãn khách (tên không trùng) (Task M2-12)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.tags.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCustomerTagRequest"
+      responses:
+        "201":
+          description: createCustomerTag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerTag"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customer-tags/{tagId}:
+    patch:
+      operationId: updateCustomerTag
+      summary: 'Đổi tên, màu nhãn khi version còn khớp (Task M2-12)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.tags.manage
+      parameters:
+        - $ref: "#/components/parameters/CustomerTagID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCustomerTagRequest"
+      responses:
+        "200":
+          description: updateCustomerTag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerTag"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customers/{id}/tags/{tagId}:
+    put:
+      operationId: addCustomerTag
+      summary: 'Gắn nhãn vào gốc của khách; đã có thì không đổi gì (Task M2-12)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.write
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - $ref: "#/components/parameters/CustomerTagID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: addCustomerTag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: removeCustomerTag
+      summary: 'Gỡ nhãn gắn tay khỏi khách (nhãn theo quy tắc do quy tắc quản) (Task M2-12)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.write
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - $ref: "#/components/parameters/CustomerTagID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: removeCustomerTag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customer-tags/{tagId}/rule:
+    get:
+      operationId: getCustomerTagRule
+      summary: 'Quy tắc tự gắn nhãn theo chỉ số khách; chưa có → 404 (Task M2-25)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.read
+      parameters:
+        - $ref: "#/components/parameters/CustomerTagID"
+      responses:
+        "200":
+          description: getCustomerTagRule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerTagRule"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: putCustomerTagRule
+      summary: 'Đặt quy tắc tự gắn nhãn (điều kiện nối bằng VÀ); sai trường hay phép → 422 invalid_tag_rule (Task M2-25)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.tags.manage
+      parameters:
+        - $ref: "#/components/parameters/CustomerTagID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PutCustomerTagRuleRequest"
+      responses:
+        "200":
+          description: putCustomerTagRule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerTagRule"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customer-imports/template:
+    get:
+      operationId: getCustomerImportTemplate
+      summary: 'Tải tệp mẫu Excel nhập khách (Task M2-13)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.import
+      responses:
+        "200":
+          description: getCustomerImportTemplate
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customer-imports:
+    post:
+      operationId: startCustomerImport
+      summary: 'Nhập khách từ tệp Excel đã tải lên (mục đích customer_import); chạy nền; tệp sai → 422 import_file_invalid (Task M2-13)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.import
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartCustomerImportRequest"
+      responses:
+        "202":
+          description: startCustomerImport
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StartCustomerImportResult"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customer-imports/{importId}:
+    get:
+      operationId: getCustomerImport
+      summary: 'Trạng thái, số đếm và lỗi từng dòng (không giá trị) của một lần nhập khách (Task M2-13)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: customer.import
+      parameters:
+        - $ref: "#/components/parameters/CustomerImportID"
+      responses:
+        "200":
+          description: getCustomerImport
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerImport"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/orders/{id}/confirm:
+    post:
+      operationId: confirmOrder
+      summary: 'Xác nhận đơn mới hoặc chốt đơn nháp (cần địa chỉ đủ); chờ duyệt giảm giá → 422 needs_approval (Task M2-19)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.confirm
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VersionRequest"
+      responses:
+        "200":
+          description: confirmOrder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/orders/{id}/approve-discount:
+    post:
+      operationId: approveOrderDiscount
+      summary: 'Duyệt giảm giá vượt ngưỡng (Q3) (Task M2-19)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.discount.approve
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VersionRequest"
+      responses:
+        "200":
+          description: approveOrderDiscount
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/orders/{id}/pending:
+    post:
+      operationId: setOrderPending
+      summary: 'Đặt hoặc bỏ lý do chờ của đơn mới (chờ khách, hết hàng) (Task M2-19)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.confirm
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetOrderPendingRequest"
+      responses:
+        "200":
+          description: setOrderPending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/orders/{id}/cancel:
+    post:
+      operationId: cancelOrder
+      summary: 'Hủy đơn (nhả hàng, trả lượt mã theo Q2); đơn đã gửi hãng → Đang yêu cầu hủy (Task M2-21)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.cancel
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelOrderRequest"
+      responses:
+        "200":
+          description: cancelOrder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/orders/{id}/timeline:
+    get:
+      operationId: getOrderTimeline
+      summary: 'Lịch sử thao tác của đơn: đổi trạng thái, tên trường đã sửa (không giá trị dữ liệu cá nhân), ghi chú (Task M2-24)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.read
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+      responses:
+        "200":
+          description: getOrderTimeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderTimeline"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/orders/{id}/notes:
+    post:
+      operationId: addOrderNote
+      summary: 'Thêm ghi chú nội bộ của đơn (không gửi hãng) (Task M2-24)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.update
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddOrderNoteRequest"
+      responses:
+        "201":
+          description: addOrderNote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/order-duplicate-check:
+    get:
+      operationId: checkOrderDuplicates
+      summary: 'Kiểm trước ở form: đơn có thể trùng (cùng khách hay cùng SĐT, có biến thể chung, trong cửa sổ cài đặt); chỉ cảnh báo (Task M2-23)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.create
+      parameters:
+        - name: customerId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: phone
+          in: query
+          required: false
+          description: 'Không ghi vào log'
+          schema:
+            $ref: "#/components/schemas/PhoneInput"
+        - name: variantIds
+          in: query
+          required: true
+          schema:
+            type: array
+            maxItems: 100
+            minItems: 1
+            items:
+              type: string
+              format: uuid
+          explode: true
+      responses:
+        "200":
+          description: checkOrderDuplicates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/order-duplicates:
+    get:
+      operationId: listOrderDuplicates
+      summary: 'Cặp đơn nghi trùng chưa xử lý, mới nhất trước (Task M2-23)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.read
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listOrderDuplicates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderDuplicatePage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/order-duplicates/{orderId}/{otherOrderId}/resolve:
+    post:
+      operationId: resolveOrderDuplicate
+      summary: 'Xử lý một cặp nghi trùng: không trùng, hoặc hủy một đơn (lý do duplicate); không tự hủy (Task M2-23)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.duplicates.resolve
+      parameters:
+        - $ref: "#/components/parameters/DuplicateOrderID"
+        - $ref: "#/components/parameters/DuplicateOtherOrderID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveOrderDuplicateRequest"
+      responses:
+        "200":
+          description: resolveOrderDuplicate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderDuplicate"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/orders/{id}/returns:
+    post:
+      operationId: createReturn
+      summary: 'Tạo phiếu trả theo dòng (khách trả) hoặc đổi hàng (kèm đơn thay thế) cho đơn đã giao; chưa đổi tồn (Task M2-22)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.return
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReturnRequest"
+      responses:
+        "201":
+          description: createReturn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Return"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/returns:
+    get:
+      operationId: listReturns
+      summary: 'Phiếu trả, mới nhất trước (Task M2-22)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.read
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ReturnStatus"
+        - name: kind
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ReturnKind"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listReturns
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/returns/{returnId}:
+    get:
+      operationId: getReturn
+      summary: 'Một phiếu trả kèm dòng (Task M2-22)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.read
+      parameters:
+        - $ref: "#/components/parameters/ReturnID"
+      responses:
+        "200":
+          description: getReturn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Return"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/returns/{returnId}/receive:
+    post:
+      operationId: receiveReturn
+      summary: 'Kho nhận hàng trả: tình trạng từng dòng, nhập lại kho cùng lúc (Task M2-22)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.return.receive
+      parameters:
+        - $ref: "#/components/parameters/ReturnID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReceiveReturnRequest"
+      responses:
+        "200":
+          description: receiveReturn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Return"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/returns/{returnId}/close:
+    post:
+      operationId: closeReturn
+      summary: 'Đóng phiếu trả đã nhập kho (Task M2-22)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.return
+      parameters:
+        - $ref: "#/components/parameters/ReturnID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VersionRequest"
+      responses:
+        "200":
+          description: closeReturn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Return"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/returns/{returnId}/cancel:
+    post:
+      operationId: cancelReturn
+      summary: 'Hủy phiếu trả chưa nhận (phiếu đổi: hủy luôn đơn thay thế chưa gửi hãng) (Task M2-22)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.return
+      parameters:
+        - $ref: "#/components/parameters/ReturnID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VersionRequest"
+      responses:
+        "200":
+          description: cancelReturn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Return"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/traffic-sources:
+    get:
+      operationId: listTrafficSources
+      summary: 'Nguồn đơn của shop theo vị trí (Task M2-15)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.read
+      responses:
+        "200":
+          description: listTrafficSources
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrafficSourceList"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createTrafficSource
+      summary: 'Tạo nguồn đơn (tên không trùng) (Task M2-15)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.settings.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTrafficSourceRequest"
+      responses:
+        "201":
+          description: createTrafficSource
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrafficSource"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/traffic-sources/{sourceId}:
+    patch:
+      operationId: updateTrafficSource
+      summary: 'Đổi tên, bật tắt, vị trí nguồn đơn khi version còn khớp (Task M2-15)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.settings.manage
+      parameters:
+        - $ref: "#/components/parameters/TrafficSourceID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTrafficSourceRequest"
+      responses:
+        "200":
+          description: updateTrafficSource
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrafficSource"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/order-settings:
+    get:
+      operationId: getOrderSettings
+      summary: 'Cài đặt đơn của shop (Task M2-15)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.read
+      responses:
+        "200":
+          description: getOrderSettings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderSettings"
+        default:
+          $ref: "#/components/responses/Error"
+    patch:
+      operationId: updateOrderSettings
+      summary: 'Sửa cài đặt đơn khi version còn khớp; ngoài khoảng → 422 setting_out_of_range (Task M2-15)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.settings.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrderSettingsRequest"
+      responses:
+        "200":
+          description: updateOrderSettings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderSettings"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/coupons:
+    get:
+      operationId: listCoupons
+      summary: 'Mã giảm giá, mới nhất trước; q theo mã hoặc tên (Task M2-14)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: promotion.read
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 64
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/CouponStatus"
+        - name: batchId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listCoupons
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CouponPage"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createCoupon
+      summary: 'Tạo mã giảm giá (để trống code thì sinh mã); trùng → 409 code_taken (Task M2-14)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: promotion.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCouponRequest"
+      responses:
+        "201":
+          description: createCoupon
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Coupon"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/coupons/{couponId}:
+    get:
+      operationId: getCoupon
+      summary: 'Một mã kèm số lượt đã dùng, còn lại (Task M2-14)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: promotion.read
+      parameters:
+        - $ref: "#/components/parameters/CouponID"
+      responses:
+        "200":
+          description: getCoupon
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Coupon"
+        default:
+          $ref: "#/components/responses/Error"
+    patch:
+      operationId: updateCoupon
+      summary: 'Sửa mã khi version còn khớp; mã đã dùng chỉ đổi tên, hạn cuối, số lượt tối đa, trạng thái (409 coupon_locked_after_use) (Task M2-14)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: promotion.manage
+      parameters:
+        - $ref: "#/components/parameters/CouponID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCouponRequest"
+      responses:
+        "200":
+          description: updateCoupon
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Coupon"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/coupon-batches:
+    post:
+      operationId: createCouponBatch
+      summary: 'Tạo đợt mã: quantity mã dùng một lần, hoặc mỗi SĐT trong boundPhones một mã gắn SĐT đó (Task M2-14)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: promotion.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCouponBatchRequest"
+      responses:
+        "201":
+          description: createCouponBatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CouponBatch"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/coupon-batches/{batchId}:
+    get:
+      operationId: getCouponBatch
+      summary: 'Một đợt mã (Task M2-14)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: promotion.read
+      parameters:
+        - $ref: "#/components/parameters/CouponBatchID"
+      responses:
+        "200":
+          description: getCouponBatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CouponBatch"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/coupons/{couponId}/redemptions:
+    get:
+      operationId: listCouponRedemptions
+      summary: 'Lượt dùng của một mã: mã đơn, số giảm, trạng thái; không SĐT (Task M2-14)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: promotion.read
+      parameters:
+        - $ref: "#/components/parameters/CouponID"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listCouponRedemptions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CouponRedemptionPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/coupon-check:
+    get:
+      operationId: checkCoupon
+      summary: 'Kiểm mã cho form lên đơn: số giảm, lý do từ chối, lượt còn; không đổi lượt dùng (Task M2-14)'
+      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      x-permission: order.create
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 32
+        - name: base
+          in: query
+          required: true
+          description: 'Tạm tính sau giảm dòng và giảm tay cấp đơn'
+          schema:
+            $ref: "#/components/schemas/Money"
+        - name: customerId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: phone
+          in: query
+          required: false
+          description: 'Không ghi vào log'
+          schema:
+            $ref: "#/components/schemas/PhoneInput"
+        - name: channel
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/OrderChannel"
+      responses:
+        "200":
+          description: checkCoupon
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CouponCheck"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -1694,6 +3022,108 @@ components:
       schema:
         type: string
         format: uuid
+    CustomerID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CustomerIdentityID:
+      name: identityId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CustomerAddressID:
+      name: addressId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CustomerTagID:
+      name: tagId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CustomerMergeID:
+      name: mergeId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CustomerImportID:
+      name: importId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DuplicateOrderID:
+      name: orderId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DuplicateOtherOrderID:
+      name: otherOrderId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ReturnID:
+      name: returnId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TrafficSourceID:
+      name: sourceId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CouponID:
+      name: couponId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CouponBatchID:
+      name: batchId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+      schema:
+        type: string
+        maxLength: 512
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 50
   responses:
     Error:
       description: Lỗi; không bao giờ có vết lỗi
@@ -1777,6 +3207,34 @@ components:
         - restore_expired
         - unknown_preset
         - upload_missing
+        # Khách, đơn, mã giảm giá (M2, Task M2-02)
+        - address_incomplete
+        - coupon_locked_after_use
+        - coupon_rejected
+        - discount_needs_approval
+        - identity_taken
+        - import_file_invalid
+        - import_too_large
+        - invalid_phone
+        - invalid_tag_rule
+        - invalid_transition
+        - line_discount_exceeds
+        - max_uses_below_used
+        - merge_not_latest
+        - merge_same_customer
+        - merge_window_expired
+        - needs_approval
+        - order_discount_exceeds
+        - order_locked_by_shipment
+        - query_too_short
+        - return_not_allowed
+        - return_qty_exceeds
+        - setting_out_of_range
+        - shipment_already_attached
+        - traffic_source_inactive
+        - unknown_admin_unit
+        - variant_not_found
+        - ward_not_in_province
       properties:
         error:
           type: string
@@ -1791,6 +3249,16 @@ components:
           type: integer
           format: int32
           description: Chỉ có ở insufficient_stock — số còn làm được của biến thể đó (xuất hàng lỗi là số hàng lỗi); ở out_of_stock — số có thể bán hiện tại
+        ownerId:
+          type: string
+          format: uuid
+          description: Chỉ có ở identity_taken — gốc của khách đang giữ danh tính
+        blockingMergeId:
+          type: string
+          format: uuid
+          description: Chỉ có ở merge_not_latest — lần gộp phải hoàn tác trước
+        reason:
+          $ref: "#/components/schemas/CouponRejectReason"
     HealthStatus:
       type: object
       required: [status]
@@ -2353,7 +3821,10 @@ components:
     CreateOrderRequest:
       type: object
       additionalProperties: false
-      required: [customer, items, shipAddress, shippingFee]
+      required: [items, shippingFee]
+      description: >-
+        Đúng một trong customerId (khách có sẵn), customer (khách mới hoặc tìm theo SĐT). shipAddress bắt buộc khi
+        không gửi intent (luật M1) và khi intent là confirmed.
       properties:
         customer:
           type: object
@@ -2364,6 +3835,18 @@ components:
               type: string
               minLength: 1
               maxLength: 120
+            phone:
+              $ref: "#/components/schemas/PhoneInput"
+            phoneIsCustomers:
+              type: boolean
+              description: true → SĐT là của khách (gắn thành danh tính); false → chỉ là SĐT người nhận
+        customerId:
+          type: string
+          format: uuid
+        intent:
+          type: string
+          description: Không gửi → hành vi M1 (tạo thẳng confirmed)
+          enum: [draft, new, confirmed]
         warehouseId:
           type: string
           format: uuid
@@ -2385,10 +3868,41 @@ components:
                 format: int32
                 minimum: 1
                 maximum: 10000
+              lineDiscount:
+                $ref: "#/components/schemas/Money"
         shipAddress:
           $ref: "#/components/schemas/ShipAddress"
         shippingFee:
           $ref: "#/components/schemas/Money"
+        orderDiscount:
+          $ref: "#/components/schemas/Money"
+        couponCode:
+          type: string
+          minLength: 1
+          maxLength: 32
+        trafficSourceId:
+          type: string
+          format: uuid
+        carrierNote:
+          type: string
+          maxLength: 500
+          description: Ghi chú cho hãng vận chuyển (ghi chú nội bộ là addOrderNote)
+        careBy:
+          type: string
+          format: uuid
+          description: Nhân viên phụ trách
+        channel:
+          $ref: "#/components/schemas/OrderChannel"
+        externalRef:
+          type: string
+          maxLength: 120
+        referralRef:
+          type: object
+          maxProperties: 20
+          description: Dấu giới thiệu (affiliate, P2); chỉ chuỗi
+          additionalProperties:
+            type: string
+            maxLength: 200
     ShipAddress:
       type: object
       additionalProperties: false
@@ -2405,6 +3919,16 @@ components:
           type: string
           minLength: 1
           maxLength: 500
+        provinceCode:
+          type: string
+          minLength: 1
+          maxLength: 16
+          description: Mã tỉnh (danh mục hai cấp, Task M2-04); M2 thêm
+        wardCode:
+          type: string
+          minLength: 1
+          maxLength: 16
+          description: Mã xã/phường; M2 thêm
     Order:
       type: object
       required: [id, code, status, customerId, subtotal, shippingFee, grandTotal, codAmount, items, createdAt]
@@ -2415,8 +3939,7 @@ components:
         code:
           type: string
         status:
-          type: string
-          enum: [draft, new, confirmed, cancel_requested, cancelled, delivered, returned]
+          $ref: "#/components/schemas/OrderStatus"
         customerId:
           type: string
           format: uuid
@@ -2435,6 +3958,88 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OrderItem"
+        # Trường M2 (tùy chọn; có từ Task M2-16, M2-24).
+        version:
+          type: integer
+          format: int64
+        label:
+          $ref: "#/components/schemas/OrderLabel"
+        pendingReason:
+          $ref: "#/components/schemas/PendingReason"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderWarning"
+        customer:
+          $ref: "#/components/schemas/OrderCustomer"
+        shipAddress:
+          $ref: "#/components/schemas/Address"
+        addressComplete:
+          type: boolean
+        warehouseId:
+          type: string
+          format: uuid
+        channel:
+          type: string
+        trafficSourceId:
+          type: string
+          format: uuid
+        externalRef:
+          type: string
+        carrierNote:
+          type: string
+        careBy:
+          $ref: "#/components/schemas/Actor"
+        createdBy:
+          $ref: "#/components/schemas/Actor"
+        orderType:
+          type: string
+          enum: [ship, exchange, customer_return]
+        packingStatus:
+          type: string
+          enum: [none, picking, packed]
+        paymentStatus:
+          type: string
+          enum: [unpaid, partial, paid, refunded]
+        lineDiscountTotal:
+          $ref: "#/components/schemas/Money"
+        orderDiscount:
+          $ref: "#/components/schemas/Money"
+        couponDiscount:
+          $ref: "#/components/schemas/Money"
+        discountTotal:
+          $ref: "#/components/schemas/Money"
+        prepaidTotal:
+          $ref: "#/components/schemas/Money"
+        couponCode:
+          type: string
+        currentShipmentId:
+          type: string
+          format: uuid
+        draftExpiresAt:
+          type: string
+          format: date-time
+        confirmedAt:
+          type: string
+          format: date-time
+        cancelledAt:
+          type: string
+          format: date-time
+        cancelReason:
+          $ref: "#/components/schemas/CancelReason"
+        cancelNote:
+          type: string
+        duplicateSuspect:
+          type: boolean
+        editScope:
+          $ref: "#/components/schemas/EditScope"
+        replacedReturnId:
+          type: string
+          format: uuid
+        returns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReturnSummary"
     OrderItem:
       type: object
       required: [id, position, variantId, sku, name, qty, unitPrice, netAmount]
@@ -2459,6 +4064,12 @@ components:
           $ref: "#/components/schemas/Money"
         netAmount:
           $ref: "#/components/schemas/Money"
+        lineDiscount:
+          $ref: "#/components/schemas/Money"
+          description: M2 thêm
+        allocatedOrderDiscount:
+          $ref: "#/components/schemas/Money"
+          description: Phần giảm cấp đơn và mã chia về dòng (M2 thêm)
     CreateShipmentRequest:
       type: object
       required: [carrierAccountId]
@@ -3433,3 +5044,1443 @@ components:
         version:
           type: integer
           format: int64
+    # --- Hợp đồng M2 (kế hoạch M2, Task M2-02): schema chung ---
+    SignedMoney:
+      type: integer
+      format: int64
+      minimum: -9007199254740991
+      maximum: 9007199254740991
+      description: Tiền có thể âm (báo cáo), số nguyên đồng; M2 chưa dùng
+    PhoneInput:
+      type: string
+      minLength: 8
+      maxLength: 20
+      description: SĐT nhập tay (0…, 84…, +84…, có thể có khoảng trắng, chấm, gạch); máy chủ chuẩn hóa về +84…
+    OrderStatus:
+      type: string
+      enum: [draft, new, confirmed, cancel_requested, cancelled, delivered, returned]
+    OrderLabel:
+      type: string
+      description: Nhãn gộp của đơn (internal/queries/orderview, Task M2-08), đúng thứ tự thanh nhãn
+      enum:
+        - draft
+        - new
+        - awaiting_discount_approval
+        - awaiting_customer
+        - out_of_stock
+        - confirmed
+        - packing
+        - packed
+        - awaiting_pickup
+        - shipping
+        - delivery_failed
+        - returning
+        - cancel_requested
+        - cancelled
+        - delivered
+        - returned
+    PendingReason:
+      type: string
+      description: Lý do đơn mới còn chờ; không có trường này nghĩa là không chờ
+      enum: [awaiting_customer, out_of_stock, discount_approval]
+    CancelReason:
+      type: string
+      description: Lý do hủy (Q18); draft_expired, duplicate do hệ thống đặt
+      enum: [customer_changed_mind, out_of_stock, unreachable, wrong_info, other, draft_expired, duplicate]
+    CouponRejectReason:
+      type: string
+      enum: [not_found, disabled, not_started, expired, exhausted, min_subtotal, channel, bound_other, customer_limit, seller]
+    OrderChannel:
+      type: string
+      description: Kênh của đơn (manual, facebook, web; mốc sau có thể thêm giá trị)
+      pattern: "^[a-z][a-z0-9_]{0,31}$"
+    AddressInput:
+      type: object
+      additionalProperties: false
+      required: [name, phone, line, provinceCode, wardCode]
+      description: Địa chỉ đủ hai cấp hành chính (tên trường như ShipAddress của M1; name là người nhận, line là số nhà, đường)
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        phone:
+          $ref: "#/components/schemas/PhoneInput"
+        line:
+          type: string
+          minLength: 1
+          maxLength: 500
+        provinceCode:
+          type: string
+          minLength: 1
+          maxLength: 16
+        wardCode:
+          type: string
+          minLength: 1
+          maxLength: 16
+    Address:
+      type: object
+      required: [name, phone, line]
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        line:
+          type: string
+        provinceCode:
+          type: string
+        provinceName:
+          type: string
+        wardCode:
+          type: string
+        wardName:
+          type: string
+    Actor:
+      type: object
+      required: [id, name]
+      description: Người làm (nhân viên; hệ thống có id rỗng uuid 0)
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    Note:
+      type: object
+      required: [id, body, author, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        body:
+          type: string
+        author:
+          $ref: "#/components/schemas/Actor"
+        createdAt:
+          type: string
+          format: date-time
+    TimelineItem:
+      type: object
+      required: [at, kind, refId]
+      properties:
+        at:
+          type: string
+          format: date-time
+        kind:
+          type: string
+          description: >-
+            Chuỗi mở, không phải enum (M4 thêm conversation, C7). Khách: order_created, order_status, note, merge,
+            merge_undone, tag. Đơn: status, edit, note.
+        refId:
+          type: string
+          format: uuid
+        actor:
+          $ref: "#/components/schemas/Actor"
+        summary:
+          type: object
+          description: Tóm tắt máy đọc (mã, trạng thái, tên trường đã đổi); không giá trị dữ liệu cá nhân
+          additionalProperties:
+            type: string
+        note:
+          type: string
+          description: Nội dung ghi chú (chỉ có ở kind note)
+    TimelinePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimelineItem"
+        nextCursor:
+          type: string
+    # --- Khách (customer) ---
+    CustomerStats:
+      type: object
+      required: [orderCount, deliveredCount, returnedCount, totalSpent, returnRateBp]
+      properties:
+        orderCount:
+          type: integer
+          format: int32
+        deliveredCount:
+          type: integer
+          format: int32
+        returnedCount:
+          type: integer
+          format: int32
+        totalSpent:
+          $ref: "#/components/schemas/Money"
+        lastOrderAt:
+          type: string
+          format: date-time
+        returnRateBp:
+          type: integer
+          format: int32
+          description: Tỷ lệ hoàn theo phần vạn = hoàn × 10000 / (giao xong + hoàn)
+    CustomerIdentityKind:
+      type: string
+      enum: [phone, fb_psid, zalo_uid, email, web_account]
+    CustomerIdentity:
+      type: object
+      required: [id, customerId, kind, value, source, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+          description: Hồ sơ (con hay gốc) đang giữ danh tính
+        kind:
+          $ref: "#/components/schemas/CustomerIdentityKind"
+        scope:
+          type: string
+        value:
+          type: string
+        verifiedAt:
+          type: string
+          format: date-time
+        source:
+          type: string
+          enum: [order, chat, staff, web, import]
+        createdAt:
+          type: string
+          format: date-time
+    CustomerAddress:
+      type: object
+      required: [id, customerId, address, isDefault, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        address:
+          $ref: "#/components/schemas/Address"
+        isDefault:
+          type: boolean
+        version:
+          type: integer
+          format: int64
+    CustomerTag:
+      type: object
+      required: [id, name, color, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        color:
+          type: string
+        version:
+          type: integer
+          format: int64
+    CustomerTagLink:
+      type: object
+      required: [tag, source]
+      properties:
+        tag:
+          $ref: "#/components/schemas/CustomerTag"
+        source:
+          type: string
+          enum: [staff, rule]
+    CustomerTagList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerTag"
+    Customer:
+      type: object
+      required: [id, rootId, code, fullName, lifecycle, stats, memberIds, identities, addresses, tags, version, createdAt]
+      description: Hồ sơ theo gốc (id là gốc); chỉ số chỉ đúng ở gốc
+      properties:
+        id:
+          type: string
+          format: uuid
+        rootId:
+          type: string
+          format: uuid
+        code:
+          type: string
+          description: Mã khách KH + số
+        fullName:
+          type: string
+        lifecycle:
+          type: string
+          enum: [lead, customer]
+        birthday:
+          type: string
+          format: date
+        stats:
+          $ref: "#/components/schemas/CustomerStats"
+        memberIds:
+          type: array
+          description: Mọi hồ sơ trong nhóm (gồm gốc)
+          items:
+            type: string
+            format: uuid
+        identities:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerIdentity"
+        addresses:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerAddress"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerTagLink"
+        version:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+    CustomerListItem:
+      type: object
+      required: [id, code, fullName, phones, stats]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Mã gốc
+        code:
+          type: string
+        fullName:
+          type: string
+        phones:
+          type: array
+          items:
+            type: string
+        matchedBy:
+          type: string
+          enum: [code, phone, phone_tail, name]
+        stats:
+          $ref: "#/components/schemas/CustomerStats"
+    CustomerPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerListItem"
+        nextCursor:
+          type: string
+    CreateCustomerRequest:
+      type: object
+      additionalProperties: false
+      required: [fullName]
+      properties:
+        fullName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        phone:
+          $ref: "#/components/schemas/PhoneInput"
+        birthday:
+          type: string
+          format: date
+        address:
+          $ref: "#/components/schemas/AddressInput"
+    UpdateCustomerRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+        fullName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        birthday:
+          type: string
+          format: date
+        clearBirthday:
+          type: boolean
+          description: true → xóa ngày sinh
+    AddCustomerIdentityRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, value]
+      properties:
+        kind:
+          type: string
+          description: Nhân viên thêm được SĐT, email, Zalo (fb_psid do M4 quản, web_account do website gửi)
+          enum: [phone, email, zalo_uid]
+        value:
+          type: string
+          minLength: 1
+          maxLength: 200
+    CustomerAddressInput:
+      type: object
+      additionalProperties: false
+      required: [address]
+      properties:
+        address:
+          $ref: "#/components/schemas/AddressInput"
+        isDefault:
+          type: boolean
+    UpdateCustomerAddressRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+        address:
+          $ref: "#/components/schemas/AddressInput"
+        isDefault:
+          type: boolean
+    AdminUnit:
+      type: object
+      required: [code, name, level]
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        level:
+          type: string
+          enum: [province, ward]
+        parentCode:
+          type: string
+    AdminUnitList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminUnit"
+    MergeCandidate:
+      type: object
+      required: [rootId, code, fullName, matchedPhones, stats]
+      properties:
+        rootId:
+          type: string
+          format: uuid
+        code:
+          type: string
+        fullName:
+          type: string
+        matchedPhones:
+          type: array
+          items:
+            type: string
+        stats:
+          $ref: "#/components/schemas/CustomerStats"
+    MergeCandidateList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MergeCandidate"
+    MergeCustomerRequest:
+      type: object
+      additionalProperties: false
+      required: [mergedId, matchedBy]
+      properties:
+        mergedId:
+          type: string
+          format: uuid
+        matchedBy:
+          type: string
+          enum: [phone, staff]
+    CustomerMerge:
+      type: object
+      required: [id, survivorId, mergedId, movedIds, matchedBy, actor, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        survivorId:
+          type: string
+          format: uuid
+        mergedId:
+          type: string
+          format: uuid
+        movedIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        matchedBy:
+          type: string
+          enum: [phone, staff]
+        actor:
+          $ref: "#/components/schemas/Actor"
+        createdAt:
+          type: string
+          format: date-time
+        undoneAt:
+          type: string
+          format: date-time
+    AddCustomerNoteRequest:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 4000
+    TagColor:
+      type: string
+      description: Khóa màu của console (bảng màu nhãn)
+      pattern: "^[a-z][a-z0-9_]{0,31}$"
+    CreateCustomerTagRequest:
+      type: object
+      additionalProperties: false
+      required: [name, color]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        color:
+          $ref: "#/components/schemas/TagColor"
+    UpdateCustomerTagRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        color:
+          $ref: "#/components/schemas/TagColor"
+    TagCondition:
+      type: object
+      additionalProperties: false
+      required: [field, op, value]
+      properties:
+        field:
+          type: string
+          enum: [order_count, delivered_count, returned_count, total_spent, days_since_last_order, return_rate_bp]
+        op:
+          type: string
+          enum: [gte, lte]
+        value:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+    CustomerTagRule:
+      type: object
+      required: [tagId, enabled, conditions, version]
+      properties:
+        tagId:
+          type: string
+          format: uuid
+        enabled:
+          type: boolean
+        conditions:
+          type: array
+          items:
+            $ref: "#/components/schemas/TagCondition"
+        version:
+          type: integer
+          format: int64
+    PutCustomerTagRuleRequest:
+      type: object
+      additionalProperties: false
+      required: [enabled, conditions]
+      properties:
+        version:
+          type: integer
+          format: int64
+          description: Bỏ trống khi nhãn chưa có quy tắc; có quy tắc thì phải khớp version hiện tại
+        enabled:
+          type: boolean
+        conditions:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/TagCondition"
+    StartCustomerImportRequest:
+      type: object
+      additionalProperties: false
+      required: [fileId]
+      properties:
+        fileId:
+          type: string
+          format: uuid
+    StartCustomerImportResult:
+      type: object
+      required: [importId]
+      properties:
+        importId:
+          type: string
+          format: uuid
+    CustomerImportError:
+      type: object
+      required: [row, code]
+      description: Lỗi một dòng, không kèm giá trị ô
+      properties:
+        row:
+          type: integer
+          format: int32
+        column:
+          type: string
+        code:
+          type: string
+    CustomerImport:
+      type: object
+      required: [id, status, errors, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, done, failed]
+        totalRows:
+          type: integer
+          format: int32
+        okRows:
+          type: integer
+          format: int32
+        skippedRows:
+          type: integer
+          format: int32
+        errorRows:
+          type: integer
+          format: int32
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerImportError"
+        createdAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+    # --- Đơn (order) ---
+    OrderWarning:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          description: Chuỗi mở (phone_belongs_to_other_customer, possible_duplicate)
+        refId:
+          type: string
+          format: uuid
+    EditScope:
+      type: object
+      required: [lines, discounts, coupon, address, shipping, carrierNote, careBy, trafficSource]
+      description: Trường được sửa ở trạng thái hiện tại (Task M2-08, Q25)
+      properties:
+        lines:
+          type: boolean
+        discounts:
+          type: boolean
+        coupon:
+          type: boolean
+        address:
+          type: boolean
+        shipping:
+          type: boolean
+          description: Phí giao (shippingFee)
+        carrierNote:
+          type: boolean
+        careBy:
+          type: boolean
+        trafficSource:
+          type: boolean
+    OrderCustomer:
+      type: object
+      required: [id, rootId, code, fullName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        rootId:
+          type: string
+          format: uuid
+        code:
+          type: string
+        fullName:
+          type: string
+        stats:
+          $ref: "#/components/schemas/CustomerStats"
+    ReturnSummary:
+      type: object
+      required: [id, code, kind, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ReturnKind"
+        status:
+          $ref: "#/components/schemas/ReturnStatus"
+    OrderLineInput:
+      type: object
+      additionalProperties: false
+      required: [variantId, qty]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        qty:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10000
+        lineDiscount:
+          $ref: "#/components/schemas/Money"
+    EditOrderLine:
+      type: object
+      additionalProperties: false
+      required: [variantId, qty]
+      properties:
+        itemId:
+          type: string
+          format: uuid
+          description: Dòng đang có (giữ đơn giá cũ); bỏ trống là dòng mới
+        variantId:
+          type: string
+          format: uuid
+        qty:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10000
+        lineDiscount:
+          $ref: "#/components/schemas/Money"
+    UpdateOrderRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      description: Chỉ gửi trường muốn đổi; lines là danh sách dòng mong muốn, đủ cả dòng giữ nguyên
+      properties:
+        version:
+          type: integer
+          format: int64
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/EditOrderLine"
+        orderDiscount:
+          $ref: "#/components/schemas/Money"
+        couponCode:
+          type: string
+          maxLength: 32
+          description: Chuỗi rỗng = bỏ mã
+        shippingFee:
+          $ref: "#/components/schemas/Money"
+        shipAddress:
+          $ref: "#/components/schemas/ShipAddress"
+        carrierNote:
+          type: string
+          maxLength: 500
+        careBy:
+          type: string
+          format: uuid
+        trafficSourceId:
+          type: string
+          format: uuid
+    SetOrderPendingRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+        reason:
+          type: string
+          description: Bỏ trống → bỏ lý do chờ (không bỏ được discount_approval)
+          enum: [awaiting_customer, out_of_stock]
+    CancelOrderRequest:
+      type: object
+      additionalProperties: false
+      required: [version, reason]
+      properties:
+        version:
+          type: integer
+          format: int64
+        reason:
+          type: string
+          enum: [customer_changed_mind, out_of_stock, unreachable, wrong_info, other]
+        note:
+          type: string
+          maxLength: 500
+    AddOrderNoteRequest:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    OrderListItem:
+      type: object
+      required: [id, code, label, status, customerId, customerName, grandTotal, codAmount, itemCount, createdAt, duplicateSuspect]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        label:
+          $ref: "#/components/schemas/OrderLabel"
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        pendingReason:
+          $ref: "#/components/schemas/PendingReason"
+        customerId:
+          type: string
+          format: uuid
+          description: Gốc của khách
+        customerName:
+          type: string
+        shipPhone:
+          type: string
+        grandTotal:
+          $ref: "#/components/schemas/Money"
+        codAmount:
+          $ref: "#/components/schemas/Money"
+        itemCount:
+          type: integer
+          format: int32
+        channel:
+          type: string
+        trafficSourceId:
+          type: string
+          format: uuid
+        careBy:
+          $ref: "#/components/schemas/Actor"
+        createdAt:
+          type: string
+          format: date-time
+        duplicateSuspect:
+          type: boolean
+    OrderPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderListItem"
+        nextCursor:
+          type: string
+    OrderList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderListItem"
+    OrderTimeline:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimelineItem"
+    OrderDuplicate:
+      type: object
+      required: [order, otherOrder, matchedBy, createdAt]
+      properties:
+        order:
+          $ref: "#/components/schemas/OrderListItem"
+        otherOrder:
+          $ref: "#/components/schemas/OrderListItem"
+        matchedBy:
+          type: string
+          enum: [customer, phone]
+        createdAt:
+          type: string
+          format: date-time
+        resolution:
+          type: string
+          enum: [not_duplicate, cancelled]
+        resolvedAt:
+          type: string
+          format: date-time
+    OrderDuplicatePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderDuplicate"
+        nextCursor:
+          type: string
+    ResolveOrderDuplicateRequest:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [not_duplicate, cancel_other, cancel_this]
+    ReturnKind:
+      type: string
+      enum: [carrier_return, customer_return, exchange, partial_delivery]
+    ReturnStatus:
+      type: string
+      enum: [requested, received, restocked, closed, cancelled]
+    ReturnItem:
+      type: object
+      required: [id, orderItemId, qty, refundAmount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderItemId:
+          type: string
+          format: uuid
+        qty:
+          type: integer
+          format: int32
+        condition:
+          type: string
+          enum: [sellable, damaged, missing]
+        refundAmount:
+          $ref: "#/components/schemas/Money"
+    Return:
+      type: object
+      required: [id, code, orderId, kind, status, refundAmount, items, createdAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          description: Mã phiếu trả TH + số
+        orderId:
+          type: string
+          format: uuid
+        shipmentId:
+          type: string
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/ReturnKind"
+        status:
+          $ref: "#/components/schemas/ReturnStatus"
+        reason:
+          type: string
+        refundAmount:
+          $ref: "#/components/schemas/Money"
+        replacementOrderId:
+          type: string
+          format: uuid
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReturnItem"
+        receivedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+    ReturnPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Return"
+        nextCursor:
+          type: string
+    CreateReturnRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, lines]
+      properties:
+        kind:
+          type: string
+          enum: [customer_return, exchange]
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [orderItemId, qty]
+            properties:
+              orderItemId:
+                type: string
+                format: uuid
+              qty:
+                type: integer
+                format: int32
+                minimum: 1
+                maximum: 10000
+        reason:
+          type: string
+          maxLength: 500
+        replacement:
+          type: object
+          additionalProperties: false
+          required: [items]
+          description: Chỉ với exchange — dòng của đơn thay thế (không mã giảm giá, cùng khách)
+          properties:
+            items:
+              type: array
+              minItems: 1
+              maxItems: 100
+              items:
+                $ref: "#/components/schemas/OrderLineInput"
+            shipAddress:
+              $ref: "#/components/schemas/ShipAddress"
+            shippingFee:
+              $ref: "#/components/schemas/Money"
+    ReceiveReturnRequest:
+      type: object
+      additionalProperties: false
+      required: [version, lines]
+      properties:
+        version:
+          type: integer
+          format: int64
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [orderItemId, condition]
+            properties:
+              orderItemId:
+                type: string
+                format: uuid
+              condition:
+                type: string
+                enum: [sellable, damaged, missing]
+    TrafficSource:
+      type: object
+      required: [id, name, active, position, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        key:
+          type: string
+          description: Khóa cố định của nguồn hệ thống (web, manual…); nguồn do nhân viên tạo không có
+        name:
+          type: string
+        active:
+          type: boolean
+        position:
+          type: integer
+          format: int32
+        version:
+          type: integer
+          format: int64
+    TrafficSourceList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrafficSource"
+    CreateTrafficSourceRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+    UpdateTrafficSourceRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        active:
+          type: boolean
+        position:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 10000
+    OrderSettings:
+      type: object
+      required: [draftTtlMinutes, duplicateWindowMinutes, discountApprovalThresholdBp, returnWarningDays, version]
+      properties:
+        draftTtlMinutes:
+          type: integer
+          format: int32
+        duplicateWindowMinutes:
+          type: integer
+          format: int32
+        discountApprovalThresholdBp:
+          type: integer
+          format: int32
+        returnWarningDays:
+          type: integer
+          format: int32
+        version:
+          type: integer
+          format: int64
+    UpdateOrderSettingsRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      description: Khoảng hợp lệ kiểm ở máy chủ (422 setting_out_of_range nêu tên trường)
+      properties:
+        version:
+          type: integer
+          format: int64
+        draftTtlMinutes:
+          type: integer
+          format: int32
+        duplicateWindowMinutes:
+          type: integer
+          format: int32
+        discountApprovalThresholdBp:
+          type: integer
+          format: int32
+        returnWarningDays:
+          type: integer
+          format: int32
+    # --- Mã giảm giá (promotion) ---
+    CouponStatus:
+      type: string
+      enum: [active, disabled]
+    DiscountKind:
+      type: string
+      enum: [percent, fixed]
+    Coupon:
+      type: object
+      required: [id, code, name, discountKind, value, minSubtotal, channels, usedCount, releaseOnCancel, validFrom, validTo, status, bound, createdAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        batchId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        discountKind:
+          $ref: "#/components/schemas/DiscountKind"
+        value:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 9007199254740991
+          description: percent → phần vạn (1–10000); fixed → số đồng
+        maxDiscount:
+          $ref: "#/components/schemas/Money"
+        minSubtotal:
+          $ref: "#/components/schemas/Money"
+        channels:
+          type: array
+          description: Rỗng = mọi kênh
+          items:
+            type: string
+        maxUses:
+          type: integer
+          format: int32
+        usedCount:
+          type: integer
+          format: int32
+        remainingUses:
+          type: integer
+          format: int32
+        perCustomerLimit:
+          type: integer
+          format: int32
+        releaseOnCancel:
+          type: boolean
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/CouponStatus"
+        bound:
+          type: boolean
+          description: Mã gắn với một khách hoặc một SĐT (không trả SĐT)
+        createdAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+    CouponPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Coupon"
+        nextCursor:
+          type: string
+    CouponTemplate:
+      type: object
+      additionalProperties: false
+      required: [name, discountKind, value, validFrom, validTo]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        discountKind:
+          $ref: "#/components/schemas/DiscountKind"
+        value:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 9007199254740991
+        maxDiscount:
+          $ref: "#/components/schemas/Money"
+        minSubtotal:
+          $ref: "#/components/schemas/Money"
+        channels:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/OrderChannel"
+        perCustomerLimit:
+          type: integer
+          format: int32
+          minimum: 1
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+    CreateCouponRequest:
+      type: object
+      additionalProperties: false
+      required: [name, discountKind, value, validFrom, validTo]
+      properties:
+        code:
+          type: string
+          pattern: "^[A-Za-z0-9-]{3,32}$"
+          description: Bỏ trống → máy chủ sinh mã 8 ký tự
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        discountKind:
+          $ref: "#/components/schemas/DiscountKind"
+        value:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 9007199254740991
+        maxDiscount:
+          $ref: "#/components/schemas/Money"
+        minSubtotal:
+          $ref: "#/components/schemas/Money"
+        channels:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/OrderChannel"
+        maxUses:
+          type: integer
+          format: int32
+          minimum: 1
+        perCustomerLimit:
+          type: integer
+          format: int32
+          minimum: 1
+        releaseOnCancel:
+          type: boolean
+          description: Mặc định true (Q2)
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+        boundCustomerId:
+          type: string
+          format: uuid
+        boundPhone:
+          $ref: "#/components/schemas/PhoneInput"
+    UpdateCouponRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      description: Mã đã có lượt dùng chỉ đổi được name, validTo, maxUses, status
+      properties:
+        version:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        discountKind:
+          $ref: "#/components/schemas/DiscountKind"
+        value:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 9007199254740991
+        maxDiscount:
+          $ref: "#/components/schemas/Money"
+        minSubtotal:
+          $ref: "#/components/schemas/Money"
+        channels:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/OrderChannel"
+        maxUses:
+          type: integer
+          format: int32
+          minimum: 1
+        perCustomerLimit:
+          type: integer
+          format: int32
+          minimum: 1
+        releaseOnCancel:
+          type: boolean
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/CouponStatus"
+    CreateCouponBatchRequest:
+      type: object
+      additionalProperties: false
+      required: [name, quantity, template]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        prefix:
+          type: string
+          pattern: "^[A-Z0-9]{0,8}$"
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100000
+          description: Bằng số SĐT khi có boundPhones
+        template:
+          $ref: "#/components/schemas/CouponTemplate"
+        boundPhones:
+          type: array
+          maxItems: 100000
+          items:
+            $ref: "#/components/schemas/PhoneInput"
+    CouponBatch:
+      type: object
+      required: [id, name, prefix, quantity, template, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        prefix:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+        template:
+          $ref: "#/components/schemas/CouponTemplate"
+        createdAt:
+          type: string
+          format: date-time
+    CouponRedemption:
+      type: object
+      required: [id, orderId, orderCode, discount, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+        discount:
+          $ref: "#/components/schemas/Money"
+        status:
+          type: string
+          enum: [active, released]
+        createdAt:
+          type: string
+          format: date-time
+        releasedAt:
+          type: string
+          format: date-time
+    CouponRedemptionPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CouponRedemption"
+        nextCursor:
+          type: string
+    CouponCheck:
+      type: object
+      required: [ok, discount]
+      properties:
+        ok:
+          type: boolean
+        discount:
+          $ref: "#/components/schemas/Money"
+        reason:
+          $ref: "#/components/schemas/CouponRejectReason"
+        remainingUses:
+          type: integer
+          format: int32

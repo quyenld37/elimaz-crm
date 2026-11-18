@@ -27,6 +27,35 @@ var (
 	ErrShipmentAlreadyAttached = errors.New("order: đơn đã có vận đơn hiện hành khác")
 	// ErrStatusConflict: đơn không ở trạng thái cho việc này, hoặc giữ hàng của đơn lệch trạng thái đơn.
 	ErrStatusConflict = errors.New("order: đơn không ở trạng thái cần")
+
+	// Sentinel của M2 (kế hoạch M2, Task M2-02 khai một lần; task sau chỉ dùng).
+
+	// ErrVersionConflict: version gửi lên khác version hiện tại của đơn (người khác vừa sửa).
+	ErrVersionConflict = errors.New("order: đơn đã đổi phiên bản")
+	// ErrInvalidTransition: cặp trạng thái không có trong sơ đồ (05 mục 2), hoặc trường không sửa được ở trạng thái này.
+	ErrInvalidTransition = errors.New("order: không chuyển được trạng thái")
+	// ErrAddressIncomplete: chốt đơn khi địa chỉ giao chưa đủ tỉnh, xã, số nhà.
+	ErrAddressIncomplete = errors.New("order: địa chỉ giao chưa đủ")
+	// ErrNeedsApproval: đơn đang chờ duyệt giảm giá, chưa xác nhận được.
+	ErrNeedsApproval = errors.New("order: đơn chờ duyệt giảm giá")
+	// ErrDiscountNeedsApproval: sửa đơn đã xác nhận làm giảm giá vượt ngưỡng mà người sửa không có quyền duyệt.
+	ErrDiscountNeedsApproval = errors.New("order: giảm giá vượt ngưỡng cần người có quyền duyệt")
+	// ErrVariantNotFound: biến thể không có (kể cả của tenant khác).
+	ErrVariantNotFound = errors.New("order: không có biến thể")
+	// ErrLineDiscountExceeds: giảm giá dòng lớn hơn thành tiền dòng.
+	ErrLineDiscountExceeds = errors.New("order: giảm giá dòng vượt thành tiền dòng")
+	// ErrOrderDiscountExceeds: giảm cấp đơn cộng giảm mã lớn hơn tạm tính sau giảm dòng.
+	ErrOrderDiscountExceeds = errors.New("order: giảm giá đơn vượt tạm tính")
+	// ErrLockedByShipment: đơn có vận đơn hiện hành, trường này không sửa được (Q25).
+	ErrLockedByShipment = errors.New("order: đơn đã gửi hãng, không sửa được trường này")
+	// ErrTrafficSourceInactive: nguồn đơn không có hoặc đã tắt.
+	ErrTrafficSourceInactive = errors.New("order: nguồn đơn không dùng được")
+	// ErrReturnQtyExceeds: số trả vượt số đã mua trừ số đã trả (kể cả phiếu đang mở).
+	ErrReturnQtyExceeds = errors.New("order: số lượng trả vượt số còn trả được")
+	// ErrReturnNotAllowed: đơn không ở trạng thái cho tạo phiếu trả, hoặc phiếu không ở trạng thái cho việc này.
+	ErrReturnNotAllowed = errors.New("order: không trả hàng được")
+	// ErrSettingOutOfRange: cài đặt đơn ngoài khoảng cho phép.
+	ErrSettingOutOfRange = errors.New("order: cài đặt ngoài khoảng cho phép")
 )
 
 // OutOfStockError là chi tiết của ErrOutOfStock: dòng đầu tiên (theo thứ tự khóa) không đủ hàng.

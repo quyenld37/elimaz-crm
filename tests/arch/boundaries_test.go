@@ -99,10 +99,20 @@ func imagerForbidden(imp string) bool {
 	return false
 }
 
+// isStdlib: đường nhập của thư viện chuẩn (phần đầu không có dấu chấm).
+func isStdlib(imp string) bool {
+	first, _, _ := strings.Cut(imp, "/")
+	return !strings.Contains(first, ".")
+}
+
 // readerViolation: luật (f), (g) của M1 (Task M1-25) cho gói chỉ đọc view và cho imager; luật (h) của Task M1-38
-// cho gói Excel dùng chung (không biết nghiệp vụ, là chỗ duy nhất nhập excelize).
+// cho gói Excel dùng chung (không biết nghiệp vụ, là chỗ duy nhất nhập excelize); luật (i) của M2 (Task M2-02, Q32)
+// cho gói nhãn đơn internal/queries/orderview: chỉ thư viện chuẩn, để module order và gói internal/queries cùng nhập
+// (ngoại lệ có lý do: một nguồn nhãn cho màn đơn M2, cảnh báo M3, báo cáo M6).
 func readerViolation(pkg, imp string) string {
 	switch {
+	case hasPathPrefix(pkg, "internal/queries/orderview") && !isStdlib(imp):
+		return "(i) internal/queries/orderview chỉ nhập thư viện chuẩn"
 	case hasPathPrefix(pkg, "internal/platform/xlsx") && hasPathPrefix(imp, modPrefix+"internal/modules"):
 		return "(h) internal/platform/xlsx không nhập internal/modules/**"
 	case !hasPathPrefix(pkg, "internal/platform/xlsx") && hasPathPrefix(imp, "github.com/xuri/excelize"):
@@ -182,10 +192,12 @@ func TestBoundariesTestdata(t *testing.T) {
 		"internal/imager nhập github.com/jackc/pgx/v5: (g)",
 		"internal/modules/catalog nhập elimaz.com.vn/crm/internal/modules/order/internal/store: (a)",
 		"internal/modules/customer nhập github.com/valkey-io/valkey-go: (d)",
+		"internal/modules/customer/callorder nhập elimaz.com.vn/crm/internal/modules/order: (a)",
 		"internal/modules/identity nhập net/http: (b)",
 		"internal/modules/inventory nhập elimaz.com.vn/crm/internal/modules/order: (a)",
 		"internal/platform/queue nhập elimaz.com.vn/crm/internal/modules/order: (c)",
 		"internal/queries nhập elimaz.com.vn/crm/internal/modules/catalog: (f)",
+		"internal/queries/orderview nhập elimaz.com.vn/crm/internal/modules/order: (i)",
 		"tools/probe nhập elimaz.com.vn/crm/spikes/flashsale: (e)",
 	}
 	if len(got) != len(want) {
@@ -241,6 +253,20 @@ func TestBoundariesNotCalledModule(t *testing.T) {
 		{"internal/modules/catalog/internal/importer", modPrefix + "internal/platform/xlsx", ""},
 		{"cmd/crm", "github.com/xuri/excelize/v2", "(h)"},
 		{"internal/platform/xlsxstream", "github.com/xuri/excelize/v2", "(h)"},
+		// Kế hoạch M2 (Task M2-02): customer không nhập order (chỉ đọc view ord); gói nhãn orderview (Q32) chỉ nhập
+		// thư viện chuẩn, được order và internal/queries nhập.
+		{"internal/modules/customer", modPrefix + "internal/modules/order", "(a)"},
+		{"internal/modules/order", modPrefix + "internal/modules/promotion", ""},
+		{"internal/modules/promotion", modPrefix + "internal/modules/customer", ""},
+		{"internal/modules/promotion", modPrefix + "internal/modules/order", "(a)"},
+		{"internal/queries/orderview", modPrefix + "internal/modules/order", "(i)"},
+		{"internal/queries/orderview", modPrefix + "internal/platform/db", "(i)"},
+		{"internal/queries/orderview", "github.com/google/uuid", "(i)"},
+		{"internal/queries/orderview", "strings", ""},
+		{"internal/queries/orderview/x", "slices", ""},
+		{"internal/modules/order", modPrefix + "internal/queries/orderview", ""},
+		{"internal/modules/order/internal/state", modPrefix + "internal/queries/orderview", ""},
+		{"internal/queries", modPrefix + "internal/queries/orderview", ""},
 	}
 	for _, c := range cases {
 		got := boundaryViolation(c.pkg, c.imp)
