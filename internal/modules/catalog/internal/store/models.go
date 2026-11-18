@@ -102,6 +102,25 @@ type CatalogCategory struct {
 	Version   int64
 }
 
+type CatalogImport struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	FileID      uuid.UUID
+	FileSha256  []byte
+	Status      string
+	SellerID    uuid.UUID
+	Summary     []byte
+	Errors      []byte
+	Plan        []byte
+	DuplicateOf *uuid.UUID
+	CreatedBy   uuid.UUID
+	AppliedBy   *uuid.UUID
+	AppliedAt   pgtype.Timestamptz
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Version     int64
+}
+
 type CatalogProduct struct {
 	ID          uuid.UUID
 	TenantID    uuid.UUID

@@ -118,6 +118,18 @@ func (UnimplementedHandler) CreateAttribute(ctx context.Context, req *CreateAttr
 	return r, ht.ErrNotImplemented
 }
 
+// CreateCatalogImport implements createCatalogImport operation.
+//
+// Tạo bản nhập ở trạng thái validating và xếp lệnh kiểm tệp
+// (catalog.import.validate); đọc kết quả bằng getCatalogImport. Tệp không có, của shop
+// khác, đã xóa → 404 not_found; sai mục đích hay chưa tải lên xong → 409
+// file_not_ready. Bước áp dụng ở applyCatalogImport (Task M1-47b).
+//
+// POST /api/v1/catalog/imports
+func (UnimplementedHandler) CreateCatalogImport(ctx context.Context, req *CreateCatalogImportRequest, params CreateCatalogImportParams) (r CreateCatalogImportRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateCategory implements createCategory operation.
 //
 // Tạo danh mục (tối đa 3 cấp; slug để trống thì sinh từ tên).
@@ -221,6 +233,25 @@ func (UnimplementedHandler) CreateUpload(ctx context.Context, req *CreateUploadR
 //
 // DELETE /api/v1/catalog/products/{id}/images/{imageId}
 func (UnimplementedHandler) DeleteProductImage(ctx context.Context, params DeleteProductImageParams) (r DeleteProductImageRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetCatalogImport implements getCatalogImport operation.
+//
+// Trạng thái, tóm tắt và lỗi từng dòng của một bản nhập.
+//
+// GET /api/v1/catalog/imports/{id}
+func (UnimplementedHandler) GetCatalogImport(ctx context.Context, params GetCatalogImportParams) (r GetCatalogImportRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetCatalogImportTemplate implements getCatalogImportTemplate operation.
+//
+// Tải tệp mẫu Excel sản phẩm (cột của mẫu, cột thuộc tính đang có, danh sách
+// chọn danh mục và trạng thái).
+//
+// GET /api/v1/catalog/imports/template
+func (UnimplementedHandler) GetCatalogImportTemplate(ctx context.Context) (r GetCatalogImportTemplateRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

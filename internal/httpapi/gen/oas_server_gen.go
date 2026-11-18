@@ -80,6 +80,15 @@ type Handler interface {
 	//
 	// POST /api/v1/catalog/attributes
 	CreateAttribute(ctx context.Context, req *CreateAttributeRequest, params CreateAttributeParams) (CreateAttributeRes, error)
+	// CreateCatalogImport implements createCatalogImport operation.
+	//
+	// Tạo bản nhập ở trạng thái validating và xếp lệnh kiểm tệp
+	// (catalog.import.validate); đọc kết quả bằng getCatalogImport. Tệp không có, của shop
+	// khác, đã xóa → 404 not_found; sai mục đích hay chưa tải lên xong → 409
+	// file_not_ready. Bước áp dụng ở applyCatalogImport (Task M1-47b).
+	//
+	// POST /api/v1/catalog/imports
+	CreateCatalogImport(ctx context.Context, req *CreateCatalogImportRequest, params CreateCatalogImportParams) (CreateCatalogImportRes, error)
 	// CreateCategory implements createCategory operation.
 	//
 	// Tạo danh mục (tối đa 3 cấp; slug để trống thì sinh từ tên).
@@ -153,6 +162,19 @@ type Handler interface {
 	//
 	// DELETE /api/v1/catalog/products/{id}/images/{imageId}
 	DeleteProductImage(ctx context.Context, params DeleteProductImageParams) (DeleteProductImageRes, error)
+	// GetCatalogImport implements getCatalogImport operation.
+	//
+	// Trạng thái, tóm tắt và lỗi từng dòng của một bản nhập.
+	//
+	// GET /api/v1/catalog/imports/{id}
+	GetCatalogImport(ctx context.Context, params GetCatalogImportParams) (GetCatalogImportRes, error)
+	// GetCatalogImportTemplate implements getCatalogImportTemplate operation.
+	//
+	// Tải tệp mẫu Excel sản phẩm (cột của mẫu, cột thuộc tính đang có, danh sách
+	// chọn danh mục và trạng thái).
+	//
+	// GET /api/v1/catalog/imports/template
+	GetCatalogImportTemplate(ctx context.Context) (GetCatalogImportTemplateRes, error)
 	// GetFile implements getFile operation.
 	//
 	// Trạng thái tệp và các biến thể ảnh công khai.

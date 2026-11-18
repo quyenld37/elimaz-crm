@@ -473,6 +473,61 @@ func (s CatalogCode) Validate() error {
 	return nil
 }
 
+func (s *CatalogImport) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Status.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "status",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Errors == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "errors",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CatalogImportStatus) Validate() error {
+	switch s {
+	case "validating":
+		return nil
+	case "invalid":
+		return nil
+	case "ready":
+		return nil
+	case "applying":
+		return nil
+	case "applied":
+		return nil
+	case "duplicate":
+		return nil
+	case "failed":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *Category) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer

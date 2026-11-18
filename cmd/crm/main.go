@@ -25,6 +25,7 @@ import (
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/imager"
 	"elimaz.com.vn/crm/internal/modules/cash"
+	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
@@ -221,20 +222,21 @@ func newInbound(cfg config.Config, reg *metrics.Registry, bus selftest.Publisher
 	return append([]queue.Handler{split}, hs...), nil
 }
 
-// newCommands là các loại lệnh ra ngoài của tiến trình: xử lý ảnh file.process, file.process_private (Task M1-43),
+// newCommands là các loại lệnh ra ngoài của tiến trình: kiểm tệp nhập Excel catalog.import.validate (Task M1-47; chỉ
+// đọc kho tệp), xử lý ảnh file.process, file.process_private (Task M1-43),
 // tạo lại kích thước file.regenerate (Task M1-44d;
 // chỉ khi có IMAGER_URL, thiếu thì lệnh chờ trong hàng đợi), lệnh thử command.selftest (bên ngoài tại chỗ, không
 // gửi gì thật, chỉ khi CRM_ENV khác production) và hai lệnh vận chuyển fulfillment.create_shipment,
 // fulfillment.refresh_status với hãng giả (fakeCarrierOn; Task M1-31); module của mốc sau thêm lệnh thật ở đây.
 func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtime.Bus, logger *slog.Logger) ([]commands.Handler, error) {
-	var hs []commands.Handler
+	fs, err := files.NewS3Store(s3Config(cfg))
+	if err != nil {
+		return nil, fmt.Errorf("dựng kho tệp: %w", err)
+	}
+	hs := []commands.Handler{catalog.NewImportValidator(catalog.ImportValidatorOptions{DB: d, Store: fs})}
 	if cfg.ImagerURL != "" {
 		if _, ok := files.Preset(cfg.ImagePresetVersion); !ok {
 			return nil, fmt.Errorf("%w: %d", errNoPreset, cfg.ImagePresetVersion)
-		}
-		fs, err := files.NewS3Store(s3Config(cfg))
-		if err != nil {
-			return nil, fmt.Errorf("dựng kho tệp: %w", err)
 		}
 		signCfg := s3Config(cfg)
 		signCfg.Endpoint = cfg.S3ImagerEndpoint // imager chỉ tới được kho qua mạng imaging (SigV4 ký cả host)
