@@ -82,6 +82,8 @@ const (
 	// Kho (kế hoạch M1 Task M1-29).
 	codeInsufficientStock  = "insufficient_stock"
 	codeDocumentNotDraft   = "document_not_draft"
+	codeStocktakeOpen      = "stocktake_open"
+	codeStocktakeNotOpen   = "stocktake_not_open"
 	codeSupplierNameTaken  = "supplier_name_taken"
 	codeSupplierArchived   = "supplier_archived"
 	codeSupplierNotForKind = "supplier_not_for_kind"
@@ -310,6 +312,8 @@ func inventoryError(err error) (status int, code string, ok bool) {
 		{inventory.ErrNotFound, http.StatusNotFound, codeNotFound},
 		{inventory.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
 		{inventory.ErrDocumentNotDraft, http.StatusConflict, codeDocumentNotDraft},
+		{inventory.ErrStocktakeOpen, http.StatusConflict, codeStocktakeOpen},
+		{inventory.ErrStocktakeNotOpen, http.StatusConflict, codeStocktakeNotOpen},
 		{inventory.ErrSupplierNameTaken, http.StatusConflict, codeSupplierNameTaken},
 		{inventory.ErrSupplierArchived, http.StatusUnprocessableEntity, codeSupplierArchived},
 		{inventory.ErrSupplierNotForKind, http.StatusUnprocessableEntity, codeSupplierNotForKind},

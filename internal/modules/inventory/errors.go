@@ -47,3 +47,11 @@ func (e *InsufficientError) Error() string {
 
 // Is cho errors.Is(err, ErrInsufficient).
 func (e *InsufficientError) Is(target error) bool { return target == ErrInsufficient }
+
+// Lỗi của kiểm kho (Task M1-35).
+var (
+	// ErrStocktakeOpen: kho đã có một phiên kiểm đang mở.
+	ErrStocktakeOpen = errors.New("inventory: kho đang có phiên kiểm mở")
+	// ErrStocktakeNotOpen: phiên kiểm đã áp dụng hoặc đã hủy; không đếm, áp dụng, hủy được nữa.
+	ErrStocktakeNotOpen = errors.New("inventory: phiên kiểm không còn mở")
+)

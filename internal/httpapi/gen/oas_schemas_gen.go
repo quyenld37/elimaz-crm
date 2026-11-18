@@ -207,6 +207,48 @@ func (s *AlertSummarySeverity) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/ApplyStocktakeResult
+type ApplyStocktakeResult struct {
+	Stocktake Stocktake `json:"stocktake"`
+	// Số dòng đã chỉnh tồn.
+	Adjusted int32 `json:"adjusted"`
+	// Biến thể vừa chỉnh có "có thể bán" âm (thiếu so với phần đang giữ; đơn
+	// không bị đụng).
+	Shortages []StocktakeShortage `json:"shortages"`
+}
+
+// GetStocktake returns the value of Stocktake.
+func (s *ApplyStocktakeResult) GetStocktake() Stocktake {
+	return s.Stocktake
+}
+
+// GetAdjusted returns the value of Adjusted.
+func (s *ApplyStocktakeResult) GetAdjusted() int32 {
+	return s.Adjusted
+}
+
+// GetShortages returns the value of Shortages.
+func (s *ApplyStocktakeResult) GetShortages() []StocktakeShortage {
+	return s.Shortages
+}
+
+// SetStocktake sets the value of Stocktake.
+func (s *ApplyStocktakeResult) SetStocktake(val Stocktake) {
+	s.Stocktake = val
+}
+
+// SetAdjusted sets the value of Adjusted.
+func (s *ApplyStocktakeResult) SetAdjusted(val int32) {
+	s.Adjusted = val
+}
+
+// SetShortages sets the value of Shortages.
+func (s *ApplyStocktakeResult) SetShortages(val []StocktakeShortage) {
+	s.Shortages = val
+}
+
+func (*ApplyStocktakeResult) applyStocktakeRes() {}
+
 // Ref: #/components/schemas/ArticleBlock
 type ArticleBlock struct {
 	Type    ArticleBlockType     `json:"type"`
@@ -1286,8 +1328,10 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 func (*ErrorStatusCode) abandonJobRes()                {}
 func (*ErrorStatusCode) addAttributeValueRes()         {}
 func (*ErrorStatusCode) addVariantRes()                {}
+func (*ErrorStatusCode) applyStocktakeRes()            {}
 func (*ErrorStatusCode) archiveCategoryRes()           {}
 func (*ErrorStatusCode) cancelStockDocumentRes()       {}
+func (*ErrorStatusCode) cancelStocktakeRes()           {}
 func (*ErrorStatusCode) completeUploadRes()            {}
 func (*ErrorStatusCode) createAttributeRes()           {}
 func (*ErrorStatusCode) createCategoryRes()            {}
@@ -1306,6 +1350,7 @@ func (*ErrorStatusCode) getPlatformHealthRes()         {}
 func (*ErrorStatusCode) getProductRes()                {}
 func (*ErrorStatusCode) getShipmentRes()               {}
 func (*ErrorStatusCode) getStockDocumentRes()          {}
+func (*ErrorStatusCode) getStocktakeRes()              {}
 func (*ErrorStatusCode) healthDeepRes()                {}
 func (*ErrorStatusCode) listAttributesRes()            {}
 func (*ErrorStatusCode) listCategoriesRes()            {}
@@ -1318,11 +1363,13 @@ func (*ErrorStatusCode) listSuppliersRes()             {}
 func (*ErrorStatusCode) listTagsRes()                  {}
 func (*ErrorStatusCode) lockStaffRes()                 {}
 func (*ErrorStatusCode) postStockDocumentRes()         {}
+func (*ErrorStatusCode) recordStocktakeCountRes()      {}
 func (*ErrorStatusCode) replaceStaffGrantsRes()        {}
 func (*ErrorStatusCode) replaceStockDocumentLinesRes() {}
 func (*ErrorStatusCode) retryJobRes()                  {}
 func (*ErrorStatusCode) searchVariantsRes()            {}
 func (*ErrorStatusCode) setProductClassificationRes()  {}
+func (*ErrorStatusCode) startStocktakeRes()            {}
 func (*ErrorStatusCode) streamRes()                    {}
 func (*ErrorStatusCode) unlockStaffRes()               {}
 func (*ErrorStatusCode) updateCategoryRes()            {}
@@ -3948,6 +3995,34 @@ func (s *QueueHealth) SetInDoubt(val int64) {
 	s.InDoubt = val
 }
 
+// Ref: #/components/schemas/RecordStocktakeCountRequest
+type RecordStocktakeCountRequest struct {
+	Counted int32 `json:"counted"`
+	// Bắt buộc khi ghi lại dòng đã có (version của dòng); bỏ trống khi đếm lần
+	// đầu.
+	LineVersion OptInt64 `json:"lineVersion"`
+}
+
+// GetCounted returns the value of Counted.
+func (s *RecordStocktakeCountRequest) GetCounted() int32 {
+	return s.Counted
+}
+
+// GetLineVersion returns the value of LineVersion.
+func (s *RecordStocktakeCountRequest) GetLineVersion() OptInt64 {
+	return s.LineVersion
+}
+
+// SetCounted sets the value of Counted.
+func (s *RecordStocktakeCountRequest) SetCounted(val int32) {
+	s.Counted = val
+}
+
+// SetLineVersion sets the value of LineVersion.
+func (s *RecordStocktakeCountRequest) SetLineVersion(val OptInt64) {
+	s.LineVersion = val
+}
+
 // Ref: #/components/schemas/ReplaceGrantsRequest
 type ReplaceGrantsRequest struct {
 	Version int64        `json:"version"`
@@ -4825,6 +4900,21 @@ func (s *StaffMemberStatus) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/StartStocktakeRequest
+type StartStocktakeRequest struct {
+	WarehouseId uuid.UUID `json:"warehouseId"`
+}
+
+// GetWarehouseId returns the value of WarehouseId.
+func (s *StartStocktakeRequest) GetWarehouseId() uuid.UUID {
+	return s.WarehouseId
+}
+
+// SetWarehouseId sets the value of WarehouseId.
+func (s *StartStocktakeRequest) SetWarehouseId(val uuid.UUID) {
+	s.WarehouseId = val
+}
+
 // Ref: #/components/schemas/StockDocument
 type StockDocument struct {
 	ID          uuid.UUID           `json:"id"`
@@ -5160,6 +5250,320 @@ func (s *StockDocumentVersion) GetVersion() int64 {
 // SetVersion sets the value of Version.
 func (s *StockDocumentVersion) SetVersion(val int64) {
 	s.Version = val
+}
+
+// Ref: #/components/schemas/Stocktake
+type Stocktake struct {
+	ID          uuid.UUID       `json:"id"`
+	Code        string          `json:"code"`
+	WarehouseId uuid.UUID       `json:"warehouseId"`
+	Status      StocktakeStatus `json:"status"`
+	Version     int64           `json:"version"`
+	CreatedAt   time.Time       `json:"createdAt"`
+	AppliedAt   OptDateTime     `json:"appliedAt"`
+	Lines       []StocktakeLine `json:"lines"`
+}
+
+// GetID returns the value of ID.
+func (s *Stocktake) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCode returns the value of Code.
+func (s *Stocktake) GetCode() string {
+	return s.Code
+}
+
+// GetWarehouseId returns the value of WarehouseId.
+func (s *Stocktake) GetWarehouseId() uuid.UUID {
+	return s.WarehouseId
+}
+
+// GetStatus returns the value of Status.
+func (s *Stocktake) GetStatus() StocktakeStatus {
+	return s.Status
+}
+
+// GetVersion returns the value of Version.
+func (s *Stocktake) GetVersion() int64 {
+	return s.Version
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *Stocktake) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetAppliedAt returns the value of AppliedAt.
+func (s *Stocktake) GetAppliedAt() OptDateTime {
+	return s.AppliedAt
+}
+
+// GetLines returns the value of Lines.
+func (s *Stocktake) GetLines() []StocktakeLine {
+	return s.Lines
+}
+
+// SetID sets the value of ID.
+func (s *Stocktake) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCode sets the value of Code.
+func (s *Stocktake) SetCode(val string) {
+	s.Code = val
+}
+
+// SetWarehouseId sets the value of WarehouseId.
+func (s *Stocktake) SetWarehouseId(val uuid.UUID) {
+	s.WarehouseId = val
+}
+
+// SetStatus sets the value of Status.
+func (s *Stocktake) SetStatus(val StocktakeStatus) {
+	s.Status = val
+}
+
+// SetVersion sets the value of Version.
+func (s *Stocktake) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *Stocktake) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetAppliedAt sets the value of AppliedAt.
+func (s *Stocktake) SetAppliedAt(val OptDateTime) {
+	s.AppliedAt = val
+}
+
+// SetLines sets the value of Lines.
+func (s *Stocktake) SetLines(val []StocktakeLine) {
+	s.Lines = val
+}
+
+func (*Stocktake) cancelStocktakeRes() {}
+func (*Stocktake) getStocktakeRes()    {}
+func (*Stocktake) startStocktakeRes()  {}
+
+// Ref: #/components/schemas/StocktakeLine
+type StocktakeLine struct {
+	VariantId uuid.UUID `json:"variantId"`
+	// On_hand − in_transit lúc ghi số đếm.
+	ExpectedOnShelf int32 `json:"expectedOnShelf"`
+	Counted         int32 `json:"counted"`
+	// Counted − expectedOnShelf; cộng vào tồn khi áp dụng.
+	Delta     int32     `json:"delta"`
+	CountedAt time.Time `json:"countedAt"`
+	Version   int64     `json:"version"`
+	// Tồn hiện tại (xem trước).
+	OnHand    int32 `json:"onHand"`
+	Held      int32 `json:"held"`
+	InTransit int32 `json:"inTransit"`
+	Damaged   int32 `json:"damaged"`
+	// Có thể bán hiện tại.
+	Available int32 `json:"available"`
+	// Có thể bán sau khi áp dụng (âm là thiếu so với phần đang giữ).
+	AvailableAfter int32 `json:"availableAfter"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *StocktakeLine) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetExpectedOnShelf returns the value of ExpectedOnShelf.
+func (s *StocktakeLine) GetExpectedOnShelf() int32 {
+	return s.ExpectedOnShelf
+}
+
+// GetCounted returns the value of Counted.
+func (s *StocktakeLine) GetCounted() int32 {
+	return s.Counted
+}
+
+// GetDelta returns the value of Delta.
+func (s *StocktakeLine) GetDelta() int32 {
+	return s.Delta
+}
+
+// GetCountedAt returns the value of CountedAt.
+func (s *StocktakeLine) GetCountedAt() time.Time {
+	return s.CountedAt
+}
+
+// GetVersion returns the value of Version.
+func (s *StocktakeLine) GetVersion() int64 {
+	return s.Version
+}
+
+// GetOnHand returns the value of OnHand.
+func (s *StocktakeLine) GetOnHand() int32 {
+	return s.OnHand
+}
+
+// GetHeld returns the value of Held.
+func (s *StocktakeLine) GetHeld() int32 {
+	return s.Held
+}
+
+// GetInTransit returns the value of InTransit.
+func (s *StocktakeLine) GetInTransit() int32 {
+	return s.InTransit
+}
+
+// GetDamaged returns the value of Damaged.
+func (s *StocktakeLine) GetDamaged() int32 {
+	return s.Damaged
+}
+
+// GetAvailable returns the value of Available.
+func (s *StocktakeLine) GetAvailable() int32 {
+	return s.Available
+}
+
+// GetAvailableAfter returns the value of AvailableAfter.
+func (s *StocktakeLine) GetAvailableAfter() int32 {
+	return s.AvailableAfter
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *StocktakeLine) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetExpectedOnShelf sets the value of ExpectedOnShelf.
+func (s *StocktakeLine) SetExpectedOnShelf(val int32) {
+	s.ExpectedOnShelf = val
+}
+
+// SetCounted sets the value of Counted.
+func (s *StocktakeLine) SetCounted(val int32) {
+	s.Counted = val
+}
+
+// SetDelta sets the value of Delta.
+func (s *StocktakeLine) SetDelta(val int32) {
+	s.Delta = val
+}
+
+// SetCountedAt sets the value of CountedAt.
+func (s *StocktakeLine) SetCountedAt(val time.Time) {
+	s.CountedAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *StocktakeLine) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetOnHand sets the value of OnHand.
+func (s *StocktakeLine) SetOnHand(val int32) {
+	s.OnHand = val
+}
+
+// SetHeld sets the value of Held.
+func (s *StocktakeLine) SetHeld(val int32) {
+	s.Held = val
+}
+
+// SetInTransit sets the value of InTransit.
+func (s *StocktakeLine) SetInTransit(val int32) {
+	s.InTransit = val
+}
+
+// SetDamaged sets the value of Damaged.
+func (s *StocktakeLine) SetDamaged(val int32) {
+	s.Damaged = val
+}
+
+// SetAvailable sets the value of Available.
+func (s *StocktakeLine) SetAvailable(val int32) {
+	s.Available = val
+}
+
+// SetAvailableAfter sets the value of AvailableAfter.
+func (s *StocktakeLine) SetAvailableAfter(val int32) {
+	s.AvailableAfter = val
+}
+
+func (*StocktakeLine) recordStocktakeCountRes() {}
+
+// Ref: #/components/schemas/StocktakeShortage
+type StocktakeShortage struct {
+	VariantId uuid.UUID `json:"variantId"`
+	Available int32     `json:"available"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *StocktakeShortage) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetAvailable returns the value of Available.
+func (s *StocktakeShortage) GetAvailable() int32 {
+	return s.Available
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *StocktakeShortage) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetAvailable sets the value of Available.
+func (s *StocktakeShortage) SetAvailable(val int32) {
+	s.Available = val
+}
+
+// Ref: #/components/schemas/StocktakeStatus
+type StocktakeStatus string
+
+const (
+	StocktakeStatusOpen      StocktakeStatus = "open"
+	StocktakeStatusApplied   StocktakeStatus = "applied"
+	StocktakeStatusCancelled StocktakeStatus = "cancelled"
+)
+
+// AllValues returns all StocktakeStatus values.
+func (StocktakeStatus) AllValues() []StocktakeStatus {
+	return []StocktakeStatus{
+		StocktakeStatusOpen,
+		StocktakeStatusApplied,
+		StocktakeStatusCancelled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s StocktakeStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case StocktakeStatusOpen:
+		return []byte(s), nil
+	case StocktakeStatusApplied:
+		return []byte(s), nil
+	case StocktakeStatusCancelled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *StocktakeStatus) UnmarshalText(data []byte) error {
+	switch StocktakeStatus(data) {
+	case StocktakeStatusOpen:
+		*s = StocktakeStatusOpen
+		return nil
+	case StocktakeStatusApplied:
+		*s = StocktakeStatusApplied
+		return nil
+	case StocktakeStatusCancelled:
+		*s = StocktakeStatusCancelled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type StreamOK struct {

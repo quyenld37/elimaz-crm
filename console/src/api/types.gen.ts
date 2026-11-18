@@ -637,6 +637,78 @@ export type ReplaceStockDocumentLinesRequest = {
     lines: Array<StockDocumentLine>;
 };
 
+export type StartStocktakeRequest = {
+    warehouseId: string;
+};
+
+export type RecordStocktakeCountRequest = {
+    counted: number;
+    /**
+     * Bắt buộc khi ghi lại dòng đã có (version của dòng); bỏ trống khi đếm lần đầu
+     */
+    lineVersion?: number;
+};
+
+export type StocktakeStatus = 'open' | 'applied' | 'cancelled';
+
+export type StocktakeLine = {
+    variantId: string;
+    /**
+     * on_hand − in_transit lúc ghi số đếm
+     */
+    expectedOnShelf: number;
+    counted: number;
+    /**
+     * counted − expectedOnShelf; cộng vào tồn khi áp dụng
+     */
+    delta: number;
+    countedAt: string;
+    version: number;
+    /**
+     * Tồn hiện tại (xem trước)
+     */
+    onHand: number;
+    held: number;
+    inTransit: number;
+    damaged: number;
+    /**
+     * Có thể bán hiện tại
+     */
+    available: number;
+    /**
+     * Có thể bán sau khi áp dụng (âm là thiếu so với phần đang giữ)
+     */
+    availableAfter: number;
+};
+
+export type Stocktake = {
+    id: string;
+    code: string;
+    warehouseId: string;
+    status: StocktakeStatus;
+    version: number;
+    createdAt: string;
+    appliedAt?: string;
+    lines: Array<StocktakeLine>;
+};
+
+export type StocktakeShortage = {
+    variantId: string;
+    available: number;
+};
+
+export type ApplyStocktakeResult = {
+    stocktake: Stocktake;
+    /**
+     * Số dòng đã chỉnh tồn
+     */
+    adjusted: number;
+    /**
+     * Biến thể vừa chỉnh có "có thể bán" âm (thiếu so với phần đang giữ; đơn không bị đụng)
+     */
+    shortages: Array<StocktakeShortage>;
+};
+
 export type StockDocumentVersion = {
     version: number;
 };
@@ -678,6 +750,8 @@ export type SupplierId = string;
 export type ShipmentId = string;
 
 export type StockDocumentId = string;
+
+export type StocktakeId = string;
 
 export type HealthLiveData = {
     body?: never;
@@ -2104,3 +2178,161 @@ export type GetShipmentResponses = {
 };
 
 export type GetShipmentResponse = GetShipmentResponses[keyof GetShipmentResponses];
+
+export type StartStocktakeData = {
+    body: StartStocktakeRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/inventory/stocktakes';
+};
+
+export type StartStocktakeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type StartStocktakeError = StartStocktakeErrors[keyof StartStocktakeErrors];
+
+export type StartStocktakeResponses = {
+    /**
+     * Phiên đã mở
+     */
+    201: Stocktake;
+};
+
+export type StartStocktakeResponse = StartStocktakeResponses[keyof StartStocktakeResponses];
+
+export type GetStocktakeData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/stocktakes/{id}';
+};
+
+export type GetStocktakeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetStocktakeError = GetStocktakeErrors[keyof GetStocktakeErrors];
+
+export type GetStocktakeResponses = {
+    /**
+     * Phiên kiểm
+     */
+    200: Stocktake;
+};
+
+export type GetStocktakeResponse = GetStocktakeResponses[keyof GetStocktakeResponses];
+
+export type RecordStocktakeCountData = {
+    body: RecordStocktakeCountRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+        variantId: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/stocktakes/{id}/lines/{variantId}';
+};
+
+export type RecordStocktakeCountErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RecordStocktakeCountError = RecordStocktakeCountErrors[keyof RecordStocktakeCountErrors];
+
+export type RecordStocktakeCountResponses = {
+    /**
+     * Dòng đếm sau khi ghi
+     */
+    200: StocktakeLine;
+};
+
+export type RecordStocktakeCountResponse = RecordStocktakeCountResponses[keyof RecordStocktakeCountResponses];
+
+export type ApplyStocktakeData = {
+    body: VersionRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/stocktakes/{id}/apply';
+};
+
+export type ApplyStocktakeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ApplyStocktakeError = ApplyStocktakeErrors[keyof ApplyStocktakeErrors];
+
+export type ApplyStocktakeResponses = {
+    /**
+     * Phiên đã áp dụng
+     */
+    200: ApplyStocktakeResult;
+};
+
+export type ApplyStocktakeResponse = ApplyStocktakeResponses[keyof ApplyStocktakeResponses];
+
+export type CancelStocktakeData = {
+    body: VersionRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/stocktakes/{id}/cancel';
+};
+
+export type CancelStocktakeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CancelStocktakeError = CancelStocktakeErrors[keyof CancelStocktakeErrors];
+
+export type CancelStocktakeResponses = {
+    /**
+     * Phiên đã hủy
+     */
+    200: Stocktake;
+};
+
+export type CancelStocktakeResponse = CancelStocktakeResponses[keyof CancelStocktakeResponses];

@@ -1043,6 +1043,119 @@ paths:
                 $ref: "#/components/schemas/Shipment"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/inventory/stocktakes:
+    post:
+      operationId: startStocktake
+      summary: Mở phiên kiểm kho ở một kho (một phiên mở mỗi kho; kho đã đóng → invalid_input)
+      x-permission: inventory.stocktake
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartStocktakeRequest"
+      responses:
+        "201":
+          description: Phiên đã mở
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stocktake"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/stocktakes/{id}:
+    get:
+      operationId: getStocktake
+      summary: Phiên kiểm kho kèm dòng đếm và xem trước chênh lệch
+      x-permission: inventory.read
+      parameters:
+        - $ref: "#/components/parameters/StocktakeID"
+      responses:
+        "200":
+          description: Phiên kiểm
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stocktake"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/stocktakes/{id}/lines/{variantId}:
+    put:
+      operationId: recordStocktakeCount
+      summary: Ghi số đếm của một biến thể (chụp tồn trên kệ = on_hand − in_transit lúc ghi); ghi lại cần lineVersion
+      x-permission: inventory.stocktake
+      parameters:
+        - $ref: "#/components/parameters/StocktakeID"
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordStocktakeCountRequest"
+      responses:
+        "200":
+          description: Dòng đếm sau khi ghi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StocktakeLine"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/stocktakes/{id}/apply:
+    post:
+      operationId: applyStocktake
+      summary: Áp dụng phiên (cộng chênh lệch vào tồn, không đụng phần giữ); trả danh sách thiếu so với phần giữ
+      x-permission: inventory.stocktake.apply
+      parameters:
+        - $ref: "#/components/parameters/StocktakeID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VersionRequest"
+      responses:
+        "200":
+          description: Phiên đã áp dụng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplyStocktakeResult"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/stocktakes/{id}/cancel:
+    post:
+      operationId: cancelStocktake
+      summary: Hủy phiên đang mở (tồn không đổi)
+      x-permission: inventory.stocktake
+      parameters:
+        - $ref: "#/components/parameters/StocktakeID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VersionRequest"
+      responses:
+        "200":
+          description: Phiên đã hủy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stocktake"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -1124,6 +1237,13 @@ components:
         type: string
         format: uuid
     StockDocumentID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    StocktakeID:
       name: id
       in: path
       required: true
@@ -2394,6 +2514,126 @@ components:
           maxItems: 500
           items:
             $ref: "#/components/schemas/StockDocumentLine"
+    StartStocktakeRequest:
+      type: object
+      required: [warehouseId]
+      properties:
+        warehouseId:
+          type: string
+          format: uuid
+    RecordStocktakeCountRequest:
+      type: object
+      required: [counted]
+      properties:
+        counted:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000000
+        lineVersion:
+          type: integer
+          format: int64
+          description: Bắt buộc khi ghi lại dòng đã có (version của dòng); bỏ trống khi đếm lần đầu
+    StocktakeStatus:
+      type: string
+      enum: [open, applied, cancelled]
+    StocktakeLine:
+      type: object
+      required: [variantId, expectedOnShelf, counted, delta, countedAt, version, onHand, held, inTransit, damaged, available, availableAfter]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        expectedOnShelf:
+          type: integer
+          format: int32
+          description: on_hand − in_transit lúc ghi số đếm
+        counted:
+          type: integer
+          format: int32
+        delta:
+          type: integer
+          format: int32
+          description: counted − expectedOnShelf; cộng vào tồn khi áp dụng
+        countedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+        onHand:
+          type: integer
+          format: int32
+          description: Tồn hiện tại (xem trước)
+        held:
+          type: integer
+          format: int32
+        inTransit:
+          type: integer
+          format: int32
+        damaged:
+          type: integer
+          format: int32
+        available:
+          type: integer
+          format: int32
+          description: Có thể bán hiện tại
+        availableAfter:
+          type: integer
+          format: int32
+          description: Có thể bán sau khi áp dụng (âm là thiếu so với phần đang giữ)
+    Stocktake:
+      type: object
+      required: [id, code, warehouseId, status, version, createdAt, lines]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        warehouseId:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/StocktakeStatus"
+        version:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        appliedAt:
+          type: string
+          format: date-time
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/StocktakeLine"
+    StocktakeShortage:
+      type: object
+      required: [variantId, available]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        available:
+          type: integer
+          format: int32
+    ApplyStocktakeResult:
+      type: object
+      required: [stocktake, adjusted, shortages]
+      properties:
+        stocktake:
+          $ref: "#/components/schemas/Stocktake"
+        adjusted:
+          type: integer
+          format: int32
+          description: Số dòng đã chỉnh tồn
+        shortages:
+          type: array
+          description: Biến thể vừa chỉnh có "có thể bán" âm (thiếu so với phần đang giữ; đơn không bị đụng)
+          items:
+            $ref: "#/components/schemas/StocktakeShortage"
     StockDocumentVersion:
       type: object
       required: [version]

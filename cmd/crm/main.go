@@ -26,6 +26,7 @@ import (
 	"elimaz.com.vn/crm/internal/imager"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
+	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
@@ -314,8 +315,8 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 }
 
 // alertSchedules định nghĩa hai lịch của cảnh báo (Task 19): platform.alerts mỗi 60 s (CheckRules) và platform.digest
-// (tin tổng kết 08:00 giờ Việt Nam); trả hai lệnh để đăng ký vào Runner. Gửi Telegram nên là lệnh, không phải handler
-// transactional.
+// (tin tổng kết 08:00 giờ Việt Nam); trả hai lệnh đó cùng lệnh cảnh báo thiếu hàng sau kiểm kho (cùng Alerter) để đăng
+// ký vào Runner. Gửi Telegram nên là lệnh, không phải handler transactional.
 func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logger *slog.Logger) ([]commands.Handler, error) {
 	alerter := observability.NewTelegramAlerter(d, cfg, nil, logger)
 	alerts := alertjobs.NewAlertsCommand(d, alerter, observability.RuleOptions{
@@ -330,7 +331,8 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 			return nil, fmt.Errorf("định nghĩa lịch %s: %w", s.Name, err)
 		}
 	}
-	return []commands.Handler{alerts, digest}, nil
+	// Cảnh báo thiếu hàng sau kiểm kho (Task M1-35): lệnh do inventory.ApplyStocktake ghi, không phải lịch.
+	return []commands.Handler{alerts, digest, inventory.NewShortageAlertCommand(alerter, logger)}, nil
 }
 
 // diskPaths: đĩa mỗi tiến trình tự đo cho luật disk:<process> (gauge disk_used_pct): "/" của container, thư mục tệp
