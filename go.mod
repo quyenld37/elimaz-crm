@@ -4,6 +4,10 @@ go 1.27
 
 toolchain go1.27.4
 
+// Gói npm có thể kèm tệp .go (console/node_modules, Task 317): mẫu ./... của go và golangci-lint bỏ thư mục
+// node_modules ở mọi tầng.
+ignore node_modules
+
 require (
 	github.com/aws/aws-sdk-go-v2 v1.48.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.10
