@@ -87,9 +87,14 @@ s3_download "" "$work/all"
 objects=$(find "$work/all" -type f | wc -l | tr -d ' ')
 [ "$objects" -gt 0 ] || die "bucket rỗng, không có gì để kiểm"
 bucket_bytes=$(du -sk "$work/all" | cut -f1)
-if grep -r -a -l "$MARKER" "$work/all" >"$work/plain-hits.txt"; then
-  die "tìm thấy $MARKER trong bản sao lưu: $(head -3 "$work/plain-hits.txt")"
-fi
+# grep: 0 = thấy (hỏng), 1 = không thấy (đạt), 2 = lỗi đọc tệp (không kết luận được, không được coi là "không thấy").
+grep_rc=0
+grep -r -a -l "$MARKER" "$work/all" >"$work/plain-hits.txt" || grep_rc=$?
+case $grep_rc in
+0) die "tìm thấy $MARKER trong bản sao lưu: $(head -3 "$work/plain-hits.txt")" ;;
+1) ;;
+*) die "grep lỗi (mã $grep_rc) khi đọc bản sao lưu tải về: không kết luận được về mã hóa" ;;
+esac
 # Đối chứng: cùng cách tìm phải thấy chuỗi đánh dấu trong một bản sao lưu KHÔNG mã hóa (để tiền tố riêng, xóa ngay sau).
 dc exec -T -u postgres postgres bash -c \
   'unset WALG_LIBSODIUM_KEY WALG_LIBSODIUM_KEY_TRANSFORM; WALG_S3_PREFIX="s3://'"$DRILL_BUCKET"'/control-plain" wal-g backup-push "$PGDATA"' \

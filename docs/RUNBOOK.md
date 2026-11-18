@@ -38,3 +38,77 @@ Tệp này lớn dần theo từng task; Task 23 soát lại toàn bộ.
   vẫn kiểm cả tệp lệch số.
 - Luật gộp không đổi: trong một mốc vẫn gộp theo thứ tự số khi được; lệch thì vẫn chạy, không đổi số của migration
   đã gộp. Tệp đến sau không được giả định tệp số lớn hơn chưa chạy (ví dụ không tạo lại bảng mà tệp số lớn đã tạo).
+
+## Image và compose máy chủ (Task 21)
+
+- Image chính: `docker build -t crm:<commit> .` (CI dựng, ghim theo digest; ADR-43 không dựng trên máy chạy thật).
+  Tệp chạy Go tĩnh trên distroless, chạy bằng uid 65532, không shell; kiểm sức khỏe bằng `/crm healthcheck`.
+  Image PostgreSQL: `docker build --build-context backup=scripts/backup -t crm-postgres:<commit> docker/postgres`
+  (mang sẵn `/opt/crm-backup/{base-backup.sh,weekly-verify.sh}`).
+- Compose máy chủ: `docker/compose.prod.yml`; tên biến ở `docker/compose.prod.env.example`, tệp giá trị thật nằm ngoài
+  repo. Không dịch vụ nào mở cổng ra máy: lưu lượng vào chỉ qua `cloudflared` (Cloudflare Tunnel). Nhờ vậy
+  `cf-connecting-ip` mà `ingest` đọc không giả được bằng cách gọi thẳng IP của máy. **Không thêm `ports:`** cho
+  `crm-ingest`, `crm-api` (`tests/deploy` đỏ). Đổi nền tảng (ví dụ Traefik thay tunnel) thì máy phải có tường lửa chỉ
+  nhận dải IP của Cloudflare trước khi mở cổng.
+- `imager` chỉ ở mạng `imaging` (internal): không ra internet, không tới PostgreSQL (ADR-45).
+- Ba vai trò có `stop_grace_period: 30s` (worker cần 25 s tắt êm; ít hơn thì Docker giết giữa chừng, việc dở chờ
+  hết giữ chỗ 90 s mới chạy lại). Giới hạn bộ nhớ ingest 256 MiB, api 512 MiB, worker 512 MiB, `GOMEMLIMIT` 90%
+  (chưa đo; chỉnh theo Task 22 và bản thử).
+- Chạy: `docker compose -f docker/compose.prod.yml --env-file <tệp> --profile migrate run --rm crm-migrate`, rồi
+  `up -d --wait crm-worker`, rồi `crm-api`; `crm-ingest` chỉ khi mã của nó đổi.
+- Dev: `make image && make app-up` chạy ba vai trò từ image trên compose dev (profile `app`); `make image-check` kiểm
+  cả đường (health 200, `healthy`, uid khác 0, không `.env*` trong image).
+
+## Dựng PostgreSQL lần đầu trên máy chủ (Task 21; việc treo từ Task 4, Task 19)
+
+Làm bằng `postgres` (superuser) **trước lần `crm migrate` đầu tiên**, trên database `crm` rỗng. Mật khẩu sinh mới,
+chỉ nằm trong tệp biến của máy chủ:
+
+```sql
+CREATE ROLE crm_owner LOGIN PASSWORD '<mới>';
+CREATE ROLE crm_app LOGIN NOBYPASSRLS PASSWORD '<mới>';
+CREATE ROLE crm_search NOLOGIN BYPASSRLS;
+GRANT crm_search TO crm_owner;
+-- Migration 0010 chạy GRANT pg_monitor TO crm_app: thiếu dòng này thì migrate lỗi permission denied.
+GRANT pg_monitor TO crm_owner WITH ADMIN OPTION;
+GRANT CONNECT, CREATE ON DATABASE crm TO crm_owner;
+GRANT CONNECT ON DATABASE crm TO crm_app;
+\connect crm
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS citext;
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+```
+
+Bản dev (`docker/postgres/init/01-roles.sql`) và bản diễn tập (`init-drill/01-roles.sql`) làm đúng các bước này.
+
+## Sao lưu theo lịch và kiểm bản sao lưu hằng tuần (Task 21, ADR-37)
+
+- Lịch (giờ Việt Nam; nơi chạy chốt ở bước staging — cron của máy hoặc dịch vụ theo lịch của nền tảng). Với cron của
+  máy, chạy dưới người dùng có quyền docker:
+
+  ```
+  CRON_TZ=Asia/Ho_Chi_Minh
+  0 2 * * *  docker compose -f /srv/crm/compose.prod.yml --env-file /srv/crm/crm.env exec -T -u postgres postgres /opt/crm-backup/base-backup.sh
+  0 3 * * 0  docker compose -f /srv/crm/compose.prod.yml --env-file /srv/crm/crm.env exec -T -u postgres postgres /opt/crm-backup/weekly-verify.sh
+  ```
+
+  Cron không hiểu `CRON_TZ` (cron gốc của Debian) thì đặt giờ UTC: `0 19 * * *` và `0 20 * * 6` (thứ bảy 20:00 UTC =
+  chủ nhật 03:00 giờ Việt Nam). Lệnh thoát khác 0 khi hỏng; cảnh báo vẫn đến từ `backup_runs`, không phụ thuộc thư của cron.
+- `base-backup.sh`: `wal-g backup-push`, giữ 14 bản đầy đủ; mọi lần chạy (kể cả thiếu khóa mã hóa) ghi
+  `platform.backup_runs(kind='base', ok, duration_seconds)`. Hạn mỗi lệnh WAL-G: `CRM_BACKUP_TIMEOUT` (mặc định 4 giờ).
+- `weekly-verify.sh`: tải bản mới nhất vào cụm tạm `/var/lib/postgresql/verify` (cần chỗ trống bằng cỡ database trên
+  cùng ổ), dừng ở điểm cuối của bản sao lưu, so số dòng `platform.tenants`, `identity.users`, `identity.audit_logs` với
+  database thật (dung sai: số dòng tạo sau lúc bắt đầu bản sao lưu), ghi `backup_runs(kind='restore_verify')`, xóa cụm
+  tạm. Hạn: `CRM_VERIFY_FETCH_TIMEOUT` (mặc định 2 giờ), `CRM_VERIFY_READY_TIMEOUT` (1 giờ) — WAL-G treo mãi khi sai
+  hoặc thiếu khóa, nên quá hạn được tính là hỏng. Một lượt mỗi lúc (khóa `/var/lib/postgresql/verify.lock`).
+  Trước khi tải, script đòi chỗ trống ≥ cỡ database thật + `CRM_VERIFY_MARGIN_BYTES` (mặc định 1 GiB); thiếu thì
+  hỏng ngay (`không đủ chỗ trống`) thay vì làm đầy ổ của cụm thật. Việc khi gặp: tăng ổ hoặc đặt `CRM_VERIFY_DIR` sang
+  ổ khác (không được trùng hay chứa `PGDATA`).
+- Cảnh báo (bật bằng `BACKUP_EXPECTED=true` ở worker):
+  - `backup-age` (urgent): không có bản `base` thành công trong 26 giờ. Việc: đọc `detail` dòng `base` mới nhất (bước
+    hỏng), chạy lại `base-backup.sh` bằng tay, kiểm khóa S3 và `WALG_LIBSODIUM_KEY`, chỗ trống của kho ngoài.
+  - `backup-verify` (urgent): lần `restore_verify` gần nhất `ok = false`. Việc: đọc `detail` (`backup-fetch` = không
+    tải/giải mã được; `lệch số dòng` = bản sao lưu thiếu dữ liệu; `đang có lượt khác` = hai lượt chồng nhau, chạy lại);
+    chạy `base-backup.sh` tạo bản mới rồi `weekly-verify.sh` bằng tay; chưa đạt thì coi như **không có bản sao lưu dùng
+    được**, báo chủ shop ngay.
+- Diễn tập trên máy dev: `make verify-drill` (Step 2 của Task 21), `scripts/backup/restore-drill.sh` (bấm giờ, Task 2).

@@ -30,7 +30,7 @@ const (
 )
 
 // RuleOptions là đầu vào của CheckRules. Now là đồng hồ của mọi phép so sánh (test đặt đồng hồ giả).
-// BackupExpected bật luật backup-age; DBDiskBudgetBytes > 0 bật db-size; ConnBudget > 0 bật pg-connections.
+// BackupExpected bật luật backup-age và backup-verify; DBDiskBudgetBytes > 0 bật db-size; ConnBudget > 0 bật pg-connections.
 type RuleOptions struct {
 	Now               time.Time
 	BackupExpected    bool
@@ -275,6 +275,13 @@ func backupRule(ctx context.Context, q *store.Queries, o RuleOptions) ([]alert, 
 	if !o.BackupExpected {
 		return nil, nil
 	}
+	age, err := ageRule(ctx, q, o)
+	verify, verr := verifyRule(ctx, q)
+	return append(age, verify...), errors.Join(err, verr)
+}
+
+// ageRule: không có bản sao lưu đầy đủ thành công trong 26 giờ.
+func ageRule(ctx context.Context, q *store.Queries, o RuleOptions) ([]alert, error) {
 	at, err := q.LastBackupAt(ctx, "base")
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -286,4 +293,20 @@ func backupRule(ctx context.Context, q *store.Queries, o RuleOptions) ([]alert, 
 		return []alert{{"backup-age", SeverityUrgent, fmt.Sprintf("backup-age: bản sao lưu đầy đủ cuối cũ %d giờ (quá 26 giờ)", int(age.Hours()))}}, nil
 	}
 	return nil, nil
+}
+
+// verifyRule: lần kiểm bản sao lưu hằng tuần gần nhất (scripts/backup/weekly-verify.sh, ADR-37 điều 3) hỏng nghĩa là
+// bản sao lưu có thể không khôi phục được. Chưa có lần kiểm nào thì không báo.
+func verifyRule(ctx context.Context, q *store.Queries) ([]alert, error) {
+	run, err := q.LastBackupRun(ctx, "restore_verify")
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return nil, nil
+	case err != nil:
+		return nil, fmt.Errorf("đọc lần kiểm bản sao lưu: %w", err)
+	}
+	if run.Ok {
+		return nil, nil
+	}
+	return []alert{{"backup-verify", SeverityUrgent, "backup-verify: lần kiểm bản sao lưu hằng tuần gần nhất hỏng"}}, nil
 }

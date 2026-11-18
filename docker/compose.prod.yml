@@ -1,0 +1,194 @@
+# Compose cho máy chủ (staging, production) — kế hoạch M0 bản 5, Task 21. CHƯA chạy trên máy nào: nền tảng triển khai
+# và máy chốt ở bước staging (Task 23, ADR-43). Tệp này ghi các luật mà mọi cách triển khai phải giữ; tests/deploy kiểm:
+#   - Không dịch vụ nào mở cổng ra máy. Lối vào duy nhất là `cloudflared` (Cloudflare Tunnel, kết nối ra ngoài) trên mạng
+#     `edge`, chỉ chung mạng với crm-ingest và crm-api. Vì vậy `cf-connecting-ip` không giả được bằng cách gọi thẳng máy
+#     (Task 14; spec 04 mục 11, ADR-43 "máy chủ chỉ nhận kết nối qua Cloudflare").
+#   - imager chỉ ở mạng `imaging` (internal: không ra internet, không tới PostgreSQL) — ADR-45, Task 40 Q3.
+#   - Image dựng ở CI (không `build:`), truyền vào bằng biến; image bên thứ ba ghim digest.
+#   - Ba vai trò: kiểm sức khỏe bằng tệp chạy, giới hạn bộ nhớ, GOMEMLIMIT 90%, tắt êm 30 s, chỉ đọc, không root.
+#   - PostgreSQL 18 gắn volume ở /var/lib/postgresql, có shm_size; WAL-G đẩy thẳng ra kho ngoài (ADR-37 điều 4).
+# Biến: docker/compose.prod.env.example (chỉ tên, giá trị giả). Giá trị thật không vào Git (Global Constraints).
+#   docker compose -f docker/compose.prod.yml --env-file <tệp ngoài repo> run --rm crm-migrate
+#   docker compose -f docker/compose.prod.yml --env-file <tệp ngoài repo> up -d --wait
+# Thứ tự deploy (RUNBOOK): migrate → worker → api; ingest chỉ khi mã của nó đổi.
+# Sao lưu theo lịch: crontab của máy gọi scripts trong image PostgreSQL (RUNBOOK, mục "Sao lưu theo lịch").
+name: crm
+
+x-crm-env: &crm-env
+  CRM_ENV: ${CRM_ENV:?staging hoặc production}
+  DATABASE_URL: ${CRM_APP_DATABASE_URL:?chuỗi kết nối crm_app}
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?}
+  TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:?}
+  TELEGRAM_URGENT_CHAT_ID: ${TELEGRAM_URGENT_CHAT_ID:?}
+  HEARTBEAT_URL: ${HEARTBEAT_URL:?}
+x-crm-s3: &crm-s3
+  S3_ENDPOINT: http://seaweedfs:8333
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?}
+  FILES_PUBLIC_BASE_URL: ${FILES_PUBLIC_BASE_URL:?}
+x-crm-hardening: &crm-hardening
+  image: ${CRM_IMAGE:?image chính dựng ở CI, ghim digest}
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  stop_grace_period: 30s
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+x-crm-health: &crm-health
+  healthcheck:
+    test: ["CMD", "/crm", "healthcheck"]
+    interval: 10s
+    timeout: 5s
+    start_period: 20s
+    retries: 3
+
+services:
+  crm-migrate:
+    <<: *crm-hardening
+    profiles: [migrate]
+    restart: "no"
+    environment:
+      <<: *crm-env
+      CRM_ROLE: migrate
+      DATABASE_OWNER_URL: ${CRM_OWNER_DATABASE_URL:?chuỗi kết nối crm_owner}
+
+  crm-ingest:
+    <<: [*crm-hardening, *crm-health]
+    environment:
+      <<: *crm-env
+      CRM_ROLE: ingest
+      PORT: "4191"
+      SPOOL_DIR: /var/spool/crm
+      SELFTEST_WEBHOOK_SECRET: ${SELFTEST_WEBHOOK_SECRET:?}
+      GOMEMLIMIT: 230MiB
+    volumes:
+      - spool:/var/spool/crm
+    mem_limit: 256m
+    networks: [default, edge]
+
+  crm-api:
+    <<: [*crm-hardening, *crm-health]
+    environment:
+      <<: [*crm-env, *crm-s3]
+      CRM_ROLE: api
+      PORT: "4190"
+      ACCESS_TEAM_DOMAIN: ${ACCESS_TEAM_DOMAIN:?}
+      ACCESS_AUD: ${ACCESS_AUD:?}
+      ACCESS_MFA_CLAIM: ${ACCESS_MFA_CLAIM:?}
+      ACCESS_MFA_VALUES: ${ACCESS_MFA_VALUES:?}
+      CONSOLE_ORIGINS: ${CONSOLE_ORIGINS:?}
+      HEALTH_TOKEN: ${HEALTH_TOKEN:?}
+      GOMEMLIMIT: 460MiB
+    mem_limit: 512m
+    networks: [default, edge]
+
+  crm-worker:
+    <<: [*crm-hardening, *crm-health]
+    environment:
+      <<: [*crm-env, *crm-s3]
+      CRM_ROLE: worker
+      IMAGER_URL: http://imager:4193
+      S3_IMAGER_ENDPOINT: http://seaweedfs:8333
+      BACKUP_EXPECTED: "true"
+      DB_DISK_BUDGET_BYTES: ${DB_DISK_BUDGET_BYTES:?}
+      FILESYNC_EXPECTED: "true"
+      GOMEMLIMIT: 460MiB
+    mem_limit: 512m
+    networks: [default, imaging]
+
+  # Lối vào duy nhất từ Cloudflare. Tunnel và tên miền (crm., hooks.) tạo ở tài khoản Cloudflare (việc của chủ shop,
+  # Task 23 bước 7); trong tunnel: crm. → http://crm-api:4190 sau Access, hooks. → http://crm-ingest:4191 (chỉ /hooks/*,
+  # /health).
+  cloudflared:
+    # cloudflare/cloudflared:2026.10.7, digest của image index đa nền tảng, lấy ngày 18/11/2026
+    image: cloudflare/cloudflared:2026.10.7@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?}
+    networks: [edge]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    mem_limit: 128m
+
+  postgres:
+    # Image docker/postgres/Dockerfile (PostgreSQL 18 + WAL-G + scripts/backup), dựng ở CI, ghim digest.
+    image: ${CRM_POSTGRES_IMAGE:?}
+    # tini làm PID 1: lịch sao lưu chạy script bằng `docker compose exec`; một tiến trình mồ côi bị giết bằng tín hiệu
+    # (WAL-G quá hạn) mà về tay postmaster thì PostgreSQL 18 khởi động lại cả cụm (đo ở Task 21, verify-drill.sh).
+    init: true
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: crm
+      PGUSER: postgres
+      WALG_S3_PREFIX: ${WALG_S3_PREFIX:?kho ngoài, không thuộc Cloudflare (ADR-37)}
+      AWS_ACCESS_KEY_ID: ${WALG_AWS_ACCESS_KEY_ID:?}
+      AWS_SECRET_ACCESS_KEY: ${WALG_AWS_SECRET_ACCESS_KEY:?}
+      AWS_ENDPOINT: ${WALG_AWS_ENDPOINT:?}
+      AWS_REGION: ${WALG_AWS_REGION:?}
+      AWS_S3_FORCE_PATH_STYLE: "true"
+      WALG_LIBSODIUM_KEY: ${WALG_LIBSODIUM_KEY:?32 byte hex; giữ thêm ở hai nơi ngoài máy chủ}
+      WALG_LIBSODIUM_KEY_TRANSFORM: hex
+    shm_size: 1g
+    volumes:
+      - pgdata:/var/lib/postgresql
+    stop_grace_period: 60s
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d crm"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  jaeger:
+    # jaegertracing/jaeger:2.23.0 (Jaeger v2), digest lấy ngày 18/11/2026; UI chỉ mở qua tunnel sau Access
+    image: jaegertracing/jaeger:2.23.0@sha256:3823829974ccfc2485d2e48b165579091f32295022ae80ca49704e2f4834116e
+    restart: unless-stopped
+    mem_limit: 512m
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.48@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d
+    # Như dev (Task 40): -s3.allowedOrigins không khớp gốc nào; chỉ crm-tmp có CORS riêng.
+    command: ["server", "-dir=/data", "-ip.bind=0.0.0.0", "-s3", "-s3.port=8333", "-s3.config=/etc/seaweedfs/s3.json",
+      "-s3.allowedOrigins=https://khong-cho-phep.invalid"]
+    volumes:
+      - seaweed:/data
+      - ${CRM_SEAWEEDFS_S3_CONFIG:?tệp danh tính kho, ngoài repo}:/etc/seaweedfs/s3.json:ro
+    networks: [default, imaging]
+    restart: unless-stopped
+
+  imager:
+    image: ${CRM_IMAGER_IMAGE:?}
+    environment:
+      PORT: "4193"
+      IMAGER_MAX_PARALLEL: "2"
+      IMAGER_STEP_TIMEOUT: 10s
+      IMAGER_STEP_MEMORY: "1073741824"
+    networks: [imaging]
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 2g
+    cpus: 2
+    user: "65534:65534"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+networks:
+  # Đường hầm Cloudflare ra internet; chỉ cloudflared, crm-ingest, crm-api.
+  edge: {}
+  # imager, kho tệp, worker; không gateway: imager không ra internet, không tới mạng khác (Task 40 Q3).
+  imaging:
+    internal: true
+
+volumes:
+  pgdata:
+  seaweed:
+  spool:

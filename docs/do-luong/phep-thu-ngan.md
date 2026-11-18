@@ -87,6 +87,24 @@ RECREATE OK pgdata=/var/lib/postgresql/18/docker old=5558dbf36427 new=fe9ba5f210
 
 Chèn một dòng có mã ngẫu nhiên, `docker compose rm -sf postgres` (xóa hẳn container), `up -d` với cùng volume, dòng còn; mã container khác nhau.
 
+## Image chính và kiểm bản sao lưu hằng tuần (Task 21, đo 18/11/2026)
+
+| Phép kiểm | Lệnh | Kết quả |
+|---|---|---|
+| Image chính `crm:dev` (Go tĩnh `-trimpath -s -w`, distroless static nonroot) | `scripts/ops/image-check.sh` | **10.243.892 byte (~9,8 MiB)**; dựng 17–20 s khi đã có cache; `USER 65532:65532`; ba vai trò `healthy`, uid 65532; `/health/ready` 200 trên api và ingest; không tệp `.env*` (tệp mồi trong `internal/` bị `.dockerignore` chặn) |
+| Sao lưu đầy đủ (cụm diễn tập đã migrate và seed-dev, vài MB) | `scripts/backup/verify-drill.sh` | `base` `ok = true`, `duration_seconds=3`; thiếu `WALG_LIBSODIUM_KEY` → `ok = false` |
+| Kiểm bản sao lưu hằng tuần | như trên | `restore_verify` `ok = true`, `duration_seconds=7` (tải, phát lại WAL, đối chiếu ba bảng, dọn); khóa sai → cắt sau hạn 20 s (tổng 31 s), `ok = false`; mất `part_001` → `ok = false`; lệch số dòng ngoài dung sai → `ok = false` |
+
+### Điều phát hiện khi đo (Task 21)
+
+- **PostgreSQL 18 làm PID 1 khởi động lại cả cụm khi một tiến trình mồ côi chết vì tín hiệu.** Script chạy trong
+  container bằng `docker exec`; khi WAL-G (treo vì khóa sai) bị `timeout` giết bằng SIGKILL và tiến trình về tay PID 1
+  (postmaster), log ghi `untracked child process (PID 724) was terminated by signal 9: Killed` rồi `terminating any other
+  active server processes` — cụm thật vào crash recovery, mọi kết nối bị cắt. Sửa: `init: true` (tini làm PID 1) cho
+  container PostgreSQL ở compose diễn tập và production; `verify-drill.sh` kiểm `pg_postmaster_start_time()` không đổi.
+- Cụm tạm khôi phục từ bản sao lưu mang `max_connections = 100` của máy gốc: chạy hot standby với giá trị nhỏ hơn thì
+  dừng ngay (`recovery aborted because of insufficient parameter settings`). Cụm tạm chạy `hot_standby=off`.
+
 ## Chưa đo được ở đây
 
 - Kho ngoài thật (ADR-37 điều 4), thời gian tải qua mạng, khôi phục dữ liệu cỡ thật: Task 23, cần chủ shop tạo tài khoản kho.

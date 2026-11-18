@@ -30,7 +30,12 @@ services:
   postgres:
     build:
       context: ./postgres
+      additional_contexts:
+        backup: ../scripts/backup
     image: crm-postgres:18-walg-drill
+    # tini làm PID 1 (Task 21): tiến trình chạy bằng `docker exec` (sao lưu, kiểm) bị giết bằng tín hiệu thì được gán lại
+    # cho PID 1; nếu PID 1 là postmaster, PostgreSQL 18 coi đó là tiến trình con chết bất thường và khởi động lại cả cụm.
+    init: true
     shm_size: 256mb
     environment:
       <<: *walg-env

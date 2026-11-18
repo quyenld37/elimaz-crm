@@ -1,5 +1,8 @@
 # syntax=docker/dockerfile:1
 # PostgreSQL 18 + WAL-G (ADR-37) + pg_stat_statements. Kế hoạch M0 bản 5, Task 2.
+# Task 21: mang sẵn script sao lưu (scripts/backup) để lịch của máy chủ gọi trong container. Dựng:
+#   docker build --build-context backup=scripts/backup -t crm-postgres docker/postgres
+# (compose khai additional_contexts.backup).
 # Image gốc ghim digest; WAL-G ghim phiên bản và sha256 của tệp tải về, cho cả arm64 và amd64.
 FROM postgres:18-bookworm@sha256:ece55f7868da684e400f82f1030a050718adbdd65c23aa500c486f6e2950dc0f
 
@@ -30,3 +33,5 @@ RUN set -eux; \
 COPY conf.d/ /etc/postgresql/conf.d/
 # Chạy lúc khởi tạo cụm: nối include_dir vào postgresql.conf. Cụm khôi phục từ bản sao lưu mang sẵn dòng này.
 COPY initdb/000-crm-conf.sh /docker-entrypoint-initdb.d/000-crm-conf.sh
+# Script sao lưu và kiểm bản sao lưu (Task 21): base-backup.sh, weekly-verify.sh và thư viện ghi backup_runs.
+COPY --from=backup --chmod=0755 base-backup.sh weekly-verify.sh runs-lib.sh /opt/crm-backup/
