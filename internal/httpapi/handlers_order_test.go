@@ -76,14 +76,20 @@ func (e *orderAPIEnv) count(q string, args ...any) int {
 	return e.staff.CountIn(e.t, e.shop.Tenant, q, args...)
 }
 
+// mustCreate gửi createOrder với khóa key, đòi 201, trả thân đơn.
+func (e *orderAPIEnv) mustCreate(key, body string) map[string]any {
+	e.t.Helper()
+	rec := e.post(key, body)
+	if rec.Code != http.StatusCreated {
+		e.t.Fatalf("createOrder: %d %s", rec.Code, rec.Body.String())
+	}
+	return decodeJSON(e.t, rec)
+}
+
 func TestOrderAPI_CreateGet(t *testing.T) {
 	e := newOrderAPIEnv(t)
 	v := e.variant(e.shop.Seller, 250000, 5)
-	rec := e.post("o1", orderBody(30000, line(v, 2)))
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("createOrder: %d %s", rec.Code, rec.Body.String())
-	}
-	o := decodeJSON(t, rec)
+	o := e.mustCreate("o1", orderBody(30000, line(v, 2)))
 	items, _ := o["items"].([]any)
 	if o["status"] != "confirmed" || o["grandTotal"] != float64(530000) || o["codAmount"] != float64(530000) ||
 		o["subtotal"] != float64(500000) || len(items) != 1 || !regexp.MustCompile(`^DH[0-9]{7,}$`).MatchString(fmt.Sprint(o["code"])) {

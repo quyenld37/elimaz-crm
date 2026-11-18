@@ -292,3 +292,15 @@ func (m shipModel) balance(qty int32) [3]int32 {
 		return [3]int32{3, qty, 0}
 	}
 }
+
+// Lock: đơn có → khóa được; không có (hay tenant khác) → ErrNotFound.
+func TestLock(t *testing.T) {
+	e := newOrderEnv(t)
+	o := e.mustCreate(e.input(0, item(e.variant(100000, 5), 1)))
+	if err := e.app(func(tx pgx.Tx) error { return order.Lock(e.t.Context(), tx, o.ID) }); err != nil {
+		t.Fatalf("Lock đơn có: %v", err)
+	}
+	if err := e.app(func(tx pgx.Tx) error { return order.Lock(e.t.Context(), tx, uuid.New()) }); !errors.Is(err, order.ErrNotFound) {
+		t.Fatalf("Lock đơn lạ: %v, muốn ErrNotFound", err)
+	}
+}

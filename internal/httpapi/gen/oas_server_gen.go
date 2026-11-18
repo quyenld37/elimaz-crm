@@ -71,6 +71,13 @@ type Handler interface {
 	//
 	// POST /api/v1/catalog/products
 	CreateProduct(ctx context.Context, req *CreateProductRequest, params CreateProductParams) (CreateProductRes, error)
+	// CreateShipment implements createShipment operation.
+	//
+	// Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa
+	// hủy → shipment_exists.
+	//
+	// POST /api/v1/orders/{id}/shipments
+	CreateShipment(ctx context.Context, req *CreateShipmentRequest, params CreateShipmentParams) (CreateShipmentRes, error)
 	// CreateStaff implements createStaff operation.
 	//
 	// Tạo nhân viên mới (chưa có vai trò nào).
@@ -135,6 +142,12 @@ type Handler interface {
 	//
 	// GET /api/v1/catalog/products/{id}
 	GetProduct(ctx context.Context, params GetProductParams) (GetProductRes, error)
+	// GetShipment implements getShipment operation.
+	//
+	// Quyền fulfillment.read theo đích kho của tài khoản hãng của vận đơn.
+	//
+	// GET /api/v1/shipments/{id}
+	GetShipment(ctx context.Context, params GetShipmentParams) (GetShipmentRes, error)
 	// GetStockDocument implements getStockDocument operation.
 	//
 	// Một phiếu kho kèm dòng.

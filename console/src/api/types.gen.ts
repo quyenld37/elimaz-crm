@@ -255,6 +255,29 @@ export type OrderItem = {
     netAmount: Money;
 };
 
+export type CreateShipmentRequest = {
+    carrierAccountId: string;
+};
+
+export type Shipment = {
+    id: string;
+    orderId: string;
+    /**
+     * Mã vận đơn của CRM (E + yyMMdd + 6 ký tự)
+     */
+    code: string;
+    carrierKey: string;
+    carrierAccountId: string;
+    /**
+     * Mã của hãng; chưa có khi vận đơn còn creating
+     */
+    trackingCode?: string;
+    status: 'creating' | 'awaiting_pickup' | 'shipping' | 'delivered' | 'cancelled';
+    codAmount: Money;
+    fee?: Money;
+    createdAt: string;
+};
+
 /**
  * Tiền, số nguyên đồng
  */
@@ -651,6 +674,8 @@ export type CategoryId = string;
 export type AttributeId = string;
 
 export type SupplierId = string;
+
+export type ShipmentId = string;
 
 export type StockDocumentId = string;
 
@@ -2019,3 +2044,63 @@ export type GetOrderResponses = {
 };
 
 export type GetOrderResponse = GetOrderResponses[keyof GetOrderResponses];
+
+export type CreateShipmentData = {
+    body: CreateShipmentRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/orders/{id}/shipments';
+};
+
+export type CreateShipmentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateShipmentError = CreateShipmentErrors[keyof CreateShipmentErrors];
+
+export type CreateShipmentResponses = {
+    /**
+     * Vận đơn vừa tạo (creating); mã hãng có sau khi lệnh chạy
+     */
+    202: Shipment;
+};
+
+export type CreateShipmentResponse = CreateShipmentResponses[keyof CreateShipmentResponses];
+
+export type GetShipmentData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/shipments/{id}';
+};
+
+export type GetShipmentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetShipmentError = GetShipmentErrors[keyof GetShipmentErrors];
+
+export type GetShipmentResponses = {
+    /**
+     * Vận đơn
+     */
+    200: Shipment;
+};
+
+export type GetShipmentResponse = GetShipmentResponses[keyof GetShipmentResponses];

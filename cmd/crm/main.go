@@ -21,8 +21,10 @@ import (
 	"github.com/google/uuid"
 
 	"elimaz.com.vn/crm/internal/adapters/cfaccess"
+	"elimaz.com.vn/crm/internal/adapters/fakecarrier"
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/imager"
+	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
@@ -183,16 +185,28 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 // module của mốc sau đăng ký ở đây.
 func newEvents() *events.Registry { return events.NewRegistry() }
 
+// fakeCarrierOn: hãng vận chuyển giả chỉ được nối ngoài production và khi có FAKECARRIER_URL (Q2; config.Load đã cấm
+// biến này ở production, đây là chốt thứ hai).
+func fakeCarrierOn(cfg config.Config) bool {
+	return cfg.Env != "production" && cfg.FakeCarrierURL != ""
+}
+
 // newInbound dựng việc tách gói webhook và handler sự kiện vào của worker. Worker chỉ tách gói (Split), không kiểm
-// chữ ký (ingest đã kiểm), nên nguồn selftest dựng không cần bí mật. selftest.Inbound phát báo hiệu selftest.pong qua
-// bus (pg_notify trong transaction của việc); module của mốc sau thêm handler ở đây, cùng danh sách nguồn với ingest.
-func newInbound(reg *metrics.Registry, bus selftest.Publisher) ([]queue.Handler, error) {
+// chữ ký (ingest đã kiểm), nên các nguồn dựng không cần bí mật. selftest.Inbound phát báo hiệu selftest.pong qua bus
+// (pg_notify trong transaction của việc); nguồn fakecarrier (fakeCarrierOn) giao tín hiệu cho
+// fulfillment.SignalHandler. Module của mốc sau thêm handler ở đây, cùng danh sách nguồn với ingest.
+func newInbound(cfg config.Config, reg *metrics.Registry, bus selftest.Publisher) ([]queue.Handler, error) {
 	sources := []webhooks.Source{selftest.NewSource("")}
+	handlers := []webhooks.InboundHandler{selftest.NewInbound(bus)}
+	if fakeCarrierOn(cfg) {
+		sources = append(sources, fakecarrier.NewSource(""))
+		handlers = append(handlers, fulfillment.NewSignalHandler(fakecarrier.Key))
+	}
 	split, err := webhooks.NewSplitHandler(webhooks.SplitOptions{Sources: sources, Metrics: reg})
 	if err != nil {
 		return nil, fmt.Errorf("dựng việc tách gói: %w", err)
 	}
-	hs, err := webhooks.InboundJobHandlers(sources, []webhooks.InboundHandler{selftest.NewInbound(bus)})
+	hs, err := webhooks.InboundJobHandlers(sources, handlers)
 	if err != nil {
 		return nil, fmt.Errorf("dựng handler sự kiện vào: %w", err)
 	}
@@ -200,9 +214,10 @@ func newInbound(reg *metrics.Registry, bus selftest.Publisher) ([]queue.Handler,
 }
 
 // newCommands là các loại lệnh ra ngoài của tiến trình: xử lý ảnh file.process, file.process_private (Task M1-43;
-// chỉ khi có IMAGER_URL, thiếu thì lệnh chờ trong hàng đợi) và lệnh thử command.selftest (bên ngoài tại chỗ, không
-// gửi gì thật, chỉ khi CRM_ENV khác production); module của mốc sau thêm lệnh thật ở đây.
-func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus files.Publisher, logger *slog.Logger) ([]commands.Handler, error) {
+// chỉ khi có IMAGER_URL, thiếu thì lệnh chờ trong hàng đợi), lệnh thử command.selftest (bên ngoài tại chỗ, không
+// gửi gì thật, chỉ khi CRM_ENV khác production) và hai lệnh vận chuyển fulfillment.create_shipment,
+// fulfillment.refresh_status với hãng giả (fakeCarrierOn; Task M1-31); module của mốc sau thêm lệnh thật ở đây.
+func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtime.Bus, logger *slog.Logger) ([]commands.Handler, error) {
 	var hs []commands.Handler
 	if cfg.ImagerURL != "" {
 		if _, ok := files.Preset(cfg.ImagePresetVersion); !ok {
@@ -228,6 +243,15 @@ func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus files.P
 	}
 	if cfg.Env != "production" {
 		hs = append(hs, selftest.NewCommand(selftest.Loopback{}))
+	}
+	if fakeCarrierOn(cfg) {
+		o := fulfillment.CommandOptions{
+			DB: d, Adapters: []fulfillment.CarrierAdapter{
+				fakecarrier.NewClient(cfg.FakeCarrierURL, cfg.FakeCarrierWebhookSecret, &http.Client{}),
+			},
+			Events: newEvents(), Queue: queue.NewQueue(), Realtime: bus,
+		}
+		hs = append(hs, fulfillment.NewCreateCommand(o), fulfillment.NewRefreshCommand(o))
 	}
 	return hs, nil
 }
@@ -260,7 +284,7 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	if err != nil {
 		return err
 	}
-	inbound, err := newInbound(reg, hub)
+	inbound, err := newInbound(cfg, reg, hub)
 	if err != nil {
 		return err
 	}
@@ -435,7 +459,7 @@ func ingestHandler(cfg config.Config, d *db.DB, reg *metrics.Registry, logger *s
 	in, err := webhooks.NewIngest(webhooks.IngestOptions{
 		Role:    string(cfg.Role),
 		DB:      d,
-		Sources: []webhooks.Source{selftest.NewSource(cfg.SelftestWebhookSecret)},
+		Sources: ingestSources(cfg),
 		Spool:   &webhooks.Spool{Dir: cfg.SpoolDir},
 		Lockout: webhooks.NewLockout(webhooks.LockoutOptions{}),
 		Metrics: reg,
@@ -448,6 +472,16 @@ func ingestHandler(cfg config.Config, d *db.DB, reg *metrics.Registry, logger *s
 	observability.NewHealth(d.Pool).Register(mux)
 	in.Register(mux)
 	return mux, nil
+}
+
+// ingestSources là các nguồn webhook của ingest: selftest, và fakecarrier khi fakeCarrierOn (production không bao giờ
+// có /hooks/fakecarrier).
+func ingestSources(cfg config.Config) []webhooks.Source {
+	sources := []webhooks.Source{selftest.NewSource(cfg.SelftestWebhookSecret)}
+	if fakeCarrierOn(cfg) {
+		sources = append(sources, fakecarrier.NewSource(cfg.FakeCarrierWebhookSecret))
+	}
+	return sources
 }
 
 // healthcheck: ingest và api gọi /health/live của chính nó; worker đòi nhịp sống của chính nó
