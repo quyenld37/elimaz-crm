@@ -135,30 +135,3 @@ func (q *Queries) SetCurrentShipment(ctx context.Context, arg SetCurrentShipment
 	}
 	return result.RowsAffected(), nil
 }
-
-const setOrderStatus = `-- name: SetOrderStatus :one
-UPDATE ord.orders
-SET status = $1, version = version + 1, updated_at = now()
-WHERE seller_id = $2 AND id = $3 AND status = $4
-RETURNING version
-`
-
-type SetOrderStatusParams struct {
-	ToStatus   string
-	SellerID   uuid.UUID
-	ID         uuid.UUID
-	FromStatus string
-}
-
-// Đổi trạng thái chỉ khi đang ở trạng thái cũ; trả version mới (không dòng nào → pgx.ErrNoRows).
-func (q *Queries) SetOrderStatus(ctx context.Context, arg SetOrderStatusParams) (int64, error) {
-	row := q.db.QueryRow(ctx, setOrderStatus,
-		arg.ToStatus,
-		arg.SellerID,
-		arg.ID,
-		arg.FromStatus,
-	)
-	var version int64
-	err := row.Scan(&version)
-	return version, err
-}
