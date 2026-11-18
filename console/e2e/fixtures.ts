@@ -15,6 +15,11 @@ export const PHONE = { width: 390, height: 844 } as const;
 export interface FakeApi {
   /** API sống: /health/live 200, /api/v1/me trả `me`, luồng realtime mở và im (không băng báo). */
   live(me?: Partial<Me>): Promise<void>;
+  /**
+   * Sản phẩm, danh mục, nhãn rỗng (listProducts, listCategories, listTags). Người có catalog.read mở "/" là vào Danh
+   * sách sản phẩm (màn đầu tiên của menu, Task 50), nên spec của khung khai đường này.
+   */
+  catalog(): Promise<void>;
   /** API tắt: mọi yêu cầu tới /health và /api lỗi mạng. */
   down(): Promise<void>;
   /** Khai thêm một đường (ghi đè đường cùng mẫu đã khai). */
@@ -68,6 +73,11 @@ export const test = base.extend<{ apiGuard: string[]; api: FakeApi }>({
         await page.route("**/api/v1/me", (r) => json(r, 200, body));
         // Luồng mở và im: không trả lời (watchdog của lớp realtime là 60 s, dài hơn mọi test).
         await page.route("**/api/v1/stream", () => undefined);
+      },
+      async catalog() {
+        await page.route(/\/api\/v1\/catalog\/products(\?|$)/, (r) => json(r, 200, { items: [] }));
+        await page.route("**/api/v1/catalog/categories", (r) => json(r, 200, []));
+        await page.route("**/api/v1/catalog/tags", (r) => json(r, 200, []));
       },
       async down() {
         await page.route(isApi, (r) => r.abort("connectionrefused"));

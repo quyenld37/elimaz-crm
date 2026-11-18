@@ -1,0 +1,56 @@
+/* Lớp riêng của màn Danh sách sản phẩm, chép từ mockup đã duyệt (docs/mockups/m1/san-pham-danh-sach.html, khối <style>). */
+.p-cell {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  max-width: 460px;
+  text-decoration: none;
+}
+.p-cell .grow {
+  display: block;
+}
+.p-cell .code {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.p-cell .clamp2 {
+  color: var(--name);
+  font-weight: 600;
+}
+.filters-on {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: -8px 0 16px;
+}
+.filters-on .tag {
+  min-height: var(--tap);
+}
+.filters-on .tag button {
+  border: 0;
+  background: none;
+  font-size: 14px;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  cursor: pointer;
+  color: var(--ink);
+}
+/* Dòng đệm của danh sách ảo: giữ chiều cao phần chưa dựng, không viền, không thành thẻ trên điện thoại. */
+.tbl tr.v-pad td {
+  padding: 0;
+  border: 0;
+}
+@media (max-width: 759px) {
+  .tbl td.lead .p-cell {
+    max-width: none;
+    width: 100%;
+  }
+  .tbl tr.v-pad {
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+}

@@ -7,17 +7,19 @@ import { expect, forEachViewport, test } from "./fixtures";
 forEachViewport((vp) => {
   test("khung tải: chữ ELIMAZ, không băng báo khi API sống, không tràn ngang", async ({ page, api }) => {
     await api.live();
+    await api.catalog();
     await page.goto("/");
     await expect(page.locator(".wordmark:visible")).toBeVisible();
     await expect(page.getByText(TEXT_API_DOWN)).toHaveCount(0);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
     if (vp.width >= 1000) {
-      // Cột trái 240 px (chưa có màn nào nên menu chưa có mục; ô người dùng ở cuối cột).
+      // Cột trái 240 px; trang đầu là Danh sách sản phẩm (mục đầu của menu, Task 50); ô người dùng ở cuối cột.
       const side = page.locator("aside.side");
       await expect(side).toBeVisible();
       expect((await side.boundingBox())?.width).toBeCloseTo(240, 0);
       await expect(side.getByText("lan@elimaz.vn")).toBeVisible();
+      await expect(side.getByRole("link", { name: "Danh sách sản phẩm" })).toHaveAttribute("aria-current", "page");
       await expect(page.getByRole("button", { name: "Mở menu" })).toBeHidden();
     } else {
       const top = page.getByRole("banner");
