@@ -67,13 +67,27 @@ func TestErrorRulesNewError(t *testing.T) {
 			t.Fatalf("văn bản cảnh báo không được chứa nội dung lỗi: %q", h.Text)
 		}
 	}
-	// Hai phút sau: dòng không còn mới.
+	// Hai phút sau, chưa báo được (Telegram lỗi, lịch trễ): vẫn là lỗi mới, không mất cảnh báo.
 	later, err := observability.ErrorRules(t.Context(), d, time.Now().Add(2*time.Minute))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if slices.Contains(keys(later), want) {
-		t.Fatalf("lỗi gặp lần đầu 2 phút trước không còn là lỗi mới: %v", keys(later))
+	if !slices.Contains(keys(later), want) {
+		t.Fatalf("lỗi chưa báo phải còn là lỗi mới sau 2 phút: %v", keys(later))
+	}
+	// Đã báo (có alert_events của key): không còn mới.
+	exec(t, d, "INSERT INTO platform.alert_events (key, severity, text) VALUES ($1, 'normal', 'thử')", want)
+	done, err := observability.ErrorRules(t.Context(), d, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(keys(done), want) {
+		t.Fatalf("lỗi đã báo không còn là lỗi mới: %v", keys(done))
+	}
+	// Gặp lần đầu quá 1 giờ: không báo nữa dù chưa từng báo.
+	if late, err := observability.ErrorRules(t.Context(), d, time.Now().Add(61*time.Minute)); err != nil ||
+		len(late) != 0 {
+		t.Fatalf("quá 1 giờ: %v %v", keys(late), err)
 	}
 }
 
@@ -149,4 +163,50 @@ func TestSummary(t *testing.T) {
 			t.Fatalf("dòng lỗi sai: %+v", e)
 		}
 	}
+}
+
+// Tóm tắt đọc bảng của Task 19: sao lưu base thành công gần nhất (lần hỏng sau đó không tính), lần diễn tập gần nhất
+// kèm ok (kể cả khi hỏng), cảnh báo 24 giờ mới nhất trước, không có tin tổng kết.
+func TestSummaryBackupAndAlerts(t *testing.T) {
+	app, owner := openOwner(t)
+	now := time.Now().UTC()
+
+	empty, err := observability.Summary(t.Context(), app, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if empty.Backup.LastBaseAgeH != nil || empty.Backup.LastDrillAgeH != nil || empty.Backup.LastDrillOk != nil ||
+		len(empty.Alerts) != 0 || empty.Alerts == nil {
+		t.Fatalf("database mới: backup %+v, alerts %v; muốn rỗng (alerts là mảng rỗng, không nil)", empty.Backup, empty.Alerts)
+	}
+
+	exec(t, owner, `INSERT INTO platform.backup_runs (kind, ok, finished_at) VALUES
+		('base', true, now() - interval '30 hours 10 minutes'), ('base', false, now() - interval '1 hour'),
+		('restore_drill', true, now() - interval '50 hours'), ('restore_drill', false, now() - interval '5 hours 10 minutes')`)
+	exec(t, owner, `INSERT INTO platform.alert_events (key, severity, text, sent_at) VALUES
+		('dead:k', 'normal', 'dead:k: 1 việc', now() - interval '2 hours'),
+		('queue-lag', 'urgent', 'queue-lag', now() - interval '1 hour'),
+		('digest:2026-11-18', 'normal', 'tổng kết', now() - interval '30 minutes'),
+		('cu', 'normal', 'cũ', now() - interval '25 hours')`)
+
+	s, err := observability.Summary(t.Context(), app, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := s.Backup
+	if b.LastBaseAgeH == nil || *b.LastBaseAgeH != 30 || b.LastDrillAgeH == nil || *b.LastDrillAgeH != 5 ||
+		b.LastDrillOk == nil || *b.LastDrillOk {
+		t.Fatalf("backup = base %v, drill %v ok %v; muốn 30, 5, false", deref(b.LastBaseAgeH), deref(b.LastDrillAgeH), b.LastDrillOk)
+	}
+	if len(s.Alerts) != 2 || s.Alerts[0].Key != "queue-lag" || s.Alerts[0].Severity != "urgent" ||
+		s.Alerts[1].Key != "dead:k" || s.Alerts[0].SentAt.Location() != time.UTC {
+		t.Fatalf("alerts = %+v; muốn queue-lag rồi dead:k (UTC), không có digest và dòng 25 giờ", s.Alerts)
+	}
+}
+
+func deref(p *int64) any {
+	if p == nil {
+		return nil
+	}
+	return *p
 }

@@ -5,3 +5,5 @@ CREATE ROLE crm_owner LOGIN;
 CREATE ROLE crm_app LOGIN NOBYPASSRLS;
 CREATE ROLE crm_search NOLOGIN BYPASSRLS;
 GRANT crm_search TO crm_owner;
+-- Migration 0010 (Task 19) cấp pg_monitor cho crm_app: crm_owner cần ADMIN OPTION trên pg_monitor.
+GRANT pg_monitor TO crm_owner WITH ADMIN OPTION;

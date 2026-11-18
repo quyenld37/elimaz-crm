@@ -2,9 +2,12 @@ package observability
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/internal/store"
@@ -15,6 +18,8 @@ const (
 	summaryWindow = 24 * time.Hour
 	// summaryMaxErrors: số loại lỗi tối đa trong tóm tắt.
 	summaryMaxErrors = 10
+	// summaryMaxAlerts: số cảnh báo tối đa trong tóm tắt (mới nhất trước; hợp đồng không giới hạn, chặn khi bão cảnh báo).
+	summaryMaxAlerts = 200
 	// spoolWindow: gauge spool_files của tiến trình ingest không ghi trong chừng này thì bỏ (tiến trình đã dừng).
 	spoolWindow = 10 * time.Minute
 )
@@ -66,7 +71,7 @@ type AlertSummary struct {
 }
 
 // Summary đọc tóm tắt sức khỏe tại now: nhịp sống mọi tiến trình, hàng đợi, tệp tạm của ingest, 10 loại lỗi nhiều
-// lần nhất gặp trong 24 giờ. Sao lưu và cảnh báo đọc từ bảng của Task 19 (backup_runs, alert_events) khi có.
+// lần nhất gặp trong 24 giờ, sao lưu (backup_runs) và cảnh báo đã gửi trong 24 giờ (alert_events, trừ tin tổng kết).
 func Summary(ctx context.Context, d *db.DB, now time.Time) (HealthSummary, error) {
 	q := store.New(d.Pool)
 	s := HealthSummary{Processes: []ProcessHealth{}, Errors: []ErrorSummary{}, Alerts: []AlertSummary{}}
@@ -107,7 +112,42 @@ func Summary(ctx context.Context, d *db.DB, now time.Time) (HealthSummary, error
 			FirstSeenAt: e.FirstSeenAt.UTC(), LastSeenAt: e.LastSeenAt.UTC(),
 		})
 	}
+	if err := backupAndAlerts(ctx, q, now, &s); err != nil {
+		return s, err
+	}
 	return s, nil
+}
+
+// backupAndAlerts điền s.Backup (tuổi giờ của base thành công gần nhất; tuổi và ok của restore_drill gần nhất, kể cả
+// khi hỏng) và s.Alerts. Trường sao lưu để nil khi chưa có lần nào.
+func backupAndAlerts(ctx context.Context, q *store.Queries, now time.Time, s *HealthSummary) error {
+	ageH := func(at time.Time) *int64 {
+		h := floorNonNeg(now.Sub(at).Hours())
+		return &h
+	}
+	base, err := q.LastBackupAt(ctx, "base")
+	switch {
+	case err == nil:
+		s.Backup.LastBaseAgeH = ageH(base)
+	case !errors.Is(err, pgx.ErrNoRows):
+		return fmt.Errorf("đọc lần sao lưu: %w", err)
+	}
+	drill, err := q.LastBackupRun(ctx, "restore_drill")
+	switch {
+	case err == nil:
+		s.Backup.LastDrillAgeH = ageH(drill.FinishedAt)
+		s.Backup.LastDrillOk = &drill.Ok
+	case !errors.Is(err, pgx.ErrNoRows):
+		return fmt.Errorf("đọc lần diễn tập khôi phục: %w", err)
+	}
+	alerts, err := q.ListAlertsSince(ctx, store.ListAlertsSinceParams{Since: now.Add(-summaryWindow), MaxRows: summaryMaxAlerts})
+	if err != nil {
+		return fmt.Errorf("đọc cảnh báo đã gửi: %w", err)
+	}
+	for _, a := range alerts {
+		s.Alerts = append(s.Alerts, AlertSummary{Key: a.Key, Severity: a.Severity, SentAt: a.SentAt.UTC()})
+	}
+	return nil
 }
 
 // floorNonNeg làm tròn xuống một số thực không âm thành int64.

@@ -108,7 +108,8 @@ func newMux(d Deps) (*http.ServeMux, int) {
 
 // chain bọc h theo thứ tự của kế hoạch: requestID → recover → otelhttp → bodyLimit(1 MiB) → origin (chỉ Write) →
 // auth → guard(route) → userRateLimit (bỏ qua Stream) → idempotent (route Write có IdempotencyMode required hoặc
-// no-replay; route exempt bỏ qua, ADR-47) → handler; route Public bỏ qua auth, guard, userRateLimit.
+// no-replay; route exempt bỏ qua, ADR-47) → handler; route Public bỏ qua auth, guard, userRateLimit. Riêng healthDeep
+// (công khai) qua healthToken (thẻ HEALTH_TOKEN) ở chỗ của auth.
 func chain(d Deps, rt Route, h http.Handler) http.Handler {
 	d = prepare(d)
 	if rt.Write && (rt.IdempotencyMode == modeRequired || rt.IdempotencyMode == modeNoReplay) {
@@ -120,6 +121,9 @@ func chain(d Deps, rt Route, h http.Handler) http.Handler {
 		}
 		h = guard(rt, h)
 		h = auth(d, h)
+	}
+	if rt.OperationID == opHealthDeep {
+		h = healthToken(d.Config.HealthToken, h)
 	}
 	if rt.Write {
 		h = origin(d.Config.ConsoleOrigins, h)

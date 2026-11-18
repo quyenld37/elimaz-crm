@@ -344,6 +344,23 @@ type InventoryWarehousesV struct {
 	Status             string
 }
 
+type PlatformAlertEvent struct {
+	ID       uuid.UUID
+	Key      string
+	Severity string
+	Text     string
+	SentAt   time.Time
+}
+
+type PlatformBackupRun struct {
+	ID              uuid.UUID
+	Kind            string
+	Ok              bool
+	FinishedAt      time.Time
+	DurationSeconds pgtype.Int4
+	Detail          pgtype.Text
+}
+
 type PlatformDomainEvent struct {
 	ID            uuid.UUID
 	TenantID      uuid.UUID
