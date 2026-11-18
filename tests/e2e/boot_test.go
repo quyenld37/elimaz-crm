@@ -150,16 +150,7 @@ func TestBootEachRoleThenGracefulStop(t *testing.T) {
 func bootAndStop(t *testing.T, bin, dbURL, role string) {
 	t.Helper()
 	port := freePort(t)
-	var stdout, stderr lineBuffer
-	cmd := exec.CommandContext(t.Context(), bin)
-	cmd.Env = roleEnv(role, dbURL, port)
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-	t.Cleanup(func() { _ = cmd.Process.Kill() })
+	cmd, done, stdout, stderr := startRole(t, bin, roleEnv(role, dbURL, port))
 
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
@@ -187,6 +178,22 @@ func bootAndStop(t *testing.T, bin, dbURL, role string) {
 		t.Fatalf("%s không thoát trong 25 s sau SIGTERM", role)
 	}
 	assertJSONLines(t, stdout.String())
+}
+
+// startRole chạy tệp chạy với env; done nhận kết quả Wait; tiến trình bị giết khi test xong.
+func startRole(t *testing.T, bin string, env []string) (cmd *exec.Cmd, done <-chan error, stdout, stderr *lineBuffer) {
+	t.Helper()
+	stdout, stderr = &lineBuffer{}, &lineBuffer{}
+	cmd = exec.CommandContext(t.Context(), bin)
+	cmd.Env = env
+	cmd.Stdout, cmd.Stderr = stdout, stderr
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	ch := make(chan error, 1)
+	go func() { ch <- cmd.Wait() }()
+	t.Cleanup(func() { _ = cmd.Process.Kill() })
+	return cmd, ch, stdout, stderr
 }
 
 func assertJSONLines(t *testing.T, out string) {
