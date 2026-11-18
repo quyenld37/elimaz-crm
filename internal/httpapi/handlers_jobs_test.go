@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -250,15 +251,19 @@ func TestRetryJobFiftyParallel(t *testing.T) {
 		wg.Go(func() { recs[i] = e.do(http.MethodPost, jobPath(id, "retry"), jobsManager, "k-50") })
 	}
 	wg.Wait()
-	var first string
+	// Task 396: so theo byte (không so nội dung JSON), cả Content-Type; lần đầu và mọi lần phát lại như nhau.
+	var first []byte
 	for _, rec := range recs {
 		switch rec.Code {
 		case http.StatusOK:
-			if first == "" {
-				first = rec.Body.String()
+			if first == nil {
+				first = rec.Body.Bytes()
 			}
-			if rec.Body.String() != first {
-				t.Errorf("mọi 200 phải cùng thân: %s / %s", first, rec.Body.String())
+			if !bytes.Equal(rec.Body.Bytes(), first) {
+				t.Errorf("mọi 200 phải cùng từng byte: %q / %q", first, rec.Body.Bytes())
+			}
+			if ct := rec.Header().Get("Content-Type"); ct != jsonContentType {
+				t.Errorf("mọi 200 phải Content-Type %q, có %q", jsonContentType, ct)
 			}
 		case http.StatusConflict:
 			if c := errCode(t, rec); c != "request_in_progress" {
@@ -268,7 +273,7 @@ func TestRetryJobFiftyParallel(t *testing.T) {
 			t.Errorf("chỉ được 200 hoặc 409: %d %s", rec.Code, rec.Body.String())
 		}
 	}
-	if first == "" || len(e.audits(id)) != 1 || e.state(id).Status != "pending" {
+	if first == nil || len(e.audits(id)) != 1 || e.state(id).Status != "pending" {
 		t.Fatalf("muốn một lần đổi, một dòng audit: %v", e.audits(id))
 	}
 }

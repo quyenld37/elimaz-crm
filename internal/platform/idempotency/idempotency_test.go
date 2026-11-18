@@ -74,7 +74,8 @@ type row struct {
 	lockedUntil *time.Time
 	expiresAt   time.Time
 	respStatus  *int32
-	respBody    []byte
+	respBody    []byte // response_body::text (jsonb, cột cũ)
+	respRaw     []byte // response_raw (bytea, byte nguyên)
 }
 
 // rows đọc mọi dòng khóa của tenant bằng chủ bảng (trong ngữ cảnh tenant vì RLS ép cả chủ bảng).
@@ -82,8 +83,8 @@ func (e *env) rows(t testing.TB, tenant uuid.UUID) []row {
 	t.Helper()
 	var out []row
 	e.staff.Exec(t, tenant, func(tx pgx.Tx) error {
-		rs, err := tx.Query(t.Context(), `SELECT status, locked_until, expires_at, response_status, response_body::text
-			FROM platform.idempotency_keys ORDER BY key`)
+		rs, err := tx.Query(t.Context(), `SELECT status, locked_until, expires_at, response_status, response_body::text,
+			response_raw FROM platform.idempotency_keys ORDER BY key`)
 		if err != nil {
 			return err //nolint:wrapcheck // test
 		}
@@ -91,7 +92,7 @@ func (e *env) rows(t testing.TB, tenant uuid.UUID) []row {
 		for rs.Next() {
 			var r row
 			var body *string
-			if err := rs.Scan(&r.status, &r.lockedUntil, &r.expiresAt, &r.respStatus, &body); err != nil {
+			if err := rs.Scan(&r.status, &r.lockedUntil, &r.expiresAt, &r.respStatus, &body, &r.respRaw); err != nil {
 				return err //nolint:wrapcheck // test
 			}
 			if body != nil {
@@ -130,7 +131,7 @@ func TestAcquireNewKeyCompleteThenReplay(t *testing.T) {
 	if err != nil || c2 != nil || st == nil {
 		t.Fatalf("khóa đã xong phải trả Stored: %v, %v, %v", c2, st, err)
 	}
-	if st.Status != 201 || !bytes.Contains(st.Body, []byte(`"count": 1`)) {
+	if st.Status != 201 || !bytes.Equal(st.Body, []byte(`{"count":1}`)) {
 		t.Fatalf("Stored sai: %d %s", st.Status, st.Body)
 	}
 	if n := e.count(t, a, "k1"); n != 1 {
@@ -211,12 +212,50 @@ func TestCompleteNilBodyStoresNull(t *testing.T) {
 		t.Fatal(err)
 	}
 	rs := e.rows(t, a)
-	if rs[0].respBody != nil || rs[0].status != "done" {
+	if rs[0].respBody != nil || rs[0].respRaw != nil || rs[0].status != "done" {
 		t.Fatalf("thân nil phải lưu NULL: %+v", rs)
 	}
 	_, st, err := idempotency.Acquire(t.Context(), e.staff.App, s, "k1", hashOf(`{}`), t0)
 	if err != nil || st == nil || st.Status != 200 || st.Body != nil {
 		t.Fatalf("Stored của thân NULL: %+v, %v", st, err)
+	}
+}
+
+// Task 396 (ADR-41): thân đã lưu trả lại giống hệt từng byte — thứ tự khóa không theo bảng chữ cái, khoảng trắng
+// riêng, ký tự cần thoát giữ nguyên; jsonb (cột cũ) vẫn được ghi cho bản cũ còn chạy lúc deploy.
+func TestCompleteStoresExactBytes(t *testing.T) {
+	e, a, s := newScoped(t)
+	c := mustAcquire(t, e, s, "k1", `{}`, t0)
+	raw := []byte("{\"zeta\": 1,  \"alpha\" :[ 2,1 ],\n \"html\":\"<b>&amp;\",\"n\":1.50}")
+	if err := e.bump(t.Context(), a, "k1", c, 201, raw); err != nil {
+		t.Fatal(err)
+	}
+	rs := e.rows(t, a)
+	if !bytes.Equal(rs[0].respRaw, raw) || rs[0].respBody == nil {
+		t.Fatalf("response_raw phải đúng byte, response_body vẫn ghi: %q / %q", rs[0].respRaw, rs[0].respBody)
+	}
+	for _, at := range []time.Time{t0, t0.Add(time.Hour)} {
+		_, st, err := idempotency.Acquire(t.Context(), e.staff.App, s, "k1", hashOf(`{}`), at)
+		if err != nil || st == nil || st.Status != 201 || !bytes.Equal(st.Body, raw) {
+			t.Fatalf("phát lại phải đúng từng byte: %+v %v\nmuốn %q", st, err, raw)
+		}
+	}
+}
+
+// Dòng do bản cũ ghi (chỉ jsonb, response_raw NULL) trong lúc deploy cuốn vẫn phát lại được, từ response_body.
+func TestLegacyRowWithoutRawReplaysJSONB(t *testing.T) {
+	e, a, s := newScoped(t)
+	c := mustAcquire(t, e, s, "k1", `{}`, t0)
+	if err := e.bump(t.Context(), a, "k1", c, 200, []byte(`{"b":1,"a":2}`)); err != nil {
+		t.Fatal(err)
+	}
+	e.staff.Exec(t, a, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(), "UPDATE platform.idempotency_keys SET response_raw = NULL")
+		return err //nolint:wrapcheck // test
+	})
+	_, st, err := idempotency.Acquire(t.Context(), e.staff.App, s, "k1", hashOf(`{}`), t0)
+	if err != nil || st == nil || st.Status != 200 || string(st.Body) != `{"a": 2, "b": 1}` {
+		t.Fatalf("dòng cũ phải phát lại từ jsonb: %+v %v", st, err)
 	}
 }
 
@@ -246,7 +285,7 @@ func TestExpiredDoneIsNewKey(t *testing.T) {
 	}
 	// Quá 72 giờ mà chưa bị dọn: coi như khóa mới, kể cả thân khác.
 	mustAcquire(t, e, s, "k1", `{"x":2}`, t0.Add(72*time.Hour+time.Second))
-	if rs := e.rows(t, a); rs[0].status != "running" || rs[0].respBody != nil || rs[0].respStatus != nil {
+	if rs := e.rows(t, a); rs[0].status != "running" || rs[0].respBody != nil || rs[0].respRaw != nil || rs[0].respStatus != nil {
 		t.Fatalf("khóa hết hạn phải về running, xóa kết quả cũ: %+v", rs)
 	}
 }

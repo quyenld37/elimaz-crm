@@ -30,6 +30,8 @@ const (
 const (
 	headerIdempotencyKey = "Idempotency-Key"
 	headerReplayed       = "Idempotent-Replayed"
+	// jsonContentType: Content-Type của kết quả đã lưu, lần đầu và lần phát lại; trùng giá trị ogen đặt cho JSON.
+	jsonContentType = "application/json; charset=utf-8"
 )
 
 // idempotencyKeyPattern: Idempotency-Key là 1–128 ký tự [A-Za-z0-9_-] (kế hoạch M0, Global Constraints; ADR-41).
@@ -45,6 +47,8 @@ var (
 	errNoActor = errors.New("httpapi: route chống trùng không có người gọi")
 	// errNotFinal lùi transaction của WriteTx khi fn trả câu trả lời "thử lại".
 	errNotFinal = errors.New("httpapi: câu trả lời chưa phải kết quả cuối")
+	// errRawNotJSON: fn trả json.RawMessage không phải JSON hợp lệ (cột lưu đòi JSON); lỗi lập trình, 500.
+	errRawNotJSON = errors.New("httpapi: json.RawMessage của kết quả không phải JSON hợp lệ")
 )
 
 // claimState là khóa mà middleware đã ghi nhận cho yêu cầu; WriteTx dùng một lần.
@@ -52,7 +56,8 @@ type claimState struct {
 	claim    idempotency.Claim
 	tenantID uuid.UUID
 	noReplay bool
-	used     bool // WriteTx đã chạy (chỉ goroutine của yêu cầu đọc, ghi)
+	used     bool                // WriteTx đã chạy (chỉ goroutine của yêu cầu đọc, ghi)
+	result   *idempotency.Stored // kết quả cuối WriteTx đã commit (route lưu thân); middleware ghi nó làm câu trả lời
 }
 
 type claimKey struct{}
@@ -68,6 +73,10 @@ func claimFrom(ctx context.Context) (*claimState, bool) {
 // đã xong → phát lại nguyên Status, Body kèm Idempotent-Replayed: true (no-replay: 409 already_processed); lỗi đổi ở
 // writeHandlerError. Khóa mới: đặt Claim vào ctx cho WriteTx. Handler trả lời mà không gọi WriteTx thì khóa được trả
 // lại (Release) để lần gửi lại chạy từ đầu.
+//
+// Lần đầu và lần phát lại giống hệt từng byte (Task 396): khi WriteTx đã commit kết quả cuối của route lưu thân, mọi
+// thứ handler ghi sau đó (ogen mã hóa lại, có thể khác byte: map lặp ngẫu nhiên, thoát ký tự) bị bỏ và middleware ghi
+// đúng Status, Body đã lưu — kể cả khi handler sau đó trả lỗi (dữ liệu đã commit). Header khác handler đặt vẫn giữ.
 func idempotent(d Deps, rt Route, next http.Handler) http.Handler {
 	noReplay := rt.IdempotencyMode == modeNoReplay
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -115,9 +124,36 @@ func idempotent(d Deps, rt Route, next http.Handler) http.Handler {
 				releaseClaim(ctx, d, claim)
 			}
 		}()
-		next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, claimKey{}, st)))
+		next.ServeHTTP(&storedWriter{ResponseWriter: w, st: st}, r.WithContext(context.WithValue(ctx, claimKey{}, st)))
+		if st.result != nil {
+			writeStored(w, st.result)
+		}
 	})
 }
+
+// storedWriter bỏ mọi thứ handler ghi sau khi WriteTx đã lưu kết quả cuối (st.result), để idempotent ghi đúng kết quả
+// đó; trước đó (từ chối, "thử lại", lỗi, no-replay) ghi thẳng.
+type storedWriter struct {
+	http.ResponseWriter
+
+	st *claimState
+}
+
+func (w *storedWriter) WriteHeader(code int) {
+	if w.st.result == nil {
+		w.ResponseWriter.WriteHeader(code)
+	}
+}
+
+func (w *storedWriter) Write(b []byte) (int, error) {
+	if w.st.result == nil {
+		return w.ResponseWriter.Write(b) //nolint:wrapcheck // ResponseWriter của net/http, trả nguyên
+	}
+	return len(b), nil
+}
+
+// Unwrap cho http.ResponseController.
+func (w *storedWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 // writeTxOptions: db.TxAPI, lock_timeout thay bằng d.WriteLockTimeout khi có.
 func writeTxOptions(d Deps) db.TxOptions {
@@ -128,15 +164,24 @@ func writeTxOptions(d Deps) db.TxOptions {
 	return o
 }
 
-// replay trả lại nguyên kết quả đã lưu.
+// replay trả lại nguyên kết quả đã lưu, kèm Idempotent-Replayed: true.
 func replay(w http.ResponseWriter, s *idempotency.Stored) {
+	w.Header().Set(headerReplayed, "true")
+	writeStored(w, s)
+}
+
+// writeStored ghi đúng Status và từng byte Body đã lưu; Content-Type là jsonContentType khi có thân (lần đầu và lần
+// phát lại như nhau).
+func writeStored(w http.ResponseWriter, s *idempotency.Stored) {
 	h := w.Header()
-	h.Set(headerReplayed, "true")
+	h.Del("Content-Length")
 	if s.Body != nil {
-		h.Set("Content-Type", "application/json")
+		h.Set("Content-Type", jsonContentType)
+	} else {
+		h.Del("Content-Type")
 	}
 	w.WriteHeader(s.Status)
-	_, _ = w.Write(s.Body) //nolint:gosec // G705: thân JSON do chính handler trả và lưu, Content-Type application/json
+	_, _ = w.Write(s.Body) //nolint:gosec // G705: thân JSON do chính handler trả và lưu, Content-Type JSON
 }
 
 // releaseClaim trả lại khóa; lỗi chỉ ghi log (dòng khóa tự hết hạn giữ chỗ sau 60 s, lần gửi lại nhận 409 tới đó).
@@ -148,9 +193,11 @@ func releaseClaim(ctx context.Context, d Deps, c idempotency.Claim) {
 }
 
 // WriteTx chạy fn trong tenancy.WithTenant(tenantID) với khóa chống trùng của yêu cầu (ADR-41). fn trả (status,
-// body, final, err): final thì Claim.Complete ghi status và body (JSON; route no-replay không lưu thân) trong cùng
-// transaction rồi commit; không final (câu trả lời "thử lại") thì lùi và trả lại khóa, WriteTx trả nil và handler tự
-// ghi câu trả lời đó. fn có thể chạy tới 4 lần (ADR-46): không gọi mạng, gán lại kết quả ở mỗi lần.
+// body, final, err): final thì Claim.Complete ghi status và body (json.RawMessage lưu nguyên từng byte, kiểu khác qua
+// json.Marshal; route no-replay không lưu thân) trong cùng transaction rồi commit; sau commit, chính status và byte
+// đã lưu là câu trả lời của yêu cầu (middleware idempotent ghi, bỏ thân handler ghi). Không final (câu trả lời "thử
+// lại") thì lùi và trả lại khóa, WriteTx trả nil và handler tự ghi câu trả lời đó. fn có thể chạy tới 4 lần
+// (ADR-46): không gọi mạng, gán lại kết quả ở mỗi lần.
 //
 // Lỗi: db.ErrRetryLater → lùi, trả lại khóa, trả lỗi (writeHandlerError: 503 retry_later, Retry-After: 1; không lưu).
 // Lỗi khác của fn → lùi, dòng khóa giữ running tới hết 60 s. Yêu cầu không có khóa (route exempt), gọi lần hai, hay
@@ -166,7 +213,9 @@ func WriteTx(ctx context.Context, d Deps, tenantID uuid.UUID, fn func(tx pgx.Tx)
 		return fmt.Errorf("%w: tenant khác tenant của người gọi", ErrNoClaim)
 	}
 	st.used = true
+	var result *idempotency.Stored
 	err := tenancy.WithTenant(ctx, d.DB, tenantID, func(tx pgx.Tx) error {
+		result = nil // fn có thể chạy lại: gán lại kết quả ở mỗi lần
 		status, body, final, err := fn(tx)
 		if err != nil {
 			return err
@@ -175,15 +224,22 @@ func WriteTx(ctx context.Context, d Deps, tenantID uuid.UUID, fn func(tx pgx.Tx)
 			return errNotFinal
 		}
 		var raw []byte
-		if body != nil && !st.noReplay {
-			if raw, err = json.Marshal(body); err != nil {
-				return fmt.Errorf("mã hóa kết quả để lưu: %w", err)
+		if !st.noReplay {
+			if raw, err = encodeResult(body); err != nil {
+				return err
 			}
 		}
-		return st.claim.Complete(ctx, tx, status, raw)
+		if err := st.claim.Complete(ctx, tx, status, raw); err != nil {
+			return err //nolint:wrapcheck // idempotency đã bọc
+		}
+		if !st.noReplay {
+			result = &idempotency.Stored{Status: status, Body: raw}
+		}
+		return nil
 	}, writeTxOptions(d))
 	switch {
 	case err == nil:
+		st.result = result
 		return nil
 	case errors.Is(err, errNotFinal):
 		releaseClaim(ctx, d, st.claim)
@@ -192,4 +248,26 @@ func WriteTx(ctx context.Context, d Deps, tenantID uuid.UUID, fn func(tx pgx.Tx)
 		releaseClaim(ctx, d, st.claim)
 	}
 	return err //nolint:wrapcheck // lỗi của fn và của RetryTx trả nguyên cho writeHandlerError
+}
+
+// encodeResult là byte sẽ lưu của kết quả: nil → nil; json.RawMessage → nguyên byte (phải là JSON hợp lệ); kiểu khác
+// → json.Marshal.
+func encodeResult(body any) ([]byte, error) {
+	switch b := body.(type) {
+	case nil:
+		return nil, nil
+	case json.RawMessage:
+		if b == nil {
+			return nil, nil
+		}
+		if !json.Valid(b) {
+			return nil, errRawNotJSON
+		}
+		return bytes.Clone(b), nil
+	}
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("mã hóa kết quả để lưu: %w", err)
+	}
+	return raw, nil
 }
