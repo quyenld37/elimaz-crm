@@ -24,7 +24,6 @@ import (
 	"elimaz.com.vn/crm/internal/adapters/fakecarrier"
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/imager"
-	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
@@ -184,16 +183,6 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	return serveHTTP(ctx, cfg, d, reg, hub, logger)
 }
 
-// newEvents dựng sổ consumer của sự kiện nội bộ, dùng chung cho api (Emit), lệnh vận chuyển (Emit) và worker
-// (handler): sổ COD cash (shipment.status_changed, Task M1-32). Module của mốc sau đăng ký ở đây.
-func newEvents() (*events.Registry, error) {
-	r := events.NewRegistry()
-	if err := r.Register(cash.Consumer{}); err != nil {
-		return nil, fmt.Errorf("đăng ký consumer sổ COD: %w", err)
-	}
-	return r, nil
-}
-
 // fakeCarrierOn: hãng vận chuyển giả chỉ được nối ngoài production và khi có FAKECARRIER_URL (Q2; config.Load đã cấm
 // biến này ở production, đây là chốt thứ hai).
 func fakeCarrierOn(cfg config.Config) bool {
@@ -228,7 +217,9 @@ func newInbound(cfg config.Config, reg *metrics.Registry, bus selftest.Publisher
 // chỉ khi có IMAGER_URL, thiếu thì lệnh chờ trong hàng đợi), lệnh thử command.selftest (bên ngoài tại chỗ, không
 // gửi gì thật, chỉ khi CRM_ENV khác production) và hai lệnh vận chuyển fulfillment.create_shipment,
 // fulfillment.refresh_status với hãng giả (fakeCarrierOn; Task M1-31); module của mốc sau thêm lệnh thật ở đây.
-func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtime.Bus, logger *slog.Logger) ([]commands.Handler, error) {
+func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtime.Bus, evs *events.Registry,
+	logger *slog.Logger,
+) ([]commands.Handler, error) {
 	fs, err := files.NewS3Store(s3Config(cfg))
 	if err != nil {
 		return nil, fmt.Errorf("dựng kho tệp: %w", err)
@@ -256,10 +247,6 @@ func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtim
 		hs = append(hs, selftest.NewCommand(selftest.Loopback{}))
 	}
 	if fakeCarrierOn(cfg) {
-		evs, err := newEvents()
-		if err != nil {
-			return nil, err
-		}
 		o := fulfillment.CommandOptions{
 			DB: d, Adapters: []fulfillment.CarrierAdapter{
 				fakecarrier.NewClient(cfg.FakeCarrierURL, cfg.FakeCarrierWebhookSecret, &http.Client{}),
@@ -285,7 +272,16 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	}
 	// Worker chỉ phát báo hiệu (Publish chạy pg_notify trong tx của việc), không LISTEN: không gọi hub.Run.
 	hub := realtime.NewPGHub(realtime.PGHubOptions{URL: cfg.DatabaseURL, Metrics: reg, Logger: logger})
-	cmds, err := newCommands(cfg, d, reg, hub, logger)
+	mods, err := newModules(d, hub)
+	if err != nil {
+		return err
+	}
+	for _, s := range mods.Schedules {
+		if err := plan.Define(s); err != nil {
+			return fmt.Errorf("định nghĩa lịch %s: %w", s.Name, err)
+		}
+	}
+	cmds, err := newCommands(cfg, d, reg, hub, mods.Events, logger)
 	if err != nil {
 		return err
 	}
@@ -309,14 +305,11 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	if err != nil {
 		return err
 	}
-	evs, err := newEvents()
-	if err != nil {
-		return err
-	}
-	handlers := append(append(evs.JobHandlers(), cleanup.Handlers()...), inbound...)
-	handlers = append(handlers, inventory.NewReconcileHandler(queue.NewQueue()),
+	handlers := append(append(mods.Events.JobHandlers(), cleanup.Handlers()...), inbound...)
+	handlers = append(append(handlers, inventory.NewReconcileHandler(queue.NewQueue()),
 		// Áp bản nhập Excel (Task M1-47b): ghi mẫu, biến thể bằng Writer của catalog (sự kiện qua cùng sổ, báo hiệu).
-		catalog.NewImportApplier(catalog.Writer{Events: evs, Queue: queue.NewQueue(), Realtime: hub}))
+		catalog.NewImportApplier(catalog.Writer{Events: mods.Events, Queue: queue.NewQueue(), Realtime: hub})),
+		mods.Handlers...)
 	w := queue.NewWorker(d, handlers, queue.WorkerOptions{
 		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
 		Metrics:  reg, Logger: logger, Role: string(cfg.Role),
@@ -447,13 +440,13 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 		if err != nil {
 			return fmt.Errorf("dựng kho tệp: %w", err)
 		}
-		evs, err := newEvents()
+		mods, err := newModules(d, hub)
 		if err != nil {
 			return err
 		}
 		handler = httpapi.NewServer(httpapi.Deps{
 			Config: cfg, DB: d, Logger: logger, Access: access, Files: store,
-			Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop}, Events: evs, Metrics: reg,
+			Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop}, Events: mods.Events, Metrics: reg,
 		})
 	} else {
 		h, err := ingestHandler(cfg, d, reg, logger)

@@ -1,0 +1,59 @@
+# Hợp đồng mẫu cho money_fields_test: grandTotal thiếu maximum, items[].lineDiscount kiểu chuỗi, refundAmount
+# int32 (báo); còn lại đúng luật.
+openapi: 3.0.3
+info:
+  title: mẫu
+  version: 0.0.1
+paths:
+  /x:
+    post:
+      operationId: createX
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      lineDiscount:
+                        type: string
+                shippingFee:
+                  $ref: "#/components/schemas/Money"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  refundAmount:
+                    type: integer
+                    format: int32
+                  paidTotal:
+                    type: integer
+                    format: int64
+                    maximum: 9007199254740991
+components:
+  schemas:
+    Money:
+      type: integer
+      format: int64
+      minimum: 0
+      maximum: 9007199254740991
+    Order:
+      type: object
+      properties:
+        grandTotal:
+          type: integer
+        subtotal:
+          type: integer
+        couponDiscount:
+          $ref: "#/components/schemas/Money"
+        codAmount:
+          $ref: "#/components/schemas/Money"
