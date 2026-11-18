@@ -144,6 +144,13 @@ func (w Writer) markDelivered(ctx context.Context, tx pgx.Tx, o store.LockOrderR
 	return w.emit(ctx, tx, o.TenantID, Order{ID: o.ID, SellerID: o.SellerID}, TopicOrderDelivered, version)
 }
 
+// Lock khóa đơn id (FOR UPDATE) trong tx của bên gọi, cho đường bắt đầu từ dòng ở nhóm sau (vận đơn, ADR-46 nhóm 7
+// trước nhóm 8): bên gọi khóa đơn trước rồi mới khóa dòng của mình. Không có (hay tenant khác, RLS) → ErrNotFound.
+func Lock(ctx context.Context, tx pgx.Tx, id uuid.UUID) error {
+	_, err := lockOrder(ctx, store.New(tx), id)
+	return err
+}
+
 // lockOrder khóa đơn id (FOR UPDATE); không có (hay tenant khác, RLS) → ErrNotFound.
 func lockOrder(ctx context.Context, q *store.Queries, id uuid.UUID) (store.LockOrderRow, error) {
 	o, err := q.LockOrder(ctx, id)

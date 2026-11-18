@@ -2509,6 +2509,75 @@ func (s *ShipAddress) Validate() error {
 	return nil
 }
 
+func (s *Shipment) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Status.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "status",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.CodAmount.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "codAmount",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Fee.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fee",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ShipmentStatus) Validate() error {
+	switch s {
+	case "creating":
+		return nil
+	case "awaiting_pickup":
+		return nil
+	case "shipping":
+		return nil
+	case "delivered":
+		return nil
+	case "cancelled":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *StaffGrant) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer

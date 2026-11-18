@@ -901,6 +901,21 @@ func (s *CreateProductRequest) SetVariants(val []VariantInput) {
 	s.Variants = val
 }
 
+// Ref: #/components/schemas/CreateShipmentRequest
+type CreateShipmentRequest struct {
+	CarrierAccountId uuid.UUID `json:"carrierAccountId"`
+}
+
+// GetCarrierAccountId returns the value of CarrierAccountId.
+func (s *CreateShipmentRequest) GetCarrierAccountId() uuid.UUID {
+	return s.CarrierAccountId
+}
+
+// SetCarrierAccountId sets the value of CarrierAccountId.
+func (s *CreateShipmentRequest) SetCarrierAccountId(val uuid.UUID) {
+	s.CarrierAccountId = val
+}
+
 // Ref: #/components/schemas/CreateStaffRequest
 type CreateStaffRequest struct {
 	Email       string `json:"email"`
@@ -1278,6 +1293,7 @@ func (*ErrorStatusCode) createAttributeRes()           {}
 func (*ErrorStatusCode) createCategoryRes()            {}
 func (*ErrorStatusCode) createOrderRes()               {}
 func (*ErrorStatusCode) createProductRes()             {}
+func (*ErrorStatusCode) createShipmentRes()            {}
 func (*ErrorStatusCode) createStaffRes()               {}
 func (*ErrorStatusCode) createStockDocumentRes()       {}
 func (*ErrorStatusCode) createSupplierRes()            {}
@@ -1288,6 +1304,7 @@ func (*ErrorStatusCode) getMeRes()                     {}
 func (*ErrorStatusCode) getOrderRes()                  {}
 func (*ErrorStatusCode) getPlatformHealthRes()         {}
 func (*ErrorStatusCode) getProductRes()                {}
+func (*ErrorStatusCode) getShipmentRes()               {}
 func (*ErrorStatusCode) getStockDocumentRes()          {}
 func (*ErrorStatusCode) healthDeepRes()                {}
 func (*ErrorStatusCode) listAttributesRes()            {}
@@ -4401,6 +4418,187 @@ func (s *ShipAddress) SetPhone(val string) {
 // SetLine sets the value of Line.
 func (s *ShipAddress) SetLine(val string) {
 	s.Line = val
+}
+
+// Ref: #/components/schemas/Shipment
+type Shipment struct {
+	ID      uuid.UUID `json:"id"`
+	OrderId uuid.UUID `json:"orderId"`
+	// Mã vận đơn của CRM (E + yyMMdd + 6 ký tự).
+	Code             string    `json:"code"`
+	CarrierKey       string    `json:"carrierKey"`
+	CarrierAccountId uuid.UUID `json:"carrierAccountId"`
+	// Mã của hãng; chưa có khi vận đơn còn creating.
+	TrackingCode OptString      `json:"trackingCode"`
+	Status       ShipmentStatus `json:"status"`
+	CodAmount    Money          `json:"codAmount"`
+	Fee          OptMoney       `json:"fee"`
+	CreatedAt    time.Time      `json:"createdAt"`
+}
+
+// GetID returns the value of ID.
+func (s *Shipment) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *Shipment) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetCode returns the value of Code.
+func (s *Shipment) GetCode() string {
+	return s.Code
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *Shipment) GetCarrierKey() string {
+	return s.CarrierKey
+}
+
+// GetCarrierAccountId returns the value of CarrierAccountId.
+func (s *Shipment) GetCarrierAccountId() uuid.UUID {
+	return s.CarrierAccountId
+}
+
+// GetTrackingCode returns the value of TrackingCode.
+func (s *Shipment) GetTrackingCode() OptString {
+	return s.TrackingCode
+}
+
+// GetStatus returns the value of Status.
+func (s *Shipment) GetStatus() ShipmentStatus {
+	return s.Status
+}
+
+// GetCodAmount returns the value of CodAmount.
+func (s *Shipment) GetCodAmount() Money {
+	return s.CodAmount
+}
+
+// GetFee returns the value of Fee.
+func (s *Shipment) GetFee() OptMoney {
+	return s.Fee
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *Shipment) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetID sets the value of ID.
+func (s *Shipment) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *Shipment) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetCode sets the value of Code.
+func (s *Shipment) SetCode(val string) {
+	s.Code = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *Shipment) SetCarrierKey(val string) {
+	s.CarrierKey = val
+}
+
+// SetCarrierAccountId sets the value of CarrierAccountId.
+func (s *Shipment) SetCarrierAccountId(val uuid.UUID) {
+	s.CarrierAccountId = val
+}
+
+// SetTrackingCode sets the value of TrackingCode.
+func (s *Shipment) SetTrackingCode(val OptString) {
+	s.TrackingCode = val
+}
+
+// SetStatus sets the value of Status.
+func (s *Shipment) SetStatus(val ShipmentStatus) {
+	s.Status = val
+}
+
+// SetCodAmount sets the value of CodAmount.
+func (s *Shipment) SetCodAmount(val Money) {
+	s.CodAmount = val
+}
+
+// SetFee sets the value of Fee.
+func (s *Shipment) SetFee(val OptMoney) {
+	s.Fee = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *Shipment) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+func (*Shipment) createShipmentRes() {}
+func (*Shipment) getShipmentRes()    {}
+
+type ShipmentStatus string
+
+const (
+	ShipmentStatusCreating       ShipmentStatus = "creating"
+	ShipmentStatusAwaitingPickup ShipmentStatus = "awaiting_pickup"
+	ShipmentStatusShipping       ShipmentStatus = "shipping"
+	ShipmentStatusDelivered      ShipmentStatus = "delivered"
+	ShipmentStatusCancelled      ShipmentStatus = "cancelled"
+)
+
+// AllValues returns all ShipmentStatus values.
+func (ShipmentStatus) AllValues() []ShipmentStatus {
+	return []ShipmentStatus{
+		ShipmentStatusCreating,
+		ShipmentStatusAwaitingPickup,
+		ShipmentStatusShipping,
+		ShipmentStatusDelivered,
+		ShipmentStatusCancelled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ShipmentStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ShipmentStatusCreating:
+		return []byte(s), nil
+	case ShipmentStatusAwaitingPickup:
+		return []byte(s), nil
+	case ShipmentStatusShipping:
+		return []byte(s), nil
+	case ShipmentStatusDelivered:
+		return []byte(s), nil
+	case ShipmentStatusCancelled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ShipmentStatus) UnmarshalText(data []byte) error {
+	switch ShipmentStatus(data) {
+	case ShipmentStatusCreating:
+		*s = ShipmentStatusCreating
+		return nil
+	case ShipmentStatusAwaitingPickup:
+		*s = ShipmentStatusAwaitingPickup
+		return nil
+	case ShipmentStatusShipping:
+		*s = ShipmentStatusShipping
+		return nil
+	case ShipmentStatusDelivered:
+		*s = ShipmentStatusDelivered
+		return nil
+	case ShipmentStatusCancelled:
+		*s = ShipmentStatusCancelled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/StaffGrant

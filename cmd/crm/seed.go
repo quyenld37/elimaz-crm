@@ -8,7 +8,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/adapters/fakecarrier"
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/platform/config"
@@ -18,6 +20,9 @@ import (
 
 // seedTenantName là tenant của máy dev (kế hoạch M0, Task 7).
 const seedTenantName = "ELIMAZ"
+
+// seedCarrierAccount là mã tài khoản hãng giả của máy dev (Task M1-31), cũng là khóa tuyến webhook carrier_account.
+const seedCarrierAccount = "fake-1"
 
 var errSeedRole = errors.New("seed-dev chỉ chạy với CRM_ROLE=migrate (cần DATABASE_OWNER_URL: crm_app chỉ đọc platform.tenant_routes)")
 
@@ -33,7 +38,7 @@ func openOwner(ctx context.Context, cfg config.Config) (*db.DB, error) {
 // seedDev (`crm seed-dev <email>`) dựng dữ liệu dev trên database đã migrate, bằng chuỗi chủ bảng: tenant "ELIMAZ",
 // năm vai trò mẫu (identity.EnsureDefaultRoles; owner có mọi quyền), user theo email được gán owner phạm vi all,
 // dòng tenant_routes('staff_email', email), người bán ELIMAZ (catalog), kho MAIN "Kho chính" do ELIMAZ vận hành
-// (inventory). Chạy lại được.
+// (inventory), tài khoản hãng giả fake-1 ở kho MAIN và tuyến carrier_account:fake-1 (fulfillment). Chạy lại được.
 func seedDev(ctx context.Context, cfg config.Config, email string, logger *slog.Logger) error {
 	if cfg.Role != config.RoleMigrate || cfg.Migrate == nil {
 		return errSeedRole
@@ -60,10 +65,21 @@ func seedDev(ctx context.Context, cfg config.Config, email string, logger *slog.
 		if err != nil {
 			return err //nolint:wrapcheck // đã bọc trong catalog
 		}
-		_, err = inventory.EnsureDefaultWarehouse(ctx, tx, tenantID, sellerID)
-		return err //nolint:wrapcheck // đã bọc trong inventory
+		warehouseID, err := inventory.EnsureDefaultWarehouse(ctx, tx, tenantID, sellerID)
+		if err != nil {
+			return err //nolint:wrapcheck // đã bọc trong inventory
+		}
+		// Tài khoản hãng giả fake-1 ở kho MAIN (Task M1-31); chỉ dùng khi worker có FAKECARRIER_URL.
+		_, err = fulfillment.EnsureCarrierAccount(ctx, tx, fulfillment.AccountInput{
+			SellerID: sellerID, WarehouseID: warehouseID, CarrierKey: fakecarrier.CarrierKey, Name: "Hãng giả",
+			ExternalAccountRef: seedCarrierAccount,
+		})
+		return err //nolint:wrapcheck // đã bọc trong fulfillment
 	}); err != nil {
-		return fmt.Errorf("seed người bán, kho: %w", err)
+		return fmt.Errorf("seed người bán, kho, tài khoản hãng: %w", err)
+	}
+	if err := tenancy.AddRoute(ctx, owner, fulfillment.RouteKindCarrierAccount, seedCarrierAccount, tenantID); err != nil {
+		return err //nolint:wrapcheck // đã bọc trong tenancy
 	}
 	logger.Info("seed-dev xong", slog.String("tenant_id", tenantID.String()))
 	return nil

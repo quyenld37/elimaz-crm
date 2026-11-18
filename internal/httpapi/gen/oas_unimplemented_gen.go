@@ -106,6 +106,16 @@ func (UnimplementedHandler) CreateProduct(ctx context.Context, req *CreateProduc
 	return r, ht.ErrNotImplemented
 }
 
+// CreateShipment implements createShipment operation.
+//
+// Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa
+// hủy → shipment_exists.
+//
+// POST /api/v1/orders/{id}/shipments
+func (UnimplementedHandler) CreateShipment(ctx context.Context, req *CreateShipmentRequest, params CreateShipmentParams) (r CreateShipmentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateStaff implements createStaff operation.
 //
 // Tạo nhân viên mới (chưa có vai trò nào).
@@ -197,6 +207,15 @@ func (UnimplementedHandler) GetPlatformHealth(ctx context.Context) (r GetPlatfor
 //
 // GET /api/v1/catalog/products/{id}
 func (UnimplementedHandler) GetProduct(ctx context.Context, params GetProductParams) (r GetProductRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetShipment implements getShipment operation.
+//
+// Quyền fulfillment.read theo đích kho của tài khoản hãng của vận đơn.
+//
+// GET /api/v1/shipments/{id}
+func (UnimplementedHandler) GetShipment(ctx context.Context, params GetShipmentParams) (r GetShipmentRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

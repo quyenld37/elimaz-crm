@@ -214,6 +214,63 @@ type CustomerCustomersV struct {
 	CreatedAt time.Time
 }
 
+type FulfillmentCarrierAccount struct {
+	ID                 uuid.UUID
+	TenantID           uuid.UUID
+	SellerID           uuid.UUID
+	CarrierKey         string
+	Name               string
+	ExternalAccountRef string
+	WarehouseID        uuid.UUID
+	CredentialEnc      []byte
+	Status             string
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	Version            int64
+}
+
+type FulfillmentShipment struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	Code             string
+	OrderID          uuid.UUID
+	CarrierKey       string
+	CarrierAccountID uuid.UUID
+	TrackingCode     pgtype.Text
+	Status           string
+	CodAmount        int64
+	Fee              pgtype.Int8
+	LastStatusAt     pgtype.Timestamptz
+	CreatedBy        *uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	Version          int64
+}
+
+type FulfillmentShipmentEvent struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	ShipmentID uuid.UUID
+	EventKey   string
+	RawStatus  string
+	Status     string
+	OccurredAt time.Time
+	Raw        []byte
+	RecordedAt time.Time
+}
+
+type FulfillmentShipmentsV struct {
+	ID               uuid.UUID
+	OrderID          uuid.UUID
+	Code             string
+	CarrierKey       string
+	CarrierAccountID uuid.UUID
+	TrackingCode     pgtype.Text
+	Status           string
+	CodAmount        int64
+	Fee              pgtype.Int8
+}
+
 type IdentityAuditLog struct {
 	ID            uuid.UUID
 	TenantID      uuid.UUID

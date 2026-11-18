@@ -12,6 +12,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/customer"
+	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order"
@@ -70,6 +71,7 @@ const (
 	codeVariantNotForSale = "variant_not_for_sale"
 	codeMixedSellers      = "mixed_sellers"
 	codeTotalOverflow     = "total_overflow"
+	codeShipmentExists    = "shipment_exists"
 
 	// Kho tệp (kế hoạch M1 Task M1-41).
 	codeFileTooLarge          = "file_too_large"
@@ -176,7 +178,7 @@ func writeDomainError(w http.ResponseWriter, r *http.Request, err error) bool {
 		return true
 	}
 	for _, mapErr := range []func(error) (int, string, bool){
-		identityError, catalogError, filesError, orderError, inventoryError, queriesError,
+		identityError, catalogError, filesError, orderError, inventoryError, queriesError, fulfillmentError,
 	} {
 		if status, code, ok := mapErr(err); ok {
 			writeError(w, r, status, code)
@@ -337,6 +339,28 @@ func orderError(err error) (status int, code string, ok bool) {
 		{order.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
 		{order.ErrNotFound, http.StatusNotFound, codeNotFound},
 		{customer.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
+	} {
+		if errors.Is(err, m.err) {
+			return m.status, m.code, true
+		}
+	}
+	return 0, "", false
+}
+
+// fulfillmentError đổi lỗi nghiệp vụ của vận chuyển (và thiếu quyền ở kho của tài khoản hãng) sang mã HTTP.
+// ErrOrderNotShippable (đơn không có, của người bán khác, chưa ở confirmed), ErrAccountNotFound, ErrNotFound: 404
+// (không cho biết là có).
+func fulfillmentError(err error) (status int, code string, ok bool) {
+	for _, m := range []struct {
+		err    error
+		status int
+		code   string
+	}{
+		{errForbiddenTarget, http.StatusForbidden, codeForbidden},
+		{fulfillment.ErrShipmentExists, http.StatusConflict, codeShipmentExists},
+		{fulfillment.ErrOrderNotShippable, http.StatusNotFound, codeNotFound},
+		{fulfillment.ErrAccountNotFound, http.StatusNotFound, codeNotFound},
+		{fulfillment.ErrNotFound, http.StatusNotFound, codeNotFound},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

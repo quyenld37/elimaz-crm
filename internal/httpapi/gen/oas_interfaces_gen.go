@@ -41,6 +41,10 @@ type CreateProductRes interface {
 	createProductRes()
 }
 
+type CreateShipmentRes interface {
+	createShipmentRes()
+}
+
 type CreateStaffRes interface {
 	createStaffRes()
 }
@@ -79,6 +83,10 @@ type GetPlatformHealthRes interface {
 
 type GetProductRes interface {
 	getProductRes()
+}
+
+type GetShipmentRes interface {
+	getShipmentRes()
 }
 
 type GetStockDocumentRes interface {

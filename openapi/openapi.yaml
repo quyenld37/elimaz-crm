@@ -1002,6 +1002,47 @@ paths:
                 $ref: "#/components/schemas/Order"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/orders/{id}/shipments:
+    post:
+      operationId: createShipment
+      summary: Tạo vận đơn cho đơn bằng một tài khoản hãng (vận đơn creating, lệnh tạo ở hãng chạy nền)
+      description: Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa hủy → shipment_exists.
+      x-permission: fulfillment.ship
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateShipmentRequest"
+      responses:
+        "202":
+          description: Vận đơn vừa tạo (creating); mã hãng có sau khi lệnh chạy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipments/{id}:
+    get:
+      operationId: getShipment
+      summary: Một vận đơn
+      description: Quyền fulfillment.read theo đích kho của tài khoản hãng của vận đơn.
+      x-permission: fulfillment.read
+      parameters:
+        - $ref: "#/components/parameters/ShipmentID"
+      responses:
+        "200":
+          description: Vận đơn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -1069,6 +1110,13 @@ components:
         type: string
         format: uuid
     SupplierID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ShipmentID:
       name: id
       in: path
       required: true
@@ -1665,6 +1713,44 @@ components:
           $ref: "#/components/schemas/Money"
         netAmount:
           $ref: "#/components/schemas/Money"
+    CreateShipmentRequest:
+      type: object
+      required: [carrierAccountId]
+      properties:
+        carrierAccountId:
+          type: string
+          format: uuid
+    Shipment:
+      type: object
+      required: [id, orderId, code, carrierKey, carrierAccountId, status, codAmount, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        code:
+          type: string
+          description: Mã vận đơn của CRM (E + yyMMdd + 6 ký tự)
+        carrierKey:
+          type: string
+        carrierAccountId:
+          type: string
+          format: uuid
+        trackingCode:
+          type: string
+          description: Mã của hãng; chưa có khi vận đơn còn creating
+        status:
+          type: string
+          enum: [creating, awaiting_pickup, shipping, delivered, cancelled]
+        codAmount:
+          $ref: "#/components/schemas/Money"
+        fee:
+          $ref: "#/components/schemas/Money"
+        createdAt:
+          type: string
+          format: date-time
     Money:
       type: integer
       format: int64

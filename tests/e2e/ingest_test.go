@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -54,4 +55,42 @@ func call(t *testing.T, req *http.Request) (int, string) {
 	t.Helper()
 	status, _, b := testkit.Do(t, req)
 	return status, string(b)
+}
+
+// Hãng giả chỉ có ngoài production (Task M1-31, threat model (6) E): CRM_ENV=test có FAKECARRIER_URL → POST
+// /hooks/fakecarrier chữ ký sai 401 (nguồn có đăng ký); CRM_ENV=production → 404 (không có nguồn).
+func TestIngestFakeCarrierOnlyOutsideProduction(t *testing.T) {
+	bin := buildBinary(t)
+	_, _, dbURL := testkit.StartPostgres(t)
+	for _, c := range []struct {
+		env  []string
+		want int
+	}{
+		{[]string{"CRM_ENV=test", "FAKECARRIER_URL=http://127.0.0.1:4194", "FAKECARRIER_WEBHOOK_SECRET=" + secret32}, http.StatusUnauthorized},
+		{[]string{"CRM_ENV=production"}, http.StatusNotFound},
+	} {
+		port := freePort(t)
+		env := append(append(roleEnv("ingest", dbURL, port), "SPOOL_DIR="+t.TempDir()), c.env...)
+		cmd, done, stdout, stderr := startRole(t, bin, env)
+		base := fmt.Sprintf("http://127.0.0.1:%d", port)
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		if err := waitReady(ctx, base+"/health/ready"); err != nil {
+			cancel()
+			t.Fatalf("%v: ingest chưa sẵn sàng: %v\nstdout:\n%s\nstderr:\n%s", c.env, err, stdout.String(), stderr.String())
+		}
+		body := []byte(`{"events":[]}`)
+		req, _ := http.NewRequestWithContext(ctx, http.MethodPost, base+"/hooks/fakecarrier", bytes.NewReader(body))
+		req.Header.Set("X-Fake-Signature", "sha256=00")
+		status, got := call(t, req)
+		cancel()
+		if status != c.want {
+			t.Fatalf("%v: POST /hooks/fakecarrier = %d %q, muốn %d", c.env, status, got, c.want)
+		}
+		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+			t.Fatal(err)
+		}
+		if err := <-done; err != nil {
+			t.Fatalf("%v: ingest tắt êm lỗi: %v", c.env, err)
+		}
+	}
 }
