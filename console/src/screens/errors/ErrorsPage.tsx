@@ -6,7 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getPlatformHealth, type ErrorSummary } from "../../api";
 import { ApiError, errorMessage, unwrap } from "../../app/errors";
 import { queryKey } from "../../app/queryClient";
-import { clockTime, countText, shortId, shortTime } from "./errorsRules";
+import { shortTime } from "../../app/time";
+import { clockTime, countText, shortId } from "./errorsRules";
 import "./errors.css";
 
 /** Chu kỳ tự tải lại (ADR-42). */
