@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, GetMeData, GetMeErrors, GetMeResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListStaffData, ListStaffErrors, ListStaffResponses, LockStaffData, LockStaffErrors, LockStaffResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, RetryJobData, RetryJobErrors, RetryJobResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses } from './types.gen';
+import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, CreateUploadData, CreateUploadErrors, CreateUploadResponses, GetFileData, GetFileErrors, GetFileResponses, GetMeData, GetMeErrors, GetMeResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListStaffData, ListStaffErrors, ListStaffResponses, LockStaffData, LockStaffErrors, LockStaffResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, RetryJobData, RetryJobErrors, RetryJobResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -88,6 +88,28 @@ export const getMe = <ThrowOnError extends boolean = false>(options?: Options<Ge
  * Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 16)
  */
 export const stream = <ThrowOnError extends boolean = false>(options?: Options<StreamData, ThrowOnError, StreamResponse>): Promise<ServerSentEventsResult<StreamResponses>> => (options?.client ?? client).sse.get<StreamResponses, StreamErrors, ThrowOnError>({ url: '/api/v1/stream', ...options });
+
+/**
+ * Xin đường dẫn ký sẵn để trình duyệt tải thẳng một tệp lên kho (chỉ mục đích nhận tải lên)
+ */
+export const createUpload = <ThrowOnError extends boolean = false>(options: Options<CreateUploadData, ThrowOnError>): RequestResult<CreateUploadResponses, CreateUploadErrors, ThrowOnError> => (options.client ?? client).post<CreateUploadResponses, CreateUploadErrors, ThrowOnError>({
+    url: '/api/v1/files/uploads',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Báo đã tải xong; máy chủ kiểm kho rồi chuyển tệp sang uploaded (ảnh thì xếp việc xử lý)
+ */
+export const completeUpload = <ThrowOnError extends boolean = false>(options: Options<CompleteUploadData, ThrowOnError>): RequestResult<CompleteUploadResponses, CompleteUploadErrors, ThrowOnError> => (options.client ?? client).post<CompleteUploadResponses, CompleteUploadErrors, ThrowOnError>({ url: '/api/v1/files/{id}/complete', ...options });
+
+/**
+ * Trạng thái tệp và các biến thể ảnh công khai
+ */
+export const getFile = <ThrowOnError extends boolean = false>(options: Options<GetFileData, ThrowOnError>): RequestResult<GetFileResponses, GetFileErrors, ThrowOnError> => (options.client ?? client).get<GetFileResponses, GetFileErrors, ThrowOnError>({ url: '/api/v1/files/{id}', ...options });
 
 /**
  * Việc nền cần người xử lý của tenant người gọi (không có payload)
