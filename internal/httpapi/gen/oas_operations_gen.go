@@ -68,6 +68,7 @@ const (
 	RetryJobOperation                  OperationName = "RetryJob"
 	SearchVariantsOperation            OperationName = "SearchVariants"
 	SetProductClassificationOperation  OperationName = "SetProductClassification"
+	SetProductImageColorOperation      OperationName = "SetProductImageColor"
 	StartStocktakeOperation            OperationName = "StartStocktake"
 	StreamOperation                    OperationName = "Stream"
 	UnlockStaffOperation               OperationName = "UnlockStaff"

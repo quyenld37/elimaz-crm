@@ -668,6 +668,33 @@ paths:
                 $ref: "#/components/schemas/Product"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/catalog/products/{id}/images/{imageId}/color:
+    put:
+      operationId: setProductImageColor
+      summary: Đặt màu của một ảnh đang hiện của mẫu khi version còn khớp (thiếu color → ảnh chung mọi màu)
+      description: >-
+        color phải là một màu đang có của biến thể trong mẫu (400 invalid_input nếu không). Ảnh đã xóa, của mẫu khác hay
+        tenant khác → 404. Version mẫu tăng 1 như các thao tác ảnh khác.
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+        - $ref: "#/components/parameters/ImageID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetProductImageColorRequest"
+      responses:
+        "200":
+          description: Mẫu sau khi đổi màu ảnh
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/catalog/products/{id}/images/{imageId}/restore:
     post:
       operationId: restoreProductImage
@@ -2719,6 +2746,19 @@ components:
           type: string
           minLength: 1
           maxLength: 50
+    SetProductImageColorRequest:
+      type: object
+      additionalProperties: false
+      required: [productVersion]
+      properties:
+        productVersion:
+          type: integer
+          format: int64
+        color:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Màu của một biến thể trong mẫu; bỏ trường này để ảnh thành ảnh chung
     ReorderProductImagesRequest:
       type: object
       additionalProperties: false

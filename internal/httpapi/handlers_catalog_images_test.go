@@ -112,8 +112,63 @@ func TestCatalogAPI_Images(t *testing.T) {
 		t.Fatalf("ảnh bìa trong listProducts sai: %d %s", rec.Code, rec.Body.String())
 	}
 
+	e.checkImageColor(id, i1)
 	e.checkDeleteRestore(id, i1, i2)
 	e.checkLost(id, i2, f2)
+}
+
+// checkImageColor (Task 325): setProductImageColor đặt màu, bỏ màu, version +1; màu lạ 400; version cũ 409; người chỉ
+// xem 403; tenant khác 404.
+func (e *catalogAPIEnv) checkImageColor(id, img string) {
+	e.t.Helper()
+	path := "/api/v1/catalog/products/" + id + "/images/" + img + "/color"
+	rec := e.do(http.MethodPut, path, catalogManager, "c1", `{"productVersion":4,"color":"Đen"}`)
+	if rec.Code != http.StatusOK {
+		e.t.Fatalf("setProductImageColor: %d %s", rec.Code, rec.Body.String())
+	}
+	p := decodeJSON(e.t, rec)
+	var color any
+	for _, it := range listOf(e.t, p, "images") {
+		if m := it.(map[string]any); m["id"] == img { //nolint:forcetypeassert // test
+			color = m["color"]
+		}
+	}
+	if color != "Đen" || p["version"] != float64(5) {
+		e.t.Fatalf("sau khi đặt màu: màu %v, version %v", color, p["version"])
+	}
+	rec = e.do(http.MethodPut, path, catalogManager, "c2", `{"productVersion":5}`)
+	if rec.Code != http.StatusOK {
+		e.t.Fatalf("bỏ màu: %d %s", rec.Code, rec.Body.String())
+	}
+	for _, it := range listOf(e.t, decodeJSON(e.t, rec), "images") {
+		if m := it.(map[string]any); m["id"] == img && m["color"] != nil { //nolint:forcetypeassert // test
+			e.t.Errorf("bỏ màu phải thành ảnh chung: %v", m)
+		}
+	}
+	e.checkRefusals(http.MethodPut, path, "ce", []refusal{
+		{"màu lạ", catalogManager, `{"productVersion":6,"color":"Xanh"}`, http.StatusBadRequest, "invalid_input"},
+		{"version cũ", catalogManager, `{"productVersion":5,"color":"Đỏ"}`, http.StatusConflict, "version_conflict"},
+		{"chỉ xem", catalogViewer, `{"productVersion":6,"color":"Đỏ"}`, http.StatusForbidden, "forbidden"},
+		{"tenant khác", catalogOtherB, `{"productVersion":6,"color":"Đỏ"}`, http.StatusNotFound, "not_found"},
+	})
+}
+
+// refusal là một ca yêu cầu bị từ chối: người gọi, thân, mã HTTP và mã lỗi mong đợi.
+type refusal struct {
+	name, email, body string
+	code              int
+	errCode           string
+}
+
+// checkRefusals gửi từng ca (khóa chống trùng keyPrefix+số thứ tự) và so mã HTTP, mã lỗi.
+func (e *catalogAPIEnv) checkRefusals(method, path, keyPrefix string, cases []refusal) {
+	e.t.Helper()
+	for i, c := range cases {
+		rec := e.do(method, path, c.email, keyPrefix+strconv.Itoa(i), c.body)
+		if rec.Code != c.code || decodeJSON(e.t, rec)["error"] != c.errCode {
+			e.t.Errorf("%s: mong %d %s, có %d %s", c.name, c.code, c.errCode, rec.Code, rec.Body.String())
+		}
+	}
 }
 
 // checkAttachRefusals: tệp đang xử lý 409 file_not_ready; tệp của tenant khác 404; người chỉ xem 403; version cũ 409.
@@ -125,21 +180,12 @@ func (e *catalogAPIEnv) checkAttachRefusals(id string) {
 		return nil
 	})
 	b := e.staff.Tenant(e.t, "C")
-	for i, c := range []struct {
-		name, email, body string
-		code              int
-		errCode           string
-	}{
+	e.checkRefusals(http.MethodPost, "/api/v1/catalog/products/"+id+"/images", "e", []refusal{
 		{"đang xử lý", catalogManager, fmt.Sprintf(`{"productVersion":3,"fileId":"%s"}`, processing), http.StatusConflict, "file_not_ready"},
 		{"tenant khác", catalogManager, fmt.Sprintf(`{"productVersion":3,"fileId":"%s"}`, e.imageFile(b)), http.StatusNotFound, "not_found"},
 		{"chỉ xem", catalogViewer, fmt.Sprintf(`{"productVersion":3,"fileId":"%s"}`, e.imageFile(e.tenant)), http.StatusForbidden, "forbidden"},
 		{"version cũ", catalogManager, fmt.Sprintf(`{"productVersion":1,"fileId":"%s"}`, e.imageFile(e.tenant)), http.StatusConflict, "version_conflict"},
-	} {
-		rec := e.do(http.MethodPost, "/api/v1/catalog/products/"+id+"/images", c.email, "e"+strconv.Itoa(i), c.body)
-		if rec.Code != c.code || decodeJSON(e.t, rec)["error"] != c.errCode {
-			e.t.Errorf("%s: mong %d %s, có %d %s", c.name, c.code, c.errCode, rec.Code, rec.Body.String())
-		}
-	}
+	})
 }
 
 // checkDeleteRestore (TP06): xóa → còn 1; khôi phục → 2; quá 30 ngày → 410 restore_expired; tenant khác → 404.

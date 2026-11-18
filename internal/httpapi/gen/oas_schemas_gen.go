@@ -1966,6 +1966,7 @@ func (*ErrorStatusCode) restoreProductImageRes()       {}
 func (*ErrorStatusCode) retryJobRes()                  {}
 func (*ErrorStatusCode) searchVariantsRes()            {}
 func (*ErrorStatusCode) setProductClassificationRes()  {}
+func (*ErrorStatusCode) setProductImageColorRes()      {}
 func (*ErrorStatusCode) startStocktakeRes()            {}
 func (*ErrorStatusCode) streamRes()                    {}
 func (*ErrorStatusCode) unlockStaffRes()               {}
@@ -4499,6 +4500,7 @@ func (*Product) deleteProductImageRes()   {}
 func (*Product) getProductRes()           {}
 func (*Product) reorderProductImagesRes() {}
 func (*Product) restoreProductImageRes()  {}
+func (*Product) setProductImageColorRes() {}
 func (*Product) updateProductRes()        {}
 
 // Ref: #/components/schemas/ProductClassification
@@ -5584,6 +5586,33 @@ func (s *SetClassificationRequest) SetAttributeValueIds(val []uuid.UUID) {
 // SetTagIds sets the value of TagIds.
 func (s *SetClassificationRequest) SetTagIds(val []uuid.UUID) {
 	s.TagIds = val
+}
+
+// Ref: #/components/schemas/SetProductImageColorRequest
+type SetProductImageColorRequest struct {
+	ProductVersion int64 `json:"productVersion"`
+	// Màu của một biến thể trong mẫu; bỏ trường này để ảnh thành ảnh chung.
+	Color OptString `json:"color"`
+}
+
+// GetProductVersion returns the value of ProductVersion.
+func (s *SetProductImageColorRequest) GetProductVersion() int64 {
+	return s.ProductVersion
+}
+
+// GetColor returns the value of Color.
+func (s *SetProductImageColorRequest) GetColor() OptString {
+	return s.Color
+}
+
+// SetProductVersion sets the value of ProductVersion.
+func (s *SetProductImageColorRequest) SetProductVersion(val int64) {
+	s.ProductVersion = val
+}
+
+// SetColor sets the value of Color.
+func (s *SetProductImageColorRequest) SetColor(val OptString) {
+	s.Color = val
 }
 
 // Ref: #/components/schemas/ShipAddress

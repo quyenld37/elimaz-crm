@@ -245,6 +245,10 @@ type SetProductClassificationRes interface {
 	setProductClassificationRes()
 }
 
+type SetProductImageColorRes interface {
+	setProductImageColorRes()
+}
+
 type StartStocktakeRes interface {
 	startStocktakeRes()
 }

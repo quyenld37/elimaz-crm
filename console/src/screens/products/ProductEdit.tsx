@@ -2,7 +2,8 @@
 // "/san-pham/moi": tạo mẫu bằng một createProduct kèm mọi biến thể. "/san-pham/<id>": bản nháp giữ version lúc mở; Lưu
 // chia thành các bước theo editRules.savePlan, mỗi bước một khóa chống trùng (useWriteAction). Người khác vừa lưu →
 // "Mẫu đã thay đổi, tải lại." Báo hiệu realtime tải lại dữ liệu nền nhưng không đè bản nháp.
-// Khối Ảnh (Task 325) gắn vào cột phải trên thẻ Phân loại; trình soạn bài viết (Task 326) vào cột trái dưới thẻ Thông tin.
+// Khối Ảnh (Task 325, ImageManager) nằm ở cột phải trên thẻ Phân loại: ảnh tải lên (useUploads) sống ở ExistingProduct
+// nên lưu mẫu hay tải lại mẫu không làm mất; thao tác ảnh tăng version mẫu, bản nháp nhận version mới; trình soạn bài viết (Task 326) vào cột trái dưới thẻ Thông tin.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useId, useMemo, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
@@ -24,6 +25,7 @@ import {
   type CreateProductRequest,
   type Product,
   type ProductClassification,
+  type ProductImage,
   type ProductStatus,
   type SetClassificationRequest,
   type Tag,
@@ -54,7 +56,9 @@ import {
   type SaveStep,
   type Validation,
 } from "./editRules";
+import { ImageManager } from "./ImageManager";
 import { categoryOptions, STATUS_CHIP, STATUSES } from "./productRules";
+import { useUploads, type Uploads } from "./useUpload";
 import { VariantGrid } from "./VariantGrid";
 import "./products.css";
 
@@ -102,6 +106,7 @@ function ExistingProduct({ id }: { id: string }) {
   });
   // Mỗi lần tải lại (bấm "Tải lại mẫu" hay lưu xong) dựng bản nháp mới từ dữ liệu vừa đọc.
   const [generation, setGeneration] = useState(0);
+  const uploads = useUploads();
   const [snapshot, setSnapshot] = useState<{ p: Product; c: ProductClassification } | null>(null);
   if (snapshot === null && product.data !== undefined && cls.data !== undefined) {
     setSnapshot({ p: product.data, c: cls.data });
@@ -126,7 +131,8 @@ function ExistingProduct({ id }: { id: string }) {
       key={generation}
       mode="edit"
       productId={id}
-      imageCount={snapshot.p.images.length}
+      initialImages={snapshot.p.images}
+      uploads={uploads}
       initial={draftFromProduct(snapshot.p, snapshot.c)}
       onReload={reload}
     />
@@ -136,7 +142,10 @@ function ExistingProduct({ id }: { id: string }) {
 interface EditFormProps {
   mode: "create" | "edit";
   productId?: string;
-  imageCount?: number;
+  /** Ảnh đang hiện lúc đọc mẫu (trang sửa). */
+  initialImages?: readonly ProductImage[];
+  /** Ảnh đang tải lên của trang sửa (sống ngoài biểu mẫu). */
+  uploads?: Uploads;
   initial: Draft;
   /** Đọc lại mẫu và dựng bản nháp mới (chỉ trang sửa); đọc lỗi → câu lỗi, bản nháp giữ nguyên. */
   onReload: (() => Promise<string | null>) | null;
@@ -144,12 +153,15 @@ interface EditFormProps {
 
 type StepResult = { ok: true; pair: Pair } | { ok: false; error: unknown };
 
-function EditForm({ mode, productId = "", imageCount = 0, initial, onReload }: EditFormProps) {
+const NO_IMAGES: readonly ProductImage[] = [];
+
+function EditForm({ mode, productId = "", initialImages = NO_IMAGES, uploads, initial, onReload }: EditFormProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
   const me = useQuery({ queryKey: queryKey("identity.me"), queryFn: () => unwrap(getMe()) });
   const canManage = hasPermission(me.data?.grants ?? [], "catalog.manage");
+  const canUpload = hasPermission(me.data?.grants ?? [], "files.upload");
   const cats = useQuery({ queryKey: queryKey("catalog.categories"), queryFn: () => unwrap(listCategories()) });
   const tags = useQuery({ queryKey: queryKey("catalog.tags"), queryFn: () => unwrap(listTags()) });
   const attrs = useQuery({ queryKey: queryKey("catalog.attributes"), queryFn: () => unwrap(listAttributes()) });
@@ -165,6 +177,8 @@ function EditForm({ mode, productId = "", imageCount = 0, initial, onReload }: E
   const [message, setMessage] = useState<string | null>(noticeOf(location.state));
   const [conflict, setConflict] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [images, setImages] = useState(initialImages);
+  const [imagePending, setImagePending] = useState(false);
 
   const headers = (key: string) => ({ "Idempotency-Key": key });
   const create = useWriteAction((key, body: CreateProductRequest) =>
@@ -296,6 +310,16 @@ function EditForm({ mode, productId = "", imageCount = 0, initial, onReload }: E
     }
   };
 
+  // Thao tác ảnh xong: ảnh mới; version chỉ tăng bởi thao tác đó → bản nháp nhận version (lần lưu sau không xung đột
+  // oan); nhảy hơn (người khác vừa sửa) → giữ version cũ, báo tải lại (không đè thay đổi của người khác).
+  const onImages = (p: Product, accepted: boolean) => {
+    setImages(p.images);
+    if (accepted)
+      setPair((x) => ({ base: { ...x.base, version: p.version }, edit: { ...x.edit, version: p.version } }));
+    else setConflict(true);
+  };
+  const savedColors = base.rows.filter((r) => r.id !== undefined).map((r) => r.color);
+
   const discard = () => {
     setPair((p) => ({ ...p, edit: p.base }));
     setChecked(null);
@@ -309,7 +333,7 @@ function EditForm({ mode, productId = "", imageCount = 0, initial, onReload }: E
     <button
       type="button"
       className="btn btn-dark"
-      disabled={saving || !dirty}
+      disabled={saving || imagePending || !dirty}
       onClick={() => {
         void save();
       }}
@@ -330,7 +354,7 @@ function EditForm({ mode, productId = "", imageCount = 0, initial, onReload }: E
             <span className={STATUS_CHIP[base.status].className}>{STATUS_CHIP[base.status].label}</span>
             {mode === "edit" && (
               <span className="small muted">
-                {NUM.format(base.rows.length)} biến thể · {NUM.format(imageCount)} ảnh
+                {NUM.format(base.rows.length)} biến thể · {NUM.format(images.length)} ảnh
               </span>
             )}
           </div>
@@ -375,7 +399,23 @@ function EditForm({ mode, productId = "", imageCount = 0, initial, onReload }: E
             {/* Task 326: trình soạn bài viết (ArticleEditor) gắn ở đây. */}
           </div>
           <div className="stack">
-            {/* Task 325: khối Ảnh (ImageManager) gắn ở đây, trên thẻ Phân loại. */}
+            {mode === "edit" && uploads !== undefined && (
+              <ImageManager
+                productId={productId}
+                images={images}
+                version={edit.version}
+                colors={savedColors}
+                canManage={canManage}
+                canUpload={canUpload}
+                busy={saving}
+                uploads={uploads}
+                onProduct={onImages}
+                onPending={setImagePending}
+                onConflict={() => {
+                  setConflict(true);
+                }}
+              />
+            )}
             <ClassificationCard
               draft={edit}
               categories={cats.data ?? []}

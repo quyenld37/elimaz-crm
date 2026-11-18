@@ -611,6 +611,17 @@ func (UnimplementedHandler) SetProductClassification(ctx context.Context, req *S
 	return r, ht.ErrNotImplemented
 }
 
+// SetProductImageColor implements setProductImageColor operation.
+//
+// Color phải là một màu đang có của biến thể trong mẫu (400 invalid_input nếu
+// không). Ảnh đã xóa, của mẫu khác hay tenant khác → 404. Version mẫu tăng 1 như
+// các thao tác ảnh khác.
+//
+// PUT /api/v1/catalog/products/{id}/images/{imageId}/color
+func (UnimplementedHandler) SetProductImageColor(ctx context.Context, req *SetProductImageColorRequest, params SetProductImageColorParams) (r SetProductImageColorRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // StartStocktake implements startStocktake operation.
 //
 // Mở phiên kiểm kho ở một kho (một phiên mở mỗi kho; kho đã đóng →

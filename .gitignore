@@ -12,5 +12,6 @@ console/dist/
 .worktrees/
 /spikes/flashsale/flashsale
 console/test-results/
+console/src/probe-*/
 console/playwright-report/
 /loadtest/out/

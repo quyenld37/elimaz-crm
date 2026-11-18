@@ -258,6 +258,23 @@ func (q *Queries) ReviveProductImage(ctx context.Context, arg ReviveProductImage
 	return err
 }
 
+const setProductImageColor = `-- name: SetProductImageColor :exec
+UPDATE catalog.product_images
+SET color = $1
+WHERE id = $2 AND deleted_at IS NULL
+`
+
+type SetProductImageColorParams struct {
+	Color pgtype.Text
+	ID    uuid.UUID
+}
+
+// Đặt màu của ảnh đang hiện (dòng mẫu và dòng ảnh đã khóa); color NULL → ảnh chung (Task 325).
+func (q *Queries) SetProductImageColor(ctx context.Context, arg SetProductImageColorParams) error {
+	_, err := q.db.Exec(ctx, setProductImageColor, arg.Color, arg.ID)
+	return err
+}
+
 const setProductImagePosition = `-- name: SetProductImagePosition :exec
 UPDATE catalog.product_images
 SET position = $1

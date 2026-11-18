@@ -177,10 +177,7 @@ func (w Writer) AttachImage(ctx context.Context, tx pgx.Tx, sellerID, productID 
 func (w Writer) ReorderImages(ctx context.Context, tx pgx.Tx, sellerID, productID uuid.UUID, version int64, imageIDs []uuid.UUID,
 	actor identity.AuthUser,
 ) error {
-	if err := w.check(); err != nil {
-		return err
-	}
-	p, err := lockProduct(ctx, tx, sellerID, productID, version)
+	p, err := w.lockProductVersion(ctx, tx, sellerID, productID, version)
 	if err != nil {
 		return err
 	}
@@ -211,6 +208,35 @@ func (w Writer) ReorderImages(ctx context.Context, tx pgx.Tx, sellerID, productI
 	}
 	return w.imagesChanged(ctx, tx, actor, p, "catalog.image.reorder", map[string]any{"order": before},
 		map[string]any{"order": after})
+}
+
+// SetImageColor đặt màu của ảnh đang hiện imageID của mẫu productID khi version của mẫu còn khớp; color nil → ảnh chung,
+// khác nil phải là màu của một biến thể trong mẫu (như AttachImage). Version mẫu tăng 1, phát product.updated, audit
+// catalog.image.color. Lỗi: ErrNotFound (mẫu, ảnh không có hay ảnh đã xóa), ErrVersionConflict, ErrInvalidInput.
+func (w Writer) SetImageColor(ctx context.Context, tx pgx.Tx, sellerID, productID uuid.UUID, version int64, imageID uuid.UUID,
+	color *string, actor identity.AuthUser,
+) error {
+	p, err := w.lockProductVersion(ctx, tx, sellerID, productID, version)
+	if err != nil {
+		return err
+	}
+	before, deleted, err := lockImageRow(ctx, tx, productID, imageID)
+	switch {
+	case err != nil:
+		return err
+	case deleted:
+		return ErrNotFound
+	}
+	c, err := imageColor(ctx, tx, p, color)
+	if err != nil {
+		return err
+	}
+	if err := store.New(tx).SetProductImageColor(ctx, store.SetProductImageColorParams{ID: imageID, Color: optText(deref(c))}); err != nil {
+		return fmt.Errorf("đặt màu ảnh: %w", err)
+	}
+	after := before
+	after.Color = c
+	return w.imagesChanged(ctx, tx, actor, p, "catalog.image.color", imageAudit(before), imageAudit(after))
 }
 
 // DeleteImage xóa mềm ảnh imageID của mẫu productID (đặt deleted_at; khôi phục được RestoreDays ngày). Ảnh đã xóa →
@@ -276,15 +302,32 @@ func (w Writer) lockImage(ctx context.Context, tx pgx.Tx, sellerID, productID, i
 	if err != nil {
 		return Product{}, Image{}, false, err
 	}
+	img, deleted, err := lockImageRow(ctx, tx, productID, imageID)
+	if err != nil {
+		return Product{}, Image{}, false, err
+	}
+	return p, img, deleted, nil
+}
+
+// lockProductVersion kiểm Writer rồi khóa mẫu productID của người bán sellerID khi version còn khớp (lockProduct).
+func (w Writer) lockProductVersion(ctx context.Context, tx pgx.Tx, sellerID, productID uuid.UUID, version int64) (Product, error) {
+	if err := w.check(); err != nil {
+		return Product{}, err
+	}
+	return lockProduct(ctx, tx, sellerID, productID, version)
+}
+
+// lockImageRow khóa dòng ảnh imageID của mẫu productID (dòng mẫu đã khóa trước); trả ảnh và cờ đã xóa mềm. Không có
+// → ErrNotFound.
+func lockImageRow(ctx context.Context, tx pgx.Tx, productID, imageID uuid.UUID) (Image, bool, error) {
 	row, err := store.New(tx).LockProductImage(ctx, store.LockProductImageParams{ProductID: productID, ID: imageID})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return Product{}, Image{}, false, ErrNotFound
+		return Image{}, false, ErrNotFound
 	}
 	if err != nil {
-		return Product{}, Image{}, false, fmt.Errorf("khóa ảnh: %w", err)
+		return Image{}, false, fmt.Errorf("khóa ảnh: %w", err)
 	}
-	img := Image{ID: row.ID, FileID: row.FileID, Color: textPtr(row.Color), Position: int(row.Position)}
-	return p, img, row.DeletedAt.Valid, nil
+	return Image{ID: row.ID, FileID: row.FileID, Color: textPtr(row.Color), Position: int(row.Position)}, row.DeletedAt.Valid, nil
 }
 
 // checkImageFile: tệp có trong tenant (không thì ErrNotFound), chưa xóa, mục đích product_image và ready (không thì

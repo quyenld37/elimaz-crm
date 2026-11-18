@@ -10,7 +10,7 @@
 // - Bấm lại khi yêu cầu trước chưa xong → nhận lại đúng lời hứa đang chạy (không gửi thêm).
 // - Bấm lại sau lỗi chưa rõ kết quả (mạng, bận, 5xx) với cùng nội dung → dùng lại khóa cũ (máy chủ trả kết quả đã
 //   lưu nếu lần trước đã xong); nội dung đã đổi, hoặc lần trước xong/lỗi dứt khoát → khóa mới.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { ApiError, NetworkError, errorMessage } from "./errors";
 
 export const TEXT_BUSY = "Hệ thống đang bận, thử lại sau ít giây";
@@ -42,10 +42,12 @@ export interface WriteAction<TReq, TRes> {
   reset(): void;
 }
 
-const abortReason = (signal: AbortSignal): Error =>
+/** Lý do hủy của signal (Error), hoặc AbortError khi lý do không phải Error. */
+export const abortReason = (signal: AbortSignal): Error =>
   signal.reason instanceof Error ? signal.reason : new DOMException("đã hủy", "AbortError");
 
-function defaultSleep(ms: number, signal: AbortSignal): Promise<void> {
+/** Chờ ms bằng setTimeout; từ chối (abortReason) khi signal bị hủy. */
+export function defaultSleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) {
       reject(abortReason(signal));
@@ -109,6 +111,19 @@ interface State {
   message: string | null;
 }
 
+/** Bộ hủy của component: signal bị hủy ("màn đã đóng") khi component gỡ khỏi màn. */
+export function useAbortOnUnmount(): RefObject<AbortController> {
+  const abort = useRef<AbortController>(new AbortController());
+  useEffect(() => {
+    const ac = new AbortController();
+    abort.current = ac;
+    return () => {
+      ac.abort(new DOMException("màn đã đóng", "AbortError"));
+    };
+  }, []);
+  return abort;
+}
+
 /**
  * Gửi một yêu cầu ghi với khóa chống trùng và tự gửi lại cùng khóa khi máy chủ bận.
  * `fn` gọi client sinh, ví dụ `(key, body) => unwrap(createProduct({ body, headers: { "Idempotency-Key": key } }))`.
@@ -124,49 +139,46 @@ export function useWriteAction<TReq, TRes>(
   const optsRef = useRef(opts);
   const inflight = useRef<Promise<WriteResult<TRes>> | null>(null);
   const remembered = useRef<{ key: string; fingerprint: string | undefined } | null>(null);
-  const abort = useRef<AbortController>(new AbortController());
+  const abort = useAbortOnUnmount();
 
   useEffect(() => {
     fnRef.current = fn;
     optsRef.current = opts;
   });
 
-  useEffect(() => {
-    const ac = new AbortController();
-    abort.current = ac;
-    return () => {
-      ac.abort(new DOMException("màn đã đóng", "AbortError"));
-    };
-  }, []);
-
-  const run = useCallback((body: TReq): Promise<WriteResult<TRes>> => {
-    if (inflight.current !== null) return inflight.current;
-    // JSON.stringify(undefined) là undefined (thao tác không có thân): vẫn so được.
-    const fingerprint: string | undefined = JSON.stringify(body);
-    const newKey = optsRef.current.newKey ?? (() => crypto.randomUUID());
-    const key =
-      remembered.current !== null && remembered.current.fingerprint === fingerprint ? remembered.current.key : newKey();
-    remembered.current = { key, fingerprint };
-    setState({ pending: true, error: null, message: null });
-    const sleep = optsRef.current.sleep ?? defaultSleep;
-    const p = (async (): Promise<WriteResult<TRes>> => {
-      try {
-        const data = await sendWithRetry(fnRef.current, key, body, sleep, abort.current.signal);
-        remembered.current = null;
-        setState({ pending: false, error: null, message: null });
-        return { ok: true, data };
-      } catch (error) {
-        if (!outcomeUnknown(error)) remembered.current = null;
-        const message = isBusy(error) || isInProgress(error) ? TEXT_BUSY : errorMessage(error);
-        setState({ pending: false, error, message });
-        return { ok: false, error };
-      } finally {
-        inflight.current = null;
-      }
-    })();
-    inflight.current = p;
-    return p;
-  }, []);
+  const run = useCallback(
+    (body: TReq): Promise<WriteResult<TRes>> => {
+      if (inflight.current !== null) return inflight.current;
+      // JSON.stringify(undefined) là undefined (thao tác không có thân): vẫn so được.
+      const fingerprint: string | undefined = JSON.stringify(body);
+      const newKey = optsRef.current.newKey ?? (() => crypto.randomUUID());
+      const key =
+        remembered.current !== null && remembered.current.fingerprint === fingerprint
+          ? remembered.current.key
+          : newKey();
+      remembered.current = { key, fingerprint };
+      setState({ pending: true, error: null, message: null });
+      const sleep = optsRef.current.sleep ?? defaultSleep;
+      const p = (async (): Promise<WriteResult<TRes>> => {
+        try {
+          const data = await sendWithRetry(fnRef.current, key, body, sleep, abort.current.signal);
+          remembered.current = null;
+          setState({ pending: false, error: null, message: null });
+          return { ok: true, data };
+        } catch (error) {
+          if (!outcomeUnknown(error)) remembered.current = null;
+          const message = isBusy(error) || isInProgress(error) ? TEXT_BUSY : errorMessage(error);
+          setState({ pending: false, error, message });
+          return { ok: false, error };
+        } finally {
+          inflight.current = null;
+        }
+      })();
+      inflight.current = p;
+      return p;
+    },
+    [abort],
+  );
 
   const reset = useCallback(() => {
     setState((s) => ({ ...s, error: null, message: null }));

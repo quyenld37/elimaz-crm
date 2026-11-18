@@ -5583,6 +5583,115 @@ func (s *Server) handleSetProductClassificationRequest(args [1]string, argsEscap
 	}
 }
 
+// handleSetProductImageColorRequest handles setProductImageColor operation.
+//
+// Color phải là một màu đang có của biến thể trong mẫu (400 invalid_input nếu
+// không). Ảnh đã xóa, của mẫu khác hay tenant khác → 404. Version mẫu tăng 1 như
+// các thao tác ảnh khác.
+//
+// PUT /api/v1/catalog/products/{id}/images/{imageId}/color
+func (s *Server) handleSetProductImageColorRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SetProductImageColorOperation,
+			ID:   "setProductImageColor",
+		}
+	)
+	params, err := decodeSetProductImageColorParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSetProductImageColorRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response SetProductImageColorRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SetProductImageColorOperation,
+			OperationSummary: "Đặt màu của một ảnh đang hiện của mẫu khi version còn khớp (thiếu color → ảnh chung mọi màu)",
+			OperationID:      "setProductImageColor",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "imageId",
+					In:   "path",
+				}: params.ImageId,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *SetProductImageColorRequest
+			Params   = SetProductImageColorParams
+			Response = SetProductImageColorRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSetProductImageColorParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SetProductImageColor(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SetProductImageColor(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSetProductImageColorResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleStartStocktakeRequest handles startStocktake operation.
 //
 // Mở phiên kiểm kho ở một kho (một phiên mở mỗi kho; kho đã đóng →
