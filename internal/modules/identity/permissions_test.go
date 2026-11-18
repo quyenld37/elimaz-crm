@@ -14,6 +14,10 @@ func page(id string) identity.Scope { return identity.Scope{Type: identity.Scope
 
 func scopeAll() identity.Scope { return identity.Scope{Type: identity.ScopeAll} }
 
+func wh(id string) identity.Scope { return identity.Scope{Type: identity.ScopeWarehouse, ID: id} }
+
+func ptr(s identity.Scope) *identity.Scope { return &s }
+
 func user(grants ...identity.Grant) identity.AuthUser { return identity.AuthUser{Grants: grants} }
 
 func TestCanTable(t *testing.T) {
@@ -25,9 +29,19 @@ func TestCanTable(t *testing.T) {
 		target *identity.Scope
 		want   bool
 	}{
-		{"quyền không theo đích, phạm vi all", user(identity.Grant{Permission: "audit.read", Scope: scopeAll()}), "audit.read", nil, true},
-		{"quyền không theo đích chỉ có trên page:p1", user(identity.Grant{Permission: "audit.read", Scope: p1}), "audit.read", nil, false},
-		{"quyền không theo đích có đích: vẫn cần all", user(identity.Grant{Permission: "audit.read", Scope: p1}), "audit.read", &p1, false},
+		{"quyền không theo đích, phạm vi all", user(identity.Grant{Permission: "catalog.read", Scope: scopeAll()}), "catalog.read", nil, true},
+		// Task 315: quyền không theo đích có hiệu lực từ grant ở bất kỳ phạm vi nào (phạm vi chỉ thu hẹp quyền theo đích).
+		{"quyền không theo đích chỉ có trên page:p1", user(identity.Grant{Permission: "realtime.subscribe", Scope: p1}), "realtime.subscribe", nil, true},
+		{"quyền không theo đích có đích khác: đích bỏ qua", user(identity.Grant{Permission: "catalog.read", Scope: p1}), "catalog.read", &p2, true},
+		// Task 315 lượt 2: quyền quản trị (toàn shop) chỉ hiệu lực từ grant all.
+		{"quản trị, phạm vi all", user(identity.Grant{Permission: "identity.users.manage", Scope: scopeAll()}), "identity.users.manage", nil, true},
+		{"quản trị chỉ trên kho w1", user(identity.Grant{Permission: "identity.users.manage", Scope: wh("w1")}), "identity.users.manage", nil, false},
+		{"quản trị chỉ trên kho w1, đích w1", user(identity.Grant{Permission: "platform.jobs.manage", Scope: wh("w1")}), "platform.jobs.manage", ptr(wh("w1")), false},
+		{"audit.read chỉ trên page:p1", user(identity.Grant{Permission: "audit.read", Scope: p1}), "audit.read", nil, false},
+		{"quản trị all, có đích", user(identity.Grant{Permission: "audit.read", Scope: scopeAll()}), "audit.read", &p2, true},
+		{"catalog.read từ grant theo kho w1", user(identity.Grant{Permission: "catalog.read", Scope: wh("w1")}), "catalog.read", nil, true},
+		{"phiếu kho w1 từ grant w1", user(identity.Grant{Permission: "inventory.documents.create", Scope: wh("w1")}), "inventory.documents.create", ptr(wh("w1")), true},
+		{"phiếu kho w2 từ grant w1", user(identity.Grant{Permission: "inventory.documents.create", Scope: wh("w1")}), "inventory.documents.create", ptr(wh("w2")), false},
 		{"không grant", user(), "audit.read", nil, false},
 		{"theo đích, đúng page", user(identity.Grant{Permission: "conversation.read", Scope: p1}), "conversation.read", &p1, true},
 		{"theo đích, page khác", user(identity.Grant{Permission: "conversation.read", Scope: p1}), "conversation.read", &p2, false},
@@ -66,14 +80,14 @@ func TestScopesFor(t *testing.T) {
 
 func TestPermissionsList(t *testing.T) {
 	want := map[identity.Permission]identity.ScopeKind{
-		"realtime.subscribe": identity.ScopeNone, "audit.read": identity.ScopeNone,
-		"platform.jobs.manage": identity.ScopeNone, "platform.health.read": identity.ScopeNone,
-		"identity.users.manage": identity.ScopeNone, "conversation.read": identity.ScopeByTarget,
+		"realtime.subscribe": identity.ScopeNone, "audit.read": identity.ScopeShop,
+		"platform.jobs.manage": identity.ScopeShop, "platform.health.read": identity.ScopeShop,
+		"identity.users.manage": identity.ScopeShop, "conversation.read": identity.ScopeByTarget,
 		// M1 (kế hoạch Task M1-26).
 		"catalog.read": identity.ScopeNone, "catalog.manage": identity.ScopeNone, "catalog.import": identity.ScopeNone,
 		"order.create": identity.ScopeNone, "order.read": identity.ScopeNone, "files.upload": identity.ScopeNone,
-		"platform.files.manage": identity.ScopeNone, "inventory.suppliers.manage": identity.ScopeNone,
-		"identity.roles.manage": identity.ScopeNone,
+		"platform.files.manage": identity.ScopeShop, "inventory.suppliers.manage": identity.ScopeNone,
+		"identity.roles.manage": identity.ScopeShop,
 		"inventory.read":        identity.ScopeByTarget, "inventory.documents.create": identity.ScopeByTarget,
 		"inventory.documents.post": identity.ScopeByTarget, "inventory.stocktake": identity.ScopeByTarget,
 		"inventory.stocktake.apply": identity.ScopeByTarget, "fulfillment.read": identity.ScopeByTarget,
@@ -96,8 +110,9 @@ func TestPermissionsList(t *testing.T) {
 }
 
 // Quy luật (rapid, 200 lượt): Can(u, p, target) đúng khi và chỉ khi có grant đúng quyền p với phạm vi all, hoặc
-// (quyền theo đích) đúng target, hoặc (theo đích, không target) ít nhất một grant. Grants rỗng → luôn sai; grant
-// của quyền khác không bao giờ làm Can đúng.
+// (quyền theo đích) đúng target, hoặc (theo đích, không target) ít nhất một grant, hoặc (quyền không theo đích, Task
+// 315) ít nhất một grant ở bất kỳ phạm vi nào. Quyền toàn shop (Task 315 lượt 2) chỉ đúng với grant all. Grants rỗng
+// → luôn sai; grant của quyền khác không bao giờ làm Can đúng.
 func TestCanProperty(t *testing.T) {
 	keys := make([]identity.Permission, 0, len(identity.Permissions))
 	for _, d := range identity.Permissions {
@@ -137,16 +152,67 @@ func TestCanProperty(t *testing.T) {
 
 // canModel là định nghĩa của Can viết thẳng từ kế hoạch, để so trong TestCanProperty.
 func canModel(grants []identity.Grant, p identity.Permission, target *identity.Scope) bool {
-	byTarget := identity.KindOf(p) == identity.ScopeByTarget
+	kind := identity.KindOf(p)
 	for _, g := range grants {
 		if g.Permission != p {
 			continue
 		}
-		if g.Scope == scopeAll() || (byTarget && (target == nil || g.Scope == *target)) {
+		switch {
+		case g.Scope == scopeAll():
+			return true
+		case kind == identity.ScopeShop:
+			continue
+		case kind == identity.ScopeNone || target == nil || g.Scope == *target:
 			return true
 		}
 	}
 	return false
+}
+
+// Effective: grant của quyền toàn shop chỉ có hiệu lực ở phạm vi all; quyền khác luôn có hiệu lực.
+func TestEffective(t *testing.T) {
+	cases := []struct {
+		g    identity.Grant
+		want bool
+	}{
+		{identity.Grant{Permission: "identity.users.manage", Scope: scopeAll()}, true},
+		{identity.Grant{Permission: "identity.users.manage", Scope: wh("w1")}, false},
+		{identity.Grant{Permission: "audit.read", Scope: page("p1")}, false},
+		{identity.Grant{Permission: "catalog.read", Scope: wh("w1")}, true},
+		{identity.Grant{Permission: "inventory.read", Scope: wh("w1")}, true},
+	}
+	for _, c := range cases {
+		if got := identity.Effective(c.g); got != c.want {
+			t.Errorf("Effective(%v) = %v, mong %v", c.g, got, c.want)
+		}
+	}
+}
+
+// ShopOnlyWarnings: mỗi gán vai trò ở phạm vi hẹp hơn toàn shop mà vai trò có quyền toàn shop → một cảnh báo kèm các
+// quyền đó (đã sắp); gán all, vai trò không có quyền quản trị, vai trò lạ → không cảnh báo.
+func TestShopOnlyWarnings(t *testing.T) {
+	roles := []identity.RoleRow{
+		{Key: "owner", Permissions: []identity.Permission{"platform.jobs.manage", "catalog.read", "identity.users.manage"}},
+		{Key: "warehouse", Permissions: []identity.Permission{"catalog.read", "inventory.read"}},
+	}
+	got := identity.ShopOnlyWarnings(roles, []identity.GrantInput{
+		{RoleKey: "owner", Scope: scopeAll()},
+		{RoleKey: "owner", Scope: wh("w1")},
+		{RoleKey: "warehouse", Scope: wh("w1")},
+		{RoleKey: "khong-co", Scope: wh("w1")},
+	})
+	want := []identity.ScopeWarning{{
+		RoleKey: "owner", Scope: wh("w1"),
+		Permissions: []identity.Permission{"identity.users.manage", "platform.jobs.manage"},
+	}}
+	if !slices.EqualFunc(got, want, func(a, b identity.ScopeWarning) bool {
+		return a.RoleKey == b.RoleKey && a.Scope == b.Scope && slices.Equal(a.Permissions, b.Permissions)
+	}) {
+		t.Fatalf("ShopOnlyWarnings = %+v, mong %+v", got, want)
+	}
+	if w := identity.ShopOnlyWarnings(roles, nil); w == nil || len(w) != 0 {
+		t.Fatalf("không gán: mong rỗng khác nil, có %#v", w)
+	}
 }
 
 func TestCheckMFA(t *testing.T) {

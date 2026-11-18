@@ -18,13 +18,18 @@ import (
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
-// Route công khai chỉ là ba đường health; mọi route khác khai một quyền có trong identity.Permissions.
+// Route công khai chỉ là ba đường health; route "chỉ cần đăng nhập" chỉ là GET /api/v1/me (Task 315); mọi route
+// khác khai một quyền có trong identity.Permissions.
 func TestRoutesPublicSetAndPermissions(t *testing.T) {
-	var public []string
+	var public, authOnly []string
 	for _, r := range httpapi.Routes {
 		switch {
 		case r.Public && r.Permission != "":
 			t.Errorf("%s vừa công khai vừa có quyền", r.OperationID)
+		case r.Authenticated && (r.Public || r.Permission != "" || r.Write):
+			t.Errorf("%s chỉ cần đăng nhập mà vẫn công khai, có quyền hoặc là route ghi", r.OperationID)
+		case r.Authenticated:
+			authOnly = append(authOnly, r.Pattern)
 		case r.Public:
 			public = append(public, r.Pattern)
 		case !identity.IsKnown(identity.Permission(r.Permission)):
@@ -35,6 +40,9 @@ func TestRoutesPublicSetAndPermissions(t *testing.T) {
 	want := []string{"GET /health/deep", "GET /health/live", "GET /health/ready"}
 	if !slices.Equal(public, want) {
 		t.Fatalf("tập route công khai phải là %v, có %v", want, public)
+	}
+	if want := []string{"GET /api/v1/me"}; !slices.Equal(authOnly, want) {
+		t.Fatalf("tập route chỉ cần đăng nhập phải là %v, có %v", want, authOnly)
 	}
 }
 

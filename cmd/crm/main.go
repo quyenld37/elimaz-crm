@@ -22,6 +22,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/adapters/cfaccess"
 	"elimaz.com.vn/crm/internal/httpapi"
+	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
@@ -283,6 +284,22 @@ func runMigrate(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 		return fmt.Errorf("migrate: %w", err)
 	}
 	logger.Info("migrate xong", slog.Any("applied", applied), slog.Int("count", len(applied)))
+	return syncDefaultRoles(ctx, cfg, logger)
+}
+
+// syncDefaultRoles (sau migrate, Task 315) thêm vai trò mẫu và quyền mới của bảng quyền vào vai trò mẫu chưa bị chủ
+// shop sửa ở mọi tenant (identity.SyncDefaultRoles), bằng chuỗi chủ bảng.
+func syncDefaultRoles(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	owner, err := openOwner(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer owner.Pool.Close()
+	n, err := identity.SyncDefaultRoles(ctx, owner)
+	if err != nil {
+		return err //nolint:wrapcheck // đã bọc trong identity
+	}
+	logger.Info("đồng bộ vai trò mẫu xong", slog.Int("tenants", n))
 	return nil
 }
 

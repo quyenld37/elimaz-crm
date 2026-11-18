@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -141,6 +142,67 @@ func TestStaffAPI_ReplaceGrants(t *testing.T) {
 
 // 50 yêu cầu song song cùng Idempotency-Key → một lần ghi, một dòng audit; mỗi câu trả lời 200 hoặc 409
 // request_in_progress.
+// Task 315 lượt 2: gán vai trò có quyền quản trị (owner) theo một kho không lỗi; thân trả lời và listStaff kèm cảnh
+// báo "quyền quản trị chỉ hiệu lực khi gán toàn shop"; người được gán không quản lý được nhân viên. Gán toàn shop
+// không cảnh báo.
+func TestStaffAPI_AdminRoleScopedWarning(t *testing.T) {
+	e := newStaffAPIEnv(t)
+	k := e.ids[staffK]
+	rec := e.do(http.MethodPut, usersPath(k, "grants"), staffA, "w1", grantsBody(e.version(k), "owner@warehouse:w1"))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("A gán owner theo kho w1 cho K: %d %s", rec.Code, rec.Body.String())
+	}
+	type warning struct {
+		Code, Message, RoleKey, ScopeType, ScopeID string
+		Permissions                                []string
+	}
+	decode := func(raw []byte) []warning {
+		var body struct {
+			Warnings []struct {
+				Code        string   `json:"code"`
+				Message     string   `json:"message"`
+				RoleKey     string   `json:"roleKey"`
+				ScopeType   string   `json:"scopeType"`
+				ScopeID     string   `json:"scopeId"`
+				Permissions []string `json:"permissions"`
+			} `json:"warnings"`
+		}
+		if err := json.Unmarshal(raw, &body); err != nil {
+			t.Fatal(err)
+		}
+		out := make([]warning, 0, len(body.Warnings))
+		for _, w := range body.Warnings {
+			out = append(out, warning{w.Code, w.Message, w.RoleKey, w.ScopeType, w.ScopeID, w.Permissions})
+		}
+		return out
+	}
+	check := func(name string, ws []warning) {
+		t.Helper()
+		if len(ws) != 1 {
+			t.Fatalf("%s: mong 1 cảnh báo, có %+v", name, ws)
+		}
+		w := ws[0]
+		if w.Code != "admin_needs_shop_scope" || w.Message != "Quyền quản trị chỉ hiệu lực khi gán toàn shop" ||
+			w.RoleKey != "owner" || w.ScopeType != "warehouse" || w.ScopeID != "w1" ||
+			!slices.Contains(w.Permissions, "identity.users.manage") || slices.Contains(w.Permissions, "catalog.read") {
+			t.Fatalf("%s: cảnh báo sai %+v", name, w)
+		}
+	}
+	check("thân replaceStaffGrants", decode(rec.Body.Bytes()))
+	raw, err := json.Marshal(e.member(k))
+	if err != nil {
+		t.Fatal(err)
+	}
+	check("listStaff", decode(raw))
+	expect(t, "K (owner theo kho) liệt kê nhân viên", e.do(http.MethodGet, "/api/v1/identity/users", staffK, "", ""),
+		http.StatusForbidden, "forbidden")
+	rec = e.do(http.MethodPut, usersPath(k, "grants"), staffA, "w2", grantsBody(e.version(k), "owner@all"))
+	if rec.Code != http.StatusOK || len(decode(rec.Body.Bytes())) != 0 {
+		t.Fatalf("gán owner toàn shop: mong 200 không cảnh báo, có %d %s", rec.Code, rec.Body.String())
+	}
+	expect(t, "K (owner toàn shop) liệt kê nhân viên", e.do(http.MethodGet, "/api/v1/identity/users", staffK, "", ""), http.StatusOK, "")
+}
+
 func TestStaffAPI_ReplaceGrantsIdempotent(t *testing.T) {
 	e := newStaffAPIEnv(t)
 	k := e.ids[staffK]
@@ -193,8 +255,11 @@ func TestStaffAPI_LockAndCreate(t *testing.T) {
 		http.StatusConflict, "email_taken")
 	expect(t, "email sai", e.do(http.MethodPost, "/api/v1/identity/users", staffA, "c3", `{"email":"x","displayName":"x"}`),
 		http.StatusBadRequest, "")
-	// Nhân viên mới chưa có grant: mọi route 403, kể cả /me (PQ03, quyết định D1 của task).
-	for _, p := range []string{"/api/v1/me", "/api/v1/identity/users", "/api/v1/identity/roles", "/api/v1/platform/jobs"} {
+	// Nhân viên mới chưa có grant: /me 200 với grants [] (Task 315: chỉ cần đăng nhập), mọi route khác 403 (PQ03).
+	if rec := e.do(http.MethodGet, "/api/v1/me", "moi@elimaz.test", "", ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"grants":[]`) {
+		t.Errorf("nhân viên mới /me: %d %s", rec.Code, rec.Body.String())
+	}
+	for _, p := range []string{"/api/v1/identity/users", "/api/v1/identity/roles", "/api/v1/platform/jobs"} {
 		expect(t, "nhân viên mới "+p, e.do(http.MethodGet, p, "moi@elimaz.test", "", ""), http.StatusForbidden, "forbidden")
 	}
 }

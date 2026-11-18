@@ -65,10 +65,12 @@ type GrantInput struct {
 	Scope   Scope
 }
 
-// StaffRow là nhân viên kèm grant theo vai trò (sắp theo khóa vai trò, loại phạm vi, mã đích).
+// StaffRow là nhân viên kèm grant theo vai trò (sắp theo khóa vai trò, loại phạm vi, mã đích) và cảnh báo cho các
+// gán có quyền quản trị không hiệu lực (ShopOnlyWarnings, cùng thứ tự với Grants).
 type StaffRow struct {
 	User
-	Grants []GrantInput
+	Grants   []GrantInput
+	Warnings []ScopeWarning
 }
 
 // Change là trạng thái trước và sau của một thao tác lên nhân viên (để ghi audit).
@@ -87,15 +89,21 @@ func ListStaff(ctx context.Context, tx pgx.Tx) ([]StaffRow, error) {
 	if err != nil {
 		return nil, fmt.Errorf("liệt kê grant của nhân viên: %w", err)
 	}
+	roles, err := ListRoles(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
 	byUser := map[uuid.UUID][]GrantInput{}
 	for _, g := range grants {
 		byUser[g.UserID] = append(byUser[g.UserID], GrantInput{RoleKey: g.RoleKey, Scope: Scope{Type: g.ScopeType, ID: g.ScopeID}})
 	}
 	out := make([]StaffRow, 0, len(users))
 	for _, u := range users {
+		gs := nonNil(byUser[u.ID])
 		out = append(out, StaffRow{
-			User:   User{ID: u.ID, Email: u.Email, DisplayName: u.DisplayName, Status: u.Status, Version: u.Version, CreatedAt: u.CreatedAt},
-			Grants: nonNil(byUser[u.ID]),
+			User:     User{ID: u.ID, Email: u.Email, DisplayName: u.DisplayName, Status: u.Status, Version: u.Version, CreatedAt: u.CreatedAt},
+			Grants:   gs,
+			Warnings: ShopOnlyWarnings(roles, gs),
 		})
 	}
 	return out, nil
@@ -119,9 +127,14 @@ func GetStaff(ctx context.Context, tx pgx.Tx, userID uuid.UUID) (StaffRow, error
 	for _, g := range rows {
 		grants = append(grants, GrantInput{RoleKey: g.RoleKey, Scope: Scope{Type: g.ScopeType, ID: g.ScopeID}})
 	}
+	roles, err := ListRoles(ctx, tx)
+	if err != nil {
+		return StaffRow{}, err
+	}
 	return StaffRow{
-		User:   User{ID: u.ID, Email: u.Email, DisplayName: u.DisplayName, Status: u.Status, Version: u.Version, CreatedAt: u.CreatedAt},
-		Grants: grants,
+		User:     User{ID: u.ID, Email: u.Email, DisplayName: u.DisplayName, Status: u.Status, Version: u.Version, CreatedAt: u.CreatedAt},
+		Grants:   grants,
+		Warnings: ShopOnlyWarnings(roles, grants),
 	}, nil
 }
 

@@ -79,6 +79,8 @@ export const listRoles = <ThrowOnError extends boolean = false>(options?: Option
 
 /**
  * Người dùng đang đăng nhập và quyền của họ
+ *
+ * Chỉ cần đăng nhập và tài khoản không bị khóa (Task 315); nhân viên chưa có grant nhận grants rỗng.
  */
 export const getMe = <ThrowOnError extends boolean = false>(options?: Options<GetMeData, ThrowOnError>): RequestResult<GetMeResponses, GetMeErrors, ThrowOnError> => (options?.client ?? client).get<GetMeResponses, GetMeErrors, ThrowOnError>({ url: '/api/v1/me', ...options });
 

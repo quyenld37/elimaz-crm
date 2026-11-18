@@ -44,7 +44,26 @@ export type Grant = {
 export type Me = {
     userId: string;
     email: string;
+    /**
+     * Chỉ grant có hiệu lực; quyền quản trị gán theo kho, theo Page nằm ở warnings (Task 315)
+     */
     grants: Array<Grant>;
+    warnings?: Array<ScopeWarning>;
+};
+
+/**
+ * Gán ở phạm vi hẹp hơn toàn shop có quyền quản trị; các quyền đó không có hiệu lực (Task 315)
+ */
+export type ScopeWarning = {
+    code: 'admin_needs_shop_scope';
+    message: string;
+    /**
+     * Vai trò của gán (có ở StaffMember; không có ở Me)
+     */
+    roleKey?: string;
+    scopeType: 'all' | 'page' | 'warehouse';
+    scopeId: string;
+    permissions: Array<string>;
 };
 
 export type StaffGrant = {
@@ -64,6 +83,7 @@ export type StaffMember = {
     version: number;
     createdAt: string;
     grants: Array<StaffGrant>;
+    warnings?: Array<ScopeWarning>;
 };
 
 export type CreateStaffRequest = {

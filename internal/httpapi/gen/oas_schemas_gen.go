@@ -942,7 +942,10 @@ func (*ListStaffOKApplicationJSON) listStaffRes() {}
 type Me struct {
 	UserId uuid.UUID `json:"userId"`
 	Email  string    `json:"email"`
-	Grants []Grant   `json:"grants"`
+	// Chỉ grant có hiệu lực; quyền quản trị gán theo kho, theo Page nằm ở warnings (Task
+	// 315).
+	Grants   []Grant        `json:"grants"`
+	Warnings []ScopeWarning `json:"warnings"`
 }
 
 // GetUserId returns the value of UserId.
@@ -960,6 +963,11 @@ func (s *Me) GetGrants() []Grant {
 	return s.Grants
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *Me) GetWarnings() []ScopeWarning {
+	return s.Warnings
+}
+
 // SetUserId sets the value of UserId.
 func (s *Me) SetUserId(val uuid.UUID) {
 	s.UserId = val
@@ -973,6 +981,11 @@ func (s *Me) SetEmail(val string) {
 // SetGrants sets the value of Grants.
 func (s *Me) SetGrants(val []Grant) {
 	s.Grants = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *Me) SetWarnings(val []ScopeWarning) {
+	s.Warnings = val
 }
 
 func (*Me) getMeRes() {}
@@ -1599,6 +1612,161 @@ func (s *ScopeType) UnmarshalText(data []byte) error {
 	}
 }
 
+// Gán ở phạm vi hẹp hơn toàn shop có quyền quản trị; các quyền đó không có
+// hiệu lực (Task 315).
+// Ref: #/components/schemas/ScopeWarning
+type ScopeWarning struct {
+	Code    ScopeWarningCode `json:"code"`
+	Message string           `json:"message"`
+	// Vai trò của gán (có ở StaffMember; không có ở Me).
+	RoleKey     OptString             `json:"roleKey"`
+	ScopeType   ScopeWarningScopeType `json:"scopeType"`
+	ScopeId     string                `json:"scopeId"`
+	Permissions []string              `json:"permissions"`
+}
+
+// GetCode returns the value of Code.
+func (s *ScopeWarning) GetCode() ScopeWarningCode {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *ScopeWarning) GetMessage() string {
+	return s.Message
+}
+
+// GetRoleKey returns the value of RoleKey.
+func (s *ScopeWarning) GetRoleKey() OptString {
+	return s.RoleKey
+}
+
+// GetScopeType returns the value of ScopeType.
+func (s *ScopeWarning) GetScopeType() ScopeWarningScopeType {
+	return s.ScopeType
+}
+
+// GetScopeId returns the value of ScopeId.
+func (s *ScopeWarning) GetScopeId() string {
+	return s.ScopeId
+}
+
+// GetPermissions returns the value of Permissions.
+func (s *ScopeWarning) GetPermissions() []string {
+	return s.Permissions
+}
+
+// SetCode sets the value of Code.
+func (s *ScopeWarning) SetCode(val ScopeWarningCode) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ScopeWarning) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetRoleKey sets the value of RoleKey.
+func (s *ScopeWarning) SetRoleKey(val OptString) {
+	s.RoleKey = val
+}
+
+// SetScopeType sets the value of ScopeType.
+func (s *ScopeWarning) SetScopeType(val ScopeWarningScopeType) {
+	s.ScopeType = val
+}
+
+// SetScopeId sets the value of ScopeId.
+func (s *ScopeWarning) SetScopeId(val string) {
+	s.ScopeId = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *ScopeWarning) SetPermissions(val []string) {
+	s.Permissions = val
+}
+
+type ScopeWarningCode string
+
+const (
+	ScopeWarningCodeAdminNeedsShopScope ScopeWarningCode = "admin_needs_shop_scope"
+)
+
+// AllValues returns all ScopeWarningCode values.
+func (ScopeWarningCode) AllValues() []ScopeWarningCode {
+	return []ScopeWarningCode{
+		ScopeWarningCodeAdminNeedsShopScope,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScopeWarningCode) MarshalText() ([]byte, error) {
+	switch s {
+	case ScopeWarningCodeAdminNeedsShopScope:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScopeWarningCode) UnmarshalText(data []byte) error {
+	switch ScopeWarningCode(data) {
+	case ScopeWarningCodeAdminNeedsShopScope:
+		*s = ScopeWarningCodeAdminNeedsShopScope
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScopeWarningScopeType string
+
+const (
+	ScopeWarningScopeTypeAll       ScopeWarningScopeType = "all"
+	ScopeWarningScopeTypePage      ScopeWarningScopeType = "page"
+	ScopeWarningScopeTypeWarehouse ScopeWarningScopeType = "warehouse"
+)
+
+// AllValues returns all ScopeWarningScopeType values.
+func (ScopeWarningScopeType) AllValues() []ScopeWarningScopeType {
+	return []ScopeWarningScopeType{
+		ScopeWarningScopeTypeAll,
+		ScopeWarningScopeTypePage,
+		ScopeWarningScopeTypeWarehouse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScopeWarningScopeType) MarshalText() ([]byte, error) {
+	switch s {
+	case ScopeWarningScopeTypeAll:
+		return []byte(s), nil
+	case ScopeWarningScopeTypePage:
+		return []byte(s), nil
+	case ScopeWarningScopeTypeWarehouse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScopeWarningScopeType) UnmarshalText(data []byte) error {
+	switch ScopeWarningScopeType(data) {
+	case ScopeWarningScopeTypeAll:
+		*s = ScopeWarningScopeTypeAll
+		return nil
+	case ScopeWarningScopeTypePage:
+		*s = ScopeWarningScopeTypePage
+		return nil
+	case ScopeWarningScopeTypeWarehouse:
+		*s = ScopeWarningScopeTypeWarehouse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/StaffGrant
 type StaffGrant struct {
 	RoleKey   string              `json:"roleKey"`
@@ -1694,6 +1862,7 @@ type StaffMember struct {
 	Version     int64             `json:"version"`
 	CreatedAt   time.Time         `json:"createdAt"`
 	Grants      []StaffGrant      `json:"grants"`
+	Warnings    []ScopeWarning    `json:"warnings"`
 }
 
 // GetID returns the value of ID.
@@ -1731,6 +1900,11 @@ func (s *StaffMember) GetGrants() []StaffGrant {
 	return s.Grants
 }
 
+// GetWarnings returns the value of Warnings.
+func (s *StaffMember) GetWarnings() []ScopeWarning {
+	return s.Warnings
+}
+
 // SetID sets the value of ID.
 func (s *StaffMember) SetID(val uuid.UUID) {
 	s.ID = val
@@ -1764,6 +1938,11 @@ func (s *StaffMember) SetCreatedAt(val time.Time) {
 // SetGrants sets the value of Grants.
 func (s *StaffMember) SetGrants(val []StaffGrant) {
 	s.Grants = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *StaffMember) SetWarnings(val []ScopeWarning) {
+	s.Warnings = val
 }
 
 func (*StaffMember) createStaffRes()        {}

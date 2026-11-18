@@ -171,7 +171,8 @@ paths:
     get:
       operationId: getMe
       summary: Người dùng đang đăng nhập và quyền của họ
-      x-permission: realtime.subscribe
+      description: Chỉ cần đăng nhập và tài khoản không bị khóa (Task 315); nhân viên chưa có grant nhận grants rỗng.
+      x-authenticated: true
       responses:
         "200":
           description: Người dùng
@@ -448,8 +449,35 @@ components:
           type: string
         grants:
           type: array
+          description: Chỉ grant có hiệu lực; quyền quản trị gán theo kho, theo Page nằm ở warnings (Task 315)
           items:
             $ref: "#/components/schemas/Grant"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScopeWarning"
+    ScopeWarning:
+      type: object
+      description: Gán ở phạm vi hẹp hơn toàn shop có quyền quản trị; các quyền đó không có hiệu lực (Task 315)
+      required: [code, message, scopeType, scopeId, permissions]
+      properties:
+        code:
+          type: string
+          enum: [admin_needs_shop_scope]
+        message:
+          type: string
+        roleKey:
+          type: string
+          description: Vai trò của gán (có ở StaffMember; không có ở Me)
+        scopeType:
+          type: string
+          enum: [all, page, warehouse]
+        scopeId:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
     StaffGrant:
       type: object
       required: [roleKey, scopeType, scopeId]
@@ -489,6 +517,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/StaffGrant"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScopeWarning"
     CreateStaffRequest:
       type: object
       required: [email, displayName]
