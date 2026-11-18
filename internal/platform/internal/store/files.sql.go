@@ -42,6 +42,37 @@ func (q *Queries) FileIDByKey(ctx context.Context, arg FileIDByKeyParams) (uuid.
 	return id, err
 }
 
+const findReadyDuplicate = `-- name: FindReadyDuplicate :one
+SELECT id
+FROM platform.files
+WHERE tenant_id = $1 AND content_sha256 = $2 AND purpose = $3
+    AND preset_version = $4 AND status = 'ready' AND deleted_at IS NULL AND id <> $5
+ORDER BY created_at, id
+LIMIT 1
+`
+
+type FindReadyDuplicateParams struct {
+	TenantID      uuid.UUID
+	ContentSha256 []byte
+	Purpose       string
+	PresetVersion pgtype.Int4
+	ID            uuid.UUID
+}
+
+// Tệp ready khác cùng tenant, cùng mục đích, cùng nội dung, cùng bộ kích thước (chống trùng, Task M1-43).
+func (q *Queries) FindReadyDuplicate(ctx context.Context, arg FindReadyDuplicateParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, findReadyDuplicate,
+		arg.TenantID,
+		arg.ContentSha256,
+		arg.Purpose,
+		arg.PresetVersion,
+		arg.ID,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getFile = `-- name: GetFile :one
 SELECT id, tenant_id, purpose, bucket, key, original_name, declared_type, detected_type, size_bytes, content_sha256,
     width, height, status, reject_reason, preset_version, created_by, expires_at, lost_at, deleted_at, deleted_by,
@@ -79,6 +110,75 @@ func (q *Queries) GetFile(ctx context.Context, id uuid.UUID) (PlatformFile, erro
 		&i.Version,
 	)
 	return i, err
+}
+
+const insertFileVariant = `-- name: InsertFileVariant :exec
+INSERT INTO platform.file_variants (tenant_id, file_id, preset_version, width, format, bucket, key, size_bytes)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+ON CONFLICT DO NOTHING
+`
+
+type InsertFileVariantParams struct {
+	TenantID      uuid.UUID
+	FileID        uuid.UUID
+	PresetVersion int32
+	Width         int32
+	Format        string
+	Bucket        string
+	Key           string
+	SizeBytes     int64
+}
+
+func (q *Queries) InsertFileVariant(ctx context.Context, arg InsertFileVariantParams) error {
+	_, err := q.db.Exec(ctx, insertFileVariant,
+		arg.TenantID,
+		arg.FileID,
+		arg.PresetVersion,
+		arg.Width,
+		arg.Format,
+		arg.Bucket,
+		arg.Key,
+		arg.SizeBytes,
+	)
+	return err
+}
+
+const insertPrivateImageFile = `-- name: InsertPrivateImageFile :one
+INSERT INTO platform.files (id, tenant_id, purpose, bucket, key, original_name, declared_type, size_bytes, status,
+    created_by)
+VALUES ($1, $2, $3, 'private', $4, $5, $6, $7, 'uploaded',
+    $8)
+ON CONFLICT DO NOTHING
+RETURNING id
+`
+
+type InsertPrivateImageFileParams struct {
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	Purpose      string
+	Key          string
+	OriginalName string
+	DeclaredType string
+	SizeBytes    int64
+	CreatedBy    pgtype.UUID
+}
+
+// Ảnh riêng tư do máy chủ ghi (R10, Task M1-43): uploaded, chờ file.process_private. Cùng id (hay cùng khóa) lần hai
+// → không trả dòng nào (bên gọi đọc id cũ, không xếp lệnh thêm).
+func (q *Queries) InsertPrivateImageFile(ctx context.Context, arg InsertPrivateImageFileParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertPrivateImageFile,
+		arg.ID,
+		arg.TenantID,
+		arg.Purpose,
+		arg.Key,
+		arg.OriginalName,
+		arg.DeclaredType,
+		arg.SizeBytes,
+		arg.CreatedBy,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const insertServerFile = `-- name: InsertServerFile :one
@@ -212,33 +312,82 @@ func (q *Queries) ListFilePurposes(ctx context.Context) ([]PlatformFilePurpose, 
 	return items, nil
 }
 
-const listFileVariants = `-- name: ListFileVariants :many
-SELECT width, format, bucket, key
+const listFileVariantsFull = `-- name: ListFileVariantsFull :many
+SELECT preset_version, width, format, bucket, key, size_bytes
 FROM platform.file_variants
 WHERE file_id = $1
-ORDER BY format, width
+ORDER BY preset_version, format, width
 `
 
-type ListFileVariantsRow struct {
-	Width  int32
-	Format string
-	Bucket string
-	Key    string
+type ListFileVariantsFullRow struct {
+	PresetVersion int32
+	Width         int32
+	Format        string
+	Bucket        string
+	Key           string
+	SizeBytes     int64
 }
 
-func (q *Queries) ListFileVariants(ctx context.Context, fileID uuid.UUID) ([]ListFileVariantsRow, error) {
-	rows, err := q.db.Query(ctx, listFileVariants, fileID)
+func (q *Queries) ListFileVariantsFull(ctx context.Context, fileID uuid.UUID) ([]ListFileVariantsFullRow, error) {
+	rows, err := q.db.Query(ctx, listFileVariantsFull, fileID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListFileVariantsRow{}
+	items := []ListFileVariantsFullRow{}
 	for rows.Next() {
-		var i ListFileVariantsRow
+		var i ListFileVariantsFullRow
 		if err := rows.Scan(
+			&i.PresetVersion,
 			&i.Width,
 			&i.Format,
 			&i.Bucket,
+			&i.Key,
+			&i.SizeBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPublicVariants = `-- name: ListPublicVariants :many
+SELECT v.file_id, v.preset_version, v.width, v.format, v.key
+FROM platform.file_variants v
+JOIN platform.files f ON f.tenant_id = v.tenant_id AND f.id = v.file_id
+JOIN platform.file_purposes p ON p.key = f.purpose
+WHERE v.file_id = ANY($1::uuid[]) AND v.bucket = 'public' AND f.status = 'ready' AND f.deleted_at IS NULL
+    AND p.mode = 'standard'
+ORDER BY v.file_id, v.preset_version, v.format, v.width
+`
+
+type ListPublicVariantsRow struct {
+	FileID        uuid.UUID
+	PresetVersion int32
+	Width         int32
+	Format        string
+	Key           string
+}
+
+// Biến thể công khai của các tệp ready, chưa xóa, của mục đích chế độ standard (R10: không bao giờ có ảnh riêng tư).
+func (q *Queries) ListPublicVariants(ctx context.Context, fileIds []uuid.UUID) ([]ListPublicVariantsRow, error) {
+	rows, err := q.db.Query(ctx, listPublicVariants, fileIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPublicVariantsRow{}
+	for rows.Next() {
+		var i ListPublicVariantsRow
+		if err := rows.Scan(
+			&i.FileID,
+			&i.PresetVersion,
+			&i.Width,
+			&i.Format,
 			&i.Key,
 		); err != nil {
 			return nil, err
@@ -305,6 +454,63 @@ type MarkFileDeletedParams struct {
 
 func (q *Queries) MarkFileDeleted(ctx context.Context, arg MarkFileDeletedParams) (int64, error) {
 	result, err := q.db.Exec(ctx, markFileDeleted, arg.DeletedBy, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setFileReady = `-- name: SetFileReady :one
+UPDATE platform.files
+SET status = 'ready', reject_reason = NULL, detected_type = $1, width = $2,
+    height = $3, content_sha256 = $4, preset_version = $5, bucket = $6,
+    key = $7, lost_at = NULL, updated_at = now(), version = version + 1
+WHERE id = $8 AND status IN ('uploaded', 'processing', 'lost')
+RETURNING id
+`
+
+type SetFileReadyParams struct {
+	DetectedType  pgtype.Text
+	Width         pgtype.Int4
+	Height        pgtype.Int4
+	ContentSha256 []byte
+	PresetVersion pgtype.Int4
+	Bucket        string
+	Key           string
+	ID            uuid.UUID
+}
+
+// Kết quả xử lý ảnh (dòng đã khóa bằng LockFile): chỉ đổi từ uploaded, processing, lost.
+func (q *Queries) SetFileReady(ctx context.Context, arg SetFileReadyParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, setFileReady,
+		arg.DetectedType,
+		arg.Width,
+		arg.Height,
+		arg.ContentSha256,
+		arg.PresetVersion,
+		arg.Bucket,
+		arg.Key,
+		arg.ID,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const setFileRejected = `-- name: SetFileRejected :execrows
+UPDATE platform.files
+SET status = 'rejected', reject_reason = $1, updated_at = now(), version = version + 1
+WHERE id = $2 AND status IN ('uploaded', 'processing')
+`
+
+type SetFileRejectedParams struct {
+	RejectReason pgtype.Text
+	ID           uuid.UUID
+}
+
+// Từ chối khi xử lý ảnh (dòng đã khóa bằng LockFile): chỉ đổi từ uploaded, processing.
+func (q *Queries) SetFileRejected(ctx context.Context, arg SetFileRejectedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setFileRejected, arg.RejectReason, arg.ID)
 	if err != nil {
 		return 0, err
 	}

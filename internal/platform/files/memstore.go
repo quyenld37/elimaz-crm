@@ -91,15 +91,30 @@ func (m *MemStore) PresignPut(_ context.Context, b Bucket, key string, size int6
 	if !b.valid() || size <= 0 || ttl <= 0 {
 		return PresignedPut{}, fmt.Errorf("ký PUT %s: tham số sai", b)
 	}
+	return m.presignPut(b, key, strconv.FormatInt(size, 10), contentType, ttl), nil
+}
+
+// PresignPutAnySize implements FileStore: chữ ký không có len, PUT nhận mọi kích thước.
+func (m *MemStore) PresignPutAnySize(_ context.Context, b Bucket, key string, contentType string, ttl time.Duration) (PresignedPut, error) {
+	if !b.valid() || ttl <= 0 || contentType == "" {
+		return PresignedPut{}, fmt.Errorf("ký PUT %s: tham số sai", b)
+	}
+	return m.presignPut(b, key, "", contentType, ttl), nil
+}
+
+// presignPut ký PUT; n là kích thước (chuỗi số) hoặc "" khi không ký kích thước.
+func (m *MemStore) presignPut(b Bucket, key, n, contentType string, ttl time.Duration) PresignedPut {
 	exp := m.now().Add(ttl).Truncate(time.Second)
-	n := strconv.FormatInt(size, 10)
 	e := strconv.FormatInt(exp.Unix(), 10)
-	q := url.Values{"len": {n}, "ct": {contentType}, "exp": {e}, "sig": {m.sign("PUT", string(b), key, n, contentType, e)}}
+	q := url.Values{"ct": {contentType}, "exp": {e}, "sig": {m.sign("PUT", string(b), key, n, contentType, e)}}
+	if n != "" {
+		q.Set("len", n)
+	}
 	return PresignedPut{
 		URL:       m.base() + "/" + memPath(b, key) + "?" + q.Encode(),
 		Headers:   map[string]string{"Content-Type": contentType, "If-None-Match": "*"},
 		ExpiresAt: exp,
-	}, nil
+	}
 }
 
 // PresignGet implements FileStore.
@@ -245,9 +260,10 @@ func (m *MemStore) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (m *MemStore) servePut(w http.ResponseWriter, r *http.Request, b Bucket, key string, q url.Values) {
 	n, ct := q.Get("len"), q.Get("ct")
+	// Không có len: chữ ký của PresignPutAnySize (len rỗng trong chữ ký), nhận mọi kích thước.
 	if !hmac.Equal([]byte(q.Get("sig")), []byte(m.sign("PUT", string(b), key, n, ct, q.Get("exp")))) ||
-		strconv.FormatInt(r.ContentLength, 10) != n || r.Header.Get("Content-Type") != ct ||
-		r.Header.Get("If-None-Match") != "*" {
+		(n != "" && strconv.FormatInt(r.ContentLength, 10) != n) || r.ContentLength < 0 ||
+		r.Header.Get("Content-Type") != ct || r.Header.Get("If-None-Match") != "*" {
 		http.Error(w, "SignatureDoesNotMatch", http.StatusForbidden)
 		return
 	}
