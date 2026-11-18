@@ -13,6 +13,10 @@ type AddVariantRes interface {
 	addVariantRes()
 }
 
+type ApplyCatalogImportRes interface {
+	applyCatalogImportRes()
+}
+
 type ApplyStocktakeRes interface {
 	applyStocktakeRes()
 }

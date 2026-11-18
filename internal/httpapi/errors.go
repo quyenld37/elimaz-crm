@@ -85,6 +85,7 @@ const (
 	codeFilePurposeNotAllowed = "file_purpose_not_allowed"
 	codeUploadMissing         = "upload_missing"
 	codeFileNotReady          = "file_not_ready"
+	codeImportNotReady        = "import_not_ready"
 	codeRestoreExpired        = "restore_expired"
 	codeUnknownPreset         = "unknown_preset"
 
@@ -282,6 +283,7 @@ func catalogError(err error) (status int, code string, ok bool) {
 		{catalog.ErrCategoryInUse, http.StatusConflict, codeCategoryInUse},
 		{catalog.ErrAlreadyExists, http.StatusConflict, codeAlreadyExists},
 		{catalog.ErrFileNotReady, http.StatusConflict, codeFileNotReady},
+		{catalog.ErrImportNotReady, http.StatusConflict, codeImportNotReady},
 		{catalog.ErrRestoreExpired, http.StatusGone, codeRestoreExpired},
 		{catalog.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
 	} {

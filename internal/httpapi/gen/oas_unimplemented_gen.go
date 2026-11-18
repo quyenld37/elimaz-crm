@@ -40,6 +40,21 @@ func (UnimplementedHandler) AddVariant(ctx context.Context, req *AddVariantReque
 	return r, ht.ErrNotImplemented
 }
 
+// ApplyCatalogImport implements applyCatalogImport operation.
+//
+// Chuyển bản nhập ready sang applying khi version còn khớp và xếp việc
+// catalog.import.apply. Việc khóa và kiểm lại plan với dữ liệu hiện tại rồi ghi
+// mọi mẫu, biến thể, phân loại trong một transaction: xong → applied; dữ liệu
+// đổi từ lúc kiểm (SKU vừa bị mẫu khác lấy…) → failed với lỗi từng dòng,
+// không ghi gì; tệp cùng nội dung vừa được áp → duplicate. Đọc kết quả bằng
+// getCatalogImport. Bản nhập không ở ready → 409 import_not_ready; version cũ → 409
+// version_conflict.
+//
+// POST /api/v1/catalog/imports/{id}/apply
+func (UnimplementedHandler) ApplyCatalogImport(ctx context.Context, req *VersionRequest, params ApplyCatalogImportParams) (r ApplyCatalogImportRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ApplyStocktake implements applyStocktake operation.
 //
 // Áp dụng phiên (cộng chênh lệch vào tồn, không đụng phần giữ); trả danh sách
@@ -123,7 +138,7 @@ func (UnimplementedHandler) CreateAttribute(ctx context.Context, req *CreateAttr
 // Tạo bản nhập ở trạng thái validating và xếp lệnh kiểm tệp
 // (catalog.import.validate); đọc kết quả bằng getCatalogImport. Tệp không có, của shop
 // khác, đã xóa → 404 not_found; sai mục đích hay chưa tải lên xong → 409
-// file_not_ready. Bước áp dụng ở applyCatalogImport (Task M1-47b).
+// file_not_ready. Bước áp dụng ở applyCatalogImport.
 //
 // POST /api/v1/catalog/imports
 func (UnimplementedHandler) CreateCatalogImport(ctx context.Context, req *CreateCatalogImportRequest, params CreateCatalogImportParams) (r CreateCatalogImportRes, _ error) {

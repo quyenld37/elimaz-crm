@@ -322,6 +322,115 @@ func (s *Server) handleAddVariantRequest(args [1]string, argsEscaped bool, w htt
 	}
 }
 
+// handleApplyCatalogImportRequest handles applyCatalogImport operation.
+//
+// Chuyển bản nhập ready sang applying khi version còn khớp và xếp việc
+// catalog.import.apply. Việc khóa và kiểm lại plan với dữ liệu hiện tại rồi ghi
+// mọi mẫu, biến thể, phân loại trong một transaction: xong → applied; dữ liệu
+// đổi từ lúc kiểm (SKU vừa bị mẫu khác lấy…) → failed với lỗi từng dòng,
+// không ghi gì; tệp cùng nội dung vừa được áp → duplicate. Đọc kết quả bằng
+// getCatalogImport. Bản nhập không ở ready → 409 import_not_ready; version cũ → 409
+// version_conflict.
+//
+// POST /api/v1/catalog/imports/{id}/apply
+func (s *Server) handleApplyCatalogImportRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ApplyCatalogImportOperation,
+			ID:   "applyCatalogImport",
+		}
+	)
+	params, err := decodeApplyCatalogImportParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeApplyCatalogImportRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response ApplyCatalogImportRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ApplyCatalogImportOperation,
+			OperationSummary: "Áp bản nhập ready (ghi tất cả hoặc không); việc chạy nền",
+			OperationID:      "applyCatalogImport",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *VersionRequest
+			Params   = ApplyCatalogImportParams
+			Response = ApplyCatalogImportRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackApplyCatalogImportParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ApplyCatalogImport(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ApplyCatalogImport(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeApplyCatalogImportResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleApplyStocktakeRequest handles applyStocktake operation.
 //
 // Áp dụng phiên (cộng chênh lệch vào tồn, không đụng phần giữ); trả danh sách
@@ -1138,7 +1247,7 @@ func (s *Server) handleCreateAttributeRequest(args [0]string, argsEscaped bool, 
 // Tạo bản nhập ở trạng thái validating và xếp lệnh kiểm tệp
 // (catalog.import.validate); đọc kết quả bằng getCatalogImport. Tệp không có, của shop
 // khác, đã xóa → 404 not_found; sai mục đích hay chưa tải lên xong → 409
-// file_not_ready. Bước áp dụng ở applyCatalogImport (Task M1-47b).
+// file_not_ready. Bước áp dụng ở applyCatalogImport.
 //
 // POST /api/v1/catalog/imports
 func (s *Server) handleCreateCatalogImportRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

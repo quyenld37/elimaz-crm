@@ -314,7 +314,9 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 		return err
 	}
 	handlers := append(append(evs.JobHandlers(), cleanup.Handlers()...), inbound...)
-	handlers = append(handlers, inventory.NewReconcileHandler(queue.NewQueue()))
+	handlers = append(handlers, inventory.NewReconcileHandler(queue.NewQueue()),
+		// Áp bản nhập Excel (Task M1-47b): ghi mẫu, biến thể bằng Writer của catalog (sự kiện qua cùng sổ, báo hiệu).
+		catalog.NewImportApplier(catalog.Writer{Events: evs, Queue: queue.NewQueue(), Realtime: hub}))
 	w := queue.NewWorker(d, handlers, queue.WorkerOptions{
 		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
 		Metrics:  reg, Logger: logger, Role: string(cfg.Role),

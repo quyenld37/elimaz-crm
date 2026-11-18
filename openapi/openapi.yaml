@@ -710,7 +710,7 @@ paths:
       description: >-
         Tạo bản nhập ở trạng thái validating và xếp lệnh kiểm tệp (catalog.import.validate); đọc kết quả bằng
         getCatalogImport. Tệp không có, của shop khác, đã xóa → 404 not_found; sai mục đích hay chưa tải lên xong → 409
-        file_not_ready. Bước áp dụng ở applyCatalogImport (Task M1-47b).
+        file_not_ready. Bước áp dụng ở applyCatalogImport.
       x-permission: catalog.import
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -758,6 +758,35 @@ paths:
       responses:
         "200":
           description: Bản nhập
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogImport"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/imports/{id}/apply:
+    post:
+      operationId: applyCatalogImport
+      summary: Áp bản nhập ready (ghi tất cả hoặc không); việc chạy nền
+      description: >-
+        Chuyển bản nhập ready sang applying khi version còn khớp và xếp việc catalog.import.apply. Việc khóa và kiểm lại
+        plan với dữ liệu hiện tại rồi ghi mọi mẫu, biến thể, phân loại trong một transaction: xong → applied; dữ liệu
+        đổi từ lúc kiểm (SKU vừa bị mẫu khác lấy…) → failed với lỗi từng dòng, không ghi gì; tệp cùng nội dung vừa được
+        áp → duplicate. Đọc kết quả bằng getCatalogImport. Bản nhập không ở ready → 409 import_not_ready; version cũ →
+        409 version_conflict.
+      x-permission: catalog.import
+      parameters:
+        - $ref: "#/components/parameters/ImportID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VersionRequest"
+      responses:
+        "202":
+          description: Bản nhập applying
           content:
             application/json:
               schema:
@@ -2009,7 +2038,8 @@ components:
           enum: [validating, invalid, ready, applying, applied, duplicate, failed]
           description: >-
             validating: đang kiểm; invalid: có lỗi (errors); ready: xem trước được (summary), chờ áp dụng; duplicate:
-            tệp cùng nội dung đã được áp (duplicateOf); failed: không đọc được tệp hay áp thất bại
+            tệp cùng nội dung đã được áp (duplicateOf); applying: đang áp; applied: đã áp; failed: không đọc được
+            tệp hay áp thất bại (errors: dòng có dữ liệu vừa đổi từ lúc kiểm)
         summary:
           $ref: "#/components/schemas/CatalogImportSummary"
         errors:

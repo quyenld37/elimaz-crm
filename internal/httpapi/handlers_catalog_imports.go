@@ -39,6 +39,25 @@ func (h *handler) CreateCatalogImport(ctx context.Context, req *gen.CreateCatalo
 	return out.(*gen.CatalogImport), nil //nolint:forcetypeassert // fn trên trả *gen.CatalogImport
 }
 
+// ApplyCatalogImport (POST /api/v1/catalog/imports/{id}/apply, catalog.import) chuyển bản nhập ready của người bán
+// mặc định sang applying và xếp việc áp → 202.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ApplyCatalogImport(ctx context.Context, req *gen.VersionRequest, params gen.ApplyCatalogImportParams) (gen.ApplyCatalogImportRes, error) {
+	out, err := h.catalogWriteAsDefaultSeller(ctx, http.StatusAccepted,
+		func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) (any, error) {
+			imp, err := w.ApplyImport(ctx, tx, seller, params.ID, req.Version, u)
+			if err != nil {
+				return nil, err //nolint:wrapcheck // sentinel của catalog
+			}
+			return catalogImportOut(imp), nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	return out.(*gen.CatalogImport), nil //nolint:forcetypeassert // fn trên trả *gen.CatalogImport
+}
+
 // GetCatalogImport (GET /api/v1/catalog/imports/{id}, catalog.import): trạng thái, tóm tắt, lỗi từng dòng (không trả
 // plan).
 //

@@ -127,6 +127,7 @@ Package db mở pool pgx có giới hạn thời gian (ADR-26), chạy transacti
 func Backoff(n int, rnd func() float64) time.Duration
 func LintContract(sql string) []string
 func Migrate(ctx context.Context, ownerURL string) (applied []string, err error)
+func Savepoint(ctx context.Context, tx pgx.Tx, fn func(pgx.Tx) error) error
 func TransientCode(err error) (code string, ok bool)
 type DB struct {
 	Pool *pgxpool.Pool

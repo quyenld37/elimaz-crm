@@ -9,6 +9,7 @@ const (
 	AbandonJobOperation                OperationName = "AbandonJob"
 	AddAttributeValueOperation         OperationName = "AddAttributeValue"
 	AddVariantOperation                OperationName = "AddVariant"
+	ApplyCatalogImportOperation        OperationName = "ApplyCatalogImport"
 	ApplyStocktakeOperation            OperationName = "ApplyStocktake"
 	ArchiveCategoryOperation           OperationName = "ArchiveCategory"
 	ArchiveRoleOperation               OperationName = "ArchiveRole"
