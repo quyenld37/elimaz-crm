@@ -11,7 +11,8 @@ git rev-parse --verify -q "$base" >/dev/null || exit 0   # chưa có commit nào
 
 is_test() { case "$1" in *_test.go|*.test.ts|*.test.tsx|*.spec.ts|*.spec.tsx) return 0;; esac; return 1; }
 in_high_risk() { for d in $HIGH_RISK_DIRS; do case "$1" in "$d"|"$d"/*) return 0;; esac; done; return 1; }
-count_checks() { grep -o -E 't\.(Fatal|Fatalf|Error|Errorf)\(|require\.|assert\.|expect\(' 2>/dev/null | wc -l | tr -d ' '; }
+# Biến test đứng sau ký tự không phải chữ/số/dấu chấm, để `fmt.Errorf(` không bị đếm nhầm là `t.Errorf(` (Task 399 phát hiện).
+count_checks() { grep -o -E '(^|[^A-Za-z0-9_.])t\.(Fatal|Fatalf|Error|Errorf)\(|require\.|assert\.|expect\(' 2>/dev/null | wc -l | tr -d ' '; }
 
 findings=""
 add() { findings="${findings}$1"$'\n'; }
