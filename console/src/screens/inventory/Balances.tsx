@@ -27,7 +27,8 @@ export function discontinued(b: Balance): boolean {
   return b.productStatus === "discontinued" || b.variantStatus === "discontinued";
 }
 
-function useDebounced<T>(value: T, ms: number): T {
+/** Giá trị trễ ms sau lần đổi cuối (chờ người gõ dừng). */
+export function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value);
   useEffect(() => {
     const t = setTimeout(() => {

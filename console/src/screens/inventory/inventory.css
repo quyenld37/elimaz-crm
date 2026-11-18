@@ -44,3 +44,63 @@
     padding-top: 8px;
   }
 }
+
+/* Màn Nhà cung cấp, chép từ mockup đã duyệt (docs/mockups/m1/kho-nha-cung-cap.html, khối <style>). */
+.s-name {
+  color: var(--name);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  max-width: 520px;
+  display: block;
+}
+.stbl .c-act {
+  width: 1%;
+  white-space: nowrap;
+}
+@media (max-width: 759px) {
+  .s-name {
+    max-width: none;
+  }
+  .tbl.stbl td.c-act {
+    justify-content: flex-end;
+  }
+}
+
+/* Ô chọn có thêm nhanh, chép từ mockup docs/mockups/m1/kho-phieu.html (trạng thái B, khối <style>). */
+.combo {
+  position: relative;
+}
+.combo-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 3;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  box-shadow: var(--shadow);
+  background: var(--paper);
+  margin-top: 4px;
+  overflow: hidden;
+}
+.combo-opt {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--field);
+  padding: 6px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+  font: 14px/1.4 var(--font-body);
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+.combo-opt:last-child {
+  border-bottom: 0;
+}
+.combo-opt.is-add {
+  font-weight: 700;
+  background: var(--surface);
+}
