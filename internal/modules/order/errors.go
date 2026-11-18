@@ -23,6 +23,10 @@ var (
 	ErrDuplicateOrder = errors.New("order: khóa tạo đơn đã được dùng")
 	// ErrNotFound: không có đơn, hoặc của người bán, tenant khác (không cho biết là có).
 	ErrNotFound = errors.New("order: không có đơn")
+	// ErrShipmentAlreadyAttached: đơn đã có vận đơn hiện hành khác (05 mục 2, B1).
+	ErrShipmentAlreadyAttached = errors.New("order: đơn đã có vận đơn hiện hành khác")
+	// ErrStatusConflict: đơn không ở trạng thái cho việc này, hoặc giữ hàng của đơn lệch trạng thái đơn.
+	ErrStatusConflict = errors.New("order: đơn không ở trạng thái cần")
 )
 
 // OutOfStockError là chi tiết của ErrOutOfStock: dòng đầu tiên (theo thứ tự khóa) không đủ hàng.

@@ -1,9 +1,11 @@
 // Package order là đơn hàng (spec 05 mục 2). Bản M1 (kế hoạch M1, Task M1-30, lát mỏng Q-X1): lên đơn nhập tay giữ
-// hàng cùng transaction và đọc đơn. Gắn vận đơn, áp bước vận đơn lên đơn và tồn: Task M1-30b. M2 mở rộng (đơn nháp,
-// sửa, hủy, trả hàng), không tạo lại.
+// hàng cùng transaction và đọc đơn; Task M1-30b: gắn vận đơn hiện hành (AttachShipment), áp bước vận đơn lên đơn và
+// tồn (Writer.ApplyShipmentProgress; chỉ vận đơn hiện hành đổi được). M2 mở rộng (đơn nháp, sửa, hủy, trả hàng),
+// không tạo lại.
 //
 // Thứ tự khóa (docs/adr/0046-thu-tu-khoa.md): tạo đơn chèn khách (nhóm 5) → đơn → dòng đơn → lịch sử (nhóm 7, dòng mới)
-// → số dư tồn (nhóm 11, inventory.Writer.Reserve tự sắp). Mã đơn lấy từ sequence (nextCode), không khóa dòng.
+// → số dư tồn (nhóm 11, inventory.Writer.Reserve tự sắp). Bước vận đơn: khóa đơn FOR UPDATE trước rồi số dư, giữ
+// hàng. Mã đơn lấy từ sequence (nextCode), không khóa dòng.
 //
 // Phần công khai: hàm đọc Get (nhận sellerID, ADR-29) và Writer (đường ghi: tự ghi lịch sử, sự kiện order.* trong tx
 // của bên gọi). Audit do bên gọi ghi bằng Order.AuditFields: order không nhập identity (04 mục 3).
@@ -34,6 +36,7 @@ import (
 // Trạng thái đơn (05 mục 2) và kênh.
 const (
 	StatusConfirmed = "confirmed"
+	StatusDelivered = "delivered"
 
 	channelManual = "manual"
 )

@@ -99,7 +99,7 @@ type InsertOrderParams struct {
 }
 
 // Đơn tối thiểu (kế hoạch M1, Task M1-30; 05 mục 2). Chạy trong tenancy.WithTenant. Thứ tự khóa ADR-46 nhóm 7.
-// Gắn vận đơn, khóa đơn, đổi trạng thái: Task M1-30b (333).
+// Gắn vận đơn, khóa đơn, đổi trạng thái: Task M1-30b (333), cuối tệp.
 func (q *Queries) InsertOrder(ctx context.Context, arg InsertOrderParams) (time.Time, error) {
 	row := q.db.QueryRow(ctx, insertOrder,
 		arg.ID,
@@ -121,4 +121,77 @@ func (q *Queries) InsertOrder(ctx context.Context, arg InsertOrderParams) (time.
 	var created_at time.Time
 	err := row.Scan(&created_at)
 	return created_at, err
+}
+
+const lockOrder = `-- name: LockOrder :one
+SELECT id, tenant_id, seller_id, status, current_shipment_id, version
+FROM ord.orders
+WHERE id = $1
+FOR UPDATE
+`
+
+type LockOrderRow struct {
+	ID                uuid.UUID
+	TenantID          uuid.UUID
+	SellerID          uuid.UUID
+	Status            string
+	CurrentShipmentID pgtype.UUID
+	Version           int64
+}
+
+// Khóa đơn trước mọi dòng nhóm sau (ADR-46 nhóm 7, dòng "khóa đơn trước"). Không lọc seller_id: bên gọi là
+// fulfillment theo mã đơn của vận đơn (cùng tenant, RLS lọc).
+func (q *Queries) LockOrder(ctx context.Context, id uuid.UUID) (LockOrderRow, error) {
+	row := q.db.QueryRow(ctx, lockOrder, id)
+	var i LockOrderRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.SellerID,
+		&i.Status,
+		&i.CurrentShipmentID,
+		&i.Version,
+	)
+	return i, err
+}
+
+const setCurrentShipment = `-- name: SetCurrentShipment :execrows
+UPDATE ord.orders
+SET current_shipment_id = $1, version = version + 1, updated_at = now()
+WHERE id = $2 AND status = 'confirmed' AND current_shipment_id IS NULL
+`
+
+type SetCurrentShipmentParams struct {
+	ShipmentID pgtype.UUID
+	ID         uuid.UUID
+}
+
+// Gắn vận đơn hiện hành; chỉ khi đơn đang confirmed và chưa có vận đơn (đã khóa bằng LockOrder).
+func (q *Queries) SetCurrentShipment(ctx context.Context, arg SetCurrentShipmentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setCurrentShipment, arg.ShipmentID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setOrderStatus = `-- name: SetOrderStatus :one
+UPDATE ord.orders
+SET status = $1, version = version + 1, updated_at = now()
+WHERE id = $2 AND status = $3
+RETURNING version
+`
+
+type SetOrderStatusParams struct {
+	ToStatus   string
+	ID         uuid.UUID
+	FromStatus string
+}
+
+// Đổi trạng thái chỉ khi đang ở trạng thái cũ; trả version mới (không dòng nào → pgx.ErrNoRows).
+func (q *Queries) SetOrderStatus(ctx context.Context, arg SetOrderStatusParams) (int64, error) {
+	row := q.db.QueryRow(ctx, setOrderStatus, arg.ToStatus, arg.ID, arg.FromStatus)
+	var version int64
+	err := row.Scan(&version)
+	return version, err
 }

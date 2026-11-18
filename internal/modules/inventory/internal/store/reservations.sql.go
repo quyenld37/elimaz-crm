@@ -12,6 +12,39 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countReservationsByItems = `-- name: CountReservationsByItems :many
+SELECT state, count(*)::int AS n
+FROM inventory.stock_reservations
+WHERE order_item_id = ANY ($1::uuid[])
+GROUP BY state
+`
+
+type CountReservationsByItemsRow struct {
+	State string
+	N     int32
+}
+
+// Số dòng giữ hàng của các dòng đơn theo trạng thái (không khóa; bên gọi đã khóa đơn, ADR-46 nhóm 7).
+func (q *Queries) CountReservationsByItems(ctx context.Context, orderItemIds []uuid.UUID) ([]CountReservationsByItemsRow, error) {
+	rows, err := q.db.Query(ctx, countReservationsByItems, orderItemIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountReservationsByItemsRow{}
+	for rows.Next() {
+		var i CountReservationsByItemsRow
+		if err := rows.Scan(&i.State, &i.N); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertReservation = `-- name: InsertReservation :exec
 
 INSERT INTO inventory.stock_reservations

@@ -26,3 +26,10 @@ SELECT id
 FROM inventory.stock_reservations
 WHERE order_item_id = ANY (@order_item_ids::uuid[]) AND state = @state
 ORDER BY id;
+
+-- name: CountReservationsByItems :many
+-- Số dòng giữ hàng của các dòng đơn theo trạng thái (không khóa; bên gọi đã khóa đơn, ADR-46 nhóm 7).
+SELECT state, count(*)::int AS n
+FROM inventory.stock_reservations
+WHERE order_item_id = ANY (@order_item_ids::uuid[])
+GROUP BY state;

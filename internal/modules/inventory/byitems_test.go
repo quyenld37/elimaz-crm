@@ -130,3 +130,41 @@ func TestByItems_SameAsCore(t *testing.T) {
 		t.Errorf("dòng đơn lạ: mong ErrStateConflict, có %v", err)
 	}
 }
+
+// TestReservationStatesByItems: đếm dòng giữ hàng của các dòng đơn theo trạng thái; dòng đơn lạ, rỗng → map rỗng.
+func TestReservationStatesByItems(t *testing.T) {
+	e := newInvEnv(t)
+	v := e.stock(10)
+	l1, l2, l3 := e.line(v, 1), e.line(v, 2), e.line(v, 3)
+	ids, err := e.reserve(sysActor(), l1, l2, l3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.do(func(ctx context.Context, tx pgx.Tx, w inventory.Writer) error {
+		return w.StartTransit(ctx, tx, ids[1:2], sysActor())
+	}); err != nil {
+		t.Fatal(err)
+	}
+	states := func(items ...uuid.UUID) map[string]int {
+		t.Helper()
+		var m map[string]int
+		if err := e.app(func(tx pgx.Tx) error {
+			var err error
+			m, err = inventory.ReservationStatesByItems(t.Context(), tx, items)
+			return err //nolint:wrapcheck // test
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	got := states(l1.OrderItemID, l2.OrderItemID, uuid.New())
+	if len(got) != 2 || got[inventory.StateHeld] != 1 || got[inventory.StateInTransit] != 1 {
+		t.Errorf("trạng thái của l1, l2: %v", got)
+	}
+	if got := states(l3.OrderItemID); len(got) != 1 || got[inventory.StateHeld] != 1 {
+		t.Errorf("trạng thái của l3: %v", got)
+	}
+	if got := states(); len(got) != 0 {
+		t.Errorf("không dòng đơn: %v", got)
+	}
+}
