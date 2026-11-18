@@ -13,6 +13,7 @@ GOOSE_VERSION       := v3.30.1
 GREMLINS_VERSION    := v0.6.0
 OASDIFF_VERSION     := v1.38.0
 JSCPD_VERSION       := 5.4.3
+GITLEAKS_VERSION    := v8.30.1   # Task 23: máy CI cài bằng go install (make ci-tools)
 K6_VERSION          := v2.0.0    # Homebrew, chốt ở Task 1
 TS_LS_VERSION       := 6.1.0     # typescript-language-server, cho plugin typescript-lsp
 TYPESCRIPT_VERSION  := 7.0.2

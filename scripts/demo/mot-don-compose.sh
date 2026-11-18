@@ -13,6 +13,8 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 PROJECT=${COMPOSE_PROJECT:-crm}
+IMAGE=${CRM_IMAGE:-crm:$PROJECT}
+export CRM_IMAGE=$IMAGE # compose dev đọc biến này cho bốn dịch vụ ứng dụng
 API_PORT=${CRM_API_PORT:-4190}
 FC_PORT=${CRM_FAKECARRIER_PORT:-4194}
 DA_PORT=${CRM_DEVACCESS_PORT:-4195}
@@ -37,7 +39,7 @@ SQL
 for c in docker curl jq openssl; do
   command -v "$c" >/dev/null || die "thiếu lệnh $c"
 done
-docker image inspect crm:dev >/dev/null 2>&1 || die "chưa có image crm:dev: chạy make image"
+docker image inspect "$IMAGE" >/dev/null 2>&1 || die "chưa có image $IMAGE: chạy make image"
 dc ps --status running --services 2>/dev/null | grep -qx postgres || die "compose $PROJECT chưa chạy: make db-up"
 
 # (1) Khóa hãng giả của lần chạy này: compose đọc CRM_FAKECARRIER_SECRET, không ghi ra tệp.

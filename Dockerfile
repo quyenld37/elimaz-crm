@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Image chính của CRM: một tệp chạy Go tĩnh cho mọi vai trò (CRM_ROLE: ingest, api, worker, migrate). Kế hoạch M0
 # bản 5, Task 21; ADR-43 (image dựng ở CI), Global Constraints (CGO_ENABLED=0, -trimpath, không root, không secret).
-#   docker build -t crm:dev .
+#   docker build -t crm:<nhãn> .   (make image: crm:<dự án compose>; CI: crm:<mã commit>)
 # Image chạy là distroless static: không shell, không trình quản lý gói; chạy bằng nonroot (65532). Kiểm sức khỏe
 # bằng chính tệp chạy (`crm healthcheck`).
 

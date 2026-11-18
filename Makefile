@@ -19,6 +19,11 @@ CRM_S3_OFFSITE_PORT ?= 8334
 CRM_IMAGER_PORT ?= 4193
 export CRM_S3_PORT CRM_S3_OFFSITE_PORT CRM_IMAGER_PORT
 
+# Image chính của compose dev theo dự án compose (việc treo Task 395): phiên song song không ghi đè image của nhau.
+# CI đặt CRM_IMAGE=crm:<mã commit>.
+CRM_IMAGE ?= crm:$(COMPOSE_PROJECT)
+export CRM_IMAGE
+
 COMPOSE := docker compose -p $(COMPOSE_PROJECT) -f docker/compose.dev.yml
 
 # Dịch vụ M1 có profile riêng; `dev` chỉ bật profile nào đã có Dockerfile (Task M1-42, M1-31, M1-45 thêm).
@@ -50,10 +55,10 @@ test-imager-compose: ## Container imager của compose dev: không biến bí m�
 	COMPOSE_PROJECT=$(COMPOSE_PROJECT) CRM_IMAGER_PORT=$(CRM_IMAGER_PORT) go test -tags imagercompose -count=1 -run '^TestImagerCompose_' -v ./internal/imager/
 
 # ---- Image chính và ba vai trò trên compose dev (Task 21). Cổng máy: CRM_API_PORT (4190), CRM_INGEST_PORT (4191).
-image: ## Dựng image chính crm:dev (Go tĩnh, distroless, không root)
-	docker build -t crm:dev .
+image: ## Dựng image chính $(CRM_IMAGE) (mặc định crm:<dự án compose>; Go tĩnh, distroless, không root)
+	docker build -t $(CRM_IMAGE) .
 
-app-up: ## Migrate một lần rồi chạy crm-ingest, crm-api, crm-worker từ crm:dev (make db-up và make image trước)
+app-up: ## Migrate một lần rồi chạy crm-ingest, crm-api, crm-worker từ $(CRM_IMAGE) (make db-up và make image trước)
 	$(COMPOSE) --profile app run --rm -T crm-migrate
 	$(COMPOSE) --profile app up -d --wait --no-deps crm-ingest crm-api crm-worker
 
@@ -83,7 +88,7 @@ fuzz-xlsx: ## Fuzz xlsx.Read 60 s trên byte ngẫu nhiên: không panic, không
 
 # ---- Cổng kiểm (Task 3). `make ci` là lưới cuối; CI trên máy chủ git chạy đúng lệnh này.
 # Task 4 thêm sinh mã sqlc và sqlc vet; Task 6 thêm ogen, bảng route, oasdiff.
-.PHONY: ci build vet lint test vuln catalog catalog-check jscpd test-guard gitleaks gen gen-check sqlc-vet oasdiff console-deps console-check
+.PHONY: mutation ci-tools ci build vet lint test vuln catalog catalog-check jscpd test-guard gitleaks gen gen-check sqlc-vet oasdiff console-deps console-check
 
 ci: build vet lint gen-check sqlc-vet test vuln oasdiff catalog-check jscpd test-guard gitleaks console-check ## Toàn bộ cổng kiểm phần đã có
 
@@ -151,6 +156,32 @@ jscpd: ## Chỉ báo đoạn trùng mới so với mốc nền jscpd-baseline.js
 
 test-guard: ## Test không bị xóa, tắt, nới mà không ghi lý do (so với main)
 	scripts/agent/test-guard.sh main
+
+# ---- Mutation testing vùng rủi ro cao (Task 23; ADR-25). Không nằm trong `ci` (vài giờ trên máy dev); CI chạy theo lịch.
+# GOFLAGS=-count=1: gremlins đặt hạn mỗi lượt theo thời gian chạy test đo lúc đầu; kết quả test lấy từ cache thì hạn gần 0
+# và mọi đột biến thành TIMED OUT (không tính vào hiệu quả, điểm 100% giả).
+# Cùng danh sách vùng cao HIGH_RISK_DIRS của hook (tests/deploy kiểm hai nơi khớp nhau). internal/httpapi: chỉ guard.go.
+MUTATION_DIRS := internal/platform/tenancy internal/platform/queue internal/platform/commands internal/platform/idempotency internal/modules/identity
+MUTATION_HTTPAPI_EXCLUDE := -E '^gen/' -E '^(auth|errors|handlers_[a-z_]+|idempotency|middleware|origin|ratelimit|refusal|routes_gen|server)\.go$$'
+MUTATION_OUT ?= .mutation
+mutation: ## Đột biến mã vùng cao bằng gremlins (.gremlins.yaml, ngưỡng 80%); JSON trong $(MUTATION_OUT)/; make db-up trước
+	@mkdir -p $(MUTATION_OUT)
+	rc=0; for d in $(MUTATION_DIRS); do \
+		echo "== $$d"; GOFLAGS=-count=1 gremlins unleash --config .gremlins.yaml -o $(MUTATION_OUT)/$$(basename $$d).json ./$$d || rc=1; \
+	done; \
+	echo "== internal/httpapi/guard.go"; \
+	GOFLAGS=-count=1 gremlins unleash --config .gremlins.yaml $(MUTATION_HTTPAPI_EXCLUDE) -o $(MUTATION_OUT)/guard.json ./internal/httpapi || rc=1; \
+	exit $$rc
+
+# ---- Công cụ cho máy CI (Task 23): đúng phiên bản ghim ở tools/versions.mk.
+ci-tools: ## Cài golangci-lint, govulncheck, sqlc, ogen, gitleaks, gremlins, jscpd đã ghim (máy CI; máy dev đã có)
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(strip $(GOLANGCI_VERSION))
+	go install golang.org/x/vuln/cmd/govulncheck@$(strip $(GOVULNCHECK_VERSION))
+	go install github.com/sqlc-dev/sqlc/cmd/sqlc@$(strip $(SQLC_VERSION))
+	go install github.com/ogen-go/ogen/cmd/ogen@$(strip $(OGEN_VERSION))
+	go install github.com/zricethezav/gitleaks/v8@$(strip $(GITLEAKS_VERSION))
+	go install github.com/go-gremlins/gremlins/cmd/gremlins@$(strip $(GREMLINS_VERSION))
+	npm install -g --no-audit --no-fund jscpd@$(strip $(JSCPD_VERSION))
 
 gitleaks: ## Không có bí mật trong lịch sử git và thư mục làm việc
 	gitleaks git --no-banner --redact .
