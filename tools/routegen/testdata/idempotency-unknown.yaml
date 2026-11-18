@@ -1,0 +1,17 @@
+openapi: 3.0.3
+info: {title: t, version: "1"}
+paths:
+  /api/v1/quote:
+    post:
+      operationId: unknownMode
+      x-permission: things.read
+      x-idempotency: safe
+      x-idempotency-reason: "chỉ đọc"
+      responses: {"200": {description: ok}}
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string}

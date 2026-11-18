@@ -92,6 +92,31 @@ type TxOptions struct {
 }
 ```
 
+## `internal/platform/idempotency` (gói `idempotency`)
+
+Package idempotency là khóa chống trùng của yêu cầu ghi (ADR-41; vùng rủi ro cao): bên gọi gửi một khóa, Acquire ghi nhận khóa ở trạng thái running bằng một transaction ngắn riêng, rồi Claim.Complete ghi "đã xong" kèm kết quả **trong transaction nghiệp vụ**.
+
+**Khi nào không dùng:** Không gọi Acquire hay Claim.Complete trực tiếp từ handler: route ghi dùng httpapi.WriteTx (middleware đã ghi nhận khóa). Complete phải là câu cuối của transaction nghiệp vụ (ADR-46 nhóm 13), không gọi ngoài transaction đó. Không dùng thay khóa nghiệp vụ unique (orders.idempotency_key, jobs.dedupe_key): khóa yêu cầu không chặn hai khóa khác nhau cho cùng một việc. Không lưu bí mật trả một lần: route đó khai x-idempotency: no-replay.
+
+```go
+func Acquire(ctx context.Context, d *db.DB, s Scope, key string, reqHash []byte, now time.Time) (Claim, *Stored, error)
+func RequestHash(method, route string, body []byte) []byte
+type Claim interface {
+	Complete(ctx context.Context, tx pgx.Tx, status int, body []byte) error
+
+	Release(ctx context.Context) error
+}
+type Scope struct {
+	TenantID uuid.UUID
+	Actor    string
+	Route    string
+}
+type Stored struct {
+	Status int
+	Body   []byte
+}
+```
+
 ## `internal/platform/logging` (gói `logging`)
 
 Package logging dựng logger JSON của CRM: che sâu dữ liệu cá nhân và bí mật ở mọi cấp, thêm trace_id/span_id từ ctx, và khi có LOG_DIR thì ghi thêm vào tệp theo ngày.

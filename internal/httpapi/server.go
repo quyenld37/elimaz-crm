@@ -82,10 +82,13 @@ func newMux(d Deps) (*http.ServeMux, int) {
 }
 
 // chain bọc h theo thứ tự của kế hoạch: requestID → recover → otelhttp → bodyLimit(1 MiB) → origin (chỉ Write) →
-// auth → guard(route) → userRateLimit (bỏ qua Stream) → handler; route Public bỏ qua auth, guard, userRateLimit.
-// Task 9 thêm idempotency (chỉ Write) sau userRateLimit.
+// auth → guard(route) → userRateLimit (bỏ qua Stream) → idempotent (route Write có IdempotencyMode required hoặc
+// no-replay; route exempt bỏ qua, ADR-47) → handler; route Public bỏ qua auth, guard, userRateLimit.
 func chain(d Deps, rt Route, h http.Handler) http.Handler {
 	d = prepare(d)
+	if rt.Write && (rt.IdempotencyMode == modeRequired || rt.IdempotencyMode == modeNoReplay) {
+		h = idempotent(d, rt, h)
+	}
 	if !rt.Public {
 		if !rt.Stream {
 			h = userRateLimit(d.limiter, h)

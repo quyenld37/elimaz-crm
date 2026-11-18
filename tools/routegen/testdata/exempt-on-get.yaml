@@ -1,0 +1,26 @@
+openapi: 3.0.3
+info: {title: t, version: "1"}
+paths:
+  /api/v1/things:
+    get:
+      operationId: exemptGet
+      x-permission: things.read
+      x-idempotency: exempt
+      x-idempotency-reason: "đọc"
+      responses: {"200": {description: ok}}
+  /api/v1/things/{id}:
+    put:
+      operationId: exemptPut
+      x-permission: things.write
+      x-idempotency: exempt
+      x-idempotency-reason: "ghi thật"
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses: {"200": {description: ok}}
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string}

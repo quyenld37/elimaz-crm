@@ -61,6 +61,20 @@ type IdentityUserRoleGrant struct {
 	CreatedAt time.Time
 }
 
+type PlatformIdempotencyKey struct {
+	TenantID       uuid.UUID
+	Actor          string
+	Route          string
+	Key            string
+	RequestHash    []byte
+	Status         string
+	LockedUntil    pgtype.Timestamptz
+	ResponseStatus pgtype.Int4
+	ResponseBody   []byte
+	CreatedAt      time.Time
+	ExpiresAt      time.Time
+}
+
 type PlatformMetricsMinute struct {
 	Bucket  time.Time
 	Process string
