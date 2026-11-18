@@ -189,3 +189,23 @@ func TestLoadEnvMustBeKnown(t *testing.T) {
 		t.Fatalf("CRM_ENV=prod với hãng giả phải lỗi, nhận cfg=%q err=%v", cfg.FakeCarrierURL, err)
 	}
 }
+
+// S3_IMAGER_ENDPOINT, IMAGER_MAX_PARALLEL (worker, Task M1-43 Q2, Q12): địa chỉ kho mà imager tới được từ mạng imaging; mặc định S3_ENDPOINT.
+func TestLoadWorkerImagerEndpoint(t *testing.T) {
+	cfg, err := config.Load(config.RoleWorker, env(workerEnv()))
+	if err != nil || cfg.S3ImagerEndpoint != cfg.S3Endpoint || cfg.ImagerMaxParallel != 2 {
+		t.Fatalf("mặc định: %q / %q, %d %v", cfg.S3ImagerEndpoint, cfg.S3Endpoint, cfg.ImagerMaxParallel, err)
+	}
+	if _, err := config.Load(config.RoleWorker, env(with(workerEnv(), "IMAGER_MAX_PARALLEL", "0"))); err == nil ||
+		!strings.Contains(err.Error(), "IMAGER_MAX_PARALLEL") {
+		t.Fatalf("IMAGER_MAX_PARALLEL 0 phải lỗi: %v", err)
+	}
+	cfg, err = config.Load(config.RoleWorker, env(with(workerEnv(), "S3_IMAGER_ENDPOINT", "http://seaweedfs:8333")))
+	if err != nil || cfg.S3ImagerEndpoint != "http://seaweedfs:8333" {
+		t.Fatalf("khai: %q %v", cfg.S3ImagerEndpoint, err)
+	}
+	if _, err := config.Load(config.RoleWorker, env(with(workerEnv(), "S3_IMAGER_ENDPOINT", "seaweedfs:8333"))); err == nil ||
+		!strings.Contains(err.Error(), "S3_IMAGER_ENDPOINT") {
+		t.Fatalf("không phải URL phải lỗi: %v", err)
+	}
+}

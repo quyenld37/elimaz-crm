@@ -61,8 +61,57 @@ UPDATE platform.files
 SET deleted_at = now(), deleted_by = sqlc.narg(deleted_by), updated_at = now(), version = version + 1
 WHERE id = @id AND deleted_at IS NULL;
 
--- name: ListFileVariants :many
-SELECT width, format, bucket, key
+-- name: InsertPrivateImageFile :one
+-- Ảnh riêng tư do máy chủ ghi (R10, Task M1-43): uploaded, chờ file.process_private. Cùng id (hay cùng khóa) lần hai
+-- → không trả dòng nào (bên gọi đọc id cũ, không xếp lệnh thêm).
+INSERT INTO platform.files (id, tenant_id, purpose, bucket, key, original_name, declared_type, size_bytes, status,
+    created_by)
+VALUES (@id, @tenant_id, @purpose, 'private', @key, @original_name, @declared_type, @size_bytes, 'uploaded',
+    sqlc.narg(created_by))
+ON CONFLICT DO NOTHING
+RETURNING id;
+
+-- name: FindReadyDuplicate :one
+-- Tệp ready khác cùng tenant, cùng mục đích, cùng nội dung, cùng bộ kích thước (chống trùng, Task M1-43).
+SELECT id
+FROM platform.files
+WHERE tenant_id = @tenant_id AND content_sha256 = @content_sha256 AND purpose = @purpose
+    AND preset_version = @preset_version AND status = 'ready' AND deleted_at IS NULL AND id <> @id
+ORDER BY created_at, id
+LIMIT 1;
+
+-- name: ListFileVariantsFull :many
+SELECT preset_version, width, format, bucket, key, size_bytes
 FROM platform.file_variants
 WHERE file_id = @file_id
-ORDER BY format, width;
+ORDER BY preset_version, format, width;
+
+-- name: SetFileReady :one
+-- Kết quả xử lý ảnh (dòng đã khóa bằng LockFile): chỉ đổi từ uploaded, processing, lost.
+UPDATE platform.files
+SET status = 'ready', reject_reason = NULL, detected_type = @detected_type, width = sqlc.narg(width),
+    height = sqlc.narg(height), content_sha256 = @content_sha256, preset_version = @preset_version, bucket = @bucket,
+    key = @key, lost_at = NULL, updated_at = now(), version = version + 1
+WHERE id = @id AND status IN ('uploaded', 'processing', 'lost')
+RETURNING id;
+
+-- name: SetFileRejected :execrows
+-- Từ chối khi xử lý ảnh (dòng đã khóa bằng LockFile): chỉ đổi từ uploaded, processing.
+UPDATE platform.files
+SET status = 'rejected', reject_reason = @reject_reason, updated_at = now(), version = version + 1
+WHERE id = @id AND status IN ('uploaded', 'processing');
+
+-- name: InsertFileVariant :exec
+INSERT INTO platform.file_variants (tenant_id, file_id, preset_version, width, format, bucket, key, size_bytes)
+VALUES (@tenant_id, @file_id, @preset_version, @width, @format, @bucket, @key, @size_bytes)
+ON CONFLICT DO NOTHING;
+
+-- name: ListPublicVariants :many
+-- Biến thể công khai của các tệp ready, chưa xóa, của mục đích chế độ standard (R10: không bao giờ có ảnh riêng tư).
+SELECT v.file_id, v.preset_version, v.width, v.format, v.key
+FROM platform.file_variants v
+JOIN platform.files f ON f.tenant_id = v.tenant_id AND f.id = v.file_id
+JOIN platform.file_purposes p ON p.key = f.purpose
+WHERE v.file_id = ANY(@file_ids::uuid[]) AND v.bucket = 'public' AND f.status = 'ready' AND f.deleted_at IS NULL
+    AND p.mode = 'standard'
+ORDER BY v.file_id, v.preset_version, v.format, v.width;

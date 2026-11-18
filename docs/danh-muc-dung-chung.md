@@ -91,6 +91,10 @@ type Config struct {
 	ImagerURL          string
 	ImagePresetVersion int
 
+	S3ImagerEndpoint string
+
+	ImagerMaxParallel int
+
 	FakeCarrierURL           string
 	FakeCarrierWebhookSecret string
 
@@ -205,7 +209,9 @@ func OriginalKey(sha256Hex string) string
 func PrivateVariantKey(tenantID, fileID uuid.UUID, preset, width int, format string) string
 func ProcessKind() queue.Kind
 func ProcessPrivateKind() queue.Kind
+func PublicVariants(ctx context.Context, tx pgx.Tx, fileIDs []uuid.UUID, baseURL string) (map[uuid.UUID][]VariantURL, error)
 func Register(ctx context.Context, tx pgx.Tx, f NewFile) (uuid.UUID, error)
+func RegisterPrivateImage(ctx context.Context, tx pgx.Tx, q queue.JobQueue, in NewPrivateImage) (uuid.UUID, error)
 func RegisterPurpose(p Purpose)
 func ServerKey(tenantID, fileID uuid.UUID) string
 func TmpKey(tenantID, fileID uuid.UUID) string
@@ -238,6 +244,8 @@ func Status(ctx context.Context, tx pgx.Tx, fileID uuid.UUID) (FileStatus, error
 type FileStore interface {
 	PresignPut(ctx context.Context, b Bucket, key string, size int64, contentType string, ttl time.Duration) (PresignedPut, error)
 
+	PresignPutAnySize(ctx context.Context, b Bucket, key string, contentType string, ttl time.Duration) (PresignedPut, error)
+
 	PresignGet(ctx context.Context, b Bucket, key string, ttl time.Duration, attachmentName string) (string, error)
 
 	Head(ctx context.Context, b Bucket, key string) (ObjectInfo, error)
@@ -249,6 +257,9 @@ type FileStore interface {
 	Put(ctx context.Context, b Bucket, key string, r io.Reader, size int64, contentType string) error
 
 	Delete(ctx context.Context, b Bucket, key string) error
+}
+type Imager interface {
+	Process(ctx context.Context, req imager.Request) (imager.Result, error)
 }
 type Info struct {
 	File
@@ -265,6 +276,7 @@ func (m *MemStore) Keys(b Bucket) []string
 func (m *MemStore) Open(_ context.Context, b Bucket, key string, maxBytes int64) (io.ReadCloser, error)
 func (m *MemStore) PresignGet(_ context.Context, b Bucket, key string, ttl time.Duration, attachmentName string) (string, error)
 func (m *MemStore) PresignPut(_ context.Context, b Bucket, key string, size int64, contentType string, ttl time.Duration) (PresignedPut, error)
+func (m *MemStore) PresignPutAnySize(_ context.Context, b Bucket, key string, contentType string, ttl time.Duration) (PresignedPut, error)
 func (m *MemStore) Put(_ context.Context, b Bucket, key string, r io.Reader, size int64, contentType string) error
 func (m *MemStore) ServeHTTP(w http.ResponseWriter, r *http.Request)
 func (m *MemStore) SetBaseURL(u string)
@@ -280,6 +292,14 @@ type NewFile struct {
 	ExpiresAt   *time.Time
 	CreatedBy   *uuid.UUID
 }
+type NewPrivateImage struct {
+	ID          uuid.UUID
+	Purpose     string
+	Size        int64
+	ContentType string
+	FileName    string
+	CreatedBy   *uuid.UUID
+}
 type ObjectInfo struct {
 	Size        int64
 	ContentType string
@@ -289,6 +309,33 @@ type PresignedPut struct {
 	URL       string
 	Headers   map[string]string
 	ExpiresAt time.Time
+}
+type Processor struct {
+}
+func NewProcessHandler(o ProcessorOptions) *Processor
+func NewProcessPrivateHandler(o ProcessorOptions) *Processor
+func (*Processor) AutoRetryNotSent() bool
+func (p *Processor) Execute(ctx context.Context, j queue.Job) (commands.Outcome, error)
+func (p *Processor) Kind() queue.Kind
+func (*Processor) Lookup(context.Context, queue.Job) (string, error)
+func (p *Processor) OnDone(ctx context.Context, j queue.Job, result json.RawMessage, tx pgx.Tx) error
+func (p *Processor) OnTerminal(ctx context.Context, j queue.Job, status string, tx pgx.Tx) error
+type ProcessorOptions struct {
+	DB *db.DB
+
+	Store FileStore
+
+	Signer FileStore
+	Imager Imager
+
+	PresetVersion int
+
+	Bus Publisher
+
+	Metrics *metrics.Registry
+}
+type Publisher interface {
+	Publish(ctx context.Context, tx pgx.Tx, s realtime.Signal) error
 }
 type Purpose struct {
 	Key          string
@@ -328,6 +375,7 @@ func (s *S3Store) Head(ctx context.Context, b Bucket, key string) (ObjectInfo, e
 func (s *S3Store) Open(ctx context.Context, b Bucket, key string, maxBytes int64) (io.ReadCloser, error)
 func (s *S3Store) PresignGet(ctx context.Context, b Bucket, key string, ttl time.Duration, attachmentName string) (string, error)
 func (s *S3Store) PresignPut(ctx context.Context, b Bucket, key string, size int64, contentType string, ttl time.Duration) (PresignedPut, error)
+func (s *S3Store) PresignPutAnySize(ctx context.Context, b Bucket, key string, contentType string, ttl time.Duration) (PresignedPut, error)
 func (s *S3Store) Put(ctx context.Context, b Bucket, key string, r io.Reader, size int64, contentType string) error
 type UploadCheck struct {
 }
@@ -345,6 +393,7 @@ type VariantSpec struct {
 }
 func Preset(version int) ([]VariantSpec, bool)
 type VariantURL struct {
+	Preset int
 	Width  int
 	Format string
 	URL    string

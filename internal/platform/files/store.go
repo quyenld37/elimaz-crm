@@ -64,6 +64,9 @@ var (
 type FileStore interface {
 	// PresignPut ký PUT cho đúng size byte, đúng contentType, chỉ khi khóa chưa có; không gọi mạng.
 	PresignPut(ctx context.Context, b Bucket, key string, size int64, contentType string, ttl time.Duration) (PresignedPut, error)
+	// PresignPutAnySize ký PUT cho đúng contentType, chỉ khi khóa chưa có, không ký kích thước: chỉ cho đầu ra mà
+	// máy chủ của CRM tạo (biến thể của imager, kích thước chỉ biết sau khi mã hóa), không bao giờ cho trình duyệt.
+	PresignPutAnySize(ctx context.Context, b Bucket, key string, contentType string, ttl time.Duration) (PresignedPut, error)
 	// PresignGet ký GET hạn ttl; attachmentName khác rỗng thì trình duyệt tải về với tên đó. Không gọi mạng.
 	PresignGet(ctx context.Context, b Bucket, key string, ttl time.Duration, attachmentName string) (string, error)
 	// Head đọc thông tin; không có → ErrObjectNotFound.

@@ -53,8 +53,8 @@ func MarkDeleted(ctx context.Context, tx pgx.Tx, fileID uuid.UUID, actor uuid.UU
 
 // DownloadURL ký GET hạn ttl tới tệp trong tenant của tx, không gọi mạng. Tệp phải ready, chưa xóa, chưa mất, chưa
 // hết hạn: không có/đã xóa/mất → ErrNotFound; quá expires_at → ErrExpired; awaiting_upload/uploaded/processing →
-// ErrNotReady; rejected → ErrRejected. Tệp của mục đích chế độ private (R10) không bao giờ được ký tới bản thô: tới
-// khi Task M1-43 thêm nhánh ký biến thể JPEG lớn nhất trên BucketPrivate, trả ErrNotReady. Bên gọi kiểm quyền của
+// ErrNotReady; rejected → ErrRejected. Tệp của mục đích chế độ private (R10) không bao giờ được ký tới bản thô: ký
+// biến thể JPEG lớn nhất (đã bỏ siêu dữ liệu) của bộ kích thước của tệp trên BucketPrivate. Bên gọi kiểm quyền của
 // mình trước.
 func DownloadURL(ctx context.Context, tx pgx.Tx, fs FileStore, fileID uuid.UUID, ttl time.Duration, attachmentName string) (string, error) {
 	row, err := getFile(ctx, tx, fileID)
@@ -71,21 +71,68 @@ func DownloadURL(ctx context.Context, tx pgx.Tx, fs FileStore, fileID uuid.UUID,
 	case row.Status != StatusReady:
 		return "", fmt.Errorf("tải tệp %s: %w", fileID, ErrNotReady)
 	}
-	if p, ok := PurposeOf(row.Purpose); !ok || p.Private {
+	p, ok := PurposeOf(row.Purpose)
+	if !ok {
 		return "", fmt.Errorf("tải tệp %s: %w", fileID, ErrNotReady)
 	}
-	url, err := fs.PresignGet(ctx, Bucket(row.Bucket), row.Key, ttl, attachmentName)
+	bucket, key := Bucket(row.Bucket), row.Key
+	if p.Private {
+		if bucket, key, err = largestPrivateJPEG(ctx, tx, row); err != nil {
+			return "", err
+		}
+	}
+	url, err := fs.PresignGet(ctx, bucket, key, ttl, attachmentName)
 	if err != nil {
 		return "", fmt.Errorf("tải tệp %s: %w", fileID, err)
 	}
 	return url, nil
 }
 
-// VariantURL là một biến thể ảnh công khai và đường dẫn của nó.
+// largestPrivateJPEG là khóa biến thể JPEG rộng nhất của bộ kích thước của tệp riêng tư; chưa có → ErrNotReady.
+func largestPrivateJPEG(ctx context.Context, tx pgx.Tx, row store.PlatformFile) (Bucket, string, error) {
+	vs, err := store.New(tx).ListFileVariantsFull(ctx, row.ID)
+	if err != nil {
+		return "", "", fmt.Errorf("đọc biến thể %s: %w", row.ID, err)
+	}
+	best, key := int32(0), ""
+	for _, v := range vs {
+		if Bucket(v.Bucket) == BucketPrivate && v.Format == "jpeg" && v.PresetVersion == row.PresetVersion.Int32 && v.Width > best {
+			best, key = v.Width, v.Key
+		}
+	}
+	if key == "" {
+		return "", "", fmt.Errorf("tải tệp %s: %w", row.ID, ErrNotReady)
+	}
+	return BucketPrivate, key, nil
+}
+
+// VariantURL là một biến thể ảnh công khai và đường dẫn của nó (Preset: phiên bản bộ kích thước).
 type VariantURL struct {
+	Preset int
 	Width  int
 	Format string
 	URL    string
+}
+
+// PublicVariants trả biến thể công khai của các tệp ready, chưa xóa, trong tenant của tx, theo mã tệp, một câu SQL
+// cho cả danh sách (module khác đọc đường dẫn ảnh mà không nhắc schema platform). Tệp của mục đích chế độ private
+// không bao giờ có trong kết quả (R10); tệp không có, chưa ready, của tenant khác bị bỏ qua. Mọi bộ kích thước đã có
+// đều được trả (bên gọi chọn theo IMAGE_PRESET_VERSION).
+func PublicVariants(ctx context.Context, tx pgx.Tx, fileIDs []uuid.UUID, baseURL string) (map[uuid.UUID][]VariantURL, error) {
+	out := map[uuid.UUID][]VariantURL{}
+	if len(fileIDs) == 0 {
+		return out, nil
+	}
+	rows, err := store.New(tx).ListPublicVariants(ctx, fileIDs)
+	if err != nil {
+		return nil, fmt.Errorf("đọc biến thể công khai: %w", err)
+	}
+	for _, r := range rows {
+		out[r.FileID] = append(out[r.FileID], VariantURL{
+			Preset: int(r.PresetVersion), Width: int(r.Width), Format: r.Format, URL: baseURL + "/" + r.Key,
+		})
+	}
+	return out, nil
 }
 
 // Info là tệp kèm biến thể công khai (getFile của API).
@@ -104,7 +151,7 @@ func Describe(ctx context.Context, tx pgx.Tx, fileID uuid.UUID, publicBaseURL st
 	if row.DeletedAt.Valid {
 		return Info{}, fmt.Errorf("tệp %s: %w", fileID, ErrNotFound)
 	}
-	vs, err := store.New(tx).ListFileVariants(ctx, fileID)
+	vs, err := store.New(tx).ListFileVariantsFull(ctx, fileID)
 	if err != nil {
 		return Info{}, fmt.Errorf("đọc biến thể %s: %w", fileID, err)
 	}
@@ -113,7 +160,9 @@ func Describe(ctx context.Context, tx pgx.Tx, fileID uuid.UUID, publicBaseURL st
 		if Bucket(v.Bucket) != BucketPublic {
 			continue
 		}
-		out.Variants = append(out.Variants, VariantURL{Width: int(v.Width), Format: v.Format, URL: publicBaseURL + "/" + v.Key})
+		out.Variants = append(out.Variants, VariantURL{
+			Preset: int(v.PresetVersion), Width: int(v.Width), Format: v.Format, URL: publicBaseURL + "/" + v.Key,
+		})
 	}
 	return out, nil
 }

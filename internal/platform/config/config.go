@@ -80,8 +80,14 @@ type Config struct {
 	FilesPublicBaseURL string
 
 	// worker
-	ImagerURL          string // rỗng tới Task M1-43
+	ImagerURL          string // địa chỉ của imager (ADR-45)
 	ImagePresetVersion int    // mặc định 1
+	// S3ImagerEndpoint là gốc của đường dẫn ký sẵn đưa imager (S3_IMAGER_ENDPOINT, mặc định S3Endpoint): SigV4 ký cả
+	// host, mà imager chỉ tới được kho qua mạng imaging (dev: http://seaweedfs:8333; Task M1-43, Q2).
+	S3ImagerEndpoint string
+	// ImagerMaxParallel là số việc worker gửi imager cùng lúc (IMAGER_MAX_PARALLEL, mặc định 2): đặt bằng biến cùng tên
+	// của imager để imager không phải trả 503 (503 vẫn tốn một lượt thử của lệnh nếu kéo dài quá hạn 30 s).
+	ImagerMaxParallel int
 
 	// Hãng vận chuyển giả (ingest, worker), chỉ ngoài production (Q2). Có FakeCarrierURL thì bí mật bắt buộc, ≥ 32 ký tự.
 	FakeCarrierURL           string
@@ -174,6 +180,11 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		r.files(&cfg)
 		cfg.ImagerURL = r.httpURL("IMAGER_URL")
 		cfg.ImagePresetVersion = r.integer("IMAGE_PRESET_VERSION", 1, 1, 1000)
+		cfg.ImagerMaxParallel = r.integer("IMAGER_MAX_PARALLEL", 2, 1, 64)
+		cfg.S3ImagerEndpoint = cfg.S3Endpoint
+		if r.optional("S3_IMAGER_ENDPOINT") != "" {
+			cfg.S3ImagerEndpoint = r.httpURL("S3_IMAGER_ENDPOINT")
+		}
 		r.fakeCarrier(&cfg)
 	}
 

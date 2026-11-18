@@ -105,11 +105,29 @@ func (s *S3Store) PresignPut(ctx context.Context, b Bucket, key string, size int
 	if size <= 0 || ttl <= 0 {
 		return PresignedPut{}, fmt.Errorf("ký PUT %s: kích thước và hạn phải > 0", b)
 	}
-	exp := time.Now().Add(ttl).Truncate(time.Second)
-	req, err := s.presign.PresignPutObject(ctx, &s3.PutObjectInput{
+	return s.presignPut(ctx, b, &s3.PutObjectInput{
 		Bucket: bk, Key: aws.String(key), ContentLength: aws.Int64(size), ContentType: aws.String(contentType),
 		IfNoneMatch: aws.String("*"),
-	}, s3.WithPresignExpires(ttl))
+	}, ttl)
+}
+
+// PresignPutAnySize implements FileStore: như PresignPut nhưng không ký content-length.
+func (s *S3Store) PresignPutAnySize(ctx context.Context, b Bucket, key string, contentType string, ttl time.Duration) (PresignedPut, error) {
+	bk, err := s.bucket(b)
+	if err != nil {
+		return PresignedPut{}, err
+	}
+	if ttl <= 0 || contentType == "" {
+		return PresignedPut{}, fmt.Errorf("ký PUT %s: hạn phải > 0, phải có loại", b)
+	}
+	return s.presignPut(ctx, b, &s3.PutObjectInput{
+		Bucket: bk, Key: aws.String(key), ContentType: aws.String(contentType), IfNoneMatch: aws.String("*"),
+	}, ttl)
+}
+
+func (s *S3Store) presignPut(ctx context.Context, b Bucket, in *s3.PutObjectInput, ttl time.Duration) (PresignedPut, error) {
+	exp := time.Now().Add(ttl).Truncate(time.Second)
+	req, err := s.presign.PresignPutObject(ctx, in, s3.WithPresignExpires(ttl))
 	if err != nil {
 		return PresignedPut{}, fmt.Errorf("ký PUT %s: %w", b, err)
 	}
