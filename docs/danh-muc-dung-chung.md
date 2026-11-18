@@ -373,7 +373,7 @@ type Policy struct {
 
 	MaxAttempts int
 
-	BlockOnDead bool
+	OrderMode string
 
 	OnLeaseExpired string
 

@@ -4,10 +4,10 @@
 
 -- Chống trùng tầng 1 (UNIQUE NULLS NOT DISTINCT (tenant_id, kind, dedupe_key)): trùng thì không trả dòng nào.
 -- name: InsertJob :one
-INSERT INTO platform.jobs (tenant_id, kind, mode, payload, dedupe_key, order_key, order_seq, block_on_dead,
+INSERT INTO platform.jobs (tenant_id, kind, mode, payload, dedupe_key, order_key, order_seq, order_mode,
                            on_lease_expired, max_attempts, run_at, expires_at, trace_context)
 VALUES (sqlc.narg(tenant_id), sqlc.arg(kind), sqlc.arg(mode), sqlc.arg(payload), sqlc.arg(dedupe_key),
-        sqlc.narg(order_key), sqlc.narg(order_seq), sqlc.arg(block_on_dead), sqlc.arg(on_lease_expired),
+        sqlc.narg(order_key), sqlc.narg(order_seq), sqlc.arg(order_mode), sqlc.arg(on_lease_expired),
         sqlc.arg(max_attempts), coalesce(sqlc.narg(run_at)::timestamptz, now()),
         now() + nullif(sqlc.arg(expires_after_ms)::bigint, 0) * interval '1 millisecond', sqlc.narg(trace_context))
 ON CONFLICT DO NOTHING
@@ -52,8 +52,13 @@ UPDATE platform.jobs
 SET status = 'expired', finished_at = now()
 WHERE id = @id AND status = 'pending' AND expires_at < now();
 
--- (3) Nhận việc tới hạn. Việc có order_key chỉ được nhận khi không còn việc nào cùng
--- (tenant_id, order_key) có (order_seq, id) nhỏ hơn đang pending, running, in_doubt hoặc dead có block_on_dead.
+-- (3) Nhận việc tới hạn. Việc có order_key chỉ được nhận khi không có việc b nào khác cùng (tenant_id, order_key)
+-- chặn nó (spec 04 mục 5.1, Task 314):
+--   order_mode strict (sự kiện nội bộ): b đứng trước theo (order_seq, id) và chưa done, expired (kể cả chờ thử lại,
+--     in_doubt, dead).
+--   order_mode best_effort (sự kiện vào): b đang running (đứng trước hay sau), hoặc b đứng trước, pending, đã tới hạn
+--     (việc tới hạn chạy theo thứ tự, mỗi lần nhận tối đa một việc của một khóa). Việc chờ thử lại, in_doubt, dead
+--     không chặn. Chốt chặn cuối: index duy nhất jobs_best_effort_running (migration 0012).
 -- Việc command (lệnh ra ngoài, Task 12) chỉ được nhận khi worker có commands.Runner (with_commands).
 -- name: ClaimJobs :many
 WITH picked AS (
@@ -63,10 +68,14 @@ WITH picked AS (
       AND (j.expires_at IS NULL OR j.expires_at >= now())
       AND (j.order_key IS NULL OR NOT EXISTS (
           SELECT 1 FROM platform.jobs b
-          WHERE b.tenant_id IS NOT DISTINCT FROM j.tenant_id AND b.order_key = j.order_key
-            AND (b.order_seq, b.id) < (j.order_seq, j.id)
+          WHERE b.tenant_id IS NOT DISTINCT FROM j.tenant_id AND b.order_key = j.order_key AND b.id <> j.id
             AND b.status NOT IN ('done', 'expired')
-            AND (b.status <> 'dead' OR b.block_on_dead)
+            AND CASE WHEN j.order_mode = 'best_effort' THEN
+                    b.status = 'running'
+                    OR (b.status = 'pending' AND b.run_at <= now() AND (b.expires_at IS NULL OR b.expires_at >= now())
+                        AND (b.order_seq, b.id) < (j.order_seq, j.id))
+                ELSE (b.order_seq, b.id) < (j.order_seq, j.id)
+                END
       ))
     ORDER BY j.run_at, j.id
     LIMIT @lim

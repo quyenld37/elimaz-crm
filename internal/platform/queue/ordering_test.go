@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
@@ -41,8 +42,8 @@ func TestOrderingBySeq(t *testing.T) {
 	}
 }
 
-func deadFirst(blockOnDead bool) (*fh, func(e *env, t *testing.T) (first, second uuid.UUID)) {
-	k := queue.Kind{Name: "t.block", Policy: queue.Policy{BlockOnDead: blockOnDead}}
+func deadFirst(mode string) (*fh, func(e *env, t *testing.T) (first, second uuid.UUID)) {
+	k := queue.Kind{Name: "t.block", Policy: queue.Policy{OrderMode: mode}}
 	var firstID uuid.UUID
 	h := newFH(k, func(_ context.Context, j queue.Job, _ pgx.Tx) (json.RawMessage, error) {
 		if j.ID == firstID {
@@ -56,32 +57,30 @@ func deadFirst(blockOnDead bool) (*fh, func(e *env, t *testing.T) (first, second
 	}
 }
 
-// Việc đầu hàng dead với BlockOnDead chặn việc sau của đúng đối tượng đó (spec 04 mục 5.1).
-func TestDeadBlocksWhenBlockOnDead(t *testing.T) {
-	e := newEnv(t)
-	h, add := deadFirst(true)
-	first, second := add(e, t)
-	drain(t, orderedWorker(e, h))
-	if r := e.job(t, first); r.Status != "dead" {
-		t.Fatalf("việc đầu: %+v", r)
-	}
-	if r := e.job(t, second); r.Status != "pending" || h.callsOf(second) != 0 {
-		t.Fatalf("việc sau phải bị chặn: %+v", r)
-	}
-}
-
-// Sự kiện vào (BlockOnDead false): việc đầu dead không chặn việc sau.
-func TestDeadDoesNotBlockWithoutBlockOnDead(t *testing.T) {
-	e := newEnv(t)
-	h, add := deadFirst(false)
-	first, second := add(e, t)
-	drain(t, orderedWorker(e, h))
-	if e.job(t, first).Status != "dead" || e.job(t, second).Status != "done" {
-		t.Fatalf("muốn dead rồi done: %+v %+v", e.job(t, first), e.job(t, second))
+// Sự kiện nội bộ (OrderStrict, cũng là mặc định ""): việc đầu hàng dead chặn việc sau của đúng đối tượng đó và báo
+// động bằng jobs_dead, không âm thầm bỏ qua (spec 04 mục 5.1).
+func TestStrictDeadBlocksAndAlerts(t *testing.T) {
+	for _, mode := range []string{"", queue.OrderStrict} {
+		t.Run("mode="+mode, func(t *testing.T) {
+			e := newEnv(t)
+			h, add := deadFirst(mode)
+			first, second := add(e, t)
+			reg := metrics.NewRegistry()
+			drain(t, queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Concurrency: 3, Metrics: reg}))
+			if r := e.job(t, first); r.Status != "dead" {
+				t.Fatalf("việc đầu: %+v", r)
+			}
+			if r := e.job(t, second); r.Status != "pending" || h.callsOf(second) != 0 {
+				t.Fatalf("việc sau phải bị chặn: %+v", r)
+			}
+			if !hasCounter(reg.Drain(), "jobs_dead", "t.block", 1) {
+				t.Fatal("thiếu báo động jobs_dead")
+			}
+		})
 	}
 }
 
-// Việc đầu đang chờ thử lại (pending, run_at tương lai) vẫn chặn việc sau.
+// Sự kiện nội bộ (strict): việc đầu đang chờ thử lại (pending, run_at tương lai) vẫn chặn việc sau.
 func TestRetryingHeadBlocks(t *testing.T) {
 	e := newEnv(t)
 	var firstID uuid.UUID

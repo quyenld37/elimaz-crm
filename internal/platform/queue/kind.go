@@ -22,6 +22,16 @@ const (
 	LeaseInDoubt = "in_doubt"
 )
 
+// Luật thứ tự của các việc cùng (tenant, OrderKey) (cột order_mode; spec 04 mục 5.1).
+const (
+	// OrderStrict (mặc định; sự kiện nội bộ theo đối tượng): việc chạy lần lượt theo (OrderSeq, ID); mọi việc đứng
+	// trước chưa done hay expired chặn việc sau, kể cả việc đang chờ thử lại và việc dead (báo động, không bỏ qua).
+	OrderStrict = "strict"
+	// OrderBestEffort (sự kiện vào inbound.*): một việc lỗi không chặn việc sau. Chỉ việc cùng khóa đang running chặn
+	// (không hai worker cùng xử lý một hội thoại); trong các việc đã tới hạn, việc đứng trước chạy trước.
+	OrderBestEffort = "best_effort"
+)
+
 // Trạng thái kết thúc truyền cho TerminalHook.OnTerminal.
 const (
 	StatusDead    = "dead"
@@ -32,16 +42,15 @@ const (
 // ErrInvalidJob báo Kind hoặc NewJob không hợp lệ (lỗi của bên gọi, không ghi gì).
 var ErrInvalidJob = errors.New("queue: việc không hợp lệ")
 
-// Policy là chính sách của một loại việc. Trường bằng giá trị rỗng lấy giá trị của DefaultPolicy (BlockOnDead và
-// ExpiresAfter rỗng nghĩa là không chặn, không hết hạn).
+// Policy là chính sách của một loại việc. Trường bằng giá trị rỗng lấy giá trị của DefaultPolicy (ExpiresAfter rỗng
+// nghĩa là không hết hạn).
 type Policy struct {
 	// Mode: ModeTransactional hoặc ModeCommand.
 	Mode string
 	// MaxAttempts: số lần chạy tối đa; lỗi ở lần thứ MaxAttempts thì dead.
 	MaxAttempts int
-	// BlockOnDead: việc dead chặn các việc sau cùng (tenant, OrderKey) (sự kiện nội bộ theo đối tượng, spec 04
-	// mục 5.1); false cho sự kiện vào (một tin lỗi không chặn tin sau).
-	BlockOnDead bool
+	// OrderMode: OrderStrict (mặc định) hoặc OrderBestEffort; chỉ có tác dụng với việc có OrderKey.
+	OrderMode string
 	// OnLeaseExpired: LeaseRetry hoặc LeaseInDoubt.
 	OnLeaseExpired string
 	// ExpiresAfter > 0: việc còn pending quá thời gian này kể từ lúc ghi thì expired.
@@ -50,10 +59,13 @@ type Policy struct {
 	Timeout time.Duration
 }
 
-// DefaultPolicy là chính sách mặc định: việc transactional, 8 lần, hết giữ chỗ thì chạy lại, mỗi lần tối đa 30 s (spec 04 mục 5.1).
+// DefaultPolicy là chính sách mặc định: việc transactional, 8 lần, hết giữ chỗ thì chạy lại, thứ tự nghiêm, mỗi lần
+// tối đa 30 s (spec 04 mục 5.1).
 //
 //nolint:gochecknoglobals // Interfaces của kế hoạch M0 Task 11 khai là var; chỉ đọc, không mã nào gán lại.
-var DefaultPolicy = Policy{Mode: ModeTransactional, MaxAttempts: 8, OnLeaseExpired: LeaseRetry, Timeout: 30 * time.Second}
+var DefaultPolicy = Policy{
+	Mode: ModeTransactional, MaxAttempts: 8, OnLeaseExpired: LeaseRetry, OrderMode: OrderStrict, Timeout: 30 * time.Second,
+}
 
 // Kind là một loại việc: tên (quyết định handler) và chính sách.
 type Kind struct {
@@ -75,11 +87,16 @@ func (p Policy) normalized() (Policy, error) {
 	if p.Timeout == 0 {
 		p.Timeout = DefaultPolicy.Timeout
 	}
+	if p.OrderMode == "" {
+		p.OrderMode = DefaultPolicy.OrderMode
+	}
 	switch {
 	case p.Mode != ModeTransactional && p.Mode != ModeCommand:
 		return p, fmt.Errorf("%w: mode %q", ErrInvalidJob, p.Mode)
 	case p.OnLeaseExpired != LeaseRetry && p.OnLeaseExpired != LeaseInDoubt:
 		return p, fmt.Errorf("%w: on_lease_expired %q", ErrInvalidJob, p.OnLeaseExpired)
+	case p.OrderMode != OrderStrict && p.OrderMode != OrderBestEffort:
+		return p, fmt.Errorf("%w: order_mode %q", ErrInvalidJob, p.OrderMode)
 	case p.MaxAttempts < 1, p.Timeout < 0, p.ExpiresAfter < 0:
 		return p, fmt.Errorf("%w: MaxAttempts, Timeout, ExpiresAfter phải dương", ErrInvalidJob)
 	}
