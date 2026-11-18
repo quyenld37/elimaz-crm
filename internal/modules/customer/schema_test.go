@@ -68,15 +68,17 @@ func TestSchemaExtendsM1Customers(t *testing.T) {
 	checkM1CreateAfter(t, app, tenant, codes)
 }
 
-// seedBefore0201 tạo 3 khách bằng customer.Create của M1 và chèn thẳng các mẫu bỏ dấu bằng chủ bảng (giữ nguyên khoảng
-// trắng hai đầu, tab, xuống dòng); trả số khách.
+// seedBefore0201 tạo 3 khách bằng đúng câu chèn của M1 (InsertCustomer của Task 30, chạy bằng crm_app; customer.Create
+// nay ghi cột M2 nên không chạy được trên schema trước 0201) và chèn thẳng các mẫu bỏ dấu bằng chủ bảng (giữ nguyên
+// khoảng trắng hai đầu, tab, xuống dòng); trả số khách.
 func seedBefore0201(t *testing.T, owner, app *db.DB, tenant uuid.UUID) int {
 	t.Helper()
 	ctx := t.Context()
 	m1Names := []string{"Chị Lan", "Nguyễn Thị Hồng Nhung", "Anh Bình"}
 	testkit.InTenant(t, app, tenant, func(tx pgx.Tx) error {
 		for _, n := range m1Names {
-			if _, err := customer.Create(ctx, tx, n); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO customer.customers (id, tenant_id, root_id, full_name)
+				SELECT g, NULLIF(current_setting('app.tenant_id', true), '')::uuid, g, $1 FROM uuidv7() AS g`, n); err != nil {
 				return err //nolint:wrapcheck // test
 			}
 		}
