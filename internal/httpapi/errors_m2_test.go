@@ -48,6 +48,7 @@ func TestDomainErrors_M2(t *testing.T) {
 		{order.ErrReturnQtyExceeds, http.StatusUnprocessableEntity, "return_qty_exceeds"},
 		{order.ErrReturnNotAllowed, http.StatusUnprocessableEntity, "return_not_allowed"},
 		{order.ErrSettingOutOfRange, http.StatusUnprocessableEntity, "setting_out_of_range"},
+		{order.ErrTrafficSourceNameTaken, http.StatusConflict, "already_exists"}, // Task M2-15
 		// customer.
 		{customer.ErrNotFound, http.StatusNotFound, "not_found"},
 		{customer.ErrVersionConflict, http.StatusConflict, "version_conflict"},
@@ -81,7 +82,7 @@ func TestDomainErrors_M2(t *testing.T) {
 	}
 }
 
-// TestDomainErrors_M2Details: ba lỗi có trường chi tiết (chỉ mã, không dữ liệu cá nhân).
+// TestDomainErrors_M2Details: bốn lỗi có trường chi tiết (chỉ mã, không dữ liệu cá nhân).
 func TestDomainErrors_M2Details(t *testing.T) {
 	owner, merge := uuid.New(), uuid.New()
 	for _, c := range []struct {
@@ -92,6 +93,7 @@ func TestDomainErrors_M2Details(t *testing.T) {
 		{&customer.IdentityTakenError{OwnerRootID: owner}, http.StatusConflict, "ownerId", owner.String()},
 		{&customer.MergeNotLatestError{BlockingMergeID: merge}, http.StatusConflict, "blockingMergeId", merge.String()},
 		{&promotion.RejectError{Reason: promotion.ReasonExhausted}, http.StatusUnprocessableEntity, "reason", "exhausted"},
+		{&order.SettingOutOfRangeError{Field: order.FieldReturnWarningDays}, http.StatusUnprocessableEntity, "field", "returnWarningDays"},
 	} {
 		rec := domainErrorRecorder(t, fmt.Errorf("việc thử: %w", c.err))
 		var body map[string]any
@@ -104,7 +106,8 @@ func TestDomainErrors_M2Details(t *testing.T) {
 	}
 	if !errors.Is(&customer.IdentityTakenError{}, customer.ErrIdentityTaken) ||
 		!errors.Is(&customer.MergeNotLatestError{}, customer.ErrMergeNotLatest) ||
-		!errors.Is(&promotion.RejectError{}, promotion.ErrCouponRejected) {
+		!errors.Is(&promotion.RejectError{}, promotion.ErrCouponRejected) ||
+		!errors.Is(&order.SettingOutOfRangeError{}, order.ErrSettingOutOfRange) {
 		t.Error("kiểu lỗi chi tiết phải Is sentinel của nó")
 	}
 }

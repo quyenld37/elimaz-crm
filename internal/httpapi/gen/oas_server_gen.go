@@ -269,7 +269,7 @@ type Handler interface {
 	CreateTag(ctx context.Context, req *CreateTagRequest, params CreateTagParams) (CreateTagRes, error)
 	// CreateTrafficSource implements createTrafficSource operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Tạo nguồn đơn (tên không trùng) (Task M2-15).
 	//
 	// POST /api/v1/traffic-sources
 	CreateTrafficSource(ctx context.Context, req *CreateTrafficSourceRequest, params CreateTrafficSourceParams) (CreateTrafficSourceRes, error)
@@ -370,7 +370,7 @@ type Handler interface {
 	GetOrder(ctx context.Context, params GetOrderParams) (GetOrderRes, error)
 	// GetOrderSettings implements getOrderSettings operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Cài đặt đơn của shop (Task M2-15).
 	//
 	// GET /api/v1/order-settings
 	GetOrderSettings(ctx context.Context) (GetOrderSettingsRes, error)
@@ -595,7 +595,7 @@ type Handler interface {
 	ListTags(ctx context.Context) (ListTagsRes, error)
 	// ListTrafficSources implements listTrafficSources operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Nguồn đơn của shop theo vị trí (Task M2-15).
 	//
 	// GET /api/v1/traffic-sources
 	ListTrafficSources(ctx context.Context) (ListTrafficSourcesRes, error)
@@ -800,7 +800,8 @@ type Handler interface {
 	UpdateOrder(ctx context.Context, req *UpdateOrderRequest, params UpdateOrderParams) (UpdateOrderRes, error)
 	// UpdateOrderSettings implements updateOrderSettings operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Sửa cài đặt đơn khi version còn khớp; ngoài khoảng → 422 setting_out_of_range (Task
+	// M2-15).
 	//
 	// PATCH /api/v1/order-settings
 	UpdateOrderSettings(ctx context.Context, req *UpdateOrderSettingsRequest, params UpdateOrderSettingsParams) (UpdateOrderSettingsRes, error)
@@ -825,7 +826,7 @@ type Handler interface {
 	UpdateSupplier(ctx context.Context, req *UpdateSupplierRequest, params UpdateSupplierParams) (UpdateSupplierRes, error)
 	// UpdateTrafficSource implements updateTrafficSource operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Đổi tên, bật tắt, vị trí nguồn đơn khi version còn khớp (Task M2-15).
 	//
 	// PATCH /api/v1/traffic-sources/{sourceId}
 	UpdateTrafficSource(ctx context.Context, req *UpdateTrafficSourceRequest, params UpdateTrafficSourceParams) (UpdateTrafficSourceRes, error)

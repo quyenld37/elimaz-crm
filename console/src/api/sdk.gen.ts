@@ -1103,15 +1103,11 @@ export const cancelReturn = <ThrowOnError extends boolean = false>(options: Opti
 
 /**
  * Nguồn đơn của shop theo vị trí (Task M2-15)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const listTrafficSources = <ThrowOnError extends boolean = false>(options?: Options<ListTrafficSourcesData, ThrowOnError>): RequestResult<ListTrafficSourcesResponses, ListTrafficSourcesErrors, ThrowOnError> => (options?.client ?? client).get<ListTrafficSourcesResponses, ListTrafficSourcesErrors, ThrowOnError>({ url: '/api/v1/traffic-sources', ...options });
 
 /**
  * Tạo nguồn đơn (tên không trùng) (Task M2-15)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const createTrafficSource = <ThrowOnError extends boolean = false>(options: Options<CreateTrafficSourceData, ThrowOnError>): RequestResult<CreateTrafficSourceResponses, CreateTrafficSourceErrors, ThrowOnError> => (options.client ?? client).post<CreateTrafficSourceResponses, CreateTrafficSourceErrors, ThrowOnError>({
     url: '/api/v1/traffic-sources',
@@ -1124,8 +1120,6 @@ export const createTrafficSource = <ThrowOnError extends boolean = false>(option
 
 /**
  * Đổi tên, bật tắt, vị trí nguồn đơn khi version còn khớp (Task M2-15)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const updateTrafficSource = <ThrowOnError extends boolean = false>(options: Options<UpdateTrafficSourceData, ThrowOnError>): RequestResult<UpdateTrafficSourceResponses, UpdateTrafficSourceErrors, ThrowOnError> => (options.client ?? client).patch<UpdateTrafficSourceResponses, UpdateTrafficSourceErrors, ThrowOnError>({
     url: '/api/v1/traffic-sources/{sourceId}',
@@ -1138,15 +1132,11 @@ export const updateTrafficSource = <ThrowOnError extends boolean = false>(option
 
 /**
  * Cài đặt đơn của shop (Task M2-15)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const getOrderSettings = <ThrowOnError extends boolean = false>(options?: Options<GetOrderSettingsData, ThrowOnError>): RequestResult<GetOrderSettingsResponses, GetOrderSettingsErrors, ThrowOnError> => (options?.client ?? client).get<GetOrderSettingsResponses, GetOrderSettingsErrors, ThrowOnError>({ url: '/api/v1/order-settings', ...options });
 
 /**
  * Sửa cài đặt đơn khi version còn khớp; ngoài khoảng → 422 setting_out_of_range (Task M2-15)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const updateOrderSettings = <ThrowOnError extends boolean = false>(options: Options<UpdateOrderSettingsData, ThrowOnError>): RequestResult<UpdateOrderSettingsResponses, UpdateOrderSettingsErrors, ThrowOnError> => (options.client ?? client).patch<UpdateOrderSettingsResponses, UpdateOrderSettingsErrors, ThrowOnError>({
     url: '/api/v1/order-settings',
