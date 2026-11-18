@@ -60,18 +60,32 @@ spike-test: ## Test phép đo flash sale trên PostgreSQL dev (module riêng spi
 
 # ---- Cổng kiểm (Task 3). `make ci` là lưới cuối; CI trên máy chủ git chạy đúng lệnh này.
 # Task 4 thêm sinh mã sqlc và sqlc vet; Task 6 thêm ogen, bảng route, oasdiff.
-.PHONY: ci build vet lint test vuln catalog catalog-check jscpd test-guard gitleaks gen gen-check sqlc-vet oasdiff
+.PHONY: ci build vet lint test vuln catalog catalog-check jscpd test-guard gitleaks gen gen-check sqlc-vet oasdiff console-deps console-check
 
-ci: build vet lint gen-check sqlc-vet test vuln oasdiff catalog-check jscpd test-guard gitleaks ## Toàn bộ cổng kiểm phần đã có
+ci: build vet lint gen-check sqlc-vet test vuln oasdiff catalog-check jscpd test-guard gitleaks console-check ## Toàn bộ cổng kiểm phần đã có
 
-gen: ## Sinh lại mã từ nguồn: sqlc (queries/ -> internal/**/internal/store), ogen và bảng route (openapi/openapi.yaml)
+gen: console-deps ## Sinh lại mã từ nguồn: sqlc (queries/ -> internal/**/internal/store), ogen, bảng route và client màn hình (openapi/openapi.yaml -> console/src/api)
 	sqlc generate
 	ogen -config openapi/ogen.yml -target internal/httpapi/gen -package gen -clean openapi/openapi.yaml
 	go run ./tools/routegen -in openapi/openapi.yaml -out internal/httpapi/routes_gen.go
+	cd console && npm run --silent gen
 
 gen-check: gen ## Mã sinh phải khớp bản trong git (kể cả tệp sinh mới chưa commit)
-	git diff --exit-code -- internal
-	git ls-files --others --exclude-standard -- 'internal/*/internal/store/*' 'internal/httpapi/gen/*' internal/httpapi/routes_gen.go | (! grep .)
+	git diff --exit-code -- internal console/src/api
+	git ls-files --others --exclude-standard -- 'internal/*/internal/store/*' 'internal/httpapi/gen/*' internal/httpapi/routes_gen.go 'console/src/api/*' | (! grep .)
+
+# ---- Màn hình (Task 17). Phiên bản ghim trong console/package-lock.json; lý do chọn: docs/chon-cong-cu-console.md.
+console-deps: ## Cài đúng phụ thuộc đã ghim của console (bỏ qua khi lock không đổi)
+	@if [ ! -f console/node_modules/.package-lock.json ] || [ console/package-lock.json -nt console/node_modules/.package-lock.json ]; then \
+		cd console && npm ci --no-audit --no-fund; fi
+
+console-check: console-deps ## tsc (TypeScript 7), eslint, prettier, vitest, bản dựng, gitleaks trên console/dist
+	cd console && npx tsc --noEmit
+	cd console && npx eslint .
+	cd console && npx prettier --check .
+	cd console && npx vitest run
+	cd console && npx vite build
+	gitleaks dir --no-banner --redact console/dist
 
 # Thay đổi phá vỡ của hợp đồng so với nhánh main phải có dòng trong breaking-approved.yaml (tools/apicheck gọi
 # oasdiff). Thử với tệp mẫu: make oasdiff OASDIFF_BASE=-base=<tệp gốc> OASDIFF_REV=<tệp mới>

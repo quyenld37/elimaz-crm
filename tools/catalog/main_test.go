@@ -88,3 +88,53 @@ func TestParseNotesRejectsBadLine(t *testing.T) {
 		t.Fatalf("parse = %v", n)
 	}
 }
+
+// runCatalog chạy lệnh với -out trong thư mục tạm; trả nội dung tệp sinh (rỗng nếu không có), mã thoát, stderr.
+func runCatalog(t *testing.T, args ...string) (string, int, string) {
+	t.Helper()
+	out := filepath.Join(t.TempDir(), "danh-muc.md")
+	var stderr bytes.Buffer
+	code := run(append(args, "-out", out), &stderr)
+	b, _ := os.ReadFile(out)
+	return string(b), code, stderr.String()
+}
+
+func TestCatalogTypeScriptExports(t *testing.T) {
+	s, code, stderr := runCatalog(t, "-root", "testdata/ok", "-notes", "testdata/ts/notes.yaml", "-ts", "testdata/ts/index.ts")
+	if code != 0 {
+		t.Fatalf("mã thoát %d, stderr: %s", code, stderr)
+	}
+	for _, want := range []string{
+		"## `testdata/ts` (màn hình, TypeScript)",
+		"**Khi nào không dùng:** Không dùng ngoài test (TypeScript).",
+		"```ts\n",
+		`export { add } from "../lib/add"; // Hàm mẫu: cộng hai số.`,
+		`export type { Options, State } from "../lib/types";`,
+		`export { multi, line } from "../lib/multi";`,
+		"export function inline(a: number): number",
+		"export const VALUE = 1;",
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("thiếu %q trong:\n%s", want, s)
+		}
+	}
+	for _, bad := range []string{"hidden", "Câu thứ hai", "return a + x", "Chú thích dòng", "import"} {
+		if strings.Contains(s, bad) {
+			t.Errorf("không được có %q trong:\n%s", bad, s)
+		}
+	}
+}
+
+func TestCatalogTypeScriptMissingNoteFails(t *testing.T) {
+	s, code, stderr := runCatalog(t, "-root", "testdata/ok", "-notes", "testdata/ok/notes.yaml", "-ts", "testdata/ts/index.ts")
+	if code == 0 || !strings.Contains(stderr, "testdata/ts") || !strings.Contains(s, "CẦN GHI CHÚ") {
+		t.Fatalf("thiếu ghi chú cho testdata/ts phải thoát khác 0, nêu tên, ghi CẦN GHI CHÚ: %d %s", code, stderr)
+	}
+}
+
+func TestCatalogTypeScriptFileAbsentIsSkipped(t *testing.T) {
+	s, code, stderr := runCatalog(t, "-root", "testdata/ok", "-notes", "testdata/ok/notes.yaml", "-ts", "testdata/khong-co/index.ts")
+	if code != 0 || strings.Contains(s, "TypeScript") {
+		t.Fatalf("không có tệp TypeScript thì bỏ qua: %d %s", code, stderr)
+	}
+}
