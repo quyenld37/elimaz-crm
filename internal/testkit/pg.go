@@ -28,6 +28,15 @@ const (
 	devAppPass   = "crm_app_dev"   //nolint:gosec // như trên
 )
 
+// createFilesyncRole tạo role crm_filesync của container chép tệp (migration 0126 cấp quyền cho nó; crm_owner không có
+// CREATEROLE nên người quản trị tạo trước, như docker/postgres/init/01-roles.sql). Cụm dev dựng trước Task M1-45 chưa
+// có role; nhiều tiến trình test cùng tạo thì lần đến sau bỏ qua.
+const createFilesyncRole = `DO $$
+BEGIN
+    CREATE ROLE crm_filesync LOGIN NOBYPASSRLS CONNECTION LIMIT 1 PASSWORD 'crm_filesync_dev';
+EXCEPTION WHEN duplicate_object OR unique_violation THEN NULL;
+END $$`
+
 // StartPostgres tạo database crm_test_<ngẫu nhiên> (chủ crm_owner) đã chạy db.Migrate, xóa khi test xong. Trả chuỗi
 // kết nối của người quản trị, chủ bảng và crm_app. Database được nhân bản từ database mẫu crm_tpl_<băm bộ migration>
 // (migrate một lần mỗi giờ cho mỗi bộ migration trên máy chủ thử, xem pgtemplate.go): giá trị now() mà migration ghi
@@ -95,12 +104,13 @@ func withAdmin(ctx context.Context, t testing.TB, base *url.URL, fn func(admin *
 }
 
 // prepareEmpty làm phần của người quản trị trên database vừa tạo (adminURL), trước khi migrate: quyền cấp pg_monitor
-// cho crm_owner và extension pg_stat_statements. admin nối vào database mặc định của máy chủ. Đổi hàm này thì đổi
+// cho crm_owner, role crm_filesync và extension pg_stat_statements. admin nối vào database mặc định của máy chủ. Đổi hàm này thì đổi
 // templateRecipe (pgtemplate.go).
 func prepareEmpty(ctx context.Context, t testing.TB, admin *pgx.Conn, adminURL string) {
 	t.Helper()
 	// Migration 0010 cấp pg_monitor cho crm_app; cụm dev dựng trước Task 19 chưa có dòng này trong 01-roles.sql.
 	exec(ctx, t, admin, "GRANT pg_monitor TO crm_owner WITH ADMIN OPTION")
+	exec(ctx, t, admin, createFilesyncRole)
 	inNew := connect(ctx, t, adminURL)
 	defer func() { _ = inNew.Close(context.WithoutCancel(ctx)) }()
 	exec(ctx, t, inNew, "CREATE EXTENSION IF NOT EXISTS pg_stat_statements")

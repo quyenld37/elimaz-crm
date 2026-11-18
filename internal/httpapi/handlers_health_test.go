@@ -13,7 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"elimaz.com.vn/crm/internal/platform/config"
+	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -218,5 +221,44 @@ func TestPlatformHealth(t *testing.T) {
 		if _, ok := errs[0][k]; !ok {
 			t.Fatalf("dòng lỗi thiếu %s: %v", k, errs[0])
 		}
+	}
+}
+
+// /health/deep mang lastFileSyncAgeM (Task M1-45): vắng khi chưa có lần chép; có (phút) khi cả ba bucket đã chép tốt.
+func TestHealthDeepFileSyncAge(t *testing.T) {
+	adminURL, _, appURL := testkit.StartPostgres(t)
+	var buf bytes.Buffer
+	d := testDeps(t, &buf)
+	app, err := db.Open(t.Context(), appURL, db.PoolOptions{MaxConns: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(app.Pool.Close)
+	d.DB = app
+	d.Config.HealthToken = testHealthToken
+	srv := NewServer(d)
+	get := func() map[string]any {
+		var body map[string]any
+		rec := deepGet(t, srv, "Bearer "+testHealthToken)
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		return body
+	}
+	if _, ok := get()["lastFileSyncAgeM"]; ok {
+		t.Fatal("chưa có lần chép: không được có lastFileSyncAgeM")
+	}
+	admin, err := pgx.Connect(t.Context(), adminURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = admin.Close(context.Background()) }()
+	if _, err := admin.Exec(t.Context(), `INSERT INTO platform.file_sync_runs (kind, bucket, ok, started_at, finished_at)
+		SELECT 'copy', b, true, now() - interval '32 minutes', now() - interval '30 minutes'
+		FROM unnest(ARRAY['crm-public', 'crm-originals', 'crm-private']) b`); err != nil {
+		t.Fatal(err)
+	}
+	if age, _ := get()["lastFileSyncAgeM"].(float64); age < 30 || age > 31 {
+		t.Fatalf("lastFileSyncAgeM = %v, muốn 30", age)
 	}
 }

@@ -340,7 +340,7 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logger *slog.Logger) ([]commands.Handler, error) {
 	alerter := observability.NewTelegramAlerter(d, cfg, nil, logger)
 	alerts := alertjobs.NewAlertsCommand(d, alerter, observability.RuleOptions{
-		BackupExpected: cfg.BackupExpected, DBDiskBudgetBytes: cfg.DBDiskBudgetBytes, ConnBudget: cfg.DBConnBudget,
+		BackupExpected: cfg.BackupExpected, FileSyncExpected: cfg.FileSyncExpected, DBDiskBudgetBytes: cfg.DBDiskBudgetBytes, ConnBudget: cfg.DBConnBudget,
 	}, logger)
 	digest := alertjobs.NewDigestCommand(d, alerter, logger)
 	for _, s := range []schedules.Schedule{

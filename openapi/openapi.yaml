@@ -3346,6 +3346,10 @@ components:
         lastBackupAgeH:
           type: integer
           format: int64
+        lastFileSyncAgeM:
+          description: Tuổi (phút) lần chép sang kho ngoài thành công cũ nhất trong ba bucket; không có khi còn bucket chưa chép lần nào.
+          type: integer
+          format: int64
     Scope:
       type: object
       required: [type, id]
