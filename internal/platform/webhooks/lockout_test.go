@@ -3,6 +3,7 @@ package webhooks_test
 import (
 	"fmt"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
@@ -77,8 +78,14 @@ func TestLockoutForgetsManyAddresses(t *testing.T) {
 
 func TestLockoutOverHTTP(t *testing.T) {
 	d := openDB(t)
+	// Đồng hồ tiêm vào (Task 420): với đồng hồ thật và chặn 200 ms, máy tải cao có thể hết chặn trước lần thứ 4.
+	var mu sync.Mutex
+	now := time.Now()
+	clock := func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
 	r := newRig(t, d, func(o *webhooks.IngestOptions) {
-		o.Lockout = webhooks.NewLockout(webhooks.LockoutOptions{Threshold: 3, Window: time.Minute, Block: 200 * time.Millisecond})
+		o.Lockout = webhooks.NewLockout(webhooks.LockoutOptions{
+			Threshold: 3, Window: time.Minute, Block: 200 * time.Millisecond, Now: clock,
+		})
 	})
 	const bad, other = "198.51.100.7", "198.51.100.8"
 	for i := range 3 {
@@ -97,7 +104,9 @@ func TestLockoutOverHTTP(t *testing.T) {
 			t.Fatalf("tin đúng thứ %d = %d", i, got.status)
 		}
 	}
-	time.Sleep(250 * time.Millisecond)
+	mu.Lock()
+	now = now.Add(250 * time.Millisecond)
+	mu.Unlock()
 	if got := r.post(t, "selftest", pingBody("later"), bad, "", nil); got.status != http.StatusOK {
 		t.Fatalf("hết thời gian chặn = %d, muốn 200", got.status)
 	}

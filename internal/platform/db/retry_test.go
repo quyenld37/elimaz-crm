@@ -364,25 +364,40 @@ func TestTransientCode(t *testing.T) {
 	}
 }
 
+// ctx hủy ngay trước lúc chờ Backoff (OnRetry chạy ngay trước đó): RetryTx trả context.Canceled, không gọi hàm thêm.
+// Hủy đồng bộ trong OnRetry thay cho hẹn giờ 5 ms: dưới tải, hẹn giờ có thể tới sau Backoff (10–30 ms) và test đỏ dù
+// mã đúng (Task 420). Không đòi lỗi trả từ đúng lúc chờ: máy chậm thì timer Backoff cũng đã chín, select chọn ngẫu nhiên
+// và vòng dừng ở lần kiểm ctx đầu vòng — vẫn đúng. Chờ có phản ứng với ctx giữa chừng: TestSleepStopsOnCancel.
 func TestRetryTxStopsWhenContextCanceledDuringWait(t *testing.T) {
 	d, _ := openApp(t, db.PoolOptions{})
 	ctx, cancel := context.WithCancelCause(t.Context())
 	defer cancel(nil)
-	canceled := make(chan time.Time, 1)
-	d.OnRetry = func(string, int) {
-		time.AfterFunc(5*time.Millisecond, func() { canceled <- time.Now(); cancel(errors.New("lý do riêng của bên gọi")) })
-	}
+	d.OnRetry = func(string, int) { cancel(errors.New("lý do riêng của bên gọi")) }
 	calls := 0
 	err := d.RetryTx(ctx, db.TxOptions{}, func(pgx.Tx) error { calls++; return &pgconn.PgError{Code: "40P01"} })
-	returned := time.Now()
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("muốn context.Canceled, nhận %v", err)
 	}
 	if calls != 1 {
 		t.Fatalf("hàm không được gọi thêm sau khi ctx hủy; gọi %d lần", calls)
 	}
-	if canceledAt := <-canceled; returned.Sub(canceledAt) > 50*time.Millisecond {
-		t.Fatalf("phải trả trong 50 ms sau khi hủy (hủy lúc %v, trả lúc %v)", canceledAt, returned)
+}
+
+// Lúc chờ giữa hai lần chạy dừng ngay khi ctx hủy: chờ 1 giờ, hủy từ goroutine khác; chờ không theo ctx thì test treo
+// tới hangGuard (tiêu chí là sự kiện "đã trả", không phải số mili giây).
+func TestSleepStopsOnCancel(t *testing.T) {
+	const hangGuard = 30 * time.Second
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() { done <- db.Sleep(ctx, time.Hour) }()
+	cancel()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("muốn context.Canceled, nhận %v", err)
+		}
+	case <-time.After(hangGuard):
+		t.Fatal("chờ không dừng khi ctx hủy")
 	}
 }
 

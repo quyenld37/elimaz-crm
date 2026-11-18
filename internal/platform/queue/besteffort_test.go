@@ -213,24 +213,24 @@ func holdRunOnce(t *testing.T, w *queue.Worker, limit int, started, release chan
 	}
 }
 
-// waitClosed chờ ch đóng, tối đa 10 s (test đỏ thay vì treo).
+// waitClosed chờ ch đóng, tối đa hangGuard (test đỏ thay vì treo).
 func waitClosed(t *testing.T, ch <-chan struct{}) {
 	t.Helper()
 	select {
 	case <-ch:
-	case <-time.After(10 * time.Second):
-		t.Fatal("hết 10 s chờ handler bắt đầu")
+	case <-time.After(hangGuard):
+		t.Fatal("hết hạn chống treo khi chờ handler bắt đầu")
 	}
 }
 
-// waitErr chờ một kết quả lỗi của ch, tối đa 10 s.
+// waitErr chờ một kết quả lỗi của ch, tối đa hangGuard.
 func waitErr(t *testing.T, ch <-chan error) error {
 	t.Helper()
 	select {
 	case err := <-ch:
 		return err
-	case <-time.After(10 * time.Second):
-		t.Fatal("hết 10 s chờ RunOnce")
+	case <-time.After(hangGuard):
+		t.Fatal("hết hạn chống treo khi chờ RunOnce")
 		return nil
 	}
 }
