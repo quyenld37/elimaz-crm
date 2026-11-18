@@ -166,14 +166,17 @@ func addressIn(a gen.AddressInput) customer.AddressInput {
 	}
 }
 
-// customerOut đổi hồ sơ theo gốc sang Customer của hợp đồng (nhãn: Task M2-12, hôm nay rỗng).
+// customerOut đổi hồ sơ theo gốc sang Customer của hợp đồng (nhãn của cả nhóm: Task M2-12).
 func customerOut(p customer.Profile) *gen.Customer {
 	out := &gen.Customer{
 		ID: p.ID, RootId: p.RootID, Code: p.Code, FullName: string(p.FullName),
 		Lifecycle: gen.CustomerLifecycle(p.Lifecycle), Stats: statsOut(p.Stats), MemberIds: p.MemberIDs,
 		Identities: make([]gen.CustomerIdentity, 0, len(p.Identities)),
 		Addresses:  make([]gen.CustomerAddress, 0, len(p.Addresses)),
-		Tags:       []gen.CustomerTagLink{}, Version: p.Version, CreatedAt: p.CreatedAt,
+		Tags:       make([]gen.CustomerTagLink, 0, len(p.Tags)), Version: p.Version, CreatedAt: p.CreatedAt,
+	}
+	for _, l := range p.Tags {
+		out.Tags = append(out.Tags, gen.CustomerTagLink{Tag: tagOut(l.Tag), Source: gen.CustomerTagLinkSource(l.Source)})
 	}
 	if p.Birthday != nil {
 		out.Birthday = gen.NewOptDate(time.Time(*p.Birthday))

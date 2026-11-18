@@ -496,6 +496,10 @@ func customerError(err error) (status int, code string, ok bool) {
 		{customer.ErrImportTooLarge, http.StatusUnprocessableEntity, codeImportTooLarge},
 		{customer.ErrImportFileInvalid, http.StatusUnprocessableEntity, codeImportFileInvalid},
 		{customer.ErrInvalidTagRule, http.StatusUnprocessableEntity, codeInvalidTagRule},
+		// Task M2-12: tên nhãn trùng dùng mã chung already_exists (như Q-T72-1); gỡ nhãn do quy tắc gắn → màn hình đang
+		// cũ, tải lại (version_conflict). Không thêm mã mới vào hợp đồng (tệp task 69, QĐ1, QĐ2).
+		{customer.ErrTagNameTaken, http.StatusConflict, codeAlreadyExists},
+		{customer.ErrTagRuleManaged, http.StatusConflict, codeVersionConflict},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

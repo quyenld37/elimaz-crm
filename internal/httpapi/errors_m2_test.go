@@ -131,8 +131,9 @@ func TestM2Routes_Unimplemented(t *testing.T) {
 	staff.Grant(t, tenant, owner, []string{"customer.read", "order.create"}, "all", "")
 	staff.User(t, tenant, "khong-quyen@elimaz.test", "active")
 	srv := testServer(t, staff, keys, 0)
-	// Route M2 còn chưa làm (Task M2-12), cùng quyền customer.read; listCustomers đã làm ở Task M2-10.
-	unimplementedPath := "/api/v1/customers/" + uuid.NewString() + "/timeline"
+	// Route M2 còn chưa làm (Task M2-25), cùng quyền customer.read; listCustomers đã làm ở Task M2-10, dòng thời gian
+	// khách ở Task M2-12.
+	unimplementedPath := "/api/v1/customer-tags/" + uuid.NewString() + "/rule"
 
 	rec := serveAs(srv, keys, http.MethodGet, unimplementedPath, "chu@elimaz.test", "", "")
 	expect(t, "chủ, chưa làm", rec, http.StatusNotImplemented, "not_implemented")
