@@ -138,13 +138,32 @@ Bản dev (`docker/postgres/init/01-roles.sql`) và bản diễn tập (`init-dr
 
 - Hãng giả phải gửi webhook về ingest: chạy `tools/fakecarrier` với `FAKECARRIER_WEBHOOK_URL=<ingest>/hooks/fakecarrier`
   và cùng `FAKECARRIER_WEBHOOK_SECRET` với `ingest`, `worker`; `worker`, `ingest` cần `FAKECARRIER_URL` (CRM_ENV khác
-  production). Compose dev hiện chưa đặt các biến này cho `fakecarrier`, `crm-ingest`, `crm-worker` (xem
-  `docs/tasks/task-33.md`, "Việc còn lại").
+  production).
+- **Trên compose dev, một lệnh (Task 395):** `make db-up`, `make image`, rồi `make demo-mot-don` (phiên song song: thêm
+  `COMPOSE_PROJECT=crm-tNN` và các cổng `CRM_API_PORT`, `CRM_INGEST_PORT`, `CRM_FAKECARRIER_PORT`, `CRM_DEVACCESS_PORT`).
+  Lệnh `scripts/demo/mot-don-compose.sh` sinh khóa webhook hãng giả mới (`openssl rand -hex 32`, chỉ trong biến môi
+  trường `CRM_FAKECARRIER_SECRET` của lần chạy, không ghi tệp), bật `devaccess` và `fakecarrier`, migrate, `seed-dev`
+  (`chu-shop@elimaz.dev`, đổi bằng `DEMO_EMAIL`), dựng lại `crm-ingest`, `crm-api`, `crm-worker` cùng khóa đó, lấy hai
+  mã bằng câu SQL trên và thẻ từ `devaccess`, chạy 6 bước, rồi in sổ COD, tổng sổ COD, tồn của đơn.
+  - `devaccess` (`tools/devaccess`, chỉ compose dev): máy chủ thẻ Cloudflare Access giả. Bộ khóa HTTPS ở
+    `devaccess:8443` chỉ trong mạng compose; `crm-api` đặt `ACCESS_TEAM_DOMAIN=devaccess:8443` và tin chứng chỉ tự ký
+    qua `SSL_CERT_DIR` (volume `devaccess-ca` chỉ đọc). Lấy thẻ tay: `curl "http://127.0.0.1:4195/token?email=<email>"`
+    (cổng chỉ mở 127.0.0.1; thẻ hạn 1 giờ, có MFA). Khóa, chứng chỉ giữ trong volume `devaccess-data` của dự án compose.
+  - Hãng giả giữ kiện trong volume `fakecarrier-data` (mã hãng tăng tiếp qua các lần chạy, không trùng mã vận đơn cũ).
+    Xóa volume này mà giữ database thì mã hãng quay về `FC00000001` và trùng. Làm lại từ đầu: xóa cả dự án kèm các profile
+    (`make db-reset` không kèm profile nên có thể bỏ sót volume của hãng giả, `devaccess`):
+    `docker compose -p <dự án> -f docker/compose.dev.yml --profile app --profile fakecarrier --profile devaccess down -v`.
+  - `make app-up` (không có `CRM_FAKECARRIER_SECRET`): ingest, worker không nối hãng giả, như trước; vận đơn mới kẹt
+    `creating`.
+  - Trang `/admin` của hãng giả và cổng phát thẻ chỉ mở `127.0.0.1`; production không có hai dịch vụ này
+    (`tests/deploy`).
 - Sổ COD chưa có API (M3): đọc bằng SQL trong cùng kiểu transaction trên (sau `set_config('app.tenant_id', …)`) —
   `SELECT account, balance FROM cash.cod_balances_v WHERE shipment_id = '<id>'`. Sau `delivered`: `carrier_holding`
   bằng COD, `to_collect` 0; tổng mọi dòng `cash.cod_ledger_entries` bằng 0.
 - Phần giả: hãng vận chuyển (`tools/fakecarrier`, chỉ ngoài production). Hãng thật, đối soát COD, hoàn hàng thuộc M3;
   màn hình đơn, kho thuộc M2 và Phần C của M1.
 - Kết quả trên máy dev (18/11/2026, test e2e): mỗi bước sau commit dưới 0,3 s (tạo vận đơn → `awaiting_pickup` ~0,2 s,
-  `picked_up` → `shipping` và sổ COD ~0,25 s, `delivered` → đơn `delivered` và sổ COD ~0,2 s). Staging: chưa chạy (cần
-  chủ shop OK và service token).
+  `picked_up` → `shipping` và sổ COD ~0,25 s, `delivered` → đơn `delivered` và sổ COD ~0,2 s). Compose dev (18/11/2026,
+  `make demo-mot-don`, Task 395): đủ 6 bước, tạo vận đơn → `awaiting_pickup` ~0,4 s, `picked_up` → `shipping` ~0,5 s,
+  `delivered` → đơn `delivered` ~0,5 s; sổ COD `carrier_holding 530000`, `to_collect 0`, `sales_clearing −530000`, tổng 0;
+  tồn còn 3, giữ 0, đang giao 0. Staging: chưa chạy (cần chủ shop OK và service token).
