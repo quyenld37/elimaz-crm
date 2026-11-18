@@ -1,0 +1,74 @@
+/* Màn Sức khỏe hệ thống (Task 53). Lớp chép từ docs/mockups/m1/m1.css (kpis, kpi, dot, ok-text) và khối <style> của
+   docs/mockups/m1/suc-khoe.html (st-l, alerts). Chữ trạng thái viết hoa bằng CSS như mockup ("ĐANG CHẠY", "GẤP");
+   nội dung vẫn là câu thường cho trình đọc màn hình. */
+.kpis {
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.kpi {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: var(--space-md);
+  min-width: 0;
+}
+.kpi .v {
+  font-size: 26px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--title);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.kpi.is-bad {
+  border-color: var(--buy);
+  background: var(--soft-sale);
+}
+.kpi.is-bad .v {
+  color: var(--buy);
+}
+.kpi .st-l {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 13px;
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--edge);
+  flex: none;
+}
+.dot-ok {
+  background: var(--success);
+}
+.dot-err {
+  background: var(--buy);
+}
+.ok-text {
+  color: var(--success);
+}
+.alerts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.alerts .row-between {
+  padding: 10px 0;
+  border-top: 1px solid var(--rule);
+  flex-wrap: nowrap;
+}
+.alerts .row-between > :last-child {
+  flex: none;
+}
+.alerts .chip-err {
+  text-transform: uppercase;
+}
+.alerts .wrap {
+  overflow-wrap: anywhere;
+}

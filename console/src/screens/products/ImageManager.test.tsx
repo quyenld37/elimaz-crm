@@ -164,7 +164,11 @@ describe("ImageManager — ghi", () => {
     expect(call?.path).toEqual({ id: PID });
     expect(call?.headers["Idempotency-Key"]).toMatch(/^[0-9a-f-]{36}$/);
     expect(props.onPending).toHaveBeenCalledWith(true);
-    expect(props.onPending).toHaveBeenLastCalledWith(false);
+    // onProduct chạy trong thân thao tác; pending chỉ giảm ở .finally của hàng đợi rồi effect mới báo onPending(false),
+    // nên phải chờ (kiểm ngay sau khi thấy onProduct thì đỏ chập chờn).
+    await waitFor(() => {
+      expect(props.onPending).toHaveBeenLastCalledWith(false);
+    });
   });
 
   it("người khác vừa sửa (version_conflict) → câu Mẫu đã thay đổi", async () => {

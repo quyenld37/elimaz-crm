@@ -12,10 +12,17 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md`. 
 - Chỗ dùng trên màn hình: thêm thư mục `console/src/screens/imports/` (route.tsx tự đăng ký "/nhap-excel", nhóm
   "Sản phẩm", quyền `catalog.import`; ImportPage.tsx, ImportErrors.tsx, importRules.ts, imports.css, test vitest) và `console/e2e/imports.spec.ts`. Dùng lại `Dialog` của `screens/staff/staffData.tsx` (như `roles` đang
   dùng), không sửa nó. Không sửa màn khác; menu "Sản phẩm" có thêm mục "Nhập Excel" (khung đọc route.tsx tự động),
-  nên thêm một dòng vào danh sách màn mong đợi của `console/src/app/screens.test.tsx` (test so cả danh sách).
+  nên (lượt 1) thêm một dòng vào danh sách màn mong đợi của `console/src/app/screens.test.tsx`; lượt 2 thay bằng
+  `imports/route.test.tsx` (xem dòng "Lượt 2" bên dưới).
 - Ký hiệu TypeScript đổi: `xhrPut` (`console/src/screens/products/useUpload.ts`) thêm tham số tùy chọn thứ năm
   `onProgress` và nhận `Blob` thay vì `File` (rộng hơn). Chỗ dùng: `useUploads` (mặc định của `put`, không truyền
   onProgress — hành vi không đổi) và `ImportPage.tsx`. Vẫn gán được cho kiểu `PutFile` (`tsc` kiểm ở `put ?? xhrPut` trong `useUploads`).
+- **Lượt 2 (gộp main sau Task 389):** test đăng ký màn hình nay theo từng thư mục màn: lấy nguyên bản
+  `console/src/app/screens.test.tsx` của main (chỉ kiểm quy ước), bỏ dòng "/nhap-excel" lượt 1 thêm vào đó, thêm
+  `console/src/screens/imports/route.test.tsx` theo mẫu các màn khác. Điều tra `products/ImageManager.test.tsx` đỏ khi
+  điều phối viên thử gộp (lượt 1 có sửa `products/useUpload.ts`): chạy 5 lần trên bản đã gộp, sửa đúng gốc.
+  Kết quả điều tra: gốc nằm ở test, không ở `useUpload.ts` (ImageManager chỉ nhập kiểu từ tệp đó). Đổi
+  `console/src/screens/products/ImageManager.test.tsx` (một ca): chờ `onPending(false)` bằng `waitFor` thay vì kiểm ngay.
 - Câu sqlc, bảng, pha migration: không có.
 - Test sẽ chạy: `cd console && npx vitest run src/screens/imports src/app` (luật thuần, màn, nạp màn), `npx tsc --noEmit`,
   `npx eslint .`, `npx playwright test e2e/imports.spec.ts` (1512 và 390, cổng 5152), và một lần cổng kiểm của task
@@ -81,6 +88,13 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md`. 
 - **Q7 — Thanh tiến độ khi kiểm và khi áp** (mockup vẽ 35%, 60%): máy chủ không báo phần trăm, nên thanh chạy qua lại
   (tắt khi người dùng chọn giảm chuyển động) thay vì một con số giả. Khi tải lên thì là phần trăm thật.
 
+- **Q8 — Sửa test `ImageManager.test.tsx` của Task 50 (ngoài màn Nhập) trong lượt 2:** điều phối viên giao tìm gốc
+  vết đỏ. Gốc: ca "dời ảnh 1 sang phải" kiểm `onPending` lần cuối là `false` ngay khi `waitFor` thấy `onProduct`, mà
+  `onProduct` gọi trong thân thao tác còn `pending` giảm ở `.finally` của hàng đợi rồi effect React mới báo
+  `onPending(false)` — thứ tự không bảo đảm. Hành vi màn đúng (cuối cùng luôn báo `false`); giữ nguyên điều kiện, chỉ
+  chờ nó (`waitFor`). Không nới: mọi `expect` cũ còn đủ. Phương án khác: báo `onPending` đồng bộ trong `.finally`
+  (đổi mã màn Sản phẩm, rủi ro hơn, không cần).
+
 ## Bằng chứng
 
 | Tiêu chí | Test | Lệnh | Kết quả |
@@ -94,11 +108,15 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md`. 
 | Lỗi API khi tạo, version_conflict khi áp, mở bản nhập không có | "tạo bản nhập lỗi…", "áp dụng bị từ chối vì người khác vừa đổi…", "mở bản nhập không có…" | như trên | qua |
 | Không cuộn ngang ở 390 với tên tệp 75 ký tự | `noHorizontalScroll` trong các ca trên | như trên | qua |
 | Luật thuần: kiểm tệp, số, giờ, cỡ, tên tệp tải về (bỏ đường dẫn), bước | `src/screens/imports/importRules.test.ts` (12 ca) | `npx vitest run` | `Test Files 25 passed, Tests 292 passed` |
-| Màn tự đăng ký đúng path, nhãn, nhóm, quyền | `src/app/screens.test.tsx` | `npx vitest run` | qua |
 | Màn Sản phẩm vẫn tải ảnh đúng sau khi đổi `xhrPut` | `useUpload.test.ts`, `e2e/product-images.spec.ts`, `e2e/shell.spec.ts` | `npx playwright test e2e/imports.spec.ts e2e/product-images.spec.ts e2e/shell.spec.ts --project chromium` | `30 passed` |
 | Kiểu, lint | — | `npx tsc --noEmit`, `npx eslint .`, `npx prettier --check src e2e` | sạch |
 | Cổng kiểm của task (sau khi gộp main 50389d9) | ci-task.sh | ci-task.sh (lần 2) | build, vet, lint, gen-check, sqlc-vet, catalog-check, jscpd, gitleaks, oasdiff, test-guard, console-check xanh; test kiến trúc đỏ chỉ ở `TestLintCleanOnRealCode`, `TestPackagePatternSkipsStrayDirs` với "parallel golangci-lint is running" (khóa golangci-lint dùng chung với phiên khác trên máy) |
 | Hai test kiến trúc trên khi khóa lint rảnh | `TestLintCleanOnRealCode`, `TestPackagePatternSkipsStrayDirs` | `go test -count=1 -run '^(TestLintCleanOnRealCode\|TestPackagePatternSkipsStrayDirs)$' ./tests/arch` | `ok elimaz.com.vn/crm/tests/arch 25.773s` |
+| Lượt 2: vết đỏ `ImageManager` có sẵn trên main, không do `useUpload.ts` | ca "dời ảnh 1 sang phải" với bản main của `useUpload.ts` | `npx vitest run src/screens/products/ImageManager.test.tsx -t "dời ảnh 1 sang phải" --repeats 50` × 8 | 3/8 lượt đỏ `expected last "vi.fn()" call to have been called with [ false ]` |
+| Lượt 2: sau khi sửa test, ổn định | như trên, bản đã gộp | cùng lệnh × 10 (500 lần chạy) + cả tệp × 5 | `1 passed` × 10; `Tests 19 passed (19)` × 5 |
+| Lượt 2: màn Nhập Excel tự đăng ký đúng | `src/screens/imports/route.test.tsx` | `npx vitest run` | qua |
+| Lượt 2: cổng kiểm của task trên bản đã gộp main | ci-task.sh (cả bộ Go vì gộp có đổi `internal/testkit`) | `ci-task.sh` | `CI-TASK XANH (so với điểm tách nhánh 50389d9…)`, thoát 0 |
+| Lượt 2: console trên bản đã gộp | toàn bộ vitest, tsc, eslint, prettier | `npx vitest run`, `npx tsc --noEmit`, `npx eslint .`, `npx prettier --check src e2e` | `Test Files 36 passed (36)`, `Tests 343 passed (343)`; sạch |
 | So ảnh chụp với mockup (A, C, D, hộp xác nhận, E, F ở 1512 và 390) | ảnh chụp tạm, xem bằng mắt | Playwright `page.screenshot` | khớp bố cục, chữ, lớp của mockup |
 
 ## Test bị xóa hoặc tắt
@@ -126,11 +144,22 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md`. 
 
 ## Reviewer
 
-Kết luận: ĐẠT (lượt 2).
+Kết luận lượt 1 của task: ĐẠT (reviewer lần 2). Kết luận lượt 2 (gộp main): ĐẠT (reviewer lần 2).
 
-- Lượt 1 — CẦN SỬA, chỉ tệp task: mục Ảnh hưởng ghi đường dẫn "/san-pham/nhap" thay vì "/nhap-excel"; mục Khác kế
+Lượt 1 của task (commit 715db9d):
+
+- Lần 1 — CẦN SỬA, chỉ tệp task: mục Ảnh hưởng ghi đường dẫn "/san-pham/nhap" thay vì "/nhap-excel"; mục Khác kế
   hoạch kể `importUpload.ts` (đã bỏ khi gộp vào `xhrPut`). Đã sửa cả hai, cùng ghi chú không bắt buộc: câu về
   `PutFile`, ghi việc dời `xhrPut` sang `console/src/shared/`, bỏ dấu chấm cuối câu máy chủ ở ca `failed` (tránh "..").
-- Lượt 2 — ĐẠT, không phát hiện phải sửa. Ghi chú không bắt buộc (không sửa): màn nhập mã từ màn khác (đã ghi vào Việc
+- Lần 2 — ĐẠT, không phát hiện phải sửa. Ghi chú không bắt buộc (không sửa): màn nhập mã từ màn khác (đã ghi vào Việc
   phát hiện thêm); PUT tệp nhập không tự gửi lại khi mạng chập (người dùng chọn lại tệp, có câu báo); ca `failed` không
   có lỗi nào hiện câu chung (hợp đồng khó xảy ra); Q4, Q5 cần chủ shop xác nhận theo luật console 1.
+
+Lượt 2 của task (gộp main):
+
+- Lần 1 — CẦN SỬA, chỉ tệp task: bảng Bằng chứng còn dòng "Màn tự đăng ký … `src/app/screens.test.tsx`" (tệp đó nay là
+  bản main, không kiểm màn cụ thể; ca thật là `imports/route.test.tsx`); mục Reviewer ghi sẵn "ĐẠT (lượt 2)" trước khi
+  review. Đã xóa dòng bằng chứng cũ, đánh dấu câu lượt 1 ở mục Ảnh hưởng, tách mục Reviewer theo lượt. Phần mã: không
+  phát hiện; sửa `ImageManager.test.tsx` được xác nhận là đúng gốc, không nới test.
+- Lần 2 — ĐẠT, không phát hiện phải sửa; xác nhận mã không đổi so với lần 1. Ghi chú không bắt buộc: main đã đi tiếp
+  (5e4e8fa, Task 327) sau khi gộp; theo giao việc, không gộp thêm, điều phối viên gộp.
