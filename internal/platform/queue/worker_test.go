@@ -61,10 +61,15 @@ func TestHandlerErrorRollsBackAndReschedules(t *testing.T) {
 		return nil, errTemp
 	})
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
+	// Mốc giờ database trước và sau lượt chạy: run_at = now() + chờ (5 s ±20%) với now() nằm giữa hai mốc. Không so
+	// với now() lúc đọc (máy bận thì thời gian từ lúc ghi tới lúc đọc làm lệch biên dưới).
+	before := e.dbNow(t)
 	runOnce(t, worker(e, "w1", h), 10)
+	after := e.dbNow(t)
 	r := e.job(t, id)
-	if r.Status != "pending" || r.Attempts != 1 || r.RunInS < 4 || r.RunInS > 6 || r.LockedBy != nil {
-		t.Fatalf("muốn pending, attempts 1, run_at sau 4–6 s, bỏ locked_by: %+v", r)
+	if r.Status != "pending" || r.Attempts != 1 || r.LockedBy != nil ||
+		r.RunAt.Before(before.Add(4*time.Second)) || r.RunAt.After(after.Add(6*time.Second)) {
+		t.Fatalf("muốn pending, attempts 1, run_at sau 4–6 s, bỏ locked_by: %+v (lượt chạy %s → %s)", r, before, after)
 	}
 	if r.LastError == nil || !strings.Contains(*r.LastError, "lỗi tạm") {
 		t.Fatalf("last_error: %v", r.LastError)

@@ -85,6 +85,7 @@ linters:
         - .Errorf(
         - errors.New(
         - errors.Unwrap(
+        - urlerr.Strip( # bóc lớp *url.Error như errors.Unwrap; bên gọi tự bọc
         - errors.Join(
         - .Wrap(
         - .Wrapf(

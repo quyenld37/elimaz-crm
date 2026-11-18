@@ -7,8 +7,9 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"time"
+
+	"elimaz.com.vn/crm/internal/platform/urlerr"
 )
 
 // pingTimeout là hạn của một lần gửi nhịp sống ra ngoài.
@@ -58,9 +59,7 @@ var ErrPingDNS = errors.New("không phân giải được tên máy nhận nhị
 // stripURL bóc *url.Error, *net.OpError, *net.DNSError chỉ còn lỗi gốc, để URL và địa chỉ máy nhận không lọt vào log.
 // Lỗi hết hạn vẫn khớp errors.Is(err, context.DeadlineExceeded).
 func stripURL(err error) error {
-	if ue, ok := errors.AsType[*url.Error](err); ok {
-		err = ue.Err
-	}
+	err = urlerr.Strip(err)
 	if _, ok := errors.AsType[*net.DNSError](err); ok {
 		return ErrPingDNS
 	}

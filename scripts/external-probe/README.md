@@ -13,7 +13,7 @@ Mỗi lần chạy (lịch: mỗi phút một lần):
    `deep`). Cùng nội dung không nhắn lại trong 10 phút (nhớ qua `PROBE_STATE_FILE`).
 3. Gửi nhịp sống của chính nó: `GET PROBE_HEARTBEAT_URL` (dịch vụ nhận nhịp sống tự báo khi bộ kiểm ngừng chạy).
 
-Tệp chạy chỉ dùng thư viện chuẩn của Go, không đọc database, không có dữ liệu khách. Mã thoát: 0 đạt; 1 không nhắn
+Tệp chạy chỉ dùng thư viện chuẩn của Go (kèm gói `internal/platform/urlerr` của CRM, cũng chỉ thư viện chuẩn), không đọc database, không có dữ liệu khách. Mã thoát: 0 đạt; 1 không nhắn
 được Telegram, không ghi được tệp trạng thái hay không gửi được nhịp sống; 2 thiếu biến.
 
 ## Biến môi trường

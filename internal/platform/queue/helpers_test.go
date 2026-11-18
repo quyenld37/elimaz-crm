@@ -97,6 +97,7 @@ type jobRow struct {
 	Status     string
 	Attempts   int
 	RunInS     float64 // run_at − now(), giây
+	RunAt      time.Time
 	LastError  *string
 	LockedBy   *string
 	Result     []byte
@@ -107,8 +108,8 @@ func (e *env) job(t testing.TB, id uuid.UUID) jobRow {
 	t.Helper()
 	var r jobRow
 	err := e.owner.Pool.QueryRow(context.Background(), `SELECT status, attempts, extract(epoch FROM run_at - now())::float8,
-		last_error, locked_by, result, finished_at FROM platform.jobs WHERE id = $1`, id).
-		Scan(&r.Status, &r.Attempts, &r.RunInS, &r.LastError, &r.LockedBy, &r.Result, &r.FinishedAt)
+		run_at, last_error, locked_by, result, finished_at FROM platform.jobs WHERE id = $1`, id).
+		Scan(&r.Status, &r.Attempts, &r.RunInS, &r.RunAt, &r.LastError, &r.LockedBy, &r.Result, &r.FinishedAt)
 	if err != nil {
 		t.Fatalf("đọc việc %s: %v", id, err)
 	}
@@ -122,6 +123,16 @@ func (e *env) count(t testing.TB, q string, args ...any) int {
 		t.Fatalf("%s: %v", q, err)
 	}
 	return n
+}
+
+// dbNow là giờ của database (cùng đồng hồ với now() trong câu lệnh của Worker).
+func (e *env) dbNow(t testing.TB) time.Time {
+	t.Helper()
+	var now time.Time
+	if err := e.owner.Pool.QueryRow(context.Background(), "SELECT clock_timestamp()").Scan(&now); err != nil {
+		t.Fatalf("đọc giờ database: %v", err)
+	}
+	return now
 }
 
 // makeDue đưa mọi việc pending về hạn chạy ngay (thay cho chờ lịch thử lại).
