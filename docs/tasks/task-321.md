@@ -46,6 +46,14 @@ Trả lời từng mục 5.1–5.12 (khớp kiến trúc) và 6.1–6.13 (đúng
 | R10 và trạng thái tệp: ảnh riêng tư, tệp không phải ảnh, mất, đã xóa, tenant B → `ErrNotFound`; đang xử lý → `ErrNotReady` | `TestOriginalURL_Refusals` | như trên | `--- PASS: TestOriginalURL_Refusals (19.23s)`, `ok elimaz.com.vn/crm/internal/platform/files` |
 | Không làm hỏng phần khác của các gói đổi (ảnh sản phẩm, catalog, kho tệp) | cả bộ test của gói | `make ci` (sau khi gộp main có Task 395) | `ok .../internal/httpapi 302.769s`, `ok .../internal/modules/catalog 135.319s`, `ok .../internal/platform/files 239.916s`, govulncheck `No vulnerabilities found`; lần đó oasdiff đỏ chỉ vì main vừa có Task 324 → đã gộp lại, chạy lại `make ci` (dòng dưới) |
 | Toàn bộ cổng kiểm trên bản đã gộp main (Task 395, Task 324) | mọi test + cổng | `make ci` | exit 0: `ok .../internal/httpapi 330.111s`, `ok .../internal/modules/catalog 150.703s`, `ok .../internal/platform/files 269.899s`; apicheck (oasdiff) không có thay đổi phá vỡ; jscpd `Found 0 clones`; test-guard qua; gitleaks `no leaks found`; console `Tests 161 passed` |
+| Lượt 2: toàn bộ cổng kiểm trên bản gộp main lần hai (Task 51 màn Tồn kho, Task 22 thử tải) | mọi test + cổng | `make ci` | exit 0: `ok .../internal/httpapi 532.770s`, `ok .../internal/modules/catalog 316.075s`, `ok .../internal/modules/inventory 565.105s`, `ok .../internal/platform/files 382.726s`; gen-check khớp; apicheck (oasdiff so với main) không có thay đổi phá vỡ; govulncheck `No vulnerabilities found`; jscpd `Found 0 clones`; test-guard qua; gitleaks `no leaks found`; console `Tests 166 passed (166)` |
+
+## Lượt 2: gộp main (Task 51, Task 22, …)
+
+- Lý do: khi điều phối viên gộp vào main, git tự trộn `openapi/openapi.yaml` với Task 51 (màn Tồn kho, `listWarehouses`, `listBalances`). Lượt này gộp main vào nhánh một lần (không rebase) để reviewer duyệt đúng bản đã gộp.
+- `openapi/openapi.yaml`: git trộn không xung đột. Đã kiểm: tập operationId sau trộn = hợp của HEAD và main (61 operation), còn `getOriginalImageURL`, schema `SignedUrl`, `listWarehouses`, `listBalances`, `Warehouse`, `BalancePage`; không trùng khóa path/schema (hai khóa `Error` là `responses` và `schemas`, giống main).
+- Xung đột chỉ ở mã sinh (`console/src/api/index.ts`, `console/src/api/sdk.gen.ts`, `internal/httpapi/gen/oas_router_gen.go`): không sửa tay, lấy một bên rồi `make gen` sinh lại từ `openapi.yaml` đã trộn; `routes_gen.go` có đủ ba route (`getOriginalImageURL`, `listBalances`, `listWarehouses`). `make catalog` không đổi danh mục.
+- Không đổi mã viết tay nào của Task 321 trong lượt này.
 
 ## Test bị xóa hoặc tắt
 
@@ -71,7 +79,11 @@ Trả lời từng mục 5.1–5.12 (khớp kiến trúc) và 6.1–6.13 (đúng
 
 ## Reviewer
 
-Kết luận: ĐẠT (lần 2).
+Kết luận lượt 2: ĐẠT (lần 1).
+
+- Lượt 2 (bản gộp main có Task 51, Task 22): không phát hiện phải sửa. Đã so với hai cha: `openapi.yaml` so với main chỉ thêm path `getOriginalImageURL` và schema `SignedUrl`, đủ `listWarehouses`, `listBalances`, `Warehouse`, `BalancePage`, `Balance`, mỗi khóa một lần; mã sinh khớp `make gen` (gen-check qua); mã viết tay của Task 321 và của main không mất (diff so với HEAD trên các tệp Task 321 rỗng; so với main chỉ 27 tệp của 69eec6a). Ghi chú không bắt buộc: tệp task đang chạy của nhánh ghi đè `Task: 30` của main — điều phối viên kiểm khi gộp.
+
+Kết luận lượt 1: ĐẠT (lần 2).
 
 - Lần 1: CẦN SỬA, chỉ vì bảng bằng chứng còn trống; mã đúng ở mọi điểm soát (quyền `catalog.manage`, tenant/người bán, R10, hạn và `ExpiresAt`, `Content-Disposition` không chèn header được, đổi lỗi, SQL thứ tự hiện). Ghi chú không bắt buộc: `files.ErrExpired` thành 500 → đã đổi sang `ErrNotFound`; tên operation trong mục Ảnh hưởng → đã sửa.
 - Lần 2 (sau khi gộp main có Task 324, sinh lại mã): ĐẠT, không phát hiện phải sửa; xác nhận `getProductClassification` của Task 324 còn nguyên trong `openapi.yaml` và `routes_gen.go`. Ghi chú không bắt buộc: ca "mẫu khác" của test HTTP dùng mã mẫu ngẫu nhiên (điều kiện `product_id` của SQL vẫn chặn ca thật) — giữ nguyên.

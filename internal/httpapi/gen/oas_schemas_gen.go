@@ -576,6 +576,198 @@ func (s *BackupHealth) SetLastDrillOk(val OptBool) {
 	s.LastDrillOk = val
 }
 
+// Ref: #/components/schemas/Balance
+type Balance struct {
+	VariantId     uuid.UUID     `json:"variantId"`
+	Sku           string        `json:"sku"`
+	Barcode       string        `json:"barcode"`
+	ProductCode   string        `json:"productCode"`
+	ProductName   string        `json:"productName"`
+	Color         string        `json:"color"`
+	Size          string        `json:"size"`
+	ProductStatus ProductStatus `json:"productStatus"`
+	VariantStatus VariantStatus `json:"variantStatus"`
+	// Tồn.
+	OnHand int64 `json:"onHand"`
+	// Đang giữ cho đơn chưa gửi.
+	Held int64 `json:"held"`
+	// Đang giao (đã giao cho hãng).
+	InTransit int64 `json:"inTransit"`
+	// Lỗi.
+	Damaged int64 `json:"damaged"`
+	// Có thể bán = onHand − damaged − held − inTransit; âm là thiếu so với phần giữ.
+	Available int64 `json:"available"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *Balance) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetSku returns the value of Sku.
+func (s *Balance) GetSku() string {
+	return s.Sku
+}
+
+// GetBarcode returns the value of Barcode.
+func (s *Balance) GetBarcode() string {
+	return s.Barcode
+}
+
+// GetProductCode returns the value of ProductCode.
+func (s *Balance) GetProductCode() string {
+	return s.ProductCode
+}
+
+// GetProductName returns the value of ProductName.
+func (s *Balance) GetProductName() string {
+	return s.ProductName
+}
+
+// GetColor returns the value of Color.
+func (s *Balance) GetColor() string {
+	return s.Color
+}
+
+// GetSize returns the value of Size.
+func (s *Balance) GetSize() string {
+	return s.Size
+}
+
+// GetProductStatus returns the value of ProductStatus.
+func (s *Balance) GetProductStatus() ProductStatus {
+	return s.ProductStatus
+}
+
+// GetVariantStatus returns the value of VariantStatus.
+func (s *Balance) GetVariantStatus() VariantStatus {
+	return s.VariantStatus
+}
+
+// GetOnHand returns the value of OnHand.
+func (s *Balance) GetOnHand() int64 {
+	return s.OnHand
+}
+
+// GetHeld returns the value of Held.
+func (s *Balance) GetHeld() int64 {
+	return s.Held
+}
+
+// GetInTransit returns the value of InTransit.
+func (s *Balance) GetInTransit() int64 {
+	return s.InTransit
+}
+
+// GetDamaged returns the value of Damaged.
+func (s *Balance) GetDamaged() int64 {
+	return s.Damaged
+}
+
+// GetAvailable returns the value of Available.
+func (s *Balance) GetAvailable() int64 {
+	return s.Available
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *Balance) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetSku sets the value of Sku.
+func (s *Balance) SetSku(val string) {
+	s.Sku = val
+}
+
+// SetBarcode sets the value of Barcode.
+func (s *Balance) SetBarcode(val string) {
+	s.Barcode = val
+}
+
+// SetProductCode sets the value of ProductCode.
+func (s *Balance) SetProductCode(val string) {
+	s.ProductCode = val
+}
+
+// SetProductName sets the value of ProductName.
+func (s *Balance) SetProductName(val string) {
+	s.ProductName = val
+}
+
+// SetColor sets the value of Color.
+func (s *Balance) SetColor(val string) {
+	s.Color = val
+}
+
+// SetSize sets the value of Size.
+func (s *Balance) SetSize(val string) {
+	s.Size = val
+}
+
+// SetProductStatus sets the value of ProductStatus.
+func (s *Balance) SetProductStatus(val ProductStatus) {
+	s.ProductStatus = val
+}
+
+// SetVariantStatus sets the value of VariantStatus.
+func (s *Balance) SetVariantStatus(val VariantStatus) {
+	s.VariantStatus = val
+}
+
+// SetOnHand sets the value of OnHand.
+func (s *Balance) SetOnHand(val int64) {
+	s.OnHand = val
+}
+
+// SetHeld sets the value of Held.
+func (s *Balance) SetHeld(val int64) {
+	s.Held = val
+}
+
+// SetInTransit sets the value of InTransit.
+func (s *Balance) SetInTransit(val int64) {
+	s.InTransit = val
+}
+
+// SetDamaged sets the value of Damaged.
+func (s *Balance) SetDamaged(val int64) {
+	s.Damaged = val
+}
+
+// SetAvailable sets the value of Available.
+func (s *Balance) SetAvailable(val int64) {
+	s.Available = val
+}
+
+// Ref: #/components/schemas/BalancePage
+type BalancePage struct {
+	Items []Balance `json:"items"`
+	// Có khi còn trang sau; gửi lại nguyên ở tham số cursor.
+	NextCursor OptString `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *BalancePage) GetItems() []Balance {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *BalancePage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *BalancePage) SetItems(val []Balance) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *BalancePage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*BalancePage) listBalancesRes() {}
+
 type Barcode string
 
 type CatalogCode string
@@ -1394,6 +1586,7 @@ func (*ErrorStatusCode) getStockDocumentRes()          {}
 func (*ErrorStatusCode) getStocktakeRes()              {}
 func (*ErrorStatusCode) healthDeepRes()                {}
 func (*ErrorStatusCode) listAttributesRes()            {}
+func (*ErrorStatusCode) listBalancesRes()              {}
 func (*ErrorStatusCode) listCategoriesRes()            {}
 func (*ErrorStatusCode) listJobsRes()                  {}
 func (*ErrorStatusCode) listProductsRes()              {}
@@ -1402,6 +1595,7 @@ func (*ErrorStatusCode) listStaffRes()                 {}
 func (*ErrorStatusCode) listStockDocumentsRes()        {}
 func (*ErrorStatusCode) listSuppliersRes()             {}
 func (*ErrorStatusCode) listTagsRes()                  {}
+func (*ErrorStatusCode) listWarehousesRes()            {}
 func (*ErrorStatusCode) lockStaffRes()                 {}
 func (*ErrorStatusCode) postStockDocumentRes()         {}
 func (*ErrorStatusCode) recordStocktakeCountRes()      {}
@@ -2024,6 +2218,10 @@ func (*ListSuppliersOKApplicationJSON) listSuppliersRes() {}
 type ListTagsOKApplicationJSON []Tag
 
 func (*ListTagsOKApplicationJSON) listTagsRes() {}
+
+type ListWarehousesOKApplicationJSON []Warehouse
+
+func (*ListWarehousesOKApplicationJSON) listWarehousesRes() {}
 
 // Ref: #/components/schemas/Me
 type Me struct {
@@ -6826,4 +7024,94 @@ func (s *VersionRequest) GetVersion() int64 {
 // SetVersion sets the value of Version.
 func (s *VersionRequest) SetVersion(val int64) {
 	s.Version = val
+}
+
+// Ref: #/components/schemas/Warehouse
+type Warehouse struct {
+	ID     uuid.UUID       `json:"id"`
+	Code   string          `json:"code"`
+	Name   string          `json:"name"`
+	Status WarehouseStatus `json:"status"`
+}
+
+// GetID returns the value of ID.
+func (s *Warehouse) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCode returns the value of Code.
+func (s *Warehouse) GetCode() string {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *Warehouse) GetName() string {
+	return s.Name
+}
+
+// GetStatus returns the value of Status.
+func (s *Warehouse) GetStatus() WarehouseStatus {
+	return s.Status
+}
+
+// SetID sets the value of ID.
+func (s *Warehouse) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCode sets the value of Code.
+func (s *Warehouse) SetCode(val string) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *Warehouse) SetName(val string) {
+	s.Name = val
+}
+
+// SetStatus sets the value of Status.
+func (s *Warehouse) SetStatus(val WarehouseStatus) {
+	s.Status = val
+}
+
+// Ref: #/components/schemas/WarehouseStatus
+type WarehouseStatus string
+
+const (
+	WarehouseStatusActive WarehouseStatus = "active"
+	WarehouseStatusClosed WarehouseStatus = "closed"
+)
+
+// AllValues returns all WarehouseStatus values.
+func (WarehouseStatus) AllValues() []WarehouseStatus {
+	return []WarehouseStatus{
+		WarehouseStatusActive,
+		WarehouseStatusClosed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WarehouseStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case WarehouseStatusActive:
+		return []byte(s), nil
+	case WarehouseStatusClosed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WarehouseStatus) UnmarshalText(data []byte) error {
+	switch WarehouseStatus(data) {
+	case WarehouseStatusActive:
+		*s = WarehouseStatusActive
+		return nil
+	case WarehouseStatusClosed:
+		*s = WarehouseStatusClosed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }

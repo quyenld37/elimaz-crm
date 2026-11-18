@@ -46,6 +46,28 @@ func TestPlansHaveNoSeqScan(t *testing.T) {
 			args []any
 		}{c.name, sql, args})
 	}
+	// Danh sách tồn (Task 334): trang đầu, lọc "Thiếu so với phần giữ", thiếu + tìm, trang sau.
+	bf := queries.BalanceFilter{SellerID: f.sellerA, WarehouseID: f.warehouseA, Limit: 50}
+	short := bf
+	short.OnlyShort = true
+	shortQ := short
+	shortQ.Q = "dam lua mau 12" // như ca "tìm tên qua hàm"; tên rộng xem task-334.md "Việc phát hiện thêm"
+	next := bf
+	next.Cursor = &queries.BalanceCursor{VariantID: uuid.Must(uuid.NewV7())}
+	for _, c := range []struct {
+		name string
+		bf   queries.BalanceFilter
+	}{{"tồn trang đầu", bf}, {"tồn chỉ thiếu", short}, {"tồn thiếu và tìm", shortQ}, {"tồn trang sau", next}} {
+		sql, args, err := queries.BalancesSQL(c.bf)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cases = append(cases, struct {
+			name string
+			sql  string
+			args []any
+		}{c.name, sql, args})
+	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			nodes, err := testkit.ExplainAsApp(t.Context(), f.app, f.tenantA, c.sql, c.args...)

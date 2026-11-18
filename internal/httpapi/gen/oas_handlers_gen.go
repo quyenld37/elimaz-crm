@@ -3093,6 +3093,109 @@ func (s *Server) handleListAttributesRequest(args [0]string, argsEscaped bool, w
 	}
 }
 
+// handleListBalancesRequest handles listBalances operation.
+//
+// Cần inventory.read ở đúng kho warehouseId, không có → 403. Chỉ biến thể đã có
+// dòng số dư ở kho đó. available = onHand − damaged − held − inTransit, có thể âm
+// sau kiểm kho đếm thiếu (Q8); onlyShort=true chỉ trả dòng available < 0. Biến thể
+// khớp q tối đa 100.
+//
+// GET /api/v1/inventory/balances
+func (s *Server) handleListBalancesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListBalancesOperation,
+			ID:   "listBalances",
+		}
+	)
+	params, err := decodeListBalancesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListBalancesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListBalancesOperation,
+			OperationSummary: "Số dư từng biến thể ở một kho (tồn, lỗi, đang giữ, đang giao, có thể bán), biến thể mới tạo trước; lọc \"Thiếu so với phần giữ\", tìm theo barcode, SKU, mã mẫu, tên không dấu; trang theo con trỏ",
+			OperationID:      "listBalances",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "warehouseId",
+					In:   "query",
+				}: params.WarehouseId,
+				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+				{
+					Name: "onlyShort",
+					In:   "query",
+				}: params.OnlyShort,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListBalancesParams
+			Response = ListBalancesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListBalancesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListBalances(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListBalances(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListBalancesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleListCategoriesRequest handles listCategories operation.
 //
 // Mọi danh mục của shop (cả đã lưu trữ) theo cấp, vị trí, tên; màn hình dựng
@@ -3733,6 +3836,72 @@ func (s *Server) handleListTagsRequest(args [0]string, argsEscaped bool, w http.
 	}
 
 	if err := encodeListTagsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleListWarehousesRequest handles listWarehouses operation.
+//
+// Các kho người gọi được xem (có inventory.read ở kho đó hoặc toàn shop), kho chính
+// trước rồi theo mã; gồm cả kho đã đóng.
+//
+// GET /api/v1/inventory/warehouses
+func (s *Server) handleListWarehousesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response ListWarehousesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListWarehousesOperation,
+			OperationSummary: "Các kho người gọi được xem (có inventory.read ở kho đó hoặc toàn shop), kho chính trước rồi theo mã; gồm cả kho đã đóng",
+			OperationID:      "listWarehouses",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = ListWarehousesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListWarehouses(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListWarehouses(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListWarehousesResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

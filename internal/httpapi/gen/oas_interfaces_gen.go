@@ -133,6 +133,10 @@ type ListAttributesRes interface {
 	listAttributesRes()
 }
 
+type ListBalancesRes interface {
+	listBalancesRes()
+}
+
 type ListCategoriesRes interface {
 	listCategoriesRes()
 }
@@ -163,6 +167,10 @@ type ListSuppliersRes interface {
 
 type ListTagsRes interface {
 	listTagsRes()
+}
+
+type ListWarehousesRes interface {
+	listWarehousesRes()
 }
 
 type LockStaffRes interface {

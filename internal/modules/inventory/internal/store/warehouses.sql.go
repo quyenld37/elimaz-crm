@@ -47,3 +47,41 @@ func (q *Queries) InsertWarehouseIfMissing(ctx context.Context, arg InsertWareho
 	)
 	return err
 }
+
+const listWarehouses = `-- name: ListWarehouses :many
+SELECT id, code, name, status FROM inventory.warehouses
+ORDER BY (code = 'MAIN') DESC, code
+`
+
+type ListWarehousesRow struct {
+	ID     uuid.UUID
+	Code   string
+	Name   string
+	Status string
+}
+
+// Mọi kho của tenant (cả kho đã đóng), kho MAIN trước rồi theo mã (Task M1-51).
+func (q *Queries) ListWarehouses(ctx context.Context) ([]ListWarehousesRow, error) {
+	rows, err := q.db.Query(ctx, listWarehouses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWarehousesRow{}
+	for rows.Next() {
+		var i ListWarehousesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

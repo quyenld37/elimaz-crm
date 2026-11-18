@@ -478,8 +478,8 @@ Package metrics gom chỉ số của tiến trình trong bộ nhớ và ghi mỗ
 func DiskUsedPct(path string) (float64, error)
 func HeartbeatAge(ctx context.Context, d *db.DB, process string) (time.Duration, error)
 func Middleware(reg *Registry, next http.Handler) http.Handler
-func P95FromHist(hist []int) float64
 func ProcessName(role config.Role) string
+func QuantileFromHist(hist []int, pct int) float64
 type Flusher struct {
 	DB      *db.DB
 	Reg     *Registry
