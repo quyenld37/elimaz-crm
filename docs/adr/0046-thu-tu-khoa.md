@@ -57,6 +57,12 @@ trước (sự kiện vận đơn đổi đơn và tồn) khóa dòng nhóm trư
 - **Bảng mới** được xếp vào bảng này trong cùng commit với migration tạo ra nó. Review của task có migration kiểm việc
   này.
 
+## Khóa tư vấn (advisory)
+
+- `identity` tên vai trò (M1 Task M1-56): tạo vai trò và sửa vai trò lấy `pg_advisory_xact_lock` theo tenant
+  (`queries/identity/roles.sql` `LockRoleNames`) **trước mọi khóa dòng**, rồi mới khóa `identity.roles`. Chỉ hai đường
+  này lấy khóa đó, nên không tạo vòng chờ với đường khóa dòng.
+
 ## Luật cho mốc sau (Q-X4, C14)
 
 - Thêm bảng vào nhóm có sẵn: **chèn** tên bảng vào đúng chỗ trong ô, không viết lại cả nhóm; ghi mốc và task ở cột

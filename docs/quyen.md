@@ -30,6 +30,23 @@ trị nhân viên, vai trò, nền tảng là loại `toàn shop`.
   toàn shop, dù gán theo kho); không ai sửa quyền hay khóa chính mình;
   không khóa hay gỡ `owner` của Chủ còn hoạt động cuối cùng (PQ07).
 
+## Vai trò tự định nghĩa
+
+Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn điều khiển.
+
+- Tạo vai trò từ danh sách quyền có sẵn (`GET /api/v1/identity/permissions`, nhãn tiếng Việt ở
+  `identity.PermissionCatalog`); khóa tự sinh `custom_` + 8 ký tự; tên không trùng (không phân biệt hoa thường, kể cả
+  vai trò đã lưu trữ). Phạm vi (toàn shop, một kho, một Page) chọn khi gán vai trò cho người ở màn Nhân viên.
+- Mỗi quyền **thêm vào hay gỡ khỏi** một vai trò, người sửa phải có quyền đó ở phạm vi toàn shop (`all`); vì vậy không
+  ai tự nâng quyền bằng cách sửa vai trò mình đang giữ. Quyền lạ → `unknown_permission`.
+- Vai trò `owner` (Chủ) không sửa, không lưu trữ được (`owner_role_locked`); luôn đủ mọi quyền.
+- Sửa một vai trò mẫu đặt `customized`: bản cập nhật sau (`SyncDefaultRoles`) không thêm lại quyền đã gỡ.
+- Lưu trữ khi không còn nhân viên đang hoạt động nào giữ (`role_in_use`). Lưu trữ là gỡ mọi quyền của vai trò, nên
+  người lưu trữ cũng phải có mọi quyền đó ở toàn shop. Vai trò đã lưu trữ không gán mới được (`role_archived`), không
+  sửa được, và **không cho quyền** (người bị khóa còn giữ nó, được mở lại, không lấy lại quyền); gỡ gán cũ vẫn được.
+- Sửa, lưu trữ mang `version` (`version_conflict`); mỗi lần ghi có một dòng audit `identity.role.*` với danh sách quyền
+  trước và sau.
+
 | Khóa | Loại phạm vi | Mốc đặt ra | Vai trò mẫu nhận | Việc |
 |---|---|---|---|---|
 | `realtime.subscribe` | none | M0 | owner, manager, sale, warehouse, accountant | Mở luồng tin báo thời gian thực |

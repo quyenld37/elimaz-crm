@@ -64,8 +64,13 @@ WHERE r.tenant_id = g.tenant_id AND r.id = g.role_id
   AND g.user_id = @user_id AND r.key = @role_key AND g.scope_type = @scope_type AND g.scope_id = @scope_id;
 
 -- name: ListRolesWithPermissions :many
-SELECT r.id, r.key, r.name, r.status, r.customized,
-       coalesce(array_agg(rp.permission ORDER BY rp.permission) FILTER (WHERE rp.permission IS NOT NULL), '{}')::text[] AS permissions
+-- holder_count: số nhân viên active có ít nhất một grant của vai trò (màn Vai trò, Task M1-56).
+SELECT r.id, r.key, r.name, r.status, r.customized, r.version,
+       coalesce(array_agg(rp.permission ORDER BY rp.permission) FILTER (WHERE rp.permission IS NOT NULL), '{}')::text[] AS permissions,
+       (SELECT count(DISTINCT g.user_id)
+        FROM identity.user_role_grants AS g
+        JOIN identity.users AS u ON u.tenant_id = g.tenant_id AND u.id = g.user_id
+        WHERE g.role_id = r.id AND u.status = 'active')::bigint AS holder_count
 FROM identity.roles AS r
 LEFT JOIN identity.role_permissions AS rp ON rp.tenant_id = r.tenant_id AND rp.role_id = r.id
 GROUP BY r.id

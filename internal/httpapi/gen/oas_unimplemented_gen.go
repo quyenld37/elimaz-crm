@@ -59,6 +59,16 @@ func (UnimplementedHandler) ArchiveCategory(ctx context.Context, req *VersionReq
 	return r, ht.ErrNotImplemented
 }
 
+// ArchiveRole implements archiveRole operation.
+//
+// Lưu trữ vai trò không còn nhân viên đang hoạt động nào giữ (không lưu trữ
+// được vai trò Chủ).
+//
+// POST /api/v1/identity/roles/{id}/archive
+func (UnimplementedHandler) ArchiveRole(ctx context.Context, req *ArchiveRoleRequest, params ArchiveRoleParams) (r ArchiveRoleRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // AttachProductImage implements attachProductImage operation.
 //
 // Color (không bắt buộc) là một màu đang có của biến thể trong mẫu. Tệp chưa
@@ -134,6 +144,16 @@ func (UnimplementedHandler) CreateOrder(ctx context.Context, req *CreateOrderReq
 //
 // POST /api/v1/catalog/products
 func (UnimplementedHandler) CreateProduct(ctx context.Context, req *CreateProductRequest, params CreateProductParams) (r CreateProductRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateRole implements createRole operation.
+//
+// Tạo vai trò tự định nghĩa từ danh sách quyền có sẵn (người tạo phải có
+// mọi quyền đó ở toàn shop).
+//
+// POST /api/v1/identity/roles
+func (UnimplementedHandler) CreateRole(ctx context.Context, req *CreateRoleRequest, params CreateRoleParams) (r CreateRoleRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -331,6 +351,16 @@ func (UnimplementedHandler) ListCategories(ctx context.Context) (r ListCategorie
 //
 // GET /api/v1/platform/jobs
 func (UnimplementedHandler) ListJobs(ctx context.Context, params ListJobsParams) (r ListJobsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListPermissions implements listPermissions operation.
+//
+// Mọi quyền của CRM kèm nhóm, nhãn tiếng Việt và loại phạm vi (để soạn vai
+// trò).
+//
+// GET /api/v1/identity/permissions
+func (UnimplementedHandler) ListPermissions(ctx context.Context) (r ListPermissionsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -532,6 +562,16 @@ func (UnimplementedHandler) UpdateCategory(ctx context.Context, req *UpdateCateg
 //
 // PATCH /api/v1/catalog/products/{id}
 func (UnimplementedHandler) UpdateProduct(ctx context.Context, req *UpdateProductRequest, params UpdateProductParams) (r UpdateProductRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateRole implements updateRole operation.
+//
+// Sửa tên và quyền của vai trò (không sửa được vai trò Chủ; quyền thêm hay gỡ
+// phải có ở toàn shop).
+//
+// PUT /api/v1/identity/roles/{id}
+func (UnimplementedHandler) UpdateRole(ctx context.Context, req *UpdateRoleRequest, params UpdateRoleParams) (r UpdateRoleRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

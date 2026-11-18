@@ -21,6 +21,10 @@ type ArchiveCategoryRes interface {
 	archiveCategoryRes()
 }
 
+type ArchiveRoleRes interface {
+	archiveRoleRes()
+}
+
 type AttachProductImageRes interface {
 	attachProductImageRes()
 }
@@ -51,6 +55,10 @@ type CreateOrderRes interface {
 
 type CreateProductRes interface {
 	createProductRes()
+}
+
+type CreateRoleRes interface {
+	createRoleRes()
 }
 
 type CreateShipmentRes interface {
@@ -131,6 +139,10 @@ type ListCategoriesRes interface {
 
 type ListJobsRes interface {
 	listJobsRes()
+}
+
+type ListPermissionsRes interface {
+	listPermissionsRes()
 }
 
 type ListProductsRes interface {
@@ -215,6 +227,10 @@ type UpdateCategoryRes interface {
 
 type UpdateProductRes interface {
 	updateProductRes()
+}
+
+type UpdateRoleRes interface {
+	updateRoleRes()
 }
 
 type UpdateSupplierRes interface {

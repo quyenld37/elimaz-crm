@@ -58,13 +58,89 @@ func (h *handler) ListRoles(ctx context.Context) (gen.ListRolesRes, error) {
 	}
 	out := make(gen.ListRolesOKApplicationJSON, 0, len(rows))
 	for _, r := range rows {
-		perms := make([]string, 0, len(r.Permissions))
-		for _, p := range r.Permissions {
-			perms = append(perms, string(p))
-		}
-		out = append(out, gen.Role{Key: r.Key, Name: r.Name, Status: gen.RoleStatus(r.Status), Customized: r.Customized, Permissions: perms})
+		out = append(out, *roleOut(r))
 	}
 	return &out, nil
+}
+
+// ListPermissions (GET /api/v1/identity/permissions, identity.roles.manage): mọi quyền kèm nhóm, nhãn, loại phạm vi.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ListPermissions(context.Context) (gen.ListPermissionsRes, error) {
+	cat := identity.PermissionCatalog()
+	out := make(gen.ListPermissionsOKApplicationJSON, 0, len(cat))
+	for _, p := range cat {
+		out = append(out, gen.PermissionInfo{Key: string(p.Key), ScopeType: gen.PermissionInfoScopeType(p.ScopeType), Group: p.Group, Label: p.Label})
+	}
+	return &out, nil
+}
+
+// CreateRole (POST /api/v1/identity/roles, identity.roles.manage) tạo vai trò tự định nghĩa → 201 (luật ở
+// identity.CreateRole).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) CreateRole(ctx context.Context, req *gen.CreateRoleRequest, _ gen.CreateRoleParams) (gen.CreateRoleRes, error) {
+	in := roleInput(req.Name, req.Permissions)
+	return identityWrite(ctx, h, http.StatusCreated, "identity.role.create", "identity.role", func(tx pgx.Tx, u identity.AuthUser) (written[gen.Role], error) {
+		r, err := identity.CreateRole(ctx, tx, u, in)
+		return roleWritten(identity.RoleChange{After: r}), err
+	})
+}
+
+// UpdateRole (PUT /api/v1/identity/roles/{id}, identity.roles.manage) sửa tên và quyền của vai trò khi version còn khớp
+// (luật ở identity.UpdateRole).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) UpdateRole(ctx context.Context, req *gen.UpdateRoleRequest, params gen.UpdateRoleParams) (gen.UpdateRoleRes, error) {
+	in := roleInput(req.Name, req.Permissions)
+	return identityWrite(ctx, h, http.StatusOK, "identity.role.update", "identity.role", func(tx pgx.Tx, u identity.AuthUser) (written[gen.Role], error) {
+		c, err := identity.UpdateRole(ctx, tx, u, params.ID, req.Version, in)
+		return roleWritten(c), err
+	})
+}
+
+// ArchiveRole (POST /api/v1/identity/roles/{id}/archive, identity.roles.manage) lưu trữ vai trò không còn người active
+// giữ (luật ở identity.ArchiveRole).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ArchiveRole(ctx context.Context, req *gen.ArchiveRoleRequest, params gen.ArchiveRoleParams) (gen.ArchiveRoleRes, error) {
+	return identityWrite(ctx, h, http.StatusOK, "identity.role.archive", "identity.role", func(tx pgx.Tx, u identity.AuthUser) (written[gen.Role], error) {
+		c, err := identity.ArchiveRole(ctx, tx, u, params.ID, req.Version)
+		return roleWritten(c), err
+	})
+}
+
+func roleInput(name string, perms []string) identity.RoleInput {
+	in := identity.RoleInput{Name: name, Permissions: make([]identity.Permission, 0, len(perms))}
+	for _, p := range perms {
+		in.Permissions = append(in.Permissions, identity.Permission(p))
+	}
+	return in
+}
+
+// roleWritten: kết quả ghi vai trò cho identityWrite (audit: tên, trạng thái, version, danh sách quyền trước và sau).
+func roleWritten(c identity.RoleChange) written[gen.Role] {
+	return snapshot(c.Before.ID, c.Before, c.After.ID, c.After, roleAudit, roleOut)
+}
+
+// roleAudit: trạng thái của vai trò ghi vào audit (không có dữ liệu cá nhân).
+func roleAudit(r identity.RoleRow) map[string]any {
+	perms := make([]string, 0, len(r.Permissions))
+	for _, p := range r.Permissions {
+		perms = append(perms, string(p))
+	}
+	return map[string]any{"key": r.Key, "name": r.Name, "status": r.Status, "version": r.Version, "permissions": perms}
+}
+
+func roleOut(r identity.RoleRow) *gen.Role {
+	perms := make([]string, 0, len(r.Permissions))
+	for _, p := range r.Permissions {
+		perms = append(perms, string(p))
+	}
+	return &gen.Role{
+		ID: r.ID, Key: r.Key, Name: r.Name, Status: gen.RoleStatus(r.Status), Customized: r.Customized,
+		Version: r.Version, HolderCount: r.HolderCount, Permissions: perms,
+	}
 }
 
 // CreateStaff (POST /api/v1/identity/users, identity.users.manage) tạo nhân viên chưa có vai trò → 201.
@@ -201,6 +277,8 @@ func isStaffRefusal(err error) bool {
 	for _, e := range []error{
 		identity.ErrSelfModify, identity.ErrGrantExceedsActor, identity.ErrLastOwner, identity.ErrEmailTaken,
 		identity.ErrVersionConflict, identity.ErrStaffNotFound, identity.ErrInvalidInput, identity.ErrLocked,
+		identity.ErrOwnerRoleLocked, identity.ErrRoleInUse, identity.ErrUnknownPermission, identity.ErrRoleNameTaken,
+		identity.ErrRoleArchived, identity.ErrRoleNotFound,
 	} {
 		if errors.Is(err, e) {
 			return true

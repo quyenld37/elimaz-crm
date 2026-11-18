@@ -39,6 +39,13 @@ type Handler interface {
 	//
 	// POST /api/v1/catalog/categories/{id}/archive
 	ArchiveCategory(ctx context.Context, req *VersionRequest, params ArchiveCategoryParams) (ArchiveCategoryRes, error)
+	// ArchiveRole implements archiveRole operation.
+	//
+	// Lưu trữ vai trò không còn nhân viên đang hoạt động nào giữ (không lưu trữ
+	// được vai trò Chủ).
+	//
+	// POST /api/v1/identity/roles/{id}/archive
+	ArchiveRole(ctx context.Context, req *ArchiveRoleRequest, params ArchiveRoleParams) (ArchiveRoleRes, error)
 	// AttachProductImage implements attachProductImage operation.
 	//
 	// Color (không bắt buộc) là một màu đang có của biến thể trong mẫu. Tệp chưa
@@ -93,6 +100,13 @@ type Handler interface {
 	//
 	// POST /api/v1/catalog/products
 	CreateProduct(ctx context.Context, req *CreateProductRequest, params CreateProductParams) (CreateProductRes, error)
+	// CreateRole implements createRole operation.
+	//
+	// Tạo vai trò tự định nghĩa từ danh sách quyền có sẵn (người tạo phải có
+	// mọi quyền đó ở toàn shop).
+	//
+	// POST /api/v1/identity/roles
+	CreateRole(ctx context.Context, req *CreateRoleRequest, params CreateRoleParams) (CreateRoleRes, error)
 	// CreateShipment implements createShipment operation.
 	//
 	// Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa
@@ -227,6 +241,13 @@ type Handler interface {
 	//
 	// GET /api/v1/platform/jobs
 	ListJobs(ctx context.Context, params ListJobsParams) (ListJobsRes, error)
+	// ListPermissions implements listPermissions operation.
+	//
+	// Mọi quyền của CRM kèm nhóm, nhãn tiếng Việt và loại phạm vi (để soạn vai
+	// trò).
+	//
+	// GET /api/v1/identity/permissions
+	ListPermissions(ctx context.Context) (ListPermissionsRes, error)
 	// ListProducts implements listProducts operation.
 	//
 	// WarehouseId (không bắt buộc) thêm cột available (tổng có thể bán của các biến
@@ -365,6 +386,13 @@ type Handler interface {
 	//
 	// PATCH /api/v1/catalog/products/{id}
 	UpdateProduct(ctx context.Context, req *UpdateProductRequest, params UpdateProductParams) (UpdateProductRes, error)
+	// UpdateRole implements updateRole operation.
+	//
+	// Sửa tên và quyền của vai trò (không sửa được vai trò Chủ; quyền thêm hay gỡ
+	// phải có ở toàn shop).
+	//
+	// PUT /api/v1/identity/roles/{id}
+	UpdateRole(ctx context.Context, req *UpdateRoleRequest, params UpdateRoleParams) (UpdateRoleRes, error)
 	// UpdateSupplier implements updateSupplier operation.
 	//
 	// Sửa hoặc lưu trữ nhà cung cấp khi version còn khớp.

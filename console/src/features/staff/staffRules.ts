@@ -40,7 +40,8 @@ export function roleName(key: string, roles: readonly Role[]): string {
 }
 
 const DEFAULT_ROLE_KEYS = new Set(["owner", "manager", "sale", "warehouse", "accountant"]);
-const isCustom = (r: Role) => !DEFAULT_ROLE_KEYS.has(r.key);
+/** Vai trò tự tạo (không phải một trong năm vai trò mẫu). */
+export const isCustom = (r: Pick<Role, "key">) => !DEFAULT_ROLE_KEYS.has(r.key);
 
 export function grantLabel(g: StaffGrant, roles: readonly Role[]): string {
   return `${roleName(g.roleKey, roles)} · ${scopeLabel(grantScope(g))}`;

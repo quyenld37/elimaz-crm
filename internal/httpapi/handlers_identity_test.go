@@ -306,6 +306,12 @@ func TestStaffErrorCodes(t *testing.T) {
 		identity.ErrVersionConflict:   {http.StatusConflict, "version_conflict"},
 		identity.ErrStaffNotFound:     {http.StatusNotFound, "not_found"},
 		identity.ErrInvalidInput:      {http.StatusBadRequest, "invalid_input"},
+		identity.ErrOwnerRoleLocked:   {http.StatusConflict, "owner_role_locked"},
+		identity.ErrRoleInUse:         {http.StatusConflict, "role_in_use"},
+		identity.ErrRoleArchived:      {http.StatusConflict, "role_archived"},
+		identity.ErrRoleNameTaken:     {http.StatusConflict, "role_name_taken"},
+		identity.ErrUnknownPermission: {http.StatusUnprocessableEntity, "unknown_permission"},
+		identity.ErrRoleNotFound:      {http.StatusNotFound, "not_found"},
 	} {
 		var buf bytes.Buffer
 		rec := httptest.NewRecorder()
@@ -315,4 +321,160 @@ func TestStaffErrorCodes(t *testing.T) {
 		})).ServeHTTP(rec, req)
 		expect(t, err.Error(), rec, want[0].(int), want[1].(string)) //nolint:forcetypeassert // test
 	}
+}
+
+// Vai trò tự định nghĩa (kế hoạch M1, Task M1-56).
+
+func roleBody(version int64, name string, perms ...string) string {
+	b, _ := json.Marshal(map[string]any{"version": version, "name": name, "permissions": append([]string{}, perms...)}) //nolint:errchkjson // test
+	return string(b)
+}
+
+func createRoleBody(name string, perms ...string) string {
+	b, _ := json.Marshal(map[string]any{"name": name, "permissions": append([]string{}, perms...)}) //nolint:errchkjson // test
+	return string(b)
+}
+
+func decodeObj(t *testing.T, rec *httptest.ResponseRecorder) map[string]any {
+	t.Helper()
+	var m map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &m); err != nil {
+		t.Fatalf("thân không phải JSON object: %s", rec.Body.String())
+	}
+	return m
+}
+
+func (e *staffAPIEnv) roleByKey(key string) map[string]any {
+	e.t.Helper()
+	rec := e.do(http.MethodGet, "/api/v1/identity/roles", staffA, "", "")
+	var roles []map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &roles); err != nil || rec.Code != http.StatusOK {
+		e.t.Fatalf("listRoles: %d %s", rec.Code, rec.Body.String())
+	}
+	for _, r := range roles {
+		if r["key"] == key {
+			return r
+		}
+	}
+	e.t.Fatalf("không có vai trò %s", key)
+	return nil
+}
+
+func rolePath(id any, action string) string {
+	p := fmt.Sprintf("/api/v1/identity/roles/%v", id)
+	if action != "" {
+		p += "/" + action
+	}
+	return p
+}
+
+func TestRolesAPI_CreateUpdateArchive(t *testing.T) {
+	e := newStaffAPIEnv(t)
+	e.staff.Grant(t, e.tenant, e.ids[staffM], []string{"identity.roles.manage"}, "all", "")
+
+	expect(t, "M tạo vai trò có platform.files.manage", e.do(http.MethodPost, "/api/v1/identity/roles", staffM, "r1",
+		createRoleBody("Tệp", "platform.files.manage")), http.StatusForbidden, "grant_exceeds_actor")
+	rec := e.do(http.MethodPost, "/api/v1/identity/roles", staffM, "r2", createRoleBody("Kho phụ", "catalog.read", "inventory.read", "inventory.stocktake"))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("M tạo Kho phụ: %d %s", rec.Code, rec.Body.String())
+	}
+	r := decodeObj(t, rec)
+	if !strings.HasPrefix(r["key"].(string), "custom_") || r["customized"] != true || r["version"] != float64(1) || //nolint:forcetypeassert // test
+		r["status"] != "active" || len(r["permissions"].([]any)) != 3 || r["holderCount"] != float64(0) { //nolint:forcetypeassert // test
+		t.Fatalf("vai trò mới: %v", r)
+	}
+	id := r["id"]
+	expect(t, "K tạo vai trò", e.do(http.MethodPost, "/api/v1/identity/roles", staffK, "r3", createRoleBody("K", "catalog.read")), http.StatusForbidden, "forbidden")
+	expect(t, "quyền lạ", e.do(http.MethodPost, "/api/v1/identity/roles", staffA, "r4", createRoleBody("Lạ", "foo.bar")), http.StatusUnprocessableEntity, "unknown_permission")
+	expect(t, "trùng tên", e.do(http.MethodPost, "/api/v1/identity/roles", staffA, "r5", createRoleBody("kho phụ", "catalog.read")), http.StatusConflict, "role_name_taken")
+	expect(t, "tên rỗng", e.do(http.MethodPost, "/api/v1/identity/roles", staffA, "r6", createRoleBody(" ", "catalog.read")), http.StatusBadRequest, "")
+
+	owner := e.roleByKey("owner")
+	expect(t, "sửa owner", e.do(http.MethodPut, rolePath(owner["id"], ""), staffA, "r7", roleBody(1, "Chủ", "catalog.read")), http.StatusConflict, "owner_role_locked")
+	expect(t, "lưu trữ owner", e.do(http.MethodPost, rolePath(owner["id"], "archive"), staffA, "r8", `{"version":1}`), http.StatusConflict, "owner_role_locked")
+
+	expect(t, "version cũ", e.do(http.MethodPut, rolePath(id, ""), staffA, "r9", roleBody(9, "Kho phụ", "catalog.read")), http.StatusConflict, "version_conflict")
+	rec = e.do(http.MethodPut, rolePath(id, ""), staffM, "r10", roleBody(1, "Kho phụ", "catalog.read", "inventory.read"))
+	if rec.Code != http.StatusOK || decodeObj(t, rec)["version"] != float64(2) {
+		t.Fatalf("M gỡ inventory.stocktake: %d %s", rec.Code, rec.Body.String())
+	}
+	expect(t, "vai trò không có", e.do(http.MethodPut, rolePath(uuid.New(), ""), staffA, "r11", roleBody(1, "x", "catalog.read")), http.StatusNotFound, "not_found")
+
+	// Gán cho K rồi lưu trữ → role_in_use; audit có dòng cho mỗi lần ghi vai trò.
+	k := e.ids[staffK]
+	if rec := e.do(http.MethodPut, usersPath(k, "grants"), staffA, "r12", grantsBody(e.version(k), "warehouse@warehouse:w1", r["key"].(string)+"@warehouse:w1")); rec.Code != http.StatusOK { //nolint:forcetypeassert // test
+		t.Fatalf("gán Kho phụ cho K: %d %s", rec.Code, rec.Body.String())
+	}
+	if got := e.roleByKey(r["key"].(string)); got["holderCount"] != float64(1) { //nolint:forcetypeassert // test
+		t.Fatalf("người giữ: %v", got)
+	}
+	expect(t, "lưu trữ khi còn người giữ", e.do(http.MethodPost, rolePath(id, "archive"), staffA, "r13", `{"version":2}`), http.StatusConflict, "role_in_use")
+	if rec := e.do(http.MethodPut, usersPath(k, "grants"), staffA, "r14", grantsBody(e.version(k), "warehouse@warehouse:w1")); rec.Code != http.StatusOK {
+		t.Fatalf("gỡ Kho phụ của K: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = e.do(http.MethodPost, rolePath(id, "archive"), staffA, "r15", `{"version":2}`)
+	if rec.Code != http.StatusOK || decodeObj(t, rec)["status"] != "archived" {
+		t.Fatalf("lưu trữ: %d %s", rec.Code, rec.Body.String())
+	}
+	expect(t, "gán vai trò đã lưu trữ", e.do(http.MethodPut, usersPath(k, "grants"), staffA, "r16",
+		grantsBody(e.version(k), "warehouse@warehouse:w1", r["key"].(string)+"@all")), http.StatusConflict, "role_archived") //nolint:forcetypeassert // test
+	roleID, _ := uuid.Parse(id.(string)) //nolint:forcetypeassert // test
+	if n := e.audits(roleID); n != 3 {
+		t.Fatalf("audit của vai trò: %d dòng, mong 3 (tạo, sửa, lưu trữ)", n)
+	}
+}
+
+// 50 lần cùng Idempotency-Key → một vai trò, một dòng audit.
+func TestRolesAPI_CreateIdempotent(t *testing.T) {
+	e := newStaffAPIEnv(t)
+	body := createRoleBody("Thời vụ Tết", "catalog.read")
+	recs := make([]*httptest.ResponseRecorder, 50)
+	var wg sync.WaitGroup
+	for i := range recs {
+		wg.Go(func() { recs[i] = e.do(http.MethodPost, "/api/v1/identity/roles", staffA, "same-role-key", body) })
+	}
+	wg.Wait()
+	ok := 0
+	for _, rec := range recs {
+		switch rec.Code {
+		case http.StatusCreated:
+			ok++
+		case http.StatusConflict:
+			expect(t, "song song", rec, http.StatusConflict, "request_in_progress")
+		default:
+			t.Errorf("mã lạ %d %s", rec.Code, rec.Body.String())
+		}
+	}
+	roles := e.staff.CountIn(t, e.tenant, "SELECT count(*) FROM identity.roles WHERE name = 'Thời vụ Tết'")
+	audits := e.staff.CountIn(t, e.tenant, "SELECT count(*) FROM identity.audit_logs WHERE action = 'identity.role.create'")
+	if ok == 0 || roles != 1 || audits != 1 {
+		t.Fatalf("%d câu 201, %d vai trò, %d audit; mong ≥ 1, 1, 1", ok, roles, audits)
+	}
+}
+
+// Danh sách quyền có nhãn; vai trò tự tạo gán cho nhân viên → nhân viên gọi được đúng operation của quyền trong vai trò.
+func TestRolesAPI_PermissionsAndEffect(t *testing.T) {
+	e := newStaffAPIEnv(t)
+	expect(t, "K đọc danh sách quyền", e.do(http.MethodGet, "/api/v1/identity/permissions", staffK, "", ""), http.StatusForbidden, "forbidden")
+	rec := e.do(http.MethodGet, "/api/v1/identity/permissions", staffA, "", "")
+	var list []map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil || rec.Code != http.StatusOK || len(list) != len(identity.Permissions) {
+		t.Fatalf("listPermissions: %d %s", rec.Code, rec.Body.String())
+	}
+	for i, p := range list {
+		if !identity.IsKnown(identity.Permission(p["key"].(string))) || p["label"] == "" || p["group"] == "" || p["scopeType"] == "" { //nolint:forcetypeassert // test
+			t.Errorf("quyền %d: %v", i, p)
+		}
+	}
+	rec = e.do(http.MethodPost, "/api/v1/identity/roles", staffA, "c1", createRoleBody("Soạn vai trò", "identity.roles.manage", "catalog.read"))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("tạo vai trò: %d %s", rec.Code, rec.Body.String())
+	}
+	key := decodeObj(t, rec)["key"].(string) //nolint:forcetypeassert // test
+	x := e.staff.User(t, e.tenant, "x@elimaz.test", "active")
+	if rec := e.do(http.MethodPut, usersPath(x, "grants"), staffA, "c2", grantsBody(e.version(x), key+"@all")); rec.Code != http.StatusOK {
+		t.Fatalf("gán vai trò mới cho X: %d %s", rec.Code, rec.Body.String())
+	}
+	expect(t, "X đọc danh sách quyền", e.do(http.MethodGet, "/api/v1/identity/permissions", "x@elimaz.test", "", ""), http.StatusOK, "")
+	expect(t, "X liệt kê nhân viên", e.do(http.MethodGet, "/api/v1/identity/users", "x@elimaz.test", "", ""), http.StatusForbidden, "forbidden")
 }

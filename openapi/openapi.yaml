@@ -167,6 +167,89 @@ paths:
                   $ref: "#/components/schemas/Role"
         default:
           $ref: "#/components/responses/Error"
+    post:
+      operationId: createRole
+      summary: Tạo vai trò tự định nghĩa từ danh sách quyền có sẵn (người tạo phải có mọi quyền đó ở toàn shop)
+      x-permission: identity.roles.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoleRequest"
+      responses:
+        "201":
+          description: Vai trò vừa tạo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/identity/roles/{id}:
+    put:
+      operationId: updateRole
+      summary: Sửa tên và quyền của vai trò (không sửa được vai trò Chủ; quyền thêm hay gỡ phải có ở toàn shop)
+      x-permission: identity.roles.manage
+      parameters:
+        - $ref: "#/components/parameters/RoleID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoleRequest"
+      responses:
+        "200":
+          description: Vai trò sau khi sửa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/identity/roles/{id}/archive:
+    post:
+      operationId: archiveRole
+      summary: Lưu trữ vai trò không còn nhân viên đang hoạt động nào giữ (không lưu trữ được vai trò Chủ)
+      x-permission: identity.roles.manage
+      parameters:
+        - $ref: "#/components/parameters/RoleID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArchiveRoleRequest"
+      responses:
+        "200":
+          description: Vai trò sau khi lưu trữ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/identity/permissions:
+    get:
+      operationId: listPermissions
+      summary: Mọi quyền của CRM kèm nhóm, nhãn tiếng Việt và loại phạm vi (để soạn vai trò)
+      x-permission: identity.roles.manage
+      responses:
+        "200":
+          description: Quyền, theo thứ tự của bảng quyền
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PermissionInfo"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/me:
     get:
       operationId: getMe
@@ -1265,6 +1348,13 @@ components:
       schema:
         type: string
         format: uuid
+    RoleID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     StaffID:
       name: id
       in: path
@@ -1605,8 +1695,11 @@ components:
             $ref: "#/components/schemas/StaffGrant"
     Role:
       type: object
-      required: [key, name, status, customized, permissions]
+      required: [id, key, name, status, customized, version, holderCount, permissions]
       properties:
+        id:
+          type: string
+          format: uuid
         key:
           type: string
         name:
@@ -1616,10 +1709,75 @@ components:
           enum: [active, archived]
         customized:
           type: boolean
+          description: Vai trò mẫu đã bị sửa hoặc vai trò tự tạo; bản cập nhật sau không tự thêm quyền vào
+        version:
+          type: integer
+          format: int64
+        holderCount:
+          type: integer
+          format: int64
+          description: Số nhân viên đang hoạt động có ít nhất một gán của vai trò này
         permissions:
           type: array
           items:
             type: string
+    CreateRoleRequest:
+      type: object
+      required: [name, permissions]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        permissions:
+          type: array
+          maxItems: 200
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
+    UpdateRoleRequest:
+      type: object
+      required: [version, name, permissions]
+      additionalProperties: false
+      properties:
+        version:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        permissions:
+          type: array
+          maxItems: 200
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
+    ArchiveRoleRequest:
+      type: object
+      required: [version]
+      additionalProperties: false
+      properties:
+        version:
+          type: integer
+          format: int64
+    PermissionInfo:
+      type: object
+      required: [key, scopeType, group, label]
+      properties:
+        key:
+          type: string
+        scopeType:
+          type: string
+          enum: [none, shop, warehouse, page]
+          description: none = toàn shop từ gán bất kỳ; shop = quyền quản trị, chỉ hiệu lực khi gán toàn shop; warehouse, page = theo kho, theo Page
+        group:
+          type: string
+        label:
+          type: string
     CreateUploadRequest:
       type: object
       required: [purpose, fileName, contentType, sizeBytes]

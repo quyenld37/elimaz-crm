@@ -249,6 +249,21 @@ func (s *ApplyStocktakeResult) SetShortages(val []StocktakeShortage) {
 
 func (*ApplyStocktakeResult) applyStocktakeRes() {}
 
+// Ref: #/components/schemas/ArchiveRoleRequest
+type ArchiveRoleRequest struct {
+	Version int64 `json:"version"`
+}
+
+// GetVersion returns the value of Version.
+func (s *ArchiveRoleRequest) GetVersion() int64 {
+	return s.Version
+}
+
+// SetVersion sets the value of Version.
+func (s *ArchiveRoleRequest) SetVersion(val int64) {
+	s.Version = val
+}
+
 // Ref: #/components/schemas/ArticleBlock
 type ArticleBlock struct {
 	Type    ArticleBlockType     `json:"type"`
@@ -980,6 +995,32 @@ func (s *CreateProductRequest) SetVariants(val []VariantInput) {
 	s.Variants = val
 }
 
+// Ref: #/components/schemas/CreateRoleRequest
+type CreateRoleRequest struct {
+	Name        string   `json:"name"`
+	Permissions []string `json:"permissions"`
+}
+
+// GetName returns the value of Name.
+func (s *CreateRoleRequest) GetName() string {
+	return s.Name
+}
+
+// GetPermissions returns the value of Permissions.
+func (s *CreateRoleRequest) GetPermissions() []string {
+	return s.Permissions
+}
+
+// SetName sets the value of Name.
+func (s *CreateRoleRequest) SetName(val string) {
+	s.Name = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *CreateRoleRequest) SetPermissions(val []string) {
+	s.Permissions = val
+}
+
 // Ref: #/components/schemas/CreateShipmentRequest
 type CreateShipmentRequest struct {
 	CarrierAccountId uuid.UUID `json:"carrierAccountId"`
@@ -1367,6 +1408,7 @@ func (*ErrorStatusCode) addAttributeValueRes()         {}
 func (*ErrorStatusCode) addVariantRes()                {}
 func (*ErrorStatusCode) applyStocktakeRes()            {}
 func (*ErrorStatusCode) archiveCategoryRes()           {}
+func (*ErrorStatusCode) archiveRoleRes()               {}
 func (*ErrorStatusCode) attachProductImageRes()        {}
 func (*ErrorStatusCode) cancelStockDocumentRes()       {}
 func (*ErrorStatusCode) cancelStocktakeRes()           {}
@@ -1375,6 +1417,7 @@ func (*ErrorStatusCode) createAttributeRes()           {}
 func (*ErrorStatusCode) createCategoryRes()            {}
 func (*ErrorStatusCode) createOrderRes()               {}
 func (*ErrorStatusCode) createProductRes()             {}
+func (*ErrorStatusCode) createRoleRes()                {}
 func (*ErrorStatusCode) createShipmentRes()            {}
 func (*ErrorStatusCode) createStaffRes()               {}
 func (*ErrorStatusCode) createStockDocumentRes()       {}
@@ -1394,6 +1437,7 @@ func (*ErrorStatusCode) healthDeepRes()                {}
 func (*ErrorStatusCode) listAttributesRes()            {}
 func (*ErrorStatusCode) listCategoriesRes()            {}
 func (*ErrorStatusCode) listJobsRes()                  {}
+func (*ErrorStatusCode) listPermissionsRes()           {}
 func (*ErrorStatusCode) listProductsRes()              {}
 func (*ErrorStatusCode) listRolesRes()                 {}
 func (*ErrorStatusCode) listStaffRes()                 {}
@@ -1415,6 +1459,7 @@ func (*ErrorStatusCode) streamRes()                    {}
 func (*ErrorStatusCode) unlockStaffRes()               {}
 func (*ErrorStatusCode) updateCategoryRes()            {}
 func (*ErrorStatusCode) updateProductRes()             {}
+func (*ErrorStatusCode) updateRoleRes()                {}
 func (*ErrorStatusCode) updateSupplierRes()            {}
 func (*ErrorStatusCode) updateVariantRes()             {}
 
@@ -2006,6 +2051,10 @@ func (s *ListJobsStatus) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+type ListPermissionsOKApplicationJSON []PermissionInfo
+
+func (*ListPermissionsOKApplicationJSON) listPermissionsRes() {}
 
 type ListRolesOKApplicationJSON []Role
 
@@ -3558,6 +3607,113 @@ func (s *OrderStatus) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/PermissionInfo
+type PermissionInfo struct {
+	Key string `json:"key"`
+	// None = toàn shop từ gán bất kỳ; shop = quyền quản trị, chỉ hiệu lực khi gán
+	// toàn shop; warehouse, page = theo kho, theo Page.
+	ScopeType PermissionInfoScopeType `json:"scopeType"`
+	Group     string                  `json:"group"`
+	Label     string                  `json:"label"`
+}
+
+// GetKey returns the value of Key.
+func (s *PermissionInfo) GetKey() string {
+	return s.Key
+}
+
+// GetScopeType returns the value of ScopeType.
+func (s *PermissionInfo) GetScopeType() PermissionInfoScopeType {
+	return s.ScopeType
+}
+
+// GetGroup returns the value of Group.
+func (s *PermissionInfo) GetGroup() string {
+	return s.Group
+}
+
+// GetLabel returns the value of Label.
+func (s *PermissionInfo) GetLabel() string {
+	return s.Label
+}
+
+// SetKey sets the value of Key.
+func (s *PermissionInfo) SetKey(val string) {
+	s.Key = val
+}
+
+// SetScopeType sets the value of ScopeType.
+func (s *PermissionInfo) SetScopeType(val PermissionInfoScopeType) {
+	s.ScopeType = val
+}
+
+// SetGroup sets the value of Group.
+func (s *PermissionInfo) SetGroup(val string) {
+	s.Group = val
+}
+
+// SetLabel sets the value of Label.
+func (s *PermissionInfo) SetLabel(val string) {
+	s.Label = val
+}
+
+// None = toàn shop từ gán bất kỳ; shop = quyền quản trị, chỉ hiệu lực khi gán
+// toàn shop; warehouse, page = theo kho, theo Page.
+type PermissionInfoScopeType string
+
+const (
+	PermissionInfoScopeTypeNone      PermissionInfoScopeType = "none"
+	PermissionInfoScopeTypeShop      PermissionInfoScopeType = "shop"
+	PermissionInfoScopeTypeWarehouse PermissionInfoScopeType = "warehouse"
+	PermissionInfoScopeTypePage      PermissionInfoScopeType = "page"
+)
+
+// AllValues returns all PermissionInfoScopeType values.
+func (PermissionInfoScopeType) AllValues() []PermissionInfoScopeType {
+	return []PermissionInfoScopeType{
+		PermissionInfoScopeTypeNone,
+		PermissionInfoScopeTypeShop,
+		PermissionInfoScopeTypeWarehouse,
+		PermissionInfoScopeTypePage,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PermissionInfoScopeType) MarshalText() ([]byte, error) {
+	switch s {
+	case PermissionInfoScopeTypeNone:
+		return []byte(s), nil
+	case PermissionInfoScopeTypeShop:
+		return []byte(s), nil
+	case PermissionInfoScopeTypeWarehouse:
+		return []byte(s), nil
+	case PermissionInfoScopeTypePage:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PermissionInfoScopeType) UnmarshalText(data []byte) error {
+	switch PermissionInfoScopeType(data) {
+	case PermissionInfoScopeTypeNone:
+		*s = PermissionInfoScopeTypeNone
+		return nil
+	case PermissionInfoScopeTypeShop:
+		*s = PermissionInfoScopeTypeShop
+		return nil
+	case PermissionInfoScopeTypeWarehouse:
+		*s = PermissionInfoScopeTypeWarehouse
+		return nil
+	case PermissionInfoScopeTypePage:
+		*s = PermissionInfoScopeTypePage
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/PlatformHealth
 type PlatformHealth struct {
 	Processes []ProcessHealth `json:"processes"`
@@ -4411,11 +4567,22 @@ func (s *ReplaceStockDocumentLinesRequest) SetLines(val []StockDocumentLine) {
 
 // Ref: #/components/schemas/Role
 type Role struct {
-	Key         string     `json:"key"`
-	Name        string     `json:"name"`
-	Status      RoleStatus `json:"status"`
-	Customized  bool       `json:"customized"`
-	Permissions []string   `json:"permissions"`
+	ID     uuid.UUID  `json:"id"`
+	Key    string     `json:"key"`
+	Name   string     `json:"name"`
+	Status RoleStatus `json:"status"`
+	// Vai trò mẫu đã bị sửa hoặc vai trò tự tạo; bản cập nhật sau không tự thêm
+	// quyền vào.
+	Customized bool  `json:"customized"`
+	Version    int64 `json:"version"`
+	// Số nhân viên đang hoạt động có ít nhất một gán của vai trò này.
+	HolderCount int64    `json:"holderCount"`
+	Permissions []string `json:"permissions"`
+}
+
+// GetID returns the value of ID.
+func (s *Role) GetID() uuid.UUID {
+	return s.ID
 }
 
 // GetKey returns the value of Key.
@@ -4438,9 +4605,24 @@ func (s *Role) GetCustomized() bool {
 	return s.Customized
 }
 
+// GetVersion returns the value of Version.
+func (s *Role) GetVersion() int64 {
+	return s.Version
+}
+
+// GetHolderCount returns the value of HolderCount.
+func (s *Role) GetHolderCount() int64 {
+	return s.HolderCount
+}
+
 // GetPermissions returns the value of Permissions.
 func (s *Role) GetPermissions() []string {
 	return s.Permissions
+}
+
+// SetID sets the value of ID.
+func (s *Role) SetID(val uuid.UUID) {
+	s.ID = val
 }
 
 // SetKey sets the value of Key.
@@ -4463,10 +4645,24 @@ func (s *Role) SetCustomized(val bool) {
 	s.Customized = val
 }
 
+// SetVersion sets the value of Version.
+func (s *Role) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetHolderCount sets the value of HolderCount.
+func (s *Role) SetHolderCount(val int64) {
+	s.HolderCount = val
+}
+
 // SetPermissions sets the value of Permissions.
 func (s *Role) SetPermissions(val []string) {
 	s.Permissions = val
 }
+
+func (*Role) archiveRoleRes() {}
+func (*Role) createRoleRes()  {}
+func (*Role) updateRoleRes()  {}
 
 type RoleStatus string
 
@@ -6187,6 +6383,43 @@ func (s *UpdateProductRequest) SetArticle(val ArticleInput) {
 // SetStatus sets the value of Status.
 func (s *UpdateProductRequest) SetStatus(val OptProductStatus) {
 	s.Status = val
+}
+
+// Ref: #/components/schemas/UpdateRoleRequest
+type UpdateRoleRequest struct {
+	Version     int64    `json:"version"`
+	Name        string   `json:"name"`
+	Permissions []string `json:"permissions"`
+}
+
+// GetVersion returns the value of Version.
+func (s *UpdateRoleRequest) GetVersion() int64 {
+	return s.Version
+}
+
+// GetName returns the value of Name.
+func (s *UpdateRoleRequest) GetName() string {
+	return s.Name
+}
+
+// GetPermissions returns the value of Permissions.
+func (s *UpdateRoleRequest) GetPermissions() []string {
+	return s.Permissions
+}
+
+// SetVersion sets the value of Version.
+func (s *UpdateRoleRequest) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetName sets the value of Name.
+func (s *UpdateRoleRequest) SetName(val string) {
+	s.Name = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *UpdateRoleRequest) SetPermissions(val []string) {
+	s.Permissions = val
 }
 
 // Ref: #/components/schemas/UpdateSupplierRequest

@@ -1,10 +1,15 @@
 package identity
 
 import (
+	"cmp"
 	"context"
+	"crypto/rand"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -97,12 +102,15 @@ func SyncDefaultRoles(ctx context.Context, owner *db.DB) (int, error) {
 	return len(ids), nil
 }
 
-// RoleRow là một vai trò của tenant kèm quyền (đã sắp).
+// RoleRow là một vai trò của tenant kèm quyền (đã sắp). HolderCount: số nhân viên active có ít nhất một grant của
+// vai trò.
 type RoleRow struct {
 	ID          uuid.UUID
 	Key, Name   string
 	Status      string
 	Customized  bool
+	Version     int64
+	HolderCount int64
 	Permissions []Permission
 }
 
@@ -118,7 +126,10 @@ func ListRoles(ctx context.Context, tx pgx.Tx) ([]RoleRow, error) {
 		for _, p := range r.Permissions {
 			perms = append(perms, Permission(p))
 		}
-		out = append(out, RoleRow{ID: r.ID, Key: r.Key, Name: r.Name, Status: r.Status, Customized: r.Customized, Permissions: perms})
+		out = append(out, RoleRow{
+			ID: r.ID, Key: r.Key, Name: r.Name, Status: r.Status, Customized: r.Customized, Version: r.Version,
+			HolderCount: r.HolderCount, Permissions: perms,
+		})
 	}
 	return out, nil
 }
@@ -137,4 +148,379 @@ func roleIndex(roles []RoleRow) map[string]RoleRow {
 // dù gán theo kho (Task 315 lượt 2): người được gán không nhận được quyền hiệu lực nào mà actor không có.
 func hasAllPermissions(actor AuthUser, role RoleRow, scope Scope) bool {
 	return !slices.ContainsFunc(role.Permissions, func(p Permission) bool { return !Can(actor, p, &scope) })
+}
+
+// Lỗi của vai trò tự định nghĩa (Task M1-56; Q35). Dùng cùng ErrGrantExceedsActor, ErrVersionConflict, ErrInvalidInput,
+// ErrLocked của quản lý nhân viên. Lớp HTTP đổi sang mã ở internal/httpapi/errors.go.
+var (
+	// ErrOwnerRoleLocked: vai trò Chủ luôn đủ mọi quyền, không sửa, không lưu trữ được.
+	ErrOwnerRoleLocked = errors.New("identity: vai trò Chủ không sửa, không lưu trữ được")
+	// ErrRoleInUse: vai trò còn nhân viên active giữ, không lưu trữ được.
+	ErrRoleInUse = errors.New("identity: vai trò còn nhân viên đang giữ")
+	// ErrUnknownPermission: quyền không có trong Permissions.
+	ErrUnknownPermission = errors.New("identity: quyền không có trong hệ thống")
+	// ErrRoleNameTaken: đã có vai trò cùng tên (không phân biệt hoa thường, kể cả vai trò đã lưu trữ).
+	ErrRoleNameTaken = errors.New("identity: đã có vai trò cùng tên")
+	// ErrRoleArchived: vai trò đã lưu trữ, không sửa và không gán mới được.
+	ErrRoleArchived = errors.New("identity: vai trò đã lưu trữ")
+	// ErrRoleNotFound: không có vai trò với mã này trong tenant.
+	ErrRoleNotFound = errors.New("identity: không có vai trò này")
+)
+
+const (
+	permRolesManage    Permission = "identity.roles.manage"
+	roleStatusArchived string     = "archived"
+	customRolePrefix              = "custom_"
+	customRoleKeyLen              = 8
+	maxRoleName                   = 100
+	maxRolePermissions            = 200
+)
+
+// RoleInput là tên và bộ quyền của một vai trò khi tạo hay sửa.
+type RoleInput struct {
+	Name        string
+	Permissions []Permission
+}
+
+// RoleChange là vai trò trước và sau một lần ghi (để ghi audit). Before rỗng khi tạo.
+type RoleChange struct {
+	Before, After RoleRow
+}
+
+// CreateRole tạo vai trò tự định nghĩa (khóa "custom_" + 8 ký tự ngẫu nhiên, customized = true) trong tx của tenant
+// actor. Luật (vùng rủi ro cao), theo thứ tự: actor thiếu identity.roles.manage → ErrGrantExceedsActor; tên rỗng,
+// dài quá 100 ký tự hay có ký tự điều khiển → ErrInvalidInput; quyền lạ → ErrUnknownPermission; actor (đọc lại trong
+// transaction) thiếu một quyền ở phạm vi all → ErrGrantExceedsActor (bị khóa → ErrLocked); trùng tên →
+// ErrRoleNameTaken. Kiểm tên dưới khóa tư vấn của tenant nên hai lần tạo cùng tên cùng lúc chỉ một lần qua.
+func CreateRole(ctx context.Context, tx pgx.Tx, actor AuthUser, in RoleInput) (RoleRow, error) {
+	q := store.New(tx)
+	name, want, fresh, err := beginRoleWrite(ctx, q, actor, in)
+	if err != nil {
+		return RoleRow{}, err
+	}
+	if !canChangePermissions(fresh, nil, want) {
+		return RoleRow{}, ErrGrantExceedsActor
+	}
+	if err := q.LockRoleNames(ctx); err != nil {
+		return RoleRow{}, fmt.Errorf("khóa tên vai trò: %w", err)
+	}
+	if err := checkRoleName(ctx, tx, name, uuid.Nil); err != nil {
+		return RoleRow{}, err
+	}
+	id, err := q.InsertCustomRole(ctx, store.InsertCustomRoleParams{TenantID: actor.TenantID, Key: newRoleKey(), Name: name})
+	if err != nil {
+		return RoleRow{}, fmt.Errorf("ghi vai trò: %w", err)
+	}
+	for _, p := range want {
+		if err := q.AddRolePermission(ctx, store.AddRolePermissionParams{TenantID: actor.TenantID, RoleID: id, Permission: string(p)}); err != nil {
+			return RoleRow{}, fmt.Errorf("ghi quyền %s của vai trò: %w", p, err)
+		}
+	}
+	return getRole(ctx, tx, id)
+}
+
+// UpdateRole đặt tên và bộ quyền của roleID khi version còn khớp; version tăng 1, customized = true (EnsureDefaultRoles
+// không thêm lại quyền đã gỡ khỏi vai trò mẫu). Luật như CreateRole, cộng: không có vai trò → ErrRoleNotFound; vai trò
+// owner → ErrOwnerRoleLocked; đã lưu trữ → ErrRoleArchived; version khác → ErrVersionConflict; mọi quyền thêm vào hay gỡ
+// khỏi vai trò phải có ở actor phạm vi all → ErrGrantExceedsActor (nên không ai tự nâng quyền bằng cách sửa vai trò
+// mình giữ; gỡ quyền lạ còn sót trong database thì không cần). Khóa: tư vấn tên → dòng roles FOR UPDATE →
+// role_permissions (ADR-46 nhóm 2), không khóa users.
+func UpdateRole(ctx context.Context, tx pgx.Tx, actor AuthUser, roleID uuid.UUID, version int64, in RoleInput) (RoleChange, error) {
+	q := store.New(tx)
+	name, want, fresh, err := beginRoleWrite(ctx, q, actor, in)
+	if err != nil {
+		return RoleChange{}, err
+	}
+	if err := q.LockRoleNames(ctx); err != nil {
+		return RoleChange{}, fmt.Errorf("khóa tên vai trò: %w", err)
+	}
+	before, err := lockRole(ctx, tx, q, roleID, version)
+	if err != nil {
+		return RoleChange{}, err
+	}
+	if !canChangePermissions(fresh, before.Permissions, want) {
+		return RoleChange{}, ErrGrantExceedsActor
+	}
+	if err := checkRoleName(ctx, tx, name, roleID); err != nil {
+		return RoleChange{}, err
+	}
+	for _, p := range before.Permissions {
+		if !slices.Contains(want, p) {
+			if err := q.DeleteRolePermission(ctx, store.DeleteRolePermissionParams{RoleID: roleID, Permission: string(p)}); err != nil {
+				return RoleChange{}, fmt.Errorf("gỡ quyền %s khỏi vai trò: %w", p, err)
+			}
+		}
+	}
+	for _, p := range want {
+		if !slices.Contains(before.Permissions, p) {
+			if err := q.AddRolePermission(ctx, store.AddRolePermissionParams{TenantID: actor.TenantID, RoleID: roleID, Permission: string(p)}); err != nil {
+				return RoleChange{}, fmt.Errorf("thêm quyền %s vào vai trò: %w", p, err)
+			}
+		}
+	}
+	if _, err := q.UpdateRoleRow(ctx, store.UpdateRoleRowParams{ID: roleID, Name: name}); err != nil {
+		return RoleChange{}, fmt.Errorf("sửa vai trò: %w", err)
+	}
+	after, err := getRole(ctx, tx, roleID)
+	if err != nil {
+		return RoleChange{}, err
+	}
+	return RoleChange{Before: before, After: after}, nil
+}
+
+// ArchiveRole lưu trữ roleID khi version còn khớp và không còn nhân viên active nào giữ (ErrRoleInUse); version tăng 1.
+// Vai trò đã lưu trữ không gán mới được (ReplaceGrants → ErrRoleArchived) và không cho quyền (LoadUser bỏ qua).
+// Lưu trữ gỡ mọi quyền của vai trò khỏi người còn giữ (bị khóa), nên actor phải có mọi quyền đó ở phạm vi all như khi
+// gỡ quyền (ErrGrantExceedsActor). Lỗi khác như UpdateRole. Khóa dòng roles FOR UPDATE rồi đếm người giữ (không khóa
+// users): lần gán chạy cùng lúc khóa dòng vai trò FOR SHARE, nên hoặc chờ lưu trữ xong rồi thấy archived, hoặc đã
+// commit trước và được đếm.
+func ArchiveRole(ctx context.Context, tx pgx.Tx, actor AuthUser, roleID uuid.UUID, version int64) (RoleChange, error) {
+	q := store.New(tx)
+	fresh, err := checkRolesManager(ctx, q, actor)
+	if err != nil {
+		return RoleChange{}, err
+	}
+	before, err := lockRole(ctx, tx, q, roleID, version)
+	if err != nil {
+		return RoleChange{}, err
+	}
+	if !canChangePermissions(fresh, before.Permissions, nil) {
+		return RoleChange{}, ErrGrantExceedsActor
+	}
+	holders, err := q.CountActiveHolders(ctx, roleID)
+	if err != nil {
+		return RoleChange{}, fmt.Errorf("đếm người giữ vai trò: %w", err)
+	}
+	if holders > 0 {
+		return RoleChange{}, ErrRoleInUse
+	}
+	if _, err := q.ArchiveRoleRow(ctx, roleID); err != nil {
+		return RoleChange{}, fmt.Errorf("lưu trữ vai trò: %w", err)
+	}
+	after, err := getRole(ctx, tx, roleID)
+	if err != nil {
+		return RoleChange{}, err
+	}
+	return RoleChange{Before: before, After: after}, nil
+}
+
+// beginRoleWrite: phần đầu chung của tạo và sửa vai trò — quyền identity.roles.manage, chuẩn hóa đầu vào, quyền của
+// actor đọc lại trong transaction.
+func beginRoleWrite(ctx context.Context, q *store.Queries, actor AuthUser, in RoleInput) (string, []Permission, AuthUser, error) {
+	if !Can(actor, permRolesManage, nil) {
+		return "", nil, AuthUser{}, ErrGrantExceedsActor
+	}
+	name, want, err := normalizeRoleInput(in)
+	if err != nil {
+		return "", nil, AuthUser{}, err
+	}
+	fresh, err := checkRolesManager(ctx, q, actor)
+	if err != nil {
+		return "", nil, AuthUser{}, err
+	}
+	return name, want, fresh, nil
+}
+
+// checkRolesManager: actor có identity.roles.manage theo AuthUser của yêu cầu và theo grant đọc lại trong transaction
+// (actor vừa bị khóa → ErrLocked, vừa bị hạ quyền → ErrGrantExceedsActor). Trả AuthUser đọc lại.
+func checkRolesManager(ctx context.Context, q *store.Queries, actor AuthUser) (AuthUser, error) {
+	if !Can(actor, permRolesManage, nil) {
+		return AuthUser{}, ErrGrantExceedsActor
+	}
+	u, err := q.GetStaffUser(ctx, actor.UserID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return AuthUser{}, ErrLocked
+	}
+	if err != nil {
+		return AuthUser{}, fmt.Errorf("đọc lại người thao tác: %w", err)
+	}
+	if u.Status != statusActive {
+		return AuthUser{}, ErrLocked
+	}
+	fresh, err := freshGrants(ctx, q, actor)
+	if err != nil {
+		return AuthUser{}, err
+	}
+	if !Can(fresh, permRolesManage, nil) {
+		return AuthUser{}, ErrGrantExceedsActor
+	}
+	return fresh, nil
+}
+
+// lockRole khóa dòng vai trò FOR UPDATE và kiểm: có (ErrRoleNotFound), không phải owner (ErrOwnerRoleLocked), chưa lưu
+// trữ (ErrRoleArchived), version khớp (ErrVersionConflict). Trả vai trò (kèm quyền) đọc sau khi khóa.
+func lockRole(ctx context.Context, tx pgx.Tx, q *store.Queries, roleID uuid.UUID, version int64) (RoleRow, error) {
+	row, err := q.LockRole(ctx, roleID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return RoleRow{}, ErrRoleNotFound
+	}
+	if err != nil {
+		return RoleRow{}, fmt.Errorf("khóa vai trò: %w", err)
+	}
+	switch {
+	case row.Key == RoleKeyOwner:
+		return RoleRow{}, ErrOwnerRoleLocked
+	case row.Status == roleStatusArchived:
+		return RoleRow{}, ErrRoleArchived
+	case row.Version != version:
+		return RoleRow{}, ErrVersionConflict
+	}
+	return getRole(ctx, tx, roleID)
+}
+
+// getRole đọc một vai trò (kèm quyền, số người giữ) theo mã; không có → ErrRoleNotFound.
+func getRole(ctx context.Context, tx pgx.Tx, roleID uuid.UUID) (RoleRow, error) {
+	roles, err := ListRoles(ctx, tx)
+	if err != nil {
+		return RoleRow{}, err
+	}
+	i := slices.IndexFunc(roles, func(r RoleRow) bool { return r.ID == roleID })
+	if i < 0 {
+		return RoleRow{}, ErrRoleNotFound
+	}
+	return roles[i], nil
+}
+
+// checkRoleName: không vai trò nào khác except có cùng tên (không phân biệt hoa thường; tính cả vai trò đã lưu trữ).
+func checkRoleName(ctx context.Context, tx pgx.Tx, name string, except uuid.UUID) error {
+	roles, err := ListRoles(ctx, tx)
+	if err != nil {
+		return err
+	}
+	for _, r := range roles {
+		if r.ID != except && strings.EqualFold(strings.TrimSpace(r.Name), name) {
+			return ErrRoleNameTaken
+		}
+	}
+	return nil
+}
+
+// normalizeRoleInput: tên bỏ khoảng trắng hai đầu (1–100 ký tự, không ký tự điều khiển); quyền bỏ trùng, sắp, đều có
+// trong Permissions.
+func normalizeRoleInput(in RoleInput) (string, []Permission, error) {
+	name := strings.TrimSpace(in.Name)
+	if name == "" || utf8.RuneCountInString(name) > maxRoleName || !utf8.ValidString(name) ||
+		strings.ContainsFunc(name, unicode.IsControl) || len(in.Permissions) > maxRolePermissions {
+		return "", nil, ErrInvalidInput
+	}
+	want := slices.Clone(in.Permissions)
+	for _, p := range want {
+		if !IsKnown(p) {
+			return "", nil, ErrUnknownPermission
+		}
+	}
+	slices.Sort(want)
+	return name, nonNil(slices.Compact(want)), nil
+}
+
+// canChangePermissions: mọi quyền có ở đúng một trong before, after (thêm vào hay gỡ khỏi vai trò) thỏa
+// Can(actor, p, all). Quyền lạ còn sót trong database (không có trong Permissions) không cho ai gì nên gỡ tự do.
+func canChangePermissions(actor AuthUser, before, after []Permission) bool {
+	all := Scope{Type: ScopeAll}
+	for _, p := range before {
+		if !slices.Contains(after, p) && IsKnown(p) && !Can(actor, p, &all) {
+			return false
+		}
+	}
+	for _, p := range after {
+		if !slices.Contains(before, p) && !Can(actor, p, &all) {
+			return false
+		}
+	}
+	return true
+}
+
+// newRoleKey: "custom_" + 8 ký tự [a-z0-9] từ crypto/rand.
+func newRoleKey() string {
+	return customRolePrefix + strings.ToLower(rand.Text()[:customRoleKeyLen])
+}
+
+// PermissionInfo mô tả một quyền cho màn soạn vai trò: nhóm, nhãn tiếng Việt và loại phạm vi ("none": toàn shop từ
+// gán bất kỳ; "shop": quyền quản trị, chỉ hiệu lực khi gán toàn shop; "warehouse", "page": theo kho, theo Page).
+type PermissionInfo struct {
+	Key       Permission
+	ScopeType string
+	Group     string
+	Label     string
+}
+
+// Nhóm quyền theo thứ tự hiện trên màn Vai trò (mockup docs/mockups/m1/vai-tro.html).
+const (
+	groupCatalog   = "Sản phẩm"
+	groupInventory = "Kho"
+	groupOrder     = "Đơn hàng"
+	groupShipping  = "Vận chuyển và tiền"
+	groupCustomer  = "Khách hàng"
+	groupChat      = "Hội thoại"
+	groupPromo     = "Khuyến mại, báo cáo, cộng tác viên"
+	groupFiles     = "Tệp"
+	groupSystem    = "Hệ thống"
+	groupAdmin     = "Quản trị"
+)
+
+func permissionGroups() []string {
+	return []string{
+		groupCatalog, groupInventory, groupOrder, groupShipping, groupCustomer, groupChat, groupPromo, groupFiles,
+		groupSystem, groupAdmin,
+	}
+}
+
+// permissionLabels là bảng nhãn của mọi quyền: nhóm, nhãn, đích của quyền theo đích (warehouse, page). Quyền mới của
+// mốc sau thêm một dòng ở đây (test TestPermissionCatalog_Complete đỏ khi thiếu).
+func permissionLabels() map[Permission][3]string {
+	return map[Permission][3]string{
+		"catalog.read":               {groupCatalog, "Xem sản phẩm", ""},
+		"catalog.manage":             {groupCatalog, "Sửa sản phẩm, ảnh, phân loại", ""},
+		"catalog.import":             {groupCatalog, "Nhập sản phẩm từ Excel", ""},
+		"inventory.read":             {groupInventory, "Xem tồn kho và phiếu", ScopeWarehouse},
+		"inventory.documents.create": {groupInventory, "Soạn phiếu kho", ScopeWarehouse},
+		"inventory.documents.post":   {groupInventory, "Ghi sổ phiếu kho", ScopeWarehouse},
+		"inventory.stocktake":        {groupInventory, "Đếm kiểm kho", ScopeWarehouse},
+		"inventory.stocktake.apply":  {groupInventory, "Áp dụng kiểm kho", ScopeWarehouse},
+		"inventory.suppliers.manage": {groupInventory, "Quản lý nhà cung cấp", ""},
+		"order.create":               {groupOrder, "Lên đơn", ""},
+		"order.read":                 {groupOrder, "Xem đơn", ""},
+		"fulfillment.read":           {groupShipping, "Xem vận đơn", ScopeWarehouse},
+		"fulfillment.ship":           {groupShipping, "Tạo vận đơn, giao hàng", ScopeWarehouse},
+		"conversation.read":          {groupChat, "Xem hội thoại", ScopePage},
+		"files.upload":               {groupFiles, "Tải tệp lên", ""},
+		"platform.files.manage":      {groupFiles, "Kiểm tệp, tạo lại cỡ ảnh", ""},
+		"realtime.subscribe":         {groupSystem, "Nhận cập nhật tức thì", ""},
+		"platform.health.read":       {groupSystem, "Xem sức khỏe hệ thống", ""},
+		"platform.jobs.manage":       {groupSystem, "Xử lý việc nền hỏng", ""},
+		"audit.read":                 {groupSystem, "Xem nhật ký thao tác", ""},
+		"identity.users.manage":      {groupAdmin, "Quản lý nhân viên", ""},
+		"identity.roles.manage":      {groupAdmin, "Quản lý vai trò", ""},
+	}
+}
+
+// PermissionCatalog trả mọi quyền của Permissions kèm nhóm, nhãn, loại phạm vi; sắp theo nhóm (thứ tự của màn) rồi theo
+// thứ tự trong Permissions. Quyền thiếu nhãn có Group, Label rỗng (test bắt).
+func PermissionCatalog() []PermissionInfo {
+	labels := permissionLabels()
+	groups := permissionGroups()
+	out := make([]PermissionInfo, 0, len(Permissions))
+	for _, d := range Permissions {
+		l := labels[d.Key]
+		scope := "none"
+		switch d.Scope {
+		case ScopeShop:
+			scope = "shop"
+		case ScopeByTarget:
+			scope = l[2]
+		case ScopeNone:
+		}
+		out = append(out, PermissionInfo{Key: d.Key, ScopeType: scope, Group: l[0], Label: l[1]})
+	}
+	slices.SortStableFunc(out, func(a, b PermissionInfo) int {
+		return cmp.Compare(groupRank(groups, a.Group), groupRank(groups, b.Group))
+	})
+	return out
+}
+
+func groupRank(groups []string, g string) int {
+	if i := slices.Index(groups, g); i >= 0 {
+		return i
+	}
+	return len(groups)
 }
