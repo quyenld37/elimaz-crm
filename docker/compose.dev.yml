@@ -1,8 +1,10 @@
-# Hạ tầng dev của CRM (kế hoạch M0 bản 5, Task 1). Image ghim theo digest.
-# Cổng đọc từ biến môi trường để nhiều phiên chạy song song trên một máy;
-# mặc định đúng cổng của kế hoạch: PostgreSQL 5442, Jaeger UI 16686, OTLP 4318.
+# Hạ tầng dev của CRM (kế hoạch M0 bản 5, Task 1; mọi dịch vụ dev của M1 thêm một lần ở Task M1-40). Image ghim
+# theo digest. Cổng đọc từ biến môi trường để nhiều phiên chạy song song trên một máy; mặc định đúng cổng của kế
+# hoạch: PostgreSQL 5442, Jaeger UI 16686, OTLP 4318, SeaweedFS 8333, kho ngoài giả 8334, imager 4193, fakecarrier 4194.
 #   docker compose -f docker/compose.dev.yml up -d --wait
-#   CRM_PG_PORT=5452 docker compose -p crm-khac -f docker/compose.dev.yml up -d --wait
+#   CRM_PG_PORT=5452 CRM_S3_PORT=8440 docker compose -p crm-khac -f docker/compose.dev.yml up -d --wait
+# imager, fakecarrier, filesync chỉ chạy khi bật profile cùng tên (mã của chúng có ở Task M1-42, M1-31, M1-45);
+# `make dev` tự bật profile nào đã có Dockerfile.
 name: crm
 
 services:
@@ -32,5 +34,120 @@ services:
       - "127.0.0.1:${CRM_JAEGER_UI_PORT:-16686}:16686"
       - "127.0.0.1:${CRM_OTLP_PORT:-4318}:4318"
 
+  # Kho tệp chính (ADR-36). Khóa dev cố định trong seaweedfs/s3.json, chỉ cho máy dev.
+  seaweedfs:
+    image: &seaweedfs chrislusf/seaweedfs:4.48@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d
+    # -ip.bind=0.0.0.0: có hai mạng (default, imaging) thì weed chỉ nghe trên IP tự chọn, cổng mở ra máy không tới.
+    # -s3.allowedOrigins là CORS chung cho bucket không có CORS riêng (mặc định "*"): đặt một gốc không tồn tại để chỉ
+    # crm-tmp (CORS riêng do bootstrap.sh đặt từ CONSOLE_ORIGINS) nhận tải thẳng từ trình duyệt.
+    command: ["server", "-dir=/data", "-ip.bind=0.0.0.0", "-s3", "-s3.port=8333", "-s3.config=/etc/seaweedfs/s3.json",
+      "-s3.allowedOrigins=https://khong-cho-phep.invalid", "-master.volumeSizeLimitMB=64"]
+    ports:
+      - "127.0.0.1:${CRM_S3_PORT:-8333}:8333"
+    volumes:
+      - seaweed:/data
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    networks: [default, imaging]
+    healthcheck: &weedhealth
+      test: ["CMD-SHELL", "curl -s -o /dev/null http://127.0.0.1:8333/"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+
+  # Kho ngoài giả (thay Backblaze B2 ở dev, Task M1-45, M1-46): chỉ crm-filesync ghi, không ai xóa được.
+  seaweedfs-offsite:
+    image: *seaweedfs
+    command: ["server", "-dir=/data", "-s3", "-s3.port=8333", "-s3.config=/etc/seaweedfs/s3.json",
+      "-master.volumeSizeLimitMB=64"]
+    ports:
+      - "127.0.0.1:${CRM_S3_OFFSITE_PORT:-8334}:8333"
+    volumes:
+      - seaweed-offsite:/data
+      - ./seaweedfs/s3-offsite.json:/etc/seaweedfs/s3.json:ro
+    healthcheck: *weedhealth
+
+  # Tạo bucket, giữ phiên bản, chính sách, hạn, CORS cho cả hai kho (chạy lại không lỗi), rồi ngồi chờ: container đã
+  # thoát làm `up --wait` báo lỗi, nên "xong" là healthcheck thấy /tmp/xong. Chạy lại: docker compose restart s3-bootstrap.
+  s3-bootstrap:
+    image: *seaweedfs
+    entrypoint: ["sh", "-ec"]
+    command:
+      - |
+        rm -f /tmp/xong
+        /opt/bootstrap.sh main http://seaweedfs:8333 /etc/seaweedfs/s3.json
+        /opt/bootstrap.sh offsite http://seaweedfs-offsite:8333 /etc/seaweedfs/s3-offsite.json
+        touch /tmp/xong
+        exec sleep infinity
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/xong"]
+      interval: 1s
+      timeout: 2s
+      retries: 120
+    init: true
+    environment:
+      CONSOLE_ORIGINS: ${CONSOLE_ORIGINS:-http://localhost:4192}
+    volumes:
+      - ./seaweedfs/bootstrap.sh:/opt/bootstrap.sh:ro
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+      - ./seaweedfs/s3-offsite.json:/etc/seaweedfs/s3-offsite.json:ro
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+      seaweedfs-offsite:
+        condition: service_healthy
+
+  # Giải mã ảnh (ADR-45, Task M1-42). Không biến bí mật, không database; chỉ mạng `imaging` với kho tệp.
+  imager:
+    profiles: [imager]
+    build:
+      context: ..
+      dockerfile: docker/imager/Dockerfile
+    image: crm-imager:dev
+    environment:
+      PORT: "4193"
+      IMAGER_MAX_PARALLEL: "2"
+      IMAGER_STEP_TIMEOUT: 10s
+      IMAGER_STEP_MEMORY: "1073741824"
+    ports:
+      - "127.0.0.1:${CRM_IMAGER_PORT:-4193}:4193"
+    networks: [imaging]
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 2g
+    cpus: 2
+    user: "65534:65534"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  # Hãng vận chuyển giả (Task M1-31), chỉ dev và staging.
+  fakecarrier:
+    profiles: [fakecarrier]
+    build:
+      context: ..
+      dockerfile: tools/fakecarrier/Dockerfile
+    image: crm-fakecarrier:dev
+    ports:
+      - "127.0.0.1:${CRM_FAKECARRIER_PORT:-4194}:4194"
+
+  # Chép kho chính sang kho ngoài giả mỗi giờ (Task M1-45), danh tính crm-filesync.
+  filesync:
+    profiles: [filesync]
+    build:
+      context: ..
+      dockerfile: docker/filesync/Dockerfile
+    image: crm-filesync:dev
+    depends_on:
+      s3-bootstrap:
+        condition: service_healthy
+
+networks:
+  # Mạng riêng của imager: chỉ imager, kho tệp chính (và worker khi worker chạy trong compose). Không `internal: true`
+  # ở dev: Docker bỏ cổng mở ra máy của container chỉ nằm trên mạng internal (đo 18/11/2026, task-40.md Q3), mà worker
+  # dev chạy trên máy cần gọi 127.0.0.1:4193. Chặn imager ra internet là việc của compose production.
+  imaging: {}
+
 volumes:
   pgdata:
+  seaweed:
+  seaweed-offsite:

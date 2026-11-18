@@ -2,7 +2,7 @@
 #
 # Cổng mặc định đúng kế hoạch (PostgreSQL 5442, Jaeger UI 16686, OTLP 4318). Nhiều phiên chạy song song
 # trên một máy thì mỗi phiên đặt tên dự án compose và cổng riêng, ví dụ:
-#   make db-up COMPOSE_PROJECT=crm-t02 CRM_PG_PORT=5452
+#   make db-up COMPOSE_PROJECT=crm-t02 CRM_PG_PORT=5452 CRM_S3_PORT=8440 CRM_S3_OFFSITE_PORT=8441
 #   make spike-test CRM_PG_PORT=5452
 # Test đọc chuỗi kết nối từ CRM_TEST_DATABASE_URL (crm_app); mặc định dựng từ CRM_PG_PORT.
 
@@ -14,12 +14,27 @@ export CRM_PG_PORT
 CRM_TEST_DATABASE_URL ?= postgres://crm_app:crm_app_dev@127.0.0.1:$(CRM_PG_PORT)/crm?sslmode=disable
 export CRM_TEST_DATABASE_URL
 
+CRM_S3_PORT ?= 8333
+CRM_S3_OFFSITE_PORT ?= 8334
+export CRM_S3_PORT CRM_S3_OFFSITE_PORT
+
 COMPOSE := docker compose -p $(COMPOSE_PROJECT) -f docker/compose.dev.yml
 
-.PHONY: db-up db-down db-reset spike-test
+# Dịch vụ M1 có profile riêng; `dev` chỉ bật profile nào đã có Dockerfile (Task M1-42, M1-31, M1-45 thêm).
+DEV_PROFILES := $(if $(wildcard docker/imager/Dockerfile),--profile imager) \
+	$(if $(wildcard tools/fakecarrier/Dockerfile),--profile fakecarrier) \
+	$(if $(wildcard docker/filesync/Dockerfile),--profile filesync)
 
-db-up: ## Dựng PostgreSQL 18 và Jaeger dev, chờ tới khi sẵn sàng
+.PHONY: db-up db-down db-reset dev probe-test spike-test
+
+db-up: ## Dựng PostgreSQL 18, Jaeger, SeaweedFS (kho chính, kho ngoài giả, tạo bucket), chờ tới khi sẵn sàng
 	$(COMPOSE) up -d --wait
+
+dev: ## Như db-up, cộng các dịch vụ M1 đã có mã (imager, fakecarrier, filesync)
+	$(COMPOSE) $(DEV_PROFILES) up -d --wait --build
+
+probe-test: ## Phép thử SeaweedFS (Task M1-40) trên compose dev: make dev trước; ghi số đo vào docs/do-luong/seaweedfs-m1.md
+	go test -tags probe -count=1 -v ./tests/probe/...
 
 db-down: ## Dừng container, giữ dữ liệu
 	$(COMPOSE) down
