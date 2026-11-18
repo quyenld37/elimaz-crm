@@ -5,10 +5,28 @@
 package store
 
 import (
+	"net/netip"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type IdentityAuditLog struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	ActorType     string
+	ActorID       pgtype.Text
+	Action        string
+	EntityType    string
+	EntityID      pgtype.Text
+	ChangedFields []string
+	Before        []byte
+	After         []byte
+	Ip            *netip.Addr
+	RequestID     pgtype.Text
+	CreatedAt     time.Time
+}
 
 type IdentityRole struct {
 	ID        uuid.UUID
