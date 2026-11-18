@@ -2,25 +2,20 @@ package customer_test
 
 import (
 	"errors"
-	"io/fs"
 	"regexp"
 	"strings"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
 
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/platform/textnorm"
 	"elimaz.com.vn/crm/internal/testkit"
-	"elimaz.com.vn/crm/migrations"
 )
 
 // foldSamples: 11 mẫu khác rỗng của TestFold (M1 Task 27; mẫu rỗng không chèn được vì full_name 1–120 ký tự, đã kiểm ở
@@ -33,96 +28,14 @@ func foldSamples() []string {
 	}
 }
 
-// migrateBefore chạy mọi migration có số nhỏ hơn 0201 (trạng thái của M1) bằng goose, như db.Migrate.
-func migrateBefore(t *testing.T, ownerURL string) {
-	t.Helper()
-	ctx := t.Context()
-	cc, err := pgx.ParseConfig(ownerURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cc.DefaultQueryExecMode = pgx.QueryExecModeExec
-	conn, err := pgx.ConnectConfig(ctx, cc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := conn.Exec(ctx, "CREATE SCHEMA IF NOT EXISTS platform"); err != nil {
-		t.Fatal(err)
-	}
-	_ = conn.Close(ctx)
-
-	old := fstest.MapFS{}
-	entries, err := fs.ReadDir(migrations.FS, ".")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), ".sql") && e.Name() < "0201" {
-			b, err := fs.ReadFile(migrations.FS, e.Name())
-			if err != nil {
-				t.Fatal(err)
-			}
-			old[e.Name()] = &fstest.MapFile{Data: b}
-		}
-	}
-	sqlDB := stdlib.OpenDB(*cc)
-	defer func() { _ = sqlDB.Close() }()
-	p, err := goose.NewProvider(goose.DialectPostgres, sqlDB, old,
-		goose.WithTableName("platform.goose_db_version"), goose.WithDisableGlobalRegistry(true),
-		goose.WithAllowOutofOrder(true))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := p.Up(ctx); err != nil {
-		t.Fatalf("migrate tới trước 0201: %v", err)
-	}
-}
-
-type viewCol struct{ name, typ string }
-
-func viewColumns(t *testing.T, owner *db.DB, view string) []viewCol {
-	t.Helper()
-	rows, err := owner.Pool.Query(t.Context(), `
-		SELECT column_name::text, data_type::text FROM information_schema.columns
-		WHERE table_schema = 'customer' AND table_name = $1 ORDER BY ordinal_position`, view)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cols, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (viewCol, error) {
-		var c viewCol
-		return c, r.Scan(&c.name, &c.typ)
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return cols
-}
-
-func open(t *testing.T, url string) *db.DB {
-	t.Helper()
-	d, err := db.Open(t.Context(), url, db.PoolOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(d.Pool.Close)
-	return d
-}
-
-func inTenant(t *testing.T, d *db.DB, tenant uuid.UUID, fn func(tx pgx.Tx) error) {
-	t.Helper()
-	if err := tenancy.WithTenant(t.Context(), d, tenant, fn); err != nil {
-		t.Fatal(err)
-	}
-}
-
 var khCode = regexp.MustCompile(`^KH\d{6,}$`)
 
 // Mở rộng bảng của M1: khách có sẵn trước 0201 được điền code, name_search; root_id giữ; customer.Create của M1 vẫn
 // chạy sau migrate; customers_v giữ 4 cột đầu cùng kiểu.
 func TestSchemaExtendsM1Customers(t *testing.T) {
 	_, ownerURL, appURL := testkit.CreateDatabase(t)
-	migrateBefore(t, ownerURL)
-	owner, app := open(t, ownerURL), open(t, appURL)
+	testkit.MigrateBefore(t, ownerURL, "0201")
+	owner, app := testkit.OpenDB(t, ownerURL), testkit.OpenDB(t, appURL)
 
 	var tenant uuid.UUID
 	if err := owner.Pool.QueryRow(t.Context(), "INSERT INTO platform.tenants (name) VALUES ('A') RETURNING id").
@@ -130,7 +43,7 @@ func TestSchemaExtendsM1Customers(t *testing.T) {
 		t.Fatal(err)
 	}
 	seeded := seedBefore0201(t, owner, app, tenant)
-	before := viewColumns(t, owner, "customers_v")
+	before := testkit.Columns(t, owner, "customer", "customers_v")
 
 	if _, err := db.Migrate(t.Context(), ownerURL); err != nil {
 		t.Fatalf("migrate 0201: %v", err)
@@ -142,7 +55,7 @@ func TestSchemaExtendsM1Customers(t *testing.T) {
 	}
 
 	// customers_v: 4 cột của M1 ở vị trí 1–4 cùng kiểu, rồi 11 cột M2.
-	after := viewColumns(t, owner, "customers_v")
+	after := testkit.Columns(t, owner, "customer", "customers_v")
 	if len(before) != 4 || len(after) != 15 {
 		t.Fatalf("customers_v trước %v, sau %v", before, after)
 	}
@@ -160,7 +73,7 @@ func seedBefore0201(t *testing.T, owner, app *db.DB, tenant uuid.UUID) int {
 	t.Helper()
 	ctx := t.Context()
 	m1Names := []string{"Chị Lan", "Nguyễn Thị Hồng Nhung", "Anh Bình"}
-	inTenant(t, app, tenant, func(tx pgx.Tx) error {
+	testkit.InTenant(t, app, tenant, func(tx pgx.Tx) error {
 		for _, n := range m1Names {
 			if _, err := customer.Create(ctx, tx, n); err != nil {
 				return err //nolint:wrapcheck // test
@@ -169,7 +82,7 @@ func seedBefore0201(t *testing.T, owner, app *db.DB, tenant uuid.UUID) int {
 		return nil
 	})
 	samples := foldSamples()
-	inTenant(t, owner, tenant, func(tx pgx.Tx) error {
+	testkit.InTenant(t, owner, tenant, func(tx pgx.Tx) error {
 		for _, n := range samples {
 			if _, err := tx.Exec(ctx, `INSERT INTO customer.customers (id, tenant_id, root_id, full_name)
 				SELECT g, $1, g, $2 FROM uuidv7() AS g`, tenant, n); err != nil {
@@ -191,7 +104,7 @@ type backfilledRow struct {
 func checkBackfilled(t *testing.T, owner *db.DB, tenant uuid.UUID) map[string]bool {
 	t.Helper()
 	var got []backfilledRow
-	inTenant(t, owner, tenant, func(tx pgx.Tx) error {
+	testkit.InTenant(t, owner, tenant, func(tx pgx.Tx) error {
 		rows, err := tx.Query(t.Context(), "SELECT id, root_id, code, full_name, name_search FROM customer.customers")
 		if err != nil {
 			return err //nolint:wrapcheck // test
@@ -223,7 +136,7 @@ func checkBackfilled(t *testing.T, owner *db.DB, tenant uuid.UUID) map[string]bo
 func checkM1CreateAfter(t *testing.T, app *db.DB, tenant uuid.UUID, codes map[string]bool) {
 	t.Helper()
 	ctx := t.Context()
-	inTenant(t, app, tenant, func(tx pgx.Tx) error {
+	testkit.InTenant(t, app, tenant, func(tx pgx.Tx) error {
 		id, err := customer.Create(ctx, tx, "Khách Mới")
 		if err != nil {
 			return err //nolint:wrapcheck // test
@@ -260,7 +173,7 @@ func newSchemaEnv(t *testing.T) *schemaEnv {
 		tenant uuid.UUID
 		id     *uuid.UUID
 	}{{e.a, &e.custA}, {e.b, &e.custB}} {
-		inTenant(t, e.staff.App, p.tenant, func(tx pgx.Tx) error {
+		testkit.InTenant(t, e.staff.App, p.tenant, func(tx pgx.Tx) error {
 			id, err := customer.Create(t.Context(), tx, "Khách")
 			*p.id = id
 			return err //nolint:wrapcheck // test
@@ -281,7 +194,7 @@ func TestSchemaRootDefaultAndIdentityUnique(t *testing.T) {
 	e := newSchemaEnv(t)
 	ctx := t.Context()
 	// Chèn không có root_id → root_id = id.
-	inTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
+	testkit.InTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
 		var id, root uuid.UUID
 		if err := tx.QueryRow(ctx, `INSERT INTO customer.customers (tenant_id, full_name)
 			VALUES ($1, 'Không gốc') RETURNING id, root_id`, e.a).Scan(&id, &root); err != nil {
@@ -294,7 +207,7 @@ func TestSchemaRootDefaultAndIdentityUnique(t *testing.T) {
 	})
 
 	var other uuid.UUID
-	inTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
+	testkit.InTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
 		var err error
 		other, err = customer.Create(ctx, tx, "Khách khác")
 		return err //nolint:wrapcheck // test
@@ -329,23 +242,15 @@ func TestSchemaRootDefaultAndIdentityUnique(t *testing.T) {
 func TestSchemaNotesAppendOnly(t *testing.T) {
 	e := newSchemaEnv(t)
 	ctx := t.Context()
-	inTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
+	testkit.InTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `INSERT INTO customer.customer_notes (tenant_id, customer_id, body, author_id)
 			VALUES ($1, $2, 'ghi chú', $3)`, e.a, e.custA, uuid.New())
 		return err //nolint:wrapcheck // test
 	})
-	for _, q := range []string{
-		"UPDATE customer.customer_notes SET body = 'sửa'",
-		"DELETE FROM customer.customer_notes",
-	} {
-		err := e.staff.TryExec(ctx, e.a, func(tx pgx.Tx) error {
-			_, err := tx.Exec(ctx, q)
-			return err //nolint:wrapcheck // test
-		})
-		if err == nil || !strings.Contains(err.Error(), "append-only") {
-			t.Errorf("chủ bảng %q: %v, mong lỗi append-only", q, err)
-		}
-		err = tenancy.WithTenant(ctx, e.staff.App, e.a, func(tx pgx.Tx) error {
+	qs := []string{"UPDATE customer.customer_notes SET body = 'sửa'", "DELETE FROM customer.customer_notes"}
+	e.staff.CheckOwnerAppendOnly(t, e.a, qs...)
+	for _, q := range qs {
+		err := tenancy.WithTenant(ctx, e.staff.App, e.a, func(tx pgx.Tx) error {
 			_, err := tx.Exec(ctx, q)
 			return err //nolint:wrapcheck // test
 		})
@@ -359,7 +264,7 @@ func TestSchemaNotesAppendOnly(t *testing.T) {
 func TestSchemaTenantIsolation(t *testing.T) {
 	e := newSchemaEnv(t)
 	ctx := t.Context()
-	inTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
+	testkit.InTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
 		var tag uuid.UUID
 		stmts := []struct {
 			q    string
@@ -407,7 +312,7 @@ func TestSchemaTenantIsolation(t *testing.T) {
 			want   int
 		}{{e.a, 1}, {e.b, 0}} {
 			var got int
-			inTenant(t, e.staff.App, c.tenant, func(tx pgx.Tx) error {
+			testkit.InTenant(t, e.staff.App, c.tenant, func(tx pgx.Tx) error {
 				return tx.QueryRow(ctx, q, e.a).Scan(&got)
 			})
 			if got != c.want {
@@ -417,7 +322,7 @@ func TestSchemaTenantIsolation(t *testing.T) {
 	}
 	// customers_v: B không thấy khách của A.
 	var got int
-	inTenant(t, e.staff.App, e.b, func(tx pgx.Tx) error {
+	testkit.InTenant(t, e.staff.App, e.b, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, "SELECT count(*) FROM customer.customers_v WHERE id = $1", e.custA).Scan(&got)
 	})
 	if got != 0 {
@@ -437,24 +342,7 @@ func TestSchemaViewsAndRules(t *testing.T) {
 		"customer_tags_v":      "tenant_id, id, name, color",
 		"customer_tag_links_v": "tenant_id, customer_id, tag_id, source",
 	}
-	for view, cols := range want {
-		var names []string
-		for _, c := range viewColumns(t, owner, view) {
-			names = append(names, c.name)
-		}
-		if got := strings.Join(names, ", "); got != cols {
-			t.Errorf("%s: cột %q, mong %q", view, got, cols)
-		}
-		var invoker bool
-		if err := owner.Pool.QueryRow(t.Context(), `
-			SELECT coalesce('security_invoker=true' = ANY (c.reloptions), false) FROM pg_class c
-			WHERE c.oid = ('customer.' || $1)::regclass`, view).Scan(&invoker); err != nil {
-			t.Fatal(err)
-		}
-		if !invoker {
-			t.Errorf("%s thiếu security_invoker", view)
-		}
-	}
+	testkit.CheckViews(t, owner, "customer", want)
 
 	// Mọi index của bảng customer.* bắt đầu bằng tenant_id.
 	rows, err := owner.Pool.Query(t.Context(), `
@@ -474,13 +362,7 @@ func TestSchemaViewsAndRules(t *testing.T) {
 		t.Errorf("index không bắt đầu bằng tenant_id: %v", bad)
 	}
 
-	got, err := tenancy.CheckSchemaRules(t.Context(), owner.Pool, []string{"platform.tenant_routes", "platform.jobs"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 0 {
-		t.Fatalf("CheckSchemaRules phải rỗng, có:\n%s", strings.Join(got, "\n"))
-	}
+	testkit.CheckSchemaRulesClean(t, owner)
 }
 
 // Ràng buộc mới của customers: lifecycle, chỉ số không âm; khóa màu nhãn.
@@ -501,7 +383,7 @@ func TestSchemaChecks(t *testing.T) {
 		}
 	}
 	for _, l := range []customer.Lifecycle{customer.LifecycleLead, customer.LifecycleCustomer} {
-		inTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
+		testkit.InTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
 			_, err := tx.Exec(ctx, "UPDATE customer.customers SET lifecycle = $2 WHERE id = $1", e.custA, string(l))
 			return err //nolint:wrapcheck // test
 		})
@@ -510,7 +392,7 @@ func TestSchemaChecks(t *testing.T) {
 		customer.IdentityPhone, customer.IdentityFBPSID, customer.IdentityZaloUID, customer.IdentityEmail,
 		customer.IdentityWebAccount,
 	} {
-		inTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
+		testkit.InTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
 			_, err := tx.Exec(ctx, `INSERT INTO customer.customer_identities (tenant_id, customer_id, kind, value, source)
 				VALUES ($1, $2, $3, 'v', 'staff')`, e.a, e.custA, string(k))
 			return err //nolint:wrapcheck // test
