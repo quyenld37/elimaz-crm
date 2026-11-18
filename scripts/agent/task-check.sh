@@ -4,7 +4,7 @@
 # Thoát 0: đủ, hoặc không có task đang chạy. Thoát 1: thiếu (in danh sách ra stderr).
 set -u
 cd "${CLAUDE_PROJECT_DIR:-$(pwd)}" || exit 0
-state=docs/tasks/hien-tai.md
+state="$(git rev-parse --git-dir)/crm-task-state"
 [ -f "$state" ] || exit 0
 n=$(sed -n 's/^Task: *//p' "$state" | head -1)
 st=$(sed -n 's/^Trạng thái: *//p' "$state" | head -1)

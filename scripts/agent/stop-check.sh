@@ -7,7 +7,7 @@ cd "${CLAUDE_PROJECT_DIR:-$(pwd)}" || exit 0
 export HIGH_RISK_DIRS
 
 # Dừng để hỏi chủ shop là lối ra hợp lệ, kể cả khi test đang đỏ (ghi rõ trong tệp task).
-n=$(sed -n 's/^Task: *//p' docs/tasks/hien-tai.md 2>/dev/null | head -1)
+n=$(sed -n 's/^Task: *//p' "$(git rev-parse --git-dir)/crm-task-state" 2>/dev/null | head -1)
 if [ -n "$n" ] && [ -f "docs/tasks/task-$n.md" ] && awk '/^## Dừng để hỏi/{on=1;next} /^## /{on=0} on && NF' "docs/tasks/task-$n.md" | grep -q .; then
   exit 0
 fi

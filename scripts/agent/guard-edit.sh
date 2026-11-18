@@ -20,7 +20,7 @@ case "$path" in
 esac
 
 case "$rel" in
-  .claude/*|scripts/agent/*|.githooks/*|.git/*|docs/tasks/hien-tai.md)
+  .claude/*|scripts/agent/*|.githooks/*|.git/*|docs/tasks/hien-tai.md|*crm-task-state*)
     echo "Chặn: $rel thuộc phần cấu hình quy trình (hook, agent, git hook, trạng thái task). Chỉ chủ shop đổi. Đổi trạng thái task bằng scripts/agent/new-task.sh hoặc finish-task.sh." >&2
     exit 2 ;;
 esac

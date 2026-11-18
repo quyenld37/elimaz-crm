@@ -253,7 +253,7 @@ Phiên mới và subagent **không nhớ cuộc trò chuyện**. Chúng chỉ bi
 | `CLAUDE.md` | gốc `apps/crm` | Luật chung, các bước làm task, lệnh; nạp ở mọi phiên và subagent (trừ Explore, Plan), nạp lại sau khi nén |
 | Luật theo vùng | `.claude/rules/*.md` | Luật Go, migration, OpenAPI, màn hình; nạp khi chạm tệp khớp |
 | Hook SessionStart | `scripts/agent/session-start.sh` | Nhắc task đang chạy và luật bắt buộc ở mỗi phiên mới, sau `/clear`, sau khi nén |
-| Hook chặn sửa | `scripts/agent/guard-edit.sh` | Không sửa tay mã sinh, migration đã commit; không sửa cấu hình quy trình (`.claude/`, `scripts/agent/`, `.githooks/`, `.git/`, `docs/tasks/hien-tai.md`) |
+| Hook chặn sửa | `scripts/agent/guard-edit.sh` | Không sửa tay mã sinh, migration đã commit; không sửa cấu hình quy trình (`.claude/`, `scripts/agent/`, `.githooks/`, `.git/`, `<git-dir>/crm-task-state (ngoài git từ 18/11)`) |
 | Hook lệnh shell | `scripts/agent/bashguard.py` | Phân tích lệnh thật: chặn push (mọi cách viết), `commit -a/--amend/--no-verify`, commit kèm đường dẫn, gộp `git add` với `git commit`, đổi `core.hooksPath`, `bash -c`; lệnh nhắc tới phần cấu hình quy trình chỉ qua khi mọi lệnh trong đó là lệnh đọc hoặc script quy trình được phép (danh sách cho phép); reviewer chỉ được chạy lệnh đọc |
 | Hook khi dừng | `scripts/agent/stop-check.sh` | Build, vet, lint, test gói đổi và gói phụ thuộc, mã sinh không lệch, dò trùng, test không bị xóa; "Dừng để hỏi" là lối ra hợp lệ |
 | Dấu duyệt reviewer | `review-stamp.sh` (hook `SubagentStop` cho agent `reviewer`) | Khi reviewer kết luận `## Kết luận: ĐẠT`, hook ghi dấu vào `<git-dir>/crm-review/<mã băm phần mã đã stage>`, trỏ tới bản ghi hội thoại của reviewer; agent không ghi dấu này |

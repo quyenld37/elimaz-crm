@@ -19,7 +19,7 @@ Tệp này viết tay, giữ dưới 200 dòng. Chỉ ghi điều không đọc 
 
 Quy trình đầy đủ: `docs/quy-trinh-lam-viec.md`. Mỗi task một phiên sạch (`/clear` giữa hai task).
 
-0. Tạo tệp task: `scripts/agent/new-task.sh NN "Tên task"` (tạo từ mẫu `docs/tasks/_mau.md`, đặt làm task đang chạy).
+0. Tạo tệp task: `scripts/agent/new-task.sh NN "Tên task"` (tạo từ mẫu `docs/tasks/_mau.md`, đặt làm task đang chạy; trạng thái lưu ngoài git, trong thư mục git của worktree, không cần commit).
 1. Đọc task trong kế hoạch, Interfaces của các task nó dùng, mục spec và ADR liên quan. Spec mơ hồ hay mâu thuẫn, cần đổi thiết kế, cần việc ngoài máy: dừng và hỏi chủ shop.
 2. **Trước khi viết test**, điền tệp task:
    - **Ảnh hưởng:** ký hiệu Go xuất ra ngoài sẽ đổi và số chỗ tham chiếu (công cụ LSP `findReferences`), gói phụ thuộc ngược (`go list`), operation OpenAPI, chỗ dùng trên màn hình, câu sqlc và bảng, pha migration, test sẽ chạy.
@@ -40,7 +40,7 @@ Có dần theo kế hoạch; lệnh nào chưa có thì task tương ứng sẽ 
 
 - `make ci` — toàn bộ cổng kiểm (từ Task 3): build, vet, golangci-lint, sinh lại mã và đòi không chênh, `sqlc vet`, `go test -race ./...`, govulncheck, test kiến trúc, oasdiff, jscpd, `test-guard.sh`, danh mục dùng chung, gitleaks.
 - Test một gói: `go test -race ./internal/platform/queue/...`
-- Chọn test: chỉ gói vừa đổi và gói nhập chúng. Ngoại lệ: chạm vào vùng rủi ro cao thì chạy cả bộ của vùng đó. Vùng rủi ro cao: `internal/platform/{tenancy,queue,commands,idempotency}`, `internal/modules/identity`, `internal/httpapi/guard.go`.
+- Chọn test: chỉ gói vừa đổi và gói nhập chúng. Ngoại lệ: chạm vào vùng rủi ro cao thì chạy cả bộ của vùng đó. Vùng rủi ro cao: `internal/platform/{tenancy,queue,commands,idempotency,db,webhooks}`, `internal/modules/{identity,inventory}`, `internal/httpapi/guard.go` (mở rộng 18/11 sau Task 23).
 - `make gen` — sinh lại mã ogen, sqlc, bảng route (từ Task 4 và Task 6).
 - Màn hình (từ Task 17): `cd console && npm test`, `npx tsc --noEmit`, `npx eslint .`
 - PostgreSQL dev: `make db-up` (PostgreSQL 5442, Jaeger 16686, OTLP 4318). Không dùng cổng 4175, 4176, 4180, 4181.

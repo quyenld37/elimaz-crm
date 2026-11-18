@@ -16,3 +16,4 @@ console/src/probe-*/
 console/playwright-report/
 /loadtest/out/
 /.mutation/
+docs/tasks/hien-tai.md

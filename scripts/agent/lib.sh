@@ -4,7 +4,7 @@
 crm_root() { git -C "${CLAUDE_PROJECT_DIR:-$(pwd)}" rev-parse --show-toplevel; }
 
 # Vùng rủi ro cao (ADR-25, Global Constraints của kế hoạch M0 bản 5).
-HIGH_RISK_DIRS="internal/platform/tenancy internal/platform/queue internal/platform/commands internal/platform/idempotency internal/modules/identity internal/httpapi/guard.go"
+HIGH_RISK_DIRS="internal/platform/tenancy internal/platform/queue internal/platform/commands internal/platform/idempotency internal/platform/db internal/platform/webhooks internal/modules/identity internal/modules/inventory internal/httpapi/guard.go"
 
 # Mã sinh: không sửa tay.
 is_generated_path() {

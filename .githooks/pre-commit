@@ -34,7 +34,7 @@ if [ -f "$gd/MERGE_HEAD" ]; then
   echo "Cổng commit (gộp nhánh): các tệp mã sau khác bản đã review trên nhánh được gộp:$bad" >&2
 fi
 if git diff --cached --name-only | grep -E -q "$(code_paths_regex)"; then
-  st=$(sed -n 's/^Trạng thái: *//p' docs/tasks/hien-tai.md 2>/dev/null | head -1)
+  st=$(sed -n 's/^Trạng thái: *//p' "$(git rev-parse --git-dir)/crm-task-state" 2>/dev/null | head -1)
   if [ "$st" != "đang làm" ]; then
     echo "Cổng commit: commit có mã cần một task đang làm (scripts/agent/new-task.sh)." >&2; exit 1
   fi
@@ -46,5 +46,12 @@ if git diff --cached --name-only | grep -E -q "$(code_paths_regex)"; then
     echo "Cổng commit: chưa có kết luận ĐẠT của reviewer cho đúng phần đã stage (mã băm $tree). Stage xong rồi chạy agent reviewer; sửa gì sau khi review thì phải review lại." >&2; exit 1
   fi
   python3 scripts/agent/stamp_check.py "$(review_dir)/$tree" "$tree" || exit 1
+fi
+# Quét bí mật trong phần đã stage (mọi commit, kể cả commit chỉ có tài liệu) — đề xuất Task 23.
+export PATH="$HOME/go/bin:$PATH"
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks git --pre-commit --staged --no-banner --redact . >/dev/null 2>&1; then
+    echo "Cổng commit: gitleaks thấy bí mật trong phần đã stage. Chạy: gitleaks git --pre-commit --staged --redact ." >&2; exit 1
+  fi
 fi
 exit 0
