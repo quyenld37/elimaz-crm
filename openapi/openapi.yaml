@@ -866,6 +866,44 @@ paths:
                 $ref: "#/components/schemas/StockDocument"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/orders:
+    post:
+      operationId: createOrder
+      summary: Lên đơn nhập tay (tạo khách mới, đơn ở Đã xác nhận, giữ hàng cùng transaction)
+      x-permission: order.create
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "201":
+          description: Đơn vừa tạo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/orders/{id}:
+    get:
+      operationId: getOrder
+      summary: Một đơn kèm dòng đơn (tên, SKU chụp lúc đặt)
+      x-permission: order.read
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+      responses:
+        "200":
+          description: Đơn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -898,6 +936,13 @@ components:
         type: string
         format: uuid
     ProductID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    OrderID:
       name: id
       in: path
       required: true
@@ -1030,11 +1075,11 @@ components:
         variantId:
           type: string
           format: uuid
-          description: Chỉ có ở insufficient_stock — biến thể đầu tiên không đủ hàng
+          description: Chỉ có ở insufficient_stock, out_of_stock — biến thể đầu tiên không đủ hàng
         available:
           type: integer
           format: int32
-          description: Chỉ có ở insufficient_stock — số còn làm được của biến thể đó (xuất hàng lỗi là số hàng lỗi)
+          description: Chỉ có ở insufficient_stock — số còn làm được của biến thể đó (xuất hàng lỗi là số hàng lỗi); ở out_of_stock — số có thể bán hiện tại
     HealthStatus:
       type: object
       required: [status]
@@ -1413,6 +1458,115 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AlertSummary"
+    CreateOrderRequest:
+      type: object
+      additionalProperties: false
+      required: [customer, items, shipAddress, shippingFee]
+      properties:
+        customer:
+          type: object
+          additionalProperties: false
+          required: [fullName]
+          properties:
+            fullName:
+              type: string
+              minLength: 1
+              maxLength: 120
+        warehouseId:
+          type: string
+          format: uuid
+          description: Bỏ trống → kho chính
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [variantId, qty]
+            properties:
+              variantId:
+                type: string
+                format: uuid
+              qty:
+                type: integer
+                format: int32
+                minimum: 1
+                maximum: 10000
+        shipAddress:
+          $ref: "#/components/schemas/ShipAddress"
+        shippingFee:
+          $ref: "#/components/schemas/Money"
+    ShipAddress:
+      type: object
+      additionalProperties: false
+      required: [name, phone, line]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        phone:
+          type: string
+          pattern: "^\\+?[0-9]{8,15}$"
+        line:
+          type: string
+          minLength: 1
+          maxLength: 500
+    Order:
+      type: object
+      required: [id, code, status, customerId, subtotal, shippingFee, grandTotal, codAmount, items, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        status:
+          type: string
+          enum: [draft, new, confirmed, cancel_requested, cancelled, delivered, returned]
+        customerId:
+          type: string
+          format: uuid
+        subtotal:
+          $ref: "#/components/schemas/Money"
+        shippingFee:
+          $ref: "#/components/schemas/Money"
+        grandTotal:
+          $ref: "#/components/schemas/Money"
+        codAmount:
+          $ref: "#/components/schemas/Money"
+        createdAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+    OrderItem:
+      type: object
+      required: [id, position, variantId, sku, name, qty, unitPrice, netAmount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        position:
+          type: integer
+          format: int32
+        variantId:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        name:
+          type: string
+        qty:
+          type: integer
+          format: int32
+        unitPrice:
+          $ref: "#/components/schemas/Money"
+        netAmount:
+          $ref: "#/components/schemas/Money"
     Money:
       type: integer
       format: int64

@@ -111,8 +111,39 @@ func (e *invEnv) app(fn func(tx pgx.Tx) error) error {
 	return tenancy.WithTenant(e.t.Context(), e.staff.App, e.tenant, fn) //nolint:wrapcheck // test
 }
 
+// line trả dòng giữ hàng q cái của biến thể v cho một dòng đơn thật mới (khóa ngoại stock_reservations → ord.order_items,
+// Task M1-30). Gọi được từ goroutine: lỗi ghi bằng t.Errorf (không t.Fatal) và Reserve sau đó báo lỗi khóa ngoại.
 func (e *invEnv) line(v uuid.UUID, q int32) inventory.ReserveLine {
-	return inventory.ReserveLine{OrderItemID: uuid.New(), VariantID: v, WarehouseID: e.warehouse, Qty: q}
+	item, err := e.orderItem(v)
+	if err != nil {
+		e.t.Errorf("tạo dòng đơn thử: %v", err)
+	}
+	return inventory.ReserveLine{OrderItemID: item, VariantID: v, WarehouseID: e.warehouse, Qty: q}
+}
+
+// orderItem chèn một khách, một đơn và một dòng đơn (1 cái biến thể v, giá 0) bằng crm_app, chỉ để giữ hàng có dòng
+// đơn thật; inventory không nhập module order nên dùng SQL trong test.
+func (e *invEnv) orderItem(v uuid.UUID) (uuid.UUID, error) {
+	var item uuid.UUID
+	err := e.app(func(tx pgx.Tx) error {
+		ctx := e.t.Context()
+		customer, order := uuid.New(), uuid.New()
+		if _, err := tx.Exec(ctx, `INSERT INTO customer.customers (id, tenant_id, root_id, full_name)
+			VALUES ($1, $2, $1, 'Khách thử')`, customer, e.tenant); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO ord.orders (id, tenant_id, seller_id, code, customer_id, channel,
+			idempotency_key, status, ship_address, subtotal, cod_amount, grand_total)
+			VALUES ($1, $2, $3, 'DH' || lpad(nextval('ord.order_code_seq')::text, 7, '0'), $4, 'manual', $1,
+			'confirmed', '{}', 0, 0, 0)`, order, e.tenant, e.seller, customer); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		return tx.QueryRow(ctx, `INSERT INTO ord.order_items (tenant_id, seller_id, order_id, position, variant_id,
+			sku_snapshot, name_snapshot, quantity, unit_price, net_amount)
+			VALUES ($1, $2, $3, 1, $4, 'SKU', 'Dòng thử', 1, 0, 0) RETURNING id`,
+			e.tenant, e.seller, order, v).Scan(&item)
+	})
+	return item, err
 }
 
 func (e *invEnv) reserve(a inventory.Actor, lines ...inventory.ReserveLine) ([]uuid.UUID, error) {

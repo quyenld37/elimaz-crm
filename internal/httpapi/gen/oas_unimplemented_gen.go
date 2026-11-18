@@ -86,6 +86,16 @@ func (UnimplementedHandler) CreateCategory(ctx context.Context, req *CreateCateg
 	return r, ht.ErrNotImplemented
 }
 
+// CreateOrder implements createOrder operation.
+//
+// Lên đơn nhập tay (tạo khách mới, đơn ở Đã xác nhận, giữ hàng cùng
+// transaction).
+//
+// POST /api/v1/orders
+func (UnimplementedHandler) CreateOrder(ctx context.Context, req *CreateOrderRequest, params CreateOrderParams) (r CreateOrderRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateProduct implements createProduct operation.
 //
 // Tạo mẫu sản phẩm kèm biến thể màu/size (barcode để trống thì CRM tự sinh
@@ -159,6 +169,15 @@ func (UnimplementedHandler) GetFile(ctx context.Context, params GetFileParams) (
 //
 // GET /api/v1/me
 func (UnimplementedHandler) GetMe(ctx context.Context) (r GetMeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetOrder implements getOrder operation.
+//
+// Một đơn kèm dòng đơn (tên, SKU chụp lúc đặt).
+//
+// GET /api/v1/orders/{id}
+func (UnimplementedHandler) GetOrder(ctx context.Context, params GetOrderParams) (r GetOrderRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

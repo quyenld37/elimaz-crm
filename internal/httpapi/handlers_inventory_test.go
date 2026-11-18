@@ -15,8 +15,10 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/inventory/invtest"
+	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
@@ -223,10 +225,22 @@ func TestInventoryAPI_SupplierAndImport(t *testing.T) {
 func TestInventoryAPI_InsufficientBody(t *testing.T) {
 	e := newInvAPIEnv(t)
 	v := e.variant(e.w1, 5)
+	// Giữ 3 cái bằng một đơn nhập tay thật (giữ hàng phải thuộc dòng đơn có thật, khóa ngoại của Task M1-30).
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
-		_, err := inventory.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue()}.Reserve(t.Context(), tx,
-			[]inventory.ReserveLine{{OrderItemID: uuid.New(), VariantID: v, WarehouseID: e.w1, Qty: 3}},
-			inventory.Actor{Type: inventory.ActorSystem})
+		seller, err := catalog.DefaultSeller(t.Context(), tx)
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		c, err := customer.Create(t.Context(), tx, "Khách thử")
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		_, err = order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue()}.CreateManual(t.Context(), tx,
+			order.CreateManualInput{
+				IdempotencyKey: uuid.New(), SellerID: seller, CustomerID: c, WarehouseID: e.w1,
+				Items:       []order.ItemInput{{VariantID: v, Qty: 3}},
+				ShipAddress: order.ShipAddress{Name: "Khách thử", Phone: "0901234567", Line: "1 Lê Lợi"},
+			}, order.Actor{TenantID: e.tenant})
 		return err //nolint:wrapcheck // test
 	})
 	id, ver := e.draft(invManager, "export", e.w1, "", fmt.Sprintf(`[{"variantId":%q,"quantity":3}]`, v))

@@ -11,11 +11,11 @@ export type Error = {
     error: string;
     request_id: string;
     /**
-     * Chỉ có ở insufficient_stock — biến thể đầu tiên không đủ hàng
+     * Chỉ có ở insufficient_stock, out_of_stock — biến thể đầu tiên không đủ hàng
      */
     variantId?: string;
     /**
-     * Chỉ có ở insufficient_stock — số còn làm được của biến thể đó (xuất hàng lỗi là số hàng lỗi)
+     * Chỉ có ở insufficient_stock — số còn làm được của biến thể đó (xuất hàng lỗi là số hàng lỗi); ở out_of_stock — số có thể bán hiện tại
      */
     available?: number;
 };
@@ -207,6 +207,52 @@ export type PlatformHealth = {
     backup: BackupHealth;
     errors: Array<ErrorSummary>;
     alerts: Array<AlertSummary>;
+};
+
+export type CreateOrderRequest = {
+    customer: {
+        fullName: string;
+    };
+    /**
+     * Bỏ trống → kho chính
+     */
+    warehouseId?: string;
+    items: Array<{
+        variantId: string;
+        qty: number;
+    }>;
+    shipAddress: ShipAddress;
+    shippingFee: Money;
+};
+
+export type ShipAddress = {
+    name: string;
+    phone: string;
+    line: string;
+};
+
+export type Order = {
+    id: string;
+    code: string;
+    status: 'draft' | 'new' | 'confirmed' | 'cancel_requested' | 'cancelled' | 'delivered' | 'returned';
+    customerId: string;
+    subtotal: Money;
+    shippingFee: Money;
+    grandTotal: Money;
+    codAmount: Money;
+    createdAt: string;
+    items: Array<OrderItem>;
+};
+
+export type OrderItem = {
+    id: string;
+    position: number;
+    variantId: string;
+    sku: string;
+    name: string;
+    qty: number;
+    unitPrice: Money;
+    netAmount: Money;
 };
 
 /**
@@ -551,6 +597,8 @@ export type FileId = string;
 export type StaffId = string;
 
 export type ProductId = string;
+
+export type OrderId = string;
 
 export type VariantId = string;
 
@@ -1808,3 +1856,61 @@ export type CancelStockDocumentResponses = {
 };
 
 export type CancelStockDocumentResponse = CancelStockDocumentResponses[keyof CancelStockDocumentResponses];
+
+export type CreateOrderData = {
+    body: CreateOrderRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/orders';
+};
+
+export type CreateOrderErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateOrderError = CreateOrderErrors[keyof CreateOrderErrors];
+
+export type CreateOrderResponses = {
+    /**
+     * Đơn vừa tạo
+     */
+    201: Order;
+};
+
+export type CreateOrderResponse = CreateOrderResponses[keyof CreateOrderResponses];
+
+export type GetOrderData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/orders/{id}';
+};
+
+export type GetOrderErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetOrderError = GetOrderErrors[keyof GetOrderErrors];
+
+export type GetOrderResponses = {
+    /**
+     * Đơn
+     */
+    200: Order;
+};
+
+export type GetOrderResponse = GetOrderResponses[keyof GetOrderResponses];
