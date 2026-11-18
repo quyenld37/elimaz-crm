@@ -9,6 +9,26 @@ type AddAttributeValueRes interface {
 	addAttributeValueRes()
 }
 
+type AddCustomerAddressRes interface {
+	addCustomerAddressRes()
+}
+
+type AddCustomerIdentityRes interface {
+	addCustomerIdentityRes()
+}
+
+type AddCustomerNoteRes interface {
+	addCustomerNoteRes()
+}
+
+type AddCustomerTagRes interface {
+	addCustomerTagRes()
+}
+
+type AddOrderNoteRes interface {
+	addOrderNoteRes()
+}
+
 type AddVariantRes interface {
 	addVariantRes()
 }
@@ -19,6 +39,10 @@ type ApplyCatalogImportRes interface {
 
 type ApplyStocktakeRes interface {
 	applyStocktakeRes()
+}
+
+type ApproveOrderDiscountRes interface {
+	approveOrderDiscountRes()
 }
 
 type ArchiveCategoryRes interface {
@@ -33,6 +57,14 @@ type AttachProductImageRes interface {
 	attachProductImageRes()
 }
 
+type CancelOrderRes interface {
+	cancelOrderRes()
+}
+
+type CancelReturnRes interface {
+	cancelReturnRes()
+}
+
 type CancelStockDocumentRes interface {
 	cancelStockDocumentRes()
 }
@@ -41,8 +73,24 @@ type CancelStocktakeRes interface {
 	cancelStocktakeRes()
 }
 
+type CheckCouponRes interface {
+	checkCouponRes()
+}
+
+type CheckOrderDuplicatesRes interface {
+	checkOrderDuplicatesRes()
+}
+
+type CloseReturnRes interface {
+	closeReturnRes()
+}
+
 type CompleteUploadRes interface {
 	completeUploadRes()
+}
+
+type ConfirmOrderRes interface {
+	confirmOrderRes()
 }
 
 type CreateAttributeRes interface {
@@ -57,12 +105,32 @@ type CreateCategoryRes interface {
 	createCategoryRes()
 }
 
+type CreateCouponBatchRes interface {
+	createCouponBatchRes()
+}
+
+type CreateCouponRes interface {
+	createCouponRes()
+}
+
+type CreateCustomerRes interface {
+	createCustomerRes()
+}
+
+type CreateCustomerTagRes interface {
+	createCustomerTagRes()
+}
+
 type CreateOrderRes interface {
 	createOrderRes()
 }
 
 type CreateProductRes interface {
 	createProductRes()
+}
+
+type CreateReturnRes interface {
+	createReturnRes()
 }
 
 type CreateRoleRes interface {
@@ -89,8 +157,16 @@ type CreateTagRes interface {
 	createTagRes()
 }
 
+type CreateTrafficSourceRes interface {
+	createTrafficSourceRes()
+}
+
 type CreateUploadRes interface {
 	createUploadRes()
+}
+
+type DeleteCustomerAddressRes interface {
+	deleteCustomerAddressRes()
 }
 
 type DeleteProductImageRes interface {
@@ -105,6 +181,34 @@ type GetCatalogImportTemplateRes interface {
 	getCatalogImportTemplateRes()
 }
 
+type GetCouponBatchRes interface {
+	getCouponBatchRes()
+}
+
+type GetCouponRes interface {
+	getCouponRes()
+}
+
+type GetCustomerImportRes interface {
+	getCustomerImportRes()
+}
+
+type GetCustomerImportTemplateRes interface {
+	getCustomerImportTemplateRes()
+}
+
+type GetCustomerRes interface {
+	getCustomerRes()
+}
+
+type GetCustomerTagRuleRes interface {
+	getCustomerTagRuleRes()
+}
+
+type GetCustomerTimelineRes interface {
+	getCustomerTimelineRes()
+}
+
 type GetFileRes interface {
 	getFileRes()
 }
@@ -115,6 +219,14 @@ type GetMeRes interface {
 
 type GetOrderRes interface {
 	getOrderRes()
+}
+
+type GetOrderSettingsRes interface {
+	getOrderSettingsRes()
+}
+
+type GetOrderTimelineRes interface {
+	getOrderTimelineRes()
 }
 
 type GetOriginalImageURLRes interface {
@@ -131,6 +243,10 @@ type GetProductClassificationRes interface {
 
 type GetProductRes interface {
 	getProductRes()
+}
+
+type GetReturnRes interface {
+	getReturnRes()
 }
 
 type GetShipmentRes interface {
@@ -153,6 +269,10 @@ type HealthReadyRes interface {
 	healthReadyRes()
 }
 
+type ListAdminUnitsRes interface {
+	listAdminUnitsRes()
+}
+
 type ListAttributesRes interface {
 	listAttributesRes()
 }
@@ -165,6 +285,26 @@ type ListCategoriesRes interface {
 	listCategoriesRes()
 }
 
+type ListCouponRedemptionsRes interface {
+	listCouponRedemptionsRes()
+}
+
+type ListCouponsRes interface {
+	listCouponsRes()
+}
+
+type ListCustomerMergeCandidatesRes interface {
+	listCustomerMergeCandidatesRes()
+}
+
+type ListCustomerTagsRes interface {
+	listCustomerTagsRes()
+}
+
+type ListCustomersRes interface {
+	listCustomersRes()
+}
+
 type ListJobsRes interface {
 	listJobsRes()
 }
@@ -173,12 +313,24 @@ type ListLostFilesRes interface {
 	listLostFilesRes()
 }
 
+type ListOrderDuplicatesRes interface {
+	listOrderDuplicatesRes()
+}
+
+type ListOrdersRes interface {
+	listOrdersRes()
+}
+
 type ListPermissionsRes interface {
 	listPermissionsRes()
 }
 
 type ListProductsRes interface {
 	listProductsRes()
+}
+
+type ListReturnsRes interface {
+	listReturnsRes()
 }
 
 type ListRolesRes interface {
@@ -205,6 +357,10 @@ type ListTagsRes interface {
 	listTagsRes()
 }
 
+type ListTrafficSourcesRes interface {
+	listTrafficSourcesRes()
+}
+
 type ListWarehousesRes interface {
 	listWarehousesRes()
 }
@@ -213,8 +369,20 @@ type LockStaffRes interface {
 	lockStaffRes()
 }
 
+type MergeCustomerRes interface {
+	mergeCustomerRes()
+}
+
 type PostStockDocumentRes interface {
 	postStockDocumentRes()
+}
+
+type PutCustomerTagRuleRes interface {
+	putCustomerTagRuleRes()
+}
+
+type ReceiveReturnRes interface {
+	receiveReturnRes()
 }
 
 type RecordStocktakeCountRes interface {
@@ -223,6 +391,14 @@ type RecordStocktakeCountRes interface {
 
 type RegenerateImagesRes interface {
 	regenerateImagesRes()
+}
+
+type RemoveCustomerIdentityRes interface {
+	removeCustomerIdentityRes()
+}
+
+type RemoveCustomerTagRes interface {
+	removeCustomerTagRes()
 }
 
 type ReorderProductImagesRes interface {
@@ -237,6 +413,10 @@ type ReplaceStockDocumentLinesRes interface {
 	replaceStockDocumentLinesRes()
 }
 
+type ResolveOrderDuplicateRes interface {
+	resolveOrderDuplicateRes()
+}
+
 type RestoreProductImageRes interface {
 	restoreProductImageRes()
 }
@@ -249,12 +429,20 @@ type SearchVariantsRes interface {
 	searchVariantsRes()
 }
 
+type SetOrderPendingRes interface {
+	setOrderPendingRes()
+}
+
 type SetProductClassificationRes interface {
 	setProductClassificationRes()
 }
 
 type SetProductImageColorRes interface {
 	setProductImageColorRes()
+}
+
+type StartCustomerImportRes interface {
+	startCustomerImportRes()
 }
 
 type StartStocktakeRes interface {
@@ -265,12 +453,40 @@ type StreamRes interface {
 	streamRes()
 }
 
+type UndoCustomerMergeRes interface {
+	undoCustomerMergeRes()
+}
+
 type UnlockStaffRes interface {
 	unlockStaffRes()
 }
 
 type UpdateCategoryRes interface {
 	updateCategoryRes()
+}
+
+type UpdateCouponRes interface {
+	updateCouponRes()
+}
+
+type UpdateCustomerAddressRes interface {
+	updateCustomerAddressRes()
+}
+
+type UpdateCustomerRes interface {
+	updateCustomerRes()
+}
+
+type UpdateCustomerTagRes interface {
+	updateCustomerTagRes()
+}
+
+type UpdateOrderRes interface {
+	updateOrderRes()
+}
+
+type UpdateOrderSettingsRes interface {
+	updateOrderSettingsRes()
 }
 
 type UpdateProductRes interface {
@@ -283,6 +499,10 @@ type UpdateRoleRes interface {
 
 type UpdateSupplierRes interface {
 	updateSupplierRes()
+}
+
+type UpdateTrafficSourceRes interface {
+	updateTrafficSourceRes()
 }
 
 type UpdateVariantRes interface {

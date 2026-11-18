@@ -1,0 +1,22 @@
+/* Màn Sự kiện lỗi (mockup docs/mockups/m1/su-kien-loi.html): nội dung lỗi cắt 2 dòng, bấm thì mở đủ. */
+.err-msg {
+  margin-top: 4px;
+  max-width: 640px;
+}
+.err-msg summary {
+  list-style: none;
+  cursor: pointer;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+}
+.err-msg summary::-webkit-details-marker {
+  display: none;
+}
+.err-msg[open] summary {
+  display: none;
+}
+.err-msg p {
+  color: var(--muted);
+}

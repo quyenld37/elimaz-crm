@@ -3,6 +3,7 @@
 // bằng import.meta.glob, không sửa tệp chung nào. Tệp màn sai quy ước → lỗi khi nạp, nêu tên tệp.
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createElement } from "react";
@@ -10,8 +11,8 @@ import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Grant } from "../api";
 import { Layout } from "../shell/Layout";
-import { loadScreens } from "./loadScreens";
-import type { Screen } from "./nav";
+import { loadScreens, type ScreenRoute } from "./loadScreens";
+import { NAV_GROUPS, type Screen } from "./nav";
 import { AppRoutes } from "./router";
 import { SCREENS } from "./screens";
 
@@ -22,18 +23,107 @@ afterEach(() => {
 const el = createElement("h1", null, "màn");
 const ok = { path: "/a", label: "A", group: "Kho", permission: "inventory.read", order: 10, element: el };
 
-describe("SCREENS nạp từ src/screens/*/route.tsx", () => {
-  it("đủ các màn đã có, đúng path, nhãn, nhóm, quyền, trang con và thứ tự menu như danh sách cũ", () => {
-    expect(SCREENS.map((s) => [s.path, s.label, s.group, s.permission, s.hidden === true, s.also ?? []])).toEqual([
-      ["/san-pham", "Danh sách sản phẩm", "Sản phẩm", "catalog.read", false, ["/san-pham/:id"]],
-      ["/san-pham/:id", "Sửa mẫu", "Sản phẩm", "catalog.read", true, []],
-      ["/kho/ton", "Tồn kho", "Kho", "inventory.read", false, []],
-      ["/he-thong/tep-bi-mat", "Tệp bị mất", "Hệ thống", "platform.files.manage", false, []],
-      ["/nhan-vien", "Nhân viên", "Quản trị", "identity.users.manage", false, ["/nhan-vien/:id/quyen"]],
-      ["/nhan-vien/:id/quyen", "Nhân viên", "Quản trị", "identity.users.manage", true, []],
-      ["/vai-tro", "Vai trò", "Quản trị", "identity.roles.manage", false, ["/vai-tro/:id"]],
-      ["/vai-tro/:id", "Vai trò", "Quản trị", "identity.roles.manage", true, []],
+// Test chung chỉ kiểm quy ước trên mọi thư mục màn (Task 389, M1-x3): không có danh sách màn viết cứng nào ở đây.
+// "Màn X có đường Y, quyền Z" nằm trong src/screens/<tên>/route.test.tsx của từng màn, nên thêm màn không sửa tệp này.
+const ROUTE_FILES: Record<string, unknown> = import.meta.glob("../screens/*/route.tsx", { eager: true });
+
+/** Khóa quyền trong bảng chuẩn docs/quyen.md (cột đầu của các dòng bảng: | `khóa` | …). */
+function permissionTable(): Set<string> {
+  const doc = readFileSync(join(import.meta.dirname, "..", "..", "..", "docs", "quyen.md"), "utf8");
+  return new Set([...doc.matchAll(/^\| `([a-z0-9_.]+)` \|/gm)].map((m) => m[1] ?? ""));
+}
+const PERMISSIONS = permissionTable();
+
+/**
+ * Lỗi quy ước của các mô-đun route.tsx (khóa là đường tệp, như import.meta.glob). Đủ trường, nhóm menu hợp lệ, không
+ * trùng path: loadScreens kiểm (ném lỗi). Thêm ở đây: quyền phải có trong bảng quyền; order không trùng giữa các mục
+ * menu hiện (không hidden) trong cùng nhóm.
+ */
+function conventionProblems(modules: Record<string, unknown>, permissions: ReadonlySet<string>): string[] {
+  loadScreens(modules);
+  const problems: string[] = [];
+  const slot = new Map<string, string>();
+  for (const file of Object.keys(modules).sort()) {
+    for (const s of (modules[file] as { screens: readonly ScreenRoute[] }).screens) {
+      if (!permissions.has(s.permission)) {
+        problems.push(`${file}: "${s.path}" khai quyền "${s.permission}" không có trong docs/quyen.md`);
+      }
+      if (s.hidden === true) continue;
+      const key = `${s.group}#${String(s.order)}`;
+      const other = slot.get(key);
+      if (other !== undefined) {
+        problems.push(`nhóm "${s.group}" trùng order ${String(s.order)}: ${other} và ${file} "${s.path}"`);
+      }
+      slot.set(key, `${file} "${s.path}"`);
+    }
+  }
+  return problems;
+}
+
+describe("quy ước trên mọi src/screens/*/route.tsx", () => {
+  it("tìm thấy các thư mục màn, và SCREENS có đúng mọi màn chúng khai, không thêm không bớt", () => {
+    const files = Object.keys(ROUTE_FILES);
+    expect(files.length).toBeGreaterThan(0);
+    const declared = files.flatMap((f) => (ROUTE_FILES[f] as { screens: readonly ScreenRoute[] }).screens);
+    expect(SCREENS.map((s) => s.path).sort()).toEqual(declared.map((s) => s.path).sort());
+  });
+
+  it("bảng quyền docs/quyen.md đọc được", () => {
+    expect(PERMISSIONS.has("catalog.read")).toBe(true);
+    expect(PERMISSIONS.has("identity.users.manage")).toBe(true);
+  });
+
+  it("đủ trường, nhóm hợp lệ, không trùng path, quyền thuộc bảng quyền, order không trùng trong nhóm", () => {
+    expect(conventionProblems(ROUTE_FILES, PERMISSIONS)).toEqual([]);
+  });
+
+  it("SCREENS xếp theo nhóm menu (NAV_GROUPS) rồi order", () => {
+    const rank = (g: string) => NAV_GROUPS.findIndex((x) => x === g);
+    const ranks = SCREENS.map((s) => rank(s.group));
+    expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+  });
+});
+
+describe("conventionProblems bắt màn sai quy ước", () => {
+  const perms = new Set(["inventory.read", "catalog.read"]);
+  const mod = (...screens: object[]) => ({ screens: screens.map((s) => ({ ...ok, ...s })) });
+
+  it("màn đúng quy ước → không lỗi", () => {
+    expect(conventionProblems({ "../screens/a/route.tsx": mod({}) }, perms)).toEqual([]);
+  });
+
+  it("quyền không có trong bảng quyền → lỗi nêu tệp, path và quyền", () => {
+    expect(conventionProblems({ "../screens/a/route.tsx": mod({ permission: "kho.xem" }) }, perms)).toEqual([
+      '../screens/a/route.tsx: "/a" khai quyền "kho.xem" không có trong docs/quyen.md',
     ]);
+  });
+
+  it("hai mục menu hiện cùng nhóm trùng order → lỗi nêu cả hai tệp", () => {
+    const got = conventionProblems(
+      { "../screens/a/route.tsx": mod({}), "../screens/b/route.tsx": mod({ path: "/b" }) },
+      perms,
+    );
+    expect(got).toEqual(['nhóm "Kho" trùng order 10: ../screens/a/route.tsx "/a" và ../screens/b/route.tsx "/b"']);
+  });
+
+  it("trang ẩn hay khác nhóm được dùng lại order", () => {
+    const got = conventionProblems(
+      {
+        "../screens/a/route.tsx": mod({}, { path: "/a/:id", hidden: true }),
+        "../screens/b/route.tsx": mod({ path: "/b", group: "Sản phẩm", permission: "catalog.read" }),
+      },
+      perms,
+    );
+    expect(got).toEqual([]);
+  });
+
+  it("thiếu trường hay trùng path → lỗi của loadScreens", () => {
+    expect(() => conventionProblems({ "../screens/x/route.tsx": mod({ order: undefined }) }, perms)).toThrow(
+      /x\/route\.tsx.*order/,
+    );
+    expect(() =>
+      conventionProblems({ "../screens/a/route.tsx": mod({}), "../screens/b/route.tsx": mod({}) }, perms),
+    ).toThrow(/"\/a".*a\/route\.tsx.*b\/route\.tsx/);
   });
 });
 
@@ -91,9 +181,9 @@ describe("thêm thư mục màn mới, không sửa tệp chung", () => {
     return dir;
   }
 
-  const thu = (path: string) => `import type { ScreenRoute } from "../../app/loadScreens";
+  const thu = (path: string, permission = "thu.read") => `import type { ScreenRoute } from "../../app/loadScreens";
 export const screens: readonly ScreenRoute[] = [
-  { path: "${path}", label: "Màn thử", group: "Kho", permission: "thu.read", order: 50, element: <h1>Nội dung màn thử</h1> },
+  { path: "${path}", label: "Màn thử", group: "Kho", permission: "${permission}", order: 50, element: <h1>Nội dung màn thử</h1> },
 ];
 `;
 
@@ -113,6 +203,20 @@ export const screens: readonly ScreenRoute[] = [
       const nav = screen.getByRole("navigation", { name: "Menu chính" });
       expect(within(nav).getByRole("link", { name: "Màn thử" }).getAttribute("aria-current")).toBe("page");
       expect(screen.getByRole("heading", { name: "Nội dung màn thử" })).toBeTruthy();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("màn thử được test quy ước chung kiểm luôn: quyền lạ bị bắt, quyền có trong bảng thì qua", async () => {
+    const dir = await probe({ _thu: thu("/thu", "thu.read"), _kho: thu("/thu-kho", "inventory.read") });
+    try {
+      const load = async (name: string) =>
+        (await import(/* @vite-ignore */ join(dir, "screens", name, "route.tsx"))) as unknown;
+      expect(conventionProblems({ "_thu/route.tsx": await load("_thu") }, PERMISSIONS)).toEqual([
+        '_thu/route.tsx: "/thu" khai quyền "thu.read" không có trong docs/quyen.md',
+      ]);
+      expect(conventionProblems({ "_kho/route.tsx": await load("_kho") }, PERMISSIONS)).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

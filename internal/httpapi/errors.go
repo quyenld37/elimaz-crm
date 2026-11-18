@@ -16,6 +16,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order"
+	"elimaz.com.vn/crm/internal/modules/promotion"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/idempotency"
@@ -79,6 +80,35 @@ const (
 	codeTotalOverflow     = "total_overflow"
 	codeShipmentExists    = "shipment_exists"
 
+	// Khách, đơn, mã giảm giá (kế hoạch M2, Task M2-02).
+	codeShipmentAlreadyAttached = "shipment_already_attached"
+	codeOrderLockedByShipment   = "order_locked_by_shipment"
+	codeInvalidTransition       = "invalid_transition"
+	codeAddressIncomplete       = "address_incomplete"
+	codeNeedsApproval           = "needs_approval"
+	codeDiscountNeedsApproval   = "discount_needs_approval"
+	codeVariantNotFound         = "variant_not_found"
+	codeLineDiscountExceeds     = "line_discount_exceeds"
+	codeOrderDiscountExceeds    = "order_discount_exceeds"
+	codeTrafficSourceInactive   = "traffic_source_inactive"
+	codeReturnQtyExceeds        = "return_qty_exceeds"
+	codeReturnNotAllowed        = "return_not_allowed"
+	codeSettingOutOfRange       = "setting_out_of_range"
+	codeInvalidPhone            = "invalid_phone"
+	codeIdentityTaken           = "identity_taken"
+	codeWardNotInProvince       = "ward_not_in_province"
+	codeUnknownAdminUnit        = "unknown_admin_unit"
+	codeQueryTooShort           = "query_too_short"
+	codeMergeSameCustomer       = "merge_same_customer"
+	codeMergeNotLatest          = "merge_not_latest"
+	codeMergeWindowExpired      = "merge_window_expired"
+	codeImportTooLarge          = "import_too_large"
+	codeImportFileInvalid       = "import_file_invalid"
+	codeInvalidTagRule          = "invalid_tag_rule"
+	codeCouponRejected          = "coupon_rejected"
+	codeCouponLockedAfterUse    = "coupon_locked_after_use"
+	codeMaxUsesBelowUsed        = "max_uses_below_used"
+
 	// Kho tệp (kế hoạch M1 Task M1-41).
 	codeFileTooLarge          = "file_too_large"
 	codeFileTypeNotAllowed    = "file_type_not_allowed"
@@ -109,6 +139,11 @@ type errorBody struct {
 	// làm được (có thể bán).
 	VariantID *string `json:"variantId,omitempty"`
 	Available *int32  `json:"available,omitempty"`
+	// Chi tiết của lỗi M2 (Task M2-02), chỉ mã, không dữ liệu cá nhân: identity_taken (gốc của khách đang giữ danh
+	// tính), merge_not_latest (lần gộp phải hoàn tác trước), coupon_rejected (lý do).
+	OwnerID         *string `json:"ownerId,omitempty"`
+	BlockingMergeID *string `json:"blockingMergeId,omitempty"`
+	Reason          *string `json:"reason,omitempty"`
 }
 
 // writeError ghi lỗi theo dạng duy nhất {"error": "<mã>", "request_id": "<id>"}; không bao giờ có vết lỗi.
@@ -189,8 +224,14 @@ func writeDomainError(w http.ResponseWriter, r *http.Request, err error) bool {
 		})
 		return true
 	}
+	if body, status, ok := detailedError(err); ok {
+		body.RequestID = RequestID(r.Context())
+		writeErrorBody(w, status, body)
+		return true
+	}
 	for _, mapErr := range []func(error) (int, string, bool){
-		identityError, catalogError, filesError, orderError, inventoryError, queriesError, fulfillmentError,
+		identityError, catalogError, filesError, orderError, customerError, promotionError, inventoryError,
+		queriesError, fulfillmentError,
 	} {
 		if status, code, ok := mapErr(err); ok {
 			writeError(w, r, status, code)
@@ -198,6 +239,23 @@ func writeDomainError(w http.ResponseWriter, r *http.Request, err error) bool {
 		}
 	}
 	return false
+}
+
+// detailedError: lỗi M2 có trường chi tiết trong thân (Task M2-02).
+func detailedError(err error) (errorBody, int, bool) {
+	if e, ok := errors.AsType[*customer.IdentityTakenError](err); ok {
+		id := e.OwnerRootID.String()
+		return errorBody{Error: codeIdentityTaken, OwnerID: &id}, http.StatusConflict, true
+	}
+	if e, ok := errors.AsType[*customer.MergeNotLatestError](err); ok {
+		id := e.BlockingMergeID.String()
+		return errorBody{Error: codeMergeNotLatest, BlockingMergeID: &id}, http.StatusConflict, true
+	}
+	if e, ok := errors.AsType[*promotion.RejectError](err); ok {
+		reason := string(e.Reason)
+		return errorBody{Error: codeCouponRejected, Reason: &reason}, http.StatusUnprocessableEntity, true
+	}
+	return errorBody{}, 0, false
 }
 
 // stockShortage: hết hàng khi lên đơn (out_of_stock, Task M1-30) hay thiếu hàng ở phiếu kho (insufficient_stock, Task
@@ -363,6 +421,22 @@ func orderError(err error) (status int, code string, ok bool) {
 		{order.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
 		{order.ErrNotFound, http.StatusNotFound, codeNotFound},
 		{customer.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
+		// M1 chưa ánh xạ (trước đây 500); M2 thêm.
+		{order.ErrShipmentAlreadyAttached, http.StatusConflict, codeShipmentAlreadyAttached},
+		// M2 (Task M2-02).
+		{order.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
+		{order.ErrLockedByShipment, http.StatusConflict, codeOrderLockedByShipment},
+		{order.ErrInvalidTransition, http.StatusUnprocessableEntity, codeInvalidTransition},
+		{order.ErrAddressIncomplete, http.StatusUnprocessableEntity, codeAddressIncomplete},
+		{order.ErrNeedsApproval, http.StatusUnprocessableEntity, codeNeedsApproval},
+		{order.ErrDiscountNeedsApproval, http.StatusForbidden, codeDiscountNeedsApproval},
+		{order.ErrVariantNotFound, http.StatusUnprocessableEntity, codeVariantNotFound},
+		{order.ErrLineDiscountExceeds, http.StatusUnprocessableEntity, codeLineDiscountExceeds},
+		{order.ErrOrderDiscountExceeds, http.StatusUnprocessableEntity, codeOrderDiscountExceeds},
+		{order.ErrTrafficSourceInactive, http.StatusUnprocessableEntity, codeTrafficSourceInactive},
+		{order.ErrReturnQtyExceeds, http.StatusUnprocessableEntity, codeReturnQtyExceeds},
+		{order.ErrReturnNotAllowed, http.StatusUnprocessableEntity, codeReturnNotAllowed},
+		{order.ErrSettingOutOfRange, http.StatusUnprocessableEntity, codeSettingOutOfRange},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true
@@ -385,6 +459,55 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		{fulfillment.ErrOrderNotShippable, http.StatusNotFound, codeNotFound},
 		{fulfillment.ErrAccountNotFound, http.StatusNotFound, codeNotFound},
 		{fulfillment.ErrNotFound, http.StatusNotFound, codeNotFound},
+	} {
+		if errors.Is(err, m.err) {
+			return m.status, m.code, true
+		}
+	}
+	return 0, "", false
+}
+
+// customerError đổi lỗi nghiệp vụ của khách (M2, Task M2-02) sang mã HTTP. ErrNotFound: không có hoặc của tenant khác
+// (không cho biết là có). IdentityTakenError, MergeNotLatestError có thân riêng ở detailedError.
+func customerError(err error) (status int, code string, ok bool) {
+	for _, m := range []struct {
+		err    error
+		status int
+		code   string
+	}{
+		{customer.ErrNotFound, http.StatusNotFound, codeNotFound},
+		{customer.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
+		{customer.ErrInvalidPhone, http.StatusUnprocessableEntity, codeInvalidPhone},
+		{customer.ErrIdentityTaken, http.StatusConflict, codeIdentityTaken},
+		{customer.ErrWardNotInProvince, http.StatusUnprocessableEntity, codeWardNotInProvince},
+		{customer.ErrUnknownAdminUnit, http.StatusUnprocessableEntity, codeUnknownAdminUnit},
+		{customer.ErrQueryTooShort, http.StatusUnprocessableEntity, codeQueryTooShort},
+		{customer.ErrMergeSameCustomer, http.StatusUnprocessableEntity, codeMergeSameCustomer},
+		{customer.ErrMergeNotLatest, http.StatusConflict, codeMergeNotLatest},
+		{customer.ErrMergeWindowExpired, http.StatusUnprocessableEntity, codeMergeWindowExpired},
+		{customer.ErrImportTooLarge, http.StatusUnprocessableEntity, codeImportTooLarge},
+		{customer.ErrImportFileInvalid, http.StatusUnprocessableEntity, codeImportFileInvalid},
+		{customer.ErrInvalidTagRule, http.StatusUnprocessableEntity, codeInvalidTagRule},
+	} {
+		if errors.Is(err, m.err) {
+			return m.status, m.code, true
+		}
+	}
+	return 0, "", false
+}
+
+// promotionError đổi lỗi nghiệp vụ của mã giảm giá (M2, Task M2-02) sang mã HTTP. RejectError có thân riêng (kèm
+// reason) ở detailedError.
+func promotionError(err error) (status int, code string, ok bool) {
+	for _, m := range []struct {
+		err    error
+		status int
+		code   string
+	}{
+		{promotion.ErrCouponRejected, http.StatusUnprocessableEntity, codeCouponRejected},
+		{promotion.ErrCouponLockedAfterUse, http.StatusConflict, codeCouponLockedAfterUse},
+		{promotion.ErrMaxUsesBelowUsed, http.StatusUnprocessableEntity, codeMaxUsesBelowUsed},
+		{promotion.ErrCodeTaken, http.StatusConflict, codeCodeTaken},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

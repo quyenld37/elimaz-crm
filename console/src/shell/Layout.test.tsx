@@ -6,7 +6,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Grant } from "../api";
 import type { Screen } from "../app/nav";
-import { AppRoutes, TEXT_EMPTY_HOME, TEXT_NOT_FOUND } from "../app/router";
+import { AppRoutes, TEXT_EMPTY_HOME, TEXT_FORBIDDEN, TEXT_NOT_FOUND } from "../app/router";
 import { Layout } from "./Layout";
 
 afterEach(() => {
@@ -97,10 +97,25 @@ describe("menu trái", () => {
     expect(screen.getByRole("heading", { name: "Màn tồn" })).toBeTruthy();
   });
 
-  it("trang không có hoặc không có quyền → câu không tìm thấy", () => {
+  it("màn có thật nhưng không có quyền → Không có quyền, nêu tên màn, nút về màn đầu tiên có quyền", () => {
     renderAt("/nhan-vien", [grant("catalog.read")]);
-    expect(screen.getByText(TEXT_NOT_FOUND)).toBeTruthy();
-    cleanup();
+    expect(screen.getByRole("heading", { name: TEXT_FORBIDDEN })).toBeTruthy();
+    expect(
+      screen.getByText("Tài khoản của bạn không được xem Nhân viên. Cần thì nhờ Chủ shop cấp quyền."),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Về trang Danh sách sản phẩm" }).getAttribute("href")).toBe("/san-pham");
+    expect(screen.queryByRole("heading", { name: "Màn nhân viên" })).toBeNull();
+    expect(screen.queryByText(TEXT_NOT_FOUND)).toBeNull();
+  });
+
+  it("không có quyền và không có màn nào được phép → không có nút về", () => {
+    renderAt("/san-pham/abc", []);
+    expect(screen.getByText("Tài khoản của bạn không được xem Sửa mẫu. Cần thì nhờ Chủ shop cấp quyền.")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /^Về trang/ })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Màn sửa" })).toBeNull();
+  });
+
+  it("trang không có thật → câu không tìm thấy", () => {
     renderAt("/khong-co", [grant("catalog.read")]);
     expect(screen.getByText(TEXT_NOT_FOUND)).toBeTruthy();
   });

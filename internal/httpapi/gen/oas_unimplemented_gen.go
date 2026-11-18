@@ -31,6 +31,51 @@ func (UnimplementedHandler) AddAttributeValue(ctx context.Context, req *AddAttri
 	return r, ht.ErrNotImplemented
 }
 
+// AddCustomerAddress implements addCustomerAddress operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/customers/{id}/addresses
+func (UnimplementedHandler) AddCustomerAddress(ctx context.Context, req *CustomerAddressInput, params AddCustomerAddressParams) (r AddCustomerAddressRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// AddCustomerIdentity implements addCustomerIdentity operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/customers/{id}/identities
+func (UnimplementedHandler) AddCustomerIdentity(ctx context.Context, req *AddCustomerIdentityRequest, params AddCustomerIdentityParams) (r AddCustomerIdentityRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// AddCustomerNote implements addCustomerNote operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/customers/{id}/notes
+func (UnimplementedHandler) AddCustomerNote(ctx context.Context, req *AddCustomerNoteRequest, params AddCustomerNoteParams) (r AddCustomerNoteRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// AddCustomerTag implements addCustomerTag operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// PUT /api/v1/customers/{id}/tags/{tagId}
+func (UnimplementedHandler) AddCustomerTag(ctx context.Context, params AddCustomerTagParams) (r AddCustomerTagRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// AddOrderNote implements addOrderNote operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/orders/{id}/notes
+func (UnimplementedHandler) AddOrderNote(ctx context.Context, req *AddOrderNoteRequest, params AddOrderNoteParams) (r AddOrderNoteRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // AddVariant implements addVariant operation.
 //
 // Thêm biến thể vào mẫu khi version của mẫu còn khớp.
@@ -65,6 +110,15 @@ func (UnimplementedHandler) ApplyStocktake(ctx context.Context, req *VersionRequ
 	return r, ht.ErrNotImplemented
 }
 
+// ApproveOrderDiscount implements approveOrderDiscount operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/orders/{id}/approve-discount
+func (UnimplementedHandler) ApproveOrderDiscount(ctx context.Context, req *VersionRequest, params ApproveOrderDiscountParams) (r ApproveOrderDiscountRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ArchiveCategory implements archiveCategory operation.
 //
 // Lưu trữ danh mục khi không còn danh mục con active hay mẫu active.
@@ -96,6 +150,24 @@ func (UnimplementedHandler) AttachProductImage(ctx context.Context, req *AttachP
 	return r, ht.ErrNotImplemented
 }
 
+// CancelOrder implements cancelOrder operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/orders/{id}/cancel
+func (UnimplementedHandler) CancelOrder(ctx context.Context, req *CancelOrderRequest, params CancelOrderParams) (r CancelOrderRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CancelReturn implements cancelReturn operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/returns/{returnId}/cancel
+func (UnimplementedHandler) CancelReturn(ctx context.Context, req *VersionRequest, params CancelReturnParams) (r CancelReturnRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CancelStockDocument implements cancelStockDocument operation.
 //
 // Hủy phiếu nháp.
@@ -114,6 +186,33 @@ func (UnimplementedHandler) CancelStocktake(ctx context.Context, req *VersionReq
 	return r, ht.ErrNotImplemented
 }
 
+// CheckCoupon implements checkCoupon operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/coupon-check
+func (UnimplementedHandler) CheckCoupon(ctx context.Context, params CheckCouponParams) (r CheckCouponRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CheckOrderDuplicates implements checkOrderDuplicates operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/order-duplicate-check
+func (UnimplementedHandler) CheckOrderDuplicates(ctx context.Context, params CheckOrderDuplicatesParams) (r CheckOrderDuplicatesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CloseReturn implements closeReturn operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/returns/{returnId}/close
+func (UnimplementedHandler) CloseReturn(ctx context.Context, req *VersionRequest, params CloseReturnParams) (r CloseReturnRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CompleteUpload implements completeUpload operation.
 //
 // Báo đã tải xong; máy chủ kiểm kho rồi chuyển tệp sang uploaded (ảnh thì xếp
@@ -121,6 +220,15 @@ func (UnimplementedHandler) CancelStocktake(ctx context.Context, req *VersionReq
 //
 // POST /api/v1/files/{id}/complete
 func (UnimplementedHandler) CompleteUpload(ctx context.Context, params CompleteUploadParams) (r CompleteUploadRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ConfirmOrder implements confirmOrder operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/orders/{id}/confirm
+func (UnimplementedHandler) ConfirmOrder(ctx context.Context, req *VersionRequest, params ConfirmOrderParams) (r ConfirmOrderRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -154,10 +262,51 @@ func (UnimplementedHandler) CreateCategory(ctx context.Context, req *CreateCateg
 	return r, ht.ErrNotImplemented
 }
 
+// CreateCoupon implements createCoupon operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/coupons
+func (UnimplementedHandler) CreateCoupon(ctx context.Context, req *CreateCouponRequest, params CreateCouponParams) (r CreateCouponRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateCouponBatch implements createCouponBatch operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/coupon-batches
+func (UnimplementedHandler) CreateCouponBatch(ctx context.Context, req *CreateCouponBatchRequest, params CreateCouponBatchParams) (r CreateCouponBatchRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateCustomer implements createCustomer operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/customers
+func (UnimplementedHandler) CreateCustomer(ctx context.Context, req *CreateCustomerRequest, params CreateCustomerParams) (r CreateCustomerRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateCustomerTag implements createCustomerTag operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/customer-tags
+func (UnimplementedHandler) CreateCustomerTag(ctx context.Context, req *CreateCustomerTagRequest, params CreateCustomerTagParams) (r CreateCustomerTagRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateOrder implements createOrder operation.
 //
-// Lên đơn nhập tay (tạo khách mới, đơn ở Đã xác nhận, giữ hàng cùng
-// transaction).
+// Thân kiểu M1 (không intent, có customer.fullName, shipAddress name/phone/line) tạo thẳng
+// đơn Đã xác nhận như M1. Trường M2 (customerId, intent, giảm giá, mã, nguồn, ghi
+// chú hãng, người phụ trách, mã tỉnh/xã…) có nghiệp vụ từ Task M2-16, M2-17;
+// trước đó gửi trường M2 → 501 not_implemented. Đúng một trong customerId, customer
+// (sai → 400 invalid_input). Khóa nghiệp vụ của đơn dựng từ Idempotency-Key và nhân
+// viên (Q-T57-4); cùng khóa nghiệp vụ, cùng nội dung sau khi bản ghi chống trùng hết
+// hạn → 200 trả đơn đã có.
 //
 // POST /api/v1/orders
 func (UnimplementedHandler) CreateOrder(ctx context.Context, req *CreateOrderRequest, params CreateOrderParams) (r CreateOrderRes, _ error) {
@@ -171,6 +320,15 @@ func (UnimplementedHandler) CreateOrder(ctx context.Context, req *CreateOrderReq
 //
 // POST /api/v1/catalog/products
 func (UnimplementedHandler) CreateProduct(ctx context.Context, req *CreateProductRequest, params CreateProductParams) (r CreateProductRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateReturn implements createReturn operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/orders/{id}/returns
+func (UnimplementedHandler) CreateReturn(ctx context.Context, req *CreateReturnRequest, params CreateReturnParams) (r CreateReturnRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -231,6 +389,15 @@ func (UnimplementedHandler) CreateTag(ctx context.Context, req *CreateTagRequest
 	return r, ht.ErrNotImplemented
 }
 
+// CreateTrafficSource implements createTrafficSource operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/traffic-sources
+func (UnimplementedHandler) CreateTrafficSource(ctx context.Context, req *CreateTrafficSourceRequest, params CreateTrafficSourceParams) (r CreateTrafficSourceRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateUpload implements createUpload operation.
 //
 // Xin đường dẫn ký sẵn để trình duyệt tải thẳng một tệp lên kho (chỉ mục
@@ -238,6 +405,15 @@ func (UnimplementedHandler) CreateTag(ctx context.Context, req *CreateTagRequest
 //
 // POST /api/v1/files/uploads
 func (UnimplementedHandler) CreateUpload(ctx context.Context, req *CreateUploadRequest, params CreateUploadParams) (r CreateUploadRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// DeleteCustomerAddress implements deleteCustomerAddress operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// DELETE /api/v1/customers/{id}/addresses/{addressId}
+func (UnimplementedHandler) DeleteCustomerAddress(ctx context.Context, params DeleteCustomerAddressParams) (r DeleteCustomerAddressRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -270,6 +446,69 @@ func (UnimplementedHandler) GetCatalogImportTemplate(ctx context.Context) (r Get
 	return r, ht.ErrNotImplemented
 }
 
+// GetCoupon implements getCoupon operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/coupons/{couponId}
+func (UnimplementedHandler) GetCoupon(ctx context.Context, params GetCouponParams) (r GetCouponRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetCouponBatch implements getCouponBatch operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/coupon-batches/{batchId}
+func (UnimplementedHandler) GetCouponBatch(ctx context.Context, params GetCouponBatchParams) (r GetCouponBatchRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetCustomer implements getCustomer operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/customers/{id}
+func (UnimplementedHandler) GetCustomer(ctx context.Context, params GetCustomerParams) (r GetCustomerRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetCustomerImport implements getCustomerImport operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/customer-imports/{importId}
+func (UnimplementedHandler) GetCustomerImport(ctx context.Context, params GetCustomerImportParams) (r GetCustomerImportRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetCustomerImportTemplate implements getCustomerImportTemplate operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/customer-imports/template
+func (UnimplementedHandler) GetCustomerImportTemplate(ctx context.Context) (r GetCustomerImportTemplateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetCustomerTagRule implements getCustomerTagRule operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/customer-tags/{tagId}/rule
+func (UnimplementedHandler) GetCustomerTagRule(ctx context.Context, params GetCustomerTagRuleParams) (r GetCustomerTagRuleRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetCustomerTimeline implements getCustomerTimeline operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/customers/{id}/timeline
+func (UnimplementedHandler) GetCustomerTimeline(ctx context.Context, params GetCustomerTimelineParams) (r GetCustomerTimelineRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetFile implements getFile operation.
 //
 // Trạng thái tệp và các biến thể ảnh công khai.
@@ -291,10 +530,29 @@ func (UnimplementedHandler) GetMe(ctx context.Context) (r GetMeRes, _ error) {
 
 // GetOrder implements getOrder operation.
 //
-// Một đơn kèm dòng đơn (tên, SKU chụp lúc đặt).
+// Một đơn kèm dòng đơn (tên, SKU chụp lúc đặt); M2 (Task M2-24) thêm nhãn, khách,
+// giảm giá, phạm vi được sửa, phiếu trả.
 //
 // GET /api/v1/orders/{id}
 func (UnimplementedHandler) GetOrder(ctx context.Context, params GetOrderParams) (r GetOrderRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetOrderSettings implements getOrderSettings operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/order-settings
+func (UnimplementedHandler) GetOrderSettings(ctx context.Context) (r GetOrderSettingsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetOrderTimeline implements getOrderTimeline operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/orders/{id}/timeline
+func (UnimplementedHandler) GetOrderTimeline(ctx context.Context, params GetOrderTimelineParams) (r GetOrderTimelineRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -334,6 +592,15 @@ func (UnimplementedHandler) GetProduct(ctx context.Context, params GetProductPar
 //
 // GET /api/v1/catalog/products/{id}/classification
 func (UnimplementedHandler) GetProductClassification(ctx context.Context, params GetProductClassificationParams) (r GetProductClassificationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetReturn implements getReturn operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/returns/{returnId}
+func (UnimplementedHandler) GetReturn(ctx context.Context, params GetReturnParams) (r GetReturnRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -392,6 +659,15 @@ func (UnimplementedHandler) HealthReady(ctx context.Context) (r HealthReadyRes, 
 	return r, ht.ErrNotImplemented
 }
 
+// ListAdminUnits implements listAdminUnits operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/admin-units
+func (UnimplementedHandler) ListAdminUnits(ctx context.Context, params ListAdminUnitsParams) (r ListAdminUnitsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListAttributes implements listAttributes operation.
 //
 // Mọi thuộc tính của shop kèm giá trị, theo vị trí.
@@ -423,6 +699,51 @@ func (UnimplementedHandler) ListCategories(ctx context.Context) (r ListCategorie
 	return r, ht.ErrNotImplemented
 }
 
+// ListCouponRedemptions implements listCouponRedemptions operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/coupons/{couponId}/redemptions
+func (UnimplementedHandler) ListCouponRedemptions(ctx context.Context, params ListCouponRedemptionsParams) (r ListCouponRedemptionsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListCoupons implements listCoupons operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/coupons
+func (UnimplementedHandler) ListCoupons(ctx context.Context, params ListCouponsParams) (r ListCouponsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListCustomerMergeCandidates implements listCustomerMergeCandidates operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/customers/{id}/merge-candidates
+func (UnimplementedHandler) ListCustomerMergeCandidates(ctx context.Context, params ListCustomerMergeCandidatesParams) (r ListCustomerMergeCandidatesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListCustomerTags implements listCustomerTags operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/customer-tags
+func (UnimplementedHandler) ListCustomerTags(ctx context.Context) (r ListCustomerTagsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListCustomers implements listCustomers operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/customers
+func (UnimplementedHandler) ListCustomers(ctx context.Context, params ListCustomersParams) (r ListCustomersRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListJobs implements listJobs operation.
 //
 // Việc nền cần người xử lý của tenant người gọi (không có payload).
@@ -439,6 +760,24 @@ func (UnimplementedHandler) ListJobs(ctx context.Context, params ListJobsParams)
 //
 // GET /api/v1/platform/files/lost
 func (UnimplementedHandler) ListLostFiles(ctx context.Context, params ListLostFilesParams) (r ListLostFilesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListOrderDuplicates implements listOrderDuplicates operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/order-duplicates
+func (UnimplementedHandler) ListOrderDuplicates(ctx context.Context, params ListOrderDuplicatesParams) (r ListOrderDuplicatesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListOrders implements listOrders operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/orders
+func (UnimplementedHandler) ListOrders(ctx context.Context, params ListOrdersParams) (r ListOrdersRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -460,6 +799,15 @@ func (UnimplementedHandler) ListPermissions(ctx context.Context) (r ListPermissi
 //
 // GET /api/v1/catalog/products
 func (UnimplementedHandler) ListProducts(ctx context.Context, params ListProductsParams) (r ListProductsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListReturns implements listReturns operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/returns
+func (UnimplementedHandler) ListReturns(ctx context.Context, params ListReturnsParams) (r ListReturnsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -519,6 +867,15 @@ func (UnimplementedHandler) ListTags(ctx context.Context) (r ListTagsRes, _ erro
 	return r, ht.ErrNotImplemented
 }
 
+// ListTrafficSources implements listTrafficSources operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// GET /api/v1/traffic-sources
+func (UnimplementedHandler) ListTrafficSources(ctx context.Context) (r ListTrafficSourcesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListWarehouses implements listWarehouses operation.
 //
 // Các kho người gọi được xem (có inventory.read ở kho đó hoặc toàn shop), kho chính
@@ -538,6 +895,15 @@ func (UnimplementedHandler) LockStaff(ctx context.Context, params LockStaffParam
 	return r, ht.ErrNotImplemented
 }
 
+// MergeCustomer implements mergeCustomer operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/customers/{id}/merge
+func (UnimplementedHandler) MergeCustomer(ctx context.Context, req *MergeCustomerRequest, params MergeCustomerParams) (r MergeCustomerRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // PostStockDocument implements postStockDocument operation.
 //
 // Ghi sổ phiếu nháp (đổi tồn); thiếu hàng ở một dòng thì cả phiếu không ghi
@@ -545,6 +911,24 @@ func (UnimplementedHandler) LockStaff(ctx context.Context, params LockStaffParam
 //
 // POST /api/v1/inventory/documents/{id}/post
 func (UnimplementedHandler) PostStockDocument(ctx context.Context, req *StockDocumentVersion, params PostStockDocumentParams) (r PostStockDocumentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// PutCustomerTagRule implements putCustomerTagRule operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// PUT /api/v1/customer-tags/{tagId}/rule
+func (UnimplementedHandler) PutCustomerTagRule(ctx context.Context, req *PutCustomerTagRuleRequest, params PutCustomerTagRuleParams) (r PutCustomerTagRuleRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ReceiveReturn implements receiveReturn operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/returns/{returnId}/receive
+func (UnimplementedHandler) ReceiveReturn(ctx context.Context, req *ReceiveReturnRequest, params ReceiveReturnParams) (r ReceiveReturnRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -565,6 +949,24 @@ func (UnimplementedHandler) RecordStocktakeCount(ctx context.Context, req *Recor
 //
 // POST /api/v1/platform/files/regenerate
 func (UnimplementedHandler) RegenerateImages(ctx context.Context, req *RegenerateImagesRequest, params RegenerateImagesParams) (r RegenerateImagesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// RemoveCustomerIdentity implements removeCustomerIdentity operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// DELETE /api/v1/customers/{id}/identities/{identityId}
+func (UnimplementedHandler) RemoveCustomerIdentity(ctx context.Context, params RemoveCustomerIdentityParams) (r RemoveCustomerIdentityRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// RemoveCustomerTag implements removeCustomerTag operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// DELETE /api/v1/customers/{id}/tags/{tagId}
+func (UnimplementedHandler) RemoveCustomerTag(ctx context.Context, params RemoveCustomerTagParams) (r RemoveCustomerTagRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -597,6 +999,15 @@ func (UnimplementedHandler) ReplaceStockDocumentLines(ctx context.Context, req *
 	return r, ht.ErrNotImplemented
 }
 
+// ResolveOrderDuplicate implements resolveOrderDuplicate operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/order-duplicates/{orderId}/{otherOrderId}/resolve
+func (UnimplementedHandler) ResolveOrderDuplicate(ctx context.Context, req *ResolveOrderDuplicateRequest, params ResolveOrderDuplicateParams) (r ResolveOrderDuplicateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // RestoreProductImage implements restoreProductImage operation.
 //
 // Khôi phục ảnh đã xóa về vị trí cũ; quá 30 ngày → 410 restore_expired; ảnh đang
@@ -626,6 +1037,15 @@ func (UnimplementedHandler) SearchVariants(ctx context.Context, params SearchVar
 	return r, ht.ErrNotImplemented
 }
 
+// SetOrderPending implements setOrderPending operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/orders/{id}/pending
+func (UnimplementedHandler) SetOrderPending(ctx context.Context, req *SetOrderPendingRequest, params SetOrderPendingParams) (r SetOrderPendingRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // SetProductClassification implements setProductClassification operation.
 //
 // Thay toàn bộ danh mục, giá trị thuộc tính, nhãn của mẫu khi version của mẫu còn
@@ -644,6 +1064,15 @@ func (UnimplementedHandler) SetProductClassification(ctx context.Context, req *S
 //
 // PUT /api/v1/catalog/products/{id}/images/{imageId}/color
 func (UnimplementedHandler) SetProductImageColor(ctx context.Context, req *SetProductImageColorRequest, params SetProductImageColorParams) (r SetProductImageColorRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// StartCustomerImport implements startCustomerImport operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/customer-imports
+func (UnimplementedHandler) StartCustomerImport(ctx context.Context, req *StartCustomerImportRequest, params StartCustomerImportParams) (r StartCustomerImportRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -666,6 +1095,15 @@ func (UnimplementedHandler) Stream(ctx context.Context) (r StreamRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
+// UndoCustomerMerge implements undoCustomerMerge operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// POST /api/v1/customer-merges/{mergeId}/undo
+func (UnimplementedHandler) UndoCustomerMerge(ctx context.Context, params UndoCustomerMergeParams) (r UndoCustomerMergeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // UnlockStaff implements unlockStaff operation.
 //
 // Mở khóa nhân viên.
@@ -682,6 +1120,60 @@ func (UnimplementedHandler) UnlockStaff(ctx context.Context, params UnlockStaffP
 //
 // PATCH /api/v1/catalog/categories/{id}
 func (UnimplementedHandler) UpdateCategory(ctx context.Context, req *UpdateCategoryRequest, params UpdateCategoryParams) (r UpdateCategoryRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateCoupon implements updateCoupon operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// PATCH /api/v1/coupons/{couponId}
+func (UnimplementedHandler) UpdateCoupon(ctx context.Context, req *UpdateCouponRequest, params UpdateCouponParams) (r UpdateCouponRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateCustomer implements updateCustomer operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// PATCH /api/v1/customers/{id}
+func (UnimplementedHandler) UpdateCustomer(ctx context.Context, req *UpdateCustomerRequest, params UpdateCustomerParams) (r UpdateCustomerRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateCustomerAddress implements updateCustomerAddress operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// PATCH /api/v1/customers/{id}/addresses/{addressId}
+func (UnimplementedHandler) UpdateCustomerAddress(ctx context.Context, req *UpdateCustomerAddressRequest, params UpdateCustomerAddressParams) (r UpdateCustomerAddressRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateCustomerTag implements updateCustomerTag operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// PATCH /api/v1/customer-tags/{tagId}
+func (UnimplementedHandler) UpdateCustomerTag(ctx context.Context, req *UpdateCustomerTagRequest, params UpdateCustomerTagParams) (r UpdateCustomerTagRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateOrder implements updateOrder operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// PATCH /api/v1/orders/{id}
+func (UnimplementedHandler) UpdateOrder(ctx context.Context, req *UpdateOrderRequest, params UpdateOrderParams) (r UpdateOrderRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateOrderSettings implements updateOrderSettings operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// PATCH /api/v1/order-settings
+func (UnimplementedHandler) UpdateOrderSettings(ctx context.Context, req *UpdateOrderSettingsRequest, params UpdateOrderSettingsParams) (r UpdateOrderSettingsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -710,6 +1202,15 @@ func (UnimplementedHandler) UpdateRole(ctx context.Context, req *UpdateRoleReque
 //
 // PATCH /api/v1/inventory/suppliers/{id}
 func (UnimplementedHandler) UpdateSupplier(ctx context.Context, req *UpdateSupplierRequest, params UpdateSupplierParams) (r UpdateSupplierRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateTrafficSource implements updateTrafficSource operation.
+//
+// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+//
+// PATCH /api/v1/traffic-sources/{sourceId}
+func (UnimplementedHandler) UpdateTrafficSource(ctx context.Context, req *UpdateTrafficSourceRequest, params UpdateTrafficSourceParams) (r UpdateTrafficSourceRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

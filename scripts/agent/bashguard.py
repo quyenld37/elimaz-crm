@@ -17,7 +17,7 @@ def block(msg):
 # (danh sách cho phép, không phải danh sách cấm: bài thử phá 18/11 vượt danh sách cấm bằng mkdir + touch).
 PROTECTED = [r"\.claude", r"scripts/agent/", r"\.githooks", r"\.git/", r"\.git\b", r"crm-review", r"docs/tasks/hien-tai\.md", r"crm-task-state", r"core\.hooksPath", r"git-dir", r"git-common-dir", r"GIT_DIR"]
 SAFE_READ = re.compile(r"^(cd|pwd|echo|printf|true|cat|ls|head|tail|grep|rg|wc|stat|file|diff|jq|git (diff|log|show|status|ls-files|rev-parse --show-toplevel|blame))\b")
-SANCTIONED = re.compile(r"^(\./)?scripts/agent/(new-task|finish-task|task-check|stop-check)\.sh\b")
+SANCTIONED = re.compile(r"^(\./)?scripts/agent/(new-task|finish-task|task-check|stop-check|ci-task)\.sh\b")
 
 # Tách lệnh ghép thành các lệnh đơn. Bỏ trước các chuyển hướng vô hại (2>&1, >/dev/null) để chúng không bị đọc thành đường dẫn.
 cmd_parse = re.sub(r"\d*>&\d+|\d*>>?\s*/dev/null", " ", cmd)
@@ -35,16 +35,33 @@ for t in tokens:
         cur.append(t)
 if cur: parts.append(cur)
 
+# Dừng tiến trình theo mẫu tên giết cả phiên khác trên cùng máy (19/11: một phiên chạy `pkill -f ci-task.sh`, dừng 4 phiên
+# song song vì lời giao việc của chúng có chữ đó). Chỉ cho `kill` theo số PID, `$!` hoặc job `%n`.
+for p in parts:
+    if not p: continue
+    if p[0] in ("pkill", "killall"):
+        block(f"{p[0]} dừng theo mẫu tên, trúng cả phiên khác. Dùng `kill <PID>` với PID chính tiến trình của bạn ($! khi chạy nền).")
+    if p[0] == "kill" and any(not re.fullmatch(r"-\w+|-?\d+|\$!|%\d*|\$\w+|\$\{\w+\}", a) for a in p[1:]):
+        block("kill chỉ nhận PID, $!, biến PID hoặc %job. Không dùng $(pgrep …) theo mẫu tên.")
+
 hit = [p for p in PROTECTED if re.search(p, cmd)]
 if hit:
     stripped = re.sub(r"\d?>\s*/dev/null|2>&1", "", cmd)
+    # Chuyển hướng ra tệp KHÔNG thuộc vùng bảo vệ (ví dụ /tmp/ci.log, scratchpad) là vô hại: bỏ khỏi phần kiểm.
+    def _safe_redirect(m):
+        target = m.group(2)
+        return " " if not any(re.search(p, target) for p in PROTECTED) else m.group(0)
+    stripped = re.sub(r"(\d?>>?)\s*([^\s;&|]+)", _safe_redirect, stripped)
+    # Tiền tố CLAUDE_PROJECT_DIR=$(pwd) trước script quy trình được phép là vô hại.
+    stripped = stripped.replace("CLAUDE_PROJECT_DIR=$(pwd) ", "")
     def ok(argv):
         while argv and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", argv[0]): argv = argv[1:]
+        if not argv or argv == ["$"]: return True  # mẩu còn lại của gán biến kiểu A=$(pwd)
         line = " ".join(argv)
         if SANCTIONED.match(line): return True
         if not SAFE_READ.match(line): return False
         return True
-    if ">" in stripped or "`" in cmd or "$(" in cmd or not all(ok(a) for a in parts):
+    if ">" in stripped or "`" in stripped or "$(" in stripped or not all(ok(a) for a in parts):
         block(f"lệnh nhắc tới phần cấu hình quy trình ({hit[0].replace(chr(92), '')}) nhưng không phải lệnh chỉ đọc. Hook, cấu hình agent, git hook, dấu duyệt, trạng thái task chỉ chủ shop đổi. Đổi trạng thái task bằng scripts/agent/new-task.sh hoặc finish-task.sh; dấu duyệt do hook ghi khi reviewer kết luận.")
 
 GIT_OPTS_WITH_ARG = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--config-env"}

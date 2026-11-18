@@ -8,8 +8,11 @@ phương án go-mutesting hay lỗi cài tay). Cấu hình `.gremlins.yaml`; l�
 Đột biến "không phủ" (không test nào chạy qua dòng đó) và "quá hạn" (TIMED OUT: test treo, coi như bị bắt) không tính vào
 hiệu quả.
 
-Thư mục: đúng `HIGH_RISK_DIRS` của hook (`tenancy`, `queue`, `commands`, `idempotency`, `modules/identity`; riêng
-`internal/httpapi` chỉ `guard.go`). Test `TestMakeMutation_CoversHighRiskDirs` giữ hai danh sách khớp nhau.
+Thư mục: `make mutation` đọc thẳng `HIGH_RISK_DIRS` của hook (một nguồn, Task 392): `tenancy`, `queue`, `commands`,
+`idempotency`, `platform/db`, `platform/webhooks`, `modules/identity`, `modules/inventory`; riêng `internal/httpapi` chỉ
+`guard.go` (mọi tệp khác của gói bị loại, tính lúc chạy). `TestMakeMutation_CoversHighRiskDirs` và
+`TestMakeMutation_SingleSourceAndFileEntries` giữ luật này. Ba gói `platform/db`, `platform/webhooks`,
+`modules/inventory` chưa có lần chạy nào (lượt CI theo lịch hoặc `make mutation` sẽ đo).
 
 ## Lần chạy 18/11/2026 (máy dev, `GOFLAGS=-count=1`, 2 lượt song song)
 

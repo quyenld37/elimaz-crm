@@ -54,6 +54,11 @@ Task chỉ có màn hình và phần hợp đồng (không có handler, bảng, 
 
 ## Quyết định thay chủ shop
 
+- Lượt 2: phiên trước bị dừng giữa một lần gộp chưa commit với `main` cũ (6fba6c3, thiếu Task 389). Chọn bỏ lần gộp
+  dở (`git merge --abort`; chưa có commit nên đảo ngược được) và gộp lại với `main` hiện tại, để chỉ có một commit gộp
+  và reviewer duyệt đúng bản có Task 389. Phương án khác: commit lần gộp cũ rồi gộp thêm lần nữa (hai lần gộp, trái
+  yêu cầu "chỉ một lần").
+
 1. **Task 46 (máy chủ `verifyFiles`/`listLostFiles`) chưa làm, chưa có trong `openapi.yaml`.** Chọn: thêm **hợp đồng**
    hai operation đúng Interfaces của Task 46 vào `openapi.yaml`, `make gen`; máy chủ trả 501 (`UnimplementedHandler`)
    tới khi Task 46 viết handler — giống tiền lệ `healthDeep`, `getPlatformHealth` (Task 6, 19, 20). Màn và e2e chạy
@@ -74,6 +79,26 @@ Task chỉ có màn hình và phần hợp đồng (không có handler, bảng, 
    thái việc (ngoài phạm vi, đổi hợp đồng thêm).
 5. **Tệp không gắn mẫu** (ví dụ tệp nhập Excel): cột "Thuộc về" hiện "—", không có nút (mockup chỉ vẽ ảnh sản phẩm).
 
+## Lượt 2: gộp main (19/11)
+
+- Gộp `main` (13a9bf9: có Task 330 màn Sự kiện lỗi, Task 59 hợp đồng M2, Task 389 test đăng ký màn theo thư mục) vào
+  nhánh, một lần, bằng `git merge main`. Lần gộp dở trước đó (phiên bị dừng 00:35) dựa trên 6fba6c3, chưa có Task 389,
+  chưa commit: đã `git merge --abort` rồi gộp lại với `main` mới nhất (xem Quyết định thay chủ shop).
+- Xung đột: `openapi.yaml` tự gộp được (giữ cả hai bên). Mã sinh (`internal/httpapi/gen/**`, `routes_gen.go`,
+  `console/src/api/{index,sdk.gen}.ts`): không sửa tay — lấy bản `main` rồi `make gen` từ `openapi.yaml` đã gộp;
+  phần khác `main` trong mã sinh chỉ còn hai operation `listLostFiles`, `verifyFiles` như lượt 1.
+- `console/src/app/screens.test.tsx`: lấy bản `main` (Task 389: tệp này chỉ kiểm quy ước). Thêm
+  `console/src/screens/lost-files/route.test.tsx` (test đăng ký riêng của màn, theo mẫu `errors/route.test.tsx`).
+- Không đổi hành vi, không đổi mã viết tay của màn; Ảnh hưởng, Tái dùng, Soát thiết kế của lượt 1 giữ nguyên
+  (thêm đúng một tệp test `lost-files/route.test.tsx`, dùng lại `routeRows` của `src/app/routeTestkit.ts`).
+
+| Tiêu chí | Test | Lệnh | Kết quả |
+|---|---|---|---|
+| Màn Tệp bị mất tự đăng ký đúng path, nhãn, nhóm, quyền, order 30 | `lost-files/route.test.tsx › route.tsx khai đúng path, nhãn, nhóm, quyền, trang ẩn, also, order` | `npx vitest run src/app/screens.test.tsx src/screens/lost-files src/screens/errors` | `Test Files 6 passed (6)`, `Tests 44 passed (44)` |
+| Hai màn Hệ thống vẫn chạy sau gộp | `e2e/lost-files.spec.ts`, `e2e/errors.spec.ts` (1512, 390) | `CRM_E2E_PORT=5131 npx playwright test e2e/lost-files.spec.ts e2e/errors.spec.ts --project=chromium` | `16 passed (16.2s)` |
+| Kiểu TS khớp client sinh lại | — | `npx tsc --noEmit` | không lỗi |
+| Cổng theo task | cổng tĩnh, gen-check, oasdiff, test gói đổi | `ci-task.sh` (chạy một lần, trên bản gộp đã stage) | build, vet, lint, gen-check, sqlc-vet, catalog-check, jscpd, gitleaks, oasdiff, test-guard qua; test toàn bộ (bản gộp đổi migration/go.mod/testkit) `51` gói `ok`, không `FAIL`; console-check đỏ một lần vì tệp tạm `lint-guard-sample-*.ts` do `lint-guard.test.ts` tạo khi tôi chạy vitest song song, chạy lại `make console-check`: `Tests 334 passed (334)`, `✓ built`, `no leaks found`, thoát 0 |
+
 ## Bằng chứng
 
 | Tiêu chí | Test | Lệnh | Kết quả |
@@ -85,7 +110,7 @@ Task chỉ có màn hình và phần hợp đồng (không có handler, bảng, 
 | `listLostFiles` lỗi → câu lỗi, không bảng | `danh sách lỗi (403) → câu lỗi, không có bảng` | như trên | `✓` |
 | Không có `platform.files.manage` → không có mục menu | `không có quyền platform.files.manage → không có mục Tệp bị mất trên menu` | như trên | `✓` |
 | Tên mục đích, giờ Việt Nam (qua nửa đêm, sang năm), chuỗi hỏng → "—" | `purposeLabel`, `lostAtText` (3 ca) | `npx vitest run src/screens/lost-files` | `Tests 3 passed (3)` |
-| Màn tự đăng ký đúng path, nhóm, quyền | `SCREENS nạp từ src/screens/*/route.tsx › đủ các màn đã có…` | `make console-check` (vitest 269 ca, tsc, eslint, build) | `Tests 269 passed` sau khi thêm dòng; build `✓ built`, gitleaks `no leaks found` |
+| Màn tự đăng ký đúng path, nhóm, quyền (lượt 1; từ lượt 2 thay bằng `lost-files/route.test.tsx`, vì `screens.test.tsx` của Task 389 chỉ kiểm quy ước) | `SCREENS nạp từ src/screens/*/route.tsx › đủ các màn đã có…` | `make console-check` (vitest 269 ca, tsc, eslint, build) | `Tests 269 passed` sau khi thêm dòng; build `✓ built`, gitleaks `no leaks found` |
 | Hợp đồng thêm, không phá vỡ; mã sinh khớp; route → quyền sinh đúng | `make gen-check`, `make oasdiff OASDIFF_BASE=-base-ref=<điểm tách>`; `routes_gen.go` có `listLostFiles`/`verifyFiles` → `platform.files.manage`, `verifyFiles` `IdempotencyMode: "required"` | như cột Test | gen-check qua (sau stage); apicheck không báo phá vỡ |
 | Máy chủ vẫn chạy, operation mới 501 không làm hỏng route/test cũ | `go test -race ./internal/httpapi/...`, `./cmd/crm`, `./tests/arch/...` | `go test -race -count=1 …` | `ok internal/httpapi 197.899s`, `ok cmd/crm`, `ok tests/arch 23.021s` |
 | Cổng tĩnh như `ci-task.sh` | build, vet, lint, sqlc-vet, catalog-check, jscpd, gitleaks | `make <cổng>` từng cái (hook của worktree chặn gọi thẳng `ci-task.sh`, xem Việc phát hiện thêm) | tất cả qua |
@@ -103,12 +128,24 @@ Task chỉ có màn hình và phần hợp đồng (không có handler, bảng, 
 
 ## Việc phát hiện thêm
 
+- Lượt 2: `ImageManager.test.tsx › dời ảnh 1 sang phải …` (không thuộc task) đỏ một lần khi chạy cả bộ vitest song song
+  với `ci-task.sh`; chạy riêng `19 passed`. Có thể là test phụ thuộc thời gian khi máy tải nặng.
+
 - Task 46 cần hiện thực `ListLostFiles`, `VerifyFiles` theo hợp đồng đã thêm ở đây (hiện trả 501), và nên phát báo
   hiệu realtime `files.file` khi `file.verify` đánh dấu xong để màn tự cập nhật ngay (không phải chờ 20 s).
 - Hook Bash (`bashguard.py`, mẫu `SANCTIONED`) chưa cho chạy `ci-task.sh` dù CLAUDE.md bảo chạy nó trước review; đã
   chạy tay từng cổng tương đương (không vượt hook). Chủ shop/điều phối viên thêm `ci-task` vào mẫu cho phép.
 
 ## Reviewer
+
+Lượt 2: ĐẠT (agent `reviewer`, lần 1, trên bản gộp đã stage, so với 13a9bf9).
+
+- Phát hiện phải sửa: không có. Phần khác 13a9bf9 đúng 24 tệp của lượt 1, trừ `screens.test.tsx` (lấy bản `main`) và
+  thêm `lost-files/route.test.tsx`; `openapi.yaml` chỉ thêm, không mất operation nào của `main`; mã sinh chỉ khác ở hai
+  operation mới (`oas_router_gen.go` xếp lại nhánh `/platform/files/`); `route.test.tsx` so đủ 7 trường với `route.tsx`.
+- Ghi chú không bắt buộc đã làm: ghi rõ dòng bằng chứng `SCREENS…` của lượt 1 nay thay bằng `route.test.tsx`.
+
+Lượt 1:
 
 Kết luận: ĐẠT (agent `reviewer`, lần 1, trên phần đã stage sau khi gộp main — main không có gì mới).
 

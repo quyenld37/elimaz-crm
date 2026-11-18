@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	ht "github.com/ogen-go/ogen/http"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/catalog"
@@ -29,7 +30,9 @@ func orderBusinessKey(userID uuid.UUID, requestKey string) uuid.UUID {
 
 // CreateOrder (POST /api/v1/orders, order.create): tạo khách mới và đơn nhập tay của người bán mặc định trong một
 // transaction (giữ hàng cùng lúc) → 201. Từ chối nghiệp vụ (hết hàng, ngừng bán, khác người bán, tràn tổng, dữ liệu
-// sai) không lưu theo khóa: gửi lại cùng khóa được xử lý lại.
+// sai) không lưu theo khóa: gửi lại cùng khóa được xử lý lại. Hợp đồng M2 (Task M2-02) đã thêm trường; nghiệp vụ của
+// chúng có ở Task M2-16, M2-17, nên tới lúc đó thân có trường M2 → 501 (không bỏ qua lặng lẽ). Thân kiểu M1 phải có
+// customer và shipAddress (nay tùy chọn trong hợp đồng) → thiếu là 400 invalid_input.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) CreateOrder(ctx context.Context, req *gen.CreateOrderRequest, params gen.CreateOrderParams) (gen.CreateOrderRes, error) {
@@ -37,11 +40,19 @@ func (h *handler) CreateOrder(ctx context.Context, req *gen.CreateOrderRequest, 
 	if !ok {
 		return nil, errNoAuthUser
 	}
+	if hasM2OrderFields(req) {
+		return nil, fmt.Errorf("tạo đơn có trường M2: %w", ht.ErrNotImplemented)
+	}
+	cust, hasCust := req.Customer.Get()
+	addr, hasAddr := req.ShipAddress.Get()
+	if !hasCust || !hasAddr {
+		return nil, fmt.Errorf("tạo đơn kiểu M1 thiếu khách hay địa chỉ: %w", order.ErrInvalidInput)
+	}
 	in := order.CreateManualInput{
 		IdempotencyKey: orderBusinessKey(u.UserID, params.IdempotencyKey),
 		WarehouseID:    req.WarehouseId.Or(uuid.Nil),
 		ShipAddress: order.ShipAddress{
-			Name: req.ShipAddress.Name, Phone: logging.Phone(req.ShipAddress.Phone), Line: logging.Address(req.ShipAddress.Line),
+			Name: addr.Name, Phone: logging.Phone(addr.Phone), Line: logging.Address(addr.Line),
 		},
 		ShippingFee: int64(req.ShippingFee),
 	}
@@ -53,7 +64,7 @@ func (h *handler) CreateOrder(ctx context.Context, req *gen.CreateOrderRequest, 
 	var refused error
 	err := WriteTx(ctx, h.d, u.TenantID, func(tx pgx.Tx) (int, any, bool, error) {
 		out, refused = nil, nil // fn có thể chạy lại (ADR-46): gán lại mỗi lần
-		o, err := createOrder(ctx, tx, w, in, req.Customer.FullName, u)
+		o, err := createOrder(ctx, tx, w, in, cust.FullName, u)
 		switch {
 		case isOrderRefusal(err):
 			refused = err
@@ -70,7 +81,25 @@ func (h *handler) CreateOrder(ctx context.Context, req *gen.CreateOrderRequest, 
 	case refused != nil:
 		return nil, fmt.Errorf("tạo đơn: %w", refused)
 	}
-	return out, nil
+	return (*gen.CreateOrderCreated)(out), nil
+}
+
+// hasM2OrderFields: thân createOrder có trường mà hợp đồng M2 thêm (Task M2-02) nhưng nghiệp vụ chưa có.
+func hasM2OrderFields(req *gen.CreateOrderRequest) bool {
+	if c, ok := req.Customer.Get(); ok && (c.Phone.Set || c.PhoneIsCustomers.Set) {
+		return true
+	}
+	if a, ok := req.ShipAddress.Get(); ok && (a.ProvinceCode.Set || a.WardCode.Set) {
+		return true
+	}
+	for _, it := range req.Items {
+		if it.LineDiscount.Set {
+			return true
+		}
+	}
+	return req.CustomerId.Set || req.Intent.Set || req.OrderDiscount.Set || req.CouponCode.Set ||
+		req.TrafficSourceId.Set || req.CarrierNote.Set || req.CareBy.Set || req.Channel.Set || req.ExternalRef.Set ||
+		req.ReferralRef.Set
 }
 
 func createOrder(ctx context.Context, tx pgx.Tx, w order.Writer, in order.CreateManualInput, fullName string,

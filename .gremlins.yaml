@@ -1,5 +1,5 @@
 # Mutation testing vùng rủi ro cao (kế hoạch M0 bản 5, Task 23; ADR-25, ADR-44). Chạy: make mutation.
-# Danh sách thư mục nằm ở Makefile (MUTATION_DIRS, cùng danh sách HIGH_RISK_DIRS của hook); với internal/httpapi chỉ
+# Danh sách thư mục: Makefile đọc thẳng HIGH_RISK_DIRS của hook (một nguồn, Task 392); với internal/httpapi chỉ
 # đột biến guard.go. Kết quả từng lượt và lý do mỗi đột biến còn sống: docs/mutation.md.
 unleash:
   # Hiệu quả của bộ test (đột biến bị giết / (bị giết + còn sống)) phải từ 80% trở lên.

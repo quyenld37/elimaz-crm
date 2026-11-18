@@ -44,3 +44,90 @@
     padding-top: 8px;
   }
 }
+
+/* Màn Phiếu kho (Task 328), chép từ mockup đã duyệt docs/mockups/m1/kho-phieu.html (khối <style>) và m1.css (.stepper).
+   Viết .tbl.ltbl cho luật điện thoại vì styles.css có .tbl td cùng độ ưu tiên (như .tbl.stk). */
+.combo {
+  position: relative;
+}
+.combo-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 3;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  box-shadow: var(--shadow);
+  background: var(--paper);
+  margin-top: 4px;
+  overflow: hidden;
+}
+.combo-opt {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--field);
+  padding: 6px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+  font: 14px/1.4 var(--font-body);
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+.combo-opt:last-child {
+  border-bottom: 0;
+}
+.combo-opt.is-add {
+  font-weight: 700;
+  background: var(--surface);
+}
+.sup-name {
+  max-width: 360px;
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.stepper .input {
+  width: 72px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  padding: 8px 4px;
+}
+.ltbl .c-q {
+  width: 150px;
+}
+.ltbl .c-c {
+  width: 160px;
+}
+.ltbl .c-x {
+  width: 56px;
+}
+.ltbl td .input {
+  width: 100%;
+}
+.totals {
+  display: flex;
+  justify-content: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 12px;
+  font-size: 14px;
+}
+@media (max-width: 759px) {
+  .tbl.ltbl td .input,
+  .tbl.ltbl td .stepper {
+    flex: 0 1 60%;
+  }
+  .tbl.ltbl td.c-x {
+    justify-content: flex-end;
+  }
+  .totals {
+    justify-content: space-between;
+    padding: 8px 0;
+  }
+}
