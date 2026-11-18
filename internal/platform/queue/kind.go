@@ -10,7 +10,7 @@ import (
 const (
 	// ModeTransactional: handler chỉ đụng database, chạy trong một transaction; done ghi cùng transaction đó.
 	ModeTransactional = "transactional"
-	// ModeCommand: lệnh ra ngoài (Task 12, commands.Runner). Worker của Task 11 chưa nhận loại này.
+	// ModeCommand: lệnh ra ngoài; Worker giao cho WorkerOptions.Commands (commands.Runner), không chạy trong transaction.
 	ModeCommand = "command"
 )
 

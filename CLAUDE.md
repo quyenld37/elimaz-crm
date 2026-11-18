@@ -82,7 +82,12 @@ Có dần theo kế hoạch; lệnh nào chưa có thì task tương ứng sẽ 
   → `auth` + `guard` → handler mỏng `internal/httpapi/handlers_me.go` → kết quả.
 - **Gọi dịch vụ ngoài:** bộ nối ở `internal/adapters/<tên>` (mẫu: `cfaccess`), hiện thực interface do module khai;
   `cmd/crm` nối. Module không nhập `net/http`.
-- Task 12 thêm mẫu cho đường ghi. Module và đường mới làm theo đúng mẫu.
+- **Đường ghi (Task 12):** `POST /api/v1/platform/jobs/{id}/retry` (`internal/httpapi/handlers_jobs.go`) — hợp đồng
+  có `x-permission` và `IdempotencyKey` → middleware chống trùng → `WriteTx` (một transaction tenant: khóa và đổi dòng
+  qua public API của gói sở hữu, `identity.RecordAudit`, lưu kết quả; truyền con trỏ `&gen.X{…}`) → lỗi nghiệp vụ là
+  sentinel, đổi sang HTTP ở `errors.go`. Test: 50 yêu cầu song song cùng khóa, `retry_later` không lưu, tenant khác 404.
+- **Gọi ra ngoài:** lệnh `commands` (Kind từ `CommandKind`, ghi bằng `Enqueue` trong transaction nghiệp vụ); không chắc
+  đã gửi → `in_doubt`, không tự gửi lại. Module và đường mới làm theo đúng các mẫu trên.
 
 ## Bẫy đã gặp
 

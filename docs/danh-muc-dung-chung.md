@@ -2,6 +2,45 @@
 
 > Sinh tự động bằng `make catalog` (`go run ./tools/catalog`) từ tài liệu Go của `internal/platform/*`. Không sửa tay; dòng "Khi nào không dùng" sửa ở `docs/danh-muc-ghi-chu.yaml`.
 
+## `internal/platform/commands` (gói `commands`)
+
+Package commands là đường ra của CRM: lệnh ra ngoài (gửi tin, trả lời comment, tạo/hủy vận đơn) chạy như một việc mode command của hàng đợi (spec 04 mục 5.3; vùng rủi ro cao).
+
+**Khi nào không dùng:** Không gọi mạng ra ngoài ở chỗ khác: mọi tác động ra ngoài là một lệnh (Kind từ CommandKind) ghi bằng JobQueue.Enqueue trong transaction nghiệp vụ, Handler.Execute gửi. Không trả StatusNotSent khi chưa chắc bên ngoài chưa nhận (lỗi, quá giờ → in_doubt). Không tự gửi lại lệnh in_doubt: chỉ ResolveInDoubt (Looker nói chắc chắn chưa có) hoặc người có quyền chạy lại. Lệnh không đụng database thì không cần commands; việc chỉ đụng database là Handler transactional của queue.
+
+```go
+func CommandKind(name string, expiresAfter, timeout time.Duration) queue.Kind
+func ResolveInDoubt(ctx context.Context, d *db.DB, hs []Handler, limit int) (done, requeued, still int, err error)
+type DoneHook interface {
+	OnDone(ctx context.Context, j queue.Job, result json.RawMessage, tx pgx.Tx) error
+}
+type Handler interface {
+	Kind() queue.Kind
+
+	AutoRetryNotSent() bool
+
+	Execute(ctx context.Context, j queue.Job) (Outcome, error)
+}
+type Looker interface {
+	Lookup(ctx context.Context, j queue.Job) (string, error)
+}
+type Outcome struct {
+	Status string
+
+	Reason string
+
+	RetryAfter time.Duration
+
+	Result json.RawMessage
+}
+type Runner struct {
+}
+func NewRunner(d *db.DB, hs []Handler) *Runner
+func (r *Runner) Kinds() []queue.Kind
+func (r *Runner) Run(ctx context.Context, j queue.Job, workerID string) (string, error)
+func (r *Runner) TerminalHook(kind string) queue.TerminalHook
+```
+
 ## `internal/platform/config` (gói `config`)
 
 Package config đọc và kiểm biến môi trường theo vai trò của tiến trình (ingest, api, worker, migrate).
@@ -215,8 +254,16 @@ Package queue là lõi hàng đợi việc nền trên bảng platform.jobs (spe
 **Khi nào không dùng:** Không viết SQL lên platform.jobs ở gói khác: ghi việc bằng JobQueue.Enqueue trong transaction của dữ liệu, xử lý bằng Handler. Handler transactional không gọi mạng, không gửi gì ra ngoài (lệnh ra ngoài là commands, Task 12) và phải chạy lại được (có thể bị gọi lại). Không đặt nội dung hay dữ liệu cá nhân vào Payload, DedupeKey, OrderKey hay chuỗi lỗi: chỉ mã bản ghi. Không dùng hàng đợi cho việc cần nguyên tử với dữ liệu (cái đó nằm trong cùng một transaction), không tạo Worker thứ hai trong một tiến trình.
 
 ```go
+func AttentionStatuses() []string
 func ErrorText(err error) string
 func NextDelay(attempt int, rnd func() float64) time.Duration
+type CommandRunner interface {
+	Kinds() []Kind
+
+	TerminalHook(kind string) TerminalHook
+
+	Run(ctx context.Context, j Job, workerID string) (status string, err error)
+}
 type Handler interface {
 	Kind() Kind
 
@@ -235,6 +282,17 @@ type JobQueue interface {
 	Enqueue(ctx context.Context, tx pgx.Tx, k Kind, j NewJob) (id uuid.UUID, created bool, err error)
 }
 func NewQueue() JobQueue
+type JobSummary struct {
+	ID        uuid.UUID
+	Kind      string
+	Status    string
+	Attempts  int
+	LastError string
+	CreatedAt time.Time
+}
+func AbandonJob(ctx context.Context, tx pgx.Tx, tenant, id uuid.UUID) (before, after JobSummary, err error)
+func ListAttention(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, statuses []string, limit int) ([]JobSummary, error)
+func RetryJob(ctx context.Context, tx pgx.Tx, tenant, id uuid.UUID) (before, after JobSummary, err error)
 type Kind struct {
 	Name   string
 	Policy Policy
@@ -285,6 +343,8 @@ type WorkerOptions struct {
 	Metrics *metrics.Registry
 
 	Logger *slog.Logger
+
+	Commands CommandRunner
 }
 ```
 

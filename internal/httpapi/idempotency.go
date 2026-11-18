@@ -118,6 +118,15 @@ func idempotent(d Deps, rt Route, next http.Handler) http.Handler {
 	})
 }
 
+// writeTxOptions: db.TxAPI, lock_timeout thay bằng d.WriteLockTimeout khi có.
+func writeTxOptions(d Deps) db.TxOptions {
+	o := db.TxAPI
+	if d.WriteLockTimeout > 0 {
+		o.LockTimeout = d.WriteLockTimeout
+	}
+	return o
+}
+
 // replay trả lại nguyên kết quả đã lưu.
 func replay(w http.ResponseWriter, s *idempotency.Stored) {
 	h := w.Header()
@@ -171,7 +180,7 @@ func WriteTx(ctx context.Context, d Deps, tenantID uuid.UUID, fn func(tx pgx.Tx)
 			}
 		}
 		return st.claim.Complete(ctx, tx, status, raw)
-	}, db.TxAPI)
+	}, writeTxOptions(d))
 	switch {
 	case err == nil:
 		return nil

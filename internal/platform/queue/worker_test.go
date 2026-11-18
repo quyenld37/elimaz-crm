@@ -347,7 +347,8 @@ func TestNoHandlerGoesDead(t *testing.T) {
 	}
 }
 
-// Việc command (Task 12) không được worker của task này nhận: giữ pending.
+// Worker không có CommandRunner (WorkerOptions.Commands nil) không nhận việc command: giữ pending (Task 12 giao việc
+// command cho commands.Runner; test của nhánh có runner ở internal/platform/commands).
 func TestCommandJobsNotClaimed(t *testing.T) {
 	e := newEnv(t)
 	k := queue.Kind{Name: "command.t", Policy: queue.Policy{Mode: "command", OnLeaseExpired: "in_doubt"}}
@@ -355,7 +356,7 @@ func TestCommandJobsNotClaimed(t *testing.T) {
 	id := e.enqueue(t, k, queue.NewJob{DedupeKey: "k"})
 	runOnce(t, worker(e, "w1", h), 10)
 	if r := e.job(t, id); r.Status != "pending" || r.Attempts != 0 || h.callsOf(id) != 0 {
-		t.Fatalf("việc command không được nhận ở Task 11: %+v", r)
+		t.Fatalf("worker không có runner không được nhận việc command: %+v", r)
 	}
 }
 
