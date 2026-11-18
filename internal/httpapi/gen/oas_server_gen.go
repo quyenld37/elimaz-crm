@@ -158,6 +158,13 @@ type Handler interface {
 	//
 	// GET /api/v1/orders/{id}
 	GetOrder(ctx context.Context, params GetOrderParams) (GetOrderRes, error)
+	// GetOriginalImageURL implements getOriginalImageURL operation.
+	//
+	// Đường dẫn tải ảnh gốc của một ảnh đang hiện, hạn 5 phút, tải về tên
+	// <mã mẫu>-<vị trí>.<đuôi> (TP05).
+	//
+	// GET /api/v1/catalog/products/{id}/images/{imageId}/original
+	GetOriginalImageURL(ctx context.Context, params GetOriginalImageURLParams) (GetOriginalImageURLRes, error)
 	// GetPlatformHealth implements getPlatformHealth operation.
 	//
 	// Tình trạng tiến trình, hàng đợi, sao lưu, lỗi và cảnh báo 24 giờ.

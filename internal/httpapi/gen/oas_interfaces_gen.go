@@ -93,6 +93,10 @@ type GetOrderRes interface {
 	getOrderRes()
 }
 
+type GetOriginalImageURLRes interface {
+	getOriginalImageURLRes()
+}
+
 type GetPlatformHealthRes interface {
 	getPlatformHealthRes()
 }

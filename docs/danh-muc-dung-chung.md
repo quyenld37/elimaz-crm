@@ -381,6 +381,11 @@ func (s *S3Store) PresignGet(ctx context.Context, b Bucket, key string, ttl time
 func (s *S3Store) PresignPut(ctx context.Context, b Bucket, key string, size int64, contentType string, ttl time.Duration) (PresignedPut, error)
 func (s *S3Store) PresignPutAnySize(ctx context.Context, b Bucket, key string, contentType string, ttl time.Duration) (PresignedPut, error)
 func (s *S3Store) Put(ctx context.Context, b Bucket, key string, r io.Reader, size int64, contentType string) error
+type SignedURL struct {
+	URL       string
+	ExpiresAt time.Time
+}
+func OriginalURL(ctx context.Context, tx pgx.Tx, fs FileStore, fileID uuid.UUID, ttl time.Duration, baseName string) (SignedURL, error)
 type UploadCheck struct {
 }
 func InspectUpload(ctx context.Context, d *db.DB, fs FileStore, tenantID, fileID uuid.UUID) (UploadCheck, error)

@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -10,6 +11,7 @@ import (
 	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/identity"
+	"elimaz.com.vn/crm/internal/platform/files"
 )
 
 // AttachProductImage (POST /api/v1/catalog/products/{id}/images, catalog.manage) gắn tệp ảnh vào cuối danh sách ảnh của
@@ -129,4 +131,28 @@ func imageVariantsOut(vs []catalog.ImageVariant) []gen.FileVariant {
 		out = append(out, gen.FileVariant{Width: int32(v.Width), Format: gen.FileVariantFormat(v.Format), URL: v.URL}) //nolint:gosec // cỡ ảnh nhỏ
 	}
 	return out
+}
+
+// GetOriginalImageURL (GET /api/v1/catalog/products/{id}/images/{imageId}/original, catalog.manage) trả đường dẫn tải
+// ảnh gốc hạn 5 phút (TP05); ảnh đã xóa, của mẫu khác hay tenant khác → 404.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) GetOriginalImageURL(ctx context.Context, params gen.GetOriginalImageURLParams) (gen.GetOriginalImageURLRes, error) {
+	u, ok := authUser(ctx)
+	switch {
+	case !ok:
+		return nil, errNoAuthUser
+	case h.d.Files == nil:
+		return nil, errNoFileStore
+	}
+	var su files.SignedURL
+	err := h.readAsDefaultSeller(ctx, u, func(tx pgx.Tx, seller uuid.UUID) error {
+		var err error
+		su, err = catalog.OriginalImageURL(ctx, tx, h.d.Files, seller, params.ID, params.ImageId)
+		return err //nolint:wrapcheck // sentinel của catalog
+	})
+	if err != nil {
+		return nil, fmt.Errorf("lấy đường dẫn ảnh gốc: %w", err)
+	}
+	return &gen.SignedUrl{URL: su.URL, ExpiresAt: su.ExpiresAt}, nil
 }

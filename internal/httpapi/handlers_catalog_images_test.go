@@ -14,6 +14,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/files/filestest"
+	"elimaz.com.vn/crm/internal/testkit"
 )
 
 const imagesBaseURL = "https://anh.elimaz.test"
@@ -29,9 +30,12 @@ func (e *catalogAPIEnv) imageFile(tenant uuid.UUID) uuid.UUID {
 	return id
 }
 
-// useImageServer thay máy chủ của e bằng bản có FILES_PUBLIC_BASE_URL = imagesBaseURL, IMAGE_PRESET_VERSION = 1.
+// useImageServer thay máy chủ của e bằng bản có FILES_PUBLIC_BASE_URL = imagesBaseURL, IMAGE_PRESET_VERSION = 1 và
+// kho tệp MemStore (e.mem).
 func (e *catalogAPIEnv) useImageServer() {
+	e.mem = testkit.MemFileStore(e.t)
 	e.srv = NewServer(Deps{
+		Files:  e.mem,
 		Config: config.Config{ConsoleOrigins: []string{testOrigin}, FilesPublicBaseURL: imagesBaseURL, ImagePresetVersion: 1},
 		DB:     e.staff.App, Logger: slog.New(slog.NewJSONHandler(&lockedBuffer{buf: &bytes.Buffer{}}, nil)),
 		Access: (&authEnv{t: e.t, keys: e.keys}).verifier(),

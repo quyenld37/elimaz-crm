@@ -59,3 +59,15 @@ UPDATE catalog.product_images
 SET deleted_at = NULL, deleted_by = NULL
 WHERE id = @id AND deleted_at IS NOT NULL AND deleted_at > now() - make_interval(days => @keep_days::int)
 RETURNING position;
+
+-- name: ProductImageOriginal :one
+-- Ảnh đang hiện imageID của mẫu chưa xóa của người bán (ADR-29) kèm mã mẫu và thứ tự hiện (1, 2, … theo position, id
+-- trong các ảnh đang hiện), cho tên tệp tải ảnh gốc (Task M1-44c).
+SELECT i.file_id, p.code,
+       (SELECT count(*)
+        FROM catalog.product_images o
+        WHERE o.product_id = i.product_id AND o.deleted_at IS NULL AND (o.position, o.id) <= (i.position, i.id))::int AS rank
+FROM catalog.product_images i
+JOIN catalog.products p ON p.id = i.product_id
+WHERE i.product_id = @product_id AND i.id = @image_id AND i.deleted_at IS NULL
+  AND p.seller_id = @seller_id AND p.deleted_at IS NULL;

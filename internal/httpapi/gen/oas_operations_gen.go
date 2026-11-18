@@ -29,6 +29,7 @@ const (
 	GetFileOperation                   OperationName = "GetFile"
 	GetMeOperation                     OperationName = "GetMe"
 	GetOrderOperation                  OperationName = "GetOrder"
+	GetOriginalImageURLOperation       OperationName = "GetOriginalImageURL"
 	GetPlatformHealthOperation         OperationName = "GetPlatformHealth"
 	GetProductOperation                OperationName = "GetProduct"
 	GetProductClassificationOperation  OperationName = "GetProductClassification"

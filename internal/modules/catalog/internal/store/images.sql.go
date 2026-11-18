@@ -166,6 +166,38 @@ func (q *Queries) NextImagePosition(ctx context.Context, productID uuid.UUID) (N
 	return i, err
 }
 
+const productImageOriginal = `-- name: ProductImageOriginal :one
+SELECT i.file_id, p.code,
+       (SELECT count(*)
+        FROM catalog.product_images o
+        WHERE o.product_id = i.product_id AND o.deleted_at IS NULL AND (o.position, o.id) <= (i.position, i.id))::int AS rank
+FROM catalog.product_images i
+JOIN catalog.products p ON p.id = i.product_id
+WHERE i.product_id = $1 AND i.id = $2 AND i.deleted_at IS NULL
+  AND p.seller_id = $3 AND p.deleted_at IS NULL
+`
+
+type ProductImageOriginalParams struct {
+	ProductID uuid.UUID
+	ImageID   uuid.UUID
+	SellerID  uuid.UUID
+}
+
+type ProductImageOriginalRow struct {
+	FileID uuid.UUID
+	Code   string
+	Rank   int32
+}
+
+// Ảnh đang hiện imageID của mẫu chưa xóa của người bán (ADR-29) kèm mã mẫu và thứ tự hiện (1, 2, … theo position, id
+// trong các ảnh đang hiện), cho tên tệp tải ảnh gốc (Task M1-44c).
+func (q *Queries) ProductImageOriginal(ctx context.Context, arg ProductImageOriginalParams) (ProductImageOriginalRow, error) {
+	row := q.db.QueryRow(ctx, productImageOriginal, arg.ProductID, arg.ImageID, arg.SellerID)
+	var i ProductImageOriginalRow
+	err := row.Scan(&i.FileID, &i.Code, &i.Rank)
+	return i, err
+}
+
 const productVersionOf = `-- name: ProductVersionOf :one
 
 SELECT version
