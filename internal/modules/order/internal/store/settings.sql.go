@@ -25,6 +25,32 @@ func (q *Queries) EnsureOrderSettings(ctx context.Context, tenantID uuid.UUID) e
 	return err
 }
 
+const getOrderSettings = `-- name: GetOrderSettings :one
+SELECT draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version
+FROM ord.order_settings
+`
+
+type GetOrderSettingsRow struct {
+	DraftTtlMinutes             int32
+	DuplicateWindowMinutes      int32
+	DiscountApprovalThresholdBp int32
+	ReturnWarningDays           int32
+	Version                     int64
+}
+
+func (q *Queries) GetOrderSettings(ctx context.Context) (GetOrderSettingsRow, error) {
+	row := q.db.QueryRow(ctx, getOrderSettings)
+	var i GetOrderSettingsRow
+	err := row.Scan(
+		&i.DraftTtlMinutes,
+		&i.DuplicateWindowMinutes,
+		&i.DiscountApprovalThresholdBp,
+		&i.ReturnWarningDays,
+		&i.Version,
+	)
+	return i, err
+}
+
 const insertTrafficSourceIfMissing = `-- name: InsertTrafficSourceIfMissing :exec
 INSERT INTO ord.traffic_sources (tenant_id, key, name, position)
 VALUES ($1, $2::text, $3::text, $4::int)
@@ -49,6 +75,34 @@ func (q *Queries) InsertTrafficSourceIfMissing(ctx context.Context, arg InsertTr
 	return err
 }
 
+const lockOrderSettings = `-- name: LockOrderSettings :one
+SELECT draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version
+FROM ord.order_settings
+FOR UPDATE
+`
+
+type LockOrderSettingsRow struct {
+	DraftTtlMinutes             int32
+	DuplicateWindowMinutes      int32
+	DiscountApprovalThresholdBp int32
+	ReturnWarningDays           int32
+	Version                     int64
+}
+
+// Khóa dòng cài đặt của tenant (nhóm 7 ADR-46, bảng cuối) trước khi so version (order.Writer.UpdateSettings).
+func (q *Queries) LockOrderSettings(ctx context.Context) (LockOrderSettingsRow, error) {
+	row := q.db.QueryRow(ctx, lockOrderSettings)
+	var i LockOrderSettingsRow
+	err := row.Scan(
+		&i.DraftTtlMinutes,
+		&i.DuplicateWindowMinutes,
+		&i.DiscountApprovalThresholdBp,
+		&i.ReturnWarningDays,
+		&i.Version,
+	)
+	return i, err
+}
+
 const trafficSourceByKey = `-- name: TrafficSourceByKey :one
 SELECT id
 FROM ord.traffic_sources
@@ -60,4 +114,54 @@ func (q *Queries) TrafficSourceByKey(ctx context.Context, key string) (uuid.UUID
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const updateOrderSettings = `-- name: UpdateOrderSettings :one
+UPDATE ord.order_settings
+SET draft_ttl_minutes              = $1::int,
+    duplicate_window_minutes       = $2::int,
+    discount_approval_threshold_bp = $3::int,
+    return_warning_days            = $4::int,
+    version                        = version + 1,
+    updated_at                     = now(),
+    updated_by                     = $5::uuid
+WHERE version = $6::bigint
+RETURNING draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version
+`
+
+type UpdateOrderSettingsParams struct {
+	DraftTtlMinutes             int32
+	DuplicateWindowMinutes      int32
+	DiscountApprovalThresholdBp int32
+	ReturnWarningDays           int32
+	UpdatedBy                   uuid.UUID
+	Version                     int64
+}
+
+type UpdateOrderSettingsRow struct {
+	DraftTtlMinutes             int32
+	DuplicateWindowMinutes      int32
+	DiscountApprovalThresholdBp int32
+	ReturnWarningDays           int32
+	Version                     int64
+}
+
+func (q *Queries) UpdateOrderSettings(ctx context.Context, arg UpdateOrderSettingsParams) (UpdateOrderSettingsRow, error) {
+	row := q.db.QueryRow(ctx, updateOrderSettings,
+		arg.DraftTtlMinutes,
+		arg.DuplicateWindowMinutes,
+		arg.DiscountApprovalThresholdBp,
+		arg.ReturnWarningDays,
+		arg.UpdatedBy,
+		arg.Version,
+	)
+	var i UpdateOrderSettingsRow
+	err := row.Scan(
+		&i.DraftTtlMinutes,
+		&i.DuplicateWindowMinutes,
+		&i.DiscountApprovalThresholdBp,
+		&i.ReturnWarningDays,
+		&i.Version,
+	)
+	return i, err
 }

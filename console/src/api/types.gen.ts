@@ -27,6 +27,10 @@ export type Error = {
      */
     blockingMergeId?: string;
     reason?: CouponRejectReason;
+    /**
+     * Chỉ có ở setting_out_of_range — tên trường cài đặt đơn ngoài khoảng (Task M2-15)
+     */
+    field?: 'draftTtlMinutes' | 'duplicateWindowMinutes' | 'discountApprovalThresholdBp' | 'returnWarningDays';
 };
 
 export type HealthStatus = {

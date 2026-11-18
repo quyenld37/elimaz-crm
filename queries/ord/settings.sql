@@ -16,3 +16,25 @@ ON CONFLICT DO NOTHING;
 SELECT id
 FROM ord.traffic_sources
 WHERE key = @key::text;
+
+-- name: GetOrderSettings :one
+SELECT draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version
+FROM ord.order_settings;
+
+-- name: LockOrderSettings :one
+-- Khóa dòng cài đặt của tenant (nhóm 7 ADR-46, bảng cuối) trước khi so version (order.Writer.UpdateSettings).
+SELECT draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version
+FROM ord.order_settings
+FOR UPDATE;
+
+-- name: UpdateOrderSettings :one
+UPDATE ord.order_settings
+SET draft_ttl_minutes              = @draft_ttl_minutes::int,
+    duplicate_window_minutes       = @duplicate_window_minutes::int,
+    discount_approval_threshold_bp = @discount_approval_threshold_bp::int,
+    return_warning_days            = @return_warning_days::int,
+    version                        = version + 1,
+    updated_at                     = now(),
+    updated_by                     = @updated_by::uuid
+WHERE version = @version::bigint
+RETURNING draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version;

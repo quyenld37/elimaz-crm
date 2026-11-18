@@ -2657,7 +2657,6 @@ paths:
     get:
       operationId: listTrafficSources
       summary: 'Nguồn đơn của shop theo vị trí (Task M2-15)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.read
       responses:
         "200":
@@ -2671,7 +2670,6 @@ paths:
     post:
       operationId: createTrafficSource
       summary: 'Tạo nguồn đơn (tên không trùng) (Task M2-15)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.settings.manage
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -2694,7 +2692,6 @@ paths:
     patch:
       operationId: updateTrafficSource
       summary: 'Đổi tên, bật tắt, vị trí nguồn đơn khi version còn khớp (Task M2-15)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.settings.manage
       parameters:
         - $ref: "#/components/parameters/TrafficSourceID"
@@ -2718,7 +2715,6 @@ paths:
     get:
       operationId: getOrderSettings
       summary: 'Cài đặt đơn của shop (Task M2-15)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.read
       responses:
         "200":
@@ -2732,7 +2728,6 @@ paths:
     patch:
       operationId: updateOrderSettings
       summary: 'Sửa cài đặt đơn khi version còn khớp; ngoài khoảng → 422 setting_out_of_range (Task M2-15)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.settings.manage
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -3305,6 +3300,10 @@ components:
           description: Chỉ có ở merge_not_latest — lần gộp phải hoàn tác trước
         reason:
           $ref: "#/components/schemas/CouponRejectReason"
+        field:
+          type: string
+          enum: [draftTtlMinutes, duplicateWindowMinutes, discountApprovalThresholdBp, returnWarningDays]
+          description: Chỉ có ở setting_out_of_range — tên trường cài đặt đơn ngoài khoảng (Task M2-15)
     HealthStatus:
       type: object
       required: [status]

@@ -5307,6 +5307,8 @@ type Error struct {
 	// Chỉ có ở merge_not_latest — lần gộp phải hoàn tác trước.
 	BlockingMergeId OptUUID               `json:"blockingMergeId"`
 	Reason          OptCouponRejectReason `json:"reason"`
+	// Chỉ có ở setting_out_of_range — tên trường cài đặt đơn ngoài khoảng (Task M2-15).
+	Field OptErrorField `json:"field"`
 }
 
 // GetError returns the value of Error.
@@ -5344,6 +5346,11 @@ func (s *Error) GetReason() OptCouponRejectReason {
 	return s.Reason
 }
 
+// GetField returns the value of Field.
+func (s *Error) GetField() OptErrorField {
+	return s.Field
+}
+
 // SetError sets the value of Error.
 func (s *Error) SetError(val string) {
 	s.Error = val
@@ -5377,6 +5384,67 @@ func (s *Error) SetBlockingMergeId(val OptUUID) {
 // SetReason sets the value of Reason.
 func (s *Error) SetReason(val OptCouponRejectReason) {
 	s.Reason = val
+}
+
+// SetField sets the value of Field.
+func (s *Error) SetField(val OptErrorField) {
+	s.Field = val
+}
+
+// Chỉ có ở setting_out_of_range — tên trường cài đặt đơn ngoài khoảng (Task M2-15).
+type ErrorField string
+
+const (
+	ErrorFieldDraftTtlMinutes             ErrorField = "draftTtlMinutes"
+	ErrorFieldDuplicateWindowMinutes      ErrorField = "duplicateWindowMinutes"
+	ErrorFieldDiscountApprovalThresholdBp ErrorField = "discountApprovalThresholdBp"
+	ErrorFieldReturnWarningDays           ErrorField = "returnWarningDays"
+)
+
+// AllValues returns all ErrorField values.
+func (ErrorField) AllValues() []ErrorField {
+	return []ErrorField{
+		ErrorFieldDraftTtlMinutes,
+		ErrorFieldDuplicateWindowMinutes,
+		ErrorFieldDiscountApprovalThresholdBp,
+		ErrorFieldReturnWarningDays,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ErrorField) MarshalText() ([]byte, error) {
+	switch s {
+	case ErrorFieldDraftTtlMinutes:
+		return []byte(s), nil
+	case ErrorFieldDuplicateWindowMinutes:
+		return []byte(s), nil
+	case ErrorFieldDiscountApprovalThresholdBp:
+		return []byte(s), nil
+	case ErrorFieldReturnWarningDays:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ErrorField) UnmarshalText(data []byte) error {
+	switch ErrorField(data) {
+	case ErrorFieldDraftTtlMinutes:
+		*s = ErrorFieldDraftTtlMinutes
+		return nil
+	case ErrorFieldDuplicateWindowMinutes:
+		*s = ErrorFieldDuplicateWindowMinutes
+		return nil
+	case ErrorFieldDiscountApprovalThresholdBp:
+		*s = ErrorFieldDiscountApprovalThresholdBp
+		return nil
+	case ErrorFieldReturnWarningDays:
+		*s = ErrorFieldReturnWarningDays
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // ErrorStatusCode wraps Error with StatusCode.
@@ -7624,6 +7692,52 @@ func (o OptEditScope) Get() (v EditScope, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptEditScope) Or(d EditScope) EditScope {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptErrorField returns new OptErrorField with value set to v.
+func NewOptErrorField(v ErrorField) OptErrorField {
+	return OptErrorField{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptErrorField is optional ErrorField.
+type OptErrorField struct {
+	Value ErrorField
+	Set   bool
+}
+
+// IsSet returns true if OptErrorField was set.
+func (o OptErrorField) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptErrorField) Reset() {
+	var v ErrorField
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptErrorField) SetTo(v ErrorField) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptErrorField) Get() (v ErrorField, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptErrorField) Or(d ErrorField) ErrorField {
 	if v, ok := o.Get(); ok {
 		return v
 	}

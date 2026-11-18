@@ -478,7 +478,8 @@ func classificationOut(pc catalog.ProductClassification) *gen.ProductClassificat
 	return res
 }
 
-// catalogRead chạy fn trong tenancy.WithTenant của người gọi (đọc phân loại dùng chung cả cửa hàng).
+// catalogRead chạy fn trong tenancy.WithTenant của người gọi: đọc dữ liệu dùng chung cả cửa hàng, không theo người bán
+// hay kho (phân loại; cài đặt đơn, nguồn đơn — Task M2-15).
 func (h *handler) catalogRead(ctx context.Context, fn func(tx pgx.Tx) error) error {
 	u, ok := authUser(ctx)
 	if !ok {

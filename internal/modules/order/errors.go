@@ -54,8 +54,10 @@ var (
 	ErrReturnQtyExceeds = errors.New("order: số lượng trả vượt số còn trả được")
 	// ErrReturnNotAllowed: đơn không ở trạng thái cho tạo phiếu trả, hoặc phiếu không ở trạng thái cho việc này.
 	ErrReturnNotAllowed = errors.New("order: không trả hàng được")
-	// ErrSettingOutOfRange: cài đặt đơn ngoài khoảng cho phép.
+	// ErrSettingOutOfRange: cài đặt đơn ngoài khoảng cho phép; chi tiết (tên trường) là *SettingOutOfRangeError.
 	ErrSettingOutOfRange = errors.New("order: cài đặt ngoài khoảng cho phép")
+	// ErrTrafficSourceNameTaken: đã có nguồn đơn cùng tên trong shop (Task M2-15).
+	ErrTrafficSourceNameTaken = errors.New("order: đã có nguồn đơn cùng tên")
 )
 
 // OutOfStockError là chi tiết của ErrOutOfStock: dòng đầu tiên (theo thứ tự khóa) không đủ hàng.

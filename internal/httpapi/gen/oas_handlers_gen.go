@@ -3961,7 +3961,7 @@ func (s *Server) handleCreateTagRequest(args [0]string, argsEscaped bool, w http
 
 // handleCreateTrafficSourceRequest handles createTrafficSource operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Tạo nguồn đơn (tên không trùng) (Task M2-15).
 //
 // POST /api/v1/traffic-sources
 func (s *Server) handleCreateTrafficSourceRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5307,7 +5307,7 @@ func (s *Server) handleGetOrderRequest(args [1]string, argsEscaped bool, w http.
 
 // handleGetOrderSettingsRequest handles getOrderSettings operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Cài đặt đơn của shop (Task M2-15).
 //
 // GET /api/v1/order-settings
 func (s *Server) handleGetOrderSettingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8191,7 +8191,7 @@ func (s *Server) handleListTagsRequest(args [0]string, argsEscaped bool, w http.
 
 // handleListTrafficSourcesRequest handles listTrafficSources operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Nguồn đơn của shop theo vị trí (Task M2-15).
 //
 // GET /api/v1/traffic-sources
 func (s *Server) handleListTrafficSourcesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -11282,7 +11282,8 @@ func (s *Server) handleUpdateOrderRequest(args [1]string, argsEscaped bool, w ht
 
 // handleUpdateOrderSettingsRequest handles updateOrderSettings operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Sửa cài đặt đơn khi version còn khớp; ngoài khoảng → 422 setting_out_of_range (Task
+// M2-15).
 //
 // PATCH /api/v1/order-settings
 func (s *Server) handleUpdateOrderSettingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -11691,7 +11692,7 @@ func (s *Server) handleUpdateSupplierRequest(args [1]string, argsEscaped bool, w
 
 // handleUpdateTrafficSourceRequest handles updateTrafficSource operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Đổi tên, bật tắt, vị trí nguồn đơn khi version còn khớp (Task M2-15).
 //
 // PATCH /api/v1/traffic-sources/{sourceId}
 func (s *Server) handleUpdateTrafficSourceRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

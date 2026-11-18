@@ -144,6 +144,8 @@ type errorBody struct {
 	OwnerID         *string `json:"ownerId,omitempty"`
 	BlockingMergeID *string `json:"blockingMergeId,omitempty"`
 	Reason          *string `json:"reason,omitempty"`
+	// Chỉ có ở setting_out_of_range (Task M2-15): tên trường cài đặt ngoài khoảng.
+	Field *string `json:"field,omitempty"`
 }
 
 // writeError ghi lỗi theo dạng duy nhất {"error": "<mã>", "request_id": "<id>"}; không bao giờ có vết lỗi.
@@ -241,7 +243,7 @@ func writeDomainError(w http.ResponseWriter, r *http.Request, err error) bool {
 	return false
 }
 
-// detailedError: lỗi M2 có trường chi tiết trong thân (Task M2-02).
+// detailedError: lỗi M2 có trường chi tiết trong thân (Task M2-02; setting_out_of_range kèm field, Task M2-15).
 func detailedError(err error) (errorBody, int, bool) {
 	if e, ok := errors.AsType[*customer.IdentityTakenError](err); ok {
 		id := e.OwnerRootID.String()
@@ -254,6 +256,10 @@ func detailedError(err error) (errorBody, int, bool) {
 	if e, ok := errors.AsType[*promotion.RejectError](err); ok {
 		reason := string(e.Reason)
 		return errorBody{Error: codeCouponRejected, Reason: &reason}, http.StatusUnprocessableEntity, true
+	}
+	if e, ok := errors.AsType[*order.SettingOutOfRangeError](err); ok {
+		field := string(e.Field)
+		return errorBody{Error: codeSettingOutOfRange, Field: &field}, http.StatusUnprocessableEntity, true
 	}
 	return errorBody{}, 0, false
 }
@@ -437,6 +443,8 @@ func orderError(err error) (status int, code string, ok bool) {
 		{order.ErrReturnQtyExceeds, http.StatusUnprocessableEntity, codeReturnQtyExceeds},
 		{order.ErrReturnNotAllowed, http.StatusUnprocessableEntity, codeReturnNotAllowed},
 		{order.ErrSettingOutOfRange, http.StatusUnprocessableEntity, codeSettingOutOfRange},
+		// Task M2-15: tên nguồn đơn trùng (Q-T72-1: mã chung already_exists).
+		{order.ErrTrafficSourceNameTaken, http.StatusConflict, codeAlreadyExists},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true
