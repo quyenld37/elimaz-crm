@@ -61,6 +61,17 @@ type IdentityUserRoleGrant struct {
 	CreatedAt time.Time
 }
 
+type PlatformDomainEvent struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	AggregateType string
+	AggregateID   string
+	Seq           int64
+	Topic         string
+	Payload       []byte
+	CreatedAt     time.Time
+}
+
 type PlatformIdempotencyKey struct {
 	TenantID       uuid.UUID
 	Actor          string
@@ -120,6 +131,14 @@ type PlatformProcessHeartbeat struct {
 	Process string
 	Role    string
 	At      time.Time
+}
+
+type PlatformSchedule struct {
+	Name           string
+	EverySeconds   int32
+	PerTenant      bool
+	NextRunAt      time.Time
+	LastEnqueuedAt pgtype.Timestamptz
 }
 
 type PlatformTenant struct {

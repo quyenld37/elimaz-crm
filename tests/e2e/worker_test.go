@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"os/exec"
 	"syscall"
 	"testing"
 	"time"
@@ -46,6 +47,45 @@ func TestWorkerRoleRunsQueue(t *testing.T) {
 	if status != "dead" || lastError != "no handler" {
 		t.Fatalf("muốn dead/no handler, nhận %s/%s", status, lastError)
 	}
+	stopWorker(t, cmd, done, stdout, stderr)
+}
+
+// Vai trò worker chạy việc định kỳ (Task 13): khi khởi động, Ticker ghi hai lịch dọn vào platform.schedules và tạo
+// việc dọn; worker có handler nên việc dọn thành done (không dead "no handler"); việc done quá 30 ngày bị xóa.
+func TestWorkerRoleRunsSchedules(t *testing.T) {
+	bin := buildBinary(t)
+	_, ownerURL, appURL := testkit.StartPostgres(t)
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+	defer cancel()
+	owner, err := pgx.Connect(ctx, ownerURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = owner.Close(context.Background()) }()
+	if _, err := owner.Exec(ctx, `INSERT INTO platform.tenants (name) VALUES ('a');
+		INSERT INTO platform.jobs (kind, mode, dedupe_key, on_lease_expired, max_attempts, status, finished_at)
+		VALUES ('e2e.old', 'transactional', 'k', 'retry', 8, 'done', now() - interval '31 days')`); err != nil {
+		t.Fatal(err)
+	}
+	cmd, done, stdout, stderr := startRole(t, bin, roleEnv("worker", appURL, 0))
+	for {
+		var schedules, finished, old int
+		if err := owner.QueryRow(ctx, `SELECT (SELECT count(*) FROM platform.schedules WHERE name IN ('platform.cleanup', 'platform.cleanup_tenant')),
+			(SELECT count(*) FROM platform.jobs WHERE kind LIKE 'task.platform.cleanup%' AND status = 'done'),
+			(SELECT count(*) FROM platform.jobs WHERE kind = 'e2e.old')`).Scan(&schedules, &finished, &old); err != nil {
+			t.Fatalf("worker không chạy lịch dọn: %v\n%s\n%s", err, stdout.String(), stderr.String())
+		}
+		if schedules == 2 && finished == 2 && old == 0 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	stopWorker(t, cmd, done, stdout, stderr)
+}
+
+// stopWorker gửi SIGTERM, đòi worker thoát mã 0 trong 30 s và mọi dòng log là JSON.
+func stopWorker(t *testing.T, cmd *exec.Cmd, done <-chan error, stdout, stderr *lineBuffer) {
+	t.Helper()
 	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 		t.Fatal(err)
 	}
