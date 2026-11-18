@@ -25,15 +25,18 @@ const (
 	diskMaxPct         = 80
 	heartbeatPingFor   = 5 * time.Minute
 	backupMaxAge       = 26 * time.Hour
+	fileSyncMaxAge     = 90 * time.Minute
 	seriesLookback     = 8 * time.Minute
 	minuteGapTolerated = 2 * time.Minute
 )
 
 // RuleOptions là đầu vào của CheckRules. Now là đồng hồ của mọi phép so sánh (test đặt đồng hồ giả).
-// BackupExpected bật luật backup-age và backup-verify; DBDiskBudgetBytes > 0 bật db-size; ConnBudget > 0 bật pg-connections.
+// BackupExpected bật luật backup-age và backup-verify; FileSyncExpected bật file-sync-age, file-sync-failed,
+// file-sync-mismatch (FILESYNC_EXPECTED, Task M1-45); DBDiskBudgetBytes > 0 bật db-size; ConnBudget > 0 bật pg-connections.
 type RuleOptions struct {
 	Now               time.Time
 	BackupExpected    bool
+	FileSyncExpected  bool
 	DBDiskBudgetBytes int64
 	ConnBudget        int
 }
@@ -70,7 +73,8 @@ func CheckRules(ctx context.Context, d *db.DB, a Alerter, o RuleOptions) ([]stri
 	return keys, errors.Join(errs...)
 }
 
-// tableRules: luật đọc bảng của platform (jobs, metrics_minute, process_heartbeats, backup_runs, error_events). Luật đọc thống kê
+// tableRules: luật đọc bảng của platform (jobs, metrics_minute, process_heartbeats, backup_runs, file_sync_runs,
+// error_events). Luật đọc thống kê
 // của PostgreSQL ở pgwatch.go.
 func tableRules(ctx context.Context, d *db.DB, o RuleOptions) ([]alert, error) {
 	q := store.New(d.Pool)
@@ -86,6 +90,7 @@ func tableRules(ctx context.Context, d *db.DB, o RuleOptions) ([]alert, error) {
 	add(metricRules(ctx, q, o))
 	add(heartbeatRules(ctx, q, o))
 	add(backupRule(ctx, q, o))
+	add(fileSyncRules(ctx, q, o))
 	add(errorRules(ctx, d, o))
 	return out, errors.Join(errs...)
 }
@@ -309,4 +314,56 @@ func verifyRule(ctx context.Context, q *store.Queries) ([]alert, error) {
 		return nil, nil
 	}
 	return []alert{{"backup-verify", SeverityUrgent, "backup-verify: lần kiểm bản sao lưu hằng tuần gần nhất hỏng"}}, nil
+}
+
+// syncedBuckets là ba bucket container filesync chép sang kho ngoài (scripts/filesync/run.sh; crm-tmp không chép).
+// Luật và /health/deep xét từng bucket: một bucket ngừng chép là đủ báo.
+func syncedBuckets() []string { return []string{"crm-public", "crm-originals", "crm-private"} }
+
+// fileSyncRules (ADR-36, TP10): file-sync-age gấp khi lần copy ok gần nhất của một bucket cũ hơn 90 phút hay chưa có;
+// file-sync-failed khi lần copy gần nhất của một bucket lỗi; file-sync-mismatch khi lần đối chiếu gần nhất của một
+// bucket lệch. Văn bản chỉ có tên bucket và số phút.
+func fileSyncRules(ctx context.Context, q *store.Queries, o RuleOptions) ([]alert, error) {
+	if !o.FileSyncExpected {
+		return nil, nil
+	}
+	rows, err := q.FileSyncStatus(ctx, syncedBuckets())
+	if err != nil {
+		return nil, fmt.Errorf("đọc lần chép sang kho ngoài: %w", err)
+	}
+	var stale, failed, mismatch []string
+	for _, r := range rows {
+		switch {
+		case !r.HasOk:
+			stale = append(stale, r.Bucket+" chưa có lần chép tốt")
+		case o.Now.Sub(r.LastOkAt) > fileSyncMaxAge:
+			stale = append(stale, fmt.Sprintf("%s %d phút", r.Bucket, int(o.Now.Sub(r.LastOkAt).Minutes())))
+		}
+		if r.CopyFailed {
+			failed = append(failed, r.Bucket)
+		}
+		if r.ReconcileFailed {
+			mismatch = append(mismatch, r.Bucket)
+		}
+	}
+	var out []alert
+	if len(stale) > 0 {
+		out = append(out, alert{
+			"file-sync-age", SeverityUrgent,
+			"file-sync-age: lần chép sang kho ngoài thành công gần nhất quá 90 phút: " + strings.Join(stale, ", "),
+		})
+	}
+	if len(failed) > 0 {
+		out = append(out, alert{
+			"file-sync-failed", SeverityNormal,
+			"file-sync-failed: lần chép sang kho ngoài gần nhất lỗi: " + strings.Join(failed, ", "),
+		})
+	}
+	if len(mismatch) > 0 {
+		out = append(out, alert{
+			"file-sync-mismatch", SeverityNormal,
+			"file-sync-mismatch: đối chiếu gần nhất thấy kho ngoài thiếu tệp: " + strings.Join(mismatch, ", "),
+		})
+	}
+	return out, nil
 }

@@ -775,7 +775,7 @@ export const updateCustomerAddress = <ThrowOnError extends boolean = false>(opti
 /**
  * Danh mục đơn vị hành chính hai cấp: parent rỗng → tỉnh; có parent → xã của tỉnh đó, lọc theo q (Task M2-04)
  *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+ * Tỉnh theo mã; xã theo tên, tối đa 50, q bỏ dấu và không phân biệt hoa thường. parent không phải mã tỉnh có trong danh mục → items rỗng.
  */
 export const listAdminUnits = <ThrowOnError extends boolean = false>(options?: Options<ListAdminUnitsData, ThrowOnError>): RequestResult<ListAdminUnitsResponses, ListAdminUnitsErrors, ThrowOnError> => (options?.client ?? client).get<ListAdminUnitsResponses, ListAdminUnitsErrors, ThrowOnError>({ url: '/api/v1/admin-units', ...options });
 

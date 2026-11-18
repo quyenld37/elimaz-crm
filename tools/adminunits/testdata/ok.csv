@@ -1,0 +1,8 @@
+code,level,parent_code,name
+T01,province,,Thành phố Thử Một
+T02,province,,Tỉnh Thử Hai
+T01001,ward,T01,Phường Bến Thử
+T01002,ward,T01,Phường Đa Kao Thử
+T01003,ward,T01,Xã Cần Giờ Thử
+T02001,ward,T02,Phường Hoàn Kiếm Thử
+T02002,ward,T02,Xã Ô'Môn Thử

@@ -68,11 +68,15 @@ chỉ nằm trong tệp biến của máy chủ:
 CREATE ROLE crm_owner LOGIN PASSWORD '<mới>';
 CREATE ROLE crm_app LOGIN NOBYPASSRLS PASSWORD '<mới>';
 CREATE ROLE crm_search NOLOGIN BYPASSRLS;
+-- Container chép tệp sang kho ngoài (Task M1-45): migration 0126 cấp INSERT vào platform.file_sync_runs, không gì khác.
+-- Thiếu role thì migrate dừng ở 0126 (role "crm_filesync" does not exist): tạo role rồi chạy lại migrate.
+CREATE ROLE crm_filesync LOGIN NOBYPASSRLS CONNECTION LIMIT 1 PASSWORD '<mới>';
 GRANT crm_search TO crm_owner;
 -- Migration 0010 chạy GRANT pg_monitor TO crm_app: thiếu dòng này thì migrate lỗi permission denied.
 GRANT pg_monitor TO crm_owner WITH ADMIN OPTION;
 GRANT CONNECT, CREATE ON DATABASE crm TO crm_owner;
 GRANT CONNECT ON DATABASE crm TO crm_app;
+GRANT CONNECT ON DATABASE crm TO crm_filesync;
 \connect crm
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS citext;
@@ -80,6 +84,46 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 ```
 
 Bản dev (`docker/postgres/init/01-roles.sql`) và bản diễn tập (`init-drill/01-roles.sql`) làm đúng các bước này.
+Cụm đã dựng trước Task M1-45 (máy chủ đã chạy, volume dev cũ) chạy thêm bằng `postgres`, trước khi migrate tới 0126:
+`CREATE ROLE crm_filesync LOGIN NOBYPASSRLS CONNECTION LIMIT 1 PASSWORD '<mới>'; GRANT CONNECT ON DATABASE crm TO
+crm_filesync;` (database thử của `internal/testkit` tự tạo role này, mật khẩu dev `crm_filesync_dev`).
+
+## Chép tệp sang kho ngoài mỗi giờ, đối chiếu mỗi ngày (Task M1-45, ADR-36)
+
+- Container `filesync` (`docker/filesync/Dockerfile`, script ở `scripts/filesync/`): khi khởi động chép một lượt, rồi
+  mỗi `FILESYNC_INTERVAL_S` giây (mặc định 3600) chép `crm-public`, `crm-originals`, `crm-private` sang kho ngoài bằng
+  `rclone copy --immutable --checksum` (chỉ thêm: không bao giờ `sync`, `move`, `delete`); `crm-tmp` không chép.
+  `crm-originals`, `crm-private` đi qua rclone crypt (tên và nội dung mã hóa trước khi rời máy); `crm-public` không mã hóa.
+  Từ 03:30 giờ Việt Nam, mỗi ngày một lần, đếm số tệp và dung lượng hai phía. Mỗi bucket mỗi lượt một dòng
+  `platform.file_sync_runs` (`kind` = `copy` / `reconcile`, `ok`, `objects`, `bytes`, `detail`); cả ba bucket chép tốt
+  thì gọi `FILESYNC_HEARTBEAT_URL` (rỗng: bỏ).
+- Danh tính: kho chính bằng `crm-filesync` (chỉ đọc, liệt kê), kho ngoài bằng một khóa chỉ ghi thêm (không xóa);
+  database bằng role `crm_filesync` (chỉ `INSERT` một bảng, tối đa 1 kết nối). Container không có khóa của `crm-app`.
+- Biến (giá trị chỉ ở tệp biến của máy chủ): `FILESYNC_DATABASE_URL`; `FILESYNC_SRC_ENDPOINT`, `…_ACCESS_KEY_ID`,
+  `…_SECRET_ACCESS_KEY`, `FILESYNC_SRC_REGION`; `FILESYNC_DST_ENDPOINT`, `…_ACCESS_KEY_ID`, `…_SECRET_ACCESS_KEY`,
+  `FILESYNC_DST_REGION`, `FILESYNC_DST_PROVIDER` (mặc định `Other`), `FILESYNC_DST_BUCKET_PREFIX` (mặc định `crm-`;
+  tên bucket kho ngoài = tiền tố + `public` / `originals` / `private`: tên bucket Backblaze B2 là duy nhất toàn cầu nên
+  thường phải đặt tiền tố riêng); `RCLONE_CRYPT_PASSWORD`, `RCLONE_CRYPT_PASSWORD2` (≥ 32 ký tự, chủ shop giữ trong
+  trình quản lý mật khẩu: **mất hai mật khẩu này là mất bản sao của ảnh gốc và tệp riêng tư**); `FILESYNC_HEARTBEAT_URL`.
+  Worker đặt `FILESYNC_EXPECTED=true` để bật ba cảnh báo dưới.
+- Chạy tay: một lượt `docker compose --profile filesync run --rm filesync --once`; đối chiếu
+  `docker compose --profile filesync run --rm --entrypoint /opt/filesync/reconcile.sh filesync`; xem tệp đã giải mã ở
+  kho ngoài `… --entrypoint /opt/filesync/ls-offsite.sh filesync crm-private <tiền tố>`. Xem kết quả:
+  `SELECT kind, bucket, ok, finished_at, objects, bytes, detail FROM platform.file_sync_runs ORDER BY finished_at DESC LIMIT 20;`
+- Cảnh báo (bật bằng `FILESYNC_EXPECTED=true` ở worker; `/health/deep` có `lastFileSyncAgeM` = tuổi lần chép tốt cũ
+  nhất trong ba bucket, vắng khi còn bucket chưa chép lần nào):
+  - `file-sync-age` (urgent): lần chép tốt gần nhất của một bucket quá 90 phút, hay chưa có. Nghĩa: tệp mới chỉ có một
+    bản, kho chính hỏng là mất. Việc: `docker compose ps filesync` (chết thì khởi động lại), log của container, rồi
+    `detail` của dòng `copy` mới nhất; chạy `run.sh --once` bằng tay; kiểm khóa và chỗ trống của kho ngoài.
+  - `file-sync-failed` (normal): lần chép gần nhất của một bucket lỗi. Đọc `detail` (lỗi đầu tiên của rclone).
+    `immutable file modified` = một tệp ở kho ngoài khác bản ở kho chính (kho chính bị sửa đè, hoặc kho ngoài bị ghi đè):
+    **không xóa hay ghi đè bản ở kho ngoài**; so hai bản (tải về, so sha256), tìm nguyên nhân, báo chủ shop. Lỗi mạng,
+    khóa sai: sửa rồi chạy `--once`.
+  - `file-sync-mismatch` (normal): lần đối chiếu gần nhất thấy kho ngoài ít tệp hơn kho chính (trừ tệp mới hơn lần chép
+    tốt cuối). Đọc `detail` (số tệp hai phía); chạy `--once` rồi `reconcile.sh`; còn lệch thì liệt kê hai phía
+    (`rclone lsf`) tìm tệp thiếu, kiểm có ai xóa ở kho ngoài (nhật ký của nhà cung cấp). Kho ngoài nhiều hơn là bình thường.
+- **Chưa chạy với kho thật** (Step 6 của Task M1-45, cần chủ shop tạo tài khoản kho ngoài và hai mật khẩu crypt): khi có,
+  cấu hình trên staging, chạy một lượt, chép một tệp riêng tư về và đọc được bằng mật khẩu, ghi kết quả vào đây.
 
 ## Sao lưu theo lịch và kiểm bản sao lưu hằng tuần (Task 21, ADR-37)
 
@@ -200,6 +244,8 @@ một lần. Văn bản chỉ có tên luật, số, mã việc, dấu vân tay;
 | `wal-archive` | urgent | Đẩy WAL lên kho ngoài hỏng hoặc trễ quá 5 phút | Mất khả năng khôi phục tới phút gần nhất. Kiểm khóa S3, chỗ trống kho ngoài, log `wal-g` trong container postgres. |
 | `wal-size` | normal | WAL trên máy quá 2 GiB | Thường đi kèm `wal-archive`; xử lý nó trước. |
 | `backup-age`, `backup-verify` | urgent | Mục "Sao lưu theo lịch" ở trên | Như đã ghi ở mục đó. |
+| `file-sync-age` | urgent | Một bucket quá 90 phút không có lần chép tốt sang kho ngoài | Mục "Chép tệp sang kho ngoài" ở trên. |
+| `file-sync-failed`, `file-sync-mismatch` | normal | Lần chép gần nhất lỗi; đối chiếu thấy kho ngoài thiếu tệp | Như trên; không xóa, không ghi đè gì ở kho ngoài. |
 | `db-size` | urgent | Database quá 80% ngân sách đĩa | Xem bảng lớn nhất; `jobs` cũ (hạn giữ 30 ngày); tăng ổ. |
 | `long-tx` | normal | Transaction mở quá 5 phút | `SELECT pid, now()-xact_start, state, query_id FROM pg_stat_activity ORDER BY 2 DESC`; tìm nơi gọi theo `trace_id`; `pg_terminate_backend(pid)` nếu treo. |
 | `lock-wait` | normal | Có phiên chờ khóa quá 5 s | `pg_blocking_pids`; đối chiếu bảng thứ tự khóa (`docs/adr/0046-thu-tu-khoa.md`). |

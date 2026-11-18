@@ -14,3 +14,5 @@ console
 docs
 scripts
 loadtest
+# Script của container filesync (docker/filesync/Dockerfile, Task M1-45); image chính không chép scripts/.
+!scripts/filesync

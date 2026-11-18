@@ -46,6 +46,10 @@ export type DeepHealth = {
     spoolFiles?: number;
     lastWalArchivedAgeS?: number;
     lastBackupAgeH?: number;
+    /**
+     * Tuổi (phút) lần chép sang kho ngoài thành công cũ nhất trong ba bucket; không có khi còn bucket chưa chép lần nào.
+     */
+    lastFileSyncAgeM?: number;
 };
 
 export type Scope = {

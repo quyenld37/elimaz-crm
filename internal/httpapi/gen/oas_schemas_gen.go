@@ -5002,6 +5002,9 @@ type DeepHealth struct {
 	SpoolFiles          OptInt64 `json:"spoolFiles"`
 	LastWalArchivedAgeS OptInt64 `json:"lastWalArchivedAgeS"`
 	LastBackupAgeH      OptInt64 `json:"lastBackupAgeH"`
+	// Tuổi (phút) lần chép sang kho ngoài thành công cũ nhất trong ba bucket; không có khi
+	// còn bucket chưa chép lần nào.
+	LastFileSyncAgeM OptInt64 `json:"lastFileSyncAgeM"`
 }
 
 // GetOk returns the value of Ok.
@@ -5049,6 +5052,11 @@ func (s *DeepHealth) GetLastBackupAgeH() OptInt64 {
 	return s.LastBackupAgeH
 }
 
+// GetLastFileSyncAgeM returns the value of LastFileSyncAgeM.
+func (s *DeepHealth) GetLastFileSyncAgeM() OptInt64 {
+	return s.LastFileSyncAgeM
+}
+
 // SetOk sets the value of Ok.
 func (s *DeepHealth) SetOk(val bool) {
 	s.Ok = val
@@ -5092,6 +5100,11 @@ func (s *DeepHealth) SetLastWalArchivedAgeS(val OptInt64) {
 // SetLastBackupAgeH sets the value of LastBackupAgeH.
 func (s *DeepHealth) SetLastBackupAgeH(val OptInt64) {
 	s.LastBackupAgeH = val
+}
+
+// SetLastFileSyncAgeM sets the value of LastFileSyncAgeM.
+func (s *DeepHealth) SetLastFileSyncAgeM(val OptInt64) {
+	s.LastFileSyncAgeM = val
 }
 
 // Ref: #/components/schemas/DiscountKind

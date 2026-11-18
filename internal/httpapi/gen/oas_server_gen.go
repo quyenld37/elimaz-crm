@@ -452,7 +452,8 @@ type Handler interface {
 	HealthReady(ctx context.Context) (HealthReadyRes, error)
 	// ListAdminUnits implements listAdminUnits operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Tỉnh theo mã; xã theo tên, tối đa 50, q bỏ dấu và không phân biệt hoa thường.
+	// parent không phải mã tỉnh có trong danh mục → items rỗng.
 	//
 	// GET /api/v1/admin-units
 	ListAdminUnits(ctx context.Context, params ListAdminUnitsParams) (ListAdminUnitsRes, error)

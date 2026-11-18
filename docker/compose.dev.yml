@@ -295,14 +295,38 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
 
-  # Chép kho chính sang kho ngoài giả mỗi giờ (Task M1-45), danh tính crm-filesync.
+  # Chép kho chính sang kho ngoài giả mỗi giờ (Task M1-45), danh tính crm-filesync: chỉ đọc kho chính, chỉ ghi thêm ở
+  # kho ngoài; database bằng role crm_filesync (chỉ INSERT file_sync_runs). Không có khóa của crm-app. Mật khẩu crypt
+  # là chuỗi giả chỉ cho máy dev. Chạy một lượt: docker compose --profile filesync run --rm filesync --once.
   filesync:
     profiles: [filesync]
     build:
       context: ..
       dockerfile: docker/filesync/Dockerfile
     image: crm-filesync:dev
+    environment:
+      FILESYNC_DATABASE_URL: postgres://crm_filesync:crm_filesync_dev@postgres:5432/crm?sslmode=disable
+      FILESYNC_SRC_ENDPOINT: http://seaweedfs:8333
+      FILESYNC_SRC_ACCESS_KEY_ID: crm-filesync-dev
+      FILESYNC_SRC_SECRET_ACCESS_KEY: crm-filesync-dev-only-not-a-secret
+      FILESYNC_DST_ENDPOINT: http://seaweedfs-offsite:8333
+      FILESYNC_DST_ACCESS_KEY_ID: crm-filesync-dev
+      FILESYNC_DST_SECRET_ACCESS_KEY: crm-filesync-dev-only-not-a-secret
+      RCLONE_CRYPT_PASSWORD: dev-crypt-0123456789abcdef0123456789abcdef
+      RCLONE_CRYPT_PASSWORD2: dev-salt-0123456789abcdef0123456789abcdef
+      FILESYNC_HEARTBEAT_URL: ""
+    volumes:
+      - filesync-state:/state
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    user: "65534:65534"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     depends_on:
+      postgres:
+        condition: service_healthy
       s3-bootstrap:
         condition: service_healthy
 
@@ -322,3 +346,4 @@ volumes:
   devaccess-data:
   devaccess-ca:
   fakecarrier-data:
+  filesync-state:

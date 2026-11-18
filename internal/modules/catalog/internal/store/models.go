@@ -266,6 +266,16 @@ type CatalogVariantsV struct {
 	UpdatedAt     time.Time
 }
 
+type CustomerAdminUnit struct {
+	Code          string
+	Level         string
+	ParentCode    pgtype.Text
+	Name          string
+	NameSearch    string
+	EffectiveFrom pgtype.Date
+	Source        string
+}
+
 type CustomerCustomer struct {
 	ID             uuid.UUID
 	TenantID       uuid.UUID
@@ -871,6 +881,18 @@ type PlatformFilePurpose struct {
 	Key    string
 	Bucket string
 	Mode   string
+}
+
+type PlatformFileSyncRun struct {
+	ID         uuid.UUID
+	Kind       string
+	Bucket     string
+	Ok         bool
+	StartedAt  time.Time
+	FinishedAt time.Time
+	Objects    pgtype.Int8
+	Bytes      pgtype.Int8
+	Detail     pgtype.Text
 }
 
 type PlatformFileVariant struct {

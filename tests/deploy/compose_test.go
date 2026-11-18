@@ -315,3 +315,60 @@ func TestProdCompose_LogLimits(t *testing.T) {
 		}
 	}
 }
+
+// Container filesync (Task M1-45, threat model M1 mục 4): danh tính kho crm-filesync, không mang khóa ghi của crm-app
+// (không biến S3_SECRET_ACCESS_KEY, không giá trị khóa của crm-app ở bất kỳ biến nào); database bằng role crm_filesync;
+// chạy cứng hóa như dịch vụ ứng dụng (chỉ đọc, không quyền, không root).
+func TestDevCompose_FilesyncIdentity(t *testing.T) {
+	p := config(t, "-p", "crm-deploy-test", "-f", "docker/compose.dev.yml", "--profile", "filesync", "--profile", "app")
+	s, ok := p.Services["filesync"]
+	if !ok {
+		t.Fatal("compose dev thiếu dịch vụ filesync")
+	}
+	appSecret := p.Services["crm-api"].Environment["S3_SECRET_ACCESS_KEY"]
+	if appSecret == nil || *appSecret == "" {
+		t.Fatal("crm-api không có S3_SECRET_ACCESS_KEY để so")
+	}
+	checkNoAppKeys(t, s.Environment, *appSecret)
+	checkFilesyncEnv(t, s.Environment)
+	if !s.ReadOnly || !slices.Contains(s.CapDrop, "ALL") || !slices.Contains(s.SecurityOpt, "no-new-privileges:true") {
+		t.Errorf("filesync chưa cứng hóa: read_only %v, cap_drop %v, security_opt %v", s.ReadOnly, s.CapDrop, s.SecurityOpt)
+	}
+	if s.User == "" || strings.HasPrefix(s.User, "0") || s.User == "root" {
+		t.Errorf("filesync chạy bằng root (user %q)", s.User)
+	}
+	if !slices.Contains(s.Profiles, "filesync") {
+		t.Error("filesync phải nằm trong profile filesync")
+	}
+}
+
+// checkNoAppKeys: không biến S3_* của crm-app, không biến nào mang khóa của crm-app.
+func checkNoAppKeys(t *testing.T, env map[string]*string, appSecret string) {
+	t.Helper()
+	for k, v := range env {
+		if k == "S3_SECRET_ACCESS_KEY" || k == "S3_ACCESS_KEY_ID" {
+			t.Errorf("filesync có biến %s của crm-app", k)
+		}
+		if v != nil && (*v == appSecret || strings.Contains(*v, "crm-app-dev")) {
+			t.Errorf("filesync: biến %s mang khóa của crm-app", k)
+		}
+	}
+}
+
+// checkFilesyncEnv: danh tính crm-filesync hai phía, role crm_filesync, hai mật khẩu crypt đủ dài.
+func checkFilesyncEnv(t *testing.T, env map[string]*string) {
+	t.Helper()
+	for _, k := range []string{"FILESYNC_SRC_ACCESS_KEY_ID", "FILESYNC_DST_ACCESS_KEY_ID"} {
+		if v := env[k]; v == nil || *v != "crm-filesync-dev" {
+			t.Errorf("filesync %s = %v, muốn crm-filesync-dev", k, v)
+		}
+	}
+	if v := env["FILESYNC_DATABASE_URL"]; v == nil || !strings.HasPrefix(*v, "postgres://crm_filesync:") {
+		t.Errorf("filesync nối database không bằng role crm_filesync: %v", v)
+	}
+	for _, k := range []string{"RCLONE_CRYPT_PASSWORD", "RCLONE_CRYPT_PASSWORD2"} {
+		if v := env[k]; v == nil || len(*v) < 32 {
+			t.Errorf("filesync thiếu %s (≥ 32 ký tự)", k)
+		}
+	}
+}

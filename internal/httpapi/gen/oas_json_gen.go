@@ -12317,9 +12317,15 @@ func (s *DeepHealth) encodeFields(e *jx.Encoder) {
 			s.LastBackupAgeH.Encode(e)
 		}
 	}
+	{
+		if s.LastFileSyncAgeM.Set {
+			e.FieldStart("lastFileSyncAgeM")
+			s.LastFileSyncAgeM.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfDeepHealth = [9]string{
+var jsonFieldsNameOfDeepHealth = [10]string{
 	0: "ok",
 	1: "workerHeartbeatAgeS",
 	2: "ingestHeartbeatAgeS",
@@ -12329,6 +12335,7 @@ var jsonFieldsNameOfDeepHealth = [9]string{
 	6: "spoolFiles",
 	7: "lastWalArchivedAgeS",
 	8: "lastBackupAgeH",
+	9: "lastFileSyncAgeM",
 }
 
 // Decode decodes DeepHealth from json.
@@ -12431,6 +12438,16 @@ func (s *DeepHealth) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"lastBackupAgeH\"")
+			}
+		case "lastFileSyncAgeM":
+			if err := func() error {
+				s.LastFileSyncAgeM.Reset()
+				if err := s.LastFileSyncAgeM.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"lastFileSyncAgeM\"")
 			}
 		default:
 			return d.Skip()
