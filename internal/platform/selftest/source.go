@@ -1,5 +1,9 @@
 // Package selftest là nguồn webhook thử "selftest" (/hooks/selftest) dùng để kiểm cả đường vào khi chưa có kênh thật:
-// ký bằng HMAC-SHA256 với SELFTEST_WEBHOOK_SECRET, có bước GET xác minh, tách gói {"events":[…]}.
+// ký bằng HMAC-SHA256 với SELFTEST_WEBHOOK_SECRET, có bước GET xác minh, tách gói {"events":[…]}. Inbound phát báo
+// hiệu selftest.pong cho mỗi ping (kiểm trọn ingest → worker → SSE); Command là lệnh ra ngoài thử command.selftest.
+//
+// Khi nào không dùng: không làm mẫu dữ liệu cho kênh thật (adapter kênh có Source, handler riêng); Command chỉ đăng
+// ký ngoài production và không gửi gì thật.
 package selftest
 
 import (

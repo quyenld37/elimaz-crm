@@ -170,23 +170,29 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 func newEvents() *events.Registry { return events.NewRegistry() }
 
 // newInbound dựng việc tách gói webhook và handler sự kiện vào của worker. Worker chỉ tách gói (Split), không kiểm
-// chữ ký (ingest đã kiểm), nên nguồn selftest dựng không cần bí mật. M0 chưa có handler sự kiện vào (Task 18 thêm
-// selftest.Inbound); module của mốc sau thêm ở đây, cùng danh sách nguồn với ingest.
-func newInbound(reg *metrics.Registry) ([]queue.Handler, error) {
+// chữ ký (ingest đã kiểm), nên nguồn selftest dựng không cần bí mật. selftest.Inbound phát báo hiệu selftest.pong qua
+// bus (pg_notify trong transaction của việc); module của mốc sau thêm handler ở đây, cùng danh sách nguồn với ingest.
+func newInbound(reg *metrics.Registry, bus selftest.Publisher) ([]queue.Handler, error) {
 	sources := []webhooks.Source{selftest.NewSource("")}
 	split, err := webhooks.NewSplitHandler(webhooks.SplitOptions{Sources: sources, Metrics: reg})
 	if err != nil {
 		return nil, fmt.Errorf("dựng việc tách gói: %w", err)
 	}
-	hs, err := webhooks.InboundJobHandlers(sources, nil)
+	hs, err := webhooks.InboundJobHandlers(sources, []webhooks.InboundHandler{selftest.NewInbound(bus)})
 	if err != nil {
 		return nil, fmt.Errorf("dựng handler sự kiện vào: %w", err)
 	}
 	return append([]queue.Handler{split}, hs...), nil
 }
 
-// newCommands là các loại lệnh ra ngoài của tiến trình; M0 chưa có lệnh thật, module của mốc sau thêm ở đây.
-func newCommands() []commands.Handler { return nil }
+// newCommands là các loại lệnh ra ngoài của tiến trình. Lệnh thử command.selftest (bên ngoài tại chỗ, không gửi gì
+// thật) chỉ có khi CRM_ENV khác production; module của mốc sau thêm lệnh thật ở đây.
+func newCommands(cfg config.Config) []commands.Handler {
+	if cfg.Env == "production" {
+		return nil
+	}
+	return []commands.Handler{selftest.NewCommand(selftest.Loopback{})}
+}
 
 // runWorker chạy hàng đợi (queue.Worker) với handler của sự kiện nội bộ và dọn dữ liệu, lệnh ra ngoài (Runner, kèm
 // việc tra lại lệnh in_doubt), Ticker của việc định kỳ, và vòng ghi chỉ số, nhịp sống tới khi ctx bị hủy (SIGTERM);
@@ -200,14 +206,16 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	if err := cleanup.Define(plan); err != nil {
 		return fmt.Errorf("định nghĩa lịch dọn: %w", err)
 	}
-	cmds := newCommands()
+	cmds := newCommands(cfg)
 	resolver := commands.NewInDoubtResolver(d, cmds)
 	if err := plan.Define(schedules.Schedule{
 		Name: commands.ResolveInDoubtSchedule, Every: commands.ResolveInDoubtEvery, Kind: resolver.Kind(),
 	}); err != nil {
 		return fmt.Errorf("định nghĩa lịch tra lại lệnh: %w", err)
 	}
-	inbound, err := newInbound(reg)
+	// Worker chỉ phát báo hiệu (Publish chạy pg_notify trong tx của việc), không LISTEN: không gọi hub.Run.
+	hub := realtime.NewPGHub(realtime.PGHubOptions{URL: cfg.DatabaseURL, Metrics: reg, Logger: logger})
+	inbound, err := newInbound(reg, hub)
 	if err != nil {
 		return err
 	}

@@ -513,6 +513,29 @@ Package selftest là nguồn webhook thử "selftest" (/hooks/selftest) dùng đ
 **Khi nào không dùng:** Chỉ để thử đường vào khi chưa có kênh thật: không dùng làm mẫu xác thực cho nguồn thật (mỗi kênh tự hiện thực webhooks.Source theo cách ký của nhà cung cấp) và không định tuyến sự kiện ping vào nghiệp vụ.
 
 ```go
+func CommandKind() queue.Kind
+type Command struct {
+}
+func NewCommand(ext External) *Command
+func (*Command) AutoRetryNotSent() bool
+func (c *Command) Execute(ctx context.Context, j queue.Job) (commands.Outcome, error)
+func (*Command) Kind() queue.Kind
+func (c *Command) Lookup(_ context.Context, j queue.Job) (string, error)
+type External interface {
+	Send(ctx context.Context, ref string) error
+	Has(ref string) bool
+}
+type Inbound struct {
+}
+func NewInbound(bus Publisher) *Inbound
+func (i *Inbound) Handle(ctx context.Context, e webhooks.Inbound, tx pgx.Tx) error
+func (*Inbound) Source() string
+type Loopback struct{}
+func (Loopback) Has(string) bool
+func (Loopback) Send(context.Context, string) error
+type Publisher interface {
+	Publish(ctx context.Context, tx pgx.Tx, s realtime.Signal) error
+}
 type Source struct {
 }
 func NewSource(secret string) *Source
