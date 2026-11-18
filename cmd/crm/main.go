@@ -285,11 +285,18 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	if err != nil {
 		return err
 	}
+	// Đối chiếu tồn hằng đêm (Task M1-36): dòng lịch chèn sẵn ở migration 0122 (kỳ đầu 02:30 giờ Việt Nam).
+	if err := plan.Define(schedules.Schedule{
+		Name: inventory.ReconcileSchedule, Every: inventory.ReconcileEvery, PerTenant: true, Kind: inventory.ReconcileKind(),
+	}); err != nil {
+		return fmt.Errorf("định nghĩa lịch đối chiếu tồn: %w", err)
+	}
 	inbound, err := newInbound(cfg, reg, hub)
 	if err != nil {
 		return err
 	}
 	handlers := append(append(newEvents().JobHandlers(), cleanup.Handlers()...), inbound...)
+	handlers = append(handlers, inventory.NewReconcileHandler(queue.NewQueue()))
 	w := queue.NewWorker(d, handlers, queue.WorkerOptions{
 		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
 		Metrics:  reg, Logger: logger, Role: string(cfg.Role),
@@ -315,7 +322,7 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 }
 
 // alertSchedules định nghĩa hai lịch của cảnh báo (Task 19): platform.alerts mỗi 60 s (CheckRules) và platform.digest
-// (tin tổng kết 08:00 giờ Việt Nam); trả hai lệnh đó cùng lệnh cảnh báo thiếu hàng sau kiểm kho (cùng Alerter) để đăng
+// (tin tổng kết 08:00 giờ Việt Nam); trả hai lệnh đó cùng hai lệnh cảnh báo của kho (cùng Alerter) để đăng
 // ký vào Runner. Gửi Telegram nên là lệnh, không phải handler transactional.
 func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logger *slog.Logger) ([]commands.Handler, error) {
 	alerter := observability.NewTelegramAlerter(d, cfg, nil, logger)
@@ -331,8 +338,11 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 			return nil, fmt.Errorf("định nghĩa lịch %s: %w", s.Name, err)
 		}
 	}
-	// Cảnh báo thiếu hàng sau kiểm kho (Task M1-35): lệnh do inventory.ApplyStocktake ghi, không phải lịch.
-	return []commands.Handler{alerts, digest, inventory.NewShortageAlertCommand(alerter, logger)}, nil
+	// Cảnh báo thiếu hàng sau kiểm kho (Task M1-35) và lệch sổ sau đối chiếu đêm (Task M1-36): lệnh do inventory ghi,
+	// không phải lịch.
+	return []commands.Handler{
+		alerts, digest, inventory.NewShortageAlertCommand(alerter, logger), inventory.NewStockMismatchCommand(alerter, logger),
+	}, nil
 }
 
 // diskPaths: đĩa mỗi tiến trình tự đo cho luật disk:<process> (gauge disk_used_pct): "/" của container, thư mục tệp

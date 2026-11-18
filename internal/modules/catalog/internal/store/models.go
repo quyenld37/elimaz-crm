@@ -351,6 +351,23 @@ type IdentityUsersV struct {
 	Status      string
 }
 
+type InventoryReconcileRun struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	RanAt      time.Time
+	Ok         bool
+	Checked    int32
+	Mismatches []byte
+}
+
+type InventoryReconcileRunsV struct {
+	RunID         uuid.UUID
+	RanAt         time.Time
+	Ok            bool
+	Checked       int32
+	MismatchCount int32
+}
+
 type InventoryStockAvailableV struct {
 	VariantID   uuid.UUID
 	WarehouseID uuid.UUID

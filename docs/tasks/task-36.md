@@ -71,6 +71,13 @@ Mục 6:
 | Tiêu chí | Test | Lệnh | Kết quả |
 |---|---|---|---|
 | Commit 1 (cấu trúc): tách phần gửi cảnh báo của lệnh thiếu hàng, hành vi không đổi | `TestShortageAlertCommand`, `TestStocktake_ShortageKeepsHolds` | `go test -race -run 'TestShortageAlertCommand\|TestStocktake_ShortageKeepsHolds' ./internal/modules/inventory/` | `ok elimaz.com.vn/crm/internal/modules/inventory 6.371s` |
+| KH13: dữ liệu sạch sau chuỗi thao tác M1-28–35 (nạp, giữ, gửi, giao, nhả, phiếu nhập/xuất/lỗi, kiểm kho) → `ok`; held của X lệch giữ hàng → đúng 1 mục `{X, held_vs_reservations}`; on_hand của Y sửa thẳng → mục `ledger_vs_balance` đúng Y; `reconcile_runs_v.mismatch_count` = số mục; mismatches chỉ có khóa cho phép; tenant B không thấy lần chạy của A | `TestReconcile_ReportsExactVariant` | `go test -race -count=1 -v -run TestReconcile ./internal/modules/inventory/` | `--- PASS: TestReconcile_ReportsExactVariant (0.74s)` |
+| Ba phép so riêng: sửa held không kèm sổ → 2 mục (sổ ngăn held + giữ hàng); in_transit lệch giữ hàng → `in_transit_vs_reservations` | `TestReconcile_EachCheck` | như trên | `--- PASS: TestReconcile_EachCheck (0.57s)` |
+| 50.000 số dư (5.000 biến thể × 10 kho) xong dưới 60 s, statement_timeout 30 s, đếm đủ | `TestReconcile_LargeTenant` | như trên | `50.000 số dư: 381.407917ms`, `--- PASS (9.61s)` (gồm nạp dữ liệu) |
+| Lịch: dòng chèn sẵn 19:30 UTC kế tiếp; Tick 10:00 UTC → 0 việc; Tick 19:30 UTC → đúng 1 việc mỗi tenant (2); worker chạy → mỗi tenant 1 lần chạy; tenant lệch có đúng 1 lệnh cảnh báo; lệnh gửi khóa `stock-mismatch:<tenantId>`, normal, văn bản `2 mã hàng lệch sổ` (chỉ số); việc không tenant → rejected | `TestReconcile_NightlySchedule` | như trên | `--- PASS: TestReconcile_NightlySchedule (0.52s)` |
+| Cả bộ vùng tồn kho và gói nối | toàn bộ test `inventory`, `cmd/crm` | `go test -race -count=1 ./internal/modules/inventory/... ./cmd/crm/...` | `ok elimaz.com.vn/crm/internal/modules/inventory 62.413s` |
+| Gói phụ thuộc ngược, lịch, e2e worker, kiến trúc (bản đã merge main cc42a68) | order, fulfillment, httpapi, schedules, e2e, arch | `make ci` (bước test) | `ok …/order 135.692s`, `ok …/fulfillment 46.101s`, `ok …/httpapi 255.609s`, `ok …/platform/schedules 64.538s`, `ok …/tests/e2e 68.289s`, `ok …/tests/arch 23.594s` |
+| Cổng kiểm còn lại | build, vet, lint, gen-check, sqlc-vet, vuln, oasdiff, catalog-check, jscpd, test-guard, gitleaks, console-check | `make ci` rồi `make vuln oasdiff catalog-check jscpd test-guard gitleaks console-check` | build…sqlc-vet qua trong `make ci`; lượt sau `exit=0`, `no leaks found`. Bước test của `make ci` có 1 lỗi ngoài phạm vi: `TestImager_HangKilledWithinDeadline` (xem Việc phát hiện thêm), chạy riêng 3 lần đều `ok` |
 
 ## Test bị xóa hoặc tắt
 
@@ -78,13 +85,46 @@ Mục 6:
 
 ## Khác kế hoạch
 
-(không có)
+- `Reconcile` ngoài việc đọc còn ghi luôn dòng `inventory.reconcile_runs` (trả `Run.ID`); "chỉ đọc" giữ đúng cho số dư,
+  sổ, giữ hàng (không khóa, không sửa). Lý do: kết quả và dòng ghi cùng một transaction, test đọc được view.
+- Mục lệch có thêm khóa `bucket` (chỉ ở `ledger_vs_balance`) ngoài năm khóa của kế hoạch, để biết ngăn nào lệch sổ;
+  không phải dữ liệu cá nhân.
+- Ca "sửa thẳng held + 1 của X → đúng 1 mục held_vs_reservations": sửa held mà không kèm sổ thì lệch cả phép (a) lẫn
+  (b) → 2 mục (kiểm ở `TestReconcile_EachCheck`). Ca "đúng 1 mục" trong `TestReconcile_ReportsExactVariant` sửa held
+  kèm một dòng sổ held (giả lỗi mất dòng giữ hàng).
 
 ## Việc phát hiện thêm
 
-(không có)
+- `internal/imager` `TestImager_HangKilledWithinDeadline` (Task 44, vừa gộp từ main) lỗi một lần trong `make ci` khi máy
+  tải nặng ("script giả chưa chạy … pid: no such file"): hạn 1 s cho script giả khởi động quá ngắn. Chạy riêng 3/3 qua.
+  Không sửa (ngoài phạm vi).
+- Lô của câu đối chiếu cố định 2.000; handler việc nền giới hạn 30 s. 50.000 số dư mất ~0,4 s, nên còn xa giới hạn;
+  khi một tenant tới vài triệu dòng số dư cần chia việc theo kho. Mỗi câu cũng cộng toàn bộ sổ của 2.000 dòng số dư,
+  nên thời gian tăng theo độ dài lịch sử sổ (test chỉ có một dòng sổ mỗi số dư): khi sổ dài nhiều năm cần đo lại, có
+  thể thêm số dư chốt theo kỳ (reviewer ghi chú).
+- Khóa cảnh báo cố định mỗi tenant (`stock-mismatch:<tenantId>`, theo kế hoạch): nếu Alerter chống lặp lâu hơn 24 giờ
+  thì đêm lệch liên tiếp có thể không báo lại; cần soát khi chỉnh luật chống lặp (reviewer ghi chú).
+
+## Quyết định thay chủ shop
+
+1. **Giờ chạy đầu bằng dòng chèn sẵn ở migration 0122** (D2 của Task 24): `date_trunc('day', now(), 'UTC') + 19:30`,
+   đã qua thì cộng 1 ngày; `ON CONFLICT DO NOTHING`. Không đổi gói `schedules`. Đảo ngược: xóa dòng.
+2. **Việc định kỳ chạy 1 lần, quá 24 giờ chưa chạy thì expired** (như lịch dọn, spec 04 mục 5.1: lỗi thì chạy kỳ sau;
+   việc dead được luật cảnh báo hàng đợi báo). Phương án khác: thử lại 8 lần — có thể báo trùng nhiều lần trong đêm.
+3. **"n mã hàng" = số biến thể khác nhau có lệch** (một biến thể lệch nhiều phép hay nhiều kho vẫn tính 1);
+   `mismatch_count` của view = số mục. Khóa cảnh báo `stock-mismatch:<tenantId>` theo kế hoạch (Alerter chống lặp theo
+   khóa). Lệnh cảnh báo dùng lại phần gửi của lệnh thiếu hàng (commit cấu trúc riêng e42b86d).
+4. **Lưu đủ mọi mục lệch** trong `mismatches` (không cắt) để `mismatch_count` luôn đúng; trường hợp xấu (mọi dòng
+   lệch) là vài MB một đêm, chấp nhận được.
+5. **Thêm CHECK `ok = (jsonb_array_length(mismatches) = 0)`** và `checked >= 0` để dòng kết quả không tự mâu thuẫn.
 
 ## Reviewer
 
 Commit 1 (cấu trúc, tách `notify` trong `shortagealert.go`): **ĐẠT**. Không phát hiện về tính đúng; key, severity,
 văn bản, log, not_sent, RetryAfter giữ nguyên. Ghi chú: `notify` cố định severity normal (lệnh lệch sổ cũng normal).
+
+Commit 2 (hành vi: migration 0122, câu đối chiếu, `reconcile.go`, lịch, handler, lệnh, nối `cmd/crm`; bản đã merge main
+cc42a68): **ĐẠT**. Không phát hiện về tính đúng: keyset và một snapshot mỗi lô đúng, lịch 19:30 UTC giữ được qua
+`ON CONFLICT DO NOTHING`, migration 0122 chạy được nhờ `WithAllowOutofOrder`, cảnh báo không có dữ liệu cá nhân, quyền
+crm_app chỉ SELECT/INSERT. Hai ghi chú không bắt buộc (sổ dài nhiều năm; khóa cảnh báo cố định) đã chép vào "Việc phát
+hiện thêm".
