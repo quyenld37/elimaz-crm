@@ -231,7 +231,7 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	handlers := append(append(newEvents().JobHandlers(), cleanup.Handlers()...), inbound...)
 	w := queue.NewWorker(d, handlers, queue.WorkerOptions{
 		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
-		Metrics:  reg, Logger: logger,
+		Metrics:  reg, Logger: logger, Role: string(cfg.Role),
 		Commands: commands.NewRunner(d, append(cmds, resolver)),
 	})
 	if err := w.Start(ctx); err != nil {
@@ -324,7 +324,7 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 		}
 		handler = httpapi.NewServer(httpapi.Deps{
 			Config: cfg, DB: d, Logger: logger, Access: access, Files: store,
-			Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop}, Events: newEvents(),
+			Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop}, Events: newEvents(), Metrics: reg,
 		})
 	} else {
 		h, err := ingestHandler(cfg, d, reg, logger)

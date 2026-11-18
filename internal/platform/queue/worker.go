@@ -2,10 +2,12 @@ package queue
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,6 +23,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/internal/store"
 	"elimaz.com.vn/crm/internal/platform/metrics"
+	"elimaz.com.vn/crm/internal/platform/observability"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 )
 
@@ -29,6 +32,7 @@ const (
 	defaultConcurrency = 8
 	defaultLease       = 90 * time.Second
 	defaultPoll        = 2 * time.Second
+	defaultRole        = "worker"
 )
 
 const (
@@ -71,6 +75,8 @@ type WorkerOptions struct {
 	Logger *slog.Logger
 	// Commands chạy việc mode command; nil: Worker không nhận việc command (chúng giữ pending).
 	Commands CommandRunner
+	// Role là vai trò tiến trình ghi vào error_events khi handler lỗi ("worker").
+	Role string
 }
 
 // Worker nhận và chạy việc của các Handler đã đăng ký.
@@ -114,6 +120,9 @@ func NewWorker(d *db.DB, hs []Handler, o WorkerOptions) *Worker {
 	}
 	if o.Logger == nil {
 		o.Logger = slog.Default()
+	}
+	if o.Role == "" {
+		o.Role = defaultRole
 	}
 	w := &Worker{
 		d: d, o: o, tracer: newTracer(),
@@ -454,7 +463,7 @@ func (w *Worker) runJob(base context.Context, row store.ClaimJobsRow) error {
 
 	start := time.Now()
 	err := w.inTx(hctx, j.TenantID, func(tx pgx.Tx) error {
-		res, err := h.Handle(hctx, j, tx)
+		res, err := handleSafely(hctx, h, j, tx)
 		if err != nil {
 			return fmt.Errorf("handle %s: %w", j.Kind, err)
 		}
@@ -478,7 +487,20 @@ func (w *Worker) runJob(base context.Context, row store.ClaimJobsRow) error {
 		return nil
 	}
 	span.SetStatus(codes.Error, "handler lỗi")
-	// Hạn ghi tính từ đây (sau handler), trên ctx tách khỏi việc hủy của Stop và của Timeout.
+	ferr := w.recordFailure(ctx, j, int(row.MaxAttempts), err)
+	// Ghi lỗi ứng dụng sau khi đã ghi trạng thái việc: không ăn vào hạn ghi trạng thái (recordTimeout). Không ghi khi
+	// Stop hủy giữa chừng (không phải lỗi ứng dụng) hay khi handler tự báo ErrPermanent (lỗi đã lường trước; việc dead
+	// đã có cảnh báo dead:<kind> riêng).
+	if w.hardStop.Err() == nil && !errors.Is(err, ErrPermanent) {
+		w.recordError(ctx, j, err)
+	}
+	return ferr
+}
+
+// recordFailure ghi kết quả của một lần handler lỗi: Stop quá grace → trả về hàng chờ không tính lượt; lỗi vĩnh viễn
+// hoặc hết lượt → dead; còn lại hẹn chạy lại theo lịch. Hạn ghi tính từ lúc gọi (sau handler), trên ctx tách khỏi việc
+// hủy của Stop và của Timeout.
+func (w *Worker) recordFailure(ctx context.Context, j Job, maxAttempts int, err error) error {
 	rctx, rcancel := w.recordCtx(ctx)
 	defer rcancel()
 	switch {
@@ -486,7 +508,7 @@ func (w *Worker) runJob(base context.Context, row store.ClaimJobsRow) error {
 		return w.update(rctx, func(q *store.Queries) (int64, error) {
 			return q.ReleaseJob(rctx, store.ReleaseJobParams{ID: j.ID, LockedBy: w.o.WorkerID})
 		})
-	case errors.Is(err, ErrPermanent) || j.Attempts >= int(row.MaxAttempts):
+	case errors.Is(err, ErrPermanent) || j.Attempts >= maxAttempts:
 		return w.markDead(rctx, j, ErrorText(err), true)
 	default:
 		delay := NextDelay(j.Attempts, rand.Float64)
@@ -630,6 +652,31 @@ func (w *Worker) gauge(ctx context.Context) {
 		return
 	}
 	w.o.Metrics.Gauge("jobs_oldest_pending_age_s", age, "")
+}
+
+// handleSafely gọi h.Handle; handler panic thành *observability.PanicError (giá trị đã lọc, vết gọi tại chỗ panic),
+// được xử lý như lỗi thường: transaction lùi, việc chờ thử lại theo lịch, tiến trình worker không sập.
+func handleSafely(ctx context.Context, h Handler, j Job, tx pgx.Tx) (res json.RawMessage, err error) {
+	defer func() {
+		if v := recover(); v != nil {
+			res, err = nil, observability.NewPanicError(v)
+		}
+	}()
+	return h.Handle(ctx, j, tx) //nolint:wrapcheck // runJob bọc một lần
+}
+
+// recordError ghi lỗi của handler vào error_events (observability.RecordError, sau khi transaction đã lùi và trạng
+// thái việc đã ghi; RecordError có hạn 2 s riêng). Dấu vân tay
+// theo loại việc: lỗi trả về không còn vết gọi của handler, nên khung gọi là tên loại việc; panic dùng vết tại chỗ
+// panic.
+func (w *Worker) recordError(ctx context.Context, j Job, err error) {
+	var frames []runtime.Frame
+	if _, ok := errors.AsType[*observability.PanicError](err); !ok {
+		frames = []runtime.Frame{{Function: "queue.handler " + j.Kind}}
+	}
+	observability.RecordError(ctx, w.d, err, observability.ErrorContext{
+		Role: w.o.Role, JobID: j.ID, Frames: frames, Metrics: w.o.Metrics, Logger: w.o.Logger,
+	})
 }
 
 // ErrorText là chuỗi lưu vào last_error của một việc: err.Error(), tối đa 1000 ký tự (không cắt giữa ký tự UTF-8).

@@ -458,14 +458,71 @@ Package observability phục vụ các điểm kiểm sức khỏe của tiến 
 
 ```go
 func CheckLive(ctx context.Context, port int, timeout time.Duration) error
+func Fingerprint(err error, frames []runtime.Frame) string
+func PanicFrames() []runtime.Frame
+func RecordError(ctx context.Context, d *db.DB, err error, c ErrorContext) (fingerprint string, isNew bool)
+func ScrubMessage(m string) string
+func StackFrames(skip int) []runtime.Frame
+type AlertSummary struct {
+	Key, Severity string
+	SentAt        time.Time
+}
+type BackupHealth struct {
+	LastBaseAgeH, LastDrillAgeH *int64
+	LastDrillOk                 *bool
+}
+type ErrorContext struct {
+	Role      string
+	RequestID string
+	JobID     uuid.UUID
+
+	Frames  []runtime.Frame
+	Metrics *metrics.Registry
+	Logger  *slog.Logger
+}
+type ErrorSummary struct {
+	Fingerprint, Name, Role, Message string
+	Count                            int64
+	FirstSeenAt, LastSeenAt          time.Time
+}
 type Health struct {
 }
 func NewHealth(db Pinger) *Health
 func (h *Health) Check(ctx context.Context) error
 func (h *Health) Register(mux *http.ServeMux)
+type HealthSummary struct {
+	Processes []ProcessHealth
+	Queue     QueueHealth
+	Ingest    IngestHealth
+	Backup    BackupHealth
+	Errors    []ErrorSummary
+	Alerts    []AlertSummary
+}
+func Summary(ctx context.Context, d *db.DB, now time.Time) (HealthSummary, error)
+type IngestHealth struct {
+	SpoolFiles int64
+}
+type PanicError struct {
+	Value  any
+	Frames []runtime.Frame
+}
+func NewPanicError(v any) *PanicError
+func (p *PanicError) Error() string
+func (p *PanicError) Unwrap() error
 type Pinger interface {
 	Ping(ctx context.Context) error
 }
+type ProcessHealth struct {
+	Role              string
+	LastHeartbeatAgeS int64
+}
+type QueueHealth struct {
+	OldestPendingAgeS, Pending, Dead, InDoubt int64
+}
+type RuleHit struct {
+	Key, Severity, Text string
+}
+func ErrorRules(ctx context.Context, d *db.DB, now time.Time) ([]RuleHit, error)
 ```
 
 ## `internal/platform/queue` (gói `queue`)
@@ -566,6 +623,8 @@ type WorkerOptions struct {
 	Logger *slog.Logger
 
 	Commands CommandRunner
+
+	Role string
 }
 ```
 

@@ -173,11 +173,16 @@ export type BackupHealth = {
     lastDrillOk?: boolean;
 };
 
+/**
+ * Một loại lỗi ứng dụng gộp theo dấu vân tay (Task 20). message đã lọc chuỗi từ 8 chữ số và email.
+ */
 export type ErrorSummary = {
     fingerprint: string;
     name: string;
     role: string;
+    message: string;
     count: number;
+    firstSeenAt: string;
     lastSeenAt: string;
 };
 

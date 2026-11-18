@@ -822,7 +822,8 @@ components:
           type: boolean
     ErrorSummary:
       type: object
-      required: [fingerprint, name, role, count, lastSeenAt]
+      description: Một loại lỗi ứng dụng gộp theo dấu vân tay (Task 20). message đã lọc chuỗi từ 8 chữ số và email.
+      required: [fingerprint, name, role, message, count, firstSeenAt, lastSeenAt]
       properties:
         fingerprint:
           type: string
@@ -830,9 +831,15 @@ components:
           type: string
         role:
           type: string
+        message:
+          type: string
+          maxLength: 300
         count:
           type: integer
           format: int64
+        firstSeenAt:
+          type: string
+          format: date-time
         lastSeenAt:
           type: string
           format: date-time
