@@ -280,6 +280,28 @@ Kiểm từ ngoài (`scripts/external-probe`, hai nơi, một nơi không thuộ
 - Sau mỗi lần deploy hay lùi: `/health/deep` 200, không `error-spike` trong 10 phút, tóm tắt sức khỏe không có việc mới
   `dead`.
 
+## Đổi khóa mã hóa trường (`FIELD_ENC_KEYS`, Task M2-33)
+
+Bí mật lưu trong database (khóa API hãng của M3, token Page của M4) được mã hóa bằng gói `fieldcrypt`, khóa đọc từ một
+biến `FIELD_ENC_KEYS` của vai trò `api` và `worker` (M3, M4 bắt buộc có; M0–M2 không cần).
+
+- Dạng: `<key_id>:<base64 32 byte>` cách nhau dấu phẩy, ví dụ `k2:<khóa mới>,k1:<khóa cũ>`. `key_id` là 1–16 ký tự
+  `a-z0-9`, không trùng. **Khóa đầu** dùng để mã hóa; mọi khóa trong danh sách dùng để giải mã. Tạo khóa:
+  `openssl rand -base64 32`. Sai định dạng thì tiến trình không khởi động, lỗi nêu tên biến và vị trí mục, không in khóa.
+- Mỗi ô mã hóa lưu kèm `key_id` của khóa đã dùng; bản mã gắn với đúng tenant, bảng, cột, dòng (chép sang dòng khác thì
+  không mở được).
+- **Đổi khóa định kỳ hoặc khi nghi lộ:**
+  1. Thêm khóa mới lên **đầu** danh sách, giữ khóa cũ phía sau; đặt cùng giá trị cho `api` và `worker`, khởi động lại
+     cả hai (theo thứ tự deploy). Từ lúc này mọi lần ghi dùng khóa mới; ô cũ vẫn đọc được.
+  2. Ghi lại các ô còn dùng khóa cũ (`NeedsRewrap`): việc ghi lại do mốc sở hữu bảng cung cấp (M3 tài khoản hãng, M4
+     token Page); chạy tới khi không còn ô nào mang `key_id` cũ.
+  3. Bỏ khóa cũ khỏi danh sách, khởi động lại. Bỏ sớm hơn bước 2 thì ô cũ báo `ErrUnknownKey` (không đọc được bí mật,
+     phải nhập lại từ trang của hãng hay kết nối lại Page).
+- Bản sao lưu cũ chứa bản mã bằng khóa cũ: giữ khóa cũ ngoài máy chủ (cùng chỗ với khóa sao lưu) đủ thời hạn giữ bản sao
+  lưu để còn khôi phục được.
+- Khi lộ: làm ngay bước 1–3 như trên, đồng thời thu hồi chính các bí mật đã mã hóa ở nơi cấp (mục dưới) vì kẻ có khóa cũ
+  và bản sao database đọc được chúng.
+
 ## Khi lộ secret
 
 1. **Thu hồi** ngay ở nơi cấp (Meta, hãng, Cloudflare, kho S3, Telegram): vô hiệu hóa khóa cũ.

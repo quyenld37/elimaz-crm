@@ -48,3 +48,26 @@ WHERE id = @id AND status = 'in_doubt' AND finished_at = sqlc.arg(seen_finished_
 UPDATE platform.jobs
 SET status = 'pending', run_at = now(), finished_at = NULL, last_error = 'in_doubt: tra thấy chưa gửi'
 WHERE id = @id AND status = 'in_doubt' AND finished_at = sqlc.arg(seen_finished_at)::timestamptz;
+
+-- Q-5 (Task M2-33): handler không tự gửi lại (AutoRetryNotSent = false) mà tra thấy chắc chắn chưa gửi → dead, người
+-- quyết gửi lại (04 mục 5.3). Cùng điều kiện "đúng lần in_doubt đã thấy" như hai câu trên.
+-- name: ResolveInDoubtDead :execrows
+UPDATE platform.jobs
+SET status = 'dead', finished_at = now(), last_error = 'confirmed_not_sent'
+WHERE id = @id AND status = 'in_doubt' AND finished_at = sqlc.arg(seen_finished_at)::timestamptz;
+
+-- Bỏ lệnh do mã nghiệp vụ quyết (commands.Abandon): pending, in_doubt → expired. Chỉ lệnh (mode command) của tenant
+-- trong ngữ cảnh của transaction (jobs không RLS: lọc tường minh; ngoài ngữ cảnh chỉ thấy lệnh không tenant). Câu cuối
+-- của transaction nghiệp vụ (ADR-46 nhóm 13).
+-- name: AbandonCommand :execrows
+UPDATE platform.jobs
+SET status = 'expired', finished_at = now(), last_error = sqlc.arg(last_error)::text, lease_until = NULL,
+    locked_by = NULL
+WHERE id = @id AND mode = 'command' AND status IN ('pending', 'in_doubt')
+  AND tenant_id IS NOT DISTINCT FROM NULLIF(current_setting('app.tenant_id', true), '')::uuid;
+
+-- Trạng thái của một lệnh trong ngữ cảnh tenant như AbandonCommand (không có dòng: không có hoặc của tenant khác).
+-- name: CommandStatus :one
+SELECT status FROM platform.jobs
+WHERE id = @id AND mode = 'command'
+  AND tenant_id IS NOT DISTINCT FROM NULLIF(current_setting('app.tenant_id', true), '')::uuid;

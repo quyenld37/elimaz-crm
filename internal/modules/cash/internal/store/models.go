@@ -1203,4 +1203,6 @@ type PlatformWebhookDelivery struct {
 	Headers    []byte
 	Body       []byte
 	ReceivedAt time.Time
+	RouteKey   pgtype.Text
+	BodyKind   string
 }

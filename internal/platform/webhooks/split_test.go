@@ -224,7 +224,7 @@ func checkRoutedJobs(t *testing.T, e *splitEnv) {
 			t.Fatal(err)
 		}
 		for k := range p {
-			if !slices.Contains([]string{"type", "deliveryId", "index", "dedupeKey", "occurredAt"}, k) {
+			if !slices.Contains([]string{"type", "deliveryId", "index", "dedupeKey", "occurredAt", "receivedAt", "via"}, k) {
 				t.Errorf("payload việc inbound có khóa %q (chỉ được mang mã): %s", k, j.payload)
 			}
 		}

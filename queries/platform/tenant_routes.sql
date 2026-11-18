@@ -23,3 +23,8 @@ SELECT tenant_id FROM ins
 UNION ALL
 SELECT r.tenant_id FROM platform.tenant_routes AS r WHERE r.kind = @kind AND r.external_key = @external_key
 LIMIT 1;
+
+-- Ghi tuyến kind/key cho tenant trong ngữ cảnh (app.tenant_id) qua hàm SECURITY DEFINER của 0290 (crm_app không có
+-- INSERT trên bảng). Khóa đã thuộc tenant khác → SQLSTATE 23505.
+-- name: PutTenantRoute :exec
+SELECT platform.put_tenant_route(@kind::text, @external_key::text);

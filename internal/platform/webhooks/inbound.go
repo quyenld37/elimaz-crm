@@ -29,6 +29,10 @@ type Inbound struct {
 	Data     json.RawMessage
 	JobID    uuid.UUID
 	TenantID uuid.UUID
+	// ReceivedAt là lúc CRM nhận sự kiện (ingest nhận webhook, hay worker đọc được khi hỏi bù), UTC; M4 đo độ trễ từ đây.
+	ReceivedAt time.Time
+	// Via là đường sự kiện tới: ViaWebhook, ViaLiveStream, ViaLivePoll, ViaCommentPoll, ViaBackfill, ViaHistory.
+	Via string
 }
 
 // InboundHandler xử lý sự kiện vào của một nguồn (module nghiệp vụ, adapter kênh).
@@ -75,16 +79,27 @@ func (ih inboundJobHandler) Handle(ctx context.Context, j queue.Job, tx pgx.Tx) 
 	if err := json.Unmarshal(j.Payload, &p); err != nil || p.DeliveryID == uuid.Nil || j.TenantID == nil {
 		return nil, fmt.Errorf("việc %s: payload hoặc tenant không hợp lệ: %w", j.ID, queue.ErrPermanent)
 	}
-	src, res, err := loadPacket(ctx, tx, ih.sources, p.DeliveryID)
+	pk, err := loadPacket(ctx, tx, ih.sources, p.DeliveryID)
 	if err != nil {
 		return nil, fmt.Errorf("việc %s: %w", j.ID, err)
 	}
-	if src != ih.h.Source() || p.Index < 0 || p.Index >= len(res.Events) ||
+	res := pk.res
+	if pk.source != ih.h.Source() || p.Index < 0 || p.Index >= len(res.Events) ||
 		eventDedupeKey(res.Events[p.Index], p.DeliveryID, p.Index) != p.DedupeKey {
 		return nil, fmt.Errorf("việc %s: sự kiện %d không khớp bản nhận %s: %w", j.ID, p.Index, p.DeliveryID, queue.ErrPermanent)
 	}
 	e := res.Events[p.Index]
-	in := Inbound{Type: e.Type, OccurredAt: e.OccurredAt.UTC(), Data: e.Payload, JobID: j.ID, TenantID: *j.TenantID}
+	in := Inbound{
+		Type: e.Type, OccurredAt: e.OccurredAt.UTC(), Data: e.Payload, JobID: j.ID, TenantID: *j.TenantID,
+		ReceivedAt: p.ReceivedAt.UTC(), Via: p.Via,
+	}
+	// Việc ghi trước Task M2-33 không có receivedAt, via: lấy giờ nhận của bản nhận, đường webhook.
+	if in.ReceivedAt.IsZero() {
+		in.ReceivedAt = pk.receivedAt.UTC()
+	}
+	if in.Via == "" {
+		in.Via = ViaWebhook
+	}
 	if err := ih.h.Handle(ctx, in, tx); err != nil {
 		return nil, fmt.Errorf("sự kiện vào %s, việc %s: %w", in.Type, j.ID, err)
 	}

@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
@@ -189,5 +191,93 @@ func TestResolveZeroTimeoutUsesDefault(t *testing.T) {
 	}
 	if want := queue.DefaultPolicy.Timeout - 5*time.Second; left < want {
 		t.Fatalf("Lookup còn %v trước hạn, muốn gần hạn mặc định %v", left, queue.DefaultPolicy.Timeout)
+	}
+}
+
+// Q-5 (M3): handler không tự gửi lại (AutoRetryNotSent = false), tra thấy chắc chắn chưa gửi → dead với lý do
+// confirmed_not_sent, OnTerminal(dead) đúng một lần, không gửi gì; lượt worker sau không chạy lại nó.
+func TestResolveNotSentNoAutoRetryIsDead(t *testing.T) {
+	e := newEnv(t)
+	h := &lookH{cmdH: newCmd("command.look", &testkit.FakeExternal{})}
+	h.autoRetry = false
+	id := inDoubtJob(t, e, h, "k", false)
+	_, _, before := h.snapshot()
+	if d, r, s := resolve(t, e, h); d != 0 || r != 1 || s != 0 {
+		t.Fatalf("đếm %d %d %d, muốn 0 1 0", d, r, s)
+	}
+	row := e.job(t, id)
+	if row.Status != "dead" || row.LastError == nil || *row.LastError != "confirmed_not_sent" {
+		t.Fatalf("muốn dead confirmed_not_sent: %+v (last_error %v)", row, row.LastError)
+	}
+	_, _, terms := h.snapshot()
+	if added := terms[len(before):]; len(added) != 1 || added[0] != id.String()+":dead" {
+		t.Fatalf("OnTerminal thêm %v, muốn đúng [%s:dead]", added, id)
+	}
+	runOnce(t, worker(e, "w2", h))
+	if st := e.job(t, id).Status; st != "dead" || len(h.ext.Calls()) != 0 {
+		t.Fatalf("lệnh dead không được gửi: %s %v", st, h.ext.Calls())
+	}
+	// Tra lại lần nữa: không còn in_doubt nên không đổi gì, không gọi OnTerminal thêm.
+	if d, r, s := resolve(t, e, h); d != 0 || r != 0 || s != 0 {
+		t.Fatalf("lần tra sau đếm %d %d %d, muốn 0 0 0", d, r, s)
+	}
+	if _, _, again := h.snapshot(); len(again) != len(terms) {
+		t.Fatalf("OnTerminal bị gọi thêm: %v", again)
+	}
+}
+
+// abandon gọi commands.Abandon trong ngữ cảnh tenant của e (hoặc tenant khác).
+func abandon(t *testing.T, e *env, tenant uuid.UUID, id uuid.UUID) error {
+	t.Helper()
+	return tenancy.WithTenant(t.Context(), e.app, tenant, func(tx pgx.Tx) error { //nolint:wrapcheck // test
+		return commands.Abandon(t.Context(), tx, id, "order_cancelled")
+	})
+}
+
+// Abandon (M4, M3): lệnh in_doubt hay pending → expired với lý do; gọi lại không đổi, không lỗi; lệnh đang chạy →
+// ErrCommandRunning; lệnh của tenant khác hay không có → ErrCommandNotFound; lệnh đã bỏ không bị worker chạy.
+func TestAbandon(t *testing.T) {
+	e := newEnv(t)
+	h := &lookH{cmdH: newCmd("command.look", &testkit.FakeExternal{})}
+	doubt := inDoubtJob(t, e, h, "k1", true)
+	pending := e.enqueue(t, h.kind, "k2")
+	for _, id := range []uuid.UUID{doubt, pending} {
+		for range 2 {
+			if err := abandon(t, e, e.tenant, id); err != nil {
+				t.Fatalf("Abandon %s: %v", id, err)
+			}
+		}
+		row := e.job(t, id)
+		if row.Status != "expired" || row.LastError == nil || *row.LastError != "abandoned: order_cancelled" {
+			t.Fatalf("muốn expired: %+v %v", row, row.LastError)
+		}
+	}
+	calls := len(h.ext.Calls())
+	runOnce(t, worker(e, "w2", h))
+	if len(h.ext.Calls()) != calls {
+		t.Fatalf("lệnh đã bỏ bị gửi: %v", h.ext.Calls())
+	}
+	running := e.enqueue(t, h.kind, "k3")
+	e.ownerExec(t, `UPDATE platform.jobs SET status = 'running', attempts = 1, locked_by = 'w', lease_until = now() + interval '1 minute'
+		WHERE id = $1`, running)
+	if err := abandon(t, e, e.tenant, running); !errors.Is(err, commands.ErrCommandRunning) {
+		t.Fatalf("lệnh đang chạy: %v, muốn ErrCommandRunning", err)
+	}
+	if st := e.job(t, running).Status; st != "running" {
+		t.Fatalf("lệnh đang chạy bị đổi: %s", st)
+	}
+	var other uuid.UUID
+	if err := e.owner.Pool.QueryRow(t.Context(), "INSERT INTO platform.tenants (name) VALUES ('B') RETURNING id").Scan(&other); err != nil {
+		t.Fatal(err)
+	}
+	other4 := e.enqueue(t, h.kind, "k4")
+	if err := abandon(t, e, other, other4); !errors.Is(err, commands.ErrCommandNotFound) {
+		t.Fatalf("tenant khác: %v, muốn ErrCommandNotFound", err)
+	}
+	if err := abandon(t, e, e.tenant, uuid.New()); !errors.Is(err, commands.ErrCommandNotFound) {
+		t.Fatalf("mã lạ: %v, muốn ErrCommandNotFound", err)
+	}
+	if st := e.job(t, other4).Status; st != "pending" {
+		t.Fatalf("lệnh của tenant A bị tenant B bỏ: %s", st)
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const deleteOldWebhookDeliveries = `-- name: DeleteOldWebhookDeliveries :execrows
@@ -36,27 +37,52 @@ func (q *Queries) DeleteOldWebhookDeliveries(ctx context.Context, arg DeleteOldW
 	return result.RowsAffected(), nil
 }
 
+const findWebhookDelivery = `-- name: FindWebhookDelivery :one
+SELECT id FROM platform.webhook_deliveries WHERE source = $1 AND body_sha256 = $2
+`
+
+type FindWebhookDeliveryParams struct {
+	Source     string
+	BodySha256 string
+}
+
+func (q *Queries) FindWebhookDelivery(ctx context.Context, arg FindWebhookDeliveryParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, findWebhookDelivery, arg.Source, arg.BodySha256)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getWebhookDelivery = `-- name: GetWebhookDelivery :one
-SELECT source, body FROM platform.webhook_deliveries WHERE id = $1
+SELECT source, body, route_key, body_kind, received_at FROM platform.webhook_deliveries WHERE id = $1
 `
 
 type GetWebhookDeliveryRow struct {
-	Source string
-	Body   []byte
+	Source     string
+	Body       []byte
+	RouteKey   pgtype.Text
+	BodyKind   string
+	ReceivedAt time.Time
 }
 
 // Đọc lại một bản nhận để tách gói (việc webhook.split) và lấy nội dung sự kiện (việc inbound.*).
 func (q *Queries) GetWebhookDelivery(ctx context.Context, id uuid.UUID) (GetWebhookDeliveryRow, error) {
 	row := q.db.QueryRow(ctx, getWebhookDelivery, id)
 	var i GetWebhookDeliveryRow
-	err := row.Scan(&i.Source, &i.Body)
+	err := row.Scan(
+		&i.Source,
+		&i.Body,
+		&i.RouteKey,
+		&i.BodyKind,
+		&i.ReceivedAt,
+	)
 	return i, err
 }
 
 const insertWebhookDelivery = `-- name: InsertWebhookDelivery :one
 
-INSERT INTO platform.webhook_deliveries (source, body_sha256, headers, body, received_at)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO platform.webhook_deliveries (source, body_sha256, headers, body, received_at, route_key)
+VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (source, body_sha256) DO NOTHING
 RETURNING id
 `
@@ -67,15 +93,46 @@ type InsertWebhookDeliveryParams struct {
 	Headers    []byte
 	Body       []byte
 	ReceivedAt time.Time
+	RouteKey   pgtype.Text
 }
 
-// Bản nhận webhook (kế hoạch M0 bản 5, Task 14). Chỉ internal/platform/webhooks dùng.
-// Chống trùng theo (source, body_sha256): trùng thì không trả dòng nào (không ghi thêm việc tách gói).
+// Bản nhận webhook (kế hoạch M0 bản 5, Task 14; Task M2-33). Chỉ internal/platform/webhooks dùng.
+// Chống trùng theo (source, body_sha256): trùng thì không trả dòng nào (không ghi thêm việc tách gói). route_key rỗng
+// với đường /hooks/{source}.
 func (q *Queries) InsertWebhookDelivery(ctx context.Context, arg InsertWebhookDeliveryParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, insertWebhookDelivery,
 		arg.Source,
 		arg.BodySha256,
 		arg.Headers,
+		arg.Body,
+		arg.ReceivedAt,
+		arg.RouteKey,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const insertWebhookEvent = `-- name: InsertWebhookEvent :one
+INSERT INTO platform.webhook_deliveries (source, body_sha256, headers, body, received_at, body_kind)
+VALUES ($1, $2, '{}', $3, $4, 'event')
+ON CONFLICT (source, body_sha256) DO NOTHING
+RETURNING id
+`
+
+type InsertWebhookEventParams struct {
+	Source     string
+	BodySha256 string
+	Body       []byte
+	ReceivedAt time.Time
+}
+
+// Ghi một sự kiện đã chuẩn hóa (EnqueueInbound): body_kind 'event', header rỗng. Trùng (cùng sự kiện ghi lại) thì không
+// trả dòng nào; bên gọi đọc mã của dòng có sẵn bằng FindWebhookDelivery.
+func (q *Queries) InsertWebhookEvent(ctx context.Context, arg InsertWebhookEventParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertWebhookEvent,
+		arg.Source,
+		arg.BodySha256,
 		arg.Body,
 		arg.ReceivedAt,
 	)

@@ -32,6 +32,7 @@ Package commands là đường ra của CRM: lệnh ra ngoài (gửi tin, trả 
 **Khi nào không dùng:** Không gọi mạng ra ngoài ở chỗ khác: mọi tác động ra ngoài là một lệnh (Kind từ CommandKind) ghi bằng JobQueue.Enqueue trong transaction nghiệp vụ, Handler.Execute gửi. Không trả StatusNotSent khi chưa chắc bên ngoài chưa nhận (lỗi, quá giờ → in_doubt). Không tự gửi lại lệnh in_doubt: chỉ ResolveInDoubt (Looker nói chắc chắn chưa có) hoặc người có quyền chạy lại. Lệnh không đụng database thì không cần commands; việc chỉ đụng database là Handler transactional của queue.
 
 ```go
+func Abandon(ctx context.Context, tx pgx.Tx, jobID uuid.UUID, reason string) error
 func CommandKind(name string, expiresAfter, timeout time.Duration) queue.Kind
 func ResolveInDoubt(ctx context.Context, d *db.DB, hs []Handler, limit int) (done, requeued, still int, err error)
 type DoneHook interface {
@@ -129,6 +130,8 @@ type Config struct {
 
 	JobsDoneRetentionDays int
 
+	FieldEncKeys string
+
 	Migrate *MigrateConfig
 }
 func Load(role Role, getenv func(string) string) (Config, error)
@@ -222,6 +225,30 @@ type StoredEvent struct {
 	Topic         string
 	Payload       json.RawMessage
 }
+```
+
+## `internal/platform/fieldcrypt` (gói `fieldcrypt`)
+
+Package fieldcrypt mã hóa từng trường bí mật lưu trong database (khóa API hãng của M3, token Page của M4, bí mật của M7): AES-256-GCM của thư viện chuẩn, nonce 12 byte ngẫu nhiên, bản mã gắn với đúng dòng bằng AAD (tenant|bảng|cột|dòng) nên chép bản mã sang dòng, cột hay tenant khác thì không mở được.
+
+**Khi nào không dùng:** Không dùng cho mật khẩu hay mã cần so khớp (dùng băm argon2id) và không mã hóa cả dòng, cột tìm kiếm được: chỉ cho bí mật phải đọc lại (khóa API hãng, token Page). Không tự dựng AES hay đọc FIELD_ENC_KEYS ở gói khác: một Keyring dựng ở cmd/crm từ Config.FieldEncKeys. AAD luôn là đúng tenant, bảng, cột, mã dòng của ô; lưu kid cạnh bản mã; NeedsRewrap đúng thì ghi lại bằng Seal. Không log, không đưa bản rõ vào lỗi hay audit.
+
+```go
+type AAD struct {
+	TenantID      uuid.UUID
+	Table, Column string
+	RowID         uuid.UUID
+}
+type Keyring struct {
+}
+func ParseKeyring(spec logging.Secret) (*Keyring, error)
+func (k *Keyring) CurrentKeyID() string
+func (Keyring) GoString() string
+func (Keyring) LogValue() slog.Value
+func (k *Keyring) NeedsRewrap(kid string) bool
+func (k *Keyring) Open(ct []byte, kid string, aad AAD) ([]byte, error)
+func (k *Keyring) Seal(plain []byte, aad AAD) (ct []byte, kid string, err error)
+func (Keyring) String() string
 ```
 
 ## `internal/platform/files` (gói `files`)
@@ -924,6 +951,7 @@ Package tenancy đặt ngữ cảnh tenant cho transaction (WithTenant), tìm te
 func AddRoute(ctx context.Context, owner *db.DB, kind, externalKey string, tenantID uuid.UUID) error
 func CheckSchemaRules(ctx context.Context, owner *pgxpool.Pool, platformTables []string) ([]string, error)
 func ListTenantIDs(ctx context.Context, d *db.DB) ([]uuid.UUID, error)
+func PutRoute(ctx context.Context, tx pgx.Tx, kind, key string) error
 func Resolve(ctx context.Context, d *db.DB, kind, externalKey string) (uuid.UUID, bool, error)
 func ResolveTx(ctx context.Context, tx pgx.Tx, kind, externalKey string) (uuid.UUID, bool, error)
 func SeedTenant(ctx context.Context, owner *db.DB, name string) (uuid.UUID, error)
@@ -954,11 +982,14 @@ func Strip(err error) error
 
 Package webhooks là đường vào webhook ở vai trò ingest (spec 04 mục 5.2, 11): kiểm chữ ký trên thân gốc, lưu nguyên văn vào platform.webhook_deliveries cùng một việc tách gói trong một transaction rồi trả 200; database không ghi được thì ghi tệp tạm (Spool) và nạp lại sau (Drainer); chặn địa chỉ gửi sai chữ ký dồn dập (Lockout).
 
-**Khi nào không dùng:** Không nhận webhook ở vai trò khác ingest hay bằng handler tự viết: thêm một Source (VerifySignature trên thân gốc, Challenge, Split) vào IngestOptions.Sources. Không đọc, sửa platform.webhook_deliveries ở gói khác (bảng không RLS, không tenant: xử lý nghiệp vụ đi qua việc webhook.split chỉ mang deliveryId). Không log hay đưa thân, header vào chỉ số, dấu vết; không xóa tệp tạm bằng tay khi database còn lỗi.
+**Khi nào không dùng:** Không nhận webhook ở vai trò khác ingest hay bằng handler tự viết: thêm một Source (VerifySignature trên thân gốc, Challenge, Split; RoutedSource khi nguồn cần khóa tuyến /hooks/<nguồn>/<routeKey>) vào IngestOptions.Sources. Sự kiện vào không đến từ webhook (đọc chủ động, hỏi bù) ghi bằng EnqueueInbound, không tự Enqueue InboundKind. Không đọc, sửa platform.webhook_deliveries ở gói khác (bảng không RLS, không tenant: xử lý nghiệp vụ đi qua việc webhook.split chỉ mang deliveryId). Không log hay đưa thân, header vào chỉ số, dấu vết; không xóa tệp tạm bằng tay khi database còn lỗi.
 
 ```go
 func CleanupDeliveries(ctx context.Context, tx pgx.Tx, now time.Time) (int64, error)
 func ClientIP(r *http.Request) string
+func EnqueueInbound(ctx context.Context, tx pgx.Tx, q queue.JobQueue, tenantID uuid.UUID, source string, e InboundEvent,
+	receivedAt time.Time, via string,
+) (created bool, err error)
 func InboundJobHandlers(sources []Source, hs []InboundHandler) ([]queue.Handler, error)
 func InboundKind(source string) queue.Kind
 func Save(ctx context.Context, d *db.DB, e Entry) (created bool, err error)
@@ -978,6 +1009,7 @@ type Entry struct {
 	Headers    json.RawMessage `json:"headers"`
 	Body       []byte          `json:"bodyBase64"`
 	ReceivedAt time.Time       `json:"receivedAt"`
+	RouteKey   string          `json:"routeKey,omitempty"`
 }
 type Inbound struct {
 	Type       string
@@ -986,6 +1018,10 @@ type Inbound struct {
 	Data     json.RawMessage
 	JobID    uuid.UUID
 	TenantID uuid.UUID
+
+	ReceivedAt time.Time
+
+	Via string
 }
 type InboundEvent struct {
 	Type string
@@ -1035,6 +1071,11 @@ type LockoutOptions struct {
 }
 type Route struct {
 	Kind, ExternalKey string
+}
+type RoutedSource interface {
+	Source
+
+	SplitRouted(raw []byte, routeKey string) (SplitResult, error)
 }
 type Source interface {
 	Key() string

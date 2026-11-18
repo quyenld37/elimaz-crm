@@ -1,6 +1,10 @@
 package webhooks
 
-import "context"
+import (
+	"context"
+
+	"elimaz.com.vn/crm/internal/platform/db"
+)
 
 // SetSave thay bước lưu vào database của in (test giữ chậm bước lưu để thử giới hạn đồng thời).
 func SetSave(in *Ingest, f func(ctx context.Context, e Entry) error) { in.save = f }
@@ -11,3 +15,6 @@ func Tracked(l *Lockout) int {
 	defer l.mu.Unlock()
 	return len(l.ips)
 }
+
+// DBForTest trả database của in (test đọc bản nhận vừa lưu).
+func (in *Ingest) DBForTest() *db.DB { return in.o.DB }

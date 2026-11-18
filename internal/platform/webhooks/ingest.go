@@ -110,16 +110,40 @@ func NewIngest(o IngestOptions) (*Ingest, error) {
 	return in, nil
 }
 
-// Register đăng ký GET /hooks/{source}, POST /hooks/{source} và GET /health vào mux. POST mở span máy chủ (otelhttp)
+// Register đăng ký GET /hooks/{source}, POST /hooks/{source}, POST /hooks/{source}/{routeKey} (RoutedSource) và
+// GET /health vào mux. Đường có routeKey thay khóa bằng "[Redacted]" trong đường dẫn trước khi mở span (khóa tuyến là
+// bí mật của URL, không vào dấu vết). POST mở span máy chủ (otelhttp)
 // làm gốc dấu vết của webhook: việc tách gói ghi trace_context từ span này, nên ingest, worker và báo hiệu realtime
 // nằm trên một dấu vết. Điểm công khai: dấu vết bên gửi đưa tới chỉ thành liên kết, không thành cha. Panic trong
 // POST được lọc trước khi tới span (ScrubPanics) và được bắt ở ngoài cùng (recoverPanic).
 func (in *Ingest) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /hooks/{source}", in.challenge)
 	const receivePattern = "POST /hooks/{source}"
-	mux.Handle(receivePattern, in.recoverPanic(otelhttp.NewHandler(observability.ScrubPanics(http.HandlerFunc(in.receive)),
-		receivePattern, otelhttp.WithPublicEndpointFn(func(*http.Request) bool { return true }))))
+	mux.Handle(receivePattern, in.recoverPanic(in.traced(receivePattern, in.receive)))
+	const routedPattern = "POST /hooks/{source}/{routeKey}"
+	mux.Handle(routedPattern, in.recoverPanic(hideRouteKey(in.traced(routedPattern, in.receiveRouted))))
 	mux.HandleFunc("GET /health", in.health)
+}
+
+// traced bọc h bằng span máy chủ (otelhttp, điểm công khai) và bộ lọc panic.
+func (*Ingest) traced(pattern string, h http.HandlerFunc) http.Handler {
+	return otelhttp.NewHandler(observability.ScrubPanics(h), pattern,
+		otelhttp.WithPublicEndpointFn(func(*http.Request) bool { return true }))
+}
+
+// redactedSegment thay routeKey trong đường dẫn mà otelhttp ghi vào span (url.path).
+const redactedSegment = "[Redacted]"
+
+// hideRouteKey chuyển cho next bản sao của yêu cầu có đường dẫn /hooks/<source>/[Redacted] (giữ giá trị routeKey của
+// mẫu ServeMux để handler đọc bằng PathValue).
+func hideRouteKey(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r2 := r.Clone(r.Context())
+		u := *r.URL
+		u.Path, u.RawPath = "/hooks/"+r.PathValue("source")+"/"+redactedSegment, ""
+		r2.URL, r2.RequestURI = &u, u.RequestURI()
+		next.ServeHTTP(w, r2)
+	})
 }
 
 // recoverPanic bắt panic của next (observability.RecoverPanics): ghi error_events (role ingest, vết tại chỗ panic),
@@ -166,16 +190,33 @@ func (in *Ingest) challenge(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.WriteString(w, answer) //nolint:gosec // G705: text/plain + nosniff, chỉ trả khi mã xác minh đúng (bước GET của nguồn)
 }
 
-// receive nhận một POST: nguồn lạ 404; địa chỉ đang bị chặn 429 (trước khi đọc thân); quá MaxInFlight 503; thân quá
-// MaxBody 413; chữ ký sai 401 (đếm cho Lockout). Hợp lệ: lưu vào database, lỗi thì ghi tệp tạm, cả hai lỗi thì 503;
-// còn lại 200 {"received":true}.
+// receive nhận POST /hooks/{source}: nguồn lạ 404; còn lại như accept.
 func (in *Ingest) receive(w http.ResponseWriter, r *http.Request) {
-	srcKey := r.PathValue("source")
-	src, ok := in.sources[srcKey]
+	src, ok := in.sources[r.PathValue("source")]
 	if !ok {
 		writeError(w, http.StatusNotFound, codeNotFound)
 		return
 	}
+	in.accept(w, r, src, "")
+}
+
+// receiveRouted nhận POST /hooks/{source}/{routeKey}: routeKey sai mẫu, nguồn lạ hay không phải RoutedSource → 404,
+// trước mọi bước khác (không đọc thân, không chạm database); còn lại như accept, lưu kèm routeKey.
+func (in *Ingest) receiveRouted(w http.ResponseWriter, r *http.Request) {
+	rk := r.PathValue("routeKey")
+	src, ok := in.sources[r.PathValue("source")]
+	if _, routed := src.(RoutedSource); !ok || !routed || !routeKeyPattern.MatchString(rk) {
+		writeError(w, http.StatusNotFound, codeNotFound)
+		return
+	}
+	in.accept(w, r, src, rk)
+}
+
+// accept nhận một POST của nguồn src: địa chỉ đang bị chặn 429 (trước khi đọc thân); quá MaxInFlight 503; thân quá
+// MaxBody 413; chữ ký sai 401 (đếm cho Lockout). Hợp lệ: lưu vào database, lỗi thì ghi tệp tạm, cả hai lỗi thì 503;
+// còn lại 200 {"received":true}.
+func (in *Ingest) accept(w http.ResponseWriter, r *http.Request, src Source, routeKey string) {
+	srcKey := src.Key()
 	ip := ClientIP(r)
 	if in.o.Lockout.Blocked(ip) {
 		in.inc("hooks_blocked", "")
@@ -209,7 +250,7 @@ func (in *Ingest) receive(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		headers = []byte(emptyHeadersObject)
 	}
-	e := Entry{Source: srcKey, Headers: headers, Body: raw, ReceivedAt: time.Now().UTC()}
+	e := Entry{Source: srcKey, Headers: headers, Body: raw, ReceivedAt: time.Now().UTC(), RouteKey: routeKey}
 	if !in.store(r.Context(), e) {
 		writeError(w, http.StatusServiceUnavailable, codeUnavailable)
 		return
