@@ -340,8 +340,9 @@ test("menu: mục Nhân viên chỉ hiện với người có quyền quản lý
   await api.catalog();
   await page.goto("/");
   await expect(page.getByRole("link", { name: "Nhân viên" })).toHaveCount(0);
-  // Mở thẳng /nhan-vien: không có trang này với người thiếu quyền.
+  // Mở thẳng /nhan-vien: trang "Không có quyền" (mockup M1 suc-khoe.html trạng thái C, Task 53).
   await page.goto("/nhan-vien");
-  await expect(page.getByText("Không có trang này, hoặc bạn chưa được cấp quyền xem")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Không có quyền" })).toBeVisible();
+  await expect(page.getByText("Tài khoản của bạn không được xem Nhân viên.", { exact: false })).toBeVisible();
   await expect(page.getByRole("link", { name: "Nhân viên" })).toHaveCount(0);
 });
