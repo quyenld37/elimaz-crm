@@ -1,0 +1,97 @@
+/* Trình soạn bài viết dạng khối (Task 326): chép đúng luật của docs/mockups/m1/m1.css (mục "Trình soạn bài viết dạng
+   khối"); không sửa styles.css chung. */
+.blocks {
+  display: grid;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+.block {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.block.is-err {
+  border-color: var(--buy);
+  background: var(--soft-sale);
+}
+.block-h {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.block-h .grow {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--label);
+}
+.block-gap {
+  border: 1px dashed var(--edge);
+  border-radius: var(--r-box);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 13px;
+  color: var(--muted);
+  text-align: left;
+  min-height: var(--tap);
+  cursor: pointer;
+  background: var(--paper);
+}
+.addbar {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: var(--space-md);
+}
+.empty .addbar {
+  justify-content: center;
+}
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--rule);
+}
+.tab {
+  min-height: var(--field);
+  padding: 0 var(--space-md);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font: 600 14px/1 var(--font-body);
+  color: var(--muted);
+  cursor: pointer;
+}
+.tab[aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--buy);
+}
+.preview {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: var(--space-lg);
+  display: grid;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.preview h3 {
+  font-size: 18px;
+}
+.preview ul {
+  margin: 0;
+  padding-left: 20px;
+}
+.preview figure {
+  margin: 0;
+  max-width: 240px;
+  display: grid;
+  gap: var(--space-sm);
+}
+.preview .img-ph {
+  border-radius: var(--r-box);
+  overflow: hidden;
+}
