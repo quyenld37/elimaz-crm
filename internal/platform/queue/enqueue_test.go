@@ -66,23 +66,23 @@ func TestEnqueueDedupe(t *testing.T) {
 func TestEnqueueStoresPolicyAndPayload(t *testing.T) {
 	e := newEnv(t)
 	k := queue.Kind{Name: "t.policy", Policy: queue.Policy{
-		Mode: "transactional", MaxAttempts: 3, BlockOnDead: true, OnLeaseExpired: "in_doubt",
+		Mode: "transactional", MaxAttempts: 3, OrderMode: queue.OrderBestEffort, OnLeaseExpired: "in_doubt",
 	}}
 	id := e.enqueue(t, k, queue.NewJob{DedupeKey: "k", OrderKey: "o1", OrderSeq: 7, Payload: map[string]int{"order": 42}})
 	var (
-		mode, onLease, payload, orderKey string
-		maxAttempts                      int
-		block, hasExpiry                 bool
-		seq                              int64
+		mode, onLease, payload, orderKey, orderMode string
+		maxAttempts                                 int
+		hasExpiry                                   bool
+		seq                                         int64
 	)
 	if err := e.owner.Pool.QueryRow(t.Context(), `SELECT mode, on_lease_expired, payload::text, order_key, order_seq,
-		max_attempts, block_on_dead, expires_at IS NOT NULL FROM platform.jobs WHERE id = $1`, id).
-		Scan(&mode, &onLease, &payload, &orderKey, &seq, &maxAttempts, &block, &hasExpiry); err != nil {
+		max_attempts, order_mode, expires_at IS NOT NULL FROM platform.jobs WHERE id = $1`, id).
+		Scan(&mode, &onLease, &payload, &orderKey, &seq, &maxAttempts, &orderMode, &hasExpiry); err != nil {
 		t.Fatal(err)
 	}
 	if mode != "transactional" || onLease != "in_doubt" || payload != `{"order": 42}` || orderKey != "o1" || seq != 7 ||
-		maxAttempts != 3 || !block || hasExpiry {
-		t.Fatalf("dòng ghi sai: %s %s %s %s %d %d %v %v", mode, onLease, payload, orderKey, seq, maxAttempts, block, hasExpiry)
+		maxAttempts != 3 || orderMode != "best_effort" || hasExpiry {
+		t.Fatalf("dòng ghi sai: %s %s %s %s %d %d %v %v", mode, onLease, payload, orderKey, seq, maxAttempts, orderMode, hasExpiry)
 	}
 }
 
@@ -91,15 +91,15 @@ func TestEnqueueDefaultsAndValidation(t *testing.T) {
 	e := newEnv(t)
 	id := e.enqueue(t, queue.Kind{Name: "t.zero"}, queue.NewJob{DedupeKey: "k"})
 	var (
-		mode, onLease string
-		maxAttempts   int
+		mode, onLease, orderMode string
+		maxAttempts              int
 	)
-	if err := e.owner.Pool.QueryRow(t.Context(), "SELECT mode, on_lease_expired, max_attempts FROM platform.jobs WHERE id = $1", id).
-		Scan(&mode, &onLease, &maxAttempts); err != nil {
+	if err := e.owner.Pool.QueryRow(t.Context(), "SELECT mode, on_lease_expired, max_attempts, order_mode FROM platform.jobs WHERE id = $1", id).
+		Scan(&mode, &onLease, &maxAttempts, &orderMode); err != nil {
 		t.Fatal(err)
 	}
-	if mode != "transactional" || onLease != "retry" || maxAttempts != 8 {
-		t.Fatalf("Policy rỗng phải lấy DefaultPolicy: %s %s %d", mode, onLease, maxAttempts)
+	if mode != "transactional" || onLease != "retry" || maxAttempts != 8 || orderMode != "strict" {
+		t.Fatalf("Policy rỗng phải lấy DefaultPolicy: %s %s %d %s", mode, onLease, maxAttempts, orderMode)
 	}
 	bad := []struct {
 		k queue.Kind
@@ -109,6 +109,7 @@ func TestEnqueueDefaultsAndValidation(t *testing.T) {
 		{kind("t.bad"), queue.NewJob{}},
 		{queue.Kind{Name: "t.bad", Policy: queue.Policy{Mode: "other"}}, queue.NewJob{DedupeKey: "k"}},
 		{queue.Kind{Name: "t.bad", Policy: queue.Policy{OnLeaseExpired: "other"}}, queue.NewJob{DedupeKey: "k"}},
+		{queue.Kind{Name: "t.bad", Policy: queue.Policy{OrderMode: "other"}}, queue.NewJob{DedupeKey: "k"}},
 		{kind("t.bad"), queue.NewJob{DedupeKey: "k", Payload: func() {}}},
 		{kind("t.bad"), queue.NewJob{DedupeKey: "k", TenantID: &uuid.Nil}},
 	}

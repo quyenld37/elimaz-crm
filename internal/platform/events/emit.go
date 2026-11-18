@@ -5,7 +5,7 @@
 // Bất biến: Event.Seq lấy từ cột version của đối tượng (AggregateType, AggregateID), tăng dưới khóa dòng của đối
 // tượng trong cùng transaction với Emit. Nhờ vậy hai sự kiện của một đối tượng không bao giờ cùng Seq, và việc của
 // một consumer chạy đúng thứ tự Seq (OrderKey = "<consumer>:<aggregateType>:<aggregateID>", OrderSeq = Seq); việc
-// đầu hàng dead chặn các việc sau của đúng đối tượng đó (BlockOnDead).
+// đầu hàng dead chặn các việc sau của đúng đối tượng đó (queue.OrderStrict).
 package events
 
 import (

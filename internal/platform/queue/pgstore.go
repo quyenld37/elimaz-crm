@@ -50,7 +50,7 @@ func (pgQueue) Enqueue(ctx context.Context, tx pgx.Tx, k Kind, j NewJob) (uuid.U
 		DedupeKey:      j.DedupeKey,
 		OrderKey:       pgtype.Text{String: j.OrderKey, Valid: j.OrderKey != ""},
 		OrderSeq:       pgtype.Int8{Int64: j.OrderSeq, Valid: j.OrderKey != ""},
-		BlockOnDead:    p.BlockOnDead,
+		OrderMode:      p.OrderMode,
 		OnLeaseExpired: p.OnLeaseExpired,
 		MaxAttempts:    int32(min(p.MaxAttempts, maxInt32)), //nolint:gosec // đã chặn trên
 		RunAt:          pgtype.Timestamptz{Time: j.RunAt, Valid: !j.RunAt.IsZero()},
