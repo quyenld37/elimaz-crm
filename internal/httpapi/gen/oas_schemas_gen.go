@@ -11,6 +11,32 @@ import (
 	"github.com/google/uuid"
 )
 
+// Ref: #/components/schemas/AddAttributeValueRequest
+type AddAttributeValueRequest struct {
+	Value    ClassName   `json:"value"`
+	Position OptPosition `json:"position"`
+}
+
+// GetValue returns the value of Value.
+func (s *AddAttributeValueRequest) GetValue() ClassName {
+	return s.Value
+}
+
+// GetPosition returns the value of Position.
+func (s *AddAttributeValueRequest) GetPosition() OptPosition {
+	return s.Position
+}
+
+// SetValue sets the value of Value.
+func (s *AddAttributeValueRequest) SetValue(val ClassName) {
+	s.Value = val
+}
+
+// SetPosition sets the value of Position.
+func (s *AddAttributeValueRequest) SetPosition(val OptPosition) {
+	s.Position = val
+}
+
 // Ref: #/components/schemas/AddVariantRequest
 type AddVariantRequest struct {
 	ProductVersion int64       `json:"productVersion"`
@@ -323,6 +349,117 @@ func (s *ArticleBlockType) UnmarshalText(data []byte) error {
 
 type ArticleInput []jx.Raw
 
+// Ref: #/components/schemas/Attribute
+type Attribute struct {
+	ID       uuid.UUID        `json:"id"`
+	Code     string           `json:"code"`
+	Name     string           `json:"name"`
+	Position Position         `json:"position"`
+	Values   []AttributeValue `json:"values"`
+}
+
+// GetID returns the value of ID.
+func (s *Attribute) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCode returns the value of Code.
+func (s *Attribute) GetCode() string {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *Attribute) GetName() string {
+	return s.Name
+}
+
+// GetPosition returns the value of Position.
+func (s *Attribute) GetPosition() Position {
+	return s.Position
+}
+
+// GetValues returns the value of Values.
+func (s *Attribute) GetValues() []AttributeValue {
+	return s.Values
+}
+
+// SetID sets the value of ID.
+func (s *Attribute) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCode sets the value of Code.
+func (s *Attribute) SetCode(val string) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *Attribute) SetName(val string) {
+	s.Name = val
+}
+
+// SetPosition sets the value of Position.
+func (s *Attribute) SetPosition(val Position) {
+	s.Position = val
+}
+
+// SetValues sets the value of Values.
+func (s *Attribute) SetValues(val []AttributeValue) {
+	s.Values = val
+}
+
+func (*Attribute) createAttributeRes() {}
+
+// Ref: #/components/schemas/AttributeValue
+type AttributeValue struct {
+	ID          uuid.UUID `json:"id"`
+	AttributeId uuid.UUID `json:"attributeId"`
+	Value       string    `json:"value"`
+	Position    Position  `json:"position"`
+}
+
+// GetID returns the value of ID.
+func (s *AttributeValue) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetAttributeId returns the value of AttributeId.
+func (s *AttributeValue) GetAttributeId() uuid.UUID {
+	return s.AttributeId
+}
+
+// GetValue returns the value of Value.
+func (s *AttributeValue) GetValue() string {
+	return s.Value
+}
+
+// GetPosition returns the value of Position.
+func (s *AttributeValue) GetPosition() Position {
+	return s.Position
+}
+
+// SetID sets the value of ID.
+func (s *AttributeValue) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetAttributeId sets the value of AttributeId.
+func (s *AttributeValue) SetAttributeId(val uuid.UUID) {
+	s.AttributeId = val
+}
+
+// SetValue sets the value of Value.
+func (s *AttributeValue) SetValue(val string) {
+	s.Value = val
+}
+
+// SetPosition sets the value of Position.
+func (s *AttributeValue) SetPosition(val Position) {
+	s.Position = val
+}
+
+func (*AttributeValue) addAttributeValueRes() {}
+
 // Ref: #/components/schemas/BackupHealth
 type BackupHealth struct {
 	LastBaseAgeH  OptInt64 `json:"lastBaseAgeH"`
@@ -364,7 +501,236 @@ type Barcode string
 
 type CatalogCode string
 
+// Ref: #/components/schemas/Category
+type Category struct {
+	ID uuid.UUID `json:"id"`
+	// Không có là danh mục gốc.
+	ParentId OptUUID        `json:"parentId"`
+	Name     string         `json:"name"`
+	Slug     string         `json:"slug"`
+	Depth    int            `json:"depth"`
+	Position Position       `json:"position"`
+	Status   CategoryStatus `json:"status"`
+	Version  int64          `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *Category) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetParentId returns the value of ParentId.
+func (s *Category) GetParentId() OptUUID {
+	return s.ParentId
+}
+
+// GetName returns the value of Name.
+func (s *Category) GetName() string {
+	return s.Name
+}
+
+// GetSlug returns the value of Slug.
+func (s *Category) GetSlug() string {
+	return s.Slug
+}
+
+// GetDepth returns the value of Depth.
+func (s *Category) GetDepth() int {
+	return s.Depth
+}
+
+// GetPosition returns the value of Position.
+func (s *Category) GetPosition() Position {
+	return s.Position
+}
+
+// GetStatus returns the value of Status.
+func (s *Category) GetStatus() CategoryStatus {
+	return s.Status
+}
+
+// GetVersion returns the value of Version.
+func (s *Category) GetVersion() int64 {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *Category) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetParentId sets the value of ParentId.
+func (s *Category) SetParentId(val OptUUID) {
+	s.ParentId = val
+}
+
+// SetName sets the value of Name.
+func (s *Category) SetName(val string) {
+	s.Name = val
+}
+
+// SetSlug sets the value of Slug.
+func (s *Category) SetSlug(val string) {
+	s.Slug = val
+}
+
+// SetDepth sets the value of Depth.
+func (s *Category) SetDepth(val int) {
+	s.Depth = val
+}
+
+// SetPosition sets the value of Position.
+func (s *Category) SetPosition(val Position) {
+	s.Position = val
+}
+
+// SetStatus sets the value of Status.
+func (s *Category) SetStatus(val CategoryStatus) {
+	s.Status = val
+}
+
+// SetVersion sets the value of Version.
+func (s *Category) SetVersion(val int64) {
+	s.Version = val
+}
+
+func (*Category) archiveCategoryRes() {}
+func (*Category) createCategoryRes()  {}
+func (*Category) updateCategoryRes()  {}
+
+type CategorySlug string
+
+type CategoryStatus string
+
+const (
+	CategoryStatusActive   CategoryStatus = "active"
+	CategoryStatusArchived CategoryStatus = "archived"
+)
+
+// AllValues returns all CategoryStatus values.
+func (CategoryStatus) AllValues() []CategoryStatus {
+	return []CategoryStatus{
+		CategoryStatusActive,
+		CategoryStatusArchived,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CategoryStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CategoryStatusActive:
+		return []byte(s), nil
+	case CategoryStatusArchived:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CategoryStatus) UnmarshalText(data []byte) error {
+	switch CategoryStatus(data) {
+	case CategoryStatusActive:
+		*s = CategoryStatusActive
+		return nil
+	case CategoryStatusArchived:
+		*s = CategoryStatusArchived
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ClassCode string
+
+type ClassName string
+
 type ColorHex string
+
+// Ref: #/components/schemas/CreateAttributeRequest
+type CreateAttributeRequest struct {
+	Code     ClassCode   `json:"code"`
+	Name     ClassName   `json:"name"`
+	Position OptPosition `json:"position"`
+}
+
+// GetCode returns the value of Code.
+func (s *CreateAttributeRequest) GetCode() ClassCode {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *CreateAttributeRequest) GetName() ClassName {
+	return s.Name
+}
+
+// GetPosition returns the value of Position.
+func (s *CreateAttributeRequest) GetPosition() OptPosition {
+	return s.Position
+}
+
+// SetCode sets the value of Code.
+func (s *CreateAttributeRequest) SetCode(val ClassCode) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *CreateAttributeRequest) SetName(val ClassName) {
+	s.Name = val
+}
+
+// SetPosition sets the value of Position.
+func (s *CreateAttributeRequest) SetPosition(val OptPosition) {
+	s.Position = val
+}
+
+// Ref: #/components/schemas/CreateCategoryRequest
+type CreateCategoryRequest struct {
+	Name     ClassName       `json:"name"`
+	Slug     OptCategorySlug `json:"slug"`
+	ParentId OptUUID         `json:"parentId"`
+	Position OptPosition     `json:"position"`
+}
+
+// GetName returns the value of Name.
+func (s *CreateCategoryRequest) GetName() ClassName {
+	return s.Name
+}
+
+// GetSlug returns the value of Slug.
+func (s *CreateCategoryRequest) GetSlug() OptCategorySlug {
+	return s.Slug
+}
+
+// GetParentId returns the value of ParentId.
+func (s *CreateCategoryRequest) GetParentId() OptUUID {
+	return s.ParentId
+}
+
+// GetPosition returns the value of Position.
+func (s *CreateCategoryRequest) GetPosition() OptPosition {
+	return s.Position
+}
+
+// SetName sets the value of Name.
+func (s *CreateCategoryRequest) SetName(val ClassName) {
+	s.Name = val
+}
+
+// SetSlug sets the value of Slug.
+func (s *CreateCategoryRequest) SetSlug(val OptCategorySlug) {
+	s.Slug = val
+}
+
+// SetParentId sets the value of ParentId.
+func (s *CreateCategoryRequest) SetParentId(val OptUUID) {
+	s.ParentId = val
+}
+
+// SetPosition sets the value of Position.
+func (s *CreateCategoryRequest) SetPosition(val OptPosition) {
+	s.Position = val
+}
 
 // Ref: #/components/schemas/CreateProductRequest
 type CreateProductRequest struct {
@@ -460,6 +826,32 @@ func (s *CreateStaffRequest) SetEmail(val string) {
 // SetDisplayName sets the value of DisplayName.
 func (s *CreateStaffRequest) SetDisplayName(val string) {
 	s.DisplayName = val
+}
+
+// Ref: #/components/schemas/CreateTagRequest
+type CreateTagRequest struct {
+	Code ClassCode `json:"code"`
+	Name ClassName `json:"name"`
+}
+
+// GetCode returns the value of Code.
+func (s *CreateTagRequest) GetCode() ClassCode {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *CreateTagRequest) GetName() ClassName {
+	return s.Name
+}
+
+// SetCode sets the value of Code.
+func (s *CreateTagRequest) SetCode(val ClassCode) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *CreateTagRequest) SetName(val ClassName) {
+	s.Name = val
 }
 
 // Ref: #/components/schemas/CreateUploadRequest
@@ -667,27 +1059,37 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
 
-func (*ErrorStatusCode) abandonJobRes()         {}
-func (*ErrorStatusCode) addVariantRes()         {}
-func (*ErrorStatusCode) completeUploadRes()     {}
-func (*ErrorStatusCode) createProductRes()      {}
-func (*ErrorStatusCode) createStaffRes()        {}
-func (*ErrorStatusCode) createUploadRes()       {}
-func (*ErrorStatusCode) getFileRes()            {}
-func (*ErrorStatusCode) getMeRes()              {}
-func (*ErrorStatusCode) getPlatformHealthRes()  {}
-func (*ErrorStatusCode) getProductRes()         {}
-func (*ErrorStatusCode) healthDeepRes()         {}
-func (*ErrorStatusCode) listJobsRes()           {}
-func (*ErrorStatusCode) listRolesRes()          {}
-func (*ErrorStatusCode) listStaffRes()          {}
-func (*ErrorStatusCode) lockStaffRes()          {}
-func (*ErrorStatusCode) replaceStaffGrantsRes() {}
-func (*ErrorStatusCode) retryJobRes()           {}
-func (*ErrorStatusCode) streamRes()             {}
-func (*ErrorStatusCode) unlockStaffRes()        {}
-func (*ErrorStatusCode) updateProductRes()      {}
-func (*ErrorStatusCode) updateVariantRes()      {}
+func (*ErrorStatusCode) abandonJobRes()               {}
+func (*ErrorStatusCode) addAttributeValueRes()        {}
+func (*ErrorStatusCode) addVariantRes()               {}
+func (*ErrorStatusCode) archiveCategoryRes()          {}
+func (*ErrorStatusCode) completeUploadRes()           {}
+func (*ErrorStatusCode) createAttributeRes()          {}
+func (*ErrorStatusCode) createCategoryRes()           {}
+func (*ErrorStatusCode) createProductRes()            {}
+func (*ErrorStatusCode) createStaffRes()              {}
+func (*ErrorStatusCode) createTagRes()                {}
+func (*ErrorStatusCode) createUploadRes()             {}
+func (*ErrorStatusCode) getFileRes()                  {}
+func (*ErrorStatusCode) getMeRes()                    {}
+func (*ErrorStatusCode) getPlatformHealthRes()        {}
+func (*ErrorStatusCode) getProductRes()               {}
+func (*ErrorStatusCode) healthDeepRes()               {}
+func (*ErrorStatusCode) listAttributesRes()           {}
+func (*ErrorStatusCode) listCategoriesRes()           {}
+func (*ErrorStatusCode) listJobsRes()                 {}
+func (*ErrorStatusCode) listRolesRes()                {}
+func (*ErrorStatusCode) listStaffRes()                {}
+func (*ErrorStatusCode) listTagsRes()                 {}
+func (*ErrorStatusCode) lockStaffRes()                {}
+func (*ErrorStatusCode) replaceStaffGrantsRes()       {}
+func (*ErrorStatusCode) retryJobRes()                 {}
+func (*ErrorStatusCode) setProductClassificationRes() {}
+func (*ErrorStatusCode) streamRes()                   {}
+func (*ErrorStatusCode) unlockStaffRes()              {}
+func (*ErrorStatusCode) updateCategoryRes()           {}
+func (*ErrorStatusCode) updateProductRes()            {}
+func (*ErrorStatusCode) updateVariantRes()            {}
 
 // Một loại lỗi ứng dụng gộp theo dấu vân tay (Task 20). message đã lọc chuỗi từ
 // 8 chữ số và email.
@@ -1218,6 +1620,14 @@ func (s *Job) SetCreatedAt(val time.Time) {
 func (*Job) abandonJobRes() {}
 func (*Job) retryJobRes()   {}
 
+type ListAttributesOKApplicationJSON []Attribute
+
+func (*ListAttributesOKApplicationJSON) listAttributesRes() {}
+
+type ListCategoriesOKApplicationJSON []Category
+
+func (*ListCategoriesOKApplicationJSON) listCategoriesRes() {}
+
 type ListJobsOKApplicationJSON []Job
 
 func (*ListJobsOKApplicationJSON) listJobsRes() {}
@@ -1277,6 +1687,10 @@ func (*ListRolesOKApplicationJSON) listRolesRes() {}
 type ListStaffOKApplicationJSON []StaffMember
 
 func (*ListStaffOKApplicationJSON) listStaffRes() {}
+
+type ListTagsOKApplicationJSON []Tag
+
+func (*ListTagsOKApplicationJSON) listTagsRes() {}
 
 // Ref: #/components/schemas/Me
 type Me struct {
@@ -1510,6 +1924,98 @@ func (o OptCatalogCode) Get() (v CatalogCode, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptCatalogCode) Or(d CatalogCode) CatalogCode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCategorySlug returns new OptCategorySlug with value set to v.
+func NewOptCategorySlug(v CategorySlug) OptCategorySlug {
+	return OptCategorySlug{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCategorySlug is optional CategorySlug.
+type OptCategorySlug struct {
+	Value CategorySlug
+	Set   bool
+}
+
+// IsSet returns true if OptCategorySlug was set.
+func (o OptCategorySlug) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCategorySlug) Reset() {
+	var v CategorySlug
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCategorySlug) SetTo(v CategorySlug) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCategorySlug) Get() (v CategorySlug, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCategorySlug) Or(d CategorySlug) CategorySlug {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptClassName returns new OptClassName with value set to v.
+func NewOptClassName(v ClassName) OptClassName {
+	return OptClassName{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptClassName is optional ClassName.
+type OptClassName struct {
+	Value ClassName
+	Set   bool
+}
+
+// IsSet returns true if OptClassName was set.
+func (o OptClassName) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptClassName) Reset() {
+	var v ClassName
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptClassName) SetTo(v ClassName) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptClassName) Get() (v ClassName, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptClassName) Or(d ClassName) ClassName {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -1860,6 +2366,74 @@ func (o OptNilInt64) Or(d int64) int64 {
 	return d
 }
 
+// NewOptNilUUID returns new OptNilUUID with value set to v.
+func NewOptNilUUID(v uuid.UUID) OptNilUUID {
+	return OptNilUUID{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilUUID is optional nullable uuid.UUID.
+type OptNilUUID struct {
+	Value uuid.UUID
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilUUID was set.
+func (o OptNilUUID) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilUUID) Reset() {
+	var v uuid.UUID
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilUUID) SetTo(v uuid.UUID) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilUUID) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilUUID) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v uuid.UUID
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilUUID) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilUUID) Get() (v uuid.UUID, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilUUID) Or(d uuid.UUID) uuid.UUID {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptOptionText returns new OptOptionText with value set to v.
 func NewOptOptionText(v OptionText) OptOptionText {
 	return OptOptionText{
@@ -1900,6 +2474,52 @@ func (o OptOptionText) Get() (v OptionText, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptOptionText) Or(d OptionText) OptionText {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptPosition returns new OptPosition with value set to v.
+func NewOptPosition(v Position) OptPosition {
+	return OptPosition{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPosition is optional Position.
+type OptPosition struct {
+	Value Position
+	Set   bool
+}
+
+// IsSet returns true if OptPosition was set.
+func (o OptPosition) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPosition) Reset() {
+	var v Position
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPosition) SetTo(v Position) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPosition) Get() (v Position, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPosition) Or(d Position) Position {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -2164,6 +2784,8 @@ func (s *PlatformHealth) SetAlerts(val []AlertSummary) {
 
 func (*PlatformHealth) getPlatformHealthRes() {}
 
+type Position int32
+
 // Ref: #/components/schemas/ProcessHealth
 type ProcessHealth struct {
 	Role              string `json:"role"`
@@ -2298,6 +2920,68 @@ func (s *Product) SetVariants(val []Variant) {
 func (*Product) createProductRes() {}
 func (*Product) getProductRes()    {}
 func (*Product) updateProductRes() {}
+
+// Ref: #/components/schemas/ProductClassification
+type ProductClassification struct {
+	ProductId uuid.UUID `json:"productId"`
+	// Version mới của mẫu.
+	Version           int64       `json:"version"`
+	CategoryId        OptUUID     `json:"categoryId"`
+	AttributeValueIds []uuid.UUID `json:"attributeValueIds"`
+	TagIds            []uuid.UUID `json:"tagIds"`
+}
+
+// GetProductId returns the value of ProductId.
+func (s *ProductClassification) GetProductId() uuid.UUID {
+	return s.ProductId
+}
+
+// GetVersion returns the value of Version.
+func (s *ProductClassification) GetVersion() int64 {
+	return s.Version
+}
+
+// GetCategoryId returns the value of CategoryId.
+func (s *ProductClassification) GetCategoryId() OptUUID {
+	return s.CategoryId
+}
+
+// GetAttributeValueIds returns the value of AttributeValueIds.
+func (s *ProductClassification) GetAttributeValueIds() []uuid.UUID {
+	return s.AttributeValueIds
+}
+
+// GetTagIds returns the value of TagIds.
+func (s *ProductClassification) GetTagIds() []uuid.UUID {
+	return s.TagIds
+}
+
+// SetProductId sets the value of ProductId.
+func (s *ProductClassification) SetProductId(val uuid.UUID) {
+	s.ProductId = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ProductClassification) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetCategoryId sets the value of CategoryId.
+func (s *ProductClassification) SetCategoryId(val OptUUID) {
+	s.CategoryId = val
+}
+
+// SetAttributeValueIds sets the value of AttributeValueIds.
+func (s *ProductClassification) SetAttributeValueIds(val []uuid.UUID) {
+	s.AttributeValueIds = val
+}
+
+// SetTagIds sets the value of TagIds.
+func (s *ProductClassification) SetTagIds(val []uuid.UUID) {
+	s.TagIds = val
+}
+
+func (*ProductClassification) setProductClassificationRes() {}
 
 // Ref: #/components/schemas/ProductStatus
 type ProductStatus string
@@ -2751,6 +3435,56 @@ func (s *ScopeWarningScopeType) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/SetClassificationRequest
+type SetClassificationRequest struct {
+	// Version hiện tại của mẫu.
+	Version int64 `json:"version"`
+	// Không có hay null là bỏ danh mục.
+	CategoryId        OptNilUUID  `json:"categoryId"`
+	AttributeValueIds []uuid.UUID `json:"attributeValueIds"`
+	TagIds            []uuid.UUID `json:"tagIds"`
+}
+
+// GetVersion returns the value of Version.
+func (s *SetClassificationRequest) GetVersion() int64 {
+	return s.Version
+}
+
+// GetCategoryId returns the value of CategoryId.
+func (s *SetClassificationRequest) GetCategoryId() OptNilUUID {
+	return s.CategoryId
+}
+
+// GetAttributeValueIds returns the value of AttributeValueIds.
+func (s *SetClassificationRequest) GetAttributeValueIds() []uuid.UUID {
+	return s.AttributeValueIds
+}
+
+// GetTagIds returns the value of TagIds.
+func (s *SetClassificationRequest) GetTagIds() []uuid.UUID {
+	return s.TagIds
+}
+
+// SetVersion sets the value of Version.
+func (s *SetClassificationRequest) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetCategoryId sets the value of CategoryId.
+func (s *SetClassificationRequest) SetCategoryId(val OptNilUUID) {
+	s.CategoryId = val
+}
+
+// SetAttributeValueIds sets the value of AttributeValueIds.
+func (s *SetClassificationRequest) SetAttributeValueIds(val []uuid.UUID) {
+	s.AttributeValueIds = val
+}
+
+// SetTagIds sets the value of TagIds.
+func (s *SetClassificationRequest) SetTagIds(val []uuid.UUID) {
+	s.TagIds = val
+}
+
 // Ref: #/components/schemas/StaffGrant
 type StaffGrant struct {
 	RoleKey   string              `json:"roleKey"`
@@ -2990,6 +3724,105 @@ func (s StreamOK) Read(p []byte) (n int, err error) {
 }
 
 func (*StreamOK) streamRes() {}
+
+// Ref: #/components/schemas/Tag
+type Tag struct {
+	ID   uuid.UUID `json:"id"`
+	Code string    `json:"code"`
+	Name string    `json:"name"`
+}
+
+// GetID returns the value of ID.
+func (s *Tag) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCode returns the value of Code.
+func (s *Tag) GetCode() string {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *Tag) GetName() string {
+	return s.Name
+}
+
+// SetID sets the value of ID.
+func (s *Tag) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCode sets the value of Code.
+func (s *Tag) SetCode(val string) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *Tag) SetName(val string) {
+	s.Name = val
+}
+
+func (*Tag) createTagRes() {}
+
+// Ref: #/components/schemas/UpdateCategoryRequest
+type UpdateCategoryRequest struct {
+	Version  int64           `json:"version"`
+	Name     OptClassName    `json:"name"`
+	Slug     OptCategorySlug `json:"slug"`
+	Position OptPosition     `json:"position"`
+	// Có trường này là đổi cha; null là lên gốc.
+	ParentId OptNilUUID `json:"parentId"`
+}
+
+// GetVersion returns the value of Version.
+func (s *UpdateCategoryRequest) GetVersion() int64 {
+	return s.Version
+}
+
+// GetName returns the value of Name.
+func (s *UpdateCategoryRequest) GetName() OptClassName {
+	return s.Name
+}
+
+// GetSlug returns the value of Slug.
+func (s *UpdateCategoryRequest) GetSlug() OptCategorySlug {
+	return s.Slug
+}
+
+// GetPosition returns the value of Position.
+func (s *UpdateCategoryRequest) GetPosition() OptPosition {
+	return s.Position
+}
+
+// GetParentId returns the value of ParentId.
+func (s *UpdateCategoryRequest) GetParentId() OptNilUUID {
+	return s.ParentId
+}
+
+// SetVersion sets the value of Version.
+func (s *UpdateCategoryRequest) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetName sets the value of Name.
+func (s *UpdateCategoryRequest) SetName(val OptClassName) {
+	s.Name = val
+}
+
+// SetSlug sets the value of Slug.
+func (s *UpdateCategoryRequest) SetSlug(val OptCategorySlug) {
+	s.Slug = val
+}
+
+// SetPosition sets the value of Position.
+func (s *UpdateCategoryRequest) SetPosition(val OptPosition) {
+	s.Position = val
+}
+
+// SetParentId sets the value of ParentId.
+func (s *UpdateCategoryRequest) SetParentId(val OptNilUUID) {
+	s.ParentId = val
+}
 
 // Ref: #/components/schemas/UpdateProductRequest
 type UpdateProductRequest struct {
@@ -3466,4 +4299,19 @@ func (s *VariantStatus) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Ref: #/components/schemas/VersionRequest
+type VersionRequest struct {
+	Version int64 `json:"version"`
+}
+
+// GetVersion returns the value of Version.
+func (s *VersionRequest) GetVersion() int64 {
+	return s.Version
+}
+
+// SetVersion sets the value of Version.
+func (s *VersionRequest) SetVersion(val int64) {
+	s.Version = val
 }

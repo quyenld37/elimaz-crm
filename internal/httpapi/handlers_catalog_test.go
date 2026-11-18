@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -189,4 +190,124 @@ func mustJSON(t *testing.T, v any) json.RawMessage {
 		t.Fatal(err)
 	}
 	return b
+}
+
+// createCategory tạo danh mục name (cha parent, rỗng là gốc) bằng Quản lý với khóa key và trả thân 201.
+func (e *catalogAPIEnv) createCategory(name, parent, key string) map[string]any {
+	e.t.Helper()
+	body := `{"name":"` + name + `"}`
+	if parent != "" {
+		body = `{"name":"` + name + `","parentId":"` + parent + `"}`
+	}
+	rec := e.do(http.MethodPost, "/api/v1/catalog/categories", catalogManager, key, body)
+	if rec.Code != http.StatusCreated {
+		e.t.Fatalf("createCategory %s: %d %s", name, rec.Code, rec.Body.String())
+	}
+	return decodeJSON(e.t, rec)
+}
+
+// createTags tạo các nhãn codes bằng Quản lý và trả mã của chúng.
+func (e *catalogAPIEnv) createTags(codes ...string) []string {
+	e.t.Helper()
+	var ids []string
+	for i, code := range codes {
+		rec := e.do(http.MethodPost, "/api/v1/catalog/tags", catalogManager, "t"+strconv.Itoa(i), `{"code":"`+code+`","name":"`+code+`"}`)
+		if rec.Code != http.StatusCreated {
+			e.t.Fatalf("createTag: %d %s", rec.Code, rec.Body.String())
+		}
+		ids = append(ids, decodeJSON(e.t, rec)["id"].(string)) //nolint:forcetypeassert // test
+	}
+	return ids
+}
+
+// TestCatalogAPI_Classification: cây danh mục, thuộc tính, nhãn và phân loại mẫu qua API (Task M1-34).
+func TestCatalogAPI_Classification(t *testing.T) {
+	e := newCatalogAPIEnv(t)
+	create := e.createCategory
+	vay := create("Váy", "", "k1")
+	vayID := vay["id"].(string) //nolint:forcetypeassert // test
+	dai := create("Váy dài", vayID, "k2")
+	maxi := create("Váy maxi", dai["id"].(string), "k3") //nolint:forcetypeassert // test
+	if maxi["depth"] != float64(3) || maxi["slug"] != "vay-maxi" || maxi["status"] != "active" {
+		t.Fatalf("Váy maxi sai: %v", maxi)
+	}
+	maxiID := maxi["id"].(string) //nolint:forcetypeassert // test
+	expect(t, "cấp 4", e.do(http.MethodPost, "/api/v1/catalog/categories", catalogManager, "k4",
+		`{"name":"Cấp 4","parentId":"`+maxiID+`"}`), http.StatusUnprocessableEntity, "category_too_deep")
+	expect(t, "vòng", e.do(http.MethodPatch, "/api/v1/catalog/categories/"+vayID, catalogManager, "k5",
+		`{"version":1,"parentId":"`+maxiID+`"}`), http.StatusUnprocessableEntity, "category_cycle")
+	expect(t, "cùng tên cùng cha", e.do(http.MethodPost, "/api/v1/catalog/categories", catalogManager, "k6",
+		`{"name":"Váy dài","slug":"vay-dai-2","parentId":"`+vayID+`"}`), http.StatusConflict, "already_exists")
+	expect(t, "Xem không tạo được", e.do(http.MethodPost, "/api/v1/catalog/categories", catalogViewer, "k7",
+		`{"name":"X"}`), http.StatusForbidden, "forbidden")
+	// Đổi tên, đưa lên gốc (parentId null).
+	upd := e.do(http.MethodPatch, "/api/v1/catalog/categories/"+maxiID, catalogManager, "k8", `{"version":1,"name":"Maxi","parentId":null}`)
+	if upd.Code != http.StatusOK {
+		t.Fatalf("updateCategory: %d %s", upd.Code, upd.Body.String())
+	}
+	if u := decodeJSON(t, upd); u["depth"] != float64(1) || u["name"] != "Maxi" || u["version"] != float64(2) {
+		t.Errorf("sau khi sửa: %v", u)
+	} else if _, has := u["parentId"]; has {
+		t.Errorf("danh mục gốc không có parentId: %v", u)
+	}
+
+	// Mẫu active trong Váy → không lưu trữ được.
+	p := e.createDam01()
+	pid := p["id"].(string) //nolint:forcetypeassert // test
+	expect(t, "kích hoạt", e.do(http.MethodPatch, "/api/v1/catalog/products/"+pid, catalogManager, "p1", `{"version":1,"status":"active"}`),
+		http.StatusOK, "")
+
+	// Thuộc tính, giá trị, nhãn.
+	attr := e.do(http.MethodPost, "/api/v1/catalog/attributes", catalogManager, "a1", `{"code":"chat-lieu","name":"Chất liệu"}`)
+	if attr.Code != http.StatusCreated {
+		t.Fatalf("createAttribute: %d %s", attr.Code, attr.Body.String())
+	}
+	attrID := decodeJSON(t, attr)["id"].(string) //nolint:forcetypeassert // test
+	val := e.do(http.MethodPost, "/api/v1/catalog/attributes/"+attrID+"/values", catalogManager, "a2", `{"value":"Lụa"}`)
+	if val.Code != http.StatusCreated {
+		t.Fatalf("addAttributeValue: %d %s", val.Code, val.Body.String())
+	}
+	valID := decodeJSON(t, val)["id"].(string) //nolint:forcetypeassert // test
+	expect(t, "giá trị trùng", e.do(http.MethodPost, "/api/v1/catalog/attributes/"+attrID+"/values", catalogManager, "a3", `{"value":"Lụa"}`),
+		http.StatusConflict, "already_exists")
+	tagIDs := e.createTags("hang-moi", "sale", "ban-chay")
+	classBody := `{"version":2,"categoryId":"` + vayID + `","attributeValueIds":["` + valID + `"],"tagIds":["` +
+		strings.Join(tagIDs, `","`) + `"]}`
+	cls := e.do(http.MethodPut, "/api/v1/catalog/products/"+pid+"/classification", catalogManager, "c2", classBody)
+	if cls.Code != http.StatusOK {
+		t.Fatalf("setProductClassification: %d %s", cls.Code, cls.Body.String())
+	}
+	if c := decodeJSON(t, cls); c["version"] != float64(3) || len(c["tagIds"].([]any)) != 3 || c["categoryId"] != vayID { //nolint:forcetypeassert // test
+		t.Errorf("phân loại trả về: %v", c)
+	}
+	expect(t, "version cũ", e.do(http.MethodPut, "/api/v1/catalog/products/"+pid+"/classification", catalogManager, "c3", classBody),
+		http.StatusConflict, "version_conflict")
+	expect(t, "lưu trữ khi còn mẫu active", e.do(http.MethodPost, "/api/v1/catalog/categories/"+vayID+"/archive", catalogManager, "r1",
+		`{"version":1}`), http.StatusConflict, "category_in_use")
+
+	// Tenant B: không thấy, không gán được giá trị của A.
+	expect(t, "B gán giá trị của A", e.do(http.MethodPost, "/api/v1/catalog/attributes/"+attrID+"/values", catalogOtherB, "b1", `{"value":"X"}`),
+		http.StatusNotFound, "not_found")
+	listB := e.do(http.MethodGet, "/api/v1/catalog/categories", catalogOtherB, "", "")
+	if listB.Code != http.StatusOK || strings.TrimSpace(listB.Body.String()) != "[]" {
+		t.Errorf("tenant B thấy danh mục của A: %d %s", listB.Code, listB.Body.String())
+	}
+	e.checkClassificationLists()
+}
+
+// checkClassificationLists: người chỉ có catalog.read đọc được 3 danh mục, 1 thuộc tính (kèm giá trị), 3 nhãn.
+func (e *catalogAPIEnv) checkClassificationLists() {
+	t := e.t
+	t.Helper()
+	for path, n := range map[string]int{"/api/v1/catalog/categories": 3, "/api/v1/catalog/attributes": 1, "/api/v1/catalog/tags": 3} {
+		rec := e.do(http.MethodGet, path, catalogViewer, "", "")
+		var items []map[string]any
+		if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &items) != nil || len(items) != n {
+			t.Errorf("GET %s: %d %s (mong %d mục)", path, rec.Code, rec.Body.String(), n)
+		}
+	}
+	attrs := e.do(http.MethodGet, "/api/v1/catalog/attributes", catalogViewer, "", "")
+	if !strings.Contains(attrs.Body.String(), `"value":"Lụa"`) {
+		t.Errorf("listAttributes thiếu giá trị: %s", attrs.Body.String())
+	}
 }

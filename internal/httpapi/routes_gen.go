@@ -24,10 +24,20 @@ type Route struct {
 
 // Routes là mọi operation của hợp đồng, theo thứ tự đường dẫn rồi method.
 var Routes = []Route{
+	{Method: "GET", Pattern: "GET /api/v1/catalog/attributes", OperationID: "listAttributes", Permission: "catalog.read"},
+	{Method: "POST", Pattern: "POST /api/v1/catalog/attributes", OperationID: "createAttribute", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "POST", Pattern: "POST /api/v1/catalog/attributes/{id}/values", OperationID: "addAttributeValue", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "GET", Pattern: "GET /api/v1/catalog/categories", OperationID: "listCategories", Permission: "catalog.read"},
+	{Method: "POST", Pattern: "POST /api/v1/catalog/categories", OperationID: "createCategory", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "PATCH", Pattern: "PATCH /api/v1/catalog/categories/{id}", OperationID: "updateCategory", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "POST", Pattern: "POST /api/v1/catalog/categories/{id}/archive", OperationID: "archiveCategory", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "POST", Pattern: "POST /api/v1/catalog/products", OperationID: "createProduct", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/catalog/products/{id}", OperationID: "getProduct", Permission: "catalog.read"},
 	{Method: "PATCH", Pattern: "PATCH /api/v1/catalog/products/{id}", OperationID: "updateProduct", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "PUT", Pattern: "PUT /api/v1/catalog/products/{id}/classification", OperationID: "setProductClassification", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "POST", Pattern: "POST /api/v1/catalog/products/{id}/variants", OperationID: "addVariant", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "GET", Pattern: "GET /api/v1/catalog/tags", OperationID: "listTags", Permission: "catalog.read"},
+	{Method: "POST", Pattern: "POST /api/v1/catalog/tags", OperationID: "createTag", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "PATCH", Pattern: "PATCH /api/v1/catalog/variants/{id}", OperationID: "updateVariant", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "POST", Pattern: "POST /api/v1/files/uploads", OperationID: "createUpload", Permission: "files.upload", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/files/{id}", OperationID: "getFile", Permission: "files.upload"},

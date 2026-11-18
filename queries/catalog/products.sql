@@ -30,3 +30,15 @@ UPDATE catalog.products
 SET version = version + 1, updated_at = now()
 WHERE id = @id AND version = @version
 RETURNING version;
+
+-- name: SetProductCategory :one
+-- Phân loại mẫu (Task M1-34): đổi danh mục, version tăng (Seq của product.updated).
+UPDATE catalog.products
+SET category_id = sqlc.narg(category_id), version = version + 1, updated_at = now()
+WHERE id = @id AND version = @version
+RETURNING version;
+
+-- name: GetProductCategory :one
+SELECT category_id, version
+FROM catalog.products
+WHERE seller_id = @seller_id AND id = @id AND deleted_at IS NULL;

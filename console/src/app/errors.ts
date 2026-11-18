@@ -41,6 +41,7 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   role_name_taken: "Đã có vai trò cùng tên",
   unknown_permission: "Có quyền không còn trong hệ thống. Tải lại trang",
   // Sản phẩm, danh mục
+  already_exists: "Đã có mục cùng tên hoặc cùng mã",
   barcode_taken: "Mã vạch đã dùng cho biến thể khác",
   category_cycle: "Không đặt danh mục làm con của chính nó hay của danh mục con",
   category_in_use: "Danh mục đang có sản phẩm hoặc danh mục con",

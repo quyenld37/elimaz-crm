@@ -5,12 +5,28 @@ type AbandonJobRes interface {
 	abandonJobRes()
 }
 
+type AddAttributeValueRes interface {
+	addAttributeValueRes()
+}
+
 type AddVariantRes interface {
 	addVariantRes()
 }
 
+type ArchiveCategoryRes interface {
+	archiveCategoryRes()
+}
+
 type CompleteUploadRes interface {
 	completeUploadRes()
+}
+
+type CreateAttributeRes interface {
+	createAttributeRes()
+}
+
+type CreateCategoryRes interface {
+	createCategoryRes()
 }
 
 type CreateProductRes interface {
@@ -19,6 +35,10 @@ type CreateProductRes interface {
 
 type CreateStaffRes interface {
 	createStaffRes()
+}
+
+type CreateTagRes interface {
+	createTagRes()
 }
 
 type CreateUploadRes interface {
@@ -49,6 +69,14 @@ type HealthReadyRes interface {
 	healthReadyRes()
 }
 
+type ListAttributesRes interface {
+	listAttributesRes()
+}
+
+type ListCategoriesRes interface {
+	listCategoriesRes()
+}
+
 type ListJobsRes interface {
 	listJobsRes()
 }
@@ -59,6 +87,10 @@ type ListRolesRes interface {
 
 type ListStaffRes interface {
 	listStaffRes()
+}
+
+type ListTagsRes interface {
+	listTagsRes()
 }
 
 type LockStaffRes interface {
@@ -73,12 +105,20 @@ type RetryJobRes interface {
 	retryJobRes()
 }
 
+type SetProductClassificationRes interface {
+	setProductClassificationRes()
+}
+
 type StreamRes interface {
 	streamRes()
 }
 
 type UnlockStaffRes interface {
 	unlockStaffRes()
+}
+
+type UpdateCategoryRes interface {
+	updateCategoryRes()
 }
 
 type UpdateProductRes interface {
