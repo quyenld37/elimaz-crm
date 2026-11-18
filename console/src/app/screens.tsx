@@ -1,12 +1,12 @@
 // Danh sách màn của CRM. Mỗi task màn hình (M1-50 trở đi, sau khi mockup được duyệt) thêm một dòng ở đây; khung,
 // menu và định tuyến tự có.
-import { Balances } from "../features/inventory/Balances";
-import { ProductEdit } from "../features/products/ProductEdit";
-import { ProductList } from "../features/products/ProductList";
-import { RoleEdit } from "../features/roles/RoleEdit";
-import { RoleList } from "../features/roles/RoleList";
-import { StaffGrants } from "../features/staff/StaffGrants";
-import { StaffList } from "../features/staff/StaffList";
+import { Balances } from "../screens/inventory/Balances";
+import { ProductEdit } from "../screens/products/ProductEdit";
+import { ProductList } from "../screens/products/ProductList";
+import { RoleEdit } from "../screens/roles/RoleEdit";
+import { RoleList } from "../screens/roles/RoleList";
+import { StaffGrants } from "../screens/staff/StaffGrants";
+import { StaffList } from "../screens/staff/StaffList";
 import type { Screen } from "./nav";
 
 export const SCREENS: readonly Screen[] = [
