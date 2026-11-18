@@ -27,6 +27,7 @@ describe("SCREENS nạp từ src/screens/*/route.tsx", () => {
     expect(SCREENS.map((s) => [s.path, s.label, s.group, s.permission, s.hidden === true, s.also ?? []])).toEqual([
       ["/san-pham", "Danh sách sản phẩm", "Sản phẩm", "catalog.read", false, ["/san-pham/:id"]],
       ["/san-pham/:id", "Sửa mẫu", "Sản phẩm", "catalog.read", true, []],
+      ["/nhap-excel", "Nhập Excel", "Sản phẩm", "catalog.import", false, []],
       ["/kho/ton", "Tồn kho", "Kho", "inventory.read", false, []],
       ["/he-thong/su-kien-loi", "Sự kiện lỗi", "Hệ thống", "platform.health.read", false, []],
       ["/nhan-vien", "Nhân viên", "Quản trị", "identity.users.manage", false, ["/nhan-vien/:id/quyen"]],

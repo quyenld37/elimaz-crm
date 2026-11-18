@@ -1,0 +1,125 @@
+/* Lớp riêng của màn Nhập Excel, chép từ mockup đã duyệt (docs/mockups/m1/nhap-excel.html và m1.css: thanh bước,
+   thanh tiến độ, vùng thả tệp, ô số xem trước, độ rộng cột bảng lỗi). Khoảng cách viết inline trong mockup thành lớp
+   .mt-sm (8px), .mt-md (16px). */
+.steps {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-md);
+}
+.steps li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 13px;
+  color: var(--muted);
+}
+.steps li b {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--edge);
+  font-size: 12px;
+  color: var(--ink);
+}
+.steps li.is-on {
+  color: var(--ink);
+  font-weight: 600;
+}
+.steps li.is-on b {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.steps li.is-done b {
+  background: var(--success);
+  color: var(--paper);
+  border-color: var(--success);
+}
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ink);
+}
+/* Việc chạy nền không báo phần trăm: đoạn 35% của mockup chạy qua lại. */
+.bar.is-busy > i {
+  width: 35%;
+  animation: imp-busy 1.6s ease-in-out infinite alternate;
+}
+@keyframes imp-busy {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(186%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar.is-busy > i {
+    animation: none;
+  }
+}
+.drop {
+  border: 1px dashed var(--edge);
+  border-radius: var(--r-box);
+  padding: var(--space-lg);
+  text-align: center;
+  display: grid;
+  gap: var(--space-sm);
+  justify-items: center;
+  background: var(--paper);
+}
+.drop.is-over {
+  border-color: var(--ink);
+  background: var(--surface);
+}
+.kpis {
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.kpi {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: var(--space-md);
+  min-width: 0;
+}
+.kpi .v {
+  font-size: 26px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--title);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.etbl .c-row {
+  width: 80px;
+}
+.etbl .c-col {
+  width: 160px;
+}
+.imp-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.mt-sm {
+  margin-top: var(--space-sm);
+}
+.mt-md {
+  margin-top: var(--space-md);
+}
+.ok-text {
+  color: var(--success);
+}
