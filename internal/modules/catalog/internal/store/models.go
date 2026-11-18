@@ -292,7 +292,7 @@ type InventoryStockLedger struct {
 	DocID       uuid.UUID
 	Step        string
 	ActorType   string
-	ActorID     pgtype.UUID
+	ActorID     *uuid.UUID
 	CreatedAt   time.Time
 }
 
@@ -306,7 +306,7 @@ type InventoryStockLedgerV struct {
 	DocID       uuid.UUID
 	Step        string
 	ActorType   string
-	ActorID     pgtype.UUID
+	ActorID     *uuid.UUID
 	CreatedAt   time.Time
 }
 
