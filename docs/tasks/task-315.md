@@ -117,9 +117,11 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
 
 ## Việc phát hiện thêm
 
-- Tệp luật hợp đồng API (thư mục rules của Claude, `openapi.md` mục 2) còn ghi "đúng một trong `x-permission` hoặc
-  `x-public`"; cần thêm `x-authenticated` (chỉ route đọc trả dữ liệu của chính người gọi). Hook không cho agent sửa
-  thư mục đó — chủ shop sửa.
+- (Xong trên main, mục 7 của luật `openapi.md`.) ~~Tệp luật hợp đồng API cần thêm `x-authenticated`.~~
+- `make ci` đỏ trên mọi nhánh có `console/node_modules` (từ Task 17): gói npm `flatted` chứa tệp Go
+  (`golang/pkg/flatted`), `go list ./...` gồm nó nên `golangci-lint run ./...` và `TestLintCleanOnRealCode` đỏ
+  (cũng lọt vào vet, test, govulncheck). Cách sửa gợi ý cho một task riêng: một `go.mod` rỗng trong
+  `console/node_modules` (bước `console-deps`) hoặc lọc `node_modules` khỏi danh sách gói của Makefile và test lint.
 - Task tạo shop sau này (nếu có) gọi `identity.EnsureDefaultRoles` trong transaction tạo shop; hiện bước đồng bộ sau
   `migrate` phủ việc này.
 - Console: nhân viên chưa có grant giờ mở được `/me` (200, `grants: []`); màn hình nên hiện "chưa được giao việc"
@@ -158,3 +160,19 @@ API); (2) quyền quản trị chỉ có hiệu lực từ gán vai trò toàn s
   `getMe` giữ `x-authenticated`, `stream` giữ `x-permission: realtime.subscribe`; `routes_gen.go` khớp; `auth_test.go`
   dùng `testkit.AccessKeys.Verifier` mới, ca `/me` của 315 còn đủ; hub SSE lọc bằng chính `identity.Can` nên theo
   nghĩa mới. Gợi ý cho 2b: thêm ca SSE "báo hiệu cần quyền quản trị không tới người chỉ có quyền đó theo trang".
+
+### 2a'. Gộp main lần 2 (commit merge)
+
+- Reviewer (commit merge lần 2): **ĐẠT**, không phát hiện phải sửa; xác nhận lỗi lint là của main (`Makefile`,
+  cấu hình lint, `console/package*.json` giống hệt main), `main.go` giữ đủ phần của Task 315, 16, 42.
+- Trong lúc làm 2b, `main` gộp thêm Task 17 (khung màn hình React, client sinh `console/src/api` từ hợp đồng) và
+  Task 42 (imager). Cất phần 2b bằng `git stash push -m task315-luot2b-wip`, `git merge main`; xung đột duy nhất: tệp
+  trạng thái task (giữ "Task 315, đang làm" bằng `new-task.sh`).
+- `make gen` sinh lại `console/src/api/sdk.gen.ts`: client của main sinh trước khi có mô tả `getMe` của lượt 1 (chỉ
+  thêm hai dòng chú thích). Không sửa tay.
+- Kiểm: build, vet, gen-check, sqlc vet, `go test -race ./...` (mọi gói `ok` trừ hai mục dưới), govulncheck, oasdiff,
+  danh mục, jscpd (0 clone), test-guard, gitleaks; console `npm test` 35 qua, `tsc --noEmit` qua.
+  - `golangci-lint run ./...` và `tests/arch` `TestLintCleanOnRealCode` đỏ vì `console/node_modules/flatted/golang/pkg/flatted`
+    (tệp Go trong gói npm, `go list ./...` gồm nó) — lỗi của `main` từ Task 17, không do gộp; lint trên mọi gói trừ
+    `node_modules`: `0 issues`; `go test ./tests/arch/ -skip TestLintCleanOnRealCode` `ok`. Ghi ở Việc phát hiện thêm.
+  - `internal/imager` hai test đo thời gian đỏ khi máy tải 20 trên 10 lõi; chạy riêng `-count=2` `ok`.

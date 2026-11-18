@@ -296,6 +296,7 @@ Package observability phục vụ các điểm kiểm sức khỏe của tiến 
 **Khi nào không dùng:** Không đặt kiểm tra nghiệp vụ hay dữ liệu khách vào /health/*; kiểm sâu (/health/deep, cần token) thuộc Task 19.
 
 ```go
+func CheckLive(ctx context.Context, port int, timeout time.Duration) error
 type Health struct {
 }
 func NewHealth(db Pinger) *Health
@@ -663,4 +664,19 @@ func (s *Spool) Drain(ctx context.Context, d *db.DB) (n int, err error)
 func (s *Spool) List() ([]string, error)
 func (s *Spool) Stats() (files int, oldestAge time.Duration, err error)
 func (s *Spool) Write(e Entry) (string, error)
+```
+
+## `console/src/shared` (màn hình, TypeScript)
+
+Export của `console/src/shared/index.ts`.
+
+**Khi nào không dùng:** Không fetch thẳng tới /api/v1 ở màn hình (eslint chặn): dữ liệu lấy qua client sinh console/src/api; chỉ createRealtimeClient đọc /api/v1/stream. Không coi báo hiệu changed là dữ liệu: nhận báo hiệu thì tải lại đúng đối tượng bằng API; onResync tải lại mọi danh sách đang mở. Không tạo hai createRealtimeClient trong một tab (mỗi tab một kết nối, spec 04 mục 6). Không tự viết băng báo mất kết nối, phiên hết hạn, API tạm ngừng: dùng Banner (câu chữ spec 04 mục 6).
+
+```ts
+export { createRealtimeClient } from "../realtime/client"; // Lớp realtime: báo hiệu "đối tượng vừa đổi" qua SSE, tự canh im lặng, nối lại, nhận ra phiên hết hạn.
+export type { ChangedEvent, RealtimeClient, RealtimeOptions, RealtimeState } from "../realtime/client";
+export { watchApiLive } from "../shell/apiHealth"; // Canh API bằng /health/live; báo khi đổi giữa sống và tạm ngừng.
+export type { ApiLiveOptions } from "../shell/apiHealth";
+export { Banner, TEXT_API_DOWN, TEXT_RECONNECTING, TEXT_SESSION_EXPIRED } from "../shell/Banner"; // Băng báo của khung theo câu chữ spec 04 mục 6.
+export type { BannerProps } from "../shell/Banner";
 ```

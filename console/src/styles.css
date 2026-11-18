@@ -1,0 +1,108 @@
+/* Khung màn hình. Token chép từ mockup M1 đã duyệt (docs/mockups/m1/m1.css, gốc apps/storefront-giftstatus/DESIGN.md):
+   màu, cỡ chữ, bo góc. Chỉ có khung và băng báo; màn hình, menu thuộc M1. */
+:root {
+  --paper: #ffffff;
+  --surface: #f5f2ef;
+  --rule: #e8e2dc;
+  --ink: #2b2624;
+  --label: #58504d;
+  --title: #1a1614;
+  --buy: #c0392b;
+  --soft: #f9ebe7;
+  --soft-sale: #fcf2ef;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-logo: "Playfair Display", Georgia, serif;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --r-box: 8px;
+}
+* {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 14px/1.55 var(--font-body);
+}
+p {
+  margin: 0;
+}
+.xs {
+  font-size: 12px;
+}
+.app {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+}
+.side {
+  border-right: 1px solid var(--rule);
+  padding: var(--space-md) 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  padding: 0 var(--space-lg) var(--space-md);
+}
+.wordmark {
+  font-family: var(--font-logo);
+  font-size: 18px;
+  letter-spacing: 0.18em;
+  color: var(--title);
+}
+.brand .xs {
+  color: var(--label);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.main {
+  padding: var(--space-lg) var(--space-xl) var(--space-xl);
+  max-width: 1320px;
+  width: 100%;
+}
+.banners {
+  display: grid;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+.banner {
+  border-radius: var(--r-box);
+  padding: var(--space-md);
+  font-weight: 600;
+}
+.banner-info {
+  background: var(--surface);
+}
+.banner-soft {
+  background: var(--soft);
+}
+.banner-err {
+  background: var(--soft-sale);
+  border: 1px solid var(--buy);
+}
+/* Điện thoại, máy tính bảng: bỏ cột trái (M1 thêm thanh trên 56px và menu trượt). */
+@media (max-width: 999px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .side {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+    padding: var(--space-sm) 0;
+  }
+  .main {
+    padding: var(--space-md);
+  }
+}
