@@ -1019,6 +1019,39 @@ func (s *Spool) Stats() (files int, oldestAge time.Duration, err error)
 func (s *Spool) Write(e Entry) (string, error)
 ```
 
+## `internal/platform/xlsx` (gói `xlsx`)
+
+Package xlsx đọc và ghi tệp Excel (.xlsx) cho mọi mốc của CRM (kế hoạch M1, Task M1-38, C22): nhập sản phẩm (M1), nhập khách (M2), bảng kê vận chuyển (M3), xuất báo cáo (M6), mở sổ (M7).
+
+**Khi nào không dùng:** Không nhập excelize ở gói khác (test kiến trúc luật h) và không tự ghi ô bằng excelize bỏ qua Sanitize: mọi tệp xuất đi qua Write (hoặc bộ ghi theo luồng của M6 đặt trong gói này, cũng gọi Sanitize). Không đọc tệp người dùng bằng excelize.OpenReader trần: dùng Read với Limits. Không đặt kiểm nghiệp vụ (giá, SKU, SĐT) ở đây: module dùng tự kiểm Row. Không dùng cho CSV. Không log, không đưa nội dung ô vào lỗi (tệp khách có dữ liệu cá nhân).
+
+```go
+func Read(r io.ReaderAt, size int64, lim Limits, header []string) (rows []Row, cellErrs []CellError, err error)
+func Sanitize(s string) string
+func Write(w io.Writer, sheets []Sheet) error
+type CellError struct {
+	Row          int
+	Column, Code string
+}
+type Limits struct {
+	MaxBytes     int64
+	MaxRows      int
+	MaxUnzipped  int64
+	MaxCellChars int
+}
+func DefaultLimits() Limits
+type Row struct {
+	Number int
+	Cells  map[string]string
+}
+type Sheet struct {
+	Name   string
+	Header []string
+	Rows   [][]any
+	Lists  map[string][]string
+}
+```
+
 ## `console/src/shared` (màn hình, TypeScript)
 
 Export của `console/src/shared/index.ts`.
