@@ -125,6 +125,30 @@ crm_filesync;` (database thử của `internal/testkit` tự tạo role này, m�
 - **Chưa chạy với kho thật** (Step 6 của Task M1-45, cần chủ shop tạo tài khoản kho ngoài và hai mật khẩu crypt): khi có,
   cấu hình trên staging, chạy một lượt, chép một tệp riêng tư về và đọc được bằng mật khẩu, ghi kết quả vào đây.
 
+## Dựng lại kho tệp (Task M1-46, ADR-36; TP08, TP09, TP12)
+
+- **Kho tệp tắt đột ngột** (máy khởi động lại, container chết): khởi động lại SeaweedFS rồi chờ. Tệp đã báo xong
+  không mất (diễn tập `docs/do-luong/files-drill-m1.md`); vài giây đầu sau khi healthcheck qua, đọc tệp có thể trả
+  500 "volume not found" tới khi volume đăng ký lại; tự hết, không làm gì. Tải lên dở thì nhân viên tải lại.
+- **Kho tệp hỏng hẳn** (đĩa hỏng, volume mất): dựng lại từ kho ngoài. Mất các tệp tải lên sau lần chép tốt cuối
+  (khoảng một giờ); dữ liệu đơn hàng không ảnh hưởng (database sao lưu đường riêng).
+  1. Dừng SeaweedFS chính; giữ nguyên volume hỏng sang một bên nếu còn đọc được (đừng xóa trước khi có bản mới).
+  2. Khởi động SeaweedFS với volume rỗng, chạy `bootstrap.sh main …` (bucket, giữ phiên bản, chính sách, hạn crm-tmp, CORS).
+  3. Chép ngược bằng danh tính **ghi được** kho chính (crm-admin), cùng hai mật khẩu crypt của lúc chép đi:
+     `docker compose --profile filesync run --rm -e FILESYNC_SRC_ACCESS_KEY_ID=<khóa crm-admin> -e
+     FILESYNC_SRC_SECRET_ACCESS_KEY=<bí mật crm-admin> --entrypoint /opt/filesync/restore.sh filesync`
+     (`rclone copy` ba bucket, chỉ thêm; log mỗi bucket số tệp, dung lượng; thoát 1 khi có bucket lỗi thì chạy lại).
+  4. Màn "Tệp bị mất" → "Kiểm lại toàn bộ tệp" (hay `POST /api/v1/platform/files/verify`, quyền
+     `platform.files.manage`): lệnh nền `file.verify` hỏi kho từng tệp ready theo lô 500, tệp thiếu ảnh gốc hay biến
+     thể thành `lost`. Theo dõi: `SELECT status, count(*) FROM platform.jobs WHERE kind = 'file.verify' GROUP BY 1;`
+  5. Danh sách tệp mất (`GET /api/v1/platform/files/lost`, màn "Tệp bị mất") có mã mẫu; nhân viên tải lại đúng ảnh gốc
+     (cùng tệp) thì ảnh cũ tự về `ready` (lệnh `file.process` phục hồi); ảnh không còn bản gốc thì xóa khỏi mẫu.
+  6. Bật lại container filesync, kiểm `file-sync-age` hết cảnh báo.
+- Diễn tập trên máy dev, bộ compose riêng (không bao giờ trên bộ dùng chung): `COMPOSE_PROJECT=<dự án riêng>
+  scripts/files/crash-drill.sh` (TP08) và `scripts/files/restore-drill.sh` (TP09, in `FILES RESTORE OK
+  restore_seconds=<x> lost=<n>`, ghi `file_sync_runs(kind='restore_drill')`). Ghi kết quả vào
+  `docs/do-luong/files-drill-m1.md`.
+
 ## Sao lưu theo lịch và kiểm bản sao lưu hằng tuần (Task 21, ADR-37)
 
 - Lịch (giờ Việt Nam; nơi chạy chốt ở bước staging — cron của máy hoặc dịch vụ theo lịch của nền tảng). Với cron của

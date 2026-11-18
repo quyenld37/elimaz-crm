@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -138,20 +137,10 @@ func (f *fakeImager) serve(w http.ResponseWriter, r *http.Request) {
 	if f.delay > 0 {
 		time.Sleep(f.delay)
 	}
-	sum := sha256.Sum256(src)
-	res := imager.Result{
-		Status: imager.StatusOK, DetectedType: "image/jpeg", Width: 2000, Height: 1500,
-		SourceSHA256: hex.EncodeToString(sum[:]),
-	}
-	for _, o := range req.Outputs {
-		body := fmt.Appendf(nil, "%x-%d.%s", sum, o.Width, o.Format)
-		if code := putBody(r.Context(), o, body); code != http.StatusOK {
-			writeResult(w, imager.Result{Status: imager.StatusRejected, Reason: imager.ReasonUploadFailed})
-			return
-		}
-		res.Outputs = append(res.Outputs, imager.OutputResult{
-			Width: o.Width, Format: o.Format, PixelWidth: o.Width, PixelHeight: o.Width * 3 / 4, Bytes: int64(len(body)),
-		})
+	// Ảnh tốt: như imager giả dùng chung (đọc lại nguồn, ghi từng đầu ra bằng PutURL, trả JPEG 2000×1500).
+	res, err := testkit.StubImager{}.Process(r.Context(), req)
+	if err != nil {
+		res = imager.Result{Status: imager.StatusRejected, Reason: imager.ReasonInternal}
 	}
 	writeResult(w, res)
 }
@@ -173,24 +162,6 @@ func fetch(ctx context.Context, u string) ([]byte, bool) {
 	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(resp.Body)
 	return body, err == nil && resp.StatusCode == http.StatusOK
-}
-
-func putBody(ctx context.Context, o imager.Output, body []byte) int {
-	h := http.Header{"Content-Type": {"image/" + o.Format}}
-	for k, v := range o.Headers {
-		h.Set(k, v)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, o.PutURL, bytes.NewReader(body))
-	if err != nil {
-		return 0
-	}
-	req.Header = h
-	resp, err := testHTTP.Do(req)
-	if err != nil {
-		return 0
-	}
-	_ = resp.Body.Close()
-	return resp.StatusCode
 }
 
 // bucketOf là bucket của một đường dẫn ký sẵn của MemStore (<gốc>/<bucket>/<khóa>?…).
@@ -223,7 +194,7 @@ func (b *fakeBus) signals() []realtime.Signal {
 	return append([]realtime.Signal(nil), b.sigs...)
 }
 
-// procEnv: env của files_test cộng MemStore, imager giả, hai handler xử lý ảnh, lệnh selftest và một worker.
+// procEnv: env của files_test cộng MemStore, imager giả, các lệnh xử lý ảnh, lệnh đối chiếu kho và một worker.
 type procEnv struct {
 	*env
 	mem   *files.MemStore
@@ -233,6 +204,7 @@ type procEnv struct {
 	pub   commands.Handler
 	priv  commands.Handler
 	regen commands.Handler
+	ver   *files.Verifier
 	w     *queue.Worker
 	q     queue.JobQueue
 }
@@ -251,6 +223,7 @@ func newProcEnv(t *testing.T) *procEnv {
 		DB: p.staff.App, Store: p.mem, Imager: p.img.client(), PresetVersion: 1, Bus: p.bus, Metrics: p.reg,
 	}
 	p.pub, p.priv, p.regen = files.NewProcessHandler(o), files.NewProcessPrivateHandler(o), files.NewRegenerateHandler(o)
+	p.ver = files.NewVerifyHandler(o)
 	p.w = p.newWorker()
 	return p
 }
@@ -258,7 +231,7 @@ func newProcEnv(t *testing.T) *procEnv {
 func (p *procEnv) newWorker() *queue.Worker {
 	return queue.NewWorker(p.staff.App, nil, queue.WorkerOptions{
 		WorkerID: "w-" + uuid.NewString(), Poll: 50 * time.Millisecond,
-		Commands: commands.NewRunner(p.staff.App, []commands.Handler{p.pub, p.priv, p.regen}),
+		Commands: commands.NewRunner(p.staff.App, []commands.Handler{p.pub, p.priv, p.regen, p.ver}),
 	})
 }
 

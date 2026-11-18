@@ -136,3 +136,34 @@ WHERE f.status = 'ready' AND f.deleted_at IS NULL AND f.content_sha256 IS NOT NU
         WHERE v.tenant_id = f.tenant_id AND v.file_id = f.id AND v.preset_version = @preset_version
     )
 ORDER BY f.id;
+
+-- name: ListReadyFilesAfter :many
+-- Một lô tệp ready, chưa xóa, mã lớn hơn @after, theo mã tăng dần (đối chiếu kho, Task M1-46). Tenant theo RLS.
+SELECT id, purpose, bucket, key, content_sha256, expires_at, version
+FROM platform.files
+WHERE status = 'ready' AND deleted_at IS NULL AND id > @after
+ORDER BY id
+LIMIT @lim;
+
+-- name: ListVariantKeysOf :many
+-- Chỗ trên kho của mọi biến thể (mọi bộ kích thước) của các tệp (đối chiếu kho, Task M1-46).
+SELECT file_id, bucket, key
+FROM platform.file_variants
+WHERE file_id = ANY(@file_ids::uuid[])
+ORDER BY file_id, key;
+
+-- name: ListLostSameContent :many
+-- Tệp lost, chưa xóa, cùng nội dung với tệp @id vừa ready (tải lại ảnh đã mất, Task M1-46). Tenant theo RLS.
+SELECT id, purpose, lost_at
+FROM platform.files
+WHERE status = 'lost' AND deleted_at IS NULL AND content_sha256 = @content_sha256 AND id <> @id
+ORDER BY id;
+
+-- name: ListLostFilesPage :many
+-- Một trang tệp lost, chưa xóa, mất gần nhất trước (listLostFiles, Task M1-46): sau con trỏ (lost_at, id) khi có.
+SELECT id, purpose, lost_at
+FROM platform.files
+WHERE status = 'lost' AND deleted_at IS NULL AND lost_at IS NOT NULL
+    AND (NOT @has_cursor::boolean OR (lost_at, id) < (@cursor_at::timestamptz, @cursor_id::uuid))
+ORDER BY lost_at DESC, id DESC
+LIMIT @lim;

@@ -7,6 +7,7 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -396,6 +397,93 @@ func (q *Queries) ListFilesMissingPreset(ctx context.Context, presetVersion int3
 	return items, nil
 }
 
+const listLostFilesPage = `-- name: ListLostFilesPage :many
+SELECT id, purpose, lost_at
+FROM platform.files
+WHERE status = 'lost' AND deleted_at IS NULL AND lost_at IS NOT NULL
+    AND (NOT $1::boolean OR (lost_at, id) < ($2::timestamptz, $3::uuid))
+ORDER BY lost_at DESC, id DESC
+LIMIT $4
+`
+
+type ListLostFilesPageParams struct {
+	HasCursor bool
+	CursorAt  time.Time
+	CursorID  uuid.UUID
+	Lim       int32
+}
+
+type ListLostFilesPageRow struct {
+	ID      uuid.UUID
+	Purpose string
+	LostAt  pgtype.Timestamptz
+}
+
+// Một trang tệp lost, chưa xóa, mất gần nhất trước (listLostFiles, Task M1-46): sau con trỏ (lost_at, id) khi có.
+func (q *Queries) ListLostFilesPage(ctx context.Context, arg ListLostFilesPageParams) ([]ListLostFilesPageRow, error) {
+	rows, err := q.db.Query(ctx, listLostFilesPage,
+		arg.HasCursor,
+		arg.CursorAt,
+		arg.CursorID,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLostFilesPageRow{}
+	for rows.Next() {
+		var i ListLostFilesPageRow
+		if err := rows.Scan(&i.ID, &i.Purpose, &i.LostAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLostSameContent = `-- name: ListLostSameContent :many
+SELECT id, purpose, lost_at
+FROM platform.files
+WHERE status = 'lost' AND deleted_at IS NULL AND content_sha256 = $1 AND id <> $2
+ORDER BY id
+`
+
+type ListLostSameContentParams struct {
+	ContentSha256 []byte
+	ID            uuid.UUID
+}
+
+type ListLostSameContentRow struct {
+	ID      uuid.UUID
+	Purpose string
+	LostAt  pgtype.Timestamptz
+}
+
+// Tệp lost, chưa xóa, cùng nội dung với tệp @id vừa ready (tải lại ảnh đã mất, Task M1-46). Tenant theo RLS.
+func (q *Queries) ListLostSameContent(ctx context.Context, arg ListLostSameContentParams) ([]ListLostSameContentRow, error) {
+	rows, err := q.db.Query(ctx, listLostSameContent, arg.ContentSha256, arg.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLostSameContentRow{}
+	for rows.Next() {
+		var i ListLostSameContentRow
+		if err := rows.Scan(&i.ID, &i.Purpose, &i.LostAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPublicVariants = `-- name: ListPublicVariants :many
 SELECT v.file_id, v.preset_version, v.width, v.format, v.key
 FROM platform.file_variants v
@@ -431,6 +519,92 @@ func (q *Queries) ListPublicVariants(ctx context.Context, fileIds []uuid.UUID) (
 			&i.Format,
 			&i.Key,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listReadyFilesAfter = `-- name: ListReadyFilesAfter :many
+SELECT id, purpose, bucket, key, content_sha256, expires_at, version
+FROM platform.files
+WHERE status = 'ready' AND deleted_at IS NULL AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type ListReadyFilesAfterParams struct {
+	After uuid.UUID
+	Lim   int32
+}
+
+type ListReadyFilesAfterRow struct {
+	ID            uuid.UUID
+	Purpose       string
+	Bucket        string
+	Key           string
+	ContentSha256 []byte
+	ExpiresAt     pgtype.Timestamptz
+	Version       int64
+}
+
+// Một lô tệp ready, chưa xóa, mã lớn hơn @after, theo mã tăng dần (đối chiếu kho, Task M1-46). Tenant theo RLS.
+func (q *Queries) ListReadyFilesAfter(ctx context.Context, arg ListReadyFilesAfterParams) ([]ListReadyFilesAfterRow, error) {
+	rows, err := q.db.Query(ctx, listReadyFilesAfter, arg.After, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListReadyFilesAfterRow{}
+	for rows.Next() {
+		var i ListReadyFilesAfterRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Purpose,
+			&i.Bucket,
+			&i.Key,
+			&i.ContentSha256,
+			&i.ExpiresAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVariantKeysOf = `-- name: ListVariantKeysOf :many
+SELECT file_id, bucket, key
+FROM platform.file_variants
+WHERE file_id = ANY($1::uuid[])
+ORDER BY file_id, key
+`
+
+type ListVariantKeysOfRow struct {
+	FileID uuid.UUID
+	Bucket string
+	Key    string
+}
+
+// Chỗ trên kho của mọi biến thể (mọi bộ kích thước) của các tệp (đối chiếu kho, Task M1-46).
+func (q *Queries) ListVariantKeysOf(ctx context.Context, fileIds []uuid.UUID) ([]ListVariantKeysOfRow, error) {
+	rows, err := q.db.Query(ctx, listVariantKeysOf, fileIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVariantKeysOfRow{}
+	for rows.Next() {
+		var i ListVariantKeysOfRow
+		if err := rows.Scan(&i.FileID, &i.Bucket, &i.Key); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

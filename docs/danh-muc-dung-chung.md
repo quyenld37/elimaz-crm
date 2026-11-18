@@ -235,6 +235,7 @@ func CheckPurposes(ctx context.Context, d *db.DB) error
 func CreateUpload(ctx context.Context, tx pgx.Tx, fs FileStore, in UploadInput, actor uuid.UUID) (File, PresignedPut, error)
 func DownloadURL(ctx context.Context, tx pgx.Tx, fs FileStore, fileID uuid.UUID, ttl time.Duration, attachmentName string) (string, error)
 func EnqueueRegenerate(ctx context.Context, tx pgx.Tx, q queue.JobQueue, preset int) (int, error)
+func EnqueueVerify(ctx context.Context, tx pgx.Tx, q queue.JobQueue) (uuid.UUID, error)
 func MarkDeleted(ctx context.Context, tx pgx.Tx, fileID uuid.UUID, actor uuid.UUID) error
 func OriginalKey(sha256Hex string) string
 func PrivateVariantKey(tenantID, fileID uuid.UUID, preset, width int, format string) string
@@ -249,6 +250,7 @@ func RegisterPurpose(p Purpose)
 func ServerKey(tenantID, fileID uuid.UUID) string
 func TmpKey(tenantID, fileID uuid.UUID) string
 func VariantKey(sha256Hex string, preset, width int, format string) string
+func VerifyKind() queue.Kind
 type Bucket string
 type File struct {
 	ID           uuid.UUID
@@ -299,6 +301,16 @@ type Info struct {
 	Variants []VariantURL
 }
 func Describe(ctx context.Context, tx pgx.Tx, fileID uuid.UUID, publicBaseURL string) (Info, error)
+type LostCursor struct {
+	At time.Time
+	ID uuid.UUID
+}
+type LostFile struct {
+	ID      uuid.UUID
+	Purpose string
+	LostAt  time.Time
+}
+func ListLost(ctx context.Context, tx pgx.Tx, after *LostCursor, limit int) ([]LostFile, error)
 type MemStore struct {
 }
 func NewMemStore() *MemStore
@@ -445,6 +457,14 @@ type VariantURL struct {
 	URL    string
 }
 func SelectPreset(vs []VariantURL, want int) []VariantURL
+type Verifier struct {
+}
+func NewVerifyHandler(o ProcessorOptions) *Verifier
+func (*Verifier) AutoRetryNotSent() bool
+func (v *Verifier) Execute(ctx context.Context, j queue.Job) (commands.Outcome, error)
+func (*Verifier) Kind() queue.Kind
+func (*Verifier) Lookup(context.Context, queue.Job) (string, error)
+func (v *Verifier) OnDone(ctx context.Context, j queue.Job, result json.RawMessage, tx pgx.Tx) error
 ```
 
 ## `internal/platform/idempotency` (gói `idempotency`)

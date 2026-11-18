@@ -16,3 +16,6 @@ func SetPresetsForTest(t interface{ Cleanup(func()) }, table map[int][]VariantSp
 	old := presets.Swap(&table)
 	t.Cleanup(func() { presets.Store(old) })
 }
+
+// SetVerifyBatch đổi số tệp một lượt của lệnh file.verify (test đi qua đường nối lệnh lô sau mà không cần 500 tệp).
+func SetVerifyBatch(v *Verifier, n int) { v.batch = n }

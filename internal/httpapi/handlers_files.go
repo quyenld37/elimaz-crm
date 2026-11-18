@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
@@ -15,6 +16,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
+	"elimaz.com.vn/crm/internal/queries"
 )
 
 // errNoFileStore: Deps.Files chưa nối (lỗi dựng; cmd/crm luôn nối cho api).
@@ -198,6 +200,92 @@ func (h *handler) RegenerateImages(ctx context.Context, req *gen.RegenerateImage
 		return nil, err
 	case refused != nil:
 		return nil, refused
+	}
+	return out, nil
+}
+
+// VerifyFiles (POST /api/v1/platform/files/verify, platform.files.manage): xếp một lượt đối chiếu kho (lệnh
+// file.verify, Task M1-46, TP12) cho tenant người gọi, ghi audit, trả 202 {jobId} (mã lệnh lô đầu). Tệp ready thiếu
+// đối tượng trên kho thành lost khi lệnh chạy xong.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) VerifyFiles(ctx context.Context, _ gen.VerifyFilesParams) (gen.VerifyFilesRes, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
+	q := queue.NewQueue()
+	var out *gen.VerifyFilesAccepted
+	err := WriteTx(ctx, h.d, u.TenantID, func(tx pgx.Tx) (int, any, bool, error) {
+		out = nil // fn có thể chạy lại (ADR-46)
+		id, err := files.EnqueueVerify(ctx, tx, q)
+		if err != nil {
+			return 0, nil, false, err //nolint:wrapcheck // files đã bọc
+		}
+		if err := identity.RecordAudit(ctx, tx, identity.AuditEntry{
+			TenantID: u.TenantID, ActorType: "staff", ActorID: u.UserID.String(), Action: "platform.files.verify",
+			EntityType: "platform.job", EntityID: id.String(), RequestID: RequestID(ctx),
+		}); err != nil {
+			return 0, nil, false, fmt.Errorf("ghi audit platform.files.verify: %w", err)
+		}
+		out = &gen.VerifyFilesAccepted{JobId: id}
+		return http.StatusAccepted, out, true, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ListLostFiles (GET /api/v1/platform/files/lost, platform.files.manage): một trang tệp lost của tenant người gọi, mất
+// gần nhất trước, kèm mẫu dùng tệp làm ảnh (queries.FileProducts qua catalog.products_v). Con trỏ hỏng → 400.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ListLostFiles(ctx context.Context, params gen.ListLostFilesParams) (gen.ListLostFilesRes, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
+	var after *files.LostCursor
+	if params.Cursor.Set {
+		c, err := queries.ParseCursor(params.Cursor.Value)
+		if err != nil {
+			return nil, err //nolint:wrapcheck // queries đã bọc; errors.go đổi ErrInvalidInput
+		}
+		after = &files.LostCursor{At: c.UpdatedAt, ID: c.ID}
+	}
+	limit := int(params.Limit.Or(50))
+	var (
+		lost     []files.LostFile
+		products map[uuid.UUID]queries.FileProduct
+	)
+	err := tenancy.WithTenant(ctx, h.d.DB, u.TenantID, func(tx pgx.Tx) error {
+		var err error
+		if lost, err = files.ListLost(ctx, tx, after, limit+1); err != nil {
+			return err //nolint:wrapcheck // files đã bọc
+		}
+		ids := make([]uuid.UUID, 0, len(lost))
+		for _, f := range lost {
+			ids = append(ids, f.ID)
+		}
+		products, err = queries.FileProducts(ctx, tx, ids)
+		return err //nolint:wrapcheck // queries đã bọc
+	}, db.TxAPI)
+	if err != nil {
+		return nil, fmt.Errorf("liệt kê tệp mất: %w", err)
+	}
+	out := &gen.LostFilePage{Items: []gen.LostFile{}}
+	if len(lost) > limit {
+		last := lost[limit-1]
+		out.NextCursor = gen.NewOptString(queries.Cursor{UpdatedAt: last.LostAt, ID: last.ID}.String())
+		lost = lost[:limit]
+	}
+	for _, f := range lost {
+		item := gen.LostFile{FileId: f.ID, Purpose: f.Purpose, LostAt: f.LostAt}
+		if p, ok := products[f.ID]; ok {
+			item.ProductId, item.ProductCode = gen.NewOptUUID(p.ProductID), gen.NewOptString(p.Code)
+		}
+		out.Items = append(out.Items, item)
 	}
 	return out, nil
 }
