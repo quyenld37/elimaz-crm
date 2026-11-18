@@ -81,3 +81,15 @@ export const test = base.extend<{ apiGuard: string[]; api: FakeApi }>({
 });
 
 export { expect };
+
+export type Viewport = typeof DESKTOP | typeof PHONE;
+
+/** Chạy cùng một nhóm test ở cả hai khổ màn (DESKTOP rồi PHONE), mỗi khổ một `describe` tên "rộng × cao". */
+export function forEachViewport(body: (vp: Viewport) => void): void {
+  for (const vp of [DESKTOP, PHONE]) {
+    test.describe(`${String(vp.width)} × ${String(vp.height)}`, () => {
+      test.use({ viewport: vp });
+      body(vp);
+    });
+  }
+}

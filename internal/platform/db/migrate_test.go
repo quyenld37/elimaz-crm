@@ -77,17 +77,7 @@ func TestMigrateAppliesAllInOrderThenNothing(t *testing.T) {
 
 func TestMigrateConcurrentRunsApplyOnce(t *testing.T) {
 	_, owner, _ := testkit.CreateDatabase(t)
-	var wg sync.WaitGroup
-	results := make([][]string, 2)
-	errs := make([]error, 2)
-	for i := range 2 {
-		wg.Go(func() { results[i], errs[i] = db.Migrate(t.Context(), owner) })
-	}
-	wg.Wait()
-	if errs[0] != nil || errs[1] != nil {
-		t.Fatalf("hai lần chạy song song: %v / %v", errs[0], errs[1])
-	}
-	all := slices.Concat(results[0], results[1])
+	all := migrateTwiceConcurrently(t, func() ([]string, error) { return db.Migrate(t.Context(), owner) })
 	slices.Sort(all)
 	if want := migrationNames(t); !slices.Equal(all, want) {
 		t.Fatalf("hai lần chạy cộng lại áp dụng %v, muốn đúng một lần mỗi tệp %v", all, want)
@@ -237,17 +227,25 @@ func TestMigrateOutOfOrderFailedFileLeavesNoTable(t *testing.T) {
 func TestMigrateOutOfOrderConcurrentRunsApplyOnce(t *testing.T) {
 	owner := oooApplied(t)
 	v2 := oooWith(t, map[string]string{oooMid: "-- +goose Up\nCREATE TABLE platform.ooo_mid (id int);\n"})
+	all := migrateTwiceConcurrently(t, func() ([]string, error) { return db.MigrateFS(t.Context(), owner, v2) })
+	if !slices.Equal(all, []string{oooMid}) {
+		t.Fatalf("hai lần chạy cộng lại áp dụng %v, muốn đúng một lần [%s]", all, oooMid)
+	}
+}
+
+// migrateTwiceConcurrently chạy migrate hai lần song song, đòi cả hai không lỗi, trả các tệp hai lần áp dụng cộng lại
+// (theo thứ tự lần chạy, chưa sắp xếp).
+func migrateTwiceConcurrently(t *testing.T, migrate func() ([]string, error)) []string {
+	t.Helper()
 	var wg sync.WaitGroup
 	results := make([][]string, 2)
 	errs := make([]error, 2)
 	for i := range 2 {
-		wg.Go(func() { results[i], errs[i] = db.MigrateFS(t.Context(), owner, v2) })
+		wg.Go(func() { results[i], errs[i] = migrate() })
 	}
 	wg.Wait()
 	if errs[0] != nil || errs[1] != nil {
 		t.Fatalf("hai lần chạy song song: %v / %v", errs[0], errs[1])
 	}
-	if all := slices.Concat(results[0], results[1]); !slices.Equal(all, []string{oooMid}) {
-		t.Fatalf("hai lần chạy cộng lại áp dụng %v, muốn đúng một lần [%s]", all, oooMid)
-	}
+	return slices.Concat(results[0], results[1])
 }
