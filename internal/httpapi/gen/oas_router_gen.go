@@ -47,6 +47,9 @@ var (
 	rn50AllowedHeaders = map[string]string{
 		"DELETE": "Idempotency-Key",
 	}
+	rn88AllowedHeaders = map[string]string{
+		"PUT": "Content-Type,Idempotency-Key",
+	}
 	rn84AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
@@ -56,7 +59,7 @@ var (
 	rn47AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn95AllowedHeaders = map[string]string{
+	rn96AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type,Idempotency-Key",
 	}
 	rn48AllowedHeaders = map[string]string{
@@ -83,7 +86,7 @@ var (
 	rn73AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
-	rn91AllowedHeaders = map[string]string{
+	rn92AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
 	rn44AllowedHeaders = map[string]string{
@@ -98,7 +101,7 @@ var (
 	rn75AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn88AllowedHeaders = map[string]string{
+	rn89AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
 	rn14AllowedHeaders = map[string]string{
@@ -113,7 +116,7 @@ var (
 	rn46AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn93AllowedHeaders = map[string]string{
+	rn94AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type,Idempotency-Key",
 	}
 	rn36AllowedHeaders = map[string]string{
@@ -686,6 +689,34 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												break
 											}
 											switch elem[0] {
+											case 'c': // Prefix: "color"
+
+												if l := len("color"); len(elem) >= l && elem[0:l] == "color" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "PUT":
+														s.handleSetProductImageColorRequest([2]string{
+															args[0],
+															args[1],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, notAllowedParams{
+															allowedMethods: "PUT",
+															allowedHeaders: rn88AllowedHeaders,
+															acceptPost:     "",
+															acceptPatch:    "",
+														})
+													}
+
+													return
+												}
+
 											case 'o': // Prefix: "original"
 
 												if l := len("original"); len(elem) >= l && elem[0:l] == "original" {
@@ -866,7 +897,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "PATCH",
-									allowedHeaders: rn95AllowedHeaders,
+									allowedHeaders: rn96AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "application/json",
 								})
@@ -1275,7 +1306,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn91AllowedHeaders,
+													allowedHeaders: rn92AllowedHeaders,
 													acceptPost:     "",
 													acceptPatch:    "",
 												})
@@ -1516,7 +1547,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn88AllowedHeaders,
+											allowedHeaders: rn89AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -1722,7 +1753,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "PATCH",
-												allowedHeaders: rn93AllowedHeaders,
+												allowedHeaders: rn94AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "application/json",
 											})
@@ -2840,6 +2871,31 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												break
 											}
 											switch elem[0] {
+											case 'c': // Prefix: "color"
+
+												if l := len("color"); len(elem) >= l && elem[0:l] == "color" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "PUT":
+														r.name = SetProductImageColorOperation
+														r.summary = "Đặt màu của một ảnh đang hiện của mẫu khi version còn khớp (thiếu color → ảnh chung mọi màu)"
+														r.operationID = "setProductImageColor"
+														r.operationGroup = ""
+														r.pathPattern = "/api/v1/catalog/products/{id}/images/{imageId}/color"
+														r.args = args
+														r.count = 2
+														return r, true
+													default:
+														return
+													}
+												}
+
 											case 'o': // Prefix: "original"
 
 												if l := len("original"); len(elem) >= l && elem[0:l] == "original" {

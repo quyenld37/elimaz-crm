@@ -559,6 +559,14 @@ export type AttachProductImageRequest = {
     color?: string;
 };
 
+export type SetProductImageColorRequest = {
+    productVersion: number;
+    /**
+     * Màu của một biến thể trong mẫu; bỏ trường này để ảnh thành ảnh chung
+     */
+    color?: string;
+};
+
 export type ReorderProductImagesRequest = {
     productVersion: number;
     imageIds: Array<string>;
@@ -1921,6 +1929,40 @@ export type DeleteProductImageResponses = {
 };
 
 export type DeleteProductImageResponse = DeleteProductImageResponses[keyof DeleteProductImageResponses];
+
+export type SetProductImageColorData = {
+    body: SetProductImageColorRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+        imageId: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}/images/{imageId}/color';
+};
+
+export type SetProductImageColorErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SetProductImageColorError = SetProductImageColorErrors[keyof SetProductImageColorErrors];
+
+export type SetProductImageColorResponses = {
+    /**
+     * Mẫu sau khi đổi màu ảnh
+     */
+    200: Product;
+};
+
+export type SetProductImageColorResponse = SetProductImageColorResponses[keyof SetProductImageColorResponses];
 
 export type RestoreProductImageData = {
     body?: never;

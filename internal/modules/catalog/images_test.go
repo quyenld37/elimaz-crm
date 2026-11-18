@@ -360,13 +360,23 @@ func TestImageSoftDeleteRestore(t *testing.T) {
 	if err := e.deleteImage(p.ID, uuid.New()); !errors.Is(err, catalog.ErrNotFound) {
 		t.Errorf("xóa ảnh không có: mong ErrNotFound, có %v", err)
 	}
-	other, err := e.create(func() catalog.ProductInput { in := dam01(e.seller); in.Code = "DAM09"; prefix(&in); return in }())
-	if err != nil {
-		t.Fatal(err)
-	}
+	other := e.otherProduct()
 	if err := e.deleteImage(other.ID, i1.ID); !errors.Is(err, catalog.ErrNotFound) {
 		t.Errorf("xóa ảnh qua mẫu khác: mong ErrNotFound, có %v", err)
 	}
+}
+
+// otherProduct tạo mẫu thứ hai DAM09 (SKU khác DAM01) của cùng người bán.
+func (e *catalogEnv) otherProduct() catalog.Product {
+	e.t.Helper()
+	in := dam01(e.seller)
+	in.Code = "DAM09"
+	prefix(&in)
+	p, err := e.create(in)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return p
 }
 
 func prefix(in *catalog.ProductInput) {

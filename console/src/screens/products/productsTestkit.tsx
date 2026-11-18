@@ -24,3 +24,16 @@ export function renderAt(me: Me, path: string, ui: ReactNode) {
     </QueryClientProvider>,
   );
 }
+
+/** Kết quả thành công của một hàm client sinh (dạng {data, request, response}) cho vi.mocked(...).mockImplementation. */
+export const ok = <T,>(data: T, status = 200) =>
+  Promise.resolve({ data, request: new Request("http://x"), response: new Response(null, { status }) });
+
+/** Kết quả lỗi API (thân {"error", "request_id"}) của một hàm client sinh. */
+export const fail = (status: number, error: string) =>
+  Promise.resolve({
+    data: undefined,
+    error: { error, request_id: "r1" },
+    request: new Request("http://x"),
+    response: new Response(null, { status }),
+  });

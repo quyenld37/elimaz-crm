@@ -5,9 +5,9 @@ import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/re
 import { Route, Routes, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
-import type { Attribute, Grant, Me, Product, ProductClassification, Tag, Variant } from "../../api";
+import type { Attribute, Grant, Me, Product, ProductClassification, ProductImage, Tag, Variant } from "../../api";
 import { ProductEdit } from "./ProductEdit";
-import { CATS, NAME_80, renderAt, VAY } from "./productsTestkit";
+import { CATS, fail, NAME_80, ok, renderAt, VAY } from "./productsTestkit";
 
 vi.mock("../../api", async (orig) => ({
   ...(await orig<typeof import("../../api")>()),
@@ -22,6 +22,9 @@ vi.mock("../../api", async (orig) => ({
   listTags: vi.fn(),
   listAttributes: vi.fn(),
   getMe: vi.fn(),
+  reorderProductImages: vi.fn(),
+  deleteProductImage: vi.fn(),
+  createUpload: vi.fn(),
 }));
 
 const PID = "0195f3b2-0000-7000-8000-000000000001";
@@ -66,16 +69,6 @@ function variant(i: number, color: string, size: string, extra: Partial<Variant>
 
 let product: Product;
 let cls: ProductClassification;
-
-const ok = <T,>(data: T, status = 200) =>
-  Promise.resolve({ data, request: new Request("http://x"), response: new Response(null, { status }) });
-const fail = (status: number, error: string) =>
-  Promise.resolve({
-    data: undefined,
-    error: { error, request_id: "r1" },
-    request: new Request("http://x"),
-    response: new Response(null, { status }),
-  });
 
 function mockApi(grants: Grant[] = MANAGER): Me {
   vi.mocked(api.getProduct).mockImplementation(() => ok(product));
@@ -333,5 +326,96 @@ describe("ProductEdit — sửa mẫu", () => {
     renderEdit(me, "/san-pham/abc");
     expect(await screen.findByText(/Không có mẫu này/)).toBeTruthy();
     expect(api.getProduct).not.toHaveBeenCalled();
+  });
+});
+
+describe("ProductEdit — khối Ảnh (Task 325)", () => {
+  const IMG = (n: number): ProductImage => ({
+    id: `0195f3b2-0000-7000-8000-0000000002${String(n).padStart(2, "0")}`,
+    fileId: `0195f3b2-0000-7000-8000-0000000003${String(n).padStart(2, "0")}`,
+    position: n,
+    status: "ready",
+    variants: [{ width: 400, format: "jpeg", url: `https://anh.test/${String(n)}.jpg` }],
+  });
+  const UPLOAD_GRANTS: Grant[] = [...MANAGER, { permission: "files.upload", scope: { type: "all", id: "" } }];
+
+  it("số ảnh ở đầu trang và trên khối theo ảnh hiện tại; xóa ảnh → số giảm", async () => {
+    product = { ...product, images: [IMG(1), IMG(2)] };
+    renderEdit(mockApi(), `/san-pham/${PID}`);
+    await screen.findByRole("heading", { name: NAME_80 });
+    expect(screen.getByText("2 biến thể · 2 ảnh")).toBeTruthy();
+    expect(screen.getByText("2 ảnh")).toBeTruthy();
+    vi.mocked(api.deleteProductImage).mockImplementation(() => ok({ ...product, images: [IMG(1)], version: 6 }));
+    fireEvent.click(screen.getByRole("button", { name: "Xóa ảnh 2" }));
+    expect(await screen.findByText("2 biến thể · 1 ảnh")).toBeTruthy();
+  });
+
+  it("thao tác ảnh tăng version → lần lưu mẫu sau gửi version mới (không báo xung đột oan)", async () => {
+    product = { ...product, images: [IMG(1), IMG(2)] };
+    renderEdit(mockApi(), `/san-pham/${PID}`);
+    await screen.findByRole("heading", { name: NAME_80 });
+    vi.mocked(api.reorderProductImages).mockImplementation(() =>
+      ok({ ...product, images: [IMG(2), IMG(1)], version: 6 }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Dời ảnh 1 sang phải" }));
+    await waitFor(() => {
+      expect(api.reorderProductImages).toHaveBeenCalledTimes(1);
+    });
+    expect(vi.mocked(api.reorderProductImages).mock.calls[0]?.[0].body.productVersion).toBe(5);
+    typeIn("Tên mẫu *", "Đầm suông");
+    vi.mocked(api.updateProduct).mockImplementation(() => ok({ ...product, name: "Đầm suông", version: 7 }));
+    await waitFor(() => {
+      expect(saveButtons()[0]?.hasAttribute("disabled")).toBe(false);
+    });
+    clickSave();
+    await waitFor(() => {
+      expect(api.updateProduct).toHaveBeenCalledTimes(1);
+    });
+    expect(vi.mocked(api.updateProduct).mock.calls[0]?.[0].body).toEqual({ version: 6, name: "Đầm suông" });
+  });
+
+  it("xóa ảnh mà người khác vừa sửa mẫu (version nhảy) → hộp Mẫu đã thay đổi", async () => {
+    product = { ...product, images: [IMG(1)] };
+    renderEdit(mockApi(), `/san-pham/${PID}`);
+    await screen.findByRole("heading", { name: NAME_80 });
+    vi.mocked(api.deleteProductImage).mockImplementation(() => ok({ ...product, images: [], version: 8 }));
+    fireEvent.click(screen.getByRole("button", { name: "Xóa ảnh 1" }));
+    expect(await screen.findByText("Mẫu đã thay đổi, tải lại.")).toBeTruthy();
+  });
+
+  it("ảnh đang tải lên không mất khi lưu mẫu (biểu mẫu dựng lại sau khi lưu)", async () => {
+    renderEdit(mockApi(UPLOAD_GRANTS), `/san-pham/${PID}`);
+    await screen.findByRole("heading", { name: NAME_80 });
+    vi.mocked(api.createUpload).mockImplementation(() => new Promise<never>(() => undefined));
+    const f = new File(["x"], "IMG_2040.jpg", { type: "image/jpeg" });
+    fireEvent.change(screen.getByLabelText("Chọn ảnh từ máy"), { target: { files: [f] } });
+    expect(await screen.findByText("IMG_2040.jpg")).toBeTruthy();
+    typeIn("Tên mẫu *", "Đầm suông");
+    vi.mocked(api.updateProduct).mockImplementation(() => ok({ ...product, name: "Đầm suông", version: 6 }));
+    clickSave();
+    await waitFor(() => {
+      expect(vi.mocked(api.getProduct).mock.calls.length).toBeGreaterThan(1);
+    });
+    expect(await screen.findByText("IMG_2040.jpg")).toBeTruthy();
+  });
+
+  it("đang lưu mẫu → nút của khối Ảnh bị khóa", async () => {
+    product = { ...product, images: [IMG(1), IMG(2)] };
+    renderEdit(mockApi(), `/san-pham/${PID}`);
+    await screen.findByRole("heading", { name: NAME_80 });
+    typeIn("Tên mẫu *", "Đầm suông");
+    vi.mocked(api.updateProduct).mockImplementation(() => new Promise<never>(() => undefined));
+    clickSave();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Xóa ảnh 1" }).matches(":disabled")).toBe(true);
+    });
+    expect(screen.getByRole("button", { name: "Dời ảnh 1 sang phải" }).matches(":disabled")).toBe(true);
+    expect(screen.getByRole("combobox", { name: "Màu của ảnh 1" }).matches(":disabled")).toBe(true);
+  });
+
+  it("trang thêm mẫu chưa có khối Ảnh (chưa có mã mẫu để gắn)", async () => {
+    renderEdit(mockApi(UPLOAD_GRANTS), "/san-pham/moi");
+    await screen.findByRole("heading", { name: "Thêm mẫu" });
+    expect(screen.queryByRole("heading", { name: "Ảnh" })).toBeNull();
   });
 });

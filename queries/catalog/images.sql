@@ -71,3 +71,9 @@ FROM catalog.product_images i
 JOIN catalog.products p ON p.id = i.product_id
 WHERE i.product_id = @product_id AND i.id = @image_id AND i.deleted_at IS NULL
   AND p.seller_id = @seller_id AND p.deleted_at IS NULL;
+
+-- name: SetProductImageColor :exec
+-- Đặt màu của ảnh đang hiện (dòng mẫu và dòng ảnh đã khóa); color NULL → ảnh chung (Task 325).
+UPDATE catalog.product_images
+SET color = sqlc.narg(color)
+WHERE id = @id AND deleted_at IS NULL;

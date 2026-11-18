@@ -40,6 +40,19 @@ func (h *handler) ReorderProductImages(ctx context.Context, req *gen.ReorderProd
 	})
 }
 
+// SetProductImageColor (PUT /api/v1/catalog/products/{id}/images/{imageId}/color, catalog.manage) đặt màu của một ảnh
+// đang hiện khi version còn khớp (thiếu color → ảnh chung).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) SetProductImageColor(ctx context.Context, req *gen.SetProductImageColorRequest,
+	params gen.SetProductImageColorParams,
+) (gen.SetProductImageColorRes, error) {
+	color := optString(req.Color.Set, req.Color.Value)
+	return h.imageWrite(ctx, http.StatusOK, params.ID, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) error {
+		return w.SetImageColor(ctx, tx, seller, params.ID, req.ProductVersion, params.ImageId, color, u)
+	})
+}
+
 // DeleteProductImage (DELETE /api/v1/catalog/products/{id}/images/{imageId}, catalog.manage) xóa mềm một ảnh.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
