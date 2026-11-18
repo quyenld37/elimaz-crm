@@ -57,6 +57,27 @@ func AttachShipment(ctx context.Context, tx pgx.Tx, sellerID, orderID, shipmentI
 	return nil
 }
 
+// DetachShipment gỡ vận đơn shipmentID khỏi vai vận đơn hiện hành của đơn orderID của người bán sellerID, trong tx của
+// bên gọi (fulfillment: lệnh tạo vận đơn kết thúc mà hãng chắc chắn chưa tạo, vận đơn sang cancelled — D-03). Khóa đơn
+// trước (ADR-46 nhóm 7). Không xét trạng thái đơn: vận đơn chưa từng tồn tại ở hãng thì đơn không còn vận đơn nào; giữ
+// hàng không đổi (đơn vẫn chờ giao). Đơn đang gắn vận đơn khác (hay không gắn) → không đổi, nil (gọi lại an toàn);
+// không có đơn → ErrNotFound. Gỡ tăng version của đơn.
+func DetachShipment(ctx context.Context, tx pgx.Tx, sellerID, orderID, shipmentID uuid.UUID) error {
+	q := store.New(tx)
+	switch o, err := lockOrder(ctx, q, sellerID, orderID); {
+	case err != nil:
+		return err
+	case !o.CurrentShipmentID.Valid || uuid.UUID(o.CurrentShipmentID.Bytes) != shipmentID:
+		return nil
+	}
+	if _, err := q.ClearCurrentShipment(ctx, store.ClearCurrentShipmentParams{
+		SellerID: sellerID, ID: orderID, ShipmentID: pgtype.UUID{Bytes: shipmentID, Valid: true},
+	}); err != nil {
+		return fmt.Errorf("gỡ vận đơn hiện hành: %w", err)
+	}
+	return nil
+}
+
 // ApplyShipmentProgress áp bước step của vận đơn shipmentID lên đơn orderID của người bán sellerID và tồn, trong tx của bên gọi
 // (fulfillment). Khóa đơn trước (ADR-46: ord.orders rồi số dư, giữ hàng). Chỉ vận đơn hiện hành được đổi đơn và tồn
 // (05 mục 2, B1): vận đơn khác (hay đơn chưa gắn vận đơn) → applied=false, không đổi gì. Gọi lại cùng bước (hay bước

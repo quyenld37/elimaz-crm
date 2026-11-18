@@ -79,10 +79,7 @@ func testShipmentHappyPath(t *testing.T, e *shipEnv) {
 // mã → done; hãng vẫn 1 kiện; vận đơn được điền mã hãng qua lần tra trạng thái sau đó.
 func TestShipment_TimeoutAfterCreate(t *testing.T) {
 	e := newShipEnv(t)
-	o, _ := e.order(1)
-	s := e.mustCreateShipment(o.ID)
-	e.carrier.SetMode(fake.ModeTimeoutAfterCreate)
-	e.drain()
+	_, s := e.createTimedOut()
 	if n := e.count("SELECT count(*) FROM platform.jobs WHERE kind = 'fulfillment.create_shipment' AND status = 'in_doubt'"); n != 1 {
 		t.Fatalf("lệnh in_doubt = %d, muốn 1", n)
 	}
