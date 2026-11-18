@@ -120,41 +120,72 @@ func (h *handler) setLocked(ctx context.Context, id uuid.UUID, locked bool) (*ge
 }
 
 // staffWrite chạy change trong WriteTx kèm một dòng audit (không có email: chỉ trạng thái, version, vai trò theo phạm
-// vi). Lỗi nghiệp vụ của identity là câu trả lời không đổi gì: tx lùi, không lưu vào khóa chống trùng (final =
-// false), gửi lại cùng khóa thì xét lại; lỗi đổi sang HTTP ở errors.go.
+// vi), qua identityWrite.
 func (h *handler) staffWrite(ctx context.Context, status int, action string,
 	change func(tx pgx.Tx, u identity.AuthUser) (identity.Change, error),
 ) (*gen.StaffMember, error) {
+	return identityWrite(ctx, h, status, action, "identity.user", func(tx pgx.Tx, u identity.AuthUser) (written[gen.StaffMember], error) {
+		c, err := change(tx, u)
+		return snapshot(c.Before.ID, c.Before, c.After.ID, c.After, staffAudit, staffOut), err
+	})
+}
+
+// written là kết quả của một lần ghi identity: thực thể, trạng thái trước (nil khi tạo) và sau cho audit, thân trả về.
+type written[O any] struct {
+	entityID      uuid.UUID
+	before, after map[string]any
+	out           *O
+}
+
+// record ghi dòng audit của lần ghi w (người thao tác u) trong tx.
+func (w written[O]) record(ctx context.Context, tx pgx.Tx, u identity.AuthUser, action, entityType string) error {
+	err := identity.RecordAudit(ctx, tx, identity.AuditEntry{
+		TenantID: u.TenantID, ActorType: "staff", ActorID: u.UserID.String(), Action: action, EntityType: entityType,
+		EntityID: w.entityID.String(), Before: w.before, After: w.after, RequestID: RequestID(ctx),
+	})
+	if err != nil {
+		return fmt.Errorf("ghi audit %s: %w", action, err)
+	}
+	return nil
+}
+
+// snapshot dựng kết quả ghi từ trạng thái trước (bỏ qua khi beforeID rỗng: vừa tạo) và sau.
+func snapshot[T, O any](beforeID uuid.UUID, before T, afterID uuid.UUID, after T, audit func(T) map[string]any, out func(T) *O) written[O] {
+	w := written[O]{entityID: afterID, after: audit(after), out: out(after)}
+	if beforeID != uuid.Nil {
+		w.before = audit(before)
+	}
+	return w
+}
+
+// identityWrite chạy change trong WriteTx kèm một dòng audit (action, entityType). Lỗi nghiệp vụ của identity là câu
+// trả lời không đổi gì: tx lùi, không lưu vào khóa chống trùng (final = false), gửi lại cùng khóa thì xét lại; lỗi đổi
+// sang HTTP ở errors.go.
+func identityWrite[O any](ctx context.Context, h *handler, status int, action, entityType string,
+	change func(tx pgx.Tx, u identity.AuthUser) (written[O], error),
+) (*O, error) {
 	u, ok := authUser(ctx)
 	if !ok {
 		return nil, errNoAuthUser
 	}
 	var (
-		out     *gen.StaffMember
+		out     *O
 		refused error
 	)
 	err := WriteTx(ctx, h.d, u.TenantID, func(tx pgx.Tx) (int, any, bool, error) {
 		out, refused = nil, nil // fn có thể chạy lại (ADR-46): gán lại mỗi lần
-		c, err := change(tx, u)
-		switch {
-		case isStaffRefusal(err):
+		w, err := change(tx, u)
+		if isStaffRefusal(err) {
 			refused = err
 			return 0, nil, false, nil
-		case err != nil:
+		}
+		if err == nil {
+			err = w.record(ctx, tx, u, action, entityType)
+		}
+		if err != nil {
 			return 0, nil, false, err
 		}
-		var before map[string]any
-		if c.Before.ID != uuid.Nil {
-			before = staffAudit(c.Before)
-		}
-		if err := identity.RecordAudit(ctx, tx, identity.AuditEntry{
-			TenantID: u.TenantID, ActorType: "staff", ActorID: u.UserID.String(), Action: action,
-			EntityType: "identity.user", EntityID: c.After.ID.String(),
-			Before: before, After: staffAudit(c.After), RequestID: RequestID(ctx),
-		}); err != nil {
-			return 0, nil, false, fmt.Errorf("ghi audit %s: %w", action, err)
-		}
-		out = staffOut(c.After)
+		out = w.out
 		return status, out, true, nil
 	})
 	switch {

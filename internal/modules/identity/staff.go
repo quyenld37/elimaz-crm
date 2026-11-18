@@ -341,18 +341,27 @@ func afterChecks(ctx context.Context, q *store.Queries, actor AuthUser, locked m
 	if row, ok := locked[actor.UserID]; !ok || row.Status != statusActive {
 		return ErrLocked
 	}
-	rows, err := q.ListUserGrants(ctx, actor.UserID)
+	fresh, err := freshGrants(ctx, q, actor)
 	if err != nil {
-		return fmt.Errorf("đọc lại quyền của người thao tác: %w", err)
-	}
-	fresh := AuthUser{UserID: actor.UserID, TenantID: actor.TenantID, Grants: make([]Grant, 0, len(rows))}
-	for _, r := range rows {
-		fresh.Grants = append(fresh.Grants, Grant{Permission: Permission(r.Permission), Scope: Scope{Type: r.ScopeType, ID: r.ScopeID}})
+		return err
 	}
 	if !Can(fresh, permUsersManage, nil) || !canTouch(fresh, index, touched) {
 		return ErrGrantExceedsActor
 	}
 	return nil
+}
+
+// freshGrants đọc lại grant của actor trong transaction (cùng câu ListUserGrants với LoadUser).
+func freshGrants(ctx context.Context, q *store.Queries, actor AuthUser) (AuthUser, error) {
+	rows, err := q.ListUserGrants(ctx, actor.UserID)
+	if err != nil {
+		return AuthUser{}, fmt.Errorf("đọc lại quyền của người thao tác: %w", err)
+	}
+	fresh := AuthUser{UserID: actor.UserID, TenantID: actor.TenantID, Email: actor.Email, Grants: make([]Grant, 0, len(rows))}
+	for _, r := range rows {
+		fresh.Grants = append(fresh.Grants, Grant{Permission: Permission(r.Permission), Scope: Scope{Type: r.ScopeType, ID: r.ScopeID}})
+	}
+	return fresh, nil
 }
 
 // canTouch: actor có mọi quyền của vai trò của từng grant trên đúng phạm vi của grant đó. Vai trò không còn trong
@@ -415,9 +424,10 @@ func isUniqueViolation(err error) bool {
 	return ok && pgErr.Code == codeUniqueViolation
 }
 
-func nonNil(g []GrantInput) []GrantInput {
+// nonNil: lát rỗng khác nil (để JSON và so sánh không phân biệt nil với rỗng).
+func nonNil[T any](g []T) []T {
 	if g == nil {
-		return []GrantInput{}
+		return []T{}
 	}
 	return g
 }
