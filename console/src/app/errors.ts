@@ -31,9 +31,9 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   unsupported_media_type: "Dạng dữ liệu gửi lên không được nhận",
   version_conflict: "Người khác vừa sửa mục này. Tải lại để xem bản mới rồi sửa lại",
   // Nhân viên và vai trò
-  cannot_modify_self: "Bạn không thể tự sửa quyền hay khóa chính mình",
-  email_taken: "Email này đã có tài khoản nhân viên",
-  grant_exceeds_actor: "Bạn chỉ gán được quyền mà chính bạn đang có trên phạm vi đó",
+  cannot_modify_self: "Bạn không thể sửa quyền hay khóa chính mình",
+  email_taken: "Email này đã có trong hệ thống",
+  grant_exceeds_actor: "Bạn không thể cấp quyền mà chính bạn không có",
   last_owner: "Phải còn ít nhất một Chủ đang hoạt động",
   owner_role_locked: "Vai trò Chủ luôn có đủ mọi quyền, không sửa được",
   role_archived: "Vai trò đã lưu trữ, không gán được",
