@@ -38,6 +38,7 @@ Dấu hiệu đang chệch hướng, gặp là dừng và báo: chạy vòng l�
 
 Có dần theo kế hoạch; lệnh nào chưa có thì task tương ứng sẽ tạo.
 
+- `scripts/agent/ci-task.sh` — cổng kiểm của một task, chạy trước khi review (thay `make ci` trong phiên làm task, từ 18/11): đủ mọi cổng tĩnh như `make ci`, test chỉ gói đổi + gói phụ thuộc + cả bộ vùng rủi ro cao nếu chạm (đổi migration, go.mod, testkit thì toàn bộ); so hợp đồng và test-guard với điểm tách nhánh. Toàn bộ test chạy trên `main` do điều phối viên sau mỗi đợt gộp.
 - `make ci` — toàn bộ cổng kiểm (từ Task 3): build, vet, golangci-lint, sinh lại mã và đòi không chênh, `sqlc vet`, `go test -race ./...`, govulncheck, test kiến trúc, oasdiff, jscpd, `test-guard.sh`, danh mục dùng chung, gitleaks.
 - Test một gói: `go test -race ./internal/platform/queue/...`
 - Chọn test: chỉ gói vừa đổi và gói nhập chúng. Ngoại lệ: chạm vào vùng rủi ro cao thì chạy cả bộ của vùng đó. Vùng rủi ro cao: `internal/platform/{tenancy,queue,commands,idempotency,db,webhooks}`, `internal/modules/{identity,inventory}`, `internal/httpapi/guard.go` (mở rộng 18/11 sau Task 23).
