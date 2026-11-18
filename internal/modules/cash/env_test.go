@@ -12,15 +12,12 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"elimaz.com.vn/crm/internal/modules/cash"
-	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
-	"elimaz.com.vn/crm/internal/modules/inventory/invtest"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/events"
-	"elimaz.com.vn/crm/internal/platform/logging"
-	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/testkit/shiptest"
 )
 
 // TestMain đặt số lượt rapid 300 (kế hoạch: quy luật sổ COD 300 lượt), trừ khi người chạy đã đặt.
@@ -30,17 +27,15 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// codEnv: database thử, tenant A (invtest.Shop), tài khoản hãng ở kho MAIN, một khách và một biến thể tồn nhiều để tạo
-// đơn, vận đơn thật (khóa ngoại của sổ COD tới fulfillment.shipments).
+// codEnv: database thử, tenant A (shiptest.Shop: tài khoản hãng ở kho MAIN) và một biến thể tồn nhiều để tạo đơn, vận
+// đơn thật (khóa ngoại của sổ COD tới fulfillment.shipments).
 type codEnv struct {
-	t        testing.TB
-	staff    *testkit.Staff
-	tenant   uuid.UUID
-	seller   uuid.UUID
-	account  uuid.UUID
-	variant  uuid.UUID
-	customer uuid.UUID
-	user     uuid.UUID
+	t       testing.TB
+	staff   *testkit.Staff
+	tenant  uuid.UUID
+	shop    *shiptest.Shop
+	variant uuid.UUID
+	user    uuid.UUID
 }
 
 func newCODEnv(t testing.TB) *codEnv {
@@ -49,17 +44,9 @@ func newCODEnv(t testing.TB) *codEnv {
 	e.tenant = e.staff.Tenant(t, "A")
 	e.user = e.staff.User(t, e.tenant, "kho@elimaz.test", "active")
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
-		shop := invtest.NewShop(t, tx, e.tenant)
-		e.seller = shop.Seller
-		e.variant = shop.Variant(t, tx, shop.Seller, 250000, 30000)
-		in := fulfillment.AccountInput{CarrierKey: "fake", ExternalAccountRef: "fake-1", Name: "Hãng giả"}
-		in.SellerID, in.WarehouseID = shop.Seller, shop.Warehouse
-		var err error
-		if e.account, err = fulfillment.EnsureCarrierAccount(t.Context(), tx, in); err != nil {
-			return err //nolint:wrapcheck // test
-		}
-		e.customer, err = customer.Create(t.Context(), tx, "Chị Lan")
-		return err //nolint:wrapcheck // test
+		e.shop = shiptest.NewShop(t, tx, e.tenant)
+		e.variant = e.shop.Variant(t, tx, e.shop.Seller, 250000, 30000)
+		return nil
 	})
 	return e
 }
@@ -89,12 +76,11 @@ func (e *codEnv) shipment(cod int64) uuid.UUID {
 	e.t.Helper()
 	var id uuid.UUID
 	if err := e.app(func(tx pgx.Tx) error {
-		orderID, err := e.order(tx)
+		o, err := e.shop.Order(e.t.Context(), tx, e.user, 0, order.ItemInput{VariantID: e.variant, Qty: 1})
 		if err != nil {
-			return err
+			return err //nolint:wrapcheck // test
 		}
-		s, err := fulfillment.CreateForOrder(e.t.Context(), tx, orderID, e.account,
-			fulfillment.Actor{TenantID: e.tenant, UserID: e.user})
+		s, err := e.shop.Shipment(e.t.Context(), tx, o.ID, e.user)
 		id = s.ID
 		return err //nolint:wrapcheck // test
 	}); err != nil {
@@ -105,16 +91,6 @@ func (e *codEnv) shipment(cod int64) uuid.UUID {
 		return err //nolint:wrapcheck // test
 	})
 	return id
-}
-
-// order tạo đơn tay 1 cái của khách e.customer trong tx; trả mã đơn.
-func (e *codEnv) order(tx pgx.Tx) (uuid.UUID, error) {
-	in := order.CreateManualInput{IdempotencyKey: uuid.New(), SellerID: e.seller, CustomerID: e.customer}
-	in.Items = []order.ItemInput{{VariantID: e.variant, Qty: 1}}
-	in.ShipAddress = order.ShipAddress{Name: "Chị Lan", Phone: logging.Phone("0901234567"), Line: "12 Lê Lợi"}
-	w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}}
-	o, err := w.CreateManual(e.t.Context(), tx, in, order.Actor{TenantID: e.tenant, UserID: e.user})
-	return o.ID, err //nolint:wrapcheck // test
 }
 
 // event dựng sự kiện shipment.status_changed của vận đơn id với trạng thái st.
@@ -145,22 +121,10 @@ func (e *codEnv) mustHandle(ev events.StoredEvent) {
 // balances đọc số dư từng ngăn của vận đơn id qua cash.cod_balances_v (crm_app); ngăn số dư 0 vẫn có mặt.
 func (e *codEnv) balances(id uuid.UUID) map[string]int64 {
 	e.t.Helper()
-	out := map[string]int64{}
-	if err := e.app(func(tx pgx.Tx) error {
-		rows, err := tx.Query(e.t.Context(), "SELECT account, balance FROM cash.cod_balances_v WHERE shipment_id = $1", id)
-		if err != nil {
-			return err //nolint:wrapcheck // test
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var a string
-			var b int64
-			if err := rows.Scan(&a, &b); err != nil {
-				return err //nolint:wrapcheck // test
-			}
-			out[a] = b
-		}
-		return rows.Err()
+	var out map[string]int64
+	if err := e.app(func(tx pgx.Tx) (err error) {
+		out, err = shiptest.CODBalances(e.t.Context(), tx, id)
+		return err //nolint:wrapcheck // test
 	}); err != nil {
 		e.t.Fatalf("đọc số dư: %v", err)
 	}
