@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M2 — Đơn trùng</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="m2.css">
+<style>
+.pair-c { border: 1px solid var(--rule); border-radius: var(--r-box); padding: var(--space-md); display: grid; gap: var(--space-md); }
+.pair-c + .pair-c { margin-top: var(--space-md); }
+.mini { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.mini li { display: flex; justify-content: space-between; gap: 8px; }
+</style>
+</head>
+<body data-page="don-trung" data-title="Đơn trùng">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><p class="crumb"><a href="don-danh-sach.html">Đơn hàng</a> / Đơn trùng</p><h1>Đơn trùng</h1><p class="sub">Cặp đơn cùng khách hoặc cùng SĐT người nhận, có ít nhất một sản phẩm chung, tạo cách nhau dưới 24 giờ. Hệ thống không tự hủy.</p></div>
+</div>
+
+<section class="st" data-ca="cap khong-trung huy-don"><p class="xs">TRẠNG THÁI A</p><h2>2 cặp chưa xử lý, mới nhất trước</h2></section>
+
+<div class="pair-c">
+	<div class="row-between"><div class="row"><b>Cùng khách</b><span class="chip">Chung 1 sản phẩm</span></div><span class="small muted">Cách nhau 5 giờ 19 phút</span></div>
+	<div class="split">
+		<div class="side-c">
+			<div class="row-between"><a class="cell-a bold num" href="don-chi-tiet.html">DH0001198</a><span class="chip">Mới</span></div>
+			<dl class="kv"><dt>Tạo lúc</dt><dd class="num">09:12 · 18/11 · Live tối</dd><dt>Khách</dt><dd>Trần Thị Thu Hà · KH000231</dd><dt>Người nhận</dt><dd>Trần Thị Thu Hà · <span class="num">0912 345 678</span></dd><dt>Giao tới</dt><dd>Số 12 ngõ 68 Trần Thái Tông, Cầu Giấy, Hà Nội</dd></dl>
+			<ul class="mini"><li><span class="same">DAM0123-BE-M × 1</span><span class="money">690.000 ₫</span></li><li><span>AO0789-DEN-M × 1</span><span class="money">640.000 ₫</span></li></ul>
+			<div class="row-between"><b>Tổng</b><span class="money">1.330.000 ₫</span></div>
+			<button class="btn btn-danger">Hủy đơn này</button>
+		</div>
+		<div class="side-c">
+			<div class="row-between"><a class="cell-a bold num" href="don-chi-tiet.html">DH0001236</a><span class="chip">Mới</span></div>
+			<dl class="kv"><dt>Tạo lúc</dt><dd class="num">14:31 · 18/11 · Điện thoại</dd><dt>Khách</dt><dd>Trần Thị Thu Hà · KH000231</dd><dt>Người nhận</dt><dd>Nguyễn Văn Tùng · <span class="num">0987 654 321</span></dd><dt>Giao tới</dt><dd>Số 12 ngõ 68 Trần Thái Tông, Cầu Giấy, Hà Nội</dd></dl>
+			<ul class="mini"><li><span class="same">DAM0123-BE-M × 2</span><span class="money">1.280.000 ₫</span></li><li><span>AO0456-TRANG-S × 1</span><span class="money">350.000 ₫</span></li><li><span>TUI0090-NAU × 1</span><span class="money">290.000 ₫</span></li></ul>
+			<div class="row-between"><b>Tổng</b><span class="money">1.800.000 ₫</span></div>
+			<button class="btn btn-danger">Hủy đơn này</button>
+		</div>
+	</div>
+	<div class="row-between"><span class="small muted">Sản phẩm chung tô nền hồng. Hủy một đơn: lý do "Đơn trùng", nhả hàng và trả lượt mã của đơn đó.</span><button class="btn btn-line">Không trùng</button></div>
+</div>
+
+<div class="pair-c">
+	<div class="row-between"><div class="row"><b>Cùng SĐT người nhận</b><span class="chip">Chung 2 sản phẩm</span></div><span class="small muted">Cách nhau 12 phút</span></div>
+	<div class="split">
+		<div class="side-c">
+			<div class="row-between"><a class="cell-a bold num" href="don-chi-tiet.html">DH0001150</a><span class="chip">Đã xác nhận</span></div>
+			<dl class="kv"><dt>Tạo lúc</dt><dd class="num">21:02 · 17/11 · Live tối</dd><dt>Khách</dt><dd class="wrap-any">Nguyễn Hoàng Phương Thảo Nguyên · KH002001</dd><dt>Người nhận</dt><dd><span class="num">0901 222 333</span></dd></dl>
+			<ul class="mini"><li><span class="same">VAY0330-DEN-S × 1</span><span class="money">280.000 ₫</span></li><li><span class="same">KHAN0012-HOA × 1</span><span class="money">120.000 ₫</span></li></ul>
+			<div class="row-between"><b>Tổng</b><span class="money">430.000 ₫</span></div>
+			<button class="btn btn-danger">Hủy đơn này</button>
+		</div>
+		<div class="side-c">
+			<div class="row-between"><a class="cell-a bold num" href="don-chi-tiet.html">DH0001151</a><span class="chip">Mới</span></div>
+			<dl class="kv"><dt>Tạo lúc</dt><dd class="num">21:14 · 17/11 · Live tối</dd><dt>Khách</dt><dd>Thảo Nguyên (khách mới) · KH004502</dd><dt>Người nhận</dt><dd><span class="num">0901 222 333</span></dd></dl>
+			<ul class="mini"><li><span class="same">VAY0330-DEN-S × 1</span><span class="money">280.000 ₫</span></li><li><span class="same">KHAN0012-HOA × 1</span><span class="money">120.000 ₫</span></li></ul>
+			<div class="row-between"><b>Tổng</b><span class="money">430.000 ₫</span></div>
+			<button class="btn btn-danger">Hủy đơn này</button>
+		</div>
+	</div>
+	<div class="row-between"><span class="small muted">Hai hồ sơ khách khác nhau dùng cùng một số: xem gợi ý gộp ở hồ sơ khách.</span><button class="btn btn-line">Không trùng</button></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Bấm "Hủy đơn này": xác nhận; bấm "Không trùng": cặp biến mất, có thông báo</h2></section>
+<div class="dlgs">
+<div class="backdrop">
+	<div class="dlg" role="dialog" aria-label="Hủy đơn trùng">
+		<div class="dlg-h"><h2>Hủy đơn DH0001198?</h2></div>
+		<div class="dlg-b"><p>Đơn bị hủy với lý do "Đơn trùng". Hàng của đơn trả về có thể bán ngay; mã giảm giá (nếu có) được trả lượt. Đơn DH0001236 giữ nguyên.</p></div>
+		<div class="dlg-f"><button class="btn btn-line">Quay lại</button><button class="btn btn-danger">Hủy DH0001198</button></div>
+	</div>
+</div>
+<div class="toast"><span class="grow">Đã ghi DH0001150 và DH0001151 là không trùng.</span></div>
+</div>
+
+<section class="st" data-ca="trong"><p class="xs">TRẠNG THÁI C</p><h2>Không còn cặp nào</h2></section>
+<div class="empty"><h2>Không có đơn trùng cần xem</h2><p class="muted">Cặp đã xử lý không hiện lại. Đổi khoảng thời gian ở Cài đặt đơn.</p></div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup các màn M2 — CRM ELIMAZ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="m2.css">
+<style>
+.doc { max-width: 1320px; margin: 0 auto; padding: 24px 40px 64px; display: grid; gap: 24px; }
+@media (max-width: 999px) { .doc { padding: 16px 16px 48px; } }
+.pair { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; align-items: start; }
+.pair figure { margin: 0; display: grid; gap: 4px; }
+.pair img { width: 100%; height: 520px; object-fit: cover; object-position: top; border: 1px solid var(--rule); border-radius: var(--r-box); display: block; }
+.pair a { display: block; }
+.pair figcaption a { display: inline-flex; min-height: var(--tap); align-items: center; }
+@media (max-width: 759px) { .pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .pair img { height: 280px; } }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+.btbl td:first-child { width: 64px; } .btbl td:nth-child(2) { width: 140px; } .btbl td:last-child { width: 120px; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="stack-sm">
+	<p class="xs label">CRM ELIMAZ · M2 · TASK M2-26 (83) · 18/11/2026</p>
+	<h1>Mockup các màn M2: Đơn hàng, Khách hàng, Mã giảm giá, Cài đặt đơn</h1>
+	<p class="muted">Đề xuất cho 9 màn nội bộ của CRM, vẽ bằng đúng hệ thiết kế đã duyệt ở M1 (<code>docs/mockups/m1/m1.css</code>, gốc <code>apps/storefront-giftstatus/DESIGN.md</code>): chỉ màu, cỡ chữ, bo góc có sẵn; không có gì chỉ hiện khi rê chuột; nút trên điện thoại cao ít nhất 44 px; tiền dạng 690.000 ₫. Mỗi màn có nhiều <b>trạng thái</b> xếp dọc (khung viền đứt là ghi chú của mockup).</p>
+	<div class="box box-soft"><b>Trạng thái duyệt: xem mục "Kết luận duyệt" cuối trang và README.md (Điểm dừng B, Q-X8).</b> Mỗi dòng ở bảng "Thay đổi hành vi" cần chủ shop OK riêng nhưng không chặn việc làm màn.</div>
+</header>
+
+<section class="card">
+	<h2>Đọc trang này thế nào</h2>
+	<ul class="small" style="margin:8px 0 0;padding-left:20px">
+		<li><b>Hiện tại</b>: shop đang lên đơn, quản khách, mã giảm giá trên Nhanh. CRM không đọc Nhanh nên không có ảnh chụp Nhanh; cột "Hiện tại" ghi theo spec 01 và khảo sát, "chưa khảo sát" khi chưa biết.</li>
+		<li><b>Đề xuất</b>: ảnh 1512 × 767 (laptop của chủ shop) và 390 × 844 (điện thoại); thêm 360 cho màn dễ tràn chữ. Bấm ảnh để xem cả trang.</li>
+		<li>Ảnh và tự soát sinh lại bằng <code>docs/mockups/m2/soat.mjs</code> (tràn chữ, mục chạm, token, dạng tiền, đủ trạng thái).</li>
+	</ul>
+	<div class="toc" style="margin-top:16px"><a class="btn btn-quiet" href="#len-don">(1) Lên đơn nhanh</a><a class="btn btn-quiet" href="#don-danh-sach">(2) Danh sách đơn</a><a class="btn btn-quiet" href="#don-chi-tiet">(3) Chi tiết đơn</a><a class="btn btn-quiet" href="#don-trung">(4) Đơn trùng</a><a class="btn btn-quiet" href="#khach-danh-sach">(5) Khách hàng</a><a class="btn btn-quiet" href="#khach-ho-so">(6) Hồ sơ khách</a><a class="btn btn-quiet" href="#khach-gop">(7) Gộp khách</a><a class="btn btn-quiet" href="#ma-giam-gia">(8) Mã giảm giá</a><a class="btn btn-quiet" href="#cai-dat-don">(9) Cài đặt đơn</a><a class="btn btn-quiet" href="#ca-kiem">Ca kiểm</a><a class="btn btn-quiet" href="#hanh-vi">Thay đổi hành vi</a></div>
+</section>
+
+<section class="card scr" id="len-don">
+	<div class="row-between"><h2>(1) Lên đơn nhanh <span class="small muted">/don/moi</span></h2><a class="btn btn-quiet" href="len-don.html">Mở mockup</a></div>
+	<p class="small muted">Tìm khách theo đuôi SĐT, tên, mã; khách mới; &quot;Có thể là cùng một khách&quot;; ô &quot;Số này là của khách&quot;; địa chỉ hai cấp lọc xã/phường; bảng dòng có &quot;có thể bán&quot;; giảm dòng, giảm cấp đơn; mã giảm giá kiểm ngay; phí ship, tổng, COD; nguồn; ghi chú cho hãng; ba nút lưu; phím tắt.</p><p class="small"><b>Trạng thái:</b> A soạn đủ (tên 120 ký tự) · B 0 dòng · C 20 dòng · D hết hàng 409 · E chờ duyệt giảm giá · F mã hết lượt + bảng 10 lý do · G mất mạng, gửi lại cùng khóa · H cảnh báo đơn trùng. <b>Ca kiểm:</b> DH01, DH02, DH04, DH09, DH12, DH13, DH16, KM01.</p>
+	<div class="pair">
+		<figure><a href="png/len-don-1512.png"><img src="png/len-don-1512.png" alt="(1) Lên đơn nhanh ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="png/len-don-390.png"><img src="png/len-don-390.png" alt="(1) Lên đơn nhanh ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="png/len-don-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="don-danh-sach">
+	<div class="row-between"><h2>(2) Danh sách đơn <span class="small muted">/don</span></h2><a class="btn btn-quiet" href="don-danh-sach.html">Mở mockup</a></div>
+	<p class="small muted">Thanh 10 nhãn (+ Tất cả) có số đếm; lọc nguồn, kênh, người phụ trách, ngày, nghi trùng; tìm mã, SĐT, tên; dấu &quot;Nghi trùng&quot;; tải thêm theo con trỏ; tự cập nhật.</p><p class="small"><b>Trạng thái:</b> A nhãn Mới, đơn vừa đổi, tên công ty dài · B trống, tìm không ra · C nhãn vận chuyển trước M3, mất kết nối báo hiệu. <b>Ca kiểm:</b> DH09.</p>
+	<div class="pair">
+		<figure><a href="png/don-danh-sach-1512.png"><img src="png/don-danh-sach-1512.png" alt="(2) Danh sách đơn ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="png/don-danh-sach-390.png"><img src="png/don-danh-sach-390.png" alt="(2) Danh sách đơn ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="png/don-danh-sach-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="don-chi-tiet">
+	<div class="row-between"><h2>(3) Chi tiết đơn <span class="small muted">/don/:id</span></h2><a class="btn btn-quiet" href="don-chi-tiet.html">Mở mockup</a></div>
+	<p class="small muted">Dòng, tổng, khách (chỉ số, tỷ lệ hoàn), nhãn, nút theo EditScope kèm lý do, lịch sử thao tác, ghi chú nội bộ, phiếu trả; hộp thoại hủy, trả/đổi, nhận hàng trả; báo đơn đã thay đổi.</p><p class="small"><b>Trạng thái:</b> A chờ duyệt giảm giá (người xem có quyền duyệt) · B thành công có phiếu trả + ma trận nút theo nhãn · C hủy (chưa/đã gửi hãng) · D trả/đổi (quá 7 ngày) · E nhận hàng trả · F version_conflict. <b>Ca kiểm:</b> DH06, DH16, TD01.</p>
+	<div class="pair">
+		<figure><a href="png/don-chi-tiet-1512.png"><img src="png/don-chi-tiet-1512.png" alt="(3) Chi tiết đơn ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="png/don-chi-tiet-390.png"><img src="png/don-chi-tiet-390.png" alt="(3) Chi tiết đơn ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="png/don-chi-tiet-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="don-trung">
+	<div class="row-between"><h2>(4) Đơn trùng <span class="small muted">/don/trung</span></h2><a class="btn btn-quiet" href="don-trung.html">Mở mockup</a></div>
+	<p class="small muted">Từng cặp cạnh nhau, sản phẩm chung tô nền, &quot;Không trùng&quot;, &quot;Hủy đơn này&quot;.</p><p class="small"><b>Trạng thái:</b> A 2 cặp (cùng khách; chỉ cùng SĐT người nhận) · B xác nhận hủy, thông báo không trùng · C trống. <b>Ca kiểm:</b> DH09.</p>
+	<div class="pair">
+		<figure><a href="png/don-trung-1512.png"><img src="png/don-trung-1512.png" alt="(4) Đơn trùng ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="png/don-trung-390.png"><img src="png/don-trung-390.png" alt="(4) Đơn trùng ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="png/don-trung-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="khach-danh-sach">
+	<div class="row-between"><h2>(5) Khách hàng <span class="small muted">/khach</span></h2><a class="btn btn-quiet" href="khach-danh-sach.html">Mở mockup</a></div>
+	<p class="small muted">Danh sách, tìm theo đuôi SĐT/tên không dấu/mã, lọc nhãn, nhập Excel (tải mẫu, tải tệp, kết quả theo dòng), quản lý nhãn và quy tắc nhãn.</p><p class="small"><b>Trạng thái:</b> A danh sách (tên dài, chưa có SĐT, đã gộp) · B tìm &quot;5678&quot;, gõ 3 số · C trống · D nhập Excel · E nhãn và quy tắc nhãn. <b>Ca kiểm:</b> DH02.</p>
+	<div class="pair">
+		<figure><a href="png/khach-danh-sach-1512.png"><img src="png/khach-danh-sach-1512.png" alt="(5) Khách hàng ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="png/khach-danh-sach-390.png"><img src="png/khach-danh-sach-390.png" alt="(5) Khách hàng ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="png/khach-danh-sach-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="khach-ho-so">
+	<div class="row-between"><h2>(6) Hồ sơ khách <span class="small muted">/khach/:id</span></h2><a class="btn btn-quiet" href="khach-ho-so.html">Mở mockup</a></div>
+	<p class="small muted">Hồ sơ theo nhóm đã gộp: danh tính, địa chỉ, nhãn tay và theo quy tắc, chỉ số, dòng thời gian, ghi chú, gợi ý gộp.</p><p class="small"><b>Trạng thái:</b> A khách gộp 2 hồ sơ · B khách tiềm năng chưa SĐT, version_conflict. <b>Ca kiểm:</b> DH13, DH14.</p>
+	<div class="pair">
+		<figure><a href="png/khach-ho-so-1512.png"><img src="png/khach-ho-so-1512.png" alt="(6) Hồ sơ khách ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="png/khach-ho-so-390.png"><img src="png/khach-ho-so-390.png" alt="(6) Hồ sơ khách ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="png/khach-ho-so-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="khach-gop">
+	<div class="row-between"><h2>(7) Gộp khách <span class="small muted">/khach/:id/gop</span></h2><a class="btn btn-quiet" href="khach-gop.html">Mở mockup</a></div>
+	<p class="small muted">Hai hồ sơ cạnh nhau, chọn hồ sơ giữ lại, xác nhận lần hai; danh sách lần gộp có Hoàn tác và lý do khi không hoàn tác được.</p><p class="small"><b>Trạng thái:</b> A so sánh, chọn · B xác nhận · C lần gộp: hoàn tác được, merge_not_latest, quá 30 ngày. <b>Ca kiểm:</b> DH13, DH14.</p>
+	<div class="pair">
+		<figure><a href="png/khach-gop-1512.png"><img src="png/khach-gop-1512.png" alt="(7) Gộp khách ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="png/khach-gop-390.png"><img src="png/khach-gop-390.png" alt="(7) Gộp khách ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="png/khach-gop-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="ma-giam-gia">
+	<div class="row-between"><h2>(8) Mã giảm giá <span class="small muted">/ma-giam-gia</span></h2><a class="btn btn-quiet" href="ma-giam-gia.html">Mở mockup</a></div>
+	<p class="small muted">Danh sách, tạo mã, tạo đợt mã, chi tiết (lượt đã dùng, đơn đã dùng), tắt mã; trường khóa sau khi đã dùng.</p><p class="small"><b>Trạng thái:</b> A danh sách (đang chạy, hết lượt, hết hạn, tắt, thuộc đợt) · B tạo mã, mã trùng · C đợt 500 mã đang sinh · D chi tiết, trường khóa, tổng lượt dưới số đã dùng · E tắt mã. <b>Ca kiểm:</b> KM01.</p>
+	<div class="pair">
+		<figure><a href="png/ma-giam-gia-1512.png"><img src="png/ma-giam-gia-1512.png" alt="(8) Mã giảm giá ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="png/ma-giam-gia-390.png"><img src="png/ma-giam-gia-390.png" alt="(8) Mã giảm giá ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="png/ma-giam-gia-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="cai-dat-don">
+	<div class="row-between"><h2>(9) Cài đặt đơn <span class="small muted">/cai-dat/don</span></h2><a class="btn btn-quiet" href="cai-dat-don.html">Mở mockup</a></div>
+	<p class="small muted">Bốn cài đặt có giải thích, giới hạn, người sửa gần nhất; nguồn đơn thêm, đổi tên, sắp xếp, tắt.</p><p class="small"><b>Trạng thái:</b> A bốn cài đặt · B ngoài giới hạn, version_conflict · C nguồn đơn. <b>Ca kiểm:</b> DH09, DH16.</p>
+	<div class="pair">
+		<figure><a href="png/cai-dat-don-1512.png"><img src="png/cai-dat-don-1512.png" alt="(9) Cài đặt đơn ở 1512 px" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="png/cai-dat-don-390.png"><img src="png/cai-dat-don-390.png" alt="(9) Cài đặt đơn ở 390 px" loading="lazy"></a><figcaption class="xs muted">390 × 844</figcaption></figure>
+	</div>
+</section>
+
+<section class="card" id="ca-kiem">
+	<h2>Ca kiểm → màn, trạng thái</h2>
+	<div class="tbl-frame"><table class="tbl"><thead><tr><th>Ca</th><th>Nội dung (spec 11)</th><th>Vẽ ở</th></tr></thead><tbody><tr><td data-label="Ca" class="num bold">DH01</td><td data-label="Nội dung">Lên đơn nhanh: khách, sản phẩm, giảm giá dòng, phí ship</td><td data-label="Vẽ ở">Lên đơn A, C</td></tr><tr><td data-label="Ca" class="num bold">DH02</td><td data-label="Nội dung">Tìm khách bằng vài số cuối SĐT hoặc tên không dấu</td><td data-label="Vẽ ở">Lên đơn A; Khách hàng B</td></tr><tr><td data-label="Ca" class="num bold">DH04</td><td data-label="Nội dung">Đơn nhập tay cho khách gọi điện hoặc nhắn Zalo, nguồn ghi đúng</td><td data-label="Vẽ ở">Lên đơn A (nguồn đơn); Cài đặt đơn C</td></tr><tr><td data-label="Ca" class="num bold">DH06</td><td data-label="Nội dung">Lịch sử thao tác: ai làm, lúc nào, đổi gì</td><td data-label="Vẽ ở">Chi tiết đơn A</td></tr><tr><td data-label="Ca" class="num bold">DH09</td><td data-label="Nội dung">Cùng SĐT, cùng sản phẩm trong vài giờ: nghi trùng, không tự hủy</td><td data-label="Vẽ ở">Lên đơn H; Danh sách đơn A; Đơn trùng A–C; Cài đặt đơn A</td></tr><tr><td data-label="Ca" class="num bold">DH13</td><td data-label="Nội dung">SĐT trùng hồ sơ khác: gợi ý &quot;có thể là cùng một khách&quot;; chỉ người có quyền mới gộp</td><td data-label="Vẽ ở">Lên đơn A; Hồ sơ khách A; Gộp khách A, B</td></tr><tr><td data-label="Ca" class="num bold">DH14</td><td data-label="Nội dung">Gộp nhầm: hoàn tác trong 30 ngày</td><td data-label="Vẽ ở">Gộp khách C</td></tr><tr><td data-label="Ca" class="num bold">DH16</td><td data-label="Nội dung">Giảm quá mức được phép: chờ người có quyền duyệt</td><td data-label="Vẽ ở">Lên đơn E; Chi tiết đơn A; Cài đặt đơn A</td></tr><tr><td data-label="Ca" class="num bold">TD01</td><td data-label="Nội dung">Hủy đơn chưa gửi hãng: hàng về có thể bán ngay</td><td data-label="Vẽ ở">Chi tiết đơn C</td></tr><tr><td data-label="Ca" class="num bold">KM01</td><td data-label="Nội dung">Mã có hạn và giới hạn lượt; hết lượt thì từ chối</td><td data-label="Vẽ ở">Mã giảm giá A–D; Lên đơn F</td></tr></tbody></table></div>
+</section>
+
+<section class="card" id="hanh-vi">
+	<div class="row-between"><h2>Thay đổi hành vi so với công cụ cũ (38 dòng)</h2><span class="small muted">Mỗi dòng cần chủ shop OK riêng</span></div>
+	<div class="tbl-frame">
+	<table class="tbl btbl">
+		<thead><tr><th>#</th><th>Màn</th><th>Hành vi đề xuất</th><th>Chủ shop OK</th></tr></thead>
+		<tbody>
+<tr><td data-label="#" class="num">HV01</td><td data-label="Màn">Khung</td><td class="full"><b>Menu thêm ba nhóm đứng đầu: Đơn hàng (Lên đơn, Danh sách đơn, Đơn trùng, Cài đặt đơn), Khách hàng, Khuyến mãi; sau đó các nhóm của M1.</b><br><span class="small muted">Hiện tại: Nhanh: menu Đơn hàng, Khách hàng riêng.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV02</td><td data-label="Màn">Lên đơn</td><td class="full"><b>Lên đơn là trang riêng /don/moi (không phải hộp thoại). Tạo xong form trống để lên đơn tiếp, có liên kết mở đơn vừa tạo.</b><br><span class="small muted">Hiện tại: Nhanh có màn tạo đơn riêng; chưa khảo sát chi tiết.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV03</td><td data-label="Màn">Lên đơn</td><td class="full"><b>Phím tắt: F2 tìm khách, F3 thêm dòng, Ctrl/⌘+S lưu (mới), Ctrl/⌘+Enter lưu và xác nhận, Esc đóng gợi ý, ↑ ↓ Enter chọn gợi ý. Enter trong ô số chỉ sang ô kế, không gửi đơn.</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV04</td><td data-label="Màn">Lên đơn</td><td class="full"><b>Nút nổi bật (mặc định) là &quot;Lưu và xác nhận&quot;; hai nút phụ &quot;Lưu (mới)&quot;, &quot;Lưu nháp&quot;. Nút mờ kèm lý do khi chưa có khách hoặc dòng.</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV05</td><td data-label="Màn">Lên đơn</td><td class="full"><b>Tìm khách: đủ số thì tìm đúng số; 4–9 số là đuôi số; dưới 4 số báo &quot;Gõ ít nhất 4 số cuối&quot;. Gợi ý che giữa SĐT tới khi chọn khách.</b><br><span class="small muted">Hiện tại: Nhanh tìm theo SĐT; cách khớp đuôi chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV06</td><td data-label="Màn">Lên đơn</td><td class="full"><b>Cảnh báo &quot;Có thể là cùng một khách&quot; đặt ngay dưới ô SĐT người nhận, có nút &quot;Xem hai hồ sơ&quot;; không bao giờ tự gộp.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV07</td><td data-label="Màn">Lên đơn</td><td class="full"><b>Ô &quot;Số này là của khách&quot;: tắt sẵn khi hồ sơ đã có SĐT (khách đặt hộ); bật sẵn cho đơn đầu của hồ sơ chưa có SĐT.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV08</td><td data-label="Màn">Lên đơn</td><td class="full"><b>Đơn giá lấy giá bán hiện hành, không sửa tay; bớt tiền chỉ bằng giảm dòng hoặc giảm cấp đơn (Q23).</b><br><span class="small muted">Hiện tại: Chưa khảo sát Nhanh có cho sửa đơn giá không.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV09</td><td data-label="Màn">Lên đơn</td><td class="full"><b>Giảm tay (dòng + cấp đơn) vượt 10% tạm tính: hiện cảnh báo trước khi lưu; lưu xong đơn &quot;Chờ duyệt giảm giá&quot; (Q3). Mã giảm giá không tính.</b><br><span class="small muted">Hiện tại: Q08 còn mở trên Nhanh.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV10</td><td data-label="Màn">Lên đơn</td><td class="full"><b>Mã giảm giá kiểm ngay khi gõ xong (không trừ lượt), lý do từ chối bằng chữ ngay dưới ô; mỗi đơn tối đa một mã (Q27).</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV11</td><td data-label="Màn">Lên đơn</td><td class="full"><b>Đơn nháp giữ hàng 24 giờ rồi tự hủy và nhả hàng (Q8).</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV12</td><td data-label="Màn">Lên đơn</td><td class="full"><b>Mất mạng hoặc máy chủ bận: nút &quot;Đang lưu… (gửi lại lần n/3)&quot; khóa; hết lượt thì &quot;Hệ thống đang bận, thử lại sau ít giây&quot; và nút &quot;Gửi lại&quot; gửi đúng đơn cũ.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV13</td><td data-label="Màn">Lên đơn</td><td class="full"><b>Cảnh báo đơn trùng hiện trước khi lưu (không chặn) và nhắc lại sau khi tạo.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV14</td><td data-label="Màn">Danh sách đơn</td><td class="full"><b>Thanh nhãn trên cùng; điện thoại cuộn ngang. Số đếm chỉ ở nhãn đang mở; nhãn cần người xử lý (Chờ duyệt, Hết hàng, Đang yêu cầu hủy) viền đỏ.</b><br><span class="small muted">Hiện tại: Nhanh có thanh trạng thái đơn có số.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV15</td><td data-label="Màn">Danh sách đơn</td><td class="full"><b>Tự cập nhật: đơn vừa đổi tô nền hồng 5 giây; không có báo hiệu thì tải lại mỗi 20 giây. &quot;Tải thêm 50 đơn&quot; thay cho số trang.</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV16</td><td data-label="Màn">Chi tiết đơn</td><td class="full"><b>Nút không áp dụng cho trạng thái đơn thì ẩn (theo ma trận ở trạng thái B); nút áp dụng nhưng đang bị chặn (chờ duyệt, thiếu địa chỉ) hiện mờ kèm lý do bằng chữ; &quot;Nhận hàng trả&quot; ẩn khi thiếu quyền.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV17</td><td data-label="Màn">Chi tiết đơn</td><td class="full"><b>Người có quyền duyệt bấm một nút &quot;Duyệt giảm giá và xác nhận&quot; (đơn Mới); đơn Nháp chỉ bỏ lý do chờ duyệt.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV18</td><td data-label="Màn">Chi tiết đơn</td><td class="full"><b>Hủy đơn là hộp thoại: 5 lý do + ghi chú. Đơn đã gửi hãng thành &quot;Đang yêu cầu hủy&quot;, hàng chưa về kho tới khi hãng xác nhận.</b><br><span class="small muted">Hiện tại: Chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV19</td><td data-label="Màn">Chi tiết đơn</td><td class="full"><b>Trả/đổi là hộp thoại: chỉ đơn Thành công; không cho chọn quá số còn trả được; quá 7 ngày chỉ cảnh báo, không chặn (Q26); tạo phiếu không đổi tồn.</b><br><span class="small muted">Hiện tại: Chính sách đổi trả Q07 chưa chốt.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV20</td><td data-label="Màn">Chi tiết đơn</td><td class="full"><b>Nhận hàng trả: chọn tình trạng từng món (bán lại được, hỏng, thiếu); bấm nhận là nhập kho ngay.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV21</td><td data-label="Màn">Chi tiết đơn</td><td class="full"><b>Lịch sử thao tác chỉ ghi tên trường đã đổi (&quot;Địa chỉ giao: đã đổi&quot;), không ghi giá trị cũ.</b><br><span class="small muted">Hiện tại: Nhanh có lịch sử đơn; mức chi tiết chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV22</td><td data-label="Màn">Chi tiết đơn</td><td class="full"><b>Ghi chú nội bộ chỉ thêm, không sửa, không xóa; không bao giờ gửi hãng (ghi chú cho hãng là ô riêng ở form đơn).</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV23</td><td data-label="Màn">Chi tiết đơn</td><td class="full"><b>Sửa đơn mở lại form Lên đơn điền sẵn (cùng phím tắt, cùng kiểm); trường bị khóa theo trạng thái hiện mờ kèm lý do.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV24</td><td data-label="Màn">Nhiều màn</td><td class="full"><b>Hai người cùng sửa: người lưu sau nhận &quot;… đã thay đổi, tải lại&quot;, phần đang gõ vẫn giữ, không ghi đè.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV25</td><td data-label="Màn">Đơn trùng</td><td class="full"><b>Trang riêng: hai đơn cạnh nhau, sản phẩm chung tô nền. &quot;Hủy đơn này&quot; cần xác nhận (lý do Đơn trùng); &quot;Không trùng&quot; không cần xác nhận, có thông báo.</b><br><span class="small muted">Hiện tại: Nhanh: chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV26</td><td data-label="Màn">Khách hàng</td><td class="full"><b>Mỗi dòng là một khách (các hồ sơ đã gộp là một dòng); tìm cùng luật như ô tìm khách ở Lên đơn.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV27</td><td data-label="Màn">Khách hàng</td><td class="full"><b>Nhập Excel là hộp thoại ba bước; SĐT đã có thì bỏ qua dòng, không ghi đè; kết quả chỉ ghi dòng, cột, lỗi.</b><br><span class="small muted">Hiện tại: Nhập khách trên Nhanh: chưa rõ có dùng.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV28</td><td data-label="Màn">Hồ sơ khách</td><td class="full"><b>Nhãn theo quy tắc ghi &quot;theo quy tắc&quot;, không có nút gỡ; nhãn tay có nút ×.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV29</td><td data-label="Màn">Gộp khách</td><td class="full"><b>Gộp là trang riêng: chọn hồ sơ đại diện rồi xác nhận lần hai. Chỉ người có quyền gộp thấy nút.</b><br><span class="small muted">Hiện tại: Nhanh: chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV30</td><td data-label="Màn">Gộp khách</td><td class="full"><b>Hoàn tác chỉ lần gộp gần nhất chạm các hồ sơ đó và trong 30 ngày (Q14); dòng không hoàn tác được ghi lý do và liên kết tới lần phải hoàn tác trước.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV31</td><td data-label="Màn">Mã giảm giá</td><td class="full"><b>Mã đã có lượt dùng: điều khoản khóa (ghi &quot;khóa&quot;), chỉ sửa tên, ngày hết hạn, tổng lượt (không dưới số đã dùng), tắt.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV32</td><td data-label="Màn">Mã giảm giá</td><td class="full"><b>Tắt mã cần xác nhận; bật lại được.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV33</td><td data-label="Màn">Mã giảm giá</td><td class="full"><b>Đơn hủy trước khi giao trả lại lượt mã; trả hàng sau giao không trả lượt; cờ trên từng mã, mặc định bật (Q2).</b><br><span class="small muted">Hiện tại: KM03 còn mở.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV34</td><td data-label="Màn">Mã giảm giá</td><td class="full"><b>Đợt mã sinh nền, có thanh tiến độ, xong mới có nút tải danh sách mã.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV35</td><td data-label="Màn">Khách hàng</td><td class="full"><b>Quản lý nhãn ở hộp riêng (nút &quot;Nhãn&quot;): tạo, đổi tên, màu; quy tắc là các điều kiện nối bằng VÀ trên chỉ số khách, bật/tắt; quy tắc tự gắn và tự gỡ, không đụng nhãn gắn tay.</b><br><span class="small muted">Hiện tại: Nhanh có nhãn khách; nhãn tự động chưa khảo sát.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV36</td><td data-label="Màn">Nhiều màn</td><td class="full"><b>Nút ghi cần quyền riêng (Hủy/Không trùng ở Đơn trùng, Tạo/Sửa mã, Lưu cài đặt và nguồn đơn, Nhập Excel, Nhãn) không hiện với người thiếu quyền; trang vẫn xem được nếu có quyền đọc.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV37</td><td data-label="Màn">Cài đặt đơn</td><td class="full"><b>Nhập theo giờ, %, ngày (máy chủ lưu phút và phần vạn); ngoài giới hạn báo ngay dưới ô.</b><br><span class="small muted">Hiện tại: —</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+<tr><td data-label="#" class="num">HV38</td><td data-label="Màn">Cài đặt đơn</td><td class="full"><b>Nguồn đơn không xóa, chỉ tắt (đơn cũ giữ nguồn); sắp xếp bằng nút ↑ ↓; nguồn hệ thống (Website) không tắt được.</b><br><span class="small muted">Hiện tại: Nhanh có danh sách nguồn đơn.</span></td><td data-label="Chủ shop OK" class="small muted">chưa</td></tr>
+		</tbody>
+	</table>
+	</div>
+</section>
+
+<section class="card">
+	<h2>Kết luận duyệt (Điểm dừng B, Q-X8)</h2>
+	<p class="muted">Điều phối viên ghi kết luận từng màn và từng dòng hành vi ở README.md, kèm ngày và người chốt.</p>
+</section>
+
+</div>
+</body>
+</html>

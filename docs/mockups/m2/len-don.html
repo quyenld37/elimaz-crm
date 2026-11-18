@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M2 — Lên đơn nhanh</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="m2.css">
+</head>
+<body data-page="len-don" data-title="Lên đơn">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><h1>Lên đơn</h1><p class="sub">Đơn nhập tay: khách gọi điện, nhắn Zalo, Messenger. Khung này dùng lại cạnh hội thoại ở M4.</p></div>
+	<div class="row keys-desk"><span class="kbd">F2</span><span class="small muted">khách</span><span class="kbd">F3</span><span class="small muted">thêm dòng</span><span class="kbd">Ctrl</span><span class="kbd">Enter</span><span class="small muted">lưu và xác nhận</span></div>
+</div>
+
+<section class="st" data-ca="cung-khach ten-120 phim-tat"><p class="xs">TRẠNG THÁI A</p><h2>Đang soạn: tìm "5678" ra hai khách, đã chọn một; SĐT người nhận thuộc hồ sơ khác; 3 dòng, có tên 120 ký tự</h2></section>
+
+<div class="cols">
+<div class="stack">
+	<div class="card">
+		<div class="row-between"><h2>Khách</h2><span class="small muted"><span class="kbd">F2</span> tìm khách</span></div>
+		<div class="combo">
+			<input class="input is-search" type="search" value="5678" aria-label="Tìm khách theo đuôi SĐT, tên hoặc mã KH" placeholder="Đuôi SĐT (4 số trở lên), tên không dấu hoặc mã KH">
+			<div class="sugg" role="listbox" aria-label="Kết quả tìm khách">
+				<div class="sugg-i" role="option" aria-selected="true"><b class="ellip">Trần Thị Thu Hà</b><span class="small muted num">KH000231</span><span class="sub">•••• •• <mark>5678</mark> · 12 đơn · hoàn 2 · mua gần nhất 18/11</span></div>
+				<div class="sugg-i" role="option" aria-selected="false"><b class="ellip">Lê Hà My</b><span class="small muted num">KH004410</span><span class="sub">•••• •• <mark>5678</mark> · 1 đơn · chưa nhận đơn nào</span></div>
+				<div class="sugg-new" role="option" aria-selected="false">+ Khách mới "5678"</div>
+			</div>
+			<p class="hint" style="margin-top:6px">↑ ↓ để chọn, Enter để lấy khách. Số đủ 10 chữ số thì tìm đúng số; 4–9 số là đuôi số. Danh sách che giữa số khi chưa chọn.</p>
+		</div>
+		<div class="picked" style="margin-top:16px">
+			<span class="avatar" aria-hidden="true">H</span>
+			<div class="grow stack-sm" style="gap:4px">
+				<div class="row"><b>Trần Thị Thu Hà</b><span class="chip">KH000231</span><span class="chip chip-line">Khách quen</span><span class="chip chip-err">Hay hoàn</span></div>
+				<p class="small muted">0912 345 678 · 12 đơn · 9 thành công · 2 hoàn (tỷ lệ hoàn 18%) · đã chi <span class="money">8.450.000 ₫</span></p>
+			</div>
+			<button class="btn btn-quiet">Đổi khách</button>
+		</div>
+	</div>
+
+	<div class="card">
+		<div class="row-between"><h2>Giao tới</h2><button class="btn btn-quiet">Chọn địa chỉ đã lưu (2)</button></div>
+		<div class="grid-f">
+			<label class="field"><span>Người nhận *</span><input class="input" value="Nguyễn Văn Tùng"></label>
+			<label class="field"><span>SĐT người nhận *</span><input class="input num" value="0987 654 321" inputmode="tel"></label>
+		</div>
+		<div class="box box-soft" style="margin-top:12px" data-ca="canh-bao-sdt">
+			<b>Có thể là cùng một khách.</b> Số 0987 654 321 đang là SĐT của hồ sơ khác (KH001877 · Nguyễn Văn Tùng). Số này chỉ ghi ở địa chỉ giao, không gắn vào hồ sơ Trần Thị Thu Hà. Không tự gộp.
+			<div class="row" style="margin-top:8px"><a class="btn btn-line" href="khach-gop.html">Xem hai hồ sơ</a></div>
+		</div>
+		<label class="check" style="margin-top:8px"><input type="checkbox"> Số này là của khách (gắn vào hồ sơ)</label>
+		<p class="hint">Mặc định tắt khi hồ sơ đã có SĐT (khách đặt hộ); bật sẵn cho đơn đầu của hồ sơ chưa có SĐT.</p>
+		<div class="grid-f" style="margin-top:12px">
+			<label class="field"><span>Tỉnh/thành *</span><span class="select-wrap"><select><option>Hà Nội</option><option>TP. Hồ Chí Minh</option></select></span></label>
+			<div class="field"><span>Xã/phường *</span>
+				<div class="combo"><input class="input" value="cau giay" aria-label="Gõ để lọc xã/phường">
+					<div class="sugg" role="listbox" aria-label="Xã/phường"><div class="sugg-i" role="option" aria-selected="true"><span><mark>Cầu Giấy</mark></span></div><div class="sugg-i" role="option" aria-selected="false"><span>Nghĩa Đô (gồm một phần <mark>Cầu Giấy</mark> cũ)</span></div></div></div></div>
+		</div>
+		<label class="field" style="margin-top:12px"><span>Số nhà, đường *</span><input class="input" value="Số 12 ngõ 68 Trần Thái Tông"></label>
+		<p class="hint" style="margin-top:4px">Địa chỉ hai cấp (tỉnh, xã/phường) theo đơn vị hành chính hiện hành. Thiếu tỉnh hoặc xã: chỉ lưu được đơn nháp hoặc đơn mới, chưa xác nhận được.</p>
+	</div>
+
+	<div class="card">
+		<div class="row-between"><h2>Sản phẩm</h2><span class="small muted">3 dòng · 4 món</span></div>
+		<div class="combo">
+			<input class="input is-search" type="search" value="DAM07" aria-label="Thêm sản phẩm theo mã, tên hoặc barcode" placeholder="Mã, tên hoặc quét barcode (F3)">
+			<div class="sugg" role="listbox" aria-label="Kết quả tìm sản phẩm">
+				<div class="sugg-i" role="option" aria-selected="true"><span class="ellip"><b>DAM0712-DEN-M</b> · Đầm suông cổ vuông · Đen · M</span><span class="small"><span class="money">420.000 ₫</span> · có thể bán 7</span></div>
+				<div class="sugg-i" role="option" aria-selected="false"><span class="ellip"><b>DAM0712-DEN-L</b> · Đầm suông cổ vuông · Đen · L</span><span class="small err-text">hết hàng</span></div>
+			</div>
+		</div>
+		<div class="tbl-frame" style="margin-top:12px">
+		<table class="tbl ltbl">
+			<thead><tr><th class="c-sp">Sản phẩm</th><th class="c-gia r">Đơn giá</th><th class="c-sl">Số lượng</th><th class="c-giam">Giảm dòng</th><th class="c-tt r">Thành tiền</th><th class="c-x"><span class="sr">Bỏ dòng</span></th></tr></thead>
+			<tbody>
+			<tr><td class="c-sp"><div class="sp"><span class="code">DAM0123-BE-M · Be · M</span><span class="nm clamp2">Đầm maxi lụa Hàn cao cấp cổ yếm phối ren hoa thủ công tay phồng nhẹ dáng xòe xếp ly nhiều tầng màu xanh ngọc bích Thu 26</span><span class="avail">Có thể bán: 5</span></div></td>
+				<td data-label="Đơn giá" class="r"><span class="money">690.000 ₫</span></td>
+				<td data-label="Số lượng"><span class="stepper"><button class="ibtn" aria-label="Bớt 1">−</button><input class="input" value="2" inputmode="numeric" aria-label="Số lượng"><button class="ibtn" aria-label="Thêm 1">+</button></span></td>
+				<td data-label="Giảm dòng"><input class="input num" value="100.000" inputmode="numeric" aria-label="Giảm dòng (đồng)"></td>
+				<td data-label="Thành tiền" class="r"><span class="money">1.280.000 ₫</span></td>
+				<td class="c-act"><button class="ibtn" aria-label="Bỏ dòng DAM0123-BE-M">×</button></td></tr>
+			<tr><td class="c-sp"><div class="sp"><span class="code">AO0456-TRANG-S · Trắng · S</span><span class="nm clamp2">Áo sơ mi lụa cổ đức</span><span class="avail is-low">Có thể bán: 1</span></div></td>
+				<td data-label="Đơn giá" class="r"><span class="money">350.000 ₫</span></td>
+				<td data-label="Số lượng"><span class="stepper"><button class="ibtn" aria-label="Bớt 1">−</button><input class="input" value="1" inputmode="numeric" aria-label="Số lượng"><button class="ibtn" aria-label="Thêm 1">+</button></span></td>
+				<td data-label="Giảm dòng"><input class="input num" placeholder="0" inputmode="numeric" aria-label="Giảm dòng (đồng)"></td>
+				<td data-label="Thành tiền" class="r"><span class="money">350.000 ₫</span></td>
+				<td class="c-act"><button class="ibtn" aria-label="Bỏ dòng AO0456-TRANG-S">×</button></td></tr>
+			<tr><td class="c-sp"><div class="sp"><span class="code">TUI0090-NAU · Nâu</span><span class="nm clamp2">Túi hộp da mini</span><span class="avail">Có thể bán: 23</span></div></td>
+				<td data-label="Đơn giá" class="r"><span class="money">290.000 ₫</span></td>
+				<td data-label="Số lượng"><span class="stepper"><button class="ibtn" aria-label="Bớt 1">−</button><input class="input" value="1" inputmode="numeric" aria-label="Số lượng"><button class="ibtn" aria-label="Thêm 1">+</button></span></td>
+				<td data-label="Giảm dòng"><input class="input num" placeholder="0" inputmode="numeric" aria-label="Giảm dòng (đồng)"></td>
+				<td data-label="Thành tiền" class="r"><span class="money">290.000 ₫</span></td>
+				<td class="c-act"><button class="ibtn" aria-label="Bỏ dòng TUI0090-NAU">×</button></td></tr>
+			</tbody>
+		</table>
+		</div>
+		<p class="hint" style="margin-top:8px">Đơn giá lấy giá bán hiện hành, không sửa tay; muốn bớt thì giảm dòng. "Có thể bán" của kho mặc định, đỏ khi còn 1–2. Enter trong ô số lượng chỉ sang ô kế tiếp, không gửi đơn.</p>
+	</div>
+</div>
+
+<div class="stack">
+	<div class="card">
+		<h2>Tiền</h2>
+		<div class="sum">
+			<div class="sum-r"><span>Tạm tính (4 món)</span><span class="money">2.020.000 ₫</span></div>
+			<div class="sum-r"><span>Giảm trên dòng</span><span class="money">−100.000 ₫</span></div>
+			<div class="sum-r"><label for="gd">Giảm cấp đơn</label><input id="gd" class="input num" value="0" inputmode="numeric"></div>
+			<div class="sum-r" style="align-items:flex-start"><label for="mgg" style="padding-top:8px">Mã giảm giá</label>
+				<div class="stack-sm" style="justify-items:end"><div class="inline-f"><input id="mgg" class="input" value="THU10" style="width:120px"><button class="btn btn-quiet">Bỏ mã</button></div><span class="small ok-text">Áp được: giảm 10%, tối đa 150.000 ₫</span></div></div>
+			<div class="sum-r"><span>Giảm theo mã</span><span class="money">−150.000 ₫</span></div>
+			<div class="sum-r"><label for="ship">Phí ship báo khách</label><input id="ship" class="input num" value="30.000" inputmode="numeric"></div>
+			<div class="sum-r is-total"><span>Tổng</span><span class="money">1.800.000 ₫</span></div>
+			<div class="sum-r"><span>Thu hộ (COD)</span><span class="money">1.800.000 ₫</span></div>
+		</div>
+		<p class="hint">Số hiện ở đây là tính trước trên máy; số máy chủ trả về là số cuối. Mã giảm giá kiểm ngay khi gõ xong, không tốn lượt; lượt chỉ bị trừ khi lưu đơn.</p>
+	</div>
+	<div class="card">
+		<h2>Thông tin đơn</h2>
+		<div class="stack">
+			<label class="field"><span>Nguồn đơn *</span><span class="select-wrap"><select><option>Điện thoại</option><option>Messenger</option><option>Zalo</option><option>Live tối</option><option>Nhập tay</option></select></span></label>
+			<label class="field"><span>Ghi chú cho hãng vận chuyển</span><textarea class="input" style="min-height:72px">Gọi trước khi giao, giao giờ hành chính.</textarea><span class="hint">In lên phiếu gửi hãng. Ghi chú nội bộ viết ở trang đơn sau khi lưu.</span></label>
+		</div>
+	</div>
+	<div class="card stack-sm">
+		<button class="btn btn-dark btn-wide">Lưu và xác nhận</button>
+		<div class="row"><button class="btn btn-line grow">Lưu (mới)</button><button class="btn btn-line grow">Lưu nháp</button></div>
+		<p class="hint">Lưu và xác nhận: giữ hàng, đơn "Đã xác nhận". Lưu (mới): giữ hàng, chờ xác nhận sau. Lưu nháp: giữ hàng 24 giờ khi còn thiếu địa chỉ; quá hạn tự hủy và nhả hàng.</p>
+	</div>
+	<div class="card keys-desk">
+		<h2>Phím tắt</h2>
+		<div class="keys" style="margin-top:12px">
+			<span><span class="kbd">F2</span></span><span>Tìm khách</span>
+			<span><span class="kbd">F3</span></span><span>Thêm dòng (ô tìm sản phẩm)</span>
+			<span><span class="kbd">Tab</span></span><span>Sang ô kế tiếp; Shift + Tab lùi lại</span>
+			<span><span class="kbd">Enter</span></span><span>Chọn gợi ý đang sáng; trong ô số chỉ sang ô kế</span>
+			<span><span class="kbd">Ctrl</span> <span class="kbd">S</span></span><span>Lưu (mới)</span>
+			<span><span class="kbd">Ctrl</span> <span class="kbd">Enter</span></span><span>Lưu và xác nhận</span>
+			<span><span class="kbd">Esc</span></span><span>Đóng danh sách gợi ý</span>
+		</div>
+		<p class="hint" style="margin-top:8px">Trên Mac: ⌘ thay Ctrl. Không phím nào gửi đơn ngoài hai phím lưu.</p>
+	</div>
+</div>
+</div>
+
+<section class="st" data-ca="0-dong"><p class="xs">TRẠNG THÁI B</p><h2>Form mới mở: chưa khách, 0 dòng; nút lưu mờ kèm lý do</h2></section>
+<div class="cols">
+	<div class="card">
+		<div class="row-between"><h2>Sản phẩm</h2><span class="small muted">0 dòng</span></div>
+		<input class="input is-search" type="search" placeholder="Mã, tên hoặc quét barcode (F3)" aria-label="Thêm sản phẩm">
+		<div class="empty" style="margin-top:12px"><p class="muted">Chưa có sản phẩm. Gõ mã hoặc tên ở ô trên, hoặc quét barcode.</p></div>
+	</div>
+	<div class="card stack-sm">
+		<button class="btn btn-dark btn-wide" disabled>Lưu và xác nhận</button>
+		<div class="row"><button class="btn btn-line grow" disabled>Lưu (mới)</button><button class="btn btn-line grow" disabled>Lưu nháp</button></div>
+		<p class="reason">Chưa lưu được: chọn khách và thêm ít nhất một sản phẩm.</p>
+	</div>
+</div>
+
+<section class="st" data-ca="20-dong"><p class="xs">TRẠNG THÁI C</p><h2>Đơn 20 dòng (khách sỉ): bảng gọn, tổng vẫn nằm cạnh</h2></section>
+<div class="tbl-frame">
+<table class="tbl ltbl">
+	<thead><tr><th class="c-sp">Sản phẩm</th><th class="c-gia r">Đơn giá</th><th class="c-sl">SL</th><th class="c-giam r">Giảm dòng</th><th class="c-tt r">Thành tiền</th></tr></thead>
+	<tbody>
+	<tr><td class="c-sp"><span class="ellip name">1 · AO0101-DEN-S · Áo thun cổ tròn basic · Đen · S</span></td><td data-label="Đơn giá" class="r"><span class="money">150.000 ₫</span></td><td data-label="SL" class="num">5</td><td data-label="Giảm dòng" class="r"><span class="money">0 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">750.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">2 · AO0101-DEN-M · Áo thun cổ tròn basic · Đen · M</span></td><td data-label="Đơn giá" class="r"><span class="money">150.000 ₫</span></td><td data-label="SL" class="num">5</td><td data-label="Giảm dòng" class="r"><span class="money">0 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">750.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">3 · AO0101-DEN-L · Áo thun cổ tròn basic · Đen · L</span></td><td data-label="Đơn giá" class="r"><span class="money">150.000 ₫</span></td><td data-label="SL" class="num">5</td><td data-label="Giảm dòng" class="r"><span class="money">0 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">750.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">4 · AO0101-TRANG-S · Áo thun cổ tròn basic · Trắng · S</span></td><td data-label="Đơn giá" class="r"><span class="money">150.000 ₫</span></td><td data-label="SL" class="num">5</td><td data-label="Giảm dòng" class="r"><span class="money">0 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">750.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">5 · AO0101-TRANG-M · Áo thun cổ tròn basic · Trắng · M</span></td><td data-label="Đơn giá" class="r"><span class="money">150.000 ₫</span></td><td data-label="SL" class="num">5</td><td data-label="Giảm dòng" class="r"><span class="money">0 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">750.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">6 · AO0101-TRANG-L · Áo thun cổ tròn basic · Trắng · L</span></td><td data-label="Đơn giá" class="r"><span class="money">150.000 ₫</span></td><td data-label="SL" class="num">5</td><td data-label="Giảm dòng" class="r"><span class="money">0 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">750.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">7 · QU0220-DEN-26 · Quần âu ống suông · Đen · 26</span></td><td data-label="Đơn giá" class="r"><span class="money">320.000 ₫</span></td><td data-label="SL" class="num">3</td><td data-label="Giảm dòng" class="r"><span class="money">30.000 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">930.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">8 · QU0220-DEN-27 · Quần âu ống suông · Đen · 27</span></td><td data-label="Đơn giá" class="r"><span class="money">320.000 ₫</span></td><td data-label="SL" class="num">3</td><td data-label="Giảm dòng" class="r"><span class="money">30.000 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">930.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">9 · QU0220-DEN-28 · Quần âu ống suông · Đen · 28</span></td><td data-label="Đơn giá" class="r"><span class="money">320.000 ₫</span></td><td data-label="SL" class="num">3</td><td data-label="Giảm dòng" class="r"><span class="money">30.000 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">930.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">10 · QU0220-BE-26 · Quần âu ống suông · Be · 26</span></td><td data-label="Đơn giá" class="r"><span class="money">320.000 ₫</span></td><td data-label="SL" class="num">2</td><td data-label="Giảm dòng" class="r"><span class="money">0 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">640.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">11 · QU0220-BE-27 · Quần âu ống suông · Be · 27</span></td><td data-label="Đơn giá" class="r"><span class="money">320.000 ₫</span></td><td data-label="SL" class="num">2</td><td data-label="Giảm dòng" class="r"><span class="money">0 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">640.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">12 · QU0220-BE-28 · Quần âu ống suông · Be · 28</span></td><td data-label="Đơn giá" class="r"><span class="money">320.000 ₫</span></td><td data-label="SL" class="num">2</td><td data-label="Giảm dòng" class="r"><span class="money">0 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">640.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">13 · VAY0330-XANH-S · Chân váy chữ A xếp ly · Xanh · S</span></td><td data-label="Đơn giá" class="r"><span class="money">280.000 ₫</span></td><td data-label="SL" class="num">2</td><td data-label="Giảm dòng" class="r"><span class="money">0 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">560.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">14 · VAY0330-XANH-M · Chân váy chữ A xếp ly · Xanh · M</span></td><td data-label="Đơn giá" class="r"><span class="money">280.000 ₫</span></td><td data-label="SL" class="num">2</td><td data-label="Giảm dòng" class="r"><span class="money">0 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">560.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">15 · VAY0330-DEN-S · Chân váy chữ A xếp ly · Đen · S</span></td><td data-label="Đơn giá" class="r"><span class="money">280.000 ₫</span></td><td data-label="SL" class="num">2</td><td data-label="Giảm dòng" class="r"><span class="money">0 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">560.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">16 · VAY0330-DEN-M · Chân váy chữ A xếp ly · Đen · M</span></td><td data-label="Đơn giá" class="r"><span class="money">280.000 ₫</span></td><td data-label="SL" class="num">2</td><td data-label="Giảm dòng" class="r"><span class="money">0 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">560.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">17 · KHAN0012-HOA · Khăn lụa vuông họa tiết · Hoa</span></td><td data-label="Đơn giá" class="r"><span class="money">120.000 ₫</span></td><td data-label="SL" class="num">10</td><td data-label="Giảm dòng" class="r"><span class="money">100.000 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">1.100.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">18 · KHAN0012-TRON · Khăn lụa vuông họa tiết · Trơn</span></td><td data-label="Đơn giá" class="r"><span class="money">120.000 ₫</span></td><td data-label="SL" class="num">10</td><td data-label="Giảm dòng" class="r"><span class="money">100.000 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">1.100.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">19 · TUI0090-NAU · Túi hộp da mini · Nâu</span></td><td data-label="Đơn giá" class="r"><span class="money">290.000 ₫</span></td><td data-label="SL" class="num">1</td><td data-label="Giảm dòng" class="r"><span class="money">0 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">290.000 ₫</span></td></tr>
+	<tr><td class="c-sp"><span class="ellip name">20 · TUI0090-DEN · Túi hộp da mini · Đen</span></td><td data-label="Đơn giá" class="r"><span class="money">290.000 ₫</span></td><td data-label="SL" class="num">1</td><td data-label="Giảm dòng" class="r"><span class="money">0 ₫</span></td><td data-label="Thành tiền" class="r"><span class="money">290.000 ₫</span></td></tr>
+	</tbody>
+</table>
+</div>
+<p class="mk" style="margin-top:8px"><b>Mockup:</b> bảng này lược ô nhập để thấy đủ 20 dòng; trên form thật mỗi dòng có − / + và ô giảm như trạng thái A. Tạm tính 20 dòng: <span class="money">14.520.000 ₫</span>, giảm dòng <span class="money">−290.000 ₫</span>.</p>
+
+<section class="st" data-ca="het-hang"><p class="xs">TRẠNG THÁI D</p><h2>Bấm lưu thì hết hàng giữa chừng (409 out_of_stock): đơn chưa tạo, dòng thiếu được tô</h2></section>
+<div class="stack">
+	<div class="box box-err"><b>Chưa lưu đơn: không đủ hàng.</b> AO0456-TRANG-S chỉ còn 0 có thể bán (người khác vừa lấy). Giảm số lượng hoặc bỏ dòng rồi lưu lại; các dòng khác chưa bị giữ.</div>
+	<div class="tbl-frame">
+	<table class="tbl ltbl">
+		<tbody>
+		<tr class="is-err"><td class="c-sp"><div class="sp"><span class="code">AO0456-TRANG-S · Trắng · S</span><span class="nm">Áo sơ mi lụa cổ đức</span><span class="avail is-low">Không đủ hàng: còn 0</span></div></td>
+			<td data-label="Số lượng"><span class="stepper"><button class="ibtn" aria-label="Bớt 1">−</button><input class="input is-err" value="1" aria-label="Số lượng"><button class="ibtn" aria-label="Thêm 1" disabled>+</button></span></td>
+			<td class="c-act"><button class="btn btn-quiet">Bỏ dòng</button></td></tr>
+		</tbody>
+	</table>
+	</div>
+</div>
+
+<section class="st" data-ca="cho-duyet"><p class="xs">TRẠNG THÁI E</p><h2>Giảm tay vượt ngưỡng (15% &gt; 10%) với người không có quyền duyệt</h2></section>
+<div class="dlgs">
+	<div class="box box-soft"><b>Giảm tay 15% tạm tính, vượt mức 10%.</b> Lưu được, nhưng đơn sẽ "Chờ duyệt giảm giá" và chưa xác nhận cho tới khi Chủ hoặc Quản lý duyệt. Mã giảm giá không tính vào mức này.</div>
+	<div class="box box-ok"><b class="ok-text">Đã tạo đơn DH0001237.</b> Đơn đang chờ duyệt giảm giá. <a class="cell-a" href="don-chi-tiet.html">Mở đơn</a> · <a class="cell-a" href="len-don.html">Lên đơn tiếp</a></div>
+</div>
+
+<section class="st" data-ca="ma-het-luot"><p class="xs">TRẠNG THÁI F</p><h2>Mã giảm giá bị từ chối: hiện lý do ngay dưới ô; bảng câu cho từng lý do</h2></section>
+<div class="cols">
+	<div class="card">
+		<div class="sum">
+			<div class="sum-r" style="align-items:flex-start"><label for="mgg2" style="padding-top:8px">Mã giảm giá</label>
+				<div class="stack-sm" style="justify-items:end"><div class="inline-f"><input id="mgg2" class="input is-err" value="FLASH50" style="width:120px"><button class="btn btn-quiet">Bỏ mã</button></div><span class="field-err">Mã đã hết lượt dùng</span></div></div>
+			<div class="sum-r"><span>Giảm theo mã</span><span class="money">0 ₫</span></div>
+		</div>
+		<p class="hint">Mã bị từ chối khi lưu (người khác vừa dùng lượt cuối) thì cả đơn chưa được tạo; bỏ mã hoặc đổi mã rồi lưu lại.</p>
+	</div>
+	<div class="tbl-frame">
+	<table class="tbl">
+		<thead><tr><th>Lý do (máy chủ)</th><th>Câu hiện dưới ô mã</th></tr></thead>
+		<tbody>
+		<tr><td data-label="Lý do" class="small">not_found</td><td data-label="Câu">Không có mã này</td></tr>
+		<tr><td data-label="Lý do" class="small">disabled</td><td data-label="Câu">Mã đã bị tắt</td></tr>
+		<tr><td data-label="Lý do" class="small">not_started</td><td data-label="Câu">Mã chưa tới ngày dùng</td></tr>
+		<tr><td data-label="Lý do" class="small">expired</td><td data-label="Câu">Mã đã hết hạn</td></tr>
+		<tr><td data-label="Lý do" class="small">exhausted</td><td data-label="Câu">Mã đã hết lượt dùng</td></tr>
+		<tr><td data-label="Lý do" class="small">min_subtotal</td><td data-label="Câu">Đơn chưa đủ giá trị tối thiểu của mã</td></tr>
+		<tr><td data-label="Lý do" class="small">channel</td><td data-label="Câu">Mã không dùng cho kênh này</td></tr>
+		<tr><td data-label="Lý do" class="small">bound_other</td><td data-label="Câu">Mã dành riêng cho khách khác</td></tr>
+		<tr><td data-label="Lý do" class="small">customer_limit</td><td data-label="Câu">Khách đã dùng hết lượt của mã này</td></tr>
+		<tr><td data-label="Lý do" class="small">seller</td><td data-label="Câu">Mã không áp cho sản phẩm của người bán này</td></tr>
+		</tbody>
+	</table>
+	</div>
+</div>
+
+<section class="st" data-ca="mat-mang"><p class="xs">TRẠNG THÁI G</p><h2>Mất mạng hoặc máy chủ bận khi lưu: tự gửi lại cùng khóa, không thành hai đơn</h2></section>
+<div class="dlgs">
+	<div class="card stack-sm">
+		<button class="btn btn-dark btn-wide" disabled>Đang lưu… (gửi lại lần 2/3)</button>
+		<p class="reason">Mạng chập chờn. Đang gửi lại đúng đơn này; dù bấm lại cũng không tạo đơn thứ hai.</p>
+	</div>
+	<div class="box box-err"><b>Hệ thống đang bận, thử lại sau ít giây.</b> Đơn chưa chắc đã lưu. Bấm "Gửi lại" sẽ gửi đúng đơn cũ: nếu máy chủ đã lưu thì mở đơn đó, không tạo đơn mới.
+		<div class="row" style="margin-top:8px"><button class="btn btn-dark">Gửi lại</button></div></div>
+</div>
+<p class="mk" style="margin-top:8px"><b>Mockup:</b> khóa chống trùng sinh khi bắt đầu lên đơn, giữ nguyên qua mọi lần gửi lại (503, 409 <code>request_in_progress</code>, mất mạng); đơn tạo xong thì form trống và dùng khóa mới cho đơn sau (Q-T57-4).</p>
+
+<section class="st" data-ca="canh-bao-trung"><p class="xs">TRẠNG THÁI H</p><h2>Cảnh báo đơn trùng: trước khi lưu (kiểm khi đã có khách và dòng) và sau khi tạo</h2></section>
+<div class="dlgs">
+	<div class="box box-soft"><b>Có thể trùng đơn.</b> Khách này có 1 đơn trong 24 giờ qua có cùng sản phẩm DAM0123-BE-M: <a class="cell-a" href="don-chi-tiet.html">DH0001198</a> (Mới, 09:12 hôm nay, <span class="money">1.330.000 ₫</span>). Vẫn lưu được; đơn sẽ có dấu "Nghi trùng".</div>
+	<div class="box box-ok"><b class="ok-text">Đã tạo đơn DH0001236.</b> Lưu ý: có thể trùng với DH0001198 (dấu "Nghi trùng" hiện sau vài giây); SĐT người nhận thuộc hồ sơ KH001877. <a class="cell-a" href="don-trung.html">Xem đơn trùng</a></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

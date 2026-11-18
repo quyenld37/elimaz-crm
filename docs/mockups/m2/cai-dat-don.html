@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M2 — Cài đặt đơn</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="m2.css">
+<style>
+.set { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 8px 24px; padding: 16px 0; border-bottom: 1px solid var(--rule); align-items: start; }
+.set:last-of-type { border-bottom: 0; }
+@media (max-width: 759px) { .set { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body data-page="cai-dat-don" data-title="Cài đặt đơn">
+<div class="app"><main class="main" style="max-width:960px">
+
+<div class="page-h">
+	<div><h1>Cài đặt đơn</h1><p class="sub">Áp cho đơn tạo hoặc sửa từ lúc lưu; đơn cũ giữ nguyên.</p></div>
+</div>
+
+<section class="st" data-ca="bon-cai-dat"><p class="xs">TRẠNG THÁI A</p><h2>Bốn cài đặt, giá trị hiện hành, giới hạn, người sửa gần nhất</h2></section>
+<div class="card">
+	<div class="set"><div><h3>Giữ đơn nháp</h3><p class="small muted">Đơn nháp giữ hàng trong thời gian này rồi tự hủy, nhả hàng. Dùng khi đang chờ khách gửi địa chỉ.</p></div>
+		<label class="field"><span>Giờ</span><input class="input num" value="24"><span class="hint">10 phút (0,2 giờ) đến 7 ngày; nhập số lẻ được</span></label></div>
+	<div class="set"><div><h3>Khoảng tìm đơn trùng</h3><p class="small muted">Hai đơn cùng khách hoặc cùng SĐT người nhận, có sản phẩm chung, tạo cách nhau dưới khoảng này thì bị đánh dấu nghi trùng. 0 là tắt.</p></div>
+		<label class="field"><span>Giờ</span><input class="input num" value="24"><span class="hint">0 đến 7 ngày</span></label></div>
+	<div class="set"><div><h3>Mức giảm tay cần duyệt</h3><p class="small muted">Giảm dòng cộng giảm cấp đơn vượt mức này (tính trên tạm tính) thì đơn chờ Chủ hoặc Quản lý duyệt. Mã giảm giá không tính.</p></div>
+		<label class="field"><span>%</span><input class="input num" value="10"><span class="hint">0 đến 100%</span></label></div>
+	<div class="set"><div><h3>Cảnh báo đổi trả muộn</h3><p class="small muted">Tạo phiếu trả cho đơn giao xong quá số ngày này thì hiện cảnh báo; vẫn tạo được.</p></div>
+		<label class="field"><span>Ngày</span><input class="input num" value="7"><span class="hint">0 đến 365</span></label></div>
+	<div class="row-between" style="margin-top:8px"><span class="small muted">Sửa lần cuối: Nguyễn Thị Lan · 09:00 · 15/11</span><button class="btn btn-dark">Lưu cài đặt</button></div>
+</div>
+
+<section class="st" data-ca="ngoai-gioi-han"><p class="xs">TRẠNG THÁI B</p><h2>Giá trị ngoài giới hạn; người khác vừa lưu</h2></section>
+<div class="dlgs">
+	<div class="card"><div class="set" style="border:0;padding:0"><div><h3>Giữ đơn nháp</h3></div><label class="field"><span>Giờ</span><input class="input num is-err" value="200"><span class="field-err">Giữ đơn nháp chỉ từ 10 phút đến 7 ngày</span></label></div></div>
+	<div class="box box-err"><b>Cài đặt đã thay đổi, tải lại.</b> Có người vừa lưu cài đặt đơn. Giá trị bạn nhập chưa được lưu.<div class="row" style="margin-top:8px"><button class="btn btn-dark">Tải lại</button></div></div>
+</div>
+
+<section class="st" data-ca="nguon-don"><p class="xs">TRẠNG THÁI C</p><h2>Nguồn đơn: thêm, đổi tên, sắp xếp bằng nút, tắt</h2></section>
+<div class="card">
+	<div class="row-between"><h2>Nguồn đơn</h2><span class="small muted">Thứ tự này là thứ tự trong ô chọn khi lên đơn</span></div>
+	<div class="olist">
+		<div class="oitem"><span class="grow"><b>Live tối</b></span><button class="ibtn" aria-label="Đưa Live tối lên" disabled>↑</button><button class="ibtn" aria-label="Đưa Live tối xuống">↓</button><button class="btn btn-quiet">Đổi tên</button><button class="btn btn-quiet">Tắt</button></div>
+		<div class="oitem"><span class="grow"><b>Messenger</b></span><button class="ibtn" aria-label="Đưa Messenger lên">↑</button><button class="ibtn" aria-label="Đưa Messenger xuống">↓</button><button class="btn btn-quiet">Đổi tên</button><button class="btn btn-quiet">Tắt</button></div>
+		<div class="oitem"><span class="grow"><input class="input" value="Live trưa thứ bảy và chủ nhật" aria-label="Tên nguồn"></span><button class="btn btn-dark">Lưu</button><button class="btn btn-quiet">Hủy</button></div>
+		<div class="oitem"><span class="grow"><b>Website</b><br><span class="xs muted">Nguồn hệ thống, website gắn tự động</span></span><button class="ibtn" aria-label="Đưa Website lên">↑</button><button class="ibtn" aria-label="Đưa Website xuống">↓</button><button class="btn btn-quiet">Đổi tên</button></div>
+		<div class="oitem is-off"><span class="grow"><b>Zalo</b> · đã tắt<br><span class="xs">Đơn cũ giữ nguồn này; không chọn được cho đơn mới</span></span><button class="btn btn-quiet">Bật lại</button></div>
+	</div>
+	<div class="inline-f" style="margin-top:12px"><input class="input" placeholder="Tên nguồn mới, ví dụ TikTok" aria-label="Tên nguồn mới"><button class="btn btn-line">Thêm nguồn</button></div>
+	<p class="field-err" style="margin-top:8px">Đã có nguồn tên "Messenger".</p>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>
