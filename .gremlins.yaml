@@ -1,0 +1,26 @@
+# Mutation testing vùng rủi ro cao (kế hoạch M0 bản 5, Task 23; ADR-25, ADR-44). Chạy: make mutation.
+# Danh sách thư mục nằm ở Makefile (MUTATION_DIRS, cùng danh sách HIGH_RISK_DIRS của hook); với internal/httpapi chỉ
+# đột biến guard.go. Kết quả từng lượt và lý do mỗi đột biến còn sống: docs/mutation.md.
+unleash:
+  # Hiệu quả của bộ test (đột biến bị giết / (bị giết + còn sống)) phải từ 80% trở lên.
+  threshold:
+    efficacy: 80
+  # Test của các gói này chạy trên PostgreSQL thật; nhiều lượt song song làm máy dev quá tải và test nhạy thời gian đỏ
+  # sai (kết quả TIMED OUT không tính vào hiệu quả nhưng làm lượt chạy dài).
+  workers: 2
+  timeout-coefficient: 10
+mutants:
+  arithmetic-base:
+    enabled: true
+  conditionals-boundary:
+    enabled: true
+  conditionals-negation:
+    enabled: true
+  increment-decrement:
+    enabled: true
+  invert-negatives:
+    enabled: true
+  invert-logical:
+    enabled: true
+  invert-loopctrl:
+    enabled: true

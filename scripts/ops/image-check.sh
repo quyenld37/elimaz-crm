@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Kiểm image chính (kế hoạch M0 bản 5, Task 21, Step 1) trên compose dev của phiên này:
-#   1. docker build -t crm:dev . (kèm một tệp .env mồi trong ngữ cảnh dựng để chứng minh .dockerignore chặn được);
+#   1. docker build -t $CRM_IMAGE . (mặc định crm:<dự án compose>; CI đặt crm:<mã commit>; kèm một tệp .env mồi trong ngữ cảnh dựng để chứng minh .dockerignore chặn được);
 #   2. crm-migrate chạy một lần, rồi crm-ingest, crm-api, crm-worker từ image;
 #   3. /health/ready của api và ingest trả 200; docker inspect cả ba "healthy";
 #   4. tiến trình trong container chạy bằng uid khác 0; image không chứa tệp .env*;
@@ -12,6 +12,8 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 PROJECT=${COMPOSE_PROJECT:-crm}
+IMAGE=${CRM_IMAGE:-crm:$PROJECT}
+export CRM_IMAGE=$IMAGE # compose dev đọc biến này cho bốn dịch vụ ứng dụng
 API_PORT=${CRM_API_PORT:-4190}
 INGEST_PORT=${CRM_INGEST_PORT:-4191}
 APP=(crm-ingest crm-api crm-worker)
@@ -27,7 +29,7 @@ dc() { docker compose -p "$PROJECT" -f "$ROOT/docker/compose.dev.yml" --profile 
 decoy="$ROOT/internal/.env.image-check-decoy"
 cleanup() {
   rm -f "$decoy"
-  docker image rm crm:dev-build >/dev/null 2>&1 || true
+  docker image rm "$IMAGE-build" >/dev/null 2>&1 || true
   if [ "${CRM_IMAGE_CHECK_KEEP:-0}" != 1 ]; then
     dc rm -sf crm-migrate "${APP[@]}" >/dev/null 2>&1 || true
   fi
@@ -37,21 +39,21 @@ trap cleanup EXIT
 # (1) Dựng. Tệp mồi .env nằm trong ngữ cảnh dựng; .dockerignore phải loại nó.
 printf 'DECOY=1\n' >"$decoy"
 t0=$(date +%s)
-docker build -q -t crm:dev "$ROOT" >/dev/null || die "docker build thất bại"
-docker build -q --target build -t crm:dev-build "$ROOT" >/dev/null || die "docker build --target build thất bại"
-if docker run --rm --entrypoint sh crm:dev-build -c 'find /src -name ".env*" | grep .' >&2; then
+docker build -q -t "$IMAGE" "$ROOT" >/dev/null || die "docker build thất bại"
+docker build -q --target build -t "$IMAGE-build" "$ROOT" >/dev/null || die "docker build --target build thất bại"
+if docker run --rm --entrypoint sh "$IMAGE-build" -c 'find /src -name ".env*" | grep .' >&2; then
   die "ngữ cảnh dựng chứa tệp .env*: .dockerignore không chặn"
 fi
 build_seconds=$(($(date +%s) - t0))
 rm -f "$decoy"
 
 # (4b) Image không chứa tệp .env* nào (kể cả tệp mồi); stage dựng cũng không nhận tệp mồi.
-cid=$(docker create crm:dev)
+cid=$(docker create "$IMAGE")
 files=$(docker export "$cid" | tar -t)
 docker rm "$cid" >/dev/null
 if printf '%s\n' "$files" | grep -E '(^|/)\.env' >&2; then die "image chứa tệp .env*"; fi
 printf '%s\n' "$files" | grep -qx 'crm' || die "image thiếu /crm"
-user=$(docker image inspect -f '{{.Config.User}}' crm:dev)
+user=$(docker image inspect -f '{{.Config.User}}' "$IMAGE")
 [ "$user" = "65532:65532" ] || die "USER của image là '$user', muốn 65532:65532"
 
 # (2) Migrate một lần, rồi ba vai trò. up --wait đợi healthcheck của cả ba.
@@ -79,8 +81,8 @@ for s in "${APP[@]}"; do
 done
 # Chạy thẳng image không đặt gì: vẫn không root, thoát vì thiếu cấu hình (mã 2), không phải lỗi quyền.
 rc=0
-docker run --rm crm:dev >/dev/null 2>&1 || rc=$?
-[ "$rc" = 2 ] || die "docker run --rm crm:dev thoát $rc, muốn 2 (thiếu CRM_ROLE)"
+docker run --rm "$IMAGE" >/dev/null 2>&1 || rc=$?
+[ "$rc" = 2 ] || die "docker run --rm $IMAGE thoát $rc, muốn 2 (thiếu CRM_ROLE)"
 
-size=$(docker image inspect -f '{{.Size}}' crm:dev)
+size=$(docker image inspect -f '{{.Size}}' "$IMAGE")
 echo "IMAGE CHECK OK size_bytes=$size build_seconds=$build_seconds user=$user$states"

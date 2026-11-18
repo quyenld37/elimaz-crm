@@ -167,3 +167,122 @@ Bản dev (`docker/postgres/init/01-roles.sql`) và bản diễn tập (`init-dr
   `make demo-mot-don`, Task 395): đủ 6 bước, tạo vận đơn → `awaiting_pickup` ~0,4 s, `picked_up` → `shipping` ~0,5 s,
   `delivered` → đơn `delivered` ~0,5 s; sổ COD `carrier_holding 530000`, `to_collect 0`, `sales_clearing −530000`, tổng 0;
   tồn còn 3, giữ 0, đang giao 0. Staging: chưa chạy (cần chủ shop OK và service token).
+
+## Chạy dev ba vai trò (Task 3, Task 21; soát lại ở Task 23)
+
+- `make db-up` dựng PostgreSQL 18, Jaeger, SeaweedFS (kho chính, kho ngoài giả). Phiên song song: đặt
+  `COMPOSE_PROJECT=crm-tNN` và cổng riêng (`CRM_PG_PORT`, `CRM_JAEGER_UI_PORT`, `CRM_OTLP_PORT`, `CRM_S3_PORT`,
+  `CRM_S3_OFFSITE_PORT`); không dùng 4175, 4176, 4180, 4181.
+- Chạy từ mã nguồn (nhanh khi sửa): mỗi vai trò một cửa sổ, cùng biến của `docker/compose.dev.yml` (`x-crm-env`):
+  `CRM_ROLE=migrate go run ./cmd/crm`, rồi `go run ./cmd/crm seed-dev <email>` (CRM_ROLE=migrate; dựng tenant ELIMAZ,
+  chủ shop, định tuyến email; chạy lại không tạo trùng), rồi `CRM_ROLE=worker`, `CRM_ROLE=api`, `CRM_ROLE=ingest`.
+- Chạy từ image: `make image && make app-up` (image `crm:<dự án compose>`, ghi đè bằng `CRM_IMAGE`; phiên song song
+  không ghi đè image của nhau). `make app-down` gỡ ba vai trò, giữ database. `make image-check` kiểm cả đường.
+- Kịch bản đi trọn: `make demo-mot-don` (mục "Chạy lát mỏng" ở trên).
+
+## Đọc cảnh báo và việc phải làm (Task 19, Task 20)
+
+Cảnh báo đến Telegram: `urgent` vào kênh gấp, nhắc lại mỗi 30 phút khi còn; `normal` vào kênh thường, cùng key 10 phút
+một lần. Văn bản chỉ có tên luật, số, mã việc, dấu vân tay; không có dữ liệu cá nhân. Mọi cảnh báo cũng nằm trong
+`GET /api/v1/platform/health` (quyền `platform.health.read`). Tóm tắt sức khỏe gửi 08:00 mỗi ngày.
+
+| Key | Mức | Nghĩa | Việc phải làm |
+|---|---|---|---|
+| `queue-lag` | urgent | Việc tới hạn chờ quá 60 s | Xem `worker-heartbeat` còn không; `/health/deep` của worker; log worker theo `job_id` của việc lâu nhất; worker chết thì khởi động lại (việc dở tự về hàng chờ sau 90 s). Kéo dài dù worker sống: đo câu nhận việc (Task 22, phát hiện `ClaimJobs`). |
+| `dead:<kind>` | normal | Việc hết lượt thử (8 lần) hay lỗi vĩnh viễn | Đọc `last_error` qua `GET /api/v1/platform/jobs?status=dead`; sửa nguyên nhân rồi `POST /api/v1/platform/jobs/{id}/retry` (kèm `Idempotency-Key`); việc không còn cần thì `…/abandon`. |
+| `in-doubt:<kind>` | normal | Lệnh ra ngoài không chắc đã gửi, quá 120 s | **Không gửi lại mù.** Kiểm phía bên ngoài (Meta, hãng) xem lệnh đã tới chưa: đã tới thì `abandon`; chưa tới thì `retry`. |
+| `spool` | urgent | ingest còn tệp tạm webhook quá 5 phút | Database không nhận ghi: xem `/health/ready` của ingest, kết nối PostgreSQL, chỗ trống đĩa. Tệp tạm tự đẩy vào khi database trở lại; không xóa tay thư mục spool. |
+| `listen-down` | urgent | Mất kết nối `LISTEN` quá 2 phút | Realtime và đánh thức worker chậm lại (worker vẫn quét theo nhịp). Khởi động lại tiến trình báo lỗi; kiểm `max_connections`. |
+| `ingest-heartbeat`, `api-heartbeat`, `worker-heartbeat` | urgent | Không có nhịp sống, hoặc cũ quá hạn | Tiến trình chết hoặc treo: `docker compose ps`, log của vai trò đó; khởi động lại. |
+| `heartbeat-ping` | normal | Gửi nhịp sống ra ngoài lỗi 5 phút liền | Kiểm mạng ra ngoài và URL nhận nhịp sống (`HEARTBEAT_URL`); nơi nhận sẽ tự báo nếu kéo dài. |
+| `disk:<tiến trình>` | urgent | Đĩa dùng trên 80% quá 2 phút | Dọn log cũ, ảnh tạm; xem `db-size`, `wal-size`; tăng ổ. |
+| `hooks-attack` | normal | Có tin webhook sai chữ ký trong phút qua | Một vài tin: bỏ qua. Liên tục: kiểm luật giới hạn tần suất của Cloudflare cho `hooks`, khóa webhook có bị đổi phía hãng không. |
+| `wal-archive` | urgent | Đẩy WAL lên kho ngoài hỏng hoặc trễ quá 5 phút | Mất khả năng khôi phục tới phút gần nhất. Kiểm khóa S3, chỗ trống kho ngoài, log `wal-g` trong container postgres. |
+| `wal-size` | normal | WAL trên máy quá 2 GiB | Thường đi kèm `wal-archive`; xử lý nó trước. |
+| `backup-age`, `backup-verify` | urgent | Mục "Sao lưu theo lịch" ở trên | Như đã ghi ở mục đó. |
+| `db-size` | urgent | Database quá 80% ngân sách đĩa | Xem bảng lớn nhất; `jobs` cũ (hạn giữ 30 ngày); tăng ổ. |
+| `long-tx` | normal | Transaction mở quá 5 phút | `SELECT pid, now()-xact_start, state, query_id FROM pg_stat_activity ORDER BY 2 DESC`; tìm nơi gọi theo `trace_id`; `pg_terminate_backend(pid)` nếu treo. |
+| `lock-wait` | normal | Có phiên chờ khóa quá 5 s | `pg_blocking_pids`; đối chiếu bảng thứ tự khóa (`docs/adr/0046-thu-tu-khoa.md`). |
+| `jobs-dead-tuples` | normal | Bảng `jobs` quá 50.000 dòng chết | Autovacuum không theo kịp: `VACUUM (VERBOSE) platform.jobs`; xem `long-tx` (transaction dài chặn vacuum). |
+| `pg-connections` | normal | Kết nối của ứng dụng quá 70% ngân sách | Kiểm `DB_MAX_CONNS` từng vai trò (ngân sách ADR-42); tìm rò kết nối qua `pg_stat_activity` (`usename`, `client_addr`, `state`, `backend_start`). |
+| `slow-query` | normal | Câu có trung bình trên 500 ms, từ 100 lần gọi | Tra `query_id` trong `pg_stat_statements`; `EXPLAIN (ANALYZE, BUFFERS)`; thêm index bằng migration mới. |
+| `new-error:<vân tay>` | normal | Loại lỗi ứng dụng mới | Đọc nhóm lỗi trong `platform.error_events` theo dấu vân tay; mở dấu vết theo `trace_id` của lần gặp đầu. |
+| `error-spike` | normal | Quá 50 lỗi trong 5 phút | Thường là phụ thuộc ngoài hỏng hay deploy lỗi; nếu ngay sau deploy: lùi bản (mục dưới). |
+
+Kiểm từ ngoài (`scripts/external-probe`, hai nơi, một nơi không thuộc Cloudflare) báo riêng khi `/health/ready` hay
+`/health/deep` không trả lời: máy chủ, tunnel, hoặc cả ba vai trò đều chết — cảnh báo bên trong khi đó không gửi được.
+
+## Tra log và dấu vết
+
+- Log là JSON (`log/slog`) ra stdout của container; máy chủ giữ bằng volume log của nền tảng (chốt ở staging).
+  Trường để tra: `request_id` (mỗi yêu cầu HTTP; body lỗi trả về cho màn hình cũng có `request_id`), `job_id` (mỗi lượt
+  việc nền), `trace_id`, `span_id` (OpenTelemetry).
+- Tra: `docker compose logs --no-log-prefix crm-api | jq -c 'select(.request_id == "<id>")'`; tương tự `job_id` với
+  `crm-worker`. Từ một dòng có `trace_id`, mở Jaeger (`http://127.0.0.1:${CRM_JAEGER_UI_PORT:-16686}` ở dev; staging
+  sau Cloudflare Access) → Search → dán `trace_id` vào ô Trace ID → thấy cả đường webhook → việc nền → lệnh ra ngoài.
+- Log, dấu vết, cảnh báo, audit không bao giờ có SĐT, địa chỉ, nội dung tin, token. Thấy có thì đó là lỗi: báo ngay.
+
+## Deploy, lùi bản
+
+- **Khung giờ không deploy:** 11:30–13:30 và 19:30–21:30 (giờ Việt Nam, giờ bán cao điểm).
+- **Thứ tự:** `migrate` (một lần, giữ khóa) → `worker` → `api`; `ingest` chỉ khi mã của nó đổi (ingest đứng lâu nhất
+  để webhook không rơi). Migration theo luật mở rộng rồi thu hẹp: bản mới và bản cũ đều chạy được trên schema sau migrate.
+- **Image:** chỉ chạy image CI dựng (nhãn mã commit, ghim digest trong tệp biến); không dựng trên máy chạy thật.
+- **Lùi một bản deploy:** đặt lại `CRM_IMAGE` về digest của commit trước, `up -d --wait crm-worker`, rồi `crm-api`
+  (và `crm-ingest` nếu đã deploy). **Không lùi database**: migration đã chạy được giữ vì bản trước vẫn chạy trên nó
+  (luật mở rộng rồi thu hẹp). Bài thử lùi rồi tiến trên staging ghi ở mục "Bài thử trên staging" (khi chạy).
+- Sau mỗi lần deploy hay lùi: `/health/deep` 200, không `error-spike` trong 10 phút, tóm tắt sức khỏe không có việc mới
+  `dead`.
+
+## Khi lộ secret
+
+1. **Thu hồi** ngay ở nơi cấp (Meta, hãng, Cloudflare, kho S3, Telegram): vô hiệu hóa khóa cũ.
+2. **Đổi khóa:** tạo khóa mới, đặt vào tệp biến của máy chủ, khởi động lại vai trò dùng nó (theo thứ tự deploy).
+   Khóa mã hóa sao lưu (`WALG_LIBSODIUM_KEY`) **không đổi mất bản cũ**: giữ khóa cũ ở hai nơi để còn đọc bản sao lưu cũ,
+   tạo bản sao lưu đầy đủ mới ngay bằng khóa mới.
+3. **Gỡ khỏi mã và log:** xóa khỏi tệp, nếu đã vào lịch sử git thì viết lại lịch sử và báo mọi bản sao; xóa log có
+   chứa; chạy `make gitleaks`. Ghi bản ghi sau sự cố.
+
+## Ai nhận cảnh báo, phản hồi trong bao lâu (R9 — chủ shop điền)
+
+| Mức | Ai nhận | Phản hồi trong | Ngoài giờ |
+|---|---|---|---|
+| urgent | | | |
+| normal | | | |
+| Kiểm từ ngoài báo hỏng | | | |
+
+## Mẫu bản ghi sau sự cố
+
+```
+Ngày, giờ bắt đầu – kết thúc (giờ Việt Nam):
+Ảnh hưởng (khách, đơn, tin nhắn, tiền; số lượng):
+Phát hiện bằng gì (cảnh báo nào, ai báo), sau bao lâu:
+Dòng thời gian:
+Nguyên nhân gốc:
+Đã làm gì để khôi phục:
+Việc phải làm để không lặp lại (người làm, hạn):
+Cảnh báo, test, sổ tay cần sửa:
+```
+
+## Diễn tập khôi phục
+
+- Máy dev: `scripts/backup/restore-drill.sh` (bấm giờ `restore_seconds`), `make verify-drill` (Task 21).
+- Staging (cần chủ shop OK, Task 23 bước 7.6): `restore-drill.sh` và `weekly-verify.sh` với kho ngoài thật; báo
+  `restore_seconds`. Dựng lại cả máy: `docs/REBUILD.md`.
+
+## Xuất cấu hình máy chủ (Task 23)
+
+`scripts/ops/export-config.sh <thư mục ra>` với `CRM_COMPOSE_FILE`, `CRM_ENV_FILE`, `CRM_TUNNEL_CONFIG`,
+`COMPOSE_PROJECT`, `CRM_CONFIG_S3_URI` (+ `CRM_S3_ENDPOINT`): tệp compose, cấu hình cloudflared, digest image đang chạy,
+**tên** biến (không giá trị), giữ 8 bản ở máy và kho ngoài (`config/`). gitleaks thấy giá trị bí mật thì dừng, thoát 3,
+không tạo tệp. Lịch đề xuất: chủ nhật 04:00 giờ Việt Nam và sau mỗi lần đổi cấu hình. Lần đầu: đọc lại bản xuất
+(`tar -xzOf <tệp> | less`) để chắc không có giá trị khóa nào (Task 23 bước 7.7).
+
+## CI (Task 23)
+
+- `.github/workflows/ci.yml`: job `ci` (`make ci-tools`, `make db-up`, `make ci`), `image` (dựng một lần
+  `crm:<mã commit>` và `make image-check`), `console-e2e` (`make console-e2e`), `mutation` (theo lịch chủ nhật 02:00).
+  Luật của tệp nằm ở `tests/deploy/ci_test.go`. Chưa chạy trên GitHub: cần chủ shop OK tạo repo, push, branch
+  protection, đẩy image lên registry.
+- Mutation testing vùng cao: `make mutation` (vài giờ trên máy dev), kết quả và lý do đột biến còn sống ở
+  `docs/mutation.md`.

@@ -151,3 +151,43 @@ func TestInDoubtResolverJobLookupFails(t *testing.T) {
 		t.Fatal("lệnh phải còn in_doubt")
 	}
 }
+
+// Lookup lỗi: lệnh giữ in_doubt, được đếm vào "còn lại" và lỗi trả lên (mutation testing Task 23: still++ ở nhánh lỗi).
+func TestResolveLookupErrorCountedStill(t *testing.T) {
+	e := newEnv(t)
+	h := &lookH{cmdH: newCmd("command.look", &testkit.FakeExternal{}), look: func(context.Context, queue.Job) (string, error) {
+		return "", errors.New("tra lỗi")
+	}}
+	id := inDoubtJob(t, e, h, "a", true)
+	d, r, s, err := commands.ResolveInDoubt(t.Context(), e.app, []commands.Handler{h}, 10)
+	if err == nil {
+		t.Fatal("Lookup lỗi mà ResolveInDoubt không trả lỗi")
+	}
+	if d != 0 || r != 0 || s != 1 {
+		t.Fatalf("đếm done %d, requeued %d, still %d; muốn 0 0 1", d, r, s)
+	}
+	if e.job(t, id).Status != "in_doubt" {
+		t.Fatal("lệnh phải còn in_doubt")
+	}
+}
+
+// Loại không đặt Policy.Timeout (0): Lookup chạy với hạn mặc định của hàng đợi, không phải hạn 0 đã hết ngay
+// (mutation testing Task 23: điều kiện timeout <= 0 của lookup).
+func TestResolveZeroTimeoutUsesDefault(t *testing.T) {
+	e := newEnv(t)
+	var left time.Duration
+	h := &lookH{cmdH: newCmd("command.look", &testkit.FakeExternal{}), look: func(ctx context.Context, _ queue.Job) (string, error) {
+		if dl, ok := ctx.Deadline(); ok {
+			left = time.Until(dl)
+		}
+		return commands.StatusUnknown, nil
+	}}
+	inDoubtJob(t, e, h, "a", true)
+	h.kind.Policy.Timeout = 0
+	if _, _, s := resolve(t, e, h); s != 1 {
+		t.Fatalf("still %d, muốn 1", s)
+	}
+	if want := queue.DefaultPolicy.Timeout - 5*time.Second; left < want {
+		t.Fatalf("Lookup còn %v trước hạn, muốn gần hạn mặc định %v", left, queue.DefaultPolicy.Timeout)
+	}
+}

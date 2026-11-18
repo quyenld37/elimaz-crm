@@ -179,7 +179,7 @@ services:
   # stop_grace_period 30 s: worker chờ việc đang chạy tối đa 25 s (Task 11), Docker giết sau hạn này.
   crm-migrate:
     profiles: [app]
-    image: crm:dev
+    image: ${CRM_IMAGE:-crm:dev}
     environment:
       <<: *crm-env
       CRM_ROLE: migrate
@@ -192,7 +192,7 @@ services:
 
   crm-ingest:
     profiles: [app]
-    image: crm:dev
+    image: ${CRM_IMAGE:-crm:dev}
     environment:
       <<: [*crm-env, *crm-fakecarrier]
       CRM_ROLE: ingest
@@ -212,7 +212,7 @@ services:
 
   crm-api:
     profiles: [app]
-    image: crm:dev
+    image: ${CRM_IMAGE:-crm:dev}
     environment:
       <<: [*crm-env, *crm-s3]
       CRM_ROLE: api
@@ -237,7 +237,7 @@ services:
 
   crm-worker:
     profiles: [app]
-    image: crm:dev
+    image: ${CRM_IMAGE:-crm:dev}
     environment:
       <<: [*crm-env, *crm-s3, *crm-fakecarrier]
       CRM_ROLE: worker

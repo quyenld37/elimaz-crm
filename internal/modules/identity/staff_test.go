@@ -422,3 +422,22 @@ func TestListStaff(t *testing.T) {
 		}
 	}
 }
+
+// Người thao tác bị gỡ identity.users.manage sau khi đã đọc quyền (thẻ cũ trong yêu cầu đang chạy): lần kiểm lại sau khi
+// khóa dòng đọc quyền mới và từ chối, dù vai trò được gán vẫn nằm trong quyền còn lại của người đó (mutation testing
+// Task 23: staff.go afterChecks `!Can(...) || !canTouch(...)` còn sống).
+func TestReplaceGrants_ActorLostManageMeanwhile(t *testing.T) {
+	e := newStaffEnv(t)
+	e.s.Grant(t, e.tenant, e.ids[emailM], []string{"identity.users.manage"}, identity.ScopeAll, "")
+	m := e.actor(emailM) // còn identity.users.manage
+	if err := e.replace(e.actor(emailB), e.ids[emailM], g("sale", identity.ScopeAll, "")); err != nil {
+		t.Fatalf("B đổi M thành sale: %v", err)
+	}
+	// K giữ nguyên grant warehouse w1 đang có; chỉ thêm sale w2, vai trò mà quyền còn lại của M (sale all) vẫn chạm được.
+	before := e.staff(e.ids[emailK]).Grants
+	add := append(slices.Clone(before), g("sale", identity.ScopeWarehouse, "w2"))
+	wantErr(t, "M (đã mất quyền) thêm sale cho K", e.replace(m, e.ids[emailK], add...), identity.ErrGrantExceedsActor)
+	if got := e.staff(e.ids[emailK]).Grants; !slices.Equal(got, before) {
+		t.Fatalf("grant của K bị đổi: %v, mong %v", got, before)
+	}
+}

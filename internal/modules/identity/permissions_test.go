@@ -276,3 +276,22 @@ func TestCheckMFAProperty(t *testing.T) {
 		}
 	})
 }
+
+// Quyền quản trị (ScopeShop): grant phạm vi hẹp đứng trước không chặn grant phạm vi all đứng sau; grant thiếu mã đích
+// (Type khác all, ID rỗng) không được coi là all (mutation testing Task 23: isAll còn sống).
+func TestCanShopScopeGrantOrderAndEmptyID(t *testing.T) {
+	wh := identity.Scope{Type: identity.ScopeWarehouse, ID: "w1"}
+	u := identity.AuthUser{Grants: []identity.Grant{
+		{Permission: "platform.health.read", Scope: wh},
+		{Permission: "platform.health.read", Scope: scopeAll()},
+	}}
+	if !identity.Can(u, "platform.health.read", nil) {
+		t.Error("grant all đứng sau grant kho phải cho quyền quản trị")
+	}
+	for _, s := range []identity.Scope{{Type: identity.ScopeWarehouse}, {Type: identity.ScopeAll, ID: "w1"}} {
+		u := identity.AuthUser{Grants: []identity.Grant{{Permission: "platform.health.read", Scope: s}}}
+		if identity.Can(u, "platform.health.read", nil) {
+			t.Errorf("grant %+v không phải phạm vi all mà vẫn cho quyền quản trị", s)
+		}
+	}
+}

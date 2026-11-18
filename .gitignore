@@ -15,3 +15,4 @@ console/test-results/
 console/src/probe-*/
 console/playwright-report/
 /loadtest/out/
+/.mutation/

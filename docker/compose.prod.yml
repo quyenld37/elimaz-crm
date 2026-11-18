@@ -27,6 +27,13 @@ x-crm-s3: &crm-s3
   S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?}
   S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?}
   FILES_PUBLIC_BASE_URL: ${FILES_PUBLIC_BASE_URL:?}
+# Log của Docker có giới hạn (review độc lập Task 23): driver local nén và xoay vòng; tối đa 5 × 20 MiB mỗi dịch vụ.
+# Thiếu dòng này thì log lớn dần tới đầy đĩa và PostgreSQL ngừng ghi. tests/deploy: TestProdCompose_LogLimits.
+x-logging: &crm-logging
+  driver: local
+  options:
+    max-size: 20m
+    max-file: "5"
 x-crm-hardening: &crm-hardening
   image: ${CRM_IMAGE:?image chính dựng ở CI, ghim digest}
   read_only: true
@@ -49,6 +56,7 @@ x-crm-health: &crm-health
 
 services:
   crm-migrate:
+    logging: *crm-logging
     <<: *crm-hardening
     profiles: [migrate]
     restart: "no"
@@ -58,6 +66,7 @@ services:
       DATABASE_OWNER_URL: ${CRM_OWNER_DATABASE_URL:?chuỗi kết nối crm_owner}
 
   crm-ingest:
+    logging: *crm-logging
     <<: [*crm-hardening, *crm-health]
     environment:
       <<: *crm-env
@@ -72,6 +81,7 @@ services:
     networks: [default, edge]
 
   crm-api:
+    logging: *crm-logging
     <<: [*crm-hardening, *crm-health]
     environment:
       <<: [*crm-env, *crm-s3]
@@ -88,6 +98,7 @@ services:
     networks: [default, edge]
 
   crm-worker:
+    logging: *crm-logging
     <<: [*crm-hardening, *crm-health]
     environment:
       <<: [*crm-env, *crm-s3]
@@ -105,6 +116,7 @@ services:
   # Task 23 bước 7); trong tunnel: crm. → http://crm-api:4190 sau Access, hooks. → http://crm-ingest:4191 (chỉ /hooks/*,
   # /health).
   cloudflared:
+    logging: *crm-logging
     # cloudflare/cloudflared:2026.10.7, digest của image index đa nền tảng, lấy ngày 18/11/2026
     image: cloudflare/cloudflared:2026.10.7@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
     command: ["tunnel", "--no-autoupdate", "run"]
@@ -118,6 +130,7 @@ services:
     mem_limit: 128m
 
   postgres:
+    logging: *crm-logging
     # Image docker/postgres/Dockerfile (PostgreSQL 18 + WAL-G + scripts/backup), dựng ở CI, ghim digest.
     image: ${CRM_POSTGRES_IMAGE:?}
     # tini làm PID 1: lịch sao lưu chạy script bằng `docker compose exec`; một tiến trình mồ côi bị giết bằng tín hiệu
@@ -147,12 +160,14 @@ services:
       retries: 30
 
   jaeger:
+    logging: *crm-logging
     # jaegertracing/jaeger:2.23.0 (Jaeger v2), digest lấy ngày 18/11/2026; UI chỉ mở qua tunnel sau Access
     image: jaegertracing/jaeger:2.23.0@sha256:3823829974ccfc2485d2e48b165579091f32295022ae80ca49704e2f4834116e
     restart: unless-stopped
     mem_limit: 512m
 
   seaweedfs:
+    logging: *crm-logging
     image: chrislusf/seaweedfs:4.48@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d
     # Như dev (Task 40): -s3.allowedOrigins không khớp gốc nào; chỉ crm-tmp có CORS riêng.
     command: ["server", "-dir=/data", "-ip.bind=0.0.0.0", "-s3", "-s3.port=8333", "-s3.config=/etc/seaweedfs/s3.json",
@@ -164,6 +179,7 @@ services:
     restart: unless-stopped
 
   imager:
+    logging: *crm-logging
     image: ${CRM_IMAGER_IMAGE:?}
     environment:
       PORT: "4193"

@@ -46,6 +46,12 @@ type service struct {
 	Volumes         []volume           `json:"volumes"`
 	Profiles        []string           `json:"profiles"`
 	Init            bool               `json:"init"`
+	Logging         *logging           `json:"logging"`
+}
+
+type logging struct {
+	Driver  string            `json:"driver"`
+	Options map[string]string `json:"options"`
 }
 
 type port struct {
@@ -291,6 +297,21 @@ func TestProdCompose_PostgresVolume(t *testing.T) {
 	for _, k := range []string{"WALG_S3_PREFIX", "WALG_LIBSODIUM_KEY", "WALG_LIBSODIUM_KEY_TRANSFORM"} {
 		if pg.Environment[k] == nil {
 			t.Errorf("postgres thiếu %s", k)
+		}
+	}
+}
+
+// Log của Docker trên máy chủ có giới hạn dung lượng (review độc lập Task 23; ADR-30 mục 2, ADR-26): log không giới hạn
+// làm đầy đĩa, PostgreSQL ngừng ghi. Mọi dịch vụ dùng driver local, xoay vòng theo max-size và max-file.
+func TestProdCompose_LogLimits(t *testing.T) {
+	p := prodProject(t)
+	for name, s := range p.Services {
+		if s.Logging == nil || s.Logging.Driver != "local" {
+			t.Errorf("%s: logging phải dùng driver local có giới hạn, đang là %+v", name, s.Logging)
+			continue
+		}
+		if s.Logging.Options["max-size"] == "" || s.Logging.Options["max-file"] == "" {
+			t.Errorf("%s: logging thiếu max-size hoặc max-file: %v", name, s.Logging.Options)
 		}
 	}
 }

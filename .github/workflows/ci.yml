@@ -1,0 +1,115 @@
+# CI của CRM (kế hoạch M0 bản 5, Task 23). Chạy đúng `make ci` như máy dev; dựng image chính một lần, gắn nhãn theo
+# mã commit; chạy test trình duyệt của màn hình; mutation testing vùng cao theo lịch tuần.
+# Luật của tệp này nằm ở tests/deploy/ci_test.go (chạy trong make ci). Chưa chạy trên GitHub: tạo repo, push, branch
+# protection, đẩy image lên registry cần OK riêng của chủ shop (Task 23 bước 7). Tệp này đặt ở gốc repo apps/crm.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 19 * * 6" # chủ nhật 02:00 giờ Việt Nam: mutation testing
+
+permissions:
+  contents: read
+
+concurrency:
+  # Tách theo loại sự kiện: lượt theo lịch (mutation, tới 6 giờ) không chặn hay hủy lượt push lên main.
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  COMPOSE_PROJECT: crm-ci
+  GOTOOLCHAIN: local
+  NODE_VERSION: "26"
+
+jobs:
+  ci:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Lấy mã (cả lịch sử)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Nhánh main cục bộ (oasdiff -base-ref=main, test-guard.sh main)
+        run: |
+          if [ "$(git rev-parse --abbrev-ref HEAD)" != main ]; then git branch -f main origin/main; fi
+      - name: Tệp task cho test-guard
+        run: |
+          n=$(sed -n 's/^Task: *//p' docs/tasks/hien-tai.md | head -1)
+          echo "TASK_FILE=docs/tasks/task-${n}.md" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Cài công cụ đã ghim (tools/versions.mk)
+        run: |
+          make ci-tools
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: PostgreSQL 18, Jaeger, SeaweedFS của compose dev
+        run: make db-up
+      - name: Cổng kiểm
+        run: make ci
+      - name: Dọn compose
+        if: always()
+        run: make db-reset
+
+  image:
+    if: github.event_name != 'schedule'
+    needs: ci
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: PostgreSQL của compose dev
+        run: make db-up
+      - name: Dựng và kiểm image chính (một lần, nhãn theo mã commit)
+        env:
+          CRM_IMAGE: crm:${{ github.sha }}
+        run: make image-check
+      - name: Dọn compose
+        if: always()
+        run: make db-reset
+
+  console-e2e:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Thư viện hệ thống cho trình duyệt của Playwright
+        run: cd console && npm ci --no-audit --no-fund && npx playwright install-deps chromium webkit
+      - name: Test trình duyệt của màn hình (API giả)
+        run: make console-e2e
+
+  mutation:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Cài công cụ đã ghim
+        run: |
+          make ci-tools
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: PostgreSQL 18 của compose dev
+        run: make db-up
+      - name: Mutation testing vùng rủi ro cao (ngưỡng 80%, .gremlins.yaml)
+        run: make mutation
+      - name: Dọn compose
+        if: always()
+        run: make db-reset
