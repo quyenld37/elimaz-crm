@@ -188,7 +188,8 @@ func (UnimplementedHandler) CancelStocktake(ctx context.Context, req *VersionReq
 
 // CheckCoupon implements checkCoupon operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Kiểm mã cho form lên đơn: số giảm, lý do từ chối, lượt còn; không đổi lượt
+// dùng (Task M2-14).
 //
 // GET /api/v1/coupon-check
 func (UnimplementedHandler) CheckCoupon(ctx context.Context, params CheckCouponParams) (r CheckCouponRes, _ error) {
@@ -264,7 +265,7 @@ func (UnimplementedHandler) CreateCategory(ctx context.Context, req *CreateCateg
 
 // CreateCoupon implements createCoupon operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Tạo mã giảm giá (để trống code thì sinh mã); trùng → 409 code_taken (Task M2-14).
 //
 // POST /api/v1/coupons
 func (UnimplementedHandler) CreateCoupon(ctx context.Context, req *CreateCouponRequest, params CreateCouponParams) (r CreateCouponRes, _ error) {
@@ -273,7 +274,8 @@ func (UnimplementedHandler) CreateCoupon(ctx context.Context, req *CreateCouponR
 
 // CreateCouponBatch implements createCouponBatch operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Tạo đợt mã: quantity mã dùng một lần, hoặc mỗi SĐT trong boundPhones một mã
+// gắn SĐT đó (Task M2-14).
 //
 // POST /api/v1/coupon-batches
 func (UnimplementedHandler) CreateCouponBatch(ctx context.Context, req *CreateCouponBatchRequest, params CreateCouponBatchParams) (r CreateCouponBatchRes, _ error) {
@@ -448,7 +450,7 @@ func (UnimplementedHandler) GetCatalogImportTemplate(ctx context.Context) (r Get
 
 // GetCoupon implements getCoupon operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Một mã kèm số lượt đã dùng, còn lại (Task M2-14).
 //
 // GET /api/v1/coupons/{couponId}
 func (UnimplementedHandler) GetCoupon(ctx context.Context, params GetCouponParams) (r GetCouponRes, _ error) {
@@ -457,7 +459,7 @@ func (UnimplementedHandler) GetCoupon(ctx context.Context, params GetCouponParam
 
 // GetCouponBatch implements getCouponBatch operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Một đợt mã (Task M2-14).
 //
 // GET /api/v1/coupon-batches/{batchId}
 func (UnimplementedHandler) GetCouponBatch(ctx context.Context, params GetCouponBatchParams) (r GetCouponBatchRes, _ error) {
@@ -702,7 +704,7 @@ func (UnimplementedHandler) ListCategories(ctx context.Context) (r ListCategorie
 
 // ListCouponRedemptions implements listCouponRedemptions operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Lượt dùng của một mã: mã đơn, số giảm, trạng thái; không SĐT (Task M2-14).
 //
 // GET /api/v1/coupons/{couponId}/redemptions
 func (UnimplementedHandler) ListCouponRedemptions(ctx context.Context, params ListCouponRedemptionsParams) (r ListCouponRedemptionsRes, _ error) {
@@ -711,7 +713,7 @@ func (UnimplementedHandler) ListCouponRedemptions(ctx context.Context, params Li
 
 // ListCoupons implements listCoupons operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Mã giảm giá, mới nhất trước; q theo mã hoặc tên (Task M2-14).
 //
 // GET /api/v1/coupons
 func (UnimplementedHandler) ListCoupons(ctx context.Context, params ListCouponsParams) (r ListCouponsRes, _ error) {
@@ -1126,7 +1128,8 @@ func (UnimplementedHandler) UpdateCategory(ctx context.Context, req *UpdateCateg
 
 // UpdateCoupon implements updateCoupon operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Sửa mã khi version còn khớp; mã đã dùng chỉ đổi tên, hạn cuối, số lượt
+// tối đa, trạng thái (409 coupon_locked_after_use) (Task M2-14).
 //
 // PATCH /api/v1/coupons/{couponId}
 func (UnimplementedHandler) UpdateCoupon(ctx context.Context, req *UpdateCouponRequest, params UpdateCouponParams) (r UpdateCouponRes, _ error) {

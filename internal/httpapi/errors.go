@@ -504,7 +504,7 @@ func customerError(err error) (status int, code string, ok bool) {
 	return 0, "", false
 }
 
-// promotionError đổi lỗi nghiệp vụ của mã giảm giá (M2, Task M2-02) sang mã HTTP. RejectError có thân riêng (kèm
+// promotionError đổi lỗi nghiệp vụ của mã giảm giá (M2, Task M2-02, M2-14) sang mã HTTP. RejectError có thân riêng (kèm
 // reason) ở detailedError.
 func promotionError(err error) (status int, code string, ok bool) {
 	for _, m := range []struct {
@@ -516,6 +516,9 @@ func promotionError(err error) (status int, code string, ok bool) {
 		{promotion.ErrCouponLockedAfterUse, http.StatusConflict, codeCouponLockedAfterUse},
 		{promotion.ErrMaxUsesBelowUsed, http.StatusUnprocessableEntity, codeMaxUsesBelowUsed},
 		{promotion.ErrCodeTaken, http.StatusConflict, codeCodeTaken},
+		{promotion.ErrNotFound, http.StatusNotFound, codeNotFound},
+		{promotion.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
+		{promotion.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

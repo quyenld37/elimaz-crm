@@ -7,6 +7,8 @@ package store
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 const nextOrderCode = `-- name: NextOrderCode :one
@@ -32,4 +34,39 @@ func (q *Queries) NextReturnCode(ctx context.Context) (string, error) {
 	var code string
 	err := row.Scan(&code)
 	return code, err
+}
+
+const orderCodes = `-- name: OrderCodes :many
+SELECT id, code FROM ord.orders WHERE seller_id = $1 AND id = ANY($2::uuid[])
+`
+
+type OrderCodesParams struct {
+	SellerID uuid.UUID
+	Ids      []uuid.UUID
+}
+
+type OrderCodesRow struct {
+	ID   uuid.UUID
+	Code string
+}
+
+// Mã đơn theo id của một người bán (kế hoạch M2, Task M2-14: lượt dùng mã giảm giá hiện mã đơn; ADR-29).
+func (q *Queries) OrderCodes(ctx context.Context, arg OrderCodesParams) ([]OrderCodesRow, error) {
+	rows, err := q.db.Query(ctx, orderCodes, arg.SellerID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []OrderCodesRow{}
+	for rows.Next() {
+		var i OrderCodesRow
+		if err := rows.Scan(&i.ID, &i.Code); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

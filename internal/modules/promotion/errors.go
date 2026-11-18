@@ -21,6 +21,12 @@ var (
 	ErrMaxUsesBelowUsed = errors.New("promotion: số lượt tối đa nhỏ hơn số đã dùng")
 	// ErrCodeTaken: đã có mã cùng chữ (không phân biệt hoa thường) trong shop.
 	ErrCodeTaken = errors.New("promotion: mã đã có")
+	// ErrNotFound: không có mã hay đợt mã này trong shop (Task M2-14, Q-T71-2).
+	ErrNotFound = errors.New("promotion: không có")
+	// ErrVersionConflict: mã đã bị người khác sửa (version gửi lên đã cũ).
+	ErrVersionConflict = errors.New("promotion: version đã đổi")
+	// ErrInvalidInput: điều khoản, mã, đợt mã hay khách gắn mã không hợp lệ.
+	ErrInvalidInput = errors.New("promotion: đầu vào không hợp lệ")
 )
 
 // Reason là lý do mã bị từ chối (CouponRejectReason của hợp đồng API).

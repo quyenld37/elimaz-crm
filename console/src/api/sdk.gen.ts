@@ -1149,15 +1149,11 @@ export const updateOrderSettings = <ThrowOnError extends boolean = false>(option
 
 /**
  * Mã giảm giá, mới nhất trước; q theo mã hoặc tên (Task M2-14)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const listCoupons = <ThrowOnError extends boolean = false>(options?: Options<ListCouponsData, ThrowOnError>): RequestResult<ListCouponsResponses, ListCouponsErrors, ThrowOnError> => (options?.client ?? client).get<ListCouponsResponses, ListCouponsErrors, ThrowOnError>({ url: '/api/v1/coupons', ...options });
 
 /**
  * Tạo mã giảm giá (để trống code thì sinh mã); trùng → 409 code_taken (Task M2-14)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const createCoupon = <ThrowOnError extends boolean = false>(options: Options<CreateCouponData, ThrowOnError>): RequestResult<CreateCouponResponses, CreateCouponErrors, ThrowOnError> => (options.client ?? client).post<CreateCouponResponses, CreateCouponErrors, ThrowOnError>({
     url: '/api/v1/coupons',
@@ -1170,15 +1166,11 @@ export const createCoupon = <ThrowOnError extends boolean = false>(options: Opti
 
 /**
  * Một mã kèm số lượt đã dùng, còn lại (Task M2-14)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const getCoupon = <ThrowOnError extends boolean = false>(options: Options<GetCouponData, ThrowOnError>): RequestResult<GetCouponResponses, GetCouponErrors, ThrowOnError> => (options.client ?? client).get<GetCouponResponses, GetCouponErrors, ThrowOnError>({ url: '/api/v1/coupons/{couponId}', ...options });
 
 /**
  * Sửa mã khi version còn khớp; mã đã dùng chỉ đổi tên, hạn cuối, số lượt tối đa, trạng thái (409 coupon_locked_after_use) (Task M2-14)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const updateCoupon = <ThrowOnError extends boolean = false>(options: Options<UpdateCouponData, ThrowOnError>): RequestResult<UpdateCouponResponses, UpdateCouponErrors, ThrowOnError> => (options.client ?? client).patch<UpdateCouponResponses, UpdateCouponErrors, ThrowOnError>({
     url: '/api/v1/coupons/{couponId}',
@@ -1191,8 +1183,6 @@ export const updateCoupon = <ThrowOnError extends boolean = false>(options: Opti
 
 /**
  * Tạo đợt mã: quantity mã dùng một lần, hoặc mỗi SĐT trong boundPhones một mã gắn SĐT đó (Task M2-14)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const createCouponBatch = <ThrowOnError extends boolean = false>(options: Options<CreateCouponBatchData, ThrowOnError>): RequestResult<CreateCouponBatchResponses, CreateCouponBatchErrors, ThrowOnError> => (options.client ?? client).post<CreateCouponBatchResponses, CreateCouponBatchErrors, ThrowOnError>({
     url: '/api/v1/coupon-batches',
@@ -1205,21 +1195,15 @@ export const createCouponBatch = <ThrowOnError extends boolean = false>(options:
 
 /**
  * Một đợt mã (Task M2-14)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const getCouponBatch = <ThrowOnError extends boolean = false>(options: Options<GetCouponBatchData, ThrowOnError>): RequestResult<GetCouponBatchResponses, GetCouponBatchErrors, ThrowOnError> => (options.client ?? client).get<GetCouponBatchResponses, GetCouponBatchErrors, ThrowOnError>({ url: '/api/v1/coupon-batches/{batchId}', ...options });
 
 /**
  * Lượt dùng của một mã: mã đơn, số giảm, trạng thái; không SĐT (Task M2-14)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const listCouponRedemptions = <ThrowOnError extends boolean = false>(options: Options<ListCouponRedemptionsData, ThrowOnError>): RequestResult<ListCouponRedemptionsResponses, ListCouponRedemptionsErrors, ThrowOnError> => (options.client ?? client).get<ListCouponRedemptionsResponses, ListCouponRedemptionsErrors, ThrowOnError>({ url: '/api/v1/coupons/{couponId}/redemptions', ...options });
 
 /**
  * Kiểm mã cho form lên đơn: số giảm, lý do từ chối, lượt còn; không đổi lượt dùng (Task M2-14)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const checkCoupon = <ThrowOnError extends boolean = false>(options: Options<CheckCouponData, ThrowOnError>): RequestResult<CheckCouponResponses, CheckCouponErrors, ThrowOnError> => (options.client ?? client).get<CheckCouponResponses, CheckCouponErrors, ThrowOnError>({ url: '/api/v1/coupon-check', ...options });
