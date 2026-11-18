@@ -307,6 +307,19 @@ func TestResolveAndListTenantIDs(t *testing.T) {
 	if _, ok, _ := tenancy.Resolve(t.Context(), e.app, "staff_email", "p1"); ok {
 		t.Fatal("Resolve phải so cả kind")
 	}
+	// ResolveTx: cùng kết quả, chạy trên tx của bên gọi (ngoài ngữ cảnh tenant: bảng không RLS).
+	if err := e.app.RetryTx(t.Context(), db.TxOptions{}, func(tx pgx.Tx) error {
+		got, ok, err := tenancy.ResolveTx(t.Context(), tx, "fb_page", "p2")
+		if err != nil || !ok || got != t2 {
+			return fmt.Errorf("ResolveTx(fb_page, p2) = %v, %v, %w; muốn %v, true", got, ok, err, t2)
+		}
+		if got, ok, err := tenancy.ResolveTx(t.Context(), tx, "fb_page", "khong-co"); err != nil || ok || got != uuid.Nil {
+			return fmt.Errorf("ResolveTx khóa không có = %v, %v, %w", got, ok, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
 	ids, err := tenancy.ListTenantIDs(t.Context(), e.app)
 	want := []uuid.UUID{t1, t2}
 	slices.SortFunc(want, func(x, y uuid.UUID) int { return slices.Compare(x[:], y[:]) })
