@@ -326,10 +326,12 @@ func TestMakeMutation_SingleSourceAndFileEntries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, d := range dirs {
-		if strings.Contains(string(mk), d) {
-			t.Errorf("Makefile chép lại mục %s của HIGH_RISK_DIRS; phải đọc từ scripts/agent/lib.sh", d)
-		}
+	src := mutationSource(string(mk))
+	if !strings.Contains(src, "scripts/agent/lib.sh") {
+		t.Error("đích mutation phải đọc HIGH_RISK_DIRS từ scripts/agent/lib.sh")
+	}
+	if d := copiedHighRisk(src, dirs); d != "" {
+		t.Errorf("Makefile chép lại mục %s của HIGH_RISK_DIRS cho đích mutation; phải đọc từ scripts/agent/lib.sh", d)
 	}
 	out := makeDry(t, "mutation")
 	for _, f := range dirs {
@@ -337,6 +339,67 @@ func TestMakeMutation_SingleSourceAndFileEntries(t *testing.T) {
 			checkSingleFileMutation(t, out, f)
 		}
 	}
+}
+
+var (
+	makeRefRe  = regexp.MustCompile(`\$[({](?:call\s+)?([A-Za-z_][A-Za-z0-9_]*)`)
+	makeDefRe  = regexp.MustCompile(`^(?:override\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::{1,3}=|\?=|\+=|=)`)
+	makeRuleRe = regexp.MustCompile(`^mutation\s*:`)
+)
+
+// mutationSource trả phần Makefile quyết định đích mutation chạy gì: dòng khai đích, công thức của nó và định nghĩa mọi
+// biến/hàm make được dùng trong đó (bắc cầu). Dòng tiếp nối (\ cuối dòng) được nối lại; chú thích và đích khác bị bỏ.
+func mutationSource(mk string) string {
+	var lines []string
+	cur := ""
+	for l := range strings.SplitSeq(mk, "\n") {
+		if s, ok := strings.CutSuffix(l, "\\"); ok {
+			cur += s + " "
+			continue
+		}
+		lines = append(lines, cur+l)
+		cur = ""
+	}
+	if cur != "" {
+		lines = append(lines, cur)
+	}
+	defs := map[string][]string{}
+	var src []string
+	inRecipe := false
+	for _, l := range lines {
+		switch {
+		case makeRuleRe.MatchString(l):
+			inRecipe = true
+			src = append(src, l)
+		case inRecipe && strings.HasPrefix(l, "\t"):
+			src = append(src, l)
+		default:
+			inRecipe = false
+			if m := makeDefRe.FindStringSubmatch(l); m != nil && !strings.HasPrefix(l, "\t") {
+				defs[m[1]] = append(defs[m[1]], l)
+			}
+		}
+	}
+	seen := map[string]bool{}
+	for i := 0; i < len(src); i++ {
+		for _, m := range makeRefRe.FindAllStringSubmatch(src[i], -1) {
+			if !seen[m[1]] {
+				seen[m[1]] = true
+				src = append(src, defs[m[1]]...)
+			}
+		}
+	}
+	return strings.Join(src, "\n")
+}
+
+// copiedHighRisk trả mục đầu tiên của dirs xuất hiện nguyên văn trong src, hoặc "" nếu không có.
+func copiedHighRisk(src string, dirs []string) string {
+	for _, d := range dirs {
+		if strings.Contains(src, d) {
+			return d
+		}
+	}
+	return ""
 }
 
 // checkSingleFileMutation: lượt gremlins của gói chứa tệp f loại mọi thứ trong gói (thư mục con, tệp .go khác) trừ f.
@@ -409,5 +472,40 @@ func TestDevCompose_AppImageFromEnv(t *testing.T) {
 		if got := p.Services[n].Image; got != "crm:dev" {
 			t.Errorf("%s: không đặt CRM_IMAGE thì image %q, muốn crm:dev", n, got)
 		}
+	}
+}
+
+// Task 401: chỉ công thức đích mutation và các biến/hàm nó dùng (bắc cầu) không được chép danh sách vùng cao; đích khác
+// (perf-test chạy ./internal/platform/queue/) nhắc một gói cụ thể là hợp lệ.
+func TestMutationSource_OnlyMutationRecipeAndItsVars(t *testing.T) {
+	dirs := []string{"internal/platform/queue", "internal/httpapi/guard.go"}
+	const lib = "MUTATION_HIGH_RISK := $(shell sed -n 's/^HIGH_RISK_DIRS=\"\\(.*\\)\"$$/\\1/p' scripts/agent/lib.sh)\n"
+	const perf = "perf-test: ## đo\n\tgo test -tags perf ./internal/platform/queue/\n\n"
+	cases := []struct {
+		name, mk, copied string
+	}{
+		{"đích khác nhắc gói: hợp lệ", lib + perf +
+			"mutation: ## m\n\tfor d in $(MUTATION_HIGH_RISK); do gremlins unleash ./$$d; done\n", ""},
+		{"chép danh sách vào công thức mutation", lib + perf +
+			"mutation:\n\tfor d in internal/platform/queue; do gremlins unleash ./$$d; done\n", "internal/platform/queue"},
+		{"chép danh sách vào biến mutation dùng (bắc cầu)", perf +
+			"LIST = internal/httpapi/guard.go\nMUTATION_X := $(filter %.go,$(LIST))\n" +
+			"mutation:\n\t$(foreach f,$(MUTATION_X),gremlins unleash $(f);)\n", "internal/httpapi/guard.go"},
+		{"chép danh sách vào hàm make mutation gọi", lib +
+			"mx = -E '$(1)' internal/platform/queue\nmutation:\n\tgremlins unleash $(call mx,a)\n", "internal/platform/queue"},
+		{"chép vào dòng tiếp nối của biến", lib +
+			"MUTATION_X := a \\\n\tinternal/platform/queue\nmutation:\n\tgremlins unleash $(MUTATION_X)\n", "internal/platform/queue"},
+		{"biến không ai dùng trong mutation: không tính", lib +
+			"PERF_PKG := ./internal/platform/queue/\nperf-test:\n\tgo test $(PERF_PKG)\n" +
+			"mutation:\n\tgremlins unleash $(MUTATION_HIGH_RISK)\n", ""},
+		{"dòng sau công thức mutation không thuộc đích", lib +
+			"mutation:\n\tgremlins unleash $(MUTATION_HIGH_RISK)\n\n# chú thích\nother:\n\tgo test ./internal/platform/queue/\n", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := copiedHighRisk(mutationSource(c.mk), dirs); got != c.copied {
+				t.Errorf("copiedHighRisk = %q, muốn %q", got, c.copied)
+			}
+		})
 	}
 }
