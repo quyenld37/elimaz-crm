@@ -1,0 +1,181 @@
+package inventory_test
+
+import (
+	"bytes"
+	"context"
+	"flag"
+	"fmt"
+	"os"
+	"testing"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/inventory"
+	"elimaz.com.vn/crm/internal/modules/inventory/invtest"
+	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/tenancy"
+	"elimaz.com.vn/crm/internal/testkit"
+)
+
+// TestMain đặt số lượt rapid 300 (kế hoạch Task M1-28: TestInventoryInvariants 300 lượt), trừ khi người chạy đã đặt
+// -rapid.checks hay RAPID_CHECKS.
+func TestMain(m *testing.M) {
+	flag.Parse()
+	testkit.SetRapidChecks(300)
+	os.Exit(m.Run())
+}
+
+// invEnv: một database thử, tenant A có người bán ELIMAZ, kho MAIN và các biến thể tạo bằng variants.
+type invEnv struct {
+	t         *testing.T
+	staff     *testkit.Staff
+	tenant    uuid.UUID
+	seller    uuid.UUID
+	warehouse uuid.UUID
+	bus       *testkit.RecordingBus
+	product   uuid.UUID
+	nVariants int
+}
+
+func newInvEnv(t *testing.T) *invEnv {
+	t.Helper()
+	return newInvEnvOn(t, testkit.OpenStaff(t), "A")
+}
+
+// newInvEnvOn dựng tenant name trên staff có sẵn (nhiều tenant chung một database).
+func newInvEnvOn(t *testing.T, staff *testkit.Staff, name string) *invEnv {
+	t.Helper()
+	e := &invEnv{t: t, staff: staff, bus: &testkit.RecordingBus{}}
+	e.tenant = staff.Tenant(t, name)
+	staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		var err error
+		if e.seller, err = catalog.EnsureDefaultSeller(t.Context(), tx, e.tenant); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		if e.warehouse, err = inventory.EnsureDefaultWarehouse(t.Context(), tx, e.tenant, e.seller); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		return tx.QueryRow(t.Context(), `INSERT INTO catalog.products (tenant_id, seller_id, code, name, name_search, status)
+			VALUES ($1, $2, 'AO01', 'Áo thử', 'ao thu', 'active') RETURNING id`, e.tenant, e.seller).Scan(&e.product)
+	})
+	return e
+}
+
+// variants tạo n biến thể mới (đang bán) của mẫu thử và trả mã của chúng.
+func (e *invEnv) variants(n int) []uuid.UUID {
+	e.t.Helper()
+	ids := make([]uuid.UUID, n)
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		for i := range ids {
+			e.nVariants++
+			if err := tx.QueryRow(e.t.Context(), `INSERT INTO catalog.variants
+				(tenant_id, seller_id, product_id, sku, barcode, color, size, price)
+				VALUES ($1, $2, $3, $4, $5, 'Đỏ', $6, 100000) RETURNING id`,
+				e.tenant, e.seller, e.product, fmt.Sprintf("AO01-%d", e.nVariants), fmt.Sprintf("BC%06d", e.nVariants),
+				fmt.Sprintf("S%d", e.nVariants)).Scan(&ids[i]); err != nil {
+				return err //nolint:wrapcheck // test
+			}
+		}
+		return nil
+	})
+	return ids
+}
+
+// stock tạo một biến thể có on_hand = n ở kho MAIN.
+func (e *invEnv) stock(n int32) uuid.UUID {
+	e.t.Helper()
+	v := e.variants(1)[0]
+	e.seed(v, n)
+	return v
+}
+
+func (e *invEnv) seed(v uuid.UUID, n int32) {
+	e.t.Helper()
+	if err := e.app(func(tx pgx.Tx) error {
+		invtest.SeedStock(e.t, tx, v, e.warehouse, n)
+		return nil
+	}); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+func (e *invEnv) writer() inventory.Writer {
+	return inventory.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: e.bus}
+}
+
+// app chạy fn bằng crm_app trong ngữ cảnh tenant của e.
+func (e *invEnv) app(fn func(tx pgx.Tx) error) error {
+	return tenancy.WithTenant(e.t.Context(), e.staff.App, e.tenant, fn) //nolint:wrapcheck // test
+}
+
+func (e *invEnv) line(v uuid.UUID, q int32) inventory.ReserveLine {
+	return inventory.ReserveLine{OrderItemID: uuid.New(), VariantID: v, WarehouseID: e.warehouse, Qty: q}
+}
+
+func (e *invEnv) reserve(a inventory.Actor, lines ...inventory.ReserveLine) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	err := e.app(func(tx pgx.Tx) error {
+		var err error
+		ids, err = e.writer().Reserve(e.t.Context(), tx, lines, a)
+		return err //nolint:wrapcheck // test
+	})
+	return ids, err
+}
+
+func (e *invEnv) do(fn func(ctx context.Context, tx pgx.Tx, w inventory.Writer) error) error {
+	return e.app(func(tx pgx.Tx) error { return fn(e.t.Context(), tx, e.writer()) })
+}
+
+// balance đọc số dư của v ở kho MAIN qua inventory.stock_available_v (crm_app).
+func (e *invEnv) balance(v uuid.UUID) inventory.Balance {
+	e.t.Helper()
+	var b inventory.Balance
+	if err := e.app(func(tx pgx.Tx) error {
+		return tx.QueryRow(e.t.Context(), `SELECT variant_id, warehouse_id, on_hand, held, in_transit, damaged, available
+			FROM inventory.stock_available_v WHERE variant_id = $1 AND warehouse_id = $2`, v, e.warehouse).
+			Scan(&b.VariantID, &b.WarehouseID, &b.OnHand, &b.Held, &b.InTransit, &b.Damaged, &b.Available)
+	}); err != nil {
+		e.t.Fatalf("đọc số dư: %v", err)
+	}
+	return b
+}
+
+// count đếm bằng chủ bảng trong ngữ cảnh tenant (crm_app không đọc domain_events).
+func (e *invEnv) count(q string, args ...any) int {
+	e.t.Helper()
+	return e.staff.CountIn(e.t, e.tenant, q, args...)
+}
+
+func (e *invEnv) reservationState(id uuid.UUID) string {
+	e.t.Helper()
+	var s string
+	if err := e.app(func(tx pgx.Tx) error {
+		return tx.QueryRow(e.t.Context(), "SELECT state FROM inventory.stock_reservations WHERE id = $1", id).Scan(&s)
+	}); err != nil {
+		e.t.Fatalf("đọc trạng thái giữ hàng: %v", err)
+	}
+	return s
+}
+
+// sysActor là tác nhân hệ thống (actor_id NULL).
+func sysActor() inventory.Actor { return inventory.Actor{Type: "system"} }
+
+func want(t *testing.T, got, exp inventory.Balance) {
+	t.Helper()
+	if got.OnHand != exp.OnHand || got.Held != exp.Held || got.InTransit != exp.InTransit || got.Damaged != exp.Damaged ||
+		got.Available != exp.Available {
+		t.Fatalf("số dư sai: có %+v, mong on_hand %d held %d in_transit %d damaged %d available %d", got,
+			exp.OnHand, exp.Held, exp.InTransit, exp.Damaged, exp.Available)
+	}
+}
+
+// uuidLess so như PostgreSQL so uuid (16 byte theo thứ tự).
+func uuidLess(a, b uuid.UUID) bool { return bytes.Compare(a[:], b[:]) < 0 }
+
+// tenancyApp chạy fn bằng crm_app trong ngữ cảnh tenant khác của cùng database.
+func tenancyApp(e *invEnv, tenant uuid.UUID, fn func(tx pgx.Tx) error) error {
+	return tenancy.WithTenant(e.t.Context(), e.staff.App, tenant, fn) //nolint:wrapcheck // test
+}

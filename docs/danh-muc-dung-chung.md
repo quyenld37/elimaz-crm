@@ -636,6 +636,7 @@ Package realtime phát báo hiệu "đối tượng X vừa đổi" tới màn h
 
 ```go
 func ServeSSE(w http.ResponseWriter, r *http.Request, bus Bus, u identity.AuthUser, o SSEOptions)
+func WarehouseScope(warehouseID string) *identity.Scope
 type Bus interface {
 	Publish(ctx context.Context, tx pgx.Tx, s Signal) error
 

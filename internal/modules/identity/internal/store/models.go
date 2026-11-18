@@ -164,6 +164,94 @@ type IdentityUsersV struct {
 	Status      string
 }
 
+type InventoryStockAvailableV struct {
+	VariantID   uuid.UUID
+	WarehouseID uuid.UUID
+	SellerID    uuid.UUID
+	OnHand      int32
+	Held        int32
+	InTransit   int32
+	Damaged     int32
+	Available   int32
+	UpdatedAt   time.Time
+}
+
+type InventoryStockBalance struct {
+	TenantID    uuid.UUID
+	VariantID   uuid.UUID
+	WarehouseID uuid.UUID
+	SellerID    uuid.UUID
+	OnHand      int32
+	Held        int32
+	InTransit   int32
+	Damaged     int32
+	Version     int64
+	UpdatedAt   time.Time
+}
+
+type InventoryStockLedger struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	VariantID   uuid.UUID
+	WarehouseID uuid.UUID
+	Bucket      string
+	Delta       int32
+	DocType     string
+	DocID       uuid.UUID
+	Step        string
+	ActorType   string
+	ActorID     pgtype.UUID
+	CreatedAt   time.Time
+}
+
+type InventoryStockLedgerV struct {
+	LedgerID    uuid.UUID
+	VariantID   uuid.UUID
+	WarehouseID uuid.UUID
+	Bucket      string
+	Delta       int32
+	DocType     string
+	DocID       uuid.UUID
+	Step        string
+	ActorType   string
+	ActorID     pgtype.UUID
+	CreatedAt   time.Time
+}
+
+type InventoryStockReservation struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	OrderItemID    uuid.UUID
+	VariantID      uuid.UUID
+	WarehouseID    uuid.UUID
+	Quantity       int32
+	State          string
+	ReleaseReason  pgtype.Text
+	ExpiresAt      pgtype.Timestamptz
+	StateChangedAt time.Time
+	CreatedAt      time.Time
+}
+
+type InventoryWarehouse struct {
+	ID                 uuid.UUID
+	TenantID           uuid.UUID
+	OperatedBySellerID uuid.UUID
+	Code               string
+	Name               string
+	Status             string
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	Version            int64
+}
+
+type InventoryWarehousesV struct {
+	WarehouseID        uuid.UUID
+	OperatedBySellerID uuid.UUID
+	Code               string
+	Name               string
+	Status             string
+}
+
 type PlatformDomainEvent struct {
 	ID            uuid.UUID
 	TenantID      uuid.UUID
