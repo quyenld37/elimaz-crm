@@ -1,0 +1,16 @@
+# Ngữ cảnh dựng chung của Dockerfile (image chính) và docker/imager/Dockerfile (ngữ cảnh là gốc repo).
+# Không bao giờ vào image: tệp môi trường, lịch sử git, compose, phép đo, màn hình (kế hoạch M0, Task 21).
+# Không loại *_test.go, testdata: stage `test` của image imager chạy test của internal/imager.
+.env
+.env*
+**/.env
+**/.env*
+.git
+.worktrees
+tests
+docker
+spikes
+console
+docs
+scripts
+loadtest

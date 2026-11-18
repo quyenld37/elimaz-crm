@@ -7,6 +7,31 @@
 # `make dev` tự bật profile nào đã có Dockerfile.
 name: crm
 
+# Phần chung của dịch vụ ứng dụng (Task 21). Gộp bằng `<<:`; tests/deploy đọc kết quả đã gộp.
+x-crm-env: &crm-env
+  CRM_ENV: dev
+  DATABASE_URL: postgres://crm_app:crm_app_dev@postgres:5432/crm?sslmode=disable
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+x-crm-s3: &crm-s3
+  S3_ENDPOINT: http://seaweedfs:8333
+  S3_ACCESS_KEY_ID: crm-app-dev
+  S3_SECRET_ACCESS_KEY: crm-app-dev-only-not-a-secret
+  FILES_PUBLIC_BASE_URL: http://127.0.0.1:${CRM_S3_PORT:-8333}/crm-public
+x-crm-hardening: &crm-hardening
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  stop_grace_period: 30s
+x-crm-health: &crm-health
+  healthcheck:
+    test: ["CMD", "/crm", "healthcheck"]
+    interval: 5s
+    timeout: 5s
+    start_period: 20s
+    retries: 6
+
 services:
   postgres:
     # postgres:18 (18.7), digest của image index đa nền tảng, lấy ngày 18/11/2026
@@ -136,6 +161,79 @@ services:
     security_opt: ["no-new-privileges:true"]
     depends_on: [imager]
 
+  # ---- Ba vai trò của image chính (Task 21), profile `app`: `make db-up` không bật chúng. Dựng image và chạy:
+  #   make image && make app-up      (hoặc scripts/ops/image-check.sh kiểm cả đường)
+  # Bí mật ở đây là chuỗi giả chỉ cho máy dev (0123456789abcdef… được .gitleaks.toml cho phép).
+  # Giới hạn bộ nhớ chưa có số đo (đo ở Task 22); GOMEMLIMIT = 90% giới hạn, làm tròn xuống MiB (tests/deploy).
+  # stop_grace_period 30 s: worker chờ việc đang chạy tối đa 25 s (Task 11), Docker giết sau hạn này.
+  crm-migrate:
+    profiles: [app]
+    image: crm:dev
+    environment:
+      <<: *crm-env
+      CRM_ROLE: migrate
+      DATABASE_OWNER_URL: postgres://crm_owner:crm_owner_dev@postgres:5432/crm?sslmode=disable
+    restart: "no"
+    <<: *crm-hardening
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  crm-ingest:
+    profiles: [app]
+    image: crm:dev
+    environment:
+      <<: *crm-env
+      CRM_ROLE: ingest
+      PORT: "4191"
+      SPOOL_DIR: /var/spool/crm
+      SELFTEST_WEBHOOK_SECRET: dev-0123456789abcdef0123456789abcdef
+      GOMEMLIMIT: 230MiB
+    ports:
+      - "127.0.0.1:${CRM_INGEST_PORT:-4191}:4191"
+    volumes:
+      - spool:/var/spool/crm
+    mem_limit: 256m
+    <<: [*crm-hardening, *crm-health]
+    depends_on: &crm-deps
+      postgres:
+        condition: service_healthy
+
+  crm-api:
+    profiles: [app]
+    image: crm:dev
+    environment:
+      <<: [*crm-env, *crm-s3]
+      CRM_ROLE: api
+      PORT: "4190"
+      ACCESS_TEAM_DOMAIN: dev.cloudflareaccess.invalid
+      ACCESS_AUD: dev-aud
+      ACCESS_MFA_CLAIM: amr
+      ACCESS_MFA_VALUES: mfa
+      CONSOLE_ORIGINS: ${CONSOLE_ORIGINS:-http://localhost:4192}
+      HEALTH_TOKEN: dev-0123456789abcdef0123456789abcdef
+      GOMEMLIMIT: 460MiB
+    ports:
+      - "127.0.0.1:${CRM_API_PORT:-4190}:4190"
+    mem_limit: 512m
+    <<: [*crm-hardening, *crm-health]
+    depends_on: *crm-deps
+
+  crm-worker:
+    profiles: [app]
+    image: crm:dev
+    environment:
+      <<: [*crm-env, *crm-s3]
+      CRM_ROLE: worker
+      IMAGER_URL: http://imager:4193
+      S3_IMAGER_ENDPOINT: http://seaweedfs:8333
+      GOMEMLIMIT: 460MiB
+    # imaging: tới imager (chỉ chạy khi bật profile imager) và kho tệp theo đúng tên imager dùng.
+    networks: [default, imaging]
+    mem_limit: 512m
+    <<: [*crm-hardening, *crm-health]
+    depends_on: *crm-deps
+
   # Hãng vận chuyển giả (Task M1-31), chỉ dev và staging.
   fakecarrier:
     profiles: [fakecarrier]
@@ -169,3 +267,4 @@ volumes:
   pgdata:
   seaweed:
   seaweed-offsite:
+  spool:

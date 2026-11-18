@@ -26,7 +26,7 @@ DEV_PROFILES := $(if $(wildcard docker/imager/Dockerfile),--profile imager) \
 	$(if $(wildcard tools/fakecarrier/Dockerfile),--profile fakecarrier) \
 	$(if $(wildcard docker/filesync/Dockerfile),--profile filesync)
 
-.PHONY: db-up db-down db-reset dev probe-test spike-test test-imager test-imager-compose
+.PHONY: db-up db-down db-reset dev probe-test spike-test test-imager test-imager-compose image app-up app-down image-check verify-drill
 
 db-up: ## Dựng PostgreSQL 18, Jaeger, SeaweedFS (kho chính, kho ngoài giả, tạo bucket), chờ tới khi sẵn sàng
 	$(COMPOSE) up -d --wait
@@ -48,6 +48,23 @@ test-imager: ## Test của internal/imager, cmd/imager với libvips thật (Tas
 test-imager-compose: ## Container imager của compose dev: không biến bí mật, không tới PostgreSQL, chỉ đọc (dựng lại imager)
 	$(COMPOSE) --profile imager up -d --wait --build imager imager-port postgres seaweedfs
 	COMPOSE_PROJECT=$(COMPOSE_PROJECT) CRM_IMAGER_PORT=$(CRM_IMAGER_PORT) go test -tags imagercompose -count=1 -run '^TestImagerCompose_' -v ./internal/imager/
+
+# ---- Image chính và ba vai trò trên compose dev (Task 21). Cổng máy: CRM_API_PORT (4190), CRM_INGEST_PORT (4191).
+image: ## Dựng image chính crm:dev (Go tĩnh, distroless, không root)
+	docker build -t crm:dev .
+
+app-up: ## Migrate một lần rồi chạy crm-ingest, crm-api, crm-worker từ crm:dev (make db-up và make image trước)
+	$(COMPOSE) --profile app run --rm -T crm-migrate
+	$(COMPOSE) --profile app up -d --wait --no-deps crm-ingest crm-api crm-worker
+
+app-down: ## Gỡ ba vai trò (giữ database)
+	$(COMPOSE) --profile app rm -sf crm-migrate crm-ingest crm-api crm-worker
+
+image-check: ## Kiểm image: health 200, healthy, uid khác 0, không .env*, kích thước (Task 21 Step 1; make db-up trước)
+	COMPOSE_PROJECT=$(COMPOSE_PROJECT) scripts/ops/image-check.sh
+
+verify-drill: ## Diễn tập sao lưu và kiểm bản sao lưu hằng tuần trên compose diễn tập crm-t02 (Task 21 Step 2)
+	scripts/backup/verify-drill.sh
 
 db-down: ## Dừng container, giữ dữ liệu
 	$(COMPOSE) down

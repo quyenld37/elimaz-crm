@@ -171,6 +171,43 @@ func TestRuleBackupAge(t *testing.T) {
 	wantKey(t, keys, "backup-age", true)
 }
 
+// backup-verify (Task 21, ADR-37 điều 3): lần kiểm bản sao lưu hằng tuần gần nhất hỏng thì báo; lần sau đạt thì thôi.
+// Chưa có lần kiểm nào thì không báo (lịch chưa chạy lần đầu); tắt BackupExpected thì không báo.
+func TestRuleBackupVerify(t *testing.T) {
+	e := newEnv(t)
+	fresh(t, e)
+	e.exec(t, "INSERT INTO platform.backup_runs (kind, ok) VALUES ('base', true)")
+	keys, _ := check(t, e, observability.RuleOptions{BackupExpected: true})
+	wantKey(t, keys, "backup-verify", false)
+
+	e.exec(t, "INSERT INTO platform.backup_runs (kind, ok, finished_at) VALUES ('restore_verify', true, now() - interval '8 days')")
+	e.exec(t, "INSERT INTO platform.backup_runs (kind, ok, finished_at) VALUES ('restore_verify', false, now() - interval '1 hour')")
+	// Một lần diễn tập (kind khác) đạt sau đó không che lần kiểm hỏng.
+	e.exec(t, "INSERT INTO platform.backup_runs (kind, ok) VALUES ('restore_drill', true)")
+	keys, f := check(t, e, observability.RuleOptions{BackupExpected: true})
+	wantKey(t, keys, "backup-verify", true)
+	wantKey(t, keys, "backup-age", false)
+	for _, n := range f.sent {
+		if n.key == "backup-verify" && n.severity != observability.SeverityUrgent {
+			t.Fatalf("backup-verify phải là urgent, có %q", n.severity)
+		}
+	}
+	keys, _ = check(t, e, observability.RuleOptions{BackupExpected: false})
+	wantKey(t, keys, "backup-verify", false)
+
+	e.exec(t, "INSERT INTO platform.backup_runs (kind, ok) VALUES ('restore_verify', true)")
+	keys, _ = check(t, e, observability.RuleOptions{BackupExpected: true})
+	wantKey(t, keys, "backup-verify", false)
+
+	// Không còn base tốt nào nhưng lần kiểm cuối hỏng: báo cả hai.
+	e2 := newEnv(t)
+	fresh(t, e2)
+	e2.exec(t, "INSERT INTO platform.backup_runs (kind, ok) VALUES ('restore_verify', false)")
+	keys, _ = check(t, e2, observability.RuleOptions{BackupExpected: true})
+	wantKey(t, keys, "backup-age", true)
+	wantKey(t, keys, "backup-verify", true)
+}
+
 func TestRuleDBSize(t *testing.T) {
 	e := newEnv(t)
 	fresh(t, e)
