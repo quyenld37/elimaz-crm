@@ -34,7 +34,7 @@ export {
   shouldRetry,
 } from "../app/queryClient";
 export type { Topic } from "../app/queryClient";
-/** Menu và định tuyến: mỗi màn khai một Screen trong src/app/screens.tsx; menu chỉ hiện màn có quyền. */
+/** Menu và định tuyến: mỗi màn tự đăng ký bằng src/screens/<tên>/route.tsx (src/app/loadScreens.ts); menu chỉ hiện màn có quyền. */
 export { NAV_GROUPS, allowedScreens, hasPermission, navSections } from "../app/nav";
 export type { NavGroup, NavSection, Screen } from "../app/nav";
 /** Khung điều hướng theo mockup M1: menu trái, thanh trên 56 px, menu trượt trên điện thoại. */

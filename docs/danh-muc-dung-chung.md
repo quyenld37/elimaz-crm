@@ -1078,7 +1078,7 @@ type Sheet struct {
 
 Export của `console/src/shared/index.ts`.
 
-**Khi nào không dùng:** Không fetch thẳng tới /api/v1 ở màn hình (eslint chặn): dữ liệu lấy qua client sinh console/src/api; chỉ createRealtimeClient đọc /api/v1/stream. Không coi báo hiệu changed là dữ liệu: nhận báo hiệu thì tải lại đúng đối tượng bằng API; onResync tải lại mọi danh sách đang mở. Không tạo hai createRealtimeClient trong một tab (mỗi tab một kết nối, spec 04 mục 6). Không tự viết băng báo mất kết nối, phiên hết hạn, API tạm ngừng: dùng Banner (câu chữ spec 04 mục 6). Không gọi hàm ghi của client sinh thẳng từ màn: qua useWriteAction (khóa chống trùng, gửi lại cùng khóa); không tự viết vòng thử lại hay sinh Idempotency-Key ở màn. Không hiện mã lỗi máy hay chữ từ máy chủ cho nhân viên: errorMessage; mã mới thì thêm vào x-error-codes của openapi.yaml và ERROR_MESSAGES. Khóa truy vấn luôn bắt đầu bằng chủ đề realtime (queryKey), không tạo QueryClient thứ hai. Không thêm route hay mục menu ngoài SCREENS (src/app/screens.tsx).
+**Khi nào không dùng:** Không fetch thẳng tới /api/v1 ở màn hình (eslint chặn): dữ liệu lấy qua client sinh console/src/api; chỉ createRealtimeClient đọc /api/v1/stream. Không coi báo hiệu changed là dữ liệu: nhận báo hiệu thì tải lại đúng đối tượng bằng API; onResync tải lại mọi danh sách đang mở. Không tạo hai createRealtimeClient trong một tab (mỗi tab một kết nối, spec 04 mục 6). Không tự viết băng báo mất kết nối, phiên hết hạn, API tạm ngừng: dùng Banner (câu chữ spec 04 mục 6). Không gọi hàm ghi của client sinh thẳng từ màn: qua useWriteAction (khóa chống trùng, gửi lại cùng khóa); không tự viết vòng thử lại hay sinh Idempotency-Key ở màn. Không hiện mã lỗi máy hay chữ từ máy chủ cho nhân viên: errorMessage; mã mới thì thêm vào x-error-codes của openapi.yaml và ERROR_MESSAGES. Khóa truy vấn luôn bắt đầu bằng chủ đề realtime (queryKey), không tạo QueryClient thứ hai. Không thêm route hay mục menu ngoài quy ước màn tự đăng ký: mỗi màn là thư mục src/screens/<tên>/ có route.tsx xuất screens (src/app/loadScreens.ts); không viết danh sách màn tay, không sửa tệp chung để thêm màn.
 
 ```ts
 export { createRealtimeClient } from "../realtime/client"; // Lớp realtime: báo hiệu "đối tượng vừa đổi" qua SSE, tự canh im lặng, nối lại, nhận ra phiên hết hạn.
@@ -1093,7 +1093,7 @@ export { ApiError, ERROR_MESSAGES, NetworkError, TEXT_NETWORK, TEXT_UNKNOWN_ERRO
 export type { ClientResult } from "../app/errors";
 export { TOPICS, createQueryClient, onRealtimeChanged, onRealtimeResync, queryKey, shouldRetry } from "../app/queryClient"; // Lớp lấy dữ liệu: khóa truy vấn theo chủ đề realtime, nối báo hiệu changed/resync vào TanStack Query.
 export type { Topic } from "../app/queryClient";
-export { NAV_GROUPS, allowedScreens, hasPermission, navSections } from "../app/nav"; // Menu và định tuyến: mỗi màn khai một Screen trong src/app/screens.tsx; menu chỉ hiện màn có quyền.
+export { NAV_GROUPS, allowedScreens, hasPermission, navSections } from "../app/nav"; // Menu và định tuyến: mỗi màn tự đăng ký bằng src/screens/<tên>/route.tsx (src/app/loadScreens.ts); menu chỉ hiện màn có quyền.
 export type { NavGroup, NavSection, Screen } from "../app/nav";
 export { Layout } from "../shell/Layout"; // Khung điều hướng theo mockup M1: menu trái, thanh trên 56 px, menu trượt trên điện thoại.
 export type { LayoutProps } from "../shell/Layout";
