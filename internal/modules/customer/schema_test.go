@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -456,13 +457,30 @@ func TestSchemaViewsAndRules(t *testing.T) {
 		}
 	}
 
-	// Mọi index của bảng customer.* bắt đầu bằng tenant_id.
+	// Bảng customer.* không có tenant_id chỉ là danh mục dùng chung admin_units (Task M2-04, dữ liệu tham chiếu).
 	rows, err := owner.Pool.Query(t.Context(), `
+		SELECT c.relname::text FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+		WHERE n.nspname = 'customer' AND c.relkind = 'r' AND NOT EXISTS (
+			SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attname = 'tenant_id' AND NOT a.attisdropped)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	shared, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(shared, []string{"admin_units"}) {
+		t.Errorf("bảng customer.* không có tenant_id: %v, chỉ được là [admin_units]", shared)
+	}
+
+	// Mọi index của bảng customer.* có tenant_id bắt đầu bằng tenant_id.
+	rows, err = owner.Pool.Query(t.Context(), `
 		SELECT ic.relname::text FROM pg_index i
 		JOIN pg_class c ON c.oid = i.indrelid JOIN pg_namespace n ON n.oid = c.relnamespace
 		JOIN pg_class ic ON ic.oid = i.indexrelid
 		JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = i.indkey[0]
-		WHERE n.nspname = 'customer' AND NOT i.indisprimary AND a.attname <> 'tenant_id'`)
+		WHERE n.nspname = 'customer' AND NOT i.indisprimary AND a.attname <> 'tenant_id'
+		  AND c.relname <> ALL ($1::text[])`, shared)
 	if err != nil {
 		t.Fatal(err)
 	}
