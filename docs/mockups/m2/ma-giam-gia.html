@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M2 — Mã giảm giá</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="m2.css">
+<style>
+.c-code { display: grid; gap: 0; min-width: 0; max-width: 280px; }
+@media (max-width: 759px) { .c-code { max-width: none; } }
+</style>
+</head>
+<body data-page="ma-giam-gia" data-title="Mã giảm giá">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><h1>Mã giảm giá</h1><p class="sub">Mỗi đơn dùng tối đa một mã. Lượt dùng trừ khi tạo đơn, trả lại khi đơn bị hủy trước khi giao.</p></div>
+	<div class="row"><button class="btn btn-line">Tạo đợt mã</button><button class="btn btn-dark">Tạo mã</button></div>
+</div>
+
+<section class="st" data-ca="danh-sach"><p class="xs">TRẠNG THÁI A</p><h2>Danh sách: đang chạy, hết lượt, hết hạn, đã tắt, mã thuộc đợt</h2></section>
+<div class="toolbar">
+	<input class="input is-search" type="search" placeholder="Tìm theo mã hoặc tên" aria-label="Tìm mã">
+	<div class="select-wrap"><select aria-label="Trạng thái"><option>Mọi trạng thái</option><option>Đang chạy</option><option>Đã tắt</option></select></div>
+	<div class="select-wrap"><select aria-label="Đợt mã"><option>Mọi đợt</option><option>Sinh nhật tháng 11</option></select></div>
+</div>
+<div class="tbl-frame">
+<table class="tbl">
+	<thead><tr><th>Mã</th><th>Giảm</th><th>Điều kiện</th><th>Hạn</th><th class="r">Đã dùng</th><th>Trạng thái</th></tr></thead>
+	<tbody>
+	<tr><td class="lead"><div class="c-code"><a class="cell-a bold num" href="#chi-tiet">THU10</a><span class="small muted ellip">Giảm 10% mùa thu cho khách quay lại</span></div></td><td data-label="Giảm"><span>10%, tối đa <span class="money">150.000 ₫</span></span></td><td data-label="Điều kiện"><span>Đơn từ <span class="money">500.000 ₫</span></span></td><td data-label="Hạn" class="num">01/11–30/11</td><td data-label="Đã dùng" class="r num">87 / 200</td><td data-label="Trạng thái"><span class="chip chip-ok">Đang chạy</span></td></tr>
+	<tr><td class="lead"><div class="c-code"><a class="cell-a bold num" href="#chi-tiet">FLASH50</a><span class="small muted ellip">Live tối 15/11</span></div></td><td data-label="Giảm"><span><span class="money">50.000 ₫</span></span></td><td data-label="Điều kiện">Mọi đơn · 1 lượt mỗi khách</td><td data-label="Hạn" class="num">15/11–20/11</td><td data-label="Đã dùng" class="r num">100 / 100</td><td data-label="Trạng thái"><span class="chip chip-err">Hết lượt</span></td></tr>
+	<tr><td class="lead"><div class="c-code"><a class="cell-a bold num" href="#chi-tiet">SN-7KQ2M9XA</a><span class="small muted ellip">Đợt: Sinh nhật tháng 11 (500 mã)</span></div></td><td data-label="Giảm"><span>15%, tối đa <span class="money">100.000 ₫</span></span></td><td data-label="Điều kiện">Dành cho một SĐT</td><td data-label="Hạn" class="num">01/11–30/11</td><td data-label="Đã dùng" class="r num">0 / 1</td><td data-label="Trạng thái"><span class="chip chip-ok">Đang chạy</span></td></tr>
+	<tr class="is-muted"><td class="lead"><div class="c-code"><a class="cell-a bold num" href="#chi-tiet">HE2026</a><span class="small muted ellip">Xả hè</span></div></td><td data-label="Giảm">20%</td><td data-label="Điều kiện">Chỉ Website</td><td data-label="Hạn" class="num">01/06–31/08</td><td data-label="Đã dùng" class="r num">412</td><td data-label="Trạng thái"><span class="chip">Hết hạn</span></td></tr>
+	<tr class="is-muted"><td class="lead"><div class="c-code"><a class="cell-a bold num" href="#chi-tiet">NHAPNHAM</a><span class="small muted ellip">Tạo nhầm</span></div></td><td data-label="Giảm"><span><span class="money">500.000 ₫</span></span></td><td data-label="Điều kiện">Mọi đơn</td><td data-label="Hạn" class="num">10/11–10/12</td><td data-label="Đã dùng" class="r num">0</td><td data-label="Trạng thái"><span class="chip">Đã tắt</span></td></tr>
+	</tbody>
+</table>
+</div>
+<div class="more"><span>50 mã mới nhất</span><button class="btn btn-line">Tải thêm</button></div>
+
+<section class="st" data-ca="tao-ma"><p class="xs">TRẠNG THÁI B</p><h2>Tạo mã: phần trăm hoặc số tiền, hạn, giới hạn lượt</h2></section>
+<div class="card" style="max-width:860px">
+	<div class="grid-f">
+		<label class="field"><span>Mã</span><input class="input" placeholder="Để trống để tự sinh 8 ký tự" value="TET2027"><span class="hint">Chữ, số, dấu -; 3–32 ký tự; không phân biệt hoa thường</span></label>
+		<label class="field"><span>Tên (cho nhân viên)</span><input class="input" value="Tết 2027 khách cũ"></label>
+	</div>
+	<div class="grid-f" style="margin-top:16px">
+		<div class="field"><span>Kiểu giảm</span><div class="row"><button class="toggle" aria-pressed="true">Phần trăm</button><button class="toggle" aria-pressed="false">Số tiền</button></div></div>
+		<label class="field"><span>Giảm (%)</span><input class="input num" value="10" inputmode="decimal"><span class="hint">1–100%, làm tròn xuống tới đồng</span></label>
+		<label class="field"><span>Giảm tối đa (đồng)</span><input class="input num" value="200.000" inputmode="numeric"></label>
+		<label class="field"><span>Đơn tối thiểu (đồng)</span><input class="input num" value="300.000" inputmode="numeric"><span class="hint">Tính sau giảm dòng và giảm tay cấp đơn</span></label>
+	</div>
+	<div class="grid-f" style="margin-top:16px">
+		<label class="field"><span>Từ</span><input class="input num" value="20/01/2027 00:00"></label>
+		<label class="field"><span>Đến</span><input class="input num" value="10/02/2027 23:59"></label>
+		<label class="field"><span>Tổng lượt (để trống: không giới hạn)</span><input class="input num" value="300"></label>
+		<label class="field"><span>Lượt mỗi khách</span><input class="input num" value="1"></label>
+	</div>
+	<div class="field" style="margin-top:16px"><span>Kênh</span><div class="row"><label class="check"><input type="checkbox" checked> Nhập tay</label><label class="check"><input type="checkbox" checked> Facebook</label><label class="check"><input type="checkbox"> Website</label></div><span class="hint">Không chọn kênh nào = mọi kênh</span></div>
+	<label class="check" style="margin-top:8px"><input type="checkbox" checked> Trả lại lượt khi đơn bị hủy trước khi giao</label>
+	<div class="savebar" style="margin-top:16px"><button class="btn btn-line">Hủy</button><button class="btn btn-dark">Tạo mã</button></div>
+	<div class="box box-err" style="margin-top:12px"><b>Mã TET2027 đã có.</b> Chọn mã khác hoặc để trống để tự sinh.</div>
+</div>
+
+<section class="st" data-ca="tao-dot"><p class="xs">TRẠNG THÁI C</p><h2>Tạo đợt 500 mã dùng một lần; đang sinh; xong thì tải danh sách mã</h2></section>
+<div class="dlgs">
+	<div class="card">
+		<h2>Tạo đợt mã</h2>
+		<div class="stack">
+			<label class="field"><span>Tên đợt</span><input class="input" value="Sinh nhật tháng 12"></label>
+			<div class="grid-f"><label class="field"><span>Tiền tố</span><input class="input" value="SN-"></label><label class="field"><span>Số mã</span><input class="input num" value="500"><span class="hint">1–100.000; mỗi mã dùng một lần</span></label></div>
+			<p class="small muted">Điều khoản (giảm, hạn, đơn tối thiểu) nhập như ở Tạo mã, áp cho mọi mã của đợt.</p>
+			<div class="savebar"><button class="btn btn-dark">Tạo 500 mã</button></div>
+		</div>
+	</div>
+	<div class="card stack-sm">
+		<div class="row-between"><h2>Sinh nhật tháng 12</h2><span class="small muted num">320 / 500</span></div>
+		<div class="bar" role="progressbar" aria-valuenow="64" aria-valuemin="0" aria-valuemax="100"><i style="width:64%"></i></div>
+		<p class="small muted">Đang sinh mã. Có thể rời trang; xong sẽ có nút tải.</p>
+		<button class="btn btn-line" disabled>Tải danh sách mã (.xlsx)</button><span class="reason">Có khi sinh xong</span>
+	</div>
+</div>
+
+<section class="st" id="chi-tiet" data-ca="chi-tiet truong-khoa"><p class="xs">TRẠNG THÁI D</p><h2>Chi tiết mã đã có lượt dùng: trường điều khoản khóa, ghi rõ vì sao; lượt dùng theo đơn</h2></section>
+<div class="cols">
+	<div class="card">
+		<div class="row-between"><div class="row"><h2 class="num">THU10</h2><span class="chip chip-ok">Đang chạy</span></div><span class="small muted">87 / 200 lượt · còn 113</span></div>
+		<div class="box box-info" style="margin-top:12px">Mã đã có lượt dùng: chỉ đổi được tên, ngày hết hạn, tổng lượt (không dưới 87) và tắt mã. Muốn đổi mức giảm thì tạo mã mới.</div>
+		<div class="grid-f" style="margin-top:16px">
+			<label class="field"><span>Tên</span><input class="input" value="Giảm 10% mùa thu cho khách quay lại"></label>
+			<label class="field"><span>Đến</span><input class="input num" value="30/11/2026 23:59"></label>
+			<label class="field"><span>Tổng lượt</span><input class="input num" value="200"></label>
+			<label class="field"><span>Giảm (%) <span class="locked">· khóa</span></span><input class="input num" value="10" disabled></label>
+			<label class="field"><span>Giảm tối đa <span class="locked">· khóa</span></span><input class="input num" value="150.000" disabled></label>
+			<label class="field"><span>Đơn tối thiểu <span class="locked">· khóa</span></span><input class="input num" value="500.000" disabled></label>
+		</div>
+		<div class="savebar" style="margin-top:16px"><button class="btn btn-danger">Tắt mã</button><button class="btn btn-dark">Lưu</button></div>
+		<p class="field-err" style="margin-top:8px">Tổng lượt không được thấp hơn số đã dùng (87).</p>
+	</div>
+	<div class="card">
+		<h2>Lượt dùng</h2>
+		<div class="tbl-frame">
+		<table class="tbl">
+			<thead><tr><th>Đơn</th><th class="r">Giảm</th><th>Trạng thái</th></tr></thead>
+			<tbody>
+			<tr><td class="lead"><a class="cell-a num" href="don-chi-tiet.html">DH0001236</a></td><td data-label="Giảm" class="r"><span class="money">150.000 ₫</span></td><td data-label="Trạng thái"><span class="chip chip-ok">Đang tính</span></td></tr>
+			<tr><td class="lead"><a class="cell-a num" href="don-chi-tiet.html">DH0001201</a></td><td data-label="Giảm" class="r"><span class="money">62.000 ₫</span></td><td data-label="Trạng thái"><span class="chip chip-ok">Đang tính</span></td></tr>
+			<tr class="is-muted"><td class="lead"><a class="cell-a num" href="don-chi-tiet.html">DH0001177</a></td><td data-label="Giảm" class="r"><span class="money">80.000 ₫</span></td><td data-label="Trạng thái"><span class="chip">Đã trả lượt (đơn hủy)</span></td></tr>
+			</tbody>
+		</table>
+		</div>
+	</div>
+</div>
+
+<section class="st" data-ca="tat-ma"><p class="xs">TRẠNG THÁI E</p><h2>Tắt mã</h2></section>
+<div class="backdrop">
+	<div class="dlg" role="dialog" aria-label="Tắt mã">
+		<div class="dlg-h"><h2>Tắt mã THU10?</h2></div>
+		<div class="dlg-b"><p>Đơn mới không dùng được mã này nữa. 87 đơn đã dùng giữ nguyên phần giảm. Bật lại được bất cứ lúc nào.</p></div>
+		<div class="dlg-f"><button class="btn btn-line">Quay lại</button><button class="btn btn-danger">Tắt mã</button></div>
+	</div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

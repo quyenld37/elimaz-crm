@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M2 — Gộp khách</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="m2.css">
+</head>
+<body data-page="khach-gop" data-title="Gộp khách">
+<div class="app"><main class="main">
+
+<p class="crumb"><a href="khach-danh-sach.html">Khách hàng</a> / <a href="khach-ho-so.html">KH000231</a> / Gộp</p>
+<div class="page-h">
+	<div><h1>Gộp hai khách</h1><p class="sub">Gộp không dời đơn hay hội thoại: hai hồ sơ thành một nhóm, xem chung một chỗ. Hoàn tác được trong 30 ngày.</p></div>
+</div>
+
+<section class="st" data-ca="hai-ho-so chon-giu"><p class="xs">TRẠNG THÁI A</p><h2>Hai hồ sơ cạnh nhau, SĐT trùng tô nền; chọn hồ sơ giữ lại làm đại diện</h2></section>
+<div class="split">
+	<div class="side-c is-pick">
+		<label class="check"><input type="radio" name="giu" checked> <b>Giữ hồ sơ này làm đại diện</b></label>
+		<div class="row"><h2>Trần Thị Thu Hà</h2><span class="chip">KH000231</span></div>
+		<dl class="kv">
+			<dt>SĐT</dt><dd class="num">0912 345 678 · 0355 999 000</dd>
+			<dt>Địa chỉ giao gần đây</dt><dd>Nguyễn Văn Tùng · <span class="same num">0987 654 321</span></dd>
+			<dt>Đơn</dt><dd>12 (9 thành công, 2 hoàn)</dd>
+			<dt>Đã chi</dt><dd><span class="money">8.450.000 ₫</span></dd>
+			<dt>Nhãn</dt><dd>Khách quen, Hay hoàn</dd>
+			<dt>Hồ sơ trong nhóm</dt><dd>2 (KH000231, KH003990)</dd>
+		</dl>
+	</div>
+	<div class="side-c">
+		<label class="check"><input type="radio" name="giu"> <b>Giữ hồ sơ này làm đại diện</b></label>
+		<div class="row"><h2>Nguyễn Văn Tùng</h2><span class="chip">KH001877</span></div>
+		<dl class="kv">
+			<dt>SĐT</dt><dd class="num"><span class="same">0987 654 321</span></dd>
+			<dt>Địa chỉ giao gần đây</dt><dd>Tầng 5, 18 Phạm Hùng, Từ Liêm, Hà Nội</dd>
+			<dt>Đơn</dt><dd>2 (2 thành công)</dd>
+			<dt>Đã chi</dt><dd><span class="money">980.000 ₫</span></dd>
+			<dt>Nhãn</dt><dd>—</dd>
+			<dt>Hồ sơ trong nhóm</dt><dd>1</dd>
+		</dl>
+	</div>
+</div>
+<div class="savebar is-sticky" style="margin-top:16px"><a class="btn btn-line" href="khach-ho-so.html">Không gộp</a><button class="btn btn-dark">Gộp vào KH000231…</button></div>
+<p class="mk" style="margin-top:8px"><b>Mockup:</b> chỉ người có quyền gộp khách thấy nút này. Hệ thống không bao giờ tự gộp, kể cả khi trùng SĐT.</p>
+
+<section class="st" data-ca="xac-nhan"><p class="xs">TRẠNG THÁI B</p><h2>Xác nhận lần hai</h2></section>
+<div class="backdrop">
+	<div class="dlg" role="dialog" aria-label="Xác nhận gộp">
+		<div class="dlg-h"><h2>Gộp KH001877 vào KH000231?</h2></div>
+		<div class="dlg-b">
+			<p>Sau khi gộp: hồ sơ, đơn, SĐT, địa chỉ của Nguyễn Văn Tùng hiện chung ở hồ sơ Trần Thị Thu Hà; chỉ số tính lại cho cả nhóm. Không dữ liệu nào bị xóa.</p>
+			<p class="small muted">Hoàn tác được tới 18/12/2026 nếu chưa có lần gộp nào khác chạm hai hồ sơ này.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-line">Quay lại</button><button class="btn btn-dark">Gộp</button></div>
+	</div>
+</div>
+
+<section class="st" data-ca="lan-gop hoan-tac-loi"><p class="xs">TRẠNG THÁI C</p><h2>Các lần gộp (ví dụ khi sau đó cả nhóm KH000231 lại được gộp vào KH001877): hoàn tác được, phải hoàn tác lần sau trước, đã quá 30 ngày</h2></section>
+<div class="tbl-frame">
+<table class="tbl">
+	<thead><tr><th>Lúc</th><th>Gộp</th><th>Người làm</th><th>Hoàn tác</th></tr></thead>
+	<tbody>
+	<tr><td class="lead num">15:40 · 18/11</td><td data-label="Gộp">KH000231 (cả nhóm) vào KH001877</td><td data-label="Người làm">Nguyễn Thị Lan</td><td data-label="Hoàn tác" class="c-act"><button class="btn btn-line">Hoàn tác</button></td></tr>
+	<tr><td class="lead num">15:00 · 01/11</td><td data-label="Gộp">KH003990 vào KH000231</td><td data-label="Người làm">Nguyễn Thị Lan</td><td class="full"><span class="reason">Hoàn tác lần gộp <a class="cell-a" href="#">15:40 · 18/11</a> trước.</span></td></tr>
+	<tr class="is-muted"><td class="lead num">09:30 · 02/10</td><td data-label="Gộp">KH002118 vào KH000900 (ví dụ ở nhóm khác)</td><td data-label="Người làm">Lê Văn Đức</td><td class="full"><span class="reason">Quá 30 ngày, không hoàn tác được.</span></td></tr>
+	</tbody>
+</table>
+</div>
+<div class="dlgs" style="margin-top:16px">
+	<div class="box box-err"><b>Chưa hoàn tác được.</b> Sau lần gộp này, hồ sơ giữ lại KH000231 đã bị gộp tiếp vào KH001877 (15:40 · 18/11). Hoàn tác lần đó trước. <a class="cell-a" href="#">Mở lần gộp đó</a></div>
+	<div class="toast"><span class="grow">Đã hoàn tác: nhóm KH000231 tách khỏi KH001877.</span></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M2 — Danh sách đơn</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="m2.css">
+<style>
+.o-code { display: grid; gap: 2px; justify-items: start; }
+.o-cus { display: grid; gap: 0; min-width: 0; max-width: 260px; }
+@media (max-width: 759px) { .o-cus { max-width: none; flex: 0 1 68%; text-align: right; justify-items: end; } .o-cus > * { max-width: 100%; } }
+.tbl tr.is-new td { background: var(--soft); }
+@media (max-width: 759px) { .tbl tr.is-new { background: var(--soft); } .tbl tr.is-new td { background: none; } }
+</style>
+</head>
+<body data-page="don-danh-sach" data-title="Đơn hàng">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><h1>Đơn hàng</h1><p class="sub">Tự cập nhật khi có đơn đổi · lần cuối 14:32:05</p></div>
+	<div class="row"><a class="btn btn-line" href="don-trung.html">Đơn trùng (2)</a><a class="btn btn-dark" href="len-don.html">Lên đơn</a></div>
+</div>
+
+<section class="st" data-ca="thanh-nhan loc nghi-trung tu-lam-moi"><p class="xs">TRẠNG THÁI A</p><h2>Nhãn "Mới" đang chọn; lọc nguồn, kênh, người phụ trách, ngày; có đơn nghi trùng; một đơn vừa đổi</h2></section>
+
+<div class="scroll-x" role="group" aria-label="Lọc theo nhãn đơn">
+	<div class="lblbar">
+		<button class="lbl" aria-pressed="false">Nháp <span class="n">3</span></button>
+		<button class="lbl" aria-pressed="true">Mới <span class="n">18</span></button>
+		<button class="lbl is-attn" aria-pressed="false">Chờ duyệt giảm giá <span class="n">2</span></button>
+		<button class="lbl" aria-pressed="false">Chờ khách xác nhận <span class="n">5</span></button>
+		<button class="lbl is-attn" aria-pressed="false">Hết hàng <span class="n">1</span></button>
+		<button class="lbl" aria-pressed="false">Đã xác nhận <span class="n">42</span></button>
+		<button class="lbl is-attn" aria-pressed="false">Đang yêu cầu hủy <span class="n">0</span></button>
+		<button class="lbl" aria-pressed="false">Đã hủy</button>
+		<button class="lbl" aria-pressed="false">Thành công</button>
+		<button class="lbl" aria-pressed="false">Đã hoàn</button>
+		<button class="lbl" aria-pressed="false">Tất cả</button>
+	</div>
+</div>
+<p class="hint" style="margin:4px 0 16px">Số đếm chỉ hiện ở nhãn còn việc phải làm (đơn đang mở). Nhãn của vận chuyển (Đang đóng gói, Chờ thu gom, Đang chuyển, Thất bại, Đang chuyển hoàn) thêm ở M3. Nhãn viền đỏ là nhãn cần người xử lý.</p>
+
+<div class="toolbar">
+	<input class="input is-search" type="search" placeholder="Mã đơn (DH…), SĐT hoặc 4 số cuối, tên khách" aria-label="Tìm đơn">
+	<div class="select-wrap"><select aria-label="Nguồn đơn"><option>Mọi nguồn</option><option>Live tối</option><option>Messenger</option><option>Điện thoại</option></select></div>
+	<div class="select-wrap"><select aria-label="Kênh"><option>Mọi kênh</option><option>Nhập tay</option><option>Facebook</option><option>Website</option></select></div>
+	<div class="select-wrap"><select aria-label="Người phụ trách"><option>Mọi người</option><option>Phạm Thu Trang</option><option>Chưa giao ai</option></select></div>
+	<div class="select-wrap"><select aria-label="Ngày tạo"><option>7 ngày qua</option><option>Hôm nay</option><option>Hôm qua</option><option>30 ngày qua</option><option>Chọn khoảng…</option></select></div>
+	<button class="toggle" aria-pressed="false">Nghi trùng</button>
+</div>
+
+<div class="tbl-frame">
+<table class="tbl">
+	<thead><tr><th>Mã đơn</th><th>Khách</th><th>Nhãn</th><th class="r">Tổng</th><th class="r">COD</th><th class="r">Món</th><th>Nguồn</th><th>Phụ trách</th><th>Tạo lúc</th></tr></thead>
+	<tbody>
+	<tr class="is-new"><td class="lead"><div class="o-code"><a class="cell-a bold num" href="don-chi-tiet.html">DH0001236</a><span class="chip chip-err">Nghi trùng</span></div></td>
+		<td data-label="Khách"><div class="o-cus"><span class="ellip">Trần Thị Thu Hà</span><span class="small muted num">0987 654 321</span></div></td>
+		<td data-label="Nhãn"><span class="chip">Mới</span></td><td data-label="Tổng" class="r"><span class="money">1.800.000 ₫</span></td><td data-label="COD" class="r"><span class="money">1.800.000 ₫</span></td><td data-label="Món" class="r num">4</td><td data-label="Nguồn">Điện thoại</td><td data-label="Phụ trách">Phạm Thu Trang</td><td data-label="Tạo lúc" class="num nowrap">14:31 · 18/11</td></tr>
+	<tr><td class="lead"><div class="o-code"><a class="cell-a bold num" href="don-chi-tiet.html">DH0001235</a></div></td>
+		<td data-label="Khách"><div class="o-cus"><span class="ellip">Công ty TNHH Thương mại Dịch vụ Thời trang Hoàng Gia Minh Châu</span><span class="small muted num">0903 111 222</span></div></td>
+		<td data-label="Nhãn"><span class="chip chip-err">Chờ duyệt giảm giá</span></td><td data-label="Tổng" class="r"><span class="money">11.060.000 ₫</span></td><td data-label="COD" class="r"><span class="money">11.060.000 ₫</span></td><td data-label="Món" class="r num">64</td><td data-label="Nguồn">Zalo</td><td data-label="Phụ trách">Lê Văn Đức</td><td data-label="Tạo lúc" class="num nowrap">13:05 · 18/11</td></tr>
+	<tr><td class="lead"><div class="o-code"><a class="cell-a bold num" href="don-chi-tiet.html">DH0001198</a><span class="chip chip-err">Nghi trùng</span></div></td>
+		<td data-label="Khách"><div class="o-cus"><span class="ellip">Trần Thị Thu Hà</span><span class="small muted num">0912 345 678</span></div></td>
+		<td data-label="Nhãn"><span class="chip">Mới</span></td><td data-label="Tổng" class="r"><span class="money">1.330.000 ₫</span></td><td data-label="COD" class="r"><span class="money">1.330.000 ₫</span></td><td data-label="Món" class="r num">2</td><td data-label="Nguồn">Live tối</td><td data-label="Phụ trách" class="muted">Chưa giao ai</td><td data-label="Tạo lúc" class="num nowrap">09:12 · 18/11</td></tr>
+	<tr><td class="lead"><div class="o-code"><a class="cell-a bold num" href="don-chi-tiet.html">DH0001190</a></div></td>
+		<td data-label="Khách"><div class="o-cus"><span class="ellip">Ngô Bảo Anh</span><span class="small muted num">0388 000 999</span></div></td>
+		<td data-label="Nhãn"><span class="chip">Chờ khách xác nhận</span></td><td data-label="Tổng" class="r"><span class="money">450.000 ₫</span></td><td data-label="COD" class="r"><span class="money">450.000 ₫</span></td><td data-label="Món" class="r num">1</td><td data-label="Nguồn">Messenger</td><td data-label="Phụ trách">Phạm Thu Trang</td><td data-label="Tạo lúc" class="num nowrap">22:47 · 17/11</td></tr>
+	<tr><td class="lead"><div class="o-code"><a class="cell-a bold num" href="don-chi-tiet.html">DH0001187</a></div></td>
+		<td data-label="Khách"><div class="o-cus"><span class="ellip">Vũ Minh</span><span class="small muted num">0977 123 456</span></div></td>
+		<td data-label="Nhãn"><span class="chip chip-err">Hết hàng</span></td><td data-label="Tổng" class="r"><span class="money">720.000 ₫</span></td><td data-label="COD" class="r"><span class="money">720.000 ₫</span></td><td data-label="Món" class="r num">2</td><td data-label="Nguồn">Live tối</td><td data-label="Phụ trách">Lê Văn Đức</td><td data-label="Tạo lúc" class="num nowrap">21:30 · 17/11</td></tr>
+	</tbody>
+</table>
+</div>
+<div class="more" data-ca="tai-them"><span>Đang hiện 50 đơn mới nhất của nhãn "Mới"</span><button class="btn btn-line">Tải thêm 50 đơn</button></div>
+<p class="mk" style="margin-top:8px"><b>Mockup:</b> dòng nền hồng là đơn vừa đổi (báo hiệu <code>order.changed</code>: chỉ tải lại đúng đơn đó, nền hồng 5 giây). Không có báo hiệu thì cả trang tự tải lại mỗi 20 giây. Tải thêm theo con trỏ, không có số trang. Bấm cả dòng (không chỉ mã) mở chi tiết.</p>
+
+<section class="st" data-ca="trong"><p class="xs">TRẠNG THÁI B</p><h2>Nhãn không có đơn; tìm không ra</h2></section>
+<div class="dlgs">
+	<div class="empty"><h2>Không có đơn "Đang yêu cầu hủy"</h2><p class="muted">Đơn đã gửi hãng mà bị hủy sẽ nằm ở đây cho tới khi hãng xác nhận.</p></div>
+	<div class="empty"><h2>Không tìm thấy đơn nào</h2><p class="muted">Không có đơn khớp "DH0009999" trong 7 ngày qua.</p><button class="btn btn-line">Tìm trong mọi ngày</button></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Lọc nhãn của vận chuyển trước M3; mất kết nối báo hiệu</h2></section>
+<div class="dlgs">
+	<div class="box box-info"><b>Nhãn vận chuyển có từ M3.</b> Lọc "Đang chuyển" cần dữ liệu vận đơn; hiện chưa có.</div>
+	<div class="box box-soft"><b>Mất kết nối cập nhật tự động.</b> Danh sách có thể chưa mới. Đang thử nối lại; trong lúc đó trang tự tải lại mỗi 20 giây. <button class="btn btn-quiet" style="margin-top:8px">Tải lại ngay</button></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

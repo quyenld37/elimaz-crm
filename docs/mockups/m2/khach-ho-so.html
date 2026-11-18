@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M2 — Hồ sơ khách</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="m2.css">
+<style>
+.idl { display: grid; gap: 0; }
+.idr { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.idr:last-child { border-bottom: 0; }
+.idr .grow { min-width: 160px; }
+.tags { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.tags .tag { min-height: var(--tap); }
+.tags .tag button { border: 0; background: none; min-width: var(--tap); min-height: var(--tap); font-size: 14px; cursor: pointer; color: var(--ink); }
+</style>
+</head>
+<body data-page="khach-ho-so" data-title="Hồ sơ khách">
+<div class="app"><main class="main">
+
+<p class="crumb"><a href="khach-danh-sach.html">Khách hàng</a> / KH000231</p>
+<div class="page-h">
+	<div class="grow" style="max-width:860px"><div class="row"><h1>Trần Thị Thu Hà</h1><span class="chip chip-ok">Đã mua</span></div>
+	<p class="sub">KH000231 · tạo 03/2026 · ngày sinh 12/08</p></div>
+	<div class="row"><a class="btn btn-line" href="khach-gop.html">Gộp với khách khác</a><button class="btn btn-line">Sửa</button><a class="btn btn-dark" href="len-don.html">Lên đơn</a></div>
+</div>
+
+<section class="st" data-ca="ho-so-gop danh-tinh dia-chi nhan chi-so dong-thoi-gian ghi-chu"><p class="xs">TRẠNG THÁI A</p><h2>Khách gộp từ 2 hồ sơ; 2 SĐT, 1 Facebook; nhãn tay và nhãn theo quy tắc; có gợi ý "có thể là cùng một khách"</h2></section>
+
+<div class="box box-soft" style="margin-bottom:16px"><b>Có thể là cùng một khách:</b> KH001877 · Nguyễn Văn Tùng có SĐT 0987 654 321, trùng SĐT người nhận ở 2 đơn gần đây của khách này. <a class="btn btn-line" href="khach-gop.html" style="margin-left:8px">So sánh và gộp</a></div>
+
+<div class="kpis" style="margin-bottom:24px">
+	<div class="kpi"><p class="small muted">Đơn</p><p class="v">12</p><p class="xs muted">không tính nháp, đã hủy</p></div>
+	<div class="kpi"><p class="small muted">Thành công / hoàn</p><p class="v">9 / 2</p><p class="xs muted">tỷ lệ hoàn 18%</p></div>
+	<div class="kpi"><p class="small muted">Đã chi</p><p class="v"><span class="money">8.450.000 ₫</span></p><p class="xs muted">đơn thành công trừ tiền trả hàng</p></div>
+	<div class="kpi"><p class="small muted">Mua gần nhất</p><p class="v num">18/11</p><p class="xs muted">cập nhật 14:31</p></div>
+</div>
+
+<div class="cols">
+<div class="stack">
+	<div class="card">
+		<div class="row-between"><h2>Dòng thời gian</h2><span class="small muted">Của cả 2 hồ sơ</span></div>
+		<ul class="tl">
+			<li><span class="at">14:31 · 18/11</span><div><b>Đơn mới <a class="cell-a num" href="don-chi-tiet.html">DH0001236</a></b> · <span class="money">1.800.000 ₫</span><br><span class="who">Phạm Thu Trang</span></div></li>
+			<li><span class="at">10:02 · 18/11</span><div><b>Ghi chú</b> · <span class="who">Phạm Thu Trang</span><div class="note-box" style="margin-top:4px">Khách hay đổi size, tư vấn kỹ số đo trước khi chốt.</div></div></li>
+			<li><span class="at">09:12 · 18/11</span><div><b>Đơn mới <a class="cell-a num" href="don-chi-tiet.html">DH0001198</a></b> · <span class="money">1.330.000 ₫</span><br><span class="who">Live tối</span></div></li>
+			<li><span class="at">20:40 · 02/11</span><div><b>Đơn DH0001010 → Đã hoàn</b></div></li>
+			<li><span class="at">15:00 · 01/11</span><div><b>Gộp hồ sơ KH003990 vào hồ sơ này</b> · <span class="who">Nguyễn Thị Lan</span></div></li>
+			<li><span class="at">11:20 · 20/10</span><div><b>Gắn nhãn "Hay hoàn" (theo quy tắc)</b></div></li>
+		</ul>
+		<div class="more"><span>Mới nhất trước</span><button class="btn btn-line">Xem cũ hơn</button></div>
+	</div>
+	<div class="card">
+		<h2>Thêm ghi chú</h2>
+		<label class="field"><span class="sr">Ghi chú</span><textarea class="input" placeholder="Chỉ người trong shop thấy; không sửa, không xóa được sau khi lưu" style="min-height:72px"></textarea></label>
+		<div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn btn-line">Lưu ghi chú</button></div>
+	</div>
+</div>
+
+<div class="stack">
+	<div class="card">
+		<h2>Nhãn</h2>
+		<div class="tags">
+			<span class="tag">Khách quen <button aria-label="Gỡ nhãn Khách quen">×</button></span>
+			<span class="chip chip-err">Hay hoàn · theo quy tắc</span>
+			<span class="select-wrap"><select aria-label="Thêm nhãn"><option>+ Thêm nhãn</option><option>Khách sỉ</option><option>VIP</option></select></span>
+		</div>
+		<p class="hint" style="margin-top:8px">Nhãn theo quy tắc tự gắn và tự gỡ khi chỉ số đổi; không gỡ tay được.</p>
+	</div>
+	<div class="card">
+		<h2>Liên hệ</h2>
+		<div class="idl">
+			<div class="idr"><span class="grow"><b class="num">0912 345 678</b><br><span class="xs muted">SĐT · từ đơn · KH000231</span></span><button class="btn btn-quiet">Gỡ</button></div>
+			<div class="idr"><span class="grow"><b class="num">0355 999 000</b><br><span class="xs muted">SĐT · nhân viên thêm · KH003990 (đã gộp)</span></span><button class="btn btn-quiet">Gỡ</button></div>
+			<div class="idr"><span class="grow"><b>Facebook · Thu Hà Trần</b><br><span class="xs muted">Page ELIMAZ · từ chat (M4 quản)</span></span></div>
+		</div>
+		<button class="btn btn-quiet" style="margin-top:8px">+ Thêm SĐT hoặc email</button>
+	</div>
+	<div class="card">
+		<h2>Địa chỉ</h2>
+		<div class="idl">
+			<div class="idr"><span class="grow"><b>Trần Thị Thu Hà · <span class="num">0912 345 678</span></b> <span class="chip">Mặc định</span><br><span class="small">Số 12 ngõ 68 Trần Thái Tông, Cầu Giấy, Hà Nội</span></span><button class="btn btn-quiet">Sửa</button></div>
+			<div class="idr"><span class="grow"><b>Nguyễn Văn Tùng · <span class="num">0987 654 321</span></b><br><span class="small">Tầng 5, 18 Phạm Hùng, Từ Liêm, Hà Nội</span></span><button class="btn btn-quiet">Sửa</button></div>
+		</div>
+		<button class="btn btn-quiet" style="margin-top:8px">+ Thêm địa chỉ</button>
+	</div>
+	<div class="card">
+		<h2>Hồ sơ đã gộp</h2>
+		<div class="idl">
+			<div class="idr"><span class="grow"><b>KH000231</b> · Trần Thị Thu Hà<br><span class="xs muted">Hồ sơ đại diện</span></span></div>
+			<div class="idr"><span class="grow"><b>KH003990</b> · Thu Hà (live)<br><span class="xs muted">Gộp 01/11 bởi Nguyễn Thị Lan</span></span><a class="btn btn-quiet" href="khach-gop.html">Lần gộp</a></div>
+		</div>
+	</div>
+</div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Khách tiềm năng chưa có SĐT, chưa có đơn; người khác vừa sửa hồ sơ</h2></section>
+<div class="dlgs">
+	<div class="card"><div class="row"><h2>Mai (fb)</h2><span class="chip">Tiềm năng</span></div><p class="small muted" style="margin-top:8px">KH004511 · chưa có SĐT, chưa có đơn. Dòng thời gian trống.</p><div class="empty" style="margin-top:12px"><p class="muted">Chưa có hoạt động.</p></div></div>
+	<div class="box box-err"><b>Hồ sơ đã thay đổi, tải lại.</b> Có người vừa lưu hồ sơ này. Phần bạn đang sửa chưa được lưu.<div class="row" style="margin-top:8px"><button class="btn btn-dark">Tải lại hồ sơ</button></div></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

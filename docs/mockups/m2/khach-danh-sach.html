@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M2 — Khách hàng</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="m2.css">
+<style>
+.c-cus { display: grid; gap: 0; min-width: 0; max-width: 320px; }
+@media (max-width: 759px) { .c-cus { max-width: none; } }
+.tags { display: flex; gap: 4px; flex-wrap: wrap; }
+</style>
+</head>
+<body data-page="khach-danh-sach" data-title="Khách hàng">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><h1>Khách hàng</h1><p class="sub">Mỗi dòng là một khách (các hồ sơ đã gộp tính là một)</p></div>
+	<div class="row"><button class="btn btn-line">Nhãn</button><button class="btn btn-line">Nhập Excel</button><button class="btn btn-dark">Thêm khách</button></div>
+</div>
+
+<section class="st" data-ca="danh-sach"><p class="xs">TRẠNG THÁI A</p><h2>Khách mới nhất; lọc nhãn; tên dài, khách chưa có SĐT, khách gộp từ hai hồ sơ</h2></section>
+<div class="toolbar">
+	<input class="input is-search" type="search" placeholder="4 số cuối SĐT trở lên, tên không dấu hoặc mã KH" aria-label="Tìm khách">
+	<div class="select-wrap"><select aria-label="Nhãn"><option>Mọi nhãn</option><option>Khách quen</option><option>Hay hoàn</option><option>Khách sỉ</option></select></div>
+</div>
+<div class="tbl-frame">
+<table class="tbl">
+	<thead><tr><th>Khách</th><th>SĐT</th><th>Nhãn</th><th class="r">Đơn</th><th class="r">Đã chi</th><th>Mua gần nhất</th></tr></thead>
+	<tbody>
+	<tr><td class="lead"><div class="c-cus"><a class="cell-a bold" href="khach-ho-so.html">Trần Thị Thu Hà</a><span class="small muted num">KH000231 · 2 hồ sơ đã gộp</span></div></td><td data-label="SĐT" class="num">0912 345 678</td><td data-label="Nhãn"><div class="tags"><span class="chip chip-line">Khách quen</span><span class="chip chip-err">Hay hoàn</span></div></td><td data-label="Đơn" class="r num">12</td><td data-label="Đã chi" class="r"><span class="money">8.450.000 ₫</span></td><td data-label="Mua gần nhất" class="num">18/11</td></tr>
+	<tr><td class="lead"><div class="c-cus"><a class="cell-a bold clamp2" href="khach-ho-so.html">Công ty TNHH Thương mại Dịch vụ Thời trang Hoàng Gia Minh Châu</a><span class="small muted num">KH000877</span></div></td><td data-label="SĐT" class="num">0903 111 222</td><td data-label="Nhãn"><span class="chip chip-line">Khách sỉ</span></td><td data-label="Đơn" class="r num">23</td><td data-label="Đã chi" class="r"><span class="money">96.400.000 ₫</span></td><td data-label="Mua gần nhất" class="num">18/11</td></tr>
+	<tr><td class="lead"><div class="c-cus"><a class="cell-a bold" href="khach-ho-so.html">Mai (fb)</a><span class="small muted num">KH004511 · khách tiềm năng</span></div></td><td data-label="SĐT" class="muted">Chưa có</td><td data-label="Nhãn" class="muted">—</td><td data-label="Đơn" class="r num">0</td><td data-label="Đã chi" class="r"><span class="money">0 ₫</span></td><td data-label="Mua gần nhất" class="muted">—</td></tr>
+	<tr><td class="lead"><div class="c-cus"><a class="cell-a bold" href="khach-ho-so.html">Lê Hà My</a><span class="small muted num">KH004410</span></div></td><td data-label="SĐT" class="num">0355 125 678</td><td data-label="Nhãn" class="muted">—</td><td data-label="Đơn" class="r num">1</td><td data-label="Đã chi" class="r"><span class="money">0 ₫</span></td><td data-label="Mua gần nhất" class="num">16/11</td></tr>
+	</tbody>
+</table>
+</div>
+<div class="more"><span>50 khách mới nhất</span><button class="btn btn-line">Tải thêm</button></div>
+
+<section class="st" data-ca="tim"><p class="xs">TRẠNG THÁI B</p><h2>Tìm "5678": hai khách có đuôi số đó; gõ 3 số: báo cần ít nhất 4</h2></section>
+<div class="stack">
+	<input class="input is-search" type="search" value="5678" aria-label="Tìm khách">
+	<div class="tbl-frame">
+	<table class="tbl">
+		<thead><tr><th>Khách</th><th>SĐT</th><th>Khớp theo</th><th class="r">Đơn</th></tr></thead>
+		<tbody>
+		<tr><td class="lead"><a class="cell-a bold" href="khach-ho-so.html">Trần Thị Thu Hà</a></td><td data-label="SĐT" class="num">0912 34<mark>5 678</mark></td><td data-label="Khớp theo">Đuôi SĐT</td><td data-label="Đơn" class="r num">12</td></tr>
+		<tr><td class="lead"><a class="cell-a bold" href="khach-ho-so.html">Lê Hà My</a></td><td data-label="SĐT" class="num">0355 12<mark>5 678</mark></td><td data-label="Khớp theo">Đuôi SĐT</td><td data-label="Đơn" class="r num">1</td></tr>
+		</tbody>
+	</table>
+	</div>
+	<div class="row"><input class="input is-search" type="search" value="567" aria-label="Tìm khách" style="max-width:360px"><span class="field-err">Gõ ít nhất 4 số cuối</span></div>
+</div>
+
+<section class="st" data-ca="trong"><p class="xs">TRẠNG THÁI C</p><h2>Chưa có khách; tìm không ra</h2></section>
+<div class="dlgs">
+	<div class="empty"><h2>Chưa có khách nào</h2><p class="muted">Khách tự có khi lên đơn, hoặc nhập từ Excel.</p><div class="row"><button class="btn btn-line">Nhập Excel</button><button class="btn btn-dark">Thêm khách</button></div></div>
+	<div class="empty"><h2>Không tìm thấy "nguyen thao vy"</h2><p class="muted">Tên tìm không dấu, đủ mọi từ. Thử tìm bằng 4 số cuối SĐT.</p></div>
+</div>
+
+<section class="st" data-ca="nhap-excel"><p class="xs">TRẠNG THÁI D</p><h2>Nhập khách từ Excel: tải mẫu, tải tệp, kết quả theo dòng (không hiện giá trị ô)</h2></section>
+<div class="dlgs">
+<div class="backdrop">
+	<div class="dlg" role="dialog" aria-label="Nhập khách">
+		<div class="dlg-h"><h2>Nhập khách từ Excel</h2></div>
+		<div class="dlg-b">
+			<ol class="steps"><li class="is-done"><b>1</b>Tải mẫu</li><li class="is-on"><b>2</b>Chọn tệp</li><li><b>3</b>Kết quả</li></ol>
+			<button class="btn btn-line">Tải tệp mẫu (.xlsx)</button>
+			<p class="small muted">Cột: Họ tên*, SĐT*, Ngày sinh, Tỉnh/thành, Xã/phường, Số nhà đường, Nhãn, Ghi chú. Tối đa 20.000 dòng, 5 MB.</p>
+			<div class="drop"><p><b>Kéo tệp vào đây</b> hoặc</p><button class="btn btn-line">Chọn tệp .xlsx</button></div>
+			<p class="small muted">SĐT đã có trong CRM thì bỏ qua dòng đó, không ghi đè hồ sơ cũ. Nhập lại cùng tệp không tạo trùng.</p>
+		</div>
+	</div>
+</div>
+<div class="backdrop">
+	<div class="dlg" role="dialog" aria-label="Kết quả nhập khách">
+		<div class="dlg-h"><h2>Kết quả nhập · khach-live-thang-11.xlsx</h2></div>
+		<div class="dlg-b">
+			<div class="kpis" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+				<div class="kpi"><p class="small muted">Đã thêm</p><p class="v">1.180</p></div>
+				<div class="kpi"><p class="small muted">Bỏ qua (SĐT đã có)</p><p class="v">52</p></div>
+				<div class="kpi is-bad"><p class="small muted">Lỗi</p><p class="v">18</p></div>
+				<div class="kpi"><p class="small muted">Tổng dòng</p><p class="v">1.250</p></div>
+			</div>
+			<div class="tbl-frame">
+			<table class="tbl">
+				<thead><tr><th>Dòng</th><th>Cột</th><th>Lỗi</th></tr></thead>
+				<tbody>
+				<tr><td data-label="Dòng" class="num">14</td><td data-label="Cột">SĐT</td><td data-label="Lỗi">SĐT không hợp lệ</td></tr>
+				<tr><td data-label="Dòng" class="num">97</td><td data-label="Cột">Xã/phường</td><td data-label="Lỗi">Xã/phường không thuộc tỉnh đã chọn</td></tr>
+				<tr><td data-label="Dòng" class="num">310</td><td data-label="Cột">Họ tên</td><td data-label="Lỗi">Thiếu họ tên</td></tr>
+				<tr><td data-label="Dòng" class="num">…</td><td data-label="Cột">—</td><td data-label="Lỗi">15 lỗi khác</td></tr>
+				</tbody>
+			</table>
+			</div>
+		</div>
+		<div class="dlg-f"><button class="btn btn-dark">Xong</button></div>
+	</div>
+</div>
+</div>
+
+<section class="st" data-ca="nhan-quy-tac"><p class="xs">TRẠNG THÁI E</p><h2>Quản lý nhãn khách (nút "Nhãn" cạnh Nhập Excel, cần quyền quản lý nhãn): nhãn tay, nhãn theo quy tắc, sửa quy tắc</h2></section>
+<div class="cols">
+	<div class="card">
+		<div class="row-between"><h2>Nhãn khách</h2><button class="btn btn-line">+ Tạo nhãn</button></div>
+		<div class="olist">
+			<div class="oitem"><span class="grow"><span class="chip chip-line">Khách quen</span> <span class="small muted">gắn tay</span></span><button class="btn btn-quiet">Đổi tên, màu</button><button class="btn btn-quiet">Thêm quy tắc</button></div>
+			<div class="oitem"><span class="grow"><span class="chip chip-err">Hay hoàn</span> <span class="small muted">theo quy tắc</span></span><button class="btn btn-quiet">Đổi tên, màu</button><button class="btn btn-line">Sửa quy tắc</button></div>
+			<div class="oitem"><span class="grow"><span class="chip chip-line">Khách sỉ</span> <span class="small muted">gắn tay</span></span><button class="btn btn-quiet">Đổi tên, màu</button><button class="btn btn-quiet">Thêm quy tắc</button></div>
+		</div>
+		<p class="hint" style="margin-top:8px">Nhãn có quy tắc vẫn gắn tay được; dòng gắn tay và dòng do quy tắc gắn tách nhau, quy tắc không gỡ nhãn gắn tay.</p>
+	</div>
+	<div class="card">
+		<div class="row-between"><h2>Quy tắc: Hay hoàn</h2><label class="check"><input type="checkbox" checked> Đang bật</label></div>
+		<p class="small muted">Khách đạt <b>mọi</b> điều kiện thì tự gắn; không còn đạt thì tự gỡ. Tính lại khi đơn của khách đổi và mỗi đêm.</p>
+		<div class="stack-sm" style="margin-top:12px">
+			<div class="row"><span class="select-wrap" style="flex:1 1 180px"><select aria-label="Chỉ số 1"><option>Tỷ lệ hoàn (%)</option><option>Số đơn</option><option>Số đơn thành công</option><option>Số đơn hoàn</option><option>Đã chi (đồng)</option><option>Số ngày từ lần mua cuối</option></select></span><span class="select-wrap" style="flex:0 1 120px"><select aria-label="Phép so 1"><option>từ</option><option>tới</option></select></span><input class="input num" value="30" aria-label="Giá trị 1" style="flex:0 1 100px"><button class="ibtn" aria-label="Bỏ điều kiện 1">×</button></div>
+			<div class="row"><span class="select-wrap" style="flex:1 1 180px"><select aria-label="Chỉ số 2"><option>Số đơn hoàn</option><option>Tỷ lệ hoàn (%)</option></select></span><span class="select-wrap" style="flex:0 1 120px"><select aria-label="Phép so 2"><option>từ</option><option>tới</option></select></span><input class="input num" value="2" aria-label="Giá trị 2" style="flex:0 1 100px"><button class="ibtn" aria-label="Bỏ điều kiện 2">×</button></div>
+			<button class="btn btn-quiet" style="justify-self:start">+ Thêm điều kiện (VÀ)</button>
+		</div>
+		<div class="savebar" style="margin-top:16px"><button class="btn btn-line">Hủy</button><button class="btn btn-dark">Lưu quy tắc</button></div>
+	</div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>
