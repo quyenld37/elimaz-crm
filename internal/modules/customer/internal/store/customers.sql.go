@@ -11,20 +11,45 @@ import (
 	"github.com/google/uuid"
 )
 
-const insertCustomer = `-- name: InsertCustomer :exec
+const getRootOf = `-- name: GetRootOf :one
 
-INSERT INTO customer.customers (id, tenant_id, root_id, full_name)
-VALUES ($1, NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2)
+SELECT root_id
+FROM customer.customers
+WHERE id = $1
 `
 
-type InsertCustomerParams struct {
-	ID       uuid.UUID
-	FullName string
+// Khách (kế hoạch M1, Task M1-30; 05 mục 1). Câu chèn của M1 thay bằng InsertCustomerProfile (write.sql, Task M2-09):
+// customer.Create của M1 là lớp bọc của Writer.CreateCustomer (Q30). Chạy trong tenancy.WithTenant.
+func (q *Queries) GetRootOf(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getRootOf, id)
+	var root_id uuid.UUID
+	err := row.Scan(&root_id)
+	return root_id, err
 }
 
-// Khách tối thiểu (kế hoạch M1, Task M1-30; 05 mục 1). Chạy trong tenancy.WithTenant. M2 mở rộng.
-// Hồ sơ chưa gộp: root_id = id. tenant_id lấy từ ngữ cảnh của tenancy.WithTenant (RLS kiểm lại).
-func (q *Queries) InsertCustomer(ctx context.Context, arg InsertCustomerParams) error {
-	_, err := q.db.Exec(ctx, insertCustomer, arg.ID, arg.FullName)
-	return err
+const listGroupMembers = `-- name: ListGroupMembers :many
+SELECT id
+FROM customer.customers
+WHERE root_id = $1
+ORDER BY id
+`
+
+func (q *Queries) ListGroupMembers(ctx context.Context, rootID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listGroupMembers, rootID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

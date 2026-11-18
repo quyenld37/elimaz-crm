@@ -1,5 +1,5 @@
-// Package customer là hồ sơ khách (spec 05 mục 1). Bản M1 (kế hoạch M1, Task M1-30, lát mỏng Q-X1) chỉ có tạo khách
-// mới với họ tên; M2 mở rộng bảng customer.customers bằng ALTER (mã khách, danh tính, địa chỉ, gộp trùng).
+// Package customer là hồ sơ khách (spec 05 mục 1): hồ sơ, danh tính, địa chỉ (Writer, Task M2-09), tìm-hoặc-tạo khi
+// lên đơn (FindOrCreateForOrder), đọc hồ sơ theo gốc (Get). Hàm M1 Create giữ chữ ký, là lớp bọc (Q30).
 //
 // Khi nào không dùng: module khác không đọc bảng customer.* (đọc view customer.customers_v); không ghi tên khách vào
 // log, audit, sự kiện (dữ liệu cá nhân).
@@ -9,13 +9,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/customer/internal/store"
+	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/logging"
+	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
 // ErrInvalidInput là lỗi khi họ tên rỗng, quá 120 ký tự hay có ký tự điều khiển. Lớp HTTP đổi sang mã ở internal/httpapi/errors.go.
@@ -45,22 +46,123 @@ const (
 	IdentityWebAccount IdentityKind = "web_account"
 )
 
-// Create tạo khách mới (hồ sơ chưa gộp: root_id = id) trong tx của bên gọi (tenancy.WithTenant) và trả mã khách.
-// fullName được bỏ khoảng trắng hai đầu; phải 1–120 ký tự, không ký tự điều khiển.
+// Create tạo khách mới chỉ với họ tên (chữ ký M1, Task M1-30) trong tx của bên gọi (tenancy.WithTenant) và trả mã
+// khách. Lớp bọc của Writer.CreateCustomer (Q30): người làm system, giờ lấy SELECT now() trong tx, sổ consumer rỗng
+// (sự kiện customer.created vẫn ghi vào platform.domain_events; hôm nay không consumer nào nghe topic này), không báo
+// hiệu. fullName bỏ khoảng trắng hai đầu; phải 1–120 ký tự, không ký tự điều khiển (ErrInvalidInput).
 func Create(ctx context.Context, tx pgx.Tx, fullName string) (uuid.UUID, error) {
-	name := strings.TrimSpace(fullName)
-	if n := utf8.RuneCountInString(name); n == 0 || n > maxNameRunes || !utf8.ValidString(name) ||
-		strings.ContainsFunc(name, isControl) {
-		return uuid.Nil, ErrInvalidInput
+	if _, err := validName(fullName); err != nil {
+		return uuid.Nil, err
 	}
-	id, err := uuid.NewV7()
+	now, err := store.New(tx).TxNow(ctx)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("sinh mã khách: %w", err)
+		return uuid.Nil, fmt.Errorf("đọc giờ của transaction: %w", err)
 	}
-	if err := store.New(tx).InsertCustomer(ctx, store.InsertCustomerParams{ID: id, FullName: name}); err != nil {
-		return uuid.Nil, fmt.Errorf("ghi khách: %w", err)
+	w := Writer{Events: events.NewRegistry(), Queue: queue.NewQueue()}
+	c, err := w.CreateCustomer(ctx, tx, CreateInput{FullName: fullName, Source: SourceStaff}, Actor{Type: ActorSystem}, now)
+	if err != nil {
+		return uuid.Nil, err
 	}
-	return id, nil
+	return c.ID, nil
+}
+
+// Profile là hồ sơ khách theo gốc: Customer là hồ sơ gốc (kèm chỉ số), MemberIDs mọi hồ sơ cùng gốc (gồm gốc), danh
+// tính và địa chỉ (chưa xóa) của cả nhóm.
+type Profile struct {
+	Customer
+	MemberIDs  []uuid.UUID
+	Identities []Identity
+	Addresses  []Address
+}
+
+// RootOf trả gốc của hồ sơ id; không có (hay của tenant khác) → ErrNotFound.
+func RootOf(ctx context.Context, tx pgx.Tx, id uuid.UUID) (uuid.UUID, error) {
+	root, err := store.New(tx).GetRootOf(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("đọc gốc của khách: %w", err)
+	}
+	return root, nil
+}
+
+// GroupMembers trả mọi hồ sơ có root_id = rootID (gồm gốc), theo mã.
+func GroupMembers(ctx context.Context, tx pgx.Tx, rootID uuid.UUID) ([]uuid.UUID, error) {
+	ids, err := store.New(tx).ListGroupMembers(ctx, rootID)
+	if err != nil {
+		return nil, fmt.Errorf("đọc nhóm hồ sơ: %w", err)
+	}
+	return ids, nil
+}
+
+// Get trả hồ sơ theo gốc của id (id là gốc hay hồ sơ con): hồ sơ gốc, chỉ số của gốc, mọi hồ sơ con, danh tính và
+// địa chỉ của cả nhóm. Không có (hay của tenant khác) → ErrNotFound.
+func Get(ctx context.Context, tx pgx.Tx, id uuid.UUID) (Profile, error) {
+	root, err := RootOf(ctx, tx, id)
+	if err != nil {
+		return Profile{}, err
+	}
+	c, err := getOne(ctx, tx, root)
+	if err != nil {
+		return Profile{}, err
+	}
+	members, err := GroupMembers(ctx, tx, root)
+	if err != nil {
+		return Profile{}, err
+	}
+	q := store.New(tx)
+	idRows, err := q.ListGroupIdentities(ctx, members)
+	if err != nil {
+		return Profile{}, fmt.Errorf("đọc danh tính của nhóm: %w", err)
+	}
+	addrRows, err := q.ListGroupAddresses(ctx, members)
+	if err != nil {
+		return Profile{}, fmt.Errorf("đọc địa chỉ của nhóm: %w", err)
+	}
+	p := Profile{
+		Customer: c, MemberIDs: members, Identities: make([]Identity, 0, len(idRows)),
+		Addresses: make([]Address, 0, len(addrRows)),
+	}
+	for _, r := range idRows {
+		p.Identities = append(p.Identities, identityOf(r.ID, r.CustomerID, r.Kind, r.Scope, r.Value, r.VerifiedAt,
+			r.Source, r.CreatedAt))
+	}
+	for _, r := range addrRows {
+		p.Addresses = append(p.Addresses, Address{
+			ID: r.ID, CustomerID: r.CustomerID, Name: Name(r.RecipientName), Phone: logging.Phone(r.Phone),
+			Line: logging.Address(r.Street), ProvinceCode: r.ProvinceCode, ProvinceName: r.ProvinceName,
+			WardCode: r.WardCode, WardName: r.WardName, IsDefault: r.IsDefault, Version: r.Version,
+		})
+	}
+	return p, nil
+}
+
+// getOne đọc một hồ sơ theo id (không theo gốc).
+func getOne(ctx context.Context, tx pgx.Tx, id uuid.UUID) (Customer, error) {
+	r, err := store.New(tx).GetCustomerBase(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Customer{}, ErrNotFound
+	}
+	if err != nil {
+		return Customer{}, fmt.Errorf("đọc khách: %w", err)
+	}
+	c := Customer{
+		ID: r.ID, RootID: r.RootID, Code: r.Code, FullName: Name(r.FullName), Lifecycle: r.Lifecycle,
+		Birthday: birthdayOf(r.Birthday), Version: r.Version, CreatedAt: r.CreatedAt,
+		Stats: Stats{
+			OrderCount: int(r.OrderCount), DeliveredCount: int(r.DeliveredCount), ReturnedCount: int(r.ReturnedCount),
+			TotalSpent: r.TotalSpent,
+		},
+	}
+	if r.LastOrderAt.Valid {
+		t := r.LastOrderAt.Time
+		c.Stats.LastOrderAt = &t
+	}
+	if done := c.Stats.DeliveredCount + c.Stats.ReturnedCount; done > 0 {
+		c.Stats.ReturnRateBP = c.Stats.ReturnedCount * 10000 / done
+	}
+	return c, nil
 }
 
 func isControl(r rune) bool { return r < 0x20 || (r >= 0x7f && r <= 0x9f) }

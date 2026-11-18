@@ -85,6 +85,7 @@ hay bỏ khóa đã có.
 | `order.created` | `order` (mã đơn) | `{orderId, sellerId, version}` | tạo đơn (seq 1) | 30 |
 | `order.confirmed` | `order` (mã đơn) | `{orderId, sellerId, version}` | đơn sang Đã xác nhận (đơn nhập tay: ngay khi tạo, seq 2) | 30 |
 | `order.delivered` | `order` (mã đơn) | `{orderId, sellerId, version}` | vận đơn hiện hành báo giao xong, đơn sang Đã giao | 333 |
+| `customer.created` | `customer` (mã hồ sơ) | `{customerId, version}` | tạo khách (seq 1; kể cả lớp bọc `customer.Create` của M1) | 66 |
 | `shipment.status_changed` | `shipment` (mã vận đơn) | `{shipmentId, status, codAmount}` | vận đơn tiến trạng thái (`awaiting_pickup`, `shipping`, `delivered`; chỉ tiến) | 31 |
 
 ## Ngoại lệ luật (g)
