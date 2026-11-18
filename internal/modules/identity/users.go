@@ -76,9 +76,9 @@ func LoadUser(ctx context.Context, d *db.DB, email string) (AuthUser, error) {
 	return u, nil
 }
 
-// SeedOwner (lệnh crm seed-dev, chạy bằng chủ bảng) tạo vai trò "owner" có mọi quyền của Permissions, user theo
-// email và grant owner phạm vi all trong tenant. Chạy lại được: không thêm dòng trùng. Không tạo định tuyến
-// email → tenant (bảng của platform: tenancy.AddRoute).
+// SeedOwner (lệnh crm seed-dev, chạy bằng chủ bảng) dựng vai trò mẫu của tenant (EnsureDefaultRoles; owner có mọi
+// quyền của Permissions), user theo email và grant owner phạm vi all. Chạy lại được: không thêm dòng trùng. Không tạo
+// định tuyến email → tenant (bảng của platform: tenancy.AddRoute).
 func SeedOwner(ctx context.Context, owner *db.DB, tenantID uuid.UUID, email string) error {
 	key := NormalizeEmail(email)
 	if key == "" {
@@ -91,17 +91,15 @@ func SeedOwner(ctx context.Context, owner *db.DB, tenantID uuid.UUID, email stri
 		if err != nil {
 			return fmt.Errorf("ghi user: %w", err)
 		}
-		roleID, err := q.UpsertRole(ctx, store.UpsertRoleParams{TenantID: tenantID, Key: "owner", Name: "Chủ shop"})
-		if err != nil {
-			return fmt.Errorf("ghi vai trò owner: %w", err)
+		if err := EnsureDefaultRoles(ctx, tx, tenantID); err != nil {
+			return err
 		}
-		for _, p := range Permissions {
-			if err := q.AddRolePermission(ctx, store.AddRolePermissionParams{TenantID: tenantID, RoleID: roleID, Permission: string(p.Key)}); err != nil {
-				return fmt.Errorf("ghi quyền %s: %w", p.Key, err)
-			}
+		role, err := q.GetRoleByKey(ctx, RoleKeyOwner)
+		if err != nil {
+			return fmt.Errorf("đọc vai trò owner: %w", err)
 		}
 		if err := q.AddUserRoleGrant(ctx, store.AddUserRoleGrantParams{
-			TenantID: tenantID, UserID: userID, RoleID: roleID, ScopeType: ScopeAll, ScopeID: "",
+			TenantID: tenantID, UserID: userID, RoleID: role.ID, ScopeType: ScopeAll, ScopeID: "",
 		}); err != nil {
 			return fmt.Errorf("gán vai trò owner: %w", err)
 		}

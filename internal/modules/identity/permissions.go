@@ -33,7 +33,9 @@ type PermissionDef struct {
 	Scope ScopeKind
 }
 
-// Permissions là mọi quyền của M0 (kế hoạch Task 7). Route khai quyền ngoài danh sách này thì tests/arch đỏ.
+// Permissions là mọi quyền của CRM: M0 (kế hoạch M0 Task 7) và M1 (kế hoạch M1 Task M1-26). Bảng chuẩn kèm việc
+// của từng quyền: docs/quyen.md (test giữ hai bên khớp). Mốc sau chỉ thêm quyền, không đổi loại phạm vi của quyền
+// đã có. Route khai quyền ngoài danh sách này thì tests/arch đỏ.
 var Permissions = []PermissionDef{ //nolint:gochecknoglobals // danh sách hằng, không sửa lúc chạy
 	{"realtime.subscribe", ScopeNone},
 	{"audit.read", ScopeNone},
@@ -41,6 +43,23 @@ var Permissions = []PermissionDef{ //nolint:gochecknoglobals // danh sách hằn
 	{"platform.health.read", ScopeNone},
 	{"identity.users.manage", ScopeNone},
 	{"conversation.read", ScopeByTarget},
+	// M1.
+	{"catalog.read", ScopeNone},
+	{"catalog.manage", ScopeNone},
+	{"catalog.import", ScopeNone},
+	{"order.create", ScopeNone},
+	{"order.read", ScopeNone},
+	{"files.upload", ScopeNone},
+	{"platform.files.manage", ScopeNone},
+	{"inventory.suppliers.manage", ScopeNone},
+	{"identity.roles.manage", ScopeNone},
+	{"inventory.read", ScopeByTarget},
+	{"inventory.documents.create", ScopeByTarget},
+	{"inventory.documents.post", ScopeByTarget},
+	{"inventory.stocktake", ScopeByTarget},
+	{"inventory.stocktake.apply", ScopeByTarget},
+	{"fulfillment.read", ScopeByTarget},
+	{"fulfillment.ship", ScopeByTarget},
 }
 
 // Loại phạm vi của một grant (cột user_role_grants.scope_type).

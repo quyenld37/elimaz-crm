@@ -125,6 +125,32 @@ func (s *BackupHealth) SetLastDrillOk(val OptBool) {
 	s.LastDrillOk = val
 }
 
+// Ref: #/components/schemas/CreateStaffRequest
+type CreateStaffRequest struct {
+	Email       string `json:"email"`
+	DisplayName string `json:"displayName"`
+}
+
+// GetEmail returns the value of Email.
+func (s *CreateStaffRequest) GetEmail() string {
+	return s.Email
+}
+
+// GetDisplayName returns the value of DisplayName.
+func (s *CreateStaffRequest) GetDisplayName() string {
+	return s.DisplayName
+}
+
+// SetEmail sets the value of Email.
+func (s *CreateStaffRequest) SetEmail(val string) {
+	s.Email = val
+}
+
+// SetDisplayName sets the value of DisplayName.
+func (s *CreateStaffRequest) SetDisplayName(val string) {
+	s.DisplayName = val
+}
+
 // Ref: #/components/schemas/DeepHealth
 type DeepHealth struct {
 	Ok                  bool     `json:"ok"`
@@ -281,13 +307,19 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
 
-func (*ErrorStatusCode) abandonJobRes()        {}
-func (*ErrorStatusCode) getMeRes()             {}
-func (*ErrorStatusCode) getPlatformHealthRes() {}
-func (*ErrorStatusCode) healthDeepRes()        {}
-func (*ErrorStatusCode) listJobsRes()          {}
-func (*ErrorStatusCode) retryJobRes()          {}
-func (*ErrorStatusCode) streamRes()            {}
+func (*ErrorStatusCode) abandonJobRes()         {}
+func (*ErrorStatusCode) createStaffRes()        {}
+func (*ErrorStatusCode) getMeRes()              {}
+func (*ErrorStatusCode) getPlatformHealthRes()  {}
+func (*ErrorStatusCode) healthDeepRes()         {}
+func (*ErrorStatusCode) listJobsRes()           {}
+func (*ErrorStatusCode) listRolesRes()          {}
+func (*ErrorStatusCode) listStaffRes()          {}
+func (*ErrorStatusCode) lockStaffRes()          {}
+func (*ErrorStatusCode) replaceStaffGrantsRes() {}
+func (*ErrorStatusCode) retryJobRes()           {}
+func (*ErrorStatusCode) streamRes()             {}
+func (*ErrorStatusCode) unlockStaffRes()        {}
 
 // Ref: #/components/schemas/ErrorSummary
 type ErrorSummary struct {
@@ -607,6 +639,14 @@ func (s *ListJobsStatus) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+type ListRolesOKApplicationJSON []Role
+
+func (*ListRolesOKApplicationJSON) listRolesRes() {}
+
+type ListStaffOKApplicationJSON []StaffMember
+
+func (*ListStaffOKApplicationJSON) listStaffRes() {}
 
 // Ref: #/components/schemas/Me
 type Me struct {
@@ -1069,6 +1109,132 @@ func (s *QueueHealth) SetInDoubt(val int64) {
 	s.InDoubt = val
 }
 
+// Ref: #/components/schemas/ReplaceGrantsRequest
+type ReplaceGrantsRequest struct {
+	Version int64        `json:"version"`
+	Grants  []StaffGrant `json:"grants"`
+}
+
+// GetVersion returns the value of Version.
+func (s *ReplaceGrantsRequest) GetVersion() int64 {
+	return s.Version
+}
+
+// GetGrants returns the value of Grants.
+func (s *ReplaceGrantsRequest) GetGrants() []StaffGrant {
+	return s.Grants
+}
+
+// SetVersion sets the value of Version.
+func (s *ReplaceGrantsRequest) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetGrants sets the value of Grants.
+func (s *ReplaceGrantsRequest) SetGrants(val []StaffGrant) {
+	s.Grants = val
+}
+
+// Ref: #/components/schemas/Role
+type Role struct {
+	Key         string     `json:"key"`
+	Name        string     `json:"name"`
+	Status      RoleStatus `json:"status"`
+	Customized  bool       `json:"customized"`
+	Permissions []string   `json:"permissions"`
+}
+
+// GetKey returns the value of Key.
+func (s *Role) GetKey() string {
+	return s.Key
+}
+
+// GetName returns the value of Name.
+func (s *Role) GetName() string {
+	return s.Name
+}
+
+// GetStatus returns the value of Status.
+func (s *Role) GetStatus() RoleStatus {
+	return s.Status
+}
+
+// GetCustomized returns the value of Customized.
+func (s *Role) GetCustomized() bool {
+	return s.Customized
+}
+
+// GetPermissions returns the value of Permissions.
+func (s *Role) GetPermissions() []string {
+	return s.Permissions
+}
+
+// SetKey sets the value of Key.
+func (s *Role) SetKey(val string) {
+	s.Key = val
+}
+
+// SetName sets the value of Name.
+func (s *Role) SetName(val string) {
+	s.Name = val
+}
+
+// SetStatus sets the value of Status.
+func (s *Role) SetStatus(val RoleStatus) {
+	s.Status = val
+}
+
+// SetCustomized sets the value of Customized.
+func (s *Role) SetCustomized(val bool) {
+	s.Customized = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *Role) SetPermissions(val []string) {
+	s.Permissions = val
+}
+
+type RoleStatus string
+
+const (
+	RoleStatusActive   RoleStatus = "active"
+	RoleStatusArchived RoleStatus = "archived"
+)
+
+// AllValues returns all RoleStatus values.
+func (RoleStatus) AllValues() []RoleStatus {
+	return []RoleStatus{
+		RoleStatusActive,
+		RoleStatusArchived,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s RoleStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case RoleStatusActive:
+		return []byte(s), nil
+	case RoleStatusArchived:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *RoleStatus) UnmarshalText(data []byte) error {
+	switch RoleStatus(data) {
+	case RoleStatusActive:
+		*s = RoleStatusActive
+		return nil
+	case RoleStatusArchived:
+		*s = RoleStatusArchived
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/Scope
 type Scope struct {
 	Type ScopeType `json:"type"`
@@ -1137,6 +1303,219 @@ func (s *ScopeType) UnmarshalText(data []byte) error {
 		return nil
 	case ScopeTypeWarehouse:
 		*s = ScopeTypeWarehouse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/StaffGrant
+type StaffGrant struct {
+	RoleKey   string              `json:"roleKey"`
+	ScopeType StaffGrantScopeType `json:"scopeType"`
+	// Mã đích (Page, kho); rỗng khi scopeType là all.
+	ScopeId string `json:"scopeId"`
+}
+
+// GetRoleKey returns the value of RoleKey.
+func (s *StaffGrant) GetRoleKey() string {
+	return s.RoleKey
+}
+
+// GetScopeType returns the value of ScopeType.
+func (s *StaffGrant) GetScopeType() StaffGrantScopeType {
+	return s.ScopeType
+}
+
+// GetScopeId returns the value of ScopeId.
+func (s *StaffGrant) GetScopeId() string {
+	return s.ScopeId
+}
+
+// SetRoleKey sets the value of RoleKey.
+func (s *StaffGrant) SetRoleKey(val string) {
+	s.RoleKey = val
+}
+
+// SetScopeType sets the value of ScopeType.
+func (s *StaffGrant) SetScopeType(val StaffGrantScopeType) {
+	s.ScopeType = val
+}
+
+// SetScopeId sets the value of ScopeId.
+func (s *StaffGrant) SetScopeId(val string) {
+	s.ScopeId = val
+}
+
+type StaffGrantScopeType string
+
+const (
+	StaffGrantScopeTypeAll       StaffGrantScopeType = "all"
+	StaffGrantScopeTypePage      StaffGrantScopeType = "page"
+	StaffGrantScopeTypeWarehouse StaffGrantScopeType = "warehouse"
+)
+
+// AllValues returns all StaffGrantScopeType values.
+func (StaffGrantScopeType) AllValues() []StaffGrantScopeType {
+	return []StaffGrantScopeType{
+		StaffGrantScopeTypeAll,
+		StaffGrantScopeTypePage,
+		StaffGrantScopeTypeWarehouse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s StaffGrantScopeType) MarshalText() ([]byte, error) {
+	switch s {
+	case StaffGrantScopeTypeAll:
+		return []byte(s), nil
+	case StaffGrantScopeTypePage:
+		return []byte(s), nil
+	case StaffGrantScopeTypeWarehouse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *StaffGrantScopeType) UnmarshalText(data []byte) error {
+	switch StaffGrantScopeType(data) {
+	case StaffGrantScopeTypeAll:
+		*s = StaffGrantScopeTypeAll
+		return nil
+	case StaffGrantScopeTypePage:
+		*s = StaffGrantScopeTypePage
+		return nil
+	case StaffGrantScopeTypeWarehouse:
+		*s = StaffGrantScopeTypeWarehouse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/StaffMember
+type StaffMember struct {
+	ID          uuid.UUID         `json:"id"`
+	Email       string            `json:"email"`
+	DisplayName string            `json:"displayName"`
+	Status      StaffMemberStatus `json:"status"`
+	Version     int64             `json:"version"`
+	CreatedAt   time.Time         `json:"createdAt"`
+	Grants      []StaffGrant      `json:"grants"`
+}
+
+// GetID returns the value of ID.
+func (s *StaffMember) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetEmail returns the value of Email.
+func (s *StaffMember) GetEmail() string {
+	return s.Email
+}
+
+// GetDisplayName returns the value of DisplayName.
+func (s *StaffMember) GetDisplayName() string {
+	return s.DisplayName
+}
+
+// GetStatus returns the value of Status.
+func (s *StaffMember) GetStatus() StaffMemberStatus {
+	return s.Status
+}
+
+// GetVersion returns the value of Version.
+func (s *StaffMember) GetVersion() int64 {
+	return s.Version
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *StaffMember) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetGrants returns the value of Grants.
+func (s *StaffMember) GetGrants() []StaffGrant {
+	return s.Grants
+}
+
+// SetID sets the value of ID.
+func (s *StaffMember) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetEmail sets the value of Email.
+func (s *StaffMember) SetEmail(val string) {
+	s.Email = val
+}
+
+// SetDisplayName sets the value of DisplayName.
+func (s *StaffMember) SetDisplayName(val string) {
+	s.DisplayName = val
+}
+
+// SetStatus sets the value of Status.
+func (s *StaffMember) SetStatus(val StaffMemberStatus) {
+	s.Status = val
+}
+
+// SetVersion sets the value of Version.
+func (s *StaffMember) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *StaffMember) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetGrants sets the value of Grants.
+func (s *StaffMember) SetGrants(val []StaffGrant) {
+	s.Grants = val
+}
+
+func (*StaffMember) createStaffRes()        {}
+func (*StaffMember) lockStaffRes()          {}
+func (*StaffMember) replaceStaffGrantsRes() {}
+func (*StaffMember) unlockStaffRes()        {}
+
+type StaffMemberStatus string
+
+const (
+	StaffMemberStatusActive StaffMemberStatus = "active"
+	StaffMemberStatusLocked StaffMemberStatus = "locked"
+)
+
+// AllValues returns all StaffMemberStatus values.
+func (StaffMemberStatus) AllValues() []StaffMemberStatus {
+	return []StaffMemberStatus{
+		StaffMemberStatusActive,
+		StaffMemberStatusLocked,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s StaffMemberStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case StaffMemberStatusActive:
+		return []byte(s), nil
+	case StaffMemberStatusLocked:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *StaffMemberStatus) UnmarshalText(data []byte) error {
+	switch StaffMemberStatus(data) {
+	case StaffMemberStatusActive:
+		*s = StaffMemberStatusActive
+		return nil
+	case StaffMemberStatusLocked:
+		*s = StaffMemberStatusLocked
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

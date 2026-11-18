@@ -13,13 +13,6 @@ JOIN identity.role_permissions AS rp ON rp.tenant_id = g.tenant_id AND rp.role_i
 WHERE g.user_id = @user_id
 ORDER BY rp.permission, g.scope_type, g.scope_id;
 
--- name: UpsertRole :one
--- Seed (chủ bảng): vai trò theo khóa; chạy lại thì đổi tên và trả mã cũ.
-INSERT INTO identity.roles (tenant_id, key, name)
-VALUES (@tenant_id, @key, @name)
-ON CONFLICT (tenant_id, key) DO UPDATE SET name = EXCLUDED.name
-RETURNING id;
-
 -- name: AddRolePermission :exec
 INSERT INTO identity.role_permissions (tenant_id, role_id, permission)
 VALUES (@tenant_id, @role_id, @permission)

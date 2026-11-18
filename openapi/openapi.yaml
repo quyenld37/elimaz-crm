@@ -57,6 +57,116 @@ paths:
                 $ref: "#/components/schemas/DeepHealth"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/identity/users:
+    get:
+      operationId: listStaff
+      summary: Mọi nhân viên của shop kèm vai trò theo phạm vi
+      x-permission: identity.users.manage
+      responses:
+        "200":
+          description: Nhân viên
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StaffMember"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createStaff
+      summary: Tạo nhân viên mới (chưa có vai trò nào)
+      x-permission: identity.users.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStaffRequest"
+      responses:
+        "201":
+          description: Nhân viên vừa tạo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffMember"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/identity/users/{id}/grants:
+    put:
+      operationId: replaceStaffGrants
+      summary: Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không vượt quyền của mình)
+      x-permission: identity.users.manage
+      parameters:
+        - $ref: "#/components/parameters/StaffID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplaceGrantsRequest"
+      responses:
+        "200":
+          description: Nhân viên sau khi đổi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffMember"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/identity/users/{id}/lock:
+    post:
+      operationId: lockStaff
+      summary: Khóa nhân viên (không khóa Chủ còn hoạt động cuối cùng)
+      x-permission: identity.users.manage
+      parameters:
+        - $ref: "#/components/parameters/StaffID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Nhân viên sau khi khóa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffMember"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/identity/users/{id}/unlock:
+    post:
+      operationId: unlockStaff
+      summary: Mở khóa nhân viên
+      x-permission: identity.users.manage
+      parameters:
+        - $ref: "#/components/parameters/StaffID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Nhân viên sau khi mở
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffMember"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/identity/roles:
+    get:
+      operationId: listRoles
+      summary: Vai trò của shop và quyền của từng vai trò
+      x-permission: identity.users.manage
+      responses:
+        "200":
+          description: Vai trò
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Role"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/me:
     get:
       operationId: getMe
@@ -183,6 +293,13 @@ components:
       schema:
         type: string
         format: uuid
+    StaffID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
   responses:
     Error:
       description: Lỗi; không bao giờ có vết lỗi
@@ -271,6 +388,86 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Grant"
+    StaffGrant:
+      type: object
+      required: [roleKey, scopeType, scopeId]
+      properties:
+        roleKey:
+          type: string
+          minLength: 1
+          maxLength: 64
+        scopeType:
+          type: string
+          enum: [all, page, warehouse]
+        scopeId:
+          type: string
+          maxLength: 128
+          description: Mã đích (Page, kho); rỗng khi scopeType là all
+    StaffMember:
+      type: object
+      required: [id, email, displayName, status, version, createdAt, grants]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        displayName:
+          type: string
+        status:
+          type: string
+          enum: [active, locked]
+        version:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        grants:
+          type: array
+          items:
+            $ref: "#/components/schemas/StaffGrant"
+    CreateStaffRequest:
+      type: object
+      required: [email, displayName]
+      properties:
+        email:
+          type: string
+          minLength: 3
+          maxLength: 254
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 200
+    ReplaceGrantsRequest:
+      type: object
+      required: [version, grants]
+      properties:
+        version:
+          type: integer
+          format: int64
+        grants:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/StaffGrant"
+    Role:
+      type: object
+      required: [key, name, status, customized, permissions]
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [active, archived]
+        customized:
+          type: boolean
+        permissions:
+          type: array
+          items:
+            type: string
     Job:
       type: object
       required: [id, kind, status, attempts, createdAt]

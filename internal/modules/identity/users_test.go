@@ -123,8 +123,10 @@ func TestGrantScopeCheck(t *testing.T) {
 	}
 }
 
-// crm_app chỉ đọc bảng identity ở M0 và không thấy dòng ngoài ngữ cảnh tenant.
-func TestAppRoleReadOnlyAndRLS(t *testing.T) {
+// crm_app không thấy dòng ngoài ngữ cảnh tenant, và từ M1 (Task M1-26) chỉ ghi được đúng phần quản lý nhân viên cần:
+// INSERT users, UPDATE (display_name, status, version) của users, INSERT/DELETE user_role_grants. Mọi ghi khác vào
+// bảng identity (đổi email, xóa user, sửa vai trò, quyền của vai trò) vẫn bị từ chối.
+func TestAppRolePrivilegesAndRLS(t *testing.T) {
 	s := testkit.OpenStaff(t)
 	a := s.Tenant(t, "A")
 	s.User(t, a, "r@elimaz.test", "active")
@@ -132,12 +134,30 @@ func TestAppRoleReadOnlyAndRLS(t *testing.T) {
 	if err := s.App.Pool.QueryRow(t.Context(), "SELECT count(*) FROM identity.users").Scan(&n); err != nil || n != 0 {
 		t.Fatalf("ngoài ngữ cảnh mong 0 dòng, có %d, %v", n, err)
 	}
-	err := tenancy.WithTenant(t.Context(), s.App, a, func(tx pgx.Tx) error {
-		_, err := tx.Exec(t.Context(), "UPDATE identity.users SET status = 'locked'")
+	for _, q := range []string{
+		"UPDATE identity.users SET email = 'z@elimaz.test'",
+		"UPDATE identity.users SET tenant_id = gen_random_uuid()",
+		"DELETE FROM identity.users",
+		"INSERT INTO identity.roles (tenant_id, key, name) VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, 'x', 'x')",
+		"UPDATE identity.roles SET name = 'x'",
+		"DELETE FROM identity.roles",
+		"INSERT INTO identity.role_permissions (tenant_id, role_id, permission) SELECT tenant_id, id, 'audit.read' FROM identity.roles",
+		"DELETE FROM identity.role_permissions",
+		"UPDATE identity.user_role_grants SET scope_type = 'all'",
+	} {
+		err := tenancy.WithTenant(t.Context(), s.App, a, func(tx pgx.Tx) error {
+			_, err := tx.Exec(t.Context(), q)
+			return err //nolint:wrapcheck // test
+		})
+		if err == nil || !strings.Contains(err.Error(), "permission denied") {
+			t.Errorf("crm_app %q phải bị từ chối, có %v", q, err)
+		}
+	}
+	if err := tenancy.WithTenant(t.Context(), s.App, a, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(), "UPDATE identity.users SET status = 'locked', version = version + 1")
 		return err //nolint:wrapcheck // test
-	})
-	if err == nil || !strings.Contains(err.Error(), "permission denied") {
-		t.Fatalf("crm_app sửa users phải bị từ chối, có %v", err)
+	}); err != nil {
+		t.Fatalf("crm_app đổi status, version phải được: %v", err)
 	}
 }
 

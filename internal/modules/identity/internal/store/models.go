@@ -29,11 +29,14 @@ type IdentityAuditLog struct {
 }
 
 type IdentityRole struct {
-	ID        uuid.UUID
-	TenantID  uuid.UUID
-	Key       string
-	Name      string
-	CreatedAt time.Time
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	Key        string
+	Name       string
+	CreatedAt  time.Time
+	Customized bool
+	Status     string
+	Version    int64
 }
 
 type IdentityRolePermission struct {
@@ -49,6 +52,7 @@ type IdentityUser struct {
 	DisplayName string
 	Status      string
 	CreatedAt   time.Time
+	Version     int64
 }
 
 type IdentityUserRoleGrant struct {
@@ -59,6 +63,12 @@ type IdentityUserRoleGrant struct {
 	ScopeType string
 	ScopeID   string
 	CreatedAt time.Time
+}
+
+type IdentityUsersV struct {
+	ID          uuid.UUID
+	DisplayName string
+	Status      string
 }
 
 type PlatformDomainEvent struct {

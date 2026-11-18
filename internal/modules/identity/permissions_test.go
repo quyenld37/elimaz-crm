@@ -69,6 +69,15 @@ func TestPermissionsList(t *testing.T) {
 		"realtime.subscribe": identity.ScopeNone, "audit.read": identity.ScopeNone,
 		"platform.jobs.manage": identity.ScopeNone, "platform.health.read": identity.ScopeNone,
 		"identity.users.manage": identity.ScopeNone, "conversation.read": identity.ScopeByTarget,
+		// M1 (kế hoạch Task M1-26).
+		"catalog.read": identity.ScopeNone, "catalog.manage": identity.ScopeNone, "catalog.import": identity.ScopeNone,
+		"order.create": identity.ScopeNone, "order.read": identity.ScopeNone, "files.upload": identity.ScopeNone,
+		"platform.files.manage": identity.ScopeNone, "inventory.suppliers.manage": identity.ScopeNone,
+		"identity.roles.manage": identity.ScopeNone,
+		"inventory.read":        identity.ScopeByTarget, "inventory.documents.create": identity.ScopeByTarget,
+		"inventory.documents.post": identity.ScopeByTarget, "inventory.stocktake": identity.ScopeByTarget,
+		"inventory.stocktake.apply": identity.ScopeByTarget, "fulfillment.read": identity.ScopeByTarget,
+		"fulfillment.ship": identity.ScopeByTarget,
 	}
 	if len(identity.Permissions) != len(want) {
 		t.Fatalf("mong %d quyền, có %d", len(want), len(identity.Permissions))
