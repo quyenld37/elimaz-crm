@@ -13,7 +13,10 @@ import (
 // bảng; schema đúng luật trả slice rỗng. Bảng có cột tenant_id ngoài platformTables (tên "schema.bảng") phải: (a) bật
 // và ép RLS, có policy, mọi policy đúng biểu thức NULLIF chuẩn; (b) có UNIQUE (tenant_id, id) nếu có cột id; (c) mọi
 // unique khác khóa chính có tenant_id là cột đầu; (d) khóa ngoại tới bảng có tenant_id nối tenant_id với tenant_id.
-// (e) Không bảng nào trong public (trừ bảng của extension).
+// (e) Không bảng nào trong public (trừ bảng của extension). (f) Mọi view thường ngoài schema hệ thống (kể cả platform,
+// trừ view của extension) có tên kết thúc _v và WITH (security_invoker = true). (g) Bảng có cột seller_id: mọi unique
+// khác khóa chính và khác (tenant_id, id) có seller_id ngay sau tenant_id (ADR-29); index có ghi chú
+// "seller-exempt: <lý do>" được miễn (danh sách ở docs/views.md). Dòng vi phạm của view cũng có dạng "<schema>.<view>: …".
 func CheckSchemaRules(ctx context.Context, owner *pgxpool.Pool, platformTables []string) ([]string, error) {
 	if platformTables == nil {
 		platformTables = []string{}

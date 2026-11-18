@@ -80,6 +80,22 @@ type Config struct {
 	ConsoleOrigins   []string
 	HealthToken      string
 
+	S3Endpoint        string
+	S3Region          string
+	S3AccessKeyID     string
+	S3SecretAccessKey string
+	S3BucketPrefix    string
+
+	FilesPublicBaseURL string
+
+	ImagerURL          string
+	ImagePresetVersion int
+
+	FakeCarrierURL           string
+	FakeCarrierWebhookSecret string
+
+	FileSyncExpected bool
+
 	Migrate *MigrateConfig
 }
 func Load(role Role, getenv func(string) string) (Config, error)
