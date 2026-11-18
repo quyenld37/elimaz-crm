@@ -257,6 +257,15 @@ func testListColumns(t *testing.T, f *fixture) {
 	if r.CategoryID == nil || *r.CategoryID != f.catLong || !slices.Equal(r.CategoryPath, []string{"Váy", "Váy dài"}) {
 		t.Fatalf("danh mục sai: %v %v", r.CategoryID, r.CategoryPath)
 	}
+	// Ảnh bìa (Task M1-44): ảnh vị trí 1 trong 3 ảnh của mẫu.
+	var firstFile uuid.UUID
+	f.inTenant(t, f.tenantA, func(tx pgx.Tx) error {
+		return tx.QueryRow(t.Context(), "SELECT file_id FROM catalog.product_images_v WHERE product_id = $1 AND position = 1",
+			r.ProductID).Scan(&firstFile)
+	})
+	if r.CoverImageID == nil || r.CoverFileID == nil || *r.CoverFileID != firstFile {
+		t.Fatalf("ảnh bìa sai: %v %v (muốn tệp %s)", r.CoverImageID, r.CoverFileID, firstFile)
+	}
 	rows, _ = list(t, f, f.tenantA, queries.ProductFilter{SellerID: f.sellerA, Q: "P00004", Limit: 10})
 	if len(rows) != 1 || rows[0].Available != nil || rows[0].CategoryID == nil || *rows[0].CategoryID != f.catTop ||
 		!slices.Equal(rows[0].CategoryPath, []string{"Áo"}) {
@@ -264,7 +273,8 @@ func testListColumns(t *testing.T, f *fixture) {
 	}
 	// Mẫu chưa có dòng số dư ở kho: available 0 (không phải không có).
 	rows, _ = list(t, f, f.tenantA, queries.ProductFilter{SellerID: f.sellerA, Q: "NOSTOCK", WarehouseID: f.warehouseA, Limit: 10})
-	if len(rows) != 1 || rows[0].Available == nil || *rows[0].Available != 0 || rows[0].VariantCount != 1 {
+	if len(rows) != 1 || rows[0].Available == nil || *rows[0].Available != 0 || rows[0].VariantCount != 1 ||
+		rows[0].CoverImageID != nil {
 		t.Fatalf("mẫu chưa nhập kho: %+v", rows)
 	}
 	rows, _ = list(t, f, f.tenantA, queries.ProductFilter{SellerID: f.sellerA, Q: "P00005", Limit: 10})

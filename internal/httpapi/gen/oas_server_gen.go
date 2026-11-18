@@ -39,6 +39,15 @@ type Handler interface {
 	//
 	// POST /api/v1/catalog/categories/{id}/archive
 	ArchiveCategory(ctx context.Context, req *VersionRequest, params ArchiveCategoryParams) (ArchiveCategoryRes, error)
+	// AttachProductImage implements attachProductImage operation.
+	//
+	// Color (không bắt buộc) là một màu đang có của biến thể trong mẫu. Tệp chưa
+	// ready hay không phải ảnh sản phẩm → 409 file_not_ready; tệp đang gắn → 409
+	// already_exists; tệp đã gắn rồi xóa → hồi lại ảnh cũ ở cuối. Tối đa 50
+	// ảnh.
+	//
+	// POST /api/v1/catalog/products/{id}/images
+	AttachProductImage(ctx context.Context, req *AttachProductImageRequest, params AttachProductImageParams) (AttachProductImageRes, error)
 	// CancelStockDocument implements cancelStockDocument operation.
 	//
 	// Hủy phiếu nháp.
@@ -123,6 +132,13 @@ type Handler interface {
 	//
 	// POST /api/v1/files/uploads
 	CreateUpload(ctx context.Context, req *CreateUploadRequest, params CreateUploadParams) (CreateUploadRes, error)
+	// DeleteProductImage implements deleteProductImage operation.
+	//
+	// Xóa mềm một ảnh của mẫu (khôi phục được trong 30 ngày); ảnh đã xóa thì
+	// không đổi gì.
+	//
+	// DELETE /api/v1/catalog/products/{id}/images/{imageId}
+	DeleteProductImage(ctx context.Context, params DeleteProductImageParams) (DeleteProductImageRes, error)
 	// GetFile implements getFile operation.
 	//
 	// Trạng thái tệp và các biến thể ảnh công khai.
@@ -270,6 +286,13 @@ type Handler interface {
 	//
 	// PUT /api/v1/inventory/stocktakes/{id}/lines/{variantId}
 	RecordStocktakeCount(ctx context.Context, req *RecordStocktakeCountRequest, params RecordStocktakeCountParams) (RecordStocktakeCountRes, error)
+	// ReorderProductImages implements reorderProductImages operation.
+	//
+	// Đặt thứ tự ảnh đang hiện của mẫu (đúng đủ mã ảnh đang hiện) khi version
+	// còn khớp.
+	//
+	// PUT /api/v1/catalog/products/{id}/images/order
+	ReorderProductImages(ctx context.Context, req *ReorderProductImagesRequest, params ReorderProductImagesParams) (ReorderProductImagesRes, error)
 	// ReplaceStaffGrants implements replaceStaffGrants operation.
 	//
 	// Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không
@@ -283,6 +306,13 @@ type Handler interface {
 	//
 	// PUT /api/v1/inventory/documents/{id}/lines
 	ReplaceStockDocumentLines(ctx context.Context, req *ReplaceStockDocumentLinesRequest, params ReplaceStockDocumentLinesParams) (ReplaceStockDocumentLinesRes, error)
+	// RestoreProductImage implements restoreProductImage operation.
+	//
+	// Khôi phục ảnh đã xóa về vị trí cũ; quá 30 ngày → 410 restore_expired; ảnh đang
+	// hiện thì không đổi gì.
+	//
+	// POST /api/v1/catalog/products/{id}/images/{imageId}/restore
+	RestoreProductImage(ctx context.Context, params RestoreProductImageParams) (RestoreProductImageRes, error)
 	// RetryJob implements retryJob operation.
 	//
 	// Đưa việc dead, in_doubt hoặc expired về pending.

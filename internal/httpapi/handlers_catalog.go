@@ -42,7 +42,7 @@ func (h *handler) CreateProduct(ctx context.Context, req *gen.CreateProductReque
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của catalog
 		}
-		return productOut(p)
+		return productOut(p, nil) // mẫu mới chưa có ảnh
 	})
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (h *handler) CreateProduct(ctx context.Context, req *gen.CreateProductReque
 }
 
 // GetProduct (GET /api/v1/catalog/products/{id}, catalog.read): mẫu của người bán mặc định, kèm articleHtml dựng bằng
-// catalog.RenderArticleHTML (R7).
+// catalog.RenderArticleHTML (R7) và ảnh đang hiện (Task M1-44).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) GetProduct(ctx context.Context, params gen.GetProductParams) (gen.GetProductRes, error) {
@@ -59,16 +59,16 @@ func (h *handler) GetProduct(ctx context.Context, params gen.GetProductParams) (
 	if !ok {
 		return nil, errNoAuthUser
 	}
-	var p catalog.Product
+	var out *gen.Product
 	err := h.readAsDefaultSeller(ctx, u, func(tx pgx.Tx, seller uuid.UUID) error {
 		var err error
-		p, err = catalog.GetProduct(ctx, tx, seller, params.ID)
-		return err //nolint:wrapcheck // sentinel của catalog
+		out, err = h.productWithImages(ctx, tx, seller, params.ID)
+		return err
 	})
 	if err != nil {
 		return nil, fmt.Errorf("đọc mẫu: %w", err)
 	}
-	return productOut(p)
+	return out, nil
 }
 
 // UpdateProduct (PATCH /api/v1/catalog/products/{id}, catalog.manage) sửa mẫu khi version còn khớp.
@@ -95,7 +95,7 @@ func (h *handler) UpdateProduct(ctx context.Context, req *gen.UpdateProductReque
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của catalog
 		}
-		return productOut(p)
+		return h.productWithImages(ctx, tx, p.SellerID, p.ID)
 	})
 	if err != nil {
 		return nil, err
@@ -205,7 +205,7 @@ func optString(set bool, v string) *string {
 	return &v
 }
 
-func productOut(p catalog.Product) (*gen.Product, error) {
+func productOut(p catalog.Product, imgs []catalog.Image) (*gen.Product, error) {
 	html, err := catalog.RenderArticleHTML(p.Article)
 	if err != nil {
 		return nil, fmt.Errorf("dựng HTML bài viết của mẫu %s: %w", p.ID, err)
@@ -220,7 +220,7 @@ func productOut(p catalog.Product) (*gen.Product, error) {
 	}
 	return &gen.Product{
 		ID: p.ID, Code: p.Code, Name: p.Name, Description: p.Description, Article: blocks, ArticleHtml: html,
-		Status: gen.ProductStatus(p.Status), Version: p.Version, Variants: variants,
+		Status: gen.ProductStatus(p.Status), Version: p.Version, Variants: variants, Images: productImagesOut(imgs),
 	}, nil
 }
 

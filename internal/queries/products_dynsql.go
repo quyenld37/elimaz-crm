@@ -77,7 +77,8 @@ type ProductFilter struct {
 
 // ProductRow là một mẫu của danh sách. CategoryPath: tên danh mục từ gốc tới lá (rỗng khi chưa gán). MinPrice,
 // MaxPrice: 0 khi mẫu chưa có biến thể. Available: tổng có thể bán của các biến thể ở kho của bộ lọc (có thể âm:
-// thiếu so với phần giữ; 0 khi chưa có dòng số dư nào ở kho đó); nil khi bộ lọc không có kho.
+// thiếu so với phần giữ; 0 khi chưa có dòng số dư nào ở kho đó); nil khi bộ lọc không có kho. Ảnh bìa: ảnh có vị trí
+// nhỏ nhất.
 type ProductRow struct {
 	ProductID    uuid.UUID
 	Code         string
@@ -90,6 +91,10 @@ type ProductRow struct {
 	MaxPrice     int64
 	Available    *int64
 	UpdatedAt    time.Time
+	// CoverImageID, CoverFileID: ảnh đang hiện đứng đầu của mẫu (catalog.product_images_v); nil khi chưa có ảnh.
+	// Bên gọi lấy đường dẫn bằng catalog.ResolveImages.
+	CoverImageID *uuid.UUID
+	CoverFileID  *uuid.UUID
 }
 
 // ListProducts trả một trang mẫu (chưa xóa) của người bán f.SellerID, sửa gần nhất trước, và con trỏ trang sau (nil
@@ -116,7 +121,7 @@ func ListProducts(ctx context.Context, tx pgx.Tx, f ProductFilter) ([]ProductRow
 		var p ProductRow
 		var n int64
 		err := r.Scan(&p.ProductID, &p.Code, &p.Name, &p.Status, &p.CategoryID, &n, &p.MinPrice, &p.MaxPrice,
-			&p.Available, &p.UpdatedAt)
+			&p.Available, &p.UpdatedAt, &p.CoverImageID, &p.CoverFileID)
 		p.VariantCount = int(n)
 		return p, err //nolint:wrapcheck // bọc ở dưới
 	})
@@ -226,13 +231,20 @@ func productsSQL(f ProductFilter, inCategory []uuid.UUID) (string, []any, error)
 		JOIN inventory.stock_available_v AS a ON a.variant_id = v.variant_id
 		WHERE v.seller_id = p.seller_id AND v.product_id = p.product_id AND a.warehouse_id = ` + arg(f.WarehouseID) + `)`
 	}
-	b.WriteString(`SELECT p.product_id, p.code, p.name, p.status, p.category_id, vs.n, coalesce(vs.min_price, 0), coalesce(vs.max_price, 0), ` + available + `, p.updated_at
+	b.WriteString(`SELECT p.product_id, p.code, p.name, p.status, p.category_id, vs.n, coalesce(vs.min_price, 0), coalesce(vs.max_price, 0), ` + available + `, p.updated_at, cov.image_id, cov.file_id
 FROM catalog.products_v AS p
 CROSS JOIN LATERAL (
 	SELECT count(*) AS n, min(v.price) AS min_price, max(v.price) AS max_price
 	FROM catalog.variants_v AS v
 	WHERE v.seller_id = p.seller_id AND v.product_id = p.product_id
 ) AS vs
+LEFT JOIN LATERAL (
+	SELECT i.image_id, i.file_id
+	FROM catalog.product_images_v AS i
+	WHERE i.product_id = p.product_id
+	ORDER BY i.position, i.image_id
+	LIMIT 1
+) AS cov ON true
 WHERE p.seller_id = $1 AND p.deleted_at IS NULL`)
 	if len(f.Status) > 0 {
 		b.WriteString("\n\tAND p.status = ANY(" + arg(f.Status) + "::text[])")

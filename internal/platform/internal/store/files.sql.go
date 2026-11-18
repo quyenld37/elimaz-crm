@@ -460,6 +460,22 @@ func (q *Queries) MarkFileDeleted(ctx context.Context, arg MarkFileDeletedParams
 	return result.RowsAffected(), nil
 }
 
+const setFileLost = `-- name: SetFileLost :execrows
+UPDATE platform.files
+SET status = 'lost', lost_at = now(), updated_at = now(), version = version + 1
+WHERE id = $1 AND status = 'ready'
+`
+
+// Đánh dấu tệp mất trên kho (dựng lại kho tệp, TP12): chỉ từ ready. Task M1-44 dùng trong filestest; Task M1-46 dùng
+// khi đối chiếu.
+func (q *Queries) SetFileLost(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, setFileLost, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setFileReady = `-- name: SetFileReady :one
 UPDATE platform.files
 SET status = 'ready', reject_reason = NULL, detected_type = $1, width = $2,
