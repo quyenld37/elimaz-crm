@@ -660,6 +660,55 @@ export type StockDocument = {
     lines: Array<StockDocumentLine>;
 };
 
+export type Warehouse = {
+    id: string;
+    code: string;
+    name: string;
+    status: WarehouseStatus;
+};
+
+export type WarehouseStatus = 'active' | 'closed';
+
+export type BalancePage = {
+    items: Array<Balance>;
+    /**
+     * Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+     */
+    nextCursor?: string;
+};
+
+export type Balance = {
+    variantId: string;
+    sku: string;
+    barcode: string;
+    productCode: string;
+    productName: string;
+    color: string;
+    size: string;
+    productStatus: ProductStatus;
+    variantStatus: VariantStatus;
+    /**
+     * Tồn
+     */
+    onHand: number;
+    /**
+     * Đang giữ cho đơn chưa gửi
+     */
+    held: number;
+    /**
+     * Đang giao (đã giao cho hãng)
+     */
+    inTransit: number;
+    /**
+     * Lỗi
+     */
+    damaged: number;
+    /**
+     * Có thể bán = onHand − damaged − held − inTransit; âm là thiếu so với phần giữ
+     */
+    available: number;
+};
+
 export type StockDocumentPage = {
     items: Array<StockDocument>;
     nextCursor?: string;
@@ -2079,6 +2128,62 @@ export type UpdateSupplierResponses = {
 };
 
 export type UpdateSupplierResponse = UpdateSupplierResponses[keyof UpdateSupplierResponses];
+
+export type ListWarehousesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/inventory/warehouses';
+};
+
+export type ListWarehousesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListWarehousesError = ListWarehousesErrors[keyof ListWarehousesErrors];
+
+export type ListWarehousesResponses = {
+    /**
+     * Danh sách kho
+     */
+    200: Array<Warehouse>;
+};
+
+export type ListWarehousesResponse = ListWarehousesResponses[keyof ListWarehousesResponses];
+
+export type ListBalancesData = {
+    body?: never;
+    path?: never;
+    query: {
+        warehouseId: string;
+        q?: string;
+        onlyShort?: boolean;
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/inventory/balances';
+};
+
+export type ListBalancesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListBalancesError = ListBalancesErrors[keyof ListBalancesErrors];
+
+export type ListBalancesResponses = {
+    /**
+     * Một trang số dư
+     */
+    200: BalancePage;
+};
+
+export type ListBalancesResponse = ListBalancesResponses[keyof ListBalancesResponses];
 
 export type ListStockDocumentsData = {
     body?: never;

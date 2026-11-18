@@ -914,6 +914,28 @@ dialog.drawer {
   font-size: 18px;
 }
 
+/* Nút bật tắt lọc (docs/mockups/m1/m1.css; màn Tồn kho, Task 51). */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--field);
+  padding: 0 14px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--paper);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+}
+.toggle[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
 /* Lớp chung của biểu mẫu hai cột (Task 324, chép từ m1.css): nhãn nhỏ, lưới ô nhập, hai cột, phần chỉ hiện từ 1000 px. */
 .label {
   color: var(--label);

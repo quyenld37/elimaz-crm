@@ -221,6 +221,15 @@ type Handler interface {
 	//
 	// GET /api/v1/catalog/attributes
 	ListAttributes(ctx context.Context) (ListAttributesRes, error)
+	// ListBalances implements listBalances operation.
+	//
+	// Cần inventory.read ở đúng kho warehouseId, không có → 403. Chỉ biến thể đã có
+	// dòng số dư ở kho đó. available = onHand − damaged − held − inTransit, có thể âm
+	// sau kiểm kho đếm thiếu (Q8); onlyShort=true chỉ trả dòng available < 0. Biến thể
+	// khớp q tối đa 100.
+	//
+	// GET /api/v1/inventory/balances
+	ListBalances(ctx context.Context, params ListBalancesParams) (ListBalancesRes, error)
 	// ListCategories implements listCategories operation.
 	//
 	// Mọi danh mục của shop (cả đã lưu trữ) theo cấp, vị trí, tên; màn hình dựng
@@ -273,6 +282,13 @@ type Handler interface {
 	//
 	// GET /api/v1/catalog/tags
 	ListTags(ctx context.Context) (ListTagsRes, error)
+	// ListWarehouses implements listWarehouses operation.
+	//
+	// Các kho người gọi được xem (có inventory.read ở kho đó hoặc toàn shop), kho chính
+	// trước rồi theo mã; gồm cả kho đã đóng.
+	//
+	// GET /api/v1/inventory/warehouses
+	ListWarehouses(ctx context.Context) (ListWarehousesRes, error)
 	// LockStaff implements lockStaff operation.
 	//
 	// Khóa nhân viên (không khóa Chủ còn hoạt động cuối cùng).

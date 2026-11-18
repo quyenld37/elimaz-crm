@@ -325,6 +325,18 @@ func (UnimplementedHandler) ListAttributes(ctx context.Context) (r ListAttribute
 	return r, ht.ErrNotImplemented
 }
 
+// ListBalances implements listBalances operation.
+//
+// Cần inventory.read ở đúng kho warehouseId, không có → 403. Chỉ biến thể đã có
+// dòng số dư ở kho đó. available = onHand − damaged − held − inTransit, có thể âm
+// sau kiểm kho đếm thiếu (Q8); onlyShort=true chỉ trả dòng available < 0. Biến thể
+// khớp q tối đa 100.
+//
+// GET /api/v1/inventory/balances
+func (UnimplementedHandler) ListBalances(ctx context.Context, params ListBalancesParams) (r ListBalancesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListCategories implements listCategories operation.
 //
 // Mọi danh mục của shop (cả đã lưu trữ) theo cấp, vị trí, tên; màn hình dựng
@@ -398,6 +410,16 @@ func (UnimplementedHandler) ListSuppliers(ctx context.Context, params ListSuppli
 //
 // GET /api/v1/catalog/tags
 func (UnimplementedHandler) ListTags(ctx context.Context) (r ListTagsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListWarehouses implements listWarehouses operation.
+//
+// Các kho người gọi được xem (có inventory.read ở kho đó hoặc toàn shop), kho chính
+// trước rồi theo mã; gồm cả kho đã đóng.
+//
+// GET /api/v1/inventory/warehouses
+func (UnimplementedHandler) ListWarehouses(ctx context.Context) (r ListWarehousesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

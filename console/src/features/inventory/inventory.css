@@ -1,0 +1,46 @@
+/* Lớp riêng của màn Tồn kho, chép từ mockup đã duyệt (docs/mockups/m1/kho-ton.html, khối <style>). Luật điện thoại
+   viết .tbl.stk vì styles.css (nạp sau) có .tbl tr, .tbl td cùng độ ưu tiên với .stk tr của mockup. */
+.v-cell {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  max-width: 420px;
+}
+.v-cell .sku {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.v-cell .clamp2 {
+  color: var(--name);
+  font-weight: 600;
+}
+.avail {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 759px) {
+  .v-cell {
+    max-width: none;
+  }
+  .tbl.stk tr {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0 8px;
+  }
+  .tbl.stk td.lead,
+  .tbl.stk td.av {
+    grid-column: 1 / -1;
+  }
+  .tbl.stk td[data-label]:not(.av) {
+    display: grid;
+    justify-items: start;
+    text-align: left;
+    gap: 0;
+  }
+  .tbl.stk td.av {
+    border-top: 1px solid var(--rule) !important;
+    margin-top: 4px;
+    padding-top: 8px;
+  }
+}
