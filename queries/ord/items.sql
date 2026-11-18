@@ -13,3 +13,10 @@ SELECT id, position, variant_id, sku_snapshot, name_snapshot, quantity, unit_pri
 FROM ord.order_items
 WHERE seller_id = @seller_id AND order_id = @order_id
 ORDER BY position;
+
+-- name: OrderItemIDs :many
+-- Mã các dòng đơn của đơn (đơn đã khóa bằng LockOrder).
+SELECT id
+FROM ord.order_items
+WHERE order_id = @order_id
+ORDER BY position;

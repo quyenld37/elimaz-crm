@@ -15,6 +15,7 @@ import (
 const (
 	TopicOrderCreated   = "order.created"
 	TopicOrderConfirmed = "order.confirmed"
+	TopicOrderDelivered = "order.delivered"
 
 	aggregateOrder = "order"
 )

@@ -44,3 +44,21 @@ func (w Writer) byItems(ctx context.Context, tx pgx.Tx, orderItemIDs []uuid.UUID
 	}
 	return w.transition(ctx, tx, ids, c, a)
 }
+
+// ReservationStatesByItems đếm các dòng giữ hàng của orderItemIDs theo trạng thái (held, in_transit, consumed,
+// released); trạng thái không có dòng nào không có trong map. Đọc không khóa: dùng khi bên gọi đã khóa đối tượng sở
+// hữu các dòng đơn (order khóa ord.orders, ADR-46 nhóm 7) để chọn bước tiếp theo; các hàm đổi trạng thái vẫn tự kiểm
+// state = <cũ> dưới khóa.
+//
+// Khi nào không dùng: để quyết định "đủ hàng" (dùng Availability, Reserve).
+func ReservationStatesByItems(ctx context.Context, tx pgx.Tx, orderItemIDs []uuid.UUID) (map[string]int, error) {
+	rows, err := store.New(tx).CountReservationsByItems(ctx, orderItemIDs)
+	if err != nil {
+		return nil, fmt.Errorf("đếm giữ hàng theo dòng đơn: %w", err)
+	}
+	m := make(map[string]int, len(rows))
+	for _, r := range rows {
+		m[r.State] = int(r.N)
+	}
+	return m, nil
+}

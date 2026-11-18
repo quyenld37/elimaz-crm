@@ -52,6 +52,7 @@ hay bỏ khóa đã có.
 | `stock.changed` | `balance:<variant>:<warehouse>` | `{variantIds: [<variant>], warehouseId, sellerId}` | số dư tồn đổi | 28 |
 | `order.created` | `order` (mã đơn) | `{orderId, sellerId, version}` | tạo đơn (seq 1) | 30 |
 | `order.confirmed` | `order` (mã đơn) | `{orderId, sellerId, version}` | đơn sang Đã xác nhận (đơn nhập tay: ngay khi tạo, seq 2) | 30 |
+| `order.delivered` | `order` (mã đơn) | `{orderId, sellerId, version}` | vận đơn hiện hành báo giao xong, đơn sang Đã giao | 333 |
 
 ## Ngoại lệ luật (g)
 
