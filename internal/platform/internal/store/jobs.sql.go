@@ -13,11 +13,47 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const abandonTenantJob = `-- name: AbandonTenantJob :one
+UPDATE platform.jobs
+SET status = 'expired', finished_at = now()
+WHERE id = $1 AND tenant_id = $2 AND status IN ('dead', 'in_doubt')
+RETURNING id, kind, status, attempts, last_error, created_at
+`
+
+type AbandonTenantJobParams struct {
+	ID       uuid.UUID
+	TenantID pgtype.UUID
+}
+
+type AbandonTenantJobRow struct {
+	ID        uuid.UUID
+	Kind      string
+	Status    string
+	Attempts  int32
+	LastError pgtype.Text
+	CreatedAt time.Time
+}
+
+// Bỏ việc do người quyết: dead, in_doubt → expired.
+func (q *Queries) AbandonTenantJob(ctx context.Context, arg AbandonTenantJobParams) (AbandonTenantJobRow, error) {
+	row := q.db.QueryRow(ctx, abandonTenantJob, arg.ID, arg.TenantID)
+	var i AbandonTenantJobRow
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Status,
+		&i.Attempts,
+		&i.LastError,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const claimJobs = `-- name: ClaimJobs :many
 WITH picked AS (
     SELECT j.id
     FROM platform.jobs j
-    WHERE j.status = 'pending' AND j.mode = 'transactional' AND j.run_at <= now()
+    WHERE j.status = 'pending' AND (j.mode = 'transactional' OR $3::boolean) AND j.run_at <= now()
       AND (j.expires_at IS NULL OR j.expires_at >= now())
       AND (j.order_key IS NULL OR NOT EXISTS (
           SELECT 1 FROM platform.jobs b
@@ -27,7 +63,7 @@ WITH picked AS (
             AND (b.status <> 'dead' OR b.block_on_dead)
       ))
     ORDER BY j.run_at, j.id
-    LIMIT $3
+    LIMIT $4
     FOR UPDATE OF j SKIP LOCKED
 )
 UPDATE platform.jobs AS u
@@ -35,20 +71,22 @@ SET status = 'running', attempts = u.attempts + 1, lease_until = now() + $1::big
     locked_by = $2::text
 FROM picked
 WHERE u.id = picked.id
-RETURNING u.id, u.tenant_id, u.kind, u.payload, u.attempts, u.max_attempts, u.created_at, u.trace_context,
+RETURNING u.id, u.tenant_id, u.kind, u.mode, u.payload, u.attempts, u.max_attempts, u.created_at, u.trace_context,
     (extract(epoch FROM now() - u.run_at) * 1000)::float8 AS pickup_ms
 `
 
 type ClaimJobsParams struct {
-	LeaseMs  int64
-	LockedBy string
-	Lim      int32
+	LeaseMs      int64
+	LockedBy     string
+	WithCommands bool
+	Lim          int32
 }
 
 type ClaimJobsRow struct {
 	ID           uuid.UUID
 	TenantID     pgtype.UUID
 	Kind         string
+	Mode         string
 	Payload      []byte
 	Attempts     int32
 	MaxAttempts  int32
@@ -57,11 +95,16 @@ type ClaimJobsRow struct {
 	PickupMs     float64
 }
 
-// (3) Nhận việc transactional tới hạn. Việc có order_key chỉ được nhận khi không còn việc nào cùng
+// (3) Nhận việc tới hạn. Việc có order_key chỉ được nhận khi không còn việc nào cùng
 // (tenant_id, order_key) có (order_seq, id) nhỏ hơn đang pending, running, in_doubt hoặc dead có block_on_dead.
-// Việc command là của Task 12 (commands.Runner), chưa được nhận ở đây.
+// Việc command (lệnh ra ngoài, Task 12) chỉ được nhận khi worker có commands.Runner (with_commands).
 func (q *Queries) ClaimJobs(ctx context.Context, arg ClaimJobsParams) ([]ClaimJobsRow, error) {
-	rows, err := q.db.Query(ctx, claimJobs, arg.LeaseMs, arg.LockedBy, arg.Lim)
+	rows, err := q.db.Query(ctx, claimJobs,
+		arg.LeaseMs,
+		arg.LockedBy,
+		arg.WithCommands,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +116,7 @@ func (q *Queries) ClaimJobs(ctx context.Context, arg ClaimJobsParams) ([]ClaimJo
 			&i.ID,
 			&i.TenantID,
 			&i.Kind,
+			&i.Mode,
 			&i.Payload,
 			&i.Attempts,
 			&i.MaxAttempts,
@@ -247,6 +291,59 @@ func (q *Queries) KillJob(ctx context.Context, arg KillJobParams) (int64, error)
 	return result.RowsAffected(), nil
 }
 
+const listAttentionJobs = `-- name: ListAttentionJobs :many
+
+SELECT id, kind, status, attempts, last_error, created_at
+FROM platform.jobs
+WHERE tenant_id = $1 AND status = ANY ($2::text[])
+ORDER BY created_at DESC, id DESC
+LIMIT $3
+`
+
+type ListAttentionJobsParams struct {
+	TenantID pgtype.UUID
+	Statuses []string
+	Lim      int32
+}
+
+type ListAttentionJobsRow struct {
+	ID        uuid.UUID
+	Kind      string
+	Status    string
+	Attempts  int32
+	LastError pgtype.Text
+	CreatedAt time.Time
+}
+
+// Quản lý việc qua API (Task 12, platform.jobs.manage). Bảng không RLS (Global Constraints): mọi câu lọc tường minh
+// tenant_id của người gọi, chạy trong WithTenant của người gọi. Không trả payload.
+func (q *Queries) ListAttentionJobs(ctx context.Context, arg ListAttentionJobsParams) ([]ListAttentionJobsRow, error) {
+	rows, err := q.db.Query(ctx, listAttentionJobs, arg.TenantID, arg.Statuses, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAttentionJobsRow{}
+	for rows.Next() {
+		var i ListAttentionJobsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.Status,
+			&i.Attempts,
+			&i.LastError,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listExpiredPending = `-- name: ListExpiredPending :many
 SELECT id, tenant_id, kind, payload, attempts, created_at
 FROM platform.jobs
@@ -350,6 +447,42 @@ func (q *Queries) ListenJobs(ctx context.Context) error {
 	return err
 }
 
+const lockTenantJob = `-- name: LockTenantJob :one
+SELECT id, kind, status, attempts, last_error, created_at
+FROM platform.jobs
+WHERE id = $1 AND tenant_id = $2
+FOR UPDATE
+`
+
+type LockTenantJobParams struct {
+	ID       uuid.UUID
+	TenantID pgtype.UUID
+}
+
+type LockTenantJobRow struct {
+	ID        uuid.UUID
+	Kind      string
+	Status    string
+	Attempts  int32
+	LastError pgtype.Text
+	CreatedAt time.Time
+}
+
+// Khóa dòng việc của tenant trước khi đổi (thứ tự khóa ADR-46 ngoại lệ (c): jobs trước idempotency_keys).
+func (q *Queries) LockTenantJob(ctx context.Context, arg LockTenantJobParams) (LockTenantJobRow, error) {
+	row := q.db.QueryRow(ctx, lockTenantJob, arg.ID, arg.TenantID)
+	var i LockTenantJobRow
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Status,
+		&i.Attempts,
+		&i.LastError,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const oldestPendingAgeSeconds = `-- name: OldestPendingAgeSeconds :one
 SELECT coalesce(extract(epoch FROM now() - min(run_at)), 0)::float8 AS age_s
 FROM platform.jobs
@@ -397,6 +530,43 @@ func (q *Queries) RequeueLeaseExpired(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const requeueTenantJob = `-- name: RequeueTenantJob :one
+UPDATE platform.jobs
+SET status = 'pending', attempts = 0, run_at = now(), expires_at = NULL, lease_until = NULL, locked_by = NULL,
+    finished_at = NULL
+WHERE id = $1 AND tenant_id = $2 AND status IN ('dead', 'in_doubt', 'expired')
+RETURNING id, kind, status, attempts, last_error, created_at
+`
+
+type RequeueTenantJobParams struct {
+	ID       uuid.UUID
+	TenantID pgtype.UUID
+}
+
+type RequeueTenantJobRow struct {
+	ID        uuid.UUID
+	Kind      string
+	Status    string
+	Attempts  int32
+	LastError pgtype.Text
+	CreatedAt time.Time
+}
+
+// Chạy lại do người quyết: dead, in_doubt, expired → pending, chạy ngay, lượt về 0, bỏ hạn sống.
+func (q *Queries) RequeueTenantJob(ctx context.Context, arg RequeueTenantJobParams) (RequeueTenantJobRow, error) {
+	row := q.db.QueryRow(ctx, requeueTenantJob, arg.ID, arg.TenantID)
+	var i RequeueTenantJobRow
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Status,
+		&i.Attempts,
+		&i.LastError,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const rescheduleJob = `-- name: RescheduleJob :execrows

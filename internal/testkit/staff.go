@@ -127,3 +127,13 @@ func (s *Staff) ProbeCounter(t testing.TB) {
 		}
 	}
 }
+
+// Count chạy câu đếm q bằng chủ bảng (ngoài ngữ cảnh tenant: bảng có RLS trả 0) và trả kết quả; lỗi làm test đỏ.
+func (s *Staff) Count(t testing.TB, q string, args ...any) int {
+	t.Helper()
+	var n int
+	if err := s.Owner.Pool.QueryRow(context.Background(), q, args...).Scan(&n); err != nil {
+		t.Fatalf("testkit: %s: %v", q, err)
+	}
+	return n
+}

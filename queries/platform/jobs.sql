@@ -52,14 +52,14 @@ UPDATE platform.jobs
 SET status = 'expired', finished_at = now()
 WHERE id = @id AND status = 'pending' AND expires_at < now();
 
--- (3) Nhận việc transactional tới hạn. Việc có order_key chỉ được nhận khi không còn việc nào cùng
+-- (3) Nhận việc tới hạn. Việc có order_key chỉ được nhận khi không còn việc nào cùng
 -- (tenant_id, order_key) có (order_seq, id) nhỏ hơn đang pending, running, in_doubt hoặc dead có block_on_dead.
--- Việc command là của Task 12 (commands.Runner), chưa được nhận ở đây.
+-- Việc command (lệnh ra ngoài, Task 12) chỉ được nhận khi worker có commands.Runner (with_commands).
 -- name: ClaimJobs :many
 WITH picked AS (
     SELECT j.id
     FROM platform.jobs j
-    WHERE j.status = 'pending' AND j.mode = 'transactional' AND j.run_at <= now()
+    WHERE j.status = 'pending' AND (j.mode = 'transactional' OR sqlc.arg(with_commands)::boolean) AND j.run_at <= now()
       AND (j.expires_at IS NULL OR j.expires_at >= now())
       AND (j.order_key IS NULL OR NOT EXISTS (
           SELECT 1 FROM platform.jobs b
@@ -77,7 +77,7 @@ SET status = 'running', attempts = u.attempts + 1, lease_until = now() + sqlc.ar
     locked_by = sqlc.arg(locked_by)::text
 FROM picked
 WHERE u.id = picked.id
-RETURNING u.id, u.tenant_id, u.kind, u.payload, u.attempts, u.max_attempts, u.created_at, u.trace_context,
+RETURNING u.id, u.tenant_id, u.kind, u.mode, u.payload, u.attempts, u.max_attempts, u.created_at, u.trace_context,
     (extract(epoch FROM now() - u.run_at) * 1000)::float8 AS pickup_ms;
 
 -- (4) Câu cuối của transaction của handler.
@@ -114,3 +114,35 @@ WHERE status = 'pending' AND run_at <= now();
 
 -- name: ListenJobs :exec
 LISTEN jobs;
+
+-- Quản lý việc qua API (Task 12, platform.jobs.manage). Bảng không RLS (Global Constraints): mọi câu lọc tường minh
+-- tenant_id của người gọi, chạy trong WithTenant của người gọi. Không trả payload.
+
+-- name: ListAttentionJobs :many
+SELECT id, kind, status, attempts, last_error, created_at
+FROM platform.jobs
+WHERE tenant_id = @tenant_id AND status = ANY (sqlc.arg(statuses)::text[])
+ORDER BY created_at DESC, id DESC
+LIMIT @lim;
+
+-- Khóa dòng việc của tenant trước khi đổi (thứ tự khóa ADR-46 ngoại lệ (c): jobs trước idempotency_keys).
+-- name: LockTenantJob :one
+SELECT id, kind, status, attempts, last_error, created_at
+FROM platform.jobs
+WHERE id = @id AND tenant_id = @tenant_id
+FOR UPDATE;
+
+-- Chạy lại do người quyết: dead, in_doubt, expired → pending, chạy ngay, lượt về 0, bỏ hạn sống.
+-- name: RequeueTenantJob :one
+UPDATE platform.jobs
+SET status = 'pending', attempts = 0, run_at = now(), expires_at = NULL, lease_until = NULL, locked_by = NULL,
+    finished_at = NULL
+WHERE id = @id AND tenant_id = @tenant_id AND status IN ('dead', 'in_doubt', 'expired')
+RETURNING id, kind, status, attempts, last_error, created_at;
+
+-- Bỏ việc do người quyết: dead, in_doubt → expired.
+-- name: AbandonTenantJob :one
+UPDATE platform.jobs
+SET status = 'expired', finished_at = now()
+WHERE id = @id AND tenant_id = @tenant_id AND status IN ('dead', 'in_doubt')
+RETURNING id, kind, status, attempts, last_error, created_at;

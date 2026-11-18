@@ -8,10 +8,11 @@ import (
 )
 
 // handler hiện thực gen.Handler. Operation chưa có handler trả ht.ErrNotImplemented (501) qua UnimplementedHandler;
-// các task sau thêm từng operation (Task 12 việc nền, Task 20 health). getMe: handlers_me.go.
+// các task sau thêm từng operation (Task 20 health). getMe: handlers_me.go; việc nền: handlers_jobs.go.
 type handler struct {
 	gen.UnimplementedHandler
 
+	d      Deps
 	health *observability.Health
 }
 

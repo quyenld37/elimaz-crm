@@ -39,6 +39,8 @@ const (
 	maxErrorLen = 1000
 	// killWait: sau khi hủy ctx của handler (hết grace), Stop chờ thêm tối đa chừng này để việc dở ghi về hàng chờ.
 	killWait = 5 * time.Second
+	// claimTimeout giới hạn một lần nhận việc của vòng nền (chạy trên ctx không bị Stop hủy).
+	claimTimeout = 10 * time.Second
 )
 
 // Lỗi của Worker.
@@ -66,12 +68,16 @@ type WorkerOptions struct {
 	Metrics *metrics.Registry
 	// Logger cho lỗi của vòng chạy nền (Start); nil: slog.Default().
 	Logger *slog.Logger
+	// Commands chạy việc mode command; nil: Worker không nhận việc command (chúng giữ pending).
+	Commands CommandRunner
 }
 
 // Worker nhận và chạy việc của các Handler đã đăng ký.
 type Worker struct {
 	d        *db.DB
 	handlers map[string]Handler
+	// commands: loại lệnh của o.Commands (đã có Policy trong policies).
+	commands map[string]bool
 	policies map[string]Policy
 	o        WorkerOptions
 	tracer   trace.Tracer
@@ -110,7 +116,7 @@ func NewWorker(d *db.DB, hs []Handler, o WorkerOptions) *Worker {
 	}
 	w := &Worker{
 		d: d, o: o, tracer: newTracer(),
-		handlers: make(map[string]Handler, len(hs)), policies: make(map[string]Policy, len(hs)),
+		handlers: make(map[string]Handler, len(hs)), policies: make(map[string]Policy, len(hs)), commands: map[string]bool{},
 		wake: make(chan struct{}, 1), recordTimeout: recordTimeout,
 	}
 	w.hardStop, w.hardStopFn = context.WithCancel(context.Background())
@@ -121,6 +127,18 @@ func NewWorker(d *db.DB, hs []Handler, o WorkerOptions) *Worker {
 			p = DefaultPolicy
 		}
 		w.handlers[k.Name], w.policies[k.Name] = h, p
+	}
+	if o.Commands != nil {
+		for _, k := range o.Commands.Kinds() {
+			p, err := k.Policy.normalized()
+			if err != nil {
+				p = DefaultPolicy
+			}
+			// Lệnh phải xong (hoặc bị hủy) trước khi giữ chỗ hết hạn: nếu không, lượt quét đặt in_doubt trong lúc Execute
+			// còn chạy và kết quả của nó không được ghi.
+			p.Timeout = min(p.Timeout, o.Lease/2)
+			w.commands[k.Name], w.policies[k.Name] = true, p
+		}
 	}
 	return w
 }
@@ -294,7 +312,12 @@ func (w *Worker) dispatch(ctx, base context.Context) {
 	if err := w.sweep(ctx); err != nil {
 		w.logErr(ctx, "quét giữ chỗ hết hạn", err)
 	}
-	jobs, err := w.claim(ctx, free)
+	// Câu nhận việc không theo việc hủy của vòng (Stop): hủy giữa lúc commit có thể làm mất câu trả lời của một lần
+	// nhận đã commit, việc đó kẹt running tới hết giữ chỗ (lệnh thành in_doubt dù chưa gửi). Việc đã nhận luôn được
+	// giao chạy; Stop chờ chúng như mọi việc đang chạy.
+	cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), claimTimeout)
+	jobs, err := w.claim(cctx, free)
+	cancel()
 	if err != nil {
 		w.logErr(ctx, "nhận việc", err)
 		return
@@ -368,7 +391,8 @@ func (w *Worker) claim(ctx context.Context, limit int) ([]store.ClaimJobsRow, er
 	err := w.d.RetryTx(ctx, db.TxOptions{}, func(tx pgx.Tx) error {
 		var err error
 		rows, err = store.New(tx).ClaimJobs(ctx, store.ClaimJobsParams{
-			LeaseMs: w.o.Lease.Milliseconds(), LockedBy: w.o.WorkerID, Lim: int32(min(limit, maxInt32)), //nolint:gosec // đã chặn trên
+			LeaseMs: w.o.Lease.Milliseconds(), LockedBy: w.o.WorkerID, WithCommands: len(w.commands) > 0,
+			Lim: int32(min(limit, maxInt32)), //nolint:gosec // đã chặn trên
 		})
 		return err //nolint:wrapcheck // bọc một lần ở dưới
 	})
@@ -393,6 +417,9 @@ func (w *Worker) runJob(base context.Context, row store.ClaimJobsRow) error {
 	defer span.End()
 
 	h, ok := w.handlers[j.Kind]
+	if row.Mode == ModeCommand {
+		ok = w.commands[j.Kind]
+	}
 	if !ok {
 		span.SetStatus(codes.Error, "no handler")
 		rctx, rcancel := w.recordCtx(ctx)
@@ -404,6 +431,9 @@ func (w *Worker) runJob(base context.Context, row store.ClaimJobsRow) error {
 	defer cancel()
 	stopKill := context.AfterFunc(w.hardStop, cancel) //nolint:contextcheck // hardStop chỉ để hủy hctx, không làm cha
 	defer stopKill()
+	if row.Mode == ModeCommand {
+		return w.runCommand(hctx, span, j)
+	}
 
 	start := time.Now()
 	err := w.inTx(hctx, j.TenantID, func(tx pgx.Tx) error {
@@ -440,15 +470,55 @@ func (w *Worker) runJob(base context.Context, row store.ClaimJobsRow) error {
 			return q.ReleaseJob(rctx, store.ReleaseJobParams{ID: j.ID, LockedBy: w.o.WorkerID})
 		})
 	case errors.Is(err, ErrPermanent) || j.Attempts >= int(row.MaxAttempts):
-		return w.markDead(rctx, j, errText(err), true)
+		return w.markDead(rctx, j, ErrorText(err), true)
 	default:
 		delay := NextDelay(j.Attempts, rand.Float64)
 		return w.update(rctx, func(q *store.Queries) (int64, error) {
 			return q.RescheduleJob(rctx, store.RescheduleJobParams{
-				DelayMs: delay.Milliseconds(), LastError: errText(err), ID: j.ID, LockedBy: w.o.WorkerID,
+				DelayMs: delay.Milliseconds(), LastError: ErrorText(err), ID: j.ID, LockedBy: w.o.WorkerID,
 			})
 		})
 	}
+}
+
+// runCommand giao lệnh đã nhận cho CommandRunner (chạy ngoài transaction, tự ghi trạng thái) rồi đếm chỉ số. Stop
+// đã quá grace trước khi giao: lệnh chưa ra ngoài, trả về hàng chờ và không tính lượt (như việc transactional).
+func (w *Worker) runCommand(ctx context.Context, span trace.Span, j Job) error {
+	if w.hardStop.Err() != nil {
+		rctx, rcancel := w.recordCtx(ctx)
+		defer rcancel()
+		return w.update(rctx, func(q *store.Queries) (int64, error) {
+			return q.ReleaseJob(rctx, store.ReleaseJobParams{ID: j.ID, LockedBy: w.o.WorkerID})
+		})
+	}
+	start := time.Now()
+	status, err := w.o.Commands.Run(ctx, j, w.o.WorkerID)
+	if w.o.Metrics != nil {
+		w.o.Metrics.Observe("job_ms", float64(time.Since(start).Milliseconds()), j.Kind)
+	}
+	switch status {
+	case StatusDead:
+		w.count("jobs_dead", j.Kind)
+	case StatusInDoubt:
+		w.count("jobs_in_doubt", j.Kind)
+	}
+	if err != nil {
+		span.SetStatus(codes.Error, "lệnh lỗi")
+		return fmt.Errorf("lệnh %s: %w", j.Kind, err)
+	}
+	if status != "done" && status != "" {
+		span.SetStatus(codes.Error, "lệnh "+status)
+	}
+	return nil
+}
+
+// terminalHook của loại kind: handler transactional hiện thực TerminalHook, hoặc hook của lệnh qua CommandRunner.
+func (w *Worker) terminalHook(kind string) TerminalHook { //nolint:ireturn // TerminalHook là interface tùy chọn của handler
+	if w.commands[kind] {
+		return w.o.Commands.TerminalHook(kind)
+	}
+	hook, _ := w.handlers[kind].(TerminalHook)
+	return hook
 }
 
 // recordCtx là ctx của một lần ghi trạng thái: giữ giá trị (span) của ctx, không theo việc hủy của nó, hạn
@@ -475,7 +545,7 @@ func (w *Worker) markDead(ctx context.Context, j Job, msg string, hook bool) err
 // finish chạy OnTerminal (nếu handler có) rồi câu đổi trạng thái upd trong cùng một transaction (ngữ cảnh tenant của
 // việc). Thứ tự khóa ADR-46: dòng nghiệp vụ của hook trước, platform.jobs cuối. upd chạm 0 dòng → lùi cả hai.
 func (w *Worker) finish(ctx context.Context, j Job, status string, upd func(*store.Queries) (int64, error)) error {
-	hook, _ := w.handlers[j.Kind].(TerminalHook)
+	hook := w.terminalHook(j.Kind)
 	err := w.inTx(ctx, j.TenantID, func(tx pgx.Tx) error {
 		if hook != nil {
 			if err := hook.OnTerminal(ctx, j, status, tx); err != nil {
@@ -545,8 +615,9 @@ func (w *Worker) gauge(ctx context.Context) {
 	w.o.Metrics.Gauge("jobs_oldest_pending_age_s", age, "")
 }
 
-// errText là last_error: chuỗi lỗi, tối đa maxErrorLen ký tự (không cắt giữa ký tự UTF-8).
-func errText(err error) string {
+// ErrorText là chuỗi lưu vào last_error của một việc: err.Error(), tối đa 1000 ký tự (không cắt giữa ký tự UTF-8).
+// Gói platform khác ghi last_error (commands) dùng hàm này để cùng một giới hạn.
+func ErrorText(err error) string {
 	s := err.Error()
 	if utf8.RuneCountInString(s) <= maxErrorLen {
 		return s

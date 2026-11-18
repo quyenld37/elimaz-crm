@@ -13,6 +13,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/idempotency"
+	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
 // Mã lỗi trả cho client. Đây là chỗ duy nhất đổi lỗi sang mã HTTP (CLAUDE.md, mục "Lỗi và log").
@@ -23,6 +24,7 @@ const (
 	codeBodyTooLarge     = "body_too_large"
 	codeForbidden        = "forbidden"
 	codeInternal         = "internal"
+	codeJobStateConflict = "job_state_conflict"
 	// Khóa chống trùng (ADR-41).
 	codeIdempotencyKeyInvalid  = "idempotency_key_invalid"
 	codeIdempotencyKeyRequired = "idempotency_key_required"
@@ -75,6 +77,13 @@ func writeHandlerError(d Deps, w http.ResponseWriter, r *http.Request, err error
 	case errors.Is(err, idempotency.ErrInProgress), errors.Is(err, idempotency.ErrClaimLost):
 		// Cùng khóa đang chạy, hoặc khóa đã bị yêu cầu khác nhận lại: bên gọi thử lại với đúng khóa đó.
 		writeError(w, r, http.StatusConflict, codeRequestInProgress)
+		return
+	case errors.Is(err, queue.ErrJobNotFound):
+		// Việc không có hoặc của tenant khác: không cho biết là có.
+		writeError(w, r, http.StatusNotFound, codeNotFound)
+		return
+	case errors.Is(err, queue.ErrJobState):
+		writeError(w, r, http.StatusConflict, codeJobStateConflict)
 		return
 	case errors.Is(err, idempotency.ErrKeyReused):
 		writeError(w, r, http.StatusUnprocessableEntity, codeIdempotencyKeyReused)

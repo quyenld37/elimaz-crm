@@ -24,10 +24,12 @@ import (
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/observability"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/schedules"
 	"elimaz.com.vn/crm/internal/platform/selftest"
 	"elimaz.com.vn/crm/internal/platform/telemetry"
 	"elimaz.com.vn/crm/internal/platform/webhooks"
@@ -155,12 +157,23 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	return serveHTTP(ctx, cfg, d, reg, logger)
 }
 
-// runWorker chạy hàng đợi (queue.Worker) và vòng ghi chỉ số, nhịp sống tới khi ctx bị hủy (SIGTERM); rồi tắt êm
-// hàng đợi (Stop, tối đa workerStopGrace) trước, ghi chỉ số lần cuối sau. Handler do các task sau đăng ký.
+// newEvents dựng sổ consumer của sự kiện nội bộ, dùng chung cho api (Emit) và worker (handler); M0 chưa có consumer,
+// module của mốc sau đăng ký ở đây.
+func newEvents() *events.Registry { return events.NewRegistry() }
+
+// runWorker chạy hàng đợi (queue.Worker) với handler của sự kiện nội bộ và dọn dữ liệu, Ticker của việc định kỳ, và
+// vòng ghi chỉ số, nhịp sống tới khi ctx bị hủy (SIGTERM); rồi tắt êm hàng đợi (Stop, tối đa workerStopGrace) trước,
+// ghi chỉ số lần cuối sau. Ticker dừng ngay khi ctx bị hủy.
 func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *metrics.Flusher, cfg config.Config,
 	logger *slog.Logger,
 ) error {
-	w := queue.NewWorker(d, nil, queue.WorkerOptions{
+	cleanup := schedules.NewCleanup()
+	plan := schedules.NewRegistry()
+	if err := cleanup.Define(plan); err != nil {
+		return fmt.Errorf("định nghĩa lịch dọn: %w", err)
+	}
+	handlers := append(newEvents().JobHandlers(), cleanup.Handlers()...)
+	w := queue.NewWorker(d, handlers, queue.WorkerOptions{
 		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
 		Metrics:  reg, Logger: logger,
 	})
@@ -172,6 +185,8 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	defer cancel()
 	var wg sync.WaitGroup
 	wg.Go(func() { flusher.Run(fctx) })
+	ticker := schedules.NewTicker(d, queue.NewQueue(), plan, schedules.TickerOptions{Logger: logger})
+	wg.Go(func() { ticker.Run(ctx) })
 	<-ctx.Done()
 	if err := w.Stop(workerStopGrace); err != nil {
 		logger.Warn("tắt hàng đợi", slog.String("error", err.Error()))
