@@ -90,7 +90,6 @@ func (h *SplitHandler) Handle(ctx context.Context, j queue.Job, tx pgx.Tx) (json
 		out.Skipped += n
 		h.inc(metricSkipped, srcKey+":"+typ, n)
 	}
-	kind := InboundKind(srcKey)
 	routes := map[Route]*uuid.UUID{}
 	for i, e := range res.Events {
 		tenant, err := h.resolve(ctx, tx, routes, e.Route)
@@ -102,20 +101,11 @@ func (h *SplitHandler) Handle(ctx context.Context, j queue.Job, tx pgx.Tx) (json
 			h.inc(metricUnrouted, srcKey, 1)
 			continue
 		}
-		key := eventDedupeKey(e, p.DeliveryID, i)
-		nj := queue.NewJob{
-			TenantID:  tenant,
-			Payload:   inboundPayload{Type: e.Type, DeliveryID: p.DeliveryID, Index: i, DedupeKey: key, OccurredAt: e.OccurredAt.UTC()},
-			DedupeKey: key,
-			OrderSeq:  e.OccurredAt.UnixMicro(),
+		created, err := enqueueEvent(ctx, tx, h.q, *tenant, srcKey, e, packetRef{DeliveryID: p.DeliveryID, Index: i})
+		if err != nil {
+			return nil, fmt.Errorf("việc tách %s, sự kiện %d: %w", j.ID, i, err)
 		}
-		if e.OrderKey != "" {
-			// Tiền tố theo loại việc: order_key của platform.jobs dùng chung mọi loại việc trong một tenant.
-			nj.OrderKey = kind.Name + ":" + e.OrderKey
-		}
-		if _, created, err := h.q.Enqueue(ctx, tx, kind, nj); err != nil {
-			return nil, fmt.Errorf("việc tách %s, ghi việc sự kiện %d: %w", j.ID, i, err)
-		} else if created {
+		if created {
 			out.Enqueued++
 		}
 	}
