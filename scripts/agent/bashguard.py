@@ -17,7 +17,7 @@ def block(msg):
 # (danh sách cho phép, không phải danh sách cấm: bài thử phá 18/11 vượt danh sách cấm bằng mkdir + touch).
 PROTECTED = [r"\.claude", r"scripts/agent/", r"\.githooks", r"\.git/", r"\.git\b", r"crm-review", r"docs/tasks/hien-tai\.md", r"crm-task-state", r"core\.hooksPath", r"git-dir", r"git-common-dir", r"GIT_DIR"]
 SAFE_READ = re.compile(r"^(cd|pwd|echo|printf|true|cat|ls|head|tail|grep|rg|wc|stat|file|diff|jq|git (diff|log|show|status|ls-files|rev-parse --show-toplevel|blame))\b")
-SANCTIONED = re.compile(r"^(\./)?scripts/agent/(new-task|finish-task|task-check|stop-check)\.sh\b")
+SANCTIONED = re.compile(r"^(\./)?scripts/agent/(new-task|finish-task|task-check|stop-check|ci-task)\.sh\b")
 
 # Tách lệnh ghép thành các lệnh đơn. Bỏ trước các chuyển hướng vô hại (2>&1, >/dev/null) để chúng không bị đọc thành đường dẫn.
 cmd_parse = re.sub(r"\d*>&\d+|\d*>>?\s*/dev/null", " ", cmd)
