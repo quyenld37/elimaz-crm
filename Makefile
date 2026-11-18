@@ -87,6 +87,10 @@ console-check: console-deps ## tsc (TypeScript 7), eslint, prettier, vitest, b�
 	cd console && npx vite build
 	gitleaks dir --no-banner --redact console/dist
 
+console-e2e: console-deps ## Test trình duyệt của màn hình (Playwright: Chromium mọi spec, WebKit spec .phone.spec.ts), API giả; cổng CRM_E2E_PORT (5148)
+	cd console && npx playwright install chromium chromium-headless-shell webkit
+	cd console && npx playwright test
+
 # Thay đổi phá vỡ của hợp đồng so với nhánh main phải có dòng trong breaking-approved.yaml (tools/apicheck gọi
 # oasdiff). Thử với tệp mẫu: make oasdiff OASDIFF_BASE=-base=<tệp gốc> OASDIFF_REV=<tệp mới>
 OASDIFF_BASE ?= -base-ref=main

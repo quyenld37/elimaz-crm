@@ -441,17 +441,19 @@ func TestOldestPendingGauge(t *testing.T) {
 	t.Fatal("thiếu gauge jobs_oldest_pending_age_s")
 }
 
-// Hạn của lần ghi kết quả tính từ lúc handler xong, không từ lúc nhận việc: handler chạy lâu hơn hạn đó (ở đây hạn
-// 50 ms, handler 300 ms) vẫn được hẹn lại theo lịch (phát hiện của reviewer Task 11).
+// Hạn của lần ghi kết quả tính từ lúc handler xong, không từ lúc nhận việc: handler chạy lâu hơn hạn đó vẫn được hẹn
+// lại theo lịch (phát hiện của reviewer Task 11). Hạn 1 s đủ rộng cho lần ghi khi máy tải cao (50 ms từng đỏ, Task
+// 317); handler chạy quá hạn 200 ms, nên nếu hạn tính từ lúc nhận việc thì ctx ghi đã hết, dù máy nhanh hay chậm.
 func TestRecordAfterLongHandler(t *testing.T) {
+	const record = time.Second
 	e := newEnv(t)
 	h := newFH(kind("t.long"), func(context.Context, queue.Job, pgx.Tx) (json.RawMessage, error) {
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(record + 200*time.Millisecond)
 		return nil, errTemp
 	})
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
 	w := worker(e, "w1", h)
-	queue.SetRecordTimeout(w, 50*time.Millisecond)
+	queue.SetRecordTimeout(w, record)
 	runOnce(t, w, 10)
 	if r := e.job(t, id); r.Status != "pending" || r.RunInS < 3 {
 		t.Fatalf("muốn pending hẹn theo lịch sau handler chạy lâu: %+v", r)

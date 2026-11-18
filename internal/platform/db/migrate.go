@@ -31,8 +31,8 @@ var ErrMigration = errors.New("migration bị từ chối")
 // Migrate áp dụng các tệp của migrations.FS bằng goose, với chuỗi kết nối của chủ bảng (chỉ vai trò migrate có).
 // Cả lần chạy giữ pg_advisory_lock(727001) trên một kết nối riêng. Trước khi chạy: so sha256 của từng tệp đã áp dụng
 // với platform.migration_checksums (lệch hay mất tệp thì từ chối, nêu tên tệp) và kiểm LintContract trên các tệp sắp
-// chạy. Mỗi tệp chạy trong transaction riêng của goose; tệp lỗi không để lại gì. Trả tên các tệp vừa áp dụng, theo
-// thứ tự. Câu của goose chạy với ba giới hạn của ADR-26 như mọi kết nối ứng dụng.
+// chạy. Tệp có số nhỏ hơn số lớn nhất đã áp dụng (gộp lệch thứ tự) vẫn chạy, trước các tệp mới. Mỗi tệp chạy trong
+// transaction riêng của goose; tệp lỗi không để lại gì. Trả tên các tệp vừa áp dụng, theo thứ tự chạy. Câu của goose chạy với ba giới hạn của ADR-26 như mọi kết nối ứng dụng.
 func Migrate(ctx context.Context, ownerURL string) (applied []string, err error) {
 	return migrate(ctx, ownerURL, migrations.FS)
 }
@@ -69,7 +69,10 @@ func migrate(ctx context.Context, ownerURL string, fsys fs.FS) (applied []string
 	// Ngân sách kết nối của vai trò migrate là 2 (ADR-42): kết nối giữ khóa cộng một kết nối cho goose.
 	sqlDB.SetMaxOpenConns(1)
 	provider, err := goose.NewProvider(goose.DialectPostgres, sqlDB, fsys,
-		goose.WithTableName(gooseTable), goose.WithDisableGlobalRegistry(true))
+		goose.WithTableName(gooseTable), goose.WithDisableGlobalRegistry(true),
+		// Các làn song song gộp migration lệch số (Task 318): tệp số nhỏ hơn số lớn nhất đã áp dụng vẫn chạy, trước
+		// các tệp mới. Checksum và luật "-- contract:" ở trên vẫn kiểm mọi tệp, kể cả tệp lệch số.
+		goose.WithAllowOutofOrder(true))
 	if err != nil {
 		return nil, fmt.Errorf("dựng goose: %w", err)
 	}

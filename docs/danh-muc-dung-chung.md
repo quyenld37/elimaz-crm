@@ -461,18 +461,30 @@ type Row struct {
 
 Package observability phục vụ các điểm kiểm sức khỏe của tiến trình (/health/live, /health/ready, báo cáo /health/deep), cảnh báo vận hành qua Telegram (Alerter, chống lặp theo platform.alert_events), luật cảnh báo trên hàng đợi, chỉ số theo phút, nhịp sống, sao lưu và thống kê PostgreSQL (CheckRules), tin tổng kết hằng ngày (SendDailyDigest) và hai lệnh định kỳ chạy chúng (Task 19).
 
-**Khi nào không dùng:** Không đặt kiểm tra nghiệp vụ hay dữ liệu khách vào /health/*. Không gọi Notify trong RetryTx hay handler transactional của hàng đợi (gọi mạng): gửi cảnh báo từ lệnh (commands.Handler) như NewAlertsCommand. Văn bản cảnh báo chỉ mang tên luật, số lượng, kind, mã bản ghi: không đọc payload, last_error. Không dùng Alerter để báo cho khách (C7).
+**Khi nào không dùng:** Không đặt kiểm tra nghiệp vụ hay dữ liệu khách vào /health/*. Không gọi Notify trong RetryTx hay handler transactional của hàng đợi (gọi mạng): gửi cảnh báo từ lệnh (commands.Handler) như alertjobs.NewAlertsCommand (gói con: observability không được nhập commands, queue vì queue nhập observability). Văn bản cảnh báo chỉ mang tên luật, số lượng, kind, mã bản ghi: không đọc payload, last_error. Không dùng Alerter để báo cho khách (C7).
 
 ```go
 func CheckLive(ctx context.Context, port int, timeout time.Duration) error
 func CheckRules(ctx context.Context, d *db.DB, a Alerter, o RuleOptions) ([]string, error)
-func NewAlertsCommand(d *db.DB, a Alerter, o RuleOptions, logger *slog.Logger) commands.Handler
-func NewDigestCommand(d *db.DB, a Alerter, logger *slog.Logger) commands.Handler
+func DigestDue(now time.Time) bool
+func Fingerprint(err error, frames []runtime.Frame) string
+func PanicFrames() []runtime.Frame
+func RecordError(ctx context.Context, d *db.DB, err error, c ErrorContext) (fingerprint string, isNew bool)
+func ScrubMessage(m string) string
 func SendDailyDigest(ctx context.Context, d *db.DB, a Alerter, now time.Time) error
+func StackFrames(skip int) []runtime.Frame
+type AlertSummary struct {
+	Key, Severity string
+	SentAt        time.Time
+}
 type Alerter interface {
 	Notify(ctx context.Context, key, severity, text string) error
 }
 func NewTelegramAlerter(d *db.DB, cfg config.Config, client *http.Client, logger *slog.Logger) Alerter
+type BackupHealth struct {
+	LastBaseAgeH, LastDrillAgeH *int64
+	LastDrillOk                 *bool
+}
 type DeepHealthReport struct {
 	OK                  bool
 	WorkerHeartbeatAgeS *int64
@@ -484,14 +496,58 @@ type DeepHealthReport struct {
 	LastBackupAgeH      *int64
 }
 func DeepHealth(ctx context.Context, d *db.DB) (DeepHealthReport, error)
+type ErrorContext struct {
+	Role      string
+	RequestID string
+	JobID     uuid.UUID
+
+	Frames  []runtime.Frame
+	Metrics *metrics.Registry
+	Logger  *slog.Logger
+}
+type ErrorSummary struct {
+	Fingerprint, Name, Role, Message string
+	Count                            int64
+	FirstSeenAt, LastSeenAt          time.Time
+}
 type Health struct {
 }
 func NewHealth(db Pinger) *Health
 func (h *Health) Check(ctx context.Context) error
 func (h *Health) Register(mux *http.ServeMux)
+type HealthSummary struct {
+	Processes []ProcessHealth
+	Queue     QueueHealth
+	Ingest    IngestHealth
+	Backup    BackupHealth
+	Errors    []ErrorSummary
+	Alerts    []AlertSummary
+}
+func Summary(ctx context.Context, d *db.DB, now time.Time) (HealthSummary, error)
+type IngestHealth struct {
+	SpoolFiles int64
+}
+type PanicError struct {
+	Value  any
+	Frames []runtime.Frame
+}
+func NewPanicError(v any) *PanicError
+func (p *PanicError) Error() string
+func (p *PanicError) Unwrap() error
 type Pinger interface {
 	Ping(ctx context.Context) error
 }
+type ProcessHealth struct {
+	Role              string
+	LastHeartbeatAgeS int64
+}
+type QueueHealth struct {
+	OldestPendingAgeS, Pending, Dead, InDoubt int64
+}
+type RuleHit struct {
+	Key, Severity, Text string
+}
+func ErrorRules(ctx context.Context, d *db.DB, now time.Time) ([]RuleHit, error)
 type RuleOptions struct {
 	Now               time.Time
 	BackupExpected    bool
@@ -600,6 +656,8 @@ type WorkerOptions struct {
 	Logger *slog.Logger
 
 	Commands CommandRunner
+
+	Role string
 }
 ```
 
@@ -898,7 +956,7 @@ func (s *Spool) Write(e Entry) (string, error)
 
 Export của `console/src/shared/index.ts`.
 
-**Khi nào không dùng:** Không fetch thẳng tới /api/v1 ở màn hình (eslint chặn): dữ liệu lấy qua client sinh console/src/api; chỉ createRealtimeClient đọc /api/v1/stream. Không coi báo hiệu changed là dữ liệu: nhận báo hiệu thì tải lại đúng đối tượng bằng API; onResync tải lại mọi danh sách đang mở. Không tạo hai createRealtimeClient trong một tab (mỗi tab một kết nối, spec 04 mục 6). Không tự viết băng báo mất kết nối, phiên hết hạn, API tạm ngừng: dùng Banner (câu chữ spec 04 mục 6).
+**Khi nào không dùng:** Không fetch thẳng tới /api/v1 ở màn hình (eslint chặn): dữ liệu lấy qua client sinh console/src/api; chỉ createRealtimeClient đọc /api/v1/stream. Không coi báo hiệu changed là dữ liệu: nhận báo hiệu thì tải lại đúng đối tượng bằng API; onResync tải lại mọi danh sách đang mở. Không tạo hai createRealtimeClient trong một tab (mỗi tab một kết nối, spec 04 mục 6). Không tự viết băng báo mất kết nối, phiên hết hạn, API tạm ngừng: dùng Banner (câu chữ spec 04 mục 6). Không gọi hàm ghi của client sinh thẳng từ màn: qua useWriteAction (khóa chống trùng, gửi lại cùng khóa); không tự viết vòng thử lại hay sinh Idempotency-Key ở màn. Không hiện mã lỗi máy hay chữ từ máy chủ cho nhân viên: errorMessage; mã mới thì thêm vào x-error-codes của openapi.yaml và ERROR_MESSAGES. Khóa truy vấn luôn bắt đầu bằng chủ đề realtime (queryKey), không tạo QueryClient thứ hai. Không thêm route hay mục menu ngoài SCREENS (src/app/screens.tsx).
 
 ```ts
 export { createRealtimeClient } from "../realtime/client"; // Lớp realtime: báo hiệu "đối tượng vừa đổi" qua SSE, tự canh im lặng, nối lại, nhận ra phiên hết hạn.
@@ -907,4 +965,14 @@ export { watchApiLive } from "../shell/apiHealth"; // Canh API bằng /health/li
 export type { ApiLiveOptions } from "../shell/apiHealth";
 export { Banner, TEXT_API_DOWN, TEXT_RECONNECTING, TEXT_SESSION_EXPIRED } from "../shell/Banner"; // Băng báo của khung theo câu chữ spec 04 mục 6.
 export type { BannerProps } from "../shell/Banner";
+export { TEXT_BUSY, useWriteAction } from "../app/idempotency"; // Gửi yêu cầu ghi với khóa chống trùng; tự gửi lại cùng khóa khi máy chủ bận (503 retry_later, 409 request_in_progress, mạng).
+export type { WriteAction, WriteActionOptions, WriteResult } from "../app/idempotency";
+export { ApiError, ERROR_MESSAGES, NetworkError, TEXT_NETWORK, TEXT_UNKNOWN_ERROR, errorMessage, unwrap } from "../app/errors"; // Lỗi API: đổi kết quả client sinh thành dữ liệu hoặc ApiError/NetworkError; câu tiếng Việt cho mọi mã lỗi của hợp đồng.
+export type { ClientResult } from "../app/errors";
+export { TOPICS, createQueryClient, onRealtimeChanged, onRealtimeResync, queryKey, shouldRetry } from "../app/queryClient"; // Lớp lấy dữ liệu: khóa truy vấn theo chủ đề realtime, nối báo hiệu changed/resync vào TanStack Query.
+export type { Topic } from "../app/queryClient";
+export { NAV_GROUPS, allowedScreens, hasPermission, navSections } from "../app/nav"; // Menu và định tuyến: mỗi màn khai một Screen trong src/app/screens.tsx; menu chỉ hiện màn có quyền.
+export type { NavGroup, NavSection, Screen } from "../app/nav";
+export { Layout } from "../shell/Layout"; // Khung điều hướng theo mockup M1: menu trái, thanh trên 56 px, menu trượt trên điện thoại.
+export type { LayoutProps } from "../shell/Layout";
 ```

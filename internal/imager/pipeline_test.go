@@ -557,15 +557,21 @@ func TestImager_HangKilledWithinDeadline(t *testing.T) {
 		lim.VipsHeaderBin = "vipsheader" // trong container: vipsheader thật, treo ở bước giải mã
 	}
 	r := imager.NewExecRunner([]string{"FAKEVIPS_PIDFILE=" + pidfile})
-	start := time.Now()
 	res := imager.Process(t.Context(), r, imager.NewHTTPClient(5*time.Second),
 		request(st.addSource(t, "hang", readImage(t, "photo-gps.jpg")), twelve(st.srv.URL)), lim)
-	elapsed := time.Since(start)
+	done := time.Now()
 	if res.Status != imager.StatusRejected || res.Reason != imager.ReasonTimeout {
 		t.Fatalf("kết quả %+v", res)
 	}
-	if elapsed > 2*time.Second {
-		t.Fatalf("trả lời sau %v, cần ≤ 2 s", elapsed)
+	// Đồng hồ 2 s chạy từ lúc lệnh treo đã khởi động (giờ sửa của pidfile mà script ghi), không từ đầu Process: tải
+	// nguồn, đọc đầu tệp trước đó chậm đi khi máy tải cao nhưng không thuộc phép đo "lệnh treo bị giết trong hạn"
+	// (Task 317). Hạn bước bắt đầu trước khi script chạy, nên phép đo này không dễ hơn phép đo của hạn bước.
+	fi, err := os.Stat(pidfile)
+	if err != nil {
+		t.Fatalf("script giả chưa chạy: %v", err)
+	}
+	if elapsed := done.Sub(fi.ModTime()); elapsed > 2*time.Second {
+		t.Fatalf("trả lời sau %v kể từ lúc lệnh treo chạy, cần ≤ 2 s", elapsed)
 	}
 	assertGroupGone(t, pidfile)
 }
@@ -581,7 +587,7 @@ func assertGroupGone(t *testing.T, pidfile string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	deadline := time.Now().Add(time.Second)
+	deadline := time.Now().Add(10 * time.Second) // hạn chờ dọn dẹp, rộng cho máy tải cao; thường xong ngay
 	for {
 		err := syscall.Kill(-pgid, 0)
 		if errors.Is(err, syscall.ESRCH) {

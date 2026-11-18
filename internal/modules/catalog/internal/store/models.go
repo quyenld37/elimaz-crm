@@ -192,6 +192,19 @@ type PlatformDomainEvent struct {
 	CreatedAt     time.Time
 }
 
+type PlatformErrorEvent struct {
+	Fingerprint     string
+	Role            string
+	Name            string
+	Message         string
+	TopFrames       string
+	Count           int64
+	FirstSeenAt     time.Time
+	LastSeenAt      time.Time
+	SampleRequestID pgtype.Text
+	SampleJobID     pgtype.UUID
+}
+
 type PlatformFile struct {
 	ID            uuid.UUID
 	TenantID      uuid.UUID

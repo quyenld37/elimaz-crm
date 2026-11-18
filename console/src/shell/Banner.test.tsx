@@ -2,6 +2,7 @@
 // Băng báo của khung (spec 04 mục 6, ADR-34): đúng câu chữ cho từng trạng thái; khung vẫn tải khi API tạm ngừng.
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TEXT_EMPTY_HOME } from "../app/router";
 import { App } from "./App";
 import { Banner, TEXT_API_DOWN, TEXT_RECONNECTING, TEXT_SESSION_EXPIRED } from "./Banner";
 
@@ -61,11 +62,13 @@ describe("App (khung)", () => {
       return Promise.reject(new TypeError("Failed to fetch"));
     });
     render(<App />);
-    expect(screen.getByText("ELIMAZ")).toBeTruthy();
+    expect(screen.getAllByText("ELIMAZ").length).toBeGreaterThan(0); // cột trái và thanh trên (Task 48)
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50));
     });
     expect(screen.getAllByRole("status").map((e) => e.textContent)).toContain(TEXT_API_DOWN);
+    // Chưa đọc được /api/v1/me: không được báo nhầm "chưa được giao màn hình" (Task 48, reviewer).
+    expect(screen.queryByText(TEXT_EMPTY_HOME)).toBeNull();
     expect(urls.some((u) => u.endsWith("/health/live"))).toBe(true);
     expect(urls.some((u) => u.endsWith("/api/v1/stream"))).toBe(true);
   });
@@ -88,5 +91,44 @@ describe("App (khung)", () => {
       await new Promise((r) => setTimeout(r, 50));
     });
     expect(screen.queryByText(TEXT_API_DOWN)).toBeNull();
+  });
+});
+
+describe("App (khung) — /api/v1/me", () => {
+  // Máy chủ giả: /health/live sống; /api/v1/me trả `me` (status, thân) hoặc treo khi null; đường khác treo.
+  async function renderWithMe(me: [number, unknown] | null) {
+    vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+      const u = input instanceof Request ? input.url : String(input);
+      const reply = u.endsWith("/health/live")
+        ? ([200, { status: "ok" }] as const)
+        : u.endsWith("/api/v1/me")
+          ? me
+          : null;
+      if (reply === null) return new Promise<Response>(() => undefined);
+      const [status, body] = reply;
+      return Promise.resolve(
+        new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } }),
+      );
+    });
+    render(<App />);
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+  }
+
+  it("/me đang tải → không hiện câu trống hay không tìm thấy", async () => {
+    await renderWithMe(null);
+    expect(screen.queryByText(TEXT_EMPTY_HOME)).toBeNull();
+    expect(screen.getByRole("main").textContent).toBe("");
+  });
+
+  it("/me trả 401 → không hiện câu trống (băng phiên hết hạn lo việc báo)", async () => {
+    await renderWithMe([401, { error: "unauthenticated", request_id: "r" }]);
+    expect(screen.queryByText(TEXT_EMPTY_HOME)).toBeNull();
+  });
+
+  it("/me tải xong, không có quyền màn nào → câu trống", async () => {
+    await renderWithMe([200, { userId: "u", email: "lan@elimaz.vn", grants: [] }]);
+    expect(screen.getByText(TEXT_EMPTY_HOME)).toBeTruthy();
   });
 });

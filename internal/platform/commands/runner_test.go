@@ -324,19 +324,22 @@ func (*failDone) OnDone(context.Context, queue.Job, json.RawMessage, pgx.Tx) err
 	return errors.New("bảng nghiệp vụ lỗi")
 }
 
-// Hạn ghi kết quả tính từ lúc Execute trả về, không từ lúc nhận lệnh: Execute chạy lâu hơn hạn đó (ở đây hạn 50 ms,
-// Execute 300 ms) vẫn ghi done và OnDone (phát hiện của reviewer Task 12).
+// Hạn ghi kết quả tính từ lúc Execute trả về, không từ lúc nhận lệnh: Execute chạy lâu hơn hạn đó vẫn ghi done và
+// OnDone (phát hiện của reviewer Task 12). Hạn 1 s đủ rộng cho các lần ghi khi máy tải cao (50 ms từng đỏ, Task 317);
+// Execute chạy quá hạn 200 ms, nên nếu hạn tính từ lúc nhận lệnh thì ctx ghi đã hết, dù máy nhanh hay chậm.
 func TestRecordAfterLongExecute(t *testing.T) {
+	const record = time.Second
 	e := newEnv(t)
 	ext := &testkit.FakeExternal{}
 	h := newCmd("command.slow", ext)
+	h.kind = commands.CommandKind("command.slow", 0, 5*time.Second) // hạn của lệnh rộng hơn Execute, chỉ hạn ghi bị vượt
 	h.exec = func(ctx context.Context, j queue.Job) (commands.Outcome, error) {
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(record + 200*time.Millisecond)
 		return commands.Outcome{Status: commands.StatusDone}, ext.Send(ctx, j.ID.String())
 	}
 	id := e.enqueue(t, h.kind, "k")
 	r := commands.NewRunner(e.app, []commands.Handler{h})
-	commands.SetRecordTimeout(r, 50*time.Millisecond)
+	commands.SetRecordTimeout(r, record)
 	runOnce(t, queue.NewWorker(e.app, nil, queue.WorkerOptions{WorkerID: "w1", Commands: r}))
 	_, dones, _ := h.snapshot()
 	if st := e.job(t, id).Status; st != "done" || len(dones) != 1 {

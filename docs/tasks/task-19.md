@@ -187,12 +187,99 @@ Mục 6:
 - RUNBOOK: thiếu `pg_monitor` (hay lỗi đọc kéo dài) làm mọi lượt `platform.alerts` thành `not_sent` rồi `expired`;
   cảnh báo khác vẫn gửi, nhưng log có dòng "lịch platform.alerts lỗi" mỗi phút: kiểm quyền trước.
 - Migration 0010 đứng trước 0012/0112 đã có: chỉ chạy trên database mới cho tới khi task chung bật
-  `WithAllowOutofOrder` (Q-X3).
+  `WithAllowOutofOrder` (Q-X3). (lượt 2: Task 318 đã bật trên main, database dev cũ không cần dựng lại; ghi chú
+  "phải dựng lại" trong đầu `0010_ops.sql` đã cũ nhưng migration đã commit không sửa.)
 - `platform.alert_events` chưa có lịch dọn (vài dòng mỗi ngày; thêm vào `schedules.Cleanup` khi cần).
 - `jobs_expired` chưa có luật cảnh báo; module đầu tiên có lệnh thật (gửi tin) nên xét luật `expired:<kind>` cho lệnh
   nghiệp vụ (loại trừ việc định kỳ).
 - Luật của Task 20 (`new-error`, `error-spike`) thêm vào `rules.go` theo cùng mẫu `tableRules`.
+- (lượt 2) main tự nó đỏ ở `make jscpd`: `db/migrate_test.go` (Task 318) và `queue/errors_test.go`~`worker_test.go`
+  (Task 20) là đoạn trùng mới ngoài mốc; task chung cần quyết gộp hay cập nhật mốc.
+- (lượt 2) Hook Stop và `make ci` cùng chạy golangci-lint thì test lint của `tests/arch` đỏ ("parallel golangci-lint
+  is running"): không chạy `make ci` nền trong lúc hook chạy.
 - Chọn và cài dịch vụ chạy `scripts/external-probe` ngoài Cloudflare, ngoài VPS: cần chủ shop OK (spec 04 mục 8).
+
+## Lượt 2 (gộp main: Task 20, 317, 318, 48)
+
+### Ảnh hưởng (lượt 2)
+
+- Gộp `main` (merge, không rebase). Xung đột: `cmd/crm/main.go` (giữ `Role` của Task 20 và lệnh `ops...` của Task 19),
+  `internal/httpapi/handlers_health.go` (giữ `HealthDeep` + `healthToken` và `GetPlatformHealth`),
+  `internal/httpapi/handlers_health_test.go` (cùng tên tệp ở hai bên: giữ đủ test của hai bên trong một tệp),
+  `docs/danh-muc-dung-chung.md` (sinh lại bằng `make catalog`).
+- **Vòng nhập gói sau gộp**: Task 20 cho `queue` nhập `observability` (ghi lỗi của handler); `observability/schedule.go`
+  của Task 19 nhập `commands` → `queue`. Sửa (commit gộp, chỉ cấu trúc): dời `schedule.go` sang gói con mới
+  `internal/platform/observability/alertjobs` (`NewAlertsCommand`, `NewDigestCommand`, `AlertsSchedule`,
+  `AlertsEvery`, `DigestSchedule`, `DigestEvery`; chỗ dùng duy nhất `cmd/crm/main.go`, 6 tham chiếu);
+  `digestDue` → `DigestDue` (xuất ra cho `alertjobs`; 1 chỗ định nghĩa + 3 chỗ trong `rules_eval_test.go`).
+  `pgwatch_dynsql_test.go` chuyển sang gói `observability_test` (gói trong không được nhập `testkit`: testkit → files →
+  queue → observability), đọc qua `export_test.go` (`ReadPGStats`, `PGStatsView`, chỉ khi test).
+- **Nối Task 20 với Task 19** (commit riêng, hành vi; Task 20 ghi "người gộp làm"):
+  - `CheckRules` (`tableRules`) gọi `ErrorRules` của Task 20: luật `new-error:<8 ký tự>` và `error-spike` (normal)
+    đi qua `Alerter` như mọi luật khác. `RuleHit`, `ErrorRules` không đổi chữ ký.
+  - `Summary` (tóm tắt sức khỏe, `GET /api/v1/platform/health`) đọc `backup_runs` (`lastBaseAgeH` của `base` thành công
+    gần nhất; `lastDrillAgeH`, `lastDrillOk` của `restore_drill` gần nhất) và `alert_events` 24 giờ (trừ `digest:`,
+    mới nhất trước, tối đa 200 dòng). Hợp đồng không đổi (các trường đã có, `backup` tùy chọn); oasdiff không đổi.
+  - Câu sqlc mới trong `queries/platform/ops.sql`: `LastBackupRun`, `ListAlertsSince`; `make gen` (mã sinh
+    `internal/platform/internal/store`). Không đổi bảng, không migration mới.
+- Gói phụ thuộc ngược: `observability` ← `cmd/crm`, `cmd/imager`, `internal/httpapi`, `queue` (mới từ Task 20) và qua
+  `queue` mọi gói dùng hàng đợi; `alertjobs` ← `cmd/crm`.
+- Màn hình: tóm tắt sức khỏe (Task 48 chưa có màn hình sức khỏe) — không đổi hợp đồng.
+- Test sẽ chạy: `make ci` (toàn bộ, vì gộp main), riêng: `./internal/platform/observability/...`, `./internal/httpapi/...`,
+  `./internal/platform/queue/...`, `./internal/platform/commands/...`, `./cmd/...`, `./tests/...`.
+
+### Tái dùng (lượt 2)
+
+- Đã kiểm danh mục: `observability.ErrorRules`/`RuleHit` (Task 20) dùng lại nguyên, chỉ đổi `RuleHit` sang `alert`
+  nội bộ; `LastBackupAt` (Task 19) chỉ trả `finished_at` của lần thành công: tóm tắt cần cả lần diễn tập hỏng (`ok`)
+  nên thêm `LastBackupRun` (không lọc `ok`) thay vì đổi câu cũ (luật `backup-age` cần lần thành công).
+  `AlertCountsSince` đếm theo key, không có `severity`, `sent_at`: thêm `ListAlertsSince`.
+- `alertjobs` là gói con mới chứ không vào `cmd/crm` vì có chính sách của lệnh (Kind, chạy lại, 429) cần test riêng.
+
+- jscpd (`make jscpd`, mốc nền từ Task 3): 4 đoạn trùng mới. Hai của Task 19, giữ kèm lý do: `newEnv`
+  (`observability/helpers_test.go`) giống `openDB` của `metrics/flusher_test.go` nhưng cần cả `adminURL`, `appURL`
+  của cùng database nên không dùng được `testkit.OpenAppDB`; `stripURL` của `scripts/external-probe/probe.go` giống
+  `alerter.go` vì bộ kiểm từ ngoài cố ý chỉ dùng thư viện chuẩn, không nhập gói nội bộ. Hai của main (Task 318
+  `db/migrate_test.go`, Task 20 `queue/errors_test.go`~`worker_test.go`): main tự nó cũng đỏ ở bước này (đã chạy jscpd
+  trên `git archive main`); ngoài phạm vi, ghi ở Việc phát hiện thêm. Không cập nhật `jscpd-baseline.json` (nới cổng).
+
+### Soát thiết kế (lượt 2)
+
+- 5.1–5.3: chỉ đọc `platform.backup_runs`, `platform.alert_events`, `platform.error_events` (bảng nền tảng, cùng gói).
+- 5.12: SQL tĩnh qua sqlc; lỗi bọc một lần; không log trong `Summary` (handler là mép).
+- 6.1: luật lỗi chạy trong cùng lượt `platform.alerts`; chống lặp của Alerter như luật khác (new-error theo key riêng
+  từng dấu vân tay, cửa sổ 10 phút; dấu vân tay chỉ "mới" trong 60 s nên không lặp).
+- 6.9: câu tóm tắt có giới hạn dòng (200) và dùng index `(key, sent_at DESC)` không được: lọc theo `sent_at`; bảng nhỏ
+  (vài trăm dòng mỗi ngày), chấp nhận quét.
+- 6.12: văn bản cảnh báo lỗi chỉ có 8 ký tự đầu dấu vân tay và số đếm (Task 20), không có nội dung lỗi; tóm tắt chỉ
+  trả key, mức, giờ gửi của cảnh báo (không trả `text`).
+- 6.13: quyền `platform.health.read` không đổi.
+- Còn lại không áp dụng: không đường ghi, không tiền, không tenant, không gọi ngoài mới.
+
+### Quyết định thay chủ shop (lượt 2)
+
+1. **Gỡ vòng nhập gói bằng gói con `observability/alertjobs`** (chứ không đưa `queue` thôi nhập `observability` hay
+   dời lệnh vào `cmd/crm`). Vì sao: không đụng mã của Task 20; chính sách của lệnh lịch vẫn có test riêng. Phương án
+   khác: `cmd/crm/alerts.go` (không test được), hay để `queue` nhận một interface ghi lỗi (đổi mã Task 20).
+2. **Tự nối Task 20 với Task 19** (`CheckRules` gọi `ErrorRules`; tóm tắt đọc `backup_runs`, `alert_events`) trong
+   lượt này, commit riêng. Vì sao: Task 20 ghi "người gộp làm"; không nối thì luật `new-error`, `error-spike` không bao
+   giờ gửi và tóm tắt sức khỏe luôn rỗng phần sao lưu, cảnh báo. Dễ đảo ngược (một commit).
+3. **Cảnh báo trong tóm tắt: 24 giờ, trừ `digest:`, mới nhất trước, tối đa 200 dòng** (hợp đồng không có
+   `maxItems`). Vì sao: tin tổng kết không phải cảnh báo; giới hạn để câu trả lời không phình khi bão cảnh báo.
+4. **Không nới mốc jscpd** dù `make jscpd` đỏ (2 đoạn có sẵn trên main, 2 của Task 19 giữ kèm lý do).
+
+### Bằng chứng (lượt 2)
+
+| Tiêu chí | Test | Lệnh | Kết quả |
+|---|---|---|---|
+| Gộp main hết vòng nhập gói, build và vet sạch | — | `go build ./... && go vet ./...` | ok (trước khi dời: `import cycle not allowed` queue → observability → commands → queue) |
+| Lệnh lịch của `alertjobs`: Kind, tự chạy lại not_sent, lỗi → not_sent, 429 → RetryAfter, đạt → done | TestScheduledKind, TestScheduledExecute | `go test -race ./internal/platform/observability/alertjobs/` | đỏ trước khi dời (setup failed: import cycle), sau: ok |
+| Câu pg_stat_* chạy bằng crm_app (test chuyển sang observability_test) | TestReadPGStats | `go test -race ./internal/platform/observability/...` | ok |
+| Test của hai bên trong `handlers_health_test.go` (TestHealthDeep, TestPanicRecordsScrubbedError, TestHandlerErrorRecordsOnlyInternal, TestPlatformHealth) | như tên | `go test -race ./internal/httpapi/...` | ok (35.8 s) |
+| Toàn bộ test sau gộp | ./... | `make ci` (bước test: `go test -race ./...`) | mọi gói ok trừ `tests/arch` đỏ vì hook chạy golangci-lint cùng lúc ("parallel golangci-lint is running"); chạy lại riêng `go test -race -count=1 ./tests/arch/...`: ok |
+| build, vet, lint, gen-check, sqlc vet | — | `make ci` | qua; `golangci-lint run ./...`: 0 issues |
+| vuln, oasdiff, catalog-check | — | `make vuln oasdiff catalog-check` | qua |
+| jscpd | — | `make jscpd` | đỏ: 4 đoạn trùng (xem Tái dùng lượt 2; 2 có sẵn trên main) |
 
 ## Reviewer
 
@@ -207,3 +294,11 @@ Kết luận: ĐẠT (lượt 2).
     README nói `PROBE_STATE_FILE` phải bền; RUNBOOK `pg_monitor` và 0010 trước 0012/0112 ghi ở Việc phát hiện thêm.
 - Lượt 2: ĐẠT, không phát hiện phải sửa. Ghi chú: `sent_at` theo đồng hồ tiến trình, `finished_at` theo đồng hồ
   database; cùng máy có NTP thì lệch không đáng kể.
+
+### Reviewer — lượt 2, commit gộp main
+
+Kết luận: ĐẠT, không phát hiện phải sửa. Đã so phần stage với cả HEAD (Task 19) và MERGE_HEAD (main): không mất phần
+nào của hai bên ở `main.go`, `handlers_health.go`, `handlers_health_test.go`, `worker.go`, danh mục; gói
+`alertjobs` giữ nguyên hành vi lệnh lịch (Kind, AutoRetryNotSent, not_sent, RetryAfter qua `%w`). Ghi chú không bắt
+buộc: (1) thêm ca 429 đã bọc vào `TestScheduledExecute`; (2) doc gói `observability` còn nói "hai lệnh định kỳ" nằm
+trong gói — làm ở commit nối sau.

@@ -1747,8 +1747,16 @@ func (s *ErrorSummary) encodeFields(e *jx.Encoder) {
 		e.Str(s.Role)
 	}
 	{
+		e.FieldStart("message")
+		e.Str(s.Message)
+	}
+	{
 		e.FieldStart("count")
 		e.Int64(s.Count)
+	}
+	{
+		e.FieldStart("firstSeenAt")
+		json.EncodeDateTime(e, s.FirstSeenAt)
 	}
 	{
 		e.FieldStart("lastSeenAt")
@@ -1756,12 +1764,14 @@ func (s *ErrorSummary) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfErrorSummary = [5]string{
+var jsonFieldsNameOfErrorSummary = [7]string{
 	0: "fingerprint",
 	1: "name",
 	2: "role",
-	3: "count",
-	4: "lastSeenAt",
+	3: "message",
+	4: "count",
+	5: "firstSeenAt",
+	6: "lastSeenAt",
 }
 
 // Decode decodes ErrorSummary from json.
@@ -1809,8 +1819,20 @@ func (s *ErrorSummary) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"role\"")
 			}
-		case "count":
+		case "message":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Message = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"message\"")
+			}
+		case "count":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int64()
 				s.Count = int64(v)
@@ -1821,8 +1843,20 @@ func (s *ErrorSummary) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"count\"")
 			}
+		case "firstSeenAt":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.FirstSeenAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"firstSeenAt\"")
+			}
 		case "lastSeenAt":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.LastSeenAt = v
@@ -1843,7 +1877,7 @@ func (s *ErrorSummary) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

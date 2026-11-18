@@ -1,7 +1,9 @@
 package db_test
 
 import (
+	"errors"
 	"io/fs"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -132,5 +134,120 @@ func TestMigrateRejectsContractWithoutMarker(t *testing.T) {
 	}
 	if !regclassExists(t, owner, "platform.tenant_routes") {
 		t.Fatal("lệnh DROP không được chạy")
+	}
+}
+
+// Tệp đến lệch số (Task 318): database đã chạy 9011 và 9013, rồi 9012 được gộp sau. Ba tệp dùng chung ở các test dưới.
+const (
+	oooLow  = "9011_ooo_low.sql"
+	oooMid  = "9012_ooo_mid.sql"
+	oooHigh = "9013_ooo_high.sql"
+)
+
+func oooBase() map[string]string {
+	return map[string]string{
+		oooLow:  "-- +goose Up\nCREATE TABLE platform.ooo_low (id int);\n",
+		oooHigh: "-- +goose Up\nCREATE TABLE platform.ooo_high (id int);\n",
+	}
+}
+
+// oooApplied dựng database mới đã chạy mọi migration thật cùng 9011, 9013 (chưa có 9012).
+func oooApplied(t *testing.T) string {
+	t.Helper()
+	_, owner, _ := testkit.CreateDatabase(t)
+	if _, err := db.MigrateFS(t.Context(), owner, realPlus(t, oooBase())); err != nil {
+		t.Fatalf("chạy 9011, 9013: %v", err)
+	}
+	return owner
+}
+
+func oooWith(t *testing.T, extra map[string]string) fstest.MapFS {
+	t.Helper()
+	m := oooBase()
+	maps.Copy(m, extra)
+	return realPlus(t, m)
+}
+
+func TestMigrateAppliesOutOfOrderFile(t *testing.T) {
+	owner := oooApplied(t)
+	v2 := oooWith(t, map[string]string{oooMid: "-- +goose Up\nCREATE TABLE platform.ooo_mid (id int);\n"})
+	applied, err := db.MigrateFS(t.Context(), owner, v2)
+	if err != nil {
+		t.Fatalf("tệp số nhỏ đến sau phải chạy được: %v", err)
+	}
+	if !slices.Equal(applied, []string{oooMid}) {
+		t.Fatalf("áp dụng %v, muốn đúng [%s]", applied, oooMid)
+	}
+	if !regclassExists(t, owner, "platform.ooo_mid") {
+		t.Fatal("thiếu bảng của tệp lệch số")
+	}
+	again, err := db.MigrateFS(t.Context(), owner, v2)
+	if err != nil || len(again) != 0 {
+		t.Fatalf("lần sau: %v %v, muốn []", again, err)
+	}
+	// Checksum của tệp lệch số cũng được ghi: sửa nó sau khi áp dụng thì bị từ chối.
+	v3 := oooWith(t, map[string]string{oooMid: "-- +goose Up\nCREATE TABLE platform.ooo_mid (id bigint);\n"})
+	_, err = db.MigrateFS(t.Context(), owner, v3)
+	if !errors.Is(err, db.ErrMigration) || !strings.Contains(err.Error(), oooMid) || !strings.Contains(err.Error(), "checksum") {
+		t.Fatalf("sửa tệp lệch số đã áp dụng phải bị từ chối, nêu tên tệp và checksum; nhận %v", err)
+	}
+}
+
+func TestMigrateOutOfOrderStillRejectsChangedAppliedFile(t *testing.T) {
+	owner := oooApplied(t)
+	v2 := oooWith(t, map[string]string{
+		oooLow: "-- +goose Up\nCREATE TABLE platform.ooo_low (id bigint);\n",
+		oooMid: "-- +goose Up\nCREATE TABLE platform.ooo_mid (id int);\n",
+	})
+	_, err := db.MigrateFS(t.Context(), owner, v2)
+	if !errors.Is(err, db.ErrMigration) || !strings.Contains(err.Error(), oooLow) || !strings.Contains(err.Error(), "checksum") {
+		t.Fatalf("tệp đã áp dụng bị sửa phải bị từ chối, nêu tên tệp và checksum; nhận %v", err)
+	}
+	if regclassExists(t, owner, "platform.ooo_mid") {
+		t.Fatal("bị từ chối thì tệp lệch số không được chạy")
+	}
+}
+
+func TestMigrateOutOfOrderRejectsContractWithoutMarker(t *testing.T) {
+	owner := oooApplied(t)
+	v2 := oooWith(t, map[string]string{oooMid: "-- +goose Up\nDROP TABLE platform.ooo_low;\n"})
+	_, err := db.MigrateFS(t.Context(), owner, v2)
+	if !errors.Is(err, db.ErrMigration) || !strings.Contains(err.Error(), oooMid) {
+		t.Fatalf("tệp lệch số có lệnh thu hẹp thiếu -- contract: phải bị từ chối, nêu tên tệp; nhận %v", err)
+	}
+	if !regclassExists(t, owner, "platform.ooo_low") {
+		t.Fatal("lệnh DROP không được chạy")
+	}
+}
+
+func TestMigrateOutOfOrderFailedFileLeavesNoTable(t *testing.T) {
+	owner := oooApplied(t)
+	v2 := oooWith(t, map[string]string{oooMid: "-- +goose Up\n" +
+		"CREATE TABLE platform.ooo_mid (id int);\n" +
+		"CREATE TABLE platform.ooo_mid_b (id no_such_type);\n"})
+	_, err := db.MigrateFS(t.Context(), owner, v2)
+	if err == nil || !strings.Contains(err.Error(), oooMid) {
+		t.Fatalf("tệp lệch số có lỗi SQL phải trả lỗi nêu tên tệp; nhận %v", err)
+	}
+	if regclassExists(t, owner, "platform.ooo_mid") {
+		t.Fatal("bảng của tệp lỗi không được còn lại")
+	}
+}
+
+func TestMigrateOutOfOrderConcurrentRunsApplyOnce(t *testing.T) {
+	owner := oooApplied(t)
+	v2 := oooWith(t, map[string]string{oooMid: "-- +goose Up\nCREATE TABLE platform.ooo_mid (id int);\n"})
+	var wg sync.WaitGroup
+	results := make([][]string, 2)
+	errs := make([]error, 2)
+	for i := range 2 {
+		wg.Go(func() { results[i], errs[i] = db.MigrateFS(t.Context(), owner, v2) })
+	}
+	wg.Wait()
+	if errs[0] != nil || errs[1] != nil {
+		t.Fatalf("hai lần chạy song song: %v / %v", errs[0], errs[1])
+	}
+	if all := slices.Concat(results[0], results[1]); !slices.Equal(all, []string{oooMid}) {
+		t.Fatalf("hai lần chạy cộng lại áp dụng %v, muốn đúng một lần [%s]", all, oooMid)
 	}
 }

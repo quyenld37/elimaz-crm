@@ -1,10 +1,11 @@
-package observability
+package observability_test
 
 import (
 	"testing"
 	"time"
 
 	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/observability"
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
@@ -12,11 +13,11 @@ import (
 // pg_stat_statements chưa nạp → bỏ qua không lỗi).
 func TestReadPGStats(t *testing.T) {
 	d := testkit.OpenAppDB(t, db.PoolOptions{})
-	s, err := readPGStats(t.Context(), d, RuleOptions{Now: time.Now()})
+	s, err := observability.ReadPGStats(t.Context(), d, observability.RuleOptions{Now: time.Now()})
 	if err != nil {
-		t.Fatalf("readPGStats: %v", err)
+		t.Fatalf("ReadPGStats: %v", err)
 	}
-	if s.dbBytes <= 0 || s.walBytes <= 0 || s.appConns < 1 || s.longTx != 0 || s.lockWait != 0 || s.jobsDeadTuples < 0 {
+	if s.DBBytes <= 0 || s.WALBytes <= 0 || s.AppConns < 1 || s.LongTx != 0 || s.LockWait != 0 || s.JobsDeadTuples < 0 {
 		t.Fatalf("số đọc: %+v", s)
 	}
 }

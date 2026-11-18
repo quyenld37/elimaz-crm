@@ -22,8 +22,8 @@ const digestHour = 8
 //nolint:gochecknoglobals // múi giờ cố định, chỉ đọc
 var vietnam = time.FixedZone("ICT", 7*3600)
 
-// digestDue: đã tới giờ gửi tin tổng kết của ngày (giờ Việt Nam) chứa now.
-func digestDue(now time.Time) bool { return now.In(vietnam).Hour() >= digestHour }
+// DigestDue báo đã tới giờ gửi tin tổng kết của ngày (giờ Việt Nam) chứa now.
+func DigestDue(now time.Time) bool { return now.In(vietnam).Hour() >= digestHour }
 
 // SendDailyDigest gửi một tin normal, key "digest:<ngày giờ Việt Nam>": số cảnh báo 24 giờ qua theo key, số việc
 // dead và in_doubt đang mở, tuổi bản sao lưu đầy đủ thành công cuối. Ngày đó đã có tin (alert_events có key) thì

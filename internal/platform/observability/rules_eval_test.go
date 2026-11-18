@@ -99,13 +99,13 @@ func TestStreak(t *testing.T) {
 
 // Tin tổng kết chỉ gửi từ 08:00 giờ Việt Nam (01:00 UTC).
 func TestDigestDue(t *testing.T) {
-	if digestDue(time.Date(2026, 11, 18, 0, 59, 0, 0, time.UTC)) {
+	if DigestDue(time.Date(2026, 11, 18, 0, 59, 0, 0, time.UTC)) {
 		t.Fatal("07:59 giờ Việt Nam chưa tới giờ")
 	}
-	if !digestDue(time.Date(2026, 11, 18, 1, 0, 0, 0, time.UTC)) || !digestDue(time.Date(2026, 11, 18, 16, 59, 0, 0, time.UTC)) {
+	if !DigestDue(time.Date(2026, 11, 18, 1, 0, 0, 0, time.UTC)) || !DigestDue(time.Date(2026, 11, 18, 16, 59, 0, 0, time.UTC)) {
 		t.Fatal("từ 08:00 tới 23:59 giờ Việt Nam là tới giờ")
 	}
-	if digestDue(time.Date(2026, 11, 18, 17, 30, 0, 0, time.UTC)) {
+	if DigestDue(time.Date(2026, 11, 18, 17, 30, 0, 0, time.UTC)) {
 		t.Fatal("00:30 giờ Việt Nam ngày mới chưa tới giờ")
 	}
 }
