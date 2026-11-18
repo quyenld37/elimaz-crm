@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, AddAttributeValueData, AddAttributeValueErrors, AddAttributeValueResponses, AddVariantData, AddVariantErrors, AddVariantResponses, ApplyStocktakeData, ApplyStocktakeErrors, ApplyStocktakeResponses, ArchiveCategoryData, ArchiveCategoryErrors, ArchiveCategoryResponses, AttachProductImageData, AttachProductImageErrors, AttachProductImageResponses, CancelStockDocumentData, CancelStockDocumentErrors, CancelStockDocumentResponses, CancelStocktakeData, CancelStocktakeErrors, CancelStocktakeResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateAttributeData, CreateAttributeErrors, CreateAttributeResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateOrderData, CreateOrderErrors, CreateOrderResponses, CreateProductData, CreateProductErrors, CreateProductResponses, CreateShipmentData, CreateShipmentErrors, CreateShipmentResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, CreateStockDocumentData, CreateStockDocumentErrors, CreateStockDocumentResponses, CreateSupplierData, CreateSupplierErrors, CreateSupplierResponses, CreateTagData, CreateTagErrors, CreateTagResponses, CreateUploadData, CreateUploadErrors, CreateUploadResponses, DeleteProductImageData, DeleteProductImageErrors, DeleteProductImageResponses, GetFileData, GetFileErrors, GetFileResponses, GetMeData, GetMeErrors, GetMeResponses, GetOrderData, GetOrderErrors, GetOrderResponses, GetOriginalImageUrlData, GetOriginalImageUrlErrors, GetOriginalImageUrlResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, GetProductClassificationData, GetProductClassificationErrors, GetProductClassificationResponses, GetProductData, GetProductErrors, GetProductResponses, GetShipmentData, GetShipmentErrors, GetShipmentResponses, GetStockDocumentData, GetStockDocumentErrors, GetStockDocumentResponses, GetStocktakeData, GetStocktakeErrors, GetStocktakeResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ListAttributesData, ListAttributesErrors, ListAttributesResponses, ListBalancesData, ListBalancesErrors, ListBalancesResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListProductsData, ListProductsErrors, ListProductsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListStaffData, ListStaffErrors, ListStaffResponses, ListStockDocumentsData, ListStockDocumentsErrors, ListStockDocumentsResponses, ListSuppliersData, ListSuppliersErrors, ListSuppliersResponses, ListTagsData, ListTagsErrors, ListTagsResponses, ListWarehousesData, ListWarehousesErrors, ListWarehousesResponses, LockStaffData, LockStaffErrors, LockStaffResponses, PostStockDocumentData, PostStockDocumentErrors, PostStockDocumentResponses, RecordStocktakeCountData, RecordStocktakeCountErrors, RecordStocktakeCountResponses, ReorderProductImagesData, ReorderProductImagesErrors, ReorderProductImagesResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, ReplaceStockDocumentLinesData, ReplaceStockDocumentLinesErrors, ReplaceStockDocumentLinesResponses, RestoreProductImageData, RestoreProductImageErrors, RestoreProductImageResponses, RetryJobData, RetryJobErrors, RetryJobResponses, SearchVariantsData, SearchVariantsErrors, SearchVariantsResponses, SetProductClassificationData, SetProductClassificationErrors, SetProductClassificationResponses, StartStocktakeData, StartStocktakeErrors, StartStocktakeResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateProductData, UpdateProductErrors, UpdateProductResponses, UpdateSupplierData, UpdateSupplierErrors, UpdateSupplierResponses, UpdateVariantData, UpdateVariantErrors, UpdateVariantResponses } from './types.gen';
+import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, AddAttributeValueData, AddAttributeValueErrors, AddAttributeValueResponses, AddVariantData, AddVariantErrors, AddVariantResponses, ApplyStocktakeData, ApplyStocktakeErrors, ApplyStocktakeResponses, ArchiveCategoryData, ArchiveCategoryErrors, ArchiveCategoryResponses, ArchiveRoleData, ArchiveRoleErrors, ArchiveRoleResponses, AttachProductImageData, AttachProductImageErrors, AttachProductImageResponses, CancelStockDocumentData, CancelStockDocumentErrors, CancelStockDocumentResponses, CancelStocktakeData, CancelStocktakeErrors, CancelStocktakeResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateAttributeData, CreateAttributeErrors, CreateAttributeResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateOrderData, CreateOrderErrors, CreateOrderResponses, CreateProductData, CreateProductErrors, CreateProductResponses, CreateRoleData, CreateRoleErrors, CreateRoleResponses, CreateShipmentData, CreateShipmentErrors, CreateShipmentResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, CreateStockDocumentData, CreateStockDocumentErrors, CreateStockDocumentResponses, CreateSupplierData, CreateSupplierErrors, CreateSupplierResponses, CreateTagData, CreateTagErrors, CreateTagResponses, CreateUploadData, CreateUploadErrors, CreateUploadResponses, DeleteProductImageData, DeleteProductImageErrors, DeleteProductImageResponses, GetFileData, GetFileErrors, GetFileResponses, GetMeData, GetMeErrors, GetMeResponses, GetOrderData, GetOrderErrors, GetOrderResponses, GetOriginalImageUrlData, GetOriginalImageUrlErrors, GetOriginalImageUrlResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, GetProductClassificationData, GetProductClassificationErrors, GetProductClassificationResponses, GetProductData, GetProductErrors, GetProductResponses, GetShipmentData, GetShipmentErrors, GetShipmentResponses, GetStockDocumentData, GetStockDocumentErrors, GetStockDocumentResponses, GetStocktakeData, GetStocktakeErrors, GetStocktakeResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ListAttributesData, ListAttributesErrors, ListAttributesResponses, ListBalancesData, ListBalancesErrors, ListBalancesResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListPermissionsData, ListPermissionsErrors, ListPermissionsResponses, ListProductsData, ListProductsErrors, ListProductsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListRolesToManageData, ListRolesToManageErrors, ListRolesToManageResponses, ListStaffData, ListStaffErrors, ListStaffResponses, ListStockDocumentsData, ListStockDocumentsErrors, ListStockDocumentsResponses, ListSuppliersData, ListSuppliersErrors, ListSuppliersResponses, ListTagsData, ListTagsErrors, ListTagsResponses, ListWarehousesData, ListWarehousesErrors, ListWarehousesResponses, LockStaffData, LockStaffErrors, LockStaffResponses, PostStockDocumentData, PostStockDocumentErrors, PostStockDocumentResponses, RecordStocktakeCountData, RecordStocktakeCountErrors, RecordStocktakeCountResponses, ReorderProductImagesData, ReorderProductImagesErrors, ReorderProductImagesResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, ReplaceStockDocumentLinesData, ReplaceStockDocumentLinesErrors, ReplaceStockDocumentLinesResponses, RestoreProductImageData, RestoreProductImageErrors, RestoreProductImageResponses, RetryJobData, RetryJobErrors, RetryJobResponses, SearchVariantsData, SearchVariantsErrors, SearchVariantsResponses, SetProductClassificationData, SetProductClassificationErrors, SetProductClassificationResponses, StartStocktakeData, StartStocktakeErrors, StartStocktakeResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateProductData, UpdateProductErrors, UpdateProductResponses, UpdateRoleData, UpdateRoleErrors, UpdateRoleResponses, UpdateSupplierData, UpdateSupplierErrors, UpdateSupplierResponses, UpdateVariantData, UpdateVariantErrors, UpdateVariantResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -76,6 +76,52 @@ export const unlockStaff = <ThrowOnError extends boolean = false>(options: Optio
  * Vai trò của shop và quyền của từng vai trò
  */
 export const listRoles = <ThrowOnError extends boolean = false>(options?: Options<ListRolesData, ThrowOnError>): RequestResult<ListRolesResponses, ListRolesErrors, ThrowOnError> => (options?.client ?? client).get<ListRolesResponses, ListRolesErrors, ThrowOnError>({ url: '/api/v1/identity/roles', ...options });
+
+/**
+ * Tạo vai trò tự định nghĩa từ danh sách quyền có sẵn (người tạo phải có mọi quyền đó ở toàn shop)
+ */
+export const createRole = <ThrowOnError extends boolean = false>(options: Options<CreateRoleData, ThrowOnError>): RequestResult<CreateRoleResponses, CreateRoleErrors, ThrowOnError> => (options.client ?? client).post<CreateRoleResponses, CreateRoleErrors, ThrowOnError>({
+    url: '/api/v1/identity/roles',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Vai trò của shop cho màn Vai trò (cùng dữ liệu listRoles, chỉ cần quyền quản lý vai trò)
+ */
+export const listRolesToManage = <ThrowOnError extends boolean = false>(options?: Options<ListRolesToManageData, ThrowOnError>): RequestResult<ListRolesToManageResponses, ListRolesToManageErrors, ThrowOnError> => (options?.client ?? client).get<ListRolesToManageResponses, ListRolesToManageErrors, ThrowOnError>({ url: '/api/v1/identity/roles/manage', ...options });
+
+/**
+ * Sửa tên và quyền của vai trò (không sửa được vai trò Chủ; quyền thêm hay gỡ phải có ở toàn shop)
+ */
+export const updateRole = <ThrowOnError extends boolean = false>(options: Options<UpdateRoleData, ThrowOnError>): RequestResult<UpdateRoleResponses, UpdateRoleErrors, ThrowOnError> => (options.client ?? client).put<UpdateRoleResponses, UpdateRoleErrors, ThrowOnError>({
+    url: '/api/v1/identity/roles/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Lưu trữ vai trò không còn nhân viên đang hoạt động nào giữ (không lưu trữ được vai trò Chủ)
+ */
+export const archiveRole = <ThrowOnError extends boolean = false>(options: Options<ArchiveRoleData, ThrowOnError>): RequestResult<ArchiveRoleResponses, ArchiveRoleErrors, ThrowOnError> => (options.client ?? client).post<ArchiveRoleResponses, ArchiveRoleErrors, ThrowOnError>({
+    url: '/api/v1/identity/roles/{id}/archive',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Mọi quyền của CRM kèm nhóm, nhãn tiếng Việt và loại phạm vi (để soạn vai trò)
+ */
+export const listPermissions = <ThrowOnError extends boolean = false>(options?: Options<ListPermissionsData, ThrowOnError>): RequestResult<ListPermissionsResponses, ListPermissionsErrors, ThrowOnError> => (options?.client ?? client).get<ListPermissionsResponses, ListPermissionsErrors, ThrowOnError>({ url: '/api/v1/identity/permissions', ...options });
 
 /**
  * Người dùng đang đăng nhập và quyền của họ

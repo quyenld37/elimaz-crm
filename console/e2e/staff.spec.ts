@@ -1,9 +1,8 @@
 // Màn Nhân viên và quyền (kế hoạch M1 Task 54, PQ07; mockup docs/mockups/m1/nhan-vien.html) ở 1512 × 767 và 390 × 844,
 // API giả có trạng thái (e2e/fixtures.ts). Luật thật nằm ở API (Task 26, 315); ở đây kiểm màn gửi đúng yêu cầu, hiện
 // đúng câu khi máy chủ chặn, ẩn nút trên dòng của chính mình và làm mờ vai trò vượt quyền người sửa.
-import type { Route } from "@playwright/test";
 import type { Grant, ReplaceGrantsRequest, Role, ScopeWarning, StaffMember } from "../src/api";
-import { DESKTOP, expect, forEachViewport, test, type FakeApi } from "./fixtures";
+import { DESKTOP, expect, forEachViewport, json, test, writeRecorder, type FakeApi, type WriteLog } from "./fixtures";
 
 const LAN = "0195f3b2-0000-7000-8000-000000000001"; // người đang đăng nhập (Chủ)
 const HUNG = "0195f3b2-0000-7000-8000-000000000002"; // Chủ thứ hai
@@ -29,9 +28,30 @@ const ALL_PERMS = [
 const MANAGER_PERMS = ALL_PERMS.filter((p) => !p.startsWith("identity.") && !p.startsWith("platform."));
 
 const ROLES: Role[] = [
-  { key: "owner", name: "Chủ", status: "active", customized: false, permissions: ALL_PERMS },
-  { key: "manager", name: "Quản lý", status: "active", customized: false, permissions: MANAGER_PERMS },
   {
+    id: "0195f3b2-0000-7000-8000-0000000b0001",
+    version: 1,
+    holderCount: 0,
+    key: "owner",
+    name: "Chủ",
+    status: "active",
+    customized: false,
+    permissions: ALL_PERMS,
+  },
+  {
+    id: "0195f3b2-0000-7000-8000-0000000b0002",
+    version: 1,
+    holderCount: 0,
+    key: "manager",
+    name: "Quản lý",
+    status: "active",
+    customized: false,
+    permissions: MANAGER_PERMS,
+  },
+  {
+    id: "0195f3b2-0000-7000-8000-0000000b0003",
+    version: 1,
+    holderCount: 0,
     key: "sale",
     name: "Bán hàng",
     status: "active",
@@ -39,6 +59,9 @@ const ROLES: Role[] = [
     permissions: ["catalog.read", "order.read", "inventory.read", "fulfillment.read", "realtime.subscribe"],
   },
   {
+    id: "0195f3b2-0000-7000-8000-0000000b0004",
+    version: 1,
+    holderCount: 0,
     key: "warehouse",
     name: "Kho",
     status: "active",
@@ -46,6 +69,9 @@ const ROLES: Role[] = [
     permissions: ["catalog.read", "inventory.read", "inventory.documents.create", "realtime.subscribe"],
   },
   {
+    id: "0195f3b2-0000-7000-8000-0000000b0005",
+    version: 1,
+    holderCount: 0,
     key: "accountant",
     name: "Kế toán",
     status: "active",
@@ -91,38 +117,15 @@ function seed(): StaffMember[] {
   ];
 }
 
-const json = (route: Route, status: number, body: unknown) =>
-  route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
-
-interface Fake {
+interface Fake extends WriteLog {
   staff: StaffMember[];
-  writes: { method: string; path: string; key: string | null; body: unknown }[];
-  /** Trả lỗi này cho lần ghi kế tiếp (mã HTTP, mã lỗi). */
-  failNext: { status: number; code: string } | null;
 }
 
 async function staffApi(api: FakeApi, meId: string, meGrants: Grant[]): Promise<Fake> {
   const fake: Fake = { staff: seed(), writes: [], failNext: null };
   await api.live({ userId: meId, email: "x@elimaz.com.vn", grants: meGrants });
   await api.on("**/api/v1/identity/roles", (r) => json(r, 200, ROLES));
-  const record = (r: Route) => {
-    const req = r.request();
-    const body: unknown = req.postData() === null ? null : req.postDataJSON();
-    fake.writes.push({
-      method: req.method(),
-      path: new URL(req.url()).pathname,
-      key: req.headers()["idempotency-key"] ?? null,
-      body,
-    });
-    return body;
-  };
-  const fail = async (r: Route) => {
-    const f = fake.failNext;
-    if (f === null) return false;
-    fake.failNext = null;
-    await json(r, f.status, { error: f.code, request_id: "e2e" });
-    return true;
-  };
+  const { record, fail } = writeRecorder(fake);
   await api.on("**/api/v1/identity/users", async (r) => {
     if (r.request().method() === "GET") return json(r, 200, fake.staff);
     const body = record(r) as { email: string; displayName: string };
@@ -336,5 +339,9 @@ test("menu: mục Nhân viên chỉ hiện với người có quyền quản lý
   // "/" mở màn được phép đầu tiên (Danh sách sản phẩm, Task 50): khai các đường của nó.
   await api.catalog();
   await page.goto("/");
+  await expect(page.getByRole("link", { name: "Nhân viên" })).toHaveCount(0);
+  // Mở thẳng /nhan-vien: không có trang này với người thiếu quyền.
+  await page.goto("/nhan-vien");
+  await expect(page.getByText("Không có trang này, hoặc bạn chưa được cấp quyền xem")).toBeVisible();
   await expect(page.getByRole("link", { name: "Nhân viên" })).toHaveCount(0);
 });

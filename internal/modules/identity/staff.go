@@ -171,15 +171,19 @@ func CreateStaff(ctx context.Context, tx pgx.Tx, actor AuthUser, email, displayN
 // ReplaceGrants thay toàn bộ grant của userID bằng grants (trùng lặp được gộp) khi version còn khớp; version tăng 1.
 // Luật (PQ07, vùng rủi ro cao), theo thứ tự:
 //  1. actor không có identity.users.manage → ErrGrantExceedsActor; userID là chính actor → ErrSelfModify;
-//  2. vai trò lạ, đã lưu trữ, phạm vi sai → ErrInvalidInput; không có nhân viên → ErrStaffNotFound; version khác →
+//  2. vai trò lạ, phạm vi sai → ErrInvalidInput; không có nhân viên → ErrStaffNotFound; version khác →
 //     ErrVersionConflict;
-//  3. mỗi grant được thêm hay gỡ: mọi quyền của vai trò phải thỏa Can(actor, p, &phạm vi) → ngược lại
+//  3. khóa FOR SHARE (id tăng dần) vai trò của mọi grant được thêm hay gỡ rồi đọc lại quyền của chúng (lần sửa vai trò
+//     chạy cùng lúc chờ hoặc đã xong, Task M1-56); grant được thêm của vai trò đã lưu trữ → ErrRoleArchived (giữ hay
+//     gỡ grant cũ của vai trò đã lưu trữ vẫn được);
+//  4. mỗi grant được thêm hay gỡ: mọi quyền của vai trò phải thỏa Can(actor, p, &phạm vi) → ngược lại
 //     ErrGrantExceedsActor;
-//  4. sau khi đổi, số Chủ còn hoạt động bằng 0 → ErrLastOwner;
-//  5. kiểm lại bước 3 với grant của actor đọc lại trong transaction (actor vừa bị hạ quyền → ErrGrantExceedsActor,
+//  5. sau khi đổi, số Chủ còn hoạt động bằng 0 → ErrLastOwner;
+//  6. kiểm lại bước 4 với grant của actor đọc lại trong transaction (actor vừa bị hạ quyền → ErrGrantExceedsActor,
 //     vừa bị khóa → ErrLocked).
 //
-// Trước khi đọc, khóa dòng users của userID, actor và mọi Chủ còn hoạt động theo id tăng dần (ADR-46 nhóm 2), nên hai
+// Trước khi đọc, khóa dòng users của userID, actor và mọi Chủ còn hoạt động theo id tăng dần (ADR-46 nhóm 2: users rồi
+// roles), nên hai
 // Chủ thao tác lên nhau cùng lúc thì bên sau thấy kết quả của bên trước. Lỗi trả về thì tx phải lùi (bên gọi trả lỗi
 // từ hàm của WithTenant/WriteTx).
 func ReplaceGrants(ctx context.Context, tx pgx.Tx, actor AuthUser, userID uuid.UUID, version int64, grants []GrantInput) (Change, error) {
@@ -189,7 +193,7 @@ func ReplaceGrants(ctx context.Context, tx pgx.Tx, actor AuthUser, userID uuid.U
 	want := normalizeGrants(grants)
 	st, err := begin(ctx, tx, actor, userID, func(index map[string]RoleRow) error {
 		for _, g := range want {
-			if r, ok := index[g.RoleKey]; !ok || r.Status != roleStatusActive || !validScope(g.Scope) {
+			if _, ok := index[g.RoleKey]; !ok || !validScope(g.Scope) {
 				return ErrInvalidInput
 			}
 		}
@@ -198,7 +202,7 @@ func ReplaceGrants(ctx context.Context, tx pgx.Tx, actor AuthUser, userID uuid.U
 	if err != nil {
 		return Change{}, err
 	}
-	q, index, locked := st.q, st.index, st.locked
+	q, locked := st.q, st.locked
 	if locked[userID].Version != version {
 		return Change{}, ErrVersionConflict
 	}
@@ -207,6 +211,11 @@ func ReplaceGrants(ctx context.Context, tx pgx.Tx, actor AuthUser, userID uuid.U
 		return Change{}, err
 	}
 	changed := symmetricDiff(before.Grants, want)
+	index, err := st.lockRoles(ctx, tx, changed, want)
+	if err != nil {
+		return Change{}, err
+	}
+	st.index = index
 	if !canTouch(actor, index, changed) {
 		return Change{}, ErrGrantExceedsActor
 	}
@@ -255,6 +264,38 @@ func SetLocked(ctx context.Context, tx pgx.Tx, actor AuthUser, userID uuid.UUID,
 		return Change{}, fmt.Errorf("đổi trạng thái nhân viên: %w", err)
 	}
 	return st.finish(ctx, tx, actor, before, before.Grants)
+}
+
+// lockRoles khóa FOR SHARE (theo id tăng dần, sau khi đã khóa users) vai trò của các grant changed, từ chối grant mới
+// (có trong want) của vai trò đã lưu trữ (ErrRoleArchived), rồi đọc lại vai trò (quyền sau mọi lần sửa đã commit).
+func (st staffTx) lockRoles(ctx context.Context, tx pgx.Tx, changed, want []GrantInput) (map[string]RoleRow, error) {
+	ids := make([]uuid.UUID, 0, len(changed))
+	for _, g := range changed {
+		if r, ok := st.index[g.RoleKey]; ok && !slices.Contains(ids, r.ID) {
+			ids = append(ids, r.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return st.index, nil
+	}
+	rows, err := st.q.ShareLockRoles(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("khóa vai trò được gán: %w", err)
+	}
+	archived := map[uuid.UUID]bool{}
+	for _, r := range rows {
+		archived[r.ID] = r.Status == roleStatusArchived
+	}
+	for _, g := range changed {
+		if slices.Contains(want, g) && archived[st.index[g.RoleKey].ID] {
+			return nil, ErrRoleArchived
+		}
+	}
+	roles, err := ListRoles(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	return roleIndex(roles), nil
 }
 
 // staffTx là phần chung đầu mỗi thao tác lên nhân viên: câu truy vấn, vai trò theo khóa, dòng users đã khóa.
@@ -341,18 +382,27 @@ func afterChecks(ctx context.Context, q *store.Queries, actor AuthUser, locked m
 	if row, ok := locked[actor.UserID]; !ok || row.Status != statusActive {
 		return ErrLocked
 	}
-	rows, err := q.ListUserGrants(ctx, actor.UserID)
+	fresh, err := freshGrants(ctx, q, actor)
 	if err != nil {
-		return fmt.Errorf("đọc lại quyền của người thao tác: %w", err)
-	}
-	fresh := AuthUser{UserID: actor.UserID, TenantID: actor.TenantID, Grants: make([]Grant, 0, len(rows))}
-	for _, r := range rows {
-		fresh.Grants = append(fresh.Grants, Grant{Permission: Permission(r.Permission), Scope: Scope{Type: r.ScopeType, ID: r.ScopeID}})
+		return err
 	}
 	if !Can(fresh, permUsersManage, nil) || !canTouch(fresh, index, touched) {
 		return ErrGrantExceedsActor
 	}
 	return nil
+}
+
+// freshGrants đọc lại grant của actor trong transaction (vai trò đã lưu trữ không tính, như LoadUser).
+func freshGrants(ctx context.Context, q *store.Queries, actor AuthUser) (AuthUser, error) {
+	rows, err := q.ListUserGrants(ctx, actor.UserID)
+	if err != nil {
+		return AuthUser{}, fmt.Errorf("đọc lại quyền của người thao tác: %w", err)
+	}
+	fresh := AuthUser{UserID: actor.UserID, TenantID: actor.TenantID, Email: actor.Email, Grants: make([]Grant, 0, len(rows))}
+	for _, r := range rows {
+		fresh.Grants = append(fresh.Grants, Grant{Permission: Permission(r.Permission), Scope: Scope{Type: r.ScopeType, ID: r.ScopeID}})
+	}
+	return fresh, nil
 }
 
 // canTouch: actor có mọi quyền của vai trò của từng grant trên đúng phạm vi của grant đó. Vai trò không còn trong
@@ -415,9 +465,10 @@ func isUniqueViolation(err error) bool {
 	return ok && pgErr.Code == codeUniqueViolation
 }
 
-func nonNil(g []GrantInput) []GrantInput {
+// nonNil: lát rỗng khác nil (để JSON và so sánh không phân biệt nil với rỗng).
+func nonNil[T any](g []T) []T {
 	if g == nil {
-		return []GrantInput{}
+		return []T{}
 	}
 	return g
 }

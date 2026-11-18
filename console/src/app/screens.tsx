@@ -3,6 +3,8 @@
 import { Balances } from "../features/inventory/Balances";
 import { ProductEdit } from "../features/products/ProductEdit";
 import { ProductList } from "../features/products/ProductList";
+import { RoleEdit } from "../features/roles/RoleEdit";
+import { RoleList } from "../features/roles/RoleList";
 import { StaffGrants } from "../features/staff/StaffGrants";
 import { StaffList } from "../features/staff/StaffList";
 import type { Screen } from "./nav";
@@ -51,5 +53,22 @@ export const SCREENS: readonly Screen[] = [
     permission: "identity.users.manage",
     hidden: true,
     element: <StaffGrants />,
+  },
+  // Task M1-56: Vai trò tự định nghĩa (mockup docs/mockups/m1/vai-tro.html).
+  {
+    path: "/vai-tro",
+    also: ["/vai-tro/:id"],
+    label: "Vai trò",
+    group: "Quản trị",
+    permission: "identity.roles.manage",
+    element: <RoleList />,
+  },
+  {
+    path: "/vai-tro/:id",
+    label: "Vai trò",
+    group: "Quản trị",
+    permission: "identity.roles.manage",
+    hidden: true,
+    element: <RoleEdit />,
   },
 ];

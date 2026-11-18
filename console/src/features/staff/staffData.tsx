@@ -23,6 +23,9 @@ const REFUSAL_DETAIL: Readonly<Record<string, string>> = {
   cannot_modify_self: "Nhờ một Chủ khác làm việc này.",
   version_conflict: "Thay đổi của bạn chưa được lưu.",
   role_archived: "Chọn vai trò khác.",
+  role_name_taken: "Đặt tên khác.",
+  owner_role_locked: "Vai trò Chủ luôn có mọi quyền, kể cả quyền mới thêm sau này.",
+  unknown_permission: "Danh sách quyền vừa đổi.",
 };
 const TEXT_VERSION_CONFLICT = "Quyền của người này vừa được người khác sửa, tải lại";
 
@@ -34,12 +37,14 @@ export interface RefusalBoxProps {
   message: string | null;
   /** Có thì hiện nút "Tải lại" khi bị version_conflict. */
   onReload?: () => void;
+  /** Câu đầu khi bị version_conflict (mặc định: câu của màn Nhân viên). */
+  conflictTitle?: string;
 }
 
 /** Hộp báo khi máy chủ chặn một thao tác (mockup trạng thái D). */
-export function RefusalBox({ error, message, onReload }: RefusalBoxProps) {
+export function RefusalBox({ error, message, onReload, conflictTitle = TEXT_VERSION_CONFLICT }: RefusalBoxProps) {
   const code = error instanceof ApiError ? error.code : "";
-  const title = code === "version_conflict" ? TEXT_VERSION_CONFLICT : (message ?? errorMessage(error));
+  const title = code === "version_conflict" ? conflictTitle : (message ?? errorMessage(error));
   const detail = Object.hasOwn(REFUSAL_DETAIL, code) ? REFUSAL_DETAIL[code] : undefined;
   return (
     <div className="box box-err" role="alert">

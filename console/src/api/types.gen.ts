@@ -105,11 +105,45 @@ export type ReplaceGrantsRequest = {
 };
 
 export type Role = {
+    id: string;
     key: string;
     name: string;
     status: 'active' | 'archived';
+    /**
+     * Vai trò mẫu đã bị sửa hoặc vai trò tự tạo; bản cập nhật sau không tự thêm quyền vào
+     */
     customized: boolean;
+    version: number;
+    /**
+     * Số nhân viên đang hoạt động có ít nhất một gán của vai trò này
+     */
+    holderCount: number;
     permissions: Array<string>;
+};
+
+export type CreateRoleRequest = {
+    name: string;
+    permissions: Array<string>;
+};
+
+export type UpdateRoleRequest = {
+    version: number;
+    name: string;
+    permissions: Array<string>;
+};
+
+export type ArchiveRoleRequest = {
+    version: number;
+};
+
+export type PermissionInfo = {
+    key: string;
+    /**
+     * none = toàn shop từ gán bất kỳ; shop = quyền quản trị, chỉ hiệu lực khi gán toàn shop; warehouse, page = theo kho, theo Page
+     */
+    scopeType: 'none' | 'shop' | 'warehouse' | 'page';
+    group: string;
+    label: string;
 };
 
 export type CreateUploadRequest = {
@@ -834,6 +868,8 @@ export type JobId = string;
 
 export type FileId = string;
 
+export type RoleId = string;
+
 export type StaffId = string;
 
 export type ProductId = string;
@@ -1105,6 +1141,153 @@ export type ListRolesResponses = {
 };
 
 export type ListRolesResponse = ListRolesResponses[keyof ListRolesResponses];
+
+export type CreateRoleData = {
+    body: CreateRoleRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/identity/roles';
+};
+
+export type CreateRoleErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateRoleError = CreateRoleErrors[keyof CreateRoleErrors];
+
+export type CreateRoleResponses = {
+    /**
+     * Vai trò vừa tạo
+     */
+    201: Role;
+};
+
+export type CreateRoleResponse = CreateRoleResponses[keyof CreateRoleResponses];
+
+export type ListRolesToManageData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/identity/roles/manage';
+};
+
+export type ListRolesToManageErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListRolesToManageError = ListRolesToManageErrors[keyof ListRolesToManageErrors];
+
+export type ListRolesToManageResponses = {
+    /**
+     * Vai trò
+     */
+    200: Array<Role>;
+};
+
+export type ListRolesToManageResponse = ListRolesToManageResponses[keyof ListRolesToManageResponses];
+
+export type UpdateRoleData = {
+    body: UpdateRoleRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/identity/roles/{id}';
+};
+
+export type UpdateRoleErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UpdateRoleError = UpdateRoleErrors[keyof UpdateRoleErrors];
+
+export type UpdateRoleResponses = {
+    /**
+     * Vai trò sau khi sửa
+     */
+    200: Role;
+};
+
+export type UpdateRoleResponse = UpdateRoleResponses[keyof UpdateRoleResponses];
+
+export type ArchiveRoleData = {
+    body: ArchiveRoleRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/identity/roles/{id}/archive';
+};
+
+export type ArchiveRoleErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ArchiveRoleError = ArchiveRoleErrors[keyof ArchiveRoleErrors];
+
+export type ArchiveRoleResponses = {
+    /**
+     * Vai trò sau khi lưu trữ
+     */
+    200: Role;
+};
+
+export type ArchiveRoleResponse = ArchiveRoleResponses[keyof ArchiveRoleResponses];
+
+export type ListPermissionsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/identity/permissions';
+};
+
+export type ListPermissionsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListPermissionsError = ListPermissionsErrors[keyof ListPermissionsErrors];
+
+export type ListPermissionsResponses = {
+    /**
+     * Quyền, theo thứ tự của bảng quyền
+     */
+    200: Array<PermissionInfo>;
+};
+
+export type ListPermissionsResponse = ListPermissionsResponses[keyof ListPermissionsResponses];
 
 export type GetMeData = {
     body?: never;

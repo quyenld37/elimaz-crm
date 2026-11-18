@@ -77,6 +77,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 const listUserGrants = `-- name: ListUserGrants :many
 SELECT DISTINCT rp.permission, g.scope_type, g.scope_id
 FROM identity.user_role_grants AS g
+JOIN identity.roles AS r ON r.tenant_id = g.tenant_id AND r.id = g.role_id AND r.status = 'active'
 JOIN identity.role_permissions AS rp ON rp.tenant_id = g.tenant_id AND rp.role_id = g.role_id
 WHERE g.user_id = $1
 ORDER BY rp.permission, g.scope_type, g.scope_id
@@ -88,7 +89,8 @@ type ListUserGrantsRow struct {
 	ScopeID    string
 }
 
-// Cặp (quyền, phạm vi) của user qua mọi vai trò được gán; trùng lặp được bỏ.
+// Cặp (quyền, phạm vi) của user qua mọi vai trò được gán còn active (vai trò đã lưu trữ không cho quyền, Task M1-56);
+// trùng lặp được bỏ.
 func (q *Queries) ListUserGrants(ctx context.Context, userID uuid.UUID) ([]ListUserGrantsRow, error) {
 	rows, err := q.db.Query(ctx, listUserGrants, userID)
 	if err != nil {

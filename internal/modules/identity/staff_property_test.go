@@ -31,6 +31,7 @@ type propRun struct {
 	emails    []string
 	ids       []uuid.UUID
 	rolePerms map[string][]identity.Permission
+	roleIDs   map[string]identity.RoleRow // vai trò theo khóa (bộ của Task M1-56)
 }
 
 func genGrant() *rapid.Generator[identity.GrantInput] {
@@ -125,7 +126,9 @@ func (r *propRun) checkAuthority(rt *rapid.T, actor identity.AuthUser, before, a
 }
 
 func isRefusal(err error) bool {
-	for _, want := range []error{identity.ErrSelfModify, identity.ErrGrantExceedsActor, identity.ErrLastOwner, identity.ErrLocked} {
+	for _, want := range []error{
+		identity.ErrSelfModify, identity.ErrGrantExceedsActor, identity.ErrLastOwner, identity.ErrLocked, identity.ErrRoleArchived,
+	} {
 		if errors.Is(err, want) {
 			return true
 		}

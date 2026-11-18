@@ -178,8 +178,12 @@ func (q *Queries) InsertStaffUser(ctx context.Context, arg InsertStaffUserParams
 }
 
 const listRolesWithPermissions = `-- name: ListRolesWithPermissions :many
-SELECT r.id, r.key, r.name, r.status, r.customized,
-       coalesce(array_agg(rp.permission ORDER BY rp.permission) FILTER (WHERE rp.permission IS NOT NULL), '{}')::text[] AS permissions
+SELECT r.id, r.key, r.name, r.status, r.customized, r.version,
+       coalesce(array_agg(rp.permission ORDER BY rp.permission) FILTER (WHERE rp.permission IS NOT NULL), '{}')::text[] AS permissions,
+       (SELECT count(DISTINCT g.user_id)
+        FROM identity.user_role_grants AS g
+        JOIN identity.users AS u ON u.tenant_id = g.tenant_id AND u.id = g.user_id
+        WHERE g.role_id = r.id AND u.status = 'active')::bigint AS holder_count
 FROM identity.roles AS r
 LEFT JOIN identity.role_permissions AS rp ON rp.tenant_id = r.tenant_id AND rp.role_id = r.id
 GROUP BY r.id
@@ -192,9 +196,12 @@ type ListRolesWithPermissionsRow struct {
 	Name        string
 	Status      string
 	Customized  bool
+	Version     int64
 	Permissions []string
+	HolderCount int64
 }
 
+// holder_count: số nhân viên active có ít nhất một grant của vai trò (màn Vai trò, Task M1-56).
 func (q *Queries) ListRolesWithPermissions(ctx context.Context) ([]ListRolesWithPermissionsRow, error) {
 	rows, err := q.db.Query(ctx, listRolesWithPermissions)
 	if err != nil {
@@ -210,7 +217,9 @@ func (q *Queries) ListRolesWithPermissions(ctx context.Context) ([]ListRolesWith
 			&i.Name,
 			&i.Status,
 			&i.Customized,
+			&i.Version,
 			&i.Permissions,
+			&i.HolderCount,
 		); err != nil {
 			return nil, err
 		}

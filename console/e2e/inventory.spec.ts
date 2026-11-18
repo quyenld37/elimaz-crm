@@ -3,7 +3,7 @@
 // bốn ngăn và có thể bán, dòng âm ghi rõ bằng chữ, ô chọn kho chỉ có kho API trả, trạng thái trống.
 import type { Page, Route } from "@playwright/test";
 import type { Balance, BalancePage, Grant, Warehouse } from "../src/api";
-import { expect, forEachViewport, test, type FakeApi } from "./fixtures";
+import { expect, forEachViewport, noHorizontalScroll, test, type FakeApi } from "./fixtures";
 
 const KHO_CHINH = "0195f3b2-0000-7000-8000-00000000a001";
 const KHO_PHU = "0195f3b2-0000-7000-8000-00000000a002";
@@ -81,11 +81,6 @@ async function stockApi(
     return json(r, 200, page);
   });
   return fake;
-}
-
-async function noHorizontalScroll(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  expect(overflow).toBeLessThanOrEqual(0);
 }
 
 const rowOf = (page: Page, sku: string) => page.getByRole("row").filter({ has: page.getByText(sku, { exact: false }) });

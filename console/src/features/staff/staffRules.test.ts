@@ -16,6 +16,9 @@ import {
 } from "./staffRules";
 
 const role = (key: string, name: string, permissions: string[], extra: Partial<Role> = {}): Role => ({
+  id: `0195f3b2-0000-7000-8000-${key.padStart(12, "0").slice(-12)}`,
+  version: 1,
+  holderCount: 0,
   key,
   name,
   status: "active",

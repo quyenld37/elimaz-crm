@@ -5,7 +5,7 @@
 // API dev thật (4190, dữ liệu seed-dev); đường đó còn cần thẻ Cloudflare Access cho máy dev (docs/tasks/task-48.md,
 // "Việc phát hiện thêm").
 // `api`: API giả bằng page.route, đúng kiểu của client sinh (src/api/types.gen.ts).
-import { test as base, expect, type Route } from "@playwright/test";
+import { test as base, expect, type Page, type Route } from "@playwright/test";
 import type { Grant, Me } from "../src/api";
 
 /** Laptop của chủ shop và điện thoại (mockup M1). */
@@ -36,8 +36,45 @@ export const OWNER_GRANTS: Grant[] = ["realtime.subscribe", "catalog.read", "inv
 // Chỉ đường của API (/api/…, /health/…), không bắt tệp mã do Vite phục vụ như /src/api/client.gen.ts.
 const isApi = (url: URL) => /^\/(api|health)\//.test(url.pathname);
 
-const json = (route: Route, status: number, body: unknown) =>
+/** Trả thân JSON với mã HTTP cho một đường của API giả. */
+export const json = (route: Route, status: number, body: unknown) =>
   route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+
+/** Nhật ký yêu cầu ghi của API giả có trạng thái, và lỗi trả cho lần ghi kế tiếp (mã HTTP, mã lỗi). */
+export interface WriteLog {
+  writes: { method: string; path: string; key: string | null; body: unknown }[];
+  failNext: { status: number; code: string } | null;
+}
+
+/** record: ghi yêu cầu vào log.writes, trả thân; fail: trả log.failNext (một lần) nếu có. */
+export function writeRecorder(log: WriteLog) {
+  return {
+    record: (r: Route): unknown => {
+      const req = r.request();
+      const body: unknown = req.postData() === null ? null : req.postDataJSON();
+      log.writes.push({
+        method: req.method(),
+        path: new URL(req.url()).pathname,
+        key: req.headers()["idempotency-key"] ?? null,
+        body,
+      });
+      return body;
+    },
+    fail: async (r: Route): Promise<boolean> => {
+      const f = log.failNext;
+      if (f === null) return false;
+      log.failNext = null;
+      await json(r, f.status, { error: f.code, request_id: "e2e" });
+      return true;
+    },
+  };
+}
+
+/** Trang không cuộn ngang (khung hẹp 390, 360). */
+export async function noHorizontalScroll(page: Page) {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+}
 
 const realApi = process.env.CRM_E2E_REAL_API === "1";
 
