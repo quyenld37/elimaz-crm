@@ -37,7 +37,7 @@ type PermissionDef struct {
 	Scope ScopeKind
 }
 
-// Permissions là mọi quyền của CRM: M0 (kế hoạch M0 Task 7) và M1 (kế hoạch M1 Task M1-26). Bảng chuẩn kèm việc
+// Permissions là mọi quyền của CRM: M0 (kế hoạch M0 Task 7), M1 (kế hoạch M1 Task M1-26) và M2 (Task M2-01). Bảng chuẩn kèm việc
 // của từng quyền: docs/quyen.md (test giữ hai bên khớp). Mốc sau chỉ thêm quyền, không đổi loại phạm vi của quyền
 // đã có (ngoại lệ đã duyệt: Task 315 lượt 2 chuyển sáu quyền quản trị sang ScopeShop). Quyền mới ghi chính sách
 // toàn shop hay quản trị là ScopeShop. Route khai quyền ngoài danh sách này thì tests/arch đỏ.
@@ -65,6 +65,22 @@ var Permissions = []PermissionDef{ //nolint:gochecknoglobals // danh sách hằn
 	{"inventory.stocktake.apply", ScopeByTarget},
 	{"fulfillment.read", ScopeByTarget},
 	{"fulfillment.ship", ScopeByTarget},
+	// M2 (kế hoạch M2 Task M2-01). Tạo, sửa mã giảm giá và cài đặt đơn là chính sách toàn shop: ScopeShop.
+	{"customer.read", ScopeNone},
+	{"customer.write", ScopeNone},
+	{"customer.merge", ScopeNone},
+	{"customer.import", ScopeNone},
+	{"customer.tags.manage", ScopeNone},
+	{"order.update", ScopeNone},
+	{"order.confirm", ScopeNone},
+	{"order.cancel", ScopeNone},
+	{"order.discount.approve", ScopeNone},
+	{"order.return", ScopeNone},
+	{"order.return.receive", ScopeNone},
+	{"order.duplicates.resolve", ScopeNone},
+	{"order.settings.manage", ScopeShop},
+	{"promotion.read", ScopeNone},
+	{"promotion.manage", ScopeShop},
 }
 
 // Loại phạm vi của một grant (cột user_role_grants.scope_type).

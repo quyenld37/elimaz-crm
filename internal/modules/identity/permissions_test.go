@@ -92,6 +92,21 @@ func TestPermissionsList(t *testing.T) {
 		"inventory.documents.post": identity.ScopeByTarget, "inventory.stocktake": identity.ScopeByTarget,
 		"inventory.stocktake.apply": identity.ScopeByTarget, "fulfillment.read": identity.ScopeByTarget,
 		"fulfillment.ship": identity.ScopeByTarget,
+		// M2 (kế hoạch Task M2-01; hai quyền ghi chính sách toàn shop là ScopeShop theo luật docs/quyen.md).
+		"customer.read": identity.ScopeNone, "customer.write": identity.ScopeNone, "customer.merge": identity.ScopeNone,
+		"customer.import": identity.ScopeNone, "customer.tags.manage": identity.ScopeNone,
+		"order.update": identity.ScopeNone, "order.confirm": identity.ScopeNone, "order.cancel": identity.ScopeNone,
+		"order.discount.approve": identity.ScopeNone, "order.return": identity.ScopeNone,
+		"order.return.receive": identity.ScopeNone, "order.duplicates.resolve": identity.ScopeNone,
+		"order.settings.manage": identity.ScopeShop, "promotion.read": identity.ScopeNone,
+		"promotion.manage": identity.ScopeShop,
+	}
+	seen := map[identity.Permission]bool{}
+	for _, d := range identity.Permissions {
+		if seen[d.Key] {
+			t.Errorf("quyền %q khai hai lần", d.Key)
+		}
+		seen[d.Key] = true
 	}
 	if len(identity.Permissions) != len(want) {
 		t.Fatalf("mong %d quyền, có %d", len(want), len(identity.Permissions))
