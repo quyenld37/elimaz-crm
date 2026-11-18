@@ -68,12 +68,13 @@ func Create(ctx context.Context, tx pgx.Tx, fullName string) (uuid.UUID, error) 
 }
 
 // Profile là hồ sơ khách theo gốc: Customer là hồ sơ gốc (kèm chỉ số), MemberIDs mọi hồ sơ cùng gốc (gồm gốc), danh
-// tính và địa chỉ (chưa xóa) của cả nhóm.
+// tính và địa chỉ (chưa xóa) của cả nhóm, nhãn của cả nhóm (mỗi nhãn một dòng, theo tên).
 type Profile struct {
 	Customer
 	MemberIDs  []uuid.UUID
 	Identities []Identity
 	Addresses  []Address
+	Tags       []TagLink
 }
 
 // RootOf trả gốc của hồ sơ id; không có (hay của tenant khác) → ErrNotFound.
@@ -121,9 +122,13 @@ func Get(ctx context.Context, tx pgx.Tx, id uuid.UUID) (Profile, error) {
 	if err != nil {
 		return Profile{}, fmt.Errorf("đọc địa chỉ của nhóm: %w", err)
 	}
+	tags, err := groupTags(ctx, tx, members)
+	if err != nil {
+		return Profile{}, err
+	}
 	p := Profile{
 		Customer: c, MemberIDs: members, Identities: make([]Identity, 0, len(idRows)),
-		Addresses: make([]Address, 0, len(addrRows)),
+		Addresses: make([]Address, 0, len(addrRows)), Tags: tags,
 	}
 	for _, r := range idRows {
 		p.Identities = append(p.Identities, identityOf(r.ID, r.CustomerID, r.Kind, r.Scope, r.Value, r.VerifiedAt,
