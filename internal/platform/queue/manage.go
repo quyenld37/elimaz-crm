@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/internal/store"
 )
 
@@ -45,7 +46,7 @@ func ListAttention(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, statuses []
 		statuses = AttentionStatuses()
 	}
 	rows, err := store.New(tx).ListAttentionJobs(ctx, store.ListAttentionJobsParams{
-		TenantID: pgUUID(&tenant), Statuses: statuses, Lim: int32(min(max(limit, 0), maxInt32)),
+		TenantID: db.NullUUID(&tenant), Statuses: statuses, Lim: int32(min(max(limit, 0), maxInt32)),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("liệt kê việc cần xử lý: %w", err)
@@ -62,7 +63,7 @@ func ListAttention(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, statuses []
 func RetryJob(ctx context.Context, tx pgx.Tx, tenant, id uuid.UUID) (before, after JobSummary, err error) {
 	return changeJob(ctx, tx, tenant, id, []string{StatusDead, StatusInDoubt, StatusExpired},
 		func(q *store.Queries) (JobSummary, error) {
-			r, err := q.RequeueTenantJob(ctx, store.RequeueTenantJobParams{ID: id, TenantID: pgUUID(&tenant)})
+			r, err := q.RequeueTenantJob(ctx, store.RequeueTenantJobParams{ID: id, TenantID: db.NullUUID(&tenant)})
 			return summary(r.ID, r.Kind, r.Status, r.Attempts, r.LastError, r.CreatedAt), err
 		})
 }
@@ -72,7 +73,7 @@ func RetryJob(ctx context.Context, tx pgx.Tx, tenant, id uuid.UUID) (before, aft
 func AbandonJob(ctx context.Context, tx pgx.Tx, tenant, id uuid.UUID) (before, after JobSummary, err error) {
 	return changeJob(ctx, tx, tenant, id, []string{StatusDead, StatusInDoubt},
 		func(q *store.Queries) (JobSummary, error) {
-			r, err := q.AbandonTenantJob(ctx, store.AbandonTenantJobParams{ID: id, TenantID: pgUUID(&tenant)})
+			r, err := q.AbandonTenantJob(ctx, store.AbandonTenantJobParams{ID: id, TenantID: db.NullUUID(&tenant)})
 			return summary(r.ID, r.Kind, r.Status, r.Attempts, r.LastError, r.CreatedAt), err
 		})
 }
@@ -82,7 +83,7 @@ func changeJob(ctx context.Context, tx pgx.Tx, tenant, id uuid.UUID, allowed []s
 	upd func(*store.Queries) (JobSummary, error),
 ) (before, after JobSummary, err error) {
 	q := store.New(tx)
-	r, err := q.LockTenantJob(ctx, store.LockTenantJobParams{ID: id, TenantID: pgUUID(&tenant)})
+	r, err := q.LockTenantJob(ctx, store.LockTenantJobParams{ID: id, TenantID: db.NullUUID(&tenant)})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		return before, after, ErrJobNotFound

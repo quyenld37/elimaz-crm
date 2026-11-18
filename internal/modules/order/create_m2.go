@@ -22,6 +22,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order/internal/pricing"
 	"elimaz.com.vn/crm/internal/modules/order/internal/store"
+	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/logging"
 )
 
@@ -458,10 +459,10 @@ func insertOrder(ctx context.Context, tx pgx.Tx, p prepared, d drafted, customer
 		LineDiscountTotal: t.LineDiscountTotal, OrderDiscount: t.OrderDiscount, CouponDiscount: t.CouponDiscount,
 		DiscountTotal: t.DiscountTotal, ShippingFeeCharged: t.ShippingFee, CodAmount: t.GrandTotal,
 		GrandTotal: t.GrandTotal, CreatedBy: a.id(), Version: version, WarehouseID: p.wh,
-		TrafficSourceID: nullUUID(p.in.TrafficSourceID), ExternalRef: pgtype.Text{String: p.in.ExternalRef, Valid: p.in.ExternalRef != ""},
+		TrafficSourceID: db.NullUUID(p.in.TrafficSourceID), ExternalRef: pgtype.Text{String: p.in.ExternalRef, Valid: p.in.ExternalRef != ""},
 		ReferralRef: p.in.ReferralRef, DraftExpiresAt: d.draftExpiresAt, CarrierNote: p.in.CarrierNote,
-		CareBy: nullUUID(p.in.CareBy), ConversationID: nullUUID(p.in.ConversationID),
-		ChannelAccountID: nullUUID(p.in.ChannelAccountID), OrderType: p.oType, ReplacedReturnID: nullUUID(p.in.ReplacedReturnID),
+		CareBy: db.NullUUID(p.in.CareBy), ConversationID: db.NullUUID(p.in.ConversationID),
+		ChannelAccountID: db.NullUUID(p.in.ChannelAccountID), OrderType: p.oType, ReplacedReturnID: db.NullUUID(p.in.ReplacedReturnID),
 		ConfirmedAt: confirmedAt, ConfirmedBy: confirmedBy(p.status, a), Now: now,
 	})
 	if pe, ok := errors.AsType[*pgconn.PgError](err); ok && pe.Code == pgUniqueViolate {
@@ -487,14 +488,6 @@ func confirmedBy(status string, a Actor) pgtype.UUID {
 		return pgtype.UUID{}
 	}
 	return a.id()
-}
-
-// nullUUID là cột uuid có thể rỗng từ con trỏ (nil → NULL).
-func nullUUID(u *uuid.UUID) (out pgtype.UUID) {
-	if u != nil {
-		out = pgtype.UUID{Bytes: *u, Valid: true}
-	}
-	return out
 }
 
 // insertItems chèn dòng đơn theo thứ tự nhập (position 1, 2, …), ảnh chụp mã, tên, đơn giá; trả dòng giữ hàng theo

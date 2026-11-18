@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/customer/internal/store"
+	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/logging"
 )
 
@@ -81,7 +82,7 @@ func search(ctx context.Context, tx pgx.Tx, q string, tag *uuid.UUID, limit int)
 	if len(roots) == 0 {
 		return []SearchHit{}, nil
 	}
-	rows, err := store.New(tx).ListSearchRoots(ctx, store.ListSearchRootsParams{RootIds: roots, TagID: optUUID(tag), Lim: int32(limit)}) //nolint:gosec // đã chặn ở clampLimit
+	rows, err := store.New(tx).ListSearchRoots(ctx, store.ListSearchRootsParams{RootIds: roots, TagID: db.NullUUID(tag), Lim: int32(limit)}) //nolint:gosec // đã chặn ở clampLimit
 	if err != nil {
 		return nil, fmt.Errorf("đọc khách gốc của kết quả tìm: %w", err)
 	}
@@ -245,7 +246,7 @@ const defaultListLimit = 50
 // List trả một trang khách gốc của tenant của tx, tạo mới nhất trước, và con trỏ trang sau (nil khi hết).
 func List(ctx context.Context, tx pgx.Tx, f ListFilter) ([]SearchHit, *ListCursor, error) {
 	limit := clampLimit(f.Limit, defaultListLimit)
-	p := store.ListRootsParams{TagID: optUUID(f.TagID), Lim: int32(limit + 1)} //nolint:gosec // đã chặn ở clampLimit
+	p := store.ListRootsParams{TagID: db.NullUUID(f.TagID), Lim: int32(limit + 1)} //nolint:gosec // đã chặn ở clampLimit
 	if f.After != nil {
 		p.AfterCreated = pgtype.Timestamptz{Time: f.After.CreatedAt, Valid: true}
 		p.AfterID = pgtype.UUID{Bytes: f.After.ID, Valid: true}
@@ -266,11 +267,4 @@ func List(ctx context.Context, tx pgx.Tx, f ListFilter) ([]SearchHit, *ListCurso
 			r.LastOrderAt, ""))
 	}
 	return hits, next, fillPhones(ctx, tx, hits)
-}
-
-func optUUID(id *uuid.UUID) (u pgtype.UUID) {
-	if id != nil {
-		u = pgtype.UUID{Bytes: *id, Valid: true}
-	}
-	return u
 }
