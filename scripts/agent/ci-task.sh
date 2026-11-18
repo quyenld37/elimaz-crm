@@ -9,7 +9,7 @@ cd "${CLAUDE_PROJECT_DIR:-$(pwd)}" || exit 1
 export HIGH_RISK_DIRS PATH="$HOME/go/bin:$PATH"
 base=$(git merge-base HEAD main 2>/dev/null || echo main)
 fail=""
-step() { local name=$1; shift; echo "== $name"; if ! "$@"; then fail="$fail $name"; echo "== $name: ĐỎ"; fi; }
+step() { local name=$1 t0=$SECONDS; shift; echo "== $name"; if ! "$@"; then fail="$fail $name"; echo "== $name: ĐỎ"; fi; echo "== $name: $((SECONDS-t0)) giây"; }
 changed=$( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u )
 step build make build
 step vet make vet
