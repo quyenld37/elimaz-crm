@@ -193,8 +193,11 @@ func TestStaffAPI_LockAndCreate(t *testing.T) {
 		http.StatusConflict, "email_taken")
 	expect(t, "email sai", e.do(http.MethodPost, "/api/v1/identity/users", staffA, "c3", `{"email":"x","displayName":"x"}`),
 		http.StatusBadRequest, "")
-	// Nhân viên mới chưa có grant: mọi route 403, kể cả /me (PQ03, quyết định D1 của task).
-	for _, p := range []string{"/api/v1/me", "/api/v1/identity/users", "/api/v1/identity/roles", "/api/v1/platform/jobs"} {
+	// Nhân viên mới chưa có grant: /me 200 với grants [] (Task 315: chỉ cần đăng nhập), mọi route khác 403 (PQ03).
+	if rec := e.do(http.MethodGet, "/api/v1/me", "moi@elimaz.test", "", ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"grants":[]`) {
+		t.Errorf("nhân viên mới /me: %d %s", rec.Code, rec.Body.String())
+	}
+	for _, p := range []string{"/api/v1/identity/users", "/api/v1/identity/roles", "/api/v1/platform/jobs"} {
 		expect(t, "nhân viên mới "+p, e.do(http.MethodGet, p, "moi@elimaz.test", "", ""), http.StatusForbidden, "forbidden")
 	}
 }

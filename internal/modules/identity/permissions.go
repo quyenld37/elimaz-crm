@@ -21,7 +21,8 @@ type Permission string
 type ScopeKind int
 
 const (
-	// ScopeNone là quyền toàn shop, chỉ grant phạm vi all mới cho quyền.
+	// ScopeNone là quyền không gắn với đích: có hiệu lực toàn shop khi người dùng có quyền này trong bất kỳ grant nào
+	// (gán theo kho, theo Page cũng được; Task 315). Phạm vi chỉ thu hẹp quyền ScopeByTarget.
 	ScopeNone ScopeKind = iota
 	// ScopeByTarget là quyền trên từng đích; grant all hoặc grant đúng đích cho quyền.
 	ScopeByTarget
@@ -94,7 +95,7 @@ func IsKnown(p Permission) bool {
 	return slices.ContainsFunc(Permissions, func(d PermissionDef) bool { return d.Key == p })
 }
 
-// KindOf trả cách kiểm phạm vi của p; quyền lạ coi là ScopeNone (chỉ all mới cho, và Can từ chối quyền lạ).
+// KindOf trả cách kiểm phạm vi của p; quyền lạ coi là ScopeNone (Can từ chối quyền lạ trước khi xét loại).
 func KindOf(p Permission) ScopeKind {
 	for _, d := range Permissions {
 		if d.Key == p {
@@ -106,7 +107,8 @@ func KindOf(p Permission) ScopeKind {
 
 // Can trả lời "u có quyền p trên target không" (mặc định từ chối, ADR-18):
 //   - quyền lạ: luôn sai;
-//   - quyền ScopeNone: cần grant của p phạm vi all (target bỏ qua);
+//   - quyền ScopeNone: cần ít nhất một grant của p, ở bất kỳ phạm vi nào (target bỏ qua; Task 315: phạm vi chỉ thu
+//     hẹp quyền của tài nguyên có phạm vi, nên vai trò Kho gán theo một kho vẫn đọc được sản phẩm);
 //   - quyền ScopeByTarget có target: cần grant của p phạm vi all hoặc đúng target;
 //   - quyền ScopeByTarget không target: cần ít nhất một grant của p (handler kiểm đích sau).
 //
@@ -120,10 +122,7 @@ func Can(u AuthUser, p Permission, target *Scope) bool {
 		if g.Permission != p {
 			continue
 		}
-		if g.Scope.Type == ScopeAll && g.Scope.ID == "" {
-			return true
-		}
-		if byTarget && (target == nil || g.Scope == *target) {
+		if !byTarget || target == nil || (g.Scope.Type == ScopeAll && g.Scope.ID == "") || g.Scope == *target {
 			return true
 		}
 	}

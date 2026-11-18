@@ -6,6 +6,11 @@ paths:
       operationId: live
       x-public: true
       responses: {"200": {description: ok}}
+  /api/v1/me:
+    get:
+      operationId: me
+      x-authenticated: true
+      responses: {"200": {description: ok}}
   /api/v1/things/{id}:
     parameters:
       - $ref: "#/components/parameters/IdempotencyKey"

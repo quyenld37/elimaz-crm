@@ -33,7 +33,8 @@ func (UnimplementedHandler) CreateStaff(ctx context.Context, req *CreateStaffReq
 
 // GetMe implements getMe operation.
 //
-// Người dùng đang đăng nhập và quyền của họ.
+// Chỉ cần đăng nhập và tài khoản không bị khóa (Task 315); nhân viên chưa có grant
+// nhận grants rỗng.
 //
 // GET /api/v1/me
 func (UnimplementedHandler) GetMe(ctx context.Context) (r GetMeRes, _ error) {

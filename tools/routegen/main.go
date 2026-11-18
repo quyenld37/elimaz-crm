@@ -4,7 +4,7 @@
 //	go run ./tools/routegen -in openapi/openapi.yaml -out internal/httpapi/routes_gen.go
 //
 // Thoát khác 0, không ghi tệp, và nêu operationId khi một operation thiếu operationId, không có đúng một trong
-// `x-permission: <khóa quyền>` hoặc `x-public: true`, hoặc là operation ghi (POST, PUT, PATCH, DELETE) mà không có
+// `x-permission: <khóa quyền>`, `x-public: true` hoặc `x-authenticated: true` (route đọc chỉ cần đăng nhập), hoặc là operation ghi (POST, PUT, PATCH, DELETE) mà không có
 // tham số `$ref: '#/components/parameters/IdempotencyKey'` (ở operation hoặc ở đường dẫn).
 //
 // Ngoại lệ chống trùng (ADR-47, Q-X5): `x-idempotency: exempt | no-replay` kèm `x-idempotency-reason: "<lý do>"`.
@@ -73,7 +73,7 @@ func run(args []string, stderr io.Writer) int {
 
 type route struct {
 	Method, Path, OperationID, Permission string
-	Public, Write, Stream                 bool
+	Public, Authenticated, Write, Stream  bool
 	IdempotencyMode, IdempotencyReason    string
 }
 
@@ -127,6 +127,13 @@ func operations(item *ogen.PathItem) []methodOp {
 	return slices.DeleteFunc(all, func(m methodOp) bool { return m.op == nil })
 }
 
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 func isWrite(method string) bool {
 	switch method {
 	case "POST", "PUT", "PATCH", "DELETE":
@@ -147,16 +154,25 @@ func checkOperation(path, method string, item *ogen.PathItem, op *ogen.Operation
 	ext := op.Common.Extensions
 	permNode, hasPerm := ext["x-permission"]
 	publicNode, hasPublic := ext["x-public"]
+	authNode, hasAuth := ext["x-authenticated"]
 	switch {
-	case hasPerm && hasPublic:
-		problems = append(problems, name+": có cả x-permission lẫn x-public; chỉ được một")
-	case !hasPerm && !hasPublic:
-		problems = append(problems, name+": thiếu cả x-permission lẫn x-public")
+	case btoi(hasPerm)+btoi(hasPublic)+btoi(hasAuth) > 1:
+		problems = append(problems, name+": chỉ được một trong x-permission, x-public, x-authenticated")
+	case !hasPerm && !hasPublic && !hasAuth:
+		problems = append(problems, name+": thiếu cả x-permission lẫn x-public (hoặc x-authenticated cho route đọc chỉ cần đăng nhập)")
 	case hasPerm:
 		if permNode.Tag != "!!str" || strings.TrimSpace(permNode.Value) == "" {
 			problems = append(problems, name+": x-permission phải là một khóa quyền không rỗng")
 		}
 		r.Permission = strings.TrimSpace(permNode.Value)
+	case hasAuth:
+		if b, err := strconv.ParseBool(authNode.Value); authNode.Tag != "!!bool" || err != nil || !b {
+			problems = append(problems, name+": x-authenticated chỉ nhận giá trị true")
+		}
+		if r.Write {
+			problems = append(problems, name+": x-authenticated chỉ cho route đọc; route ghi phải khai x-permission")
+		}
+		r.Authenticated = true
 	default:
 		if b, err := strconv.ParseBool(publicNode.Value); publicNode.Tag != "!!bool" || err != nil || !b {
 			problems = append(problems, name+": x-public chỉ nhận giá trị true")
@@ -233,8 +249,11 @@ type Route struct {
 	Method      string // GET, POST…
 	Pattern     string // mẫu của ServeMux: "POST /api/v1/platform/jobs/{id}/retry"
 	OperationID string
-	Permission  string // khóa quyền (x-permission); rỗng khi Public
+	Permission  string // khóa quyền (x-permission); rỗng khi Public hoặc Authenticated
 	Public      bool   // x-public: true, bỏ qua auth và guard
+	// Authenticated (x-authenticated: true, chỉ route đọc): qua auth (thẻ, MFA, tài khoản không khóa) là đủ, guard
+	// không đòi quyền. Chỉ dùng cho route trả dữ liệu của chính người gọi (GET /api/v1/me).
+	Authenticated bool
 	Write       bool   // POST, PUT, PATCH, DELETE: kiểm origin và khóa chống trùng
 	Stream      bool   // câu trả lời text/event-stream: không đếm vào giới hạn tần suất
 	// IdempotencyMode của route ghi (ADR-41, ADR-47): "required" (mặc định: bắt buộc Idempotency-Key, lưu kết quả),
@@ -263,7 +282,7 @@ func render(routes []route) ([]byte, error) {
 		for _, f := range []struct {
 			name string
 			on   bool
-		}{{"Public", r.Public}, {"Write", r.Write}, {"Stream", r.Stream}} {
+		}{{"Public", r.Public}, {"Authenticated", r.Authenticated}, {"Write", r.Write}, {"Stream", r.Stream}} {
 			if f.on {
 				fields = append(fields, f.name+": true")
 			}

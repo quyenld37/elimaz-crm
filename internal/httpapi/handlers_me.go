@@ -11,7 +11,7 @@ import (
 // của người gọi) → 500.
 var errNoAuthUser = errors.New("httpapi: thiếu nhân viên đã xác thực trong ctx")
 
-// GetMe (GET /api/v1/me, realtime.subscribe) trả nhân viên đang gọi và grant của họ. Mẫu đường đọc: hợp đồng →
+// GetMe (GET /api/v1/me, x-authenticated: chỉ cần đăng nhập, Task 315) trả nhân viên đang gọi và grant của họ. Mẫu đường đọc: hợp đồng →
 // handler mỏng (đọc AuthUser mà auth đã nạp từ identity) → kết quả; không truy vấn thêm.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)

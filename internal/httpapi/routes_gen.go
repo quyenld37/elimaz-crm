@@ -8,10 +8,13 @@ type Route struct {
 	Method      string // GET, POST…
 	Pattern     string // mẫu của ServeMux: "POST /api/v1/platform/jobs/{id}/retry"
 	OperationID string
-	Permission  string // khóa quyền (x-permission); rỗng khi Public
+	Permission  string // khóa quyền (x-permission); rỗng khi Public hoặc Authenticated
 	Public      bool   // x-public: true, bỏ qua auth và guard
-	Write       bool   // POST, PUT, PATCH, DELETE: kiểm origin và khóa chống trùng
-	Stream      bool   // câu trả lời text/event-stream: không đếm vào giới hạn tần suất
+	// Authenticated (x-authenticated: true, chỉ route đọc): qua auth (thẻ, MFA, tài khoản không khóa) là đủ, guard
+	// không đòi quyền. Chỉ dùng cho route trả dữ liệu của chính người gọi (GET /api/v1/me).
+	Authenticated bool
+	Write         bool // POST, PUT, PATCH, DELETE: kiểm origin và khóa chống trùng
+	Stream        bool // câu trả lời text/event-stream: không đếm vào giới hạn tần suất
 	// IdempotencyMode của route ghi (ADR-41, ADR-47): "required" (mặc định: bắt buộc Idempotency-Key, lưu kết quả),
 	// "exempt" (x-idempotency: exempt, không khóa), "no-replay" (bắt buộc khóa, không lưu thân trả lời). Rỗng với
 	// route đọc.
@@ -27,7 +30,7 @@ var Routes = []Route{
 	{Method: "PUT", Pattern: "PUT /api/v1/identity/users/{id}/grants", OperationID: "replaceStaffGrants", Permission: "identity.users.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "POST", Pattern: "POST /api/v1/identity/users/{id}/lock", OperationID: "lockStaff", Permission: "identity.users.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "POST", Pattern: "POST /api/v1/identity/users/{id}/unlock", OperationID: "unlockStaff", Permission: "identity.users.manage", Write: true, IdempotencyMode: "required"},
-	{Method: "GET", Pattern: "GET /api/v1/me", OperationID: "getMe", Permission: "realtime.subscribe"},
+	{Method: "GET", Pattern: "GET /api/v1/me", OperationID: "getMe", Authenticated: true},
 	{Method: "GET", Pattern: "GET /api/v1/platform/health", OperationID: "getPlatformHealth", Permission: "platform.health.read"},
 	{Method: "GET", Pattern: "GET /api/v1/platform/jobs", OperationID: "listJobs", Permission: "platform.jobs.manage"},
 	{Method: "POST", Pattern: "POST /api/v1/platform/jobs/{id}/abandon", OperationID: "abandonJob", Permission: "platform.jobs.manage", Write: true, IdempotencyMode: "required"},

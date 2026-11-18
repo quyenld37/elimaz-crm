@@ -217,7 +217,8 @@ func (s *Server) handleCreateStaffRequest(args [0]string, argsEscaped bool, w ht
 
 // handleGetMeRequest handles getMe operation.
 //
-// Người dùng đang đăng nhập và quyền của họ.
+// Chỉ cần đăng nhập và tài khoản không bị khóa (Task 315); nhân viên chưa có grant
+// nhận grants rỗng.
 //
 // GET /api/v1/me
 func (s *Server) handleGetMeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

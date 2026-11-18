@@ -14,6 +14,10 @@ func page(id string) identity.Scope { return identity.Scope{Type: identity.Scope
 
 func scopeAll() identity.Scope { return identity.Scope{Type: identity.ScopeAll} }
 
+func wh(id string) identity.Scope { return identity.Scope{Type: identity.ScopeWarehouse, ID: id} }
+
+func ptr(s identity.Scope) *identity.Scope { return &s }
+
 func user(grants ...identity.Grant) identity.AuthUser { return identity.AuthUser{Grants: grants} }
 
 func TestCanTable(t *testing.T) {
@@ -26,8 +30,12 @@ func TestCanTable(t *testing.T) {
 		want   bool
 	}{
 		{"quyền không theo đích, phạm vi all", user(identity.Grant{Permission: "audit.read", Scope: scopeAll()}), "audit.read", nil, true},
-		{"quyền không theo đích chỉ có trên page:p1", user(identity.Grant{Permission: "audit.read", Scope: p1}), "audit.read", nil, false},
-		{"quyền không theo đích có đích: vẫn cần all", user(identity.Grant{Permission: "audit.read", Scope: p1}), "audit.read", &p1, false},
+		// Task 315: quyền không theo đích có hiệu lực từ grant ở bất kỳ phạm vi nào (phạm vi chỉ thu hẹp quyền theo đích).
+		{"quyền không theo đích chỉ có trên page:p1", user(identity.Grant{Permission: "audit.read", Scope: p1}), "audit.read", nil, true},
+		{"quyền không theo đích có đích khác: đích bỏ qua", user(identity.Grant{Permission: "audit.read", Scope: p1}), "audit.read", &p2, true},
+		{"catalog.read từ grant theo kho w1", user(identity.Grant{Permission: "catalog.read", Scope: wh("w1")}), "catalog.read", nil, true},
+		{"phiếu kho w1 từ grant w1", user(identity.Grant{Permission: "inventory.documents.create", Scope: wh("w1")}), "inventory.documents.create", ptr(wh("w1")), true},
+		{"phiếu kho w2 từ grant w1", user(identity.Grant{Permission: "inventory.documents.create", Scope: wh("w1")}), "inventory.documents.create", ptr(wh("w2")), false},
 		{"không grant", user(), "audit.read", nil, false},
 		{"theo đích, đúng page", user(identity.Grant{Permission: "conversation.read", Scope: p1}), "conversation.read", &p1, true},
 		{"theo đích, page khác", user(identity.Grant{Permission: "conversation.read", Scope: p1}), "conversation.read", &p2, false},
@@ -96,7 +104,8 @@ func TestPermissionsList(t *testing.T) {
 }
 
 // Quy luật (rapid, 200 lượt): Can(u, p, target) đúng khi và chỉ khi có grant đúng quyền p với phạm vi all, hoặc
-// (quyền theo đích) đúng target, hoặc (theo đích, không target) ít nhất một grant. Grants rỗng → luôn sai; grant
+// (quyền theo đích) đúng target, hoặc (theo đích, không target) ít nhất một grant, hoặc (quyền không theo đích, Task
+// 315) ít nhất một grant ở bất kỳ phạm vi nào. Grants rỗng → luôn sai; grant
 // của quyền khác không bao giờ làm Can đúng.
 func TestCanProperty(t *testing.T) {
 	keys := make([]identity.Permission, 0, len(identity.Permissions))
@@ -142,7 +151,7 @@ func canModel(grants []identity.Grant, p identity.Permission, target *identity.S
 		if g.Permission != p {
 			continue
 		}
-		if g.Scope == scopeAll() || (byTarget && (target == nil || g.Scope == *target)) {
+		if !byTarget || g.Scope == scopeAll() || target == nil || g.Scope == *target {
 			return true
 		}
 	}

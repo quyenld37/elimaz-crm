@@ -80,7 +80,7 @@ func (q *Queries) DeleteUserRoleGrant(ctx context.Context, arg DeleteUserRoleGra
 }
 
 const getRoleByKey = `-- name: GetRoleByKey :one
-SELECT id, customized FROM identity.roles WHERE key = $1
+SELECT id, customized FROM identity.roles WHERE key = $1 FOR SHARE
 `
 
 type GetRoleByKeyRow struct {
@@ -88,6 +88,7 @@ type GetRoleByKeyRow struct {
 	Customized bool
 }
 
+// FOR SHARE: EnsureDefaultRoles đọc customized rồi mới thêm quyền; lần sửa vai trò chạy cùng lúc phải chờ (Task 315).
 func (q *Queries) GetRoleByKey(ctx context.Context, key string) (GetRoleByKeyRow, error) {
 	row := q.db.QueryRow(ctx, getRoleByKey, key)
 	var i GetRoleByKeyRow

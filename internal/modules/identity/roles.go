@@ -10,6 +10,8 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/identity/internal/store"
+	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/tenancy"
 )
 
 // RoleKeyOwner là vai trò Chủ: luôn đủ mọi quyền; "Chủ còn hoạt động" là nhân viên active có vai trò này phạm vi all.
@@ -53,8 +55,9 @@ func defaultRoles() []RoleDef {
 
 // EnsureDefaultRoles thêm vai trò mẫu và quyền mẫu còn thiếu của tenant tenantID trong tx (mở bằng
 // tenancy.WithTenant của đúng tenant đó). Không bớt quyền, không đổi tên vai trò đã có; chạy nhiều lần không đổi gì.
-// Vai trò customized (chủ shop đã sửa) không được thêm quyền, trừ owner luôn đủ mọi quyền. Thứ tự khóa nhóm 2:
-// roles → role_permissions.
+// Vai trò customized (chủ shop đã sửa) không được thêm quyền, trừ owner luôn đủ mọi quyền. Dòng vai trò được khóa
+// FOR SHARE trước khi đọc customized, nên lần sửa vai trò chạy cùng lúc hoặc đã commit (đồng bộ thấy customized), hoặc
+// chờ đồng bộ xong. Thứ tự khóa nhóm 2: roles → role_permissions.
 func EnsureDefaultRoles(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID) error {
 	q := store.New(tx)
 	for _, r := range DefaultRoles {
@@ -75,6 +78,23 @@ func EnsureDefaultRoles(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID) erro
 		}
 	}
 	return nil
+}
+
+// SyncDefaultRoles (vai trò migrate, sau khi áp dụng migration; chạy bằng chủ bảng) chạy EnsureDefaultRoles cho mọi
+// tenant, mỗi tenant một transaction: shop chưa có vai trò mẫu nhận đủ; quyền mới của DefaultRoles vào vai trò mẫu
+// chưa bị chủ shop sửa (customized), owner luôn đủ; vai trò đã sửa và vai trò tự định nghĩa không đổi. Chạy lại không
+// đổi gì. Trả số tenant đã đồng bộ.
+func SyncDefaultRoles(ctx context.Context, owner *db.DB) (int, error) {
+	ids, err := tenancy.ListTenantIDs(ctx, owner)
+	if err != nil {
+		return 0, fmt.Errorf("đồng bộ vai trò mẫu: %w", err)
+	}
+	for i, id := range ids {
+		if err := tenancy.WithTenant(ctx, owner, id, func(tx pgx.Tx) error { return EnsureDefaultRoles(ctx, tx, id) }); err != nil {
+			return i, fmt.Errorf("đồng bộ vai trò mẫu của tenant %s: %w", id, err)
+		}
+	}
+	return len(ids), nil
 }
 
 // RoleRow là một vai trò của tenant kèm quyền (đã sắp).
@@ -112,7 +132,9 @@ func roleIndex(roles []RoleRow) map[string]RoleRow {
 	return m
 }
 
-// hasAllPermissions: mỗi quyền của role thỏa Can(actor, p, &scope) (quyền ScopeNone cần actor có phạm vi all).
+// hasAllPermissions: mỗi quyền của role thỏa Can(actor, p, &scope). Quyền ScopeNone có hiệu lực toàn shop từ grant ở
+// bất kỳ phạm vi nào (Task 315), nên actor chỉ cần có nó ở một grant: người được gán không nhận được quyền hiệu lực
+// nào mà actor không có.
 func hasAllPermissions(actor AuthUser, role RoleRow, scope Scope) bool {
 	return !slices.ContainsFunc(role.Permissions, func(p Permission) bool { return !Can(actor, p, &scope) })
 }

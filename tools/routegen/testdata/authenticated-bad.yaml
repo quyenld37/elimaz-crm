@@ -1,0 +1,34 @@
+openapi: 3.0.3
+info: {title: t, version: "1"}
+paths:
+  /api/v1/a:
+    get:
+      operationId: authWithPermission
+      x-authenticated: true
+      x-permission: audit.read
+      responses: {"200": {description: ok}}
+  /api/v1/b:
+    get:
+      operationId: authWithPublic
+      x-authenticated: true
+      x-public: true
+      responses: {"200": {description: ok}}
+  /api/v1/c:
+    get:
+      operationId: authFalse
+      x-authenticated: false
+      responses: {"200": {description: ok}}
+  /api/v1/d:
+    post:
+      operationId: authOnWrite
+      x-authenticated: true
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: {"200": {description: ok}}
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string}

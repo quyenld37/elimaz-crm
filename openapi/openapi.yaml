@@ -171,7 +171,8 @@ paths:
     get:
       operationId: getMe
       summary: Người dùng đang đăng nhập và quyền của họ
-      x-permission: realtime.subscribe
+      description: Chỉ cần đăng nhập và tài khoản không bị khóa (Task 315); nhân viên chưa có grant nhận grants rỗng.
+      x-authenticated: true
       responses:
         "200":
           description: Người dùng

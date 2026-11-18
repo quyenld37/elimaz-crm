@@ -22,7 +22,8 @@ type Handler interface {
 	CreateStaff(ctx context.Context, req *CreateStaffRequest, params CreateStaffParams) (CreateStaffRes, error)
 	// GetMe implements getMe operation.
 	//
-	// Người dùng đang đăng nhập và quyền của họ.
+	// Chỉ cần đăng nhập và tài khoản không bị khóa (Task 315); nhân viên chưa có grant
+	// nhận grants rỗng.
 	//
 	// GET /api/v1/me
 	GetMe(ctx context.Context) (GetMeRes, error)
