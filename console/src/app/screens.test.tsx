@@ -28,6 +28,7 @@ describe("SCREENS nạp từ src/screens/*/route.tsx", () => {
       ["/san-pham", "Danh sách sản phẩm", "Sản phẩm", "catalog.read", false, ["/san-pham/:id"]],
       ["/san-pham/:id", "Sửa mẫu", "Sản phẩm", "catalog.read", true, []],
       ["/kho/ton", "Tồn kho", "Kho", "inventory.read", false, []],
+      ["/he-thong/su-kien-loi", "Sự kiện lỗi", "Hệ thống", "platform.health.read", false, []],
       ["/nhan-vien", "Nhân viên", "Quản trị", "identity.users.manage", false, ["/nhan-vien/:id/quyen"]],
       ["/nhan-vien/:id/quyen", "Nhân viên", "Quản trị", "identity.users.manage", true, []],
       ["/vai-tro", "Vai trò", "Quản trị", "identity.roles.manage", false, ["/vai-tro/:id"]],
