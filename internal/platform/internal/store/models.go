@@ -12,6 +12,99 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type CatalogBarcodeCounter struct {
+	TenantID uuid.UUID
+	Next     int64
+}
+
+type CatalogProduct struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	SellerID    uuid.UUID
+	Code        string
+	Name        string
+	NameSearch  string
+	Description string
+	Article     []byte
+	Status      string
+	CategoryID  pgtype.UUID
+	DeletedAt   pgtype.Timestamptz
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Version     int64
+}
+
+type CatalogProductsV struct {
+	ProductID   uuid.UUID
+	SellerID    uuid.UUID
+	Code        string
+	Name        string
+	NameSearch  string
+	Description string
+	Article     []byte
+	Status      string
+	CategoryID  pgtype.UUID
+	DeletedAt   pgtype.Timestamptz
+	UpdatedAt   time.Time
+}
+
+type CatalogSeller struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Code      string
+	Name      string
+	Kind      string
+	Status    string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Version   int64
+}
+
+type CatalogSellersV struct {
+	SellerID uuid.UUID
+	Code     string
+	Name     string
+	Kind     string
+	Status   string
+}
+
+type CatalogVariant struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	SellerID  uuid.UUID
+	ProductID uuid.UUID
+	Sku       string
+	Barcode   string
+	Color     string
+	ColorHex  pgtype.Text
+	Size      string
+	Price     int64
+	CostPrice pgtype.Int8
+	Status    string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Version   int64
+}
+
+type CatalogVariantsV struct {
+	VariantID     uuid.UUID
+	SellerID      uuid.UUID
+	ProductID     uuid.UUID
+	Sku           string
+	Barcode       string
+	ProductCode   string
+	ProductName   string
+	Color         string
+	ColorHex      pgtype.Text
+	Size          string
+	Price         int64
+	CostPrice     pgtype.Int8
+	VariantStatus string
+	ProductStatus string
+	Sellable      pgtype.Bool
+	UpdatedAt     time.Time
+}
+
 type IdentityAuditLog struct {
 	ID            uuid.UUID
 	TenantID      uuid.UUID

@@ -324,7 +324,7 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 		}
 		handler = httpapi.NewServer(httpapi.Deps{
 			Config: cfg, DB: d, Logger: logger, Access: access, Files: store,
-			Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop},
+			Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop}, Events: newEvents(),
 		})
 	} else {
 		h, err := ingestHandler(cfg, d, reg, logger)

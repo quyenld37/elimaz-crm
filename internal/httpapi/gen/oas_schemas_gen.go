@@ -7,8 +7,101 @@ import (
 	"time"
 
 	"github.com/go-faster/errors"
+	"github.com/go-faster/jx"
 	"github.com/google/uuid"
 )
+
+// Ref: #/components/schemas/AddVariantRequest
+type AddVariantRequest struct {
+	ProductVersion int64       `json:"productVersion"`
+	Sku            CatalogCode `json:"sku"`
+	Barcode        OptBarcode  `json:"barcode"`
+	Color          OptionText  `json:"color"`
+	ColorHex       OptColorHex `json:"colorHex"`
+	Size           OptionText  `json:"size"`
+	Price          Money       `json:"price"`
+	CostPrice      OptMoney    `json:"costPrice"`
+}
+
+// GetProductVersion returns the value of ProductVersion.
+func (s *AddVariantRequest) GetProductVersion() int64 {
+	return s.ProductVersion
+}
+
+// GetSku returns the value of Sku.
+func (s *AddVariantRequest) GetSku() CatalogCode {
+	return s.Sku
+}
+
+// GetBarcode returns the value of Barcode.
+func (s *AddVariantRequest) GetBarcode() OptBarcode {
+	return s.Barcode
+}
+
+// GetColor returns the value of Color.
+func (s *AddVariantRequest) GetColor() OptionText {
+	return s.Color
+}
+
+// GetColorHex returns the value of ColorHex.
+func (s *AddVariantRequest) GetColorHex() OptColorHex {
+	return s.ColorHex
+}
+
+// GetSize returns the value of Size.
+func (s *AddVariantRequest) GetSize() OptionText {
+	return s.Size
+}
+
+// GetPrice returns the value of Price.
+func (s *AddVariantRequest) GetPrice() Money {
+	return s.Price
+}
+
+// GetCostPrice returns the value of CostPrice.
+func (s *AddVariantRequest) GetCostPrice() OptMoney {
+	return s.CostPrice
+}
+
+// SetProductVersion sets the value of ProductVersion.
+func (s *AddVariantRequest) SetProductVersion(val int64) {
+	s.ProductVersion = val
+}
+
+// SetSku sets the value of Sku.
+func (s *AddVariantRequest) SetSku(val CatalogCode) {
+	s.Sku = val
+}
+
+// SetBarcode sets the value of Barcode.
+func (s *AddVariantRequest) SetBarcode(val OptBarcode) {
+	s.Barcode = val
+}
+
+// SetColor sets the value of Color.
+func (s *AddVariantRequest) SetColor(val OptionText) {
+	s.Color = val
+}
+
+// SetColorHex sets the value of ColorHex.
+func (s *AddVariantRequest) SetColorHex(val OptColorHex) {
+	s.ColorHex = val
+}
+
+// SetSize sets the value of Size.
+func (s *AddVariantRequest) SetSize(val OptionText) {
+	s.Size = val
+}
+
+// SetPrice sets the value of Price.
+func (s *AddVariantRequest) SetPrice(val Money) {
+	s.Price = val
+}
+
+// SetCostPrice sets the value of CostPrice.
+func (s *AddVariantRequest) SetCostPrice(val OptMoney) {
+	s.CostPrice = val
+}
 
 // Ref: #/components/schemas/AlertSummary
 type AlertSummary struct {
@@ -88,6 +181,148 @@ func (s *AlertSummarySeverity) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/ArticleBlock
+type ArticleBlock struct {
+	Type    ArticleBlockType     `json:"type"`
+	Text    OptString            `json:"text"`
+	Level   OptArticleBlockLevel `json:"level"`
+	Items   []string             `json:"items"`
+	FileId  OptUUID              `json:"fileId"`
+	Caption OptString            `json:"caption"`
+}
+
+// GetType returns the value of Type.
+func (s *ArticleBlock) GetType() ArticleBlockType {
+	return s.Type
+}
+
+// GetText returns the value of Text.
+func (s *ArticleBlock) GetText() OptString {
+	return s.Text
+}
+
+// GetLevel returns the value of Level.
+func (s *ArticleBlock) GetLevel() OptArticleBlockLevel {
+	return s.Level
+}
+
+// GetItems returns the value of Items.
+func (s *ArticleBlock) GetItems() []string {
+	return s.Items
+}
+
+// GetFileId returns the value of FileId.
+func (s *ArticleBlock) GetFileId() OptUUID {
+	return s.FileId
+}
+
+// GetCaption returns the value of Caption.
+func (s *ArticleBlock) GetCaption() OptString {
+	return s.Caption
+}
+
+// SetType sets the value of Type.
+func (s *ArticleBlock) SetType(val ArticleBlockType) {
+	s.Type = val
+}
+
+// SetText sets the value of Text.
+func (s *ArticleBlock) SetText(val OptString) {
+	s.Text = val
+}
+
+// SetLevel sets the value of Level.
+func (s *ArticleBlock) SetLevel(val OptArticleBlockLevel) {
+	s.Level = val
+}
+
+// SetItems sets the value of Items.
+func (s *ArticleBlock) SetItems(val []string) {
+	s.Items = val
+}
+
+// SetFileId sets the value of FileId.
+func (s *ArticleBlock) SetFileId(val OptUUID) {
+	s.FileId = val
+}
+
+// SetCaption sets the value of Caption.
+func (s *ArticleBlock) SetCaption(val OptString) {
+	s.Caption = val
+}
+
+type ArticleBlockLevel int
+
+const (
+	ArticleBlockLevel2 ArticleBlockLevel = 2
+	ArticleBlockLevel3 ArticleBlockLevel = 3
+)
+
+// AllValues returns all ArticleBlockLevel values.
+func (ArticleBlockLevel) AllValues() []ArticleBlockLevel {
+	return []ArticleBlockLevel{
+		ArticleBlockLevel2,
+		ArticleBlockLevel3,
+	}
+}
+
+type ArticleBlockType string
+
+const (
+	ArticleBlockTypeParagraph ArticleBlockType = "paragraph"
+	ArticleBlockTypeHeading   ArticleBlockType = "heading"
+	ArticleBlockTypeList      ArticleBlockType = "list"
+	ArticleBlockTypeImage     ArticleBlockType = "image"
+)
+
+// AllValues returns all ArticleBlockType values.
+func (ArticleBlockType) AllValues() []ArticleBlockType {
+	return []ArticleBlockType{
+		ArticleBlockTypeParagraph,
+		ArticleBlockTypeHeading,
+		ArticleBlockTypeList,
+		ArticleBlockTypeImage,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ArticleBlockType) MarshalText() ([]byte, error) {
+	switch s {
+	case ArticleBlockTypeParagraph:
+		return []byte(s), nil
+	case ArticleBlockTypeHeading:
+		return []byte(s), nil
+	case ArticleBlockTypeList:
+		return []byte(s), nil
+	case ArticleBlockTypeImage:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ArticleBlockType) UnmarshalText(data []byte) error {
+	switch ArticleBlockType(data) {
+	case ArticleBlockTypeParagraph:
+		*s = ArticleBlockTypeParagraph
+		return nil
+	case ArticleBlockTypeHeading:
+		*s = ArticleBlockTypeHeading
+		return nil
+	case ArticleBlockTypeList:
+		*s = ArticleBlockTypeList
+		return nil
+	case ArticleBlockTypeImage:
+		*s = ArticleBlockTypeImage
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ArticleInput []jx.Raw
+
 // Ref: #/components/schemas/BackupHealth
 type BackupHealth struct {
 	LastBaseAgeH  OptInt64 `json:"lastBaseAgeH"`
@@ -123,6 +358,82 @@ func (s *BackupHealth) SetLastDrillAgeH(val OptInt64) {
 // SetLastDrillOk sets the value of LastDrillOk.
 func (s *BackupHealth) SetLastDrillOk(val OptBool) {
 	s.LastDrillOk = val
+}
+
+type Barcode string
+
+type CatalogCode string
+
+type ColorHex string
+
+// Ref: #/components/schemas/CreateProductRequest
+type CreateProductRequest struct {
+	Code        CatalogCode      `json:"code"`
+	Name        string           `json:"name"`
+	Description OptString        `json:"description"`
+	Article     ArticleInput     `json:"article"`
+	Status      OptProductStatus `json:"status"`
+	Variants    []VariantInput   `json:"variants"`
+}
+
+// GetCode returns the value of Code.
+func (s *CreateProductRequest) GetCode() CatalogCode {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *CreateProductRequest) GetName() string {
+	return s.Name
+}
+
+// GetDescription returns the value of Description.
+func (s *CreateProductRequest) GetDescription() OptString {
+	return s.Description
+}
+
+// GetArticle returns the value of Article.
+func (s *CreateProductRequest) GetArticle() ArticleInput {
+	return s.Article
+}
+
+// GetStatus returns the value of Status.
+func (s *CreateProductRequest) GetStatus() OptProductStatus {
+	return s.Status
+}
+
+// GetVariants returns the value of Variants.
+func (s *CreateProductRequest) GetVariants() []VariantInput {
+	return s.Variants
+}
+
+// SetCode sets the value of Code.
+func (s *CreateProductRequest) SetCode(val CatalogCode) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *CreateProductRequest) SetName(val string) {
+	s.Name = val
+}
+
+// SetDescription sets the value of Description.
+func (s *CreateProductRequest) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetArticle sets the value of Article.
+func (s *CreateProductRequest) SetArticle(val ArticleInput) {
+	s.Article = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CreateProductRequest) SetStatus(val OptProductStatus) {
+	s.Status = val
+}
+
+// SetVariants sets the value of Variants.
+func (s *CreateProductRequest) SetVariants(val []VariantInput) {
+	s.Variants = val
 }
 
 // Ref: #/components/schemas/CreateStaffRequest
@@ -357,12 +668,15 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 }
 
 func (*ErrorStatusCode) abandonJobRes()         {}
+func (*ErrorStatusCode) addVariantRes()         {}
 func (*ErrorStatusCode) completeUploadRes()     {}
+func (*ErrorStatusCode) createProductRes()      {}
 func (*ErrorStatusCode) createStaffRes()        {}
 func (*ErrorStatusCode) createUploadRes()       {}
 func (*ErrorStatusCode) getFileRes()            {}
 func (*ErrorStatusCode) getMeRes()              {}
 func (*ErrorStatusCode) getPlatformHealthRes()  {}
+func (*ErrorStatusCode) getProductRes()         {}
 func (*ErrorStatusCode) healthDeepRes()         {}
 func (*ErrorStatusCode) listJobsRes()           {}
 func (*ErrorStatusCode) listRolesRes()          {}
@@ -372,6 +686,8 @@ func (*ErrorStatusCode) replaceStaffGrantsRes() {}
 func (*ErrorStatusCode) retryJobRes()           {}
 func (*ErrorStatusCode) streamRes()             {}
 func (*ErrorStatusCode) unlockStaffRes()        {}
+func (*ErrorStatusCode) updateProductRes()      {}
+func (*ErrorStatusCode) updateVariantRes()      {}
 
 // Ref: #/components/schemas/ErrorSummary
 type ErrorSummary struct {
@@ -990,6 +1306,100 @@ func (s *Me) SetWarnings(val []ScopeWarning) {
 
 func (*Me) getMeRes() {}
 
+type Money int64
+
+// NewOptArticleBlockLevel returns new OptArticleBlockLevel with value set to v.
+func NewOptArticleBlockLevel(v ArticleBlockLevel) OptArticleBlockLevel {
+	return OptArticleBlockLevel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptArticleBlockLevel is optional ArticleBlockLevel.
+type OptArticleBlockLevel struct {
+	Value ArticleBlockLevel
+	Set   bool
+}
+
+// IsSet returns true if OptArticleBlockLevel was set.
+func (o OptArticleBlockLevel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptArticleBlockLevel) Reset() {
+	var v ArticleBlockLevel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptArticleBlockLevel) SetTo(v ArticleBlockLevel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptArticleBlockLevel) Get() (v ArticleBlockLevel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptArticleBlockLevel) Or(d ArticleBlockLevel) ArticleBlockLevel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBarcode returns new OptBarcode with value set to v.
+func NewOptBarcode(v Barcode) OptBarcode {
+	return OptBarcode{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBarcode is optional Barcode.
+type OptBarcode struct {
+	Value Barcode
+	Set   bool
+}
+
+// IsSet returns true if OptBarcode was set.
+func (o OptBarcode) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBarcode) Reset() {
+	var v Barcode
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBarcode) SetTo(v Barcode) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBarcode) Get() (v Barcode, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBarcode) Or(d Barcode) Barcode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptBool returns new OptBool with value set to v.
 func NewOptBool(v bool) OptBool {
 	return OptBool{
@@ -1030,6 +1440,98 @@ func (o OptBool) Get() (v bool, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCatalogCode returns new OptCatalogCode with value set to v.
+func NewOptCatalogCode(v CatalogCode) OptCatalogCode {
+	return OptCatalogCode{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCatalogCode is optional CatalogCode.
+type OptCatalogCode struct {
+	Value CatalogCode
+	Set   bool
+}
+
+// IsSet returns true if OptCatalogCode was set.
+func (o OptCatalogCode) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCatalogCode) Reset() {
+	var v CatalogCode
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCatalogCode) SetTo(v CatalogCode) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCatalogCode) Get() (v CatalogCode, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCatalogCode) Or(d CatalogCode) CatalogCode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptColorHex returns new OptColorHex with value set to v.
+func NewOptColorHex(v ColorHex) OptColorHex {
+	return OptColorHex{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptColorHex is optional ColorHex.
+type OptColorHex struct {
+	Value ColorHex
+	Set   bool
+}
+
+// IsSet returns true if OptColorHex was set.
+func (o OptColorHex) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptColorHex) Reset() {
+	var v ColorHex
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptColorHex) SetTo(v ColorHex) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptColorHex) Get() (v ColorHex, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptColorHex) Or(d ColorHex) ColorHex {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -1220,6 +1722,212 @@ func (o OptListJobsStatus) Or(d ListJobsStatus) ListJobsStatus {
 	return d
 }
 
+// NewOptMoney returns new OptMoney with value set to v.
+func NewOptMoney(v Money) OptMoney {
+	return OptMoney{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptMoney is optional Money.
+type OptMoney struct {
+	Value Money
+	Set   bool
+}
+
+// IsSet returns true if OptMoney was set.
+func (o OptMoney) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptMoney) Reset() {
+	var v Money
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptMoney) SetTo(v Money) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptMoney) Get() (v Money, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptMoney) Or(d Money) Money {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilInt64 returns new OptNilInt64 with value set to v.
+func NewOptNilInt64(v int64) OptNilInt64 {
+	return OptNilInt64{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilInt64 is optional nullable int64.
+type OptNilInt64 struct {
+	Value int64
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilInt64 was set.
+func (o OptNilInt64) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilInt64) Reset() {
+	var v int64
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilInt64) SetTo(v int64) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilInt64) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilInt64) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v int64
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilInt64) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilInt64) Get() (v int64, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilInt64) Or(d int64) int64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptOptionText returns new OptOptionText with value set to v.
+func NewOptOptionText(v OptionText) OptOptionText {
+	return OptOptionText{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptOptionText is optional OptionText.
+type OptOptionText struct {
+	Value OptionText
+	Set   bool
+}
+
+// IsSet returns true if OptOptionText was set.
+func (o OptOptionText) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptOptionText) Reset() {
+	var v OptionText
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptOptionText) SetTo(v OptionText) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptOptionText) Get() (v OptionText, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptOptionText) Or(d OptionText) OptionText {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptProductStatus returns new OptProductStatus with value set to v.
+func NewOptProductStatus(v ProductStatus) OptProductStatus {
+	return OptProductStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptProductStatus is optional ProductStatus.
+type OptProductStatus struct {
+	Value ProductStatus
+	Set   bool
+}
+
+// IsSet returns true if OptProductStatus was set.
+func (o OptProductStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptProductStatus) Reset() {
+	var v ProductStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptProductStatus) SetTo(v ProductStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptProductStatus) Get() (v ProductStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptProductStatus) Or(d ProductStatus) ProductStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
 	return OptString{
@@ -1265,6 +1973,100 @@ func (o OptString) Or(d string) string {
 	}
 	return d
 }
+
+// NewOptUUID returns new OptUUID with value set to v.
+func NewOptUUID(v uuid.UUID) OptUUID {
+	return OptUUID{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptUUID is optional uuid.UUID.
+type OptUUID struct {
+	Value uuid.UUID
+	Set   bool
+}
+
+// IsSet returns true if OptUUID was set.
+func (o OptUUID) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptUUID) Reset() {
+	var v uuid.UUID
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptUUID) SetTo(v uuid.UUID) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptUUID) Get() (v uuid.UUID, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptUUID) Or(d uuid.UUID) uuid.UUID {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptVariantStatus returns new OptVariantStatus with value set to v.
+func NewOptVariantStatus(v VariantStatus) OptVariantStatus {
+	return OptVariantStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVariantStatus is optional VariantStatus.
+type OptVariantStatus struct {
+	Value VariantStatus
+	Set   bool
+}
+
+// IsSet returns true if OptVariantStatus was set.
+func (o OptVariantStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVariantStatus) Reset() {
+	var v VariantStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVariantStatus) SetTo(v VariantStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVariantStatus) Get() (v VariantStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVariantStatus) Or(d VariantStatus) VariantStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+type OptionText string
 
 // Ref: #/components/schemas/PlatformHealth
 type PlatformHealth struct {
@@ -1362,6 +2164,164 @@ func (s *ProcessHealth) SetRole(val string) {
 // SetLastHeartbeatAgeS sets the value of LastHeartbeatAgeS.
 func (s *ProcessHealth) SetLastHeartbeatAgeS(val int64) {
 	s.LastHeartbeatAgeS = val
+}
+
+// Ref: #/components/schemas/Product
+type Product struct {
+	ID          uuid.UUID      `json:"id"`
+	Code        string         `json:"code"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Article     []ArticleBlock `json:"article"`
+	// HTML bài viết dựng bằng catalog.RenderArticleHTML (chỉ thẻ trong danh sách cho phép,
+	// R7).
+	ArticleHtml string        `json:"articleHtml"`
+	Status      ProductStatus `json:"status"`
+	Version     int64         `json:"version"`
+	Variants    []Variant     `json:"variants"`
+}
+
+// GetID returns the value of ID.
+func (s *Product) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCode returns the value of Code.
+func (s *Product) GetCode() string {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *Product) GetName() string {
+	return s.Name
+}
+
+// GetDescription returns the value of Description.
+func (s *Product) GetDescription() string {
+	return s.Description
+}
+
+// GetArticle returns the value of Article.
+func (s *Product) GetArticle() []ArticleBlock {
+	return s.Article
+}
+
+// GetArticleHtml returns the value of ArticleHtml.
+func (s *Product) GetArticleHtml() string {
+	return s.ArticleHtml
+}
+
+// GetStatus returns the value of Status.
+func (s *Product) GetStatus() ProductStatus {
+	return s.Status
+}
+
+// GetVersion returns the value of Version.
+func (s *Product) GetVersion() int64 {
+	return s.Version
+}
+
+// GetVariants returns the value of Variants.
+func (s *Product) GetVariants() []Variant {
+	return s.Variants
+}
+
+// SetID sets the value of ID.
+func (s *Product) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCode sets the value of Code.
+func (s *Product) SetCode(val string) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *Product) SetName(val string) {
+	s.Name = val
+}
+
+// SetDescription sets the value of Description.
+func (s *Product) SetDescription(val string) {
+	s.Description = val
+}
+
+// SetArticle sets the value of Article.
+func (s *Product) SetArticle(val []ArticleBlock) {
+	s.Article = val
+}
+
+// SetArticleHtml sets the value of ArticleHtml.
+func (s *Product) SetArticleHtml(val string) {
+	s.ArticleHtml = val
+}
+
+// SetStatus sets the value of Status.
+func (s *Product) SetStatus(val ProductStatus) {
+	s.Status = val
+}
+
+// SetVersion sets the value of Version.
+func (s *Product) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetVariants sets the value of Variants.
+func (s *Product) SetVariants(val []Variant) {
+	s.Variants = val
+}
+
+func (*Product) createProductRes() {}
+func (*Product) getProductRes()    {}
+func (*Product) updateProductRes() {}
+
+// Ref: #/components/schemas/ProductStatus
+type ProductStatus string
+
+const (
+	ProductStatusDraft        ProductStatus = "draft"
+	ProductStatusActive       ProductStatus = "active"
+	ProductStatusDiscontinued ProductStatus = "discontinued"
+)
+
+// AllValues returns all ProductStatus values.
+func (ProductStatus) AllValues() []ProductStatus {
+	return []ProductStatus{
+		ProductStatusDraft,
+		ProductStatusActive,
+		ProductStatusDiscontinued,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ProductStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ProductStatusDraft:
+		return []byte(s), nil
+	case ProductStatusActive:
+		return []byte(s), nil
+	case ProductStatusDiscontinued:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ProductStatus) UnmarshalText(data []byte) error {
+	switch ProductStatus(data) {
+	case ProductStatusDraft:
+		*s = ProductStatusDraft
+		return nil
+	case ProductStatusActive:
+		*s = ProductStatusActive
+		return nil
+	case ProductStatusDiscontinued:
+		*s = ProductStatusDiscontinued
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/QueueHealth
@@ -2007,6 +2967,169 @@ func (s StreamOK) Read(p []byte) (n int, err error) {
 
 func (*StreamOK) streamRes() {}
 
+// Ref: #/components/schemas/UpdateProductRequest
+type UpdateProductRequest struct {
+	Version     int64            `json:"version"`
+	Name        OptString        `json:"name"`
+	Description OptString        `json:"description"`
+	Article     ArticleInput     `json:"article"`
+	Status      OptProductStatus `json:"status"`
+}
+
+// GetVersion returns the value of Version.
+func (s *UpdateProductRequest) GetVersion() int64 {
+	return s.Version
+}
+
+// GetName returns the value of Name.
+func (s *UpdateProductRequest) GetName() OptString {
+	return s.Name
+}
+
+// GetDescription returns the value of Description.
+func (s *UpdateProductRequest) GetDescription() OptString {
+	return s.Description
+}
+
+// GetArticle returns the value of Article.
+func (s *UpdateProductRequest) GetArticle() ArticleInput {
+	return s.Article
+}
+
+// GetStatus returns the value of Status.
+func (s *UpdateProductRequest) GetStatus() OptProductStatus {
+	return s.Status
+}
+
+// SetVersion sets the value of Version.
+func (s *UpdateProductRequest) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetName sets the value of Name.
+func (s *UpdateProductRequest) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetDescription sets the value of Description.
+func (s *UpdateProductRequest) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetArticle sets the value of Article.
+func (s *UpdateProductRequest) SetArticle(val ArticleInput) {
+	s.Article = val
+}
+
+// SetStatus sets the value of Status.
+func (s *UpdateProductRequest) SetStatus(val OptProductStatus) {
+	s.Status = val
+}
+
+// Ref: #/components/schemas/UpdateVariantRequest
+type UpdateVariantRequest struct {
+	Version  int64          `json:"version"`
+	Sku      OptCatalogCode `json:"sku"`
+	Barcode  OptBarcode     `json:"barcode"`
+	Color    OptOptionText  `json:"color"`
+	ColorHex OptColorHex    `json:"colorHex"`
+	Size     OptOptionText  `json:"size"`
+	Price    OptMoney       `json:"price"`
+	// Giá nhập; null bỏ giá nhập.
+	CostPrice OptNilInt64      `json:"costPrice"`
+	Status    OptVariantStatus `json:"status"`
+}
+
+// GetVersion returns the value of Version.
+func (s *UpdateVariantRequest) GetVersion() int64 {
+	return s.Version
+}
+
+// GetSku returns the value of Sku.
+func (s *UpdateVariantRequest) GetSku() OptCatalogCode {
+	return s.Sku
+}
+
+// GetBarcode returns the value of Barcode.
+func (s *UpdateVariantRequest) GetBarcode() OptBarcode {
+	return s.Barcode
+}
+
+// GetColor returns the value of Color.
+func (s *UpdateVariantRequest) GetColor() OptOptionText {
+	return s.Color
+}
+
+// GetColorHex returns the value of ColorHex.
+func (s *UpdateVariantRequest) GetColorHex() OptColorHex {
+	return s.ColorHex
+}
+
+// GetSize returns the value of Size.
+func (s *UpdateVariantRequest) GetSize() OptOptionText {
+	return s.Size
+}
+
+// GetPrice returns the value of Price.
+func (s *UpdateVariantRequest) GetPrice() OptMoney {
+	return s.Price
+}
+
+// GetCostPrice returns the value of CostPrice.
+func (s *UpdateVariantRequest) GetCostPrice() OptNilInt64 {
+	return s.CostPrice
+}
+
+// GetStatus returns the value of Status.
+func (s *UpdateVariantRequest) GetStatus() OptVariantStatus {
+	return s.Status
+}
+
+// SetVersion sets the value of Version.
+func (s *UpdateVariantRequest) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetSku sets the value of Sku.
+func (s *UpdateVariantRequest) SetSku(val OptCatalogCode) {
+	s.Sku = val
+}
+
+// SetBarcode sets the value of Barcode.
+func (s *UpdateVariantRequest) SetBarcode(val OptBarcode) {
+	s.Barcode = val
+}
+
+// SetColor sets the value of Color.
+func (s *UpdateVariantRequest) SetColor(val OptOptionText) {
+	s.Color = val
+}
+
+// SetColorHex sets the value of ColorHex.
+func (s *UpdateVariantRequest) SetColorHex(val OptColorHex) {
+	s.ColorHex = val
+}
+
+// SetSize sets the value of Size.
+func (s *UpdateVariantRequest) SetSize(val OptOptionText) {
+	s.Size = val
+}
+
+// SetPrice sets the value of Price.
+func (s *UpdateVariantRequest) SetPrice(val OptMoney) {
+	s.Price = val
+}
+
+// SetCostPrice sets the value of CostPrice.
+func (s *UpdateVariantRequest) SetCostPrice(val OptNilInt64) {
+	s.CostPrice = val
+}
+
+// SetStatus sets the value of Status.
+func (s *UpdateVariantRequest) SetStatus(val OptVariantStatus) {
+	s.Status = val
+}
+
 // Ref: #/components/schemas/Upload
 type Upload struct {
 	FileId uuid.UUID `json:"fileId"`
@@ -2068,4 +3191,255 @@ func (s *UploadHeaders) init() UploadHeaders {
 		*s = m
 	}
 	return m
+}
+
+// Ref: #/components/schemas/Variant
+type Variant struct {
+	ID        uuid.UUID     `json:"id"`
+	ProductId uuid.UUID     `json:"productId"`
+	Sku       string        `json:"sku"`
+	Barcode   string        `json:"barcode"`
+	Color     string        `json:"color"`
+	ColorHex  OptString     `json:"colorHex"`
+	Size      string        `json:"size"`
+	Price     Money         `json:"price"`
+	CostPrice OptMoney      `json:"costPrice"`
+	Status    VariantStatus `json:"status"`
+	Version   int64         `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *Variant) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetProductId returns the value of ProductId.
+func (s *Variant) GetProductId() uuid.UUID {
+	return s.ProductId
+}
+
+// GetSku returns the value of Sku.
+func (s *Variant) GetSku() string {
+	return s.Sku
+}
+
+// GetBarcode returns the value of Barcode.
+func (s *Variant) GetBarcode() string {
+	return s.Barcode
+}
+
+// GetColor returns the value of Color.
+func (s *Variant) GetColor() string {
+	return s.Color
+}
+
+// GetColorHex returns the value of ColorHex.
+func (s *Variant) GetColorHex() OptString {
+	return s.ColorHex
+}
+
+// GetSize returns the value of Size.
+func (s *Variant) GetSize() string {
+	return s.Size
+}
+
+// GetPrice returns the value of Price.
+func (s *Variant) GetPrice() Money {
+	return s.Price
+}
+
+// GetCostPrice returns the value of CostPrice.
+func (s *Variant) GetCostPrice() OptMoney {
+	return s.CostPrice
+}
+
+// GetStatus returns the value of Status.
+func (s *Variant) GetStatus() VariantStatus {
+	return s.Status
+}
+
+// GetVersion returns the value of Version.
+func (s *Variant) GetVersion() int64 {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *Variant) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetProductId sets the value of ProductId.
+func (s *Variant) SetProductId(val uuid.UUID) {
+	s.ProductId = val
+}
+
+// SetSku sets the value of Sku.
+func (s *Variant) SetSku(val string) {
+	s.Sku = val
+}
+
+// SetBarcode sets the value of Barcode.
+func (s *Variant) SetBarcode(val string) {
+	s.Barcode = val
+}
+
+// SetColor sets the value of Color.
+func (s *Variant) SetColor(val string) {
+	s.Color = val
+}
+
+// SetColorHex sets the value of ColorHex.
+func (s *Variant) SetColorHex(val OptString) {
+	s.ColorHex = val
+}
+
+// SetSize sets the value of Size.
+func (s *Variant) SetSize(val string) {
+	s.Size = val
+}
+
+// SetPrice sets the value of Price.
+func (s *Variant) SetPrice(val Money) {
+	s.Price = val
+}
+
+// SetCostPrice sets the value of CostPrice.
+func (s *Variant) SetCostPrice(val OptMoney) {
+	s.CostPrice = val
+}
+
+// SetStatus sets the value of Status.
+func (s *Variant) SetStatus(val VariantStatus) {
+	s.Status = val
+}
+
+// SetVersion sets the value of Version.
+func (s *Variant) SetVersion(val int64) {
+	s.Version = val
+}
+
+func (*Variant) addVariantRes()    {}
+func (*Variant) updateVariantRes() {}
+
+// Ref: #/components/schemas/VariantInput
+type VariantInput struct {
+	Sku       CatalogCode `json:"sku"`
+	Barcode   OptBarcode  `json:"barcode"`
+	Color     OptionText  `json:"color"`
+	ColorHex  OptColorHex `json:"colorHex"`
+	Size      OptionText  `json:"size"`
+	Price     Money       `json:"price"`
+	CostPrice OptMoney    `json:"costPrice"`
+}
+
+// GetSku returns the value of Sku.
+func (s *VariantInput) GetSku() CatalogCode {
+	return s.Sku
+}
+
+// GetBarcode returns the value of Barcode.
+func (s *VariantInput) GetBarcode() OptBarcode {
+	return s.Barcode
+}
+
+// GetColor returns the value of Color.
+func (s *VariantInput) GetColor() OptionText {
+	return s.Color
+}
+
+// GetColorHex returns the value of ColorHex.
+func (s *VariantInput) GetColorHex() OptColorHex {
+	return s.ColorHex
+}
+
+// GetSize returns the value of Size.
+func (s *VariantInput) GetSize() OptionText {
+	return s.Size
+}
+
+// GetPrice returns the value of Price.
+func (s *VariantInput) GetPrice() Money {
+	return s.Price
+}
+
+// GetCostPrice returns the value of CostPrice.
+func (s *VariantInput) GetCostPrice() OptMoney {
+	return s.CostPrice
+}
+
+// SetSku sets the value of Sku.
+func (s *VariantInput) SetSku(val CatalogCode) {
+	s.Sku = val
+}
+
+// SetBarcode sets the value of Barcode.
+func (s *VariantInput) SetBarcode(val OptBarcode) {
+	s.Barcode = val
+}
+
+// SetColor sets the value of Color.
+func (s *VariantInput) SetColor(val OptionText) {
+	s.Color = val
+}
+
+// SetColorHex sets the value of ColorHex.
+func (s *VariantInput) SetColorHex(val OptColorHex) {
+	s.ColorHex = val
+}
+
+// SetSize sets the value of Size.
+func (s *VariantInput) SetSize(val OptionText) {
+	s.Size = val
+}
+
+// SetPrice sets the value of Price.
+func (s *VariantInput) SetPrice(val Money) {
+	s.Price = val
+}
+
+// SetCostPrice sets the value of CostPrice.
+func (s *VariantInput) SetCostPrice(val OptMoney) {
+	s.CostPrice = val
+}
+
+// Ref: #/components/schemas/VariantStatus
+type VariantStatus string
+
+const (
+	VariantStatusActive       VariantStatus = "active"
+	VariantStatusDiscontinued VariantStatus = "discontinued"
+)
+
+// AllValues returns all VariantStatus values.
+func (VariantStatus) AllValues() []VariantStatus {
+	return []VariantStatus{
+		VariantStatusActive,
+		VariantStatusDiscontinued,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s VariantStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case VariantStatusActive:
+		return []byte(s), nil
+	case VariantStatusDiscontinued:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *VariantStatus) UnmarshalText(data []byte) error {
+	switch VariantStatus(data) {
+	case VariantStatusActive:
+		*s = VariantStatusActive
+		return nil
+	case VariantStatusDiscontinued:
+		*s = VariantStatusDiscontinued
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }

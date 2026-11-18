@@ -39,6 +39,18 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `fulfillment.shipments_v` (tối thiểu; M3 mở rộng) | `id, order_id, code, carrier_key, carrier_account_id, tracking_code, status, cod_amount, fee` | 31 | M3 trở đi |
 | `cash.cod_balances_v` (tối thiểu; M3 mở rộng) | `shipment_id, account, balance` | 32 | M3 trở đi |
 
+## Sự kiện công bố
+
+Sự kiện nội bộ (`events.Registry.Emit`, spec 04 mục 5.4) mà mốc sau nghe. `Seq` là `version` mới của đối tượng.
+Payload chỉ mang mã và số (A16): consumer đọc dữ liệu qua view ở trên. Mốc chủ chỉ thêm khóa vào payload, không đổi
+hay bỏ khóa đã có.
+
+| Topic | Aggregate | Payload | Phát khi | Task |
+|---|---|---|---|---|
+| `product.updated` | `product` (mã mẫu) | `{productId, sellerId, version}` | tạo, sửa mẫu; thêm, sửa biến thể (version mẫu tăng) | 27 |
+| `price.changed` | `variant` (mã biến thể) | `{productId, sellerId, variantIds: [<id>], price}` | giá bán của biến thể đổi | 27 |
+| `stock.changed` | `balance:<variant>:<warehouse>` | `{variantIds: [<variant>], warehouseId, sellerId}` | số dư tồn đổi | 28 |
+
 ## Ngoại lệ luật (g)
 
 Luật (g) của `tenancy.CheckSchemaRules` (ADR-29): bảng có cột `seller_id` thì mọi unique khác khóa chính và khác

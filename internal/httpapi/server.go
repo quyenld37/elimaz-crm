@@ -17,6 +17,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/observability"
 	"elimaz.com.vn/crm/internal/platform/realtime"
@@ -39,6 +40,9 @@ type Deps struct {
 	Realtime realtime.Bus
 	// SSE: nhịp gộp lô, nhịp tim và kênh dừng của luồng SSE; để trống lấy mặc định (300 ms, 20 s).
 	SSE realtime.SSEOptions
+	// Events là sổ consumer của sự kiện nội bộ (cmd/crm dùng chung một sổ cho api và worker); nil → sổ rỗng (sự kiện
+	// vẫn được ghi vào platform.domain_events, chỉ không có việc consumer nào).
+	Events *events.Registry
 
 	limiter *userLimiter // một bộ đếm chung cho mọi route của server (prepare)
 }
@@ -47,6 +51,9 @@ type Deps struct {
 func prepare(d Deps) Deps {
 	if d.limiter == nil {
 		d.limiter = newUserLimiter(d.RateLimit)
+	}
+	if d.Events == nil {
+		d.Events = events.NewRegistry()
 	}
 	return d
 }

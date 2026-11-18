@@ -332,6 +332,112 @@ paths:
                 $ref: "#/components/schemas/PlatformHealth"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/catalog/products:
+    post:
+      operationId: createProduct
+      summary: Tạo mẫu sản phẩm kèm biến thể màu/size (barcode để trống thì CRM tự sinh EAN-13)
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductRequest"
+      responses:
+        "201":
+          description: Mẫu vừa tạo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/products/{id}:
+    get:
+      operationId: getProduct
+      summary: Một mẫu kèm biến thể, bài viết dạng khối và HTML bài viết dựng sẵn (cả mẫu nháp, ngừng bán)
+      x-permission: catalog.read
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+      responses:
+        "200":
+          description: Mẫu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        default:
+          $ref: "#/components/responses/Error"
+    patch:
+      operationId: updateProduct
+      summary: Sửa tên, mô tả, bài viết, trạng thái của mẫu khi version còn khớp
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProductRequest"
+      responses:
+        "200":
+          description: Mẫu sau khi sửa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/products/{id}/variants:
+    post:
+      operationId: addVariant
+      summary: Thêm biến thể vào mẫu khi version của mẫu còn khớp
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddVariantRequest"
+      responses:
+        "201":
+          description: Biến thể vừa thêm
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Variant"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/variants/{id}:
+    patch:
+      operationId: updateVariant
+      summary: Sửa SKU, barcode, màu, size, giá, giá nhập, trạng thái của biến thể khi version còn khớp
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/VariantID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateVariantRequest"
+      responses:
+        "200":
+          description: Biến thể sau khi sửa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Variant"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -357,6 +463,20 @@ components:
         type: string
         format: uuid
     StaffID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ProductID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    VariantID:
       name: id
       in: path
       required: true
@@ -751,3 +871,223 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AlertSummary"
+    Money:
+      type: integer
+      format: int64
+      minimum: 0
+      maximum: 9007199254740991
+      description: Tiền, số nguyên đồng
+    CatalogCode:
+      type: string
+      pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+      description: Mã mẫu hay SKU; CRM chuẩn hóa viết hoa
+    Barcode:
+      type: string
+      pattern: "^[0-9A-Za-z-]{4,32}$"
+    OptionText:
+      type: string
+      minLength: 1
+      maxLength: 50
+      description: Màu hay size
+    ColorHex:
+      type: string
+      pattern: "^(#[0-9A-Fa-f]{6})?$"
+      description: Mã màu cho ô màu (#RRGGBB); rỗng là không có
+    ProductStatus:
+      type: string
+      enum: [draft, active, discontinued]
+    VariantStatus:
+      type: string
+      enum: [active, discontinued]
+    ArticleInput:
+      type: array
+      maxItems: 200
+      description: Bài viết dạng khối (lược đồ ArticleBlock). Máy chủ kiểm lược đồ và giới hạn; sai → 422 invalid_article.
+      items: {}
+    ArticleBlock:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [paragraph, heading, list, image]
+        text:
+          type: string
+        level:
+          type: integer
+          enum: [2, 3]
+        items:
+          type: array
+          items:
+            type: string
+        fileId:
+          type: string
+          format: uuid
+        caption:
+          type: string
+    VariantInput:
+      type: object
+      required: [sku, color, size, price]
+      properties:
+        sku:
+          $ref: "#/components/schemas/CatalogCode"
+        barcode:
+          $ref: "#/components/schemas/Barcode"
+        color:
+          $ref: "#/components/schemas/OptionText"
+        colorHex:
+          $ref: "#/components/schemas/ColorHex"
+        size:
+          $ref: "#/components/schemas/OptionText"
+        price:
+          $ref: "#/components/schemas/Money"
+        costPrice:
+          $ref: "#/components/schemas/Money"
+    CreateProductRequest:
+      type: object
+      required: [code, name, variants]
+      properties:
+        code:
+          $ref: "#/components/schemas/CatalogCode"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 1000
+        article:
+          $ref: "#/components/schemas/ArticleInput"
+        status:
+          $ref: "#/components/schemas/ProductStatus"
+        variants:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/VariantInput"
+    UpdateProductRequest:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 1000
+        article:
+          $ref: "#/components/schemas/ArticleInput"
+        status:
+          $ref: "#/components/schemas/ProductStatus"
+    AddVariantRequest:
+      type: object
+      required: [productVersion, sku, color, size, price]
+      properties:
+        productVersion:
+          type: integer
+          format: int64
+        sku:
+          $ref: "#/components/schemas/CatalogCode"
+        barcode:
+          $ref: "#/components/schemas/Barcode"
+        color:
+          $ref: "#/components/schemas/OptionText"
+        colorHex:
+          $ref: "#/components/schemas/ColorHex"
+        size:
+          $ref: "#/components/schemas/OptionText"
+        price:
+          $ref: "#/components/schemas/Money"
+        costPrice:
+          $ref: "#/components/schemas/Money"
+    UpdateVariantRequest:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+        sku:
+          $ref: "#/components/schemas/CatalogCode"
+        barcode:
+          $ref: "#/components/schemas/Barcode"
+        color:
+          $ref: "#/components/schemas/OptionText"
+        colorHex:
+          $ref: "#/components/schemas/ColorHex"
+        size:
+          $ref: "#/components/schemas/OptionText"
+        price:
+          $ref: "#/components/schemas/Money"
+        costPrice:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+          nullable: true
+          description: Giá nhập; null bỏ giá nhập
+        status:
+          $ref: "#/components/schemas/VariantStatus"
+    Variant:
+      type: object
+      required: [id, productId, sku, barcode, color, size, price, status, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        barcode:
+          type: string
+        color:
+          type: string
+        colorHex:
+          type: string
+        size:
+          type: string
+        price:
+          $ref: "#/components/schemas/Money"
+        costPrice:
+          $ref: "#/components/schemas/Money"
+        status:
+          $ref: "#/components/schemas/VariantStatus"
+        version:
+          type: integer
+          format: int64
+    Product:
+      type: object
+      required: [id, code, name, description, article, articleHtml, status, version, variants]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        article:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArticleBlock"
+        articleHtml:
+          type: string
+          readOnly: true
+          description: HTML bài viết dựng bằng catalog.RenderArticleHTML (chỉ thẻ trong danh sách cho phép, R7)
+        status:
+          $ref: "#/components/schemas/ProductStatus"
+        version:
+          type: integer
+          format: int64
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/Variant"

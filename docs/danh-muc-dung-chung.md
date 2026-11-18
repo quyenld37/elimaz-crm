@@ -734,6 +734,16 @@ func SeedTenant(ctx context.Context, owner *db.DB, name string) (uuid.UUID, erro
 func WithTenant(ctx context.Context, d *db.DB, tenantID uuid.UUID, fn func(pgx.Tx) error, o ...db.TxOptions) error
 ```
 
+## `internal/platform/textnorm` (gói `textnorm`)
+
+Package textnorm chuẩn hóa chữ tiếng Việt cho cột tìm kiếm (kế hoạch M1, Task M1-27): bỏ dấu, chữ thường, gộp khoảng trắng, để "dam lua" tìm được "Đầm Lụa".
+
+**Khi nào không dùng:** Không dùng để hiển thị, lưu chữ gốc hay so khớp định danh (SKU, email, SĐT có chuẩn hóa riêng): Fold chỉ cho cột tìm kiếm như catalog.products.name_search, và cả cột lẫn chuỗi tìm phải qua cùng Fold. Không thêm thư viện bỏ dấu (x/text) khi bảng ánh xạ đủ.
+
+```go
+func Fold(s string) string
+```
+
 ## `internal/platform/webhooks` (gói `webhooks`)
 
 Package webhooks là đường vào webhook ở vai trò ingest (spec 04 mục 5.2, 11): kiểm chữ ký trên thân gốc, lưu nguyên văn vào platform.webhook_deliveries cùng một việc tách gói trong một transaction rồi trả 200; database không ghi được thì ghi tệp tạm (Spool) và nạp lại sau (Drainer); chặn địa chỉ gửi sai chữ ký dồn dập (Lockout).

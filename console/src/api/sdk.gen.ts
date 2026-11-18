@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, CreateUploadData, CreateUploadErrors, CreateUploadResponses, GetFileData, GetFileErrors, GetFileResponses, GetMeData, GetMeErrors, GetMeResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListStaffData, ListStaffErrors, ListStaffResponses, LockStaffData, LockStaffErrors, LockStaffResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, RetryJobData, RetryJobErrors, RetryJobResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses } from './types.gen';
+import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, AddVariantData, AddVariantErrors, AddVariantResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateProductData, CreateProductErrors, CreateProductResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, CreateUploadData, CreateUploadErrors, CreateUploadResponses, GetFileData, GetFileErrors, GetFileResponses, GetMeData, GetMeErrors, GetMeResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, GetProductData, GetProductErrors, GetProductResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListStaffData, ListStaffErrors, ListStaffResponses, LockStaffData, LockStaffErrors, LockStaffResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, RetryJobData, RetryJobErrors, RetryJobResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses, UpdateProductData, UpdateProductErrors, UpdateProductResponses, UpdateVariantData, UpdateVariantErrors, UpdateVariantResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -130,3 +130,56 @@ export const abandonJob = <ThrowOnError extends boolean = false>(options: Option
  * Tình trạng tiến trình, hàng đợi, sao lưu, lỗi và cảnh báo 24 giờ
  */
 export const getPlatformHealth = <ThrowOnError extends boolean = false>(options?: Options<GetPlatformHealthData, ThrowOnError>): RequestResult<GetPlatformHealthResponses, GetPlatformHealthErrors, ThrowOnError> => (options?.client ?? client).get<GetPlatformHealthResponses, GetPlatformHealthErrors, ThrowOnError>({ url: '/api/v1/platform/health', ...options });
+
+/**
+ * Tạo mẫu sản phẩm kèm biến thể màu/size (barcode để trống thì CRM tự sinh EAN-13)
+ */
+export const createProduct = <ThrowOnError extends boolean = false>(options: Options<CreateProductData, ThrowOnError>): RequestResult<CreateProductResponses, CreateProductErrors, ThrowOnError> => (options.client ?? client).post<CreateProductResponses, CreateProductErrors, ThrowOnError>({
+    url: '/api/v1/catalog/products',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Một mẫu kèm biến thể, bài viết dạng khối và HTML bài viết dựng sẵn (cả mẫu nháp, ngừng bán)
+ */
+export const getProduct = <ThrowOnError extends boolean = false>(options: Options<GetProductData, ThrowOnError>): RequestResult<GetProductResponses, GetProductErrors, ThrowOnError> => (options.client ?? client).get<GetProductResponses, GetProductErrors, ThrowOnError>({ url: '/api/v1/catalog/products/{id}', ...options });
+
+/**
+ * Sửa tên, mô tả, bài viết, trạng thái của mẫu khi version còn khớp
+ */
+export const updateProduct = <ThrowOnError extends boolean = false>(options: Options<UpdateProductData, ThrowOnError>): RequestResult<UpdateProductResponses, UpdateProductErrors, ThrowOnError> => (options.client ?? client).patch<UpdateProductResponses, UpdateProductErrors, ThrowOnError>({
+    url: '/api/v1/catalog/products/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Thêm biến thể vào mẫu khi version của mẫu còn khớp
+ */
+export const addVariant = <ThrowOnError extends boolean = false>(options: Options<AddVariantData, ThrowOnError>): RequestResult<AddVariantResponses, AddVariantErrors, ThrowOnError> => (options.client ?? client).post<AddVariantResponses, AddVariantErrors, ThrowOnError>({
+    url: '/api/v1/catalog/products/{id}/variants',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Sửa SKU, barcode, màu, size, giá, giá nhập, trạng thái của biến thể khi version còn khớp
+ */
+export const updateVariant = <ThrowOnError extends boolean = false>(options: Options<UpdateVariantData, ThrowOnError>): RequestResult<UpdateVariantResponses, UpdateVariantErrors, ThrowOnError> => (options.client ?? client).patch<UpdateVariantResponses, UpdateVariantErrors, ThrowOnError>({
+    url: '/api/v1/catalog/variants/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});

@@ -197,6 +197,139 @@ export type PlatformHealth = {
 };
 
 /**
+ * Tiền, số nguyên đồng
+ */
+export type Money = number;
+
+/**
+ * Mã mẫu hay SKU; CRM chuẩn hóa viết hoa
+ */
+export type CatalogCode = string;
+
+export type Barcode = string;
+
+/**
+ * Màu hay size
+ */
+export type OptionText = string;
+
+/**
+ * Mã màu cho ô màu (#RRGGBB); rỗng là không có
+ */
+export type ColorHex = string;
+
+export type ProductStatus = 'draft' | 'active' | 'discontinued';
+
+export type VariantStatus = 'active' | 'discontinued';
+
+/**
+ * Bài viết dạng khối (lược đồ ArticleBlock). Máy chủ kiểm lược đồ và giới hạn; sai → 422 invalid_article.
+ */
+export type ArticleInput = Array<unknown>;
+
+export type ArticleBlock = {
+    type: 'paragraph' | 'heading' | 'list' | 'image';
+    text?: string;
+    level?: 2 | 3;
+    items?: Array<string>;
+    fileId?: string;
+    caption?: string;
+};
+
+export type VariantInput = {
+    sku: CatalogCode;
+    barcode?: Barcode;
+    color: OptionText;
+    colorHex?: ColorHex;
+    size: OptionText;
+    price: Money;
+    costPrice?: Money;
+};
+
+export type CreateProductRequest = {
+    code: CatalogCode;
+    name: string;
+    description?: string;
+    article?: ArticleInput;
+    status?: ProductStatus;
+    variants: Array<VariantInput>;
+};
+
+export type UpdateProductRequest = {
+    version: number;
+    name?: string;
+    description?: string;
+    article?: ArticleInput;
+    status?: ProductStatus;
+};
+
+export type AddVariantRequest = {
+    productVersion: number;
+    sku: CatalogCode;
+    barcode?: Barcode;
+    color: OptionText;
+    colorHex?: ColorHex;
+    size: OptionText;
+    price: Money;
+    costPrice?: Money;
+};
+
+export type UpdateVariantRequest = {
+    version: number;
+    sku?: CatalogCode;
+    barcode?: Barcode;
+    color?: OptionText;
+    colorHex?: ColorHex;
+    size?: OptionText;
+    price?: Money;
+    /**
+     * Giá nhập; null bỏ giá nhập
+     */
+    costPrice?: number | null;
+    status?: VariantStatus;
+};
+
+export type Variant = {
+    id: string;
+    productId: string;
+    sku: string;
+    barcode: string;
+    color: string;
+    colorHex?: string;
+    size: string;
+    price: Money;
+    costPrice?: Money;
+    status: VariantStatus;
+    version: number;
+};
+
+export type Product = {
+    id: string;
+    code: string;
+    name: string;
+    description: string;
+    article: Array<ArticleBlock>;
+    /**
+     * HTML bài viết dựng bằng catalog.RenderArticleHTML (chỉ thẻ trong danh sách cho phép, R7)
+     */
+    readonly articleHtml: string;
+    status: ProductStatus;
+    version: number;
+    variants: Array<Variant>;
+};
+
+export type ProductWritable = {
+    id: string;
+    code: string;
+    name: string;
+    description: string;
+    article: Array<ArticleBlock>;
+    status: ProductStatus;
+    version: number;
+    variants: Array<Variant>;
+};
+
+/**
  * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
  */
 export type IdempotencyKey = string;
@@ -206,6 +339,10 @@ export type JobId = string;
 export type FileId = string;
 
 export type StaffId = string;
+
+export type ProductId = string;
+
+export type VariantId = string;
 
 export type HealthLiveData = {
     body?: never;
@@ -716,3 +853,160 @@ export type GetPlatformHealthResponses = {
 };
 
 export type GetPlatformHealthResponse = GetPlatformHealthResponses[keyof GetPlatformHealthResponses];
+
+export type CreateProductData = {
+    body: CreateProductRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/catalog/products';
+};
+
+export type CreateProductErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateProductError = CreateProductErrors[keyof CreateProductErrors];
+
+export type CreateProductResponses = {
+    /**
+     * Mẫu vừa tạo
+     */
+    201: Product;
+};
+
+export type CreateProductResponse = CreateProductResponses[keyof CreateProductResponses];
+
+export type GetProductData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}';
+};
+
+export type GetProductErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetProductError = GetProductErrors[keyof GetProductErrors];
+
+export type GetProductResponses = {
+    /**
+     * Mẫu
+     */
+    200: Product;
+};
+
+export type GetProductResponse = GetProductResponses[keyof GetProductResponses];
+
+export type UpdateProductData = {
+    body: UpdateProductRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}';
+};
+
+export type UpdateProductErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UpdateProductError = UpdateProductErrors[keyof UpdateProductErrors];
+
+export type UpdateProductResponses = {
+    /**
+     * Mẫu sau khi sửa
+     */
+    200: Product;
+};
+
+export type UpdateProductResponse = UpdateProductResponses[keyof UpdateProductResponses];
+
+export type AddVariantData = {
+    body: AddVariantRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}/variants';
+};
+
+export type AddVariantErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type AddVariantError = AddVariantErrors[keyof AddVariantErrors];
+
+export type AddVariantResponses = {
+    /**
+     * Biến thể vừa thêm
+     */
+    201: Variant;
+};
+
+export type AddVariantResponse = AddVariantResponses[keyof AddVariantResponses];
+
+export type UpdateVariantData = {
+    body: UpdateVariantRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/variants/{id}';
+};
+
+export type UpdateVariantErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UpdateVariantError = UpdateVariantErrors[keyof UpdateVariantErrors];
+
+export type UpdateVariantResponses = {
+    /**
+     * Biến thể sau khi sửa
+     */
+    200: Variant;
+};
+
+export type UpdateVariantResponse = UpdateVariantResponses[keyof UpdateVariantResponses];
