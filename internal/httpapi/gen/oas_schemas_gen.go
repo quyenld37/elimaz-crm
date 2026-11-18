@@ -792,8 +792,9 @@ type CatalogImport struct {
 	ID     uuid.UUID `json:"id"`
 	FileId uuid.UUID `json:"fileId"`
 	// Validating: đang kiểm; invalid: có lỗi (errors); ready: xem trước được (summary), chờ
-	// áp dụng; duplicate: tệp cùng nội dung đã được áp (duplicateOf); failed: không đọc
-	// được tệp hay áp thất bại.
+	// áp dụng; duplicate: tệp cùng nội dung đã được áp (duplicateOf); applying: đang áp;
+	// applied: đã áp; failed: không đọc được tệp hay áp thất bại (errors: dòng có dữ
+	// liệu vừa đổi từ lúc kiểm).
 	Status  CatalogImportStatus  `json:"status"`
 	Summary CatalogImportSummary `json:"summary"`
 	// Lỗi theo dòng, xếp theo dòng rồi cột (tối đa 1.000; tổng số ở summary.errors).
@@ -884,6 +885,7 @@ func (s *CatalogImport) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
 }
 
+func (*CatalogImport) applyCatalogImportRes()  {}
 func (*CatalogImport) createCatalogImportRes() {}
 func (*CatalogImport) getCatalogImportRes()    {}
 
@@ -940,8 +942,9 @@ func (s *CatalogImportError) SetMessage(val string) {
 }
 
 // Validating: đang kiểm; invalid: có lỗi (errors); ready: xem trước được (summary), chờ
-// áp dụng; duplicate: tệp cùng nội dung đã được áp (duplicateOf); failed: không đọc
-// được tệp hay áp thất bại.
+// áp dụng; duplicate: tệp cùng nội dung đã được áp (duplicateOf); applying: đang áp;
+// applied: đã áp; failed: không đọc được tệp hay áp thất bại (errors: dòng có dữ
+// liệu vừa đổi từ lúc kiểm).
 type CatalogImportStatus string
 
 const (
@@ -1909,6 +1912,7 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 func (*ErrorStatusCode) abandonJobRes()                {}
 func (*ErrorStatusCode) addAttributeValueRes()         {}
 func (*ErrorStatusCode) addVariantRes()                {}
+func (*ErrorStatusCode) applyCatalogImportRes()        {}
 func (*ErrorStatusCode) applyStocktakeRes()            {}
 func (*ErrorStatusCode) archiveCategoryRes()           {}
 func (*ErrorStatusCode) archiveRoleRes()               {}

@@ -34,6 +34,7 @@ var Routes = []Route{
 	{Method: "POST", Pattern: "POST /api/v1/catalog/imports", OperationID: "createCatalogImport", Permission: "catalog.import", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/catalog/imports/template", OperationID: "getCatalogImportTemplate", Permission: "catalog.import"},
 	{Method: "GET", Pattern: "GET /api/v1/catalog/imports/{id}", OperationID: "getCatalogImport", Permission: "catalog.import"},
+	{Method: "POST", Pattern: "POST /api/v1/catalog/imports/{id}/apply", OperationID: "applyCatalogImport", Permission: "catalog.import", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/catalog/products", OperationID: "listProducts", Permission: "catalog.read"},
 	{Method: "POST", Pattern: "POST /api/v1/catalog/products", OperationID: "createProduct", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/catalog/products/{id}", OperationID: "getProduct", Permission: "catalog.read"},

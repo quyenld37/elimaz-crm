@@ -62,6 +62,10 @@ trước (sự kiện vận đơn đổi đơn và tồn) khóa dòng nhóm trư
 - `identity` tên vai trò (M1 Task M1-56): tạo vai trò và sửa vai trò lấy `pg_advisory_xact_lock` theo tenant
   (`queries/identity/roles.sql` `LockRoleNames`) **trước mọi khóa dòng**, rồi mới khóa `identity.roles`. Chỉ hai đường
   này lấy khóa đó, nên không tạo vòng chờ với đường khóa dòng.
+- `catalog` áp bản nhập Excel (M1 Task M1-47b): việc `catalog.import.apply` lấy `pg_advisory_xact_lock` theo (tenant,
+  người bán) (`queries/catalog/imports.sql` `LockImportApplySeller`) **trước mọi khóa dòng**, rồi khóa `catalog.imports`
+  → danh mục (chia sẻ, id tăng dần) → mẫu có sẵn của plan (id tăng dần, `LockProductsByIDs`) → biến thể. Chỉ đường này
+  lấy khóa đó: hai lần áp của cùng người bán chạy lần lượt, lần sau kiểm lại trên dữ liệu lần trước vừa ghi.
 
 ## Luật cho mốc sau (Q-X4, C14)
 

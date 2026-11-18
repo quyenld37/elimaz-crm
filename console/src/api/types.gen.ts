@@ -157,7 +157,7 @@ export type CatalogImport = {
     id: string;
     fileId: string;
     /**
-     * validating: đang kiểm; invalid: có lỗi (errors); ready: xem trước được (summary), chờ áp dụng; duplicate: tệp cùng nội dung đã được áp (duplicateOf); failed: không đọc được tệp hay áp thất bại
+     * validating: đang kiểm; invalid: có lỗi (errors); ready: xem trước được (summary), chờ áp dụng; duplicate: tệp cùng nội dung đã được áp (duplicateOf); applying: đang áp; applied: đã áp; failed: không đọc được tệp hay áp thất bại (errors: dòng có dữ liệu vừa đổi từ lúc kiểm)
      */
     status: 'validating' | 'invalid' | 'ready' | 'applying' | 'applied' | 'duplicate' | 'failed';
     summary: CatalogImportSummary;
@@ -2108,6 +2108,39 @@ export type GetCatalogImportResponses = {
 };
 
 export type GetCatalogImportResponse = GetCatalogImportResponses[keyof GetCatalogImportResponses];
+
+export type ApplyCatalogImportData = {
+    body: VersionRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/imports/{id}/apply';
+};
+
+export type ApplyCatalogImportErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ApplyCatalogImportError = ApplyCatalogImportErrors[keyof ApplyCatalogImportErrors];
+
+export type ApplyCatalogImportResponses = {
+    /**
+     * Bản nhập applying
+     */
+    202: CatalogImport;
+};
+
+export type ApplyCatalogImportResponse = ApplyCatalogImportResponses[keyof ApplyCatalogImportResponses];
 
 export type SearchVariantsData = {
     body?: never;

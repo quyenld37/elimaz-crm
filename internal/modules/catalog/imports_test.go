@@ -28,7 +28,7 @@ import (
 const xlsxType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 // importEnv: catalogEnv có phân loại khớp tệp thử (testdata/xlsx/gen), kho tệp trong bộ nhớ và worker chạy lệnh
-// catalog.import.validate.
+// catalog.import.validate và việc catalog.import.apply.
 type importEnv struct {
 	*catalogEnv
 	store *files.MemStore
@@ -40,11 +40,16 @@ func newImportEnv(t *testing.T) *importEnv {
 	e := &importEnv{catalogEnv: newCatalogEnv(t), store: testkit.MemFileStore(t)}
 	e.seedClassification()
 	v := catalog.NewImportValidator(catalog.ImportValidatorOptions{DB: e.staff.App, Store: e.store})
-	e.w = queue.NewWorker(e.staff.App, nil, queue.WorkerOptions{
+	e.w = e.newWorker(v)
+	return e
+}
+
+// newWorker dựng một worker chạy lệnh kiểm v và việc áp dụng (mỗi worker một mã giữ chỗ).
+func (e *importEnv) newWorker(v *catalog.ImportValidator) *queue.Worker {
+	return queue.NewWorker(e.staff.App, []queue.Handler{catalog.NewImportApplier(e.writer())}, queue.WorkerOptions{
 		WorkerID: "w-" + uuid.NewString(), Poll: 50 * time.Millisecond,
 		Commands: commands.NewRunner(e.staff.App, []commands.Handler{v}),
 	})
-	return e
 }
 
 // seedClassification tạo danh mục, thuộc tính, nhãn mà mau-200.xlsx, loi-tung-dong.xlsx dùng.
@@ -218,6 +223,25 @@ func TestApply_200Models(t *testing.T) {
 	if got := e.count("SELECT count(*) FROM platform.jobs WHERE kind = 'catalog.import.validate' AND status = 'done'"); got != 1 {
 		t.Fatalf("%d lệnh done", got)
 	}
+
+	// Phần áp (Task M1-47b): 200 mẫu, 1.000 biến thể, đủ danh mục, nhãn, thuộc tính như plan.
+	start := time.Now()
+	applied := e.applyNow(imp)
+	t.Logf("áp 200 mẫu, 1.000 biến thể (cả xếp việc và worker): %s", time.Since(start))
+	if applied.Status != catalog.ImportApplied || len(applied.Errors) != 0 {
+		t.Fatalf("sau khi áp: %s %+v", applied.Status, applied.Errors)
+	}
+	if p, v := e.products(), e.count("SELECT count(*) FROM catalog.variants"); p != 200 || v != 1000 {
+		t.Fatalf("%d mẫu, %d biến thể", p, v)
+	}
+	for _, pp := range imp.Plan.Products {
+		e.checkClassification(pp)
+	}
+	if n := e.count(`SELECT count(*) FROM identity.audit_logs WHERE action = 'catalog.import.applied'
+		AND entity_id = $1 AND after->>'create' = '1000' AND after->>'update' = '0'
+		AND after->>'unchanged' = '0'`, imp.ID.String()); n != 1 {
+		t.Fatalf("%d audit tổng catalog.import.applied đúng số", n)
+	}
 }
 
 // loi-tung-dong.xlsx → invalid, đúng 7 lỗi đúng dòng, cột, mã; không có plan; 0 mẫu được tạo.
@@ -287,6 +311,30 @@ func TestApply_SameFileTwice(t *testing.T) {
 	imp := e.validate(body)
 	if imp.Status != catalog.ImportDuplicate || imp.DuplicateOf == nil || *imp.DuplicateOf != applied || imp.Plan != nil {
 		t.Fatalf("%s duplicateOf %v plan %v", imp.Status, imp.DuplicateOf, imp.Plan != nil)
+	}
+}
+
+// TestApply_SameFileTwice (KH01, đường thật): áp mau-200.xlsx, tải lại đúng tệp đó → duplicate, duplicateOf = lần một,
+// không mẫu, biến thể nào đổi (version, số dòng giữ nguyên); bản nhập thứ hai không áp được.
+func TestApply_SameFileTwiceEndToEnd(t *testing.T) {
+	e := newImportEnv(t)
+	body := fixture(t, "mau-200.xlsx")
+	first := e.applyNow(e.validate(body))
+	if first.Status != catalog.ImportApplied {
+		t.Fatalf("lần một: %s %+v", first.Status, first.Errors)
+	}
+	before := e.catalogFingerprint()
+	second := e.validate(body)
+	if second.Status != catalog.ImportDuplicate || second.DuplicateOf == nil || *second.DuplicateOf != first.ID ||
+		second.Plan != nil {
+		t.Fatalf("lần hai: %s duplicateOf %v", second.Status, second.DuplicateOf)
+	}
+	if err := e.apply(second); !errors.Is(err, catalog.ErrImportNotReady) {
+		t.Fatalf("áp bản duplicate: %v", err)
+	}
+	e.drain()
+	if after := e.catalogFingerprint(); after != before {
+		t.Fatalf("dữ liệu đổi sau lần hai: %s → %s", before, after)
 	}
 }
 
