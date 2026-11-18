@@ -131,15 +131,17 @@ func TestM2Routes_Unimplemented(t *testing.T) {
 	staff.Grant(t, tenant, owner, []string{"customer.read", "order.create"}, "all", "")
 	staff.User(t, tenant, "khong-quyen@elimaz.test", "active")
 	srv := testServer(t, staff, keys, 0)
+	// Route M2 còn chưa làm (Task M2-12), cùng quyền customer.read; listCustomers đã làm ở Task M2-10.
+	unimplementedPath := "/api/v1/customers/" + uuid.NewString() + "/timeline"
 
-	rec := serveAs(srv, keys, http.MethodGet, "/api/v1/customers", "chu@elimaz.test", "", "")
+	rec := serveAs(srv, keys, http.MethodGet, unimplementedPath, "chu@elimaz.test", "", "")
 	expect(t, "chủ, chưa làm", rec, http.StatusNotImplemented, "not_implemented")
 	if !strings.Contains(rec.Body.String(), `"request_id":"`) {
 		t.Errorf("thân 501 thiếu request_id: %s", rec.Body.String())
 	}
-	expect(t, "không grant", serveAs(srv, keys, http.MethodGet, "/api/v1/customers", "khong-quyen@elimaz.test", "", ""),
+	expect(t, "không grant", serveAs(srv, keys, http.MethodGet, unimplementedPath, "khong-quyen@elimaz.test", "", ""),
 		http.StatusForbidden, "forbidden")
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/customers", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, unimplementedPath, nil)
 	noToken := httptest.NewRecorder()
 	srv.ServeHTTP(noToken, req)
 	expect(t, "không thẻ", noToken, http.StatusUnauthorized, "unauthenticated")
