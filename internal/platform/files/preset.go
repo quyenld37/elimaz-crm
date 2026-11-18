@@ -1,6 +1,9 @@
 package files
 
-import "slices"
+import (
+	"slices"
+	"sync/atomic"
+)
 
 // VariantSpec là một biến thể của bộ kích thước: chiều rộng (px) và định dạng (avif, webp, jpeg).
 type VariantSpec struct {
@@ -8,19 +11,31 @@ type VariantSpec struct {
 	Format string
 }
 
-// Preset trả bộ kích thước của phiên bản version (Q13): v1 = rộng 320, 640, 1080, 1600 × AVIF, WebP, JPEG (12 biến
-// thể). Thêm cỡ là thêm phiên bản mới (TP07), không sửa phiên bản đã có ảnh.
-func Preset(version int) ([]VariantSpec, bool) {
-	if version != 1 {
-		return nil, false
-	}
-	out := make([]VariantSpec, 0, 12)
+// presets là bảng hằng các bộ kích thước (TP07): v1 = rộng 320, 640, 1080, 1600 × AVIF, WebP, JPEG (Q13, 12 biến
+// thể). Thêm cỡ là thêm một phiên bản mới vào bảng này, không sửa phiên bản đã có ảnh; worker tạo bản mới từ ảnh gốc
+// bằng lệnh file.regenerate. Mã chạy thật chỉ đọc; con trỏ nguyên tử để test thay cả bảng (SetPresetsForTest) mà
+// không đua với goroutine của worker.
+//
+//nolint:gochecknoglobals // bảng hằng, chỉ test thay
+var presets = func() *atomic.Pointer[map[int][]VariantSpec] {
+	v1 := make([]VariantSpec, 0, 12)
 	for _, w := range []int{320, 640, 1080, 1600} {
 		for _, f := range []string{"avif", "webp", "jpeg"} {
-			out = append(out, VariantSpec{Width: w, Format: f})
+			v1 = append(v1, VariantSpec{Width: w, Format: f})
 		}
 	}
-	return out, true
+	var p atomic.Pointer[map[int][]VariantSpec]
+	p.Store(&map[int][]VariantSpec{1: v1})
+	return &p
+}()
+
+// Preset trả bộ kích thước của phiên bản version (bản sao, bên gọi sửa thoải mái); chưa có → false.
+func Preset(version int) ([]VariantSpec, bool) {
+	specs, ok := (*presets.Load())[version]
+	if !ok {
+		return nil, false
+	}
+	return slices.Clone(specs), true
 }
 
 // SelectPreset chọn biến thể của một bộ kích thước trong vs (biến thể của một tệp, như PublicVariants trả): bản want

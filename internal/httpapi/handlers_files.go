@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
+	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/queue"
@@ -153,4 +155,49 @@ func fileInfoOut(info files.Info) *gen.FileInfo {
 		})
 	}
 	return out
+}
+
+// RegenerateImages (POST /api/v1/platform/files/regenerate, platform.files.manage): xếp một lệnh file.regenerate cho
+// mỗi tệp ảnh ready của mục đích standard trong tenant người gọi chưa có bộ kích thước presetVersion (TP07), ghi
+// audit, trả số lệnh mới xếp. Bộ kích thước chưa có → 422 unknown_preset, không lưu vào khóa chống trùng.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) RegenerateImages(ctx context.Context, req *gen.RegenerateImagesRequest, _ gen.RegenerateImagesParams) (gen.RegenerateImagesRes, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
+	preset := int(req.PresetVersion)
+	q := queue.NewQueue()
+	var (
+		out     *gen.RegenerateImagesResult
+		refused error
+	)
+	err := WriteTx(ctx, h.d, u.TenantID, func(tx pgx.Tx) (int, any, bool, error) {
+		out, refused = nil, nil // fn có thể chạy lại (ADR-46)
+		n, err := files.EnqueueRegenerate(ctx, tx, q, preset)
+		switch {
+		case errors.Is(err, files.ErrUnknownPreset):
+			refused = err
+			return 0, nil, false, nil
+		case err != nil:
+			return 0, nil, false, err //nolint:wrapcheck // files đã bọc
+		}
+		if err := identity.RecordAudit(ctx, tx, identity.AuditEntry{
+			TenantID: u.TenantID, ActorType: "staff", ActorID: u.UserID.String(), Action: "platform.files.regenerate",
+			EntityType: "platform.file_preset", EntityID: strconv.Itoa(preset),
+			After: map[string]any{"presetVersion": preset, "enqueued": n}, RequestID: RequestID(ctx),
+		}); err != nil {
+			return 0, nil, false, fmt.Errorf("ghi audit platform.files.regenerate: %w", err)
+		}
+		out = &gen.RegenerateImagesResult{Enqueued: int32(min(n, 1<<31-1))} //nolint:gosec // đã chặn
+		return http.StatusOK, out, true, nil
+	})
+	switch {
+	case err != nil:
+		return nil, err
+	case refused != nil:
+		return nil, refused
+	}
+	return out, nil
 }

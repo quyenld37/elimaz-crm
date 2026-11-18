@@ -201,6 +201,10 @@ type RecordStocktakeCountRes interface {
 	recordStocktakeCountRes()
 }
 
+type RegenerateImagesRes interface {
+	regenerateImagesRes()
+}
+
 type ReorderProductImagesRes interface {
 	reorderProductImagesRes()
 }

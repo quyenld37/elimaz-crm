@@ -210,12 +210,14 @@ Package files là kho tệp dùng chung của CRM (kế hoạch M1, Task M1-41; 
 func CheckPurposes(ctx context.Context, d *db.DB) error
 func CreateUpload(ctx context.Context, tx pgx.Tx, fs FileStore, in UploadInput, actor uuid.UUID) (File, PresignedPut, error)
 func DownloadURL(ctx context.Context, tx pgx.Tx, fs FileStore, fileID uuid.UUID, ttl time.Duration, attachmentName string) (string, error)
+func EnqueueRegenerate(ctx context.Context, tx pgx.Tx, q queue.JobQueue, preset int) (int, error)
 func MarkDeleted(ctx context.Context, tx pgx.Tx, fileID uuid.UUID, actor uuid.UUID) error
 func OriginalKey(sha256Hex string) string
 func PrivateVariantKey(tenantID, fileID uuid.UUID, preset, width int, format string) string
 func ProcessKind() queue.Kind
 func ProcessPrivateKind() queue.Kind
 func PublicVariants(ctx context.Context, tx pgx.Tx, fileIDs []uuid.UUID, baseURL string) (map[uuid.UUID][]VariantURL, error)
+func RegenerateKind() queue.Kind
 func Register(ctx context.Context, tx pgx.Tx, f NewFile) (uuid.UUID, error)
 func RegisterPrivateImage(ctx context.Context, tx pgx.Tx, q queue.JobQueue, in NewPrivateImage) (uuid.UUID, error)
 func RegisterPurpose(p Purpose)
@@ -357,6 +359,14 @@ type Purpose struct {
 }
 func M1Purposes() []Purpose
 func PurposeOf(key string) (Purpose, bool)
+type Regenerator struct {
+}
+func NewRegenerateHandler(o ProcessorOptions) *Regenerator
+func (*Regenerator) AutoRetryNotSent() bool
+func (r *Regenerator) Execute(ctx context.Context, j queue.Job) (commands.Outcome, error)
+func (r *Regenerator) Kind() queue.Kind
+func (*Regenerator) Lookup(context.Context, queue.Job) (string, error)
+func (r *Regenerator) OnDone(ctx context.Context, j queue.Job, result json.RawMessage, tx pgx.Tx) error
 type Registry struct {
 }
 func NewRegistry(ps ...Purpose) *Registry

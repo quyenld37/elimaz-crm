@@ -1644,6 +1644,7 @@ func (*ErrorStatusCode) listWarehousesRes()            {}
 func (*ErrorStatusCode) lockStaffRes()                 {}
 func (*ErrorStatusCode) postStockDocumentRes()         {}
 func (*ErrorStatusCode) recordStocktakeCountRes()      {}
+func (*ErrorStatusCode) regenerateImagesRes()          {}
 func (*ErrorStatusCode) reorderProductImagesRes()      {}
 func (*ErrorStatusCode) replaceStaffGrantsRes()        {}
 func (*ErrorStatusCode) replaceStockDocumentLinesRes() {}
@@ -4692,6 +4693,41 @@ func (s *RecordStocktakeCountRequest) SetCounted(val int32) {
 func (s *RecordStocktakeCountRequest) SetLineVersion(val OptInt64) {
 	s.LineVersion = val
 }
+
+// Ref: #/components/schemas/RegenerateImagesRequest
+type RegenerateImagesRequest struct {
+	// Bản bộ kích thước (như IMAGE_PRESET_VERSION); chưa có trong bảng của máy chủ →
+	// 422 unknown_preset.
+	PresetVersion int32 `json:"presetVersion"`
+}
+
+// GetPresetVersion returns the value of PresetVersion.
+func (s *RegenerateImagesRequest) GetPresetVersion() int32 {
+	return s.PresetVersion
+}
+
+// SetPresetVersion sets the value of PresetVersion.
+func (s *RegenerateImagesRequest) SetPresetVersion(val int32) {
+	s.PresetVersion = val
+}
+
+// Ref: #/components/schemas/RegenerateImagesResult
+type RegenerateImagesResult struct {
+	// Số lệnh file.regenerate mới xếp (tệp đã có lệnh cho bản này không tính).
+	Enqueued int32 `json:"enqueued"`
+}
+
+// GetEnqueued returns the value of Enqueued.
+func (s *RegenerateImagesResult) GetEnqueued() int32 {
+	return s.Enqueued
+}
+
+// SetEnqueued sets the value of Enqueued.
+func (s *RegenerateImagesResult) SetEnqueued(val int32) {
+	s.Enqueued = val
+}
+
+func (*RegenerateImagesResult) regenerateImagesRes() {}
 
 // Ref: #/components/schemas/ReorderProductImagesRequest
 type ReorderProductImagesRequest struct {

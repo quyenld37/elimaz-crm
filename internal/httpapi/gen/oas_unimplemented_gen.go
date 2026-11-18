@@ -502,6 +502,16 @@ func (UnimplementedHandler) RecordStocktakeCount(ctx context.Context, req *Recor
 	return r, ht.ErrNotImplemented
 }
 
+// RegenerateImages implements regenerateImages operation.
+//
+// Tạo lại kích thước ảnh từ ảnh gốc theo một bộ kích thước (một lệnh mỗi
+// tệp ảnh ready chưa có bản đó; ảnh riêng tư không áp dụng).
+//
+// POST /api/v1/platform/files/regenerate
+func (UnimplementedHandler) RegenerateImages(ctx context.Context, req *RegenerateImagesRequest, params RegenerateImagesParams) (r RegenerateImagesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ReorderProductImages implements reorderProductImages operation.
 //
 // Đặt thứ tự ảnh đang hiện của mẫu (đúng đủ mã ảnh đang hiện) khi version

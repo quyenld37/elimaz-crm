@@ -38,13 +38,13 @@ var (
 	rn23AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn74AllowedHeaders = map[string]string{
+	rn75AllowedHeaders = map[string]string{
 		"PUT": "Content-Type,Idempotency-Key",
 	}
 	rn49AllowedHeaders = map[string]string{
 		"DELETE": "Idempotency-Key",
 	}
-	rn79AllowedHeaders = map[string]string{
+	rn80AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
 	rn11AllowedHeaders = map[string]string{
@@ -53,7 +53,7 @@ var (
 	rn46AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn90AllowedHeaders = map[string]string{
+	rn91AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type,Idempotency-Key",
 	}
 	rn47AllowedHeaders = map[string]string{
@@ -74,13 +74,13 @@ var (
 	rn42AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn76AllowedHeaders = map[string]string{
+	rn77AllowedHeaders = map[string]string{
 		"PUT": "Content-Type,Idempotency-Key",
 	}
 	rn69AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
-	rn86AllowedHeaders = map[string]string{
+	rn87AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
 	rn43AllowedHeaders = map[string]string{
@@ -89,13 +89,13 @@ var (
 	rn27AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn77AllowedHeaders = map[string]string{
+	rn78AllowedHeaders = map[string]string{
 		"PUT": "Content-Type,Idempotency-Key",
 	}
 	rn71AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn83AllowedHeaders = map[string]string{
+	rn84AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
 	rn14AllowedHeaders = map[string]string{
@@ -110,7 +110,7 @@ var (
 	rn45AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn88AllowedHeaders = map[string]string{
+	rn89AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type,Idempotency-Key",
 	}
 	rn35AllowedHeaders = map[string]string{
@@ -119,10 +119,13 @@ var (
 	rn40AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
+	rn74AllowedHeaders = map[string]string{
+		"POST": "Content-Type,Idempotency-Key",
+	}
 	rn3AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
-	rn81AllowedHeaders = map[string]string{
+	rn82AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
 )
@@ -536,7 +539,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												default:
 													s.notAllowed(w, r, notAllowedParams{
 														allowedMethods: "PUT",
-														allowedHeaders: rn74AllowedHeaders,
+														allowedHeaders: rn75AllowedHeaders,
 														acceptPost:     "",
 														acceptPatch:    "",
 													})
@@ -634,7 +637,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 													default:
 														s.notAllowed(w, r, notAllowedParams{
 															allowedMethods: "POST",
-															allowedHeaders: rn79AllowedHeaders,
+															allowedHeaders: rn80AllowedHeaders,
 															acceptPost:     "",
 															acceptPatch:    "",
 														})
@@ -767,7 +770,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "PATCH",
-									allowedHeaders: rn90AllowedHeaders,
+									allowedHeaders: rn91AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "application/json",
 								})
@@ -1122,7 +1125,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "PUT",
-													allowedHeaders: rn76AllowedHeaders,
+													allowedHeaders: rn77AllowedHeaders,
 													acceptPost:     "",
 													acceptPatch:    "",
 												})
@@ -1176,7 +1179,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn86AllowedHeaders,
+													allowedHeaders: rn87AllowedHeaders,
 													acceptPost:     "",
 													acceptPatch:    "",
 												})
@@ -1348,7 +1351,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "PUT",
-													allowedHeaders: rn77AllowedHeaders,
+													allowedHeaders: rn78AllowedHeaders,
 													acceptPost:     "",
 													acceptPatch:    "",
 												})
@@ -1417,7 +1420,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn83AllowedHeaders,
+											allowedHeaders: rn84AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -1623,7 +1626,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "PATCH",
-												allowedHeaders: rn88AllowedHeaders,
+												allowedHeaders: rn89AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "application/json",
 											})
@@ -1792,6 +1795,31 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 					switch elem[0] {
+					case 'f': // Prefix: "files/regenerate"
+
+						if l := len("files/regenerate"); len(elem) >= l && elem[0:l] == "files/regenerate" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "POST":
+								s.handleRegenerateImagesRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "POST",
+									allowedHeaders: rn74AllowedHeaders,
+									acceptPost:     "application/json",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+
 					case 'h': // Prefix: "health"
 
 						if l := len("health"); len(elem) >= l && elem[0:l] == "health" {
@@ -1919,7 +1947,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn81AllowedHeaders,
+												allowedHeaders: rn82AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "",
 											})
@@ -3818,6 +3846,31 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						break
 					}
 					switch elem[0] {
+					case 'f': // Prefix: "files/regenerate"
+
+						if l := len("files/regenerate"); len(elem) >= l && elem[0:l] == "files/regenerate" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "POST":
+								r.name = RegenerateImagesOperation
+								r.summary = "Tạo lại kích thước ảnh từ ảnh gốc theo một bộ kích thước (một lệnh mỗi tệp ảnh ready chưa có bản đó; ảnh riêng tư không áp dụng)"
+								r.operationID = "regenerateImages"
+								r.operationGroup = ""
+								r.pathPattern = "/api/v1/platform/files/regenerate"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
+						}
+
 					case 'h': // Prefix: "health"
 
 						if l := len("health"); len(elem) >= l && elem[0:l] == "health" {
