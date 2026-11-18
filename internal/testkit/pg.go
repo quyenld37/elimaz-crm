@@ -1,11 +1,13 @@
 // Package testkit dựng hạ tầng thật cho test: mỗi test một database PostgreSQL 18 riêng trên container dev của
-// phiên (docker/compose.dev.yml), đã chạy db.Migrate. Chỉ dùng trong tệp _test.go.
+// phiên (docker/compose.dev.yml), đã chạy db.Migrate (nhân bản từ database mẫu, migrate một lần). Chỉ dùng trong tệp _test.go.
 package testkit
 
 import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
 	"strings"
@@ -15,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/migrations"
 )
 
 // Mật khẩu cố định của role dev trong docker/compose.dev.yml và docker/postgres/init/01-roles.sql (chỉ database dev).
@@ -26,16 +29,20 @@ const (
 )
 
 // StartPostgres tạo database crm_test_<ngẫu nhiên> (chủ crm_owner) đã chạy db.Migrate, xóa khi test xong. Trả chuỗi
-// kết nối của người quản trị, chủ bảng và crm_app.
+// kết nối của người quản trị, chủ bảng và crm_app. Database được nhân bản từ database mẫu crm_tpl_<băm bộ migration>
+// (migrate một lần mỗi giờ cho mỗi bộ migration trên máy chủ thử, xem pgtemplate.go): giá trị now() mà migration ghi
+// vào dữ liệu là của lúc dựng mẫu, cũ tối đa một giờ.
 func StartPostgres(t testing.TB) (adminURL, ownerURL, appURL string) {
 	t.Helper()
-	adminURL, ownerURL, appURL = CreateDatabase(t)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
+	return cloneFromTemplate(t, migrations.FS, migrateDB, time.Now())
+}
+
+// migrateDB là migrateFunc của database thật: db.Migrate luôn dùng migrations.FS.
+func migrateDB(ctx context.Context, ownerURL string, _ fs.FS) error {
 	if _, err := db.Migrate(ctx, ownerURL); err != nil {
-		t.Fatalf("testkit: migrate database thử: %v", err)
+		return fmt.Errorf("db.Migrate: %w", err)
 	}
-	return adminURL, ownerURL, appURL
+	return nil
 }
 
 // OpenAppDB tạo database thử như StartPostgres và mở pool bằng crm_app với tùy chọn o; pool đóng khi test xong.
@@ -59,23 +66,37 @@ func OpenAppDB(t testing.TB, o db.PoolOptions) *db.DB {
 func CreateDatabase(t testing.TB) (adminURL, ownerURL, appURL string) {
 	t.Helper()
 	base := serverURL(t)
-	name := "crm_test_" + randomSuffix(t)
-	adminURL = withDB(base, nil, name)
-	ownerURL = withDB(base, url.UserPassword("crm_owner", devOwnerPass), name)
-	appURL = withDB(base, url.UserPassword("crm_app", devAppPass), name)
-
+	name, adminURL, ownerURL, appURL := newTestDB(t, base)
+	dropAtCleanup(t, base, name)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	admin := connect(ctx, t, withDB(base, nil, base.Path))
-	defer func() { _ = admin.Close(context.WithoutCancel(ctx)) }()
-	exec(ctx, t, admin, "CREATE DATABASE "+name+" OWNER crm_owner")
-	dropAtCleanup(t, base, name)
-	prepareEmpty(ctx, t, admin, adminURL)
+	withAdmin(ctx, t, base, func(admin *pgx.Conn) {
+		exec(ctx, t, admin, "CREATE DATABASE "+name+" OWNER crm_owner")
+		prepareEmpty(ctx, t, admin, adminURL)
+	})
 	return adminURL, ownerURL, appURL
 }
 
+// newTestDB đặt tên database test crm_test_<ngẫu nhiên> trên máy chủ base và trả chuỗi kết nối của người quản trị,
+// chủ bảng và crm_app tới nó (chưa tạo database).
+func newTestDB(t testing.TB, base *url.URL) (name, adminURL, ownerURL, appURL string) {
+	t.Helper()
+	name = testDBPrefix + randomSuffix(t)
+	return name, withDB(base, nil, name), withDB(base, url.UserPassword("crm_owner", devOwnerPass), name),
+		withDB(base, url.UserPassword("crm_app", devAppPass), name)
+}
+
+// withAdmin mở kết nối người quản trị tới database mặc định của máy chủ base, chạy fn, rồi đóng kết nối.
+func withAdmin(ctx context.Context, t testing.TB, base *url.URL, fn func(admin *pgx.Conn)) {
+	t.Helper()
+	admin := connect(ctx, t, withDB(base, nil, base.Path))
+	defer func() { _ = admin.Close(context.WithoutCancel(ctx)) }()
+	fn(admin)
+}
+
 // prepareEmpty làm phần của người quản trị trên database vừa tạo (adminURL), trước khi migrate: quyền cấp pg_monitor
-// cho crm_owner và extension pg_stat_statements. admin nối vào database mặc định của máy chủ.
+// cho crm_owner và extension pg_stat_statements. admin nối vào database mặc định của máy chủ. Đổi hàm này thì đổi
+// templateRecipe (pgtemplate.go).
 func prepareEmpty(ctx context.Context, t testing.TB, admin *pgx.Conn, adminURL string) {
 	t.Helper()
 	// Migration 0010 cấp pg_monitor cho crm_app; cụm dev dựng trước Task 19 chưa có dòng này trong 01-roles.sql.
@@ -85,15 +106,13 @@ func prepareEmpty(ctx context.Context, t testing.TB, admin *pgx.Conn, adminURL s
 	exec(ctx, t, inNew, "CREATE EXTENSION IF NOT EXISTS pg_stat_statements")
 }
 
-// dropAtCleanup xóa database name (kể cả khi còn kết nối) khi test xong.
+// dropAtCleanup xóa database name (kể cả khi còn kết nối; IF EXISTS: gọi được trước khi tạo) khi test xong.
 func dropAtCleanup(t testing.TB, base *url.URL, name string) {
 	t.Helper()
 	t.Cleanup(func() {
 		cctx, ccancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer ccancel()
-		c := connect(cctx, t, withDB(base, nil, base.Path))
-		defer func() { _ = c.Close(cctx) }()
-		exec(cctx, t, c, "DROP DATABASE IF EXISTS "+name+" WITH (FORCE)")
+		withAdmin(cctx, t, base, func(c *pgx.Conn) { exec(cctx, t, c, "DROP DATABASE IF EXISTS "+name+" WITH (FORCE)") })
 	})
 }
 
