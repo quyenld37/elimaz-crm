@@ -106,9 +106,13 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	_ = json.NewEncoder(w).Encode(body)
 }
 
+// rawProbe: thân JSON có thứ tự khóa không theo bảng chữ cái, khoảng trắng riêng, ký tự HTML (Task 396).
+const rawProbe = "{\"zeta\": 1,  \"alpha\" :[ 2,1 ],\n \"html\":\"<b>&\"}"
+
 // counterHandler tăng bộ đếm của người gọi trong WriteTx. Thân {"mode": …}: "ok" (mặc định) kết quả cuối 200;
-// "retry" câu trả lời "thử lại" 503 (final = false); "fail" lỗi giữa transaction; "busy" lỗi tạm hết lượt;
-// "reject" trả 400 không gọi WriteTx.
+// "raw" kết quả cuối 200 là rawProbe (json.RawMessage); "after" kết quả cuối 200 nhưng handler lại ghi 500 sau khi
+// WriteTx đã commit; "retry" câu trả lời "thử lại" 503 (final = false); "fail" lỗi giữa transaction; "busy" lỗi tạm
+// hết lượt; "reject" trả 400 không gọi WriteTx.
 func (e *idemEnv) counterHandler(d Deps) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		e.calls.Add(1)
@@ -140,14 +144,21 @@ func (e *idemEnv) counterHandler(d Deps) http.Handler {
 				status, body = http.StatusServiceUnavailable, map[string]any{"error": "busy"}
 				return status, body, false, nil
 			}
-			status, body = http.StatusOK, map[string]any{"count": n}
+			if in.Mode == "raw" {
+				status, body = http.StatusOK, json.RawMessage(rawProbe)
+				return status, body, true, nil
+			}
+			status, body = http.StatusOK, map[string]any{"count": n, "mode": in.Mode}
 			return status, body, true, nil
 		})
-		if err != nil {
+		switch {
+		case err != nil:
 			writeHandlerError(d, w, r, err)
-			return
+		case in.Mode == "after":
+			writeError(w, r, http.StatusInternalServerError, "after_commit")
+		default:
+			writeJSON(w, status, body) // json.Encoder: thêm "\n", khác byte của bản lưu
 		}
-		writeJSON(w, status, body)
 	})
 }
 
@@ -351,14 +362,46 @@ func TestIdempotencyReplayAfterOneHour(t *testing.T) {
 	if again.Code != http.StatusOK || again.Header().Get("Idempotent-Replayed") != "true" {
 		t.Fatalf("gửi lại phải 200 kèm Idempotent-Replayed: true, có %d %v", again.Code, again.Header())
 	}
-	if ct := again.Header().Get("Content-Type"); ct != "application/json" {
-		t.Fatalf("phát lại phải application/json, có %q", ct)
-	}
-	if a, b := jsonOf(t, first), jsonOf(t, again); a["count"] != b["count"] || len(a) != len(b) {
-		t.Fatalf("thân phát lại %v khác thân gốc %v", b, a)
-	}
+	sameReply(t, first, again)
 	if n := e.counter(userA); n != 1 || e.calls.Load() != 1 {
 		t.Fatalf("bộ đếm %d, handler chạy %d lần; muốn 1 và 1", n, e.calls.Load())
+	}
+}
+
+// sameReply: lần phát lại có thân giống hệt từng byte và cùng Content-Type (jsonContentType) với lần đầu (Task 396).
+func sameReply(t *testing.T, first, again *httptest.ResponseRecorder) {
+	t.Helper()
+	if !bytes.Equal(first.Body.Bytes(), again.Body.Bytes()) {
+		t.Fatalf("thân khác byte:\nlần đầu %q\nphát lại %q", first.Body.Bytes(), again.Body.Bytes())
+	}
+	if a, b := first.Header().Get("Content-Type"), again.Header().Get("Content-Type"); a != jsonContentType || b != a {
+		t.Fatalf("Content-Type lần đầu %q, phát lại %q; muốn cùng %q", a, b, jsonContentType)
+	}
+}
+
+// Task 396 (ADR-41): gửi lại cùng khóa nhận thân giống hệt từng byte và cùng Content-Type với lần đầu — kể cả khi
+// handler tự ghi thân khác byte bản lưu ("ok": json.Encoder thêm xuống dòng), thân là JSON thứ tự khóa lạ, khoảng
+// trắng riêng ("raw", lần đầu trả nguyên rawProbe), và handler ghi lỗi sau khi kết quả đã commit ("after": lần đầu
+// cũng là kết quả đã lưu, khớp dữ liệu).
+func TestIdempotencyReplayExactBytes(t *testing.T) {
+	e := newIdemEnv(t)
+	for _, mode := range []string{"ok", "raw", "after"} {
+		t.Run(mode, func(t *testing.T) {
+			body := `{"mode":"` + mode + `"}`
+			first := e.post(counterPath, userA, "exact-"+mode, body)
+			again := e.post(counterPath, userA, "exact-"+mode, body)
+			if first.Code != http.StatusOK || again.Code != http.StatusOK ||
+				first.Header().Get("Idempotent-Replayed") != "" || again.Header().Get("Idempotent-Replayed") != "true" {
+				t.Fatalf("mong 200 rồi 200 phát lại: %d %v / %d %v", first.Code, first.Header(), again.Code, again.Header())
+			}
+			sameReply(t, first, again)
+			if mode == "raw" && first.Body.String() != rawProbe {
+				t.Fatalf("lần đầu phải đúng byte handler đưa WriteTx: %q", first.Body.String())
+			}
+		})
+	}
+	if n := e.counter(userA); n != 3 {
+		t.Fatalf("mỗi khóa chạy đúng một lần: bộ đếm %d, muốn 3", n)
 	}
 }
 

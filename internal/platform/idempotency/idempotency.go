@@ -46,8 +46,8 @@ type Scope struct {
 	Route    string
 }
 
-// Stored là kết quả cuối đã lưu của một khóa. Body nil khi handler không trả thân hoặc route không lưu thân
-// (no-replay của ADR-47).
+// Stored là kết quả cuối đã lưu của một khóa. Body là đúng từng byte đã đưa cho Claim.Complete (cột response_raw,
+// Task 396); nil khi handler không trả thân hoặc route không lưu thân (no-replay của ADR-47).
 type Stored struct {
 	Status int
 	Body   []byte
@@ -55,8 +55,8 @@ type Stored struct {
 
 // Claim là quyền chạy yêu cầu của một khóa mới (hoặc vừa nhận lại).
 type Claim interface {
-	// Complete ghi "đã xong" kèm status và body (JSON, nil → NULL) trong tx của nghiệp vụ; phải là câu cuối của
-	// transaction (thứ tự khóa ADR-46 nhóm 13). Claim đã bị nhận lại → ErrClaimLost.
+	// Complete ghi "đã xong" kèm status và body (JSON hợp lệ, lưu nguyên từng byte; nil → NULL) trong tx của nghiệp
+	// vụ; phải là câu cuối của transaction (thứ tự khóa ADR-46 nhóm 13). Claim đã bị nhận lại → ErrClaimLost.
 	Complete(ctx context.Context, tx pgx.Tx, status int, body []byte) error
 	// Release xóa dòng khóa (câu trả lời "thử lại" không được lưu); chạy transaction riêng, kể cả khi ctx đã hủy.
 	// Claim đã bị nhận lại thì không xóa gì.
@@ -133,7 +133,7 @@ func begin(ctx context.Context, q *store.Queries, s Scope, key string, reqHash [
 		return false, nil, ErrKeyReused
 	}
 	if row.Status == "done" {
-		return false, &Stored{Status: int(row.ResponseStatus.Int32), Body: row.ResponseBody}, nil
+		return false, &Stored{Status: int(row.ResponseStatus.Int32), Body: row.ResponseRaw}, nil
 	}
 	n, err = q.ReclaimIdempotencyKey(ctx, store.ReclaimIdempotencyKeyParams{
 		LockedUntil: ts(token), TenantID: s.TenantID, Actor: s.Actor, Route: s.Route, Key: key, Now: ts(now),
@@ -150,7 +150,7 @@ func begin(ctx context.Context, q *store.Queries, s Scope, key string, reqHash [
 func (c *claim) Complete(ctx context.Context, tx pgx.Tx, status int, body []byte) error {
 	n, err := store.New(tx).CompleteIdempotencyKey(ctx, store.CompleteIdempotencyKeyParams{
 		ResponseStatus: pgtype.Int4{Int32: int32(status), Valid: true}, //nolint:gosec // mã HTTP 100–599
-		ResponseBody:   body,
+		ResponseRaw:    body,
 		TenantID:       c.scope.TenantID, Actor: c.scope.Actor, Route: c.scope.Route, Key: c.key,
 		LockedUntil: pgtype.Timestamptz{Time: c.token, Valid: true},
 	})

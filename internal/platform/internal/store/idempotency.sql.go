@@ -15,14 +15,15 @@ import (
 
 const completeIdempotencyKey = `-- name: CompleteIdempotencyKey :execrows
 UPDATE platform.idempotency_keys
-SET status = 'done', locked_until = NULL, response_status = $1, response_body = $2
+SET status = 'done', locked_until = NULL, response_status = $1,
+    response_body = convert_from($2, 'UTF8')::jsonb, response_raw = $2
 WHERE tenant_id = $3 AND actor = $4 AND route = $5 AND key = $6
   AND status = 'running' AND locked_until = $7
 `
 
 type CompleteIdempotencyKeyParams struct {
 	ResponseStatus pgtype.Int4
-	ResponseBody   []byte
+	ResponseRaw    []byte
 	TenantID       uuid.UUID
 	Actor          string
 	Route          string
@@ -30,10 +31,11 @@ type CompleteIdempotencyKeyParams struct {
 	LockedUntil    pgtype.Timestamptz
 }
 
+// Ghi cả hai cột (pha mở rộng của 0013): response_body cho bản cũ còn chạy lúc deploy cuốn, response_raw đúng byte.
 func (q *Queries) CompleteIdempotencyKey(ctx context.Context, arg CompleteIdempotencyKeyParams) (int64, error) {
 	result, err := q.db.Exec(ctx, completeIdempotencyKey,
 		arg.ResponseStatus,
-		arg.ResponseBody,
+		arg.ResponseRaw,
 		arg.TenantID,
 		arg.Actor,
 		arg.Route,
@@ -83,7 +85,8 @@ func (q *Queries) InsertIdempotencyKey(ctx context.Context, arg InsertIdempotenc
 }
 
 const lockIdempotencyKey = `-- name: LockIdempotencyKey :one
-SELECT request_hash, status, locked_until, response_status, response_body, expires_at
+SELECT request_hash, status, locked_until, response_status,
+       COALESCE(response_raw, convert_to(response_body::text, 'UTF8'))::bytea AS response_raw, expires_at
 FROM platform.idempotency_keys
 WHERE tenant_id = $1 AND actor = $2 AND route = $3 AND key = $4
 FOR UPDATE
@@ -101,11 +104,12 @@ type LockIdempotencyKeyRow struct {
 	Status         string
 	LockedUntil    pgtype.Timestamptz
 	ResponseStatus pgtype.Int4
-	ResponseBody   []byte
+	ResponseRaw    []byte
 	ExpiresAt      time.Time
 }
 
 // Câu riêng sau INSERT (ảnh chụp mới của READ COMMITTED thấy dòng bên kia vừa commit), khóa dòng tới hết transaction.
+// Thân đã lưu: response_raw (byte nguyên, Task 396); dòng do bản trước 0013 ghi (raw NULL) thì lấy response_body.
 func (q *Queries) LockIdempotencyKey(ctx context.Context, arg LockIdempotencyKeyParams) (LockIdempotencyKeyRow, error) {
 	row := q.db.QueryRow(ctx, lockIdempotencyKey,
 		arg.TenantID,
@@ -119,7 +123,7 @@ func (q *Queries) LockIdempotencyKey(ctx context.Context, arg LockIdempotencyKey
 		&i.Status,
 		&i.LockedUntil,
 		&i.ResponseStatus,
-		&i.ResponseBody,
+		&i.ResponseRaw,
 		&i.ExpiresAt,
 	)
 	return i, err
@@ -188,7 +192,7 @@ func (q *Queries) ReleaseIdempotencyKey(ctx context.Context, arg ReleaseIdempote
 const resetExpiredIdempotencyKey = `-- name: ResetExpiredIdempotencyKey :execrows
 UPDATE platform.idempotency_keys
 SET request_hash = $1, status = 'running', locked_until = $2, response_status = NULL,
-    response_body = NULL, created_at = $3, expires_at = $4
+    response_body = NULL, response_raw = NULL, created_at = $3, expires_at = $4
 WHERE tenant_id = $5 AND actor = $6 AND route = $7 AND key = $8
   AND expires_at <= $3
 `

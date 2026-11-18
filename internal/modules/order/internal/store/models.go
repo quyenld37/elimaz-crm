@@ -569,6 +569,7 @@ type PlatformIdempotencyKey struct {
 	ResponseBody   []byte
 	CreatedAt      time.Time
 	ExpiresAt      time.Time
+	ResponseRaw    []byte
 }
 
 type PlatformJob struct {
