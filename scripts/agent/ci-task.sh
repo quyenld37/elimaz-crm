@@ -26,13 +26,20 @@ if printf '%s\n' "$changed" | grep -q '^console/'; then step console-check make 
 if printf '%s\n' "$changed" | grep -E -q '^(migrations/|go\.mod$|go\.sum$|internal/testkit/)'; then
   step "test (toàn bộ: đổi migration/go.mod/testkit)" make test
 else
-  pkgs=$(printf '%s\n' "$changed" | python3 scripts/agent/affected.py)
-  if [ -n "$pkgs" ]; then
+  pkgs=$(printf '%s\n' "$changed" | python3 scripts/agent/affected.py); arc=$?
+  if [ "$arc" != 0 ]; then
+    # Không xác định được gói bị ảnh hưởng: chạy toàn bộ thay vì bỏ sót (19/11: lỗi NFD/NFC làm mọi task chỉ chạy tests/arch).
+    step "test (toàn bộ: affected.py thoát $arc)" make test
+  elif [ -n "$pkgs" ]; then
     # shellcheck disable=SC2086
     step "test (gói đổi, phụ thuộc, vùng cao)" go test -race -count=1 $pkgs ./tests/arch/...
   else
     step "test kiến trúc" go test -count=1 ./tests/arch/...
   fi
+fi
+# Test cấu hình quy trình và Makefile (Task 401): affected.py chỉ xét tệp Go nên đổi Makefile không kích test nào.
+if printf '%s\n' "$changed" | grep -E -q '^(Makefile|tools/versions\.mk|scripts/|\.github/|\.githooks/|docker/)'; then
+  step "test deploy (đổi Makefile/scripts/docker)" go test -count=1 ./tests/deploy/...
 fi
 if [ -n "$fail" ]; then echo "CI-TASK ĐỎ:$fail"; exit 1; fi
 echo "CI-TASK XANH (so với điểm tách nhánh $base)"
