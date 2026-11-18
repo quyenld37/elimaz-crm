@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M1 — Nhà cung cấp</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="m1.css">
+<style>
+.s-name { color: var(--name); font-weight: 600; overflow-wrap: anywhere; max-width: 520px; display: block; }
+.stbl .c-act { width: 1%; white-space: nowrap; }
+@media (max-width: 759px) { .s-name { max-width: none; } .stbl td.c-act { justify-content: flex-end; } }
+</style>
+</head>
+<body data-page="kho-nha-cung-cap" data-title="Nhà cung cấp">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><h1>Nhà cung cấp</h1><p class="sub">Dùng trên phiếu nhập. Nhà cung cấp không xóa được, chỉ lưu trữ: phiếu cũ vẫn giữ tên.</p></div>
+	<div class="row"><button class="btn btn-dark">Thêm nhà cung cấp</button></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI A</p><h2>Danh sách, có tên 200 ký tự, có nhà cung cấp đã lưu trữ</h2></section>
+<div class="toolbar">
+	<input class="input is-search" type="search" placeholder="Tìm theo tên hoặc số điện thoại" aria-label="Tìm nhà cung cấp">
+	<label class="check"><input type="checkbox" checked> Hiện cả đã lưu trữ</label>
+</div>
+<div class="tbl-frame">
+<table class="tbl stbl">
+	<thead><tr><th>Tên</th><th>Điện thoại</th><th>Ghi chú</th><th>Trạng thái</th><th class="c-act"><span class="sr">Thao tác</span></th></tr></thead>
+	<tbody>
+	<tr><td class="full"><span class="s-name">Công ty TNHH Sản xuất Thương mại và Dịch vụ May mặc Xuất khẩu Thanh Bình Hưng Thịnh Phát, chi nhánh Khu công nghiệp Phố Nối A, tỉnh Hưng Yên, xưởng số 3 chuyên hàng lụa và voan cao cấp cho thương hiệu</span></td>
+		<td data-label="Điện thoại" class="num nowrap">0912 345 678</td><td data-label="Ghi chú">Giao thứ 3 hằng tuần</td><td data-label="Trạng thái"><span class="chip chip-ok">Đang dùng</span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Sửa</button><button class="btn btn-quiet">Lưu trữ</button></div></td></tr>
+	<tr><td class="full"><span class="s-name">Xưởng Hoa</span></td>
+		<td data-label="Điện thoại" class="muted">—</td><td data-label="Ghi chú" class="muted">—</td><td data-label="Trạng thái"><span class="chip chip-ok">Đang dùng</span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Sửa</button><button class="btn btn-quiet">Lưu trữ</button></div></td></tr>
+	<tr><td class="full"><span class="s-name">Xưởng may Hoa Sen</span></td>
+		<td data-label="Điện thoại" class="num nowrap">+84 24 3936 1234</td><td data-label="Ghi chú">Hàng voan, đặt trước 10 ngày</td><td data-label="Trạng thái"><span class="chip chip-ok">Đang dùng</span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Sửa</button><button class="btn btn-quiet">Lưu trữ</button></div></td></tr>
+	<tr class="is-muted"><td class="full"><span class="s-name">Vải Ninh Hiệp cô Thủy</span></td>
+		<td data-label="Điện thoại" class="num nowrap">0987 000 111</td><td data-label="Ghi chú">Ngừng lấy từ 09/2026</td><td data-label="Trạng thái"><span class="chip chip-line">Đã lưu trữ</span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Sửa</button><button class="btn btn-quiet">Dùng lại</button></div></td></tr>
+	</tbody>
+</table>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Thêm nhà cung cấp: tên trùng, số điện thoại sai</h2></section>
+<div class="backdrop">
+	<div class="dlg drawer" role="dialog" aria-labelledby="d1">
+		<div class="dlg-h"><h3 id="d1">Thêm nhà cung cấp</h3><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<label class="field"><span>Tên *</span><input class="input is-err" value="Xưởng Hoa"><span class="field-err">Tên này đã có. Chọn nhà cung cấp có sẵn hoặc đặt tên khác.</span><span class="hint">Tối đa 200 ký tự</span></label>
+			<label class="field"><span>Điện thoại</span><input class="input is-err num" value="09123"><span class="field-err">Số điện thoại cần 8–15 chữ số, có thể bắt đầu bằng +.</span></label>
+			<label class="field"><span>Ghi chú</span><textarea class="input"></textarea><span class="hint">0 / 1.000 ký tự</span></label>
+		</div>
+		<div class="dlg-f"><button class="btn btn-line">Hủy</button><button class="btn btn-dark">Lưu</button></div>
+	</div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Lưu trữ: xác nhận; sửa khi người khác vừa sửa</h2></section>
+<div class="stack">
+	<div class="backdrop">
+		<div class="dlg" role="dialog" aria-labelledby="d2">
+			<div class="dlg-h"><h3 id="d2">Lưu trữ "Xưởng may Hoa Sen"?</h3></div>
+			<div class="dlg-b"><p>Nhà cung cấp này không còn hiện trong ô chọn của phiếu nhập mới. Phiếu cũ vẫn giữ tên. Dùng lại được bất cứ lúc nào.</p></div>
+			<div class="dlg-f"><button class="btn btn-line">Quay lại</button><button class="btn btn-dark">Lưu trữ</button></div>
+		</div>
+	</div>
+	<div class="box box-err"><b>Nhà cung cấp đã thay đổi, tải lại.</b> <span>Có người vừa sửa nhà cung cấp này. Thay đổi của bạn chưa được lưu.</span><div class="row" style="margin-top:8px"><button class="btn btn-dark">Tải lại</button></div></div>
+	<div class="box box-err"><b>Không chọn được nhà cung cấp đã lưu trữ.</b> <span>"Vải Ninh Hiệp cô Thủy" đã lưu trữ. Bấm "Dùng lại" ở danh bạ hoặc chọn nhà cung cấp khác cho phiếu.</span></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI D</p><h2>Chưa có nhà cung cấp nào</h2></section>
+<div class="empty"><h2>Chưa có nhà cung cấp nào</h2><p class="muted">Thêm ở đây, hoặc gõ tên ngay trong ô "Nhà cung cấp" khi soạn phiếu nhập.</p><button class="btn btn-dark">Thêm nhà cung cấp</button></div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

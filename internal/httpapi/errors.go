@@ -36,6 +36,7 @@ const (
 	codeNotImplemented         = "not_implemented"
 	codeRateLimited            = "rate_limited"
 	codeRetryLater             = "retry_later"
+	codeStreamUnavailable      = "stream_unavailable"
 	codeUnauthenticated        = "unauthenticated"
 	codeUnsupportedMedia       = "unsupported_media_type"
 	// Quản lý nhân viên (PQ07, kế hoạch M1 Task M1-26).

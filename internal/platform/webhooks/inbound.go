@@ -12,10 +12,13 @@ import (
 	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
-// InboundKind là loại việc của một sự kiện vào từ nguồn source: inbound.<source>, chính sách mặc định (không
-// BlockOnDead: một sự kiện dead không chặn sự kiện sau, spec 04 mục 5.1).
+// InboundKind là loại việc của một sự kiện vào từ nguồn source: inbound.<source>, chính sách mặc định với thứ tự
+// OrderBestEffort (spec 04 mục 5.1: một tin lỗi, đang chờ thử lại hay dead, không chặn tin sau của cùng hội thoại;
+// chỉ tin cùng hội thoại đang chạy mới chặn).
 func InboundKind(source string) queue.Kind {
-	return queue.Kind{Name: "inbound." + source, Policy: queue.DefaultPolicy}
+	p := queue.DefaultPolicy
+	p.OrderMode = queue.OrderBestEffort
+	return queue.Kind{Name: "inbound." + source, Policy: p}
 }
 
 // Inbound là một sự kiện vào giao cho InboundHandler.

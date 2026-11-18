@@ -110,7 +110,7 @@ type Handler interface {
 	RetryJob(ctx context.Context, params RetryJobParams) (RetryJobRes, error)
 	// Stream implements stream operation.
 	//
-	// Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 15).
+	// Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 16).
 	//
 	// GET /api/v1/stream
 	Stream(ctx context.Context) (StreamRes, error)

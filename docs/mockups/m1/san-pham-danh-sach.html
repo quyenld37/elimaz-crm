@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M1 — Danh sách sản phẩm</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="m1.css">
+<style>
+.p-cell { display: flex; gap: 12px; align-items: center; min-width: 0; max-width: 460px; }
+.p-cell .code { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.p-cell .clamp2 { color: var(--name); font-weight: 600; }
+.filters-on { display: flex; gap: 8px; flex-wrap: wrap; margin: -8px 0 16px; }
+.filters-on .tag { min-height: var(--tap); }
+.filters-on .tag button { border: 0; background: none; font-size: 14px; min-width: var(--tap); min-height: var(--tap); cursor: pointer; color: var(--ink); }
+@media (max-width: 759px) {
+	.tbl td.lead .p-cell { max-width: none; width: 100%; }
+}
+</style>
+</head>
+<body data-page="san-pham-danh-sach" data-title="Sản phẩm">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><h1>Sản phẩm</h1><p class="sub">Người bán ELIMAZ</p></div>
+	<div class="row"><a class="btn btn-line" href="nhap-excel.html">Nhập Excel</a><a class="btn btn-dark" href="san-pham-sua.html">Thêm mẫu</a></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI A</p><h2>200 mẫu, đang lọc "Đang bán"; đủ các ca ảnh, tồn và tên dài</h2></section>
+
+<div class="toolbar">
+	<input class="input is-search" type="search" placeholder="Tìm theo mã mẫu, tên, SKU hoặc barcode" aria-label="Tìm sản phẩm">
+	<div class="select-wrap"><select aria-label="Kho tính có thể bán"><option>Kho chính</option><option>Kho phụ</option></select></div>
+	<div class="select-wrap"><select aria-label="Trạng thái"><option>Đang bán</option><option>Mọi trạng thái</option><option>Đang nhập</option><option>Ngừng bán</option></select></div>
+	<div class="select-wrap"><select aria-label="Danh mục"><option>Mọi danh mục</option><option>Váy</option><option>Váy &gt; Váy dài</option><option>Áo &gt; Áo sơ mi</option></select></div>
+	<div class="select-wrap"><select aria-label="Nhãn"><option>Mọi nhãn</option><option>Hàng mới</option><option>Bán chạy</option></select></div>
+</div>
+<div class="filters-on"><span class="tag">Trạng thái: Đang bán <button aria-label="Bỏ lọc trạng thái">×</button></span><button class="btn btn-text">Xóa bộ lọc</button></div>
+
+<div class="tbl-frame">
+<table class="tbl">
+	<thead><tr><th>Mẫu</th><th>Danh mục</th><th class="r">Giá bán</th><th class="r">Có thể bán</th><th>Trạng thái</th></tr></thead>
+	<tbody>
+	<tr>
+		<td class="lead"><a class="p-cell" href="san-pham-sua.html" style="text-decoration:none"><span class="thumb"></span><span class="grow"><span class="code">DAM0123</span><span class="clamp2">Đầm suông công sở cổ vuông tay lỡ phối nút ngọc trai dáng dài qua gối màu be sữa</span></span></a></td>
+		<td data-label="Danh mục">Váy &gt; Váy dài</td>
+		<td data-label="Giá bán" class="r money nowrap">350.000 ₫ – 420.000 ₫</td>
+		<td data-label="Có thể bán" class="r num">46</td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đang bán</span></td>
+	</tr>
+	<tr>
+		<td class="lead"><a class="p-cell" href="san-pham-sua.html" style="text-decoration:none"><span class="thumb"></span><span class="grow"><span class="code">AO0456</span><span class="clamp2">Áo sơ mi lụa cổ đức tay dài</span></span></a></td>
+		<td data-label="Danh mục">Áo &gt; Áo sơ mi</td>
+		<td data-label="Giá bán" class="r money">289.000 ₫</td>
+		<td data-label="Có thể bán" class="r num">12</td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đang bán</span></td>
+	</tr>
+	<tr>
+		<td class="lead"><a class="p-cell" href="san-pham-sua.html" style="text-decoration:none"><span class="thumb"></span><span class="grow"><span class="code">QU0789</span><span class="clamp2">Quần âu ống đứng cạp cao</span></span></a></td>
+		<td data-label="Danh mục">Quần &gt; Quần âu</td>
+		<td data-label="Giá bán" class="r money">320.000 ₫</td>
+		<td data-label="Có thể bán" class="r"><span><span class="num bold err-text">−2</span><br><span class="xs err-text">Thiếu 2 so với phần giữ</span></span></td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đang bán</span></td>
+	</tr>
+	<tr>
+		<td class="lead"><a class="p-cell" href="san-pham-sua.html" style="text-decoration:none"><span class="thumb"></span><span class="grow"><span class="code">VAY0101</span><span class="clamp2">Chân váy bút chì xẻ sau</span></span></a></td>
+		<td data-label="Danh mục">Váy &gt; Chân váy</td>
+		<td data-label="Giá bán" class="r money">259.000 ₫</td>
+		<td data-label="Có thể bán" class="r"><span><span class="num">0</span> <span class="xs muted">Hết hàng</span></span></td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đang bán</span></td>
+	</tr>
+	<tr>
+		<td class="lead"><a class="p-cell" href="san-pham-sua.html" style="text-decoration:none"><span class="thumb is-empty">Ảnh bị mất</span><span class="grow"><span class="code">SET0012</span><span class="clamp2">Set vest blazer và chân váy chữ A</span></span></a></td>
+		<td data-label="Danh mục">Set &gt; Set vest</td>
+		<td data-label="Giá bán" class="r money">690.000 ₫</td>
+		<td data-label="Có thể bán" class="r num">8</td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đang bán</span></td>
+	</tr>
+	<tr>
+		<td class="lead"><a class="p-cell" href="san-pham-sua.html" style="text-decoration:none"><span class="thumb"></span><span class="grow"><span class="code">AO0321</span><span class="clamp2">Áo kiểu cổ nơ tay phồng</span></span></a></td>
+		<td data-label="Danh mục">Áo &gt; Áo kiểu</td>
+		<td data-label="Giá bán" class="r money">239.000 ₫ – 259.000 ₫</td>
+		<td data-label="Có thể bán" class="r num">133</td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đang bán</span></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+<div class="more"><span>Đang hiện 50 mẫu đầu. Cuộn xuống để tải tiếp.</span><button class="btn btn-quiet">Tải thêm 50 mẫu</button></div>
+
+<p class="mk" style="margin-top:16px"><b>Mockup:</b> "Có thể bán" = tổng các biến thể ở kho đang chọn (Tồn − Lỗi − Đang giữ − Đang giao); ô chọn kho chỉ có kho người xem có quyền. Số âm hiện đỏ kèm chữ "Thiếu … so với phần giữ" (kiểm kho đếm thiếu, Q8). Danh sách dài cuộn ảo, tải theo con trỏ 50 mẫu một lần. Dưới 760 px mỗi mẫu là một thẻ.</p>
+
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Lọc "Tất cả trạng thái": mẫu đang nhập và mẫu ngừng bán</h2></section>
+<div class="tbl-frame">
+<table class="tbl">
+	<thead><tr><th>Mẫu</th><th>Danh mục</th><th class="r">Giá bán</th><th class="r">Có thể bán</th><th>Trạng thái</th></tr></thead>
+	<tbody>
+	<tr>
+		<td class="lead"><a class="p-cell" href="san-pham-sua.html" style="text-decoration:none"><span class="thumb is-empty">Chưa có ảnh</span><span class="grow"><span class="code">AO0999</span><span class="clamp2">Áo len gân cổ lọ (hàng về tháng 12)</span></span></a></td>
+		<td data-label="Danh mục">Áo &gt; Áo len</td>
+		<td data-label="Giá bán" class="r money">299.000 ₫</td>
+		<td data-label="Có thể bán" class="r num">0</td>
+		<td data-label="Trạng thái"><span class="chip">Đang nhập · ẩn với khách</span></td>
+	</tr>
+	<tr class="is-muted">
+		<td class="lead"><a class="p-cell" href="san-pham-sua.html" style="text-decoration:none"><span class="thumb"></span><span class="grow"><span class="code">DAM0055</span><span class="clamp2">Đầm xòe hoa nhí thu đông 2025</span></span></a></td>
+		<td data-label="Danh mục">Váy &gt; Váy ngắn</td>
+		<td data-label="Giá bán" class="r money">310.000 ₫</td>
+		<td data-label="Có thể bán" class="r num">3</td>
+		<td data-label="Trạng thái"><span class="chip chip-line">Ngừng bán</span></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Đúng 1 mẫu</h2></section>
+<div class="tbl-frame">
+<table class="tbl">
+	<thead><tr><th>Mẫu</th><th>Danh mục</th><th class="r">Giá bán</th><th class="r">Có thể bán</th><th>Trạng thái</th></tr></thead>
+	<tbody>
+	<tr>
+		<td class="lead"><a class="p-cell" href="san-pham-sua.html" style="text-decoration:none"><span class="thumb"></span><span class="grow"><span class="code">DAM0001</span><span class="clamp2">Đầm bút chì cổ tim</span></span></a></td>
+		<td data-label="Danh mục">Váy &gt; Váy dài</td>
+		<td data-label="Giá bán" class="r money">390.000 ₫</td>
+		<td data-label="Có thể bán" class="r num">10</td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đang bán</span></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+<div class="more"><span>Hết danh sách.</span></div>
+
+<section class="st"><p class="xs">TRẠNG THÁI D</p><h2>Shop chưa có mẫu nào (0 mẫu)</h2></section>
+<div class="empty">
+	<h2>Chưa có mẫu nào</h2>
+	<p class="muted">Thêm từng mẫu, hoặc nhập nhiều mẫu một lần bằng tệp Excel theo mẫu của CRM.</p>
+	<div class="row" style="justify-content:center"><a class="btn btn-line" href="nhap-excel.html">Nhập Excel</a><a class="btn btn-dark" href="san-pham-sua.html">Thêm mẫu</a></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI E</p><h2>Tìm không thấy</h2></section>
+<div class="empty">
+	<h2>Không có mẫu khớp "đầm nhung"</h2>
+	<p class="muted">Đang lọc: Trạng thái Đang bán, danh mục Váy.</p>
+	<button class="btn btn-line">Xóa bộ lọc</button>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

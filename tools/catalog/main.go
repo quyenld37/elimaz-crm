@@ -1,6 +1,8 @@
 // Lệnh catalog sinh docs/danh-muc-dung-chung.md từ tài liệu Go (go/doc, cùng nguồn của `go doc -all`) của mọi gói
 // trong internal/platform: tên gói, câu đầu của doc gói, chữ ký mọi hàm và kiểu xuất ra ngoài, ghép với dòng "khi nào
 // không dùng" viết tay trong docs/danh-muc-ghi-chu.yaml. Gói chưa có ghi chú: sinh dòng "CẦN GHI CHÚ" và thoát 1.
+// Phần màn hình (Task 17): mọi câu export của console/src/shared/index.ts, kèm câu đầu của chú thích /** */ ngay trên,
+// ghi chú dưới khóa là thư mục của tệp (console/src/shared).
 package main
 
 import (
@@ -35,6 +37,7 @@ func run(args []string, stderr io.Writer) int {
 	root := fs.String("root", "internal/platform", "thư mục chứa các gói dùng chung")
 	notesPath := fs.String("notes", "docs/danh-muc-ghi-chu.yaml", "tệp ghi chú viết tay")
 	out := fs.String("out", "docs/danh-muc-dung-chung.md", "tệp danh mục sinh ra")
+	tsIndex := fs.String("ts", "console/src/shared/index.ts", "tệp export dùng chung của màn hình (không có thì bỏ qua)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -53,6 +56,13 @@ func run(args []string, stderr io.Writer) int {
 		_, _ = fmt.Fprintln(stderr, err)
 		return 2
 	}
+	tsText, tsMissing, err := generateTS(*tsIndex, notes)
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, err)
+		return 2
+	}
+	text += tsText
+	missing = append(missing, tsMissing...)
 	if err := os.WriteFile(*out, []byte(text), 0o600); err != nil {
 		_, _ = fmt.Fprintln(stderr, "ghi danh mục:", err)
 		return 2
@@ -209,4 +219,93 @@ func render(fset *token.FileSet, n ast.Node) string {
 		return ""
 	}
 	return buf.String()
+}
+
+// generateTS trả phần danh mục cho tệp export TypeScript; rỗng khi tệp không tồn tại.
+func generateTS(path string, notes map[string]string) (string, []string, error) {
+	raw, err := os.ReadFile(filepath.Clean(path))
+	if errors.Is(err, os.ErrNotExist) {
+		return "", nil, nil
+	}
+	if err != nil {
+		return "", nil, fmt.Errorf("đọc %s: %w", path, err)
+	}
+	dir := filepath.ToSlash(filepath.Dir(path))
+	note, ok := notes[dir]
+	var missing []string
+	if !ok {
+		note = needNote
+		missing = append(missing, dir)
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "\n## `%s` (màn hình, TypeScript)\n\n", dir)
+	fmt.Fprintf(&b, "Export của `%s`.\n\n", filepath.ToSlash(path))
+	fmt.Fprintf(&b, "**Khi nào không dùng:** %s\n\n", note)
+	if lines := tsExports(string(raw)); len(lines) > 0 {
+		b.WriteString("```ts\n" + strings.Join(lines, "\n") + "\n```\n")
+	}
+	return b.String(), missing, nil
+}
+
+// tsExports đọc từng câu `export` ở đầu dòng: câu nhiều dòng (`export { a,\n b } from ...`) gộp thành một dòng;
+// khai báo có thân (`export function f() {`) chỉ lấy chữ ký. Câu đầu của chú thích /** */ ngay trên ghi sau `//`.
+func tsExports(src string) []string {
+	lines := strings.Split(src, "\n")
+	var out []string
+	doc := ""
+	for i := 0; i < len(lines); i++ {
+		l := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(l, "/**") {
+			doc, i = tsDoc(lines, i)
+			continue
+		}
+		if strings.HasPrefix(l, "export ") {
+			var stmt string
+			stmt, i = tsExport(lines, i)
+			if doc != "" {
+				stmt += " // " + doc
+			}
+			out = append(out, stmt)
+		}
+		doc = ""
+	}
+	return out
+}
+
+// tsDoc đọc chú thích /** */ bắt đầu ở dòng i; trả câu đầu và chỉ số dòng cuối của chú thích.
+func tsDoc(lines []string, i int) (string, int) {
+	var c strings.Builder
+	for ; i < len(lines); i++ {
+		c.WriteString(" " + strings.TrimSpace(lines[i]))
+		if strings.Contains(lines[i], "*/") {
+			break
+		}
+	}
+	return firstSentence(c.String()), i
+}
+
+// tsExport đọc câu export bắt đầu ở dòng i; trả câu đã gộp và chỉ số dòng cuối đã đọc.
+func tsExport(lines []string, i int) (string, int) {
+	l := strings.TrimSpace(lines[i])
+	if !strings.HasSuffix(l, "{") {
+		return l, i
+	}
+	if strings.Contains(l, "(") || strings.Contains(l, "=") {
+		return strings.TrimSpace(strings.TrimSuffix(l, "{")), i // khai báo có thân: chỉ chữ ký
+	}
+	stmt := l // export { a,\n b,\n } from "...": gộp tới dấu }
+	for i+1 < len(lines) && !strings.Contains(stmt, "}") {
+		i++
+		stmt += " " + strings.TrimSpace(lines[i])
+	}
+	return strings.ReplaceAll(strings.Join(strings.Fields(stmt), " "), ", }", " }"), i
+}
+
+func firstSentence(c string) string {
+	c = strings.TrimSpace(strings.NewReplacer("/**", "", "*/", "", " * ", " ", " *", " ").Replace(c))
+	c = strings.Join(strings.Fields(c), " ")
+	if i := strings.Index(c, ". "); i >= 0 {
+		c = c[:i+1]
+	}
+	return c
 }

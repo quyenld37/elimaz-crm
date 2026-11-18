@@ -164,6 +164,7 @@ type PlatformJob struct {
 	TraceContext   []byte
 	CreatedAt      time.Time
 	FinishedAt     pgtype.Timestamptz
+	OrderMode      string
 }
 
 type PlatformMetricsMinute struct {

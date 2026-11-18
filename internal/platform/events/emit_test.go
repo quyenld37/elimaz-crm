@@ -186,7 +186,7 @@ func TestEmitOneJobPerListeningConsumer(t *testing.T) {
 	}
 	for _, name := range []string{"a", "b"} {
 		n := e.Count(t, `SELECT count(*) FROM platform.jobs WHERE kind = $1 AND tenant_id = $2 AND dedupe_key = $3
-			AND order_key = $4 AND order_seq = 7 AND block_on_dead AND payload = jsonb_build_object('eventId', $3::text)`,
+			AND order_key = $4 AND order_seq = 7 AND order_mode = 'strict' AND payload = jsonb_build_object('eventId', $3::text)`,
 			"event."+name, e.tenant, id.String(), name+":order:o-1")
 		if n != 1 {
 			t.Fatalf("consumer %s: %d việc đúng dạng, muốn 1", name, n)
@@ -383,7 +383,7 @@ func TestRegisterValidation(t *testing.T) {
 	if got := len(r.JobHandlers()); got != 1 {
 		t.Fatalf("JobHandlers %d, muốn 1", got)
 	}
-	if k := r.JobHandlers()[0].Kind(); k != events.ConsumerKind("aff") || k.Name != "event.aff" || !k.Policy.BlockOnDead {
+	if k := r.JobHandlers()[0].Kind(); k != events.ConsumerKind("aff") || k.Name != "event.aff" || k.Policy.OrderMode != queue.OrderStrict {
 		t.Fatalf("kind %+v", k)
 	}
 }

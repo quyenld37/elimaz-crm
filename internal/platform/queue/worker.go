@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -396,7 +397,12 @@ func (w *Worker) claim(ctx context.Context, limit int) ([]store.ClaimJobsRow, er
 		})
 		return err //nolint:wrapcheck // bọc một lần ở dưới
 	})
-	if err != nil {
+	switch {
+	case lostOrderRace(err):
+		// Một lần nhận khác vừa đặt việc cùng hội thoại (best_effort) sang running: transaction đã lùi, mọi việc vẫn
+		// pending; lượt sau (NOTIFY, Poll) nhận lại.
+		return nil, nil
+	case err != nil:
 		return nil, fmt.Errorf("nhận việc: %w", err)
 	}
 	if w.o.Metrics != nil {
@@ -405,6 +411,17 @@ func (w *Worker) claim(ctx context.Context, limit int) ([]store.ClaimJobsRow, er
 		}
 	}
 	return rows, nil
+}
+
+// bestEffortRunningIndex là index duy nhất (migration 0012): mỗi (tenant_id, order_key) best_effort tối đa một việc
+// running.
+const bestEffortRunningIndex = "jobs_best_effort_running"
+
+// lostOrderRace: err là vi phạm unique (23505) trên bestEffortRunningIndex, tức câu nhận thua cuộc đua với một lần
+// nhận khác cùng khóa thứ tự mà ảnh chụp của nó chưa thấy.
+func lostOrderRace(err error) bool {
+	pg, ok := errors.AsType[*pgconn.PgError](err)
+	return ok && pg.Code == "23505" && pg.ConstraintName == bestEffortRunningIndex
 }
 
 // runJob chạy một việc đã nhận (bước 4, 5 của RunOnce) và ghi kết quả.

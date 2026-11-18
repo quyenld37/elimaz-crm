@@ -205,3 +205,56 @@ Kết luận: ĐẠT (vòng 1).
   chưa kiểm bucket của mục đích (chưa có mục đích standard nào ngoài `private` đi đường này); `InspectUpload` mở
   `WithTenant` không kèm `db.TxAPI` (dùng giới hạn mặc định của pool); `putUrl` lưu trong khóa chống trùng (Q5); host ký
   sẵn là `S3_ENDPOINT` (đã ở "Việc phát hiện thêm").
+
+## Lượt 2 — gộp main
+
+Commit lượt 1 `7e35822` đã ĐẠT. Lượt này chỉ gộp `main` (không rebase), không thêm hành vi mới.
+
+- **Ảnh hưởng:** `main` lúc gộp là `6e1a93f` (Task 16 realtime, 314, 315 luật `x-authenticated`, 42 imager, 17 console).
+  Xung đột: `cmd/crm/main.go` (cùng chỗ dựng `httpapi.Deps`: giữ `Files: store` của task này và `Realtime: hub`,
+  `SSE` của Task 16), `docs/danh-muc-ghi-chu.yaml` (giữ cả dòng `internal/platform/files` và `console/src/shared`).
+  Tự gộp: `internal/httpapi/server.go` (`Deps` có cả `Files` và `Realtime`, `SSE`), `errors.go`, `openapi/openapi.yaml`,
+  `models.go` sinh. Mã sinh không sửa tay: `make gen` (ogen, sqlc, routegen, client console — client console giờ có
+  `createUpload`, `completeUpload`, `getFile`), `make catalog`. Luật Task 315 không đổi gì ở đây: ba operation tệp dùng
+  `x-permission: files.upload`, không phải `x-authenticated`. Migration: `0012_jobs_order_mode.sql` (main) và
+  `0124_files.sql` (task này) độc lập, không chạm cùng bảng.
+- **Tái dùng:** không viết mã mới.
+- **Soát thiết kế:** không chạm database, tiền, quyền ngoài phần đã duyệt ở lượt 1.
+- **Test bị xóa hoặc tắt:** không. (Lần chạy đầu `test-guard` báo tệp của Task 42 và Task 17 "bị xóa" vì `main` tiến
+  thêm hai lần trong lúc chạy CI; đã hủy và gộp lại với `main` mới nhất, sau đó `test-guard main` sạch.)
+
+### Bằng chứng lượt 2
+
+| Tiêu chí | Lệnh | Kết quả |
+|---|---|---|
+| Mã sinh khớp nguồn sau gộp | `make gen-check` | không chênh (sau khi stage client console sinh lại) |
+| Build, vet, lint | `make build vet lint` (khi chưa có `console/node_modules`, xem dưới) | ok, golangci-lint 0 issues |
+| Toàn bộ test Go | `make test` (PostgreSQL crm-t41 5541, SeaweedFS 8441) | 26 gói ok; 1 ca hẹn giờ của `internal/platform/db` đỏ lúc máy tải ~20 (xem dưới) |
+| Ca hẹn giờ chạy riêng | `go test -race -count=3 -run TestRetryTxLockTimeout ./internal/platform/db/`; `go test -race -count=3 ./internal/imager/` | ok cả hai |
+| Cổng còn lại | `make vuln oasdiff catalog-check jscpd test-guard gitleaks sqlc-vet` | "No vulnerabilities found", oasdiff ok, catalog không chênh, jscpd "Found 0 clones", test-guard sạch, gitleaks không rò |
+| Màn hình | `make console-check` | tsc, eslint, prettier "All matched files use Prettier code style!", vitest 35 passed, vite build ok |
+
+### Việc phát hiện thêm (lượt 2)
+
+- `make ci` trên `main` đỏ khi đã cài `console/node_modules`: gói npm `flatted` có tệp Go
+  (`console/node_modules/flatted/golang/pkg/flatted`) mà `./...` của Go nhặt vào build, vet, golangci-lint và
+  `TestLintCleanOnRealCode`; `gen-check` lại tự `npm ci` trước bước `test`. Cách sửa gợi ý (Task 17 hoặc task công cụ):
+  đặt `console/go.mod` rỗng để Go bỏ cả thư mục `console`, hoặc loại `console/` trong `.golangci.yml` và lệnh Go.
+- Ca hẹn giờ dễ đỏ khi máy tải cao: `TestRetryTxLockTimeoutRecoversWhenLockReleased` (giữ khóa 100 ms, lần thử đầu tới
+  sau khi khóa đã nhả → gọi 1 lần), `TestImager_HangKilledWithinDeadline`, `TestExecRunner_TimeoutKillsProcessGroup`
+  (script giả chưa kịp ghi pid trong 0,5–1 s). Không thuộc task này, không sửa.
+
+### Quyết định thay chủ shop (lượt 2)
+
+- **Q-L2-1 — chạy cổng Go khi chưa có `console/node_modules`** thay vì sửa cấu hình Go/lint để loại `console/`: lỗi
+  thuộc phần của Task 17 trên `main`, ngoài phạm vi; cách này không đổi mã, dễ đảo ngược. Phương án khác: thêm
+  `console/go.mod` trong task này (lấn phạm vi).
+- **Q-L2-2 — coi ca hẹn giờ đỏ dưới tải là không chặn** vì không ở phần đổi, chạy riêng ba lần đều qua. Phương án khác:
+  nới thời gian trong test (cấm: nới test cần chủ shop).
+
+### Reviewer lượt 2
+
+Kết luận: ĐẠT (vòng 1). Không có phát hiện phải sửa. Reviewer đối chiếu `git diff --cached MERGE_HEAD --stat` với phần
+riêng của nhánh: 47 tệp mã, `openapi.yaml`, migration, danh mục khớp từng dòng; `main.go` có đủ `Files` và
+`Realtime`, `SSE`; ba operation tệp dùng `x-permission`, không vi phạm luật `x-authenticated`; client console sinh khớp
+hợp đồng. Ghi chú không bắt buộc: nên có task riêng sửa lỗi `console/node_modules` lọt vào `./...` (Q-L2-1).

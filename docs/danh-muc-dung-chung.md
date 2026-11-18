@@ -457,6 +457,7 @@ Package observability phục vụ các điểm kiểm sức khỏe của tiến 
 **Khi nào không dùng:** Không đặt kiểm tra nghiệp vụ hay dữ liệu khách vào /health/*; kiểm sâu (/health/deep, cần token) thuộc Task 19.
 
 ```go
+func CheckLive(ctx context.Context, port int, timeout time.Duration) error
 type Health struct {
 }
 func NewHealth(db Pinger) *Health
@@ -534,7 +535,7 @@ type Policy struct {
 
 	MaxAttempts int
 
-	BlockOnDead bool
+	OrderMode string
 
 	OnLeaseExpired string
 
@@ -565,6 +566,65 @@ type WorkerOptions struct {
 	Logger *slog.Logger
 
 	Commands CommandRunner
+}
+```
+
+## `internal/platform/realtime` (gói `realtime`)
+
+Package realtime phát báo hiệu "đối tượng X vừa đổi" tới màn hình nhân viên qua SSE (spec 04 mục 6, ADR-05, ADR-17).
+
+**Khi nào không dùng:** Không gửi dữ liệu nghiệp vụ hay dữ liệu cá nhân qua báo hiệu: Signal chỉ mang tenant, chủ đề, quyền, phạm vi và mã đối tượng; màn hình tải lại bằng API. Không dùng làm hàng đợi hay sự kiện nội bộ (báo hiệu được phép mất: dùng events.Emit, commands). Không phát ngoài transaction nghiệp vụ (Publish nhận tx để chỉ phát khi commit) và không tự gọi pg_notify, LISTEN ở gói khác. Không tạo PGHub thứ hai trong một tiến trình.
+
+```go
+func ServeSSE(w http.ResponseWriter, r *http.Request, bus Bus, u identity.AuthUser, o SSEOptions)
+type Bus interface {
+	Publish(ctx context.Context, tx pgx.Tx, s Signal) error
+
+	Subscribe(u identity.AuthUser, send func(Frame)) (cancel func())
+
+	Status() (listening bool, clients int)
+}
+type Entity struct {
+	Type string `json:"type"`
+	ID   string `json:"id"`
+}
+type Frame struct {
+	Event string
+	Data  json.RawMessage
+}
+type PGHub struct {
+}
+func NewPGHub(o PGHubOptions) *PGHub
+func (h *PGHub) Publish(ctx context.Context, tx pgx.Tx, s Signal) error
+func (h *PGHub) Run(ctx context.Context)
+func (h *PGHub) Status() (listening bool, clients int)
+func (h *PGHub) Subscribe(u identity.AuthUser, send func(Frame)) (cancel func())
+type PGHubOptions struct {
+	URL     string
+	Metrics *metrics.Registry
+	Logger  *slog.Logger
+
+	MinBackoff, MaxBackoff time.Duration
+
+	CheckEvery time.Duration
+
+	PingTimeout time.Duration
+}
+type SSEOptions struct {
+	Batch time.Duration
+
+	Heartbeat time.Duration
+
+	MaxPending int
+
+	Stop <-chan struct{}
+}
+type Signal struct {
+	TenantID uuid.UUID
+	Topic    string
+	Requires identity.Permission
+	Scope    *identity.Scope
+	Entity   Entity
 }
 ```
 
@@ -765,4 +825,19 @@ func (s *Spool) Drain(ctx context.Context, d *db.DB) (n int, err error)
 func (s *Spool) List() ([]string, error)
 func (s *Spool) Stats() (files int, oldestAge time.Duration, err error)
 func (s *Spool) Write(e Entry) (string, error)
+```
+
+## `console/src/shared` (màn hình, TypeScript)
+
+Export của `console/src/shared/index.ts`.
+
+**Khi nào không dùng:** Không fetch thẳng tới /api/v1 ở màn hình (eslint chặn): dữ liệu lấy qua client sinh console/src/api; chỉ createRealtimeClient đọc /api/v1/stream. Không coi báo hiệu changed là dữ liệu: nhận báo hiệu thì tải lại đúng đối tượng bằng API; onResync tải lại mọi danh sách đang mở. Không tạo hai createRealtimeClient trong một tab (mỗi tab một kết nối, spec 04 mục 6). Không tự viết băng báo mất kết nối, phiên hết hạn, API tạm ngừng: dùng Banner (câu chữ spec 04 mục 6).
+
+```ts
+export { createRealtimeClient } from "../realtime/client"; // Lớp realtime: báo hiệu "đối tượng vừa đổi" qua SSE, tự canh im lặng, nối lại, nhận ra phiên hết hạn.
+export type { ChangedEvent, RealtimeClient, RealtimeOptions, RealtimeState } from "../realtime/client";
+export { watchApiLive } from "../shell/apiHealth"; // Canh API bằng /health/live; báo khi đổi giữa sống và tạm ngừng.
+export type { ApiLiveOptions } from "../shell/apiHealth";
+export { Banner, TEXT_API_DOWN, TEXT_RECONNECTING, TEXT_SESSION_EXPIRED } from "../shell/Banner"; // Băng báo của khung theo câu chữ spec 04 mục 6.
+export type { BannerProps } from "../shell/Banner";
 ```

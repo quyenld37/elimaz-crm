@@ -1314,7 +1314,7 @@ func (s *Server) handleRetryJobRequest(args [1]string, argsEscaped bool, w http.
 
 // handleStreamRequest handles stream operation.
 //
-// Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 15).
+// Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 16).
 //
 // GET /api/v1/stream
 func (s *Server) handleStreamRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1333,7 +1333,7 @@ func (s *Server) handleStreamRequest(args [0]string, argsEscaped bool, w http.Re
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    StreamOperation,
-			OperationSummary: "Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 15)",
+			OperationSummary: "Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 16)",
 			OperationID:      "stream",
 			Body:             nil,
 			RawBody:          rawBody,

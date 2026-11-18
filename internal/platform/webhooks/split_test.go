@@ -292,6 +292,18 @@ func TestSplitDedupesAcrossPackets(t *testing.T) {
 
 var errSeventh = errors.New("lỗi thử ở sự kiện thứ 7")
 
+// failOn trả hàm lỗi của handler ghi: lỗi tạm errSeventh đúng ở sự kiện eventID.
+func failOn(eventID string) func(webhooks.Inbound) error {
+	return func(in webhooks.Inbound) error {
+		var d ev
+		_ = json.Unmarshal(in.Data, &d)
+		if d.EventID == eventID {
+			return errSeventh
+		}
+		return nil
+	}
+}
+
 // Gói 50 sự kiện (50 hội thoại), handler lỗi đúng ở sự kiện thứ 7 → 49 việc done, 1 việc pending attempts = 1.
 func TestSplitOneFailureDoesNotBlockPacket(t *testing.T) {
 	t.Parallel()
@@ -302,17 +314,19 @@ func TestSplitOneFailureDoesNotBlockPacket(t *testing.T) {
 		e.route(t, key, e.a)
 		evs = append(evs, ping(fmt.Sprintf("e%02d", i), key, at(time.Duration(i)*time.Millisecond)))
 	}
-	e.rec.fail = func(in webhooks.Inbound) error {
-		var d ev
-		_ = json.Unmarshal(in.Data, &d)
-		if d.EventID == "e07" {
-			return errSeventh
-		}
-		return nil
-	}
+	e.rec.fail = failOn("e07")
 	e.deliver(t, packet(t, evs...))
 	e.drain(t)
 
+	status := e.inboundStatus(t)
+	if status["done"] != 49 || status["pending"] != 1 || len(status) != 2 {
+		t.Fatalf("trạng thái việc inbound: %v", status)
+	}
+}
+
+// inboundStatus đếm việc inbound theo trạng thái; việc pending phải có attempts = 1 (lỗi đúng một lần, chờ thử lại).
+func (e *splitEnv) inboundStatus(t *testing.T) map[string]int {
+	t.Helper()
 	status := map[string]int{}
 	for _, j := range e.jobs(t, webhooks.InboundKind(selftest.Key).Name) {
 		status[j.status]++
@@ -320,8 +334,20 @@ func TestSplitOneFailureDoesNotBlockPacket(t *testing.T) {
 			t.Errorf("việc pending có attempts = %d, muốn 1", j.attempts)
 		}
 	}
-	if status["done"] != 49 || status["pending"] != 1 || len(status) != 2 {
-		t.Fatalf("trạng thái việc inbound: %v", status)
+	return status
+}
+
+// Task 314 (spec 04 mục 5.1): sự kiện đầu của một hội thoại lỗi (chờ thử lại) không chặn sự kiện sau cùng hội thoại.
+func TestSplitFailedEventDoesNotBlockSameKey(t *testing.T) {
+	t.Parallel()
+	e := newSplitEnv(t, 4)
+	e.rec.fail = failOn("first")
+	e.deliver(t, packet(t, ping("first", "ka", at(0)), ping("second", "ka", at(time.Millisecond)),
+		ping("third", "ka", at(2*time.Millisecond))))
+	e.drain(t)
+	status := e.inboundStatus(t)
+	if status["done"] != 2 || status["pending"] != 1 || len(status) != 2 {
+		t.Fatalf("trạng thái việc inbound cùng hội thoại: %v, muốn 2 done 1 pending", status)
 	}
 }
 
@@ -380,7 +406,9 @@ func (otherHandler) Handle(context.Context, webhooks.Inbound, pgx.Tx) error {
 func TestInboundKindAndOptions(t *testing.T) {
 	t.Parallel()
 	k := webhooks.InboundKind("selftest")
-	if k.Name != "inbound.selftest" || k.Policy != queue.DefaultPolicy {
+	want := queue.DefaultPolicy
+	want.OrderMode = queue.OrderBestEffort
+	if k.Name != "inbound.selftest" || k.Policy != want {
 		t.Fatalf("InboundKind: %+v", k)
 	}
 	sources := []webhooks.Source{newSelftest()}

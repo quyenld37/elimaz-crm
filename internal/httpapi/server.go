@@ -19,9 +19,10 @@ import (
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/observability"
+	"elimaz.com.vn/crm/internal/platform/realtime"
 )
 
-// Deps là mọi thứ lớp HTTP cần, nối trong cmd/crm. Task 15 thêm Realtime.
+// Deps là mọi thứ lớp HTTP cần, nối trong cmd/crm.
 type Deps struct {
 	Config config.Config
 	DB     *db.DB
@@ -34,6 +35,10 @@ type Deps struct {
 	RateLimit RateLimit
 	// WriteLockTimeout > 0 thay lock_timeout của db.TxAPI cho WriteTx (test ca retry_later); 0: db.TxAPI.
 	WriteLockTimeout time.Duration
+	// Realtime phát báo hiệu cho GET /api/v1/stream (cmd/crm nối realtime.PGHub). nil → route Stream 503.
+	Realtime realtime.Bus
+	// SSE: nhịp gộp lô, nhịp tim và kênh dừng của luồng SSE; để trống lấy mặc định (300 ms, 20 s).
+	SSE realtime.SSEOptions
 
 	limiter *userLimiter // một bộ đếm chung cho mọi route của server (prepare)
 }
@@ -78,7 +83,11 @@ func newMux(d Deps) (*http.ServeMux, int) {
 	mux := http.NewServeMux()
 	registered := 0
 	for _, rt := range Routes {
-		mux.Handle(rt.Pattern, chain(d, rt, api))
+		var h http.Handler = api
+		if rt.Stream {
+			h = stream(d) // câu trả lời text/event-stream: handler SSE riêng, không qua ogen
+		}
+		mux.Handle(rt.Pattern, chain(d, rt, h))
 		registered++
 	}
 	mux.Handle("/", requestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
