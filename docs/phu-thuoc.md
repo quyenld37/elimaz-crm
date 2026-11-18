@@ -28,3 +28,7 @@ Luật (ADR-32, kế hoạch M0 bản 5): thêm thư viện hay công cụ ngoà
 | vitest, jsdom, @testing-library/react, @testing-library/dom | 5.1.0, 31.0.1, 16.3.3, 10.4.2 | MIT | Chạy test màn hình (Node và DOM giả) | Không có bộ chạy test trong ADR-44 cho TypeScript; lý do: `docs/chon-cong-cu-console.md` | 18/11/2026, Task 17 |
 | prettier | 3.10.1 | MIT | Định dạng mã màn hình và mã sinh | Như gofumpt phía Go; lý do: `docs/chon-cong-cu-console.md` | 18/11/2026, Task 17 |
 | @types/react, @types/react-dom, @types/node | 19.3.0, 19.3.0, 26.6.6 | MIT | Kiểu cho `tsc` | Kiểu của React, Node (test, cấu hình Vite) không có sẵn trong TypeScript | 18/11/2026, Task 17 |
+| react-router | 8.5.1 | MIT | Định tuyến màn hình (chế độ khai báo) | Lựa chọn Q31; bốn điều ADR-32, lỗ hổng 2026: `docs/chon-cong-cu-console.md` | 18/11/2026, Task 48 |
+| @tanstack/react-query (kèm @tanstack/query-core) | 5.108.0 | MIT | Lấy dữ liệu, tải lại đúng truy vấn đang mở khi có báo hiệu realtime | Lựa chọn Q31; `docs/chon-cong-cu-console.md` | 18/11/2026, Task 48 |
+| @playwright/test | 1.65.1 | Apache-2.0 | Test màn hình trên Chromium và WebKit (công cụ dev) | Lựa chọn Q31; `docs/chon-cong-cu-console.md` | 18/11/2026, Task 48 |
+| @fontsource/mulish, @fontsource/playfair-display | 5.3.0, 5.3.0 | OFL-1.1 | Tệp phông của mockup M1 nằm trong bản dựng | CSP `default-src 'self'` chặn Google Fonts; `docs/chon-cong-cu-console.md` | 18/11/2026, Task 48 |

@@ -1,4 +1,5 @@
 // Bản dựng: tệp tĩnh trong dist/ (container crm-console chỉ phục vụ tệp tĩnh, ADR-34; CSP ở docs/RUNBOOK.md).
+// Test đơn vị: chỉ src/**/*.test.*; test trình duyệt (e2e/*.spec.ts) chạy bằng Playwright.
 // Dev: cổng 4192 theo kế hoạch (CRM_VITE_PORT để đổi khi nhiều phiên chạy song song), chuyển /api và /health
 // sang api ở 4190 (CRM_API_URL để đổi). Không dùng 4175, 4176, 4180, 4181.
 import react from "@vitejs/plugin-react";
@@ -17,6 +18,7 @@ export default defineConfig({
   build: { outDir: "dist", sourcemap: false },
   test: {
     environment: "node",
+    include: ["src/**/*.test.{ts,tsx}"],
     restoreMocks: true,
     setupFiles: ["src/test-setup.ts"],
   },

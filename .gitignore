@@ -11,3 +11,5 @@ console/dist/
 .DS_Store
 .worktrees/
 /spikes/flashsale/flashsale
+console/test-results/
+console/playwright-report/
