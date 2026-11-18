@@ -131,9 +131,11 @@ func writeHandlerError(d Deps, w http.ResponseWriter, r *http.Request, err error
 		return
 	}
 	if r.Context().Err() == nil { // client đã đóng kết nối thì không phải lỗi của máy chủ
+		fp := recordError(r.Context(), d, err, nil)
 		d.Logger.LogAttrs(r.Context(), slog.LevelError, "lỗi xử lý yêu cầu",
 			slog.String("request_id", RequestID(r.Context())),
 			slog.String("route", r.Pattern),
+			slog.String("fingerprint", fp),
 			slog.String("error", err.Error()))
 	}
 	writeError(w, r, http.StatusInternalServerError, codeInternal)

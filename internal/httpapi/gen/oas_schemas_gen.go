@@ -689,12 +689,16 @@ func (*ErrorStatusCode) unlockStaffRes()        {}
 func (*ErrorStatusCode) updateProductRes()      {}
 func (*ErrorStatusCode) updateVariantRes()      {}
 
+// Một loại lỗi ứng dụng gộp theo dấu vân tay (Task 20). message đã lọc chuỗi từ
+// 8 chữ số và email.
 // Ref: #/components/schemas/ErrorSummary
 type ErrorSummary struct {
 	Fingerprint string    `json:"fingerprint"`
 	Name        string    `json:"name"`
 	Role        string    `json:"role"`
+	Message     string    `json:"message"`
 	Count       int64     `json:"count"`
+	FirstSeenAt time.Time `json:"firstSeenAt"`
 	LastSeenAt  time.Time `json:"lastSeenAt"`
 }
 
@@ -713,9 +717,19 @@ func (s *ErrorSummary) GetRole() string {
 	return s.Role
 }
 
+// GetMessage returns the value of Message.
+func (s *ErrorSummary) GetMessage() string {
+	return s.Message
+}
+
 // GetCount returns the value of Count.
 func (s *ErrorSummary) GetCount() int64 {
 	return s.Count
+}
+
+// GetFirstSeenAt returns the value of FirstSeenAt.
+func (s *ErrorSummary) GetFirstSeenAt() time.Time {
+	return s.FirstSeenAt
 }
 
 // GetLastSeenAt returns the value of LastSeenAt.
@@ -738,9 +752,19 @@ func (s *ErrorSummary) SetRole(val string) {
 	s.Role = val
 }
 
+// SetMessage sets the value of Message.
+func (s *ErrorSummary) SetMessage(val string) {
+	s.Message = val
+}
+
 // SetCount sets the value of Count.
 func (s *ErrorSummary) SetCount(val int64) {
 	s.Count = val
+}
+
+// SetFirstSeenAt sets the value of FirstSeenAt.
+func (s *ErrorSummary) SetFirstSeenAt(val time.Time) {
+	s.FirstSeenAt = val
 }
 
 // SetLastSeenAt sets the value of LastSeenAt.

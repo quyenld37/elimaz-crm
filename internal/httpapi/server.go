@@ -19,6 +19,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/observability"
 	"elimaz.com.vn/crm/internal/platform/realtime"
 )
@@ -43,6 +44,8 @@ type Deps struct {
 	// Events là sổ consumer của sự kiện nội bộ (cmd/crm dùng chung một sổ cho api và worker); nil → sổ rỗng (sự kiện
 	// vẫn được ghi vào platform.domain_events, chỉ không có việc consumer nào).
 	Events *events.Registry
+	// Metrics đếm counter errors khi ghi lỗi 500 (cmd/crm nối registry của tiến trình); nil: không đếm.
+	Metrics *metrics.Registry
 
 	limiter *userLimiter // một bộ đếm chung cho mọi route của server (prepare)
 }
