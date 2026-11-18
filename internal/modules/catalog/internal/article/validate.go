@@ -15,7 +15,7 @@ import (
 
 // Validate đọc raw (mảng JSON các khối) và kiểm lược đồ: rỗng → không khối; tối đa MaxRawBytes byte, MaxBlocks khối;
 // loại lạ, trường lạ, trường của loại khác, khóa trùng, giá trị null, chuỗi có ký tự điều khiển (trừ xuống dòng trong
-// text của paragraph), UTF-8 hỏng, vượt giới hạn → ErrInvalid. fileId chỉ kiểm dạng uuid (kiểm tệp ở Task M1-44).
+// text của paragraph), UTF-8 hỏng, vượt giới hạn → ErrInvalid. fileId chỉ kiểm dạng uuid; tệp được kiểm khi lưu mẫu (catalog, Task M1-44b).
 func Validate(raw json.RawMessage) ([]Block, error) {
 	trimmed := bytes.TrimSpace(raw)
 	if len(trimmed) == 0 {
