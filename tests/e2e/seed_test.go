@@ -64,6 +64,15 @@ func TestSeedDev(t *testing.T) {
 	}); err != nil || sellers != 1 {
 		t.Fatalf("mong đúng 1 người bán ELIMAZ, có %d, %v", sellers, err)
 	}
+	// Kho MAIN "Kho chính" do ELIMAZ vận hành, đúng một dòng sau hai lần chạy (kế hoạch M1, Task M1-28).
+	var warehouses int
+	if err := tenancy.WithTenant(t.Context(), d, u.TenantID, func(tx pgx.Tx) error {
+		return tx.QueryRow(t.Context(), `SELECT count(*) FROM inventory.warehouses_v AS w
+			JOIN catalog.sellers_v AS s ON s.seller_id = w.operated_by_seller_id
+			WHERE w.code = 'MAIN' AND w.name = 'Kho chính' AND w.status = 'active' AND s.code = 'ELIMAZ'`).Scan(&warehouses)
+	}); err != nil || warehouses != 1 {
+		t.Fatalf("mong đúng 1 kho MAIN của ELIMAZ, có %d, %v", warehouses, err)
+	}
 
 	// Sai cách gọi: thiếu email, hoặc vai trò khác migrate → thoát khác 0.
 	if out, err := run(env, "seed-dev"); err == nil {

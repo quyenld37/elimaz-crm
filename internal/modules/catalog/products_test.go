@@ -1,7 +1,6 @@
 package catalog_test
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -30,34 +29,18 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// fakeBus ghi lại báo hiệu đã phát (chỉ Publish được dùng).
-type fakeBus struct {
-	mu      sync.Mutex
-	signals []realtime.Signal
-}
-
-func (b *fakeBus) Publish(_ context.Context, _ pgx.Tx, s realtime.Signal) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.signals = append(b.signals, s)
-	return nil
-}
-
-func (b *fakeBus) Subscribe(identity.AuthUser, func(realtime.Frame)) func() { return func() {} }
-func (b *fakeBus) Status() (bool, int)                                      { return true, 0 }
-
 type catalogEnv struct {
 	t      *testing.T
 	staff  *testkit.Staff
 	tenant uuid.UUID
 	seller uuid.UUID
 	actor  identity.AuthUser
-	bus    *fakeBus
+	bus    *testkit.RecordingBus
 }
 
 func newCatalogEnv(t *testing.T) *catalogEnv {
 	t.Helper()
-	e := &catalogEnv{t: t, staff: testkit.OpenStaff(t), bus: &fakeBus{}}
+	e := &catalogEnv{t: t, staff: testkit.OpenStaff(t), bus: &testkit.RecordingBus{}}
 	e.tenant = e.staff.Tenant(t, "A")
 	e.seller = e.ensureSeller(e.tenant)
 	uid := e.staff.User(t, e.tenant, "chu@elimaz.test", "active")
@@ -110,12 +93,8 @@ func (e *catalogEnv) get(id uuid.UUID) (catalog.Product, error) {
 
 func (e *catalogEnv) count(q string, args ...any) int {
 	e.t.Helper()
-	var n int
 	// Chủ bảng trong ngữ cảnh tenant: crm_app không đọc được audit_logs, domain_events.
-	if err := e.staff.TryExec(e.t.Context(), e.tenant, func(tx pgx.Tx) error { return tx.QueryRow(e.t.Context(), q, args...).Scan(&n) }); err != nil {
-		e.t.Fatalf("đếm %q: %v", q, err)
-	}
-	return n
+	return e.staff.CountIn(e.t, e.tenant, q, args...)
 }
 
 // partnerSeller chèn người bán thứ hai (đối tác, ADR-29) bằng chủ bảng và trả mã của nó.
@@ -174,9 +153,9 @@ func TestCreateProduct_SixVariants(t *testing.T) {
 	if n := e.count("SELECT count(*) FROM identity.audit_logs WHERE action = 'catalog.product.create' AND entity_id = $1", p.ID.String()); n != 1 {
 		t.Errorf("mong 1 dòng audit tạo mẫu, có %d", n)
 	}
-	if len(e.bus.signals) != 1 || e.bus.signals[0].Topic != "catalog.product" || e.bus.signals[0].Requires != "catalog.read" ||
-		e.bus.signals[0].Entity != (realtime.Entity{Type: "product", ID: p.ID.String()}) {
-		t.Errorf("báo hiệu sai: %+v", e.bus.signals)
+	if sig := e.bus.Signals(); len(sig) != 1 || sig[0].Topic != "catalog.product" || sig[0].Requires != "catalog.read" ||
+		sig[0].Entity != (realtime.Entity{Type: "product", ID: p.ID.String()}) {
+		t.Errorf("báo hiệu sai: %+v", sig)
 	}
 }
 
