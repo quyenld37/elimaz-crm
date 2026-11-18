@@ -82,9 +82,10 @@ hay bỏ khóa đã có.
 | `product.updated` | `product` (mã mẫu) | `{productId, sellerId, version}` | tạo, sửa mẫu; thêm, sửa biến thể (version mẫu tăng) | 27 |
 | `price.changed` | `variant` (mã biến thể) | `{productId, sellerId, variantIds: [<id>], price}` | giá bán của biến thể đổi | 27 |
 | `stock.changed` | `balance:<variant>:<warehouse>` | `{variantIds: [<variant>], warehouseId, sellerId}` | số dư tồn đổi | 28 |
-| `order.created` | `order` (mã đơn) | `{orderId, sellerId, version}` | tạo đơn (seq 1) | 30 |
-| `order.confirmed` | `order` (mã đơn) | `{orderId, sellerId, version}` | đơn sang Đã xác nhận (đơn nhập tay: ngay khi tạo, seq 2) | 30 |
-| `order.delivered` | `order` (mã đơn) | `{orderId, sellerId, version}` | vận đơn hiện hành báo giao xong, đơn sang Đã giao | 333 |
+| `order.created` | `order` (mã đơn) | `{orderId, sellerId, version, customerId, status}` | tạo đơn (seq 1; Task 73 thêm `customerId`, `status`) | 30, 73 |
+| `order.confirmed` | `order` (mã đơn) | `{orderId, sellerId, version, customerId, status}` | đơn sang Đã xác nhận (tạo thẳng confirmed: ngay khi tạo, seq 2) | 30, 73 |
+| `order.delivered` | `order` (mã đơn) | `{orderId, sellerId, version, customerId, status}` | vận đơn hiện hành báo giao xong, đơn sang Đã giao | 333 |
+| `order.<trạng thái>` (`order.new`, `order.cancelled`, `order.cancel_requested`, `order.returned`, `order.draft`) | `order` (mã đơn) | `{orderId, sellerId, version, customerId, status}` | mọi lần đổi trạng thái qua `order.applyTransition` (seq = version mới) | 73 |
 | `customer.created` | `customer` (mã hồ sơ) | `{customerId, version}` | tạo khách (seq 1; kể cả lớp bọc `customer.Create` của M1) | 66 |
 | `customer.merged` | `customer_merge` (mã lần gộp) | `{mergeId, survivorRootId, mergedRootId}` | gộp nhóm khách (seq 1; chỉ đổi `root_id`) | 68 |
 | `customer.merge_undone` | `customer_merge` (mã lần gộp) | `{mergeId, survivorRootId, mergedRootId}` | hoàn tác lần gộp (seq 2) | 68 |

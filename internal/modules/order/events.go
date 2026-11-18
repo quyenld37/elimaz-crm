@@ -20,17 +20,20 @@ const (
 	aggregateOrder = "order"
 )
 
-// Changed là payload của mọi sự kiện order.*.
+// Changed là payload của mọi sự kiện order.*: mã đơn, người bán, version (= seq), khách và trạng thái đơn sau thay
+// đổi (Task M2-16 thêm customerId, status; không dữ liệu cá nhân).
 type Changed struct {
-	OrderID  uuid.UUID `json:"orderId"`
-	SellerID uuid.UUID `json:"sellerId"`
-	Version  int64     `json:"version"`
+	OrderID    uuid.UUID `json:"orderId"`
+	SellerID   uuid.UUID `json:"sellerId"`
+	Version    int64     `json:"version"`
+	CustomerID uuid.UUID `json:"customerId"`
+	Status     string    `json:"status"`
 }
 
 func (w Writer) emit(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID, o Order, topic string, seq int64) error {
 	if _, _, err := w.Events.Emit(ctx, tx, w.Queue, events.Event{
 		TenantID: tenantID, AggregateType: aggregateOrder, AggregateID: o.ID.String(), Seq: seq, Topic: topic,
-		Payload: Changed{OrderID: o.ID, SellerID: o.SellerID, Version: seq},
+		Payload: Changed{OrderID: o.ID, SellerID: o.SellerID, Version: seq, CustomerID: o.CustomerID, Status: o.Status},
 	}); err != nil {
 		return fmt.Errorf("phát %s: %w", topic, err)
 	}

@@ -149,9 +149,10 @@ func TestM2Routes_Unimplemented(t *testing.T) {
 		orderBody(0, line(uuid.New(), 1))), http.StatusBadRequest, "idempotency_key_required")
 }
 
-// TestOrderAPI_M2FieldsPending: thân kiểu M1 vẫn 201 (TestOrderAPI_CreateGet); trường M2 của createOrder chưa có
-// nghiệp vụ (Task M2-16, 17) thì 501, không bị bỏ qua lặng lẽ; thiếu cả customer lẫn customerId, hay thiếu địa chỉ khi
-// không gửi intent (luật M1) → 400 invalid_input. Không đơn nào được tạo.
+// TestOrderAPI_M2FieldsPending: thân kiểu M1 vẫn 201 (TestOrderAPI_CreateGet); couponCode chưa có nghiệp vụ (Task
+// M2-17) thì 501, không bị bỏ qua lặng lẽ (trường M2 khác có từ Task M2-16, test ở handlers_order_m2_test.go); thiếu
+// cả customer lẫn customerId, hay thiếu địa chỉ khi không gửi intent (luật M1) → 400 invalid_input. Không đơn nào được
+// tạo.
 func TestOrderAPI_M2FieldsPending(t *testing.T) {
 	e := newOrderAPIEnv(t)
 	v := e.variant(e.shop.Seller, 1000, 5)
@@ -161,17 +162,7 @@ func TestOrderAPI_M2FieldsPending(t *testing.T) {
 		status     int
 		code       string
 	}{
-		{"intent", strings.Replace(base, `{"customer"`, `{"intent":"draft","customer"`, 1), http.StatusNotImplemented, "not_implemented"},
-		{
-			"customerId", strings.Replace(base, `"customer":{"fullName":"Chị Lan"}`, `"customerId":"`+uuid.NewString()+`"`, 1),
-			http.StatusNotImplemented, "not_implemented",
-		},
-		{"lineDiscount", strings.Replace(base, `"qty":1}`, `"qty":1,"lineDiscount":100}`, 1), http.StatusNotImplemented, "not_implemented"},
 		{"couponCode", strings.Replace(base, `{"customer"`, `{"couponCode":"SALE10","customer"`, 1), http.StatusNotImplemented, "not_implemented"},
-		{
-			"provinceCode", strings.Replace(base, `"line":"12 Lê Lợi, Q1"`, `"line":"12 Lê Lợi, Q1","provinceCode":"79"`, 1),
-			http.StatusNotImplemented, "not_implemented",
-		},
 		{"không khách", strings.Replace(base, `"customer":{"fullName":"Chị Lan"},`, ``, 1), http.StatusBadRequest, "invalid_input"},
 		{
 			"không địa chỉ", strings.Replace(base, `,"shipAddress":{"name":"Chị Lan","phone":"+84901234567","line":"12 Lê Lợi, Q1"}`, ``, 1),

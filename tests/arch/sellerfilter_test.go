@@ -33,6 +33,8 @@ func sellerExempt() map[string]string {
 	return map[string]string{
 		"queries/catalog/categories.sql#CategoryInUse": "danh mục dùng chung cả shop (spec 05: không có seller_id): " +
 			"hỏi có mẫu nào của bất kỳ người bán nào còn dùng danh mục trước khi lưu trữ",
+		"queries/ord/create.sql#VariantExists": "lên đơn (Task 73, KH14): biến thể không bán được cho người bán của đơn " +
+			"thì hỏi có/không ở cả shop để phân biệt mixed_sellers với variant_not_found; chỉ trả boolean",
 	}
 }
 

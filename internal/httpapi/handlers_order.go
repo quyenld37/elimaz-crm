@@ -2,21 +2,23 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	ht "github.com/ogen-go/ogen/http"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
-	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/queries/orderview"
 )
 
 // orderKeyPrefix tách không gian tên của khóa nghiệp vụ đơn (UUID v5) khỏi mọi chỗ khác dùng uuid.NewSHA1.
@@ -28,11 +30,11 @@ func orderBusinessKey(userID uuid.UUID, requestKey string) uuid.UUID {
 	return uuid.NewSHA1(uuid.NameSpaceOID, []byte(orderKeyPrefix+userID.String()+":"+requestKey))
 }
 
-// CreateOrder (POST /api/v1/orders, order.create): tạo khách mới và đơn nhập tay của người bán mặc định trong một
-// transaction (giữ hàng cùng lúc) → 201. Từ chối nghiệp vụ (hết hàng, ngừng bán, khác người bán, tràn tổng, dữ liệu
-// sai) không lưu theo khóa: gửi lại cùng khóa được xử lý lại. Hợp đồng M2 (Task M2-02) đã thêm trường; nghiệp vụ của
-// chúng có ở Task M2-16, M2-17, nên tới lúc đó thân có trường M2 → 501 (không bỏ qua lặng lẽ). Thân kiểu M1 phải có
-// customer và shipAddress (nay tùy chọn trong hợp đồng) → thiếu là 400 invalid_input.
+// CreateOrder (POST /api/v1/orders, order.create): tìm-hoặc-tạo khách và tạo đơn của người bán mặc định trong một
+// transaction (giữ hàng cùng lúc, order.Writer.Create) → 201; khóa nghiệp vụ (từ Idempotency-Key và nhân viên) đã có
+// đơn cùng nội dung → 200 trả đơn đó. Thân kiểu M1 (không intent) tạo thẳng confirmed như M1. Từ chối nghiệp vụ (hết
+// hàng, dữ liệu sai…) không lưu theo khóa: gửi lại cùng khóa được xử lý lại. couponCode có ở Task M2-17 (tới lúc đó
+// 501, không bỏ qua lặng lẽ).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) CreateOrder(ctx context.Context, req *gen.CreateOrderRequest, params gen.CreateOrderParams) (gen.CreateOrderRes, error) {
@@ -40,31 +42,20 @@ func (h *handler) CreateOrder(ctx context.Context, req *gen.CreateOrderRequest, 
 	if !ok {
 		return nil, errNoAuthUser
 	}
-	if hasM2OrderFields(req) {
-		return nil, fmt.Errorf("tạo đơn có trường M2: %w", ht.ErrNotImplemented)
+	if req.CouponCode.Set {
+		return nil, fmt.Errorf("tạo đơn có mã giảm giá: %w", ht.ErrNotImplemented)
 	}
-	cust, hasCust := req.Customer.Get()
-	addr, hasAddr := req.ShipAddress.Get()
-	if !hasCust || !hasAddr {
-		return nil, fmt.Errorf("tạo đơn kiểu M1 thiếu khách hay địa chỉ: %w", order.ErrInvalidInput)
-	}
-	in := order.CreateManualInput{
-		IdempotencyKey: orderBusinessKey(u.UserID, params.IdempotencyKey),
-		WarehouseID:    req.WarehouseId.Or(uuid.Nil),
-		ShipAddress: order.ShipAddress{
-			Name: addr.Name, Phone: logging.Phone(addr.Phone), Line: logging.Address(addr.Line),
-		},
-		ShippingFee: int64(req.ShippingFee),
-	}
-	for _, it := range req.Items {
-		in.Items = append(in.Items, order.ItemInput{VariantID: it.VariantId, Qty: it.Qty})
+	in, err := createOrderInput(req, orderBusinessKey(u.UserID, params.IdempotencyKey))
+	if err != nil {
+		return nil, err
 	}
 	w := order.Writer{Events: h.d.Events, Queue: queue.NewQueue(), Realtime: h.d.Realtime}
 	var out *gen.Order
+	var replayed bool
 	var refused error
-	err := WriteTx(ctx, h.d, u.TenantID, func(tx pgx.Tx) (int, any, bool, error) {
-		out, refused = nil, nil // fn có thể chạy lại (ADR-46): gán lại mỗi lần
-		o, err := createOrder(ctx, tx, w, in, cust.FullName, u)
+	err = WriteTx(ctx, h.d, u.TenantID, func(tx pgx.Tx) (int, any, bool, error) {
+		out, replayed, refused = nil, false, nil // fn có thể chạy lại (ADR-46): gán lại mỗi lần
+		res, err := createOrder(ctx, tx, w, in, u)
 		switch {
 		case isOrderRefusal(err):
 			refused = err
@@ -72,7 +63,14 @@ func (h *handler) CreateOrder(ctx context.Context, req *gen.CreateOrderRequest, 
 		case err != nil:
 			return 0, nil, false, err
 		}
-		out = orderOut(o)
+		out, replayed = orderOut(res.Order), res.Replayed
+		out.Warnings = make([]gen.OrderWarning, 0, len(res.Warnings))
+		for _, wn := range res.Warnings {
+			out.Warnings = append(out.Warnings, gen.OrderWarning{Code: wn.Code, RefId: gen.NewOptUUID(wn.RefID)})
+		}
+		if replayed {
+			return http.StatusOK, out, true, nil
+		}
 		return http.StatusCreated, out, true, nil
 	})
 	switch {
@@ -80,58 +78,85 @@ func (h *handler) CreateOrder(ctx context.Context, req *gen.CreateOrderRequest, 
 		return nil, err
 	case refused != nil:
 		return nil, fmt.Errorf("tạo đơn: %w", refused)
+	case replayed:
+		return (*gen.CreateOrderOK)(out), nil
 	}
 	return (*gen.CreateOrderCreated)(out), nil
 }
 
-// hasM2OrderFields: thân createOrder có trường mà hợp đồng M2 thêm (Task M2-02) nhưng nghiệp vụ chưa có.
-func hasM2OrderFields(req *gen.CreateOrderRequest) bool {
-	if c, ok := req.Customer.Get(); ok && (c.Phone.Set || c.PhoneIsCustomers.Set) {
-		return true
+// createOrderInput dịch thân createOrder sang order.CreateInput. Đúng một trong customerId, customer; không gửi intent
+// (kiểu M1) hay intent confirmed thì phải có shipAddress (hợp đồng) — sai → ErrInvalidInput (400).
+func createOrderInput(req *gen.CreateOrderRequest, key uuid.UUID) (order.CreateInput, error) {
+	in := order.CreateInput{
+		IdempotencyKey: key, WarehouseID: req.WarehouseId.Or(uuid.Nil), Channel: string(req.Channel.Or("")),
+		ExternalRef: req.ExternalRef.Or(""), TrafficSourceID: optUUID(req.TrafficSourceId),
+		OrderDiscount: int64(req.OrderDiscount.Or(0)), ShippingFee: int64(req.ShippingFee),
+		Intent: string(req.Intent.Or("")), CarrierNote: req.CarrierNote.Or(""), CareBy: optUUID(req.CareBy),
 	}
-	if a, ok := req.ShipAddress.Get(); ok && (a.ProvinceCode.Set || a.WardCode.Set) {
-		return true
+	c, hasCust := req.Customer.Get()
+	switch {
+	case hasCust == req.CustomerId.Set:
+		return order.CreateInput{}, fmt.Errorf("tạo đơn cần đúng một trong customerId, customer: %w", order.ErrInvalidInput)
+	case hasCust:
+		in.Customer = customer.OrderCustomerInput{
+			FullName: c.FullName, Phone: string(c.Phone.Or("")), PhoneIsCustomers: c.PhoneIsCustomers.Or(false),
+		}
+	default:
+		in.Customer = customer.OrderCustomerInput{CustomerID: optUUID(req.CustomerId)}
+	}
+	if a, ok := req.ShipAddress.Get(); ok {
+		in.ShipAddress = &order.ShipAddress{
+			Name: a.Name, Phone: logging.Phone(a.Phone), Line: logging.Address(a.Line),
+			ProvinceCode: a.ProvinceCode.Or(""), WardCode: a.WardCode.Or(""),
+		}
+	} else if in.Intent == "" || in.Intent == order.IntentConfirmed {
+		return order.CreateInput{}, fmt.Errorf("tạo đơn confirmed thiếu địa chỉ giao: %w", order.ErrInvalidInput)
 	}
 	for _, it := range req.Items {
-		if it.LineDiscount.Set {
-			return true
-		}
+		in.Lines = append(in.Lines, order.LineInput{
+			VariantID: it.VariantId, Quantity: it.Qty, LineDiscount: int64(it.LineDiscount.Or(0)),
+		})
 	}
-	return req.CustomerId.Set || req.Intent.Set || req.OrderDiscount.Set || req.CouponCode.Set ||
-		req.TrafficSourceId.Set || req.CarrierNote.Set || req.CareBy.Set || req.Channel.Set || req.ExternalRef.Set ||
-		req.ReferralRef.Set
+	if r, ok := req.ReferralRef.Get(); ok {
+		raw, err := json.Marshal(r)
+		if err != nil {
+			return order.CreateInput{}, fmt.Errorf("đọc referralRef: %w", err)
+		}
+		in.ReferralRef = raw
+	}
+	return in, nil
 }
 
-func createOrder(ctx context.Context, tx pgx.Tx, w order.Writer, in order.CreateManualInput, fullName string,
-	u identity.AuthUser,
-) (order.Order, error) {
-	seller, err := catalog.DefaultSeller(ctx, tx)
-	if err != nil {
-		return order.Order{}, fmt.Errorf("người bán của đơn: %w", err)
+func optUUID(o gen.OptUUID) *uuid.UUID {
+	if v, ok := o.Get(); ok {
+		return &v
 	}
-	in.SellerID = seller
-	if in.CustomerID, err = customer.Create(ctx, tx, fullName); err != nil {
-		return order.Order{}, err //nolint:wrapcheck // sentinel của customer
-	}
-	o, err := w.CreateManual(ctx, tx, in, order.Actor{TenantID: u.TenantID, UserID: u.UserID})
-	if err != nil {
-		return order.Order{}, err //nolint:wrapcheck // sentinel của order
+	return nil
+}
+
+func createOrder(ctx context.Context, tx pgx.Tx, w order.Writer, in order.CreateInput, u identity.AuthUser,
+) (order.CreateResult, error) {
+	res, err := w.Create(ctx, tx, in, order.Actor{TenantID: u.TenantID, UserID: u.UserID}, time.Now().UTC())
+	if err != nil || res.Replayed {
+		return res, err //nolint:wrapcheck // sentinel của order
 	}
 	// order không nhập identity (04 mục 3): audit ghi ở đây, cùng tx.
 	if err := identity.RecordAudit(ctx, tx, identity.AuditEntry{
 		TenantID: u.TenantID, ActorType: "staff", ActorID: u.UserID.String(), Action: "order.create",
-		EntityType: "order", EntityID: o.ID.String(), After: o.AuditFields(), RequestID: RequestID(ctx),
+		EntityType: "order", EntityID: res.Order.ID.String(), After: res.Order.AuditFields(), RequestID: RequestID(ctx),
 	}); err != nil {
-		return order.Order{}, fmt.Errorf("ghi audit order.create: %w", err)
+		return order.CreateResult{}, fmt.Errorf("ghi audit order.create: %w", err)
 	}
-	return o, nil
+	return res, nil
 }
 
 // isOrderRefusal: lỗi nghiệp vụ của lần tạo đơn (trả cho client, không lưu theo khóa).
 func isOrderRefusal(err error) bool {
 	for _, e := range []error{
 		order.ErrOutOfStock, order.ErrNotForSale, order.ErrMixedSellers, order.ErrTotalOverflow, order.ErrInvalidInput,
-		order.ErrDuplicateOrder, customer.ErrInvalidInput,
+		order.ErrDuplicateOrder, order.ErrVariantNotFound, order.ErrLineDiscountExceeds, order.ErrOrderDiscountExceeds,
+		order.ErrAddressIncomplete, order.ErrTrafficSourceInactive, customer.ErrInvalidInput, customer.ErrNotFound,
+		customer.ErrInvalidPhone, customer.ErrUnknownAdminUnit, customer.ErrWardNotInProvince,
 	} {
 		if errors.Is(err, e) {
 			return true
@@ -160,17 +185,68 @@ func (h *handler) GetOrder(ctx context.Context, params gen.GetOrderParams) (gen.
 	return orderOut(o), nil
 }
 
+// orderOut là thân đơn (createOrder, getOrder): trường M1 và trường M2 đọc được từ order.Order (Task M2-16); khách,
+// người phụ trách, phạm vi sửa, phiếu trả có ở task đọc chi tiết (M2-24).
 func orderOut(o order.Order) *gen.Order {
 	out := &gen.Order{
 		ID: o.ID, Code: o.Code, Status: gen.OrderStatus(o.Status), CustomerId: o.CustomerID, Subtotal: gen.Money(o.Subtotal),
 		ShippingFee: gen.Money(o.ShippingFee), GrandTotal: gen.Money(o.GrandTotal), CodAmount: gen.Money(o.CODAmount),
 		CreatedAt: o.CreatedAt, Items: make([]gen.OrderItem, 0, len(o.Items)),
+
+		Version: gen.NewOptInt64(o.Version), AddressComplete: gen.NewOptBool(o.AddressComplete),
+		Label: gen.NewOptOrderLabel(gen.OrderLabel(orderview.Label(orderview.Axes{
+			Status: o.Status, PendingReason: o.PendingReason, PackingStatus: o.PackingStatus,
+		}))),
+		WarehouseId: gen.NewOptUUID(o.WarehouseID), Channel: gen.NewOptString(o.Channel),
+		CarrierNote: gen.NewOptString(o.CarrierNote), OrderType: gen.NewOptOrderOrderType(gen.OrderOrderType(o.OrderType)),
+		PackingStatus:     gen.NewOptOrderPackingStatus(gen.OrderPackingStatus(o.PackingStatus)),
+		PaymentStatus:     gen.NewOptOrderPaymentStatus(gen.OrderPaymentStatus(o.PaymentStatus)),
+		LineDiscountTotal: gen.NewOptMoney(gen.Money(o.LineDiscountTotal)), OrderDiscount: gen.NewOptMoney(gen.Money(o.OrderDiscount)),
+		CouponDiscount: gen.NewOptMoney(gen.Money(o.CouponDiscount)), DiscountTotal: gen.NewOptMoney(gen.Money(o.DiscountTotal)),
+		PrepaidTotal: gen.NewOptMoney(gen.Money(o.PrepaidTotal)), DuplicateSuspect: gen.NewOptBool(o.DuplicateSuspect),
+		ShipAddress: gen.NewOptAddress(gen.Address{
+			Name: o.ShipAddress.Name, Phone: string(o.ShipAddress.Phone), Line: string(o.ShipAddress.Line),
+			ProvinceCode: nonEmpty(o.ShipAddress.ProvinceCode), WardCode: nonEmpty(o.ShipAddress.WardCode),
+		}),
+	}
+	if o.PendingReason != "" {
+		out.PendingReason = gen.NewOptPendingReason(gen.PendingReason(o.PendingReason))
+	}
+	setOpt(&out.TrafficSourceId, o.TrafficSourceID)
+	setOpt(&out.CurrentShipmentId, o.CurrentShipmentID)
+	setOpt(&out.ReplacedReturnId, o.ReplacedReturnID)
+	setOptTime(&out.DraftExpiresAt, o.DraftExpiresAt)
+	setOptTime(&out.ConfirmedAt, o.ConfirmedAt)
+	setOptTime(&out.CancelledAt, o.CancelledAt)
+	if o.ExternalRef != nil {
+		out.ExternalRef = gen.NewOptString(*o.ExternalRef)
 	}
 	for _, it := range o.Items {
 		out.Items = append(out.Items, gen.OrderItem{
 			ID: it.ID, Position: it.Position, VariantId: it.VariantID, Sku: it.SKU, Name: it.Name, Qty: it.Qty,
 			UnitPrice: gen.Money(it.UnitPrice), NetAmount: gen.Money(it.NetAmount),
+			LineDiscount:           gen.NewOptMoney(gen.Money(it.LineDiscount)),
+			AllocatedOrderDiscount: gen.NewOptMoney(gen.Money(it.AllocatedOrderDiscount)),
 		})
 	}
 	return out
+}
+
+func nonEmpty(s string) gen.OptString {
+	if s == "" {
+		return gen.OptString{}
+	}
+	return gen.NewOptString(s)
+}
+
+func setOpt(dst *gen.OptUUID, v *uuid.UUID) {
+	if v != nil {
+		*dst = gen.NewOptUUID(*v)
+	}
+}
+
+func setOptTime(dst *gen.OptDateTime, v *time.Time) {
+	if v != nil {
+		*dst = gen.NewOptDateTime(*v)
+	}
 }

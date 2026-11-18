@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -143,27 +142,6 @@ func (w Writer) ApplyShipmentProgress(ctx context.Context, tx pgx.Tx, sellerID, 
 		return false, err
 	}
 	return true, nil
-}
-
-// markDelivered đổi đơn o (đã khóa, confirmed) sang delivered, ghi lịch sử và phát order.delivered.
-func (w Writer) markDelivered(ctx context.Context, tx pgx.Tx, o store.LockOrderRow) error {
-	q := store.New(tx)
-	version, err := q.SetOrderStatus(ctx, store.SetOrderStatusParams{
-		ToStatus: StatusDelivered, SellerID: o.SellerID, ID: o.ID, FromStatus: StatusConfirmed,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return fmt.Errorf("%w: đơn không còn confirmed", ErrStatusConflict)
-	}
-	if err != nil {
-		return fmt.Errorf("đổi trạng thái đơn: %w", err)
-	}
-	if err := q.InsertStatusHistory(ctx, store.InsertStatusHistoryParams{
-		OrderID: o.ID, FromStatus: pgtype.Text{String: StatusConfirmed, Valid: true}, ToStatus: StatusDelivered,
-		ActorType: inventory.ActorCarrier, OccurredAt: time.Now().UTC(),
-	}); err != nil {
-		return fmt.Errorf("ghi lịch sử đơn: %w", err)
-	}
-	return w.emit(ctx, tx, o.TenantID, Order{ID: o.ID, SellerID: o.SellerID}, TopicOrderDelivered, version)
 }
 
 // Lock khóa đơn id (FOR UPDATE) trong tx của bên gọi, cho đường bắt đầu từ dòng ở nhóm sau (vận đơn, ADR-46 nhóm 7

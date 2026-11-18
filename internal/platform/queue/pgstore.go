@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/internal/store"
 )
 
@@ -41,7 +42,7 @@ func (pgQueue) Enqueue(ctx context.Context, tx pgx.Tx, k Kind, j NewJob) (uuid.U
 		}
 	}
 	q := store.New(tx)
-	tenant := pgUUID(j.TenantID)
+	tenant := db.NullUUID(j.TenantID)
 	id, err := q.InsertJob(ctx, store.InsertJobParams{
 		TenantID:       tenant,
 		Kind:           k.Name,
@@ -71,13 +72,6 @@ func (pgQueue) Enqueue(ctx context.Context, tx pgx.Tx, k Kind, j NewJob) (uuid.U
 }
 
 const maxInt32 = 1<<31 - 1
-
-func pgUUID(id *uuid.UUID) pgtype.UUID {
-	if id == nil {
-		return pgtype.UUID{}
-	}
-	return pgtype.UUID{Bytes: *id, Valid: true}
-}
 
 func fromPgUUID(id pgtype.UUID) *uuid.UUID {
 	if !id.Valid {
