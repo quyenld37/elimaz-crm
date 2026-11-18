@@ -266,6 +266,16 @@ type CatalogVariantsV struct {
 	UpdatedAt     time.Time
 }
 
+type CustomerAdminUnit struct {
+	Code          string
+	Level         string
+	ParentCode    pgtype.Text
+	Name          string
+	NameSearch    string
+	EffectiveFrom pgtype.Date
+	Source        string
+}
+
 type CustomerCustomer struct {
 	ID             uuid.UUID
 	TenantID       uuid.UUID

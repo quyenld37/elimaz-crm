@@ -1968,7 +1968,7 @@ paths:
     get:
       operationId: listAdminUnits
       summary: 'Danh mục đơn vị hành chính hai cấp: parent rỗng → tỉnh; có parent → xã của tỉnh đó, lọc theo q (Task M2-04)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+      description: 'Tỉnh theo mã; xã theo tên, tối đa 50, q bỏ dấu và không phân biệt hoa thường. parent không phải mã tỉnh có trong danh mục → items rỗng.'
       x-permission: customer.read
       parameters:
         - name: parent
