@@ -265,6 +265,17 @@ func (UnimplementedHandler) ListJobs(ctx context.Context, params ListJobsParams)
 	return r, ht.ErrNotImplemented
 }
 
+// ListProducts implements listProducts operation.
+//
+// WarehouseId (không bắt buộc) thêm cột available (tổng có thể bán của các biến
+// thể ở kho đó, có thể âm); cần thêm quyền inventory.read ở kho đó, không có →
+// 403. Mẫu khớp q tối đa 1.000.
+//
+// GET /api/v1/catalog/products
+func (UnimplementedHandler) ListProducts(ctx context.Context, params ListProductsParams) (r ListProductsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListRoles implements listRoles operation.
 //
 // Vai trò của shop và quyền của từng vai trò.
@@ -355,6 +366,16 @@ func (UnimplementedHandler) ReplaceStockDocumentLines(ctx context.Context, req *
 //
 // POST /api/v1/platform/jobs/{id}/retry
 func (UnimplementedHandler) RetryJob(ctx context.Context, params RetryJobParams) (r RetryJobRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SearchVariants implements searchVariants operation.
+//
+// Tìm biến thể của người bán theo barcode (đúng), SKU, mã mẫu (tiền tố), tên
+// không dấu; barcode khớp trước.
+//
+// GET /api/v1/catalog/variants/search
+func (UnimplementedHandler) SearchVariants(ctx context.Context, params SearchVariantsParams) (r SearchVariantsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

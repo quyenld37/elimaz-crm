@@ -377,6 +377,50 @@ export type Product = {
     variants: Array<Variant>;
 };
 
+export type ProductPage = {
+    items: Array<ProductListItem>;
+    /**
+     * Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+     */
+    nextCursor?: string;
+};
+
+export type ProductListItem = {
+    id: string;
+    code: string;
+    name: string;
+    status: ProductStatus;
+    categoryId?: string;
+    /**
+     * Tên danh mục từ gốc tới lá; rỗng khi chưa gán
+     */
+    categoryPath: Array<string>;
+    variantCount: number;
+    minPrice?: Money;
+    maxPrice?: Money;
+    /**
+     * Tổng có thể bán ở kho của warehouseId (có thể âm); chỉ có khi gửi warehouseId
+     */
+    available?: number;
+    updatedAt: string;
+};
+
+export type VariantSearchHit = {
+    variantId: string;
+    productId: string;
+    sku: string;
+    barcode: string;
+    productCode: string;
+    productName: string;
+    color: string;
+    size: string;
+    price: Money;
+    /**
+     * Mẫu và biến thể đều đang bán
+     */
+    sellable: boolean;
+};
+
 /**
  * Tên danh mục, thuộc tính, nhãn hay giá trị thuộc tính
  */
@@ -1120,6 +1164,39 @@ export type GetPlatformHealthResponses = {
 
 export type GetPlatformHealthResponse = GetPlatformHealthResponses[keyof GetPlatformHealthResponses];
 
+export type ListProductsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+        status?: Array<ProductStatus>;
+        categoryId?: string;
+        tagId?: string;
+        warehouseId?: string;
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/catalog/products';
+};
+
+export type ListProductsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListProductsError = ListProductsErrors[keyof ListProductsErrors];
+
+export type ListProductsResponses = {
+    /**
+     * Một trang mẫu
+     */
+    200: ProductPage;
+};
+
+export type ListProductsResponse = ListProductsResponses[keyof ListProductsResponses];
+
 export type CreateProductData = {
     body: CreateProductRequest;
     headers: {
@@ -1243,6 +1320,34 @@ export type AddVariantResponses = {
 };
 
 export type AddVariantResponse = AddVariantResponses[keyof AddVariantResponses];
+
+export type SearchVariantsData = {
+    body?: never;
+    path?: never;
+    query: {
+        q: string;
+        limit?: number;
+    };
+    url: '/api/v1/catalog/variants/search';
+};
+
+export type SearchVariantsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SearchVariantsError = SearchVariantsErrors[keyof SearchVariantsErrors];
+
+export type SearchVariantsResponses = {
+    /**
+     * Biến thể khớp
+     */
+    200: Array<VariantSearchHit>;
+};
+
+export type SearchVariantsResponse = SearchVariantsResponses[keyof SearchVariantsResponses];
 
 export type UpdateVariantData = {
     body: UpdateVariantRequest;

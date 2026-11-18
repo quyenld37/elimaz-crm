@@ -179,6 +179,14 @@ type Handler interface {
 	//
 	// GET /api/v1/platform/jobs
 	ListJobs(ctx context.Context, params ListJobsParams) (ListJobsRes, error)
+	// ListProducts implements listProducts operation.
+	//
+	// WarehouseId (không bắt buộc) thêm cột available (tổng có thể bán của các biến
+	// thể ở kho đó, có thể âm); cần thêm quyền inventory.read ở kho đó, không có →
+	// 403. Mẫu khớp q tối đa 1.000.
+	//
+	// GET /api/v1/catalog/products
+	ListProducts(ctx context.Context, params ListProductsParams) (ListProductsRes, error)
 	// ListRoles implements listRoles operation.
 	//
 	// Vai trò của shop và quyền của từng vai trò.
@@ -242,6 +250,13 @@ type Handler interface {
 	//
 	// POST /api/v1/platform/jobs/{id}/retry
 	RetryJob(ctx context.Context, params RetryJobParams) (RetryJobRes, error)
+	// SearchVariants implements searchVariants operation.
+	//
+	// Tìm biến thể của người bán theo barcode (đúng), SKU, mã mẫu (tiền tố), tên
+	// không dấu; barcode khớp trước.
+	//
+	// GET /api/v1/catalog/variants/search
+	SearchVariants(ctx context.Context, params SearchVariantsParams) (SearchVariantsRes, error)
 	// SetProductClassification implements setProductClassification operation.
 	//
 	// Thay toàn bộ danh mục, giá trị thuộc tính, nhãn của mẫu khi version của mẫu còn

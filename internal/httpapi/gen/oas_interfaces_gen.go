@@ -105,6 +105,10 @@ type ListJobsRes interface {
 	listJobsRes()
 }
 
+type ListProductsRes interface {
+	listProductsRes()
+}
+
 type ListRolesRes interface {
 	listRolesRes()
 }
@@ -143,6 +147,10 @@ type ReplaceStockDocumentLinesRes interface {
 
 type RetryJobRes interface {
 	retryJobRes()
+}
+
+type SearchVariantsRes interface {
+	searchVariantsRes()
 }
 
 type SetProductClassificationRes interface {

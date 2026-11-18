@@ -176,7 +176,7 @@ func writeDomainError(w http.ResponseWriter, r *http.Request, err error) bool {
 		return true
 	}
 	for _, mapErr := range []func(error) (int, string, bool){
-		identityError, catalogError, filesError, orderError, inventoryError,
+		identityError, catalogError, filesError, orderError, inventoryError, queriesError,
 	} {
 		if status, code, ok := mapErr(err); ok {
 			writeError(w, r, status, code)
