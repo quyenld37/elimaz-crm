@@ -185,6 +185,8 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		cfg.ConsoleOrigins = r.list("CONSOLE_ORIGINS")
 		cfg.HealthToken = r.secret("HEALTH_TOKEN")
 		r.files(&cfg)
+		// getProduct chọn bộ kích thước ảnh theo cùng biến với worker (Task M1-44).
+		cfg.ImagePresetVersion = r.integer("IMAGE_PRESET_VERSION", 1, 1, 1000)
 	case RoleMigrate:
 		cfg.Migrate = &MigrateConfig{OwnerURL: r.required("DATABASE_OWNER_URL")}
 	case RoleWorker:
