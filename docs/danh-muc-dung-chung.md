@@ -591,6 +591,8 @@ type DeepHealthReport struct {
 	SpoolFiles          int64
 	LastWalArchivedAgeS *int64
 	LastBackupAgeH      *int64
+
+	LastFileSyncAgeM *int64
 }
 func DeepHealth(ctx context.Context, d *db.DB) (DeepHealthReport, error)
 type ErrorContext struct {
@@ -648,6 +650,7 @@ func ErrorRules(ctx context.Context, d *db.DB, now time.Time) ([]RuleHit, error)
 type RuleOptions struct {
 	Now               time.Time
 	BackupExpected    bool
+	FileSyncExpected  bool
 	DBDiskBudgetBytes int64
 	ConnBudget        int
 }

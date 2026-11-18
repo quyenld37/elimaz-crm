@@ -873,6 +873,18 @@ type PlatformFilePurpose struct {
 	Mode   string
 }
 
+type PlatformFileSyncRun struct {
+	ID         uuid.UUID
+	Kind       string
+	Bucket     string
+	Ok         bool
+	StartedAt  time.Time
+	FinishedAt time.Time
+	Objects    pgtype.Int8
+	Bytes      pgtype.Int8
+	Detail     pgtype.Text
+}
+
 type PlatformFileVariant struct {
 	ID            uuid.UUID
 	TenantID      uuid.UUID

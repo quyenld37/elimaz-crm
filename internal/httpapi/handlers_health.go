@@ -62,6 +62,7 @@ func (h *handler) HealthDeep(ctx context.Context) (gen.HealthDeepRes, error) {
 		SpoolFiles:          gen.NewOptInt64(r.SpoolFiles),
 		LastWalArchivedAgeS: optInt(r.LastWalArchivedAgeS),
 		LastBackupAgeH:      optInt(r.LastBackupAgeH),
+		LastFileSyncAgeM:    optInt(r.LastFileSyncAgeM),
 	}
 	if !r.OK {
 		res := gen.HealthDeepServiceUnavailable(body)

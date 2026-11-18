@@ -4,6 +4,8 @@
 CREATE ROLE crm_owner LOGIN;
 CREATE ROLE crm_app LOGIN NOBYPASSRLS;
 CREATE ROLE crm_search NOLOGIN BYPASSRLS;
+-- Container chép tệp sang kho ngoài (Task M1-45): migration 0126 chỉ cấp INSERT vào platform.file_sync_runs.
+CREATE ROLE crm_filesync LOGIN NOBYPASSRLS CONNECTION LIMIT 1;
 GRANT crm_search TO crm_owner;
 -- Migration 0010 (Task 19) cấp pg_monitor cho crm_app: crm_owner cần ADMIN OPTION trên pg_monitor.
 GRANT pg_monitor TO crm_owner WITH ADMIN OPTION;
@@ -12,6 +14,7 @@ GRANT pg_monitor TO crm_owner WITH ADMIN OPTION;
 -- diễn tập (scripts/backup/verify-drill.sh). crm_owner tạo schema; crm_app chỉ được nối vào.
 GRANT CONNECT, CREATE ON DATABASE crm TO crm_owner;
 GRANT CONNECT ON DATABASE crm TO crm_app;
+GRANT CONNECT ON DATABASE crm TO crm_filesync;
 -- pg_stat_statements không "trusted": tạo trước bằng quyền quản trị (câu trong 0001 khi đó không làm gì).
 \connect crm
 CREATE EXTENSION IF NOT EXISTS pg_trgm;

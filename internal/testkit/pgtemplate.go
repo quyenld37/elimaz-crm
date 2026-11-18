@@ -29,7 +29,7 @@ const (
 	testDBPrefix   = "crm_test_"
 	// templateRecipe phải đổi khi cách dựng mẫu đổi (prepareEmpty, extension, ensurePlatformSchema của db.Migrate…):
 	// mẫu cũ không còn được dùng.
-	templateRecipe = "testkit-template-v1"
+	templateRecipe = "testkit-template-v2"
 	// Khóa advisory trên database mặc định của máy chủ thử (khóa advisory tính theo database: mọi phiên nối cùng
 	// database mặc định nên cùng khóa). Khác khóa 727001 của db.Migrate.
 	templateLockKey = 727391

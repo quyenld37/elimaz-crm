@@ -27,6 +27,9 @@ type DeepHealthReport struct {
 	SpoolFiles          int64
 	LastWalArchivedAgeS *int64
 	LastBackupAgeH      *int64
+	// LastFileSyncAgeM: tuổi (phút) lần chép tốt cũ nhất trong ba bucket chép sang kho ngoài; nil khi còn bucket chưa
+	// có lần chép tốt nào (Task M1-45). Không tính vào OK: cảnh báo file-sync-age lo việc này.
+	LastFileSyncAgeM *int64
 }
 
 // DeepHealth đọc báo cáo kiểm sâu. OK false khi nhịp sống của worker hay ingest cũ hơn 90 s (hay chưa có), hoặc việc
@@ -75,6 +78,9 @@ func DeepHealth(ctx context.Context, d *db.DB) (DeepHealthReport, error) {
 		h := int64(now.Sub(backup).Hours())
 		r.LastBackupAgeH = &h
 	}
+	if r.LastFileSyncAgeM, err = fileSyncAge(ctx, q, now); err != nil {
+		return r, err
+	}
 	maxAge := int64(metrics.HeartbeatMaxAge.Seconds())
 	r.OK = r.WorkerHeartbeatAgeS != nil && *r.WorkerHeartbeatAgeS <= maxAge &&
 		r.IngestHeartbeatAgeS != nil && *r.IngestHeartbeatAgeS <= maxAge &&
@@ -93,4 +99,23 @@ func walArchivedAge(ctx context.Context, d *db.DB, now time.Time) (*int64, error
 	}
 	v := int64(now.Sub(s.lastArchived).Seconds())
 	return &v, nil
+}
+
+// fileSyncAge: tuổi (phút) của lần copy ok gần nhất cũ nhất trong syncedBuckets; nil khi một bucket chưa có.
+func fileSyncAge(ctx context.Context, q *store.Queries, now time.Time) (*int64, error) {
+	rows, err := q.FileSyncStatus(ctx, syncedBuckets())
+	if err != nil {
+		return nil, fmt.Errorf("đọc lần chép sang kho ngoài: %w", err)
+	}
+	var oldest *int64
+	for _, r := range rows {
+		if !r.HasOk {
+			return nil, nil
+		}
+		m := int64(now.Sub(r.LastOkAt).Minutes())
+		if oldest == nil || m > *oldest {
+			oldest = &m
+		}
+	}
+	return oldest, nil
 }

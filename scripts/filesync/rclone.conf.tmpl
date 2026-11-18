@@ -1,0 +1,45 @@
+# Cấu hình rclone của container filesync (Task M1-45). lib.sh điền ${…} từ biến môi trường lúc chạy, ghi ra /tmp
+# (tmpfs, quyền 600); tệp này không chứa bí mật. Mật khẩu crypt ghi ở dạng `rclone obscure` (rclone đòi vậy; obscure
+# không phải mã hóa, tệp đã điền không bao giờ rời container).
+#
+# main:    kho chính (SeaweedFS), danh tính crm-filesync: chỉ đọc, liệt kê.
+# offsite: kho ngoài, danh tính chỉ ghi thêm (không DeleteObject).
+# offsite-originals, offsite-private: rclone crypt trên đúng một bucket kho ngoài mỗi remote, mã hóa tên và nội dung
+#   trước khi rời máy (ADR-36). Một remote mỗi bucket: crypt mã hóa cả tên thư mục, nên remote đặt ở gốc kho ngoài
+#   sẽ đòi tạo bucket tên đã mã hóa (danh tính kho ngoài không được tạo bucket).
+
+[main]
+type = s3
+provider = Other
+endpoint = ${FILESYNC_SRC_ENDPOINT}
+region = ${FILESYNC_SRC_REGION}
+access_key_id = ${FILESYNC_SRC_ACCESS_KEY_ID}
+secret_access_key = ${FILESYNC_SRC_SECRET_ACCESS_KEY}
+force_path_style = true
+no_check_bucket = true
+
+[offsite]
+type = s3
+provider = ${FILESYNC_DST_PROVIDER}
+endpoint = ${FILESYNC_DST_ENDPOINT}
+region = ${FILESYNC_DST_REGION}
+access_key_id = ${FILESYNC_DST_ACCESS_KEY_ID}
+secret_access_key = ${FILESYNC_DST_SECRET_ACCESS_KEY}
+force_path_style = true
+no_check_bucket = true
+
+[offsite-originals]
+type = crypt
+remote = offsite:${FILESYNC_DST_BUCKET_PREFIX}originals
+filename_encryption = standard
+directory_name_encryption = true
+password = ${FILESYNC_CRYPT_PASSWORD_OBSCURED}
+password2 = ${FILESYNC_CRYPT_PASSWORD2_OBSCURED}
+
+[offsite-private]
+type = crypt
+remote = offsite:${FILESYNC_DST_BUCKET_PREFIX}private
+filename_encryption = standard
+directory_name_encryption = true
+password = ${FILESYNC_CRYPT_PASSWORD_OBSCURED}
+password2 = ${FILESYNC_CRYPT_PASSWORD2_OBSCURED}
