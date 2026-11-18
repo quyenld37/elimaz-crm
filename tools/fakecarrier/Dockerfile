@@ -13,10 +13,12 @@ COPY internal ./internal
 COPY migrations ./migrations
 COPY tools/fakecarrier ./tools/fakecarrier
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 go build -trimpath -o /out/fakecarrier ./tools/fakecarrier
+    CGO_ENABLED=0 go build -trimpath -o /out/fakecarrier ./tools/fakecarrier && mkdir -p /out/data
 
 FROM ${RUN_IMAGE}
 COPY --from=build /out/fakecarrier /fakecarrier
+# Thư mục dữ liệu (FAKECARRIER_DATA=/data/… ở compose dev, Task 395): volume có tên lấy chủ sở hữu từ image ở lần gắn đầu.
+COPY --from=build --chown=65532:65532 /out/data /data
 USER 65532:65532
 EXPOSE 4194
 ENTRYPOINT ["/fakecarrier"]
