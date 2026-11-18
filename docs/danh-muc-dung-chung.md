@@ -296,6 +296,7 @@ Package observability phục vụ các điểm kiểm sức khỏe của tiến 
 **Khi nào không dùng:** Không đặt kiểm tra nghiệp vụ hay dữ liệu khách vào /health/*; kiểm sâu (/health/deep, cần token) thuộc Task 19.
 
 ```go
+func CheckLive(ctx context.Context, port int, timeout time.Duration) error
 type Health struct {
 }
 func NewHealth(db Pinger) *Health
