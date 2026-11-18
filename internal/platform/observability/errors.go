@@ -7,9 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"path"
 	"reflect"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -21,6 +21,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/internal/store"
+	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 )
 
@@ -37,18 +38,10 @@ const (
 	MetricErrors = "errors"
 )
 
-var (
-	longDigitsPattern = regexp.MustCompile(`[0-9]{8,}`)
-	emailPattern      = regexp.MustCompile(`[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}`)
-)
-
-// ScrubMessage lọc dữ liệu cá nhân khỏi nội dung lỗi trước khi lưu: chuỗi từ 8 chữ số liền trở lên → "#", email →
-// "@", rồi cắt còn tối đa 300 ký tự (không cắt giữa ký tự UTF-8). Chỉ lọc hai dạng này; tên, địa chỉ trong nội dung
-// tự do không được lọc, nên mã không đưa dữ liệu khách vào chuỗi lỗi.
+// ScrubMessage là nội dung lỗi lưu vào error_events: qua logging.ScrubText (bộ che văn bản duy nhất của CRM: SĐT,
+// email, địa chỉ, token thành "[Redacted]"), rồi cắt còn tối đa 300 ký tự (không cắt giữa ký tự UTF-8).
 func ScrubMessage(m string) string {
-	m = strings.ToValidUTF8(m, "?")
-	m = emailPattern.ReplaceAllString(m, "@")
-	m = longDigitsPattern.ReplaceAllString(m, "#")
+	m = logging.ScrubText(m)
 	if r := []rune(m); len(r) > maxMessageRunes {
 		m = string(r[:maxMessageRunes])
 	}
@@ -62,9 +55,74 @@ type PanicError struct {
 	Frames []runtime.Frame
 }
 
-// NewPanicError gói giá trị v của recover(); phải gọi ngay trong hàm defer đã recover (vết gọi lấy tại đó).
+// NewPanicError gói giá trị v của recover(); phải gọi ngay trong hàm defer đã recover (vết gọi lấy tại đó). v đã là
+// *PanicError (lớp ScrubPanics bên trong đã gói rồi panic lại) thì trả nguyên, giữ vết của chỗ panic gốc.
 func NewPanicError(v any) *PanicError {
+	if pe, ok := v.(*PanicError); ok {
+		return pe
+	}
 	return &PanicError{Value: v, Frames: PanicFrames()}
+}
+
+// RecoverPanics là lớp recover ngoài cùng của một máy chủ HTTP (api, ingest): panic trong next được gói thành
+// *PanicError (NewPanicError: vết tại chỗ panic gốc) rồi giao cho onPanic cùng ctx của yêu cầu và wrote (đã gửi header
+// chưa: chỉ trả 500 khi còn trả được). onPanic ghi lỗi, log và trả lời theo dạng lỗi của máy chủ đó; không log giá
+// trị panic. http.ErrAbortHandler được ném tiếp như net/http mong đợi.
+func RecoverPanics(next http.Handler, onPanic func(ctx context.Context, w http.ResponseWriter, r *http.Request, pe *PanicError, wrote bool)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hw := &headerWriter{ResponseWriter: w}
+		ctx := r.Context()
+		defer func() {
+			v := recover()
+			if v == nil {
+				return
+			}
+			if v == http.ErrAbortHandler { //nolint:errorlint,err113 // so đúng giá trị mà net/http dùng
+				panic(v)
+			}
+			onPanic(ctx, hw, r, NewPanicError(v), hw.wrote)
+		}()
+		next.ServeHTTP(hw, r)
+	})
+}
+
+// headerWriter nhớ đã gửi header chưa, để RecoverPanics báo onPanic có còn trả lời được không.
+type headerWriter struct {
+	http.ResponseWriter
+	wrote bool
+}
+
+func (w *headerWriter) WriteHeader(code int) {
+	w.wrote = true
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *headerWriter) Write(b []byte) (int, error) {
+	w.wrote = true
+	return w.ResponseWriter.Write(b) //nolint:wrapcheck // chuyển thẳng của ResponseWriter
+}
+
+// Unwrap cho http.ResponseController (Flush của SSE) đi tới writer gốc.
+func (w *headerWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+// ScrubPanics bọc next: panic trong next được gói thành *PanicError (Error() đã lọc dữ liệu cá nhân) rồi panic lại,
+// để lớp dấu vết bọc ngoài (otelhttp: span ghi giá trị panic vào sự kiện exception) chỉ thấy nội dung đã lọc. Đặt
+// ngay bên trong otelhttp; lớp recover ngoài cùng bắt *PanicError và ghi lỗi như cũ. http.ErrAbortHandler đi qua
+// nguyên vẹn.
+func ScrubPanics(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			v := recover()
+			if v == nil {
+				return
+			}
+			if v == http.ErrAbortHandler { //nolint:errorlint,err113 // so đúng giá trị mà net/http dùng
+				panic(v)
+			}
+			panic(NewPanicError(v))
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (p *PanicError) Error() string { return "panic: " + ScrubMessage(fmt.Sprint(p.Value)) }
@@ -213,7 +271,7 @@ func RecordError(ctx context.Context, d *db.DB, err error, c ErrorContext) (fing
 		}
 		logger.LogAttrs(ctx, slog.LevelError, "ghi error_events thất bại",
 			slog.String("fingerprint", fingerprint), slog.String("role", c.Role),
-			slog.String("error", fmt.Errorf("ghi lỗi ứng dụng: %w", werr).Error()))
+			logging.Err(fmt.Errorf("ghi lỗi ứng dụng: %w", werr)))
 		return fingerprint, false
 	}
 	return fingerprint, isNew

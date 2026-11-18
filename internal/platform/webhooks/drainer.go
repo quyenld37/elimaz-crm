@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 )
 
@@ -48,7 +49,7 @@ func (d *Drainer) tick(ctx context.Context, failing bool) bool {
 	files, _, err := d.Spool.Stats()
 	if err != nil {
 		if !failing {
-			d.Logger.Error("đọc thư mục tệp tạm webhook", slog.String("error", err.Error()))
+			d.Logger.Error("đọc thư mục tệp tạm webhook", logging.Err(err))
 		}
 		return true
 	}
@@ -62,7 +63,7 @@ func (d *Drainer) tick(ctx context.Context, failing bool) bool {
 	switch {
 	case err != nil && !failing:
 		d.Logger.Warn("nạp tệp tạm webhook", slog.Int("loaded", n), slog.Int("files", files),
-			slog.String("error", err.Error()))
+			logging.Err(err))
 		return true
 	case err != nil:
 		return true

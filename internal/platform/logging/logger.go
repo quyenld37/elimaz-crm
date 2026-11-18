@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"regexp"
 
 	"go.opentelemetry.io/otel/trace"
 
@@ -82,6 +83,10 @@ func (h *redactHandler) WithGroup(name string) slog.Handler {
 	return &redactHandler{inner: h.inner.WithGroup(name), redactAll: h.redactAll || SensitiveKey(name)}
 }
 
+// errorKey: khóa log mang nội dung lỗi (error, db_error, err…); giá trị chuỗi dưới khóa này qua ScrubText, phòng
+// khi mã ghi err.Error() thay cho Err(err).
+var errorKey = regexp.MustCompile(`(?i)err`)
+
 func (h *redactHandler) redactAttr(a slog.Attr) slog.Attr {
 	if h.redactAll || SensitiveKey(a.Key) {
 		return slog.String(a.Key, redacted)
@@ -105,6 +110,11 @@ func redactAttrValue(a slog.Attr, depth int) slog.Attr {
 		return slog.Group(a.Key, out...)
 	case slog.KindAny:
 		return slog.Any(a.Key, Redact(v.Any(), depth))
+	case slog.KindString:
+		if errorKey.MatchString(a.Key) {
+			return slog.String(a.Key, ScrubText(v.String()))
+		}
+		return slog.Attr{Key: a.Key, Value: v}
 	default:
 		return slog.Attr{Key: a.Key, Value: v}
 	}

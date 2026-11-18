@@ -108,7 +108,7 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 		return exitOK
 	}
 	if err := serve(ctx, cfg, logger); err != nil {
-		logger.Error("tiến trình dừng vì lỗi", slog.String("error", err.Error()))
+		logger.Error("tiến trình dừng vì lỗi", logging.Err(err))
 		return exitFail
 	}
 	logger.Info("đã tắt êm")
@@ -129,7 +129,7 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		tctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), traceShutdownTimeout)
 		defer cancel()
 		if err := shutdownTraces(tctx); err != nil {
-			logger.Warn("đẩy nốt dấu vết", slog.String("error", err.Error()))
+			logger.Warn("đẩy nốt dấu vết", logging.Err(err))
 		}
 	}()
 	d, err := db.Open(ctx, cfg.DatabaseURL, poolOptions(cfg))
@@ -275,7 +275,7 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	wg.Go(func() { ticker.Run(ctx) })
 	<-ctx.Done()
 	if err := w.Stop(workerStopGrace); err != nil {
-		logger.Warn("tắt hàng đợi", slog.String("error", err.Error()))
+		logger.Warn("tắt hàng đợi", logging.Err(err))
 	}
 	cancel()
 	wg.Wait()
@@ -393,6 +393,7 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 // và /health/live, /health/ready. Không có route nào của api.
 func ingestHandler(cfg config.Config, d *db.DB, reg *metrics.Registry, logger *slog.Logger) (http.Handler, error) {
 	in, err := webhooks.NewIngest(webhooks.IngestOptions{
+		Role:    string(cfg.Role),
 		DB:      d,
 		Sources: []webhooks.Source{selftest.NewSource(cfg.SelftestWebhookSecret)},
 		Spool:   &webhooks.Spool{Dir: cfg.SpoolDir},

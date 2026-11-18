@@ -15,6 +15,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/idempotency"
+	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
@@ -141,7 +142,7 @@ func writeHandlerError(d Deps, w http.ResponseWriter, r *http.Request, err error
 			slog.String("request_id", RequestID(r.Context())),
 			slog.String("route", r.Pattern),
 			slog.String("fingerprint", fp),
-			slog.String("error", err.Error()))
+			logging.Err(err))
 	}
 	writeError(w, r, http.StatusInternalServerError, codeInternal)
 }

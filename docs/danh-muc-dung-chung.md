@@ -432,8 +432,11 @@ Package logging dựng logger JSON của CRM: che sâu dữ liệu cá nhân và
 **Khi nào không dùng:** Không tự dựng slog.Handler khác hay ghi thẳng ra stdout; không dựa vào che theo tên khóa cho nội dung tự do (chuỗi trong thông điệp không bị che): dữ liệu cá nhân đi bằng kiểu Phone, Address, Secret hoặc khóa có tên đúng.
 
 ```go
+func Err(err error) slog.Attr
+func ErrorText(err error) string
 func NewLogger(cfg config.Config, stdout io.Writer) (*slog.Logger, io.Closer, error)
 func Redact(v any, maxDepth int) any
+func ScrubText(s string) string
 func SensitiveKey(key string) bool
 type Address string
 func (Address) LogValue() slog.Value
@@ -510,7 +513,9 @@ func CheckLive(ctx context.Context, port int, timeout time.Duration) error
 func Fingerprint(err error, frames []runtime.Frame) string
 func PanicFrames() []runtime.Frame
 func RecordError(ctx context.Context, d *db.DB, err error, c ErrorContext) (fingerprint string, isNew bool)
+func RecoverPanics(next http.Handler, onPanic func(ctx context.Context, w http.ResponseWriter, r *http.Request, pe *PanicError, wrote bool)) http.Handler
 func ScrubMessage(m string) string
+func ScrubPanics(next http.Handler) http.Handler
 func StackFrames(skip int) []runtime.Frame
 type AlertSummary struct {
 	Key, Severity string
@@ -922,6 +927,8 @@ type IngestOptions struct {
 
 	Metrics *metrics.Registry
 	Logger  *slog.Logger
+
+	Role string
 }
 type Lockout struct {
 }
