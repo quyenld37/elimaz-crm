@@ -1385,6 +1385,7 @@ func (*ErrorStatusCode) deleteProductImageRes()        {}
 func (*ErrorStatusCode) getFileRes()                   {}
 func (*ErrorStatusCode) getMeRes()                     {}
 func (*ErrorStatusCode) getOrderRes()                  {}
+func (*ErrorStatusCode) getOriginalImageURLRes()       {}
 func (*ErrorStatusCode) getPlatformHealthRes()         {}
 func (*ErrorStatusCode) getProductClassificationRes()  {}
 func (*ErrorStatusCode) getProductRes()                {}
@@ -5011,6 +5012,35 @@ func (s *ShipmentStatus) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+// Đường dẫn GET ký sẵn có hạn tới một tệp trên kho.
+// Ref: #/components/schemas/SignedUrl
+type SignedUrl struct {
+	URL       string    `json:"url"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+// GetURL returns the value of URL.
+func (s *SignedUrl) GetURL() string {
+	return s.URL
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *SignedUrl) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// SetURL sets the value of URL.
+func (s *SignedUrl) SetURL(val string) {
+	s.URL = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *SignedUrl) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+func (*SignedUrl) getOriginalImageURLRes() {}
 
 // Ref: #/components/schemas/StaffGrant
 type StaffGrant struct {

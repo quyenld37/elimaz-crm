@@ -2256,6 +2256,95 @@ func (s *Server) handleGetOrderRequest(args [1]string, argsEscaped bool, w http.
 	}
 }
 
+// handleGetOriginalImageURLRequest handles getOriginalImageURL operation.
+//
+// Đường dẫn tải ảnh gốc của một ảnh đang hiện, hạn 5 phút, tải về tên
+// <mã mẫu>-<vị trí>.<đuôi> (TP05).
+//
+// GET /api/v1/catalog/products/{id}/images/{imageId}/original
+func (s *Server) handleGetOriginalImageURLRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetOriginalImageURLOperation,
+			ID:   "getOriginalImageURL",
+		}
+	)
+	params, err := decodeGetOriginalImageURLParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetOriginalImageURLRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetOriginalImageURLOperation,
+			OperationSummary: "Đường dẫn tải ảnh gốc của một ảnh đang hiện, hạn 5 phút, tải về tên <mã mẫu>-<vị trí>.<đuôi> (TP05)",
+			OperationID:      "getOriginalImageURL",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "imageId",
+					In:   "path",
+				}: params.ImageId,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetOriginalImageURLParams
+			Response = GetOriginalImageURLRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetOriginalImageURLParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetOriginalImageURL(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetOriginalImageURL(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetOriginalImageURLResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetPlatformHealthRequest handles getPlatformHealth operation.
 //
 // Tình trạng tiến trình, hàng đợi, sao lưu, lỗi và cảnh báo 24 giờ.

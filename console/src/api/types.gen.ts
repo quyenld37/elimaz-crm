@@ -134,6 +134,14 @@ export type Upload = {
     expiresAt: string;
 };
 
+/**
+ * Đường dẫn GET ký sẵn có hạn tới một tệp trên kho
+ */
+export type SignedUrl = {
+    url: string;
+    expiresAt: string;
+};
+
 export type FileVariant = {
     width: number;
     format: 'avif' | 'webp' | 'jpeg';
@@ -1599,6 +1607,34 @@ export type RestoreProductImageResponses = {
 };
 
 export type RestoreProductImageResponse = RestoreProductImageResponses[keyof RestoreProductImageResponses];
+
+export type GetOriginalImageUrlData = {
+    body?: never;
+    path: {
+        id: string;
+        imageId: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}/images/{imageId}/original';
+};
+
+export type GetOriginalImageUrlErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetOriginalImageUrlError = GetOriginalImageUrlErrors[keyof GetOriginalImageUrlErrors];
+
+export type GetOriginalImageUrlResponses = {
+    /**
+     * Đường dẫn ký sẵn tới ảnh gốc
+     */
+    200: SignedUrl;
+};
+
+export type GetOriginalImageUrlResponse = GetOriginalImageUrlResponses[keyof GetOriginalImageUrlResponses];
 
 export type SearchVariantsData = {
     body?: never;

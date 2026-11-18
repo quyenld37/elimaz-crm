@@ -232,6 +232,16 @@ func (UnimplementedHandler) GetOrder(ctx context.Context, params GetOrderParams)
 	return r, ht.ErrNotImplemented
 }
 
+// GetOriginalImageURL implements getOriginalImageURL operation.
+//
+// Đường dẫn tải ảnh gốc của một ảnh đang hiện, hạn 5 phút, tải về tên
+// <mã mẫu>-<vị trí>.<đuôi> (TP05).
+//
+// GET /api/v1/catalog/products/{id}/images/{imageId}/original
+func (UnimplementedHandler) GetOriginalImageURL(ctx context.Context, params GetOriginalImageURLParams) (r GetOriginalImageURLRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetPlatformHealth implements getPlatformHealth operation.
 //
 // Tình trạng tiến trình, hàng đợi, sao lưu, lỗi và cảnh báo 24 giờ.

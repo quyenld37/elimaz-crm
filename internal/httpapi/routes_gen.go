@@ -40,6 +40,7 @@ var Routes = []Route{
 	{Method: "POST", Pattern: "POST /api/v1/catalog/products/{id}/images", OperationID: "attachProductImage", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "PUT", Pattern: "PUT /api/v1/catalog/products/{id}/images/order", OperationID: "reorderProductImages", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "DELETE", Pattern: "DELETE /api/v1/catalog/products/{id}/images/{imageId}", OperationID: "deleteProductImage", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "GET", Pattern: "GET /api/v1/catalog/products/{id}/images/{imageId}/original", OperationID: "getOriginalImageURL", Permission: "catalog.manage"},
 	{Method: "POST", Pattern: "POST /api/v1/catalog/products/{id}/images/{imageId}/restore", OperationID: "restoreProductImage", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "POST", Pattern: "POST /api/v1/catalog/products/{id}/variants", OperationID: "addVariant", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/catalog/tags", OperationID: "listTags", Permission: "catalog.read"},

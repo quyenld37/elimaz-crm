@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
@@ -27,6 +28,7 @@ type catalogAPIEnv struct {
 	keys   *testkit.AccessKeys
 	srv    http.Handler
 	tenant uuid.UUID
+	mem    *files.MemStore // kho tệp của máy chủ useImageServer
 }
 
 func newCatalogAPIEnv(t *testing.T) *catalogAPIEnv {

@@ -565,6 +565,23 @@ paths:
                 $ref: "#/components/schemas/Product"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/catalog/products/{id}/images/{imageId}/original:
+    get:
+      operationId: getOriginalImageURL
+      summary: Đường dẫn tải ảnh gốc của một ảnh đang hiện, hạn 5 phút, tải về tên <mã mẫu>-<vị trí>.<đuôi> (TP05)
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+        - $ref: "#/components/parameters/ImageID"
+      responses:
+        "200":
+          description: Đường dẫn ký sẵn tới ảnh gốc
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignedUrl"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/catalog/variants/search:
     get:
       operationId: searchVariants
@@ -1672,6 +1689,16 @@ components:
           description: Header phải gửi kèm PUT (đã nằm trong chữ ký)
           additionalProperties:
             type: string
+        expiresAt:
+          type: string
+          format: date-time
+    SignedUrl:
+      type: object
+      description: Đường dẫn GET ký sẵn có hạn tới một tệp trên kho
+      required: [url, expiresAt]
+      properties:
+        url:
+          type: string
         expiresAt:
           type: string
           format: date-time
