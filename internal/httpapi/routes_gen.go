@@ -21,6 +21,12 @@ type Route struct {
 
 // Routes là mọi operation của hợp đồng, theo thứ tự đường dẫn rồi method.
 var Routes = []Route{
+	{Method: "GET", Pattern: "GET /api/v1/identity/roles", OperationID: "listRoles", Permission: "identity.users.manage"},
+	{Method: "GET", Pattern: "GET /api/v1/identity/users", OperationID: "listStaff", Permission: "identity.users.manage"},
+	{Method: "POST", Pattern: "POST /api/v1/identity/users", OperationID: "createStaff", Permission: "identity.users.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "PUT", Pattern: "PUT /api/v1/identity/users/{id}/grants", OperationID: "replaceStaffGrants", Permission: "identity.users.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "POST", Pattern: "POST /api/v1/identity/users/{id}/lock", OperationID: "lockStaff", Permission: "identity.users.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "POST", Pattern: "POST /api/v1/identity/users/{id}/unlock", OperationID: "unlockStaff", Permission: "identity.users.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/me", OperationID: "getMe", Permission: "realtime.subscribe"},
 	{Method: "GET", Pattern: "GET /api/v1/platform/health", OperationID: "getPlatformHealth", Permission: "platform.health.read"},
 	{Method: "GET", Pattern: "GET /api/v1/platform/jobs", OperationID: "listJobs", Permission: "platform.jobs.manage"},

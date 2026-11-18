@@ -6,13 +6,19 @@ package gen
 type OperationName = string
 
 const (
-	AbandonJobOperation        OperationName = "AbandonJob"
-	GetMeOperation             OperationName = "GetMe"
-	GetPlatformHealthOperation OperationName = "GetPlatformHealth"
-	HealthDeepOperation        OperationName = "HealthDeep"
-	HealthLiveOperation        OperationName = "HealthLive"
-	HealthReadyOperation       OperationName = "HealthReady"
-	ListJobsOperation          OperationName = "ListJobs"
-	RetryJobOperation          OperationName = "RetryJob"
-	StreamOperation            OperationName = "Stream"
+	AbandonJobOperation         OperationName = "AbandonJob"
+	CreateStaffOperation        OperationName = "CreateStaff"
+	GetMeOperation              OperationName = "GetMe"
+	GetPlatformHealthOperation  OperationName = "GetPlatformHealth"
+	HealthDeepOperation         OperationName = "HealthDeep"
+	HealthLiveOperation         OperationName = "HealthLive"
+	HealthReadyOperation        OperationName = "HealthReady"
+	ListJobsOperation           OperationName = "ListJobs"
+	ListRolesOperation          OperationName = "ListRoles"
+	ListStaffOperation          OperationName = "ListStaff"
+	LockStaffOperation          OperationName = "LockStaff"
+	ReplaceStaffGrantsOperation OperationName = "ReplaceStaffGrants"
+	RetryJobOperation           OperationName = "RetryJob"
+	StreamOperation             OperationName = "Stream"
+	UnlockStaffOperation        OperationName = "UnlockStaff"
 )

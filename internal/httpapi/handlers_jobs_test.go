@@ -1,10 +1,8 @@
 package httpapi
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -46,12 +43,7 @@ func newJobsEnv(t *testing.T, lockTimeout time.Duration) *jobsEnv {
 	e.managers[jobsManager] = m
 	v := e.staff.User(t, e.tenantA, jobsViewer, "active")
 	e.staff.Grant(t, e.tenantA, v, []string{"platform.health.read"}, "all", "")
-	authE := &authEnv{t: t, keys: e.keys}
-	e.srv = NewServer(Deps{
-		Config: config.Config{ConsoleOrigins: []string{testOrigin}}, DB: e.staff.App,
-		Logger: slog.New(slog.NewJSONHandler(&lockedBuffer{buf: &bytes.Buffer{}}, nil)), Access: authE.verifier(),
-		WriteLockTimeout: lockTimeout,
-	})
+	e.srv = testServer(t, e.staff, e.keys, lockTimeout)
 	return e
 }
 
@@ -116,18 +108,7 @@ func (e *jobsEnv) keyRows() int {
 
 func (e *jobsEnv) do(method, path, email, key string) *httptest.ResponseRecorder {
 	e.t.Helper()
-	req := httptest.NewRequestWithContext(context.Background(), method, path, strings.NewReader("{}"))
-	req.Header.Set("Cf-Access-Jwt-Assertion", e.keys.Sign(testkit.AccessClaims{Email: email, AUD: testAUD, MFA: []string{"mfa"}}))
-	if method != http.MethodGet {
-		req.Header.Set("Origin", testOrigin)
-		req.Header.Set("Content-Type", "application/json")
-	}
-	if key != "" {
-		req.Header.Set("Idempotency-Key", key)
-	}
-	rec := httptest.NewRecorder()
-	e.srv.ServeHTTP(rec, req)
-	return rec
+	return serveAs(e.srv, e.keys, method, path, email, key, "{}")
 }
 
 func jobPath(id uuid.UUID, action string) string {

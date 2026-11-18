@@ -109,27 +109,6 @@ func (q *Queries) ListUserGrants(ctx context.Context, userID uuid.UUID) ([]ListU
 	return items, nil
 }
 
-const upsertRole = `-- name: UpsertRole :one
-INSERT INTO identity.roles (tenant_id, key, name)
-VALUES ($1, $2, $3)
-ON CONFLICT (tenant_id, key) DO UPDATE SET name = EXCLUDED.name
-RETURNING id
-`
-
-type UpsertRoleParams struct {
-	TenantID uuid.UUID
-	Key      string
-	Name     string
-}
-
-// Seed (chủ bảng): vai trò theo khóa; chạy lại thì đổi tên và trả mã cũ.
-func (q *Queries) UpsertRole(ctx context.Context, arg UpsertRoleParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, upsertRole, arg.TenantID, arg.Key, arg.Name)
-	var id uuid.UUID
-	err := row.Scan(&id)
-	return id, err
-}
-
 const upsertUser = `-- name: UpsertUser :one
 INSERT INTO identity.users (tenant_id, email, display_name)
 VALUES ($1, $2::citext, $3)

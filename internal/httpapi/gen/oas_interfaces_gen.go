@@ -5,6 +5,10 @@ type AbandonJobRes interface {
 	abandonJobRes()
 }
 
+type CreateStaffRes interface {
+	createStaffRes()
+}
+
 type GetMeRes interface {
 	getMeRes()
 }
@@ -25,10 +29,30 @@ type ListJobsRes interface {
 	listJobsRes()
 }
 
+type ListRolesRes interface {
+	listRolesRes()
+}
+
+type ListStaffRes interface {
+	listStaffRes()
+}
+
+type LockStaffRes interface {
+	lockStaffRes()
+}
+
+type ReplaceStaffGrantsRes interface {
+	replaceStaffGrantsRes()
+}
+
 type RetryJobRes interface {
 	retryJobRes()
 }
 
 type StreamRes interface {
 	streamRes()
+}
+
+type UnlockStaffRes interface {
+	unlockStaffRes()
 }
