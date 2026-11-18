@@ -333,6 +333,8 @@ forEachViewport(() => {
 test("menu: mục Nhân viên chỉ hiện với người có quyền quản lý nhân viên", async ({ page, api }) => {
   await page.setViewportSize(DESKTOP);
   await staffApi(api, MINH, ["catalog.read", "inventory.read"].map(all));
+  // "/" mở màn được phép đầu tiên (Danh sách sản phẩm, Task 50): khai các đường của nó.
+  await api.catalog();
   await page.goto("/");
   await expect(page.getByRole("link", { name: "Nhân viên" })).toHaveCount(0);
 });

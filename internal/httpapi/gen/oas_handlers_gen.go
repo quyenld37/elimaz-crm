@@ -3670,6 +3670,72 @@ func (s *Server) handleListTagsRequest(args [0]string, argsEscaped bool, w http.
 	}
 }
 
+// handleListWarehousesRequest handles listWarehouses operation.
+//
+// Các kho người gọi được xem (có inventory.read ở kho đó hoặc toàn shop), kho chính
+// trước rồi theo mã; gồm cả kho đã đóng.
+//
+// GET /api/v1/inventory/warehouses
+func (s *Server) handleListWarehousesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response ListWarehousesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListWarehousesOperation,
+			OperationSummary: "Các kho người gọi được xem (có inventory.read ở kho đó hoặc toàn shop), kho chính trước rồi theo mã; gồm cả kho đã đóng",
+			OperationID:      "listWarehouses",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = ListWarehousesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListWarehouses(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListWarehouses(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListWarehousesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleLockStaffRequest handles lockStaff operation.
 //
 // Khóa nhân viên (không khóa Chủ còn hoạt động cuối cùng).

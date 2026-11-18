@@ -897,6 +897,22 @@ paths:
                 $ref: "#/components/schemas/Supplier"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/inventory/warehouses:
+    get:
+      operationId: listWarehouses
+      summary: Các kho người gọi được xem (có inventory.read ở kho đó hoặc toàn shop), kho chính trước rồi theo mã; gồm cả kho đã đóng
+      x-permission: inventory.read
+      responses:
+        "200":
+          description: Danh sách kho
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Warehouse"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/inventory/balances:
     get:
       operationId: listBalances
@@ -2697,6 +2713,22 @@ components:
           description: Rỗng ở danh sách
           items:
             $ref: "#/components/schemas/StockDocumentLine"
+    Warehouse:
+      type: object
+      required: [id, code, name, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        status:
+          $ref: "#/components/schemas/WarehouseStatus"
+    WarehouseStatus:
+      type: string
+      enum: [active, closed]
     BalancePage:
       type: object
       required: [items]

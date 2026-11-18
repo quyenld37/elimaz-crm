@@ -1683,6 +1683,31 @@ func (s ListTagsOKApplicationJSON) Validate() error {
 	return nil
 }
 
+func (s ListWarehousesOKApplicationJSON) Validate() error {
+	alias := ([]Warehouse)(s)
+	if alias == nil {
+		return errors.New("nil is invalid value")
+	}
+	var failures []validate.FieldError
+	for i, elem := range alias {
+		if err := func() error {
+			if err := elem.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			failures = append(failures, validate.FieldError{
+				Name:  fmt.Sprintf("[%d]", i),
+				Error: err,
+			})
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *Me) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -4017,6 +4042,40 @@ func (s VariantStatus) Validate() error {
 	case "active":
 		return nil
 	case "discontinued":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *Warehouse) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Status.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "status",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s WarehouseStatus) Validate() error {
+	switch s {
+	case "active":
+		return nil
+	case "closed":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

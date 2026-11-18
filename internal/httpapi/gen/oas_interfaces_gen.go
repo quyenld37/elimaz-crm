@@ -161,6 +161,10 @@ type ListTagsRes interface {
 	listTagsRes()
 }
 
+type ListWarehousesRes interface {
+	listWarehousesRes()
+}
+
 type LockStaffRes interface {
 	lockStaffRes()
 }

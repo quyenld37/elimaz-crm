@@ -54,6 +54,26 @@ func staffActor(u identity.AuthUser) inventory.Actor {
 	return inventory.Actor{Type: inventory.ActorStaff, ID: u.UserID}
 }
 
+// ListWarehouses (GET /api/v1/inventory/warehouses, inventory.read): chỉ kho người gọi có inventory.read (toàn shop
+// hoặc đúng kho đó).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ListWarehouses(ctx context.Context) (gen.ListWarehousesRes, error) {
+	out := gen.ListWarehousesOKApplicationJSON{}
+	if err := h.inventoryRead(ctx, func(tx pgx.Tx, u identity.AuthUser) error {
+		ws, err := inventory.ListWarehouses(ctx, tx)
+		for _, w := range ws {
+			if canAt(u, w.ID, permInvRead) == nil {
+				out = append(out, gen.Warehouse{ID: w.ID, Code: w.Code, Name: w.Name, Status: gen.WarehouseStatus(w.Status)})
+			}
+		}
+		return err //nolint:wrapcheck // inventory đã bọc
+	}); err != nil {
+		return nil, fmt.Errorf("đọc danh sách kho: %w", err)
+	}
+	return &out, nil
+}
+
 // ListSuppliers (GET /api/v1/inventory/suppliers, inventory.read không cần đích).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)

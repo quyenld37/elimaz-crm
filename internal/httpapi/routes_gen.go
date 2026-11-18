@@ -69,6 +69,7 @@ var Routes = []Route{
 	{Method: "GET", Pattern: "GET /api/v1/inventory/suppliers", OperationID: "listSuppliers", Permission: "inventory.read"},
 	{Method: "POST", Pattern: "POST /api/v1/inventory/suppliers", OperationID: "createSupplier", Permission: "inventory.suppliers.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "PATCH", Pattern: "PATCH /api/v1/inventory/suppliers/{id}", OperationID: "updateSupplier", Permission: "inventory.suppliers.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "GET", Pattern: "GET /api/v1/inventory/warehouses", OperationID: "listWarehouses", Permission: "inventory.read"},
 	{Method: "GET", Pattern: "GET /api/v1/me", OperationID: "getMe", Authenticated: true},
 	{Method: "POST", Pattern: "POST /api/v1/orders", OperationID: "createOrder", Permission: "order.create", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/orders/{id}", OperationID: "getOrder", Permission: "order.read"},

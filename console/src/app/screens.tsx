@@ -1,5 +1,6 @@
 // Danh sách màn của CRM. Mỗi task màn hình (M1-50 trở đi, sau khi mockup được duyệt) thêm một dòng ở đây; khung,
 // menu và định tuyến tự có.
+import { Balances } from "../features/inventory/Balances";
 import { ProductList } from "../features/products/ProductList";
 import { StaffGrants } from "../features/staff/StaffGrants";
 import { StaffList } from "../features/staff/StaffList";
@@ -15,6 +16,14 @@ export const SCREENS: readonly Screen[] = [
     group: "Sản phẩm",
     permission: "catalog.read",
     element: <ProductList />,
+  },
+  // Task 51: Tồn kho (mockup docs/mockups/m1/kho-ton.html).
+  {
+    path: "/kho/ton",
+    label: "Tồn kho",
+    group: "Kho",
+    permission: "inventory.read",
+    element: <Balances />,
   },
   // Task 54: Nhân viên và quyền (mockup docs/mockups/m1/nhan-vien.html).
   {

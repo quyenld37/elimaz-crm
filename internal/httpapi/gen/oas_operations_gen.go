@@ -47,6 +47,7 @@ const (
 	ListStockDocumentsOperation        OperationName = "ListStockDocuments"
 	ListSuppliersOperation             OperationName = "ListSuppliers"
 	ListTagsOperation                  OperationName = "ListTags"
+	ListWarehousesOperation            OperationName = "ListWarehouses"
 	LockStaffOperation                 OperationName = "LockStaff"
 	PostStockDocumentOperation         OperationName = "PostStockDocument"
 	RecordStocktakeCountOperation      OperationName = "RecordStocktakeCount"

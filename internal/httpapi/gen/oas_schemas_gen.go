@@ -1593,6 +1593,7 @@ func (*ErrorStatusCode) listStaffRes()                 {}
 func (*ErrorStatusCode) listStockDocumentsRes()        {}
 func (*ErrorStatusCode) listSuppliersRes()             {}
 func (*ErrorStatusCode) listTagsRes()                  {}
+func (*ErrorStatusCode) listWarehousesRes()            {}
 func (*ErrorStatusCode) lockStaffRes()                 {}
 func (*ErrorStatusCode) postStockDocumentRes()         {}
 func (*ErrorStatusCode) recordStocktakeCountRes()      {}
@@ -2215,6 +2216,10 @@ func (*ListSuppliersOKApplicationJSON) listSuppliersRes() {}
 type ListTagsOKApplicationJSON []Tag
 
 func (*ListTagsOKApplicationJSON) listTagsRes() {}
+
+type ListWarehousesOKApplicationJSON []Warehouse
+
+func (*ListWarehousesOKApplicationJSON) listWarehousesRes() {}
 
 // Ref: #/components/schemas/Me
 type Me struct {
@@ -6987,4 +6992,94 @@ func (s *VersionRequest) GetVersion() int64 {
 // SetVersion sets the value of Version.
 func (s *VersionRequest) SetVersion(val int64) {
 	s.Version = val
+}
+
+// Ref: #/components/schemas/Warehouse
+type Warehouse struct {
+	ID     uuid.UUID       `json:"id"`
+	Code   string          `json:"code"`
+	Name   string          `json:"name"`
+	Status WarehouseStatus `json:"status"`
+}
+
+// GetID returns the value of ID.
+func (s *Warehouse) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCode returns the value of Code.
+func (s *Warehouse) GetCode() string {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *Warehouse) GetName() string {
+	return s.Name
+}
+
+// GetStatus returns the value of Status.
+func (s *Warehouse) GetStatus() WarehouseStatus {
+	return s.Status
+}
+
+// SetID sets the value of ID.
+func (s *Warehouse) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCode sets the value of Code.
+func (s *Warehouse) SetCode(val string) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *Warehouse) SetName(val string) {
+	s.Name = val
+}
+
+// SetStatus sets the value of Status.
+func (s *Warehouse) SetStatus(val WarehouseStatus) {
+	s.Status = val
+}
+
+// Ref: #/components/schemas/WarehouseStatus
+type WarehouseStatus string
+
+const (
+	WarehouseStatusActive WarehouseStatus = "active"
+	WarehouseStatusClosed WarehouseStatus = "closed"
+)
+
+// AllValues returns all WarehouseStatus values.
+func (WarehouseStatus) AllValues() []WarehouseStatus {
+	return []WarehouseStatus{
+		WarehouseStatusActive,
+		WarehouseStatusClosed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WarehouseStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case WarehouseStatusActive:
+		return []byte(s), nil
+	case WarehouseStatusClosed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WarehouseStatus) UnmarshalText(data []byte) error {
+	switch WarehouseStatus(data) {
+	case WarehouseStatusActive:
+		*s = WarehouseStatusActive
+		return nil
+	case WarehouseStatusClosed:
+		*s = WarehouseStatusClosed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }

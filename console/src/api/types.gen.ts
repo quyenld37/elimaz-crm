@@ -660,6 +660,15 @@ export type StockDocument = {
     lines: Array<StockDocumentLine>;
 };
 
+export type Warehouse = {
+    id: string;
+    code: string;
+    name: string;
+    status: WarehouseStatus;
+};
+
+export type WarehouseStatus = 'active' | 'closed';
+
 export type BalancePage = {
     items: Array<Balance>;
     /**
@@ -2092,6 +2101,31 @@ export type UpdateSupplierResponses = {
 };
 
 export type UpdateSupplierResponse = UpdateSupplierResponses[keyof UpdateSupplierResponses];
+
+export type ListWarehousesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/inventory/warehouses';
+};
+
+export type ListWarehousesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListWarehousesError = ListWarehousesErrors[keyof ListWarehousesErrors];
+
+export type ListWarehousesResponses = {
+    /**
+     * Danh sách kho
+     */
+    200: Array<Warehouse>;
+};
+
+export type ListWarehousesResponse = ListWarehousesResponses[keyof ListWarehousesResponses];
 
 export type ListBalancesData = {
     body?: never;

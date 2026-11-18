@@ -403,6 +403,16 @@ func (UnimplementedHandler) ListTags(ctx context.Context) (r ListTagsRes, _ erro
 	return r, ht.ErrNotImplemented
 }
 
+// ListWarehouses implements listWarehouses operation.
+//
+// Các kho người gọi được xem (có inventory.read ở kho đó hoặc toàn shop), kho chính
+// trước rồi theo mã; gồm cả kho đã đóng.
+//
+// GET /api/v1/inventory/warehouses
+func (UnimplementedHandler) ListWarehouses(ctx context.Context) (r ListWarehousesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // LockStaff implements lockStaff operation.
 //
 // Khóa nhân viên (không khóa Chủ còn hoạt động cuối cùng).

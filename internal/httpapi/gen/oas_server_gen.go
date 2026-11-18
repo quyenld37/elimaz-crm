@@ -275,6 +275,13 @@ type Handler interface {
 	//
 	// GET /api/v1/catalog/tags
 	ListTags(ctx context.Context) (ListTagsRes, error)
+	// ListWarehouses implements listWarehouses operation.
+	//
+	// Các kho người gọi được xem (có inventory.read ở kho đó hoặc toàn shop), kho chính
+	// trước rồi theo mã; gồm cả kho đã đóng.
+	//
+	// GET /api/v1/inventory/warehouses
+	ListWarehouses(ctx context.Context) (ListWarehousesRes, error)
 	// LockStaff implements lockStaff operation.
 	//
 	// Khóa nhân viên (không khóa Chủ còn hoạt động cuối cùng).
