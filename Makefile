@@ -16,7 +16,8 @@ export CRM_TEST_DATABASE_URL
 
 CRM_S3_PORT ?= 8333
 CRM_S3_OFFSITE_PORT ?= 8334
-export CRM_S3_PORT CRM_S3_OFFSITE_PORT
+CRM_IMAGER_PORT ?= 4193
+export CRM_S3_PORT CRM_S3_OFFSITE_PORT CRM_IMAGER_PORT
 
 COMPOSE := docker compose -p $(COMPOSE_PROJECT) -f docker/compose.dev.yml
 
@@ -25,7 +26,7 @@ DEV_PROFILES := $(if $(wildcard docker/imager/Dockerfile),--profile imager) \
 	$(if $(wildcard tools/fakecarrier/Dockerfile),--profile fakecarrier) \
 	$(if $(wildcard docker/filesync/Dockerfile),--profile filesync)
 
-.PHONY: db-up db-down db-reset dev probe-test spike-test
+.PHONY: db-up db-down db-reset dev probe-test spike-test test-imager test-imager-compose
 
 db-up: ## Dựng PostgreSQL 18, Jaeger, SeaweedFS (kho chính, kho ngoài giả, tạo bucket), chờ tới khi sẵn sàng
 	$(COMPOSE) up -d --wait
@@ -35,6 +36,18 @@ dev: ## Như db-up, cộng các dịch vụ M1 đã có mã (imager, fakecarrier
 
 probe-test: ## Phép thử SeaweedFS (Task M1-40) trên compose dev: make dev trước; ghi số đo vào docs/do-luong/seaweedfs-m1.md
 	go test -tags probe -count=1 -v ./tests/probe/...
+
+# Test của imager cần libvips: chạy trong stage `test` của docker/imager/Dockerfile (cùng bản libvips với image chạy).
+# --init: tini gặt tiến trình con mồ côi để test nhóm tiến trình bị giết thấy đúng. IMAGER_REQUIRE_VIPS=1: ca cần
+# libvips, prlimit không được tự bỏ qua.
+test-imager: ## Test của internal/imager, cmd/imager với libvips thật (Task M1-42)
+	docker build -q -f docker/imager/Dockerfile --target test -t crm-imager-test . >/dev/null
+	docker run --rm --init -e IMAGER_REQUIRE_VIPS=1 crm-imager-test \
+		go test -race -count=1 $(TEST_IMAGER_FLAGS) ./internal/imager/... ./cmd/imager/...
+
+test-imager-compose: ## Container imager của compose dev: không biến bí mật, không tới PostgreSQL, chỉ đọc (dựng lại imager)
+	$(COMPOSE) --profile imager up -d --wait --build imager imager-port postgres seaweedfs
+	COMPOSE_PROJECT=$(COMPOSE_PROJECT) CRM_IMAGER_PORT=$(CRM_IMAGER_PORT) go test -tags imagercompose -count=1 -run '^TestImagerCompose_' -v ./internal/imager/
 
 db-down: ## Dừng container, giữ dữ liệu
 	$(COMPOSE) down

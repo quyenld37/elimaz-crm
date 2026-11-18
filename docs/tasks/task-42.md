@@ -17,11 +17,13 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
   không thuộc `openapi.yaml` của `api` (người gọi duy nhất là worker trên mạng `imaging`).
 - Chỗ dùng trên màn hình: không có.
 - Câu sqlc, bảng, pha migration: không có (imager không có database).
-- Cấu hình, hạ tầng: tệp mới `docker/imager/Dockerfile` (stage `build`, `test`, image chạy). Dịch vụ `imager` 4193
-  và mạng `imaging` trong `docker/compose.dev.yml` đã có từ Task M1-40, task này không sửa tệp đó; `make dev` tự bật
-  profile `imager` khi có Dockerfile. `Makefile` thêm `test-imager` (test trong container có libvips) và
-  `test-imager-compose` (env và mạng của container trong compose). `docs/phu-thuoc.md` thêm dòng libvips, mimetype,
-  tini. Ảnh thử `testdata/images/*` cùng chương trình sinh lại `testdata/images/gen/`.
+- Cấu hình, hạ tầng: tệp mới `docker/imager/Dockerfile` (stage `build`, `test`, image chạy). `docker/compose.dev.yml`
+  (dịch vụ `imager` 4193 và mạng `imaging` có từ Task M1-40) **có sửa** theo Q1: mạng `imaging` `internal: true`, bỏ
+  cổng mở của `imager`, thêm dịch vụ `imager-port` (socat, profile `imager`); `make db-up` không bật profile này.
+  `make dev` tự bật profile `imager` khi có Dockerfile. `Makefile` thêm `test-imager` (test trong container có libvips),
+  `test-imager-compose` (env và mạng của container trong compose) và biến `CRM_IMAGER_PORT ?= 4193` (export).
+  `docs/phu-thuoc.md` thêm dòng libvips, mimetype, tini, socat. Ảnh thử `testdata/images/*` cùng chương trình sinh lại
+  `testdata/images/gen/`. Gói `imager` còn xuất `ErrBadRequest`, `Request.Validate`.
 - Test sẽ chạy: `make test-imager` (`go test -race ./internal/imager/... ./cmd/imager/...` trong stage `test`, libvips
   8.16.1); `make test-imager-compose` (tag `imagercompose`); trên máy: `go build ./...`, `go vet`, `golangci-lint`,
   `go test ./internal/imager/... ./cmd/imager/...` (ca cần libvips/prlimit tự bỏ qua trên macOS; trong container
@@ -120,6 +122,23 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
 |---|---|---|---|
 | Commit 1 (cấu trúc): `observability.CheckLive` giữ đúng hành vi `checkLive` cũ | `TestCheckLive` (200 → nil; 503 → `ErrNotLive`; không có tiến trình → lỗi) | `go test -race -count=1 ./internal/platform/observability/` | `ok … 1.418s` |
 | Commit 1: `crm healthcheck` của api/ingest vẫn chạy | `TestHealthcheckCommand`, `TestBootEachRoleThenGracefulStop` | `go test -race -count=1 -run 'TestHealthcheckCommand\|TestBootEachRoleThenGracefulStop' ./tests/e2e/` (PostgreSQL 5542) | `ok … 6.405s` |
+| Commit 2: `photo-gps.jpg` → ok, 12 đầu ra; không còn EXIF/GPS/XMP/IPTC (`vipsheader -a`); rộng đúng 320/640/1080/1600; định dạng thật đúng (AVIF là AV1); Bytes/SHA256/Content-Type khớp kho | `TestImager_PhotoGPS_TwelveOutputsNoMetadata` (kiểm trước: ảnh nguồn có `GPSLatitude`) | `make test-imager` (container, libvips 8.16.1, `IMAGER_REQUIRE_VIPS=1`) | `--- PASS` (1,34 s). Đột biến `keep=none`→`keep=all`: `FAIL … 320.avif còn siêu dữ liệu (exif)` |
+| Ảnh gốc 500 px không phóng to; ảnh dọc rộng đúng; CMYK → sRGB | `TestImager_NoUpscale`, `TestImager_PortraitKeepsWidth`, `TestImager_CMYKConvertedToSRGB` | `make test-imager` | `--- PASS` cả ba |
+| TP03: HTML đổi đuôi `.jpg` → `not_image`, 0 lần gọi `vips`/`vipsheader` | `TestImager_RejectsHTMLAsJPEG` | `make test-imager`; `go test ./internal/imager/` trên máy | `--- PASS` |
+| TP03: bom 30.000 × 30.000 (64 KB) → `too_many_pixels`, `vips` 0 lần (chỉ `vipsheader`) | `TestImager_PixelBombRejectedBeforeDecode` | `make test-imager` | `--- PASS` (0,03 s) |
+| 21 MiB với MaxBytes 20 MiB → `too_large`; `truncated.jpg` → `decode_failed`, không ghi đầu ra | `TestImager_TooLarge`, `TestImager_TruncatedDecodeFailed` | `make test-imager` | `--- PASS` |
+| Loại ngoài danh sách (WebP khi chỉ cho JPEG, GIF, HEIC) → `type_not_allowed`; SVG, rỗng, ZIP → `not_image`; bộ đọc libvips khác loại đã nhận → `type_not_allowed` | `TestImager_TypeNotAllowed`, `TestImager_LoaderMustMatchDetectedType` | `make test-imager` | `--- PASS` |
+| Quy luật (rapid): nội dung không phải loại cho phép thì không lệnh con nào chạy; lý do luôn thuộc tập đã khai | `TestImager_PropertyNoDecodeUnlessAllowedImage` | `make test-imager` | `[rapid] OK, passed 100 tests` |
+| Treo: `hang.sh`, hạn 1 s → `timeout` trong ≤ 2 s; nhóm tiến trình (sh và `sleep` con) không còn (`kill -0 -pgid` → ESRCH) | `TestImager_HangKilledWithinDeadline`, `TestExecRunner_TimeoutKillsProcessGroup` | `make test-imager` | `--- PASS` (1,04 s; 0,50 s) |
+| Hết bộ nhớ: `oom.sh` xin 2 GiB dưới 256 MiB → `decode_failed` ("memory exhausted"); imager trả lời yêu cầu kế tiếp | `TestImager_OutOfMemoryKilled`, `TestExecRunner_MemoryLimit`, `TestServer_StillAnswersAfterOOM` | `make test-imager` | `--- PASS` cả ba |
+| 3 yêu cầu cùng lúc với tối đa 2 → yêu cầu thứ 3 nhận 503 + `Retry-After`; rảnh thì nhận lại | `TestServer_BusyReturns503` | `make test-imager`; `go test -race` trên máy | `--- PASS` |
+| `PutURL` hết hạn (403) → `upload_failed`; nguồn 403 → `source_failed`; tệp tạm bị xóa | `TestImager_ExpiredPutURL`, `TestImager_SourceUnavailable`, `TestImager_TempFilesRemoved` | `make test-imager` | `--- PASS` |
+| 13 tiến trình con mỗi ảnh (1 `vipsheader` + 12 `vips`), kết quả đúng thứ tự yêu cầu | `TestImager_ThirteenChildProcessesPerImage` | `make test-imager` | `--- PASS` |
+| HTTP: rejected vẫn 200; log không có đường dẫn ký sẵn; JSON sai → 400; `/health/live` 200; tiến trình con không thừa hưởng biến của imager | `TestServer_OKAndRejectedBothReturn200`, `TestServer_BadRequest` (13 ca), `TestServer_HealthAndMethods`, `TestExecRunner_MinimalEnvironment` | `make test-imager` | `--- PASS` |
+| Cấu hình `cmd/imager` (mặc định, `256MiB`, sai → mã 2) | `TestLoad_*`, `TestRun_*` | `make test-imager` | `ok elimaz.com.vn/crm/cmd/imager` |
+| Compose: env của tiến trình imager không khớp `(?i)secret\|password\|token\|key\|database`; không nối được `postgres:5432` theo tên và theo IP (đối chứng: `seaweedfs:8333` được); không ra internet; người dùng 65534, chỉ đọc trừ `/tmp`; máy gọi được imager qua `imager-port` | `TestImagerCompose_*` (5 test, tag `imagercompose`) | `make test-imager-compose COMPOSE_PROJECT=crm-t42 CRM_PG_PORT=5542 CRM_S3_PORT=8452 CRM_S3_OFFSITE_PORT=8453 CRM_IMAGER_PORT=4293` | 5 `--- PASS`, `ok … 1.300s`. Trước Q1: `FAIL … imager nối được 192.168.0.3:5432` |
+| Đo thời gian, CPU, bộ nhớ, phần tốn thêm của dòng lệnh | `TestImager_Measure` (+ đo `/usr/bin/time`) | xem `docs/do-luong/imager-m1.md` | Tổng một ảnh 1,3–10,5 s (< 30 s); RSS đỉnh 109 MiB; phần khởi động 7–35% ảnh thật, tới 79% ảnh tổng hợp → đề xuất, không đổi |
+| Luật nhập (g), build không cgo, lint, trùng mã, lỗ hổng | `tests/arch`; build; golangci-lint (cả tag `imagercompose`); jscpd; govulncheck | `go test ./tests/arch/...`; `CGO_ENABLED=0 go build -trimpath ./...`; `go vet ./...`; `golangci-lint run ./...`; `make jscpd`; `govulncheck ./internal/imager/... ./cmd/imager/...` | `ok`; build ok; vet ok; `0 issues`; `Found 0 clones`; `No vulnerabilities found` |
 
 ## Test bị xóa hoặc tắt
 
@@ -153,14 +172,29 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
   compose production.
 - Threat model L2 (kiểm host của `SourceURL`/`PutURL` trùng địa chỉ kho) vẫn "Chưa có": imager không có cấu hình địa
   chỉ kho; chặn bằng mạng `internal` (Q1). Có thể thêm biến `IMAGER_ALLOWED_HOSTS` ở task sau nếu cần.
+- `cmd/imager`: khi nhận SIGTERM, việc đang chạy bị hủy ngay (context của tín hiệu là `BaseContext`) và trả `timeout`
+  (worker chạy lại), thay vì làm xong trong 20 s của `Shutdown`. Không sai dữ liệu; có thể đổi sang
+  `context.WithoutCancel` ở task sau nếu muốn tắt êm thật (reviewer ghi chú, không bắt buộc).
+- `http.Server` của imager chỉ có `ReadHeaderTimeout`; bên gọi gửi thân chậm giữ chỗ lâu. Bên gọi duy nhất là worker
+  trên mạng `internal` nên chỉ ghi lại.
+- Sau khi `imaging` thành `internal`, Task M1-40 nên chạy lại `make probe-test` (máy gọi `seaweedfs` qua `CRM_S3_PORT`;
+  `seaweedfs` vẫn ở mạng default, cấu hình hai mạng giống `imager-port` đã đạt).
 - Phần tốn thêm của cách dòng lệnh vượt 30% ở một số lần đo (xem `docs/do-luong/imager-m1.md`): đề xuất đo lại trên
   máy staging (ít tải) ở Task M1-55 trước khi theo "Xem lại khi" của ADR-45; không tự đổi.
 
 ## Reviewer
 
-Kết luận: ĐẠT (commit 1, cấu trúc)
+Kết luận: ĐẠT (commit 1 cấu trúc; commit 2 hành vi)
 
 - Commit 1 (dời `checkLive` → `observability.CheckLive`): ĐẠT, không có phát hiện về tính đúng. Reviewer so từng điểm
   (URL, timeout 3 s, đọc hết body, mã khác 200 là lỗi) với hàm cũ; thông điệp lỗi dài thêm, không test nào so chuỗi;
   không còn chỗ dùng `checkLive`. Ghi chú không bắt buộc: nêu `CheckLive`, `ErrNotLive` ở dòng ký hiệu của mục Ảnh
   hưởng — đã thêm.
+- Commit 2 (imager, Dockerfile, compose, test, đo): ĐẠT, không có phát hiện phải sửa. Reviewer soát runner (giết cả
+  nhóm chỉ trong `Cancel` nên không giết nhầm nhóm đã cấp lại, quá giờ tách khỏi lỗi giải mã, giới hạn stdout/stderr,
+  môi trường tối thiểu), pipeline (không lệnh con nào trước khi nhận loại, kiểm số điểm ảnh trước `vips`, MaxBytes đếm
+  đúng cả khi không có Content-Length, dòng tóm tắt neo theo đường dẫn do imager đặt nên chữ trong ảnh không chèn được,
+  không chèn tham số, không theo chuyển hướng), server (503 không chờ, giới hạn thân, log không có URL), compose và
+  test (không ca nào lặng lẽ bỏ qua trong `make test-imager` nhờ `IMAGER_REQUIRE_VIPS=1`). Ghi chú không bắt buộc: mục
+  Ảnh hưởng mâu thuẫn với Q1 về `compose.dev.yml` — đã sửa; tắt êm hủy việc đang chạy, thân chậm giữ chỗ, chạy lại
+  `make probe-test` — ghi vào "Việc phát hiện thêm".
