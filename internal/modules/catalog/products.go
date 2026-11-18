@@ -30,7 +30,8 @@ const (
 var codePattern = regexp.MustCompile(`^[A-Z0-9][A-Z0-9._-]{0,63}$`)
 
 // CreateProduct tạo mẫu (mặc định draft) kèm các biến thể trong tx (tenancy.WithTenant hay httpapi.WriteTx của
-// actor.TenantID). Mã mẫu, SKU viết hoa; barcode rỗng → EAN-13 tự sinh. Ghi product.updated (Seq 1), báo hiệu, audit.
+// actor.TenantID). Mã mẫu, SKU viết hoa; barcode rỗng → EAN-13 tự sinh. Khối image của bài viết phải trỏ tệp ảnh
+// sản phẩm ready của tenant (ErrInvalidArticle). Ghi product.updated (Seq 1), báo hiệu, audit.
 // Lỗi: ErrInvalidInput, ErrInvalidPrice, ErrInvalidArticle, ErrCodeTaken, ErrSKUTaken, ErrBarcodeTaken,
 // ErrDuplicateOption, ErrNotFound (người bán không có). Lỗi trả về thì tx phải lùi.
 func (w Writer) CreateProduct(ctx context.Context, tx pgx.Tx, in ProductInput, actor identity.AuthUser) (Product, error) {
@@ -39,6 +40,9 @@ func (w Writer) CreateProduct(ctx context.Context, tx pgx.Tx, in ProductInput, a
 	}
 	p, stored, err := newProduct(in)
 	if err != nil {
+		return Product{}, err
+	}
+	if err := checkArticleFiles(ctx, tx, p.Article, nil); err != nil {
 		return Product{}, err
 	}
 	vs := make([]VariantInput, 0, len(in.Variants))
@@ -77,7 +81,7 @@ func (w Writer) CreateProduct(ctx context.Context, tx pgx.Tx, in ProductInput, a
 
 // UpdateProduct sửa tên, mô tả, bài viết, trạng thái của mẫu id khi version còn khớp; version tăng 1. Khóa dòng mẫu
 // trước khi so version (hai người cùng version: đúng một người thành công). Lỗi: ErrNotFound, ErrVersionConflict,
-// ErrInvalidInput, ErrInvalidArticle.
+// ErrInvalidInput, ErrInvalidArticle (gồm khối image mới trỏ tệp không phải ảnh sản phẩm ready của tenant).
 func (w Writer) UpdateProduct(ctx context.Context, tx pgx.Tx, id uuid.UUID, version int64, patch ProductPatch,
 	actor identity.AuthUser,
 ) (Product, error) {
@@ -111,6 +115,11 @@ func (w Writer) UpdateProduct(ctx context.Context, tx pgx.Tx, id uuid.UUID, vers
 	after, stored, err := newProduct(in)
 	if err != nil {
 		return Product{}, err
+	}
+	if patch.Article != nil {
+		if err := checkArticleFiles(ctx, tx, after.Article, before.Article); err != nil {
+			return Product{}, err
+		}
 	}
 	q := store.New(tx)
 	after.ID = id
