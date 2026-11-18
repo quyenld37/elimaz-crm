@@ -35,6 +35,7 @@ var Routes = []Route{
 	{Method: "POST", Pattern: "POST /api/v1/catalog/products", OperationID: "createProduct", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/catalog/products/{id}", OperationID: "getProduct", Permission: "catalog.read"},
 	{Method: "PATCH", Pattern: "PATCH /api/v1/catalog/products/{id}", OperationID: "updateProduct", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "GET", Pattern: "GET /api/v1/catalog/products/{id}/classification", OperationID: "getProductClassification", Permission: "catalog.read"},
 	{Method: "PUT", Pattern: "PUT /api/v1/catalog/products/{id}/classification", OperationID: "setProductClassification", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "POST", Pattern: "POST /api/v1/catalog/products/{id}/images", OperationID: "attachProductImage", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "PUT", Pattern: "PUT /api/v1/catalog/products/{id}/images/order", OperationID: "reorderProductImages", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
