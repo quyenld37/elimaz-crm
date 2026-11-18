@@ -70,22 +70,52 @@ func TestRegistryKinds(t *testing.T) {
 	}
 }
 
-func TestP95FromHist(t *testing.T) {
+func TestQuantileFromHist(t *testing.T) {
 	hist := make([]int, len(metrics.HistBoundsMs)+1)
 	hist[0], hist[6] = 95, 5 // 95 giá trị ≤ 50, 5 giá trị ≤ 1000
-	if got := metrics.P95FromHist(hist); got != 50 {
+	if got := metrics.QuantileFromHist(hist, 95); got != 50 {
 		t.Fatalf("P95 = %v, muốn 50", got)
 	}
+	if got := metrics.QuantileFromHist(hist, 99); got != 1000 {
+		t.Fatalf("P99 = %v, muốn 1000", got)
+	}
+	if got := metrics.QuantileFromHist(hist, 50); got != 50 {
+		t.Fatalf("P50 = %v, muốn 50", got)
+	}
 	hist[0], hist[6] = 94, 6
-	if got := metrics.P95FromHist(hist); got != 1000 {
+	if got := metrics.QuantileFromHist(hist, 95); got != 1000 {
 		t.Fatalf("P95 = %v, muốn 1000", got)
+	}
+	// 1.000 giá trị: 990 ≤ 100, 10 ≤ 2000 → P99 là 100 (đúng 990 = ⌈0,99·1000⌉), thêm một giá trị lớn thì 2000.
+	big := make([]int, len(metrics.HistBoundsMs)+1)
+	big[1], big[7] = 990, 10
+	if got := metrics.QuantileFromHist(big, 99); got != 100 {
+		t.Fatalf("P99 = %v, muốn 100", got)
+	}
+	big[1], big[7] = 989, 11
+	if got := metrics.QuantileFromHist(big, 99); got != 2000 {
+		t.Fatalf("P99 = %v, muốn 2000", got)
+	}
+	if got := metrics.QuantileFromHist(big, 100); got != 2000 {
+		t.Fatalf("P100 = %v, muốn 2000", got)
 	}
 	over := make([]int, len(metrics.HistBoundsMs)+1)
 	over[len(over)-1] = 10
-	if got := metrics.P95FromHist(over); !math.IsInf(got, 1) {
+	if got := metrics.QuantileFromHist(over, 95); !math.IsInf(got, 1) {
 		t.Fatalf("mọi giá trị > 5000 → +Inf, nhận %v", got)
 	}
-	if got := metrics.P95FromHist(make([]int, len(metrics.HistBoundsMs)+1)); got != 0 {
+	if got := metrics.QuantileFromHist(make([]int, len(metrics.HistBoundsMs)+1), 95); got != 0 {
 		t.Fatalf("không có giá trị → 0, nhận %v", got)
+	}
+}
+
+// pct ngoài 1..100 là lỗi của bên gọi: trả NaN, không đoán.
+func TestQuantileFromHistRejectsBadPercent(t *testing.T) {
+	hist := make([]int, len(metrics.HistBoundsMs)+1)
+	hist[0] = 1
+	for _, pct := range []int{0, -1, 101} {
+		if got := metrics.QuantileFromHist(hist, pct); !math.IsNaN(got) {
+			t.Fatalf("pct %d → %v, muốn NaN", pct, got)
+		}
 	}
 }

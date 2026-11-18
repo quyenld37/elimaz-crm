@@ -121,9 +121,12 @@ func bucketOf(v float64) int {
 	return i
 }
 
-// P95FromHist trả cận trên của ngăn chứa phân vị 95 của hist (theo HistBoundsMs); ngăn cuối là +Inf; hist không có
-// giá trị nào thì 0.
-func P95FromHist(hist []int) float64 {
+// QuantileFromHist trả cận trên của ngăn chứa phân vị pct (1..100) của hist (theo HistBoundsMs); ngăn cuối là +Inf;
+// hist không có giá trị nào thì 0; pct ngoài 1..100 thì NaN.
+func QuantileFromHist(hist []int, pct int) float64 {
+	if pct < 1 || pct > 100 {
+		return math.NaN()
+	}
 	total := 0
 	for _, n := range hist {
 		total += n
@@ -131,7 +134,7 @@ func P95FromHist(hist []int) float64 {
 	if total == 0 {
 		return 0
 	}
-	need := (95*total + 99) / 100 // ⌈0,95·total⌉ bằng số nguyên, tránh sai số dấu phẩy động
+	need := (pct*total + 99) / 100 // ⌈pct·total/100⌉ bằng số nguyên, tránh sai số dấu phẩy động
 	seen := 0
 	for i, n := range hist {
 		seen += n

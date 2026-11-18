@@ -1,0 +1,27 @@
+# Lớp phủ compose của bộ thử tải (kế hoạch M0 Task 22). Dùng cùng docker/compose.dev.yml:
+#   docker compose -p <dự án> -f docker/compose.dev.yml -f loadtest/compose.loadtest.yml --profile app …
+# - Image riêng (CRM_IMAGE, mặc định crm:loadtest) để không lẫn crm:dev của phiên khác.
+# - api kiểm thẻ bằng bộ kiểm Cloudflare Access thật, trỏ tới máy chủ khóa giả `loadkit access` chạy trên máy
+#   (host.docker.internal) và tin CA riêng của nó qua SSL_CERT_FILE. Mã api không đổi; chỉ dùng ở máy dev, máy thử.
+# - postgres có init (tini làm PID 1): không có init thì PostgreSQL là PID 1 và nhận làm con mọi tiến trình mồ côi
+#   trong container; dưới tải, healthcheck pg_isready quá hạn bị bỏ lại, thoát mã 2, PostgreSQL coi đó là một tiến
+#   trình con sập và khởi động lại mọi kết nối (đo 18/11/2026, xem docs/do-luong/thu-tai-m0.md).
+services:
+  postgres:
+    init: true
+  crm-migrate:
+    image: ${CRM_IMAGE:-crm:loadtest}
+  crm-ingest:
+    image: ${CRM_IMAGE:-crm:loadtest}
+  crm-worker:
+    image: ${CRM_IMAGE:-crm:loadtest}
+  crm-api:
+    image: ${CRM_IMAGE:-crm:loadtest}
+    environment:
+      ACCESS_TEAM_DOMAIN: host.docker.internal:${LOADTEST_ACCESS_PORT:-24222}
+      ACCESS_AUD: loadtest-aud
+      SSL_CERT_FILE: /loadtest/ca.pem
+    volumes:
+      - ${LOADTEST_ACCESS_DIR:?đặt LOADTEST_ACCESS_DIR (run.sh đặt)}:/loadtest:ro
+    extra_hosts:
+      - host.docker.internal:host-gateway
