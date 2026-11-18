@@ -77,6 +77,9 @@ func internalSentinels() map[string]string {
 		// fulfillment.CreateForOrder đã khóa đơn và kiểm trạng thái confirmed trước order.AttachShipment; lỗi này chỉ
 		// còn nghĩa "đơn hay giữ hàng lệch trạng thái" (reviewer Task 59).
 		"order.ErrStatusConflict": "dữ liệu đơn lệch trạng thái",
+		// SourceByKey chỉ được gọi với khóa nguồn hệ thống cố định (SourceKey…, M4, M5); thiếu nghĩa là tenant chưa chạy
+		// order.EnsureDefaults (Task 62).
+		"order.ErrTrafficSourceNotFound": "tenant thiếu nguồn đơn mặc định",
 	}
 }
 

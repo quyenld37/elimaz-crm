@@ -166,9 +166,9 @@ func (e *invEnv) orderItem(v uuid.UUID) (uuid.UUID, error) {
 			return err //nolint:wrapcheck // test
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO ord.orders (id, tenant_id, seller_id, code, customer_id, channel,
-			idempotency_key, status, ship_address, subtotal, cod_amount, grand_total)
+			idempotency_key, status, ship_address, subtotal, cod_amount, grand_total, warehouse_id)
 			VALUES ($1, $2, $3, 'DH' || lpad(nextval('ord.order_code_seq')::text, 7, '0'), $4, 'manual', $1,
-			'confirmed', '{}', 0, 0, 0)`, order, e.tenant, e.seller, customer); err != nil {
+			'confirmed', '{}', 0, 0, 0, $5)`, order, e.tenant, e.seller, customer, e.warehouse); err != nil {
 			return err //nolint:wrapcheck // test
 		}
 		return tx.QueryRow(ctx, `INSERT INTO ord.order_items (tenant_id, seller_id, order_id, position, variant_id,
