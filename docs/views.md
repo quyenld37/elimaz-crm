@@ -99,3 +99,4 @@ dưới; `viewsdoc_test` đòi hai tập bằng nhau.
 | `ord.orders_code_key` | mã đơn duy nhất trên cả shop (05, Q26: một sequence sinh mã) | 30 |
 | `ord.orders_idempotency_key_key` | khóa nghiệp vụ của lần tạo đơn duy nhất trên cả shop (05, 04 mục 5.5) | 30 |
 | `fulfillment.carrier_accounts_ref_key` | một tài khoản ở hãng (`carrier_key`, `external_account_ref`) chỉ thuộc một người bán trong shop | 31 |
+| `promotion.coupons_code_key` | khách gõ mã ở một ô chung của shop: mã duy nhất trên cả shop, kể cả mã của người bán (05 mục 2) | 63 |

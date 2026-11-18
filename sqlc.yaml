@@ -136,6 +136,52 @@ sql:
             go_type: time.Time
   - engine: postgresql
     schema: migrations
+    queries: queries/promotion
+    database:
+      uri: ${CRM_SQLC_DATABASE_URL}
+    analyzer:
+      database: false
+    rules:
+      - sqlc/db-prepare
+    gen:
+      go:
+        package: store
+        out: internal/modules/promotion/internal/store
+        sql_package: pgx/v5
+        emit_empty_slices: true
+        overrides:
+          - column: promotion.coupons.max_discount
+            go_type:
+              type: int64
+              pointer: true
+            nullable: true
+          - column: promotion.coupons.max_uses
+            go_type:
+              type: int32
+              pointer: true
+            nullable: true
+          - column: promotion.coupons.per_customer_limit
+            go_type:
+              type: int32
+              pointer: true
+            nullable: true
+          - column: promotion.coupons.bound_phone
+            go_type:
+              type: string
+              pointer: true
+            nullable: true
+          - db_type: uuid
+            go_type:
+              import: github.com/google/uuid
+              type: UUID
+              pointer: true
+            nullable: true
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: timestamptz
+            go_type: time.Time
+  - engine: postgresql
+    schema: migrations
     queries: queries/fulfillment
     database:
       uri: ${CRM_SQLC_DATABASE_URL}
