@@ -147,7 +147,9 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	reg := metrics.NewRegistry()
 	d.OnRetry = func(code string, _ int) { reg.Inc("tx_retry", code, 1) }
 	d.OnExhausted = func(code string) { reg.Inc("tx_retry_exhausted", code, 1) }
-	flusher := &metrics.Flusher{DB: d, Reg: reg, Process: metrics.ProcessName(cfg.Role), Role: cfg.Role, Log: logger}
+	flusher := &metrics.Flusher{
+		DB: d, Reg: reg, Process: metrics.ProcessName(cfg.Role), Role: cfg.Role, Log: logger, DiskPaths: diskPaths(cfg),
+	}
 	if cfg.Role == config.RoleWorker {
 		// Chỉ worker gửi nhịp sống ra ngoài (ADR-38): api còn sống không được che việc worker đã chết.
 		flusher.Pinger = &metrics.Pinger{URL: cfg.HeartbeatURL}
@@ -222,6 +224,10 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	}); err != nil {
 		return fmt.Errorf("định nghĩa lịch tra lại lệnh: %w", err)
 	}
+	ops, err := alertSchedules(plan, d, cfg, logger)
+	if err != nil {
+		return err
+	}
 	// Worker chỉ phát báo hiệu (Publish chạy pg_notify trong tx của việc), không LISTEN: không gọi hub.Run.
 	hub := realtime.NewPGHub(realtime.PGHubOptions{URL: cfg.DatabaseURL, Metrics: reg, Logger: logger})
 	inbound, err := newInbound(reg, hub)
@@ -232,7 +238,7 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	w := queue.NewWorker(d, handlers, queue.WorkerOptions{
 		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
 		Metrics:  reg, Logger: logger,
-		Commands: commands.NewRunner(d, append(cmds, resolver)),
+		Commands: commands.NewRunner(d, append(append(cmds, resolver), ops...)),
 	})
 	if err := w.Start(ctx); err != nil {
 		return fmt.Errorf("chạy hàng đợi: %w", err)
@@ -251,6 +257,39 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	cancel()
 	wg.Wait()
 	return nil
+}
+
+// alertSchedules định nghĩa hai lịch của cảnh báo (Task 19): platform.alerts mỗi 60 s (CheckRules) và platform.digest
+// (tin tổng kết 08:00 giờ Việt Nam); trả hai lệnh để đăng ký vào Runner. Gửi Telegram nên là lệnh, không phải handler
+// transactional.
+func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logger *slog.Logger) ([]commands.Handler, error) {
+	alerter := observability.NewTelegramAlerter(d, cfg, nil, logger)
+	alerts := observability.NewAlertsCommand(d, alerter, observability.RuleOptions{
+		BackupExpected: cfg.BackupExpected, DBDiskBudgetBytes: cfg.DBDiskBudgetBytes, ConnBudget: cfg.DBConnBudget,
+	}, logger)
+	digest := observability.NewDigestCommand(d, alerter, logger)
+	for _, s := range []schedules.Schedule{
+		{Name: observability.AlertsSchedule, Every: observability.AlertsEvery, Kind: alerts.Kind()},
+		{Name: observability.DigestSchedule, Every: observability.DigestEvery, Kind: digest.Kind()},
+	} {
+		if err := plan.Define(s); err != nil {
+			return nil, fmt.Errorf("định nghĩa lịch %s: %w", s.Name, err)
+		}
+	}
+	return []commands.Handler{alerts, digest}, nil
+}
+
+// diskPaths: đĩa mỗi tiến trình tự đo cho luật disk:<process> (gauge disk_used_pct): "/" của container, thư mục tệp
+// tạm webhook (ingest) và thư mục log khi có.
+func diskPaths(cfg config.Config) map[string]string {
+	p := map[string]string{"root": "/"}
+	if cfg.SpoolDir != "" {
+		p["spool"] = cfg.SpoolDir
+	}
+	if cfg.LogDir != "" {
+		p["log"] = cfg.LogDir
+	}
+	return p
 }
 
 // poolOptions: ngân sách kết nối theo vai trò (cfg.DBMaxConns, ADR-42), giới hạn theo transaction của vai trò

@@ -94,6 +94,10 @@ type Config struct {
 	FakeCarrierURL           string
 	FakeCarrierWebhookSecret string
 
+	BackupExpected    bool
+	DBDiskBudgetBytes int64
+	DBConnBudget      int
+
 	FileSyncExpected bool
 
 	Migrate *MigrateConfig
@@ -413,6 +417,7 @@ Package metrics gom chỉ số của tiến trình trong bộ nhớ và ghi mỗ
 **Khi nào không dùng:** Không mở endpoint /metrics hay thêm thư viện chỉ số (ADR C6); không tạo Registry thứ hai trong một tiến trình (cmd/crm tạo một cái và truyền xuống). Không đặt đường dẫn thật, tham số, SĐT hay mã khách vào tên hoặc nhãn chỉ số (nhãn route dùng mẫu của ServeMux). Không dùng Flusher cho dữ liệu nghiệp vụ hay số phải chính xác tuyệt đối: lỗi commit không rõ kết quả có thể ghi một lô hai lần.
 
 ```go
+func DiskUsedPct(path string) (float64, error)
 func HeartbeatAge(ctx context.Context, d *db.DB, process string) (time.Duration, error)
 func Middleware(reg *Registry, next http.Handler) http.Handler
 func P95FromHist(hist []int) float64
@@ -424,6 +429,8 @@ type Flusher struct {
 	Role    config.Role
 	Pinger  *Pinger
 	Log     *slog.Logger
+
+	DiskPaths map[string]string
 }
 func (f *Flusher) Beat(ctx context.Context, now time.Time) error
 func (f *Flusher) Flush(ctx context.Context, now time.Time) error
@@ -452,12 +459,31 @@ type Row struct {
 
 ## `internal/platform/observability` (gói `observability`)
 
-Package observability phục vụ các điểm kiểm sức khỏe của tiến trình (/health/live, /health/ready).
+Package observability phục vụ các điểm kiểm sức khỏe của tiến trình (/health/live, /health/ready, báo cáo /health/deep), cảnh báo vận hành qua Telegram (Alerter, chống lặp theo platform.alert_events), luật cảnh báo trên hàng đợi, chỉ số theo phút, nhịp sống, sao lưu và thống kê PostgreSQL (CheckRules), tin tổng kết hằng ngày (SendDailyDigest) và hai lệnh định kỳ chạy chúng (Task 19).
 
-**Khi nào không dùng:** Không đặt kiểm tra nghiệp vụ hay dữ liệu khách vào /health/*; kiểm sâu (/health/deep, cần token) thuộc Task 19.
+**Khi nào không dùng:** Không đặt kiểm tra nghiệp vụ hay dữ liệu khách vào /health/*. Không gọi Notify trong RetryTx hay handler transactional của hàng đợi (gọi mạng): gửi cảnh báo từ lệnh (commands.Handler) như NewAlertsCommand. Văn bản cảnh báo chỉ mang tên luật, số lượng, kind, mã bản ghi: không đọc payload, last_error. Không dùng Alerter để báo cho khách (C7).
 
 ```go
 func CheckLive(ctx context.Context, port int, timeout time.Duration) error
+func CheckRules(ctx context.Context, d *db.DB, a Alerter, o RuleOptions) ([]string, error)
+func NewAlertsCommand(d *db.DB, a Alerter, o RuleOptions, logger *slog.Logger) commands.Handler
+func NewDigestCommand(d *db.DB, a Alerter, logger *slog.Logger) commands.Handler
+func SendDailyDigest(ctx context.Context, d *db.DB, a Alerter, now time.Time) error
+type Alerter interface {
+	Notify(ctx context.Context, key, severity, text string) error
+}
+func NewTelegramAlerter(d *db.DB, cfg config.Config, client *http.Client, logger *slog.Logger) Alerter
+type DeepHealthReport struct {
+	OK                  bool
+	WorkerHeartbeatAgeS *int64
+	IngestHeartbeatAgeS *int64
+	OldestPendingAgeS   int64
+	Dead, InDoubt       int64
+	SpoolFiles          int64
+	LastWalArchivedAgeS *int64
+	LastBackupAgeH      *int64
+}
+func DeepHealth(ctx context.Context, d *db.DB) (DeepHealthReport, error)
 type Health struct {
 }
 func NewHealth(db Pinger) *Health
@@ -466,6 +492,14 @@ func (h *Health) Register(mux *http.ServeMux)
 type Pinger interface {
 	Ping(ctx context.Context) error
 }
+type RuleOptions struct {
+	Now               time.Time
+	BackupExpected    bool
+	DBDiskBudgetBytes int64
+	ConnBudget        int
+}
+type TelegramRetryError struct{ After time.Duration }
+func (e *TelegramRetryError) Error() string
 ```
 
 ## `internal/platform/queue` (gói `queue`)

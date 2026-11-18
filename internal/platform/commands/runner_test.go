@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/platform/commands"
+	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -217,6 +218,32 @@ func TestCommandExpires(t *testing.T) {
 	_, _, terms := h.snapshot()
 	if r := e.job(t, id); r.Status != "expired" || len(terms) != 1 || terms[0] != id.String()+":expired" {
 		t.Fatalf("muốn expired, OnTerminal một lần: %+v %v", r, terms)
+	}
+}
+
+// Lệnh not_sent quá hạn → expired được đếm jobs_expired theo kind (Task 19).
+func TestCommandExpiredCountsMetric(t *testing.T) {
+	e := newEnv(t)
+	ext := &testkit.FakeExternal{Mode: testkit.FakeFailBeforeSend}
+	h := newCmd("command.expm", ext)
+	h.kind = commands.CommandKind("command.expm", 100*time.Millisecond, time.Second)
+	e.enqueue(t, h.kind, "k")
+	reg := metrics.NewRegistry()
+	w := queue.NewWorker(e.app, nil, queue.WorkerOptions{
+		WorkerID: "w1", Metrics: reg, Commands: commands.NewRunner(e.app, []commands.Handler{h}),
+	})
+	runOnce(t, w)
+	time.Sleep(150 * time.Millisecond)
+	runOnce(t, w)
+	runOnce(t, w)
+	var n int64
+	for _, r := range reg.Drain() {
+		if r.Name == "jobs_expired" && r.Label == "command.expm" {
+			n += r.Count
+		}
+	}
+	if n != 1 {
+		t.Fatalf("jobs_expired = %d, muốn 1", n)
 	}
 }
 

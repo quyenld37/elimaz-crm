@@ -1,5 +1,7 @@
-// Package observability phục vụ các điểm kiểm sức khỏe của tiến trình (/health/live, /health/ready). Cảnh báo, kiểm
-// sâu và theo dõi PostgreSQL thêm ở Task 19, 20.
+// Package observability phục vụ các điểm kiểm sức khỏe của tiến trình (/health/live, /health/ready, báo cáo
+// /health/deep), cảnh báo vận hành qua Telegram (Alerter, chống lặp theo platform.alert_events), luật cảnh báo trên
+// hàng đợi, chỉ số theo phút, nhịp sống, sao lưu và thống kê PostgreSQL (CheckRules), tin tổng kết hằng ngày
+// (SendDailyDigest) và hai lệnh định kỳ chạy chúng (Task 19). Gom lỗi ứng dụng thêm ở Task 20.
 package observability
 
 import (

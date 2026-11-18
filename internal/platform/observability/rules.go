@@ -1,0 +1,278 @@
+package observability
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/internal/store"
+	"elimaz.com.vn/crm/internal/platform/metrics"
+)
+
+// Ngưỡng của luật (kế hoạch M0 bản 5, Task 19; spec 04 mục 8, ADR-42).
+const (
+	queueLagAfter      = 60 * time.Second
+	inDoubtAfter       = 120 * time.Second
+	spoolFor           = 5 * time.Minute
+	listenDownFor      = 2 * time.Minute
+	diskFor            = 2 * time.Minute
+	diskMaxPct         = 80
+	heartbeatPingFor   = 5 * time.Minute
+	backupMaxAge       = 26 * time.Hour
+	seriesLookback     = 8 * time.Minute
+	minuteGapTolerated = 2 * time.Minute
+)
+
+// RuleOptions là đầu vào của CheckRules. Now là đồng hồ của mọi phép so sánh (test đặt đồng hồ giả).
+// BackupExpected bật luật backup-age; DBDiskBudgetBytes > 0 bật db-size; ConnBudget > 0 bật pg-connections.
+type RuleOptions struct {
+	Now               time.Time
+	BackupExpected    bool
+	DBDiskBudgetBytes int64
+	ConnBudget        int
+}
+
+// alert là một luật đã chạm ngưỡng.
+type alert struct{ key, severity, text string }
+
+// CheckRules đọc trạng thái hàng đợi, chỉ số theo phút, nhịp sống, sao lưu và PostgreSQL, rồi Notify mỗi luật chạm
+// ngưỡng (Alerter tự chống lặp; Alerter của gói ghi mốc alert_events là o.Now, lúc đọc). Trả key của mọi luật chạm ngưỡng (kể cả khi Alerter không gửi lại). Một lần đọc hay
+// Notify lỗi không chặn các luật khác: lỗi được gộp và trả cùng các key đã có.
+func CheckRules(ctx context.Context, d *db.DB, a Alerter, o RuleOptions) ([]string, error) {
+	if o.Now.IsZero() {
+		o.Now = time.Now()
+	}
+	var errs []error
+	alerts, err := tableRules(ctx, d, o)
+	errs = append(errs, err)
+	stats, err := readPGStats(ctx, d, o)
+	errs = append(errs, err)
+	alerts = append(alerts, pgRules(stats, o)...)
+	keys := make([]string, 0, len(alerts))
+	for _, al := range alerts {
+		keys = append(keys, al.key)
+		notify := a.Notify
+		if na, ok := a.(asOfNotifier); ok {
+			notify = func(ctx context.Context, key, severity, text string) error {
+				return na.notifyAsOf(ctx, key, severity, text, o.Now)
+			}
+		}
+		if err := notify(ctx, al.key, al.severity, al.text); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return keys, errors.Join(errs...)
+}
+
+// tableRules: luật đọc bảng của platform (jobs, metrics_minute, process_heartbeats, backup_runs). Luật đọc thống kê
+// của PostgreSQL ở pgwatch.go.
+func tableRules(ctx context.Context, d *db.DB, o RuleOptions) ([]alert, error) {
+	q := store.New(d.Pool)
+	var out []alert
+	var errs []error
+	add := func(a []alert, err error) {
+		out = append(out, a...)
+		errs = append(errs, err)
+	}
+	add(queueLagRule(ctx, q, o))
+	add(terminalRule(ctx, q, o, "dead", "dead:", 0))
+	add(terminalRule(ctx, q, o, "in_doubt", "in-doubt:", inDoubtAfter))
+	add(metricRules(ctx, q, o))
+	add(heartbeatRules(ctx, q, o))
+	add(backupRule(ctx, q, o))
+	return out, errors.Join(errs...)
+}
+
+func queueLagRule(ctx context.Context, q *store.Queries, o RuleOptions) ([]alert, error) {
+	r, err := q.QueueLag(ctx, store.QueueLagParams{Now: o.Now, LagS: queueLagAfter.Seconds()})
+	if err != nil {
+		return nil, fmt.Errorf("đọc việc chờ: %w", err)
+	}
+	if r.N == 0 {
+		return nil, nil
+	}
+	return []alert{{
+		"queue-lag", SeverityUrgent,
+		fmt.Sprintf("queue-lag: %d việc tới hạn chờ quá %d s, lâu nhất %d s", r.N, int(queueLagAfter.Seconds()), int64(r.OldestS)),
+	}}, nil
+}
+
+// terminalRule: việc status mới (sau lần cảnh báo cuối của cùng key) theo kind; văn bản chỉ có số và mã việc.
+func terminalRule(ctx context.Context, q *store.Queries, o RuleOptions, status, prefix string, minAge time.Duration) ([]alert, error) {
+	rows, err := q.NewTerminalJobs(ctx, store.NewTerminalJobsParams{
+		Status: status, Now: o.Now, MinAgeS: minAge.Seconds(), KeyPrefix: prefix,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("đọc việc %s: %w", status, err)
+	}
+	out := make([]alert, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, alert{
+			prefix + r.Kind, SeverityNormal,
+			fmt.Sprintf("%s%s: %d việc %s mới; mã: %s", prefix, r.Kind, r.N, status, joinIDs(r.SampleIds)),
+		})
+	}
+	return out, nil
+}
+
+func joinIDs(ids []uuid.UUID) string {
+	s := make([]string, len(ids))
+	for i, id := range ids {
+		s[i] = id.String()
+	}
+	return strings.Join(s, ", ")
+}
+
+// point là giá trị của một phút trong một chuỗi chỉ số.
+type point struct {
+	bucket time.Time
+	v      float64
+}
+
+// streak trả độ dài (tính cả phút cuối) của chuỗi phút liền ở cuối pts (đã xếp theo phút tăng dần) mà ok(v) đúng;
+// hở tối đa một phút (lần ghi chỉ số trễ) vẫn tính là liền. Phút cuối cũ hơn 2 phút so với now (tiến trình đã ngừng
+// ghi) thì 0.
+func streak(pts []point, now time.Time, ok func(float64) bool) time.Duration {
+	if len(pts) == 0 {
+		return 0
+	}
+	last := pts[len(pts)-1]
+	if last.bucket.Before(now.UTC().Truncate(time.Minute).Add(-minuteGapTolerated)) || !ok(last.v) {
+		return 0
+	}
+	first := last.bucket
+	for i := len(pts) - 2; i >= 0; i-- {
+		if !ok(pts[i].v) || first.Sub(pts[i].bucket) > minuteGapTolerated {
+			break
+		}
+		first = pts[i].bucket
+	}
+	return last.bucket.Sub(first) + time.Minute
+}
+
+type seriesKey struct{ process, name, label string }
+
+// metricRules: luật đọc chỉ số theo phút (spool_files, rt_listening, disk_used_pct, hooks_blocked,
+// heartbeat_ping_failed).
+func metricRules(ctx context.Context, q *store.Queries, o RuleOptions) ([]alert, error) {
+	rows, err := q.MetricSeries(ctx, store.MetricSeriesParams{
+		Names: []string{"spool_files", "rt_listening", "disk_used_pct", "hooks_blocked", "heartbeat_ping_failed"},
+		Since: o.Now.UTC().Truncate(time.Minute).Add(-seriesLookback), Now: o.Now,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("đọc chỉ số theo phút: %w", err)
+	}
+	series := map[seriesKey][]point{}
+	var order []seriesKey
+	for _, r := range rows {
+		k := seriesKey{r.Process, r.Name, r.Label}
+		if _, ok := series[k]; !ok {
+			order = append(order, k)
+		}
+		series[k] = append(series[k], point{r.Bucket, r.Sum})
+	}
+	fired := map[string]bool{}
+	var out []alert
+	for _, k := range order {
+		if a, ok := seriesRule(k, series[k], o.Now); ok && !fired[a.key] {
+			fired[a.key] = true
+			out = append(out, a)
+		}
+	}
+	return out, nil
+}
+
+// seriesRule xét một chuỗi chỉ số (pts khác rỗng, xếp theo phút tăng dần) theo luật của tên chỉ số.
+func seriesRule(k seriesKey, pts []point, now time.Time) (alert, bool) {
+	positive := func(v float64) bool { return v > 0 }
+	last := pts[len(pts)-1].v
+	switch k.name {
+	case "spool_files":
+		if streak(pts, now, positive) >= spoolFor {
+			return alert{"spool", SeverityUrgent, fmt.Sprintf("spool: %s còn %d tệp tạm webhook quá 5 phút", k.process, int64(last))}, true
+		}
+	case "rt_listening":
+		if streak(pts, now, func(v float64) bool { return v == 0 }) >= listenDownFor {
+			return alert{"listen-down", SeverityUrgent, "listen-down: " + k.process + " mất kết nối LISTEN quá 2 phút"}, true
+		}
+	case "disk_used_pct":
+		if streak(pts, now, func(v float64) bool { return v > diskMaxPct }) >= diskFor {
+			return alert{
+				"disk:" + k.process, SeverityUrgent,
+				fmt.Sprintf("disk:%s: đĩa %s dùng %d%% quá 2 phút", k.process, k.label, int(last)),
+			}, true
+		}
+	case "hooks_blocked":
+		if n := sumSince(pts, now.UTC().Truncate(time.Minute).Add(-time.Minute)); n > 0 {
+			return alert{
+				"hooks-attack", SeverityNormal,
+				fmt.Sprintf("hooks-attack: %s chặn %d tin webhook sai chữ ký trong phút qua", k.process, int64(n)),
+			}, true
+		}
+	case "heartbeat_ping_failed":
+		if streak(pts, now, positive) >= heartbeatPingFor {
+			return alert{"heartbeat-ping", SeverityNormal, "heartbeat-ping: " + k.process + " gửi nhịp sống ra ngoài lỗi 5 phút liền"}, true
+		}
+	}
+	return alert{}, false
+}
+
+// sumSince cộng giá trị các phút từ since trở đi.
+func sumSince(pts []point, since time.Time) float64 {
+	var n float64
+	for _, p := range pts {
+		if !p.bucket.Before(since) {
+			n += p.v
+		}
+	}
+	return n
+}
+
+// heartbeatRules: nhịp sống mới nhất của worker, ingest (mọi tiến trình cùng vai trò) cũ hơn 90 s hay chưa có.
+func heartbeatRules(ctx context.Context, q *store.Queries, o RuleOptions) ([]alert, error) {
+	rows, err := q.HeartbeatAgesByRole(ctx, o.Now)
+	if err != nil {
+		return nil, fmt.Errorf("đọc nhịp sống: %w", err)
+	}
+	ages := map[string]float64{}
+	for _, r := range rows {
+		ages[r.Role] = r.AgeS
+	}
+	var out []alert
+	for _, role := range []string{"worker", "ingest"} {
+		age, ok := ages[role]
+		switch {
+		case !ok:
+			out = append(out, alert{role + "-heartbeat", SeverityUrgent, role + "-heartbeat: chưa có nhịp sống"})
+		case age > metrics.HeartbeatMaxAge.Seconds():
+			out = append(out, alert{
+				role + "-heartbeat", SeverityUrgent,
+				fmt.Sprintf("%s-heartbeat: nhịp sống cũ %d s (quá %d s)", role, int64(age), int(metrics.HeartbeatMaxAge.Seconds())),
+			})
+		}
+	}
+	return out, nil
+}
+
+func backupRule(ctx context.Context, q *store.Queries, o RuleOptions) ([]alert, error) {
+	if !o.BackupExpected {
+		return nil, nil
+	}
+	at, err := q.LastBackupAt(ctx, "base")
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return []alert{{"backup-age", SeverityUrgent, "backup-age: chưa có bản sao lưu đầy đủ thành công"}}, nil
+	case err != nil:
+		return nil, fmt.Errorf("đọc lần sao lưu: %w", err)
+	}
+	if age := o.Now.Sub(at); age > backupMaxAge {
+		return []alert{{"backup-age", SeverityUrgent, fmt.Sprintf("backup-age: bản sao lưu đầy đủ cuối cũ %d giờ (quá 26 giờ)", int(age.Hours()))}}, nil
+	}
+	return nil, nil
+}

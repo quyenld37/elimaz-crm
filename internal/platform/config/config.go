@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/url"
 	"os"
 	"strconv"
@@ -87,6 +88,13 @@ type Config struct {
 	FakeCarrierURL           string
 	FakeCarrierWebhookSecret string
 
+	// Luật cảnh báo (Task 19), chỉ vai trò worker: BackupExpected bật backup-age (BACKUP_EXPECTED, mặc định false);
+	// DBDiskBudgetBytes > 0 bật db-size (DB_DISK_BUDGET_BYTES, mặc định 0 = tắt); DBConnBudget là tổng kết nối của
+	// ứng dụng cho pg-connections (DB_CONN_BUDGET, mặc định 36 = ingest 5 + api 20 + worker 10 + LISTEN 1, ADR-42).
+	BackupExpected    bool
+	DBDiskBudgetBytes int64
+	DBConnBudget      int
+
 	// FileSyncExpected bật luật cảnh báo chép tệp sang kho ngoài (Task M1-45); mặc định false.
 	FileSyncExpected bool
 
@@ -115,6 +123,9 @@ func (c Config) LogValue() slog.Value {
 		slog.Int("image_preset_version", c.ImagePresetVersion),
 		slog.Bool("fakecarrier_configured", c.FakeCarrierURL != ""),
 		slog.Bool("filesync_expected", c.FileSyncExpected),
+		slog.Bool("backup_expected", c.BackupExpected),
+		slog.Int64("db_disk_budget_bytes", c.DBDiskBudgetBytes),
+		slog.Int("db_conn_budget", c.DBConnBudget),
 	)
 }
 
@@ -172,6 +183,9 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		cfg.Migrate = &MigrateConfig{OwnerURL: r.required("DATABASE_OWNER_URL")}
 	case RoleWorker:
 		r.files(&cfg)
+		cfg.BackupExpected = r.boolean("BACKUP_EXPECTED", false)
+		cfg.DBDiskBudgetBytes = int64(r.integer("DB_DISK_BUDGET_BYTES", 0, 0, math.MaxInt))
+		cfg.DBConnBudget = r.integer("DB_CONN_BUDGET", defaultConnBudget, 1, 10_000)
 		cfg.ImagerURL = r.httpURL("IMAGER_URL")
 		cfg.ImagePresetVersion = r.integer("IMAGE_PRESET_VERSION", 1, 1, 1000)
 		r.fakeCarrier(&cfg)
@@ -182,6 +196,9 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 	}
 	return cfg, nil
 }
+
+// defaultConnBudget là tổng kết nối của ứng dụng (ADR-42): ingest 5 + api 20 + worker 10 + kết nối LISTEN 1.
+const defaultConnBudget = 36
 
 // defaultConns là ngân sách kết nối của từng vai trò (ADR-42).
 func defaultConns(role Role) int {
