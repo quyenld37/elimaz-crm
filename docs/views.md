@@ -39,6 +39,17 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `fulfillment.shipments_v` (tối thiểu; M3 mở rộng) | `id, order_id, code, carrier_key, carrier_account_id, tracking_code, status, cod_amount, fee` | 31 | M3 trở đi |
 | `cash.cod_balances_v` (tối thiểu; M3 mở rộng) | `shipment_id, account, balance` | 32 | M3 trở đi |
 
+## Hàm tìm công bố
+
+Tìm dưới RLS mà không Seq Scan (spec 04 mục 7, đo ở Task M0-05): hàm `SECURITY DEFINER` chủ `crm_search`, tự lọc
+`tenant_id` theo `app.tenant_id` (ngoài ngữ cảnh: 0 dòng) và theo người bán gửi vào; chỉ `crm_app` được gọi. `q` đã qua
+`textnorm.Fold`; `raw` là chuỗi gốc bỏ khoảng trắng đầu cuối (so barcode). Gọi trong `tenancy.WithTenant`; chỉ `internal/queries` gọi (M2, M4 dùng qua `searchVariants`).
+
+| Hàm | Trả về | Task |
+|---|---|---|
+| `catalog.search_variants(p_seller uuid, q text, raw text, lim int)` (≤ 100 dòng; barcode đúng, rồi SKU, mã mẫu theo tiền tố, rồi tên — các từ theo thứ tự) | `variant_id, product_id, sku, barcode, product_code, product_name, color, size, price, sellable` | 39 |
+| `catalog.search_products(p_seller uuid, q text, raw text, lim int)` (≤ 1.000 mẫu, cùng cách khớp) | `SETOF uuid` (mã mẫu) | 39 |
+
 ## Sự kiện công bố
 
 Sự kiện nội bộ (`events.Registry.Emit`, spec 04 mục 5.4) mà mốc sau nghe. `Seq` là `version` mới của đối tượng.

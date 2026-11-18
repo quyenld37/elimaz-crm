@@ -333,6 +333,71 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /api/v1/catalog/products:
+    get:
+      operationId: listProducts
+      summary: Danh sách mẫu (chưa xóa) của người bán, sửa gần nhất trước; lọc trạng thái, danh mục (gồm con), nhãn, tìm theo mã mẫu, SKU, barcode, tên không dấu; trang theo con trỏ
+      description: >-
+        warehouseId (không bắt buộc) thêm cột available (tổng có thể bán của các biến thể ở kho đó, có thể âm); cần
+        thêm quyền inventory.read ở kho đó, không có → 403. Mẫu khớp q tối đa 1.000.
+      x-permission: catalog.read
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+        - name: status
+          in: query
+          required: false
+          explode: true
+          schema:
+            type: array
+            maxItems: 3
+            items:
+              $ref: "#/components/schemas/ProductStatus"
+        - name: categoryId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: tagId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: warehouseId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Một trang mẫu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductPage"
+        default:
+          $ref: "#/components/responses/Error"
     post:
       operationId: createProduct
       summary: Tạo mẫu sản phẩm kèm biến thể màu/size (barcode để trống thì CRM tự sinh EAN-13)
@@ -413,6 +478,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Variant"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/variants/search:
+    get:
+      operationId: searchVariants
+      summary: Tìm biến thể của người bán theo barcode (đúng), SKU, mã mẫu (tiền tố), tên không dấu; barcode khớp trước
+      x-permission: catalog.read
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Biến thể khớp
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VariantSearchHit"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/catalog/variants/{id}:
@@ -1787,6 +1885,79 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Variant"
+    ProductPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductListItem"
+        nextCursor:
+          type: string
+          description: Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+    ProductListItem:
+      type: object
+      required: [id, code, name, status, categoryPath, variantCount, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        status:
+          $ref: "#/components/schemas/ProductStatus"
+        categoryId:
+          type: string
+          format: uuid
+        categoryPath:
+          type: array
+          description: Tên danh mục từ gốc tới lá; rỗng khi chưa gán
+          items:
+            type: string
+        variantCount:
+          type: integer
+          format: int32
+        minPrice:
+          $ref: "#/components/schemas/Money"
+        maxPrice:
+          $ref: "#/components/schemas/Money"
+        available:
+          type: integer
+          format: int64
+          description: Tổng có thể bán ở kho của warehouseId (có thể âm); chỉ có khi gửi warehouseId
+        updatedAt:
+          type: string
+          format: date-time
+    VariantSearchHit:
+      type: object
+      required: [variantId, productId, sku, barcode, productCode, productName, color, size, price, sellable]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        barcode:
+          type: string
+        productCode:
+          type: string
+        productName:
+          type: string
+        color:
+          type: string
+        size:
+          type: string
+        price:
+          $ref: "#/components/schemas/Money"
+        sellable:
+          type: boolean
+          description: Mẫu và biến thể đều đang bán
     ClassName:
       type: string
       minLength: 1

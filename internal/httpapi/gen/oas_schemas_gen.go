@@ -1293,6 +1293,7 @@ func (*ErrorStatusCode) healthDeepRes()                {}
 func (*ErrorStatusCode) listAttributesRes()            {}
 func (*ErrorStatusCode) listCategoriesRes()            {}
 func (*ErrorStatusCode) listJobsRes()                  {}
+func (*ErrorStatusCode) listProductsRes()              {}
 func (*ErrorStatusCode) listRolesRes()                 {}
 func (*ErrorStatusCode) listStaffRes()                 {}
 func (*ErrorStatusCode) listStockDocumentsRes()        {}
@@ -1303,6 +1304,7 @@ func (*ErrorStatusCode) postStockDocumentRes()         {}
 func (*ErrorStatusCode) replaceStaffGrantsRes()        {}
 func (*ErrorStatusCode) replaceStockDocumentLinesRes() {}
 func (*ErrorStatusCode) retryJobRes()                  {}
+func (*ErrorStatusCode) searchVariantsRes()            {}
 func (*ErrorStatusCode) setProductClassificationRes()  {}
 func (*ErrorStatusCode) streamRes()                    {}
 func (*ErrorStatusCode) unlockStaffRes()               {}
@@ -3676,6 +3678,162 @@ func (s *ProductClassification) SetTagIds(val []uuid.UUID) {
 
 func (*ProductClassification) setProductClassificationRes() {}
 
+// Ref: #/components/schemas/ProductListItem
+type ProductListItem struct {
+	ID         uuid.UUID     `json:"id"`
+	Code       string        `json:"code"`
+	Name       string        `json:"name"`
+	Status     ProductStatus `json:"status"`
+	CategoryId OptUUID       `json:"categoryId"`
+	// Tên danh mục từ gốc tới lá; rỗng khi chưa gán.
+	CategoryPath []string `json:"categoryPath"`
+	VariantCount int32    `json:"variantCount"`
+	MinPrice     OptMoney `json:"minPrice"`
+	MaxPrice     OptMoney `json:"maxPrice"`
+	// Tổng có thể bán ở kho của warehouseId (có thể âm); chỉ có khi gửi warehouseId.
+	Available OptInt64  `json:"available"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// GetID returns the value of ID.
+func (s *ProductListItem) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCode returns the value of Code.
+func (s *ProductListItem) GetCode() string {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *ProductListItem) GetName() string {
+	return s.Name
+}
+
+// GetStatus returns the value of Status.
+func (s *ProductListItem) GetStatus() ProductStatus {
+	return s.Status
+}
+
+// GetCategoryId returns the value of CategoryId.
+func (s *ProductListItem) GetCategoryId() OptUUID {
+	return s.CategoryId
+}
+
+// GetCategoryPath returns the value of CategoryPath.
+func (s *ProductListItem) GetCategoryPath() []string {
+	return s.CategoryPath
+}
+
+// GetVariantCount returns the value of VariantCount.
+func (s *ProductListItem) GetVariantCount() int32 {
+	return s.VariantCount
+}
+
+// GetMinPrice returns the value of MinPrice.
+func (s *ProductListItem) GetMinPrice() OptMoney {
+	return s.MinPrice
+}
+
+// GetMaxPrice returns the value of MaxPrice.
+func (s *ProductListItem) GetMaxPrice() OptMoney {
+	return s.MaxPrice
+}
+
+// GetAvailable returns the value of Available.
+func (s *ProductListItem) GetAvailable() OptInt64 {
+	return s.Available
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ProductListItem) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetID sets the value of ID.
+func (s *ProductListItem) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCode sets the value of Code.
+func (s *ProductListItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *ProductListItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ProductListItem) SetStatus(val ProductStatus) {
+	s.Status = val
+}
+
+// SetCategoryId sets the value of CategoryId.
+func (s *ProductListItem) SetCategoryId(val OptUUID) {
+	s.CategoryId = val
+}
+
+// SetCategoryPath sets the value of CategoryPath.
+func (s *ProductListItem) SetCategoryPath(val []string) {
+	s.CategoryPath = val
+}
+
+// SetVariantCount sets the value of VariantCount.
+func (s *ProductListItem) SetVariantCount(val int32) {
+	s.VariantCount = val
+}
+
+// SetMinPrice sets the value of MinPrice.
+func (s *ProductListItem) SetMinPrice(val OptMoney) {
+	s.MinPrice = val
+}
+
+// SetMaxPrice sets the value of MaxPrice.
+func (s *ProductListItem) SetMaxPrice(val OptMoney) {
+	s.MaxPrice = val
+}
+
+// SetAvailable sets the value of Available.
+func (s *ProductListItem) SetAvailable(val OptInt64) {
+	s.Available = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ProductListItem) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// Ref: #/components/schemas/ProductPage
+type ProductPage struct {
+	Items []ProductListItem `json:"items"`
+	// Có khi còn trang sau; gửi lại nguyên ở tham số cursor.
+	NextCursor OptString `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *ProductPage) GetItems() []ProductListItem {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *ProductPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *ProductPage) SetItems(val []ProductListItem) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *ProductPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*ProductPage) listProductsRes() {}
+
 // Ref: #/components/schemas/ProductStatus
 type ProductStatus string
 
@@ -4153,6 +4311,10 @@ func (s *ScopeWarningScopeType) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+type SearchVariantsOKApplicationJSON []VariantSearchHit
+
+func (*SearchVariantsOKApplicationJSON) searchVariantsRes() {}
 
 // Ref: #/components/schemas/SetClassificationRequest
 type SetClassificationRequest struct {
@@ -5524,6 +5686,121 @@ func (s *VariantInput) SetPrice(val Money) {
 // SetCostPrice sets the value of CostPrice.
 func (s *VariantInput) SetCostPrice(val OptMoney) {
 	s.CostPrice = val
+}
+
+// Ref: #/components/schemas/VariantSearchHit
+type VariantSearchHit struct {
+	VariantId   uuid.UUID `json:"variantId"`
+	ProductId   uuid.UUID `json:"productId"`
+	Sku         string    `json:"sku"`
+	Barcode     string    `json:"barcode"`
+	ProductCode string    `json:"productCode"`
+	ProductName string    `json:"productName"`
+	Color       string    `json:"color"`
+	Size        string    `json:"size"`
+	Price       Money     `json:"price"`
+	// Mẫu và biến thể đều đang bán.
+	Sellable bool `json:"sellable"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *VariantSearchHit) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetProductId returns the value of ProductId.
+func (s *VariantSearchHit) GetProductId() uuid.UUID {
+	return s.ProductId
+}
+
+// GetSku returns the value of Sku.
+func (s *VariantSearchHit) GetSku() string {
+	return s.Sku
+}
+
+// GetBarcode returns the value of Barcode.
+func (s *VariantSearchHit) GetBarcode() string {
+	return s.Barcode
+}
+
+// GetProductCode returns the value of ProductCode.
+func (s *VariantSearchHit) GetProductCode() string {
+	return s.ProductCode
+}
+
+// GetProductName returns the value of ProductName.
+func (s *VariantSearchHit) GetProductName() string {
+	return s.ProductName
+}
+
+// GetColor returns the value of Color.
+func (s *VariantSearchHit) GetColor() string {
+	return s.Color
+}
+
+// GetSize returns the value of Size.
+func (s *VariantSearchHit) GetSize() string {
+	return s.Size
+}
+
+// GetPrice returns the value of Price.
+func (s *VariantSearchHit) GetPrice() Money {
+	return s.Price
+}
+
+// GetSellable returns the value of Sellable.
+func (s *VariantSearchHit) GetSellable() bool {
+	return s.Sellable
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *VariantSearchHit) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetProductId sets the value of ProductId.
+func (s *VariantSearchHit) SetProductId(val uuid.UUID) {
+	s.ProductId = val
+}
+
+// SetSku sets the value of Sku.
+func (s *VariantSearchHit) SetSku(val string) {
+	s.Sku = val
+}
+
+// SetBarcode sets the value of Barcode.
+func (s *VariantSearchHit) SetBarcode(val string) {
+	s.Barcode = val
+}
+
+// SetProductCode sets the value of ProductCode.
+func (s *VariantSearchHit) SetProductCode(val string) {
+	s.ProductCode = val
+}
+
+// SetProductName sets the value of ProductName.
+func (s *VariantSearchHit) SetProductName(val string) {
+	s.ProductName = val
+}
+
+// SetColor sets the value of Color.
+func (s *VariantSearchHit) SetColor(val string) {
+	s.Color = val
+}
+
+// SetSize sets the value of Size.
+func (s *VariantSearchHit) SetSize(val string) {
+	s.Size = val
+}
+
+// SetPrice sets the value of Price.
+func (s *VariantSearchHit) SetPrice(val Money) {
+	s.Price = val
+}
+
+// SetSellable sets the value of Sellable.
+func (s *VariantSearchHit) SetSellable(val bool) {
+	s.Sellable = val
 }
 
 // Ref: #/components/schemas/VariantStatus

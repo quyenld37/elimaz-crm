@@ -2395,6 +2395,116 @@ func (s *Server) handleListJobsRequest(args [0]string, argsEscaped bool, w http.
 	}
 }
 
+// handleListProductsRequest handles listProducts operation.
+//
+// WarehouseId (không bắt buộc) thêm cột available (tổng có thể bán của các biến
+// thể ở kho đó, có thể âm); cần thêm quyền inventory.read ở kho đó, không có →
+// 403. Mẫu khớp q tối đa 1.000.
+//
+// GET /api/v1/catalog/products
+func (s *Server) handleListProductsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListProductsOperation,
+			ID:   "listProducts",
+		}
+	)
+	params, err := decodeListProductsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListProductsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListProductsOperation,
+			OperationSummary: "Danh sách mẫu (chưa xóa) của người bán, sửa gần nhất trước; lọc trạng thái, danh mục (gồm con), nhãn, tìm theo mã mẫu, SKU, barcode, tên không dấu; trang theo con trỏ",
+			OperationID:      "listProducts",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+				{
+					Name: "status",
+					In:   "query",
+				}: params.Status,
+				{
+					Name: "categoryId",
+					In:   "query",
+				}: params.CategoryId,
+				{
+					Name: "tagId",
+					In:   "query",
+				}: params.TagId,
+				{
+					Name: "warehouseId",
+					In:   "query",
+				}: params.WarehouseId,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListProductsParams
+			Response = ListProductsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListProductsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListProducts(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListProducts(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListProductsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleListRolesRequest handles listRoles operation.
 //
 // Vai trò của shop và quyền của từng vai trò.
@@ -3258,6 +3368,95 @@ func (s *Server) handleRetryJobRequest(args [1]string, argsEscaped bool, w http.
 	}
 
 	if err := encodeRetryJobResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleSearchVariantsRequest handles searchVariants operation.
+//
+// Tìm biến thể của người bán theo barcode (đúng), SKU, mã mẫu (tiền tố), tên
+// không dấu; barcode khớp trước.
+//
+// GET /api/v1/catalog/variants/search
+func (s *Server) handleSearchVariantsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SearchVariantsOperation,
+			ID:   "searchVariants",
+		}
+	)
+	params, err := decodeSearchVariantsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response SearchVariantsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SearchVariantsOperation,
+			OperationSummary: "Tìm biến thể của người bán theo barcode (đúng), SKU, mã mẫu (tiền tố), tên không dấu; barcode khớp trước",
+			OperationID:      "searchVariants",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = SearchVariantsParams
+			Response = SearchVariantsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSearchVariantsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SearchVariants(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SearchVariants(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSearchVariantsResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
