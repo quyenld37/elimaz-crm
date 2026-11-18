@@ -348,6 +348,13 @@ func (w Writer) signal(ctx context.Context, tx pgx.Tx, tenantID, rootID uuid.UUI
 func (w Writer) audit(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID, a Actor, action string, id uuid.UUID,
 	before, after map[string]any,
 ) error {
+	return w.auditEntity(ctx, tx, tenantID, a, action, aggregateCustomer, id, before, after)
+}
+
+// auditEntity là audit với loại đối tượng cho trước (customer, customer_merge).
+func (w Writer) auditEntity(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID, a Actor, action, entityType string,
+	id uuid.UUID, before, after map[string]any,
+) error {
 	actorType, actorID := a.Type, ""
 	if actorType == "" {
 		actorType = ActorStaff
@@ -356,7 +363,7 @@ func (w Writer) audit(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID, a Acto
 		actorID = a.ID.String()
 	}
 	if err := identity.RecordAudit(ctx, tx, identity.AuditEntry{
-		TenantID: tenantID, ActorType: actorType, ActorID: actorID, Action: action, EntityType: aggregateCustomer,
+		TenantID: tenantID, ActorType: actorType, ActorID: actorID, Action: action, EntityType: entityType,
 		EntityID: id.String(), Before: before, After: after, IP: a.IP, RequestID: a.RequestID,
 	}); err != nil {
 		return fmt.Errorf("ghi audit %s: %w", action, err)
