@@ -19,14 +19,19 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
+	"elimaz.com.vn/crm/internal/adapters/fakecarrier"
 	"elimaz.com.vn/crm/internal/httpapi"
+	"elimaz.com.vn/crm/internal/modules/cash"
+	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime"
@@ -35,6 +40,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/platform/webhooks"
 	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/testkit/shiptest"
 )
 
 const (
@@ -47,13 +53,16 @@ const (
 // stack là ba vai trò thật của CRM chạy trong tiến trình test (để exporter dấu vết trong bộ nhớ thấy span của cả ba):
 // ingest (webhooks.Ingest + Drainer, pool riêng có thể đi qua proxy có công tắc), api (httpapi.NewServer với hub
 // LISTEN thật, thẻ Access thử) và worker (queue.Worker với việc tách gói, selftest.Inbound phát qua hub, lệnh
-// command.selftest gọi FakeExternal). Cùng một database thật đã migrate; tenant có chủ shop (identity.SeedOwner) và
-// định tuyến ("selftest", stackTenantKey).
+// command.selftest gọi FakeExternal; sự kiện nội bộ vào sổ COD cash). Cùng một database thật đã migrate; tenant có chủ
+// shop (identity.SeedOwner), định tuyến ("selftest", stackTenantKey), người bán ELIMAZ, kho MAIN và tài khoản hãng giả
+// fake-1 (shiptest.Shop, tuyến carrier_account:fake-1). Có stackOptions.fakeCarrierURL thì nối hãng giả như cmd/crm
+// (nguồn /hooks/fakecarrier ở ingest và worker, hai lệnh vận chuyển).
 type stack struct {
 	t      *testing.T
 	owner  *db.DB // chủ bảng: dựng dữ liệu, đếm dòng
 	app    *db.DB // crm_app trực tiếp (worker, api)
 	tenant uuid.UUID
+	shop   *shiptest.Shop
 	token  string // thẻ Access của chủ shop
 	keys   *testkit.AccessKeys
 	spans  *tracetest.InMemoryExporter
@@ -68,6 +77,8 @@ type stackOptions struct {
 	ingestURL func(appURL string) string
 	// drainEvery: nhịp Drainer của ingest (mặc định 100 ms).
 	drainEvery time.Duration
+	// fakeCarrierURL: địa chỉ tools/fakecarrier (bí mật secret32); rỗng → không nối hãng giả.
+	fakeCarrierURL string
 }
 
 func newStack(t *testing.T, o stackOptions) *stack {
@@ -100,20 +111,30 @@ func newStack(t *testing.T, o stackOptions) *stack {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
+	// Sổ consumer dùng chung cho api, lệnh vận chuyển và worker, như newEvents của cmd/crm.
+	evs := events.NewRegistry()
+	if err := evs.Register(cash.Consumer{}); err != nil {
+		t.Fatal(err)
+	}
+
 	// api: hub LISTEN thật + máy chủ HTTP thật.
 	hub := realtime.NewPGHub(realtime.PGHubOptions{URL: appURL, Metrics: reg, Logger: logger})
 	wg.Go(func() { hub.Run(ctx) })
 	streamStop := make(chan struct{})
 	s.api = httptest.NewUnstartedServer(httpapi.NewServer(httpapi.Deps{
 		Config: config.Config{ConsoleOrigins: []string{stackOrigin}}, DB: s.app, Logger: logger,
-		Access: s.keys.Verifier(t, stackAUD), Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop},
+		Access: s.keys.Verifier(t, stackAUD), Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop}, Events: evs,
 	}))
 	s.api.Config.RegisterOnShutdown(func() { close(streamStop) })
 	s.api.Start()
 
 	// ingest: /hooks/* + Drainer.
+	ingestSources := []webhooks.Source{selftest.NewSource(secret32)}
+	if o.fakeCarrierURL != "" {
+		ingestSources = append(ingestSources, fakecarrier.NewSource(secret32))
+	}
 	in, err := webhooks.NewIngest(webhooks.IngestOptions{
-		DB: ingestDB, Sources: []webhooks.Source{selftest.NewSource(secret32)}, Spool: s.spool,
+		DB: ingestDB, Sources: ingestSources, Spool: s.spool,
 		Lockout: webhooks.NewLockout(webhooks.LockoutOptions{}), Metrics: reg, Logger: logger,
 	})
 	if err != nil {
@@ -129,19 +150,10 @@ func newStack(t *testing.T, o stackOptions) *stack {
 	drainer := &webhooks.Drainer{Spool: s.spool, DB: ingestDB, Interval: drainEvery, Metrics: reg, Logger: logger}
 	wg.Go(func() { drainer.Run(ctx) })
 
-	// worker: cùng các handler như cmd/crm (tách gói, sự kiện vào selftest, lệnh selftest).
-	sources := []webhooks.Source{selftest.NewSource("")}
-	split, err := webhooks.NewSplitHandler(webhooks.SplitOptions{Sources: sources, Metrics: reg})
-	if err != nil {
-		t.Fatal(err)
-	}
-	inbound, err := webhooks.InboundJobHandlers(sources, []webhooks.InboundHandler{selftest.NewInbound(hub)})
-	if err != nil {
-		t.Fatal(err)
-	}
-	w := queue.NewWorker(s.app, append([]queue.Handler{split}, inbound...), queue.WorkerOptions{
-		WorkerID: "e2e-worker", Metrics: reg, Logger: logger,
-		Commands: commands.NewRunner(s.app, []commands.Handler{selftest.NewCommand(s.ext)}),
+	// worker: cùng các handler, lệnh như cmd/crm.
+	handlers, cmds := s.workerHandlers(o, hub, evs, reg)
+	w := queue.NewWorker(s.app, handlers, queue.WorkerOptions{
+		WorkerID: "e2e-worker", Metrics: reg, Logger: logger, Commands: commands.NewRunner(s.app, cmds),
 	})
 	if err := w.Start(ctx); err != nil {
 		t.Fatal(err)
@@ -157,6 +169,33 @@ func newStack(t *testing.T, o stackOptions) *stack {
 	return s
 }
 
+// workerHandlers trả handler và lệnh của worker, như cmd/crm: tách gói, sự kiện vào selftest (và tín hiệu hãng giả khi
+// có o.fakeCarrierURL), consumer sự kiện nội bộ của evs; lệnh selftest (và hai lệnh vận chuyển với hãng giả).
+func (s *stack) workerHandlers(o stackOptions, hub *realtime.PGHub, evs *events.Registry, reg *metrics.Registry) ([]queue.Handler, []commands.Handler) {
+	s.t.Helper()
+	sources := []webhooks.Source{selftest.NewSource("")}
+	inboundHandlers := []webhooks.InboundHandler{selftest.NewInbound(hub)}
+	cmds := []commands.Handler{selftest.NewCommand(s.ext)}
+	if o.fakeCarrierURL != "" {
+		sources = append(sources, fakecarrier.NewSource(""))
+		inboundHandlers = append(inboundHandlers, fulfillment.NewSignalHandler(fakecarrier.Key))
+		co := fulfillment.CommandOptions{
+			DB: s.app, Adapters: []fulfillment.CarrierAdapter{fakecarrier.NewClient(o.fakeCarrierURL, secret32, nil)},
+			Events: evs, Queue: queue.NewQueue(), Realtime: hub,
+		}
+		cmds = append(cmds, fulfillment.NewCreateCommand(co), fulfillment.NewRefreshCommand(co))
+	}
+	split, err := webhooks.NewSplitHandler(webhooks.SplitOptions{Sources: sources, Metrics: reg})
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	inbound, err := webhooks.InboundJobHandlers(sources, inboundHandlers)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	return append(append([]queue.Handler{split}, evs.JobHandlers()...), inbound...), cmds
+}
+
 func openPool(t *testing.T, u string, tracing bool) *db.DB {
 	t.Helper()
 	d, err := db.Open(t.Context(), u, db.PoolOptions{MaxConns: 10, Tracing: tracing})
@@ -167,14 +206,25 @@ func openPool(t *testing.T, u string, tracing bool) *db.DB {
 	return d
 }
 
-// seed: tenant, chủ shop có mọi quyền (vai trò owner, phạm vi all) và thẻ Access của chủ shop.
+// seed: tenant, chủ shop có mọi quyền (vai trò owner, phạm vi all), cửa hàng có tài khoản hãng giả (shiptest.Shop) và
+// tuyến carrier_account:fake-1 (như seed-dev), thẻ Access của chủ shop.
 func (s *stack) seed() {
 	s.t.Helper()
-	id, err := seedSelftestTenant(s.t.Context(), s.owner)
+	ctx := s.t.Context()
+	id, err := seedSelftestTenant(ctx, s.owner)
 	if err != nil {
 		s.t.Fatal(err)
 	}
 	s.tenant = id
+	if err := tenancy.WithTenant(ctx, s.owner, id, func(tx pgx.Tx) error {
+		s.shop = shiptest.NewShop(s.t, tx, id)
+		return nil
+	}); err != nil {
+		s.t.Fatal(err)
+	}
+	if err := tenancy.AddRoute(ctx, s.owner, fulfillment.RouteKindCarrierAccount, shiptest.AccountRef, id); err != nil {
+		s.t.Fatal(err)
+	}
 	s.token = s.keys.Sign(testkit.AccessClaims{Email: stackOwner, AUD: stackAUD, MFA: []string{"mfa"}})
 }
 

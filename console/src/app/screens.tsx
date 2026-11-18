@@ -1,10 +1,21 @@
 // Danh sách màn của CRM. Mỗi task màn hình (M1-50 trở đi, sau khi mockup được duyệt) thêm một dòng ở đây; khung,
 // menu và định tuyến tự có.
+import { ProductList } from "../features/products/ProductList";
 import { StaffGrants } from "../features/staff/StaffGrants";
 import { StaffList } from "../features/staff/StaffList";
 import type { Screen } from "./nav";
 
 export const SCREENS: readonly Screen[] = [
+  // Task 50: Sản phẩm — danh sách (mockup docs/mockups/m1/san-pham-danh-sach.html). Trang sửa mẫu (Task 324) thêm
+  // dòng "/san-pham/:id" riêng.
+  {
+    path: "/san-pham",
+    also: ["/san-pham/:id"],
+    label: "Danh sách sản phẩm",
+    group: "Sản phẩm",
+    permission: "catalog.read",
+    element: <ProductList />,
+  },
   // Task 54: Nhân viên và quyền (mockup docs/mockups/m1/nhan-vien.html).
   {
     path: "/nhan-vien",
