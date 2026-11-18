@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
+
 	"elimaz.com.vn/crm/internal/adapters/cfaccess"
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/platform/config"
@@ -25,6 +27,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/observability"
+	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/telemetry"
 )
 
@@ -34,6 +37,8 @@ const (
 	traceShutdownTimeout = 3 * time.Second
 	healthcheckTimeout   = 3 * time.Second
 	readHeaderTimeout    = 10 * time.Second
+	// workerStopGrace: worker chờ việc đang chạy tối đa 25 s rồi trả việc dở về hàng chờ (spec 04 mục 5.1).
+	workerStopGrace = 25 * time.Second
 )
 
 // Mã thoát.
@@ -131,8 +136,7 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	if cfg.Role == config.RoleWorker {
 		// Chỉ worker gửi nhịp sống ra ngoài (ADR-38): api còn sống không được che việc worker đã chết.
 		flusher.Pinger = &metrics.Pinger{URL: cfg.HeartbeatURL}
-		flusher.Run(ctx) // Task 11 thêm hàng đợi chạy song song
-		return nil
+		return runWorker(ctx, d, reg, flusher, cfg, logger)
 	}
 	var wg sync.WaitGroup
 	defer wg.Wait() // lần ghi chỉ số cuối (tối đa 5 s, song song với lúc tắt HTTP) xong rồi mới đóng pool
@@ -141,6 +145,32 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	defer cancel()
 	wg.Go(func() { flusher.Run(fctx) })
 	return serveHTTP(ctx, cfg, d, reg, logger)
+}
+
+// runWorker chạy hàng đợi (queue.Worker) và vòng ghi chỉ số, nhịp sống tới khi ctx bị hủy (SIGTERM); rồi tắt êm
+// hàng đợi (Stop, tối đa workerStopGrace) trước, ghi chỉ số lần cuối sau. Handler do các task sau đăng ký.
+func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *metrics.Flusher, cfg config.Config,
+	logger *slog.Logger,
+) error {
+	w := queue.NewWorker(d, nil, queue.WorkerOptions{
+		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
+		Metrics:  reg, Logger: logger,
+	})
+	if err := w.Start(ctx); err != nil {
+		return fmt.Errorf("chạy hàng đợi: %w", err)
+	}
+	// Nhịp sống và chỉ số chạy tiếp trong lúc tắt êm hàng đợi; dừng sau Stop để ghi cả chỉ số của lúc tắt.
+	fctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	defer cancel()
+	var wg sync.WaitGroup
+	wg.Go(func() { flusher.Run(fctx) })
+	<-ctx.Done()
+	if err := w.Stop(workerStopGrace); err != nil {
+		logger.Warn("tắt hàng đợi", slog.String("error", err.Error()))
+	}
+	cancel()
+	wg.Wait()
+	return nil
 }
 
 // poolOptions: ngân sách kết nối theo vai trò (cfg.DBMaxConns, ADR-42), giới hạn theo transaction của vai trò

@@ -13,7 +13,8 @@ import (
 )
 
 // platformTables: bảng nền tảng không RLS có cột tenant_id mà M0 hiện có.
-func platformTables() []string { return []string{"platform.tenant_routes"} }
+// platform.jobs (Task 11): tenant_id có thể NULL (việc toàn hệ thống), worker nhận việc của mọi tenant (spec 04 mục 11).
+func platformTables() []string { return []string{"platform.tenant_routes", "platform.jobs"} }
 
 func checkRules(t *testing.T, owner *pgxpool.Pool) []string {
 	t.Helper()
@@ -44,9 +45,20 @@ func TestCheckSchemaRulesCleanSchema(t *testing.T) {
 	if got := checkRules(t, e.owner); len(got) != 0 {
 		t.Fatalf("bảng thử đúng luật mà bị báo: %v", got)
 	}
-	if got, err := tenancy.CheckSchemaRules(t.Context(), e.owner, nil); err != nil || len(got) != 1 ||
-		!strings.Contains(got[0], "platform.tenant_routes") {
-		t.Fatalf("bỏ platform.tenant_routes khỏi danh sách nền tảng phải báo đúng bảng đó: %v, %v", got, err)
+	got, err := tenancy.CheckSchemaRules(t.Context(), e.owner, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Bỏ danh sách bảng nền tảng thì mỗi bảng trong danh sách bị báo (ít nhất một dòng), và không bảng nào khác.
+	for _, tbl := range platformTables() {
+		if !slices.ContainsFunc(got, func(l string) bool { return strings.HasPrefix(l, tbl+":") }) {
+			t.Fatalf("bỏ %s khỏi danh sách nền tảng phải báo bảng đó: %q", tbl, got)
+		}
+	}
+	for _, l := range got {
+		if !slices.ContainsFunc(platformTables(), func(tbl string) bool { return strings.HasPrefix(l, tbl+":") }) {
+			t.Fatalf("dòng ngoài danh sách nền tảng: %q", l)
+		}
 	}
 }
 
