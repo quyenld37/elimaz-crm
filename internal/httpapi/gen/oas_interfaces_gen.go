@@ -21,6 +21,10 @@ type ArchiveCategoryRes interface {
 	archiveCategoryRes()
 }
 
+type AttachProductImageRes interface {
+	attachProductImageRes()
+}
+
 type CancelStockDocumentRes interface {
 	cancelStockDocumentRes()
 }
@@ -71,6 +75,10 @@ type CreateTagRes interface {
 
 type CreateUploadRes interface {
 	createUploadRes()
+}
+
+type DeleteProductImageRes interface {
+	deleteProductImageRes()
 }
 
 type GetFileRes interface {
@@ -161,12 +169,20 @@ type RecordStocktakeCountRes interface {
 	recordStocktakeCountRes()
 }
 
+type ReorderProductImagesRes interface {
+	reorderProductImagesRes()
+}
+
 type ReplaceStaffGrantsRes interface {
 	replaceStaffGrantsRes()
 }
 
 type ReplaceStockDocumentLinesRes interface {
 	replaceStockDocumentLinesRes()
+}
+
+type RestoreProductImageRes interface {
+	restoreProductImageRes()
 }
 
 type RetryJobRes interface {

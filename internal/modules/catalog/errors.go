@@ -36,6 +36,10 @@ var (
 	ErrCategoryInUse = errors.New("catalog: danh mục đang được dùng")
 	// ErrAlreadyExists: trùng slug hay tên cùng cha của danh mục, mã thuộc tính, giá trị trong một thuộc tính, mã nhãn.
 	ErrAlreadyExists = errors.New("catalog: đã có mục cùng tên hoặc cùng mã")
+	// ErrFileNotReady: tệp gắn vào mẫu chưa xử lý xong, bị từ chối hay không phải ảnh sản phẩm (Task M1-44).
+	ErrFileNotReady = errors.New("catalog: tệp chưa sẵn sàng hoặc không phải ảnh sản phẩm")
+	// ErrRestoreExpired: ảnh đã xóa quá RestoreDays ngày, không khôi phục được (TP06).
+	ErrRestoreExpired = errors.New("catalog: quá hạn khôi phục")
 	// ErrInvalidArticle: bài viết sai lược đồ hay vượt giới hạn (cùng giá trị với lỗi của gói article).
 	ErrInvalidArticle = article.ErrInvalid
 )

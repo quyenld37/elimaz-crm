@@ -480,6 +480,91 @@ paths:
                 $ref: "#/components/schemas/Variant"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/catalog/products/{id}/images:
+    post:
+      operationId: attachProductImage
+      summary: Gắn tệp ảnh đã xử lý xong (mục đích product_image) vào cuối danh sách ảnh của mẫu khi version còn khớp
+      description: >-
+        color (không bắt buộc) là một màu đang có của biến thể trong mẫu. Tệp chưa ready hay không phải ảnh sản phẩm →
+        409 file_not_ready; tệp đang gắn → 409 already_exists; tệp đã gắn rồi xóa → hồi lại ảnh cũ ở cuối. Tối đa 50 ảnh.
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttachProductImageRequest"
+      responses:
+        "201":
+          description: Mẫu sau khi gắn (kèm ảnh, version mới)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/products/{id}/images/order:
+    put:
+      operationId: reorderProductImages
+      summary: Đặt thứ tự ảnh đang hiện của mẫu (đúng đủ mã ảnh đang hiện) khi version còn khớp
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderProductImagesRequest"
+      responses:
+        "200":
+          description: Mẫu sau khi sắp lại
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/products/{id}/images/{imageId}:
+    delete:
+      operationId: deleteProductImage
+      summary: Xóa mềm một ảnh của mẫu (khôi phục được trong 30 ngày); ảnh đã xóa thì không đổi gì
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+        - $ref: "#/components/parameters/ImageID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Mẫu sau khi xóa ảnh
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/products/{id}/images/{imageId}/restore:
+    post:
+      operationId: restoreProductImage
+      summary: Khôi phục ảnh đã xóa về vị trí cũ; quá 30 ngày → 410 restore_expired; ảnh đang hiện thì không đổi gì
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+        - $ref: "#/components/parameters/ImageID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Mẫu sau khi khôi phục ảnh
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/catalog/variants/search:
     get:
       operationId: searchVariants
@@ -1189,6 +1274,13 @@ components:
         format: uuid
     ProductID:
       name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ImageID:
+      name: imageId
       in: path
       required: true
       schema:
@@ -2063,7 +2155,7 @@ components:
           format: int64
     Product:
       type: object
-      required: [id, code, name, description, article, articleHtml, status, version, variants]
+      required: [id, code, name, description, article, articleHtml, status, version, variants, images]
       properties:
         id:
           type: string
@@ -2091,6 +2183,81 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Variant"
+        images:
+          type: array
+          description: Ảnh đang hiện theo thứ tự (ảnh đầu là ảnh bìa)
+          items:
+            $ref: "#/components/schemas/ProductImage"
+    ProductImage:
+      type: object
+      required: [id, fileId, position, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fileId:
+          type: string
+          format: uuid
+        color:
+          type: string
+          description: Màu của biến thể mà ảnh thuộc về; không có là ảnh chung
+        position:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum: [ready, lost]
+          description: lost — tệp mất trên kho, màn hình hiện ô trống có ghi chú (không có variants)
+        variants:
+          type: array
+          description: Biến thể của bộ kích thước IMAGE_PRESET_VERSION (lùi về bản trước khi chưa đủ); chỉ có khi ready
+          items:
+            $ref: "#/components/schemas/FileVariant"
+    ProductCover:
+      type: object
+      required: [imageId, status]
+      properties:
+        imageId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [ready, lost]
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/FileVariant"
+    AttachProductImageRequest:
+      type: object
+      additionalProperties: false
+      required: [productVersion, fileId]
+      properties:
+        productVersion:
+          type: integer
+          format: int64
+        fileId:
+          type: string
+          format: uuid
+        color:
+          type: string
+          minLength: 1
+          maxLength: 50
+    ReorderProductImagesRequest:
+      type: object
+      additionalProperties: false
+      required: [productVersion, imageIds]
+      properties:
+        productVersion:
+          type: integer
+          format: int64
+        imageIds:
+          type: array
+          minItems: 1
+          maxItems: 50
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
     ProductPage:
       type: object
       required: [items]
@@ -2134,6 +2301,8 @@ components:
           type: integer
           format: int64
           description: Tổng có thể bán ở kho của warehouseId (có thể âm); chỉ có khi gửi warehouseId
+        cover:
+          $ref: "#/components/schemas/ProductCover"
         updatedAt:
           type: string
           format: date-time

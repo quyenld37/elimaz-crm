@@ -529,6 +529,112 @@ func (s *Server) handleArchiveCategoryRequest(args [1]string, argsEscaped bool, 
 	}
 }
 
+// handleAttachProductImageRequest handles attachProductImage operation.
+//
+// Color (không bắt buộc) là một màu đang có của biến thể trong mẫu. Tệp chưa
+// ready hay không phải ảnh sản phẩm → 409 file_not_ready; tệp đang gắn → 409
+// already_exists; tệp đã gắn rồi xóa → hồi lại ảnh cũ ở cuối. Tối đa 50
+// ảnh.
+//
+// POST /api/v1/catalog/products/{id}/images
+func (s *Server) handleAttachProductImageRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: AttachProductImageOperation,
+			ID:   "attachProductImage",
+		}
+	)
+	params, err := decodeAttachProductImageParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeAttachProductImageRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response AttachProductImageRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    AttachProductImageOperation,
+			OperationSummary: "Gắn tệp ảnh đã xử lý xong (mục đích product_image) vào cuối danh sách ảnh của mẫu khi version còn khớp",
+			OperationID:      "attachProductImage",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *AttachProductImageRequest
+			Params   = AttachProductImageParams
+			Response = AttachProductImageRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackAttachProductImageParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.AttachProductImage(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.AttachProductImage(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeAttachProductImageResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleCancelStockDocumentRequest handles cancelStockDocument operation.
 //
 // Hủy phiếu nháp.
@@ -1815,6 +1921,99 @@ func (s *Server) handleCreateUploadRequest(args [0]string, argsEscaped bool, w h
 	}
 
 	if err := encodeCreateUploadResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleDeleteProductImageRequest handles deleteProductImage operation.
+//
+// Xóa mềm một ảnh của mẫu (khôi phục được trong 30 ngày); ảnh đã xóa thì
+// không đổi gì.
+//
+// DELETE /api/v1/catalog/products/{id}/images/{imageId}
+func (s *Server) handleDeleteProductImageRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: DeleteProductImageOperation,
+			ID:   "deleteProductImage",
+		}
+	)
+	params, err := decodeDeleteProductImageParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response DeleteProductImageRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    DeleteProductImageOperation,
+			OperationSummary: "Xóa mềm một ảnh của mẫu (khôi phục được trong 30 ngày); ảnh đã xóa thì không đổi gì",
+			OperationID:      "deleteProductImage",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "imageId",
+					In:   "path",
+				}: params.ImageId,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = DeleteProductImageParams
+			Response = DeleteProductImageRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackDeleteProductImageParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.DeleteProductImage(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.DeleteProductImage(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeDeleteProductImageResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -3668,6 +3867,110 @@ func (s *Server) handleRecordStocktakeCountRequest(args [2]string, argsEscaped b
 	}
 }
 
+// handleReorderProductImagesRequest handles reorderProductImages operation.
+//
+// Đặt thứ tự ảnh đang hiện của mẫu (đúng đủ mã ảnh đang hiện) khi version
+// còn khớp.
+//
+// PUT /api/v1/catalog/products/{id}/images/order
+func (s *Server) handleReorderProductImagesRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ReorderProductImagesOperation,
+			ID:   "reorderProductImages",
+		}
+	)
+	params, err := decodeReorderProductImagesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeReorderProductImagesRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response ReorderProductImagesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ReorderProductImagesOperation,
+			OperationSummary: "Đặt thứ tự ảnh đang hiện của mẫu (đúng đủ mã ảnh đang hiện) khi version còn khớp",
+			OperationID:      "reorderProductImages",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ReorderProductImagesRequest
+			Params   = ReorderProductImagesParams
+			Response = ReorderProductImagesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackReorderProductImagesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ReorderProductImages(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ReorderProductImages(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeReorderProductImagesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleReplaceStaffGrantsRequest handles replaceStaffGrants operation.
 //
 // Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không
@@ -3867,6 +4170,99 @@ func (s *Server) handleReplaceStockDocumentLinesRequest(args [1]string, argsEsca
 	}
 
 	if err := encodeReplaceStockDocumentLinesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleRestoreProductImageRequest handles restoreProductImage operation.
+//
+// Khôi phục ảnh đã xóa về vị trí cũ; quá 30 ngày → 410 restore_expired; ảnh đang
+// hiện thì không đổi gì.
+//
+// POST /api/v1/catalog/products/{id}/images/{imageId}/restore
+func (s *Server) handleRestoreProductImageRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: RestoreProductImageOperation,
+			ID:   "restoreProductImage",
+		}
+	)
+	params, err := decodeRestoreProductImageParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response RestoreProductImageRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    RestoreProductImageOperation,
+			OperationSummary: "Khôi phục ảnh đã xóa về vị trí cũ; quá 30 ngày → 410 restore_expired; ảnh đang hiện thì không đổi gì",
+			OperationID:      "restoreProductImage",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "imageId",
+					In:   "path",
+				}: params.ImageId,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = RestoreProductImageParams
+			Response = RestoreProductImageRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackRestoreProductImageParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.RestoreProductImage(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.RestoreProductImage(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeRestoreProductImageResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

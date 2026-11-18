@@ -130,10 +130,7 @@ func TestRegisterPurpose_PanicsOnInvalid(t *testing.T) {
 // private (Upload) → complete xếp file.process_private, không xếp file.process.
 func TestPurposes_PrivateMode(t *testing.T) {
 	e := newEnv(t)
-	files.RegisterPurpose(testPrivateImagePurpose())
-	if err := e.addPurposeRow("test_private_image", "private", "private"); err != nil {
-		t.Fatal(err)
-	}
+	e.usePrivatePurpose()
 	id := uuid.Must(uuid.NewV7())
 	if _, err := e.register(e.a, files.NewFile{
 		ID: id, Purpose: "test_private_image", Key: files.ServerKey(e.a, id), Size: 10,

@@ -101,6 +101,27 @@ type CatalogProductAttributeValuesV struct {
 	AttributeValueID uuid.UUID
 }
 
+type CatalogProductImage struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	ProductID uuid.UUID
+	FileID    uuid.UUID
+	Color     pgtype.Text
+	Position  int32
+	CreatedBy *uuid.UUID
+	CreatedAt time.Time
+	DeletedAt pgtype.Timestamptz
+	DeletedBy *uuid.UUID
+}
+
+type CatalogProductImagesV struct {
+	ImageID   uuid.UUID
+	ProductID uuid.UUID
+	FileID    uuid.UUID
+	Color     pgtype.Text
+	Position  int32
+}
+
 type CatalogProductTag struct {
 	TenantID  uuid.UUID
 	ProductID uuid.UUID
@@ -642,6 +663,14 @@ type PlatformFileVariant struct {
 	Key           string
 	SizeBytes     int64
 	CreatedAt     time.Time
+}
+
+type PlatformFileVariantsV struct {
+	FileID        uuid.UUID
+	PresetVersion int32
+	Width         int32
+	Format        string
+	Key           string
 }
 
 type PlatformIdempotencyKey struct {

@@ -398,6 +398,45 @@ export type Product = {
     status: ProductStatus;
     version: number;
     variants: Array<Variant>;
+    /**
+     * Ảnh đang hiện theo thứ tự (ảnh đầu là ảnh bìa)
+     */
+    images: Array<ProductImage>;
+};
+
+export type ProductImage = {
+    id: string;
+    fileId: string;
+    /**
+     * Màu của biến thể mà ảnh thuộc về; không có là ảnh chung
+     */
+    color?: string;
+    position: number;
+    /**
+     * lost — tệp mất trên kho, màn hình hiện ô trống có ghi chú (không có variants)
+     */
+    status: 'ready' | 'lost';
+    /**
+     * Biến thể của bộ kích thước IMAGE_PRESET_VERSION (lùi về bản trước khi chưa đủ); chỉ có khi ready
+     */
+    variants?: Array<FileVariant>;
+};
+
+export type ProductCover = {
+    imageId: string;
+    status: 'ready' | 'lost';
+    variants?: Array<FileVariant>;
+};
+
+export type AttachProductImageRequest = {
+    productVersion: number;
+    fileId: string;
+    color?: string;
+};
+
+export type ReorderProductImagesRequest = {
+    productVersion: number;
+    imageIds: Array<string>;
 };
 
 export type ProductPage = {
@@ -425,6 +464,7 @@ export type ProductListItem = {
      * Tổng có thể bán ở kho của warehouseId (có thể âm); chỉ có khi gửi warehouseId
      */
     available?: number;
+    cover?: ProductCover;
     updatedAt: string;
 };
 
@@ -722,6 +762,10 @@ export type ProductWritable = {
     status: ProductStatus;
     version: number;
     variants: Array<Variant>;
+    /**
+     * Ảnh đang hiện theo thứ tự (ảnh đầu là ảnh bìa)
+     */
+    images: Array<ProductImage>;
 };
 
 /**
@@ -736,6 +780,8 @@ export type FileId = string;
 export type StaffId = string;
 
 export type ProductId = string;
+
+export type ImageId = string;
 
 export type OrderId = string;
 
@@ -1419,6 +1465,140 @@ export type AddVariantResponses = {
 };
 
 export type AddVariantResponse = AddVariantResponses[keyof AddVariantResponses];
+
+export type AttachProductImageData = {
+    body: AttachProductImageRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}/images';
+};
+
+export type AttachProductImageErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type AttachProductImageError = AttachProductImageErrors[keyof AttachProductImageErrors];
+
+export type AttachProductImageResponses = {
+    /**
+     * Mẫu sau khi gắn (kèm ảnh, version mới)
+     */
+    201: Product;
+};
+
+export type AttachProductImageResponse = AttachProductImageResponses[keyof AttachProductImageResponses];
+
+export type ReorderProductImagesData = {
+    body: ReorderProductImagesRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}/images/order';
+};
+
+export type ReorderProductImagesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ReorderProductImagesError = ReorderProductImagesErrors[keyof ReorderProductImagesErrors];
+
+export type ReorderProductImagesResponses = {
+    /**
+     * Mẫu sau khi sắp lại
+     */
+    200: Product;
+};
+
+export type ReorderProductImagesResponse = ReorderProductImagesResponses[keyof ReorderProductImagesResponses];
+
+export type DeleteProductImageData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+        imageId: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}/images/{imageId}';
+};
+
+export type DeleteProductImageErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type DeleteProductImageError = DeleteProductImageErrors[keyof DeleteProductImageErrors];
+
+export type DeleteProductImageResponses = {
+    /**
+     * Mẫu sau khi xóa ảnh
+     */
+    200: Product;
+};
+
+export type DeleteProductImageResponse = DeleteProductImageResponses[keyof DeleteProductImageResponses];
+
+export type RestoreProductImageData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+        imageId: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}/images/{imageId}/restore';
+};
+
+export type RestoreProductImageErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RestoreProductImageError = RestoreProductImageErrors[keyof RestoreProductImageErrors];
+
+export type RestoreProductImageResponses = {
+    /**
+     * Mẫu sau khi khôi phục ảnh
+     */
+    200: Product;
+};
+
+export type RestoreProductImageResponse = RestoreProductImageResponses[keyof RestoreProductImageResponses];
 
 export type SearchVariantsData = {
     body?: never;

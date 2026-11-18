@@ -391,6 +391,43 @@ func (s *ArticleBlockType) UnmarshalText(data []byte) error {
 
 type ArticleInput []jx.Raw
 
+// Ref: #/components/schemas/AttachProductImageRequest
+type AttachProductImageRequest struct {
+	ProductVersion int64     `json:"productVersion"`
+	FileId         uuid.UUID `json:"fileId"`
+	Color          OptString `json:"color"`
+}
+
+// GetProductVersion returns the value of ProductVersion.
+func (s *AttachProductImageRequest) GetProductVersion() int64 {
+	return s.ProductVersion
+}
+
+// GetFileId returns the value of FileId.
+func (s *AttachProductImageRequest) GetFileId() uuid.UUID {
+	return s.FileId
+}
+
+// GetColor returns the value of Color.
+func (s *AttachProductImageRequest) GetColor() OptString {
+	return s.Color
+}
+
+// SetProductVersion sets the value of ProductVersion.
+func (s *AttachProductImageRequest) SetProductVersion(val int64) {
+	s.ProductVersion = val
+}
+
+// SetFileId sets the value of FileId.
+func (s *AttachProductImageRequest) SetFileId(val uuid.UUID) {
+	s.FileId = val
+}
+
+// SetColor sets the value of Color.
+func (s *AttachProductImageRequest) SetColor(val OptString) {
+	s.Color = val
+}
+
 // Ref: #/components/schemas/Attribute
 type Attribute struct {
 	ID       uuid.UUID        `json:"id"`
@@ -1330,6 +1367,7 @@ func (*ErrorStatusCode) addAttributeValueRes()         {}
 func (*ErrorStatusCode) addVariantRes()                {}
 func (*ErrorStatusCode) applyStocktakeRes()            {}
 func (*ErrorStatusCode) archiveCategoryRes()           {}
+func (*ErrorStatusCode) attachProductImageRes()        {}
 func (*ErrorStatusCode) cancelStockDocumentRes()       {}
 func (*ErrorStatusCode) cancelStocktakeRes()           {}
 func (*ErrorStatusCode) completeUploadRes()            {}
@@ -1343,6 +1381,7 @@ func (*ErrorStatusCode) createStockDocumentRes()       {}
 func (*ErrorStatusCode) createSupplierRes()            {}
 func (*ErrorStatusCode) createTagRes()                 {}
 func (*ErrorStatusCode) createUploadRes()              {}
+func (*ErrorStatusCode) deleteProductImageRes()        {}
 func (*ErrorStatusCode) getFileRes()                   {}
 func (*ErrorStatusCode) getMeRes()                     {}
 func (*ErrorStatusCode) getOrderRes()                  {}
@@ -1364,8 +1403,10 @@ func (*ErrorStatusCode) listTagsRes()                  {}
 func (*ErrorStatusCode) lockStaffRes()                 {}
 func (*ErrorStatusCode) postStockDocumentRes()         {}
 func (*ErrorStatusCode) recordStocktakeCountRes()      {}
+func (*ErrorStatusCode) reorderProductImagesRes()      {}
 func (*ErrorStatusCode) replaceStaffGrantsRes()        {}
 func (*ErrorStatusCode) replaceStockDocumentLinesRes() {}
+func (*ErrorStatusCode) restoreProductImageRes()       {}
 func (*ErrorStatusCode) retryJobRes()                  {}
 func (*ErrorStatusCode) searchVariantsRes()            {}
 func (*ErrorStatusCode) setProductClassificationRes()  {}
@@ -2862,6 +2903,52 @@ func (o OptPosition) Or(d Position) Position {
 	return d
 }
 
+// NewOptProductCover returns new OptProductCover with value set to v.
+func NewOptProductCover(v ProductCover) OptProductCover {
+	return OptProductCover{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptProductCover is optional ProductCover.
+type OptProductCover struct {
+	Value ProductCover
+	Set   bool
+}
+
+// IsSet returns true if OptProductCover was set.
+func (o OptProductCover) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptProductCover) Reset() {
+	var v ProductCover
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptProductCover) SetTo(v ProductCover) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptProductCover) Get() (v ProductCover, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptProductCover) Or(d ProductCover) ProductCover {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptProductStatus returns new OptProductStatus with value set to v.
 func NewOptProductStatus(v ProductStatus) OptProductStatus {
 	return OptProductStatus{
@@ -3584,6 +3671,8 @@ type Product struct {
 	Status      ProductStatus `json:"status"`
 	Version     int64         `json:"version"`
 	Variants    []Variant     `json:"variants"`
+	// Ảnh đang hiện theo thứ tự (ảnh đầu là ảnh bìa).
+	Images []ProductImage `json:"images"`
 }
 
 // GetID returns the value of ID.
@@ -3631,6 +3720,11 @@ func (s *Product) GetVariants() []Variant {
 	return s.Variants
 }
 
+// GetImages returns the value of Images.
+func (s *Product) GetImages() []ProductImage {
+	return s.Images
+}
+
 // SetID sets the value of ID.
 func (s *Product) SetID(val uuid.UUID) {
 	s.ID = val
@@ -3676,9 +3770,18 @@ func (s *Product) SetVariants(val []Variant) {
 	s.Variants = val
 }
 
-func (*Product) createProductRes() {}
-func (*Product) getProductRes()    {}
-func (*Product) updateProductRes() {}
+// SetImages sets the value of Images.
+func (s *Product) SetImages(val []ProductImage) {
+	s.Images = val
+}
+
+func (*Product) attachProductImageRes()   {}
+func (*Product) createProductRes()        {}
+func (*Product) deleteProductImageRes()   {}
+func (*Product) getProductRes()           {}
+func (*Product) reorderProductImagesRes() {}
+func (*Product) restoreProductImageRes()  {}
+func (*Product) updateProductRes()        {}
 
 // Ref: #/components/schemas/ProductClassification
 type ProductClassification struct {
@@ -3742,6 +3845,200 @@ func (s *ProductClassification) SetTagIds(val []uuid.UUID) {
 
 func (*ProductClassification) setProductClassificationRes() {}
 
+// Ref: #/components/schemas/ProductCover
+type ProductCover struct {
+	ImageId  uuid.UUID          `json:"imageId"`
+	Status   ProductCoverStatus `json:"status"`
+	Variants []FileVariant      `json:"variants"`
+}
+
+// GetImageId returns the value of ImageId.
+func (s *ProductCover) GetImageId() uuid.UUID {
+	return s.ImageId
+}
+
+// GetStatus returns the value of Status.
+func (s *ProductCover) GetStatus() ProductCoverStatus {
+	return s.Status
+}
+
+// GetVariants returns the value of Variants.
+func (s *ProductCover) GetVariants() []FileVariant {
+	return s.Variants
+}
+
+// SetImageId sets the value of ImageId.
+func (s *ProductCover) SetImageId(val uuid.UUID) {
+	s.ImageId = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ProductCover) SetStatus(val ProductCoverStatus) {
+	s.Status = val
+}
+
+// SetVariants sets the value of Variants.
+func (s *ProductCover) SetVariants(val []FileVariant) {
+	s.Variants = val
+}
+
+type ProductCoverStatus string
+
+const (
+	ProductCoverStatusReady ProductCoverStatus = "ready"
+	ProductCoverStatusLost  ProductCoverStatus = "lost"
+)
+
+// AllValues returns all ProductCoverStatus values.
+func (ProductCoverStatus) AllValues() []ProductCoverStatus {
+	return []ProductCoverStatus{
+		ProductCoverStatusReady,
+		ProductCoverStatusLost,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ProductCoverStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ProductCoverStatusReady:
+		return []byte(s), nil
+	case ProductCoverStatusLost:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ProductCoverStatus) UnmarshalText(data []byte) error {
+	switch ProductCoverStatus(data) {
+	case ProductCoverStatusReady:
+		*s = ProductCoverStatusReady
+		return nil
+	case ProductCoverStatusLost:
+		*s = ProductCoverStatusLost
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ProductImage
+type ProductImage struct {
+	ID     uuid.UUID `json:"id"`
+	FileId uuid.UUID `json:"fileId"`
+	// Màu của biến thể mà ảnh thuộc về; không có là ảnh chung.
+	Color    OptString `json:"color"`
+	Position int32     `json:"position"`
+	// Lost — tệp mất trên kho, màn hình hiện ô trống có ghi chú (không có variants).
+	Status ProductImageStatus `json:"status"`
+	// Biến thể của bộ kích thước IMAGE_PRESET_VERSION (lùi về bản trước khi chưa
+	// đủ); chỉ có khi ready.
+	Variants []FileVariant `json:"variants"`
+}
+
+// GetID returns the value of ID.
+func (s *ProductImage) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetFileId returns the value of FileId.
+func (s *ProductImage) GetFileId() uuid.UUID {
+	return s.FileId
+}
+
+// GetColor returns the value of Color.
+func (s *ProductImage) GetColor() OptString {
+	return s.Color
+}
+
+// GetPosition returns the value of Position.
+func (s *ProductImage) GetPosition() int32 {
+	return s.Position
+}
+
+// GetStatus returns the value of Status.
+func (s *ProductImage) GetStatus() ProductImageStatus {
+	return s.Status
+}
+
+// GetVariants returns the value of Variants.
+func (s *ProductImage) GetVariants() []FileVariant {
+	return s.Variants
+}
+
+// SetID sets the value of ID.
+func (s *ProductImage) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetFileId sets the value of FileId.
+func (s *ProductImage) SetFileId(val uuid.UUID) {
+	s.FileId = val
+}
+
+// SetColor sets the value of Color.
+func (s *ProductImage) SetColor(val OptString) {
+	s.Color = val
+}
+
+// SetPosition sets the value of Position.
+func (s *ProductImage) SetPosition(val int32) {
+	s.Position = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ProductImage) SetStatus(val ProductImageStatus) {
+	s.Status = val
+}
+
+// SetVariants sets the value of Variants.
+func (s *ProductImage) SetVariants(val []FileVariant) {
+	s.Variants = val
+}
+
+// Lost — tệp mất trên kho, màn hình hiện ô trống có ghi chú (không có variants).
+type ProductImageStatus string
+
+const (
+	ProductImageStatusReady ProductImageStatus = "ready"
+	ProductImageStatusLost  ProductImageStatus = "lost"
+)
+
+// AllValues returns all ProductImageStatus values.
+func (ProductImageStatus) AllValues() []ProductImageStatus {
+	return []ProductImageStatus{
+		ProductImageStatusReady,
+		ProductImageStatusLost,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ProductImageStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ProductImageStatusReady:
+		return []byte(s), nil
+	case ProductImageStatusLost:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ProductImageStatus) UnmarshalText(data []byte) error {
+	switch ProductImageStatus(data) {
+	case ProductImageStatusReady:
+		*s = ProductImageStatusReady
+		return nil
+	case ProductImageStatusLost:
+		*s = ProductImageStatusLost
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/ProductListItem
 type ProductListItem struct {
 	ID         uuid.UUID     `json:"id"`
@@ -3755,8 +4052,9 @@ type ProductListItem struct {
 	MinPrice     OptMoney `json:"minPrice"`
 	MaxPrice     OptMoney `json:"maxPrice"`
 	// Tổng có thể bán ở kho của warehouseId (có thể âm); chỉ có khi gửi warehouseId.
-	Available OptInt64  `json:"available"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	Available OptInt64        `json:"available"`
+	Cover     OptProductCover `json:"cover"`
+	UpdatedAt time.Time       `json:"updatedAt"`
 }
 
 // GetID returns the value of ID.
@@ -3807,6 +4105,11 @@ func (s *ProductListItem) GetMaxPrice() OptMoney {
 // GetAvailable returns the value of Available.
 func (s *ProductListItem) GetAvailable() OptInt64 {
 	return s.Available
+}
+
+// GetCover returns the value of Cover.
+func (s *ProductListItem) GetCover() OptProductCover {
+	return s.Cover
 }
 
 // GetUpdatedAt returns the value of UpdatedAt.
@@ -3862,6 +4165,11 @@ func (s *ProductListItem) SetMaxPrice(val OptMoney) {
 // SetAvailable sets the value of Available.
 func (s *ProductListItem) SetAvailable(val OptInt64) {
 	s.Available = val
+}
+
+// SetCover sets the value of Cover.
+func (s *ProductListItem) SetCover(val OptProductCover) {
+	s.Cover = val
 }
 
 // SetUpdatedAt sets the value of UpdatedAt.
@@ -4021,6 +4329,32 @@ func (s *RecordStocktakeCountRequest) SetCounted(val int32) {
 // SetLineVersion sets the value of LineVersion.
 func (s *RecordStocktakeCountRequest) SetLineVersion(val OptInt64) {
 	s.LineVersion = val
+}
+
+// Ref: #/components/schemas/ReorderProductImagesRequest
+type ReorderProductImagesRequest struct {
+	ProductVersion int64       `json:"productVersion"`
+	ImageIds       []uuid.UUID `json:"imageIds"`
+}
+
+// GetProductVersion returns the value of ProductVersion.
+func (s *ReorderProductImagesRequest) GetProductVersion() int64 {
+	return s.ProductVersion
+}
+
+// GetImageIds returns the value of ImageIds.
+func (s *ReorderProductImagesRequest) GetImageIds() []uuid.UUID {
+	return s.ImageIds
+}
+
+// SetProductVersion sets the value of ProductVersion.
+func (s *ReorderProductImagesRequest) SetProductVersion(val int64) {
+	s.ProductVersion = val
+}
+
+// SetImageIds sets the value of ImageIds.
+func (s *ReorderProductImagesRequest) SetImageIds(val []uuid.UUID) {
+	s.ImageIds = val
 }
 
 // Ref: #/components/schemas/ReplaceGrantsRequest

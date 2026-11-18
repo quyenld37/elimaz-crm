@@ -31,7 +31,7 @@ func TestLoadM1OptionalVariablesHaveDefaults(t *testing.T) {
 		if role != config.RoleIngest && (cfg.S3Region != "us-east-1" || cfg.S3BucketPrefix != "crm-") {
 			t.Fatalf("%s: mặc định S3 sai: %+v", role, cfg)
 		}
-		if role == config.RoleWorker && cfg.ImagePresetVersion != 1 {
+		if role != config.RoleIngest && cfg.ImagePresetVersion != 1 {
 			t.Fatalf("IMAGE_PRESET_VERSION mặc định phải 1, nhận %d", cfg.ImagePresetVersion)
 		}
 	}
@@ -120,6 +120,7 @@ func TestLoadM1BadValues(t *testing.T) {
 		{"đường dẫn công khai có / cuối", config.RoleWorker, with(workerEnv(), "FILES_PUBLIC_BASE_URL", "https://img.x/"), "FILES_PUBLIC_BASE_URL"},
 		{"imager không phải URL", config.RoleWorker, with(workerEnv(), "IMAGER_URL", "imager:4193"), "IMAGER_URL"},
 		{"preset 0", config.RoleWorker, with(workerEnv(), "IMAGE_PRESET_VERSION", "0"), "IMAGE_PRESET_VERSION"},
+		{"preset 0 ở api", config.RoleAPI, with(apiEnv(), "IMAGE_PRESET_VERSION", "0"), "IMAGE_PRESET_VERSION"},
 		{"filesync không phải bool", config.RoleAPI, with(apiEnv(), "FILESYNC_EXPECTED", "có"), "FILESYNC_EXPECTED"},
 		{"hãng giả thiếu bí mật", config.RoleWorker, with(workerEnv(), "FAKECARRIER_URL", "http://127.0.0.1:4194"), "FAKECARRIER_WEBHOOK_SECRET"},
 		{"hãng giả bí mật ngắn", config.RoleIngest, with(ingestEnv(), "FAKECARRIER_URL", "http://127.0.0.1:4194",

@@ -78,6 +78,8 @@ const (
 	codeFileTypeNotAllowed    = "file_type_not_allowed"
 	codeFilePurposeNotAllowed = "file_purpose_not_allowed"
 	codeUploadMissing         = "upload_missing"
+	codeFileNotReady          = "file_not_ready"
+	codeRestoreExpired        = "restore_expired"
 
 	// Kho (kế hoạch M1 Task M1-29).
 	codeInsufficientStock  = "insufficient_stock"
@@ -266,6 +268,8 @@ func catalogError(err error) (status int, code string, ok bool) {
 		{catalog.ErrCategoryTooDeep, http.StatusUnprocessableEntity, codeCategoryTooDeep},
 		{catalog.ErrCategoryInUse, http.StatusConflict, codeCategoryInUse},
 		{catalog.ErrAlreadyExists, http.StatusConflict, codeAlreadyExists},
+		{catalog.ErrFileNotReady, http.StatusConflict, codeFileNotReady},
+		{catalog.ErrRestoreExpired, http.StatusGone, codeRestoreExpired},
 		{catalog.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
 	} {
 		if errors.Is(err, m.err) {

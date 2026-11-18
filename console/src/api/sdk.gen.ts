@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, AddAttributeValueData, AddAttributeValueErrors, AddAttributeValueResponses, AddVariantData, AddVariantErrors, AddVariantResponses, ApplyStocktakeData, ApplyStocktakeErrors, ApplyStocktakeResponses, ArchiveCategoryData, ArchiveCategoryErrors, ArchiveCategoryResponses, CancelStockDocumentData, CancelStockDocumentErrors, CancelStockDocumentResponses, CancelStocktakeData, CancelStocktakeErrors, CancelStocktakeResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateAttributeData, CreateAttributeErrors, CreateAttributeResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateOrderData, CreateOrderErrors, CreateOrderResponses, CreateProductData, CreateProductErrors, CreateProductResponses, CreateShipmentData, CreateShipmentErrors, CreateShipmentResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, CreateStockDocumentData, CreateStockDocumentErrors, CreateStockDocumentResponses, CreateSupplierData, CreateSupplierErrors, CreateSupplierResponses, CreateTagData, CreateTagErrors, CreateTagResponses, CreateUploadData, CreateUploadErrors, CreateUploadResponses, GetFileData, GetFileErrors, GetFileResponses, GetMeData, GetMeErrors, GetMeResponses, GetOrderData, GetOrderErrors, GetOrderResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, GetProductData, GetProductErrors, GetProductResponses, GetShipmentData, GetShipmentErrors, GetShipmentResponses, GetStockDocumentData, GetStockDocumentErrors, GetStockDocumentResponses, GetStocktakeData, GetStocktakeErrors, GetStocktakeResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ListAttributesData, ListAttributesErrors, ListAttributesResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListProductsData, ListProductsErrors, ListProductsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListStaffData, ListStaffErrors, ListStaffResponses, ListStockDocumentsData, ListStockDocumentsErrors, ListStockDocumentsResponses, ListSuppliersData, ListSuppliersErrors, ListSuppliersResponses, ListTagsData, ListTagsErrors, ListTagsResponses, LockStaffData, LockStaffErrors, LockStaffResponses, PostStockDocumentData, PostStockDocumentErrors, PostStockDocumentResponses, RecordStocktakeCountData, RecordStocktakeCountErrors, RecordStocktakeCountResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, ReplaceStockDocumentLinesData, ReplaceStockDocumentLinesErrors, ReplaceStockDocumentLinesResponses, RetryJobData, RetryJobErrors, RetryJobResponses, SearchVariantsData, SearchVariantsErrors, SearchVariantsResponses, SetProductClassificationData, SetProductClassificationErrors, SetProductClassificationResponses, StartStocktakeData, StartStocktakeErrors, StartStocktakeResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateProductData, UpdateProductErrors, UpdateProductResponses, UpdateSupplierData, UpdateSupplierErrors, UpdateSupplierResponses, UpdateVariantData, UpdateVariantErrors, UpdateVariantResponses } from './types.gen';
+import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, AddAttributeValueData, AddAttributeValueErrors, AddAttributeValueResponses, AddVariantData, AddVariantErrors, AddVariantResponses, ApplyStocktakeData, ApplyStocktakeErrors, ApplyStocktakeResponses, ArchiveCategoryData, ArchiveCategoryErrors, ArchiveCategoryResponses, AttachProductImageData, AttachProductImageErrors, AttachProductImageResponses, CancelStockDocumentData, CancelStockDocumentErrors, CancelStockDocumentResponses, CancelStocktakeData, CancelStocktakeErrors, CancelStocktakeResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateAttributeData, CreateAttributeErrors, CreateAttributeResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateOrderData, CreateOrderErrors, CreateOrderResponses, CreateProductData, CreateProductErrors, CreateProductResponses, CreateShipmentData, CreateShipmentErrors, CreateShipmentResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, CreateStockDocumentData, CreateStockDocumentErrors, CreateStockDocumentResponses, CreateSupplierData, CreateSupplierErrors, CreateSupplierResponses, CreateTagData, CreateTagErrors, CreateTagResponses, CreateUploadData, CreateUploadErrors, CreateUploadResponses, DeleteProductImageData, DeleteProductImageErrors, DeleteProductImageResponses, GetFileData, GetFileErrors, GetFileResponses, GetMeData, GetMeErrors, GetMeResponses, GetOrderData, GetOrderErrors, GetOrderResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, GetProductData, GetProductErrors, GetProductResponses, GetShipmentData, GetShipmentErrors, GetShipmentResponses, GetStockDocumentData, GetStockDocumentErrors, GetStockDocumentResponses, GetStocktakeData, GetStocktakeErrors, GetStocktakeResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ListAttributesData, ListAttributesErrors, ListAttributesResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListProductsData, ListProductsErrors, ListProductsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListStaffData, ListStaffErrors, ListStaffResponses, ListStockDocumentsData, ListStockDocumentsErrors, ListStockDocumentsResponses, ListSuppliersData, ListSuppliersErrors, ListSuppliersResponses, ListTagsData, ListTagsErrors, ListTagsResponses, LockStaffData, LockStaffErrors, LockStaffResponses, PostStockDocumentData, PostStockDocumentErrors, PostStockDocumentResponses, RecordStocktakeCountData, RecordStocktakeCountErrors, RecordStocktakeCountResponses, ReorderProductImagesData, ReorderProductImagesErrors, ReorderProductImagesResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, ReplaceStockDocumentLinesData, ReplaceStockDocumentLinesErrors, ReplaceStockDocumentLinesResponses, RestoreProductImageData, RestoreProductImageErrors, RestoreProductImageResponses, RetryJobData, RetryJobErrors, RetryJobResponses, SearchVariantsData, SearchVariantsErrors, SearchVariantsResponses, SetProductClassificationData, SetProductClassificationErrors, SetProductClassificationResponses, StartStocktakeData, StartStocktakeErrors, StartStocktakeResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateProductData, UpdateProductErrors, UpdateProductResponses, UpdateSupplierData, UpdateSupplierErrors, UpdateSupplierResponses, UpdateVariantData, UpdateVariantErrors, UpdateVariantResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -178,6 +178,42 @@ export const addVariant = <ThrowOnError extends boolean = false>(options: Option
         ...options.headers
     }
 });
+
+/**
+ * Gắn tệp ảnh đã xử lý xong (mục đích product_image) vào cuối danh sách ảnh của mẫu khi version còn khớp
+ *
+ * color (không bắt buộc) là một màu đang có của biến thể trong mẫu. Tệp chưa ready hay không phải ảnh sản phẩm → 409 file_not_ready; tệp đang gắn → 409 already_exists; tệp đã gắn rồi xóa → hồi lại ảnh cũ ở cuối. Tối đa 50 ảnh.
+ */
+export const attachProductImage = <ThrowOnError extends boolean = false>(options: Options<AttachProductImageData, ThrowOnError>): RequestResult<AttachProductImageResponses, AttachProductImageErrors, ThrowOnError> => (options.client ?? client).post<AttachProductImageResponses, AttachProductImageErrors, ThrowOnError>({
+    url: '/api/v1/catalog/products/{id}/images',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Đặt thứ tự ảnh đang hiện của mẫu (đúng đủ mã ảnh đang hiện) khi version còn khớp
+ */
+export const reorderProductImages = <ThrowOnError extends boolean = false>(options: Options<ReorderProductImagesData, ThrowOnError>): RequestResult<ReorderProductImagesResponses, ReorderProductImagesErrors, ThrowOnError> => (options.client ?? client).put<ReorderProductImagesResponses, ReorderProductImagesErrors, ThrowOnError>({
+    url: '/api/v1/catalog/products/{id}/images/order',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Xóa mềm một ảnh của mẫu (khôi phục được trong 30 ngày); ảnh đã xóa thì không đổi gì
+ */
+export const deleteProductImage = <ThrowOnError extends boolean = false>(options: Options<DeleteProductImageData, ThrowOnError>): RequestResult<DeleteProductImageResponses, DeleteProductImageErrors, ThrowOnError> => (options.client ?? client).delete<DeleteProductImageResponses, DeleteProductImageErrors, ThrowOnError>({ url: '/api/v1/catalog/products/{id}/images/{imageId}', ...options });
+
+/**
+ * Khôi phục ảnh đã xóa về vị trí cũ; quá 30 ngày → 410 restore_expired; ảnh đang hiện thì không đổi gì
+ */
+export const restoreProductImage = <ThrowOnError extends boolean = false>(options: Options<RestoreProductImageData, ThrowOnError>): RequestResult<RestoreProductImageResponses, RestoreProductImageErrors, ThrowOnError> => (options.client ?? client).post<RestoreProductImageResponses, RestoreProductImageErrors, ThrowOnError>({ url: '/api/v1/catalog/products/{id}/images/{imageId}/restore', ...options });
 
 /**
  * Tìm biến thể của người bán theo barcode (đúng), SKU, mã mẫu (tiền tố), tên không dấu; barcode khớp trước
