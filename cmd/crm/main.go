@@ -24,6 +24,7 @@ import (
 	"elimaz.com.vn/crm/internal/adapters/fakecarrier"
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/imager"
+	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
@@ -182,9 +183,15 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	return serveHTTP(ctx, cfg, d, reg, hub, logger)
 }
 
-// newEvents dựng sổ consumer của sự kiện nội bộ, dùng chung cho api (Emit) và worker (handler); M0 chưa có consumer,
-// module của mốc sau đăng ký ở đây.
-func newEvents() *events.Registry { return events.NewRegistry() }
+// newEvents dựng sổ consumer của sự kiện nội bộ, dùng chung cho api (Emit), lệnh vận chuyển (Emit) và worker
+// (handler): sổ COD cash (shipment.status_changed, Task M1-32). Module của mốc sau đăng ký ở đây.
+func newEvents() (*events.Registry, error) {
+	r := events.NewRegistry()
+	if err := r.Register(cash.Consumer{}); err != nil {
+		return nil, fmt.Errorf("đăng ký consumer sổ COD: %w", err)
+	}
+	return r, nil
+}
 
 // fakeCarrierOn: hãng vận chuyển giả chỉ được nối ngoài production và khi có FAKECARRIER_URL (Q2; config.Load đã cấm
 // biến này ở production, đây là chốt thứ hai).
@@ -246,11 +253,15 @@ func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtim
 		hs = append(hs, selftest.NewCommand(selftest.Loopback{}))
 	}
 	if fakeCarrierOn(cfg) {
+		evs, err := newEvents()
+		if err != nil {
+			return nil, err
+		}
 		o := fulfillment.CommandOptions{
 			DB: d, Adapters: []fulfillment.CarrierAdapter{
 				fakecarrier.NewClient(cfg.FakeCarrierURL, cfg.FakeCarrierWebhookSecret, &http.Client{}),
 			},
-			Events: newEvents(), Queue: queue.NewQueue(), Realtime: bus,
+			Events: evs, Queue: queue.NewQueue(), Realtime: bus,
 		}
 		hs = append(hs, fulfillment.NewCreateCommand(o), fulfillment.NewRefreshCommand(o))
 	}
@@ -295,7 +306,11 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	if err != nil {
 		return err
 	}
-	handlers := append(append(newEvents().JobHandlers(), cleanup.Handlers()...), inbound...)
+	evs, err := newEvents()
+	if err != nil {
+		return err
+	}
+	handlers := append(append(evs.JobHandlers(), cleanup.Handlers()...), inbound...)
 	handlers = append(handlers, inventory.NewReconcileHandler(queue.NewQueue()))
 	w := queue.NewWorker(d, handlers, queue.WorkerOptions{
 		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
@@ -427,9 +442,13 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 		if err != nil {
 			return fmt.Errorf("dựng kho tệp: %w", err)
 		}
+		evs, err := newEvents()
+		if err != nil {
+			return err
+		}
 		handler = httpapi.NewServer(httpapi.Deps{
 			Config: cfg, DB: d, Logger: logger, Access: access, Files: store,
-			Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop}, Events: newEvents(), Metrics: reg,
+			Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop}, Events: evs, Metrics: reg,
 		})
 	} else {
 		h, err := ingestHandler(cfg, d, reg, logger)

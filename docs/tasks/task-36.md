@@ -20,6 +20,13 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
   `./internal/platform/schedules/...` (không đổi mã nhưng test lịch chạy với migration mới), gói phụ thuộc ngược
   (`order`, `fulfillment`, `httpapi`), `tests/e2e` (TestWorkerRoleRunsSchedules), `tests/arch`; cuối cùng `make ci` một lần.
 
+**Lượt 2 (gộp main 37a25a1, Task 32 sổ COD):** không đổi ký hiệu Go nào của Task 36. Xung đột duy nhất ở
+`cmd/crm/main.go` (`runWorker`): main đổi `newEvents()` thành trả `(*events.Registry, error)`; giữ cách gọi mới của main
+và giữ dòng đăng ký `inventory.NewReconcileHandler`. Mã sinh: `make gen` thêm `InventoryReconcileRun(sV)` vào
+`internal/modules/cash/internal/store/models.go` (sqlc chép mọi bảng vào mỗi module). Migration 0119 (main) và 0122
+(task này) không đụng nhau. Test sẽ chạy: `go test -race ./cmd/crm/... ./internal/modules/inventory/... ./internal/modules/cash/...`,
+rồi `make ci` một lần.
+
 ## Tái dùng
 
 - Đã kiểm trong danh mục dùng chung và tìm theo tên, theo việc: `schedules.Registry.Define`/`Ticker` (lịch theo tenant),
@@ -31,6 +38,8 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
   migration, D2). Lệnh cảnh báo lệch sổ dùng lại phần gửi của lệnh thiếu hàng (tách thành hàm chung trong gói, commit
   cấu trúc riêng) thay vì chép. Câu đối chiếu viết mới vì chưa có câu sản phẩm nào so sổ với số dư; hai helper test
   cùng việc giữ nguyên (test của task khác, đổi ngoài phạm vi).
+
+Lượt 2: không viết mã mới, không có gì để tái dùng thêm; giải xung đột giữ đủ đăng ký của hai bên.
 
 ## Soát thiết kế
 
@@ -66,6 +75,9 @@ Mục 6:
 - 6.12 Dữ liệu cá nhân: `mismatches` chỉ có mã biến thể, mã kho, tên phép so, ngăn, hai số; văn bản cảnh báo chỉ có số.
 - 6.13 Quyền: không có đường HTTP; crm_app chỉ được SELECT, INSERT `reconcile_runs` (không UPDATE, DELETE).
 
+Lượt 2: chỉ gộp main; thiết kế không đổi (mục 5, 6 ở trên giữ nguyên). Kiểm lại: worker vẫn đăng ký handler
+đối chiếu cùng consumer sự kiện của sổ COD (5.2, 5.4 không đổi).
+
 ## Bằng chứng
 
 | Tiêu chí | Test | Lệnh | Kết quả |
@@ -78,6 +90,7 @@ Mục 6:
 | Cả bộ vùng tồn kho và gói nối | toàn bộ test `inventory`, `cmd/crm` | `go test -race -count=1 ./internal/modules/inventory/... ./cmd/crm/...` | `ok elimaz.com.vn/crm/internal/modules/inventory 62.413s` |
 | Gói phụ thuộc ngược, lịch, e2e worker, kiến trúc (bản đã merge main cc42a68) | order, fulfillment, httpapi, schedules, e2e, arch | `make ci` (bước test) | `ok …/order 135.692s`, `ok …/fulfillment 46.101s`, `ok …/httpapi 255.609s`, `ok …/platform/schedules 64.538s`, `ok …/tests/e2e 68.289s`, `ok …/tests/arch 23.594s` |
 | Cổng kiểm còn lại | build, vet, lint, gen-check, sqlc-vet, vuln, oasdiff, catalog-check, jscpd, test-guard, gitleaks, console-check | `make ci` rồi `make vuln oasdiff catalog-check jscpd test-guard gitleaks console-check` | build…sqlc-vet qua trong `make ci`; lượt sau `exit=0`, `no leaks found`. Bước test của `make ci` có 1 lỗi ngoài phạm vi: `TestImager_HangKilledWithinDeadline` (xem Việc phát hiện thêm), chạy riêng 3 lần đều `ok` |
+| Lượt 2: bản đã gộp main 37a25a1 (Task 32) — xung đột `cmd/crm/main.go` giải giữ cả hai; mã sinh khớp | gói nối, kho, COD, phụ thuộc ngược, e2e, kiến trúc; gen-check | `go test -race -count=1 ./cmd/crm/... ./internal/modules/cash/...` rồi `make ci` | `ok …/cmd/crm 1.532s`, `ok …/cash 17.983s`; `make ci` `exit=0`: `ok …/inventory 261.293s`, `ok …/cash 51.314s`, `ok …/order 76.560s`, `ok …/fulfillment 24.400s`, `ok …/httpapi 209.716s`, `ok …/schedules 66.590s`, `ok …/tests/e2e 86.409s`, `ok …/tests/arch 23.831s`, `ok …/internal/imager 9.916s`, `no leaks found` |
 
 ## Test bị xóa hoặc tắt
 
@@ -128,3 +141,8 @@ cc42a68): **ĐẠT**. Không phát hiện về tính đúng: keyset và một sn
 `ON CONFLICT DO NOTHING`, migration 0122 chạy được nhờ `WithAllowOutofOrder`, cảnh báo không có dữ liệu cá nhân, quyền
 crm_app chỉ SELECT/INSERT. Hai ghi chú không bắt buộc (sổ dài nhiều năm; khóa cảnh báo cố định) đã chép vào "Việc phát
 hiện thêm".
+
+Lượt 2 (gộp main 37a25a1, Task 32 sổ COD; giải xung đột `cmd/crm/main.go` `runWorker`, `make gen`): **ĐẠT**. Không
+phát hiện về tính đúng: `newEvents()` theo chữ ký mới của main ở cả ba chỗ gọi, lịch và handler đối chiếu tồn giữ
+nguyên, `cash/internal/store/models.go` chỉ thêm hai kiểu đối chiếu do sqlc sinh, migration 0119 và 0122 không đụng
+nhau. Ghi chú không bắt buộc: `newEvents()` dựng ba registry riêng (cách của main, không do bản gộp).

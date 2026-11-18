@@ -12,6 +12,35 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type CashCodBalancesV struct {
+	ShipmentID uuid.UUID
+	Account    string
+	Balance    int64
+}
+
+type CashCodLedgerEntry struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	TransferID uuid.UUID
+	Account    string
+	Amount     int64
+	CreatedAt  time.Time
+}
+
+type CashCodTransfer struct {
+	ID                 uuid.UUID
+	TenantID           uuid.UUID
+	ShipmentID         uuid.UUID
+	Kind               string
+	StatementLineID    pgtype.UUID
+	ReversesTransferID pgtype.UUID
+	IdempotencyKey     string
+	Reason             string
+	ActorType          string
+	ActorID            pgtype.UUID
+	CreatedAt          time.Time
+}
+
 type CatalogAttribute struct {
 	ID        uuid.UUID
 	TenantID  uuid.UUID
