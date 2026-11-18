@@ -69,6 +69,29 @@ func (q *Queries) GetProduct(ctx context.Context, arg GetProductParams) (GetProd
 	return i, err
 }
 
+const getProductCategory = `-- name: GetProductCategory :one
+SELECT category_id, version
+FROM catalog.products
+WHERE seller_id = $1 AND id = $2 AND deleted_at IS NULL
+`
+
+type GetProductCategoryParams struct {
+	SellerID uuid.UUID
+	ID       uuid.UUID
+}
+
+type GetProductCategoryRow struct {
+	CategoryID *uuid.UUID
+	Version    int64
+}
+
+func (q *Queries) GetProductCategory(ctx context.Context, arg GetProductCategoryParams) (GetProductCategoryRow, error) {
+	row := q.db.QueryRow(ctx, getProductCategory, arg.SellerID, arg.ID)
+	var i GetProductCategoryRow
+	err := row.Scan(&i.CategoryID, &i.Version)
+	return i, err
+}
+
 const insertProduct = `-- name: InsertProduct :one
 
 INSERT INTO catalog.products (tenant_id, seller_id, code, name, name_search, description, article, status)
@@ -142,6 +165,27 @@ func (q *Queries) LockProduct(ctx context.Context, id uuid.UUID) (LockProductRow
 		&i.Version,
 	)
 	return i, err
+}
+
+const setProductCategory = `-- name: SetProductCategory :one
+UPDATE catalog.products
+SET category_id = $1, version = version + 1, updated_at = now()
+WHERE id = $2 AND version = $3
+RETURNING version
+`
+
+type SetProductCategoryParams struct {
+	CategoryID *uuid.UUID
+	ID         uuid.UUID
+	Version    int64
+}
+
+// Phân loại mẫu (Task M1-34): đổi danh mục, version tăng (Seq của product.updated).
+func (q *Queries) SetProductCategory(ctx context.Context, arg SetProductCategoryParams) (int64, error) {
+	row := q.db.QueryRow(ctx, setProductCategory, arg.CategoryID, arg.ID, arg.Version)
+	var version int64
+	err := row.Scan(&version)
+	return version, err
 }
 
 const updateProduct = `-- name: UpdateProduct :one

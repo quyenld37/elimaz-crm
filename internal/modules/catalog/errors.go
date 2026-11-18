@@ -28,11 +28,19 @@ var (
 	ErrInvalidPrice = errors.New("catalog: giá không hợp lệ")
 	// ErrInvalidInput: mã, tên, màu, size, SKU, barcode, màu hex hay trạng thái không hợp lệ.
 	ErrInvalidInput = errors.New("catalog: dữ liệu mẫu không hợp lệ")
+	// ErrCategoryCycle: cha mới của danh mục là chính nó hay nằm trong cây con của nó.
+	ErrCategoryCycle = errors.New("catalog: danh mục thành con của chính nó")
+	// ErrCategoryTooDeep: danh mục (hay cây con sau khi chuyển) quá MaxCategoryDepth cấp.
+	ErrCategoryTooDeep = errors.New("catalog: danh mục quá số cấp cho phép")
+	// ErrCategoryInUse: danh mục còn danh mục con active hay mẫu active, chưa lưu trữ được.
+	ErrCategoryInUse = errors.New("catalog: danh mục đang được dùng")
+	// ErrAlreadyExists: trùng slug hay tên cùng cha của danh mục, mã thuộc tính, giá trị trong một thuộc tính, mã nhãn.
+	ErrAlreadyExists = errors.New("catalog: đã có mục cùng tên hoặc cùng mã")
 	// ErrInvalidArticle: bài viết sai lược đồ hay vượt giới hạn (cùng giá trị với lỗi của gói article).
 	ErrInvalidArticle = article.ErrInvalid
 )
 
-// Tên ràng buộc unique trong migrations/0114_catalog.sql → sentinel.
+// Tên ràng buộc unique trong migrations/0114_catalog.sql, 0120_catalog_classification.sql → sentinel.
 const (
 	codeUniqueViolation = "23505"
 	codeFKViolation     = "23503"
@@ -55,6 +63,9 @@ func mapWriteError(err error) error {
 			return ErrDuplicateOption
 		case "products_code_key":
 			return ErrCodeTaken
+		case "categories_slug_key", "categories_name_key", "attributes_code_key", "attribute_values_value_key",
+			"tags_code_key":
+			return ErrAlreadyExists
 		}
 	case codeFKViolation:
 		return ErrNotFound // người bán không có trong tenant

@@ -323,6 +323,123 @@ export type Product = {
     variants: Array<Variant>;
 };
 
+/**
+ * Tên danh mục, thuộc tính, nhãn hay giá trị thuộc tính
+ */
+export type ClassName = string;
+
+/**
+ * Mã thuộc tính hay nhãn; CRM chuẩn hóa chữ thường
+ */
+export type ClassCode = string;
+
+/**
+ * Đường dẫn danh mục trên website; CRM chuẩn hóa chữ thường
+ */
+export type CategorySlug = string;
+
+/**
+ * Thứ tự hiển thị (nhỏ trước)
+ */
+export type Position = number;
+
+export type Category = {
+    id: string;
+    /**
+     * Không có là danh mục gốc
+     */
+    parentId?: string;
+    name: string;
+    slug: string;
+    depth: number;
+    position: Position;
+    status: 'active' | 'archived';
+    version: number;
+};
+
+export type CreateCategoryRequest = {
+    name: ClassName;
+    slug?: CategorySlug;
+    parentId?: string;
+    position?: Position;
+};
+
+export type UpdateCategoryRequest = {
+    version: number;
+    name?: ClassName;
+    slug?: CategorySlug;
+    position?: Position;
+    /**
+     * Có trường này là đổi cha; null là lên gốc
+     */
+    parentId?: string | null;
+};
+
+export type VersionRequest = {
+    version: number;
+};
+
+export type AttributeValue = {
+    id: string;
+    attributeId: string;
+    value: string;
+    position: Position;
+};
+
+export type Attribute = {
+    id: string;
+    code: string;
+    name: string;
+    position: Position;
+    values: Array<AttributeValue>;
+};
+
+export type CreateAttributeRequest = {
+    code: ClassCode;
+    name: ClassName;
+    position?: Position;
+};
+
+export type AddAttributeValueRequest = {
+    value: ClassName;
+    position?: Position;
+};
+
+export type Tag = {
+    id: string;
+    code: string;
+    name: string;
+};
+
+export type CreateTagRequest = {
+    code: ClassCode;
+    name: ClassName;
+};
+
+export type SetClassificationRequest = {
+    /**
+     * Version hiện tại của mẫu
+     */
+    version: number;
+    /**
+     * Không có hay null là bỏ danh mục
+     */
+    categoryId?: string | null;
+    attributeValueIds: Array<string>;
+    tagIds: Array<string>;
+};
+
+export type ProductClassification = {
+    productId: string;
+    /**
+     * Version mới của mẫu
+     */
+    version: number;
+    categoryId?: string;
+    attributeValueIds: Array<string>;
+    tagIds: Array<string>;
+};
+
 export type ProductWritable = {
     id: string;
     code: string;
@@ -348,6 +465,10 @@ export type StaffId = string;
 export type ProductId = string;
 
 export type VariantId = string;
+
+export type CategoryId = string;
+
+export type AttributeId = string;
 
 export type HealthLiveData = {
     body?: never;
@@ -1015,3 +1136,303 @@ export type UpdateVariantResponses = {
 };
 
 export type UpdateVariantResponse = UpdateVariantResponses[keyof UpdateVariantResponses];
+
+export type ListCategoriesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/catalog/categories';
+};
+
+export type ListCategoriesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListCategoriesError = ListCategoriesErrors[keyof ListCategoriesErrors];
+
+export type ListCategoriesResponses = {
+    /**
+     * Danh mục
+     */
+    200: Array<Category>;
+};
+
+export type ListCategoriesResponse = ListCategoriesResponses[keyof ListCategoriesResponses];
+
+export type CreateCategoryData = {
+    body: CreateCategoryRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/catalog/categories';
+};
+
+export type CreateCategoryErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateCategoryError = CreateCategoryErrors[keyof CreateCategoryErrors];
+
+export type CreateCategoryResponses = {
+    /**
+     * Danh mục vừa tạo
+     */
+    201: Category;
+};
+
+export type CreateCategoryResponse = CreateCategoryResponses[keyof CreateCategoryResponses];
+
+export type UpdateCategoryData = {
+    body: UpdateCategoryRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/categories/{id}';
+};
+
+export type UpdateCategoryErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UpdateCategoryError = UpdateCategoryErrors[keyof UpdateCategoryErrors];
+
+export type UpdateCategoryResponses = {
+    /**
+     * Danh mục sau khi sửa
+     */
+    200: Category;
+};
+
+export type UpdateCategoryResponse = UpdateCategoryResponses[keyof UpdateCategoryResponses];
+
+export type ArchiveCategoryData = {
+    body: VersionRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/categories/{id}/archive';
+};
+
+export type ArchiveCategoryErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ArchiveCategoryError = ArchiveCategoryErrors[keyof ArchiveCategoryErrors];
+
+export type ArchiveCategoryResponses = {
+    /**
+     * Danh mục đã lưu trữ
+     */
+    200: Category;
+};
+
+export type ArchiveCategoryResponse = ArchiveCategoryResponses[keyof ArchiveCategoryResponses];
+
+export type ListAttributesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/catalog/attributes';
+};
+
+export type ListAttributesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListAttributesError = ListAttributesErrors[keyof ListAttributesErrors];
+
+export type ListAttributesResponses = {
+    /**
+     * Thuộc tính
+     */
+    200: Array<Attribute>;
+};
+
+export type ListAttributesResponse = ListAttributesResponses[keyof ListAttributesResponses];
+
+export type CreateAttributeData = {
+    body: CreateAttributeRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/catalog/attributes';
+};
+
+export type CreateAttributeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateAttributeError = CreateAttributeErrors[keyof CreateAttributeErrors];
+
+export type CreateAttributeResponses = {
+    /**
+     * Thuộc tính vừa tạo
+     */
+    201: Attribute;
+};
+
+export type CreateAttributeResponse = CreateAttributeResponses[keyof CreateAttributeResponses];
+
+export type AddAttributeValueData = {
+    body: AddAttributeValueRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/attributes/{id}/values';
+};
+
+export type AddAttributeValueErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type AddAttributeValueError = AddAttributeValueErrors[keyof AddAttributeValueErrors];
+
+export type AddAttributeValueResponses = {
+    /**
+     * Giá trị vừa thêm
+     */
+    201: AttributeValue;
+};
+
+export type AddAttributeValueResponse = AddAttributeValueResponses[keyof AddAttributeValueResponses];
+
+export type ListTagsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/catalog/tags';
+};
+
+export type ListTagsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListTagsError = ListTagsErrors[keyof ListTagsErrors];
+
+export type ListTagsResponses = {
+    /**
+     * Nhãn
+     */
+    200: Array<Tag>;
+};
+
+export type ListTagsResponse = ListTagsResponses[keyof ListTagsResponses];
+
+export type CreateTagData = {
+    body: CreateTagRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/catalog/tags';
+};
+
+export type CreateTagErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateTagError = CreateTagErrors[keyof CreateTagErrors];
+
+export type CreateTagResponses = {
+    /**
+     * Nhãn vừa tạo
+     */
+    201: Tag;
+};
+
+export type CreateTagResponse = CreateTagResponses[keyof CreateTagResponses];
+
+export type SetProductClassificationData = {
+    body: SetClassificationRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/products/{id}/classification';
+};
+
+export type SetProductClassificationErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SetProductClassificationError = SetProductClassificationErrors[keyof SetProductClassificationErrors];
+
+export type SetProductClassificationResponses = {
+    /**
+     * Phân loại sau khi thay (version mới của mẫu)
+     */
+    200: ProductClassification;
+};
+
+export type SetProductClassificationResponse = SetProductClassificationResponses[keyof SetProductClassificationResponses];

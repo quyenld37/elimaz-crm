@@ -280,3 +280,219 @@ func variantOut(v catalog.Variant) *gen.Variant {
 	}
 	return out
 }
+
+// ListCategories (GET /api/v1/catalog/categories, catalog.read): mọi danh mục của shop.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ListCategories(ctx context.Context) (gen.ListCategoriesRes, error) {
+	var cs []catalog.Category
+	if err := h.catalogRead(ctx, func(tx pgx.Tx) (err error) {
+		cs, err = catalog.ListCategories(ctx, tx)
+		return err //nolint:wrapcheck // catalog đã bọc
+	}); err != nil {
+		return nil, fmt.Errorf("đọc danh mục: %w", err)
+	}
+	out := make(gen.ListCategoriesOKApplicationJSON, 0, len(cs))
+	for _, c := range cs {
+		out = append(out, *categoryOut(c))
+	}
+	return &out, nil
+}
+
+// CreateCategory (POST /api/v1/catalog/categories, catalog.manage) → 201.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) CreateCategory(ctx context.Context, req *gen.CreateCategoryRequest, _ gen.CreateCategoryParams) (gen.CreateCategoryRes, error) {
+	in := catalog.CategoryInput{Name: string(req.Name), Slug: string(req.Slug.Value), Position: int32(req.Position.Value)}
+	if req.ParentId.Set {
+		in.ParentID = &req.ParentId.Value
+	}
+	out, err := h.catalogWrite(ctx, http.StatusCreated, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) (any, error) {
+		c, err := w.CreateCategory(ctx, tx, in, u)
+		return categoryOut(c), err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out.(*gen.Category), nil //nolint:forcetypeassert // fn trên trả *gen.Category
+}
+
+// UpdateCategory (PATCH /api/v1/catalog/categories/{id}, catalog.manage): có trường parentId là đổi cha (null → gốc).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) UpdateCategory(ctx context.Context, req *gen.UpdateCategoryRequest, params gen.UpdateCategoryParams) (gen.UpdateCategoryRes, error) {
+	patch := catalog.CategoryPatch{
+		Name: optString(req.Name.Set, string(req.Name.Value)), Slug: optString(req.Slug.Set, string(req.Slug.Value)),
+		Move: req.ParentId.Set,
+	}
+	if req.Position.Set {
+		p := int32(req.Position.Value)
+		patch.Position = &p
+	}
+	if req.ParentId.Set && !req.ParentId.Null {
+		patch.ParentID = &req.ParentId.Value
+	}
+	out, err := h.catalogWrite(ctx, http.StatusOK, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) (any, error) {
+		c, err := w.UpdateCategory(ctx, tx, params.ID, req.Version, patch, u)
+		return categoryOut(c), err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out.(*gen.Category), nil //nolint:forcetypeassert // fn trên trả *gen.Category
+}
+
+// ArchiveCategory (POST /api/v1/catalog/categories/{id}/archive, catalog.manage).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ArchiveCategory(ctx context.Context, req *gen.VersionRequest, params gen.ArchiveCategoryParams) (gen.ArchiveCategoryRes, error) {
+	out, err := h.catalogWrite(ctx, http.StatusOK, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) (any, error) {
+		c, err := w.ArchiveCategory(ctx, tx, params.ID, req.Version, u)
+		return categoryOut(c), err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out.(*gen.Category), nil //nolint:forcetypeassert // fn trên trả *gen.Category
+}
+
+// ListAttributes (GET /api/v1/catalog/attributes, catalog.read): thuộc tính kèm giá trị.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ListAttributes(ctx context.Context) (gen.ListAttributesRes, error) {
+	var as []catalog.Attribute
+	if err := h.catalogRead(ctx, func(tx pgx.Tx) (err error) {
+		as, err = catalog.ListAttributes(ctx, tx)
+		return err //nolint:wrapcheck // catalog đã bọc
+	}); err != nil {
+		return nil, fmt.Errorf("đọc thuộc tính: %w", err)
+	}
+	out := make(gen.ListAttributesOKApplicationJSON, 0, len(as))
+	for _, a := range as {
+		out = append(out, *attributeOut(a))
+	}
+	return &out, nil
+}
+
+// CreateAttribute (POST /api/v1/catalog/attributes, catalog.manage) → 201.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) CreateAttribute(ctx context.Context, req *gen.CreateAttributeRequest, _ gen.CreateAttributeParams) (gen.CreateAttributeRes, error) {
+	in := catalog.AttributeInput{Code: string(req.Code), Name: string(req.Name), Position: int32(req.Position.Value)}
+	out, err := h.catalogWrite(ctx, http.StatusCreated, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) (any, error) {
+		a, err := w.CreateAttribute(ctx, tx, in, u)
+		return attributeOut(a), err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out.(*gen.Attribute), nil //nolint:forcetypeassert // fn trên trả *gen.Attribute
+}
+
+// AddAttributeValue (POST /api/v1/catalog/attributes/{id}/values, catalog.manage) → 201.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) AddAttributeValue(ctx context.Context, req *gen.AddAttributeValueRequest, params gen.AddAttributeValueParams) (gen.AddAttributeValueRes, error) {
+	in := catalog.AttributeValueInput{Value: string(req.Value), Position: int32(req.Position.Value)}
+	out, err := h.catalogWrite(ctx, http.StatusCreated, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) (any, error) {
+		v, err := w.AddAttributeValue(ctx, tx, params.ID, in, u)
+		return attributeValueOut(v), err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out.(*gen.AttributeValue), nil //nolint:forcetypeassert // fn trên trả *gen.AttributeValue
+}
+
+// ListTags (GET /api/v1/catalog/tags, catalog.read).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ListTags(ctx context.Context) (gen.ListTagsRes, error) {
+	var ts []catalog.Tag
+	if err := h.catalogRead(ctx, func(tx pgx.Tx) (err error) {
+		ts, err = catalog.ListTags(ctx, tx)
+		return err //nolint:wrapcheck // catalog đã bọc
+	}); err != nil {
+		return nil, fmt.Errorf("đọc nhãn: %w", err)
+	}
+	out := make(gen.ListTagsOKApplicationJSON, 0, len(ts))
+	for _, t := range ts {
+		out = append(out, gen.Tag{ID: t.ID, Code: t.Code, Name: t.Name})
+	}
+	return &out, nil
+}
+
+// CreateTag (POST /api/v1/catalog/tags, catalog.manage) → 201.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) CreateTag(ctx context.Context, req *gen.CreateTagRequest, _ gen.CreateTagParams) (gen.CreateTagRes, error) {
+	in := catalog.TagInput{Code: string(req.Code), Name: string(req.Name)}
+	out, err := h.catalogWrite(ctx, http.StatusCreated, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) (any, error) {
+		t, err := w.CreateTag(ctx, tx, in, u)
+		return &gen.Tag{ID: t.ID, Code: t.Code, Name: t.Name}, err //nolint:wrapcheck // sentinel của catalog
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out.(*gen.Tag), nil //nolint:forcetypeassert // fn trên trả *gen.Tag
+}
+
+// SetProductClassification (PUT /api/v1/catalog/products/{id}/classification, catalog.manage) thay toàn bộ phân loại
+// của mẫu khi version còn khớp.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) SetProductClassification(ctx context.Context, req *gen.SetClassificationRequest, params gen.SetProductClassificationParams) (gen.SetProductClassificationRes, error) {
+	c := catalog.Classification{AttributeValueIDs: req.AttributeValueIds, TagIDs: req.TagIds}
+	if req.CategoryId.Set && !req.CategoryId.Null {
+		c.CategoryID = &req.CategoryId.Value
+	}
+	out, err := h.catalogWrite(ctx, http.StatusOK, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) (any, error) {
+		pc, err := w.SetClassification(ctx, tx, params.ID, req.Version, c, u)
+		if err != nil {
+			return nil, err //nolint:wrapcheck // sentinel của catalog
+		}
+		res := &gen.ProductClassification{
+			ProductId: pc.ProductID, Version: pc.Version, AttributeValueIds: pc.AttributeValueIDs, TagIds: pc.TagIDs,
+		}
+		if pc.CategoryID != nil {
+			res.CategoryId = gen.NewOptUUID(*pc.CategoryID)
+		}
+		return res, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out.(*gen.ProductClassification), nil //nolint:forcetypeassert // fn trên trả *gen.ProductClassification
+}
+
+// catalogRead chạy fn trong tenancy.WithTenant của người gọi (đọc phân loại dùng chung cả cửa hàng).
+func (h *handler) catalogRead(ctx context.Context, fn func(tx pgx.Tx) error) error {
+	u, ok := authUser(ctx)
+	if !ok {
+		return errNoAuthUser
+	}
+	return tenancy.WithTenant(ctx, h.d.DB, u.TenantID, fn, db.TxAPI) //nolint:wrapcheck // bên gọi bọc
+}
+
+func categoryOut(c catalog.Category) *gen.Category {
+	out := &gen.Category{
+		ID: c.ID, Name: c.Name, Slug: c.Slug, Depth: c.Depth, Position: gen.Position(c.Position),
+		Status: gen.CategoryStatus(c.Status), Version: c.Version,
+	}
+	if c.ParentID != nil {
+		out.ParentId = gen.NewOptUUID(*c.ParentID)
+	}
+	return out
+}
+
+func attributeOut(a catalog.Attribute) *gen.Attribute {
+	values := make([]gen.AttributeValue, 0, len(a.Values))
+	for _, v := range a.Values {
+		values = append(values, *attributeValueOut(v))
+	}
+	return &gen.Attribute{ID: a.ID, Code: a.Code, Name: a.Name, Position: gen.Position(a.Position), Values: values}
+}
+
+func attributeValueOut(v catalog.AttributeValue) *gen.AttributeValue {
+	return &gen.AttributeValue{ID: v.ID, AttributeId: v.AttributeID, Value: v.Value, Position: gen.Position(v.Position)}
+}

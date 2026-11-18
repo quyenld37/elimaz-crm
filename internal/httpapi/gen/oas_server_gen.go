@@ -14,12 +14,24 @@ type Handler interface {
 	//
 	// POST /api/v1/platform/jobs/{id}/abandon
 	AbandonJob(ctx context.Context, params AbandonJobParams) (AbandonJobRes, error)
+	// AddAttributeValue implements addAttributeValue operation.
+	//
+	// Thêm giá trị vào thuộc tính (không trùng trong một thuộc tính).
+	//
+	// POST /api/v1/catalog/attributes/{id}/values
+	AddAttributeValue(ctx context.Context, req *AddAttributeValueRequest, params AddAttributeValueParams) (AddAttributeValueRes, error)
 	// AddVariant implements addVariant operation.
 	//
 	// Thêm biến thể vào mẫu khi version của mẫu còn khớp.
 	//
 	// POST /api/v1/catalog/products/{id}/variants
 	AddVariant(ctx context.Context, req *AddVariantRequest, params AddVariantParams) (AddVariantRes, error)
+	// ArchiveCategory implements archiveCategory operation.
+	//
+	// Lưu trữ danh mục khi không còn danh mục con active hay mẫu active.
+	//
+	// POST /api/v1/catalog/categories/{id}/archive
+	ArchiveCategory(ctx context.Context, req *VersionRequest, params ArchiveCategoryParams) (ArchiveCategoryRes, error)
 	// CompleteUpload implements completeUpload operation.
 	//
 	// Báo đã tải xong; máy chủ kiểm kho rồi chuyển tệp sang uploaded (ảnh thì xếp
@@ -27,6 +39,18 @@ type Handler interface {
 	//
 	// POST /api/v1/files/{id}/complete
 	CompleteUpload(ctx context.Context, params CompleteUploadParams) (CompleteUploadRes, error)
+	// CreateAttribute implements createAttribute operation.
+	//
+	// Tạo thuộc tính (mã chữ thường, không trùng).
+	//
+	// POST /api/v1/catalog/attributes
+	CreateAttribute(ctx context.Context, req *CreateAttributeRequest, params CreateAttributeParams) (CreateAttributeRes, error)
+	// CreateCategory implements createCategory operation.
+	//
+	// Tạo danh mục (tối đa 3 cấp; slug để trống thì sinh từ tên).
+	//
+	// POST /api/v1/catalog/categories
+	CreateCategory(ctx context.Context, req *CreateCategoryRequest, params CreateCategoryParams) (CreateCategoryRes, error)
 	// CreateProduct implements createProduct operation.
 	//
 	// Tạo mẫu sản phẩm kèm biến thể màu/size (barcode để trống thì CRM tự sinh
@@ -40,6 +64,12 @@ type Handler interface {
 	//
 	// POST /api/v1/identity/users
 	CreateStaff(ctx context.Context, req *CreateStaffRequest, params CreateStaffParams) (CreateStaffRes, error)
+	// CreateTag implements createTag operation.
+	//
+	// Tạo nhãn kệ hàng (mã chữ thường, không trùng).
+	//
+	// POST /api/v1/catalog/tags
+	CreateTag(ctx context.Context, req *CreateTagRequest, params CreateTagParams) (CreateTagRes, error)
 	// CreateUpload implements createUpload operation.
 	//
 	// Xin đường dẫn ký sẵn để trình duyệt tải thẳng một tệp lên kho (chỉ mục
@@ -92,6 +122,19 @@ type Handler interface {
 	//
 	// GET /health/ready
 	HealthReady(ctx context.Context) (HealthReadyRes, error)
+	// ListAttributes implements listAttributes operation.
+	//
+	// Mọi thuộc tính của shop kèm giá trị, theo vị trí.
+	//
+	// GET /api/v1/catalog/attributes
+	ListAttributes(ctx context.Context) (ListAttributesRes, error)
+	// ListCategories implements listCategories operation.
+	//
+	// Mọi danh mục của shop (cả đã lưu trữ) theo cấp, vị trí, tên; màn hình dựng
+	// cây từ parentId.
+	//
+	// GET /api/v1/catalog/categories
+	ListCategories(ctx context.Context) (ListCategoriesRes, error)
 	// ListJobs implements listJobs operation.
 	//
 	// Việc nền cần người xử lý của tenant người gọi (không có payload).
@@ -110,6 +153,12 @@ type Handler interface {
 	//
 	// GET /api/v1/identity/users
 	ListStaff(ctx context.Context) (ListStaffRes, error)
+	// ListTags implements listTags operation.
+	//
+	// Mọi nhãn kệ hàng của shop theo mã.
+	//
+	// GET /api/v1/catalog/tags
+	ListTags(ctx context.Context) (ListTagsRes, error)
 	// LockStaff implements lockStaff operation.
 	//
 	// Khóa nhân viên (không khóa Chủ còn hoạt động cuối cùng).
@@ -129,6 +178,13 @@ type Handler interface {
 	//
 	// POST /api/v1/platform/jobs/{id}/retry
 	RetryJob(ctx context.Context, params RetryJobParams) (RetryJobRes, error)
+	// SetProductClassification implements setProductClassification operation.
+	//
+	// Thay toàn bộ danh mục, giá trị thuộc tính, nhãn của mẫu khi version của mẫu còn
+	// khớp.
+	//
+	// PUT /api/v1/catalog/products/{id}/classification
+	SetProductClassification(ctx context.Context, req *SetClassificationRequest, params SetProductClassificationParams) (SetProductClassificationRes, error)
 	// Stream implements stream operation.
 	//
 	// Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 16).
@@ -141,6 +197,13 @@ type Handler interface {
 	//
 	// POST /api/v1/identity/users/{id}/unlock
 	UnlockStaff(ctx context.Context, params UnlockStaffParams) (UnlockStaffRes, error)
+	// UpdateCategory implements updateCategory operation.
+	//
+	// Sửa tên, slug, vị trí, cha của danh mục khi version còn khớp (không thành con của
+	// chính nó, cả cây con tối đa 3 cấp).
+	//
+	// PATCH /api/v1/catalog/categories/{id}
+	UpdateCategory(ctx context.Context, req *UpdateCategoryRequest, params UpdateCategoryParams) (UpdateCategoryRes, error)
 	// UpdateProduct implements updateProduct operation.
 	//
 	// Sửa tên, mô tả, bài viết, trạng thái của mẫu khi version còn khớp.

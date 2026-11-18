@@ -22,12 +22,30 @@ func (UnimplementedHandler) AbandonJob(ctx context.Context, params AbandonJobPar
 	return r, ht.ErrNotImplemented
 }
 
+// AddAttributeValue implements addAttributeValue operation.
+//
+// Thêm giá trị vào thuộc tính (không trùng trong một thuộc tính).
+//
+// POST /api/v1/catalog/attributes/{id}/values
+func (UnimplementedHandler) AddAttributeValue(ctx context.Context, req *AddAttributeValueRequest, params AddAttributeValueParams) (r AddAttributeValueRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // AddVariant implements addVariant operation.
 //
 // Thêm biến thể vào mẫu khi version của mẫu còn khớp.
 //
 // POST /api/v1/catalog/products/{id}/variants
 func (UnimplementedHandler) AddVariant(ctx context.Context, req *AddVariantRequest, params AddVariantParams) (r AddVariantRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ArchiveCategory implements archiveCategory operation.
+//
+// Lưu trữ danh mục khi không còn danh mục con active hay mẫu active.
+//
+// POST /api/v1/catalog/categories/{id}/archive
+func (UnimplementedHandler) ArchiveCategory(ctx context.Context, req *VersionRequest, params ArchiveCategoryParams) (r ArchiveCategoryRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -38,6 +56,24 @@ func (UnimplementedHandler) AddVariant(ctx context.Context, req *AddVariantReque
 //
 // POST /api/v1/files/{id}/complete
 func (UnimplementedHandler) CompleteUpload(ctx context.Context, params CompleteUploadParams) (r CompleteUploadRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateAttribute implements createAttribute operation.
+//
+// Tạo thuộc tính (mã chữ thường, không trùng).
+//
+// POST /api/v1/catalog/attributes
+func (UnimplementedHandler) CreateAttribute(ctx context.Context, req *CreateAttributeRequest, params CreateAttributeParams) (r CreateAttributeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateCategory implements createCategory operation.
+//
+// Tạo danh mục (tối đa 3 cấp; slug để trống thì sinh từ tên).
+//
+// POST /api/v1/catalog/categories
+func (UnimplementedHandler) CreateCategory(ctx context.Context, req *CreateCategoryRequest, params CreateCategoryParams) (r CreateCategoryRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -57,6 +93,15 @@ func (UnimplementedHandler) CreateProduct(ctx context.Context, req *CreateProduc
 //
 // POST /api/v1/identity/users
 func (UnimplementedHandler) CreateStaff(ctx context.Context, req *CreateStaffRequest, params CreateStaffParams) (r CreateStaffRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateTag implements createTag operation.
+//
+// Tạo nhãn kệ hàng (mã chữ thường, không trùng).
+//
+// POST /api/v1/catalog/tags
+func (UnimplementedHandler) CreateTag(ctx context.Context, req *CreateTagRequest, params CreateTagParams) (r CreateTagRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -136,6 +181,25 @@ func (UnimplementedHandler) HealthReady(ctx context.Context) (r HealthReadyRes, 
 	return r, ht.ErrNotImplemented
 }
 
+// ListAttributes implements listAttributes operation.
+//
+// Mọi thuộc tính của shop kèm giá trị, theo vị trí.
+//
+// GET /api/v1/catalog/attributes
+func (UnimplementedHandler) ListAttributes(ctx context.Context) (r ListAttributesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListCategories implements listCategories operation.
+//
+// Mọi danh mục của shop (cả đã lưu trữ) theo cấp, vị trí, tên; màn hình dựng
+// cây từ parentId.
+//
+// GET /api/v1/catalog/categories
+func (UnimplementedHandler) ListCategories(ctx context.Context) (r ListCategoriesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListJobs implements listJobs operation.
 //
 // Việc nền cần người xử lý của tenant người gọi (không có payload).
@@ -160,6 +224,15 @@ func (UnimplementedHandler) ListRoles(ctx context.Context) (r ListRolesRes, _ er
 //
 // GET /api/v1/identity/users
 func (UnimplementedHandler) ListStaff(ctx context.Context) (r ListStaffRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListTags implements listTags operation.
+//
+// Mọi nhãn kệ hàng của shop theo mã.
+//
+// GET /api/v1/catalog/tags
+func (UnimplementedHandler) ListTags(ctx context.Context) (r ListTagsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -191,6 +264,16 @@ func (UnimplementedHandler) RetryJob(ctx context.Context, params RetryJobParams)
 	return r, ht.ErrNotImplemented
 }
 
+// SetProductClassification implements setProductClassification operation.
+//
+// Thay toàn bộ danh mục, giá trị thuộc tính, nhãn của mẫu khi version của mẫu còn
+// khớp.
+//
+// PUT /api/v1/catalog/products/{id}/classification
+func (UnimplementedHandler) SetProductClassification(ctx context.Context, req *SetClassificationRequest, params SetProductClassificationParams) (r SetProductClassificationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // Stream implements stream operation.
 //
 // Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 16).
@@ -206,6 +289,16 @@ func (UnimplementedHandler) Stream(ctx context.Context) (r StreamRes, _ error) {
 //
 // POST /api/v1/identity/users/{id}/unlock
 func (UnimplementedHandler) UnlockStaff(ctx context.Context, params UnlockStaffParams) (r UnlockStaffRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateCategory implements updateCategory operation.
+//
+// Sửa tên, slug, vị trí, cha của danh mục khi version còn khớp (không thành con của
+// chính nó, cả cây con tối đa 3 cấp).
+//
+// PATCH /api/v1/catalog/categories/{id}
+func (UnimplementedHandler) UpdateCategory(ctx context.Context, req *UpdateCategoryRequest, params UpdateCategoryParams) (r UpdateCategoryRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

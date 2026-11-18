@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, AddVariantData, AddVariantErrors, AddVariantResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateProductData, CreateProductErrors, CreateProductResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, CreateUploadData, CreateUploadErrors, CreateUploadResponses, GetFileData, GetFileErrors, GetFileResponses, GetMeData, GetMeErrors, GetMeResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, GetProductData, GetProductErrors, GetProductResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListStaffData, ListStaffErrors, ListStaffResponses, LockStaffData, LockStaffErrors, LockStaffResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, RetryJobData, RetryJobErrors, RetryJobResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses, UpdateProductData, UpdateProductErrors, UpdateProductResponses, UpdateVariantData, UpdateVariantErrors, UpdateVariantResponses } from './types.gen';
+import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, AddAttributeValueData, AddAttributeValueErrors, AddAttributeValueResponses, AddVariantData, AddVariantErrors, AddVariantResponses, ArchiveCategoryData, ArchiveCategoryErrors, ArchiveCategoryResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateAttributeData, CreateAttributeErrors, CreateAttributeResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateProductData, CreateProductErrors, CreateProductResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, CreateTagData, CreateTagErrors, CreateTagResponses, CreateUploadData, CreateUploadErrors, CreateUploadResponses, GetFileData, GetFileErrors, GetFileResponses, GetMeData, GetMeErrors, GetMeResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, GetProductData, GetProductErrors, GetProductResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ListAttributesData, ListAttributesErrors, ListAttributesResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListStaffData, ListStaffErrors, ListStaffResponses, ListTagsData, ListTagsErrors, ListTagsResponses, LockStaffData, LockStaffErrors, LockStaffResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, RetryJobData, RetryJobErrors, RetryJobResponses, SetProductClassificationData, SetProductClassificationErrors, SetProductClassificationResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateProductData, UpdateProductErrors, UpdateProductResponses, UpdateVariantData, UpdateVariantErrors, UpdateVariantResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -177,6 +177,105 @@ export const addVariant = <ThrowOnError extends boolean = false>(options: Option
  */
 export const updateVariant = <ThrowOnError extends boolean = false>(options: Options<UpdateVariantData, ThrowOnError>): RequestResult<UpdateVariantResponses, UpdateVariantErrors, ThrowOnError> => (options.client ?? client).patch<UpdateVariantResponses, UpdateVariantErrors, ThrowOnError>({
     url: '/api/v1/catalog/variants/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Mọi danh mục của shop (cả đã lưu trữ) theo cấp, vị trí, tên; màn hình dựng cây từ parentId
+ */
+export const listCategories = <ThrowOnError extends boolean = false>(options?: Options<ListCategoriesData, ThrowOnError>): RequestResult<ListCategoriesResponses, ListCategoriesErrors, ThrowOnError> => (options?.client ?? client).get<ListCategoriesResponses, ListCategoriesErrors, ThrowOnError>({ url: '/api/v1/catalog/categories', ...options });
+
+/**
+ * Tạo danh mục (tối đa 3 cấp; slug để trống thì sinh từ tên)
+ */
+export const createCategory = <ThrowOnError extends boolean = false>(options: Options<CreateCategoryData, ThrowOnError>): RequestResult<CreateCategoryResponses, CreateCategoryErrors, ThrowOnError> => (options.client ?? client).post<CreateCategoryResponses, CreateCategoryErrors, ThrowOnError>({
+    url: '/api/v1/catalog/categories',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Sửa tên, slug, vị trí, cha của danh mục khi version còn khớp (không thành con của chính nó, cả cây con tối đa 3 cấp)
+ */
+export const updateCategory = <ThrowOnError extends boolean = false>(options: Options<UpdateCategoryData, ThrowOnError>): RequestResult<UpdateCategoryResponses, UpdateCategoryErrors, ThrowOnError> => (options.client ?? client).patch<UpdateCategoryResponses, UpdateCategoryErrors, ThrowOnError>({
+    url: '/api/v1/catalog/categories/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Lưu trữ danh mục khi không còn danh mục con active hay mẫu active
+ */
+export const archiveCategory = <ThrowOnError extends boolean = false>(options: Options<ArchiveCategoryData, ThrowOnError>): RequestResult<ArchiveCategoryResponses, ArchiveCategoryErrors, ThrowOnError> => (options.client ?? client).post<ArchiveCategoryResponses, ArchiveCategoryErrors, ThrowOnError>({
+    url: '/api/v1/catalog/categories/{id}/archive',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Mọi thuộc tính của shop kèm giá trị, theo vị trí
+ */
+export const listAttributes = <ThrowOnError extends boolean = false>(options?: Options<ListAttributesData, ThrowOnError>): RequestResult<ListAttributesResponses, ListAttributesErrors, ThrowOnError> => (options?.client ?? client).get<ListAttributesResponses, ListAttributesErrors, ThrowOnError>({ url: '/api/v1/catalog/attributes', ...options });
+
+/**
+ * Tạo thuộc tính (mã chữ thường, không trùng)
+ */
+export const createAttribute = <ThrowOnError extends boolean = false>(options: Options<CreateAttributeData, ThrowOnError>): RequestResult<CreateAttributeResponses, CreateAttributeErrors, ThrowOnError> => (options.client ?? client).post<CreateAttributeResponses, CreateAttributeErrors, ThrowOnError>({
+    url: '/api/v1/catalog/attributes',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Thêm giá trị vào thuộc tính (không trùng trong một thuộc tính)
+ */
+export const addAttributeValue = <ThrowOnError extends boolean = false>(options: Options<AddAttributeValueData, ThrowOnError>): RequestResult<AddAttributeValueResponses, AddAttributeValueErrors, ThrowOnError> => (options.client ?? client).post<AddAttributeValueResponses, AddAttributeValueErrors, ThrowOnError>({
+    url: '/api/v1/catalog/attributes/{id}/values',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Mọi nhãn kệ hàng của shop theo mã
+ */
+export const listTags = <ThrowOnError extends boolean = false>(options?: Options<ListTagsData, ThrowOnError>): RequestResult<ListTagsResponses, ListTagsErrors, ThrowOnError> => (options?.client ?? client).get<ListTagsResponses, ListTagsErrors, ThrowOnError>({ url: '/api/v1/catalog/tags', ...options });
+
+/**
+ * Tạo nhãn kệ hàng (mã chữ thường, không trùng)
+ */
+export const createTag = <ThrowOnError extends boolean = false>(options: Options<CreateTagData, ThrowOnError>): RequestResult<CreateTagResponses, CreateTagErrors, ThrowOnError> => (options.client ?? client).post<CreateTagResponses, CreateTagErrors, ThrowOnError>({
+    url: '/api/v1/catalog/tags',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Thay toàn bộ danh mục, giá trị thuộc tính, nhãn của mẫu khi version của mẫu còn khớp
+ */
+export const setProductClassification = <ThrowOnError extends boolean = false>(options: Options<SetProductClassificationData, ThrowOnError>): RequestResult<SetProductClassificationResponses, SetProductClassificationErrors, ThrowOnError> => (options.client ?? client).put<SetProductClassificationResponses, SetProductClassificationErrors, ThrowOnError>({
+    url: '/api/v1/catalog/products/{id}/classification',
     ...options,
     headers: {
         'Content-Type': 'application/json',
