@@ -6,6 +6,10 @@
 // Thoát khác 0, không ghi tệp, và nêu operationId khi một operation thiếu operationId, không có đúng một trong
 // `x-permission: <khóa quyền>` hoặc `x-public: true`, hoặc là operation ghi (POST, PUT, PATCH, DELETE) mà không có
 // tham số `$ref: '#/components/parameters/IdempotencyKey'` (ở operation hoặc ở đường dẫn).
+//
+// Ngoại lệ chống trùng (ADR-47, Q-X5): `x-idempotency: exempt | no-replay` kèm `x-idempotency-reason: "<lý do>"`.
+// Route ghi không khai cờ là "required". Lỗi khi: cờ có giá trị khác; thiếu lý do hoặc lý do rỗng; cờ trên method
+// khác POST; `exempt` vẫn khai IdempotencyKey; `no-replay` không khai IdempotencyKey; có lý do mà không có cờ.
 package main
 
 import (
@@ -24,6 +28,13 @@ import (
 )
 
 const idempotencyKeyRef = "#/components/parameters/IdempotencyKey"
+
+// Chế độ chống trùng của route ghi (ADR-47). Route đọc không có chế độ ("").
+const (
+	modeRequired = "required"
+	modeExempt   = "exempt"
+	modeNoReplay = "no-replay"
+)
 
 var errInvalidContract = errors.New("hợp đồng vi phạm luật route")
 
@@ -63,6 +74,7 @@ func run(args []string, stderr io.Writer) int {
 type route struct {
 	Method, Path, OperationID, Permission string
 	Public, Write, Stream                 bool
+	IdempotencyMode, IdempotencyReason    string
 }
 
 // generate kiểm mọi operation và trả mã Go đã định dạng; lỗi liệt kê mọi vi phạm cùng lúc.
@@ -151,10 +163,50 @@ func checkOperation(path, method string, item *ogen.PathItem, op *ogen.Operation
 		}
 		r.Public = true
 	}
-	if r.Write && !hasIdempotencyKey(item.Parameters) && !hasIdempotencyKey(op.Parameters) {
-		problems = append(problems, name+": operation ghi thiếu tham số $ref '"+idempotencyKeyRef+"' (IdempotencyKey)")
+	hasKey := hasIdempotencyKey(item.Parameters) || hasIdempotencyKey(op.Parameters)
+	mode, reason, errs := idempotencyMode(name, method, ext, hasKey)
+	r.IdempotencyMode, r.IdempotencyReason = mode, reason
+	return r, append(problems, errs...)
+}
+
+// idempotencyMode đọc x-idempotency, x-idempotency-reason (ADR-47) và kiểm luật cùng tham số IdempotencyKey; trả chế
+// độ ("" cho route đọc), lý do đã bỏ khoảng trắng hai đầu, và các vi phạm.
+func idempotencyMode(name, method string, ext ogen.Extensions, hasKey bool) (mode, reason string, problems []string) {
+	modeNode, hasMode := ext["x-idempotency"]
+	if reasonNode, ok := ext["x-idempotency-reason"]; ok {
+		if !hasMode {
+			problems = append(problems, name+": có x-idempotency-reason mà không có x-idempotency")
+		}
+		if reasonNode.Tag == "!!str" {
+			reason = strings.TrimSpace(reasonNode.Value)
+		}
 	}
-	return r, problems
+	if !hasMode {
+		if !isWrite(method) {
+			return "", "", problems
+		}
+		if !hasKey {
+			problems = append(problems, name+": operation ghi thiếu tham số $ref '"+idempotencyKeyRef+"' (IdempotencyKey)")
+		}
+		return modeRequired, "", problems
+	}
+	mode = modeNode.Value
+	if modeNode.Tag != "!!str" || (mode != modeExempt && mode != modeNoReplay) {
+		return "", "", append(problems, name+": x-idempotency chỉ nhận exempt hoặc no-replay, có "+strconv.Quote(modeNode.Value))
+	}
+	if reason == "" {
+		problems = append(problems, name+": x-idempotency: "+mode+" cần x-idempotency-reason không rỗng")
+	}
+	if method != "POST" {
+		problems = append(problems, name+": x-idempotency: "+mode+" chỉ cho POST, có "+method)
+	}
+	switch {
+	case mode == modeExempt && hasKey:
+		problems = append(problems, name+": x-idempotency: exempt không được khai tham số IdempotencyKey")
+	case mode == modeNoReplay && !hasKey:
+		problems = append(problems, name+": x-idempotency: no-replay vẫn phải khai tham số $ref '"+idempotencyKeyRef+"' (IdempotencyKey)")
+	}
+	return mode, reason, problems
 }
 
 func hasIdempotencyKey(params []*ogen.Parameter) bool {
@@ -185,6 +237,11 @@ type Route struct {
 	Public      bool   // x-public: true, bỏ qua auth và guard
 	Write       bool   // POST, PUT, PATCH, DELETE: kiểm origin và khóa chống trùng
 	Stream      bool   // câu trả lời text/event-stream: không đếm vào giới hạn tần suất
+	// IdempotencyMode của route ghi (ADR-41, ADR-47): "required" (mặc định: bắt buộc Idempotency-Key, lưu kết quả),
+	// "exempt" (x-idempotency: exempt, không khóa), "no-replay" (bắt buộc khóa, không lưu thân trả lời). Rỗng với
+	// route đọc.
+	IdempotencyMode   string
+	IdempotencyReason string // x-idempotency-reason khi exempt hoặc no-replay
 }
 
 // Routes là mọi operation của hợp đồng, theo thứ tự đường dẫn rồi method.
@@ -210,6 +267,12 @@ func render(routes []route) ([]byte, error) {
 			if f.on {
 				fields = append(fields, f.name+": true")
 			}
+		}
+		if r.IdempotencyMode != "" {
+			fields = append(fields, "IdempotencyMode: "+strconv.Quote(r.IdempotencyMode))
+		}
+		if r.IdempotencyReason != "" {
+			fields = append(fields, "IdempotencyReason: "+strconv.Quote(r.IdempotencyReason))
 		}
 		b.WriteString("\t{" + strings.Join(fields, ", ") + "},\n")
 	}

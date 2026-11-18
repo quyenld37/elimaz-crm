@@ -12,6 +12,11 @@ type Route struct {
 	Public      bool   // x-public: true, bỏ qua auth và guard
 	Write       bool   // POST, PUT, PATCH, DELETE: kiểm origin và khóa chống trùng
 	Stream      bool   // câu trả lời text/event-stream: không đếm vào giới hạn tần suất
+	// IdempotencyMode của route ghi (ADR-41, ADR-47): "required" (mặc định: bắt buộc Idempotency-Key, lưu kết quả),
+	// "exempt" (x-idempotency: exempt, không khóa), "no-replay" (bắt buộc khóa, không lưu thân trả lời). Rỗng với
+	// route đọc.
+	IdempotencyMode   string
+	IdempotencyReason string // x-idempotency-reason khi exempt hoặc no-replay
 }
 
 // Routes là mọi operation của hợp đồng, theo thứ tự đường dẫn rồi method.
@@ -19,8 +24,8 @@ var Routes = []Route{
 	{Method: "GET", Pattern: "GET /api/v1/me", OperationID: "getMe", Permission: "realtime.subscribe"},
 	{Method: "GET", Pattern: "GET /api/v1/platform/health", OperationID: "getPlatformHealth", Permission: "platform.health.read"},
 	{Method: "GET", Pattern: "GET /api/v1/platform/jobs", OperationID: "listJobs", Permission: "platform.jobs.manage"},
-	{Method: "POST", Pattern: "POST /api/v1/platform/jobs/{id}/abandon", OperationID: "abandonJob", Permission: "platform.jobs.manage", Write: true},
-	{Method: "POST", Pattern: "POST /api/v1/platform/jobs/{id}/retry", OperationID: "retryJob", Permission: "platform.jobs.manage", Write: true},
+	{Method: "POST", Pattern: "POST /api/v1/platform/jobs/{id}/abandon", OperationID: "abandonJob", Permission: "platform.jobs.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "POST", Pattern: "POST /api/v1/platform/jobs/{id}/retry", OperationID: "retryJob", Permission: "platform.jobs.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/stream", OperationID: "stream", Permission: "realtime.subscribe", Stream: true},
 	{Method: "GET", Pattern: "GET /health/deep", OperationID: "healthDeep", Public: true},
 	{Method: "GET", Pattern: "GET /health/live", OperationID: "healthLive", Public: true},

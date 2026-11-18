@@ -2,6 +2,7 @@ package tenancy_test
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -149,4 +150,23 @@ func TestCheckSchemaRulesEachRule(t *testing.T) {
 			}
 		})
 	}
+}
+
+// platform.idempotency_keys có RLS (kế hoạch M0, Global Constraints; ADR-41) nên không nằm trong danh sách miễn: bảng
+// có mặt sau migrate, qua mọi luật, và bỏ FORCE thì CheckSchemaRules báo đúng bảng này.
+func TestCheckSchemaRulesCoversIdempotencyKeys(t *testing.T) {
+	e := newEnv(t, db.PoolOptions{})
+	var n int
+	if err := e.owner.QueryRow(t.Context(),
+		"SELECT count(*) FROM pg_catalog.pg_class WHERE oid = to_regclass('platform.idempotency_keys')").Scan(&n); err != nil || n != 1 {
+		t.Fatalf("platform.idempotency_keys phải có sau migrate: %d, %v", n, err)
+	}
+	if slices.Contains(platformTables(), "platform.idempotency_keys") {
+		t.Fatal("platform.idempotency_keys có RLS, không được nằm trong danh sách miễn")
+	}
+	if got := checkRules(t, e.owner); len(got) != 0 {
+		t.Fatalf("schema sau migrate vi phạm: %v", got)
+	}
+	ownerExec(t, e.owner, "ALTER TABLE platform.idempotency_keys NO FORCE ROW LEVEL SECURITY")
+	requireOneEach(t, checkRules(t, e.owner), "platform.idempotency_keys")
 }

@@ -1,0 +1,19 @@
+openapi: 3.0.3
+info: {title: t, version: "1"}
+paths:
+  /api/v1/service-keys:
+    post:
+      operationId: createServiceKey
+      x-permission: things.write
+      x-idempotency: no-replay
+      x-idempotency-reason: "Trả khóa bí mật một lần; không được lưu thân trả lời"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: {"200": {description: ok}}
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string}

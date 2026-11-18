@@ -1,0 +1,28 @@
+openapi: 3.0.3
+info: {title: t, version: "1"}
+paths:
+  /api/v1/service-keys:
+    post:
+      operationId: noReplayNoReason
+      x-permission: things.write
+      x-idempotency: no-replay
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: {"200": {description: ok}}
+  /api/v1/service-keys/{id}:
+    delete:
+      operationId: noReplayOnDelete
+      x-permission: things.write
+      x-idempotency: no-replay
+      x-idempotency-reason: "không phải POST"
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: {"200": {description: ok}}
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string}

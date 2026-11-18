@@ -30,6 +30,13 @@ func TestRejectsBadContracts(t *testing.T) {
 		{"write-without-key.yaml", []string{"deleteThingNoKey", "IdempotencyKey"}},
 		{"both-markers.yaml", []string{"bothMarkers"}},
 		{"bad-markers.yaml", []string{"publicFalse", "emptyPermission", "GET /api/v1/c", "operationId"}},
+		// ADR-47: mỗi dòng của bảng luật ở điểm 2.
+		{"exempt-no-reason.yaml", []string{"exemptMissingReason", "exemptBlankReason", "reasonWithoutMode", "x-idempotency-reason"}},
+		{"exempt-on-get.yaml", []string{"exemptGet", "exemptPut", "POST"}},
+		{"exempt-with-key.yaml", []string{"exemptWithKey", "IdempotencyKey"}},
+		{"idempotency-unknown.yaml", []string{"unknownMode", "safe"}},
+		{"noreplay-no-key.yaml", []string{"noReplayNoKey", "IdempotencyKey"}},
+		{"noreplay-no-reason.yaml", []string{"noReplayNoReason", "noReplayOnDelete", "x-idempotency-reason", "POST"}},
 	}
 	for _, c := range cases {
 		t.Run(c.file, func(t *testing.T) {
@@ -67,8 +74,8 @@ func TestGeneratesRoutes(t *testing.T) {
 		"type Route struct",
 		`{Method: "GET", Pattern: "GET /health/live", OperationID: "live", Public: true}`,
 		// IdempotencyKey khai ở mức đường dẫn cũng được tính.
-		`{Method: "PUT", Pattern: "PUT /api/v1/things/{id}", OperationID: "putThing", Permission: "things.write", Write: true}`,
-		`{Method: "POST", Pattern: "POST /api/v1/things", OperationID: "createThing", Permission: "things.write", Write: true}`,
+		`{Method: "PUT", Pattern: "PUT /api/v1/things/{id}", OperationID: "putThing", Permission: "things.write", Write: true, IdempotencyMode: "required"}`,
+		`{Method: "POST", Pattern: "POST /api/v1/things", OperationID: "createThing", Permission: "things.write", Write: true, IdempotencyMode: "required"}`,
 		`{Method: "GET", Pattern: "GET /api/v1/events", OperationID: "events", Permission: "things.read", Stream: true}`,
 	} {
 		if !strings.Contains(out, w) {
@@ -79,6 +86,68 @@ func TestGeneratesRoutes(t *testing.T) {
 	_, _, again := runGen(t, filepath.Join("testdata", "ok.yaml"))
 	if again != out {
 		t.Fatal("hai lần sinh khác nhau")
+	}
+}
+
+// genOK sinh từ testdata/file; thoát khác 0 thì test dừng.
+func genOK(t *testing.T, file string) string {
+	t.Helper()
+	code, stderr, out := runGen(t, filepath.Join("testdata", file))
+	if code != 0 {
+		t.Fatalf("%s phải sinh được: %d\n%s", file, code, stderr)
+	}
+	return out
+}
+
+// ADR-47: route exempt, no-replay mang cờ và lý do (đã bỏ khoảng trắng hai đầu); route ghi không cờ là required;
+// route đọc không có IdempotencyMode.
+func TestGeneratesIdempotencyModes(t *testing.T) {
+	cases := []struct {
+		file string
+		want []string
+	}{
+		{"exempt-ok.yaml", []string{
+			`{Method: "POST", Pattern: "POST /api/v1/quote", OperationID: "quoteCart", Permission: "things.read", Write: true, IdempotencyMode: "exempt", IdempotencyReason: "Chỉ tính giá từ thân yêu cầu, không ghi dữ liệu"}`,
+			`{Method: "POST", Pattern: "POST /api/v1/things", OperationID: "createThing", Permission: "things.write", Write: true, IdempotencyMode: "required"}`,
+			"IdempotencyMode   string",
+			"IdempotencyReason string",
+		}},
+		{"noreplay-ok.yaml", []string{
+			`{Method: "POST", Pattern: "POST /api/v1/service-keys", OperationID: "createServiceKey", Permission: "things.write", Write: true, IdempotencyMode: "no-replay", IdempotencyReason: "Trả khóa bí mật một lần; không được lưu thân trả lời"}`,
+		}},
+	}
+	for _, c := range cases {
+		out := genOK(t, c.file)
+		for _, w := range c.want {
+			if !strings.Contains(out, w) {
+				t.Errorf("%s: tệp sinh thiếu %q:\n%s", c.file, w, out)
+			}
+		}
+	}
+	_, _, out := runGen(t, filepath.Join("testdata", "ok.yaml"))
+	if !strings.Contains(out, `{Method: "GET", Pattern: "GET /health/live", OperationID: "live", Public: true}`) {
+		t.Errorf("route đọc không được mang IdempotencyMode:\n%s", out)
+	}
+}
+
+// Hợp đồng thật của M0: mọi route ghi là required, không route nào exempt hay no-replay.
+func TestRealContractWritesRequired(t *testing.T) {
+	code, stderr, out := runGen(t, filepath.Join("..", "..", "openapi", "openapi.yaml"))
+	if code != 0 {
+		t.Fatalf("openapi.yaml thật phải sinh được: %d\n%s", code, stderr)
+	}
+	writes := 0
+	for line := range strings.Lines(out) {
+		if !strings.Contains(line, "Write: true") {
+			continue
+		}
+		writes++
+		if !strings.HasSuffix(strings.TrimSpace(line), `Write: true, IdempotencyMode: "required"},`) {
+			t.Errorf("route ghi của M0 phải required, không lý do: %s", line)
+		}
+	}
+	if writes == 0 {
+		t.Fatal("hợp đồng M0 phải có route ghi")
 	}
 }
 

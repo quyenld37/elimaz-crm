@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -62,5 +63,55 @@ func TestRoutesAllServed(t *testing.T) {
 	srv.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/khong-co-trong-bang", nil))
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("đường ngoài Routes phải 404, có %d", rec.Code)
+	}
+}
+
+// idempotencyProblems trả mỗi route sai luật chống trùng một dòng nêu operationId (ADR-41, ADR-47): route exempt hoặc
+// no-replay phải là POST và có lý do; route ghi khác phải required; route đọc không có chế độ.
+func idempotencyProblems(routes []httpapi.Route) []string {
+	var out []string
+	for _, r := range routes {
+		switch {
+		case !r.Write && r.IdempotencyMode != "":
+			out = append(out, r.OperationID+": route đọc không được có IdempotencyMode")
+		case !r.Write:
+		case r.IdempotencyMode == "exempt" || r.IdempotencyMode == "no-replay":
+			if strings.TrimSpace(r.IdempotencyReason) == "" {
+				out = append(out, r.OperationID+": "+r.IdempotencyMode+" thiếu IdempotencyReason")
+			}
+			if r.Method != http.MethodPost {
+				out = append(out, r.OperationID+": "+r.IdempotencyMode+" chỉ cho POST")
+			}
+		case r.IdempotencyMode != "required":
+			out = append(out, r.OperationID+": route ghi phải IdempotencyMode required, có "+strconv.Quote(r.IdempotencyMode))
+		}
+	}
+	return out
+}
+
+func TestRoutesIdempotencyModes(t *testing.T) {
+	if got := idempotencyProblems(httpapi.Routes); len(got) != 0 {
+		t.Fatalf("bảng route sai luật chống trùng:\n%s", strings.Join(got, "\n"))
+	}
+	fake := []httpapi.Route{
+		{Method: "POST", OperationID: "okExempt", Write: true, IdempotencyMode: "exempt", IdempotencyReason: "chỉ đọc"},
+		{Method: "POST", OperationID: "okRequired", Write: true, IdempotencyMode: "required"},
+		{Method: "GET", OperationID: "okRead"},
+		{Method: "POST", OperationID: "exemptNoReason", Write: true, IdempotencyMode: "exempt", IdempotencyReason: "  "},
+		{Method: "PUT", OperationID: "exemptPut", Write: true, IdempotencyMode: "exempt", IdempotencyReason: "x"},
+		{Method: "POST", OperationID: "noReplayNoReason", Write: true, IdempotencyMode: "no-replay"},
+		{Method: "DELETE", OperationID: "writeNoMode", Write: true},
+		{Method: "GET", OperationID: "readWithMode", IdempotencyMode: "required"},
+	}
+	got := strings.Join(idempotencyProblems(fake), "\n")
+	for _, w := range []string{"exemptNoReason", "exemptPut", "noReplayNoReason", "writeNoMode", "readWithMode"} {
+		if !strings.Contains(got, w) {
+			t.Errorf("bảng giả phải báo %s, có:\n%s", w, got)
+		}
+	}
+	for _, ok := range []string{"okExempt", "okRequired", "okRead"} {
+		if strings.Contains(got, ok) {
+			t.Errorf("route đúng luật %s không được bị báo:\n%s", ok, got)
+		}
 	}
 }

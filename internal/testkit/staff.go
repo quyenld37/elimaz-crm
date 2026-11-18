@@ -111,3 +111,19 @@ func (s *Staff) Exec(t testing.TB, tenantID uuid.UUID, fn func(pgx.Tx) error) {
 func (s *Staff) TryExec(ctx context.Context, tenantID uuid.UUID, fn func(pgx.Tx) error) error {
 	return tenancy.WithTenant(ctx, s.Owner, tenantID, fn) //nolint:wrapcheck // trả nguyên cho test
 }
+
+// ProbeCounter tạo bảng thử probe.counter(tenant_id, key, n) không RLS mà crm_app đọc, chèn, sửa được: "nghiệp vụ"
+// giả của test chống trùng (Task 9) và test đường ống, đếm số lần một thao tác ghi thật sự chạy.
+func (s *Staff) ProbeCounter(t testing.TB) {
+	t.Helper()
+	for _, q := range []string{
+		"CREATE SCHEMA probe",
+		"CREATE TABLE probe.counter (tenant_id uuid NOT NULL, key text NOT NULL, n int NOT NULL, PRIMARY KEY (tenant_id, key))",
+		"GRANT USAGE ON SCHEMA probe TO crm_app",
+		"GRANT SELECT, INSERT, UPDATE ON probe.counter TO crm_app",
+	} {
+		if _, err := s.Owner.Pool.Exec(t.Context(), q); err != nil {
+			t.Fatalf("testkit: dựng bảng thử probe.counter: %v", err)
+		}
+	}
+}

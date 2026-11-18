@@ -12,22 +12,29 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/idempotency"
 )
 
 // Mã lỗi trả cho client. Đây là chỗ duy nhất đổi lỗi sang mã HTTP (CLAUDE.md, mục "Lỗi và log").
 const (
+	codeAlreadyProcessed = "already_processed"
 	codeBadRequest       = "bad_request"
 	codeBadOrigin        = "bad_origin"
 	codeBodyTooLarge     = "body_too_large"
 	codeForbidden        = "forbidden"
 	codeInternal         = "internal"
-	codeMFARequired      = "mfa_required"
-	codeNotFound         = "not_found"
-	codeNotImplemented   = "not_implemented"
-	codeRateLimited      = "rate_limited"
-	codeRetryLater       = "retry_later"
-	codeUnauthenticated  = "unauthenticated"
-	codeUnsupportedMedia = "unsupported_media_type"
+	// Khóa chống trùng (ADR-41).
+	codeIdempotencyKeyInvalid  = "idempotency_key_invalid"
+	codeIdempotencyKeyRequired = "idempotency_key_required"
+	codeIdempotencyKeyReused   = "idempotency_key_reused"
+	codeRequestInProgress      = "request_in_progress"
+	codeMFARequired            = "mfa_required"
+	codeNotFound               = "not_found"
+	codeNotImplemented         = "not_implemented"
+	codeRateLimited            = "rate_limited"
+	codeRetryLater             = "retry_later"
+	codeUnauthenticated        = "unauthenticated"
+	codeUnsupportedMedia       = "unsupported_media_type"
 )
 
 type errorBody struct {
@@ -62,6 +69,20 @@ func writeHandlerError(d Deps, w http.ResponseWriter, r *http.Request, err error
 	}
 	if oe, ok := errors.AsType[ogenerrors.Error](err); ok && oe.Code() >= 400 && oe.Code() < 500 {
 		writeError(w, r, oe.Code(), codeBadRequest)
+		return
+	}
+	switch {
+	case errors.Is(err, idempotency.ErrInProgress), errors.Is(err, idempotency.ErrClaimLost):
+		// Cùng khóa đang chạy, hoặc khóa đã bị yêu cầu khác nhận lại: bên gọi thử lại với đúng khóa đó.
+		writeError(w, r, http.StatusConflict, codeRequestInProgress)
+		return
+	case errors.Is(err, idempotency.ErrKeyReused):
+		writeError(w, r, http.StatusUnprocessableEntity, codeIdempotencyKeyReused)
+		return
+	case errors.Is(err, db.ErrRetryLater):
+		// Lỗi tạm hết lượt chạy lại (ADR-46): không lưu, bên gọi gửi lại sau 1 s với cùng khóa.
+		w.Header().Set("Retry-After", "1")
+		writeError(w, r, http.StatusServiceUnavailable, codeRetryLater)
 		return
 	}
 	if r.Context().Err() == nil { // client đã đóng kết nối thì không phải lỗi của máy chủ
