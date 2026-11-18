@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -194,8 +195,9 @@ func TestRetryTxExhaustedReturnsRetryLater(t *testing.T) {
 	}
 }
 
-// holdRow giữ khóa dòng id=1 của probe.lock_pair trong `hold` trên một kết nối riêng, rồi lùi.
-func holdRow(t *testing.T, ownerURL string, hold time.Duration) {
+// lockRow giữ khóa FOR UPDATE trên dòng 1 của probe.lock_pair từ một kết nối owner riêng tới khi gọi hàm trả về
+// (gọi nhiều lần được; Cleanup tự nhả nếu test chưa nhả). Nhả là đồng bộ: hàm trả về khi khóa đã mất.
+func lockRow(t *testing.T, ownerURL string) (release func()) {
 	t.Helper()
 	conn, err := pgx.Connect(t.Context(), ownerURL)
 	if err != nil {
@@ -208,13 +210,12 @@ func holdRow(t *testing.T, ownerURL string, hold time.Duration) {
 	if _, err := tx.Exec(t.Context(), "SELECT 1 FROM probe.lock_pair WHERE id = 1 FOR UPDATE"); err != nil {
 		t.Fatal(err)
 	}
-	released := make(chan struct{})
-	time.AfterFunc(hold, func() {
+	release = sync.OnceFunc(func() {
 		_ = tx.Rollback(context.WithoutCancel(t.Context()))
 		_ = conn.Close(context.WithoutCancel(t.Context()))
-		close(released)
 	})
-	t.Cleanup(func() { <-released })
+	t.Cleanup(release)
+	return release
 }
 
 func updateRow1(ctx context.Context, calls *int) func(pgx.Tx) error {
@@ -230,7 +231,7 @@ func updateRow1(ctx context.Context, calls *int) func(pgx.Tx) error {
 func TestRetryTxLockTimeoutRetriesThenGivesUp(t *testing.T) {
 	d, owner := openApp(t, db.PoolOptions{})
 	probe(t, owner)
-	holdRow(t, owner, 2*time.Second)
+	lockRow(t, owner) // giữ tới hết test
 	calls := 0
 	err := d.RetryTx(t.Context(), db.TxOptions{LockTimeout: 50 * time.Millisecond}, updateRow1(t.Context(), &calls))
 	if !errors.Is(err, db.ErrRetryLater) {
@@ -241,16 +242,25 @@ func TestRetryTxLockTimeoutRetriesThenGivesUp(t *testing.T) {
 	}
 }
 
+// Khóa nhả ngay khi RetryTx báo lần thử lại đầu tiên (không theo đồng hồ, để máy tải cao không đổi thứ tự): lần chạy
+// thứ hai phải lấy được khóa và xong.
 func TestRetryTxLockTimeoutRecoversWhenLockReleased(t *testing.T) {
 	d, owner := openApp(t, db.PoolOptions{})
 	probe(t, owner)
-	holdRow(t, owner, 100*time.Millisecond)
+	release := lockRow(t, owner)
+	var retries []string
+	d.OnRetry = func(code string, attempt int) {
+		retries = append(retries, code)
+		if attempt == 1 {
+			release()
+		}
+	}
 	calls := 0
 	if err := d.RetryTx(t.Context(), db.TxOptions{LockTimeout: 50 * time.Millisecond}, updateRow1(t.Context(), &calls)); err != nil {
-		t.Fatalf("khóa được nhả sau 100 ms, RetryTx phải xong: %v", err)
+		t.Fatalf("khóa được nhả sau lần chờ khóa đầu, RetryTx phải xong: %v", err)
 	}
-	if calls != 2 && calls != 3 {
-		t.Fatalf("hàm được gọi %d lần, muốn 2 hoặc 3", calls)
+	if calls != 2 || !slices.Equal(retries, []string{"55P03"}) {
+		t.Fatalf("hàm được gọi %d lần, thử lại %v; muốn 2 lần, một lần thử lại 55P03", calls, retries)
 	}
 }
 
