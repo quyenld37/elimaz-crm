@@ -1,0 +1,90 @@
+/* Lớp riêng của màn Nhân viên và quyền, chép từ mockup đã duyệt (docs/mockups/m1/nhan-vien.html, khối <style>). */
+.who b {
+  color: var(--name);
+}
+.grants {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.grant-cell {
+  display: grid;
+  gap: var(--space-sm);
+  justify-items: start;
+}
+.ntbl .c-act {
+  width: 1%;
+  white-space: nowrap;
+}
+.role-opt {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  cursor: pointer;
+  align-items: start;
+}
+.role-opt input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--ink);
+}
+.role-opt.is-on {
+  border-color: var(--ink);
+}
+.role-opt.is-off {
+  color: var(--muted);
+  cursor: not-allowed;
+  background: var(--surface);
+}
+.role-opt .why {
+  grid-column: 2;
+  font-size: 12px;
+  color: var(--buy);
+}
+.role-opt .d {
+  grid-column: 2;
+  font-size: 12px;
+  color: var(--muted);
+}
+.grant-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+}
+/* Cột tên đủ rộng cho email thường gặp; email quá dài vẫn xuống dòng (wrap-any). */
+@media (min-width: 760px) {
+  .ntbl td.lead {
+    min-width: 240px;
+  }
+}
+/* Cảnh báo của Task 315 ngay dưới dòng vai trò bị ảnh hưởng (lớp có sẵn: chữ đỏ cỡ nhỏ). */
+.grant-warn {
+  padding-bottom: 12px;
+}
+@media (max-width: 759px) {
+  .ntbl td.c-act {
+    justify-content: flex-end;
+  }
+  .ntbl .c-act {
+    white-space: normal;
+  }
+  .ntbl .grants {
+    justify-content: flex-end;
+  }
+  .grant-cell {
+    justify-items: end;
+  }
+  .grant-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .grant-row .field:first-child {
+    grid-column: 1 / -1;
+  }
+}

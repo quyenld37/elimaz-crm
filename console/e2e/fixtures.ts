@@ -18,7 +18,7 @@ export interface FakeApi {
   /** API tắt: mọi yêu cầu tới /health và /api lỗi mạng. */
   down(): Promise<void>;
   /** Khai thêm một đường (ghi đè đường cùng mẫu đã khai). */
-  on(pattern: string, handler: (route: Route) => Promise<void> | void): Promise<void>;
+  on(pattern: string | RegExp, handler: (route: Route) => Promise<void> | void): Promise<void>;
   /** Yêu cầu tới API chưa được khai. */
   readonly unexpected: string[];
 }

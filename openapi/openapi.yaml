@@ -438,6 +438,209 @@ paths:
                 $ref: "#/components/schemas/Variant"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/catalog/categories:
+    get:
+      operationId: listCategories
+      summary: Mọi danh mục của shop (cả đã lưu trữ) theo cấp, vị trí, tên; màn hình dựng cây từ parentId
+      x-permission: catalog.read
+      responses:
+        "200":
+          description: Danh mục
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createCategory
+      summary: Tạo danh mục (tối đa 3 cấp; slug để trống thì sinh từ tên)
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRequest"
+      responses:
+        "201":
+          description: Danh mục vừa tạo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/categories/{id}:
+    patch:
+      operationId: updateCategory
+      summary: Sửa tên, slug, vị trí, cha của danh mục khi version còn khớp (không thành con của chính nó, cả cây con tối đa 3 cấp)
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/CategoryID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCategoryRequest"
+      responses:
+        "200":
+          description: Danh mục sau khi sửa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/categories/{id}/archive:
+    post:
+      operationId: archiveCategory
+      summary: Lưu trữ danh mục khi không còn danh mục con active hay mẫu active
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/CategoryID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VersionRequest"
+      responses:
+        "200":
+          description: Danh mục đã lưu trữ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/attributes:
+    get:
+      operationId: listAttributes
+      summary: Mọi thuộc tính của shop kèm giá trị, theo vị trí
+      x-permission: catalog.read
+      responses:
+        "200":
+          description: Thuộc tính
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Attribute"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createAttribute
+      summary: Tạo thuộc tính (mã chữ thường, không trùng)
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAttributeRequest"
+      responses:
+        "201":
+          description: Thuộc tính vừa tạo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attribute"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/attributes/{id}/values:
+    post:
+      operationId: addAttributeValue
+      summary: Thêm giá trị vào thuộc tính (không trùng trong một thuộc tính)
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/AttributeID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddAttributeValueRequest"
+      responses:
+        "201":
+          description: Giá trị vừa thêm
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttributeValue"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/tags:
+    get:
+      operationId: listTags
+      summary: Mọi nhãn kệ hàng của shop theo mã
+      x-permission: catalog.read
+      responses:
+        "200":
+          description: Nhãn
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tag"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createTag
+      summary: Tạo nhãn kệ hàng (mã chữ thường, không trùng)
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTagRequest"
+      responses:
+        "201":
+          description: Nhãn vừa tạo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/products/{id}/classification:
+    put:
+      operationId: setProductClassification
+      summary: Thay toàn bộ danh mục, giá trị thuộc tính, nhãn của mẫu khi version của mẫu còn khớp
+      x-permission: catalog.manage
+      parameters:
+        - $ref: "#/components/parameters/ProductID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetClassificationRequest"
+      responses:
+        "200":
+          description: Phân loại sau khi thay (version mới của mẫu)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductClassification"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -477,6 +680,20 @@ components:
         type: string
         format: uuid
     VariantID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CategoryID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AttributeID:
       name: id
       in: path
       required: true
@@ -532,6 +749,7 @@ components:
         - role_name_taken
         - unknown_permission
         # Sản phẩm, danh mục (M1-27, M1-34)
+        - already_exists
         - barcode_taken
         - category_cycle
         - category_in_use
@@ -1168,3 +1386,202 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Variant"
+    ClassName:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: Tên danh mục, thuộc tính, nhãn hay giá trị thuộc tính
+    ClassCode:
+      type: string
+      pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
+      description: Mã thuộc tính hay nhãn; CRM chuẩn hóa chữ thường
+    CategorySlug:
+      type: string
+      pattern: "^[A-Za-z0-9-]{1,80}$"
+      description: Đường dẫn danh mục trên website; CRM chuẩn hóa chữ thường
+    Position:
+      type: integer
+      format: int32
+      description: Thứ tự hiển thị (nhỏ trước)
+    Category:
+      type: object
+      required: [id, name, slug, depth, position, status, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        parentId:
+          type: string
+          format: uuid
+          description: Không có là danh mục gốc
+        name:
+          type: string
+        slug:
+          type: string
+        depth:
+          type: integer
+          minimum: 1
+          maximum: 3
+        position:
+          $ref: "#/components/schemas/Position"
+        status:
+          type: string
+          enum: [active, archived]
+        version:
+          type: integer
+          format: int64
+    CreateCategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          $ref: "#/components/schemas/ClassName"
+        slug:
+          $ref: "#/components/schemas/CategorySlug"
+        parentId:
+          type: string
+          format: uuid
+        position:
+          $ref: "#/components/schemas/Position"
+    UpdateCategoryRequest:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+        name:
+          $ref: "#/components/schemas/ClassName"
+        slug:
+          $ref: "#/components/schemas/CategorySlug"
+        position:
+          $ref: "#/components/schemas/Position"
+        parentId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Có trường này là đổi cha; null là lên gốc
+    VersionRequest:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+    AttributeValue:
+      type: object
+      required: [id, attributeId, value, position]
+      properties:
+        id:
+          type: string
+          format: uuid
+        attributeId:
+          type: string
+          format: uuid
+        value:
+          type: string
+        position:
+          $ref: "#/components/schemas/Position"
+    Attribute:
+      type: object
+      required: [id, code, name, position, values]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        position:
+          $ref: "#/components/schemas/Position"
+        values:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttributeValue"
+    CreateAttributeRequest:
+      type: object
+      required: [code, name]
+      properties:
+        code:
+          $ref: "#/components/schemas/ClassCode"
+        name:
+          $ref: "#/components/schemas/ClassName"
+        position:
+          $ref: "#/components/schemas/Position"
+    AddAttributeValueRequest:
+      type: object
+      required: [value]
+      properties:
+        value:
+          $ref: "#/components/schemas/ClassName"
+        position:
+          $ref: "#/components/schemas/Position"
+    Tag:
+      type: object
+      required: [id, code, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+    CreateTagRequest:
+      type: object
+      required: [code, name]
+      properties:
+        code:
+          $ref: "#/components/schemas/ClassCode"
+        name:
+          $ref: "#/components/schemas/ClassName"
+    SetClassificationRequest:
+      type: object
+      required: [version, attributeValueIds, tagIds]
+      properties:
+        version:
+          type: integer
+          format: int64
+          description: Version hiện tại của mẫu
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Không có hay null là bỏ danh mục
+        attributeValueIds:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            format: uuid
+        tagIds:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            format: uuid
+    ProductClassification:
+      type: object
+      required: [productId, version, attributeValueIds, tagIds]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          format: int64
+          description: Version mới của mẫu
+        categoryId:
+          type: string
+          format: uuid
+        attributeValueIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        tagIds:
+          type: array
+          items:
+            type: string
+            format: uuid

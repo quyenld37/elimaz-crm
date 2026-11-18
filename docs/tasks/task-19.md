@@ -199,7 +199,7 @@ Mục 6:
   is running"): không chạy `make ci` nền trong lúc hook chạy.
 - Chọn và cài dịch vụ chạy `scripts/external-probe` ngoài Cloudflare, ngoài VPS: cần chủ shop OK (spec 04 mục 8).
 
-## Lượt 2 (gộp main: Task 20, 317, 318, 48)
+## Lượt 2 (gộp main: Task 20, 317, 318, 48; lần gộp thứ hai: Task 54, 34, 43)
 
 ### Ảnh hưởng (lượt 2)
 
@@ -280,6 +280,7 @@ Mục 6:
 | build, vet, lint, gen-check, sqlc vet | — | `make ci` | qua; `golangci-lint run ./...`: 0 issues |
 | vuln, oasdiff, catalog-check | — | `make vuln oasdiff catalog-check` | qua |
 | jscpd | — | `make jscpd` | đỏ: 4 đoạn trùng (xem Tái dùng lượt 2; 2 có sẵn trên main) |
+| Lần gộp thứ hai (main 8f437db: Task 54, 34, 43): một xung đột ở `cmd/crm/main.go` (main dời dựng `hub` lên trước `newCommands`; giữ chỗ của main, thêm `alertSchedules`), mã sinh và danh mục khớp | tests/arch, tests/e2e, httpapi, config | `make gen` (không chênh), `make catalog`, `golangci-lint run ./...`, `go test -race -count=1 ./tests/... ./cmd/... ./internal/platform/config/... ./internal/httpapi/...` | 0 issues; mọi gói ok |
 
 ## Reviewer
 
@@ -302,3 +303,8 @@ nào của hai bên ở `main.go`, `handlers_health.go`, `handlers_health_test.g
 `alertjobs` giữ nguyên hành vi lệnh lịch (Kind, AutoRetryNotSent, not_sent, RetryAfter qua `%w`). Ghi chú không bắt
 buộc: (1) thêm ca 429 đã bọc vào `TestScheduledExecute`; (2) doc gói `observability` còn nói "hai lệnh định kỳ" nằm
 trong gói — làm ở commit nối sau.
+
+### Reviewer — lượt 2, lần gộp main thứ hai (8f437db)
+
+Kết luận: ĐẠT, không phát hiện phải sửa. `main.go`: `hub` dựng một lần (chỗ của main), `alertSchedules` sau lịch tra
+lại lệnh, `resolver` chỉ nhận `cmds`; `config.go` auto-merge sạch (ba biến của Task 19 cạnh biến M1 của main).

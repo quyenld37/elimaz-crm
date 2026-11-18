@@ -22,6 +22,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/adapters/cfaccess"
 	"elimaz.com.vn/crm/internal/httpapi"
+	"elimaz.com.vn/crm/internal/imager"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
@@ -60,6 +61,7 @@ const (
 var (
 	errNoHealthcheck  = errors.New("vai trò migrate chạy một lần rồi thoát, không có healthcheck")
 	errStaleHeartbeat = errors.New("worker không còn ghi nhịp sống")
+	errNoPreset       = errors.New("IMAGE_PRESET_VERSION chưa có bộ kích thước")
 )
 
 func main() {
@@ -197,13 +199,37 @@ func newInbound(reg *metrics.Registry, bus selftest.Publisher) ([]queue.Handler,
 	return append([]queue.Handler{split}, hs...), nil
 }
 
-// newCommands là các loại lệnh ra ngoài của tiến trình. Lệnh thử command.selftest (bên ngoài tại chỗ, không gửi gì
-// thật) chỉ có khi CRM_ENV khác production; module của mốc sau thêm lệnh thật ở đây.
-func newCommands(cfg config.Config) []commands.Handler {
-	if cfg.Env == "production" {
-		return nil
+// newCommands là các loại lệnh ra ngoài của tiến trình: xử lý ảnh file.process, file.process_private (Task M1-43;
+// chỉ khi có IMAGER_URL, thiếu thì lệnh chờ trong hàng đợi) và lệnh thử command.selftest (bên ngoài tại chỗ, không
+// gửi gì thật, chỉ khi CRM_ENV khác production); module của mốc sau thêm lệnh thật ở đây.
+func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus files.Publisher, logger *slog.Logger) ([]commands.Handler, error) {
+	var hs []commands.Handler
+	if cfg.ImagerURL != "" {
+		if _, ok := files.Preset(cfg.ImagePresetVersion); !ok {
+			return nil, fmt.Errorf("%w: %d", errNoPreset, cfg.ImagePresetVersion)
+		}
+		fs, err := files.NewS3Store(s3Config(cfg))
+		if err != nil {
+			return nil, fmt.Errorf("dựng kho tệp: %w", err)
+		}
+		signCfg := s3Config(cfg)
+		signCfg.Endpoint = cfg.S3ImagerEndpoint // imager chỉ tới được kho qua mạng imaging (SigV4 ký cả host)
+		signer, err := files.NewS3Store(signCfg)
+		if err != nil {
+			return nil, fmt.Errorf("dựng kho tệp ký cho imager: %w", err)
+		}
+		o := files.ProcessorOptions{
+			DB: d, Store: fs, Signer: signer, Imager: imager.NewClient(cfg.ImagerURL, &http.Client{}, cfg.ImagerMaxParallel),
+			PresetVersion: cfg.ImagePresetVersion, Bus: bus, Metrics: reg,
+		}
+		hs = append(hs, files.NewProcessHandler(o), files.NewProcessPrivateHandler(o))
+	} else {
+		logger.Warn("thiếu IMAGER_URL: không xử lý ảnh, lệnh file.process chờ trong hàng đợi")
 	}
-	return []commands.Handler{selftest.NewCommand(selftest.Loopback{})}
+	if cfg.Env != "production" {
+		hs = append(hs, selftest.NewCommand(selftest.Loopback{}))
+	}
+	return hs, nil
 }
 
 // runWorker chạy hàng đợi (queue.Worker) với handler của sự kiện nội bộ và dọn dữ liệu, lệnh ra ngoài (Runner, kèm
@@ -218,7 +244,12 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	if err := cleanup.Define(plan); err != nil {
 		return fmt.Errorf("định nghĩa lịch dọn: %w", err)
 	}
-	cmds := newCommands(cfg)
+	// Worker chỉ phát báo hiệu (Publish chạy pg_notify trong tx của việc), không LISTEN: không gọi hub.Run.
+	hub := realtime.NewPGHub(realtime.PGHubOptions{URL: cfg.DatabaseURL, Metrics: reg, Logger: logger})
+	cmds, err := newCommands(cfg, d, reg, hub, logger)
+	if err != nil {
+		return err
+	}
 	resolver := commands.NewInDoubtResolver(d, cmds)
 	if err := plan.Define(schedules.Schedule{
 		Name: commands.ResolveInDoubtSchedule, Every: commands.ResolveInDoubtEvery, Kind: resolver.Kind(),
@@ -229,8 +260,6 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	if err != nil {
 		return err
 	}
-	// Worker chỉ phát báo hiệu (Publish chạy pg_notify trong tx của việc), không LISTEN: không gọi hub.Run.
-	hub := realtime.NewPGHub(realtime.PGHubOptions{URL: cfg.DatabaseURL, Metrics: reg, Logger: logger})
 	inbound, err := newInbound(reg, hub)
 	if err != nil {
 		return err

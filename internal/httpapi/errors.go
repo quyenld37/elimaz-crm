@@ -55,6 +55,11 @@ const (
 	codeNotForSale      = "not_for_sale"
 	codeInvalidPrice    = "invalid_price"
 	codeInvalidArticle  = "invalid_article"
+	// Phân loại (kế hoạch M1 Task M1-34).
+	codeCategoryCycle   = "category_cycle"
+	codeCategoryTooDeep = "category_too_deep"
+	codeCategoryInUse   = "category_in_use"
+	codeAlreadyExists   = "already_exists"
 
 	// Kho tệp (kế hoạch M1 Task M1-41).
 	codeFileTooLarge          = "file_too_large"
@@ -201,6 +206,10 @@ func catalogError(err error) (status int, code string, ok bool) {
 		{catalog.ErrNotForSale, http.StatusConflict, codeNotForSale},
 		{catalog.ErrInvalidPrice, http.StatusUnprocessableEntity, codeInvalidPrice},
 		{catalog.ErrInvalidArticle, http.StatusUnprocessableEntity, codeInvalidArticle},
+		{catalog.ErrCategoryCycle, http.StatusUnprocessableEntity, codeCategoryCycle},
+		{catalog.ErrCategoryTooDeep, http.StatusUnprocessableEntity, codeCategoryTooDeep},
+		{catalog.ErrCategoryInUse, http.StatusConflict, codeCategoryInUse},
+		{catalog.ErrAlreadyExists, http.StatusConflict, codeAlreadyExists},
 		{catalog.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
 	} {
 		if errors.Is(err, m.err) {

@@ -11,40 +11,61 @@ import (
 )
 
 var (
-	rn11AllowedHeaders = map[string]string{
+	rn18AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
-	}
-	rn6AllowedHeaders = map[string]string{
-		"PATCH": "Content-Type,Idempotency-Key",
 	}
 	rn7AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn36AllowedHeaders = map[string]string{
-		"PATCH": "Content-Type,Idempotency-Key",
+	rn19AllowedHeaders = map[string]string{
+		"POST": "Content-Type,Idempotency-Key",
 	}
 	rn13AllowedHeaders = map[string]string{
+		"PATCH": "Content-Type,Idempotency-Key",
+	}
+	rn14AllowedHeaders = map[string]string{
+		"POST": "Content-Type,Idempotency-Key",
+	}
+	rn20AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
 	rn10AllowedHeaders = map[string]string{
-		"POST": "Idempotency-Key",
+		"PATCH": "Content-Type,Idempotency-Key",
 	}
-	rn12AllowedHeaders = map[string]string{
-		"POST": "Content-Type,Idempotency-Key",
-	}
-	rn29AllowedHeaders = map[string]string{
+	rn43AllowedHeaders = map[string]string{
 		"PUT": "Content-Type,Idempotency-Key",
 	}
-	rn27AllowedHeaders = map[string]string{
+	rn11AllowedHeaders = map[string]string{
+		"POST": "Content-Type,Idempotency-Key",
+	}
+	rn22AllowedHeaders = map[string]string{
+		"POST": "Content-Type,Idempotency-Key",
+	}
+	rn47AllowedHeaders = map[string]string{
+		"PATCH": "Content-Type,Idempotency-Key",
+	}
+	rn23AllowedHeaders = map[string]string{
+		"POST": "Content-Type,Idempotency-Key",
+	}
+	rn17AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
-	rn33AllowedHeaders = map[string]string{
+	rn21AllowedHeaders = map[string]string{
+		"POST": "Content-Type,Idempotency-Key",
+	}
+	rn39AllowedHeaders = map[string]string{
+		"PUT": "Content-Type,Idempotency-Key",
+	}
+	rn37AllowedHeaders = map[string]string{
+		"POST": "Idempotency-Key",
+	}
+	rn45AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
 	rn3AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
-	rn31AllowedHeaders = map[string]string{
+	rn41AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
 )
@@ -124,6 +145,176 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 					switch elem[0] {
+					case 'a': // Prefix: "attributes"
+
+						if l := len("attributes"); len(elem) >= l && elem[0:l] == "attributes" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							switch r.Method {
+							case "GET":
+								s.handleListAttributesRequest([0]string{}, elemIsEscaped, w, r)
+							case "POST":
+								s.handleCreateAttributeRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "GET,POST",
+									allowedHeaders: rn18AllowedHeaders,
+									acceptPost:     "application/json",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/"
+
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "id"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[0] = elem[:idx]
+							elem = elem[idx:]
+
+							if len(elem) == 0 {
+								break
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/values"
+
+								if l := len("/values"); len(elem) >= l && elem[0:l] == "/values" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "POST":
+										s.handleAddAttributeValueRequest([1]string{
+											args[0],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, notAllowedParams{
+											allowedMethods: "POST",
+											allowedHeaders: rn7AllowedHeaders,
+											acceptPost:     "application/json",
+											acceptPatch:    "",
+										})
+									}
+
+									return
+								}
+
+							}
+
+						}
+
+					case 'c': // Prefix: "categories"
+
+						if l := len("categories"); len(elem) >= l && elem[0:l] == "categories" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							switch r.Method {
+							case "GET":
+								s.handleListCategoriesRequest([0]string{}, elemIsEscaped, w, r)
+							case "POST":
+								s.handleCreateCategoryRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "GET,POST",
+									allowedHeaders: rn19AllowedHeaders,
+									acceptPost:     "application/json",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/"
+
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "id"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[0] = elem[:idx]
+							elem = elem[idx:]
+
+							if len(elem) == 0 {
+								switch r.Method {
+								case "PATCH":
+									s.handleUpdateCategoryRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "PATCH",
+										allowedHeaders: rn13AllowedHeaders,
+										acceptPost:     "",
+										acceptPatch:    "application/json",
+									})
+								}
+
+								return
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/archive"
+
+								if l := len("/archive"); len(elem) >= l && elem[0:l] == "/archive" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "POST":
+										s.handleArchiveCategoryRequest([1]string{
+											args[0],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, notAllowedParams{
+											allowedMethods: "POST",
+											allowedHeaders: rn14AllowedHeaders,
+											acceptPost:     "application/json",
+											acceptPatch:    "",
+										})
+									}
+
+									return
+								}
+
+							}
+
+						}
+
 					case 'p': // Prefix: "products"
 
 						if l := len("products"); len(elem) >= l && elem[0:l] == "products" {
@@ -139,7 +330,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn11AllowedHeaders,
+									allowedHeaders: rn20AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -178,7 +369,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,PATCH",
-										allowedHeaders: rn6AllowedHeaders,
+										allowedHeaders: rn10AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "application/json",
 									})
@@ -187,35 +378,103 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								return
 							}
 							switch elem[0] {
-							case '/': // Prefix: "/variants"
+							case '/': // Prefix: "/"
 
-								if l := len("/variants"); len(elem) >= l && elem[0:l] == "/variants" {
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
 								if len(elem) == 0 {
-									// Leaf node.
-									switch r.Method {
-									case "POST":
-										s.handleAddVariantRequest([1]string{
-											args[0],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, notAllowedParams{
-											allowedMethods: "POST",
-											allowedHeaders: rn7AllowedHeaders,
-											acceptPost:     "application/json",
-											acceptPatch:    "",
-										})
+									break
+								}
+								switch elem[0] {
+								case 'c': // Prefix: "classification"
+
+									if l := len("classification"); len(elem) >= l && elem[0:l] == "classification" {
+										elem = elem[l:]
+									} else {
+										break
 									}
 
-									return
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "PUT":
+											s.handleSetProductClassificationRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, notAllowedParams{
+												allowedMethods: "PUT",
+												allowedHeaders: rn43AllowedHeaders,
+												acceptPost:     "",
+												acceptPatch:    "",
+											})
+										}
+
+										return
+									}
+
+								case 'v': // Prefix: "variants"
+
+									if l := len("variants"); len(elem) >= l && elem[0:l] == "variants" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "POST":
+											s.handleAddVariantRequest([1]string{
+												args[0],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, notAllowedParams{
+												allowedMethods: "POST",
+												allowedHeaders: rn11AllowedHeaders,
+												acceptPost:     "application/json",
+												acceptPatch:    "",
+											})
+										}
+
+										return
+									}
+
 								}
 
 							}
 
+						}
+
+					case 't': // Prefix: "tags"
+
+						if l := len("tags"); len(elem) >= l && elem[0:l] == "tags" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "GET":
+								s.handleListTagsRequest([0]string{}, elemIsEscaped, w, r)
+							case "POST":
+								s.handleCreateTagRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "GET,POST",
+									allowedHeaders: rn22AllowedHeaders,
+									acceptPost:     "application/json",
+									acceptPatch:    "",
+								})
+							}
+
+							return
 						}
 
 					case 'v': // Prefix: "variants/"
@@ -245,7 +504,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "PATCH",
-									allowedHeaders: rn36AllowedHeaders,
+									allowedHeaders: rn47AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "application/json",
 								})
@@ -284,7 +543,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn13AllowedHeaders,
+									allowedHeaders: rn23AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -340,7 +599,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn10AllowedHeaders,
+									allowedHeaders: rn17AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -405,7 +664,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn12AllowedHeaders,
+									allowedHeaders: rn21AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -465,7 +724,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "PUT",
-												allowedHeaders: rn29AllowedHeaders,
+												allowedHeaders: rn39AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "",
 											})
@@ -492,7 +751,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn27AllowedHeaders,
+												allowedHeaders: rn37AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "",
 											})
@@ -519,7 +778,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn33AllowedHeaders,
+												allowedHeaders: rn45AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "",
 											})
@@ -700,7 +959,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn31AllowedHeaders,
+												allowedHeaders: rn41AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "",
 											})
@@ -957,6 +1216,184 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						break
 					}
 					switch elem[0] {
+					case 'a': // Prefix: "attributes"
+
+						if l := len("attributes"); len(elem) >= l && elem[0:l] == "attributes" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							switch method {
+							case "GET":
+								r.name = ListAttributesOperation
+								r.summary = "Mọi thuộc tính của shop kèm giá trị, theo vị trí"
+								r.operationID = "listAttributes"
+								r.operationGroup = ""
+								r.pathPattern = "/api/v1/catalog/attributes"
+								r.args = args
+								r.count = 0
+								return r, true
+							case "POST":
+								r.name = CreateAttributeOperation
+								r.summary = "Tạo thuộc tính (mã chữ thường, không trùng)"
+								r.operationID = "createAttribute"
+								r.operationGroup = ""
+								r.pathPattern = "/api/v1/catalog/attributes"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/"
+
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "id"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[0] = elem[:idx]
+							elem = elem[idx:]
+
+							if len(elem) == 0 {
+								break
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/values"
+
+								if l := len("/values"); len(elem) >= l && elem[0:l] == "/values" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = AddAttributeValueOperation
+										r.summary = "Thêm giá trị vào thuộc tính (không trùng trong một thuộc tính)"
+										r.operationID = "addAttributeValue"
+										r.operationGroup = ""
+										r.pathPattern = "/api/v1/catalog/attributes/{id}/values"
+										r.args = args
+										r.count = 1
+										return r, true
+									default:
+										return
+									}
+								}
+
+							}
+
+						}
+
+					case 'c': // Prefix: "categories"
+
+						if l := len("categories"); len(elem) >= l && elem[0:l] == "categories" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							switch method {
+							case "GET":
+								r.name = ListCategoriesOperation
+								r.summary = "Mọi danh mục của shop (cả đã lưu trữ) theo cấp, vị trí, tên; màn hình dựng cây từ parentId"
+								r.operationID = "listCategories"
+								r.operationGroup = ""
+								r.pathPattern = "/api/v1/catalog/categories"
+								r.args = args
+								r.count = 0
+								return r, true
+							case "POST":
+								r.name = CreateCategoryOperation
+								r.summary = "Tạo danh mục (tối đa 3 cấp; slug để trống thì sinh từ tên)"
+								r.operationID = "createCategory"
+								r.operationGroup = ""
+								r.pathPattern = "/api/v1/catalog/categories"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/"
+
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "id"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[0] = elem[:idx]
+							elem = elem[idx:]
+
+							if len(elem) == 0 {
+								switch method {
+								case "PATCH":
+									r.name = UpdateCategoryOperation
+									r.summary = "Sửa tên, slug, vị trí, cha của danh mục khi version còn khớp (không thành con của chính nó, cả cây con tối đa 3 cấp)"
+									r.operationID = "updateCategory"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/catalog/categories/{id}"
+									r.args = args
+									r.count = 1
+									return r, true
+								default:
+									return
+								}
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/archive"
+
+								if l := len("/archive"); len(elem) >= l && elem[0:l] == "/archive" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = ArchiveCategoryOperation
+										r.summary = "Lưu trữ danh mục khi không còn danh mục con active hay mẫu active"
+										r.operationID = "archiveCategory"
+										r.operationGroup = ""
+										r.pathPattern = "/api/v1/catalog/categories/{id}/archive"
+										r.args = args
+										r.count = 1
+										return r, true
+									default:
+										return
+									}
+								}
+
+							}
+
+						}
+
 					case 'p': // Prefix: "products"
 
 						if l := len("products"); len(elem) >= l && elem[0:l] == "products" {
@@ -1023,33 +1460,106 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								}
 							}
 							switch elem[0] {
-							case '/': // Prefix: "/variants"
+							case '/': // Prefix: "/"
 
-								if l := len("/variants"); len(elem) >= l && elem[0:l] == "/variants" {
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
 								if len(elem) == 0 {
-									// Leaf node.
-									switch method {
-									case "POST":
-										r.name = AddVariantOperation
-										r.summary = "Thêm biến thể vào mẫu khi version của mẫu còn khớp"
-										r.operationID = "addVariant"
-										r.operationGroup = ""
-										r.pathPattern = "/api/v1/catalog/products/{id}/variants"
-										r.args = args
-										r.count = 1
-										return r, true
-									default:
-										return
+									break
+								}
+								switch elem[0] {
+								case 'c': // Prefix: "classification"
+
+									if l := len("classification"); len(elem) >= l && elem[0:l] == "classification" {
+										elem = elem[l:]
+									} else {
+										break
 									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "PUT":
+											r.name = SetProductClassificationOperation
+											r.summary = "Thay toàn bộ danh mục, giá trị thuộc tính, nhãn của mẫu khi version của mẫu còn khớp"
+											r.operationID = "setProductClassification"
+											r.operationGroup = ""
+											r.pathPattern = "/api/v1/catalog/products/{id}/classification"
+											r.args = args
+											r.count = 1
+											return r, true
+										default:
+											return
+										}
+									}
+
+								case 'v': // Prefix: "variants"
+
+									if l := len("variants"); len(elem) >= l && elem[0:l] == "variants" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "POST":
+											r.name = AddVariantOperation
+											r.summary = "Thêm biến thể vào mẫu khi version của mẫu còn khớp"
+											r.operationID = "addVariant"
+											r.operationGroup = ""
+											r.pathPattern = "/api/v1/catalog/products/{id}/variants"
+											r.args = args
+											r.count = 1
+											return r, true
+										default:
+											return
+										}
+									}
+
 								}
 
 							}
 
+						}
+
+					case 't': // Prefix: "tags"
+
+						if l := len("tags"); len(elem) >= l && elem[0:l] == "tags" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "GET":
+								r.name = ListTagsOperation
+								r.summary = "Mọi nhãn kệ hàng của shop theo mã"
+								r.operationID = "listTags"
+								r.operationGroup = ""
+								r.pathPattern = "/api/v1/catalog/tags"
+								r.args = args
+								r.count = 0
+								return r, true
+							case "POST":
+								r.name = CreateTagOperation
+								r.summary = "Tạo nhãn kệ hàng (mã chữ thường, không trùng)"
+								r.operationID = "createTag"
+								r.operationGroup = ""
+								r.pathPattern = "/api/v1/catalog/tags"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
 						}
 
 					case 'v': // Prefix: "variants/"

@@ -12,9 +12,65 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type CatalogAttribute struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Code      string
+	Name      string
+	Position  int32
+	CreatedAt time.Time
+}
+
+type CatalogAttributeValue struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	AttributeID uuid.UUID
+	Value       string
+	Position    int32
+	CreatedAt   time.Time
+}
+
+type CatalogAttributeValuesV struct {
+	AttributeValueID uuid.UUID
+	AttributeID      uuid.UUID
+	Value            string
+	Position         int32
+}
+
+type CatalogAttributesV struct {
+	AttributeID uuid.UUID
+	Code        string
+	Name        string
+	Position    int32
+}
+
 type CatalogBarcodeCounter struct {
 	TenantID uuid.UUID
 	Next     int64
+}
+
+type CatalogCategoriesV struct {
+	CategoryID uuid.UUID
+	ParentID   pgtype.UUID
+	Name       string
+	Slug       string
+	Depth      int16
+	Position   int32
+	Status     string
+}
+
+type CatalogCategory struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	ParentID  pgtype.UUID
+	Name      string
+	Slug      string
+	Depth     int16
+	Position  int32
+	Status    string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Version   int64
 }
 
 type CatalogProduct struct {
@@ -32,6 +88,28 @@ type CatalogProduct struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Version     int64
+}
+
+type CatalogProductAttributeValue struct {
+	TenantID         uuid.UUID
+	ProductID        uuid.UUID
+	AttributeValueID uuid.UUID
+}
+
+type CatalogProductAttributeValuesV struct {
+	ProductID        uuid.UUID
+	AttributeValueID uuid.UUID
+}
+
+type CatalogProductTag struct {
+	TenantID  uuid.UUID
+	ProductID uuid.UUID
+	TagID     uuid.UUID
+}
+
+type CatalogProductTagsV struct {
+	ProductID uuid.UUID
+	TagID     uuid.UUID
 }
 
 type CatalogProductsV struct {
@@ -66,6 +144,20 @@ type CatalogSellersV struct {
 	Name     string
 	Kind     string
 	Status   string
+}
+
+type CatalogTag struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Code      string
+	Name      string
+	CreatedAt time.Time
+}
+
+type CatalogTagsV struct {
+	TagID uuid.UUID
+	Code  string
+	Name  string
 }
 
 type CatalogVariant struct {

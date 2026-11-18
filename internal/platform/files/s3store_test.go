@@ -218,3 +218,36 @@ func TestNewS3Store_Validates(t *testing.T) {
 		t.Fatal("S3Config.LogValue lộ khóa bí mật")
 	}
 }
+
+// PresignPutAnySize (việc (3) của Task 42): kích thước biến thể chỉ biết sau khi mã hóa, nên chữ ký không gồm
+// content-length; vẫn gồm loại và If-None-Match (không ghi đè).
+func TestFileStore_PresignPutAnySize(t *testing.T) {
+	for name, store := range stores(t) {
+		t.Run(name, func(t *testing.T) {
+			key := testKey(t)
+			put, err := store.PresignPutAnySize(t.Context(), files.BucketPublic, key, "image/avif", time.Minute)
+			if err != nil {
+				t.Fatal(err)
+			}
+			body := randomBytes(t, 777)
+			if code := putVia(t, put, body); code != http.StatusOK {
+				t.Fatalf("PUT cỡ bất kỳ: %d", code)
+			}
+			info, err := store.Head(t.Context(), files.BucketPublic, key)
+			if err != nil || info.Size != 777 || info.ContentType != "image/avif" {
+				t.Fatalf("Head: %+v %v", info, err)
+			}
+			if code := putVia(t, put, randomBytes(t, 5)); code != http.StatusPreconditionFailed {
+				t.Fatalf("ghi đè: muốn 412, nhận %d", code)
+			}
+			other, err := store.PresignPutAnySize(t.Context(), files.BucketPublic, testKey(t), "image/avif", time.Minute)
+			if err != nil {
+				t.Fatal(err)
+			}
+			other.Headers["Content-Type"] = "image/webp"
+			if code := putVia(t, other, body); code != http.StatusForbidden {
+				t.Fatalf("khác loại đã ký: muốn 403, nhận %d", code)
+			}
+		})
+	}
+}
