@@ -182,3 +182,87 @@ func TestCheckSchemaRulesCoversIdempotencyKeys(t *testing.T) {
 	ownerExec(t, e.owner, "ALTER TABLE platform.idempotency_keys NO FORCE ROW LEVEL SECURITY")
 	requireOneEach(t, checkRules(t, e.owner), "platform.idempotency_keys")
 }
+
+// Luật (f), (g) (kế hoạch M1, Task M1-25): view công bố tên <tên>_v và security_invoker = true; bảng có seller_id thì
+// mọi unique khác khóa chính và khác (tenant_id, id) có seller_id ngay sau tenant_id (ADR-29).
+func TestCheckSchemaRulesViewsAndSeller(t *testing.T) {
+	e := newEnv(t, db.PoolOptions{})
+	ownerExec(t, e.owner, "CREATE SCHEMA probe", goodTable("base"), "SELECT platform.enable_tenant_rls('probe.base')")
+	cases := []struct {
+		name  string
+		setup []string
+		want  string // rỗng: không dòng nào; ngược lại đúng một dòng nêu probe.t chứa đoạn này
+	}{
+		{"view _v thiếu security_invoker", []string{"CREATE VIEW probe.bad_v AS SELECT id FROM probe.base"}, "security_invoker"},
+		{"view _v security_invoker = false", []string{
+			"CREATE VIEW probe.bad_v WITH (security_invoker = false) AS SELECT id FROM probe.base",
+		}, "security_invoker"},
+		{"view _v đúng luật", []string{
+			"CREATE VIEW probe.good_v WITH (security_invoker = true) AS SELECT id FROM probe.base",
+		}, ""},
+		{"view _v security_invoker = on", []string{
+			"CREATE VIEW probe.good_v WITH (security_invoker = on) AS SELECT id FROM probe.base",
+		}, ""},
+		{"view thiếu đuôi _v", []string{
+			"CREATE VIEW probe.noname WITH (security_invoker = true) AS SELECT id FROM probe.base",
+		}, "_v"},
+		{"view trong platform thiếu security_invoker", []string{
+			"CREATE VIEW platform.probe_v AS SELECT id FROM platform.tenants",
+		}, "security_invoker"},
+		{"seller: unique thiếu seller_id", []string{
+			"CREATE TABLE probe.sellerish (tenant_id uuid NOT NULL, seller_id uuid NOT NULL, sku text NOT NULL, UNIQUE (tenant_id, sku))",
+			"SELECT platform.enable_tenant_rls('probe.sellerish')",
+		}, "seller_id"},
+		{"seller: seller_id không ngay sau tenant_id", []string{
+			"CREATE TABLE probe.sellerish (tenant_id uuid NOT NULL, seller_id uuid NOT NULL, sku text NOT NULL, UNIQUE (tenant_id, sku, seller_id))",
+			"SELECT platform.enable_tenant_rls('probe.sellerish')",
+		}, "seller_id"},
+		{"seller: unique đúng luật", []string{
+			"CREATE TABLE probe.sellerish (tenant_id uuid NOT NULL, seller_id uuid NOT NULL, sku text NOT NULL, UNIQUE (tenant_id, seller_id, sku))",
+			"SELECT platform.enable_tenant_rls('probe.sellerish')",
+		}, ""},
+		{"seller: (tenant_id, id) và khóa chính không tính", []string{
+			"CREATE TABLE probe.sellerish (id uuid PRIMARY KEY, tenant_id uuid NOT NULL, seller_id uuid NOT NULL, UNIQUE (tenant_id, id))",
+			"SELECT platform.enable_tenant_rls('probe.sellerish')",
+		}, ""},
+		{"seller: index có ghi chú ngoại lệ", []string{
+			"CREATE TABLE probe.sellerish (tenant_id uuid NOT NULL, seller_id uuid NOT NULL, sku text NOT NULL)",
+			"CREATE UNIQUE INDEX sellerish_sku ON probe.sellerish (tenant_id, sku)",
+			"COMMENT ON INDEX probe.sellerish_sku IS 'seller-exempt: thử'",
+			"SELECT platform.enable_tenant_rls('probe.sellerish')",
+		}, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dropProbes(t, e.owner)
+			ownerExec(t, e.owner, c.setup...)
+			got := checkRules(t, e.owner)
+			switch {
+			case c.want == "" && len(got) != 0:
+				t.Fatalf("muốn 0 dòng, nhận %q", got)
+			case c.want != "" && (len(got) != 1 || !strings.Contains(got[0], c.want)):
+				t.Fatalf("muốn đúng 1 dòng chứa %q, nhận %q", c.want, got)
+			}
+		})
+	}
+	// View thiếu cả đuôi _v lẫn security_invoker: hai dòng, mỗi luật một dòng, cùng nêu tên view.
+	ownerExec(t, e.owner, "CREATE VIEW probe.t AS SELECT id FROM probe.base")
+	if got := checkRules(t, e.owner); len(got) != 2 || !strings.HasPrefix(got[0], "probe.t:") || !strings.HasPrefix(got[1], "probe.t:") {
+		t.Fatalf("muốn 2 dòng về probe.t, nhận %q", got)
+	}
+}
+
+// dropProbes xóa view, bảng thử của TestCheckSchemaRulesViewsAndSeller khi ca con kết thúc.
+func dropProbes(t *testing.T, owner *pgxpool.Pool) {
+	t.Helper()
+	t.Cleanup(func() { // t.Context() đã hủy khi dọn
+		for _, s := range []string{
+			"DROP VIEW IF EXISTS probe.bad_v, probe.good_v, probe.noname, platform.probe_v",
+			"DROP TABLE IF EXISTS probe.sellerish",
+		} {
+			if _, err := owner.Exec(context.Background(), s); err != nil {
+				t.Error(err)
+			}
+		}
+	})
+}

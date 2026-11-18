@@ -23,16 +23,22 @@ bảng ghi trong ô.
 | 1 | `platform`: quản trị tenant | `platform.tenants` → `platform.tenant_routes` | spec |
 | 2 | `identity` | `identity.users` → `identity.roles` → `identity.role_permissions` → `identity.user_role_grants` → `identity.user_credentials` → `identity.user_second_factors` → `identity.user_sessions` | spec; `identity.role_permissions`: M0 Task 7 |
 | 3 | `channel` | `channel.channel_accounts` | spec |
-| 4 | `catalog` | `catalog.products` → `catalog.variants` | spec |
+| 4 | `catalog` | `catalog.imports` → `catalog.sellers` → `catalog.categories` → `catalog.attributes` → `catalog.attribute_values` → `catalog.tags` → `catalog.products` → `catalog.product_attribute_values` → `catalog.product_tags` → `catalog.product_images` → `catalog.variants` → `catalog.barcode_counters` | spec; M1 (Task M1-25 viết trước): `sellers`, `variants`, `barcode_counters` M1-27; `categories`, `attributes`, `attribute_values`, `tags`, `product_attribute_values`, `product_tags` M1-34; `product_images` M1-44; `imports` M1-47 |
 | 5 | `customer` | `customer.customers` → `customer.customer_identities` | spec |
 | 6 | `conversation` | `conversation.conversations` → `conversation.live_sessions` → `conversation.messages` → `conversation.automation_runs` | spec |
-| 7 | `order` (schema `ord`) | `ord.orders` → `ord.order_items` → `ord.returns` → `ord.return_items` | spec |
-| 8 | `fulfillment` | `fulfillment.shipments` | spec |
-| 9 | `cash` | `cash.cod_statements` → `cash.cod_transfers` → `cash.payments` | spec |
+| 7 | `order` (schema `ord`) | `ord.orders` → `ord.order_items` → `ord.order_status_history` → `ord.returns` → `ord.return_items` | spec; `ord.order_status_history`: M1 (Task M1-25 viết trước, M1-30 tạo; chỉ chèn). Mã đơn lấy từ sequence `ord.order_code_seq`, không khóa dòng |
+| 8 | `fulfillment` | `fulfillment.carrier_accounts` → `fulfillment.shipments` → `fulfillment.shipment_events` | spec; `carrier_accounts`, `shipment_events`: M1 (Task M1-25 viết trước, M1-31 tạo) |
+| 9 | `cash` | `cash.cod_statements` → `cash.cod_transfers` → `cash.cod_ledger_entries` → `cash.payments` | spec; `cash.cod_ledger_entries`: M1 (Task M1-25 viết trước, M1-32 tạo) |
 | 10 | `promotion` | `promotion.coupons` → `promotion.flash_sales` → `promotion.flash_sale_items` → `promotion.flash_sale_claims` | spec |
-| 11 | `inventory` | `inventory.stock_balances` → `inventory.stock_reservations` → `inventory.flash_sale_units` | spec |
+| 11 | `inventory` | `inventory.warehouses` → `inventory.suppliers` → `inventory.stock_documents` → `inventory.stock_document_lines` → `inventory.stocktakes` → `inventory.stocktake_lines` → `inventory.stock_balances` → `inventory.stock_reservations` → `inventory.flash_sale_units` → `inventory.reconcile_runs` | spec; M1 (Task M1-25 viết trước): `warehouses` M1-28; `suppliers`, `stock_documents`, `stock_document_lines` M1-29; `stocktakes`, `stocktake_lines` M1-35; `reconcile_runs` M1-36 (khác `cash.reconcile_runs` của M3) |
 | 12 | `affiliate` | `affiliate.affiliates` → `affiliate.commissions` → `affiliate.payouts` → `affiliate.payout_items` | spec |
+| 12a | `reporting` | để trống (M6, M7 thêm bảng vào nhóm này; C14, R4) | M1 (Task M1-25 giữ chỗ) |
+| 12b | `platform`: tệp | `platform.files` → `platform.file_variants` | M1 (Task M1-25 viết trước, M1-41 tạo `files`, M1-43 ghi `file_variants`) |
 | 13 | `platform`: dấu "đã xong", luôn cuối transaction | `platform.idempotency_keys` → `platform.jobs` | spec; `platform.jobs`: M0 Task 11 (migration 0007; `OnTerminal` của hàng đợi chạy trước câu đổi trạng thái `jobs`) |
+
+Mã nhóm đã cấp: `12a` `reporting`, `12b` tệp (M1), `12c` `platform.settings` (M2-33/M3 ghi dòng; M1 không ghi). Trong
+`inventory.stock_balances`: theo `(variant_id, warehouse_id)` tăng dần. Đường bắt đầu từ nhóm sau mà phải sửa nhóm
+trước (sự kiện vận đơn đổi đơn và tồn) khóa dòng nhóm trước trước (luật đi kèm dưới đây).
 
 ## Luật đi kèm (chép nguyên ADR-46 điểm 4)
 
@@ -75,6 +81,10 @@ dưới `pg_advisory_lock(727001)`).
 `platform.jobs` như dòng nghiệp vụ rồi mới `Claim.Complete` sửa `platform.idempotency_keys`. Không đường nào khóa
 `idempotency_keys` rồi mới sửa dòng `jobs` đã có (bước ghi nhận khóa của Task 9 chạy trong transaction riêng), nên hai
 thứ tự không gặp nhau.
+
+(d) **Bảng M1 ngoài thứ tự nhóm** (Task M1-25 viết trước): `platform.file_sync_runs` (M1-45; chỉ `INSERT` bằng role
+`crm_filesync`, không RLS), `platform.file_purposes` (M1-41; danh mục tĩnh, chỉ migration ghi, không RLS),
+`inventory.stock_ledger` (M1-28; sổ chỉ ghi thêm, trigger chặn `UPDATE`/`DELETE`, không khóa dòng đã có).
 
 Bảng phiên bản của goose `platform.goose_db_version` (M0 Task 4) chỉ do goose ghi trong lần chạy migrate, dưới cùng
 khóa advisory; không mã ứng dụng nào chạm.

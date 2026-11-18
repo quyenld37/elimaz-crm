@@ -27,6 +27,16 @@ WITH tenant_tables AS (
                       WHERE d.classid = 'pg_catalog.pg_class'::regclass AND d.objid = c.oid AND d.deptype = 'e')
       AND NOT (format('%I.%I', n.nspname, c.relname) = ANY ($1::text[]))
 ),
+views AS (
+    SELECT format('%I.%I', n.nspname, c.relname) AS tbl, c.relname, coalesce(c.reloptions, '{}') AS reloptions
+    FROM pg_catalog.pg_class AS c
+    JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+    WHERE c.relkind = 'v'
+      AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+      AND n.nspname NOT LIKE 'pg\_%'
+      AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_depend AS d
+                      WHERE d.classid = 'pg_catalog.pg_class'::regclass AND d.objid = c.oid AND d.deptype = 'e')
+),
 problems AS (
     -- (a) RLS bật, ép, có policy, mọi policy đúng biểu thức chuẩn.
     SELECT t.tbl, 'RLS chưa bật (gọi platform.enable_tenant_rls)' AS problem
@@ -76,6 +86,32 @@ problems AS (
         SELECT 1 FROM generate_subscripts(con.conkey, 1) AS k(i)
         WHERE con.conkey[k.i] = t.tenant_att AND con.confkey[k.i] = pa.attnum)
     UNION ALL
+    -- (g) bảng có seller_id: mọi unique khác khóa chính và khác (tenant_id, id) có seller_id ngay sau tenant_id
+    -- (ADR-29). Index có ghi chú 'seller-exempt: <lý do>' được miễn (liệt kê ở docs/views.md, viewsdoc_test kiểm).
+    SELECT t.tbl, format('unique %I thiếu seller_id ngay sau tenant_id (ADR-29)', ic.relname)
+    FROM tenant_tables AS t
+    JOIN pg_catalog.pg_attribute AS sa ON sa.attrelid = t.oid AND sa.attname = 'seller_id' AND NOT sa.attisdropped
+    JOIN pg_catalog.pg_index AS i ON i.indrelid = t.oid AND i.indisunique AND NOT i.indisprimary
+    JOIN pg_catalog.pg_class AS ic ON ic.oid = i.indexrelid
+    LEFT JOIN pg_catalog.pg_attribute AS ida ON ida.attrelid = t.oid AND ida.attname = 'id' AND NOT ida.attisdropped
+    WHERE i.indkey[0] = t.tenant_att
+      AND (i.indnkeyatts < 2 OR i.indkey[1] <> sa.attnum)
+      AND NOT coalesce(i.indnkeyatts = 2 AND i.indexprs IS NULL AND i.indkey[1] = ida.attnum, false)
+      AND coalesce(pg_catalog.obj_description(i.indexrelid, 'pg_class'), '') NOT LIKE 'seller-exempt:%'
+    UNION ALL
+    -- (f) mọi view thường ngoài schema hệ thống (cả platform; view của extension không tính) tên kết thúc _v và
+    -- security_invoker bật, để RLS của bảng gốc áp cho người đọc.
+    SELECT v.tbl, 'view công bố phải có tên kết thúc bằng _v'
+    FROM views AS v
+    WHERE v.relname NOT LIKE '%\_v'
+    UNION ALL
+    SELECT v.tbl, 'view thiếu WITH (security_invoker = true)'
+    FROM views AS v
+    WHERE NOT EXISTS (
+        SELECT 1 FROM unnest(v.reloptions) AS o(opt)
+        WHERE lower(split_part(o.opt, '=', 1)) = 'security_invoker'
+          AND lower(split_part(o.opt, '=', 2)) IN ('true', 'on', 'yes', '1'))
+    UNION ALL
     -- (e) không bảng nào trong public (bảng của extension không tính).
     SELECT format('%I.%I', n.nspname, c.relname), 'bảng nằm trong schema public'
     FROM pg_catalog.pg_class AS c
@@ -92,7 +128,7 @@ ORDER BY tbl, problem
 // Kiểm quy tắc schema (kế hoạch M0, Task 5; Global Constraints "Bảng nghiệp vụ"), đọc pg_catalog bằng chủ bảng.
 // Mỗi dòng trả về là một vi phạm "<schema>.<bảng>: <vấn đề>"; chỉ nêu tên bảng, ràng buộc, policy, không giá trị dòng.
 // Bảng nghiệp vụ = bảng thường hay bảng partition có cột tenant_id, ngoài schema hệ thống, không thuộc extension, không
-// nằm trong @platform_tables (tên "schema.bảng").
+// nằm trong @platform_tables (tên "schema.bảng"). Luật (f) về view và (g) về seller_id thêm ở kế hoạch M1, Task M1-25.
 func (q *Queries) SchemaRuleViolations(ctx context.Context, platformTables []string) ([]string, error) {
 	rows, err := q.db.Query(ctx, schemaRuleViolations, platformTables)
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -68,6 +69,28 @@ type Config struct {
 	ConsoleOrigins   []string
 	HealthToken      string
 
+	// Kho tệp (api, worker; kế hoạch M1, Global Constraints "Biến môi trường mới"). Tới Task M1-41 cả nhóm là tùy chọn:
+	// không khai biến nào thì để rỗng; khai một biến thì phải đủ S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY,
+	// FILES_PUBLIC_BASE_URL (quyết định D1 của Task 25).
+	S3Endpoint        string
+	S3Region          string // mặc định us-east-1
+	S3AccessKeyID     string // danh tính crm-app của kho
+	S3SecretAccessKey string
+	S3BucketPrefix    string // mặc định crm-
+	// FilesPublicBaseURL không có "/" cuối: đường dẫn ảnh = FilesPublicBaseURL + "/" + key.
+	FilesPublicBaseURL string
+
+	// worker
+	ImagerURL          string // rỗng tới Task M1-43
+	ImagePresetVersion int    // mặc định 1
+
+	// Hãng vận chuyển giả (ingest, worker), chỉ ngoài production (Q2). Có FakeCarrierURL thì bí mật bắt buộc, ≥ 32 ký tự.
+	FakeCarrierURL           string
+	FakeCarrierWebhookSecret string
+
+	// FileSyncExpected bật luật cảnh báo chép tệp sang kho ngoài (Task M1-45); mặc định false.
+	FileSyncExpected bool
+
 	// Migrate chỉ khác nil khi Role là RoleMigrate: vai trò khác không bao giờ giữ chuỗi kết nối của chủ bảng.
 	Migrate *MigrateConfig
 }
@@ -88,6 +111,11 @@ func (c Config) LogValue() slog.Value {
 		slog.String("otel_traces_sampler", c.TracesSampler),
 		slog.Float64("otel_traces_sampler_arg", c.TracesSamplerArg),
 		slog.Bool("log_dir_set", c.LogDir != ""),
+		slog.Bool("s3_configured", c.S3Endpoint != ""),
+		slog.Bool("imager_configured", c.ImagerURL != ""),
+		slog.Int("image_preset_version", c.ImagePresetVersion),
+		slog.Bool("fakecarrier_configured", c.FakeCarrierURL != ""),
+		slog.Bool("filesync_expected", c.FileSyncExpected),
 	)
 }
 
@@ -122,6 +150,7 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		OTelEndpoint:         r.optional("OTEL_EXPORTER_OTLP_ENDPOINT"),
 		HeartbeatURL:         r.optional("HEARTBEAT_URL"),
 		DBMaxConns:           int32(r.integer("DB_MAX_CONNS", defaultConns(role), 1, 100)), //nolint:gosec // integer giới hạn trong [1, 100]
+		FileSyncExpected:     r.boolean("FILESYNC_EXPECTED", false),
 	}
 	cfg.TracesSampler, cfg.TracesSamplerArg = r.sampler()
 
@@ -130,6 +159,7 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		cfg.Port = r.integer("PORT", 4191, 1, 65535)
 		cfg.SpoolDir = r.required("SPOOL_DIR")
 		cfg.SelftestWebhookSecret = r.secret("SELFTEST_WEBHOOK_SECRET")
+		r.fakeCarrier(&cfg)
 	case RoleAPI:
 		cfg.Port = r.integer("PORT", 4190, 1, 65535)
 		cfg.AccessTeamDomain = r.required("ACCESS_TEAM_DOMAIN")
@@ -138,9 +168,14 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		cfg.AccessMFAValues = r.list("ACCESS_MFA_VALUES")
 		cfg.ConsoleOrigins = r.list("CONSOLE_ORIGINS")
 		cfg.HealthToken = r.secret("HEALTH_TOKEN")
+		r.files(&cfg)
 	case RoleMigrate:
 		cfg.Migrate = &MigrateConfig{OwnerURL: r.required("DATABASE_OWNER_URL")}
 	case RoleWorker:
+		r.files(&cfg)
+		cfg.ImagerURL = r.httpURL("IMAGER_URL")
+		cfg.ImagePresetVersion = r.integer("IMAGE_PRESET_VERSION", 1, 1, 1000)
+		r.fakeCarrier(&cfg)
 	}
 
 	if len(r.problems) > 0 {
@@ -187,6 +222,66 @@ func (r *reader) secret(key string) string {
 		r.problems = append(r.problems, "thiếu "+key)
 	case len(v) < minSecretLen:
 		r.problems = append(r.problems, fmt.Sprintf("%s phải dài ít nhất %d ký tự", key, minSecretLen))
+	}
+	return v
+}
+
+// files đọc nhóm kho tệp: tất cả hoặc không (quyết định D1 của Task 25; Task M1-41 đổi thành bắt buộc).
+func (r *reader) files(cfg *Config) {
+	cfg.S3Region = r.optional("S3_REGION")
+	if cfg.S3Region == "" {
+		cfg.S3Region = "us-east-1"
+	}
+	cfg.S3BucketPrefix = r.optional("S3_BUCKET_PREFIX")
+	if cfg.S3BucketPrefix == "" {
+		cfg.S3BucketPrefix = "crm-"
+	}
+	group := []string{"S3_ENDPOINT", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "FILES_PUBLIC_BASE_URL"}
+	anySet := false
+	for _, k := range group {
+		anySet = anySet || r.optional(k) != ""
+	}
+	if !anySet {
+		return
+	}
+	for _, k := range group {
+		r.required(k)
+	}
+	cfg.S3Endpoint = r.httpURL("S3_ENDPOINT")
+	cfg.S3AccessKeyID = r.optional("S3_ACCESS_KEY_ID")
+	cfg.S3SecretAccessKey = r.optional("S3_SECRET_ACCESS_KEY")
+	cfg.FilesPublicBaseURL = r.httpURL("FILES_PUBLIC_BASE_URL")
+	if strings.HasSuffix(cfg.FilesPublicBaseURL, "/") {
+		r.problems = append(r.problems, "FILES_PUBLIC_BASE_URL không được kết thúc bằng /")
+	}
+}
+
+// fakeCarrier đọc hãng giả (Q2): cấm ở production; có URL thì bí mật webhook bắt buộc.
+func (r *reader) fakeCarrier(cfg *Config) {
+	if cfg.Env == "production" {
+		for _, k := range []string{"FAKECARRIER_URL", "FAKECARRIER_WEBHOOK_SECRET"} {
+			if r.optional(k) != "" {
+				r.problems = append(r.problems, k+" không được đặt ở production")
+			}
+		}
+		return
+	}
+	cfg.FakeCarrierURL = r.httpURL("FAKECARRIER_URL")
+	if cfg.FakeCarrierURL != "" || r.optional("FAKECARRIER_WEBHOOK_SECRET") != "" {
+		cfg.FakeCarrierWebhookSecret = r.secret("FAKECARRIER_WEBHOOK_SECRET")
+	}
+}
+
+// httpURL đọc biến tùy chọn; có giá trị thì phải là URL tuyệt đối http hoặc https có host.
+func (r *reader) httpURL(key string) string {
+	v := r.optional(key)
+	if v == "" {
+		return ""
+	}
+	u, err := url.Parse(v)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		r.problems = append(r.problems, key+" phải là URL http(s) tuyệt đối")
+		return ""
 	}
 	return v
 }
