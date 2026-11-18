@@ -494,6 +494,76 @@ components:
     Error:
       type: object
       required: [error, request_id]
+      # Mọi mã `error` máy chủ có thể trả (Task 48). Màn hình phải có câu tiếng Việt cho từng mã
+      # (console/src/app/errors.ts, test errors.test.ts đọc danh sách này); mọi hằng code* của
+      # internal/httpapi/errors.go phải có ở đây (TestErrorCodes_DeclaredInContract). Mã của mốc sau được khai trước
+      # theo kế hoạch; thêm mã mới thì thêm dòng ở đây và câu ở errors.ts.
+      x-error-codes:
+        # Chung (M0)
+        - already_processed
+        - bad_origin
+        - bad_request
+        - body_too_large
+        - forbidden
+        - idempotency_key_invalid
+        - idempotency_key_required
+        - idempotency_key_reused
+        - internal
+        - invalid_input
+        - job_state_conflict
+        - mfa_required
+        - not_found
+        - not_implemented
+        - rate_limited
+        - request_in_progress
+        - retry_later
+        - stream_unavailable
+        - unauthenticated
+        - unsupported_media_type
+        - version_conflict
+        # Nhân viên và vai trò (M1-26, M1-56)
+        - cannot_modify_self
+        - email_taken
+        - grant_exceeds_actor
+        - last_owner
+        - owner_role_locked
+        - role_archived
+        - role_in_use
+        - role_name_taken
+        - unknown_permission
+        # Sản phẩm, danh mục (M1-27, M1-34)
+        - barcode_taken
+        - category_cycle
+        - category_in_use
+        - category_too_deep
+        - code_taken
+        - duplicate_option
+        - invalid_article
+        - invalid_price
+        - not_for_sale
+        - sku_taken
+        # Kho (M1-28, M1-29, M1-35)
+        - document_not_draft
+        - insufficient_stock
+        - stocktake_not_open
+        - stocktake_open
+        - supplier_archived
+        - supplier_name_taken
+        - supplier_not_for_kind
+        # Đơn, vận chuyển (M1-30, M1-31)
+        - mixed_sellers
+        - out_of_stock
+        - shipment_exists
+        - total_overflow
+        - variant_not_for_sale
+        # Tệp, ảnh, nhập Excel (M1-41, M1-44, M1-47)
+        - file_not_ready
+        - file_purpose_not_allowed
+        - file_too_large
+        - file_type_not_allowed
+        - import_not_ready
+        - restore_expired
+        - upload_missing
       properties:
         error:
           type: string

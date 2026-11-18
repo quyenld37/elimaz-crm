@@ -10,3 +10,33 @@ export type { ApiLiveOptions } from "../shell/apiHealth";
 /** Băng báo của khung theo câu chữ spec 04 mục 6. */
 export { Banner, TEXT_API_DOWN, TEXT_RECONNECTING, TEXT_SESSION_EXPIRED } from "../shell/Banner";
 export type { BannerProps } from "../shell/Banner";
+/** Gửi yêu cầu ghi với khóa chống trùng; tự gửi lại cùng khóa khi máy chủ bận (503 retry_later, 409 request_in_progress, mạng). */
+export { TEXT_BUSY, useWriteAction } from "../app/idempotency";
+export type { WriteAction, WriteActionOptions, WriteResult } from "../app/idempotency";
+/** Lỗi API: đổi kết quả client sinh thành dữ liệu hoặc ApiError/NetworkError; câu tiếng Việt cho mọi mã lỗi của hợp đồng. */
+export {
+  ApiError,
+  ERROR_MESSAGES,
+  NetworkError,
+  TEXT_NETWORK,
+  TEXT_UNKNOWN_ERROR,
+  errorMessage,
+  unwrap,
+} from "../app/errors";
+export type { ClientResult } from "../app/errors";
+/** Lớp lấy dữ liệu: khóa truy vấn theo chủ đề realtime, nối báo hiệu changed/resync vào TanStack Query. */
+export {
+  TOPICS,
+  createQueryClient,
+  onRealtimeChanged,
+  onRealtimeResync,
+  queryKey,
+  shouldRetry,
+} from "../app/queryClient";
+export type { Topic } from "../app/queryClient";
+/** Menu và định tuyến: mỗi màn khai một Screen trong src/app/screens.tsx; menu chỉ hiện màn có quyền. */
+export { NAV_GROUPS, allowedScreens, hasPermission, navSections } from "../app/nav";
+export type { NavGroup, NavSection, Screen } from "../app/nav";
+/** Khung điều hướng theo mockup M1: menu trái, thanh trên 56 px, menu trượt trên điện thoại. */
+export { Layout } from "../shell/Layout";
+export type { LayoutProps } from "../shell/Layout";

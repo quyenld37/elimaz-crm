@@ -5,7 +5,8 @@ Task 17 (M0-17), 18/11/2026. Mỗi lựa chọn ghi bốn điều của ADR-32: 
 và `console/package-lock.json`; thông tin giấy phép, ngày phát hành đọc từ npm (`npm view`) ngày 18/11/2026.
 "Quen dùng", "có sẵn" không phải lý do (ADR-32).
 
-Bộ định tuyến và thư viện lấy dữ liệu: **để M1** (kế hoạch M0 Task 17): chưa có màn hình nào cần.
+Bộ định tuyến, thư viện lấy dữ liệu, danh sách ảo, test trên trình duyệt: chọn ở Task 48 (M1-48), 18/11/2026, theo đề
+xuất Q31 của kế hoạch M1; xem mục "M1" cuối tệp. Cả bốn đạt bốn điều ADR-32, không phải dừng hỏi.
 
 Node chạy công cụ: v26.12.0 (máy dev). Bản dựng là tệp tĩnh; Node không chạy trên máy chủ (ADR-34).
 
@@ -83,3 +84,77 @@ Ngưỡng xem lại: bản dựng của khung vượt 400 kB gzip, hoặc Vite n
 có ở 8.73.0, kế hoạch ghim 8.72.2). Đầu vào của các gói này là mẫu đường dẫn trong cấu hình của chính repo, không phải
 dữ liệu người ngoài; không chạy trên máy chủ. `js-yaml` 4.2.0 (đọc `openapi.yaml` trong bộ sinh) được ép lên 4.3.2
 bằng `overrides`. Xem lại khi có bản vá `picomatch`, hoặc khi nâng typescript-eslint.
+
+## M1 (Task 48, 18/11/2026): định tuyến, lấy dữ liệu, danh sách ảo, test trình duyệt
+
+Số thông báo lỗ hổng năm 2026 đếm trên GitHub Advisory Database (`gh api /advisories?ecosystem=npm&affects=<gói>`)
+ngày 18/11/2026. Phiên bản, giấy phép, ngày phát hành: `npm view`. Ghim đúng bản (`--save-exact`), cài với
+`--ignore-scripts` (không gói nào cần chạy mã lúc cài).
+
+### Bộ định tuyến: React Router 8.5.1 (`react-router`, MIT), chế độ khai báo
+
+1. **Vì sao:** màn hình cần đường dẫn cho khoảng 12 màn M1 (có trang con như sửa mẫu), mục menu sáng theo đường dẫn,
+   nút quay lại của trình duyệt, và bộ lọc nằm trong URL. Chế độ khai báo (`BrowserRouter`, `Routes`) làm đúng chừng đó;
+   dữ liệu do TanStack Query lấy, nên không dùng loader/action, không dựng trên máy chủ (ADR-34). Một gói, không cần
+   plugin Vite hay bộ sinh tuyến.
+2. **Giá vận hành:** một gói chạy trong bản dựng; không có tiến trình máy chủ. Bản dựng của khung từ 74 kB lên 97,6 kB
+   gzip (cùng TanStack Query và React Router).
+3. **Đo:** đổi màn trong trình duyệt dưới 50 ms (không tải lại trang); test `Layout.test.tsx`, `shell.spec.ts`.
+4. **Ngưỡng đổi:** cần kiểu chặt cho tham số tìm kiếm của nhiều màn lọc (lỗi do gõ sai tên tham số lặp lại) → TanStack
+   Router; hoặc React Router có lỗ hổng trúng chế độ khai báo mà chưa vá trong 14 ngày.
+- **Lỗ hổng 2026:** 18 thông báo cho `react-router`; **không cái nào trúng 8.5.1** (bản cao nhất trúng là `< 8.3.0`,
+  GHSA-qwww-vcr4-c8h2, chế độ RSC). Hầu hết thuộc chế độ framework/SSR/RSC mà CRM không dùng; nhóm còn lại là chuyển
+  hướng mở khi đưa chuỗi ngoài vào `navigate`/`<Link>` — luật trong `src/app/router.tsx`: không đưa chuỗi từ API, URL
+  vào điều hướng mà không kiểm là đường nội bộ.
+- **Đã cân nhắc:** TanStack Router 1.170.46 (MIT): kiểu chặt cho đường dẫn và tham số tìm kiếm là điểm mạnh thật,
+  nhưng cần plugin sinh cây tuyến hoặc khai tay dài; 1 thông báo năm 2026 là **mã độc chuỗi cung ứng** (GHSA-g7cv-rxg3-
+  hmpx, 11/05/2026: 84 bản độc trên 42 gói `@tanstack/*` của kho `TanStack/router`, đánh cắp khóa lúc cài). Gói của
+  `TanStack/query` và `TanStack/virtual` không nằm trong danh sách. Viết tay bằng History API: tự lo khớp đường dẫn,
+  trang con, nút quay lại — không đáng so với một gói đã ổn định.
+
+### Lấy dữ liệu: TanStack Query 5.108.0 (`@tanstack/react-query`, MIT)
+
+1. **Vì sao:** việc chính của màn CRM là "báo hiệu realtime → tải lại đúng danh sách đang mở". TanStack Query có đúng
+   phép đó: `invalidateQueries({ queryKey: [chủ đề], refetchType: "active" })` chỉ tải lại truy vấn có màn đang xem,
+   truy vấn khác chỉ bị đánh dấu cũ (`src/app/queryClient.ts`, test `queryClient.test.ts`); gộp yêu cầu trùng, hủy khi
+   rời màn, giữ dữ liệu cũ khi đang tải lại. Đường ghi đi qua `useWriteAction` riêng (khóa chống trùng ADR-41), không
+   dùng cơ chế thử lại của thư viện cho yêu cầu ghi.
+2. **Giá:** một gói chạy trong bản dựng (lõi `@tanstack/query-core`); 0 thông báo lỗ hổng năm 2026.
+3. **Đo:** báo hiệu `changed` tới truy vấn đang mở được tải lại trong một vòng sự kiện (test); không có yêu cầu thừa
+   cho truy vấn không ai xem.
+4. **Ngưỡng đổi:** cần bộ nhớ đệm chuẩn hóa theo đối tượng (một sản phẩm hiện ở nhiều danh sách, sửa một chỗ phải đổi
+   mọi chỗ mà tải lại không kịp) → xem lại; hoặc bản 6 bỏ API đang dùng (`fetchQuery` đã báo bỏ, test dùng `query`).
+- **Đã cân nhắc:** SWR 2.5.1 (MIT, 0 thông báo 2026): gọn hơn nhưng làm mới theo khóa riêng lẻ, không có phép "đánh dấu
+  cũ cả nhóm theo tiền tố, chỉ tải lại cái đang mở" sẵn; hey-api có plugin sinh `queryOptions` cho TanStack Query nhưng
+  khóa sinh theo tên operation, không theo chủ đề realtime, nên chưa dùng (xem lại khi số màn lớn). orval: chỉ đáng khi
+  đổi bộ sinh client; giữ hey-api.
+
+### Danh sách ảo: TanStack Virtual 3.14.26 (`@tanstack/react-virtual`, MIT) — chọn, cài ở màn đầu tiên cần
+
+1. **Vì sao:** ADR-34 đòi danh sách dài dùng danh sách ảo (sản phẩm, tồn, sổ kho có thể hàng nghìn dòng); thư viện chỉ
+   tính dòng nào đang hiện, không áp kiểu dáng, hợp với bảng theo mockup M1 (bảng thành thẻ trên điện thoại).
+2. **Giá:** một gói nhỏ trong bản dựng; 0 thông báo 2026; kho `TanStack/virtual` không nằm trong vụ mã độc 05/2026.
+3. **Đo:** cuộn danh sách 5.000 dòng giữ 60 khung hình/giây trên điện thoại tầm trung (đo ở task màn đầu tiên dùng).
+4. **Ngưỡng đổi:** danh sách nào cũng dưới vài trăm dòng có phân trang → không cần; cần lưới hai chiều phức tạp → xem lại.
+- **Chưa cài ở Task 48:** chưa có màn nào dùng; cài đúng bản này ở task màn danh sách đầu tiên (M1-50 hoặc M1-51) và
+  thêm dòng vào `docs/phu-thuoc.md` lúc đó.
+
+### Test trên trình duyệt: Playwright 1.65.1 (`@playwright/test`, Apache-2.0)
+
+1. **Vì sao:** kế hoạch đòi Chromium cho mọi spec và **WebKit** (Safari điện thoại) cho spec `.phone.spec.ts`, ở 1512 ×
+   767 và 390 × 844; Playwright chạy được cả hai bằng một API, chặn và giả API bằng `page.route` (`e2e/fixtures.ts`),
+   tự bật Vite (`webServer`). Website của shop cũng dùng Playwright, nhưng đó không phải lý do (ADR-32).
+2. **Giá:** gói dev; trình duyệt tải về `~/Library/Caches/ms-playwright` (Chromium 1255, WebKit 2388); không vào bản
+   dựng, không chạy trên máy chủ. CI (GitHub) chưa chạy e2e; `make console-e2e` chạy trên máy dev.
+3. **Đo:** 6 test khung chạy dưới 15 s (`npx playwright test`).
+4. **Ngưỡng đổi:** Vitest browser mode (dùng chính Playwright làm bộ điều khiển) khi muốn test thành phần trong trình duyệt
+   thật mà không cần cả trang. Cypress không chạy WebKit ổn định nên không chọn.
+- **Lỗ hổng 2026:** 0 cho `@playwright/test` và `playwright` (thông báo gần nhất 10/2025, tải trình duyệt không kiểm
+  chứng chỉ, đã vá trước 1.55).
+
+### Phông chữ: `@fontsource/mulish` 5.3.0, `@fontsource/playfair-display` 5.3.0 (OFL-1.1)
+
+Mockup M1 dùng Mulish (tiêu đề, menu) và Playfair Display (chữ ELIMAZ) từ Google Fonts; CSP của `crm-console`
+(`default-src 'self'`, `docs/RUNBOOK.md`) chặn tải phông từ ngoài. Hai gói này đưa tệp phông vào bản dựng (chỉ bộ latin
+và vietnamese, Mulish 400/600/700, Playfair 500: khoảng 60 kB woff2). 0 thông báo lỗ hổng. Ngưỡng đổi: hệ thiết kế
+đổi phông.

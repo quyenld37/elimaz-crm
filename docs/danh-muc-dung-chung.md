@@ -864,7 +864,7 @@ func (s *Spool) Write(e Entry) (string, error)
 
 Export của `console/src/shared/index.ts`.
 
-**Khi nào không dùng:** Không fetch thẳng tới /api/v1 ở màn hình (eslint chặn): dữ liệu lấy qua client sinh console/src/api; chỉ createRealtimeClient đọc /api/v1/stream. Không coi báo hiệu changed là dữ liệu: nhận báo hiệu thì tải lại đúng đối tượng bằng API; onResync tải lại mọi danh sách đang mở. Không tạo hai createRealtimeClient trong một tab (mỗi tab một kết nối, spec 04 mục 6). Không tự viết băng báo mất kết nối, phiên hết hạn, API tạm ngừng: dùng Banner (câu chữ spec 04 mục 6).
+**Khi nào không dùng:** Không fetch thẳng tới /api/v1 ở màn hình (eslint chặn): dữ liệu lấy qua client sinh console/src/api; chỉ createRealtimeClient đọc /api/v1/stream. Không coi báo hiệu changed là dữ liệu: nhận báo hiệu thì tải lại đúng đối tượng bằng API; onResync tải lại mọi danh sách đang mở. Không tạo hai createRealtimeClient trong một tab (mỗi tab một kết nối, spec 04 mục 6). Không tự viết băng báo mất kết nối, phiên hết hạn, API tạm ngừng: dùng Banner (câu chữ spec 04 mục 6). Không gọi hàm ghi của client sinh thẳng từ màn: qua useWriteAction (khóa chống trùng, gửi lại cùng khóa); không tự viết vòng thử lại hay sinh Idempotency-Key ở màn. Không hiện mã lỗi máy hay chữ từ máy chủ cho nhân viên: errorMessage; mã mới thì thêm vào x-error-codes của openapi.yaml và ERROR_MESSAGES. Khóa truy vấn luôn bắt đầu bằng chủ đề realtime (queryKey), không tạo QueryClient thứ hai. Không thêm route hay mục menu ngoài SCREENS (src/app/screens.tsx).
 
 ```ts
 export { createRealtimeClient } from "../realtime/client"; // Lớp realtime: báo hiệu "đối tượng vừa đổi" qua SSE, tự canh im lặng, nối lại, nhận ra phiên hết hạn.
@@ -873,4 +873,14 @@ export { watchApiLive } from "../shell/apiHealth"; // Canh API bằng /health/li
 export type { ApiLiveOptions } from "../shell/apiHealth";
 export { Banner, TEXT_API_DOWN, TEXT_RECONNECTING, TEXT_SESSION_EXPIRED } from "../shell/Banner"; // Băng báo của khung theo câu chữ spec 04 mục 6.
 export type { BannerProps } from "../shell/Banner";
+export { TEXT_BUSY, useWriteAction } from "../app/idempotency"; // Gửi yêu cầu ghi với khóa chống trùng; tự gửi lại cùng khóa khi máy chủ bận (503 retry_later, 409 request_in_progress, mạng).
+export type { WriteAction, WriteActionOptions, WriteResult } from "../app/idempotency";
+export { ApiError, ERROR_MESSAGES, NetworkError, TEXT_NETWORK, TEXT_UNKNOWN_ERROR, errorMessage, unwrap } from "../app/errors"; // Lỗi API: đổi kết quả client sinh thành dữ liệu hoặc ApiError/NetworkError; câu tiếng Việt cho mọi mã lỗi của hợp đồng.
+export type { ClientResult } from "../app/errors";
+export { TOPICS, createQueryClient, onRealtimeChanged, onRealtimeResync, queryKey, shouldRetry } from "../app/queryClient"; // Lớp lấy dữ liệu: khóa truy vấn theo chủ đề realtime, nối báo hiệu changed/resync vào TanStack Query.
+export type { Topic } from "../app/queryClient";
+export { NAV_GROUPS, allowedScreens, hasPermission, navSections } from "../app/nav"; // Menu và định tuyến: mỗi màn khai một Screen trong src/app/screens.tsx; menu chỉ hiện màn có quyền.
+export type { NavGroup, NavSection, Screen } from "../app/nav";
+export { Layout } from "../shell/Layout"; // Khung điều hướng theo mockup M1: menu trái, thanh trên 56 px, menu trượt trên điện thoại.
+export type { LayoutProps } from "../shell/Layout";
 ```

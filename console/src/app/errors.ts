@@ -1,0 +1,176 @@
+// Lỗi của API trên màn hình (kế hoạch M1 Task 48). Thân lỗi luôn {"error": "<mã>", "request_id": "<id>", ...trường
+// thêm như available}; ERROR_MESSAGES có câu tiếng Việt cho mọi mã trong x-error-codes của openapi/openapi.yaml
+// (test errors.test.ts đọc tệp đó). Câu chỉ chèn trường số đã biết ({available}), không bao giờ chèn chữ từ máy chủ.
+
+/** Câu khi mã lạ (thường do màn hình cũ hơn API): kèm mã yêu cầu để tra log. */
+export const TEXT_UNKNOWN_ERROR = "Có lỗi, chưa làm được. Thử lại sau ít phút";
+/** Câu khi yêu cầu không tới được máy chủ (mạng, cổng vào). */
+export const TEXT_NETWORK = "Mất kết nối, chưa rõ đã lưu chưa. Bấm lại để gửi lại, không bị trùng";
+
+export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  // Chung (M0)
+  already_processed: "Việc này đã được xử lý rồi",
+  bad_origin: "Yêu cầu không đến từ trang CRM. Tải lại trang rồi thử lại",
+  bad_request: "Dữ liệu gửi lên không đúng dạng. Tải lại trang rồi thử lại",
+  body_too_large: "Dữ liệu gửi lên quá lớn",
+  forbidden: "Bạn chưa được cấp quyền làm việc này",
+  idempotency_key_invalid: "Yêu cầu thiếu mã chống trùng hợp lệ. Tải lại trang rồi thử lại",
+  idempotency_key_required: "Yêu cầu thiếu mã chống trùng. Tải lại trang rồi thử lại",
+  idempotency_key_reused: "Nội dung đã đổi so với lần gửi trước. Bấm lưu lại một lần nữa",
+  internal: "Hệ thống gặp lỗi, chưa làm được. Thử lại sau ít phút",
+  invalid_input: "Có ô nhập chưa đúng. Kiểm tra lại các ô được đánh dấu",
+  job_state_conflict: "Việc nền đã đổi trạng thái. Tải lại để xem trạng thái mới",
+  mfa_required: "Cần đăng nhập lại có bước xác minh thứ hai",
+  not_found: "Không tìm thấy, có thể đã bị xóa",
+  not_implemented: "Chức năng này chưa có",
+  rate_limited: "Bạn thao tác quá nhanh. Chờ một lát rồi thử lại",
+  request_in_progress: "Yêu cầu trước vẫn đang chạy. Chờ một lát",
+  retry_later: "Hệ thống đang bận, thử lại sau ít giây",
+  stream_unavailable: "Chưa nhận được tin báo tức thời. Trang vẫn tự tải lại định kỳ",
+  unauthenticated: "Phiên đã hết hạn, tải lại trang",
+  unsupported_media_type: "Dạng dữ liệu gửi lên không được nhận",
+  version_conflict: "Người khác vừa sửa mục này. Tải lại để xem bản mới rồi sửa lại",
+  // Nhân viên và vai trò
+  cannot_modify_self: "Bạn không thể tự sửa quyền hay khóa chính mình",
+  email_taken: "Email này đã có tài khoản nhân viên",
+  grant_exceeds_actor: "Bạn chỉ gán được quyền mà chính bạn đang có trên phạm vi đó",
+  last_owner: "Phải còn ít nhất một Chủ đang hoạt động",
+  owner_role_locked: "Vai trò Chủ luôn có đủ mọi quyền, không sửa được",
+  role_archived: "Vai trò đã lưu trữ, không gán được",
+  role_in_use: "Vai trò đang được gán cho nhân viên, gỡ ra trước rồi mới lưu trữ",
+  role_name_taken: "Đã có vai trò cùng tên",
+  unknown_permission: "Có quyền không còn trong hệ thống. Tải lại trang",
+  // Sản phẩm, danh mục
+  barcode_taken: "Mã vạch đã dùng cho biến thể khác",
+  category_cycle: "Không đặt danh mục làm con của chính nó hay của danh mục con",
+  category_in_use: "Danh mục đang có sản phẩm hoặc danh mục con",
+  category_too_deep: "Danh mục lồng quá nhiều cấp",
+  code_taken: "Mã mẫu đã có",
+  duplicate_option: "Có hai biến thể trùng màu và size",
+  invalid_article: "Bài viết có khối không hợp lệ. Kiểm tra lại các khối được đánh dấu",
+  invalid_price: "Giá không hợp lệ",
+  not_for_sale: "Biến thể này không bán được (đã ngừng bán)",
+  sku_taken: "Mã hàng đã có",
+  // Kho
+  document_not_draft: "Phiếu đã ghi sổ hoặc đã hủy, không sửa được",
+  insufficient_stock: "Không đủ hàng: còn {available}",
+  stocktake_not_open: "Phiên kiểm kho đã đóng",
+  stocktake_open: "Kho đang có phiên kiểm kho chưa xong",
+  supplier_archived: "Nhà cung cấp đã lưu trữ",
+  supplier_name_taken: "Đã có nhà cung cấp cùng tên",
+  supplier_not_for_kind: "Chỉ phiếu nhập mới có nhà cung cấp",
+  // Đơn, vận chuyển
+  mixed_sellers: "Đơn có sản phẩm của người bán khác",
+  out_of_stock: "Không đủ hàng: còn {available}",
+  shipment_exists: "Đơn đã có vận đơn",
+  total_overflow: "Tổng tiền quá lớn",
+  variant_not_for_sale: "Có biến thể đã ngừng bán",
+  // Tệp, ảnh, nhập Excel
+  file_not_ready: "Tệp đang được xử lý, chờ một lát",
+  file_purpose_not_allowed: "Không tải được loại tệp này vào chỗ này",
+  file_too_large: "Tệp quá lớn",
+  file_type_not_allowed: "Loại tệp này không được nhận",
+  import_not_ready: "Tệp nhập chưa kiểm xong hoặc còn dòng lỗi",
+  restore_expired: "Đã quá hạn khôi phục",
+  upload_missing: "Tệp chưa tải lên xong. Tải lại tệp",
+};
+
+/** Lỗi API có mã (thân {"error", "request_id", ...}). code rỗng khi thân không đúng dạng (ví dụ 502 của cổng vào). */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code: string;
+  readonly requestId: string | undefined;
+  /** Các trường thêm của thân lỗi (ví dụ available, variantId). */
+  readonly details: Readonly<Record<string, unknown>>;
+  /** Thời gian chờ theo header Retry-After (ms); null khi không có hoặc sai dạng. */
+  readonly retryAfterMs: number | null;
+
+  constructor(o: {
+    status: number;
+    code: string;
+    requestId?: string;
+    details: Record<string, unknown>;
+    retryAfterMs?: number | null;
+  }) {
+    super(`API ${String(o.status)} ${o.code}`);
+    this.name = "ApiError";
+    this.status = o.status;
+    this.code = o.code;
+    this.requestId = o.requestId;
+    this.details = o.details;
+    this.retryAfterMs = o.retryAfterMs ?? null;
+  }
+}
+
+/** Yêu cầu không tới được máy chủ, hoặc không có câu trả lời: chưa rõ máy chủ đã làm hay chưa. */
+export class NetworkError extends Error {
+  constructor(cause?: unknown) {
+    super("không tới được máy chủ", { cause });
+    this.name = "NetworkError";
+  }
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+// Retry-After: số giây (RFC 9110 cũng cho ngày giờ HTTP; API chỉ gửi số giây). Sai dạng → null.
+function parseRetryAfter(v: string | null): number | null {
+  if (v === null || !/^\d+$/.test(v.trim())) return null;
+  return Number(v.trim()) * 1000;
+}
+
+/** Kết quả của một hàm trong client sinh (dạng mặc định {data, error, response}). */
+export interface ClientResult<T> {
+  data?: T;
+  error?: unknown;
+  response?: Response;
+}
+
+/**
+ * Đổi kết quả của client sinh thành dữ liệu; lỗi HTTP → ApiError, không có câu trả lời → NetworkError.
+ * Dùng: `unwrap(getProduct({ path: { id } }))`.
+ */
+export async function unwrap<T>(p: Promise<ClientResult<T>>): Promise<T> {
+  let r: ClientResult<T>;
+  try {
+    r = await p;
+  } catch (e) {
+    throw new NetworkError(e);
+  }
+  const res = r.response;
+  if (res === undefined) throw new NetworkError(r.error);
+  if (res.ok) {
+    // 2xx: máy chủ đã làm xong. Đọc thân hỏng (mạng rớt giữa chừng, thân sai dạng) → NetworkError để đường ghi giữ
+    // khóa và gửi lại cùng khóa (máy chủ trả lại kết quả đã lưu), không coi là lỗi dứt khoát. Client sinh trả {} cho 204.
+    if (r.error !== undefined || r.data === undefined)
+      throw new NetworkError(r.error ?? new Error("2xx không có dữ liệu"));
+    return r.data;
+  }
+  const body = isRecord(r.error) ? r.error : {};
+  const { error: code, request_id: requestId, ...details } = body;
+  throw new ApiError({
+    status: res.status,
+    code: typeof code === "string" ? code : "",
+    requestId: typeof requestId === "string" ? requestId : undefined,
+    details,
+    retryAfterMs: parseRetryAfter(res.headers.get("retry-after")),
+  });
+}
+
+// fill thay {tên} bằng trường số nguyên không âm của details; thiếu thì bỏ cả phần ": còn {tên}".
+function fill(text: string, details: Readonly<Record<string, unknown>>): string {
+  return text.replace(/(?::\s*[^{:]*)?\{(\w+)\}/g, (whole, name: string) => {
+    const v = details[name];
+    return typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? whole.replace(`{${name}}`, String(v)) : "";
+  });
+}
+
+/** Câu tiếng Việt cho một lỗi bất kỳ (ApiError, NetworkError hay lỗi khác). */
+export function errorMessage(err: unknown): string {
+  if (err instanceof NetworkError) return TEXT_NETWORK;
+  if (!(err instanceof ApiError)) return TEXT_UNKNOWN_ERROR;
+  const text = Object.hasOwn(ERROR_MESSAGES, err.code) ? ERROR_MESSAGES[err.code] : undefined;
+  if (text !== undefined) return fill(text, err.details);
+  return err.requestId === undefined ? TEXT_UNKNOWN_ERROR : `${TEXT_UNKNOWN_ERROR} (mã yêu cầu ${err.requestId})`;
+}
