@@ -103,10 +103,7 @@ func TestLostLeaseRollsBack(t *testing.T) {
 
 func TestPermanentErrorGoesDeadOnce(t *testing.T) {
 	e := newEnv(t)
-	h := newFH(kind("t.perm"), func(context.Context, queue.Job, pgx.Tx) (json.RawMessage, error) {
-		return nil, fmt.Errorf("payload sai: %w", queue.ErrPermanent)
-	})
-	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
+	h, id := e.enqueuePermanentError(t)
 	reg := metrics.NewRegistry()
 	w := queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Metrics: reg})
 	runOnce(t, w, 10)

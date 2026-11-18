@@ -3,7 +3,6 @@ package queue_test
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -116,10 +115,7 @@ func panicInHandler() { panic("boom 0912345678") }
 // Handler tự báo ErrPermanent (lỗi đã lường trước): việc dead như cũ, không ghi error_events (đã có cảnh báo dead).
 func TestPermanentErrorNotRecorded(t *testing.T) {
 	e := newEnv(t)
-	h := newFH(kind("t.perm"), func(context.Context, queue.Job, pgx.Tx) (json.RawMessage, error) {
-		return nil, fmt.Errorf("payload sai: %w", queue.ErrPermanent)
-	})
-	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
+	h, id := e.enqueuePermanentError(t)
 	runOnce(t, worker(e, "w1", h), 10)
 	if st := e.job(t, id).Status; st != "dead" {
 		t.Fatalf("trạng thái %s, muốn dead", st)
