@@ -1,0 +1,70 @@
+package importer
+
+import "github.com/google/uuid"
+
+// Refs là dữ liệu có sẵn để kiểm tệp, bên gọi đọc trong ngữ cảnh tenant và người bán của lần nhập:
+// Categories theo đường dẫn CategoryPath, Attributes theo tên thuộc tính rồi giá trị, Tags theo mã (chữ thường),
+// ExistingSKUs theo SKU (viết hoa) của người bán.
+type Refs struct {
+	Categories   map[string]uuid.UUID
+	Attributes   map[string]map[string]uuid.UUID
+	Tags         map[string]uuid.UUID
+	ExistingSKUs map[string]ExistingVariant
+}
+
+// ExistingVariant là một biến thể đã có trong database (ColorHex rỗng là không có; CostPrice nil là không có).
+type ExistingVariant struct {
+	ID, ProductID            uuid.UUID
+	ProductCode              string
+	Version                  int64
+	Barcode, Color, ColorHex string
+	Size                     string
+	Price                    int64
+	CostPrice                *int64
+}
+
+// Action là việc phải làm với một biến thể.
+type Action string
+
+// Các Action.
+const (
+	ActionCreate    Action = "create"    // SKU chưa có
+	ActionUpdate    Action = "update"    // SKU đã có ở chính mẫu này, có trường khác
+	ActionUnchanged Action = "unchanged" // SKU đã có ở chính mẫu này, mọi trường giống hệt
+)
+
+// Plan là kế hoạch ghi của một tệp không có lỗi (lưu thành jsonb ở Task M1-47; không có dữ liệu cá nhân).
+type Plan struct {
+	Products []PlannedProduct `json:"products"`
+}
+
+// PlannedProduct là một mẫu theo thứ tự xuất hiện trong tệp. Status rỗng là cột trống (mẫu mới: draft; mẫu có sẵn:
+// giữ nguyên). ExistingProductID có khi một SKU của mẫu đã có trong Refs.ExistingSKUs. AttributeValueIDs, TagIDs
+// không trùng, tăng dần.
+type PlannedProduct struct {
+	Code              string           `json:"code"`
+	Name              string           `json:"name"`
+	Description       string           `json:"description"`
+	Status            string           `json:"status,omitempty"`
+	CategoryID        *uuid.UUID       `json:"categoryId,omitempty"`
+	AttributeValueIDs []uuid.UUID      `json:"attributeValueIds"`
+	TagIDs            []uuid.UUID      `json:"tagIds"`
+	ExistingProductID *uuid.UUID       `json:"existingProductId,omitempty"`
+	Variants          []PlannedVariant `json:"variants"`
+}
+
+// PlannedVariant là một biến thể (một dòng của tệp). Barcode rỗng ở biến thể mới: CRM tự sinh; ở biến thể có sẵn,
+// ô trống giữ barcode cũ (đã điền sẵn ở đây). ExistingID, ExistingVersion có khi Action khác create.
+type PlannedVariant struct {
+	Row             int        `json:"row"`
+	Action          Action     `json:"action"`
+	ExistingID      *uuid.UUID `json:"existingId,omitempty"`
+	ExistingVersion int64      `json:"existingVersion,omitempty"`
+	SKU             string     `json:"sku"`
+	Barcode         string     `json:"barcode,omitempty"`
+	Color           string     `json:"color"`
+	ColorHex        string     `json:"colorHex,omitempty"`
+	Size            string     `json:"size"`
+	Price           int64      `json:"price"`
+	CostPrice       *int64     `json:"costPrice,omitempty"`
+}

@@ -75,6 +75,9 @@ db-reset: ## Xóa container và volume dữ liệu của dự án compose này
 spike-test: ## Test phép đo flash sale trên PostgreSQL dev (module riêng spikes/flashsale)
 	cd spikes/flashsale && go test -race -count=1 ./...
 
+fuzz-xlsx: ## Fuzz xlsx.Read 60 s trên byte ngẫu nhiên: không panic, không treo (Task M1-38; chạy khi đổi gói xlsx hay nâng excelize)
+	go test -run '^$$' -fuzz '^FuzzRead$$' -fuzztime 60s -fuzzminimizetime 5s ./internal/platform/xlsx/
+
 # ---- Cổng kiểm (Task 3). `make ci` là lưới cuối; CI trên máy chủ git chạy đúng lệnh này.
 # Task 4 thêm sinh mã sqlc và sqlc vet; Task 6 thêm ogen, bảng route, oasdiff.
 .PHONY: ci build vet lint test vuln catalog catalog-check jscpd test-guard gitleaks gen gen-check sqlc-vet oasdiff console-deps console-check

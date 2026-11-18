@@ -99,9 +99,14 @@ func imagerForbidden(imp string) bool {
 	return false
 }
 
-// readerViolation: luật (f), (g) của M1 (Task M1-25) cho gói chỉ đọc view và cho imager.
+// readerViolation: luật (f), (g) của M1 (Task M1-25) cho gói chỉ đọc view và cho imager; luật (h) của Task M1-38
+// cho gói Excel dùng chung (không biết nghiệp vụ, là chỗ duy nhất nhập excelize).
 func readerViolation(pkg, imp string) string {
 	switch {
+	case hasPathPrefix(pkg, "internal/platform/xlsx") && hasPathPrefix(imp, modPrefix+"internal/modules"):
+		return "(h) internal/platform/xlsx không nhập internal/modules/**"
+	case !hasPathPrefix(pkg, "internal/platform/xlsx") && hasPathPrefix(imp, "github.com/xuri/excelize"):
+		return "(h) chỉ internal/platform/xlsx được nhập excelize"
 	case hasPathPrefix(pkg, "internal/queries") && hasPathPrefix(imp, modPrefix+"internal/modules"):
 		return "(f) internal/queries chỉ đọc view, không nhập internal/modules/**"
 	case (hasPathPrefix(pkg, "internal/imager") || hasPathPrefix(pkg, "cmd/imager")) && imagerForbidden(imp):
@@ -151,7 +156,7 @@ func boundaryViolation(pkg, imp string) string {
 	return ""
 }
 
-// checkBoundaries trả mọi vi phạm luật a–g trong dir (một module Go có đường dẫn elimaz.com.vn/crm).
+// checkBoundaries trả mọi vi phạm luật a–h trong dir (một module Go có đường dẫn elimaz.com.vn/crm).
 func checkBoundaries(t *testing.T, dir string) []string {
 	t.Helper()
 	var out []string
@@ -224,6 +229,13 @@ func TestBoundariesNotCalledModule(t *testing.T) {
 		{"cmd/imager", modPrefix + "internal/imager", ""},
 		{"cmd/imager", modPrefix + "internal/platform/logging", ""},
 		{"cmd/imagerx", "github.com/jackc/pgx/v5", ""},
+		{"internal/platform/xlsx", modPrefix + "internal/modules/identity", "(h)"},
+		{"internal/platform/xlsx", modPrefix + "internal/modules/catalog/internal/importer", "(h)"},
+		{"internal/platform/xlsx", "github.com/xuri/excelize/v2", ""},
+		{"internal/modules/catalog/internal/importer", "github.com/xuri/excelize/v2", "(h)"},
+		{"internal/modules/catalog/internal/importer", modPrefix + "internal/platform/xlsx", ""},
+		{"cmd/crm", "github.com/xuri/excelize/v2", "(h)"},
+		{"internal/platform/xlsxstream", "github.com/xuri/excelize/v2", "(h)"},
 	}
 	for _, c := range cases {
 		got := boundaryViolation(c.pkg, c.imp)
