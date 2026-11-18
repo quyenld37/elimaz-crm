@@ -11,8 +11,23 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/catalog/internal/store"
 )
+
+// PartnerCode là mã người bán thứ hai (kind partner) trong dữ liệu thử hai người bán (Task M1-37, ADR-29).
+const PartnerCode = "PARTNER1"
+
+// Sellers tạo (nếu chưa có) hai người bán của tenantID: ELIMAZ (kind own, như dữ liệu khởi tạo) và PARTNER1 (kind
+// partner); trả mã của hai người theo thứ tự đó. tx là chủ bảng trong tenancy.WithTenant của tenantID.
+func Sellers(t testing.TB, tx pgx.Tx, tenantID uuid.UUID) (elimaz, partner uuid.UUID) {
+	t.Helper()
+	elimaz, err := catalog.EnsureDefaultSeller(t.Context(), tx, tenantID)
+	if err != nil {
+		t.Fatalf("catalogtest: người bán mặc định: %v", err)
+	}
+	return elimaz, Seller(t, tx, tenantID, PartnerCode, "partner")
+}
 
 // Seller tạo người bán code (kind own | partner) của tenantID nếu chưa có và trả mã. tx là chủ bảng trong
 // tenancy.WithTenant (crm_app không ghi được sellers). Lỗi làm test dừng (chỉ gọi từ goroutine của test).
@@ -24,7 +39,7 @@ func Seller(t testing.TB, tx pgx.Tx, tenantID uuid.UUID, code, kind string) uuid
 	}); err != nil {
 		t.Fatalf("catalogtest: ghi người bán: %v", err)
 	}
-	id, err := q.GetSellerByCode(t.Context(), code)
+	id, err := q.GetSellerByCode(t.Context(), store.GetSellerByCodeParams{TenantID: tenantID, Code: code})
 	if err != nil {
 		t.Fatalf("catalogtest: đọc người bán: %v", err)
 	}

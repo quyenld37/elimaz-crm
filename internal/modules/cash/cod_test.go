@@ -187,9 +187,13 @@ func TestPostValidatesAndIsIdempotent(t *testing.T) {
 	}
 }
 
+// Chạy với từng người bán (KH14): sổ COD theo vận đơn, không phụ thuộc người bán của đơn.
 func TestConsumerShippingThenDelivered(t *testing.T) {
 	t.Parallel()
-	e := newCODEnv(t)
+	eachSeller(t, testConsumerShippingThenDelivered)
+}
+
+func testConsumerShippingThenDelivered(t *testing.T, e *codEnv) {
 	s := e.shipment(530000)
 	e.mustHandle(e.event(uuid.New(), s, fulfillment.StatusAwaitingPickup))
 	if b := e.balances(s); len(b) != 0 {
@@ -209,7 +213,8 @@ func TestConsumerShippingThenDelivered(t *testing.T) {
 	}
 	var kinds []string
 	if err := e.app(func(tx pgx.Tx) error {
-		rows, err := tx.Query(t.Context(), "SELECT kind || ':' || actor_type FROM cash.cod_transfers ORDER BY created_at, kind DESC")
+		rows, err := tx.Query(t.Context(), `SELECT kind || ':' || actor_type FROM cash.cod_transfers WHERE shipment_id = $1
+			ORDER BY created_at, kind DESC`, s)
 		if err != nil {
 			return err //nolint:wrapcheck // test
 		}

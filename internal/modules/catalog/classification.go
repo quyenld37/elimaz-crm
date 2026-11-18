@@ -397,11 +397,11 @@ func ListTags(ctx context.Context, tx pgx.Tx) ([]Tag, error) {
 	return out, nil
 }
 
-// SetClassification thay toàn bộ phân loại của mẫu productID khi version còn khớp: danh mục (phải có và active, khóa
+// SetClassification thay toàn bộ phân loại của mẫu productID của người bán sellerID khi version còn khớp: danh mục (phải có và active, khóa
 // chia sẻ để lưu trữ cùng lúc phải chờ), giá trị thuộc tính, nhãn (mã trùng gộp lại; tối đa 100 mỗi loại). Version
 // mẫu tăng 1; ghi product.updated, báo hiệu, audit cùng tx. Lỗi: ErrNotFound (mẫu, danh mục, giá trị hay nhãn không có
 // trong shop; danh mục đã lưu trữ), ErrVersionConflict, ErrInvalidInput. Lỗi trả về thì tx phải lùi.
-func (w Writer) SetClassification(ctx context.Context, tx pgx.Tx, productID uuid.UUID, version int64, c Classification,
+func (w Writer) SetClassification(ctx context.Context, tx pgx.Tx, sellerID, productID uuid.UUID, version int64, c Classification,
 	actor identity.AuthUser,
 ) (ProductClassification, error) {
 	if err := w.check(); err != nil {
@@ -419,7 +419,7 @@ func (w Writer) SetClassification(ctx context.Context, tx pgx.Tx, productID uuid
 			return ProductClassification{}, err
 		}
 	}
-	p, err := lockProduct(ctx, tx, productID, version)
+	p, err := lockProduct(ctx, tx, sellerID, productID, version)
 	if err != nil {
 		return ProductClassification{}, err
 	}
@@ -433,7 +433,7 @@ func (w Writer) SetClassification(ctx context.Context, tx pgx.Tx, productID uuid
 	}
 	before.CategoryID = old.CategoryID
 	if out.Version, err = q.SetProductCategory(ctx, store.SetProductCategoryParams{
-		ID: productID, Version: version, CategoryID: c.CategoryID,
+		SellerID: p.SellerID, ID: productID, Version: version, CategoryID: c.CategoryID,
 	}); err != nil {
 		return ProductClassification{}, fmt.Errorf("gán danh mục cho mẫu: %w", mapWriteError(err))
 	}

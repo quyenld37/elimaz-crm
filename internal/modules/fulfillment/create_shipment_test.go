@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
+
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/fulfillment/internal/carriers/fake"
 	"elimaz.com.vn/crm/internal/platform/commands"
@@ -11,8 +13,14 @@ import (
 
 // Đường thường: tạo vận đơn (creating, gắn vào đơn, một lệnh) → worker gọi hãng → awaiting_pickup có mã hãng, phí;
 // hãng giả có đúng 1 kiện; picked_up → shipping, giữ hàng in_transit; delivered → đơn delivered, on_hand giảm.
+//
+// Chạy với từng người bán (KH14): đơn của người bán nào đi bằng tài khoản hãng của người bán đó.
 func TestShipment_HappyPath(t *testing.T) {
-	e := newShipEnv(t)
+	eachSeller(t, testShipmentHappyPath)
+}
+
+func testShipmentHappyPath(t *testing.T, e *shipEnv) {
+	parcels := e.carrier.Parcels()
 	o, v := e.order(2)
 	s := e.mustCreateShipment(o.ID)
 	if s.Status != fulfillment.StatusCreating || s.CODAmount != 530000 || s.TrackingCode != "" ||
@@ -22,7 +30,8 @@ func TestShipment_HappyPath(t *testing.T) {
 	if got := e.getOrder(o.ID); got.CurrentShipmentID == nil || *got.CurrentShipmentID != s.ID {
 		t.Fatalf("đơn chưa gắn vận đơn: %+v", got.CurrentShipmentID)
 	}
-	if n := e.count("SELECT count(*) FROM platform.jobs WHERE kind = 'fulfillment.create_shipment'"); n != 1 {
+	if n := e.count(`SELECT count(*) FROM platform.jobs WHERE kind = 'fulfillment.create_shipment'
+		AND payload->>'shipmentId' = $1`, s.ID.String()); n != 1 {
 		t.Fatalf("lệnh tạo = %d, muốn 1", n)
 	}
 
@@ -31,8 +40,8 @@ func TestShipment_HappyPath(t *testing.T) {
 	if s.Status != fulfillment.StatusAwaitingPickup || s.TrackingCode == "" || s.Fee == nil || *s.Fee != 25000 {
 		t.Fatalf("sau lệnh tạo = %+v", s)
 	}
-	if e.carrier.Parcels() != 1 {
-		t.Fatalf("hãng giả có %d kiện, muốn 1", e.carrier.Parcels())
+	if e.carrier.Parcels() != parcels+1 {
+		t.Fatalf("hãng giả có %d kiện, muốn %d", e.carrier.Parcels(), parcels+1)
 	}
 
 	e.carrier.Advance(s.TrackingCode, fake.RawPickedUp)
@@ -147,4 +156,29 @@ func TestShipment_DatabaseGuards(t *testing.T) {
 	if err := e.appExec("UPDATE fulfillment.shipment_events SET raw_status = 'x'"); err == nil {
 		t.Fatal("shipment_events sửa được bằng crm_app")
 	}
+}
+
+// Vận đơn của đơn người bán này bằng tài khoản hãng của người bán kia (ADR-29) → ErrOrderNotShippable; đơn không
+// đổi, không có vận đơn, không có lệnh.
+func TestShipment_AccountOfOtherSeller(t *testing.T) {
+	eachSeller(t, func(t *testing.T, e *shipEnv) {
+		o, _ := e.order(1)
+		other := e.shop.Account
+		if other == e.account {
+			other = e.shop.PartnerAccount
+		}
+		err := e.app(func(tx pgx.Tx) error {
+			_, err := fulfillment.CreateForOrder(t.Context(), tx, o.ID, other, e.actor)
+			return err //nolint:wrapcheck // test
+		})
+		if !errors.Is(err, fulfillment.ErrOrderNotShippable) {
+			t.Fatalf("tài khoản hãng của người bán khác: %v, muốn ErrOrderNotShippable", err)
+		}
+		if got := e.getOrder(o.ID); got.CurrentShipmentID != nil || got.Version != o.Version {
+			t.Errorf("đơn bị đổi: %v, version %d", got.CurrentShipmentID, got.Version)
+		}
+		if n := e.count("SELECT count(*) FROM fulfillment.shipments WHERE order_id = $1", o.ID); n != 0 {
+			t.Errorf("%d vận đơn, muốn 0", n)
+		}
+	})
 }

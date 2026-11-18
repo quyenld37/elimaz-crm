@@ -73,7 +73,10 @@ func TestRelease_Twice(t *testing.T) {
 
 // StartTransit rồi Consume → held 0, in_transit 0, on_hand giảm đúng qty; Consume dòng đang held → ErrStateConflict.
 func TestTransitThenConsume(t *testing.T) {
-	e := newInvEnv(t)
+	eachSeller(t, testTransitThenConsume)
+}
+
+func testTransitThenConsume(t *testing.T, e *invEnv) {
 	v := e.stock(7)
 	ids, err := e.reserve(sysActor(), e.line(v, 3))
 	if err != nil {
@@ -114,7 +117,8 @@ func TestTransitThenConsume(t *testing.T) {
 		}
 	}
 	// Một stock.changed mỗi lần xử lý dòng giữ hàng (Q-T28-5): reserve, start_transit, consume (seed không phát).
-	if n := e.count("SELECT count(*) FROM platform.domain_events WHERE topic = 'stock.changed'"); n != 3 {
+	if n := e.count("SELECT count(*) FROM platform.domain_events WHERE topic = 'stock.changed' AND aggregate_id = $1",
+		v.String()+":"+e.warehouse.String()); n != 3 {
 		t.Errorf("mong 3 sự kiện stock.changed, có %d", n)
 	}
 }

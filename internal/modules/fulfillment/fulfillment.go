@@ -140,7 +140,7 @@ func CreateForOrder(ctx context.Context, tx pgx.Tx, orderID, accountID uuid.UUID
 	if a.Status != "active" {
 		return Shipment{}, ErrAccountNotFound
 	}
-	if err := order.Lock(ctx, tx, orderID); err != nil {
+	if err := order.Lock(ctx, tx, a.SellerID, orderID); err != nil {
 		if errors.Is(err, order.ErrNotFound) {
 			return Shipment{}, ErrOrderNotShippable
 		}
@@ -163,7 +163,7 @@ func CreateForOrder(ctx context.Context, tx pgx.Tx, orderID, accountID uuid.UUID
 	if err != nil {
 		return Shipment{}, err
 	}
-	if err := order.AttachShipment(ctx, tx, orderID, s.ID); err != nil {
+	if err := order.AttachShipment(ctx, tx, a.SellerID, orderID, s.ID); err != nil {
 		if errors.Is(err, order.ErrShipmentAlreadyAttached) {
 			return Shipment{}, ErrShipmentExists
 		}

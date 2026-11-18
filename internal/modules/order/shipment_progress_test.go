@@ -16,7 +16,7 @@ import (
 // attach gắn vận đơn s vào đơn o bằng crm_app.
 func (e *orderEnv) attach(o, s uuid.UUID) error {
 	return e.app(func(tx pgx.Tx) error {
-		return order.AttachShipment(e.t.Context(), tx, o, s)
+		return order.AttachShipment(e.t.Context(), tx, e.seller, o, s)
 	})
 }
 
@@ -25,7 +25,7 @@ func (e *orderEnv) progress(o, s uuid.UUID, step order.ShipmentStep) (bool, erro
 	var applied bool
 	err := e.app(func(tx pgx.Tx) error {
 		var err error
-		applied, err = e.writer().ApplyShipmentProgress(e.t.Context(), tx, o, s, step)
+		applied, err = e.writer().ApplyShipmentProgress(e.t.Context(), tx, e.seller, o, s, step)
 		return err //nolint:wrapcheck // test
 	})
 	return applied, err
@@ -72,7 +72,10 @@ func balanceIs(t *testing.T, b inventory.Balance, onHand, held, inTransit int32)
 }
 
 func TestAttachShipment(t *testing.T) {
-	e := newOrderEnv(t)
+	eachSeller(t, testAttachShipment)
+}
+
+func testAttachShipment(t *testing.T, e *orderEnv) {
 	v := e.variant(100000, 5)
 	o := e.mustCreate(e.input(0, item(v, 2)))
 	s1, s2 := uuid.New(), uuid.New()
@@ -96,10 +99,23 @@ func TestAttachShipment(t *testing.T) {
 	if err := e.attach(uuid.New(), s1); !errors.Is(err, order.ErrNotFound) {
 		t.Errorf("đơn không có: %v; muốn ErrNotFound", err)
 	}
+	// Đơn của người bán này, gọi bằng người bán kia (ADR-29) → ErrNotFound, không đổi gì.
+	o2 := e.mustCreate(e.input(0, item(v, 1)))
+	if err := e.app(func(tx pgx.Tx) error {
+		return order.AttachShipment(t.Context(), tx, e.partner, o2.ID, s2)
+	}); !errors.Is(err, order.ErrNotFound) {
+		t.Errorf("gắn bằng người bán khác: %v; muốn ErrNotFound", err)
+	}
+	if got := e.get(o2.ID); got.CurrentShipmentID != nil || got.Version != o2.Version {
+		t.Errorf("đơn bị đổi khi gắn bằng người bán khác: %v, %d", got.CurrentShipmentID, got.Version)
+	}
 }
 
 func TestApplyShipmentProgress_Flow(t *testing.T) {
-	e := newOrderEnv(t)
+	eachSeller(t, testApplyShipmentProgressFlow)
+}
+
+func testApplyShipmentProgressFlow(t *testing.T, e *orderEnv) {
 	v := e.variant(100000, 5)
 	o := e.mustCreate(e.input(0, item(v, 2)))
 	cur, other := uuid.New(), uuid.New()
@@ -111,6 +127,15 @@ func TestApplyShipmentProgress_Flow(t *testing.T) {
 	}
 	e.mustProgress(o.ID, other, order.StepPickedUp, false)
 	e.mustProgress(o.ID, other, order.StepDelivered, false)
+	balanceIs(t, e.balance(v), 5, 2, 0)
+
+	// Người bán khác (ADR-29): không thấy đơn, không đổi tồn.
+	if err := e.app(func(tx pgx.Tx) error {
+		_, err := e.writer().ApplyShipmentProgress(t.Context(), tx, e.partner, o.ID, cur, order.StepPickedUp)
+		return err //nolint:wrapcheck // test
+	}); !errors.Is(err, order.ErrNotFound) {
+		t.Errorf("áp bước bằng người bán khác: %v; muốn ErrNotFound", err)
+	}
 	balanceIs(t, e.balance(v), 5, 2, 0)
 
 	e.mustProgress(o.ID, cur, order.StepPickedUp, true)
@@ -153,7 +178,10 @@ func TestApplyShipmentProgress_Flow(t *testing.T) {
 
 // Hãng báo giao mà chưa báo lấy hàng (Quyết định 3): dòng held qua in_transit rồi consumed trong cùng lần.
 func TestApplyShipmentProgress_DeliveredWithoutPickup(t *testing.T) {
-	e := newOrderEnv(t)
+	eachSeller(t, testDeliveredWithoutPickup)
+}
+
+func testDeliveredWithoutPickup(t *testing.T, e *orderEnv) {
 	v1, v2 := e.variant(100000, 5), e.variant(50000, 4)
 	o := e.mustCreate(e.input(0, item(v1, 2), item(v2, 1)))
 	s := uuid.New()
@@ -293,14 +321,17 @@ func (m shipModel) balance(qty int32) [3]int32 {
 	}
 }
 
-// Lock: đơn có → khóa được; không có (hay tenant khác) → ErrNotFound.
+// Lock: đơn có → khóa được; không có (hay tenant khác, người bán khác) → ErrNotFound.
 func TestLock(t *testing.T) {
 	e := newOrderEnv(t)
 	o := e.mustCreate(e.input(0, item(e.variant(100000, 5), 1)))
-	if err := e.app(func(tx pgx.Tx) error { return order.Lock(e.t.Context(), tx, o.ID) }); err != nil {
+	if err := e.app(func(tx pgx.Tx) error { return order.Lock(e.t.Context(), tx, e.seller, o.ID) }); err != nil {
 		t.Fatalf("Lock đơn có: %v", err)
 	}
-	if err := e.app(func(tx pgx.Tx) error { return order.Lock(e.t.Context(), tx, uuid.New()) }); !errors.Is(err, order.ErrNotFound) {
+	if err := e.app(func(tx pgx.Tx) error { return order.Lock(e.t.Context(), tx, e.seller, uuid.New()) }); !errors.Is(err, order.ErrNotFound) {
 		t.Fatalf("Lock đơn lạ: %v, muốn ErrNotFound", err)
+	}
+	if err := e.app(func(tx pgx.Tx) error { return order.Lock(e.t.Context(), tx, e.partner, o.ID) }); !errors.Is(err, order.ErrNotFound) {
+		t.Fatalf("Lock bằng người bán khác: %v, muốn ErrNotFound", err)
 	}
 }

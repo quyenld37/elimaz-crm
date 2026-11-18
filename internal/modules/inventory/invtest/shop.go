@@ -8,13 +8,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/catalog/catalogtest"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 )
 
-// Shop là dữ liệu thử của một tenant cho test bán hàng (đơn, vận chuyển): người bán ELIMAZ (Seller), người bán P
-// partner (Partner), kho MAIN, và mỗi người bán một mẫu "Áo thử" (tạo khi cần).
+// Shop là dữ liệu thử của một tenant cho test bán hàng (đơn, vận chuyển): người bán ELIMAZ (Seller), người bán
+// PARTNER1 kind partner (Partner; catalogtest.Sellers, KH14), kho MAIN, và mỗi người bán một mẫu "Áo thử" (tạo khi cần).
 type Shop struct {
 	Tenant, Seller, Partner uuid.UUID
 	Warehouse               uuid.UUID
@@ -27,14 +26,11 @@ type Shop struct {
 func NewShop(t testing.TB, tx pgx.Tx, tenantID uuid.UUID) *Shop {
 	t.Helper()
 	s := &Shop{Tenant: tenantID, products: map[uuid.UUID]uuid.UUID{}}
+	s.Seller, s.Partner = catalogtest.Sellers(t, tx, tenantID)
 	var err error
-	if s.Seller, err = catalog.EnsureDefaultSeller(t.Context(), tx, tenantID); err != nil {
-		t.Fatalf("invtest: người bán mặc định: %v", err)
-	}
 	if s.Warehouse, err = inventory.EnsureDefaultWarehouse(t.Context(), tx, tenantID, s.Seller); err != nil {
 		t.Fatalf("invtest: kho mặc định: %v", err)
 	}
-	s.Partner = catalogtest.Seller(t, tx, tenantID, "P", "partner")
 	return s
 }
 

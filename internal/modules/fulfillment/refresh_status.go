@@ -118,7 +118,7 @@ func (r *RefreshCommand) OnDone(ctx context.Context, j queue.Job, result json.Ra
 	if err != nil {
 		return err
 	}
-	if err := order.Lock(ctx, tx, s.OrderID); err != nil {
+	if err := order.Lock(ctx, tx, s.SellerID, s.OrderID); err != nil {
 		return fmt.Errorf("khóa đơn của vận đơn: %w", err)
 	}
 	cur, err := q.LockShipment(ctx, s.ID)
@@ -148,7 +148,7 @@ func (r *RefreshCommand) OnDone(ctx context.Context, j queue.Job, result json.Ra
 	}
 	if step, ok := next.Step(); ok {
 		w := order.Writer{Events: r.o.Events, Queue: r.o.Queue, Realtime: r.o.Realtime}
-		if _, err := w.ApplyShipmentProgress(ctx, tx, cur.OrderID, cur.ID, step); err != nil {
+		if _, err := w.ApplyShipmentProgress(ctx, tx, s.SellerID, cur.OrderID, cur.ID, step); err != nil {
 			return fmt.Errorf("áp bước vận đơn lên đơn: %w", err)
 		}
 	}

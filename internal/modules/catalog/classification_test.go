@@ -71,7 +71,7 @@ func (e *catalogEnv) setClassification(id uuid.UUID, version int64, c catalog.Cl
 	var out catalog.ProductClassification
 	err := e.app(func(tx pgx.Tx) error {
 		var err error
-		out, err = e.writer().SetClassification(e.t.Context(), tx, id, version, c, e.actor)
+		out, err = e.writer().SetClassification(e.t.Context(), tx, e.seller, id, version, c, e.actor)
 		return err //nolint:wrapcheck // test
 	})
 	return out, err

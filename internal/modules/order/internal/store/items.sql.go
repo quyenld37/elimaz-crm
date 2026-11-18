@@ -114,13 +114,18 @@ func (q *Queries) ListOrderItems(ctx context.Context, arg ListOrderItemsParams) 
 const orderItemIDs = `-- name: OrderItemIDs :many
 SELECT id
 FROM ord.order_items
-WHERE order_id = $1
+WHERE seller_id = $1 AND order_id = $2
 ORDER BY position
 `
 
+type OrderItemIDsParams struct {
+	SellerID uuid.UUID
+	OrderID  uuid.UUID
+}
+
 // Mã các dòng đơn của đơn (đơn đã khóa bằng LockOrder).
-func (q *Queries) OrderItemIDs(ctx context.Context, orderID uuid.UUID) ([]uuid.UUID, error) {
-	rows, err := q.db.Query(ctx, orderItemIDs, orderID)
+func (q *Queries) OrderItemIDs(ctx context.Context, arg OrderItemIDsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, orderItemIDs, arg.SellerID, arg.OrderID)
 	if err != nil {
 		return nil, err
 	}

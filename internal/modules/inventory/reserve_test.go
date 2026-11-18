@@ -70,7 +70,10 @@ func TestAvailability_MissingRowIsZero(t *testing.T) {
 }
 
 func TestReserve_HoldsAndRecords(t *testing.T) {
-	e := newInvEnv(t)
+	eachSeller(t, testReserveHoldsAndRecords)
+}
+
+func testReserveHoldsAndRecords(t *testing.T, e *invEnv) {
 	v := e.stock(5)
 	staff := inventory.Actor{Type: "staff", ID: uuid.New()}
 	ids, err := e.reserve(staff, e.line(v, 2))

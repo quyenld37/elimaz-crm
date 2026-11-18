@@ -69,12 +69,17 @@ func (q *Queries) GetSaleVariant(ctx context.Context, arg GetSaleVariantParams) 
 }
 
 const getVariantProductID = `-- name: GetVariantProductID :one
-SELECT product_id FROM catalog.variants WHERE id = $1
+SELECT product_id FROM catalog.variants WHERE seller_id = $1 AND id = $2
 `
 
+type GetVariantProductIDParams struct {
+	SellerID uuid.UUID
+	ID       uuid.UUID
+}
+
 // Mã mẫu của biến thể (không khóa): sửa biến thể khóa mẫu trước rồi biến thể (ADR-46 nhóm 4).
-func (q *Queries) GetVariantProductID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, getVariantProductID, id)
+func (q *Queries) GetVariantProductID(ctx context.Context, arg GetVariantProductIDParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getVariantProductID, arg.SellerID, arg.ID)
 	var product_id uuid.UUID
 	err := row.Scan(&product_id)
 	return product_id, err
@@ -108,7 +113,8 @@ type InsertVariantRow struct {
 	Version int64
 }
 
-// Biến thể màu/size (kế hoạch M1, Task M1-27). Chạy trong tenancy.WithTenant. Mọi câu đọc có seller_id (ADR-29).
+// Biến thể màu/size (kế hoạch M1, Task M1-27). Chạy trong tenancy.WithTenant. Mọi câu đọc, khóa, sửa có seller_id (ADR-29;
+// tests/arch/sellerfilter_test.go, Task M1-37).
 func (q *Queries) InsertVariant(ctx context.Context, arg InsertVariantParams) (InsertVariantRow, error) {
 	row := q.db.QueryRow(ctx, insertVariant,
 		arg.TenantID,
@@ -241,9 +247,14 @@ func (q *Queries) ListSaleVariants(ctx context.Context, arg ListSaleVariantsPara
 const lockVariant = `-- name: LockVariant :one
 SELECT id, seller_id, product_id, sku, barcode, color, color_hex, size, price, cost_price, status, version
 FROM catalog.variants
-WHERE id = $1
+WHERE seller_id = $1 AND id = $2
 FOR UPDATE
 `
+
+type LockVariantParams struct {
+	SellerID uuid.UUID
+	ID       uuid.UUID
+}
 
 type LockVariantRow struct {
 	ID        uuid.UUID
@@ -260,8 +271,8 @@ type LockVariantRow struct {
 	Version   int64
 }
 
-func (q *Queries) LockVariant(ctx context.Context, id uuid.UUID) (LockVariantRow, error) {
-	row := q.db.QueryRow(ctx, lockVariant, id)
+func (q *Queries) LockVariant(ctx context.Context, arg LockVariantParams) (LockVariantRow, error) {
+	row := q.db.QueryRow(ctx, lockVariant, arg.SellerID, arg.ID)
 	var i LockVariantRow
 	err := row.Scan(
 		&i.ID,
@@ -284,7 +295,7 @@ const updateVariant = `-- name: UpdateVariant :one
 UPDATE catalog.variants
 SET sku = $1, barcode = $2, color = $3, color_hex = $4, size = $5, price = $6,
     cost_price = $7, status = $8, version = version + 1, updated_at = now()
-WHERE id = $9 AND version = $10
+WHERE seller_id = $9 AND id = $10 AND version = $11
 RETURNING version
 `
 
@@ -297,6 +308,7 @@ type UpdateVariantParams struct {
 	Price     int64
 	CostPrice *int64
 	Status    string
+	SellerID  uuid.UUID
 	ID        uuid.UUID
 	Version   int64
 }
@@ -311,6 +323,7 @@ func (q *Queries) UpdateVariant(ctx context.Context, arg UpdateVariantParams) (i
 		arg.Price,
 		arg.CostPrice,
 		arg.Status,
+		arg.SellerID,
 		arg.ID,
 		arg.Version,
 	)

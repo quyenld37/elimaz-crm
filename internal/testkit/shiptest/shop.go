@@ -29,12 +29,15 @@ const (
 	CarrierKey = "fake"
 	// AccountRef là mã tài khoản hãng giả (như seed-dev), cũng là khóa tuyến carrier_account.
 	AccountRef = "fake-1"
+	// PartnerAccountRef là mã tài khoản hãng giả của người bán đối tác PARTNER1.
+	PartnerAccountRef = "fake-2"
 )
 
-// Shop là invtest.Shop cộng tài khoản hãng giả fake-1 ở kho MAIN của người bán ELIMAZ.
+// Shop là invtest.Shop cộng tài khoản hãng giả ở kho MAIN cho từng người bán: fake-1 của ELIMAZ (Account), fake-2 của
+// PARTNER1 (PartnerAccount) — vận đơn dùng tài khoản của người bán của đơn (ADR-29).
 type Shop struct {
 	*invtest.Shop
-	Account uuid.UUID
+	Account, PartnerAccount uuid.UUID
 }
 
 // NewShop dựng Shop cho tenant tenantID trong tx (chủ bảng, tenancy.WithTenant của tenantID; ví dụ Staff.Exec). Lỗi
@@ -42,27 +45,41 @@ type Shop struct {
 func NewShop(t testing.TB, tx pgx.Tx, tenantID uuid.UUID) *Shop {
 	t.Helper()
 	s := &Shop{Shop: invtest.NewShop(t, tx, tenantID)}
-	var err error
-	s.Account, err = fulfillment.EnsureCarrierAccount(t.Context(), tx, fulfillment.AccountInput{
-		SellerID: s.Seller, WarehouseID: s.Warehouse, CarrierKey: CarrierKey, Name: "Hãng giả",
-		ExternalAccountRef: AccountRef,
-	})
-	if err != nil {
-		t.Fatalf("shiptest: tài khoản hãng giả: %v", err)
+	for _, a := range []struct {
+		dst    *uuid.UUID
+		seller uuid.UUID
+		ref    string
+	}{{&s.Account, s.Seller, AccountRef}, {&s.PartnerAccount, s.Partner, PartnerAccountRef}} {
+		id, err := fulfillment.EnsureCarrierAccount(t.Context(), tx, fulfillment.AccountInput{
+			SellerID: a.seller, WarehouseID: s.Warehouse, CarrierKey: CarrierKey, Name: "Hãng giả", ExternalAccountRef: a.ref,
+		})
+		if err != nil {
+			t.Fatalf("shiptest: tài khoản hãng giả %s: %v", a.ref, err)
+		}
+		*a.dst = id
 	}
 	return s
 }
 
-// Order tạo khách "Chị Lan" và đơn tay của người bán ELIMAZ (phí ship shippingFee, các dòng items) trong tx (crm_app,
+// AccountOf trả tài khoản hãng giả của người bán seller (Seller hay Partner của Shop).
+func (s *Shop) AccountOf(seller uuid.UUID) uuid.UUID {
+	if seller == s.Partner {
+		return s.PartnerAccount
+	}
+	return s.Account
+}
+
+// Order tạo khách "Chị Lan" và đơn tay của người bán seller (phí ship shippingFee, các dòng items) trong tx (crm_app,
 // tenancy.WithTenant của tenant của Shop), tác nhân userID; sự kiện ghi vào sổ rỗng (không consumer nào).
-func (s *Shop) Order(ctx context.Context, tx pgx.Tx, userID uuid.UUID, shippingFee int64, items ...order.ItemInput) (order.Order, error) {
+func (s *Shop) Order(ctx context.Context, tx pgx.Tx, seller, userID uuid.UUID, shippingFee int64, items ...order.ItemInput,
+) (order.Order, error) {
 	c, err := customer.Create(ctx, tx, "Chị Lan")
 	if err != nil {
 		return order.Order{}, fmt.Errorf("shiptest: tạo khách: %w", err)
 	}
 	w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}}
 	o, err := w.CreateManual(ctx, tx, order.CreateManualInput{
-		IdempotencyKey: uuid.New(), SellerID: s.Seller, CustomerID: c, ShippingFee: shippingFee, Items: items,
+		IdempotencyKey: uuid.New(), SellerID: seller, CustomerID: c, ShippingFee: shippingFee, Items: items,
 		ShipAddress: order.ShipAddress{Name: "Chị Lan", Phone: logging.Phone("0901234567"), Line: "12 Lê Lợi, Q1"},
 	}, order.Actor{TenantID: s.Tenant, UserID: userID})
 	if err != nil {
@@ -71,10 +88,10 @@ func (s *Shop) Order(ctx context.Context, tx pgx.Tx, userID uuid.UUID, shippingF
 	return o, nil
 }
 
-// Shipment tạo vận đơn (trạng thái creating, lệnh tạo trong hàng chờ) của đơn orderID bằng tài khoản hãng giả, trong
-// tx (crm_app), tác nhân userID.
-func (s *Shop) Shipment(ctx context.Context, tx pgx.Tx, orderID, userID uuid.UUID) (fulfillment.Shipment, error) {
-	sh, err := fulfillment.CreateForOrder(ctx, tx, orderID, s.Account, fulfillment.Actor{TenantID: s.Tenant, UserID: userID})
+// Shipment tạo vận đơn (trạng thái creating, lệnh tạo trong hàng chờ) của đơn orderID của người bán seller bằng tài
+// khoản hãng giả của người bán đó, trong tx (crm_app), tác nhân userID.
+func (s *Shop) Shipment(ctx context.Context, tx pgx.Tx, seller, orderID, userID uuid.UUID) (fulfillment.Shipment, error) {
+	sh, err := fulfillment.CreateForOrder(ctx, tx, orderID, s.AccountOf(seller), fulfillment.Actor{TenantID: s.Tenant, UserID: userID})
 	if err != nil {
 		return fulfillment.Shipment{}, fmt.Errorf("shiptest: tạo vận đơn: %w", err)
 	}

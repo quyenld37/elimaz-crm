@@ -20,7 +20,8 @@ LIMIT 1
 `
 
 // Người bán (kế hoạch M1, Task M1-27; ADR-29). Chạy trong tenancy.WithTenant: RLS giới hạn trong tenant.
-// Người bán của chính shop (kind own, active) có mã nhỏ nhất; dữ liệu khởi tạo chỉ có ELIMAZ.
+// Người bán của chính shop (kind own, active) tạo sớm nhất (id uuidv7 nhỏ nhất, không phải mã người bán); dữ liệu
+// khởi tạo chỉ có ELIMAZ.
 func (q *Queries) GetDefaultSeller(ctx context.Context) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, getDefaultSeller)
 	var id uuid.UUID
@@ -29,11 +30,16 @@ func (q *Queries) GetDefaultSeller(ctx context.Context) (uuid.UUID, error) {
 }
 
 const getSellerByCode = `-- name: GetSellerByCode :one
-SELECT id FROM catalog.sellers WHERE code = $1
+SELECT id FROM catalog.sellers WHERE tenant_id = $1 AND code = $2
 `
 
-func (q *Queries) GetSellerByCode(ctx context.Context, code string) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, getSellerByCode, code)
+type GetSellerByCodeParams struct {
+	TenantID uuid.UUID
+	Code     string
+}
+
+func (q *Queries) GetSellerByCode(ctx context.Context, arg GetSellerByCodeParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getSellerByCode, arg.TenantID, arg.Code)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err

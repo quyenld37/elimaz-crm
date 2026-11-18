@@ -79,16 +79,16 @@ func (w Writer) CreateProduct(ctx context.Context, tx pgx.Tx, in ProductInput, a
 	return p, nil
 }
 
-// UpdateProduct sửa tên, mô tả, bài viết, trạng thái của mẫu id khi version còn khớp; version tăng 1. Khóa dòng mẫu
+// UpdateProduct sửa tên, mô tả, bài viết, trạng thái của mẫu id của người bán sellerID khi version còn khớp; version tăng 1. Khóa dòng mẫu
 // trước khi so version (hai người cùng version: đúng một người thành công). Lỗi: ErrNotFound, ErrVersionConflict,
 // ErrInvalidInput, ErrInvalidArticle (gồm khối image mới trỏ tệp không phải ảnh sản phẩm ready của tenant).
-func (w Writer) UpdateProduct(ctx context.Context, tx pgx.Tx, id uuid.UUID, version int64, patch ProductPatch,
+func (w Writer) UpdateProduct(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID, version int64, patch ProductPatch,
 	actor identity.AuthUser,
 ) (Product, error) {
 	if err := w.check(); err != nil {
 		return Product{}, err
 	}
-	before, err := lockProduct(ctx, tx, id, version)
+	before, err := lockProduct(ctx, tx, sellerID, id, version)
 	if err != nil {
 		return Product{}, err
 	}
@@ -124,7 +124,7 @@ func (w Writer) UpdateProduct(ctx context.Context, tx pgx.Tx, id uuid.UUID, vers
 	q := store.New(tx)
 	after.ID = id
 	after.Version, err = q.UpdateProduct(ctx, store.UpdateProductParams{
-		ID: id, Version: version, Name: after.Name, NameSearch: textnorm.Fold(after.Name), Description: after.Description,
+		SellerID: sellerID, ID: id, Version: version, Name: after.Name, NameSearch: textnorm.Fold(after.Name), Description: after.Description,
 		Article: stored, Status: string(after.Status),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -167,18 +167,20 @@ func GetProduct(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID) (Product
 	return p, nil
 }
 
-// lockProduct khóa dòng mẫu id (ADR-46 nhóm 4: mẫu trước biến thể) và so version.
-func lockProduct(ctx context.Context, tx pgx.Tx, id uuid.UUID, version int64) (Product, error) {
-	p, err := lockProductAnyVersion(ctx, tx, id)
+// lockProduct khóa dòng mẫu id của người bán sellerID (ADR-46 nhóm 4: mẫu trước biến thể) và so version; mẫu của
+// người bán khác → ErrNotFound (ADR-29).
+func lockProduct(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID, version int64) (Product, error) {
+	p, err := lockProductAnyVersion(ctx, tx, sellerID, id)
 	if err == nil && p.Version != version {
 		return Product{}, ErrVersionConflict
 	}
 	return p, err
 }
 
-// lockProductAnyVersion khóa dòng mẫu id mà không so version (sửa biến thể chỉ so version của biến thể).
-func lockProductAnyVersion(ctx context.Context, tx pgx.Tx, id uuid.UUID) (Product, error) {
-	row, err := store.New(tx).LockProduct(ctx, id)
+// lockProductAnyVersion khóa dòng mẫu id của người bán sellerID mà không so version (sửa biến thể chỉ so version
+// của biến thể).
+func lockProductAnyVersion(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID) (Product, error) {
+	row, err := store.New(tx).LockProduct(ctx, store.LockProductParams{SellerID: sellerID, ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Product{}, ErrNotFound
 	}

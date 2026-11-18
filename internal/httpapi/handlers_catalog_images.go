@@ -22,8 +22,8 @@ func (h *handler) AttachProductImage(ctx context.Context, req *gen.AttachProduct
 	params gen.AttachProductImageParams,
 ) (gen.AttachProductImageRes, error) {
 	color := optString(req.Color.Set, req.Color.Value)
-	return h.imageWrite(ctx, http.StatusCreated, params.ID, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) error {
-		_, err := w.AttachImage(ctx, tx, params.ID, req.ProductVersion, req.FileId, color, u)
+	return h.imageWrite(ctx, http.StatusCreated, params.ID, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) error {
+		_, err := w.AttachImage(ctx, tx, seller, params.ID, req.ProductVersion, req.FileId, color, u)
 		return err //nolint:wrapcheck // sentinel của catalog
 	})
 }
@@ -35,8 +35,8 @@ func (h *handler) AttachProductImage(ctx context.Context, req *gen.AttachProduct
 func (h *handler) ReorderProductImages(ctx context.Context, req *gen.ReorderProductImagesRequest,
 	params gen.ReorderProductImagesParams,
 ) (gen.ReorderProductImagesRes, error) {
-	return h.imageWrite(ctx, http.StatusOK, params.ID, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) error {
-		return w.ReorderImages(ctx, tx, params.ID, req.ProductVersion, req.ImageIds, u)
+	return h.imageWrite(ctx, http.StatusOK, params.ID, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) error {
+		return w.ReorderImages(ctx, tx, seller, params.ID, req.ProductVersion, req.ImageIds, u)
 	})
 }
 
@@ -44,8 +44,8 @@ func (h *handler) ReorderProductImages(ctx context.Context, req *gen.ReorderProd
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) DeleteProductImage(ctx context.Context, params gen.DeleteProductImageParams) (gen.DeleteProductImageRes, error) {
-	return h.imageWrite(ctx, http.StatusOK, params.ID, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) error {
-		_, err := w.DeleteImage(ctx, tx, params.ID, params.ImageId, u)
+	return h.imageWrite(ctx, http.StatusOK, params.ID, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) error {
+		_, err := w.DeleteImage(ctx, tx, seller, params.ID, params.ImageId, u)
 		return err //nolint:wrapcheck // sentinel của catalog
 	})
 }
@@ -55,26 +55,20 @@ func (h *handler) DeleteProductImage(ctx context.Context, params gen.DeleteProdu
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) RestoreProductImage(ctx context.Context, params gen.RestoreProductImageParams) (gen.RestoreProductImageRes, error) {
-	return h.imageWrite(ctx, http.StatusOK, params.ID, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) error {
-		_, err := w.RestoreImage(ctx, tx, params.ID, params.ImageId, u)
+	return h.imageWrite(ctx, http.StatusOK, params.ID, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) error {
+		_, err := w.RestoreImage(ctx, tx, seller, params.ID, params.ImageId, u)
 		return err //nolint:wrapcheck // sentinel của catalog
 	})
 }
 
-// imageWrite chạy change trong catalogWrite rồi đọc lại mẫu productID kèm ảnh trong cùng transaction (câu trả lời
-// của bốn operation ảnh là mẫu sau khi đổi). Mẫu của người bán khác người bán mặc định → ErrNotFound (ADR-29).
+// imageWrite chạy change trong catalogWriteAsDefaultSeller rồi đọc lại mẫu productID kèm ảnh trong cùng transaction
+// (câu trả lời của bốn operation ảnh là mẫu sau khi đổi). Mẫu của người bán khác người bán mặc định → ErrNotFound
+// (catalog lọc người bán, ADR-29).
 func (h *handler) imageWrite(ctx context.Context, status int, productID uuid.UUID,
-	change func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) error,
+	change func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) error,
 ) (*gen.Product, error) {
-	out, err := h.catalogWrite(ctx, status, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) (any, error) {
-		seller, err := catalog.DefaultSeller(ctx, tx)
-		if err != nil {
-			return nil, err //nolint:wrapcheck // sentinel của catalog
-		}
-		if _, err := catalog.GetProduct(ctx, tx, seller, productID); err != nil {
-			return nil, err //nolint:wrapcheck // sentinel của catalog
-		}
-		if err := change(tx, w, u); err != nil {
+	out, err := h.catalogWriteAsDefaultSeller(ctx, status, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) (any, error) {
+		if err := change(tx, w, u, seller); err != nil {
 			return nil, err
 		}
 		return h.productWithImages(ctx, tx, seller, productID)

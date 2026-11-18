@@ -126,9 +126,14 @@ func (q *Queries) InsertOrder(ctx context.Context, arg InsertOrderParams) (time.
 const lockOrder = `-- name: LockOrder :one
 SELECT id, tenant_id, seller_id, status, current_shipment_id, version
 FROM ord.orders
-WHERE id = $1
+WHERE seller_id = $1 AND id = $2
 FOR UPDATE
 `
+
+type LockOrderParams struct {
+	SellerID uuid.UUID
+	ID       uuid.UUID
+}
 
 type LockOrderRow struct {
 	ID                uuid.UUID
@@ -139,10 +144,10 @@ type LockOrderRow struct {
 	Version           int64
 }
 
-// Khóa đơn trước mọi dòng nhóm sau (ADR-46 nhóm 7, dòng "khóa đơn trước"). Không lọc seller_id: bên gọi là
-// fulfillment theo mã đơn của vận đơn (cùng tenant, RLS lọc).
-func (q *Queries) LockOrder(ctx context.Context, id uuid.UUID) (LockOrderRow, error) {
-	row := q.db.QueryRow(ctx, lockOrder, id)
+// Khóa đơn trước mọi dòng nhóm sau (ADR-46 nhóm 7, dòng "khóa đơn trước"). Bên gọi (fulfillment) truyền người bán
+// của tài khoản hãng (ADR-29, Task M1-37).
+func (q *Queries) LockOrder(ctx context.Context, arg LockOrderParams) (LockOrderRow, error) {
+	row := q.db.QueryRow(ctx, lockOrder, arg.SellerID, arg.ID)
 	var i LockOrderRow
 	err := row.Scan(
 		&i.ID,
@@ -158,17 +163,18 @@ func (q *Queries) LockOrder(ctx context.Context, id uuid.UUID) (LockOrderRow, er
 const setCurrentShipment = `-- name: SetCurrentShipment :execrows
 UPDATE ord.orders
 SET current_shipment_id = $1, version = version + 1, updated_at = now()
-WHERE id = $2 AND status = 'confirmed' AND current_shipment_id IS NULL
+WHERE seller_id = $2 AND id = $3 AND status = 'confirmed' AND current_shipment_id IS NULL
 `
 
 type SetCurrentShipmentParams struct {
 	ShipmentID pgtype.UUID
+	SellerID   uuid.UUID
 	ID         uuid.UUID
 }
 
 // Gắn vận đơn hiện hành; chỉ khi đơn đang confirmed và chưa có vận đơn (đã khóa bằng LockOrder).
 func (q *Queries) SetCurrentShipment(ctx context.Context, arg SetCurrentShipmentParams) (int64, error) {
-	result, err := q.db.Exec(ctx, setCurrentShipment, arg.ShipmentID, arg.ID)
+	result, err := q.db.Exec(ctx, setCurrentShipment, arg.ShipmentID, arg.SellerID, arg.ID)
 	if err != nil {
 		return 0, err
 	}
@@ -178,19 +184,25 @@ func (q *Queries) SetCurrentShipment(ctx context.Context, arg SetCurrentShipment
 const setOrderStatus = `-- name: SetOrderStatus :one
 UPDATE ord.orders
 SET status = $1, version = version + 1, updated_at = now()
-WHERE id = $2 AND status = $3
+WHERE seller_id = $2 AND id = $3 AND status = $4
 RETURNING version
 `
 
 type SetOrderStatusParams struct {
 	ToStatus   string
+	SellerID   uuid.UUID
 	ID         uuid.UUID
 	FromStatus string
 }
 
 // Đổi trạng thái chỉ khi đang ở trạng thái cũ; trả version mới (không dòng nào → pgx.ErrNoRows).
 func (q *Queries) SetOrderStatus(ctx context.Context, arg SetOrderStatusParams) (int64, error) {
-	row := q.db.QueryRow(ctx, setOrderStatus, arg.ToStatus, arg.ID, arg.FromStatus)
+	row := q.db.QueryRow(ctx, setOrderStatus,
+		arg.ToStatus,
+		arg.SellerID,
+		arg.ID,
+		arg.FromStatus,
+	)
 	var version int64
 	err := row.Scan(&version)
 	return version, err

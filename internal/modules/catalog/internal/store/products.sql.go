@@ -14,18 +14,19 @@ import (
 const bumpProductVersion = `-- name: BumpProductVersion :one
 UPDATE catalog.products
 SET version = version + 1, updated_at = now()
-WHERE id = $1 AND version = $2
+WHERE seller_id = $1 AND id = $2 AND version = $3
 RETURNING version
 `
 
 type BumpProductVersionParams struct {
-	ID      uuid.UUID
-	Version int64
+	SellerID uuid.UUID
+	ID       uuid.UUID
+	Version  int64
 }
 
 // Mẫu đổi vì biến thể của nó đổi: version tăng (Seq của product.updated).
 func (q *Queries) BumpProductVersion(ctx context.Context, arg BumpProductVersionParams) (int64, error) {
-	row := q.db.QueryRow(ctx, bumpProductVersion, arg.ID, arg.Version)
+	row := q.db.QueryRow(ctx, bumpProductVersion, arg.SellerID, arg.ID, arg.Version)
 	var version int64
 	err := row.Scan(&version)
 	return version, err
@@ -115,8 +116,8 @@ type InsertProductRow struct {
 	Version int64
 }
 
-// Mẫu sản phẩm (kế hoạch M1, Task M1-27). Chạy trong tenancy.WithTenant. Mọi câu đọc có seller_id (ADR-29); câu
-// khóa dòng theo mã mẫu (chỉ trong module, trước khi sửa có version).
+// Mẫu sản phẩm (kế hoạch M1, Task M1-27). Chạy trong tenancy.WithTenant. Mọi câu đọc, khóa, sửa có seller_id (ADR-29;
+// tests/arch/sellerfilter_test.go, Task M1-37).
 func (q *Queries) InsertProduct(ctx context.Context, arg InsertProductParams) (InsertProductRow, error) {
 	row := q.db.QueryRow(ctx, insertProduct,
 		arg.TenantID,
@@ -136,9 +137,14 @@ func (q *Queries) InsertProduct(ctx context.Context, arg InsertProductParams) (I
 const lockProduct = `-- name: LockProduct :one
 SELECT id, seller_id, code, name, description, article, status, version
 FROM catalog.products
-WHERE id = $1 AND deleted_at IS NULL
+WHERE seller_id = $1 AND id = $2 AND deleted_at IS NULL
 FOR UPDATE
 `
+
+type LockProductParams struct {
+	SellerID uuid.UUID
+	ID       uuid.UUID
+}
 
 type LockProductRow struct {
 	ID          uuid.UUID
@@ -151,8 +157,8 @@ type LockProductRow struct {
 	Version     int64
 }
 
-func (q *Queries) LockProduct(ctx context.Context, id uuid.UUID) (LockProductRow, error) {
-	row := q.db.QueryRow(ctx, lockProduct, id)
+func (q *Queries) LockProduct(ctx context.Context, arg LockProductParams) (LockProductRow, error) {
+	row := q.db.QueryRow(ctx, lockProduct, arg.SellerID, arg.ID)
 	var i LockProductRow
 	err := row.Scan(
 		&i.ID,
@@ -170,19 +176,25 @@ func (q *Queries) LockProduct(ctx context.Context, id uuid.UUID) (LockProductRow
 const setProductCategory = `-- name: SetProductCategory :one
 UPDATE catalog.products
 SET category_id = $1, version = version + 1, updated_at = now()
-WHERE id = $2 AND version = $3
+WHERE seller_id = $2 AND id = $3 AND version = $4
 RETURNING version
 `
 
 type SetProductCategoryParams struct {
 	CategoryID *uuid.UUID
+	SellerID   uuid.UUID
 	ID         uuid.UUID
 	Version    int64
 }
 
 // Phân loại mẫu (Task M1-34): đổi danh mục, version tăng (Seq của product.updated).
 func (q *Queries) SetProductCategory(ctx context.Context, arg SetProductCategoryParams) (int64, error) {
-	row := q.db.QueryRow(ctx, setProductCategory, arg.CategoryID, arg.ID, arg.Version)
+	row := q.db.QueryRow(ctx, setProductCategory,
+		arg.CategoryID,
+		arg.SellerID,
+		arg.ID,
+		arg.Version,
+	)
 	var version int64
 	err := row.Scan(&version)
 	return version, err
@@ -192,7 +204,7 @@ const updateProduct = `-- name: UpdateProduct :one
 UPDATE catalog.products
 SET name = $1, name_search = $2, description = $3, article = $4, status = $5,
     version = version + 1, updated_at = now()
-WHERE id = $6 AND version = $7
+WHERE seller_id = $6 AND id = $7 AND version = $8
 RETURNING version
 `
 
@@ -202,6 +214,7 @@ type UpdateProductParams struct {
 	Description string
 	Article     []byte
 	Status      string
+	SellerID    uuid.UUID
 	ID          uuid.UUID
 	Version     int64
 }
@@ -213,6 +226,7 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (i
 		arg.Description,
 		arg.Article,
 		arg.Status,
+		arg.SellerID,
 		arg.ID,
 		arg.Version,
 	)

@@ -126,7 +126,7 @@ func publicImageVariants(ctx context.Context, tx pgx.Tx, ids []uuid.UUID, view I
 // ErrAlreadyExists; tệp đã gắn rồi xóa mềm → hồi lại dòng đó. Version mẫu tăng 1, phát product.updated, audit. Lỗi:
 // ErrNotFound (mẫu hay tệp không có, tệp đã xóa), ErrFileNotReady, ErrVersionConflict, ErrInvalidInput (màu, quá
 // MaxImages), ErrAlreadyExists. Status, Variants của ảnh trả về để trống (đọc bằng ProductImages).
-func (w Writer) AttachImage(ctx context.Context, tx pgx.Tx, productID uuid.UUID, productVersion int64, fileID uuid.UUID,
+func (w Writer) AttachImage(ctx context.Context, tx pgx.Tx, sellerID, productID uuid.UUID, productVersion int64, fileID uuid.UUID,
 	color *string, actor identity.AuthUser,
 ) (Image, error) {
 	if err := w.check(); err != nil {
@@ -135,7 +135,7 @@ func (w Writer) AttachImage(ctx context.Context, tx pgx.Tx, productID uuid.UUID,
 	if err := checkImageFile(ctx, tx, fileID); err != nil {
 		return Image{}, err
 	}
-	p, err := lockProduct(ctx, tx, productID, productVersion)
+	p, err := lockProduct(ctx, tx, sellerID, productID, productVersion)
 	if err != nil {
 		return Image{}, err
 	}
@@ -174,13 +174,13 @@ func (w Writer) AttachImage(ctx context.Context, tx pgx.Tx, productID uuid.UUID,
 // ReorderImages đặt thứ tự ảnh đang hiện của mẫu productID theo imageIDs khi version của mẫu còn khớp. imageIDs phải
 // là đúng tập ảnh đang hiện (không thiếu, thừa, trùng), ngược lại ErrInvalidInput. Version mẫu tăng 1, phát
 // product.updated, audit. Lỗi: ErrNotFound, ErrVersionConflict, ErrInvalidInput.
-func (w Writer) ReorderImages(ctx context.Context, tx pgx.Tx, productID uuid.UUID, version int64, imageIDs []uuid.UUID,
+func (w Writer) ReorderImages(ctx context.Context, tx pgx.Tx, sellerID, productID uuid.UUID, version int64, imageIDs []uuid.UUID,
 	actor identity.AuthUser,
 ) error {
 	if err := w.check(); err != nil {
 		return err
 	}
-	p, err := lockProduct(ctx, tx, productID, version)
+	p, err := lockProduct(ctx, tx, sellerID, productID, version)
 	if err != nil {
 		return err
 	}
@@ -215,8 +215,9 @@ func (w Writer) ReorderImages(ctx context.Context, tx pgx.Tx, productID uuid.UUI
 
 // DeleteImage xóa mềm ảnh imageID của mẫu productID (đặt deleted_at; khôi phục được RestoreDays ngày). Ảnh đã xóa →
 // không đổi gì. Version mẫu tăng 1, phát product.updated, audit. Lỗi: ErrNotFound.
-func (w Writer) DeleteImage(ctx context.Context, tx pgx.Tx, productID, imageID uuid.UUID, actor identity.AuthUser) (Image, error) {
-	p, img, deleted, err := w.lockImage(ctx, tx, productID, imageID)
+func (w Writer) DeleteImage(ctx context.Context, tx pgx.Tx, sellerID, productID, imageID uuid.UUID, actor identity.AuthUser,
+) (Image, error) {
+	p, img, deleted, err := w.lockImage(ctx, tx, sellerID, productID, imageID)
 	if err != nil || deleted {
 		return img, err
 	}
@@ -232,8 +233,9 @@ func (w Writer) DeleteImage(ctx context.Context, tx pgx.Tx, productID, imageID u
 // RestoreImage khôi phục ảnh đã xóa imageID của mẫu productID về vị trí cũ. Ảnh đang hiện → không đổi gì; xóa quá
 // RestoreDays ngày → ErrRestoreExpired; đã có MaxImages ảnh đang hiện → ErrInvalidInput. Version mẫu tăng 1, phát
 // product.updated, audit. Lỗi: ErrNotFound, ErrRestoreExpired, ErrInvalidInput.
-func (w Writer) RestoreImage(ctx context.Context, tx pgx.Tx, productID, imageID uuid.UUID, actor identity.AuthUser) (Image, error) {
-	p, img, deleted, err := w.lockImage(ctx, tx, productID, imageID)
+func (w Writer) RestoreImage(ctx context.Context, tx pgx.Tx, sellerID, productID, imageID uuid.UUID, actor identity.AuthUser,
+) (Image, error) {
+	p, img, deleted, err := w.lockImage(ctx, tx, sellerID, productID, imageID)
 	if err != nil || !deleted {
 		return img, err
 	}
@@ -265,12 +267,12 @@ func nextPosition(ctx context.Context, q *store.Queries, productID uuid.UUID) (i
 	return pos.Next, nil
 }
 
-// lockImage kiểm Writer, khóa mẫu productID rồi ảnh imageID của mẫu đó (ADR-46 nhóm 4); trả ảnh và cờ đã xóa mềm.
-func (w Writer) lockImage(ctx context.Context, tx pgx.Tx, productID, imageID uuid.UUID) (Product, Image, bool, error) {
+// lockImage kiểm Writer, khóa mẫu productID của người bán sellerID rồi ảnh imageID của mẫu đó (ADR-46 nhóm 4); trả ảnh và cờ đã xóa mềm.
+func (w Writer) lockImage(ctx context.Context, tx pgx.Tx, sellerID, productID, imageID uuid.UUID) (Product, Image, bool, error) {
 	if err := w.check(); err != nil {
 		return Product{}, Image{}, false, err
 	}
-	p, err := lockProductAnyVersion(ctx, tx, productID)
+	p, err := lockProductAnyVersion(ctx, tx, sellerID, productID)
 	if err != nil {
 		return Product{}, Image{}, false, err
 	}

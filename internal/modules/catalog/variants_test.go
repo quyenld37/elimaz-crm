@@ -15,7 +15,7 @@ func (e *catalogEnv) updateVariant(id uuid.UUID, version int64, patch catalog.Va
 	var out catalog.Variant
 	err := e.app(func(tx pgx.Tx) error {
 		var err error
-		out, err = e.writer().UpdateVariant(e.t.Context(), tx, id, version, patch, e.actor)
+		out, err = e.writer().UpdateVariant(e.t.Context(), tx, e.seller, id, version, patch, e.actor)
 		return err //nolint:wrapcheck // test
 	})
 	return out, err
@@ -29,7 +29,7 @@ func (e *catalogEnv) setProductStatus(p catalog.Product, status string) catalog.
 		if err != nil {
 			return err //nolint:wrapcheck // test
 		}
-		out, err = e.writer().UpdateProduct(e.t.Context(), tx, p.ID, cur.Version,
+		out, err = e.writer().UpdateProduct(e.t.Context(), tx, p.SellerID, p.ID, cur.Version,
 			catalog.ProductPatch{Status: ptr(catalog.ProductStatus(status))}, e.actor)
 		return err //nolint:wrapcheck // test
 	})
@@ -101,7 +101,7 @@ func TestAddVariant_ProductVersion(t *testing.T) {
 		var out catalog.Variant
 		err := e.app(func(tx pgx.Tx) error {
 			var err error
-			out, err = e.writer().AddVariant(t.Context(), tx, p.ID, version, catalog.VariantInput{SKU: sku, Color: "Xanh", Size: sku, Price: 1}, e.actor)
+			out, err = e.writer().AddVariant(t.Context(), tx, e.seller, p.ID, version, catalog.VariantInput{SKU: sku, Color: "Xanh", Size: sku, Price: 1}, e.actor)
 			return err //nolint:wrapcheck // test
 		})
 		return out, err
@@ -162,7 +162,7 @@ func TestVariantForSale_Discontinued(t *testing.T) {
 	if _, err := e.updateVariant(stopped.ID, stopped.Version, catalog.VariantPatch{Status: ptr("discontinued")}); err != nil {
 		t.Fatal(err)
 	}
-	third := dam01(e.partnerSeller())
+	third := dam01(e.partner)
 	third.Status = "active"
 	p3, err := e.create(third)
 	if err != nil {
