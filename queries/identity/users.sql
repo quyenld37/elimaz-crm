@@ -1,0 +1,38 @@
+-- Người dùng và quyền theo phạm vi (kế hoạch M0, Task 7). Mọi câu chạy trong tenancy.WithTenant (RLS).
+
+-- name: GetUserByEmail :one
+SELECT id, email::text AS email, status
+FROM identity.users
+WHERE email = @email::citext;
+
+-- name: ListUserGrants :many
+-- Cặp (quyền, phạm vi) của user qua mọi vai trò được gán; trùng lặp được bỏ.
+SELECT DISTINCT rp.permission, g.scope_type, g.scope_id
+FROM identity.user_role_grants AS g
+JOIN identity.role_permissions AS rp ON rp.tenant_id = g.tenant_id AND rp.role_id = g.role_id
+WHERE g.user_id = @user_id
+ORDER BY rp.permission, g.scope_type, g.scope_id;
+
+-- name: UpsertRole :one
+-- Seed (chủ bảng): vai trò theo khóa; chạy lại thì đổi tên và trả mã cũ.
+INSERT INTO identity.roles (tenant_id, key, name)
+VALUES (@tenant_id, @key, @name)
+ON CONFLICT (tenant_id, key) DO UPDATE SET name = EXCLUDED.name
+RETURNING id;
+
+-- name: AddRolePermission :exec
+INSERT INTO identity.role_permissions (tenant_id, role_id, permission)
+VALUES (@tenant_id, @role_id, @permission)
+ON CONFLICT DO NOTHING;
+
+-- name: UpsertUser :one
+-- Seed (chủ bảng): user theo email; chạy lại thì giữ nguyên trạng thái, trả mã cũ.
+INSERT INTO identity.users (tenant_id, email, display_name)
+VALUES (@tenant_id, @email::citext, @display_name)
+ON CONFLICT (tenant_id, email) DO UPDATE SET display_name = EXCLUDED.display_name
+RETURNING id;
+
+-- name: AddUserRoleGrant :exec
+INSERT INTO identity.user_role_grants (tenant_id, user_id, role_id, scope_type, scope_id)
+VALUES (@tenant_id, @user_id, @role_id, @scope_type, @scope_id)
+ON CONFLICT DO NOTHING;

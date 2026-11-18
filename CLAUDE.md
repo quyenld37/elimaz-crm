@@ -75,7 +75,14 @@ Có dần theo kế hoạch; lệnh nào chưa có thì task tương ứng sẽ 
 
 ## Module mẫu
 
-Chưa có. Task 7 thêm mẫu cho module và đường đọc; Task 12 thêm mẫu cho đường ghi. Khi đã có, module và đường mới làm theo đúng mẫu đó.
+- **Module và đường đọc (Task 7):** `internal/modules/identity`. Phần công khai ở gói gốc (kiểu, sentinel lỗi, hàm
+  nhận `ctx` và `*db.DB`); câu SQL trong `queries/identity/*.sql`, sqlc sinh `internal/modules/identity/internal/store`
+  (khối riêng trong `sqlc.yaml`); mọi truy vấn trong `tenancy.WithTenant`; test ở gói `_test` trên PostgreSQL thật
+  (`testkit.OpenStaff`), quy luật bằng rapid. Đường đọc mẫu: `GET /api/v1/me` — hợp đồng `openapi.yaml` (`x-permission`)
+  → `auth` + `guard` → handler mỏng `internal/httpapi/handlers_me.go` → kết quả.
+- **Gọi dịch vụ ngoài:** bộ nối ở `internal/adapters/<tên>` (mẫu: `cfaccess`), hiện thực interface do module khai;
+  `cmd/crm` nối. Module không nhập `net/http`.
+- Task 12 thêm mẫu cho đường ghi. Module và đường mới làm theo đúng mẫu.
 
 ## Bẫy đã gặp
 

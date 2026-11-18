@@ -1,5 +1,6 @@
 // Lệnh crm là tệp chạy duy nhất của CRM. CRM_ROLE chọn vai trò: ingest, api, worker, migrate.
 // `crm healthcheck` kiểm tiến trình cùng cấu hình đang sống (dùng trong image không có shell).
+// `crm seed-dev <email>` (CRM_ROLE=migrate) dựng tenant, chủ shop và định tuyến email cho máy dev.
 package main
 
 import (
@@ -17,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess"
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
@@ -68,8 +70,9 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 			return exitFail
 		}
 		return exitOK
+	case len(args) == 2 && args[0] == "seed-dev":
 	case len(args) > 0:
-		_, _ = fmt.Fprintf(stderr, "lệnh lạ %q; chỉ có `crm` hoặc `crm healthcheck`\n", args)
+		_, _ = fmt.Fprintf(stderr, "lệnh lạ %q; chỉ có `crm`, `crm healthcheck` hoặc `crm seed-dev <email>`\n", args)
 		return exitConfig
 	}
 
@@ -82,6 +85,13 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 	}
 	defer func() { _ = closer.Close() }()
 
+	if len(args) == 2 { // seed-dev
+		if err := seedDev(ctx, cfg, args[1], logger); err != nil {
+			_, _ = fmt.Fprintln(stderr, "seed-dev:", err)
+			return exitFail
+		}
+		return exitOK
+	}
 	if err := serve(ctx, cfg, logger); err != nil {
 		logger.Error("tiến trình dừng vì lỗi", slog.String("error", err.Error()))
 		return exitFail
@@ -164,7 +174,14 @@ func runMigrate(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Registry, logger *slog.Logger) error {
 	var handler http.Handler
 	if cfg.Role == config.RoleAPI {
-		handler = httpapi.NewServer(httpapi.Deps{Config: cfg, DB: d, Logger: logger})
+		access, err := cfaccess.New(cfaccess.Options{
+			TeamDomain: cfg.AccessTeamDomain, AUD: cfg.AccessAUD,
+			MFAClaim: cfg.AccessMFAClaim, MFAValues: cfg.AccessMFAValues,
+		})
+		if err != nil {
+			return fmt.Errorf("dựng bộ kiểm thẻ Access: %w", err)
+		}
+		handler = httpapi.NewServer(httpapi.Deps{Config: cfg, DB: d, Logger: logger, Access: access})
 	} else {
 		mux := http.NewServeMux()
 		observability.NewHealth(d.Pool).Register(mux)

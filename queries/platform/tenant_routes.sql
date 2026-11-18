@@ -10,3 +10,16 @@ WHERE kind = @kind AND external_key = @external_key;
 SELECT id
 FROM platform.tenants
 ORDER BY id;
+
+-- name: AddTenantRoute :one
+-- Thêm định tuyến; đã có thì giữ dòng cũ. Trả tenant mà khóa đang trỏ tới (bên gọi so với tenant mong muốn).
+WITH ins AS (
+    INSERT INTO platform.tenant_routes (kind, external_key, tenant_id)
+    VALUES (@kind, @external_key, @tenant_id)
+    ON CONFLICT (kind, external_key) DO NOTHING
+    RETURNING tenant_id
+)
+SELECT tenant_id FROM ins
+UNION ALL
+SELECT r.tenant_id FROM platform.tenant_routes AS r WHERE r.kind = @kind AND r.external_key = @external_key
+LIMIT 1;
