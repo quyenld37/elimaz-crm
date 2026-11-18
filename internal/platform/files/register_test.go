@@ -168,6 +168,8 @@ func TestRegister_Refusals(t *testing.T) {
 	}{
 		{"mục đích chưa đăng ký", func(f *files.NewFile) { f.Purpose = "khong_co" }, files.ErrUnknownPurpose},
 		{"mục đích chế độ private", func(f *files.NewFile) { f.Purpose = "test_private_image"; f.ContentType = "image/jpeg" }, files.ErrPurposeMode},
+		// Ảnh chế độ standard cũng phải qua imager (ADR-45): Register không được tạo ảnh ready chưa xử lý.
+		{"mục đích ảnh chế độ standard", func(f *files.NewFile) { f.Purpose = "product_image"; f.ContentType = "image/jpeg" }, files.ErrPurposeMode},
 		{"loại không cho phép", func(f *files.NewFile) { f.ContentType = "text/html" }, files.ErrTypeNotAllowed},
 		{"quá lớn", func(f *files.NewFile) { f.Size = 2 * mib }, files.ErrTooLarge},
 		{"khóa của tenant khác", func(f *files.NewFile) { f.Key = files.ServerKey(e.b, id) }, files.ErrInvalidFile},

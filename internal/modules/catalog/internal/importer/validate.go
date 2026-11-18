@@ -311,7 +311,8 @@ func (v *validator) checkConsistent(g []*line) {
 func (v *validator) checkSKUs(lines []*line) {
 	skuRow := map[string]int{}
 	barcodeRow := map[string]int{}
-	barcodeSKU := make(map[string]string, len(v.refs.ExistingSKUs))
+	barcodeSKU := make(map[string]string, len(v.refs.ExistingSKUs)+len(v.refs.ExistingBarcodes))
+	maps.Copy(barcodeSKU, v.refs.ExistingBarcodes)
 	for sku, ex := range v.refs.ExistingSKUs {
 		if ex.Barcode != "" {
 			barcodeSKU[ex.Barcode] = sku

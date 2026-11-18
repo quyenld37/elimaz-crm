@@ -10,7 +10,8 @@ var (
 	ErrAccountNotFound = errors.New("fulfillment: không có tài khoản hãng")
 	// ErrNotFound: không có vận đơn (hay tenant khác).
 	ErrNotFound = errors.New("fulfillment: không có vận đơn")
-	// ErrOrderNotShippable: đơn không có, của người bán khác tài khoản hãng, hoặc không ở trạng thái giao được.
+	// ErrOrderNotShippable: đơn không có, của người bán khác tài khoản hãng, giữ hàng ở kho khác kho của tài khoản hãng,
+	// hoặc không ở trạng thái giao được.
 	ErrOrderNotShippable = errors.New("fulfillment: đơn không giao được")
 	// errCodeExhausted: sinh mã vận đơn 3 lần đều trùng.
 	errCodeExhausted = errors.New("fulfillment: sinh mã vận đơn trùng 3 lần")

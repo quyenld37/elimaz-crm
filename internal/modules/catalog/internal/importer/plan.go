@@ -12,6 +12,9 @@ type Refs struct {
 	Tags             map[string]uuid.UUID
 	ExistingSKUs     map[string]ExistingVariant
 	ExistingProducts map[string]ExistingProduct
+	// ExistingBarcodes: barcode → SKU của biến thể có sẵn của người bán, cho các barcode gõ tay có trong tệp (kể cả
+	// biến thể có SKU không nằm trong tệp). Chỉ bước kiểm dùng; lúc áp unique của database chặn.
+	ExistingBarcodes map[string]string
 }
 
 // Option là cặp màu, size của một biến thể (đúng chữ như đã lưu).
