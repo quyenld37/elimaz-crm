@@ -1206,3 +1206,83 @@ type PlatformWebhookDelivery struct {
 	RouteKey   pgtype.Text
 	BodyKind   string
 }
+
+type PromotionCoupon struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	Code             string
+	BatchID          pgtype.UUID
+	Name             string
+	DiscountKind     string
+	Value            int64
+	MaxDiscount      pgtype.Int8
+	MinSubtotal      int64
+	Channels         []string
+	SellerID         pgtype.UUID
+	BoundCustomerID  pgtype.UUID
+	BoundPhone       pgtype.Text
+	MaxUses          pgtype.Int4
+	UsedCount        int32
+	PerCustomerLimit pgtype.Int4
+	ReleaseOnCancel  bool
+	ValidFrom        time.Time
+	ValidTo          time.Time
+	Status           string
+	CreatedBy        uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	Version          int64
+}
+
+type PromotionCouponBatch struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	Name       string
+	CodePrefix string
+	Quantity   int32
+	Template   []byte
+	CreatedBy  uuid.UUID
+	CreatedAt  time.Time
+}
+
+type PromotionCouponCustomerUse struct {
+	TenantID   uuid.UUID
+	CouponID   uuid.UUID
+	CustomerID uuid.UUID
+	Used       int32
+}
+
+type PromotionCouponRedemption struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	CouponID      uuid.UUID
+	OrderID       uuid.UUID
+	CustomerID    uuid.UUID
+	Discount      int64
+	Status        string
+	ReleasedAt    pgtype.Timestamptz
+	ReleaseReason pgtype.Text
+	CreatedAt     time.Time
+}
+
+type PromotionCouponsV struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	Code             string
+	BatchID          pgtype.UUID
+	Name             string
+	DiscountKind     string
+	Value            int64
+	MaxDiscount      pgtype.Int8
+	MinSubtotal      int64
+	Channels         []string
+	SellerID         pgtype.UUID
+	MaxUses          pgtype.Int4
+	UsedCount        int32
+	PerCustomerLimit pgtype.Int4
+	ValidFrom        time.Time
+	ValidTo          time.Time
+	Status           string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
