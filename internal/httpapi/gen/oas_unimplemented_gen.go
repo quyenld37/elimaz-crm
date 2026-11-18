@@ -134,7 +134,7 @@ func (UnimplementedHandler) RetryJob(ctx context.Context, params RetryJobParams)
 
 // Stream implements stream operation.
 //
-// Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 15).
+// Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 16).
 //
 // GET /api/v1/stream
 func (UnimplementedHandler) Stream(ctx context.Context) (r StreamRes, _ error) {

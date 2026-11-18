@@ -184,7 +184,7 @@ paths:
   /api/v1/stream:
     get:
       operationId: stream
-      summary: Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 15)
+      summary: Báo hiệu thay đổi qua SSE (handler SSE riêng, Task 16)
       x-permission: realtime.subscribe
       responses:
         "200":
