@@ -38,6 +38,7 @@ Dấu hiệu đang chệch hướng, gặp là dừng và báo: chạy vòng l�
 
 Có dần theo kế hoạch; lệnh nào chưa có thì task tương ứng sẽ tạo.
 
+- `scripts/agent/ci-task.sh` — cổng kiểm của một task, chạy trước khi review (thay `make ci` trong phiên làm task, từ 18/11): đủ mọi cổng tĩnh như `make ci`, test chỉ gói đổi + gói phụ thuộc + cả bộ vùng rủi ro cao nếu chạm (đổi migration, go.mod, testkit thì toàn bộ); so hợp đồng và test-guard với điểm tách nhánh. Toàn bộ test chạy trên `main` do điều phối viên sau mỗi đợt gộp.
 - `make ci` — toàn bộ cổng kiểm (từ Task 3): build, vet, golangci-lint, sinh lại mã và đòi không chênh, `sqlc vet`, `go test -race ./...`, govulncheck, test kiến trúc, oasdiff, jscpd, `test-guard.sh`, danh mục dùng chung, gitleaks.
 - Test một gói: `go test -race ./internal/platform/queue/...`
 - Chọn test: chỉ gói vừa đổi và gói nhập chúng. Ngoại lệ: chạm vào vùng rủi ro cao thì chạy cả bộ của vùng đó. Vùng rủi ro cao: `internal/platform/{tenancy,queue,commands,idempotency,db,webhooks}`, `internal/modules/{identity,inventory}`, `internal/httpapi/guard.go` (mở rộng 18/11 sau Task 23).
@@ -95,5 +96,14 @@ Có dần theo kế hoạch; lệnh nào chưa có thì task tương ứng sẽ 
 ## Bẫy đã gặp
 
 Thêm một dòng mỗi khi chủ shop hoặc reviewer phải sửa cùng một lỗi lần thứ hai. Ghi lỗi gì, cách đúng là gì.
+(Gom ngày 18/11 từ kết luận reviewer của Task 1–326.)
 
-- (chưa có)
+- RLS áp cả cho chủ bảng: mọi câu chạm bảng có `tenant_id` (kể cả câu kiểm trong test) chạy trong `tenancy.WithTenant` / transaction có `set_config('app.tenant_id', …, true)`; không thì ra 0 dòng mà không lỗi.
+- `sum()`, `max()` trên tập rỗng trả NULL: dùng `coalesce(…, 0)` và có ca test tập rỗng.
+- Hàm chạy trong `db.RetryTx` có thể chạy lại: gán lại mọi biến kết quả trong thân hàm, không cộng dồn, không gửi ra ngoài.
+- Khóa nhiều bảng: đúng thứ tự `docs/adr/0046-thu-tu-khoa.md`; có test hai đường song song không deadlock.
+- Mốc thời gian "đã gửi/đã xong" ghi khi việc thật sự xong, không ghi lúc bắt đầu (việc kết thúc giữa chừng bị bỏ sót).
+- Đổi tên hay chữ ký: grep mọi chỗ gọi (cả test, console, tài liệu `docs/views.md`, `docs/quyen.md`) trước khi stage.
+- Mục Ảnh hưởng, bảng bằng chứng: số ca, tên test, tên hàm phải khớp mã thật; reviewer đối chiếu từng dòng.
+- Màn hình: chỉ vẽ hành vi mà máy chủ thật sự làm (quyền, chặn, lỗi); ca lỗi của API có trạng thái hiện riêng; mock trong test khớp quyền thật.
+- Lỗi pgx tạm thời (57014, 57P01, 57P03, 53300, lỗi lúc nối): phân loại đúng là tạm thời, có test.

@@ -114,8 +114,13 @@ func (*ImportValidator) OnTerminal(ctx context.Context, j queue.Job, status stri
 }
 
 func decodeImportPayload(j queue.Job) (importPayload, bool) {
-	var pl importPayload
-	if j.TenantID == nil || json.Unmarshal(j.Payload, &pl) != nil || pl.ImportID == uuid.Nil {
+	return decodePayload(j, func(pl importPayload) bool { return pl.ImportID != uuid.Nil })
+}
+
+// decodePayload đọc payload của việc j (lệnh kiểm, việc áp bản nhập): ok khi việc có tenant, JSON đọc được và valid.
+func decodePayload[T any](j queue.Job, valid func(T) bool) (T, bool) { //nolint:ireturn // T là kiểu payload cụ thể (struct), không phải interface
+	var pl T
+	if j.TenantID == nil || json.Unmarshal(j.Payload, &pl) != nil || !valid(pl) {
 		return pl, false
 	}
 	return pl, true

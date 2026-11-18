@@ -3,7 +3,9 @@
 // chia thành các bước theo editRules.savePlan, mỗi bước một khóa chống trùng (useWriteAction). Người khác vừa lưu →
 // "Mẫu đã thay đổi, tải lại." Báo hiệu realtime tải lại dữ liệu nền nhưng không đè bản nháp.
 // Khối Ảnh (Task 325, ImageManager) nằm ở cột phải trên thẻ Phân loại: ảnh tải lên (useUploads) sống ở ExistingProduct
-// nên lưu mẫu hay tải lại mẫu không làm mất; thao tác ảnh tăng version mẫu, bản nháp nhận version mới; trình soạn bài viết (Task 326) vào cột trái dưới thẻ Thông tin.
+// nên lưu mẫu hay tải lại mẫu không làm mất; thao tác ảnh tăng version mẫu, bản nháp nhận version mới.
+// Trình soạn bài viết (Task 326, ArticleEditor) ở cột trái dưới thẻ Thông tin; bài viết đi trong bước sửa mẫu. Máy chủ
+// trả invalid_article (thân lỗi không nói khối nào) → locateInvalid tìm khối sai để tô đỏ; không tìm ra → câu chung.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useId, useMemo, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
@@ -33,6 +35,8 @@ import {
   type UpdateVariantRequest,
 } from "../../api";
 import { ApiError, errorMessage, unwrap } from "../../app/errors";
+import { ArticleEditor } from "./ArticleEditor";
+import { articleSummary, locateInvalid, type EditBlock } from "./articleRules";
 import { useWriteAction } from "../../app/idempotency";
 import { hasPermission } from "../../app/nav";
 import { TOPICS, queryKey } from "../../app/queryClient";
@@ -179,6 +183,8 @@ function EditForm({ mode, productId = "", initialImages = NO_IMAGES, uploads, in
   const [saving, setSaving] = useState(false);
   const [images, setImages] = useState(initialImages);
   const [imagePending, setImagePending] = useState(false);
+  // Khối máy chủ báo sai (invalid_article): câu lỗi kèm đúng khối lúc gửi; sửa khối đó thì lỗi tắt.
+  const [articleSrv, setArticleSrv] = useState<Record<string, { block: EditBlock; error: string }>>({});
 
   const headers = (key: string) => ({ "Idempotency-Key": key });
   const create = useWriteAction((key, body: CreateProductRequest) =>
@@ -205,6 +211,11 @@ function EditForm({ mode, productId = "", initialImages = NO_IMAGES, uploads, in
   const rowErrors: Record<string, RowErrors> = { ...(live?.rows ?? {}) };
   for (const [k, e] of Object.entries(serverRows)) rowErrors[k] = { ...e, ...rowErrors[k] };
   const fieldErr = live?.fields ?? {};
+  const articleErrors: Record<string, string> = {};
+  for (const [k, v] of Object.entries(articleSrv))
+    if (edit.article.some((b) => b === v.block)) articleErrors[k] = v.error;
+  Object.assign(articleErrors, live?.article ?? {});
+  const articleBox = articleSummary(edit.article, articleErrors);
 
   const runStep = async (p: Pair, step: SaveStep): Promise<StepResult> => {
     const v = p.edit.version;
@@ -245,6 +256,17 @@ function EditForm({ mode, productId = "", initialImages = NO_IMAGES, uploads, in
       setMessage("Chưa lưu xong: sửa dòng được tô đỏ.");
       return;
     }
+    if (code === "invalid_article") {
+      const found = locateInvalid(edit.article, images);
+      const srv: Record<string, { block: EditBlock; error: string }> = {};
+      for (const b of edit.article) {
+        const e = found[b.key];
+        if (e !== undefined) srv[b.key] = { block: b, error: e };
+      }
+      setArticleSrv(srv);
+      if (Object.keys(srv).length === 0) setMessage(errorMessage(err));
+      return;
+    }
     if (mode === "create" && code === "sku_taken") {
       setMessage(TEXT_SKU_TAKEN_CREATE);
       return;
@@ -261,10 +283,13 @@ function EditForm({ mode, productId = "", initialImages = NO_IMAGES, uploads, in
     const v = validate(edit, mode);
     setChecked(v);
     setServerRows({});
+    setArticleSrv({});
     setCodeError(null);
     setConflict(false);
     if (!v.ok) {
-      setMessage(TEXT_FIX_FIELDS);
+      // Chỉ bài viết sai: hộp lỗi bài viết (trạng thái C) đủ, không thêm câu chung.
+      const onlyArticle = Object.keys(v.rows).length === 0 && Object.keys(v.fields).length === 0;
+      setMessage(onlyArticle ? null : TEXT_FIX_FIELDS);
       return;
     }
     setMessage(null);
@@ -324,6 +349,7 @@ function EditForm({ mode, productId = "", initialImages = NO_IMAGES, uploads, in
     setPair((p) => ({ ...p, edit: p.base }));
     setChecked(null);
     setServerRows({});
+    setArticleSrv({});
     setCodeError(null);
     setMessage(null);
   };
@@ -386,6 +412,11 @@ function EditForm({ mode, productId = "", initialImages = NO_IMAGES, uploads, in
           </div>
         </div>
       )}
+      {articleBox !== null && (
+        <div className="box box-err p-box" role="alert">
+          <b>{articleBox.title}</b> <span>{articleBox.detail}</span>
+        </div>
+      )}
       {message !== null && (
         <div className="box box-err p-box" role="alert">
           {message}
@@ -396,7 +427,16 @@ function EditForm({ mode, productId = "", initialImages = NO_IMAGES, uploads, in
         <div className="cols">
           <div className="stack">
             <InfoCard mode={mode} draft={edit} errors={fieldErr} codeError={codeError} onChange={setEdit} />
-            {/* Task 326: trình soạn bài viết (ArticleEditor) gắn ở đây. */}
+            <ArticleEditor
+              blocks={edit.article}
+              images={images}
+              errors={articleErrors}
+              {...(fieldErr.article === undefined ? {} : { articleError: fieldErr.article })}
+              readOnly={readOnly}
+              onChange={(article) => {
+                setEdit({ ...edit, article });
+              }}
+            />
           </div>
           <div className="stack">
             {mode === "edit" && uploads !== undefined && (

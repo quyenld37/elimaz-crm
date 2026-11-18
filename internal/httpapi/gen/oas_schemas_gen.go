@@ -792,8 +792,9 @@ type CatalogImport struct {
 	ID     uuid.UUID `json:"id"`
 	FileId uuid.UUID `json:"fileId"`
 	// Validating: đang kiểm; invalid: có lỗi (errors); ready: xem trước được (summary), chờ
-	// áp dụng; duplicate: tệp cùng nội dung đã được áp (duplicateOf); failed: không đọc
-	// được tệp hay áp thất bại.
+	// áp dụng; duplicate: tệp cùng nội dung đã được áp (duplicateOf); applying: đang áp;
+	// applied: đã áp; failed: không đọc được tệp hay áp thất bại (errors: dòng có dữ
+	// liệu vừa đổi từ lúc kiểm).
 	Status  CatalogImportStatus  `json:"status"`
 	Summary CatalogImportSummary `json:"summary"`
 	// Lỗi theo dòng, xếp theo dòng rồi cột (tối đa 1.000; tổng số ở summary.errors).
@@ -884,6 +885,7 @@ func (s *CatalogImport) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
 }
 
+func (*CatalogImport) applyCatalogImportRes()  {}
 func (*CatalogImport) createCatalogImportRes() {}
 func (*CatalogImport) getCatalogImportRes()    {}
 
@@ -940,8 +942,9 @@ func (s *CatalogImportError) SetMessage(val string) {
 }
 
 // Validating: đang kiểm; invalid: có lỗi (errors); ready: xem trước được (summary), chờ
-// áp dụng; duplicate: tệp cùng nội dung đã được áp (duplicateOf); failed: không đọc
-// được tệp hay áp thất bại.
+// áp dụng; duplicate: tệp cùng nội dung đã được áp (duplicateOf); applying: đang áp;
+// applied: đã áp; failed: không đọc được tệp hay áp thất bại (errors: dòng có dữ
+// liệu vừa đổi từ lúc kiểm).
 type CatalogImportStatus string
 
 const (
@@ -1909,6 +1912,7 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 func (*ErrorStatusCode) abandonJobRes()                {}
 func (*ErrorStatusCode) addAttributeValueRes()         {}
 func (*ErrorStatusCode) addVariantRes()                {}
+func (*ErrorStatusCode) applyCatalogImportRes()        {}
 func (*ErrorStatusCode) applyStocktakeRes()            {}
 func (*ErrorStatusCode) archiveCategoryRes()           {}
 func (*ErrorStatusCode) archiveRoleRes()               {}
@@ -4384,8 +4388,13 @@ type Product struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	Article     []ArticleBlock `json:"article"`
-	// HTML bài viết dựng bằng catalog.RenderArticleHTML (chỉ thẻ trong danh sách cho phép,
-	// R7).
+	// HTML bài viết dựng bằng catalog.RenderArticleHTML (R7), chỉ thẻ trong danh sách cho
+	// phép: p, br, h2, h3, ul, li và cho khối ảnh figure, picture, source, img, figcaption. Khối
+	// ảnh thành figure > picture với source avif, source webp và img JPEG (URL công khai của các
+	// biến thể ảnh sẵn sàng, srcset theo chiều rộng, alt là chú thích, loading=lazy), kèm
+	// figcaption khi có chú thích; khối ảnh trỏ tệp chưa sẵn sàng hoặc bị mất thì
+	// bỏ. Mọi chữ đã thoát ký tự. Bàn điều khiển không hiển thị trường này
+	// (trình soạn dùng khối article).
 	ArticleHtml string        `json:"articleHtml"`
 	Status      ProductStatus `json:"status"`
 	Version     int64         `json:"version"`

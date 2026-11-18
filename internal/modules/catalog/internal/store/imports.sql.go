@@ -13,6 +13,28 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const failApply = `-- name: FailApply :execrows
+UPDATE catalog.imports
+SET status = 'failed', errors = coalesce($1, errors), summary = coalesce($2, summary),
+    version = version + 1, updated_at = now()
+WHERE id = $3 AND status = 'applying'
+`
+
+type FailApplyParams struct {
+	Errors  []byte
+	Summary []byte
+	ID      uuid.UUID
+}
+
+// Áp thất bại: lỗi dòng và tóm tắt mới (nil: giữ nguyên, khi việc hết lượt). Plan giữ lại để xem.
+func (q *Queries) FailApply(ctx context.Context, arg FailApplyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, failApply, arg.Errors, arg.Summary, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const failValidation = `-- name: FailValidation :execrows
 UPDATE catalog.imports
 SET status = 'failed', version = version + 1, updated_at = now()
@@ -41,6 +63,25 @@ func (q *Queries) FindAppliedImportBySHA(ctx context.Context, arg FindAppliedImp
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const finishApply = `-- name: FinishApply :execrows
+UPDATE catalog.imports
+SET status = 'applied', applied_by = $1, applied_at = now(), version = version + 1, updated_at = now()
+WHERE id = $2 AND status = 'applying'
+`
+
+type FinishApplyParams struct {
+	AppliedBy *uuid.UUID
+	ID        uuid.UUID
+}
+
+func (q *Queries) FinishApply(ctx context.Context, arg FinishApplyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, finishApply, arg.AppliedBy, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const finishValidation = `-- name: FinishValidation :execrows
@@ -138,6 +179,28 @@ func (q *Queries) GetImportForValidation(ctx context.Context, id uuid.UUID) (Get
 	row := q.db.QueryRow(ctx, getImportForValidation, id)
 	var i GetImportForValidationRow
 	err := row.Scan(&i.FileID, &i.SellerID, &i.Status)
+	return i, err
+}
+
+const getImportPlan = `-- name: GetImportPlan :one
+SELECT file_sha256, summary, plan FROM catalog.imports WHERE seller_id = $1 AND id = $2
+`
+
+type GetImportPlanParams struct {
+	SellerID uuid.UUID
+	ID       uuid.UUID
+}
+
+type GetImportPlanRow struct {
+	FileSha256 []byte
+	Summary    []byte
+	Plan       []byte
+}
+
+func (q *Queries) GetImportPlan(ctx context.Context, arg GetImportPlanParams) (GetImportPlanRow, error) {
+	row := q.db.QueryRow(ctx, getImportPlan, arg.SellerID, arg.ID)
+	var i GetImportPlanRow
+	err := row.Scan(&i.FileSha256, &i.Summary, &i.Plan)
 	return i, err
 }
 
@@ -319,4 +382,104 @@ func (q *Queries) LockImport(ctx context.Context, id uuid.UUID) (LockImportRow, 
 	var i LockImportRow
 	err := row.Scan(&i.ID, &i.Status)
 	return i, err
+}
+
+const lockImportApplySeller = `-- name: LockImportApplySeller :exec
+SELECT pg_advisory_xact_lock(hashtextextended(
+    'catalog.import.apply:' || current_setting('app.tenant_id') || ':' || $1::uuid::text, 0))
+`
+
+// Khóa tư vấn theo (tenant, người bán): hai lần áp của cùng người bán chạy lần lượt, lần sau thấy đúng dữ liệu lần
+// trước vừa ghi. Chỉ việc catalog.import.apply lấy, trước mọi khóa dòng.
+func (q *Queries) LockImportApplySeller(ctx context.Context, sellerID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, lockImportApplySeller, sellerID)
+	return err
+}
+
+const lockImportForApply = `-- name: LockImportForApply :one
+
+SELECT status, version FROM catalog.imports WHERE seller_id = $1 AND id = $2 FOR UPDATE
+`
+
+type LockImportForApplyParams struct {
+	SellerID uuid.UUID
+	ID       uuid.UUID
+}
+
+type LockImportForApplyRow struct {
+	Status  string
+	Version int64
+}
+
+// Áp dụng bản nhập (Task M1-47b). Thứ tự khóa (ADR-46): khóa tư vấn theo người bán → catalog.imports → danh mục
+// (chia sẻ) → mẫu có sẵn theo id tăng dần → biến thể → platform.jobs.
+func (q *Queries) LockImportForApply(ctx context.Context, arg LockImportForApplyParams) (LockImportForApplyRow, error) {
+	row := q.db.QueryRow(ctx, lockImportForApply, arg.SellerID, arg.ID)
+	var i LockImportForApplyRow
+	err := row.Scan(&i.Status, &i.Version)
+	return i, err
+}
+
+const lockProductsByIDs = `-- name: LockProductsByIDs :many
+SELECT id FROM catalog.products WHERE seller_id = $1 AND id = ANY($2::uuid[]) ORDER BY id FOR UPDATE
+`
+
+type LockProductsByIDsParams struct {
+	SellerID uuid.UUID
+	Ids      []uuid.UUID
+}
+
+// Khóa trước các mẫu có sẵn của plan theo id tăng dần (ADR-46: sửa nhiều dòng).
+func (q *Queries) LockProductsByIDs(ctx context.Context, arg LockProductsByIDsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, lockProductsByIDs, arg.SellerID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markApplyDuplicate = `-- name: MarkApplyDuplicate :execrows
+UPDATE catalog.imports
+SET status = 'duplicate', duplicate_of = $1, plan = NULL, version = version + 1, updated_at = now()
+WHERE id = $2 AND status = 'applying'
+`
+
+type MarkApplyDuplicateParams struct {
+	DuplicateOf *uuid.UUID
+	ID          uuid.UUID
+}
+
+// Tệp cùng nội dung vừa được áp cho người bán (bởi bản nhập khác) → duplicate, bỏ plan.
+func (q *Queries) MarkApplyDuplicate(ctx context.Context, arg MarkApplyDuplicateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markApplyDuplicate, arg.DuplicateOf, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const startApply = `-- name: StartApply :execrows
+UPDATE catalog.imports
+SET status = 'applying', version = version + 1, updated_at = now()
+WHERE id = $1 AND status = 'ready'
+`
+
+func (q *Queries) StartApply(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, startApply, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

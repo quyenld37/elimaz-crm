@@ -39,6 +39,8 @@ var (
 	// ErrFileNotReady: tệp gắn vào mẫu chưa xử lý xong, bị từ chối hay không phải ảnh sản phẩm (Task M1-44); tệp nhập
 	// Excel không phải mục đích catalog_import hay chưa tải lên xong (Task M1-47).
 	ErrFileNotReady = errors.New("catalog: tệp chưa sẵn sàng hoặc không phải ảnh sản phẩm")
+	// ErrImportNotReady: bản nhập không ở trạng thái ready (còn kiểm, có lỗi, trùng, đang hay đã áp; Task M1-47b).
+	ErrImportNotReady = errors.New("catalog: bản nhập chưa sẵn sàng để áp")
 	// ErrRestoreExpired: ảnh đã xóa quá RestoreDays ngày, không khôi phục được (TP06).
 	ErrRestoreExpired = errors.New("catalog: quá hạn khôi phục")
 	// ErrInvalidArticle: bài viết sai lược đồ hay vượt giới hạn (cùng giá trị với lỗi của gói article).

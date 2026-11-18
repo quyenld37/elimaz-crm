@@ -48,3 +48,45 @@ SELECT p.id AS product_id, p.code, v.sku, v.color, v.size
 FROM catalog.products AS p
 LEFT JOIN catalog.variants AS v ON v.product_id = p.id AND v.seller_id = p.seller_id
 WHERE p.seller_id = @seller_id AND p.code = ANY(@codes::text[]) AND p.deleted_at IS NULL;
+
+-- Áp dụng bản nhập (Task M1-47b). Thứ tự khóa (ADR-46): khóa tư vấn theo người bán → catalog.imports → danh mục
+-- (chia sẻ) → mẫu có sẵn theo id tăng dần → biến thể → platform.jobs.
+
+-- name: LockImportForApply :one
+SELECT status, version FROM catalog.imports WHERE seller_id = @seller_id AND id = @id FOR UPDATE;
+
+-- name: StartApply :execrows
+UPDATE catalog.imports
+SET status = 'applying', version = version + 1, updated_at = now()
+WHERE id = @id AND status = 'ready';
+
+-- name: LockImportApplySeller :exec
+-- Khóa tư vấn theo (tenant, người bán): hai lần áp của cùng người bán chạy lần lượt, lần sau thấy đúng dữ liệu lần
+-- trước vừa ghi. Chỉ việc catalog.import.apply lấy, trước mọi khóa dòng.
+SELECT pg_advisory_xact_lock(hashtextextended(
+    'catalog.import.apply:' || current_setting('app.tenant_id') || ':' || sqlc.arg(seller_id)::uuid::text, 0));
+
+-- name: GetImportPlan :one
+SELECT file_sha256, summary, plan FROM catalog.imports WHERE seller_id = @seller_id AND id = @id;
+
+-- name: FinishApply :execrows
+UPDATE catalog.imports
+SET status = 'applied', applied_by = @applied_by, applied_at = now(), version = version + 1, updated_at = now()
+WHERE id = @id AND status = 'applying';
+
+-- name: FailApply :execrows
+-- Áp thất bại: lỗi dòng và tóm tắt mới (nil: giữ nguyên, khi việc hết lượt). Plan giữ lại để xem.
+UPDATE catalog.imports
+SET status = 'failed', errors = coalesce(sqlc.narg(errors), errors), summary = coalesce(sqlc.narg(summary), summary),
+    version = version + 1, updated_at = now()
+WHERE id = @id AND status = 'applying';
+
+-- name: MarkApplyDuplicate :execrows
+-- Tệp cùng nội dung vừa được áp cho người bán (bởi bản nhập khác) → duplicate, bỏ plan.
+UPDATE catalog.imports
+SET status = 'duplicate', duplicate_of = @duplicate_of, plan = NULL, version = version + 1, updated_at = now()
+WHERE id = @id AND status = 'applying';
+
+-- name: LockProductsByIDs :many
+-- Khóa trước các mẫu có sẵn của plan theo id tăng dần (ADR-46: sửa nhiều dòng).
+SELECT id FROM catalog.products WHERE seller_id = @seller_id AND id = ANY(@ids::uuid[]) ORDER BY id FOR UPDATE;

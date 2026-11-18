@@ -2,8 +2,10 @@
 // SKU, đọc giá, kiểm ô, các bước lưu theo version.
 import { describe, expect, it } from "vitest";
 import type { Product, ProductClassification, Variant } from "../../api";
+import { editBlocks, newBlock } from "./articleRules";
 import {
   addOption,
+  applyProduct,
   canRemoveOption,
   createBody,
   draftFromProduct,
@@ -232,5 +234,38 @@ describe("savePlan", () => {
   it("thứ tự nhãn khác nhau nhưng cùng tập → không đổi", () => {
     const b2 = { ...base, tagIds: ["a", "b"] };
     expect(savePlan(b2, { ...b2, tagIds: ["b", "a"] })).toEqual([]);
+  });
+});
+
+describe("bài viết trong bản nháp (Task 326)", () => {
+  const ART: Product["article"] = [
+    { type: "heading", text: "Chất liệu", level: 3 },
+    { type: "paragraph", text: "Lụa <b>Hàn</b>" },
+  ];
+  const base = draftFromProduct(product([variant(1, "Đen", "S")], { article: ART }), CLS);
+
+  it("mở mẫu: khối đọc từ article; không đổi → không bước nào", () => {
+    expect(base.article.map((b) => b.type)).toEqual(["heading", "paragraph"]);
+    expect(savePlan(base, { ...base, article: editBlocks(ART) })).toEqual([]);
+  });
+
+  it("đổi thứ tự khối → bước sửa mẫu gửi cả bài", () => {
+    const e = { ...base, article: [...base.article].reverse() };
+    expect(savePlan(base, e)).toEqual([{ kind: "product", body: { article: [...ART].reverse() } }]);
+  });
+
+  it("lưu xong: bản đã lưu nhận bài của máy chủ → không còn thay đổi", () => {
+    const e = { ...base, article: base.article.slice(1) };
+    const pair = applyProduct({ base, edit: e }, product([], { article: ART.slice(1), version: 8 }));
+    expect(savePlan(pair.base, pair.edit)).toEqual([]);
+  });
+
+  it("validate: khối sai → không ok, lỗi theo khóa khối; createBody gửi bài khi có khối", () => {
+    const bad = { ...newBlock("list") };
+    const v = validate({ ...newDraft(), article: [bad] }, "create");
+    expect(v.ok).toBe(false);
+    expect(v.article).toEqual({ [bad.key]: "Danh sách cần ít nhất một dòng." });
+    expect(createBody(newDraft()).article).toBeUndefined();
+    expect(createBody({ ...newDraft(), article: editBlocks(ART) }).article).toEqual(ART);
   });
 });
