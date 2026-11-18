@@ -10,6 +10,18 @@ SET status = 'pending', run_at = now() + sqlc.arg(delay_ms)::bigint * interval '
 WHERE id = @id AND status = 'running' AND locked_by = sqlc.arg(locked_by)::text
   AND attempts < max_attempts AND (expires_at IS NULL OR expires_at > now());
 
+-- Chắc chắn chưa gửi: lệnh đã quá hạn của loại chưa (cùng now() của transaction với RescheduleNotSent nên hai câu không
+-- trái nhau). Không khóa dòng: hook OnTerminal chạy trước câu đổi jobs (ADR-46).
+-- name: CommandPastExpiry :one
+SELECT coalesce(expires_at <= now(), false)::bool AS past FROM platform.jobs WHERE id = @id;
+
+-- Chắc chắn chưa gửi và đã quá hạn của loại: expired (spec 04 mục 5.3), không dead. Câu cuối của transaction OnTerminal.
+-- name: ExpireNotSent :execrows
+UPDATE platform.jobs
+SET status = 'expired', last_error = sqlc.arg(last_error)::text, finished_at = now(), lease_until = NULL,
+    locked_by = NULL
+WHERE id = @id AND status = 'running' AND locked_by = sqlc.arg(locked_by)::text;
+
 -- Không biết đã gửi chưa: in_doubt, không tự gửi lại. Câu cuối của transaction OnTerminal.
 -- name: MarkInDoubt :execrows
 UPDATE platform.jobs

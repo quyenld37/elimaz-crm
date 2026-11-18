@@ -43,10 +43,16 @@ func (e *env) ownerExec(t testing.TB, q string, args ...any) {
 // enqueue ghi một lệnh của tenant thử trong transaction riêng của crm_app.
 func (e *env) enqueue(t testing.TB, k queue.Kind, key string) uuid.UUID {
 	t.Helper()
+	return e.enqueueJob(t, k, queue.NewJob{TenantID: &e.tenant, DedupeKey: key})
+}
+
+// enqueueJob ghi j (có thể không tenant) trong transaction riêng của crm_app.
+func (e *env) enqueueJob(t testing.TB, k queue.Kind, j queue.NewJob) uuid.UUID {
+	t.Helper()
 	var id uuid.UUID
 	err := e.app.RetryTx(t.Context(), db.TxOptions{}, func(tx pgx.Tx) error {
 		var err error
-		id, _, err = e.q.Enqueue(t.Context(), tx, k, queue.NewJob{TenantID: &e.tenant, DedupeKey: key})
+		id, _, err = e.q.Enqueue(t.Context(), tx, k, j)
 		return err //nolint:wrapcheck // test
 	})
 	if err != nil {

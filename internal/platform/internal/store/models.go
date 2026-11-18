@@ -153,3 +153,12 @@ type PlatformTenantRoute struct {
 	TenantID    uuid.UUID
 	CreatedAt   time.Time
 }
+
+type PlatformWebhookDelivery struct {
+	ID         uuid.UUID
+	Source     string
+	BodySha256 string
+	Headers    []byte
+	Body       []byte
+	ReceivedAt time.Time
+}

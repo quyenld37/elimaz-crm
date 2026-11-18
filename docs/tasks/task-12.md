@@ -183,11 +183,11 @@ Database: compose `crm-t12`, PostgreSQL cổng 5512 (`CRM_TEST_DATABASE_URL`). T
 
 ## Việc phát hiện thêm
 
-- Chưa ai gọi `commands.ResolveInDoubt` định kỳ: nên là một việc `task.*` của Task 13 (lịch) hoặc của mốc có lệnh
+- (Đã làm ở Task 14 lượt 2: lịch `platform.resolve_in_doubt` và `WorkerOptions.Commands` trong `cmd/crm`.) Chưa ai gọi `commands.ResolveInDoubt` định kỳ: nên là một việc `task.*` của Task 13 (lịch) hoặc của mốc có lệnh
   thật đầu tiên. `cmd/crm` chưa nối `WorkerOptions.Commands` (chưa có lệnh nào ở M0).
 - `listJobs` chưa có index `(tenant_id, status, created_at) WHERE status IN ('dead','in_doubt','expired')`; cần
   migration mới khi bảng lớn (Task 13 dọn dòng `done` giảm bớt).
-- `not_sent` khi đã quá `expires_at` thành `dead` (đúng chữ kế hoạch); spec 5.3 phân biệt "hết hạn, chưa gửi được"
+- (Đã sửa ở Task 14 lượt 2 theo quyết định của điều phối viên: nay thành `expired`.) `not_sent` khi đã quá `expires_at` thành `dead` (đúng chữ kế hoạch); spec 5.3 phân biệt "hết hạn, chưa gửi được"
   với "bị từ chối" — module nghiệp vụ đầu tiên có lệnh thật nên xét dùng `expired` cho ca này (cần sửa kế hoạch).
 - Handler bỏ qua `ctx` của `Execute` vẫn có thể chạy quá giữ chỗ; luật cho handler ("Execute phải theo ctx") nên vào
   skill/mẫu module khi có bộ nối thật đầu tiên.

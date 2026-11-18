@@ -21,6 +21,7 @@ type Handler interface {
 
 	Execute(ctx context.Context, j queue.Job) (Outcome, error)
 }
+func NewInDoubtResolver(d *db.DB, hs []Handler) Handler
 type Looker interface {
 	Lookup(ctx context.Context, j queue.Job) (string, error)
 }
@@ -429,6 +430,22 @@ type TickerOptions struct {
 }
 ```
 
+## `internal/platform/selftest` (gói `selftest`)
+
+Package selftest là nguồn webhook thử "selftest" (/hooks/selftest) dùng để kiểm cả đường vào khi chưa có kênh thật: ký bằng HMAC-SHA256 với SELFTEST_WEBHOOK_SECRET, có bước GET xác minh, tách gói {"events":[…]}.
+
+**Khi nào không dùng:** Chỉ để thử đường vào khi chưa có kênh thật: không dùng làm mẫu xác thực cho nguồn thật (mỗi kênh tự hiện thực webhooks.Source theo cách ký của nhà cung cấp) và không định tuyến sự kiện ping vào nghiệp vụ.
+
+```go
+type Source struct {
+}
+func NewSource(secret string) *Source
+func (s *Source) Challenge(q url.Values) (string, bool)
+func (*Source) Key() string
+func (*Source) Split(raw []byte) (webhooks.SplitResult, error)
+func (s *Source) VerifySignature(raw []byte, h http.Header) bool
+```
+
 ## `internal/platform/telemetry` (gói `telemetry`)
 
 Package telemetry dựng dấu vết OpenTelemetry của tiến trình: tracer provider toàn cục, sampler theo cấu hình, exporter OTLP HTTP tới Jaeger, và bộ truyền ngữ cảnh W3C traceparent.
@@ -454,4 +471,95 @@ func ListTenantIDs(ctx context.Context, d *db.DB) ([]uuid.UUID, error)
 func Resolve(ctx context.Context, d *db.DB, kind, externalKey string) (uuid.UUID, bool, error)
 func SeedTenant(ctx context.Context, owner *db.DB, name string) (uuid.UUID, error)
 func WithTenant(ctx context.Context, d *db.DB, tenantID uuid.UUID, fn func(pgx.Tx) error, o ...db.TxOptions) error
+```
+
+## `internal/platform/webhooks` (gói `webhooks`)
+
+Package webhooks là đường vào webhook ở vai trò ingest (spec 04 mục 5.2, 11): kiểm chữ ký trên thân gốc, lưu nguyên văn vào platform.webhook_deliveries cùng một việc tách gói trong một transaction rồi trả 200; database không ghi được thì ghi tệp tạm (Spool) và nạp lại sau (Drainer); chặn địa chỉ gửi sai chữ ký dồn dập (Lockout).
+
+**Khi nào không dùng:** Không nhận webhook ở vai trò khác ingest hay bằng handler tự viết: thêm một Source (VerifySignature trên thân gốc, Challenge, Split) vào IngestOptions.Sources. Không đọc, sửa platform.webhook_deliveries ở gói khác (bảng không RLS, không tenant: xử lý nghiệp vụ đi qua việc webhook.split chỉ mang deliveryId). Không log hay đưa thân, header vào chỉ số, dấu vết; không xóa tệp tạm bằng tay khi database còn lỗi.
+
+```go
+func CleanupDeliveries(ctx context.Context, tx pgx.Tx, now time.Time) (int64, error)
+func ClientIP(r *http.Request) string
+func Save(ctx context.Context, d *db.DB, e Entry) (created bool, err error)
+type Drainer struct {
+	Spool *Spool
+	DB    *db.DB
+
+	Interval time.Duration
+
+	Metrics *metrics.Registry
+	Logger  *slog.Logger
+}
+func (d *Drainer) Run(ctx context.Context)
+type Entry struct {
+	Source string `json:"source"`
+
+	Headers    json.RawMessage `json:"headers"`
+	Body       []byte          `json:"bodyBase64"`
+	ReceivedAt time.Time       `json:"receivedAt"`
+}
+type InboundEvent struct {
+	Type string
+
+	DedupeKey string
+
+	Route Route
+
+	OrderKey   string
+	OccurredAt time.Time
+	Payload    json.RawMessage
+}
+type Ingest struct {
+}
+func NewIngest(o IngestOptions) (*Ingest, error)
+func (in *Ingest) Register(mux *http.ServeMux)
+type IngestOptions struct {
+	DB      *db.DB
+	Sources []Source
+	Spool   *Spool
+	Lockout *Lockout
+
+	MaxInFlight int
+
+	StaleSpoolAge time.Duration
+
+	Metrics *metrics.Registry
+	Logger  *slog.Logger
+}
+type Lockout struct {
+}
+func NewLockout(o LockoutOptions) *Lockout
+func (l *Lockout) Blocked(ip string) bool
+func (l *Lockout) NoteFailure(ip string)
+type LockoutOptions struct {
+	Threshold int
+	Window    time.Duration
+	Block     time.Duration
+	Now       func() time.Time
+}
+type Route struct {
+	Kind, ExternalKey string
+}
+type Source interface {
+	Key() string
+
+	Challenge(q url.Values) (answer string, ok bool)
+
+	VerifySignature(raw []byte, h http.Header) bool
+
+	Split(raw []byte) (SplitResult, error)
+}
+type SplitResult struct {
+	Events  []InboundEvent
+	Skipped map[string]int
+}
+type Spool struct {
+	Dir string
+}
+func (s *Spool) Drain(ctx context.Context, d *db.DB) (n int, err error)
+func (s *Spool) List() ([]string, error)
+func (s *Spool) Stats() (files int, oldestAge time.Duration, err error)
+func (s *Spool) Write(e Entry) (string, error)
 ```

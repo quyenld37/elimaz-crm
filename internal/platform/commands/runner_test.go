@@ -337,3 +337,45 @@ func TestCommandTimeoutBelowLease(t *testing.T) {
 		t.Fatalf("muốn in_doubt do quá Timeout đã chặn dưới giữ chỗ, sau %v: %+v", el, r)
 	}
 }
+
+// Lệnh chưa gửi mà đã quá hạn của loại → expired + OnTerminal("expired"), không dead (spec 04 mục 5.3 "pending -->
+// expired: quá hạn của loại lệnh"; quyết định của điều phối viên, lượt 2 Task 14): loại tự gửi lại hay không, kể cả
+// ở lần thử cuối. Hạn qua trong lúc Execute chạy (lần gửi chậm).
+func TestNotSentPastExpiryExpires(t *testing.T) {
+	for _, c := range []struct {
+		name     string
+		auto     bool
+		attempts int // lượt đã dùng trước lần này
+	}{
+		{"auto", true, 0},
+		{"no-auto", false, 0},
+		{"last-attempt", true, 7},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			e := newEnv(t)
+			h := newCmd("command.late", &testkit.FakeExternal{})
+			h.kind = commands.CommandKind("command.late", time.Minute, time.Second)
+			h.autoRetry = c.auto
+			h.exec = func(ctx context.Context, j queue.Job) (commands.Outcome, error) {
+				if _, err := e.owner.Pool.Exec(ctx,
+					"UPDATE platform.jobs SET expires_at = now() - interval '1 second' WHERE id = $1", j.ID); err != nil {
+					return commands.Outcome{}, err //nolint:wrapcheck // test: lỗi → in_doubt, test đỏ
+				}
+				return commands.Outcome{Status: commands.StatusNotSent, Reason: "connect refused"}, nil
+			}
+			id := e.enqueue(t, h.kind, "k")
+			e.ownerExec(t, "UPDATE platform.jobs SET attempts = $2 WHERE id = $1", id, c.attempts)
+			runOnce(t, worker(e, "w1", h))
+			r := e.job(t, id)
+			_, _, terms := h.snapshot()
+			if r.Status != "expired" || r.LastError == nil || !strings.Contains(*r.LastError, "not_sent") ||
+				len(terms) != 1 || terms[0] != id.String()+":expired" {
+				t.Fatalf("muốn expired, OnTerminal(expired) một lần: %+v, terminals %v", r, terms)
+			}
+			runOnce(t, worker(e, "w2", h))
+			if execs, _, _ := h.snapshot(); execs != 1 {
+				t.Fatalf("expired không được gửi lại: executes %d", execs)
+			}
+		})
+	}
+}

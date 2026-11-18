@@ -22,6 +22,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/adapters/cfaccess"
 	"elimaz.com.vn/crm/internal/httpapi"
+	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/events"
@@ -30,7 +31,9 @@ import (
 	"elimaz.com.vn/crm/internal/platform/observability"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/schedules"
+	"elimaz.com.vn/crm/internal/platform/selftest"
 	"elimaz.com.vn/crm/internal/platform/telemetry"
+	"elimaz.com.vn/crm/internal/platform/webhooks"
 )
 
 // Thời hạn tắt êm: tổng dưới 25 s (kế hoạch M0, Task 3).
@@ -146,6 +149,12 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	fctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	wg.Go(func() { flusher.Run(fctx) })
+	if cfg.Role == config.RoleIngest {
+		// Nạp lại tệp tạm webhook (database trở lại sau khi lỗi), mỗi 5 s, dừng cùng vòng ghi chỉ số.
+		spool := &webhooks.Spool{Dir: cfg.SpoolDir}
+		drainer := &webhooks.Drainer{Spool: spool, DB: d, Metrics: reg, Logger: logger}
+		wg.Go(func() { drainer.Run(fctx) })
+	}
 	return serveHTTP(ctx, cfg, d, reg, logger)
 }
 
@@ -153,21 +162,33 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 // module của mốc sau đăng ký ở đây.
 func newEvents() *events.Registry { return events.NewRegistry() }
 
-// runWorker chạy hàng đợi (queue.Worker) với handler của sự kiện nội bộ và dọn dữ liệu, Ticker của việc định kỳ, và
-// vòng ghi chỉ số, nhịp sống tới khi ctx bị hủy (SIGTERM); rồi tắt êm hàng đợi (Stop, tối đa workerStopGrace) trước,
-// ghi chỉ số lần cuối sau. Ticker dừng ngay khi ctx bị hủy.
+// newCommands là các loại lệnh ra ngoài của tiến trình; M0 chưa có lệnh thật, module của mốc sau thêm ở đây.
+func newCommands() []commands.Handler { return nil }
+
+// runWorker chạy hàng đợi (queue.Worker) với handler của sự kiện nội bộ và dọn dữ liệu, lệnh ra ngoài (Runner, kèm
+// việc tra lại lệnh in_doubt), Ticker của việc định kỳ, và vòng ghi chỉ số, nhịp sống tới khi ctx bị hủy (SIGTERM);
+// rồi tắt êm hàng đợi (Stop, tối đa workerStopGrace) trước, ghi chỉ số lần cuối sau. Ticker dừng ngay khi ctx bị hủy.
 func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *metrics.Flusher, cfg config.Config,
 	logger *slog.Logger,
 ) error {
 	cleanup := schedules.NewCleanup()
+	cleanup.RegisterCleanup(webhooks.CleanupDeliveries) // bảng nền tảng không RLS: lịch platform.cleanup
 	plan := schedules.NewRegistry()
 	if err := cleanup.Define(plan); err != nil {
 		return fmt.Errorf("định nghĩa lịch dọn: %w", err)
+	}
+	cmds := newCommands()
+	resolver := commands.NewInDoubtResolver(d, cmds)
+	if err := plan.Define(schedules.Schedule{
+		Name: commands.ResolveInDoubtSchedule, Every: commands.ResolveInDoubtEvery, Kind: resolver.Kind(),
+	}); err != nil {
+		return fmt.Errorf("định nghĩa lịch tra lại lệnh: %w", err)
 	}
 	handlers := append(newEvents().JobHandlers(), cleanup.Handlers()...)
 	w := queue.NewWorker(d, handlers, queue.WorkerOptions{
 		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
 		Metrics:  reg, Logger: logger,
+		Commands: commands.NewRunner(d, append(cmds, resolver)),
 	})
 	if err := w.Start(ctx); err != nil {
 		return fmt.Errorf("chạy hàng đợi: %w", err)
@@ -215,7 +236,7 @@ func runMigrate(ctx context.Context, cfg config.Config, logger *slog.Logger) err
 }
 
 // serveHTTP phục vụ HTTP (đo http_ms theo route) tới khi ctx bị hủy, rồi tắt êm trong httpShutdownTimeout. api phục
-// vụ mọi route của hợp đồng (httpapi.NewServer); ingest tới Task 14 chỉ có /health/live, /health/ready.
+// vụ mọi route của hợp đồng (httpapi.NewServer); ingest chỉ có /hooks/*, /health và /health/live, /health/ready.
 func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Registry, logger *slog.Logger) error {
 	var handler http.Handler
 	if cfg.Role == config.RoleAPI {
@@ -228,9 +249,11 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 		}
 		handler = httpapi.NewServer(httpapi.Deps{Config: cfg, DB: d, Logger: logger, Access: access})
 	} else {
-		mux := http.NewServeMux()
-		observability.NewHealth(d.Pool).Register(mux)
-		handler = mux
+		h, err := ingestHandler(cfg, d, reg, logger)
+		if err != nil {
+			return err
+		}
+		handler = h
 	}
 	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort("", strconv.Itoa(cfg.Port)))
 	if err != nil {
@@ -256,6 +279,26 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 		return fmt.Errorf("tắt máy chủ HTTP: %w", shutdownErr)
 	}
 	return nil
+}
+
+// ingestHandler dựng các route của vai trò ingest: /hooks/{source} (GET xác minh, POST nhận), /health (số tệp tạm)
+// và /health/live, /health/ready. Không có route nào của api.
+func ingestHandler(cfg config.Config, d *db.DB, reg *metrics.Registry, logger *slog.Logger) (http.Handler, error) {
+	in, err := webhooks.NewIngest(webhooks.IngestOptions{
+		DB:      d,
+		Sources: []webhooks.Source{selftest.NewSource(cfg.SelftestWebhookSecret)},
+		Spool:   &webhooks.Spool{Dir: cfg.SpoolDir},
+		Lockout: webhooks.NewLockout(webhooks.LockoutOptions{}),
+		Metrics: reg,
+		Logger:  logger,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("dựng ingest: %w", err)
+	}
+	mux := http.NewServeMux()
+	observability.NewHealth(d.Pool).Register(mux)
+	in.Register(mux)
+	return mux, nil
 }
 
 // healthcheck: ingest và api gọi /health/live của chính nó; worker đòi nhịp sống của chính nó
