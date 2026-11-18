@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M1 — Nhân viên và quyền</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="m1.css">
+<style>
+.who b { color: var(--name); }
+.grants { display: flex; gap: 6px; flex-wrap: wrap; }
+.ntbl .c-act { width: 1%; white-space: nowrap; }
+.role-opt { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; padding: 10px 12px; border: 1px solid var(--rule); border-radius: var(--r-box); cursor: pointer; align-items: start; }
+.role-opt input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--ink); }
+.role-opt.is-on { border-color: var(--ink); }
+.role-opt.is-off { color: var(--muted); cursor: not-allowed; background: var(--surface); }
+.role-opt .why { grid-column: 2; font-size: 12px; color: var(--buy); }
+.role-opt .d { grid-column: 2; font-size: 12px; color: var(--muted); }
+.grant-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; padding: 12px 0; border-top: 1px solid var(--rule); }
+@media (max-width: 759px) {
+	.ntbl td.c-act { justify-content: flex-end; }
+	.grant-row { grid-template-columns: minmax(0, 1fr) auto; }
+	.grant-row .field:first-child { grid-column: 1 / -1; }
+}
+</style>
+</head>
+<body data-page="nhan-vien" data-title="Nhân viên">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><h1>Nhân viên và quyền</h1><p class="sub">Mỗi người có một hay nhiều vai trò, mỗi vai trò gắn một phạm vi (toàn shop hoặc một kho). Không ai sửa được quyền của chính mình.</p></div>
+	<button class="btn btn-dark">Thêm nhân viên</button>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI A</p><h2>Danh sách (đang xem bằng tài khoản Chủ): chính mình, nhiều vai trò, người bị khóa, người chưa có quyền</h2></section>
+<div class="tbl-frame">
+<table class="tbl ntbl">
+	<thead><tr><th>Nhân viên</th><th>Vai trò · phạm vi</th><th>Trạng thái</th><th class="c-act"><span class="sr">Thao tác</span></th></tr></thead>
+	<tbody>
+	<tr><td class="lead"><span class="who"><b>Nguyễn Thị Lan</b> <span class="chip chip-dark">Bạn</span><br><span class="small muted wrap-any">lan.nguyen@elimaz.com.vn</span></span></td>
+		<td data-label="Vai trò"><span class="grants"><span class="tag">Chủ · Toàn shop</span></span></td><td data-label="Trạng thái"><span class="chip chip-ok">Đang hoạt động</span></td>
+		<td class="c-act small muted">Không tự sửa quyền hay khóa chính mình</td></tr>
+	<tr><td class="lead"><span class="who"><b>Trần Văn Hùng</b><br><span class="small muted wrap-any">hung.tran@elimaz.com.vn</span></span></td>
+		<td data-label="Vai trò"><span class="grants"><span class="tag">Chủ · Toàn shop</span></span></td><td data-label="Trạng thái"><span class="chip chip-ok">Đang hoạt động</span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Sửa quyền</button><button class="btn btn-quiet">Khóa</button></div></td></tr>
+	<tr><td class="lead"><span class="who"><b>Phạm Thu Hà</b><br><span class="small muted wrap-any">ha.pham@elimaz.com.vn</span></span></td>
+		<td data-label="Vai trò"><span class="grants"><span class="tag">Quản lý · Toàn shop</span></span></td><td data-label="Trạng thái"><span class="chip chip-ok">Đang hoạt động</span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Sửa quyền</button><button class="btn btn-quiet">Khóa</button></div></td></tr>
+	<tr><td class="lead"><span class="who"><b>Lê Văn Minh</b><br><span class="small muted wrap-any">minh.le@elimaz.com.vn</span></span></td>
+		<td data-label="Vai trò"><span class="grants"><span class="tag">Kho · Kho chính</span><span class="tag">Bán hàng · Toàn shop</span><span class="tag">Kho phụ (tự tạo) · Kho phụ</span></span></td><td data-label="Trạng thái"><span class="chip chip-ok">Đang hoạt động</span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Sửa quyền</button><button class="btn btn-quiet">Khóa</button></div></td></tr>
+	<tr class="is-muted"><td class="lead"><span class="who"><b>Đỗ Thị Mai</b><br><span class="small muted wrap-any">mai.do@elimaz.com.vn</span></span></td>
+		<td data-label="Vai trò"><span class="grants"><span class="tag">Kế toán · Toàn shop</span></span></td><td data-label="Trạng thái"><span class="chip chip-line">Đã khóa</span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Sửa quyền</button><button class="btn btn-line">Mở khóa</button></div></td></tr>
+	<tr><td class="lead"><span class="who"><b>Vũ Bảo Ngọc</b><br><span class="small muted wrap-any">ngoc.vu@elimaz.com.vn</span></span></td>
+		<td data-label="Vai trò"><span class="chip chip-err">Chưa có quyền nào</span></td><td data-label="Trạng thái"><span class="chip chip-ok">Đang hoạt động</span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-dark">Gán vai trò</button><button class="btn btn-quiet">Khóa</button></div></td></tr>
+	</tbody>
+</table>
+</div>
+<p class="mk" style="margin-top:16px"><b>Mockup:</b> nhân viên mới chưa có vai trò thì đăng nhập được nhưng không thấy màn nào. Khóa có hiệu lực từ thao tác kế tiếp của người bị khóa. Màn này chỉ hiện với người có quyền quản lý nhân viên.</p>
+
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Thêm nhân viên: email đã có</h2></section>
+<div class="backdrop">
+	<div class="dlg drawer" role="dialog" aria-labelledby="d1">
+		<div class="dlg-h"><h3 id="d1">Thêm nhân viên</h3><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<label class="field"><span>Email đăng nhập *</span><input class="input is-err" type="email" value="minh.le@elimaz.com.vn"><span class="field-err">Email này đã có trong hệ thống.</span><span class="hint">Đúng email người đó dùng để đăng nhập CRM (có bước hai).</span></label>
+			<label class="field"><span>Tên hiển thị *</span><input class="input" value="Lê Văn Minh"></label>
+			<p class="small muted">Thêm xong thì gán vai trò; trước đó người này chưa dùng được màn nào.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-line">Hủy</button><button class="btn btn-dark">Thêm</button></div>
+	</div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Sửa quyền của Lê Văn Minh (người sửa là Quản lý): vai trò vượt quyền người sửa hiện mờ kèm lý do</h2></section>
+<div class="card">
+	<div class="row-between"><h2>Quyền của Lê Văn Minh</h2><span class="small muted">Người sửa: Phạm Thu Hà · Quản lý, được cấp thêm quyền quản lý nhân viên</span></div>
+	<div>
+		<div class="grant-row">
+			<label class="field"><span>Vai trò</span><span class="select-wrap"><select><option>Kho</option></select></span></label>
+			<label class="field"><span>Phạm vi</span><span class="select-wrap"><select><option>Kho chính</option><option>Kho phụ</option><option>Toàn shop</option></select></span></label>
+			<button class="ibtn" aria-label="Gỡ vai trò Kho">×</button>
+		</div>
+		<div class="grant-row">
+			<label class="field"><span>Vai trò</span><span class="select-wrap"><select><option>Bán hàng</option></select></span></label>
+			<label class="field"><span>Phạm vi</span><span class="select-wrap"><select><option>Toàn shop</option></select></span></label>
+			<button class="ibtn" aria-label="Gỡ vai trò Bán hàng">×</button>
+		</div>
+		<div class="grant-row">
+			<label class="field"><span>Vai trò</span><span class="select-wrap"><select><option>Kho phụ (tự tạo)</option></select></span></label>
+			<label class="field"><span>Phạm vi</span><span class="select-wrap"><select><option>Kho phụ</option><option>Kho chính</option><option>Toàn shop</option></select></span></label>
+			<button class="ibtn" aria-label="Gỡ vai trò Kho phụ">×</button>
+		</div>
+	</div>
+	<h3 style="margin-top:16px">Thêm vai trò</h3>
+	<div class="stack-sm" style="margin-top:8px">
+		<label class="role-opt is-off"><input type="radio" name="r" disabled><b>Chủ</b><span class="why">Bạn không thể cấp quyền mà chính bạn không có (Chủ có quyền quản lý vai trò và các quyền hệ thống).</span></label>
+		<label class="role-opt"><input type="radio" name="r"><b>Quản lý</b><span class="d">Mọi quyền trừ quản lý nhân viên, vai trò và quyền hệ thống</span></label>
+		<label class="role-opt is-on"><input type="radio" name="r" checked><b>Kế toán</b><span class="d">Xem sản phẩm, tồn kho, đơn, vận chuyển</span></label>
+		<label class="role-opt"><input type="radio" name="r"><b>Kho phụ</b> <span class="d">Tự tạo · 3 quyền</span></label>
+	</div>
+	<div class="grant-row" style="border-top:0">
+		<label class="field"><span>Phạm vi của vai trò Kế toán</span><span class="select-wrap"><select><option>Toàn shop</option></select></span></label>
+		<span></span>
+		<button class="btn btn-line">Thêm</button>
+	</div>
+	<div class="savebar is-sticky" style="margin-top:16px"><button class="btn btn-line">Hủy</button><button class="btn btn-dark">Lưu quyền</button></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI D</p><h2>Câu báo khi máy chủ chặn</h2></section>
+<div class="stack">
+	<div class="box box-err"><b>Phải còn ít nhất một Chủ đang hoạt động.</b> <span>Hùng vừa bị khóa nên Lan là Chủ cuối cùng; không khóa hay gỡ vai trò Chủ của Lan được.</span></div>
+	<div class="box box-err"><b>Bạn không thể cấp quyền mà chính bạn không có.</b> <span>Vai trò Chủ có quyền mà tài khoản của bạn không có.</span></div>
+	<div class="box box-err"><b>Bạn không thể sửa quyền hay khóa chính mình.</b> <span>Nhờ một Chủ khác làm việc này.</span></div>
+	<div class="box box-err"><b>Quyền của người này vừa được người khác sửa, tải lại.</b> <span>Thay đổi của bạn chưa được lưu.</span><div class="row" style="margin-top:8px"><button class="btn btn-dark">Tải lại</button></div></div>
+	<div class="box box-err"><b>Vai trò "Thời vụ Tết" đã lưu trữ.</b> <span>Chọn vai trò khác.</span></div>
+</div>
+
+<section class="st"><p class="xs">TRẠNG THÁI E</p><h2>Khóa một người: xác nhận</h2></section>
+<div class="backdrop">
+	<div class="dlg" role="dialog" aria-labelledby="d2">
+		<div class="dlg-h"><h3 id="d2">Khóa Trần Văn Hùng?</h3></div>
+		<div class="dlg-b"><p>Hùng không dùng được CRM từ thao tác kế tiếp. Vai trò giữ nguyên; mở khóa là dùng lại được.</p></div>
+		<div class="dlg-f"><button class="btn btn-line">Quay lại</button><button class="btn btn-danger">Khóa</button></div>
+	</div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>
