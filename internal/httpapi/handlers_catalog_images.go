@@ -83,8 +83,8 @@ func (h *handler) imageWrite(ctx context.Context, status int, productID uuid.UUI
 	return out.(*gen.Product), nil //nolint:forcetypeassert // fn trên trả *gen.Product
 }
 
-// productWithImages đọc mẫu id của người bán sellerID kèm biến thể và ảnh đang hiện (đường dẫn theo
-// FILES_PUBLIC_BASE_URL, IMAGE_PRESET_VERSION) trong tx.
+// productWithImages đọc mẫu id của người bán sellerID kèm biến thể, ảnh đang hiện và ảnh trong bài viết (đường dẫn
+// theo FILES_PUBLIC_BASE_URL, IMAGE_PRESET_VERSION) trong tx.
 func (h *handler) productWithImages(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID) (*gen.Product, error) {
 	p, err := catalog.GetProduct(ctx, tx, sellerID, id)
 	if err != nil {
@@ -93,6 +93,9 @@ func (h *handler) productWithImages(ctx context.Context, tx pgx.Tx, sellerID, id
 	imgs, err := catalog.ProductImages(ctx, tx, sellerID, id, h.imageView())
 	if err != nil {
 		return nil, err //nolint:wrapcheck // sentinel của catalog
+	}
+	if err := catalog.ResolveArticleImages(ctx, tx, p.Article, h.imageView()); err != nil {
+		return nil, err //nolint:wrapcheck // lỗi của catalog
 	}
 	return productOut(p, imgs)
 }

@@ -29,6 +29,30 @@ func (e *catalogEnv) image() uuid.UUID {
 	return id
 }
 
+// badFiles là các tệp không gắn được làm ảnh sản phẩm: đang xử lý, mục đích catalog_import, đã xóa, của tenant B.
+type badFiles struct{ processing, imported, deleted, foreign uuid.UUID }
+
+func (e *catalogEnv) badFiles() badFiles {
+	e.t.Helper()
+	var b badFiles
+	e.must(func(tx pgx.Tx) error {
+		b.processing = filestest.Uploaded(e.t, tx, e.tenant, "product_image")
+		b.imported = filestest.Image(e.t, tx, e.tenant, "catalog_import")
+		return nil
+	})
+	b.deleted = e.image()
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(e.t.Context(), "UPDATE platform.files SET deleted_at = now() WHERE id = $1", b.deleted)
+		return err //nolint:wrapcheck // test
+	})
+	other := e.staff.Tenant(e.t, "B")
+	e.staff.Exec(e.t, other, func(tx pgx.Tx) error {
+		b.foreign = filestest.Image(e.t, tx, other, "product_image")
+		return nil
+	})
+	return b
+}
+
 func (e *catalogEnv) must(fn func(tx pgx.Tx) error) {
 	e.t.Helper()
 	if err := e.app(fn); err != nil {
@@ -219,23 +243,8 @@ func TestAttachImage_Refused(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var processing, imported, deleted uuid.UUID
-	e.must(func(tx pgx.Tx) error {
-		processing = filestest.Uploaded(t, tx, e.tenant, "product_image")
-		imported = filestest.Image(t, tx, e.tenant, "catalog_import")
-		return nil
-	})
-	deleted = e.image()
-	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
-		_, err := tx.Exec(t.Context(), "UPDATE platform.files SET deleted_at = now() WHERE id = $1", deleted)
-		return err //nolint:wrapcheck // test
-	})
-	other := e.staff.Tenant(t, "B")
-	var foreign uuid.UUID
-	e.staff.Exec(t, other, func(tx pgx.Tx) error {
-		foreign = filestest.Image(t, tx, other, "product_image")
-		return nil
-	})
+	bad := e.badFiles()
+	processing, imported, deleted, foreign := bad.processing, bad.imported, bad.deleted, bad.foreign
 	cases := []struct {
 		name  string
 		file  uuid.UUID

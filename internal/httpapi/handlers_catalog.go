@@ -42,7 +42,7 @@ func (h *handler) CreateProduct(ctx context.Context, req *gen.CreateProductReque
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của catalog
 		}
-		return productOut(p, nil) // mẫu mới chưa có ảnh
+		return h.productWithImages(ctx, tx, p.SellerID, p.ID) // gắn ảnh trong bài viết (Task M1-44b)
 	})
 	if err != nil {
 		return nil, err
@@ -50,8 +50,9 @@ func (h *handler) CreateProduct(ctx context.Context, req *gen.CreateProductReque
 	return out.(*gen.Product), nil //nolint:forcetypeassert // fn trên trả *gen.Product
 }
 
-// GetProduct (GET /api/v1/catalog/products/{id}, catalog.read): mẫu của người bán mặc định, kèm articleHtml dựng bằng
-// catalog.RenderArticleHTML (R7) và ảnh đang hiện (Task M1-44).
+// GetProduct (GET /api/v1/catalog/products/{id}, catalog.read): mẫu của người bán mặc định, kèm articleHtml (bài viết
+// đã gắn ảnh bằng catalog.ResolveArticleImages rồi dựng bằng catalog.RenderArticleHTML — đúng các bước của
+// catalog.ArticleHTML, R7, Task M1-44b) và ảnh đang hiện (Task M1-44).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) GetProduct(ctx context.Context, params gen.GetProductParams) (gen.GetProductRes, error) {
@@ -205,6 +206,8 @@ func optString(set bool, v string) *string {
 	return &v
 }
 
+// productOut đổi mẫu sang kiểu API; khối ảnh của p.Article phải đã qua catalog.ResolveArticleImages (không thì bị bỏ
+// khỏi articleHtml).
 func productOut(p catalog.Product, imgs []catalog.Image) (*gen.Product, error) {
 	html, err := catalog.RenderArticleHTML(p.Article)
 	if err != nil {
