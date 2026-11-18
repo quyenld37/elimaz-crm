@@ -1869,7 +1869,8 @@ func (s *Server) handleCancelStocktakeRequest(args [1]string, argsEscaped bool, 
 
 // handleCheckCouponRequest handles checkCoupon operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Kiểm mã cho form lên đơn: số giảm, lý do từ chối, lượt còn; không đổi lượt
+// dùng (Task M2-14).
 //
 // GET /api/v1/coupon-check
 func (s *Server) handleCheckCouponRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2656,7 +2657,7 @@ func (s *Server) handleCreateCategoryRequest(args [0]string, argsEscaped bool, w
 
 // handleCreateCouponRequest handles createCoupon operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Tạo mã giảm giá (để trống code thì sinh mã); trùng → 409 code_taken (Task M2-14).
 //
 // POST /api/v1/coupons
 func (s *Server) handleCreateCouponRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2755,7 +2756,8 @@ func (s *Server) handleCreateCouponRequest(args [0]string, argsEscaped bool, w h
 
 // handleCreateCouponBatchRequest handles createCouponBatch operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Tạo đợt mã: quantity mã dùng một lần, hoặc mỗi SĐT trong boundPhones một mã
+// gắn SĐT đó (Task M2-14).
 //
 // POST /api/v1/coupon-batches
 func (s *Server) handleCreateCouponBatchRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4495,7 +4497,7 @@ func (s *Server) handleGetCatalogImportTemplateRequest(args [0]string, argsEscap
 
 // handleGetCouponRequest handles getCoupon operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Một mã kèm số lượt đã dùng, còn lại (Task M2-14).
 //
 // GET /api/v1/coupons/{couponId}
 func (s *Server) handleGetCouponRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4579,7 +4581,7 @@ func (s *Server) handleGetCouponRequest(args [1]string, argsEscaped bool, w http
 
 // handleGetCouponBatchRequest handles getCouponBatch operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Một đợt mã (Task M2-14).
 //
 // GET /api/v1/coupon-batches/{batchId}
 func (s *Server) handleGetCouponBatchRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6635,7 +6637,7 @@ func (s *Server) handleListCategoriesRequest(args [0]string, argsEscaped bool, w
 
 // handleListCouponRedemptionsRequest handles listCouponRedemptions operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Lượt dùng của một mã: mã đơn, số giảm, trạng thái; không SĐT (Task M2-14).
 //
 // GET /api/v1/coupons/{couponId}/redemptions
 func (s *Server) handleListCouponRedemptionsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6727,7 +6729,7 @@ func (s *Server) handleListCouponRedemptionsRequest(args [1]string, argsEscaped 
 
 // handleListCouponsRequest handles listCoupons operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Mã giảm giá, mới nhất trước; q theo mã hoặc tên (Task M2-14).
 //
 // GET /api/v1/coupons
 func (s *Server) handleListCouponsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -10763,7 +10765,8 @@ func (s *Server) handleUpdateCategoryRequest(args [1]string, argsEscaped bool, w
 
 // handleUpdateCouponRequest handles updateCoupon operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Sửa mã khi version còn khớp; mã đã dùng chỉ đổi tên, hạn cuối, số lượt
+// tối đa, trạng thái (409 coupon_locked_after_use) (Task M2-14).
 //
 // PATCH /api/v1/coupons/{couponId}
 func (s *Server) handleUpdateCouponRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

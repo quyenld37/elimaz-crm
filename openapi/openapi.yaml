@@ -2750,7 +2750,6 @@ paths:
     get:
       operationId: listCoupons
       summary: 'Mã giảm giá, mới nhất trước; q theo mã hoặc tên (Task M2-14)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: promotion.read
       parameters:
         - name: q
@@ -2784,7 +2783,6 @@ paths:
     post:
       operationId: createCoupon
       summary: 'Tạo mã giảm giá (để trống code thì sinh mã); trùng → 409 code_taken (Task M2-14)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: promotion.manage
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -2807,7 +2805,6 @@ paths:
     get:
       operationId: getCoupon
       summary: 'Một mã kèm số lượt đã dùng, còn lại (Task M2-14)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: promotion.read
       parameters:
         - $ref: "#/components/parameters/CouponID"
@@ -2823,7 +2820,6 @@ paths:
     patch:
       operationId: updateCoupon
       summary: 'Sửa mã khi version còn khớp; mã đã dùng chỉ đổi tên, hạn cuối, số lượt tối đa, trạng thái (409 coupon_locked_after_use) (Task M2-14)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: promotion.manage
       parameters:
         - $ref: "#/components/parameters/CouponID"
@@ -2847,7 +2843,6 @@ paths:
     post:
       operationId: createCouponBatch
       summary: 'Tạo đợt mã: quantity mã dùng một lần, hoặc mỗi SĐT trong boundPhones một mã gắn SĐT đó (Task M2-14)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: promotion.manage
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -2870,7 +2865,6 @@ paths:
     get:
       operationId: getCouponBatch
       summary: 'Một đợt mã (Task M2-14)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: promotion.read
       parameters:
         - $ref: "#/components/parameters/CouponBatchID"
@@ -2887,7 +2881,6 @@ paths:
     get:
       operationId: listCouponRedemptions
       summary: 'Lượt dùng của một mã: mã đơn, số giảm, trạng thái; không SĐT (Task M2-14)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: promotion.read
       parameters:
         - $ref: "#/components/parameters/CouponID"
@@ -2906,7 +2899,6 @@ paths:
     get:
       operationId: checkCoupon
       summary: 'Kiểm mã cho form lên đơn: số giảm, lý do từ chối, lượt còn; không đổi lượt dùng (Task M2-14)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.create
       parameters:
         - name: code
