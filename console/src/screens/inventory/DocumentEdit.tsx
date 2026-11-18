@@ -57,11 +57,14 @@ import {
   totals,
   type EditLine,
 } from "./documentRules";
+import { canAt } from "./stocktakeRules";
 import { WarehouseSelect } from "./WarehouseSelect";
 import "./inventory.css";
 
 export const TEXT_NO_POST_RIGHT =
   "Cần quyền ghi sổ phiếu kho (vai trò Chủ hoặc Quản lý). Lưu nháp rồi báo người duyệt.";
+export const TEXT_NO_ADJUST_WAREHOUSE =
+  "Phiếu điều chỉnh cần cả quyền soạn và quyền ghi sổ phiếu kho ở cùng một kho. Bạn chưa có kho nào như vậy.";
 export const TEXT_FIX_LINES = "Có dòng chưa đúng. Sửa các dòng được đánh dấu rồi lưu lại.";
 export const TEXT_NO_MATCH = "Không có mã hàng nào khớp";
 export const TEXT_TOO_MANY = `Một phiếu tối đa ${String(MAX_LINES)} dòng`;
@@ -97,12 +100,22 @@ interface Pending {
 
 const isKind = (v: string | null): v is StockDocumentKind => KINDS.some((k) => k === v);
 
+const PERM_CREATE = "inventory.documents.create";
+const PERM_POST = "inventory.documents.post";
+
+/**
+ * Quyền phiếu như máy chủ (handlers_inventory.go): soạn, hủy theo inventory.documents.create ở kho của phiếu; ghi sổ
+ * theo inventory.documents.post ở kho đó; phiếu điều chỉnh đòi cả hai khi tạo và thay dòng. Nhà cung cấp: quyền
+ * loại none (grant bất kỳ).
+ */
 function useGrants() {
   const me = useQuery({ queryKey: queryKey("identity.me"), queryFn: () => unwrap(getMe()) });
   const g = me.data?.grants ?? [];
   return {
-    canCreate: hasPermission(g, "inventory.documents.create"),
-    canPost: hasPermission(g, "inventory.documents.post"),
+    hasCreate: hasPermission(g, PERM_CREATE),
+    canEditAt: (warehouseId: string, kind: StockDocumentKind) =>
+      canAt(g, PERM_CREATE, warehouseId) && (kind !== "adjust" || canAt(g, PERM_POST, warehouseId)),
+    canPostAt: (warehouseId: string) => canAt(g, PERM_POST, warehouseId),
     canSupplier: hasPermission(g, "inventory.suppliers.manage"),
   };
 }
@@ -165,7 +178,7 @@ export function DocumentEdit() {
 function NewDocument({ initialKind }: { initialKind: StockDocumentKind }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { canCreate, canSupplier } = useGrants();
+  const { hasCreate, canEditAt, canSupplier } = useGrants();
   const warehouses = useWarehouses();
   const [kind, setKind] = useState<StockDocumentKind>(initialKind);
   const [picked, setPicked] = useState("");
@@ -176,8 +189,10 @@ function NewDocument({ initialKind }: { initialKind: StockDocumentKind }) {
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const list = (warehouses.data ?? []).filter((w) => w.status === "active");
+  // Chỉ kho người dùng soạn được loại phiếu này (máy chủ trả 403 ở kho khác).
+  const list = (warehouses.data ?? []).filter((w) => w.status === "active" && canEditAt(w.id, kind));
   const wh = list.find((w) => w.id === picked) ?? list[0];
+  const noAdjustWarehouse = kind === "adjust" && warehouses.isSuccess && list.length === 0;
   const balances = useBalances(wh?.id ?? "");
 
   const create = useWriteAction((key, body: CreateStockDocumentRequest) =>
@@ -228,7 +243,7 @@ function NewDocument({ initialKind }: { initialKind: StockDocumentKind }) {
     }
   };
 
-  if (!canCreate) {
+  if (!hasCreate) {
     return (
       <>
         <BackLink />
@@ -255,6 +270,7 @@ function NewDocument({ initialKind }: { initialKind: StockDocumentKind }) {
             {errorMessage(warehouses.error)}
           </div>
         )}
+        {noAdjustWarehouse && <p className="reason">{TEXT_NO_ADJUST_WAREHOUSE}</p>}
         <div className="grid-f">
           <label className="field">
             <span>Loại phiếu</span>
@@ -368,7 +384,7 @@ interface Shortage {
 
 function Editor({ initial, reload }: { initial: StockDocument; reload: () => Promise<StockDocument | Error> }) {
   const qc = useQueryClient();
-  const { canCreate, canPost } = useGrants();
+  const { canEditAt, canPostAt } = useGrants();
   const warehouses = useWarehouses();
   const balances = useBalances(initial.warehouseId);
   const [pending] = useState(() => qc.getQueryData<Pending>(pendingKey(initial.id)));
@@ -397,7 +413,9 @@ function Editor({ initial, reload }: { initial: StockDocument; reload: () => Pro
   );
 
   const draft = doc.status === "draft";
-  const editable = draft && canCreate;
+  // Kho, loại của phiếu không đổi sau lần lưu đầu (API không sửa đầu phiếu), nên quyền tính theo doc.
+  const editable = draft && canEditAt(doc.warehouseId, doc.kind);
+  const canPost = canPostAt(doc.warehouseId);
   const dirty = !sameLines(lines, base);
   const errs = checked ? checkLines(lines, doc.kind) : {};
   const whName = (warehouses.data ?? []).find((w) => w.id === doc.warehouseId)?.name ?? "";

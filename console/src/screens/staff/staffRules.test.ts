@@ -1,11 +1,12 @@
 // Luật hiển thị của màn Nhân viên (kế hoạch M1 Task 54): nhãn vai trò · phạm vi, lựa chọn phạm vi, vai trò người sửa
 // gán được ở phạm vi nào. API vẫn là nơi quyết (Task 26, 315); các hàm này chỉ làm mờ lựa chọn chắc chắn bị từ chối.
 import { describe, expect, it } from "vitest";
-import type { Grant, Role, StaffMember } from "../../api";
+import type { Grant, PermissionInfo, Role, StaffMember } from "../../api";
 import {
   ALL_SCOPE,
   canGrant,
   canGrantSomewhere,
+  permissionKinds,
   grantLabel,
   roleHint,
   sameGrant,
@@ -76,7 +77,10 @@ describe("scopeOptions", () => {
   });
 });
 
-describe("canGrant: mọi quyền của vai trò người sửa phải có ở toàn shop hoặc đúng phạm vi đó", () => {
+/** Chưa biết loại phạm vi của quyền nào (người sửa không đọc được listPermissions): luật chặt. */
+const UNKNOWN = permissionKinds(undefined);
+
+describe("canGrant: không biết loại quyền → mọi quyền của vai trò phải có ở toàn shop hoặc đúng phạm vi đó", () => {
   const warehouse = role("warehouse", "Kho", ["catalog.read", "inventory.read"]);
   const owner = role("owner", "Chủ", [
     "catalog.read",
@@ -87,22 +91,70 @@ describe("canGrant: mọi quyền của vai trò người sửa phải có ở t
   const manager = [g("identity.users.manage"), g("catalog.read"), g("inventory.read")];
 
   it("có đủ ở toàn shop → gán được ở mọi phạm vi", () => {
-    expect(canGrant(warehouse, ALL_SCOPE, manager)).toBe(true);
-    expect(canGrant(warehouse, W1, manager)).toBe(true);
+    expect(canGrant(warehouse, ALL_SCOPE, manager, UNKNOWN)).toBe(true);
+    expect(canGrant(warehouse, W1, manager, UNKNOWN)).toBe(true);
   });
   it("thiếu một quyền → không gán được ở đâu", () => {
-    expect(canGrant(owner, ALL_SCOPE, manager)).toBe(false);
-    expect(canGrantSomewhere(owner, [ALL_SCOPE, W1], manager)).toBe(false);
+    expect(canGrant(owner, ALL_SCOPE, manager, UNKNOWN)).toBe(false);
+    expect(canGrantSomewhere(owner, [ALL_SCOPE, W1], manager, UNKNOWN)).toBe(false);
   });
   it("có quyền ở kho w1 → chỉ gán được ở w1", () => {
     const atW1 = [g("catalog.read", "warehouse", "w1"), g("inventory.read", "warehouse", "w1")];
-    expect(canGrant(warehouse, W1, atW1)).toBe(true);
-    expect(canGrant(warehouse, W2, atW1)).toBe(false);
-    expect(canGrant(warehouse, ALL_SCOPE, atW1)).toBe(false);
-    expect(canGrantSomewhere(warehouse, [ALL_SCOPE, W1, W2], atW1)).toBe(true);
+    expect(canGrant(warehouse, W1, atW1, UNKNOWN)).toBe(true);
+    expect(canGrant(warehouse, W2, atW1, UNKNOWN)).toBe(false);
+    expect(canGrant(warehouse, ALL_SCOPE, atW1, UNKNOWN)).toBe(false);
+    expect(canGrantSomewhere(warehouse, [ALL_SCOPE, W1, W2], atW1, UNKNOWN)).toBe(true);
   });
   it("vai trò không có quyền nào luôn gán được", () => {
-    expect(canGrant(role("empty", "Trống", []), ALL_SCOPE, [])).toBe(true);
+    expect(canGrant(role("empty", "Trống", []), ALL_SCOPE, [], UNKNOWN)).toBe(true);
+  });
+});
+
+// E-06 (review độc lập M1): như identity.Can — quyền "none" thỏa ở grant bất kỳ; quyền "shop" chỉ ở toàn shop; quyền
+// theo đích ở toàn shop hoặc đúng đích.
+describe("canGrant theo loại phạm vi của quyền (listPermissions)", () => {
+  const info = (key: string, scopeType: PermissionInfo["scopeType"]): PermissionInfo => ({
+    key,
+    scopeType,
+    group: "g",
+    label: key,
+  });
+  const kinds = permissionKinds([
+    info("catalog.read", "none"),
+    info("identity.users.manage", "shop"),
+    info("platform.jobs.manage", "shop"),
+    info("inventory.read", "warehouse"),
+  ]);
+  // Người sửa: quản lý nhân viên toàn shop, vai trò Kho chỉ ở kho w1.
+  const actor = [
+    g("identity.users.manage"),
+    g("catalog.read", "warehouse", "w1"),
+    g("inventory.read", "warehouse", "w1"),
+  ];
+  const catalogOnly = role("xem-sp", "Xem sản phẩm", ["catalog.read"]);
+
+  it("quyền none có ở một grant bất kỳ → gán được ở mọi phạm vi (máy chủ cho)", () => {
+    expect(canGrant(catalogOnly, ALL_SCOPE, actor, kinds)).toBe(true);
+    expect(canGrant(catalogOnly, W2, actor, kinds)).toBe(true);
+    // Không biết loại thì vẫn chặt như trước.
+    expect(canGrant(catalogOnly, ALL_SCOPE, actor, UNKNOWN)).toBe(false);
+  });
+  it("quyền theo kho: chỉ ở kho người sửa có, hoặc mọi nơi khi có toàn shop", () => {
+    const warehouse = role("warehouse", "Kho", ["catalog.read", "inventory.read"]);
+    expect(canGrant(warehouse, W1, actor, kinds)).toBe(true);
+    expect(canGrant(warehouse, W2, actor, kinds)).toBe(false);
+    expect(canGrant(warehouse, ALL_SCOPE, actor, kinds)).toBe(false);
+    expect(canGrantSomewhere(warehouse, [ALL_SCOPE, W1, W2], actor, kinds)).toBe(true);
+  });
+  it("quyền shop (quản trị): cần người sửa có ở toàn shop, gán ở phạm vi nào cũng vậy", () => {
+    const admin = role("qt", "Quản trị", ["identity.users.manage"]);
+    expect(canGrant(admin, W1, actor, kinds)).toBe(true);
+    const jobs = role("jobs", "Việc nền", ["platform.jobs.manage"]);
+    expect(canGrant(jobs, W1, [g("platform.jobs.manage", "warehouse", "w1")], kinds)).toBe(false);
+  });
+  it("người sửa không có quyền đó ở đâu cả → không gán được, kể cả quyền none", () => {
+    const orders = role("don", "Đơn", ["order.read"]);
+    expect(canGrant(orders, ALL_SCOPE, actor, permissionKinds([info("order.read", "none")]))).toBe(false);
   });
 });
 

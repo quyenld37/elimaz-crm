@@ -7,7 +7,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { replaceStaffGrants, type Grant, type Role, type StaffGrant, type StaffMember } from "../../api";
 import { unwrap } from "../../app/errors";
 import { useWriteAction } from "../../app/idempotency";
-import { RefusalBox, STAFF_KEY, useStaffData } from "./staffData";
+import { RefusalBox, STAFF_KEY, usePermissionKinds, useStaffData } from "./staffData";
 import {
   canGrant,
   canGrantSomewhere,
@@ -21,6 +21,7 @@ import {
   scopeOptions,
   warningText,
   warningsFor,
+  type PermissionKinds,
   type ScopeRef,
 } from "./staffRules";
 import "./staff.css";
@@ -40,6 +41,7 @@ function Crumb() {
 export function StaffGrants() {
   const { id = "" } = useParams();
   const { staff, roles, me } = useStaffData();
+  const kinds = usePermissionKinds(me.data?.grants ?? []);
   if (staff.isPending || roles.isPending || me.isPending) return <p className="muted">Đang tải…</p>;
   if (staff.isError || roles.isError || me.isError) {
     return <RefusalBox error={staff.error ?? roles.error ?? me.error} message={null} />;
@@ -71,6 +73,7 @@ export function StaffGrants() {
       staff={staff.data}
       roles={roles.data}
       actorGrants={me.data.grants}
+      kinds={kinds}
       actorLine={actor === undefined ? null : actorLine(actor, roles.data)}
       reload={async () => (await staff.refetch()).data?.find((m) => m.id === member.id)}
     />
@@ -87,11 +90,13 @@ interface EditorProps {
   staff: readonly StaffMember[];
   roles: readonly Role[];
   actorGrants: readonly Grant[];
+  /** Loại phạm vi của quyền (listPermissions); rỗng là chưa biết (luật chặt). */
+  kinds: PermissionKinds;
   actorLine: string | null;
   reload: () => Promise<StaffMember | undefined>;
 }
 
-function GrantsEditor({ member, staff, roles, actorGrants, actorLine, reload }: EditorProps) {
+function GrantsEditor({ member, staff, roles, actorGrants, kinds, actorLine, reload }: EditorProps) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const pickName = useId();
@@ -113,7 +118,7 @@ function GrantsEditor({ member, staff, roles, actorGrants, actorLine, reload }: 
   const scopes = scopeOptions(staff, draft.map(grantScope));
   const active = roles.filter((r) => r.status === "active");
   const picked = active.find((r) => r.key === pick);
-  const pickScopes = picked === undefined ? [] : scopes.filter((s) => canGrant(picked, s, actorGrants));
+  const pickScopes = picked === undefined ? [] : scopes.filter((s) => canGrant(picked, s, actorGrants, kinds));
   const firstScope = pickScopes.at(0);
   const chosenScope = pickScope !== "" ? pickScope : firstScope === undefined ? "" : scopeKey(firstScope);
 
@@ -160,6 +165,7 @@ function GrantsEditor({ member, staff, roles, actorGrants, actorLine, reload }: 
               active={active}
               scopes={scopes}
               actorGrants={actorGrants}
+              kinds={kinds}
               warnings={base.grants.some((x) => sameGrant(x, g)) ? warningsFor(g, base.warnings) : []}
               onChange={(next) => {
                 update(i, next);
@@ -174,7 +180,7 @@ function GrantsEditor({ member, staff, roles, actorGrants, actorLine, reload }: 
         <h3 style={{ marginTop: 16 }}>Thêm vai trò</h3>
         <div className="stack-sm" style={{ marginTop: 8 }} role="radiogroup" aria-label="Vai trò sẽ thêm">
           {active.map((r) => {
-            const off = !canGrantSomewhere(r, scopes, actorGrants);
+            const off = !canGrantSomewhere(r, scopes, actorGrants, kinds);
             const on = pick === r.key;
             return (
               <label key={r.key} className={off ? "role-opt is-off" : on ? "role-opt is-on" : "role-opt"}>
@@ -245,12 +251,13 @@ interface GrantRowProps {
   active: readonly Role[];
   scopes: readonly ScopeRef[];
   actorGrants: readonly Grant[];
+  kinds: PermissionKinds;
   warnings: ReturnType<typeof warningsFor>;
   onChange: (g: StaffGrant) => void;
   onRemove: () => void;
 }
 
-function GrantRow({ g, roles, active, scopes, actorGrants, warnings, onChange, onRemove }: GrantRowProps) {
+function GrantRow({ g, roles, active, scopes, actorGrants, kinds, warnings, onChange, onRemove }: GrantRowProps) {
   const roleId = useId();
   const scopeId = useId();
   const scope = grantScope(g);
@@ -274,7 +281,11 @@ function GrantRow({ g, roles, active, scopes, actorGrants, warnings, onChange, o
             >
               {!roleOpts.some((r) => r.key === g.roleKey) && <option value={g.roleKey}>{name}</option>}
               {roleOpts.map((r) => (
-                <option key={r.key} value={r.key} disabled={r.key !== g.roleKey && !canGrant(r, scope, actorGrants)}>
+                <option
+                  key={r.key}
+                  value={r.key}
+                  disabled={r.key !== g.roleKey && !canGrant(r, scope, actorGrants, kinds)}
+                >
                   {roleName(r.key, roles)}
                 </option>
               ))}
@@ -294,7 +305,7 @@ function GrantRow({ g, roles, active, scopes, actorGrants, warnings, onChange, o
             >
               {scopes.map((s) => {
                 const r = roles.find((x) => x.key === g.roleKey);
-                const off = scopeKey(s) !== scopeKey(scope) && r !== undefined && !canGrant(r, s, actorGrants);
+                const off = scopeKey(s) !== scopeKey(scope) && r !== undefined && !canGrant(r, s, actorGrants, kinds);
                 return (
                   <option key={scopeKey(s)} value={scopeKey(s)} disabled={off}>
                     {scopeLabel(s)}

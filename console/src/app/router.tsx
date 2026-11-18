@@ -4,7 +4,7 @@
 // Không truyền chuỗi lấy từ dữ liệu ngoài (API, URL) vào navigate hay <Link to> mà không kiểm là đường nội bộ.
 import { Link, Navigate, Route, Routes } from "react-router";
 import type { Grant } from "../api";
-import { allowedScreens, hasPermission, type Screen } from "./nav";
+import { allowedScreens, canSee, type Screen } from "./nav";
 
 export const TEXT_EMPTY_HOME = "Tài khoản này chưa được giao màn hình nào. Nhờ Chủ shop cấp quyền";
 export const TEXT_NOT_FOUND = "Không có trang này, hoặc bạn chưa được cấp quyền xem";
@@ -56,7 +56,7 @@ export function AppRoutes({ screens, grants }: AppRoutesProps) {
         <Route
           key={s.path}
           path={s.path}
-          element={hasPermission(grants, s.permission) ? s.element : <Forbidden screen={s} first={first} />}
+          element={canSee(grants, s) ? s.element : <Forbidden screen={s} first={first} />}
         />
       ))}
       <Route path="*" element={<NotFound />} />

@@ -12,7 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { Grant } from "../api";
 import { Layout } from "../shell/Layout";
 import { loadScreens, type ScreenRoute } from "./loadScreens";
-import { NAV_GROUPS, type Screen } from "./nav";
+import { NAV_GROUPS, allowedScreens, canSee, type Screen } from "./nav";
 import { AppRoutes } from "./router";
 import { SCREENS } from "./screens";
 
@@ -45,8 +45,8 @@ function conventionProblems(modules: Record<string, unknown>, permissions: Reado
   const slot = new Map<string, string>();
   for (const file of Object.keys(modules).sort()) {
     for (const s of (modules[file] as { screens: readonly ScreenRoute[] }).screens) {
-      if (!permissions.has(s.permission)) {
-        problems.push(`${file}: "${s.path}" khai quyền "${s.permission}" không có trong docs/quyen.md`);
+      for (const p of [s.permission, ...(s.alsoRequires ?? [])]) {
+        if (!permissions.has(p)) problems.push(`${file}: "${s.path}" khai quyền "${p}" không có trong docs/quyen.md`);
       }
       if (s.hidden === true) continue;
       const key = `${s.group}#${String(s.order)}`;
@@ -96,6 +96,12 @@ describe("conventionProblems bắt màn sai quy ước", () => {
     expect(conventionProblems({ "../screens/a/route.tsx": mod({ permission: "kho.xem" }) }, perms)).toEqual([
       '../screens/a/route.tsx: "/a" khai quyền "kho.xem" không có trong docs/quyen.md',
     ]);
+  });
+
+  it("quyền đi kèm (alsoRequires) không có trong bảng quyền → lỗi như quyền chính", () => {
+    expect(
+      conventionProblems({ "../screens/a/route.tsx": mod({ alsoRequires: ["catalog.read", "kho.dem"] }) }, perms),
+    ).toEqual(['../screens/a/route.tsx: "/a" khai quyền "kho.dem" không có trong docs/quyen.md']);
   });
 
   it("hai mục menu hiện cùng nhóm trùng order → lỗi nêu cả hai tệp", () => {
@@ -151,6 +157,8 @@ describe("loadScreens kiểm quy ước", () => {
     ["element không phải phần tử React", { screens: [{ ...ok, element: "chữ" }] }, /x\/route\.tsx.*element/],
     ["also không phải mảng chuỗi", { screens: [{ ...ok, also: "/b" }] }, /x\/route\.tsx.*also/],
     ["hidden không phải true/false", { screens: [{ ...ok, hidden: "có" }] }, /x\/route\.tsx.*hidden/],
+    ["alsoRequires không phải mảng chuỗi", { screens: [{ ...ok, alsoRequires: "catalog.read" }] }, /alsoRequires/],
+    ["alsoRequires có chuỗi rỗng", { screens: [{ ...ok, alsoRequires: [""] }] }, /x\/route\.tsx.*alsoRequires/],
   ])("%s → lỗi nêu tên tệp và trường", (_name, mod, msg) => {
     expect(() => loadScreens({ "../screens/x/route.tsx": mod })).toThrow(msg);
   });
@@ -159,6 +167,35 @@ describe("loadScreens kiểm quy ước", () => {
     expect(() =>
       loadScreens({ "../screens/a/route.tsx": { screens: [ok] }, "../screens/b/route.tsx": { screens: [ok] } }),
     ).toThrow(/"\/a".*a\/route\.tsx.*b\/route\.tsx/);
+  });
+});
+
+// Màn cần thêm quyền đi kèm (alsoRequires, E-02 review độc lập M1): API của màn đòi quyền khác quyền chính. Thiếu một
+// quyền đi kèm thì như thiếu quyền chính: không có mục menu, route hiện "không được xem".
+describe("quyền đi kèm của màn (alsoRequires)", () => {
+  const all = (...perms: string[]): Grant[] =>
+    perms.map((permission) => ({ permission, scope: { type: "all", id: "" } }));
+  const dem = { ...ok, path: "/dem", label: "Đếm", alsoRequires: ["inventory.read", "catalog.read"], order: 20 };
+  const screens = loadScreens({ "../screens/a/route.tsx": { screens: [ok, dem] } });
+
+  it("canSee: đủ quyền chính và mọi quyền đi kèm (phạm vi bất kỳ)", () => {
+    const d = screens.find((s) => s.path === "/dem");
+    if (d === undefined) throw new Error("thiếu màn");
+    expect(d.alsoRequires).toEqual(["inventory.read", "catalog.read"]);
+    expect(canSee(all("inventory.read", "catalog.read"), d)).toBe(true);
+    expect(canSee(all("inventory.read"), d)).toBe(false);
+    expect(canSee(all("catalog.read"), d)).toBe(false);
+  });
+
+  it("thiếu quyền đi kèm: không có trong menu, route báo không được xem", () => {
+    const grants = all("inventory.read");
+    expect(allowedScreens(screens, grants).map((s) => s.path)).toEqual(["/a"]);
+    render(
+      <MemoryRouter initialEntries={["/dem"]}>
+        <AppRoutes screens={screens} grants={grants} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/Tài khoản của bạn không được xem Đếm/)).toBeTruthy();
   });
 });
 
