@@ -57,7 +57,7 @@ Tìm dưới RLS mà không Seq Scan (spec 04 mục 7, đo ở Task M0-05): hàm
 
 | Hàm | Trả về | Task |
 |---|---|---|
-| `catalog.search_variants(p_seller uuid, q text, raw text, lim int)` (≤ 100 dòng; barcode đúng, rồi SKU, mã mẫu theo tiền tố, rồi tên — các từ theo thứ tự) | `variant_id, product_id, sku, barcode, product_code, product_name, color, size, price, sellable` | 39 |
+| `catalog.search_variants(p_seller uuid, q text, raw text, lim int)` (≤ 100 dòng; barcode đúng, rồi SKU, mã mẫu theo tiền tố, rồi tên — các từ theo thứ tự; sắp theo hạng rồi SKU. Nhóm khớp quá `lim` dòng chỉ góp `lim` dòng: SKU nhỏ nhất, mã mẫu nhỏ nhất (theo thứ tự byte của index, có thể khác thứ tự collation của kết quả), tên không dấu ngắn nhất — Task 390) | `variant_id, product_id, sku, barcode, product_code, product_name, color, size, price, sellable` | 39, 390 |
 | `catalog.search_products(p_seller uuid, q text, raw text, lim int)` (≤ 1.000 mẫu, cùng cách khớp) | `SETOF uuid` (mã mẫu) | 39 |
 
 ## Sự kiện công bố

@@ -23,6 +23,11 @@ func TestPlansHaveNoSeqScan(t *testing.T) {
 	}{
 		{"tìm tên qua hàm", "SELECT * FROM catalog.search_variants($1, $2, $3, 20)", []any{f.sellerA, "dam lua mau 12", "dam lua mau 12"}},
 		{"tìm SKU qua hàm", "SELECT * FROM catalog.search_variants($1, $2, $3, 20)", []any{f.sellerA, "dam01-", "DAM01-"}},
+		// Từ khóa rộng (Task 390): tên "dam" khớp 2.002 mẫu; "p00" khớp tiền tố mã của 1.000 mẫu và 5.000 SKU. ("mau"
+		// khớp mọi mẫu: đọc cả bảng mẫu là kế hoạch đúng; chuỗi 2 ký tự như "p0" không có trigram nên nhánh tên đọc cả
+		// bảng mẫu — cả hai không đọc cả bảng biến thể, chỉ đo thời gian ở testSearchBroadName.)
+		{"tìm tên rộng qua hàm", "SELECT * FROM catalog.search_variants($1, $2, $3, 100)", []any{f.sellerA, "dam", "dam"}},
+		{"tìm SKU rộng qua hàm", "SELECT * FROM catalog.search_variants($1, $2, $3, 100)", []any{f.sellerA, "p00", "p00"}},
 		{"tìm barcode qua hàm", "SELECT * FROM catalog.search_variants($1, $2, $3, 20)", []any{f.sellerA, f.barcodeOfP00042S, f.barcodeOfP00042S}},
 	}
 	for _, c := range []struct {
@@ -51,13 +56,15 @@ func TestPlansHaveNoSeqScan(t *testing.T) {
 	short := bf
 	short.OnlyShort = true
 	shortQ := short
-	shortQ.Q = "dam lua mau 12" // như ca "tìm tên qua hàm"; tên rộng xem task-334.md "Việc phát hiện thêm"
+	shortQ.Q = "dam lua mau 12" // như ca "tìm tên qua hàm"
+	broadQ := bf
+	broadQ.Q = "dam" // tên rộng (Task 390)
 	next := bf
 	next.Cursor = &queries.BalanceCursor{VariantID: uuid.Must(uuid.NewV7())}
 	for _, c := range []struct {
 		name string
 		bf   queries.BalanceFilter
-	}{{"tồn trang đầu", bf}, {"tồn chỉ thiếu", short}, {"tồn thiếu và tìm", shortQ}, {"tồn trang sau", next}} {
+	}{{"tồn trang đầu", bf}, {"tồn chỉ thiếu", short}, {"tồn thiếu và tìm", shortQ}, {"tồn tìm rộng", broadQ}, {"tồn trang sau", next}} {
 		sql, args, err := queries.BalancesSQL(c.bf)
 		if err != nil {
 			t.Fatal(err)
