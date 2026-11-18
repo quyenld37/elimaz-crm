@@ -180,4 +180,4 @@ func TestSeedOwner(t *testing.T) {
 }
 
 // platformTables: bảng nền tảng không RLS có cột tenant_id của M0 (như test của tenancy).
-func platformTables() []string { return []string{"platform.tenant_routes"} }
+func platformTables() []string { return []string{"platform.tenant_routes", "platform.jobs"} }

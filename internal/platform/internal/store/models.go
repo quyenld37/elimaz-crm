@@ -75,6 +75,31 @@ type PlatformIdempotencyKey struct {
 	ExpiresAt      time.Time
 }
 
+type PlatformJob struct {
+	ID             uuid.UUID
+	TenantID       pgtype.UUID
+	Kind           string
+	Mode           string
+	Payload        []byte
+	DedupeKey      string
+	OrderKey       pgtype.Text
+	OrderSeq       pgtype.Int8
+	BlockOnDead    bool
+	OnLeaseExpired string
+	MaxAttempts    int32
+	Status         string
+	Attempts       int32
+	RunAt          time.Time
+	LeaseUntil     pgtype.Timestamptz
+	LockedBy       pgtype.Text
+	ExpiresAt      pgtype.Timestamptz
+	LastError      pgtype.Text
+	Result         []byte
+	TraceContext   []byte
+	CreatedAt      time.Time
+	FinishedAt     pgtype.Timestamptz
+}
+
 type PlatformMetricsMinute struct {
 	Bucket  time.Time
 	Process string

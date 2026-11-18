@@ -208,6 +208,85 @@ type Pinger interface {
 }
 ```
 
+## `internal/platform/queue` (gói `queue`)
+
+Package queue là lõi hàng đợi việc nền trên bảng platform.jobs (spec 04 mục 5.1): ghi việc trong transaction của bên gọi (JobQueue), worker nhận việc bằng FOR UPDATE SKIP LOCKED, thử lại theo lịch, thứ tự theo đối tượng (OrderKey), hết hạn, in_doubt khi giữ chỗ hết hạn, tắt êm, dấu vết đi qua hàng đợi.
+
+**Khi nào không dùng:** Không viết SQL lên platform.jobs ở gói khác: ghi việc bằng JobQueue.Enqueue trong transaction của dữ liệu, xử lý bằng Handler. Handler transactional không gọi mạng, không gửi gì ra ngoài (lệnh ra ngoài là commands, Task 12) và phải chạy lại được (có thể bị gọi lại). Không đặt nội dung hay dữ liệu cá nhân vào Payload, DedupeKey, OrderKey hay chuỗi lỗi: chỉ mã bản ghi. Không dùng hàng đợi cho việc cần nguyên tử với dữ liệu (cái đó nằm trong cùng một transaction), không tạo Worker thứ hai trong một tiến trình.
+
+```go
+func NextDelay(attempt int, rnd func() float64) time.Duration
+type Handler interface {
+	Kind() Kind
+
+	Handle(ctx context.Context, j Job, tx pgx.Tx) (json.RawMessage, error)
+}
+type Job struct {
+	ID       uuid.UUID
+	TenantID *uuid.UUID
+	Kind     string
+	Payload  json.RawMessage
+
+	Attempts  int
+	CreatedAt time.Time
+}
+type JobQueue interface {
+	Enqueue(ctx context.Context, tx pgx.Tx, k Kind, j NewJob) (id uuid.UUID, created bool, err error)
+}
+func NewQueue() JobQueue
+type Kind struct {
+	Name   string
+	Policy Policy
+}
+type NewJob struct {
+	TenantID *uuid.UUID
+
+	Payload any
+
+	DedupeKey string
+
+	OrderKey string
+	OrderSeq int64
+
+	RunAt time.Time
+}
+type Policy struct {
+	Mode string
+
+	MaxAttempts int
+
+	BlockOnDead bool
+
+	OnLeaseExpired string
+
+	ExpiresAfter time.Duration
+
+	Timeout time.Duration
+}
+type TerminalHook interface {
+	OnTerminal(ctx context.Context, j Job, status string, tx pgx.Tx) error
+}
+type Worker struct {
+}
+func NewWorker(d *db.DB, hs []Handler, o WorkerOptions) *Worker
+func (w *Worker) RunOnce(ctx context.Context, limit int) (int, error)
+func (w *Worker) Start(ctx context.Context) error
+func (w *Worker) Stop(grace time.Duration) error
+type WorkerOptions struct {
+	WorkerID string
+
+	Concurrency int
+
+	Lease time.Duration
+
+	Poll time.Duration
+
+	Metrics *metrics.Registry
+
+	Logger *slog.Logger
+}
+```
+
 ## `internal/platform/telemetry` (gói `telemetry`)
 
 Package telemetry dựng dấu vết OpenTelemetry của tiến trình: tracer provider toàn cục, sampler theo cấu hình, exporter OTLP HTTP tới Jaeger, và bộ truyền ngữ cảnh W3C traceparent.

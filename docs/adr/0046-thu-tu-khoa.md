@@ -32,7 +32,7 @@ bảng ghi trong ô.
 | 10 | `promotion` | `promotion.coupons` → `promotion.flash_sales` → `promotion.flash_sale_items` → `promotion.flash_sale_claims` | spec |
 | 11 | `inventory` | `inventory.stock_balances` → `inventory.stock_reservations` → `inventory.flash_sale_units` | spec |
 | 12 | `affiliate` | `affiliate.affiliates` → `affiliate.commissions` → `affiliate.payouts` → `affiliate.payout_items` | spec |
-| 13 | `platform`: dấu "đã xong", luôn cuối transaction | `platform.idempotency_keys` → `platform.jobs` | spec |
+| 13 | `platform`: dấu "đã xong", luôn cuối transaction | `platform.idempotency_keys` → `platform.jobs` | spec; `platform.jobs`: M0 Task 11 (migration 0007; `OnTerminal` của hàng đợi chạy trước câu đổi trạng thái `jobs`) |
 
 ## Luật đi kèm (chép nguyên ADR-46 điểm 4)
 
