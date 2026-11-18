@@ -34,8 +34,11 @@ func with(m map[string]string, kv ...string) map[string]string {
 	return out
 }
 
+// workerEnv: worker hợp lệ tối thiểu (nhóm kho tệp bắt buộc từ Task M1-41).
+func workerEnv() map[string]string { return s3Env(base()) }
+
 func apiEnv() map[string]string {
-	return with(base(),
+	return with(s3Env(base()),
 		"ACCESS_TEAM_DOMAIN", "elimaz.cloudflareaccess.com",
 		"ACCESS_AUD", "aud-123",
 		"ACCESS_MFA_CLAIM", "amr",
@@ -116,7 +119,7 @@ func TestLoadDefaultsPerRole(t *testing.T) {
 	}{
 		{config.RoleIngest, ingestEnv(), 5, 4191},
 		{config.RoleAPI, apiEnv(), 20, 4190},
-		{config.RoleWorker, base(), 10, 0},
+		{config.RoleWorker, workerEnv(), 10, 0},
 		{config.RoleMigrate, with(base(), "DATABASE_OWNER_URL", ownerURL), 2, 0},
 	}
 	for _, tc := range tests {
@@ -136,7 +139,7 @@ func TestLoadDefaultsPerRole(t *testing.T) {
 }
 
 func TestLoadOverrides(t *testing.T) {
-	cfg, err := config.Load(config.RoleWorker, env(with(base(),
+	cfg, err := config.Load(config.RoleWorker, env(with(workerEnv(),
 		"DB_MAX_CONNS", "7", "OTEL_ENABLED", "false", "LOG_DIR", "/var/log/crm",
 		"OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4318", "HEARTBEAT_URL", "https://hc.example/x",
 		"TELEGRAM_BOT_TOKEN", "bot", "TELEGRAM_CHAT_ID", "1", "TELEGRAM_URGENT_CHAT_ID", "2",
@@ -171,7 +174,7 @@ func TestLoadTracesSampler(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.sampler+"/"+tc.arg, func(t *testing.T) {
-			cfg, err := config.Load(config.RoleWorker, env(with(base(),
+			cfg, err := config.Load(config.RoleWorker, env(with(workerEnv(),
 				"OTEL_TRACES_SAMPLER", tc.sampler, "OTEL_TRACES_SAMPLER_ARG", tc.arg)))
 			if tc.wantErr {
 				if err == nil || !strings.Contains(err.Error(), "OTEL_TRACES_SAMPLER") {
@@ -218,7 +221,7 @@ func TestLoadNonMigrateNeverHoldsOwnerURL(t *testing.T) {
 		role config.Role
 		env  map[string]string
 	}{
-		{config.RoleWorker, base()},
+		{config.RoleWorker, workerEnv()},
 		{config.RoleAPI, apiEnv()},
 		{config.RoleIngest, ingestEnv()},
 	} {

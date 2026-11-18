@@ -69,9 +69,8 @@ type Config struct {
 	ConsoleOrigins   []string
 	HealthToken      string
 
-	// Kho tệp (api, worker; kế hoạch M1, Global Constraints "Biến môi trường mới"). Tới Task M1-41 cả nhóm là tùy chọn:
-	// không khai biến nào thì để rỗng; khai một biến thì phải đủ S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY,
-	// FILES_PUBLIC_BASE_URL (quyết định D1 của Task 25).
+	// Kho tệp (api, worker; kế hoạch M1, Global Constraints "Biến môi trường mới"). Từ Task M1-41 bắt buộc với hai vai
+	// trò này: S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, FILES_PUBLIC_BASE_URL.
 	S3Endpoint        string
 	S3Region          string // mặc định us-east-1
 	S3AccessKeyID     string // danh tính crm-app của kho
@@ -140,7 +139,7 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 	r := reader{getenv: getenv}
 	cfg := Config{
 		Role:                 role,
-		Env:                  r.required("CRM_ENV"),
+		Env:                  r.env(),
 		DatabaseURL:          r.required("DATABASE_URL"),
 		LogDir:               r.optional("LOG_DIR"),
 		TelegramBotToken:     r.optional("TELEGRAM_BOT_TOKEN"),
@@ -226,7 +225,7 @@ func (r *reader) secret(key string) string {
 	return v
 }
 
-// files đọc nhóm kho tệp: tất cả hoặc không (quyết định D1 của Task 25; Task M1-41 đổi thành bắt buộc).
+// files đọc nhóm kho tệp, bắt buộc với api và worker (Task M1-41; Task 25 để tùy chọn, quyết định D1).
 func (r *reader) files(cfg *Config) {
 	cfg.S3Region = r.optional("S3_REGION")
 	if cfg.S3Region == "" {
@@ -236,15 +235,7 @@ func (r *reader) files(cfg *Config) {
 	if cfg.S3BucketPrefix == "" {
 		cfg.S3BucketPrefix = "crm-"
 	}
-	group := []string{"S3_ENDPOINT", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "FILES_PUBLIC_BASE_URL"}
-	anySet := false
-	for _, k := range group {
-		anySet = anySet || r.optional(k) != ""
-	}
-	if !anySet {
-		return
-	}
-	for _, k := range group {
+	for _, k := range []string{"S3_ENDPOINT", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "FILES_PUBLIC_BASE_URL"} {
 		r.required(k)
 	}
 	cfg.S3Endpoint = r.httpURL("S3_ENDPOINT")
@@ -253,6 +244,19 @@ func (r *reader) files(cfg *Config) {
 	cfg.FilesPublicBaseURL = r.httpURL("FILES_PUBLIC_BASE_URL")
 	if strings.HasSuffix(cfg.FilesPublicBaseURL, "/") {
 		r.problems = append(r.problems, "FILES_PUBLIC_BASE_URL không được kết thúc bằng /")
+	}
+}
+
+// env đọc CRM_ENV: chỉ dev, test, staging, production (Task M1-41). Giá trị lạ như "prod" là lỗi khởi động, vì luật
+// theo môi trường (chặn hãng giả ở production) so đúng chữ "production" và sẽ để lọt giá trị viết khác.
+func (r *reader) env() string {
+	v := r.required("CRM_ENV")
+	switch v {
+	case "", "dev", "test", "staging", "production":
+		return v
+	default:
+		r.problems = append(r.problems, fmt.Sprintf("CRM_ENV %q không phải dev, test, staging hay production", v))
+		return ""
 	}
 }
 

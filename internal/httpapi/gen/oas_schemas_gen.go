@@ -151,6 +151,55 @@ func (s *CreateStaffRequest) SetDisplayName(val string) {
 	s.DisplayName = val
 }
 
+// Ref: #/components/schemas/CreateUploadRequest
+type CreateUploadRequest struct {
+	Purpose string `json:"purpose"`
+	// Tên gốc, chỉ để hiện và đặt tên khi tải về; không bao giờ vào khóa trên kho.
+	FileName    string `json:"fileName"`
+	ContentType string `json:"contentType"`
+	SizeBytes   int64  `json:"sizeBytes"`
+}
+
+// GetPurpose returns the value of Purpose.
+func (s *CreateUploadRequest) GetPurpose() string {
+	return s.Purpose
+}
+
+// GetFileName returns the value of FileName.
+func (s *CreateUploadRequest) GetFileName() string {
+	return s.FileName
+}
+
+// GetContentType returns the value of ContentType.
+func (s *CreateUploadRequest) GetContentType() string {
+	return s.ContentType
+}
+
+// GetSizeBytes returns the value of SizeBytes.
+func (s *CreateUploadRequest) GetSizeBytes() int64 {
+	return s.SizeBytes
+}
+
+// SetPurpose sets the value of Purpose.
+func (s *CreateUploadRequest) SetPurpose(val string) {
+	s.Purpose = val
+}
+
+// SetFileName sets the value of FileName.
+func (s *CreateUploadRequest) SetFileName(val string) {
+	s.FileName = val
+}
+
+// SetContentType sets the value of ContentType.
+func (s *CreateUploadRequest) SetContentType(val string) {
+	s.ContentType = val
+}
+
+// SetSizeBytes sets the value of SizeBytes.
+func (s *CreateUploadRequest) SetSizeBytes(val int64) {
+	s.SizeBytes = val
+}
+
 // Ref: #/components/schemas/DeepHealth
 type DeepHealth struct {
 	Ok                  bool     `json:"ok"`
@@ -308,7 +357,10 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 }
 
 func (*ErrorStatusCode) abandonJobRes()         {}
+func (*ErrorStatusCode) completeUploadRes()     {}
 func (*ErrorStatusCode) createStaffRes()        {}
+func (*ErrorStatusCode) createUploadRes()       {}
+func (*ErrorStatusCode) getFileRes()            {}
 func (*ErrorStatusCode) getMeRes()              {}
 func (*ErrorStatusCode) getPlatformHealthRes()  {}
 func (*ErrorStatusCode) healthDeepRes()         {}
@@ -378,6 +430,244 @@ func (s *ErrorSummary) SetCount(val int64) {
 // SetLastSeenAt sets the value of LastSeenAt.
 func (s *ErrorSummary) SetLastSeenAt(val time.Time) {
 	s.LastSeenAt = val
+}
+
+// Ref: #/components/schemas/FileInfo
+type FileInfo struct {
+	ID           uuid.UUID      `json:"id"`
+	Purpose      string         `json:"purpose"`
+	Status       FileInfoStatus `json:"status"`
+	RejectReason OptString      `json:"rejectReason"`
+	Width        OptInt32       `json:"width"`
+	Height       OptInt32       `json:"height"`
+	Variants     []FileVariant  `json:"variants"`
+}
+
+// GetID returns the value of ID.
+func (s *FileInfo) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetPurpose returns the value of Purpose.
+func (s *FileInfo) GetPurpose() string {
+	return s.Purpose
+}
+
+// GetStatus returns the value of Status.
+func (s *FileInfo) GetStatus() FileInfoStatus {
+	return s.Status
+}
+
+// GetRejectReason returns the value of RejectReason.
+func (s *FileInfo) GetRejectReason() OptString {
+	return s.RejectReason
+}
+
+// GetWidth returns the value of Width.
+func (s *FileInfo) GetWidth() OptInt32 {
+	return s.Width
+}
+
+// GetHeight returns the value of Height.
+func (s *FileInfo) GetHeight() OptInt32 {
+	return s.Height
+}
+
+// GetVariants returns the value of Variants.
+func (s *FileInfo) GetVariants() []FileVariant {
+	return s.Variants
+}
+
+// SetID sets the value of ID.
+func (s *FileInfo) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetPurpose sets the value of Purpose.
+func (s *FileInfo) SetPurpose(val string) {
+	s.Purpose = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FileInfo) SetStatus(val FileInfoStatus) {
+	s.Status = val
+}
+
+// SetRejectReason sets the value of RejectReason.
+func (s *FileInfo) SetRejectReason(val OptString) {
+	s.RejectReason = val
+}
+
+// SetWidth sets the value of Width.
+func (s *FileInfo) SetWidth(val OptInt32) {
+	s.Width = val
+}
+
+// SetHeight sets the value of Height.
+func (s *FileInfo) SetHeight(val OptInt32) {
+	s.Height = val
+}
+
+// SetVariants sets the value of Variants.
+func (s *FileInfo) SetVariants(val []FileVariant) {
+	s.Variants = val
+}
+
+func (*FileInfo) completeUploadRes() {}
+func (*FileInfo) getFileRes()        {}
+
+type FileInfoStatus string
+
+const (
+	FileInfoStatusAwaitingUpload FileInfoStatus = "awaiting_upload"
+	FileInfoStatusUploaded       FileInfoStatus = "uploaded"
+	FileInfoStatusProcessing     FileInfoStatus = "processing"
+	FileInfoStatusReady          FileInfoStatus = "ready"
+	FileInfoStatusRejected       FileInfoStatus = "rejected"
+	FileInfoStatusLost           FileInfoStatus = "lost"
+)
+
+// AllValues returns all FileInfoStatus values.
+func (FileInfoStatus) AllValues() []FileInfoStatus {
+	return []FileInfoStatus{
+		FileInfoStatusAwaitingUpload,
+		FileInfoStatusUploaded,
+		FileInfoStatusProcessing,
+		FileInfoStatusReady,
+		FileInfoStatusRejected,
+		FileInfoStatusLost,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FileInfoStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FileInfoStatusAwaitingUpload:
+		return []byte(s), nil
+	case FileInfoStatusUploaded:
+		return []byte(s), nil
+	case FileInfoStatusProcessing:
+		return []byte(s), nil
+	case FileInfoStatusReady:
+		return []byte(s), nil
+	case FileInfoStatusRejected:
+		return []byte(s), nil
+	case FileInfoStatusLost:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FileInfoStatus) UnmarshalText(data []byte) error {
+	switch FileInfoStatus(data) {
+	case FileInfoStatusAwaitingUpload:
+		*s = FileInfoStatusAwaitingUpload
+		return nil
+	case FileInfoStatusUploaded:
+		*s = FileInfoStatusUploaded
+		return nil
+	case FileInfoStatusProcessing:
+		*s = FileInfoStatusProcessing
+		return nil
+	case FileInfoStatusReady:
+		*s = FileInfoStatusReady
+		return nil
+	case FileInfoStatusRejected:
+		*s = FileInfoStatusRejected
+		return nil
+	case FileInfoStatusLost:
+		*s = FileInfoStatusLost
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/FileVariant
+type FileVariant struct {
+	Width  int32             `json:"width"`
+	Format FileVariantFormat `json:"format"`
+	URL    string            `json:"url"`
+}
+
+// GetWidth returns the value of Width.
+func (s *FileVariant) GetWidth() int32 {
+	return s.Width
+}
+
+// GetFormat returns the value of Format.
+func (s *FileVariant) GetFormat() FileVariantFormat {
+	return s.Format
+}
+
+// GetURL returns the value of URL.
+func (s *FileVariant) GetURL() string {
+	return s.URL
+}
+
+// SetWidth sets the value of Width.
+func (s *FileVariant) SetWidth(val int32) {
+	s.Width = val
+}
+
+// SetFormat sets the value of Format.
+func (s *FileVariant) SetFormat(val FileVariantFormat) {
+	s.Format = val
+}
+
+// SetURL sets the value of URL.
+func (s *FileVariant) SetURL(val string) {
+	s.URL = val
+}
+
+type FileVariantFormat string
+
+const (
+	FileVariantFormatAvif FileVariantFormat = "avif"
+	FileVariantFormatWEBP FileVariantFormat = "webp"
+	FileVariantFormatJpeg FileVariantFormat = "jpeg"
+)
+
+// AllValues returns all FileVariantFormat values.
+func (FileVariantFormat) AllValues() []FileVariantFormat {
+	return []FileVariantFormat{
+		FileVariantFormatAvif,
+		FileVariantFormatWEBP,
+		FileVariantFormatJpeg,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FileVariantFormat) MarshalText() ([]byte, error) {
+	switch s {
+	case FileVariantFormatAvif:
+		return []byte(s), nil
+	case FileVariantFormatWEBP:
+		return []byte(s), nil
+	case FileVariantFormatJpeg:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FileVariantFormat) UnmarshalText(data []byte) error {
+	switch FileVariantFormat(data) {
+	case FileVariantFormatAvif:
+		*s = FileVariantFormatAvif
+		return nil
+	case FileVariantFormatWEBP:
+		*s = FileVariantFormatWEBP
+		return nil
+	case FileVariantFormatJpeg:
+		*s = FileVariantFormatJpeg
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/Grant
@@ -1537,3 +1827,66 @@ func (s StreamOK) Read(p []byte) (n int, err error) {
 }
 
 func (*StreamOK) streamRes() {}
+
+// Ref: #/components/schemas/Upload
+type Upload struct {
+	FileId uuid.UUID `json:"fileId"`
+	PutUrl string    `json:"putUrl"`
+	// Header phải gửi kèm PUT (đã nằm trong chữ ký).
+	Headers   UploadHeaders `json:"headers"`
+	ExpiresAt time.Time     `json:"expiresAt"`
+}
+
+// GetFileId returns the value of FileId.
+func (s *Upload) GetFileId() uuid.UUID {
+	return s.FileId
+}
+
+// GetPutUrl returns the value of PutUrl.
+func (s *Upload) GetPutUrl() string {
+	return s.PutUrl
+}
+
+// GetHeaders returns the value of Headers.
+func (s *Upload) GetHeaders() UploadHeaders {
+	return s.Headers
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *Upload) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// SetFileId sets the value of FileId.
+func (s *Upload) SetFileId(val uuid.UUID) {
+	s.FileId = val
+}
+
+// SetPutUrl sets the value of PutUrl.
+func (s *Upload) SetPutUrl(val string) {
+	s.PutUrl = val
+}
+
+// SetHeaders sets the value of Headers.
+func (s *Upload) SetHeaders(val UploadHeaders) {
+	s.Headers = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *Upload) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+func (*Upload) createUploadRes() {}
+
+// Header phải gửi kèm PUT (đã nằm trong chữ ký).
+type UploadHeaders map[string]string
+
+func (s *UploadHeaders) init() UploadHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}

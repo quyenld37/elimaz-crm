@@ -5,8 +5,20 @@ type AbandonJobRes interface {
 	abandonJobRes()
 }
 
+type CompleteUploadRes interface {
+	completeUploadRes()
+}
+
 type CreateStaffRes interface {
 	createStaffRes()
+}
+
+type CreateUploadRes interface {
+	createUploadRes()
+}
+
+type GetFileRes interface {
+	getFileRes()
 }
 
 type GetMeRes interface {

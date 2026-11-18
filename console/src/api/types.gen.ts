@@ -84,6 +84,44 @@ export type Role = {
     permissions: Array<string>;
 };
 
+export type CreateUploadRequest = {
+    purpose: string;
+    /**
+     * Tên gốc, chỉ để hiện và đặt tên khi tải về; không bao giờ vào khóa trên kho
+     */
+    fileName: string;
+    contentType: string;
+    sizeBytes: number;
+};
+
+export type Upload = {
+    fileId: string;
+    putUrl: string;
+    /**
+     * Header phải gửi kèm PUT (đã nằm trong chữ ký)
+     */
+    headers: {
+        [key: string]: string;
+    };
+    expiresAt: string;
+};
+
+export type FileVariant = {
+    width: number;
+    format: 'avif' | 'webp' | 'jpeg';
+    url: string;
+};
+
+export type FileInfo = {
+    id: string;
+    purpose: string;
+    status: 'awaiting_upload' | 'uploaded' | 'processing' | 'ready' | 'rejected' | 'lost';
+    rejectReason?: string;
+    width?: number;
+    height?: number;
+    variants: Array<FileVariant>;
+};
+
 export type Job = {
     id: string;
     kind: string;
@@ -144,6 +182,8 @@ export type PlatformHealth = {
 export type IdempotencyKey = string;
 
 export type JobId = string;
+
+export type FileId = string;
 
 export type StaffId = string;
 
@@ -446,6 +486,97 @@ export type StreamResponses = {
 };
 
 export type StreamResponse = StreamResponses[keyof StreamResponses];
+
+export type CreateUploadData = {
+    body: CreateUploadRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/files/uploads';
+};
+
+export type CreateUploadErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateUploadError = CreateUploadErrors[keyof CreateUploadErrors];
+
+export type CreateUploadResponses = {
+    /**
+     * Tệp chờ tải lên và đường dẫn PUT ký sẵn (hạn 15 phút)
+     */
+    201: Upload;
+};
+
+export type CreateUploadResponse = CreateUploadResponses[keyof CreateUploadResponses];
+
+export type CompleteUploadData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/files/{id}/complete';
+};
+
+export type CompleteUploadErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CompleteUploadError = CompleteUploadErrors[keyof CompleteUploadErrors];
+
+export type CompleteUploadResponses = {
+    /**
+     * Tệp sau khi kiểm
+     */
+    200: FileInfo;
+};
+
+export type CompleteUploadResponse = CompleteUploadResponses[keyof CompleteUploadResponses];
+
+export type GetFileData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/files/{id}';
+};
+
+export type GetFileErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetFileError = GetFileErrors[keyof GetFileErrors];
+
+export type GetFileResponses = {
+    /**
+     * Tệp
+     */
+    200: FileInfo;
+};
+
+export type GetFileResponse = GetFileResponses[keyof GetFileResponses];
 
 export type ListJobsData = {
     body?: never;

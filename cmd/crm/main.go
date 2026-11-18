@@ -26,6 +26,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/observability"
@@ -135,6 +136,13 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	defer d.Pool.Close()
 
 	logger.Info("khởi động", slog.Any("config", cfg))
+	// Sổ mục đích tệp trong Go phải khớp platform.file_purposes (Task M1-41): lệch là lỗi khởi động, không phục vụ.
+	// Mốc sau gọi files.RegisterPurpose ở đây, trước lần kiểm này.
+	if cfg.Role == config.RoleAPI || cfg.Role == config.RoleWorker {
+		if err := files.CheckPurposes(ctx, d); err != nil {
+			return fmt.Errorf("kiểm mục đích tệp: %w", err)
+		}
+	}
 	reg := metrics.NewRegistry()
 	d.OnRetry = func(code string, _ int) { reg.Inc("tx_retry", code, 1) }
 	d.OnExhausted = func(code string) { reg.Inc("tx_retry_exhausted", code, 1) }
@@ -260,6 +268,14 @@ func poolOptions(cfg config.Config) db.PoolOptions {
 	return o
 }
 
+// s3Config là cấu hình kho tệp (danh tính crm-app) từ biến môi trường đã kiểm.
+func s3Config(cfg config.Config) files.S3Config {
+	return files.S3Config{
+		Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, AccessKeyID: cfg.S3AccessKeyID,
+		SecretAccessKey: cfg.S3SecretAccessKey, BucketPrefix: cfg.S3BucketPrefix,
+	}
+}
+
 // runMigrate áp dụng migration nhúng trong tệp chạy (db.Migrate) và log tên các tệp vừa áp dụng.
 func runMigrate(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	applied, err := db.Migrate(ctx, cfg.Migrate.OwnerURL)
@@ -285,8 +301,12 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 		if err != nil {
 			return fmt.Errorf("dựng bộ kiểm thẻ Access: %w", err)
 		}
+		store, err := files.NewS3Store(s3Config(cfg))
+		if err != nil {
+			return fmt.Errorf("dựng kho tệp: %w", err)
+		}
 		handler = httpapi.NewServer(httpapi.Deps{
-			Config: cfg, DB: d, Logger: logger, Access: access,
+			Config: cfg, DB: d, Logger: logger, Access: access, Files: store,
 			Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop},
 		})
 	} else {

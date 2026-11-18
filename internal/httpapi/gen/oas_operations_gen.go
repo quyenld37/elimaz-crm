@@ -7,7 +7,10 @@ type OperationName = string
 
 const (
 	AbandonJobOperation         OperationName = "AbandonJob"
+	CompleteUploadOperation     OperationName = "CompleteUpload"
 	CreateStaffOperation        OperationName = "CreateStaff"
+	CreateUploadOperation       OperationName = "CreateUpload"
+	GetFileOperation            OperationName = "GetFile"
 	GetMeOperation              OperationName = "GetMe"
 	GetPlatformHealthOperation  OperationName = "GetPlatformHealth"
 	HealthDeepOperation         OperationName = "HealthDeep"
