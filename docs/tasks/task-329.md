@@ -79,8 +79,24 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
 - `getStocktake` của phiên đã áp dụng không trả danh sách thiếu: tải lại trang ở trạng thái E chỉ còn câu tóm tắt và nút "Xem ở Tồn kho".
 - Hai người đếm cùng mã ở hai kệ: số tuyệt đối + `lineVersion` nên người lưu sau nhận số của người kia (có câu báo) và phải cộng tay. Cần chủ shop chọn: đếm theo kệ, hay API nhận "cộng thêm" (đổi hợp đồng).
 
+## Lượt 2: gộp main (19/11)
+
+- **Ảnh hưởng:** `git merge main` (Task 327 Nhà cung cấp, 328 Phiếu kho, 53 Sức khỏe, 391, 389). Xung đột chỉ ở `console/src/screens/inventory/route.tsx` và `route.test.tsx`: giữ đủ route của ba task theo thứ tự menu (`/kho/ton` 10, `/kho/phieu` 20 + `/kho/phieu/:id` ẩn, `/kho/kiem-kho` 30 + `/kho/kiem-kho/:id` ẩn 31, `/kho/nha-cung-cap` 40); test route khai đủ 6 dòng. `Stocktake.tsx`: ô chọn kho đổi sang `WarehouseSelect` (main thêm, cùng thư mục màn), cùng hành vi. Không chạm Go, OpenAPI, SQL.
+- **Tái dùng:** `WarehouseSelect` (Task 328/327, `screens/inventory/WarehouseSelect.tsx`) thay `<select>` tự viết trong `StocktakeStart`. `SupplierPicker` (327) không liên quan tới màn Kiểm kho (không chọn nhà cung cấp).
+- **Soát thiết kế:** như lượt 1; không đổi đường ghi.
+- **Bằng chứng lượt 2:**
+
+| Tiêu chí | Test | Lệnh | Kết quả |
+|---|---|---|---|
+| Đủ route của 327, 328, 329 | `screens/inventory/route.test.tsx` | `cd console && npx vitest run` | `Test Files 41 passed`, `Tests 398 passed` |
+| Màn Kho sau gộp chạy đúng (kiểm kho, tồn kho, phiếu kho, nhà cung cấp) | `e2e/stocktake.phone.spec.ts`, `inventory.spec.ts`, `stock-documents.spec.ts`, `suppliers.spec.ts` | `CRM_E2E_PORT=5129 npx playwright test …` | `43 passed` |
+| Đổi sang `WarehouseSelect` không đổi hành vi | `Stocktake.test.tsx` (`StocktakeStart › …`), e2e `F: chỉ có quyền đếm …` | `npx vitest run src/screens/inventory`; e2e trên | `Tests 96 passed`; qua |
+| Cổng kiểm theo task | — | `ci-task.sh` (một lần) | `CI-TASK XANH`; `tsc`, `eslint`, `prettier --check` sạch |
+
 ## Reviewer
 
 Kết luận: ĐẠT (commit 1, cấu trúc: dời `shortTime` về `src/app/time.ts`). Không có phát hiện phải sửa; `shortTime`, `SHORT` chép nguyên, `TZ` → `VN_TIME_ZONE`, không còn nơi nhập tên cũ từ `errorsRules`; 3 ca test dời nguyên (không phải xóa).
 
 Commit 2 (màn Kiểm kho): ĐẠT. Không có phát hiện phải sửa; Ảnh hưởng khớp thực tế; bảng bằng chứng đối chiếu từng dòng (14 ca hook, KH05 đồng hồ giả 799/800 ms, KH07 `{version: 6}`, bấm đúp 1 POST). Ghi chú không bắt buộc (không sửa, chép sang Việc phát hiện thêm): hẹn giờ thử lại có thể đặt sau khi màn đã gỡ (số có thể mất mà không ai thấy, trong phạm vi Quyết định 7); truy vấn tên mã theo chủ đề `inventory.balance` có thể đọc lại tới 20 trang mỗi báo hiệu số dư; trạng thái E tải lại trang không có danh sách thiếu; hai người đếm cùng mã ở hai kệ: người lưu sau mất số vừa quét (có câu báo); `signedDelta` có thể dựng từ `signed`.
+
+Lượt 2 (gộp main, commit merge): ĐẠT. Không có phát hiện phải sửa. Reviewer so với bản main đã gộp (`MERGE_HEAD` 5e4e8fa): chỉ 18 tệp khác, đều của Task 329, không mất phần nào của main; `route.tsx` đủ 6 route (10, 20, 20 ẩn, 30, 31 ẩn, 40), test so toàn bộ bằng `toEqual`; `WarehouseSelect` cùng hành vi (giữ nhãn "Kho", không có dòng "mọi kho"). Ghi chú: main đã có thêm Task 331, 52 sau lần gộp; theo giao việc không gộp thêm, điều phối viên gộp.

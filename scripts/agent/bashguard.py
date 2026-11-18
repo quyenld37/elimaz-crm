@@ -35,6 +35,15 @@ for t in tokens:
         cur.append(t)
 if cur: parts.append(cur)
 
+# Dừng tiến trình theo mẫu tên giết cả phiên khác trên cùng máy (19/11: một phiên chạy `pkill -f ci-task.sh`, dừng 4 phiên
+# song song vì lời giao việc của chúng có chữ đó). Chỉ cho `kill` theo số PID, `$!` hoặc job `%n`.
+for p in parts:
+    if not p: continue
+    if p[0] in ("pkill", "killall"):
+        block(f"{p[0]} dừng theo mẫu tên, trúng cả phiên khác. Dùng `kill <PID>` với PID chính tiến trình của bạn ($! khi chạy nền).")
+    if p[0] == "kill" and any(not re.fullmatch(r"-\w+|-?\d+|\$!|%\d*|\$\w+|\$\{\w+\}", a) for a in p[1:]):
+        block("kill chỉ nhận PID, $!, biến PID hoặc %job. Không dùng $(pgrep …) theo mẫu tên.")
+
 hit = [p for p in PROTECTED if re.search(p, cmd)]
 if hit:
     stripped = re.sub(r"\d?>\s*/dev/null|2>&1", "", cmd)

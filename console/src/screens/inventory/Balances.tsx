@@ -3,9 +3,12 @@
 // onlyShort=true. Ô chọn kho chỉ có kho người xem được đọc (máy chủ lọc theo phạm vi; API vẫn kiểm từng yêu cầu).
 import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { listBalances, listWarehouses, type Balance, type Warehouse } from "../../api";
+import { Link } from "react-router";
+import { getMe, listBalances, listWarehouses, type Balance, type Warehouse } from "../../api";
 import { errorMessage, unwrap } from "../../app/errors";
+import { hasPermission } from "../../app/nav";
 import { TOPICS, queryKey } from "../../app/queryClient";
+import { WarehouseSelect } from "./WarehouseSelect";
 import "./inventory.css";
 
 export const PAGE_SIZE = 50;
@@ -27,7 +30,8 @@ export function discontinued(b: Balance): boolean {
   return b.productStatus === "discontinued" || b.variantStatus === "discontinued";
 }
 
-function useDebounced<T>(value: T, ms: number): T {
+/** Giá trị trễ ms sau lần đổi cuối (chờ người gõ dừng). */
+export function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value);
   useEffect(() => {
     const t = setTimeout(() => {
@@ -40,7 +44,12 @@ function useDebounced<T>(value: T, ms: number): T {
   return v;
 }
 
+/** Phiếu mới (Task 328); "?kind=import" chọn sẵn phiếu nhập. */
+const NEW_DOC_PATH = "/kho/phieu/moi";
+
 export function Balances() {
+  const me = useQuery({ queryKey: queryKey("identity.me"), queryFn: () => unwrap(getMe()) });
+  const canCreateDoc = hasPermission(me.data?.grants ?? [], "inventory.documents.create");
   const warehouses = useQuery({
     queryKey: queryKey("inventory.warehouses"),
     queryFn: () => unwrap(listWarehouses()),
@@ -86,6 +95,13 @@ export function Balances() {
             Có thể bán = Tồn − Lỗi − Đang giữ − Đang giao · số tự cập nhật khi có phiếu, đơn, kiểm kho
           </p>
         </div>
+        {canCreateDoc && (
+          <div className="row">
+            <Link className="btn btn-dark" to={NEW_DOC_PATH}>
+              Tạo phiếu kho
+            </Link>
+          </div>
+        )}
       </div>
 
       {warehouses.isPending && <p className="muted">Đang tải…</p>}
@@ -105,19 +121,7 @@ export function Balances() {
         <>
           <div className="toolbar">
             <div className="select-wrap">
-              <select
-                aria-label="Kho"
-                value={wh.id}
-                onChange={(e) => {
-                  setPicked(e.target.value);
-                }}
-              >
-                {list.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
+              <WarehouseSelect ariaLabel="Kho" warehouses={list} value={wh.id} onChange={setPicked} />
             </div>
             <input
               className="input is-search"
@@ -154,6 +158,7 @@ export function Balances() {
               warehouse={name}
               onlyShort={onlyShort}
               searching={term !== ""}
+              canCreateDoc={canCreateDoc}
               onClearShort={() => {
                 setOnlyShort(false);
               }}
@@ -279,7 +284,13 @@ function AvailableCell({ n }: { n: number }) {
   );
 }
 
-function EmptyState(p: { warehouse: string; onlyShort: boolean; searching: boolean; onClearShort: () => void }) {
+function EmptyState(p: {
+  warehouse: string;
+  onlyShort: boolean;
+  searching: boolean;
+  canCreateDoc: boolean;
+  onClearShort: () => void;
+}) {
   if (p.onlyShort) {
     return (
       <div className="empty">
@@ -301,6 +312,11 @@ function EmptyState(p: { warehouse: string; onlyShort: boolean; searching: boole
     <div className="empty">
       <h2>{`${p.warehouse} chưa có hàng`}</h2>
       <p className="muted">Tồn kho tăng khi ghi sổ phiếu nhập.</p>
+      {p.canCreateDoc && (
+        <Link className="btn btn-dark" to={`${NEW_DOC_PATH}?kind=import`}>
+          Tạo phiếu nhập
+        </Link>
+      )}
     </div>
   );
 }

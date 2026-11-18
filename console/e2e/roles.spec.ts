@@ -298,5 +298,6 @@ test("không có quyền quản lý vai trò: không có màn Vai trò", async (
     MANAGER_GRANTS.filter((g) => g.permission !== "identity.roles.manage"),
   );
   await page.goto("/vai-tro");
-  await expect(page.getByText("Không có trang này, hoặc bạn chưa được cấp quyền xem")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Không có quyền" })).toBeVisible();
+  await expect(page.getByText("Tài khoản của bạn không được xem Vai trò.", { exact: false })).toBeVisible();
 });

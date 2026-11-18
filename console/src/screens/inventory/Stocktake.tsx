@@ -29,6 +29,7 @@ import { shortTime } from "../../app/time";
 import { signed } from "./Balances";
 import { canAt, confirmText, lineKind, matchHit, parseCount, preview, signedDelta } from "./stocktakeRules";
 import { useBarcodeScan, type SaveStatus, type ScanEntry } from "./useBarcodeScan";
+import { WarehouseSelect } from "./WarehouseSelect";
 import "./stocktake.css";
 
 export const TEXT_NO_COUNT_WAREHOUSE = "Bạn chưa được kiểm kho nào";
@@ -134,21 +135,16 @@ export function StocktakeStart() {
             <label className="field">
               <span>Kho</span>
               <span className="select-wrap">
-                <select
-                  aria-label="Kho"
+                <WarehouseSelect
+                  ariaLabel="Kho"
+                  warehouses={options}
                   value={wh.id}
-                  onChange={(e) => {
-                    setPicked(e.target.value);
+                  onChange={(id) => {
+                    setPicked(id);
                     setBusyAt(null);
                     start.reset();
                   }}
-                >
-                  {options.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name}
-                    </option>
-                  ))}
-                </select>
+                />
               </span>
             </label>
             <button
