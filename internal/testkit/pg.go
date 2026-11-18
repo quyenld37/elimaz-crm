@@ -69,8 +69,25 @@ func CreateDatabase(t testing.TB) (adminURL, ownerURL, appURL string) {
 	admin := connect(ctx, t, withDB(base, nil, base.Path))
 	defer func() { _ = admin.Close(context.WithoutCancel(ctx)) }()
 	exec(ctx, t, admin, "CREATE DATABASE "+name+" OWNER crm_owner")
+	dropAtCleanup(t, base, name)
+	prepareEmpty(ctx, t, admin, adminURL)
+	return adminURL, ownerURL, appURL
+}
+
+// prepareEmpty làm phần của người quản trị trên database vừa tạo (adminURL), trước khi migrate: quyền cấp pg_monitor
+// cho crm_owner và extension pg_stat_statements. admin nối vào database mặc định của máy chủ.
+func prepareEmpty(ctx context.Context, t testing.TB, admin *pgx.Conn, adminURL string) {
+	t.Helper()
 	// Migration 0010 cấp pg_monitor cho crm_app; cụm dev dựng trước Task 19 chưa có dòng này trong 01-roles.sql.
 	exec(ctx, t, admin, "GRANT pg_monitor TO crm_owner WITH ADMIN OPTION")
+	inNew := connect(ctx, t, adminURL)
+	defer func() { _ = inNew.Close(context.WithoutCancel(ctx)) }()
+	exec(ctx, t, inNew, "CREATE EXTENSION IF NOT EXISTS pg_stat_statements")
+}
+
+// dropAtCleanup xóa database name (kể cả khi còn kết nối) khi test xong.
+func dropAtCleanup(t testing.TB, base *url.URL, name string) {
+	t.Helper()
 	t.Cleanup(func() {
 		cctx, ccancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer ccancel()
@@ -78,10 +95,6 @@ func CreateDatabase(t testing.TB) (adminURL, ownerURL, appURL string) {
 		defer func() { _ = c.Close(cctx) }()
 		exec(cctx, t, c, "DROP DATABASE IF EXISTS "+name+" WITH (FORCE)")
 	})
-	inNew := connect(ctx, t, adminURL)
-	defer func() { _ = inNew.Close(context.WithoutCancel(ctx)) }()
-	exec(ctx, t, inNew, "CREATE EXTENSION IF NOT EXISTS pg_stat_statements")
-	return adminURL, ownerURL, appURL
 }
 
 // serverURL trả chuỗi kết nối quản trị tới database mặc định của máy chủ thử.
