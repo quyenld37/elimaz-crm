@@ -732,6 +732,105 @@ func (s *CreateCategoryRequest) SetPosition(val OptPosition) {
 	s.Position = val
 }
 
+// Ref: #/components/schemas/CreateOrderRequest
+type CreateOrderRequest struct {
+	Customer CreateOrderRequestCustomer `json:"customer"`
+	// Bỏ trống → kho chính.
+	WarehouseId OptUUID                       `json:"warehouseId"`
+	Items       []CreateOrderRequestItemsItem `json:"items"`
+	ShipAddress ShipAddress                   `json:"shipAddress"`
+	ShippingFee Money                         `json:"shippingFee"`
+}
+
+// GetCustomer returns the value of Customer.
+func (s *CreateOrderRequest) GetCustomer() CreateOrderRequestCustomer {
+	return s.Customer
+}
+
+// GetWarehouseId returns the value of WarehouseId.
+func (s *CreateOrderRequest) GetWarehouseId() OptUUID {
+	return s.WarehouseId
+}
+
+// GetItems returns the value of Items.
+func (s *CreateOrderRequest) GetItems() []CreateOrderRequestItemsItem {
+	return s.Items
+}
+
+// GetShipAddress returns the value of ShipAddress.
+func (s *CreateOrderRequest) GetShipAddress() ShipAddress {
+	return s.ShipAddress
+}
+
+// GetShippingFee returns the value of ShippingFee.
+func (s *CreateOrderRequest) GetShippingFee() Money {
+	return s.ShippingFee
+}
+
+// SetCustomer sets the value of Customer.
+func (s *CreateOrderRequest) SetCustomer(val CreateOrderRequestCustomer) {
+	s.Customer = val
+}
+
+// SetWarehouseId sets the value of WarehouseId.
+func (s *CreateOrderRequest) SetWarehouseId(val OptUUID) {
+	s.WarehouseId = val
+}
+
+// SetItems sets the value of Items.
+func (s *CreateOrderRequest) SetItems(val []CreateOrderRequestItemsItem) {
+	s.Items = val
+}
+
+// SetShipAddress sets the value of ShipAddress.
+func (s *CreateOrderRequest) SetShipAddress(val ShipAddress) {
+	s.ShipAddress = val
+}
+
+// SetShippingFee sets the value of ShippingFee.
+func (s *CreateOrderRequest) SetShippingFee(val Money) {
+	s.ShippingFee = val
+}
+
+type CreateOrderRequestCustomer struct {
+	FullName string `json:"fullName"`
+}
+
+// GetFullName returns the value of FullName.
+func (s *CreateOrderRequestCustomer) GetFullName() string {
+	return s.FullName
+}
+
+// SetFullName sets the value of FullName.
+func (s *CreateOrderRequestCustomer) SetFullName(val string) {
+	s.FullName = val
+}
+
+type CreateOrderRequestItemsItem struct {
+	VariantId uuid.UUID `json:"variantId"`
+	Qty       int32     `json:"qty"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *CreateOrderRequestItemsItem) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetQty returns the value of Qty.
+func (s *CreateOrderRequestItemsItem) GetQty() int32 {
+	return s.Qty
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *CreateOrderRequestItemsItem) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetQty sets the value of Qty.
+func (s *CreateOrderRequestItemsItem) SetQty(val int32) {
+	s.Qty = val
+}
+
 // Ref: #/components/schemas/CreateProductRequest
 type CreateProductRequest struct {
 	Code        CatalogCode      `json:"code"`
@@ -1096,10 +1195,10 @@ type Error struct {
 	// Mã lỗi máy đọc được.
 	Error     string `json:"error"`
 	RequestID string `json:"request_id"`
-	// Chỉ có ở insufficient_stock — biến thể đầu tiên không đủ hàng.
+	// Chỉ có ở insufficient_stock, out_of_stock — biến thể đầu tiên không đủ hàng.
 	VariantId OptUUID `json:"variantId"`
 	// Chỉ có ở insufficient_stock — số còn làm được của biến thể đó (xuất hàng
-	// lỗi là số hàng lỗi).
+	// lỗi là số hàng lỗi); ở out_of_stock — số có thể bán hiện tại.
 	Available OptInt32 `json:"available"`
 }
 
@@ -1177,6 +1276,7 @@ func (*ErrorStatusCode) cancelStockDocumentRes()       {}
 func (*ErrorStatusCode) completeUploadRes()            {}
 func (*ErrorStatusCode) createAttributeRes()           {}
 func (*ErrorStatusCode) createCategoryRes()            {}
+func (*ErrorStatusCode) createOrderRes()               {}
 func (*ErrorStatusCode) createProductRes()             {}
 func (*ErrorStatusCode) createStaffRes()               {}
 func (*ErrorStatusCode) createStockDocumentRes()       {}
@@ -1185,6 +1285,7 @@ func (*ErrorStatusCode) createTagRes()                 {}
 func (*ErrorStatusCode) createUploadRes()              {}
 func (*ErrorStatusCode) getFileRes()                   {}
 func (*ErrorStatusCode) getMeRes()                     {}
+func (*ErrorStatusCode) getOrderRes()                  {}
 func (*ErrorStatusCode) getPlatformHealthRes()         {}
 func (*ErrorStatusCode) getProductRes()                {}
 func (*ErrorStatusCode) getStockDocumentRes()          {}
@@ -3019,6 +3120,291 @@ func (o OptVariantStatus) Or(d VariantStatus) VariantStatus {
 
 type OptionText string
 
+// Ref: #/components/schemas/Order
+type Order struct {
+	ID          uuid.UUID   `json:"id"`
+	Code        string      `json:"code"`
+	Status      OrderStatus `json:"status"`
+	CustomerId  uuid.UUID   `json:"customerId"`
+	Subtotal    Money       `json:"subtotal"`
+	ShippingFee Money       `json:"shippingFee"`
+	GrandTotal  Money       `json:"grandTotal"`
+	CodAmount   Money       `json:"codAmount"`
+	CreatedAt   time.Time   `json:"createdAt"`
+	Items       []OrderItem `json:"items"`
+}
+
+// GetID returns the value of ID.
+func (s *Order) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCode returns the value of Code.
+func (s *Order) GetCode() string {
+	return s.Code
+}
+
+// GetStatus returns the value of Status.
+func (s *Order) GetStatus() OrderStatus {
+	return s.Status
+}
+
+// GetCustomerId returns the value of CustomerId.
+func (s *Order) GetCustomerId() uuid.UUID {
+	return s.CustomerId
+}
+
+// GetSubtotal returns the value of Subtotal.
+func (s *Order) GetSubtotal() Money {
+	return s.Subtotal
+}
+
+// GetShippingFee returns the value of ShippingFee.
+func (s *Order) GetShippingFee() Money {
+	return s.ShippingFee
+}
+
+// GetGrandTotal returns the value of GrandTotal.
+func (s *Order) GetGrandTotal() Money {
+	return s.GrandTotal
+}
+
+// GetCodAmount returns the value of CodAmount.
+func (s *Order) GetCodAmount() Money {
+	return s.CodAmount
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *Order) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetItems returns the value of Items.
+func (s *Order) GetItems() []OrderItem {
+	return s.Items
+}
+
+// SetID sets the value of ID.
+func (s *Order) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCode sets the value of Code.
+func (s *Order) SetCode(val string) {
+	s.Code = val
+}
+
+// SetStatus sets the value of Status.
+func (s *Order) SetStatus(val OrderStatus) {
+	s.Status = val
+}
+
+// SetCustomerId sets the value of CustomerId.
+func (s *Order) SetCustomerId(val uuid.UUID) {
+	s.CustomerId = val
+}
+
+// SetSubtotal sets the value of Subtotal.
+func (s *Order) SetSubtotal(val Money) {
+	s.Subtotal = val
+}
+
+// SetShippingFee sets the value of ShippingFee.
+func (s *Order) SetShippingFee(val Money) {
+	s.ShippingFee = val
+}
+
+// SetGrandTotal sets the value of GrandTotal.
+func (s *Order) SetGrandTotal(val Money) {
+	s.GrandTotal = val
+}
+
+// SetCodAmount sets the value of CodAmount.
+func (s *Order) SetCodAmount(val Money) {
+	s.CodAmount = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *Order) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetItems sets the value of Items.
+func (s *Order) SetItems(val []OrderItem) {
+	s.Items = val
+}
+
+func (*Order) createOrderRes() {}
+func (*Order) getOrderRes()    {}
+
+// Ref: #/components/schemas/OrderItem
+type OrderItem struct {
+	ID        uuid.UUID `json:"id"`
+	Position  int32     `json:"position"`
+	VariantId uuid.UUID `json:"variantId"`
+	Sku       string    `json:"sku"`
+	Name      string    `json:"name"`
+	Qty       int32     `json:"qty"`
+	UnitPrice Money     `json:"unitPrice"`
+	NetAmount Money     `json:"netAmount"`
+}
+
+// GetID returns the value of ID.
+func (s *OrderItem) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetPosition returns the value of Position.
+func (s *OrderItem) GetPosition() int32 {
+	return s.Position
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *OrderItem) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetSku returns the value of Sku.
+func (s *OrderItem) GetSku() string {
+	return s.Sku
+}
+
+// GetName returns the value of Name.
+func (s *OrderItem) GetName() string {
+	return s.Name
+}
+
+// GetQty returns the value of Qty.
+func (s *OrderItem) GetQty() int32 {
+	return s.Qty
+}
+
+// GetUnitPrice returns the value of UnitPrice.
+func (s *OrderItem) GetUnitPrice() Money {
+	return s.UnitPrice
+}
+
+// GetNetAmount returns the value of NetAmount.
+func (s *OrderItem) GetNetAmount() Money {
+	return s.NetAmount
+}
+
+// SetID sets the value of ID.
+func (s *OrderItem) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetPosition sets the value of Position.
+func (s *OrderItem) SetPosition(val int32) {
+	s.Position = val
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *OrderItem) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetSku sets the value of Sku.
+func (s *OrderItem) SetSku(val string) {
+	s.Sku = val
+}
+
+// SetName sets the value of Name.
+func (s *OrderItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetQty sets the value of Qty.
+func (s *OrderItem) SetQty(val int32) {
+	s.Qty = val
+}
+
+// SetUnitPrice sets the value of UnitPrice.
+func (s *OrderItem) SetUnitPrice(val Money) {
+	s.UnitPrice = val
+}
+
+// SetNetAmount sets the value of NetAmount.
+func (s *OrderItem) SetNetAmount(val Money) {
+	s.NetAmount = val
+}
+
+type OrderStatus string
+
+const (
+	OrderStatusDraft           OrderStatus = "draft"
+	OrderStatusNew             OrderStatus = "new"
+	OrderStatusConfirmed       OrderStatus = "confirmed"
+	OrderStatusCancelRequested OrderStatus = "cancel_requested"
+	OrderStatusCancelled       OrderStatus = "cancelled"
+	OrderStatusDelivered       OrderStatus = "delivered"
+	OrderStatusReturned        OrderStatus = "returned"
+)
+
+// AllValues returns all OrderStatus values.
+func (OrderStatus) AllValues() []OrderStatus {
+	return []OrderStatus{
+		OrderStatusDraft,
+		OrderStatusNew,
+		OrderStatusConfirmed,
+		OrderStatusCancelRequested,
+		OrderStatusCancelled,
+		OrderStatusDelivered,
+		OrderStatusReturned,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s OrderStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case OrderStatusDraft:
+		return []byte(s), nil
+	case OrderStatusNew:
+		return []byte(s), nil
+	case OrderStatusConfirmed:
+		return []byte(s), nil
+	case OrderStatusCancelRequested:
+		return []byte(s), nil
+	case OrderStatusCancelled:
+		return []byte(s), nil
+	case OrderStatusDelivered:
+		return []byte(s), nil
+	case OrderStatusReturned:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *OrderStatus) UnmarshalText(data []byte) error {
+	switch OrderStatus(data) {
+	case OrderStatusDraft:
+		*s = OrderStatusDraft
+		return nil
+	case OrderStatusNew:
+		*s = OrderStatusNew
+		return nil
+	case OrderStatusConfirmed:
+		*s = OrderStatusConfirmed
+		return nil
+	case OrderStatusCancelRequested:
+		*s = OrderStatusCancelRequested
+		return nil
+	case OrderStatusCancelled:
+		*s = OrderStatusCancelled
+		return nil
+	case OrderStatusDelivered:
+		*s = OrderStatusDelivered
+		return nil
+	case OrderStatusReturned:
+		*s = OrderStatusReturned
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/PlatformHealth
 type PlatformHealth struct {
 	Processes []ProcessHealth `json:"processes"`
@@ -3816,6 +4202,43 @@ func (s *SetClassificationRequest) SetAttributeValueIds(val []uuid.UUID) {
 // SetTagIds sets the value of TagIds.
 func (s *SetClassificationRequest) SetTagIds(val []uuid.UUID) {
 	s.TagIds = val
+}
+
+// Ref: #/components/schemas/ShipAddress
+type ShipAddress struct {
+	Name  string `json:"name"`
+	Phone string `json:"phone"`
+	Line  string `json:"line"`
+}
+
+// GetName returns the value of Name.
+func (s *ShipAddress) GetName() string {
+	return s.Name
+}
+
+// GetPhone returns the value of Phone.
+func (s *ShipAddress) GetPhone() string {
+	return s.Phone
+}
+
+// GetLine returns the value of Line.
+func (s *ShipAddress) GetLine() string {
+	return s.Line
+}
+
+// SetName sets the value of Name.
+func (s *ShipAddress) SetName(val string) {
+	s.Name = val
+}
+
+// SetPhone sets the value of Phone.
+func (s *ShipAddress) SetPhone(val string) {
+	s.Phone = val
+}
+
+// SetLine sets the value of Line.
+func (s *ShipAddress) SetLine(val string) {
+	s.Line = val
 }
 
 // Ref: #/components/schemas/StaffGrant

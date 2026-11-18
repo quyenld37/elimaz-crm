@@ -151,7 +151,7 @@ func DefaultSeller(ctx context.Context, tx pgx.Tx) (uuid.UUID, error) {
 func EnsureDefaultSeller(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID) (uuid.UUID, error) {
 	q := store.New(tx)
 	if err := q.InsertSellerIfMissing(ctx, store.InsertSellerIfMissingParams{
-		TenantID: tenantID, Code: DefaultSellerCode, Name: DefaultSellerCode,
+		TenantID: tenantID, Code: DefaultSellerCode, Name: DefaultSellerCode, Kind: "own",
 	}); err != nil {
 		return uuid.Nil, fmt.Errorf("ghi người bán mặc định: %w", err)
 	}

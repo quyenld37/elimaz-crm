@@ -9,7 +9,7 @@ LIMIT 1;
 
 -- name: InsertSellerIfMissing :exec
 INSERT INTO catalog.sellers (tenant_id, code, name, kind)
-VALUES (@tenant_id, @code, @name, 'own')
+VALUES (@tenant_id, @code, @name, @kind)
 ON CONFLICT (tenant_id, code) DO NOTHING;
 
 -- name: GetSellerByCode :one

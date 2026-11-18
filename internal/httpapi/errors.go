@@ -11,8 +11,10 @@ import (
 	"github.com/ogen-go/ogen/validate"
 
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
+	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/idempotency"
@@ -63,6 +65,12 @@ const (
 	codeCategoryInUse   = "category_in_use"
 	codeAlreadyExists   = "already_exists"
 
+	// Đơn (kế hoạch M1 Task M1-30).
+	codeOutOfStock        = "out_of_stock"
+	codeVariantNotForSale = "variant_not_for_sale"
+	codeMixedSellers      = "mixed_sellers"
+	codeTotalOverflow     = "total_overflow"
+
 	// Kho tệp (kế hoạch M1 Task M1-41).
 	codeFileTooLarge          = "file_too_large"
 	codeFileTypeNotAllowed    = "file_type_not_allowed"
@@ -83,7 +91,8 @@ var errForbiddenTarget = errors.New("httpapi: không có quyền trên đích")
 type errorBody struct {
 	Error     string `json:"error"`
 	RequestID string `json:"request_id"`
-	// Chỉ có ở insufficient_stock (Task M1-29): biến thể đầu tiên không đủ và số còn làm được.
+	// Chỉ có ở insufficient_stock (Task M1-29) và out_of_stock (Task M1-30): biến thể đầu tiên không đủ và số còn
+	// làm được (có thể bán).
 	VariantID *string `json:"variantId,omitempty"`
 	Available *int32  `json:"available,omitempty"`
 }
@@ -122,27 +131,7 @@ func writeHandlerError(d Deps, w http.ResponseWriter, r *http.Request, err error
 		writeError(w, r, oe.Code(), codeBadRequest)
 		return
 	}
-	if status, code, ok := identityError(err); ok {
-		writeError(w, r, status, code)
-		return
-	}
-	if status, code, ok := catalogError(err); ok {
-		writeError(w, r, status, code)
-		return
-	}
-	if status, code, ok := filesError(err); ok {
-		writeError(w, r, status, code)
-		return
-	}
-	if ie, ok := errors.AsType[*inventory.InsufficientError](err); ok {
-		vid, avail := ie.VariantID.String(), ie.Available
-		writeErrorBody(w, http.StatusConflict, errorBody{
-			Error: codeInsufficientStock, RequestID: RequestID(r.Context()), VariantID: &vid, Available: &avail,
-		})
-		return
-	}
-	if status, code, ok := inventoryError(err); ok {
-		writeError(w, r, status, code)
+	if writeDomainError(w, r, err) {
 		return
 	}
 	switch {
@@ -175,6 +164,38 @@ func writeHandlerError(d Deps, w http.ResponseWriter, r *http.Request, err error
 			logging.Err(err))
 	}
 	writeError(w, r, http.StatusInternalServerError, codeInternal)
+}
+
+// writeDomainError ghi lỗi nghiệp vụ của các module: thiếu hàng có thân chi tiết (variantId, available), rồi bảng đổi
+// lỗi của từng module. Trả false khi err không phải lỗi nghiệp vụ nào.
+func writeDomainError(w http.ResponseWriter, r *http.Request, err error) bool {
+	if code, vid, avail, ok := stockShortage(err); ok {
+		writeErrorBody(w, http.StatusConflict, errorBody{
+			Error: code, RequestID: RequestID(r.Context()), VariantID: &vid, Available: &avail,
+		})
+		return true
+	}
+	for _, mapErr := range []func(error) (int, string, bool){
+		identityError, catalogError, filesError, orderError, inventoryError,
+	} {
+		if status, code, ok := mapErr(err); ok {
+			writeError(w, r, status, code)
+			return true
+		}
+	}
+	return false
+}
+
+// stockShortage: hết hàng khi lên đơn (out_of_stock, Task M1-30) hay thiếu hàng ở phiếu kho (insufficient_stock, Task
+// M1-29), kèm biến thể đầu tiên không đủ và số còn làm được.
+func stockShortage(err error) (code, variantID string, available int32, ok bool) {
+	if oos, ok := errors.AsType[*order.OutOfStockError](err); ok {
+		return codeOutOfStock, oos.VariantID.String(), oos.Available, true
+	}
+	if ie, ok := errors.AsType[*inventory.InsufficientError](err); ok {
+		return codeInsufficientStock, ie.VariantID.String(), ie.Available, true
+	}
+	return "", "", 0, false
 }
 
 // writeAuthError đổi lỗi của bước xác thực (kiểm thẻ, nạp nhân viên) sang câu trả lời: thẻ sai 401 unauthenticated,
@@ -291,6 +312,31 @@ func inventoryError(err error) (status int, code string, ok bool) {
 		{inventory.ErrSupplierArchived, http.StatusUnprocessableEntity, codeSupplierArchived},
 		{inventory.ErrSupplierNotForKind, http.StatusUnprocessableEntity, codeSupplierNotForKind},
 		{inventory.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
+	} {
+		if errors.Is(err, m.err) {
+			return m.status, m.code, true
+		}
+	}
+	return 0, "", false
+}
+
+// orderError đổi lỗi nghiệp vụ của lần tạo, đọc đơn (và khách tạo kèm) sang mã HTTP. OutOfStockError có thân riêng ở
+// writeHandlerError (kèm variantId, available). ErrDuplicateOrder: khóa nghiệp vụ của đơn đã dùng — cùng nghĩa với khóa
+// yêu cầu dùng lại. ErrNotFound: không có, của người bán hay tenant khác (không cho biết là có).
+func orderError(err error) (status int, code string, ok bool) {
+	for _, m := range []struct {
+		err    error
+		status int
+		code   string
+	}{
+		{order.ErrOutOfStock, http.StatusConflict, codeOutOfStock},
+		{order.ErrNotForSale, http.StatusUnprocessableEntity, codeVariantNotForSale},
+		{order.ErrMixedSellers, http.StatusUnprocessableEntity, codeMixedSellers},
+		{order.ErrTotalOverflow, http.StatusUnprocessableEntity, codeTotalOverflow},
+		{order.ErrDuplicateOrder, http.StatusUnprocessableEntity, codeIdempotencyKeyReused},
+		{order.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
+		{order.ErrNotFound, http.StatusNotFound, codeNotFound},
+		{customer.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

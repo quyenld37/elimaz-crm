@@ -41,7 +41,7 @@ func (q *Queries) GetSellerByCode(ctx context.Context, code string) (uuid.UUID, 
 
 const insertSellerIfMissing = `-- name: InsertSellerIfMissing :exec
 INSERT INTO catalog.sellers (tenant_id, code, name, kind)
-VALUES ($1, $2, $3, 'own')
+VALUES ($1, $2, $3, $4)
 ON CONFLICT (tenant_id, code) DO NOTHING
 `
 
@@ -49,9 +49,15 @@ type InsertSellerIfMissingParams struct {
 	TenantID uuid.UUID
 	Code     string
 	Name     string
+	Kind     string
 }
 
 func (q *Queries) InsertSellerIfMissing(ctx context.Context, arg InsertSellerIfMissingParams) error {
-	_, err := q.db.Exec(ctx, insertSellerIfMissing, arg.TenantID, arg.Code, arg.Name)
+	_, err := q.db.Exec(ctx, insertSellerIfMissing,
+		arg.TenantID,
+		arg.Code,
+		arg.Name,
+		arg.Kind,
+	)
 	return err
 }

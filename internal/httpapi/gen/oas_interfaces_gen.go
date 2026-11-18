@@ -33,6 +33,10 @@ type CreateCategoryRes interface {
 	createCategoryRes()
 }
 
+type CreateOrderRes interface {
+	createOrderRes()
+}
+
 type CreateProductRes interface {
 	createProductRes()
 }
@@ -63,6 +67,10 @@ type GetFileRes interface {
 
 type GetMeRes interface {
 	getMeRes()
+}
+
+type GetOrderRes interface {
+	getOrderRes()
 }
 
 type GetPlatformHealthRes interface {

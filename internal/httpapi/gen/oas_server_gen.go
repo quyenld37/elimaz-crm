@@ -57,6 +57,13 @@ type Handler interface {
 	//
 	// POST /api/v1/catalog/categories
 	CreateCategory(ctx context.Context, req *CreateCategoryRequest, params CreateCategoryParams) (CreateCategoryRes, error)
+	// CreateOrder implements createOrder operation.
+	//
+	// Lên đơn nhập tay (tạo khách mới, đơn ở Đã xác nhận, giữ hàng cùng
+	// transaction).
+	//
+	// POST /api/v1/orders
+	CreateOrder(ctx context.Context, req *CreateOrderRequest, params CreateOrderParams) (CreateOrderRes, error)
 	// CreateProduct implements createProduct operation.
 	//
 	// Tạo mẫu sản phẩm kèm biến thể màu/size (barcode để trống thì CRM tự sinh
@@ -109,6 +116,12 @@ type Handler interface {
 	//
 	// GET /api/v1/me
 	GetMe(ctx context.Context) (GetMeRes, error)
+	// GetOrder implements getOrder operation.
+	//
+	// Một đơn kèm dòng đơn (tên, SKU chụp lúc đặt).
+	//
+	// GET /api/v1/orders/{id}
+	GetOrder(ctx context.Context, params GetOrderParams) (GetOrderRes, error)
 	// GetPlatformHealth implements getPlatformHealth operation.
 	//
 	// Tình trạng tiến trình, hàng đợi, sao lưu, lỗi và cảnh báo 24 giờ.

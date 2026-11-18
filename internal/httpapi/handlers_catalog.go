@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
@@ -59,14 +60,11 @@ func (h *handler) GetProduct(ctx context.Context, params gen.GetProductParams) (
 		return nil, errNoAuthUser
 	}
 	var p catalog.Product
-	err := tenancy.WithTenant(ctx, h.d.DB, u.TenantID, func(tx pgx.Tx) error {
-		seller, err := catalog.DefaultSeller(ctx, tx)
-		if err != nil {
-			return err //nolint:wrapcheck // sentinel của catalog
-		}
+	err := h.readAsDefaultSeller(ctx, u, func(tx pgx.Tx, seller uuid.UUID) error {
+		var err error
 		p, err = catalog.GetProduct(ctx, tx, seller, params.ID)
 		return err //nolint:wrapcheck // sentinel của catalog
-	}, db.TxAPI)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("đọc mẫu: %w", err)
 	}
@@ -471,4 +469,16 @@ func attributeOut(a catalog.Attribute) *gen.Attribute {
 
 func attributeValueOut(v catalog.AttributeValue) *gen.AttributeValue {
 	return &gen.AttributeValue{ID: v.ID, AttributeId: v.AttributeID, Value: v.Value, Position: gen.Position(v.Position)}
+}
+
+// readAsDefaultSeller chạy fn trong một transaction đọc của tenant người gọi với người bán mặc định của shop (đường đọc
+// của màn hình: giao diện không hiện khái niệm người bán, ADR-29).
+func (h *handler) readAsDefaultSeller(ctx context.Context, u identity.AuthUser, fn func(tx pgx.Tx, seller uuid.UUID) error) error {
+	return tenancy.WithTenant(ctx, h.d.DB, u.TenantID, func(tx pgx.Tx) error { //nolint:wrapcheck // lỗi của fn trả nguyên
+		seller, err := catalog.DefaultSeller(ctx, tx)
+		if err != nil {
+			return err //nolint:wrapcheck // sentinel của catalog
+		}
+		return fn(tx, seller)
+	}, db.TxAPI)
 }

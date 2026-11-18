@@ -197,6 +197,23 @@ type CatalogVariantsV struct {
 	UpdatedAt     time.Time
 }
 
+type CustomerCustomer struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	RootID    uuid.UUID
+	FullName  string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Version   int64
+}
+
+type CustomerCustomersV struct {
+	ID        uuid.UUID
+	RootID    uuid.UUID
+	FullName  string
+	CreatedAt time.Time
+}
+
 type IdentityAuditLog struct {
 	ID            uuid.UUID
 	TenantID      uuid.UUID
@@ -385,6 +402,73 @@ type InventoryWarehousesV struct {
 	Code               string
 	Name               string
 	Status             string
+}
+
+type OrdOrder struct {
+	ID                 uuid.UUID
+	TenantID           uuid.UUID
+	SellerID           uuid.UUID
+	Code               string
+	CustomerID         uuid.UUID
+	Channel            string
+	IdempotencyKey     uuid.UUID
+	Status             string
+	CurrentShipmentID  pgtype.UUID
+	ShipAddress        []byte
+	Subtotal           int64
+	DiscountTotal      int64
+	ShippingFeeCharged int64
+	CodAmount          int64
+	GrandTotal         int64
+	CreatedBy          pgtype.UUID
+	CancelReason       pgtype.Text
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	Version            int64
+}
+
+type OrdOrderItem struct {
+	ID                     uuid.UUID
+	TenantID               uuid.UUID
+	SellerID               uuid.UUID
+	OrderID                uuid.UUID
+	Position               int32
+	VariantID              uuid.UUID
+	SkuSnapshot            string
+	NameSnapshot           string
+	Quantity               int32
+	UnitPrice              int64
+	LineDiscount           int64
+	AllocatedOrderDiscount int64
+	NetAmount              int64
+	CreatedAt              time.Time
+}
+
+type OrdOrderStatusHistory struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	OrderID    uuid.UUID
+	FromStatus pgtype.Text
+	ToStatus   string
+	ActorType  string
+	ActorID    pgtype.UUID
+	Reason     pgtype.Text
+	OccurredAt time.Time
+	RecordedAt time.Time
+}
+
+type OrdOrdersV struct {
+	ID                uuid.UUID
+	TenantID          uuid.UUID
+	Code              string
+	SellerID          uuid.UUID
+	CustomerID        uuid.UUID
+	Status            string
+	Channel           string
+	GrandTotal        int64
+	CodAmount         int64
+	CurrentShipmentID pgtype.UUID
+	CreatedAt         time.Time
 }
 
 type PlatformAlertEvent struct {
