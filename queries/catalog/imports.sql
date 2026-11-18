@@ -1,0 +1,50 @@
+-- Bản nhập sản phẩm bằng Excel (kế hoạch M1, Task M1-47). Chạy trong tenancy.WithTenant. Khóa theo ADR-46 nhóm 4:
+-- catalog.imports trước mẫu, biến thể.
+
+-- name: InsertImport :one
+INSERT INTO catalog.imports (tenant_id, file_id, status, seller_id, created_by)
+VALUES (@tenant_id, @file_id, 'validating', @seller_id, @created_by)
+RETURNING id, file_id, seller_id, status, summary, errors, plan, duplicate_of, created_by, version, created_at, updated_at;
+
+-- name: GetImport :one
+SELECT id, file_id, seller_id, status, summary, errors, plan, duplicate_of, created_by, version, created_at, updated_at
+FROM catalog.imports
+WHERE seller_id = @seller_id AND id = @id;
+
+-- name: GetImportForValidation :one
+-- Lệnh kiểm (ngữ cảnh tenant của lệnh, không biết người bán trước): tệp, người bán, trạng thái.
+SELECT file_id, seller_id, status FROM catalog.imports WHERE id = @id;
+
+-- name: LockImport :one
+SELECT id, status FROM catalog.imports WHERE id = @id FOR UPDATE;
+
+-- name: FindAppliedImportBySHA :one
+SELECT id FROM catalog.imports WHERE seller_id = @seller_id AND file_sha256 = @file_sha256 AND status = 'applied';
+
+-- name: FinishValidation :execrows
+-- Ghi kết quả kiểm khi bản nhập còn validating (chạy lại lệnh không ghi đè kết quả đã có).
+UPDATE catalog.imports
+SET status = @status, file_sha256 = @file_sha256, summary = @summary, errors = @errors, plan = sqlc.narg(plan),
+    duplicate_of = sqlc.narg(duplicate_of), version = version + 1, updated_at = now()
+WHERE id = @id AND status = 'validating';
+
+-- name: FailValidation :execrows
+UPDATE catalog.imports
+SET status = 'failed', version = version + 1, updated_at = now()
+WHERE id = @id AND status = 'validating';
+
+-- name: ListVariantsBySKUs :many
+-- Biến thể có sẵn của người bán theo SKU (chỉ SKU có trong tệp nhập), kèm mã mẫu.
+SELECT v.id, v.product_id, p.code AS product_code, v.version, v.sku, v.barcode, v.color, v.color_hex, v.size, v.price,
+       v.cost_price
+FROM catalog.variants AS v
+JOIN catalog.products AS p ON p.id = v.product_id AND p.seller_id = v.seller_id
+WHERE v.seller_id = @seller_id AND v.sku = ANY(@skus::text[]);
+
+-- name: ListVariantsByProductCodes :many
+-- Màu, size, SKU của mọi biến thể thuộc các mẫu chưa xóa có mã trong codes (mã mẫu có trong tệp nhập); mẫu chưa có
+-- biến thể vẫn có một dòng (cột biến thể rỗng).
+SELECT p.id AS product_id, p.code, v.sku, v.color, v.size
+FROM catalog.products AS p
+LEFT JOIN catalog.variants AS v ON v.product_id = p.id AND v.seller_id = p.seller_id
+WHERE p.seller_id = @seller_id AND p.code = ANY(@codes::text[]) AND p.deleted_at IS NULL;

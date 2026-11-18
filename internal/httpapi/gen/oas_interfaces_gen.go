@@ -45,6 +45,10 @@ type CreateAttributeRes interface {
 	createAttributeRes()
 }
 
+type CreateCatalogImportRes interface {
+	createCatalogImportRes()
+}
+
 type CreateCategoryRes interface {
 	createCategoryRes()
 }
@@ -87,6 +91,14 @@ type CreateUploadRes interface {
 
 type DeleteProductImageRes interface {
 	deleteProductImageRes()
+}
+
+type GetCatalogImportRes interface {
+	getCatalogImportRes()
+}
+
+type GetCatalogImportTemplateRes interface {
+	getCatalogImportTemplateRes()
 }
 
 type GetFileRes interface {

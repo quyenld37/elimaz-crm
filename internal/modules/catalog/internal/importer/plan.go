@@ -4,12 +4,25 @@ import "github.com/google/uuid"
 
 // Refs là dữ liệu có sẵn để kiểm tệp, bên gọi đọc trong ngữ cảnh tenant và người bán của lần nhập:
 // Categories theo đường dẫn CategoryPath, Attributes theo tên thuộc tính rồi giá trị, Tags theo mã (chữ thường),
-// ExistingSKUs theo SKU (viết hoa) của người bán.
+// ExistingSKUs theo SKU (viết hoa) của người bán, ExistingProducts theo mã mẫu (viết hoa) của người bán. Bên gọi chỉ
+// cần nạp SKU và mã mẫu có trong tệp.
 type Refs struct {
-	Categories   map[string]uuid.UUID
-	Attributes   map[string]map[string]uuid.UUID
-	Tags         map[string]uuid.UUID
-	ExistingSKUs map[string]ExistingVariant
+	Categories       map[string]uuid.UUID
+	Attributes       map[string]map[string]uuid.UUID
+	Tags             map[string]uuid.UUID
+	ExistingSKUs     map[string]ExistingVariant
+	ExistingProducts map[string]ExistingProduct
+}
+
+// Option là cặp màu, size của một biến thể (đúng chữ như đã lưu).
+type Option struct {
+	Color, Size string
+}
+
+// ExistingProduct là một mẫu đã có trong database: mã và SKU của từng biến thể có sẵn theo màu, size.
+type ExistingProduct struct {
+	ID      uuid.UUID
+	Options map[Option]string
 }
 
 // ExistingVariant là một biến thể đã có trong database (ColorHex rỗng là không có; CostPrice nil là không có).
@@ -39,7 +52,8 @@ type Plan struct {
 }
 
 // PlannedProduct là một mẫu theo thứ tự xuất hiện trong tệp. Status rỗng là cột trống (mẫu mới: draft; mẫu có sẵn:
-// giữ nguyên). ExistingProductID có khi một SKU của mẫu đã có trong Refs.ExistingSKUs. AttributeValueIDs, TagIDs
+// giữ nguyên). ExistingProductID có khi mã mẫu có trong Refs.ExistingProducts hay một SKU của mẫu đã có trong
+// Refs.ExistingSKUs. AttributeValueIDs, TagIDs
 // không trùng, tăng dần.
 type PlannedProduct struct {
 	Code              string           `json:"code"`

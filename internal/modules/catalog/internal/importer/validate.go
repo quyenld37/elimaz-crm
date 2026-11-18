@@ -66,6 +66,7 @@ func Validate(rows []xlsx.Row, refs Refs) (Plan, []RowError) {
 	}
 	groups := v.group(lines)
 	v.checkSKUs(lines)
+	v.checkExistingOptions(lines)
 	if len(v.errs) > 0 {
 		sortErrors(v.errs)
 		return Plan{}, v.errs
@@ -350,6 +351,28 @@ func (v *validator) checkBarcode(l *line, barcodeRow map[string]int, barcodeSKU 
 	}
 }
 
+// checkExistingOptions: biến thể của mẫu có sẵn không được lấy màu, size đang thuộc một biến thể có sẵn khác của mẫu
+// đó, trừ khi biến thể kia cũng có trong tệp (nó được sửa sang màu, size khác hay giữ nguyên chỗ của mình).
+func (v *validator) checkExistingOptions(lines []*line) {
+	inFile := make(map[string]bool, len(lines))
+	for _, l := range lines {
+		if l.variant.SKU != "" {
+			inFile[l.variant.SKU] = true
+		}
+	}
+	for _, l := range lines {
+		ex, ok := v.refs.ExistingProducts[l.code]
+		if !ok || l.code == "" || l.variant.SKU == "" || l.bad[ColColor] || l.bad[ColSize] || l.bad[ColSKU] {
+			continue
+		}
+		owner, taken := ex.Options[Option{Color: l.variant.Color, Size: l.variant.Size}]
+		if taken && owner != l.variant.SKU && !inFile[owner] {
+			v.fail(l, ColSize, CodeOptionTaken, fmt.Sprintf("Mẫu %s đã có SKU %s cùng màu%s và size%s", l.code, owner,
+				quoted(l.variant.Color), quoted(l.variant.Size)))
+		}
+	}
+}
+
 // plan dựng kế hoạch của tệp không lỗi.
 func (v *validator) plan(groups [][]*line) Plan {
 	out := Plan{Products: make([]PlannedProduct, 0, len(groups))}
@@ -357,6 +380,10 @@ func (v *validator) plan(groups [][]*line) Plan {
 		p := g[0].product
 		p.Code = g[0].code
 		p.Variants = make([]PlannedVariant, 0, len(g))
+		if ex, ok := v.refs.ExistingProducts[p.Code]; ok {
+			pid := ex.ID
+			p.ExistingProductID = &pid
+		}
 		for _, l := range g {
 			pv := l.variant
 			pv.Action = ActionCreate

@@ -23,6 +23,7 @@ const (
 	CodeDuplicateSKUInFile        = "duplicate_sku_in_file"
 	CodeSKUBelongsToOtherProduct  = "sku_belongs_to_other_product"
 	CodeDuplicateOptionInFile     = "duplicate_option_in_file"
+	CodeOptionTaken               = "option_taken" // cùng màu, size với biến thể có sẵn không có trong tệp (thêm)
 	CodeUnknownCategory           = "unknown_category"
 	CodeUnknownAttributeValue     = "unknown_attribute_value"
 	CodeUnknownTag                = "unknown_tag"

@@ -703,6 +703,67 @@ paths:
                 $ref: "#/components/schemas/SignedUrl"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/catalog/imports:
+    post:
+      operationId: createCatalogImport
+      summary: Tạo bản nhập sản phẩm từ tệp Excel đã tải lên (mục đích catalog_import); kiểm chạy nền
+      description: >-
+        Tạo bản nhập ở trạng thái validating và xếp lệnh kiểm tệp (catalog.import.validate); đọc kết quả bằng
+        getCatalogImport. Tệp không có, của shop khác, đã xóa → 404 not_found; sai mục đích hay chưa tải lên xong → 409
+        file_not_ready. Bước áp dụng ở applyCatalogImport (Task M1-47b).
+      x-permission: catalog.import
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCatalogImportRequest"
+      responses:
+        "202":
+          description: Bản nhập vừa tạo (validating)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogImport"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/imports/template:
+    get:
+      operationId: getCatalogImportTemplate
+      summary: Tải tệp mẫu Excel sản phẩm (cột của mẫu, cột thuộc tính đang có, danh sách chọn danh mục và trạng thái)
+      x-permission: catalog.import
+      responses:
+        "200":
+          description: Tệp .xlsx
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/catalog/imports/{id}:
+    get:
+      operationId: getCatalogImport
+      summary: Trạng thái, tóm tắt và lỗi từng dòng của một bản nhập
+      x-permission: catalog.import
+      parameters:
+        - $ref: "#/components/parameters/ImportID"
+      responses:
+        "200":
+          description: Bản nhập
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogImport"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/catalog/variants/search:
     get:
       operationId: searchVariants
@@ -1507,6 +1568,13 @@ components:
       schema:
         type: string
         format: uuid
+    ImportID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     ImageID:
       name: imageId
       in: path
@@ -1917,6 +1985,89 @@ components:
           type: string
         label:
           type: string
+    CreateCatalogImportRequest:
+      type: object
+      additionalProperties: false
+      required: [fileId]
+      properties:
+        fileId:
+          type: string
+          format: uuid
+          description: Tệp .xlsx đã tải lên bằng createUpload (purpose catalog_import) và completeUpload
+    CatalogImport:
+      type: object
+      required: [id, fileId, status, summary, errors, version, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fileId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [validating, invalid, ready, applying, applied, duplicate, failed]
+          description: >-
+            validating: đang kiểm; invalid: có lỗi (errors); ready: xem trước được (summary), chờ áp dụng; duplicate:
+            tệp cùng nội dung đã được áp (duplicateOf); failed: không đọc được tệp hay áp thất bại
+        summary:
+          $ref: "#/components/schemas/CatalogImportSummary"
+        errors:
+          type: array
+          description: Lỗi theo dòng, xếp theo dòng rồi cột (tối đa 1.000; tổng số ở summary.errors)
+          items:
+            $ref: "#/components/schemas/CatalogImportError"
+        duplicateOf:
+          type: string
+          format: uuid
+          description: Bản nhập đã áp cùng tệp (chỉ khi duplicate)
+        version:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+    CatalogImportSummary:
+      type: object
+      required: [models, create, update, unchanged]
+      properties:
+        models:
+          type: integer
+          format: int32
+          description: Số mẫu trong tệp (ready)
+        create:
+          type: integer
+          format: int32
+          description: Số biến thể sẽ tạo
+        update:
+          type: integer
+          format: int32
+          description: Số biến thể có sẵn sẽ sửa
+        unchanged:
+          type: integer
+          format: int32
+          description: Số biến thể có sẵn giữ nguyên
+        errors:
+          type: integer
+          format: int32
+          description: Tổng số lỗi (invalid)
+    CatalogImportError:
+      type: object
+      required: [row, column, code, message]
+      properties:
+        row:
+          type: integer
+          format: int32
+          description: Dòng Excel (0 là lỗi của cả tệp)
+        column:
+          type: string
+          description: Tiêu đề cột (rỗng là lỗi của cả dòng hay cả tệp)
+        code:
+          type: string
+          description: Mã lỗi (missing_required, invalid_price, …, file_not_xlsx, header_mismatch)
+        message:
+          type: string
+          description: Câu tiếng Việt cho nhân viên; không chép nội dung ô dài quá 50 ký tự
     RegenerateImagesRequest:
       type: object
       additionalProperties: false

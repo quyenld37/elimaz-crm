@@ -787,6 +787,301 @@ type Barcode string
 
 type CatalogCode string
 
+// Ref: #/components/schemas/CatalogImport
+type CatalogImport struct {
+	ID     uuid.UUID `json:"id"`
+	FileId uuid.UUID `json:"fileId"`
+	// Validating: đang kiểm; invalid: có lỗi (errors); ready: xem trước được (summary), chờ
+	// áp dụng; duplicate: tệp cùng nội dung đã được áp (duplicateOf); failed: không đọc
+	// được tệp hay áp thất bại.
+	Status  CatalogImportStatus  `json:"status"`
+	Summary CatalogImportSummary `json:"summary"`
+	// Lỗi theo dòng, xếp theo dòng rồi cột (tối đa 1.000; tổng số ở summary.errors).
+	Errors []CatalogImportError `json:"errors"`
+	// Bản nhập đã áp cùng tệp (chỉ khi duplicate).
+	DuplicateOf OptUUID   `json:"duplicateOf"`
+	Version     int64     `json:"version"`
+	CreatedAt   time.Time `json:"createdAt"`
+}
+
+// GetID returns the value of ID.
+func (s *CatalogImport) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetFileId returns the value of FileId.
+func (s *CatalogImport) GetFileId() uuid.UUID {
+	return s.FileId
+}
+
+// GetStatus returns the value of Status.
+func (s *CatalogImport) GetStatus() CatalogImportStatus {
+	return s.Status
+}
+
+// GetSummary returns the value of Summary.
+func (s *CatalogImport) GetSummary() CatalogImportSummary {
+	return s.Summary
+}
+
+// GetErrors returns the value of Errors.
+func (s *CatalogImport) GetErrors() []CatalogImportError {
+	return s.Errors
+}
+
+// GetDuplicateOf returns the value of DuplicateOf.
+func (s *CatalogImport) GetDuplicateOf() OptUUID {
+	return s.DuplicateOf
+}
+
+// GetVersion returns the value of Version.
+func (s *CatalogImport) GetVersion() int64 {
+	return s.Version
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *CatalogImport) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetID sets the value of ID.
+func (s *CatalogImport) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetFileId sets the value of FileId.
+func (s *CatalogImport) SetFileId(val uuid.UUID) {
+	s.FileId = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CatalogImport) SetStatus(val CatalogImportStatus) {
+	s.Status = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *CatalogImport) SetSummary(val CatalogImportSummary) {
+	s.Summary = val
+}
+
+// SetErrors sets the value of Errors.
+func (s *CatalogImport) SetErrors(val []CatalogImportError) {
+	s.Errors = val
+}
+
+// SetDuplicateOf sets the value of DuplicateOf.
+func (s *CatalogImport) SetDuplicateOf(val OptUUID) {
+	s.DuplicateOf = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CatalogImport) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *CatalogImport) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+func (*CatalogImport) createCatalogImportRes() {}
+func (*CatalogImport) getCatalogImportRes()    {}
+
+// Ref: #/components/schemas/CatalogImportError
+type CatalogImportError struct {
+	// Dòng Excel (0 là lỗi của cả tệp).
+	Row int32 `json:"row"`
+	// Tiêu đề cột (rỗng là lỗi của cả dòng hay cả tệp).
+	Column string `json:"column"`
+	// Mã lỗi (missing_required, invalid_price, …, file_not_xlsx, header_mismatch).
+	Code string `json:"code"`
+	// Câu tiếng Việt cho nhân viên; không chép nội dung ô dài quá 50 ký tự.
+	Message string `json:"message"`
+}
+
+// GetRow returns the value of Row.
+func (s *CatalogImportError) GetRow() int32 {
+	return s.Row
+}
+
+// GetColumn returns the value of Column.
+func (s *CatalogImportError) GetColumn() string {
+	return s.Column
+}
+
+// GetCode returns the value of Code.
+func (s *CatalogImportError) GetCode() string {
+	return s.Code
+}
+
+// GetMessage returns the value of Message.
+func (s *CatalogImportError) GetMessage() string {
+	return s.Message
+}
+
+// SetRow sets the value of Row.
+func (s *CatalogImportError) SetRow(val int32) {
+	s.Row = val
+}
+
+// SetColumn sets the value of Column.
+func (s *CatalogImportError) SetColumn(val string) {
+	s.Column = val
+}
+
+// SetCode sets the value of Code.
+func (s *CatalogImportError) SetCode(val string) {
+	s.Code = val
+}
+
+// SetMessage sets the value of Message.
+func (s *CatalogImportError) SetMessage(val string) {
+	s.Message = val
+}
+
+// Validating: đang kiểm; invalid: có lỗi (errors); ready: xem trước được (summary), chờ
+// áp dụng; duplicate: tệp cùng nội dung đã được áp (duplicateOf); failed: không đọc
+// được tệp hay áp thất bại.
+type CatalogImportStatus string
+
+const (
+	CatalogImportStatusValidating CatalogImportStatus = "validating"
+	CatalogImportStatusInvalid    CatalogImportStatus = "invalid"
+	CatalogImportStatusReady      CatalogImportStatus = "ready"
+	CatalogImportStatusApplying   CatalogImportStatus = "applying"
+	CatalogImportStatusApplied    CatalogImportStatus = "applied"
+	CatalogImportStatusDuplicate  CatalogImportStatus = "duplicate"
+	CatalogImportStatusFailed     CatalogImportStatus = "failed"
+)
+
+// AllValues returns all CatalogImportStatus values.
+func (CatalogImportStatus) AllValues() []CatalogImportStatus {
+	return []CatalogImportStatus{
+		CatalogImportStatusValidating,
+		CatalogImportStatusInvalid,
+		CatalogImportStatusReady,
+		CatalogImportStatusApplying,
+		CatalogImportStatusApplied,
+		CatalogImportStatusDuplicate,
+		CatalogImportStatusFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CatalogImportStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CatalogImportStatusValidating:
+		return []byte(s), nil
+	case CatalogImportStatusInvalid:
+		return []byte(s), nil
+	case CatalogImportStatusReady:
+		return []byte(s), nil
+	case CatalogImportStatusApplying:
+		return []byte(s), nil
+	case CatalogImportStatusApplied:
+		return []byte(s), nil
+	case CatalogImportStatusDuplicate:
+		return []byte(s), nil
+	case CatalogImportStatusFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CatalogImportStatus) UnmarshalText(data []byte) error {
+	switch CatalogImportStatus(data) {
+	case CatalogImportStatusValidating:
+		*s = CatalogImportStatusValidating
+		return nil
+	case CatalogImportStatusInvalid:
+		*s = CatalogImportStatusInvalid
+		return nil
+	case CatalogImportStatusReady:
+		*s = CatalogImportStatusReady
+		return nil
+	case CatalogImportStatusApplying:
+		*s = CatalogImportStatusApplying
+		return nil
+	case CatalogImportStatusApplied:
+		*s = CatalogImportStatusApplied
+		return nil
+	case CatalogImportStatusDuplicate:
+		*s = CatalogImportStatusDuplicate
+		return nil
+	case CatalogImportStatusFailed:
+		*s = CatalogImportStatusFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CatalogImportSummary
+type CatalogImportSummary struct {
+	// Số mẫu trong tệp (ready).
+	Models int32 `json:"models"`
+	// Số biến thể sẽ tạo.
+	Create int32 `json:"create"`
+	// Số biến thể có sẵn sẽ sửa.
+	Update int32 `json:"update"`
+	// Số biến thể có sẵn giữ nguyên.
+	Unchanged int32 `json:"unchanged"`
+	// Tổng số lỗi (invalid).
+	Errors OptInt32 `json:"errors"`
+}
+
+// GetModels returns the value of Models.
+func (s *CatalogImportSummary) GetModels() int32 {
+	return s.Models
+}
+
+// GetCreate returns the value of Create.
+func (s *CatalogImportSummary) GetCreate() int32 {
+	return s.Create
+}
+
+// GetUpdate returns the value of Update.
+func (s *CatalogImportSummary) GetUpdate() int32 {
+	return s.Update
+}
+
+// GetUnchanged returns the value of Unchanged.
+func (s *CatalogImportSummary) GetUnchanged() int32 {
+	return s.Unchanged
+}
+
+// GetErrors returns the value of Errors.
+func (s *CatalogImportSummary) GetErrors() OptInt32 {
+	return s.Errors
+}
+
+// SetModels sets the value of Models.
+func (s *CatalogImportSummary) SetModels(val int32) {
+	s.Models = val
+}
+
+// SetCreate sets the value of Create.
+func (s *CatalogImportSummary) SetCreate(val int32) {
+	s.Create = val
+}
+
+// SetUpdate sets the value of Update.
+func (s *CatalogImportSummary) SetUpdate(val int32) {
+	s.Update = val
+}
+
+// SetUnchanged sets the value of Unchanged.
+func (s *CatalogImportSummary) SetUnchanged(val int32) {
+	s.Unchanged = val
+}
+
+// SetErrors sets the value of Errors.
+func (s *CatalogImportSummary) SetErrors(val OptInt32) {
+	s.Errors = val
+}
+
 // Ref: #/components/schemas/Category
 type Category struct {
 	ID uuid.UUID `json:"id"`
@@ -968,6 +1263,22 @@ func (s *CreateAttributeRequest) SetName(val ClassName) {
 // SetPosition sets the value of Position.
 func (s *CreateAttributeRequest) SetPosition(val OptPosition) {
 	s.Position = val
+}
+
+// Ref: #/components/schemas/CreateCatalogImportRequest
+type CreateCatalogImportRequest struct {
+	// Tệp .xlsx đã tải lên bằng createUpload (purpose catalog_import) và completeUpload.
+	FileId uuid.UUID `json:"fileId"`
+}
+
+// GetFileId returns the value of FileId.
+func (s *CreateCatalogImportRequest) GetFileId() uuid.UUID {
+	return s.FileId
+}
+
+// SetFileId sets the value of FileId.
+func (s *CreateCatalogImportRequest) SetFileId(val uuid.UUID) {
+	s.FileId = val
 }
 
 // Ref: #/components/schemas/CreateCategoryRequest
@@ -1606,6 +1917,7 @@ func (*ErrorStatusCode) cancelStockDocumentRes()       {}
 func (*ErrorStatusCode) cancelStocktakeRes()           {}
 func (*ErrorStatusCode) completeUploadRes()            {}
 func (*ErrorStatusCode) createAttributeRes()           {}
+func (*ErrorStatusCode) createCatalogImportRes()       {}
 func (*ErrorStatusCode) createCategoryRes()            {}
 func (*ErrorStatusCode) createOrderRes()               {}
 func (*ErrorStatusCode) createProductRes()             {}
@@ -1617,6 +1929,8 @@ func (*ErrorStatusCode) createSupplierRes()            {}
 func (*ErrorStatusCode) createTagRes()                 {}
 func (*ErrorStatusCode) createUploadRes()              {}
 func (*ErrorStatusCode) deleteProductImageRes()        {}
+func (*ErrorStatusCode) getCatalogImportRes()          {}
+func (*ErrorStatusCode) getCatalogImportTemplateRes()  {}
 func (*ErrorStatusCode) getFileRes()                   {}
 func (*ErrorStatusCode) getMeRes()                     {}
 func (*ErrorStatusCode) getOrderRes()                  {}
@@ -1981,6 +2295,48 @@ func (s *FileVariantFormat) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+type GetCatalogImportTemplateOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GetCatalogImportTemplateOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+// GetCatalogImportTemplateOKHeaders wraps GetCatalogImportTemplateOK with response headers.
+type GetCatalogImportTemplateOKHeaders struct {
+	ContentDisposition OptString
+	Response           GetCatalogImportTemplateOK
+}
+
+// GetContentDisposition returns the value of ContentDisposition.
+func (s *GetCatalogImportTemplateOKHeaders) GetContentDisposition() OptString {
+	return s.ContentDisposition
+}
+
+// GetResponse returns the value of Response.
+func (s *GetCatalogImportTemplateOKHeaders) GetResponse() GetCatalogImportTemplateOK {
+	return s.Response
+}
+
+// SetContentDisposition sets the value of ContentDisposition.
+func (s *GetCatalogImportTemplateOKHeaders) SetContentDisposition(val OptString) {
+	s.ContentDisposition = val
+}
+
+// SetResponse sets the value of Response.
+func (s *GetCatalogImportTemplateOKHeaders) SetResponse(val GetCatalogImportTemplateOK) {
+	s.Response = val
+}
+
+func (*GetCatalogImportTemplateOKHeaders) getCatalogImportTemplateRes() {}
 
 // Ref: #/components/schemas/Grant
 type Grant struct {

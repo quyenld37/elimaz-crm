@@ -467,9 +467,13 @@ func TestReadStructureMismatch(t *testing.T) {
 		// công thức.
 		"quan hệ officeDocument lồng": {evilBook(`<X><Relationship Id="rId0" ` + officeDoc + ` Target="xl/workbook.xml"/></X>` +
 			`<Relationship Id="rId1" ` + officeDoc + ` Target="evil/workbook.xml"/>`), xlsx.ErrNotXlsx},
-		"id của hai namespace quan hệ": {append(replaced(base, "xl/workbook.xml", wbHead[:len(wbHead)-1]+
+		// Ghi chú cuối của reviewer Task 38: rId2 có thật trong quan hệ của sổ (trỏ trang có công thức), để ca này chỉ
+		// xanh nhờ relID từ chối thẻ <sheet> có id của hai namespace, không nhờ excelize báo lỗi quan hệ thiếu.
+		"id của hai namespace quan hệ": {append(replaced(replaced(base, "xl/workbook.xml", wbHead[:len(wbHead)-1]+
 			` xmlns:s="http://purl.oclc.org/ooxml/officeDocument/relationships">`+
 			`<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1" s:id="rId2"/></sheets></workbook>`),
+			"xl/_rels/workbook.xml.rels", relsHead+`<Relationship Id="rId1" `+sheetRel+` Target="worksheets/sheet1.xml"/>`+
+				`<Relationship Id="rId2" `+sheetRel+` Target="worksheets/sheet2.xml"/></Relationships>`),
 			part{"xl/worksheets/sheet2.xml", evil}), xlsx.ErrNotXlsx},
 		"trang lớn không đuôi .xml": {append(slices.Clone(base), part{"xl/worksheets/data.bin", far}), xlsx.ErrTooLarge},
 	} {

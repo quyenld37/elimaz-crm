@@ -217,6 +217,7 @@ func PrivateVariantKey(tenantID, fileID uuid.UUID, preset, width int, format str
 func ProcessKind() queue.Kind
 func ProcessPrivateKind() queue.Kind
 func PublicVariants(ctx context.Context, tx pgx.Tx, fileIDs []uuid.UUID, baseURL string) (map[uuid.UUID][]VariantURL, error)
+func ReadContent(ctx context.Context, d *db.DB, fs FileStore, tenantID, fileID uuid.UUID, purpose string, maxBytes int64) ([]byte, error)
 func RegenerateKind() queue.Kind
 func Register(ctx context.Context, tx pgx.Tx, f NewFile) (uuid.UUID, error)
 func RegisterPrivateImage(ctx context.Context, tx pgx.Tx, q queue.JobQueue, in NewPrivateImage) (uuid.UUID, error)

@@ -146,6 +146,75 @@ export type PermissionInfo = {
     label: string;
 };
 
+export type CreateCatalogImportRequest = {
+    /**
+     * Tệp .xlsx đã tải lên bằng createUpload (purpose catalog_import) và completeUpload
+     */
+    fileId: string;
+};
+
+export type CatalogImport = {
+    id: string;
+    fileId: string;
+    /**
+     * validating: đang kiểm; invalid: có lỗi (errors); ready: xem trước được (summary), chờ áp dụng; duplicate: tệp cùng nội dung đã được áp (duplicateOf); failed: không đọc được tệp hay áp thất bại
+     */
+    status: 'validating' | 'invalid' | 'ready' | 'applying' | 'applied' | 'duplicate' | 'failed';
+    summary: CatalogImportSummary;
+    /**
+     * Lỗi theo dòng, xếp theo dòng rồi cột (tối đa 1.000; tổng số ở summary.errors)
+     */
+    errors: Array<CatalogImportError>;
+    /**
+     * Bản nhập đã áp cùng tệp (chỉ khi duplicate)
+     */
+    duplicateOf?: string;
+    version: number;
+    createdAt: string;
+};
+
+export type CatalogImportSummary = {
+    /**
+     * Số mẫu trong tệp (ready)
+     */
+    models: number;
+    /**
+     * Số biến thể sẽ tạo
+     */
+    create: number;
+    /**
+     * Số biến thể có sẵn sẽ sửa
+     */
+    update: number;
+    /**
+     * Số biến thể có sẵn giữ nguyên
+     */
+    unchanged: number;
+    /**
+     * Tổng số lỗi (invalid)
+     */
+    errors?: number;
+};
+
+export type CatalogImportError = {
+    /**
+     * Dòng Excel (0 là lỗi của cả tệp)
+     */
+    row: number;
+    /**
+     * Tiêu đề cột (rỗng là lỗi của cả dòng hay cả tệp)
+     */
+    column: string;
+    /**
+     * Mã lỗi (missing_required, invalid_price, …, file_not_xlsx, header_mismatch)
+     */
+    code: string;
+    /**
+     * Câu tiếng Việt cho nhân viên; không chép nội dung ô dài quá 50 ký tự
+     */
+    message: string;
+};
+
 export type RegenerateImagesRequest = {
     /**
      * Bản bộ kích thước (như IMAGE_PRESET_VERSION); chưa có trong bảng của máy chủ → 422 unknown_preset
@@ -887,6 +956,8 @@ export type RoleId = string;
 export type StaffId = string;
 
 export type ProductId = string;
+
+export type ImportId = string;
 
 export type ImageId = string;
 
@@ -1912,6 +1983,89 @@ export type GetOriginalImageUrlResponses = {
 };
 
 export type GetOriginalImageUrlResponse = GetOriginalImageUrlResponses[keyof GetOriginalImageUrlResponses];
+
+export type CreateCatalogImportData = {
+    body: CreateCatalogImportRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/catalog/imports';
+};
+
+export type CreateCatalogImportErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateCatalogImportError = CreateCatalogImportErrors[keyof CreateCatalogImportErrors];
+
+export type CreateCatalogImportResponses = {
+    /**
+     * Bản nhập vừa tạo (validating)
+     */
+    202: CatalogImport;
+};
+
+export type CreateCatalogImportResponse = CreateCatalogImportResponses[keyof CreateCatalogImportResponses];
+
+export type GetCatalogImportTemplateData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/catalog/imports/template';
+};
+
+export type GetCatalogImportTemplateErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetCatalogImportTemplateError = GetCatalogImportTemplateErrors[keyof GetCatalogImportTemplateErrors];
+
+export type GetCatalogImportTemplateResponses = {
+    /**
+     * Tệp .xlsx
+     */
+    200: Blob | File;
+};
+
+export type GetCatalogImportTemplateResponse = GetCatalogImportTemplateResponses[keyof GetCatalogImportTemplateResponses];
+
+export type GetCatalogImportData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/catalog/imports/{id}';
+};
+
+export type GetCatalogImportErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetCatalogImportError = GetCatalogImportErrors[keyof GetCatalogImportErrors];
+
+export type GetCatalogImportResponses = {
+    /**
+     * Bản nhập
+     */
+    200: CatalogImport;
+};
+
+export type GetCatalogImportResponse = GetCatalogImportResponses[keyof GetCatalogImportResponses];
 
 export type SearchVariantsData = {
     body?: never;

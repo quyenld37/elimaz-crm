@@ -1133,6 +1133,108 @@ func (s *Server) handleCreateAttributeRequest(args [0]string, argsEscaped bool, 
 	}
 }
 
+// handleCreateCatalogImportRequest handles createCatalogImport operation.
+//
+// Tạo bản nhập ở trạng thái validating và xếp lệnh kiểm tệp
+// (catalog.import.validate); đọc kết quả bằng getCatalogImport. Tệp không có, của shop
+// khác, đã xóa → 404 not_found; sai mục đích hay chưa tải lên xong → 409
+// file_not_ready. Bước áp dụng ở applyCatalogImport (Task M1-47b).
+//
+// POST /api/v1/catalog/imports
+func (s *Server) handleCreateCatalogImportRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CreateCatalogImportOperation,
+			ID:   "createCatalogImport",
+		}
+	)
+	params, err := decodeCreateCatalogImportParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateCatalogImportRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response CreateCatalogImportRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CreateCatalogImportOperation,
+			OperationSummary: "Tạo bản nhập sản phẩm từ tệp Excel đã tải lên (mục đích catalog_import); kiểm chạy nền",
+			OperationID:      "createCatalogImport",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *CreateCatalogImportRequest
+			Params   = CreateCatalogImportParams
+			Response = CreateCatalogImportRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCreateCatalogImportParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CreateCatalogImport(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CreateCatalogImport(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCreateCatalogImportResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleCreateCategoryRequest handles createCategory operation.
 //
 // Tạo danh mục (tối đa 3 cấp; slug để trống thì sinh từ tên).
@@ -2218,6 +2320,156 @@ func (s *Server) handleDeleteProductImageRequest(args [2]string, argsEscaped boo
 	}
 
 	if err := encodeDeleteProductImageResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetCatalogImportRequest handles getCatalogImport operation.
+//
+// Trạng thái, tóm tắt và lỗi từng dòng của một bản nhập.
+//
+// GET /api/v1/catalog/imports/{id}
+func (s *Server) handleGetCatalogImportRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetCatalogImportOperation,
+			ID:   "getCatalogImport",
+		}
+	)
+	params, err := decodeGetCatalogImportParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetCatalogImportRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetCatalogImportOperation,
+			OperationSummary: "Trạng thái, tóm tắt và lỗi từng dòng của một bản nhập",
+			OperationID:      "getCatalogImport",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetCatalogImportParams
+			Response = GetCatalogImportRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetCatalogImportParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetCatalogImport(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetCatalogImport(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetCatalogImportResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetCatalogImportTemplateRequest handles getCatalogImportTemplate operation.
+//
+// Tải tệp mẫu Excel sản phẩm (cột của mẫu, cột thuộc tính đang có, danh sách
+// chọn danh mục và trạng thái).
+//
+// GET /api/v1/catalog/imports/template
+func (s *Server) handleGetCatalogImportTemplateRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response GetCatalogImportTemplateRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetCatalogImportTemplateOperation,
+			OperationSummary: "Tải tệp mẫu Excel sản phẩm (cột của mẫu, cột thuộc tính đang có, danh sách chọn danh mục và trạng thái)",
+			OperationID:      "getCatalogImportTemplate",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = GetCatalogImportTemplateRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetCatalogImportTemplate(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetCatalogImportTemplate(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetCatalogImportTemplateResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

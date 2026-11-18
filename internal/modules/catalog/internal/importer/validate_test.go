@@ -388,3 +388,62 @@ func TestTemplateRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+// existingAO01 là mẫu AO01 có sẵn với hai biến thể Trắng/M (AO01-OLD-M), Trắng/L (AO01-OLD-L).
+func existingAO01() (importer.Refs, uuid.UUID) {
+	pid := uuid.NewSHA1(uuid.NameSpaceOID, []byte("product:AO01"))
+	refs := fixtureRefs()
+	refs.ExistingProducts = map[string]importer.ExistingProduct{
+		"AO01": {ID: pid, Options: map[importer.Option]string{{Color: "Trắng", Size: "M"}: "AO01-OLD-M", {Color: "Trắng", Size: "L"}: "AO01-OLD-L"}},
+	}
+	refs.ExistingSKUs = map[string]importer.ExistingVariant{}
+	for o, sku := range refs.ExistingProducts["AO01"].Options {
+		refs.ExistingSKUs[sku] = importer.ExistingVariant{
+			ID: uuid.NewSHA1(uuid.NameSpaceOID, []byte(sku)), ProductID: pid, ProductCode: "AO01", Version: 1,
+			Barcode: "BC-" + o.Size, Color: o.Color, Size: o.Size, Price: 350000,
+		}
+	}
+	return refs, pid
+}
+
+// Việc treo (2) của Task 38: biến thể mới trùng màu và size với biến thể có sẵn không nằm trong tệp → option_taken;
+// biến thể có sẵn nằm trong tệp (đổi sang màu, size khác) thì nhường chỗ được.
+func TestValidate_OptionTakenByExistingVariant(t *testing.T) {
+	refs, _ := existingAO01()
+	_, errs := importer.Validate([]xlsx.Row{row(2, map[string]string{"SKU*": "AO01-NEW-M"})}, refs)
+	if want := []string{"2:Size*:option_taken"}; !slices.Equal(codes(errs), want) {
+		t.Fatalf("trùng biến thể có sẵn: %v, mong %v", codes(errs), want)
+	}
+	if !strings.Contains(errs[0].Message, "AO01-OLD-M") {
+		t.Errorf("lời báo không nói SKU đang giữ màu, size: %q", errs[0].Message)
+	}
+	// AO01-OLD-M chuyển sang size XL trong cùng tệp: AO01-NEW-M lấy được Trắng/M.
+	plan, errs := importer.Validate([]xlsx.Row{
+		row(2, map[string]string{"SKU*": "AO01-NEW-M"}),
+		row(3, map[string]string{"SKU*": "AO01-OLD-M", "Size*": "XL"}),
+	}, refs)
+	if len(errs) > 0 {
+		t.Fatalf("nhường chỗ trong tệp: %v", codes(errs))
+	}
+	if got := plan.Products[0].Variants[1].Action; got != importer.ActionUpdate {
+		t.Errorf("AO01-OLD-M: %s, mong update", got)
+	}
+	// Mẫu khác cùng màu, size: không liên quan.
+	if _, errs := importer.Validate([]xlsx.Row{row(2, map[string]string{"Mã mẫu*": "AO02", "SKU*": "AO02-M"})}, refs); len(errs) > 0 {
+		t.Fatalf("mẫu khác: %v", codes(errs))
+	}
+}
+
+// Mẫu có sẵn (theo mã) mà mọi SKU trong tệp đều mới vẫn có ExistingProductID: Task 323 thêm biến thể vào mẫu đó thay
+// cho tạo mẫu trùng mã.
+func TestValidate_ExistingProductByCode(t *testing.T) {
+	refs, pid := existingAO01()
+	plan, errs := importer.Validate([]xlsx.Row{row(2, map[string]string{"SKU*": "AO01-NEW-S", "Size*": "S", "Mã mẫu*": "ao01"})}, refs)
+	if len(errs) > 0 {
+		t.Fatal(codes(errs))
+	}
+	p := plan.Products[0]
+	if p.ExistingProductID == nil || *p.ExistingProductID != pid || p.Variants[0].Action != importer.ActionCreate {
+		t.Fatalf("mẫu có sẵn: %+v", p)
+	}
+}
