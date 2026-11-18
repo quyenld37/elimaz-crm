@@ -31,7 +31,7 @@ DEV_PROFILES := $(if $(wildcard docker/imager/Dockerfile),--profile imager) \
 	$(if $(wildcard tools/fakecarrier/Dockerfile),--profile fakecarrier) \
 	$(if $(wildcard docker/filesync/Dockerfile),--profile filesync)
 
-.PHONY: db-up db-down db-reset dev probe-test spike-test test-imager test-imager-compose image app-up app-down image-check verify-drill demo-mot-don
+.PHONY: db-up db-down db-reset dev probe-test perf-test spike-test test-imager test-imager-compose image app-up app-down image-check verify-drill demo-mot-don
 
 db-up: ## Dựng PostgreSQL 18, Jaeger, SeaweedFS (kho chính, kho ngoài giả, tạo bucket), chờ tới khi sẵn sàng
 	$(COMPOSE) up -d --wait
@@ -41,6 +41,11 @@ dev: ## Như db-up, cộng các dịch vụ M1 đã có mã (imager, fakecarrier
 
 probe-test: ## Phép thử SeaweedFS (Task M1-40) trên compose dev: make dev trước; ghi số đo vào docs/do-luong/seaweedfs-m1.md
 	go test -tags probe -count=1 -v ./tests/probe/...
+
+# Test thời gian (nhãn build perf, Task 400): ngưỡng thời gian không nằm trong test đúng/sai vì phụ thuộc máy bận hay
+# rảnh. Chạy trên máy rảnh (không phiên test khác cùng dùng PostgreSQL).
+perf-test: ## Trần thời gian câu nhận việc ở 100.000 việc chờ (50 ms, Task 394), cần PostgreSQL dev
+	go test -tags perf -count=1 -run '^TestClaimLongQueueTimeBudget$$' -v ./internal/platform/queue/
 
 # Test của imager cần libvips: chạy trong stage `test` của docker/imager/Dockerfile (cùng bản libvips với image chạy).
 # --init: tini gặt tiến trình con mồ côi để test nhóm tiến trình bị giết thấy đúng. IMAGER_REQUIRE_VIPS=1: ca cần

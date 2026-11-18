@@ -47,6 +47,7 @@ Có dần theo kế hoạch; lệnh nào chưa có thì task tương ứng sẽ 
 - PostgreSQL dev: `make db-up` (PostgreSQL 5442, Jaeger 16686, OTLP 4318). Không dùng cổng 4175, 4176, 4180, 4181.
 - Nhiều phiên song song trên một máy: mỗi phiên một tên dự án compose và cổng riêng, `make db-up COMPOSE_PROJECT=crm-tNN CRM_PG_PORT=54x2` (thêm `CRM_JAEGER_UI_PORT`, `CRM_OTLP_PORT` nếu cần); test đọc `CRM_TEST_DATABASE_URL` (crm_app, Makefile dựng từ `CRM_PG_PORT`). Chỉ xóa container, volume của dự án compose của mình.
 - Phép đo flash sale (module riêng `spikes/flashsale`): `make spike-test`; cách đo tải ở `docs/do-luong/flash-sale-go.md`.
+- Test thời gian (nhãn build `perf`, chạy trên máy rảnh): `make perf-test`. Test đúng/sai không lấy ngưỡng giờ thật làm tiêu chí (Task 400).
 
 ## Không được sửa tay
 
