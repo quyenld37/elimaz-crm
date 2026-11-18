@@ -10,6 +10,7 @@
   --muted: #6e6560;
   --title: #1a1614;
   --buy: #c0392b;
+  --error: var(--buy);
   --soft: #f9ebe7;
   --soft-sale: #fcf2ef;
   --font-display: "Mulish", Arial, sans-serif;
@@ -519,6 +520,25 @@ textarea.input {
   textarea.input {
     font-size: 16px;
   }
+}
+/* Ô đánh dấu có nhãn (m1.css, Task 327 dùng đầu tiên). */
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--tap);
+  cursor: pointer;
+}
+.check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink);
+  margin: 0;
+  flex: none;
+}
+.check.is-off {
+  color: var(--muted);
+  cursor: not-allowed;
 }
 /* Chip, nhãn trạng thái: có chữ, không chỉ màu. */
 .chip {

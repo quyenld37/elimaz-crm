@@ -289,7 +289,8 @@ forEachViewport((vp) => {
     await expect(row.locator('td[data-label="Có thể bán"]')).toHaveText("2");
     await page.getByRole("button", { name: "Lưu nháp" }).click();
     await expect(page.getByRole("heading", { name: "Phiếu xuất PX-000045" })).toBeVisible();
-    await expect(page.getByText("Nhà cung cấp", { exact: true })).toHaveCount(0);
+    // Chỉ trong phần màn: menu bên có mục "Nhà cung cấp" (Task 327).
+    await expect(page.getByRole("main").getByText("Nhà cung cấp", { exact: true })).toHaveCount(0);
 
     await page.getByRole("button", { name: "Ghi sổ…" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Ghi sổ" }).click();

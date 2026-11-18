@@ -13,11 +13,9 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import {
   cancelStockDocument,
   createStockDocument,
-  createSupplier,
   getMe,
   getStockDocument,
   listBalances,
-  listSuppliers,
   listWarehouses,
   postStockDocument,
   replaceStockDocumentLines,
@@ -38,6 +36,7 @@ import { TOPICS, queryKey } from "../../app/queryClient";
 import { formatMoney } from "../products/productRules";
 import { Dialog } from "../staff/staffData";
 import { DOCS_PATH, NEW_DOC } from "./DocumentList";
+import { SupplierPicker } from "./SupplierPicker";
 import {
   KINDS,
   KIND_LABEL,
@@ -69,7 +68,6 @@ export const TEXT_TOO_MANY = `Một phiếu tối đa ${String(MAX_LINES)} dòng
 const TEXT_SAVED = "Đã lưu nháp.";
 /** Số trang số dư (mỗi trang 100) đọc để lấy tên mã hàng của dòng. */
 const BALANCE_PAGES = 10;
-const SEARCH_DELAY_MS = 300;
 
 /** Tên một mã hàng để hiện ở dòng. */
 interface VariantInfo {
@@ -282,7 +280,7 @@ function NewDocument({ initialKind }: { initialKind: StockDocumentKind }) {
               <WarehouseSelect warehouses={list} value={wh?.id ?? ""} onChange={setPicked} />
             </span>
           </label>
-          {hasSupplier(kind) && <SupplierField value={supplier} onChange={setSupplier} canCreate={canSupplier} />}
+          {hasSupplier(kind) && <SupplierPicker value={supplier} onChange={setSupplier} canCreate={canSupplier} />}
           <label className="field">
             <span>Ghi chú</span>
             <input
@@ -1046,117 +1044,6 @@ function ScanField({ full, onPick }: { full: boolean; onPick: (variantId: string
       <span className={hint === null ? "hint" : "field-err"}>
         {hint ?? "Máy quét dạng bàn phím: quét cùng mã nhiều lần thì số lượng cộng thêm 1."}
       </span>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------------------------------------------
-// Ô chọn nhà cung cấp (thêm nhanh). Thay bằng SupplierPicker của Task 327 khi task đó gộp (tệp task, Q1).
-
-function SupplierField(p: { value: Supplier | null; onChange: (s: Supplier | null) => void; canCreate: boolean }) {
-  const qc = useQueryClient();
-  const [text, setText] = useState(p.value?.name ?? "");
-  const [open, setOpen] = useState(false);
-  const [term, setTerm] = useState("");
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setTerm(text.trim());
-    }, SEARCH_DELAY_MS);
-    return () => {
-      clearTimeout(t);
-    };
-  }, [text]);
-  const suppliers = useQuery({
-    queryKey: queryKey("inventory.suppliers", { q: term }),
-    enabled: open,
-    queryFn: () => unwrap(listSuppliers({ query: term === "" ? {} : { q: term } })),
-  });
-  const add = useWriteAction((key, body: { name: string }) =>
-    unwrap(createSupplier({ body, headers: { "Idempotency-Key": key } })),
-  );
-
-  const typed = text.trim();
-  const found = (suppliers.data ?? []).filter((s) => s.status === "active").slice(0, 8);
-  const exists = found.some((s) => s.name.trim().toLocaleLowerCase("vi") === typed.toLocaleLowerCase("vi"));
-  // Chỉ mời thêm khi đã có kết quả tìm của đúng chữ đang gõ (tránh thêm trùng tên đã có).
-  const showAdd = p.canCreate && typed !== "" && !exists && term === typed && suppliers.isSuccess;
-
-  const choose = (s: Supplier) => {
-    p.onChange(s);
-    setText(s.name);
-    setOpen(false);
-  };
-
-  return (
-    <div className="field combo">
-      <label htmlFor="ncc">Nhà cung cấp</label>
-      <input
-        id="ncc"
-        className="input"
-        role="combobox"
-        aria-expanded={open}
-        aria-controls="ncc-list"
-        autoComplete="off"
-        maxLength={200}
-        value={text}
-        onFocus={() => {
-          setOpen(true);
-        }}
-        onBlur={() => {
-          // Chờ cú bấm vào lựa chọn chạy trước khi đóng danh sách.
-          setTimeout(() => {
-            setOpen(false);
-          }, 150);
-        }}
-        onChange={(e) => {
-          setText(e.target.value);
-          setOpen(true);
-          if (p.value !== null) p.onChange(null);
-        }}
-      />
-      {open && (found.length > 0 || showAdd) && (
-        <div className="combo-list" role="listbox" id="ncc-list" aria-label="Nhà cung cấp">
-          {found.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className="combo-opt"
-              role="option"
-              aria-selected={p.value?.id === s.id}
-              onMouseDown={(e) => {
-                e.preventDefault();
-              }}
-              onClick={() => {
-                choose(s);
-              }}
-            >
-              {s.name}
-            </button>
-          ))}
-          {showAdd && (
-            <button
-              type="button"
-              className="combo-opt is-add"
-              role="option"
-              aria-selected={false}
-              disabled={add.pending}
-              onMouseDown={(e) => {
-                e.preventDefault();
-              }}
-              onClick={() => {
-                void add.run({ name: typed }).then((r) => {
-                  if (!r.ok) return;
-                  void qc.invalidateQueries({ queryKey: ["inventory.suppliers"] });
-                  choose(r.data);
-                });
-              }}
-            >
-              {`+ Thêm nhà cung cấp "${typed}"`}
-            </button>
-          )}
-        </div>
-      )}
-      {add.message !== null && <span className="field-err">{add.message}</span>}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import type { ScreenRoute } from "../../app/loadScreens";
 import { Balances } from "./Balances";
 import { DocumentEdit } from "./DocumentEdit";
 import { DocumentList } from "./DocumentList";
+import { Suppliers } from "./Suppliers";
 
 export const screens: readonly ScreenRoute[] = [
   // Task 51: Tồn kho (mockup docs/mockups/m1/kho-ton.html).
@@ -33,5 +34,14 @@ export const screens: readonly ScreenRoute[] = [
     hidden: true,
     order: 20,
     element: <DocumentEdit />,
+  },
+  // Task 327: Nhà cung cấp (mockup docs/mockups/m1/kho-nha-cung-cap.html).
+  {
+    path: "/kho/nha-cung-cap",
+    label: "Nhà cung cấp",
+    group: "Kho",
+    permission: "inventory.read",
+    order: 40,
+    element: <Suppliers />,
   },
 ];
