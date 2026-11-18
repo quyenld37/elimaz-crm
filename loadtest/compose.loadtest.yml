@@ -1,0 +1,24 @@
+# Lớp phủ compose của bộ thử tải (kế hoạch M0 Task 22). Dùng cùng docker/compose.dev.yml:
+#   docker compose -p <dự án> -f docker/compose.dev.yml -f loadtest/compose.loadtest.yml --profile app …
+# - Image riêng (CRM_IMAGE, mặc định crm:loadtest) để không lẫn crm:dev của phiên khác.
+# - api kiểm thẻ bằng bộ kiểm Cloudflare Access thật, trỏ tới máy chủ khóa giả `loadkit access` chạy trên máy
+#   (host.docker.internal) và tin CA riêng của nó qua SSL_CERT_FILE. Mã api không đổi; chỉ dùng ở máy dev, máy thử.
+# - api dùng máy chủ khóa của bộ thử thay cho devaccess của compose dev (Task 395): thẻ devaccess hạn cố định 1 giờ,
+#   bài ngâm cần thẻ sống 8 giờ.
+services:
+  crm-migrate:
+    image: ${CRM_IMAGE:-crm:loadtest}
+  crm-ingest:
+    image: ${CRM_IMAGE:-crm:loadtest}
+  crm-worker:
+    image: ${CRM_IMAGE:-crm:loadtest}
+  crm-api:
+    image: ${CRM_IMAGE:-crm:loadtest}
+    environment:
+      ACCESS_TEAM_DOMAIN: host.docker.internal:${LOADTEST_ACCESS_PORT:-24222}
+      ACCESS_AUD: loadtest-aud
+      SSL_CERT_FILE: /loadtest/ca.pem
+    volumes:
+      - ${LOADTEST_ACCESS_DIR:?đặt LOADTEST_ACCESS_DIR (run.sh đặt)}:/loadtest:ro
+    extra_hosts:
+      - host.docker.internal:host-gateway
