@@ -1,0 +1,91 @@
+/* Lớp riêng của màn Kiểm kho, chép từ mockup đã duyệt: docs/mockups/m1/m1.css (ô quét, lần quét, bộ ±, danh sách
+   dòng, cột hẹp) và khối <style> của docs/mockups/m1/kho-kiem-kho.html (chênh lệch, trạng thái lưu). */
+.phone-col {
+  max-width: 640px;
+}
+.scan {
+  display: grid;
+  gap: var(--space-sm);
+}
+.scan .input {
+  font-size: 16px;
+  min-height: 52px;
+  font-variant-numeric: tabular-nums;
+}
+.last-scan {
+  border: 1px solid var(--ink);
+  border-radius: var(--r-box);
+  padding: var(--space-md);
+  display: grid;
+  gap: var(--space-sm);
+}
+.count-big {
+  font-size: 34px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--title);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.stepper .input {
+  width: 72px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  padding: 8px 4px;
+}
+.lines {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--rule);
+}
+.line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-xs) var(--space-md);
+  align-items: center;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--rule);
+}
+.line .nm {
+  color: var(--name);
+  font-weight: 600;
+}
+.line .sku {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.name {
+  color: var(--name);
+}
+.ok-text {
+  color: var(--success);
+}
+.diff {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 8px;
+  grid-column: 1 / -1;
+  font-size: 13px;
+}
+.diff b {
+  display: block;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  color: var(--title);
+}
+.diff .is-zero b {
+  color: var(--muted);
+  font-weight: 600;
+}
+.diff .is-neg b {
+  color: var(--buy);
+}
+.save-st {
+  font-size: 12px;
+}
