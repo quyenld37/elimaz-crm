@@ -897,6 +897,58 @@ paths:
                 $ref: "#/components/schemas/Supplier"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/inventory/balances:
+    get:
+      operationId: listBalances
+      summary: Số dư từng biến thể ở một kho (tồn, lỗi, đang giữ, đang giao, có thể bán), biến thể mới tạo trước; lọc "Thiếu so với phần giữ", tìm theo barcode, SKU, mã mẫu, tên không dấu; trang theo con trỏ
+      description: >-
+        Cần inventory.read ở đúng kho warehouseId, không có → 403. Chỉ biến thể đã có dòng số dư ở kho đó. available =
+        onHand − damaged − held − inTransit, có thể âm sau kiểm kho đếm thiếu (Q8); onlyShort=true chỉ trả dòng
+        available < 0. Biến thể khớp q tối đa 100.
+      x-permission: inventory.read
+      parameters:
+        - name: warehouseId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+        - name: onlyShort
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Một trang số dư
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BalancePage"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/inventory/documents:
     get:
       operationId: listStockDocuments
@@ -2645,6 +2697,60 @@ components:
           description: Rỗng ở danh sách
           items:
             $ref: "#/components/schemas/StockDocumentLine"
+    BalancePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Balance"
+        nextCursor:
+          type: string
+          description: Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+    Balance:
+      type: object
+      required: [variantId, sku, barcode, productCode, productName, color, size, productStatus, variantStatus, onHand, held, inTransit, damaged, available]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        barcode:
+          type: string
+        productCode:
+          type: string
+        productName:
+          type: string
+        color:
+          type: string
+        size:
+          type: string
+        productStatus:
+          $ref: "#/components/schemas/ProductStatus"
+        variantStatus:
+          $ref: "#/components/schemas/VariantStatus"
+        onHand:
+          type: integer
+          format: int64
+          description: Tồn
+        held:
+          type: integer
+          format: int64
+          description: Đang giữ cho đơn chưa gửi
+        inTransit:
+          type: integer
+          format: int64
+          description: Đang giao (đã giao cho hãng)
+        damaged:
+          type: integer
+          format: int64
+          description: Lỗi
+        available:
+          type: integer
+          format: int64
+          description: Có thể bán = onHand − damaged − held − inTransit; âm là thiếu so với phần giữ
     StockDocumentPage:
       type: object
       required: [items]

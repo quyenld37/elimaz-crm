@@ -38,6 +38,7 @@ const (
 	HealthLiveOperation                OperationName = "HealthLive"
 	HealthReadyOperation               OperationName = "HealthReady"
 	ListAttributesOperation            OperationName = "ListAttributes"
+	ListBalancesOperation              OperationName = "ListBalances"
 	ListCategoriesOperation            OperationName = "ListCategories"
 	ListJobsOperation                  OperationName = "ListJobs"
 	ListProductsOperation              OperationName = "ListProducts"

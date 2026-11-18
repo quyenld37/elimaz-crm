@@ -54,6 +54,7 @@ var Routes = []Route{
 	{Method: "PUT", Pattern: "PUT /api/v1/identity/users/{id}/grants", OperationID: "replaceStaffGrants", Permission: "identity.users.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "POST", Pattern: "POST /api/v1/identity/users/{id}/lock", OperationID: "lockStaff", Permission: "identity.users.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "POST", Pattern: "POST /api/v1/identity/users/{id}/unlock", OperationID: "unlockStaff", Permission: "identity.users.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "GET", Pattern: "GET /api/v1/inventory/balances", OperationID: "listBalances", Permission: "inventory.read"},
 	{Method: "GET", Pattern: "GET /api/v1/inventory/documents", OperationID: "listStockDocuments", Permission: "inventory.read"},
 	{Method: "POST", Pattern: "POST /api/v1/inventory/documents", OperationID: "createStockDocument", Permission: "inventory.documents.create", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/inventory/documents/{id}", OperationID: "getStockDocument", Permission: "inventory.read"},

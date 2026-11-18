@@ -125,6 +125,10 @@ type ListAttributesRes interface {
 	listAttributesRes()
 }
 
+type ListBalancesRes interface {
+	listBalancesRes()
+}
+
 type ListCategoriesRes interface {
 	listCategoriesRes()
 }
