@@ -84,24 +84,41 @@ func ResolveImages(ctx context.Context, tx pgx.Tx, imgs []Image, view ImageView)
 	for _, i := range imgs {
 		ids = append(ids, i.FileID)
 	}
-	vs, err := files.PublicVariants(ctx, tx, ids, view.BaseURL)
+	picked, err := publicImageVariants(ctx, tx, ids, view)
 	if err != nil {
-		return fmt.Errorf("đọc biến thể ảnh: %w", err)
+		return err
 	}
-	preset := max(view.Preset, 1)
 	for i := range imgs {
-		picked := files.SelectPreset(vs[imgs[i].FileID], preset)
 		imgs[i].Status, imgs[i].Variants = ImageLost, nil
-		if len(picked) == 0 {
-			continue
-		}
-		imgs[i].Status = ImageReady
-		imgs[i].Variants = make([]ImageVariant, 0, len(picked))
-		for _, v := range picked {
-			imgs[i].Variants = append(imgs[i].Variants, ImageVariant{Width: v.Width, Format: v.Format, URL: v.URL})
+		if vs := picked[imgs[i].FileID]; len(vs) > 0 {
+			imgs[i].Status, imgs[i].Variants = ImageReady, vs
 		}
 	}
 	return nil
+}
+
+// publicImageVariants đọc biến thể công khai của các tệp ids bằng một lời gọi files.PublicVariants và chọn bộ kích
+// thước theo view.Preset (files.SelectPreset; 0 → 1). Tệp không ready, đã xóa, mất, riêng tư, của tenant khác hay
+// thiếu bộ kích thước nào dùng được → không có trong kết quả. Luật chung của ảnh sản phẩm và ảnh trong bài viết.
+func publicImageVariants(ctx context.Context, tx pgx.Tx, ids []uuid.UUID, view ImageView) (map[uuid.UUID][]ImageVariant, error) {
+	vs, err := files.PublicVariants(ctx, tx, ids, view.BaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("đọc biến thể ảnh: %w", err)
+	}
+	preset := max(view.Preset, 1)
+	out := make(map[uuid.UUID][]ImageVariant, len(vs))
+	for id, all := range vs {
+		picked := files.SelectPreset(all, preset)
+		if len(picked) == 0 {
+			continue
+		}
+		list := make([]ImageVariant, 0, len(picked))
+		for _, v := range picked {
+			list = append(list, ImageVariant{Width: v.Width, Format: v.Format, URL: v.URL})
+		}
+		out[id] = list
+	}
+	return out, nil
 }
 
 // AttachImage gắn tệp fileID (ready, mục đích product_image, cùng tenant) vào cuối danh sách ảnh của mẫu productID khi

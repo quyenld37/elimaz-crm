@@ -2,13 +2,18 @@ package catalog
 
 import (
 	"cmp"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/url"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/catalog/internal/article"
 )
@@ -44,6 +49,78 @@ type imageData struct {
 // ErrInvalidArticle.
 func DecodeArticle(raw json.RawMessage) ([]ArticleBlock, error) {
 	return article.Validate(raw) //nolint:wrapcheck // ErrInvalidArticle là lỗi của gói article
+}
+
+// ArticleHTML dựng HTML bài viết cho màn hình và website từ cột article (raw): DecodeArticle → ResolveArticleImages →
+// RenderArticleHTML, trong tx tenant. Bài viết không có khối image → không đọc kho tệp. Lỗi: ErrInvalidArticle.
+func ArticleHTML(ctx context.Context, tx pgx.Tx, raw json.RawMessage, view ImageView) (string, error) {
+	blocks, err := DecodeArticle(raw)
+	if err != nil {
+		return "", err
+	}
+	if err := ResolveArticleImages(ctx, tx, blocks, view); err != nil {
+		return "", err
+	}
+	return RenderArticleHTML(blocks)
+}
+
+// ResolveArticleImages điền Image cho các khối image của blocks (tại chỗ) bằng **một** lời gọi files.PublicVariants
+// cho mọi fileId, chọn bộ kích thước như ảnh sản phẩm (view.Preset, files.SelectPreset). Tệp không ready, đã xóa, mất,
+// riêng tư hay của tenant khác → Image = nil (RenderArticleHTML bỏ khối). Không có khối image → không đọc kho tệp
+// (D4-5: trang nhiều sản phẩm không tốn thêm câu SQL cho bài viết không có ảnh).
+func ResolveArticleImages(ctx context.Context, tx pgx.Tx, blocks []ArticleBlock, view ImageView) error {
+	ids := articleFileIDs(blocks)
+	for i := range blocks {
+		blocks[i].Image = nil
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	picked, err := publicImageVariants(ctx, tx, ids, view)
+	if err != nil {
+		return err
+	}
+	for i := range blocks {
+		if blocks[i].Type != article.TypeImage || blocks[i].FileID == nil {
+			continue
+		}
+		if vs := picked[*blocks[i].FileID]; len(vs) > 0 {
+			blocks[i].Image = &ArticleImage{Variants: vs}
+		}
+	}
+	return nil
+}
+
+// articleFileIDs: fileId khác nhau của các khối image theo thứ tự xuất hiện.
+func articleFileIDs(blocks []ArticleBlock) []uuid.UUID {
+	var ids []uuid.UUID
+	for _, b := range blocks {
+		if b.Type == article.TypeImage && b.FileID != nil && !slices.Contains(ids, *b.FileID) {
+			ids = append(ids, *b.FileID)
+		}
+	}
+	return ids
+}
+
+// checkArticleFiles kiểm tệp của các khối image trong blocks mà prev (bài viết đang lưu, nil khi tạo) chưa có: tệp
+// phải có trong tenant, chưa xóa, ready, mục đích product_image (luật của gắn ảnh sản phẩm). Sai → ErrInvalidArticle.
+// Tệp đã có trong prev không kiểm lại: tệp bị mất sau khi lưu không chặn nhân viên sửa phần khác (khối đó bị bỏ lúc
+// dựng HTML).
+func checkArticleFiles(ctx context.Context, tx pgx.Tx, blocks, prev []ArticleBlock) error {
+	old := articleFileIDs(prev)
+	for _, id := range articleFileIDs(blocks) {
+		if slices.Contains(old, id) {
+			continue
+		}
+		err := checkImageFile(ctx, tx, id)
+		if errors.Is(err, ErrNotFound) || errors.Is(err, ErrFileNotReady) {
+			return ErrInvalidArticle
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // RenderArticleHTML dựng HTML của bài viết: hàm thuần (không mạng, không database), cùng đầu vào → cùng chuỗi byte.

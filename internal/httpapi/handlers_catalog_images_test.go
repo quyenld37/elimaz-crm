@@ -29,6 +29,15 @@ func (e *catalogAPIEnv) imageFile(tenant uuid.UUID) uuid.UUID {
 	return id
 }
 
+// useImageServer thay máy chủ của e bằng bản có FILES_PUBLIC_BASE_URL = imagesBaseURL, IMAGE_PRESET_VERSION = 1.
+func (e *catalogAPIEnv) useImageServer() {
+	e.srv = NewServer(Deps{
+		Config: config.Config{ConsoleOrigins: []string{testOrigin}, FilesPublicBaseURL: imagesBaseURL, ImagePresetVersion: 1},
+		DB:     e.staff.App, Logger: slog.New(slog.NewJSONHandler(&lockedBuffer{buf: &bytes.Buffer{}}, nil)),
+		Access: (&authEnv{t: e.t, keys: e.keys}).verifier(),
+	})
+}
+
 func listOf(t *testing.T, m map[string]any, key string) []any {
 	t.Helper()
 	v, ok := m[key].([]any)
@@ -51,11 +60,7 @@ func (e *catalogAPIEnv) attach(id string, version any, file uuid.UUID, key, extr
 // Bốn operation ảnh và ảnh trong getProduct, ảnh bìa trong listProducts (KH02, TP06).
 func TestCatalogAPI_Images(t *testing.T) {
 	e := newCatalogAPIEnv(t)
-	e.srv = NewServer(Deps{
-		Config: config.Config{ConsoleOrigins: []string{testOrigin}, FilesPublicBaseURL: imagesBaseURL, ImagePresetVersion: 1},
-		DB:     e.staff.App, Logger: slog.New(slog.NewJSONHandler(&lockedBuffer{buf: &bytes.Buffer{}}, nil)),
-		Access: (&authEnv{t: t, keys: e.keys}).verifier(),
-	})
+	e.useImageServer()
 	p := e.createDam01()
 	id := p["id"].(string) //nolint:forcetypeassert // test
 	if imgs := listOf(t, p, "images"); len(imgs) != 0 {
@@ -179,4 +184,37 @@ func (e *catalogAPIEnv) checkLost(id, i2 string, f2 uuid.UUID) {
 			e.t.Errorf("ảnh mất phải status lost, không variants: %v", img)
 		}
 	}
+}
+
+// Ảnh trong bài viết (Task M1-44b, R7): createProduct và getProduct trả articleHtml có <picture> với đường dẫn công
+// khai; khối ảnh trỏ tệp chưa xử lý xong → 422 invalid_article.
+func TestCatalogAPI_ArticleImages(t *testing.T) {
+	e := newCatalogAPIEnv(t)
+	e.useImageServer()
+	body := func(code string, file uuid.UUID) string {
+		return fmt.Sprintf(`{"code":%q,"name":"Đầm","article":[{"type":"paragraph","text":"Lụa"},
+			{"type":"image","fileId":"%s","caption":"Mặt trước"}],
+			"variants":[{"sku":"%s-S","color":"Đỏ","size":"S","price":350000}]}`, code, file, code)
+	}
+	rec := e.do(http.MethodPost, "/api/v1/catalog/products", catalogManager, "a1", body("ART01", e.imageFile(e.tenant)))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("createProduct có khối ảnh: %d %s", rec.Code, rec.Body.String())
+	}
+	created := decodeJSON(t, rec)
+	html, _ := created["articleHtml"].(string)
+	if strings.Count(html, "<picture>") != 1 || !strings.Contains(html, `src="`+imagesBaseURL+"/img/") {
+		t.Errorf("articleHtml của createProduct thiếu ảnh: %s", html)
+	}
+	id, _ := created["id"].(string)
+	got := decodeJSON(t, e.do(http.MethodGet, "/api/v1/catalog/products/"+id, catalogViewer, "", ""))
+	if got["articleHtml"] != html {
+		t.Errorf("articleHtml của getProduct khác createProduct:\n%v\n%s", got["articleHtml"], html)
+	}
+	var processing uuid.UUID
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		processing = filestest.Uploaded(t, tx, e.tenant, "product_image")
+		return nil
+	})
+	expect(t, "khối ảnh trỏ tệp đang xử lý", e.do(http.MethodPost, "/api/v1/catalog/products", catalogManager, "a2",
+		body("ART02", processing)), http.StatusUnprocessableEntity, "invalid_article")
 }
