@@ -9,13 +9,17 @@ import (
 
 // Webhook cùng eventId gửi 3 lần → 1 lệnh tra trạng thái, 1 dòng shipment_events; đơn và tồn đổi 1 lần (VC08 bản đầu).
 func TestRefresh_SameEventThreeTimes(t *testing.T) {
-	e := newShipEnv(t)
+	eachSeller(t, testRefreshSameEventThreeTimes)
+}
+
+func testRefreshSameEventThreeTimes(t *testing.T, e *shipEnv) {
 	_, v, s := e.shipped(2)
 	e.carrier.Advance(s.TrackingCode, fake.RawPickedUp)
 	for range 3 {
 		e.signal(s.TrackingCode, "ev-dup")
 	}
-	if n := e.count("SELECT count(*) FROM platform.jobs WHERE kind = 'fulfillment.refresh_status'"); n != 1 {
+	if n := e.count(`SELECT count(*) FROM platform.jobs WHERE kind = 'fulfillment.refresh_status'
+		AND payload->>'shipmentId' = $1`, s.ID.String()); n != 1 {
 		t.Fatalf("lệnh tra = %d, muốn 1", n)
 	}
 	e.drain()

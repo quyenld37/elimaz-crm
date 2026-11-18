@@ -6,12 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/catalog/catalogtest"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/inventory/invtest"
 	"elimaz.com.vn/crm/internal/platform/events"
@@ -28,7 +29,9 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// invEnv: một database thử, tenant A có người bán ELIMAZ, kho MAIN và các biến thể tạo bằng variants.
+// invEnv: một database thử, tenant A có hai người bán ELIMAZ và PARTNER1 (mỗi người một mẫu AO01), kho MAIN và các
+// biến thể tạo bằng variants. seller là người bán của biến thể trong test (mặc định ELIMAZ; eachSeller chạy với từng
+// người), product là mẫu AO01 của người bán đó.
 type invEnv struct {
 	t         *testing.T
 	staff     *testkit.Staff
@@ -37,6 +40,7 @@ type invEnv struct {
 	warehouse uuid.UUID
 	bus       *testkit.RecordingBus
 	product   uuid.UUID
+	products  map[uuid.UUID]uuid.UUID
 	nVariants int
 }
 
@@ -50,18 +54,47 @@ func newInvEnvOn(t *testing.T, staff *testkit.Staff, name string) *invEnv {
 	t.Helper()
 	e := &invEnv{t: t, staff: staff, bus: &testkit.RecordingBus{}}
 	e.tenant = staff.Tenant(t, name)
+	e.products = map[uuid.UUID]uuid.UUID{}
 	staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		elimaz, partner := catalogtest.Sellers(t, tx, e.tenant)
 		var err error
-		if e.seller, err = catalog.EnsureDefaultSeller(t.Context(), tx, e.tenant); err != nil {
+		if e.warehouse, err = inventory.EnsureDefaultWarehouse(t.Context(), tx, e.tenant, elimaz); err != nil {
 			return err //nolint:wrapcheck // test
 		}
-		if e.warehouse, err = inventory.EnsureDefaultWarehouse(t.Context(), tx, e.tenant, e.seller); err != nil {
-			return err //nolint:wrapcheck // test
+		for _, s := range []uuid.UUID{elimaz, partner} {
+			var id uuid.UUID
+			if err := tx.QueryRow(t.Context(), `INSERT INTO catalog.products (tenant_id, seller_id, code, name, name_search, status)
+				VALUES ($1, $2, 'AO01', 'Áo thử', 'ao thu', 'active') RETURNING id`, e.tenant, s).Scan(&id); err != nil {
+				return err //nolint:wrapcheck // test
+			}
+			e.products[s] = id
 		}
-		return tx.QueryRow(t.Context(), `INSERT INTO catalog.products (tenant_id, seller_id, code, name, name_search, status)
-			VALUES ($1, $2, 'AO01', 'Áo thử', 'ao thu', 'active') RETURNING id`, e.tenant, e.seller).Scan(&e.product)
+		e.seller, e.product = elimaz, e.products[elimaz]
+		return nil
 	})
 	return e
+}
+
+// sellers trả hai người bán của tenant: ELIMAZ (người bán mặc định) rồi PARTNER1.
+func (e *invEnv) sellers() []uuid.UUID {
+	out := make([]uuid.UUID, 0, len(e.products))
+	for s := range e.products {
+		out = append(out, s)
+	}
+	slices.SortFunc(out, func(a, b uuid.UUID) int { return bytes.Compare(a[:], b[:]) }) // uuidv7: ELIMAZ tạo trước
+	return out
+}
+
+// eachSeller chạy body trên cùng một database lần lượt với từng người bán làm người bán của biến thể (KH14, ADR-29);
+// mỗi lượt một bộ ghi báo hiệu riêng.
+func eachSeller(t *testing.T, body func(t *testing.T, e *invEnv)) {
+	t.Helper()
+	base := newInvEnv(t)
+	testkit.ForEachSeller(t, base.sellers(), func(t *testing.T, s uuid.UUID) {
+		e := *base
+		e.t, e.seller, e.product, e.bus = t, s, base.products[s], &testkit.RecordingBus{}
+		body(t, &e)
+	})
 }
 
 // variants tạo n biến thể mới (đang bán) của mẫu thử và trả mã của chúng.

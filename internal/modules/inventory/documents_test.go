@@ -88,8 +88,11 @@ func wantInsufficient(t *testing.T, err error, v uuid.UUID, available int32) {
 
 // KH03: phiếu nhập tăng on_hand và ghi đúng một dòng sổ; phiếu còn nháp thì số dư không đổi.
 func TestPostImport_IncreasesOnHandAndLedger(t *testing.T) {
-	e := newInvEnv(t)
-	s, err := e.createSupplier(inventory.SupplierInput{Name: "Xưởng Hoa"})
+	eachSeller(t, testPostImport)
+}
+
+func testPostImport(t *testing.T, e *invEnv) {
+	s, err := e.createSupplier(inventory.SupplierInput{Name: "Xưởng Hoa " + e.seller.String()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +113,7 @@ func TestPostImport_IncreasesOnHandAndLedger(t *testing.T) {
 		t.Fatalf("PostDocument: %v", err)
 	}
 	if posted.Status != inventory.StatusPosted || posted.Version != 3 || posted.PostedAt == nil ||
-		posted.PostedBy == nil || *posted.PostedBy != actor.ID || posted.SupplierName != "Xưởng Hoa" {
+		posted.PostedBy == nil || *posted.PostedBy != actor.ID || posted.SupplierName != s.Name {
 		t.Fatalf("phiếu sau ghi sổ sai: %+v", posted)
 	}
 	want(t, e.balance(a), inventory.Balance{OnHand: 10, Available: 10})
@@ -118,7 +121,8 @@ func TestPostImport_IncreasesOnHandAndLedger(t *testing.T) {
 		AND bucket = 'on_hand' AND delta = 10 AND actor_id = $2`, d.ID, actor.ID); n != 1 {
 		t.Fatalf("sổ: mong 1 dòng import +10, có %d", n)
 	}
-	if n := e.count("SELECT count(*) FROM platform.domain_events WHERE topic = 'stock.changed'"); n != 1 {
+	if n := e.count("SELECT count(*) FROM platform.domain_events WHERE topic = 'stock.changed' AND aggregate_id = $1",
+		a.String()+":"+e.warehouse.String()); n != 1 {
 		t.Fatalf("stock.changed: mong 1, có %d", n)
 	}
 	// Ghi sổ lần hai (version mới) → không còn nháp; sửa dòng → không còn nháp.

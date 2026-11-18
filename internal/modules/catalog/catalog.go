@@ -1,6 +1,6 @@
 // Package catalog là mẫu sản phẩm, biến thể màu/size, giá và người bán (kế hoạch M1, Task M1-27; spec 05 mục 2,
-// ADR-29). Là module mẫu cho module có chiều người bán: mọi hàm đọc nhận sellerID, sửa có version, module khác đọc qua
-// view catalog.*_v.
+// ADR-29). Là module mẫu cho module có chiều người bán: mọi hàm đọc và mọi hàm sửa mẫu, biến thể nhận sellerID (câu SQL
+// lọc seller_id, tests/arch/sellerfilter_test.go), sửa có version, module khác đọc qua view catalog.*_v.
 //
 // Phần công khai: hàm đọc (GetProduct, VariantForSale, VariantsForSale, DefaultSeller, EnsureDefaultSeller), bài viết
 // (DecodeArticle, RenderArticleHTML — bộ dựng HTML duy nhất của CRM, R7) và Writer (mọi đường ghi: tự ghi sự kiện,
@@ -133,7 +133,8 @@ func (w Writer) check() error {
 	return nil
 }
 
-// DefaultSeller trả người bán của chính shop (kind own, active, mã nhỏ nhất) trong ngữ cảnh của tx; không có →
+// DefaultSeller trả người bán của chính shop (kind own, active, tạo sớm nhất: id uuidv7
+// nhỏ nhất, không phải mã người bán) trong ngữ cảnh của tx; không có →
 // ErrNotFound.
 func DefaultSeller(ctx context.Context, tx pgx.Tx) (uuid.UUID, error) {
 	id, err := store.New(tx).GetDefaultSeller(ctx)
@@ -155,7 +156,7 @@ func EnsureDefaultSeller(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID) (uu
 	}); err != nil {
 		return uuid.Nil, fmt.Errorf("ghi người bán mặc định: %w", err)
 	}
-	id, err := q.GetSellerByCode(ctx, DefaultSellerCode)
+	id, err := q.GetSellerByCode(ctx, store.GetSellerByCodeParams{TenantID: tenantID, Code: DefaultSellerCode})
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("đọc người bán mặc định: %w", err)
 	}

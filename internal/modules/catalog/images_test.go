@@ -76,7 +76,7 @@ func (e *catalogEnv) attach(productID, fileID uuid.UUID, color *string) (catalog
 		if err != nil {
 			return err //nolint:wrapcheck // test
 		}
-		img, err = e.writer().AttachImage(e.t.Context(), tx, productID, p.Version, fileID, color, e.actor)
+		img, err = e.writer().AttachImage(e.t.Context(), tx, e.seller, productID, p.Version, fileID, color, e.actor)
 		return err //nolint:wrapcheck // test
 	})
 	return img, err
@@ -104,20 +104,20 @@ func (e *catalogEnv) images(productID uuid.UUID) []catalog.Image {
 
 func (e *catalogEnv) reorder(productID uuid.UUID, version int64, ids []uuid.UUID) error {
 	return e.app(func(tx pgx.Tx) error {
-		return e.writer().ReorderImages(e.t.Context(), tx, productID, version, ids, e.actor)
+		return e.writer().ReorderImages(e.t.Context(), tx, e.seller, productID, version, ids, e.actor)
 	})
 }
 
 func (e *catalogEnv) deleteImage(productID, imageID uuid.UUID) error {
 	return e.app(func(tx pgx.Tx) error {
-		_, err := e.writer().DeleteImage(e.t.Context(), tx, productID, imageID, e.actor)
+		_, err := e.writer().DeleteImage(e.t.Context(), tx, e.seller, productID, imageID, e.actor)
 		return err //nolint:wrapcheck // test
 	})
 }
 
 func (e *catalogEnv) restoreImage(productID, imageID uuid.UUID) error {
 	return e.app(func(tx pgx.Tx) error {
-		_, err := e.writer().RestoreImage(e.t.Context(), tx, productID, imageID, e.actor)
+		_, err := e.writer().RestoreImage(e.t.Context(), tx, e.seller, productID, imageID, e.actor)
 		return err //nolint:wrapcheck // test
 	})
 }
@@ -269,7 +269,7 @@ func TestAttachImage_Refused(t *testing.T) {
 	}
 	// Mẫu của người bán khác (ADR-29) và mẫu không có.
 	err = e.app(func(tx pgx.Tx) error {
-		_, err := e.writer().AttachImage(t.Context(), tx, uuid.New(), 1, e.image(), nil, e.actor)
+		_, err := e.writer().AttachImage(t.Context(), tx, e.seller, uuid.New(), 1, e.image(), nil, e.actor)
 		return err //nolint:wrapcheck // test
 	})
 	if !errors.Is(err, catalog.ErrNotFound) {
@@ -278,7 +278,7 @@ func TestAttachImage_Refused(t *testing.T) {
 	var imgs []catalog.Image
 	err = e.app(func(tx pgx.Tx) error {
 		var err error
-		imgs, err = catalog.ProductImages(t.Context(), tx, e.partnerSeller(), p.ID, testView())
+		imgs, err = catalog.ProductImages(t.Context(), tx, e.partner, p.ID, testView())
 		return err //nolint:wrapcheck // test
 	})
 	if !errors.Is(err, catalog.ErrNotFound) || imgs != nil {

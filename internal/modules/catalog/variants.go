@@ -24,10 +24,10 @@ var (
 // barcodeAttempts: số lần sinh lại khi mã tự sinh trùng một barcode nhân viên đã gõ tay.
 const barcodeAttempts = 5
 
-// AddVariant thêm biến thể v vào mẫu productID khi version của mẫu còn khớp; version mẫu tăng 1 (Seq của
+// AddVariant thêm biến thể v vào mẫu productID của người bán sellerID khi version của mẫu còn khớp; version mẫu tăng 1 (Seq của
 // product.updated). Lỗi: ErrNotFound, ErrVersionConflict, ErrInvalidInput, ErrInvalidPrice, ErrSKUTaken,
 // ErrBarcodeTaken, ErrDuplicateOption.
-func (w Writer) AddVariant(ctx context.Context, tx pgx.Tx, productID uuid.UUID, productVersion int64, v VariantInput,
+func (w Writer) AddVariant(ctx context.Context, tx pgx.Tx, sellerID, productID uuid.UUID, productVersion int64, v VariantInput,
 	actor identity.AuthUser,
 ) (Variant, error) {
 	if err := w.check(); err != nil {
@@ -37,7 +37,7 @@ func (w Writer) AddVariant(ctx context.Context, tx pgx.Tx, productID uuid.UUID, 
 	if err != nil {
 		return Variant{}, err
 	}
-	p, err := lockProduct(ctx, tx, productID, productVersion)
+	p, err := lockProduct(ctx, tx, sellerID, productID, productVersion)
 	if err != nil {
 		return Variant{}, err
 	}
@@ -54,29 +54,29 @@ func (w Writer) AddVariant(ctx context.Context, tx pgx.Tx, productID uuid.UUID, 
 	return created, nil
 }
 
-// UpdateVariant sửa biến thể id khi version còn khớp; version biến thể và version mẫu tăng 1. Khóa mẫu rồi biến thể
+// UpdateVariant sửa biến thể id của người bán sellerID khi version còn khớp; version biến thể và version mẫu tăng 1. Khóa mẫu rồi biến thể
 // (ADR-46 nhóm 4). Giá đổi → price.changed (Seq = version mới của biến thể); luôn product.updated. Audit ghi before,
 // after (gồm price). Lỗi: ErrNotFound, ErrVersionConflict, ErrInvalidInput, ErrInvalidPrice, ErrSKUTaken,
 // ErrBarcodeTaken, ErrDuplicateOption.
-func (w Writer) UpdateVariant(ctx context.Context, tx pgx.Tx, id uuid.UUID, version int64, patch VariantPatch,
+func (w Writer) UpdateVariant(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID, version int64, patch VariantPatch,
 	actor identity.AuthUser,
 ) (Variant, error) {
 	if err := w.check(); err != nil {
 		return Variant{}, err
 	}
 	q := store.New(tx)
-	productID, err := q.GetVariantProductID(ctx, id)
+	productID, err := q.GetVariantProductID(ctx, store.GetVariantProductIDParams{SellerID: sellerID, ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Variant{}, ErrNotFound
 	}
 	if err != nil {
 		return Variant{}, fmt.Errorf("đọc mẫu của biến thể: %w", err)
 	}
-	p, err := lockProductAnyVersion(ctx, tx, productID)
+	p, err := lockProductAnyVersion(ctx, tx, sellerID, productID)
 	if err != nil {
 		return Variant{}, err
 	}
-	row, err := q.LockVariant(ctx, id)
+	row, err := q.LockVariant(ctx, store.LockVariantParams{SellerID: sellerID, ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Variant{}, ErrNotFound
 	}
@@ -92,7 +92,7 @@ func (w Writer) UpdateVariant(ctx context.Context, tx pgx.Tx, id uuid.UUID, vers
 		return Variant{}, err
 	}
 	after.Version, err = q.UpdateVariant(ctx, store.UpdateVariantParams{
-		ID: id, Version: version, Sku: after.SKU, Barcode: after.Barcode, Color: after.Color,
+		SellerID: sellerID, ID: id, Version: version, Sku: after.SKU, Barcode: after.Barcode, Color: after.Color,
 		ColorHex: optText(after.ColorHex), Size: after.Size, Price: after.Price, CostPrice: after.CostPrice,
 		Status: after.Status,
 	})
@@ -158,7 +158,7 @@ func saleVariant(id, sellerID, productID uuid.UUID, sku, productName, color, siz
 
 // bumpProduct tăng version của mẫu p đã khóa (biến thể của nó vừa đổi) và phát product.updated.
 func (w Writer) bumpProduct(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID, p Product) error {
-	v, err := store.New(tx).BumpProductVersion(ctx, store.BumpProductVersionParams{ID: p.ID, Version: p.Version})
+	v, err := store.New(tx).BumpProductVersion(ctx, store.BumpProductVersionParams{SellerID: p.SellerID, ID: p.ID, Version: p.Version})
 	if err != nil {
 		return fmt.Errorf("tăng version mẫu: %w", err)
 	}

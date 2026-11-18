@@ -33,16 +33,18 @@ type catalogEnv struct {
 	t      *testing.T
 	staff  *testkit.Staff
 	tenant uuid.UUID
-	seller uuid.UUID
-	actor  identity.AuthUser
-	bus    *testkit.RecordingBus
+	seller uuid.UUID // ELIMAZ (người bán mặc định)
+	// partner là người bán thứ hai PARTNER1 (ADR-29, KH14).
+	partner uuid.UUID
+	actor   identity.AuthUser
+	bus     *testkit.RecordingBus
 }
 
 func newCatalogEnv(t *testing.T) *catalogEnv {
 	t.Helper()
 	e := &catalogEnv{t: t, staff: testkit.OpenStaff(t), bus: &testkit.RecordingBus{}}
 	e.tenant = e.staff.Tenant(t, "A")
-	e.seller = e.ensureSeller(e.tenant)
+	e.seller, e.partner = testkit.SeedSellers(t, e.staff.Owner, e.tenant)
 	uid := e.staff.User(t, e.tenant, "chu@elimaz.test", "active")
 	e.actor = identity.AuthUser{
 		UserID: uid, TenantID: e.tenant, Email: "chu@elimaz.test",
@@ -95,17 +97,6 @@ func (e *catalogEnv) count(q string, args ...any) int {
 	e.t.Helper()
 	// Chủ bảng trong ngữ cảnh tenant: crm_app không đọc được audit_logs, domain_events.
 	return e.staff.CountIn(e.t, e.tenant, q, args...)
-}
-
-// partnerSeller chèn người bán thứ hai (đối tác, ADR-29) bằng chủ bảng và trả mã của nó.
-func (e *catalogEnv) partnerSeller() uuid.UUID {
-	e.t.Helper()
-	var id uuid.UUID
-	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
-		return tx.QueryRow(e.t.Context(), `INSERT INTO catalog.sellers (tenant_id, code, name, kind)
-			VALUES ($1, 'P2', 'Đối tác', 'partner') RETURNING id`, e.tenant).Scan(&id)
-	})
-	return id
 }
 
 func ptr[T any](v T) *T { return &v }
@@ -171,7 +162,7 @@ func TestCreateProduct_DuplicateSKU(t *testing.T) {
 			if err != nil {
 				return err //nolint:wrapcheck // test
 			}
-			_, err = e.writer().AddVariant(t.Context(), tx, p.ID, cur.Version, v, e.actor)
+			_, err = e.writer().AddVariant(t.Context(), tx, e.seller, p.ID, cur.Version, v, e.actor)
 			return err //nolint:wrapcheck // test
 		})
 	}
@@ -202,7 +193,7 @@ func TestCreateProduct_DuplicateSKU(t *testing.T) {
 	}
 
 	// Người bán thứ hai (ADR-29) dùng cùng mã mẫu và SKU → được.
-	if _, err := e.create(dam01(e.partnerSeller())); err != nil {
+	if _, err := e.create(dam01(e.partner)); err != nil {
 		t.Errorf("người bán thứ hai cùng SKU phải được: %v", err)
 	}
 }
@@ -302,7 +293,7 @@ func TestUpdateProduct_Version(t *testing.T) {
 		var out catalog.Product
 		err := e.app(func(tx pgx.Tx) error {
 			var err error
-			out, err = e.writer().UpdateProduct(t.Context(), tx, p.ID, version, patch, e.actor)
+			out, err = e.writer().UpdateProduct(t.Context(), tx, e.seller, p.ID, version, patch, e.actor)
 			return err //nolint:wrapcheck // test
 		})
 		return out, err
@@ -351,7 +342,7 @@ func (e *catalogEnv) writerUpdateMissing() (catalog.Product, error) {
 	var out catalog.Product
 	err := e.app(func(tx pgx.Tx) error {
 		var err error
-		out, err = e.writer().UpdateProduct(e.t.Context(), tx, uuid.New(), 1, catalog.ProductPatch{}, e.actor)
+		out, err = e.writer().UpdateProduct(e.t.Context(), tx, e.seller, uuid.New(), 1, catalog.ProductPatch{}, e.actor)
 		return err //nolint:wrapcheck // test
 	})
 	return out, err
@@ -397,7 +388,7 @@ func (e *catalogEnv) writerUpdateArticle(id uuid.UUID, raw string) (catalog.Prod
 			return err //nolint:wrapcheck // test
 		}
 		a := json.RawMessage(raw)
-		out, err = e.writer().UpdateProduct(e.t.Context(), tx, id, cur.Version, catalog.ProductPatch{Article: &a}, e.actor)
+		out, err = e.writer().UpdateProduct(e.t.Context(), tx, e.seller, id, cur.Version, catalog.ProductPatch{Article: &a}, e.actor)
 		return err //nolint:wrapcheck // test
 	})
 	return out, err

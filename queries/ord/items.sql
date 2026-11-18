@@ -18,5 +18,5 @@ ORDER BY position;
 -- Mã các dòng đơn của đơn (đơn đã khóa bằng LockOrder).
 SELECT id
 FROM ord.order_items
-WHERE order_id = @order_id
+WHERE seller_id = @seller_id AND order_id = @order_id
 ORDER BY position;

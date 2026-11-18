@@ -27,15 +27,18 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// codEnv: database thử, tenant A (shiptest.Shop: tài khoản hãng ở kho MAIN) và một biến thể tồn nhiều để tạo đơn, vận
-// đơn thật (khóa ngoại của sổ COD tới fulfillment.shipments).
+// codEnv: database thử, tenant A (shiptest.Shop: tài khoản hãng của hai người bán ở kho MAIN) và mỗi người bán một
+// biến thể tồn nhiều để tạo đơn, vận đơn thật (khóa ngoại của sổ COD tới fulfillment.shipments). seller là người bán
+// của đơn trong test (mặc định ELIMAZ; eachSeller chạy với từng người), variant là biến thể của người bán đó.
 type codEnv struct {
-	t       testing.TB
-	staff   *testkit.Staff
-	tenant  uuid.UUID
-	shop    *shiptest.Shop
-	variant uuid.UUID
-	user    uuid.UUID
+	t        testing.TB
+	staff    *testkit.Staff
+	tenant   uuid.UUID
+	shop     *shiptest.Shop
+	seller   uuid.UUID
+	variant  uuid.UUID
+	variants map[uuid.UUID]uuid.UUID
+	user     uuid.UUID
 }
 
 func newCODEnv(t testing.TB) *codEnv {
@@ -45,10 +48,25 @@ func newCODEnv(t testing.TB) *codEnv {
 	e.user = e.staff.User(t, e.tenant, "kho@elimaz.test", "active")
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
 		e.shop = shiptest.NewShop(t, tx, e.tenant)
-		e.variant = e.shop.Variant(t, tx, e.shop.Seller, 250000, 30000)
+		e.variants = map[uuid.UUID]uuid.UUID{}
+		for _, s := range []uuid.UUID{e.shop.Seller, e.shop.Partner} {
+			e.variants[s] = e.shop.Variant(t, tx, s, 250000, 30000)
+		}
 		return nil
 	})
+	e.seller, e.variant = e.shop.Seller, e.variants[e.shop.Seller]
 	return e
+}
+
+// eachSeller chạy body trên cùng một database lần lượt với từng người bán làm người bán của đơn (KH14, ADR-29).
+func eachSeller(t *testing.T, body func(t *testing.T, e *codEnv)) {
+	t.Helper()
+	base := newCODEnv(t)
+	testkit.ForEachSeller(t, []uuid.UUID{base.shop.Seller, base.shop.Partner}, func(t *testing.T, s uuid.UUID) {
+		e := *base
+		e.t, e.seller, e.variant = t, s, base.variants[s]
+		body(t, &e)
+	})
 }
 
 func (e *codEnv) app(fn func(tx pgx.Tx) error) error {
@@ -76,11 +94,11 @@ func (e *codEnv) shipment(cod int64) uuid.UUID {
 	e.t.Helper()
 	var id uuid.UUID
 	if err := e.app(func(tx pgx.Tx) error {
-		o, err := e.shop.Order(e.t.Context(), tx, e.user, 0, order.ItemInput{VariantID: e.variant, Qty: 1})
+		o, err := e.shop.Order(e.t.Context(), tx, e.seller, e.user, 0, order.ItemInput{VariantID: e.variant, Qty: 1})
 		if err != nil {
 			return err //nolint:wrapcheck // test
 		}
-		s, err := e.shop.Shipment(e.t.Context(), tx, o.ID, e.user)
+		s, err := e.shop.Shipment(e.t.Context(), tx, e.seller, o.ID, e.user)
 		id = s.ID
 		return err //nolint:wrapcheck // test
 	}); err != nil {

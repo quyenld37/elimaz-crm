@@ -30,18 +30,21 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// shipEnv: database thử, tenant A (shiptest.Shop: tài khoản hãng giả fake-1 ở kho MAIN), hãng giả trong bộ nhớ, worker
-// chạy hai lệnh của fulfillment.
+// shipEnv: database thử, tenant A (shiptest.Shop: tài khoản hãng giả fake-1 của ELIMAZ, fake-2 của PARTNER1 ở kho
+// MAIN), hãng giả trong bộ nhớ, worker chạy hai lệnh của fulfillment. seller là người bán của đơn trong test (mặc định
+// ELIMAZ), account, accountRef là tài khoản hãng của người bán đó.
 type shipEnv struct {
-	t       *testing.T
-	staff   *testkit.Staff
-	shop    *shiptest.Shop
-	tenant  uuid.UUID
-	account uuid.UUID
-	carrier *fake.Carrier
-	cmds    []commands.Handler
-	worker  *queue.Worker
-	actor   fulfillment.Actor
+	t          *testing.T
+	staff      *testkit.Staff
+	shop       *shiptest.Shop
+	tenant     uuid.UUID
+	seller     uuid.UUID
+	account    uuid.UUID
+	accountRef string
+	carrier    *fake.Carrier
+	cmds       []commands.Handler
+	worker     *queue.Worker
+	actor      fulfillment.Actor
 }
 
 func newShipEnv(t *testing.T) *shipEnv {
@@ -51,7 +54,7 @@ func newShipEnv(t *testing.T) *shipEnv {
 	e.actor = fulfillment.Actor{TenantID: e.tenant, UserID: e.staff.User(t, e.tenant, "kho@elimaz.test", "active")}
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
 		e.shop = shiptest.NewShop(t, tx, e.tenant)
-		e.account = e.shop.Account
+		e.seller, e.account, e.accountRef = e.shop.Seller, e.shop.Account, shiptest.AccountRef
 		return nil
 	})
 	o := fulfillment.CommandOptions{
@@ -65,21 +68,35 @@ func newShipEnv(t *testing.T) *shipEnv {
 	return e
 }
 
+// eachSeller chạy body trên cùng một database lần lượt với từng người bán làm người bán của đơn (KH14, ADR-29).
+func eachSeller(t *testing.T, body func(t *testing.T, e *shipEnv)) {
+	t.Helper()
+	base := newShipEnv(t)
+	testkit.ForEachSeller(t, []uuid.UUID{base.shop.Seller, base.shop.Partner}, func(t *testing.T, s uuid.UUID) {
+		e := *base
+		e.t, e.seller, e.account = t, s, base.shop.AccountOf(s)
+		if s == base.shop.Partner {
+			e.accountRef = shiptest.PartnerAccountRef
+		}
+		body(t, &e)
+	})
+}
+
 func (e *shipEnv) app(fn func(tx pgx.Tx) error) error {
 	return tenancy.WithTenant(e.t.Context(), e.staff.App, e.tenant, fn) //nolint:wrapcheck // test
 }
 
-// order tạo biến thể on_hand 5 và đơn qty cái (phí ship 30000) của ELIMAZ; trả đơn và biến thể.
+// order tạo biến thể on_hand 5 và đơn qty cái (phí ship 30000) của người bán e.seller; trả đơn và biến thể.
 func (e *shipEnv) order(qty int32) (order.Order, uuid.UUID) {
 	e.t.Helper()
 	var v uuid.UUID
 	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
-		v = e.shop.Variant(e.t, tx, e.shop.Seller, 250000, 5)
+		v = e.shop.Variant(e.t, tx, e.seller, 250000, 5)
 		return nil
 	})
 	var o order.Order
 	if err := e.app(func(tx pgx.Tx) (err error) {
-		o, err = e.shop.Order(e.t.Context(), tx, e.actor.UserID, 30000, order.ItemInput{VariantID: v, Qty: qty})
+		o, err = e.shop.Order(e.t.Context(), tx, e.seller, e.actor.UserID, 30000, order.ItemInput{VariantID: v, Qty: qty})
 		return err //nolint:wrapcheck // test
 	}); err != nil {
 		e.t.Fatalf("tạo đơn: %v", err)
@@ -90,7 +107,7 @@ func (e *shipEnv) order(qty int32) (order.Order, uuid.UUID) {
 func (e *shipEnv) createShipment(orderID uuid.UUID) (fulfillment.Shipment, error) {
 	var s fulfillment.Shipment
 	err := e.app(func(tx pgx.Tx) (err error) {
-		s, err = e.shop.Shipment(e.t.Context(), tx, orderID, e.actor.UserID)
+		s, err = e.shop.Shipment(e.t.Context(), tx, e.seller, orderID, e.actor.UserID)
 		return err //nolint:wrapcheck // test
 	})
 	return s, err
@@ -143,7 +160,7 @@ func (e *shipEnv) shipment(id uuid.UUID) fulfillment.Shipment {
 func (e *shipEnv) getOrder(id uuid.UUID) order.Order {
 	e.t.Helper()
 	return readAs(e, func(ctx context.Context, tx pgx.Tx) (order.Order, error) {
-		return order.Get(ctx, tx, e.shop.Seller, id)
+		return order.Get(ctx, tx, e.seller, id)
 	})
 }
 
@@ -178,11 +195,13 @@ func (e *shipEnv) count(q string, args ...any) int {
 	return e.staff.CountIn(e.t, e.tenant, q, args...)
 }
 
-// signal giao một tín hiệu webhook (đã định tuyến về tenant A) cho handler của nguồn fakecarrier, trong tx crm_app.
+// signal giao một tín hiệu webhook (đã định tuyến về tenant A) của tài khoản hãng e.accountRef cho handler của nguồn
+// fakecarrier, trong tx crm_app. Mã sự kiện gửi đi là "<accountRef>/<eventID>": hai lượt eachSeller dùng cùng eventID
+// trên một database mà không bị chống trùng gộp (khóa evt:<mã sự kiện> theo tenant).
 func (e *shipEnv) signal(tracking, eventID string) {
 	e.t.Helper()
 	data, err := json.Marshal(fulfillment.Signal{
-		CarrierKey: fake.Key, AccountKey: shiptest.AccountRef, TrackingCode: tracking, EventID: eventID,
+		CarrierKey: fake.Key, AccountKey: e.accountRef, TrackingCode: tracking, EventID: e.accountRef + "/" + eventID,
 	})
 	if err != nil {
 		e.t.Fatal(err)

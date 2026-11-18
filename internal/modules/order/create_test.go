@@ -19,7 +19,12 @@ import (
 var codeRe = regexp.MustCompile(`^DH[0-9]{7,}$`)
 
 func TestCreateManual_Totals(t *testing.T) {
-	e := newOrderEnv(t)
+	eachSeller(t, testCreateManualTotals)
+}
+
+var nameRe = regexp.MustCompile(`^Áo thử - Đỏ / S[0-9]+$`)
+
+func testCreateManualTotals(t *testing.T, e *orderEnv) {
 	v := e.variant(250000, 5)
 	o := e.mustCreate(e.input(30000, item(v, 2)))
 
@@ -31,7 +36,7 @@ func TestCreateManual_Totals(t *testing.T) {
 		t.Errorf("mã đơn %q không khớp %s", o.Code, codeRe)
 	}
 	if len(o.Items) != 1 || o.Items[0].Position != 1 || o.Items[0].Qty != 2 || o.Items[0].UnitPrice != 250000 ||
-		o.Items[0].NetAmount != 500000 || o.Items[0].SKU == "" || o.Items[0].Name != "Áo thử - Đỏ / S1" {
+		o.Items[0].NetAmount != 500000 || o.Items[0].SKU == "" || !nameRe.MatchString(o.Items[0].Name) {
 		t.Errorf("dòng đơn sai: %+v", o.Items)
 	}
 	if b := e.balance(v); b.Held != 2 || b.OnHand != 5 || b.Available != 3 {

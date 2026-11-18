@@ -26,8 +26,9 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// orderEnv: một database thử, tenant A (invtest.Shop: người bán ELIMAZ của đơn, người bán P, kho MAIN) và nhân viên
-// thao tác.
+// orderEnv: một database thử, tenant A (invtest.Shop: người bán ELIMAZ, người bán PARTNER1, kho MAIN) và nhân viên
+// thao tác. seller là người bán của đơn trong test (mặc định ELIMAZ; eachSeller chạy với từng người), partner là
+// người bán còn lại.
 type orderEnv struct {
 	t                                  *testing.T
 	staff                              *testkit.Staff
@@ -49,7 +50,21 @@ func newOrderEnv(t *testing.T) *orderEnv {
 	return e
 }
 
-// variant tạo biến thể của ELIMAZ giá price, nạp onHand (0: không nạp).
+// eachSeller chạy body trên cùng một database lần lượt với từng người bán làm người bán của đơn (KH14, ADR-29).
+func eachSeller(t *testing.T, body func(t *testing.T, e *orderEnv)) {
+	t.Helper()
+	base := newOrderEnv(t)
+	testkit.ForEachSeller(t, []uuid.UUID{base.shop.Seller, base.shop.Partner}, func(t *testing.T, s uuid.UUID) {
+		e := *base
+		e.t, e.seller, e.partner = t, s, base.shop.Partner
+		if s == base.shop.Partner {
+			e.partner = base.shop.Seller
+		}
+		body(t, &e)
+	})
+}
+
+// variant tạo biến thể của người bán e.seller giá price, nạp onHand (0: không nạp).
 func (e *orderEnv) variant(price int64, onHand int32) uuid.UUID {
 	e.t.Helper()
 	return e.variantOf(e.seller, price, onHand)

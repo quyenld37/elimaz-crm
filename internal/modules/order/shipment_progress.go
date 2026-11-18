@@ -25,13 +25,14 @@ const (
 	StepDelivered ShipmentStep = "delivered"
 )
 
-// AttachShipment gắn vận đơn shipmentID làm vận đơn hiện hành của đơn orderID (05 mục 2, B1), trong tx của bên gọi
+// AttachShipment gắn vận đơn shipmentID làm vận đơn hiện hành của đơn orderID của người bán sellerID (05 mục 2, B1;
+// ADR-29), trong tx của bên gọi
 // (fulfillment, cùng transaction với việc tạo vận đơn). Khóa đơn trước (ADR-46 nhóm 7). Chỉ đơn confirmed và chưa có
 // vận đơn hiện hành; gắn cùng vận đơn lần hai → không đổi, không lỗi; đã có vận đơn khác → ErrShipmentAlreadyAttached;
 // đơn không ở confirmed → ErrStatusConflict; không có đơn → ErrNotFound. Gắn tăng version của đơn.
-func AttachShipment(ctx context.Context, tx pgx.Tx, orderID, shipmentID uuid.UUID) error {
+func AttachShipment(ctx context.Context, tx pgx.Tx, sellerID, orderID, shipmentID uuid.UUID) error {
 	q := store.New(tx)
-	o, err := lockOrder(ctx, q, orderID)
+	o, err := lockOrder(ctx, q, sellerID, orderID)
 	if err != nil {
 		return err
 	}
@@ -45,7 +46,7 @@ func AttachShipment(ctx context.Context, tx pgx.Tx, orderID, shipmentID uuid.UUI
 		return fmt.Errorf("%w: gắn vận đơn vào đơn %s", ErrStatusConflict, o.Status)
 	}
 	n, err := q.SetCurrentShipment(ctx, store.SetCurrentShipmentParams{
-		ShipmentID: pgtype.UUID{Bytes: shipmentID, Valid: true}, ID: orderID,
+		ShipmentID: pgtype.UUID{Bytes: shipmentID, Valid: true}, SellerID: sellerID, ID: orderID,
 	})
 	if err != nil {
 		return fmt.Errorf("gắn vận đơn: %w", err)
@@ -56,7 +57,7 @@ func AttachShipment(ctx context.Context, tx pgx.Tx, orderID, shipmentID uuid.UUI
 	return nil
 }
 
-// ApplyShipmentProgress áp bước step của vận đơn shipmentID lên đơn orderID và tồn, trong tx của bên gọi
+// ApplyShipmentProgress áp bước step của vận đơn shipmentID lên đơn orderID của người bán sellerID và tồn, trong tx của bên gọi
 // (fulfillment). Khóa đơn trước (ADR-46: ord.orders rồi số dư, giữ hàng). Chỉ vận đơn hiện hành được đổi đơn và tồn
 // (05 mục 2, B1): vận đơn khác (hay đơn chưa gắn vận đơn) → applied=false, không đổi gì. Gọi lại cùng bước (hay bước
 // đã qua) → applied=false, không đổi gì.
@@ -68,7 +69,7 @@ func AttachShipment(ctx context.Context, tx pgx.Tx, orderID, shipmentID uuid.UUI
 // Lỗi (bên gọi lùi cả transaction, không bao giờ applied=false sau khi đã ghi): bước lạ → ErrInvalidInput; không có
 // đơn → ErrNotFound; đơn không ở confirmed/delivered, hay không còn dòng giữ hàng held/in_transit nào (bất biến hỏng)
 // → ErrStatusConflict; lỗi của inventory trả nguyên (không nuốt inventory.ErrStateConflict).
-func (w Writer) ApplyShipmentProgress(ctx context.Context, tx pgx.Tx, orderID, shipmentID uuid.UUID,
+func (w Writer) ApplyShipmentProgress(ctx context.Context, tx pgx.Tx, sellerID, orderID, shipmentID uuid.UUID,
 	step ShipmentStep,
 ) (applied bool, err error) {
 	if step != StepPickedUp && step != StepDelivered {
@@ -79,7 +80,7 @@ func (w Writer) ApplyShipmentProgress(ctx context.Context, tx pgx.Tx, orderID, s
 		return false, err
 	}
 	q := store.New(tx)
-	o, err := lockOrder(ctx, q, orderID)
+	o, err := lockOrder(ctx, q, sellerID, orderID)
 	if err != nil {
 		return false, err
 	}
@@ -93,7 +94,7 @@ func (w Writer) ApplyShipmentProgress(ctx context.Context, tx pgx.Tx, orderID, s
 	default:
 		return false, fmt.Errorf("%w: áp %s lên đơn %s", ErrStatusConflict, step, o.Status)
 	}
-	items, err := q.OrderItemIDs(ctx, orderID)
+	items, err := q.OrderItemIDs(ctx, store.OrderItemIDsParams{SellerID: sellerID, OrderID: orderID})
 	if err != nil {
 		return false, fmt.Errorf("đọc dòng đơn: %w", err)
 	}
@@ -127,7 +128,7 @@ func (w Writer) ApplyShipmentProgress(ctx context.Context, tx pgx.Tx, orderID, s
 func (w Writer) markDelivered(ctx context.Context, tx pgx.Tx, o store.LockOrderRow) error {
 	q := store.New(tx)
 	version, err := q.SetOrderStatus(ctx, store.SetOrderStatusParams{
-		ToStatus: StatusDelivered, ID: o.ID, FromStatus: StatusConfirmed,
+		ToStatus: StatusDelivered, SellerID: o.SellerID, ID: o.ID, FromStatus: StatusConfirmed,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return fmt.Errorf("%w: đơn không còn confirmed", ErrStatusConflict)
@@ -145,15 +146,16 @@ func (w Writer) markDelivered(ctx context.Context, tx pgx.Tx, o store.LockOrderR
 }
 
 // Lock khóa đơn id (FOR UPDATE) trong tx của bên gọi, cho đường bắt đầu từ dòng ở nhóm sau (vận đơn, ADR-46 nhóm 7
-// trước nhóm 8): bên gọi khóa đơn trước rồi mới khóa dòng của mình. Không có (hay tenant khác, RLS) → ErrNotFound.
-func Lock(ctx context.Context, tx pgx.Tx, id uuid.UUID) error {
-	_, err := lockOrder(ctx, store.New(tx), id)
+// trước nhóm 8): bên gọi khóa đơn trước rồi mới khóa dòng của mình. Không có (hay của người bán, tenant khác) →
+// ErrNotFound.
+func Lock(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID) error {
+	_, err := lockOrder(ctx, store.New(tx), sellerID, id)
 	return err
 }
 
-// lockOrder khóa đơn id (FOR UPDATE); không có (hay tenant khác, RLS) → ErrNotFound.
-func lockOrder(ctx context.Context, q *store.Queries, id uuid.UUID) (store.LockOrderRow, error) {
-	o, err := q.LockOrder(ctx, id)
+// lockOrder khóa đơn id của người bán sellerID (FOR UPDATE); không có (hay của người bán, tenant khác) → ErrNotFound.
+func lockOrder(ctx context.Context, q *store.Queries, sellerID, id uuid.UUID) (store.LockOrderRow, error) {
+	o, err := q.LockOrder(ctx, store.LockOrderParams{SellerID: sellerID, ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return store.LockOrderRow{}, ErrNotFound
 	}

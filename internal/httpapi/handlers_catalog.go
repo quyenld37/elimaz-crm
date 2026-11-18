@@ -32,11 +32,7 @@ func (h *handler) CreateProduct(ctx context.Context, req *gen.CreateProductReque
 			Size: string(v.Size), Price: int64(v.Price), CostPrice: optMoney(v.CostPrice),
 		})
 	}
-	out, err := h.catalogWrite(ctx, http.StatusCreated, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) (any, error) {
-		seller, err := catalog.DefaultSeller(ctx, tx)
-		if err != nil {
-			return nil, err //nolint:wrapcheck // sentinel của catalog
-		}
+	out, err := h.catalogWriteAsDefaultSeller(ctx, http.StatusCreated, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) (any, error) {
 		in.SellerID = seller
 		p, err := w.CreateProduct(ctx, tx, in, u)
 		if err != nil {
@@ -91,8 +87,8 @@ func (h *handler) UpdateProduct(ctx context.Context, req *gen.UpdateProductReque
 		s := catalog.ProductStatus(req.Status.Value)
 		patch.Status = &s
 	}
-	out, err := h.catalogWrite(ctx, http.StatusOK, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) (any, error) {
-		p, err := w.UpdateProduct(ctx, tx, params.ID, req.Version, patch, u)
+	out, err := h.catalogWriteAsDefaultSeller(ctx, http.StatusOK, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) (any, error) {
+		p, err := w.UpdateProduct(ctx, tx, seller, params.ID, req.Version, patch, u)
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của catalog
 		}
@@ -112,8 +108,8 @@ func (h *handler) AddVariant(ctx context.Context, req *gen.AddVariantRequest, pa
 		SKU: string(req.Sku), Barcode: string(req.Barcode.Value), Color: string(req.Color),
 		ColorHex: string(req.ColorHex.Value), Size: string(req.Size), Price: int64(req.Price), CostPrice: optMoney(req.CostPrice),
 	}
-	out, err := h.catalogWrite(ctx, http.StatusCreated, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) (any, error) {
-		v, err := w.AddVariant(ctx, tx, params.ID, req.ProductVersion, in, u)
+	out, err := h.catalogWriteAsDefaultSeller(ctx, http.StatusCreated, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) (any, error) {
+		v, err := w.AddVariant(ctx, tx, seller, params.ID, req.ProductVersion, in, u)
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của catalog
 		}
@@ -150,8 +146,8 @@ func (h *handler) UpdateVariant(ctx context.Context, req *gen.UpdateVariantReque
 		s := string(req.Status.Value)
 		patch.Status = &s
 	}
-	out, err := h.catalogWrite(ctx, http.StatusOK, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) (any, error) {
-		v, err := w.UpdateVariant(ctx, tx, params.ID, req.Version, patch, u)
+	out, err := h.catalogWriteAsDefaultSeller(ctx, http.StatusOK, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) (any, error) {
+		v, err := w.UpdateVariant(ctx, tx, seller, params.ID, req.Version, patch, u)
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của catalog
 		}
@@ -171,6 +167,20 @@ func (h *handler) catalogWrite(ctx context.Context, status int,
 	w := catalog.Writer{Events: h.d.Events, Queue: queue.NewQueue(), Realtime: h.d.Realtime, RequestID: RequestID(ctx)}
 	return h.refusableWrite(ctx, status, isCatalogRefusal, "ghi catalog", func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 		return change(tx, w, u)
+	})
+}
+
+// catalogWriteAsDefaultSeller như catalogWrite, truyền thêm người bán mặc định của shop (API chỉ làm việc với người
+// bán này, ADR-29): mẫu, biến thể của người bán khác → catalog.ErrNotFound (404).
+func (h *handler) catalogWriteAsDefaultSeller(ctx context.Context, status int,
+	change func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) (any, error),
+) (any, error) {
+	return h.catalogWrite(ctx, status, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) (any, error) {
+		seller, err := catalog.DefaultSeller(ctx, tx)
+		if err != nil {
+			return nil, err //nolint:wrapcheck // sentinel của catalog
+		}
+		return change(tx, w, u, seller)
 	})
 }
 
@@ -444,8 +454,8 @@ func (h *handler) SetProductClassification(ctx context.Context, req *gen.SetClas
 	if req.CategoryId.Set && !req.CategoryId.Null {
 		c.CategoryID = &req.CategoryId.Value
 	}
-	out, err := h.catalogWrite(ctx, http.StatusOK, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser) (any, error) {
-		pc, err := w.SetClassification(ctx, tx, params.ID, req.Version, c, u)
+	out, err := h.catalogWriteAsDefaultSeller(ctx, http.StatusOK, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) (any, error) {
+		pc, err := w.SetClassification(ctx, tx, seller, params.ID, req.Version, c, u)
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của catalog
 		}

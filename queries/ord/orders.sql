@@ -18,22 +18,22 @@ FROM ord.orders
 WHERE seller_id = @seller_id AND id = @id;
 
 -- name: LockOrder :one
--- Khóa đơn trước mọi dòng nhóm sau (ADR-46 nhóm 7, dòng "khóa đơn trước"). Không lọc seller_id: bên gọi là
--- fulfillment theo mã đơn của vận đơn (cùng tenant, RLS lọc).
+-- Khóa đơn trước mọi dòng nhóm sau (ADR-46 nhóm 7, dòng "khóa đơn trước"). Bên gọi (fulfillment) truyền người bán
+-- của tài khoản hãng (ADR-29, Task M1-37).
 SELECT id, tenant_id, seller_id, status, current_shipment_id, version
 FROM ord.orders
-WHERE id = @id
+WHERE seller_id = @seller_id AND id = @id
 FOR UPDATE;
 
 -- name: SetCurrentShipment :execrows
 -- Gắn vận đơn hiện hành; chỉ khi đơn đang confirmed và chưa có vận đơn (đã khóa bằng LockOrder).
 UPDATE ord.orders
 SET current_shipment_id = @shipment_id, version = version + 1, updated_at = now()
-WHERE id = @id AND status = 'confirmed' AND current_shipment_id IS NULL;
+WHERE seller_id = @seller_id AND id = @id AND status = 'confirmed' AND current_shipment_id IS NULL;
 
 -- name: SetOrderStatus :one
 -- Đổi trạng thái chỉ khi đang ở trạng thái cũ; trả version mới (không dòng nào → pgx.ErrNoRows).
 UPDATE ord.orders
 SET status = @to_status, version = version + 1, updated_at = now()
-WHERE id = @id AND status = @from_status
+WHERE seller_id = @seller_id AND id = @id AND status = @from_status
 RETURNING version;

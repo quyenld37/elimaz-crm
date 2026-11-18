@@ -34,6 +34,10 @@ const stepBudget = 5 * time.Second
 // held 0, in_transit 2, COD to_collect 530000 → hãng báo delivered → đơn delivered, on_hand 3, giữ hàng consumed, COD
 // carrier_holding 530000; tổng sổ COD = 0, tổng sổ kho từng ngăn = số dư. Span nhận webhook (ingest), span lệnh
 // refresh_status và span consumer cash cùng một TraceID.
+//
+// Dữ liệu có hai người bán (KH14, ADR-29; Q-T37-2): người bán PARTNER1 có mẫu đang bán, tồn 7 ở cùng kho. API chạy
+// với người bán mặc định nên: danh sách chỉ có mẫu của ELIMAZ, đọc mẫu PARTNER1 → 404, lên đơn với biến thể PARTNER1
+// → 422 mixed_sellers, tồn của PARTNER1 không đổi suốt luồng.
 func TestMotDonDiTron(t *testing.T) {
 	r := newOrderRun(t)
 	s := r.s
@@ -43,6 +47,7 @@ func TestMotDonDiTron(t *testing.T) {
 	start := time.Now()
 	v := r.productWithStock("E2E01", 5)
 	mark("tạo mẫu, nhập 5, ghi sổ", start)
+	pv := r.partnerWithStock(7)
 
 	start = time.Now()
 	o := r.mustCall(http.MethodPost, "/api/v1/orders", orderReq(v, 2, 30000), http.StatusCreated)
@@ -52,6 +57,7 @@ func TestMotDonDiTron(t *testing.T) {
 		t.Fatalf("đơn = %v, muốn confirmed, grandTotal 530000", o)
 	}
 	r.stockIs(v, stock{onHand: 5, held: 2, available: 3})
+	// listProducts đòi đúng 1 mẫu: mẫu đang bán của PARTNER1 (tạo ở trên) không hiện qua API.
 	if got := r.listedAvailable(); got != 3 {
 		t.Fatalf("listProducts available = %d, muốn 3", got)
 	}
@@ -100,6 +106,7 @@ func TestMotDonDiTron(t *testing.T) {
 		t.Errorf("tổng sổ COD = %d, muốn 0", n)
 	}
 	r.ledgerMatchesBalance(v)
+	r.partnerUntouched(pv, 7)
 	if n := s.count(`SELECT count(*) FROM platform.jobs WHERE status = 'dead'`); n != 0 {
 		t.Errorf("%d việc dead", n)
 	}
@@ -284,6 +291,36 @@ func (r *orderRun) productWithStock(code string, qty int) uuid.UUID {
 	}
 	r.stockIs(v, stock{onHand: int32(qty), available: int32(qty)}) //nolint:gosec // G115: qty nhỏ do test đặt
 	return v
+}
+
+// partnerWithStock tạo biến thể đang bán của người bán PARTNER1 (chủ bảng, không qua API: API chỉ làm việc với người bán
+// mặc định) và nạp qty ở kho MAIN; trả biến thể.
+func (r *orderRun) partnerWithStock(qty int32) uuid.UUID {
+	r.t.Helper()
+	var pv uuid.UUID
+	r.inTenant(func(tx pgx.Tx) error {
+		pv = r.s.shop.Variant(r.t, tx, r.s.shop.Partner, 250000, qty)
+		return nil
+	})
+	r.stockIs(pv, stock{onHand: qty, available: qty})
+	return pv
+}
+
+// partnerUntouched: tồn của biến thể PARTNER1 vẫn qty, sổ = số dư; đọc mẫu PARTNER1 qua API → 404; lên đơn với biến
+// thể PARTNER1 → 422 mixed_sellers và tồn không đổi.
+func (r *orderRun) partnerUntouched(pv uuid.UUID, qty int32) {
+	r.t.Helper()
+	r.stockIs(pv, stock{onHand: qty, available: qty})
+	r.ledgerMatchesBalance(pv)
+	path := "/api/v1/catalog/products/" + r.s.shop.Product(r.s.shop.Partner).String()
+	if st, body, err := r.call(http.MethodGet, path, nil); err != nil || st != http.StatusNotFound || body["error"] != "not_found" {
+		r.t.Errorf("đọc mẫu của PARTNER1 = %d %v (%v), muốn 404 not_found", st, body, err)
+	}
+	if st, body, err := r.call(http.MethodPost, "/api/v1/orders", orderReq(pv, 1, 0)); err != nil ||
+		st != http.StatusUnprocessableEntity || body["error"] != "mixed_sellers" {
+		r.t.Errorf("lên đơn với biến thể PARTNER1 = %d %v (%v), muốn 422 mixed_sellers", st, body, err)
+	}
+	r.stockIs(pv, stock{onHand: qty, available: qty})
 }
 
 func orderReq(v uuid.UUID, qty int, fee int64) map[string]any {
