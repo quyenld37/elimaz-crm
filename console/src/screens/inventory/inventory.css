@@ -66,7 +66,8 @@
   }
 }
 
-/* Ô chọn có thêm nhanh, chép từ mockup docs/mockups/m1/kho-phieu.html (trạng thái B, khối <style>). */
+/* Màn Phiếu kho (Task 328) và ô chọn có thêm nhanh (Task 327), chép từ mockup đã duyệt docs/mockups/m1/kho-phieu.html
+   (khối <style>) và m1.css (.stepper). Viết .tbl.ltbl cho luật điện thoại vì styles.css có .tbl td cùng độ ưu tiên (như .tbl.stk). */
 .combo {
   position: relative;
 }
@@ -103,4 +104,51 @@
 .combo-opt.is-add {
   font-weight: 700;
   background: var(--surface);
+}
+.sup-name {
+  max-width: 360px;
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.stepper .input {
+  width: 72px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  padding: 8px 4px;
+}
+.ltbl .c-q {
+  width: 150px;
+}
+.ltbl .c-c {
+  width: 160px;
+}
+.ltbl .c-x {
+  width: 56px;
+}
+.ltbl td .input {
+  width: 100%;
+}
+.totals {
+  display: flex;
+  justify-content: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 12px;
+  font-size: 14px;
+}
+@media (max-width: 759px) {
+  .tbl.ltbl td .input,
+  .tbl.ltbl td .stepper {
+    flex: 0 1 60%;
+  }
+  .tbl.ltbl td.c-x {
+    justify-content: flex-end;
+  }
+  .totals {
+    justify-content: space-between;
+    padding: 8px 0;
+  }
 }

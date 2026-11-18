@@ -4,7 +4,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Balance, BalancePage, Warehouse } from "../../api";
+import { MemoryRouter } from "react-router";
+import type { Balance, BalancePage, Grant, Me, Warehouse } from "../../api";
+import { queryKey } from "../../app/queryClient";
 import { Balances, discontinued, signed, TEXT_NO_SHORT, TEXT_NO_WAREHOUSE } from "./Balances";
 
 const W1 = "0195f3b2-0000-7000-8000-00000000a001";
@@ -38,6 +40,7 @@ function bal(sku: string, s: Partial<Balance>): Balance {
 let warehouses: Warehouse[];
 let pages: Record<string, Balance[]>;
 let calls: URLSearchParams[];
+let me: Me;
 
 beforeEach(() => {
   warehouses = [
@@ -53,6 +56,7 @@ beforeEach(() => {
       const body = (b: unknown) =>
         Promise.resolve(new Response(JSON.stringify(b), { headers: { "Content-Type": "application/json" } }));
       if (url.pathname === "/api/v1/inventory/warehouses") return body(warehouses);
+      if (url.pathname === "/api/v1/me") return body(me);
       calls.push(url.searchParams);
       let items = pages[url.searchParams.get("warehouseId") ?? ""] ?? [];
       if (url.searchParams.get("onlyShort") === "true") items = items.filter((b) => b.available < 0);
@@ -67,11 +71,19 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function renderScreen() {
+const grantsOf = (...perms: string[]): Grant[] =>
+  ["inventory.read", ...perms].map((permission) => ({ permission, scope: { type: "all", id: "" } }));
+
+/** Dựng màn với /api/v1/me có sẵn như khung (mặc định chỉ quyền xem kho). */
+function renderScreen(grants: Grant[] = grantsOf()) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  me = { userId: "u1", email: "lan@elimaz.vn", grants };
+  qc.setQueryData(queryKey("identity.me"), me);
   return render(
     <QueryClientProvider client={qc}>
-      <Balances />
+      <MemoryRouter>
+        <Balances />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -120,6 +132,19 @@ describe("Balances", () => {
     renderScreen();
     expect(await screen.findByText(TEXT_NO_WAREHOUSE)).toBeTruthy();
     expect(calls).toHaveLength(0);
+  });
+
+  it("quyền xem: không có nút tạo phiếu; quyền soạn phiếu (Task 328): Tạo phiếu kho, kho trống có Tạo phiếu nhập", async () => {
+    renderScreen();
+    await screen.findByText(/QU1 ·/);
+    expect(screen.queryByRole("link", { name: "Tạo phiếu kho" })).toBeNull();
+    cleanup();
+    renderScreen(grantsOf("inventory.documents.create"));
+    expect((await screen.findByRole("link", { name: "Tạo phiếu kho" })).getAttribute("href")).toBe("/kho/phieu/moi");
+    fireEvent.change(await screen.findByRole("combobox", { name: "Kho" }), { target: { value: W2 } });
+    expect((await screen.findByRole("link", { name: "Tạo phiếu nhập" })).getAttribute("href")).toBe(
+      "/kho/phieu/moi?kind=import",
+    );
   });
 
   it("dấu trừ thật và ngừng bán", () => {

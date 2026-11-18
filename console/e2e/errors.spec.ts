@@ -116,13 +116,18 @@ forEachViewport((vp) => {
     await noHorizontalScroll(page);
   });
 
-  test("không quyền platform.health.read → không có mục menu, URL trực tiếp không mở màn, không gọi API", async ({
+  test("không quyền platform.health.read → không có mục menu, URL trực tiếp hiện Không có quyền, không gọi API", async ({
     page,
     api,
   }) => {
     await api.live({ grants: [{ permission: "realtime.subscribe", scope: { type: "all", id: "" } }] });
     await page.goto(PATH);
-    await expect(page.getByText("Không có trang này, hoặc bạn chưa được cấp quyền xem")).toBeVisible();
+    // Trang thiếu quyền chung của router (Task 53, mockup suc-khoe.html trạng thái C); không có màn nào → không có nút về.
+    await expect(page.getByRole("heading", { name: "Không có quyền" })).toBeVisible();
+    await expect(
+      page.getByText("Tài khoản của bạn không được xem Sự kiện lỗi. Cần thì nhờ Chủ shop cấp quyền."),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: /^Về trang/ })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Sự kiện lỗi" })).toHaveCount(0);
     // apiGuard của fixtures làm test đỏ nếu màn gọi /api/v1/platform/health (đường chưa khai).
   });

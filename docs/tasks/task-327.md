@@ -102,6 +102,40 @@ mục 3): A
 - `src/realtime/client.test.ts` ca "200 rồi im lặng: sau watchdogMs…" đỏ một lần khi máy tải nặng (thứ tự
   `reconnecting`/`connected` đảo), chạy lại qua; test dựa thời gian thật, nên chuyển sang đồng hồ giả.
 
+## Lượt 2 (19/11): gộp main, dùng SupplierPicker ở màn Phiếu kho
+
+Gộp `main` một lần (`git merge main`, có Task 389: test đăng ký theo thư mục màn; Task 328: màn Phiếu kho; Task 53).
+
+- **Ảnh hưởng:** không đổi Go, OpenAPI, sqlc, migration. Giải xung đột: `src/app/screens.test.tsx` lấy bản `main`
+  (chỉ kiểm quy ước); dòng `/kho/nha-cung-cap` chuyển sang `src/screens/inventory/route.test.tsx`; `route.tsx` giữ cả
+  mục Phiếu kho (order 20) và Nhà cung cấp (order 40); `inventory.css` hai bên cùng chép khối `.combo` từ mockup
+  kho-phieu: giữ một khối, giữ lớp `.s-name`/`.stbl` của 327 và `.sup-name`, `.stepper`, `.ltbl`, `.totals` của 328.
+  `DocumentEdit.tsx` (Task 328): bỏ `SupplierField` tạm, dùng `SupplierPicker` (đúng như tệp task 328 Q1 và kế hoạch
+  định), bỏ import `createSupplier`, `listSuppliers`, hằng `SEARCH_DELAY_MS` không còn dùng.
+  `e2e/stock-documents.spec.ts`: câu kiểm "không có chữ Nhà cung cấp" sau khi lưu phiếu xuất giới hạn trong `main`,
+  vì menu bên giờ có mục "Nhà cung cấp" (lỗi do gộp, không phải lỗi màn).
+- **Tái dùng:** `SupplierPicker` thay bản chép trong `DocumentEdit.tsx` (hai ô chọn cùng việc, cùng mockup).
+- **Soát thiết kế:** 6.2 vẫn một `createSupplier` mỗi lần bấm qua `useWriteAction` (test `DocumentEdit.test.tsx`
+  "thêm nhanh nhà cung cấp trong ô chọn…" đếm `writes` = 1); 6.13 dòng thêm nhanh vẫn theo
+  `inventory.suppliers.manage`.
+
+| Tiêu chí | Test | Lệnh | Kết quả |
+|---|---|---|---|
+| Đăng ký route Kho đủ 4 dòng (Tồn kho, Phiếu kho, trang soạn ẩn, Nhà cung cấp) | `route.test.tsx` | `cd console && npx vitest run src/screens/inventory src/app` | `Tests  118 passed (118)` |
+| Phiếu nhập: thêm nhanh "Xưởng Hoa" qua `SupplierPicker`, một `createSupplier`, phiếu gửi `supplierId` | `DocumentEdit.test.tsx` ca đầu; e2e `stock-documents.spec.ts` | như trên; `CRM_E2E_PORT=5127 npx playwright test e2e/suppliers.spec.ts e2e/stock-documents.spec.ts e2e/inventory.spec.ts --project=chromium` | vitest như trên; e2e `25 passed` |
+| Phiếu xuất không có ô nhà cung cấp (sau gộp menu có mục Nhà cung cấp) | e2e "phiếu xuất: không có ô nhà cung cấp…" (1512, 390) | như trên | trước sửa: `2 failed` (`getByText('Nhà cung cấp')` thấy link menu); sau sửa: qua |
+| Cổng tĩnh và test theo vùng | mọi cổng của ci-task | `ci-task.sh` (lượt 2, trên bản gộp) | mọi cổng xanh (gen-check, sqlc-vet, catalog-check, jscpd `No duplicates found`, gitleaks `no leaks found`, oasdiff, test-guard, console-check `Tests  356 passed (356)`, test kiến trúc `ok … 15.289s`) trừ lint: `Error: parallel golangci-lint is running` (phiên khác giữ khóa); chạy lại `golangci-lint run ./...` → `0 issues.` |
+
+### Quyết định thay chủ shop (lượt 2)
+
+- **Thay `SupplierField` bằng `SupplierPicker`** dù khác vài điểm nhỏ ở ca biên; kế hoạch (Interfaces Task 327) và tệp
+  task 328 (Q1) đều định phiếu nhập dùng `SupplierPicker`. Khác với bản tạm: (1) tên gõ trùng tên có sẵn chỉ khác hoa
+  thường vẫn mời thêm, đúng ràng buộc máy chủ `suppliers_name_key UNIQUE (tenant_id, name)` (phân biệt hoa thường);
+  (2) tên đã có (kể cả đã lưu trữ) báo "Tên này đã có. Chọn nhà cung cấp có sẵn hoặc đặt tên khác." thay vì "Đã có nhà
+  cung cấp cùng tên", và câu báo mất khi gõ lại; (3) Esc đóng danh sách; (4) tên dài xuống dòng trong danh sách. Luồng
+  chính (gõ, chọn, thêm nhanh, ẩn khi thiếu quyền) giữ nguyên. Phương án khác: giữ bản tạm (hai ô chọn cùng việc, hai
+  luật khác nhau). Đảo ngược: trả `SupplierField` từ `main`.
+
 ## Reviewer
 
 Kết luận: ĐẠT (lượt 1, trên bản đã gộp main 50389d9). Phát hiện phải sửa: không có. Reviewer đối chiếu luật số điện
@@ -111,3 +145,9 @@ có thật và kiểm đúng điều nói. Ghi chú không bắt buộc (không 
 trong 300 ms chờ tìm (bấm thì máy chủ trả `supplier_name_taken`, câu báo hiện, không sai); nên dời cả `useDebounced`,
 `SEARCH_DELAY_MS` cùng `Dialog` sang `console/src/shared/` trong task dọn code; `ListSuppliers` cắt ở 200 dòng mà màn
 không báo (danh bạ nhỏ, ghi để biết).
+
+Kết luận lượt 2: ĐẠT (trên bản đã gộp main, merge đang dở). Phát hiện phải sửa: không có. Reviewer đối chiếu phần tự
+sửa so với `MERGE_HEAD` đúng 5 tệp đã nêu ở Ảnh hưởng; `SupplierField` đã xóa hẳn, `inventory.css` chỉ còn một khối
+`.combo`; hai khóa query cùng gốc `queryKey("inventory.suppliers")` nên thêm nhanh làm mới cả hai màn; câu kiểm e2e
+đổi ở `stock-documents.spec.ts:293` không nới nghĩa. Ghi chú không bắt buộc: chủ shop nên biết các điểm `SupplierPicker`
+khác bản tạm (đã ghi ở Quyết định thay chủ shop lượt 2).
