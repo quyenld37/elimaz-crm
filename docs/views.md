@@ -35,19 +35,30 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `inventory.stock_ledger_v` | `ledger_id, variant_id, warehouse_id, bucket, delta, doc_type, doc_id, step, actor_type, actor_id, created_at` | 28 | M6, M7 |
 | `inventory.reconcile_runs_v` | `run_id, ran_at, ok, checked, mismatch_count` | 36 | M6, M7 |
 | `customer.customers_v` (M1 Task 30; M2 Task 60 nối 11 cột sau `created_at`; chỉ số chỉ đúng ở dòng `id = root_id`) | `id, root_id, full_name, created_at, tenant_id, code, lifecycle, birthday, order_count, delivered_count, returned_count, total_spent, last_order_at, updated_at, version` | 30, 60 | M2 trở đi |
-| `ord.orders_v` (tối thiểu; M2 mở rộng) | `id, tenant_id, code, seller_id, customer_id, status, channel, grand_total, cod_amount, current_shipment_id, created_at` | 30 | M2 trở đi |
+| `ord.orders_v` (M1 Task 30; M2 Task 62 nối 26 cột sau `created_at`; mốc sau nối sau `version`) | `id, tenant_id, code, seller_id, customer_id, status, channel, grand_total, cod_amount, current_shipment_id, created_at, pending_reason, packing_status, payment_status, channel_account_id, traffic_source_id, conversation_id, external_ref, order_type, warehouse_id, ship_phone, address_complete, subtotal, line_discount_total, order_discount, coupon_discount, discount_total, shipping_fee_charged, prepaid_total, created_by, care_by, confirmed_at, cancelled_at, cancel_reason, draft_expires_at, duplicate_suspect, version` | 30, 62 | M2 trở đi (`customer` đọc: ngoại lệ chỉ đọc view, Q19) |
 | `customer.customer_identities_v` (M2, viết trước ở Task 59) | `tenant_id, id, customer_id, kind, scope, value, verified_at, source, created_at` | 60 | M3–M6 |
 | `customer.customer_addresses_v` (chỉ địa chỉ chưa xóa) | `tenant_id, id, customer_id, recipient_name, phone, province_code, ward_code, street, is_default` | 60 | M3, M5 |
 | `customer.customer_tags_v` | `tenant_id, id, name, color` | 60 | M4, M6 |
 | `customer.customer_tag_links_v` | `tenant_id, customer_id, tag_id, source` | 60 | M4, M6 |
 | `ord.order_items_v` (M2, viết trước ở Task 59) | `id, tenant_id, seller_id, order_id, variant_id, position, sku_snapshot, name_snapshot, quantity, unit_price, line_discount, allocated_order_discount, net_amount` | 62 | M2 (`customer` đọc: ngoại lệ chỉ đọc view, Q19), M3, M5, M6 |
-| `ord.order_status_history_v` | `id, tenant_id, order_id, from_status, to_status, from_pending, to_pending, actor_type, actor_id, reason, occurred_at, recorded_at` | 62 | M2 (`customer` đọc: ngoại lệ chỉ đọc view, Q19), M6 |
+| `ord.order_status_history_v` (`from_status` của dòng tạo đơn là `''`, kể cả dòng M1 ghi `NULL`) | `id, tenant_id, order_id, from_status, to_status, from_pending, to_pending, actor_type, actor_id, reason, occurred_at, recorded_at` | 62 | M2 (`customer` đọc: ngoại lệ chỉ đọc view, Q19), M6 |
 | `ord.returns_v` | `id, tenant_id, code, order_id, shipment_id, kind, status, refund_amount, replacement_order_id, received_at, created_at` | 62 | M2 (`customer` đọc: ngoại lệ chỉ đọc view, Q19), M3, M6 |
 | `ord.return_items_v` (M3 nối ba cột số lượng vào cuối, R11) | `id, tenant_id, return_id, order_item_id, quantity, condition, refund_amount` | 62 | M3, M6, P2 |
 | `ord.traffic_sources_v` | `id, tenant_id, key, name, channel_account_id, active, position` | 62 | M4, M5, M6 |
 | `promotion.coupons_v` (B2-11; không có `bound_phone`, `bound_customer_id`) | `id, tenant_id, code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, seller_id, max_uses, used_count, per_customer_limit, valid_from, valid_to, status, created_at, updated_at` | 63 | M5, M7 |
 | `fulfillment.shipments_v` (tối thiểu; M3 mở rộng) | `id, order_id, code, carrier_key, carrier_account_id, tracking_code, status, cod_amount, fee` | 31 | M3 trở đi |
 | `cash.cod_balances_v` (tối thiểu; M3 mở rộng) | `shipment_id, account, balance` | 32 | M3 trở đi |
+
+## Khóa ngoại xuyên module
+
+Đánh đổi có chủ ý (ADR-27 mục 4): bảng của một module có khóa ngoại tới bảng của module khác khi dữ liệu không được
+phép lệch nhau. Module chủ của bảng bị trỏ không đổi khóa (cột, unique) mà khóa ngoại dựa vào khi chưa sửa dòng ở đây.
+
+| Khóa ngoại | Vì sao | Task |
+|---|---|---|
+| `inventory.stock_reservations (tenant_id, order_item_id) → ord.order_items (tenant_id, id)` `ON DELETE SET NULL (order_item_id)` | giữ hàng luôn thuộc một dòng đơn có thật (M1); từ M2 sửa đơn bỏ được dòng đã nhả hàng: dòng giữ hàng `released` và sổ tồn còn, chỉ mất liên kết (`order_item_id` cho phép rỗng; `0204` của `ord` `ALTER` bảng của `inventory`) | 30, 62 |
+| `ord.orders (tenant_id, warehouse_id) → inventory.warehouses (tenant_id, id)` | kho giữ hàng của đơn | 62 |
+| `ord.order_items (tenant_id, seller_id, variant_id) → catalog.variants (tenant_id, seller_id, id)`; `ord.orders (tenant_id, seller_id) → catalog.sellers`; `ord.orders (tenant_id, customer_id) → customer.customers` | một đơn một người bán (ADR-29, KH14); đơn trỏ khách có thật | 30 |
 
 ## Hàm tìm công bố
 

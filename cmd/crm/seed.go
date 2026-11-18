@@ -13,6 +13,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
+	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
@@ -68,6 +69,10 @@ func seedDev(ctx context.Context, cfg config.Config, email string, logger *slog.
 		warehouseID, err := inventory.EnsureDefaultWarehouse(ctx, tx, tenantID, sellerID)
 		if err != nil {
 			return err //nolint:wrapcheck // đã bọc trong inventory
+		}
+		// Cài đặt đơn và 10 nguồn đơn có khóa cố định (kế hoạch M2, Task M2-05).
+		if err := order.EnsureDefaults(ctx, tx, tenantID); err != nil {
+			return err //nolint:wrapcheck // đã bọc trong order
 		}
 		// Tài khoản hãng giả fake-1 ở kho MAIN (Task M1-31); chỉ dùng khi worker có FAKECARRIER_URL.
 		_, err = fulfillment.EnsureCarrierAccount(ctx, tx, fulfillment.AccountInput{

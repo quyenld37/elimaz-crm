@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -15,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order/internal/store"
 	"elimaz.com.vn/crm/internal/platform/logging"
@@ -36,7 +38,7 @@ var phoneRe = regexp.MustCompile(`^\+?[0-9]{8,15}$`)
 // CreateManual lên đơn nhập tay trong tx của bên gọi (04 mục 3 quy tắc 3: một transaction): kiểm biến thể bằng
 // catalog.VariantsForSale (không thuộc người bán của đơn → ErrMixedSellers; ngừng bán → ErrNotForSale), tính tiền int64
 // có kiểm tràn (ErrTotalOverflow), lấy mã đơn, chèn đơn ở confirmed (01 mục 2) với cod_amount = grand_total, dòng đơn
-// theo thứ tự nhập, một dòng lịch sử, giữ hàng (inventory.Reserve; thiếu → *OutOfStockError), sự kiện order.created
+// theo thứ tự nhập (dòng cùng biến thể gộp làm một, mergeLines), một dòng lịch sử, giữ hàng (inventory.Reserve; thiếu → *OutOfStockError), sự kiện order.created
 // (seq 1) và order.confirmed (seq 2). Audit do bên gọi ghi (AuditFields; order không nhập identity, 04 mục 3). Khóa nghiệp vụ đã có đơn → ErrDuplicateOrder. Mọi lỗi: bên gọi
 // lùi cả transaction (không còn đơn, dòng, giữ hàng nào).
 func (w Writer) CreateManual(ctx context.Context, tx pgx.Tx, in CreateManualInput, actor Actor) (Order, error) {
@@ -84,6 +86,9 @@ func draft(ctx context.Context, tx pgx.Tx, in CreateManualInput) (drafted, error
 	if err != nil {
 		return drafted{}, err
 	}
+	if in.Items, err = mergeLines(in.Items); err != nil {
+		return drafted{}, err
+	}
 	lines, err := saleLines(ctx, tx, in)
 	if err != nil {
 		return drafted{}, err
@@ -122,11 +127,13 @@ func insertOrder(ctx context.Context, tx pgx.Tx, in CreateManualInput, d drafted
 	q := store.New(tx)
 	staff := pgtype.UUID{Bytes: actor.UserID, Valid: actor.UserID != uuid.Nil}
 	// version 2: hai sự kiện của lần tạo (created seq 1, confirmed seq 2); version luôn bằng seq của sự kiện cuối.
+	shipPhone, reversed := normalizedShipPhone(d.addr.Phone)
 	createdAt, err := q.InsertOrder(ctx, store.InsertOrderParams{
 		ID: id, SellerID: in.SellerID, Code: code, CustomerID: in.CustomerID, Channel: channelManual,
 		IdempotencyKey: in.IdempotencyKey, Status: StatusConfirmed, ShipAddress: addrJSON, Subtotal: d.subtotal,
 		DiscountTotal: 0, ShippingFeeCharged: in.ShippingFee, CodAmount: d.grand, GrandTotal: d.grand,
-		CreatedBy: staff, Version: 2,
+		CreatedBy: staff, Version: 2, WarehouseID: d.warehouse, ShipPhone: string(shipPhone),
+		ShipPhoneReversed: reversed,
 	})
 	if pe, ok := errors.AsType[*pgconn.PgError](err); ok && pe.Code == pgUniqueViolate && pe.ConstraintName == idempotencyIdx {
 		return Order{}, ErrDuplicateOrder
@@ -143,7 +150,20 @@ func insertOrder(ctx context.Context, tx pgx.Tx, in CreateManualInput, d drafted
 		ID: id, SellerID: in.SellerID, CustomerID: in.CustomerID, Code: code, Status: StatusConfirmed,
 		Channel: channelManual, ShipAddress: d.addr, Subtotal: d.subtotal, ShippingFee: in.ShippingFee,
 		CODAmount: d.grand, GrandTotal: d.grand, Version: 2, CreatedAt: createdAt,
+		PendingReason: "", PackingStatus: "none", PaymentStatus: "unpaid", OrderType: "ship",
+		WarehouseID: d.warehouse, ShipPhone: shipPhone, CreatedBy: uuidPtr(staff), ConfirmedBy: uuidPtr(staff),
+		ConfirmedAt: &createdAt, UpdatedAt: createdAt,
 	}, nil
+}
+
+// normalizedShipPhone trả SĐT giao dạng chuẩn +84… và chữ số đảo ngược (cột ship_phone, ship_phone_reversed: gợi ý
+// đơn trùng, tìm theo đuôi số). SĐT không chuẩn hóa được (số nước ngoài, số máy bàn ngắn) → hai chuỗi rỗng.
+func normalizedShipPhone(p logging.Phone) (logging.Phone, string) {
+	n, err := customer.NormalizePhone(string(p))
+	if err != nil {
+		return "", ""
+	}
+	return n, customer.ReverseDigits(n)
 }
 
 // insertItems chèn dòng đơn theo thứ tự nhập (position 1, 2, …) vào o và trả các dòng giữ hàng tương ứng.
@@ -169,6 +189,26 @@ func insertItems(ctx context.Context, tx pgx.Tx, o *Order, d drafted) ([]invento
 		reserve[i] = inventory.ReserveLine{OrderItemID: it.ID, VariantID: it.VariantID, WarehouseID: d.warehouse, Qty: it.Qty}
 	}
 	return reserve, nil
+}
+
+// mergeLines gộp các dòng cùng biến thể thành một dòng (một biến thể một dòng, ràng buộc order_items_variant_key của
+// M2-05): cộng số lượng, giữ vị trí lần xuất hiện đầu. Tổng số lượng một biến thể vượt int32 → ErrInvalidInput.
+func mergeLines(items []ItemInput) ([]ItemInput, error) {
+	out := make([]ItemInput, 0, len(items))
+	at := make(map[uuid.UUID]int, len(items))
+	for _, it := range items {
+		i, seen := at[it.VariantID]
+		if !seen {
+			at[it.VariantID] = len(out)
+			out = append(out, it)
+			continue
+		}
+		if it.Qty > math.MaxInt32-out[i].Qty { // số lượng đã kiểm > 0 ở validate
+			return nil, ErrInvalidInput
+		}
+		out[i].Qty += it.Qty
+	}
+	return out, nil
 }
 
 // line là một dòng đơn đã kiểm: biến thể bán được, số lượng, thành tiền.

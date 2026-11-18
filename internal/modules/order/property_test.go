@@ -14,7 +14,7 @@ import (
 
 // TestCreateManual_NoOversell (rapid, 200 lượt): 1–3 biến thể có tồn ngẫu nhiên 0–5, 2–8 đơn song song với số lượng
 // ngẫu nhiên → (1) tổng số lượng các đơn tạo được của từng biến thể không vượt tồn ban đầu và bằng held; (2) mỗi đơn
-// hoặc có đủ dòng giữ hàng (một dòng held cho mỗi dòng đơn, đúng số lượng) hoặc không tồn tại; (3) đơn bị từ chối chỉ
+// hoặc có đủ dòng giữ hàng (một dòng held cho mỗi dòng đơn, đúng số lượng; dòng nhập cùng biến thể gộp làm một, M2-05) hoặc không tồn tại; (3) đơn bị từ chối chỉ
 // vì thiếu hàng.
 func TestCreateManual_NoOversell(t *testing.T) {
 	e := newOrderEnv(t)
@@ -64,8 +64,8 @@ func (e *orderEnv) checkNoOversell(vs []uuid.UUID, stock map[uuid.UUID]int32, in
 			}
 			if n := e.count(`SELECT count(*) FROM ord.order_items oi JOIN inventory.stock_reservations r
 				ON r.order_item_id = oi.id AND r.quantity = oi.quantity AND r.state = 'held'
-				WHERE oi.order_id = $1`, created[i].ID); n != len(inputs[i].Items) {
-				return fmt.Sprintf("đơn %s: %d/%d dòng có giữ hàng", created[i].Code, n, len(inputs[i].Items))
+				WHERE oi.order_id = $1`, created[i].ID); n != distinctVariants(inputs[i].Items) {
+				return fmt.Sprintf("đơn %s: %d/%d dòng có giữ hàng", created[i].Code, n, distinctVariants(inputs[i].Items))
 			}
 		case !errors.Is(err, order.ErrOutOfStock):
 			return fmt.Sprintf("lỗi không mong đợi: %v", err)
@@ -78,4 +78,13 @@ func (e *orderEnv) checkNoOversell(vs []uuid.UUID, stock map[uuid.UUID]int32, in
 		}
 	}
 	return ""
+}
+
+// distinctVariants là số biến thể khác nhau của các dòng nhập (số dòng đơn sau khi gộp dòng cùng biến thể).
+func distinctVariants(items []order.ItemInput) int {
+	seen := map[uuid.UUID]bool{}
+	for _, it := range items {
+		seen[it.VariantID] = true
+	}
+	return len(seen)
 }

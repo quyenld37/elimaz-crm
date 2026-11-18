@@ -107,7 +107,12 @@ func TestM2Contract_ViewsDoc(t *testing.T) {
 	want := map[string]string{
 		"customer.customers_v": "id, root_id, full_name, created_at, tenant_id, code, lifecycle, birthday, order_count, " +
 			"delivered_count, returned_count, total_spent, last_order_at, updated_at, version",
-		"ord.orders_v":                   "id, tenant_id, code, seller_id, customer_id, status, channel, grand_total, cod_amount, current_shipment_id, created_at",
+		"ord.orders_v": "id, tenant_id, code, seller_id, customer_id, status, channel, grand_total, cod_amount, " +
+			"current_shipment_id, created_at, pending_reason, packing_status, payment_status, channel_account_id, " +
+			"traffic_source_id, conversation_id, external_ref, order_type, warehouse_id, ship_phone, address_complete, " +
+			"subtotal, line_discount_total, order_discount, coupon_discount, discount_total, shipping_fee_charged, " +
+			"prepaid_total, created_by, care_by, confirmed_at, cancelled_at, cancel_reason, draft_expires_at, " +
+			"duplicate_suspect, version",
 		"customer.customer_identities_v": "tenant_id, id, customer_id, kind, scope, value, verified_at, source, created_at",
 		"customer.customer_addresses_v":  "tenant_id, id, customer_id, recipient_name, phone, province_code, ward_code, street, is_default",
 		"customer.customer_tags_v":       "tenant_id, id, name, color",

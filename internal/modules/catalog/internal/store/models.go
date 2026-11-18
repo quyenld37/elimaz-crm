@@ -669,7 +669,7 @@ type InventoryStockLedgerV struct {
 type InventoryStockReservation struct {
 	ID             uuid.UUID
 	TenantID       uuid.UUID
-	OrderItemID    uuid.UUID
+	OrderItemID    *uuid.UUID
 	VariantID      uuid.UUID
 	WarehouseID    uuid.UUID
 	Quantity       int32
@@ -764,6 +764,46 @@ type OrdOrder struct {
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 	Version            int64
+	CheckoutGroupID    *uuid.UUID
+	ChannelAccountID   *uuid.UUID
+	TrafficSourceID    *uuid.UUID
+	ConversationID     *uuid.UUID
+	ExternalRef        pgtype.Text
+	PendingReason      string
+	PackingStatus      string
+	PaymentStatus      string
+	OrderType          string
+	WarehouseID        uuid.UUID
+	ShipPhone          string
+	ShipPhoneReversed  string
+	AddressComplete    bool
+	ReferralRef        []byte
+	LineDiscountTotal  int64
+	OrderDiscount      int64
+	CouponDiscount     int64
+	PrepaidTotal       int64
+	DraftExpiresAt     pgtype.Timestamptz
+	CarrierNote        string
+	CareBy             *uuid.UUID
+	ConfirmedAt        pgtype.Timestamptz
+	ConfirmedBy        *uuid.UUID
+	DiscountApprovedBy *uuid.UUID
+	DiscountApprovedAt pgtype.Timestamptz
+	CancelNote         pgtype.Text
+	CancelledAt        pgtype.Timestamptz
+	DuplicateSuspect   bool
+	ReplacedReturnID   *uuid.UUID
+}
+
+type OrdOrderDuplicateLink struct {
+	TenantID     uuid.UUID
+	OrderID      uuid.UUID
+	OtherOrderID uuid.UUID
+	MatchedBy    string
+	CreatedAt    time.Time
+	ResolvedAt   pgtype.Timestamptz
+	ResolvedBy   *uuid.UUID
+	Resolution   pgtype.Text
 }
 
 type OrdOrderItem struct {
@@ -781,33 +821,189 @@ type OrdOrderItem struct {
 	AllocatedOrderDiscount int64
 	NetAmount              int64
 	CreatedAt              time.Time
+	UpdatedAt              time.Time
+}
+
+type OrdOrderItemsV struct {
+	ID                     uuid.UUID
+	TenantID               uuid.UUID
+	SellerID               uuid.UUID
+	OrderID                uuid.UUID
+	VariantID              uuid.UUID
+	Position               int32
+	SkuSnapshot            string
+	NameSnapshot           string
+	Quantity               int32
+	UnitPrice              int64
+	LineDiscount           int64
+	AllocatedOrderDiscount int64
+	NetAmount              int64
+}
+
+type OrdOrderNote struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	OrderID   uuid.UUID
+	Body      string
+	AuthorID  uuid.UUID
+	CreatedAt time.Time
+}
+
+type OrdOrderSetting struct {
+	TenantID                    uuid.UUID
+	DraftTtlMinutes             int32
+	DuplicateWindowMinutes      int32
+	DiscountApprovalThresholdBp int32
+	ReturnWarningDays           int32
+	Version                     int64
+	UpdatedAt                   time.Time
+	UpdatedBy                   *uuid.UUID
 }
 
 type OrdOrderStatusHistory struct {
-	ID         uuid.UUID
-	TenantID   uuid.UUID
-	OrderID    uuid.UUID
-	FromStatus pgtype.Text
-	ToStatus   string
-	ActorType  string
-	ActorID    *uuid.UUID
-	Reason     pgtype.Text
-	OccurredAt time.Time
-	RecordedAt time.Time
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	OrderID     uuid.UUID
+	FromStatus  pgtype.Text
+	ToStatus    string
+	ActorType   string
+	ActorID     *uuid.UUID
+	Reason      pgtype.Text
+	OccurredAt  time.Time
+	RecordedAt  time.Time
+	FromPending string
+	ToPending   string
+}
+
+type OrdOrderStatusHistoryV struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	OrderID     uuid.UUID
+	FromStatus  string
+	ToStatus    string
+	FromPending string
+	ToPending   string
+	ActorType   string
+	ActorID     *uuid.UUID
+	Reason      pgtype.Text
+	OccurredAt  time.Time
+	RecordedAt  time.Time
 }
 
 type OrdOrdersV struct {
-	ID                uuid.UUID
-	TenantID          uuid.UUID
-	Code              string
-	SellerID          uuid.UUID
-	CustomerID        uuid.UUID
-	Status            string
-	Channel           string
-	GrandTotal        int64
-	CodAmount         int64
-	CurrentShipmentID *uuid.UUID
-	CreatedAt         time.Time
+	ID                 uuid.UUID
+	TenantID           uuid.UUID
+	Code               string
+	SellerID           uuid.UUID
+	CustomerID         uuid.UUID
+	Status             string
+	Channel            string
+	GrandTotal         int64
+	CodAmount          int64
+	CurrentShipmentID  *uuid.UUID
+	CreatedAt          time.Time
+	PendingReason      string
+	PackingStatus      string
+	PaymentStatus      string
+	ChannelAccountID   *uuid.UUID
+	TrafficSourceID    *uuid.UUID
+	ConversationID     *uuid.UUID
+	ExternalRef        pgtype.Text
+	OrderType          string
+	WarehouseID        uuid.UUID
+	ShipPhone          string
+	AddressComplete    bool
+	Subtotal           int64
+	LineDiscountTotal  int64
+	OrderDiscount      int64
+	CouponDiscount     int64
+	DiscountTotal      int64
+	ShippingFeeCharged int64
+	PrepaidTotal       int64
+	CreatedBy          *uuid.UUID
+	CareBy             *uuid.UUID
+	ConfirmedAt        pgtype.Timestamptz
+	CancelledAt        pgtype.Timestamptz
+	CancelReason       pgtype.Text
+	DraftExpiresAt     pgtype.Timestamptz
+	DuplicateSuspect   bool
+	Version            int64
+}
+
+type OrdReturn struct {
+	ID                 uuid.UUID
+	TenantID           uuid.UUID
+	Code               string
+	OrderID            uuid.UUID
+	ShipmentID         *uuid.UUID
+	Kind               string
+	Status             string
+	Reason             string
+	RefundAmount       int64
+	ReplacementOrderID *uuid.UUID
+	CreatedBy          *uuid.UUID
+	ReceivedBy         *uuid.UUID
+	ReceivedAt         pgtype.Timestamptz
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	Version            int64
+}
+
+type OrdReturnItem struct {
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	ReturnID     uuid.UUID
+	OrderItemID  uuid.UUID
+	Quantity     int32
+	Condition    string
+	RefundAmount int64
+}
+
+type OrdReturnItemsV struct {
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	ReturnID     uuid.UUID
+	OrderItemID  uuid.UUID
+	Quantity     int32
+	Condition    string
+	RefundAmount int64
+}
+
+type OrdReturnsV struct {
+	ID                 uuid.UUID
+	TenantID           uuid.UUID
+	Code               string
+	OrderID            uuid.UUID
+	ShipmentID         *uuid.UUID
+	Kind               string
+	Status             string
+	RefundAmount       int64
+	ReplacementOrderID *uuid.UUID
+	ReceivedAt         pgtype.Timestamptz
+	CreatedAt          time.Time
+}
+
+type OrdTrafficSource struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	Key              pgtype.Text
+	Name             string
+	ChannelAccountID *uuid.UUID
+	Active           bool
+	Position         int32
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	Version          int64
+}
+
+type OrdTrafficSourcesV struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	Key              pgtype.Text
+	Name             string
+	ChannelAccountID *uuid.UUID
+	Active           bool
+	Position         int32
 }
 
 type PlatformAlertEvent struct {

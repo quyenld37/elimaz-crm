@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order/internal/store"
@@ -55,10 +56,15 @@ type ItemInput struct {
 
 // ShipAddress là địa chỉ giao chụp lúc đặt (05: gồm SĐT người nhận). Ghi log tự che SĐT và địa chỉ; tên người nhận
 // không bao giờ được đưa vào log.
+//
+// ProvinceCode, WardCode (M2-05): mã tỉnh, xã theo danh mục hai cấp (Task M2-04); rỗng ở đơn M1 (JSON bỏ khóa rỗng nên
+// địa chỉ của đơn M1 không đổi).
 type ShipAddress struct {
-	Name  string          `json:"name"`
-	Phone logging.Phone   `json:"phone"`
-	Line  logging.Address `json:"line"`
+	Name         string          `json:"name"`
+	Phone        logging.Phone   `json:"phone"`
+	Line         logging.Address `json:"line"`
+	ProvinceCode string          `json:"provinceCode,omitempty"`
+	WardCode     string          `json:"wardCode,omitempty"`
 }
 
 // LogValue che toàn bộ địa chỉ giao khi bị ghi log.
@@ -74,15 +80,19 @@ type CreateManualInput struct {
 	ShippingFee                       int64
 }
 
-// Item là một dòng đơn; SKU, Name là bản chụp lúc đặt.
+// Item là một dòng đơn; SKU, Name là bản chụp lúc đặt. NetAmount = Qty × UnitPrice − LineDiscount −
+// AllocatedOrderDiscount.
 type Item struct {
-	ID, VariantID        uuid.UUID
-	Position, Qty        int32
-	SKU, Name            string
-	UnitPrice, NetAmount int64
+	ID, VariantID                        uuid.UUID
+	Position, Qty                        int32
+	SKU, Name                            string
+	UnitPrice, NetAmount                 int64
+	LineDiscount, AllocatedOrderDiscount int64
 }
 
-// Order là một đơn kèm dòng đơn theo position.
+// Order là một đơn kèm dòng đơn theo position. Trường M2 (Task M2-05; 05 mục 2): DiscountTotal = LineDiscountTotal +
+// OrderDiscount + CouponDiscount; CODAmount = max(GrandTotal − PrepaidTotal, 0); ShipPhone là SĐT giao đã chuẩn hóa
+// (rỗng khi không chuẩn hóa được); con trỏ nil là chưa có.
 type Order struct {
 	ID, SellerID, CustomerID                                    uuid.UUID
 	Code, Status, Channel                                       string
@@ -92,6 +102,20 @@ type Order struct {
 	Version                                                     int64
 	CreatedAt                                                   time.Time
 	Items                                                       []Item
+
+	PendingReason, PackingStatus, PaymentStatus, OrderType       string
+	WarehouseID                                                  uuid.UUID
+	CheckoutGroupID, ChannelAccountID, TrafficSourceID           *uuid.UUID
+	ConversationID, ReplacedReturnID                             *uuid.UUID
+	ExternalRef, CancelReason, CancelNote                        *string
+	ShipPhone                                                    logging.Phone
+	AddressComplete, DuplicateSuspect                            bool
+	LineDiscountTotal, OrderDiscount, CouponDiscount             int64
+	PrepaidTotal                                                 int64
+	CarrierNote                                                  string
+	CreatedBy, CareBy, ConfirmedBy, DiscountApprovedBy           *uuid.UUID
+	DraftExpiresAt, ConfirmedAt, DiscountApprovedAt, CancelledAt *time.Time
+	UpdatedAt                                                    time.Time
 }
 
 // Writer là đường ghi của order: mỗi lần ghi (trong tx của bên gọi, tenancy.WithTenant hay httpapi.WriteTx) ghi kèm
@@ -117,22 +141,14 @@ func (w Writer) stock() (inventory.Writer, error) {
 // Get trả đơn id của người bán sellerID kèm dòng đơn; không có (hay của người bán, tenant khác) → ErrNotFound.
 func Get(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID) (Order, error) {
 	q := store.New(tx)
-	r, err := q.GetOrder(ctx, store.GetOrderParams{SellerID: sellerID, ID: id})
+	r, err := q.GetOrderBase(ctx, store.GetOrderBaseParams{SellerID: sellerID, ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Order{}, ErrNotFound
 	}
 	if err != nil {
 		return Order{}, fmt.Errorf("đọc đơn: %w", err)
 	}
-	o := Order{
-		ID: r.ID, SellerID: r.SellerID, CustomerID: r.CustomerID, Code: r.Code, Status: r.Status, Channel: r.Channel,
-		Subtotal: r.Subtotal, DiscountTotal: r.DiscountTotal, ShippingFee: r.ShippingFeeCharged, CODAmount: r.CodAmount,
-		GrandTotal: r.GrandTotal, Version: r.Version, CreatedAt: r.CreatedAt,
-	}
-	if r.CurrentShipmentID.Valid {
-		s := uuid.UUID(r.CurrentShipmentID.Bytes)
-		o.CurrentShipmentID = &s
-	}
+	o := orderFromBase(r)
 	if err := json.Unmarshal(r.ShipAddress, &o.ShipAddress); err != nil {
 		return Order{}, fmt.Errorf("đọc địa chỉ giao: %w", err)
 	}
@@ -144,8 +160,45 @@ func Get(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID) (Order, error) 
 	for _, it := range items {
 		o.Items = append(o.Items, Item{
 			ID: it.ID, VariantID: it.VariantID, Position: it.Position, Qty: it.Quantity, SKU: it.SkuSnapshot,
-			Name: it.NameSnapshot, UnitPrice: it.UnitPrice, NetAmount: it.NetAmount,
+			Name: it.NameSnapshot, UnitPrice: it.UnitPrice, NetAmount: it.NetAmount, LineDiscount: it.LineDiscount,
+			AllocatedOrderDiscount: it.AllocatedOrderDiscount,
 		})
 	}
 	return o, nil
 }
+
+// orderFromBase chép một dòng GetOrderBase sang Order (chưa có địa chỉ giao, dòng đơn).
+func orderFromBase(r store.GetOrderBaseRow) Order {
+	return Order{
+		ID: r.ID, SellerID: r.SellerID, CustomerID: r.CustomerID, Code: r.Code, Status: r.Status, Channel: r.Channel,
+		CurrentShipmentID: uuidPtr(r.CurrentShipmentID), Subtotal: r.Subtotal, DiscountTotal: r.DiscountTotal,
+		ShippingFee: r.ShippingFeeCharged, CODAmount: r.CodAmount, GrandTotal: r.GrandTotal, Version: r.Version,
+		CreatedAt: r.CreatedAt,
+
+		PendingReason: r.PendingReason, PackingStatus: r.PackingStatus, PaymentStatus: r.PaymentStatus,
+		OrderType: r.OrderType, WarehouseID: r.WarehouseID, CheckoutGroupID: uuidPtr(r.CheckoutGroupID),
+		ChannelAccountID: uuidPtr(r.ChannelAccountID), TrafficSourceID: uuidPtr(r.TrafficSourceID),
+		ConversationID: uuidPtr(r.ConversationID), ReplacedReturnID: uuidPtr(r.ReplacedReturnID),
+		ExternalRef: textPtr(r.ExternalRef), CancelReason: textPtr(r.CancelReason), CancelNote: textPtr(r.CancelNote),
+		ShipPhone: logging.Phone(r.ShipPhone), AddressComplete: r.AddressComplete, DuplicateSuspect: r.DuplicateSuspect,
+		LineDiscountTotal: r.LineDiscountTotal, OrderDiscount: r.OrderDiscount, CouponDiscount: r.CouponDiscount,
+		PrepaidTotal: r.PrepaidTotal, CarrierNote: r.CarrierNote, CreatedBy: uuidPtr(r.CreatedBy),
+		CareBy: uuidPtr(r.CareBy), ConfirmedBy: uuidPtr(r.ConfirmedBy), DiscountApprovedBy: uuidPtr(r.DiscountApprovedBy),
+		DraftExpiresAt: timePtr(r.DraftExpiresAt), ConfirmedAt: timePtr(r.ConfirmedAt),
+		DiscountApprovedAt: timePtr(r.DiscountApprovedAt), CancelledAt: timePtr(r.CancelledAt), UpdatedAt: r.UpdatedAt,
+	}
+}
+
+// ptr trả &v khi ok (cột có giá trị), nil khi cột rỗng.
+func ptr[T any](v T, ok bool) (out *T) {
+	if ok {
+		out = &v
+	}
+	return out
+}
+
+func uuidPtr(u pgtype.UUID) *uuid.UUID { return ptr(uuid.UUID(u.Bytes), u.Valid) }
+
+func textPtr(t pgtype.Text) *string { return ptr(t.String, t.Valid) }
+
+func timePtr(t pgtype.Timestamptz) *time.Time { return ptr(t.Time, t.Valid) }

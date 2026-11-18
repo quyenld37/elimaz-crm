@@ -13,70 +13,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getOrder = `-- name: GetOrder :one
-SELECT id, tenant_id, seller_id, code, customer_id, channel, status, current_shipment_id, ship_address, subtotal,
-       discount_total, shipping_fee_charged, cod_amount, grand_total, version, created_at
-FROM ord.orders
-WHERE seller_id = $1 AND id = $2
-`
-
-type GetOrderParams struct {
-	SellerID uuid.UUID
-	ID       uuid.UUID
-}
-
-type GetOrderRow struct {
-	ID                 uuid.UUID
-	TenantID           uuid.UUID
-	SellerID           uuid.UUID
-	Code               string
-	CustomerID         uuid.UUID
-	Channel            string
-	Status             string
-	CurrentShipmentID  pgtype.UUID
-	ShipAddress        []byte
-	Subtotal           int64
-	DiscountTotal      int64
-	ShippingFeeCharged int64
-	CodAmount          int64
-	GrandTotal         int64
-	Version            int64
-	CreatedAt          time.Time
-}
-
-// Đơn của người bán seller_id (ADR-29: điều kiện seller_id ở tầng dưới cùng).
-func (q *Queries) GetOrder(ctx context.Context, arg GetOrderParams) (GetOrderRow, error) {
-	row := q.db.QueryRow(ctx, getOrder, arg.SellerID, arg.ID)
-	var i GetOrderRow
-	err := row.Scan(
-		&i.ID,
-		&i.TenantID,
-		&i.SellerID,
-		&i.Code,
-		&i.CustomerID,
-		&i.Channel,
-		&i.Status,
-		&i.CurrentShipmentID,
-		&i.ShipAddress,
-		&i.Subtotal,
-		&i.DiscountTotal,
-		&i.ShippingFeeCharged,
-		&i.CodAmount,
-		&i.GrandTotal,
-		&i.Version,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
 const insertOrder = `-- name: InsertOrder :one
 
 INSERT INTO ord.orders
     (id, tenant_id, seller_id, code, customer_id, channel, idempotency_key, status, ship_address, subtotal,
-     discount_total, shipping_fee_charged, cod_amount, grand_total, created_by, version)
+     discount_total, shipping_fee_charged, cod_amount, grand_total, created_by, version, warehouse_id, ship_phone,
+     ship_phone_reversed, confirmed_at, confirmed_by)
 VALUES ($1, NULLIF(current_setting('app.tenant_id', true), '')::uuid, $2, $3, $4, $5, $6, $7, $8,
         $9, $10, $11, $12, $13, $14::uuid,
-        $15)
+        $15, $16, $17, $18,
+        CASE WHEN $7::text = 'confirmed' THEN now() END,
+        CASE WHEN $7::text = 'confirmed' THEN $14::uuid END)
 RETURNING created_at
 `
 
@@ -96,10 +43,15 @@ type InsertOrderParams struct {
 	GrandTotal         int64
 	CreatedBy          pgtype.UUID
 	Version            int64
+	WarehouseID        uuid.UUID
+	ShipPhone          string
+	ShipPhoneReversed  string
 }
 
 // Đơn tối thiểu (kế hoạch M1, Task M1-30; 05 mục 2). Chạy trong tenancy.WithTenant. Thứ tự khóa ADR-46 nhóm 7.
 // Gắn vận đơn, khóa đơn, đổi trạng thái: Task M1-30b (333), cuối tệp.
+// warehouse_id: kho giữ hàng của đơn (M2-05); ship_phone đã chuẩn hóa (” khi không chuẩn hóa được); đơn tạo thẳng
+// confirmed ghi confirmed_at, confirmed_by lúc tạo.
 func (q *Queries) InsertOrder(ctx context.Context, arg InsertOrderParams) (time.Time, error) {
 	row := q.db.QueryRow(ctx, insertOrder,
 		arg.ID,
@@ -117,6 +69,9 @@ func (q *Queries) InsertOrder(ctx context.Context, arg InsertOrderParams) (time.
 		arg.GrandTotal,
 		arg.CreatedBy,
 		arg.Version,
+		arg.WarehouseID,
+		arg.ShipPhone,
+		arg.ShipPhoneReversed,
 	)
 	var created_at time.Time
 	err := row.Scan(&created_at)

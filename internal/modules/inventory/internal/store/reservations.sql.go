@@ -49,7 +49,7 @@ const insertReservation = `-- name: InsertReservation :exec
 
 INSERT INTO inventory.stock_reservations
     (id, tenant_id, order_item_id, variant_id, warehouse_id, quantity, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7::timestamptz)
+VALUES ($1, $2, $3::uuid, $4, $5, $6, $7::timestamptz)
 `
 
 type InsertReservationParams struct {

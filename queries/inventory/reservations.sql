@@ -3,7 +3,7 @@
 -- name: InsertReservation :exec
 INSERT INTO inventory.stock_reservations
     (id, tenant_id, order_item_id, variant_id, warehouse_id, quantity, expires_at)
-VALUES (@id, @tenant_id, @order_item_id, @variant_id, @warehouse_id, @quantity, sqlc.narg(expires_at)::timestamptz);
+VALUES (@id, @tenant_id, @order_item_id::uuid, @variant_id, @warehouse_id, @quantity, sqlc.narg(expires_at)::timestamptz);
 
 -- name: LockReservations :many
 -- Khóa theo id tăng dần (ADR-46), sau khi đã khóa số dư (LockBalancesOfReservations).

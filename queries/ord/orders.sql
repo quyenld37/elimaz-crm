@@ -2,20 +2,18 @@
 -- Gắn vận đơn, khóa đơn, đổi trạng thái: Task M1-30b (333), cuối tệp.
 
 -- name: InsertOrder :one
+-- warehouse_id: kho giữ hàng của đơn (M2-05); ship_phone đã chuẩn hóa ('' khi không chuẩn hóa được); đơn tạo thẳng
+-- confirmed ghi confirmed_at, confirmed_by lúc tạo.
 INSERT INTO ord.orders
     (id, tenant_id, seller_id, code, customer_id, channel, idempotency_key, status, ship_address, subtotal,
-     discount_total, shipping_fee_charged, cod_amount, grand_total, created_by, version)
+     discount_total, shipping_fee_charged, cod_amount, grand_total, created_by, version, warehouse_id, ship_phone,
+     ship_phone_reversed, confirmed_at, confirmed_by)
 VALUES (@id, NULLIF(current_setting('app.tenant_id', true), '')::uuid, @seller_id, @code, @customer_id, @channel, @idempotency_key, @status, @ship_address,
         @subtotal, @discount_total, @shipping_fee_charged, @cod_amount, @grand_total, sqlc.narg(created_by)::uuid,
-        @version)
+        @version, @warehouse_id, @ship_phone, @ship_phone_reversed,
+        CASE WHEN @status::text = 'confirmed' THEN now() END,
+        CASE WHEN @status::text = 'confirmed' THEN sqlc.narg(created_by)::uuid END)
 RETURNING created_at;
-
--- name: GetOrder :one
--- Đơn của người bán seller_id (ADR-29: điều kiện seller_id ở tầng dưới cùng).
-SELECT id, tenant_id, seller_id, code, customer_id, channel, status, current_shipment_id, ship_address, subtotal,
-       discount_total, shipping_fee_charged, cod_amount, grand_total, version, created_at
-FROM ord.orders
-WHERE seller_id = @seller_id AND id = @id;
 
 -- name: LockOrder :one
 -- Khóa đơn trước mọi dòng nhóm sau (ADR-46 nhóm 7, dòng "khóa đơn trước"). Bên gọi (fulfillment) truyền người bán

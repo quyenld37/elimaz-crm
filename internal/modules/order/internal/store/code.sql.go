@@ -21,3 +21,15 @@ func (q *Queries) NextOrderCode(ctx context.Context) (string, error) {
 	err := row.Scan(&code)
 	return code, err
 }
+
+const nextReturnCode = `-- name: NextReturnCode :one
+SELECT ('TH' || lpad(nextval('ord.return_code_seq')::text, 7, '0'))::text AS code
+`
+
+// Mã phiếu trả (kế hoạch M2, Task M2-05): một chỗ sinh duy nhất (order.nextReturnCode), không khóa dòng.
+func (q *Queries) NextReturnCode(ctx context.Context) (string, error) {
+	row := q.db.QueryRow(ctx, nextReturnCode)
+	var code string
+	err := row.Scan(&code)
+	return code, err
+}
