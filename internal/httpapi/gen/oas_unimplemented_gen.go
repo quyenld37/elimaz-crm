@@ -22,6 +22,25 @@ func (UnimplementedHandler) AbandonJob(ctx context.Context, params AbandonJobPar
 	return r, ht.ErrNotImplemented
 }
 
+// AddVariant implements addVariant operation.
+//
+// Thêm biến thể vào mẫu khi version của mẫu còn khớp.
+//
+// POST /api/v1/catalog/products/{id}/variants
+func (UnimplementedHandler) AddVariant(ctx context.Context, req *AddVariantRequest, params AddVariantParams) (r AddVariantRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateProduct implements createProduct operation.
+//
+// Tạo mẫu sản phẩm kèm biến thể màu/size (barcode để trống thì CRM tự sinh
+// EAN-13).
+//
+// POST /api/v1/catalog/products
+func (UnimplementedHandler) CreateProduct(ctx context.Context, req *CreateProductRequest, params CreateProductParams) (r CreateProductRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateStaff implements createStaff operation.
 //
 // Tạo nhân viên mới (chưa có vai trò nào).
@@ -46,6 +65,16 @@ func (UnimplementedHandler) GetMe(ctx context.Context) (r GetMeRes, _ error) {
 //
 // GET /api/v1/platform/health
 func (UnimplementedHandler) GetPlatformHealth(ctx context.Context) (r GetPlatformHealthRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetProduct implements getProduct operation.
+//
+// Một mẫu kèm biến thể, bài viết dạng khối và HTML bài viết dựng sẵn (cả
+// mẫu nháp, ngừng bán).
+//
+// GET /api/v1/catalog/products/{id}
+func (UnimplementedHandler) GetProduct(ctx context.Context, params GetProductParams) (r GetProductRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -147,5 +176,24 @@ func (UnimplementedHandler) Stream(ctx context.Context) (r StreamRes, _ error) {
 //
 // POST /api/v1/identity/users/{id}/unlock
 func (UnimplementedHandler) UnlockStaff(ctx context.Context, params UnlockStaffParams) (r UnlockStaffRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateProduct implements updateProduct operation.
+//
+// Sửa tên, mô tả, bài viết, trạng thái của mẫu khi version còn khớp.
+//
+// PATCH /api/v1/catalog/products/{id}
+func (UnimplementedHandler) UpdateProduct(ctx context.Context, req *UpdateProductRequest, params UpdateProductParams) (r UpdateProductRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateVariant implements updateVariant operation.
+//
+// Sửa SKU, barcode, màu, size, giá, giá nhập, trạng thái của biến thể khi version còn
+// khớp.
+//
+// PATCH /api/v1/catalog/variants/{id}
+func (UnimplementedHandler) UpdateVariant(ctx context.Context, req *UpdateVariantRequest, params UpdateVariantParams) (r UpdateVariantRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

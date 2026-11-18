@@ -7,9 +7,12 @@ type OperationName = string
 
 const (
 	AbandonJobOperation         OperationName = "AbandonJob"
+	AddVariantOperation         OperationName = "AddVariant"
+	CreateProductOperation      OperationName = "CreateProduct"
 	CreateStaffOperation        OperationName = "CreateStaff"
 	GetMeOperation              OperationName = "GetMe"
 	GetPlatformHealthOperation  OperationName = "GetPlatformHealth"
+	GetProductOperation         OperationName = "GetProduct"
 	HealthDeepOperation         OperationName = "HealthDeep"
 	HealthLiveOperation         OperationName = "HealthLive"
 	HealthReadyOperation        OperationName = "HealthReady"
@@ -21,4 +24,6 @@ const (
 	RetryJobOperation           OperationName = "RetryJob"
 	StreamOperation             OperationName = "Stream"
 	UnlockStaffOperation        OperationName = "UnlockStaff"
+	UpdateProductOperation      OperationName = "UpdateProduct"
+	UpdateVariantOperation      OperationName = "UpdateVariant"
 )

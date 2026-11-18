@@ -8,8 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
@@ -53,6 +56,13 @@ func TestSeedDev(t *testing.T) {
 	var tenants int
 	if err := d.Pool.QueryRow(t.Context(), "SELECT count(*) FROM platform.tenants WHERE name = 'ELIMAZ'").Scan(&tenants); err != nil || tenants != 1 {
 		t.Fatalf("mong đúng 1 tenant ELIMAZ, có %d, %v", tenants, err)
+	}
+	// Người bán ELIMAZ (kind own) đúng một dòng sau hai lần chạy (kế hoạch M1, Task M1-27).
+	var sellers int
+	if err := tenancy.WithTenant(t.Context(), d, u.TenantID, func(tx pgx.Tx) error {
+		return tx.QueryRow(t.Context(), "SELECT count(*) FROM catalog.sellers_v WHERE code = 'ELIMAZ' AND kind = 'own' AND status = 'active'").Scan(&sellers)
+	}); err != nil || sellers != 1 {
+		t.Fatalf("mong đúng 1 người bán ELIMAZ, có %d, %v", sellers, err)
 	}
 
 	// Sai cách gọi: thiếu email, hoặc vai trò khác migrate → thoát khác 0.

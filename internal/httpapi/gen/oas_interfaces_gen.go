@@ -5,6 +5,14 @@ type AbandonJobRes interface {
 	abandonJobRes()
 }
 
+type AddVariantRes interface {
+	addVariantRes()
+}
+
+type CreateProductRes interface {
+	createProductRes()
+}
+
 type CreateStaffRes interface {
 	createStaffRes()
 }
@@ -15,6 +23,10 @@ type GetMeRes interface {
 
 type GetPlatformHealthRes interface {
 	getPlatformHealthRes()
+}
+
+type GetProductRes interface {
+	getProductRes()
 }
 
 type HealthDeepRes interface {
@@ -55,4 +67,12 @@ type StreamRes interface {
 
 type UnlockStaffRes interface {
 	unlockStaffRes()
+}
+
+type UpdateProductRes interface {
+	updateProductRes()
+}
+
+type UpdateVariantRes interface {
+	updateVariantRes()
 }

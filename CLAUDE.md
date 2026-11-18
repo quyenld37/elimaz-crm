@@ -80,6 +80,9 @@ Có dần theo kế hoạch; lệnh nào chưa có thì task tương ứng sẽ 
   (khối riêng trong `sqlc.yaml`); mọi truy vấn trong `tenancy.WithTenant`; test ở gói `_test` trên PostgreSQL thật
   (`testkit.OpenStaff`), quy luật bằng rapid. Đường đọc mẫu: `GET /api/v1/me` — hợp đồng `openapi.yaml` (`x-permission`)
   → `auth` + `guard` → handler mỏng `internal/httpapi/handlers_me.go` → kết quả.
+- **Module có chiều người bán (Task 27):** `internal/modules/catalog` — mọi hàm đọc nhận `sellerID` (ADR-29),
+  sửa có `version` (khóa dòng rồi so), đường ghi là phương thức của một kiểu `Writer` tự ghi sự kiện, báo hiệu, audit
+  trong transaction của bên gọi; module khác đọc qua view `catalog.*_v` (`docs/views.md`).
 - **Gọi dịch vụ ngoài:** bộ nối ở `internal/adapters/<tên>` (mẫu: `cfaccess`), hiện thực interface do module khai;
   `cmd/crm` nối. Module không nhập `net/http`.
 - **Đường ghi (Task 12):** `POST /api/v1/platform/jobs/{id}/retry` (`internal/httpapi/handlers_jobs.go`) — hợp đồng

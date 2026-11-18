@@ -10,6 +10,7 @@ import (
 	"github.com/ogen-go/ogen/ogenerrors"
 	"github.com/ogen-go/ogen/validate"
 
+	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/idempotency"
@@ -45,6 +46,14 @@ const (
 	codeEmailTaken        = "email_taken"
 	codeVersionConflict   = "version_conflict"
 	codeInvalidInput      = "invalid_input"
+	// Catalog (kế hoạch M1 Task M1-27).
+	codeSKUTaken        = "sku_taken"
+	codeBarcodeTaken    = "barcode_taken"
+	codeDuplicateOption = "duplicate_option"
+	codeCodeTaken       = "code_taken"
+	codeNotForSale      = "not_for_sale"
+	codeInvalidPrice    = "invalid_price"
+	codeInvalidArticle  = "invalid_article"
 )
 
 type errorBody struct {
@@ -82,6 +91,10 @@ func writeHandlerError(d Deps, w http.ResponseWriter, r *http.Request, err error
 		return
 	}
 	if status, code, ok := identityError(err); ok {
+		writeError(w, r, status, code)
+		return
+	}
+	if status, code, ok := catalogError(err); ok {
 		writeError(w, r, status, code)
 		return
 	}
@@ -150,6 +163,32 @@ func identityError(err error) (status int, code string, ok bool) {
 		{identity.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
 		{identity.ErrStaffNotFound, http.StatusNotFound, codeNotFound},
 		{identity.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
+	} {
+		if errors.Is(err, m.err) {
+			return m.status, m.code, true
+		}
+	}
+	return 0, "", false
+}
+
+// catalogError đổi lỗi nghiệp vụ của catalog sang mã HTTP. ErrNotFound: không có, của người bán hay tenant khác (không
+// cho biết là có).
+func catalogError(err error) (status int, code string, ok bool) {
+	for _, m := range []struct {
+		err    error
+		status int
+		code   string
+	}{
+		{catalog.ErrNotFound, http.StatusNotFound, codeNotFound},
+		{catalog.ErrSKUTaken, http.StatusConflict, codeSKUTaken},
+		{catalog.ErrBarcodeTaken, http.StatusConflict, codeBarcodeTaken},
+		{catalog.ErrDuplicateOption, http.StatusConflict, codeDuplicateOption},
+		{catalog.ErrCodeTaken, http.StatusConflict, codeCodeTaken},
+		{catalog.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
+		{catalog.ErrNotForSale, http.StatusConflict, codeNotForSale},
+		{catalog.ErrInvalidPrice, http.StatusUnprocessableEntity, codeInvalidPrice},
+		{catalog.ErrInvalidArticle, http.StatusUnprocessableEntity, codeInvalidArticle},
+		{catalog.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

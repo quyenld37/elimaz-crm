@@ -12,7 +12,10 @@ import (
 )
 
 var regexMap = map[string]ogenregex.Regexp{
-	"^[A-Za-z0-9_-]{1,128}$": ogenregex.MustCompile("^[A-Za-z0-9_-]{1,128}$"),
+	"^(#[0-9A-Fa-f]{6})?$":              ogenregex.MustCompile("^(#[0-9A-Fa-f]{6})?$"),
+	"^[0-9A-Za-z-]{4,32}$":              ogenregex.MustCompile("^[0-9A-Za-z-]{4,32}$"),
+	"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$": ogenregex.MustCompile("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"),
+	"^[A-Za-z0-9_-]{1,128}$":            ogenregex.MustCompile("^[A-Za-z0-9_-]{1,128}$"),
 }
 
 type (

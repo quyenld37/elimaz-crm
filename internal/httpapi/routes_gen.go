@@ -21,6 +21,11 @@ type Route struct {
 
 // Routes là mọi operation của hợp đồng, theo thứ tự đường dẫn rồi method.
 var Routes = []Route{
+	{Method: "POST", Pattern: "POST /api/v1/catalog/products", OperationID: "createProduct", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "GET", Pattern: "GET /api/v1/catalog/products/{id}", OperationID: "getProduct", Permission: "catalog.read"},
+	{Method: "PATCH", Pattern: "PATCH /api/v1/catalog/products/{id}", OperationID: "updateProduct", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "POST", Pattern: "POST /api/v1/catalog/products/{id}/variants", OperationID: "addVariant", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
+	{Method: "PATCH", Pattern: "PATCH /api/v1/catalog/variants/{id}", OperationID: "updateVariant", Permission: "catalog.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/identity/roles", OperationID: "listRoles", Permission: "identity.users.manage"},
 	{Method: "GET", Pattern: "GET /api/v1/identity/users", OperationID: "listStaff", Permission: "identity.users.manage"},
 	{Method: "POST", Pattern: "POST /api/v1/identity/users", OperationID: "createStaff", Permission: "identity.users.manage", Write: true, IdempotencyMode: "required"},

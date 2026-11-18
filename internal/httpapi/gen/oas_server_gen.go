@@ -14,6 +14,19 @@ type Handler interface {
 	//
 	// POST /api/v1/platform/jobs/{id}/abandon
 	AbandonJob(ctx context.Context, params AbandonJobParams) (AbandonJobRes, error)
+	// AddVariant implements addVariant operation.
+	//
+	// Thêm biến thể vào mẫu khi version của mẫu còn khớp.
+	//
+	// POST /api/v1/catalog/products/{id}/variants
+	AddVariant(ctx context.Context, req *AddVariantRequest, params AddVariantParams) (AddVariantRes, error)
+	// CreateProduct implements createProduct operation.
+	//
+	// Tạo mẫu sản phẩm kèm biến thể màu/size (barcode để trống thì CRM tự sinh
+	// EAN-13).
+	//
+	// POST /api/v1/catalog/products
+	CreateProduct(ctx context.Context, req *CreateProductRequest, params CreateProductParams) (CreateProductRes, error)
 	// CreateStaff implements createStaff operation.
 	//
 	// Tạo nhân viên mới (chưa có vai trò nào).
@@ -32,6 +45,13 @@ type Handler interface {
 	//
 	// GET /api/v1/platform/health
 	GetPlatformHealth(ctx context.Context) (GetPlatformHealthRes, error)
+	// GetProduct implements getProduct operation.
+	//
+	// Một mẫu kèm biến thể, bài viết dạng khối và HTML bài viết dựng sẵn (cả
+	// mẫu nháp, ngừng bán).
+	//
+	// GET /api/v1/catalog/products/{id}
+	GetProduct(ctx context.Context, params GetProductParams) (GetProductRes, error)
 	// HealthDeep implements healthDeep operation.
 	//
 	// Kiểm sâu cho dịch vụ canh ngoài (Bearer HEALTH_TOKEN, Task 20); không có dữ liệu
@@ -100,6 +120,19 @@ type Handler interface {
 	//
 	// POST /api/v1/identity/users/{id}/unlock
 	UnlockStaff(ctx context.Context, params UnlockStaffParams) (UnlockStaffRes, error)
+	// UpdateProduct implements updateProduct operation.
+	//
+	// Sửa tên, mô tả, bài viết, trạng thái của mẫu khi version còn khớp.
+	//
+	// PATCH /api/v1/catalog/products/{id}
+	UpdateProduct(ctx context.Context, req *UpdateProductRequest, params UpdateProductParams) (UpdateProductRes, error)
+	// UpdateVariant implements updateVariant operation.
+	//
+	// Sửa SKU, barcode, màu, size, giá, giá nhập, trạng thái của biến thể khi version còn
+	// khớp.
+	//
+	// PATCH /api/v1/catalog/variants/{id}
+	UpdateVariant(ctx context.Context, req *UpdateVariantRequest, params UpdateVariantParams) (UpdateVariantRes, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and
