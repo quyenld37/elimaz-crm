@@ -103,6 +103,9 @@ type Config struct {
 
 	// FileSyncExpected bật luật cảnh báo chép tệp sang kho ngoài (Task M1-45); mặc định false.
 	FileSyncExpected bool
+	// JobsDoneRetentionDays (worker, JOBS_DONE_RETENTION_DAYS, mặc định 7, trong [1, 30]): việc done/expired giữ bấy
+	// nhiêu ngày rồi lịch dọn xóa (Task 394).
+	JobsDoneRetentionDays int
 
 	// Migrate chỉ khác nil khi Role là RoleMigrate: vai trò khác không bao giờ giữ chuỗi kết nối của chủ bảng.
 	Migrate *MigrateConfig
@@ -132,6 +135,7 @@ func (c Config) LogValue() slog.Value {
 		slog.Bool("backup_expected", c.BackupExpected),
 		slog.Int64("db_disk_budget_bytes", c.DBDiskBudgetBytes),
 		slog.Int("db_conn_budget", c.DBConnBudget),
+		slog.Int("jobs_done_retention_days", c.JobsDoneRetentionDays),
 	)
 }
 
@@ -194,6 +198,7 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		cfg.BackupExpected = r.boolean("BACKUP_EXPECTED", false)
 		cfg.DBDiskBudgetBytes = int64(r.integer("DB_DISK_BUDGET_BYTES", 0, 0, math.MaxInt))
 		cfg.DBConnBudget = r.integer("DB_CONN_BUDGET", defaultConnBudget, 1, 10_000)
+		cfg.JobsDoneRetentionDays = r.integer("JOBS_DONE_RETENTION_DAYS", 7, 1, 30)
 		cfg.ImagerURL = r.httpURL("IMAGER_URL")
 		cfg.ImagePresetVersion = r.integer("IMAGE_PRESET_VERSION", 1, 1, 1000)
 		cfg.ImagerMaxParallel = r.integer("IMAGER_MAX_PARALLEL", 2, 1, 64)

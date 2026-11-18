@@ -27,13 +27,14 @@ WHERE name = @name;
 
 -- name: DeleteFinishedJobs :execrows
 -- Việc done/expired kết thúc trước @before, tối đa @max_rows dòng; dòng đang bị giữ thì để lần sau.
+-- id = ANY (ARRAY(...)): xóa theo khóa chính; với IN (câu con) planner chọn Hash Semi Join quét cả bảng jobs (Task 394).
 DELETE FROM platform.jobs
-WHERE id IN (
+WHERE id = ANY (ARRAY(
     SELECT j.id FROM platform.jobs AS j
     WHERE j.status IN ('done', 'expired') AND j.finished_at < @before::timestamptz
     ORDER BY j.finished_at
     LIMIT @max_rows
-    FOR UPDATE SKIP LOCKED);
+    FOR UPDATE SKIP LOCKED));
 
 -- name: DeleteOldMetrics :execrows
 DELETE FROM platform.metrics_minute

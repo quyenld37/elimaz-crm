@@ -104,6 +104,8 @@ type Config struct {
 
 	FileSyncExpected bool
 
+	JobsDoneRetentionDays int
+
 	Migrate *MigrateConfig
 }
 func Load(role Role, getenv func(string) string) (Config, error)
@@ -790,12 +792,15 @@ Package schedules là việc định kỳ (spec 04 mục 5.1) và dọn dữ li�
 ```go
 type Cleanup struct {
 }
-func NewCleanup() *Cleanup
+func NewCleanup(o CleanupOptions) *Cleanup
 func (c *Cleanup) Define(r *Registry) error
 func (c *Cleanup) Handlers() []queue.Handler
 func (c *Cleanup) RegisterCleanup(fn CleanupFunc)
 func (c *Cleanup) RegisterTenantCleanup(fn CleanupFunc)
 type CleanupFunc func(ctx context.Context, tx pgx.Tx, now time.Time) (int64, error)
+type CleanupOptions struct {
+	JobRetention time.Duration
+}
 type Registry struct {
 }
 func NewRegistry() *Registry

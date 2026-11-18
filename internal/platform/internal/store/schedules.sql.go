@@ -36,12 +36,12 @@ func (q *Queries) DeleteExpiredIdempotencyKeys(ctx context.Context, arg DeleteEx
 
 const deleteFinishedJobs = `-- name: DeleteFinishedJobs :execrows
 DELETE FROM platform.jobs
-WHERE id IN (
+WHERE id = ANY (ARRAY(
     SELECT j.id FROM platform.jobs AS j
     WHERE j.status IN ('done', 'expired') AND j.finished_at < $1::timestamptz
     ORDER BY j.finished_at
     LIMIT $2
-    FOR UPDATE SKIP LOCKED)
+    FOR UPDATE SKIP LOCKED))
 `
 
 type DeleteFinishedJobsParams struct {
@@ -50,6 +50,7 @@ type DeleteFinishedJobsParams struct {
 }
 
 // Việc done/expired kết thúc trước @before, tối đa @max_rows dòng; dòng đang bị giữ thì để lần sau.
+// id = ANY (ARRAY(...)): xóa theo khóa chính; với IN (câu con) planner chọn Hash Semi Join quét cả bảng jobs (Task 394).
 func (q *Queries) DeleteFinishedJobs(ctx context.Context, arg DeleteFinishedJobsParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteFinishedJobs, arg.Before, arg.MaxRows)
 	if err != nil {

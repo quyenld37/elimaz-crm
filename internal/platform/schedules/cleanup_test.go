@@ -2,6 +2,7 @@ package schedules_test
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -61,8 +62,8 @@ func (e *env) metric(t *testing.T, age time.Duration, name string) {
 		VALUES (date_trunc('minute', now() - $1::interval), 'p', $2, 1, 1, 1)`, age.String(), name)
 }
 
-// runCleanup định nghĩa hai lịch dọn, Tick ở now, rồi cho worker chạy hết việc.
-func (e *env) runCleanup(t *testing.T, c *schedules.Cleanup) {
+// tickCleanup định nghĩa hai lịch dọn rồi Tick ở now (ghi lịch, tạo việc dọn).
+func (e *env) tickCleanup(t *testing.T, c *schedules.Cleanup) {
 	t.Helper()
 	r := schedules.NewRegistry()
 	if err := c.Define(r); err != nil {
@@ -71,6 +72,12 @@ func (e *env) runCleanup(t *testing.T, c *schedules.Cleanup) {
 	if _, err := e.ticker(r).Tick(t.Context(), time.Now()); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// runCleanup định nghĩa hai lịch dọn, Tick ở now, rồi cho worker chạy hết việc.
+func (e *env) runCleanup(t *testing.T, c *schedules.Cleanup) {
+	t.Helper()
+	e.tickCleanup(t, c)
 	w := queue.NewWorker(e.App, c.Handlers(), queue.WorkerOptions{WorkerID: "w", Concurrency: 4})
 	for range 10 {
 		n, err := w.RunOnce(t.Context(), 10)
@@ -88,15 +95,17 @@ func (e *env) runCleanup(t *testing.T, c *schedules.Cleanup) {
 
 const day = 24 * time.Hour
 
-// Dọn: việc done 31 ngày bị xóa, 29 ngày còn, dead 60 ngày còn, expired 31 ngày bị xóa, pending cũ còn; chỉ số quá
-// 30 ngày bị xóa; khóa chống trùng quá hạn bị xóa ở mọi tenant, còn hạn giữ nguyên.
+// Dọn với hạn mặc định: việc done 8 ngày bị xóa, 6 ngày còn, dead 60 ngày còn, expired 8 ngày bị xóa, pending cũ còn
+// (việc giữ 7 ngày, Task 394); chỉ số quá 30 ngày bị xóa, 29 ngày còn; khóa chống trùng quá hạn bị xóa ở mọi tenant,
+// còn hạn giữ nguyên.
 func TestCleanupRemovesOnlyOldRows(t *testing.T) {
 	e := newEnv(t)
 	a, b := e.Tenant(t, "a"), e.Tenant(t, "b")
-	done31 := e.oldJob(t, "done", 31*day)
-	done29 := e.oldJob(t, "done", 29*day)
+	done8 := e.oldJob(t, "done", 8*day)
+	done6 := e.oldJob(t, "done", 6*day)
 	dead60 := e.oldJob(t, "dead", 60*day)
-	exp31 := e.oldJob(t, "expired", 31*day)
+	inDoubt60 := e.oldJob(t, "in_doubt", 60*day)
+	exp8 := e.oldJob(t, "expired", 8*day)
 	pend60 := e.oldJob(t, "pending", 60*day)
 	e.metric(t, 31*day, "old")
 	e.metric(t, 29*day, "new")
@@ -104,9 +113,9 @@ func TestCleanupRemovesOnlyOldRows(t *testing.T) {
 		e.idemKey(t, id, "gone", -time.Minute)
 		e.idemKey(t, id, "kept", time.Hour)
 	}
-	e.runCleanup(t, schedules.NewCleanup())
+	e.runCleanup(t, schedules.NewCleanup(schedules.CleanupOptions{}))
 
-	for id, want := range map[uuid.UUID]int{done31: 0, done29: 1, dead60: 1, exp31: 0, pend60: 1} {
+	for id, want := range map[uuid.UUID]int{done8: 0, done6: 1, dead60: 1, inDoubt60: 1, exp8: 0, pend60: 1} {
 		if n := e.Count(t, "SELECT count(*) FROM platform.jobs WHERE id = $1", id); n != want {
 			t.Fatalf("việc %s: còn %d, muốn %d", id, n, want)
 		}
@@ -127,12 +136,66 @@ func TestCleanupRemovesOnlyOldRows(t *testing.T) {
 	}
 }
 
+// Hạn giữ việc xong cấu hình được: 2 ngày → việc done 3 ngày bị xóa, 1 ngày còn; chỉ số 29 ngày vẫn còn (hạn riêng).
+func TestCleanupJobRetentionConfigurable(t *testing.T) {
+	e := newEnv(t)
+	done3 := e.oldJob(t, "done", 3*day)
+	done1 := e.oldJob(t, "done", 1*day)
+	e.metric(t, 29*day, "new")
+	e.runCleanup(t, schedules.NewCleanup(schedules.CleanupOptions{JobRetention: 2 * day}))
+	for id, want := range map[uuid.UUID]int{done3: 0, done1: 1} {
+		if n := e.Count(t, "SELECT count(*) FROM platform.jobs WHERE id = $1", id); n != want {
+			t.Fatalf("việc %s: còn %d, muốn %d", id, n, want)
+		}
+	}
+	if n := e.Count(t, "SELECT count(*) FROM platform.metrics_minute WHERE name = 'new'"); n != 1 {
+		t.Fatal("chỉ số 29 ngày phải còn")
+	}
+}
+
+// Hai lịch dọn chạy mỗi 5 phút (Task 394): mỗi kỳ tối đa 5.000 việc, mỗi giờ tới 60.000 việc xong.
+func TestCleanupEveryFiveMinutes(t *testing.T) {
+	e := newEnv(t)
+	e.tickCleanup(t, schedules.NewCleanup(schedules.CleanupOptions{}))
+	if n := e.Count(t, "SELECT count(*) FROM platform.schedules WHERE name LIKE 'platform.cleanup%' AND every_seconds = 300"); n != 2 {
+		t.Fatalf("%d lịch dọn có chu kỳ 300 s, muốn 2", n)
+	}
+}
+
+// Câu dọn việc xong dùng index (jobs_finished, migration 0008), không quét bảng jobs khi bảng có 100.000 việc xong mới
+// và 5.000 việc quá hạn: transaction dọn không giữ lâu.
+func TestCleanupJobsPlanUsesIndex(t *testing.T) {
+	e := newEnv(t)
+	e.exec(t, `INSERT INTO platform.jobs (kind, mode, dedupe_key, on_lease_expired, max_attempts, status, finished_at)
+		SELECT 't.recent', 'transactional', g::text, 'retry', 8, 'done', now() - g * interval '1 s'
+		FROM generate_series(1, 100000) AS g`)
+	e.exec(t, `INSERT INTO platform.jobs (kind, mode, dedupe_key, on_lease_expired, max_attempts, status, finished_at)
+		SELECT 't.old', 'transactional', g::text, 'retry', 8, 'done', now() - interval '40 days'
+		FROM generate_series(1, 5000) AS g`)
+	e.exec(t, "ANALYZE platform.jobs")
+	// Cùng câu với DeleteFinishedJobs (queries/platform/schedules.sql), chạy bằng crm_app như lịch dọn.
+	rows, err := e.App.Pool.Query(t.Context(), `EXPLAIN (COSTS OFF) DELETE FROM platform.jobs WHERE id = ANY (ARRAY(
+		SELECT j.id FROM platform.jobs AS j WHERE j.status IN ('done', 'expired') AND j.finished_at < $1::timestamptz
+		ORDER BY j.finished_at LIMIT $2 FOR UPDATE SKIP LOCKED))`, time.Now().Add(-schedules.DefaultJobRetention), 5000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := strings.Join(lines, "\n")
+	if strings.Contains(plan, "Seq Scan") || !strings.Contains(plan, "jobs_finished") || !strings.Contains(plan, "jobs_pkey") {
+		t.Fatalf("câu dọn phải dùng index jobs_finished, xóa theo jobs_pkey, không quét bảng:\n%s", plan)
+	}
+}
+
 // Mỗi lần dọn tối đa 5.000 dòng mỗi bảng.
 func TestCleanupBatchLimit(t *testing.T) {
 	e := newEnv(t)
 	e.exec(t, `INSERT INTO platform.jobs (kind, mode, dedupe_key, on_lease_expired, max_attempts, status, finished_at)
 		SELECT 't.old', 'transactional', g::text, 'retry', 8, 'done', now() - interval '40 days' FROM generate_series(1, 5003) AS g`)
-	e.runCleanup(t, schedules.NewCleanup())
+	e.runCleanup(t, schedules.NewCleanup(schedules.CleanupOptions{}))
 	if n := e.Count(t, "SELECT count(*) FROM platform.jobs WHERE kind = 't.old'"); n != 3 {
 		t.Fatalf("sau một lần còn %d việc cũ, muốn 3", n)
 	}
@@ -143,7 +206,7 @@ func TestCleanupBatchLimit(t *testing.T) {
 func TestRegisteredCleanupsRun(t *testing.T) {
 	e := newEnv(t)
 	a, b := e.Tenant(t, "a"), e.Tenant(t, "b")
-	c := schedules.NewCleanup()
+	c := schedules.NewCleanup(schedules.CleanupOptions{})
 	var (
 		mu      sync.Mutex
 		global  int
