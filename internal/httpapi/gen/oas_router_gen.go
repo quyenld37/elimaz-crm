@@ -44,16 +44,16 @@ var (
 	rn26AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn80AllowedHeaders = map[string]string{
+	rn82AllowedHeaders = map[string]string{
 		"PUT": "Content-Type,Idempotency-Key",
 	}
 	rn53AllowedHeaders = map[string]string{
 		"DELETE": "Idempotency-Key",
 	}
-	rn89AllowedHeaders = map[string]string{
+	rn91AllowedHeaders = map[string]string{
 		"PUT": "Content-Type,Idempotency-Key",
 	}
-	rn85AllowedHeaders = map[string]string{
+	rn87AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
 	rn11AllowedHeaders = map[string]string{
@@ -62,7 +62,7 @@ var (
 	rn50AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn97AllowedHeaders = map[string]string{
+	rn99AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type,Idempotency-Key",
 	}
 	rn51AllowedHeaders = map[string]string{
@@ -83,13 +83,13 @@ var (
 	rn46AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn82AllowedHeaders = map[string]string{
+	rn84AllowedHeaders = map[string]string{
 		"PUT": "Content-Type,Idempotency-Key",
 	}
-	rn74AllowedHeaders = map[string]string{
+	rn75AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
-	rn93AllowedHeaders = map[string]string{
+	rn95AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
 	rn47AllowedHeaders = map[string]string{
@@ -98,13 +98,13 @@ var (
 	rn30AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn83AllowedHeaders = map[string]string{
+	rn85AllowedHeaders = map[string]string{
 		"PUT": "Content-Type,Idempotency-Key",
 	}
-	rn76AllowedHeaders = map[string]string{
+	rn77AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn90AllowedHeaders = map[string]string{
+	rn92AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
 	rn17AllowedHeaders = map[string]string{
@@ -113,13 +113,13 @@ var (
 	rn32AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn78AllowedHeaders = map[string]string{
+	rn79AllowedHeaders = map[string]string{
 		"PUT": "Content-Type,Idempotency-Key",
 	}
 	rn49AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn95AllowedHeaders = map[string]string{
+	rn97AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type,Idempotency-Key",
 	}
 	rn39AllowedHeaders = map[string]string{
@@ -128,13 +128,16 @@ var (
 	rn44AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn79AllowedHeaders = map[string]string{
+	rn81AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
+	}
+	rn100AllowedHeaders = map[string]string{
+		"POST": "Idempotency-Key",
 	}
 	rn3AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
-	rn87AllowedHeaders = map[string]string{
+	rn89AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
 )
@@ -669,7 +672,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												default:
 													s.notAllowed(w, r, notAllowedParams{
 														allowedMethods: "PUT",
-														allowedHeaders: rn80AllowedHeaders,
+														allowedHeaders: rn82AllowedHeaders,
 														acceptPost:     "",
 														acceptPatch:    "",
 													})
@@ -739,7 +742,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 													default:
 														s.notAllowed(w, r, notAllowedParams{
 															allowedMethods: "PUT",
-															allowedHeaders: rn89AllowedHeaders,
+															allowedHeaders: rn91AllowedHeaders,
 															acceptPost:     "",
 															acceptPatch:    "",
 														})
@@ -795,7 +798,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 													default:
 														s.notAllowed(w, r, notAllowedParams{
 															allowedMethods: "POST",
-															allowedHeaders: rn85AllowedHeaders,
+															allowedHeaders: rn87AllowedHeaders,
 															acceptPost:     "",
 															acceptPatch:    "",
 														})
@@ -928,7 +931,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "PATCH",
-									allowedHeaders: rn97AllowedHeaders,
+									allowedHeaders: rn99AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "application/json",
 								})
@@ -1283,7 +1286,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "PUT",
-													allowedHeaders: rn82AllowedHeaders,
+													allowedHeaders: rn84AllowedHeaders,
 													acceptPost:     "",
 													acceptPatch:    "",
 												})
@@ -1310,7 +1313,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn74AllowedHeaders,
+													allowedHeaders: rn75AllowedHeaders,
 													acceptPost:     "",
 													acceptPatch:    "",
 												})
@@ -1337,7 +1340,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn93AllowedHeaders,
+													allowedHeaders: rn95AllowedHeaders,
 													acceptPost:     "",
 													acceptPatch:    "",
 												})
@@ -1509,7 +1512,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "PUT",
-													allowedHeaders: rn83AllowedHeaders,
+													allowedHeaders: rn85AllowedHeaders,
 													acceptPost:     "",
 													acceptPatch:    "",
 												})
@@ -1536,7 +1539,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn76AllowedHeaders,
+													allowedHeaders: rn77AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -1578,7 +1581,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn90AllowedHeaders,
+											allowedHeaders: rn92AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -1716,7 +1719,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												default:
 													s.notAllowed(w, r, notAllowedParams{
 														allowedMethods: "PUT",
-														allowedHeaders: rn78AllowedHeaders,
+														allowedHeaders: rn79AllowedHeaders,
 														acceptPost:     "",
 														acceptPatch:    "",
 													})
@@ -1784,7 +1787,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "PATCH",
-												allowedHeaders: rn95AllowedHeaders,
+												allowedHeaders: rn97AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "application/json",
 											})
@@ -1953,29 +1956,93 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 					switch elem[0] {
-					case 'f': // Prefix: "files/regenerate"
+					case 'f': // Prefix: "files/"
 
-						if l := len("files/regenerate"); len(elem) >= l && elem[0:l] == "files/regenerate" {
+						if l := len("files/"); len(elem) >= l && elem[0:l] == "files/" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
 						if len(elem) == 0 {
-							// Leaf node.
-							switch r.Method {
-							case "POST":
-								s.handleRegenerateImagesRequest([0]string{}, elemIsEscaped, w, r)
-							default:
-								s.notAllowed(w, r, notAllowedParams{
-									allowedMethods: "POST",
-									allowedHeaders: rn79AllowedHeaders,
-									acceptPost:     "application/json",
-									acceptPatch:    "",
-								})
+							break
+						}
+						switch elem[0] {
+						case 'l': // Prefix: "lost"
+
+							if l := len("lost"); len(elem) >= l && elem[0:l] == "lost" {
+								elem = elem[l:]
+							} else {
+								break
 							}
 
-							return
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "GET":
+									s.handleListLostFilesRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "GET",
+										allowedHeaders: nil,
+										acceptPost:     "",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
+						case 'r': // Prefix: "regenerate"
+
+							if l := len("regenerate"); len(elem) >= l && elem[0:l] == "regenerate" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleRegenerateImagesRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "POST",
+										allowedHeaders: rn81AllowedHeaders,
+										acceptPost:     "application/json",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
+						case 'v': // Prefix: "verify"
+
+							if l := len("verify"); len(elem) >= l && elem[0:l] == "verify" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleVerifyFilesRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "POST",
+										allowedHeaders: rn100AllowedHeaders,
+										acceptPost:     "",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
 						}
 
 					case 'h': // Prefix: "health"
@@ -2105,7 +2172,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn87AllowedHeaders,
+												allowedHeaders: rn89AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "",
 											})
@@ -4146,29 +4213,93 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						break
 					}
 					switch elem[0] {
-					case 'f': // Prefix: "files/regenerate"
+					case 'f': // Prefix: "files/"
 
-						if l := len("files/regenerate"); len(elem) >= l && elem[0:l] == "files/regenerate" {
+						if l := len("files/"); len(elem) >= l && elem[0:l] == "files/" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
 						if len(elem) == 0 {
-							// Leaf node.
-							switch method {
-							case "POST":
-								r.name = RegenerateImagesOperation
-								r.summary = "Tạo lại kích thước ảnh từ ảnh gốc theo một bộ kích thước (một lệnh mỗi tệp ảnh ready chưa có bản đó; ảnh riêng tư không áp dụng)"
-								r.operationID = "regenerateImages"
-								r.operationGroup = ""
-								r.pathPattern = "/api/v1/platform/files/regenerate"
-								r.args = args
-								r.count = 0
-								return r, true
-							default:
-								return
+							break
+						}
+						switch elem[0] {
+						case 'l': // Prefix: "lost"
+
+							if l := len("lost"); len(elem) >= l && elem[0:l] == "lost" {
+								elem = elem[l:]
+							} else {
+								break
 							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "GET":
+									r.name = ListLostFilesOperation
+									r.summary = "Tệp có trong CRM nhưng kho tệp không còn (status lost), mất gần nhất trước; trang theo con trỏ"
+									r.operationID = "listLostFiles"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/platform/files/lost"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+						case 'r': // Prefix: "regenerate"
+
+							if l := len("regenerate"); len(elem) >= l && elem[0:l] == "regenerate" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = RegenerateImagesOperation
+									r.summary = "Tạo lại kích thước ảnh từ ảnh gốc theo một bộ kích thước (một lệnh mỗi tệp ảnh ready chưa có bản đó; ảnh riêng tư không áp dụng)"
+									r.operationID = "regenerateImages"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/platform/files/regenerate"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+						case 'v': // Prefix: "verify"
+
+							if l := len("verify"); len(elem) >= l && elem[0:l] == "verify" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = VerifyFilesOperation
+									r.summary = "Kiểm lại mọi tệp ready trên kho tệp (lệnh file.verify nền, một lệnh mỗi tenant); tệp thiếu đối tượng thành lost"
+									r.operationID = "verifyFiles"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/platform/files/verify"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
 						}
 
 					case 'h': // Prefix: "health"

@@ -49,6 +49,7 @@ const (
 	ListBalancesOperation              OperationName = "ListBalances"
 	ListCategoriesOperation            OperationName = "ListCategories"
 	ListJobsOperation                  OperationName = "ListJobs"
+	ListLostFilesOperation             OperationName = "ListLostFiles"
 	ListPermissionsOperation           OperationName = "ListPermissions"
 	ListProductsOperation              OperationName = "ListProducts"
 	ListRolesOperation                 OperationName = "ListRoles"
@@ -78,4 +79,5 @@ const (
 	UpdateRoleOperation                OperationName = "UpdateRole"
 	UpdateSupplierOperation            OperationName = "UpdateSupplier"
 	UpdateVariantOperation             OperationName = "UpdateVariant"
+	VerifyFilesOperation               OperationName = "VerifyFiles"
 )

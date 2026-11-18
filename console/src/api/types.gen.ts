@@ -229,6 +229,32 @@ export type RegenerateImagesResult = {
     enqueued: number;
 };
 
+export type VerifyFilesAccepted = {
+    jobId: string;
+};
+
+export type LostFilePage = {
+    items: Array<LostFile>;
+    /**
+     * Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+     */
+    nextCursor?: string;
+};
+
+export type LostFile = {
+    fileId: string;
+    /**
+     * Khóa mục đích tệp (product_image, catalog_import, …)
+     */
+    purpose: string;
+    /**
+     * Mẫu dùng tệp (đọc qua catalog.products_v); không có khi tệp không gắn mẫu
+     */
+    productId?: string;
+    productCode?: string;
+    lostAt: string;
+};
+
 export type CreateUploadRequest = {
     purpose: string;
     /**
@@ -1553,6 +1579,65 @@ export type RegenerateImagesResponses = {
 };
 
 export type RegenerateImagesResponse = RegenerateImagesResponses[keyof RegenerateImagesResponses];
+
+export type VerifyFilesData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/platform/files/verify';
+};
+
+export type VerifyFilesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type VerifyFilesError = VerifyFilesErrors[keyof VerifyFilesErrors];
+
+export type VerifyFilesResponses = {
+    /**
+     * Đã nhận; việc chạy nền
+     */
+    202: VerifyFilesAccepted;
+};
+
+export type VerifyFilesResponse = VerifyFilesResponses[keyof VerifyFilesResponses];
+
+export type ListLostFilesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/platform/files/lost';
+};
+
+export type ListLostFilesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListLostFilesError = ListLostFilesErrors[keyof ListLostFilesErrors];
+
+export type ListLostFilesResponses = {
+    /**
+     * Trang tệp mất
+     */
+    200: LostFilePage;
+};
+
+export type ListLostFilesResponse = ListLostFilesResponses[keyof ListLostFilesResponses];
 
 export type ListJobsData = {
     body?: never;

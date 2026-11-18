@@ -1,0 +1,13 @@
+/* Màn Tệp bị mất (Task 331; mockup docs/mockups/m1/tep-bi-mat.html). Chỉ phần riêng của màn; còn lại là lớp của khung. */
+.lf .cell-a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  min-width: var(--tap);
+}
+.lf-gap {
+  margin-bottom: var(--space-md);
+}
+.lf-note {
+  margin-top: 8px;
+}

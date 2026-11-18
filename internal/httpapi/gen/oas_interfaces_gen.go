@@ -169,6 +169,10 @@ type ListJobsRes interface {
 	listJobsRes()
 }
 
+type ListLostFilesRes interface {
+	listLostFilesRes()
+}
+
 type ListPermissionsRes interface {
 	listPermissionsRes()
 }
@@ -283,4 +287,8 @@ type UpdateSupplierRes interface {
 
 type UpdateVariantRes interface {
 	updateVariantRes()
+}
+
+type VerifyFilesRes interface {
+	verifyFilesRes()
 }
