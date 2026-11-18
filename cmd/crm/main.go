@@ -224,7 +224,11 @@ func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtim
 	if err != nil {
 		return nil, fmt.Errorf("dựng kho tệp: %w", err)
 	}
-	hs := []commands.Handler{catalog.NewImportValidator(catalog.ImportValidatorOptions{DB: d, Store: fs})}
+	hs := []commands.Handler{
+		catalog.NewImportValidator(catalog.ImportValidatorOptions{DB: d, Store: fs}),
+		// Đối chiếu kho (Task M1-46): chỉ hỏi kho, không cần imager.
+		files.NewVerifyHandler(files.ProcessorOptions{DB: d, Store: fs, Bus: bus}),
+	}
 	if cfg.ImagerURL != "" {
 		if _, ok := files.Preset(cfg.ImagePresetVersion); !ok {
 			return nil, fmt.Errorf("%w: %d", errNoPreset, cfg.ImagePresetVersion)

@@ -163,8 +163,12 @@ func (p *Processor) Execute(ctx context.Context, j queue.Job) (commands.Outcome,
 		return out, nil
 	}
 	srcB, srcK := Bucket(jb.row.Bucket), jb.row.Key
-	if p.private {
+	switch {
+	case p.private:
 		srcB, srcK = BucketTmp, TmpKey(jb.tenant, jb.fileID)
+	case jb.row.Status == StatusLost && len(jb.row.ContentSha256) == sha256.Size:
+		// Tệp mất (Task M1-46): khóa tải lên đã hết hạn; dựng lại từ ảnh gốc khi ảnh đó có lại trên kho (tải lại).
+		srcB, srcK = BucketOriginals, OriginalKey(hex.EncodeToString(jb.row.ContentSha256))
 	}
 	sum, err := p.hash(ctx, srcB, srcK, jb.purpose.MaxBytes)
 	switch {
@@ -293,10 +297,18 @@ func (p *Processor) makeVariants(ctx context.Context, jb job, sum string, srcB B
 		return commands.Outcome{}, err
 	}
 	if m, ok := p.readManifest(ctx, l, sum); ok {
-		if reason := contentReason(m, jb.purpose); reason != "" {
-			return p.reject(ctx, jb, reason)
+		// Bản kê chỉ được tin khi mọi biến thể còn trên kho (Task M1-46: kho dựng lại có thể thiếu một phần; thiếu
+		// thì làm lại phần thiếu như chưa có bản kê).
+		complete, err := p.variantsPresent(ctx, l)
+		switch {
+		case err != nil:
+			return notSent("store", 0), nil
+		case complete:
+			if reason := contentReason(m, jb.purpose); reason != "" {
+				return p.reject(ctx, jb, reason)
+			}
+			return done(m)
 		}
-		return done(m)
 	}
 	have := map[int]int64{} // chỉ số biến thể → cỡ đã có trên kho
 	var outs []imager.Output
@@ -343,6 +355,20 @@ func (p *Processor) makeVariants(ctx context.Context, jb job, sum string, srcB B
 	}
 	p.writeManifest(ctx, l, m)
 	return done(m)
+}
+
+// variantsPresent: mọi biến thể của bố cục l còn trên kho (Head); lỗi khác "không có" → err.
+func (p *Processor) variantsPresent(ctx context.Context, l layout) (bool, error) {
+	for _, key := range l.keys {
+		_, err := p.o.Store.Head(ctx, l.bucket, key)
+		switch {
+		case errors.Is(err, ErrObjectNotFound):
+			return false, nil
+		case err != nil:
+			return false, fmt.Errorf("kiểm biến thể %s: %w", key, err)
+		}
+	}
+	return true, nil
 }
 
 // output ký PUT không ký kích thước cho một biến thể.
@@ -558,6 +584,11 @@ func (p *Processor) markReady(ctx context.Context, tx pgx.Tx, row store.Platform
 			Format: v.Format, Bucket: string(outBucket), Key: v.Key, SizeBytes: v.Size,
 		}); err != nil {
 			return fmt.Errorf("ghi biến thể của %s: %w", row.ID, err)
+		}
+	}
+	if !p.private {
+		if err := enqueueRestore(ctx, tx, row, sum); err != nil {
+			return err
 		}
 	}
 	return p.publish(ctx, tx, row.TenantID, row.ID)
