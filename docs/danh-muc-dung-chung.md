@@ -469,6 +469,7 @@ func AddRoute(ctx context.Context, owner *db.DB, kind, externalKey string, tenan
 func CheckSchemaRules(ctx context.Context, owner *pgxpool.Pool, platformTables []string) ([]string, error)
 func ListTenantIDs(ctx context.Context, d *db.DB) ([]uuid.UUID, error)
 func Resolve(ctx context.Context, d *db.DB, kind, externalKey string) (uuid.UUID, bool, error)
+func ResolveTx(ctx context.Context, tx pgx.Tx, kind, externalKey string) (uuid.UUID, bool, error)
 func SeedTenant(ctx context.Context, owner *db.DB, name string) (uuid.UUID, error)
 func WithTenant(ctx context.Context, d *db.DB, tenantID uuid.UUID, fn func(pgx.Tx) error, o ...db.TxOptions) error
 ```
@@ -482,6 +483,8 @@ Package webhooks là đường vào webhook ở vai trò ingest (spec 04 mục 5
 ```go
 func CleanupDeliveries(ctx context.Context, tx pgx.Tx, now time.Time) (int64, error)
 func ClientIP(r *http.Request) string
+func InboundJobHandlers(sources []Source, hs []InboundHandler) ([]queue.Handler, error)
+func InboundKind(source string) queue.Kind
 func Save(ctx context.Context, d *db.DB, e Entry) (created bool, err error)
 type Drainer struct {
 	Spool *Spool
@@ -500,6 +503,14 @@ type Entry struct {
 	Body       []byte          `json:"bodyBase64"`
 	ReceivedAt time.Time       `json:"receivedAt"`
 }
+type Inbound struct {
+	Type       string
+	OccurredAt time.Time
+
+	Data     json.RawMessage
+	JobID    uuid.UUID
+	TenantID uuid.UUID
+}
 type InboundEvent struct {
 	Type string
 
@@ -510,6 +521,11 @@ type InboundEvent struct {
 	OrderKey   string
 	OccurredAt time.Time
 	Payload    json.RawMessage
+}
+type InboundHandler interface {
+	Source() string
+
+	Handle(ctx context.Context, e Inbound, tx pgx.Tx) error
 }
 type Ingest struct {
 }
@@ -550,6 +566,16 @@ type Source interface {
 	VerifySignature(raw []byte, h http.Header) bool
 
 	Split(raw []byte) (SplitResult, error)
+}
+type SplitHandler struct {
+}
+func NewSplitHandler(o SplitOptions) (*SplitHandler, error)
+func (h *SplitHandler) Handle(ctx context.Context, j queue.Job, tx pgx.Tx) (json.RawMessage, error)
+func (*SplitHandler) Kind() queue.Kind
+type SplitOptions struct {
+	Sources []Source
+
+	Metrics *metrics.Registry
 }
 type SplitResult struct {
 	Events  []InboundEvent

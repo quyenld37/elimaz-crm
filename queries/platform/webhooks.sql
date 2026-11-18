@@ -16,3 +16,7 @@ WHERE id IN (
     ORDER BY old.received_at
     LIMIT sqlc.arg(max_rows)::int
 );
+
+-- Đọc lại một bản nhận để tách gói (việc webhook.split) và lấy nội dung sự kiện (việc inbound.*).
+-- name: GetWebhookDelivery :one
+SELECT source, body FROM platform.webhook_deliveries WHERE id = @id;

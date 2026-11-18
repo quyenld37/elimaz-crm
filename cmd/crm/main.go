@@ -162,6 +162,22 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 // module của mốc sau đăng ký ở đây.
 func newEvents() *events.Registry { return events.NewRegistry() }
 
+// newInbound dựng việc tách gói webhook và handler sự kiện vào của worker. Worker chỉ tách gói (Split), không kiểm
+// chữ ký (ingest đã kiểm), nên nguồn selftest dựng không cần bí mật. M0 chưa có handler sự kiện vào (Task 18 thêm
+// selftest.Inbound); module của mốc sau thêm ở đây, cùng danh sách nguồn với ingest.
+func newInbound(reg *metrics.Registry) ([]queue.Handler, error) {
+	sources := []webhooks.Source{selftest.NewSource("")}
+	split, err := webhooks.NewSplitHandler(webhooks.SplitOptions{Sources: sources, Metrics: reg})
+	if err != nil {
+		return nil, fmt.Errorf("dựng việc tách gói: %w", err)
+	}
+	hs, err := webhooks.InboundJobHandlers(sources, nil)
+	if err != nil {
+		return nil, fmt.Errorf("dựng handler sự kiện vào: %w", err)
+	}
+	return append([]queue.Handler{split}, hs...), nil
+}
+
 // newCommands là các loại lệnh ra ngoài của tiến trình; M0 chưa có lệnh thật, module của mốc sau thêm ở đây.
 func newCommands() []commands.Handler { return nil }
 
@@ -184,7 +200,11 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	}); err != nil {
 		return fmt.Errorf("định nghĩa lịch tra lại lệnh: %w", err)
 	}
-	handlers := append(newEvents().JobHandlers(), cleanup.Handlers()...)
+	inbound, err := newInbound(reg)
+	if err != nil {
+		return err
+	}
+	handlers := append(append(newEvents().JobHandlers(), cleanup.Handlers()...), inbound...)
 	w := queue.NewWorker(d, handlers, queue.WorkerOptions{
 		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
 		Metrics:  reg, Logger: logger,

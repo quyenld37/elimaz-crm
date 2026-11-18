@@ -15,7 +15,17 @@ import (
 // Resolve tìm tenant của khóa ngoài (kind: fb_page, staff_email, carrier_account, selftest) trong
 // platform.tenant_routes. Khóa không có: uuid.Nil, false, nil. Đọc ngoài ngữ cảnh tenant (bảng không RLS).
 func Resolve(ctx context.Context, d *db.DB, kind, externalKey string) (uuid.UUID, bool, error) {
-	id, err := store.New(d.Pool).ResolveTenantRoute(ctx, store.ResolveTenantRouteParams{Kind: kind, ExternalKey: externalKey})
+	return resolve(ctx, store.New(d.Pool), kind, externalKey)
+}
+
+// ResolveTx như Resolve nhưng đọc trên tx của bên gọi: handler việc nền đang giữ transaction dùng hàm này để không
+// lấy thêm một kết nối từ pool cho mỗi lần tìm (ngân sách kết nối, ADR-42).
+func ResolveTx(ctx context.Context, tx pgx.Tx, kind, externalKey string) (uuid.UUID, bool, error) {
+	return resolve(ctx, store.New(tx), kind, externalKey)
+}
+
+func resolve(ctx context.Context, q *store.Queries, kind, externalKey string) (uuid.UUID, bool, error) {
+	id, err := q.ResolveTenantRoute(ctx, store.ResolveTenantRouteParams{Kind: kind, ExternalKey: externalKey})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return uuid.Nil, false, nil
 	}

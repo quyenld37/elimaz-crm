@@ -36,6 +36,23 @@ func (q *Queries) DeleteOldWebhookDeliveries(ctx context.Context, arg DeleteOldW
 	return result.RowsAffected(), nil
 }
 
+const getWebhookDelivery = `-- name: GetWebhookDelivery :one
+SELECT source, body FROM platform.webhook_deliveries WHERE id = $1
+`
+
+type GetWebhookDeliveryRow struct {
+	Source string
+	Body   []byte
+}
+
+// Đọc lại một bản nhận để tách gói (việc webhook.split) và lấy nội dung sự kiện (việc inbound.*).
+func (q *Queries) GetWebhookDelivery(ctx context.Context, id uuid.UUID) (GetWebhookDeliveryRow, error) {
+	row := q.db.QueryRow(ctx, getWebhookDelivery, id)
+	var i GetWebhookDeliveryRow
+	err := row.Scan(&i.Source, &i.Body)
+	return i, err
+}
+
 const insertWebhookDelivery = `-- name: InsertWebhookDelivery :one
 
 INSERT INTO platform.webhook_deliveries (source, body_sha256, headers, body, received_at)
