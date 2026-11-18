@@ -297,6 +297,43 @@ Mục 6:
 | Gói chạm và phụ thuộc sau khi nối | observability, httpapi (TestPlatformHealth), tests/arch | `go test -race -count=1 ./internal/platform/observability/... ./internal/httpapi/... ./tests/arch/...`; `golangci-lint run ./...`; `make gen`, `make catalog` | ok; 0 issues; không chênh. `tests/arch` lần đầu đỏ vì golangci-lint của phiên khác trên máy giữ khóa, chạy lại riêng: ok |
 | new-error không mất: gặp lần đầu 5 phút trước chưa báo → báo; đã có alert_events → thôi; quá 1 giờ → thôi (reviewer lượt 2) | TestRuleNewErrorNotLost, TestErrorRulesNewError (kỳ vọng đổi, xem Quyết định lượt 2 mục 4) | `go test -race -count=1 ./internal/platform/observability/...` | đỏ trước khi sửa (không key; "phải còn là lỗi mới sau 2 phút"), sau: ok |
 
+## Lượt 3 (gộp main: Task 28, 34, 398, 399)
+
+### Ảnh hưởng (lượt 3)
+
+- Không đổi mã viết tay nào của Task 19. Chỉ gộp main (`git merge main`, không rebase).
+- Xung đột duy nhất: mã sinh sqlc `internal/{modules/catalog,modules/identity,platform}/internal/store/models.go`
+  (mỗi bên thêm kiểu cho bảng mới của mình: Task 19 `PlatformAlertEvent`, `PlatformBackupRun`; Task 28
+  `Inventory*`). `internal/modules/inventory/internal/store/models.go` (mới từ main) cũng được sinh lại để có kiểu
+  của bảng Task 19.
+- Ký hiệu Go xuất ra, operation OpenAPI, câu sqlc, migration: không đổi so với hai bên.
+- Test chạy: `make ci` một lần trên bản đã gộp.
+
+### Tái dùng (lượt 3)
+
+- Không viết mã mới; không có gì để tái dùng.
+
+### Soát thiết kế (lượt 3)
+
+- Migration: hai bên thêm migration riêng (Task 19 `0010`, Task 28 `0115`), không chạm cùng bảng; chạy không theo
+  thứ tự đã được main cho phép (`WithAllowOutofOrder`, xem lượt 2).
+
+### Quyết định thay chủ shop (lượt 3)
+
+- Giải xung đột mã sinh: lấy bản của main (`git checkout --theirs`) rồi `make gen` để sqlc sinh lại từ nguồn đã gộp
+  (migration và `queries/**` của cả hai bên). Không sửa tay. Phương án khác: lấy bản của task-19 rồi `make gen` —
+  cho cùng kết quả vì sqlc sinh từ nguồn.
+
+### Bằng chứng (lượt 3)
+
+| Tiêu chí | Kiểm bằng | Lệnh | Kết quả |
+|---|---|---|---|
+| Mã sinh khớp nguồn đã gộp, không còn dấu xung đột | gen-check trong `make ci`; `grep -c '<<<<<<<'` | `make gen`, `make ci` | build, vet, lint, gen-check, sqlc-vet, `go test -race ./...` (34 gói ok, 0 FAIL), vuln, oasdiff, catalog-check: qua |
+| jscpd | — | `make jscpd` | đỏ: 2 đoạn trùng của Task 19 đã giữ kèm lý do ở lượt 2 (`metrics/flusher_test.go`~`observability/helpers_test.go`, `alerter.go`~`external-probe/probe.go`); 2 đoạn của main ở lượt 2 nay đã hết. Không nới mốc |
+| test-guard, console-check | — | `make test-guard console-check` | qua |
+| gitleaks | — | `make gitleaks` | đỏ 6 dòng, tất cả ở commit `aedb415` chỉ có trên nhánh `task-319` (gitleaks quét mọi nhánh của repo chung); `gitleaks git --log-opts=HEAD .` và `gitleaks dir .`: no leaks found |
+| Kiểu của cả hai bên có mặt | `git diff --cached main/HEAD -- internal/platform/internal/store/models.go` | xem bên | +`PlatformAlertEvent`, `PlatformBackupRun` so với main; +`Inventory*` so với task-19 |
+
 ## Reviewer
 
 Kết luận: ĐẠT (lượt 2).
@@ -331,3 +368,11 @@ lại lệnh, `resolver` chỉ nhận `cmds`; `config.go` auto-merge sạch (ba 
   `TestRuleNewErrorNotLost` (Quyết định lượt 2 mục 4).
 - Lần 2: ĐẠT, không phát hiện phải sửa. Ghi chú: hai dấu vân tay trùng 8 ký tự đầu thì cái sau không được báo
   (xác suất ~1/4 tỷ, cách cũ cũng gộp).
+
+### Reviewer — lượt 3, commit gộp main (Task 28, 34, 398, 399)
+
+- Kết luận: **ĐẠT**. Không có phát hiện phải sửa.
+- Đã kiểm: phần stage so với `MERGE_HEAD` (f591177) đúng bằng 51 tệp Task 19 + `inventory/.../models.go` (+2 kiểu của Task 19);
+  so với `HEAD` đúng bằng 49 tệp của main + tệp task. Tệp tự gộp (`danh-muc-dung-chung.md`, `queue/worker_test.go`,
+  `helpers_test.go`, `sqlc.yaml`) giữ đủ hai bên. Migration `0010` và `0115` không chạm cùng đối tượng. Không còn dấu xung đột.
+- Ghi chú: main đã tiến thêm `e1f780b` (chỉ đổi git hook pre-commit), không nằm trong lần gộp này.

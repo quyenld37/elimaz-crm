@@ -10,6 +10,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/identity"
+	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
@@ -31,7 +32,8 @@ func openOwner(ctx context.Context, cfg config.Config) (*db.DB, error) {
 
 // seedDev (`crm seed-dev <email>`) dựng dữ liệu dev trên database đã migrate, bằng chuỗi chủ bảng: tenant "ELIMAZ",
 // năm vai trò mẫu (identity.EnsureDefaultRoles; owner có mọi quyền), user theo email được gán owner phạm vi all,
-// dòng tenant_routes('staff_email', email), người bán ELIMAZ (catalog). Chạy lại được.
+// dòng tenant_routes('staff_email', email), người bán ELIMAZ (catalog), kho MAIN "Kho chính" do ELIMAZ vận hành
+// (inventory). Chạy lại được.
 func seedDev(ctx context.Context, cfg config.Config, email string, logger *slog.Logger) error {
 	if cfg.Role != config.RoleMigrate || cfg.Migrate == nil {
 		return errSeedRole
@@ -51,12 +53,17 @@ func seedDev(ctx context.Context, cfg config.Config, email string, logger *slog.
 	if err := tenancy.AddRoute(ctx, owner, identity.RouteKindStaffEmail, identity.NormalizeEmail(email), tenantID); err != nil {
 		return err //nolint:wrapcheck // đã bọc trong tenancy
 	}
-	// Người bán của chính shop (ADR-29, kế hoạch M1 Task M1-27): đúng một người bán ELIMAZ, kind own.
+	// Người bán của chính shop (ADR-29, kế hoạch M1 Task M1-27): đúng một người bán ELIMAZ, kind own; kho MAIN do
+	// người bán đó vận hành (Task M1-28).
 	if err := tenancy.WithTenant(ctx, owner, tenantID, func(tx pgx.Tx) error {
-		_, err := catalog.EnsureDefaultSeller(ctx, tx, tenantID)
-		return err //nolint:wrapcheck // đã bọc trong catalog
+		sellerID, err := catalog.EnsureDefaultSeller(ctx, tx, tenantID)
+		if err != nil {
+			return err //nolint:wrapcheck // đã bọc trong catalog
+		}
+		_, err = inventory.EnsureDefaultWarehouse(ctx, tx, tenantID, sellerID)
+		return err //nolint:wrapcheck // đã bọc trong inventory
 	}); err != nil {
-		return fmt.Errorf("seed người bán: %w", err)
+		return fmt.Errorf("seed người bán, kho: %w", err)
 	}
 	logger.Info("seed-dev xong", slog.String("tenant_id", tenantID.String()))
 	return nil

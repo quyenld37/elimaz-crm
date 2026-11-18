@@ -55,6 +55,12 @@ type Signal struct {
 	Entity   Entity
 }
 
+// WarehouseScope là Scope của báo hiệu đòi quyền theo kho warehouseID (identity.ScopeWarehouse), cho module không
+// được nhập identity theo cột "Được gọi" của 04 mục 3 (inventory).
+func WarehouseScope(warehouseID string) *identity.Scope {
+	return &identity.Scope{Type: identity.ScopeWarehouse, ID: warehouseID}
+}
+
 // Frame là một khung SSE gửi cho một kết nối: Event là EventResync hoặc EventChanged, Data là JSON.
 type Frame struct {
 	Event string
