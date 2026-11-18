@@ -4,11 +4,14 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/fulfillment/internal/carriers/fake"
+	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/commands"
+	"elimaz.com.vn/crm/internal/testkit/shiptest"
 )
 
 // Đường thường: tạo vận đơn (creating, gắn vào đơn, một lệnh) → worker gọi hãng → awaiting_pickup có mã hãng, phí;
@@ -161,24 +164,53 @@ func TestShipment_DatabaseGuards(t *testing.T) {
 // Vận đơn của đơn người bán này bằng tài khoản hãng của người bán kia (ADR-29) → ErrOrderNotShippable; đơn không
 // đổi, không có vận đơn, không có lệnh.
 func TestShipment_AccountOfOtherSeller(t *testing.T) {
-	eachSeller(t, func(t *testing.T, e *shipEnv) {
+	eachSeller(t, func(_ *testing.T, e *shipEnv) {
 		o, _ := e.order(1)
 		other := e.shop.Account
 		if other == e.account {
 			other = e.shop.PartnerAccount
 		}
-		err := e.app(func(tx pgx.Tx) error {
-			_, err := fulfillment.CreateForOrder(t.Context(), tx, o.ID, other, e.actor)
-			return err //nolint:wrapcheck // test
-		})
-		if !errors.Is(err, fulfillment.ErrOrderNotShippable) {
-			t.Fatalf("tài khoản hãng của người bán khác: %v, muốn ErrOrderNotShippable", err)
-		}
-		if got := e.getOrder(o.ID); got.CurrentShipmentID != nil || got.Version != o.Version {
-			t.Errorf("đơn bị đổi: %v, version %d", got.CurrentShipmentID, got.Version)
-		}
-		if n := e.count("SELECT count(*) FROM fulfillment.shipments WHERE order_id = $1", o.ID); n != 0 {
-			t.Errorf("%d vận đơn, muốn 0", n)
-		}
+		e.expectNotShippable(o, other)
 	})
+}
+
+// expectNotShippable: tạo vận đơn cho o bằng tài khoản account → ErrOrderNotShippable; đơn không đổi, không có vận đơn.
+func (e *shipEnv) expectNotShippable(o order.Order, account uuid.UUID) {
+	e.t.Helper()
+	err := e.app(func(tx pgx.Tx) error {
+		_, err := fulfillment.CreateForOrder(e.t.Context(), tx, o.ID, account, e.actor)
+		return err //nolint:wrapcheck // test
+	})
+	if !errors.Is(err, fulfillment.ErrOrderNotShippable) {
+		e.t.Fatalf("tạo vận đơn: %v, muốn ErrOrderNotShippable", err)
+	}
+	if got := e.getOrder(o.ID); got.CurrentShipmentID != nil || got.Version != o.Version {
+		e.t.Errorf("đơn bị đổi: %v, version %d", got.CurrentShipmentID, got.Version)
+	}
+	if n := e.count("SELECT count(*) FROM fulfillment.shipments WHERE order_id = $1", o.ID); n != 0 {
+		e.t.Errorf("%d vận đơn, muốn 0", n)
+	}
+}
+
+// D-01 (review độc lập M1): tài khoản hãng của kho khác kho giữ hàng của đơn → ErrOrderNotShippable; đơn, tồn không
+// đổi, không có vận đơn (hãng lấy ở kho này mà tồn trừ ở kho kia là sai sổ cả hai kho, ADR-18).
+func TestShipment_AccountOfOtherWarehouse(t *testing.T) {
+	e := newShipEnv(t)
+	o, v := e.order(1)
+	var other uuid.UUID
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		var w2 uuid.UUID
+		if err := tx.QueryRow(t.Context(), `INSERT INTO inventory.warehouses (tenant_id, operated_by_seller_id, code, name)
+			VALUES ($1, $2, 'W2', 'Kho phụ') RETURNING id`, e.tenant, e.seller).Scan(&w2); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		var err error
+		other, err = fulfillment.EnsureCarrierAccount(t.Context(), tx, fulfillment.AccountInput{
+			SellerID: e.seller, WarehouseID: w2, CarrierKey: shiptest.CarrierKey, Name: "Hãng giả W2", ExternalAccountRef: "w2-ref",
+		})
+		return err //nolint:wrapcheck // test
+	})
+	before := e.stock(v)
+	e.expectNotShippable(o, other)
+	e.stockIs(v, before)
 }

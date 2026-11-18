@@ -130,7 +130,8 @@ func Get(ctx context.Context, tx pgx.Tx, id uuid.UUID) (Shipment, error) {
 // (nhóm 7), đọc đơn theo người bán của tài khoản (lấy COD), chèn vận đơn (mã NewShipmentCode, trùng mã thì sinh lại tối
 // đa 3 lần), gắn làm vận đơn hiện hành (order.AttachShipment), ghi lệnh fulfillment.create_shipment. Lỗi: tài khoản
 // không có hay đã tắt → ErrAccountNotFound; đơn đã có vận đơn hiện hành hay vận đơn chưa hủy →
-// ErrShipmentExists; đơn không có, của người bán khác, không ở confirmed → ErrOrderNotShippable.
+// ErrShipmentExists; đơn không có, của người bán khác, giữ hàng ở kho khác kho của tài khoản, không ở confirmed →
+// ErrOrderNotShippable.
 func CreateForOrder(ctx context.Context, tx pgx.Tx, orderID, accountID uuid.UUID, actor Actor) (Shipment, error) {
 	q := store.New(tx)
 	a, err := account(ctx, q, accountID)
@@ -156,7 +157,8 @@ func CreateForOrder(ctx context.Context, tx pgx.Tx, orderID, accountID uuid.UUID
 	if o.CurrentShipmentID != nil {
 		return Shipment{}, ErrShipmentExists
 	}
-	if o.Status != order.StatusConfirmed {
+	if o.Status != order.StatusConfirmed || o.WarehouseID != a.WarehouseID {
+		// Kho của tài khoản hãng phải là kho giữ hàng của đơn: hãng lấy ở kho tài khoản, tồn trừ ở kho giữ hàng (ADR-18).
 		return Shipment{}, ErrOrderNotShippable
 	}
 	s, err := insertShipment(ctx, q, o, a, actor)

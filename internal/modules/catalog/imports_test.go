@@ -440,19 +440,44 @@ func TestImport_OptionTakenInDatabase(t *testing.T) {
 	if _, err := e.create(dam01(e.seller)); err != nil {
 		t.Fatal(err)
 	}
-	header := []string{
-		"Mã mẫu*", "Tên mẫu*", "Danh mục", "Mô tả", "Trạng thái", "Nhãn", "Màu*", "Mã màu", "Size*",
-		"SKU*", "Barcode", "Giá bán*", "Giá nhập",
-	}
-	body := writeRows(t, header, []xlsx.Row{{Number: 2, Cells: map[string]string{
+	body := writeRows(t, importHeader(), []xlsx.Row{{Number: 2, Cells: map[string]string{
 		"Mã mẫu*": "DAM01", "Tên mẫu*": "Đầm lụa xòe", "Mô tả": "Đầm lụa dáng xòe", "Màu*": "Đỏ", "Size*": "S",
 		"SKU*": "DAM01-MOI-S", "Giá bán*": "350000",
 	}}})
-	imp := e.validate(body)
-	if imp.Status != catalog.ImportInvalid || len(imp.Errors) != 1 || imp.Errors[0].Code != "option_taken" ||
-		imp.Errors[0].Row != 2 {
-		t.Fatalf("%s %+v", imp.Status, imp.Errors)
+	e.expectOneRowError(body, "option_taken")
+}
+
+// importHeader là dòng tiêu đề đủ cột của mẫu tệp nhập.
+func importHeader() []string {
+	return []string{
+		"Mã mẫu*", "Tên mẫu*", "Danh mục", "Mô tả", "Trạng thái", "Nhãn", "Màu*", "Mã màu", "Size*",
+		"SKU*", "Barcode", "Giá bán*", "Giá nhập",
 	}
+}
+
+// expectOneRowError kiểm body thành invalid với đúng một lỗi mã code ở dòng 2.
+func (e *importEnv) expectOneRowError(body []byte, code string) {
+	e.t.Helper()
+	imp := e.validate(body)
+	if imp.Status != catalog.ImportInvalid || len(imp.Errors) != 1 || imp.Errors[0].Code != code || imp.Errors[0].Row != 2 {
+		e.t.Fatalf("%s %+v", imp.Status, imp.Errors)
+	}
+}
+
+// B-03 (review độc lập M1): barcode gõ tay trùng barcode của biến thể có sẵn mà SKU không có trong tệp → bước kiểm
+// báo invalid_barcode đúng dòng (không để tới lúc áp mới failed với câu "vừa được dùng sau khi kiểm tệp").
+func TestImport_BarcodeTakenInDatabase(t *testing.T) {
+	e := newImportEnv(t)
+	in := dam01(e.seller)
+	in.Variants[0].Barcode = "8930000000017"
+	if _, err := e.create(in); err != nil {
+		t.Fatal(err)
+	}
+	body := writeRows(t, importHeader(), []xlsx.Row{{Number: 2, Cells: map[string]string{
+		"Mã mẫu*": "DAM02", "Tên mẫu*": "Đầm mới", "Màu*": "Đỏ", "Size*": "S",
+		"SKU*": "DAM02-DO-S", "Barcode": "8930000000017", "Giá bán*": "350000",
+	}}})
+	e.expectOneRowError(body, "invalid_barcode")
 }
 
 // Tạo bản nhập: tệp sai mục đích, chưa tải xong → ErrFileNotReady; tệp không có, của tenant khác → ErrNotFound;

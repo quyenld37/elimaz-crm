@@ -41,6 +41,13 @@ FROM catalog.variants AS v
 JOIN catalog.products AS p ON p.id = v.product_id AND p.seller_id = v.seller_id
 WHERE v.seller_id = @seller_id AND v.sku = ANY(@skus::text[]);
 
+-- name: ListVariantSKUsByBarcodes :many
+-- SKU của các biến thể có sẵn của người bán mang một trong các barcode gõ tay có trong tệp nhập (bước kiểm bắt barcode
+-- đã thuộc biến thể có SKU không nằm trong tệp; unique (tenant_id, seller_id, barcode)).
+SELECT v.barcode, v.sku
+FROM catalog.variants AS v
+WHERE v.seller_id = @seller_id AND v.barcode = ANY(@barcodes::text[]);
+
 -- name: ListVariantsByProductCodes :many
 -- Màu, size, SKU của mọi biến thể thuộc các mẫu chưa xóa có mã trong codes (mã mẫu có trong tệp nhập); mẫu chưa có
 -- biến thể vẫn có một dòng (cột biến thể rỗng).

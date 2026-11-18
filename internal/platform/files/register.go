@@ -29,8 +29,9 @@ type NewFile struct {
 }
 
 // Register ghi dòng ready cho tệp máy chủ đã Put, bucket theo mục đích, trong tx (tenancy.WithTenant). Khóa đã có
-// dòng → trả id cũ (chạy lại an toàn). Mục đích chưa đăng ký → ErrUnknownPurpose; chế độ private → ErrPurposeMode
-// (ảnh riêng tư phải qua imager: RegisterPrivateImage của Task M1-43, R10); loại, dung lượng ngoài giới hạn của mục
+// dòng → trả id cũ (chạy lại an toàn). Mục đích chưa đăng ký → ErrUnknownPurpose; chế độ private hay mục đích ảnh
+// → ErrPurposeMode (ảnh phải qua imager, ADR-45: ảnh riêng tư dùng RegisterPrivateImage của Task M1-43, R10; ảnh
+// standard dùng đường tải lên có file.process — không có tệp ảnh ready nào chưa qua imager); loại, dung lượng ngoài giới hạn của mục
 // đích → ErrTypeNotAllowed, ErrTooLarge; khóa không bắt đầu bằng priv/<tenant trong ngữ cảnh>/, tên quá dài, mã băm
 // sai độ dài → ErrInvalidFile. Put xong mà transaction lỗi thì đối tượng mồ côi, việc dọn của Q16 xử lý sau.
 func Register(ctx context.Context, tx pgx.Tx, f NewFile) (uuid.UUID, error) {
@@ -38,7 +39,7 @@ func Register(ctx context.Context, tx pgx.Tx, f NewFile) (uuid.UUID, error) {
 	switch {
 	case !ok:
 		return uuid.Nil, fmt.Errorf("ghi tệp máy chủ: %w", ErrUnknownPurpose)
-	case p.Private:
+	case p.Private, p.Image:
 		return uuid.Nil, fmt.Errorf("ghi tệp máy chủ %s: %w", p.Key, ErrPurposeMode)
 	case f.ID == uuid.Nil:
 		return uuid.Nil, fmt.Errorf("ghi tệp máy chủ: %w: thiếu ID", ErrInvalidFile)

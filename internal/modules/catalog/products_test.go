@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 
@@ -377,6 +378,28 @@ func TestArticle_RejectsUnknownBlock(t *testing.T) {
 	_, err = e.writerUpdateArticle(p.ID, `[{"type":"html"}]`)
 	if !errors.Is(err, catalog.ErrInvalidArticle) {
 		t.Errorf("UpdateProduct khối html: mong ErrInvalidArticle, có %v", err)
+	}
+}
+
+// B-02 (review độc lập M1): bài viết lưu được (≤ 200 KB ở dạng JSON gọn) phải đọc lại, sửa được dù PostgreSQL trả jsonb
+// dạng văn bản có dấu cách sau mỗi ':' và ',' (dài hơn bản đã lưu).
+func TestArticle_NearLimitReadsBack(t *testing.T) {
+	e := newCatalogEnv(t)
+	items := `"` + strings.Repeat("x", 16) + `"`
+	block := `{"type":"list","items":[` + repeatJSON(items, 50) + `]}`
+	raw := "[" + repeatJSON(block, 200) + "]"
+	in := dam01(e.seller)
+	in.Article = json.RawMessage(raw)
+	p, err := e.create(in)
+	if err != nil {
+		t.Fatalf("lưu bài viết %d byte (dưới trần): %v", len(raw), err)
+	}
+	got, err := e.get(p.ID)
+	if err != nil || len(got.Article) != 200 {
+		t.Fatalf("đọc lại mẫu có bài viết sát trần: %d khối, %v", len(got.Article), err)
+	}
+	if _, err := e.writerUpdateArticle(p.ID, raw); err != nil {
+		t.Fatalf("sửa mẫu có bài viết sát trần: %v", err)
 	}
 }
 

@@ -192,7 +192,10 @@ func (v *ImportValidator) check(ctx context.Context, tenant, sellerID uuid.UUID,
 	}
 	skus, codes := keysOf(rows)
 	if err := tenancy.WithTenant(ctx, v.o.DB, tenant, func(tx pgx.Tx) error {
-		return existingRefs(ctx, tx, sellerID, skus, codes, &refs)
+		if err := existingRefs(ctx, tx, sellerID, skus, codes, &refs); err != nil {
+			return err
+		}
+		return existingBarcodes(ctx, tx, sellerID, barcodesOf(rows), &refs)
 	}); err != nil {
 		return res, fmt.Errorf("đọc dữ liệu có sẵn cho bản nhập: %w", err)
 	}
@@ -216,6 +219,34 @@ func keysOf(rows []xlsx.Row) (skus, codes []string) {
 	slices.Sort(skus)
 	slices.Sort(codes)
 	return slices.Compact(skus), slices.Compact(codes)
+}
+
+// barcodesOf trả các barcode gõ tay (khác rỗng, bỏ khoảng trắng hai đầu, không trùng) của rows.
+func barcodesOf(rows []xlsx.Row) []string {
+	var out []string
+	for _, r := range rows {
+		if b := strings.TrimSpace(r.Cells[importer.ColBarcode]); b != "" {
+			out = append(out, b)
+		}
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
+}
+
+// existingBarcodes điền refs.ExistingBarcodes (barcode → SKU) cho các barcode gõ tay có trong tệp, kể cả biến thể có SKU
+// không nằm trong tệp (B-03 của review độc lập M1).
+func existingBarcodes(ctx context.Context, tx pgx.Tx, sellerID uuid.UUID, barcodes []string, refs *importer.Refs) error {
+	rows, err := store.New(tx).ListVariantSKUsByBarcodes(ctx, store.ListVariantSKUsByBarcodesParams{
+		SellerID: sellerID, Barcodes: barcodes,
+	})
+	if err != nil {
+		return fmt.Errorf("đọc barcode có sẵn: %w", err)
+	}
+	refs.ExistingBarcodes = make(map[string]string, len(rows))
+	for _, r := range rows {
+		refs.ExistingBarcodes[r.Barcode] = r.Sku
+	}
+	return nil
 }
 
 // record ghi res vào bản nhập id khi còn validating; trả trạng thái của bản nhập sau khi ghi.
