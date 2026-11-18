@@ -122,3 +122,17 @@ ORDER BY v.file_id, v.preset_version, v.format, v.width;
 UPDATE platform.files
 SET status = 'lost', lost_at = now(), updated_at = now(), version = version + 1
 WHERE id = @id AND status = 'ready';
+
+-- name: ListFilesMissingPreset :many
+-- Tệp ready, chưa xóa, đã có mã băm, của mục đích chế độ standard, chưa có biến thể nào của bộ kích thước
+-- @preset_version (tạo lại kích thước, Task M1-44d, TP07). Mục đích private không giữ ảnh gốc nên không bao giờ có
+-- trong kết quả (R10). Tenant theo RLS của ngữ cảnh; bên gọi lọc tiếp mục đích ảnh theo sổ mục đích.
+SELECT f.id, f.tenant_id, f.purpose
+FROM platform.files f
+JOIN platform.file_purposes p ON p.key = f.purpose
+WHERE f.status = 'ready' AND f.deleted_at IS NULL AND f.content_sha256 IS NOT NULL AND p.mode = 'standard'
+    AND NOT EXISTS (
+        SELECT 1 FROM platform.file_variants v
+        WHERE v.tenant_id = f.tenant_id AND v.file_id = f.id AND v.preset_version = @preset_version
+    )
+ORDER BY f.id;

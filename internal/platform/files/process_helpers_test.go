@@ -226,14 +226,15 @@ func (b *fakeBus) signals() []realtime.Signal {
 // procEnv: env của files_test cộng MemStore, imager giả, hai handler xử lý ảnh, lệnh selftest và một worker.
 type procEnv struct {
 	*env
-	mem  *files.MemStore
-	img  *fakeImager
-	bus  *fakeBus
-	reg  *metrics.Registry
-	pub  commands.Handler
-	priv commands.Handler
-	w    *queue.Worker
-	q    queue.JobQueue
+	mem   *files.MemStore
+	img   *fakeImager
+	bus   *fakeBus
+	reg   *metrics.Registry
+	pub   commands.Handler
+	priv  commands.Handler
+	regen commands.Handler
+	w     *queue.Worker
+	q     queue.JobQueue
 }
 
 func newProcEnv(t *testing.T) *procEnv {
@@ -249,7 +250,7 @@ func newProcEnv(t *testing.T) *procEnv {
 	o := files.ProcessorOptions{
 		DB: p.staff.App, Store: p.mem, Imager: p.img.client(), PresetVersion: 1, Bus: p.bus, Metrics: p.reg,
 	}
-	p.pub, p.priv = files.NewProcessHandler(o), files.NewProcessPrivateHandler(o)
+	p.pub, p.priv, p.regen = files.NewProcessHandler(o), files.NewProcessPrivateHandler(o), files.NewRegenerateHandler(o)
 	p.w = p.newWorker()
 	return p
 }
@@ -257,7 +258,7 @@ func newProcEnv(t *testing.T) *procEnv {
 func (p *procEnv) newWorker() *queue.Worker {
 	return queue.NewWorker(p.staff.App, nil, queue.WorkerOptions{
 		WorkerID: "w-" + uuid.NewString(), Poll: 50 * time.Millisecond,
-		Commands: commands.NewRunner(p.staff.App, []commands.Handler{p.pub, p.priv}),
+		Commands: commands.NewRunner(p.staff.App, []commands.Handler{p.pub, p.priv, p.regen}),
 	})
 }
 

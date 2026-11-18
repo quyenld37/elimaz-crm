@@ -355,6 +355,47 @@ func (q *Queries) ListFileVariantsFull(ctx context.Context, fileID uuid.UUID) ([
 	return items, nil
 }
 
+const listFilesMissingPreset = `-- name: ListFilesMissingPreset :many
+SELECT f.id, f.tenant_id, f.purpose
+FROM platform.files f
+JOIN platform.file_purposes p ON p.key = f.purpose
+WHERE f.status = 'ready' AND f.deleted_at IS NULL AND f.content_sha256 IS NOT NULL AND p.mode = 'standard'
+    AND NOT EXISTS (
+        SELECT 1 FROM platform.file_variants v
+        WHERE v.tenant_id = f.tenant_id AND v.file_id = f.id AND v.preset_version = $1
+    )
+ORDER BY f.id
+`
+
+type ListFilesMissingPresetRow struct {
+	ID       uuid.UUID
+	TenantID uuid.UUID
+	Purpose  string
+}
+
+// Tệp ready, chưa xóa, đã có mã băm, của mục đích chế độ standard, chưa có biến thể nào của bộ kích thước
+// @preset_version (tạo lại kích thước, Task M1-44d, TP07). Mục đích private không giữ ảnh gốc nên không bao giờ có
+// trong kết quả (R10). Tenant theo RLS của ngữ cảnh; bên gọi lọc tiếp mục đích ảnh theo sổ mục đích.
+func (q *Queries) ListFilesMissingPreset(ctx context.Context, presetVersion int32) ([]ListFilesMissingPresetRow, error) {
+	rows, err := q.db.Query(ctx, listFilesMissingPreset, presetVersion)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFilesMissingPresetRow{}
+	for rows.Next() {
+		var i ListFilesMissingPresetRow
+		if err := rows.Scan(&i.ID, &i.TenantID, &i.Purpose); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPublicVariants = `-- name: ListPublicVariants :many
 SELECT v.file_id, v.preset_version, v.width, v.format, v.key
 FROM platform.file_variants v

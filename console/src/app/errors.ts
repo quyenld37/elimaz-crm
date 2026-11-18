@@ -73,6 +73,7 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   file_type_not_allowed: "Loại tệp này không được nhận",
   import_not_ready: "Tệp nhập chưa kiểm xong hoặc còn dòng lỗi",
   restore_expired: "Đã quá hạn khôi phục",
+  unknown_preset: "Bộ kích thước ảnh này chưa có",
   upload_missing: "Tệp chưa tải lên xong. Tải lại tệp",
 };
 

@@ -81,6 +81,7 @@ var Routes = []Route{
 	{Method: "POST", Pattern: "POST /api/v1/orders", OperationID: "createOrder", Permission: "order.create", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/orders/{id}", OperationID: "getOrder", Permission: "order.read"},
 	{Method: "POST", Pattern: "POST /api/v1/orders/{id}/shipments", OperationID: "createShipment", Permission: "fulfillment.ship", Write: true, IdempotencyMode: "required"},
+	{Method: "POST", Pattern: "POST /api/v1/platform/files/regenerate", OperationID: "regenerateImages", Permission: "platform.files.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/platform/health", OperationID: "getPlatformHealth", Permission: "platform.health.read"},
 	{Method: "GET", Pattern: "GET /api/v1/platform/jobs", OperationID: "listJobs", Permission: "platform.jobs.manage"},
 	{Method: "POST", Pattern: "POST /api/v1/platform/jobs/{id}/abandon", OperationID: "abandonJob", Permission: "platform.jobs.manage", Write: true, IdempotencyMode: "required"},

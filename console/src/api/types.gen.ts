@@ -146,6 +146,20 @@ export type PermissionInfo = {
     label: string;
 };
 
+export type RegenerateImagesRequest = {
+    /**
+     * Bản bộ kích thước (như IMAGE_PRESET_VERSION); chưa có trong bảng của máy chủ → 422 unknown_preset
+     */
+    presetVersion: number;
+};
+
+export type RegenerateImagesResult = {
+    /**
+     * Số lệnh file.regenerate mới xếp (tệp đã có lệnh cho bản này không tính)
+     */
+    enqueued: number;
+};
+
 export type CreateUploadRequest = {
     purpose: string;
     /**
@@ -1429,6 +1443,37 @@ export type GetFileResponses = {
 };
 
 export type GetFileResponse = GetFileResponses[keyof GetFileResponses];
+
+export type RegenerateImagesData = {
+    body: RegenerateImagesRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/platform/files/regenerate';
+};
+
+export type RegenerateImagesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RegenerateImagesError = RegenerateImagesErrors[keyof RegenerateImagesErrors];
+
+export type RegenerateImagesResponses = {
+    /**
+     * Số lệnh mới xếp
+     */
+    200: RegenerateImagesResult;
+};
+
+export type RegenerateImagesResponse = RegenerateImagesResponses[keyof RegenerateImagesResponses];
 
 export type ListJobsData = {
     body?: never;

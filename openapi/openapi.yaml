@@ -351,6 +351,28 @@ paths:
                 $ref: "#/components/schemas/FileInfo"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/platform/files/regenerate:
+    post:
+      operationId: regenerateImages
+      summary: Tạo lại kích thước ảnh từ ảnh gốc theo một bộ kích thước (một lệnh mỗi tệp ảnh ready chưa có bản đó; ảnh riêng tư không áp dụng)
+      x-permission: platform.files.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegenerateImagesRequest"
+      responses:
+        "200":
+          description: Số lệnh mới xếp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegenerateImagesResult"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/platform/jobs:
     get:
       operationId: listJobs
@@ -1629,6 +1651,7 @@ components:
         - file_type_not_allowed
         - import_not_ready
         - restore_expired
+        - unknown_preset
         - upload_missing
       properties:
         error:
@@ -1894,6 +1917,25 @@ components:
           type: string
         label:
           type: string
+    RegenerateImagesRequest:
+      type: object
+      additionalProperties: false
+      required: [presetVersion]
+      properties:
+        presetVersion:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+          description: Bản bộ kích thước (như IMAGE_PRESET_VERSION); chưa có trong bảng của máy chủ → 422 unknown_preset
+    RegenerateImagesResult:
+      type: object
+      required: [enqueued]
+      properties:
+        enqueued:
+          type: integer
+          format: int32
+          description: Số lệnh file.regenerate mới xếp (tệp đã có lệnh cho bản này không tính)
     CreateUploadRequest:
       type: object
       required: [purpose, fileName, contentType, sizeBytes]

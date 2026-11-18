@@ -4546,6 +4546,106 @@ func (s *Server) handleRecordStocktakeCountRequest(args [2]string, argsEscaped b
 	}
 }
 
+// handleRegenerateImagesRequest handles regenerateImages operation.
+//
+// Tạo lại kích thước ảnh từ ảnh gốc theo một bộ kích thước (một lệnh mỗi
+// tệp ảnh ready chưa có bản đó; ảnh riêng tư không áp dụng).
+//
+// POST /api/v1/platform/files/regenerate
+func (s *Server) handleRegenerateImagesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: RegenerateImagesOperation,
+			ID:   "regenerateImages",
+		}
+	)
+	params, err := decodeRegenerateImagesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeRegenerateImagesRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response RegenerateImagesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    RegenerateImagesOperation,
+			OperationSummary: "Tạo lại kích thước ảnh từ ảnh gốc theo một bộ kích thước (một lệnh mỗi tệp ảnh ready chưa có bản đó; ảnh riêng tư không áp dụng)",
+			OperationID:      "regenerateImages",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *RegenerateImagesRequest
+			Params   = RegenerateImagesParams
+			Response = RegenerateImagesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackRegenerateImagesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.RegenerateImages(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.RegenerateImages(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeRegenerateImagesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleReorderProductImagesRequest handles reorderProductImages operation.
 //
 // Đặt thứ tự ảnh đang hiện của mẫu (đúng đủ mã ảnh đang hiện) khi version

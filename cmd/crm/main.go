@@ -221,7 +221,8 @@ func newInbound(cfg config.Config, reg *metrics.Registry, bus selftest.Publisher
 	return append([]queue.Handler{split}, hs...), nil
 }
 
-// newCommands là các loại lệnh ra ngoài của tiến trình: xử lý ảnh file.process, file.process_private (Task M1-43;
+// newCommands là các loại lệnh ra ngoài của tiến trình: xử lý ảnh file.process, file.process_private (Task M1-43),
+// tạo lại kích thước file.regenerate (Task M1-44d;
 // chỉ khi có IMAGER_URL, thiếu thì lệnh chờ trong hàng đợi), lệnh thử command.selftest (bên ngoài tại chỗ, không
 // gửi gì thật, chỉ khi CRM_ENV khác production) và hai lệnh vận chuyển fulfillment.create_shipment,
 // fulfillment.refresh_status với hãng giả (fakeCarrierOn; Task M1-31); module của mốc sau thêm lệnh thật ở đây.
@@ -245,7 +246,7 @@ func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtim
 			DB: d, Store: fs, Signer: signer, Imager: imager.NewClient(cfg.ImagerURL, &http.Client{}, cfg.ImagerMaxParallel),
 			PresetVersion: cfg.ImagePresetVersion, Bus: bus, Metrics: reg,
 		}
-		hs = append(hs, files.NewProcessHandler(o), files.NewProcessPrivateHandler(o))
+		hs = append(hs, files.NewProcessHandler(o), files.NewProcessPrivateHandler(o), files.NewRegenerateHandler(o))
 	} else {
 		logger.Warn("thiếu IMAGER_URL: không xử lý ảnh, lệnh file.process chờ trong hàng đợi")
 	}

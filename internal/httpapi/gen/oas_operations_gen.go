@@ -57,6 +57,7 @@ const (
 	LockStaffOperation                 OperationName = "LockStaff"
 	PostStockDocumentOperation         OperationName = "PostStockDocument"
 	RecordStocktakeCountOperation      OperationName = "RecordStocktakeCount"
+	RegenerateImagesOperation          OperationName = "RegenerateImages"
 	ReorderProductImagesOperation      OperationName = "ReorderProductImages"
 	ReplaceStaffGrantsOperation        OperationName = "ReplaceStaffGrants"
 	ReplaceStockDocumentLinesOperation OperationName = "ReplaceStockDocumentLines"

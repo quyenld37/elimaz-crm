@@ -86,6 +86,7 @@ const (
 	codeUploadMissing         = "upload_missing"
 	codeFileNotReady          = "file_not_ready"
 	codeRestoreExpired        = "restore_expired"
+	codeUnknownPreset         = "unknown_preset"
 
 	// Kho (kế hoạch M1 Task M1-29).
 	codeInsufficientStock  = "insufficient_stock"
@@ -306,6 +307,7 @@ func filesError(err error) (status int, code string, ok bool) {
 		{files.ErrInvalidFile, http.StatusBadRequest, codeInvalidInput},
 		{files.ErrUploadMissing, http.StatusConflict, codeUploadMissing},
 		{files.ErrNotFound, http.StatusNotFound, codeNotFound},
+		{files.ErrUnknownPreset, http.StatusUnprocessableEntity, codeUnknownPreset},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

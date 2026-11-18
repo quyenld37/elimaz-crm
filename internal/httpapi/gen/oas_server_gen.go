@@ -344,6 +344,13 @@ type Handler interface {
 	//
 	// PUT /api/v1/inventory/stocktakes/{id}/lines/{variantId}
 	RecordStocktakeCount(ctx context.Context, req *RecordStocktakeCountRequest, params RecordStocktakeCountParams) (RecordStocktakeCountRes, error)
+	// RegenerateImages implements regenerateImages operation.
+	//
+	// Tạo lại kích thước ảnh từ ảnh gốc theo một bộ kích thước (một lệnh mỗi
+	// tệp ảnh ready chưa có bản đó; ảnh riêng tư không áp dụng).
+	//
+	// POST /api/v1/platform/files/regenerate
+	RegenerateImages(ctx context.Context, req *RegenerateImagesRequest, params RegenerateImagesParams) (RegenerateImagesRes, error)
 	// ReorderProductImages implements reorderProductImages operation.
 	//
 	// Đặt thứ tự ảnh đang hiện của mẫu (đúng đủ mã ảnh đang hiện) khi version
