@@ -606,3 +606,12 @@ Mỗi phát hiện:
 - Đề xuất sửa: <ngắn>; cỡ: nhỏ (<50 dòng, 1 gói) | lớn
 ```
 Cuối tệp: mục "Đã kiểm, không thấy lỗi" liệt kê những gì đã soát mà ổn (để biết độ phủ).
+
+## Quyết định cho Task 406, 409, 410, 411 (19/11, chủ shop giao điều phối viên tự chọn phương án an toàn)
+
+Chủ shop trả lời trong chat 19/11: "OK, mày tự chọn". Mỗi quyết định ghi cách đảo ngược.
+
+- **406 (A-01):** giữ Q8 — kiểm kho ghi đúng số đếm thật, kể cả thấp hơn phần đang giữ. Ở bước lấy hàng/giao (Consume): nếu tồn không đủ cho phần giữ của đơn thì **chặn** bằng lỗi nghiệp vụ rõ ràng (`stock_short`, 422/409 theo errors.go) thay vì lỗi CHECK 500; không trừ âm, không tự nhả giữ, không tự hủy đơn. Sau khi áp phiên kiểm kho làm on_hand < phần giữ: trả kèm danh sách đơn đang giữ bị thiếu để nhân viên xử lý (điều chỉnh, đổi kho, hủy). Đảo ngược: chọn phương án "Consume trừ tối đa phần còn và ghi lệch".
+- **409 (C-02, C-07):** lỗi tạm của imager (hết giờ, mất kết nối, 5xx, imager khởi động lại) **không** tính vào 3 lượt của lỗi ảnh; thử lại theo lùi dần có trần (ví dụ tối đa 24 giờ), ảnh ở trạng thái `processing` (ghi thật trạng thái này) trong lúc chờ; chỉ lỗi do chính tệp ảnh (không đọc được, sai định dạng, quá cỡ) mới thành `rejected`. Hết trần thời gian thì `rejected processing_failed` và cảnh báo. Đảo ngược: quay về Q22 cũ (3 lượt cho mọi lỗi).
+- **410 (C-01, C-03, C-06, C-08):** chỉ sửa tệp trong repo, **không** deploy, không vào máy chủ: tách mạng compose để imager không tới được filer/master/volume của SeaweedFS (imager chỉ nhận/trả dữ liệu qua worker); thêm dịch vụ `filesync` vào `docker/compose.prod.yml` (ghim bản, biến môi trường, không bí mật trong repo); tiền tố bucket đọc từ biến môi trường thay vì viết cứng `crm-`; thêm phép đo/test xác minh crm-tmp xóa sau 24 giờ trên compose dev. Đảo ngược: revert commit.
+- **411 (D-02):** mặc định từ chối — lên đơn chỉ giữ hàng được ở kho nằm trong phạm vi kho của nhân viên (quyền tạo đơn theo phạm vi kho, giống phiếu kho); ngoài phạm vi trả 403 như các đường có phạm vi khác; ghi vào `docs/quyen.md`; màn Lên đơn (M2-27) chỉ cho chọn kho trong phạm vi. Chủ shop/Quản lý toàn shop không bị ảnh hưởng. Đảo ngược: bỏ kiểm phạm vi ở handler.
