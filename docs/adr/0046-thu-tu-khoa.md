@@ -24,12 +24,12 @@ bảng ghi trong ô.
 | 2 | `identity` | `identity.users` → `identity.roles` → `identity.role_permissions` → `identity.user_role_grants` → `identity.user_credentials` → `identity.user_second_factors` → `identity.user_sessions` | spec; `identity.role_permissions`: M0 Task 7 |
 | 3 | `channel` | `channel.channel_accounts` | spec |
 | 4 | `catalog` | `catalog.imports` → `catalog.sellers` → `catalog.categories` → `catalog.attributes` → `catalog.attribute_values` → `catalog.tags` → `catalog.products` → `catalog.product_attribute_values` → `catalog.product_tags` → `catalog.product_images` → `catalog.variants` → `catalog.barcode_counters` | spec; M1 (Task M1-25 viết trước): `sellers`, `variants`, `barcode_counters` M1-27; `categories`, `attributes`, `attribute_values`, `tags`, `product_attribute_values`, `product_tags` M1-34; `product_images` M1-44; `imports` M1-47 |
-| 5 | `customer` | `customer.customers` → `customer.customer_identities` | spec |
+| 5 | `customer` | `customer.customers` → `customer.customer_identities` → `customer.customer_addresses` → `customer.customer_tag_links` → `customer.customer_tag_rules` → `customer.customer_merges` → `customer.customer_imports` | spec; M2 (Task M2-02 viết trước, M2-03 tạo): `customer_addresses`, `customer_tag_links`, `customer_tag_rules`, `customer_merges`, `customer_imports` |
 | 6 | `conversation` | `conversation.conversations` → `conversation.live_sessions` → `conversation.messages` → `conversation.automation_runs` | spec |
-| 7 | `order` (schema `ord`) | `ord.orders` → `ord.order_items` → `ord.order_status_history` → `ord.returns` → `ord.return_items` | spec; `ord.order_status_history`: M1 (Task M1-25 viết trước, M1-30 tạo; chỉ chèn). Mã đơn lấy từ sequence `ord.order_code_seq`, không khóa dòng |
+| 7 | `order` (schema `ord`) | `ord.orders` → `ord.order_items` → `ord.order_duplicate_links` → `ord.order_status_history` → `ord.returns` → `ord.return_items` → `ord.traffic_sources` → `ord.order_settings` | spec; `ord.order_status_history`: M1 (Task M1-25 viết trước, M1-30 tạo; chỉ chèn). Mã đơn lấy từ sequence `ord.order_code_seq`, không khóa dòng; M2 (Task M2-02 viết trước, M2-05 tạo): `order_duplicate_links`, `traffic_sources`, `order_settings`; `returns`, `return_items` M2-05. Mã phiếu trả lấy từ sequence `ord.return_code_seq`, không khóa dòng |
 | 8 | `fulfillment` | `fulfillment.carrier_accounts` → `fulfillment.shipments` → `fulfillment.shipment_events` | spec; `carrier_accounts`, `shipment_events`: M1 (Task M1-25 viết trước, M1-31 tạo) |
 | 9 | `cash` | `cash.cod_statements` → `cash.cod_transfers` → `cash.cod_ledger_entries` → `cash.payments` | spec; `cash.cod_ledger_entries`: M1 (Task M1-25 viết trước, M1-32 tạo) |
-| 10 | `promotion` | `promotion.coupons` → `promotion.flash_sales` → `promotion.flash_sale_items` → `promotion.flash_sale_claims` | spec |
+| 10 | `promotion` | `promotion.coupon_batches` → `promotion.coupons` → `promotion.coupon_customer_uses` → `promotion.coupon_redemptions` → `promotion.flash_sales` → `promotion.flash_sale_items` → `promotion.flash_sale_claims` | spec; M2 (Task M2-02 viết trước, M2-06 tạo; C16): `coupon_batches`, `coupons`, `coupon_customer_uses`, `coupon_redemptions`; bảng flash sale M5 chèn sau |
 | 11 | `inventory` | `inventory.warehouses` → `inventory.suppliers` → `inventory.stock_documents` → `inventory.stock_document_lines` → `inventory.stocktakes` → `inventory.stocktake_lines` → `inventory.stock_balances` → `inventory.stock_reservations` → `inventory.flash_sale_units` → `inventory.reconcile_runs` | spec; M1 (Task M1-25 viết trước): `warehouses` M1-28; `suppliers`, `stock_documents`, `stock_document_lines` M1-29; `stocktakes`, `stocktake_lines` M1-35; `reconcile_runs` M1-36 (khác `cash.reconcile_runs` của M3) |
 | 12 | `affiliate` | `affiliate.affiliates` → `affiliate.commissions` → `affiliate.payouts` → `affiliate.payout_items` | spec |
 | 12a | `reporting` | để trống (M6, M7 thêm bảng vào nhóm này; C14, R4) | M1 (Task M1-25 giữ chỗ) |
@@ -95,6 +95,12 @@ thứ tự không gặp nhau.
 (d) **Bảng M1 ngoài thứ tự nhóm** (Task M1-25 viết trước): `platform.file_sync_runs` (M1-45; chỉ `INSERT` bằng role
 `crm_filesync`, không RLS), `platform.file_purposes` (M1-41; danh mục tĩnh, chỉ migration ghi, không RLS),
 `inventory.stock_ledger` (M1-28; sổ chỉ ghi thêm, trigger chặn `UPDATE`/`DELETE`, không khóa dòng đã có).
+
+(e) **Bảng M2 ngoài thứ tự nhóm** (Task M2-02 viết trước): chỉ chèn, không khóa dòng đã có — `customer.customer_notes`
+(M2-03; trigger chặn `UPDATE`/`DELETE`), `ord.order_notes` (M2-05; chỉ ghi thêm); danh mục tĩnh không theo tenant,
+chỉ migration ghi — `customer.admin_units` (M2-04); chỉ sửa trong transaction riêng (đổi tên, màu nhãn), không chung
+transaction với bảng khác — `customer.customer_tags` (M2-03; gắn nhãn cho khách khóa `customer_tag_links`, không khóa
+`customer_tags`).
 
 Bảng phiên bản của goose `platform.goose_db_version` (M0 Task 4) chỉ do goose ghi trong lần chạy migrate, dưới cùng
 khóa advisory; không mã ứng dụng nào chạm.

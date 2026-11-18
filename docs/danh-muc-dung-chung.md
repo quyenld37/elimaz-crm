@@ -2,6 +2,29 @@
 
 > Sinh tự động bằng `make catalog` (`go run ./tools/catalog`) từ tài liệu Go của `internal/platform/*`. Không sửa tay; dòng "Khi nào không dùng" sửa ở `docs/danh-muc-ghi-chu.yaml`.
 
+## `internal/platform/background` (gói `background`)
+
+Package background giữ kiểu chung của phần chạy nền (việc nền, consumer sự kiện, lịch) mà mỗi module nghiệp vụ khai trong module.go (kế hoạch M2, Task M2-02): phụ thuộc Deps và kết quả Parts.
+
+**Khi nào không dùng:** Không đặt phụ thuộc riêng của một module vào Deps (thêm vào kiểu riêng của module) và không dùng cho đường yêu cầu HTTP (httpapi.Deps). Không dựng Deps hay gọi Background của module ở chỗ khác ngoài cmd/crm (newModules), mỗi tiến trình một lần: gọi hai lần sinh hai sổ consumer lệch nhau. Parts chỉ liệt kê việc nền, consumer, lịch; không chạy gì lúc dựng.
+
+```go
+type Deps struct {
+	DB *db.DB
+
+	Queue queue.JobQueue
+
+	Bus realtime.Bus
+
+	Events *events.Registry
+}
+type Parts struct {
+	JobHandlers []queue.Handler
+	Consumers   []events.Consumer
+	Schedules   []schedules.Schedule
+}
+```
+
 ## `internal/platform/commands` (gói `commands`)
 
 Package commands là đường ra của CRM: lệnh ra ngoài (gửi tin, trả lời comment, tạo/hủy vận đơn) chạy như một việc mode command của hàng đợi (spec 04 mục 5.3; vùng rủi ro cao).
