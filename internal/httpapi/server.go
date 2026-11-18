@@ -13,17 +13,31 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
+	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/observability"
 )
 
-// Deps là mọi thứ lớp HTTP cần, nối trong cmd/crm. Task 7 thêm Access (identity.Verifier) và ngưỡng giới hạn
-// tần suất, Task 15 thêm Realtime.
+// Deps là mọi thứ lớp HTTP cần, nối trong cmd/crm. Task 15 thêm Realtime.
 type Deps struct {
 	Config config.Config
 	DB     *db.DB
 	Logger *slog.Logger
+	// Access kiểm thẻ Cloudflare Access (cmd/crm nối internal/adapters/cfaccess). nil → mọi route không công khai 401.
+	Access identity.Verifier
+	// RateLimit: ngưỡng giới hạn tần suất theo nhân viên; để trống lấy mặc định 300 yêu cầu / 60 s.
+	RateLimit RateLimit
+
+	limiter *userLimiter // một bộ đếm chung cho mọi route của server (prepare)
+}
+
+// prepare dựng phần dùng chung giữa các route (bộ đếm tần suất) một lần cho mỗi server.
+func prepare(d Deps) Deps {
+	if d.limiter == nil {
+		d.limiter = newUserLimiter(d.RateLimit)
+	}
+	return d
 }
 
 // NewServer trả ServeMux đã đăng ký mọi Route; đường dẫn không có trong Routes → 404 {"error":"not_found"}.
@@ -34,6 +48,7 @@ func NewServer(d Deps) http.Handler {
 
 // newMux trả mux và số route đã đăng ký (test so với len(Routes)).
 func newMux(d Deps) (*http.ServeMux, int) {
+	d = prepare(d)
 	var pinger observability.Pinger
 	if d.DB != nil {
 		pinger = d.DB.Pool
@@ -67,11 +82,16 @@ func newMux(d Deps) (*http.ServeMux, int) {
 }
 
 // chain bọc h theo thứ tự của kế hoạch: requestID → recover → otelhttp → bodyLimit(1 MiB) → origin (chỉ Write) →
-// auth (bỏ qua Public) → handler. Task 7 thêm guard(route), userRateLimit (bỏ qua Stream); Task 9 thêm idempotency
-// (chỉ Write).
+// auth → guard(route) → userRateLimit (bỏ qua Stream) → handler; route Public bỏ qua auth, guard, userRateLimit.
+// Task 9 thêm idempotency (chỉ Write) sau userRateLimit.
 func chain(d Deps, rt Route, h http.Handler) http.Handler {
+	d = prepare(d)
 	if !rt.Public {
-		h = denyUntilAuth(h)
+		if !rt.Stream {
+			h = userRateLimit(d.limiter, h)
+		}
+		h = guard(rt, h)
+		h = auth(d, h)
 	}
 	if rt.Write {
 		h = origin(d.Config.ConsoleOrigins, h)

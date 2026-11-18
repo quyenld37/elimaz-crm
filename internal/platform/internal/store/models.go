@@ -10,6 +10,39 @@ import (
 	"github.com/google/uuid"
 )
 
+type IdentityRole struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Key       string
+	Name      string
+	CreatedAt time.Time
+}
+
+type IdentityRolePermission struct {
+	TenantID   uuid.UUID
+	RoleID     uuid.UUID
+	Permission string
+}
+
+type IdentityUser struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	Email       string
+	DisplayName string
+	Status      string
+	CreatedAt   time.Time
+}
+
+type IdentityUserRoleGrant struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	UserID    uuid.UUID
+	RoleID    uuid.UUID
+	ScopeType string
+	ScopeID   string
+	CreatedAt time.Time
+}
+
 type PlatformMetricsMinute struct {
 	Bucket  time.Time
 	Process string

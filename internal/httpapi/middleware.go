@@ -97,11 +97,3 @@ func bodyLimit(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
-
-// denyUntilAuth là chỗ của auth (Task 7): tới khi có xác thực Cloudflare Access, mọi route không công khai bị từ
-// chối 401 (mặc định từ chối). Task 7 thay hàm này bằng auth + guard(route) + userRateLimit, Task 9 thêm idempotency.
-func denyUntilAuth(http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		writeError(w, r, http.StatusUnauthorized, codeUnauthenticated)
-	})
-}

@@ -24,6 +24,22 @@ func (q *Queries) CreateTenant(ctx context.Context, name string) (PlatformTenant
 	return i, err
 }
 
+const findTenantByName = `-- name: FindTenantByName :one
+SELECT id
+FROM platform.tenants
+WHERE name = $1
+ORDER BY id
+LIMIT 1
+`
+
+// Lệnh crm seed-dev: tenant cũ nhất có tên này (tên không unique; seed chạy lại không tạo thêm).
+func (q *Queries) FindTenantByName(ctx context.Context, name string) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, findTenantByName, name)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getTenant = `-- name: GetTenant :one
 
 SELECT id, name, created_at

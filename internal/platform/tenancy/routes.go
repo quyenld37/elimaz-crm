@@ -33,3 +33,45 @@ func ListTenantIDs(ctx context.Context, d *db.DB) ([]uuid.UUID, error) {
 	}
 	return ids, nil
 }
+
+// ErrRouteConflict báo khóa ngoài đã trỏ tới một tenant khác (AddRoute không ghi đè).
+var ErrRouteConflict = errors.New("tenancy: khóa định tuyến đã thuộc tenant khác")
+
+// SeedTenant (lệnh crm seed-dev, chủ bảng) trả tenant cũ nhất có tên name, chưa có thì tạo. Chạy lại không tạo thêm.
+func SeedTenant(ctx context.Context, owner *db.DB, name string) (uuid.UUID, error) {
+	var id uuid.UUID
+	err := owner.RetryTx(ctx, db.TxOptions{}, func(tx pgx.Tx) error {
+		q := store.New(tx)
+		found, err := q.FindTenantByName(ctx, name)
+		if err == nil {
+			id = found
+			return nil
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("tìm tenant: %w", err)
+		}
+		t, err := q.CreateTenant(ctx, name)
+		if err != nil {
+			return fmt.Errorf("tạo tenant: %w", err)
+		}
+		id = t.ID
+		return nil
+	})
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("seed tenant: %w", err)
+	}
+	return id, nil
+}
+
+// AddRoute (chủ bảng; crm_app chỉ đọc platform.tenant_routes) thêm định tuyến kind/externalKey → tenantID. Đã có
+// dòng trỏ đúng tenant thì không làm gì; trỏ tenant khác thì ErrRouteConflict (không ghi đè).
+func AddRoute(ctx context.Context, owner *db.DB, kind, externalKey string, tenantID uuid.UUID) error {
+	got, err := store.New(owner.Pool).AddTenantRoute(ctx, store.AddTenantRouteParams{Kind: kind, ExternalKey: externalKey, TenantID: tenantID})
+	if err != nil {
+		return fmt.Errorf("thêm định tuyến %s: %w", kind, err)
+	}
+	if got != tenantID {
+		return fmt.Errorf("%w: %s", ErrRouteConflict, kind)
+	}
+	return nil
+}

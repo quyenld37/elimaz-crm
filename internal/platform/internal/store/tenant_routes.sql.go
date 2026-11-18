@@ -11,6 +11,33 @@ import (
 	"github.com/google/uuid"
 )
 
+const addTenantRoute = `-- name: AddTenantRoute :one
+WITH ins AS (
+    INSERT INTO platform.tenant_routes (kind, external_key, tenant_id)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (kind, external_key) DO NOTHING
+    RETURNING tenant_id
+)
+SELECT tenant_id FROM ins
+UNION ALL
+SELECT r.tenant_id FROM platform.tenant_routes AS r WHERE r.kind = $1 AND r.external_key = $2
+LIMIT 1
+`
+
+type AddTenantRouteParams struct {
+	Kind        string
+	ExternalKey string
+	TenantID    uuid.UUID
+}
+
+// Thêm định tuyến; đã có thì giữ dòng cũ. Trả tenant mà khóa đang trỏ tới (bên gọi so với tenant mong muốn).
+func (q *Queries) AddTenantRoute(ctx context.Context, arg AddTenantRouteParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, addTenantRoute, arg.Kind, arg.ExternalKey, arg.TenantID)
+	var tenant_id uuid.UUID
+	err := row.Scan(&tenant_id)
+	return tenant_id, err
+}
+
 const listTenantIDs = `-- name: ListTenantIDs :many
 SELECT id
 FROM platform.tenants

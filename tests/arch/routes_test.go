@@ -11,21 +11,13 @@ import (
 	"testing"
 
 	"elimaz.com.vn/crm/internal/httpapi"
+	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
-// knownPermissions: danh sách quyền của M0 theo Interfaces của Task 7 (identity.Permissions). Task 7 tạo
-// identity.Permissions thì thay biến này bằng danh sách đó và xóa bản chép ở đây.
-func knownPermissions() []string {
-	return []string{
-		"realtime.subscribe", "audit.read", "platform.jobs.manage", "platform.health.read",
-		"identity.users.manage", "conversation.read",
-	}
-}
-
-// Route công khai chỉ là ba đường health; mọi route khác khai một quyền có thật.
+// Route công khai chỉ là ba đường health; mọi route khác khai một quyền có trong identity.Permissions.
 func TestRoutesPublicSetAndPermissions(t *testing.T) {
 	var public []string
 	for _, r := range httpapi.Routes {
@@ -34,7 +26,7 @@ func TestRoutesPublicSetAndPermissions(t *testing.T) {
 			t.Errorf("%s vừa công khai vừa có quyền", r.OperationID)
 		case r.Public:
 			public = append(public, r.Pattern)
-		case !slices.Contains(knownPermissions(), r.Permission):
+		case !identity.IsKnown(identity.Permission(r.Permission)):
 			t.Errorf("%s khai quyền %q không có trong danh sách quyền", r.OperationID, r.Permission)
 		}
 	}

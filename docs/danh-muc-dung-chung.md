@@ -202,8 +202,10 @@ Package tenancy đặt ngữ cảnh tenant cho transaction (WithTenant), tìm te
 **Khi nào không dùng:** Không tự đặt app.tenant_id bằng set_config hay SET (kể cả SET LOCAL) ở gói khác: dùng WithTenant. Không dùng Resolve, ListTenantIDs để đọc dữ liệu nghiệp vụ (chỉ là bảng định tuyến). Không gọi CheckSchemaRules bằng crm_app (cần chủ bảng, chỉ dùng trong test và cổng kiểm). Bảng mới bật RLS bằng platform.enable_tenant_rls, không viết policy tay.
 
 ```go
+func AddRoute(ctx context.Context, owner *db.DB, kind, externalKey string, tenantID uuid.UUID) error
 func CheckSchemaRules(ctx context.Context, owner *pgxpool.Pool, platformTables []string) ([]string, error)
 func ListTenantIDs(ctx context.Context, d *db.DB) ([]uuid.UUID, error)
 func Resolve(ctx context.Context, d *db.DB, kind, externalKey string) (uuid.UUID, bool, error)
+func SeedTenant(ctx context.Context, owner *db.DB, name string) (uuid.UUID, error)
 func WithTenant(ctx context.Context, d *db.DB, tenantID uuid.UUID, fn func(pgx.Tx) error, o ...db.TxOptions) error
 ```
