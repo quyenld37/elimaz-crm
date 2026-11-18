@@ -4,7 +4,7 @@
 # Thời lượng mặc định theo kế hoạch (30 phút, 15 phút, 15 phút, 8 giờ); DURATION=5m ghi đè (chạy khói, ngâm rút ngắn).
 #
 # Biến (mặc định trong ngoặc): COMPOSE_PROJECT (crm), CRM_PG_PORT (5442), CRM_API_PORT (4190), CRM_INGEST_PORT (4191),
-# LOADTEST_ACCESS_PORT (24222), LOADTEST_ACCESS_LISTEN (127.0.0.1; trên Linux đặt địa chỉ bridge của Docker để
+# CHAOS_LOAD (heavy; normal để gây hỏng giữa tải thường), LOADTEST_ACCESS_PORT (24222), LOADTEST_ACCESS_LISTEN (127.0.0.1; trên Linux đặt địa chỉ bridge của Docker để
 # host-gateway tới được), CRM_IMAGE (crm:loadtest; LOADTEST_BUILD=1 dựng lại), STAFF (50), LOADTEST_OUT
 # (loadtest/out). Cần: docker, k6, go, perl. PostgreSQL, SeaweedFS, Jaeger của dự án phải đang chạy (make db-up).
 # Kết quả: $LOADTEST_OUT/<mode>-<giờ>/ (report.md, k6.json, sse.json, db.json, series.jsonl, stats.csv, chaos.csv);
@@ -55,7 +55,6 @@ PIDS+=($!)
 for _ in $(seq 50); do [ -s "$LOADTEST_ACCESS_DIR/tokens.json" ] && break; sleep 0.2; done
 
 log "migrate, seed, dựng ba vai trò"
-dc up -d --wait postgres >/dev/null 2>&1 # dựng lại với init của lớp phủ nếu chưa có
 dc run --rm -T crm-migrate >/dev/null
 "$OUT/loadkit" seed -db "$OWNER_URL" -n "$STAFF" -tenant-key "$TENANT_KEY" 2>>"$OUT/loadkit.log"
 dc up -d --wait --no-deps --force-recreate crm-ingest crm-api crm-worker
@@ -87,7 +86,10 @@ PIDS+=("$SAMPLER_PID")
 sleep 3 # client SSE nối xong trước khi gửi
 
 SCRIPT="$MODE"
-[ "$MODE" = chaos ] && SCRIPT=heavy
+if [ "$MODE" = chaos ]; then
+	SCRIPT="${CHAOS_LOAD:-heavy}" # kế hoạch: hỏng giữa tải nặng; CHAOS_LOAD=normal khi máy không chịu nổi tải nặng
+	case "$SCRIPT" in normal | heavy) ;; *) echo "CHAOS_LOAD lạ: $SCRIPT" >&2; exit 2 ;; esac
+fi
 CHAOS_PID=""
 if [ "$MODE" = chaos ]; then
 	"$ROOT/loadtest/k6/chaos.sh" 2>>"$OUT/chaos.log" &

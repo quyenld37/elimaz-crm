@@ -10,6 +10,7 @@ make db-up                      # PostgreSQL, SeaweedFS, Jaeger của dự án c
 loadtest/run.sh normal          # 1×: 10 sự kiện/giây, 30 phút
 loadtest/run.sh heavy           # 10×: 100 sự kiện/giây, 15 phút
 loadtest/run.sh chaos           # heavy + chaos.sh: giết crm-api, giết crm-worker, ngắt PostgreSQL 60 s, cách nhau 3 phút
+CHAOS_LOAD=normal loadtest/run.sh chaos   # chaos.sh cùng tải thường (máy không chịu nổi tải nặng)
 loadtest/run.sh soak            # 1× trong 8 giờ
 DURATION=1m loadtest/run.sh normal   # chạy khói
 ```
