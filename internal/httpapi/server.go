@@ -17,6 +17,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/observability"
 )
 
@@ -25,6 +26,8 @@ type Deps struct {
 	Config config.Config
 	DB     *db.DB
 	Logger *slog.Logger
+	// Files là kho tệp (cmd/crm nối files.S3Store; test nối testkit.MemFileStore). nil → route tệp trả 500.
+	Files files.FileStore
 	// Access kiểm thẻ Cloudflare Access (cmd/crm nối internal/adapters/cfaccess). nil → mọi route không công khai 401.
 	Access identity.Verifier
 	// RateLimit: ngưỡng giới hạn tần suất theo nhân viên; để trống lấy mặc định 300 yêu cầu / 60 s.

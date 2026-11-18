@@ -12,6 +12,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/idempotency"
 	"elimaz.com.vn/crm/internal/platform/queue"
 )
@@ -44,6 +45,11 @@ const (
 	codeEmailTaken        = "email_taken"
 	codeVersionConflict   = "version_conflict"
 	codeInvalidInput      = "invalid_input"
+	// Kho tệp (kế hoạch M1 Task M1-41).
+	codeFileTooLarge          = "file_too_large"
+	codeFileTypeNotAllowed    = "file_type_not_allowed"
+	codeFilePurposeNotAllowed = "file_purpose_not_allowed"
+	codeUploadMissing         = "upload_missing"
 )
 
 type errorBody struct {
@@ -81,6 +87,10 @@ func writeHandlerError(d Deps, w http.ResponseWriter, r *http.Request, err error
 		return
 	}
 	if status, code, ok := identityError(err); ok {
+		writeError(w, r, status, code)
+		return
+	}
+	if status, code, ok := filesError(err); ok {
 		writeError(w, r, status, code)
 		return
 	}
@@ -149,6 +159,29 @@ func identityError(err error) (status int, code string, ok bool) {
 		{identity.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
 		{identity.ErrStaffNotFound, http.StatusNotFound, codeNotFound},
 		{identity.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
+	} {
+		if errors.Is(err, m.err) {
+			return m.status, m.code, true
+		}
+	}
+	return 0, "", false
+}
+
+// filesError đổi lỗi nghiệp vụ của kho tệp sang mã HTTP. ErrNotFound: không có, của tenant khác hay đã xóa, không cho
+// biết là có (PQ08).
+func filesError(err error) (status int, code string, ok bool) {
+	for _, m := range []struct {
+		err    error
+		status int
+		code   string
+	}{
+		{files.ErrTooLarge, http.StatusUnprocessableEntity, codeFileTooLarge},
+		{files.ErrTypeNotAllowed, http.StatusUnprocessableEntity, codeFileTypeNotAllowed},
+		{files.ErrUnknownPurpose, http.StatusUnprocessableEntity, codeFilePurposeNotAllowed},
+		{files.ErrUploadNotAllowed, http.StatusUnprocessableEntity, codeFilePurposeNotAllowed},
+		{files.ErrInvalidFile, http.StatusBadRequest, codeInvalidInput},
+		{files.ErrUploadMissing, http.StatusConflict, codeUploadMissing},
+		{files.ErrNotFound, http.StatusNotFound, codeNotFound},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

@@ -22,12 +22,41 @@ func (UnimplementedHandler) AbandonJob(ctx context.Context, params AbandonJobPar
 	return r, ht.ErrNotImplemented
 }
 
+// CompleteUpload implements completeUpload operation.
+//
+// Báo đã tải xong; máy chủ kiểm kho rồi chuyển tệp sang uploaded (ảnh thì xếp
+// việc xử lý).
+//
+// POST /api/v1/files/{id}/complete
+func (UnimplementedHandler) CompleteUpload(ctx context.Context, params CompleteUploadParams) (r CompleteUploadRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateStaff implements createStaff operation.
 //
 // Tạo nhân viên mới (chưa có vai trò nào).
 //
 // POST /api/v1/identity/users
 func (UnimplementedHandler) CreateStaff(ctx context.Context, req *CreateStaffRequest, params CreateStaffParams) (r CreateStaffRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateUpload implements createUpload operation.
+//
+// Xin đường dẫn ký sẵn để trình duyệt tải thẳng một tệp lên kho (chỉ mục
+// đích nhận tải lên).
+//
+// POST /api/v1/files/uploads
+func (UnimplementedHandler) CreateUpload(ctx context.Context, req *CreateUploadRequest, params CreateUploadParams) (r CreateUploadRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetFile implements getFile operation.
+//
+// Trạng thái tệp và các biến thể ảnh công khai.
+//
+// GET /api/v1/files/{id}
+func (UnimplementedHandler) GetFile(ctx context.Context, params GetFileParams) (r GetFileRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

@@ -196,6 +196,61 @@ paths:
                 format: binary
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/files/uploads:
+    post:
+      operationId: createUpload
+      summary: Xin đường dẫn ký sẵn để trình duyệt tải thẳng một tệp lên kho (chỉ mục đích nhận tải lên)
+      x-permission: files.upload
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUploadRequest"
+      responses:
+        "201":
+          description: Tệp chờ tải lên và đường dẫn PUT ký sẵn (hạn 15 phút)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Upload"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/files/{id}/complete:
+    post:
+      operationId: completeUpload
+      summary: Báo đã tải xong; máy chủ kiểm kho rồi chuyển tệp sang uploaded (ảnh thì xếp việc xử lý)
+      x-permission: files.upload
+      parameters:
+        - $ref: "#/components/parameters/FileID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Tệp sau khi kiểm
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileInfo"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/files/{id}:
+    get:
+      operationId: getFile
+      summary: Trạng thái tệp và các biến thể ảnh công khai
+      x-permission: files.upload
+      parameters:
+        - $ref: "#/components/parameters/FileID"
+      responses:
+        "200":
+          description: Tệp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileInfo"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/platform/jobs:
     get:
       operationId: listJobs
@@ -287,6 +342,13 @@ components:
         type: string
         pattern: "^[A-Za-z0-9_-]{1,128}$"
     JobID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    FileID:
       name: id
       in: path
       required: true
@@ -468,6 +530,82 @@ components:
           type: array
           items:
             type: string
+    CreateUploadRequest:
+      type: object
+      required: [purpose, fileName, contentType, sizeBytes]
+      additionalProperties: false
+      properties:
+        purpose:
+          type: string
+          minLength: 1
+          maxLength: 64
+        fileName:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Tên gốc, chỉ để hiện và đặt tên khi tải về; không bao giờ vào khóa trên kho
+        contentType:
+          type: string
+          minLength: 1
+          maxLength: 255
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 9007199254740991
+    Upload:
+      type: object
+      required: [fileId, putUrl, headers, expiresAt]
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        putUrl:
+          type: string
+        headers:
+          type: object
+          description: Header phải gửi kèm PUT (đã nằm trong chữ ký)
+          additionalProperties:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+    FileVariant:
+      type: object
+      required: [width, format, url]
+      properties:
+        width:
+          type: integer
+          format: int32
+        format:
+          type: string
+          enum: [avif, webp, jpeg]
+        url:
+          type: string
+    FileInfo:
+      type: object
+      required: [id, purpose, status, variants]
+      properties:
+        id:
+          type: string
+          format: uuid
+        purpose:
+          type: string
+        status:
+          type: string
+          enum: [awaiting_upload, uploaded, processing, ready, rejected, lost]
+        rejectReason:
+          type: string
+        width:
+          type: integer
+          format: int32
+        height:
+          type: integer
+          format: int32
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/FileVariant"
     Job:
       type: object
       required: [id, kind, status, attempts, createdAt]

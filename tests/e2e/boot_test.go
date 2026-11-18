@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
@@ -91,6 +93,11 @@ func roleEnv(role, dbURL string, port int) []string {
 	case "api":
 		env = append(env, "PORT="+strconv.Itoa(port), "ACCESS_TEAM_DOMAIN=test.cloudflareaccess.com", "ACCESS_AUD=aud",
 			"ACCESS_MFA_CLAIM=amr", "ACCESS_MFA_VALUES=mfa", "CONSOLE_ORIGINS=http://127.0.0.1:4192", "HEALTH_TOKEN="+secret32)
+	}
+	if role == "api" || role == "worker" {
+		// Kho tệp bắt buộc từ Task M1-41; dựng S3Store không gọi mạng nên địa chỉ không cần sống.
+		env = append(env, "S3_ENDPOINT=http://127.0.0.1:1", "S3_ACCESS_KEY_ID=crm-app-dev",
+			"S3_SECRET_ACCESS_KEY=crm-app-dev-only-not-a-secret", "FILES_PUBLIC_BASE_URL=http://127.0.0.1:1")
 	}
 	return env
 }
@@ -255,7 +262,8 @@ func TestBootUnknownRoleFails(t *testing.T) {
 // crm healthcheck (dùng trong image không có shell): 0 khi tiến trình cùng cấu hình đang sống, khác 0 khi không.
 func TestHealthcheckCommand(t *testing.T) {
 	bin := buildBinary(t)
-	dbURL := databaseURL(t)
+	// Database đã migrate: từ Task M1-41 api kiểm sổ mục đích tệp với platform.file_purposes lúc khởi động.
+	_, _, dbURL := testkit.StartPostgres(t)
 	port := freePort(t)
 	env := roleEnv("api", dbURL, port)
 
@@ -338,5 +346,36 @@ func TestBootPortTakenExitsWithError(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "tiến trình dừng vì lỗi") {
 		t.Fatalf("phải log lỗi dừng:\n%s", stdout.String())
+	}
+}
+
+// Task M1-41: api và worker kiểm sổ mục đích tệp trong Go khớp platform.file_purposes lúc khởi động; lệch (dòng
+// thêm bằng migration mà quên RegisterPurpose) thì thoát lỗi nêu khóa, không phục vụ.
+func TestBootPurposeMismatchFails(t *testing.T) {
+	bin := buildBinary(t)
+	_, ownerURL, dbURL := testkit.StartPostgres(t)
+	owner, err := pgx.Connect(t.Context(), ownerURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = owner.Close(context.WithoutCancel(t.Context())) }()
+	if _, err := owner.Exec(t.Context(), "INSERT INTO platform.file_purposes (key, bucket) VALUES ('test_quen_dang_ky', 'private')"); err != nil {
+		t.Fatal(err)
+	}
+	for _, role := range []string{"api", "worker"} {
+		ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
+		cmd := exec.CommandContext(ctx, bin)
+		cmd.Env = roleEnv(role, dbURL, freePort(t))
+		var stdout strings.Builder
+		cmd.Stdout = &stdout
+		err := cmd.Run()
+		cancel()
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) || exitErr.ExitCode() == 0 {
+			t.Fatalf("%s với mục đích lệch phải thoát mã khác 0, nhận %v", role, err)
+		}
+		if !strings.Contains(stdout.String(), "test_quen_dang_ky") {
+			t.Fatalf("%s: log phải nêu khóa lệch:\n%s", role, stdout.String())
+		}
 	}
 }
