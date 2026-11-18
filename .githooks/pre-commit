@@ -17,6 +17,11 @@ if [ -f "$gd/MERGE_HEAD" ]; then
     [ "$staged" = "$theirs" ] && continue
     # Mã sinh là hàm cố định của nguồn: cho khác bản nhánh, nhưng phải đúng bằng `make gen` từ nguồn đã gộp (kiểm dưới).
     if is_generated_path "$f"; then gen=1; continue; fi
+    # Tệp viết tay: cho qua khi đúng bằng kết quả git TỰ TRỘN (không xung đột, không ai sửa tay) từ hai bản đã review.
+    if [ -n "${automerge_tree:-}" ] || automerge_tree=$(git merge-tree --write-tree HEAD "$mh" 2>/dev/null | head -1); then
+      auto=$(git rev-parse -q --verify "$automerge_tree:$f" 2>/dev/null || echo deleted)
+      [ "$staged" = "$auto" ] && continue
+    fi
     bad="$bad $f"
   done
   if [ -z "$bad" ] && [ -n "$gen" ]; then
