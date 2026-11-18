@@ -891,6 +891,16 @@ Package textnorm chuẩn hóa chữ tiếng Việt cho cột tìm kiếm (kế h
 func Fold(s string) string
 ```
 
+## `internal/platform/urlerr` (gói `urlerr`)
+
+Package urlerr bỏ URL khỏi lỗi của net/http trước khi bọc hay ghi log: *url.Error chép nguyên URL của yêu cầu, mà URL có thể chứa token (Telegram bot) hay khóa của dịch vụ nhận nhịp sống.
+
+**Khi nào không dùng:** Không thay cho bộ che dữ liệu cá nhân của logging: Strip chỉ bóc *url.Error (URL chứa token, khóa); địa chỉ máy trong *net.OpError, *net.DNSError không được bóc, nơi cần thì tự xử lý thêm (như metrics stripURL). Không thêm phụ thuộc ngoài thư viện chuẩn vào gói này (scripts/external-probe nhập nó, test kiến trúc TestExternalProbeStdlibOnly).
+
+```go
+func Strip(err error) error
+```
+
 ## `internal/platform/webhooks` (gói `webhooks`)
 
 Package webhooks là đường vào webhook ở vai trò ingest (spec 04 mục 5.2, 11): kiểm chữ ký trên thân gốc, lưu nguyên văn vào platform.webhook_deliveries cùng một việc tách gói trong một transaction rồi trả 200; database không ghi được thì ghi tệp tạm (Spool) và nạp lại sau (Drainer); chặn địa chỉ gửi sai chữ ký dồn dập (Lockout).

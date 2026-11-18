@@ -20,13 +20,7 @@ const testProcess = "worker@test"
 
 func openDB(t *testing.T) *db.DB {
 	t.Helper()
-	_, _, appURL := testkit.StartPostgres(t)
-	d, err := db.Open(t.Context(), appURL, db.PoolOptions{DefaultTx: db.TxWorker})
-	if err != nil {
-		t.Fatalf("db.Open: %v", err)
-	}
-	t.Cleanup(d.Pool.Close)
-	return d
+	return testkit.OpenAppDB(t, db.PoolOptions{DefaultTx: db.TxWorker})
 }
 
 // newFlusher dựng Flusher của worker (không gửi nhịp sống ra ngoài) trên database thử mới.

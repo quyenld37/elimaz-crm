@@ -9,7 +9,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strconv"
 	"sync"
 	"time"
@@ -20,6 +19,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/internal/store"
+	"elimaz.com.vn/crm/internal/platform/urlerr"
 )
 
 // Hai mức cảnh báo (spec 04 mục 8, ADR-30).
@@ -158,12 +158,12 @@ func (a *telegramAlerter) send(ctx context.Context, chat, text string) error {
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, telegramAPI+"/bot"+a.token+"/sendMessage", bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("tạo yêu cầu Telegram: %w", stripURL(err))
+		return fmt.Errorf("tạo yêu cầu Telegram: %w", urlerr.Strip(err))
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := a.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("gọi Telegram: %w", stripURL(err))
+		return fmt.Errorf("gọi Telegram: %w", urlerr.Strip(err))
 	}
 	defer func() { _ = resp.Body.Close() }()
 	var out struct {
@@ -180,14 +180,6 @@ func (a *telegramAlerter) send(ctx context.Context, chat, text string) error {
 		return fmt.Errorf("%w: mã %s", ErrTelegram, strconv.Itoa(resp.StatusCode))
 	}
 	return nil
-}
-
-// stripURL bỏ *url.Error (chứa URL có token bot), giữ lỗi gốc; lỗi hết hạn vẫn khớp context.DeadlineExceeded.
-func stripURL(err error) error {
-	if ue, ok := errors.AsType[*url.Error](err); ok {
-		return ue.Err
-	}
-	return err
 }
 
 // truncate cắt s còn tối đa n ký tự (không cắt giữa ký tự UTF-8).

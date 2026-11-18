@@ -2,7 +2,8 @@
 // Cloudflare và ngoài VPS**, mỗi phút một lần. Mỗi lần chạy gọi HOOKS_HEALTH_URL và DEEP_HEALTH_URL (Bearer
 // DEEP_HEALTH_TOKEN); đích nào hỏng thì chờ 20 s gọi lại, hỏng cả hai lượt thì nhắn Telegram (cùng nội dung không
 // nhắn lại trong 10 phút, nhớ qua PROBE_STATE_FILE); cuối cùng gửi nhịp sống của chính nó tới PROBE_HEARTBEAT_URL.
-// Chỉ dùng thư viện chuẩn. Cách cài: README.md.
+// Chỉ dùng thư viện chuẩn (cùng gói urlerr của CRM, gói này cũng chỉ dùng thư viện chuẩn; test kiến trúc giữ điều
+// này). Cách cài: README.md.
 package main
 
 import (
@@ -18,6 +19,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"elimaz.com.vn/crm/internal/platform/urlerr"
 )
 
 const (
@@ -179,25 +182,18 @@ func check(ctx context.Context, c Config) []Result {
 func get(ctx context.Context, c Config, u, token string) (int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return 0, fmt.Errorf("tạo yêu cầu: %w", stripURL(err))
+		return 0, fmt.Errorf("tạo yêu cầu: %w", urlerr.Strip(err))
 	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	resp, err := c.Client.Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("gọi: %w", stripURL(err))
+		return 0, fmt.Errorf("gọi: %w", urlerr.Strip(err))
 	}
 	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
 	return resp.StatusCode, nil
-}
-
-func stripURL(err error) error {
-	if ue, ok := errors.AsType[*url.Error](err); ok {
-		return ue.Err
-	}
-	return err
 }
 
 // state là lần nhắn cuối, để không nhắn lại cùng nội dung trong 10 phút.
@@ -222,12 +218,12 @@ func notify(ctx context.Context, c Config, text string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.TelegramAPI+"/bot"+c.TelegramBotToken+"/sendMessage",
 		strings.NewReader(form.Encode()))
 	if err != nil {
-		return fmt.Errorf("tạo yêu cầu Telegram: %w", stripURL(err))
+		return fmt.Errorf("tạo yêu cầu Telegram: %w", urlerr.Strip(err))
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := c.Client.Do(req)
 	if err != nil {
-		return fmt.Errorf("gọi Telegram: %w", stripURL(err))
+		return fmt.Errorf("gọi Telegram: %w", urlerr.Strip(err))
 	}
 	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))

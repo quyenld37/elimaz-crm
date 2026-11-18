@@ -283,7 +283,7 @@ func TestBestEffortConcurrentConversation(t *testing.T) {
 		fails[ids[i]] = true
 	}
 	mu.Unlock()
-	runParallelUntilIdle(t, worker(e, "w1", h), worker(e, "w2", h), worker(e, "w3", h), worker(e, "w4", h))
+	runParallelUntilIdle(t, e, worker(e, "w1", h), worker(e, "w2", h), worker(e, "w3", h), worker(e, "w4", h))
 	if overlap.Load() {
 		t.Fatal("hai worker cùng xử lý một hội thoại")
 	}
@@ -299,14 +299,16 @@ func TestBestEffortConcurrentConversation(t *testing.T) {
 	}
 }
 
-// runParallelUntilIdle cho các worker chạy RunOnce song song từng lượt (không đưa việc chờ thử lại về hạn) tới khi
-// một lượt không worker nào nhận được việc.
-func runParallelUntilIdle(t *testing.T, ws ...*queue.Worker) {
+// runParallelUntilIdle cho các worker chạy RunOnce song song từng lượt tới khi một lượt không worker nào nhận được
+// việc. Giữa hai lượt (không worker nào đang chạy) việc chờ thử lại bị đẩy ra xa 1 giờ: lịch thử lại đầu chỉ 4–6 s,
+// máy bận thì cả vòng có thể dài hơn thế và việc lỗi được nhận lại giữa chừng.
+func runParallelUntilIdle(t *testing.T, e *env, ws ...*queue.Worker) {
 	t.Helper()
 	for round := 0; ; round++ {
 		if round > 200 {
 			t.Fatal("chưa hết việc nhận được sau 200 lượt")
 		}
+		e.ownerExec(t, "UPDATE platform.jobs SET run_at = now() + interval '1 hour' WHERE status = 'pending' AND attempts > 0")
 		var (
 			wg    sync.WaitGroup
 			total atomic.Int64
