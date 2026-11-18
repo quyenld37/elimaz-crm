@@ -20,6 +20,13 @@ type Handler interface {
 	//
 	// POST /api/v1/catalog/products/{id}/variants
 	AddVariant(ctx context.Context, req *AddVariantRequest, params AddVariantParams) (AddVariantRes, error)
+	// CompleteUpload implements completeUpload operation.
+	//
+	// Báo đã tải xong; máy chủ kiểm kho rồi chuyển tệp sang uploaded (ảnh thì xếp
+	// việc xử lý).
+	//
+	// POST /api/v1/files/{id}/complete
+	CompleteUpload(ctx context.Context, params CompleteUploadParams) (CompleteUploadRes, error)
 	// CreateProduct implements createProduct operation.
 	//
 	// Tạo mẫu sản phẩm kèm biến thể màu/size (barcode để trống thì CRM tự sinh
@@ -33,9 +40,23 @@ type Handler interface {
 	//
 	// POST /api/v1/identity/users
 	CreateStaff(ctx context.Context, req *CreateStaffRequest, params CreateStaffParams) (CreateStaffRes, error)
+	// CreateUpload implements createUpload operation.
+	//
+	// Xin đường dẫn ký sẵn để trình duyệt tải thẳng một tệp lên kho (chỉ mục
+	// đích nhận tải lên).
+	//
+	// POST /api/v1/files/uploads
+	CreateUpload(ctx context.Context, req *CreateUploadRequest, params CreateUploadParams) (CreateUploadRes, error)
+	// GetFile implements getFile operation.
+	//
+	// Trạng thái tệp và các biến thể ảnh công khai.
+	//
+	// GET /api/v1/files/{id}
+	GetFile(ctx context.Context, params GetFileParams) (GetFileRes, error)
 	// GetMe implements getMe operation.
 	//
-	// Người dùng đang đăng nhập và quyền của họ.
+	// Chỉ cần đăng nhập và tài khoản không bị khóa (Task 315); nhân viên chưa có grant
+	// nhận grants rỗng.
 	//
 	// GET /api/v1/me
 	GetMe(ctx context.Context) (GetMeRes, error)

@@ -20,6 +20,15 @@ const seedTenantName = "ELIMAZ"
 
 var errSeedRole = errors.New("seed-dev chỉ chạy với CRM_ROLE=migrate (cần DATABASE_OWNER_URL: crm_app chỉ đọc platform.tenant_routes)")
 
+// openOwner mở pool bằng chuỗi chủ bảng (DATABASE_OWNER_URL) của vai trò migrate; bên gọi đóng pool.
+func openOwner(ctx context.Context, cfg config.Config) (*db.DB, error) {
+	owner, err := db.Open(ctx, cfg.Migrate.OwnerURL, db.PoolOptions{MaxConns: cfg.DBMaxConns})
+	if err != nil {
+		return nil, fmt.Errorf("mở database bằng chủ bảng: %w", err)
+	}
+	return owner, nil
+}
+
 // seedDev (`crm seed-dev <email>`) dựng dữ liệu dev trên database đã migrate, bằng chuỗi chủ bảng: tenant "ELIMAZ",
 // năm vai trò mẫu (identity.EnsureDefaultRoles; owner có mọi quyền), user theo email được gán owner phạm vi all,
 // dòng tenant_routes('staff_email', email), người bán ELIMAZ (catalog). Chạy lại được.
@@ -27,9 +36,9 @@ func seedDev(ctx context.Context, cfg config.Config, email string, logger *slog.
 	if cfg.Role != config.RoleMigrate || cfg.Migrate == nil {
 		return errSeedRole
 	}
-	owner, err := db.Open(ctx, cfg.Migrate.OwnerURL, db.PoolOptions{MaxConns: cfg.DBMaxConns})
+	owner, err := openOwner(ctx, cfg)
 	if err != nil {
-		return fmt.Errorf("mở database bằng chủ bảng: %w", err)
+		return err
 	}
 	defer owner.Pool.Close()
 	tenantID, err := tenancy.SeedTenant(ctx, owner, seedTenantName)

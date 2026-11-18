@@ -190,6 +190,167 @@ type StoredEvent struct {
 }
 ```
 
+## `internal/platform/files` (gói `files`)
+
+Package files là kho tệp dùng chung của CRM (kế hoạch M1, Task M1-41; spec 05 mục 7.3, ADR-36, ADR-45, ADR-46; vùng rủi ro cao): FileStore (S3 qua aws-sdk-go-v2, MemStore cho test), bảng platform.files có RLS, mục đích tệp (Purpose), tải thẳng từ trình duyệt bằng đường dẫn ký sẵn (CreateUpload, CompleteUpload), ghi tệp từ máy chủ (FileStore.Put rồi Register) và đường đọc có kiểm (DownloadURL).
+
+**Khi nào không dùng:** Không gọi aws-sdk-go-v2 hay viết SQL lên platform.files, file_variants ở chỗ khác: dùng FileStore và các hàm của gói. Không gọi FileStore có mạng (Head, Put, Open, CopyIfAbsent, Delete) trong transaction (ADR-46): Put trước rồi Register, Head trước rồi ApplyUpload. Không tự đặt khóa kho từ tên tệp người dùng (dùng TmpKey, ServerKey…), không ký đường dẫn tới tệp khi chưa qua DownloadURL (kiểm ready, tenant, hạn) và quyền của mốc mình. Mục đích mới: một dòng INSERT trong migration của mốc cộng RegisterPurpose trong cmd/crm; ảnh riêng tư (mode private) không đi Register.
+
+```go
+func CheckPurposes(ctx context.Context, d *db.DB) error
+func CreateUpload(ctx context.Context, tx pgx.Tx, fs FileStore, in UploadInput, actor uuid.UUID) (File, PresignedPut, error)
+func DownloadURL(ctx context.Context, tx pgx.Tx, fs FileStore, fileID uuid.UUID, ttl time.Duration, attachmentName string) (string, error)
+func MarkDeleted(ctx context.Context, tx pgx.Tx, fileID uuid.UUID, actor uuid.UUID) error
+func OriginalKey(sha256Hex string) string
+func PrivateVariantKey(tenantID, fileID uuid.UUID, preset, width int, format string) string
+func ProcessKind() queue.Kind
+func ProcessPrivateKind() queue.Kind
+func Register(ctx context.Context, tx pgx.Tx, f NewFile) (uuid.UUID, error)
+func RegisterPurpose(p Purpose)
+func ServerKey(tenantID, fileID uuid.UUID) string
+func TmpKey(tenantID, fileID uuid.UUID) string
+func VariantKey(sha256Hex string, preset, width int, format string) string
+type Bucket string
+type File struct {
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	Purpose      string
+	Bucket       Bucket
+	Key          string
+	OriginalName string
+	DeclaredType string
+	SizeBytes    int64
+	Status       string
+	RejectReason string
+	Width        int
+	Height       int
+	ExpiresAt    *time.Time
+	Deleted      bool
+	CreatedAt    time.Time
+}
+func ApplyUpload(ctx context.Context, tx pgx.Tx, q queue.JobQueue, c UploadCheck) (File, error)
+func CompleteUpload(ctx context.Context, d *db.DB, fs FileStore, q queue.JobQueue, tenantID, fileID uuid.UUID) (File, error)
+type FileStatus struct {
+	Purpose, Status string
+	Deleted         bool
+}
+func Status(ctx context.Context, tx pgx.Tx, fileID uuid.UUID) (FileStatus, error)
+type FileStore interface {
+	PresignPut(ctx context.Context, b Bucket, key string, size int64, contentType string, ttl time.Duration) (PresignedPut, error)
+
+	PresignGet(ctx context.Context, b Bucket, key string, ttl time.Duration, attachmentName string) (string, error)
+
+	Head(ctx context.Context, b Bucket, key string) (ObjectInfo, error)
+
+	Open(ctx context.Context, b Bucket, key string, maxBytes int64) (io.ReadCloser, error)
+
+	CopyIfAbsent(ctx context.Context, src Bucket, srcKey string, dst Bucket, dstKey string) error
+
+	Put(ctx context.Context, b Bucket, key string, r io.Reader, size int64, contentType string) error
+
+	Delete(ctx context.Context, b Bucket, key string) error
+}
+type Info struct {
+	File
+	Variants []VariantURL
+}
+func Describe(ctx context.Context, tx pgx.Tx, fileID uuid.UUID, publicBaseURL string) (Info, error)
+type MemStore struct {
+}
+func NewMemStore() *MemStore
+func (m *MemStore) CopyIfAbsent(_ context.Context, src Bucket, srcKey string, dst Bucket, dstKey string) error
+func (m *MemStore) Delete(_ context.Context, b Bucket, key string) error
+func (m *MemStore) Head(_ context.Context, b Bucket, key string) (ObjectInfo, error)
+func (m *MemStore) Keys(b Bucket) []string
+func (m *MemStore) Open(_ context.Context, b Bucket, key string, maxBytes int64) (io.ReadCloser, error)
+func (m *MemStore) PresignGet(_ context.Context, b Bucket, key string, ttl time.Duration, attachmentName string) (string, error)
+func (m *MemStore) PresignPut(_ context.Context, b Bucket, key string, size int64, contentType string, ttl time.Duration) (PresignedPut, error)
+func (m *MemStore) Put(_ context.Context, b Bucket, key string, r io.Reader, size int64, contentType string) error
+func (m *MemStore) ServeHTTP(w http.ResponseWriter, r *http.Request)
+func (m *MemStore) SetBaseURL(u string)
+func (m *MemStore) Versions(b Bucket, key string) [][]byte
+type NewFile struct {
+	ID          uuid.UUID
+	Purpose     string
+	Key         string
+	SHA256      []byte
+	Size        int64
+	ContentType string
+	FileName    string
+	ExpiresAt   *time.Time
+	CreatedBy   *uuid.UUID
+}
+type ObjectInfo struct {
+	Size        int64
+	ContentType string
+	ETag        string
+}
+type PresignedPut struct {
+	URL       string
+	Headers   map[string]string
+	ExpiresAt time.Time
+}
+type Purpose struct {
+	Key          string
+	Bucket       Bucket
+	AllowedTypes []string
+	MaxBytes     int64
+
+	Image bool
+
+	Upload bool
+
+	Private bool
+}
+func M1Purposes() []Purpose
+func PurposeOf(key string) (Purpose, bool)
+type Registry struct {
+}
+func NewRegistry(ps ...Purpose) *Registry
+func (r *Registry) Check(ctx context.Context, d *db.DB) error
+func (r *Registry) Lookup(key string) (Purpose, bool)
+func (r *Registry) Register(p Purpose)
+type S3Config struct {
+	Endpoint        string
+	Region          string
+	AccessKeyID     string
+	SecretAccessKey string
+
+	BucketPrefix string
+}
+func (c S3Config) LogValue() slog.Value
+type S3Store struct {
+}
+func NewS3Store(cfg S3Config) (*S3Store, error)
+func (s *S3Store) CopyIfAbsent(ctx context.Context, src Bucket, srcKey string, dst Bucket, dstKey string) error
+func (s *S3Store) Delete(ctx context.Context, b Bucket, key string) error
+func (s *S3Store) Head(ctx context.Context, b Bucket, key string) (ObjectInfo, error)
+func (s *S3Store) Open(ctx context.Context, b Bucket, key string, maxBytes int64) (io.ReadCloser, error)
+func (s *S3Store) PresignGet(ctx context.Context, b Bucket, key string, ttl time.Duration, attachmentName string) (string, error)
+func (s *S3Store) PresignPut(ctx context.Context, b Bucket, key string, size int64, contentType string, ttl time.Duration) (PresignedPut, error)
+func (s *S3Store) Put(ctx context.Context, b Bucket, key string, r io.Reader, size int64, contentType string) error
+type UploadCheck struct {
+}
+func InspectUpload(ctx context.Context, d *db.DB, fs FileStore, tenantID, fileID uuid.UUID) (UploadCheck, error)
+type UploadInput struct {
+	TenantID    uuid.UUID
+	Purpose     string
+	FileName    string
+	ContentType string
+	SizeBytes   int64
+}
+type VariantSpec struct {
+	Width  int
+	Format string
+}
+func Preset(version int) ([]VariantSpec, bool)
+type VariantURL struct {
+	Width  int
+	Format string
+	URL    string
+}
+```
+
 ## `internal/platform/idempotency` (gói `idempotency`)
 
 Package idempotency là khóa chống trùng của yêu cầu ghi (ADR-41; vùng rủi ro cao): bên gọi gửi một khóa, Acquire ghi nhận khóa ở trạng thái running bằng một transaction ngắn riêng, rồi Claim.Complete ghi "đã xong" kèm kết quả **trong transaction nghiệp vụ**.
@@ -513,6 +674,29 @@ Package selftest là nguồn webhook thử "selftest" (/hooks/selftest) dùng đ
 **Khi nào không dùng:** Chỉ để thử đường vào khi chưa có kênh thật: không dùng làm mẫu xác thực cho nguồn thật (mỗi kênh tự hiện thực webhooks.Source theo cách ký của nhà cung cấp) và không định tuyến sự kiện ping vào nghiệp vụ.
 
 ```go
+func CommandKind() queue.Kind
+type Command struct {
+}
+func NewCommand(ext External) *Command
+func (*Command) AutoRetryNotSent() bool
+func (c *Command) Execute(ctx context.Context, j queue.Job) (commands.Outcome, error)
+func (*Command) Kind() queue.Kind
+func (c *Command) Lookup(_ context.Context, j queue.Job) (string, error)
+type External interface {
+	Send(ctx context.Context, ref string) error
+	Has(ref string) bool
+}
+type Inbound struct {
+}
+func NewInbound(bus Publisher) *Inbound
+func (i *Inbound) Handle(ctx context.Context, e webhooks.Inbound, tx pgx.Tx) error
+func (*Inbound) Source() string
+type Loopback struct{}
+func (Loopback) Has(string) bool
+func (Loopback) Send(context.Context, string) error
+type Publisher interface {
+	Publish(ctx context.Context, tx pgx.Tx, s realtime.Signal) error
+}
 type Source struct {
 }
 func NewSource(secret string) *Source

@@ -62,7 +62,9 @@ func rolesWith(p identity.Permission) []string {
 // và cột "vai trò mẫu nhận" bằng đúng các vai trò của DefaultRoles có quyền đó.
 func TestPermissionsDoc_MatchesCode(t *testing.T) {
 	doc := readQuyenDoc(t)
-	scopeName := map[identity.ScopeKind]string{identity.ScopeNone: "none", identity.ScopeByTarget: "theo đích"}
+	scopeName := map[identity.ScopeKind]string{
+		identity.ScopeNone: "none", identity.ScopeByTarget: "theo đích", identity.ScopeShop: "toàn shop",
+	}
 	for _, d := range identity.Permissions {
 		r, ok := doc[d.Key]
 		if !ok {

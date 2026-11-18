@@ -119,6 +119,11 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
 - **Q-T27-7 — Người bán mặc định.** `DefaultSeller` trả người bán `kind = own`, `status = active` có mã nhỏ nhất (dữ
   liệu khởi tạo chỉ có `ELIMAZ`); không có → `ErrNotFound` (API 404). `crm_app` chỉ có `SELECT` trên `sellers`;
   `EnsureDefaultSeller` chạy bằng chủ bảng ở `seed-dev` (Task M1-37 mở ghi khi cần).
+- (Lượt 2) main tiến thêm (Task 315 gộp `75f8e58`) trong lúc đang giải xung đột: hủy lần gộp dở (`git merge --abort`)
+  rồi gộp lại với main mới, để `test-guard` (so với main) và reviewer thấy đúng bản cuối. Khác: commit lần gộp cũ rồi
+  gộp thêm lần nữa (hai commit gộp, khó duyệt hơn).
+- (Lượt 2) Test chập chờn do máy quá tải: chạy riêng lại các gói đó, không sửa, không tắt test (ngoài phạm vi Task 27;
+  ghi ở Việc phát hiện thêm). Khác: sửa hạn chờ trong test của task khác (trái luật "chỉ làm đúng task").
 
 ## Bằng chứng
 
@@ -145,6 +150,33 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
 | `Fold`: 12 cặp (gồm "Áo Thun Ơ", "ĐỒNG HỒ", hai khoảng trắng, dạng NFD) | `TestFold` | `go test ./internal/platform/textnorm/` | `ok` |
 | Cổng kiểm khác | lint, jscpd, oasdiff, sqlc vet, danh mục, test-guard, gitleaks, client màn hình | `golangci-lint run ./...`; `make jscpd`; `make oasdiff`; `make sqlc-vet`; `make catalog`; `make test-guard`; `gitleaks dir`; `cd console && npx tsc --noEmit && npx eslint . && npm test` | `0 issues` (sau khi xóa `console/node_modules`, xem Việc phát hiện thêm); `Found 0 clones`; không thay đổi phá vỡ; `ok`; danh mục có `textnorm`; qua; `no leaks found`; tsc, eslint không lỗi, `Tests 35 passed` |
 
+## Lượt 2 (gộp main `75f8e58`)
+
+Lượt 1 (commit `be4bc75`) đã ĐẠT. Lượt 2 chỉ gộp main (Task 16, 17, 18, 41, 42, 314, 315 và `console/go.mod`) bằng
+`git merge main` (không rebase); không thêm hành vi mới của catalog.
+
+- **Ảnh hưởng:** xung đột ở `cmd/crm/main.go` (Deps có cả `Files: store` của Task 41 và `Events: newEvents()` của Task
+  27; giữ nguyên bước `syncDefaultRoles` sau migrate của Task 315), `internal/httpapi/server.go` (nhập cả `events` và
+  `files`; `Deps` có cả `Files` và `Events`), `internal/httpapi/errors.go` (giữ cả hai khối mã lỗi; `catalogError` và
+  `filesError` là hai hàm riêng, gọi nối tiếp sau `identityError`; không mã lỗi nào trùng sentinel của gói khác).
+  `openapi/openapi.yaml` tự gộp (đủ 3 đường `files`, 4 đường `catalog`, phần `x-authenticated` của Task 315). Mã sinh
+  (`internal/httpapi/gen/**`, `routes_gen.go`, `console/src/api/**`): lấy bản của main rồi `make gen`; sqlc sinh lại
+  `catalog/internal/store/models.go` (thêm kiểu của bảng `files`). Migration: `0114_catalog.sql` và `0124_files.sql`
+  khác số, không chạm nhau. Test chạy: `make ci` (toàn bộ).
+- **Tái dùng:** không viết mã mới; `make catalog` không đổi danh mục.
+- **Soát thiết kế:** chỉ phần chạm: đổi lỗi sang HTTP vẫn ở một chỗ (`errors.go`); quyền của 5 operation catalog vẫn
+  là `x-permission` (luật OpenAPI của Task 315 qua ở `tools/routegen`, `tests/arch`).
+
+Bằng chứng lượt 2:
+
+| Tiêu chí | Lệnh | Kết quả |
+|---|---|---|
+| Sinh lại mã không chênh | `make ci` (bước `gen-check`) | qua |
+| Build, vet, lint | `make ci` (`build`, `vet`, `lint`) | `0 issues.` |
+| Catalog, HTTP, identity (Task 315), e2e, kiến trúc, tenancy, files trên bản gộp | `make ci` (bước `test`: `go test -race -count=1 ./...`) | `ok …/modules/catalog 79.478s`, `ok …/httpapi 271.618s`, `ok …/identity 347.319s`, `ok …/tests/e2e 128.992s`, `ok …/tests/arch 34.996s`, `ok …/tenancy 143.054s`, `ok …/files 148.979s` |
+| Ba gói đỏ do máy quá tải (load ~25), không khác main | `go test -race -count=1 ./internal/platform/commands/ ./internal/platform/db/ ./internal/platform/queue/` | `ok commands 33.338s`, `ok db 21.722s`, `ok queue 62.576s` |
+| Các cổng còn lại | `make vuln oasdiff catalog-check jscpd test-guard gitleaks console-check` | thoát 0; `Found 0 clones`; `no leaks found`; console `Tests 35 passed (35)` |
+
 ## Test bị xóa hoặc tắt
 
 (không có)
@@ -168,6 +200,17 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
   `PriceChanged` và tên topic để consumer của mốc sau giải mã.
 
 ## Việc phát hiện thêm
+
+- (Lượt 2) Khi máy quá tải (nhiều phiên song song, load ~25), các test theo thời gian chập chờn:
+  `TestImager_HangKilledWithinDeadline` (imager), `TestRecordAfterLongExecute` (commands),
+  `TestRetryTxLockTimeoutRecoversWhenLockReleased` (db), `TestBestEffortConcurrentConversation` (queue). Chạy riêng đều
+  qua. Đề xuất task riêng: nới hạn chờ hoặc đo theo tín hiệu thay vì đồng hồ. Mục `console/node_modules` của lượt 1 đã
+  được `console/go.mod` của main giải.
+- (Lượt 2, ghi chú reviewer) Số migration do kế hoạch cấp theo task (`0114` Task 27, `0124` Task 41), nên gộp vào
+  main không theo thứ tự số. goose (`db.Migrate`) mặc định từ chối migration số nhỏ hơn bản đã chạy: database dev đã
+  migrate main có `0124` sẽ báo lỗi khi gặp `0114`, phải dựng lại (`docker compose -p <dự án> down -v`). Chưa có môi
+  trường thật nên không hỏng gì; trước khi có máy chủ, cần quyết (task riêng): cho phép ngoài thứ tự ở dev, hoặc cấp
+  số theo thứ tự gộp.
 
 - Sau Task 17 (đã gộp main), `make gen` chạy `console-deps` (npm cài `console/node_modules`); thư viện npm `flatted` có
   tệp `.go` nên `golangci-lint run ./...` và `TestLintCleanOnRealCode` (tests/arch) đỏ trên worktree vừa `make gen`.
@@ -193,3 +236,14 @@ Kết luận: ĐẠT (agent `reviewer`, một lần, trên `git diff --cached` c
     M1-37), đường API sửa nên kiểm cả người bán.
   - `ErrInvalidArticle` từ dữ liệu cũ đã lưu (không phải từ yêu cầu) cũng ra 422; hiếm, không hỏng dữ liệu.
   - Chưa có test gửi lại cùng khóa sau một lần 409; dựa trên `WriteTx` đã có test ở Task 12, 26.
+
+### Reviewer lượt 2
+
+Kết luận: ĐẠT (agent `reviewer`, một lần, trên `git diff --cached` của bản gộp main `75f8e58`).
+
+- Phát hiện phải sửa: không có. Reviewer so bản gộp với cả hai cha (`75f8e58`, `be4bc75`): `main.go` có `Files`,
+  `Events` và `syncDefaultRoles` (Task 315); `server.go` có `Files`, `Events`; `errors.go` có `catalogError`,
+  `filesError`; `openapi.yaml` có 3 đường files, 5 operation catalog, `x-authenticated`; mã sinh khớp hợp đồng;
+  `git diff --cached --check` sạch; không test nào bị tắt hay bớt câu kiểm.
+- Ghi chú không bắt buộc: (1) `hien-tai.md` đang stage bản của main; hook không cho phiên stage tệp này,
+  `finish-task.sh` đặt lại trạng thái. (2) Thứ tự số migration `0114`/`0124`: ghi ở Việc phát hiện thêm.

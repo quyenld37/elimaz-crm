@@ -198,6 +198,6 @@ func staffOut(r identity.StaffRow) *gen.StaffMember {
 	}
 	return &gen.StaffMember{
 		ID: r.ID, Email: r.Email, DisplayName: r.DisplayName, Status: gen.StaffMemberStatus(r.Status),
-		Version: r.Version, CreatedAt: r.CreatedAt, Grants: grants,
+		Version: r.Version, CreatedAt: r.CreatedAt, Grants: grants, Warnings: scopeWarningsOut(r.Warnings),
 	}
 }

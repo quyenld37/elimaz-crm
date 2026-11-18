@@ -175,6 +175,51 @@ type PlatformDomainEvent struct {
 	CreatedAt     time.Time
 }
 
+type PlatformFile struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	Purpose       string
+	Bucket        string
+	Key           string
+	OriginalName  string
+	DeclaredType  string
+	DetectedType  pgtype.Text
+	SizeBytes     int64
+	ContentSha256 []byte
+	Width         pgtype.Int4
+	Height        pgtype.Int4
+	Status        string
+	RejectReason  pgtype.Text
+	PresetVersion pgtype.Int4
+	CreatedBy     pgtype.UUID
+	ExpiresAt     pgtype.Timestamptz
+	LostAt        pgtype.Timestamptz
+	DeletedAt     pgtype.Timestamptz
+	DeletedBy     pgtype.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	Version       int64
+}
+
+type PlatformFilePurpose struct {
+	Key    string
+	Bucket string
+	Mode   string
+}
+
+type PlatformFileVariant struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	FileID        uuid.UUID
+	PresetVersion int32
+	Width         int32
+	Format        string
+	Bucket        string
+	Key           string
+	SizeBytes     int64
+	CreatedAt     time.Time
+}
+
 type PlatformIdempotencyKey struct {
 	TenantID       uuid.UUID
 	Actor          string

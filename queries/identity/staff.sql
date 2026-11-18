@@ -77,4 +77,5 @@ VALUES (@tenant_id, @key, @name)
 ON CONFLICT (tenant_id, key) DO NOTHING;
 
 -- name: GetRoleByKey :one
-SELECT id, customized FROM identity.roles WHERE key = @key;
+-- FOR SHARE: EnsureDefaultRoles đọc customized rồi mới thêm quyền; lần sửa vai trò chạy cùng lúc phải chờ (Task 315).
+SELECT id, customized FROM identity.roles WHERE key = @key FOR SHARE;

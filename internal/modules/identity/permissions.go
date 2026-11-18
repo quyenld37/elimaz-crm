@@ -21,10 +21,14 @@ type Permission string
 type ScopeKind int
 
 const (
-	// ScopeNone là quyền toàn shop, chỉ grant phạm vi all mới cho quyền.
+	// ScopeNone là quyền không gắn với đích: có hiệu lực toàn shop khi người dùng có quyền này trong bất kỳ grant nào
+	// (gán theo kho, theo Page cũng được; Task 315). Phạm vi chỉ thu hẹp quyền ScopeByTarget.
 	ScopeNone ScopeKind = iota
 	// ScopeByTarget là quyền trên từng đích; grant all hoặc grant đúng đích cho quyền.
 	ScopeByTarget
+	// ScopeShop là quyền quản trị (nhân viên, vai trò, nền tảng, nhật ký, chính sách toàn shop): chỉ có hiệu lực từ
+	// grant phạm vi all; grant theo kho, theo Page của quyền này không có hiệu lực (Task 315 lượt 2, docs/quyen.md).
+	ScopeShop
 )
 
 // PermissionDef là một quyền của hệ thống và cách kiểm phạm vi của nó.
@@ -35,13 +39,14 @@ type PermissionDef struct {
 
 // Permissions là mọi quyền của CRM: M0 (kế hoạch M0 Task 7) và M1 (kế hoạch M1 Task M1-26). Bảng chuẩn kèm việc
 // của từng quyền: docs/quyen.md (test giữ hai bên khớp). Mốc sau chỉ thêm quyền, không đổi loại phạm vi của quyền
-// đã có. Route khai quyền ngoài danh sách này thì tests/arch đỏ.
+// đã có (ngoại lệ đã duyệt: Task 315 lượt 2 chuyển sáu quyền quản trị sang ScopeShop). Quyền mới ghi chính sách
+// toàn shop hay quản trị là ScopeShop. Route khai quyền ngoài danh sách này thì tests/arch đỏ.
 var Permissions = []PermissionDef{ //nolint:gochecknoglobals // danh sách hằng, không sửa lúc chạy
 	{"realtime.subscribe", ScopeNone},
-	{"audit.read", ScopeNone},
-	{"platform.jobs.manage", ScopeNone},
-	{"platform.health.read", ScopeNone},
-	{"identity.users.manage", ScopeNone},
+	{"audit.read", ScopeShop},
+	{"platform.jobs.manage", ScopeShop},
+	{"platform.health.read", ScopeShop},
+	{"identity.users.manage", ScopeShop},
 	{"conversation.read", ScopeByTarget},
 	// M1.
 	{"catalog.read", ScopeNone},
@@ -50,9 +55,9 @@ var Permissions = []PermissionDef{ //nolint:gochecknoglobals // danh sách hằn
 	{"order.create", ScopeNone},
 	{"order.read", ScopeNone},
 	{"files.upload", ScopeNone},
-	{"platform.files.manage", ScopeNone},
+	{"platform.files.manage", ScopeShop},
 	{"inventory.suppliers.manage", ScopeNone},
-	{"identity.roles.manage", ScopeNone},
+	{"identity.roles.manage", ScopeShop},
 	{"inventory.read", ScopeByTarget},
 	{"inventory.documents.create", ScopeByTarget},
 	{"inventory.documents.post", ScopeByTarget},
@@ -94,7 +99,7 @@ func IsKnown(p Permission) bool {
 	return slices.ContainsFunc(Permissions, func(d PermissionDef) bool { return d.Key == p })
 }
 
-// KindOf trả cách kiểm phạm vi của p; quyền lạ coi là ScopeNone (chỉ all mới cho, và Can từ chối quyền lạ).
+// KindOf trả cách kiểm phạm vi của p; quyền lạ coi là ScopeNone (Can từ chối quyền lạ trước khi xét loại).
 func KindOf(p Permission) ScopeKind {
 	for _, d := range Permissions {
 		if d.Key == p {
@@ -106,7 +111,9 @@ func KindOf(p Permission) ScopeKind {
 
 // Can trả lời "u có quyền p trên target không" (mặc định từ chối, ADR-18):
 //   - quyền lạ: luôn sai;
-//   - quyền ScopeNone: cần grant của p phạm vi all (target bỏ qua);
+//   - quyền ScopeShop (quản trị): cần grant của p phạm vi all (target bỏ qua; Task 315 lượt 2);
+//   - quyền ScopeNone: cần ít nhất một grant của p, ở bất kỳ phạm vi nào (target bỏ qua; Task 315: phạm vi chỉ thu
+//     hẹp quyền của tài nguyên có phạm vi, nên vai trò Kho gán theo một kho vẫn đọc được sản phẩm);
 //   - quyền ScopeByTarget có target: cần grant của p phạm vi all hoặc đúng target;
 //   - quyền ScopeByTarget không target: cần ít nhất một grant của p (handler kiểm đích sau).
 //
@@ -115,20 +122,62 @@ func Can(u AuthUser, p Permission, target *Scope) bool {
 	if !IsKnown(p) {
 		return false
 	}
-	byTarget := KindOf(p) == ScopeByTarget
+	kind := KindOf(p)
 	for _, g := range u.Grants {
 		if g.Permission != p {
 			continue
 		}
-		if g.Scope.Type == ScopeAll && g.Scope.ID == "" {
+		switch {
+		case isAll(g.Scope):
 			return true
-		}
-		if byTarget && (target == nil || g.Scope == *target) {
+		case kind == ScopeShop:
+			continue
+		case kind == ScopeNone || target == nil || g.Scope == *target:
 			return true
 		}
 	}
 	return false
 }
+
+// Effective cho biết grant g có hiệu lực không: grant của quyền ScopeShop chỉ có hiệu lực ở phạm vi all; quyền khác
+// luôn có (phạm vi của chúng do Can kiểm theo đích).
+func Effective(g Grant) bool {
+	return KindOf(g.Permission) != ScopeShop || isAll(g.Scope)
+}
+
+// ScopeWarning là một gán vai trò ở phạm vi hẹp hơn toàn shop mà vai trò có quyền ScopeShop: các quyền đó (đã sắp)
+// không có hiệu lực từ gán này. Gán vẫn lưu (không lỗi); lớp HTTP trả kèm câu báo cho màn hình.
+type ScopeWarning struct {
+	RoleKey     string
+	Scope       Scope
+	Permissions []Permission
+}
+
+// ShopOnlyWarnings trả cảnh báo cho từng gán trong grants (theo thứ tự) có phạm vi khác all mà vai trò (tra trong
+// roles theo khóa) có quyền ScopeShop. Vai trò không có trong roles: bỏ qua. Không cảnh báo nào: lát rỗng khác nil.
+func ShopOnlyWarnings(roles []RoleRow, grants []GrantInput) []ScopeWarning {
+	index := roleIndex(roles)
+	out := []ScopeWarning{}
+	for _, g := range grants {
+		r, ok := index[g.RoleKey]
+		if !ok || isAll(g.Scope) {
+			continue
+		}
+		var perms []Permission
+		for _, p := range r.Permissions {
+			if KindOf(p) == ScopeShop {
+				perms = append(perms, p)
+			}
+		}
+		if len(perms) > 0 {
+			slices.Sort(perms)
+			out = append(out, ScopeWarning{RoleKey: g.RoleKey, Scope: g.Scope, Permissions: slices.Compact(perms)})
+		}
+	}
+	return out
+}
+
+func isAll(s Scope) bool { return s.Type == ScopeAll && s.ID == "" }
 
 // ScopesFor trả phạm vi của u cho quyền p: all = true khi có grant phạm vi all; ngược lại ids là mã đích (đã sắp,
 // không trùng) để lọc danh sách. Không grant nào: false, rỗng.

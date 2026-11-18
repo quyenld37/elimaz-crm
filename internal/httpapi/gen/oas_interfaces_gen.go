@@ -9,12 +9,24 @@ type AddVariantRes interface {
 	addVariantRes()
 }
 
+type CompleteUploadRes interface {
+	completeUploadRes()
+}
+
 type CreateProductRes interface {
 	createProductRes()
 }
 
 type CreateStaffRes interface {
 	createStaffRes()
+}
+
+type CreateUploadRes interface {
+	createUploadRes()
+}
+
+type GetFileRes interface {
+	getFileRes()
 }
 
 type GetMeRes interface {

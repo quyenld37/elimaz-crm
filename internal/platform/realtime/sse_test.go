@@ -106,7 +106,8 @@ func TestStreamScopedPermission(t *testing.T) {
 }
 
 // Có grant trên page:p2 nhưng là quyền khác (không phải conversation.read) → không nhận. Quyền theo đích duy nhất của
-// M0 là conversation.read, nên dựng thẳng AuthUser qua hub (không qua database) với grant giả lập quyền khác.
+// M0 là conversation.read, nên dựng thẳng AuthUser qua hub (không qua database) với grant giả lập quyền khác. Task 315
+// lượt 2: audit.read là quyền quản trị (toàn shop), nên báo hiệu cần audit.read cũng không tới grant theo trang này.
 func TestHubFiltersByRequiredPermissionNotScopeOnly(t *testing.T) {
 	e := newRTEnv(t)
 	a := e.staff.Tenant(t, "A")
@@ -118,6 +119,7 @@ func TestHubFiltersByRequiredPermissionNotScopeOnly(t *testing.T) {
 	cancel := e.hub.Subscribe(u, func(f realtime.Frame) { got <- f })
 	defer cancel()
 	e.publish(convP2(a), false)
+	e.publish(realtime.Signal{TenantID: a, Topic: "t.audit", Requires: "audit.read", Entity: realtime.Entity{Type: "a", ID: "1"}}, false)
 	e.publish(realtime.Signal{
 		TenantID: a, Topic: "t.marker", Requires: "realtime.subscribe",
 		Entity: realtime.Entity{Type: "m", ID: "1"},
@@ -125,7 +127,7 @@ func TestHubFiltersByRequiredPermissionNotScopeOnly(t *testing.T) {
 	select {
 	case f := <-got:
 		if f.Event != "changed" || !strings.Contains(string(f.Data), "t.marker") {
-			t.Fatalf("khung đầu phải là marker (báo hiệu conversation.read bị lọc), có %s %s", f.Event, f.Data)
+			t.Fatalf("khung đầu phải là marker (báo hiệu conversation.read, audit.read bị lọc), có %s %s", f.Event, f.Data)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("không nhận marker")

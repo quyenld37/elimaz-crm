@@ -138,3 +138,60 @@ func TestEnsureDefaultRoles_CustomizedKept(t *testing.T) {
 		t.Errorf("owner phải đủ %d quyền: %+v", len(identity.Permissions), rows)
 	}
 }
+
+// Bước đồng bộ sau migrate (Task 315): shop chưa có vai trò nhận đủ vai trò mẫu; quyền mới của bảng quyền (giả lập
+// bằng cách xóa dòng role_permissions như database có trước khi quyền đó được thêm vào mã) vào vai trò mẫu chưa sửa;
+// vai trò mẫu đã sửa (customized) và vai trò tự định nghĩa không đổi; chạy lần hai không đổi thêm.
+func TestSyncDefaultRoles(t *testing.T) {
+	s, a := rolesTenant(t)
+	b := s.Tenant(t, "B") // shop mới, chưa có vai trò nào
+	s.Exec(t, a, func(tx pgx.Tx) error {
+		for _, q := range []string{
+			"UPDATE identity.roles SET customized = true WHERE key = 'accountant'",
+			"DELETE FROM identity.role_permissions WHERE permission = 'order.read' AND role_id IN (SELECT id FROM identity.roles WHERE key IN ('sale', 'accountant'))",
+			"INSERT INTO identity.roles (tenant_id, key, name) VALUES (current_setting('app.tenant_id')::uuid, 'tu-dat', 'Tự đặt')",
+		} {
+			if _, err := tx.Exec(t.Context(), q); err != nil {
+				return err //nolint:wrapcheck // test
+			}
+		}
+		return nil
+	})
+	n, err := identity.SyncDefaultRoles(t.Context(), s.Owner)
+	if err != nil || n != 2 {
+		t.Fatalf("SyncDefaultRoles = %d, %v; mong 2 tenant", n, err)
+	}
+	byKey := func(tenant uuid.UUID) map[string]identity.RoleRow {
+		m := map[string]identity.RoleRow{}
+		for _, r := range listRoles(t, s, tenant) {
+			m[r.Key] = r
+		}
+		return m
+	}
+	ra := byKey(a)
+	if !slices.Contains(ra["sale"].Permissions, "order.read") {
+		t.Errorf("sale chưa sửa phải nhận lại order.read: %v", ra["sale"].Permissions)
+	}
+	if slices.Contains(ra["accountant"].Permissions, "order.read") || !ra["accountant"].Customized {
+		t.Errorf("accountant đã sửa không được đổi: %+v", ra["accountant"])
+	}
+	if len(ra["tu-dat"].Permissions) != 0 {
+		t.Errorf("vai trò tự định nghĩa không được thêm quyền: %v", ra["tu-dat"].Permissions)
+	}
+	rb := byKey(b)
+	for _, d := range identity.DefaultRoles {
+		if r, ok := rb[d.Key]; !ok || len(r.Permissions) != len(d.Permissions) {
+			t.Errorf("shop mới thiếu vai trò mẫu %s hoặc thiếu quyền: %+v", d.Key, r)
+		}
+	}
+	ra1, pa1 := countRoleRows(t, s, a)
+	rb1, pb1 := countRoleRows(t, s, b)
+	if _, err := identity.SyncDefaultRoles(t.Context(), s.Owner); err != nil {
+		t.Fatal(err)
+	}
+	ra2, pa2 := countRoleRows(t, s, a)
+	rb2, pb2 := countRoleRows(t, s, b)
+	if ra1 != ra2 || pa1 != pa2 || rb1 != rb2 || pb1 != pb2 {
+		t.Fatalf("lần hai đổi số dòng: A %d/%d → %d/%d, B %d/%d → %d/%d", ra1, pa1, ra2, pa2, rb1, pb1, rb2, pb2)
+	}
+}
