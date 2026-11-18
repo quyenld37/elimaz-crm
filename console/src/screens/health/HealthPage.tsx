@@ -25,8 +25,8 @@ import "./health.css";
 export const REFRESH_MS = 20_000;
 /** Số loại lỗi hiện trên màn này; đủ 10 loại ở màn Sự kiện lỗi (Task 330). */
 const TOP_ERRORS = 3;
-/** Đường dẫn màn Sự kiện lỗi (Task 330, tên theo mockup su-kien-loi.html). */
-export const ERRORS_PATH = "/su-kien-loi";
+/** Đường dẫn màn Sự kiện lỗi (Task 330, `src/screens/errors/route.tsx`). */
+export const ERRORS_PATH = "/he-thong/su-kien-loi";
 
 /** Việc bị ảnh hưởng khi một vai trò ngừng (spec 04: ba vai trò ingest, api, worker). */
 const ROLE_EFFECT: Record<string, string> = {

@@ -4,6 +4,34 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
 đã tách sang 330, 331 — không làm ở đây). Mockup đã duyệt: `docs/mockups/m1/suc-khoe.html` (+ `png/suc-khoe-{1512,390}.png`,
 trạng thái A, B, C). Loại việc (quy trình mục 3): A
 
+## Lượt 2 (19/11): gộp main sau Task 389 và Task 330
+
+- **Ảnh hưởng:** không đổi mã Go, hợp đồng, SQL. Màn hình: `src/app/screens.test.tsx` lấy nguyên bản của main (Task
+  389: chỉ kiểm quy ước; bỏ dòng `/suc-khoe` mà lượt 1 thêm vào danh sách chung); thêm
+  `src/screens/health/route.test.tsx` (đường, nhãn, nhóm, quyền, order của màn; nút "Xem đủ N loại" trỏ tới một màn
+  có thật trong SCREENS); `HealthPage.tsx` hằng `ERRORS_PATH` đổi `/su-kien-loi` → `/he-thong/su-kien-loi` (đường của
+  Task 330 trong main); `e2e/health.spec.ts` đổi kỳ vọng `href` tương ứng. Test sẽ chạy: `npx vitest run`, `tsc`,
+  `eslint`; Playwright `e2e/health.spec.ts`, `e2e/errors.spec.ts` (màn đích của nút); `ci-task.sh` một lần.
+- **Tái dùng:** `routeRows` (`src/app/routeTestkit.ts`, Task 389) như mọi `route.test.tsx` khác; `SCREENS`
+  (`app/screens`) để kiểm đường đích có thật.
+- **Soát thiết kế:** không chạm database, tiền, quyền, hàng đợi (quyền của màn giữ nguyên `platform.health.read`).
+- **Phát sinh khi gộp:** `e2e/errors.spec.ts` (Task 330) kiểm câu "không tìm thấy" cho người thiếu quyền mở thẳng
+  `/he-thong/su-kien-loi`; trang "Không có quyền" chung của lượt 1 (Q4) nay áp cho cả màn này nên ca đỏ. Đổi kỳ vọng
+  chặt hơn như đã làm với `roles.spec.ts`, `staff.spec.ts`: tiêu đề "Không có quyền", câu nêu "Sự kiện lỗi", không có
+  nút "Về trang …" (không có màn nào được phép). Không xóa, không nới ca nào.
+- **Quyết định thay chủ shop:** Q8 — giữ hằng `ERRORS_PATH` trong `HealthPage.tsx` (không nhập từ thư mục màn
+  Sự kiện lỗi: các màn không nhập lẫn nhau) và khóa nó bằng test "nút trỏ tới màn Sự kiện lỗi có thật, cùng quyền"
+  trong `route.test.tsx`, nên lần sau đổi đường sẽ đỏ ngay. Phương án khác: chép đường cứng không có test.
+- **Bằng chứng lượt 2:**
+
+| Tiêu chí | Test | Lệnh | Kết quả |
+|---|---|---|---|
+| Đăng ký màn theo cách Task 389 | `src/screens/health/route.test.tsx` › "route.tsx khai đúng path, …"; `src/app/screens.test.tsx` (bản main) | `cd console && npx vitest run` | `Tests 308 passed (308)` |
+| Nút "Xem đủ N loại" trỏ đúng màn Sự kiện lỗi | `route.test.tsx` › "nút \"Xem đủ N loại\" trỏ tới màn Sự kiện lỗi có thật, cùng quyền" (đỏ trước khi sửa hằng: `expected undefined to be 'Sự kiện lỗi'`); `health.spec.ts` › trạng thái A (`href` = `/he-thong/su-kien-loi`) | như trên; `CRM_E2E_PORT=5153 npx playwright test e2e/health.spec.ts e2e/errors.spec.ts e2e/roles.spec.ts e2e/staff.spec.ts e2e/shell.spec.ts --project=chromium` | `56 passed (52.0s)` |
+| Màn Sự kiện lỗi thiếu quyền → "Không có quyền" | `errors.spec.ts` › "không quyền platform.health.read → … hiện Không có quyền, không gọi API" (hai khổ; đỏ trước khi đổi kỳ vọng) | như trên | qua |
+| typecheck, lint | — | `npx tsc --noEmit`, `npx eslint .` | sạch |
+| Cổng kiểm của task | — | `ci-task.sh` (2 lần) rồi `go test -count=1 ./tests/arch/` | lần 1: prettier đỏ ở `route.test.tsx` (đã `prettier --write`) và arch đỏ vì "parallel golangci-lint is running" (phiên khác); lần 2: mọi cổng xanh trừ arch, cùng lỗi khóa song song ở `TestPackagePatternSkipsStrayDirs`; chạy riêng `go test -count=1 ./tests/arch/` → `ok elimaz.com.vn/crm/tests/arch 22.846s`. Lượt này không đổi mã Go. |
+
 ## Ảnh hưởng
 
 - Ký hiệu Go xuất ra ngoài sẽ đổi (LSP findReferences): không có (chỉ màn hình; không đổi mã Go).
@@ -118,5 +146,11 @@ Lượt 1: **ĐẠT** — không có phát hiện phải sửa; 12 tệp khớp 
 
 Lượt 2 (sau sửa trên): **ĐẠT** — không có phát hiện phải sửa; chỉ `health.spec.ts:211` và mục này đổi so với lượt 1;
 ca vẫn đòi ô worker hiện lại "Ngừng 3 phút" sau khi bấm nên một lần tải mới thật sự phải chạy.
+
+Lượt 3 (gộp main, 19/11): **ĐẠT** — không có phát hiện phải sửa. `screens.test.tsx` đúng bản của main;
+`ERRORS_PATH` khớp `screens/errors/route.tsx`, không còn chỗ nào trỏ `/su-kien-loi`; ca thiếu quyền của
+`errors.spec.ts` chặt hơn ca cũ (tiêu đề, nguyên câu theo `router.tsx`, không nút về; vẫn kiểm menu và apiGuard); không
+còn spec nào mong câu "không tìm thấy" cho màn có thật. Ghi chú: arch đỏ trong `ci-task.sh` do khóa golangci-lint của
+phiên khác, chạy riêng qua; điều phối viên nên chạy lại toàn bộ trên main sau khi gộp.
 
 Kết luận: ĐẠT

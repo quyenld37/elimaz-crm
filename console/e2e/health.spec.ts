@@ -134,7 +134,7 @@ forEachViewport(() => {
     await expect(errors.getByRole("listitem")).toHaveCount(3);
     await expect(errors.getByRole("listitem").first()).toContainText("1.204 lần");
     await expect(errors.getByRole("listitem").first()).toContainText("worker · lần cuối 14:28");
-    await expect(errors.getByRole("link", { name: "Xem đủ 10 loại" })).toHaveAttribute("href", "/su-kien-loi");
+    await expect(errors.getByRole("link", { name: "Xem đủ 10 loại" })).toHaveAttribute("href", "/he-thong/su-kien-loi");
 
     const alerts = page.getByRole("region", { name: "Cảnh báo đã gửi 24 giờ" });
     const items = alerts.getByRole("listitem");
