@@ -137,3 +137,16 @@ func (s *Staff) Count(t testing.TB, q string, args ...any) int {
 	}
 	return n
 }
+
+// CountIn chạy câu đếm q bằng chủ bảng trong ngữ cảnh tenantID (đọc được bảng crm_app không đọc, như domain_events,
+// audit_logs; RLS vẫn giới hạn trong tenant); lỗi làm test đỏ.
+func (s *Staff) CountIn(t testing.TB, tenantID uuid.UUID, q string, args ...any) int {
+	t.Helper()
+	var n int
+	if err := s.TryExec(t.Context(), tenantID, func(tx pgx.Tx) error {
+		return tx.QueryRow(t.Context(), q, args...).Scan(&n)
+	}); err != nil {
+		t.Fatalf("testkit: đếm %q: %v", q, err)
+	}
+	return n
+}
