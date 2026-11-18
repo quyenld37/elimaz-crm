@@ -77,12 +77,25 @@ const WAIT_MS = 60_000;
 const PUT_RETRIES = 3;
 const PUT_RETRY_MS = 1000;
 
-/** PUT bằng XMLHttpRequest (eslint chỉ cho lớp realtime dùng fetch; đây là đường của kho tệp, không phải /api/v1). */
-export const xhrPut: PutFile = (url, headers, file, signal) =>
+/**
+ * PUT bằng XMLHttpRequest (eslint chỉ cho lớp realtime dùng fetch; đây là đường của kho tệp, không phải /api/v1).
+ * onProgress(đã gửi, tổng) cho thanh phần trăm (màn Nhập Excel, Task 52); fetch không báo tiến độ gửi lên.
+ */
+export const xhrPut = (
+  url: string,
+  headers: Readonly<Record<string, string>>,
+  file: Blob,
+  signal: AbortSignal,
+  onProgress?: (loaded: number, total: number) => void,
+): Promise<void> =>
   new Promise((resolve, reject) => {
     const x = new XMLHttpRequest();
     x.open("PUT", url);
     for (const [k, v] of Object.entries(headers)) x.setRequestHeader(k, v);
+    if (onProgress !== undefined)
+      x.upload.onprogress = (e) => {
+        onProgress(e.loaded, e.lengthComputable ? e.total : file.size);
+      };
     const onAbort = () => {
       x.abort();
     };
