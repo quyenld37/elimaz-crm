@@ -15,19 +15,21 @@ import (
 
 const insertStatusHistory = `-- name: InsertStatusHistory :exec
 INSERT INTO ord.order_status_history
-    (tenant_id, order_id, from_status, to_status, actor_type, actor_id, reason, occurred_at)
-VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2::text, $3, $4, $5::uuid,
-        $6::text, $7)
+    (tenant_id, order_id, from_status, to_status, from_pending, to_pending, actor_type, actor_id, reason, occurred_at)
+VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2::text, $3,
+        $4, $5, $6, $7::uuid, $8::text, $9)
 `
 
 type InsertStatusHistoryParams struct {
-	OrderID    uuid.UUID
-	FromStatus pgtype.Text
-	ToStatus   string
-	ActorType  string
-	ActorID    pgtype.UUID
-	Reason     pgtype.Text
-	OccurredAt time.Time
+	OrderID     uuid.UUID
+	FromStatus  pgtype.Text
+	ToStatus    string
+	FromPending string
+	ToPending   string
+	ActorType   string
+	ActorID     pgtype.UUID
+	Reason      pgtype.Text
+	OccurredAt  time.Time
 }
 
 func (q *Queries) InsertStatusHistory(ctx context.Context, arg InsertStatusHistoryParams) error {
@@ -35,6 +37,8 @@ func (q *Queries) InsertStatusHistory(ctx context.Context, arg InsertStatusHisto
 		arg.OrderID,
 		arg.FromStatus,
 		arg.ToStatus,
+		arg.FromPending,
+		arg.ToPending,
 		arg.ActorType,
 		arg.ActorID,
 		arg.Reason,
@@ -43,30 +47,47 @@ func (q *Queries) InsertStatusHistory(ctx context.Context, arg InsertStatusHisto
 	return err
 }
 
-const setOrderStatus = `-- name: SetOrderStatus :one
+const updateOrderStatus = `-- name: UpdateOrderStatus :one
 
 UPDATE ord.orders
-SET status = $1, version = version + 1, updated_at = now()
-WHERE seller_id = $2 AND id = $3 AND status = $4
+SET status           = $1::text,
+    pending_reason   = $2::text,
+    draft_expires_at = CASE WHEN $1::text = 'draft' THEN draft_expires_at END,
+    confirmed_at     = CASE WHEN $1::text = 'confirmed' AND confirmed_at IS NULL THEN $3::timestamptz
+                            ELSE confirmed_at END,
+    confirmed_by     = CASE WHEN $1::text = 'confirmed' AND confirmed_at IS NULL THEN $4::uuid
+                            ELSE confirmed_by END,
+    cancelled_at     = CASE WHEN $1::text = 'cancelled' THEN $3::timestamptz ELSE cancelled_at END,
+    version          = version + 1,
+    updated_at       = $3::timestamptz
+WHERE seller_id = $5 AND id = $6 AND version = $7
 RETURNING version
 `
 
-type SetOrderStatusParams struct {
-	ToStatus   string
-	SellerID   uuid.UUID
-	ID         uuid.UUID
-	FromStatus string
+type UpdateOrderStatusParams struct {
+	ToStatus      string
+	PendingReason string
+	Now           time.Time
+	ActorID       pgtype.UUID
+	SellerID      uuid.UUID
+	ID            uuid.UUID
+	Version       int64
 }
 
 // Đổi trạng thái đơn và lịch sử trạng thái (kế hoạch M2, Task M2-16: chỗ duy nhất có câu đổi trạng thái đơn; dời từ
 // orders.sql, history.sql của M1 Task M1-30, M1-30b). Chạy trong tenancy.WithTenant. Lịch sử chỉ ghi thêm.
-// Đổi trạng thái chỉ khi đang ở trạng thái cũ; trả version mới (không dòng nào → pgx.ErrNoRows).
-func (q *Queries) SetOrderStatus(ctx context.Context, arg SetOrderStatusParams) (int64, error) {
-	row := q.db.QueryRow(ctx, setOrderStatus,
+// Đổi trạng thái khi version còn khớp (đơn đã khóa hoặc so version, ADR-46 nhóm 7); trả version mới (không dòng nào →
+// pgx.ErrNoRows). Rời draft thì bỏ hạn nháp; tới confirmed lần đầu ghi confirmed_at, confirmed_by; tới cancelled ghi
+// cancelled_at.
+func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) (int64, error) {
+	row := q.db.QueryRow(ctx, updateOrderStatus,
 		arg.ToStatus,
+		arg.PendingReason,
+		arg.Now,
+		arg.ActorID,
 		arg.SellerID,
 		arg.ID,
-		arg.FromStatus,
+		arg.Version,
 	)
 	var version int64
 	err := row.Scan(&version)

@@ -91,6 +91,9 @@ Có dần theo kế hoạch; lệnh nào chưa có thì task tương ứng sẽ 
   có `x-permission` và `IdempotencyKey` → middleware chống trùng → `WriteTx` (một transaction tenant: khóa và đổi dòng
   qua public API của gói sở hữu, `identity.RecordAudit`, lưu kết quả; truyền con trỏ `&gen.X{…}`) → lỗi nghiệp vụ là
   sentinel, đổi sang HTTP ở `errors.go`. Test: 50 yêu cầu song song cùng khóa, `retry_later` không lưu, tenant khác 404.
+- **Lệnh điều phối nhiều module (Task 73):** `internal/modules/order` — `create_m2.go` (`Writer.Create`: kiểm không
+  database → đọc không khóa → khách → đơn → tồn theo ADR-46, một transaction của bên gọi, lỗi module khác bọc `%w`)
+  và `transition.go` (đổi trạng thái đơn chỉ qua `applyTransition`; câu SQL chỉ ở `queries/ord/transition.sql`).
 - **Gọi ra ngoài:** lệnh `commands` (Kind từ `CommandKind`, ghi bằng `Enqueue` trong transaction nghiệp vụ); không chắc
   đã gửi → `in_doubt`, không tự gửi lại. Module và đường mới làm theo đúng các mẫu trên.
 

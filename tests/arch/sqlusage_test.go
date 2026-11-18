@@ -234,7 +234,8 @@ func findSQLUsage(t *testing.T, root string, includeTestdata bool) []string {
 			if err != nil || d.IsDir() || !strings.HasSuffix(rel, ".sql") {
 				return err
 			}
-			module, _, _ := strings.Cut(rel, "/")
+			dir, _, _ := strings.Cut(rel, "/")
+			module := moduleOfSchema(dir) // queries/ord là của module order (bảng "Được gọi" theo tên module)
 			b, err := fs.ReadFile(qfs, rel)
 			if err != nil {
 				return fmt.Errorf("đọc queries/%s: %w", rel, err)
