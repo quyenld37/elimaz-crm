@@ -16,8 +16,9 @@ export interface FakeApi {
   /** API sống: /health/live 200, /api/v1/me trả `me`, luồng realtime mở và im (không băng báo). */
   live(me?: Partial<Me>): Promise<void>;
   /**
-   * Sản phẩm, danh mục, nhãn rỗng (listProducts, listCategories, listTags). Người có catalog.read mở "/" là vào Danh
-   * sách sản phẩm (màn đầu tiên của menu, Task 50), nên spec của khung khai đường này.
+   * Sản phẩm, danh mục, nhãn, kho rỗng (listProducts, listCategories, listTags, listWarehouses). Người có
+   * catalog.read mở "/" là vào Danh sách sản phẩm (màn đầu tiên của menu, Task 50; người có inventory.read thì màn đọc
+   * thêm danh sách kho cho cột "Có thể bán"), nên spec của khung khai đường này.
    */
   catalog(): Promise<void>;
   /** API tắt: mọi yêu cầu tới /health và /api lỗi mạng. */
@@ -115,6 +116,7 @@ export const test = base.extend<{ apiGuard: string[]; api: FakeApi }>({
         await page.route(/\/api\/v1\/catalog\/products(\?|$)/, (r) => json(r, 200, { items: [] }));
         await page.route("**/api/v1/catalog/categories", (r) => json(r, 200, []));
         await page.route("**/api/v1/catalog/tags", (r) => json(r, 200, []));
+        await page.route("**/api/v1/inventory/warehouses", (r) => json(r, 200, []));
       },
       async down() {
         await page.route(isApi, (r) => r.abort("connectionrefused"));

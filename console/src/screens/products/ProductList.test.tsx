@@ -4,7 +4,7 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
-import type { Grant, ListProductsData, Me, ProductListItem, ProductPage, Tag } from "../../api";
+import type { Grant, ListProductsData, Me, ProductListItem, ProductPage, Tag, Warehouse } from "../../api";
 import { ProductList, TEXT_EMPTY_SHOP } from "./ProductList";
 import { CATS, NAME_80, renderAt, VAY } from "./productsTestkit";
 
@@ -14,9 +14,12 @@ vi.mock("../../api", async (orig) => ({
   listCategories: vi.fn(),
   listTags: vi.fn(),
   getMe: vi.fn(),
+  listWarehouses: vi.fn(),
 }));
 
 const KHO = "0195f3b2-0000-7000-8000-00000000a001";
+const KHO_PHU = "0195f3b2-0000-7000-8000-00000000a002";
+const KHO_CU = "0195f3b2-0000-7000-8000-00000000a003";
 const HANG_MOI = "0195f3b2-0000-7000-8000-00000000d001";
 
 const TAGS: Tag[] = [{ id: HANG_MOI, code: "moi", name: "Hàng mới" }];
@@ -43,6 +46,14 @@ const ok = <T,>(data: T) =>
 type Query = NonNullable<ListProductsData["query"]>;
 let pages: (q: Query) => ProductPage;
 let calls: Query[];
+/** Kho listWarehouses trả (máy chủ đã lọc theo inventory.read). */
+let warehouses: Warehouse[];
+let warehouseCalls: number;
+/** Như Chủ, Quản lý: catalog.read và inventory.read toàn shop. */
+const READ_ALL_STOCK: Grant[] = ["catalog.read", "inventory.read"].map((permission) => ({
+  permission,
+  scope: { type: "all", id: "" },
+}));
 
 function mockApi(grants: Grant[] = [{ permission: "catalog.read", scope: { type: "all", id: "" } }]) {
   calls = [];
@@ -53,6 +64,11 @@ function mockApi(grants: Grant[] = [{ permission: "catalog.read", scope: { type:
   });
   vi.mocked(api.listCategories).mockImplementation(() => ok(CATS));
   vi.mocked(api.listTags).mockImplementation(() => ok(TAGS));
+  warehouseCalls = 0;
+  vi.mocked(api.listWarehouses).mockImplementation(() => {
+    warehouseCalls++;
+    return ok(warehouses);
+  });
   const me: Me = { userId: "u1", email: "lan@elimaz.vn", grants };
   vi.mocked(api.getMe).mockImplementation(() => ok(me));
   return me;
@@ -64,6 +80,7 @@ function renderList(me: Me, path = "/san-pham") {
 
 beforeEach(() => {
   pages = () => ({ items: [] });
+  warehouses = [{ id: KHO, code: "MAIN", name: "Kho chính", status: "active" }];
 });
 afterEach(() => {
   cleanup();
@@ -145,16 +162,52 @@ describe("ProductList", () => {
     expect(screen.getByText("Ngừng bán", { selector: ".chip" }).closest("tr")?.className).toContain("is-muted");
   });
 
-  it("không có kho nào trong grant → không có ô chọn kho, không có cột Có thể bán", async () => {
+  it("không có inventory.read → không gọi listWarehouses (máy chủ trả 403), không ô chọn kho, không cột", async () => {
     pages = () => ({ items: [product(1)] });
     renderList(mockApi());
     await screen.findByText("DAM0001");
     expect(screen.queryByRole("columnheader", { name: "Có thể bán" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Kho tính có thể bán" })).toBeNull();
     expect(calls.at(0)?.warehouseId).toBeUndefined();
+    expect(warehouseCalls).toBe(0);
   });
 
-  it("có kho trong grant → gửi warehouseId; âm hiện đỏ kèm câu thiếu, 0 hiện Hết hàng", async () => {
+  // E-07 (review độc lập M1): Chủ, Quản lý, vai trò gán toàn shop có inventory.read toàn shop; máy chủ cho họ đọc mọi
+  // kho (listWarehouses), nên màn phải có ô chọn kho và cột Có thể bán.
+  it("inventory.read toàn shop → ô chọn các kho đang dùng API trả (tên kho), gửi warehouseId kho đầu một lần", async () => {
+    warehouses = [
+      { id: KHO, code: "MAIN", name: "Kho chính", status: "active" },
+      { id: KHO_CU, code: "OLD", name: "Kho cũ", status: "closed" },
+      { id: KHO_PHU, code: "SUB", name: "Kho phụ", status: "active" },
+    ];
+    pages = () => ({ items: [product(1, { available: 46 })] });
+    renderList(mockApi(READ_ALL_STOCK));
+    expect(await screen.findByRole("columnheader", { name: "Có thể bán" })).toBeTruthy();
+    const box = screen.getByRole("combobox", { name: "Kho tính có thể bán" });
+    expect(
+      within(box)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["Kho chính", "Kho phụ"]);
+    // Chờ danh sách kho rồi mới gọi listProducts: không có lần gọi thừa không kèm kho.
+    expect(calls).toEqual([{ limit: 50, warehouseId: KHO }]);
+    fireEvent.change(box, { target: { value: KHO_PHU } });
+    await waitFor(() => {
+      expect(calls.at(-1)).toEqual({ limit: 50, warehouseId: KHO_PHU });
+    });
+  });
+
+  it("có inventory.read nhưng API trả 0 kho → không ô chọn kho, không cột", async () => {
+    warehouses = [];
+    pages = () => ({ items: [product(1)] });
+    renderList(mockApi(READ_ALL_STOCK));
+    await screen.findByText("DAM0001");
+    expect(screen.queryByRole("combobox", { name: "Kho tính có thể bán" })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "Có thể bán" })).toBeNull();
+    expect(calls.at(0)?.warehouseId).toBeUndefined();
+  });
+
+  it("inventory.read theo kho → gửi warehouseId; âm hiện đỏ kèm câu thiếu, 0 hiện Hết hàng", async () => {
     pages = () => ({
       items: [product(1, { available: -2 }), product(2, { available: 0 }), product(3, { available: 46 })],
     });
@@ -168,7 +221,7 @@ describe("ProductList", () => {
     expect(screen.getByText("−2").className).toContain("err-text");
     expect(screen.getByText("Hết hàng")).toBeTruthy();
     expect(screen.getByRole("columnheader", { name: "Có thể bán" })).toBeTruthy();
-    expect(screen.getByRole("combobox", { name: "Kho tính có thể bán" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "Kho chính" })).toBeTruthy();
     expect(calls[0]).toEqual({ limit: 50, warehouseId: KHO });
   });
 

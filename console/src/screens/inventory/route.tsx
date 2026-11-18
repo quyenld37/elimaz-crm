@@ -6,6 +6,9 @@ import { DocumentList } from "./DocumentList";
 import { StocktakeSession, StocktakeStart } from "./Stocktake";
 import { Suppliers } from "./Suppliers";
 
+// Kiểm kho còn gọi listWarehouses, getStocktake, listBalances (inventory.read) và searchVariants (catalog.read).
+const STOCKTAKE_ALSO = ["inventory.read", "catalog.read"];
+
 export const screens: readonly ScreenRoute[] = [
   // Task 51: Tồn kho (mockup docs/mockups/m1/kho-ton.html).
   {
@@ -43,6 +46,7 @@ export const screens: readonly ScreenRoute[] = [
     label: "Kiểm kho",
     group: "Kho",
     permission: "inventory.stocktake",
+    alsoRequires: STOCKTAKE_ALSO,
     order: 30,
     also: ["/kho/kiem-kho/:id"],
     element: <StocktakeStart />,
@@ -52,6 +56,7 @@ export const screens: readonly ScreenRoute[] = [
     label: "Kiểm kho",
     group: "Kho",
     permission: "inventory.stocktake",
+    alsoRequires: STOCKTAKE_ALSO,
     order: 31,
     hidden: true,
     element: <StocktakeSession />,

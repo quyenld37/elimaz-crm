@@ -1,6 +1,6 @@
 // Luật hiển thị của màn Danh sách sản phẩm (kế hoạch M1 Task 50; mockup docs/mockups/m1/san-pham-danh-sach.html).
 import { describe, expect, it } from "vitest";
-import type { Category, Grant, ProductListItem } from "../../api";
+import type { Category, ProductListItem } from "../../api";
 import {
   availableView,
   categoryOptions,
@@ -100,18 +100,18 @@ describe("categoryOptions", () => {
 });
 
 describe("warehouseOptions", () => {
-  it("chỉ kho có inventory.read theo phạm vi kho, không trùng, xếp theo mã", () => {
-    const grants: Grant[] = [
-      { permission: "inventory.read", scope: { type: "warehouse", id: UUID_B } },
-      { permission: "inventory.read", scope: { type: "warehouse", id: UUID_A } },
-      { permission: "inventory.read", scope: { type: "warehouse", id: UUID_A } },
-      { permission: "inventory.stocktake", scope: { type: "warehouse", id: "khac" } },
-      { permission: "inventory.read", scope: { type: "all", id: "" } },
-    ];
-    expect(warehouseOptions(grants)).toEqual([
-      { id: UUID_A, label: `Kho ${UUID_A}` },
-      { id: UUID_B, label: `Kho ${UUID_B}` },
+  it("kho đang dùng mà listWarehouses trả, theo thứ tự API, nhãn là tên kho (E-07)", () => {
+    expect(
+      warehouseOptions([
+        { id: UUID_B, code: "SUB", name: "Kho phụ", status: "active" },
+        { id: "c", code: "OLD", name: "Kho cũ", status: "closed" },
+        { id: UUID_A, code: "MAIN", name: "Kho chính", status: "active" },
+      ]),
+    ).toEqual([
+      { id: UUID_B, label: "Kho phụ" },
+      { id: UUID_A, label: "Kho chính" },
     ]);
+    expect(warehouseOptions([])).toEqual([]);
   });
 });
 

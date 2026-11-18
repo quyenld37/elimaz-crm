@@ -1,6 +1,6 @@
 // Luật hiển thị của màn Nhân viên và quyền (kế hoạch M1 Task 54). Luật thật ở API (identity.ReplaceGrants, Task 26;
 // quyền quản trị chỉ hiệu lực toàn shop, Task 315); các hàm ở đây chỉ dựng nhãn và làm mờ lựa chọn chắc chắn bị từ chối.
-import type { Grant, Role, ScopeWarning, StaffGrant, StaffMember } from "../../api";
+import type { Grant, PermissionInfo, Role, ScopeWarning, StaffGrant, StaffMember } from "../../api";
 
 export type ScopeType = StaffGrant["scopeType"];
 export interface ScopeRef {
@@ -62,20 +62,40 @@ export function scopeOptions(staff: readonly StaffMember[], extra: readonly Scop
   return [ALL_SCOPE, ...rest];
 }
 
-/**
- * Người sửa gán được vai trò ở phạm vi này: mọi quyền của vai trò có trong grant (đang hiệu lực) của người sửa ở toàn
- * shop hoặc đúng phạm vi đó. Như identity.Can nhưng chặt hơn một chút (không biết loại quyền), nên chỉ dùng để làm mờ.
- */
-export function canGrant(role: Role, scope: ScopeRef, actor: readonly Grant[]): boolean {
-  return role.permissions.every((p) =>
-    actor.some(
-      (g) => g.permission === p && (g.scope.type === "all" || (g.scope.type === scope.type && g.scope.id === scope.id)),
-    ),
-  );
+/** Loại phạm vi của từng quyền (listPermissions); quyền không có trong bảng là chưa biết loại. */
+export type PermissionKinds = ReadonlyMap<string, PermissionInfo["scopeType"]>;
+
+/** Bảng loại phạm vi từ listPermissions; chưa đọc được (người sửa không có identity.roles.manage) → bảng rỗng. */
+export function permissionKinds(list: readonly PermissionInfo[] | undefined): PermissionKinds {
+  return new Map((list ?? []).map((p) => [p.key, p.scopeType]));
 }
 
-export function canGrantSomewhere(role: Role, scopes: readonly ScopeRef[], actor: readonly Grant[]): boolean {
-  return scopes.some((s) => canGrant(role, s, actor));
+/**
+ * Người sửa gán được vai trò ở phạm vi này: mỗi quyền p của vai trò thỏa identity.Can(người sửa, p, phạm vi) trên grant
+ * đang hiệu lực (Me.grants): grant toàn shop luôn thỏa; quyền "shop" chỉ grant toàn shop; quyền "none" grant ở phạm vi
+ * bất kỳ; quyền theo đích (và quyền chưa biết loại) grant đúng phạm vi đó. Chưa biết loại thì chặt hơn máy chủ, chỉ
+ * làm mờ thừa, không mở thừa.
+ */
+export function canGrant(role: Role, scope: ScopeRef, actor: readonly Grant[], kinds: PermissionKinds): boolean {
+  return role.permissions.every((p) => {
+    const kind = kinds.get(p);
+    return actor.some(
+      (g) =>
+        g.permission === p &&
+        (g.scope.type === "all" ||
+          kind === "none" ||
+          (kind !== "shop" && g.scope.type === scope.type && g.scope.id === scope.id)),
+    );
+  });
+}
+
+export function canGrantSomewhere(
+  role: Role,
+  scopes: readonly ScopeRef[],
+  actor: readonly Grant[],
+  kinds: PermissionKinds,
+): boolean {
+  return scopes.some((s) => canGrant(role, s, actor, kinds));
 }
 
 const ROLE_HINTS: Readonly<Record<string, string>> = {

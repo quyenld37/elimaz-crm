@@ -6,8 +6,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { getMe, listBalances, listWarehouses, type Balance, type Warehouse } from "../../api";
 import { errorMessage, unwrap } from "../../app/errors";
-import { hasPermission } from "../../app/nav";
 import { TOPICS, queryKey } from "../../app/queryClient";
+import { canAt } from "./stocktakeRules";
 import { WarehouseSelect } from "./WarehouseSelect";
 import "./inventory.css";
 
@@ -46,14 +46,19 @@ export function useDebounced<T>(value: T, ms: number): T {
 
 /** Phiếu mới (Task 328); "?kind=import" chọn sẵn phiếu nhập. */
 const NEW_DOC_PATH = "/kho/phieu/moi";
+const PERM_CREATE_DOC = "inventory.documents.create";
 
 export function Balances() {
   const me = useQuery({ queryKey: queryKey("identity.me"), queryFn: () => unwrap(getMe()) });
-  const canCreateDoc = hasPermission(me.data?.grants ?? [], "inventory.documents.create");
+  const grants = me.data?.grants ?? [];
   const warehouses = useQuery({
     queryKey: queryKey("inventory.warehouses"),
     queryFn: () => unwrap(listWarehouses()),
   });
+  // Máy chủ kiểm quyền soạn theo kho: nút đầu trang khi soạn được ở ít nhất một kho đang dùng.
+  const canCreateDoc = (warehouses.data ?? []).some(
+    (w) => w.status === "active" && canAt(grants, PERM_CREATE_DOC, w.id),
+  );
   const [picked, setPicked] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [onlyShort, setOnlyShort] = useState(false);
@@ -158,7 +163,7 @@ export function Balances() {
               warehouse={name}
               onlyShort={onlyShort}
               searching={term !== ""}
-              canCreateDoc={canCreateDoc}
+              canCreateDoc={canAt(grants, PERM_CREATE_DOC, wh.id)}
               onClearShort={() => {
                 setOnlyShort(false);
               }}

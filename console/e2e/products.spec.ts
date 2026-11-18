@@ -3,7 +3,16 @@
 // ký tự không tràn, lọc và tìm không thấy, cột "Có thể bán" theo kho. Ảnh chụp trạng thái A, D lưu vào thư mục kết quả
 // của test để so với docs/mockups/m1/png/san-pham-danh-sach-{1512,390}.png.
 import type { Route } from "@playwright/test";
-import type { Category, Grant, Product, ProductClassification, ProductListItem, ProductPage, Tag } from "../src/api";
+import type {
+  Category,
+  Grant,
+  Product,
+  ProductClassification,
+  ProductListItem,
+  ProductPage,
+  Tag,
+  Warehouse,
+} from "../src/api";
 import { expect, forEachViewport, test, type FakeApi } from "./fixtures";
 
 const KHO = "0195f3b2-0000-7000-8000-00000000a001";
@@ -11,6 +20,8 @@ const VAY = "0195f3b2-0000-7000-8000-00000000c001";
 const VAY_DAI = "0195f3b2-0000-7000-8000-00000000c002";
 const HANG_MOI = "0195f3b2-0000-7000-8000-00000000d001";
 const NAME_80 = "Đầm suông công sở cổ vuông tay lỡ phối nút ngọc trai dáng dài qua gối màu be sữa";
+
+const KHO_CHINH: Warehouse = { id: KHO, code: "MAIN", name: "Kho chính", status: "active" };
 
 const GRANTS_WITH_WAREHOUSE: Grant[] = [
   ...["realtime.subscribe", "catalog.read"].map((permission) => ({
@@ -99,8 +110,16 @@ const MOCKUP_A: ProductListItem[] = [
   }),
 ];
 
-/** API sản phẩm có trạng thái: trang 50 mẫu theo con trỏ là vị trí; ghi lại mọi truy vấn đã nhận. */
-async function serveProducts(api: FakeApi, all: readonly ProductListItem[], filter?: (q: URLSearchParams) => boolean) {
+/**
+ * API sản phẩm có trạng thái: trang 50 mẫu theo con trỏ là vị trí; ghi lại mọi truy vấn đã nhận. `warehouses` là kho
+ * listWarehouses trả (máy chủ đã lọc theo inventory.read; mặc định không kho nào).
+ */
+async function serveProducts(
+  api: FakeApi,
+  all: readonly ProductListItem[],
+  filter?: (q: URLSearchParams) => boolean,
+  warehouses: readonly Warehouse[] = [],
+) {
   const seen: URLSearchParams[] = [];
   const handler = async (route: Route) => {
     const sp = new URL(route.request().url()).searchParams;
@@ -122,6 +141,9 @@ async function serveProducts(api: FakeApi, all: readonly ProductListItem[], filt
     r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(TAGS) }),
   );
   await api.on("**/e2e-anh/*", (r) => r.fulfill({ status: 200, contentType: "image/svg+xml", body: COVER_SVG }));
+  await api.on("**/api/v1/inventory/warehouses", (r) =>
+    r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(warehouses) }),
+  );
   return seen;
 }
 
@@ -225,6 +247,8 @@ forEachViewport((vp) => {
       [...MOCKUP_A, ...Array.from({ length: 44 }, (_, i) => product(i + 7))].concat(
         Array.from({ length: 150 }, (_, i) => product(i + 51)),
       ),
+      undefined,
+      [KHO_CHINH],
     );
     await page.goto("/san-pham?status=active");
     const name = page.getByText(NAME_80);
@@ -265,7 +289,7 @@ forEachViewport((vp) => {
   });
 });
 
-test("không có kho trong grant → không có ô chọn kho, không gửi warehouseId", async ({ page, api }) => {
+test("API trả 0 kho → không có ô chọn kho, không gửi warehouseId", async ({ page, api }) => {
   await api.live();
   const seen = await serveProducts(api, [product(1)]);
   await page.goto("/san-pham");
@@ -273,4 +297,19 @@ test("không có kho trong grant → không có ô chọn kho, không gửi ware
   await expect(page.getByRole("columnheader", { name: "Có thể bán" })).toHaveCount(0);
   await expect(page.getByRole("combobox", { name: "Kho tính có thể bán" })).toHaveCount(0);
   expect(seen.every((s) => s.get("warehouseId") === null)).toBe(true);
+});
+
+// E-07 (review độc lập M1): Chủ có inventory.read toàn shop; máy chủ trả mọi kho qua listWarehouses, nên danh sách
+// có ô chọn kho (tên kho) và cột Có thể bán, gửi warehouseId của kho đầu.
+test("inventory.read toàn shop (Chủ) → ô chọn kho có tên kho, cột Có thể bán, gửi warehouseId", async ({
+  page,
+  api,
+}) => {
+  await api.live();
+  const seen = await serveProducts(api, [product(1, { available: 46 })], undefined, [KHO_CHINH]);
+  await page.goto("/san-pham");
+  await expect(page.getByRole("columnheader", { name: "Có thể bán" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Kho tính có thể bán" })).toHaveText("Kho chính");
+  await expect(page.getByText("46", { exact: true })).toBeVisible();
+  expect(seen.every((s) => s.get("warehouseId") === KHO)).toBe(true);
 });

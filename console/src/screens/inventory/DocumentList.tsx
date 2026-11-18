@@ -13,9 +13,9 @@ import {
   type StockDocumentStatus,
 } from "../../api";
 import { errorMessage, unwrap } from "../../app/errors";
-import { hasPermission } from "../../app/nav";
 import { TOPICS, queryKey } from "../../app/queryClient";
 import { KINDS, KIND_LABEL, STATUSES, STATUS_CHIP, STATUS_LABEL, formatTime } from "./documentRules";
+import { canAt } from "./stocktakeRules";
 import { WarehouseSelect } from "./WarehouseSelect";
 import "./inventory.css";
 
@@ -28,11 +28,14 @@ const isStatus = (v: string): v is StockDocumentStatus => STATUSES.some((s) => s
 
 export function DocumentList() {
   const me = useQuery({ queryKey: queryKey("identity.me"), queryFn: () => unwrap(getMe()) });
-  const canCreate = hasPermission(me.data?.grants ?? [], "inventory.documents.create");
   const warehouses = useQuery({
     queryKey: queryKey("inventory.warehouses"),
     queryFn: () => unwrap(listWarehouses()),
   });
+  // Máy chủ kiểm quyền soạn theo kho của phiếu: nút chỉ hiện khi soạn được ở ít nhất một kho đang dùng.
+  const canCreate = (warehouses.data ?? []).some(
+    (w) => w.status === "active" && canAt(me.data?.grants ?? [], "inventory.documents.create", w.id),
+  );
   const [warehouseId, setWarehouseId] = useState("");
   const [status, setStatus] = useState<StockDocumentStatus | "">("");
   const [kind, setKind] = useState<StockDocumentKind | "">("");

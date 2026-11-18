@@ -1,9 +1,11 @@
 // Dữ liệu và phần dùng chung giữa danh sách nhân viên và trang sửa quyền (kế hoạch M1 Task 54).
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useId, useRef, type ReactNode } from "react";
-import { getMe, listRoles, listStaff } from "../../api";
+import { useEffect, useId, useMemo, useRef, type ReactNode } from "react";
+import { getMe, listPermissions, listRoles, listStaff, type Grant } from "../../api";
 import { ApiError, errorMessage, unwrap } from "../../app/errors";
+import { hasPermission } from "../../app/nav";
 import { queryKey } from "../../app/queryClient";
+import { permissionKinds, type PermissionKinds } from "./staffRules";
 
 /** Khóa truy vấn danh sách nhân viên; ghi xong thì làm mới khóa này. */
 export const STAFF_KEY = queryKey("identity.staff");
@@ -14,6 +16,21 @@ export function useStaffData() {
   // Cùng khóa với khung (src/shell/App.tsx) nên không gọi lại /api/v1/me.
   const me = useQuery({ queryKey: queryKey("identity.me"), queryFn: () => unwrap(getMe()) });
   return { staff, roles, me };
+}
+
+/**
+ * Loại phạm vi của từng quyền để làm mờ vai trò đúng luật máy chủ (canGrant). listPermissions đòi
+ * identity.roles.manage (khác identity.users.manage của màn này): không có quyền đó, đang tải hay lỗi → bảng rỗng (luật
+ * chặt). Cùng khóa với màn Vai trò (roleData.ts).
+ */
+export function usePermissionKinds(grants: readonly Grant[]): PermissionKinds {
+  const permissions = useQuery({
+    queryKey: queryKey("identity.permissions"),
+    queryFn: () => unwrap(listPermissions()),
+    enabled: hasPermission(grants, "identity.roles.manage"),
+    staleTime: Infinity,
+  });
+  return useMemo(() => permissionKinds(permissions.data), [permissions.data]);
 }
 
 // Câu thứ hai của hộp báo khi máy chủ chặn (mockup trạng thái D); câu đầu là câu của mã lỗi.

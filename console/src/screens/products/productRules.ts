@@ -1,6 +1,6 @@
 // Luật hiển thị của màn Danh sách sản phẩm (kế hoạch M1 Task 50; mockup docs/mockups/m1/san-pham-danh-sach.html).
 // Tìm không dấu, lọc danh mục gồm con, tính "có thể bán" đều ở API (catalog.ListProducts); ở đây chỉ dựng chữ.
-import type { Category, FileVariant, Grant, ProductCover, ProductListItem, ProductStatus } from "../../api";
+import type { Category, FileVariant, ProductCover, ProductListItem, ProductStatus, Warehouse } from "../../api";
 
 const NUM = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 });
 
@@ -78,14 +78,11 @@ export function categoryOptions(cats: readonly Category[]): Option[] {
 }
 
 /**
- * Kho để tính "Có thể bán": kho người xem có inventory.read theo phạm vi kho. Chưa có API danh sách kho nên nhãn là
- * "Kho <mã>" và quyền toàn shop không liệt kê được kho (docs/tasks/task-50.md, quyết định 1); có API thì thay ở đây.
+ * Kho để tính "Có thể bán": kho đang dùng trong danh sách listWarehouses trả (máy chủ đã lọc theo inventory.read, kể
+ * cả quyền toàn shop), theo thứ tự API, nhãn là tên kho (E-07 review độc lập M1; thay cách tạm của Task 50).
  */
-export function warehouseOptions(grants: readonly Grant[]): Option[] {
-  const ids = new Set(
-    grants.filter((g) => g.permission === "inventory.read" && g.scope.type === "warehouse").map((g) => g.scope.id),
-  );
-  return [...ids].sort().map((id) => ({ id, label: `Kho ${id}` }));
+export function warehouseOptions(warehouses: readonly Warehouse[]): Option[] {
+  return warehouses.filter((w) => w.status === "active").map((w) => ({ id: w.id, label: w.name }));
 }
 
 export interface Filters {

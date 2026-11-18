@@ -56,9 +56,12 @@ export function rowText(row: number): string {
   return row === 0 ? "Cả tệp" : fmtInt(row);
 }
 
-/** Ô "Cột" của bảng lỗi: cột rỗng là lỗi của cả dòng. */
+/**
+ * Ô "Cột" của bảng lỗi: cột rỗng là lỗi của cả dòng. Máy chủ trả tiêu đề cột của tệp mẫu, cột bắt buộc có "*" ở cuối
+ * ("Tên mẫu*"); màn bỏ dấu đó như mockup nhap-excel.html.
+ */
 export function columnText(column: string): string {
-  return column === "" ? "Cả dòng" : column;
+  return column === "" ? "Cả dòng" : column.replace(/\*$/, "");
 }
 
 /** Tổng số biến thể của tệp hợp lệ. */

@@ -2,10 +2,11 @@
 // Soạn, ghi sổ, hủy phiếu kho (kế hoạch M1 Task 328; mockup docs/mockups/m1/kho-phieu.html trạng thái B–F).
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DocumentEdit } from "./DocumentEdit";
+import { DocumentEdit, TEXT_NO_ADJUST_WAREHOUSE, TEXT_NO_POST_RIGHT } from "./DocumentEdit";
 import { DocumentList } from "./DocumentList";
 import {
   doc,
+  grantAt,
   grantsOf,
   installFake,
   renderDocs,
@@ -14,6 +15,8 @@ import {
   V1,
   V2,
   W1,
+  W2,
+  TWO_WAREHOUSES,
   type Fake,
 } from "./documentsTestkit";
 
@@ -240,5 +243,82 @@ describe("DocumentEdit — phiếu nhập đã ghi sổ", () => {
     expect(await screen.findByText("Kho chính")).toBeTruthy();
     expect(screen.getAllByText("1.800.000 ₫").length).toBeGreaterThan(0);
     expect(screen.queryByRole("textbox")).toBeNull();
+  });
+});
+
+// E-01 (review độc lập M1): máy chủ kiểm quyền phiếu theo kho của phiếu (canAt trong handlers_inventory.go); phiếu
+// điều chỉnh đòi thêm inventory.documents.post khi tạo và thay dòng. Người xem đọc được cả hai kho (inventory.read toàn
+// shop) nhưng chỉ soạn, ghi sổ ở kho chính.
+describe("DocumentEdit — quyền theo kho (E-01)", () => {
+  const atW1 = (...perms: string[]) => [...grantsOf(), ...perms.map((p) => grantAt(p, W1))];
+  const warehouseChoices = async () => {
+    const field = (await screen.findByText("Kho", { selector: ".field > span" })).closest("label");
+    if (field === null) throw new Error("không có ô kho");
+    return within(field)
+      .getAllByRole("option")
+      .map((o) => o.textContent);
+  };
+
+  beforeEach(() => {
+    fake.warehouses = TWO_WAREHOUSES;
+  });
+
+  it("phiếu mới chỉ cho chọn kho có quyền soạn ở kho đó", async () => {
+    renderDocs(atW1("inventory.documents.create"), "/kho/phieu/moi?kind=export", ui);
+    await waitFor(async () => {
+      expect(await warehouseChoices()).toEqual(["Kho chính"]);
+    });
+  });
+
+  it("quyền soạn toàn shop: chọn được mọi kho đang dùng", async () => {
+    renderDocs(grantsOf("inventory.documents.create"), "/kho/phieu/moi?kind=export", ui);
+    await waitFor(async () => {
+      expect(await warehouseChoices()).toEqual(["Kho chính", "Kho phụ"]);
+    });
+  });
+
+  it("phiếu điều chỉnh mới cần cả quyền ghi sổ ở kho: thiếu thì không có kho và không lưu được", async () => {
+    renderDocs(
+      [...atW1("inventory.documents.create", "inventory.documents.post"), grantAt("inventory.documents.create", W2)],
+      "/kho/phieu/moi?kind=adjust",
+      ui,
+    );
+    await waitFor(async () => {
+      expect(await warehouseChoices()).toEqual(["Kho chính"]);
+    });
+    cleanup();
+    renderDocs(atW1("inventory.documents.create"), "/kho/phieu/moi?kind=adjust", ui);
+    expect(await screen.findByText(TEXT_NO_ADJUST_WAREHOUSE)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Lưu nháp" }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("phiếu nháp ở kho phụ: quyền soạn, ghi sổ chỉ ở kho chính → chỉ xem, không nút", async () => {
+    fake.docs.set(DOC_EXPORT, { ...doc(DOC_EXPORT, { warehouseId: W2 }), lines: [{ variantId: V1, quantity: 1 }] });
+    renderDocs(atW1("inventory.documents.create", "inventory.documents.post"), `/kho/phieu/${DOC_EXPORT}`, ui);
+    await screen.findByText("QU0789-DEN-M");
+    expect(screen.queryByRole("button", { name: "Lưu nháp" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Ghi sổ…" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Hủy phiếu" })).toBeNull();
+  });
+
+  it("phiếu nháp ở kho chính: soạn toàn shop, ghi sổ chỉ ở kho phụ → Ghi sổ mờ kèm lý do", async () => {
+    renderDocs(
+      [...grantsOf("inventory.documents.create"), grantAt("inventory.documents.post", W2)],
+      `/kho/phieu/${DOC_EXPORT}`,
+      ui,
+    );
+    const btn = await screen.findByRole("button", { name: "Ghi sổ…" });
+    expect(btn.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText(TEXT_NO_POST_RIGHT)).toBeTruthy();
+  });
+
+  it("phiếu điều chỉnh nháp: có soạn mà không có ghi sổ ở kho → chỉ xem (máy chủ từ chối thay dòng)", async () => {
+    fake.docs.set(
+      DOC_EXPORT,
+      doc(DOC_EXPORT, { kind: "adjust", code: "DC-000004", lines: [{ variantId: V1, quantity: -1 }] }),
+    );
+    renderDocs(grantsOf("inventory.documents.create"), `/kho/phieu/${DOC_EXPORT}`, ui);
+    await screen.findByText("QU0789-DEN-M");
+    expect(screen.queryByRole("button", { name: "Lưu nháp" })).toBeNull();
   });
 });
