@@ -268,3 +268,44 @@ func TestRuleDeadDuringSendNotLost(t *testing.T) {
 	}
 	wantKey(t, keys, "dead:msg.z", true)
 }
+
+// Luật lỗi của Task 20 đi qua CheckRules: dấu vân tay mới → new-error:<8 ký tự>, hơn 50 lỗi trong 5 phút →
+// error-spike, cả hai mức normal; văn bản không có nội dung lỗi.
+func TestRuleErrorsWired(t *testing.T) {
+	e := newEnv(t)
+	fresh(t, e)
+	fp := strings.Repeat("ab", 32)
+	e.exec(t, `INSERT INTO platform.error_events (fingerprint, role, name, message, top_frames)
+		VALUES ($1, 'api', 'n', 'gọi 0911 lỗi', 'f')`, fp)
+	e.exec(t, `INSERT INTO platform.metrics_minute (bucket, process, name, label, count, sum, max)
+		VALUES ($1, 'api@a', 'errors', 'api', 51, 51, 0)`, time.Now().UTC().Truncate(time.Minute))
+	keys, f := check(t, e, observability.RuleOptions{})
+	for _, k := range []string{"new-error:" + fp[:8], "error-spike"} {
+		wantKey(t, keys, k, true)
+		s, _ := f.find(k)
+		if s.severity != observability.SeverityNormal || strings.Contains(s.text, "0911") {
+			t.Fatalf("%s: mức %q, văn bản %q", k, s.severity, s.text)
+		}
+	}
+}
+
+// new-error không mất khi lần gửi trước hỏng hay lịch chạy trễ: dấu vân tay gặp lần đầu 5 phút trước, chưa từng báo →
+// vẫn báo; đã có alert_events của key → thôi; gặp lần đầu quá 1 giờ → không báo nữa.
+func TestRuleNewErrorNotLost(t *testing.T) {
+	e := newEnv(t)
+	fresh(t, e)
+	fp := strings.Repeat("cd", 32)
+	e.exec(t, `INSERT INTO platform.error_events (fingerprint, role, name, message, top_frames, first_seen_at)
+		VALUES ($1, 'api', 'n', 'm', 'f', now() - interval '5 minutes')`, fp)
+	keys, _ := check(t, e, observability.RuleOptions{})
+	wantKey(t, keys, "new-error:"+fp[:8], true)
+	e.alertSent(t, "new-error:"+fp[:8], 4*time.Minute)
+	keys, _ = check(t, e, observability.RuleOptions{})
+	wantKey(t, keys, "new-error:"+fp[:8], false)
+
+	old := strings.Repeat("ef", 32)
+	e.exec(t, `INSERT INTO platform.error_events (fingerprint, role, name, message, top_frames, first_seen_at)
+		VALUES ($1, 'api', 'n', 'm', 'f', now() - interval '61 minutes')`, old)
+	keys, _ = check(t, e, observability.RuleOptions{})
+	wantKey(t, keys, "new-error:"+old[:8], false)
+}

@@ -128,7 +128,7 @@ Mục 6:
 
 ## Test bị xóa hoặc tắt
 
-(không có)
+(không có) — lượt 2: `TestErrorRulesNewError` (Task 20) không xóa, đổi kỳ vọng theo luật mới (Quyết định lượt 2 mục 4).
 
 ## Khác kế hoạch
 
@@ -220,6 +220,9 @@ Mục 6:
   - `Summary` (tóm tắt sức khỏe, `GET /api/v1/platform/health`) đọc `backup_runs` (`lastBaseAgeH` của `base` thành công
     gần nhất; `lastDrillAgeH`, `lastDrillOk` của `restore_drill` gần nhất) và `alert_events` 24 giờ (trừ `digest:`,
     mới nhất trước, tối đa 200 dòng). Hợp đồng không đổi (các trường đã có, `backup` tùy chọn); oasdiff không đổi.
+  - Câu `ListNewErrorFingerprints` (`queries/platform/errors.sql`, Task 20) đổi: thêm điều kiện chưa có `alert_events`
+    của key và tham số `prefix_len`; chỗ gọi duy nhất `ErrorRules`. Hằng `newErrorWindow` (60 s) → `newErrorLookback`
+    (1 giờ).
   - Câu sqlc mới trong `queries/platform/ops.sql`: `LastBackupRun`, `ListAlertsSince`; `make gen` (mã sinh
     `internal/platform/internal/store`). Không đổi bảng, không migration mới.
 - Gói phụ thuộc ngược: `observability` ← `cmd/crm`, `cmd/imager`, `internal/httpapi`, `queue` (mới từ Task 20) và qua
@@ -266,7 +269,14 @@ Mục 6:
    giờ gửi và tóm tắt sức khỏe luôn rỗng phần sao lưu, cảnh báo. Dễ đảo ngược (một commit).
 3. **Cảnh báo trong tóm tắt: 24 giờ, trừ `digest:`, mới nhất trước, tối đa 200 dòng** (hợp đồng không có
    `maxItems`). Vì sao: tin tổng kết không phải cảnh báo; giới hạn để câu trả lời không phình khi bão cảnh báo.
-4. **Không nới mốc jscpd** dù `make jscpd` đỏ (2 đoạn có sẵn trên main, 2 của Task 19 giữ kèm lý do).
+4. **Luật `new-error` báo theo "chưa từng báo", nhìn lùi 1 giờ** thay cho chữ "first_seen_at trong 60 s qua" của kế
+   hoạch (Task 20, Interfaces) (reviewer lượt 2). Vì sao: lịch `platform.alerts` cũng 60 s; Telegram lỗi, 429 hay
+   lịch chạy trễ làm loại lỗi mới mất cảnh báo hẳn (cùng loại lỗi đã sửa cho `dead:` ở lượt 1). Cách mới:
+   `ListNewErrorFingerprints` bỏ dấu vân tay đã có `alert_events` key `new-error:<8>`; test cũ của Task 20
+   `TestErrorRulesNewError` đổi kỳ vọng "2 phút sau không còn mới" thành "chưa báo thì còn mới; đã báo thì thôi;
+   quá 1 giờ thì thôi". Phương án khác: giữ 60 s (đúng chữ, mất cảnh báo); cửa sổ 10 phút dựa vào chống lặp (vẫn
+   mất khi Telegram lỗi quá 10 phút).
+5. **Không nới mốc jscpd** dù `make jscpd` đỏ (2 đoạn có sẵn trên main, 2 của Task 19 giữ kèm lý do).
 
 ### Bằng chứng (lượt 2)
 
@@ -281,6 +291,11 @@ Mục 6:
 | vuln, oasdiff, catalog-check | — | `make vuln oasdiff catalog-check` | qua |
 | jscpd | — | `make jscpd` | đỏ: 4 đoạn trùng (xem Tái dùng lượt 2; 2 có sẵn trên main) |
 | Lần gộp thứ hai (main 8f437db: Task 54, 34, 43): một xung đột ở `cmd/crm/main.go` (main dời dựng `hub` lên trước `newCommands`; giữ chỗ của main, thêm `alertSchedules`), mã sinh và danh mục khớp | tests/arch, tests/e2e, httpapi, config | `make gen` (không chênh), `make catalog`, `golangci-lint run ./...`, `go test -race -count=1 ./tests/... ./cmd/... ./internal/platform/config/... ./internal/httpapi/...` | 0 issues; mọi gói ok |
+| Nối Task 20: CheckRules gửi new-error:<8 ký tự> và error-spike (normal), văn bản không có nội dung lỗi | TestRuleErrorsWired | `go test -race -count=1 ./internal/platform/observability/...` | đỏ trước khi nối (không key nào), sau: ok |
+| Tóm tắt: base thành công gần nhất (bỏ lần hỏng sau đó), diễn tập gần nhất kèm ok=false, cảnh báo 24 giờ mới nhất trước, không có digest và dòng 25 giờ; database mới: backup rỗng, alerts mảng rỗng | TestSummaryBackupAndAlerts | `go test -race -count=1 ./internal/platform/observability/...` | đỏ trước khi nối (backup nil), sau: ok |
+| Lệnh lịch nhận 429 đã bọc bằng %w (ghi chú reviewer) | TestScheduledExecute | `go test -race -count=1 ./internal/platform/observability/alertjobs/` | ok |
+| Gói chạm và phụ thuộc sau khi nối | observability, httpapi (TestPlatformHealth), tests/arch | `go test -race -count=1 ./internal/platform/observability/... ./internal/httpapi/... ./tests/arch/...`; `golangci-lint run ./...`; `make gen`, `make catalog` | ok; 0 issues; không chênh. `tests/arch` lần đầu đỏ vì golangci-lint của phiên khác trên máy giữ khóa, chạy lại riêng: ok |
+| new-error không mất: gặp lần đầu 5 phút trước chưa báo → báo; đã có alert_events → thôi; quá 1 giờ → thôi (reviewer lượt 2) | TestRuleNewErrorNotLost, TestErrorRulesNewError (kỳ vọng đổi, xem Quyết định lượt 2 mục 4) | `go test -race -count=1 ./internal/platform/observability/...` | đỏ trước khi sửa (không key; "phải còn là lỗi mới sau 2 phút"), sau: ok |
 
 ## Reviewer
 
@@ -308,3 +323,11 @@ trong gói — làm ở commit nối sau.
 
 Kết luận: ĐẠT, không phát hiện phải sửa. `main.go`: `hub` dựng một lần (chỗ của main), `alertSchedules` sau lịch tra
 lại lệnh, `resolver` chỉ nhận `cmds`; `config.go` auto-merge sạch (ba biến của Task 19 cạnh biến M1 của main).
+
+### Reviewer — lượt 2, commit nối Task 20 với Task 19
+
+- Lần 1: CẦN SỬA — `new-error` chỉ xét `first_seen_at` trong 60 s, bằng chu kỳ lịch: Telegram lỗi/429 hay lịch trễ
+  làm mất cảnh báo hẳn. Đã sửa: "chưa từng báo" (NOT EXISTS `alert_events` của key), nhìn lùi 1 giờ; test
+  `TestRuleNewErrorNotLost` (Quyết định lượt 2 mục 4).
+- Lần 2: ĐẠT, không phát hiện phải sửa. Ghi chú: hai dấu vân tay trùng 8 ký tự đầu thì cái sau không được báo
+  (xác suất ~1/4 tỷ, cách cũ cũng gộp).

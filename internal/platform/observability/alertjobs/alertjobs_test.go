@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -46,6 +47,12 @@ func TestScheduledExecute(t *testing.T) {
 	}}
 	if out, _ = busy.Execute(ctx, queue.Job{}); out.Status != commands.StatusNotSent || out.RetryAfter != 7*time.Second {
 		t.Fatalf("429: %+v", out)
+	}
+	wrapped := scheduled{name: "x", run: func(context.Context, time.Time) (any, error) {
+		return nil, fmt.Errorf("chạy luật cảnh báo: %w", &observability.TelegramRetryError{After: 3 * time.Second})
+	}}
+	if out, _ = wrapped.Execute(ctx, queue.Job{}); out.Status != commands.StatusNotSent || out.RetryAfter != 3*time.Second {
+		t.Fatalf("429 đã bọc: %+v", out)
 	}
 	ok := scheduled{name: "x", run: func(context.Context, time.Time) (any, error) { return map[string]int{"n": 2}, nil }}
 	out, err = ok.Execute(ctx, queue.Job{})

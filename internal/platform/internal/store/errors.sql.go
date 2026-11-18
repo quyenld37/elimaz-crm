@@ -13,15 +13,25 @@ import (
 )
 
 const listNewErrorFingerprints = `-- name: ListNewErrorFingerprints :many
-SELECT fingerprint
-FROM platform.error_events
-WHERE first_seen_at >= $1
-ORDER BY first_seen_at, fingerprint
+SELECT e.fingerprint
+FROM platform.error_events e
+WHERE e.first_seen_at >= $1
+  AND NOT EXISTS (
+      SELECT 1 FROM platform.alert_events a
+      WHERE a.key = 'new-error:' || left(e.fingerprint, $2::int)
+  )
+ORDER BY e.first_seen_at, e.fingerprint
 `
 
-// Dấu vân tay lần đầu thấy từ since (luật new-error).
-func (q *Queries) ListNewErrorFingerprints(ctx context.Context, since time.Time) ([]string, error) {
-	rows, err := q.db.Query(ctx, listNewErrorFingerprints, since)
+type ListNewErrorFingerprintsParams struct {
+	Since     time.Time
+	PrefixLen int32
+}
+
+// Dấu vân tay lần đầu thấy từ since và chưa từng được báo (luật new-error): chưa có alert_events của key
+// 'new-error:' || <prefix_len ký tự đầu>. Lần gửi hỏng hay lịch chạy trễ thì lượt sau vẫn thấy (không mất cảnh báo).
+func (q *Queries) ListNewErrorFingerprints(ctx context.Context, arg ListNewErrorFingerprintsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listNewErrorFingerprints, arg.Since, arg.PrefixLen)
 	if err != nil {
 		return nil, err
 	}

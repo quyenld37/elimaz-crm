@@ -83,3 +83,15 @@ SELECT finished_at FROM platform.backup_runs WHERE kind = @kind AND ok ORDER BY 
 
 -- name: DBAndWALBytes :one
 SELECT pg_database_size(current_database())::bigint AS db_bytes, platform.wal_bytes()::bigint AS wal_bytes;
+
+-- Lần chạy gần nhất của kind, thành công hay hỏng (tóm tắt sức khỏe: lần diễn tập khôi phục gần nhất kèm ok).
+-- name: LastBackupRun :one
+SELECT finished_at, ok FROM platform.backup_runs WHERE kind = @kind ORDER BY finished_at DESC LIMIT 1;
+
+-- Cảnh báo đã gửi từ since, mới nhất trước, trừ tin tổng kết (tóm tắt sức khỏe). Không trả text.
+-- name: ListAlertsSince :many
+SELECT key, severity, sent_at
+FROM platform.alert_events
+WHERE sent_at >= sqlc.arg(since)::timestamptz AND key NOT LIKE 'digest:%'
+ORDER BY sent_at DESC, id DESC
+LIMIT sqlc.arg(max_rows);

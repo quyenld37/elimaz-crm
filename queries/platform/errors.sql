@@ -13,12 +13,17 @@ SET count             = e.count + 1,
     sample_job_id     = COALESCE(EXCLUDED.sample_job_id, e.sample_job_id)
 RETURNING (e.count = 1)::boolean AS is_new;
 
--- Dấu vân tay lần đầu thấy từ since (luật new-error).
+-- Dấu vân tay lần đầu thấy từ since và chưa từng được báo (luật new-error): chưa có alert_events của key
+-- 'new-error:' || <prefix_len ký tự đầu>. Lần gửi hỏng hay lịch chạy trễ thì lượt sau vẫn thấy (không mất cảnh báo).
 -- name: ListNewErrorFingerprints :many
-SELECT fingerprint
-FROM platform.error_events
-WHERE first_seen_at >= @since
-ORDER BY first_seen_at, fingerprint;
+SELECT e.fingerprint
+FROM platform.error_events e
+WHERE e.first_seen_at >= @since
+  AND NOT EXISTS (
+      SELECT 1 FROM platform.alert_events a
+      WHERE a.key = 'new-error:' || left(e.fingerprint, sqlc.arg(prefix_len)::int)
+  )
+ORDER BY e.first_seen_at, e.fingerprint;
 
 -- Tổng counter errors của mọi tiến trình trong các phút bắt đầu từ since trở đi (luật error-spike; metrics_minute ghi
 -- mỗi phút, bucket là đầu phút).

@@ -70,7 +70,7 @@ func CheckRules(ctx context.Context, d *db.DB, a Alerter, o RuleOptions) ([]stri
 	return keys, errors.Join(errs...)
 }
 
-// tableRules: luật đọc bảng của platform (jobs, metrics_minute, process_heartbeats, backup_runs). Luật đọc thống kê
+// tableRules: luật đọc bảng của platform (jobs, metrics_minute, process_heartbeats, backup_runs, error_events). Luật đọc thống kê
 // của PostgreSQL ở pgwatch.go.
 func tableRules(ctx context.Context, d *db.DB, o RuleOptions) ([]alert, error) {
 	q := store.New(d.Pool)
@@ -86,6 +86,7 @@ func tableRules(ctx context.Context, d *db.DB, o RuleOptions) ([]alert, error) {
 	add(metricRules(ctx, q, o))
 	add(heartbeatRules(ctx, q, o))
 	add(backupRule(ctx, q, o))
+	add(errorRules(ctx, d, o))
 	return out, errors.Join(errs...)
 }
 
@@ -258,6 +259,16 @@ func heartbeatRules(ctx context.Context, q *store.Queries, o RuleOptions) ([]ale
 		}
 	}
 	return out, nil
+}
+
+// errorRules: hai luật lỗi ứng dụng của Task 20 (new-error:<dấu vân tay rút gọn>, error-spike) qua ErrorRules.
+func errorRules(ctx context.Context, d *db.DB, o RuleOptions) ([]alert, error) {
+	hits, err := ErrorRules(ctx, d, o.Now)
+	out := make([]alert, 0, len(hits))
+	for _, h := range hits {
+		out = append(out, alert{h.Key, h.Severity, h.Text})
+	}
+	return out, err
 }
 
 func backupRule(ctx context.Context, q *store.Queries, o RuleOptions) ([]alert, error) {

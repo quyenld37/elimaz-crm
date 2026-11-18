@@ -165,6 +165,23 @@ func (q *Queries) LastBackupAt(ctx context.Context, kind string) (time.Time, err
 	return finished_at, err
 }
 
+const lastBackupRun = `-- name: LastBackupRun :one
+SELECT finished_at, ok FROM platform.backup_runs WHERE kind = $1 ORDER BY finished_at DESC LIMIT 1
+`
+
+type LastBackupRunRow struct {
+	FinishedAt time.Time
+	Ok         bool
+}
+
+// Lần chạy gần nhất của kind, thành công hay hỏng (tóm tắt sức khỏe: lần diễn tập khôi phục gần nhất kèm ok).
+func (q *Queries) LastBackupRun(ctx context.Context, kind string) (LastBackupRunRow, error) {
+	row := q.db.QueryRow(ctx, lastBackupRun, kind)
+	var i LastBackupRunRow
+	err := row.Scan(&i.FinishedAt, &i.Ok)
+	return i, err
+}
+
 const latestGaugeSum = `-- name: LatestGaugeSum :one
 SELECT coalesce(sum(m.sum), 0)::float8 AS total
 FROM (
@@ -181,6 +198,46 @@ func (q *Queries) LatestGaugeSum(ctx context.Context, name string) (float64, err
 	var total float64
 	err := row.Scan(&total)
 	return total, err
+}
+
+const listAlertsSince = `-- name: ListAlertsSince :many
+SELECT key, severity, sent_at
+FROM platform.alert_events
+WHERE sent_at >= $1::timestamptz AND key NOT LIKE 'digest:%'
+ORDER BY sent_at DESC, id DESC
+LIMIT $2
+`
+
+type ListAlertsSinceParams struct {
+	Since   time.Time
+	MaxRows int32
+}
+
+type ListAlertsSinceRow struct {
+	Key      string
+	Severity string
+	SentAt   time.Time
+}
+
+// Cảnh báo đã gửi từ since, mới nhất trước, trừ tin tổng kết (tóm tắt sức khỏe). Không trả text.
+func (q *Queries) ListAlertsSince(ctx context.Context, arg ListAlertsSinceParams) ([]ListAlertsSinceRow, error) {
+	rows, err := q.db.Query(ctx, listAlertsSince, arg.Since, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAlertsSinceRow{}
+	for rows.Next() {
+		var i ListAlertsSinceRow
+		if err := rows.Scan(&i.Key, &i.Severity, &i.SentAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const metricSeries = `-- name: MetricSeries :many
