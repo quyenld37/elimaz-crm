@@ -23,6 +23,7 @@ WHERE variant_id = $3::uuid AND warehouse_id = $4::uuid
   AND CASE $5::text
         WHEN 'none' THEN true
         WHEN 'available' THEN on_hand - damaged - held - in_transit >= $6::int
+        WHEN 'on_hand' THEN on_hand >= $6::int
         WHEN 'damaged' THEN damaged >= $6::int
         WHEN 'held' THEN held >= $6::int
         WHEN 'in_transit' THEN in_transit >= $6::int
@@ -48,7 +49,7 @@ type ApplyDeltaRow struct {
 
 // Câu đổi số dư duy nhất: cộng delta vào đúng một ngăn khi điều kiện cố định đúng trên bản mới nhất của dòng
 // (READ COMMITTED đánh giá lại WHERE sau khi chờ khóa). Không dòng nào → thiếu (hoặc chưa có dòng số dư).
-// cond: none | available (on_hand − damaged − held − in_transit ≥ q) | damaged | held | in_transit (ngăn ≥ q).
+// cond: none | available (on_hand − damaged − held − in_transit ≥ q) | on_hand | damaged | held | in_transit (ngăn ≥ q).
 func (q *Queries) ApplyDelta(ctx context.Context, arg ApplyDeltaParams) (ApplyDeltaRow, error) {
 	row := q.db.QueryRow(ctx, applyDelta,
 		arg.Bucket,

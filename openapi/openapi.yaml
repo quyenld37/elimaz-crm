@@ -641,6 +641,231 @@ paths:
                 $ref: "#/components/schemas/ProductClassification"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/inventory/suppliers:
+    get:
+      operationId: listSuppliers
+      summary: Nhà cung cấp theo tên (tối đa 200); q tìm theo tên bỏ dấu
+      x-permission: inventory.read
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+        - name: includeArchived
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Nhà cung cấp
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Supplier"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createSupplier
+      summary: Tạo nhà cung cấp (tên không trùng trong shop)
+      x-permission: inventory.suppliers.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSupplierRequest"
+      responses:
+        "201":
+          description: Nhà cung cấp vừa tạo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/suppliers/{id}:
+    patch:
+      operationId: updateSupplier
+      summary: Sửa hoặc lưu trữ nhà cung cấp khi version còn khớp
+      x-permission: inventory.suppliers.manage
+      parameters:
+        - $ref: "#/components/parameters/SupplierID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSupplierRequest"
+      responses:
+        "200":
+          description: Nhà cung cấp sau khi sửa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/documents:
+    get:
+      operationId: listStockDocuments
+      summary: Phiếu kho mới nhất trước, của các kho người gọi được xem (lọc kho, trạng thái, loại; trang theo con trỏ)
+      x-permission: inventory.read
+      parameters:
+        - name: warehouseId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/StockDocumentStatus"
+        - name: kind
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/StockDocumentKind"
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Một trang phiếu (không kèm dòng)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockDocumentPage"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createStockDocument
+      summary: Tạo phiếu kho nháp (nhập, xuất, hàng lỗi, xuất hàng lỗi, điều chỉnh); nhà cung cấp chỉ cho phiếu nhập
+      x-permission: inventory.documents.create
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStockDocumentRequest"
+      responses:
+        "201":
+          description: Phiếu nháp vừa tạo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockDocument"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/documents/{id}:
+    get:
+      operationId: getStockDocument
+      summary: Một phiếu kho kèm dòng
+      x-permission: inventory.read
+      parameters:
+        - $ref: "#/components/parameters/StockDocumentID"
+      responses:
+        "200":
+          description: Phiếu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockDocument"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/documents/{id}/lines:
+    put:
+      operationId: replaceStockDocumentLines
+      summary: Thay toàn bộ dòng của phiếu nháp khi version còn khớp
+      x-permission: inventory.documents.create
+      parameters:
+        - $ref: "#/components/parameters/StockDocumentID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplaceStockDocumentLinesRequest"
+      responses:
+        "200":
+          description: Phiếu sau khi thay dòng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockDocument"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/documents/{id}/post:
+    post:
+      operationId: postStockDocument
+      summary: Ghi sổ phiếu nháp (đổi tồn); thiếu hàng ở một dòng thì cả phiếu không ghi (insufficient_stock)
+      x-permission: inventory.documents.post
+      parameters:
+        - $ref: "#/components/parameters/StockDocumentID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockDocumentVersion"
+      responses:
+        "200":
+          description: Phiếu đã ghi sổ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockDocument"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/documents/{id}/cancel:
+    post:
+      operationId: cancelStockDocument
+      summary: Hủy phiếu nháp
+      x-permission: inventory.documents.create
+      parameters:
+        - $ref: "#/components/parameters/StockDocumentID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockDocumentVersion"
+      responses:
+        "200":
+          description: Phiếu đã hủy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockDocument"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -694,6 +919,20 @@ components:
         type: string
         format: uuid
     AttributeID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SupplierID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    StockDocumentID:
       name: id
       in: path
       required: true
@@ -788,6 +1027,14 @@ components:
           description: Mã lỗi máy đọc được
         request_id:
           type: string
+        variantId:
+          type: string
+          format: uuid
+          description: Chỉ có ở insufficient_stock — biến thể đầu tiên không đủ hàng
+        available:
+          type: integer
+          format: int32
+          description: Chỉ có ở insufficient_stock — số còn làm được của biến thể đó (xuất hàng lỗi là số hàng lỗi)
     HealthStatus:
       type: object
       required: [status]
@@ -1585,3 +1832,161 @@ components:
           items:
             type: string
             format: uuid
+    Supplier:
+      type: object
+      required: [id, name, phone, note, status, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phone:
+          type: string
+        note:
+          type: string
+        status:
+          $ref: "#/components/schemas/SupplierStatus"
+        version:
+          type: integer
+          format: int64
+    SupplierStatus:
+      type: string
+      enum: [active, archived]
+    CreateSupplierRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        phone:
+          type: string
+          maxLength: 30
+        note:
+          type: string
+          maxLength: 1000
+    UpdateSupplierRequest:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        phone:
+          type: string
+          maxLength: 30
+        note:
+          type: string
+          maxLength: 1000
+        status:
+          $ref: "#/components/schemas/SupplierStatus"
+    StockDocumentKind:
+      type: string
+      enum: [import, export, damage, damage_export, adjust]
+    StockDocumentStatus:
+      type: string
+      enum: [draft, posted, cancelled]
+    StockDocumentLine:
+      type: object
+      required: [variantId, quantity]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          format: int32
+          minimum: -1000000
+          maximum: 1000000
+          description: "> 0; phiếu điều chỉnh: khác 0, âm là giảm tồn"
+        unitCost:
+          $ref: "#/components/schemas/Money"
+    StockDocument:
+      type: object
+      required: [id, code, warehouseId, kind, status, supplierName, note, version, createdAt, lines]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        warehouseId:
+          type: string
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/StockDocumentKind"
+        status:
+          $ref: "#/components/schemas/StockDocumentStatus"
+        supplierId:
+          type: string
+          format: uuid
+        supplierName:
+          type: string
+          description: Tên nhà cung cấp (cả khi đã lưu trữ); rỗng khi không có
+        note:
+          type: string
+        version:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        postedAt:
+          type: string
+          format: date-time
+        lines:
+          type: array
+          description: Rỗng ở danh sách
+          items:
+            $ref: "#/components/schemas/StockDocumentLine"
+    StockDocumentPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockDocument"
+        nextCursor:
+          type: string
+          format: uuid
+    CreateStockDocumentRequest:
+      type: object
+      required: [warehouseId, kind]
+      properties:
+        warehouseId:
+          type: string
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/StockDocumentKind"
+        supplierId:
+          type: string
+          format: uuid
+        note:
+          type: string
+          maxLength: 1000
+    ReplaceStockDocumentLinesRequest:
+      type: object
+      required: [version, lines]
+      properties:
+        version:
+          type: integer
+          format: int64
+        lines:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/StockDocumentLine"
+    StockDocumentVersion:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64

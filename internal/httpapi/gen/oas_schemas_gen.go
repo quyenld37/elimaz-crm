@@ -828,6 +828,91 @@ func (s *CreateStaffRequest) SetDisplayName(val string) {
 	s.DisplayName = val
 }
 
+// Ref: #/components/schemas/CreateStockDocumentRequest
+type CreateStockDocumentRequest struct {
+	WarehouseId uuid.UUID         `json:"warehouseId"`
+	Kind        StockDocumentKind `json:"kind"`
+	SupplierId  OptUUID           `json:"supplierId"`
+	Note        OptString         `json:"note"`
+}
+
+// GetWarehouseId returns the value of WarehouseId.
+func (s *CreateStockDocumentRequest) GetWarehouseId() uuid.UUID {
+	return s.WarehouseId
+}
+
+// GetKind returns the value of Kind.
+func (s *CreateStockDocumentRequest) GetKind() StockDocumentKind {
+	return s.Kind
+}
+
+// GetSupplierId returns the value of SupplierId.
+func (s *CreateStockDocumentRequest) GetSupplierId() OptUUID {
+	return s.SupplierId
+}
+
+// GetNote returns the value of Note.
+func (s *CreateStockDocumentRequest) GetNote() OptString {
+	return s.Note
+}
+
+// SetWarehouseId sets the value of WarehouseId.
+func (s *CreateStockDocumentRequest) SetWarehouseId(val uuid.UUID) {
+	s.WarehouseId = val
+}
+
+// SetKind sets the value of Kind.
+func (s *CreateStockDocumentRequest) SetKind(val StockDocumentKind) {
+	s.Kind = val
+}
+
+// SetSupplierId sets the value of SupplierId.
+func (s *CreateStockDocumentRequest) SetSupplierId(val OptUUID) {
+	s.SupplierId = val
+}
+
+// SetNote sets the value of Note.
+func (s *CreateStockDocumentRequest) SetNote(val OptString) {
+	s.Note = val
+}
+
+// Ref: #/components/schemas/CreateSupplierRequest
+type CreateSupplierRequest struct {
+	Name  string    `json:"name"`
+	Phone OptString `json:"phone"`
+	Note  OptString `json:"note"`
+}
+
+// GetName returns the value of Name.
+func (s *CreateSupplierRequest) GetName() string {
+	return s.Name
+}
+
+// GetPhone returns the value of Phone.
+func (s *CreateSupplierRequest) GetPhone() OptString {
+	return s.Phone
+}
+
+// GetNote returns the value of Note.
+func (s *CreateSupplierRequest) GetNote() OptString {
+	return s.Note
+}
+
+// SetName sets the value of Name.
+func (s *CreateSupplierRequest) SetName(val string) {
+	s.Name = val
+}
+
+// SetPhone sets the value of Phone.
+func (s *CreateSupplierRequest) SetPhone(val OptString) {
+	s.Phone = val
+}
+
+// SetNote sets the value of Note.
+func (s *CreateSupplierRequest) SetNote(val OptString) {
+	s.Note = val
+}
+
 // Ref: #/components/schemas/CreateTagRequest
 type CreateTagRequest struct {
 	Code ClassCode `json:"code"`
@@ -1011,6 +1096,11 @@ type Error struct {
 	// Mã lỗi máy đọc được.
 	Error     string `json:"error"`
 	RequestID string `json:"request_id"`
+	// Chỉ có ở insufficient_stock — biến thể đầu tiên không đủ hàng.
+	VariantId OptUUID `json:"variantId"`
+	// Chỉ có ở insufficient_stock — số còn làm được của biến thể đó (xuất hàng
+	// lỗi là số hàng lỗi).
+	Available OptInt32 `json:"available"`
 }
 
 // GetError returns the value of Error.
@@ -1023,6 +1113,16 @@ func (s *Error) GetRequestID() string {
 	return s.RequestID
 }
 
+// GetVariantId returns the value of VariantId.
+func (s *Error) GetVariantId() OptUUID {
+	return s.VariantId
+}
+
+// GetAvailable returns the value of Available.
+func (s *Error) GetAvailable() OptInt32 {
+	return s.Available
+}
+
 // SetError sets the value of Error.
 func (s *Error) SetError(val string) {
 	s.Error = val
@@ -1031,6 +1131,16 @@ func (s *Error) SetError(val string) {
 // SetRequestID sets the value of RequestID.
 func (s *Error) SetRequestID(val string) {
 	s.RequestID = val
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *Error) SetVariantId(val OptUUID) {
+	s.VariantId = val
+}
+
+// SetAvailable sets the value of Available.
+func (s *Error) SetAvailable(val OptInt32) {
+	s.Available = val
 }
 
 // ErrorStatusCode wraps Error with StatusCode.
@@ -1059,37 +1169,46 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
 
-func (*ErrorStatusCode) abandonJobRes()               {}
-func (*ErrorStatusCode) addAttributeValueRes()        {}
-func (*ErrorStatusCode) addVariantRes()               {}
-func (*ErrorStatusCode) archiveCategoryRes()          {}
-func (*ErrorStatusCode) completeUploadRes()           {}
-func (*ErrorStatusCode) createAttributeRes()          {}
-func (*ErrorStatusCode) createCategoryRes()           {}
-func (*ErrorStatusCode) createProductRes()            {}
-func (*ErrorStatusCode) createStaffRes()              {}
-func (*ErrorStatusCode) createTagRes()                {}
-func (*ErrorStatusCode) createUploadRes()             {}
-func (*ErrorStatusCode) getFileRes()                  {}
-func (*ErrorStatusCode) getMeRes()                    {}
-func (*ErrorStatusCode) getPlatformHealthRes()        {}
-func (*ErrorStatusCode) getProductRes()               {}
-func (*ErrorStatusCode) healthDeepRes()               {}
-func (*ErrorStatusCode) listAttributesRes()           {}
-func (*ErrorStatusCode) listCategoriesRes()           {}
-func (*ErrorStatusCode) listJobsRes()                 {}
-func (*ErrorStatusCode) listRolesRes()                {}
-func (*ErrorStatusCode) listStaffRes()                {}
-func (*ErrorStatusCode) listTagsRes()                 {}
-func (*ErrorStatusCode) lockStaffRes()                {}
-func (*ErrorStatusCode) replaceStaffGrantsRes()       {}
-func (*ErrorStatusCode) retryJobRes()                 {}
-func (*ErrorStatusCode) setProductClassificationRes() {}
-func (*ErrorStatusCode) streamRes()                   {}
-func (*ErrorStatusCode) unlockStaffRes()              {}
-func (*ErrorStatusCode) updateCategoryRes()           {}
-func (*ErrorStatusCode) updateProductRes()            {}
-func (*ErrorStatusCode) updateVariantRes()            {}
+func (*ErrorStatusCode) abandonJobRes()                {}
+func (*ErrorStatusCode) addAttributeValueRes()         {}
+func (*ErrorStatusCode) addVariantRes()                {}
+func (*ErrorStatusCode) archiveCategoryRes()           {}
+func (*ErrorStatusCode) cancelStockDocumentRes()       {}
+func (*ErrorStatusCode) completeUploadRes()            {}
+func (*ErrorStatusCode) createAttributeRes()           {}
+func (*ErrorStatusCode) createCategoryRes()            {}
+func (*ErrorStatusCode) createProductRes()             {}
+func (*ErrorStatusCode) createStaffRes()               {}
+func (*ErrorStatusCode) createStockDocumentRes()       {}
+func (*ErrorStatusCode) createSupplierRes()            {}
+func (*ErrorStatusCode) createTagRes()                 {}
+func (*ErrorStatusCode) createUploadRes()              {}
+func (*ErrorStatusCode) getFileRes()                   {}
+func (*ErrorStatusCode) getMeRes()                     {}
+func (*ErrorStatusCode) getPlatformHealthRes()         {}
+func (*ErrorStatusCode) getProductRes()                {}
+func (*ErrorStatusCode) getStockDocumentRes()          {}
+func (*ErrorStatusCode) healthDeepRes()                {}
+func (*ErrorStatusCode) listAttributesRes()            {}
+func (*ErrorStatusCode) listCategoriesRes()            {}
+func (*ErrorStatusCode) listJobsRes()                  {}
+func (*ErrorStatusCode) listRolesRes()                 {}
+func (*ErrorStatusCode) listStaffRes()                 {}
+func (*ErrorStatusCode) listStockDocumentsRes()        {}
+func (*ErrorStatusCode) listSuppliersRes()             {}
+func (*ErrorStatusCode) listTagsRes()                  {}
+func (*ErrorStatusCode) lockStaffRes()                 {}
+func (*ErrorStatusCode) postStockDocumentRes()         {}
+func (*ErrorStatusCode) replaceStaffGrantsRes()        {}
+func (*ErrorStatusCode) replaceStockDocumentLinesRes() {}
+func (*ErrorStatusCode) retryJobRes()                  {}
+func (*ErrorStatusCode) setProductClassificationRes()  {}
+func (*ErrorStatusCode) streamRes()                    {}
+func (*ErrorStatusCode) unlockStaffRes()               {}
+func (*ErrorStatusCode) updateCategoryRes()            {}
+func (*ErrorStatusCode) updateProductRes()             {}
+func (*ErrorStatusCode) updateSupplierRes()            {}
+func (*ErrorStatusCode) updateVariantRes()             {}
 
 // Một loại lỗi ứng dụng gộp theo dấu vân tay (Task 20). message đã lọc chuỗi từ
 // 8 chữ số và email.
@@ -1688,6 +1807,10 @@ type ListStaffOKApplicationJSON []StaffMember
 
 func (*ListStaffOKApplicationJSON) listStaffRes() {}
 
+type ListSuppliersOKApplicationJSON []Supplier
+
+func (*ListSuppliersOKApplicationJSON) listSuppliersRes() {}
+
 type ListTagsOKApplicationJSON []Tag
 
 func (*ListTagsOKApplicationJSON) listTagsRes() {}
@@ -2062,6 +2185,52 @@ func (o OptColorHex) Get() (v ColorHex, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptColorHex) Or(d ColorHex) ColorHex {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDateTime returns new OptDateTime with value set to v.
+func NewOptDateTime(v time.Time) OptDateTime {
+	return OptDateTime{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDateTime is optional time.Time.
+type OptDateTime struct {
+	Value time.Time
+	Set   bool
+}
+
+// IsSet returns true if OptDateTime was set.
+func (o OptDateTime) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDateTime) Reset() {
+	var v time.Time
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDateTime) SetTo(v time.Time) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDateTime) Get() (v time.Time, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDateTime) Or(d time.Time) time.Time {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -2572,6 +2741,98 @@ func (o OptProductStatus) Or(d ProductStatus) ProductStatus {
 	return d
 }
 
+// NewOptStockDocumentKind returns new OptStockDocumentKind with value set to v.
+func NewOptStockDocumentKind(v StockDocumentKind) OptStockDocumentKind {
+	return OptStockDocumentKind{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptStockDocumentKind is optional StockDocumentKind.
+type OptStockDocumentKind struct {
+	Value StockDocumentKind
+	Set   bool
+}
+
+// IsSet returns true if OptStockDocumentKind was set.
+func (o OptStockDocumentKind) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptStockDocumentKind) Reset() {
+	var v StockDocumentKind
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptStockDocumentKind) SetTo(v StockDocumentKind) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptStockDocumentKind) Get() (v StockDocumentKind, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptStockDocumentKind) Or(d StockDocumentKind) StockDocumentKind {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptStockDocumentStatus returns new OptStockDocumentStatus with value set to v.
+func NewOptStockDocumentStatus(v StockDocumentStatus) OptStockDocumentStatus {
+	return OptStockDocumentStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptStockDocumentStatus is optional StockDocumentStatus.
+type OptStockDocumentStatus struct {
+	Value StockDocumentStatus
+	Set   bool
+}
+
+// IsSet returns true if OptStockDocumentStatus was set.
+func (o OptStockDocumentStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptStockDocumentStatus) Reset() {
+	var v StockDocumentStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptStockDocumentStatus) SetTo(v StockDocumentStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptStockDocumentStatus) Get() (v StockDocumentStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptStockDocumentStatus) Or(d StockDocumentStatus) StockDocumentStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
 	return OptString{
@@ -2612,6 +2873,52 @@ func (o OptString) Get() (v string, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptString) Or(d string) string {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSupplierStatus returns new OptSupplierStatus with value set to v.
+func NewOptSupplierStatus(v SupplierStatus) OptSupplierStatus {
+	return OptSupplierStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSupplierStatus is optional SupplierStatus.
+type OptSupplierStatus struct {
+	Value SupplierStatus
+	Set   bool
+}
+
+// IsSet returns true if OptSupplierStatus was set.
+func (o OptSupplierStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSupplierStatus) Reset() {
+	var v SupplierStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSupplierStatus) SetTo(v SupplierStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSupplierStatus) Get() (v SupplierStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSupplierStatus) Or(d SupplierStatus) SupplierStatus {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -3104,6 +3411,32 @@ func (s *ReplaceGrantsRequest) SetVersion(val int64) {
 // SetGrants sets the value of Grants.
 func (s *ReplaceGrantsRequest) SetGrants(val []StaffGrant) {
 	s.Grants = val
+}
+
+// Ref: #/components/schemas/ReplaceStockDocumentLinesRequest
+type ReplaceStockDocumentLinesRequest struct {
+	Version int64               `json:"version"`
+	Lines   []StockDocumentLine `json:"lines"`
+}
+
+// GetVersion returns the value of Version.
+func (s *ReplaceStockDocumentLinesRequest) GetVersion() int64 {
+	return s.Version
+}
+
+// GetLines returns the value of Lines.
+func (s *ReplaceStockDocumentLinesRequest) GetLines() []StockDocumentLine {
+	return s.Lines
+}
+
+// SetVersion sets the value of Version.
+func (s *ReplaceStockDocumentLinesRequest) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetLines sets the value of Lines.
+func (s *ReplaceStockDocumentLinesRequest) SetLines(val []StockDocumentLine) {
+	s.Lines = val
 }
 
 // Ref: #/components/schemas/Role
@@ -3709,6 +4042,343 @@ func (s *StaffMemberStatus) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/StockDocument
+type StockDocument struct {
+	ID          uuid.UUID           `json:"id"`
+	Code        string              `json:"code"`
+	WarehouseId uuid.UUID           `json:"warehouseId"`
+	Kind        StockDocumentKind   `json:"kind"`
+	Status      StockDocumentStatus `json:"status"`
+	SupplierId  OptUUID             `json:"supplierId"`
+	// Tên nhà cung cấp (cả khi đã lưu trữ); rỗng khi không có.
+	SupplierName string      `json:"supplierName"`
+	Note         string      `json:"note"`
+	Version      int64       `json:"version"`
+	CreatedAt    time.Time   `json:"createdAt"`
+	PostedAt     OptDateTime `json:"postedAt"`
+	// Rỗng ở danh sách.
+	Lines []StockDocumentLine `json:"lines"`
+}
+
+// GetID returns the value of ID.
+func (s *StockDocument) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCode returns the value of Code.
+func (s *StockDocument) GetCode() string {
+	return s.Code
+}
+
+// GetWarehouseId returns the value of WarehouseId.
+func (s *StockDocument) GetWarehouseId() uuid.UUID {
+	return s.WarehouseId
+}
+
+// GetKind returns the value of Kind.
+func (s *StockDocument) GetKind() StockDocumentKind {
+	return s.Kind
+}
+
+// GetStatus returns the value of Status.
+func (s *StockDocument) GetStatus() StockDocumentStatus {
+	return s.Status
+}
+
+// GetSupplierId returns the value of SupplierId.
+func (s *StockDocument) GetSupplierId() OptUUID {
+	return s.SupplierId
+}
+
+// GetSupplierName returns the value of SupplierName.
+func (s *StockDocument) GetSupplierName() string {
+	return s.SupplierName
+}
+
+// GetNote returns the value of Note.
+func (s *StockDocument) GetNote() string {
+	return s.Note
+}
+
+// GetVersion returns the value of Version.
+func (s *StockDocument) GetVersion() int64 {
+	return s.Version
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *StockDocument) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetPostedAt returns the value of PostedAt.
+func (s *StockDocument) GetPostedAt() OptDateTime {
+	return s.PostedAt
+}
+
+// GetLines returns the value of Lines.
+func (s *StockDocument) GetLines() []StockDocumentLine {
+	return s.Lines
+}
+
+// SetID sets the value of ID.
+func (s *StockDocument) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCode sets the value of Code.
+func (s *StockDocument) SetCode(val string) {
+	s.Code = val
+}
+
+// SetWarehouseId sets the value of WarehouseId.
+func (s *StockDocument) SetWarehouseId(val uuid.UUID) {
+	s.WarehouseId = val
+}
+
+// SetKind sets the value of Kind.
+func (s *StockDocument) SetKind(val StockDocumentKind) {
+	s.Kind = val
+}
+
+// SetStatus sets the value of Status.
+func (s *StockDocument) SetStatus(val StockDocumentStatus) {
+	s.Status = val
+}
+
+// SetSupplierId sets the value of SupplierId.
+func (s *StockDocument) SetSupplierId(val OptUUID) {
+	s.SupplierId = val
+}
+
+// SetSupplierName sets the value of SupplierName.
+func (s *StockDocument) SetSupplierName(val string) {
+	s.SupplierName = val
+}
+
+// SetNote sets the value of Note.
+func (s *StockDocument) SetNote(val string) {
+	s.Note = val
+}
+
+// SetVersion sets the value of Version.
+func (s *StockDocument) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *StockDocument) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetPostedAt sets the value of PostedAt.
+func (s *StockDocument) SetPostedAt(val OptDateTime) {
+	s.PostedAt = val
+}
+
+// SetLines sets the value of Lines.
+func (s *StockDocument) SetLines(val []StockDocumentLine) {
+	s.Lines = val
+}
+
+func (*StockDocument) cancelStockDocumentRes()       {}
+func (*StockDocument) createStockDocumentRes()       {}
+func (*StockDocument) getStockDocumentRes()          {}
+func (*StockDocument) postStockDocumentRes()         {}
+func (*StockDocument) replaceStockDocumentLinesRes() {}
+
+// Ref: #/components/schemas/StockDocumentKind
+type StockDocumentKind string
+
+const (
+	StockDocumentKindImport       StockDocumentKind = "import"
+	StockDocumentKindExport       StockDocumentKind = "export"
+	StockDocumentKindDamage       StockDocumentKind = "damage"
+	StockDocumentKindDamageExport StockDocumentKind = "damage_export"
+	StockDocumentKindAdjust       StockDocumentKind = "adjust"
+)
+
+// AllValues returns all StockDocumentKind values.
+func (StockDocumentKind) AllValues() []StockDocumentKind {
+	return []StockDocumentKind{
+		StockDocumentKindImport,
+		StockDocumentKindExport,
+		StockDocumentKindDamage,
+		StockDocumentKindDamageExport,
+		StockDocumentKindAdjust,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s StockDocumentKind) MarshalText() ([]byte, error) {
+	switch s {
+	case StockDocumentKindImport:
+		return []byte(s), nil
+	case StockDocumentKindExport:
+		return []byte(s), nil
+	case StockDocumentKindDamage:
+		return []byte(s), nil
+	case StockDocumentKindDamageExport:
+		return []byte(s), nil
+	case StockDocumentKindAdjust:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *StockDocumentKind) UnmarshalText(data []byte) error {
+	switch StockDocumentKind(data) {
+	case StockDocumentKindImport:
+		*s = StockDocumentKindImport
+		return nil
+	case StockDocumentKindExport:
+		*s = StockDocumentKindExport
+		return nil
+	case StockDocumentKindDamage:
+		*s = StockDocumentKindDamage
+		return nil
+	case StockDocumentKindDamageExport:
+		*s = StockDocumentKindDamageExport
+		return nil
+	case StockDocumentKindAdjust:
+		*s = StockDocumentKindAdjust
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/StockDocumentLine
+type StockDocumentLine struct {
+	VariantId uuid.UUID `json:"variantId"`
+	// 	0; phiếu điều chỉnh: khác 0, âm là giảm tồn.
+	Quantity int32    `json:"quantity"`
+	UnitCost OptMoney `json:"unitCost"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *StockDocumentLine) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetQuantity returns the value of Quantity.
+func (s *StockDocumentLine) GetQuantity() int32 {
+	return s.Quantity
+}
+
+// GetUnitCost returns the value of UnitCost.
+func (s *StockDocumentLine) GetUnitCost() OptMoney {
+	return s.UnitCost
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *StockDocumentLine) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetQuantity sets the value of Quantity.
+func (s *StockDocumentLine) SetQuantity(val int32) {
+	s.Quantity = val
+}
+
+// SetUnitCost sets the value of UnitCost.
+func (s *StockDocumentLine) SetUnitCost(val OptMoney) {
+	s.UnitCost = val
+}
+
+// Ref: #/components/schemas/StockDocumentPage
+type StockDocumentPage struct {
+	Items      []StockDocument `json:"items"`
+	NextCursor OptUUID         `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *StockDocumentPage) GetItems() []StockDocument {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *StockDocumentPage) GetNextCursor() OptUUID {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *StockDocumentPage) SetItems(val []StockDocument) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *StockDocumentPage) SetNextCursor(val OptUUID) {
+	s.NextCursor = val
+}
+
+func (*StockDocumentPage) listStockDocumentsRes() {}
+
+// Ref: #/components/schemas/StockDocumentStatus
+type StockDocumentStatus string
+
+const (
+	StockDocumentStatusDraft     StockDocumentStatus = "draft"
+	StockDocumentStatusPosted    StockDocumentStatus = "posted"
+	StockDocumentStatusCancelled StockDocumentStatus = "cancelled"
+)
+
+// AllValues returns all StockDocumentStatus values.
+func (StockDocumentStatus) AllValues() []StockDocumentStatus {
+	return []StockDocumentStatus{
+		StockDocumentStatusDraft,
+		StockDocumentStatusPosted,
+		StockDocumentStatusCancelled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s StockDocumentStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case StockDocumentStatusDraft:
+		return []byte(s), nil
+	case StockDocumentStatusPosted:
+		return []byte(s), nil
+	case StockDocumentStatusCancelled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *StockDocumentStatus) UnmarshalText(data []byte) error {
+	switch StockDocumentStatus(data) {
+	case StockDocumentStatusDraft:
+		*s = StockDocumentStatusDraft
+		return nil
+	case StockDocumentStatusPosted:
+		*s = StockDocumentStatusPosted
+		return nil
+	case StockDocumentStatusCancelled:
+		*s = StockDocumentStatusCancelled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/StockDocumentVersion
+type StockDocumentVersion struct {
+	Version int64 `json:"version"`
+}
+
+// GetVersion returns the value of Version.
+func (s *StockDocumentVersion) GetVersion() int64 {
+	return s.Version
+}
+
+// SetVersion sets the value of Version.
+func (s *StockDocumentVersion) SetVersion(val int64) {
+	s.Version = val
+}
+
 type StreamOK struct {
 	Data io.Reader
 }
@@ -3724,6 +4394,121 @@ func (s StreamOK) Read(p []byte) (n int, err error) {
 }
 
 func (*StreamOK) streamRes() {}
+
+// Ref: #/components/schemas/Supplier
+type Supplier struct {
+	ID      uuid.UUID      `json:"id"`
+	Name    string         `json:"name"`
+	Phone   string         `json:"phone"`
+	Note    string         `json:"note"`
+	Status  SupplierStatus `json:"status"`
+	Version int64          `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *Supplier) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *Supplier) GetName() string {
+	return s.Name
+}
+
+// GetPhone returns the value of Phone.
+func (s *Supplier) GetPhone() string {
+	return s.Phone
+}
+
+// GetNote returns the value of Note.
+func (s *Supplier) GetNote() string {
+	return s.Note
+}
+
+// GetStatus returns the value of Status.
+func (s *Supplier) GetStatus() SupplierStatus {
+	return s.Status
+}
+
+// GetVersion returns the value of Version.
+func (s *Supplier) GetVersion() int64 {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *Supplier) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *Supplier) SetName(val string) {
+	s.Name = val
+}
+
+// SetPhone sets the value of Phone.
+func (s *Supplier) SetPhone(val string) {
+	s.Phone = val
+}
+
+// SetNote sets the value of Note.
+func (s *Supplier) SetNote(val string) {
+	s.Note = val
+}
+
+// SetStatus sets the value of Status.
+func (s *Supplier) SetStatus(val SupplierStatus) {
+	s.Status = val
+}
+
+// SetVersion sets the value of Version.
+func (s *Supplier) SetVersion(val int64) {
+	s.Version = val
+}
+
+func (*Supplier) createSupplierRes() {}
+func (*Supplier) updateSupplierRes() {}
+
+// Ref: #/components/schemas/SupplierStatus
+type SupplierStatus string
+
+const (
+	SupplierStatusActive   SupplierStatus = "active"
+	SupplierStatusArchived SupplierStatus = "archived"
+)
+
+// AllValues returns all SupplierStatus values.
+func (SupplierStatus) AllValues() []SupplierStatus {
+	return []SupplierStatus{
+		SupplierStatusActive,
+		SupplierStatusArchived,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SupplierStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case SupplierStatusActive:
+		return []byte(s), nil
+	case SupplierStatusArchived:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SupplierStatus) UnmarshalText(data []byte) error {
+	switch SupplierStatus(data) {
+	case SupplierStatusActive:
+		*s = SupplierStatusActive
+		return nil
+	case SupplierStatusArchived:
+		*s = SupplierStatusArchived
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 // Ref: #/components/schemas/Tag
 type Tag struct {
@@ -3880,6 +4665,65 @@ func (s *UpdateProductRequest) SetArticle(val ArticleInput) {
 
 // SetStatus sets the value of Status.
 func (s *UpdateProductRequest) SetStatus(val OptProductStatus) {
+	s.Status = val
+}
+
+// Ref: #/components/schemas/UpdateSupplierRequest
+type UpdateSupplierRequest struct {
+	Version int64             `json:"version"`
+	Name    OptString         `json:"name"`
+	Phone   OptString         `json:"phone"`
+	Note    OptString         `json:"note"`
+	Status  OptSupplierStatus `json:"status"`
+}
+
+// GetVersion returns the value of Version.
+func (s *UpdateSupplierRequest) GetVersion() int64 {
+	return s.Version
+}
+
+// GetName returns the value of Name.
+func (s *UpdateSupplierRequest) GetName() OptString {
+	return s.Name
+}
+
+// GetPhone returns the value of Phone.
+func (s *UpdateSupplierRequest) GetPhone() OptString {
+	return s.Phone
+}
+
+// GetNote returns the value of Note.
+func (s *UpdateSupplierRequest) GetNote() OptString {
+	return s.Note
+}
+
+// GetStatus returns the value of Status.
+func (s *UpdateSupplierRequest) GetStatus() OptSupplierStatus {
+	return s.Status
+}
+
+// SetVersion sets the value of Version.
+func (s *UpdateSupplierRequest) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetName sets the value of Name.
+func (s *UpdateSupplierRequest) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetPhone sets the value of Phone.
+func (s *UpdateSupplierRequest) SetPhone(val OptString) {
+	s.Phone = val
+}
+
+// SetNote sets the value of Note.
+func (s *UpdateSupplierRequest) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetStatus sets the value of Status.
+func (s *UpdateSupplierRequest) SetStatus(val OptSupplierStatus) {
 	s.Status = val
 }
 

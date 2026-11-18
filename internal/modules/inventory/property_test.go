@@ -1,6 +1,7 @@
 package inventory_test
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -13,15 +14,18 @@ import (
 )
 
 type propOp struct {
-	kind    int // 0 reserve, 1 release, 2 start transit, 3 consume, 4 nhập kho
+	kind    int // 0 reserve, 1 release, 2 start transit, 3 consume, 4 nhập kho, 5 ghi sổ phiếu kho (Task M1-29)
+	docKind int // loại phiếu khi kind = 5: chỉ số trong docKinds
+	sign    bool
 	variant int
 	qty     int32
 	target  int
 }
 
 // TestInventoryInvariants (rapid, 300 lượt): 1–4 biến thể, chuỗi ngẫu nhiên Reserve, Release, StartTransit, Consume,
-// nhập kho, chạy xen kẽ 1–4 goroutine → (1) mọi cột ≥ 0; (2) mỗi ngăn: tổng delta trong sổ = số dư; (3) held = tổng
-// giữ hàng held, in_transit = tổng giữ hàng in_transit; (4) available ≥ 0.
+// nhập kho, ghi sổ phiếu kho mọi loại (Task M1-29), chạy xen kẽ 1–4 goroutine → (1) mọi cột ≥ 0; (2) mỗi ngăn: tổng
+// delta trong sổ = số dư; (3) held = tổng giữ hàng held, in_transit = tổng giữ hàng in_transit; (4) available ≥ 0;
+// (5) damaged ≤ on_hand (đường không có kiểm kho).
 func TestInventoryInvariants(t *testing.T) {
 	e := newInvEnv(t)
 	rapid.Check(t, func(rt *rapid.T) {
@@ -35,7 +39,8 @@ func TestInventoryInvariants(t *testing.T) {
 		for g := range workers {
 			workers[g] = rapid.SliceOfN(rapid.Custom(func(rt *rapid.T) propOp {
 				return propOp{
-					kind: rapid.IntRange(0, 4).Draw(rt, "kind"), variant: rapid.IntRange(0, len(vs)-1).Draw(rt, "variant"),
+					kind: rapid.IntRange(0, 5).Draw(rt, "kind"), docKind: rapid.IntRange(0, len(docKinds)-1).Draw(rt, "docKind"),
+					sign: rapid.Bool().Draw(rt, "sign"), variant: rapid.IntRange(0, len(vs)-1).Draw(rt, "variant"),
 					qty: rapid.Int32Range(1, 3).Draw(rt, "qty"), target: rapid.IntRange(0, 7).Draw(rt, "target"),
 				}
 			}), 1, 8).Draw(rt, "ops")
@@ -71,6 +76,8 @@ func (e *invEnv) runOps(vs []uuid.UUID, ops []propOp) error {
 		case 4:
 			// Nhập kho qua applyDelta (export_test.go): helper invtest gọi t.Fatal, không dùng được ngoài goroutine test.
 			err = e.app(func(tx pgx.Tx) error { return inventory.ImportForTest(e.t.Context(), tx, v, e.warehouse, op.qty) })
+		case 5:
+			err = e.postRandomDoc(v, op)
 		default:
 			if len(mine) == 0 {
 				continue
@@ -106,6 +113,7 @@ func (e *invEnv) checkInvariants(v uuid.UUID) string {
 			  WHEN b.held <> r.held OR b.in_transit <> r.in_transit
 			    THEN format('giữ hàng (held %s, in_transit %s) khác số dư (%s, %s)', r.held, r.in_transit, b.held, b.in_transit)
 			  WHEN b.available < 0 THEN 'available âm'
+			  WHEN b.damaged > b.on_hand THEN 'damaged lớn hơn on_hand'
 			  ELSE '' END
 			FROM inventory.stock_available_v AS b,
 			LATERAL (SELECT
@@ -125,4 +133,30 @@ func (e *invEnv) checkInvariants(v uuid.UUID) string {
 		return "đọc bất biến: " + err.Error()
 	}
 	return msg
+}
+
+//nolint:gochecknoglobals // bảng loại phiếu cố định của test thuộc tính.
+var docKinds = []string{
+	inventory.KindImport, inventory.KindExport, inventory.KindDamage, inventory.KindDamageExport, inventory.KindAdjust,
+}
+
+// postRandomDoc tạo, thêm một dòng và ghi sổ một phiếu loại op.docKind cho v trong một transaction (adjust âm khi
+// op.sign); thiếu hàng là kết quả hợp lệ (runOps bỏ qua ErrInsufficient).
+func (e *invEnv) postRandomDoc(v uuid.UUID, op propOp) error {
+	kind, q := docKinds[op.docKind], op.qty
+	if kind == inventory.KindAdjust && op.sign {
+		q = -q
+	}
+	return e.do(func(ctx context.Context, tx pgx.Tx, w inventory.Writer) error {
+		a := sysActor()
+		d, err := inventory.CreateDocument(ctx, tx, inventory.DocumentInput{WarehouseID: e.warehouse, Kind: kind}, a)
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		if d, err = inventory.ReplaceLines(ctx, tx, d.ID, d.Version, []inventory.DocumentLine{line(v, q)}); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		_, err = w.PostDocument(ctx, tx, d.ID, d.Version, a)
+		return err //nolint:wrapcheck // test
+	})
 }

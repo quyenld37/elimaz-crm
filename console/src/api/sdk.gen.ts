@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, AddAttributeValueData, AddAttributeValueErrors, AddAttributeValueResponses, AddVariantData, AddVariantErrors, AddVariantResponses, ArchiveCategoryData, ArchiveCategoryErrors, ArchiveCategoryResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateAttributeData, CreateAttributeErrors, CreateAttributeResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateProductData, CreateProductErrors, CreateProductResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, CreateTagData, CreateTagErrors, CreateTagResponses, CreateUploadData, CreateUploadErrors, CreateUploadResponses, GetFileData, GetFileErrors, GetFileResponses, GetMeData, GetMeErrors, GetMeResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, GetProductData, GetProductErrors, GetProductResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ListAttributesData, ListAttributesErrors, ListAttributesResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListStaffData, ListStaffErrors, ListStaffResponses, ListTagsData, ListTagsErrors, ListTagsResponses, LockStaffData, LockStaffErrors, LockStaffResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, RetryJobData, RetryJobErrors, RetryJobResponses, SetProductClassificationData, SetProductClassificationErrors, SetProductClassificationResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateProductData, UpdateProductErrors, UpdateProductResponses, UpdateVariantData, UpdateVariantErrors, UpdateVariantResponses } from './types.gen';
+import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, AddAttributeValueData, AddAttributeValueErrors, AddAttributeValueResponses, AddVariantData, AddVariantErrors, AddVariantResponses, ArchiveCategoryData, ArchiveCategoryErrors, ArchiveCategoryResponses, CancelStockDocumentData, CancelStockDocumentErrors, CancelStockDocumentResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, CreateAttributeData, CreateAttributeErrors, CreateAttributeResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateProductData, CreateProductErrors, CreateProductResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, CreateStockDocumentData, CreateStockDocumentErrors, CreateStockDocumentResponses, CreateSupplierData, CreateSupplierErrors, CreateSupplierResponses, CreateTagData, CreateTagErrors, CreateTagResponses, CreateUploadData, CreateUploadErrors, CreateUploadResponses, GetFileData, GetFileErrors, GetFileResponses, GetMeData, GetMeErrors, GetMeResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, GetProductData, GetProductErrors, GetProductResponses, GetStockDocumentData, GetStockDocumentErrors, GetStockDocumentResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ListAttributesData, ListAttributesErrors, ListAttributesResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListStaffData, ListStaffErrors, ListStaffResponses, ListStockDocumentsData, ListStockDocumentsErrors, ListStockDocumentsResponses, ListSuppliersData, ListSuppliersErrors, ListSuppliersResponses, ListTagsData, ListTagsErrors, ListTagsResponses, LockStaffData, LockStaffErrors, LockStaffResponses, PostStockDocumentData, PostStockDocumentErrors, PostStockDocumentResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, ReplaceStockDocumentLinesData, ReplaceStockDocumentLinesErrors, ReplaceStockDocumentLinesResponses, RetryJobData, RetryJobErrors, RetryJobResponses, SetProductClassificationData, SetProductClassificationErrors, SetProductClassificationResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateProductData, UpdateProductErrors, UpdateProductResponses, UpdateSupplierData, UpdateSupplierErrors, UpdateSupplierResponses, UpdateVariantData, UpdateVariantErrors, UpdateVariantResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -276,6 +276,93 @@ export const createTag = <ThrowOnError extends boolean = false>(options: Options
  */
 export const setProductClassification = <ThrowOnError extends boolean = false>(options: Options<SetProductClassificationData, ThrowOnError>): RequestResult<SetProductClassificationResponses, SetProductClassificationErrors, ThrowOnError> => (options.client ?? client).put<SetProductClassificationResponses, SetProductClassificationErrors, ThrowOnError>({
     url: '/api/v1/catalog/products/{id}/classification',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Nhà cung cấp theo tên (tối đa 200); q tìm theo tên bỏ dấu
+ */
+export const listSuppliers = <ThrowOnError extends boolean = false>(options?: Options<ListSuppliersData, ThrowOnError>): RequestResult<ListSuppliersResponses, ListSuppliersErrors, ThrowOnError> => (options?.client ?? client).get<ListSuppliersResponses, ListSuppliersErrors, ThrowOnError>({ url: '/api/v1/inventory/suppliers', ...options });
+
+/**
+ * Tạo nhà cung cấp (tên không trùng trong shop)
+ */
+export const createSupplier = <ThrowOnError extends boolean = false>(options: Options<CreateSupplierData, ThrowOnError>): RequestResult<CreateSupplierResponses, CreateSupplierErrors, ThrowOnError> => (options.client ?? client).post<CreateSupplierResponses, CreateSupplierErrors, ThrowOnError>({
+    url: '/api/v1/inventory/suppliers',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Sửa hoặc lưu trữ nhà cung cấp khi version còn khớp
+ */
+export const updateSupplier = <ThrowOnError extends boolean = false>(options: Options<UpdateSupplierData, ThrowOnError>): RequestResult<UpdateSupplierResponses, UpdateSupplierErrors, ThrowOnError> => (options.client ?? client).patch<UpdateSupplierResponses, UpdateSupplierErrors, ThrowOnError>({
+    url: '/api/v1/inventory/suppliers/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Phiếu kho mới nhất trước, của các kho người gọi được xem (lọc kho, trạng thái, loại; trang theo con trỏ)
+ */
+export const listStockDocuments = <ThrowOnError extends boolean = false>(options?: Options<ListStockDocumentsData, ThrowOnError>): RequestResult<ListStockDocumentsResponses, ListStockDocumentsErrors, ThrowOnError> => (options?.client ?? client).get<ListStockDocumentsResponses, ListStockDocumentsErrors, ThrowOnError>({ url: '/api/v1/inventory/documents', ...options });
+
+/**
+ * Tạo phiếu kho nháp (nhập, xuất, hàng lỗi, xuất hàng lỗi, điều chỉnh); nhà cung cấp chỉ cho phiếu nhập
+ */
+export const createStockDocument = <ThrowOnError extends boolean = false>(options: Options<CreateStockDocumentData, ThrowOnError>): RequestResult<CreateStockDocumentResponses, CreateStockDocumentErrors, ThrowOnError> => (options.client ?? client).post<CreateStockDocumentResponses, CreateStockDocumentErrors, ThrowOnError>({
+    url: '/api/v1/inventory/documents',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Một phiếu kho kèm dòng
+ */
+export const getStockDocument = <ThrowOnError extends boolean = false>(options: Options<GetStockDocumentData, ThrowOnError>): RequestResult<GetStockDocumentResponses, GetStockDocumentErrors, ThrowOnError> => (options.client ?? client).get<GetStockDocumentResponses, GetStockDocumentErrors, ThrowOnError>({ url: '/api/v1/inventory/documents/{id}', ...options });
+
+/**
+ * Thay toàn bộ dòng của phiếu nháp khi version còn khớp
+ */
+export const replaceStockDocumentLines = <ThrowOnError extends boolean = false>(options: Options<ReplaceStockDocumentLinesData, ThrowOnError>): RequestResult<ReplaceStockDocumentLinesResponses, ReplaceStockDocumentLinesErrors, ThrowOnError> => (options.client ?? client).put<ReplaceStockDocumentLinesResponses, ReplaceStockDocumentLinesErrors, ThrowOnError>({
+    url: '/api/v1/inventory/documents/{id}/lines',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Ghi sổ phiếu nháp (đổi tồn); thiếu hàng ở một dòng thì cả phiếu không ghi (insufficient_stock)
+ */
+export const postStockDocument = <ThrowOnError extends boolean = false>(options: Options<PostStockDocumentData, ThrowOnError>): RequestResult<PostStockDocumentResponses, PostStockDocumentErrors, ThrowOnError> => (options.client ?? client).post<PostStockDocumentResponses, PostStockDocumentErrors, ThrowOnError>({
+    url: '/api/v1/inventory/documents/{id}/post',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Hủy phiếu nháp
+ */
+export const cancelStockDocument = <ThrowOnError extends boolean = false>(options: Options<CancelStockDocumentData, ThrowOnError>): RequestResult<CancelStockDocumentResponses, CancelStockDocumentErrors, ThrowOnError> => (options.client ?? client).post<CancelStockDocumentResponses, CancelStockDocumentErrors, ThrowOnError>({
+    url: '/api/v1/inventory/documents/{id}/cancel',
     ...options,
     headers: {
         'Content-Type': 'application/json',

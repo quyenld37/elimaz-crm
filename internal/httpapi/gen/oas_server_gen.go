@@ -32,6 +32,12 @@ type Handler interface {
 	//
 	// POST /api/v1/catalog/categories/{id}/archive
 	ArchiveCategory(ctx context.Context, req *VersionRequest, params ArchiveCategoryParams) (ArchiveCategoryRes, error)
+	// CancelStockDocument implements cancelStockDocument operation.
+	//
+	// Hủy phiếu nháp.
+	//
+	// POST /api/v1/inventory/documents/{id}/cancel
+	CancelStockDocument(ctx context.Context, req *StockDocumentVersion, params CancelStockDocumentParams) (CancelStockDocumentRes, error)
 	// CompleteUpload implements completeUpload operation.
 	//
 	// Báo đã tải xong; máy chủ kiểm kho rồi chuyển tệp sang uploaded (ảnh thì xếp
@@ -64,6 +70,19 @@ type Handler interface {
 	//
 	// POST /api/v1/identity/users
 	CreateStaff(ctx context.Context, req *CreateStaffRequest, params CreateStaffParams) (CreateStaffRes, error)
+	// CreateStockDocument implements createStockDocument operation.
+	//
+	// Tạo phiếu kho nháp (nhập, xuất, hàng lỗi, xuất hàng lỗi, điều chỉnh); nhà
+	// cung cấp chỉ cho phiếu nhập.
+	//
+	// POST /api/v1/inventory/documents
+	CreateStockDocument(ctx context.Context, req *CreateStockDocumentRequest, params CreateStockDocumentParams) (CreateStockDocumentRes, error)
+	// CreateSupplier implements createSupplier operation.
+	//
+	// Tạo nhà cung cấp (tên không trùng trong shop).
+	//
+	// POST /api/v1/inventory/suppliers
+	CreateSupplier(ctx context.Context, req *CreateSupplierRequest, params CreateSupplierParams) (CreateSupplierRes, error)
 	// CreateTag implements createTag operation.
 	//
 	// Tạo nhãn kệ hàng (mã chữ thường, không trùng).
@@ -103,6 +122,12 @@ type Handler interface {
 	//
 	// GET /api/v1/catalog/products/{id}
 	GetProduct(ctx context.Context, params GetProductParams) (GetProductRes, error)
+	// GetStockDocument implements getStockDocument operation.
+	//
+	// Một phiếu kho kèm dòng.
+	//
+	// GET /api/v1/inventory/documents/{id}
+	GetStockDocument(ctx context.Context, params GetStockDocumentParams) (GetStockDocumentRes, error)
 	// HealthDeep implements healthDeep operation.
 	//
 	// Kiểm sâu cho dịch vụ canh ngoài (Bearer HEALTH_TOKEN, Task 20); không có dữ liệu
@@ -153,6 +178,19 @@ type Handler interface {
 	//
 	// GET /api/v1/identity/users
 	ListStaff(ctx context.Context) (ListStaffRes, error)
+	// ListStockDocuments implements listStockDocuments operation.
+	//
+	// Phiếu kho mới nhất trước, của các kho người gọi được xem (lọc kho, trạng
+	// thái, loại; trang theo con trỏ).
+	//
+	// GET /api/v1/inventory/documents
+	ListStockDocuments(ctx context.Context, params ListStockDocumentsParams) (ListStockDocumentsRes, error)
+	// ListSuppliers implements listSuppliers operation.
+	//
+	// Nhà cung cấp theo tên (tối đa 200); q tìm theo tên bỏ dấu.
+	//
+	// GET /api/v1/inventory/suppliers
+	ListSuppliers(ctx context.Context, params ListSuppliersParams) (ListSuppliersRes, error)
 	// ListTags implements listTags operation.
 	//
 	// Mọi nhãn kệ hàng của shop theo mã.
@@ -165,6 +203,13 @@ type Handler interface {
 	//
 	// POST /api/v1/identity/users/{id}/lock
 	LockStaff(ctx context.Context, params LockStaffParams) (LockStaffRes, error)
+	// PostStockDocument implements postStockDocument operation.
+	//
+	// Ghi sổ phiếu nháp (đổi tồn); thiếu hàng ở một dòng thì cả phiếu không ghi
+	// (insufficient_stock).
+	//
+	// POST /api/v1/inventory/documents/{id}/post
+	PostStockDocument(ctx context.Context, req *StockDocumentVersion, params PostStockDocumentParams) (PostStockDocumentRes, error)
 	// ReplaceStaffGrants implements replaceStaffGrants operation.
 	//
 	// Thay toàn bộ vai trò theo phạm vi của một nhân viên (không tự sửa mình, không
@@ -172,6 +217,12 @@ type Handler interface {
 	//
 	// PUT /api/v1/identity/users/{id}/grants
 	ReplaceStaffGrants(ctx context.Context, req *ReplaceGrantsRequest, params ReplaceStaffGrantsParams) (ReplaceStaffGrantsRes, error)
+	// ReplaceStockDocumentLines implements replaceStockDocumentLines operation.
+	//
+	// Thay toàn bộ dòng của phiếu nháp khi version còn khớp.
+	//
+	// PUT /api/v1/inventory/documents/{id}/lines
+	ReplaceStockDocumentLines(ctx context.Context, req *ReplaceStockDocumentLinesRequest, params ReplaceStockDocumentLinesParams) (ReplaceStockDocumentLinesRes, error)
 	// RetryJob implements retryJob operation.
 	//
 	// Đưa việc dead, in_doubt hoặc expired về pending.
@@ -210,6 +261,12 @@ type Handler interface {
 	//
 	// PATCH /api/v1/catalog/products/{id}
 	UpdateProduct(ctx context.Context, req *UpdateProductRequest, params UpdateProductParams) (UpdateProductRes, error)
+	// UpdateSupplier implements updateSupplier operation.
+	//
+	// Sửa hoặc lưu trữ nhà cung cấp khi version còn khớp.
+	//
+	// PATCH /api/v1/inventory/suppliers/{id}
+	UpdateSupplier(ctx context.Context, req *UpdateSupplierRequest, params UpdateSupplierParams) (UpdateSupplierRes, error)
 	// UpdateVariant implements updateVariant operation.
 	//
 	// Sửa SKU, barcode, màu, size, giá, giá nhập, trạng thái của biến thể khi version còn

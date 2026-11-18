@@ -17,6 +17,10 @@ type ArchiveCategoryRes interface {
 	archiveCategoryRes()
 }
 
+type CancelStockDocumentRes interface {
+	cancelStockDocumentRes()
+}
+
 type CompleteUploadRes interface {
 	completeUploadRes()
 }
@@ -35,6 +39,14 @@ type CreateProductRes interface {
 
 type CreateStaffRes interface {
 	createStaffRes()
+}
+
+type CreateStockDocumentRes interface {
+	createStockDocumentRes()
+}
+
+type CreateSupplierRes interface {
+	createSupplierRes()
 }
 
 type CreateTagRes interface {
@@ -59,6 +71,10 @@ type GetPlatformHealthRes interface {
 
 type GetProductRes interface {
 	getProductRes()
+}
+
+type GetStockDocumentRes interface {
+	getStockDocumentRes()
 }
 
 type HealthDeepRes interface {
@@ -89,6 +105,14 @@ type ListStaffRes interface {
 	listStaffRes()
 }
 
+type ListStockDocumentsRes interface {
+	listStockDocumentsRes()
+}
+
+type ListSuppliersRes interface {
+	listSuppliersRes()
+}
+
 type ListTagsRes interface {
 	listTagsRes()
 }
@@ -97,8 +121,16 @@ type LockStaffRes interface {
 	lockStaffRes()
 }
 
+type PostStockDocumentRes interface {
+	postStockDocumentRes()
+}
+
 type ReplaceStaffGrantsRes interface {
 	replaceStaffGrantsRes()
+}
+
+type ReplaceStockDocumentLinesRes interface {
+	replaceStockDocumentLinesRes()
 }
 
 type RetryJobRes interface {
@@ -123,6 +155,10 @@ type UpdateCategoryRes interface {
 
 type UpdateProductRes interface {
 	updateProductRes()
+}
+
+type UpdateSupplierRes interface {
+	updateSupplierRes()
 }
 
 type UpdateVariantRes interface {

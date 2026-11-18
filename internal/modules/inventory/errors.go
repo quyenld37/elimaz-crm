@@ -17,8 +17,21 @@ var (
 	ErrStateConflict = errors.New("inventory: giữ hàng không ở trạng thái cần")
 	// ErrNoWarehouse: tenant chưa có kho MAIN.
 	ErrNoWarehouse = errors.New("inventory: chưa có kho")
-	// ErrInvalidInput: số lượng ≤ 0, thiếu mã dòng đơn, biến thể hay kho, tác nhân lạ, lý do nhả sai mẫu.
+	// ErrInvalidInput: số lượng ≤ 0, thiếu mã dòng đơn, biến thể hay kho, tác nhân lạ, lý do nhả sai mẫu; dòng phiếu
+	// sai (số lượng theo loại, trùng biến thể, biến thể không có), phiếu không dòng khi ghi sổ, tên hay SĐT NCC sai.
 	ErrInvalidInput = errors.New("inventory: dữ liệu không hợp lệ")
+	// ErrNotFound: phiếu, nhà cung cấp hay kho không có hoặc của tenant khác (không cho biết là có).
+	ErrNotFound = errors.New("inventory: không có")
+	// ErrVersionConflict: version gửi lên không còn khớp (người khác vừa sửa).
+	ErrVersionConflict = errors.New("inventory: version không khớp")
+	// ErrDocumentNotDraft: phiếu đã ghi sổ hoặc đã hủy; không sửa, ghi sổ, hủy được nữa.
+	ErrDocumentNotDraft = errors.New("inventory: phiếu không còn nháp")
+	// ErrSupplierNameTaken: tenant đã có nhà cung cấp cùng tên.
+	ErrSupplierNameTaken = errors.New("inventory: tên nhà cung cấp đã có")
+	// ErrSupplierArchived: nhà cung cấp đã lưu trữ, không dùng cho phiếu mới.
+	ErrSupplierArchived = errors.New("inventory: nhà cung cấp đã lưu trữ")
+	// ErrSupplierNotForKind: nhà cung cấp chỉ gắn với phiếu nhập.
+	ErrSupplierNotForKind = errors.New("inventory: nhà cung cấp chỉ cho phiếu nhập")
 )
 
 // InsufficientError là chi tiết của ErrInsufficient: dòng đầu tiên (theo thứ tự khóa) không đủ hàng.
