@@ -26,7 +26,7 @@ DEV_PROFILES := $(if $(wildcard docker/imager/Dockerfile),--profile imager) \
 	$(if $(wildcard tools/fakecarrier/Dockerfile),--profile fakecarrier) \
 	$(if $(wildcard docker/filesync/Dockerfile),--profile filesync)
 
-.PHONY: db-up db-down db-reset dev probe-test spike-test test-imager test-imager-compose image app-up app-down image-check verify-drill
+.PHONY: db-up db-down db-reset dev probe-test spike-test test-imager test-imager-compose image app-up app-down image-check verify-drill demo-mot-don
 
 db-up: ## Dựng PostgreSQL 18, Jaeger, SeaweedFS (kho chính, kho ngoài giả, tạo bucket), chờ tới khi sẵn sàng
 	$(COMPOSE) up -d --wait
@@ -59,6 +59,9 @@ app-up: ## Migrate một lần rồi chạy crm-ingest, crm-api, crm-worker từ
 
 app-down: ## Gỡ ba vai trò (giữ database)
 	$(COMPOSE) --profile app rm -sf crm-migrate crm-ingest crm-api crm-worker
+
+demo-mot-don: ## Kịch bản "một đơn đi trọn" trên compose dev: hãng giả, thẻ Access giả, khóa sinh lúc chạy (Task 395; make db-up, make image trước)
+	COMPOSE_PROJECT=$(COMPOSE_PROJECT) scripts/demo/mot-don-compose.sh
 
 image-check: ## Kiểm image: health 200, healthy, uid khác 0, không .env*, kích thước (Task 21 Step 1; make db-up trước)
 	COMPOSE_PROJECT=$(COMPOSE_PROJECT) scripts/ops/image-check.sh

@@ -1,10 +1,12 @@
 # Hạ tầng dev của CRM (kế hoạch M0 bản 5, Task 1; mọi dịch vụ dev của M1 thêm một lần ở Task M1-40). Image ghim
 # theo digest. Cổng đọc từ biến môi trường để nhiều phiên chạy song song trên một máy; mặc định đúng cổng của kế
-# hoạch: PostgreSQL 5442, Jaeger UI 16686, OTLP 4318, SeaweedFS 8333, kho ngoài giả 8334, imager 4193, fakecarrier 4194.
+# hoạch: PostgreSQL 5442, Jaeger UI 16686, OTLP 4318, SeaweedFS 8333, kho ngoài giả 8334, imager 4193, fakecarrier 4194,
+# devaccess 4195.
 #   docker compose -f docker/compose.dev.yml up -d --wait
 #   CRM_PG_PORT=5452 CRM_S3_PORT=8440 docker compose -p crm-khac -f docker/compose.dev.yml up -d --wait
-# imager, fakecarrier, filesync chỉ chạy khi bật profile cùng tên (mã của chúng có ở Task M1-42, M1-31, M1-45);
-# `make dev` tự bật profile nào đã có Dockerfile.
+# imager, fakecarrier, filesync, devaccess chỉ chạy khi bật profile cùng tên (mã của chúng có ở Task M1-42, M1-31,
+# M1-45, 395); `make dev` tự bật imager, fakecarrier, filesync nếu đã có Dockerfile; devaccess do make demo-mot-don bật.
+# Kịch bản "một đơn đi trọn" trên compose (Task 395): `make demo-mot-don` (RUNBOOK, mục "Chạy lát mỏng").
 name: crm
 
 # Phần chung của dịch vụ ứng dụng (Task 21). Gộp bằng `<<:`; tests/deploy đọc kết quả đã gộp.
@@ -17,6 +19,11 @@ x-crm-s3: &crm-s3
   S3_ACCESS_KEY_ID: crm-app-dev
   S3_SECRET_ACCESS_KEY: crm-app-dev-only-not-a-secret
   FILES_PUBLIC_BASE_URL: http://127.0.0.1:${CRM_S3_PORT:-8333}/crm-public
+# Hãng giả (Task 395): chỉ nối khi lệnh chạy đặt CRM_FAKECARRIER_SECRET (make demo-mot-don sinh mỗi lần chạy, không
+# lưu tệp). Không đặt (make app-up, image-check) thì các biến rỗng: ingest, worker không nối hãng giả, như trước.
+x-crm-fakecarrier: &crm-fakecarrier
+  FAKECARRIER_URL: ${CRM_FAKECARRIER_SECRET:+http://fakecarrier:4194}
+  FAKECARRIER_WEBHOOK_SECRET: ${CRM_FAKECARRIER_SECRET:-}
 x-crm-hardening: &crm-hardening
   read_only: true
   tmpfs:
@@ -43,6 +50,10 @@ services:
     ports:
       - "127.0.0.1:${CRM_PG_PORT:-5442}:5432"
     shm_size: 256mb
+    # tini làm PID 1 (như production, Task 21): healthcheck pg_isready và `docker compose exec postgres psql` (make
+    # demo-mot-don) chạy bằng exec; tiến trình mồ côi rơi về postmaster, thoát mã khác 0 (pg_isready quá hạn lúc máy
+    # tải nặng) thì postmaster coi là sập và khởi động lại cả cụm (đo 18/11/2026, Task 395).
+    init: true
     volumes:
       - pgdata:/var/lib/postgresql
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
@@ -183,7 +194,7 @@ services:
     profiles: [app]
     image: crm:dev
     environment:
-      <<: *crm-env
+      <<: [*crm-env, *crm-fakecarrier]
       CRM_ROLE: ingest
       PORT: "4191"
       SPOOL_DIR: /var/spool/crm
@@ -206,7 +217,10 @@ services:
       <<: [*crm-env, *crm-s3]
       CRM_ROLE: api
       PORT: "4190"
-      ACCESS_TEAM_DOMAIN: dev.cloudflareaccess.invalid
+      # Máy chủ thẻ Access giả (profile devaccess, Task 395); api tin chứng chỉ tự ký của nó qua SSL_CERT_DIR (Go đọc
+      # thêm mọi chứng chỉ trong thư mục, vẫn giữ bộ CA của image). Không bật devaccess thì không thẻ nào qua.
+      ACCESS_TEAM_DOMAIN: devaccess:8443
+      SSL_CERT_DIR: /etc/ssl/devaccess
       ACCESS_AUD: dev-aud
       ACCESS_MFA_CLAIM: amr
       ACCESS_MFA_VALUES: mfa
@@ -215,6 +229,8 @@ services:
       GOMEMLIMIT: 460MiB
     ports:
       - "127.0.0.1:${CRM_API_PORT:-4190}:4190"
+    volumes:
+      - devaccess-ca:/etc/ssl/devaccess:ro
     mem_limit: 512m
     <<: [*crm-hardening, *crm-health]
     depends_on: *crm-deps
@@ -223,7 +239,7 @@ services:
     profiles: [app]
     image: crm:dev
     environment:
-      <<: [*crm-env, *crm-s3]
+      <<: [*crm-env, *crm-s3, *crm-fakecarrier]
       CRM_ROLE: worker
       IMAGER_URL: http://imager:4193
       S3_IMAGER_ENDPOINT: http://seaweedfs:8333
@@ -234,15 +250,50 @@ services:
     <<: [*crm-hardening, *crm-health]
     depends_on: *crm-deps
 
-  # Hãng vận chuyển giả (Task M1-31), chỉ dev và staging.
+  # Hãng vận chuyển giả (Task M1-31), chỉ dev và staging. Trang /admin không xác thực: chỉ mở 127.0.0.1.
+  # Webhook về crm-ingest trong mạng compose, cùng khóa với ingest, worker (Task 395; rỗng: không gửi webhook).
   fakecarrier:
     profiles: [fakecarrier]
     build:
       context: ..
       dockerfile: tools/fakecarrier/Dockerfile
     image: crm-fakecarrier:dev
+    environment:
+      FAKECARRIER_WEBHOOK_URL: ${CRM_FAKECARRIER_SECRET:+http://crm-ingest:4191/hooks/fakecarrier}
+      FAKECARRIER_WEBHOOK_SECRET: ${CRM_FAKECARRIER_SECRET:-}
+      # Kiện giữ trong volume: dựng lại container (khóa mới mỗi lần chạy) không làm mã hãng quay về FC00000001.
+      FAKECARRIER_DATA: /data/fakecarrier.json
     ports:
       - "127.0.0.1:${CRM_FAKECARRIER_PORT:-4194}:4194"
+    volumes:
+      - fakecarrier-data:/data
+
+  # Máy chủ thẻ Cloudflare Access giả (Task 395), chỉ compose dev: bộ khóa HTTPS ở devaccess:8443 (chỉ trong mạng
+  # compose) cho crm-api; phát thẻ GET /token?email=… ở cổng 4195, chỉ mở 127.0.0.1. Khóa và chứng chỉ sinh ở lần
+  # chạy đầu, giữ trong volume devaccess-data của dự án compose; devaccess-ca chỉ có chứng chỉ công khai.
+  devaccess:
+    profiles: [devaccess]
+    build:
+      context: ..
+      dockerfile: tools/devaccess/Dockerfile
+    image: crm-devaccess:dev
+    environment:
+      CRM_ENV: dev
+      ACCESS_AUD: dev-aud
+      ACCESS_MFA_CLAIM: amr
+    ports:
+      - "127.0.0.1:${CRM_DEVACCESS_PORT:-4195}:4195"
+    volumes:
+      - devaccess-data:/data
+      - devaccess-ca:/ca
+    healthcheck:
+      test: ["CMD", "/devaccess", "healthcheck"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
 
   # Chép kho chính sang kho ngoài giả mỗi giờ (Task M1-45), danh tính crm-filesync.
   filesync:
@@ -268,3 +319,6 @@ volumes:
   seaweed:
   seaweed-offsite:
   spool:
+  devaccess-data:
+  devaccess-ca:
+  fakecarrier-data:
