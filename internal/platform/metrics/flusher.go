@@ -13,6 +13,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/internal/store"
+	"elimaz.com.vn/crm/internal/platform/logging"
 )
 
 // Nhịp của Flusher.Run và các giới hạn.
@@ -92,7 +93,7 @@ func (f *Flusher) Flush(ctx context.Context, now time.Time) error {
 	f.pending = nil
 	if err := f.Pinger.Ping(ctx); err != nil {
 		f.Reg.Inc("heartbeat_ping_failed", "", 1)
-		f.logger().WarnContext(ctx, "gửi nhịp sống ra ngoài lỗi", slog.String("error", err.Error()))
+		f.logger().WarnContext(ctx, "gửi nhịp sống ra ngoài lỗi", logging.Err(err))
 	}
 	return nil
 }
@@ -143,13 +144,13 @@ func (f *Flusher) Run(ctx context.Context) {
 
 func (f *Flusher) beatLogged(ctx context.Context) {
 	if err := f.Beat(ctx, time.Now()); err != nil && ctx.Err() == nil {
-		f.logger().WarnContext(ctx, "ghi nhịp sống lỗi", slog.String("error", err.Error()))
+		f.logger().WarnContext(ctx, "ghi nhịp sống lỗi", logging.Err(err))
 	}
 }
 
 func (f *Flusher) flushLogged(ctx context.Context) {
 	if err := f.Flush(ctx, time.Now()); err != nil && ctx.Err() == nil {
-		f.logger().WarnContext(ctx, "ghi chỉ số theo phút lỗi", slog.String("error", err.Error()),
+		f.logger().WarnContext(ctx, "ghi chỉ số theo phút lỗi", logging.Err(err),
 			slog.Int("pending", len(f.pending)))
 	}
 }

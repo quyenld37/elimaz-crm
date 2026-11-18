@@ -17,6 +17,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/idempotency"
+	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 )
 
@@ -142,7 +143,7 @@ func replay(w http.ResponseWriter, s *idempotency.Stored) {
 func releaseClaim(ctx context.Context, d Deps, c idempotency.Claim) {
 	if err := c.Release(ctx); err != nil {
 		d.Logger.LogAttrs(ctx, slog.LevelWarn, "không trả lại được khóa chống trùng",
-			slog.String("request_id", RequestID(ctx)), slog.String("error", err.Error()))
+			slog.String("request_id", RequestID(ctx)), logging.Err(err))
 	}
 }
 

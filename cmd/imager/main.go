@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"elimaz.com.vn/crm/internal/imager"
+	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/observability"
 )
 
@@ -74,7 +75,7 @@ func run(ctx context.Context, args []string, getenv func(string) string, stderr 
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 	if err := serve(ctx, cfg, log); err != nil {
-		log.LogAttrs(ctx, slog.LevelError, "imager dừng vì lỗi", slog.String("error", err.Error()))
+		log.LogAttrs(ctx, slog.LevelError, "imager dừng vì lỗi", logging.Err(err))
 		return exitFail
 	}
 	return exitOK

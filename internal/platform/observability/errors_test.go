@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"regexp"
 	"runtime"
 	"strings"
@@ -300,3 +302,102 @@ func TestPanicErrorUsesPanicSiteFrames(t *testing.T) {
 }
 
 func panicHere() { panic("boom 0912345678") }
+
+// Nội dung lỗi lưu vào error_events qua bộ che của logging: SĐT, địa chỉ, token không còn (Task 319).
+func TestRecordErrorScrubsPersonalData(t *testing.T) {
+	d := openDB(t)
+	observability.RecordError(context.Background(), d, testkit.PersonalDataError(), observability.ErrorContext{Role: "api"})
+	var msg string
+	if err := d.Pool.QueryRow(context.Background(), "SELECT message FROM platform.error_events").Scan(&msg); err != nil {
+		t.Fatal(err)
+	}
+	testkit.AssertNoPersonalData(t, "error_events.message", msg)
+	if !strings.Contains(msg, "lưu khách") || !strings.Contains(msg, "hỏng") {
+		t.Fatalf("message mất phần không nhạy cảm: %q", msg)
+	}
+	pe := observability.NewPanicError(testkit.PersonalDataError())
+	testkit.AssertNoPersonalData(t, "PanicError.Error", pe.Error())
+}
+
+//go:noinline
+func panicWithPersonalData(http.ResponseWriter, *http.Request) { panic(testkit.PersonalDataError()) }
+
+// ScrubPanics panic lại bằng *PanicError đã lọc; lớp recover ngoài nhận đúng giá trị đó, vết gọi vẫn bắt đầu ở chỗ
+// panic gốc (dấu vân tay không đổi so với khi không có lớp lọc). ErrAbortHandler đi qua nguyên vẹn.
+func TestScrubPanicsKeepsPanicSite(t *testing.T) {
+	catch := func(h http.Handler) (v any) {
+		defer func() { v = recover() }()
+		h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
+		return nil
+	}
+	v := catch(observability.ScrubPanics(http.HandlerFunc(panicWithPersonalData)))
+	pe, ok := v.(*observability.PanicError)
+	if !ok {
+		t.Fatalf("giá trị panic lại = %T, muốn *PanicError", v)
+	}
+	testkit.AssertNoPersonalData(t, "giá trị panic", fmt.Sprint(v))
+	if observability.NewPanicError(v) != pe {
+		t.Fatal("NewPanicError phải trả nguyên *PanicError đã có")
+	}
+	if len(pe.Frames) == 0 || !strings.HasSuffix(pe.Frames[0].Function, "panicWithPersonalData") {
+		t.Fatalf("khung đầu = %+v, muốn panicWithPersonalData", pe.Frames)
+	}
+	if !errors.Is(pe, testkit.ErrPersonalBase) {
+		t.Fatal("PanicError phải Unwrap về lỗi gốc")
+	}
+	abort := catch(observability.ScrubPanics(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		panic(http.ErrAbortHandler)
+	})))
+	if abort != http.ErrAbortHandler { //nolint:errorlint,err113 // so đúng giá trị
+		t.Fatalf("ErrAbortHandler bị đổi thành %T", abort)
+	}
+}
+
+// RecoverPanics: panic → onPanic nhận *PanicError (vết ở chỗ panic gốc), ctx của yêu cầu và wrote (đã gửi header
+// chưa); ErrAbortHandler ném tiếp; không panic thì không gọi onPanic. Writer bọc vẫn Unwrap về writer gốc (SSE Flush).
+func TestRecoverPanics(t *testing.T) {
+	type call struct {
+		pe    *observability.PanicError
+		wrote bool
+	}
+	run := func(h http.HandlerFunc) (calls []call, rec *httptest.ResponseRecorder, repanic any) {
+		rec = httptest.NewRecorder()
+		wrapped := observability.RecoverPanics(h, func(_ context.Context, w http.ResponseWriter, _ *http.Request, pe *observability.PanicError, wrote bool) {
+			calls = append(calls, call{pe, wrote})
+			if !wrote {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		})
+		func() {
+			defer func() { repanic = recover() }()
+			wrapped.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
+		}()
+		return calls, rec, repanic
+	}
+	calls, rec, _ := run(panicWithPersonalData)
+	if len(calls) != 1 || calls[0].wrote || rec.Code != http.StatusInternalServerError {
+		t.Fatalf("panic trước khi trả lời: calls %+v, mã %d", calls, rec.Code)
+	}
+	if !strings.HasSuffix(calls[0].pe.Frames[0].Function, "panicWithPersonalData") {
+		t.Fatalf("khung đầu = %+v", calls[0].pe.Frames)
+	}
+	calls, rec, _ = run(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		panic("sau khi trả lời")
+	})
+	if len(calls) != 1 || !calls[0].wrote || rec.Code != http.StatusAccepted {
+		t.Fatalf("panic sau khi trả lời: calls %+v, mã %d", calls, rec.Code)
+	}
+	calls, _, repanic := run(func(http.ResponseWriter, *http.Request) { panic(http.ErrAbortHandler) })
+	if len(calls) != 0 || repanic != http.ErrAbortHandler { //nolint:errorlint,err113 // so đúng giá trị
+		t.Fatalf("ErrAbortHandler: calls %+v, ném tiếp %v", calls, repanic)
+	}
+	calls, _, _ = run(func(w http.ResponseWriter, _ *http.Request) {
+		if http.NewResponseController(w).Flush() != nil {
+			t.Error("writer bọc phải Flush được qua Unwrap")
+		}
+	})
+	if len(calls) != 0 {
+		t.Fatalf("không panic mà gọi onPanic: %+v", calls)
+	}
+}

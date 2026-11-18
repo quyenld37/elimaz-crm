@@ -22,6 +22,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/internal/store"
+	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/observability"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
@@ -270,7 +271,7 @@ func (w *Worker) listen(ctx context.Context, conn *pgxpool.Conn) {
 			c, err := w.listenConn(ctx)
 			if err != nil {
 				if ctx.Err() == nil {
-					w.o.Logger.Warn("mở lại kết nối LISTEN jobs", slog.String("error", err.Error()))
+					w.o.Logger.Warn("mở lại kết nối LISTEN jobs", logging.Err(err))
 				}
 				continue
 			}
@@ -281,7 +282,7 @@ func (w *Worker) listen(ctx context.Context, conn *pgxpool.Conn) {
 			if ctx.Err() != nil {
 				return
 			}
-			w.o.Logger.Warn("kết nối LISTEN jobs rớt", slog.String("error", err.Error()))
+			w.o.Logger.Warn("kết nối LISTEN jobs rớt", logging.Err(err))
 			_ = conn.Conn().Close(ctx)
 			conn.Release()
 			conn = nil
@@ -339,7 +340,7 @@ func (w *Worker) dispatch(ctx, base context.Context) {
 			defer func() { w.busy.Add(-1); w.inflight.Done(); w.signal() }()
 			if err := w.runJob(base, row); err != nil {
 				w.o.Logger.Error("chạy việc", slog.String("job_id", row.ID.String()), slog.String("kind", row.Kind),
-					slog.String("error", err.Error()))
+					logging.Err(err))
 			}
 		}()
 	}
@@ -348,7 +349,7 @@ func (w *Worker) dispatch(ctx, base context.Context) {
 
 func (w *Worker) logErr(ctx context.Context, msg string, err error) {
 	if ctx.Err() == nil {
-		w.o.Logger.Error(msg, slog.String("error", err.Error()))
+		w.o.Logger.Error(msg, logging.Err(err))
 	}
 }
 
@@ -683,10 +684,11 @@ func (w *Worker) recordError(ctx context.Context, j Job, err error) {
 	})
 }
 
-// ErrorText là chuỗi lưu vào last_error của một việc: err.Error(), tối đa 1000 ký tự (không cắt giữa ký tự UTF-8).
-// Gói platform khác ghi last_error (commands) dùng hàm này để cùng một giới hạn.
+// ErrorText là chuỗi lưu vào last_error của một việc: nội dung lỗi đã qua bộ che logging.ErrorText (SĐT, địa chỉ,
+// token thành "[Redacted]"), tối đa 1000 ký tự (không cắt giữa ký tự UTF-8). Gói platform khác ghi last_error
+// (commands) dùng hàm này để cùng một giới hạn và cùng cách lọc.
 func ErrorText(err error) string {
-	s := err.Error()
+	s := logging.ErrorText(err)
 	if utf8.RuneCountInString(s) <= maxErrorLen {
 		return s
 	}

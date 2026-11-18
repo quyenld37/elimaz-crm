@@ -129,7 +129,7 @@ func chain(d Deps, rt Route, h http.Handler) http.Handler {
 		h = origin(d.Config.ConsoleOrigins, h)
 	}
 	h = bodyLimit(h)
-	h = otelhttp.NewHandler(h, rt.Pattern)
+	h = otelhttp.NewHandler(observability.ScrubPanics(h), rt.Pattern)
 	h = recoverPanic(d, rt, h)
 	return requestID(h)
 }

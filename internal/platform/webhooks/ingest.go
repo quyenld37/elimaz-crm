@@ -12,11 +12,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/metrics"
+	"elimaz.com.vn/crm/internal/platform/observability"
 )
 
 // MaxBody là cỡ thân tối đa của một POST /hooks/* (1 MiB); lớn hơn thì 413.
@@ -43,7 +45,11 @@ const (
 	codeBadRequest   = "bad_request"
 	codeBadSignature = "bad_signature"
 	codeUnavailable  = "unavailable"
+	codeInternal     = "internal"
 )
+
+// defaultRole: vai trò ghi vào error_events khi IngestOptions.Role để trống.
+const defaultRole = "ingest"
 
 // IngestOptions cấu hình Ingest.
 type IngestOptions struct {
@@ -58,6 +64,8 @@ type IngestOptions struct {
 	// Metrics nil: không ghi chỉ số.
 	Metrics *metrics.Registry
 	Logger  *slog.Logger
+	// Role là vai trò ghi vào error_events; rỗng là "ingest".
+	Role string
 }
 
 // Ingest phục vụ GET, POST /hooks/{source} và GET /health của vai trò ingest.
@@ -82,6 +90,9 @@ func NewIngest(o IngestOptions) (*Ingest, error) {
 	if o.MaxInFlight <= 0 {
 		o.MaxInFlight = defaultMaxInFlight
 	}
+	if o.Role == "" {
+		o.Role = defaultRole
+	}
 	if o.StaleSpoolAge <= 0 {
 		o.StaleSpoolAge = defaultStaleSpoolAge
 	}
@@ -101,12 +112,38 @@ func NewIngest(o IngestOptions) (*Ingest, error) {
 
 // Register đăng ký GET /hooks/{source}, POST /hooks/{source} và GET /health vào mux. POST mở span máy chủ (otelhttp)
 // làm gốc dấu vết của webhook: việc tách gói ghi trace_context từ span này, nên ingest, worker và báo hiệu realtime
-// nằm trên một dấu vết. Điểm công khai: dấu vết bên gửi đưa tới chỉ thành liên kết, không thành cha.
+// nằm trên một dấu vết. Điểm công khai: dấu vết bên gửi đưa tới chỉ thành liên kết, không thành cha. Panic trong
+// POST được lọc trước khi tới span (ScrubPanics) và được bắt ở ngoài cùng (recoverPanic).
 func (in *Ingest) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /hooks/{source}", in.challenge)
 	const receivePattern = "POST /hooks/{source}"
-	mux.Handle(receivePattern, otelhttp.NewHandler(http.HandlerFunc(in.receive), receivePattern, otelhttp.WithPublicEndpointFn(func(*http.Request) bool { return true })))
+	mux.Handle(receivePattern, in.recoverPanic(otelhttp.NewHandler(observability.ScrubPanics(http.HandlerFunc(in.receive)),
+		receivePattern, otelhttp.WithPublicEndpointFn(func(*http.Request) bool { return true }))))
 	mux.HandleFunc("GET /health", in.health)
+}
+
+// recoverPanic bắt panic của next (observability.RecoverPanics): ghi error_events (role ingest, vết tại chỗ panic),
+// log một dòng không kèm giá trị panic, trả 500 internal nếu chưa trả lời.
+func (in *Ingest) recoverPanic(next http.Handler) http.Handler {
+	return observability.RecoverPanics(next, func(ctx context.Context, w http.ResponseWriter, r *http.Request,
+		pe *observability.PanicError, wrote bool,
+	) {
+		fp := in.recordError(ctx, pe)
+		in.o.Logger.ErrorContext(ctx, "webhook panic", slog.String("source", r.PathValue("source")),
+			slog.String("panic_type", fmt.Sprintf("%T", pe.Value)), slog.String("fingerprint", fp))
+		if !wrote {
+			writeError(w, http.StatusInternalServerError, codeInternal)
+		}
+	})
+}
+
+// recordError ghi err vào error_events qua observability.RecordError (cùng dấu vân tay như api, worker; hạn 2 s riêng,
+// ngoài transaction lưu webhook). Trả dấu vân tay để log kèm.
+func (in *Ingest) recordError(ctx context.Context, err error) string {
+	fp, _ := observability.RecordError(ctx, in.o.DB, err, observability.ErrorContext{
+		Role: in.o.Role, Metrics: in.o.Metrics, Logger: in.o.Logger,
+	})
+	return fp
 }
 
 // challenge trả lời bước GET xác minh: nguồn lạ 404; Challenge đúng thì 200 text/plain đúng chuỗi; không thì 403.
@@ -180,8 +217,28 @@ func (in *Ingest) receive(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, `{"received":true}`)
 }
 
+// unexpectedDBError: database đã trả lời bằng một lỗi (PgError) không thuộc nhóm "database ngừng hay quá tải": lỗi
+// lúc nối (*pgconn.ConnectError, kể cả khi bọc PgError như 57P03 đang khởi động), SQLSTATE nhóm 08 (kết nối), 53
+// (thiếu tài nguyên, quá nhiều kết nối), 57 (quá hạn câu lệnh 57014, đang tắt 57P01…).
+func unexpectedDBError(err error) bool {
+	if _, connecting := errors.AsType[*pgconn.ConnectError](err); connecting {
+		return false
+	}
+	pe, ok := errors.AsType[*pgconn.PgError](err)
+	if !ok {
+		return false
+	}
+	switch pe.Code[:min(len(pe.Code), 2)] {
+	case "08", "53", "57":
+		return false
+	}
+	return true
+}
+
 // store lưu e vào database; lỗi thì ghi tệp tạm. false khi cả hai đều lỗi. Log một lần ở đây (mép HTTP), không kèm
-// thân hay header.
+// thân hay header; nội dung lỗi qua bộ che của logging. Ghi error_events khi database đang chạy mà trả lỗi
+// (unexpectedDBError) và khi tệp tạm lỗi; database ngừng, quá tải hay quá hạn thì không (ghi sẽ hỏng hoặc chậm theo,
+// và mỗi webhook phải chờ thêm hạn ghi lỗi đúng lúc cần nhanh).
 func (in *Ingest) store(ctx context.Context, e Entry) bool {
 	sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
 	defer cancel()
@@ -189,16 +246,22 @@ func (in *Ingest) store(ctx context.Context, e Entry) bool {
 	if dbErr == nil {
 		return true
 	}
+	fp := ""
+	if unexpectedDBError(dbErr) {
+		fp = in.recordError(ctx, dbErr)
+	}
 	name, err := in.o.Spool.Write(e)
 	if err != nil {
 		in.inc("hooks_spool_failed", e.Source)
+		spoolFP := in.recordError(ctx, err)
 		in.o.Logger.ErrorContext(ctx, "không lưu được webhook vào database lẫn tệp tạm",
-			slog.String("source", e.Source), slog.String("db_error", dbErr.Error()), slog.String("error", err.Error()))
+			slog.String("source", e.Source), slog.String("db_error", logging.ErrorText(dbErr)), logging.Err(err),
+			slog.String("fingerprint", spoolFP))
 		return false
 	}
 	in.inc("hooks_spooled", e.Source)
 	in.o.Logger.WarnContext(ctx, "database không ghi được, đã ghi webhook ra tệp tạm",
-		slog.String("source", e.Source), slog.String("file", name), slog.String("error", dbErr.Error()))
+		slog.String("source", e.Source), slog.String("file", name), logging.Err(dbErr), slog.String("fingerprint", fp))
 	return true
 }
 

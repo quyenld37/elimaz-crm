@@ -12,6 +12,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/internal/store"
+	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 )
@@ -154,7 +155,7 @@ func (t *Ticker) Run(ctx context.Context) {
 	defer tk.Stop()
 	for {
 		if _, err := t.Tick(ctx, time.Now()); err != nil && ctx.Err() == nil {
-			t.o.Logger.WarnContext(ctx, "việc định kỳ", slog.String("error", err.Error()))
+			t.o.Logger.WarnContext(ctx, "việc định kỳ", logging.Err(err))
 		}
 		select {
 		case <-ctx.Done():

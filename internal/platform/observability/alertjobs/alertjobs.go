@@ -12,6 +12,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/observability"
 	"elimaz.com.vn/crm/internal/platform/queue"
 )
@@ -81,7 +82,7 @@ func (s scheduled) Execute(ctx context.Context, _ queue.Job) (commands.Outcome, 
 	res, err := s.run(ctx, time.Now())
 	if err != nil {
 		if s.log != nil {
-			s.log.ErrorContext(ctx, "lịch "+s.name+" lỗi", slog.String("error", err.Error()))
+			s.log.ErrorContext(ctx, "lịch "+s.name+" lỗi", logging.Err(err))
 		}
 		out := commands.Outcome{Status: commands.StatusNotSent, Reason: reasonFailed}
 		if re, ok := errors.AsType[*observability.TelegramRetryError](err); ok {

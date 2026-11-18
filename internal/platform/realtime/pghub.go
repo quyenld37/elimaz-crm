@@ -16,6 +16,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/internal/store"
+	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 )
 
@@ -138,7 +139,7 @@ func (h *PGHub) Run(ctx context.Context) {
 		}
 		h.inc(metricReconnect)
 		h.o.Logger.LogAttrs(ctx, slog.LevelWarn, "realtime: kết nối LISTEN rớt, nối lại",
-			slog.String("error", err.Error()), slog.Duration("backoff", backoff))
+			logging.Err(err), slog.Duration("backoff", backoff))
 		t := time.NewTimer(backoff)
 		select {
 		case <-ctx.Done():

@@ -66,7 +66,7 @@ type Secret string
 func (Secret) LogValue() slog.Value { return slog.StringValue(redacted) }
 
 // Redact trả bản sao của v đã che: đi vào map, slice, mảng, struct, con trỏ, slog.LogValuer và json.Marshaler;
-// giá trị của mọi khóa (khóa map, tên trường, thẻ json) khớp SensitiveKey thành "[Redacted]". Phần sâu hơn maxDepth
+// giá trị error thành nội dung đã qua ErrorText; giá trị của mọi khóa (khóa map, tên trường, thẻ json) khớp SensitiveKey thành "[Redacted]". Phần sâu hơn maxDepth
 // thành "[Truncated]", không bao giờ in thô. maxDepth <= 0 dùng DefaultDepth.
 func Redact(v any, maxDepth int) any {
 	if maxDepth <= 0 {
@@ -84,7 +84,7 @@ func redactValue(v any, depth int) any {
 	}
 	switch x := v.(type) {
 	case error:
-		return x.Error()
+		return ErrorText(x)
 	case json.Marshaler:
 		return redactMarshaler(x, depth)
 	case encoding.TextMarshaler:
