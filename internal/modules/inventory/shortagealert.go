@@ -67,15 +67,22 @@ func (s shortageAlert) Execute(ctx context.Context, j queue.Job) (commands.Outco
 		return commands.Outcome{Status: commands.StatusRejected, Reason: "bad_payload"}, nil
 	}
 	text := fmt.Sprintf("Kiểm kho %s: %d mã hàng thiếu so với phần đang giữ", p.Code, p.Count)
-	if err := s.n.Notify(ctx, "stock-shortage:"+p.StocktakeID.String(), severityNormal, text); err != nil {
-		if s.log != nil {
-			s.log.ErrorContext(ctx, "gửi cảnh báo thiếu hàng sau kiểm kho lỗi", logging.Err(err))
+	return notify(ctx, s.n, s.log, "stock-shortage:"+p.StocktakeID.String(), text,
+		"gửi cảnh báo thiếu hàng sau kiểm kho lỗi"), nil
+}
+
+// notify gửi một cảnh báo normal và đổi kết quả thành Outcome của lệnh: lỗi → log logMsg một lần (mép của việc nền;
+// logger nil → không log), not_sent (Handler có AutoRetryNotSent); Telegram 429 → chờ đúng thời gian Telegram yêu cầu.
+func notify(ctx context.Context, n Notifier, logger *slog.Logger, key, text, logMsg string) commands.Outcome {
+	if err := n.Notify(ctx, key, severityNormal, text); err != nil {
+		if logger != nil {
+			logger.ErrorContext(ctx, logMsg, logging.Err(err))
 		}
 		out := commands.Outcome{Status: commands.StatusNotSent, Reason: reasonNotifyFailed}
 		if re, ok := errors.AsType[*observability.TelegramRetryError](err); ok {
 			out.RetryAfter = re.After
 		}
-		return out, nil
+		return out
 	}
-	return commands.Outcome{Status: commands.StatusDone}, nil
+	return commands.Outcome{Status: commands.StatusDone}
 }

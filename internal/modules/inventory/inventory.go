@@ -10,6 +10,8 @@
 //
 // Phần công khai: hàm đọc (Availability, DefaultWarehouse), tạo kho mặc định (EnsureDefaultWarehouse, chủ bảng) và
 // Writer (mọi đường đổi tồn: tự ghi sổ, sự kiện stock.changed và báo hiệu inventory.balance trong tx của bên gọi).
+// Đối chiếu tồn hằng đêm (reconcile.go): Reconcile, lịch ReconcileSchedule, handler và lệnh cảnh báo lệch sổ; chỉ
+// báo lệch, không sửa số.
 //
 // Khi nào không dùng: module khác không đọc bảng inventory.* (đọc view inventory.*_v); không sửa số dư bằng SQL ngoài
 // gói này (mất sổ và sự kiện); test của module khác nạp tồn bằng invtest.SeedStock.
