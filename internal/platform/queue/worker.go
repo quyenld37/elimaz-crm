@@ -440,12 +440,12 @@ func (w *Worker) runJob(base context.Context, row store.ClaimJobsRow) error {
 			return q.ReleaseJob(rctx, store.ReleaseJobParams{ID: j.ID, LockedBy: w.o.WorkerID})
 		})
 	case errors.Is(err, ErrPermanent) || j.Attempts >= int(row.MaxAttempts):
-		return w.markDead(rctx, j, errText(err), true)
+		return w.markDead(rctx, j, ErrorText(err), true)
 	default:
 		delay := NextDelay(j.Attempts, rand.Float64)
 		return w.update(rctx, func(q *store.Queries) (int64, error) {
 			return q.RescheduleJob(rctx, store.RescheduleJobParams{
-				DelayMs: delay.Milliseconds(), LastError: errText(err), ID: j.ID, LockedBy: w.o.WorkerID,
+				DelayMs: delay.Milliseconds(), LastError: ErrorText(err), ID: j.ID, LockedBy: w.o.WorkerID,
 			})
 		})
 	}
@@ -545,8 +545,9 @@ func (w *Worker) gauge(ctx context.Context) {
 	w.o.Metrics.Gauge("jobs_oldest_pending_age_s", age, "")
 }
 
-// errText là last_error: chuỗi lỗi, tối đa maxErrorLen ký tự (không cắt giữa ký tự UTF-8).
-func errText(err error) string {
+// ErrorText là chuỗi lưu vào last_error của một việc: err.Error(), tối đa 1000 ký tự (không cắt giữa ký tự UTF-8).
+// Gói platform khác ghi last_error (commands) dùng hàm này để cùng một giới hạn.
+func ErrorText(err error) string {
 	s := err.Error()
 	if utf8.RuneCountInString(s) <= maxErrorLen {
 		return s

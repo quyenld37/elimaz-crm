@@ -215,6 +215,7 @@ Package queue là lõi hàng đợi việc nền trên bảng platform.jobs (spe
 **Khi nào không dùng:** Không viết SQL lên platform.jobs ở gói khác: ghi việc bằng JobQueue.Enqueue trong transaction của dữ liệu, xử lý bằng Handler. Handler transactional không gọi mạng, không gửi gì ra ngoài (lệnh ra ngoài là commands, Task 12) và phải chạy lại được (có thể bị gọi lại). Không đặt nội dung hay dữ liệu cá nhân vào Payload, DedupeKey, OrderKey hay chuỗi lỗi: chỉ mã bản ghi. Không dùng hàng đợi cho việc cần nguyên tử với dữ liệu (cái đó nằm trong cùng một transaction), không tạo Worker thứ hai trong một tiến trình.
 
 ```go
+func ErrorText(err error) string
 func NextDelay(attempt int, rnd func() float64) time.Duration
 type Handler interface {
 	Kind() Kind
