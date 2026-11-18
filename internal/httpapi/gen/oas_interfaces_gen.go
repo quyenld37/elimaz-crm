@@ -97,6 +97,10 @@ type GetPlatformHealthRes interface {
 	getPlatformHealthRes()
 }
 
+type GetProductClassificationRes interface {
+	getProductClassificationRes()
+}
+
 type GetProductRes interface {
 	getProductRes()
 }

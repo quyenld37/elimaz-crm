@@ -251,6 +251,16 @@ func (UnimplementedHandler) GetProduct(ctx context.Context, params GetProductPar
 	return r, ht.ErrNotImplemented
 }
 
+// GetProductClassification implements getProductClassification operation.
+//
+// Danh mục, giá trị thuộc tính, nhãn đang gán cho mẫu và version hiện tại của
+// mẫu (màn sửa mẫu).
+//
+// GET /api/v1/catalog/products/{id}/classification
+func (UnimplementedHandler) GetProductClassification(ctx context.Context, params GetProductClassificationParams) (r GetProductClassificationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetShipment implements getShipment operation.
 //
 // Quyền fulfillment.read theo đích kho của tài khoản hãng của vận đơn.

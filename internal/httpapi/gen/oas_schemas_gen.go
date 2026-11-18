@@ -1578,6 +1578,7 @@ func (*ErrorStatusCode) getFileRes()                   {}
 func (*ErrorStatusCode) getMeRes()                     {}
 func (*ErrorStatusCode) getOrderRes()                  {}
 func (*ErrorStatusCode) getPlatformHealthRes()         {}
+func (*ErrorStatusCode) getProductClassificationRes()  {}
 func (*ErrorStatusCode) getProductRes()                {}
 func (*ErrorStatusCode) getShipmentRes()               {}
 func (*ErrorStatusCode) getStockDocumentRes()          {}
@@ -4041,6 +4042,7 @@ func (s *ProductClassification) SetTagIds(val []uuid.UUID) {
 	s.TagIds = val
 }
 
+func (*ProductClassification) getProductClassificationRes() {}
 func (*ProductClassification) setProductClassificationRes() {}
 
 // Ref: #/components/schemas/ProductCover

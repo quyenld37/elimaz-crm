@@ -4,6 +4,13 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
 
 ## Ảnh hưởng
 
+**Lượt 2 (gộp `main` 905e1a1 — Task 324, màn sửa mẫu):** không đổi ký hiệu Go hay hợp đồng của Task 51. Xung đột:
+`console/src/app/screens.tsx` (giữ cả dòng `/kho/ton` và `/san-pham/:id`; hai màn Sản phẩm đứng cạnh nhau),
+`console/src/styles.css` (giữ cả `.toggle` của Task 51 và `.label`/`.grid-f`/`.cols`/`.desk-only` của Task 324),
+mã sinh `oas_router_gen.go`, `sdk.gen.ts`, `index.ts` (không sửa tay: `openapi.yaml` tự gộp sạch, chạy `make gen`). Test chạy:
+toàn bộ vitest, tsc, eslint, prettier, toàn bộ Playwright console (52 ca, gồm `product-edit.spec.ts` mới), `make ci`.
+
+
 - Ký hiệu Go xuất ra ngoài sẽ đổi (LSP findReferences): không đổi ký hiệu đã có. Thêm: `inventory.Warehouse`,
   `inventory.ListWarehouses` (gói `internal/modules/inventory`); `gen.Handler` thêm `ListWarehouses` (ogen sinh),
   `*handler` hiện thực trong `handlers_inventory.go`; câu sqlc mới sinh `store.ListWarehouses`.
@@ -25,6 +32,9 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
 
 ## Tái dùng
 
+**Lượt 2:** chỉ gộp, không viết mã mới; hai bộ lớp CSS khác tên, không trùng nhau nên giữ cả hai.
+
+
 - Đã kiểm trong danh mục dùng chung và tìm theo tên, theo việc: `inventoryRead` (đọc trong tenant), `identity.Can` +
   `warehouseScope` (kiểm phạm vi kho, như `canAt`), mẫu sqlc của module inventory; phía màn: `unwrap`, `errorMessage`,
   `queryKey(TOPICS.balance, …)` (realtime tự tải lại khi số dư đổi), lớp `tbl`, `tbl-frame`, `select-wrap`, `box`,
@@ -34,6 +44,10 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
   task này). Lớp CSS chung chép nguyên từ `docs/mockups/m1/m1.css` vào `styles.css` (không viết lại).
 
 ## Soát thiết kế
+
+**Lượt 2:** gộp không đổi đường đọc, quyền hay database; mã sinh lấy từ `openapi.yaml` đã gộp (có cả
+`listWarehouses` và các operation của Task 324).
+
 
 - 5.1–5.2: đọc kho ở module chủ (`inventory`), không ghi.
 - 5.3: màn đọc qua API; `ListWarehouses` đọc bảng của chính module.
@@ -53,6 +67,10 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
   trả, API `listBalances` vẫn kiểm từng kho (Task 334, test 403).
 
 ## Quyết định thay chủ shop
+
+- **Q6 (lượt 2) — Thứ tự dòng trong `SCREENS`:** đặt "Sửa mẫu" (ẩn) ngay sau "Danh sách sản phẩm", rồi tới "Tồn kho",
+  như thứ tự trên `main` + một dòng mới; menu không đổi vì dòng sửa mẫu ẩn. Phương án khác: để "Tồn kho" trước — cũng
+  đúng, chỉ khác chỗ đọc.
 
 - **Q1 — API liệt kê kho `listWarehouses`** (việc treo chủ shop giao, kế hoạch chưa có): `GET /api/v1/inventory/warehouses`,
   `x-permission: inventory.read`, chỉ trả kho người gọi có `inventory.read` (toàn shop hoặc đúng kho), kho MAIN trước
@@ -82,6 +100,7 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
 | 1512 và 390; ảnh chụp so với mockup đã chốt | `inventory.spec.ts` chụp `test-results/kho-ton-{1512,390}.png`, `kho-ton-thieu-{1512,390}.png` | như trên | So bằng mắt với `docs/mockups/m1/png/kho-ton-{1512,390}.png`: khớp bố cục, cột, màu dòng thiếu, chip, hộp giải thích, lưới 4 cột điện thoại. Khác do quyết định Q2 (không có ba nút sang màn chưa có), Q3 (câu cuối bảng khi đủ trang), menu trái chỉ có màn đã làm, ô người dùng là email (dữ liệu giả của fixture) |
 | tsc, eslint, prettier sạch | — | `npx tsc --noEmit && npx eslint . && npx prettier --check src e2e` | thoát 0 |
 | Cổng kiểm trên bản đã gộp `main` d4a1baa | `make ci` hai lần trước đó: bước test đỏ chỉ vì hạ tầng chung (lần 1: `DROP DATABASE … timeout`, `statement timeout`, load 27; lần 2: PostgreSQL chung sập vào "recovery mode" SQLSTATE 57P03, và golangci-lint báo "parallel golangci-lint is running" do phiên khác giữ khóa). Chạy lại các bước tách: | `make build vet lint gen-check sqlc-vet oasdiff catalog-check jscpd test-guard gitleaks console-check` ; `go test -race -count=1 -timeout 40m -p 3 ./internal/httpapi/ ./internal/modules/inventory/... ./internal/queries/ ./internal/modules/order/ ./tests/arch/ ./cmd/crm/` ; `CRM_E2E_PORT=5151 npx playwright test` | `EXIT 0`, `0 issues`; `ok httpapi 147.2s`, `ok inventory 298.5s`, `ok queries 199.8s`, `ok order 147.6s`, `ok tests/arch 33.3s`, `ok cmd/crm 1.6s`; `42 passed (19.3s)`. Các gói khác (files, observability, queue, imager…) không đổi trong task; lần chạy riêng trước đó: `ok files 167.9s`, `ok observability 99.7s`, `ok queue 152.4s` |
+| Lượt 2: gộp `main` 905e1a1 (Task 324) giữ đủ hai màn; mã sinh khớp `openapi.yaml` đã gộp | toàn bộ vitest, Playwright console (gồm `inventory.spec.ts`, `product-edit.spec.ts`, `shell*.spec.ts`, `staff.spec.ts`), `make ci`, `make gen-check` sau khi stage | `cd console && npx vitest run && npx tsc --noEmit && npx eslint . && npx prettier --check src e2e && CRM_E2E_PORT=5151 npx playwright test` ; `make ci` ; `make gen-check` | `Tests 166 passed (166)`; lint thoát 0; `52 passed (23.4s)`; `make ci` `EXIT 0` (`ok httpapi 269.5s`, `ok inventory 386.7s`, `ok queries 260.0s`, không dòng FAIL, `No vulnerabilities found`, `no leaks found`); `gen-check` thoát 0 |
 
 ## Test bị xóa hoặc tắt
 
@@ -104,6 +123,12 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
   kho theo mockup khi có màn đích (Q2).
 
 ## Reviewer
+
+Lượt 2: ĐẠT (trên bản gộp `main` 905e1a1 — Task 324, phần đã stage). Không có phát hiện ảnh hưởng tính đúng. Đã kiểm:
+phần stage so với HEAD đúng bằng toàn bộ Task 324; so với `main` đúng bằng toàn bộ Task 51; `screens.tsx` có cả
+`/kho/ton` và `/san-pham/:id`; `styles.css` có cả `.toggle` và các lớp biểu mẫu của Task 324; mã sinh (router, routes,
+SDK) có đủ `listWarehouses`, `listBalances`, `getProductClassification`; `go vet` sạch; số test khớp (52 = 42 + 10 ca
+`product-edit`; 166 vitest). Ghi chú không bắt buộc: mục Ảnh hưởng thiếu `console/src/api/index.ts` — đã bổ sung.
 
 Kết luận: ĐẠT (lần 2, trên bản đã gộp `main` d4a1baa, commit gộp dce78a5: mã sinh khớp `openapi.yaml`, không mất
 operation nào của `main` — kể cả của Task 320 —, lọc kho theo quyền, màn và tệp task đúng). Lúc commit `main` đã có

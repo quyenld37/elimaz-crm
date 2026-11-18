@@ -935,3 +935,32 @@ dialog.drawer {
   color: var(--paper);
   border-color: var(--ink);
 }
+
+/* Lớp chung của biểu mẫu hai cột (Task 324, chép từ m1.css): nhãn nhỏ, lưới ô nhập, hai cột, phần chỉ hiện từ 1000 px. */
+.label {
+  color: var(--label);
+  font-weight: 600;
+  font-size: 13px;
+}
+.grid-f {
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: start;
+}
+.cols {
+  display: grid;
+  gap: var(--space-lg);
+  grid-template-columns: minmax(0, 1fr) 420px;
+  align-items: start;
+}
+@media (max-width: 1199px) {
+  .cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 999px) {
+  .desk-only {
+    display: none;
+  }
+}

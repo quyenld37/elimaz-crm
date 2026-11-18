@@ -3,7 +3,7 @@
 // ký tự không tràn, lọc và tìm không thấy, cột "Có thể bán" theo kho. Ảnh chụp trạng thái A, D lưu vào thư mục kết quả
 // của test để so với docs/mockups/m1/png/san-pham-danh-sach-{1512,390}.png.
 import type { Route } from "@playwright/test";
-import type { Category, Grant, ProductListItem, ProductPage, Tag } from "../src/api";
+import type { Category, Grant, Product, ProductClassification, ProductListItem, ProductPage, Tag } from "../src/api";
 import { expect, forEachViewport, test, type FakeApi } from "./fixtures";
 
 const KHO = "0195f3b2-0000-7000-8000-00000000a001";
@@ -157,8 +157,33 @@ forEachViewport((vp) => {
     await expect(page.getByText("390.000 ₫")).toBeVisible();
     await expect(page.getByText("Hết danh sách.")).toBeVisible();
     await noHorizontalScroll(page);
+    // Trang sửa mẫu (Task 324) đọc mẫu, phân loại, thuộc tính.
+    const id = "0195f3b2-0000-7000-8000-000000010001";
+    await api.on(`**/api/v1/catalog/products/${id}`, (r) =>
+      r.fulfill({
+        json: {
+          id,
+          code: "DAM0001",
+          name: "Đầm bút chì cổ tim",
+          description: "",
+          article: [],
+          articleHtml: "",
+          status: "active",
+          version: 1,
+          variants: [],
+          images: [],
+        } satisfies Product,
+      }),
+    );
+    await api.on(`**/api/v1/catalog/products/${id}/classification`, (r) =>
+      r.fulfill({
+        json: { productId: id, version: 1, attributeValueIds: [], tagIds: [] } satisfies ProductClassification,
+      }),
+    );
+    await api.on("**/api/v1/catalog/attributes", (r) => r.fulfill({ json: [] }));
     await page.getByText("Đầm bút chì cổ tim").click();
     await expect(page).toHaveURL(/\/san-pham\/0195f3b2-0000-7000-8000-000000010001$/);
+    await expect(page.getByRole("heading", { name: "Đầm bút chì cổ tim" })).toBeVisible();
   });
 
   test("200 mẫu: cuộn tải tiếp theo con trỏ tới hết, chỉ dựng phần đang thấy", async ({ page, api }) => {
