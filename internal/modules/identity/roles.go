@@ -47,13 +47,20 @@ func defaultRoles() []RoleDef {
 		{Key: "sale", Name: "Bán hàng", Permissions: []Permission{
 			"catalog.read", "order.create", "order.read", "inventory.read", "fulfillment.read", "fulfillment.ship",
 			"realtime.subscribe",
+			// M2 (Task M2-01).
+			"customer.read", "customer.write", "order.update", "order.confirm", "order.cancel", "order.return",
+			"promotion.read",
 		}},
 		{Key: "warehouse", Name: "Kho", Permissions: []Permission{
 			"catalog.read", "inventory.read", "inventory.documents.create", "inventory.stocktake", "fulfillment.read",
 			"fulfillment.ship", "inventory.suppliers.manage", "realtime.subscribe",
+			// M2 (Task M2-01).
+			"order.read", "order.return.receive", "customer.read",
 		}},
 		{Key: "accountant", Name: "Kế toán", Permissions: []Permission{
 			"catalog.read", "inventory.read", "order.read", "fulfillment.read", "realtime.subscribe",
+			// M2 (Task M2-01).
+			"customer.read", "promotion.read",
 		}},
 	}
 }
@@ -480,6 +487,21 @@ func permissionLabels() map[Permission][3]string {
 		"inventory.suppliers.manage": {groupInventory, "Quản lý nhà cung cấp", ""},
 		"order.create":               {groupOrder, "Lên đơn", ""},
 		"order.read":                 {groupOrder, "Xem đơn", ""},
+		"order.update":               {groupOrder, "Sửa đơn, ghi chú đơn", ""},
+		"order.confirm":              {groupOrder, "Xác nhận đơn, chuyển chờ khách", ""},
+		"order.cancel":               {groupOrder, "Hủy đơn", ""},
+		"order.discount.approve":     {groupOrder, "Duyệt giảm giá vượt ngưỡng", ""},
+		"order.return":               {groupOrder, "Tạo phiếu trả, đổi hàng", ""},
+		"order.return.receive":       {groupOrder, "Nhận hàng trả về kho", ""},
+		"order.duplicates.resolve":   {groupOrder, "Xử lý đơn trùng", ""},
+		"order.settings.manage":      {groupOrder, "Cài đặt đơn, nguồn đơn", ""},
+		"customer.read":              {groupCustomer, "Xem khách hàng", ""},
+		"customer.write":             {groupCustomer, "Tạo, sửa hồ sơ khách", ""},
+		"customer.merge":             {groupCustomer, "Gộp khách, hoàn tác gộp", ""},
+		"customer.import":            {groupCustomer, "Nhập khách từ Excel", ""},
+		"customer.tags.manage":       {groupCustomer, "Quản lý nhãn khách", ""},
+		"promotion.read":             {groupPromo, "Xem mã giảm giá", ""},
+		"promotion.manage":           {groupPromo, "Tạo, sửa mã giảm giá và đợt mã", ""},
 		"fulfillment.read":           {groupShipping, "Xem vận đơn", ScopeWarehouse},
 		"fulfillment.ship":           {groupShipping, "Tạo vận đơn, giao hàng", ScopeWarehouse},
 		"conversation.read":          {groupChat, "Xem hội thoại", ScopePage},

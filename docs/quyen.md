@@ -19,7 +19,8 @@ trị nhân viên, vai trò, nền tảng là loại `toàn shop`.
   `Me.grants` chỉ liệt kê grant có hiệu lực. Ví dụ: Chủ gán theo kho A đọc sản phẩm, ghi phiếu kho A, nhưng không
   quản lý nhân viên, không xem nhật ký, không vào mục nền tảng.
 - Quyền quản trị (loại `toàn shop`) hiện có: `identity.users.manage`, `identity.roles.manage`, `platform.jobs.manage`,
-  `platform.health.read`, `platform.files.manage`, `audit.read`.
+  `platform.health.read`, `platform.files.manage`, `audit.read`; chính sách toàn shop của M2: `order.settings.manage`,
+  `promotion.manage`.
 - `GET /api/v1/me` không cần quyền nào: chỉ cần đăng nhập và tài khoản không bị khóa (`x-authenticated`, Task 315).
 - **Vai trò mẫu**: `owner` Chủ, `manager` Quản lý, `sale` Bán hàng, `warehouse` Kho, `accountant` Kế toán. Vai trò
   chủ shop đã sửa (`customized`) không được thêm quyền tự động, trừ `owner` luôn đủ mọi quyền. Mỗi lần `migrate` xong,
@@ -59,7 +60,7 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `catalog.manage` | none | M1 | owner, manager | Tạo, sửa, ngừng bán sản phẩm; danh mục, thuộc tính, nhãn |
 | `catalog.import` | none | M1 | owner, manager | Nhập sản phẩm bằng tệp Excel |
 | `order.create` | none | M1 | owner, manager, sale | Tạo đơn |
-| `order.read` | none | M1 | owner, manager, sale, accountant | Xem đơn |
+| `order.read` | none | M1 | owner, manager, sale, warehouse, accountant | Xem đơn (Kho nhận từ M2) |
 | `files.upload` | none | M1 | owner, manager | Tải ảnh, tệp lên kho tệp |
 | `platform.files.manage` | toàn shop | M1 | owner | Quản trị kho tệp (khôi phục, tình trạng bản sao) |
 | `inventory.suppliers.manage` | none | M1 | owner, manager, warehouse | Quản lý danh bạ nhà cung cấp |
@@ -71,3 +72,18 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `inventory.stocktake.apply` | theo đích: warehouse | M1 | owner, manager | Áp chênh lệch kiểm kho vào sổ |
 | `fulfillment.read` | theo đích: warehouse | M1 | owner, manager, sale, warehouse, accountant | Xem vận đơn của kho được giao |
 | `fulfillment.ship` | theo đích: warehouse | M1 | owner, manager, sale, warehouse | Tạo, gửi vận đơn từ kho được giao |
+| `customer.read` | none | M2 | owner, manager, sale, warehouse, accountant | Xem, tìm khách, hồ sơ, dòng thời gian |
+| `customer.write` | none | M2 | owner, manager, sale | Tạo, sửa hồ sơ khách, danh tính, địa chỉ, ghi chú, gắn nhãn |
+| `customer.merge` | none | M2 | owner, manager | Gộp hai khách, hoàn tác gộp |
+| `customer.import` | none | M2 | owner, manager | Nhập khách bằng tệp Excel |
+| `customer.tags.manage` | none | M2 | owner, manager | Tạo, sửa nhãn khách và quy tắc nhãn |
+| `order.update` | none | M2 | owner, manager, sale | Sửa đơn (kiểm phiên bản), thêm ghi chú đơn |
+| `order.confirm` | none | M2 | owner, manager, sale | Xác nhận đơn, chuyển chờ khách, chốt đơn nháp |
+| `order.cancel` | none | M2 | owner, manager, sale | Hủy đơn, xử lý yêu cầu hủy |
+| `order.discount.approve` | none | M2 | owner, manager | Duyệt đơn giảm tay vượt ngưỡng; tự lên đơn giảm vượt ngưỡng không phải chờ |
+| `order.return` | none | M2 | owner, manager, sale | Tạo phiếu trả hàng, đổi hàng (M3 dùng lại) |
+| `order.return.receive` | none | M2 | owner, manager, warehouse | Nhận hàng trả về kho, ghi tình trạng từng dòng (M3 dùng lại) |
+| `order.duplicates.resolve` | none | M2 | owner, manager | Xử lý cặp đơn có thể trùng |
+| `order.settings.manage` | toàn shop | M2 | owner, manager | Cài đặt đơn của shop (ngưỡng duyệt giảm giá…), nguồn đơn |
+| `promotion.read` | none | M2 | owner, manager, sale, accountant | Xem mã giảm giá, đợt mã (M5 dùng lại) |
+| `promotion.manage` | toàn shop | M2 | owner, manager | Tạo, sửa, ngừng mã giảm giá và đợt mã |
