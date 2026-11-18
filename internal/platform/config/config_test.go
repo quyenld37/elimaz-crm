@@ -297,3 +297,24 @@ func TestConfigLogValueHidesSecrets(t *testing.T) {
 		t.Fatalf("LogValue phải có vai trò: %s", s)
 	}
 }
+
+// Hạn giữ việc xong (Task 394), chỉ vai trò worker: mặc định 7 ngày, đặt được trong [1, 30], ngoài khoảng là lỗi.
+func TestLoadJobsDoneRetentionDays(t *testing.T) {
+	cfg, err := config.Load(config.RoleWorker, env(workerEnv()))
+	if err != nil || cfg.JobsDoneRetentionDays != 7 {
+		t.Fatalf("mặc định: %d, %v", cfg.JobsDoneRetentionDays, err)
+	}
+	cfg, err = config.Load(config.RoleWorker, env(with(workerEnv(), "JOBS_DONE_RETENTION_DAYS", "2")))
+	if err != nil || cfg.JobsDoneRetentionDays != 2 {
+		t.Fatalf("đặt 2: %d, %v", cfg.JobsDoneRetentionDays, err)
+	}
+	for _, v := range []string{"0", "31", "x"} {
+		_, err := config.Load(config.RoleWorker, env(with(workerEnv(), "JOBS_DONE_RETENTION_DAYS", v)))
+		if err == nil || !strings.Contains(err.Error(), "JOBS_DONE_RETENTION_DAYS") {
+			t.Errorf("JOBS_DONE_RETENTION_DAYS=%s phải lỗi nêu tên biến, nhận %v", v, err)
+		}
+	}
+	if cfg, err := config.Load(config.RoleAPI, env(apiEnv())); err != nil || cfg.JobsDoneRetentionDays != 0 {
+		t.Fatalf("api không giữ hạn của worker: %d, %v", cfg.JobsDoneRetentionDays, err)
+	}
+}

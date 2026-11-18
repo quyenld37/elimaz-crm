@@ -12,14 +12,20 @@ import (
 	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
-// Dọn dữ liệu (kế hoạch M0, Task 13).
+// Dọn dữ liệu (kế hoạch M0, Task 13; Task 394).
 const (
-	// cleanupEvery: chu kỳ của hai lịch dọn.
-	cleanupEvery = time.Hour
+	// cleanupEvery: chu kỳ của hai lịch dọn. 5 phút (Task 394, trước là 1 giờ): mỗi kỳ tối đa cleanupBatch dòng mỗi bảng,
+	// nên mỗi giờ dọn được tới 60.000 việc xong, hơn số việc sinh ra ở tải 1× của thử tải M0 (~36.000/giờ).
+	cleanupEvery = 5 * time.Minute
 	// cleanupBatch: mỗi lần tối đa 5.000 dòng mỗi bảng (phần còn lại để kỳ sau).
 	cleanupBatch = 5000
-	// retention: việc done/expired và chỉ số theo phút giữ 30 ngày.
+	// retention: chỉ số theo phút giữ 30 ngày.
 	retention = 30 * 24 * time.Hour
+	// DefaultJobRetention: việc done/expired giữ 7 ngày (Task 394; spec 04 mục 7 ghi 30 ngày). Đủ để tra một việc của
+	// tuần trước; chống trùng tầng 1 của việc đã xong hết sau hạn này, tầng 2 (khóa tự nhiên của bảng nghiệp vụ) vẫn
+	// chặn xử lý lại. Giữ 30 ngày làm bảng jobs lớn ~1,2 GiB mỗi ngày ở tải 1× (thử tải M0 phát hiện 4). Việc dead,
+	// in_doubt không bao giờ bị dọn.
+	DefaultJobRetention = 7 * 24 * time.Hour
 
 	cleanupName       = "platform.cleanup"
 	tenantCleanupName = "platform.cleanup_tenant"
@@ -29,16 +35,26 @@ const (
 // với now là giờ của lần dọn; trả số dòng đã xóa. Chạy lại được (tx có thể bị lùi rồi chạy lại).
 type CleanupFunc func(ctx context.Context, tx pgx.Tx, now time.Time) (int64, error)
 
-// Cleanup là các hàm dọn của tiến trình, chạy theo hai lịch mỗi giờ: platform.cleanup (một việc không tenant: bảng
+// Cleanup là các hàm dọn của tiến trình, chạy theo hai lịch mỗi 5 phút: platform.cleanup (một việc không tenant: bảng
 // nền tảng không RLS) và platform.cleanup_tenant (mỗi tenant một việc, trong WithTenant: bảng có RLS). Nạp một lần lúc
 // khởi động (cmd/crm), không an toàn khi đăng ký đồng thời với lúc chạy.
 type Cleanup struct {
 	global, perTenant []CleanupFunc
 }
 
-// NewCleanup trả Cleanup đã có các hàm dọn của M0: việc done/expired và metrics_minute quá 30 ngày (không tenant),
-// idempotency_keys quá expires_at (theo tenant).
-func NewCleanup() *Cleanup {
+// CleanupOptions là cấu hình của các hàm dọn có sẵn.
+type CleanupOptions struct {
+	// JobRetention: việc done/expired kết thúc quá hạn này thì bị xóa; ≤ 0 → DefaultJobRetention.
+	JobRetention time.Duration
+}
+
+// NewCleanup trả Cleanup đã có các hàm dọn của M0: việc done/expired quá o.JobRetention và metrics_minute quá 30 ngày
+// (không tenant), idempotency_keys quá expires_at (theo tenant).
+func NewCleanup(o CleanupOptions) *Cleanup {
+	jobRetention := o.JobRetention
+	if jobRetention <= 0 {
+		jobRetention = DefaultJobRetention
+	}
 	c := &Cleanup{}
 	c.RegisterCleanup(func(ctx context.Context, tx pgx.Tx, now time.Time) (int64, error) {
 		n, err := store.New(tx).DeleteOldMetrics(ctx, store.DeleteOldMetricsParams{Before: now.Add(-retention), MaxRows: cleanupBatch})
@@ -48,7 +64,7 @@ func NewCleanup() *Cleanup {
 		return n, nil
 	})
 	c.RegisterCleanup(func(ctx context.Context, tx pgx.Tx, now time.Time) (int64, error) {
-		n, err := store.New(tx).DeleteFinishedJobs(ctx, store.DeleteFinishedJobsParams{Before: now.Add(-retention), MaxRows: cleanupBatch})
+		n, err := store.New(tx).DeleteFinishedJobs(ctx, store.DeleteFinishedJobsParams{Before: now.Add(-jobRetention), MaxRows: cleanupBatch})
 		if err != nil {
 			return 0, fmt.Errorf("dọn jobs: %w", err)
 		}

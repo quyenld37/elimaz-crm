@@ -274,7 +274,7 @@ func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtim
 func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *metrics.Flusher, cfg config.Config,
 	logger *slog.Logger,
 ) error {
-	cleanup := schedules.NewCleanup()
+	cleanup := schedules.NewCleanup(schedules.CleanupOptions{JobRetention: time.Duration(cfg.JobsDoneRetentionDays) * 24 * time.Hour})
 	cleanup.RegisterCleanup(webhooks.CleanupDeliveries) // bảng nền tảng không RLS: lịch platform.cleanup
 	plan := schedules.NewRegistry()
 	if err := cleanup.Define(plan); err != nil {

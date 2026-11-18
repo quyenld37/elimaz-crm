@@ -60,6 +60,8 @@ WHERE id = @id AND status = 'pending' AND expires_at < now();
 --     (việc tới hạn chạy theo thứ tự, mỗi lần nhận tối đa một việc của một khóa). Việc chờ thử lại, in_doubt, dead
 --     không chặn. Chốt chặn cuối: index duy nhất jobs_best_effort_running (migration 0012).
 -- Việc command (lệnh ra ngoài, Task 12) chỉ được nhận khi worker có commands.Runner (with_commands).
+-- So tenant bằng coalesce(tenant_id, uuid nil) (tenant NULL chỉ cùng nhóm với tenant NULL) để câu con dùng index
+-- jobs_order_key (migration 0014); IS NOT DISTINCT FROM không dùng được index và quét cả bảng cho mỗi ứng viên (Task 394).
 -- name: ClaimJobs :many
 WITH picked AS (
     SELECT j.id
@@ -68,7 +70,9 @@ WITH picked AS (
       AND (j.expires_at IS NULL OR j.expires_at >= now())
       AND (j.order_key IS NULL OR NOT EXISTS (
           SELECT 1 FROM platform.jobs b
-          WHERE b.tenant_id IS NOT DISTINCT FROM j.tenant_id AND b.order_key = j.order_key AND b.id <> j.id
+          WHERE coalesce(b.tenant_id, '00000000-0000-0000-0000-000000000000'::uuid)
+                    = coalesce(j.tenant_id, '00000000-0000-0000-0000-000000000000'::uuid)
+            AND b.order_key = j.order_key AND b.id <> j.id
             AND b.status NOT IN ('done', 'expired')
             AND CASE WHEN j.order_mode = 'best_effort' THEN
                     b.status = 'running'
