@@ -38,6 +38,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/observability"
 	"elimaz.com.vn/crm/internal/platform/observability/alertjobs"
+	"elimaz.com.vn/crm/internal/platform/observability/liveprobe"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime"
 	"elimaz.com.vn/crm/internal/platform/schedules"
@@ -99,7 +100,7 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGTERM, os.Interrupt)
 	defer stop()
-	logger, closer, err := logging.NewLogger(cfg, stdout)
+	logger, closer, err := logging.NewLogger(cfg.LogDir, string(cfg.Role), stdout)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 		return exitConfig
@@ -530,7 +531,7 @@ func healthcheck(ctx context.Context, cfg config.Config) error {
 	defer cancel()
 	switch cfg.Role {
 	case config.RoleIngest, config.RoleAPI:
-		if err := observability.CheckLive(ctx, cfg.Port, healthcheckTimeout); err != nil {
+		if err := liveprobe.CheckLive(ctx, cfg.Port, healthcheckTimeout); err != nil {
 			return fmt.Errorf("kiểm /health/live: %w", err)
 		}
 		return nil

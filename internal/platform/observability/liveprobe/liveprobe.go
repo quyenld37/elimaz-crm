@@ -1,4 +1,7 @@
-package observability
+// Package liveprobe gọi /health/live của một tiến trình cùng máy: lệnh `healthcheck` của image không có curl
+// (cmd/crm, cmd/imager). Chỉ thư viện chuẩn, để tệp chạy imager không liên kết database hay cấu hình qua gói
+// observability (luật (g) của tests/arch xét cả phụ thuộc gián tiếp, Task 414).
+package liveprobe
 
 import (
 	"context"

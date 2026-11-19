@@ -38,6 +38,7 @@ func moduleCalls() map[string][]string {
 type listedPackage struct {
 	ImportPath string
 	Imports    []string
+	Deps       []string // mọi gói nó cần, cả bắc cầu (luật (g) xét cả tệp chạy imager liên kết gì, Task 414)
 }
 
 // goListPackages chạy `go list -e -json ./...` trong dir (không mạng: GOPROXY=off; -e để vẫn có danh sách nhập khi
@@ -166,7 +167,20 @@ func boundaryViolation(pkg, imp string) string {
 	return ""
 }
 
-// checkBoundaries trả mọi vi phạm luật a–h trong dir (một module Go có đường dẫn elimaz.com.vn/crm).
+// imagerDepViolation: luật (g) ở mức tệp chạy (Task 414, C-05 của review độc lập M1) — gói của imager không được
+// liên kết, kể cả gián tiếp qua gói khác, tới database, cấu hình có bí mật, hàng đợi, pgx. Lần nhập trực tiếp đã báo
+// ở boundaryViolation nên bỏ qua ở đây.
+func imagerDepViolation(p listedPackage, pkg, dep string) string {
+	if !hasPathPrefix(pkg, "internal/imager") && !hasPathPrefix(pkg, "cmd/imager") {
+		return ""
+	}
+	if slices.Contains(p.Imports, dep) || !imagerForbidden(dep) {
+		return ""
+	}
+	return fmt.Sprintf("%s phụ thuộc gián tiếp %s: (g) imager không liên kết database, cấu hình, hàng đợi, pgx", pkg, dep)
+}
+
+// checkBoundaries trả mọi vi phạm luật a–i trong dir (một module Go có đường dẫn elimaz.com.vn/crm).
 func checkBoundaries(t *testing.T, dir string) []string {
 	t.Helper()
 	var out []string
@@ -180,6 +194,11 @@ func checkBoundaries(t *testing.T, dir string) []string {
 				out = append(out, fmt.Sprintf("%s nhập %s: %s", pkg, imp, v))
 			}
 		}
+		for _, dep := range p.Deps {
+			if v := imagerDepViolation(p, pkg, dep); v != "" {
+				out = append(out, v)
+			}
+		}
 	}
 	slices.Sort(out)
 	return out
@@ -189,7 +208,9 @@ func TestBoundariesTestdata(t *testing.T) {
 	got := checkBoundaries(t, filepath.Join("testdata", "boundaries"))
 	want := []string{
 		"cmd/imager nhập elimaz.com.vn/crm/internal/platform/config: (g)",
+		"cmd/imager phụ thuộc gián tiếp github.com/jackc/pgx/v5: (g)",
 		"internal/imager nhập github.com/jackc/pgx/v5: (g)",
+		"internal/imager/viahealth phụ thuộc gián tiếp elimaz.com.vn/crm/internal/platform/db: (g)",
 		"internal/modules/catalog nhập elimaz.com.vn/crm/internal/modules/order/internal/store: (a)",
 		"internal/modules/customer nhập github.com/valkey-io/valkey-go: (d)",
 		"internal/modules/customer/callorder nhập elimaz.com.vn/crm/internal/modules/order: (a)",

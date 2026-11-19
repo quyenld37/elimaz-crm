@@ -146,7 +146,7 @@ func TestNewLoggerWritesDailyFileOnlyWithLogDir(t *testing.T) {
 		dir := t.TempDir()
 		t.Chdir(dir)
 		var out strings.Builder
-		l, closer, err := logging.NewLogger(config.Config{Role: config.RoleAPI}, &out)
+		l, closer, err := logging.NewLogger("", string(config.RoleAPI), &out)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -162,7 +162,7 @@ func TestNewLoggerWritesDailyFileOnlyWithLogDir(t *testing.T) {
 	t.Run("có LOG_DIR", func(t *testing.T) {
 		dir := t.TempDir()
 		var out strings.Builder
-		l, closer, err := logging.NewLogger(config.Config{Role: config.RoleWorker, LogDir: dir}, &out)
+		l, closer, err := logging.NewLogger(dir, string(config.RoleWorker), &out)
 		if err != nil {
 			t.Fatal(err)
 		}
