@@ -235,14 +235,18 @@ func TestProcessPrivate_LookerMissingSourceAndHang(t *testing.T) {
 	files.SetProcessTimeout(p.priv, 300*time.Millisecond)
 	p.w = p.newWorker()
 	hang := p.registerPrivate(p.a, []byte(hangPrefix))
-	for range 4 {
-		p.drain()
-		p.makeDue()
-	}
+	p.rounds(4)
 	if r := p.fileRow(gone); r.Status != files.StatusRejected || r.Reason != "source_missing" {
 		t.Fatalf("ảnh thô đã xóa: %+v", r)
 	}
-	if j := p.job(kindPrivate, hang); j.Status != "dead" || j.Attempts != 3 {
+	// Treo là lỗi hạ tầng (Task 409): không tính lượt, tệp processing tới khi hết trần thời gian.
+	if j, r := p.job(kindPrivate, hang), p.fileRow(hang); j.Status != "pending" || j.Attempts != 0 || r.Status != files.StatusProcessing {
+		t.Fatalf("lệnh treo trước trần: %+v, tệp %+v", j, r)
+	}
+	p.backdate(kindPrivate, hang, files.DefaultRetryMax+time.Minute)
+	p.makeDue()
+	p.drain()
+	if j := p.job(kindPrivate, hang); j.Status != "dead" || j.Attempts != 1 {
 		t.Fatalf("lệnh treo: %+v", j)
 	}
 	if r := p.fileRow(hang); r.Status != files.StatusRejected || r.Reason != "processing_failed" {
@@ -259,15 +263,17 @@ func TestProcessPrivate_LookerMissingSourceAndHang(t *testing.T) {
 }
 
 // Quy luật (rapid): với mọi chuỗi kết quả của imager, lệnh riêng tư không bao giờ tạo đối tượng ở crm-public,
-// crm-originals hay khóa orig/, img/; lý do từ chối luôn thuộc tập đã khai.
+// crm-originals hay khóa orig/, img/; lý do từ chối luôn thuộc tập đã khai; lỗi hạ tầng (upload_failed, timeout, treo)
+// không bao giờ làm tệp rejected trước trần — tệp ở processing (Task 409).
 func TestProcessPrivate_PropertyNeverPublic(t *testing.T) {
 	p := newProcEnv(t)
-	files.SetProcessTimeout(p.priv, 200*time.Millisecond)
+	files.SetProcessTimeout(p.priv, 500*time.Millisecond)
 	p.w = p.newWorker()
 	known := map[string]bool{
 		"not_image": true, "type_not_allowed": true, "too_large": true, "too_many_pixels": true, "decode_failed": true,
 		"processing_failed": true, "source_missing": true,
 	}
+	infra := map[string]bool{"upload_failed": true, "timeout": true, "hang": true}
 	rapid.Check(t, func(rt *rapid.T) {
 		kind := rapid.SampledFrom([]string{"ok", "not_image", "too_many_pixels", "decode_failed", "upload_failed", "timeout", "hang"}).Draw(rt, "imager")
 		var body []byte
@@ -291,13 +297,22 @@ func TestProcessPrivate_PropertyNeverPublic(t *testing.T) {
 				rt.Fatalf("ready mà %d biến thể", len(p.variants(id)))
 			}
 		case files.StatusRejected:
-			if !known[r.Reason] {
-				rt.Fatalf("lý do lạ %q", r.Reason)
+			if !known[r.Reason] || infra[kind] {
+				rt.Fatalf("lý do lạ %q (%s)", r.Reason, kind)
+			}
+		case files.StatusProcessing:
+			if !infra[kind] {
+				rt.Fatalf("%s mà vẫn processing", kind)
 			}
 		default:
-			rt.Fatalf("sau 3 lần vẫn %s (%s)", r.Status, kind)
+			rt.Fatalf("sau 4 vòng vẫn %s (%s)", r.Status, kind)
 		}
 		p.assertNothingPublic()
+		// Lệnh lỗi hạ tầng còn chờ tới trần (24 giờ): bỏ đi để vòng sau không chạy lại chúng (makeDue đưa mọi việc về hạn).
+		if _, err := p.staff.Owner.Pool.Exec(t.Context(),
+			"UPDATE platform.jobs SET status = 'expired', finished_at = now() WHERE status = 'pending'"); err != nil {
+			rt.Fatal(err)
+		}
 	})
 }
 

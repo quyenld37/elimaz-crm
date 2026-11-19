@@ -16,19 +16,21 @@ import (
 const insertOrder = `-- name: InsertOrder :exec
 
 INSERT INTO ord.orders
-    (id, tenant_id, seller_id, code, customer_id, channel, idempotency_key, status, ship_address, ship_phone,
+    (id, tenant_id, seller_id, code, customer_id, channel, idempotency_key, status, pending_reason, ship_address, ship_phone,
      ship_phone_reversed, address_complete, subtotal, line_discount_total, order_discount, coupon_discount,
      discount_total, shipping_fee_charged, cod_amount, grand_total, created_by, version, warehouse_id,
      traffic_source_id, external_ref, referral_ref, draft_expires_at, carrier_note, care_by, conversation_id,
-     channel_account_id, order_type, replaced_return_id, confirmed_at, confirmed_by, created_at, updated_at)
+     channel_account_id, order_type, replaced_return_id, confirmed_at, confirmed_by, discount_approved_by,
+     discount_approved_at, created_at, updated_at)
 VALUES ($1, NULLIF(current_setting('app.tenant_id', true), '')::uuid, $2, $3, $4, $5,
-        $6, $7, $8, $9, $10, $11, $12,
-        $13, $14, $15, $16, $17, $18,
-        $19, $20::uuid, $21, $22, $23::uuid,
-        $24::text, $25::jsonb, $26::timestamptz,
-        $27, $28::uuid, $29::uuid,
-        $30::uuid, $31, $32::uuid,
-        $33::timestamptz, $34::uuid, $35::timestamptz, $35::timestamptz)
+        $6, $7, $8, $9, $10, $11, $12, $13,
+        $14, $15, $16, $17, $18, $19,
+        $20, $21::uuid, $22, $23, $24::uuid,
+        $25::text, $26::jsonb, $27::timestamptz,
+        $28, $29::uuid, $30::uuid,
+        $31::uuid, $32, $33::uuid,
+        $34::timestamptz, $35::uuid, $36::uuid,
+        $37::timestamptz, $38::timestamptz, $38::timestamptz)
 `
 
 type InsertOrderParams struct {
@@ -39,6 +41,7 @@ type InsertOrderParams struct {
 	Channel            string
 	IdempotencyKey     uuid.UUID
 	Status             string
+	PendingReason      string
 	ShipAddress        []byte
 	ShipPhone          string
 	ShipPhoneReversed  string
@@ -66,12 +69,15 @@ type InsertOrderParams struct {
 	ReplacedReturnID   pgtype.UUID
 	ConfirmedAt        pgtype.Timestamptz
 	ConfirmedBy        pgtype.UUID
+	DiscountApprovedBy pgtype.UUID
+	DiscountApprovedAt pgtype.Timestamptz
 	Now                time.Time
 }
 
 // Tạo đơn (kế hoạch M2, Task M2-16; order.Writer.Create). Chạy trong tenancy.WithTenant. Thứ tự khóa ADR-46 nhóm 7:
 // đơn → dòng đơn → lịch sử (dòng mới, không khóa dòng có sẵn).
-// Đơn mới đủ cột M2. Đơn tạo thẳng confirmed ghi confirmed_at, confirmed_by; nháp có draft_expires_at.
+// Đơn mới đủ cột M2. Đơn tạo thẳng confirmed ghi confirmed_at, confirmed_by; nháp có draft_expires_at; giảm tay vượt
+// ngưỡng: pending_reason discount_approval, hoặc người duyệt là người tạo có quyền duyệt (Task M2-17).
 func (q *Queries) InsertOrder(ctx context.Context, arg InsertOrderParams) error {
 	_, err := q.db.Exec(ctx, insertOrder,
 		arg.ID,
@@ -81,6 +87,7 @@ func (q *Queries) InsertOrder(ctx context.Context, arg InsertOrderParams) error 
 		arg.Channel,
 		arg.IdempotencyKey,
 		arg.Status,
+		arg.PendingReason,
 		arg.ShipAddress,
 		arg.ShipPhone,
 		arg.ShipPhoneReversed,
@@ -108,6 +115,8 @@ func (q *Queries) InsertOrder(ctx context.Context, arg InsertOrderParams) error 
 		arg.ReplacedReturnID,
 		arg.ConfirmedAt,
 		arg.ConfirmedBy,
+		arg.DiscountApprovedBy,
+		arg.DiscountApprovedAt,
 		arg.Now,
 	)
 	return err
@@ -131,6 +140,75 @@ func (q *Queries) OrderByIdempotencyKey(ctx context.Context, arg OrderByIdempote
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const setOrderCouponTotals = `-- name: SetOrderCouponTotals :execrows
+UPDATE ord.orders
+SET coupon_discount = $1,
+    discount_total  = $2,
+    grand_total     = $3,
+    cod_amount      = $3
+WHERE seller_id = $4 AND id = $5
+`
+
+type SetOrderCouponTotalsParams struct {
+	CouponDiscount int64
+	DiscountTotal  int64
+	GrandTotal     int64
+	SellerID       uuid.UUID
+	ID             uuid.UUID
+}
+
+// Tổng tiền của đơn vừa chèn sau khi dùng mã giảm giá (Task M2-17; cùng transaction tạo đơn, trước khi giữ hàng):
+// cod_amount = grand_total vì đơn mới chưa trả trước. Không đổi trạng thái.
+func (q *Queries) SetOrderCouponTotals(ctx context.Context, arg SetOrderCouponTotalsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setOrderCouponTotals,
+		arg.CouponDiscount,
+		arg.DiscountTotal,
+		arg.GrandTotal,
+		arg.SellerID,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setOrderItemAllocation = `-- name: SetOrderItemAllocation :execrows
+UPDATE ord.order_items i
+SET allocated_order_discount = u.allocated,
+    net_amount               = u.net,
+    updated_at               = $1::timestamptz
+FROM (SELECT unnest($4::uuid[]) AS id, unnest($5::bigint[]) AS allocated,
+             unnest($6::bigint[]) AS net) AS u
+WHERE i.seller_id = $2 AND i.order_id = $3 AND i.id = u.id
+`
+
+type SetOrderItemAllocationParams struct {
+	Now       time.Time
+	SellerID  uuid.UUID
+	OrderID   uuid.UUID
+	Ids       []uuid.UUID
+	Allocated []int64
+	Net       []int64
+}
+
+// Phần giảm cấp đơn và mã chia về từng dòng của đơn vừa chèn (ids, allocated, net cùng thứ tự; trigger
+// check_order_totals kiểm tổng lúc commit).
+func (q *Queries) SetOrderItemAllocation(ctx context.Context, arg SetOrderItemAllocationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setOrderItemAllocation,
+		arg.Now,
+		arg.SellerID,
+		arg.OrderID,
+		arg.Ids,
+		arg.Allocated,
+		arg.Net,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const txNow = `-- name: TxNow :one

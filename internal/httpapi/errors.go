@@ -127,6 +127,7 @@ const (
 	codeSupplierNameTaken  = "supplier_name_taken"
 	codeSupplierArchived   = "supplier_archived"
 	codeSupplierNotForKind = "supplier_not_for_kind"
+	codeStockShort         = "stock_short" // Task 406: lấy hàng, giao bị chặn vì kiểm kho ghi thấp hơn phần giữ
 )
 
 // errForbiddenTarget: người gọi có quyền (guard đã cho qua) nhưng không ở đích của yêu cầu (kho của phiếu): 403.
@@ -264,14 +265,18 @@ func detailedError(err error) (errorBody, int, bool) {
 	return errorBody{}, 0, false
 }
 
-// stockShortage: hết hàng khi lên đơn (out_of_stock, Task M1-30) hay thiếu hàng ở phiếu kho (insufficient_stock, Task
-// M1-29), kèm biến thể đầu tiên không đủ và số còn làm được.
+// stockShortage: hết hàng khi lên đơn (out_of_stock, Task M1-30), thiếu hàng ở phiếu kho (insufficient_stock, Task
+// M1-29) hay tồn thực không đủ cho giữ hàng khi lấy hàng, giao (stock_short, Task 406), kèm biến thể đầu tiên không đủ
+// và số còn làm được (stock_short: phần trên kệ còn cho dòng giữ hàng).
 func stockShortage(err error) (code, variantID string, available int32, ok bool) {
 	if oos, ok := errors.AsType[*order.OutOfStockError](err); ok {
 		return codeOutOfStock, oos.VariantID.String(), oos.Available, true
 	}
 	if ie, ok := errors.AsType[*inventory.InsufficientError](err); ok {
 		return codeInsufficientStock, ie.VariantID.String(), ie.Available, true
+	}
+	if se, ok := errors.AsType[*inventory.StockShortError](err); ok {
+		return codeStockShort, se.VariantID.String(), se.OnShelf, true
 	}
 	return "", "", 0, false
 }
@@ -393,6 +398,7 @@ func inventoryError(err error) (status int, code string, ok bool) {
 	}{
 		{errForbiddenTarget, http.StatusForbidden, codeForbidden},
 		{inventory.ErrInsufficient, http.StatusConflict, codeInsufficientStock},
+		{inventory.ErrStockShort, http.StatusConflict, codeStockShort},
 		{inventory.ErrNotFound, http.StatusNotFound, codeNotFound},
 		{inventory.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
 		{inventory.ErrDocumentNotDraft, http.StatusConflict, codeDocumentNotDraft},
@@ -496,6 +502,10 @@ func customerError(err error) (status int, code string, ok bool) {
 		{customer.ErrImportTooLarge, http.StatusUnprocessableEntity, codeImportTooLarge},
 		{customer.ErrImportFileInvalid, http.StatusUnprocessableEntity, codeImportFileInvalid},
 		{customer.ErrInvalidTagRule, http.StatusUnprocessableEntity, codeInvalidTagRule},
+		// Task M2-12: tên nhãn trùng dùng mã chung already_exists (như Q-T72-1); gỡ nhãn do quy tắc gắn → màn hình đang
+		// cũ, tải lại (version_conflict). Không thêm mã mới vào hợp đồng (tệp task 69, QĐ1, QĐ2).
+		{customer.ErrTagNameTaken, http.StatusConflict, codeAlreadyExists},
+		{customer.ErrTagRuleManaged, http.StatusConflict, codeVersionConflict},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

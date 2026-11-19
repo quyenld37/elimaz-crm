@@ -1,9 +1,11 @@
 package customer_test
 
 import (
+	"fmt"
 	"os"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -30,11 +32,58 @@ func storeSQL(t *testing.T, name string) string {
 	return string(m[1])
 }
 
-// explainFixture: 100.000 khách và 130.000 danh tính SĐT trong tenant A (sinh bằng generate_series), 2.000 khách trong
-// tenant B, ANALYZE; auto_explain bật cho crm_app để đọc kế hoạch bên trong hàm.
+// explainSeed: 100.000 khách và 130.000 danh tính SĐT trong tenant A (sinh bằng generate_series), 2.000 khách trong
+// tenant B, ANALYZE. Chạy bằng chủ bảng trong ngữ cảnh từng tenant (SET ROLE, set_config: RLS lọc như
+// testkit.Staff.Exec trước Task 423); mã tenant cố định để dựng một lần làm database mẫu.
+func explainSeed(a, b uuid.UUID) testkit.Seed {
+	q := []string{
+		"SET ROLE crm_owner",
+		fmt.Sprintf("INSERT INTO platform.tenants (id, name) VALUES ('%s', 'A'), ('%s', 'B')", a, b),
+	}
+	for _, c := range []struct {
+		tenant uuid.UUID
+		n      int
+		prefix string
+	}{{a, 100000, "9"}, {b, 2000, "8"}} {
+		q = append(q, fmt.Sprintf("SELECT set_config('app.tenant_id', '%s', false)", c.tenant),
+			`INSERT INTO customer.customers (tenant_id, full_name, name_search, last_order_at)
+				SELECT current_setting('app.tenant_id')::uuid, n, n,
+				       CASE WHEN g % 3 = 0 THEN now() - g * interval '1 minute' END
+				FROM generate_series(1, `+strconv.Itoa(c.n)+`::int) AS g,
+				     LATERAL (SELECT (ARRAY['nguyen','tran','le','pham','hoang','huynh','phan','vu','vo','dang'])[1 + g % 10] || ' ' ||
+				        (ARRAY['thi','van','ngoc','minh','thu','hoang','thanh','duc'])[1 + (g / 10) % 8] || ' ' ||
+				        (ARRAY['anh','hoa','lan','tuyet','mai','huong','linh','trang','phuong','nga','hung','nam'])[1 + (g / 80) % 12]
+				        || ' ' || g AS n) AS x`,
+			// Mỗi khách một SĐT; 30% khách có thêm SĐT thứ hai.
+			`INSERT INTO customer.customer_identities (tenant_id, customer_id, kind, value, value_reversed, source)
+				SELECT tenant_id, id, 'phone', v, reverse(substr(v, 2)), 'import'
+				FROM (SELECT tenant_id, id, '+84`+c.prefix+`' || lpad((row_number() OVER (ORDER BY id))::text, 8, '0') AS v
+				      FROM customer.customers) AS s`,
+			`INSERT INTO customer.customer_identities (tenant_id, customer_id, kind, value, value_reversed, source)
+				SELECT tenant_id, id, 'phone', v, reverse(substr(v, 2)), 'import'
+				FROM (SELECT tenant_id, id, '+843' || lpad((row_number() OVER (ORDER BY id))::text, 8, '0') AS v, random() AS r
+				      FROM customer.customers) AS s
+				WHERE r < 0.3`,
+			// Hai nhãn; 20% khách có nhãn thứ nhất, 5% có nhãn thứ hai.
+			`INSERT INTO customer.customer_tags (tenant_id, name, color)
+				VALUES (current_setting('app.tenant_id')::uuid, 'VIP', 'red'), (current_setting('app.tenant_id')::uuid, 'Sỉ', 'blue')`,
+			`INSERT INTO customer.customer_tag_links (tenant_id, customer_id, tag_id, source)
+				SELECT c.tenant_id, c.id, t.id, 'staff'
+				FROM customer.customers AS c
+				JOIN customer.customer_tags AS t ON t.tenant_id = c.tenant_id
+				WHERE (t.name = 'VIP' AND abs(hashtext(c.id::text)) % 5 = 0) OR (t.name = 'Sỉ' AND abs(hashtext(c.id::text)) % 20 = 1)`,
+		)
+	}
+	return testkit.Seed{Name: "customer-search-explain", SQL: append(q,
+		"ANALYZE customer.customers, customer.customer_identities, customer.customer_tag_links")}
+}
+
+// explainFixture lấy database thử có dữ liệu của explainSeed (dựng một lần làm database mẫu), kiểm số danh tính của A;
+// auto_explain bật cho crm_app để đọc kế hoạch bên trong hàm.
 func explainFixture(t *testing.T) (*db.DB, uuid.UUID) {
 	t.Helper()
-	adminURL, ownerURL, appURL := testkit.StartPostgres(t)
+	a, b := testkit.FixedUUID("customer-search-explain/A"), testkit.FixedUUID("customer-search-explain/B")
+	adminURL, ownerURL, appURL := testkit.StartPostgresSeeded(t, explainSeed(a, b))
 	var owner, app *db.DB
 	for dst, url := range map[**db.DB]string{&owner: ownerURL, &app: appURL} {
 		d, err := db.Open(t.Context(), url, db.PoolOptions{MaxConns: 2})
@@ -45,59 +94,12 @@ func explainFixture(t *testing.T) (*db.DB, uuid.UUID) {
 		*dst = d
 	}
 	s := &testkit.Staff{Owner: owner}
-	a, b := s.Tenant(t, "A"), s.Tenant(t, "B")
-	seed := func(tenant uuid.UUID, n int, prefix string) {
-		s.Exec(t, tenant, func(tx pgx.Tx) error {
-			for _, q := range []string{
-				`INSERT INTO customer.customers (tenant_id, full_name, name_search, last_order_at)
-				SELECT current_setting('app.tenant_id')::uuid, n, n,
-				       CASE WHEN g % 3 = 0 THEN now() - g * interval '1 minute' END
-				FROM generate_series(1, $1::int) AS g,
-				     LATERAL (SELECT (ARRAY['nguyen','tran','le','pham','hoang','huynh','phan','vu','vo','dang'])[1 + g % 10] || ' ' ||
-				        (ARRAY['thi','van','ngoc','minh','thu','hoang','thanh','duc'])[1 + (g / 10) % 8] || ' ' ||
-				        (ARRAY['anh','hoa','lan','tuyet','mai','huong','linh','trang','phuong','nga','hung','nam'])[1 + (g / 80) % 12]
-				        || ' ' || g AS n) AS x`,
-				// Mỗi khách một SĐT; 30% khách có thêm SĐT thứ hai.
-				`INSERT INTO customer.customer_identities (tenant_id, customer_id, kind, value, value_reversed, source)
-				SELECT tenant_id, id, 'phone', v, reverse(substr(v, 2)), 'import'
-				FROM (SELECT tenant_id, id, '+84` + prefix + `' || lpad((row_number() OVER (ORDER BY id))::text, 8, '0') AS v
-				      FROM customer.customers) AS s`,
-				`INSERT INTO customer.customer_identities (tenant_id, customer_id, kind, value, value_reversed, source)
-				SELECT tenant_id, id, 'phone', v, reverse(substr(v, 2)), 'import'
-				FROM (SELECT tenant_id, id, '+843' || lpad((row_number() OVER (ORDER BY id))::text, 8, '0') AS v, random() AS r
-				      FROM customer.customers) AS s
-				WHERE r < 0.3`,
-				// Hai nhãn; 20% khách có nhãn thứ nhất, 5% có nhãn thứ hai.
-				`INSERT INTO customer.customer_tags (tenant_id, name, color)
-				VALUES (current_setting('app.tenant_id')::uuid, 'VIP', 'red'), (current_setting('app.tenant_id')::uuid, 'Sỉ', 'blue')`,
-				`INSERT INTO customer.customer_tag_links (tenant_id, customer_id, tag_id, source)
-				SELECT c.tenant_id, c.id, t.id, 'staff'
-				FROM customer.customers AS c
-				JOIN customer.customer_tags AS t ON t.tenant_id = c.tenant_id
-				WHERE (t.name = 'VIP' AND abs(hashtext(c.id::text)) % 5 = 0) OR (t.name = 'Sỉ' AND abs(hashtext(c.id::text)) % 20 = 1)`,
-			} {
-				args := []any{}
-				if strings.Contains(q, "$1") {
-					args = append(args, n)
-				}
-				if _, err := tx.Exec(t.Context(), q, args...); err != nil {
-					return err //nolint:wrapcheck // test
-				}
-			}
-			return nil
-		})
-	}
-	seed(a, 100000, "9")
-	seed(b, 2000, "8")
 	var ids int
 	s.Exec(t, a, func(tx pgx.Tx) error {
 		return tx.QueryRow(t.Context(), "SELECT count(*) FROM customer.customer_identities").Scan(&ids)
 	})
 	if ids < 125000 || ids > 135000 {
 		t.Fatalf("danh tính của A: %d, muốn ~130.000", ids)
-	}
-	if _, err := owner.Pool.Exec(t.Context(), "ANALYZE customer.customers, customer.customer_identities, customer.customer_tag_links"); err != nil {
-		t.Fatal(err)
 	}
 	// auto_explain áp cho kết nối mở sau lời gọi: ExplainAsApp mở kết nối riêng mỗi lần.
 	testkit.EnableAutoExplain(t, adminURL)

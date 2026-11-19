@@ -841,6 +841,14 @@ function Applied(p: {
                     <span className="sku">{n?.sku ?? ""}</span>
                     <br />
                     <span className="nm">{n?.title ?? TEXT_NO_NAME}</span>
+                    {s.orders.length > 0 && (
+                      <>
+                        <br />
+                        <span className="small">
+                          {`Đơn đang giữ: ${s.orders.map((o) => `${o.orderCode} (${String(o.quantity)})`).join(", ")}`}
+                        </span>
+                      </>
+                    )}
                   </div>
                   <span className="bold err-text num">{signedDelta(s.available)}</span>
                 </div>
@@ -848,7 +856,8 @@ function Applied(p: {
             })}
           </div>
           <p className="small" style={{ marginTop: 8 }}>
-            Đã gửi một cảnh báo thường (chỉ ghi mã phiên và số mã thiếu).
+            Đã gửi một cảnh báo thường (chỉ ghi mã phiên và số mã thiếu). Hãng lấy hàng của các đơn đang giữ sẽ bị chặn
+            tới khi điều chỉnh tồn, đổi kho hoặc hủy đơn.
           </p>
         </div>
       )}

@@ -100,6 +100,8 @@ type cmdH struct {
 	ext        *testkit.FakeExternal
 	autoRetry  bool
 	retryAfter time.Duration
+	// keepAttempt: not_sent không tính lượt (Outcome.KeepAttempt).
+	keepAttempt bool
 	// exec khác nil thì thay cho gửi ra FakeExternal.
 	exec func(ctx context.Context, j queue.Job) (commands.Outcome, error)
 
@@ -129,7 +131,10 @@ func (h *cmdH) Execute(ctx context.Context, j queue.Job) (commands.Outcome, erro
 	case err == nil:
 		return commands.Outcome{Status: commands.StatusDone, Result: json.RawMessage(`{"external_id":"x-1"}`)}, nil
 	case errors.Is(err, testkit.ErrFakeNotSent):
-		return commands.Outcome{Status: commands.StatusNotSent, Reason: "connect refused", RetryAfter: h.retryAfter}, nil
+		return commands.Outcome{
+			Status: commands.StatusNotSent, Reason: "connect refused", RetryAfter: h.retryAfter,
+			KeepAttempt: h.keepAttempt,
+		}, nil
 	case errors.Is(err, testkit.ErrFakeRejected):
 		return commands.Outcome{Status: commands.StatusRejected, Reason: "policy"}, nil
 	}

@@ -164,26 +164,31 @@ const rescheduleNotSent = `-- name: RescheduleNotSent :execrows
 
 UPDATE platform.jobs
 SET status = 'pending', run_at = now() + $1::bigint * interval '1 millisecond',
-    last_error = $2::text, lease_until = NULL, locked_by = NULL
-WHERE id = $3 AND status = 'running' AND locked_by = $4::text
-  AND attempts < max_attempts AND (expires_at IS NULL OR expires_at > now())
+    last_error = $2::text, lease_until = NULL, locked_by = NULL,
+    attempts = attempts - CASE WHEN $3::boolean THEN 1 ELSE 0 END
+WHERE id = $4 AND status = 'running' AND locked_by = $5::text
+  AND ($3::boolean OR attempts < max_attempts) AND (expires_at IS NULL OR expires_at > now())
 `
 
 type RescheduleNotSentParams struct {
-	DelayMs   int64
-	LastError string
-	ID        uuid.UUID
-	LockedBy  string
+	DelayMs     int64
+	LastError   string
+	KeepAttempt bool
+	ID          uuid.UUID
+	LockedBy    string
 }
 
 // Lệnh ra ngoài (kế hoạch M0 bản 5, Task 12; spec 04 mục 5.3). Chỉ internal/platform/commands dùng.
 // Ghi kết quả của một lệnh đang chạy có điều kiện status = 'running' AND locked_by = <worker giữ chỗ> (như jobs.sql);
 // lệnh done, dead, về hàng chờ khi chưa gửi dùng lại CompleteJob, KillJob, ReleaseJob của jobs.sql.
 // Chắc chắn chưa gửi, còn lượt, chưa quá hạn sống: hẹn lại sau delay_ms. 0 dòng → bên gọi đặt dead.
+// keep_attempt (Outcome.KeepAttempt, lỗi hạ tầng tạm): trả lại lượt tính lúc nhận việc (như ReleaseJob) và không xét
+// hết lượt; hạn sống vẫn xét.
 func (q *Queries) RescheduleNotSent(ctx context.Context, arg RescheduleNotSentParams) (int64, error) {
 	result, err := q.db.Exec(ctx, rescheduleNotSent,
 		arg.DelayMs,
 		arg.LastError,
+		arg.KeepAttempt,
 		arg.ID,
 		arg.LockedBy,
 	)

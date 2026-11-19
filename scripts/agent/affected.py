@@ -25,10 +25,16 @@ while i < len(s):
 
 root = nfc(subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip())
 by_dir = {os.path.relpath(nfc(p["Dir"]), root): p["ImportPath"] for p in pkgs}
-importers = {}
+# Lan lên theo phụ thuộc thật của Go (19/11): gói X nhập Y trong mã chạy (Imports) thì mọi gói dùng X cũng dùng Y -> lan tiếp.
+# Gói X chỉ nhập Y trong test (TestImports/XTestImports) thì chỉ test của X phải chạy lại; gói dùng X KHÔNG biên dịch test
+# của X nên không lan tiếp. Trước đây gộp chung nên đổi một module kéo theo gần cả bộ (test của realtime nhập httpapi,
+# testkit nhập realtime -> mọi gói dùng testkit).
+importers, test_importers = {}, {}
 for p in pkgs:
-    for imp in p.get("Imports", []) + p.get("TestImports", []) + p.get("XTestImports", []):
+    for imp in p.get("Imports", []):
         importers.setdefault(imp, set()).add(p["ImportPath"])
+    for imp in p.get("TestImports", []) + p.get("XTestImports", []):
+        test_importers.setdefault(imp, set()).add(p["ImportPath"])
 
 targets = set()
 if any(d in (".",) for d in go_dirs) and any(p in ("go.mod", "go.sum") for p in changed):
@@ -36,11 +42,15 @@ if any(d in (".",) for d in go_dirs) and any(p in ("go.mod", "go.sum") for p in 
 for d in go_dirs:
     if d in by_dir: targets.add(by_dir[d])
 stack = list(targets)
+reached = set(targets)          # gói có mã chạy bị ảnh hưởng (lan tiếp được)
 while stack:
     cur = stack.pop()
     for up in importers.get(cur, ()):
-        if up not in targets:
-            targets.add(up); stack.append(up)
+        if up not in reached:
+            reached.add(up); stack.append(up)
+targets = set(reached)
+for cur in reached:             # test của gói nhập gói bị ảnh hưởng: chạy lại, không lan tiếp
+    targets |= test_importers.get(cur, set())
 for hr in high_risk:
     if any(p == hr or p.startswith(hr.rstrip("/") + "/") for p in changed):
         base = hr if os.path.isdir(os.path.join(root, hr)) else os.path.dirname(hr)

@@ -189,8 +189,8 @@ ORDER BY d.datname`, prefixes, keep, olderThan.Seconds())
 	}
 }
 
-// dropStale xóa một database bỏ sót (không FORCE). Mẫu chỉ xóa khi giữ được khóa dựng mẫu (thử, không chờ): không
-// chen vào giữa lúc một tiến trình khác xóa-rồi-dựng-lại mẫu cùng tên. Lỗi bỏ qua, lần sau dọn tiếp.
+// dropStale xóa một database bỏ sót (không FORCE). Mẫu chỉ xóa khi giữ được khóa dựng mẫu và khóa dựng mẫu có dữ liệu
+// của tên đó (thử, không chờ): không chen vào giữa lúc một tiến trình khác xóa-rồi-dựng-lại mẫu cùng tên. Lỗi bỏ qua, lần sau dọn tiếp.
 func dropStale(ctx context.Context, t testing.TB, admin *pgx.Conn, name string, isTemplate bool,
 	olderThan time.Duration,
 ) {
@@ -203,6 +203,14 @@ func dropStale(ctx context.Context, t testing.TB, admin *pgx.Conn, name string, 
 		}
 		defer func() {
 			_, _ = admin.Exec(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock($1)", int64(templateLockKey))
+		}()
+		// Mẫu có dữ liệu (pgseed.go) dựng lại dưới khóa riêng theo tên.
+		if err := admin.QueryRow(ctx, "SELECT pg_try_advisory_lock($1, hashtext($2))", int32(seedLockKey), name).
+			Scan(&got); err != nil || !got {
+			return
+		}
+		defer func() {
+			_, _ = admin.Exec(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock($1, hashtext($2))", int32(seedLockKey), name)
 		}()
 		// Kiểm lại dưới khóa: mẫu cùng tên có thể vừa được dựng lại sau lúc liệt kê.
 		var still bool

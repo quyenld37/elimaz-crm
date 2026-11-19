@@ -3,6 +3,7 @@ package config_test
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"elimaz.com.vn/crm/internal/platform/config"
 )
@@ -208,5 +209,24 @@ func TestLoadWorkerImagerEndpoint(t *testing.T) {
 	if _, err := config.Load(config.RoleWorker, env(with(workerEnv(), "S3_IMAGER_ENDPOINT", "seaweedfs:8333"))); err == nil ||
 		!strings.Contains(err.Error(), "S3_IMAGER_ENDPOINT") {
 		t.Fatalf("không phải URL phải lỗi: %v", err)
+	}
+}
+
+// IMAGE_RETRY_MAX_HOURS (worker, Task 409): trần thời gian thử lại xử lý ảnh khi lỗi hạ tầng tạm; mặc định 24 giờ,
+// 1–168.
+func TestLoadWorkerImageRetryMax(t *testing.T) {
+	cfg, err := config.Load(config.RoleWorker, env(workerEnv()))
+	if err != nil || cfg.ImageRetryMax != 24*time.Hour {
+		t.Fatalf("mặc định: %v %v", cfg.ImageRetryMax, err)
+	}
+	cfg, err = config.Load(config.RoleWorker, env(with(workerEnv(), "IMAGE_RETRY_MAX_HOURS", "48")))
+	if err != nil || cfg.ImageRetryMax != 48*time.Hour {
+		t.Fatalf("khai 48: %v %v", cfg.ImageRetryMax, err)
+	}
+	for _, v := range []string{"0", "169", "abc"} {
+		if _, err := config.Load(config.RoleWorker, env(with(workerEnv(), "IMAGE_RETRY_MAX_HOURS", v))); err == nil ||
+			!strings.Contains(err.Error(), "IMAGE_RETRY_MAX_HOURS") {
+			t.Fatalf("IMAGE_RETRY_MAX_HOURS=%s phải lỗi: %v", v, err)
+		}
 	}
 }

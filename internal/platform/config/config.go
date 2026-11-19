@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"elimaz.com.vn/crm/internal/platform/fieldcrypt/keyspec"
 )
@@ -89,8 +90,11 @@ type Config struct {
 	// host, mà imager chỉ tới được kho qua mạng imaging (dev: http://seaweedfs:8333; Task M1-43, Q2).
 	S3ImagerEndpoint string
 	// ImagerMaxParallel là số việc worker gửi imager cùng lúc (IMAGER_MAX_PARALLEL, mặc định 2): đặt bằng biến cùng tên
-	// của imager để imager không phải trả 503 (503 vẫn tốn một lượt thử của lệnh nếu kéo dài quá hạn 30 s).
+	// của imager để imager không phải trả 503 (503 kéo dài quá hạn 30 s thì lệnh chờ lại, không tính lượt, Task 409).
 	ImagerMaxParallel int
+	// ImageRetryMax là trần thời gian thử lại xử lý ảnh khi lỗi hạ tầng tạm (IMAGE_RETRY_MAX_HOURS, giờ, mặc định 24,
+	// 1–168; Task 409): quá trần thì ảnh rejected processing_failed và cảnh báo.
+	ImageRetryMax time.Duration
 
 	// Hãng vận chuyển giả (ingest, worker), chỉ ngoài production (Q2). Có FakeCarrierURL thì bí mật bắt buộc, ≥ 32 ký tự.
 	FakeCarrierURL           string
@@ -211,6 +215,7 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		cfg.ImagerURL = r.httpURL("IMAGER_URL")
 		cfg.ImagePresetVersion = r.integer("IMAGE_PRESET_VERSION", 1, 1, 1000)
 		cfg.ImagerMaxParallel = r.integer("IMAGER_MAX_PARALLEL", 2, 1, 64)
+		cfg.ImageRetryMax = time.Duration(r.integer("IMAGE_RETRY_MAX_HOURS", 24, 1, 168)) * time.Hour
 		cfg.S3ImagerEndpoint = cfg.S3Endpoint
 		if r.optional("S3_IMAGER_ENDPOINT") != "" {
 			cfg.S3ImagerEndpoint = r.httpURL("S3_IMAGER_ENDPOINT")

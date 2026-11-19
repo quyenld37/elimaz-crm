@@ -15,6 +15,8 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/promotion/internal/store"
+	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime"
 )
 
@@ -48,9 +50,12 @@ type Actor struct {
 	UserID   uuid.UUID
 }
 
-// Writer là đường ghi mã, đợt mã. Realtime nil → không báo hiệu (báo hiệu được phép mất).
+// Writer là đường ghi mã, đợt mã và lượt dùng mã. Realtime nil → không báo hiệu (báo hiệu được phép mất); Events,
+// Queue bắt buộc cho Redeem (phát coupon.used), không cần cho việc khác.
 type Writer struct {
 	Realtime realtime.Bus
+	Events   *events.Registry
+	Queue    queue.JobQueue
 
 	newCode func(prefix string) (string, error) // nil → NewCode; test cắm bộ sinh trùng
 }

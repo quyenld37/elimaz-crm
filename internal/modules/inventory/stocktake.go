@@ -62,10 +62,19 @@ type StocktakeLine struct {
 	AvailableAfter                  int32
 }
 
-// Shortage là biến thể vừa chỉnh mà "có thể bán" âm (đếm thiếu dưới phần đang giữ).
+// Shortage là biến thể vừa chỉnh mà "có thể bán" âm (đếm thiếu dưới phần đang giữ). SellerID là người bán của biến
+// thể (để tra mã đơn theo người bán, ADR-29), chỉ điền khi Holds không rỗng; Holds là mọi dòng giữ hàng còn held của biến thể ở kho của phiên (theo mã giữ hàng tăng dần) để nhân viên xử lý
+// (điều chỉnh, đổi kho, hủy đơn) trước khi hãng lấy hàng bị chặn (ErrStockShort, Task 406).
 type Shortage struct {
-	VariantID uuid.UUID
-	Available int32
+	VariantID, SellerID uuid.UUID
+	Available           int32
+	Holds               []ShortHold
+}
+
+// ShortHold là một dòng giữ hàng held của biến thể thiếu: mã giữ hàng, dòng đơn, số lượng.
+type ShortHold struct {
+	ReservationID, OrderItemID uuid.UUID
+	Quantity                   int32
 }
 
 // ApplyResult là kết quả áp dụng: phiên sau khi áp dụng, số dòng đã chỉnh số dư, các biến thể thiếu so với phần giữ.
@@ -255,7 +264,7 @@ func (w Writer) applyLines(ctx context.Context, tx pgx.Tx, warehouseID, id uuid.
 	return changed, tenant, nil
 }
 
-// shortages trả các biến thể trong changed có "có thể bán" âm.
+// shortages trả các biến thể trong changed có "có thể bán" âm, kèm người bán và các dòng giữ hàng held của chúng.
 func shortages(ctx context.Context, tx pgx.Tx, warehouseID uuid.UUID, changed []uuid.UUID) ([]Shortage, error) {
 	if len(changed) == 0 {
 		return nil, nil
@@ -265,10 +274,35 @@ func shortages(ctx context.Context, tx pgx.Tx, warehouseID uuid.UUID, changed []
 		return nil, err
 	}
 	var out []Shortage
+	var short []uuid.UUID
 	for _, b := range bs {
 		if b.Available < 0 {
 			out = append(out, Shortage{VariantID: b.VariantID, Available: b.Available})
+			short = append(short, b.VariantID)
 		}
+	}
+	if len(out) == 0 {
+		return nil, nil
+	}
+	rows, err := store.New(tx).HeldReservationsOfVariants(ctx, store.HeldReservationsOfVariantsParams{
+		WarehouseID: warehouseID, VariantIds: short,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("đọc giữ hàng của biến thể thiếu: %w", err)
+	}
+	idx := make(map[uuid.UUID]int, len(out))
+	for i, sh := range out {
+		idx[sh.VariantID] = i
+	}
+	for _, r := range rows {
+		sh := &out[idx[r.VariantID]]
+		sh.SellerID = r.SellerID
+		if !r.OrderItemID.Valid {
+			continue // chỉ dòng released mới mất liên kết dòng đơn (0204); held không xảy ra
+		}
+		sh.Holds = append(sh.Holds, ShortHold{
+			ReservationID: r.ID, OrderItemID: uuid.UUID(r.OrderItemID.Bytes), Quantity: r.Quantity,
+		})
 	}
 	return out, nil
 }

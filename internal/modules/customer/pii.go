@@ -20,3 +20,9 @@ type Birthday time.Time
 
 // LogValue che ngày sinh.
 func (Birthday) LogValue() slog.Value { return slog.StringValue(redacted) }
+
+// NoteBody là nội dung ghi chú do nhân viên viết (có thể chứa SĐT, địa chỉ); ghi log luôn ra "[Redacted]".
+type NoteBody string
+
+// LogValue che nội dung ghi chú.
+func (NoteBody) LogValue() slog.Value { return slog.StringValue(redacted) }

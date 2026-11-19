@@ -89,6 +89,7 @@ hay bỏ khóa đã có.
 | `customer.created` | `customer` (mã hồ sơ) | `{customerId, version}` | tạo khách (seq 1; kể cả lớp bọc `customer.Create` của M1) | 66 |
 | `customer.merged` | `customer_merge` (mã lần gộp) | `{mergeId, survivorRootId, mergedRootId}` | gộp nhóm khách (seq 1; chỉ đổi `root_id`) | 68 |
 | `customer.merge_undone` | `customer_merge` (mã lần gộp) | `{mergeId, survivorRootId, mergedRootId}` | hoàn tác lần gộp (seq 2) | 68 |
+| `coupon.used` | `order_coupon` (mã đơn) | `{couponId, orderId, customerId, discount}` (`customerId`: hồ sơ gốc) | một đơn dùng mã giảm giá (`promotion.Writer.Redeem`; seq = `version` của đơn ở bên gọi) | 74 |
 | `shipment.status_changed` | `shipment` (mã vận đơn) | `{shipmentId, status, codAmount}` | vận đơn tiến trạng thái (`awaiting_pickup`, `shipping`, `delivered`; chỉ tiến), hoặc `creating` → `cancelled` khi lệnh tạo kết thúc mà hãng chắc chắn chưa tạo (Task 408) | 31, 408 |
 
 ## Ngoại lệ luật (g)

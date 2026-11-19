@@ -9,12 +9,13 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // Câu nhận việc khi hàng chờ dài (Task 394, thử tải M0 phát hiện 2): trước đây câu con "việc đứng trước" so tenant bằng
 // IS NOT DISTINCT FROM nên không dùng được index, quét tuần tự jobs cho mỗi ứng viên (2,4 s ở 78.000 việc chờ).
 
-// claimBufferBudget là trần số trang (8 KiB) câu nhận việc chạm ở bộ dữ liệu của fillLongQueue: mỗi việc bị chặn đứng
+// claimBufferBudget là trần số trang (8 KiB) câu nhận việc chạm ở bộ dữ liệu của longQueueSeed: mỗi việc bị chặn đứng
 // trước trong hàng chờ tốn ~4 trang (đọc việc, dò index jobs_order_key, đọc việc đứng trước), 10.000 việc → ~40.000.
 // Đây là tiêu chí không phụ thuộc máy bận hay rảnh (thời gian thì có). Câu cũ quét bảng: hàng triệu trang. Trần thời
 // gian 50 ms nằm ở test có nhãn perf (claimplan_perf_test.go, make perf-test), không ở đây (Task 400).
@@ -77,24 +78,21 @@ func explainAnalyze(t *testing.T, e *env, n int, sql string, args ...any) planSt
 	return best
 }
 
-// fillLongQueue dựng 100.000 việc pending tới hạn: 10.000 việc cùng order_key "hot" của tenant A ở đầu hàng (run_at
+// longQueueSeed dựng 100.000 việc pending tới hạn: 10.000 việc cùng order_key "hot" của tenant A ở đầu hàng (run_at
 // sớm nhất, chế độ mode, việc đầu đang running khi headRunning), 30.000 việc không tenant chung 3.000 order_key, 30.000
-// việc của tenant B mỗi việc một order_key, 30.000 việc không order_key; cùng 50.000 việc done.
-func fillLongQueue(t *testing.T, e *env, mode string, headRunning bool) {
-	t.Helper()
-	a, b := e.tenant(t, "A"), e.tenant(t, "B")
+// việc của tenant B mỗi việc một order_key, 30.000 việc không order_key; cùng 50.000 việc done; VACUUM ANALYZE. Chạy
+// bằng chủ bảng như trước Task 423; tenant A, B mã cố định để dựng một lần làm database mẫu. Hạn giữ chỗ của việc
+// đầu đang running là now() + 1 ngày (trước Task 423: 1 giờ): dữ liệu của mẫu cũ tới một giờ, hạn 1 giờ có thể vừa hết
+// lúc đo.
+func longQueueSeed(mode string, headRunning bool) testkit.Seed {
+	a, b := testkit.FixedUUID("queue-long-queue/A"), testkit.FixedUUID("queue-long-queue/B")
 	head := "'pending', NULL, NULL"
 	if headRunning {
-		head = "CASE WHEN g = 1 THEN 'running' ELSE 'pending' END, CASE WHEN g = 1 THEN now() + interval '1 hour' END, CASE WHEN g = 1 THEN 'w0' END"
+		head = "CASE WHEN g = 1 THEN 'running' ELSE 'pending' END, CASE WHEN g = 1 THEN now() + interval '1 day' END, CASE WHEN g = 1 THEN 'w0' END"
 	}
-	// Một transaction, tắt trigger jobs_notify trong lúc chèn: commit có NOTIFY phải chờ khóa hàng đợi thông báo chung
-	// của cả cụm PostgreSQL, nên trên PostgreSQL dùng chung (nhiều phiên test cùng commit NOTIFY) lần chèn dữ liệu thử
-	// từng hết lock_timeout (55P03). Dữ liệu thử không cần đánh thức worker; DISABLE/ENABLE cùng transaction nên khi
-	// commit trigger vẫn bật như cũ. statement_timeout 30 s của pool là hạn của ứng dụng, không phải của dữ liệu thử: máy
-	// tải ~70 thì câu chèn 50.000 dòng từng quá 30 s (57014); hạn riêng 10 phút chỉ còn là chốt chống treo.
-	seed := []string{
-		"SET LOCAL statement_timeout = '10min'",
-		"ALTER TABLE platform.jobs DISABLE TRIGGER jobs_notify",
+	return testkit.Seed{Name: fmt.Sprintf("queue-long-queue/%s/%v", mode, headRunning), SQL: []string{
+		"SET ROLE crm_owner",
+		fmt.Sprintf("INSERT INTO platform.tenants (id, name) VALUES ('%s', 'A'), ('%s', 'B')", a, b),
 		fmt.Sprintf(`INSERT INTO platform.jobs (tenant_id, kind, mode, dedupe_key, order_key, order_seq, order_mode,
 			on_lease_expired, max_attempts, status, lease_until, locked_by, run_at)
 			SELECT '%s', 'inbound.t.hot', 'transactional', 'h' || g, 'hot', g, '%s', 'retry', 8, %s,
@@ -117,23 +115,12 @@ func fillLongQueue(t *testing.T, e *env, mode string, headRunning bool) {
 			max_attempts, status, finished_at)
 			SELECT '%s', 't.done', 'transactional', 'd' || g, 'hot', g, 'retry', 8, 'done', now()
 			FROM generate_series(1, 50000) g`, a),
-		"ALTER TABLE platform.jobs ENABLE TRIGGER jobs_notify",
-	}
-	if err := pgx.BeginFunc(t.Context(), e.owner.Pool, func(tx pgx.Tx) error {
-		for _, q := range seed {
-			if _, err := tx.Exec(t.Context(), q); err != nil {
-				return fmt.Errorf("%s: %w", q, err)
-			}
-		}
-		return nil
-	}); err != nil {
-		t.Fatalf("dựng hàng chờ dài: %v", err)
-	}
-	e.ownerExec(t, "VACUUM ANALYZE platform.jobs")
+		"VACUUM ANALYZE platform.jobs",
+	}}
 }
 
 // eachLongQueueCase chạy check (mỗi ca một subtest, database riêng) với kết quả EXPLAIN ANALYZE của câu nhận việc trên
-// hàng chờ dài của fillLongQueue, ở bốn ca: hai chế độ thứ tự, việc đầu của khóa nóng đang chờ hay đang running. Dùng
+// hàng chờ dài của longQueueSeed, ở bốn ca: hai chế độ thứ tự, việc đầu của khóa nóng đang chờ hay đang running. Dùng
 // chung cho test đúng/sai ở đây và test thời gian (claimplan_perf_test.go, nhãn perf).
 func eachLongQueueCase(t *testing.T, check func(t *testing.T, s planStats)) {
 	t.Helper()
@@ -142,8 +129,7 @@ func eachLongQueueCase(t *testing.T, check func(t *testing.T, s planStats)) {
 		headRunning bool
 	}{{"strict", false}, {"strict", true}, {"best_effort", false}, {"best_effort", true}} {
 		t.Run(fmt.Sprintf("%s/head_running=%v", c.mode, c.headRunning), func(t *testing.T) {
-			e := newEnv(t)
-			fillLongQueue(t, e, c.mode, c.headRunning)
+			e := newSeededEnv(t, longQueueSeed(c.mode, c.headRunning))
 			check(t, explainAnalyze(t, e, 5, claimSQL(t), int64(90000), "explain", false, int32(10)))
 		})
 	}

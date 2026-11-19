@@ -36,6 +36,10 @@ var (
 	ErrImportFileInvalid = errors.New("customer: tệp nhập không dùng được")
 	// ErrInvalidTagRule: quy tắc nhãn có trường hay phép so sánh không hỗ trợ.
 	ErrInvalidTagRule = errors.New("customer: quy tắc nhãn không hợp lệ")
+	// ErrTagNameTaken: đã có nhãn khách cùng tên trong shop (Task M2-12).
+	ErrTagNameTaken = errors.New("customer: đã có nhãn cùng tên")
+	// ErrTagRuleManaged: nhãn trên khách do quy tắc gắn, không gỡ tay được (Task M2-12; quy tắc: Task M2-25).
+	ErrTagRuleManaged = errors.New("customer: nhãn do quy tắc quản")
 )
 
 // IdentityTakenError là chi tiết của ErrIdentityTaken: gốc của hồ sơ đang giữ danh tính (chỉ mã, không giá trị).

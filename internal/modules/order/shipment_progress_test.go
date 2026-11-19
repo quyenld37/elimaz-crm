@@ -10,6 +10,7 @@ import (
 	"pgregory.net/rapid"
 
 	"elimaz.com.vn/crm/internal/modules/inventory"
+	"elimaz.com.vn/crm/internal/modules/inventory/invtest"
 	"elimaz.com.vn/crm/internal/modules/order"
 )
 
@@ -382,4 +383,63 @@ func testDetachShipment(t *testing.T, e *orderEnv) {
 	if err := e.attach(o.ID, s2); err != nil {
 		t.Fatalf("gắn lại sau gỡ: %v", err)
 	}
+}
+
+// countDown áp một phiên kiểm kho ở kho của e ghi số đếm counted cho v (đường của inventory, như nhân viên kho).
+func (e *orderEnv) countDown(v uuid.UUID, counted int32) {
+	e.t.Helper()
+	a := inventory.Actor{Type: inventory.ActorSystem}
+	if err := e.app(func(tx pgx.Tx) error {
+		ctx := e.t.Context()
+		s, err := inventory.StartStocktake(ctx, tx, e.warehouse, a)
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		if _, err := inventory.RecordCount(ctx, tx, s.ID, v, counted, nil, a); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		w := e.writer()
+		inv := inventory.Writer{Events: w.Events, Queue: w.Queue, Realtime: w.Realtime}
+		_, err = inv.ApplyStocktake(ctx, tx, s.ID, s.Version+1, a)
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		e.t.Fatalf("kiểm kho: %v", err)
+	}
+}
+
+// A-01 (Task 406): on_hand 4, hai đơn giữ 2 + 2, kiểm kho đếm 2. Đơn 1 giao xong; đơn 2 lấy hàng hay giao →
+// lỗi Is inventory.ErrStockShort (không phải lỗi CHECK), applied=false, đơn vẫn confirmed, giữ hàng vẫn held, số dư
+// không đổi; nhập thêm (nhân viên điều chỉnh) thì đơn 2 giao xong.
+func TestApplyShipmentProgress_StockShortAfterStocktake(t *testing.T) {
+	e := newOrderEnv(t)
+	v := e.variant(100000, 4)
+	o1, o2 := e.mustCreate(e.input(0, item(v, 2))), e.mustCreate(e.input(0, item(v, 2)))
+	s1, s2 := uuid.New(), uuid.New()
+	for _, p := range [][2]uuid.UUID{{o1.ID, s1}, {o2.ID, s2}} {
+		if err := e.attach(p[0], p[1]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e.countDown(v, 2)
+	balanceIs(t, e.balance(v), 2, 4, 0)
+	e.mustProgress(o1.ID, s1, order.StepDelivered, true)
+	balanceIs(t, e.balance(v), 0, 2, 0)
+	for _, step := range []order.ShipmentStep{order.StepPickedUp, order.StepDelivered} {
+		applied, err := e.progress(o2.ID, s2, step)
+		if applied || !errors.Is(err, inventory.ErrStockShort) {
+			t.Fatalf("%s đơn 2: applied=%v, err=%v; muốn ErrStockShort", step, applied, err)
+		}
+	}
+	if g := e.get(o2.ID); g.Status != order.StatusConfirmed {
+		t.Fatalf("đơn 2 thành %q", g.Status)
+	}
+	balanceIs(t, e.balance(v), 0, 2, 0)
+	if err := e.app(func(tx pgx.Tx) error {
+		invtest.SeedStock(t, tx, v, e.warehouse, 2)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e.mustProgress(o2.ID, s2, order.StepDelivered, true)
+	balanceIs(t, e.balance(v), 0, 0, 0)
 }

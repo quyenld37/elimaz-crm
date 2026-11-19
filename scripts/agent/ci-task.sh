@@ -9,13 +9,16 @@ cd "${CLAUDE_PROJECT_DIR:-$(pwd)}" || exit 1
 export HIGH_RISK_DIRS PATH="$HOME/go/bin:$PATH"
 base=$(git merge-base HEAD main 2>/dev/null || echo main)
 fail=""
-step() { local name=$1; shift; echo "== $name"; if ! "$@"; then fail="$fail $name"; echo "== $name: ĐỎ"; fi; }
+step() { local name=$1 t0=$SECONDS; shift; echo "== $name"; if ! "$@"; then fail="$fail $name"; echo "== $name: ĐỎ"; fi; echo "== $name: $((SECONDS-t0)) giây"; }
 changed=$( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u )
 step build make build
 step vet make vet
 step lint make lint
-step gen-check make gen-check
-step sqlc-vet make sqlc-vet
+# Bỏ bước khi đầu vào của nó không đổi (kết quả chắc chắn giống điểm tách nhánh, nơi main đã xanh), 19/11:
+# gen-check khi đổi nguồn sinh hoặc chính mã sinh; sqlc-vet khi đổi câu SQL, schema hay cấu hình sqlc.
+gen_in='^(go\.mod|go\.sum|tools/versions\.mk|openapi/|queries/|migrations/|sqlc\.yaml|tools/routegen/|internal/httpapi/gen/|internal/httpapi/routes_gen\.go|console/src/api/|console/package|.*/internal/store/)'
+if printf '%s\n' "$changed" | grep -E -q "$gen_in"; then step gen-check make gen-check; else echo "== gen-check: bỏ (không đổi nguồn sinh hay mã sinh)"; fi
+if printf '%s\n' "$changed" | grep -E -q '^(queries/|migrations/|sqlc\.yaml)'; then step sqlc-vet make sqlc-vet; else echo "== sqlc-vet: bỏ (không đổi SQL, schema, sqlc.yaml)"; fi
 step catalog-check make catalog-check
 step jscpd make jscpd
 step gitleaks make gitleaks

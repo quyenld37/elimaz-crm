@@ -4,6 +4,13 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
 
 ## Ảnh hưởng
 
+- **Lượt 2 (19/11, gộp main một lần):** xung đột duy nhất ở `internal/platform/queue/claimplan_test.go` (Task 423 đổi
+  `fillLongQueue` thành `longQueueSeed` dựng một lần làm database mẫu). Giữ nguyên bản của main, **bỏ** phần sửa lượt 1
+  ở chỗ này (tắt trigger `jobs_notify`, `statement_timeout` 10 phút): xem Gốc lỗi, dòng lượt 2. Thêm: sửa câu kiểm của
+  `internal/modules/customer/write_test.go` › `TestCreateCustomerPhoneTaken` và (tìm ra ở `ci-task.sh` lượt 2, cùng
+  gốc) `internal/modules/customer/importer_test.go` › `TestImport_RowErrorsAndReimport` (chỉ tệp test; không ký hiệu
+  xuất ra ngoài, không gói phụ thuộc ngược). Test sẽ chạy lượt 2: `internal/modules/customer`, `internal/platform/queue` (cả bộ), cổng
+  `ci-task.sh`.
 - Ký hiệu Go xuất ra ngoài sẽ đổi (LSP findReferences): không có. Phía Go chỉ đổi tệp `_test.go` và `Makefile`, không
   dòng nào của mã chạy. Ký hiệu test mới (chỉ trong gói test của nó, grep không trùng): `realtime_test.statusSpy`,
   `realtime_test.hangGuard`, `(*rtEnv).spy`; `inventory_test.(*invEnv).fillLargeTenant`,
@@ -31,6 +38,8 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
 
 ## Tái dùng
 
+- Lượt 2: dùng lại `testkit.Seed`/`StartPostgresSeeded` của Task 423 như main; câu kiểm SĐT dùng `strings.Contains`
+  như `TestCreateCustomerWithPhone` cùng tệp, không viết hàm mới.
 - Đã kiểm trong danh mục dùng chung và tìm theo tên, theo việc: `docs/danh-muc-dung-chung.md` (testkit không có "chờ
   luồng SSE"); mẫu của Task 400 (test thời gian nhãn `perf`, `claimplan_perf_test.go`, đích `make perf-test`) và Task
   420 (chốt chống treo 30 s, chờ theo sự kiện); `heldStreams` sẵn có trong `client.test.ts` (fetch giả cho đồng hồ giả);
@@ -43,6 +52,8 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
 
 ## Soát thiết kế
 
+- Lượt 2: chỉ đổi câu kiểm của một test (không mã chạy, không dữ liệu, quyền, tiền). Câu kiểm mới vẫn giữ đúng ý luật
+  "không để SĐT vào lỗi": cấm mọi dạng đầy đủ của SĐT (chặt bằng ý cũ ở chỗ cần, bỏ phần đỏ oan).
 - 5.1–5.12: không áp dụng: chỉ đổi test, cấu hình test, một đích Makefile và một điều kiện hiển thị của ô chọn nhà
   cung cấp (console, không gọi API mới, không đổi đường ghi: vẫn `createSupplier` qua `useWriteAction` có khóa chống
   trùng); không dữ liệu, module, HTTP, thư viện mới.
@@ -67,6 +78,9 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m1-san-pham-kho.md` (
 | console: mọi `findBy*`/`waitFor` (67 + 67 + 61 chỗ ở 12 tệp) | hạn mặc định 1 s của Testing Library là tiêu chí ngầm | `configure({ asyncUtilTimeout: 30_000 })` trong `test-setup.ts` (chốt chống treo), `testTimeout` 60 s; test `test-setup.test.ts` giữ cấu hình |
 | console `src/shell/apiHealth.test.ts` | ngủ 30–150 ms rồi kiểm; hạn một lần hỏi 60 ms nên dưới tải lần hỏi **đã trả 200** vẫn có thể bị tính là quá giờ | hạn một lần hỏi 10 phút (trừ ca kiểm chính việc quá giờ), chờ theo số lần hỏi/số lần báo bằng `waitFor` |
 | console `src/realtime/client.test.ts` | "không trả header" (watchdog 150 ms, máy chủ thật: yêu cầu thứ hai chậm cũng bị watchdog cắt), "nhịp tim giữ kết nối" (ping 50 ms thật, watchdog 200 ms), "refetchEveryMs ≥ 2 lần trong 350 ms" (setInterval thật); `until` hạn 2 s / 1,5 s | ba ca chuyển sang đồng hồ giả + `heldStreams` (như ca đầu của tệp, Task 400); ca refetch kiểm chặt hơn: đúng 3 lần; `until` hạn mặc định 30 s (chốt chống treo) |
+| Lượt 2: `TestClaimLongQueueSameOrderKey` sau khi gộp Task 423 | dữ liệu thử nay nằm trong database mẫu (`longQueueSeed`, `testkit.StartPostgresSeeded`): câu chèn chạy **một lần mỗi mẫu** (mỗi giờ, mỗi bộ migration), trên kết nối quản trị riêng của `runSeed` (không có `statement_timeout` 30 s, `lock_timeout` 5 s của pool), dưới hạn chung `seedTimeout` 8 phút của testkit; lúc test chỉ nhân bản database, trigger `jobs_notify` không chạy | bỏ phần sửa lượt 1 ở đây, giữ nguyên bản của main: cả hai hạn từng gây đỏ (55P03 do `lock_timeout`, 57014 do `statement_timeout`) không còn áp lên câu dựng dữ liệu; commit có NOTIFY lúc dựng mẫu chỉ chờ khóa hàng đợi thông báo (không hạn khóa), một lần |
+| Lượt 2: `internal/modules/customer` `TestCreateCustomerPhoneTaken` | cấm chuỗi `"912"` trong lỗi; lỗi là `customer: danh tính đã thuộc khách <OwnerRootID>`, UUID ngẫu nhiên 32 chữ số hex có "912" ở một trong 30 vị trí với xác suất ≈ 30/4096 ≈ 0,7% | cấm SĐT đầy đủ ở ba dạng: `912345678` (lõi của `0912345678` và `+84912345678`), `912 345 678` (dạng gõ vào), `87654321948` (`value_reversed`) |
+| Lượt 2: `internal/modules/customer` `TestImport_RowErrorsAndReimport` (đỏ ở `ci-task.sh` lượt 2: `dòng lần nhập chứa "123"`, chuỗi đó nằm trong `created_by` `fd9e1234-…`) | ô SĐT sai của dữ liệu thử là `"123"`, câu kiểm cấm `"123"` trong `row_to_json` của lần nhập — dòng có bốn UUID và hai mốc giờ, mẩu 3 chữ số trùng ngẫu nhiên | ô SĐT sai đổi thành `"77777777"` (8 chữ số, vẫn `invalid_phone`), cấm đúng chuỗi đó; mã chạy không đổi |
 
 Giữ nguyên (không phải dạng đỏ oan): các ca console còn ngủ rồi kiểm "không có gì thêm" (`stop()` không hỏi thêm, 302/401/403
 không yêu cầu thêm, `close()`, "không tải lại định kỳ khi chưa nối được", "502 hai lần rồi 200" sau khi đã connected,
@@ -89,6 +103,13 @@ Task 420 (vòng hỏi có hạn 5–10 s, ký URL hết hạn của SeaweedFS) k
   qua vì người dùng thật cũng bấm hụt được.
 - Ba ca của `client.test.ts` chuyển sang đồng hồ giả dù brief chỉ nêu `findBy*`/`waitFor`: cùng dạng "giờ thật làm
   tiêu chí", Task 400 đã làm như vậy với ca đầu của tệp.
+- Lượt 2, queue: bỏ hẳn phần sửa lượt 1 (tắt trigger, hạn 10 phút) thay vì chuyển vào `longQueueSeed` của Task 423.
+  Câu dựng mẫu chạy trên kết nối quản trị không có hạn khóa/hạn câu, một lần mỗi mẫu, nên cả hai gốc lỗi đã ghi không
+  còn; thêm `ALTER TABLE … DISABLE TRIGGER` vào Seed sẽ thành câu tự commit riêng (runSeed không bọc transaction) và
+  đổi mã băm của mẫu mà không được gì. Phương án khác: giữ tắt trigger trong Seed để bớt 100.000 NOTIFY lúc dựng mẫu —
+  dễ thêm lại nếu lần dựng mẫu đỏ.
+- Lượt 2, customer: cấm ba dạng SĐT đầy đủ thay vì đổi SĐT thử sang số không thể là hex (ví dụ toàn chữ số khác): câu
+  kiểm vẫn bắt đúng điều luật cấm (lộ SĐT), không phụ thuộc mã ngẫu nhiên.
 
 ## Bằng chứng
 
@@ -121,6 +142,14 @@ mới, 16 tiến trình trong ~1,5 phút; đã dừng 8 PID của lượt cũ v�
 | Cổng kiểm, lượt 1 (trước khi stage) | — | `ci-task.sh` | ĐỎ: gen-check (chưa stage), jscpd (ca "lỗi mạng"/"502" của `apiHealth.test.ts` trùng → gộp `it.each`), prettier `SupplierPicker.tsx` (đã `prettier --write`), `queue` › `TestStopAfterLongHandlerReleases` (đã sửa, xem trên), `testkit` › `TestCleanupStaleDropsOnlyIdleOldDatabases` (khóa advisory chung, hook Stop chạy testkit cùng lúc; xem Việc phát hiện thêm) |
 | Cổng kiểm, lượt 2 (sau khi stage) | — | `ci-task.sh` | `CI-TASK XANH (so với điểm tách nhánh 0a82e343…)`, 41 gói `ok` (gồm `testkit 3.784s`, `queue`, `inventory`, `files`, `realtime`, `imager`, `httpapi`, `tests/deploy`), console tsc/eslint/prettier/vitest xanh |
 | kiểu, lint console | — | `npx tsc --noEmit`; `npx eslint .` | không lỗi |
+| Lượt 2: gốc lỗi `TestCreateCustomerPhoneTaken` | chuỗi lỗi `customer: danh tính đã thuộc khách <uuid>` với 100.000 UUID ngẫu nhiên | test tạm (đã xóa) trong gói `customer`, `go test -run TestUUIDHas912 -v` | `577/100000 = 0.58%` chứa "912". Mã gốc chủ thật là UUIDv7 (12 chữ số đầu là mốc giờ, gần như cố định trong một lượt) nên tỉ lệ đỏ đổi theo giờ chạy: lượt `-count=400` trên mã cũ lúc này qua cả 400 |
+| Lượt 2: kiểm âm câu kiểm mới | `TestCreateCustomerPhoneTaken` | tạm sửa `IdentityTakenError.Error()` chèn lần lượt `+84912345678`, `0912 345 678`, `87654321948`, chạy `-run '^TestCreateCustomerPhoneTaken$'`, rồi trả nguyên `errors.go` | cả ba lần `FAIL`: `lỗi mang SĐT ("912345678")`, `("912 345 678")`, `("87654321948")` |
+| Lượt 2: bản mới lặp | `TestCreateCustomerPhoneTaken` | `go test -race -count=200 -run '^TestCreateCustomerPhoneTaken$' ./internal/modules/customer/` | `ok … customer 28.372s` |
+| Lượt 2: hạn của kết nối dựng mẫu | — | `psql` trên crm-shared: `pg_db_role_setting`, `show lock_timeout`, `show statement_timeout` | không vai trò/database nào đặt hạn; `0`, `0` |
+| Lượt 2: cổng kiểm lần 1 của lượt 2 | — | `ci-task.sh` (nền, ghi log) | ĐỎ: `test-guard` (`internal/platform/tenancy/search_test.go` 17 → 15, phần của Task 423 gộp từ main, xem Test bị xóa hoặc tắt) và `customer` › `TestImport_RowErrorsAndReimport` (`dòng lần nhập chứa "123"` do `created_by` `fd9e1234-…`); các gói khác `ok` |
+| Lượt 2: `TestImport_RowErrorsAndReimport` kiểm âm | `TestImport_RowErrorsAndReimport` | tạm nối giá trị ô vào mã lỗi `invalid_phone` ở `importer_rows.go:66`, chạy test, trả nguyên tệp | `FAIL`: `dòng lần nhập chứa "77777777"` |
+| Lượt 2: `TestImport_RowErrorsAndReimport` lặp | `TestImport_RowErrorsAndReimport` | `go test -race -count=100 -run '^TestImport_RowErrorsAndReimport$' ./internal/modules/customer/` | `ok … customer 30.945s` |
+| Lượt 2: cổng kiểm lần 2 (sau khi sửa, đã stage) | — | `ci-task.sh` (nền, ghi log) | `CI-TASK XANH (so với điểm tách nhánh 0a82e343…)`; test toàn bộ (đổi migration/go.mod/testkit từ main) 325 giây, gồm `ok … customer 52.762s`, `ok … platform/queue 43.861s` |
 
 ## Test bị xóa hoặc tắt
 
@@ -136,7 +165,13 @@ Không test nào bị xóa hay tắt. Câu kiểm bị bỏ hoặc thay:
 - `TestStopAfterLongHandlerReleases`: hạn ghi 50 ms → 5 s, grace 300 ms → 6 s; câu kiểm (`ErrStopGrace`, pending,
   attempts 0) giữ nguyên.
 - Không phải câu kiểm nhưng ghi cho đủ: `TestRetryJobRetryLaterNotStored` bỏ hẹn giờ 2 s nhả khóa; `makeDue` của
-  `files` bỏ qua dòng đang khóa; `fillLongQueue` của `queue` tắt trigger trong transaction dựng dữ liệu.
+  `files` bỏ qua dòng đang khóa; `fillLongQueue` của `queue` tắt trigger trong transaction dựng dữ liệu (lượt 2: bỏ,
+  dữ liệu thử nằm trong database mẫu của Task 423).
+- Lượt 2: `TestCreateCustomerPhoneTaken` thay câu cấm `"912"` bằng cấm ba dạng SĐT đầy đủ (kiểm âm ở Bằng chứng).
+- Lượt 2: `TestImport_RowErrorsAndReimport` đổi ô SĐT sai `"123"` → `"77777777"` và câu cấm theo (kiểm âm ở Bằng chứng).
+- Lượt 2, phần của main (không phải task này; test-guard so với điểm tách nhánh nên thấy):
+  `internal/platform/tenancy/search_test.go` 17 → 15 câu kiểm là của Task 423 — hai `t.Fatal` dời vào testkit, lý do
+  ghi ở `docs/tasks/task-423.md` mục Test bị xóa hoặc tắt.
 
 ## Khác kế hoạch
 
@@ -154,6 +189,9 @@ Không test nào bị xóa hay tắt. Câu kiểm bị bỏ hoặc thay:
   ctx 1 phút. Khi nhiều phiên (ở đây cả hook Stop và ci-task của chính phiên này) cùng chạy testkit dưới tải, chờ quá 1
   phút → đỏ oan. Không sửa ở đây: task không chạm testkit, đổi testkit buộc chạy toàn bộ test; nên làm task riêng (chờ
   khóa với chốt chống treo dài hơn, hoặc khóa riêng theo tên database thử).
+- Lượt 2: cùng dạng "cấm mẩu số ngắn trong chuỗi có UUID ngẫu nhiên", xác suất nhỏ hơn (mẩu 4 chữ số, ~0,05–0,1%),
+  không sửa ở đây: `internal/platform/observability/rules_test.go:71` (cấm `"0911"` trong văn bản chứa `id.String()`),
+  `:323`; `internal/modules/identity/audit_test.go:87` (cấm `"0911"`, `"0922"` trong JSON dòng audit có UUID).
 
 ## Reviewer
 
@@ -167,3 +205,13 @@ Kết luận: ĐẠT (vòng 1).
 - Ghi chú không bắt buộc (không sửa): `<-held` trong test imager không có chốt chống treo (chỉ treo tới hạn `go test`,
   không qua sai); `testTimeout` 5 s → 60 s của vitest là chốt chống treo (đã nêu ở Ảnh hưởng, bảng Gốc lỗi); `makeDue`
   chỉ đổi thân hàm, chữ ký giữ nguyên.
+
+Lượt 2 (gộp main `2a727b6`): Kết luận: ĐẠT (vòng 1).
+
+- Phát hiện phải sửa: không có.
+- Đã đối chiếu: `claimplan_test.go` không còn chênh so với main (giữ bản Task 423); lập luận kết nối dựng mẫu
+  (`runSeed` nối thẳng `pgx.Connect`, không `lock_timeout`/`statement_timeout`, chỉ `seedTimeout` 8 phút, dựng một lần
+  dưới khóa advisory) đúng theo `internal/testkit/pgseed.go`; ba dạng SĐT bị cấm khớp `NormalizePhone`/`ReverseDigits`;
+  `"77777777"` vẫn ra `invalid_phone`; kiểm âm, chạy lặp, cổng kiểm có trích kết quả; không `t.Skip`/`.only`, không nới
+  ngưỡng; dòng test-guard `tenancy/search_test.go` là của Task 423.
+- Ghi chú không bắt buộc: các test cùng dạng "cấm mẩu số ngắn" đã ghi ở Việc phát hiện thêm, đúng phạm vi.

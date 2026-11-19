@@ -56,6 +56,8 @@ type Outcome struct {
 
 	RetryAfter time.Duration
 
+	KeepAttempt bool
+
 	Result json.RawMessage
 }
 type Runner struct {
@@ -118,6 +120,8 @@ type Config struct {
 	S3ImagerEndpoint string
 
 	ImagerMaxParallel int
+
+	ImageRetryMax time.Duration
 
 	FakeCarrierURL           string
 	FakeCarrierWebhookSecret string
@@ -406,6 +410,8 @@ type ProcessorOptions struct {
 	Bus Publisher
 
 	Metrics *metrics.Registry
+
+	RetryMax time.Duration
 }
 type Publisher interface {
 	Publish(ctx context.Context, tx pgx.Tx, s realtime.Signal) error

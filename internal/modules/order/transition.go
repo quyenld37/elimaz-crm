@@ -39,10 +39,15 @@ func (a Actor) id() pgtype.UUID {
 	return pgtype.UUID{Bytes: a.UserID, Valid: a.UserID != uuid.Nil}
 }
 
-// recordCreated ghi phần sau của lần tạo đơn o (đã chèn): dòng lịch sử ” → status, sự kiện order.created (seq 1) và
-// thêm order.confirmed (seq 2) khi tạo thẳng confirmed (version của đơn bằng seq cuối), báo hiệu order.changed.
+// recordCreated ghi phần sau của lần tạo đơn o (đã chèn): dòng lịch sử ” → status (đơn chờ duyệt giảm giá: lý do
+// manual_discount_over_threshold), sự kiện order.created (seq 1) và thêm order.confirmed (seq 2) khi tạo thẳng confirmed
+// (version của đơn bằng seq cuối), báo hiệu order.changed.
 func (w Writer) recordCreated(ctx context.Context, tx pgx.Tx, o Order, a Actor, now time.Time) error {
-	if err := insertHistory(ctx, tx, o.ID, "", "", o.Status, o.PendingReason, "", a, now); err != nil {
+	reason := ""
+	if o.PendingReason == PendingDiscountApproval {
+		reason = reasonDiscountOverThreshold
+	}
+	if err := insertHistory(ctx, tx, o.ID, "", "", o.Status, o.PendingReason, reason, a, now); err != nil {
 		return err
 	}
 	topics := []string{TopicOrderCreated}
