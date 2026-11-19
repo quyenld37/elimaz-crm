@@ -94,7 +94,7 @@ func cloneSeeded(t testing.TB, fsys fs.FS, migrate migrateFunc, at time.Time, s 
 	ctx, cancel := context.WithTimeout(context.Background(), seedTimeout)
 	defer cancel()
 	withAdmin(ctx, t, base, func(admin *pgx.Conn) {
-		cleanupStale(ctx, t, admin, []string{testDBPrefix, templatePrefix}, stpl, staleAfter)
+		cleanupStale(ctx, t, admin, serverLocks(), []string{testDBPrefix, templatePrefix}, stpl, staleAfter)
 		createFromTemplate(ctx, t, admin, name, stpl, func() {
 			ensureSeeded(ctx, t, admin, base, tpl, stpl, fsys, migrate, s)
 		})

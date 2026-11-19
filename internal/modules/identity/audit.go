@@ -148,8 +148,9 @@ type AuditRecord struct {
 	CreatedAt          time.Time
 }
 
-// ListEntityAudit trả tối đa 500 dòng audit của thực thể (entityType, entityID) trong tenant của tx, cũ trước (lịch sử
-// thao tác của đơn, kế hoạch M2 Task M2-24). Chạy trong tenancy.WithTenant.
+// ListEntityAudit trả 500 dòng audit mới nhất của thực thể (entityType, entityID) trong tenant của tx, mới nhất trước
+// (lịch sử thao tác của đơn, kế hoạch M2 Task M2-24; Task 425: dòng cũ hơn 500 dòng mới nhất bị bỏ, không bỏ dòng mới).
+// Chạy trong tenancy.WithTenant.
 //
 // Khi nào không dùng: không để đọc giá trị trước/sau (hàm không trả); không thay cho lịch sử nghiệp vụ của module (lịch
 // sử trạng thái đơn ở ord.order_status_history).

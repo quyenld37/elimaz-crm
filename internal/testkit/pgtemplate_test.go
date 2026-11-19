@@ -2,6 +2,8 @@ package testkit
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"io/fs"
 	"maps"
@@ -228,26 +230,22 @@ func TestCleanupStaleDropsOnlyIdleOldDatabases(t *testing.T) {
 	exec(ctx, t, admin, "ALTER DATABASE "+tpl+" IS_TEMPLATE true")
 	holder := connect(ctx, t, withDB(base, nil, busy))
 	defer func() { _ = holder.Close(ctx) }()
+	// Khóa dọn, khóa dựng mẫu riêng của lần chạy: không chờ khóa chung mà phiên khác trên máy chủ thử đang giữ (Task 425).
+	locks := privateLocks(t)
 
 	// Đang có người giữ khóa dựng mẫu: mẫu cũ chưa bị xóa (dọn không chen vào lúc dựng lại mẫu).
 	builder := connect(ctx, t, withDB(base, nil, base.Path))
 	defer func() { _ = builder.Close(ctx) }()
-	exec(ctx, t, builder, fmt.Sprintf("SELECT pg_advisory_lock(%d)", templateLockKey))
-	// cleanupStale chỉ thử khóa (không chờ); tiến trình khác trên máy chủ chung có thể đang giữ. admin giữ sẵn (chờ)
-	// khóa dọn: khóa advisory cấp phiên lấy lồng được, nên lần thử bên trong luôn được.
-	exec(ctx, t, admin, fmt.Sprintf("SELECT pg_advisory_lock(%d)", cleanupLockKey))
-	defer exec(context.WithoutCancel(ctx), t, admin, fmt.Sprintf("SELECT pg_advisory_unlock(%d)", cleanupLockKey))
-	cleanupStale(ctx, t, admin, []string{prefix}, keep, 0)
+	exec(ctx, t, builder, fmt.Sprintf("SELECT pg_advisory_lock(%d)", locks.template))
+	cleanupStale(ctx, t, admin, locks, []string{prefix}, keep, 0)
 	var tplLeft bool
 	if err := admin.QueryRow(ctx, "SELECT datistemplate FROM pg_database WHERE datname = $1", tpl).Scan(&tplLeft); err != nil ||
 		!tplLeft {
 		t.Fatalf("mẫu bị dọn (hay bị bỏ dấu mẫu) khi khóa dựng mẫu đang bị giữ: %v %v", tplLeft, err)
 	}
-	exec(ctx, t, builder, fmt.Sprintf("SELECT pg_advisory_unlock(%d)", templateLockKey))
-	exec(ctx, t, admin, fmt.Sprintf("SELECT pg_advisory_lock(%d)", templateLockKey))
-	defer exec(context.WithoutCancel(ctx), t, admin, fmt.Sprintf("SELECT pg_advisory_unlock(%d)", templateLockKey))
+	exec(ctx, t, builder, fmt.Sprintf("SELECT pg_advisory_unlock(%d)", locks.template))
 
-	cleanupStale(ctx, t, admin, []string{prefix}, keep, 0)
+	cleanupStale(ctx, t, admin, locks, []string{prefix}, keep, 0)
 
 	exists := func(n string) bool {
 		var ok bool
@@ -266,8 +264,28 @@ func TestCleanupStaleDropsOnlyIdleOldDatabases(t *testing.T) {
 	young := prefix + "young"
 	exec(ctx, t, admin, "CREATE DATABASE "+young+" OWNER crm_owner")
 	dropAtCleanup(t, base, young)
-	cleanupStale(ctx, t, admin, []string{prefix}, keep, time.Hour)
+	cleanupStale(ctx, t, admin, locks, []string{prefix}, keep, time.Hour)
 	if !exists(young) {
 		t.Error("database mới tạo bị xóa dù chưa cũ hơn ngưỡng")
+	}
+}
+
+// privateLocks trả cặp khóa dọn, khóa dựng mẫu ngẫu nhiên riêng của lần chạy (khác khóa chung của máy chủ thử).
+func privateLocks(t *testing.T) cleanupLocks {
+	t.Helper()
+	server := serverLocks()
+	for {
+		var b [16]byte
+		if _, err := rand.Read(b[:]); err != nil {
+			t.Fatal(err)
+		}
+		l := cleanupLocks{
+			cleanup:  int64(binary.BigEndian.Uint64(b[:8]) >> 1),
+			template: int64(binary.BigEndian.Uint64(b[8:]) >> 1),
+		}
+		if l.cleanup != l.template && l.cleanup != server.cleanup && l.cleanup != server.template &&
+			l.template != server.cleanup && l.template != server.template {
+			return l
+		}
 	}
 }

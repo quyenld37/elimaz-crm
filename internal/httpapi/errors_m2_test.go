@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	ht "github.com/ogen-go/ogen/http"
 
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/order"
@@ -122,8 +123,10 @@ func domainErrorRecorder(t *testing.T, err error) *httptest.ResponseRecorder {
 	return rec
 }
 
-// TestM2Routes_Unimplemented: operation M2 chưa làm trả 501 not_implemented sau khi qua xác thực và quyền; không thẻ
-// 401, không grant 403; route ghi thiếu Idempotency-Key 400.
+// TestM2Routes_Unimplemented: operation chưa làm (ogen trả ht.ErrNotImplemented) thành 501 not_implemented có
+// request_id; route M2 qua xác thực và quyền: không thẻ 401, không grant 403; route ghi thiếu Idempotency-Key 400.
+// Task 425: mọi operation M2 đã có handler (dòng thời gian đơn làm ở Task M2-24), nên ca 501 kiểm thẳng chỗ đổi lỗi
+// writeHandlerError; các ca xác thực, quyền dùng route dòng thời gian đơn (quyền order.read).
 func TestM2Routes_Unimplemented(t *testing.T) {
 	staff, keys := testkit.OpenStaff(t), testkit.AccessKeyServer(t)
 	tenant := staff.Tenant(t, "A")
@@ -131,18 +134,21 @@ func TestM2Routes_Unimplemented(t *testing.T) {
 	staff.Grant(t, tenant, owner, []string{"customer.read", "order.create", "order.read"}, "all", "")
 	staff.User(t, tenant, "khong-quyen@elimaz.test", "active")
 	srv := testServer(t, staff, keys, 0)
-	// Route M2 còn chưa làm (dòng thời gian đơn, Task M2-24), quyền order.read; listCustomers đã làm ở Task M2-10, dòng
-	// thời gian khách ở Task M2-12, quy tắc nhãn ở Task M2-25.
-	unimplementedPath := "/api/v1/orders/" + uuid.NewString() + "/timeline"
+	timelinePath := "/api/v1/orders/" + uuid.NewString() + "/timeline"
 
-	rec := serveAs(srv, keys, http.MethodGet, unimplementedPath, "chu@elimaz.test", "", "")
-	expect(t, "chủ, chưa làm", rec, http.StatusNotImplemented, "not_implemented")
+	rec := httptest.NewRecorder()
+	requestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { // qua middleware request id thật
+		writeHandlerError(Deps{}, w, r, fmt.Errorf("operation: %w", ht.ErrNotImplemented))
+	})).ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, timelinePath, nil))
+	expect(t, "chưa làm", rec, http.StatusNotImplemented, "not_implemented")
 	if !strings.Contains(rec.Body.String(), `"request_id":"`) {
 		t.Errorf("thân 501 thiếu request_id: %s", rec.Body.String())
 	}
-	expect(t, "không grant", serveAs(srv, keys, http.MethodGet, unimplementedPath, "khong-quyen@elimaz.test", "", ""),
+	expect(t, "chủ, đơn không có", serveAs(srv, keys, http.MethodGet, timelinePath, "chu@elimaz.test", "", ""),
+		http.StatusNotFound, "not_found")
+	expect(t, "không grant", serveAs(srv, keys, http.MethodGet, timelinePath, "khong-quyen@elimaz.test", "", ""),
 		http.StatusForbidden, "forbidden")
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, unimplementedPath, nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, timelinePath, nil)
 	noToken := httptest.NewRecorder()
 	srv.ServeHTTP(noToken, req)
 	expect(t, "không thẻ", noToken, http.StatusUnauthorized, "unauthenticated")
