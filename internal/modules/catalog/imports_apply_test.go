@@ -549,3 +549,25 @@ func TestApply_OverTimeBudgetFailsWithReason(t *testing.T) {
 	e.mustReady(small)
 	e.applyExpect(small, catalog.ImportApplied)
 }
+
+// Task 429: việc áp bị hẹn chạy lại sau (như sau một lần hết ngân sách thời gian khi máy bận) → drain vẫn chạy nó tới
+// cuối thay vì dừng khi hết việc đến hạn; bản nhập applied, việc done.
+func TestApply_DrainRunsScheduledRetry(t *testing.T) {
+	e := newImportEnv(t)
+	imp := e.validate(oneProduct(t, "AO01", "Áo", "100000", "S", "M"))
+	e.mustReady(imp)
+	if err := e.apply(imp); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.staff.Owner.Pool.Exec(t.Context(), `UPDATE platform.jobs SET run_at = now() + interval '1 hour',
+		attempts = 1 WHERE kind = 'catalog.import.apply'`); err != nil {
+		t.Fatal(err)
+	}
+	e.drain()
+	if got := e.getImport(imp.ID); got.Status != catalog.ImportApplied {
+		t.Fatalf("%s %+v, mong applied", got.Status, got.Errors)
+	}
+	if n := e.count("SELECT count(*) FROM platform.jobs WHERE kind = 'catalog.import.apply' AND status = 'done'"); n != 1 {
+		t.Fatalf("%d việc áp done, mong 1", n)
+	}
+}
