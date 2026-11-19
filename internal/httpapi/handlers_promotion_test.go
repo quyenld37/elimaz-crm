@@ -17,6 +17,8 @@ import (
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/promotion"
 	"elimaz.com.vn/crm/internal/platform/config"
+	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/testkit"
 	"elimaz.com.vn/crm/internal/testkit/shiptest"
 )
@@ -257,9 +259,10 @@ func TestCouponAPI_Redemptions(t *testing.T) {
 		if o, err = shop.Order(t.Context(), tx, shop.Seller, uuid.Nil, 0, order.ItemInput{VariantID: v, Qty: 1}); err != nil {
 			return err //nolint:wrapcheck // test
 		}
-		_, err = promotion.Redeem(t.Context(), tx, "SALE10", o.ID, promotion.EvalInput{
-			Base: 400000, Channel: "manual", CustomerRootID: o.CustomerID, SellerID: shop.Seller, Now: vnTime(2026, 12, 15, 10),
-		})
+		_, err = promotion.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue()}.Redeem(t.Context(), tx, "SALE10",
+			promotion.OrderRef{TenantID: e.tenant, ID: o.ID, Version: o.Version}, promotion.EvalInput{
+				Base: 400000, Channel: "manual", CustomerRootID: o.CustomerID, SellerID: shop.Seller, Now: vnTime(2026, 12, 15, 10),
+			})
 		return err //nolint:wrapcheck // test
 	})
 	orderID, orderCode := o.ID, o.Code

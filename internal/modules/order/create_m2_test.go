@@ -13,6 +13,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/inventory/invtest"
 	"elimaz.com.vn/crm/internal/modules/order"
+	"elimaz.com.vn/crm/internal/modules/promotion"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/testkit"
@@ -357,8 +358,8 @@ func TestCreate_MoneyErrors(t *testing.T) {
 	}
 	in = e.m2Input(0, ln(v, 1, 0))
 	in.CouponCode = "GIAM10"
-	if _, err := e.createM2(in); !errors.Is(err, order.ErrInvalidInput) {
-		t.Errorf("mã giảm giá trước Task M2-17: %v, mong ErrInvalidInput", err)
+	if _, err := e.createM2(in); !errors.Is(err, promotion.ErrCouponRejected) {
+		t.Errorf("mã giảm giá không có (từ Task M2-17 dùng mã thật): %v, mong ErrCouponRejected", err)
 	}
 }
 
