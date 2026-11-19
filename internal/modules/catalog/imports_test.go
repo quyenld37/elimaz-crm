@@ -581,3 +581,39 @@ func TestImportTemplate(t *testing.T) {
 		t.Fatalf("đọc lại mẫu: %v %v %d dòng", err, cellErrs, len(rows))
 	}
 }
+
+// B-06 (review độc lập M1): tên danh mục có ">" (dấu tách cấp của cột Danh mục) và giá trị thuộc tính có ";" (dấu tách
+// nhiều giá trị) không tạo, không sửa được — tệp nhập không bao giờ chọn đúng được chúng. Dữ liệu cũ (ghi thẳng, trước
+// luật này) cho hai danh mục cùng đường dẫn "Áo > Áo sơ mi": tệp chọn đường dẫn đó → lỗi dòng, không gán bừa một cái.
+func TestClassification_ImportSeparators(t *testing.T) {
+	e := newImportEnv(t)
+	if _, err := e.createCategory(catalog.CategoryInput{Name: "Váy > Váy xòe"}); !errors.Is(err, catalog.ErrInvalidInput) {
+		t.Errorf("tạo danh mục có '>': mong ErrInvalidInput, có %v", err)
+	}
+	c := e.mustCategory("Quần", nil)
+	if _, err := e.updateCategory(c.ID, c.Version, catalog.CategoryPatch{Name: ptr("Quần>Jean")}); !errors.Is(err, catalog.ErrInvalidInput) {
+		t.Errorf("đổi tên danh mục có '>': mong ErrInvalidInput, có %v", err)
+	}
+	var attr catalog.Attribute
+	if err := e.app(func(tx pgx.Tx) error {
+		var err error
+		attr, err = e.writer().CreateAttribute(t.Context(), tx, catalog.AttributeInput{Code: "vai", Name: "Vải"}, e.actor)
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		_, err = e.writer().AddAttributeValue(t.Context(), tx, attr.ID, catalog.AttributeValueInput{Value: "Cotton; lụa"}, e.actor)
+		return err //nolint:wrapcheck // test
+	}); !errors.Is(err, catalog.ErrInvalidInput) {
+		t.Errorf("giá trị thuộc tính có ';': mong ErrInvalidInput, có %v", err)
+	}
+
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(), `INSERT INTO catalog.categories (tenant_id, name, slug, depth, position)
+			VALUES ($1, 'Áo > Áo sơ mi', 'ao-ao-so-mi-cu', 1, 99)`, e.tenant)
+		return err //nolint:wrapcheck // test
+	})
+	imp := e.validate(oneProduct(t, "AO01", "Áo", "1", "S"))
+	if imp.Status != catalog.ImportInvalid || len(imp.Errors) != 1 || imp.Errors[0].Column != "Danh mục" {
+		t.Fatalf("đường dẫn danh mục trùng: %s %+v, mong invalid với một lỗi cột Danh mục", imp.Status, imp.Errors)
+	}
+}

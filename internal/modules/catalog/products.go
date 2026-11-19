@@ -64,7 +64,7 @@ func (w Writer) CreateProduct(ctx context.Context, tx pgx.Tx, in ProductInput, a
 	p.ID, p.Version = row.ID, row.Version
 	p.Variants = make([]Variant, 0, len(vs))
 	for _, v := range vs {
-		created, err := insertVariant(ctx, tx, actor.TenantID, p.SellerID, p.ID, v)
+		created, err := w.insertVariant(ctx, tx, actor.TenantID, p.SellerID, p.ID, v)
 		if err != nil {
 			return Product{}, err
 		}

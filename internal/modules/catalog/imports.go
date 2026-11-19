@@ -148,7 +148,8 @@ func ImportTemplate(ctx context.Context, tx pgx.Tx) ([]byte, error) {
 	return b, nil
 }
 
-// classificationRefs đọc phần Refs dùng chung cả shop: danh mục active theo đường dẫn tên từ gốc, thuộc tính theo tên
+// classificationRefs đọc phần Refs dùng chung cả shop: danh mục active theo đường dẫn tên từ gốc (đường dẫn của hơn
+// một danh mục bị bỏ: tệp chọn nó thì báo danh mục không có, không gán bừa), thuộc tính theo tên
 // (hai thuộc tính trùng tên: lấy cái đứng trước theo vị trí), nhãn theo mã.
 func classificationRefs(ctx context.Context, tx pgx.Tx) (importer.Refs, error) {
 	refs := importer.Refs{
@@ -162,6 +163,7 @@ func classificationRefs(ctx context.Context, tx pgx.Tx) (importer.Refs, error) {
 	for _, c := range cats {
 		byID[c.ID] = c
 	}
+	ambiguous := map[string]bool{}
 	for _, c := range cats {
 		if c.Status != CategoryActive {
 			continue
@@ -170,7 +172,14 @@ func classificationRefs(ctx context.Context, tx pgx.Tx) (importer.Refs, error) {
 		for p := c.ParentID; p != nil && len(names) <= MaxCategoryDepth; p = byID[*p].ParentID {
 			names = append([]string{byID[*p].Name}, names...)
 		}
-		refs.Categories[importer.CategoryPath(names...)] = c.ID
+		path := importer.CategoryPath(names...)
+		if _, dup := refs.Categories[path]; dup || ambiguous[path] {
+			// Hai danh mục cùng đường dẫn (tên có ">" ghi trước khi categoryText cấm): tệp không chọn được cái nào.
+			delete(refs.Categories, path)
+			ambiguous[path] = true
+			continue
+		}
+		refs.Categories[path] = c.ID
 	}
 	attrs, err := ListAttributes(ctx, tx)
 	if err != nil {

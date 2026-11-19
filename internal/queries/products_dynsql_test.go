@@ -24,6 +24,7 @@ func TestProducts(t *testing.T) {
 	t.Run("SearchInvalid", func(t *testing.T) { testSearchInvalid(t, f) })
 	t.Run("SearchSameAsBefore", func(t *testing.T) { testSearchSameAsBefore(t, f) })
 	t.Run("SearchBroadName", func(t *testing.T) { testSearchBroadName(t, f) })
+	t.Run("ListBroadQNewest", func(t *testing.T) { testListBroadQNewest(t, f) })
 	t.Run("PagesAll", func(t *testing.T) { testPagesAll(t, f) })
 	t.Run("ListColumns", func(t *testing.T) { testListColumns(t, f) })
 	t.Run("ListFilters", func(t *testing.T) { testListFilters(t, f) })
