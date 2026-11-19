@@ -42,3 +42,6 @@ export type { NavGroup, NavSection, Screen } from "../app/nav";
 /** Khung điều hướng theo mockup M1: menu trái, thanh trên 56 px, menu trượt trên điện thoại. */
 export { Layout } from "../shell/Layout";
 export type { LayoutProps } from "../shell/Layout";
+/** Form lên đơn nhanh (màn /don/moi, Task 84): dùng lại nguyên khối ở M4 cạnh hội thoại; gửi đơn qua useWriteAction. */
+export { OrderForm } from "../screens/len-don/OrderForm";
+export type { OrderFormProps } from "../screens/len-don/OrderForm";
