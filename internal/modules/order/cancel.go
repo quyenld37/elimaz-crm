@@ -91,14 +91,23 @@ func (w Writer) OnShipmentCancelConfirmed(ctx context.Context, tx pgx.Tx, seller
 	if o.Status != StatusConfirmed && o.Status != StatusCancelRequested {
 		return false, fmt.Errorf("%w: hãng hủy vận đơn của đơn %s", ErrInvalidTransition, o.Status)
 	}
-	cur := lockedOrder(o)
 	if o.Status == StatusConfirmed {
+		cur := lockedOrder(o)
 		if _, _, err := reservationsOf(ctx, tx, q, &cur); err != nil {
 			return false, err
 		}
 		return w.DetachShipment(ctx, tx, sellerID, orderID, shipmentID, a, now)
 	}
-	saved, err := Get(ctx, tx, sellerID, orderID)
+	return w.confirmRequestedCancel(ctx, tx, sellerID, o, a, now)
+}
+
+// confirmRequestedCancel đưa đơn o đã khóa đang cancel_requested sang cancelled khi hãng chắc chắn không còn kiện (hãng
+// xác nhận hủy, hay lệnh tạo vận đơn chết — DetachShipment): finishCancel với lý do, ghi chú lúc yêu cầu (gỡ vận đơn,
+// nhả held, trả lượt mã). Hàng đã in_transit → ErrInvalidTransition.
+func (w Writer) confirmRequestedCancel(ctx context.Context, tx pgx.Tx, sellerID uuid.UUID, o store.LockOrderRow,
+	a Actor, now time.Time,
+) (bool, error) {
+	saved, err := Get(ctx, tx, sellerID, o.ID)
 	if err != nil {
 		return false, err
 	}
@@ -109,6 +118,7 @@ func (w Writer) OnShipmentCancelConfirmed(ctx context.Context, tx pgx.Tx, seller
 	if saved.CancelNote != nil {
 		note = *saved.CancelNote
 	}
+	cur := lockedOrder(o)
 	a.TenantID = o.TenantID
 	if err := w.finishCancel(ctx, tx, &cur, reason, note, a, now.UTC()); err != nil {
 		return false, err
@@ -131,13 +141,22 @@ func (w Writer) OnShipmentCancelRejected(ctx context.Context, tx pgx.Tx, sellerI
 	}
 	a.TenantID = o.TenantID
 	cur := lockedOrder(o)
-	if err := w.applyTransition(ctx, tx, &cur, state.Confirmed, "", reasonCarrierRejected, a, now.UTC()); err != nil {
-		return false, err
-	}
-	if err := setCancelReason(ctx, q, &cur, "", ""); err != nil {
+	if err := w.rejectRequestedCancel(ctx, tx, q, &cur, a, now.UTC()); err != nil {
 		return false, err
 	}
 	return true, nil
+}
+
+// rejectRequestedCancel đưa đơn o đã khóa (a.TenantID đã đặt) cancel_requested về confirmed khi hãng không hủy được
+// (từ chối, hay đã giao): lịch sử lý do carrier_rejected_cancel, order.confirmed, bỏ lý do và ghi chú hủy; giữ vận
+// đơn và giữ hàng.
+func (w Writer) rejectRequestedCancel(ctx context.Context, tx pgx.Tx, q *store.Queries, o *Order, a Actor,
+	now time.Time,
+) error {
+	if err := w.applyTransition(ctx, tx, o, state.Confirmed, "", reasonCarrierRejected, a, now); err != nil {
+		return err
+	}
+	return setCancelReason(ctx, q, o, "", "")
 }
 
 // requestCancel đổi đơn o (đã khóa) confirmed có vận đơn hiện hành sang cancel_requested và ghi lý do; không đụng

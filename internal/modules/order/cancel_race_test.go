@@ -165,15 +165,18 @@ func TestCancel_RaceWithAttach(t *testing.T) {
 
 // cancelModel là trạng thái mong đợi của một đơn trong TestCancel_Invariants.
 type cancelModel struct {
-	o        order.Order
-	shipment uuid.UUID // uuid.Nil: chưa gắn
-	picked   bool
+	o         order.Order
+	shipment  uuid.UUID // uuid.Nil: chưa gắn
+	picked    bool
+	delivered bool
 }
 
 // TestCancel_Invariants (rapid): 1–3 đơn confirmed (có hoặc không mã) của một biến thể, chuỗi thao tác ngẫu nhiên (hủy,
-// gắn vận đơn, lấy hàng, hãng xác nhận hay từ chối hủy, vận đơn cũ báo) → sau mỗi bước: held = tổng số lượng các đơn
-// chưa hủy chưa lấy hàng; in_transit = tổng của đơn đã lấy hàng; used_count = số lượt active; không đơn cancelled nào
-// còn vận đơn hiện hành hay giữ hàng.
+// gắn vận đơn, lấy hàng, giao xong, gỡ vận đơn, hãng xác nhận hay từ chối hủy, vận đơn cũ báo) → sau mỗi bước: held =
+// tổng số lượng các đơn chưa hủy, chưa giao, chưa lấy hàng; in_transit = tổng của đơn đã lấy hàng chưa giao;
+// used_count = số lượt active; không đơn cancelled nào còn vận đơn hiện hành hay giữ hàng; không đơn nào kẹt ở
+// cancel_requested mà mất vận đơn hiện hành (B-02). Lấy hàng, giao xong bằng vận đơn hiện hành không bao giờ lỗi, kể
+// cả khi đơn đang cancel_requested (B-01, Task 431).
 func TestCancel_Invariants(t *testing.T) {
 	e := newM2Env(t)
 	rapid.Check(t, func(rt *rapid.T) {
@@ -190,8 +193,8 @@ func TestCancel_Invariants(t *testing.T) {
 		}
 		for range rapid.IntRange(1, 8).Draw(rt, "steps") {
 			m := ms[rapid.IntRange(0, len(ms)-1).Draw(rt, "order")]
-			e.cancelStep(rt, m, rapid.SampledFrom([]string{"cancel", "attach", "pickup", "confirm", "reject", "stale"}).
-				Draw(rt, "op"))
+			ops := []string{"cancel", "attach", "pickup", "deliver", "detach", "confirm", "reject", "stale"}
+			e.cancelStep(rt, m, rapid.SampledFrom(ops).Draw(rt, "op"))
 			if msg := e.checkCancelInvariants(v, cid, ms); msg != "" {
 				rt.Fatal(msg)
 			}
@@ -211,11 +214,12 @@ func (e *orderEnv) cancelStep(rt *rapid.T, m *cancelModel, op string) {
 			m.shipment = s
 		}
 	case "pickup":
+		e.shipmentStep(rt, m, order.StepPickedUp)
+	case "deliver":
+		e.shipmentStep(rt, m, order.StepDelivered)
+	case "detach":
 		if m.shipment != uuid.Nil {
-			var applied bool
-			if applied, err = e.onEvent(m.o.ID, m.shipment, order.StepPickedUp); applied {
-				m.picked = true
-			}
+			_, err = e.detachBy(e.seller, m.o.ID, m.shipment)
 		}
 	case "confirm", "reject":
 		if m.shipment != uuid.Nil {
@@ -233,6 +237,41 @@ func (e *orderEnv) cancelStep(rt *rapid.T, m *cancelModel, op string) {
 	}
 }
 
+// shipmentStep báo bước step bằng vận đơn hiện hành của m (nếu có): không bao giờ lỗi, kể cả khi đơn cancel_requested
+// (B-01); applied thì cập nhật mô hình.
+func (e *orderEnv) shipmentStep(rt *rapid.T, m *cancelModel, step order.ShipmentStep) {
+	if m.shipment == uuid.Nil {
+		return
+	}
+	applied, err := e.onEvent(m.o.ID, m.shipment, step)
+	if err != nil {
+		rt.Fatalf("%s bằng vận đơn hiện hành: %v", step, err)
+	}
+	if applied {
+		m.picked = true
+		m.delivered = m.delivered || step == order.StepDelivered
+	}
+}
+
+// orderInvariant kiểm một đơn g (mô hình m): trả thông báo lỗi, hay "" kèm việc đơn có giữ hàng (counted) để cộng
+// vào held/in_transit.
+func (e *orderEnv) orderInvariant(g order.Order, m *cancelModel) (msg string, counted bool) {
+	switch {
+	case g.Status == order.StatusCancelRequested && g.CurrentShipmentID == nil:
+		return fmt.Sprintf("đơn %s cancel_requested mà không còn vận đơn hiện hành", g.Code), false
+	case (g.Status == order.StatusDelivered) != m.delivered:
+		return fmt.Sprintf("đơn %s: %s, mô hình giao xong %v", g.Code, g.Status, m.delivered), false
+	case m.delivered:
+		return "", false
+	case g.Status == order.StatusCancelled:
+		if g.CurrentShipmentID != nil || e.heldOf(g.ID, inventory.StateHeld)+e.heldOf(g.ID, inventory.StateInTransit) != 0 {
+			return fmt.Sprintf("đơn %s cancelled còn vận đơn %v hoặc giữ hàng", g.Code, g.CurrentShipmentID), false
+		}
+		return "", false
+	}
+	return "", true
+}
+
 func (e *orderEnv) checkCancelInvariants(v, cid uuid.UUID, ms []*cancelModel) string {
 	var held, transit int32
 	active := 0
@@ -241,10 +280,11 @@ func (e *orderEnv) checkCancelInvariants(v, cid uuid.UUID, ms []*cancelModel) st
 		if e.redemption(g.ID) == "active" {
 			active++
 		}
-		if g.Status == order.StatusCancelled {
-			if g.CurrentShipmentID != nil || e.heldOf(g.ID, inventory.StateHeld)+e.heldOf(g.ID, inventory.StateInTransit) != 0 {
-				return fmt.Sprintf("đơn %s cancelled còn vận đơn %v hoặc giữ hàng", g.Code, g.CurrentShipmentID)
-			}
+		msg, counted := e.orderInvariant(g, m)
+		if msg != "" {
+			return msg
+		}
+		if !counted {
 			continue
 		}
 		if m.picked {

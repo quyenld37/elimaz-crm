@@ -67,15 +67,30 @@ func attachShipment(ctx context.Context, q *store.Queries, sellerID, orderID, sh
 
 // DetachShipment gỡ vận đơn shipmentID khỏi vai vận đơn hiện hành của đơn orderID của người bán sellerID, trong tx của
 // bên gọi (fulfillment: lệnh tạo vận đơn kết thúc mà hãng chắc chắn chưa tạo, D-03; đổi hãng, 05 mục 2). Chỉ khi đơn
-// đang gắn đúng vận đơn này: đặt NULL, version + 1, order.updated, báo hiệu; đơn giữ trạng thái (confirmed, để gửi
-// hãng khác), giữ hàng không đổi → applied=true. Vận đơn khác hay chưa gắn → applied=false, không đổi gì (gọi lại an
-// toàn). Không có đơn → ErrNotFound.
-func (w Writer) DetachShipment(ctx context.Context, tx pgx.Tx, sellerID, orderID, shipmentID uuid.UUID, _ Actor,
+// đang gắn đúng vận đơn này; vận đơn khác hay chưa gắn → applied=false, không đổi gì (gọi lại an toàn). Theo trạng
+// thái đơn (Task 431, B-02):
+//
+//   - confirmed: đặt NULL, version + 1, order.updated, báo hiệu; đơn giữ confirmed (để gửi hãng khác), giữ hàng không
+//     đổi → applied=true.
+//   - cancel_requested: hãng chắc chắn không còn kiện nên lời yêu cầu hủy thành công — như OnShipmentCancelConfirmed:
+//     đơn cancelled, gỡ vận đơn, nhả held, trả lượt mã, giữ lý do → applied=true. Hàng đã rời kho (in_transit) →
+//     ErrInvalidTransition, không đổi gì.
+//   - trạng thái khác (delivered, returned) → ErrInvalidTransition, không đổi gì.
+//
+// Không có đơn → ErrNotFound.
+func (w Writer) DetachShipment(ctx context.Context, tx pgx.Tx, sellerID, orderID, shipmentID uuid.UUID, a Actor,
 	now time.Time,
 ) (applied bool, err error) {
 	q, o, current, err := w.lockCurrentShipment(ctx, tx, sellerID, orderID, shipmentID)
 	if err != nil || !current {
 		return false, err
+	}
+	switch o.Status {
+	case StatusConfirmed:
+	case StatusCancelRequested:
+		return w.confirmRequestedCancel(ctx, tx, sellerID, o, a, now)
+	default:
+		return false, fmt.Errorf("%w: gỡ vận đơn của đơn %s", ErrInvalidTransition, o.Status)
 	}
 	version, err := q.DetachCurrentShipment(ctx, store.DetachCurrentShipmentParams{
 		Now: now, SellerID: sellerID, ID: orderID, Version: o.Version,
@@ -93,15 +108,19 @@ func (w Writer) DetachShipment(ctx context.Context, tx pgx.Tx, sellerID, orderID
 // OnShipmentEvent áp bước step của vận đơn shipmentID lên đơn orderID của người bán sellerID và tồn, trong tx của bên
 // gọi (fulfillment). Khóa đơn trước rồi số dư, giữ hàng (ADR-46). Chỉ vận đơn hiện hành đổi được đơn và tồn (05 mục 2,
 // B1): vận đơn khác (vận đơn cũ tới muộn) hay đơn chưa gắn vận đơn → applied=false, không đổi gì. Bước đã qua hay đơn
-// đã delivered → applied=false (AT47: một lần trừ tồn).
+// đã delivered → applied=false (AT47: một lần trừ tồn). Đơn confirmed hay cancel_requested (hãng lấy, giao trước khi
+// kịp hủy; Task 431, B-01, kế hoạch M3 VC12):
 //
-//   - picked_up: mọi dòng giữ hàng held của đơn → in_transit (G6).
+//   - picked_up: mọi dòng giữ hàng held của đơn → in_transit (G6). Đơn giữ trạng thái: đơn cancel_requested chờ lời
+//     hãng về lệnh hủy (M3 gọi OnShipmentCancelRejected ngay sau, đưa về confirmed).
 //   - delivered: dòng còn held → in_transit (hãng bỏ qua tín hiệu lấy hàng), rồi in_transit → consumed (on_hand −);
-//     đơn confirmed → delivered qua applyTransition (lịch sử với người làm a, giờ now; order.delivered seq = version).
+//     đơn cancel_requested về confirmed (như hãng từ chối hủy: lý do carrier_rejected_cancel, bỏ lý do hủy,
+//     order.confirmed), rồi confirmed → delivered qua applyTransition (lịch sử với người làm a, giờ now;
+//     order.delivered seq = version).
 //
 // Lỗi (bên gọi lùi cả transaction, không bao giờ applied=false sau khi đã ghi): bước lạ → ErrInvalidInput; không có
-// đơn → ErrNotFound; đơn không ở confirmed/delivered, hay không còn dòng giữ hàng held/in_transit nào (bất biến hỏng)
-// → ErrStatusConflict; lỗi của inventory trả nguyên (không nuốt inventory.ErrStateConflict).
+// đơn → ErrNotFound; đơn không ở confirmed/cancel_requested/delivered, hay không còn dòng giữ hàng held/in_transit nào
+// (bất biến hỏng) → ErrStatusConflict; lỗi của inventory trả nguyên (không nuốt inventory.ErrStateConflict).
 func (w Writer) OnShipmentEvent(ctx context.Context, tx pgx.Tx, sellerID, orderID, shipmentID uuid.UUID,
 	step ShipmentStep, a Actor, now time.Time,
 ) (applied bool, err error) {
@@ -119,7 +138,7 @@ func (w Writer) OnShipmentEvent(ctx context.Context, tx pgx.Tx, sellerID, orderI
 	switch o.Status {
 	case StatusDelivered:
 		return false, nil
-	case StatusConfirmed:
+	case StatusConfirmed, StatusCancelRequested:
 	default:
 		return false, fmt.Errorf("%w: áp %s lên đơn %s", ErrStatusConflict, step, o.Status)
 	}
@@ -133,7 +152,7 @@ func (w Writer) OnShipmentEvent(ctx context.Context, tx pgx.Tx, sellerID, orderI
 	}
 	held := states[inventory.StateHeld] > 0
 	if !held && states[inventory.StateInTransit] == 0 {
-		return false, fmt.Errorf("%w: đơn confirmed không còn giữ hàng held, in_transit", ErrStatusConflict)
+		return false, fmt.Errorf("%w: đơn %s không còn giữ hàng held, in_transit", ErrStatusConflict, o.Status)
 	}
 	who := inventory.Actor{Type: a.kind(), ID: a.UserID}
 	if held {
@@ -149,6 +168,11 @@ func (w Writer) OnShipmentEvent(ctx context.Context, tx pgx.Tx, sellerID, orderI
 	}
 	cur := lockedOrder(o)
 	a.TenantID = o.TenantID
+	if o.Status == StatusCancelRequested { // sau số dư (ADR-46 nhóm 11), trước lịch sử, sự kiện
+		if err := w.rejectRequestedCancel(ctx, tx, q, &cur, a, now); err != nil {
+			return false, fmt.Errorf("đơn giao xong khi đang yêu cầu hủy: %w", err)
+		}
+	}
 	if err := w.applyTransition(ctx, tx, &cur, state.Delivered, "", "", a, now); err != nil {
 		return false, fmt.Errorf("đơn sang delivered: %w", err)
 	}
