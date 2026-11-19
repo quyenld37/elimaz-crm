@@ -35,31 +35,37 @@ func TestInventoryInvariants(t *testing.T) {
 				e.seed(v, n) // 0: chưa có dòng số dư
 			}
 		}
-		workers := make([][]propOp, rapid.IntRange(1, 4).Draw(rt, "goroutines"))
-		for g := range workers {
-			workers[g] = rapid.SliceOfN(rapid.Custom(func(rt *rapid.T) propOp {
-				return propOp{
-					kind: rapid.IntRange(0, 5).Draw(rt, "kind"), docKind: rapid.IntRange(0, len(docKinds)-1).Draw(rt, "docKind"),
-					sign: rapid.Bool().Draw(rt, "sign"), variant: rapid.IntRange(0, len(vs)-1).Draw(rt, "variant"),
-					qty: rapid.Int32Range(1, 3).Draw(rt, "qty"), target: rapid.IntRange(0, 7).Draw(rt, "target"),
-				}
-			}), 1, 8).Draw(rt, "ops")
-		}
-		errs := make([]error, len(workers))
-		var wg sync.WaitGroup
-		for g, ops := range workers {
-			wg.Go(func() { errs[g] = e.runOps(vs, ops) })
-		}
-		wg.Wait()
-		if err := errors.Join(errs...); err != nil {
-			rt.Fatalf("lỗi không mong đợi: %v", err)
-		}
-		for _, v := range vs {
-			if msg := e.checkInvariants(v); msg != "" {
-				rt.Fatalf("biến thể %v: %s", v, msg)
-			}
-		}
+		e.checkConcurrentOps(rt, vs, 6, func(ops []propOp) error { return e.runOps(vs, ops) })
 	})
+}
+
+// checkConcurrentOps (trong rapid.Check): 1–4 goroutine, mỗi goroutine 1–8 thao tác ngẫu nhiên (kind trong [0, kinds))
+// chạy bằng run song song → lỗi không mong đợi hay bất biến sai (checkInvariants) của biến thể nào trong vs → rt.Fatalf.
+func (e *invEnv) checkConcurrentOps(rt *rapid.T, vs []uuid.UUID, kinds int, run func(ops []propOp) error) {
+	workers := make([][]propOp, rapid.IntRange(1, 4).Draw(rt, "goroutines"))
+	for g := range workers {
+		workers[g] = rapid.SliceOfN(rapid.Custom(func(rt *rapid.T) propOp {
+			return propOp{
+				kind: rapid.IntRange(0, kinds-1).Draw(rt, "kind"), docKind: rapid.IntRange(0, len(docKinds)-1).Draw(rt, "docKind"),
+				sign: rapid.Bool().Draw(rt, "sign"), variant: rapid.IntRange(0, len(vs)-1).Draw(rt, "variant"),
+				qty: rapid.Int32Range(1, 3).Draw(rt, "qty"), target: rapid.IntRange(0, 7).Draw(rt, "target"),
+			}
+		}), 1, 8).Draw(rt, "ops")
+	}
+	errs := make([]error, len(workers))
+	var wg sync.WaitGroup
+	for g, ops := range workers {
+		wg.Go(func() { errs[g] = run(ops) })
+	}
+	wg.Wait()
+	if err := errors.Join(errs...); err != nil {
+		rt.Fatalf("lỗi không mong đợi: %v", err)
+	}
+	for _, v := range vs {
+		if msg := e.checkInvariants(v); msg != "" {
+			rt.Fatalf("biến thể %v: %s", v, msg)
+		}
+	}
 }
 
 // runOps chạy ops tuần tự, mỗi thao tác một transaction; thiếu hàng và sai trạng thái là kết quả hợp lệ.
