@@ -39,6 +39,7 @@ type rtEnv struct {
 	adminURL string
 	keys     *testkit.AccessKeys
 	hub      *realtime.PGHub
+	spy      *statusSpy // Bus mà máy chủ HTTP dùng: hub, có đếm lời gọi Status của luồng SSE
 	reg      *metrics.Registry
 	srv      *httptest.Server
 }
@@ -63,10 +64,11 @@ func newRTEnv(t *testing.T) *rtEnv {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	wg.Go(func() { e.hub.Run(ctx) })
+	e.spy = &statusSpy{Bus: e.hub, idle: make(chan struct{}, 1)}
 	v := e.keys.Verifier(t, testAUD)
 	stop := make(chan struct{})
 	e.srv = httptest.NewUnstartedServer(httpapi.NewServer(httpapi.Deps{
-		Config: config.Config{}, DB: e.staff.App, Logger: logger, Access: v, Realtime: e.hub,
+		Config: config.Config{}, DB: e.staff.App, Logger: logger, Access: v, Realtime: e.spy,
 		SSE: realtime.SSEOptions{Batch: testBatch, Heartbeat: testHeartbeat, Stop: stop},
 	}))
 	e.srv.Config.RegisterOnShutdown(func() { close(stop) })
@@ -78,6 +80,38 @@ func newRTEnv(t *testing.T) *rtEnv {
 	})
 	e.waitListening(true, 10*time.Second)
 	return e
+}
+
+// statusSpy bọc Bus để test biết luồng SSE đã làm gì, không đoán bằng giờ ngủ. Luồng SSE chỉ gọi Status ở nhịp tim
+// và ghi ": ping" ngay sau khi nhận true, trong cùng goroutine; nên với một client: số lần nhận true là số ping đã ghi
+// hoặc sắp ghi, và khi nó hỏi lại mà nhận false thì mọi ping trước đó đã ghi xong.
+type statusSpy struct {
+	realtime.Bus
+	mu    sync.Mutex
+	pings int
+	idle  chan struct{} // sức chứa 1: có lời gọi Status nhận false
+}
+
+func (s *statusSpy) Status() (bool, int) {
+	listening, clients := s.Bus.Status()
+	if listening {
+		s.mu.Lock()
+		s.pings++
+		s.mu.Unlock()
+	} else {
+		select {
+		case s.idle <- struct{}{}:
+		default:
+		}
+	}
+	return listening, clients
+}
+
+// pingsWritten trả số lần Status nhận true (số ping luồng SSE đã ghi hoặc sắp ghi).
+func (s *statusSpy) pingsWritten() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.pings
 }
 
 // waitListening chờ hub báo listening == want trong timeout.

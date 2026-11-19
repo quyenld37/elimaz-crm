@@ -80,7 +80,9 @@ function start(over: Partial<Parameters<typeof createRealtimeClient>[0]> = {}) {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function until(cond: () => boolean, timeoutMs = 2000) {
+// until chờ theo sự kiện; hạn chỉ là chốt chống treo (30 s như test Go), không phải tiêu chí đúng/sai: máy tải cao thì
+// vài trăm ms vẫn có thể chưa đủ cho một lần nối (Task 421).
+async function until(cond: () => boolean, timeoutMs = 30_000) {
   const end = Date.now() + timeoutMs;
   while (!cond()) {
     if (Date.now() > end) throw new Error("hết giờ chờ điều kiện");
@@ -136,28 +138,52 @@ describe("createRealtimeClient", () => {
     }
   });
 
+  // Đồng hồ giả (Task 421): với máy chủ thật, dưới tải yêu cầu thứ hai chậm hơn watchdogMs cũng thành reconnecting.
   it("máy chủ không trả header nào: sau watchdogMs thì reconnecting và mở yêu cầu thứ hai", async () => {
-    handlers = [() => undefined, stream(RESYNC)];
-    const t = start({ watchdogMs: 150 });
-    await until(() => t.states.includes("connected"), 1500);
-    expect(t.states).toEqual(["reconnecting", "connected"]);
-    expect(requests).toBe(2);
+    vi.useFakeTimers();
+    try {
+      const sse = heldStreams();
+      let calls = 0;
+      const fetchImpl: typeof fetch = (input, init) => {
+        calls++;
+        if (calls > 1) return sse.fetchImpl(input, init);
+        // Yêu cầu đầu: không bao giờ có header; hủy qua signal thì báo lỗi như fetch thật.
+        return new Promise<Response>((_, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("aborted", "AbortError"));
+          });
+        });
+      };
+      const t = start({ watchdogMs: 150, fetchImpl });
+      await vi.advanceTimersByTimeAsync(149);
+      expect(t.states).toEqual([]);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(t.states).toEqual(["reconnecting"]);
+      await vi.advanceTimersByTimeAsync(20); // backoffMs[0] = 20
+      expect(t.states).toEqual(["reconnecting", "connected"]);
+      expect(calls).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
+  // Đồng hồ giả (Task 421): với máy chủ và đồng hồ thật, dưới tải hai nhịp tim 50 ms có thể cách nhau quá 200 ms.
   it("nhịp tim giữ kết nối: không nối lại khi có byte trước watchdogMs", async () => {
-    handlers = [
-      (req, res) => {
-        stream(RESYNC)(req, res);
-        const iv = setInterval(() => res.write(": ping\n\n"), 50);
-        res.on("close", () => {
-          clearInterval(iv);
-        });
-      },
-    ];
-    const t = start({ watchdogMs: 200 });
-    await sleep(600);
-    expect(requests).toBe(1);
-    expect(t.states).toEqual(["connected"]);
+    vi.useFakeTimers();
+    try {
+      const sse = heldStreams();
+      const t = start({ watchdogMs: 200, fetchImpl: sse.fetchImpl });
+      await vi.advanceTimersByTimeAsync(0);
+      sse.send(0, RESYNC);
+      for (let i = 0; i < 12; i++) {
+        await vi.advanceTimersByTimeAsync(50);
+        sse.send(0, ": ping\n\n");
+      }
+      expect(sse.calls()).toBe(1);
+      expect(t.states).toEqual(["connected"]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("502 hai lần rồi 200: reconnecting, reconnecting, connected và onResync một lần", async () => {
@@ -205,20 +231,23 @@ describe("createRealtimeClient", () => {
     expect(calls[0]?.redirect).toBe("manual");
   });
 
-  it("refetchEveryMs: 100, luồng chỉ có nhịp tim: onResync ít nhất 2 lần trong 350 ms", async () => {
-    handlers = [
-      (req, res) => {
-        stream()(req, res);
-        const iv = setInterval(() => res.write(": ping\n\n"), 40);
-        res.on("close", () => {
-          clearInterval(iv);
-        });
-      },
-    ];
-    const t = start({ refetchEveryMs: 100 });
-    await until(() => t.states.includes("connected"));
-    await sleep(350);
-    expect(t.resyncs()).toBeGreaterThanOrEqual(2);
+  // Đồng hồ giả (Task 421): với đồng hồ thật, dưới tải setInterval 100 ms có thể chạy chưa tới 2 lần trong 350 ms.
+  it("refetchEveryMs: 100, luồng chỉ có nhịp tim: onResync mỗi 100 ms (3 lần trong 350 ms)", async () => {
+    vi.useFakeTimers();
+    try {
+      const sse = heldStreams();
+      const t = start({ refetchEveryMs: 100, fetchImpl: sse.fetchImpl });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(t.states).toEqual(["connected"]);
+      for (let i = 0; i < 7; i++) {
+        await vi.advanceTimersByTimeAsync(50);
+        sse.send(0, ": ping\n\n");
+      }
+      await vi.advanceTimersByTimeAsync(0);
+      expect(t.resyncs()).toBe(3); // 100, 200, 300 ms; luồng không có khung resync
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("không tải lại định kỳ khi chưa nối được", async () => {
@@ -276,7 +305,7 @@ describe("createRealtimeClient", () => {
       }),
     );
     const t = start({ url: dead, backoffMs: [30, 60] });
-    await until(() => t.states.length >= 2, 1500);
+    await until(() => t.states.length >= 2);
     expect(t.states.slice(0, 2)).toEqual(["reconnecting", "reconnecting"]);
     server = createServer(() => undefined);
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));

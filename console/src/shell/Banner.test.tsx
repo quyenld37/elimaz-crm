@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Băng báo của khung (spec 04 mục 6, ADR-34): đúng câu chữ cho từng trạng thái; khung vẫn tải khi API tạm ngừng.
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TEXT_EMPTY_HOME } from "../app/router";
 import { App } from "./App";
@@ -63,14 +63,15 @@ describe("App (khung)", () => {
     });
     render(<App />);
     expect(screen.getAllByText("ELIMAZ").length).toBeGreaterThan(0); // cột trái và thanh trên (Task 48)
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 50));
+    // Chờ theo sự kiện (băng báo hiện, đã gọi đủ hai đường), không chờ một quãng giờ cố định: máy tải cao thì 50 ms
+    // chưa đủ cho lần hỏi đầu (Task 421).
+    await waitFor(() => {
+      expect(screen.getAllByRole("status").map((e) => e.textContent)).toContain(TEXT_API_DOWN);
+      expect(urls.some((u) => u.endsWith("/health/live"))).toBe(true);
+      expect(urls.some((u) => u.endsWith("/api/v1/stream"))).toBe(true);
     });
-    expect(screen.getAllByRole("status").map((e) => e.textContent)).toContain(TEXT_API_DOWN);
     // Chưa đọc được /api/v1/me: không được báo nhầm "chưa được giao màn hình" (Task 48, reviewer).
     expect(screen.queryByText(TEXT_EMPTY_HOME)).toBeNull();
-    expect(urls.some((u) => u.endsWith("/health/live"))).toBe(true);
-    expect(urls.some((u) => u.endsWith("/api/v1/stream"))).toBe(true);
   });
 
   it("API trả lời: không có băng API tạm ngừng", async () => {
@@ -129,6 +130,7 @@ describe("App (khung) — /api/v1/me", () => {
 
   it("/me tải xong, không có quyền màn nào → câu trống", async () => {
     await renderWithMe([200, { userId: "u", email: "lan@elimaz.vn", grants: [] }]);
-    expect(screen.getByText(TEXT_EMPTY_HOME)).toBeTruthy();
+    // findByText chờ /me trả và vẽ xong (máy tải cao: quá 50 ms của renderWithMe, Task 421).
+    expect(await screen.findByText(TEXT_EMPTY_HOME)).toBeTruthy();
   });
 });

@@ -6,6 +6,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Supplier } from "../../api";
+import { SEARCH_DELAY_MS } from "./Balances";
 import { SupplierPicker } from "./SupplierPicker";
 import { TEXT_NAME_TAKEN } from "./supplierRules";
 import { sup, stubSupplierApi, type FakeSuppliers } from "./supplierTestkit";
@@ -73,6 +74,38 @@ describe("SupplierPicker", () => {
     expect(picked.at(-1)?.name).toBe("Xưởng Hoa");
     expect((input() as HTMLInputElement).value).toBe("Xưởng Hoa");
     expect(input().getAttribute("aria-expanded")).toBe("false");
+  });
+
+  // Task 421: trong lúc chờ gõ (SEARCH_DELAY_MS), danh sách còn là kết quả của từ khóa cũ; tên gõ có trong danh sách hay
+  // không thì chưa biết, nên chưa có dòng thêm nhanh. Trước đây dòng này hiện theo kết quả cũ rồi mất rồi hiện lại (nút
+  // mới): bấm trúng nút vừa bị gỡ thì không có gì xảy ra. Đồng hồ giả chỉ cho setTimeout (hẹn chờ gõ).
+  it("đang chờ gõ, danh sách còn của từ khóa cũ: chưa có dòng thêm nhanh", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      renderPicker();
+      fireEvent.change(input(), { target: { value: "Xưởng Hoa" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SEARCH_DELAY_MS - 1);
+      });
+      expect(fake.reads.map((r) => r.get("q"))).toEqual([null]);
+      expect(screen.getByRole("option", { name: "Xưởng may Hoa Sen" })).toBeTruthy();
+      expect(screen.queryByRole("option", { name: /Thêm nhà cung cấp/ })).toBeNull();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1); // hết chờ gõ: hỏi lại với từ khóa mới
+      });
+      // Kết quả mới về qua vài lượt hẹn của React Query (setTimeout 0, đồng hồ giả): tua tới khi danh sách đổi.
+      const addRow = () => screen.queryByRole("option", { name: '+ Thêm nhà cung cấp "Xưởng Hoa"' });
+      for (let i = 0; i < 100 && addRow() === null; i++) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1);
+        });
+      }
+      expect(addRow()).toBeTruthy();
+      expect(fake.reads.map((r) => r.get("q"))).toEqual([null, "Xưởng Hoa"]);
+      expect(screen.queryByRole("option", { name: "Xưởng may Hoa Sen" })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("chọn nhà cung cấp có sẵn: không ghi gì; gõ lại thì bỏ lựa chọn cũ", async () => {

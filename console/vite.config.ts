@@ -21,5 +21,7 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
     restoreMocks: true,
     setupFiles: ["src/test-setup.ts"],
+    // Chốt chống treo của cả một test, rộng hơn hạn chờ 30 s của findBy*/waitFor (src/test-setup.ts).
+    testTimeout: 60_000,
   },
 });

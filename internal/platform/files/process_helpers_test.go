@@ -249,10 +249,13 @@ func (p *procEnv) drain() {
 	}
 }
 
-// makeDue đưa mọi việc pending về hạn chạy ngay (thay cho chờ lịch thử lại).
+// makeDue đưa mọi việc pending về hạn chạy ngay (thay cho chờ lịch thử lại). Bỏ qua dòng đang bị khóa (worker chạy
+// song song đang nhận hay ghi kết quả việc đó) thay vì chờ: chờ khóa dòng của worker dưới tải có thể quá lock_timeout
+// (55P03) và làm test đỏ oan; nơi gọi lúc worker chạy song song gọi lặp, lần sau bắt được dòng đó.
 func (p *procEnv) makeDue() {
 	p.t.Helper()
-	if _, err := p.staff.Owner.Pool.Exec(p.t.Context(), "UPDATE platform.jobs SET run_at = now() WHERE status = 'pending'"); err != nil {
+	if _, err := p.staff.Owner.Pool.Exec(p.t.Context(), `UPDATE platform.jobs SET run_at = now() WHERE id IN (
+		SELECT id FROM platform.jobs WHERE status = 'pending' FOR UPDATE SKIP LOCKED)`); err != nil {
 		p.t.Fatal(err)
 	}
 }

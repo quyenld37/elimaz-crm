@@ -69,8 +69,11 @@ func TestStopWaitsThenStopsClaiming(t *testing.T) {
 	}
 }
 
-// Stop hủy một handler đã chạy lâu hơn hạn ghi: việc vẫn về pending với attempts trả lại.
+// Stop hủy một handler đã chạy lâu hơn hạn ghi: việc vẫn về pending với attempts trả lại (hạn ghi tính từ lúc handler
+// trả, không từ lúc bắt đầu). Hạn ghi 5 s, không phải 50 ms: hạn ghi là thời gian thật mà câu nhả việc phải chạy xong,
+// máy tải cao thì 50 ms không đủ (Task 421); handler chạy hết grace 6 s nên vẫn lâu hơn hạn ghi.
 func TestStopAfterLongHandlerReleases(t *testing.T) {
+	const record, grace = 5 * time.Second, 6 * time.Second
 	e := newEnv(t)
 	started := make(chan struct{})
 	h := newFH(kind("t.stoplong"), sideThen(started, func(ctx context.Context) error {
@@ -79,12 +82,12 @@ func TestStopAfterLongHandlerReleases(t *testing.T) {
 	}))
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
 	w := queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Poll: 50 * time.Millisecond})
-	queue.SetRecordTimeout(w, 50*time.Millisecond)
+	queue.SetRecordTimeout(w, record)
 	if err := w.Start(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	<-started
-	if err := w.Stop(300 * time.Millisecond); err == nil {
+	if err := w.Stop(grace); err == nil {
 		t.Fatal("Stop quá grace phải trả ErrStopGrace")
 	}
 	if r := e.job(t, id); r.Status != "pending" || r.Attempts != 0 {
