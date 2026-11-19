@@ -272,8 +272,9 @@ func (c *CreateCommand) OnDone(ctx context.Context, j queue.Job, result json.Raw
 //   - in_doubt (hãng có thể đã tạo kiện): vận đơn còn creating được ghi dấu create_in_doubt_at, không đổi gì khác.
 //   - dead hay expired: lần gửi này chắc chắn không tạo kiện (từ chối, hết lượt not_sent, tra lại xác nhận chưa gửi,
 //     quá hạn khi chưa gửi). Vận đơn còn creating và chưa có dấu in_doubt → cancelled, gỡ khỏi vai vận đơn hiện hành
-//     của đơn (order.DetachShipment) để tạo lại được, phát shipment.status_changed (D-03). Có dấu (lệnh từng in_doubt
-//     rồi được người chạy lại: kiện của lần gửi trước có thể còn ở hãng) → không đổi gì, người tra hãng rồi xử lý.
+//     của đơn (order.Writer.DetachShipment, phát order.updated) để tạo lại được, phát shipment.status_changed (D-03).
+//     Có dấu (lệnh từng in_doubt rồi được người chạy lại: kiện của lần gửi trước có thể còn ở hãng) → không đổi gì,
+//     người tra hãng rồi xử lý.
 //
 // Giữ hàng của đơn không đổi. Khóa đơn (nhóm 7) rồi vận đơn (nhóm 8) như đường tra trạng thái. Vận đơn không còn
 // creating, không có, hay payload hỏng → không đổi gì.
@@ -314,7 +315,9 @@ func (c *CreateCommand) OnTerminal(ctx context.Context, j queue.Job, status stri
 	if err != nil {
 		return fmt.Errorf("hủy vận đơn creating: %w", err)
 	}
-	if err := order.DetachShipment(ctx, tx, s.SellerID, s.OrderID, s.ID); err != nil {
+	ow := order.Writer{Events: c.o.Events, Queue: c.o.Queue, Realtime: c.o.Realtime}
+	system := order.Actor{TenantID: *j.TenantID, Type: "system"}
+	if _, err := ow.DetachShipment(ctx, tx, s.SellerID, s.OrderID, s.ID, system, time.Now().UTC()); err != nil {
 		return fmt.Errorf("gỡ vận đơn khỏi đơn: %w", err)
 	}
 	return c.emitStatus(ctx, tx, *j.TenantID, s.ID, StatusCancelled, s.CODAmount, version)

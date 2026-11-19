@@ -16,6 +16,9 @@ const (
 	TopicOrderCreated   = "order.created"
 	TopicOrderConfirmed = "order.confirmed"
 	TopicOrderDelivered = "order.delivered"
+	// TopicOrderUpdated: đơn đổi trường mà không đổi trạng thái (gắn, gỡ vận đơn hiện hành, tổng đã thanh toán; Task
+	// M2-18).
+	TopicOrderUpdated = "order.updated"
 
 	aggregateOrder = "order"
 )

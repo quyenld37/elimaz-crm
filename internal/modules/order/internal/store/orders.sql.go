@@ -12,30 +12,10 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const clearCurrentShipment = `-- name: ClearCurrentShipment :execrows
-UPDATE ord.orders
-SET current_shipment_id = NULL, version = version + 1, updated_at = now()
-WHERE seller_id = $1 AND id = $2 AND current_shipment_id = $3
-`
-
-type ClearCurrentShipmentParams struct {
-	SellerID   uuid.UUID
-	ID         uuid.UUID
-	ShipmentID pgtype.UUID
-}
-
-// Gỡ vận đơn hiện hành; chỉ khi đúng vận đơn đó (đã khóa bằng LockOrder). Lệnh tạo vận đơn kết thúc hỏng (D-03).
-func (q *Queries) ClearCurrentShipment(ctx context.Context, arg ClearCurrentShipmentParams) (int64, error) {
-	result, err := q.db.Exec(ctx, clearCurrentShipment, arg.SellerID, arg.ID, arg.ShipmentID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
 const lockOrder = `-- name: LockOrder :one
 
-SELECT id, tenant_id, seller_id, customer_id, status, pending_reason, current_shipment_id, address_complete, version
+SELECT id, tenant_id, seller_id, customer_id, status, pending_reason, current_shipment_id, address_complete, version,
+       grand_total, prepaid_total, cod_amount, payment_status
 FROM ord.orders
 WHERE seller_id = $1 AND id = $2
 FOR UPDATE
@@ -56,10 +36,15 @@ type LockOrderRow struct {
 	CurrentShipmentID pgtype.UUID
 	AddressComplete   bool
 	Version           int64
+	GrandTotal        int64
+	PrepaidTotal      int64
+	CodAmount         int64
+	PaymentStatus     string
 }
 
 // Đơn tối thiểu (kế hoạch M1, Task M1-30; 05 mục 2). Chạy trong tenancy.WithTenant. Thứ tự khóa ADR-46 nhóm 7.
-// Gắn vận đơn, khóa đơn: Task M1-30b (333). Chèn đơn ở create.sql, đổi trạng thái ở transition.sql (Task M2-16).
+// Khóa đơn: Task M1-30b (333); gắn, gỡ vận đơn và tổng thanh toán ở shiphooks.sql (Task M2-18). Chèn đơn ở
+// create.sql, đổi trạng thái ở transition.sql (Task M2-16).
 // Khóa đơn trước mọi dòng nhóm sau (ADR-46 nhóm 7, dòng "khóa đơn trước"). Bên gọi (fulfillment) truyền người bán
 // của tài khoản hãng (ADR-29, Task M1-37).
 func (q *Queries) LockOrder(ctx context.Context, arg LockOrderParams) (LockOrderRow, error) {
@@ -75,27 +60,10 @@ func (q *Queries) LockOrder(ctx context.Context, arg LockOrderParams) (LockOrder
 		&i.CurrentShipmentID,
 		&i.AddressComplete,
 		&i.Version,
+		&i.GrandTotal,
+		&i.PrepaidTotal,
+		&i.CodAmount,
+		&i.PaymentStatus,
 	)
 	return i, err
-}
-
-const setCurrentShipment = `-- name: SetCurrentShipment :execrows
-UPDATE ord.orders
-SET current_shipment_id = $1, version = version + 1, updated_at = now()
-WHERE seller_id = $2 AND id = $3 AND status = 'confirmed' AND current_shipment_id IS NULL
-`
-
-type SetCurrentShipmentParams struct {
-	ShipmentID pgtype.UUID
-	SellerID   uuid.UUID
-	ID         uuid.UUID
-}
-
-// Gắn vận đơn hiện hành; chỉ khi đơn đang confirmed và chưa có vận đơn (đã khóa bằng LockOrder).
-func (q *Queries) SetCurrentShipment(ctx context.Context, arg SetCurrentShipmentParams) (int64, error) {
-	result, err := q.db.Exec(ctx, setCurrentShipment, arg.ShipmentID, arg.SellerID, arg.ID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
 }

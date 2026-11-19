@@ -337,11 +337,11 @@ func TestLock(t *testing.T) {
 	}
 }
 
-// detach gỡ vận đơn s khỏi đơn o của người bán seller bằng crm_app.
+// detach gỡ vận đơn s khỏi đơn o của người bán seller bằng Writer.DetachShipment (Task M2-18 thay hàm gói của Task
+// 408), crm_app.
 func (e *orderEnv) detach(seller, o, s uuid.UUID) error {
-	return e.app(func(tx pgx.Tx) error {
-		return order.DetachShipment(e.t.Context(), tx, seller, o, s)
-	})
+	_, err := e.detachBy(seller, o, s)
+	return err
 }
 
 // D-03: gỡ vận đơn hiện hành chỉ khi đúng vận đơn đó (version +1); vận đơn khác, gỡ lần hai → không đổi, không lỗi;
