@@ -26,19 +26,26 @@ func (h *handler) CheckOrderDuplicates(ctx context.Context, params gen.CheckOrde
 	if !ok {
 		return nil, errNoAuthUser
 	}
-	var found []order.Summary
+	var (
+		found []order.Summary
+		names map[uuid.UUID]string
+	)
 	err := h.readAsDefaultSeller(ctx, u, func(tx pgx.Tx, seller uuid.UUID) error {
 		var err error
 		found, err = order.CheckDuplicates(ctx, tx, seller, optUUID(params.CustomerId), string(params.Phone.Or("")),
 			params.VariantIds, time.Now().UTC())
-		return err //nolint:wrapcheck // sentinel của order
+		if err != nil {
+			return err //nolint:wrapcheck // sentinel của order
+		}
+		names, err = actorNamesOf(ctx, tx, found, func(s order.Summary) *uuid.UUID { return s.CareBy })
+		return err
 	})
 	if err != nil {
 		return nil, fmt.Errorf("kiểm đơn trùng: %w", err)
 	}
 	out := &gen.OrderList{Items: make([]gen.OrderListItem, 0, len(found))}
 	for _, s := range found {
-		out.Items = append(out.Items, orderListItemOut(s))
+		out.Items = append(out.Items, orderListItemOut(s, names))
 	}
 	return out, nil
 }
@@ -63,18 +70,23 @@ func (h *handler) ListOrderDuplicates(ctx context.Context, params gen.ListOrderD
 	var (
 		items []order.Duplicate
 		next  *order.DuplicateCursor
+		names map[uuid.UUID]string
 	)
 	err := h.readAsDefaultSeller(ctx, u, func(tx pgx.Tx, seller uuid.UUID) error {
 		var err error
 		items, next, err = order.ListDuplicates(ctx, tx, seller, after, int(params.Limit.Or(0)))
-		return err //nolint:wrapcheck // lỗi của order đã bọc
+		if err != nil {
+			return err //nolint:wrapcheck // lỗi của order đã bọc
+		}
+		names, err = duplicateCareNames(ctx, tx, items...)
+		return err
 	})
 	if err != nil {
 		return nil, fmt.Errorf("danh sách đơn trùng: %w", err)
 	}
 	out := &gen.OrderDuplicatePage{Items: make([]gen.OrderDuplicate, 0, len(items))}
 	for _, d := range items {
-		out.Items = append(out.Items, *duplicateOut(d))
+		out.Items = append(out.Items, *duplicateOut(d, names))
 	}
 	if next != nil {
 		out.NextCursor = gen.NewOptString(next.String())
@@ -108,7 +120,11 @@ func (h *handler) ResolveOrderDuplicate(ctx context.Context, req *gen.ResolveOrd
 				return nil, err //nolint:wrapcheck // sentinel của order
 			}
 			after := map[string]any{"otherOrderId": params.OtherOrderId.String(), "action": action}
-			return duplicateOut(d), h.audit(ctx, tx, u, "order.duplicate.resolve", "order", params.OrderId, nil, after)
+			names, err := duplicateCareNames(ctx, tx, d)
+			if err != nil {
+				return nil, err
+			}
+			return duplicateOut(d, names), h.audit(ctx, tx, u, "order.duplicate.resolve", "order", params.OrderId, nil, after)
 		})
 	if err != nil {
 		return nil, err
@@ -116,9 +132,18 @@ func (h *handler) ResolveOrderDuplicate(ctx context.Context, req *gen.ResolveOrd
 	return out.(*gen.OrderDuplicate), nil //nolint:forcetypeassert // fn trên trả *gen.OrderDuplicate
 }
 
-func duplicateOut(d order.Duplicate) *gen.OrderDuplicate {
+// duplicateCareNames đọc tên hiển thị người phụ trách của hai đơn trong mọi cặp ds.
+func duplicateCareNames(ctx context.Context, tx pgx.Tx, ds ...order.Duplicate) (map[uuid.UUID]string, error) {
+	sums := make([]order.Summary, 0, 2*len(ds))
+	for _, d := range ds {
+		sums = append(sums, d.Order, d.OtherOrder)
+	}
+	return actorNamesOf(ctx, tx, sums, func(s order.Summary) *uuid.UUID { return s.CareBy })
+}
+
+func duplicateOut(d order.Duplicate, names map[uuid.UUID]string) *gen.OrderDuplicate {
 	out := &gen.OrderDuplicate{
-		Order: orderListItemOut(d.Order), OtherOrder: orderListItemOut(d.OtherOrder),
+		Order: orderListItemOut(d.Order, names), OtherOrder: orderListItemOut(d.OtherOrder, names),
 		MatchedBy: gen.OrderDuplicateMatchedBy(d.MatchedBy), CreatedAt: d.CreatedAt,
 	}
 	if d.Resolution != nil {
@@ -128,8 +153,8 @@ func duplicateOut(d order.Duplicate) *gen.OrderDuplicate {
 	return out
 }
 
-// orderListItemOut là một dòng OrderListItem từ tóm tắt đơn (người phụ trách: Task M2-24).
-func orderListItemOut(s order.Summary) gen.OrderListItem {
+// orderListItemOut là một dòng OrderListItem từ tóm tắt đơn; names: tên hiển thị người phụ trách (actorNamesOf).
+func orderListItemOut(s order.Summary, names map[uuid.UUID]string) gen.OrderListItem {
 	out := gen.OrderListItem{
 		ID: s.ID, Code: s.Code, Label: gen.OrderLabel(s.Label), Status: gen.OrderStatus(s.Status),
 		CustomerId: s.CustomerID, CustomerName: s.CustomerName, ShipPhone: nonEmpty(string(s.ShipPhone)),
@@ -140,5 +165,8 @@ func orderListItemOut(s order.Summary) gen.OrderListItem {
 		out.PendingReason = gen.NewOptPendingReason(gen.PendingReason(s.PendingReason))
 	}
 	setOpt(&out.TrafficSourceId, s.TrafficSourceID)
+	if s.CareBy != nil {
+		out.CareBy = gen.NewOptActor(gen.Actor{ID: *s.CareBy, Name: names[*s.CareBy]})
+	}
 	return out
 }

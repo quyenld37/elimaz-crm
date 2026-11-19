@@ -315,7 +315,8 @@ func (q *Queries) LockDuplicateLink(ctx context.Context, arg LockDuplicateLinkPa
 
 const orderSummaries = `-- name: OrderSummaries :many
 SELECT o.id, o.code, o.status, o.pending_reason, o.packing_status, o.customer_id, c.root_id, r.full_name AS root_name,
-       o.ship_phone, o.grand_total, o.cod_amount, o.channel, o.traffic_source_id, o.created_at, o.duplicate_suspect,
+       o.ship_phone, o.grand_total, o.cod_amount, o.channel, o.traffic_source_id, o.care_by, o.created_at,
+       o.duplicate_suspect,
        (SELECT count(*) FROM ord.order_items i WHERE i.seller_id = $1 AND i.order_id = o.id)::int AS item_count
 FROM ord.orders o
 JOIN customer.customers_v c ON c.id = o.customer_id
@@ -342,12 +343,13 @@ type OrderSummariesRow struct {
 	CodAmount        int64
 	Channel          string
 	TrafficSourceID  pgtype.UUID
+	CareBy           pgtype.UUID
 	CreatedAt        time.Time
 	DuplicateSuspect bool
 	ItemCount        int32
 }
 
-// Tóm tắt các đơn ids của người bán cho danh sách (nhãn, khách gốc, số dòng).
+// Tóm tắt các đơn ids của người bán cho danh sách (nhãn, khách gốc, số dòng, người phụ trách).
 func (q *Queries) OrderSummaries(ctx context.Context, arg OrderSummariesParams) ([]OrderSummariesRow, error) {
 	rows, err := q.db.Query(ctx, orderSummaries, arg.SellerID, arg.Ids)
 	if err != nil {
@@ -371,6 +373,7 @@ func (q *Queries) OrderSummaries(ctx context.Context, arg OrderSummariesParams) 
 			&i.CodAmount,
 			&i.Channel,
 			&i.TrafficSourceID,
+			&i.CareBy,
 			&i.CreatedAt,
 			&i.DuplicateSuspect,
 			&i.ItemCount,

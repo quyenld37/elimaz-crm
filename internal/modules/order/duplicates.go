@@ -58,7 +58,8 @@ const (
 )
 
 // Summary là tóm tắt một đơn cho danh sách (OrderListItem của hợp đồng): CustomerID là gốc nhóm khách,
-// CustomerName tên của gốc; ShipPhone SĐT giao đã chuẩn hóa (rỗng khi không chuẩn hóa được).
+// CustomerName tên của gốc; ShipPhone SĐT giao đã chuẩn hóa (rỗng khi không chuẩn hóa được); CareBy người phụ trách
+// (nil khi chưa có; tên do bên gọi đọc).
 type Summary struct {
 	ID, CustomerID              uuid.UUID
 	Code, Status, PendingReason string
@@ -69,6 +70,7 @@ type Summary struct {
 	ItemCount                   int32
 	Channel                     string
 	TrafficSourceID             *uuid.UUID
+	CareBy                      *uuid.UUID
 	CreatedAt                   time.Time
 	DuplicateSuspect            bool
 }
@@ -460,7 +462,7 @@ func summaries(ctx context.Context, q *store.Queries, sellerID uuid.UUID, ids []
 			}),
 			CustomerName: r.RootName, ShipPhone: logging.Phone(r.ShipPhone), GrandTotal: r.GrandTotal,
 			CODAmount: r.CodAmount, ItemCount: r.ItemCount, Channel: r.Channel, TrafficSourceID: uuidPtr(r.TrafficSourceID),
-			CreatedAt: r.CreatedAt, DuplicateSuspect: r.DuplicateSuspect,
+			CareBy: uuidPtr(r.CareBy), CreatedAt: r.CreatedAt, DuplicateSuspect: r.DuplicateSuspect,
 		}
 	}
 	return out, nil
