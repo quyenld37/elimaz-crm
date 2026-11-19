@@ -24,3 +24,11 @@ INSERT INTO ord.order_status_history
     (tenant_id, order_id, from_status, to_status, from_pending, to_pending, actor_type, actor_id, reason, occurred_at)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, @order_id, sqlc.narg(from_status)::text, @to_status,
         @from_pending, @to_pending, @actor_type, sqlc.narg(actor_id)::uuid, sqlc.narg(reason)::text, @occurred_at);
+
+-- name: RecordDiscountApproval :execrows
+-- Ghi người duyệt giảm giá của đơn đã khóa (Task M2-19), không đổi status, version: chạy ngay sau applyTransition bỏ
+-- lý do discount_approval, cùng transaction (version là version mới vừa trả).
+UPDATE ord.orders
+SET discount_approved_by = sqlc.narg(actor_id)::uuid,
+    discount_approved_at = @now::timestamptz
+WHERE seller_id = @seller_id AND id = @id AND version = @version;

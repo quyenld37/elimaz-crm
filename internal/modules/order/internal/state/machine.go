@@ -44,11 +44,11 @@ type Conditions struct {
 }
 
 // Check trả nil khi đơn được chuyển from → to với điều kiện c. Chỉ đúng các cạnh của sơ đồ đơn ở 05 mục 2, cộng
-// new → new khi chỉ đổi lý do chờ:
+// new → new và draft → draft khi chỉ đổi lý do chờ (draft → draft: duyệt giảm giá đơn nháp, Task M2-19):
 //
 //   - draft → confirmed: cần AddressComplete (không thì ErrAddressIncomplete) và không lý do chờ (discount_approval →
 //     ErrNeedsApproval, lý do khác → ErrInvalidTransition);
-//   - draft → cancelled, new → cancelled, new → new, cancel_requested → cancelled, cancel_requested → confirmed,
+//   - draft → cancelled, new → cancelled, new → new, draft → draft, cancel_requested → cancelled, cancel_requested → confirmed,
 //     confirmed → delivered, confirmed → returned: không điều kiện;
 //   - new → confirmed: lý do chờ khác discount_approval (không thì ErrNeedsApproval);
 //   - confirmed → cancelled chỉ khi chưa có vận đơn hiện hành, confirmed → cancel_requested chỉ khi có.
@@ -81,7 +81,7 @@ func Check(from, to Status, c Conditions) error {
 			return ErrInvalidTransition
 		}
 		return nil
-	case [2]Status{Draft, Cancelled}, [2]Status{New, Cancelled}, [2]Status{New, New},
+	case [2]Status{Draft, Cancelled}, [2]Status{New, Cancelled}, [2]Status{New, New}, [2]Status{Draft, Draft},
 		[2]Status{CancelRequested, Cancelled}, [2]Status{CancelRequested, Confirmed},
 		[2]Status{Confirmed, Delivered}, [2]Status{Confirmed, Returned}:
 		return nil
