@@ -316,9 +316,10 @@ func verifyRule(ctx context.Context, q *store.Queries) ([]alert, error) {
 	return []alert{{"backup-verify", SeverityUrgent, "backup-verify: lần kiểm bản sao lưu hằng tuần gần nhất hỏng"}}, nil
 }
 
-// syncedBuckets là ba bucket container filesync chép sang kho ngoài (scripts/filesync/run.sh; crm-tmp không chép).
+// syncedBuckets là ba bucket logic container filesync chép sang kho ngoài (scripts/filesync/lib.sh; tmp không chép).
+// file_sync_runs.bucket ghi tên logic, không có tiền tố S3_BUCKET_PREFIX (Task 410, review độc lập M1 C-06).
 // Luật và /health/deep xét từng bucket: một bucket ngừng chép là đủ báo.
-func syncedBuckets() []string { return []string{"crm-public", "crm-originals", "crm-private"} }
+func syncedBuckets() []string { return []string{"public", "originals", "private"} }
 
 // fileSyncRules (ADR-36, TP10): file-sync-age gấp khi lần copy ok gần nhất của một bucket cũ hơn 90 phút hay chưa có;
 // file-sync-failed khi lần copy gần nhất của một bucket lỗi; file-sync-mismatch khi lần đối chiếu gần nhất của một

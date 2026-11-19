@@ -56,8 +56,8 @@ test-imager: ## Test của internal/imager, cmd/imager với libvips thật (Tas
 	docker run --rm --init -e IMAGER_REQUIRE_VIPS=1 crm-imager-test \
 		go test -race -count=1 $(TEST_IMAGER_FLAGS) ./internal/imager/... ./cmd/imager/...
 
-test-imager-compose: ## Container imager của compose dev: không biến bí mật, không tới PostgreSQL, chỉ đọc (dựng lại imager)
-	$(COMPOSE) --profile imager up -d --wait --build imager imager-port postgres seaweedfs
+test-imager-compose: ## Container imager của compose dev: không biến bí mật, không tới PostgreSQL hay cổng nội bộ của SeaweedFS, chỉ đọc (dựng lại imager)
+	$(COMPOSE) --profile imager up -d --wait --build imager imager-port s3-imaging postgres seaweedfs
 	COMPOSE_PROJECT=$(COMPOSE_PROJECT) CRM_IMAGER_PORT=$(CRM_IMAGER_PORT) go test -tags imagercompose -count=1 -run '^TestImagerCompose_' -v ./internal/imager/
 
 # ---- Image chính và ba vai trò trên compose dev (Task 21). Cổng máy: CRM_API_PORT (4190), CRM_INGEST_PORT (4191).

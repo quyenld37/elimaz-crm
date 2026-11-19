@@ -62,11 +62,57 @@ func TestImagerCompose_CannotReachPostgres(t *testing.T) {
 			t.Fatalf("imager nối được %s:5432:\n%s", host, out)
 		}
 	}
-	// Đối chứng: cùng cách nối tới kho tệp (cùng mạng imaging) thì được, để chắc phép thử trên không hỏng vì lý do khác.
+	mustReachS3(t)
+}
+
+// mustReachS3 là đối chứng: cùng cách nối tới cổng S3 qua bộ chuyển cổng s3-imaging (cùng mạng imaging) thì được, để
+// chắc các phép thử "không nối được" không hỏng vì lý do khác.
+func mustReachS3(t *testing.T) {
+	t.Helper()
 	if out, err := compose(t, "exec", "-T", "imager", "timeout", "3", "bash", "-c",
-		"exec 3<>/dev/tcp/seaweedfs/8333 && echo NOI_DUOC"); err != nil || !strings.Contains(out, "NOI_DUOC") {
-		t.Fatalf("imager phải nối được seaweedfs:8333: %v\n%s", err, out)
+		"exec 3<>/dev/tcp/s3-imaging/8333 && echo NOI_DUOC"); err != nil || !strings.Contains(out, "NOI_DUOC") {
+		t.Fatalf("imager phải nối được s3-imaging:8333: %v\n%s", err, out)
 	}
+}
+
+// containerIPs: mọi IP của container <dự án>-<dịch vụ>-1 trên mọi mạng của nó.
+func containerIPs(t *testing.T, svc string) []string {
+	t.Helper()
+	out, err := exec.CommandContext(t.Context(), "docker", "inspect", "-f", //nolint:gosec // G702: tên container từ COMPOSE_PROJECT của make
+		"{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}", os.Getenv("COMPOSE_PROJECT")+"-"+svc+"-1").Output()
+	if err != nil {
+		t.Fatalf("docker inspect %s: %v", svc, err)
+	}
+	ips := strings.Fields(string(out))
+	if len(ips) == 0 {
+		t.Fatalf("không lấy được IP của %s: %q", svc, out)
+	}
+	return ips
+}
+
+// Review độc lập M1 C-01 (ADR-45, ADR-36): master (9333, 19333), volume (8080, 18080), filer (8888, 18888) và S3 gRPC
+// (18333) của SeaweedFS không kiểm danh tính; imager (chỗ giải mã dữ liệu lạ) không được tới cổng nào của container
+// seaweedfs, theo tên lẫn theo IP. Imager chỉ tới cổng S3 (có kiểm chữ ký) qua s3-imaging, và s3-imaging không chuyển
+// cổng nào khác.
+func TestImagerCompose_CannotReachStoreInternals(t *testing.T) {
+	ports := []string{"8333", "8888", "18888", "9333", "19333", "8080", "18080", "18333"}
+	for _, host := range append([]string{"seaweedfs"}, containerIPs(t, "seaweedfs")...) {
+		for _, port := range ports {
+			out, err := compose(t, "exec", "-T", "imager", "timeout", "3", "bash", "-c",
+				"exec 3<>/dev/tcp/"+host+"/"+port+" && echo NOI_DUOC")
+			if err == nil || strings.Contains(out, "NOI_DUOC") {
+				t.Errorf("imager nối được %s:%s:\n%s", host, port, out)
+			}
+		}
+	}
+	for _, port := range ports[1:] {
+		out, err := compose(t, "exec", "-T", "imager", "timeout", "3", "bash", "-c",
+			"exec 3<>/dev/tcp/s3-imaging/"+port+" && echo NOI_DUOC")
+		if err == nil || strings.Contains(out, "NOI_DUOC") {
+			t.Errorf("s3-imaging mở cổng %s cho imager:\n%s", port, out)
+		}
+	}
+	mustReachS3(t)
 }
 
 func TestImagerCompose_ReadOnlyAndUnprivileged(t *testing.T) {

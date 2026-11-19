@@ -25,7 +25,7 @@ STRIDE: **S** giả danh, **T** sửa trộm, **R** chối bỏ, **I** lộ thô
    Kho ngoài (không thuộc Cloudflare, chủ shop tạo)     ── INSERT file_sync_runs ──▶ PostgreSQL (role crm_filesync)
 ```
 
-Mạng: `imager` chỉ ở mạng `imaging` (cùng `worker` và SeaweedFS), không tới được PostgreSQL. Danh tính kho tệp: `crm-app` (api, worker: đọc, ghi, liệt kê; không xóa vĩnh viễn), `crm-filesync` (đọc kho chính), `crm-admin` (không tiến trình ứng dụng nào dùng).
+Mạng: `imager` chỉ ở mạng `imaging` (cùng `worker` và bộ chuyển cổng `s3-imaging`, chỉ chuyển cổng S3 tới SeaweedFS), không tới được PostgreSQL, không tới được master, volume, filer của SeaweedFS (không xác thực; Task 410, review độc lập M1 C-01). Danh tính kho tệp: `crm-app` (api, worker: đọc, ghi, liệt kê; không xóa vĩnh viễn), `crm-filesync` (đọc kho chính), `crm-admin` (không tiến trình ứng dụng nào dùng).
 
 ## (1) Trình duyệt → SeaweedFS: tải thẳng bằng đường dẫn ký sẵn
 
@@ -51,7 +51,7 @@ Dữ liệu: JSON gồm một đường dẫn `GET` ký sẵn của ảnh thô, 
 
 | STRIDE | Mối đe dọa | Xử lý | Task / test |
 |---|---|---|---|
-| S | Tiến trình khác gọi `imager` | Chỉ nghe trên mạng `imaging` (worker, SeaweedFS); bên gọi chỉ nhận lại đường dẫn chính nó đã ký, nên giả danh không lấy thêm được gì | M1-40 (mạng compose), M1-42 |
+| S | Tiến trình khác gọi `imager` | Chỉ nghe trên mạng `imaging` (worker, `s3-imaging`); bên gọi chỉ nhận lại đường dẫn chính nó đã ký, nên giả danh không lấy thêm được gì | M1-40 (mạng compose), M1-42 |
 | S | `imager` bị lừa tải URL nội bộ khác (SSRF qua `SourceURL`) | `imager` chỉ ra mạng tới kho tệp; không tới PostgreSQL. Kiểm host của `SourceURL`, `PutURL` trùng địa chỉ kho: **Chưa có** (L2) | M1-42: "từ container `imager`, nối `postgres:5432` → thất bại" |
 | T | Ảnh độc làm sai kết quả trả về (báo `ok` mà không ghi đủ đầu ra) | Worker chỉ đặt `ready` khi `OnDone` nhận đủ danh sách; `Looker` kiểm mọi khóa đầu ra có trên kho | M1-43: `Looker` "đầu ra đã đủ trên kho → `done`" |
 | R | Không rõ ảnh nào bị từ chối vì sao | `reject_reason` trên dòng tệp; chỉ số `image_rejected` theo lý do; lệnh `dead` có `last_error` | M1-43 (chỉ số), M1-41 (cột) |

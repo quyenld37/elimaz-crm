@@ -1,7 +1,8 @@
 #!/bin/sh
-# Liệt kê tệp ở kho ngoài (đã giải mã với bucket mã hóa) dưới một tiền tố, qua đúng cấu hình của container. Chỉ đọc.
+# Liệt kê tệp ở kho ngoài (đã giải mã với bucket mã hóa) của một bucket logic (public|originals|private) dưới một
+# tiền tố, qua đúng cấu hình của container. Chỉ đọc.
 # Dùng khi kiểm bản sao bằng tay và trong tests/e2e/filesync_test.go:
-#   docker compose run --rm --entrypoint /opt/filesync/ls-offsite.sh filesync crm-private <tiền tố>
+#   docker compose run --rm --entrypoint /opt/filesync/ls-offsite.sh filesync private <tiền tố>
 set -eu
 . "$(dirname "$0")/lib.sh"
 fs_init

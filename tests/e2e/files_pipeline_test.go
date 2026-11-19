@@ -1,8 +1,9 @@
 //go:build imager
 
 // Đường xử lý ảnh trọn vẹn với imager thật (TP01, R10; Task M1-43): PostgreSQL, SeaweedFS và imager của compose dev
-// (make db-up, rồi `docker compose --profile imager up -d --wait imager imager-port`). Worker chạy trên máy nên đường
-// dẫn ký cho imager dùng địa chỉ trong mạng imaging (S3_IMAGER_ENDPOINT, mặc định http://seaweedfs:8333).
+// (make db-up, rồi `docker compose --profile imager up -d --wait imager imager-port s3-imaging`). Worker chạy trên máy
+// nên đường dẫn ký cho imager dùng địa chỉ trong mạng imaging (S3_IMAGER_ENDPOINT, mặc định http://s3-imaging:8333: bộ
+// chuyển cổng S3, Task 410).
 //
 //	go test -tags imager -count=1 -run TestFilesPipeline ./tests/e2e/
 package e2e
@@ -62,7 +63,7 @@ func newPipeline(t *testing.T) *pipeline {
 		t.Fatal(err)
 	}
 	signCfg := testkit.S3Config(t, testkit.S3App)
-	signCfg.Endpoint = envOr("S3_IMAGER_ENDPOINT", "http://seaweedfs:8333")
+	signCfg.Endpoint = envOr("S3_IMAGER_ENDPOINT", "http://s3-imaging:8333")
 	signer, err := files.NewS3Store(signCfg)
 	if err != nil {
 		t.Fatal(err)

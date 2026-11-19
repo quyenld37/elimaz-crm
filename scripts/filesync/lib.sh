@@ -3,8 +3,10 @@
 #
 # Biến môi trường (compose đặt; không biến nào là khóa của crm-app):
 #   FILESYNC_DATABASE_URL            role crm_filesync, chỉ INSERT vào platform.file_sync_runs
-#   FILESYNC_SRC_ENDPOINT, FILESYNC_SRC_ACCESS_KEY_ID, FILESYNC_SRC_SECRET_ACCESS_KEY, FILESYNC_SRC_REGION (us-east-1)
-#                                    kho chính, danh tính crm-filesync (chỉ đọc)
+#   FILESYNC_SRC_ENDPOINT, FILESYNC_SRC_ACCESS_KEY_ID, FILESYNC_SRC_SECRET_ACCESS_KEY, FILESYNC_SRC_REGION (us-east-1),
+#   FILESYNC_SRC_BUCKET_PREFIX (crm-)
+#                                    kho chính, danh tính crm-filesync (chỉ đọc); tên bucket kho chính = tiền tố +
+#                                    public|originals|private, cùng giá trị với S3_BUCKET_PREFIX của ứng dụng
 #   FILESYNC_DST_ENDPOINT, FILESYNC_DST_ACCESS_KEY_ID, FILESYNC_DST_SECRET_ACCESS_KEY, FILESYNC_DST_REGION (us-east-1),
 #   FILESYNC_DST_PROVIDER (Other), FILESYNC_DST_BUCKET_PREFIX (crm-)
 #                                    kho ngoài, danh tính chỉ ghi thêm; tên bucket kho ngoài = tiền tố + public|originals|private
@@ -17,10 +19,13 @@
 
 set -eu
 
-FILESYNC_BUCKETS="crm-public crm-originals crm-private" # crm-tmp không chép
+# Bucket logic (như files.Bucket của ứng dụng); file_sync_runs.bucket ghi đúng tên này, luật cảnh báo không cần biết
+# tiền tố (Task 410, review độc lập M1 C-06). tmp không chép.
+FILESYNC_BUCKETS="public originals private"
 FILESYNC_DIR=$(dirname "$0")
 : "${FILESYNC_STATE_DIR:=/state}"
 : "${FILESYNC_SRC_REGION:=us-east-1}"
+: "${FILESYNC_SRC_BUCKET_PREFIX:=crm-}"
 : "${FILESYNC_DST_REGION:=us-east-1}"
 : "${FILESYNC_DST_PROVIDER:=Other}"
 : "${FILESYNC_DST_BUCKET_PREFIX:=crm-}"
@@ -65,14 +70,19 @@ fs_init() {
   mkdir -p "$FILESYNC_STATE_DIR"
 }
 
-# src_of BUCKET / dst_of BUCKET: remote rclone hai phía. crm-public không mã hóa (ảnh công khai, đã ở CDN);
-# crm-originals, crm-private qua crypt.
-src_of() { printf 'main:%s' "$1"; }
+# src_of BUCKET / dst_of BUCKET: remote rclone hai phía của bucket logic BUCKET. public không mã hóa (ảnh công khai,
+# đã ở CDN); originals, private qua crypt (rclone.conf.tmpl). Bucket lạ: lỗi, không chép nhầm chỗ.
+src_of() {
+  case "$1" in
+    public | originals | private) printf 'main:%s%s' "$FILESYNC_SRC_BUCKET_PREFIX" "$1" ;;
+    *) log "bucket không biết: $1"; return 2 ;;
+  esac
+}
 dst_of() {
   case "$1" in
-    crm-public) printf 'offsite:%spublic' "$FILESYNC_DST_BUCKET_PREFIX" ;;
-    crm-originals) printf 'offsite-originals:' ;;
-    crm-private) printf 'offsite-private:' ;;
+    public) printf 'offsite:%spublic' "$FILESYNC_DST_BUCKET_PREFIX" ;;
+    originals) printf 'offsite-originals:' ;;
+    private) printf 'offsite-private:' ;;
     *) log "bucket không biết: $1"; return 2 ;;
   esac
 }

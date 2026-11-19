@@ -32,7 +32,11 @@ import (
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
-var syncedBuckets = []string{"crm-public", "crm-originals", "crm-private"} //nolint:gochecknoglobals // hằng của test
+// syncedBuckets là ba bucket logic filesync chép; file_sync_runs.bucket và ls-offsite.sh dùng tên này (Task 410, C-06).
+var syncedBuckets = []string{"public", "originals", "private"} //nolint:gochecknoglobals // hằng của test
+
+// realBucket: tên bucket thật ở kho chính và kho ngoài giả của compose dev (tiền tố mặc định crm-).
+func realBucket(b string) string { return "crm-" + b }
 
 func envDefault(key, def string) string {
 	if v := os.Getenv(key); v != "" {
@@ -83,7 +87,7 @@ func newFsync(t *testing.T) *fsync {
 	// của lần chạy sau lệch; kho chính còn tệp mà kho ngoài đã bị test xóa thì có).
 	t.Cleanup(func() {
 		ctx := context.Background()
-		for _, bucket := range append([]string{"crm-tmp"}, syncedBuckets...) {
+		for _, bucket := range []string{"crm-tmp", realBucket("public"), realBucket("originals"), realBucket("private")} {
 			list, err := f.main.ListObjectsV2(ctx, &s3.ListObjectsV2Input{Bucket: aws.String(bucket), Prefix: aws.String(f.prefix + "/")})
 			if err != nil {
 				t.Logf("dọn %s: %v", bucket, err)
@@ -234,7 +238,7 @@ func (f *fsync) seed() map[string][]byte {
 			v := make([]byte, 64+i)
 			_, _ = rand.Read(v)
 			body[b+"/"+k] = v
-			f.put(f.main, b, k, v)
+			f.put(f.main, realBucket(b), k, v)
 		}
 	}
 	f.put(f.main, "crm-tmp", f.prefix+"/tam", []byte("tạm"))
@@ -244,12 +248,12 @@ func (f *fsync) seed() map[string][]byte {
 // checkEncrypted: ở crm-originals, crm-private, đọc thẳng kho ngoài không ra tên, không ra byte gốc.
 func (f *fsync) checkEncrypted(body map[string][]byte) {
 	f.t.Helper()
-	for _, b := range []string{"crm-originals", "crm-private"} {
-		for _, k := range f.offsiteKeys(b) {
+	for _, b := range []string{"originals", "private"} {
+		for _, k := range f.offsiteKeys(realBucket(b)) {
 			if strings.Contains(k, f.prefix) || strings.Contains(k, "tep-") {
 				f.t.Fatalf("kho ngoài %s có tên chưa mã hóa: %s", b, k)
 			}
-			raw := f.get(f.offsite, b, k)
+			raw := f.get(f.offsite, realBucket(b), k)
 			for name, v := range body {
 				if strings.HasPrefix(name, b+"/") && bytes.Contains(raw, v[:32]) {
 					f.t.Fatalf("kho ngoài %s/%s chứa byte gốc của %s", b, k, name)
@@ -290,7 +294,7 @@ func TestFileSync(t *testing.T) {
 	f.checkEncrypted(body)
 	// Bucket công khai: không mã hóa, đọc thẳng ra đúng byte.
 	pub := f.prefix + "/tep-0"
-	if !bytes.Equal(f.get(f.offsite, "crm-public", pub), body["crm-public/"+pub]) {
+	if !bytes.Equal(f.get(f.offsite, "crm-public", pub), body["public/"+pub]) {
 		t.Fatal("kho ngoài crm-public: nội dung khác kho chính")
 	}
 	// crm-tmp không chép: kho ngoài không có bucket đó (danh tính chép không tạo được bucket), hay có mà rỗng.
@@ -309,7 +313,7 @@ func TestFileSync(t *testing.T) {
 
 	// Xóa ở kho chính → kho ngoài vẫn còn sau lượt chép kế.
 	for _, b := range syncedBuckets {
-		f.del(f.main, b, f.prefix+"/tep-1")
+		f.del(f.main, realBucket(b), f.prefix+"/tep-1")
 	}
 	wantAll(t, "lượt 3", f.runOnce(), func(_ string, r row) bool { return r.ok })
 	f.wantThreeOffsite("xóa ở kho chính rồi chép: kho ngoài phải còn đủ")
@@ -318,12 +322,12 @@ func TestFileSync(t *testing.T) {
 	// không bị chép đè lại từ kho chính (chỉ thêm).
 	f.put(f.offsite, "crm-public", pub, []byte("nội dung khác hẳn, dài khác bản gốc"))
 	wantAll(t, "lượt 4", f.runOnce(), func(b string, r row) bool {
-		if b == "crm-public" {
+		if b == "public" {
 			return !r.ok && r.detail != nil && strings.Contains(*r.detail, "immutable")
 		}
 		return r.ok
 	})
-	if bytes.Equal(f.get(f.offsite, "crm-public", pub), body["crm-public/"+pub]) {
+	if bytes.Equal(f.get(f.offsite, "crm-public", pub), body["public/"+pub]) {
 		t.Fatal("rclone đã ghi đè đối tượng ở kho ngoài")
 	}
 
@@ -335,7 +339,7 @@ func TestFileSync(t *testing.T) {
 			f.del(f.offsite, "crm-public", k)
 		}
 	}
-	if r := f.reconcile()["crm-public"]; r.ok {
+	if r := f.reconcile()["public"]; r.ok {
 		t.Fatalf("kho ngoài thiếu tệp: đối chiếu phải ok = false, có %s", deref(r.detail))
 	}
 
@@ -344,7 +348,7 @@ func TestFileSync(t *testing.T) {
 	f.del(f.main, "crm-public", f.prefix+"/tep-0")
 	f.del(f.main, "crm-public", f.prefix+"/tep-2")
 	f.put(f.main, "crm-public", f.prefix+"/moi-sau-lan-chep", []byte("tệp mới"))
-	if r := f.reconcile()["crm-public"]; !r.ok || r.detail == nil || !strings.Contains(*r.detail, "mới sau lần chép tốt cuối 1") {
+	if r := f.reconcile()["public"]; !r.ok || r.detail == nil || !strings.Contains(*r.detail, "mới sau lần chép tốt cuối 1") {
 		t.Fatalf("tệp mới hơn lần chép tốt cuối: muốn ok, trừ 1 tệp mới; có ok=%v %s", r.ok, deref(r.detail))
 	}
 }

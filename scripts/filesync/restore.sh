@@ -1,6 +1,6 @@
 #!/bin/sh
-# Dựng lại kho chính từ kho ngoài (Task M1-46; RUNBOOK "Dựng lại kho tệp"): chép ngược crm-public, crm-originals,
-# crm-private bằng `rclone copy` (chỉ thêm; crm-originals, crm-private giải mã qua rclone crypt bằng đúng hai mật khẩu
+# Dựng lại kho chính từ kho ngoài (Task M1-46; RUNBOOK "Dựng lại kho tệp"): chép ngược ba bucket public, originals,
+# private (tên thật theo FILESYNC_SRC_BUCKET_PREFIX) bằng `rclone copy` (chỉ thêm; originals, private giải mã qua rclone crypt bằng đúng hai mật khẩu
 # của lúc chép đi). Chạy SAU KHI kho chính đã có bucket (bootstrap.sh), bằng danh tính GHI được kho chính (crm-admin):
 #   docker compose --profile filesync run --rm -e FILESYNC_SRC_ACCESS_KEY_ID=<khóa crm-admin> \
 #     -e FILESYNC_SRC_SECRET_ACCESS_KEY=<bí mật crm-admin> --entrypoint /opt/filesync/restore.sh filesync
