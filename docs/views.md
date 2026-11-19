@@ -86,6 +86,7 @@ hay bỏ khóa đã có.
 | `order.confirmed` | `order` (mã đơn) | `{orderId, sellerId, version, customerId, status}` | đơn sang Đã xác nhận (tạo thẳng confirmed: ngay khi tạo, seq 2) | 30, 73 |
 | `order.delivered` | `order` (mã đơn) | `{orderId, sellerId, version, customerId, status}` | vận đơn hiện hành báo giao xong, đơn sang Đã giao | 333 |
 | `order.<trạng thái>` (`order.new`, `order.cancelled`, `order.cancel_requested`, `order.returned`, `order.draft`) | `order` (mã đơn) | `{orderId, sellerId, version, customerId, status}` | mọi lần đổi trạng thái qua `order.applyTransition` (seq = version mới) | 73 |
+| `order.updated` | `order` (mã đơn) | `{orderId, sellerId, version, customerId, status}` | đơn đổi trường mà không đổi trạng thái: gắn, gỡ vận đơn hiện hành (`Writer.AttachShipmentBy`, `Writer.DetachShipment`; lớp bọc M1 `AttachShipment` không phát), tổng đã thanh toán (`Writer.ApplyPaymentTotals`) | 75 |
 | `customer.created` | `customer` (mã hồ sơ) | `{customerId, version}` | tạo khách (seq 1; kể cả lớp bọc `customer.Create` của M1) | 66 |
 | `customer.merged` | `customer_merge` (mã lần gộp) | `{mergeId, survivorRootId, mergedRootId}` | gộp nhóm khách (seq 1; chỉ đổi `root_id`) | 68 |
 | `customer.merge_undone` | `customer_merge` (mã lần gộp) | `{mergeId, survivorRootId, mergedRootId}` | hoàn tác lần gộp (seq 2) | 68 |

@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order/internal/store"
@@ -24,124 +23,30 @@ const (
 	StepDelivered ShipmentStep = "delivered"
 )
 
-// AttachShipment gắn vận đơn shipmentID làm vận đơn hiện hành của đơn orderID của người bán sellerID (05 mục 2, B1;
-// ADR-29), trong tx của bên gọi
-// (fulfillment, cùng transaction với việc tạo vận đơn). Khóa đơn trước (ADR-46 nhóm 7). Chỉ đơn confirmed và chưa có
-// vận đơn hiện hành; gắn cùng vận đơn lần hai → không đổi, không lỗi; đã có vận đơn khác → ErrShipmentAlreadyAttached;
-// đơn không ở confirmed → ErrStatusConflict; không có đơn → ErrNotFound. Gắn tăng version của đơn.
+// AttachShipment (M1, giữ chữ ký — Q30) là lớp bọc của AttachShipmentBy cho fulfillment.CreateForOrder: cùng lõi
+// attachShipment (khóa đơn, kiểm, gắn, version + 1), giờ lấy từ database (now() của transaction). Không phát
+// order.updated: hàm gói không có Writer (Events, Queue) để phát đúng; M3 gọi AttachShipmentBy (Task M2-18, quyết định
+// 1 trong docs/tasks/task-75.md). Lỗi như AttachShipmentBy.
 func AttachShipment(ctx context.Context, tx pgx.Tx, sellerID, orderID, shipmentID uuid.UUID) error {
 	q := store.New(tx)
-	o, err := lockOrder(ctx, q, sellerID, orderID)
+	now, err := q.TxNow(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("đọc giờ transaction: %w", err)
 	}
-	if o.CurrentShipmentID.Valid {
-		if uuid.UUID(o.CurrentShipmentID.Bytes) == shipmentID {
-			return nil
-		}
-		return ErrShipmentAlreadyAttached
-	}
-	if o.Status != StatusConfirmed {
-		return fmt.Errorf("%w: gắn vận đơn vào đơn %s", ErrStatusConflict, o.Status)
-	}
-	n, err := q.SetCurrentShipment(ctx, store.SetCurrentShipmentParams{
-		ShipmentID: pgtype.UUID{Bytes: shipmentID, Valid: true}, SellerID: sellerID, ID: orderID,
-	})
-	if err != nil {
-		return fmt.Errorf("gắn vận đơn: %w", err)
-	}
-	if n != 1 {
-		return fmt.Errorf("%w: gắn vận đơn không đổi dòng nào", ErrStatusConflict)
-	}
-	return nil
+	_, _, err = attachShipment(ctx, q, sellerID, orderID, shipmentID, now)
+	return err
 }
 
-// DetachShipment gỡ vận đơn shipmentID khỏi vai vận đơn hiện hành của đơn orderID của người bán sellerID, trong tx của
-// bên gọi (fulfillment: lệnh tạo vận đơn kết thúc mà hãng chắc chắn chưa tạo, vận đơn sang cancelled — D-03). Khóa đơn
-// trước (ADR-46 nhóm 7). Không xét trạng thái đơn: vận đơn chưa từng tồn tại ở hãng thì đơn không còn vận đơn nào; giữ
-// hàng không đổi (đơn vẫn chờ giao). Đơn đang gắn vận đơn khác (hay không gắn) → không đổi, nil (gọi lại an toàn);
-// không có đơn → ErrNotFound. Gỡ tăng version của đơn.
-func DetachShipment(ctx context.Context, tx pgx.Tx, sellerID, orderID, shipmentID uuid.UUID) error {
-	q := store.New(tx)
-	switch o, err := lockOrder(ctx, q, sellerID, orderID); {
-	case err != nil:
-		return err
-	case !o.CurrentShipmentID.Valid || uuid.UUID(o.CurrentShipmentID.Bytes) != shipmentID:
-		return nil
-	}
-	if _, err := q.ClearCurrentShipment(ctx, store.ClearCurrentShipmentParams{
-		SellerID: sellerID, ID: orderID, ShipmentID: pgtype.UUID{Bytes: shipmentID, Valid: true},
-	}); err != nil {
-		return fmt.Errorf("gỡ vận đơn hiện hành: %w", err)
-	}
-	return nil
-}
-
-// ApplyShipmentProgress áp bước step của vận đơn shipmentID lên đơn orderID của người bán sellerID và tồn, trong tx của bên gọi
-// (fulfillment). Khóa đơn trước (ADR-46: ord.orders rồi số dư, giữ hàng). Chỉ vận đơn hiện hành được đổi đơn và tồn
-// (05 mục 2, B1): vận đơn khác (hay đơn chưa gắn vận đơn) → applied=false, không đổi gì. Gọi lại cùng bước (hay bước
-// đã qua) → applied=false, không đổi gì.
-//
-//   - picked_up: mọi dòng giữ hàng held của đơn → in_transit.
-//   - delivered: dòng còn held → in_transit (hãng bỏ qua tín hiệu lấy hàng), rồi in_transit → consumed (on_hand −);
-//     đơn confirmed → delivered, một dòng lịch sử (tác nhân carrier), sự kiện order.delivered (seq = version mới).
-//
-// Lỗi (bên gọi lùi cả transaction, không bao giờ applied=false sau khi đã ghi): bước lạ → ErrInvalidInput; không có
-// đơn → ErrNotFound; đơn không ở confirmed/delivered, hay không còn dòng giữ hàng held/in_transit nào (bất biến hỏng)
-// → ErrStatusConflict; lỗi của inventory trả nguyên (không nuốt inventory.ErrStateConflict).
+// ApplyShipmentProgress (M1, giữ chữ ký — Q30) là lớp bọc của OnShipmentEvent với người làm carrier, giờ lấy từ
+// database (now() của transaction). Hành vi và lỗi như OnShipmentEvent.
 func (w Writer) ApplyShipmentProgress(ctx context.Context, tx pgx.Tx, sellerID, orderID, shipmentID uuid.UUID,
 	step ShipmentStep,
 ) (applied bool, err error) {
-	if step != StepPickedUp && step != StepDelivered {
-		return false, fmt.Errorf("%w: bước vận đơn %q", ErrInvalidInput, step)
-	}
-	stock, err := w.stock()
+	now, err := store.New(tx).TxNow(ctx)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("đọc giờ transaction: %w", err)
 	}
-	q := store.New(tx)
-	o, err := lockOrder(ctx, q, sellerID, orderID)
-	if err != nil {
-		return false, err
-	}
-	if !o.CurrentShipmentID.Valid || uuid.UUID(o.CurrentShipmentID.Bytes) != shipmentID {
-		return false, nil
-	}
-	switch o.Status {
-	case StatusDelivered:
-		return false, nil
-	case StatusConfirmed:
-	default:
-		return false, fmt.Errorf("%w: áp %s lên đơn %s", ErrStatusConflict, step, o.Status)
-	}
-	items, err := q.OrderItemIDs(ctx, store.OrderItemIDsParams{SellerID: sellerID, OrderID: orderID})
-	if err != nil {
-		return false, fmt.Errorf("đọc dòng đơn: %w", err)
-	}
-	states, err := inventory.ReservationStatesByItems(ctx, tx, items)
-	if err != nil {
-		return false, fmt.Errorf("đọc giữ hàng của đơn: %w", err)
-	}
-	held := states[inventory.StateHeld] > 0
-	if !held && states[inventory.StateInTransit] == 0 {
-		return false, fmt.Errorf("%w: đơn confirmed không còn giữ hàng held, in_transit", ErrStatusConflict)
-	}
-	carrier := inventory.Actor{Type: inventory.ActorCarrier}
-	if held {
-		if err := stock.StartTransitByItems(ctx, tx, items, carrier); err != nil {
-			return false, fmt.Errorf("chuyển giữ hàng sang đang giao: %w", err)
-		}
-	}
-	if step == StepPickedUp {
-		return held, nil
-	}
-	if err := stock.ConsumeByItems(ctx, tx, items, carrier); err != nil {
-		return false, fmt.Errorf("trừ tồn khi giao xong: %w", err)
-	}
-	if err := w.markDelivered(ctx, tx, o); err != nil {
-		return false, err
-	}
-	return true, nil
+	return w.OnShipmentEvent(ctx, tx, sellerID, orderID, shipmentID, step, Actor{Type: inventory.ActorCarrier}, now)
 }
 
 // Lock khóa đơn id (FOR UPDATE) trong tx của bên gọi, cho đường bắt đầu từ dòng ở nhóm sau (vận đơn, ADR-46 nhóm 7

@@ -128,17 +128,3 @@ func (w Writer) signal(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID, o Ord
 	}
 	return nil
 }
-
-// markDelivered đổi đơn o (đã khóa, confirmed) sang delivered qua applyTransition (tác nhân carrier): lịch sử, sự kiện
-// order.delivered (seq = version mới), báo hiệu.
-func (w Writer) markDelivered(ctx context.Context, tx pgx.Tx, o store.LockOrderRow) error {
-	cur := Order{
-		ID: o.ID, SellerID: o.SellerID, CustomerID: o.CustomerID, Status: o.Status, PendingReason: o.PendingReason,
-		CurrentShipmentID: uuidPtr(o.CurrentShipmentID), AddressComplete: o.AddressComplete, Version: o.Version,
-	}
-	carrier := Actor{TenantID: o.TenantID, Type: inventory.ActorCarrier}
-	if err := w.applyTransition(ctx, tx, &cur, state.Delivered, "", "", carrier, time.Now().UTC()); err != nil {
-		return fmt.Errorf("đơn sang delivered: %w", err)
-	}
-	return nil
-}
