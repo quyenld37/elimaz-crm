@@ -55,10 +55,14 @@ func TestFileProcess_ReadyWithTwelveVariants(t *testing.T) {
 	if req.MaxPixels != files.MaxPixels || req.MaxBytes != 20<<20 || len(req.Outputs) != 12 {
 		t.Fatalf("yêu cầu imager: %+v", req)
 	}
-	sigs := p.bus.signals()
-	if len(sigs) != 1 || sigs[0].Topic != "files.file" || sigs[0].Requires != "files.upload" ||
-		sigs[0].Entity.ID != id.String() || sigs[0].TenantID != p.a {
+	sigs := p.bus.signals() // processing (Task 409), rồi ready
+	if len(sigs) != 2 {
 		t.Fatalf("báo hiệu: %+v", sigs)
+	}
+	for _, s := range sigs {
+		if s.Topic != "files.file" || s.Requires != "files.upload" || s.Entity.ID != id.String() || s.TenantID != p.a {
+			t.Fatalf("báo hiệu: %+v", sigs)
+		}
 	}
 	m := metricRows(p.reg)
 	if m["image_process_ms|ok"] != 1 {
@@ -157,24 +161,20 @@ func TestFileProcess_RejectedNotImage(t *testing.T) {
 	if m["image_rejected|not_image"] != 1 || m["image_process_ms|rejected"] != 1 {
 		t.Fatalf("chỉ số: %v", m)
 	}
-	if n := len(p.bus.signals()); n != 1 {
-		t.Fatalf("muốn 1 báo hiệu (tệp đổi trạng thái), có %d", n)
+	if n := len(p.bus.signals()); n != 2 {
+		t.Fatalf("muốn 2 báo hiệu (processing, rejected), có %d", n)
 	}
 }
 
-// Lỗi tạm của imager (Q1, việc (1) của Task 42): không từ chối tệp, lệnh về hàng chờ.
+// Lỗi tạm của imager (Q1, việc (1) của Task 42): không từ chối tệp, lệnh về hàng chờ, không tính lượt (Task 409),
+// tệp ở processing.
 func TestFileProcess_TransientReasonsRetry(t *testing.T) {
 	for _, reason := range []string{"upload_failed", "source_failed", "internal", "timeout"} {
 		t.Run(reason, func(t *testing.T) {
 			p := newProcEnv(t)
 			id := p.upload(p.a, "product_image", []byte(rejPrefix+reason+"\n"))
 			p.drain()
-			if j := p.job(kindPublic, id); j.Status != "pending" || j.Attempts != 1 {
-				t.Fatalf("lệnh: %+v", j)
-			}
-			if r := p.fileRow(id); r.Status != files.StatusUploaded {
-				t.Fatalf("tệp: %+v", r)
-			}
+			p.assertWaiting(kindPublic, id)
 		})
 	}
 	t.Run("busy", func(t *testing.T) {
@@ -230,10 +230,11 @@ func TestFileProcess_ManyImagesNoBusyRetry(t *testing.T) {
 	}
 }
 
-// Treo: imager không trả lời → sau Timeout của lệnh not_sent, chạy lại; sau 3 lần → dead, tệp rejected
-// processing_failed. Trong lúc đó 20 lệnh selftest và 5 lệnh file.process khác xong; worker không khởi động lại.
+// Treo: imager không trả lời → sau Timeout của lệnh not_sent (không tính lượt, Task 409), chạy lại; hết trần thời
+// gian (3 s trong test) → dead, tệp rejected processing_failed. Trong lúc đó 20 lệnh selftest và 5 lệnh file.process
+// khác xong; worker không khởi động lại.
 func TestFileProcess_HangDoesNotBlockWorker(t *testing.T) {
-	p := newProcEnv(t)
+	p := newProcEnvWith(t, func(o *files.ProcessorOptions) { o.RetryMax = 3 * time.Second })
 	files.SetProcessTimeout(p.pub, time.Second)
 	w := queue.NewWorker(p.staff.App, nil, queue.WorkerOptions{
 		WorkerID: "w-treo", Poll: 50 * time.Millisecond, Concurrency: 4,
@@ -262,7 +263,7 @@ func TestFileProcess_HangDoesNotBlockWorker(t *testing.T) {
 	for {
 		p.makeDue() // lịch thử lại 30 s của timeout: đưa về hạn ngay
 		if j := p.job(kindPublic, hang); j.Status == "dead" {
-			if j.Attempts != 3 {
+			if j.Attempts != 1 {
 				t.Fatalf("lệnh treo: %+v", j)
 			}
 			break
@@ -407,7 +408,7 @@ func TestPublicVariants(t *testing.T) {
 	pending := p.upload(p.a, "product_image", []byte(hangPrefix))
 	priv := p.registerPrivate(p.a, []byte("anh-rieng"))
 	ofB := p.upload(p.b, "product_image", []byte("anh-b"))
-	files.SetProcessTimeout(p.pub, 200*time.Millisecond)
+	files.SetProcessTimeout(p.pub, 500*time.Millisecond)
 	p.w = p.newWorker() // Worker đọc hạn của loại lúc dựng
 	p.drain()
 	var got map[uuid.UUID][]files.VariantURL

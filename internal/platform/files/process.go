@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"math/rand/v2"
 	"strconv"
 	"time"
 
@@ -35,8 +36,14 @@ const (
 	// sourceTTL, outputTTL: hạn của đường dẫn ký sẵn đưa imager (nguồn 5 phút, PUT biến thể 15 phút).
 	sourceTTL = 5 * time.Minute
 	outputTTL = 15 * time.Minute
-	// timeoutRetry: imager quá giờ → chạy lại sau 30 s (không dồn tải lên imager đang chậm).
+	// timeoutRetry: imager quá giờ → chạy lại sau ít nhất 30 s (không dồn tải lên imager đang chậm).
 	timeoutRetry = 30 * time.Second
+	// minRetry, maxRetry: thời gian chờ sau lỗi hạ tầng tạm lùi theo tuổi của việc xử lý, trong khoảng này (±20%).
+	minRetry = 5 * time.Second
+	maxRetry = time.Hour
+	// rejectTimeout: hạn ghi rejected khi hết trần, trên ctx tách khỏi hạn của Execute (lần chạy quá giờ đã dùng hết hạn
+	// đó); nhỏ hơn nhiều phần dư của giữ chỗ (Lease ≥ 2 × Timeout).
+	rejectTimeout = 5 * time.Second
 	// maxManifest: bản kê của một bộ kích thước (12 biến thể) nhỏ hơn nhiều.
 	maxManifest  = 64 << 10
 	manifestName = "manifest.json"
@@ -44,10 +51,14 @@ const (
 	signalTopic = "files.file"
 )
 
+// DefaultRetryMax là trần thời gian thử lại khi lỗi hạ tầng tạm (IMAGE_RETRY_MAX_HOURS mặc định, quyết định 19/11 cho
+// Task 409): quá trần thì tệp rejected processing_failed.
+const DefaultRetryMax = 24 * time.Hour
+
 // Lý do ghi vào reject_reason (nội dung ảnh) hay last_error của lệnh (lỗi của chính lệnh). Không chứa dữ liệu
 // người dùng.
 const (
-	reasonProcessingFailed = "processing_failed" // hết lượt thử (lỗi tạm mãi) hoặc lệnh hết hạn
+	reasonProcessingFailed = "processing_failed" // hết trần thời gian, hết lượt (in_doubt lặp lại), lệnh hết hạn
 	reasonSourceMissing    = "source_missing"    // ảnh thô không còn trên kho
 	reasonPurposePrivate   = "purpose_private"   // file.process nhận tệp của mục đích private (R10)
 	reasonPurposeMode      = "purpose_mode"      // file.process_private nhận tệp của mục đích standard
@@ -82,6 +93,9 @@ type ProcessorOptions struct {
 	Bus Publisher
 	// Metrics nil: không ghi chỉ số (image_process_ms, image_rejected).
 	Metrics *metrics.Registry
+	// RetryMax là trần thời gian thử lại khi lỗi hạ tầng tạm (imager bận, không tới được, quá giờ; kho, database),
+	// tính từ lúc tệp vào processing; 0 → DefaultRetryMax.
+	RetryMax time.Duration
 }
 
 // Processor là lệnh file.process (ảnh công khai) hoặc file.process_private (ảnh riêng tư của khách, R10): commands.Handler
@@ -105,6 +119,9 @@ func newProcessor(o ProcessorOptions, private bool) *Processor {
 	}
 	if o.PresetVersion == 0 {
 		o.PresetVersion = 1
+	}
+	if o.RetryMax <= 0 {
+		o.RetryMax = DefaultRetryMax
 	}
 	return &Processor{o: o, private: private}
 }
@@ -154,14 +171,70 @@ type job struct {
 	tenant, fileID uuid.UUID
 	row            store.PlatformFile
 	purpose        Purpose
+	loaded         bool // đã đọc dòng tệp và qua kiểm mục đích
 }
 
-// Execute implements commands.Handler (ngoài transaction, ctx hết hạn sau 30 s).
+// Execute implements commands.Handler (ngoài transaction, ctx hết hạn sau 30 s). Mọi not_sent ở đây là lỗi hạ tầng
+// tạm (imager bận, không tới được, quá giờ, lý do tạm của imager; kho, ký, database): không tính lượt, chờ theo
+// retryLater; lỗi do chính tệp thì rejected ngay (Task 409).
 func (p *Processor) Execute(ctx context.Context, j queue.Job) (commands.Outcome, error) {
+	jb, out, err := p.execute(ctx, j)
+	if err != nil || out.Status != commands.StatusNotSent {
+		return out, err
+	}
+	return p.retryLater(ctx, j, jb, out), nil
+}
+
+// retryLater: chưa tới trần RetryMax (tính từ lúc tệp vào processing, không sớm hơn lúc ghi lệnh) → not_sent không
+// tính lượt, chờ retryDelay; hết trần → tệp rejected processing_failed (lệnh dead, luật cảnh báo dead:<kind>). Hết trần
+// mà không ghi được rejected (chưa nạp được tệp, database lỗi) → not_sent có tính lượt: hết 3 lượt thì dead + OnTerminal
+// như mọi lệnh, không chờ mãi.
+func (p *Processor) retryLater(ctx context.Context, j queue.Job, jb job, out commands.Outcome) commands.Outcome {
+	start := j.CreatedAt
+	if jb.row.Status == StatusProcessing && jb.row.UpdatedAt.After(start) {
+		start = jb.row.UpdatedAt
+	}
+	elapsed := time.Since(start)
+	out.RetryAfter = retryDelay(elapsed, out.RetryAfter, p.o.RetryMax, rand.Float64)
+	if elapsed < p.o.RetryMax {
+		out.KeepAttempt = true
+		return out
+	}
+	if jb.loaded {
+		rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rejectTimeout)
+		defer cancel()
+		if r, _ := p.reject(rctx, jb, reasonProcessingFailed); r.Status == commands.StatusRejected {
+			return r
+		}
+	}
+	return out
+}
+
+// retryDelay là thời gian chờ trước lần thử lại thứ tiếp sau lỗi hạ tầng tạm: bằng tuổi elapsed trong [minRetry,
+// maxRetry], nhân 0,8 + 0,4·rnd() (rnd trong [0, 1]); không dưới hint (Retry-After, quá giờ); không quá phần còn lại tới
+// trần retryMax (lần cuối thử đúng lúc hết trần); tối thiểu 1 s.
+func retryDelay(elapsed, hint, retryMax time.Duration, rnd func() float64) time.Duration {
+	d := min(max(elapsed, minRetry), maxRetry)
+	d = time.Duration(float64(d) * (0.8 + 0.4*rnd()))
+	d = max(d, hint)
+	if left := retryMax - elapsed; d > left {
+		d = left
+	}
+	return max(d, time.Second)
+}
+
+// execute là thân của Execute; jb là phần đã đọc được (cho retryLater).
+func (p *Processor) execute(ctx context.Context, j queue.Job) (job, commands.Outcome, error) {
 	jb, out, ok := p.load(ctx, j)
 	if !ok {
-		return out, nil
+		return jb, out, nil
 	}
+	out, err := p.process(ctx, jb)
+	return jb, out, err
+}
+
+// process băm, tìm trùng, giữ ảnh gốc, tạo biến thể cho tệp đã nạp.
+func (p *Processor) process(ctx context.Context, jb job) (commands.Outcome, error) {
 	srcB, srcK := Bucket(jb.row.Bucket), jb.row.Key
 	switch {
 	case p.private:
@@ -196,7 +269,8 @@ func (p *Processor) Execute(ctx context.Context, j queue.Job) (commands.Outcome,
 	return p.makeVariants(ctx, jb, sum, srcB, srcK)
 }
 
-// load đọc payload và dòng tệp (transaction đọc ngắn), kiểm mục đích; ok = false thì out là kết quả trả ngay.
+// load đọc payload, khóa dòng tệp, kiểm mục đích và trạng thái rồi ghi processing (transaction ngắn, C-07); ok = false
+// thì out là kết quả trả ngay.
 func (p *Processor) load(ctx context.Context, j queue.Job) (job, commands.Outcome, bool) {
 	var payload struct {
 		FileID uuid.UUID `json:"fileId"`
@@ -204,41 +278,76 @@ func (p *Processor) load(ctx context.Context, j queue.Job) (job, commands.Outcom
 	if j.TenantID == nil || json.Unmarshal(j.Payload, &payload) != nil || payload.FileID == uuid.Nil {
 		return job{}, rejected(reasonBadPayload), false
 	}
-	jb := job{tenant: *j.TenantID, fileID: payload.FileID}
-	err := tenancy.WithTenant(ctx, p.o.DB, jb.tenant, func(tx pgx.Tx) error {
+	var out commands.Outcome
+	var ok bool
+	var jb job
+	var since time.Time // khác 0: tệp vừa vào processing lúc này (chỉ dùng khi transaction commit)
+	err := tenancy.WithTenant(ctx, p.o.DB, *j.TenantID, func(tx pgx.Tx) error {
+		jb, since = job{tenant: *j.TenantID, fileID: payload.FileID}, time.Time{} // RetryTx có thể chạy lại: gán lại
+		s := store.New(tx)
 		var err error
-		jb.row, err = store.New(tx).GetFile(ctx, jb.fileID)
-		return err //nolint:wrapcheck // xử lý ở dưới
+		if jb.row, err = s.LockFile(ctx, jb.fileID); err != nil {
+			return err //nolint:wrapcheck // xử lý ở dưới
+		}
+		if out, ok = p.check(&jb); !ok || !startable(jb.row) {
+			return nil
+		}
+		if since, err = s.SetFileProcessing(ctx, jb.fileID); err != nil {
+			return fmt.Errorf("ghi tệp %s processing: %w", jb.fileID, err)
+		}
+		return p.publish(ctx, tx, jb.tenant, jb.fileID)
 	})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		return jb, rejected(reasonNotFound), false
 	case err != nil:
+		// Transaction lùi: jb giữ dòng đã đọc (trạng thái đã commit), không lấy mốc processing chưa commit.
 		return jb, notSent("db", 0), false
 	}
+	if !since.IsZero() {
+		jb.row.Status, jb.row.RejectReason, jb.row.UpdatedAt = StatusProcessing, pgtype.Text{}, since
+	}
+	return jb, out, ok
+}
+
+// startable: tệp chuyển sang processing khi bắt đầu xử lý — uploaded, hay rejected processing_failed khi lệnh dead do
+// lỗi tạm được chạy lại (C-02). Tệp lost đang dựng lại giữ lost.
+func startable(row store.PlatformFile) bool {
+	return row.Status == StatusUploaded || retryableReject(row)
+}
+
+// retryableReject: tệp bị từ chối không vì nội dung (hết trần, hết lượt, lệnh hết hạn) — chạy lại lệnh thì xử lý lại.
+func retryableReject(row store.PlatformFile) bool {
+	return row.Status == StatusRejected && row.RejectReason.String == reasonProcessingFailed
+}
+
+// check kiểm mục đích và trạng thái của dòng jb.row; ok = false thì out là kết quả trả ngay.
+func (p *Processor) check(jb *job) (commands.Outcome, bool) {
 	purpose, ok := PurposeOf(jb.row.Purpose)
 	switch {
 	case !ok:
-		return jb, rejected(reasonUnknownPurpose), false
+		return rejected(reasonUnknownPurpose), false
 	case purpose.Private && !p.private:
-		return jb, rejected(reasonPurposePrivate), false
+		return rejected(reasonPurposePrivate), false
 	case !purpose.Private && p.private:
-		return jb, rejected(reasonPurposeMode), false
+		return rejected(reasonPurposeMode), false
 	case !purpose.Image:
-		return jb, rejected(reasonNotImagePurpose), false
+		return rejected(reasonNotImagePurpose), false
 	}
 	jb.purpose = purpose
 	switch {
 	case jb.row.DeletedAt.Valid:
-		return jb, rejected(reasonNotProcessable), false
+		return rejected(reasonNotProcessable), false
 	case jb.row.Status == StatusReady:
-		return jb, commands.Outcome{Status: commands.StatusDone, Result: json.RawMessage(`{"skipped":"ready"}`)}, false
+		return commands.Outcome{Status: commands.StatusDone, Result: json.RawMessage(`{"skipped":"ready"}`)}, false
+	case retryableReject(jb.row):
 	case jb.row.Status == StatusRejected:
-		return jb, rejected(jb.row.RejectReason.String), false
+		return rejected(jb.row.RejectReason.String), false
 	case !processable(jb.row.Status):
-		return jb, rejected(reasonNotProcessable), false
+		return rejected(reasonNotProcessable), false
 	}
-	return jb, commands.Outcome{}, true
+	jb.loaded = true
+	return commands.Outcome{}, true
 }
 
 func processable(status string) bool {
@@ -594,9 +703,10 @@ func (p *Processor) markReady(ctx context.Context, tx pgx.Tx, row store.Platform
 	return p.publish(ctx, tx, row.TenantID, row.ID)
 }
 
-// OnTerminal implements queue.TerminalHook: dead (hết lượt, hay rejected đã ghi lý do ở Execute) hoặc expired → tệp
-// còn chờ thì rejected processing_failed. in_doubt: giữ nguyên (tra lại sẽ chạy tiếp). Tệp của chế độ khác (lệnh
-// xếp nhầm) không bị đụng tới.
+// OnTerminal implements queue.TerminalHook: dead (hết 3 lượt có tính — in_doubt lặp lại —, hay rejected đã ghi lý do
+// ở Execute) hoặc expired (lệnh xếp trước Task 409 còn hạn sống) → tệp còn chờ (uploaded, processing) thì rejected
+// processing_failed; chạy lại lệnh thì xử lý lại (startable). in_doubt: giữ nguyên (tra lại sẽ chạy tiếp). Tệp của
+// chế độ khác (lệnh xếp nhầm) không bị đụng tới.
 func (p *Processor) OnTerminal(ctx context.Context, j queue.Job, status string, tx pgx.Tx) error {
 	if status != queue.StatusDead && status != queue.StatusExpired {
 		return nil

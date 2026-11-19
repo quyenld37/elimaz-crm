@@ -146,6 +146,52 @@ func TestNotSentLastAttemptDead(t *testing.T) {
 	}
 }
 
+// not_sent với KeepAttempt (lỗi hạ tầng tạm, Task 409): lượt đã tăng lúc nhận việc được trả lại, kể cả ở lần thứ
+// MaxAttempts; vẫn hẹn theo RetryAfter. Không tự gửi lại → dead như cũ; quá hạn sống → expired như cũ.
+func TestNotSentKeepAttempt(t *testing.T) {
+	for _, c := range []struct {
+		name      string
+		auto      bool
+		before    int // attempts trước lần nhận việc
+		expired   bool
+		want      string
+		attempts  int
+		terminals int
+	}{
+		{"lan-dau", true, 0, false, "pending", 0, 0},
+		{"lan-thu-max", true, 7, false, "pending", 7, 0},
+		{"khong-tu-gui-lai", false, 0, false, "dead", 1, 1},
+		{"qua-han", true, 0, true, "expired", 1, 1},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			e := newEnv(t)
+			ext := &testkit.FakeExternal{Mode: testkit.FakeFailBeforeSend}
+			h := newCmd("command.keep", ext)
+			h.autoRetry, h.retryAfter, h.keepAttempt = c.auto, time.Minute, true
+			id := e.enqueue(t, h.kind, "k")
+			e.ownerExec(t, "UPDATE platform.jobs SET attempts = $2 WHERE id = $1", id, c.before)
+			if c.expired { // lệnh hết hạn sống trong lúc Execute (sau khi đã được nhận)
+				e.ownerExec(t, "UPDATE platform.jobs SET expires_at = now() + interval '1 hour' WHERE id = $1", id)
+				h.exec = func(ctx context.Context, _ queue.Job) (commands.Outcome, error) {
+					if _, err := e.owner.Pool.Exec(ctx, "UPDATE platform.jobs SET expires_at = now() - interval '1 second' WHERE id = $1", id); err != nil {
+						return commands.Outcome{}, err //nolint:wrapcheck // test
+					}
+					return commands.Outcome{Status: commands.StatusNotSent, Reason: "x", KeepAttempt: true}, nil
+				}
+			}
+			runOnce(t, worker(e, "w1", h))
+			r := e.job(t, id)
+			_, _, terms := h.snapshot()
+			if r.Status != c.want || r.Attempts != c.attempts || len(terms) != c.terminals {
+				t.Fatalf("muốn %s, %d lượt, %d terminal: %+v %v", c.want, c.attempts, c.terminals, r, terms)
+			}
+			if c.want == "pending" && (r.RunInS < 55 || r.RunInS > 61) {
+				t.Fatalf("muốn hẹn lại theo RetryAfter 60 s: %+v", r)
+			}
+		})
+	}
+}
+
 // reject → dead, OnTerminal("dead"), last_error mang lý do.
 func TestRejectDead(t *testing.T) {
 	e := newEnv(t)
