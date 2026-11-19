@@ -37,8 +37,9 @@ func TestStatusValues(t *testing.T) {
 	}
 }
 
-// 49 cặp: đúng 11 cặp đi được (10 cạnh của sơ đồ đơn 05 mục 2 và new → new) với ít nhất một tổ hợp điều kiện;
-// 38 cặp còn lại trả ErrInvalidTransition với mọi tổ hợp (Q-T65-1).
+// 49 cặp: đúng 12 cặp đi được (10 cạnh của sơ đồ đơn 05 mục 2, new → new và draft → draft chỉ đổi lý do chờ — Task
+// M2-19 duyệt giảm giá đơn nháp) với ít nhất một tổ hợp điều kiện; 37 cặp còn lại trả ErrInvalidTransition với mọi tổ
+// hợp (Q-T65-1).
 func TestCheck_AllPairs(t *testing.T) {
 	t.Parallel()
 	valid := map[[2]state.Status]bool{
@@ -47,6 +48,7 @@ func TestCheck_AllPairs(t *testing.T) {
 		{state.New, state.Confirmed}:             true,
 		{state.New, state.Cancelled}:             true,
 		{state.New, state.New}:                   true,
+		{state.Draft, state.Draft}:               true,
 		{state.Confirmed, state.Cancelled}:       true,
 		{state.Confirmed, state.CancelRequested}: true,
 		{state.CancelRequested, state.Cancelled}: true,
@@ -63,8 +65,8 @@ func TestCheck_AllPairs(t *testing.T) {
 			}
 		}
 	}
-	if nValid != 11 {
-		t.Fatalf("số cặp đi được = %d, muốn 11", nValid)
+	if nValid != 12 {
+		t.Fatalf("số cặp đi được = %d, muốn 12", nValid)
 	}
 }
 
@@ -109,6 +111,7 @@ func TestCheck_Conditions(t *testing.T) {
 		{state.New, state.Confirmed, state.Conditions{PendingReason: state.PendingOutOfStock}, nil},
 		{state.New, state.Confirmed, state.Conditions{AddressComplete: true, PendingReason: state.PendingDiscountApproval}, state.ErrNeedsApproval},
 		{state.New, state.New, state.Conditions{PendingReason: state.PendingDiscountApproval}, nil},
+		{state.Draft, state.Draft, state.Conditions{PendingReason: state.PendingDiscountApproval}, nil},
 		{state.New, state.Cancelled, state.Conditions{PendingReason: state.PendingDiscountApproval}, nil},
 		{state.Confirmed, state.Cancelled, state.Conditions{}, nil},
 		{state.Confirmed, state.Cancelled, state.Conditions{HasCurrentShipment: true}, state.ErrInvalidTransition},

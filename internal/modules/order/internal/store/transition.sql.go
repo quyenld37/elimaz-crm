@@ -47,6 +47,37 @@ func (q *Queries) InsertStatusHistory(ctx context.Context, arg InsertStatusHisto
 	return err
 }
 
+const recordDiscountApproval = `-- name: RecordDiscountApproval :execrows
+UPDATE ord.orders
+SET discount_approved_by = $1::uuid,
+    discount_approved_at = $2::timestamptz
+WHERE seller_id = $3 AND id = $4 AND version = $5
+`
+
+type RecordDiscountApprovalParams struct {
+	ActorID  pgtype.UUID
+	Now      time.Time
+	SellerID uuid.UUID
+	ID       uuid.UUID
+	Version  int64
+}
+
+// Ghi người duyệt giảm giá của đơn đã khóa (Task M2-19), không đổi status, version: chạy ngay sau applyTransition bỏ
+// lý do discount_approval, cùng transaction (version là version mới vừa trả).
+func (q *Queries) RecordDiscountApproval(ctx context.Context, arg RecordDiscountApprovalParams) (int64, error) {
+	result, err := q.db.Exec(ctx, recordDiscountApproval,
+		arg.ActorID,
+		arg.Now,
+		arg.SellerID,
+		arg.ID,
+		arg.Version,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateOrderStatus = `-- name: UpdateOrderStatus :one
 
 UPDATE ord.orders
