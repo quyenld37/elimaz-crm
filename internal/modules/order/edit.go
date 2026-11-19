@@ -470,8 +470,9 @@ func (e *editRun) pricingInput() pricing.Input {
 }
 
 // decideApproval xét ngưỡng duyệt khi dòng hoặc giảm cấp đơn đổi (t là tiền sau sửa, chưa có mã; Quyết định 9 của
-// Task 77): tỷ lệ giảm tay mới vượt ngưỡng và lớn hơn tỷ lệ cũ → người có quyền duyệt: ghi người duyệt; đơn confirmed:
-// ErrDiscountNeedsApproval; đơn new, draft chưa chờ duyệt: chờ duyệt.
+// Task 77, siết ở Task M2-32 theo review độc lập C-02): tỷ lệ giảm tay mới vượt ngưỡng và lớn hơn tỷ lệ cũ, hoặc số tiền
+// giảm tay tăng → người có quyền duyệt: ghi người duyệt; đơn confirmed: ErrDiscountNeedsApproval; đơn new, draft chưa
+// chờ duyệt: chờ duyệt. Chỉ bỏ qua khi cả tỷ lệ lẫn số tiền giảm tay không tăng.
 func (e *editRun) decideApproval(ctx context.Context, t pricing.Totals) error {
 	if !e.p.has(EditFieldLines) && !e.p.has(EditFieldOrderDiscount) {
 		return nil
@@ -480,7 +481,8 @@ func (e *editRun) decideApproval(ctx context.Context, t pricing.Totals) error {
 	old := pricing.ManualDiscountBP(pricing.Totals{
 		Subtotal: e.cur.Subtotal, LineDiscountTotal: e.cur.LineDiscountTotal, OrderDiscount: e.cur.OrderDiscount,
 	})
-	if bp == 0 || bp <= old {
+	moreMoney := t.LineDiscountTotal+t.OrderDiscount > e.cur.LineDiscountTotal+e.cur.OrderDiscount
+	if bp == 0 || (bp <= old && !moreMoney) {
 		return nil
 	}
 	s, err := LoadSettings(ctx, e.tx)

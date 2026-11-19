@@ -69,6 +69,24 @@ function rangeQuery(r: Range, now: number): { createdFrom?: string; createdTo?: 
   }
 }
 
+// useVnToday trả 0 giờ (giờ Việt Nam) của ngày hiện tại và tự đổi sang ngày mới đúng lúc qua nửa đêm, để bộ lọc "Hôm
+// nay", "Hôm qua"… của màn mở lâu không lệch một ngày (review độc lập M2, D-03).
+function useVnToday(): number {
+  const [today, setToday] = useState(() => vnMidnight(Date.now(), 0));
+  useEffect(() => {
+    const t = setTimeout(
+      () => {
+        setToday(vnMidnight(Date.now(), 0));
+      },
+      Math.max(today + DAY_MS - Date.now(), 0) + 1_000,
+    );
+    return () => {
+      clearTimeout(t);
+    };
+  }, [today]);
+  return today;
+}
+
 type Query = NonNullable<ListOrdersData["query"]>;
 
 const timeText = (iso: string) => shortTime(iso).replace(" ", " · ");
@@ -141,11 +159,11 @@ export function OrderList() {
   const [careBy, setCareBy] = useState("");
   const [range, setRange] = useState<Range>("7d");
   const [dup, setDup] = useState(false);
-  const [now] = useState(() => Date.now());
+  const today = useVnToday();
 
   const query: Query = {
     ...(label === "all" ? {} : { label: [label] }),
-    ...rangeQuery(range, now),
+    ...rangeQuery(range, today),
     ...(q === "" ? {} : { q }),
     ...(source === "" ? {} : { trafficSourceId: [source] }),
     ...(careBy === "" ? {} : { careBy }),

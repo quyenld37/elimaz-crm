@@ -2,7 +2,11 @@
 
 Trạng thái: đã duyệt (spec 07-adr ADR-46, 18/11/2026)
 Ngày: 18/11/2026
-Kiểm bằng: retry_test, txusage_test (Task 4); review của mỗi task có migration
+Kiểm bằng: retry_test, txusage_test (Task 4); review của mỗi task có migration. M2 (Task M2-32): hai đường song song
+không deadlock — `order`: `TestCreateCoupon_NoDeadlockWithCancel` (nhóm 7 → 10 → 11), `TestEdit_NoDeadlock`,
+`TestEdit_CouponSwapNoDeadlock`, `TestCancelReturn_ExchangeRaceNoDeadlock`, `TestExpireDrafts_ManyOrdersNoDeadlock`;
+`customer`: `TestMergeVsForOrderNoDeadlock`, `TestFindOrCreateForOrderVsAddIdentityNoDeadlock` (nhóm 5);
+`inventory`: `TestReserve_NoDeadlockOnCrossOrder`, `TestCore_NoDeadlockOnCrossOrder` (nhóm 11, biến thể tăng dần)
 
 Tệp này là **chỗ duy nhất** giữ bảng thứ tự khóa của ADR-46 điểm 4. Các điểm 1–3 (một helper `db.RetryTx`, bên gọi
 nhận `ErrRetryLater`, hàm trong transaction chạy lại được), điểm 5 (READ COMMITTED) và điểm 6 (`lock_timeout`,

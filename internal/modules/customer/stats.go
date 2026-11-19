@@ -153,6 +153,13 @@ func (w Writer) recompute(ctx context.Context, tx pgx.Tx, ids []uuid.UUID, now t
 			}
 		}
 		out[root] = statsOf(s.OrderCount, s.DeliveredCount, s.ReturnedCount, s.TotalSpent, last)
+		// Gốc còn lead mà nhóm đã có đơn (gộp một nhóm đã mua vào gốc tạo tay): lead → customer như ở đơn đầu tiên
+		// (review độc lập M2, A-03). promote không làm gì khi gốc đã là customer.
+		if s.OrderCount > 0 {
+			if err := w.promote(ctx, tx, root, Actor{Type: ActorSystem}, now); err != nil {
+				return lockedGroups{}, nil, err
+			}
+		}
 		if err := w.signal(ctx, tx, g.tenantID, root); err != nil {
 			return lockedGroups{}, nil, err
 		}

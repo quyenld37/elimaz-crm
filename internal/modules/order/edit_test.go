@@ -3,6 +3,7 @@ package order_test
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -394,6 +395,48 @@ func TestEdit_DiscountApproval(t *testing.T) {
 	}
 }
 
+// Review độc lập M2, C-02: đơn đã được duyệt giảm 20%; nhân viên không có quyền duyệt tăng số lượng và tăng tiền giảm
+// tay theo cùng tỷ lệ (tỷ lệ không tăng nhưng số tiền tăng) → ErrDiscountNeedsApproval, không đổi gì; giảm bớt tiền giảm
+// tay, hay đổi chỗ giữa giảm dòng và giảm đơn với tổng không đổi, thì vẫn được, không đòi duyệt lại.
+func TestEdit_DiscountApprovalAmountUp(t *testing.T) {
+	e := newM2Env(t)
+	v := e.variant(1000000, 10)
+	o := e.mustCreateM2(e.m2Input(0, ln(v, 1, 0))).Order
+	m := e.manager()
+	o = e.mustEdit(o.ID, order.EditInput{Version: o.Version, OrderDiscount: editPtr(int64(200000))}, m)
+	if o.DiscountApprovedBy == nil || o.Status != order.StatusConfirmed {
+		t.Fatalf("người duyệt giảm 20%%: %+v", o)
+	}
+	if _, err := e.editOrder(o.ID, order.EditInput{
+		Version: o.Version, Lines: editLines(editKeep(o.Items[0], 2, 0)), OrderDiscount: editPtr(int64(400000)),
+	}, e.actor); !errors.Is(err, order.ErrDiscountNeedsApproval) {
+		t.Fatalf("tăng tiền giảm tay cùng tỷ lệ: %v, mong ErrDiscountNeedsApproval", err)
+	}
+	if got := e.get(o.ID); !sameOrder(got, o) {
+		t.Fatalf("bị chặn mà đơn đổi: %+v", got)
+	}
+	got := e.mustEdit(o.ID, order.EditInput{Version: o.Version, OrderDiscount: editPtr(int64(150000))}, e.actor)
+	if got.OrderDiscount != 150000 || got.Status != order.StatusConfirmed {
+		t.Errorf("giảm bớt tiền giảm tay: %+v", got)
+	}
+	// Chuyển một phần giảm đơn sang giảm dòng, tổng giảm tay (và tỷ lệ) giữ nguyên → không đòi duyệt lại.
+	got = e.mustEdit(o.ID, order.EditInput{
+		Version: got.Version, Lines: editLines(editKeep(got.Items[0], 1, 50000)), OrderDiscount: editPtr(int64(100000)),
+	}, e.actor)
+	if got.LineDiscountTotal != 50000 || got.OrderDiscount != 100000 || got.Status != order.StatusConfirmed {
+		t.Errorf("đổi chỗ giảm tay, tổng không đổi: %+v", got)
+	}
+}
+
+// hundredOneLines: 101 dòng (quá trần 100 dòng mỗi đơn); dòng đầu giữ i1, các dòng sau là biến thể ngẫu nhiên.
+func hundredOneLines(i1 order.Item) *[]order.EditLine {
+	ls := []order.EditLine{editKeep(i1, 1, 0)}
+	for range 100 {
+		ls = append(ls, editAdd(uuid.New(), 1, 0))
+	}
+	return &ls
+}
+
 // Đầu vào sai → ErrInvalidInput, không đổi gì: không dòng, số lượng 0, hai dòng cùng biến thể, hai dòng cùng itemId,
 // itemId lạ, itemId với biến thể khác, phí âm, mã quá dài; đơn không có, đơn của người bán khác → ErrNotFound; dòng mới
 // của người bán khác → ErrMixedSellers; version cũ → ErrVersionConflict.
@@ -415,6 +458,12 @@ func TestEdit_Errors(t *testing.T) {
 		"itemId biến thể khác": {Version: o.Version, Lines: editLines(wrongVariant, editKeep(i2, 1, 0))},
 		"phí âm":               {Version: o.Version, ShippingFee: editPtr(int64(-1))},
 		"giảm dòng âm":         {Version: o.Version, Lines: editLines(editKeep(i1, 1, -1))},
+		// Mutation M2-32 (prepareEdit, validEditLines): mỗi trường sai một mình.
+		"giảm đơn âm":          {Version: o.Version, OrderDiscount: editPtr(int64(-1))},
+		"ghi chú hãng quá dài": {Version: o.Version, CarrierNote: editPtr(strings.Repeat("a", 501))},
+		"người phụ trách rỗng": {Version: o.Version, CareBy: editPtr(uuid.Nil)},
+		"nguồn đơn rỗng":       {Version: o.Version, TrafficSourceID: editPtr(uuid.Nil)},
+		"101 dòng":             {Version: o.Version, Lines: hundredOneLines(i1)},
 	} {
 		if _, err := e.editOrder(o.ID, in, e.actor); !errors.Is(err, order.ErrInvalidInput) {
 			t.Errorf("%s: %v, mong ErrInvalidInput", name, err)

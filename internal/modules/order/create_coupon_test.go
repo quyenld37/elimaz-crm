@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/promotion"
 )
@@ -69,6 +70,61 @@ func (e *orderEnv) dh01(v1, v2 uuid.UUID, code string) order.CreateInput {
 	in := e.m2Input(30000, ln(v1, 2, 20000), ln(v2, 1, 0))
 	in.CouponCode = code
 	return in
+}
+
+// Mutation M2-32 (create_coupon.go:38): mã % tính trên tạm tính trừ giảm dòng và giảm cấp đơn. 2 × 250.000, giảm dòng
+// 20.000, giảm đơn 30.000, mã 10% không trần → nền 450.000, giảm mã 45.000, tổng 405.000.
+func TestCreateCoupon_BaseAfterManualDiscounts(t *testing.T) {
+	e := newM2Env(t)
+	c := sale10("BASE10", 0)
+	c.maxDiscount = 0
+	e.coupon(c)
+	v := e.variant(250000, 5)
+	in := e.m2Input(0, ln(v, 2, 20000))
+	in.OrderDiscount, in.CouponCode = 30000, "BASE10"
+	o := e.mustCreateM2(in).Order
+	if o.CouponDiscount != 45000 || o.GrandTotal != 405000 {
+		t.Fatalf("giảm mã %d, tổng %d; mong 45.000, 405.000", o.CouponDiscount, o.GrandTotal)
+	}
+}
+
+// Mutation M2-32 (create_coupon.go:32): mã gắn SĐT, khách mới chưa có danh tính SĐT → luật mã so với SĐT người nhận;
+// SĐT người nhận khác → bound_other; khách có danh tính SĐT đúng số gắn mã gửi hộ người khác → so với SĐT của khách.
+func TestCreateCoupon_BoundPhoneUsesRecipient(t *testing.T) {
+	e := newM2Env(t)
+	c := sale10("", 0)
+	if err := e.app(func(tx pgx.Tx) error {
+		_, err := promotion.Writer{}.CreateCoupon(e.t.Context(), tx, promotion.Actor{TenantID: e.tenant, UserID: e.actor.UserID},
+			promotion.CouponInput{
+				Code: "PHONE10", Name: "Mã gắn SĐT", DiscountKind: c.kind, Value: c.value, ReleaseOnCancel: true,
+				ValidFrom: c.from, ValidTo: c.to, BoundPhone: shipPhone,
+			})
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		t.Fatal(err)
+	}
+	v := e.variant(250000, 5)
+	in := e.m2Input(0, ln(v, 1, 0))
+	in.CouponCode = "PHONE10"
+	if o := e.mustCreateM2(in).Order; o.CouponDiscount != 25000 {
+		t.Fatalf("giảm mã %d, mong 25.000", o.CouponDiscount)
+	}
+	other := e.m2Input(0, ln(v, 1, 0))
+	other.CouponCode = "PHONE10"
+	addr := *fullAddress()
+	addr.Phone = "0909111222"
+	other.ShipAddress = &addr
+	if _, err := e.createM2(other); rejectReason(err) != promotion.ReasonBoundOther {
+		t.Fatalf("SĐT người nhận khác: %v, mong bound_other", err)
+	}
+	// Khách có danh tính SĐT đúng số gắn mã, gửi hộ tới người nhận số khác → vẫn dùng SĐT của khách.
+	owner := e.m2Input(0, ln(v, 1, 0))
+	owner.CouponCode = "PHONE10"
+	owner.Customer = customer.OrderCustomerInput{FullName: "Chị Mai", Phone: shipPhone, PhoneIsCustomers: true}
+	owner.ShipAddress = &addr
+	if o := e.mustCreateM2(owner).Order; o.CouponDiscount != 25000 {
+		t.Fatalf("khách có SĐT gắn mã, gửi hộ: giảm %d, mong 25.000", o.CouponDiscount)
+	}
 }
 
 // DH01 với SALE10 (gõ chữ thường): couponDiscount 50.000 (10% của 660.000, chặn trần), grandTotal 640.000, phần giảm

@@ -221,7 +221,7 @@ func (s *Server) handleAddAttributeValueRequest(args [1]string, argsEscaped bool
 
 // handleAddCustomerAddressRequest handles addCustomerAddress operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Thêm địa chỉ giao cho khách; mã tỉnh, xã kiểm theo danh mục (Task M2-09).
 //
 // POST /api/v1/customers/{id}/addresses
 func (s *Server) handleAddCustomerAddressRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -324,7 +324,8 @@ func (s *Server) handleAddCustomerAddressRequest(args [1]string, argsEscaped boo
 
 // handleAddCustomerIdentityRequest handles addCustomerIdentity operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Thêm danh tính (SĐT, email, Zalo) cho khách; đã thuộc khách khác → 409 identity_taken
+// (Task M2-09).
 //
 // POST /api/v1/customers/{id}/identities
 func (s *Server) handleAddCustomerIdentityRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -427,7 +428,7 @@ func (s *Server) handleAddCustomerIdentityRequest(args [1]string, argsEscaped bo
 
 // handleAddCustomerNoteRequest handles addCustomerNote operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Thêm ghi chú về khách (chỉ ghi thêm) (Task M2-12).
 //
 // POST /api/v1/customers/{id}/notes
 func (s *Server) handleAddCustomerNoteRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -530,7 +531,7 @@ func (s *Server) handleAddCustomerNoteRequest(args [1]string, argsEscaped bool, 
 
 // handleAddCustomerTagRequest handles addCustomerTag operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Gắn nhãn vào gốc của khách; đã có thì không đổi gì (Task M2-12).
 //
 // PUT /api/v1/customers/{id}/tags/{tagId}
 func (s *Server) handleAddCustomerTagRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -622,7 +623,7 @@ func (s *Server) handleAddCustomerTagRequest(args [2]string, argsEscaped bool, w
 
 // handleAddOrderNoteRequest handles addOrderNote operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Thêm ghi chú nội bộ của đơn (không gửi hãng) (Task M2-24).
 //
 // POST /api/v1/orders/{id}/notes
 func (s *Server) handleAddOrderNoteRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1041,7 +1042,7 @@ func (s *Server) handleApplyStocktakeRequest(args [1]string, argsEscaped bool, w
 
 // handleApproveOrderDiscountRequest handles approveOrderDiscount operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Duyệt giảm giá vượt ngưỡng (Q3) (Task M2-19).
 //
 // POST /api/v1/orders/{id}/approve-discount
 func (s *Server) handleApproveOrderDiscountRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1457,7 +1458,8 @@ func (s *Server) handleAttachProductImageRequest(args [1]string, argsEscaped boo
 
 // handleCancelOrderRequest handles cancelOrder operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Hủy đơn (nhả hàng, trả lượt mã theo Q2); đơn đã gửi hãng → Đang yêu cầu
+// hủy (Task M2-21).
 //
 // POST /api/v1/orders/{id}/cancel
 func (s *Server) handleCancelOrderRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1971,7 +1973,8 @@ func (s *Server) handleCheckCouponRequest(args [0]string, argsEscaped bool, w ht
 
 // handleCheckOrderDuplicatesRequest handles checkOrderDuplicates operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Kiểm trước ở form: đơn có thể trùng (cùng khách hay cùng SĐT, có biến thể
+// chung, trong cửa sổ cài đặt); chỉ cảnh báo (Task M2-23).
 //
 // GET /api/v1/order-duplicate-check
 func (s *Server) handleCheckOrderDuplicatesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2255,7 +2258,8 @@ func (s *Server) handleCompleteUploadRequest(args [1]string, argsEscaped bool, w
 
 // handleConfirmOrderRequest handles confirmOrder operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Xác nhận đơn mới hoặc chốt đơn nháp (cần địa chỉ đủ); chờ duyệt giảm
+// giá → 422 needs_approval (Task M2-19).
 //
 // POST /api/v1/orders/{id}/confirm
 func (s *Server) handleConfirmOrderRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2857,7 +2861,7 @@ func (s *Server) handleCreateCouponBatchRequest(args [0]string, argsEscaped bool
 
 // handleCreateCustomerRequest handles createCustomer operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Tạo khách (Task M2-09); SĐT đã thuộc khách khác → 409 identity_taken kèm ownerId.
 //
 // POST /api/v1/customers
 func (s *Server) handleCreateCustomerRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2956,7 +2960,7 @@ func (s *Server) handleCreateCustomerRequest(args [0]string, argsEscaped bool, w
 
 // handleCreateCustomerTagRequest handles createCustomerTag operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Tạo nhãn khách (tên không trùng) (Task M2-12).
 //
 // POST /api/v1/customer-tags
 func (s *Server) handleCreateCustomerTagRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3057,13 +3061,12 @@ func (s *Server) handleCreateCustomerTagRequest(args [0]string, argsEscaped bool
 //
 // Thân kiểu M1 (không intent, có customer.fullName, shipAddress name/phone/line) tạo thẳng
 // đơn Đã xác nhận như M1. Trường M2 (customerId, intent, giảm giá, mã, nguồn, ghi
-// chú hãng, người phụ trách, mã tỉnh/xã…) có nghiệp vụ từ Task M2-16, M2-17;
-// trước đó gửi trường M2 → 501 not_implemented. Đúng một trong customerId, customer
-// (sai → 400 invalid_input). Khóa nghiệp vụ của đơn dựng từ Idempotency-Key và nhân
-// viên (Q-T57-4); cùng khóa nghiệp vụ, cùng nội dung sau khi bản ghi chống trùng hết
-// hạn → 200 trả đơn đã có. Kho giữ hàng (warehouseId, bỏ trống là kho chính)
-// ngoài phạm vi order.create của người gọi → 403 forbidden, không lưu theo khóa (Task
-// 411).
+// chú hãng, người phụ trách, mã tỉnh/xã…) có nghiệp vụ từ Task M2-16, M2-17.
+// Đúng một trong customerId, customer (sai → 400 invalid_input). Khóa nghiệp vụ của đơn
+// dựng từ Idempotency-Key và nhân viên (Q-T57-4); cùng khóa nghiệp vụ, cùng nội dung
+// sau khi bản ghi chống trùng hết hạn → 200 trả đơn đã có. Kho giữ hàng
+// (warehouseId, bỏ trống là kho chính) ngoài phạm vi order.create của người gọi →
+// 403 forbidden, không lưu theo khóa (Task 411).
 //
 // POST /api/v1/orders
 func (s *Server) handleCreateOrderRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4166,7 +4169,7 @@ func (s *Server) handleCreateUploadRequest(args [0]string, argsEscaped bool, w h
 
 // handleDeleteCustomerAddressRequest handles deleteCustomerAddress operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Xóa mềm một địa chỉ (Task M2-09).
 //
 // DELETE /api/v1/customers/{id}/addresses/{addressId}
 func (s *Server) handleDeleteCustomerAddressRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4669,7 +4672,8 @@ func (s *Server) handleGetCouponBatchRequest(args [1]string, argsEscaped bool, w
 
 // handleGetCustomerRequest handles getCustomer operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Hồ sơ khách theo gốc: mọi hồ sơ con, danh tính, địa chỉ, nhãn, chỉ số của
+// gốc (Task M2-09).
 //
 // GET /api/v1/customers/{id}
 func (s *Server) handleGetCustomerRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4753,7 +4757,8 @@ func (s *Server) handleGetCustomerRequest(args [1]string, argsEscaped bool, w ht
 
 // handleGetCustomerImportRequest handles getCustomerImport operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Trạng thái, số đếm và lỗi từng dòng (không giá trị) của một lần nhập
+// khách (Task M2-13).
 //
 // GET /api/v1/customer-imports/{importId}
 func (s *Server) handleGetCustomerImportRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4837,7 +4842,7 @@ func (s *Server) handleGetCustomerImportRequest(args [1]string, argsEscaped bool
 
 // handleGetCustomerImportTemplateRequest handles getCustomerImportTemplate operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Tải tệp mẫu Excel nhập khách (Task M2-13).
 //
 // GET /api/v1/customer-imports/template
 func (s *Server) handleGetCustomerImportTemplateRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -4986,7 +4991,7 @@ func (s *Server) handleGetCustomerTagRuleRequest(args [1]string, argsEscaped boo
 
 // handleGetCustomerTimelineRequest handles getCustomerTimeline operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Dòng thời gian của cả nhóm khách: đơn, đổi trạng thái, ghi chú, gộp (Task M2-12).
 //
 // GET /api/v1/customers/{id}/timeline
 func (s *Server) handleGetCustomerTimelineRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5378,7 +5383,8 @@ func (s *Server) handleGetOrderSettingsRequest(args [0]string, argsEscaped bool,
 
 // handleGetOrderTimelineRequest handles getOrderTimeline operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Lịch sử thao tác của đơn: đổi trạng thái, tên trường đã sửa (không giá
+// trị dữ liệu cá nhân), ghi chú (Task M2-24).
 //
 // GET /api/v1/orders/{id}/timeline
 func (s *Server) handleGetOrderTimelineRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6833,7 +6839,8 @@ func (s *Server) handleListCouponsRequest(args [0]string, argsEscaped bool, w ht
 
 // handleListCustomerMergeCandidatesRequest handles listCustomerMergeCandidates operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Gợi ý "có thể là cùng một khách" theo SĐT trùng; không bao giờ tự gộp (Task
+// M2-11).
 //
 // GET /api/v1/customers/{id}/merge-candidates
 func (s *Server) handleListCustomerMergeCandidatesRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6917,7 +6924,7 @@ func (s *Server) handleListCustomerMergeCandidatesRequest(args [1]string, argsEs
 
 // handleListCustomerTagsRequest handles listCustomerTags operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Mọi nhãn khách của shop (Task M2-12).
 //
 // GET /api/v1/customer-tags
 func (s *Server) handleListCustomerTagsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -6982,7 +6989,8 @@ func (s *Server) handleListCustomerTagsRequest(args [0]string, argsEscaped bool,
 
 // handleListCustomersRequest handles listCustomers operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Danh sách khách gốc: q rỗng → mới nhất trước; q là mã khách, SĐT (đủ hay
+// đuôi), hoặc tên (Task M2-10); tagId lọc nhóm có nhãn.
 //
 // GET /api/v1/customers
 func (s *Server) handleListCustomersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7255,7 +7263,7 @@ func (s *Server) handleListLostFilesRequest(args [0]string, argsEscaped bool, w 
 
 // handleListOrderDuplicatesRequest handles listOrderDuplicates operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Cặp đơn nghi trùng chưa xử lý, mới nhất trước (Task M2-23).
 //
 // GET /api/v1/order-duplicates
 func (s *Server) handleListOrderDuplicatesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7343,7 +7351,8 @@ func (s *Server) handleListOrderDuplicatesRequest(args [0]string, argsEscaped bo
 
 // handleListOrdersRequest handles listOrders operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Danh sách đơn, mới nhất trước, keyset; lọc theo nhãn, trạng thái, nguồn, người
+// phụ trách, khách (cả nhóm), ngày, q (Task M2-24).
 //
 // GET /api/v1/orders
 func (s *Server) handleListOrdersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8416,7 +8425,8 @@ func (s *Server) handleLockStaffRequest(args [1]string, argsEscaped bool, w http
 
 // handleMergeCustomerRequest handles mergeCustomer operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Gộp nhóm của mergedId vào nhóm của khách id (Task M2-11); đã cùng gốc → 422
+// merge_same_customer.
 //
 // POST /api/v1/customers/{id}/merge
 func (s *Server) handleMergeCustomerRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9038,7 +9048,7 @@ func (s *Server) handleRegenerateImagesRequest(args [0]string, argsEscaped bool,
 
 // handleRemoveCustomerIdentityRequest handles removeCustomerIdentity operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Gỡ một danh tính của khách (không gỡ fb_psid: M4 quản) (Task M2-09).
 //
 // DELETE /api/v1/customers/{id}/identities/{identityId}
 func (s *Server) handleRemoveCustomerIdentityRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9130,7 +9140,7 @@ func (s *Server) handleRemoveCustomerIdentityRequest(args [2]string, argsEscaped
 
 // handleRemoveCustomerTagRequest handles removeCustomerTag operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Gỡ nhãn gắn tay khỏi khách (nhãn theo quy tắc do quy tắc quản) (Task M2-12).
 //
 // DELETE /api/v1/customers/{id}/tags/{tagId}
 func (s *Server) handleRemoveCustomerTagRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9533,7 +9543,8 @@ func (s *Server) handleReplaceStockDocumentLinesRequest(args [1]string, argsEsca
 
 // handleResolveOrderDuplicateRequest handles resolveOrderDuplicate operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Xử lý một cặp nghi trùng: không trùng, hoặc hủy một đơn (lý do duplicate); không
+// tự hủy (Task M2-23).
 //
 // POST /api/v1/order-duplicates/{orderId}/{otherOrderId}/resolve
 func (s *Server) handleResolveOrderDuplicateRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9910,7 +9921,7 @@ func (s *Server) handleSearchVariantsRequest(args [0]string, argsEscaped bool, w
 
 // handleSetOrderPendingRequest handles setOrderPending operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Đặt hoặc bỏ lý do chờ của đơn mới (chờ khách, hết hàng) (Task M2-19).
 //
 // POST /api/v1/orders/{id}/pending
 func (s *Server) handleSetOrderPendingRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -10226,7 +10237,8 @@ func (s *Server) handleSetProductImageColorRequest(args [2]string, argsEscaped b
 
 // handleStartCustomerImportRequest handles startCustomerImport operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Nhập khách từ tệp Excel đã tải lên (mục đích customer_import); chạy nền; tệp
+// sai → 422 import_file_invalid (Task M2-13).
 //
 // POST /api/v1/customer-imports
 func (s *Server) handleStartCustomerImportRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -10490,7 +10502,8 @@ func (s *Server) handleStreamRequest(args [0]string, argsEscaped bool, w http.Re
 
 // handleUndoCustomerMergeRequest handles undoCustomerMerge operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Hoàn tác một lần gộp trong 30 ngày khi còn là lần gần nhất (Q14); không thì 409
+// merge_not_latest kèm blockingMergeId (Task M2-11).
 //
 // POST /api/v1/customer-merges/{mergeId}/undo
 func (s *Server) handleUndoCustomerMergeRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -10874,7 +10887,7 @@ func (s *Server) handleUpdateCouponRequest(args [1]string, argsEscaped bool, w h
 
 // handleUpdateCustomerRequest handles updateCustomer operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Sửa hồ sơ khách khi version còn khớp (Task M2-09).
 //
 // PATCH /api/v1/customers/{id}
 func (s *Server) handleUpdateCustomerRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -10977,7 +10990,7 @@ func (s *Server) handleUpdateCustomerRequest(args [1]string, argsEscaped bool, w
 
 // handleUpdateCustomerAddressRequest handles updateCustomerAddress operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Sửa địa chỉ khi version còn khớp (Task M2-09).
 //
 // PATCH /api/v1/customers/{id}/addresses/{addressId}
 func (s *Server) handleUpdateCustomerAddressRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -11084,7 +11097,7 @@ func (s *Server) handleUpdateCustomerAddressRequest(args [2]string, argsEscaped 
 
 // handleUpdateCustomerTagRequest handles updateCustomerTag operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Đổi tên, màu nhãn khi version còn khớp (Task M2-12).
 //
 // PATCH /api/v1/customer-tags/{tagId}
 func (s *Server) handleUpdateCustomerTagRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -11187,7 +11200,8 @@ func (s *Server) handleUpdateCustomerTagRequest(args [1]string, argsEscaped bool
 
 // handleUpdateOrderRequest handles updateOrder operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Sửa đơn khi version còn khớp: dòng, giảm giá, mã, phí, địa chỉ, ghi chú hãng,
+// người phụ trách, nguồn (Task M2-20); đã gửi hãng → 409 order_locked_by_shipment.
 //
 // PATCH /api/v1/orders/{id}
 func (s *Server) handleUpdateOrderRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

@@ -1440,7 +1440,7 @@ paths:
       description: >-
         Thân kiểu M1 (không intent, có customer.fullName, shipAddress name/phone/line) tạo thẳng đơn Đã xác nhận như
         M1. Trường M2 (customerId, intent, giảm giá, mã, nguồn, ghi chú hãng, người phụ trách, mã tỉnh/xã…) có nghiệp vụ
-        từ Task M2-16, M2-17; trước đó gửi trường M2 → 501 not_implemented. Đúng một trong customerId, customer (sai →
+        từ Task M2-16, M2-17. Đúng một trong customerId, customer (sai →
         400 invalid_input). Khóa nghiệp vụ của đơn dựng từ Idempotency-Key và nhân viên (Q-T57-4); cùng khóa nghiệp vụ,
         cùng nội dung sau khi bản ghi chống trùng hết hạn → 200 trả đơn đã có. Kho giữ hàng (warehouseId, bỏ trống là
         kho chính) ngoài phạm vi order.create của người gọi → 403 forbidden, không lưu theo khóa (Task 411).
@@ -1471,7 +1471,6 @@ paths:
     get:
       operationId: listOrders
       summary: 'Danh sách đơn, mới nhất trước, keyset; lọc theo nhãn, trạng thái, nguồn, người phụ trách, khách (cả nhóm), ngày, q (Task M2-24)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.read
       parameters:
         - name: label
@@ -1588,7 +1587,6 @@ paths:
     patch:
       operationId: updateOrder
       summary: 'Sửa đơn khi version còn khớp: dòng, giảm giá, mã, phí, địa chỉ, ghi chú hãng, người phụ trách, nguồn (Task M2-20); đã gửi hãng → 409 order_locked_by_shipment'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.update
       parameters:
         - $ref: "#/components/parameters/OrderID"
@@ -1766,7 +1764,6 @@ paths:
     get:
       operationId: listCustomers
       summary: 'Danh sách khách gốc: q rỗng → mới nhất trước; q là mã khách, SĐT (đủ hay đuôi), hoặc tên (Task M2-10); tagId lọc nhóm có nhãn'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.read
       parameters:
         - name: q
@@ -1796,7 +1793,6 @@ paths:
     post:
       operationId: createCustomer
       summary: 'Tạo khách (Task M2-09); SĐT đã thuộc khách khác → 409 identity_taken kèm ownerId'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.write
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -1819,7 +1815,6 @@ paths:
     get:
       operationId: getCustomer
       summary: 'Hồ sơ khách theo gốc: mọi hồ sơ con, danh tính, địa chỉ, nhãn, chỉ số của gốc (Task M2-09)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.read
       parameters:
         - $ref: "#/components/parameters/CustomerID"
@@ -1835,7 +1830,6 @@ paths:
     patch:
       operationId: updateCustomer
       summary: 'Sửa hồ sơ khách khi version còn khớp (Task M2-09)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.write
       parameters:
         - $ref: "#/components/parameters/CustomerID"
@@ -1859,7 +1853,6 @@ paths:
     post:
       operationId: addCustomerIdentity
       summary: 'Thêm danh tính (SĐT, email, Zalo) cho khách; đã thuộc khách khác → 409 identity_taken (Task M2-09)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.write
       parameters:
         - $ref: "#/components/parameters/CustomerID"
@@ -1883,7 +1876,6 @@ paths:
     delete:
       operationId: removeCustomerIdentity
       summary: 'Gỡ một danh tính của khách (không gỡ fb_psid: M4 quản) (Task M2-09)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.write
       parameters:
         - $ref: "#/components/parameters/CustomerID"
@@ -1902,7 +1894,6 @@ paths:
     post:
       operationId: addCustomerAddress
       summary: 'Thêm địa chỉ giao cho khách; mã tỉnh, xã kiểm theo danh mục (Task M2-09)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.write
       parameters:
         - $ref: "#/components/parameters/CustomerID"
@@ -1926,7 +1917,6 @@ paths:
     patch:
       operationId: updateCustomerAddress
       summary: 'Sửa địa chỉ khi version còn khớp (Task M2-09)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.write
       parameters:
         - $ref: "#/components/parameters/CustomerID"
@@ -1950,7 +1940,6 @@ paths:
     delete:
       operationId: deleteCustomerAddress
       summary: 'Xóa mềm một địa chỉ (Task M2-09)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.write
       parameters:
         - $ref: "#/components/parameters/CustomerID"
@@ -1998,7 +1987,6 @@ paths:
     get:
       operationId: listCustomerMergeCandidates
       summary: 'Gợi ý "có thể là cùng một khách" theo SĐT trùng; không bao giờ tự gộp (Task M2-11)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.read
       parameters:
         - $ref: "#/components/parameters/CustomerID"
@@ -2015,7 +2003,6 @@ paths:
     post:
       operationId: mergeCustomer
       summary: 'Gộp nhóm của mergedId vào nhóm của khách id (Task M2-11); đã cùng gốc → 422 merge_same_customer'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.merge
       parameters:
         - $ref: "#/components/parameters/CustomerID"
@@ -2039,7 +2026,6 @@ paths:
     post:
       operationId: undoCustomerMerge
       summary: 'Hoàn tác một lần gộp trong 30 ngày khi còn là lần gần nhất (Q14); không thì 409 merge_not_latest kèm blockingMergeId (Task M2-11)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.merge
       parameters:
         - $ref: "#/components/parameters/CustomerMergeID"
@@ -2057,7 +2043,6 @@ paths:
     get:
       operationId: getCustomerTimeline
       summary: 'Dòng thời gian của cả nhóm khách: đơn, đổi trạng thái, ghi chú, gộp (Task M2-12)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.read
       parameters:
         - $ref: "#/components/parameters/CustomerID"
@@ -2076,7 +2061,6 @@ paths:
     post:
       operationId: addCustomerNote
       summary: 'Thêm ghi chú về khách (chỉ ghi thêm) (Task M2-12)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.write
       parameters:
         - $ref: "#/components/parameters/CustomerID"
@@ -2100,7 +2084,6 @@ paths:
     get:
       operationId: listCustomerTags
       summary: 'Mọi nhãn khách của shop (Task M2-12)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.read
       responses:
         "200":
@@ -2114,7 +2097,6 @@ paths:
     post:
       operationId: createCustomerTag
       summary: 'Tạo nhãn khách (tên không trùng) (Task M2-12)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.tags.manage
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -2137,7 +2119,6 @@ paths:
     patch:
       operationId: updateCustomerTag
       summary: 'Đổi tên, màu nhãn khi version còn khớp (Task M2-12)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.tags.manage
       parameters:
         - $ref: "#/components/parameters/CustomerTagID"
@@ -2161,7 +2142,6 @@ paths:
     put:
       operationId: addCustomerTag
       summary: 'Gắn nhãn vào gốc của khách; đã có thì không đổi gì (Task M2-12)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.write
       parameters:
         - $ref: "#/components/parameters/CustomerID"
@@ -2179,7 +2159,6 @@ paths:
     delete:
       operationId: removeCustomerTag
       summary: 'Gỡ nhãn gắn tay khỏi khách (nhãn theo quy tắc do quy tắc quản) (Task M2-12)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.write
       parameters:
         - $ref: "#/components/parameters/CustomerID"
@@ -2236,7 +2215,6 @@ paths:
     get:
       operationId: getCustomerImportTemplate
       summary: 'Tải tệp mẫu Excel nhập khách (Task M2-13)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.import
       responses:
         "200":
@@ -2256,7 +2234,6 @@ paths:
     post:
       operationId: startCustomerImport
       summary: 'Nhập khách từ tệp Excel đã tải lên (mục đích customer_import); chạy nền; tệp sai → 422 import_file_invalid (Task M2-13)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.import
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -2279,7 +2256,6 @@ paths:
     get:
       operationId: getCustomerImport
       summary: 'Trạng thái, số đếm và lỗi từng dòng (không giá trị) của một lần nhập khách (Task M2-13)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: customer.import
       parameters:
         - $ref: "#/components/parameters/CustomerImportID"
@@ -2296,7 +2272,6 @@ paths:
     post:
       operationId: confirmOrder
       summary: 'Xác nhận đơn mới hoặc chốt đơn nháp (cần địa chỉ đủ); chờ duyệt giảm giá → 422 needs_approval (Task M2-19)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.confirm
       parameters:
         - $ref: "#/components/parameters/OrderID"
@@ -2320,7 +2295,6 @@ paths:
     post:
       operationId: approveOrderDiscount
       summary: 'Duyệt giảm giá vượt ngưỡng (Q3) (Task M2-19)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.discount.approve
       parameters:
         - $ref: "#/components/parameters/OrderID"
@@ -2344,7 +2318,6 @@ paths:
     post:
       operationId: setOrderPending
       summary: 'Đặt hoặc bỏ lý do chờ của đơn mới (chờ khách, hết hàng) (Task M2-19)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.confirm
       parameters:
         - $ref: "#/components/parameters/OrderID"
@@ -2368,7 +2341,6 @@ paths:
     post:
       operationId: cancelOrder
       summary: 'Hủy đơn (nhả hàng, trả lượt mã theo Q2); đơn đã gửi hãng → Đang yêu cầu hủy (Task M2-21)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.cancel
       parameters:
         - $ref: "#/components/parameters/OrderID"
@@ -2392,7 +2364,6 @@ paths:
     get:
       operationId: getOrderTimeline
       summary: 'Lịch sử thao tác của đơn: đổi trạng thái, tên trường đã sửa (không giá trị dữ liệu cá nhân), ghi chú (Task M2-24)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.read
       parameters:
         - $ref: "#/components/parameters/OrderID"
@@ -2409,7 +2380,6 @@ paths:
     post:
       operationId: addOrderNote
       summary: 'Thêm ghi chú nội bộ của đơn (không gửi hãng) (Task M2-24)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.update
       parameters:
         - $ref: "#/components/parameters/OrderID"
@@ -2433,7 +2403,6 @@ paths:
     get:
       operationId: checkOrderDuplicates
       summary: 'Kiểm trước ở form: đơn có thể trùng (cùng khách hay cùng SĐT, có biến thể chung, trong cửa sổ cài đặt); chỉ cảnh báo (Task M2-23)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.create
       parameters:
         - name: customerId
@@ -2472,7 +2441,6 @@ paths:
     get:
       operationId: listOrderDuplicates
       summary: 'Cặp đơn nghi trùng chưa xử lý, mới nhất trước (Task M2-23)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.read
       parameters:
         - $ref: "#/components/parameters/Cursor"
@@ -2490,7 +2458,6 @@ paths:
     post:
       operationId: resolveOrderDuplicate
       summary: 'Xử lý một cặp nghi trùng: không trùng, hoặc hủy một đơn (lý do duplicate); không tự hủy (Task M2-23)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.duplicates.resolve
       parameters:
         - $ref: "#/components/parameters/DuplicateOrderID"

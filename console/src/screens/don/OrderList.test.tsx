@@ -164,6 +164,24 @@ describe("Danh sách đơn", () => {
     expect(await screen.findByRole("heading", { name: "DH0001235" })).toBeTruthy();
   });
 
+  // Review độc lập M2, D-03: màn mở qua nửa đêm (giờ Việt Nam) thì "Hôm nay" chuyển sang ngày mới ở lần tải lại kế tiếp.
+  it("lọc Hôm nay theo ngày hiện tại khi màn mở qua nửa đêm", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-11-19T16:59:50Z")); // 23:59:50 ngày 19/11 giờ Việt Nam
+    renderAt("/don");
+    await screen.findByRole("row", { name: /DH0001236/ });
+    fireEvent.change(screen.getByRole("combobox", { name: "Ngày tạo" }), { target: { value: "today" } });
+    await waitFor(() => {
+      expect(fake.listCalls.at(-1)?.get("createdFrom")).toBe("2026-11-18T17:00:00.000Z");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_500);
+    });
+    await waitFor(() => {
+      expect(fake.listCalls.at(-1)?.get("createdFrom")).toBe("2026-11-19T17:00:00.000Z");
+    });
+  });
+
   it("tự tải lại cả trang mỗi 20 giây (khi không có báo hiệu)", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     renderAt("/don");
