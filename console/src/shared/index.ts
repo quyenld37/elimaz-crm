@@ -32,8 +32,9 @@ export {
   onRealtimeResync,
   queryKey,
   shouldRetry,
+  subscribeChanged,
 } from "../app/queryClient";
-export type { Topic } from "../app/queryClient";
+export type { RealtimeMeta, Topic } from "../app/queryClient";
 /** Giờ hiện trên màn hình theo múi Việt Nam: "HH:mm dd/MM". */
 export { VN_TIME_ZONE, shortTime } from "../app/time";
 /** Menu và định tuyến: mỗi màn tự đăng ký bằng src/screens/<tên>/route.tsx (src/app/loadScreens.ts); menu chỉ hiện màn có quyền. */

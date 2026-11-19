@@ -1,6 +1,15 @@
 // Luật chữ và dựng thân yêu cầu của màn Lên đơn (kế hoạch M2 Task M2-27; mockup docs/mockups/m2/len-don.html). Không
 // gọi API; OrderForm dùng các hàm này để quyết định nút mờ, câu nhắc và thân createOrder.
-import type { CreateOrderRequest, OrderWarning, PendingReason } from "../../api";
+import type {
+  Address,
+  CreateOrderRequest,
+  EditScope,
+  Order,
+  OrderWarning,
+  PendingReason,
+  ShipAddress,
+  UpdateOrderRequest,
+} from "../../api";
 import { COUPON_REASON_MESSAGES, ERROR_MESSAGES } from "../../app/errors";
 import { shortTime } from "../../app/time";
 
@@ -105,6 +114,8 @@ const hasBaseAddress = (a: AddressInput) => [a.name, a.phone, a.line].every((v) 
 export type PickedCustomer = { kind: "existing"; id: string } | { kind: "new" };
 
 export interface FormLine {
+  /** Dòng đang có của đơn đang sửa (giữ đơn giá cũ); không có: dòng mới. */
+  itemId?: string;
   variantId: string;
   qty: number;
   lineDiscount: number;
@@ -136,18 +147,22 @@ export function saveBlock(f: FormState, intent: Intent): string | null {
   return null;
 }
 
+// Thân ShipAddress khi có đủ ba trường bắt buộc; mã tỉnh, xã chỉ gửi khi có (xã cần tỉnh).
+function shipAddressOf(a: AddressInput): ShipAddress | undefined {
+  if (!hasBaseAddress(a)) return undefined;
+  return {
+    name: a.name.trim(),
+    phone: cleanPhone(a.phone),
+    line: a.line.trim(),
+    ...(a.provinceCode === "" ? {} : { provinceCode: a.provinceCode }),
+    ...(a.provinceCode === "" || a.wardCode === "" ? {} : { wardCode: a.wardCode }),
+  };
+}
+
 /** Thân createOrder theo ý định; chỉ gửi trường có giá trị. Kênh "manual" (đơn nhập tay, DH04). */
 export function buildRequest(f: FormState, intent: Intent): CreateOrderRequest {
   const a = f.address;
-  const shipAddress = hasBaseAddress(a)
-    ? {
-        name: a.name.trim(),
-        phone: cleanPhone(a.phone),
-        line: a.line.trim(),
-        ...(a.provinceCode === "" ? {} : { provinceCode: a.provinceCode }),
-        ...(a.provinceCode === "" || a.wardCode === "" ? {} : { wardCode: a.wardCode }),
-      }
-    : undefined;
+  const shipAddress = shipAddressOf(a);
   const code = f.couponCode.trim().toUpperCase();
   const note = f.carrierNote.trim();
   const body: CreateOrderRequest = {
@@ -175,4 +190,70 @@ export function buildRequest(f: FormState, intent: Intent): CreateOrderRequest {
     channel: "manual",
   };
   return body;
+}
+
+/** Địa chỉ giao của đơn thành ô nhập của form (sửa đơn); SĐT dạng đọc được. */
+export function addressOf(a: Address | undefined): AddressInput {
+  if (a === undefined) return EMPTY_ADDRESS;
+  return {
+    name: a.name,
+    phone: displayPhone(a.phone),
+    line: a.line,
+    provinceCode: a.provinceCode ?? "",
+    wardCode: a.wardCode ?? "",
+    ...(a.wardName === undefined ? {} : { wardName: a.wardName }),
+  };
+}
+
+// SĐT so sánh được: chỉ chữ số, đầu 84 (11 số) đổi thành 0.
+const phoneKey = (p: string) => {
+  const d = p.replace(/\D/g, "");
+  return d.startsWith("84") && d.length === 11 ? `0${d.slice(2)}` : d;
+};
+
+const sameAddress = (a: ShipAddress | undefined, b: Address | undefined): boolean =>
+  a === undefined || b === undefined
+    ? a === b
+    : a.name === b.name.trim() &&
+      phoneKey(a.phone) === phoneKey(b.phone) &&
+      a.line === b.line.trim() &&
+      (a.provinceCode ?? "") === (b.provinceCode ?? "") &&
+      (a.wardCode ?? "") === (b.wardCode ?? "");
+
+/**
+ * Thân updateOrder của form sửa đơn o (Task 85): version đã đọc và chỉ những trường khác giá trị hiện tại và thuộc
+ * phạm vi được sửa (editScope; máy chủ vẫn kiểm). Dòng gửi đủ danh sách mong muốn (dòng không có là bị bỏ). null khi
+ * không có gì để gửi.
+ */
+export function buildUpdate(f: FormState, o: Order, scope: EditScope): UpdateOrderRequest | null {
+  const body: UpdateOrderRequest = { version: o.version ?? 0 };
+  const put = <K extends keyof UpdateOrderRequest>(k: K, v: UpdateOrderRequest[K]) => {
+    body[k] = v;
+  };
+  const lines = f.lines.map((l) => ({
+    ...(l.itemId === undefined ? {} : { itemId: l.itemId }),
+    variantId: l.variantId,
+    qty: l.qty,
+    ...(l.lineDiscount > 0 ? { lineDiscount: l.lineDiscount } : {}),
+  }));
+  const curLines = o.items.map((it) => ({
+    itemId: it.id,
+    variantId: it.variantId,
+    qty: it.qty,
+    ...((it.lineDiscount ?? 0) > 0 ? { lineDiscount: it.lineDiscount } : {}),
+  }));
+  if (scope.lines && JSON.stringify(lines) !== JSON.stringify(curLines)) put("lines", lines);
+  if (scope.discounts && f.orderDiscount !== (o.orderDiscount ?? 0)) put("orderDiscount", f.orderDiscount);
+  const code = f.couponCode.trim().toUpperCase();
+  if (scope.coupon && code !== (o.couponCode ?? "")) put("couponCode", code);
+  if (scope.shipping && f.shippingFee !== o.shippingFee) put("shippingFee", f.shippingFee);
+  const addr = shipAddressOf(f.address);
+  if (scope.address && addr !== undefined && !sameAddress(addr, o.shipAddress)) put("shipAddress", addr);
+  const note = f.carrierNote.trim();
+  if (scope.carrierNote && note !== (o.carrierNote ?? "")) put("carrierNote", note);
+  if (scope.trafficSource && f.trafficSourceId !== "" && f.trafficSourceId !== (o.trafficSourceId ?? "")) {
+    put("trafficSourceId", f.trafficSourceId);
+  }
+  // Chỉ còn version: không có gì để sửa.
+  return Object.keys(body).length > 1 ? body : null;
 }

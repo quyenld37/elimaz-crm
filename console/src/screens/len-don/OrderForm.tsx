@@ -2,6 +2,9 @@
 // ở M4 (cạnh hội thoại) qua src/shared. Gửi đơn bằng useWriteAction (G13): khóa Idempotency-Key sinh khi bấm lưu, giữ
 // nguyên qua các lần tự gửi lại (503 retry_later, 409 request_in_progress, mất mạng) và khi bấm "Gửi lại" cùng nội dung;
 // đơn tạo xong thì form trống, đơn sau là thao tác mới (khóa mới). Tiền hiện trước bằng pricing.ts; số máy chủ là số cuối.
+// Chế độ sửa (prop edit, Task 85, HV23): cùng form điền sẵn từ đơn, khách cố định, phần ngoài editScope khóa kèm lý do;
+// gửi updateOrder với version đã đọc và chỉ trường đã đổi (buildUpdate). 409 version_conflict: giữ nguyên phần đang
+// gõ, câu báo và nút "Tải lại đơn" (bên gọi dựng lại form từ bản mới).
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Link } from "react-router";
@@ -11,8 +14,10 @@ import {
   getMe,
   getOrderSettings,
   listTrafficSources,
+  updateOrder,
   type CreateOrderRequest,
   type Order,
+  type UpdateOrderRequest,
   type VariantSearchHit,
 } from "../../api";
 import { ApiError, ERROR_MESSAGES, NetworkError, errorMessage, unwrap } from "../../app/errors";
@@ -28,7 +33,9 @@ import { CustomerPicker, type CustomerChoice } from "./CustomerPicker";
 import {
   EMPTY_ADDRESS,
   PENDING_TEXT,
+  addressOf,
   buildRequest,
+  buildUpdate,
   cleanPhone,
   saveBlock,
   warningText,
@@ -50,10 +57,32 @@ export interface OrderFormProps {
   /** Khách chọn sẵn (M4: khách của hội thoại). */
   initialCustomer?: { id: string; code: string; fullName: string };
   /** Gọi một lần khi máy chủ trả đơn đã tạo (201 hay 200 gửi lại). */
-  onCreated: (order: Order) => void;
+  onCreated?: (order: Order) => void;
+  /** Sửa đơn có sẵn thay vì tạo (Task 85). */
+  edit?: OrderEdit;
+}
+
+export interface OrderEdit {
+  /** Đơn như đã đọc lúc mở form (version của nó đi kèm lần lưu). */
+  order: Order;
+  /** Gọi khi máy chủ trả đơn đã sửa. */
+  onSaved: (order: Order) => void;
+  /** Bấm "Tải lại đơn" sau 409 version_conflict: bên gọi đọc lại đơn và dựng lại form. */
+  onReload: () => void;
+}
+
+export const TEXT_VERSION_CONFLICT = "Đơn đã thay đổi, tải lại để xem bản mới.";
+export const TEXT_NO_CHANGE = "Chưa có thay đổi nào để lưu.";
+const TEXT_LOCKED = "Không sửa được ở trạng thái này của đơn.";
+
+interface EditBody {
+  id: string;
+  req: UpdateOrderRequest;
 }
 
 interface LineDraft {
+  /** Dòng đang có của đơn đang sửa. */
+  itemId?: string;
   variantId: string;
   sku: string;
   name: string;
@@ -103,24 +132,53 @@ const STATUS_TEXT: Readonly<Record<string, string>> = {
   draft: "Đơn nháp, hàng đã giữ tới khi hết hạn.",
 };
 
-export function OrderForm({ initialCustomer, onCreated }: OrderFormProps) {
+// Dòng của đơn đang sửa thành dòng nháp của form (giữ đơn giá lúc đặt).
+const draftOf = (o: Order): LineDraft[] =>
+  o.items.map((it) => ({
+    itemId: it.id,
+    variantId: it.variantId,
+    sku: it.sku,
+    name: it.name,
+    option: "",
+    unitPrice: it.unitPrice,
+    available: null,
+    qty: String(it.qty),
+    discount: (it.lineDiscount ?? 0) > 0 ? moneyInput(it.lineDiscount) : "",
+  }));
+
+const moneyOrEmpty = (v: number | undefined) => ((v ?? 0) > 0 ? moneyInput(v) : "");
+
+export function OrderForm({ initialCustomer, onCreated, edit }: OrderFormProps) {
   const id = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const customerRef = useRef<HTMLInputElement>(null);
   const productRef = useRef<HTMLInputElement>(null);
+  const eo = edit?.order;
+  const scope = eo?.editScope;
+  const can = (k: keyof NonNullable<typeof scope>) => eo === undefined || scope?.[k] === true;
   const initial: CustomerChoice | null =
-    initialCustomer === undefined ? null : { kind: "existing", ...initialCustomer };
+    eo !== undefined
+      ? {
+          kind: "existing",
+          id: eo.customer?.id ?? eo.customerId,
+          code: eo.customer?.code ?? "",
+          fullName: eo.customer?.fullName ?? "",
+        }
+      : initialCustomer === undefined
+        ? null
+        : { kind: "existing", ...initialCustomer };
 
   const [customer, setCustomer] = useState<CustomerChoice | null>(initial);
-  const [lines, setLines] = useState<LineDraft[]>([]);
-  const [address, setAddress] = useState(EMPTY_ADDRESS);
+  const [lines, setLines] = useState<LineDraft[]>(() => (eo === undefined ? [] : draftOf(eo)));
+  const [address, setAddress] = useState(() => (eo === undefined ? EMPTY_ADDRESS : addressOf(eo.shipAddress)));
   const [phoneIsCustomers, setPhoneIsCustomers] = useState(true);
-  const [orderDiscount, setOrderDiscount] = useState("");
-  const [ship, setShip] = useState("");
-  const [couponText, setCouponText] = useState("");
-  const [couponCode, setCouponCode] = useState("");
-  const [sourceId, setSourceId] = useState<string | null>(null);
-  const [carrierNote, setCarrierNote] = useState("");
+  const [orderDiscount, setOrderDiscount] = useState(() => moneyOrEmpty(eo?.orderDiscount));
+  const [ship, setShip] = useState(() => (eo === undefined ? "" : moneyInput(eo.shippingFee)));
+  const [couponText, setCouponText] = useState(eo?.couponCode ?? "");
+  const [couponCode, setCouponCode] = useState(eo?.couponCode ?? "");
+  const [sourceId, setSourceId] = useState<string | null>(eo?.trafficSourceId ?? null);
+  const [carrierNote, setCarrierNote] = useState(eo?.carrierNote ?? "");
+  const [lastEdit, setLastEdit] = useState<EditBody | null>(null);
   const [created, setCreated] = useState<Order | null>(null);
   const [lastBody, setLastBody] = useState<CreateOrderRequest | null>(null);
   const [pendingIntent, setPendingIntent] = useState<Intent | null>(null);
@@ -132,6 +190,12 @@ export function OrderForm({ initialCustomer, onCreated }: OrderFormProps) {
     setAttempt(attemptRef.current);
     return unwrap(createOrder({ body, headers: { "Idempotency-Key": key } }));
   });
+  const editWrite = useWriteAction((key, b: EditBody) => {
+    attemptRef.current += 1;
+    setAttempt(attemptRef.current);
+    return unwrap(updateOrder({ path: { id: b.id }, body: b.req, headers: { "Idempotency-Key": key } }));
+  });
+  const w = eo === undefined ? write : editWrite;
 
   const me = useQuery({ queryKey: queryKey("identity.me"), queryFn: () => unwrap(getMe()) });
   const grants = me.data?.grants ?? [];
@@ -147,7 +211,9 @@ export function OrderForm({ initialCustomer, onCreated }: OrderFormProps) {
   });
   const activeSources = (sources.data?.items ?? []).filter((s) => s.active).sort((a, b) => a.position - b.position);
   const defaultSource = activeSources.find((s) => s.key === "manual") ?? activeSources[0];
-  const trafficSourceId = sourceId ?? defaultSource?.id ?? "";
+  // Sửa đơn: đơn chưa có nguồn (đơn đổi hàng do máy chủ tạo) thì ô để trống tới khi người dùng chọn, không tự gán
+  // nguồn mặc định (sẽ thành một thay đổi không ai yêu cầu).
+  const trafficSourceId = sourceId ?? (eo === undefined ? (defaultSource?.id ?? "") : "");
 
   // Số nhập → số tiền; null là ô sai.
   const qtys = lines.map((l) => parseQty(l.qty));
@@ -176,8 +242,10 @@ export function OrderForm({ initialCustomer, onCreated }: OrderFormProps) {
   const customerId = customer?.kind === "existing" ? customer.id : null;
   const phone = cleanPhone(address.phone);
   const phoneOrNull = phone.replace(/\D/g, "").length >= 8 ? phone : null;
-  const coupon = useCouponCheck({ code: couponCode, base, customerId, phone: phoneOrNull });
-  const couponDiscount = coupon.check?.ok === true ? coupon.check.discount : 0;
+  // Sửa đơn giữ mã cũ: không kiểm lại (mã đã dùng cho chính đơn này; máy chủ tính lại khi lưu), hiện số giảm hiện tại.
+  const keepCoupon = eo !== undefined && couponCode === (eo.couponCode ?? "");
+  const coupon = useCouponCheck({ code: keepCoupon ? "" : couponCode, base, customerId, phone: phoneOrNull });
+  const couponDiscount = keepCoupon ? (eo.couponDiscount ?? 0) : coupon.check?.ok === true ? coupon.check.discount : 0;
   const after =
     before.totals === null
       ? before
@@ -193,7 +261,12 @@ export function OrderForm({ initialCustomer, onCreated }: OrderFormProps) {
   const form: FormState = {
     customer:
       customer === null ? null : customer.kind === "new" ? { kind: "new" } : { kind: "existing", id: customer.id },
-    lines: lines.map((l, i) => ({ variantId: l.variantId, qty: qtys[i] ?? 0, lineDiscount: lineDiscounts[i] ?? 0 })),
+    lines: lines.map((l, i) => ({
+      ...(l.itemId === undefined ? {} : { itemId: l.itemId }),
+      variantId: l.variantId,
+      qty: qtys[i] ?? 0,
+      lineDiscount: lineDiscounts[i] ?? 0,
+    })),
     address,
     phoneIsCustomers,
     orderDiscount: orderDiscountN ?? 0,
@@ -205,12 +278,18 @@ export function OrderForm({ initialCustomer, onCreated }: OrderFormProps) {
   };
   const extraBlock = !inputsOk ? TEXT_BAD_MONEY : after.error;
   const block = (intent: Intent) => saveBlock(form, intent) ?? extraBlock;
+  // Sửa đơn: đơn đã xác nhận cần địa chỉ đủ như lúc xác nhận; không đổi gì thì không gửi.
+  const editReq = eo === undefined || scope === undefined ? null : buildUpdate(form, eo, scope);
+  const editBlock =
+    eo === undefined
+      ? null
+      : (block(eo.status === "confirmed" ? "confirmed" : "new") ?? (editReq === null ? TEXT_NO_CHANGE : null));
 
   const variantIds = [...new Set(lines.map((l) => l.variantId))].sort();
   const dupKey = customerId ?? (customer?.kind === "new" ? phoneOrNull : null);
   const duplicates = useQuery({
     queryKey: queryKey(ORDER_TOPIC, "duplicate-check", { customerId, phone: phoneOrNull, variantIds }),
-    enabled: dupKey !== null && variantIds.length > 0,
+    enabled: eo === undefined && dupKey !== null && variantIds.length > 0,
     queryFn: () =>
       unwrap(
         checkOrderDuplicates({
@@ -222,13 +301,13 @@ export function OrderForm({ initialCustomer, onCreated }: OrderFormProps) {
         }),
       ),
   });
-  const dupItems = dupKey !== null && variantIds.length > 0 ? (duplicates.data?.items ?? []) : [];
+  const dupItems = eo === undefined && dupKey !== null && variantIds.length > 0 ? (duplicates.data?.items ?? []) : [];
 
   const manualBP = totals === null ? 0 : manualDiscountBP(totals);
   const thresholdBP = settings.data?.discountApprovalThresholdBp;
   const overThreshold = me.isSuccess && !canApprove && thresholdBP !== undefined && manualBP > thresholdBP;
 
-  const err = write.error;
+  const err = w.error;
   const outOfStock = err instanceof ApiError && err.code === "out_of_stock" ? err : null;
   const errVariant = typeof outOfStock?.details.variantId === "string" ? outOfStock.details.variantId : null;
   // Lỗi coupon_rejected của lần lưu cuối chỉ hiện dưới ô mã tới khi người dùng đổi hay bỏ mã.
@@ -266,10 +345,28 @@ export function OrderForm({ initialCustomer, onCreated }: OrderFormProps) {
     setCreated(r.data);
     setLastBody(null);
     resetForm();
-    onCreated(r.data);
+    onCreated?.(r.data);
+  };
+
+  const sendEdit = async (b: EditBody) => {
+    if (edit === undefined) return;
+    attemptRef.current = 0;
+    setAttempt(0);
+    setPendingIntent("new");
+    setLastEdit(b);
+    const r = await editWrite.run(b);
+    setPendingIntent(null);
+    if (!r.ok) return;
+    setLastEdit(null);
+    edit.onSaved(r.data);
   };
 
   const save = (intent: Intent) => {
+    if (eo !== undefined) {
+      if (editWrite.pending || editBlock !== null || editReq === null) return;
+      void sendEdit({ id: eo.id, req: editReq });
+      return;
+    }
     if (write.pending || block(intent) !== null) return;
     void send(buildRequest(form, intent), intent);
   };
@@ -353,7 +450,7 @@ export function OrderForm({ initialCustomer, onCreated }: OrderFormProps) {
 
   const blockDraft = block("draft");
   const blockConfirm = block("confirmed");
-  const busy = write.pending;
+  const busy = w.pending;
   const btnText = (intent: Intent, label: string) => {
     if (pendingIntent !== intent || !busy) return label;
     const retry = attempt - 1;
@@ -379,6 +476,36 @@ export function OrderForm({ initialCustomer, onCreated }: OrderFormProps) {
       );
     } else if (couponRejected !== null) {
       alert = <div className="box box-err">Chưa lưu đơn: bỏ mã hoặc đổi mã giảm giá rồi lưu lại.</div>;
+    } else if (err instanceof ApiError && err.code === "version_conflict" && edit !== undefined) {
+      alert = (
+        <div className="box box-err">
+          <b>{TEXT_VERSION_CONFLICT}</b> Thay đổi của bạn chưa được lưu và vẫn còn trong ô; chép lại sau khi tải nếu
+          cần.
+          <div className="row" style={{ marginTop: 8 }}>
+            <button type="button" className="btn btn-dark" onClick={edit.onReload}>
+              Tải lại đơn
+            </button>
+          </div>
+        </div>
+      );
+    } else if (outcomeUnknown(err) && lastEdit !== null) {
+      const b = lastEdit;
+      alert = (
+        <div className="box box-err">
+          <b>{`${w.message ?? ""}.`.replace(/\.\.$/, ".")}</b> Chưa chắc đã lưu. Bấm "Gửi lại" sẽ gửi đúng thay đổi cũ.
+          <div className="row" style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className="btn btn-dark"
+              onClick={() => {
+                void sendEdit(b);
+              }}
+            >
+              Gửi lại
+            </button>
+          </div>
+        </div>
+      );
     } else if (outcomeUnknown(err) && lastBody !== null) {
       const body = lastBody;
       alert = (
@@ -399,197 +526,215 @@ export function OrderForm({ initialCustomer, onCreated }: OrderFormProps) {
         </div>
       );
     } else {
-      alert = <div className="box box-err">{write.message}</div>;
+      alert = <div className="box box-err">{w.message}</div>;
     }
   }
 
   return (
     <div className="ld cols" ref={rootRef}>
       <div className="stack">
-        <CustomerPicker value={customer} onChange={pickCustomer} inputRef={customerRef} />
-        <AddressFields
-          value={address}
-          onChange={setAddress}
-          customer={customer}
-          phoneIsCustomers={phoneIsCustomers}
-          onPhoneIsCustomers={setPhoneIsCustomers}
-        />
-        <section className="card" aria-labelledby={`${id}-sp`}>
-          <div className="row-between">
-            <h2 id={`${id}-sp`}>Sản phẩm</h2>
-            <span className="small muted">
-              {lines.length === 0 ? "0 dòng" : `${String(lines.length)} dòng · ${String(itemCount)} món`}
-            </span>
-          </div>
-          <VariantPicker onPick={addLine} inputRef={productRef} canReadStock={canReadStock} />
-          {lines.length === 0 ? (
-            <div className="empty" style={{ marginTop: 12 }}>
-              <p className="muted">Chưa có sản phẩm. Gõ mã hoặc tên ở ô trên, hoặc quét barcode.</p>
+        {eo === undefined ? (
+          <CustomerPicker value={customer} onChange={pickCustomer} inputRef={customerRef} />
+        ) : (
+          <section className="card" aria-labelledby={`${id}-kh`}>
+            <h2 id={`${id}-kh`}>Khách</h2>
+            <p className="bold clamp2">{eo.customer?.fullName ?? ""}</p>
+            <p className="small muted">{eo.customer?.code ?? ""} · Khách của đơn không đổi khi sửa.</p>
+          </section>
+        )}
+        <fieldset className="lock" disabled={!can("address")}>
+          <AddressFields
+            value={address}
+            onChange={setAddress}
+            customer={customer}
+            phoneIsCustomers={phoneIsCustomers}
+            onPhoneIsCustomers={setPhoneIsCustomers}
+          />
+          {!can("address") && <p className="reason">{TEXT_LOCKED}</p>}
+        </fieldset>
+        <fieldset className="lock" disabled={!can("lines")}>
+          <section className="card" aria-labelledby={`${id}-sp`}>
+            <div className="row-between">
+              <h2 id={`${id}-sp`}>Sản phẩm</h2>
+              <span className="small muted">
+                {lines.length === 0 ? "0 dòng" : `${String(lines.length)} dòng · ${String(itemCount)} món`}
+              </span>
             </div>
-          ) : (
-            <div className="tbl-frame" style={{ marginTop: 12 }}>
-              <table className="tbl ltbl">
-                <thead>
-                  <tr>
-                    <th className="c-sp">Sản phẩm</th>
-                    <th className="c-gia r">Đơn giá</th>
-                    <th className="c-sl">Số lượng</th>
-                    <th className="c-giam">Giảm dòng</th>
-                    <th className="c-tt r">Thành tiền</th>
-                    <th className="c-x">
-                      <span className="sr">Bỏ dòng</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lines.map((l, i) => {
-                    const q = qtys[i] ?? null;
-                    const d = lineDiscounts[i] ?? null;
-                    const lt = totals?.lines[i];
-                    const isErr = l.variantId === errVariant;
-                    const avail = isErr
-                      ? errorMessage(err)
-                      : l.available === null
-                        ? null
-                        : `Có thể bán: ${String(l.available)}`;
-                    return (
-                      <tr key={l.variantId} className={isErr ? "is-err" : undefined}>
-                        <td className="c-sp">
-                          <div className="sp">
-                            <span className="code">{[l.sku, l.option].filter(Boolean).join(" · ")}</span>
-                            <span className="nm clamp2">{l.name}</span>
-                            {avail !== null && (
-                              <span
-                                className={
-                                  isErr || (l.available !== null && l.available <= 2) ? "avail is-low" : "avail"
-                                }
+            <VariantPicker onPick={addLine} inputRef={productRef} canReadStock={canReadStock} />
+            {lines.length === 0 ? (
+              <div className="empty" style={{ marginTop: 12 }}>
+                <p className="muted">Chưa có sản phẩm. Gõ mã hoặc tên ở ô trên, hoặc quét barcode.</p>
+              </div>
+            ) : (
+              <div className="tbl-frame" style={{ marginTop: 12 }}>
+                <table className="tbl ltbl">
+                  <thead>
+                    <tr>
+                      <th className="c-sp">Sản phẩm</th>
+                      <th className="c-gia r">Đơn giá</th>
+                      <th className="c-sl">Số lượng</th>
+                      <th className="c-giam">Giảm dòng</th>
+                      <th className="c-tt r">Thành tiền</th>
+                      <th className="c-x">
+                        <span className="sr">Bỏ dòng</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lines.map((l, i) => {
+                      const q = qtys[i] ?? null;
+                      const d = lineDiscounts[i] ?? null;
+                      const lt = totals?.lines[i];
+                      const isErr = l.variantId === errVariant;
+                      const avail = isErr
+                        ? errorMessage(err)
+                        : l.available === null
+                          ? null
+                          : `Có thể bán: ${String(l.available)}`;
+                      return (
+                        <tr key={l.variantId} className={isErr ? "is-err" : undefined}>
+                          <td className="c-sp">
+                            <div className="sp">
+                              <span className="code">{[l.sku, l.option].filter(Boolean).join(" · ")}</span>
+                              <span className="nm clamp2">{l.name}</span>
+                              {avail !== null && (
+                                <span
+                                  className={
+                                    isErr || (l.available !== null && l.available <= 2) ? "avail is-low" : "avail"
+                                  }
+                                >
+                                  {avail}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td data-label="Đơn giá" className="r">
+                            <span className="money">{formatMoney(l.unitPrice)}</span>
+                          </td>
+                          <td data-label="Số lượng">
+                            <span className="stepper">
+                              <button
+                                type="button"
+                                className="ibtn"
+                                aria-label={`Bớt 1 ${l.sku}`}
+                                disabled={q === null || q <= 1}
+                                onClick={() => {
+                                  setLine(i, { qty: String((q ?? 2) - 1) });
+                                }}
                               >
-                                {avail}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td data-label="Đơn giá" className="r">
-                          <span className="money">{formatMoney(l.unitPrice)}</span>
-                        </td>
-                        <td data-label="Số lượng">
-                          <span className="stepper">
-                            <button
-                              type="button"
-                              className="ibtn"
-                              aria-label={`Bớt 1 ${l.sku}`}
-                              disabled={q === null || q <= 1}
-                              onClick={() => {
-                                setLine(i, { qty: String((q ?? 2) - 1) });
-                              }}
-                            >
-                              −
-                            </button>
+                                −
+                              </button>
+                              <input
+                                className={q === null ? "input is-err" : "input"}
+                                inputMode="numeric"
+                                autoComplete="off"
+                                aria-label={`Số lượng ${l.sku}`}
+                                aria-invalid={q === null}
+                                value={l.qty}
+                                onChange={(e) => {
+                                  setLine(i, { qty: e.target.value });
+                                }}
+                                onKeyDown={onNumberKey}
+                              />
+                              <button
+                                type="button"
+                                className="ibtn"
+                                aria-label={`Thêm 1 ${l.sku}`}
+                                disabled={q === null || q >= MAX_QTY}
+                                onClick={() => {
+                                  setLine(i, { qty: String((q ?? 0) + 1) });
+                                }}
+                              >
+                                +
+                              </button>
+                            </span>
+                          </td>
+                          <td data-label="Giảm dòng">
                             <input
-                              className={q === null ? "input is-err" : "input"}
+                              className={d === null ? "input num is-err" : "input num"}
                               inputMode="numeric"
                               autoComplete="off"
-                              aria-label={`Số lượng ${l.sku}`}
-                              aria-invalid={q === null}
-                              value={l.qty}
+                              placeholder="0"
+                              aria-label={`Giảm dòng ${l.sku} (đồng)`}
+                              aria-invalid={d === null}
+                              disabled={!can("discounts")}
+                              value={l.discount}
                               onChange={(e) => {
-                                setLine(i, { qty: e.target.value });
+                                setLine(i, { discount: e.target.value });
+                              }}
+                              onBlur={() => {
+                                if (d !== null && d > 0) setLine(i, { discount: moneyInput(d) });
                               }}
                               onKeyDown={onNumberKey}
                             />
+                          </td>
+                          <td data-label="Thành tiền" className="r">
+                            <span className="money">{lt === undefined ? "—" : formatMoney(lt.base)}</span>
+                          </td>
+                          <td className="c-act">
                             <button
                               type="button"
                               className="ibtn"
-                              aria-label={`Thêm 1 ${l.sku}`}
-                              disabled={q === null || q >= MAX_QTY}
+                              aria-label={`Bỏ dòng ${l.sku}`}
                               onClick={() => {
-                                setLine(i, { qty: String((q ?? 0) + 1) });
+                                setLines((ls) => ls.filter((_, j) => j !== i));
                               }}
                             >
-                              +
+                              ×
                             </button>
-                          </span>
-                        </td>
-                        <td data-label="Giảm dòng">
-                          <input
-                            className={d === null ? "input num is-err" : "input num"}
-                            inputMode="numeric"
-                            autoComplete="off"
-                            placeholder="0"
-                            aria-label={`Giảm dòng ${l.sku} (đồng)`}
-                            aria-invalid={d === null}
-                            value={l.discount}
-                            onChange={(e) => {
-                              setLine(i, { discount: e.target.value });
-                            }}
-                            onBlur={() => {
-                              if (d !== null && d > 0) setLine(i, { discount: moneyInput(d) });
-                            }}
-                            onKeyDown={onNumberKey}
-                          />
-                        </td>
-                        <td data-label="Thành tiền" className="r">
-                          <span className="money">{lt === undefined ? "—" : formatMoney(lt.base)}</span>
-                        </td>
-                        <td className="c-act">
-                          <button
-                            type="button"
-                            className="ibtn"
-                            aria-label={`Bỏ dòng ${l.sku}`}
-                            onClick={() => {
-                              setLines((ls) => ls.filter((_, j) => j !== i));
-                            }}
-                          >
-                            ×
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <p className="hint" style={{ marginTop: 8 }}>
-            Đơn giá lấy giá bán hiện hành, không sửa tay; muốn bớt thì giảm dòng. "Có thể bán" của kho mặc định, đỏ khi
-            còn 1–2. Enter trong ô số lượng chỉ sang ô kế tiếp, không gửi đơn.
-          </p>
-        </section>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <p className="hint" style={{ marginTop: 8 }}>
+              {eo === undefined
+                ? 'Đơn giá lấy giá bán hiện hành, không sửa tay; muốn bớt thì giảm dòng. "Có thể bán" của kho mặc định, đỏ khi còn 1–2. Enter trong ô số lượng chỉ sang ô kế tiếp, không gửi đơn.'
+                : "Dòng đang có giữ giá lúc đặt; dòng thêm mới lấy giá bán hiện hành. Enter trong ô số lượng chỉ sang ô kế tiếp."}
+            </p>
+            {!can("lines") && <p className="reason">{TEXT_LOCKED}</p>}
+          </section>
+        </fieldset>
       </div>
 
       <div className="stack">
-        <TotalsPanel
-          totals={totals}
-          itemCount={itemCount}
-          orderDiscount={orderDiscount}
-          onOrderDiscount={setOrderDiscount}
-          orderDiscountInvalid={orderDiscountN === null}
-          shippingFee={ship}
-          onShippingFee={setShip}
-          shippingFeeInvalid={shipN === null}
-          onEnter={focusNext}
-          error={inputsOk ? after.error : null}
-          coupon={
-            <CouponField
-              text={couponText}
-              onText={(s) => {
-                setCouponText(s);
-                setDismissedErr(couponRejected);
-              }}
-              onCommit={() => {
-                setCouponCode(couponText.trim().toUpperCase());
-              }}
-              onClear={() => {
-                setCouponText("");
-                setCouponCode("");
-                setDismissedErr(couponRejected);
-              }}
-              check={coupon.check}
-              failed={coupon.failed}
-              rejectedReason={rejectedReason}
-            />
-          }
-        />
+        <fieldset className="lock" disabled={!can("discounts") && !can("shipping") && !can("coupon")}>
+          <TotalsPanel
+            totals={totals}
+            itemCount={itemCount}
+            orderDiscount={orderDiscount}
+            onOrderDiscount={setOrderDiscount}
+            orderDiscountInvalid={orderDiscountN === null}
+            shippingFee={ship}
+            onShippingFee={setShip}
+            shippingFeeInvalid={shipN === null}
+            onEnter={focusNext}
+            error={inputsOk ? after.error : null}
+            coupon={
+              <CouponField
+                text={couponText}
+                onText={(s) => {
+                  setCouponText(s);
+                  setDismissedErr(couponRejected);
+                }}
+                onCommit={() => {
+                  setCouponCode(couponText.trim().toUpperCase());
+                }}
+                onClear={() => {
+                  setCouponText("");
+                  setCouponCode("");
+                  setDismissedErr(couponRejected);
+                }}
+                check={coupon.check}
+                failed={coupon.failed}
+                rejectedReason={rejectedReason}
+              />
+            }
+          />
+        </fieldset>
         <section className="card" aria-labelledby={`${id}-tt`}>
           <h2 id={`${id}-tt`}>Thông tin đơn</h2>
           <div className="stack">
@@ -597,11 +742,13 @@ export function OrderForm({ initialCustomer, onCreated }: OrderFormProps) {
               <span>Nguồn đơn *</span>
               <span className="select-wrap">
                 <select
+                  disabled={!can("trafficSource")}
                   value={trafficSourceId}
                   onChange={(e) => {
                     setSourceId(e.target.value);
                   }}
                 >
+                  {eo !== undefined && trafficSourceId === "" && <option value="">Chưa có</option>}
                   {activeSources.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -616,12 +763,17 @@ export function OrderForm({ initialCustomer, onCreated }: OrderFormProps) {
                 className="input"
                 style={{ minHeight: 72 }}
                 maxLength={500}
+                disabled={!can("carrierNote")}
                 value={carrierNote}
                 onChange={(e) => {
                   setCarrierNote(e.target.value);
                 }}
               />
-              <span className="hint">In lên phiếu gửi hãng. Ghi chú nội bộ viết ở trang đơn sau khi lưu.</span>
+              <span className="hint">
+                {eo === undefined
+                  ? "In lên phiếu gửi hãng. Ghi chú nội bộ viết ở trang đơn sau khi lưu."
+                  : "In lên phiếu gửi hãng. Ghi chú nội bộ thêm ở trang đơn."}
+              </span>
             </label>
           </div>
         </section>
@@ -679,52 +831,78 @@ export function OrderForm({ initialCustomer, onCreated }: OrderFormProps) {
           </div>
         )}
 
-        <div className="card stack-sm">
-          <button
-            type="button"
-            className="btn btn-dark btn-wide"
-            disabled={busy || blockConfirm !== null}
-            onClick={() => {
-              save("confirmed");
-            }}
-          >
-            {btnText("confirmed", "Lưu và xác nhận")}
-          </button>
-          <div className="row">
+        {eo !== undefined ? (
+          <div className="card stack-sm">
             <button
               type="button"
-              className="btn btn-line grow"
-              disabled={busy || block("new") !== null}
+              className="btn btn-dark btn-wide"
+              disabled={busy || editBlock !== null}
               onClick={() => {
                 save("new");
               }}
             >
-              {btnText("new", "Lưu (mới)")}
+              {btnText("new", "Lưu thay đổi")}
             </button>
+            {busy && attempt > 1 ? (
+              <p className="reason">Mạng chập chờn. Đang gửi lại đúng thay đổi này, không lưu hai lần.</p>
+            ) : (
+              editBlock !== null && <p className="reason">{editBlock}</p>
+            )}
+            <p className="hint">
+              Ctrl + S hoặc Ctrl + Enter: lưu thay đổi. Giảm tay vượt mức duyệt thì đơn mới, đơn nháp chuyển "Chờ duyệt
+              giảm giá"; đơn đã xác nhận phải nhờ người có quyền duyệt.
+            </p>
+          </div>
+        ) : (
+          <div className="card stack-sm">
             <button
               type="button"
-              className="btn btn-line grow"
-              disabled={busy || blockDraft !== null}
+              className="btn btn-dark btn-wide"
+              disabled={busy || blockConfirm !== null}
               onClick={() => {
-                save("draft");
+                save("confirmed");
               }}
             >
-              {btnText("draft", "Lưu nháp")}
+              {btnText("confirmed", "Lưu và xác nhận")}
             </button>
+            <div className="row">
+              <button
+                type="button"
+                className="btn btn-line grow"
+                disabled={busy || block("new") !== null}
+                onClick={() => {
+                  save("new");
+                }}
+              >
+                {btnText("new", "Lưu (mới)")}
+              </button>
+              <button
+                type="button"
+                className="btn btn-line grow"
+                disabled={busy || blockDraft !== null}
+                onClick={() => {
+                  save("draft");
+                }}
+              >
+                {btnText("draft", "Lưu nháp")}
+              </button>
+            </div>
+            {busy && attempt > 1 ? (
+              <p className="reason">
+                Mạng chập chờn. Đang gửi lại đúng đơn này; dù bấm lại cũng không tạo đơn thứ hai.
+              </p>
+            ) : (
+              (blockDraft ?? blockConfirm) !== null && <p className="reason">{blockDraft ?? blockConfirm}</p>
+            )}
+            <p className="hint">
+              {`Lưu và xác nhận: giữ hàng, đơn "Đã xác nhận". Lưu (mới): giữ hàng, chờ xác nhận sau. Lưu nháp: giữ hàng ${
+                settings.data === undefined
+                  ? "tới khi hết hạn nháp"
+                  : `${percent.format(settings.data.draftTtlMinutes / 60)} giờ`
+              } khi còn thiếu địa chỉ; quá hạn tự hủy và nhả hàng.`}
+            </p>
           </div>
-          {busy && attempt > 1 ? (
-            <p className="reason">Mạng chập chờn. Đang gửi lại đúng đơn này; dù bấm lại cũng không tạo đơn thứ hai.</p>
-          ) : (
-            (blockDraft ?? blockConfirm) !== null && <p className="reason">{blockDraft ?? blockConfirm}</p>
-          )}
-          <p className="hint">
-            {`Lưu và xác nhận: giữ hàng, đơn "Đã xác nhận". Lưu (mới): giữ hàng, chờ xác nhận sau. Lưu nháp: giữ hàng ${
-              settings.data === undefined
-                ? "tới khi hết hạn nháp"
-                : `${percent.format(settings.data.draftTtlMinutes / 60)} giờ`
-            } khi còn thiếu địa chỉ; quá hạn tự hủy và nhả hàng.`}
-          </p>
-        </div>
+        )}
         <div className="card keys-desk">
           <h2>Phím tắt</h2>
           <div className="keys" style={{ marginTop: 12 }}>

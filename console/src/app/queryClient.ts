@@ -44,9 +44,48 @@ export function createQueryClient(): QueryClient {
   });
 }
 
-/** Nối onChanged của createRealtimeClient: tải lại đúng các truy vấn đang mở của chủ đề. */
+/**
+ * meta của một truy vấn (useQuery({ meta })) đổi cách báo hiệu changed của chủ đề tải lại nó (Task 85):
+ * - realtimeEntity: truy vấn của đúng một đối tượng (chi tiết đơn) — chỉ tải lại khi entity.id của báo hiệu khớp;
+ * - realtimeManual: màn tự xử lý báo hiệu qua subscribeChanged (danh sách tải lại từng dòng) — changed không tải lại.
+ * Cả hai vẫn được onRealtimeResync tải lại. Truy vấn không có meta: mọi changed của chủ đề đều tải lại.
+ */
+export interface RealtimeMeta extends Record<string, unknown> {
+  realtimeEntity?: string;
+  realtimeManual?: boolean;
+}
+
+function reloadsOn(meta: Record<string, unknown> | undefined, e: ChangedEvent): boolean {
+  if (meta === undefined) return true;
+  if (meta.realtimeManual === true) return false;
+  const id = meta.realtimeEntity;
+  return typeof id !== "string" || id === e.entity.id;
+}
+
+// Người nghe báo hiệu changed của từng QueryClient (một QueryClient cho cả tab; test tạo nhiều).
+const listeners = new WeakMap<QueryClient, Set<(e: ChangedEvent) => void>>();
+
+/** Nghe mọi báo hiệu changed đi qua onRealtimeChanged của qc; trả hàm hủy. Báo hiệu chỉ là "X vừa đổi": tải lại bằng API. */
+export function subscribeChanged(qc: QueryClient, fn: (e: ChangedEvent) => void): () => void {
+  let set = listeners.get(qc);
+  if (set === undefined) {
+    set = new Set();
+    listeners.set(qc, set);
+  }
+  set.add(fn);
+  return () => {
+    set.delete(fn);
+  };
+}
+
+/** Nối onChanged của createRealtimeClient: tải lại đúng các truy vấn đang mở của chủ đề (theo RealtimeMeta), báo người nghe. */
 export function onRealtimeChanged(qc: QueryClient, e: ChangedEvent): void {
-  void qc.invalidateQueries({ queryKey: [e.topic], refetchType: "active" });
+  void qc.invalidateQueries({
+    queryKey: [e.topic],
+    refetchType: "active",
+    predicate: (q) => reloadsOn(q.meta, e),
+  });
+  for (const fn of [...(listeners.get(qc) ?? [])]) fn(e);
 }
 
 /** Nối onResync của createRealtimeClient: tải lại mọi truy vấn đang mở. */

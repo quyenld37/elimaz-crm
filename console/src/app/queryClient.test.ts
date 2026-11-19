@@ -3,7 +3,16 @@
 import { QueryObserver, type QueryClient, type QueryKey } from "@tanstack/react-query";
 import { afterEach, describe, expect, it } from "vitest";
 import { ApiError, NetworkError } from "./errors";
-import { TOPICS, createQueryClient, onRealtimeChanged, onRealtimeResync, queryKey, shouldRetry } from "./queryClient";
+import {
+  TOPICS,
+  createQueryClient,
+  onRealtimeChanged,
+  onRealtimeResync,
+  queryKey,
+  shouldRetry,
+  subscribeChanged,
+  type RealtimeMeta,
+} from "./queryClient";
 
 const clients: QueryClient[] = [];
 afterEach(() => {
@@ -20,10 +29,10 @@ function harness() {
     return Promise.resolve(k);
   };
   const unsubs: (() => void)[] = [];
-  const watch = async (key: QueryKey) => {
-    const obs = new QueryObserver(qc, { queryKey: key, queryFn: fnFor(key) });
+  const watch = async (key: QueryKey, meta?: RealtimeMeta) => {
+    const obs = new QueryObserver(qc, { queryKey: key, queryFn: fnFor(key), meta });
     unsubs.push(obs.subscribe(() => undefined));
-    await qc.query({ queryKey: key, queryFn: fnFor(key) });
+    await qc.query({ queryKey: key, queryFn: fnFor(key), meta });
   };
   const cache = async (key: QueryKey) => {
     await qc.query({ queryKey: key, queryFn: fnFor(key) });
@@ -77,6 +86,53 @@ describe("onRealtimeChanged", () => {
     onRealtimeChanged(h.qc, { topic: "conversation.message", entity: { type: "message", id: "m" } });
     await h.settle();
     expect(h.count(k)).toBe(c0);
+  });
+});
+
+describe("onRealtimeChanged theo đối tượng (Task 85)", () => {
+  const ORDER = "order.changed";
+  const changed = (id: string) => ({ topic: ORDER, entity: { type: "order", id } });
+
+  it("meta realtimeEntity: chỉ tải lại khi báo hiệu đúng đối tượng; truy vấn không meta vẫn tải lại", async () => {
+    const h = harness();
+    const x = queryKey(ORDER, "detail", "X");
+    const y = queryKey(ORDER, "detail", "Y");
+    const plain = queryKey(ORDER, "duplicates");
+    await h.watch(x, { realtimeEntity: "X" });
+    await h.watch(y, { realtimeEntity: "Y" });
+    await h.watch(plain);
+    const [x0, y0, p0] = [h.count(x), h.count(y), h.count(plain)];
+    onRealtimeChanged(h.qc, changed("X"));
+    await h.settle();
+    expect(h.count(x)).toBe(x0 + 1);
+    expect(h.count(y)).toBe(y0);
+    expect(h.count(plain)).toBe(p0 + 1);
+  });
+
+  it("meta realtimeManual: changed không tải lại (màn tự xử lý), resync vẫn tải lại", async () => {
+    const h = harness();
+    const list = queryKey(ORDER, "list", {});
+    await h.watch(list, { realtimeManual: true });
+    const c0 = h.count(list);
+    onRealtimeChanged(h.qc, changed("X"));
+    await h.settle();
+    expect(h.count(list)).toBe(c0);
+    onRealtimeResync(h.qc);
+    await h.settle();
+    expect(h.count(list)).toBe(c0 + 1);
+  });
+
+  it("subscribeChanged nhận mọi báo hiệu của đúng QueryClient tới khi hủy", () => {
+    const h = harness();
+    const other = createQueryClient();
+    clients.push(other);
+    const got: string[] = [];
+    const off = subscribeChanged(h.qc, (e) => got.push(e.entity.id));
+    onRealtimeChanged(h.qc, changed("X"));
+    onRealtimeChanged(other, changed("Z"));
+    off();
+    onRealtimeChanged(h.qc, changed("Y"));
+    expect(got).toEqual(["X"]);
   });
 });
 
