@@ -26,8 +26,8 @@ func orderEntry(tenantID uuid.UUID) identity.AuditEntry {
 	return identity.AuditEntry{
 		TenantID: tenantID, ActorType: "staff", ActorID: "u-1", Action: "order.confirm",
 		EntityType: "order", EntityID: "o-1",
-		Before: map[string]any{"phone": "0911", "status": "new"},
-		After:  map[string]any{"phone": "0922", "status": "confirmed"},
+		Before: map[string]any{"phone": "0911222333", "status": "new"},
+		After:  map[string]any{"phone": "0922333444", "status": "confirmed"},
 		IP:     "203.0.113.7", RequestID: "req-1",
 	}
 }
@@ -62,7 +62,7 @@ func staffWithOrderAudit(t *testing.T) (*testkit.Staff, uuid.UUID) {
 	return s, a
 }
 
-// Tiêu chí: Before/After có SĐT → changed_fields có phone, status; JSON của dòng không chứa 0911, 0922;
+// Tiêu chí: Before/After có SĐT → changed_fields có phone, status; JSON của dòng không chứa 0911222333, 0922333444;
 // after.status = "confirmed"; các cột khác lưu đúng.
 func TestRecordAuditStoresFieldNamesNotPersonalValues(t *testing.T) {
 	s, a := staffWithOrderAudit(t)
@@ -84,7 +84,7 @@ func TestRecordAuditStoresFieldNamesNotPersonalValues(t *testing.T) {
 	if !slices.Equal(changed, []string{"phone", "status"}) {
 		t.Fatalf("changed_fields = %v, mong [phone status]", changed)
 	}
-	for _, v := range []string{"0911", "0922"} {
+	for _, v := range []string{"0911222333", "0922333444"} {
 		if strings.Contains(rowJSON, v) {
 			t.Fatalf("dòng audit chứa giá trị SĐT %s: %s", v, rowJSON)
 		}
@@ -201,7 +201,7 @@ func TestRecordAuditValidation(t *testing.T) {
 		if !errors.Is(err, identity.ErrInvalidAudit) {
 			t.Errorf("%s: mong ErrInvalidAudit, có %v", name, err)
 		}
-		if err != nil && (strings.Contains(err.Error(), "0911") || strings.Contains(err.Error(), "0922")) {
+		if err != nil && (strings.Contains(err.Error(), "0911222333") || strings.Contains(err.Error(), "0922333444")) {
 			t.Errorf("%s: lỗi chứa giá trị dữ liệu: %v", name, err)
 		}
 	}

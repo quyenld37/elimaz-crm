@@ -1,12 +1,16 @@
 package observability_test
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"elimaz.com.vn/crm/internal/platform/observability"
@@ -137,17 +141,47 @@ func TestDeepHealthFileSync(t *testing.T) {
 	}
 }
 
-// Role crm_filesync: chỉ INSERT vào platform.file_sync_runs. SELECT bảng bất kỳ (kể cả chính bảng đó), UPDATE,
-// DELETE → lỗi quyền (42501).
-func TestFileSyncRole(t *testing.T) {
-	e := newEnv(t)
+// filesyncMember tạo role đăng nhập tạm (tên, mật khẩu ngẫu nhiên) là thành viên của crm_filesync, xóa khi test xong,
+// và trả chuỗi kết nối của nó tới database thử. Role tạm có đúng quyền của crm_filesync (kế thừa) mà không chiếm kết
+// nối duy nhất của crm_filesync (CONNECTION LIMIT 1 tính trên cả máy chủ PostgreSQL chung của mọi phiên test).
+func filesyncMember(t *testing.T, e *env) string {
+	t.Helper()
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		t.Fatal(err)
+	}
+	role, pass := "crm_fs_test_"+hex.EncodeToString(b[:4]), hex.EncodeToString(b)
+	admin := connect(t, e.adminURL)
+	if _, err := admin.Exec(t.Context(), "CREATE ROLE "+role+" LOGIN NOBYPASSRLS INHERIT CONNECTION LIMIT 1 PASSWORD '"+
+		pass+"' IN ROLE crm_filesync"); err != nil {
+		t.Fatal(err)
+	}
+	// Đăng ký trước kết nối của role tạm: Cleanup chạy ngược thứ tự, kết nối đóng rồi mới xóa role.
+	t.Cleanup(func() {
+		c, err := pgx.Connect(context.Background(), e.adminURL)
+		if err != nil {
+			t.Errorf("xóa role %s: %v", role, err)
+			return
+		}
+		defer func() { _ = c.Close(context.Background()) }()
+		if _, err := c.Exec(context.Background(), "DROP ROLE "+role); err != nil {
+			t.Errorf("xóa role %s: %v", role, err)
+		}
+	})
 	u, err := url.Parse(e.adminURL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	u.User = url.UserPassword("crm_filesync", "crm_filesync_dev")
-	c := connect(t, u.String())
-	_, err = c.Exec(t.Context(), `INSERT INTO platform.file_sync_runs (kind, bucket, ok, started_at, finished_at, objects, bytes, detail)
+	u.User = url.UserPassword(role, pass)
+	return u.String()
+}
+
+// Role crm_filesync: chỉ INSERT vào platform.file_sync_runs. SELECT bảng bất kỳ (kể cả chính bảng đó), UPDATE,
+// DELETE → lỗi quyền (42501). Thử bằng role tạm thành viên của crm_filesync (filesyncMember).
+func TestFileSyncRole(t *testing.T) {
+	e := newEnv(t)
+	c := connect(t, filesyncMember(t, e))
+	_, err := c.Exec(t.Context(), `INSERT INTO platform.file_sync_runs (kind, bucket, ok, started_at, finished_at, objects, bytes, detail)
 		VALUES ('copy', 'public', true, now() - interval '1 minute', now(), 3, 30, 'chép 3')`)
 	if err != nil {
 		t.Fatalf("crm_filesync INSERT: %v", err)
@@ -180,12 +214,13 @@ func TestFileSyncRole(t *testing.T) {
 		t.Fatalf("dòng crm_filesync ghi: %d", n)
 	}
 	var limit int
-	var bypass bool
+	var bypass, login bool
 	if err := connect(t, e.adminURL).QueryRow(t.Context(),
-		"SELECT rolconnlimit, rolbypassrls FROM pg_roles WHERE rolname = 'crm_filesync'").Scan(&limit, &bypass); err != nil {
+		"SELECT rolconnlimit, rolbypassrls, rolcanlogin FROM pg_roles WHERE rolname = 'crm_filesync'").
+		Scan(&limit, &bypass, &login); err != nil {
 		t.Fatal(err)
 	}
-	if limit != 1 || bypass {
-		t.Fatalf("crm_filesync: connlimit %d (muốn 1), bypassrls %v", limit, bypass)
+	if limit != 1 || bypass || !login {
+		t.Fatalf("crm_filesync: connlimit %d (muốn 1), bypassrls %v, login %v (muốn true)", limit, bypass, login)
 	}
 }
