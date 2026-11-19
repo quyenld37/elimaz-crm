@@ -13,7 +13,9 @@ kết quả cuối; khóa có phạm vi, giữ 72 giờ, bảng `idempotency_key
 ## Kiểm ở đâu
 
 - 50 lần song song cùng khóa: `TestIdempotencyFiftyParallelSameKey` (internal/httpapi/idempotency_test.go); `TestRetryFiftyParallelOneResult` (tests/e2e/idempotency_test.go);
-  `TestOrderAPI_SameKey50` (internal/httpapi/handlers_order_test.go).
+  `TestOrderAPI_SameKey50` (internal/httpapi/handlers_order_test.go); M2: `TestOrderAPI_CancelSameKey50` (handlers_order_cancel_test.go),
+  khóa nghiệp vụ của đơn sau khi bản ghi chống trùng hết hạn `TestOrderAPI_BusinessKeyAfterExpiry` (handlers_order_m2_test.go),
+  `TestCreate_BusinessKeyReplay` (internal/modules/order/create_m2_test.go).
 - Tiến trình chết sau bước ghi nhận khóa: `TestIdempotencyDeadProcessReclaimedAfterLock` (idempotency_test.go); `TestAcquireReclaimsStaleRunning` (internal/platform/idempotency/idempotency_test.go).
 - "Thử lại" không được phát lại: `TestIdempotencyRetryAnswerNotStored`, `TestIdempotencyRetryLaterNotStored` (internal/httpapi/idempotency_test.go).
 - Cùng khóa khác nội dung → 422: `TestIdempotencySameKeyDifferentBody422`; thiếu khóa → 400: `TestIdempotencyHeaderRules` (internal/httpapi/idempotency_test.go).

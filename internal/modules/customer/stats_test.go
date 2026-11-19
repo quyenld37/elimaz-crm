@@ -353,6 +353,33 @@ func TestStatsFromSource(t *testing.T) {
 	e.expect("A sau order.delivery_reversed", a, wantStats{2, 1, 1, 440000, 5000})
 }
 
+// Review độc lập M2, A-03: gộp B (đã mua, customer) vào gốc A còn lead (tạo tay, chưa đơn) → sau khi tính lại chỉ số,
+// gốc A thành customer (nhóm đã có đơn). Khách lead không đơn nào vẫn là lead sau khi tính lại.
+func TestStatsPromotesRootAfterMerge(t *testing.T) {
+	e := newStatsEnv(t)
+	a, b, c := e.newCustomer("Khách A"), e.newCustomer("Khách B"), e.newCustomer("Khách C")
+	e.delivered(b, 270000)
+	e.feed(true)
+	lifecycle := func(id uuid.UUID) string {
+		var l string
+		e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+			return tx.QueryRow(t.Context(), `SELECT lifecycle FROM customer.customers WHERE id = $1`, id).Scan(&l)
+		})
+		return l
+	}
+	if la, lb := lifecycle(a), lifecycle(b); la != "lead" || lb != "customer" {
+		t.Fatalf("trước gộp: A %s, B %s", la, lb)
+	}
+	e.mergeAndFeed(a, b)
+	if l := lifecycle(a); l != "customer" {
+		t.Errorf("gốc A sau gộp: %s, mong customer", l)
+	}
+	e.app(func(tx pgx.Tx) error { return e.cw.RecomputeStats(t.Context(), tx, c, e.now) })
+	if l := lifecycle(c); l != "lead" {
+		t.Errorf("C không đơn sau tính lại: %s, mong lead", l)
+	}
+}
+
 // Consumer: payload hỏng hay khách không có → lỗi vĩnh viễn; chạy lại cùng sự kiện cho cùng kết quả.
 func TestStatsConsumerPayload(t *testing.T) {
 	e := newStatsEnv(t)

@@ -111,3 +111,5 @@ Thêm một dòng mỗi khi chủ shop hoặc reviewer phải sửa cùng một 
 - Mục Ảnh hưởng, bảng bằng chứng: số ca, tên test, tên hàm phải khớp mã thật; reviewer đối chiếu từng dòng.
 - Màn hình: chỉ vẽ hành vi mà máy chủ thật sự làm (quyền, chặn, lỗi); ca lỗi của API có trạng thái hiện riêng; mock trong test khớp quyền thật.
 - Lỗi pgx tạm thời (57014, 57P01, 57P03, 53300, lỗi lúc nối): phân loại đúng là tạm thời, có test.
+- Màn hình đọc dữ liệu phân trang: còn `nextCursor` thì chưa được coi là "hết"/"0" (Task 84); sửa (PATCH) chỉ gửi trường người dùng đổi (Task 85).
+- Test không lấy một route, một ca "chưa làm" cụ thể của mã thật làm mẫu (gãy khi task khác làm nó): dò tự động hoặc dùng handler giả (Task 69, 82, 427).

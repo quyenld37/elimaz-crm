@@ -33,7 +33,7 @@ func (UnimplementedHandler) AddAttributeValue(ctx context.Context, req *AddAttri
 
 // AddCustomerAddress implements addCustomerAddress operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Thêm địa chỉ giao cho khách; mã tỉnh, xã kiểm theo danh mục (Task M2-09).
 //
 // POST /api/v1/customers/{id}/addresses
 func (UnimplementedHandler) AddCustomerAddress(ctx context.Context, req *CustomerAddressInput, params AddCustomerAddressParams) (r AddCustomerAddressRes, _ error) {
@@ -42,7 +42,8 @@ func (UnimplementedHandler) AddCustomerAddress(ctx context.Context, req *Custome
 
 // AddCustomerIdentity implements addCustomerIdentity operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Thêm danh tính (SĐT, email, Zalo) cho khách; đã thuộc khách khác → 409 identity_taken
+// (Task M2-09).
 //
 // POST /api/v1/customers/{id}/identities
 func (UnimplementedHandler) AddCustomerIdentity(ctx context.Context, req *AddCustomerIdentityRequest, params AddCustomerIdentityParams) (r AddCustomerIdentityRes, _ error) {
@@ -51,7 +52,7 @@ func (UnimplementedHandler) AddCustomerIdentity(ctx context.Context, req *AddCus
 
 // AddCustomerNote implements addCustomerNote operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Thêm ghi chú về khách (chỉ ghi thêm) (Task M2-12).
 //
 // POST /api/v1/customers/{id}/notes
 func (UnimplementedHandler) AddCustomerNote(ctx context.Context, req *AddCustomerNoteRequest, params AddCustomerNoteParams) (r AddCustomerNoteRes, _ error) {
@@ -60,7 +61,7 @@ func (UnimplementedHandler) AddCustomerNote(ctx context.Context, req *AddCustome
 
 // AddCustomerTag implements addCustomerTag operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Gắn nhãn vào gốc của khách; đã có thì không đổi gì (Task M2-12).
 //
 // PUT /api/v1/customers/{id}/tags/{tagId}
 func (UnimplementedHandler) AddCustomerTag(ctx context.Context, params AddCustomerTagParams) (r AddCustomerTagRes, _ error) {
@@ -69,7 +70,7 @@ func (UnimplementedHandler) AddCustomerTag(ctx context.Context, params AddCustom
 
 // AddOrderNote implements addOrderNote operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Thêm ghi chú nội bộ của đơn (không gửi hãng) (Task M2-24).
 //
 // POST /api/v1/orders/{id}/notes
 func (UnimplementedHandler) AddOrderNote(ctx context.Context, req *AddOrderNoteRequest, params AddOrderNoteParams) (r AddOrderNoteRes, _ error) {
@@ -112,7 +113,7 @@ func (UnimplementedHandler) ApplyStocktake(ctx context.Context, req *VersionRequ
 
 // ApproveOrderDiscount implements approveOrderDiscount operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Duyệt giảm giá vượt ngưỡng (Q3) (Task M2-19).
 //
 // POST /api/v1/orders/{id}/approve-discount
 func (UnimplementedHandler) ApproveOrderDiscount(ctx context.Context, req *VersionRequest, params ApproveOrderDiscountParams) (r ApproveOrderDiscountRes, _ error) {
@@ -152,7 +153,8 @@ func (UnimplementedHandler) AttachProductImage(ctx context.Context, req *AttachP
 
 // CancelOrder implements cancelOrder operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Hủy đơn (nhả hàng, trả lượt mã theo Q2); đơn đã gửi hãng → Đang yêu cầu
+// hủy (Task M2-21).
 //
 // POST /api/v1/orders/{id}/cancel
 func (UnimplementedHandler) CancelOrder(ctx context.Context, req *CancelOrderRequest, params CancelOrderParams) (r CancelOrderRes, _ error) {
@@ -199,7 +201,8 @@ func (UnimplementedHandler) CheckCoupon(ctx context.Context, params CheckCouponP
 
 // CheckOrderDuplicates implements checkOrderDuplicates operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Kiểm trước ở form: đơn có thể trùng (cùng khách hay cùng SĐT, có biến thể
+// chung, trong cửa sổ cài đặt); chỉ cảnh báo (Task M2-23).
 //
 // GET /api/v1/order-duplicate-check
 func (UnimplementedHandler) CheckOrderDuplicates(ctx context.Context, params CheckOrderDuplicatesParams) (r CheckOrderDuplicatesRes, _ error) {
@@ -227,7 +230,8 @@ func (UnimplementedHandler) CompleteUpload(ctx context.Context, params CompleteU
 
 // ConfirmOrder implements confirmOrder operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Xác nhận đơn mới hoặc chốt đơn nháp (cần địa chỉ đủ); chờ duyệt giảm
+// giá → 422 needs_approval (Task M2-19).
 //
 // POST /api/v1/orders/{id}/confirm
 func (UnimplementedHandler) ConfirmOrder(ctx context.Context, req *VersionRequest, params ConfirmOrderParams) (r ConfirmOrderRes, _ error) {
@@ -285,7 +289,7 @@ func (UnimplementedHandler) CreateCouponBatch(ctx context.Context, req *CreateCo
 
 // CreateCustomer implements createCustomer operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Tạo khách (Task M2-09); SĐT đã thuộc khách khác → 409 identity_taken kèm ownerId.
 //
 // POST /api/v1/customers
 func (UnimplementedHandler) CreateCustomer(ctx context.Context, req *CreateCustomerRequest, params CreateCustomerParams) (r CreateCustomerRes, _ error) {
@@ -294,7 +298,7 @@ func (UnimplementedHandler) CreateCustomer(ctx context.Context, req *CreateCusto
 
 // CreateCustomerTag implements createCustomerTag operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Tạo nhãn khách (tên không trùng) (Task M2-12).
 //
 // POST /api/v1/customer-tags
 func (UnimplementedHandler) CreateCustomerTag(ctx context.Context, req *CreateCustomerTagRequest, params CreateCustomerTagParams) (r CreateCustomerTagRes, _ error) {
@@ -305,13 +309,12 @@ func (UnimplementedHandler) CreateCustomerTag(ctx context.Context, req *CreateCu
 //
 // Thân kiểu M1 (không intent, có customer.fullName, shipAddress name/phone/line) tạo thẳng
 // đơn Đã xác nhận như M1. Trường M2 (customerId, intent, giảm giá, mã, nguồn, ghi
-// chú hãng, người phụ trách, mã tỉnh/xã…) có nghiệp vụ từ Task M2-16, M2-17;
-// trước đó gửi trường M2 → 501 not_implemented. Đúng một trong customerId, customer
-// (sai → 400 invalid_input). Khóa nghiệp vụ của đơn dựng từ Idempotency-Key và nhân
-// viên (Q-T57-4); cùng khóa nghiệp vụ, cùng nội dung sau khi bản ghi chống trùng hết
-// hạn → 200 trả đơn đã có. Kho giữ hàng (warehouseId, bỏ trống là kho chính)
-// ngoài phạm vi order.create của người gọi → 403 forbidden, không lưu theo khóa (Task
-// 411).
+// chú hãng, người phụ trách, mã tỉnh/xã…) có nghiệp vụ từ Task M2-16, M2-17.
+// Đúng một trong customerId, customer (sai → 400 invalid_input). Khóa nghiệp vụ của đơn
+// dựng từ Idempotency-Key và nhân viên (Q-T57-4); cùng khóa nghiệp vụ, cùng nội dung
+// sau khi bản ghi chống trùng hết hạn → 200 trả đơn đã có. Kho giữ hàng
+// (warehouseId, bỏ trống là kho chính) ngoài phạm vi order.create của người gọi →
+// 403 forbidden, không lưu theo khóa (Task 411).
 //
 // POST /api/v1/orders
 func (UnimplementedHandler) CreateOrder(ctx context.Context, req *CreateOrderRequest, params CreateOrderParams) (r CreateOrderRes, _ error) {
@@ -416,7 +419,7 @@ func (UnimplementedHandler) CreateUpload(ctx context.Context, req *CreateUploadR
 
 // DeleteCustomerAddress implements deleteCustomerAddress operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Xóa mềm một địa chỉ (Task M2-09).
 //
 // DELETE /api/v1/customers/{id}/addresses/{addressId}
 func (UnimplementedHandler) DeleteCustomerAddress(ctx context.Context, params DeleteCustomerAddressParams) (r DeleteCustomerAddressRes, _ error) {
@@ -472,7 +475,8 @@ func (UnimplementedHandler) GetCouponBatch(ctx context.Context, params GetCoupon
 
 // GetCustomer implements getCustomer operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Hồ sơ khách theo gốc: mọi hồ sơ con, danh tính, địa chỉ, nhãn, chỉ số của
+// gốc (Task M2-09).
 //
 // GET /api/v1/customers/{id}
 func (UnimplementedHandler) GetCustomer(ctx context.Context, params GetCustomerParams) (r GetCustomerRes, _ error) {
@@ -481,7 +485,8 @@ func (UnimplementedHandler) GetCustomer(ctx context.Context, params GetCustomerP
 
 // GetCustomerImport implements getCustomerImport operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Trạng thái, số đếm và lỗi từng dòng (không giá trị) của một lần nhập
+// khách (Task M2-13).
 //
 // GET /api/v1/customer-imports/{importId}
 func (UnimplementedHandler) GetCustomerImport(ctx context.Context, params GetCustomerImportParams) (r GetCustomerImportRes, _ error) {
@@ -490,7 +495,7 @@ func (UnimplementedHandler) GetCustomerImport(ctx context.Context, params GetCus
 
 // GetCustomerImportTemplate implements getCustomerImportTemplate operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Tải tệp mẫu Excel nhập khách (Task M2-13).
 //
 // GET /api/v1/customer-imports/template
 func (UnimplementedHandler) GetCustomerImportTemplate(ctx context.Context) (r GetCustomerImportTemplateRes, _ error) {
@@ -508,7 +513,7 @@ func (UnimplementedHandler) GetCustomerTagRule(ctx context.Context, params GetCu
 
 // GetCustomerTimeline implements getCustomerTimeline operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Dòng thời gian của cả nhóm khách: đơn, đổi trạng thái, ghi chú, gộp (Task M2-12).
 //
 // GET /api/v1/customers/{id}/timeline
 func (UnimplementedHandler) GetCustomerTimeline(ctx context.Context, params GetCustomerTimelineParams) (r GetCustomerTimelineRes, _ error) {
@@ -555,7 +560,8 @@ func (UnimplementedHandler) GetOrderSettings(ctx context.Context) (r GetOrderSet
 
 // GetOrderTimeline implements getOrderTimeline operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Lịch sử thao tác của đơn: đổi trạng thái, tên trường đã sửa (không giá
+// trị dữ liệu cá nhân), ghi chú (Task M2-24).
 //
 // GET /api/v1/orders/{id}/timeline
 func (UnimplementedHandler) GetOrderTimeline(ctx context.Context, params GetOrderTimelineParams) (r GetOrderTimelineRes, _ error) {
@@ -726,7 +732,8 @@ func (UnimplementedHandler) ListCoupons(ctx context.Context, params ListCouponsP
 
 // ListCustomerMergeCandidates implements listCustomerMergeCandidates operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Gợi ý "có thể là cùng một khách" theo SĐT trùng; không bao giờ tự gộp (Task
+// M2-11).
 //
 // GET /api/v1/customers/{id}/merge-candidates
 func (UnimplementedHandler) ListCustomerMergeCandidates(ctx context.Context, params ListCustomerMergeCandidatesParams) (r ListCustomerMergeCandidatesRes, _ error) {
@@ -735,7 +742,7 @@ func (UnimplementedHandler) ListCustomerMergeCandidates(ctx context.Context, par
 
 // ListCustomerTags implements listCustomerTags operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Mọi nhãn khách của shop (Task M2-12).
 //
 // GET /api/v1/customer-tags
 func (UnimplementedHandler) ListCustomerTags(ctx context.Context) (r ListCustomerTagsRes, _ error) {
@@ -744,7 +751,8 @@ func (UnimplementedHandler) ListCustomerTags(ctx context.Context) (r ListCustome
 
 // ListCustomers implements listCustomers operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Danh sách khách gốc: q rỗng → mới nhất trước; q là mã khách, SĐT (đủ hay
+// đuôi), hoặc tên (Task M2-10); tagId lọc nhóm có nhãn.
 //
 // GET /api/v1/customers
 func (UnimplementedHandler) ListCustomers(ctx context.Context, params ListCustomersParams) (r ListCustomersRes, _ error) {
@@ -772,7 +780,7 @@ func (UnimplementedHandler) ListLostFiles(ctx context.Context, params ListLostFi
 
 // ListOrderDuplicates implements listOrderDuplicates operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Cặp đơn nghi trùng chưa xử lý, mới nhất trước (Task M2-23).
 //
 // GET /api/v1/order-duplicates
 func (UnimplementedHandler) ListOrderDuplicates(ctx context.Context, params ListOrderDuplicatesParams) (r ListOrderDuplicatesRes, _ error) {
@@ -781,7 +789,8 @@ func (UnimplementedHandler) ListOrderDuplicates(ctx context.Context, params List
 
 // ListOrders implements listOrders operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Danh sách đơn, mới nhất trước, keyset; lọc theo nhãn, trạng thái, nguồn, người
+// phụ trách, khách (cả nhóm), ngày, q (Task M2-24).
 //
 // GET /api/v1/orders
 func (UnimplementedHandler) ListOrders(ctx context.Context, params ListOrdersParams) (r ListOrdersRes, _ error) {
@@ -904,7 +913,8 @@ func (UnimplementedHandler) LockStaff(ctx context.Context, params LockStaffParam
 
 // MergeCustomer implements mergeCustomer operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Gộp nhóm của mergedId vào nhóm của khách id (Task M2-11); đã cùng gốc → 422
+// merge_same_customer.
 //
 // POST /api/v1/customers/{id}/merge
 func (UnimplementedHandler) MergeCustomer(ctx context.Context, req *MergeCustomerRequest, params MergeCustomerParams) (r MergeCustomerRes, _ error) {
@@ -962,7 +972,7 @@ func (UnimplementedHandler) RegenerateImages(ctx context.Context, req *Regenerat
 
 // RemoveCustomerIdentity implements removeCustomerIdentity operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Gỡ một danh tính của khách (không gỡ fb_psid: M4 quản) (Task M2-09).
 //
 // DELETE /api/v1/customers/{id}/identities/{identityId}
 func (UnimplementedHandler) RemoveCustomerIdentity(ctx context.Context, params RemoveCustomerIdentityParams) (r RemoveCustomerIdentityRes, _ error) {
@@ -971,7 +981,7 @@ func (UnimplementedHandler) RemoveCustomerIdentity(ctx context.Context, params R
 
 // RemoveCustomerTag implements removeCustomerTag operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Gỡ nhãn gắn tay khỏi khách (nhãn theo quy tắc do quy tắc quản) (Task M2-12).
 //
 // DELETE /api/v1/customers/{id}/tags/{tagId}
 func (UnimplementedHandler) RemoveCustomerTag(ctx context.Context, params RemoveCustomerTagParams) (r RemoveCustomerTagRes, _ error) {
@@ -1009,7 +1019,8 @@ func (UnimplementedHandler) ReplaceStockDocumentLines(ctx context.Context, req *
 
 // ResolveOrderDuplicate implements resolveOrderDuplicate operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Xử lý một cặp nghi trùng: không trùng, hoặc hủy một đơn (lý do duplicate); không
+// tự hủy (Task M2-23).
 //
 // POST /api/v1/order-duplicates/{orderId}/{otherOrderId}/resolve
 func (UnimplementedHandler) ResolveOrderDuplicate(ctx context.Context, req *ResolveOrderDuplicateRequest, params ResolveOrderDuplicateParams) (r ResolveOrderDuplicateRes, _ error) {
@@ -1047,7 +1058,7 @@ func (UnimplementedHandler) SearchVariants(ctx context.Context, params SearchVar
 
 // SetOrderPending implements setOrderPending operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Đặt hoặc bỏ lý do chờ của đơn mới (chờ khách, hết hàng) (Task M2-19).
 //
 // POST /api/v1/orders/{id}/pending
 func (UnimplementedHandler) SetOrderPending(ctx context.Context, req *SetOrderPendingRequest, params SetOrderPendingParams) (r SetOrderPendingRes, _ error) {
@@ -1077,7 +1088,8 @@ func (UnimplementedHandler) SetProductImageColor(ctx context.Context, req *SetPr
 
 // StartCustomerImport implements startCustomerImport operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Nhập khách từ tệp Excel đã tải lên (mục đích customer_import); chạy nền; tệp
+// sai → 422 import_file_invalid (Task M2-13).
 //
 // POST /api/v1/customer-imports
 func (UnimplementedHandler) StartCustomerImport(ctx context.Context, req *StartCustomerImportRequest, params StartCustomerImportParams) (r StartCustomerImportRes, _ error) {
@@ -1105,7 +1117,8 @@ func (UnimplementedHandler) Stream(ctx context.Context) (r StreamRes, _ error) {
 
 // UndoCustomerMerge implements undoCustomerMerge operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Hoàn tác một lần gộp trong 30 ngày khi còn là lần gần nhất (Q14); không thì 409
+// merge_not_latest kèm blockingMergeId (Task M2-11).
 //
 // POST /api/v1/customer-merges/{mergeId}/undo
 func (UnimplementedHandler) UndoCustomerMerge(ctx context.Context, params UndoCustomerMergeParams) (r UndoCustomerMergeRes, _ error) {
@@ -1143,7 +1156,7 @@ func (UnimplementedHandler) UpdateCoupon(ctx context.Context, req *UpdateCouponR
 
 // UpdateCustomer implements updateCustomer operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Sửa hồ sơ khách khi version còn khớp (Task M2-09).
 //
 // PATCH /api/v1/customers/{id}
 func (UnimplementedHandler) UpdateCustomer(ctx context.Context, req *UpdateCustomerRequest, params UpdateCustomerParams) (r UpdateCustomerRes, _ error) {
@@ -1152,7 +1165,7 @@ func (UnimplementedHandler) UpdateCustomer(ctx context.Context, req *UpdateCusto
 
 // UpdateCustomerAddress implements updateCustomerAddress operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Sửa địa chỉ khi version còn khớp (Task M2-09).
 //
 // PATCH /api/v1/customers/{id}/addresses/{addressId}
 func (UnimplementedHandler) UpdateCustomerAddress(ctx context.Context, req *UpdateCustomerAddressRequest, params UpdateCustomerAddressParams) (r UpdateCustomerAddressRes, _ error) {
@@ -1161,7 +1174,7 @@ func (UnimplementedHandler) UpdateCustomerAddress(ctx context.Context, req *Upda
 
 // UpdateCustomerTag implements updateCustomerTag operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Đổi tên, màu nhãn khi version còn khớp (Task M2-12).
 //
 // PATCH /api/v1/customer-tags/{tagId}
 func (UnimplementedHandler) UpdateCustomerTag(ctx context.Context, req *UpdateCustomerTagRequest, params UpdateCustomerTagParams) (r UpdateCustomerTagRes, _ error) {
@@ -1170,7 +1183,8 @@ func (UnimplementedHandler) UpdateCustomerTag(ctx context.Context, req *UpdateCu
 
 // UpdateOrder implements updateOrder operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Sửa đơn khi version còn khớp: dòng, giảm giá, mã, phí, địa chỉ, ghi chú hãng,
+// người phụ trách, nguồn (Task M2-20); đã gửi hãng → 409 order_locked_by_shipment.
 //
 // PATCH /api/v1/orders/{id}
 func (UnimplementedHandler) UpdateOrder(ctx context.Context, req *UpdateOrderRequest, params UpdateOrderParams) (r UpdateOrderRes, _ error) {

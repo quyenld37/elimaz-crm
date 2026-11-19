@@ -528,6 +528,43 @@ func TestCheck(t *testing.T) {
 	}
 }
 
+// Mutation M2-32 (redeem.go:278 `&&` → `||`): mã không giới hạn lượt mỗi khách, kiểm cho một khách có thật → áp được,
+// không đọc lượt của khách (không panic vì PerCustomerLimit nil).
+func TestCheck_NoPerCustomerLimit(t *testing.T) {
+	e := newEnv(t)
+	code := e.code(e.coupon(spec{maxUses: ptr(int32(3))}))
+	var r promotion.CheckResult
+	if err := e.app(func(tx pgx.Tx) error {
+		var err error
+		r, err = promotion.Check(e.t.Context(), tx, code, e.input(e.customer(), 400000))
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !r.OK || r.Discount != 40000 || r.RemainingUses == nil || *r.RemainingUses != 3 {
+		t.Fatalf("Check = %+v", r)
+	}
+}
+
+// Mutation M2-32 (manage.go:130): lượt còn của mã = tối đa − đã dùng, không âm; không giới hạn → nil.
+func TestRemainingUses(t *testing.T) {
+	for _, c := range []struct {
+		max  *int32
+		used int32
+		want *int32
+	}{
+		{ptr(int32(5)), 2, ptr(int32(3))},
+		{ptr(int32(2)), 2, ptr(int32(0))},
+		{ptr(int32(1)), 3, ptr(int32(0))},
+		{nil, 7, nil},
+	} {
+		got := promotion.Coupon{MaxUses: c.max, UsedCount: c.used}.RemainingUses()
+		if (got == nil) != (c.want == nil) || (got != nil && *got != *c.want) {
+			t.Errorf("RemainingUses(max %v, used %d) = %v, mong %v", c.max, c.used, got, c.want)
+		}
+	}
+}
+
 func TestSchema_UsedCountCheck(t *testing.T) {
 	e := newEnv(t)
 	id := e.coupon(spec{maxUses: ptr(int32(1))})

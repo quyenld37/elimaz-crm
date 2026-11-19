@@ -273,6 +273,80 @@ crm_filesync;` (database thử của `internal/testkit` tự tạo role này, m�
   `delivered` → đơn `delivered` ~0,5 s; sổ COD `carrier_holding 530000`, `to_collect 0`, `sales_clearing −530000`, tổng 0;
   tồn còn 3, giữ 0, đang giao 0. Staging: chưa chạy (cần chủ shop OK và service token).
 
+## Đơn, khách, mã giảm giá (M2; Task M2-32)
+
+Mọi câu dưới đây chạy bằng `psql` với role chủ bảng trong một transaction có `SET LOCAL app.tenant_id = '<mã tenant>'`
+(RLS áp cả cho chủ bảng: thiếu dòng này thì ra 0 dòng mà không lỗi). Chỉ đọc; sửa dữ liệu đi qua API hay task riêng.
+
+**Đơn kẹt `cancel_requested`.** Đơn đã gửi hãng mà nhân viên hủy thì chờ hãng trả lời (TD03); chỉ đường của hãng
+(`OnShipmentCancelConfirmed` → `cancelled`, `OnShipmentCancelRejected` → `confirmed`) đưa đơn ra khỏi trạng thái này,
+nút Hủy trả `invalid_transition`. Tìm đơn chờ quá 24 giờ:
+
+```sql
+SELECT id, code, current_shipment_id, updated_at FROM ord.orders
+WHERE status = 'cancel_requested' AND updated_at < now() - interval '24 hours' ORDER BY updated_at;
+```
+
+Đơn có `current_shipment_id`: xem vận đơn đó ở `fulfillment.shipments` và lệnh hủy gửi hãng (`platform.commands`, M3);
+lệnh `in_doubt` thì hỏi hãng rồi xử lý theo mục "Đọc cảnh báo". Đơn **không** còn vận đơn hiện hành mà vẫn
+`cancel_requested` là lỗi dữ liệu (review độc lập M2, B-02, task bù 431): không sửa tay, báo người làm task.
+
+**Đơn nháp không tự hủy.** Lịch `order.expire_drafts` chạy mỗi 60 giây cho từng tenant, mỗi lượt tối đa một lô đơn:
+
+```sql
+SELECT name, next_run_at, last_enqueued_at FROM platform.schedules WHERE name = 'order.expire_drafts';
+SELECT status, count(*), max(finished_at) FROM platform.jobs WHERE kind = 'order.expire_drafts'
+  AND created_at > now() - interval '1 hour' GROUP BY status;
+SELECT count(*) FROM ord.orders WHERE status = 'draft' AND draft_expires_at < now() - interval '5 minutes';
+```
+
+`last_enqueued_at` cũ hơn vài phút: tiến trình `worker` không chạy hay không nhận lịch (xem "Đọc cảnh báo"). Việc
+`dead`: đọc lỗi trong `platform.jobs.last_error`, thử lại qua `POST /api/v1/platform/jobs/{id}/retry`.
+
+**Lệch `used_count` của mã.** `used_count` phải bằng số lượt đang hiệu lực (`coupon_redemptions.status = 'active'`);
+lượt mỗi khách (`coupon_customer_uses.used`) bằng số lượt đang hiệu lực của khách đó. Câu đối chiếu (0 dòng là đúng):
+
+```sql
+SELECT c.id, c.code, c.used_count, count(r.id) FILTER (WHERE r.status = 'active') AS active
+FROM promotion.coupons c LEFT JOIN promotion.coupon_redemptions r ON r.coupon_id = c.id
+GROUP BY c.id HAVING c.used_count <> count(r.id) FILTER (WHERE r.status = 'active');
+
+SELECT u.coupon_id, u.customer_id, u.used, count(r.id) FILTER (WHERE r.status = 'active') AS active
+FROM promotion.coupon_customer_uses u LEFT JOIN promotion.coupon_redemptions r
+  ON r.coupon_id = u.coupon_id AND r.customer_id = u.customer_id
+GROUP BY u.coupon_id, u.customer_id, u.used HAVING u.used <> count(r.id) FILTER (WHERE r.status = 'active');
+```
+
+Có dòng lệch: không `UPDATE` tay (crm_app chỉ được đổi qua `Redeem`/`Release`); ghi lại mã, giờ, các đơn liên quan và
+mở task sửa. Lưu ý: sau khi gộp khách, lượt mỗi khách đang tính theo hồ sơ gốc lúc dùng (review độc lập M2, A-02, task
+bù 430) nên câu thứ hai có thể lệch theo nhóm mà không phải lỗi đếm.
+
+**Hoàn tác gộp bị chặn.** `merge_not_latest`: nhóm đã có lần gộp mới hơn — hoàn tác lần mới nhất trước, theo thứ tự
+ngược. `merge_window_expired`: quá 30 ngày, không hoàn tác được; tách hồ sơ là việc tay của chủ shop (chuyển đơn sai về
+hồ sơ đúng không có ở M2). Xem chuỗi gộp của một hồ sơ:
+
+```sql
+SELECT id, survivor_id, merged_id, cardinality(moved_ids) AS so_ho_so, matched_by, created_at, undone_at
+FROM customer.customer_merges WHERE survivor_id = '<mã>' OR merged_id = '<mã>' ORDER BY created_at DESC;
+```
+
+**Chỉ số khách sai** (số đơn, tổng chi, tỷ lệ hoàn). Chỉ số luôn tính lại toàn bộ từ `ord.orders_v`, `ord.returns_v`
+của mọi hồ sơ trong nhóm (consumer `customer_stats`), nên sai thường do việc của consumer chưa chạy hay chết:
+
+```sql
+SELECT status, count(*), max(finished_at) FROM platform.jobs WHERE kind = 'event.customer_stats'
+  AND created_at > now() - interval '1 day' GROUP BY status;
+```
+
+Việc `dead` của đúng khách: thử lại qua `POST /api/v1/platform/jobs/{id}/retry` (tính lại cho gốc hiện tại). Chưa có
+lệnh chạy lại cho một gốc bất kỳ khi không có việc lỗi (task bù 434); tạm thời mọi thao tác đổi trạng thái đơn của
+khách đó (hay gộp, hoàn tác) đều kích tính lại.
+
+**Pha thu hẹp sau khi bản M2 chạy ổn trên staging (Q30).** Lớp bọc M1 `customer.Create(ctx, tx, fullName)` (gọi
+`CreateCustomer` với nguồn `staff`, người làm `system`) còn để giữ chữ ký M1; khi `grep -rn "customer.Create(" internal
+cmd` không còn chỗ gọi ngoài test thì xóa trong một task thu hẹp (cùng test của nó). Mã đơn và mã phiếu trả dùng
+sequence (`ord.order_code_seq`, `ord.return_code_seq`), không có bảng bộ đếm phải xóa (R2).
+
 ## Chạy dev ba vai trò (Task 3, Task 21; soát lại ở Task 23)
 
 - `make db-up` dựng PostgreSQL 18, Jaeger, SeaweedFS (kho chính, kho ngoài giả). Phiên song song: đặt

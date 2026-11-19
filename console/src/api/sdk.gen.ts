@@ -562,15 +562,13 @@ export const cancelStockDocument = <ThrowOnError extends boolean = false>(option
 
 /**
  * Danh sách đơn, mới nhất trước, keyset; lọc theo nhãn, trạng thái, nguồn, người phụ trách, khách (cả nhóm), ngày, q (Task M2-24)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const listOrders = <ThrowOnError extends boolean = false>(options?: Options<ListOrdersData, ThrowOnError>): RequestResult<ListOrdersResponses, ListOrdersErrors, ThrowOnError> => (options?.client ?? client).get<ListOrdersResponses, ListOrdersErrors, ThrowOnError>({ url: '/api/v1/orders', ...options });
 
 /**
  * Lên đơn (M1, mở rộng ở M2) — tạo khách mới hoặc dùng khách có sẵn, đơn và giữ hàng cùng transaction
  *
- * Thân kiểu M1 (không intent, có customer.fullName, shipAddress name/phone/line) tạo thẳng đơn Đã xác nhận như M1. Trường M2 (customerId, intent, giảm giá, mã, nguồn, ghi chú hãng, người phụ trách, mã tỉnh/xã…) có nghiệp vụ từ Task M2-16, M2-17; trước đó gửi trường M2 → 501 not_implemented. Đúng một trong customerId, customer (sai → 400 invalid_input). Khóa nghiệp vụ của đơn dựng từ Idempotency-Key và nhân viên (Q-T57-4); cùng khóa nghiệp vụ, cùng nội dung sau khi bản ghi chống trùng hết hạn → 200 trả đơn đã có. Kho giữ hàng (warehouseId, bỏ trống là kho chính) ngoài phạm vi order.create của người gọi → 403 forbidden, không lưu theo khóa (Task 411).
+ * Thân kiểu M1 (không intent, có customer.fullName, shipAddress name/phone/line) tạo thẳng đơn Đã xác nhận như M1. Trường M2 (customerId, intent, giảm giá, mã, nguồn, ghi chú hãng, người phụ trách, mã tỉnh/xã…) có nghiệp vụ từ Task M2-16, M2-17. Đúng một trong customerId, customer (sai → 400 invalid_input). Khóa nghiệp vụ của đơn dựng từ Idempotency-Key và nhân viên (Q-T57-4); cùng khóa nghiệp vụ, cùng nội dung sau khi bản ghi chống trùng hết hạn → 200 trả đơn đã có. Kho giữ hàng (warehouseId, bỏ trống là kho chính) ngoài phạm vi order.create của người gọi → 403 forbidden, không lưu theo khóa (Task 411).
  */
 export const createOrder = <ThrowOnError extends boolean = false>(options: Options<CreateOrderData, ThrowOnError>): RequestResult<CreateOrderResponses, CreateOrderErrors, ThrowOnError> => (options.client ?? client).post<CreateOrderResponses, CreateOrderErrors, ThrowOnError>({
     url: '/api/v1/orders',
@@ -588,8 +586,6 @@ export const getOrder = <ThrowOnError extends boolean = false>(options: Options<
 
 /**
  * Sửa đơn khi version còn khớp: dòng, giảm giá, mã, phí, địa chỉ, ghi chú hãng, người phụ trách, nguồn (Task M2-20); đã gửi hãng → 409 order_locked_by_shipment
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const updateOrder = <ThrowOnError extends boolean = false>(options: Options<UpdateOrderData, ThrowOnError>): RequestResult<UpdateOrderResponses, UpdateOrderErrors, ThrowOnError> => (options.client ?? client).patch<UpdateOrderResponses, UpdateOrderErrors, ThrowOnError>({
     url: '/api/v1/orders/{id}',
@@ -676,15 +672,11 @@ export const cancelStocktake = <ThrowOnError extends boolean = false>(options: O
 
 /**
  * Danh sách khách gốc: q rỗng → mới nhất trước; q là mã khách, SĐT (đủ hay đuôi), hoặc tên (Task M2-10); tagId lọc nhóm có nhãn
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const listCustomers = <ThrowOnError extends boolean = false>(options?: Options<ListCustomersData, ThrowOnError>): RequestResult<ListCustomersResponses, ListCustomersErrors, ThrowOnError> => (options?.client ?? client).get<ListCustomersResponses, ListCustomersErrors, ThrowOnError>({ url: '/api/v1/customers', ...options });
 
 /**
  * Tạo khách (Task M2-09); SĐT đã thuộc khách khác → 409 identity_taken kèm ownerId
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const createCustomer = <ThrowOnError extends boolean = false>(options: Options<CreateCustomerData, ThrowOnError>): RequestResult<CreateCustomerResponses, CreateCustomerErrors, ThrowOnError> => (options.client ?? client).post<CreateCustomerResponses, CreateCustomerErrors, ThrowOnError>({
     url: '/api/v1/customers',
@@ -697,15 +689,11 @@ export const createCustomer = <ThrowOnError extends boolean = false>(options: Op
 
 /**
  * Hồ sơ khách theo gốc: mọi hồ sơ con, danh tính, địa chỉ, nhãn, chỉ số của gốc (Task M2-09)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const getCustomer = <ThrowOnError extends boolean = false>(options: Options<GetCustomerData, ThrowOnError>): RequestResult<GetCustomerResponses, GetCustomerErrors, ThrowOnError> => (options.client ?? client).get<GetCustomerResponses, GetCustomerErrors, ThrowOnError>({ url: '/api/v1/customers/{id}', ...options });
 
 /**
  * Sửa hồ sơ khách khi version còn khớp (Task M2-09)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const updateCustomer = <ThrowOnError extends boolean = false>(options: Options<UpdateCustomerData, ThrowOnError>): RequestResult<UpdateCustomerResponses, UpdateCustomerErrors, ThrowOnError> => (options.client ?? client).patch<UpdateCustomerResponses, UpdateCustomerErrors, ThrowOnError>({
     url: '/api/v1/customers/{id}',
@@ -718,8 +706,6 @@ export const updateCustomer = <ThrowOnError extends boolean = false>(options: Op
 
 /**
  * Thêm danh tính (SĐT, email, Zalo) cho khách; đã thuộc khách khác → 409 identity_taken (Task M2-09)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const addCustomerIdentity = <ThrowOnError extends boolean = false>(options: Options<AddCustomerIdentityData, ThrowOnError>): RequestResult<AddCustomerIdentityResponses, AddCustomerIdentityErrors, ThrowOnError> => (options.client ?? client).post<AddCustomerIdentityResponses, AddCustomerIdentityErrors, ThrowOnError>({
     url: '/api/v1/customers/{id}/identities',
@@ -732,15 +718,11 @@ export const addCustomerIdentity = <ThrowOnError extends boolean = false>(option
 
 /**
  * Gỡ một danh tính của khách (không gỡ fb_psid: M4 quản) (Task M2-09)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const removeCustomerIdentity = <ThrowOnError extends boolean = false>(options: Options<RemoveCustomerIdentityData, ThrowOnError>): RequestResult<RemoveCustomerIdentityResponses, RemoveCustomerIdentityErrors, ThrowOnError> => (options.client ?? client).delete<RemoveCustomerIdentityResponses, RemoveCustomerIdentityErrors, ThrowOnError>({ url: '/api/v1/customers/{id}/identities/{identityId}', ...options });
 
 /**
  * Thêm địa chỉ giao cho khách; mã tỉnh, xã kiểm theo danh mục (Task M2-09)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const addCustomerAddress = <ThrowOnError extends boolean = false>(options: Options<AddCustomerAddressData, ThrowOnError>): RequestResult<AddCustomerAddressResponses, AddCustomerAddressErrors, ThrowOnError> => (options.client ?? client).post<AddCustomerAddressResponses, AddCustomerAddressErrors, ThrowOnError>({
     url: '/api/v1/customers/{id}/addresses',
@@ -753,15 +735,11 @@ export const addCustomerAddress = <ThrowOnError extends boolean = false>(options
 
 /**
  * Xóa mềm một địa chỉ (Task M2-09)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const deleteCustomerAddress = <ThrowOnError extends boolean = false>(options: Options<DeleteCustomerAddressData, ThrowOnError>): RequestResult<DeleteCustomerAddressResponses, DeleteCustomerAddressErrors, ThrowOnError> => (options.client ?? client).delete<DeleteCustomerAddressResponses, DeleteCustomerAddressErrors, ThrowOnError>({ url: '/api/v1/customers/{id}/addresses/{addressId}', ...options });
 
 /**
  * Sửa địa chỉ khi version còn khớp (Task M2-09)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const updateCustomerAddress = <ThrowOnError extends boolean = false>(options: Options<UpdateCustomerAddressData, ThrowOnError>): RequestResult<UpdateCustomerAddressResponses, UpdateCustomerAddressErrors, ThrowOnError> => (options.client ?? client).patch<UpdateCustomerAddressResponses, UpdateCustomerAddressErrors, ThrowOnError>({
     url: '/api/v1/customers/{id}/addresses/{addressId}',
@@ -781,15 +759,11 @@ export const listAdminUnits = <ThrowOnError extends boolean = false>(options?: O
 
 /**
  * Gợi ý "có thể là cùng một khách" theo SĐT trùng; không bao giờ tự gộp (Task M2-11)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const listCustomerMergeCandidates = <ThrowOnError extends boolean = false>(options: Options<ListCustomerMergeCandidatesData, ThrowOnError>): RequestResult<ListCustomerMergeCandidatesResponses, ListCustomerMergeCandidatesErrors, ThrowOnError> => (options.client ?? client).get<ListCustomerMergeCandidatesResponses, ListCustomerMergeCandidatesErrors, ThrowOnError>({ url: '/api/v1/customers/{id}/merge-candidates', ...options });
 
 /**
  * Gộp nhóm của mergedId vào nhóm của khách id (Task M2-11); đã cùng gốc → 422 merge_same_customer
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const mergeCustomer = <ThrowOnError extends boolean = false>(options: Options<MergeCustomerData, ThrowOnError>): RequestResult<MergeCustomerResponses, MergeCustomerErrors, ThrowOnError> => (options.client ?? client).post<MergeCustomerResponses, MergeCustomerErrors, ThrowOnError>({
     url: '/api/v1/customers/{id}/merge',
@@ -802,22 +776,16 @@ export const mergeCustomer = <ThrowOnError extends boolean = false>(options: Opt
 
 /**
  * Hoàn tác một lần gộp trong 30 ngày khi còn là lần gần nhất (Q14); không thì 409 merge_not_latest kèm blockingMergeId (Task M2-11)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const undoCustomerMerge = <ThrowOnError extends boolean = false>(options: Options<UndoCustomerMergeData, ThrowOnError>): RequestResult<UndoCustomerMergeResponses, UndoCustomerMergeErrors, ThrowOnError> => (options.client ?? client).post<UndoCustomerMergeResponses, UndoCustomerMergeErrors, ThrowOnError>({ url: '/api/v1/customer-merges/{mergeId}/undo', ...options });
 
 /**
  * Dòng thời gian của cả nhóm khách: đơn, đổi trạng thái, ghi chú, gộp (Task M2-12)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const getCustomerTimeline = <ThrowOnError extends boolean = false>(options: Options<GetCustomerTimelineData, ThrowOnError>): RequestResult<GetCustomerTimelineResponses, GetCustomerTimelineErrors, ThrowOnError> => (options.client ?? client).get<GetCustomerTimelineResponses, GetCustomerTimelineErrors, ThrowOnError>({ url: '/api/v1/customers/{id}/timeline', ...options });
 
 /**
  * Thêm ghi chú về khách (chỉ ghi thêm) (Task M2-12)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const addCustomerNote = <ThrowOnError extends boolean = false>(options: Options<AddCustomerNoteData, ThrowOnError>): RequestResult<AddCustomerNoteResponses, AddCustomerNoteErrors, ThrowOnError> => (options.client ?? client).post<AddCustomerNoteResponses, AddCustomerNoteErrors, ThrowOnError>({
     url: '/api/v1/customers/{id}/notes',
@@ -830,15 +798,11 @@ export const addCustomerNote = <ThrowOnError extends boolean = false>(options: O
 
 /**
  * Mọi nhãn khách của shop (Task M2-12)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const listCustomerTags = <ThrowOnError extends boolean = false>(options?: Options<ListCustomerTagsData, ThrowOnError>): RequestResult<ListCustomerTagsResponses, ListCustomerTagsErrors, ThrowOnError> => (options?.client ?? client).get<ListCustomerTagsResponses, ListCustomerTagsErrors, ThrowOnError>({ url: '/api/v1/customer-tags', ...options });
 
 /**
  * Tạo nhãn khách (tên không trùng) (Task M2-12)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const createCustomerTag = <ThrowOnError extends boolean = false>(options: Options<CreateCustomerTagData, ThrowOnError>): RequestResult<CreateCustomerTagResponses, CreateCustomerTagErrors, ThrowOnError> => (options.client ?? client).post<CreateCustomerTagResponses, CreateCustomerTagErrors, ThrowOnError>({
     url: '/api/v1/customer-tags',
@@ -851,8 +815,6 @@ export const createCustomerTag = <ThrowOnError extends boolean = false>(options:
 
 /**
  * Đổi tên, màu nhãn khi version còn khớp (Task M2-12)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const updateCustomerTag = <ThrowOnError extends boolean = false>(options: Options<UpdateCustomerTagData, ThrowOnError>): RequestResult<UpdateCustomerTagResponses, UpdateCustomerTagErrors, ThrowOnError> => (options.client ?? client).patch<UpdateCustomerTagResponses, UpdateCustomerTagErrors, ThrowOnError>({
     url: '/api/v1/customer-tags/{tagId}',
@@ -865,15 +827,11 @@ export const updateCustomerTag = <ThrowOnError extends boolean = false>(options:
 
 /**
  * Gỡ nhãn gắn tay khỏi khách (nhãn theo quy tắc do quy tắc quản) (Task M2-12)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const removeCustomerTag = <ThrowOnError extends boolean = false>(options: Options<RemoveCustomerTagData, ThrowOnError>): RequestResult<RemoveCustomerTagResponses, RemoveCustomerTagErrors, ThrowOnError> => (options.client ?? client).delete<RemoveCustomerTagResponses, RemoveCustomerTagErrors, ThrowOnError>({ url: '/api/v1/customers/{id}/tags/{tagId}', ...options });
 
 /**
  * Gắn nhãn vào gốc của khách; đã có thì không đổi gì (Task M2-12)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const addCustomerTag = <ThrowOnError extends boolean = false>(options: Options<AddCustomerTagData, ThrowOnError>): RequestResult<AddCustomerTagResponses, AddCustomerTagErrors, ThrowOnError> => (options.client ?? client).put<AddCustomerTagResponses, AddCustomerTagErrors, ThrowOnError>({ url: '/api/v1/customers/{id}/tags/{tagId}', ...options });
 
@@ -896,15 +854,11 @@ export const putCustomerTagRule = <ThrowOnError extends boolean = false>(options
 
 /**
  * Tải tệp mẫu Excel nhập khách (Task M2-13)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const getCustomerImportTemplate = <ThrowOnError extends boolean = false>(options?: Options<GetCustomerImportTemplateData, ThrowOnError>): RequestResult<GetCustomerImportTemplateResponses, GetCustomerImportTemplateErrors, ThrowOnError> => (options?.client ?? client).get<GetCustomerImportTemplateResponses, GetCustomerImportTemplateErrors, ThrowOnError>({ url: '/api/v1/customer-imports/template', ...options });
 
 /**
  * Nhập khách từ tệp Excel đã tải lên (mục đích customer_import); chạy nền; tệp sai → 422 import_file_invalid (Task M2-13)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const startCustomerImport = <ThrowOnError extends boolean = false>(options: Options<StartCustomerImportData, ThrowOnError>): RequestResult<StartCustomerImportResponses, StartCustomerImportErrors, ThrowOnError> => (options.client ?? client).post<StartCustomerImportResponses, StartCustomerImportErrors, ThrowOnError>({
     url: '/api/v1/customer-imports',
@@ -917,15 +871,11 @@ export const startCustomerImport = <ThrowOnError extends boolean = false>(option
 
 /**
  * Trạng thái, số đếm và lỗi từng dòng (không giá trị) của một lần nhập khách (Task M2-13)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const getCustomerImport = <ThrowOnError extends boolean = false>(options: Options<GetCustomerImportData, ThrowOnError>): RequestResult<GetCustomerImportResponses, GetCustomerImportErrors, ThrowOnError> => (options.client ?? client).get<GetCustomerImportResponses, GetCustomerImportErrors, ThrowOnError>({ url: '/api/v1/customer-imports/{importId}', ...options });
 
 /**
  * Xác nhận đơn mới hoặc chốt đơn nháp (cần địa chỉ đủ); chờ duyệt giảm giá → 422 needs_approval (Task M2-19)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const confirmOrder = <ThrowOnError extends boolean = false>(options: Options<ConfirmOrderData, ThrowOnError>): RequestResult<ConfirmOrderResponses, ConfirmOrderErrors, ThrowOnError> => (options.client ?? client).post<ConfirmOrderResponses, ConfirmOrderErrors, ThrowOnError>({
     url: '/api/v1/orders/{id}/confirm',
@@ -938,8 +888,6 @@ export const confirmOrder = <ThrowOnError extends boolean = false>(options: Opti
 
 /**
  * Duyệt giảm giá vượt ngưỡng (Q3) (Task M2-19)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const approveOrderDiscount = <ThrowOnError extends boolean = false>(options: Options<ApproveOrderDiscountData, ThrowOnError>): RequestResult<ApproveOrderDiscountResponses, ApproveOrderDiscountErrors, ThrowOnError> => (options.client ?? client).post<ApproveOrderDiscountResponses, ApproveOrderDiscountErrors, ThrowOnError>({
     url: '/api/v1/orders/{id}/approve-discount',
@@ -952,8 +900,6 @@ export const approveOrderDiscount = <ThrowOnError extends boolean = false>(optio
 
 /**
  * Đặt hoặc bỏ lý do chờ của đơn mới (chờ khách, hết hàng) (Task M2-19)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const setOrderPending = <ThrowOnError extends boolean = false>(options: Options<SetOrderPendingData, ThrowOnError>): RequestResult<SetOrderPendingResponses, SetOrderPendingErrors, ThrowOnError> => (options.client ?? client).post<SetOrderPendingResponses, SetOrderPendingErrors, ThrowOnError>({
     url: '/api/v1/orders/{id}/pending',
@@ -966,8 +912,6 @@ export const setOrderPending = <ThrowOnError extends boolean = false>(options: O
 
 /**
  * Hủy đơn (nhả hàng, trả lượt mã theo Q2); đơn đã gửi hãng → Đang yêu cầu hủy (Task M2-21)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const cancelOrder = <ThrowOnError extends boolean = false>(options: Options<CancelOrderData, ThrowOnError>): RequestResult<CancelOrderResponses, CancelOrderErrors, ThrowOnError> => (options.client ?? client).post<CancelOrderResponses, CancelOrderErrors, ThrowOnError>({
     url: '/api/v1/orders/{id}/cancel',
@@ -980,15 +924,11 @@ export const cancelOrder = <ThrowOnError extends boolean = false>(options: Optio
 
 /**
  * Lịch sử thao tác của đơn: đổi trạng thái, tên trường đã sửa (không giá trị dữ liệu cá nhân), ghi chú (Task M2-24)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const getOrderTimeline = <ThrowOnError extends boolean = false>(options: Options<GetOrderTimelineData, ThrowOnError>): RequestResult<GetOrderTimelineResponses, GetOrderTimelineErrors, ThrowOnError> => (options.client ?? client).get<GetOrderTimelineResponses, GetOrderTimelineErrors, ThrowOnError>({ url: '/api/v1/orders/{id}/timeline', ...options });
 
 /**
  * Thêm ghi chú nội bộ của đơn (không gửi hãng) (Task M2-24)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const addOrderNote = <ThrowOnError extends boolean = false>(options: Options<AddOrderNoteData, ThrowOnError>): RequestResult<AddOrderNoteResponses, AddOrderNoteErrors, ThrowOnError> => (options.client ?? client).post<AddOrderNoteResponses, AddOrderNoteErrors, ThrowOnError>({
     url: '/api/v1/orders/{id}/notes',
@@ -1001,22 +941,16 @@ export const addOrderNote = <ThrowOnError extends boolean = false>(options: Opti
 
 /**
  * Kiểm trước ở form: đơn có thể trùng (cùng khách hay cùng SĐT, có biến thể chung, trong cửa sổ cài đặt); chỉ cảnh báo (Task M2-23)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const checkOrderDuplicates = <ThrowOnError extends boolean = false>(options: Options<CheckOrderDuplicatesData, ThrowOnError>): RequestResult<CheckOrderDuplicatesResponses, CheckOrderDuplicatesErrors, ThrowOnError> => (options.client ?? client).get<CheckOrderDuplicatesResponses, CheckOrderDuplicatesErrors, ThrowOnError>({ url: '/api/v1/order-duplicate-check', ...options });
 
 /**
  * Cặp đơn nghi trùng chưa xử lý, mới nhất trước (Task M2-23)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const listOrderDuplicates = <ThrowOnError extends boolean = false>(options?: Options<ListOrderDuplicatesData, ThrowOnError>): RequestResult<ListOrderDuplicatesResponses, ListOrderDuplicatesErrors, ThrowOnError> => (options?.client ?? client).get<ListOrderDuplicatesResponses, ListOrderDuplicatesErrors, ThrowOnError>({ url: '/api/v1/order-duplicates', ...options });
 
 /**
  * Xử lý một cặp nghi trùng: không trùng, hoặc hủy một đơn (lý do duplicate); không tự hủy (Task M2-23)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const resolveOrderDuplicate = <ThrowOnError extends boolean = false>(options: Options<ResolveOrderDuplicateData, ThrowOnError>): RequestResult<ResolveOrderDuplicateResponses, ResolveOrderDuplicateErrors, ThrowOnError> => (options.client ?? client).post<ResolveOrderDuplicateResponses, ResolveOrderDuplicateErrors, ThrowOnError>({
     url: '/api/v1/order-duplicates/{orderId}/{otherOrderId}/resolve',
