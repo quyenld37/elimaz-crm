@@ -68,6 +68,8 @@ const (
 	reasonUnknownPurpose   = "unknown_purpose"
 	reasonNotImagePurpose  = "not_image_purpose"
 	reasonNotProcessable   = "not_processable" // tệp đã xóa, chưa tải xong
+	// biến thể trên kho mang content-type khác định dạng đã ký (L1 của threat model M1, Task 414): imager hay kho trả sai
+	reasonOutputInvalid = "output_invalid"
 )
 
 // Imager là imager.Client (cắm bản giả trong test).
@@ -409,11 +411,13 @@ func (p *Processor) makeVariants(ctx context.Context, jb job, sum string, srcB B
 	if m, ok := p.readManifest(ctx, l, sum); ok {
 		// Bản kê chỉ được tin khi mọi biến thể còn trên kho (Task M1-46: kho dựng lại có thể thiếu một phần; thiếu
 		// thì làm lại phần thiếu như chưa có bản kê).
-		complete, err := p.variantsPresent(ctx, l)
+		state, err := p.checkVariants(ctx, l)
 		switch {
 		case err != nil:
 			return notSent("store", 0), nil
-		case complete:
+		case state == variantsInvalid:
+			return p.reject(ctx, jb, reasonOutputInvalid)
+		case state == variantsComplete:
 			if reason := contentReason(m, jb.purpose); reason != "" {
 				return p.reject(ctx, jb, reason)
 			}
@@ -463,22 +467,50 @@ func (p *Processor) makeVariants(ctx context.Context, jb job, sum string, srcB B
 	if !ok {
 		return notSent(imager.ReasonInternal, 0), nil
 	}
+	return p.finishVariants(ctx, jb, l, m)
+}
+
+// finishVariants: không tin kết quả của imager — mọi biến thể (cả cái có sẵn) phải có trên kho với đúng loại đã ký
+// (L1) thì mới ghi bản kê và done; sai loại → rejected output_invalid; thiếu → not_sent.
+func (p *Processor) finishVariants(ctx context.Context, jb job, l layout, m processResult) (commands.Outcome, error) {
+	switch state, err := p.checkVariants(ctx, l); {
+	case err != nil:
+		return notSent("store", 0), nil
+	case state == variantsInvalid:
+		return p.reject(ctx, jb, reasonOutputInvalid)
+	case state == variantsMissing:
+		return notSent(imager.ReasonInternal, 0), nil
+	}
 	p.writeManifest(ctx, l, m)
 	return done(m)
 }
 
-// variantsPresent: mọi biến thể của bố cục l còn trên kho (Head); lỗi khác "không có" → err.
-func (p *Processor) variantsPresent(ctx context.Context, l layout) (bool, error) {
-	for _, key := range l.keys {
-		_, err := p.o.Store.Head(ctx, l.bucket, key)
+// variantsState là kết quả kiểm các biến thể của một bố cục trên kho.
+type variantsState int
+
+const (
+	variantsComplete variantsState = iota // đủ, mỗi cái đúng content-type
+	variantsMissing                       // thiếu ít nhất một (kho dựng lại thiếu phần, Task M1-46)
+	variantsInvalid                       // có một cái mang content-type khác image/<định dạng> (L1)
+)
+
+// checkVariants Head mọi biến thể của bố cục l: thiếu một cái → variantsMissing; có cái mang content-type khác
+// image/<định dạng> đã ký → variantsInvalid (ưu tiên hơn thiếu: không bao giờ công bố tệp có biến thể sai loại);
+// lỗi khác "không có" → err.
+func (p *Processor) checkVariants(ctx context.Context, l layout) (variantsState, error) {
+	state := variantsComplete
+	for i, key := range l.keys {
+		info, err := p.o.Store.Head(ctx, l.bucket, key)
 		switch {
 		case errors.Is(err, ErrObjectNotFound):
-			return false, nil
+			state = variantsMissing
 		case err != nil:
-			return false, fmt.Errorf("kiểm biến thể %s: %w", key, err)
+			return 0, fmt.Errorf("kiểm biến thể %s: %w", key, err)
+		case info.ContentType != "image/"+l.specs[i].Format:
+			return variantsInvalid, nil
 		}
 	}
-	return true, nil
+	return state, nil
 }
 
 // output ký PUT không ký kích thước cho một biến thể.

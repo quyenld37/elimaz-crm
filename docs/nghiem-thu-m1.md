@@ -4,6 +4,8 @@ Viết ở Task M1-24 (18/11/2026), trước khi có mã M1. Nguồn: kế hoạ
 
 Cột "Kết quả" để trống tới khi task tương ứng xong; Task M1-55 điền lần cuối, kèm kết quả nhân viên chạy trên staging.
 
+TP01 (đường imager thật), TP03 (bom điểm ảnh), TP08, TP09, TP10 và phần hết bộ nhớ của tiêu chí 7 không chạy trong `make ci` (nhãn build riêng hoặc cần libvips): lệnh, lịch chạy và lần chạy gần nhất ở `docs/ca-chay-tay.md` (Task 414); Task M1-55 chạy lại theo bảng đó trước khi điền cột Kết quả của các dòng này.
+
 ## Xong M1 khi
 
 | # | Tiêu chí (lời nghiệp vụ) | Task M1 | Kết quả |

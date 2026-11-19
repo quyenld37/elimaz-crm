@@ -10,18 +10,17 @@ import (
 	"regexp"
 
 	"go.opentelemetry.io/otel/trace"
-
-	"elimaz.com.vn/crm/internal/platform/config"
 )
 
-// NewLogger tạo logger JSON ghi ra stdout, và vào DailyFile khi cfg.LogDir khác rỗng. Closer đóng tệp log.
-func NewLogger(cfg config.Config, stdout io.Writer) (*slog.Logger, io.Closer, error) {
+// NewLogger tạo logger JSON ghi ra stdout, và vào DailyFile(logDir, role) khi logDir khác rỗng. Closer đóng tệp log.
+// Nhận giá trị rời thay vì config.Config để gói này không nhập config (tệp chạy imager dùng logging, Task 414).
+func NewLogger(logDir, role string, stdout io.Writer) (*slog.Logger, io.Closer, error) {
 	var (
 		w      = stdout
 		closer io.Closer
 	)
-	if cfg.LogDir != "" {
-		f := NewDailyFile(cfg.LogDir, string(cfg.Role))
+	if logDir != "" {
+		f := NewDailyFile(logDir, role)
 		if err := f.Check(); err != nil {
 			return nil, nil, fmt.Errorf("mở thư mục log: %w", err)
 		}

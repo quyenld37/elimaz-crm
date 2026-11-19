@@ -23,7 +23,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/imager"
 	"elimaz.com.vn/crm/internal/platform/logging"
-	"elimaz.com.vn/crm/internal/platform/observability"
+	"elimaz.com.vn/crm/internal/platform/observability/liveprobe"
 )
 
 const (
@@ -184,7 +184,7 @@ func parseBytes(s string) (int64, error) {
 }
 
 func healthcheck(ctx context.Context, port int) error {
-	if err := observability.CheckLive(ctx, port, healthcheckTimeout); err != nil {
+	if err := liveprobe.CheckLive(ctx, port, healthcheckTimeout); err != nil {
 		return fmt.Errorf("kiểm /health/live: %w", err)
 	}
 	return nil

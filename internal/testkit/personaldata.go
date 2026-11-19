@@ -42,7 +42,7 @@ func PersonalDataError() error {
 func CaptureLog(t testing.TB) (*slog.Logger, *bytes.Buffer) {
 	t.Helper()
 	buf := &bytes.Buffer{}
-	l, closer, err := logging.NewLogger(config.Config{Role: config.RoleAPI}, buf)
+	l, closer, err := logging.NewLogger("", string(config.RoleAPI), buf)
 	if err != nil {
 		t.Fatalf("testkit: dựng logger: %v", err)
 	}

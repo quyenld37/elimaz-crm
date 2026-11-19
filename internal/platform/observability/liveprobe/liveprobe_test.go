@@ -1,4 +1,4 @@
-package observability_test
+package liveprobe_test
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"elimaz.com.vn/crm/internal/platform/observability"
+	"elimaz.com.vn/crm/internal/platform/observability/liveprobe"
 )
 
 func portOf(t *testing.T, srv *httptest.Server) int {
@@ -32,7 +32,7 @@ func TestCheckLive(t *testing.T) {
 		}
 	}))
 	defer ok.Close()
-	if err := observability.CheckLive(t.Context(), portOf(t, ok), time.Second); err != nil {
+	if err := liveprobe.CheckLive(t.Context(), portOf(t, ok), time.Second); err != nil {
 		t.Fatalf("tiến trình sống: %v", err)
 	}
 
@@ -40,13 +40,13 @@ func TestCheckLive(t *testing.T) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 	defer bad.Close()
-	if err := observability.CheckLive(t.Context(), portOf(t, bad), time.Second); !errors.Is(err, observability.ErrNotLive) {
+	if err := liveprobe.CheckLive(t.Context(), portOf(t, bad), time.Second); !errors.Is(err, liveprobe.ErrNotLive) {
 		t.Fatalf("503 phải là ErrNotLive, nhận %v", err)
 	}
 
 	port := portOf(t, bad)
 	bad.Close()
-	if err := observability.CheckLive(t.Context(), port, time.Second); err == nil {
+	if err := liveprobe.CheckLive(t.Context(), port, time.Second); err == nil {
 		t.Fatal("không có tiến trình phải lỗi")
 	}
 }

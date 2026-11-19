@@ -118,7 +118,7 @@ func TestSensitiveKey(t *testing.T) {
 func newTestLogger(t *testing.T) (*slog.Logger, *bytes.Buffer) {
 	t.Helper()
 	var buf bytes.Buffer
-	l, closer, err := logging.NewLogger(config.Config{Role: config.RoleAPI}, &buf)
+	l, closer, err := logging.NewLogger("", string(config.RoleAPI), &buf)
 	if err != nil {
 		t.Fatal(err)
 	}

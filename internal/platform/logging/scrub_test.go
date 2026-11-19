@@ -137,7 +137,7 @@ func TestErrorTextAndErr(t *testing.T) {
 // Logger của CRM tự lọc nội dung lỗi dù mã ghi thẳng error hay err.Error() dưới khóa error: lớp chặn thứ hai.
 func TestLoggerScrubsErrorValues(t *testing.T) {
 	var buf bytes.Buffer
-	l, closer, err := logging.NewLogger(config.Config{Role: config.RoleAPI}, &buf)
+	l, closer, err := logging.NewLogger("", string(config.RoleAPI), &buf)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -269,3 +269,55 @@ func TestDefaultWarehouse(t *testing.T) {
 		t.Errorf("tenant chưa có kho: mong ErrNoWarehouse, có %v", err)
 	}
 }
+
+// A-02 (Task 414): crm_app chỉ chèn được cột khóa của số dư (số 0 của EnsureBalance) và cột của một giữ hàng mới
+// (trạng thái mặc định held) — số dư, trạng thái chỉ đổi qua câu UPDATE có điều kiện và sổ. Chèn on_hand ≠ 0 hay giữ
+// hàng consumed bằng crm_app → lỗi quyền 42501; đường chèn thật của mã (EnsureBalance, InsertReservation) vẫn chạy.
+func TestBalances_InsertOnlyKeyColumns(t *testing.T) {
+	e := newInvEnv(t)
+	v := e.variants(1)[0]
+	for name, q := range map[string]string{
+		"số dư on_hand": `INSERT INTO inventory.stock_balances (tenant_id, variant_id, warehouse_id, seller_id, on_hand)
+			VALUES ($1, $2, $3, $4, 1000)`,
+		"số dư held": `INSERT INTO inventory.stock_balances (tenant_id, variant_id, warehouse_id, seller_id, held)
+			VALUES ($1, $2, $3, $4, 1)`,
+		"số dư version": `INSERT INTO inventory.stock_balances (tenant_id, variant_id, warehouse_id, seller_id, version)
+			VALUES ($1, $2, $3, $4, 9)`,
+	} {
+		err := e.app(func(tx pgx.Tx) error {
+			_, err := tx.Exec(t.Context(), q, e.tenant, v, e.warehouse, e.seller)
+			return err //nolint:wrapcheck // test
+		})
+		if pgCode(err) != "42501" {
+			t.Errorf("%s bằng crm_app: mong lỗi quyền 42501, có %v", name, err)
+		}
+	}
+	e.seed(v, 3) // EnsureBalance (chỉ cột khóa) rồi cộng qua sổ: vẫn chạy
+	if b := e.balance(v); b.OnHand != 3 {
+		t.Fatalf("số dư sau khi nhập: %+v", b)
+	}
+	item, err := e.orderItem(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, q := range map[string]string{
+		"giữ hàng consumed": `INSERT INTO inventory.stock_reservations
+			(tenant_id, order_item_id, variant_id, warehouse_id, quantity, state) VALUES ($1, $2, $3, $4, 1, 'consumed')`,
+		"giữ hàng mốc đổi trạng thái": `INSERT INTO inventory.stock_reservations
+			(tenant_id, order_item_id, variant_id, warehouse_id, quantity, state_changed_at) VALUES ($1, $2, $3, $4, 1, now())`,
+	} {
+		err := e.app(func(tx pgx.Tx) error {
+			_, err := tx.Exec(t.Context(), q, e.tenant, item, v, e.warehouse)
+			return err //nolint:wrapcheck // test
+		})
+		if pgCode(err) != "42501" {
+			t.Errorf("%s bằng crm_app: mong lỗi quyền 42501, có %v", name, err)
+		}
+	}
+	if _, err := e.reserve(sysActor(), inventory.ReserveLine{OrderItemID: item, VariantID: v, WarehouseID: e.warehouse, Qty: 1}); err != nil {
+		t.Fatalf("giữ hàng qua InsertReservation: %v", err)
+	}
+	if b := e.balance(v); b.Held != 1 {
+		t.Fatalf("số dư sau giữ hàng: %+v", b)
+	}
+}

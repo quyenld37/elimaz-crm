@@ -535,7 +535,7 @@ Package logging dựng logger JSON của CRM: che sâu dữ liệu cá nhân và
 ```go
 func Err(err error) slog.Attr
 func ErrorText(err error) string
-func NewLogger(cfg config.Config, stdout io.Writer) (*slog.Logger, io.Closer, error)
+func NewLogger(logDir, role string, stdout io.Writer) (*slog.Logger, io.Closer, error)
 func Redact(v any, maxDepth int) any
 func ScrubText(s string) string
 func SensitiveKey(key string) bool
@@ -613,7 +613,6 @@ Package observability phục vụ các điểm kiểm sức khỏe của tiến 
 **Khi nào không dùng:** Không đặt kiểm tra nghiệp vụ hay dữ liệu khách vào /health/*. Không gọi Notify trong RetryTx hay handler transactional của hàng đợi (gọi mạng): gửi cảnh báo từ lệnh (commands.Handler) như alertjobs.NewAlertsCommand (gói con: observability không được nhập commands, queue vì queue nhập observability). Văn bản cảnh báo chỉ mang tên luật, số lượng, kind, mã bản ghi: không đọc payload, last_error. Không dùng Alerter để báo cho khách (C7).
 
 ```go
-func CheckLive(ctx context.Context, port int, timeout time.Duration) error
 func CheckRules(ctx context.Context, d *db.DB, a Alerter, o RuleOptions) ([]string, error)
 func DigestDue(now time.Time) bool
 func Fingerprint(err error, frames []runtime.Frame) string
