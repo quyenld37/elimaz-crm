@@ -59,7 +59,7 @@ for hr in high_risk:
 # Chặn hỏng âm thầm: thư mục có tệp .go đổi (còn tồn tại) mà không khớp gói nào -> thoát 4, ci-task chạy toàn bộ test.
 unmatched = [d for d in go_dirs if d != "." and d not in by_dir and os.path.isdir(os.path.join(root, d))
              and any(f.endswith(".go") for f in os.listdir(os.path.join(root, d)))
-             and not d.startswith(("console", "spikes"))]
+             and not d.startswith(("console", "spikes")) and "testdata" not in d.split("/")]
 if unmatched:
     sys.stderr.write("affected.py: không khớp gói cho " + ", ".join(sorted(unmatched)) + "\n")
     sys.exit(4)
