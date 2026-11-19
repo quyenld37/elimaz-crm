@@ -191,7 +191,15 @@ class FakeStock {
         adjusted: changed.length,
         shortages: changed
           .filter((l) => l.availableAfter < 0)
-          .map((l) => ({ variantId: l.variantId, available: l.availableAfter })),
+          .map((l) => ({
+            variantId: l.variantId,
+            available: l.availableAfter,
+            // Task 406: đơn đang giữ biến thể thiếu (máy chủ gộp theo đơn, theo thứ tự giữ hàng).
+            orders: [
+              { orderId: "0190a000-0000-7000-8000-000000000101", orderCode: "DH0000101", quantity: 3 },
+              { orderId: "0190a000-0000-7000-8000-000000000102", orderCode: "DH0000102", quantity: 1 },
+            ],
+          })),
       };
       return json(r, 200, result);
     });
@@ -322,7 +330,9 @@ test.describe("điện thoại 390", () => {
     const short = page.locator(".box-soft");
     await expect(short.getByText("Thiếu so với phần giữ (1)")).toBeVisible();
     await expect(lineOf(page, "QU0789-DEN-M").getByText("−2")).toBeVisible();
+    await expect(lineOf(page, "QU0789-DEN-M")).toContainText("Đơn đang giữ: DH0000101 (3), DH0000102 (1)");
     await expect(short).toContainText("Đã gửi một cảnh báo thường (chỉ ghi mã phiên và số mã thiếu).");
+    await expect(short).toContainText("Hãng lấy hàng của các đơn đang giữ sẽ bị chặn");
     await expect(page.getByRole("link", { name: "Xem ở Tồn kho" })).toHaveAttribute("href", "/kho/ton");
     const apply = fake.writesTo("/apply");
     expect(apply).toHaveLength(1);

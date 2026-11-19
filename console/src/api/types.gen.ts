@@ -11,11 +11,11 @@ export type Error = {
     error: string;
     request_id: string;
     /**
-     * Chỉ có ở insufficient_stock, out_of_stock — biến thể đầu tiên không đủ hàng
+     * Chỉ có ở insufficient_stock, out_of_stock, stock_short — biến thể đầu tiên không đủ hàng
      */
     variantId?: string;
     /**
-     * Chỉ có ở insufficient_stock — số còn làm được của biến thể đó (xuất hàng lỗi là số hàng lỗi); ở out_of_stock — số có thể bán hiện tại
+     * Chỉ có ở insufficient_stock — số còn làm được của biến thể đó (xuất hàng lỗi là số hàng lỗi, không quá phần trên kệ); ở out_of_stock — số có thể bán hiện tại; ở stock_short — tồn thực còn cho dòng giữ hàng bị chặn (kiểm kho đã ghi thấp hơn phần giữ)
      */
     available?: number;
     /**
@@ -1036,6 +1036,19 @@ export type Stocktake = {
 export type StocktakeShortage = {
     variantId: string;
     available: number;
+    /**
+     * Đơn đang giữ biến thể này mà chưa đi giao (theo thứ tự giữ hàng) — hãng lấy hàng sẽ bị chặn (stock_short) tới khi điều chỉnh tồn, đổi kho hay hủy đơn (Task 406)
+     */
+    orders: Array<StocktakeShortOrder>;
+};
+
+export type StocktakeShortOrder = {
+    orderId: string;
+    orderCode: string;
+    /**
+     * Tổng số lượng của biến thể mà đơn đang giữ
+     */
+    quantity: number;
 };
 
 export type ApplyStocktakeResult = {

@@ -51,7 +51,8 @@ type ApplyDeltaRow struct {
 // Câu đổi số dư duy nhất: cộng delta vào đúng một ngăn khi điều kiện cố định đúng trên bản mới nhất của dòng
 // (READ COMMITTED đánh giá lại WHERE sau khi chờ khóa). Không dòng nào → thiếu (hoặc chưa có dòng số dư).
 // cond: none | available (on_hand − damaged − held − in_transit ≥ q) | on_hand | damaged | held | in_transit (ngăn ≥ q)
-// | on_shelf (on_hand − in_transit ≥ q: kiểm kho giảm, hàng đang giao vẫn còn trong on_hand để giao xong trừ được).
+// | on_shelf (on_hand − in_transit ≥ q: kiểm kho giảm, lấy hàng, xuất hàng lỗi — giữ in_transit ≤ on_hand để giao xong
+// trừ được; Task 406).
 func (q *Queries) ApplyDelta(ctx context.Context, arg ApplyDeltaParams) (ApplyDeltaRow, error) {
 	row := q.db.QueryRow(ctx, applyDelta,
 		arg.Bucket,

@@ -5297,10 +5297,13 @@ type Error struct {
 	// Mã lỗi máy đọc được.
 	Error     string `json:"error"`
 	RequestID string `json:"request_id"`
-	// Chỉ có ở insufficient_stock, out_of_stock — biến thể đầu tiên không đủ hàng.
+	// Chỉ có ở insufficient_stock, out_of_stock, stock_short — biến thể đầu tiên không
+	// đủ hàng.
 	VariantId OptUUID `json:"variantId"`
 	// Chỉ có ở insufficient_stock — số còn làm được của biến thể đó (xuất hàng
-	// lỗi là số hàng lỗi); ở out_of_stock — số có thể bán hiện tại.
+	// lỗi là số hàng lỗi, không quá phần trên kệ); ở out_of_stock — số có thể bán
+	// hiện tại; ở stock_short — tồn thực còn cho dòng giữ hàng bị chặn (kiểm kho
+	// đã ghi thấp hơn phần giữ).
 	Available OptInt32 `json:"available"`
 	// Chỉ có ở identity_taken — gốc của khách đang giữ danh tính.
 	OwnerId OptUUID `json:"ownerId"`
@@ -14234,10 +14237,52 @@ func (s *StocktakeLine) SetAvailableAfter(val int32) {
 
 func (*StocktakeLine) recordStocktakeCountRes() {}
 
+// Ref: #/components/schemas/StocktakeShortOrder
+type StocktakeShortOrder struct {
+	OrderId   uuid.UUID `json:"orderId"`
+	OrderCode string    `json:"orderCode"`
+	// Tổng số lượng của biến thể mà đơn đang giữ.
+	Quantity int32 `json:"quantity"`
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *StocktakeShortOrder) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetOrderCode returns the value of OrderCode.
+func (s *StocktakeShortOrder) GetOrderCode() string {
+	return s.OrderCode
+}
+
+// GetQuantity returns the value of Quantity.
+func (s *StocktakeShortOrder) GetQuantity() int32 {
+	return s.Quantity
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *StocktakeShortOrder) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetOrderCode sets the value of OrderCode.
+func (s *StocktakeShortOrder) SetOrderCode(val string) {
+	s.OrderCode = val
+}
+
+// SetQuantity sets the value of Quantity.
+func (s *StocktakeShortOrder) SetQuantity(val int32) {
+	s.Quantity = val
+}
+
 // Ref: #/components/schemas/StocktakeShortage
 type StocktakeShortage struct {
 	VariantId uuid.UUID `json:"variantId"`
 	Available int32     `json:"available"`
+	// Đơn đang giữ biến thể này mà chưa đi giao (theo thứ tự giữ hàng) — hãng lấy
+	// hàng sẽ bị chặn (stock_short) tới khi điều chỉnh tồn, đổi kho hay hủy đơn
+	// (Task 406).
+	Orders []StocktakeShortOrder `json:"orders"`
 }
 
 // GetVariantId returns the value of VariantId.
@@ -14250,6 +14295,11 @@ func (s *StocktakeShortage) GetAvailable() int32 {
 	return s.Available
 }
 
+// GetOrders returns the value of Orders.
+func (s *StocktakeShortage) GetOrders() []StocktakeShortOrder {
+	return s.Orders
+}
+
 // SetVariantId sets the value of VariantId.
 func (s *StocktakeShortage) SetVariantId(val uuid.UUID) {
 	s.VariantId = val
@@ -14258,6 +14308,11 @@ func (s *StocktakeShortage) SetVariantId(val uuid.UUID) {
 // SetAvailable sets the value of Available.
 func (s *StocktakeShortage) SetAvailable(val int32) {
 	s.Available = val
+}
+
+// SetOrders sets the value of Orders.
+func (s *StocktakeShortage) SetOrders(val []StocktakeShortOrder) {
+	s.Orders = val
 }
 
 // Ref: #/components/schemas/StocktakeStatus

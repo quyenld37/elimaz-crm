@@ -33,3 +33,12 @@ SELECT state, count(*)::int AS n
 FROM inventory.stock_reservations
 WHERE order_item_id = ANY (@order_item_ids::uuid[])
 GROUP BY state;
+
+-- name: HeldReservationsOfVariants :many
+-- Dòng giữ hàng held của các biến thể ở một kho, kèm người bán của số dư (Task 406: biến thể thiếu sau kiểm kho). Không
+-- khóa: chỉ để báo cho nhân viên, bước lấy hàng tự kiểm dưới khóa.
+SELECT r.id, r.order_item_id, r.variant_id, r.quantity, b.seller_id
+FROM inventory.stock_reservations AS r
+JOIN inventory.stock_balances AS b ON b.variant_id = r.variant_id AND b.warehouse_id = r.warehouse_id
+WHERE r.warehouse_id = @warehouse_id AND r.variant_id = ANY (@variant_ids::uuid[]) AND r.state = 'held'
+ORDER BY r.variant_id, r.id;

@@ -28892,6 +28892,136 @@ func (s *StocktakeLine) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *StocktakeShortOrder) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *StocktakeShortOrder) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("orderId")
+		json.EncodeUUID(e, s.OrderId)
+	}
+	{
+		e.FieldStart("orderCode")
+		e.Str(s.OrderCode)
+	}
+	{
+		e.FieldStart("quantity")
+		e.Int32(s.Quantity)
+	}
+}
+
+var jsonFieldsNameOfStocktakeShortOrder = [3]string{
+	0: "orderId",
+	1: "orderCode",
+	2: "quantity",
+}
+
+// Decode decodes StocktakeShortOrder from json.
+func (s *StocktakeShortOrder) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode StocktakeShortOrder to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "orderId":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := json.DecodeUUID(d)
+				s.OrderId = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"orderId\"")
+			}
+		case "orderCode":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.OrderCode = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"orderCode\"")
+			}
+		case "quantity":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int32()
+				s.Quantity = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"quantity\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode StocktakeShortOrder")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfStocktakeShortOrder) {
+					name = jsonFieldsNameOfStocktakeShortOrder[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *StocktakeShortOrder) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *StocktakeShortOrder) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *StocktakeShortage) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -28908,11 +29038,20 @@ func (s *StocktakeShortage) encodeFields(e *jx.Encoder) {
 		e.FieldStart("available")
 		e.Int32(s.Available)
 	}
+	{
+		e.FieldStart("orders")
+		e.ArrStart()
+		for _, elem := range s.Orders {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
 }
 
-var jsonFieldsNameOfStocktakeShortage = [2]string{
+var jsonFieldsNameOfStocktakeShortage = [3]string{
 	0: "variantId",
 	1: "available",
+	2: "orders",
 }
 
 // Decode decodes StocktakeShortage from json.
@@ -28948,6 +29087,24 @@ func (s *StocktakeShortage) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"available\"")
 			}
+		case "orders":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.Orders = make([]StocktakeShortOrder, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem StocktakeShortOrder
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Orders = append(s.Orders, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"orders\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -28958,7 +29115,7 @@ func (s *StocktakeShortage) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
