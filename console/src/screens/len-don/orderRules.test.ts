@@ -1,5 +1,6 @@
 // Luật chữ và dựng thân yêu cầu của màn Lên đơn (kế hoạch M2 Task M2-27; mockup docs/mockups/m2/len-don.html).
 import { describe, expect, it } from "vitest";
+import type { EditScope, Order } from "../../api";
 import { COUPON_REASON_MESSAGES } from "../../app/errors";
 import {
   EMPTY_ADDRESS,
@@ -7,8 +8,10 @@ import {
   TEXT_NEW_CUSTOMER_NAME,
   TEXT_PARTIAL_ADDRESS,
   TEXT_NEED_CUSTOMER_AND_LINES,
+  addressOf,
   addressState,
   buildRequest,
+  buildUpdate,
   cleanPhone,
   couponReasonText,
   customerQuery,
@@ -189,5 +192,110 @@ describe("buildRequest", () => {
     expect(b.orderDiscount).toBeUndefined();
     const c = buildRequest(form({ address: { ...form().address, wardCode: "" } }), "new");
     expect(c.shipAddress).toEqual({ name: "Nguyễn Văn Tùng", phone: "0987654321", line: "Số 12", provinceCode: "01" });
+  });
+});
+
+describe("buildUpdate (sửa đơn, Task 85): chỉ gửi trường đã đổi và được sửa, cùng version", () => {
+  const I1 = "0195f3b2-0000-7000-8000-00000000e001";
+  const all: EditScope = {
+    lines: true,
+    discounts: true,
+    coupon: true,
+    address: true,
+    shipping: true,
+    carrierNote: true,
+    careBy: true,
+    trafficSource: true,
+  };
+  const ord: Order = {
+    id: "o1",
+    code: "DH0000001",
+    status: "new",
+    version: 7,
+    customerId: C1,
+    subtotal: 1_380_000,
+    shippingFee: 30000,
+    grandTotal: 1_310_000,
+    codAmount: 1_310_000,
+    createdAt: "2026-11-18T00:00:00Z",
+    items: [
+      {
+        id: I1,
+        position: 1,
+        variantId: V1,
+        sku: "A",
+        name: "A",
+        qty: 2,
+        unitPrice: 690000,
+        netAmount: 1_280_000,
+        lineDiscount: 100000,
+      },
+    ],
+    shipAddress: {
+      name: "Nguyễn Văn Tùng",
+      phone: "+84987654321",
+      line: "Số 12",
+      provinceCode: "01",
+      wardCode: "00001",
+    },
+    orderDiscount: 0,
+    trafficSourceId: S1,
+    carrierNote: "",
+  };
+  const same = (): FormState =>
+    form({ lines: [{ itemId: I1, variantId: V1, qty: 2, lineDiscount: 100000 }], address: addressOf(ord.shipAddress) });
+
+  it("addressOf: địa chỉ của đơn thành ô nhập (SĐT dạng đọc được); không có → rỗng", () => {
+    expect(addressOf(ord.shipAddress)).toEqual({
+      name: "Nguyễn Văn Tùng",
+      phone: "0987 654 321",
+      line: "Số 12",
+      provinceCode: "01",
+      wardCode: "00001",
+    });
+    expect(addressOf(undefined)).toEqual(EMPTY_ADDRESS);
+  });
+  it("không đổi gì → null", () => {
+    expect(buildUpdate(same(), ord, all)).toBeNull();
+  });
+  it("đổi số lượng → gửi đủ danh sách dòng mong muốn (dòng cũ kèm itemId); đổi giảm cấp đơn, ghi chú hãng", () => {
+    const f = { ...same(), lines: [{ itemId: I1, variantId: V1, qty: 3, lineDiscount: 100000 }] };
+    expect(buildUpdate({ ...f, orderDiscount: 5000, carrierNote: " Gọi trước " }, ord, all)).toEqual({
+      version: 7,
+      lines: [{ itemId: I1, variantId: V1, qty: 3, lineDiscount: 100000 }],
+      orderDiscount: 5000,
+      carrierNote: "Gọi trước",
+    });
+  });
+  it("dòng mới không có itemId; bỏ mã gửi chuỗi rỗng; đổi địa chỉ gửi cả địa chỉ", () => {
+    const f: FormState = {
+      ...same(),
+      lines: [...same().lines, { variantId: "v2", qty: 1, lineDiscount: 0 }],
+      address: { ...same().address, line: "Số 14" },
+    };
+    expect(buildUpdate(f, { ...ord, couponCode: "THU10" }, all)).toEqual({
+      version: 7,
+      lines: [
+        { itemId: I1, variantId: V1, qty: 2, lineDiscount: 100000 },
+        { variantId: "v2", qty: 1 },
+      ],
+      couponCode: "",
+      shipAddress: {
+        name: "Nguyễn Văn Tùng",
+        phone: "0987654321",
+        line: "Số 14",
+        provinceCode: "01",
+        wardCode: "00001",
+      },
+    });
+  });
+  it("đơn chưa có nguồn, ô nguồn để trống → không gửi nguồn", () => {
+    const noSource: Order = { ...ord, trafficSourceId: undefined };
+    expect(buildUpdate({ ...same(), trafficSourceId: "" }, noSource, all)).toBeNull();
+  });
+  it("trường ngoài phạm vi được sửa không gửi dù khác", () => {
+    const scope = { ...all, lines: false, shipping: false };
+    const f = { ...same(), shippingFee: 0, lines: [{ itemId: I1, variantId: V1, qty: 5, lineDiscount: 0 }] };
+    expect(buildUpdate(f, ord, scope)).toBeNull();
   });
 });

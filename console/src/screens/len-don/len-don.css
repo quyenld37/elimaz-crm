@@ -252,3 +252,16 @@
   padding-left: 8px;
   padding-right: 8px;
 }
+
+/* Chế độ sửa đơn (Task 85): mỗi phần bọc trong fieldset để khóa theo editScope; fieldset không có khung riêng. */
+fieldset.lock {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-md);
+}
+fieldset.lock:disabled .card {
+  opacity: 0.6;
+}

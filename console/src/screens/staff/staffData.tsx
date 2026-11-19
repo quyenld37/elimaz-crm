@@ -84,13 +84,23 @@ export interface DialogProps {
   drawer?: boolean;
   /** Có nút × ở đầu hộp. */
   closeButton?: boolean;
+  /** Lớp thêm cho <dialog> (ví dụ độ rộng riêng của màn). */
+  className?: string;
   onClose: () => void;
   children: ReactNode;
   footer: ReactNode;
 }
 
 /** Hộp thoại theo mockup M1 (.dlg): <dialog> mở bằng showModal nên trình duyệt giữ focus bên trong và đóng bằng Esc. */
-export function Dialog({ title, drawer = false, closeButton = false, onClose, children, footer }: DialogProps) {
+export function Dialog({
+  title,
+  drawer = false,
+  closeButton = false,
+  className,
+  onClose,
+  children,
+  footer,
+}: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const onCloseRef = useRef(onClose);
@@ -112,7 +122,11 @@ export function Dialog({ title, drawer = false, closeButton = false, onClose, ch
     };
   }, []);
   return (
-    <dialog ref={ref} className={drawer ? "dlg drawer" : "dlg"} aria-labelledby={titleId}>
+    <dialog
+      ref={ref}
+      className={[drawer ? "dlg drawer" : "dlg", className].filter(Boolean).join(" ")}
+      aria-labelledby={titleId}
+    >
       <div className="dlg-h">
         <h3 id={titleId}>{title}</h3>
         {closeButton && (
