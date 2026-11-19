@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/identity"
@@ -13,7 +14,7 @@ import (
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
-// ListEntityAudit (Task M2-24): dòng của đúng thực thể, cũ trước; ListedFields là mảng chuỗi after.fields (rỗng khi
+// ListEntityAudit (Task M2-24, Task 425): dòng của đúng thực thể, mới nhất trước; ListedFields là mảng chuỗi after.fields (rỗng khi
 // không có, khi không phải mảng); không mang giá trị before/after; thực thể khác, tenant khác không lẫn vào.
 func TestListEntityAudit(t *testing.T) {
 	s := testkit.OpenStaff(t)
@@ -35,18 +36,11 @@ func TestListEntityAudit(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	var got []identity.AuditRecord
-	if err := tenancy.WithTenant(t.Context(), s.App, a, func(tx pgx.Tx) error {
-		var err error
-		got, err = identity.ListEntityAudit(t.Context(), tx, "order", "o-1")
-		return err //nolint:wrapcheck // test
-	}); err != nil {
-		t.Fatal(err)
-	}
+	got := listOrderAudit(t, s, a)
 	if len(got) != 3 {
 		t.Fatalf("ListEntityAudit: %d dòng, muốn 3: %+v", len(got), got)
 	}
-	c, e, u := got[0], got[1], got[2]
+	u, e, c := got[0], got[1], got[2]
 	if c.Action != "order.create" || c.ActorID != "u-0" || c.ActorType != "staff" || c.ListedFields == nil ||
 		len(c.ListedFields) != 0 {
 		t.Errorf("dòng tạo (fields không phải mảng): %+v", c)
@@ -58,7 +52,7 @@ func TestListEntityAudit(t *testing.T) {
 		t.Errorf("dòng sửa: %+v", u)
 	}
 	if c.CreatedAt.After(e.CreatedAt) || e.CreatedAt.After(u.CreatedAt) {
-		t.Errorf("không cũ trước: %v, %v, %v", c.CreatedAt, e.CreatedAt, u.CreatedAt)
+		t.Errorf("không mới nhất trước: %v, %v, %v", u.CreatedAt, e.CreatedAt, c.CreatedAt)
 	}
 	raw, err := json.Marshal(got)
 	if err != nil {
@@ -68,4 +62,56 @@ func TestListEntityAudit(t *testing.T) {
 		strings.Contains(string(raw), "0933") {
 		t.Errorf("AuditRecord mang giá trị before/after: %s", raw)
 	}
+}
+
+// Task 425: thực thể có hơn 500 dòng audit → trả đúng 500 dòng mới nhất: dòng ghi sau cùng đứng đầu, dòng cũ nhất bị bỏ.
+func TestListEntityAudit_KeepsNewest500(t *testing.T) {
+	s := testkit.OpenStaff(t)
+	a := s.Tenant(t, "A")
+	first := orderEntry(a)
+	first.Action = "order.create"
+	if err := tenancy.WithTenant(t.Context(), s.App, a, func(tx pgx.Tx) error {
+		if err := identity.RecordAudit(t.Context(), tx, first); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		for range 500 {
+			if err := identity.RecordAudit(t.Context(), tx, orderEntry(a)); err != nil {
+				return err //nolint:wrapcheck // test
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	last := orderEntry(a)
+	last.Action, last.ActorID = "order.update", "u-9"
+	if err := record(t, s, last); err != nil {
+		t.Fatal(err)
+	}
+	got := listOrderAudit(t, s, a)
+	if len(got) != 500 {
+		t.Fatalf("ListEntityAudit: %d dòng, muốn 500", len(got))
+	}
+	if got[0].Action != "order.update" || got[0].ActorID != "u-9" {
+		t.Errorf("dòng đầu: %+v, muốn dòng ghi sau cùng (order.update của u-9)", got[0])
+	}
+	for _, r := range got {
+		if r.Action == "order.create" {
+			t.Fatalf("dòng cũ nhất (order.create) vẫn có trong 500 dòng: %+v", r)
+		}
+	}
+}
+
+// listOrderAudit đọc audit của đơn o-1 trong tenant tenantID bằng ListEntityAudit (crm_app, trong ngữ cảnh tenant).
+func listOrderAudit(t *testing.T, s *testkit.Staff, tenantID uuid.UUID) []identity.AuditRecord {
+	t.Helper()
+	var got []identity.AuditRecord
+	if err := tenancy.WithTenant(t.Context(), s.App, tenantID, func(tx pgx.Tx) error {
+		var err error
+		got, err = identity.ListEntityAudit(t.Context(), tx, "order", "o-1")
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return got
 }

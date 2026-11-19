@@ -76,7 +76,7 @@ func cloneFromTemplate(t testing.TB, fsys fs.FS, migrate migrateFunc, at time.Ti
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	withAdmin(ctx, t, base, func(admin *pgx.Conn) {
-		cleanupStale(ctx, t, admin, []string{testDBPrefix, templatePrefix}, tpl, staleAfter)
+		cleanupStale(ctx, t, admin, serverLocks(), []string{testDBPrefix, templatePrefix}, tpl, staleAfter)
 		// Mẫu có thể vừa bị phiên khác dọn (3D000), hay một kết nối cũ vào mẫu chưa thoát hẳn (55006): dựng/kiểm lại
 		// mẫu rồi thử lại.
 		const attempts = 5
@@ -140,23 +140,34 @@ func templateState(ctx context.Context, t testing.TB, admin *pgx.Conn, tpl strin
 	return true, done
 }
 
+// cleanupLocks là cặp khóa advisory của việc dọn: khóa dọn (một tiến trình dọn mỗi lúc) và khóa dựng mẫu (không xóa mẫu
+// đang được dựng lại). Đường thật dùng serverLocks(); test của việc dọn dùng cặp khóa riêng của lần chạy để không chờ
+// khóa chung của các phiên khác trên máy chủ thử.
+type cleanupLocks struct{ cleanup, template int64 }
+
+// serverLocks là khóa dọn và khóa dựng mẫu chung của mọi tiến trình test trên máy chủ thử.
+func serverLocks() cleanupLocks {
+	return cleanupLocks{cleanup: cleanupLockKey, template: templateLockKey}
+}
+
 // cleanupStale xóa các database có tên bắt đầu bằng một trong prefixes (trừ keep) cũ hơn olderThan và không có kết nối.
 // Tuổi đọc từ thời điểm tạo tệp PG_VERSION của database (database bỏ sót trước Task 391 không có mốc thời gian trong
 // tên). Xóa bằng DROP DATABASE không FORCE: PostgreSQL từ chối nếu có ai vừa nối vào, nên không bao giờ xóa database
-// đang dùng. Chỉ một tiến trình dọn mỗi lúc (khóa advisory thử, không chờ); lỗi khi xóa bỏ qua (lần sau dọn tiếp).
-func cleanupStale(ctx context.Context, t testing.TB, admin *pgx.Conn, prefixes []string, keep string,
+// đang dùng. Chỉ một tiến trình dọn mỗi lúc (khóa advisory locks.cleanup thử, không chờ); lỗi khi xóa bỏ qua (lần sau
+// dọn tiếp).
+func cleanupStale(ctx context.Context, t testing.TB, admin *pgx.Conn, locks cleanupLocks, prefixes []string, keep string,
 	olderThan time.Duration,
 ) {
 	t.Helper()
 	var got bool
-	if err := admin.QueryRow(ctx, "SELECT pg_try_advisory_lock($1)", int64(cleanupLockKey)).Scan(&got); err != nil {
+	if err := admin.QueryRow(ctx, "SELECT pg_try_advisory_lock($1)", locks.cleanup).Scan(&got); err != nil {
 		t.Fatalf("testkit: khóa dọn database thử: %v", err)
 	}
 	if !got {
 		return
 	}
 	defer func() {
-		_, _ = admin.Exec(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock($1)", int64(cleanupLockKey))
+		_, _ = admin.Exec(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock($1)", locks.cleanup)
 	}()
 	rows, err := admin.Query(ctx, `
 SELECT d.datname, d.datistemplate
@@ -185,24 +196,24 @@ ORDER BY d.datname`, prefixes, keep, olderThan.Seconds())
 		t.Fatalf("testkit: đọc database thử bị bỏ sót: %v", err)
 	}
 	for _, s := range list {
-		dropStale(ctx, t, admin, s.name, s.tpl, olderThan)
+		dropStale(ctx, t, admin, locks.template, s.name, s.tpl, olderThan)
 	}
 }
 
-// dropStale xóa một database bỏ sót (không FORCE). Mẫu chỉ xóa khi giữ được khóa dựng mẫu và khóa dựng mẫu có dữ liệu
+// dropStale xóa một database bỏ sót (không FORCE). Mẫu chỉ xóa khi giữ được khóa dựng mẫu templateLock và khóa dựng mẫu có dữ liệu
 // của tên đó (thử, không chờ): không chen vào giữa lúc một tiến trình khác xóa-rồi-dựng-lại mẫu cùng tên. Lỗi bỏ qua, lần sau dọn tiếp.
-func dropStale(ctx context.Context, t testing.TB, admin *pgx.Conn, name string, isTemplate bool,
+func dropStale(ctx context.Context, t testing.TB, admin *pgx.Conn, templateLock int64, name string, isTemplate bool,
 	olderThan time.Duration,
 ) {
 	t.Helper()
 	ident := pgx.Identifier{name}.Sanitize()
 	if isTemplate {
 		var got bool
-		if err := admin.QueryRow(ctx, "SELECT pg_try_advisory_lock($1)", int64(templateLockKey)).Scan(&got); err != nil || !got {
+		if err := admin.QueryRow(ctx, "SELECT pg_try_advisory_lock($1)", templateLock).Scan(&got); err != nil || !got {
 			return
 		}
 		defer func() {
-			_, _ = admin.Exec(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock($1)", int64(templateLockKey))
+			_, _ = admin.Exec(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock($1)", templateLock)
 		}()
 		// Mẫu có dữ liệu (pgseed.go) dựng lại dưới khóa riêng theo tên.
 		if err := admin.QueryRow(ctx, "SELECT pg_try_advisory_lock($1, hashtext($2))", int32(seedLockKey), name).

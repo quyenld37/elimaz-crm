@@ -217,3 +217,46 @@ func checkTimeline(t *testing.T, items []order.OrderTimelineItem, wants []timeli
 		}
 	}
 }
+
+// Task 425: đơn có hơn 500 dòng audit (trần đọc của ListEntityAudit) vẫn hiện lần sửa mới nhất: 500 lần sửa cũ
+// (shipAddress) rồi một lần sửa sau cùng (lines) → mục sửa mới nhất của Timeline là lần sửa sau cùng, đúng người.
+func TestTimeline_ManyAuditsKeepsLatestEdit(t *testing.T) {
+	e := newM2Env(t)
+	editor := e.staff.User(t, e.tenant, "sua@elimaz.test", "active")
+	o := e.createAt(e.m2Input(0, ln(e.variant(250000, 10), 1, 0)), e.dbNow())
+	const old = 500
+	if err := e.app(func(tx pgx.Tx) error {
+		for range old {
+			if err := identity.RecordAudit(e.t.Context(), tx, identity.AuditEntry{
+				TenantID: e.tenant, ActorType: "staff", ActorID: e.actor.UserID.String(), Action: "order.update",
+				EntityType: "order", EntityID: o.ID.String(), After: map[string]any{"fields": []string{"shipAddress"}},
+			}); err != nil {
+				return err //nolint:wrapcheck // test
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("ghi audit cũ: %v", err)
+	}
+	e.audit(editor, "order.update", o.ID, nil, map[string]any{"fields": []string{"lines"}})
+
+	items, err := e.timeline(e.seller, o.ID)
+	if err != nil {
+		t.Fatalf("Timeline: %v", err)
+	}
+	var edits []order.OrderTimelineItem
+	for _, it := range items {
+		if it.Kind == order.TimelineEdit {
+			edits = append(edits, it)
+		}
+	}
+	if len(edits) == 0 {
+		t.Fatal("Timeline không có mục sửa nào")
+	}
+	latest := edits[0]
+	want := map[string]string{"action": "order.update", "lines": "changed"}
+	if !maps.Equal(latest.Summary, want) || latest.ActorID == nil || *latest.ActorID != editor {
+		t.Fatalf("mục sửa mới nhất: %+v (người %v), muốn %v của %v; %d mục sửa", latest.Summary, latest.ActorID, want,
+			editor, len(edits))
+	}
+}
