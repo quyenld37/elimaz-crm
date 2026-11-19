@@ -362,16 +362,21 @@ func claimSQL(t *testing.T) string {
 
 // (f) Câu nhận việc không quét toàn bảng jobs khi bảng có 100.000 dòng (nhiều done, nhiều hội thoại, cả hai chế độ).
 func TestClaimPlanUsesIndexes(t *testing.T) {
-	e := newEnv(t)
-	tenant := e.tenant(t, "A")
-	e.ownerExec(t, fmt.Sprintf(`INSERT INTO platform.jobs (tenant_id, kind, mode, dedupe_key, order_key, order_seq,
+	// Dựng một lần làm database mẫu (chủ bảng như ownerExec; tenant mã cố định).
+	tenant := testkit.FixedUUID("queue-claim-plan/A")
+	e := newSeededEnv(t, testkit.Seed{Name: "queue-claim-plan", SQL: []string{
+		"SET ROLE crm_owner",
+		fmt.Sprintf("INSERT INTO platform.tenants (id, name) VALUES ('%s', 'A')", tenant),
+		fmt.Sprintf(`INSERT INTO platform.jobs (tenant_id, kind, mode, dedupe_key, order_key, order_seq,
 		on_lease_expired, max_attempts, status, order_mode, run_at, finished_at)
 		SELECT '%s', 'inbound.t.plan', 'transactional', 'd' || g, 'conv:' || (g %% 5000), g, 'retry', 8,
 			CASE WHEN g %% 50 = 0 THEN 'pending' WHEN g %% 97 = 0 THEN 'dead' ELSE 'done' END,
 			CASE WHEN g %% 2 = 0 THEN 'best_effort' ELSE 'strict' END,
 			now() + CASE WHEN g %% 100 = 0 THEN interval '1 hour' ELSE interval '0' END,
 			CASE WHEN g %% 50 = 0 THEN NULL ELSE now() END
-		FROM generate_series(1, 100000) g`, tenant), "ANALYZE platform.jobs")
+		FROM generate_series(1, 100000) g`, tenant),
+		"ANALYZE platform.jobs",
+	}})
 	nodes, err := testkit.ExplainAsApp(t.Context(), e.app, tenant, claimSQL(t), int64(90000), "explain", false, int32(10))
 	if err != nil {
 		t.Fatal(err)

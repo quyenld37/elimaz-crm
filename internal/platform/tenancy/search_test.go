@@ -20,16 +20,11 @@ const (
 	searchTenantB = "00000000-0000-0000-0000-00000000000b"
 )
 
-// probeSearch dựng probe.names (200.000 tên chia đều hai tenant, index trigram) và hàm probe.search do crm_search làm
-// chủ, chép theo search-plan-probe.sql. Chạy bằng người quản trị (đổi chủ hàm sang crm_search cần quyền đó).
-func probeSearch(t *testing.T, adminURL string) {
-	t.Helper()
-	conn, err := pgx.Connect(t.Context(), adminURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = conn.Close(context.WithoutCancel(t.Context())) }()
-	for _, q := range []string{
+// probeSeed dựng probe.names (200.000 tên chia đều hai tenant, index trigram) và hàm probe.search do crm_search làm
+// chủ, chép theo search-plan-probe.sql. Chạy bằng người quản trị (đổi chủ hàm sang crm_search cần quyền đó); dựng một
+// lần làm database mẫu (testkit.StartPostgresSeeded).
+func probeSeed() testkit.Seed {
+	return testkit.Seed{Name: "tenancy-search-probe", SQL: []string{
 		"CREATE SCHEMA probe",
 		`CREATE TABLE probe.names (
 			id uuid NOT NULL DEFAULT uuidv7() PRIMARY KEY,
@@ -63,11 +58,7 @@ func probeSearch(t *testing.T, adminURL string) {
 		"REVOKE EXECUTE ON FUNCTION probe.search(text, int) FROM PUBLIC",
 		"GRANT EXECUTE ON FUNCTION probe.search(text, int) TO crm_app",
 		"ANALYZE probe.names",
-	} {
-		if _, err := conn.Exec(t.Context(), q); err != nil {
-			t.Fatalf("%s: %v", q, err)
-		}
-	}
+	}}
 }
 
 func searchIn(ctx context.Context, q interface {
@@ -85,14 +76,21 @@ func searchIn(ctx context.Context, q interface {
 	return names, nil
 }
 
-// searchApp dựng dữ liệu tìm thử, bật auto_explain, rồi mở pool crm_app mới (tham số của role chỉ áp cho kết nối mở
-// sau khi đặt).
+// searchApp lấy database thử có dữ liệu tìm (probeSeed), bật auto_explain, rồi mở pool crm_app.
 func searchApp(t *testing.T) *db.DB {
 	t.Helper()
-	e := newEnv(t, db.PoolOptions{})
-	probeSearch(t, e.adminURL)
-	testkit.EnableAutoExplain(t, e.adminURL)
-	app, err := db.Open(t.Context(), e.appURL, db.PoolOptions{})
+	return probeApp(t, true)
+}
+
+// probeApp lấy database thử có dữ liệu tìm (probeSeed), bật auto_explain nếu explain, rồi mở pool crm_app (tham số
+// của role chỉ áp cho kết nối mở sau khi đặt).
+func probeApp(t *testing.T, explain bool) *db.DB {
+	t.Helper()
+	adminURL, _, appURL := testkit.StartPostgresSeeded(t, probeSeed())
+	if explain {
+		testkit.EnableAutoExplain(t, adminURL)
+	}
+	app, err := db.Open(t.Context(), appURL, db.PoolOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,9 +176,8 @@ func TestSearchPlans(t *testing.T) {
 // Thiếu auto_explain thì không đọc được kế hoạch trong hàm: ExplainAsApp phải báo lỗi chứ không trả mỗi
 // "Function Scan" (khiến RequireNoSeqScan đạt sai).
 func TestExplainAsAppNeedsAutoExplainForFunctions(t *testing.T) {
-	e := newEnv(t, db.PoolOptions{})
-	probeSearch(t, e.adminURL)
-	nodes, err := testkit.ExplainAsApp(t.Context(), e.app, uuid.MustParse(searchTenantA),
+	app := probeApp(t, false)
+	nodes, err := testkit.ExplainAsApp(t.Context(), app, uuid.MustParse(searchTenantA),
 		"SELECT * FROM probe.search($1, 100)", "tuyet 1234")
 	if err == nil {
 		t.Fatalf("muốn lỗi khi auto_explain chưa bật, nhận kế hoạch %v", nodes)
