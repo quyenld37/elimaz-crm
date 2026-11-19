@@ -61,3 +61,58 @@ func TestEdit_NoDeadlock(t *testing.T) {
 		t.Errorf("pg_stat_database.deadlocks %d → %d", before, after)
 	}
 }
+
+// Sửa đơn đổi mã khóa hai mã theo cùng thứ tự với lịch hủy đơn nháp và hủy đơn (ADR-46 nhóm 10: theo id tăng dần):
+// 200 lần, song song: đơn X đổi mã A → B, đơn Y đổi B → A (lần sau đảo lại), ExpireDrafts hai đơn nháp quá hạn mang A
+// và B, hủy một đơn mang A → không lần nào lỗi, pg_stat_database.deadlocks không tăng; cuối cùng mỗi mã còn đúng một
+// lượt (của X hoặc Y), mọi đơn nháp và đơn hủy đã trả lượt.
+func TestEdit_CouponSwapNoDeadlock(t *testing.T) {
+	e := newM2Env(t)
+	codeA, codeB := "SWAPA", "SWAPB"
+	ca, cb := e.coupon(sale10(codeA, 0)), e.coupon(sale10(codeB, 0))
+	v := e.variant(250000, 5000)
+	deadlocks := func() int {
+		return e.staff.Count(t, `SELECT deadlocks::int FROM pg_stat_database WHERE datname = current_database()`)
+	}
+	withCoupon := func(code string) order.Order {
+		in := e.m2Input(0, ln(v, 1, 0))
+		in.CouponCode = code
+		return e.mustCreateM2(in).Order
+	}
+	before := deadlocks()
+	x, y := withCoupon(codeA), withCoupon(codeB)
+	xHas, yHas := codeA, codeB
+	at := e.now().Add(25 * time.Hour)
+	for i := range 200 {
+		e.draftWith(v, 1, codeA)
+		e.draftWith(v, 1, codeB)
+		z := withCoupon(codeA)
+		inX := order.EditInput{Version: x.Version, CouponCode: &yHas}
+		inY := order.EditInput{Version: y.Version, CouponCode: &xHas}
+		var wg sync.WaitGroup
+		start := make(chan struct{})
+		var resX, resY order.EditResult
+		var errX, errY, errExp, errCancel error
+		var n int
+		wg.Go(func() { <-start; resX, errX = e.editOrder(x.ID, inX, e.actor) })
+		wg.Go(func() { <-start; resY, errY = e.editOrder(y.ID, inY, e.actor) })
+		wg.Go(func() { <-start; n, errExp = e.expire(at, 200) })
+		wg.Go(func() { <-start; _, errCancel = e.cancel(z) })
+		close(start)
+		wg.Wait()
+		if err := errors.Join(errX, errY, errExp, errCancel); err != nil || n != 2 {
+			t.Fatalf("lần %d (40P01 là deadlock): hết hạn %d đơn; %v", i, n, err)
+		}
+		x, y, xHas, yHas = resX.Order, resY.Order, yHas, xHas
+	}
+	if a, b := e.usedCount(ca), e.usedCount(cb); a != 1 || b != 1 {
+		t.Errorf("used_count A = %d, B = %d; mong 1, 1", a, b)
+	}
+	if n := e.count(`SELECT count(*)::int FROM promotion.coupon_redemptions WHERE status = 'active'`); n != 2 {
+		t.Errorf("lượt active = %d, mong 2 (của X và Y)", n)
+	}
+	time.Sleep(1500 * time.Millisecond) // số liệu thống kê của backend đẩy lên tối đa mỗi giây
+	if after := deadlocks(); after != before {
+		t.Errorf("pg_stat_database.deadlocks %d → %d", before, after)
+	}
+}

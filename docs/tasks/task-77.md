@@ -11,10 +11,30 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m2-khach-don.md` (Tas
 - Câu sqlc, bảng, pha migration: mới `queries/ord/edit.sql` (`LockOrderItems` khóa dòng đơn `ORDER BY id FOR UPDATE`, `UpdateOrderEdit` sửa đơn khi version khớp, gồm tính lại `cod_amount`, `payment_status`; `UpdateEditedItems`, `DeleteOrderItems`); mới `queries/inventory/byitems.sql` (`HeldReservationByItem`, `ResizeReservation`). Bảng chạm: `ord.orders`, `ord.order_items` (sửa, chèn, xóa), `inventory.stock_balances`, `inventory.stock_reservations`, `inventory.stock_ledger` (qua `applyDelta`), `promotion.*` (qua public API). Migration mới `0210_order_edit.sql` pha **mở rộng**, chỉ GRANT: `DELETE ON ord.order_items` (0204 ghi "Task sửa đơn tự thêm khi cần"), `UPDATE (quantity) ON inventory.stock_reservations`.
 - Test sẽ chạy: `go test -race ./internal/modules/order/... ./internal/modules/inventory/... ./internal/httpapi/ -run 'Edit|UpdateOrder|ResizeHeld'` khi viết; trước review `scripts/agent/ci-task.sh` (chạm migration → bộ đầy đủ theo luật của script).
 
+### Lượt 2 (gộp main có Task 78)
+
+- Ký hiệu Go xuất ra ngoài: **thêm** `promotion.LockCoupons(ctx, tx, codes []string) error` (khóa các dòng mã theo `id`
+  tăng dần; 0 chỗ dùng trước). `order.Edit` đổi chỗ gọi `promotion.ActiveCouponCode` (Task 78 đổi tên thành
+  `OrderCouponCode`, đọc thêm lượt đã trả của đơn đã hủy) sang `OrderCouponCode`. `order.ExpireDrafts` (Task 78) bỏ
+  sắp theo chữ mã, khóa mọi mã bằng `LockCoupons` trước khi trả lượt; chú thích `cancelAll` (`cancel.go`) sửa theo.
+  Không ký hiệu nào đổi chữ ký. Test mới `TestEdit_CouponSwapNoDeadlock` (`edit_deadlock_test.go`).
+- Gói phụ thuộc ngược: `promotion` ← `order`, `httpapi`, `cmd/crm`; `order` như lượt 1. Chỉ thêm hàm.
+- OpenAPI: không chạm. Màn hình: không.
+- sqlc: thêm `LockCouponsByCodes` vào `queries/promotion/coupons.sql` (`SELECT id … WHERE code = ANY(…) ORDER BY id FOR
+  UPDATE`). Bảng `promotion.coupons` (khóa dòng có sẵn). Không migration mới; 0210 vẫn là số kế tiếp (main tới 0209).
+- Hợp nhất hai bên khi gộp: `usedCount` có ở cả `edit_test.go` (Task 77) và `cancel_test.go` (Task 78), cùng thân →
+  giữ bản của `cancel_test.go`, xóa bản trùng.
+- Test sẽ chạy: `go test -race ./internal/modules/order/... ./internal/modules/promotion/...` (+ `httpapi -run
+  'OrderEdit|Cancel'`); trước review `ci-task.sh` một lần.
+
 ## Tái dùng
 
 - Đã kiểm trong danh mục dùng chung và tìm theo tên, theo việc: `docs/danh-muc-dung-chung.md` (`db.NullUUID`, `logging.Phone/Address`, `tenancy`), trong gói `order`: `lockOrder`, `lockedOrder`, `changeLocked` (confirm.go), `applyTransition`, `insertHistory`, `emit`, `signal`, `saleLines`, `cleanAddress`, `normalizedShipPhone`, `pricingError`, `overThreshold`, `money`, `optText`, `validText`, `ActiveSource`, `LoadSettings`; trong `inventory`: `applyDelta`, `changed`, `insufficient`, `LockBalancesOfReservations`, `LockReservations`, `ReleaseHeldByItems`, `Reserve`; trong `promotion`: `Detach`, `Redeem`, `Reprice`, `ActiveCouponCode`; `customer.RootOf`, `customer.ValidateUnits`; `state.Editable`.
 - Dùng lại / viết mới vì: dùng lại toàn bộ các hàm trên. Viết mới `ResizeHeld` (kế hoạch giao; M1 chỉ có giữ/nhả trọn dòng, unique một dòng giữ mỗi dòng đơn nên không thể nhả rồi giữ lại cùng dòng đơn) dựng trên `applyDelta` để mọi đổi số dư vẫn ghi sổ một chỗ. Không dùng `changeLocked` cho Edit vì Edit cần cả dòng đơn đã khóa và đọc đầy đủ đơn trước khi tính; khóa đơn bằng `lockOrder` như changeLocked. Handler dùng lại `refusableWrite`, `optUUID`, `orderOut` và mẫu `orderChange` (audit cùng tx) nhưng cần ghi danh sách trường đổi vào audit nên có hàm riêng mỏng. Luật `payment_status` theo tổng mới (`editedPaymentStatus`) trùng 4 dòng với `ApplyPaymentTotals` (payments.go): giữ riêng ở task này vì gộp là thay đổi cấu trúc phải ở commit riêng (CLAUDE.md mục 3); ghi ở "Việc phát hiện thêm".
+- Lượt 2: tìm trong `promotion` hàm khóa nhiều mã: chỉ có `CouponByCodeForUpdate` (một mã) và
+  `CouponByIDForUpdate` (một id); `lockActive` khóa mã của lượt một đơn. Không có hàm khóa nhiều mã theo thứ tự → viết
+  `LockCoupons` (một câu `ORDER BY id FOR UPDATE`, đúng luật "khóa trước rồi sửa" của ADR-46). Dùng chung cho sửa đơn
+  đổi mã và `ExpireDrafts` (cùng mục đích: thứ tự khóa dòng mã, cùng lý do đổi).
 
 ## Soát thiết kế
 
@@ -44,6 +64,17 @@ Mục 6 (đồng thời) — vùng cao, kế hoạch đòi câu 1, 3, 5, 11:
 - 6.12: audit chỉ ghi tên trường đổi và số tiền, không địa chỉ, SĐT; sự kiện chỉ mang mã.
 - 6.13: quyền `order.update` (hợp đồng); quyền duyệt giảm giá tính ở lớp HTTP từ grant (`identity.Can`), không lấy từ thân.
 
+Lượt 2 (thứ tự khóa hai mã, việc Task 78 giao):
+- 6.3: lượt 1 sửa đơn đổi mã gọi `Detach` (khóa mã cũ) rồi `Redeem` (khóa mã mới) → thứ tự theo hướng đổi; hai lần
+  sửa đổi chéo A→B, B→A, hoặc sửa B→A song song `ExpireDrafts` (khóa theo chữ mã A rồi B) tạo vòng chờ trong nhóm 10.
+  Bảng ADR-46: trong một bảng theo khóa chính tăng dần; sửa nhiều dòng thì khóa trước bằng `ORDER BY id FOR UPDATE`.
+  Sửa: sửa đơn đổi mã gọi `LockCoupons([cũ, mới])` trước `Detach`; `ExpireDrafts` gọi `LockCoupons(mọi mã)` trước khi
+  trả lượt (thay sắp theo chữ — chữ không phải khóa chính). Hủy một đơn (`Cancel`) chỉ khóa một mã: không đổi.
+  Thứ tự nhóm vẫn đơn (7) → mã (10) → tồn (11) ở cả ba đường.
+- 6.4: `LockCoupons` khóa lại dòng đã giữ thì không chờ; chạy lại trong `RetryTx` không giữ trạng thái.
+- 6.11: test `TestEdit_CouponSwapNoDeadlock` 200 lần: hai lần sửa đổi chéo mã + `ExpireDrafts` hai đơn nháp mang hai
+  mã + hủy một đơn mang mã, song song; `pg_stat_database.deadlocks` không tăng; `used_count` khớp số lượt active.
+
 ## Quyết định thay chủ shop
 
 1. **Bước sổ tồn là `edit_v<version mới>`**, không phải `edit:v<version>` như kế hoạch: CHECK của `stock_ledger.step` là `^[a-z][a-z0-9_]{0,31}$`, không cho dấu `:`. Cùng nghĩa, unique `(doc, bucket, step)` vẫn khác nhau giữa các lần sửa. Khác: migration nới CHECK (không cần).
@@ -59,6 +90,14 @@ Mục 6 (đồng thời) — vùng cao, kế hoạch đòi câu 1, 3, 5, 11:
 11. **Đơn `confirmed` sửa địa chỉ thành thiếu tỉnh/xã** → `ErrAddressIncomplete` (422), vì confirmed đòi địa chỉ đủ (máy trạng thái).
 12. **Dòng giữ nguyên tăng số lượng không kiểm lại "còn bán"** (chỉ dòng mới kiểm, như kế hoạch bước 3); tăng vẫn phải đủ hàng có thể bán.
 13. **Sửa tổng tiền của đơn đã trả trước:** `cod_amount = max(grand_total − prepaid_total, 0)` (CHECK `orders_cod_prepaid_check`), `payment_status` tính lại như `ApplyPaymentTotals` (unpaid/partial/paid; `refunded` giữ nguyên). Kế hoạch không nói; không tính lại thì trạng thái thanh toán sai.
+
+14. **(Lượt 2) Thứ tự khóa nhiều mã = `id` tăng dần** (luật "cùng bảng theo khóa chính" của ADR-46), không phải
+    chữ mã như `ExpireDrafts` của Task 78 đang sắp. Sửa đơn đổi mã và `ExpireDrafts` cùng khóa trước bằng
+    `promotion.LockCoupons` (một câu `ORDER BY id FOR UPDATE`). Phương án khác: giữ thứ tự chữ (`COLLATE "C"`) cho cả
+    hai — đúng về deadlock nhưng lệch câu chữ ADR-46, nên không chọn. Đảo ngược dễ (một câu SQL).
+15. **(Lượt 2) `Edit` đọc mã đang dùng bằng `OrderCouponCode`** (tên mới của `ActiveCouponCode` sau Task 78). Với đơn
+    chưa hủy hai hàm cho cùng kết quả. Đơn đã hủy: gửi lại đúng mã của lượt đã trả nay là "không đổi gì" (trả đơn, không
+    ghi), như mọi PATCH không đổi trường nào; đổi mã thật vẫn bị `checkEditable` chặn. Không thêm hàm đọc riêng.
 
 ## Bằng chứng
 
@@ -79,14 +118,20 @@ Mục 6 (đồng thời) — vùng cao, kế hoạch đòi câu 1, 3, 5, 11:
 | Đơn đã trả trước: COD, payment_status tính lại | `TestEdit_PrepaidOrder` | như trên | `ok` |
 | Thuộc tính (rapid): tổng tiền khớp dòng; tổng giữ mỗi biến thể = số lượng các đơn mở = số dư held; used_count = lượt active; bị từ chối thì đơn không đổi | `TestEdit_Invariants` | `go test -race ./internal/modules/order/ -run TestEdit_Invariants` | `[rapid] OK, passed 200 tests`; đột biến bỏ ResizeHeld → test đỏ ở bước 4 (đã hoàn lại) |
 | Không deadlock: 200 lần hai lần sửa song song đổi chéo V1/V3, đổi số lượng V2 | `TestEdit_NoDeadlock` | `go test -race ./internal/modules/order/ -run TestEdit_NoDeadlock` | `ok` (5.96s), deadlocks không tăng |
+| (Lượt 2) Sửa đơn đổi mã khóa hai mã cùng thứ tự với ExpireDrafts và Cancel: 200 lần song song X A→B, Y B→A, ExpireDrafts hai nháp (A, B), hủy một đơn mang A; deadlocks không tăng; used_count A = B = 1, đúng 2 lượt active | `TestEdit_CouponSwapNoDeadlock` | `go test -race ./internal/modules/order/ -run TestEdit_CouponSwapNoDeadlock -count=1` | trước sửa: `FAIL … pg_stat_database.deadlocks 0 → 289` (279s, WriteTx chạy lại nên không lỗi ra ngoài); sau sửa: `ok … 17.377s` |
+| (Lượt 2) Gộp main không làm hỏng Task 78 và Task 77 | toàn bộ test (ci-task chạy cả bộ vì nhánh có migration) | `ci-task.sh` (một lần, nền) rồi `make gen-check` sau khi stage | build, vet, lint `0 issues`, jscpd `Found 0 clones`, `ok …/modules/order 235.657s`, `ok …/modules/promotion 71.896s`, `ok …/httpapi 61.323s`, `ok …/inventory 146.984s`, không dòng FAIL; gen-check đỏ ở lần ci-task chỉ vì tệp chưa stage (`git diff` so cây với index), sau `git add` → `make gen-check` thoát 0 |
 
 ## Test bị xóa hoặc tắt
 
-(không có)
+- Lượt 2: không xóa test nào. Xóa hàm hỗ trợ `usedCount` trùng trong `edit_test.go` (Task 78 thêm hàm cùng tên, cùng
+  thân vào `cancel_test.go`; giữ một bản để gói test biên dịch được). Mọi chỗ gọi dùng bản của `cancel_test.go`.
 
 ## Khác kế hoạch
 
 - Hai commit: (1) **cấu trúc** — rút `inventory.lockInState` (khóa số dư rồi giữ hàng, kiểm trạng thái; trước nằm trong `transition`), `httpapi.orderActor`, `httpapi.shipAddressIn` (trước lặp ở createOrder, orderChange), `checkConcurrentOps` trong `inventory/property_test.go` (khung rapid song song của TestInventoryInvariants); không đổi hành vi. Lý do: cổng jscpd không cho đoạn trùng mới và mã mới cần đúng các đoạn đó (cùng mục đích, cùng lý do đổi). (2) **hành vi** — sửa đơn.
+
+- Lượt 2: sửa `order/drafts.go`, `order/cancel.go` (chú thích) của Task 78 — Task 78 giao việc thống nhất thứ tự khóa
+  hai mã cho task này (mục "Việc phát hiện thêm" của task-78.md).
 
 - Bước sổ `edit_v<N>` thay `edit:v<N>` (Quyết định 1); `queries/inventory/byitems.sql` chưa có nên tạo mới (kế hoạch ghi Modify); thêm migration 0210 chỉ GRANT (Quyết định 2); chữ ký `Edit` (Quyết định 3, 4).
 
@@ -97,6 +142,14 @@ Mục 6 (đồng thời) — vùng cao, kế hoạch đòi câu 1, 3, 5, 11:
 - sqlc: `@tham_số - cột` bị hiểu sai (PostgreSQL có toán tử tiền tố `@` trị tuyệt đối) → lỗi "edited query syntax is invalid" ở vị trí lệch; viết `sqlc.arg(tham_số)::kiểu - cột`. Đáng ghi vào "Bẫy đã gặp" nếu gặp lần hai.
 
 ## Reviewer
+
+Lượt 2 (gộp main, thứ tự khóa hai mã; agent `reviewer`, 10 tệp đã stage): **ĐẠT**. Phát hiện phải sửa: không có.
+Reviewer kiểm từng đường: Edit (đơn → dòng đơn → `LockCoupons` theo id → Detach/Redeem → tồn), ExpireDrafts (mọi đơn →
+`LockCoupons` mọi mã → Release → tồn một lần), Cancel (một mã, không thể tạo vòng chờ nhóm 10); `TestEdit_CouponSwapNoDeadlock`
+chạy 4 đường thật song song và bắt deadlock bằng bộ đếm. Ghi chú không bắt buộc: câu chữ Quyết định 15 về đơn đã hủy
+(đã sửa); ExpireDrafts không có đơn vẫn gửi `LockCoupons` mảng rỗng (đúng, giữ nguyên).
+
+Lượt 1:
 
 Kết luận: ĐẠT (hai lượt, mỗi commit một lượt).
 

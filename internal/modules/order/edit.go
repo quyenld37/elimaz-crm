@@ -88,8 +88,8 @@ type EditResult struct {
 //  4. Tiền bằng pricing.Compute. Ngưỡng duyệt giảm giá (khi dòng hoặc giảm giá đổi, tỷ lệ giảm tay mới vượt ngưỡng và
 //     lớn hơn tỷ lệ cũ): người có quyền duyệt → ghi người duyệt; đơn confirmed → ErrDiscountNeedsApproval; đơn new,
 //     draft → chờ duyệt (applyTransition cùng trạng thái, lý do discount_approval).
-//  5. Mã (nhóm 10): đổi mã → promotion.Detach rồi Redeem; "" → Detach; giữ mã mà tạm tính sau giảm đổi →
-//     promotion.Reprice. Bị từ chối → *promotion.RejectError.
+//  5. Mã (nhóm 10): đổi mã → promotion.LockCoupons(cũ, mới) (id tăng dần, cùng thứ tự với ExpireDrafts), rồi Detach,
+//     Redeem; "" → Detach; giữ mã mà tạm tính sau giảm đổi → promotion.Reprice. Bị từ chối → *promotion.RejectError.
 //  6. Ghi dòng (sửa dòng giữ nguyên, chèn dòng mới nối sau position lớn nhất) và đơn (version + 1).
 //  7. Giữ hàng (nhóm 11) theo variant_id tăng dần trên mọi biến thể bị chạm: dòng bị bỏ → ReleaseHeldByItems
 //     (order_edited), dòng giữ nguyên đổi số lượng → ResizeHeld (bước edit_v<version mới>), dòng mới → Reserve; thiếu →
@@ -123,7 +123,7 @@ func (w Writer) Edit(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID, in 
 	if err != nil {
 		return EditResult{}, err
 	}
-	coupon, err := promotion.ActiveCouponCode(ctx, tx, id)
+	coupon, err := promotion.OrderCouponCode(ctx, tx, id)
 	if err != nil {
 		return EditResult{}, fmt.Errorf("mã giảm giá của đơn: %w", err)
 	}
@@ -505,6 +505,10 @@ func (e *editRun) applyCoupon(ctx context.Context, t pricing.Totals) (int64, err
 	oldBase := e.cur.Subtotal - e.cur.LineDiscountTotal - e.cur.OrderDiscount
 	switch {
 	case e.p.has(EditFieldCouponCode):
+		// Đổi mã chạm hai dòng mã: khóa cả hai theo id tăng dần trước Detach, Redeem (cùng thứ tự với ExpireDrafts).
+		if err := promotion.LockCoupons(ctx, e.tx, []string{e.p.coupon, *e.p.req.coupon}); err != nil {
+			return 0, fmt.Errorf("khóa mã cũ và mã mới: %w", err)
+		}
 		if e.p.coupon != "" {
 			if err := promotion.Detach(ctx, e.tx, e.cur.ID); err != nil {
 				return 0, fmt.Errorf("bỏ mã giảm giá: %w", err)

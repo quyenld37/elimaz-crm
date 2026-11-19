@@ -313,11 +313,6 @@ func (e *orderEnv) editCoupon(code string, minSubtotal int64) uuid.UUID {
 	return out.ID
 }
 
-func (e *orderEnv) usedCount(coupon uuid.UUID) int {
-	e.t.Helper()
-	return e.count(`SELECT used_count FROM promotion.coupons WHERE id = $1`, coupon)
-}
-
 // Q25/DH15 (phần CRM): đơn có vận đơn hiện hành → sửa dòng, phí, địa chỉ ErrLockedByShipment, không đổi gì; sửa người
 // phụ trách → được (gửi kèm dòng không đổi vẫn được, Quyết định 5); đơn delivered → sửa dòng ErrLockedByShipment, người
 // phụ trách được.
