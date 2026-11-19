@@ -497,7 +497,7 @@ func (UnimplementedHandler) GetCustomerImportTemplate(ctx context.Context) (r Ge
 
 // GetCustomerTagRule implements getCustomerTagRule operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Quy tắc tự gắn nhãn theo chỉ số khách; chưa có → 404 (Task M2-25).
 //
 // GET /api/v1/customer-tags/{tagId}/rule
 func (UnimplementedHandler) GetCustomerTagRule(ctx context.Context, params GetCustomerTagRuleParams) (r GetCustomerTagRuleRes, _ error) {
@@ -921,7 +921,8 @@ func (UnimplementedHandler) PostStockDocument(ctx context.Context, req *StockDoc
 
 // PutCustomerTagRule implements putCustomerTagRule operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Đặt quy tắc tự gắn nhãn (điều kiện nối bằng VÀ); sai trường hay phép → 422
+// invalid_tag_rule (Task M2-25).
 //
 // PUT /api/v1/customer-tags/{tagId}/rule
 func (UnimplementedHandler) PutCustomerTagRule(ctx context.Context, req *PutCustomerTagRuleRequest, params PutCustomerTagRuleParams) (r PutCustomerTagRuleRes, _ error) {

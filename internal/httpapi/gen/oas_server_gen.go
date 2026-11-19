@@ -342,7 +342,7 @@ type Handler interface {
 	GetCustomerImportTemplate(ctx context.Context) (GetCustomerImportTemplateRes, error)
 	// GetCustomerTagRule implements getCustomerTagRule operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Quy tắc tự gắn nhãn theo chỉ số khách; chưa có → 404 (Task M2-25).
 	//
 	// GET /api/v1/customer-tags/{tagId}/rule
 	GetCustomerTagRule(ctx context.Context, params GetCustomerTagRuleParams) (GetCustomerTagRuleRes, error)
@@ -631,7 +631,8 @@ type Handler interface {
 	PostStockDocument(ctx context.Context, req *StockDocumentVersion, params PostStockDocumentParams) (PostStockDocumentRes, error)
 	// PutCustomerTagRule implements putCustomerTagRule operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Đặt quy tắc tự gắn nhãn (điều kiện nối bằng VÀ); sai trường hay phép → 422
+	// invalid_tag_rule (Task M2-25).
 	//
 	// PUT /api/v1/customer-tags/{tagId}/rule
 	PutCustomerTagRule(ctx context.Context, req *PutCustomerTagRuleRequest, params PutCustomerTagRuleParams) (PutCustomerTagRuleRes, error)

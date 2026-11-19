@@ -1370,7 +1370,16 @@ export type PutCustomerTagRuleRequest = {
      */
     version?: number;
     enabled: boolean;
-    conditions: Array<TagCondition>;
+    conditions: Array<TagConditionInput>;
+};
+
+/**
+ * Điều kiện khi đặt quy tắc. field, op là chuỗi (không enum) để trường hay phép lạ tới máy chủ và trả 422 invalid_tag_rule (Task M2-25); giá trị như TagCondition.
+ */
+export type TagConditionInput = {
+    field: string;
+    op: string;
+    value: number;
 };
 
 export type StartCustomerImportRequest = {
