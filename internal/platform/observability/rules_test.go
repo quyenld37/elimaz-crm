@@ -63,12 +63,12 @@ func TestRuleDeadNoPayload(t *testing.T) {
 	keys, _ := check(t, e, observability.RuleOptions{})
 	wantKey(t, keys, "dead:msg.send", false)
 	fin := time.Now().Add(-time.Second)
-	id := e.job(t, "msg.send", "dead", `{"phone":"0911"}`, time.Now(), &fin)
-	e.exec(t, "UPDATE platform.jobs SET last_error = 'gọi 0911 lỗi' WHERE id = $1", id)
+	id := e.job(t, "msg.send", "dead", `{"phone":"0911222333"}`, time.Now(), &fin)
+	e.exec(t, "UPDATE platform.jobs SET last_error = 'gọi 0911222333 lỗi' WHERE id = $1", id)
 	keys, f := check(t, e, observability.RuleOptions{})
 	wantKey(t, keys, "dead:msg.send", true)
 	s, _ := f.find("dead:msg.send")
-	if s.severity != "normal" || strings.Contains(s.text, "0911") || !strings.Contains(s.text, id.String()) {
+	if s.severity != "normal" || strings.Contains(s.text, "0911222333") || !strings.Contains(s.text, id.String()) {
 		t.Fatalf("văn bản cảnh báo: %+v", s)
 	}
 	// Đã báo sau lúc việc dead: không báo lại việc cũ.
@@ -313,14 +313,14 @@ func TestRuleErrorsWired(t *testing.T) {
 	fresh(t, e)
 	fp := strings.Repeat("ab", 32)
 	e.exec(t, `INSERT INTO platform.error_events (fingerprint, role, name, message, top_frames)
-		VALUES ($1, 'api', 'n', 'gọi 0911 lỗi', 'f')`, fp)
+		VALUES ($1, 'api', 'n', 'gọi 0911222333 lỗi', 'f')`, fp)
 	e.exec(t, `INSERT INTO platform.metrics_minute (bucket, process, name, label, count, sum, max)
 		VALUES ($1, 'api@a', 'errors', 'api', 51, 51, 0)`, time.Now().UTC().Truncate(time.Minute))
 	keys, f := check(t, e, observability.RuleOptions{})
 	for _, k := range []string{"new-error:" + fp[:8], "error-spike"} {
 		wantKey(t, keys, k, true)
 		s, _ := f.find(k)
-		if s.severity != observability.SeverityNormal || strings.Contains(s.text, "0911") {
+		if s.severity != observability.SeverityNormal || strings.Contains(s.text, "0911222333") {
 			t.Fatalf("%s: mức %q, văn bản %q", k, s.severity, s.text)
 		}
 	}

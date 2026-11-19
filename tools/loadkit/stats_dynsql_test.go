@@ -65,7 +65,13 @@ func TestReadStats(t *testing.T) {
 	addJob(t, owner, tenant, "command.selftest", "command", commandKey("r1", 4), "running", 1)
 	addJob(t, owner, tenant, "command.selftest", "command", commandKey("r0", 1), "done", 3) // lượt khác
 
-	to := time.Now().UTC()
+	// Cuối khung lấy theo đồng hồ của máy chủ PostgreSQL, cùng đồng hồ ghi created_at (now()): đồng hồ container có thể
+	// chạy trước máy chạy test vài ms, khi đó việc dead vừa ghi có created_at > time.Now() và rơi khỏi khung.
+	var to time.Time
+	if err := owner.Pool.QueryRow(ctx, "SELECT clock_timestamp()").Scan(&to); err != nil {
+		t.Fatal(err)
+	}
+	to = to.UTC()
 	from := to.Truncate(time.Minute).Add(-10 * time.Minute)
 	h := func(vals ...int) []int {
 		out := make([]int, len(metrics.HistBoundsMs)+1)

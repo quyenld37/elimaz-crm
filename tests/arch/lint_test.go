@@ -2,6 +2,8 @@
 package arch
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +11,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -35,6 +38,23 @@ type lintIssue struct {
 	} `json:"Pos"`
 }
 
+// lintTempDir là $TMPDIR riêng của worktree cho golangci-lint chạy trong test: golangci-lint khóa tệp
+// $TMPDIR/golangci-lint.lock và bỏ sau 5 giây nếu tiến trình khác giữ khóa, nên dùng $TMPDIR chung thì lint của hook,
+// ci-task hay phiên khác làm test đỏ. Thư mục nằm trong cache người dùng, cố định theo worktree (thư mục go.mod).
+func lintTempDir(t *testing.T) string {
+	t.Helper()
+	base, err := os.UserCacheDir()
+	if err != nil {
+		t.Fatalf("thư mục cache người dùng: %v", err)
+	}
+	sum := sha256.Sum256([]byte(repoRoot(t)))
+	dir := filepath.Join(base, "crm-arch-lint", hex.EncodeToString(sum[:8]))
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
 func golangciLint(t *testing.T, root string, args ...string) ([]lintIssue, string) {
 	t.Helper()
 	bin, err := exec.LookPath("golangci-lint")
@@ -44,9 +64,13 @@ func golangciLint(t *testing.T, root string, args ...string) ([]lintIssue, strin
 	full := append([]string{
 		"run", "--output.json.path=stdout", "--output.text.path=stderr",
 		"--max-issues-per-linter=0", "--max-same-issues=0", "--show-stats=false",
+		// Cùng worktree có lần lint khác của test đang chạy: chờ nó xong (giới hạn bởi timeout của go test), không bỏ.
+		"--allow-serial-runners",
 	}, args...)
 	cmd := exec.CommandContext(t.Context(), bin, full...)
 	cmd.Dir = root
+	// Cache golangci-lint giữ thư mục mặc định dùng chung (an toàn khi nhiều tiến trình, như cache của Go).
+	cmd.Env = append(os.Environ(), "TMPDIR="+lintTempDir(t))
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
