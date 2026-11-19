@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/order"
+	"elimaz.com.vn/crm/internal/modules/promotion"
 )
 
 // m2Prepare chèn danh mục hành chính mẫu (testkit.SeedAdminUnits) và cài đặt, nguồn đơn mặc định cho tenant của e.
@@ -110,8 +111,6 @@ func TestOrderAPI_CreateM2Refusals(t *testing.T) {
 	both := strings.Replace(m2Body("new", "", 0, m2Line(v, 1, 0)), `{"customer"`,
 		`{"customerId":"`+uuid.NewString()+`","customer"`, 1)
 	expect(t, "customerId và customer", e.post("r6", both), http.StatusBadRequest, "invalid_input")
-	expect(t, "mã giảm giá trước M2-17", e.post("r7", strings.Replace(m2Body("new", "", 0, m2Line(v, 1, 0)),
-		`"intent"`, `"couponCode":"GIAM10","intent"`, 1)), http.StatusNotImplemented, "not_implemented")
 	expect(t, "confirmed không địa chỉ", e.post("r8", m2Body("confirmed", "", 0, m2Line(v, 1, 0))),
 		http.StatusBadRequest, "invalid_input")
 }
@@ -216,5 +215,80 @@ func (e *orderAPIEnv) holdBalanceLock(v uuid.UUID) func() {
 		if err := <-done; err != nil {
 			e.t.Fatal(err)
 		}
+	}
+}
+
+// withFields chèn các trường JSON extra (không ngoặc) vào thân b, trước "intent".
+func withFields(b, extra string) string { return strings.Replace(b, `"intent"`, extra+`,"intent"`, 1) }
+
+// couponNow tạo mã code 10% trần 50.000, maxUses lượt, hạn [now+fromH giờ, now+toH giờ) (handler dùng giờ thật).
+func (e *orderAPIEnv) couponNow(code string, maxUses int32, fromH, toH int) {
+	e.t.Helper()
+	now := time.Now().UTC()
+	maxDiscount := int64(50000)
+	e.staff.Exec(e.t, e.shop.Tenant, func(tx pgx.Tx) error {
+		_, err := promotion.Writer{}.CreateCoupon(e.t.Context(), tx, promotion.Actor{TenantID: e.shop.Tenant}, promotion.CouponInput{
+			Code: code, Name: "Mã " + code, DiscountKind: promotion.KindPercent, Value: 1000, MaxDiscount: &maxDiscount,
+			ReleaseOnCancel: true, ValidFrom: now.Add(time.Duration(fromH) * time.Hour),
+			ValidTo: now.Add(time.Duration(toH) * time.Hour), MaxUses: optUses(maxUses),
+		})
+		return err //nolint:wrapcheck // test
+	})
+}
+
+func optUses(n int32) *int32 {
+	if n == 0 {
+		return nil
+	}
+	return &n
+}
+
+// Mã giảm giá và ngưỡng duyệt qua API (Task M2-17): SALE10 → 201 couponDiscount 50.000, grandTotal 640.000; hết lượt
+// → 422 coupon_rejected reason exhausted, không đơn mới; hết hạn → reason expired; nhân viên chỉ có order.create giảm
+// tay 100.001/1.000.000 → new, chờ duyệt (nhãn awaiting_discount_approval); quản lý (vai trò mẫu manager) → confirmed.
+func TestOrderAPI_CouponAndDiscountApproval(t *testing.T) {
+	e := newOrderAPIEnv(t)
+	e.m2Prepare()
+	mgr := "quan-ly-don@elimaz.test"
+	e.staff.Grant(t, e.shop.Tenant, e.staff.User(t, e.shop.Tenant, mgr, "active"), rolePerms(t, "manager"), "all", "")
+	e.couponNow("SALE10", 1, -24, 24)
+	e.couponNow("KM02", 0, -48, -24)
+	v1, v2 := e.variant(e.shop.Seller, 250000, 10), e.variant(e.shop.Seller, 180000, 10)
+	dh01 := func(code string) string {
+		return withFields(m2Body("confirmed", fullAddr, 30000, m2Line(v1, 2, 20000), m2Line(v2, 1, 0)),
+			`"couponCode":"`+code+`"`)
+	}
+	o := e.mustCreate("c1", dh01("sale10"))
+	if o["couponDiscount"] != float64(50000) || o["grandTotal"] != float64(640000) || o["codAmount"] != float64(640000) ||
+		o["discountTotal"] != float64(70000) {
+		t.Errorf("đơn có mã: %v", o)
+	}
+	orders := e.count(`SELECT count(*) FROM ord.orders`)
+	for key, c := range map[string]struct{ code, reason string }{
+		"c2": {"SALE10", "exhausted"}, "c3": {"KM02", "expired"}, "c4": {"KHONGCO", "not_found"},
+	} {
+		rec := e.post(key, dh01(c.code))
+		body := decodeJSON(t, rec)
+		if rec.Code != http.StatusUnprocessableEntity || body["error"] != "coupon_rejected" || body["reason"] != c.reason {
+			t.Errorf("mã %s: %d %v, mong 422 coupon_rejected %s", c.code, rec.Code, body, c.reason)
+		}
+	}
+	if n := e.count(`SELECT count(*) FROM ord.orders`); n != orders {
+		t.Errorf("mã bị từ chối vẫn tạo đơn: %d → %d", orders, n)
+	}
+
+	v := e.variant(e.shop.Seller, 1000000, 10)
+	dh16 := withFields(m2Body("confirmed", fullAddr, 0, m2Line(v, 1, 0)), `"orderDiscount":100001`)
+	s := e.mustCreate("a1", dh16)
+	if s["status"] != "new" || s["pendingReason"] != "discount_approval" || s["label"] != "awaiting_discount_approval" {
+		t.Errorf("nhân viên giảm vượt ngưỡng: %v", s)
+	}
+	rec := serveAs(e.srv, e.keys, http.MethodPost, "/api/v1/orders", mgr, "a2", dh16)
+	m := decodeJSON(t, rec)
+	if rec.Code != http.StatusCreated || m["status"] != "confirmed" || m["pendingReason"] != nil {
+		t.Errorf("quản lý giảm vượt ngưỡng: %d %v", rec.Code, m)
+	}
+	if n := e.count(`SELECT count(*) FROM ord.orders WHERE id = $1 AND discount_approved_by IS NOT NULL`, m["id"]); n != 1 {
+		t.Errorf("đơn của quản lý không ghi discount_approved_by")
 	}
 }

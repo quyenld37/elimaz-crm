@@ -149,8 +149,8 @@ func TestM2Routes_Unimplemented(t *testing.T) {
 		orderBody(0, line(uuid.New(), 1))), http.StatusBadRequest, "idempotency_key_required")
 }
 
-// TestOrderAPI_M2FieldsPending: thân kiểu M1 vẫn 201 (TestOrderAPI_CreateGet); couponCode chưa có nghiệp vụ (Task
-// M2-17) thì 501, không bị bỏ qua lặng lẽ (trường M2 khác có từ Task M2-16, test ở handlers_order_m2_test.go); thiếu
+// TestOrderAPI_M2FieldsPending: thân kiểu M1 vẫn 201 (TestOrderAPI_CreateGet); couponCode được dùng thật từ Task M2-17
+// (mã không có → 422 coupon_rejected, không bị bỏ qua lặng lẽ; ca khác ở handlers_order_m2_test.go); thiếu
 // cả customer lẫn customerId, hay thiếu địa chỉ khi không gửi intent (luật M1) → 400 invalid_input. Không đơn nào được
 // tạo.
 func TestOrderAPI_M2FieldsPending(t *testing.T) {
@@ -162,7 +162,6 @@ func TestOrderAPI_M2FieldsPending(t *testing.T) {
 		status     int
 		code       string
 	}{
-		{"couponCode", strings.Replace(base, `{"customer"`, `{"couponCode":"SALE10","customer"`, 1), http.StatusNotImplemented, "not_implemented"},
 		{"không khách", strings.Replace(base, `"customer":{"fullName":"Chị Lan"},`, ``, 1), http.StatusBadRequest, "invalid_input"},
 		{
 			"không địa chỉ", strings.Replace(base, `,"shipAddress":{"name":"Chị Lan","phone":"+84901234567","line":"12 Lê Lợi, Q1"}`, ``, 1),
@@ -173,6 +172,11 @@ func TestOrderAPI_M2FieldsPending(t *testing.T) {
 			t.Fatalf("%s: thân thử không đổi", c.name)
 		}
 		expect(t, c.name, e.post(fmt.Sprintf("m2-%d", i), c.body), c.status, c.code)
+	}
+	rec := e.post("m2-coupon", strings.Replace(base, `{"customer"`, `{"couponCode":"SALE10","customer"`, 1))
+	if b := decodeJSON(t, rec); rec.Code != http.StatusUnprocessableEntity || b["error"] != "coupon_rejected" ||
+		b["reason"] != "not_found" {
+		t.Errorf("couponCode: %d %v, mong 422 coupon_rejected not_found", rec.Code, b)
 	}
 	if n := e.count(`SELECT count(*) FROM ord.orders`); n != 0 {
 		t.Errorf("%d đơn, mong 0", n)

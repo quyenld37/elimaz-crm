@@ -10,16 +10,19 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	ht "github.com/ogen-go/ogen/http"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/order"
+	"elimaz.com.vn/crm/internal/modules/promotion"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/queries/orderview"
 )
+
+// permDiscountApprove: người có quyền này tạo đơn giảm tay vượt ngưỡng không phải chờ duyệt (Q3).
+const permDiscountApprove = "order.discount.approve"
 
 // orderKeyPrefix tách không gian tên của khóa nghiệp vụ đơn (UUID v5) khỏi mọi chỗ khác dùng uuid.NewSHA1.
 const orderKeyPrefix = "elimaz-crm/order.create:"
@@ -33,17 +36,14 @@ func orderBusinessKey(userID uuid.UUID, requestKey string) uuid.UUID {
 // CreateOrder (POST /api/v1/orders, order.create): tìm-hoặc-tạo khách và tạo đơn của người bán mặc định trong một
 // transaction (giữ hàng cùng lúc, order.Writer.Create) → 201; khóa nghiệp vụ (từ Idempotency-Key và nhân viên) đã có
 // đơn cùng nội dung → 200 trả đơn đó. Thân kiểu M1 (không intent) tạo thẳng confirmed như M1. Từ chối nghiệp vụ (hết
-// hàng, dữ liệu sai…) không lưu theo khóa: gửi lại cùng khóa được xử lý lại. couponCode có ở Task M2-17 (tới lúc đó
-// 501, không bỏ qua lặng lẽ).
+// hàng, dữ liệu sai, mã giảm giá bị từ chối…) không lưu theo khóa: gửi lại cùng khóa được xử lý lại. Người có quyền
+// order.discount.approve không phải chờ duyệt giảm giá (Task M2-17; máy chủ tự tính từ grant).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) CreateOrder(ctx context.Context, req *gen.CreateOrderRequest, params gen.CreateOrderParams) (gen.CreateOrderRes, error) {
 	u, ok := authUser(ctx)
 	if !ok {
 		return nil, errNoAuthUser
-	}
-	if req.CouponCode.Set {
-		return nil, fmt.Errorf("tạo đơn có mã giảm giá: %w", ht.ErrNotImplemented)
 	}
 	in, err := createOrderInput(req, orderBusinessKey(u.UserID, params.IdempotencyKey))
 	if err != nil {
@@ -92,6 +92,7 @@ func createOrderInput(req *gen.CreateOrderRequest, key uuid.UUID) (order.CreateI
 		ExternalRef: req.ExternalRef.Or(""), TrafficSourceID: optUUID(req.TrafficSourceId),
 		OrderDiscount: int64(req.OrderDiscount.Or(0)), ShippingFee: int64(req.ShippingFee),
 		Intent: string(req.Intent.Or("")), CarrierNote: req.CarrierNote.Or(""), CareBy: optUUID(req.CareBy),
+		CouponCode: req.CouponCode.Or(""),
 	}
 	c, hasCust := req.Customer.Get()
 	switch {
@@ -136,7 +137,10 @@ func optUUID(o gen.OptUUID) *uuid.UUID {
 
 func createOrder(ctx context.Context, tx pgx.Tx, w order.Writer, in order.CreateInput, u identity.AuthUser,
 ) (order.CreateResult, error) {
-	res, err := w.Create(ctx, tx, in, order.Actor{TenantID: u.TenantID, UserID: u.UserID}, time.Now().UTC())
+	a := order.Actor{
+		TenantID: u.TenantID, UserID: u.UserID, CanApproveDiscount: identity.Can(u, permDiscountApprove, nil),
+	}
+	res, err := w.Create(ctx, tx, in, a, time.Now().UTC())
 	if err != nil || res.Replayed {
 		return res, err //nolint:wrapcheck // sentinel của order
 	}
@@ -157,6 +161,7 @@ func isOrderRefusal(err error) bool {
 		order.ErrDuplicateOrder, order.ErrVariantNotFound, order.ErrLineDiscountExceeds, order.ErrOrderDiscountExceeds,
 		order.ErrAddressIncomplete, order.ErrTrafficSourceInactive, customer.ErrInvalidInput, customer.ErrNotFound,
 		customer.ErrInvalidPhone, customer.ErrUnknownAdminUnit, customer.ErrWardNotInProvince,
+		promotion.ErrCouponRejected,
 	} {
 		if errors.Is(err, e) {
 			return true

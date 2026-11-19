@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/promotion/internal/store"
+	"elimaz.com.vn/crm/internal/platform/events"
 )
 
 // Lý do trả lượt khi Detach (sửa đơn bỏ mã, đổi mã).
@@ -32,12 +33,42 @@ type Redemption struct {
 	Discount int64
 }
 
-// Redeem dùng mã code (không phân biệt hoa thường) cho đơn orderID trong tx của bên gọi: khóa dòng mã (ADR-46 nhóm 10:
+// TopicCouponUsed là sự kiện công bố khi một đơn dùng mã (docs/views.md mục "Sự kiện công bố"; 04 mục 3: promotion
+// phát). Aggregate order_coupon (mã đơn), Seq = version của đơn ở bên gọi (đơn đã khóa hoặc vừa chèn), nên hai lần
+// dùng mã của cùng một đơn (sửa đơn đổi mã) không trùng Seq.
+const TopicCouponUsed = "coupon.used"
+
+const aggregateOrderCoupon = "order_coupon"
+
+// errWriterNotWired: Redeem cần Writer có Events và Queue (lỗi nối dây, HTTP 500).
+var errWriterNotWired = errors.New("promotion: Writer thiếu Events hoặc Queue")
+
+// OrderRef là đơn dùng mã: tenant, mã đơn và version hiện tại của đơn (đơn đã chèn hoặc đã khóa trong tx của bên gọi;
+// làm Seq của coupon.used).
+type OrderRef struct {
+	TenantID, ID uuid.UUID
+	Version      int64
+}
+
+// Used là payload của coupon.used: chỉ mã và số (A16).
+type Used struct {
+	CouponID   uuid.UUID `json:"couponId"`
+	OrderID    uuid.UUID `json:"orderId"`
+	CustomerID uuid.UUID `json:"customerId"`
+	Discount   int64     `json:"discount"`
+}
+
+// Redeem dùng mã code (không phân biệt hoa thường) cho đơn o trong tx của bên gọi: khóa dòng mã (ADR-46 nhóm 10:
 // coupons → coupon_customer_uses → coupon_redemptions), Evaluate, tăng used_count có điều kiện (0 dòng → exhausted),
 // tăng lượt của khách in.CustomerRootID có điều kiện (0 dòng → customer_limit), chèn lượt của đơn hoặc đổi dòng
-// released cũ của cùng (mã, đơn) về active. Từ chối → *RejectError (errors.Is ErrCouponRejected); bên gọi lùi cả
-// transaction. Đơn đã có lượt active → lỗi (bên gọi Detach trước).
-func Redeem(ctx context.Context, tx pgx.Tx, code string, orderID uuid.UUID, in EvalInput) (Redemption, error) {
+// released cũ của cùng (mã, đơn) về active, rồi phát coupon.used. Từ chối → *RejectError (errors.Is
+// ErrCouponRejected); bên gọi lùi cả transaction. Đơn đã có lượt active → lỗi (bên gọi Detach trước). Writer thiếu
+// Events hoặc Queue → lỗi trước khi đọc gì.
+func (w Writer) Redeem(ctx context.Context, tx pgx.Tx, code string, o OrderRef, in EvalInput) (Redemption, error) {
+	if w.Events == nil || w.Queue == nil {
+		return Redemption{}, errWriterNotWired
+	}
+	orderID := o.ID
 	q := store.New(tx)
 	row, err := q.CouponByCodeForUpdate(ctx, code)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -85,7 +116,26 @@ func Redeem(ctx context.Context, tx pgx.Tx, code string, orderID uuid.UUID, in E
 	if n == 0 {
 		return Redemption{}, errOrderHasCoupon
 	}
+	if _, _, err := w.Events.Emit(ctx, tx, w.Queue, events.Event{
+		TenantID: o.TenantID, AggregateType: aggregateOrderCoupon, AggregateID: orderID.String(), Seq: o.Version,
+		Topic:   TopicCouponUsed,
+		Payload: Used{CouponID: c.ID, OrderID: orderID, CustomerID: in.CustomerRootID, Discount: discount},
+	}); err != nil {
+		return Redemption{}, fmt.Errorf("phát %s: %w", TopicCouponUsed, err)
+	}
 	return Redemption{CouponID: c.ID, Code: c.Code, Discount: discount}, nil
+}
+
+// ActiveCouponCode trả mã (đúng chữ đã lưu) của lượt đang hiệu lực của đơn orderID; đơn không dùng mã → "".
+func ActiveCouponCode(ctx context.Context, tx pgx.Tx, orderID uuid.UUID) (string, error) {
+	code, err := store.New(tx).ActiveCouponCodeByOrder(ctx, orderID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("đọc mã của đơn: %w", err)
+	}
+	return code, nil
 }
 
 // Release trả lượt mã của đơn orderID khi đơn hủy (reason: lý do hủy, 1–100 ký tự). Không có lượt active, hoặc mã có
