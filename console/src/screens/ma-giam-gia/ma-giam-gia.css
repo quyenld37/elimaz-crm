@@ -1,0 +1,31 @@
+/* Màn Mã giảm giá (mockup docs/mockups/m2/ma-giam-gia.html): .c-code của trang, .locked của docs/mockups/m2/m2.css.
+   Thanh tiến độ .bar dùng lại imports.css. Chỉ dùng biến có sẵn: không màu, cỡ chữ, bo góc mới. */
+
+.c-code {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  max-width: 280px;
+}
+@media (max-width: 759px) {
+  .c-code {
+    max-width: none;
+  }
+}
+
+/* Ô bị khóa sau khi mã đã dùng */
+.locked {
+  font-size: 12px;
+  color: var(--label);
+  font-weight: 600;
+}
+.input[disabled] {
+  background: var(--surface);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* Hộp Tạo mã, Tạo đợt mã: rộng như thẻ của mockup trạng thái B (860px). */
+dialog.dlg.dlg-coupon {
+  max-width: 860px;
+}

@@ -1,7 +1,4 @@
 // API giả (fetch) và cách dựng cho test vitest của màn Khách. Chỉ test nhập tệp này. Trả đúng kiểu của client sinh.
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render } from "@testing-library/react";
-import { createMemoryRouter, RouterProvider } from "react-router";
 import { vi } from "vitest";
 import type {
   Customer,
@@ -14,6 +11,7 @@ import type {
   Me,
   TimelineItem,
 } from "../../api";
+import { NOT_FOUND, bodyOf, renderScreens, reply, type Write } from "../../app/screenTestkit";
 import { screens } from "./route";
 
 /** Hộp thoại trong jsdom: dùng chung bản của màn Đơn. */
@@ -122,13 +120,6 @@ export function customer(p: Partial<Customer> = {}): Customer {
 export const grantsOf = (...perms: string[]): Grant[] =>
   ["customer.read", ...perms].map((permission) => ({ permission, scope: { type: "all", id: "" } }));
 
-export interface Write {
-  method: string;
-  path: string;
-  key: string | null;
-  body: Record<string, unknown>;
-}
-
 export interface Fake {
   grants: Grant[];
   list: CustomerListItem[];
@@ -146,16 +137,7 @@ export interface Fake {
   replies: { status: number; body: unknown }[];
 }
 
-const NOT_FOUND = { error: "not_found", request_id: "t" };
-const reply = (body: unknown, status = 200) => Response.json(body, { status });
 const found = (v: unknown) => (v === undefined ? reply(NOT_FOUND, 404) : reply(v));
-
-/** Đọc thân JSON của yêu cầu ghi thành đối tượng (thân rỗng hay không phải đối tượng → {}). */
-async function bodyOf(req: Request): Promise<Record<string, unknown>> {
-  const raw = await req.text();
-  const v: unknown = raw === "" ? {} : JSON.parse(raw);
-  return typeof v === "object" && v !== null && !Array.isArray(v) ? Object.fromEntries(Object.entries(v)) : {};
-}
 
 type Handler = (m: RegExpExecArray, q: URLSearchParams) => Response;
 
@@ -255,17 +237,7 @@ export function installFake(): Fake {
 
 /** Dựng các màn của route.tsx ở đường `path` (cùng trang đơn giả cho liên kết sang màn Đơn). */
 export function renderAt(path: string) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const router = createMemoryRouter(
-    [...screens.map((s) => ({ path: s.path, element: s.element })), { path: "/don/:id", element: <p>Trang đơn</p> }],
-    { initialEntries: [path] },
-  );
-  const view = render(
-    <QueryClientProvider client={qc}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>,
-  );
-  return { qc, ...view };
+  return renderScreens(screens, path, [{ path: "/don/:id", element: <p>Trang đơn</p> }]);
 }
 
 /** Phần tử thứ i; thiếu thì test hỏng với câu rõ (thay cho ép kiểu hay dấu !). */

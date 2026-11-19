@@ -1,0 +1,36 @@
+/* Màn Cài đặt đơn (mockup docs/mockups/m2/cai-dat-don.html): .set của trang, .inline-f của docs/mockups/m2/m2.css;
+   .olist, .oitem dùng lại khach.css. Chỉ dùng biến có sẵn: không màu, cỡ chữ, bo góc mới. */
+
+.settings-page {
+  max-width: 960px;
+}
+.set {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px;
+  gap: 8px 24px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--rule);
+  align-items: start;
+}
+.set:last-of-type {
+  border-bottom: 0;
+}
+@media (max-width: 759px) {
+  .set {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.inline-f {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.inline-f .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+ul.sources {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
