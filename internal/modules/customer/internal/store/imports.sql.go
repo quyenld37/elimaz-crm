@@ -169,46 +169,6 @@ func (q *Queries) InsertImport(ctx context.Context, arg InsertImportParams) (Cus
 	return i, err
 }
 
-const insertImportNote = `-- name: InsertImportNote :exec
-INSERT INTO customer.customer_notes (tenant_id, customer_id, body, author_id, created_at)
-VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3, $4)
-`
-
-type InsertImportNoteParams struct {
-	CustomerID uuid.UUID
-	Body       string
-	AuthorID   uuid.UUID
-	Now        time.Time
-}
-
-func (q *Queries) InsertImportNote(ctx context.Context, arg InsertImportNoteParams) error {
-	_, err := q.db.Exec(ctx, insertImportNote,
-		arg.CustomerID,
-		arg.Body,
-		arg.AuthorID,
-		arg.Now,
-	)
-	return err
-}
-
-const insertImportTagLink = `-- name: InsertImportTagLink :exec
-INSERT INTO customer.customer_tag_links (tenant_id, customer_id, tag_id, source, created_by)
-VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, 'staff',
-        $3::uuid)
-ON CONFLICT DO NOTHING
-`
-
-type InsertImportTagLinkParams struct {
-	CustomerID uuid.UUID
-	TagID      uuid.UUID
-	CreatedBy  pgtype.UUID
-}
-
-func (q *Queries) InsertImportTagLink(ctx context.Context, arg InsertImportTagLinkParams) error {
-	_, err := q.db.Exec(ctx, insertImportTagLink, arg.CustomerID, arg.TagID, arg.CreatedBy)
-	return err
-}
-
 const insertTagIfAbsent = `-- name: InsertTagIfAbsent :exec
 INSERT INTO customer.customer_tags (tenant_id, name, color)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, 'gray')

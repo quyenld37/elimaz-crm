@@ -38,6 +38,9 @@ func newImportEnv(t *testing.T) *importEnv {
 	customer.RegisterFilePurposes()
 	e := &importEnv{writeEnv: newWriteEnv(t), store: testkit.MemFileStore(t)}
 	e.imp = customer.NewImporter(customer.ImporterOptions{DB: e.staff.App, Store: e.store, Writer: e.w})
+	// Không tự dừng theo giờ thật (máy tải nặng làm một lô quá 20 s, lượt dừng giữa chừng và drain kết thúc sớm);
+	// test tự dừng đặt ngân sách riêng.
+	customer.SetBudget(e.imp, time.Hour)
 	e.wk = queue.NewWorker(e.staff.App, nil, queue.WorkerOptions{
 		WorkerID: "w-" + uuid.NewString(), Poll: 50 * time.Millisecond,
 		Commands: commands.NewRunner(e.staff.App, []commands.Handler{e.imp}),
@@ -313,7 +316,17 @@ func TestImport_ResumeAfterCrash(t *testing.T) {
 		t.Fatalf("sau lô 1: %d khách, %+v", n, mid)
 	}
 	customer.SetAfterBatch(e.imp, nil)
-	e.drain()
+	// Chạy lại thẳng Execute (không qua worker): hạn 30 s của lệnh tính theo giờ thật, máy tải nặng có thể cắt một lô
+	// giữa chừng và hẹn lượt sau 30 s; điều cần kiểm là chạy lại đủ, không phải thời gian.
+	for range 10 {
+		out, err := e.imp.Execute(t.Context(), customer.ImportJob(e.tenant, imp.ID))
+		if err != nil {
+			t.Fatalf("chạy lại: %v", err)
+		}
+		if out.Status == commands.StatusDone {
+			break
+		}
+	}
 	done := e.get(imp.ID)
 	if done.Status != customer.ImportDone || done.TotalRows != 1200 || done.OKRows != 1200 || done.SkippedRows != 0 || done.ErrorRows != 0 {
 		t.Fatalf("sau khi chạy lại: %+v", done)

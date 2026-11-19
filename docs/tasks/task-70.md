@@ -1,8 +1,18 @@
-# Task 70 — M2-13: Nhập khách từ tệp Excel
+# Task 70 — M2-13: Nhập khách từ tệp Excel (lượt 2: gộp main)
 
 Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m2-khach-don.md` (Task M2-13, số toàn cục 70). Loại việc (quy trình mục 3): A
 
 ## Ảnh hưởng
+
+**Lượt 2 (19/11, gộp `main` có Task 69 nhãn/ghi chú):** gộp không xung đột văn bản nhưng build đỏ
+`maxNoteRunes redeclared` (`notes.go` của 69 và `importer_rows.go`). Thay đổi của lượt 2, chỉ trong gói `customer`
+(ký hiệu không xuất ra ngoài, không gói nào khác phải sửa): xóa hằng `maxNoteRunes`, `maxTagRunes` và hàm
+`noteControl` của nhập; xóa hai câu `InsertImportTagLink`, `InsertImportNote` ở `queries/customer/imports.sql` (sinh
+lại `internal/store/imports.sql.go` bằng `make gen`; chỉ `importer_job.go` dùng). Không đổi migration, bảng,
+OpenAPI. Test chạy lại: `./internal/modules/customer/...`, `-run CustomerImport ./internal/httpapi/`, rồi cổng kiểm
+của task.
+
+**Lượt 1:**
 
 - Ký hiệu Go xuất ra ngoài sẽ đổi: **không sửa ký hiệu có sẵn nào** (tìm bằng grep; không đổi tên, không đổi chữ ký).
   Thêm mới trong `customer`: `ImportPurposeKey`, `ImportPurpose()`, `RegisterFilePurposes()`, `ImportHeader()`,
@@ -29,6 +39,18 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m2-khach-don.md` (Tas
   test theo luật của cổng).
 
 ## Tái dùng
+
+**Lượt 2:** Task 69 đã vào main, nên dùng lại phần cùng nghĩa của 69 và xóa bản riêng của nhập:
+- Ghi chú: `validNote` (`notes.go`, giới hạn `maxNoteRunes` 4000, cấm ký tự điều khiển ngoài xuống dòng/tab) thay cho
+  kiểm tay + `noteControl`; câu `InsertNote` (`notes.sql`) thay `InsertImportNote` (cùng câu INSERT).
+- Nhãn: hằng `maxTagNameRunes` (`tags.go`) thay `maxTagRunes`; câu `InsertTagLink` (`tags.sql`, nguồn
+  `TagSourceStaff`, `ON CONFLICT DO NOTHING` → không dòng = đã gắn, bỏ qua `pgx.ErrNoRows`) thay `InsertImportTagLink`.
+- **Giữ riêng** (khác nghĩa): `InsertTagIfAbsent` + `TagIDsByName` — nhập tìm-hoặc-tạo nhãn theo **tên**, hàng loạt,
+  trùng tên thì dùng nhãn có sẵn; `InsertTag` của 69 báo lỗi khi trùng tên (một lỗi 23505 hỏng cả transaction của lô),
+  và `Writer.CreateTag`/`AddTag`/`AddNote` ghi audit + báo hiệu **từng** nhãn/khách — kế hoạch cấm audit từng dòng.
+  `parseTags` (tách theo `;`, bỏ trùng, ≤ 20 nhãn) không có bản tương đương ở 69.
+
+**Lượt 1:**
 
 - Đã kiểm `docs/danh-muc-dung-chung.md` và tìm theo việc: đọc Excel có giới hạn (`internal/platform/xlsx.Read`, G10:
   gói đã ở `internal/platform/xlsx` từ M1 Task 38 → **không cần tách gói**, không có commit cấu trúc); ghi mẫu
@@ -119,10 +141,26 @@ Khớp kiến trúc (mục 5):
 9. **Audit duy nhất** `customer.import` (entity `customer.import`, mã lần nhập) ghi lúc lần nhập `done`, actor là nhân
    viên đã bắt đầu, `after` chỉ số đếm. Lúc bắt đầu không audit.
 
+10. **(Lượt 2) Ghi chú nhập theo luật `validNote` của Task 69**: nay chấp nhận cả `\r` (xuống dòng kiểu Windows) như
+    ghi chú gõ tay — một luật cho mọi ghi chú. Phương án khác: giữ luật riêng chặt hơn của nhập (hai luật cho cùng một
+    cột, dễ lệch).
+
+11. **(Lượt 2) Gộp main thành commit gộp riêng `36a6059`** (đúng bản git tự trộn, cổng commit cho qua như mọi commit
+    gộp), rồi sửa lỗi build `maxNoteRunes redeclared` ở commit sau có reviewer. Vì: reviewer duyệt đúng phần sửa nhỏ
+    trên nền đã gộp, không phải cả diff của main. Đổi lại: riêng commit gộp không build (chỉ lỗi trùng hằng, sửa ngay ở
+    commit kế). Phương án khác: một commit gộp kèm sửa (reviewer phải duyệt cả phần của Task 69, 73, 412).
+
+12. **(Lượt 2) Sửa test `TestImport_ResumeAfterCrash` cho khỏi phụ thuộc giờ thật** (luật Task 400): trên máy tải ~47–60,
+    test đỏ hai lần (dừng ở `running` 500 rồi 1000 dòng) vì lượt chạy qua worker tự dừng theo ngân sách 20 s hoặc bị
+    hạn 30 s của lệnh cắt giữa lô, rồi hẹn lượt sau mà `drain` không chờ. Sửa: `newImportEnv` đặt ngân sách 1 giờ
+    (`SetBudget`, test tự dừng vẫn đặt 0) và phần chạy lại gọi thẳng `Execute` tới khi `done`. Không nới tiêu chí:
+    vẫn đòi đúng 1.200 khách, 1.200 SĐT, ok 1200, một audit. Mã chạy thật không đổi.
+
 ## Bằng chứng
 
 | Tiêu chí | Test | Lệnh | Kết quả |
 |---|---|---|---|
+| (Lượt 2) Sau khi gộp main và dùng lại `validNote`, `InsertNote`, `InsertTagLink`, `maxTagNameRunes` của Task 69: nhập vẫn tạo nhãn nguồn staff, ghi chú tác giả đúng; mọi test nhập, nhãn, ghi chú, dòng thời gian | `TestImport_*`, `TestTag*`, `TestNote*`, `TestTimeline*`; `TestCustomerImportAPI` | `go test -race -run 'Import\|Tag\|Note\|Timeline' ./internal/modules/customer/`; `go test -race -run CustomerImport ./internal/httpapi/` | httpapi `ok 16.3s`; customer: chỉ `TestImport_ResumeAfterCrash` đỏ do giờ thật (Quyết định 12), sau sửa `ok 101.3s` (chạy riêng) — kết quả cả gói ở cổng kiểm bên dưới |
 | `TestPurposes_GoMatchesTable` xanh với `customer_import`; bỏ dòng INSERT của 0208 → đỏ | `TestPurposes_GoMatchesTable` (files) | `go test -race ./internal/platform/files/ -run TestPurposes` | `ok`; khi thay INSERT bằng `SELECT 1`: `FAIL … customer_import: đã RegisterPurpose, thiếu dòng trong bảng` (đã trả lại) |
 | Tệp 5 dòng, dòng 3 SĐT `123`, dòng 5 phường không thuộc tỉnh → ok 3, error 2, lỗi row 3 và 5, JSON lỗi không chứa giá trị ô | `TestImport_RowErrorsAndReimport` | `go test -race ./internal/modules/customer/ -run TestImport` | `--- PASS: TestImport_RowErrorsAndReimport` |
 | Nhập lại → ok 0, skipped 3, không thêm khách | `TestImport_RowErrorsAndReimport` (phần `again`) | `go test -race ./internal/modules/customer/ -run TestImport` | PASS |
@@ -140,7 +178,9 @@ Khớp kiến trúc (mục 5):
 
 ## Test bị xóa hoặc tắt
 
-(không có)
+- Không test nào bị xóa, tắt hay nới ngưỡng. (Lượt 2) `TestImport_ResumeAfterCrash`: phần chạy lại đổi từ `e.drain()`
+  (qua worker, có hạn 30 s giờ thật) sang gọi thẳng `Execute` tới khi `done`; mọi assertion giữ nguyên. Lý do:
+  Quyết định 12. Đường qua worker vẫn được `TestImport_RowErrorsAndReimport` (qua `run`/`drain`) kiểm.
 
 ## Khác kế hoạch
 
@@ -158,12 +198,24 @@ Khớp kiến trúc (mục 5):
   song song (reviewer, ghi chú không bắt buộc).
 - Ô SĐT dạng số trong Excel mất số 0 đầu: màn nhập khách (sau này) nên nhắc định dạng cột SĐT là văn bản, hoặc nhập
   thêm số 0 khi ô là số 9 chữ số.
+- Một lô 500 dòng phải xong trong hạn 30 s của lệnh: trên máy rất tải (load ~47) một lô gần chạm hạn; nếu máy chủ thật
+  chậm như vậy thì lần nhập không tiến (mỗi lượt bị cắt ở lô đầu). Nên đo trên máy chủ và cân nhắc lô nhỏ hơn hoặc hạn
+  dài hơn (Task 400 / đo hiệu năng).
 - `files.TestPublicVariants` chập chờn trên `main` (hạn 200 ms khi máy tải nặng).
 
-- Khi Task 69 (nhãn, ghi chú) vào main: xem có gộp câu tìm-hoặc-tạo nhãn / chèn ghi chú của nhập với `tags.sql`,
-  `notes.sql` không (hôm nay giữ riêng: nhập tìm nhãn theo **tên** hàng loạt, không audit từng dòng).
+- ~~Khi Task 69 vào main: gộp câu nhãn/ghi chú~~ — đã làm ở lượt 2 (xem Tái dùng).
 
 ## Cổng kiểm của task
+
+- **Lượt 2** (sau khi gộp main, đã stage; chạy một lần): build, vet, lint, gen-check, sqlc-vet, catalog-check, jscpd,
+  gitleaks, oasdiff, test-guard **xanh**. Bước test toàn bộ (vì nhánh có migration 0208) ĐỎ do quá 10 phút hoặc hạn giờ
+  thật khi máy tải ~44: `catalog` (TestApply_* chờ worker 30 s), `identity`, `inventory` (57014 statement timeout),
+  `promotion`, `customer` — chỉ `customer` bị lượt 2 chạm. Chạy lại riêng với `-timeout 60m`:
+  `go test -race -timeout 60m ./internal/modules/customer/... ./internal/modules/promotion/...` →
+  `ok customer 636.3s`, `ok promotion 700.8s`. `catalog`, `identity`, `inventory` không nhập gói nào lượt 2 đổi;
+  điều phối viên chạy toàn bộ test trên `main`.
+
+**Lượt 1:**
 
 - Lần 1 (trước khi stage): ĐỎ ở `gen-check` (tệp mới chưa stage — đúng luật so với git), `jscpd` (một đoạn lặp 6 dòng
   trong `importer_test.go`, đã gộp thành `startRows`), và `test` (log bị cắt; chạy riêng mọi gói bị cắt —
@@ -177,6 +229,14 @@ Khớp kiến trúc (mục 5):
   lần 1 khi đã có migration 0208. Điều phối viên chạy toàn bộ test trên `main` sau khi gộp.
 
 ## Reviewer
+
+**Lượt 2:** Kết luận **ĐẠT** (lần 1, trên phần đã stage sau commit gộp `36a6059`). Không có phát hiện phải sửa. 7 mục
+đều đạt: bốn ký hiệu của Task 69 dùng lại có thật; không còn chỗ dùng tên cũ (`maxTagRunes`, `noteControl`,
+`InsertImportNote`, `InsertImportTagLink`); mã sinh do `make gen`; test không bị nới (sau vòng `Execute` vẫn kiểm
+done và số đếm). Ghi chú không bắt buộc: ghi chú nhập nay nhận `\r` (Quyết định 10); `created_at` liên kết nhãn lấy
+giờ của lô; nhánh bỏ qua `pgx.ErrNoRows` khi gắn nhãn chỉ phòng hờ.
+
+**Lượt 1:**
 
 Kết luận: **ĐẠT** (lần 1, trên phần đã stage sau khi gộp main). Không có phát hiện phải sửa. Ghi chú không bắt buộc
 (không ảnh hưởng tính đúng, giữ lại làm việc sau):

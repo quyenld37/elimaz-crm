@@ -73,13 +73,3 @@ ON CONFLICT (tenant_id, name) DO NOTHING;
 SELECT id, name
 FROM customer.customer_tags
 WHERE name = ANY (@names::text[]);
-
--- name: InsertImportTagLink :exec
-INSERT INTO customer.customer_tag_links (tenant_id, customer_id, tag_id, source, created_by)
-VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, @customer_id, @tag_id, 'staff',
-        sqlc.narg(created_by)::uuid)
-ON CONFLICT DO NOTHING;
-
--- name: InsertImportNote :exec
-INSERT INTO customer.customer_notes (tenant_id, customer_id, body, author_id, created_at)
-VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, @customer_id, @body, @author_id, @now);

@@ -31,8 +31,6 @@ const (
 
 const (
 	maxImportTags = 20
-	maxTagRunes   = 50   // CHECK của customer_tags.name
-	maxNoteRunes  = 4000 // CHECK của customer_notes.body
 	// maxExcelSerial là số ngày kiểu Excel của 31/12/9999 (ngày 0 tính là 30/12/1899, đúng cho mọi ngày từ
 	// 01/03/1900 do lỗi năm nhuận 1900 của Excel).
 	maxExcelSerial = 2_958_465
@@ -86,10 +84,11 @@ func parseImportRow(r xlsx.Row, cellErrs []xlsx.CellError, units *adminIndex, to
 		return fail(colTags, code)
 	}
 	if raw := cell(colNote); raw != "" {
-		if utf8.RuneCountInString(raw) > maxNoteRunes || !utf8.ValidString(raw) || strings.ContainsFunc(raw, noteControl) {
+		note, err := validNote(raw)
+		if err != nil {
 			return fail(colNote, rowInvalidText)
 		}
-		in.note = raw
+		in.note = note
 	}
 	return in, nil
 }
@@ -101,9 +100,6 @@ func requiredOr(raw, code string) string {
 	}
 	return code
 }
-
-// noteControl: ký tự điều khiển không được có trong ghi chú (xuống dòng, tab được giữ).
-func noteControl(r rune) bool { return r != '\n' && r != '\t' && isControl(r) }
 
 // parseBirthday đọc ngày sinh dd/mm/yyyy (d/m/yyyy cũng nhận) hoặc số ngày kiểu Excel (ô định dạng ngày, đọc giá trị
 // thô, bỏ phần giờ sau dấu chấm); ngày phải từ năm 1900 và không sau today.
@@ -143,10 +139,10 @@ func parseTags(raw string) ([]string, string) {
 		if tag == "" || seen[tag] {
 			continue
 		}
-		if utf8.RuneCountInString(tag) > maxTagRunes {
+		if utf8.RuneCountInString(tag) > maxTagNameRunes {
 			return nil, rowTagTooLong
 		}
-		if _, err := validText(tag, maxTagRunes); err != nil {
+		if _, err := validText(tag, maxTagNameRunes); err != nil {
 			return nil, rowInvalidText
 		}
 		seen[tag] = true

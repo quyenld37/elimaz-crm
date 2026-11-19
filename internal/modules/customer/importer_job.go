@@ -456,14 +456,14 @@ func importExtras(ctx context.Context, q *store.Queries, id uuid.UUID, in import
 		}
 	}
 	for _, name := range in.tags {
-		if err := q.InsertImportTagLink(ctx, store.InsertImportTagLinkParams{
-			CustomerID: id, TagID: tags[name], CreatedBy: a.createdBy(),
-		}); err != nil {
+		if _, err := q.InsertTagLink(ctx, store.InsertTagLinkParams{
+			CustomerID: id, TagID: tags[name], Source: TagSourceStaff, CreatedBy: a.createdBy(), Now: now,
+		}); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("gắn nhãn khách nhập: %w", err)
 		}
 	}
 	if in.note != "" {
-		if err := q.InsertImportNote(ctx, store.InsertImportNoteParams{
+		if _, err := q.InsertNote(ctx, store.InsertNoteParams{
 			CustomerID: id, Body: in.note, AuthorID: a.ID, Now: now,
 		}); err != nil {
 			return fmt.Errorf("ghi chú khách nhập: %w", err)
