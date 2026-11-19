@@ -87,7 +87,8 @@ type Config struct {
 	ImagerURL          string // địa chỉ của imager (ADR-45)
 	ImagePresetVersion int    // mặc định 1
 	// S3ImagerEndpoint là gốc của đường dẫn ký sẵn đưa imager (S3_IMAGER_ENDPOINT, mặc định S3Endpoint): SigV4 ký cả
-	// host, mà imager chỉ tới được kho qua mạng imaging (dev: http://seaweedfs:8333; Task M1-43, Q2).
+	// host, mà imager chỉ tới được cổng S3 của kho qua bộ chuyển cổng s3-imaging trên mạng imaging (compose:
+	// http://s3-imaging:8333; Task M1-43 Q2, Task 410).
 	S3ImagerEndpoint string
 	// ImagerMaxParallel là số việc worker gửi imager cùng lúc (IMAGER_MAX_PARALLEL, mặc định 2): đặt bằng biến cùng tên
 	// của imager để imager không phải trả 503 (503 kéo dài quá hạn 30 s thì lệnh chờ lại, không tính lượt, Task 409).

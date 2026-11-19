@@ -1,0 +1,11 @@
+# Đường lui khi máy chủ chưa có kho ngoài (Task 410; RUNBOOK "Chép tệp sang kho ngoài"): gộp SAU compose.prod.yml ở MỌI
+# lệnh compose của máy chủ trong thời gian này (đặt COMPOSE_FILE=docker/compose.prod.yml:docker/compose.prod.no-filesync.yml
+# trong môi trường của máy chủ để không lệnh nào quên). filesync vào một profile không bao giờ bật nên bị loại khỏi
+# project (không kéo image, không chạy); worker tắt ba cảnh báo chép kho. Biến FILESYNC_* vẫn phải có giá trị giữ chỗ
+# vì compose đòi mọi biến ${…:?} của compose.prod.yml. Có kho ngoài thì bỏ tệp này khỏi COMPOSE_FILE.
+services:
+  filesync:
+    profiles: [chua-co-kho-ngoai]
+  crm-worker:
+    environment:
+      FILESYNC_EXPECTED: "false"

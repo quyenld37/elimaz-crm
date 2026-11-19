@@ -55,7 +55,8 @@ Tệp này lớn dần theo từng task; Task 23 soát lại toàn bộ.
   hết giữ chỗ 90 s mới chạy lại). Giới hạn bộ nhớ ingest 256 MiB, api 512 MiB, worker 512 MiB, `GOMEMLIMIT` 90%
   (chưa đo; chỉnh theo Task 22 và bản thử).
 - Chạy: `docker compose -f docker/compose.prod.yml --env-file <tệp> --profile migrate run --rm crm-migrate`, rồi
-  `up -d --wait crm-worker`, rồi `crm-api`; `crm-ingest` chỉ khi mã của nó đổi.
+  `up -d --wait crm-worker`, rồi `crm-api`; `crm-ingest` chỉ khi mã của nó đổi. Chưa có kho ngoài: dùng `COMPOSE_FILE`
+  có `compose.prod.no-filesync.yml` thay cho `-f` (mục "Chép tệp sang kho ngoài").
 - Dev: `make image && make app-up` chạy ba vai trò từ image trên compose dev (profile `app`); `make image-check` kiểm
   cả đường (health 200, `healthy`, uid khác 0, không `.env*` trong image).
 
@@ -91,16 +92,30 @@ crm_filesync;` (database thử của `internal/testkit` tự tạo role này, m�
 ## Chép tệp sang kho ngoài mỗi giờ, đối chiếu mỗi ngày (Task M1-45, ADR-36)
 
 - Container `filesync` (`docker/filesync/Dockerfile`, script ở `scripts/filesync/`): khi khởi động chép một lượt, rồi
-  mỗi `FILESYNC_INTERVAL_S` giây (mặc định 3600) chép `crm-public`, `crm-originals`, `crm-private` sang kho ngoài bằng
+  mỗi `FILESYNC_INTERVAL_S` giây (mặc định 3600) chép ba bucket `public`, `originals`, `private` (tên thật
+  `<S3_BUCKET_PREFIX>public`…, mặc định `crm-public`, `crm-originals`, `crm-private`) sang kho ngoài bằng
   `rclone copy --immutable --checksum` (chỉ thêm: không bao giờ `sync`, `move`, `delete`); `crm-tmp` không chép.
   `crm-originals`, `crm-private` đi qua rclone crypt (tên và nội dung mã hóa trước khi rời máy); `crm-public` không mã hóa.
   Từ 03:30 giờ Việt Nam, mỗi ngày một lần, đếm số tệp và dung lượng hai phía. Mỗi bucket mỗi lượt một dòng
-  `platform.file_sync_runs` (`kind` = `copy` / `reconcile`, `ok`, `objects`, `bytes`, `detail`); cả ba bucket chép tốt
+  `platform.file_sync_runs` (`kind` = `copy` / `reconcile`, `bucket` = tên logic `public` / `originals` / `private`, không
+  có tiền tố (Task 410), `ok`, `objects`, `bytes`, `detail`); cả ba bucket chép tốt
   thì gọi `FILESYNC_HEARTBEAT_URL` (rỗng: bỏ).
 - Danh tính: kho chính bằng `crm-filesync` (chỉ đọc, liệt kê), kho ngoài bằng một khóa chỉ ghi thêm (không xóa);
   database bằng role `crm_filesync` (chỉ `INSERT` một bảng, tối đa 1 kết nối). Container không có khóa của `crm-app`.
+- Máy chủ: dịch vụ `filesync` của `docker/compose.prod.yml` chạy cùng `up -d` (image `CRM_FILESYNC_IMAGE` ghim digest,
+  volume `filesync-state` giữ mốc lần chép tốt cuối; Task 410). Compose đòi đủ mọi biến `${…:?}` của cả tệp trước khi
+  chạy bất kỳ dịch vụ nào, nên chưa có tài khoản kho ngoài thì: điền **giá trị giữ chỗ** (không phải khóa thật) cho
+  `CRM_FILESYNC_IMAGE`, `FILESYNC_*`, `RCLONE_CRYPT_PASSWORD*` trong tệp biến, và đặt trong môi trường của máy chủ
+  `COMPOSE_FILE=docker/compose.prod.yml:docker/compose.prod.no-filesync.yml` để **mọi** lệnh compose (deploy, lùi bản)
+  đều gộp tệp đường lui: `filesync` bị loại khỏi project (không kéo image, không chạy), worker `FILESYNC_EXPECTED=false`
+  (`tests/deploy` `TestProdCompose_NoFilesyncOverride`). Khi đó các lệnh dưới bỏ `-f docker/compose.prod.yml`. Có kho
+  ngoài thì điền giá trị thật, bỏ `COMPOSE_FILE`, `up -d --wait`, kiểm `file-sync-age` hết cảnh báo.
+- Đặt `S3_BUCKET_PREFIX` khác `crm-` thì quyền theo bucket trong tệp danh tính SeaweedFS của máy chủ
+  (`CRM_SEAWEEDFS_S3_CONFIG`: `Read:crm-public`… của `crm-app`, `crm-filesync`) phải đổi theo cùng tiền tố, rồi chạy
+  `bootstrap.sh main` với cùng `S3_BUCKET_PREFIX`.
 - Biến (giá trị chỉ ở tệp biến của máy chủ): `FILESYNC_DATABASE_URL`; `FILESYNC_SRC_ENDPOINT`, `…_ACCESS_KEY_ID`,
-  `…_SECRET_ACCESS_KEY`, `FILESYNC_SRC_REGION`; `FILESYNC_DST_ENDPOINT`, `…_ACCESS_KEY_ID`, `…_SECRET_ACCESS_KEY`,
+  `…_SECRET_ACCESS_KEY`, `FILESYNC_SRC_REGION`, `FILESYNC_SRC_BUCKET_PREFIX` (mặc định `crm-`; compose production lấy
+  từ `S3_BUCKET_PREFIX`, cùng biến với ứng dụng, nên hai bên không lệch); `FILESYNC_DST_ENDPOINT`, `…_ACCESS_KEY_ID`, `…_SECRET_ACCESS_KEY`,
   `FILESYNC_DST_REGION`, `FILESYNC_DST_PROVIDER` (mặc định `Other`), `FILESYNC_DST_BUCKET_PREFIX` (mặc định `crm-`;
   tên bucket kho ngoài = tiền tố + `public` / `originals` / `private`: tên bucket Backblaze B2 là duy nhất toàn cầu nên
   thường phải đặt tiền tố riêng); `RCLONE_CRYPT_PASSWORD`, `RCLONE_CRYPT_PASSWORD2` (≥ 32 ký tự, chủ shop giữ trong
@@ -108,7 +123,7 @@ crm_filesync;` (database thử của `internal/testkit` tự tạo role này, m�
   Worker đặt `FILESYNC_EXPECTED=true` để bật ba cảnh báo dưới.
 - Chạy tay: một lượt `docker compose --profile filesync run --rm filesync --once`; đối chiếu
   `docker compose --profile filesync run --rm --entrypoint /opt/filesync/reconcile.sh filesync`; xem tệp đã giải mã ở
-  kho ngoài `… --entrypoint /opt/filesync/ls-offsite.sh filesync crm-private <tiền tố>`. Xem kết quả:
+  kho ngoài `… --entrypoint /opt/filesync/ls-offsite.sh filesync private <tiền tố>` (tên bucket logic). Xem kết quả:
   `SELECT kind, bucket, ok, finished_at, objects, bytes, detail FROM platform.file_sync_runs ORDER BY finished_at DESC LIMIT 20;`
 - Cảnh báo (bật bằng `FILESYNC_EXPECTED=true` ở worker; `/health/deep` có `lastFileSyncAgeM` = tuổi lần chép tốt cũ
   nhất trong ba bucket, vắng khi còn bucket chưa chép lần nào):
@@ -125,6 +140,22 @@ crm_filesync;` (database thử của `internal/testkit` tự tạo role này, m�
 - **Chưa chạy với kho thật** (Step 6 của Task M1-45, cần chủ shop tạo tài khoản kho ngoài và hai mật khẩu crypt): khi có,
   cấu hình trên staging, chạy một lượt, chép một tệp riêng tư về và đọc được bằng mật khẩu, ghi kết quả vào đây.
 
+## Hạn 24 giờ của crm-tmp (R10, Q18; Task 410)
+
+- `crm-tmp` giữ ảnh tải lên chưa xử lý (ảnh riêng tư còn EXIF, GPS). Xóa sau 24 giờ nhờ **lifecycle TTL fast path** của
+  SeaweedFS: `bootstrap.sh main` bật (`s3.bucket.lifecycle.fastpath -name crm-tmp -enable`); mỗi đối tượng ghi sau đó có
+  `ttlSec 86400` và nằm ở volume `Ttl:1d`, filer và volume server tự xóa. Quy tắc `Expiration Days=1` một mình **không**
+  xóa gì: `weed server` không chạy lifecycle worker (đo 19/11/2026, `docs/do-luong/seaweedfs-m1.md`).
+- Kiểm trên máy: `echo 's3.bucket.lifecycle.fastpath -name crm-tmp' | weed shell` (trong container `seaweedfs`) phải in
+  `fast path: enabled`. Đối tượng ghi **trước** khi bật không có hạn: liệt kê và xóa bằng `crm-admin`
+  (`fs.meta.cat /buckets/crm-tmp/<khóa>` có `ttlSec 0`). Dev: `make probe-test` có `TestTmpExpiry_*`.
+- Ràng buộc với Task 409: trần thử lại xử lý ảnh (`IMAGE_RETRY_MAX_HOURS`) phải **nhỏ hơn 24 giờ** (tính từ lúc tải
+  lên). Ảnh riêng tư chỉ có bản gốc ở `crm-tmp` (R10), ảnh thường cũng vậy tới khi được chép sang `crm-originals`; thử
+  lại sau 24 giờ thì bản gốc đã tự xóa, lượt đó ra `source_missing` thay vì xử lý được. Mặc định hiện là 24 (bằng hạn):
+  ảnh còn lỗi hạ tầng ở giờ cuối có thể ra `source_missing`; đặt 23 nếu muốn chắc (task-410.md "Việc phát hiện thêm").
+- Đổi hạn: chỉ đối tượng ghi sau lần đổi theo hạn mới (TTL gắn lúc ghi). Không bao giờ bật fast path cho bucket giữ
+  phiên bản (SeaweedFS cũng không áp cho chúng).
+
 ## Dựng lại kho tệp (Task M1-46, ADR-36; TP08, TP09, TP12)
 
 - **Kho tệp tắt đột ngột** (máy khởi động lại, container chết): khởi động lại SeaweedFS rồi chờ. Tệp đã báo xong
@@ -133,7 +164,9 @@ crm_filesync;` (database thử của `internal/testkit` tự tạo role này, m�
 - **Kho tệp hỏng hẳn** (đĩa hỏng, volume mất): dựng lại từ kho ngoài. Mất các tệp tải lên sau lần chép tốt cuối
   (khoảng một giờ); dữ liệu đơn hàng không ảnh hưởng (database sao lưu đường riêng).
   1. Dừng SeaweedFS chính; giữ nguyên volume hỏng sang một bên nếu còn đọc được (đừng xóa trước khi có bản mới).
-  2. Khởi động SeaweedFS với volume rỗng, chạy `bootstrap.sh main …` (bucket, giữ phiên bản, chính sách, hạn crm-tmp, CORS).
+  2. Khởi động SeaweedFS với volume rỗng, chạy `bootstrap.sh main …` (bucket, giữ phiên bản, chính sách, hạn crm-tmp, CORS,
+     TTL fast path của crm-tmp) bằng image SeaweedFS, `WEED_MASTER` trỏ tới master (trong chính container `seaweedfs`:
+     mặc định `localhost:9333`), `S3_BUCKET_PREFIX` như tệp biến. Xem mục "Hạn 24 giờ của crm-tmp".
   3. Chép ngược bằng danh tính **ghi được** kho chính (crm-admin), cùng hai mật khẩu crypt của lúc chép đi:
      `docker compose --profile filesync run --rm -e FILESYNC_SRC_ACCESS_KEY_ID=<khóa crm-admin> -e
      FILESYNC_SRC_SECRET_ACCESS_KEY=<bí mật crm-admin> --entrypoint /opt/filesync/restore.sh filesync`

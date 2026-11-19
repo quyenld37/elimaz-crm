@@ -255,7 +255,7 @@ func TestHealthDeepFileSyncAge(t *testing.T) {
 	defer func() { _ = admin.Close(context.Background()) }()
 	if _, err := admin.Exec(t.Context(), `INSERT INTO platform.file_sync_runs (kind, bucket, ok, started_at, finished_at)
 		SELECT 'copy', b, true, now() - interval '32 minutes', now() - interval '30 minutes'
-		FROM unnest(ARRAY['crm-public', 'crm-originals', 'crm-private']) b`); err != nil {
+		FROM unnest(ARRAY['public', 'originals', 'private']) b`); err != nil {
 		t.Fatal(err)
 	}
 	if age, _ := get()["lastFileSyncAgeM"].(float64); age < 30 || age > 31 {

@@ -73,7 +73,7 @@ services:
   # Kho tệp chính (ADR-36). Khóa dev cố định trong seaweedfs/s3.json, chỉ cho máy dev.
   seaweedfs:
     image: &seaweedfs chrislusf/seaweedfs:4.48@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d
-    # -ip.bind=0.0.0.0: có hai mạng (default, imaging) thì weed chỉ nghe trên IP tự chọn, cổng mở ra máy không tới.
+    # -ip.bind=0.0.0.0: weed mặc định chỉ nghe trên một IP tự chọn; nghe mọi địa chỉ để cổng mở ra máy luôn tới được.
     # -s3.allowedOrigins là CORS chung cho bucket không có CORS riêng (mặc định "*"): đặt một gốc không tồn tại để chỉ
     # crm-tmp (CORS riêng do bootstrap.sh đặt từ CONSOLE_ORIGINS) nhận tải thẳng từ trình duyệt.
     command: ["server", "-dir=/data", "-ip.bind=0.0.0.0", "-s3", "-s3.port=8333", "-s3.config=/etc/seaweedfs/s3.json",
@@ -83,7 +83,9 @@ services:
     volumes:
       - seaweed:/data
       - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
-    networks: [default, imaging]
+    # Chỉ mạng default (Task 410, review độc lập M1 C-01): master 9333/19333, volume 8080/18080, filer 8888/18888, S3
+    # gRPC 18333 không kiểm danh tính; imager chỉ tới cổng S3 qua s3-imaging.
+    networks: [default]
     healthcheck: &weedhealth
       test: ["CMD-SHELL", "curl -s -o /dev/null http://127.0.0.1:8333/"]
       interval: 2s
@@ -107,6 +109,10 @@ services:
   s3-bootstrap:
     image: *seaweedfs
     entrypoint: ["sh", "-ec"]
+    environment:
+      CONSOLE_ORIGINS: ${CONSOLE_ORIGINS:-http://localhost:4192}
+      # bootstrap.sh bật lifecycle TTL fast path cho crm-tmp bằng weed shell (cần master; Task 410, C-08).
+      WEED_MASTER: seaweedfs:9333
     command:
       - |
         rm -f /tmp/xong
@@ -120,8 +126,6 @@ services:
       timeout: 2s
       retries: 120
     init: true
-    environment:
-      CONSOLE_ORIGINS: ${CONSOLE_ORIGINS:-http://localhost:4192}
     volumes:
       - ./seaweedfs/bootstrap.sh:/opt/bootstrap.sh:ro
       - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
@@ -132,7 +136,8 @@ services:
       seaweedfs-offsite:
         condition: service_healthy
 
-  # Giải mã ảnh (ADR-45, Task M1-42). Không biến bí mật, không database; chỉ mạng `imaging` (internal) với kho tệp.
+  # Giải mã ảnh (ADR-45, Task M1-42). Không biến bí mật, không database; chỉ mạng `imaging` (internal), tới kho tệp qua
+  # s3-imaging (chỉ cổng S3).
   # Không mở cổng: Docker bỏ cổng mở của container chỉ nằm trên mạng internal; cổng ra máy qua imager-port.
   imager:
     profiles: [imager]
@@ -171,6 +176,23 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     depends_on: [imager]
+
+  # Bộ chuyển cổng S3 cho imager (Task 410, C-01), như production: chỉ nghe 8333, chỉ chuyển tới seaweedfs:8333. Đường
+  # dẫn ký cho imager dùng http://s3-imaging:8333 (S3_IMAGER_ENDPOINT); socat chuyển nguyên byte nên Host giữ đúng host
+  # đã ký.
+  s3-imaging:
+    profiles: [imager]
+    # alpine/socat:1.8.0.3, digest lấy ngày 18/11/2026 (cùng image với imager-port)
+    image: alpine/socat:1.8.0.3@sha256:beb4a68d9e4fe6b0f21ea774a0fde6c31f580dde6368939ed70100c5385b015e
+    command: ["TCP-LISTEN:8333,fork,reuseaddr", "TCP:seaweedfs:8333"]
+    networks: [default, imaging]
+    read_only: true
+    user: "65534:65534"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
 
   # ---- Ba vai trò của image chính (Task 21), profile `app`: `make db-up` không bật chúng. Dựng image và chạy:
   #   make image && make app-up      (hoặc scripts/ops/image-check.sh kiểm cả đường)
@@ -242,9 +264,9 @@ services:
       <<: [*crm-env, *crm-s3, *crm-fakecarrier]
       CRM_ROLE: worker
       IMAGER_URL: http://imager:4193
-      S3_IMAGER_ENDPOINT: http://seaweedfs:8333
+      S3_IMAGER_ENDPOINT: http://s3-imaging:8333
       GOMEMLIMIT: 460MiB
-    # imaging: tới imager (chỉ chạy khi bật profile imager) và kho tệp theo đúng tên imager dùng.
+    # imaging: tới imager và s3-imaging (chỉ chạy khi bật profile imager).
     networks: [default, imaging]
     mem_limit: 512m
     <<: [*crm-hardening, *crm-health]
@@ -303,7 +325,8 @@ services:
     build:
       context: ..
       dockerfile: docker/filesync/Dockerfile
-    image: crm-filesync:dev
+    # CRM_FILESYNC_IMAGE (cùng tên biến với production): phiên song song dựng image riêng, không ghi đè của nhau.
+    image: ${CRM_FILESYNC_IMAGE:-crm-filesync:dev}
     environment:
       FILESYNC_DATABASE_URL: postgres://crm_filesync:crm_filesync_dev@postgres:5432/crm?sslmode=disable
       FILESYNC_SRC_ENDPOINT: http://seaweedfs:8333
@@ -331,7 +354,8 @@ services:
         condition: service_healthy
 
 networks:
-  # Mạng riêng của imager: chỉ imager, kho tệp chính, imager-port (và worker khi worker chạy trong compose).
+  # Mạng riêng của imager: chỉ imager, s3-imaging, imager-port (và worker khi worker chạy trong compose); không có
+  # seaweedfs (Task 410, C-01).
   # `internal: true` (Task M1-42): mạng bridge thường có gateway, và trên Docker 29 của máy dev container ở mạng này
   # nối được PostgreSQL theo IP của mạng default qua gateway (đo 18/11/2026, task-42.md Q1); internal thì không có
   # gateway, imager không ra internet, không tới mạng khác. Compose production làm đúng như vậy.

@@ -3,7 +3,10 @@
 #   - Không dịch vụ nào mở cổng ra máy. Lối vào duy nhất là `cloudflared` (Cloudflare Tunnel, kết nối ra ngoài) trên mạng
 #     `edge`, chỉ chung mạng với crm-ingest và crm-api. Vì vậy `cf-connecting-ip` không giả được bằng cách gọi thẳng máy
 #     (Task 14; spec 04 mục 11, ADR-43 "máy chủ chỉ nhận kết nối qua Cloudflare").
-#   - imager chỉ ở mạng `imaging` (internal: không ra internet, không tới PostgreSQL) — ADR-45, Task 40 Q3.
+#   - imager chỉ ở mạng `imaging` (internal: không ra internet, không tới PostgreSQL) — ADR-45, Task 40 Q3. Trên
+#     `imaging` chỉ có imager, crm-worker và bộ chuyển cổng s3-imaging (chỉ cổng S3 có kiểm chữ ký); seaweedfs không ở
+#     đó, vì master, volume, filer của nó không xác thực (Task 410, review độc lập M1 C-01).
+#   - filesync chép kho chính sang kho ngoài mỗi giờ; worker bật cảnh báo chép kho (FILESYNC_EXPECTED) vì có nó (C-03).
 #   - Image dựng ở CI (không `build:`), truyền vào bằng biến; image bên thứ ba ghim digest.
 #   - Ba vai trò: kiểm sức khỏe bằng tệp chạy, giới hạn bộ nhớ, GOMEMLIMIT 90%, tắt êm 30 s, chỉ đọc, không root.
 #   - PostgreSQL 18 gắn volume ở /var/lib/postgresql, có shm_size; WAL-G đẩy thẳng ra kho ngoài (ADR-37 điều 4).
@@ -24,6 +27,8 @@ x-crm-env: &crm-env
   HEARTBEAT_URL: ${HEARTBEAT_URL:?}
 x-crm-s3: &crm-s3
   S3_ENDPOINT: http://seaweedfs:8333
+  # Tên bucket thật = tiền tố + tmp|public|originals|private; filesync đọc cùng biến (FILESYNC_SRC_BUCKET_PREFIX).
+  S3_BUCKET_PREFIX: ${S3_BUCKET_PREFIX:-crm-}
   S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?}
   S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?}
   FILES_PUBLIC_BASE_URL: ${FILES_PUBLIC_BASE_URL:?}
@@ -104,7 +109,8 @@ services:
       <<: [*crm-env, *crm-s3]
       CRM_ROLE: worker
       IMAGER_URL: http://imager:4193
-      S3_IMAGER_ENDPOINT: http://seaweedfs:8333
+      # Đường dẫn ký sẵn đưa imager trỏ vào s3-imaging (SigV4 ký cả host; imager không tới được seaweedfs).
+      S3_IMAGER_ENDPOINT: http://s3-imaging:8333
       BACKUP_EXPECTED: "true"
       DB_DISK_BUDGET_BYTES: ${DB_DISK_BUDGET_BYTES:?}
       FILESYNC_EXPECTED: "true"
@@ -169,14 +175,31 @@ services:
   seaweedfs:
     logging: *crm-logging
     image: chrislusf/seaweedfs:4.48@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d
-    # Như dev (Task 40): -s3.allowedOrigins không khớp gốc nào; chỉ crm-tmp có CORS riêng.
+    # Như dev (Task 40): -s3.allowedOrigins không khớp gốc nào; chỉ crm-tmp có CORS riêng. Chỉ ở mạng default
+    # (Task 410, C-01): master 9333/19333, volume 8080/18080, filer 8888/18888, S3 gRPC 18333 không kiểm danh tính.
     command: ["server", "-dir=/data", "-ip.bind=0.0.0.0", "-s3", "-s3.port=8333", "-s3.config=/etc/seaweedfs/s3.json",
       "-s3.allowedOrigins=https://khong-cho-phep.invalid"]
     volumes:
       - seaweed:/data
       - ${CRM_SEAWEEDFS_S3_CONFIG:?tệp danh tính kho, ngoài repo}:/etc/seaweedfs/s3.json:ro
-    networks: [default, imaging]
+    networks: [default]
     restart: unless-stopped
+
+  # Bộ chuyển cổng cho imager (Task 410, C-01): chỉ nghe 8333 và chỉ chuyển tới seaweedfs:8333 (S3, mỗi yêu cầu phải có
+  # chữ ký; imager chỉ cầm đường dẫn ký sẵn của worker). Chuyển nguyên byte nên header Host giữ nguyên s3-imaging:8333,
+  # đúng host mà worker đã ký. Cùng image với imager-port của compose dev.
+  s3-imaging:
+    logging: *crm-logging
+    # alpine/socat:1.8.0.3, digest lấy ngày 18/11/2026
+    image: alpine/socat:1.8.0.3@sha256:beb4a68d9e4fe6b0f21ea774a0fde6c31f580dde6368939ed70100c5385b015e
+    command: ["TCP-LISTEN:8333,fork,reuseaddr", "TCP:seaweedfs:8333"]
+    networks: [default, imaging]
+    read_only: true
+    user: "65534:65534"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    mem_limit: 64m
 
   imager:
     logging: *crm-logging
@@ -197,10 +220,50 @@ services:
     security_opt: ["no-new-privileges:true"]
     restart: unless-stopped
 
+  # Chép kho chính sang kho ngoài mỗi giờ (Task M1-45, ADR-36, TP10; Task 410 C-03). Danh tính crm-filesync: chỉ đọc
+  # kho chính, chỉ ghi thêm ở kho ngoài; database bằng role crm_filesync (chỉ INSERT file_sync_runs). Không có khóa
+  # của crm-app. Mọi giá trị ở tệp biến của máy chủ (RUNBOOK "Chép tệp sang kho ngoài"). Ở mạng default: tới
+  # postgres, seaweedfs và kho ngoài trên internet.
+  filesync:
+    logging: *crm-logging
+    # Image docker/filesync/Dockerfile, dựng ở CI, ghim digest.
+    image: ${CRM_FILESYNC_IMAGE:?}
+    environment:
+      FILESYNC_DATABASE_URL: ${FILESYNC_DATABASE_URL:?chuỗi kết nối crm_filesync}
+      FILESYNC_SRC_ENDPOINT: http://seaweedfs:8333
+      FILESYNC_SRC_ACCESS_KEY_ID: ${FILESYNC_SRC_ACCESS_KEY_ID:?khóa crm-filesync của kho chính}
+      FILESYNC_SRC_SECRET_ACCESS_KEY: ${FILESYNC_SRC_SECRET_ACCESS_KEY:?}
+      FILESYNC_SRC_BUCKET_PREFIX: ${S3_BUCKET_PREFIX:-crm-}
+      FILESYNC_DST_ENDPOINT: ${FILESYNC_DST_ENDPOINT:?kho ngoài, không thuộc Cloudflare (ADR-36)}
+      FILESYNC_DST_ACCESS_KEY_ID: ${FILESYNC_DST_ACCESS_KEY_ID:?khóa chỉ ghi thêm của kho ngoài}
+      FILESYNC_DST_SECRET_ACCESS_KEY: ${FILESYNC_DST_SECRET_ACCESS_KEY:?}
+      FILESYNC_DST_REGION: ${FILESYNC_DST_REGION:?}
+      FILESYNC_DST_PROVIDER: ${FILESYNC_DST_PROVIDER:-Other}
+      FILESYNC_DST_BUCKET_PREFIX: ${FILESYNC_DST_BUCKET_PREFIX:?}
+      RCLONE_CRYPT_PASSWORD: ${RCLONE_CRYPT_PASSWORD:?≥ 32 ký tự; giữ thêm ở hai nơi ngoài máy chủ}
+      RCLONE_CRYPT_PASSWORD2: ${RCLONE_CRYPT_PASSWORD2:?≥ 32 ký tự; giữ thêm ở hai nơi ngoài máy chủ}
+      FILESYNC_HEARTBEAT_URL: ${FILESYNC_HEARTBEAT_URL:?}
+    volumes:
+      - filesync-state:/state
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    user: "65534:65534"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 30s
+    restart: unless-stopped
+    mem_limit: 256m
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 networks:
   # Đường hầm Cloudflare ra internet; chỉ cloudflared, crm-ingest, crm-api.
   edge: {}
-  # imager, kho tệp, worker; không gateway: imager không ra internet, không tới mạng khác (Task 40 Q3).
+  # imager, worker, s3-imaging; không gateway: imager không ra internet, không tới mạng khác (Task 40 Q3), không tới
+  # cổng nội bộ của seaweedfs (Task 410, C-01).
   imaging:
     internal: true
 
@@ -208,3 +271,4 @@ volumes:
   pgdata:
   seaweed:
   spool:
+  filesync-state:

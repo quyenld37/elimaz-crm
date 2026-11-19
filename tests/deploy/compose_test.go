@@ -31,6 +31,7 @@ type network struct {
 
 type service struct {
 	Image           string             `json:"image"`
+	Command         []string           `json:"command"`
 	Build           json.RawMessage    `json:"build"`
 	Ports           []port             `json:"ports"`
 	Networks        map[string]any     `json:"networks"`

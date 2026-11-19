@@ -13,7 +13,7 @@ import (
 )
 
 // syncBuckets là ba bucket container filesync chép (crm-tmp không chép).
-var syncBuckets = []string{"crm-public", "crm-originals", "crm-private"} //nolint:gochecknoglobals // danh sách hằng của test
+var syncBuckets = []string{"public", "originals", "private"} //nolint:gochecknoglobals // danh sách hằng của test
 
 // syncRun ghi một dòng file_sync_runs bằng người quản trị (crm_app chỉ đọc bảng này); finished_at = at, started_at
 // sớm hơn 2 phút.
@@ -64,8 +64,8 @@ func TestRule_FileSyncAge(t *testing.T) {
 	}
 
 	// Tắt FILESYNC_EXPECTED: không luật nào của filesync, kể cả khi quá hạn, lỗi, lệch.
-	e.syncRun(t, "copy", "crm-private", false, now)
-	e.syncRun(t, "reconcile", "crm-public", false, now)
+	e.syncRun(t, "copy", "private", false, now)
+	e.syncRun(t, "reconcile", "public", false, now)
 	keys, _ = check(t, e, observability.RuleOptions{FileSyncExpected: false, Now: now.Add(10 * time.Hour)})
 	for _, k := range []string{"file-sync-age", "file-sync-failed", "file-sync-mismatch"} {
 		wantKey(t, keys, k, false)
@@ -74,7 +74,7 @@ func TestRule_FileSyncAge(t *testing.T) {
 	keys, f = check(t, e, on)
 	wantKey(t, keys, "file-sync-mismatch", true)
 	if s, _ := f.find("file-sync-mismatch"); s.severity != observability.SeverityNormal ||
-		!strings.Contains(s.text, "crm-public") {
+		!strings.Contains(s.text, "public") {
 		t.Fatalf("file-sync-mismatch: %+v", s)
 	}
 }
@@ -84,12 +84,12 @@ func TestRule_FileSyncAgeAnyBucket(t *testing.T) {
 	e := newEnv(t)
 	fresh(t, e)
 	now := time.Now()
-	e.syncRun(t, "copy", "crm-public", true, now.Add(-5*time.Minute))
-	e.syncRun(t, "copy", "crm-originals", true, now.Add(-5*time.Minute))
-	e.syncRun(t, "copy", "crm-private", true, now.Add(-3*time.Hour))
+	e.syncRun(t, "copy", "public", true, now.Add(-5*time.Minute))
+	e.syncRun(t, "copy", "originals", true, now.Add(-5*time.Minute))
+	e.syncRun(t, "copy", "private", true, now.Add(-3*time.Hour))
 	keys, f := check(t, e, observability.RuleOptions{FileSyncExpected: true, Now: now})
 	wantKey(t, keys, "file-sync-age", true)
-	if s, _ := f.find("file-sync-age"); !strings.Contains(s.text, "crm-private") || strings.Contains(s.text, "crm-public") {
+	if s, _ := f.find("file-sync-age"); !strings.Contains(s.text, "private") || strings.Contains(s.text, "public") {
 		t.Fatalf("file-sync-age chỉ nêu bucket quá hạn: %q", s.text)
 	}
 }
@@ -100,19 +100,19 @@ func TestRule_FileSyncFailed(t *testing.T) {
 	fresh(t, e)
 	now := time.Now()
 	e.goodCopies(t, now.Add(-70*time.Minute))
-	e.syncRun(t, "copy", "crm-originals", false, now.Add(-10*time.Minute))
+	e.syncRun(t, "copy", "originals", false, now.Add(-10*time.Minute))
 	keys, f := check(t, e, observability.RuleOptions{FileSyncExpected: true, Now: now})
 	wantKey(t, keys, "file-sync-failed", true)
 	wantKey(t, keys, "file-sync-age", false)
-	if s, _ := f.find("file-sync-failed"); s.severity != observability.SeverityNormal || !strings.Contains(s.text, "crm-originals") {
+	if s, _ := f.find("file-sync-failed"); s.severity != observability.SeverityNormal || !strings.Contains(s.text, "originals") {
 		t.Fatalf("file-sync-failed: %+v", s)
 	}
-	e.syncRun(t, "copy", "crm-originals", true, now.Add(-time.Minute))
+	e.syncRun(t, "copy", "originals", true, now.Add(-time.Minute))
 	keys, _ = check(t, e, observability.RuleOptions{FileSyncExpected: true, Now: now})
 	wantKey(t, keys, "file-sync-failed", false)
 	// reconcile tốt sau reconcile lệch: hết báo lệch.
-	e.syncRun(t, "reconcile", "crm-private", false, now.Add(-30*time.Hour))
-	e.syncRun(t, "reconcile", "crm-private", true, now.Add(-6*time.Hour))
+	e.syncRun(t, "reconcile", "private", false, now.Add(-30*time.Hour))
+	e.syncRun(t, "reconcile", "private", true, now.Add(-6*time.Hour))
 	keys, _ = check(t, e, observability.RuleOptions{FileSyncExpected: true, Now: now})
 	wantKey(t, keys, "file-sync-mismatch", false)
 }
@@ -124,13 +124,13 @@ func TestDeepHealthFileSync(t *testing.T) {
 		t.Fatalf("chưa có lần chép: muốn nil, %v", *r.LastFileSyncAgeM)
 	}
 	now := time.Now()
-	e.syncRun(t, "copy", "crm-public", true, now.Add(-10*time.Minute))
-	e.syncRun(t, "copy", "crm-originals", true, now.Add(-40*time.Minute))
+	e.syncRun(t, "copy", "public", true, now.Add(-10*time.Minute))
+	e.syncRun(t, "copy", "originals", true, now.Add(-40*time.Minute))
 	if r := deep(t, e); r.LastFileSyncAgeM != nil {
-		t.Fatalf("crm-private chưa có lần chép tốt: muốn nil, %v", *r.LastFileSyncAgeM)
+		t.Fatalf("private chưa có lần chép tốt: muốn nil, %v", *r.LastFileSyncAgeM)
 	}
-	e.syncRun(t, "copy", "crm-private", true, now.Add(-25*time.Minute))
-	e.syncRun(t, "copy", "crm-originals", false, now.Add(-time.Minute))
+	e.syncRun(t, "copy", "private", true, now.Add(-25*time.Minute))
+	e.syncRun(t, "copy", "originals", false, now.Add(-time.Minute))
 	r := deep(t, e)
 	if r.LastFileSyncAgeM == nil || *r.LastFileSyncAgeM != 40 {
 		t.Fatalf("lastFileSyncAgeM: muốn 40 (lần tốt cũ nhất), %+v", r.LastFileSyncAgeM)
@@ -148,7 +148,7 @@ func TestFileSyncRole(t *testing.T) {
 	u.User = url.UserPassword("crm_filesync", "crm_filesync_dev")
 	c := connect(t, u.String())
 	_, err = c.Exec(t.Context(), `INSERT INTO platform.file_sync_runs (kind, bucket, ok, started_at, finished_at, objects, bytes, detail)
-		VALUES ('copy', 'crm-public', true, now() - interval '1 minute', now(), 3, 30, 'chép 3')`)
+		VALUES ('copy', 'public', true, now() - interval '1 minute', now(), 3, 30, 'chép 3')`)
 	if err != nil {
 		t.Fatalf("crm_filesync INSERT: %v", err)
 	}

@@ -1,9 +1,14 @@
 #!/bin/sh
 # Dựng bucket cho SeaweedFS dev (kế hoạch M1, Task M1-40). Chạy bằng danh tính crm-admin, chạy nhiều lần không lỗi.
 # Chạy trong image SeaweedFS (có curl hỗ trợ --aws-sigv4), qua dịch vụ s3-bootstrap của docker/compose.dev.yml:
-#   bootstrap.sh main    <endpoint> <tệp cấu hình>   kho chính: crm-tmp, crm-public, crm-originals, crm-private
-#   bootstrap.sh offsite <endpoint> <tệp cấu hình>   kho ngoài giả: crm-public, crm-originals, crm-private
+#   bootstrap.sh main    <endpoint> <tệp cấu hình>   kho chính: <tiền tố>tmp, …public, …originals, …private
+#   bootstrap.sh offsite <endpoint> <tệp cấu hình>   kho ngoài giả: <tiền tố>public, …originals, …private
 # CONSOLE_ORIGINS (phân cách bằng dấu phẩy): gốc được phép PUT thẳng vào crm-tmp bằng đường dẫn ký sẵn.
+# S3_BUCKET_PREFIX (kho chính) và FILESYNC_DST_BUCKET_PREFIX (kho ngoài giả), mặc định crm-: tiền tố tên bucket, cùng
+# giá trị với ứng dụng và filesync (Task 410, review độc lập M1 C-06).
+# WEED_MASTER (mặc định localhost:9333, tức chạy trong chính container SeaweedFS): master cho weed shell, để bật
+# lifecycle TTL fast path của crm-tmp (Task 410, C-08: `weed server` không chạy lifecycle worker; không có fast path thì
+# quy tắc hết hạn 1 ngày không xóa gì, đo 19/11/2026 ở docs/do-luong/seaweedfs-m1.md).
 #
 # Quyền xóa (ADR-36): quyền "Write" của SeaweedFS gồm cả xóa vĩnh viễn một phiên bản, tắt giữ phiên bản và đặt quy
 # tắc hết hạn (đo ngày 18/11/2026, docs/do-luong/seaweedfs-m1.md), nên mỗi bucket có chính sách từ chối các việc đó
@@ -14,6 +19,11 @@ role=${1:?main|offsite}
 endpoint=${2:?endpoint}
 config=${3:?tệp cấu hình s3}
 origins=${CONSOLE_ORIGINS:-http://localhost:4192}
+master=${WEED_MASTER:-localhost:9333}
+case "$role" in
+  main) p=${S3_BUCKET_PREFIX:-crm-} ;;
+  *) p=${FILESYNC_DST_BUCKET_PREFIX:-crm-} ;;
+esac
 
 # Khóa của crm-admin: dòng "credentials" ngay sau dòng "name": "crm-admin" (giữ đúng dạng đó trong tệp cấu hình).
 cred=$(awk '/"name": *"crm-admin"/ {getline; print; exit}' "$config")
@@ -65,25 +75,33 @@ versioning='<VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-
 
 case "$role" in
   main)
-    for b in crm-tmp crm-public crm-originals crm-private; do
+    for b in "${p}tmp" "${p}public" "${p}originals" "${p}private"; do
       must "tạo $b" 200 409 -- PUT "/$b"
     done
-    for b in crm-public crm-originals crm-private; do
+    for b in "${p}public" "${p}originals" "${p}private"; do
       must "giữ phiên bản $b" 200 -- PUT "/$b?versioning" "$versioning"
     done
-    for b in crm-tmp crm-public crm-originals crm-private; do
+    for b in "${p}tmp" "${p}public" "${p}originals" "${p}private"; do
       # shellcheck disable=SC2086
       must "chính sách $b" 200 204 -- PUT "/$b?policy" "$(policy "$b" crm-app $loosen)"
     done
-    must "hạn 1 ngày crm-tmp" 200 -- PUT "/crm-tmp?lifecycle" \
+    must "hạn 1 ngày ${p}tmp" 200 -- PUT "/${p}tmp?lifecycle" \
       '<LifecycleConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Rule><ID>tmp-1-ngay</ID><Filter><Prefix></Prefix></Filter><Status>Enabled</Status><Expiration><Days>1</Days></Expiration><AbortIncompleteMultipartUpload><DaysAfterInitiation>1</DaysAfterInitiation></AbortIncompleteMultipartUpload></Rule></LifecycleConfiguration>'
     rules=""
     for o in $(printf '%s' "$origins" | tr ',' ' '); do rules="$rules<AllowedOrigin>$o</AllowedOrigin>"; done
-    must "CORS crm-tmp" 200 -- PUT "/crm-tmp?cors" \
+    must "CORS ${p}tmp" 200 -- PUT "/${p}tmp?cors" \
       "<CORSConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><CORSRule>$rules<AllowedMethod>PUT</AllowedMethod><AllowedHeader>*</AllowedHeader><ExposeHeader>ETag</ExposeHeader><MaxAgeSeconds>3000</MaxAgeSeconds></CORSRule></CORSConfiguration>"
+    # Fast path: PutObject gắn ttlSec 86400 và ghi vào volume Ttl:1d, filer và volume server tự xóa khi hết hạn (R10:
+    # ảnh thô còn EXIF/GPS không nằm lại). Chỉ có tác dụng với đối tượng ghi SAU lệnh này; bucket không giữ phiên bản.
+    fp=$(printf 's3.bucket.lifecycle.fastpath -name %s -enable\ns3.bucket.lifecycle.fastpath -name %s\n' "${p}tmp" "${p}tmp" |
+      timeout 60 weed shell -master="$master" 2>&1) || true
+    case "$fp" in
+      *"fast path: enabled"*) echo "bootstrap: hạn TTL fast path ${p}tmp: bật" ;;
+      *) echo "bootstrap: không bật được TTL fast path của ${p}tmp (master $master):" >&2; echo "$fp" >&2; exit 1 ;;
+    esac
     ;;
   offsite)
-    for b in crm-public crm-originals crm-private; do
+    for b in "${p}public" "${p}originals" "${p}private"; do
       must "tạo $b" 200 409 -- PUT "/$b"
       must "giữ phiên bản $b" 200 -- PUT "/$b?versioning" "$versioning"
       # Kho ngoài chỉ chép thêm: crm-filesync không xóa gì, kể cả dấu xóa.

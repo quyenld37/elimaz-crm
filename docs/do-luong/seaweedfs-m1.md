@@ -14,7 +14,7 @@ Phiên này chạy với `CRM_S3_PORT=8440`, `CRM_S3_OFFSITE_PORT=8441` vì cổ
 | 3 | Ký sẵn `GET` hạn 2 s | đạt | Đọc ngay → 200; sau 3 s → 403 | `TestPresignedGet_Expires` |
 | 4 | `crm-app` xóa không `VersionId` trên bucket giữ phiên bản | đạt | Tạo dấu xóa (`DeleteMarker = true`); đọc bản mới nhất → lỗi; `crm-admin` đọc bản cũ theo `VersionId` ra đúng nội dung. Cả ba bucket `crm-public`, `crm-originals`, `crm-private` | `TestDelete_AppCannotPurge` |
 | 5 | `crm-app` xóa có `VersionId` → AccessDenied | đạt, **nhờ chính sách bucket** | Xem mục "Quyền xóa" dưới. `DeleteObject` có `VersionId` (cả bản thật và dấu xóa) → `AccessDenied`; `DeleteObjects` có `VersionId` → lỗi `AccessDenied` cho từng đối tượng; bản cũ còn nguyên | `TestDelete_AppCannotPurge` |
-| 6 | Quy tắc hết hạn của `crm-tmp` | đạt (đọc lại) | Cơ chế: quy tắc S3 `PutBucketLifecycleConfiguration` (`Expiration Days=1`, cộng `AbortIncompleteMultipartUpload` 1 ngày); `GetBucketLifecycleConfiguration` đọc lại đúng. Không dùng TTL theo thư mục của filer (`fs.configure` trống). Đường TTL nhanh (`s3.bucket.lifecycle.fastpath`) đang tắt, nên việc xóa thật do vòng quét lifecycle hằng ngày của SeaweedFS (`s3.lifecycle.run-shard`). **Chưa xác minh** đối tượng thật sự biến mất sau 24 giờ | `TestTmpExpiration` |
+| 6 | Quy tắc hết hạn của `crm-tmp` | đạt (Task 410, đo 19/11) | Quy tắc S3 `PutBucketLifecycleConfiguration` (`Expiration Days=1`, cộng `AbortIncompleteMultipartUpload` 1 ngày) đọc lại đúng, **nhưng một mình nó không xóa gì**: `weed server` không chạy lifecycle worker (xem mục "Hạn 24 giờ của crm-tmp" dưới). Cách xóa thật: lifecycle TTL fast path của `crm-tmp` (`bootstrap.sh` bật) — đối tượng có `ttlSec 86400`, dữ liệu ở volume `Ttl:1d`, filer và volume server tự xóa | `TestTmpExpiration`, `TestTmpExpiry_*` |
 | 7 | Tải nhiều phần 3 × 5 MiB | đạt | Ghép được, đọc lại đúng 15 MiB | `TestMultipartUpload` |
 | 8 | CORS `OPTIONS` từ `http://localhost:4192` | đạt | `Access-Control-Allow-Origin: http://localhost:4192`, `Access-Control-Allow-Methods: PUT`; gốc lạ `http://evil.example` → không có header cho phép; ba bucket còn lại, kể cả từ gốc của màn hình → không có header cho phép (xem mục cổng, mạng: cờ `-s3.allowedOrigins`) | `TestTmpCORS` |
 | 9 | `PutObject` với `If-None-Match: *` lên khóa đã có | đạt (có hỗ trợ) | Lần hai → `PreconditionFailed`, nội dung lần một còn nguyên. `FileStore` (Task M1-41) dùng được `If-None-Match: *` thay cho `HeadObject` trước | `TestPutIfNoneMatch` |
@@ -27,6 +27,32 @@ Ca thêm (không có trong danh sách kế hoạch, cùng mục đích ADR-36 "�
 |---|---|---|
 | `crm-app` tắt giữ phiên bản, đặt hoặc xóa quy tắc hết hạn, ghi hoặc xóa chính sách bucket, ghi hoặc xóa CORS, xóa bucket, tạo bucket mới | mọi ca bị từ chối, trên cả bốn bucket | `TestAppCannotLoosenBuckets` |
 | `crm-filesync` ở kho chính: liệt kê, đọc ba bucket được; ghi, xóa → AccessDenied; `crm-tmp` → không đọc được. Ở kho ngoài giả: ghi được; xóa thường và xóa có `VersionId` → AccessDenied | đạt | `TestFilesyncIdentity` |
+
+## Hạn 24 giờ của crm-tmp (Task 410, review độc lập M1 C-08; R10, Q18)
+
+Đo ngày 19/11/2026 trên bộ compose riêng `crm-t410` (cùng bản SeaweedFS ghim, Docker Desktop, Apple Silicon).
+
+| Phép đo | Kết quả |
+|---|---|
+| Đối tượng PUT vào `crm-tmp` khi chỉ có quy tắc `Expiration Days=1` (như Task 40) | `fs.meta.cat` → `ttlSec: 0`; volume của collection `crm-tmp` có `Ttl:` rỗng. Không có gì đánh dấu hạn trên đối tượng |
+| Lifecycle worker có chạy trong `weed server` không | Không: `weed server -h` không có cờ worker/admin; log của container không có dòng lifecycle nào ngoài lệnh tay. Quy tắc `Expiration` chỉ được thực thi bởi `weed worker` (nối `weed admin`) hoặc lệnh tay `s3.lifecycle.run-shard` ("manually run one daily-replay pass") |
+| Bucket thử có quy tắc `Expiration Date=2020-01-01` (đối tượng hết hạn ngay) | Sau 16 phút đối tượng vẫn đọc được (200). Chạy tay `s3.lifecycle.run-shard -shards 0-15 -s3 localhost:18333` → 404. Tức là cơ chế đúng nhưng không ai chạy: **trước Task 410 ảnh thô ở `crm-tmp` không bao giờ bị xóa** |
+| Bật `s3.bucket.lifecycle.fastpath -name crm-tmp -enable` rồi PUT ký sẵn bằng `crm-app` | `ttlSec: 86400`, chunk ở volume collection `crm-tmp` `Ttl:1d` |
+| CopyObject `crm-tmp` → `crm-originals` (đường `CopyIfAbsent` của ảnh gốc) | Bản chép có chunk mới ở volume không hạn, `ttlSec: 0`: ảnh gốc giữ lâu không mang hạn của `crm-tmp` |
+| Ba bucket giữ phiên bản sau khi ghi | Không volume nào của chúng có `Ttl` (fast path không áp cho bucket giữ phiên bản) |
+| Cơ chế hạn của filer bản ghim chạy thật | Mục ghi qua filer với `?ttl=1m` (`ttlSec: 60`) trả 404 sau khoảng 61–69 s, không ai gọi xóa (đo hai lần) |
+
+Không chờ được 24 giờ thật trong test: bằng chứng là hai nửa (đối tượng của `crm-tmp` mang `ttlSec 86400` + volume
+`Ttl:1d`; cơ chế `ttlSec` của filer xóa thật ở hạn ngắn). `make probe-test` chạy lại cả hai (`TestTmpExpiry_*`).
+Chọn fast path thay cho thêm `weed worker` + `weed admin` hay một container chạy `s3.lifecycle.run-shard` theo lịch: không
+thêm tiến trình, không thêm cổng quản trị (task-410.md, "Quyết định thay chủ shop" Q2). Cái giá: hạn gắn lúc ghi, đổi quy
+tắc sau này không áp lại cho đối tượng đã có; đối tượng ghi trước khi bật fast path không có hạn (RUNBOOK "Hạn 24 giờ
+của crm-tmp"). Tải nhiều phần chưa xong (`AbortIncompleteMultipartUpload`) vẫn cần lifecycle worker; ứng dụng không
+dùng tải nhiều phần vào `crm-tmp` (đường dẫn ký sẵn một `PUT`, `files.CreateUpload`).
+
+Ràng buộc với Task 409: trần thử lại xử lý ảnh (`IMAGE_RETRY_MAX_HOURS`, mặc định 24) phải nhỏ hơn 24 giờ; ảnh riêng
+tư chỉ có bản gốc ở `crm-tmp` (ảnh thường cũng vậy tới khi chép sang `crm-originals`), thử lại sau hạn thì lượt đó ra
+`source_missing` (RUNBOOK "Hạn 24 giờ của crm-tmp").
 
 ## Quyền xóa: điều ADR-36 phải biết
 
