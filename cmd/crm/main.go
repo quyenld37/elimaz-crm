@@ -247,7 +247,7 @@ func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtim
 		}
 		o := files.ProcessorOptions{
 			DB: d, Store: fs, Signer: signer, Imager: imager.NewClient(cfg.ImagerURL, &http.Client{}, cfg.ImagerMaxParallel),
-			PresetVersion: cfg.ImagePresetVersion, Bus: bus, Metrics: reg,
+			PresetVersion: cfg.ImagePresetVersion, Bus: bus, Metrics: reg, RetryMax: cfg.ImageRetryMax,
 		}
 		hs = append(hs, files.NewProcessHandler(o), files.NewProcessPrivateHandler(o), files.NewRegenerateHandler(o))
 	} else {

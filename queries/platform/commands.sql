@@ -3,12 +3,15 @@
 -- lệnh done, dead, về hàng chờ khi chưa gửi dùng lại CompleteJob, KillJob, ReleaseJob của jobs.sql.
 
 -- Chắc chắn chưa gửi, còn lượt, chưa quá hạn sống: hẹn lại sau delay_ms. 0 dòng → bên gọi đặt dead.
+-- keep_attempt (Outcome.KeepAttempt, lỗi hạ tầng tạm): trả lại lượt tính lúc nhận việc (như ReleaseJob) và không xét
+-- hết lượt; hạn sống vẫn xét.
 -- name: RescheduleNotSent :execrows
 UPDATE platform.jobs
 SET status = 'pending', run_at = now() + sqlc.arg(delay_ms)::bigint * interval '1 millisecond',
-    last_error = sqlc.arg(last_error)::text, lease_until = NULL, locked_by = NULL
+    last_error = sqlc.arg(last_error)::text, lease_until = NULL, locked_by = NULL,
+    attempts = attempts - CASE WHEN sqlc.arg(keep_attempt)::boolean THEN 1 ELSE 0 END
 WHERE id = @id AND status = 'running' AND locked_by = sqlc.arg(locked_by)::text
-  AND attempts < max_attempts AND (expires_at IS NULL OR expires_at > now());
+  AND (sqlc.arg(keep_attempt)::boolean OR attempts < max_attempts) AND (expires_at IS NULL OR expires_at > now());
 
 -- Chắc chắn chưa gửi: lệnh đã quá hạn của loại chưa (cùng now() của transaction với RescheduleNotSent nên hai câu không
 -- trái nhau). Không khóa dòng: hook OnTerminal chạy trước câu đổi jobs (ADR-46).

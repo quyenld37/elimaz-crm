@@ -691,6 +691,22 @@ func (q *Queries) SetFileLost(ctx context.Context, id uuid.UUID) (int64, error) 
 	return result.RowsAffected(), nil
 }
 
+const setFileProcessing = `-- name: SetFileProcessing :one
+UPDATE platform.files
+SET status = 'processing', reject_reason = NULL, updated_at = now(), version = version + 1
+WHERE id = $1 AND (status = 'uploaded' OR (status = 'rejected' AND reject_reason = 'processing_failed'))
+RETURNING updated_at
+`
+
+// Bắt đầu xử lý ảnh (dòng đã khóa bằng LockFile, Task 409): từ uploaded, hoặc từ rejected processing_failed khi lệnh
+// dead do lỗi tạm được chạy lại (lý do do nội dung ảnh thì không). updated_at là mốc tính trần thời gian thử lại.
+func (q *Queries) SetFileProcessing(ctx context.Context, id uuid.UUID) (time.Time, error) {
+	row := q.db.QueryRow(ctx, setFileProcessing, id)
+	var updated_at time.Time
+	err := row.Scan(&updated_at)
+	return updated_at, err
+}
+
 const setFileReady = `-- name: SetFileReady :one
 UPDATE platform.files
 SET status = 'ready', reject_reason = NULL, detected_type = $1, width = $2,

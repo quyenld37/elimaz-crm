@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -37,11 +38,12 @@ var testHTTP = &http.Client{Timeout: 30 * time.Second}
 const publicBase = "https://img.test"
 
 // Nội dung ảnh thử điều khiển imager giả: "HANG" treo tới khi bên gọi bỏ; "REJ:<lý do>\n" trả rejected với lý do đó;
-// "BUSY" trả 503 bận; nội dung khác là ảnh tốt (JPEG 2000×1500).
+// "BUSY" trả 503 bận; "E500" trả 500; nội dung khác là ảnh tốt (JPEG 2000×1500).
 const (
 	hangPrefix = "HANG"
 	rejPrefix  = "REJ:"
 	busyPrefix = "BUSY"
+	e500Prefix = "E500"
 )
 
 // fakeImager là imager giả bằng httptest, nói đúng hợp đồng của internal/imager: tải nguồn bằng SourceURL, ghi từng
@@ -58,6 +60,10 @@ type fakeImager struct {
 	peak     int
 	busy     int           // số lần trả 503 vì quá fakeCapacity
 	delay    time.Duration // thời gian xử lý giả của một ảnh tốt
+	onCall   func()        // khác nil: gọi khi nhận một yêu cầu hợp lệ (ngoài khóa)
+
+	// down: imager ngừng (khởi động lại, OOM): đóng kết nối không trả lời.
+	down atomic.Bool
 }
 
 // fakeCapacity là IMAGER_MAX_PARALLEL của imager giả: quá số việc này cùng lúc thì trả 503 như imager thật.
@@ -95,6 +101,10 @@ func (f *fakeImager) serve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad_request", http.StatusBadRequest)
 		return
 	}
+	if f.hangUpIfDown(w) {
+		return
+	}
+	f.called()
 	f.mu.Lock()
 	if f.inflight >= fakeCapacity {
 		f.busy++
@@ -125,6 +135,9 @@ func (f *fakeImager) serve(w http.ResponseWriter, r *http.Request) {
 		case <-f.release:
 		}
 		return
+	case bytes.HasPrefix(src, []byte(e500Prefix)):
+		http.Error(w, "internal", http.StatusInternalServerError)
+		return
 	case bytes.HasPrefix(src, []byte(busyPrefix)):
 		w.Header().Set("Retry-After", "7")
 		http.Error(w, `{"error":"busy"}`, http.StatusServiceUnavailable)
@@ -143,6 +156,30 @@ func (f *fakeImager) serve(w http.ResponseWriter, r *http.Request) {
 		res = imager.Result{Status: imager.StatusRejected, Reason: imager.ReasonInternal}
 	}
 	writeResult(w, res)
+}
+
+// hangUpIfDown: imager đang ngừng (down) → đóng kết nối không trả lời (bên gọi nhận lỗi mạng), trả true.
+func (f *fakeImager) hangUpIfDown(w http.ResponseWriter) bool {
+	if !f.down.Load() {
+		return false
+	}
+	if hj, ok := w.(http.Hijacker); ok {
+		if conn, _, err := hj.Hijack(); err == nil {
+			_ = conn.Close()
+			return true
+		}
+	}
+	panic(http.ErrAbortHandler)
+}
+
+// called gọi onCall (nếu có) ngoài khóa.
+func (f *fakeImager) called() {
+	f.mu.Lock()
+	hook := f.onCall
+	f.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
 }
 
 func writeResult(w http.ResponseWriter, res imager.Result) {
@@ -179,9 +216,16 @@ func bucketOf(t *testing.T, raw string) (files.Bucket, string) {
 type fakeBus struct {
 	mu   sync.Mutex
 	sigs []realtime.Signal
+	// fail: Publish trả lỗi (transaction ghi trạng thái tệp lùi lại, như database lỗi mãi).
+	fail atomic.Bool
 }
 
+var errBusDown = errors.New("fakeBus: lỗi")
+
 func (b *fakeBus) Publish(_ context.Context, _ pgx.Tx, s realtime.Signal) error {
+	if b.fail.Load() {
+		return errBusDown
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.sigs = append(b.sigs, s)
@@ -211,6 +255,12 @@ type procEnv struct {
 
 func newProcEnv(t *testing.T) *procEnv {
 	t.Helper()
+	return newProcEnvWith(t, nil)
+}
+
+// newProcEnvWith như newProcEnv, opt (khác nil) sửa ProcessorOptions trước khi dựng các lệnh.
+func newProcEnvWith(t *testing.T, opt func(*files.ProcessorOptions)) *procEnv {
+	t.Helper()
 	p := &procEnv{
 		env: newEnv(t), mem: testkit.MemFileStore(t), img: newFakeImager(t), bus: &fakeBus{},
 		reg: metrics.NewRegistry(), q: queue.NewQueue(),
@@ -221,6 +271,9 @@ func newProcEnv(t *testing.T) *procEnv {
 	}
 	o := files.ProcessorOptions{
 		DB: p.staff.App, Store: p.mem, Imager: p.img.client(), PresetVersion: 1, Bus: p.bus, Metrics: p.reg,
+	}
+	if opt != nil {
+		opt(&o)
 	}
 	p.pub, p.priv, p.regen = files.NewProcessHandler(o), files.NewProcessPrivateHandler(o), files.NewRegenerateHandler(o)
 	p.ver = files.NewVerifyHandler(o)

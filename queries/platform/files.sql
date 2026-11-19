@@ -95,6 +95,14 @@ SET status = 'ready', reject_reason = NULL, detected_type = @detected_type, widt
 WHERE id = @id AND status IN ('uploaded', 'processing', 'lost')
 RETURNING id;
 
+-- name: SetFileProcessing :one
+-- Bắt đầu xử lý ảnh (dòng đã khóa bằng LockFile, Task 409): từ uploaded, hoặc từ rejected processing_failed khi lệnh
+-- dead do lỗi tạm được chạy lại (lý do do nội dung ảnh thì không). updated_at là mốc tính trần thời gian thử lại.
+UPDATE platform.files
+SET status = 'processing', reject_reason = NULL, updated_at = now(), version = version + 1
+WHERE id = @id AND (status = 'uploaded' OR (status = 'rejected' AND reject_reason = 'processing_failed'))
+RETURNING updated_at;
+
 -- name: SetFileRejected :execrows
 -- Từ chối khi xử lý ảnh (dòng đã khóa bằng LockFile): chỉ đổi từ uploaded, processing.
 UPDATE platform.files

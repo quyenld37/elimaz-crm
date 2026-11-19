@@ -38,6 +38,10 @@ type Outcome struct {
 	Reason string
 	// RetryAfter > 0 (not_sent): chờ đúng chừng này thay cho lịch thử lại (bên ngoài báo quá tải, 04 mục 5.3).
 	RetryAfter time.Duration
+	// KeepAttempt (not_sent): lần chạy này không tính vào MaxAttempts — lượt tăng lúc nhận việc được trả lại (bên ngoài
+	// bận, không tới được: lỗi hạ tầng tạm, không do chính lệnh). Handler dùng nó phải tự giới hạn tổng thời gian thử
+	// (trần riêng hoặc ExpiresAfter của loại) và đặt RetryAfter, vì lịch thử lại theo lượt không tiến lên.
+	KeepAttempt bool
 	// Result (done): mã bên ngoài trả về (message_id, mã vận đơn…), lưu vào result và truyền cho DoneHook.
 	Result json.RawMessage
 }
