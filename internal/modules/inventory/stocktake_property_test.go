@@ -130,6 +130,66 @@ func (r *stkRun) applyAndCheck(rt *rapid.T) {
 		if err := e.cancelStocktake(r.s.ID, cur.Version); err != nil {
 			rt.Fatalf("hủy phiên: %v", err)
 		}
+		return
+	}
+	r.afterApply(rt)
+}
+
+// afterApply (Task 406, A-01): sau khi áp dụng (có thể thiếu dưới phần giữ) chạy ngẫu nhiên lấy hàng, giao, nhả, nhập,
+// phiếu kho mọi loại → chỉ có ErrInsufficient, ErrStateConflict, ErrStockShort (không lỗi CHECK); mọi cột ≥ 0,
+// in_transit ≤ on_hand, sổ = số dư; rồi đếm lại mọi biến thể trong một phiên mới được (expected_on_shelf ≥ 0).
+func (r *stkRun) afterApply(rt *rapid.T) {
+	e := r.e
+	for range rapid.IntRange(0, 6).Draw(rt, "after") {
+		v := r.vs[rapid.IntRange(0, len(r.vs)-1).Draw(rt, "afterVariant")]
+		op := propOp{
+			docKind: rapid.IntRange(0, len(docKinds)-1).Draw(rt, "afterDocKind"), sign: rapid.Bool().Draw(rt, "afterSign"),
+			qty: rapid.Int32Range(1, 3).Draw(rt, "afterQty"),
+		}
+		var err error
+		switch k := rapid.IntRange(0, 4).Draw(rt, "afterKind"); {
+		case k == 3:
+			err = e.postRandomDoc(v, op)
+		case k == 4:
+			err = e.app(func(tx pgx.Tx) error { return inventory.ImportForTest(e.t.Context(), tx, v, e.warehouse, op.qty) })
+		case len(r.res) > 0:
+			ids := []uuid.UUID{r.res[rapid.IntRange(0, len(r.res)-1).Draw(rt, "afterRes")]}
+			switch k {
+			case 0:
+				err = e.startTransit(ids, sysActor())
+			case 1:
+				err = e.consume(ids, sysActor())
+			default:
+				err = e.release(ids, "prop")
+			}
+		}
+		if err != nil && !errors.Is(err, inventory.ErrInsufficient) && !errors.Is(err, inventory.ErrStateConflict) &&
+			!errors.Is(err, inventory.ErrStockShort) {
+			rt.Fatalf("sau áp dụng: lỗi không mong đợi: %v", err)
+		}
+	}
+	for _, v := range r.vs {
+		if msg := e.checkLedgerAndHolds(v); msg != "" {
+			rt.Fatalf("sau áp dụng, biến thể %v: %s", v, msg)
+		}
+	}
+	// Một transaction, rồi lùi (lỗi giả): phiên đếm lại không để lại gì cho lượt sau.
+	errRecounted := errors.New("đã đếm lại")
+	err := e.app(func(tx pgx.Tx) error {
+		ctx := e.t.Context()
+		s, err := inventory.StartStocktake(ctx, tx, e.warehouse, staffActor())
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		for _, v := range r.vs {
+			if _, err := inventory.RecordCount(ctx, tx, s.ID, v, 0, nil, staffActor()); err != nil {
+				return err //nolint:wrapcheck // test
+			}
+		}
+		return errRecounted
+	})
+	if !errors.Is(err, errRecounted) {
+		rt.Fatalf("đếm lại sau áp dụng: %v", err)
 	}
 }
 

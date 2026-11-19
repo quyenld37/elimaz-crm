@@ -11,6 +11,7 @@ import (
 	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
+	"elimaz.com.vn/crm/internal/modules/order"
 )
 
 // Kiểm kho (kế hoạch M1, Task M1-35). Quyền inventory.stocktake, inventory.stocktake.apply, inventory.read theo kho:
@@ -101,7 +102,13 @@ func (h *handler) ApplyStocktake(ctx context.Context, req *gen.VersionRequest, p
 			Shortages: make([]gen.StocktakeShortage, 0, len(r.Shortages)),
 		}
 		for _, s := range r.Shortages {
-			res.Shortages = append(res.Shortages, gen.StocktakeShortage{VariantId: s.VariantID, Available: s.Available})
+			orders, err := shortOrders(ctx, tx, s)
+			if err != nil {
+				return nil, err
+			}
+			res.Shortages = append(res.Shortages, gen.StocktakeShortage{
+				VariantId: s.VariantID, Available: s.Available, Orders: orders,
+			})
 		}
 		after := stocktakeAudit(r.Stocktake, len(ls))
 		after["adjusted"], after["shortages"] = r.Adjusted, len(r.Shortages)
@@ -180,4 +187,32 @@ func stocktakeLineOut(l inventory.StocktakeLine) *gen.StocktakeLine {
 		InTransit: l.Current.InTransit, Damaged: l.Current.Damaged, Available: l.Current.Available,
 		AvailableAfter: l.AvailableAfter,
 	}
+}
+
+// shortOrders gộp các dòng giữ hàng held của biến thể thiếu s theo đơn (Task 406): mã đơn qua order.ItemOrders (người
+// bán của biến thể, ADR-29), số lượng cộng theo đơn, giữ thứ tự giữ hàng (đơn giữ trước đứng trước).
+func shortOrders(ctx context.Context, tx pgx.Tx, s inventory.Shortage) ([]gen.StocktakeShortOrder, error) {
+	items := make([]uuid.UUID, 0, len(s.Holds))
+	for _, h := range s.Holds {
+		items = append(items, h.OrderItemID)
+	}
+	refs, err := order.ItemOrders(ctx, tx, s.SellerID, items)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // lỗi của order đã bọc
+	}
+	out := make([]gen.StocktakeShortOrder, 0, len(s.Holds))
+	at := make(map[uuid.UUID]int, len(s.Holds))
+	for _, h := range s.Holds {
+		ref, ok := refs[h.OrderItemID]
+		if !ok {
+			continue // dòng đơn không còn (không xảy ra với giữ hàng held)
+		}
+		if i, seen := at[ref.OrderID]; seen {
+			out[i].Quantity += h.Quantity
+			continue
+		}
+		at[ref.OrderID] = len(out)
+		out = append(out, gen.StocktakeShortOrder{OrderId: ref.OrderID, OrderCode: ref.Code, Quantity: h.Quantity})
+	}
+	return out, nil
 }

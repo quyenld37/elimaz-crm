@@ -90,18 +90,19 @@ type DocumentFilter struct {
 func movesFor(kind string, q int32) ([]move, string) {
 	switch kind {
 	case KindImport:
-		return []move{{bucketOnHand, 1, condNone}}, "import"
+		return []move{{bucketOnHand, 1, condNone, false}}, "import"
 	case KindExport:
-		return []move{{bucketOnHand, -1, condAvailable}}, "export"
+		return []move{{bucketOnHand, -1, condAvailable, false}}, "export"
 	case KindDamage:
-		return []move{{bucketDamaged, 1, condAvailable}}, "damage"
+		return []move{{bucketDamaged, 1, condAvailable, false}}, "damage"
 	case KindDamageExport:
-		return []move{{bucketDamaged, -1, condDamaged}, {bucketOnHand, -1, condOnHand}}, "damage"
+		// on_shelf (không phải on_hand ≥ q): không trừ on_hand xuống dưới phần đang giao (Task 406).
+		return []move{{bucketDamaged, -1, condDamaged, false}, {bucketOnHand, -1, condOnShelf, false}}, "damage"
 	case KindAdjust:
 		if q < 0 {
-			return []move{{bucketOnHand, -1, condAvailable}}, "adjust"
+			return []move{{bucketOnHand, -1, condAvailable, false}}, "adjust"
 		}
-		return []move{{bucketOnHand, 1, condNone}}, "adjust"
+		return []move{{bucketOnHand, 1, condNone, false}}, "adjust"
 	}
 	return nil, ""
 }
@@ -255,8 +256,14 @@ func (w Writer) postLine(ctx context.Context, tx pgx.Tx, kind string, warehouseI
 				return err
 			}
 			avail := bs[0].Available
-			if m.cond == condDamaged || m.cond == condOnHand {
-				avail = bs[0].Damaged // xuất hàng lỗi: phần có thể xuất là hàng lỗi
+			if kind == KindDamageExport {
+				// Xuất hàng lỗi: phần có thể xuất là hàng lỗi, không quá phần trên kệ (on_hand − in_transit). Bước
+				// damaged đã áp (khi đủ) thì cộng lại để ra số trước phiếu.
+				damaged := bs[0].Damaged
+				if m.cond == condOnShelf {
+					damaged += qty
+				}
+				avail = max(0, min(damaged, bs[0].OnHand-bs[0].InTransit))
 			}
 			return &InsufficientError{VariantID: l.VariantID, WarehouseID: warehouseID, Requested: qty, Available: avail}
 		}

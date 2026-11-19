@@ -45,6 +45,55 @@ func (q *Queries) CountReservationsByItems(ctx context.Context, orderItemIds []u
 	return items, nil
 }
 
+const heldReservationsOfVariants = `-- name: HeldReservationsOfVariants :many
+SELECT r.id, r.order_item_id, r.variant_id, r.quantity, b.seller_id
+FROM inventory.stock_reservations AS r
+JOIN inventory.stock_balances AS b ON b.variant_id = r.variant_id AND b.warehouse_id = r.warehouse_id
+WHERE r.warehouse_id = $1 AND r.variant_id = ANY ($2::uuid[]) AND r.state = 'held'
+ORDER BY r.variant_id, r.id
+`
+
+type HeldReservationsOfVariantsParams struct {
+	WarehouseID uuid.UUID
+	VariantIds  []uuid.UUID
+}
+
+type HeldReservationsOfVariantsRow struct {
+	ID          uuid.UUID
+	OrderItemID pgtype.UUID
+	VariantID   uuid.UUID
+	Quantity    int32
+	SellerID    uuid.UUID
+}
+
+// Dòng giữ hàng held của các biến thể ở một kho, kèm người bán của số dư (Task 406: biến thể thiếu sau kiểm kho). Không
+// khóa: chỉ để báo cho nhân viên, bước lấy hàng tự kiểm dưới khóa.
+func (q *Queries) HeldReservationsOfVariants(ctx context.Context, arg HeldReservationsOfVariantsParams) ([]HeldReservationsOfVariantsRow, error) {
+	rows, err := q.db.Query(ctx, heldReservationsOfVariants, arg.WarehouseID, arg.VariantIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []HeldReservationsOfVariantsRow{}
+	for rows.Next() {
+		var i HeldReservationsOfVariantsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrderItemID,
+			&i.VariantID,
+			&i.Quantity,
+			&i.SellerID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertReservation = `-- name: InsertReservation :exec
 
 INSERT INTO inventory.stock_reservations

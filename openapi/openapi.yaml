@@ -3220,6 +3220,7 @@ components:
         # Kho (M1-28, M1-29, M1-35)
         - document_not_draft
         - insufficient_stock
+        - stock_short
         - stocktake_not_open
         - stocktake_open
         - supplier_archived
@@ -3277,11 +3278,11 @@ components:
         variantId:
           type: string
           format: uuid
-          description: Chỉ có ở insufficient_stock, out_of_stock — biến thể đầu tiên không đủ hàng
+          description: Chỉ có ở insufficient_stock, out_of_stock, stock_short — biến thể đầu tiên không đủ hàng
         available:
           type: integer
           format: int32
-          description: Chỉ có ở insufficient_stock — số còn làm được của biến thể đó (xuất hàng lỗi là số hàng lỗi); ở out_of_stock — số có thể bán hiện tại
+          description: Chỉ có ở insufficient_stock — số còn làm được của biến thể đó (xuất hàng lỗi là số hàng lỗi, không quá phần trên kệ); ở out_of_stock — số có thể bán hiện tại; ở stock_short — tồn thực còn cho dòng giữ hàng bị chặn (kiểm kho đã ghi thấp hơn phần giữ)
         ownerId:
           type: string
           format: uuid
@@ -5092,7 +5093,7 @@ components:
             $ref: "#/components/schemas/StocktakeLine"
     StocktakeShortage:
       type: object
-      required: [variantId, available]
+      required: [variantId, available, orders]
       properties:
         variantId:
           type: string
@@ -5100,6 +5101,24 @@ components:
         available:
           type: integer
           format: int32
+        orders:
+          type: array
+          description: Đơn đang giữ biến thể này mà chưa đi giao (theo thứ tự giữ hàng) — hãng lấy hàng sẽ bị chặn (stock_short) tới khi điều chỉnh tồn, đổi kho hay hủy đơn (Task 406)
+          items:
+            $ref: "#/components/schemas/StocktakeShortOrder"
+    StocktakeShortOrder:
+      type: object
+      required: [orderId, orderCode, quantity]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+          description: Tổng số lượng của biến thể mà đơn đang giữ
     ApplyStocktakeResult:
       type: object
       required: [stocktake, adjusted, shortages]
