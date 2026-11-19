@@ -21,6 +21,7 @@ import (
 	"elimaz.com.vn/crm/internal/imager"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/commands"
+	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/internal/store"
 	"elimaz.com.vn/crm/internal/platform/metrics"
@@ -51,9 +52,9 @@ const (
 	signalTopic = "files.file"
 )
 
-// DefaultRetryMax là trần thời gian thử lại khi lỗi hạ tầng tạm (IMAGE_RETRY_MAX_HOURS mặc định, quyết định 19/11 cho
-// Task 409): quá trần thì tệp rejected processing_failed.
-const DefaultRetryMax = 24 * time.Hour
+// DefaultRetryMax là trần thời gian thử lại khi lỗi hạ tầng tạm (IMAGE_RETRY_MAX_HOURS mặc định, Task 409): quá trần thì
+// tệp rejected processing_failed. Nhỏ hơn hạn sống của crm-tmp (config.TmpObjectTTL) để lượt cuối còn ảnh gốc (Task 426).
+const DefaultRetryMax = config.DefaultImageRetryMax
 
 // Lý do ghi vào reject_reason (nội dung ảnh) hay last_error của lệnh (lỗi của chính lệnh). Không chứa dữ liệu
 // người dùng.

@@ -93,8 +93,9 @@ type Config struct {
 	// ImagerMaxParallel là số việc worker gửi imager cùng lúc (IMAGER_MAX_PARALLEL, mặc định 2): đặt bằng biến cùng tên
 	// của imager để imager không phải trả 503 (503 kéo dài quá hạn 30 s thì lệnh chờ lại, không tính lượt, Task 409).
 	ImagerMaxParallel int
-	// ImageRetryMax là trần thời gian thử lại xử lý ảnh khi lỗi hạ tầng tạm (IMAGE_RETRY_MAX_HOURS, giờ, mặc định 24,
-	// 1–168; Task 409): quá trần thì ảnh rejected processing_failed và cảnh báo.
+	// ImageRetryMax là trần thời gian thử lại xử lý ảnh khi lỗi hạ tầng tạm (IMAGE_RETRY_MAX_HOURS, giờ, mặc định
+	// DefaultImageRetryMax = 23, nhỏ hơn TmpObjectTTL; Task 409, Task 426): quá trần thì ảnh rejected processing_failed
+	// và cảnh báo.
 	ImageRetryMax time.Duration
 
 	// Hãng vận chuyển giả (ingest, worker), chỉ ngoài production (Q2). Có FakeCarrierURL thì bí mật bắt buộc, ≥ 32 ký tự.
@@ -216,7 +217,12 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		cfg.ImagerURL = r.httpURL("IMAGER_URL")
 		cfg.ImagePresetVersion = r.integer("IMAGE_PRESET_VERSION", 1, 1, 1000)
 		cfg.ImagerMaxParallel = r.integer("IMAGER_MAX_PARALLEL", 2, 1, 64)
-		cfg.ImageRetryMax = time.Duration(r.integer("IMAGE_RETRY_MAX_HOURS", 24, 1, 168)) * time.Hour
+		cfg.ImageRetryMax = time.Duration(r.integer("IMAGE_RETRY_MAX_HOURS", int(DefaultImageRetryMax/time.Hour), 1, 168)) *
+			time.Hour
+		if cfg.ImageRetryMax >= TmpObjectTTL {
+			r.problems = append(r.problems, fmt.Sprintf("IMAGE_RETRY_MAX_HOURS=%d phải nhỏ hơn hạn sống của crm-tmp (%d giờ): "+
+				"quá hạn thì ảnh gốc đã bị kho xóa trước lượt thử cuối", int(cfg.ImageRetryMax/time.Hour), int(TmpObjectTTL/time.Hour)))
+		}
 		cfg.S3ImagerEndpoint = cfg.S3Endpoint
 		if r.optional("S3_IMAGER_ENDPOINT") != "" {
 			cfg.S3ImagerEndpoint = r.httpURL("S3_IMAGER_ENDPOINT")
@@ -230,6 +236,15 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 	}
 	return cfg, nil
 }
+
+// TmpObjectTTL là hạn sống của đối tượng trong bucket <tiền tố>tmp (R10, Q18; Task 410): docker/seaweedfs/bootstrap.sh
+// đặt quy tắc Expiration Days và bật TTL fast path theo đó, kho tự xóa. Nguồn Go duy nhất của hạn này; test
+// TestTmpObjectTTLMatchesBootstrap đòi bootstrap.sh khớp (Task 426).
+const TmpObjectTTL = 24 * time.Hour
+
+// DefaultImageRetryMax là mặc định của IMAGE_RETRY_MAX_HOURS: nhỏ hơn TmpObjectTTL một giờ để lượt thử cuối còn ảnh
+// gốc ở crm-tmp (trần tính từ lúc tệp vào processing; đường PUT ký sẵn hạn 15 phút; Task 426).
+const DefaultImageRetryMax = TmpObjectTTL - time.Hour
 
 // defaultConnBudget là tổng kết nối của ứng dụng (ADR-42): ingest 5 + api 20 + worker 10 + kết nối LISTEN 1.
 const defaultConnBudget = 36

@@ -50,7 +50,7 @@ tắc sau này không áp lại cho đối tượng đã có; đối tượng gh
 của crm-tmp"). Tải nhiều phần chưa xong (`AbortIncompleteMultipartUpload`) vẫn cần lifecycle worker; ứng dụng không
 dùng tải nhiều phần vào `crm-tmp` (đường dẫn ký sẵn một `PUT`, `files.CreateUpload`).
 
-Ràng buộc với Task 409: trần thử lại xử lý ảnh (`IMAGE_RETRY_MAX_HOURS`, mặc định 24) phải nhỏ hơn 24 giờ; ảnh riêng
+Ràng buộc với Task 409: trần thử lại xử lý ảnh (`IMAGE_RETRY_MAX_HOURS`) phải nhỏ hơn 24 giờ — Task 426: mặc định 23, khai ≥ 24 thì worker từ chối khởi động; ảnh riêng
 tư chỉ có bản gốc ở `crm-tmp` (ảnh thường cũng vậy tới khi chép sang `crm-originals`), thử lại sau hạn thì lượt đó ra
 `source_missing` (RUNBOOK "Hạn 24 giờ của crm-tmp").
 

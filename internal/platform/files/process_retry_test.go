@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/queue"
 )
@@ -373,5 +374,28 @@ func TestRetryDelay(t *testing.T) {
 				t.Fatalf("muốn [%v, %v], có %v", c.lo, c.hi, got)
 			}
 		})
+	}
+}
+
+// Task 426: với trần mặc định (RetryMax 0 → DefaultRetryMax), ảnh lỗi hạ tầng mãi hết trần — rejected
+// processing_failed — trước khi bản gốc ở crm-tmp tự xóa (config.TmpObjectTTL). Ở 30 phút trước hạn sống, nguồn còn
+// trên kho: lượt đó phải là lượt cuối theo trần, không phải chờ tiếp tới lúc nguồn mất rồi ra source_missing.
+func TestFileProcess_DefaultCapBeforeTmpExpiry(t *testing.T) {
+	p := newProcEnv(t)
+	p.img.down.Store(true)
+	id := p.upload(p.a, "product_image", []byte("anh-gio-cuoi"))
+	p.drain()
+	p.assertWaiting(kindPublic, id)
+	p.backdate(kindPublic, id, config.TmpObjectTTL-30*time.Minute)
+	p.makeDue()
+	p.drain()
+	if r := p.fileRow(id); r.Status != files.StatusRejected || r.Reason != "processing_failed" {
+		t.Fatalf("30 phút trước khi crm-tmp xóa nguồn: muốn rejected processing_failed, có %+v", r)
+	}
+	if j := p.job(kindPublic, id); j.Status != "dead" {
+		t.Fatalf("lệnh: %+v", j)
+	}
+	if files.DefaultRetryMax >= config.TmpObjectTTL {
+		t.Fatalf("trần mặc định %v không nhỏ hơn hạn crm-tmp %v", files.DefaultRetryMax, config.TmpObjectTTL)
 	}
 }
