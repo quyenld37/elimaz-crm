@@ -1,0 +1,101 @@
+/* Lớp riêng của màn Khách (danh sách, hồ sơ, gộp), chép từ mockup đã duyệt: khối <style> của khach-danh-sach.html,
+   khach-ho-so.html; .olist, .oitem, .side-c.is-pick của docs/mockups/m2/m2.css; .kpi.is-bad của docs/mockups/m1/m1.css.
+   Lớp đã có ở màn Đơn (.kpis, .kpi, .tl, .split, .side-c, .kv, .same, .toast, .note-box) và Nhập Excel (.steps,
+   .drop) dùng lại từ don.css, imports.css. Chỉ dùng biến có sẵn: không màu, cỡ chữ, bo góc mới. */
+
+.c-cus {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  max-width: 320px;
+}
+@media (max-width: 759px) {
+  .c-cus {
+    max-width: none;
+  }
+}
+.k-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.k-tags mark,
+.tbl mark {
+  background: var(--soft);
+  color: var(--title);
+  font-weight: 700;
+  padding: 0 1px;
+}
+
+/* Hồ sơ: nhãn, liên hệ, địa chỉ */
+.p-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.p-tags .tag {
+  min-height: var(--tap);
+}
+.p-tags .tag button {
+  border: 0;
+  background: none;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.idl {
+  display: grid;
+  gap: 0;
+}
+.idr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule);
+  flex-wrap: wrap;
+}
+.idr:last-child {
+  border-bottom: 0;
+}
+.idr .grow {
+  min-width: 160px;
+}
+
+/* Quản lý nhãn */
+.olist {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+}
+.oitem {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+  flex-wrap: wrap;
+}
+.oitem:last-child {
+  border-bottom: 0;
+}
+.oitem .grow {
+  min-width: 140px;
+}
+
+/* Gộp: hồ sơ được chọn giữ lại */
+.side-c.is-pick {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+.kpi.is-bad {
+  border-color: var(--buy);
+  background: var(--soft-sale);
+}
+.kpi.is-bad .v {
+  color: var(--buy);
+}
