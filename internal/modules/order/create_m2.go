@@ -310,7 +310,8 @@ func (p prepared) customerInput() customer.OrderCustomerInput {
 
 // fingerprint là mã băm nội dung của một lần tạo đơn (QĐ1 của Task 73): phần đầu vào còn đọc lại được từ đơn đã lưu.
 // Khách chỉ tính khi đầu vào chọn khách có sẵn (khách mới được tạo trong chính lần đó). Coupon là mã giảm giá viết hoa
-// (mã không phân biệt hoa thường; đơn đã lưu: mã của lượt đang hiệu lực, Task M2-17).
+// (mã không phân biệt hoa thường; đơn đã lưu: promotion.OrderCouponCode — lượt đang hiệu lực, hay lượt đã trả khi đơn
+// hủy, Task M2-21).
 type fingerprint struct {
 	Coupon                                  string
 	Seller, Warehouse                       uuid.UUID
@@ -380,7 +381,7 @@ func replay(ctx context.Context, tx pgx.Tx, p prepared) (CreateResult, bool, err
 	if err != nil {
 		return CreateResult{}, false, err
 	}
-	coupon, err := promotion.ActiveCouponCode(ctx, tx, id)
+	coupon, err := promotion.OrderCouponCode(ctx, tx, id)
 	if err != nil {
 		return CreateResult{}, false, fmt.Errorf("mã giảm giá của đơn đã có: %w", err)
 	}

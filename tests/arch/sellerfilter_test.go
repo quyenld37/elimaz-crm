@@ -35,6 +35,8 @@ func sellerExempt() map[string]string {
 			"hỏi có mẫu nào của bất kỳ người bán nào còn dùng danh mục trước khi lưu trữ",
 		"queries/ord/create.sql#VariantExists": "lên đơn (Task 73, KH14): biến thể không bán được cho người bán của đơn " +
 			"thì hỏi có/không ở cả shop để phân biệt mixed_sellers với variant_not_found; chỉ trả boolean",
+		"queries/ord/drafts.sql#LockExpiredDrafts": "việc hệ thống order.expire_drafts (Task 78, Q8): hủy đơn nháp quá " +
+			"hạn của mọi người bán trong tenant; chỉ trả (id, seller_id), từng đơn được khóa và hủy lại theo seller_id của dòng",
 	}
 }
 
