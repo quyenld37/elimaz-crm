@@ -52,18 +52,6 @@ func editLines(ls ...order.EditLine) *[]order.EditLine { return &ls }
 
 func editPtr[T any](v T) *T { return &v }
 
-// editItem trả dòng của biến thể v trong đơn o (không có → Fatal).
-func editItem(t *testing.T, o order.Order, v uuid.UUID) order.Item {
-	t.Helper()
-	for _, it := range o.Items {
-		if it.VariantID == v {
-			return it
-		}
-	}
-	t.Fatalf("đơn %s không có dòng biến thể %s: %+v", o.Code, v, o.Items)
-	return order.Item{}
-}
-
 // editHeld là số lượng giữ held của dòng đơn item (0 khi không có).
 func (e *orderEnv) editHeld(item uuid.UUID) int {
 	e.t.Helper()
@@ -149,7 +137,7 @@ func TestEdit_RemoveAndAddLines(t *testing.T) {
 	e := newM2Env(t)
 	v1, v2, v3 := e.variant(250000, 5), e.variant(180000, 5), e.variant(99000, 5)
 	o := e.mustCreateM2(e.m2Input(30000, ln(v1, 2, 20000), ln(v2, 1, 0))).Order
-	i1, i2 := editItem(t, o, v1), editItem(t, o, v2)
+	i1, i2 := itemOf(t, o, v1), itemOf(t, o, v2)
 	got := e.mustEdit(o.ID, order.EditInput{
 		Version: o.Version, Lines: editLines(editKeep(i1, 2, 20000), editAdd(v3, 1, 0)),
 	}, e.actor)
@@ -253,7 +241,7 @@ func TestEdit_Coupon(t *testing.T) {
 	if o.CouponDiscount != 68000 {
 		t.Fatalf("đơn có mã: %+v", o)
 	}
-	i1, i2 := editItem(t, o, v1), editItem(t, o, v2)
+	i1, i2 := itemOf(t, o, v1), itemOf(t, o, v2)
 	got := e.mustEdit(o.ID, order.EditInput{Version: o.Version, Lines: editLines(editKeep(i1, 3, 0), editKeep(i2, 1, 0))},
 		e.actor)
 	if got.CouponDiscount != 93000 || got.GrandTotal != 837000 ||
@@ -323,7 +311,7 @@ func TestEdit_LockedByShipment(t *testing.T) {
 		t.Fatal(err)
 	}
 	o = e.get(o.ID)
-	i1 := editItem(t, o, v1)
+	i1 := itemOf(t, o, v1)
 	for name, in := range map[string]order.EditInput{
 		"dòng":         {Version: o.Version, Lines: editLines(editKeep(i1, 1, 0))},
 		"phí ship":     {Version: o.Version, ShippingFee: editPtr(int64(0))},
@@ -358,7 +346,7 @@ func TestEdit_LockedByShipment(t *testing.T) {
 		t.Fatalf("đơn chưa giao: %+v", d)
 	}
 	if _, err := e.editOrder(d.ID, order.EditInput{
-		Version: d.Version, Lines: editLines(editKeep(editItem(t, d, dv), 2, 0)),
+		Version: d.Version, Lines: editLines(editKeep(itemOf(t, d, dv), 2, 0)),
 	}, e.actor); !errors.Is(err, order.ErrLockedByShipment) {
 		t.Errorf("đơn delivered sửa dòng: %v, mong ErrLockedByShipment", err)
 	}
@@ -413,7 +401,7 @@ func TestEdit_Errors(t *testing.T) {
 	e := newM2Env(t)
 	v1, v2 := e.variant(250000, 10), e.variant(180000, 10)
 	o := e.mustCreateM2(e.m2Input(0, ln(v1, 1, 0), ln(v2, 1, 0))).Order
-	i1, i2 := editItem(t, o, v1), editItem(t, o, v2)
+	i1, i2 := itemOf(t, o, v1), itemOf(t, o, v2)
 	wrongVariant := editKeep(i1, 1, 0)
 	wrongVariant.VariantID = v2
 	stranger := editKeep(i1, 1, 0)

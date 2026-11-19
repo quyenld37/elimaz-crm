@@ -16,7 +16,7 @@ import (
 func editSwap(t *testing.T, o order.Order, to, shared uuid.UUID, q int32) order.EditInput {
 	t.Helper()
 	return order.EditInput{
-		Version: o.Version, Lines: editLines(editKeep(editItem(t, o, shared), q, 0), editAdd(to, 1, 0)),
+		Version: o.Version, Lines: editLines(editKeep(itemOf(t, o, shared), q, 0), editAdd(to, 1, 0)),
 	}
 }
 

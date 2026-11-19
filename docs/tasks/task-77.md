@@ -27,6 +27,19 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m2-khach-don.md` (Tas
 - Test sẽ chạy: `go test -race ./internal/modules/order/... ./internal/modules/promotion/...` (+ `httpapi -run
   'OrderEdit|Cancel'`); trước review `ci-task.sh` một lần.
 
+### Lượt 3 (gộp main có Task 79)
+
+- Ký hiệu Go: không ký hiệu xuất ra ngoài nào đổi. Trong `internal/httpapi` (không xuất): `shipAddressIn` được cả hai
+  nhánh tách cùng tên, cùng thân → giữ **một** bản (chú thích gộp: createOrder, updateOrder, đơn thay thế của
+  createReturn), 3 chỗ gọi (`handlers_order.go`, `handlers_order_edit.go`, `handlers_order_returns.go`).
+  `UpdateOrder` chuyển sang `orderWriteAsDefaultSeller` (Task 79); hàm đó dùng `orderActor(u)` thay câu dựng
+  `order.Actor` lặp lại. `checkConcurrentOps` (`inventory/property_test.go`): `TestInventoryInvariants` gọi với
+  `kinds = 9` (Task 79 nới `kind` lên 0–8 cho trả hàng), giữ đúng khoảng của main.
+- Gói phụ thuộc ngược, OpenAPI, màn hình, sqlc, migration: không đổi so với lượt 2 (Task 79 không thêm migration,
+  0210 vẫn là số kế tiếp). `make gen` sau gộp không chênh.
+- Test sẽ chạy: `go test -race ./internal/modules/inventory/... ./internal/modules/order/... ./internal/httpapi/...`;
+  trước review `ci-task.sh` một lần.
+
 ## Tái dùng
 
 - Đã kiểm trong danh mục dùng chung và tìm theo tên, theo việc: `docs/danh-muc-dung-chung.md` (`db.NullUUID`, `logging.Phone/Address`, `tenancy`), trong gói `order`: `lockOrder`, `lockedOrder`, `changeLocked` (confirm.go), `applyTransition`, `insertHistory`, `emit`, `signal`, `saleLines`, `cleanAddress`, `normalizedShipPhone`, `pricingError`, `overThreshold`, `money`, `optText`, `validText`, `ActiveSource`, `LoadSettings`; trong `inventory`: `applyDelta`, `changed`, `insufficient`, `LockBalancesOfReservations`, `LockReservations`, `ReleaseHeldByItems`, `Reserve`; trong `promotion`: `Detach`, `Redeem`, `Reprice`, `ActiveCouponCode`; `customer.RootOf`, `customer.ValidateUnits`; `state.Editable`.
@@ -35,6 +48,10 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m2-khach-don.md` (Tas
   `CouponByIDForUpdate` (một id); `lockActive` khóa mã của lượt một đơn. Không có hàm khóa nhiều mã theo thứ tự → viết
   `LockCoupons` (một câu `ORDER BY id FOR UPDATE`, đúng luật "khóa trước rồi sửa" của ADR-46). Dùng chung cho sửa đơn
   đổi mã và `ExpireDrafts` (cùng mục đích: thứ tự khóa dòng mã, cùng lý do đổi).
+
+- Lượt 3: tìm hàm ghi đơn theo người bán mặc định → `orderWriteAsDefaultSeller`, `orderWriter` (Task 79) — dùng lại
+  cho `UpdateOrder`, xóa bản tự dựng `Writer` + `DefaultSeller` trong `handlers_order_edit.go`. `orderChange`
+  (confirm) và `CreateOrder` vẫn tự dựng `Writer` (có từ trước, khác chữ ký) — ghi ở "Việc phát hiện thêm".
 
 ## Soát thiết kế
 
@@ -75,6 +92,10 @@ Lượt 2 (thứ tự khóa hai mã, việc Task 78 giao):
 - 6.11: test `TestEdit_CouponSwapNoDeadlock` 200 lần: hai lần sửa đổi chéo mã + `ExpireDrafts` hai đơn nháp mang hai
   mã + hủy một đơn mang mã, song song; `pg_stat_database.deadlocks` không tăng; `used_count` khớp số lượt active.
 
+Lượt 3: gộp không đổi thứ tự khóa, transaction hay quyền: `UpdateOrder` vẫn chạy trong `refusableWrite` (một
+WriteTx, lỗi nghiệp vụ không lưu theo khóa), người bán mặc định và `order.Actor` (quyền duyệt tính từ grant) dựng như
+trước, nay qua hàm chung của Task 79.
+
 ## Quyết định thay chủ shop
 
 1. **Bước sổ tồn là `edit_v<version mới>`**, không phải `edit:v<version>` như kế hoạch: CHECK của `stock_ledger.step` là `^[a-z][a-z0-9_]{0,31}$`, không cho dấu `:`. Cùng nghĩa, unique `(doc, bucket, step)` vẫn khác nhau giữa các lần sửa. Khác: migration nới CHECK (không cần).
@@ -99,6 +120,10 @@ Lượt 2 (thứ tự khóa hai mã, việc Task 78 giao):
     chưa hủy hai hàm cho cùng kết quả. Đơn đã hủy: gửi lại đúng mã của lượt đã trả nay là "không đổi gì" (trả đơn, không
     ghi), như mọi PATCH không đổi trường nào; đổi mã thật vẫn bị `checkEditable` chặn. Không thêm hàm đọc riêng.
 
+16. **(Lượt 3) `TestInventoryInvariants` dùng `kinds = 9`** (đúng khoảng `kind` 0–8 của Task 79) qua
+    `checkConcurrentOps` của task này, thay vì giữ bản viết lại khung rapid của main: hai bên cùng thân, chỉ khác số
+    loại thao tác. Phương án khác: bỏ `checkConcurrentOps` — làm lại đoạn trùng với `TestResizeHeldInvariants` (jscpd).
+
 ## Bằng chứng
 
 | Tiêu chí | Test | Lệnh | Kết quả |
@@ -120,11 +145,17 @@ Lượt 2 (thứ tự khóa hai mã, việc Task 78 giao):
 | Không deadlock: 200 lần hai lần sửa song song đổi chéo V1/V3, đổi số lượng V2 | `TestEdit_NoDeadlock` | `go test -race ./internal/modules/order/ -run TestEdit_NoDeadlock` | `ok` (5.96s), deadlocks không tăng |
 | (Lượt 2) Sửa đơn đổi mã khóa hai mã cùng thứ tự với ExpireDrafts và Cancel: 200 lần song song X A→B, Y B→A, ExpireDrafts hai nháp (A, B), hủy một đơn mang A; deadlocks không tăng; used_count A = B = 1, đúng 2 lượt active | `TestEdit_CouponSwapNoDeadlock` | `go test -race ./internal/modules/order/ -run TestEdit_CouponSwapNoDeadlock -count=1` | trước sửa: `FAIL … pg_stat_database.deadlocks 0 → 289` (279s, WriteTx chạy lại nên không lỗi ra ngoài); sau sửa: `ok … 17.377s` |
 | (Lượt 2) Gộp main không làm hỏng Task 78 và Task 77 | toàn bộ test (ci-task chạy cả bộ vì nhánh có migration) | `ci-task.sh` (một lần, nền) rồi `make gen-check` sau khi stage | build, vet, lint `0 issues`, jscpd `Found 0 clones`, `ok …/modules/order 235.657s`, `ok …/modules/promotion 71.896s`, `ok …/httpapi 61.323s`, `ok …/inventory 146.984s`, không dòng FAIL; gen-check đỏ ở lần ci-task chỉ vì tệp chưa stage (`git diff` so cây với index), sau `git add` → `make gen-check` thoát 0 |
+| (Lượt 3) Gộp main có Task 79 không làm hỏng hai bên | toàn bộ test 3 gói bị chạm | `go test -race ./internal/modules/inventory/... ./internal/modules/order/... ./internal/httpapi/...` | `ok inventory 189.079s`, `ok order 380.691s`, `ok httpapi 82.924s` (sau khi dùng `orderWriteAsDefaultSeller`: `ok httpapi 79.081s`); `make gen` không chênh |
+| (Lượt 3) Cổng tĩnh và toàn bộ test trên bản gộp | `ci-task.sh` (chạy cả bộ vì nhánh có migration) | `CRM_PG_PORT=5600 ci-task.sh` (nền, một lần) | build, vet, lint, gen-check, catalog-check, oasdiff, test-guard, gitleaks, console đều qua; mọi gói `ok`, không dòng FAIL (test 701 giây); **đỏ duy nhất jscpd**: 1 đoạn trùng mới `edit_test.go` `editItem` ↔ `returns_test.go` `itemOf` (Task 79). Sửa: xóa `editItem`, gọi `itemOf` → `jscpd … --fail-on-new-clones=0 .` → `Found 0 clones.`; `golangci-lint run ./internal/modules/order/...` `0 issues`; `go test -race -count=1 ./internal/modules/order/ -run TestEdit_` → `ok 113.226s` |
 
 ## Test bị xóa hoặc tắt
 
 - Lượt 2: không xóa test nào. Xóa hàm hỗ trợ `usedCount` trùng trong `edit_test.go` (Task 78 thêm hàm cùng tên, cùng
   thân vào `cancel_test.go`; giữ một bản để gói test biên dịch được). Mọi chỗ gọi dùng bản của `cancel_test.go`.
+
+- Lượt 3: không xóa, không tắt test nào; `TestInventoryInvariants` giữ khoảng `kind` 0–8 của main. Xóa hàm hỗ trợ
+  `editItem` (`edit_test.go`) trùng thân với `itemOf` của Task 79 (`returns_test.go`, jscpd báo); mọi chỗ gọi trong
+  `edit_test.go`, `edit_deadlock_test.go` dùng `itemOf` (khác duy nhất: câu Fatal không in danh sách dòng).
 
 ## Khác kế hoạch
 
@@ -141,7 +172,17 @@ Lượt 2 (thứ tự khóa hai mã, việc Task 78 giao):
 - Mô tả `updateOrder`, `confirmOrder`… trong `openapi.yaml` vẫn ghi "Chưa làm ở Task M2-02 (trả 501)": dọn chữ một lần ở task hợp đồng cuối M2.
 - sqlc: `@tham_số - cột` bị hiểu sai (PostgreSQL có toán tử tiền tố `@` trị tuyệt đối) → lỗi "edited query syntax is invalid" ở vị trí lệch; viết `sqlc.arg(tham_số)::kiểu - cột`. Đáng ghi vào "Bẫy đã gặp" nếu gặp lần hai.
 
+- `orderChange` (handlers_order_confirm.go) và `CreateOrder` vẫn tự dựng `order.Writer{…}` và người bán mặc định; có
+  thể chuyển sang `orderWriter`/`orderWriteAsDefaultSeller` ở một commit cấu trúc riêng (task dọn của M2).
+
 ## Reviewer
+
+Lượt 3 (gộp main có Task 79; agent `reviewer` trên bản gộp đã stage): **ĐẠT**. Phát hiện phải sửa: không có.
+Reviewer kiểm: `shipAddressIn` còn một bản, 3 chỗ gọi; `orderActor` là chỗ duy nhất dựng Actor có quyền duyệt (3 chỗ
+gọi); `UpdateOrder` qua `orderWriteAsDefaultSeller` vẫn một WriteTx, cùng hàm từ chối, cùng audit (lỗi DefaultSeller
+không còn bọc thêm chữ, vẫn kiểm bằng `errors.Is`); `TestInventoryInvariants` kind 0–8 đúng như main, không nới;
+không còn `editItem`; 0210 vẫn là migration kế tiếp. Ghi chú không bắt buộc: dòng trống làm vỡ bảng bằng chứng (đã
+sửa); `orderChange`, `CreateOrder` tự dựng Writer (đã ghi ở Việc phát hiện thêm).
 
 Lượt 2 (gộp main, thứ tự khóa hai mã; agent `reviewer`, 10 tệp đã stage): **ĐẠT**. Phát hiện phải sửa: không có.
 Reviewer kiểm từng đường: Edit (đơn → dòng đơn → `LockCoupons` theo id → Detach/Redeem → tồn), ExpireDrafts (mọi đơn →

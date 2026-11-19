@@ -125,7 +125,8 @@ func createOrderInput(req *gen.CreateOrderRequest, key uuid.UUID) (order.CreateI
 	return in, nil
 }
 
-// shipAddressIn dịch địa chỉ giao của thân yêu cầu (ShipAddress của hợp đồng) sang order.ShipAddress.
+// shipAddressIn dịch địa chỉ giao của hợp đồng (createOrder, updateOrder, đơn thay thế của createReturn) sang
+// order.ShipAddress.
 func shipAddressIn(a gen.ShipAddress) *order.ShipAddress {
 	return &order.ShipAddress{
 		Name: a.Name, Phone: logging.Phone(a.Phone), Line: logging.Address(a.Line),

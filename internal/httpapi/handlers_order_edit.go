@@ -7,15 +7,14 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
-	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/promotion"
-	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
 // UpdateOrder (PATCH /api/v1/orders/{id}, order.update): sửa đơn của người bán mặc định khi version còn khớp (Task
@@ -26,13 +25,10 @@ import (
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) UpdateOrder(ctx context.Context, req *gen.UpdateOrderRequest, params gen.UpdateOrderParams) (gen.UpdateOrderRes, error) {
 	in := editOrderInput(req)
-	w := order.Writer{Events: h.d.Events, Queue: queue.NewQueue(), Realtime: h.d.Realtime}
-	out, err := h.refusableWrite(ctx, http.StatusOK, isOrderEditRefusal, "sửa đơn", func(tx pgx.Tx, u identity.AuthUser) (any, error) {
-		seller, err := catalog.DefaultSeller(ctx, tx)
-		if err != nil {
-			return nil, fmt.Errorf("người bán mặc định: %w", err)
-		}
-		res, err := w.Edit(ctx, tx, seller, params.ID, in, orderActor(u), time.Now().UTC())
+	out, err := h.orderWriteAsDefaultSeller(ctx, http.StatusOK, isOrderEditRefusal, "sửa đơn", func(tx pgx.Tx,
+		w order.Writer, u identity.AuthUser, seller uuid.UUID, a order.Actor,
+	) (any, error) {
+		res, err := w.Edit(ctx, tx, seller, params.ID, in, a, time.Now().UTC())
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của order, promotion
 		}
