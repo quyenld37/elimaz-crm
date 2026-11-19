@@ -570,7 +570,7 @@ export const listOrders = <ThrowOnError extends boolean = false>(options?: Optio
 /**
  * Lên đơn (M1, mở rộng ở M2) — tạo khách mới hoặc dùng khách có sẵn, đơn và giữ hàng cùng transaction
  *
- * Thân kiểu M1 (không intent, có customer.fullName, shipAddress name/phone/line) tạo thẳng đơn Đã xác nhận như M1. Trường M2 (customerId, intent, giảm giá, mã, nguồn, ghi chú hãng, người phụ trách, mã tỉnh/xã…) có nghiệp vụ từ Task M2-16, M2-17; trước đó gửi trường M2 → 501 not_implemented. Đúng một trong customerId, customer (sai → 400 invalid_input). Khóa nghiệp vụ của đơn dựng từ Idempotency-Key và nhân viên (Q-T57-4); cùng khóa nghiệp vụ, cùng nội dung sau khi bản ghi chống trùng hết hạn → 200 trả đơn đã có.
+ * Thân kiểu M1 (không intent, có customer.fullName, shipAddress name/phone/line) tạo thẳng đơn Đã xác nhận như M1. Trường M2 (customerId, intent, giảm giá, mã, nguồn, ghi chú hãng, người phụ trách, mã tỉnh/xã…) có nghiệp vụ từ Task M2-16, M2-17; trước đó gửi trường M2 → 501 not_implemented. Đúng một trong customerId, customer (sai → 400 invalid_input). Khóa nghiệp vụ của đơn dựng từ Idempotency-Key và nhân viên (Q-T57-4); cùng khóa nghiệp vụ, cùng nội dung sau khi bản ghi chống trùng hết hạn → 200 trả đơn đã có. Kho giữ hàng (warehouseId, bỏ trống là kho chính) ngoài phạm vi order.create của người gọi → 403 forbidden, không lưu theo khóa (Task 411).
  */
 export const createOrder = <ThrowOnError extends boolean = false>(options: Options<CreateOrderData, ThrowOnError>): RequestResult<CreateOrderResponses, CreateOrderErrors, ThrowOnError> => (options.client ?? client).post<CreateOrderResponses, CreateOrderErrors, ThrowOnError>({
     url: '/api/v1/orders',

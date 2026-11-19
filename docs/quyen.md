@@ -21,6 +21,13 @@ trị nhân viên, vai trò, nền tảng là loại `toàn shop`.
 - Quyền quản trị (loại `toàn shop`) hiện có: `identity.users.manage`, `identity.roles.manage`, `platform.jobs.manage`,
   `platform.health.read`, `platform.files.manage`, `audit.read`; chính sách toàn shop của M2: `order.settings.manage`,
   `promotion.manage`.
+- **Lên đơn giữ hàng theo phạm vi kho** (Task 411, quyết định 19/11 cho phát hiện D-02): `order.create` vẫn là loại
+  `none` (vào màn Lên đơn, kiểm mã giảm giá, kiểm đơn trùng như cũ), nhưng lúc tạo đơn (`POST /api/v1/orders`) kho giữ
+  hàng của đơn — `warehouseId` gửi lên, bỏ trống là kho chính — phải nằm trong phạm vi của chính quyền `order.create`:
+  gán vai trò **toàn shop** hoặc gán **theo đúng kho đó**. Ngoài phạm vi (gán theo kho khác, chỉ gán theo một Page, kho
+  không có) → 403 `forbidden`, không tạo đơn, không giữ hàng; yêu cầu không lưu theo `Idempotency-Key` (được cấp kho
+  rồi gửi lại cùng khóa thì xử lý lại). Chủ shop, Quản lý gán toàn shop không bị ảnh hưởng. Mã: `identity.GrantedAt`.
+  Đơn thay thế của phiếu đổi hàng dùng kho của đơn gốc (không chọn kho), không kiểm thêm.
 - `GET /api/v1/me` không cần quyền nào: chỉ cần đăng nhập và tài khoản không bị khóa (`x-authenticated`, Task 315).
 - **Vai trò mẫu**: `owner` Chủ, `manager` Quản lý, `sale` Bán hàng, `warehouse` Kho, `accountant` Kế toán. Vai trò
   chủ shop đã sửa (`customized`) không được thêm quyền tự động, trừ `owner` luôn đủ mọi quyền. Mỗi lần `migrate` xong,

@@ -14,12 +14,16 @@ import (
 	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/identity"
+	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/promotion"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/queries/orderview"
 )
+
+// permOrderCreate: quyền lên đơn; ngoài guard, handler kiểm nó ở kho giữ hàng của đơn (orderWarehouseAt, Task 411).
+const permOrderCreate = identity.Permission("order.create")
 
 // permDiscountApprove: người có quyền này tạo đơn giảm tay vượt ngưỡng không phải chờ duyệt (Q3).
 const permDiscountApprove = "order.discount.approve"
@@ -37,7 +41,8 @@ func orderBusinessKey(userID uuid.UUID, requestKey string) uuid.UUID {
 // transaction (giữ hàng cùng lúc, order.Writer.Create) → 201; khóa nghiệp vụ (từ Idempotency-Key và nhân viên) đã có
 // đơn cùng nội dung → 200 trả đơn đó. Thân kiểu M1 (không intent) tạo thẳng confirmed như M1. Từ chối nghiệp vụ (hết
 // hàng, dữ liệu sai, mã giảm giá bị từ chối…) không lưu theo khóa: gửi lại cùng khóa được xử lý lại. Người có quyền
-// order.discount.approve không phải chờ duyệt giảm giá (Task M2-17; máy chủ tự tính từ grant).
+// order.discount.approve không phải chờ duyệt giảm giá (Task M2-17; máy chủ tự tính từ grant). Kho giữ hàng (bỏ trống
+// → kho chính) phải nằm trong phạm vi order.create của người gọi, không thì 403 (orderWarehouseAt, Task 411).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) CreateOrder(ctx context.Context, req *gen.CreateOrderRequest, params gen.CreateOrderParams) (gen.CreateOrderRes, error) {
@@ -55,7 +60,13 @@ func (h *handler) CreateOrder(ctx context.Context, req *gen.CreateOrderRequest, 
 	var refused error
 	err = WriteTx(ctx, h.d, u.TenantID, func(tx pgx.Tx) (int, any, bool, error) {
 		out, replayed, refused = nil, false, nil // fn có thể chạy lại (ADR-46): gán lại mỗi lần
-		res, err := createOrder(ctx, tx, w, in, u)
+		var res order.CreateResult
+		run := in // kho đích tính lại mỗi lần chạy
+		wh, err := orderWarehouseAt(ctx, tx, u, in.WarehouseID)
+		if err == nil {
+			run.WarehouseID = wh
+			res, err = createOrder(ctx, tx, w, run, u)
+		}
 		switch {
 		case isOrderRefusal(err):
 			refused = err
@@ -82,6 +93,23 @@ func (h *handler) CreateOrder(ctx context.Context, req *gen.CreateOrderRequest, 
 		return (*gen.CreateOrderOK)(out), nil
 	}
 	return (*gen.CreateOrderCreated)(out), nil
+}
+
+// orderWarehouseAt là kho giữ hàng của đơn sắp tạo (wh; uuid.Nil → kho chính) sau khi kiểm u có order.create ở kho
+// đó: grant phạm vi all hoặc warehouse:<kho> (identity.GrantedAt; order.create là quyền none nên Can bỏ qua đích).
+// Ngoài phạm vi → errForbiddenTarget (403), kể cả khi kho không có (không cho biết kho có hay không). Task 411, D-02,
+// docs/quyen.md.
+func orderWarehouseAt(ctx context.Context, tx pgx.Tx, u identity.AuthUser, wh uuid.UUID) (uuid.UUID, error) {
+	if wh == uuid.Nil {
+		var err error
+		if wh, err = inventory.DefaultWarehouse(ctx, tx); err != nil {
+			return uuid.Nil, fmt.Errorf("đọc kho chính: %w", err)
+		}
+	}
+	if !identity.GrantedAt(u, permOrderCreate, *warehouseScope(wh)) {
+		return uuid.Nil, errForbiddenTarget
+	}
+	return wh, nil
 }
 
 // createOrderInput dịch thân createOrder sang order.CreateInput. Đúng một trong customerId, customer; không gửi intent
@@ -163,9 +191,11 @@ func createOrder(ctx context.Context, tx pgx.Tx, w order.Writer, in order.Create
 	return res, nil
 }
 
-// isOrderRefusal: lỗi nghiệp vụ của lần tạo đơn (trả cho client, không lưu theo khóa).
+// isOrderRefusal: lỗi nghiệp vụ của lần tạo đơn (trả cho client, không lưu theo khóa), kể cả kho giữ hàng ngoài phạm
+// vi của người gọi (errForbiddenTarget, Task 411: được cấp kho rồi gửi lại cùng khóa thì xử lý lại).
 func isOrderRefusal(err error) bool {
 	for _, e := range []error{
+		errForbiddenTarget,
 		order.ErrOutOfStock, order.ErrNotForSale, order.ErrMixedSellers, order.ErrTotalOverflow, order.ErrInvalidInput,
 		order.ErrDuplicateOrder, order.ErrVariantNotFound, order.ErrLineDiscountExceeds, order.ErrOrderDiscountExceeds,
 		order.ErrAddressIncomplete, order.ErrTrafficSourceInactive, customer.ErrInvalidInput, customer.ErrNotFound,

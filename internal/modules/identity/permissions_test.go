@@ -128,22 +128,38 @@ func TestPermissionsList(t *testing.T) {
 // (quyền theo đích) đúng target, hoặc (theo đích, không target) ít nhất một grant, hoặc (quyền không theo đích, Task
 // 315) ít nhất một grant ở bất kỳ phạm vi nào. Quyền toàn shop (Task 315 lượt 2) chỉ đúng với grant all. Grants rỗng
 // → luôn sai; grant của quyền khác không bao giờ làm Can đúng.
-func TestCanProperty(t *testing.T) {
+// permissionKeys là khóa của mọi quyền trong identity.Permissions.
+func permissionKeys() []identity.Permission {
 	keys := make([]identity.Permission, 0, len(identity.Permissions))
 	for _, d := range identity.Permissions {
 		keys = append(keys, d.Key)
 	}
-	genScope := rapid.Custom(func(t *rapid.T) identity.Scope {
+	return keys
+}
+
+// scopeGen sinh phạm vi all, hoặc page/warehouse với mã lấy từ ids.
+func scopeGen(ids ...string) *rapid.Generator[identity.Scope] {
+	return rapid.Custom(func(t *rapid.T) identity.Scope {
 		typ := rapid.SampledFrom([]string{identity.ScopeAll, identity.ScopePage, identity.ScopeWarehouse}).Draw(t, "type")
 		if typ == identity.ScopeAll {
 			return scopeAll()
 		}
-		return identity.Scope{Type: typ, ID: rapid.SampledFrom([]string{"p1", "p2", "w1"}).Draw(t, "id")}
+		return identity.Scope{Type: typ, ID: rapid.SampledFrom(ids).Draw(t, "id")}
 	})
+}
+
+// grantsGen sinh 0–6 grant của quyền trong keys, phạm vi từ scopes.
+func grantsGen(keys []identity.Permission, scopes *rapid.Generator[identity.Scope]) *rapid.Generator[[]identity.Grant] {
+	return rapid.SliceOfN(rapid.Custom(func(t *rapid.T) identity.Grant {
+		return identity.Grant{Permission: rapid.SampledFrom(keys).Draw(t, "perm"), Scope: scopes.Draw(t, "scope")}
+	}), 0, 6)
+}
+
+func TestCanProperty(t *testing.T) {
+	keys := permissionKeys()
+	genScope := scopeGen("p1", "p2", "w1")
 	rapid.Check(t, func(t *rapid.T) {
-		grants := rapid.SliceOfN(rapid.Custom(func(t *rapid.T) identity.Grant {
-			return identity.Grant{Permission: rapid.SampledFrom(keys).Draw(t, "perm"), Scope: genScope.Draw(t, "scope")}
-		}), 0, 6).Draw(t, "grants")
+		grants := grantsGen(keys, genScope).Draw(t, "grants")
 		u := user(grants...)
 		p := rapid.SampledFrom(keys).Draw(t, "p")
 		var target *identity.Scope

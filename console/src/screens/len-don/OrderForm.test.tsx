@@ -313,6 +313,20 @@ describe("gửi đơn (useWriteAction, trạng thái D–H)", () => {
     expect(screen.queryByText(/Đã tạo đơn/)).toBeNull();
   });
 
+  it("403 forbidden (kho giữ hàng ngoài phạm vi, Task 411): câu riêng, đơn chưa tạo, không nút Gửi lại", async () => {
+    await readyOrder();
+    fake.replies = [{ status: 403, body: { error: "forbidden", request_id: "r" } }];
+    fireEvent.click(confirmBtn());
+    expect(
+      await screen.findByText(
+        "Chưa lưu đơn: bạn chưa được giao kho giữ hàng của đơn. Nhờ chủ shop gán quyền lên đơn ở kho này hoặc toàn shop.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Đã tạo đơn/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Gửi lại" })).toBeNull();
+    expect(fake.writes).toHaveLength(1);
+  });
+
   it("422 coupon_rejected expired: 'Mã đã hết hạn' dưới ô mã", async () => {
     fake.coupon = { ok: true, discount: 50000 };
     await readyOrder();

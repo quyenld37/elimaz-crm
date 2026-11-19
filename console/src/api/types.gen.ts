@@ -395,7 +395,7 @@ export type CreateOrderRequest = {
      */
     intent?: 'draft' | 'new' | 'confirmed';
     /**
-     * Bỏ trống → kho chính
+     * Bỏ trống → kho chính. Kho (kể cả kho chính) phải nằm trong phạm vi order.create của người gọi (gán toàn shop hoặc theo đúng kho đó), không thì 403 forbidden (Task 411, docs/quyen.md)
      */
     warehouseId?: string;
     items: Array<{

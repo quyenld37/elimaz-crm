@@ -2975,7 +2975,9 @@ type CreateOrderRequest struct {
 	CustomerId OptUUID                       `json:"customerId"`
 	// Không gửi → hành vi M1 (tạo thẳng confirmed).
 	Intent OptCreateOrderRequestIntent `json:"intent"`
-	// Bỏ trống → kho chính.
+	// Bỏ trống → kho chính. Kho (kể cả kho chính) phải nằm trong phạm vi order.create
+	// của người gọi (gán toàn shop hoặc theo đúng kho đó), không thì 403 forbidden (Task
+	// 411, docs/quyen.md).
 	WarehouseId     OptUUID                       `json:"warehouseId"`
 	Items           []CreateOrderRequestItemsItem `json:"items"`
 	ShipAddress     OptShipAddress                `json:"shipAddress"`
