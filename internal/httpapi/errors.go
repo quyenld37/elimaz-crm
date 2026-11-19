@@ -451,6 +451,7 @@ func orderError(err error) (status int, code string, ok bool) {
 		{order.ErrSettingOutOfRange, http.StatusUnprocessableEntity, codeSettingOutOfRange},
 		// Task M2-15: tên nguồn đơn trùng (Q-T72-1: mã chung already_exists).
 		{order.ErrTrafficSourceNameTaken, http.StatusConflict, codeAlreadyExists},
+		{order.ErrLabelNotFilterable, http.StatusUnprocessableEntity, codeInvalidInput},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

@@ -170,7 +170,8 @@ func isOrderRefusal(err error) bool {
 	return false
 }
 
-// GetOrder (GET /api/v1/orders/{id}, order.read): đơn của người bán mặc định kèm dòng đơn.
+// GetOrder (GET /api/v1/orders/{id}, order.read): chi tiết đơn của người bán mặc định (Task M2-24, order.GetDetail):
+// dòng đơn, nhãn, phạm vi sửa, khách, mã giảm giá, cảnh báo đơn trùng, phiếu trả, tên người phụ trách và người tạo.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) GetOrder(ctx context.Context, params gen.GetOrderParams) (gen.GetOrderRes, error) {
@@ -178,20 +179,24 @@ func (h *handler) GetOrder(ctx context.Context, params gen.GetOrderParams) (gen.
 	if !ok {
 		return nil, errNoAuthUser
 	}
-	var o order.Order
+	var d order.OrderDetail
+	var names map[uuid.UUID]string
 	err := h.readAsDefaultSeller(ctx, u, func(tx pgx.Tx, seller uuid.UUID) error {
 		var err error
-		o, err = order.Get(ctx, tx, seller, params.ID)
-		return err //nolint:wrapcheck // sentinel của order
+		if d, err = order.GetDetail(ctx, tx, seller, params.ID); err != nil {
+			return err //nolint:wrapcheck // sentinel của order
+		}
+		names, err = actorNamesOf(ctx, tx, []*uuid.UUID{d.CareBy, d.CreatedBy}, func(p *uuid.UUID) *uuid.UUID { return p })
+		return err
 	})
 	if err != nil {
 		return nil, fmt.Errorf("đọc đơn: %w", err)
 	}
-	return orderOut(o), nil
+	return orderDetailOut(d, names), nil
 }
 
-// orderOut là thân đơn (createOrder, getOrder): trường M1 và trường M2 đọc được từ order.Order (Task M2-16); khách,
-// người phụ trách, phạm vi sửa, phiếu trả có ở task đọc chi tiết (M2-24).
+// orderOut là thân đơn (createOrder, xác nhận…): trường M1 và trường M2 đọc được từ order.Order (Task M2-16); getOrder
+// thêm khách, người phụ trách, phạm vi sửa, phiếu trả bằng orderDetailOut (Task M2-24).
 func orderOut(o order.Order) *gen.Order {
 	out := &gen.Order{
 		ID: o.ID, Code: o.Code, Status: gen.OrderStatus(o.Status), CustomerId: o.CustomerID, Subtotal: gen.Money(o.Subtotal),
