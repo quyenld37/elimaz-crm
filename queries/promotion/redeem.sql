@@ -36,12 +36,15 @@ SELECT id, coupon_id, customer_id, discount
 FROM promotion.coupon_redemptions
 WHERE order_id = @order_id AND status = 'active';
 
--- name: ActiveCouponCodeByOrder :one
--- Mã (đúng chữ đã lưu) của lượt đang hiệu lực của đơn (dấu vân tay lần gửi lại tạo đơn).
+-- name: OrderCouponCode :one
+-- Mã (đúng chữ đã lưu) mà đơn đang dùng (dấu vân tay lần gửi lại tạo đơn): lượt đang hiệu lực; không có thì lượt đã
+-- trả gần nhất trừ lượt bị bỏ khi sửa đơn (detach_reason): đơn đã hủy vẫn được nhận ra là cùng đơn (Task M2-21).
 SELECT c.code::text AS code
 FROM promotion.coupon_redemptions r
 JOIN promotion.coupons c ON c.id = r.coupon_id
-WHERE r.order_id = @order_id AND r.status = 'active';
+WHERE r.order_id = @order_id AND (r.status = 'active' OR r.release_reason <> @detach_reason::text)
+ORDER BY r.status = 'active' DESC, r.released_at DESC, r.id DESC
+LIMIT 1;
 
 -- name: UpsertRedemption :execrows
 -- Lượt mới của đơn, hoặc đổi dòng released cũ của cùng (mã, đơn) về active; dòng còn active → 0 dòng.

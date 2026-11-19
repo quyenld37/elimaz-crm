@@ -126,9 +126,11 @@ func (w Writer) Redeem(ctx context.Context, tx pgx.Tx, code string, o OrderRef, 
 	return Redemption{CouponID: c.ID, Code: c.Code, Discount: discount}, nil
 }
 
-// ActiveCouponCode trả mã (đúng chữ đã lưu) của lượt đang hiệu lực của đơn orderID; đơn không dùng mã → "".
-func ActiveCouponCode(ctx context.Context, tx pgx.Tx, orderID uuid.UUID) (string, error) {
-	code, err := store.New(tx).ActiveCouponCodeByOrder(ctx, orderID)
+// OrderCouponCode trả mã (đúng chữ đã lưu) mà đơn orderID đang dùng, cho dấu vân tay lần gửi lại tạo đơn: mã của lượt
+// đang hiệu lực; đơn đã hủy (lượt đã trả) → mã của lượt đã trả gần nhất; lượt bị bỏ khi sửa đơn (Detach) không tính.
+// Đơn không dùng mã → "".
+func OrderCouponCode(ctx context.Context, tx pgx.Tx, orderID uuid.UUID) (string, error) {
+	code, err := store.New(tx).OrderCouponCode(ctx, store.OrderCouponCodeParams{OrderID: orderID, DetachReason: detachReason})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", nil
 	}

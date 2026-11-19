@@ -73,10 +73,7 @@ func attachShipment(ctx context.Context, q *store.Queries, sellerID, orderID, sh
 func (w Writer) DetachShipment(ctx context.Context, tx pgx.Tx, sellerID, orderID, shipmentID uuid.UUID, _ Actor,
 	now time.Time,
 ) (applied bool, err error) {
-	if err := w.wired(); err != nil {
-		return false, err
-	}
-	q, o, current, err := lockForShipment(ctx, tx, sellerID, orderID, shipmentID)
+	q, o, current, err := w.lockCurrentShipment(ctx, tx, sellerID, orderID, shipmentID)
 	if err != nil || !current {
 		return false, err
 	}
@@ -168,6 +165,16 @@ func lockForShipment(ctx context.Context, tx pgx.Tx, sellerID, orderID, shipment
 		return q, o, false, err
 	}
 	return q, o, o.CurrentShipmentID.Valid && uuid.UUID(o.CurrentShipmentID.Bytes) == shipmentID, nil
+}
+
+// lockCurrentShipment như lockForShipment, sau khi kiểm Writer đủ Events, Queue (wired): đường ghi của móc nối vận
+// đơn (DetachShipment, OnShipmentCancelConfirmed, OnShipmentCancelRejected).
+func (w Writer) lockCurrentShipment(ctx context.Context, tx pgx.Tx, sellerID, orderID, shipmentID uuid.UUID,
+) (*store.Queries, store.LockOrderRow, bool, error) {
+	if err := w.wired(); err != nil {
+		return nil, store.LockOrderRow{}, false, err
+	}
+	return lockForShipment(ctx, tx, sellerID, orderID, shipmentID)
 }
 
 // wired trả errWriterNotWired khi Writer thiếu Events hoặc Queue (đường ghi phát sự kiện).
