@@ -106,6 +106,20 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   ward_not_in_province: "Xã/phường không thuộc tỉnh đã chọn",
 };
 
+/** Câu cho từng lý do từ chối mã giảm giá (CouponRejectReason: checkCoupon.reason, thân lỗi coupon_rejected.reason). */
+export const COUPON_REASON_MESSAGES: Readonly<Record<string, string>> = {
+  not_found: "Không có mã này",
+  disabled: "Mã đã bị tắt",
+  not_started: "Mã chưa tới ngày dùng",
+  expired: "Mã đã hết hạn",
+  exhausted: "Mã đã hết lượt dùng",
+  min_subtotal: "Đơn chưa đủ giá trị tối thiểu của mã",
+  channel: "Mã không dùng cho kênh này",
+  bound_other: "Mã dành riêng cho khách khác",
+  customer_limit: "Khách đã dùng hết lượt của mã này",
+  seller: "Mã không áp cho sản phẩm của người bán này",
+};
+
 /** Lỗi API có mã (thân {"error", "request_id", ...}). code rỗng khi thân không đúng dạng (ví dụ 502 của cổng vào). */
 export class ApiError extends Error {
   readonly status: number;

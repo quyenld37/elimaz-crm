@@ -1,0 +1,254 @@
+/* Lớp riêng của màn Lên đơn, chép từ mockup đã duyệt (docs/mockups/m2/m2.css; .stepper từ docs/mockups/m1/m1.css).
+   Chỉ dùng biến có sẵn của styles.css: không màu, cỡ chữ, bo góc mới. Không có gì chỉ hiện khi rê chuột. */
+
+/* Phím tắt */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--edge);
+  border-radius: var(--r);
+  background: var(--paper);
+  color: var(--ink);
+  font:
+    600 12px/20px ui-monospace,
+    Menlo,
+    monospace;
+  white-space: nowrap;
+}
+.keys {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 12px;
+  align-items: center;
+  font-size: 13px;
+}
+@media (max-width: 999px) {
+  .keys-desk {
+    display: none;
+  }
+}
+
+/* Ô tìm có danh sách gợi ý */
+.ld .combo {
+  position: relative;
+  display: grid;
+  gap: 0;
+}
+.sugg {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  margin-top: 4px;
+  overflow: hidden;
+}
+.sugg-i {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+  min-height: var(--tap);
+  cursor: pointer;
+  align-items: center;
+}
+.sugg-i:last-child {
+  border-bottom: 0;
+}
+.sugg-i[aria-selected="true"] {
+  background: var(--surface);
+  box-shadow: inset 2px 0 0 var(--buy);
+}
+.sugg-i[aria-disabled="true"] {
+  cursor: not-allowed;
+  color: var(--muted);
+}
+.sugg-i .sub {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: var(--muted);
+}
+.sugg-i mark,
+.ld mark {
+  background: var(--soft);
+  color: var(--title);
+  font-weight: 700;
+  padding: 0 1px;
+}
+.sugg-new {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  min-height: var(--tap);
+  font-weight: 600;
+  cursor: pointer;
+}
+.sugg-new[aria-selected="true"] {
+  background: var(--surface);
+  box-shadow: inset 2px 0 0 var(--buy);
+}
+
+/* Khách đã chọn */
+.picked {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: 12px;
+}
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--label);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex: none;
+}
+
+/* Bảng dòng đơn */
+.ltbl td {
+  vertical-align: top;
+}
+.ltbl .c-sp {
+  min-width: 0;
+}
+.ltbl .c-sl {
+  width: 124px;
+}
+.ltbl .c-gia {
+  width: 96px;
+}
+.ltbl .c-giam {
+  width: 104px;
+}
+.ltbl .c-tt {
+  width: 104px;
+}
+.ltbl .c-x {
+  width: 48px;
+}
+.ltbl th,
+.ltbl td {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.ltbl td .input {
+  width: 100%;
+}
+.ltbl tr.is-err td {
+  background: var(--soft-sale);
+}
+.sp {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.sp .code {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.sp .nm {
+  color: var(--name);
+  font-weight: 600;
+}
+.ld .avail {
+  font-size: 12px;
+  color: var(--muted);
+}
+.ld .avail.is-low {
+  color: var(--buy);
+  font-weight: 600;
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ltbl td .stepper .input,
+.stepper .input {
+  width: 72px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  padding: 8px 4px;
+}
+@media (max-width: 759px) {
+  .ltbl td .input,
+  .ltbl td .stepper {
+    flex: 0 1 60%;
+  }
+  .ltbl td.c-sp,
+  .tbl-frame .ltbl tr td.c-sp {
+    display: block;
+    text-align: left;
+  }
+  .ltbl td.c-sp .sp {
+    justify-items: start;
+  }
+}
+
+/* Khối tổng tiền */
+.sum {
+  display: grid;
+  gap: 0;
+}
+.sum-r {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  min-height: var(--tap);
+}
+.sum-r > span:first-child {
+  color: var(--label);
+}
+.sum-r.is-total {
+  border-top: 1px solid var(--rule);
+  margin-top: 4px;
+  padding-top: 10px;
+  font-size: 16px;
+}
+.sum-r.is-total > span:first-child {
+  color: var(--title);
+  font-weight: 700;
+}
+.sum-r .input {
+  width: 150px;
+  text-align: right;
+}
+
+/* Ô nhập kèm nút (mã giảm giá) */
+.inline-f {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.inline-f .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.sum-r .inline-f .input {
+  width: 120px;
+  text-align: left;
+}
+.ok-text {
+  color: var(--success);
+}
+/* Số tiền không xuống dòng giữa số và "₫"; ô giảm dòng hẹp (104 px) bớt đệm để thấy đủ "100.000". */
+.ld .money {
+  white-space: nowrap;
+}
+.ltbl td .input.num {
+  padding-left: 8px;
+  padding-right: 8px;
+}
