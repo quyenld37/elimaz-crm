@@ -5,13 +5,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
-	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/order"
-	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
 // CancelOrder (POST /api/v1/orders/{id}/cancel, order.cancel; Task M2-21): hủy đơn của người bán mặc định ở version
@@ -22,18 +21,14 @@ import (
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) CancelOrder(ctx context.Context, req *gen.CancelOrderRequest, params gen.CancelOrderParams) (gen.CancelOrderRes, error) {
 	note := req.Note.Or("")
-	out, err := h.refusableWrite(ctx, http.StatusOK, isOrderCancelRefusal, "hủy đơn", func(tx pgx.Tx, u identity.AuthUser) (any, error) {
-		seller, err := catalog.DefaultSeller(ctx, tx)
-		if err != nil {
-			return nil, err //nolint:wrapcheck // sentinel của catalog
-		}
+	out, err := h.orderWriteAsDefaultSeller(ctx, http.StatusOK, isOrderCancelRefusal, "hủy đơn", func(tx pgx.Tx,
+		w order.Writer, u identity.AuthUser, seller uuid.UUID, a order.Actor,
+	) (any, error) {
 		before, err := order.Get(ctx, tx, seller, params.ID)
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của order
 		}
-		w := order.Writer{Events: h.d.Events, Queue: queue.NewQueue(), Realtime: h.d.Realtime}
-		o, err := w.Cancel(ctx, tx, seller, params.ID, req.Version, string(req.Reason), note,
-			order.Actor{TenantID: u.TenantID, UserID: u.UserID}, time.Now().UTC())
+		o, err := w.Cancel(ctx, tx, seller, params.ID, req.Version, string(req.Reason), note, a, time.Now().UTC())
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của order
 		}

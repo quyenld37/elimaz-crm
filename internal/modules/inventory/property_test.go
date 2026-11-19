@@ -14,7 +14,8 @@ import (
 )
 
 type propOp struct {
-	kind    int // 0 reserve, 1 release, 2 start transit, 3 consume, 4 nhập kho, 5 ghi sổ phiếu kho (Task M1-29)
+	kind int // 0 reserve, 1 release, 2 start transit, 3 consume, 4 nhập kho, 5 ghi sổ phiếu kho (Task M1-29),
+	// 6 nhả giữ hàng in_transit, 7 nhận hàng khách trả (sign: hỏng), 8 chuyển sang hỏng (Task M2-22)
 	docKind int // loại phiếu khi kind = 5: chỉ số trong docKinds
 	sign    bool
 	variant int
@@ -23,7 +24,8 @@ type propOp struct {
 }
 
 // TestInventoryInvariants (rapid, 300 lượt): 1–4 biến thể, chuỗi ngẫu nhiên Reserve, Release, StartTransit, Consume,
-// nhập kho, ghi sổ phiếu kho mọi loại (Task M1-29), chạy xen kẽ 1–4 goroutine → (1) mọi cột ≥ 0; (2) mỗi ngăn: tổng
+// nhập kho, ghi sổ phiếu kho mọi loại (Task M1-29), ba đường trả hàng (Task M2-22: ReleaseInTransitByItems,
+// ReceiveCustomerReturn, MoveToDamaged), chạy xen kẽ 1–4 goroutine → (1) mọi cột ≥ 0; (2) mỗi ngăn: tổng
 // delta trong sổ = số dư; (3) held = tổng giữ hàng held, in_transit = tổng giữ hàng in_transit; (4) available ≥ 0;
 // (5) damaged ≤ on_hand (đường không có kiểm kho).
 func TestInventoryInvariants(t *testing.T) {
@@ -39,7 +41,7 @@ func TestInventoryInvariants(t *testing.T) {
 		for g := range workers {
 			workers[g] = rapid.SliceOfN(rapid.Custom(func(rt *rapid.T) propOp {
 				return propOp{
-					kind: rapid.IntRange(0, 5).Draw(rt, "kind"), docKind: rapid.IntRange(0, len(docKinds)-1).Draw(rt, "docKind"),
+					kind: rapid.IntRange(0, 8).Draw(rt, "kind"), docKind: rapid.IntRange(0, len(docKinds)-1).Draw(rt, "docKind"),
 					sign: rapid.Bool().Draw(rt, "sign"), variant: rapid.IntRange(0, len(vs)-1).Draw(rt, "variant"),
 					qty: rapid.Int32Range(1, 3).Draw(rt, "qty"), target: rapid.IntRange(0, 7).Draw(rt, "target"),
 				}
@@ -78,6 +80,10 @@ func (e *invEnv) runOps(vs []uuid.UUID, ops []propOp) error {
 			err = e.app(func(tx pgx.Tx) error { return inventory.ImportForTest(e.t.Context(), tx, v, e.warehouse, op.qty) })
 		case 5:
 			err = e.postRandomDoc(v, op)
+		case 6:
+			err = e.releaseInTransitOf(mine, op)
+		case 7, 8:
+			err = e.returnOp(v, op)
 		default:
 			if len(mine) == 0 {
 				continue
@@ -158,5 +164,35 @@ func (e *invEnv) postRandomDoc(v uuid.UUID, op propOp) error {
 		}
 		_, err = w.PostDocument(ctx, tx, d.ID, d.Version, a)
 		return err //nolint:wrapcheck // test
+	})
+}
+
+// releaseInTransitOf nhả giữ hàng in_transit của dòng đơn của một giữ hàng trong mine (Task M2-22); không có → bỏ qua.
+func (e *invEnv) releaseInTransitOf(mine []uuid.UUID, op propOp) error {
+	if len(mine) == 0 {
+		return nil
+	}
+	id := mine[op.target%len(mine)]
+	return e.do(func(ctx context.Context, tx pgx.Tx, w inventory.Writer) error {
+		var item uuid.UUID
+		if err := tx.QueryRow(ctx, "SELECT order_item_id FROM inventory.stock_reservations WHERE id = $1", id).
+			Scan(&item); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		return w.ReleaseInTransitByItems(ctx, tx, []uuid.UUID{item}, sysActor())
+	})
+}
+
+// returnOp: kind 7 nhận op.qty cái khách trả (op.sign: hỏng), kind 8 chuyển op.qty cái sang hỏng; mỗi lần một mã phiếu
+// mới.
+func (e *invEnv) returnOp(v uuid.UUID, op propOp) error {
+	doc := uuid.New()
+	return e.do(func(ctx context.Context, tx pgx.Tx, w inventory.Writer) error {
+		if op.kind == 7 {
+			return w.ReceiveCustomerReturn(ctx, tx, doc, []inventory.ReturnLine{
+				{VariantID: v, WarehouseID: e.warehouse, Qty: op.qty, Damaged: op.sign},
+			}, sysActor())
+		}
+		return w.MoveToDamaged(ctx, tx, doc, v, e.warehouse, op.qty, sysActor())
 	})
 }

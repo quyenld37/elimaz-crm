@@ -161,7 +161,8 @@ func (UnimplementedHandler) CancelOrder(ctx context.Context, req *CancelOrderReq
 
 // CancelReturn implements cancelReturn operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Hủy phiếu trả chưa nhận (phiếu đổi: hủy luôn đơn thay thế chưa gửi hãng)
+// (Task M2-22).
 //
 // POST /api/v1/returns/{returnId}/cancel
 func (UnimplementedHandler) CancelReturn(ctx context.Context, req *VersionRequest, params CancelReturnParams) (r CancelReturnRes, _ error) {
@@ -207,7 +208,7 @@ func (UnimplementedHandler) CheckOrderDuplicates(ctx context.Context, params Che
 
 // CloseReturn implements closeReturn operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Đóng phiếu trả đã nhập kho (Task M2-22).
 //
 // POST /api/v1/returns/{returnId}/close
 func (UnimplementedHandler) CloseReturn(ctx context.Context, req *VersionRequest, params CloseReturnParams) (r CloseReturnRes, _ error) {
@@ -327,7 +328,8 @@ func (UnimplementedHandler) CreateProduct(ctx context.Context, req *CreateProduc
 
 // CreateReturn implements createReturn operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Tạo phiếu trả theo dòng (khách trả) hoặc đổi hàng (kèm đơn thay thế) cho đơn
+// đã giao; chưa đổi tồn (Task M2-22).
 //
 // POST /api/v1/orders/{id}/returns
 func (UnimplementedHandler) CreateReturn(ctx context.Context, req *CreateReturnRequest, params CreateReturnParams) (r CreateReturnRes, _ error) {
@@ -599,7 +601,7 @@ func (UnimplementedHandler) GetProductClassification(ctx context.Context, params
 
 // GetReturn implements getReturn operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Một phiếu trả kèm dòng (Task M2-22).
 //
 // GET /api/v1/returns/{returnId}
 func (UnimplementedHandler) GetReturn(ctx context.Context, params GetReturnParams) (r GetReturnRes, _ error) {
@@ -807,7 +809,7 @@ func (UnimplementedHandler) ListProducts(ctx context.Context, params ListProduct
 
 // ListReturns implements listReturns operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Phiếu trả, mới nhất trước (Task M2-22).
 //
 // GET /api/v1/returns
 func (UnimplementedHandler) ListReturns(ctx context.Context, params ListReturnsParams) (r ListReturnsRes, _ error) {
@@ -928,7 +930,7 @@ func (UnimplementedHandler) PutCustomerTagRule(ctx context.Context, req *PutCust
 
 // ReceiveReturn implements receiveReturn operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Kho nhận hàng trả: tình trạng từng dòng, nhập lại kho cùng lúc (Task M2-22).
 //
 // POST /api/v1/returns/{returnId}/receive
 func (UnimplementedHandler) ReceiveReturn(ctx context.Context, req *ReceiveReturnRequest, params ReceiveReturnParams) (r ReceiveReturnRes, _ error) {
