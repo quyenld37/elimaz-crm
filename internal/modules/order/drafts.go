@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"slices"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -45,10 +43,10 @@ func (w Writer) ExpireDrafts(ctx context.Context, tx pgx.Tx, now time.Time, limi
 	if err != nil {
 		return 0, fmt.Errorf("tìm đơn nháp quá hạn: %w", err)
 	}
-	// ADR-46 cho cả lần: mọi đơn đã khóa (câu trên, theo mã đơn) → lượt mã (theo mã giảm giá, cùng thứ tự ở mọi lần
-	// chạy) → số dư tồn một lần (cancelAll).
+	// ADR-46 cho cả lần: mọi đơn đã khóa (câu trên, theo mã đơn) → mọi dòng mã khóa trước theo id tăng dần
+	// (promotion.LockCoupons, cùng thứ tự với sửa đơn đổi mã) → trả lượt → số dư tồn một lần (cancelAll).
 	plans := make([]cancelPlan, 0, len(rows))
-	codes := make(map[uuid.UUID]string, len(rows))
+	codes := make([]string, 0, len(rows))
 	var tenantID uuid.UUID
 	for _, r := range rows {
 		o, err := lockOrder(ctx, q, r.SellerID, r.ID)
@@ -61,12 +59,15 @@ func (w Writer) ExpireDrafts(ctx context.Context, tx pgx.Tx, now time.Time, limi
 		if err != nil {
 			return 0, fmt.Errorf("hủy đơn nháp quá hạn %s: %w", r.ID, err)
 		}
-		if codes[r.ID], err = promotion.OrderCouponCode(ctx, tx, r.ID); err != nil {
+		code, err := promotion.OrderCouponCode(ctx, tx, r.ID)
+		if err != nil {
 			return 0, fmt.Errorf("mã giảm giá của đơn nháp %s: %w", r.ID, err)
 		}
-		plans = append(plans, p)
+		plans, codes = append(plans, p), append(codes, code)
 	}
-	slices.SortStableFunc(plans, func(x, y cancelPlan) int { return strings.Compare(codes[x.o.ID], codes[y.o.ID]) })
+	if err := promotion.LockCoupons(ctx, tx, codes); err != nil {
+		return 0, fmt.Errorf("khóa mã giảm giá của đơn nháp: %w", err)
+	}
 	a := Actor{TenantID: tenantID, Type: inventory.ActorSystem}
 	if err := w.cancelAll(ctx, tx, plans, CancelDraftExpired, "", a, now); err != nil {
 		return 0, fmt.Errorf("hủy đơn nháp quá hạn: %w", err)

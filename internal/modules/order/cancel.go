@@ -185,9 +185,9 @@ func prepareCancel(ctx context.Context, tx pgx.Tx, o *Order) (cancelPlan, error)
 }
 
 // cancelAll hủy các đơn đã khóa (nhóm 7, bên gọi khóa hết trước) theo đúng thứ tự khóa ADR-46 cho cả lần: trả lượt mã
-// của từng đơn theo thứ tự plans (nhóm 10; bên gọi nhiều đơn sắp theo mã giảm giá), nhả giữ hàng held của mọi dòng một
-// lần (nhóm 11, inventory khóa số dư theo biến thể tăng dần), rồi mới đổi trạng thái từng đơn (lịch sử, order.cancelled,
-// báo hiệu), ghi lý do, ghi chú, gỡ vận đơn hiện hành.
+// của từng đơn theo thứ tự plans (nhóm 10; bên gọi nhiều đơn khóa trước mọi mã bằng promotion.LockCoupons), nhả giữ
+// hàng held của mọi dòng một lần (nhóm 11, inventory khóa số dư theo biến thể tăng dần), rồi mới đổi trạng thái từng
+// đơn (lịch sử, order.cancelled, báo hiệu), ghi lý do, ghi chú, gỡ vận đơn hiện hành.
 func (w Writer) cancelAll(ctx context.Context, tx pgx.Tx, plans []cancelPlan, reason, note string, a Actor,
 	now time.Time,
 ) error {

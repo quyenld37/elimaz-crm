@@ -140,6 +140,16 @@ func OrderCouponCode(ctx context.Context, tx pgx.Tx, orderID uuid.UUID) (string,
 	return code, nil
 }
 
+// LockCoupons khóa trước các dòng mã có chữ trong codes (không phân biệt hoa thường; "" và mã không có bị bỏ qua) theo
+// id tăng dần, cho transaction chạm nhiều mã (sửa đơn đổi mã, hủy nhiều đơn nháp): ADR-46 nhóm 10, cùng bảng theo khóa
+// chính. Redeem, Release, Detach, Reprice gọi sau đó lấy lại dòng đã giữ nên mọi đường giữ cùng một thứ tự.
+func LockCoupons(ctx context.Context, tx pgx.Tx, codes []string) error {
+	if _, err := store.New(tx).LockCouponsByCodes(ctx, codes); err != nil {
+		return fmt.Errorf("khóa các mã giảm giá: %w", err)
+	}
+	return nil
+}
+
 // Release trả lượt mã của đơn orderID khi đơn hủy (reason: lý do hủy, 1–100 ký tự). Không có lượt active, hoặc mã có
 // release_on_cancel = false → false, không đổi gì. Ngược lại: lượt của khách −1, dòng lượt của đơn → released,
 // used_count −1; trả true. Gọi lần hai → false.

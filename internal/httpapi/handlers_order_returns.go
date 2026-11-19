@@ -43,8 +43,7 @@ func (h *handler) orderWriteAsDefaultSeller(ctx context.Context, status int, ref
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của catalog
 		}
-		a := order.Actor{TenantID: u.TenantID, UserID: u.UserID, CanApproveDiscount: identity.Can(u, permDiscountApprove, nil)}
-		return change(tx, w, u, seller, a)
+		return change(tx, w, u, seller, orderActor(u))
 	})
 }
 
