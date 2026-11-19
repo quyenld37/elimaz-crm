@@ -1,6 +1,11 @@
 package config_test
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -212,21 +217,51 @@ func TestLoadWorkerImagerEndpoint(t *testing.T) {
 	}
 }
 
-// IMAGE_RETRY_MAX_HOURS (worker, Task 409): trần thời gian thử lại xử lý ảnh khi lỗi hạ tầng tạm; mặc định 24 giờ,
-// 1–168.
+// IMAGE_RETRY_MAX_HOURS (worker, Task 409, Task 426): trần thời gian thử lại xử lý ảnh khi lỗi hạ tầng tạm; mặc định 23
+// giờ, phải nhỏ hơn hạn sống của crm-tmp (config.TmpObjectTTL, 24 giờ): bằng hay lớn hơn thì từ chối khởi động.
 func TestLoadWorkerImageRetryMax(t *testing.T) {
 	cfg, err := config.Load(config.RoleWorker, env(workerEnv()))
-	if err != nil || cfg.ImageRetryMax != 24*time.Hour {
+	if err != nil || cfg.ImageRetryMax != 23*time.Hour {
 		t.Fatalf("mặc định: %v %v", cfg.ImageRetryMax, err)
 	}
-	cfg, err = config.Load(config.RoleWorker, env(with(workerEnv(), "IMAGE_RETRY_MAX_HOURS", "48")))
-	if err != nil || cfg.ImageRetryMax != 48*time.Hour {
-		t.Fatalf("khai 48: %v %v", cfg.ImageRetryMax, err)
+	if config.DefaultImageRetryMax != 23*time.Hour || config.DefaultImageRetryMax >= config.TmpObjectTTL {
+		t.Fatalf("mặc định %v không nhỏ hơn hạn crm-tmp %v", config.DefaultImageRetryMax, config.TmpObjectTTL)
+	}
+	for _, h := range []int{1, 23} {
+		cfg, err = config.Load(config.RoleWorker, env(with(workerEnv(), "IMAGE_RETRY_MAX_HOURS", strconv.Itoa(h))))
+		if err != nil || cfg.ImageRetryMax != time.Duration(h)*time.Hour {
+			t.Fatalf("khai %d (hợp lệ): %v %v", h, cfg.ImageRetryMax, err)
+		}
+	}
+	// Bằng hạn (24), lớn hơn (25, 48, 168): ảnh còn lỗi hạ tầng ở giờ cuối ra source_missing dù hợp lệ.
+	for _, v := range []string{"24", "25", "48", "168"} {
+		_, err := config.Load(config.RoleWorker, env(with(workerEnv(), "IMAGE_RETRY_MAX_HOURS", v)))
+		if !errors.Is(err, config.ErrInvalid) || !strings.Contains(err.Error(), "IMAGE_RETRY_MAX_HOURS") ||
+			!strings.Contains(err.Error(), "crm-tmp") {
+			t.Fatalf("IMAGE_RETRY_MAX_HOURS=%s (≥ hạn crm-tmp) phải từ chối, nêu crm-tmp: %v", v, err)
+		}
 	}
 	for _, v := range []string{"0", "169", "abc"} {
 		if _, err := config.Load(config.RoleWorker, env(with(workerEnv(), "IMAGE_RETRY_MAX_HOURS", v))); err == nil ||
 			!strings.Contains(err.Error(), "IMAGE_RETRY_MAX_HOURS") {
 			t.Fatalf("IMAGE_RETRY_MAX_HOURS=%s phải lỗi: %v", v, err)
 		}
+	}
+}
+
+// Hạn sống của crm-tmp có một nguồn Go (config.TmpObjectTTL); hạn thật do docker/seaweedfs/bootstrap.sh đặt lên kho
+// (quy tắc Expiration Days, fast path gắn ttlSec theo đó). Hai nơi lệch nhau là test đỏ (Task 426).
+func TestTmpObjectTTLMatchesBootstrap(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "..", "docker", "seaweedfs", "bootstrap.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`tmp\?lifecycle"[^\n]*\n[^\n]*<Expiration><Days>(\d+)</Days></Expiration>`).FindSubmatch(b)
+	if m == nil {
+		t.Fatal("bootstrap.sh: không tìm thấy quy tắc <Expiration><Days> của bucket tmp")
+	}
+	days, err := strconv.Atoi(string(m[1]))
+	if err != nil || time.Duration(days)*24*time.Hour != config.TmpObjectTTL {
+		t.Fatalf("bootstrap.sh đặt hạn crm-tmp %s ngày, config.TmpObjectTTL là %v", m[1], config.TmpObjectTTL)
 	}
 }

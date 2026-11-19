@@ -149,10 +149,14 @@ crm_filesync;` (database thử của `internal/testkit` tự tạo role này, m�
 - Kiểm trên máy: `echo 's3.bucket.lifecycle.fastpath -name crm-tmp' | weed shell` (trong container `seaweedfs`) phải in
   `fast path: enabled`. Đối tượng ghi **trước** khi bật không có hạn: liệt kê và xóa bằng `crm-admin`
   (`fs.meta.cat /buckets/crm-tmp/<khóa>` có `ttlSec 0`). Dev: `make probe-test` có `TestTmpExpiry_*`.
-- Ràng buộc với Task 409: trần thử lại xử lý ảnh (`IMAGE_RETRY_MAX_HOURS`) phải **nhỏ hơn 24 giờ** (tính từ lúc tải
-  lên). Ảnh riêng tư chỉ có bản gốc ở `crm-tmp` (R10), ảnh thường cũng vậy tới khi được chép sang `crm-originals`; thử
-  lại sau 24 giờ thì bản gốc đã tự xóa, lượt đó ra `source_missing` thay vì xử lý được. Mặc định hiện là 24 (bằng hạn):
-  ảnh còn lỗi hạ tầng ở giờ cuối có thể ra `source_missing`; đặt 23 nếu muốn chắc (task-410.md "Việc phát hiện thêm").
+- Ràng buộc với trần thử lại xử lý ảnh (Task 409, Task 426): `IMAGE_RETRY_MAX_HOURS` (worker) phải **nhỏ hơn** hạn sống
+  của `crm-tmp`. Ảnh riêng tư chỉ có bản gốc ở `crm-tmp` (R10), ảnh thường cũng vậy tới khi được chép sang
+  `crm-originals`; thử lại sau hạn thì bản gốc đã tự xóa, lượt đó ra `source_missing` dù ảnh hợp lệ. Mặc định **23**
+  giờ (dư 1 giờ: trần tính từ lúc tệp vào processing, đường PUT ký sẵn hạn 15 phút). Khai `24` trở lên thì worker
+  **từ chối khởi động** (`IMAGE_RETRY_MAX_HOURS=… phải nhỏ hơn hạn sống của crm-tmp (24 giờ)`): hạ giá trị rồi chạy lại.
+- Hạn sống có một nguồn Go: `config.TmpObjectTTL` (`internal/platform/config/config.go`); hạn thật do `bootstrap.sh`
+  đặt (`<Expiration><Days>`, fast path theo đó). Test `TestTmpObjectTTLMatchesBootstrap` đỏ khi hai nơi lệch: đổi hạn
+  thì sửa cả hai cùng lúc, và giữ `IMAGE_RETRY_MAX_HOURS` nhỏ hơn hạn mới.
 - Đổi hạn: chỉ đối tượng ghi sau lần đổi theo hạn mới (TTL gắn lúc ghi). Không bao giờ bật fast path cho bucket giữ
   phiên bản (SeaweedFS cũng không áp cho chúng).
 
