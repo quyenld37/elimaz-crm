@@ -13,6 +13,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/schedules"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
+	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // oldJob chèn một việc ở trạng thái status, kết thúc cách đây age (finished_at NULL khi status là pending).
@@ -165,14 +166,17 @@ func TestCleanupEveryFiveMinutes(t *testing.T) {
 // Câu dọn việc xong dùng index (jobs_finished, migration 0008), không quét bảng jobs khi bảng có 100.000 việc xong mới
 // và 5.000 việc quá hạn: transaction dọn không giữ lâu.
 func TestCleanupJobsPlanUsesIndex(t *testing.T) {
-	e := newEnv(t)
-	e.exec(t, `INSERT INTO platform.jobs (kind, mode, dedupe_key, on_lease_expired, max_attempts, status, finished_at)
+	// Dựng một lần làm database mẫu, bằng chủ bảng như e.exec.
+	e := &env{testkit.OpenStaffSeeded(t, testkit.Seed{Name: "schedules-cleanup-plan", SQL: []string{
+		"SET ROLE crm_owner",
+		`INSERT INTO platform.jobs (kind, mode, dedupe_key, on_lease_expired, max_attempts, status, finished_at)
 		SELECT 't.recent', 'transactional', g::text, 'retry', 8, 'done', now() - g * interval '1 s'
-		FROM generate_series(1, 100000) AS g`)
-	e.exec(t, `INSERT INTO platform.jobs (kind, mode, dedupe_key, on_lease_expired, max_attempts, status, finished_at)
+		FROM generate_series(1, 100000) AS g`,
+		`INSERT INTO platform.jobs (kind, mode, dedupe_key, on_lease_expired, max_attempts, status, finished_at)
 		SELECT 't.old', 'transactional', g::text, 'retry', 8, 'done', now() - interval '40 days'
-		FROM generate_series(1, 5000) AS g`)
-	e.exec(t, "ANALYZE platform.jobs")
+		FROM generate_series(1, 5000) AS g`,
+		"ANALYZE platform.jobs",
+	}})}
 	// Cùng câu với DeleteFinishedJobs (queries/platform/schedules.sql), chạy bằng crm_app như lịch dọn.
 	rows, err := e.App.Pool.Query(t.Context(), `EXPLAIN (COSTS OFF) DELETE FROM platform.jobs WHERE id = ANY (ARRAY(
 		SELECT j.id FROM platform.jobs AS j WHERE j.status IN ('done', 'expired') AND j.finished_at < $1::timestamptz

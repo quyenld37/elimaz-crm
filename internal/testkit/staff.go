@@ -25,6 +25,12 @@ type Staff struct {
 func OpenStaff(t testing.TB) *Staff {
 	t.Helper()
 	_, ownerURL, appURL := StartPostgres(t)
+	return openStaff(t, ownerURL, appURL)
+}
+
+// openStaff mở hai pool tới database thử đã có (chủ bảng ownerURL, crm_app appURL); đóng khi test xong.
+func openStaff(t testing.TB, ownerURL, appURL string) *Staff {
+	t.Helper()
 	s := &Staff{}
 	for _, p := range []struct {
 		dst **db.DB

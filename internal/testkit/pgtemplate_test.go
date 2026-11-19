@@ -55,7 +55,12 @@ func fakeMigrations(t *testing.T) (fstest.MapFS, migrateFunc, *atomic.Int32) {
 // trên máy chủ chung).
 func dropTemplateAtCleanup(t *testing.T, fsys fs.FS, at time.Time) {
 	t.Helper()
-	name := templateName(t, fsys, at)
+	dropNamedTemplateAtCleanup(t, templateName(t, fsys, at))
+}
+
+// dropNamedTemplateAtCleanup xóa database mẫu name khi test xong.
+func dropNamedTemplateAtCleanup(t *testing.T, name string) {
+	t.Helper()
 	base := serverURL(t)
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

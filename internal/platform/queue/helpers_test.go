@@ -27,6 +27,19 @@ type env struct {
 func newEnv(t testing.TB) *env {
 	t.Helper()
 	_, ownerURL, appURL := testkit.StartPostgres(t)
+	return openEnv(t, ownerURL, appURL)
+}
+
+// newSeededEnv như newEnv trên database có sẵn dữ liệu s (testkit.StartPostgresSeeded).
+func newSeededEnv(t testing.TB, s testkit.Seed) *env {
+	t.Helper()
+	_, ownerURL, appURL := testkit.StartPostgresSeeded(t, s)
+	return openEnv(t, ownerURL, appURL)
+}
+
+// openEnv mở hai pool tới database thử đã có và dựng schema probe.
+func openEnv(t testing.TB, ownerURL, appURL string) *env {
+	t.Helper()
 	e := &env{q: queue.NewQueue()}
 	for _, p := range []struct {
 		dst **db.DB

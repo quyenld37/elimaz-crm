@@ -1,7 +1,7 @@
 package queries_test
 
 import (
-	"context"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -108,14 +108,29 @@ FROM generate_series(1, 250) AS g;
 ANALYZE;
 `
 
-// newFixture dựng database thử, ghi dữ liệu bằng người quản trị (bỏ qua RLS), bật auto_explain rồi mở pool crm_app.
+// fixtureSeed là seedSQL với $n thay bằng hằng uuid (từ số lớn xuống để $1 không ăn vào $10, $11), tách từng câu:
+// mỗi câu tự commit (gửi cả khối trong một transaction ngầm chậm hơn khoảng 6 lần).
+func fixtureSeed(ids []uuid.UUID) testkit.Seed {
+	sql := seedSQL
+	for i := len(ids); i >= 1; i-- {
+		sql = strings.ReplaceAll(sql, "$"+strconv.Itoa(i), "'"+ids[i-1].String()+"'::uuid")
+	}
+	return testkit.Seed{Name: "queries-fixture", SQL: slices.Collect(strings.SplitSeq(sql, ";\n"))}
+}
+
+// newFixture lấy database thử có sẵn dữ liệu (dựng một lần làm database mẫu bằng người quản trị, bỏ qua RLS, kèm
+// ANALYZE), bật auto_explain rồi mở pool crm_app.
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
-	adminURL, _, appURL := testkit.StartPostgres(t)
 	f := &fixture{}
-	ids := make([]uuid.UUID, 11)
-	for i := range ids {
-		ids[i] = uuid.Must(uuid.NewV7())
+	// 11 mã cố định viết thẳng vào seedSQL ($1 … $11 theo thứ tự), qua testkit.FixedUUID (trước Task 423 là uuidv7
+	// ngẫu nhiên mỗi lần chạy: mã cố định để bộ dữ liệu dựng một lần làm database mẫu).
+	names := []string{
+		"tenantA", "tenantB", "tenantC", "sellerA", "sellerB", "sellerC", "warehouseA", "catDress", "catLong", "catTop", "tagNew",
+	}
+	ids := make([]uuid.UUID, len(names))
+	for i, n := range names {
+		ids[i] = testkit.FixedUUID("queries-fixture/" + n)
 	}
 	f.tenantA, f.tenantB, f.tenantC = ids[0], ids[1], ids[2]
 	f.sellerA, f.sellerB, f.sellerC = ids[3], ids[4], ids[5]
@@ -124,26 +139,9 @@ func newFixture(t *testing.T) *fixture {
 	f.tagNew = ids[10]
 	f.barcodeOfP00042S = "8900000000421"
 
-	ctx := t.Context()
-	conn, err := pgx.Connect(ctx, adminURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = conn.Close(context.WithoutCancel(ctx)) }()
-	// Câu không tham số (chỉ ở dựng dữ liệu thử): $n thay bằng hằng uuid, từ số lớn xuống để
-	// $1 không ăn vào $10, $11.
-	sql := seedSQL
-	for i := len(ids); i >= 1; i-- {
-		sql = strings.ReplaceAll(sql, "$"+strconv.Itoa(i), "'"+ids[i-1].String()+"'::uuid")
-	}
-	// Từng câu một (autocommit): gửi cả khối trong một transaction ngầm chậm hơn khoảng 6 lần.
-	for st := range strings.SplitSeq(sql, ";\n") {
-		if _, err := conn.Exec(ctx, st); err != nil {
-			t.Fatalf("dựng dữ liệu: %v", err)
-		}
-	}
+	adminURL, _, appURL := testkit.StartPostgresSeeded(t, fixtureSeed(ids))
 	testkit.EnableAutoExplain(t, adminURL)
-	app, err := db.Open(ctx, appURL, db.PoolOptions{})
+	app, err := db.Open(t.Context(), appURL, db.PoolOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
