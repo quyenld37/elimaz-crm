@@ -1033,8 +1033,6 @@ export const resolveOrderDuplicate = <ThrowOnError extends boolean = false>(opti
 
 /**
  * Tạo phiếu trả theo dòng (khách trả) hoặc đổi hàng (kèm đơn thay thế) cho đơn đã giao; chưa đổi tồn (Task M2-22)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const createReturn = <ThrowOnError extends boolean = false>(options: Options<CreateReturnData, ThrowOnError>): RequestResult<CreateReturnResponses, CreateReturnErrors, ThrowOnError> => (options.client ?? client).post<CreateReturnResponses, CreateReturnErrors, ThrowOnError>({
     url: '/api/v1/orders/{id}/returns',
@@ -1047,22 +1045,16 @@ export const createReturn = <ThrowOnError extends boolean = false>(options: Opti
 
 /**
  * Phiếu trả, mới nhất trước (Task M2-22)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const listReturns = <ThrowOnError extends boolean = false>(options?: Options<ListReturnsData, ThrowOnError>): RequestResult<ListReturnsResponses, ListReturnsErrors, ThrowOnError> => (options?.client ?? client).get<ListReturnsResponses, ListReturnsErrors, ThrowOnError>({ url: '/api/v1/returns', ...options });
 
 /**
  * Một phiếu trả kèm dòng (Task M2-22)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const getReturn = <ThrowOnError extends boolean = false>(options: Options<GetReturnData, ThrowOnError>): RequestResult<GetReturnResponses, GetReturnErrors, ThrowOnError> => (options.client ?? client).get<GetReturnResponses, GetReturnErrors, ThrowOnError>({ url: '/api/v1/returns/{returnId}', ...options });
 
 /**
  * Kho nhận hàng trả: tình trạng từng dòng, nhập lại kho cùng lúc (Task M2-22)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const receiveReturn = <ThrowOnError extends boolean = false>(options: Options<ReceiveReturnData, ThrowOnError>): RequestResult<ReceiveReturnResponses, ReceiveReturnErrors, ThrowOnError> => (options.client ?? client).post<ReceiveReturnResponses, ReceiveReturnErrors, ThrowOnError>({
     url: '/api/v1/returns/{returnId}/receive',
@@ -1075,8 +1067,6 @@ export const receiveReturn = <ThrowOnError extends boolean = false>(options: Opt
 
 /**
  * Đóng phiếu trả đã nhập kho (Task M2-22)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const closeReturn = <ThrowOnError extends boolean = false>(options: Options<CloseReturnData, ThrowOnError>): RequestResult<CloseReturnResponses, CloseReturnErrors, ThrowOnError> => (options.client ?? client).post<CloseReturnResponses, CloseReturnErrors, ThrowOnError>({
     url: '/api/v1/returns/{returnId}/close',
@@ -1089,8 +1079,6 @@ export const closeReturn = <ThrowOnError extends boolean = false>(options: Optio
 
 /**
  * Hủy phiếu trả chưa nhận (phiếu đổi: hủy luôn đơn thay thế chưa gửi hãng) (Task M2-22)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const cancelReturn = <ThrowOnError extends boolean = false>(options: Options<CancelReturnData, ThrowOnError>): RequestResult<CancelReturnResponses, CancelReturnErrors, ThrowOnError> => (options.client ?? client).post<CancelReturnResponses, CancelReturnErrors, ThrowOnError>({
     url: '/api/v1/returns/{returnId}/cancel',

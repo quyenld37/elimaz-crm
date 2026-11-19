@@ -106,10 +106,7 @@ func createOrderInput(req *gen.CreateOrderRequest, key uuid.UUID) (order.CreateI
 		in.Customer = customer.OrderCustomerInput{CustomerID: optUUID(req.CustomerId)}
 	}
 	if a, ok := req.ShipAddress.Get(); ok {
-		in.ShipAddress = &order.ShipAddress{
-			Name: a.Name, Phone: logging.Phone(a.Phone), Line: logging.Address(a.Line),
-			ProvinceCode: a.ProvinceCode.Or(""), WardCode: a.WardCode.Or(""),
-		}
+		in.ShipAddress = shipAddressIn(a)
 	} else if in.Intent == "" || in.Intent == order.IntentConfirmed {
 		return order.CreateInput{}, fmt.Errorf("tạo đơn confirmed thiếu địa chỉ giao: %w", order.ErrInvalidInput)
 	}
@@ -126,6 +123,14 @@ func createOrderInput(req *gen.CreateOrderRequest, key uuid.UUID) (order.CreateI
 		in.ReferralRef = raw
 	}
 	return in, nil
+}
+
+// shipAddressIn dịch địa chỉ giao của hợp đồng (createOrder, đơn thay thế của createReturn) sang order.ShipAddress.
+func shipAddressIn(a gen.ShipAddress) *order.ShipAddress {
+	return &order.ShipAddress{
+		Name: a.Name, Phone: logging.Phone(a.Phone), Line: logging.Address(a.Line),
+		ProvinceCode: a.ProvinceCode.Or(""), WardCode: a.WardCode.Or(""),
+	}
 }
 
 func optUUID(o gen.OptUUID) *uuid.UUID {

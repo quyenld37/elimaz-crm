@@ -1560,7 +1560,8 @@ func (s *Server) handleCancelOrderRequest(args [1]string, argsEscaped bool, w ht
 
 // handleCancelReturnRequest handles cancelReturn operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Hủy phiếu trả chưa nhận (phiếu đổi: hủy luôn đơn thay thế chưa gửi hãng)
+// (Task M2-22).
 //
 // POST /api/v1/returns/{returnId}/cancel
 func (s *Server) handleCancelReturnRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2062,7 +2063,7 @@ func (s *Server) handleCheckOrderDuplicatesRequest(args [0]string, argsEscaped b
 
 // handleCloseReturnRequest handles closeReturn operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Đóng phiếu trả đã nhập kho (Task M2-22).
 //
 // POST /api/v1/returns/{returnId}/close
 func (s *Server) handleCloseReturnRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -3259,7 +3260,8 @@ func (s *Server) handleCreateProductRequest(args [0]string, argsEscaped bool, w 
 
 // handleCreateReturnRequest handles createReturn operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Tạo phiếu trả theo dòng (khách trả) hoặc đổi hàng (kèm đơn thay thế) cho đơn
+// đã giao; chưa đổi tồn (Task M2-22).
 //
 // POST /api/v1/orders/{id}/returns
 func (s *Server) handleCreateReturnRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5782,7 +5784,7 @@ func (s *Server) handleGetProductClassificationRequest(args [1]string, argsEscap
 
 // handleGetReturnRequest handles getReturn operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Một phiếu trả kèm dòng (Task M2-22).
 //
 // GET /api/v1/returns/{returnId}
 func (s *Server) handleGetReturnRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7647,7 +7649,7 @@ func (s *Server) handleListProductsRequest(args [0]string, argsEscaped bool, w h
 
 // handleListReturnsRequest handles listReturns operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Phiếu trả, mới nhất trước (Task M2-22).
 //
 // GET /api/v1/returns
 func (s *Server) handleListReturnsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8722,7 +8724,7 @@ func (s *Server) handlePutCustomerTagRuleRequest(args [1]string, argsEscaped boo
 
 // handleReceiveReturnRequest handles receiveReturn operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Kho nhận hàng trả: tình trạng từng dòng, nhập lại kho cùng lúc (Task M2-22).
 //
 // POST /api/v1/returns/{returnId}/receive
 func (s *Server) handleReceiveReturnRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
