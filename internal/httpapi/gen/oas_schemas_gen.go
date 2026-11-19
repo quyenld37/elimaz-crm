@@ -11758,9 +11758,9 @@ func (s *ProductStatus) UnmarshalText(data []byte) error {
 // Ref: #/components/schemas/PutCustomerTagRuleRequest
 type PutCustomerTagRuleRequest struct {
 	// Bỏ trống khi nhãn chưa có quy tắc; có quy tắc thì phải khớp version hiện tại.
-	Version    OptInt64       `json:"version"`
-	Enabled    bool           `json:"enabled"`
-	Conditions []TagCondition `json:"conditions"`
+	Version    OptInt64            `json:"version"`
+	Enabled    bool                `json:"enabled"`
+	Conditions []TagConditionInput `json:"conditions"`
 }
 
 // GetVersion returns the value of Version.
@@ -11774,7 +11774,7 @@ func (s *PutCustomerTagRuleRequest) GetEnabled() bool {
 }
 
 // GetConditions returns the value of Conditions.
-func (s *PutCustomerTagRuleRequest) GetConditions() []TagCondition {
+func (s *PutCustomerTagRuleRequest) GetConditions() []TagConditionInput {
 	return s.Conditions
 }
 
@@ -11789,7 +11789,7 @@ func (s *PutCustomerTagRuleRequest) SetEnabled(val bool) {
 }
 
 // SetConditions sets the value of Conditions.
-func (s *PutCustomerTagRuleRequest) SetConditions(val []TagCondition) {
+func (s *PutCustomerTagRuleRequest) SetConditions(val []TagConditionInput) {
 	s.Conditions = val
 }
 
@@ -14640,6 +14640,45 @@ func (s *TagConditionField) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Điều kiện khi đặt quy tắc. field, op là chuỗi (không enum) để trường hay phép
+// lạ tới máy chủ và trả 422 invalid_tag_rule (Task M2-25); giá trị như TagCondition.
+// Ref: #/components/schemas/TagConditionInput
+type TagConditionInput struct {
+	Field string `json:"field"`
+	Op    string `json:"op"`
+	Value int64  `json:"value"`
+}
+
+// GetField returns the value of Field.
+func (s *TagConditionInput) GetField() string {
+	return s.Field
+}
+
+// GetOp returns the value of Op.
+func (s *TagConditionInput) GetOp() string {
+	return s.Op
+}
+
+// GetValue returns the value of Value.
+func (s *TagConditionInput) GetValue() int64 {
+	return s.Value
+}
+
+// SetField sets the value of Field.
+func (s *TagConditionInput) SetField(val string) {
+	s.Field = val
+}
+
+// SetOp sets the value of Op.
+func (s *TagConditionInput) SetOp(val string) {
+	s.Op = val
+}
+
+// SetValue sets the value of Value.
+func (s *TagConditionInput) SetValue(val int64) {
+	s.Value = val
 }
 
 type TagConditionOp string

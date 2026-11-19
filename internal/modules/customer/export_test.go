@@ -21,3 +21,10 @@ func ImportJob(tenant, importID uuid.UUID) queue.Job {
 	pl, _ := json.Marshal(importPayload{ImportID: importID})
 	return queue.Job{ID: uuid.New(), TenantID: &tenant, Kind: ImportKind().Name, Payload: pl, Attempts: 1}
 }
+
+// NightlyHandlerForTest dựng handler của lịch customer.tag_rules_nightly với đồng hồ now và cỡ lô batch.
+//
+//nolint:ireturn // test cần đúng kiểu queue.Handler của worker
+func NightlyHandlerForTest(w Writer, now func() time.Time, batch int) queue.Handler {
+	return nightlyHandler{w: w, q: queue.NewQueue(), now: now, batch: batch}
+}

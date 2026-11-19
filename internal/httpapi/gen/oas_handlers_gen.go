@@ -4900,7 +4900,7 @@ func (s *Server) handleGetCustomerImportTemplateRequest(args [0]string, argsEsca
 
 // handleGetCustomerTagRuleRequest handles getCustomerTagRule operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Quy tắc tự gắn nhãn theo chỉ số khách; chưa có → 404 (Task M2-25).
 //
 // GET /api/v1/customer-tags/{tagId}/rule
 func (s *Server) handleGetCustomerTagRuleRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8621,7 +8621,8 @@ func (s *Server) handlePostStockDocumentRequest(args [1]string, argsEscaped bool
 
 // handlePutCustomerTagRuleRequest handles putCustomerTagRule operation.
 //
-// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+// Đặt quy tắc tự gắn nhãn (điều kiện nối bằng VÀ); sai trường hay phép → 422
+// invalid_tag_rule (Task M2-25).
 //
 // PUT /api/v1/customer-tags/{tagId}/rule
 func (s *Server) handlePutCustomerTagRuleRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

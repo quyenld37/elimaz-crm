@@ -879,15 +879,11 @@ export const addCustomerTag = <ThrowOnError extends boolean = false>(options: Op
 
 /**
  * Quy tắc tự gắn nhãn theo chỉ số khách; chưa có → 404 (Task M2-25)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const getCustomerTagRule = <ThrowOnError extends boolean = false>(options: Options<GetCustomerTagRuleData, ThrowOnError>): RequestResult<GetCustomerTagRuleResponses, GetCustomerTagRuleErrors, ThrowOnError> => (options.client ?? client).get<GetCustomerTagRuleResponses, GetCustomerTagRuleErrors, ThrowOnError>({ url: '/api/v1/customer-tags/{tagId}/rule', ...options });
 
 /**
  * Đặt quy tắc tự gắn nhãn (điều kiện nối bằng VÀ); sai trường hay phép → 422 invalid_tag_rule (Task M2-25)
- *
- * Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
  */
 export const putCustomerTagRule = <ThrowOnError extends boolean = false>(options: Options<PutCustomerTagRuleData, ThrowOnError>): RequestResult<PutCustomerTagRuleResponses, PutCustomerTagRuleErrors, ThrowOnError> => (options.client ?? client).put<PutCustomerTagRuleResponses, PutCustomerTagRuleErrors, ThrowOnError>({
     url: '/api/v1/customer-tags/{tagId}/rule',
