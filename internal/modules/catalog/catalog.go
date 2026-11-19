@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/catalog/internal/article"
+	"elimaz.com.vn/crm/internal/modules/catalog/internal/barcode"
 	"elimaz.com.vn/crm/internal/modules/catalog/internal/store"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
@@ -122,6 +123,8 @@ type Writer struct {
 	Queue     queue.JobQueue
 	Realtime  realtime.Bus
 	RequestID string
+	// barcodes: dải số barcode đã cấp sẵn cho một lần áp bản nhập (nil: mỗi biến thể barcode trống tăng bộ đếm trong tx).
+	barcodes *barcode.Range
 }
 
 var errWriterNotWired = errors.New("catalog: Writer thiếu Events hoặc Queue")

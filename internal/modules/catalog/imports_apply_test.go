@@ -392,3 +392,75 @@ func TestApply_SameFileBothReady(t *testing.T) {
 		t.Fatalf("dữ liệu đổi: %s → %s", before, after)
 	}
 }
+
+// B-04 (review độc lập M1): việc áp đã ghi xong mà transaction còn mở (tệp lớn: tới 30 s) không giữ khóa bộ đếm
+// barcode — CreateProduct barcode trống với lock_timeout 300 ms vẫn qua; sau khi cả hai commit, mọi barcode khác nhau.
+func TestApply_DoesNotHoldBarcodeCounter(t *testing.T) {
+	e := newImportEnv(t)
+	imp := e.validate(oneProduct(t, "AO01", "Áo", "1", "S", "M", "L"))
+	e.mustReady(imp)
+	if err := e.apply(imp); err != nil {
+		t.Fatal(err)
+	}
+	job := e.applyJob()
+	handled, release := make(chan error, 1), make(chan struct{})
+	held := make(chan error, 1)
+	go func() {
+		held <- tenancy.WithTenant(t.Context(), e.staff.App, e.tenant, func(tx pgx.Tx) error {
+			_, err := catalog.NewImportApplier(e.writer()).Handle(t.Context(), job, tx)
+			handled <- err
+			<-release
+			return err //nolint:wrapcheck // test
+		})
+	}()
+	if err := <-handled; err != nil {
+		close(release)
+		t.Fatalf("Handle: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancel()
+	err := tenancy.WithTenant(ctx, e.staff.App, e.tenant, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, "SET LOCAL lock_timeout = '300ms'"); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		_, err := e.writer().CreateProduct(ctx, tx, catalog.ProductInput{
+			SellerID: e.seller, Code: "TAY01", Name: "Tay",
+			Variants: []catalog.VariantInput{{SKU: "TAY01-S", Color: "Đỏ", Size: "S", Price: 1}},
+		}, e.actor)
+		return err //nolint:wrapcheck // test
+	})
+	close(release)
+	if herr := <-held; herr != nil {
+		t.Fatalf("commit việc áp: %v", herr)
+	}
+	if err != nil {
+		t.Fatalf("CreateProduct trong lúc việc áp còn mở: %v", err)
+	}
+	if n, d := e.count("SELECT count(*) FROM catalog.variants"), e.count("SELECT count(DISTINCT barcode) FROM catalog.variants"); n != 4 || d != 4 {
+		t.Fatalf("%d biến thể, %d barcode khác nhau; mong 4, 4", n, d)
+	}
+}
+
+// Việc áp xếp trước khi có dải barcode cấp sẵn (payload không có dải) vẫn áp được, barcode tự sinh hợp lệ, khác nhau.
+func TestApply_PayloadWithoutBarcodeRange(t *testing.T) {
+	e := newImportEnv(t)
+	imp := e.validate(oneProduct(t, "AO01", "Áo", "1", "S", "M"))
+	e.mustReady(imp)
+	if err := e.apply(imp); err != nil {
+		t.Fatal(err)
+	}
+	job := e.applyJob()
+	job.Payload = []byte(fmt.Sprintf(`{"importId":%q,"actorId":%q}`, imp.ID, e.actor.UserID))
+	if err := tenancy.WithTenant(t.Context(), e.staff.App, e.tenant, func(tx pgx.Tx) error {
+		_, err := catalog.NewImportApplier(e.writer()).Handle(t.Context(), job, tx)
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.getImport(imp.ID); got.Status != catalog.ImportApplied {
+		t.Fatalf("%s %+v", got.Status, got.Errors)
+	}
+	if d := e.count("SELECT count(DISTINCT barcode) FROM catalog.variants WHERE barcode LIKE '2%' AND length(barcode) = 13"); d != 2 {
+		t.Fatalf("%d barcode tự sinh khác nhau, mong 2", d)
+	}
+}

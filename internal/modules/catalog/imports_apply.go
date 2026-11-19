@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/modules/catalog/internal/barcode"
 	"elimaz.com.vn/crm/internal/modules/catalog/internal/importer"
 	"elimaz.com.vn/crm/internal/modules/catalog/internal/store"
 	"elimaz.com.vn/crm/internal/modules/identity"
@@ -29,13 +30,18 @@ func ImportApplyKind() queue.Kind {
 	return queue.Kind{Name: importApplyName, Policy: queue.DefaultPolicy}
 }
 
+// applyPayload: Barcodes là dải barcode cấp lúc ApplyImport cho các biến thể mới để trống barcode (nil: việc xếp trước
+// khi có dải, hay plan không cần mã tự sinh).
 type applyPayload struct {
-	ImportID uuid.UUID `json:"importId"`
-	ActorID  uuid.UUID `json:"actorId"`
+	ImportID uuid.UUID      `json:"importId"`
+	ActorID  uuid.UUID      `json:"actorId"`
+	Barcodes *barcode.Range `json:"barcodes,omitempty"`
 }
 
 // ApplyImport chuyển bản nhập id (ready, đúng version) của người bán sellerID sang applying và xếp việc
 // catalog.import.apply (DedupeKey = mã bản nhập), ghi audit, trong tx của bên gọi. Khóa dòng bản nhập trước khi so.
+// Cấp luôn dải barcode cho các biến thể mới để trống barcode của plan (ADR-46 nhóm 4: bản nhập rồi bộ đếm, khóa bộ
+// đếm chỉ trong tx ngắn này) để việc áp không khóa bộ đếm suốt lần ghi dài.
 // Lỗi: ErrNotFound, ErrImportNotReady (không ở ready), ErrVersionConflict.
 func (w Writer) ApplyImport(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID, version int64,
 	actor identity.AuthUser,
@@ -58,9 +64,14 @@ func (w Writer) ApplyImport(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UU
 	if err := oneRow(q.StartApply(ctx, id)); err != nil {
 		return Import{}, fmt.Errorf("chuyển bản nhập sang applying: %w", err)
 	}
+	codes, err := reserveImportBarcodes(ctx, tx, sellerID, id)
+	if err != nil {
+		return Import{}, err
+	}
 	tenant := actor.TenantID
 	if _, _, err := w.Queue.Enqueue(ctx, tx, ImportApplyKind(), queue.NewJob{
-		TenantID: &tenant, Payload: applyPayload{ImportID: id, ActorID: actor.UserID}, DedupeKey: id.String(),
+		TenantID: &tenant, Payload: applyPayload{ImportID: id, ActorID: actor.UserID, Barcodes: codes},
+		DedupeKey: id.String(),
 	}); err != nil {
 		return Import{}, fmt.Errorf("xếp việc áp bản nhập: %w", err)
 	}
@@ -70,6 +81,35 @@ func (w Writer) ApplyImport(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UU
 		return Import{}, err
 	}
 	return GetImport(ctx, tx, sellerID, id)
+}
+
+// reserveImportBarcodes cấp dải barcode đủ cho các biến thể mới để trống barcode trong plan của bản nhập id; nil khi
+// không có biến thể nào như vậy.
+func reserveImportBarcodes(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID) (*barcode.Range, error) {
+	data, err := store.New(tx).GetImportPlan(ctx, store.GetImportPlanParams{SellerID: sellerID, ID: id})
+	if err != nil {
+		return nil, fmt.Errorf("đọc plan bản nhập: %w", err)
+	}
+	var plan ImportPlan
+	if err := json.Unmarshal(data.Plan, &plan); err != nil {
+		return nil, fmt.Errorf("đọc plan bản nhập: %w", err)
+	}
+	var n int64
+	for _, pp := range plan.Products {
+		for _, v := range pp.Variants {
+			if v.Action == importer.ActionCreate && v.Barcode == "" {
+				n++
+			}
+		}
+	}
+	if n == 0 {
+		return nil, nil //nolint:nilnil // không cần dải
+	}
+	r, err := barcode.Reserve(ctx, tx, n)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // barcode đã bọc
+	}
+	return &r, nil
 }
 
 // ImportApplier là việc catalog.import.apply (queue.Handler, queue.TerminalHook). Handle chạy trong một transaction:
@@ -140,7 +180,9 @@ func (a *ImportApplier) Handle(ctx context.Context, j queue.Job, tx pgx.Tx) (jso
 	if cur.Status != ImportApplying {
 		return applyResult(cur.Status)
 	}
-	status, err := a.apply(ctx, tx, seller, pl, identity.AuthUser{UserID: pl.ActorID, TenantID: *j.TenantID})
+	ap := *a // mỗi lần chạy (kể cả chạy lại) dùng lại dải của payload từ đầu
+	ap.w.barcodes = pl.Barcodes
+	status, err := ap.apply(ctx, tx, seller, pl, identity.AuthUser{UserID: pl.ActorID, TenantID: *j.TenantID})
 	if err != nil {
 		return nil, err
 	}

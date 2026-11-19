@@ -41,7 +41,7 @@ func (w Writer) AddVariant(ctx context.Context, tx pgx.Tx, sellerID, productID u
 	if err != nil {
 		return Variant{}, err
 	}
-	created, err := insertVariant(ctx, tx, actor.TenantID, p.SellerID, productID, nv)
+	created, err := w.insertVariant(ctx, tx, actor.TenantID, p.SellerID, productID, nv)
 	if err != nil {
 		return Variant{}, err
 	}
@@ -166,10 +166,10 @@ func (w Writer) bumpProduct(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID, 
 }
 
 // insertVariant ghi biến thể đã chuẩn hóa v; barcode rỗng → sinh EAN-13 (bỏ qua mã trùng barcode gõ tay).
-func insertVariant(ctx context.Context, tx pgx.Tx, tenantID, sellerID, productID uuid.UUID, v VariantInput) (Variant, error) {
+func (w Writer) insertVariant(ctx context.Context, tx pgx.Tx, tenantID, sellerID, productID uuid.UUID, v VariantInput) (Variant, error) {
 	q := store.New(tx)
 	if v.Barcode == "" {
-		code, err := freeBarcode(ctx, tx, q, sellerID)
+		code, err := w.freeBarcode(ctx, tx, q, sellerID)
 		if err != nil {
 			return Variant{}, err
 		}
@@ -188,11 +188,13 @@ func insertVariant(ctx context.Context, tx pgx.Tx, tenantID, sellerID, productID
 	}, nil
 }
 
-func freeBarcode(ctx context.Context, tx pgx.Tx, q *store.Queries, sellerID uuid.UUID) (string, error) {
+// freeBarcode sinh mã EAN-13 chưa có ở người bán: lấy từ dải cấp sẵn w.barcodes khi còn (lần áp bản nhập, không khóa
+// bộ đếm), hết dải hay không có dải → tăng bộ đếm trong tx.
+func (w Writer) freeBarcode(ctx context.Context, tx pgx.Tx, q *store.Queries, sellerID uuid.UUID) (string, error) {
 	for range barcodeAttempts {
-		code, err := barcode.NextEAN13(ctx, tx)
+		code, err := w.nextBarcode(ctx, tx)
 		if err != nil {
-			return "", err //nolint:wrapcheck // barcode đã bọc
+			return "", err
 		}
 		taken, err := q.BarcodeExists(ctx, store.BarcodeExistsParams{SellerID: sellerID, Barcode: code})
 		if err != nil {
@@ -203,6 +205,15 @@ func freeBarcode(ctx context.Context, tx pgx.Tx, q *store.Queries, sellerID uuid
 		}
 	}
 	return "", ErrBarcodeTaken
+}
+
+func (w Writer) nextBarcode(ctx context.Context, tx pgx.Tx) (string, error) {
+	if w.barcodes != nil {
+		if code, ok, err := w.barcodes.Next(); ok || err != nil {
+			return code, err //nolint:wrapcheck // barcode đã bọc
+		}
+	}
+	return barcode.NextEAN13(ctx, tx) //nolint:wrapcheck // barcode đã bọc
 }
 
 func listVariants(ctx context.Context, q *store.Queries, sellerID, productID uuid.UUID) ([]Variant, error) {

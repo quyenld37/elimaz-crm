@@ -168,3 +168,48 @@ func requireMostRelevant(t *testing.T, all []refHit, hits []queries.VariantHit) 
 		}
 	}
 }
+
+// B-07 (review độc lập M1): "dam" khớp hơn 1.000 mẫu. Danh sách mẫu đi hết các trang (cỡ 100) phải là đúng 1.000 mẫu
+// khớp sửa gần nhất (updated_at, mã mẫu giảm dần), không lặp — không phải 1.000 mẫu khớp bất kỳ rồi mới sắp.
+func testListBroadQNewest(t *testing.T, f *fixture) {
+	var want []uuid.UUID
+	f.inTenant(t, f.tenantA, func(tx pgx.Tx) error {
+		rows, err := tx.Query(t.Context(), `SELECT p.product_id FROM catalog.products_v AS p
+			WHERE p.seller_id = $1 AND p.deleted_at IS NULL AND (p.name_search LIKE '%dam%'
+				OR p.code ~>=~ 'DAM' AND p.code ~<~ ('DAM' || chr(1114111))
+				OR EXISTS (SELECT 1 FROM catalog.variants_v AS v WHERE v.seller_id = p.seller_id AND v.product_id = p.product_id
+					AND (v.barcode = 'dam' OR v.sku ~>=~ 'DAM' AND v.sku ~<~ ('DAM' || chr(1114111)))))
+			ORDER BY p.updated_at DESC, p.product_id DESC`, f.sellerA)
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		want, err = pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
+		return err //nolint:wrapcheck // test
+	})
+	if len(want) <= 1000 {
+		t.Fatalf("fixture: \"dam\" phải khớp hơn 1.000 mẫu, có %d", len(want))
+	}
+	want = want[:1000]
+	var got []uuid.UUID
+	pf := queries.ProductFilter{SellerID: f.sellerA, Q: "dam", Limit: 100}
+	for pages := 0; ; pages++ {
+		if pages > 11 {
+			t.Fatal("quá nhiều trang")
+		}
+		rows, next := list(t, f, f.tenantA, pf)
+		for _, r := range rows {
+			got = append(got, r.ProductID)
+		}
+		if next == nil {
+			break
+		}
+		pf.Cursor = next
+	}
+	if !slices.Equal(got, want) {
+		n := 0
+		for n < min(len(got), len(want)) && got[n] == want[n] {
+			n++
+		}
+		t.Fatalf("%d mẫu qua các trang, khác 1.000 mẫu khớp mới sửa nhất từ vị trí %d", len(got), n)
+	}
+}

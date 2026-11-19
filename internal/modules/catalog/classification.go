@@ -319,7 +319,7 @@ func (w Writer) AddAttributeValue(ctx context.Context, tx pgx.Tx, attributeID uu
 		return AttributeValue{}, err
 	}
 	value := strings.TrimSpace(in.Value)
-	if !validLine(value, maxClassName) {
+	if !validLine(value, maxClassName) || strings.Contains(value, ";") { // ";" tách nhiều giá trị trong ô Excel
 		return AttributeValue{}, ErrInvalidInput
 	}
 	row, err := store.New(tx).InsertAttributeValue(ctx, store.InsertAttributeValueParams{
@@ -536,14 +536,15 @@ func shareLockActiveCategory(ctx context.Context, q *store.Queries, id uuid.UUID
 	return row, nil
 }
 
-// categoryText kiểm tên và slug (slug rỗng → sinh từ tên).
+// categoryText kiểm tên và slug (slug rỗng → sinh từ tên). Tên không chứa ">" (dấu tách cấp của cột Danh mục khi
+// nhập Excel: "Váy > Váy dài").
 func categoryText(name, slug string) (string, string, error) {
 	name = strings.TrimSpace(name)
 	slug = strings.ToLower(strings.TrimSpace(slug))
 	if slug == "" {
 		slug = slugFrom(name)
 	}
-	if !validLine(name, maxClassName) || !slugPattern.MatchString(slug) {
+	if !validLine(name, maxClassName) || strings.Contains(name, ">") || !slugPattern.MatchString(slug) {
 		return "", "", ErrInvalidInput
 	}
 	return name, slug, nil

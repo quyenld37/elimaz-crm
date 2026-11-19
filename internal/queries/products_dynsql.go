@@ -61,9 +61,9 @@ func ParseCursor(s string) (Cursor, error) {
 }
 
 // ProductFilter là bộ lọc của ListProducts. SellerID bắt buộc (ADR-29). Q: tìm theo mã mẫu, SKU (tiền tố), barcode
-// (đúng), tên không dấu (tối đa 1.000 mẫu khớp). Status rỗng: mọi trạng thái. CategoryID: danh mục đó và mọi danh mục
-// con, cháu. WarehouseID khác uuid.Nil: thêm cột Available ở kho đó (bên gọi đã kiểm quyền xem kho). Cursor: trang
-// sau. Limit 1–100.
+// (đúng), tên không dấu (khớp hơn 1.000 mẫu: chỉ 1.000 mẫu sửa gần nhất). Status rỗng: mọi trạng thái. CategoryID:
+// danh mục đó và mọi danh mục con, cháu. WarehouseID khác uuid.Nil: thêm cột Available ở kho đó (bên gọi đã kiểm
+// quyền xem kho). Cursor: trang sau. Limit 1–100.
 type ProductFilter struct {
 	SellerID    uuid.UUID
 	Q           string
