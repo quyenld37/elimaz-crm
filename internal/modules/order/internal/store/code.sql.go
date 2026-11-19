@@ -11,6 +11,45 @@ import (
 	"github.com/google/uuid"
 )
 
+const itemOrders = `-- name: ItemOrders :many
+SELECT i.id AS item_id, o.id AS order_id, o.code
+FROM ord.order_items AS i
+JOIN ord.orders AS o ON o.id = i.order_id
+WHERE i.seller_id = $1 AND o.seller_id = $1 AND i.id = ANY($2::uuid[])
+`
+
+type ItemOrdersParams struct {
+	SellerID uuid.UUID
+	ItemIds  []uuid.UUID
+}
+
+type ItemOrdersRow struct {
+	ItemID  uuid.UUID
+	OrderID uuid.UUID
+	Code    string
+}
+
+// Đơn (mã, mã đơn) của các dòng đơn của một người bán (Task 406: đơn đang giữ biến thể thiếu sau kiểm kho; ADR-29).
+func (q *Queries) ItemOrders(ctx context.Context, arg ItemOrdersParams) ([]ItemOrdersRow, error) {
+	rows, err := q.db.Query(ctx, itemOrders, arg.SellerID, arg.ItemIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ItemOrdersRow{}
+	for rows.Next() {
+		var i ItemOrdersRow
+		if err := rows.Scan(&i.ItemID, &i.OrderID, &i.Code); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const nextOrderCode = `-- name: NextOrderCode :one
 
 SELECT ('DH' || lpad(nextval('ord.order_code_seq')::text, 7, '0'))::text AS code

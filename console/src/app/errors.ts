@@ -55,6 +55,7 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   // Kho
   document_not_draft: "Phiếu đã ghi sổ hoặc đã hủy, không sửa được",
   insufficient_stock: "Không đủ hàng: còn {available}",
+  stock_short: "Tồn thực không đủ cho đơn đang giữ: trên kệ còn {available}. Điều chỉnh tồn, đổi kho hoặc hủy đơn",
   stocktake_not_open: "Phiên kiểm kho đã đóng",
   stocktake_open: "Kho đang có phiên kiểm kho chưa xong",
   supplier_archived: "Nhà cung cấp đã lưu trữ",

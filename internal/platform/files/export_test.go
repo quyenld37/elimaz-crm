@@ -19,3 +19,8 @@ func SetPresetsForTest(t interface{ Cleanup(func()) }, table map[int][]VariantSp
 
 // SetVerifyBatch đổi số tệp một lượt của lệnh file.verify (test đi qua đường nối lệnh lô sau mà không cần 500 tệp).
 func SetVerifyBatch(v *Verifier, n int) { v.batch = n }
+
+// RetryDelay là retryDelay (thời gian chờ trước lần thử lại sau lỗi hạ tầng tạm, Task 409).
+func RetryDelay(elapsed, hint, retryMax time.Duration, rnd func() float64) time.Duration {
+	return retryDelay(elapsed, hint, retryMax, rnd)
+}

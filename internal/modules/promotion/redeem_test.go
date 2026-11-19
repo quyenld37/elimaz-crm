@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,7 +17,9 @@ import (
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/inventory/invtest"
 	"elimaz.com.vn/crm/internal/modules/promotion"
+	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/logging"
+	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -35,6 +38,7 @@ type env struct {
 	tenant uuid.UUID
 	shop   *invtest.Shop
 	user   uuid.UUID
+	seq    atomic.Int64 // version giả của đơn cho mỗi lần Redeem (bên gọi thật tăng version đơn trước khi dùng mã)
 }
 
 func newEnv(t *testing.T) *env {
@@ -154,11 +158,17 @@ func (e *env) input(cust uuid.UUID, base int64) promotion.EvalInput {
 	}
 }
 
+// writer là promotion.Writer đủ Events, Queue cho Redeem.
+func (e *env) writer() promotion.Writer {
+	return promotion.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue()}
+}
+
 func (e *env) redeem(code string, orderID uuid.UUID, in promotion.EvalInput) (promotion.Redemption, error) {
 	var r promotion.Redemption
 	err := e.app(func(tx pgx.Tx) error {
 		var err error
-		r, err = promotion.Redeem(e.t.Context(), tx, code, orderID, in)
+		r, err = e.writer().Redeem(e.t.Context(), tx, code,
+			promotion.OrderRef{TenantID: e.tenant, ID: orderID, Version: e.seq.Add(1)}, in)
 		return err //nolint:wrapcheck // test
 	})
 	return r, err
@@ -568,4 +578,52 @@ func TestSchema_CouponsView(t *testing.T) {
 func TestSchema_Rules(t *testing.T) {
 	e := newEnv(t)
 	testkit.CheckSchemaRulesClean(t, e.staff.Owner)
+}
+
+// Redeem phát coupon.used (aggregate order_coupon = mã đơn, seq = version đơn của bên gọi; payload chỉ mã và số);
+// mã bị từ chối không phát; Writer thiếu Events hoặc Queue → lỗi, không dùng lượt.
+func TestRedeem_EmitsCouponUsed(t *testing.T) {
+	e := newEnv(t)
+	id := e.coupon(spec{maxUses: ptr(int32(5))})
+	cust := e.customer()
+	o := e.order(cust)
+	var r promotion.Redemption
+	if err := e.app(func(tx pgx.Tx) error {
+		var err error
+		r, err = e.writer().Redeem(t.Context(), tx, e.code(id), promotion.OrderRef{TenantID: e.tenant, ID: o, Version: 2},
+			e.input(cust, 660000))
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.staff.CountIn(t, e.tenant, `SELECT count(*) FROM platform.domain_events WHERE topic = 'coupon.used'
+		AND aggregate_type = 'order_coupon' AND aggregate_id = $1 AND seq = 2 AND payload->>'couponId' = $2
+		AND payload->>'orderId' = $1 AND payload->>'customerId' = $3 AND (payload->>'discount')::bigint = $4
+		AND (SELECT count(*) FROM jsonb_object_keys(payload)) = 4`,
+		o.String(), id.String(), cust.String(), r.Discount); n != 1 {
+		t.Errorf("sự kiện coupon.used: %d, mong 1", n)
+	}
+	o2 := e.order(cust)
+	if _, err := e.redeem(e.code(id), o2, e.input(cust, 0)); err != nil {
+		t.Fatalf("lượt thứ hai (phần giảm 0): %v", err)
+	}
+	o3 := e.order(cust)
+	if _, err := e.redeem("KHONGCO", o3, e.input(cust, 400000)); reason(err) != promotion.ReasonNotFound {
+		t.Fatalf("mã không có: %v", err)
+	}
+	if n := e.staff.CountIn(t, e.tenant, `SELECT count(*) FROM platform.domain_events WHERE topic = 'coupon.used'
+		AND aggregate_id = $1`, o3.String()); n != 0 {
+		t.Errorf("mã bị từ chối vẫn phát sự kiện: %d", n)
+	}
+	err := e.app(func(tx pgx.Tx) error {
+		ref := promotion.OrderRef{TenantID: e.tenant, ID: o3, Version: 1}
+		_, err := promotion.Writer{}.Redeem(t.Context(), tx, e.code(id), ref, e.input(cust, 660000))
+		return err //nolint:wrapcheck // test
+	})
+	if err == nil {
+		t.Fatal("Writer thiếu Events, Queue mà Redeem không lỗi")
+	}
+	if n := e.staff.CountIn(t, e.tenant, `SELECT used_count FROM promotion.coupons WHERE id = $1`, id); n != 2 {
+		t.Errorf("used_count = %d, mong 2", n)
+	}
 }

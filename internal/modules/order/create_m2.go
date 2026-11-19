@@ -22,6 +22,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order/internal/pricing"
 	"elimaz.com.vn/crm/internal/modules/order/internal/store"
+	"elimaz.com.vn/crm/internal/modules/promotion"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/logging"
 )
@@ -45,6 +46,7 @@ const (
 const WarningPhoneBelongsToOtherCustomer = "phone_belongs_to_other_customer"
 
 const (
+	maxCouponCodeRunes    = 64
 	maxCarrierNoteRunes   = 500
 	maxExternalRefRunes   = 120
 	maxUnitCodeRunes      = 16
@@ -62,7 +64,7 @@ type LineInput struct {
 
 // CreateInput là một lần tạo đơn (kế hoạch M2, Task M2-16). SellerID rỗng → catalog.DefaultSeller; WarehouseID rỗng →
 // inventory.DefaultWarehouse; Channel rỗng → manual; OrderType rỗng → ship. ShipAddress nil chỉ được với ý định
-// draft, new. CouponCode có từ Task M2-17 (trước đó khác rỗng → ErrInvalidInput).
+// draft, new. CouponCode (Task M2-17): rỗng là không dùng mã; cắt khoảng trắng hai đầu, không phân biệt hoa thường.
 type CreateInput struct {
 	IdempotencyKey                   uuid.UUID
 	SellerID, WarehouseID            uuid.UUID
@@ -107,10 +109,14 @@ type CreateResult struct {
 //     ErrVariantNotFound), đơn giá hiện hành; tiền bằng pricing.Compute (ErrLineDiscountExceeds,
 //     ErrOrderDiscountExceeds, ErrTotalOverflow); địa chỉ (customer.ValidateUnits khi đủ tỉnh, xã); ý định confirmed cần
 //     địa chỉ đủ (ErrAddressIncomplete).
+//     Ngưỡng duyệt giảm giá (decideApproval, Task M2-17): giảm tay vượt ngưỡng mà người gọi không có quyền duyệt →
+//     status new (ý định draft giữ draft), lý do chờ discount_approval; có quyền → ghi discount_approved_by.
 //  4. customer.Writer.FindOrCreateForOrder; SĐT thuộc nhóm khác → cảnh báo WarningPhoneBelongsToOtherCustomer.
 //  5. Chèn đơn (mã từ nextCode, cod_amount = grand_total; nháp hạn now + DraftTTL), dòng theo thứ tự nhập.
-//  6. Giữ hàng (inventory.Writer.Reserve, theo variant_id tăng dần; thiếu → *OutOfStockError).
-//  7. recordCreated: lịch sử, sự kiện order.created (+ order.confirmed), báo hiệu.
+//  6. Có CouponCode: promotion.Writer.Redeem (nhóm 10; bị từ chối → *promotion.RejectError, bên gọi lùi cả lần tạo),
+//     tính lại tiền bằng pricing.Compute với CouponDiscount, ghi tổng đơn và phần chia về dòng (applyCoupon).
+//  7. Giữ hàng (inventory.Writer.Reserve, theo variant_id tăng dần; thiếu → *OutOfStockError).
+//  8. recordCreated: lịch sử, sự kiện order.created (+ order.confirmed), báo hiệu.
 //
 // Audit do bên gọi ghi bằng Order.AuditFields (order không nhập identity). Không giữ trạng thái giữa các lần chạy lại.
 func (w Writer) Create(ctx context.Context, tx pgx.Tx, in CreateInput, a Actor, now time.Time) (CreateResult, error) {
@@ -129,7 +135,7 @@ func (w Writer) Create(ctx context.Context, tx pgx.Tx, in CreateInput, a Actor, 
 	if res, found, err := replay(ctx, tx, p); found || err != nil {
 		return res, err
 	}
-	d, err := p.draft(ctx, tx, now)
+	d, err := p.draft(ctx, tx, a, now)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -142,9 +148,14 @@ func (w Writer) Create(ctx context.Context, tx pgx.Tx, in CreateInput, a Actor, 
 	if cust.PhoneConflictWith != nil {
 		warnings = append(warnings, Warning{Code: WarningPhoneBelongsToOtherCustomer, RefID: *cust.PhoneConflictWith})
 	}
-	id, reserve, err := insertOrder(ctx, tx, p, d, cust.CustomerID, a, now)
+	id, itemIDs, reserve, err := insertOrder(ctx, tx, p, d, cust.CustomerID, a, now)
 	if err != nil {
 		return CreateResult{}, err
+	}
+	if p.coupon != "" {
+		if err := w.applyCoupon(ctx, tx, p, d, cust, id, itemIDs, a, now); err != nil {
+			return CreateResult{}, err
+		}
 	}
 	if _, err := stock.Reserve(ctx, tx, reserve, inventory.Actor{Type: a.kind(), ID: a.UserID}); err != nil {
 		if ie, ok := errors.AsType[*inventory.InsufficientError](err); ok {
@@ -165,6 +176,7 @@ func (w Writer) Create(ctx context.Context, tx pgx.Tx, in CreateInput, a Actor, 
 // prepared là đầu vào đã kiểm, chuẩn hóa (dòng đã gộp, địa chỉ đã cắt khoảng trắng, mặc định đã chọn).
 type prepared struct {
 	in             CreateInput
+	coupon         string
 	seller, wh     uuid.UUID
 	lines          []LineInput
 	addr           *ShipAddress
@@ -191,7 +203,9 @@ func prepare(in CreateInput) (prepared, error) {
 		return prepared{}, ErrInvalidInput
 	}
 	if in.CouponCode != "" {
-		return prepared{}, fmt.Errorf("%w: mã giảm giá chưa có (Task M2-17)", ErrInvalidInput)
+		if p.coupon = strings.TrimSpace(in.CouponCode); !validText(p.coupon, maxCouponCodeRunes) {
+			return prepared{}, fmt.Errorf("%w: mã giảm giá", ErrInvalidInput)
+		}
 	}
 	for _, l := range in.Lines {
 		if l.VariantID == uuid.Nil || l.Quantity <= 0 || !money(l.LineDiscount) {
@@ -295,8 +309,10 @@ func (p prepared) customerInput() customer.OrderCustomerInput {
 }
 
 // fingerprint là mã băm nội dung của một lần tạo đơn (QĐ1 của Task 73): phần đầu vào còn đọc lại được từ đơn đã lưu.
-// Khách chỉ tính khi đầu vào chọn khách có sẵn (khách mới được tạo trong chính lần đó).
+// Khách chỉ tính khi đầu vào chọn khách có sẵn (khách mới được tạo trong chính lần đó). Coupon là mã giảm giá viết hoa
+// (mã không phân biệt hoa thường; đơn đã lưu: mã của lượt đang hiệu lực, Task M2-17).
 type fingerprint struct {
+	Coupon                                  string
 	Seller, Warehouse                       uuid.UUID
 	Channel, ExternalRef, CarrierNote, Type string
 	TrafficSource, Customer, CareBy         *uuid.UUID
@@ -319,6 +335,7 @@ func (p prepared) fingerprint() []byte {
 		CarrierNote: p.in.CarrierNote, Type: p.oType, TrafficSource: p.in.TrafficSourceID, Customer: p.in.Customer.CustomerID,
 		CareBy: p.in.CareBy, Conversation: p.in.ConversationID, ChannelAccount: p.in.ChannelAccountID,
 		Replaced: p.in.ReplacedReturnID, Lines: p.lines, ShippingFee: p.in.ShippingFee, OrderDiscount: p.in.OrderDiscount,
+		Coupon: strings.ToUpper(p.coupon),
 	}
 	if p.addr != nil {
 		f.Address = *p.addr
@@ -326,9 +343,11 @@ func (p prepared) fingerprint() []byte {
 	return f.sum()
 }
 
-// storedFingerprint: mã băm của đơn đã lưu o, so được với prepared.fingerprint của đầu vào withCustomer.
-func storedFingerprint(o Order, withCustomer bool) []byte {
+// storedFingerprint: mã băm của đơn đã lưu o (mã giảm giá đang dùng coupon), so được với prepared.fingerprint của đầu
+// vào withCustomer.
+func storedFingerprint(o Order, coupon string, withCustomer bool) []byte {
 	f := fingerprint{
+		Coupon: strings.ToUpper(coupon),
 		Seller: o.SellerID, Warehouse: o.WarehouseID, Channel: o.Channel, CarrierNote: o.CarrierNote, Type: o.OrderType,
 		TrafficSource: o.TrafficSourceID, CareBy: o.CareBy, Conversation: o.ConversationID,
 		ChannelAccount: o.ChannelAccountID, Replaced: o.ReplacedReturnID, ShippingFee: o.ShippingFee,
@@ -361,22 +380,31 @@ func replay(ctx context.Context, tx pgx.Tx, p prepared) (CreateResult, bool, err
 	if err != nil {
 		return CreateResult{}, false, err
 	}
-	if !bytes.Equal(storedFingerprint(o, p.in.Customer.CustomerID != nil), p.fingerprint()) {
+	coupon, err := promotion.ActiveCouponCode(ctx, tx, id)
+	if err != nil {
+		return CreateResult{}, false, fmt.Errorf("mã giảm giá của đơn đã có: %w", err)
+	}
+	if !bytes.Equal(storedFingerprint(o, coupon, p.in.Customer.CustomerID != nil), p.fingerprint()) {
 		return CreateResult{}, false, ErrDuplicateOrder
 	}
 	return CreateResult{Order: o, Replayed: true}, true, nil
 }
 
-// drafted là phần đã kiểm với database và tính của đơn, trước khi ghi.
+// drafted là phần đã kiểm với database và tính của đơn, trước khi ghi. pricing là đầu vào tính tiền (chưa có mã);
+// version là version lúc tạo (số sự kiện order.* của lần tạo).
 type drafted struct {
 	lines          []line
+	pricing        pricing.Input
 	totals         pricing.Totals
+	approval       approval
+	version        int64
 	addrComplete   bool
 	draftExpiresAt pgtype.Timestamptz
 }
 
-// draft đọc (không khóa) nguồn đơn, biến thể, đơn vị hành chính, cài đặt và tính tiền.
-func (p prepared) draft(ctx context.Context, tx pgx.Tx, now time.Time) (drafted, error) {
+// draft đọc (không khóa) nguồn đơn, biến thể, đơn vị hành chính, cài đặt; tính tiền và xét ngưỡng duyệt giảm giá
+// của người gọi a.
+func (p prepared) draft(ctx context.Context, tx pgx.Tx, a Actor, now time.Time) (drafted, error) {
 	if p.in.TrafficSourceID != nil {
 		if err := ActiveSource(ctx, tx, *p.in.TrafficSourceID); err != nil {
 			return drafted{}, err
@@ -396,18 +424,27 @@ func (p prepared) draft(ctx context.Context, tx pgx.Tx, now time.Time) (drafted,
 	if err != nil {
 		return drafted{}, pricingError(err)
 	}
-	d := drafted{lines: lines, totals: totals}
+	// Cài đặt chỉ cần cho đơn nháp (hạn) và đơn có giảm tay (ngưỡng duyệt; tỷ lệ 0 không bao giờ vượt ngưỡng ≥ 0): đơn
+	// kiểu M1 không đòi tenant đã có dòng cài đặt.
+	var s Settings
+	if p.status == StatusDraft || pricing.ManualDiscountBP(totals) > 0 {
+		if s, err = LoadSettings(ctx, tx); err != nil {
+			return drafted{}, err
+		}
+	}
+	d := drafted{lines: lines, pricing: in, totals: totals, approval: decideApproval(p.status, totals, s, a, now)}
+	// version = số sự kiện của lần tạo (created seq 1, confirmed seq 2): version luôn bằng seq của sự kiện cuối.
+	d.version = 1
+	if d.approval.status == StatusConfirmed {
+		d.version = 2
+	}
 	if p.unitsComplete {
 		if _, err := customer.ValidateUnits(ctx, tx, p.addr.ProvinceCode, p.addr.WardCode); err != nil {
 			return drafted{}, fmt.Errorf("kiểm địa chỉ giao: %w", err)
 		}
 		d.addrComplete = true
 	}
-	if p.status == StatusDraft {
-		s, err := LoadSettings(ctx, tx)
-		if err != nil {
-			return drafted{}, err
-		}
+	if d.approval.status == StatusDraft {
 		d.draftExpiresAt = pgtype.Timestamptz{Time: now.Add(s.DraftTTL), Valid: true}
 	}
 	return d, nil
@@ -427,60 +464,60 @@ func pricingError(err error) error {
 	return fmt.Errorf("%w: %w", ErrInvalidInput, err) // pricing.ErrNegative: đã chặn ở prepare
 }
 
-// insertOrder lấy mã đơn, chèn đơn và dòng đơn (position theo thứ tự nhập); trả mã đơn và các dòng giữ hàng theo
-// variant_id tăng dần.
+// insertOrder lấy mã đơn, chèn đơn và dòng đơn (position theo thứ tự nhập); trả mã đơn, mã các dòng theo thứ tự nhập
+// và các dòng giữ hàng theo variant_id tăng dần.
 func insertOrder(ctx context.Context, tx pgx.Tx, p prepared, d drafted, customerID uuid.UUID, a Actor, now time.Time,
-) (uuid.UUID, []inventory.ReserveLine, error) {
+) (uuid.UUID, []uuid.UUID, []inventory.ReserveLine, error) {
 	code, err := nextCode(ctx, tx)
 	if err != nil {
-		return uuid.Nil, nil, err
+		return uuid.Nil, nil, nil, err
 	}
 	id, err := uuid.NewV7()
 	if err != nil {
-		return uuid.Nil, nil, fmt.Errorf("sinh mã đơn: %w", err)
+		return uuid.Nil, nil, nil, fmt.Errorf("sinh mã đơn: %w", err)
 	}
 	addrJSON, shipPhone, reversed := []byte("{}"), logging.Phone(""), ""
 	if p.addr != nil {
 		if addrJSON, err = json.Marshal(*p.addr); err != nil {
-			return uuid.Nil, nil, fmt.Errorf("ghi địa chỉ giao: %w", err)
+			return uuid.Nil, nil, nil, fmt.Errorf("ghi địa chỉ giao: %w", err)
 		}
 		shipPhone, reversed = normalizedShipPhone(p.addr.Phone)
 	}
-	// version = số sự kiện của lần tạo (created seq 1, confirmed seq 2): version luôn bằng seq của sự kiện cuối.
-	version, confirmedAt := int64(1), pgtype.Timestamptz{}
-	if p.status == StatusConfirmed {
-		version, confirmedAt = 2, pgtype.Timestamptz{Time: now, Valid: true}
+	status, confirmedAt := d.approval.status, pgtype.Timestamptz{}
+	if status == StatusConfirmed {
+		confirmedAt = pgtype.Timestamptz{Time: now, Valid: true}
 	}
 	t := d.totals
 	err = store.New(tx).InsertOrder(ctx, store.InsertOrderParams{
 		ID: id, SellerID: p.seller, Code: code, CustomerID: customerID, Channel: p.channel,
-		IdempotencyKey: p.in.IdempotencyKey, Status: p.status, ShipAddress: addrJSON, ShipPhone: string(shipPhone),
+		IdempotencyKey: p.in.IdempotencyKey, Status: status, PendingReason: d.approval.pending, ShipAddress: addrJSON, ShipPhone: string(shipPhone),
 		ShipPhoneReversed: reversed, AddressComplete: d.addrComplete, Subtotal: t.Subtotal,
 		LineDiscountTotal: t.LineDiscountTotal, OrderDiscount: t.OrderDiscount, CouponDiscount: t.CouponDiscount,
 		DiscountTotal: t.DiscountTotal, ShippingFeeCharged: t.ShippingFee, CodAmount: t.GrandTotal,
-		GrandTotal: t.GrandTotal, CreatedBy: a.id(), Version: version, WarehouseID: p.wh,
+		GrandTotal: t.GrandTotal, CreatedBy: a.id(), Version: d.version, WarehouseID: p.wh,
 		TrafficSourceID: db.NullUUID(p.in.TrafficSourceID), ExternalRef: pgtype.Text{String: p.in.ExternalRef, Valid: p.in.ExternalRef != ""},
 		ReferralRef: p.in.ReferralRef, DraftExpiresAt: d.draftExpiresAt, CarrierNote: p.in.CarrierNote,
 		CareBy: db.NullUUID(p.in.CareBy), ConversationID: db.NullUUID(p.in.ConversationID),
 		ChannelAccountID: db.NullUUID(p.in.ChannelAccountID), OrderType: p.oType, ReplacedReturnID: db.NullUUID(p.in.ReplacedReturnID),
-		ConfirmedAt: confirmedAt, ConfirmedBy: confirmedBy(p.status, a), Now: now,
+		ConfirmedAt: confirmedAt, ConfirmedBy: confirmedBy(status, a), DiscountApprovedBy: d.approval.approvedBy,
+		DiscountApprovedAt: d.approval.approvedAt, Now: now,
 	})
 	if pe, ok := errors.AsType[*pgconn.PgError](err); ok && pe.Code == pgUniqueViolate {
 		switch pe.ConstraintName {
 		case idempotencyIdx:
-			return uuid.Nil, nil, ErrDuplicateOrder
+			return uuid.Nil, nil, nil, ErrDuplicateOrder
 		case externalRefKey:
-			return uuid.Nil, nil, fmt.Errorf("%w: mã ngoài đã có đơn", ErrInvalidInput)
+			return uuid.Nil, nil, nil, fmt.Errorf("%w: mã ngoài đã có đơn", ErrInvalidInput)
 		}
 	}
 	if err != nil {
-		return uuid.Nil, nil, fmt.Errorf("ghi đơn: %w", err)
+		return uuid.Nil, nil, nil, fmt.Errorf("ghi đơn: %w", err)
 	}
-	reserve, err := insertItems(ctx, tx, id, p, d)
+	itemIDs, reserve, err := insertItems(ctx, tx, id, p, d)
 	if err != nil {
-		return uuid.Nil, nil, err
+		return uuid.Nil, nil, nil, err
 	}
-	return id, reserve, nil
+	return id, itemIDs, reserve, nil
 }
 
 func confirmedBy(status string, a Actor) pgtype.UUID {
@@ -490,28 +527,31 @@ func confirmedBy(status string, a Actor) pgtype.UUID {
 	return a.id()
 }
 
-// insertItems chèn dòng đơn theo thứ tự nhập (position 1, 2, …), ảnh chụp mã, tên, đơn giá; trả dòng giữ hàng theo
-// variant_id tăng dần (ADR-46 nhóm 11).
-func insertItems(ctx context.Context, tx pgx.Tx, orderID uuid.UUID, p prepared, d drafted) ([]inventory.ReserveLine, error) {
+// insertItems chèn dòng đơn theo thứ tự nhập (position 1, 2, …), ảnh chụp mã, tên, đơn giá; trả mã dòng theo thứ tự
+// nhập và dòng giữ hàng theo variant_id tăng dần (ADR-46 nhóm 11).
+func insertItems(ctx context.Context, tx pgx.Tx, orderID uuid.UUID, p prepared, d drafted,
+) ([]uuid.UUID, []inventory.ReserveLine, error) {
 	q := store.New(tx)
+	ids := make([]uuid.UUID, len(d.lines))
 	reserve := make([]inventory.ReserveLine, len(d.lines))
 	for i, l := range d.lines {
 		id, err := uuid.NewV7()
 		if err != nil {
-			return nil, fmt.Errorf("sinh mã dòng đơn: %w", err)
+			return nil, nil, fmt.Errorf("sinh mã dòng đơn: %w", err)
 		}
+		ids[i] = id
 		lt := d.totals.Lines[i]
 		if err := q.InsertOrderItem(ctx, store.InsertOrderItemParams{
 			ID: id, SellerID: p.seller, OrderID: orderID, Position: int32(i + 1), VariantID: l.variant.ID,
 			SkuSnapshot: l.variant.SKU, NameSnapshot: l.variant.Name, Quantity: l.qty, UnitPrice: l.variant.Price,
 			LineDiscount: l.discount, AllocatedOrderDiscount: lt.Allocated, NetAmount: lt.Net,
 		}); err != nil {
-			return nil, fmt.Errorf("ghi dòng đơn: %w", err)
+			return nil, nil, fmt.Errorf("ghi dòng đơn: %w", err)
 		}
 		reserve[i] = inventory.ReserveLine{OrderItemID: id, VariantID: l.variant.ID, WarehouseID: p.wh, Qty: l.qty}
 	}
 	slices.SortFunc(reserve, func(x, y inventory.ReserveLine) int { return bytes.Compare(x.VariantID[:], y.VariantID[:]) })
-	return reserve, nil
+	return ids, reserve, nil
 }
 
 // line là một dòng đơn đã kiểm: biến thể bán được (đơn giá hiện hành, Q23), số lượng, giảm dòng.

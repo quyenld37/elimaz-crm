@@ -55,3 +55,23 @@ var (
 	// ErrStocktakeNotOpen: phiên kiểm đã áp dụng hoặc đã hủy; không đếm, áp dụng, hủy được nữa.
 	ErrStocktakeNotOpen = errors.New("inventory: phiên kiểm không còn mở")
 )
+
+// ErrStockShort là lỗi tồn thực không đủ cho một dòng giữ hàng đã có ở bước lấy hàng hay giao (Task 406): kiểm kho đã
+// ghi số đếm thấp hơn phần đang giữ (Q8). Lỗi cụ thể là *StockShortError. Không trừ âm, không tự nhả giữ hay hủy đơn:
+// nhân viên điều chỉnh tồn, đổi kho hay hủy đơn rồi làm lại. Bên gọi lùi transaction.
+var ErrStockShort = errors.New("inventory: tồn thực không đủ cho phần giữ")
+
+// StockShortError là chi tiết của ErrStockShort: dòng giữ hàng đầu tiên (theo thứ tự khóa) bị chặn. OnShelf là phần
+// tồn thực còn cho dòng đó: on_hand − in_transit ở bước lấy hàng, on_hand ở bước giao.
+type StockShortError struct {
+	ReservationID, VariantID, WarehouseID uuid.UUID
+	Requested, OnShelf                    int32
+}
+
+func (e *StockShortError) Error() string {
+	return fmt.Sprintf("inventory: tồn thực không đủ cho giữ hàng %s (biến thể %s kho %s): cần %d, trên kệ %d",
+		e.ReservationID, e.VariantID, e.WarehouseID, e.Requested, e.OnShelf)
+}
+
+// Is cho errors.Is(err, ErrStockShort).
+func (e *StockShortError) Is(target error) bool { return target == ErrStockShort }

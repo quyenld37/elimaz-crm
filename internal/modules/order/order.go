@@ -3,8 +3,9 @@
 // tồn (Writer.ApplyShipmentProgress; chỉ vận đơn hiện hành đổi được). M2 mở rộng (đơn nháp, sửa, hủy, trả hàng),
 // không tạo lại.
 //
-// Thứ tự khóa (docs/adr/0046-thu-tu-khoa.md): tạo đơn chèn khách (nhóm 5) → đơn → dòng đơn → lịch sử (nhóm 7, dòng mới)
-// → số dư tồn (nhóm 11, inventory.Writer.Reserve tự sắp). Bước vận đơn: khóa đơn FOR UPDATE trước rồi số dư, giữ
+// Thứ tự khóa (docs/adr/0046-thu-tu-khoa.md): tạo đơn chèn khách (nhóm 5) → đơn → dòng đơn (nhóm 7, dòng mới) → mã
+// giảm giá (nhóm 10, promotion.Writer.Redeem) → số dư tồn (nhóm 11, inventory.Writer.Reserve tự sắp) → lịch sử (dòng
+// mới). Bước vận đơn: khóa đơn FOR UPDATE trước rồi số dư, giữ
 // hàng. Mã đơn lấy từ sequence (nextCode), không khóa dòng.
 //
 // Phần công khai: hàm đọc Get (nhận sellerID, ADR-29) và Writer (đường ghi: tự ghi lịch sử, sự kiện order.* trong tx
@@ -51,10 +52,12 @@ const (
 
 // Actor là người làm một việc trên đơn: tenant, mã người (uuid.Nil → không ghi created_by, actor_id) và loại (Q-T57-2:
 // rỗng = staff; system, carrier, customer, service). order không nhập identity (04 mục 3); lớp HTTP chép từ
-// identity.AuthUser.
+// identity.AuthUser. CanApproveDiscount (Task M2-17): người làm có quyền order.discount.approve — lớp HTTP tính từ grant
+// của người dùng (identity.Can), không bao giờ lấy từ thân yêu cầu.
 type Actor struct {
-	TenantID, UserID uuid.UUID
-	Type             string
+	TenantID, UserID   uuid.UUID
+	Type               string
+	CanApproveDiscount bool
 }
 
 // ItemInput là một dòng của đơn nhập tay: biến thể và số lượng (> 0).

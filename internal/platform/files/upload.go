@@ -52,16 +52,19 @@ var (
 	ErrRejected = errors.New("files: tệp đã bị từ chối")
 )
 
-// ProcessKind là lệnh xử lý ảnh công khai file.process (Task M1-43 viết handler): hạn 30 s một lần, 3 lần.
+// ProcessKind là lệnh xử lý ảnh công khai file.process (Task M1-43 viết handler): hạn 30 s một lần, 3 lượt cho lần
+// chạy có tính lượt (in_doubt rồi chạy lại); không hạn sống — lỗi hạ tầng tạm không tính lượt và handler giữ trần thời
+// gian ProcessorOptions.RetryMax (Task 409).
 func ProcessKind() queue.Kind {
-	k := commands.CommandKind("file.process", time.Hour, 30*time.Second)
+	k := commands.CommandKind("file.process", 0, 30*time.Second)
 	k.Policy.MaxAttempts = 3
 	return k
 }
 
-// ProcessPrivateKind là lệnh xử lý ảnh riêng tư file.process_private (R10, Task M1-43 viết handler).
+// ProcessPrivateKind là lệnh xử lý ảnh riêng tư file.process_private (R10, Task M1-43 viết handler), cùng chính sách
+// với ProcessKind.
 func ProcessPrivateKind() queue.Kind {
-	k := commands.CommandKind("file.process_private", time.Hour, 30*time.Second)
+	k := commands.CommandKind("file.process_private", 0, 30*time.Second)
 	k.Policy.MaxAttempts = 3
 	return k
 }

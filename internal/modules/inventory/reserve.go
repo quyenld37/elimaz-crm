@@ -98,21 +98,26 @@ func (w Writer) Release(ctx context.Context, tx pgx.Tx, reservationIDs []uuid.UU
 	return w.transition(ctx, tx, reservationIDs, release(reason), a)
 }
 
-// StartTransit chuyển các dòng giữ hàng held → in_transit (hãng lấy hàng): held −, in_transit +.
+// StartTransit chuyển các dòng giữ hàng held → in_transit (hãng lấy hàng): held −, in_transit + khi tồn thực còn đủ
+// (on_hand − in_transit ≥ q). Kiểm kho đã làm tồn thực thấp hơn phần giữ (Q8) → *StockShortError (Is ErrStockShort),
+// không đổi gì; giữ bất biến in_transit ≤ on_hand để Consume luôn trừ được.
 func (w Writer) StartTransit(ctx context.Context, tx pgx.Tx, reservationIDs []uuid.UUID, a Actor) error {
 	return w.transition(ctx, tx, reservationIDs, startTransit, a)
 }
 
-// Consume chuyển các dòng giữ hàng in_transit → consumed (giao xong): in_transit −, on_hand −.
+// Consume chuyển các dòng giữ hàng in_transit → consumed (giao xong): in_transit −, on_hand − khi on_hand ≥ q; không
+// đủ (số dư đã lệch từ trước) → *StockShortError, không trừ âm.
 func (w Writer) Consume(ctx context.Context, tx pgx.Tx, reservationIDs []uuid.UUID, a Actor) error {
 	return w.transition(ctx, tx, reservationIDs, consume, a)
 }
 
-// move là một thay đổi số dư của một chuyển trạng thái (q là số lượng của dòng giữ hàng).
+// move là một thay đổi số dư của một chuyển trạng thái (q là số lượng của dòng giữ hàng). short: điều kiện sai nghĩa là
+// tồn thực không đủ (ErrStockShort), không phải số dư lệch giữ hàng.
 type move struct {
 	bucket bucket
 	sign   int32
 	cond   cond
+	short  bool
 }
 
 // change là một chuyển trạng thái của giữ hàng: từ, tới, bước sổ, các thay đổi số dư theo thứ tự áp.
@@ -124,7 +129,7 @@ type change struct {
 func release(reason string) change {
 	return change{
 		from: StateHeld, to: StateReleased, step: stepRelease, reason: reason,
-		moves: []move{{bucketHeld, -1, condHeld}},
+		moves: []move{{bucketHeld, -1, condHeld, false}},
 	}
 }
 
@@ -132,11 +137,11 @@ func release(reason string) change {
 var (
 	startTransit = change{
 		from: StateHeld, to: StateInTransit, step: stepStartTransit,
-		moves: []move{{bucketHeld, -1, condHeld}, {bucketInTransit, 1, condNone}},
+		moves: []move{{bucketHeld, -1, condHeld, false}, {bucketInTransit, 1, condOnShelf, true}},
 	}
 	consume = change{
 		from: StateInTransit, to: StateConsumed, step: stepConsume,
-		moves: []move{{bucketInTransit, -1, condInTransit}, {bucketOnHand, -1, condNone}},
+		moves: []move{{bucketInTransit, -1, condInTransit, false}, {bucketOnHand, -1, condOnHand, true}},
 	}
 )
 
@@ -202,6 +207,9 @@ func (w Writer) applyMoves(ctx context.Context, tx pgx.Tx, r store.LockReservati
 		if err != nil {
 			return err
 		}
+		if !ok && m.short {
+			return stockShort(ctx, tx, r, m.cond)
+		}
 		if !ok {
 			// Số dư lệch giữ hàng (bất biến hỏng): không xảy ra khi mọi đường đổi tồn đi qua gói này.
 			return fmt.Errorf("%w: số dư %s không đủ cho giữ hàng %s", ErrStateConflict, m.bucket, r.ID)
@@ -209,4 +217,20 @@ func (w Writer) applyMoves(ctx context.Context, tx pgx.Tx, r store.LockReservati
 		last = row
 	}
 	return w.changed(ctx, tx, last)
+}
+
+// stockShort đọc số dư hiện tại (trong tx, sau các bước trước của cùng chuyển trạng thái) để dựng *StockShortError cho
+// dòng giữ hàng r: trên kệ = on_hand − in_transit (lấy hàng, cond on_shelf) hay on_hand (giao, cond on_hand).
+func stockShort(ctx context.Context, tx pgx.Tx, r store.LockReservationsRow, c cond) error {
+	bs, err := Availability(ctx, tx, r.WarehouseID, []uuid.UUID{r.VariantID})
+	if err != nil {
+		return err
+	}
+	onShelf := bs[0].OnHand
+	if c == condOnShelf {
+		onShelf -= bs[0].InTransit
+	}
+	return &StockShortError{
+		ReservationID: r.ID, VariantID: r.VariantID, WarehouseID: r.WarehouseID, Requested: r.Quantity, OnShelf: onShelf,
+	}
 }

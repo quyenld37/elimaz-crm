@@ -36,6 +36,13 @@ SELECT id, coupon_id, customer_id, discount
 FROM promotion.coupon_redemptions
 WHERE order_id = @order_id AND status = 'active';
 
+-- name: ActiveCouponCodeByOrder :one
+-- Mã (đúng chữ đã lưu) của lượt đang hiệu lực của đơn (dấu vân tay lần gửi lại tạo đơn).
+SELECT c.code::text AS code
+FROM promotion.coupon_redemptions r
+JOIN promotion.coupons c ON c.id = r.coupon_id
+WHERE r.order_id = @order_id AND r.status = 'active';
+
 -- name: UpsertRedemption :execrows
 -- Lượt mới của đơn, hoặc đổi dòng released cũ của cùng (mã, đơn) về active; dòng còn active → 0 dòng.
 INSERT INTO promotion.coupon_redemptions (tenant_id, coupon_id, order_id, customer_id, discount, status)

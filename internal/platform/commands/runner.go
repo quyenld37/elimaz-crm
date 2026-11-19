@@ -60,7 +60,8 @@ func (r *Runner) TerminalHook(kind string) queue.TerminalHook { //nolint:ireturn
 // một transaction có tenant của lệnh, mọi câu có điều kiện running + locked_by = workerID:
 //   - done → done (kèm Result) + DoneHook; ghi done lỗi → in_doubt (bên ngoài đã nhận, không gửi lại);
 //   - not_sent → đã quá expires_at: expired + OnTerminal (spec 04 mục 5.3, kể cả ở lần thử cuối); ngược lại
-//     AutoRetryNotSent và còn lượt: pending sau RetryAfter hoặc queue.NextDelay; ngược lại dead + OnTerminal;
+//     AutoRetryNotSent và còn lượt (hoặc KeepAttempt: trả lại lượt vừa tính): pending sau RetryAfter hoặc
+//     queue.NextDelay; ngược lại dead + OnTerminal;
 //   - rejected → dead + OnTerminal;
 //   - unknown, trạng thái lạ, Execute trả lỗi, quá Timeout, Stop hủy giữa chừng → in_doubt + OnTerminal.
 //
@@ -135,7 +136,7 @@ func (r *Runner) notSent(ctx context.Context, h Handler, j queue.Job, workerID s
 		}
 		if h.AutoRetryNotSent() {
 			n, err := q.RescheduleNotSent(ctx, store.RescheduleNotSentParams{
-				DelayMs: delay.Milliseconds(), LastError: msg, ID: j.ID, LockedBy: workerID,
+				DelayMs: delay.Milliseconds(), LastError: msg, KeepAttempt: out.KeepAttempt, ID: j.ID, LockedBy: workerID,
 			})
 			if err != nil {
 				return fmt.Errorf("hẹn gửi lại: %w", err)

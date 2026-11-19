@@ -46,3 +46,27 @@ func Codes(ctx context.Context, tx pgx.Tx, sellerID uuid.UUID, ids []uuid.UUID) 
 	}
 	return out, nil
 }
+
+// ItemOrder là đơn của một dòng đơn: mã đơn và mã hiển thị.
+type ItemOrder struct {
+	OrderID uuid.UUID
+	Code    string
+}
+
+// ItemOrders trả đơn của các dòng đơn itemIDs thuộc người bán sellerID (ADR-29), theo mã dòng đơn; dòng không có, của
+// người bán hay tenant khác bị bỏ. Dùng cho danh sách đơn đang giữ biến thể thiếu sau kiểm kho (Task 406): chỉ mã, không
+// nội dung đơn.
+func ItemOrders(ctx context.Context, tx pgx.Tx, sellerID uuid.UUID, itemIDs []uuid.UUID) (map[uuid.UUID]ItemOrder, error) {
+	out := make(map[uuid.UUID]ItemOrder, len(itemIDs))
+	if len(itemIDs) == 0 {
+		return out, nil
+	}
+	rows, err := store.New(tx).ItemOrders(ctx, store.ItemOrdersParams{SellerID: sellerID, ItemIds: itemIDs})
+	if err != nil {
+		return nil, fmt.Errorf("đọc đơn của dòng đơn: %w", err)
+	}
+	for _, r := range rows {
+		out[r.ItemID] = ItemOrder{OrderID: r.OrderID, Code: r.Code}
+	}
+	return out, nil
+}

@@ -14,8 +14,11 @@ changed=$( { git diff --name-only "$base"; git ls-files --others --exclude-stand
 step build make build
 step vet make vet
 step lint make lint
-step gen-check make gen-check
-step sqlc-vet make sqlc-vet
+# Bỏ bước khi đầu vào của nó không đổi (kết quả chắc chắn giống điểm tách nhánh, nơi main đã xanh), 19/11:
+# gen-check khi đổi nguồn sinh hoặc chính mã sinh; sqlc-vet khi đổi câu SQL, schema hay cấu hình sqlc.
+gen_in='^(go\.mod|go\.sum|tools/versions\.mk|openapi/|queries/|migrations/|sqlc\.yaml|tools/routegen/|internal/httpapi/gen/|internal/httpapi/routes_gen\.go|console/src/api/|console/package|.*/internal/store/)'
+if printf '%s\n' "$changed" | grep -E -q "$gen_in"; then step gen-check make gen-check; else echo "== gen-check: bỏ (không đổi nguồn sinh hay mã sinh)"; fi
+if printf '%s\n' "$changed" | grep -E -q '^(queries/|migrations/|sqlc\.yaml)'; then step sqlc-vet make sqlc-vet; else echo "== sqlc-vet: bỏ (không đổi SQL, schema, sqlc.yaml)"; fi
 step catalog-check make catalog-check
 step jscpd make jscpd
 step gitleaks make gitleaks

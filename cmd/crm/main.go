@@ -25,6 +25,7 @@ import (
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/imager"
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
@@ -145,7 +146,8 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 
 	logger.Info("khởi động", slog.Any("config", cfg))
 	// Sổ mục đích tệp trong Go phải khớp platform.file_purposes (Task M1-41): lệch là lỗi khởi động, không phục vụ.
-	// Mốc sau gọi files.RegisterPurpose ở đây, trước lần kiểm này.
+	// Mốc sau gọi files.RegisterPurpose ở đây, trước lần kiểm này: customer_import (M2, Task M2-13).
+	customer.RegisterFilePurposes()
 	if cfg.Role == config.RoleAPI || cfg.Role == config.RoleWorker {
 		if err := files.CheckPurposes(ctx, d); err != nil {
 			return fmt.Errorf("kiểm mục đích tệp: %w", err)
@@ -212,7 +214,7 @@ func newInbound(cfg config.Config, reg *metrics.Registry, bus selftest.Publisher
 }
 
 // newCommands là các loại lệnh ra ngoài của tiến trình: kiểm tệp nhập Excel catalog.import.validate (Task M1-47; chỉ
-// đọc kho tệp), xử lý ảnh file.process, file.process_private (Task M1-43),
+// đọc kho tệp), nhập khách customer.import (Task M2-13; đọc kho tệp, ghi theo lô), xử lý ảnh file.process, file.process_private (Task M1-43),
 // tạo lại kích thước file.regenerate (Task M1-44d;
 // chỉ khi có IMAGER_URL, thiếu thì lệnh chờ trong hàng đợi), lệnh thử command.selftest (bên ngoài tại chỗ, không
 // gửi gì thật, chỉ khi CRM_ENV khác production) và hai lệnh vận chuyển fulfillment.create_shipment,
@@ -226,6 +228,10 @@ func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtim
 	}
 	hs := []commands.Handler{
 		catalog.NewImportValidator(catalog.ImportValidatorOptions{DB: d, Store: fs}),
+		// Nhập khách từ Excel (Task M2-13): đọc kho tệp ngoài transaction, ghi theo lô 500 dòng.
+		customer.NewImporter(customer.ImporterOptions{
+			DB: d, Store: fs, Writer: customer.Writer{Events: evs, Queue: queue.NewQueue(), Realtime: bus},
+		}),
 		// Đối chiếu kho (Task M1-46): chỉ hỏi kho, không cần imager.
 		files.NewVerifyHandler(files.ProcessorOptions{DB: d, Store: fs, Bus: bus}),
 	}
@@ -241,7 +247,7 @@ func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtim
 		}
 		o := files.ProcessorOptions{
 			DB: d, Store: fs, Signer: signer, Imager: imager.NewClient(cfg.ImagerURL, &http.Client{}, cfg.ImagerMaxParallel),
-			PresetVersion: cfg.ImagePresetVersion, Bus: bus, Metrics: reg,
+			PresetVersion: cfg.ImagePresetVersion, Bus: bus, Metrics: reg, RetryMax: cfg.ImageRetryMax,
 		}
 		hs = append(hs, files.NewProcessHandler(o), files.NewProcessPrivateHandler(o), files.NewRegenerateHandler(o))
 	} else {
