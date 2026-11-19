@@ -76,6 +76,18 @@ jobs:
         if: always()
         run: make db-reset
 
+  # Test của imager với libvips thật (Task 414, E-04): bom điểm ảnh (TP03), hết bộ nhớ, treo (tiêu chí Xong 7) SKIP
+  # trên máy không có libvips nên `make ci` không thấy; ở đây IMAGER_REQUIRE_VIPS=1 biến SKIP thành đỏ. Dựng stage
+  # `test` của docker/imager/Dockerfile (không phải image chính, nên không đụng luật "image chính dựng một lần").
+  imager-vips:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Test imager với libvips cùng bản image (docker)
+        run: make test-imager
+
   console-e2e:
     if: github.event_name != 'schedule'
     runs-on: ubuntu-24.04

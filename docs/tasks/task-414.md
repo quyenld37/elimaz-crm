@@ -76,9 +76,9 @@ Mục 6 (đúng khi chạy đồng thời):
 
 ## Việc phát hiện thêm
 
-(không có)
+- Chạy lại theo lịch `docs/ca-chay-tay.md` sau L1 (đổi `internal/platform/files`): `go test -tags imager -run TestFilesPipeline ./tests/e2e/` (TP01, đường thường vẫn `ready` với imager và SeaweedFS thật) và `scripts/files/restore-drill.sh` (TP09: bản chép về từ kho ngoài phải giữ `content-type` đúng, không thì tệp dựng lại thành `rejected output_invalid`). Cần bộ compose riêng của một dự án (không chạy trên `crm-shared`), nên không làm trong phiên này; Task M1-55 (task 56) chạy trước khi đóng mốc. Đã kiểm gián tiếp: S3Store giữ `content-type` đã ký (`s3store_test.go`), rclone đoán `content-type` theo đuôi `.avif/.webp/.jpeg` khi không giữ được siêu dữ liệu.
 
 ## Reviewer
 
 - Commit 1 (cấu trúc, C-05: `liveprobe`, `NewLogger(logDir, role, …)`, luật (g) bắc cầu): ĐẠT, không có phát hiện về tính đúng. Reviewer chạy lại `go list -deps ./cmd/imager` (chỉ còn `internal/imager`, `logging`, `liveprobe`), `go list -e` trên testdata (Deps của `viahealth` có `platform/db`, của `cmd/imager` có pgx — đúng hai dòng mong mới), grep không còn `observability.CheckLive` hay `NewLogger(cfg`, đúng 6 chỗ gọi `NewLogger`. Ghi chú không bắt buộc: danh mục dùng chung chỉ liệt kê gói cấp đầu nên `CheckLive` không còn hiện trong danh mục (giữ: cùng cách với `alertjobs`).
-- Commit 2 (hành vi): CHƯA REVIEW
+- Commit 2 (hành vi: A-02 migration 0132, E-04 job `imager-vips` + `docs/ca-chay-tay.md`, L1 `checkVariants`/`finishVariants`, L3 hai test): ĐẠT, không có phát hiện về tính đúng. Reviewer soát riêng `file.regenerate` (tệp ready giữ ready, lệnh `rejected output_invalid` như khi imager từ chối), đường bản kê và dựng lại tệp mất, kho S3 thật giữ `content-type` đã ký (`s3store_test.go:224-239`), mọi câu chèn bằng crm_app (đúng 4 và 7 cột), goose cho phép số migration chen (0132 < 02xx). Ghi chú không bắt buộc: (1) kiểm "có dữ liệu" của `TestFileProcess_SignedURLsNotLogged` có thể đạt chỉ nhờ log — giữ, vì cả ba ảnh thuộc tenant A nên phần quét `platform.jobs` có dòng; (2) nên chạy lại TP01 e2e và `restore-drill.sh` với imager, SeaweedFS thật sau L1 — ghi ở "Việc phát hiện thêm".

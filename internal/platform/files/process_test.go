@@ -364,10 +364,67 @@ func TestFileProcess_SkipsExistingVariants(t *testing.T) {
 	}
 }
 
+// putObj ghi một biến thể có sẵn với content-type đúng định dạng của khóa (đuôi .avif → image/avif), như imager ghi.
 func putObj(t *testing.T, s files.FileStore, b files.Bucket, key, body string) {
 	t.Helper()
-	if err := s.Put(t.Context(), b, key, strings.NewReader(body), int64(len(body)), "image/jpeg"); err != nil {
+	putObjType(t, s, b, key, body, "image/"+key[strings.LastIndexByte(key, '.')+1:])
+}
+
+func putObjType(t *testing.T, s files.FileStore, b files.Bucket, key, body, contentType string) {
+	t.Helper()
+	if err := s.Put(t.Context(), b, key, strings.NewReader(body), int64(len(body)), contentType); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// L1 của threat model M1 (Task 414): trước khi đặt ready, worker Head mọi biến thể và đòi content-type đúng định dạng
+// đã ký (image/<định dạng>). Biến thể trên kho mang loại khác (imager bị chiếm ghi HTML, kho trả sai) → tệp rejected
+// output_invalid, không có biến thể nào được công bố, không ghi bản kê. Cả hai đường: biến thể có sẵn trước khi gọi
+// imager, và bản kê đã có (lần sau cùng ảnh) nhưng một biến thể bị thay.
+func TestFileProcess_RejectsVariantWithWrongType(t *testing.T) {
+	p := newProcEnv(t)
+	body := []byte("bien-the-html")
+	sha := shaHex(body)
+	specs, _ := files.Preset(1)
+	bad := files.VariantKey(sha, 1, specs[0].Width, specs[0].Format)
+	putObjType(t, p.mem, files.BucketPublic, bad, "<html><script>x</script></html>", "text/html")
+	id := p.upload(p.a, "product_image", body)
+	p.drain()
+	if r := p.fileRow(id); r.Status != files.StatusRejected || r.Reason != "output_invalid" {
+		t.Fatalf("tệp: %+v", r)
+	}
+	if j := p.job(kindPublic, id); j.Status != "dead" || !strings.Contains(j.LastError, "output_invalid") {
+		t.Fatalf("lệnh: %+v", j)
+	}
+	if n := len(p.variants(id)); n != 0 {
+		t.Fatalf("không được công bố biến thể nào, có %d", n)
+	}
+	if _, err := p.mem.Head(t.Context(), files.BucketPublic, "img/"+sha+"/v1/manifest.json"); err == nil {
+		t.Fatal("không được ghi bản kê khi biến thể sai loại")
+	}
+
+	// Đường bản kê: ảnh khác xử lý xong (có bản kê), rồi một biến thể bị thay bằng loại khác; tenant B tải cùng ảnh
+	// (không trùng trong tenant nên đi đường bản kê) → bản kê không được tin, tệp mới rejected.
+	good := []byte("anh-tot-roi-bi-thay")
+	sha2 := shaHex(good)
+	first := p.upload(p.a, "product_image", good)
+	p.drain()
+	if r := p.fileRow(first); r.Status != files.StatusReady {
+		t.Fatalf("lần đầu: %+v", r)
+	}
+	key := files.VariantKey(sha2, 1, specs[1].Width, specs[1].Format)
+	if err := p.mem.Delete(t.Context(), files.BucketPublic, key); err != nil {
+		t.Fatal(err)
+	}
+	putObjType(t, p.mem, files.BucketPublic, key, "<html>", "text/html")
+	calls := p.img.count()
+	second := p.upload(p.b, "product_image", good)
+	p.drain()
+	if r := p.fileRow(second); r.Status != files.StatusRejected || r.Reason != "output_invalid" {
+		t.Fatalf("lần hai: %+v", r)
+	}
+	if p.img.count() != calls {
+		t.Fatalf("bản kê đủ biến thể: không gọi imager, đã gọi thêm %d lần", p.img.count()-calls)
 	}
 }
 

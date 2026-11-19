@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -36,6 +38,12 @@ type filesAPIEnv struct {
 
 func newFilesAPIEnv(t *testing.T) *filesAPIEnv {
 	t.Helper()
+	return newFilesAPIEnvLog(t, slog.New(slog.NewJSONHandler(&lockedBuffer{buf: &bytes.Buffer{}}, nil)))
+}
+
+// newFilesAPIEnvLog như newFilesAPIEnv, log của máy chủ ghi vào logger.
+func newFilesAPIEnvLog(t *testing.T, logger *slog.Logger) *filesAPIEnv {
+	t.Helper()
 	e := &filesAPIEnv{t: t, staff: testkit.OpenStaff(t), keys: testkit.AccessKeyServer(t), store: testkit.MemFileStore(t)}
 	a, b := e.staff.Tenant(t, "A"), e.staff.Tenant(t, "B")
 	e.a = a
@@ -46,7 +54,7 @@ func newFilesAPIEnv(t *testing.T) *filesAPIEnv {
 	e.srv = NewServer(Deps{
 		Config: config.Config{ConsoleOrigins: []string{testOrigin}, FilesPublicBaseURL: "https://img.test"},
 		DB:     e.staff.App, Files: e.store,
-		Logger: slog.New(slog.NewJSONHandler(&lockedBuffer{buf: &bytes.Buffer{}}, nil)), Access: authE.verifier(),
+		Logger: logger, Access: authE.verifier(),
 	})
 	return e
 }
@@ -206,6 +214,42 @@ func TestFilesAPI_PermissionsAndUnknown(t *testing.T) {
 		}
 		if rec := e.do(r[0], r[1], filesA, ""); rec.Code != http.StatusNotFound {
 			t.Fatalf("%s %s mã lạ: muốn 404, nhận %d", r[0], r[1], rec.Code)
+		}
+	}
+}
+
+// L3 của threat model M1 (Task 414): đường dẫn ký sẵn mà createUpload trả cho trình duyệt không lọt vào log hay dấu
+// vết của máy chủ — qua tạo, gửi lại cùng khóa, complete trước và sau khi tải, getFile.
+func TestFilesAPI_SignedURLNotLogged(t *testing.T) {
+	spans := testkit.CaptureSpans(t)
+	logger, logs := testkit.CaptureLog(t)
+	e := newFilesAPIEnvLog(t, logger)
+	code, up, body := e.createUpload(filesA, 1000)
+	if code != http.StatusCreated {
+		t.Fatalf("createUpload: %d %s", code, body)
+	}
+	u, err := url.Parse(up.PutURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sig := u.Query().Get("sig")
+	if sig == "" {
+		t.Fatalf("đường dẫn ký sẵn không có chữ ký: %s", up.PutURL)
+	}
+	complete := "/api/v1/files/" + up.FileID.String() + "/complete"
+	e.do(http.MethodPost, complete, filesA, "") // 409 upload_missing: đường lỗi
+	if c := e.put(up, 1000); c != http.StatusOK {
+		t.Fatalf("PUT: %d", c)
+	}
+	e.do(http.MethodPost, complete, filesA, "")
+	e.do(http.MethodGet, "/api/v1/files/"+up.FileID.String(), filesA, "")
+	text := logs.String() + testkit.SpanText(spans.GetSpans().Snapshots())
+	if !strings.Contains(text, "/api/v1/files") {
+		t.Fatalf("log và span phải có các yêu cầu (kiểm chỗ quét có dữ liệu): %s", text)
+	}
+	for _, bad := range []string{sig, "X-Amz-Signature", u.RawQuery} {
+		if strings.Contains(text, bad) {
+			t.Errorf("log hoặc dấu vết chứa %q", bad)
 		}
 	}
 }
