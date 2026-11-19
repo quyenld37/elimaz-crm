@@ -48,7 +48,7 @@ describe("DocumentList", () => {
     expect(within(exp).getByText("Nháp")).toBeTruthy();
     const adj = screen.getByRole("link", { name: "DC-000003" }).closest("tr");
     expect(adj?.className).toContain("is-muted");
-    expect(screen.getByRole("link", { name: "Tạo phiếu" }).getAttribute("href")).toBe("/kho/phieu/moi");
+    expect((await screen.findByRole("link", { name: "Tạo phiếu" })).getAttribute("href")).toBe("/kho/phieu/moi");
   });
 
   it("lọc trạng thái, loại gửi status, kind; không quyền soạn thì không có nút Tạo phiếu", async () => {
@@ -63,5 +63,18 @@ describe("DocumentList", () => {
       expect(last?.get("kind")).toBe("import");
     });
     expect(fake.listCalls[0]?.has("status")).toBe(false);
+  });
+
+  // E-01: nút Tạo phiếu chỉ khi có quyền soạn ở ít nhất một kho đang dùng mà người xem thấy.
+  it("quyền soạn ở một kho thấy được → có Tạo phiếu; chỉ ở kho không thấy (hay ngừng dùng) → không", async () => {
+    fake.warehouses = kit.TWO_WAREHOUSES;
+    renderDocs([...grantsOf(), kit.grantAt("inventory.documents.create", kit.W2)], "/kho/phieu", ui);
+    expect(await screen.findByRole("link", { name: "Tạo phiếu" })).toBeTruthy();
+    cleanup();
+    fake.warehouses = [...kit.WAREHOUSES, { id: kit.W2, code: "SUB", name: "Kho phụ", status: "closed" }];
+    renderDocs([...grantsOf(), kit.grantAt("inventory.documents.create", kit.W2)], "/kho/phieu", ui);
+    await screen.findByRole("link", { name: "PN-000123" });
+    await screen.findByRole("option", { name: "Kho phụ" });
+    expect(screen.queryByRole("link", { name: "Tạo phiếu" })).toBeNull();
   });
 });

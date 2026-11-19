@@ -18,12 +18,15 @@ import type {
 import { queryKey } from "../../app/queryClient";
 
 export const W1 = "0195f3b2-0000-7000-8000-00000000a001";
+export const W2 = "0195f3b2-0000-7000-8000-00000000a002";
 export const V1 = "0195f3b2-0000-7000-8000-00000000b001";
 export const V2 = "0195f3b2-0000-7000-8000-00000000b002";
 export const DOC_EXPORT = "0195f3b2-0000-7000-8000-00000000d045";
 export const DOC_IMPORT = "0195f3b2-0000-7000-8000-00000000d124";
 
 export const WAREHOUSES: Warehouse[] = [{ id: W1, code: "MAIN", name: "Kho chính", status: "active" }];
+/** Hai kho đang dùng (test phạm vi kho của quyền, E-01). */
+export const TWO_WAREHOUSES: Warehouse[] = [...WAREHOUSES, { id: W2, code: "SUB", name: "Kho phụ", status: "active" }];
 
 const H1: VariantSearchHit = {
   variantId: V1,
@@ -92,6 +95,12 @@ export const grantsOf = (...perms: string[]): Grant[] =>
     scope: { type: "all", id: "" },
   }));
 
+/** Grant của quyền ở một kho (phạm vi "warehouse"), như máy chủ trả trong Me.grants. */
+export const grantAt = (permission: string, warehouseId: string): Grant => ({
+  permission,
+  scope: { type: "warehouse", id: warehouseId },
+});
+
 export interface Write {
   method: string;
   path: string;
@@ -100,6 +109,8 @@ export interface Write {
 }
 
 export interface Fake {
+  /** Kho listWarehouses trả (máy chủ đã lọc theo inventory.read). */
+  warehouses: Warehouse[];
   docs: Map<string, StockDocument>;
   suppliers: Supplier[];
   balances: Balance[];
@@ -128,6 +139,7 @@ function parse(text: string): unknown {
 /** Cài fetch giả; trả trạng thái để test đọc và chỉnh. */
 export function installFake(): Fake {
   const fake: Fake = {
+    warehouses: WAREHOUSES,
     docs: new Map(),
     suppliers: [{ id: "s-hoa-sen", name: "Xưởng may Hoa Sen", phone: "", note: "", status: "active", version: 1 }],
     balances: [balanceOf(H1, 6, 4), balanceOf(H2, 9, 0)],
@@ -153,7 +165,7 @@ export function installFake(): Fake {
       }
       const body = fake.writes.at(-1)?.body;
       const rec: Record<string, unknown> = isRecord(body) ? body : {};
-      if (p === "/api/v1/inventory/warehouses") return json(WAREHOUSES);
+      if (p === "/api/v1/inventory/warehouses") return json(fake.warehouses);
       if (p === "/api/v1/inventory/balances") return json({ items: fake.balances });
       if (p === "/api/v1/catalog/variants/search") {
         const q = (url.searchParams.get("q") ?? "").toUpperCase();

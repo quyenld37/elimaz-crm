@@ -22,15 +22,17 @@ const TEMPLATE_BYTES = Buffer.from("PK\u0003\u0004 tep mau gia");
 /** 10:02 18/11 giờ Việt Nam. */
 const CREATED = "2026-11-18T03:02:00Z";
 
-// Bảy lỗi của trạng thái C trong mockup (câu do máy chủ viết, Task 47).
+// Bảy lỗi của trạng thái C trong mockup, chép nguyên văn đầu ra của máy chủ cho tệp mẫu lỗi loi-tung-dong.xlsx
+// (importer.Validate, TestValidate_SevenSeededErrors): cột là tiêu đề cột của tệp mẫu (có * ở cột bắt buộc), mã là mã
+// Go (E-08 review độc lập M1).
 const SEVEN: CatalogImportError[] = [
-  [5, "Tên mẫu", "missing_required", "Thiếu tên mẫu (cột bắt buộc)"],
-  [9, "Giá bán", "invalid_price", 'Giá "350,5" không hợp lệ: giá là số đồng nguyên, ví dụ 350000 hoặc 350.000'],
-  [12, "SKU", "duplicate_sku", "SKU trùng với dòng 3 trong cùng tệp"],
-  [20, "Danh mục", "unknown_category", 'Không có danh mục "Áo > Không có"'],
-  [31, "Mã màu", "invalid_color", 'Mã màu "red" không hợp lệ: dùng dạng #RRGGBB, ví dụ #C0392B'],
-  [44, "Trạng thái", "invalid_status", 'Trạng thái "Bán" không hợp lệ: chọn Đang nhập, Đang bán hoặc Ngừng bán'],
-  [50, "Tên mẫu", "model_mismatch", "Tên mẫu khác dòng 49 cùng Mã mẫu: các cột của mẫu phải giống nhau ở mọi dòng"],
+  [5, "Tên mẫu*", "missing_required", "Thiếu Tên mẫu*"],
+  [9, "Giá bán*", "invalid_price", 'Giá bán* "350,5" không hợp lệ: số nguyên đồng không âm, ví dụ 350000 hoặc 350.000'],
+  [12, "SKU*", "duplicate_sku_in_file", "SKU M001-2 trùng dòng 3"],
+  [20, "Danh mục", "unknown_category", 'Danh mục "Áo > Không có" không có'],
+  [31, "Mã màu", "invalid_color_hex", 'Mã màu "red" phải có dạng #RRGGBB, ví dụ #FF0000'],
+  [44, "Trạng thái", "invalid_status", 'Trạng thái "Bán" không có: chọn Đang nhập, Đang bán hoặc Ngừng bán'],
+  [50, "Tên mẫu*", "inconsistent_product_fields", "Tên mẫu* khác dòng 47 cùng mã mẫu M010"],
 ].map(([row, column, code, message]) => ({
   row: Number(row),
   column: String(column),
@@ -44,12 +46,17 @@ const FILE_ERR: CatalogImportError = {
   code: "file_not_xlsx",
   message: "Tệp không phải Excel .xlsx đọc được: hãy mở bằng Excel và lưu lại dạng .xlsx",
 };
+// Lỗi lúc áp khi SKU vừa bị mẫu khác lấy (importer.Recheck).
 const STALE: CatalogImportError = {
   row: 14,
-  column: "SKU",
-  code: "sku_taken",
-  message: "SKU AO01-DEN-S vừa được thêm cho mẫu khác sau lúc kiểm",
+  column: "SKU*",
+  code: "sku_belongs_to_other_product",
+  message: 'SKU "AO01-DEN-S" vừa được dùng cho mẫu "AO02" sau khi kiểm tệp',
 };
+
+/** Câu của màn khi thiếu files.upload (ImportPage.tsx TEXT_NO_UPLOAD_RIGHT). */
+const TEXT_NO_UPLOAD_RIGHT =
+  "Tài khoản của bạn chưa có quyền tải tệp lên nên chưa chọn tệp được. Nhờ Chủ shop cấp quyền.";
 
 const EMPTY: CatalogImportSummary = { models: 0, create: 0, update: 0, unchanged: 0 };
 
@@ -59,7 +66,11 @@ interface Fake {
 }
 
 /** API giả có trạng thái: kết quả kiểm theo tên tệp; tệp đã áp lần trước → duplicate. */
-async function importApi(api: FakeApi, page: Page): Promise<Fake> {
+async function importApi(
+  api: FakeApi,
+  page: Page,
+  perms: readonly string[] = ["catalog.read", "catalog.import", "files.upload", "realtime.subscribe"],
+): Promise<Fake> {
   const fake: Fake = { log: { writes: [], failNext: null }, puts: [] };
   const rec = writeRecorder(fake.log);
   const names = new Map<string, string>(); // fileId → tên tệp
@@ -70,7 +81,7 @@ async function importApi(api: FakeApi, page: Page): Promise<Fake> {
   const id = (p: string) => `0195f3b2-0000-7000-8000-${p}${String(++n).padStart(8, "0")}`;
 
   await api.live({
-    grants: ["catalog.read", "catalog.import", "files.upload", "realtime.subscribe"].map((permission) => ({
+    grants: perms.map((permission) => ({
       permission,
       scope: { type: "all", id: "" },
     })),
@@ -205,7 +216,8 @@ forEachViewport(() => {
     for (const [i, e] of SEVEN.entries()) {
       const cells = rows.nth(i).locator("td");
       await expect(cells.nth(0)).toHaveText(String(e.row));
-      await expect(cells.nth(1)).toHaveText(e.column);
+      // Ô "Cột" bỏ dấu * của cột bắt buộc như mockup; câu lỗi giữ nguyên văn máy chủ.
+      await expect(cells.nth(1)).toHaveText(e.column.replace(/\*$/, ""));
       await expect(cells.nth(2)).toHaveText(e.message);
     }
     await expect(page.getByRole("button", { name: /^Áp dụng/ })).toHaveCount(0);
@@ -286,6 +298,22 @@ forEachViewport(() => {
     await expect(page.getByText(FILE_ERR.message)).toBeVisible();
     await expect(page.getByText("Không đọc được tệp.")).toBeVisible();
     await expect(page.locator(".etbl")).toHaveCount(0);
+    await noHorizontalScroll(page);
+  });
+
+  // E-02 (review độc lập M1): createUpload, completeUpload đòi files.upload, tách khỏi catalog.import (vai trò tự định
+  // nghĩa có thể có cái này mà thiếu cái kia). Thiếu thì màn báo trước thay vì để chọn tệp rồi nhận 403.
+  test("có catalog.import mà thiếu files.upload: tải mẫu được, không có ô chọn tệp, câu báo cần quyền", async ({
+    page,
+    api,
+  }) => {
+    const fake = await importApi(api, page, ["catalog.read", "catalog.import", "realtime.subscribe"]);
+    await page.goto("/nhap-excel");
+    await expect(page.getByText(TEXT_NO_UPLOAD_RIGHT)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Tải tệp mẫu (.xlsx)" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Chọn tệp" })).toHaveCount(0);
+    await expect(page.getByText("Kéo tệp .xlsx vào đây")).toHaveCount(0);
+    expect(fake.log.writes).toEqual([]);
     await noHorizontalScroll(page);
   });
 

@@ -88,6 +88,11 @@ describe("fileErrors, rowText, columnText", () => {
     expect(columnText("")).toBe("Cả dòng");
     expect(columnText("Giá bán")).toBe("Giá bán");
   });
+  it("cột bắt buộc: máy chủ trả tiêu đề tệp mẫu có * ở cuối, màn hiện không có * như mockup (E-08)", () => {
+    expect(columnText("Tên mẫu*")).toBe("Tên mẫu");
+    expect(columnText("SKU*")).toBe("SKU");
+    expect(columnText("Thuộc tính: Chất liệu")).toBe("Thuộc tính: Chất liệu");
+  });
 });
 
 describe("variantTotal", () => {

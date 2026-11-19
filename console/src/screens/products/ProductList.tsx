@@ -6,8 +6,17 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { getMe, listCategories, listProducts, listTags, type ListProductsData, type ProductListItem } from "../../api";
+import {
+  getMe,
+  listCategories,
+  listProducts,
+  listTags,
+  listWarehouses,
+  type ListProductsData,
+  type ProductListItem,
+} from "../../api";
 import { errorMessage, unwrap } from "../../app/errors";
+import { hasPermission } from "../../app/nav";
 import { TOPICS, queryKey } from "../../app/queryClient";
 import {
   availableView,
@@ -52,7 +61,17 @@ export function ProductList() {
   const [sp, setSp] = useSearchParams();
   // Cùng khóa với khung (src/shell/App.tsx) nên không gọi lại /api/v1/me.
   const me = useQuery({ queryKey: queryKey("identity.me"), queryFn: () => unwrap(getMe()) });
-  const warehouses = useMemo(() => warehouseOptions(me.data?.grants ?? []), [me.data]);
+  // Kho tính "Có thể bán": listWarehouses (đòi inventory.read; máy chủ trả kho người xem đọc được). Không có quyền đó
+  // thì không gọi (sẽ 403) và không có cột. Cùng khóa với các màn Kho.
+  const canReadStock = hasPermission(me.data?.grants ?? [], "inventory.read");
+  const whQuery = useQuery({
+    queryKey: queryKey("inventory.warehouses"),
+    queryFn: () => unwrap(listWarehouses()),
+    enabled: canReadStock,
+  });
+  const warehouses = useMemo(() => warehouseOptions(whQuery.data ?? []), [whQuery.data]);
+  // Chờ danh sách kho (hay lỗi) rồi mới gọi listProducts, để không gọi một lần không kho rồi một lần có kho.
+  const warehousesSettled = !canReadStock || !whQuery.isPending;
   const warehouseIds = useMemo(() => warehouses.map((w) => w.id), [warehouses]);
   const filters = readFilters(sp, warehouseIds);
   const setFilters = (next: Filters) => {
@@ -92,6 +111,7 @@ export function ProductList() {
   const query = listQuery(filters);
   const list = useInfiniteQuery({
     queryKey: queryKey(TOPICS.product, "list", query),
+    enabled: warehousesSettled,
     queryFn: ({ pageParam }) =>
       unwrap(listProducts({ query: pageParam === "" ? query : { ...query, cursor: pageParam } })),
     // "" là trang đầu (không gửi cursor); nextCursor thiếu là hết.

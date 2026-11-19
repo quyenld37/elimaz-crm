@@ -17,3 +17,16 @@ it("route.tsx khai đúng path, nhãn, nhóm, quyền, trang ẩn, also, order",
     ["/kho/nha-cung-cap", "Nhà cung cấp", "Kho", "inventory.read", false, [], 40],
   ]);
 });
+
+// E-02 (review độc lập M1): màn Kiểm kho gọi listWarehouses, getStocktake, listBalances (inventory.read) và
+// searchVariants (catalog.read); thiếu một trong hai thì màn không chạy, nên route đòi cả hai.
+it("Kiểm kho đòi thêm inventory.read và catalog.read; màn khác không đòi thêm", () => {
+  expect(screens.map((s) => [s.path, s.alsoRequires ?? []])).toEqual([
+    ["/kho/ton", []],
+    ["/kho/phieu", []],
+    ["/kho/phieu/:id", []],
+    ["/kho/kiem-kho", ["inventory.read", "catalog.read"]],
+    ["/kho/kiem-kho/:id", ["inventory.read", "catalog.read"]],
+    ["/kho/nha-cung-cap", []],
+  ]);
+});

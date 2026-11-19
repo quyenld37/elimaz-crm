@@ -16,6 +16,8 @@ export interface Screen {
   group: NavGroup;
   /** Khóa quyền (docs/quyen.md) cần để thấy màn. */
   permission: string;
+  /** Quyền khác mà API của màn cũng đòi (thiếu một cái thì màn không chạy được): cần đủ mới thấy màn. */
+  alsoRequires?: readonly string[];
   /** Đường dẫn khác làm sáng mục này trên menu (trang con, ví dụ sửa mẫu → Danh sách sản phẩm). */
   also?: string[];
   /** Có route nhưng không có mục trên menu (trang con). */
@@ -28,8 +30,13 @@ export function hasPermission(grants: readonly Grant[], permission: string): boo
   return grants.some((g) => g.permission === permission);
 }
 
+/** Thấy được màn: có quyền chính và mọi quyền đi kèm (alsoRequires), mỗi quyền ở phạm vi bất kỳ. */
+export function canSee(grants: readonly Grant[], s: Screen): boolean {
+  return [s.permission, ...(s.alsoRequires ?? [])].every((p) => hasPermission(grants, p));
+}
+
 export function allowedScreens(screens: readonly Screen[], grants: readonly Grant[]): Screen[] {
-  return screens.filter((s) => hasPermission(grants, s.permission));
+  return screens.filter((s) => canSee(grants, s));
 }
 
 export interface NavSection {

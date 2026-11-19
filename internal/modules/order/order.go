@@ -34,18 +34,27 @@ import (
 	"elimaz.com.vn/crm/internal/platform/realtime"
 )
 
-// Trạng thái đơn (05 mục 2) và kênh.
+// Trạng thái đơn (05 mục 2; bảy giá trị như order/internal/state) và kênh (CHECK của ord.orders.channel).
 const (
-	StatusConfirmed = "confirmed"
-	StatusDelivered = "delivered"
+	StatusDraft           = "draft"
+	StatusNew             = "new"
+	StatusConfirmed       = "confirmed"
+	StatusCancelRequested = "cancel_requested"
+	StatusCancelled       = "cancelled"
+	StatusDelivered       = "delivered"
+	StatusReturned        = "returned"
 
-	channelManual = "manual"
+	ChannelManual   = "manual"
+	ChannelFacebook = "facebook"
+	ChannelWeb      = "web"
 )
 
-// Actor là nhân viên lên đơn: tenant và mã nhân viên (uuid.Nil → không ghi created_by, actor_id). order không nhập
-// identity (04 mục 3); lớp HTTP chép từ identity.AuthUser.
+// Actor là người làm một việc trên đơn: tenant, mã người (uuid.Nil → không ghi created_by, actor_id) và loại (Q-T57-2:
+// rỗng = staff; system, carrier, customer, service). order không nhập identity (04 mục 3); lớp HTTP chép từ
+// identity.AuthUser.
 type Actor struct {
 	TenantID, UserID uuid.UUID
+	Type             string
 }
 
 // ItemInput là một dòng của đơn nhập tay: biến thể và số lượng (> 0).

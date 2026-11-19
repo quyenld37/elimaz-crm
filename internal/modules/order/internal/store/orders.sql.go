@@ -7,7 +7,6 @@ package store
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -34,73 +33,9 @@ func (q *Queries) ClearCurrentShipment(ctx context.Context, arg ClearCurrentShip
 	return result.RowsAffected(), nil
 }
 
-const insertOrder = `-- name: InsertOrder :one
-
-INSERT INTO ord.orders
-    (id, tenant_id, seller_id, code, customer_id, channel, idempotency_key, status, ship_address, subtotal,
-     discount_total, shipping_fee_charged, cod_amount, grand_total, created_by, version, warehouse_id, ship_phone,
-     ship_phone_reversed, confirmed_at, confirmed_by)
-VALUES ($1, NULLIF(current_setting('app.tenant_id', true), '')::uuid, $2, $3, $4, $5, $6, $7, $8,
-        $9, $10, $11, $12, $13, $14::uuid,
-        $15, $16, $17, $18,
-        CASE WHEN $7::text = 'confirmed' THEN now() END,
-        CASE WHEN $7::text = 'confirmed' THEN $14::uuid END)
-RETURNING created_at
-`
-
-type InsertOrderParams struct {
-	ID                 uuid.UUID
-	SellerID           uuid.UUID
-	Code               string
-	CustomerID         uuid.UUID
-	Channel            string
-	IdempotencyKey     uuid.UUID
-	Status             string
-	ShipAddress        []byte
-	Subtotal           int64
-	DiscountTotal      int64
-	ShippingFeeCharged int64
-	CodAmount          int64
-	GrandTotal         int64
-	CreatedBy          pgtype.UUID
-	Version            int64
-	WarehouseID        uuid.UUID
-	ShipPhone          string
-	ShipPhoneReversed  string
-}
-
-// Đơn tối thiểu (kế hoạch M1, Task M1-30; 05 mục 2). Chạy trong tenancy.WithTenant. Thứ tự khóa ADR-46 nhóm 7.
-// Gắn vận đơn, khóa đơn, đổi trạng thái: Task M1-30b (333), cuối tệp.
-// warehouse_id: kho giữ hàng của đơn (M2-05); ship_phone đã chuẩn hóa (” khi không chuẩn hóa được); đơn tạo thẳng
-// confirmed ghi confirmed_at, confirmed_by lúc tạo.
-func (q *Queries) InsertOrder(ctx context.Context, arg InsertOrderParams) (time.Time, error) {
-	row := q.db.QueryRow(ctx, insertOrder,
-		arg.ID,
-		arg.SellerID,
-		arg.Code,
-		arg.CustomerID,
-		arg.Channel,
-		arg.IdempotencyKey,
-		arg.Status,
-		arg.ShipAddress,
-		arg.Subtotal,
-		arg.DiscountTotal,
-		arg.ShippingFeeCharged,
-		arg.CodAmount,
-		arg.GrandTotal,
-		arg.CreatedBy,
-		arg.Version,
-		arg.WarehouseID,
-		arg.ShipPhone,
-		arg.ShipPhoneReversed,
-	)
-	var created_at time.Time
-	err := row.Scan(&created_at)
-	return created_at, err
-}
-
 const lockOrder = `-- name: LockOrder :one
-SELECT id, tenant_id, seller_id, status, current_shipment_id, version
+
+SELECT id, tenant_id, seller_id, customer_id, status, pending_reason, current_shipment_id, address_complete, version
 FROM ord.orders
 WHERE seller_id = $1 AND id = $2
 FOR UPDATE
@@ -115,11 +50,16 @@ type LockOrderRow struct {
 	ID                uuid.UUID
 	TenantID          uuid.UUID
 	SellerID          uuid.UUID
+	CustomerID        uuid.UUID
 	Status            string
+	PendingReason     string
 	CurrentShipmentID pgtype.UUID
+	AddressComplete   bool
 	Version           int64
 }
 
+// Đơn tối thiểu (kế hoạch M1, Task M1-30; 05 mục 2). Chạy trong tenancy.WithTenant. Thứ tự khóa ADR-46 nhóm 7.
+// Gắn vận đơn, khóa đơn: Task M1-30b (333). Chèn đơn ở create.sql, đổi trạng thái ở transition.sql (Task M2-16).
 // Khóa đơn trước mọi dòng nhóm sau (ADR-46 nhóm 7, dòng "khóa đơn trước"). Bên gọi (fulfillment) truyền người bán
 // của tài khoản hãng (ADR-29, Task M1-37).
 func (q *Queries) LockOrder(ctx context.Context, arg LockOrderParams) (LockOrderRow, error) {
@@ -129,8 +69,11 @@ func (q *Queries) LockOrder(ctx context.Context, arg LockOrderParams) (LockOrder
 		&i.ID,
 		&i.TenantID,
 		&i.SellerID,
+		&i.CustomerID,
 		&i.Status,
+		&i.PendingReason,
 		&i.CurrentShipmentID,
+		&i.AddressComplete,
 		&i.Version,
 	)
 	return i, err
@@ -155,31 +98,4 @@ func (q *Queries) SetCurrentShipment(ctx context.Context, arg SetCurrentShipment
 		return 0, err
 	}
 	return result.RowsAffected(), nil
-}
-
-const setOrderStatus = `-- name: SetOrderStatus :one
-UPDATE ord.orders
-SET status = $1, version = version + 1, updated_at = now()
-WHERE seller_id = $2 AND id = $3 AND status = $4
-RETURNING version
-`
-
-type SetOrderStatusParams struct {
-	ToStatus   string
-	SellerID   uuid.UUID
-	ID         uuid.UUID
-	FromStatus string
-}
-
-// Đổi trạng thái chỉ khi đang ở trạng thái cũ; trả version mới (không dòng nào → pgx.ErrNoRows).
-func (q *Queries) SetOrderStatus(ctx context.Context, arg SetOrderStatusParams) (int64, error) {
-	row := q.db.QueryRow(ctx, setOrderStatus,
-		arg.ToStatus,
-		arg.SellerID,
-		arg.ID,
-		arg.FromStatus,
-	)
-	var version int64
-	err := row.Scan(&version)
-	return version, err
 }

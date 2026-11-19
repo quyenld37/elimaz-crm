@@ -131,8 +131,9 @@ func TestM2Routes_Unimplemented(t *testing.T) {
 	staff.Grant(t, tenant, owner, []string{"customer.read", "order.create"}, "all", "")
 	staff.User(t, tenant, "khong-quyen@elimaz.test", "active")
 	srv := testServer(t, staff, keys, 0)
-	// Route M2 còn chưa làm (Task M2-12), cùng quyền customer.read; listCustomers đã làm ở Task M2-10.
-	unimplementedPath := "/api/v1/customers/" + uuid.NewString() + "/timeline"
+	// Route M2 còn chưa làm (Task M2-25), cùng quyền customer.read; listCustomers đã làm ở Task M2-10, dòng thời gian
+	// khách ở Task M2-12.
+	unimplementedPath := "/api/v1/customer-tags/" + uuid.NewString() + "/rule"
 
 	rec := serveAs(srv, keys, http.MethodGet, unimplementedPath, "chu@elimaz.test", "", "")
 	expect(t, "chủ, chưa làm", rec, http.StatusNotImplemented, "not_implemented")
@@ -149,9 +150,10 @@ func TestM2Routes_Unimplemented(t *testing.T) {
 		orderBody(0, line(uuid.New(), 1))), http.StatusBadRequest, "idempotency_key_required")
 }
 
-// TestOrderAPI_M2FieldsPending: thân kiểu M1 vẫn 201 (TestOrderAPI_CreateGet); trường M2 của createOrder chưa có
-// nghiệp vụ (Task M2-16, 17) thì 501, không bị bỏ qua lặng lẽ; thiếu cả customer lẫn customerId, hay thiếu địa chỉ khi
-// không gửi intent (luật M1) → 400 invalid_input. Không đơn nào được tạo.
+// TestOrderAPI_M2FieldsPending: thân kiểu M1 vẫn 201 (TestOrderAPI_CreateGet); couponCode chưa có nghiệp vụ (Task
+// M2-17) thì 501, không bị bỏ qua lặng lẽ (trường M2 khác có từ Task M2-16, test ở handlers_order_m2_test.go); thiếu
+// cả customer lẫn customerId, hay thiếu địa chỉ khi không gửi intent (luật M1) → 400 invalid_input. Không đơn nào được
+// tạo.
 func TestOrderAPI_M2FieldsPending(t *testing.T) {
 	e := newOrderAPIEnv(t)
 	v := e.variant(e.shop.Seller, 1000, 5)
@@ -161,17 +163,7 @@ func TestOrderAPI_M2FieldsPending(t *testing.T) {
 		status     int
 		code       string
 	}{
-		{"intent", strings.Replace(base, `{"customer"`, `{"intent":"draft","customer"`, 1), http.StatusNotImplemented, "not_implemented"},
-		{
-			"customerId", strings.Replace(base, `"customer":{"fullName":"Chị Lan"}`, `"customerId":"`+uuid.NewString()+`"`, 1),
-			http.StatusNotImplemented, "not_implemented",
-		},
-		{"lineDiscount", strings.Replace(base, `"qty":1}`, `"qty":1,"lineDiscount":100}`, 1), http.StatusNotImplemented, "not_implemented"},
 		{"couponCode", strings.Replace(base, `{"customer"`, `{"couponCode":"SALE10","customer"`, 1), http.StatusNotImplemented, "not_implemented"},
-		{
-			"provinceCode", strings.Replace(base, `"line":"12 Lê Lợi, Q1"`, `"line":"12 Lê Lợi, Q1","provinceCode":"79"`, 1),
-			http.StatusNotImplemented, "not_implemented",
-		},
 		{"không khách", strings.Replace(base, `"customer":{"fullName":"Chị Lan"},`, ``, 1), http.StatusBadRequest, "invalid_input"},
 		{
 			"không địa chỉ", strings.Replace(base, `,"shipAddress":{"name":"Chị Lan","phone":"+84901234567","line":"12 Lê Lợi, Q1"}`, ``, 1),

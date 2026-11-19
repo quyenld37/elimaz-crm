@@ -1,7 +1,7 @@
 // Màn Nhân viên và quyền (kế hoạch M1 Task 54, PQ07; mockup docs/mockups/m1/nhan-vien.html) ở 1512 × 767 và 390 × 844,
 // API giả có trạng thái (e2e/fixtures.ts). Luật thật nằm ở API (Task 26, 315); ở đây kiểm màn gửi đúng yêu cầu, hiện
 // đúng câu khi máy chủ chặn, ẩn nút trên dòng của chính mình và làm mờ vai trò vượt quyền người sửa.
-import type { Grant, ReplaceGrantsRequest, Role, ScopeWarning, StaffMember } from "../src/api";
+import type { Grant, PermissionInfo, ReplaceGrantsRequest, Role, ScopeWarning, StaffMember } from "../src/api";
 import { DESKTOP, expect, forEachViewport, json, test, writeRecorder, type FakeApi, type WriteLog } from "./fixtures";
 
 const LAN = "0195f3b2-0000-7000-8000-000000000001"; // người đang đăng nhập (Chủ)
@@ -25,6 +25,23 @@ const ALL_PERMS = [
   "identity.roles.manage",
   "platform.jobs.manage",
 ];
+// Loại phạm vi của từng quyền như listPermissions trả (docs/quyen.md, cột "Loại phạm vi").
+const PERMISSION_INFO: PermissionInfo[] = (
+  [
+    ["catalog.read", "none"],
+    ["inventory.read", "warehouse"],
+    ["inventory.documents.create", "warehouse"],
+    ["inventory.stocktake", "warehouse"],
+    ["inventory.suppliers.manage", "none"],
+    ["order.read", "none"],
+    ["fulfillment.read", "warehouse"],
+    ["fulfillment.ship", "warehouse"],
+    ["realtime.subscribe", "none"],
+    ["identity.users.manage", "shop"],
+    ["identity.roles.manage", "shop"],
+    ["platform.jobs.manage", "shop"],
+  ] as const
+).map(([key, scopeType]) => ({ key, scopeType, group: "Nhóm", label: key }));
 const MANAGER_PERMS = ALL_PERMS.filter((p) => !p.startsWith("identity.") && !p.startsWith("platform."));
 
 const ROLES: Role[] = [
@@ -125,6 +142,8 @@ async function staffApi(api: FakeApi, meId: string, meGrants: Grant[]): Promise<
   const fake: Fake = { staff: seed(), writes: [], failNext: null };
   await api.live({ userId: meId, email: "x@elimaz.com.vn", grants: meGrants });
   await api.on("**/api/v1/identity/roles", (r) => json(r, 200, ROLES));
+  // Người sửa có identity.roles.manage thì màn đọc loại phạm vi của quyền (E-06).
+  await api.on("**/api/v1/identity/permissions", (r) => json(r, 200, PERMISSION_INFO));
   const { record, fail } = writeRecorder(fake);
   await api.on("**/api/v1/identity/users", async (r) => {
     if (r.request().method() === "GET") return json(r, 200, fake.staff);
@@ -345,4 +364,37 @@ test("menu: mục Nhân viên chỉ hiện với người có quyền quản lý
   await expect(page.getByRole("heading", { name: "Không có quyền" })).toBeVisible();
   await expect(page.getByText("Tài khoản của bạn không được xem Nhân viên.", { exact: false })).toBeVisible();
   await expect(page.getByRole("link", { name: "Nhân viên" })).toHaveCount(0);
+});
+
+// E-06 (review độc lập M1): máy chủ (identity.Can) cho gán quyền loại "none" khi người gán có nó ở grant bất kỳ. Người
+// sửa có catalog.read chỉ qua grant ở kho chính vẫn gán được vai trò tự tạo chỉ có catalog.read ở Toàn shop; màn đọc
+// loại phạm vi từ listPermissions (người sửa có identity.roles.manage).
+test("vai trò chỉ có quyền loại none: người sửa có quyền đó ở một kho vẫn gán được ở Toàn shop", async ({
+  page,
+  api,
+}) => {
+  await page.setViewportSize(DESKTOP);
+  await staffApi(api, HA, [
+    all("identity.users.manage"),
+    all("identity.roles.manage"),
+    { permission: "catalog.read", scope: { type: "warehouse", id: KHO_CHINH } },
+  ]);
+  const viewer: Role = {
+    id: "0195f3b2-0000-7000-8000-0000000b0006",
+    version: 1,
+    holderCount: 0,
+    key: "xem-san-pham",
+    name: "Xem sản phẩm",
+    status: "active",
+    customized: true,
+    permissions: ["catalog.read"],
+  };
+  await api.on("**/api/v1/identity/roles", (r) => json(r, 200, [...ROLES, viewer]));
+  await page.goto(`/nhan-vien/${MINH}/quyen`);
+  const opt = page.getByRole("radio", { name: /^Xem sản phẩm/ });
+  await expect(opt).toBeEnabled();
+  // Vai trò có quyền theo kho (Bán hàng có inventory.read) vẫn mờ: người sửa không có nó ở đâu.
+  await expect(page.getByRole("radio", { name: /^Bán hàng/ })).toBeDisabled();
+  await opt.check();
+  await expect(page.getByLabel("Phạm vi của vai trò Xem sản phẩm")).toContainText("Toàn shop");
 });

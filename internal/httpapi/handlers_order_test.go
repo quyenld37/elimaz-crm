@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -35,6 +36,12 @@ type orderAPIEnv struct {
 
 func newOrderAPIEnv(t *testing.T) *orderAPIEnv {
 	t.Helper()
+	return newOrderAPIEnvWith(t, 0)
+}
+
+// newOrderAPIEnvWith như newOrderAPIEnv, máy chủ chờ khóa tối đa lockTimeout (0: mặc định).
+func newOrderAPIEnvWith(t *testing.T, lockTimeout time.Duration) *orderAPIEnv {
+	t.Helper()
 	e := &orderAPIEnv{t: t, staff: testkit.OpenStaff(t), keys: testkit.AccessKeyServer(t)}
 	tenant := e.staff.Tenant(t, "A")
 	e.staff.Exec(t, tenant, func(tx pgx.Tx) error {
@@ -45,7 +52,7 @@ func newOrderAPIEnv(t *testing.T) *orderAPIEnv {
 	e.staff.Grant(t, tenant, c, []string{"order.create", "order.read"}, "all", "")
 	v := e.staff.User(t, tenant, orderViewer, "active")
 	e.staff.Grant(t, tenant, v, []string{"order.read"}, "all", "")
-	e.srv = testServer(t, e.staff, e.keys, 0)
+	e.srv = testServer(t, e.staff, e.keys, lockTimeout)
 	return e
 }
 

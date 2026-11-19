@@ -147,6 +147,22 @@ describe("Balances", () => {
     );
   });
 
+  // E-01: máy chủ kiểm quyền soạn phiếu theo kho. Nút đầu trang: có quyền soạn ở ít nhất một kho; nút "Tạo phiếu nhập"
+  // của kho trống: theo đúng kho đang xem.
+  it("quyền soạn chỉ ở kho chính: có Tạo phiếu kho, kho phụ trống không có Tạo phiếu nhập", async () => {
+    const atW1: Grant = { permission: "inventory.documents.create", scope: { type: "warehouse", id: W1 } };
+    renderScreen([...grantsOf(), atW1]);
+    expect(await screen.findByRole("link", { name: "Tạo phiếu kho" })).toBeTruthy();
+    fireEvent.change(await screen.findByRole("combobox", { name: "Kho" }), { target: { value: W2 } });
+    expect(await screen.findByText("Kho phụ chưa có hàng")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Tạo phiếu nhập" })).toBeNull();
+    cleanup();
+    const atW2: Grant = { permission: "inventory.documents.create", scope: { type: "warehouse", id: W2 } };
+    renderScreen([...grantsOf(), atW2]);
+    fireEvent.change(await screen.findByRole("combobox", { name: "Kho" }), { target: { value: W2 } });
+    expect(await screen.findByRole("link", { name: "Tạo phiếu nhập" })).toBeTruthy();
+  });
+
   it("dấu trừ thật và ngừng bán", () => {
     expect(signed(-3)).toBe("−3");
     expect(signed(4)).toBe("4");

@@ -19,12 +19,14 @@ import {
   createUpload,
   getCatalogImport,
   getCatalogImportTemplate,
+  getMe,
   type CatalogImport,
   type CreateCatalogImportRequest,
   type CreateUploadRequest,
 } from "../../api";
 import { ApiError, errorMessage, unwrap } from "../../app/errors";
 import { useAbortOnUnmount, useWriteAction } from "../../app/idempotency";
+import { hasPermission } from "../../app/nav";
 import { queryKey } from "../../app/queryClient";
 import { xhrPut } from "../products/useUpload";
 import { Dialog } from "../staff/staffData";
@@ -55,6 +57,8 @@ const ACCEPT = `.xlsx,${XLSX_TYPE}`;
 export const TEXT_NOT_READABLE = "Không đọc được tệp.";
 export const TEXT_NOT_READABLE_HINT =
   "Tệp không phải Excel (.xlsx), hoặc quá 5 MB, hoặc quá 20.000 dòng. Lưu lại bằng Excel dạng .xlsx từ tệp mẫu.";
+export const TEXT_NO_UPLOAD_RIGHT =
+  "Tài khoản của bạn chưa có quyền tải tệp lên nên chưa chọn tệp được. Nhờ Chủ shop cấp quyền.";
 export const TEXT_UPLOAD_INCOMPLETE = "Tải lên chưa trọn. Chọn lại tệp để tải lên lần nữa.";
 
 /** Lỗi trước khi có bản nhập: tệp không nhận (file) hay lỗi API, mạng (text). */
@@ -112,6 +116,10 @@ export function ImportPage() {
   const imp = useImport(id);
   const data = imp.data;
   const original = useImport(data?.status === "duplicate" ? (data.duplicateOf ?? null) : null);
+  // Cùng khóa với khung (src/shell/App.tsx). Tải lên (createUpload, completeUpload) đòi files.upload, tách khỏi
+  // catalog.import của màn: thiếu thì báo trước thay cho ô chọn tệp (máy chủ sẽ trả 403).
+  const me = useQuery({ queryKey: queryKey("identity.me"), queryFn: () => unwrap(getMe()) });
+  const canUpload = hasPermission(me.data?.grants ?? [], "files.upload");
 
   const [downloaded, setDownloaded] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -319,25 +327,28 @@ export function ImportPage() {
             </div>
             <div className="card">
               <h2>2. Chọn tệp đã điền</h2>
-              <div
-                className={over ? "drop is-over" : "drop"}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setOver(true);
-                }}
-                onDragLeave={() => {
-                  setOver(false);
-                }}
-                onDrop={onDrop}
-              >
-                <p>
-                  <b>Kéo tệp .xlsx vào đây</b> hoặc
-                </p>
-                <button type="button" className="btn btn-dark" onClick={choose}>
-                  Chọn tệp
-                </button>
-                <p className="hint">Tối đa 5 MB, 20.000 dòng. Ô có công thức sẽ bị từ chối.</p>
-              </div>
+              {!canUpload && <p className="reason">{TEXT_NO_UPLOAD_RIGHT}</p>}
+              {canUpload && (
+                <div
+                  className={over ? "drop is-over" : "drop"}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setOver(true);
+                  }}
+                  onDragLeave={() => {
+                    setOver(false);
+                  }}
+                  onDrop={onDrop}
+                >
+                  <p>
+                    <b>Kéo tệp .xlsx vào đây</b> hoặc
+                  </p>
+                  <button type="button" className="btn btn-dark" onClick={choose}>
+                    Chọn tệp
+                  </button>
+                  <p className="hint">Tối đa 5 MB, 20.000 dòng. Ô có công thức sẽ bị từ chối.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -347,7 +358,7 @@ export function ImportPage() {
             imp={data}
             name={name}
             originalAt={original.data?.createdAt}
-            onChoose={choose}
+            onChoose={canUpload ? choose : null}
             onApply={() => {
               apply.reset();
               setConfirm(true);
@@ -402,12 +413,14 @@ interface ImportViewProps {
   name: string;
   /** Giờ tạo bản nhập đã áp cùng tệp (duplicate); chưa đọc được thì undefined. */
   originalAt: string | undefined;
-  onChoose: () => void;
+  /** Chọn tệp khác; null khi thiếu quyền tải tệp (hiện câu báo thay nút). */
+  onChoose: (() => void) | null;
   onApply: () => void;
   applyMessage: string | null;
 }
 
-function ChooseAgain({ onChoose, label }: { onChoose: () => void; label: string }) {
+function ChooseAgain({ onChoose, label }: { onChoose: (() => void) | null; label: string }) {
+  if (onChoose === null) return <p className="reason mt-sm">{TEXT_NO_UPLOAD_RIGHT}</p>;
   return (
     <div className="row mt-sm">
       <button type="button" className="btn btn-dark" onClick={onChoose}>
@@ -480,9 +493,11 @@ function ImportView({ imp, name, originalAt, onChoose, onApply, applyMessage }: 
             </p>
           )}
           <div className="savebar mt-md">
-            <button type="button" className="btn btn-line" onClick={onChoose}>
-              Chọn tệp khác
-            </button>
+            {onChoose !== null && (
+              <button type="button" className="btn btn-line" onClick={onChoose}>
+                Chọn tệp khác
+              </button>
+            )}
             <button type="button" className="btn btn-dark" onClick={onApply}>
               Áp dụng…
             </button>

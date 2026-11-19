@@ -147,12 +147,13 @@ func ParseRole(s string) (Role, error)
 
 Package db mở pool pgx có giới hạn thời gian (ADR-26), chạy transaction có thử lại (db.RetryTx, ADR-46) và chạy migration goose có checksum và luật mở rộng trước (Migrate, LintContract).
 
-**Khi nào không dùng:** Không mở transaction bằng Begin/BeginTx/pgx.BeginFunc ở gói khác (txusage_test chặn) và không tự viết vòng thử lại: dùng RetryTx (hoặc tenancy.WithTenant từ Task 5). Hàm trong RetryTx không gọi mạng, không cộng dồn vào biến bên ngoài vì có thể chạy tới 4 lần. Không gọi Migrate ngoài vai trò migrate; không mở pool thứ hai cho cùng vai trò.
+**Khi nào không dùng:** Không mở transaction bằng Begin/BeginTx/pgx.BeginFunc ở gói khác (txusage_test chặn) và không tự viết vòng thử lại: dùng RetryTx (hoặc tenancy.WithTenant từ Task 5). Hàm trong RetryTx không gọi mạng, không cộng dồn vào biến bên ngoài vì có thể chạy tới 4 lần. Không gọi Migrate ngoài vai trò migrate; không mở pool thứ hai cho cùng vai trò. NullUUID: không dùng cho cột lấy uuid.Nil làm "không có" (dựng pgtype.UUID với Valid riêng); không chép lại hàm đổi *uuid.UUID → pgtype.UUID trong module.
 
 ```go
 func Backoff(n int, rnd func() float64) time.Duration
 func LintContract(sql string) []string
 func Migrate(ctx context.Context, ownerURL string) (applied []string, err error)
+func NullUUID(id *uuid.UUID) pgtype.UUID
 func Savepoint(ctx context.Context, tx pgx.Tx, fn func(pgx.Tx) error) error
 func TransientCode(err error) (code string, ok bool)
 type DB struct {
