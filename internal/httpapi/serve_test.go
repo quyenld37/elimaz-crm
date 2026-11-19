@@ -18,12 +18,18 @@ import (
 // lockTimeout > 0 thay lock_timeout của WriteTx.
 func testServer(t *testing.T, staff *testkit.Staff, keys *testkit.AccessKeys, lockTimeout time.Duration) http.Handler {
 	t.Helper()
+	return NewServer(testServerDeps(t, staff, keys, lockTimeout))
+}
+
+// testServerDeps là Deps mà testServer dùng (database của staff, kiểm thẻ bằng keys), cho test dựng chain riêng.
+func testServerDeps(t *testing.T, staff *testkit.Staff, keys *testkit.AccessKeys, lockTimeout time.Duration) Deps {
+	t.Helper()
 	authE := &authEnv{t: t, keys: keys}
-	return NewServer(Deps{
+	return Deps{
 		Config: config.Config{ConsoleOrigins: []string{testOrigin}}, DB: staff.App,
 		Logger: slog.New(slog.NewJSONHandler(&lockedBuffer{buf: &bytes.Buffer{}}, nil)), Access: authE.verifier(),
 		WriteLockTimeout: lockTimeout,
-	})
+	}
 }
 
 // serveAs gửi yêu cầu tới srv với thẻ Access hợp lệ của email (có bước hai); yêu cầu ghi có Origin, Content-Type
