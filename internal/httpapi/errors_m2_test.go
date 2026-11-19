@@ -1,16 +1,19 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/google/uuid"
 
+	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/promotion"
@@ -122,8 +125,11 @@ func domainErrorRecorder(t *testing.T, err error) *httptest.ResponseRecorder {
 	return rec
 }
 
-// TestM2Routes_Unimplemented: operation M2 chưa làm trả 501 not_implemented sau khi qua xác thực và quyền; không thẻ
-// 401, không grant 403; route ghi thiếu Idempotency-Key 400.
+// TestM2Routes_Unimplemented: operation chưa làm trả 501 not_implemented (thân lỗi chung có request_id) sau khi qua
+// xác thực và quyền; không thẻ 401, không grant 403; route ghi thiếu Idempotency-Key 400. Mọi operation của hợp đồng
+// đã có handler (Task 427), nên route thật getOrderTimeline được gắn handler giả gen.UnimplementedHandler (trả
+// ht.ErrNotImplemented như route chưa làm trong máy chủ thật) qua đúng chain và writeHandlerError của newMux: test
+// không gãy khi làm thêm route.
 func TestM2Routes_Unimplemented(t *testing.T) {
 	staff, keys := testkit.OpenStaff(t), testkit.AccessKeyServer(t)
 	tenant := staff.Tenant(t, "A")
@@ -131,23 +137,42 @@ func TestM2Routes_Unimplemented(t *testing.T) {
 	staff.Grant(t, tenant, owner, []string{"customer.read", "order.create", "order.read"}, "all", "")
 	staff.User(t, tenant, "khong-quyen@elimaz.test", "active")
 	srv := testServer(t, staff, keys, 0)
-	// Route M2 còn chưa làm (dòng thời gian đơn, Task M2-24), quyền order.read; listCustomers đã làm ở Task M2-10, dòng
-	// thời gian khách ở Task M2-12, quy tắc nhãn ở Task M2-25.
+	unimplemented := unimplementedServer(t, testServerDeps(t, staff, keys, 0), "getOrderTimeline")
 	unimplementedPath := "/api/v1/orders/" + uuid.NewString() + "/timeline"
 
-	rec := serveAs(srv, keys, http.MethodGet, unimplementedPath, "chu@elimaz.test", "", "")
+	rec := serveAs(unimplemented, keys, http.MethodGet, unimplementedPath, "chu@elimaz.test", "", "")
 	expect(t, "chủ, chưa làm", rec, http.StatusNotImplemented, "not_implemented")
 	if !strings.Contains(rec.Body.String(), `"request_id":"`) {
 		t.Errorf("thân 501 thiếu request_id: %s", rec.Body.String())
 	}
-	expect(t, "không grant", serveAs(srv, keys, http.MethodGet, unimplementedPath, "khong-quyen@elimaz.test", "", ""),
+	expect(t, "không grant", serveAs(unimplemented, keys, http.MethodGet, unimplementedPath, "khong-quyen@elimaz.test", "", ""),
 		http.StatusForbidden, "forbidden")
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, unimplementedPath, nil)
 	noToken := httptest.NewRecorder()
-	srv.ServeHTTP(noToken, req)
+	unimplemented.ServeHTTP(noToken, req)
 	expect(t, "không thẻ", noToken, http.StatusUnauthorized, "unauthenticated")
 	expect(t, "tạo đơn thiếu Idempotency-Key", serveAs(srv, keys, http.MethodPost, "/api/v1/orders", "chu@elimaz.test", "",
 		orderBody(0, line(uuid.New(), 1))), http.StatusBadRequest, "idempotency_key_required")
+}
+
+// unimplementedServer gắn route operationID của bảng Routes vào máy chủ ogen có handler giả gen.UnimplementedHandler
+// (mọi operation trả ht.ErrNotImplemented), bọc bằng chain và writeHandlerError như newMux.
+func unimplementedServer(t *testing.T, d Deps, operationID string) http.Handler {
+	t.Helper()
+	i := slices.IndexFunc(Routes, func(rt Route) bool { return rt.OperationID == operationID })
+	if i < 0 {
+		t.Fatalf("không có operation %s trong Routes", operationID)
+	}
+	api, err := gen.NewServer(gen.UnimplementedHandler{},
+		gen.WithErrorHandler(func(_ context.Context, w http.ResponseWriter, r *http.Request, err error) {
+			writeHandlerError(d, w, r, err)
+		}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle(Routes[i].Pattern, chain(d, Routes[i], api))
+	return mux
 }
 
 // TestOrderAPI_M2FieldsPending: thân kiểu M1 vẫn 201 (TestOrderAPI_CreateGet); couponCode được dùng thật từ Task M2-17
