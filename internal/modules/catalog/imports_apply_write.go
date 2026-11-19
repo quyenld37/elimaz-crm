@@ -26,7 +26,8 @@ type stepError struct {
 func (e *stepError) Error() string { return fmt.Sprintf("áp dòng %d: %v", e.row, e.err) }
 func (e *stepError) Unwrap() error { return e.err }
 
-// write ghi plan (đã khóa, đã Recheck) trong tx (savepoint) theo thứ tự mẫu của tệp.
+// write ghi plan (đã khóa, đã Recheck) trong tx (savepoint) theo thứ tự mẫu của tệp. Trước mỗi mẫu: hết ngân sách
+// thời gian → errApplyOverBudget (bên gọi lùi savepoint).
 func (a *ImportApplier) write(ctx context.Context, tx pgx.Tx, seller uuid.UUID, plan ImportPlan,
 	actor identity.AuthUser,
 ) (applyCounts, error) {
@@ -35,6 +36,9 @@ func (a *ImportApplier) write(ctx context.Context, tx pgx.Tx, seller uuid.UUID, 
 		pp := &plan.Products[i]
 		if len(pp.Variants) == 0 {
 			continue
+		}
+		if a.overBudget(ctx) {
+			return c, errApplyOverBudget
 		}
 		if pp.ExistingProductID == nil {
 			if err := a.createPlanned(ctx, tx, seller, pp, actor); err != nil {
