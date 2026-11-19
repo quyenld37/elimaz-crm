@@ -47,8 +47,10 @@ export function SupplierPicker({ value, onChange, canCreate, label = "Nhà cung 
     placeholderData: keepPreviousData,
   });
   const options = (found.data ?? []).slice(0, PICKER_LIMIT);
-  // Kết quả của lần gõ trước (đang tải lần mới) không đủ để biết tên gõ đã có chưa.
-  const showAdd = canCreate && found.isSuccess && !found.isPlaceholderData && canQuickAdd(text, found.data);
+  // Kết quả của lần gõ trước (đang tải lần mới, hay còn đang chờ gõ: term chưa bằng tên gõ) không đủ để biết tên gõ đã
+  // có chưa.
+  const showAdd =
+    canCreate && term === text.trim() && found.isSuccess && !found.isPlaceholderData && canQuickAdd(text, found.data);
   const err =
     create.error === null
       ? null

@@ -59,6 +59,9 @@ func (e *rtEnv) dbName() string {
 	return pgx.Identifier{cfg.Database}.Sanitize()
 }
 
+// hangGuard là hạn chót chống treo khi chờ một sự kiện; không phải tiêu chí đúng/sai về thời gian.
+const hangGuard = 30 * time.Second
+
 func TestReconnectResyncsClients(t *testing.T) {
 	e := newRTEnv(t)
 	a := e.staff.Tenant(t, "A")
@@ -70,17 +73,26 @@ func TestReconnectResyncsClients(t *testing.T) {
 		t.Fatalf("phải cắt đúng 1 kết nối LISTEN, cắt %d", n)
 	}
 	e.waitListening(false, 5*time.Second)
-	// Trong lúc listening = false: không có ": ping" (và không có gì khác) qua vài nhịp tim. Bỏ khung đã nằm sẵn trong
-	// luồng trước lúc rớt (tối đa một nhịp).
-	time.Sleep(testHeartbeat + testBatch)
-	drain(c)
+	// Trong lúc listening = false: không có ": ping" (và không có gì khác) qua vài nhịp tim. Ping đã ghi trước lúc rớt
+	// có thể còn trên đường: chờ luồng SSE hỏi Status và nhận false (mọi ping trước đó đã ghi xong), rồi đọc cho đủ số
+	// ping đã ghi. Sau đó không được nhận thêm khung nào.
+	select {
+	case <-e.spy.idle:
+	case <-time.After(hangGuard):
+		t.Fatal("luồng SSE không hỏi Status sau khi rớt")
+	}
+	for got, want := 0, e.spy.pingsWritten(); got < want; got++ {
+		if ev, data, err := c.Next(hangGuard); err != nil || ev != ":ping" {
+			t.Fatalf("khung ghi trước lúc rớt: %q %s %v, mong :ping (đã nhận %d/%d)", ev, data, err, got, want)
+		}
+	}
 	if ev, data, err := c.Next(4 * testHeartbeat); err == nil {
 		t.Fatalf("listening = false mà vẫn nhận %q %s", ev, data)
 	}
 	unblock()
 
-	// Trong 10 s: hub nối lại, client nhận thêm một resync.
-	deadline := time.Now().Add(10 * time.Second)
+	// Hub nối lại, client nhận thêm một resync (hạn chót chỉ chống treo).
+	deadline := time.Now().Add(hangGuard)
 	for {
 		ev, _, err := c.Next(time.Until(deadline))
 		if err != nil {
@@ -94,18 +106,9 @@ func TestReconnectResyncsClients(t *testing.T) {
 		t.Fatal("đã resync mà Status chưa listening")
 	}
 	e.publish(sig(a, "t.after", "after"), false)
-	ev, data, err := nextNonPing(c, time.Second)
+	ev, data, err := nextNonPing(c, hangGuard)
 	if err != nil || ev != "changed" || !strings.Contains(string(data), "t.after") {
 		t.Fatalf("Publish sau khi nối lại phải tới: %q %s %v", ev, data, err)
-	}
-}
-
-// drain bỏ mọi khung đang chờ sẵn.
-func drain(c *testkit.SSEClient) {
-	for {
-		if _, _, err := c.Next(10 * time.Millisecond); err != nil {
-			return
-		}
 	}
 }
 

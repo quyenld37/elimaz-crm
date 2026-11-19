@@ -284,6 +284,8 @@ func TestRetryJobRetryLaterNotStored(t *testing.T) {
 	e := newJobsEnv(t, 50*time.Millisecond)
 	id := e.job(e.tenantA, "command.a", "dead")
 	locked, release := make(chan struct{}), make(chan struct{})
+	free := sync.OnceFunc(func() { close(release) })
+	t.Cleanup(free) // test đỏ giữa chừng vẫn nhả khóa trước khi đóng pool
 	holder := make(chan error, 1)
 	go func() {
 		holder <- e.staff.Owner.RetryTx(context.Background(), db.TxOptions{}, func(tx pgx.Tx) error {
@@ -291,16 +293,13 @@ func TestRetryJobRetryLaterNotStored(t *testing.T) {
 				return err //nolint:wrapcheck // test
 			}
 			close(locked)
-			select {
-			case <-release:
-			case <-time.After(2 * time.Second):
-			}
+			<-release // giữ khóa tới khi yêu cầu đang kiểm trả (không hẹn giờ: dưới tải hẹn giờ có thể nhả khóa sớm)
 			return nil
 		})
 	}()
 	<-locked
 	rec := e.do(http.MethodPost, jobPath(id, "retry"), jobsManager, "k-lock")
-	close(release)
+	free()
 	if err := <-holder; err != nil {
 		t.Fatal(err)
 	}

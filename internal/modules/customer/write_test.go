@@ -77,8 +77,12 @@ func TestCreateCustomerPhoneTaken(t *testing.T) {
 	if !errors.As(err, &taken) || taken.OwnerRootID != first.RootID || !errors.Is(err, customer.ErrIdentityTaken) {
 		t.Fatalf("lỗi: %v", err)
 	}
-	if strings.Contains(err.Error(), "912") {
-		t.Errorf("lỗi mang SĐT: %v", err)
+	// Kiểm SĐT đầy đủ ở mọi dạng đã gặp (gõ vào, đã chuẩn hóa, đảo ngược để tìm đuôi), không kiểm mẩu ngắn như "912":
+	// lỗi mang mã gốc chủ là UUID ngẫu nhiên, 32 chữ số hex có thể chứa "912" (~0,7% lần chạy đỏ oan).
+	for _, bad := range []string{"912345678", "912 345 678", "87654321948"} {
+		if strings.Contains(err.Error(), bad) {
+			t.Errorf("lỗi mang SĐT (%q): %v", bad, err)
+		}
 	}
 	if after := e.count(`SELECT count(*) FROM customer.customers`); after != before {
 		t.Errorf("hồ sơ mồ côi: %d → %d", before, after)

@@ -77,7 +77,15 @@ func TestClient_Process(t *testing.T) {
 func TestClient_LimitsParallelAndRetriesBusy(t *testing.T) {
 	var mu sync.Mutex
 	inflight, peak, calls := 0, 0, 0
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	held, release := make(chan struct{}), make(chan struct{})
+	markHeld := sync.OnceFunc(func() { close(held) })
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.RawQuery == "hold" { // giữ chỗ duy nhất tới khi test thả (không dựa vào giờ ngủ)
+			markHeld()
+			<-release
+			_ = json.NewEncoder(w).Encode(imager.Result{Status: imager.StatusOK})
+			return
+		}
 		mu.Lock()
 		calls++
 		first := calls == 1
@@ -112,17 +120,23 @@ func TestClient_LimitsParallelAndRetriesBusy(t *testing.T) {
 		t.Fatalf("cao nhất %d việc cùng lúc (muốn 1), %d lần gọi (muốn 4: một 503 rồi gửi lại)", peak, calls)
 	}
 	// Chỗ duy nhất đang bận: lần gọi khác chờ quá hạn ctx → BusyError.
-	hold := imager.NewClient(srv.URL+"/?x#", srv.Client(), 1)
-	done := make(chan struct{})
+	// Máy chủ giả báo đã nhận yêu cầu đầu (chỗ đã giữ) và chỉ trả khi test thả, nên hạn 30 ms của yêu cầu sau luôn hết
+	// trong lúc chỗ còn bận, dù máy chậm tới đâu.
+	hold := imager.NewClient(srv.URL+"/?hold#", srv.Client(), 1)
+	done := make(chan error, 1)
 	go func() {
-		defer close(done)
-		_, _ = hold.Process(t.Context(), clientRequest())
+		_, err := hold.Process(t.Context(), clientRequest())
+		done <- err
 	}()
-	time.Sleep(20 * time.Millisecond)
+	<-held
 	sctx, cancel := context.WithTimeout(t.Context(), 30*time.Millisecond)
 	defer cancel()
-	if _, err := hold.Process(sctx, clientRequest()); !errors.Is(err, imager.ErrBusy) {
+	_, err := hold.Process(sctx, clientRequest())
+	close(release)
+	if !errors.Is(err, imager.ErrBusy) {
 		t.Fatalf("chờ chỗ quá hạn: muốn ErrBusy, nhận %v", err)
 	}
-	<-done
+	if err := <-done; err != nil {
+		t.Fatalf("yêu cầu giữ chỗ: %v", err)
+	}
 }

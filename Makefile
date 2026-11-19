@@ -44,8 +44,9 @@ probe-test: ## Phép thử SeaweedFS (Task M1-40) trên compose dev: make dev tr
 
 # Test thời gian (nhãn build perf, Task 400): ngưỡng thời gian không nằm trong test đúng/sai vì phụ thuộc máy bận hay
 # rảnh. Chạy trên máy rảnh (không phiên test khác cùng dùng PostgreSQL).
-perf-test: ## Trần thời gian câu nhận việc ở 100.000 việc chờ (50 ms, Task 394), cần PostgreSQL dev
+perf-test: ## Trần thời gian câu nhận việc ở 100.000 việc chờ (50 ms, Task 394) và đối soát 50.000 số dư (60 s), cần PostgreSQL dev
 	go test -tags perf -count=1 -run '^TestClaimLongQueueTimeBudget$$' -v ./internal/platform/queue/
+	go test -tags perf -count=1 -run '^TestReconcile_LargeTenantTimeBudget$$' -v ./internal/modules/inventory/
 
 # Test của imager cần libvips: chạy trong stage `test` của docker/imager/Dockerfile (cùng bản libvips với image chạy).
 # --init: tini gặt tiến trình con mồ côi để test nhóm tiến trình bị giết thấy đúng. IMAGER_REQUIRE_VIPS=1: ca cần

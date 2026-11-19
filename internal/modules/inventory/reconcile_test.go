@@ -18,9 +18,15 @@ import (
 // reconcile chạy Reconcile bằng crm_app trong ngữ cảnh tenant của e, với statement_timeout của việc nền (30 s).
 func (e *invEnv) reconcile(batch int) inventory.Run {
 	e.t.Helper()
+	return e.reconcileWithin(batch, "30s")
+}
+
+// reconcileWithin chạy Reconcile với statement_timeout của transaction là timeout (cú pháp PostgreSQL, ví dụ "30s").
+func (e *invEnv) reconcileWithin(batch int, timeout string) inventory.Run {
+	e.t.Helper()
 	var run inventory.Run
 	if err := e.app(func(tx pgx.Tx) error {
-		if _, err := tx.Exec(e.t.Context(), "SET LOCAL statement_timeout = '30s'"); err != nil {
+		if _, err := tx.Exec(e.t.Context(), "SELECT set_config('statement_timeout', $1, true)", timeout); err != nil {
 			return err //nolint:wrapcheck // test
 		}
 		var err error
@@ -30,6 +36,22 @@ func (e *invEnv) reconcile(batch int) inventory.Run {
 		e.t.Fatalf("Reconcile: %v", err)
 	}
 	return run
+}
+
+// seedLarge chạy câu dựng dữ liệu thử lớn bằng chủ bảng trong ngữ cảnh tenant của e, với statement_timeout riêng 10 phút:
+// hạn 30 s của pool là hạn của ứng dụng; máy tải cao thì câu chèn 50.000 dòng từng quá hạn đó (57014, Task 421). Hạn
+// riêng chỉ còn là chốt chống treo.
+func (e *invEnv) seedLarge(q string, args ...any) {
+	e.t.Helper()
+	if err := e.staff.TryExec(e.t.Context(), e.tenant, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(e.t.Context(), "SET LOCAL statement_timeout = '10min'"); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		_, err := tx.Exec(e.t.Context(), q, args...)
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		e.t.Fatalf("dựng dữ liệu thử: %v", err)
+	}
 }
 
 // owner chạy câu sửa thẳng bằng chủ bảng trong ngữ cảnh tenant của e (giả lỗi dữ liệu).
@@ -200,29 +222,35 @@ func TestReconcile_EachCheck(t *testing.T) {
 	}
 }
 
-// 50.000 số dư (5.000 biến thể × 10 kho) → xong dưới 60 s với statement_timeout 30 s, đếm đủ, không lệch.
-func TestReconcile_LargeTenant(t *testing.T) {
-	e := newInvEnv(t)
-	e.owner(`INSERT INTO inventory.warehouses (tenant_id, operated_by_seller_id, code, name)
+// fillLargeTenant dựng 50.000 số dư (5.000 biến thể × 10 kho) khớp sổ. Dùng chung cho test đúng/sai ở đây và test
+// thời gian (reconcile_perf_test.go, nhãn perf).
+func (e *invEnv) fillLargeTenant() {
+	e.t.Helper()
+	e.seedLarge(`INSERT INTO inventory.warehouses (tenant_id, operated_by_seller_id, code, name)
 		SELECT $1, $2, 'W' || g, 'Kho ' || g FROM generate_series(1, 9) AS g`, e.tenant, e.seller)
-	e.owner(`INSERT INTO catalog.variants (tenant_id, seller_id, product_id, sku, barcode, color, size, price)
+	e.seedLarge(`INSERT INTO catalog.variants (tenant_id, seller_id, product_id, sku, barcode, color, size, price)
 		SELECT $1, $2, $3, 'BIG-' || g, 'BG' || lpad(g::text, 7, '0'), 'Đỏ', 'Z' || g, 100000
 		FROM generate_series(1, 5000) AS g`, e.tenant, e.seller, e.product)
-	e.owner(`INSERT INTO inventory.stock_balances (tenant_id, variant_id, warehouse_id, seller_id, on_hand)
+	e.seedLarge(`INSERT INTO inventory.stock_balances (tenant_id, variant_id, warehouse_id, seller_id, on_hand)
 		SELECT $1, v.id, w.id, v.seller_id, 1 + (abs(hashtext(v.id::text || w.id::text)) % 20)
 		FROM catalog.variants AS v CROSS JOIN inventory.warehouses AS w WHERE v.sku LIKE 'BIG-%'`, e.tenant)
-	e.owner(`INSERT INTO inventory.stock_ledger (tenant_id, variant_id, warehouse_id, bucket, delta, doc_type, doc_id,
+	e.seedLarge(`INSERT INTO inventory.stock_ledger (tenant_id, variant_id, warehouse_id, bucket, delta, doc_type, doc_id,
 		step, actor_type)
 		SELECT tenant_id, variant_id, warehouse_id, 'on_hand', on_hand, 'import', gen_random_uuid(), 'seed', 'system'
 		FROM inventory.stock_balances`)
-	e.owner("ANALYZE inventory.stock_balances")
-	e.owner("ANALYZE inventory.stock_ledger")
-	start := time.Now()
-	run := e.reconcile(0)
-	took := time.Since(start)
-	t.Logf("50.000 số dư: %v", took)
-	if !run.OK || run.Checked != 50000 || took > 60*time.Second {
-		t.Fatalf("ok %v, checked %d, %v", run.OK, run.Checked, took)
+	e.seedLarge("ANALYZE inventory.stock_balances")
+	e.seedLarge("ANALYZE inventory.stock_ledger")
+}
+
+// 50.000 số dư → đối soát đếm đủ, không lệch. Hạn thời gian (mỗi câu dưới statement_timeout 30 s, cả lượt dưới 60 s)
+// nằm ở TestReconcile_LargeTenantTimeBudget (nhãn perf, make perf-test), không ở đây: thời gian phụ thuộc máy bận hay
+// rảnh; ở đây statement_timeout 10 phút chỉ là chốt chống treo.
+func TestReconcile_LargeTenant(t *testing.T) {
+	e := newInvEnv(t)
+	e.fillLargeTenant()
+	run := e.reconcileWithin(0, "10min")
+	if !run.OK || run.Checked != 50000 {
+		t.Fatalf("ok %v, checked %d", run.OK, run.Checked)
 	}
 }
 

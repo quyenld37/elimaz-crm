@@ -176,14 +176,14 @@ func (e *importEnv) run(body []byte) customer.Import {
 	return e.get(imp.ID)
 }
 
-// Tệp 5 dòng: dòng 3 SĐT "123", dòng 5 phường không thuộc tỉnh → ok 3, lỗi 2 (row 3, 5), lỗi không chứa giá trị ô;
+// Tệp 5 dòng: dòng 3 SĐT sai "77777777", dòng 5 phường không thuộc tỉnh → ok 3, lỗi 2 (row 3, 5), lỗi không chứa giá trị ô;
 // dòng đủ cột có địa chỉ mặc định, ngày sinh, nhãn, ghi chú; ô chữ "=HYPERLINK(...)" lưu nguyên; một audit
 // customer.import, không audit customer.create; nhập lại cùng tệp → ok 0, skipped 3, không thêm khách.
 func TestImport_RowErrorsAndReimport(t *testing.T) {
 	e := newImportEnv(t)
 	body := book(t, [][]string{
 		{"Nguyễn Văn An", "0912000001", "01/02/1990", "Thành phố Thử Một", "Phường Bến Thử", "12 Lê Lợi", "VIP; Mới ;VIP", "Khách quen"},
-		{"Trần Bình", "123"},
+		{"Trần Bình", "77777777"},
 		{`=HYPERLINK("x")`, "0912 000 003"},
 		{"Lê Chi", "0912000004", "", "Tỉnh Thử Hai", "Phường Bến Thử", "5 Hàng Bài"},
 		{"Phạm Dung", "+84912000005", "", "thu hai", "ben hai", "7 Trần Phú", "Mới"},
@@ -205,7 +205,8 @@ func TestImport_RowErrorsAndReimport(t *testing.T) {
 		return tx.QueryRow(t.Context(), `SELECT row_to_json(i)::text FROM customer.customer_imports i WHERE id = $1`,
 			imp.ID).Scan(&raw)
 	})
-	for _, bad := range []string{"123", "Bến Thử", "Lê Chi", "Thử Hai", "Hàng Bài"} {
+	// SĐT sai dài 8 chữ số, không phải mẩu ngắn như "123": dòng có UUID ngẫu nhiên và mốc giờ, mẩu ngắn trùng ngẫu nhiên.
+	for _, bad := range []string{"77777777", "Bến Thử", "Lê Chi", "Thử Hai", "Hàng Bài"} {
 		if strings.Contains(raw, bad) {
 			t.Errorf("dòng lần nhập chứa %q: %s", bad, raw)
 		}
