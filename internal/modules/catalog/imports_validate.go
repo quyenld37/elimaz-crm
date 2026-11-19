@@ -35,12 +35,14 @@ const (
 	reasonImportFile       = "file_unavailable"
 )
 
-// Lỗi cấp tệp (Row 0, Column rỗng) của bản nhập invalid.
+// Lỗi cấp tệp (Row 0, Column rỗng) của bản nhập invalid (CodeApplyTooLong: của bản nhập failed lúc áp).
 const (
 	CodeFileNotXlsx    = "file_not_xlsx"
 	CodeFileTooLarge   = "file_too_large"
 	CodeTooManyRows    = "too_many_rows"
 	CodeHeaderMismatch = "header_mismatch"
+	// CodeApplyTooLong: lỗi cả tệp lúc áp — tệp quá lớn để ghi trong hạn một lần của việc áp (Task 407).
+	CodeApplyTooLong = "apply_too_long"
 )
 
 // ImportValidateKind là lệnh catalog.import.validate: CommandKind (in_doubt khi hết giữ chỗ, 8 lượt), không hết hạn,

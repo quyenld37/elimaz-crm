@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -24,6 +25,17 @@ const importApplyName = "catalog.import.apply"
 
 // ImportPlannedProduct là một mẫu trong plan của bản nhập.
 type ImportPlannedProduct = importer.PlannedProduct
+
+// applyReserve là phần cuối của hạn một lần Handle giữ lại cho việc lùi savepoint, ghi failed, audit và commit: còn ít
+// hơn chừng này thì lần áp dừng ghi (Task 407, B-01).
+const applyReserve = 5 * time.Second
+
+// applyTooLongAttempts: lần áp hết ngân sách thời gian ở lượt nhỏ hơn số này thì chạy lại (máy bận nhất thời); từ
+// lượt này thì bản nhập failed với lỗi CodeApplyTooLong (tệp quá lớn để áp trong một transaction, Q10).
+const applyTooLongAttempts = 3
+
+// errApplyOverBudget: lần áp dừng trước khi ghi hết plan vì hạn còn lại của Handle dưới applyReserve; savepoint lùi.
+var errApplyOverBudget = errors.New("catalog: lần áp bản nhập hết ngân sách thời gian")
 
 // ImportApplyKind là việc catalog.import.apply: transactional, chính sách mặc định (8 lượt, hạn một lần 30 s).
 func ImportApplyKind() queue.Kind {
@@ -117,9 +129,12 @@ func reserveImportBarcodes(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUI
 // khóa danh mục (chia sẻ) và mẫu có sẵn của plan theo id tăng dần, đọc lại SKU và mã mẫu rồi importer.Recheck; ghi
 // bằng CreateProduct, UpdateProduct, AddVariant, UpdateVariant, SetClassification trong một savepoint. Dữ liệu đổi từ
 // lúc kiểm (Recheck, hay unique của database lúc ghi) → lùi savepoint, bản nhập failed với lỗi dòng, việc xong; lỗi
-// khác → cả transaction lùi, việc chạy lại theo lịch.
+// khác → cả transaction lùi, việc chạy lại theo lịch. Trần thời gian: trước mỗi mẫu, hạn còn lại của ctx dưới
+// applyReserve → dừng, lùi savepoint; lượt < applyTooLongAttempts chạy lại, từ lượt đó bản nhập failed với một lỗi cả
+// tệp CodeApplyTooLong (không còn chạy lại tới hàng giờ rồi dead).
 type ImportApplier struct {
-	w Writer
+	w   Writer
+	now func() time.Time // nil: time.Now
 }
 
 // NewImportApplier trả việc catalog.import.apply ghi bằng w (Events, Queue, Realtime của tiến trình worker).
@@ -182,15 +197,15 @@ func (a *ImportApplier) Handle(ctx context.Context, j queue.Job, tx pgx.Tx) (jso
 	}
 	ap := *a // mỗi lần chạy (kể cả chạy lại) dùng lại dải của payload từ đầu
 	ap.w.barcodes = pl.Barcodes
-	status, err := ap.apply(ctx, tx, seller, pl, identity.AuthUser{UserID: pl.ActorID, TenantID: *j.TenantID})
+	status, err := ap.apply(ctx, tx, seller, pl, j.Attempts, identity.AuthUser{UserID: pl.ActorID, TenantID: *j.TenantID})
 	if err != nil {
 		return nil, err
 	}
 	return applyResult(status)
 }
 
-// apply chạy lần áp của bản nhập đã khóa, đang applying; trả trạng thái mới.
-func (a *ImportApplier) apply(ctx context.Context, tx pgx.Tx, seller uuid.UUID, pl applyPayload,
+// apply chạy lần áp (lượt attempts) của bản nhập đã khóa, đang applying; trả trạng thái mới.
+func (a *ImportApplier) apply(ctx context.Context, tx pgx.Tx, seller uuid.UUID, pl applyPayload, attempts int,
 	actor identity.AuthUser,
 ) (string, error) {
 	q := store.New(tx)
@@ -213,6 +228,9 @@ func (a *ImportApplier) apply(ctx context.Context, tx pgx.Tx, seller uuid.UUID, 
 		return "", fmt.Errorf("plan của bản nhập %s hỏng: %w", pl.ImportID, queue.ErrPermanent)
 	}
 	counts, rowErrs, err := a.applyPlan(ctx, tx, seller, plan, actor)
+	if errors.Is(err, errApplyOverBudget) && attempts >= applyTooLongAttempts {
+		rowErrs, err = []ImportError{applyTooLongError()}, nil
+	}
 	if err != nil {
 		return "", err
 	}
@@ -331,6 +349,26 @@ func lockPlan(ctx context.Context, tx pgx.Tx, seller uuid.UUID, plan ImportPlan)
 		return nil, fmt.Errorf("khóa mẫu có sẵn của bản nhập: %w", err)
 	}
 	return nil, nil
+}
+
+// overBudget: ctx có hạn và hạn còn lại dưới applyReserve (ctx không hạn: không bao giờ).
+func (a *ImportApplier) overBudget(ctx context.Context) bool {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return false
+	}
+	now := time.Now
+	if a.now != nil {
+		now = a.now
+	}
+	return deadline.Sub(now()) < applyReserve
+}
+
+// applyTooLongError là lỗi cả tệp khi lần áp không xong trong hạn một lần của việc dù đã chạy lại.
+func applyTooLongError() ImportError {
+	return ImportError{Row: 0, Column: "", Code: CodeApplyTooLong, Message: fmt.Sprintf(
+		"Tệp quá lớn để áp trong một lần (mỗi lần áp tối đa %d giây): hãy chia thành nhiều tệp nhỏ hơn, khoảng "+
+			"2.000 dòng mỗi tệp, rồi tải lên lại", int(ImportApplyKind().Policy.Timeout.Seconds()))}
 }
 
 func compareUUID(a, b uuid.UUID) int { return bytes.Compare(a[:], b[:]) }

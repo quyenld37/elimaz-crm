@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -463,4 +464,88 @@ func TestApply_PayloadWithoutBarcodeRange(t *testing.T) {
 	if d := e.count("SELECT count(DISTINCT barcode) FROM catalog.variants WHERE barcode LIKE '2%' AND length(barcode) = 13"); d != 2 {
 		t.Fatalf("%d barcode tự sinh khác nhau, mong 2", d)
 	}
+}
+
+// handleWithClock chạy Handle của việc áp (lượt attempts) trong một tx tenant có hạn 1 phút; đồng hồ của việc áp trả
+// giờ thật cho `realCalls` lần đọc đầu rồi nhảy tới sau hạn (hết ngân sách giữa lúc ghi, sau khi đã ghi vài mẫu).
+func (e *importEnv) handleWithClock(attempts, realCalls int) error {
+	e.t.Helper()
+	job := e.applyJob()
+	job.Attempts = attempts
+	var calls int
+	clock := func() time.Time {
+		calls++
+		if calls > realCalls {
+			return time.Now().Add(time.Hour)
+		}
+		return time.Now()
+	}
+	ctx, cancel := context.WithTimeout(e.t.Context(), time.Minute)
+	defer cancel()
+	err := tenancy.WithTenant(ctx, e.staff.App, e.tenant, func(tx pgx.Tx) error {
+		_, err := catalog.NewImportApplierWithClock(e.writer(), clock).Handle(ctx, job, tx)
+		return err //nolint:wrapcheck // test
+	})
+	if calls <= realCalls {
+		e.t.Fatalf("đồng hồ chỉ được đọc %d lần, mong hơn %d (không tới chỗ hết ngân sách)", calls, realCalls)
+	}
+	return err //nolint:wrapcheck // test
+}
+
+// applyingBig kiểm và yêu cầu áp mau-200.xlsx (chưa chạy việc); trả bản nhập và dấu dữ liệu catalog trước khi áp.
+func (e *importEnv) applyingBig() (catalog.Import, string) {
+	e.t.Helper()
+	imp := e.validate(fixture(e.t, "mau-200.xlsx"))
+	e.mustReady(imp)
+	if err := e.apply(imp); err != nil {
+		e.t.Fatal(err)
+	}
+	return imp, e.catalogFingerprint()
+}
+
+// B-01 (Task 407): lần áp hết ngân sách thời gian giữa lúc ghi ở lượt 1, 2 → Handle trả lỗi chạy lại được (máy bận
+// nhất thời); bản nhập vẫn applying; các mẫu đã ghi trước đó bị lùi hết.
+func TestApply_OverTimeBudgetRetries(t *testing.T) {
+	e := newImportEnv(t)
+	imp, before := e.applyingBig()
+	for _, attempt := range []int{1, 2} {
+		err := e.handleWithClock(attempt, 20)
+		if err == nil || errors.Is(err, queue.ErrPermanent) {
+			t.Fatalf("lượt %d hết ngân sách: %v, mong lỗi chạy lại được", attempt, err)
+		}
+		if got := e.getImport(imp.ID); got.Status != catalog.ImportApplying || len(got.Errors) != 0 {
+			t.Fatalf("lượt %d: %s %+v, mong applying không lỗi", attempt, got.Status, got.Errors)
+		}
+		if e.products() != 0 || e.catalogFingerprint() != before {
+			t.Fatalf("lượt %d: còn %d mẫu sau khi lùi", attempt, e.products())
+		}
+	}
+}
+
+// B-01 (Task 407): từ lượt 3 lần áp vẫn hết ngân sách → bản nhập failed với đúng một lỗi cả tệp (dòng 0)
+// apply_too_long, tóm tắt 1 lỗi, việc xong (Handle không lỗi: không còn chạy lại tới hàng giờ rồi dead); không mẫu,
+// biến thể nào được ghi (tất cả hoặc không). Tệp nhỏ vẫn áp được bằng worker sau đó (không ảnh hưởng tệp khác).
+func TestApply_OverTimeBudgetFailsWithReason(t *testing.T) {
+	e := newImportEnv(t)
+	imp, before := e.applyingBig()
+	if err := e.handleWithClock(3, 20); err != nil {
+		t.Fatalf("lượt 3 hết ngân sách: %v, mong xong (failed)", err)
+	}
+	got := e.getImport(imp.ID)
+	if got.Status != catalog.ImportFailed || len(got.Errors) != 1 || got.Summary.Errors != 1 {
+		t.Fatalf("%s %+v tóm tắt %d lỗi, mong failed với 1 lỗi", got.Status, got.Errors, got.Summary.Errors)
+	}
+	if ie := got.Errors[0]; ie.Row != 0 || ie.Column != "" || ie.Code != catalog.CodeApplyTooLong ||
+		!strings.Contains(ie.Message, "chia") {
+		t.Fatalf("lỗi %+v, mong dòng 0 %s bảo chia tệp", ie, catalog.CodeApplyTooLong)
+	}
+	if e.products() != 0 || e.count("SELECT count(*) FROM catalog.variants") != 0 || e.catalogFingerprint() != before {
+		t.Fatalf("còn %d mẫu sau khi failed", e.products())
+	}
+	if n := e.count("SELECT count(*) FROM identity.audit_logs WHERE action = 'catalog.import.apply_failed'"); n != 1 {
+		t.Fatalf("%d audit apply_failed, mong 1", n)
+	}
+	small := e.validate(oneProduct(t, "AO01", "Áo", "100000", "S", "M"))
+	e.mustReady(small)
+	e.applyExpect(small, catalog.ImportApplied)
 }
