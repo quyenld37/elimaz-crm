@@ -65,8 +65,11 @@ func (q *Queries) InsertAuditLog(ctx context.Context, arg InsertAuditLogParams) 
 }
 
 const listEntityAudit = `-- name: ListEntityAudit :many
-SELECT id, actor_type, COALESCE(actor_id, '')::text AS actor_id, action, changed_fields,
-       (before IS NOT NULL)::boolean AS has_before, created_at
+SELECT id, actor_type, COALESCE(actor_id, '')::text AS actor_id, action,
+       (CASE WHEN jsonb_typeof(after -> 'fields') = 'array'
+             THEN ARRAY(SELECT jsonb_array_elements_text(after -> 'fields'))
+             ELSE '{}'::text[] END)::text[] AS listed_fields,
+       created_at
 FROM identity.audit_logs
 WHERE entity_type = $1 AND entity_id = $2::text
 ORDER BY created_at, id
@@ -79,17 +82,16 @@ type ListEntityAuditParams struct {
 }
 
 type ListEntityAuditRow struct {
-	ID            uuid.UUID
-	ActorType     string
-	ActorID       string
-	Action        string
-	ChangedFields []string
-	HasBefore     bool
-	CreatedAt     time.Time
+	ID           uuid.UUID
+	ActorType    string
+	ActorID      string
+	Action       string
+	ListedFields []string
+	CreatedAt    time.Time
 }
 
 // Dòng audit của một thực thể (kế hoạch M2, Task M2-24: lịch sử thao tác của đơn), cũ trước, tối đa 500 dòng. Chỉ tên
-// trường đổi và có before hay không; không đọc giá trị before/after.
+// trường bên ghi liệt kê ở after.fields (mảng chuỗi; không phải mảng → rỗng); không đọc giá trị before/after.
 func (q *Queries) ListEntityAudit(ctx context.Context, arg ListEntityAuditParams) ([]ListEntityAuditRow, error) {
 	rows, err := q.db.Query(ctx, listEntityAudit, arg.EntityType, arg.EntityID)
 	if err != nil {
@@ -104,8 +106,7 @@ func (q *Queries) ListEntityAudit(ctx context.Context, arg ListEntityAuditParams
 			&i.ActorType,
 			&i.ActorID,
 			&i.Action,
-			&i.ChangedFields,
-			&i.HasBefore,
+			&i.ListedFields,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

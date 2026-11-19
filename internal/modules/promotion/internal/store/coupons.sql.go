@@ -213,3 +213,33 @@ func (q *Queries) CouponByIDForUpdate(ctx context.Context, id uuid.UUID) (Coupon
 	)
 	return i, err
 }
+
+const lockCouponsByCodes = `-- name: LockCouponsByCodes :many
+SELECT id
+FROM promotion.coupons
+WHERE code = ANY($1::text[]::citext[])
+ORDER BY id
+FOR UPDATE
+`
+
+// Khóa trước nhiều mã trong một transaction (sửa đơn đổi mã, hủy nhiều đơn nháp): theo id tăng dần (ADR-46 nhóm 10,
+// cùng bảng theo khóa chính); khóa sau đó của Redeem, Release, Detach lấy lại dòng đã giữ nên không tạo vòng chờ.
+func (q *Queries) LockCouponsByCodes(ctx context.Context, codes []string) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, lockCouponsByCodes, codes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

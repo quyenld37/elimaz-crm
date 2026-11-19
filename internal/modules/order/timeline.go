@@ -24,13 +24,12 @@ const (
 const fieldChanged = "changed"
 
 // AuditChange là một dòng audit của đơn mà lớp gọi đọc được (order không nhập identity, 04 mục 3): người làm (nil khi
-// không rõ), việc, tên trường cấp đầu đã đổi, Diff khi dòng có trạng thái trước (Fields là trường thật sự đổi), lúc ghi.
+// không rõ), việc, tên trường đã sửa do bên ghi liệt kê (audit order.update: after.fields = EditResult.Fields), lúc ghi.
 type AuditChange struct {
 	ID      uuid.UUID
 	Action  string
 	ActorID *uuid.UUID
-	Fields  []string
-	Diff    bool
+	Edited  []string
 	At      time.Time
 }
 
@@ -51,19 +50,10 @@ type OrderTimelineItem struct { //nolint:revive // tên theo Interfaces của k�
 	Note      NoteBody
 }
 
-// statusFields: trường audit đã có ở lịch sử trạng thái (hay chỉ là sổ sách), không thành mục edit.
-func statusFields() []string {
-	return []string{
-		"status", "pendingReason", "version", "updatedAt", "confirmedAt", "confirmedBy", "cancelledAt",
-		"cancelReason", "cancelNote", "discountApprovedBy", "discountApprovedAt",
-	}
-}
-
 // Timeline trả lịch sử thao tác của đơn id của người bán sellerID (ADR-29), mới nhất trước (cùng lúc: theo kind rồi
-// RefID giảm): mọi dòng lịch sử trạng thái (tạo đơn, đổi trạng thái, đặt bỏ lý do chờ), mỗi audit có trạng thái trước
-// (lần sửa) mà còn trường đổi ngoài trạng thái thành một mục edit liệt kê tên trường (không giá trị), mọi ghi chú.
-// Audit chỉ có trạng thái sau (tạo, xác nhận, đặt chờ) không thành mục: việc đó đã có ở lịch sử trạng thái. Không có
-// đơn → ErrNotFound. Tên người làm do bên gọi đọc (order không nhập identity).
+// RefID giảm): mọi dòng lịch sử trạng thái (tạo đơn, đổi trạng thái, đặt bỏ lý do chờ, hủy), mỗi audit có liệt kê trường
+// đã sửa (lần sửa đơn) thành một mục edit liệt kê tên trường (không giá trị), mọi ghi chú. Audit khác (tạo, xác nhận,
+// hủy, xử lý đơn trùng) không thành mục: việc đó đã có ở lịch sử trạng thái. Không có đơn → ErrNotFound. Tên người làm do bên gọi đọc (order không nhập identity).
 func Timeline(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID, src AuditSource) ([]OrderTimelineItem, error) {
 	if err := orderOfSeller(ctx, tx, sellerID, id); err != nil {
 		return nil, err
@@ -111,14 +101,11 @@ func Timeline(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID, src AuditS
 	return out, nil
 }
 
-// editItem dựng mục edit từ audit a: chỉ audit có trạng thái trước và còn trường đổi ngoài statusFields.
+// editItem dựng mục edit từ audit a: chỉ audit có liệt kê trường đã sửa.
 func editItem(a AuditChange) (OrderTimelineItem, bool) {
-	if !a.Diff {
-		return OrderTimelineItem{}, false
-	}
 	sum := map[string]string{}
-	for _, f := range a.Fields {
-		if f != "action" && !slices.Contains(statusFields(), f) {
+	for _, f := range a.Edited {
+		if f != "" && f != "action" {
 			sum[f] = fieldChanged
 		}
 	}

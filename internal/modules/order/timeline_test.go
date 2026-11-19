@@ -23,7 +23,7 @@ func auditSource(ctx context.Context, tx pgx.Tx, orderID uuid.UUID) ([]order.Aud
 	changes := make([]order.AuditChange, len(recs))
 	for i, r := range recs {
 		actor, perr := uuid.Parse(r.ActorID)
-		changes[i] = order.AuditChange{ID: r.ID, Action: r.Action, Fields: r.ChangedFields, Diff: r.HasBefore, At: r.CreatedAt}
+		changes[i] = order.AuditChange{ID: r.ID, Action: r.Action, Edited: r.ListedFields, At: r.CreatedAt}
 		if perr == nil {
 			changes[i].ActorID = &actor
 		}
@@ -76,9 +76,10 @@ func (e *orderEnv) addNote(seller, id uuid.UUID, body string, a order.Actor) (or
 	return n, err
 }
 
-// DH06: tạo (người 1) → sửa địa chỉ và số lượng (người 2) → xác nhận (người 3) → hủy (người 2) → ghi chú (người 3):
-// Timeline có 4 mục thao tác và 1 ghi chú, mới nhất trước, đúng người; mục sửa ghi shipAddress, lines là "changed",
-// không có địa chỉ, SĐT cũ hay mới; audit chỉ có after (tạo, xác nhận) và audit chỉ đổi trạng thái không thành mục sửa.
+// DH06: tạo (người 1) → sửa địa chỉ và số lượng bằng Writer.Edit (người 2) → xác nhận (người 3) → hủy bằng
+// Writer.Cancel (người 2) → ghi chú (người 3), audit ghi đúng dạng của handler (order.update chỉ after kèm fields;
+// order.cancel before/after kèm cancelReason, hasNote): Timeline có 4 mục thao tác và 1 ghi chú, mới nhất trước, đúng
+// người; mục sửa ghi shipAddress, lines là "changed", không có địa chỉ, SĐT cũ hay mới; audit hủy không thành mục sửa.
 func TestTimeline_DH06(t *testing.T) {
 	e := newM2Env(t)
 	editor := e.staff.User(t, e.tenant, "sua@elimaz.test", "active")
@@ -89,32 +90,47 @@ func TestTimeline_DH06(t *testing.T) {
 	o := e.createAt(in, e.dbNow())
 	e.audit(e.actor.UserID, "order.create", o.ID, nil, o.AuditFields())
 
-	oldAddr := map[string]any{"name": "Chị Lan", "phone": "0901234567", "line": "12 Lê Lợi"}
-	newAddr := map[string]any{"name": "Chị Lan", "phone": "0987654321", "line": "99 Hai Bà Trưng"}
-	e.audit(editor, "order.update", o.ID,
-		map[string]any{"shipAddress": oldAddr, "lines": []any{map[string]any{"variantId": v.String(), "qty": 1}}, "version": 1},
-		map[string]any{"shipAddress": newAddr, "lines": []any{map[string]any{"variantId": v.String(), "qty": 2}}, "version": 2})
-
+	item := o.Items[0].ID
+	newAddr := &order.ShipAddress{
+		Name: "Chị Lan", Phone: "0987654321", Line: "99 Hai Bà Trưng", ProvinceCode: "T01", WardCode: "T01001",
+	}
+	var edited order.EditResult
 	if err := e.app(func(tx pgx.Tx) error {
-		_, err := e.writer().Confirm(e.t.Context(), tx, e.seller, o.ID, o.Version,
+		var err error
+		edited, err = e.writer().Edit(e.t.Context(), tx, e.seller, o.ID, order.EditInput{
+			Version: o.Version, ShipAddress: newAddr,
+			Lines: &[]order.EditLine{{ItemID: &item, VariantID: v, Quantity: 2}},
+		}, order.Actor{TenantID: e.tenant, UserID: editor}, e.dbNow())
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		t.Fatalf("Edit: %v", err)
+	}
+	after := edited.Order.AuditFields() // như handler UpdateOrder
+	after["fields"], after["pendingReason"] = edited.Fields, edited.Order.PendingReason
+	e.audit(editor, "order.update", o.ID, nil, after)
+
+	var confirmed order.Order
+	if err := e.app(func(tx pgx.Tx) error {
+		var err error
+		confirmed, err = e.writer().Confirm(e.t.Context(), tx, e.seller, o.ID, edited.Order.Version,
 			order.Actor{TenantID: e.tenant, UserID: confirmer}, e.dbNow())
 		return err //nolint:wrapcheck // test
 	}); err != nil {
 		t.Fatalf("Confirm: %v", err)
 	}
 	e.audit(confirmer, "order.confirm", o.ID, nil, map[string]any{"status": "confirmed"})
+	var cancelled order.Order
 	if err := e.app(func(tx pgx.Tx) error {
-		cur, err := order.Get(e.t.Context(), tx, e.seller, o.ID)
-		if err != nil {
-			return err //nolint:wrapcheck // test
-		}
-		return order.ApplyTransition(e.t.Context(), tx, e.writer(), &cur, order.StatusCancelled, "", "customer_changed_mind",
-			order.Actor{TenantID: e.tenant, UserID: editor}, e.dbNow())
+		var err error
+		cancelled, err = e.writer().Cancel(e.t.Context(), tx, e.seller, o.ID, confirmed.Version,
+			order.CancelCustomerChangedMind, "Khách đổi ý", order.Actor{TenantID: e.tenant, UserID: editor}, e.dbNow())
+		return err //nolint:wrapcheck // test
 	}); err != nil {
-		t.Fatalf("hủy: %v", err)
+		t.Fatalf("Cancel: %v", err)
 	}
-	e.audit(editor, "order.cancel", o.ID, map[string]any{"status": "confirmed", "version": 2},
-		map[string]any{"status": "cancelled", "version": 3})
+	cancelAfter := cancelled.AuditFields() // như handler CancelOrder
+	cancelAfter["cancelReason"], cancelAfter["hasNote"] = order.CancelCustomerChangedMind, true
+	e.audit(editor, "order.cancel", o.ID, confirmed.AuditFields(), cancelAfter)
 	note, err := e.addNote(e.seller, o.ID, "Khách hẹn gọi lại 0901234567", order.Actor{TenantID: e.tenant, UserID: confirmer})
 	if err != nil {
 		t.Fatalf("AddNote: %v", err)

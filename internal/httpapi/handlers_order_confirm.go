@@ -60,10 +60,7 @@ func (h *handler) orderChange(ctx context.Context, action string,
 		if err != nil {
 			return nil, fmt.Errorf("người bán mặc định: %w", err)
 		}
-		a := order.Actor{
-			TenantID: u.TenantID, UserID: u.UserID, CanApproveDiscount: identity.Can(u, permDiscountApprove, nil),
-		}
-		o, err := change(tx, w, seller, a, time.Now().UTC())
+		o, err := change(tx, w, seller, orderActor(u), time.Now().UTC())
 		if err != nil {
 			return nil, err
 		}

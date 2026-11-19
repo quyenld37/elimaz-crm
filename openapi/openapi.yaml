@@ -2516,7 +2516,6 @@ paths:
     post:
       operationId: createReturn
       summary: 'Tạo phiếu trả theo dòng (khách trả) hoặc đổi hàng (kèm đơn thay thế) cho đơn đã giao; chưa đổi tồn (Task M2-22)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.return
       parameters:
         - $ref: "#/components/parameters/OrderID"
@@ -2540,7 +2539,6 @@ paths:
     get:
       operationId: listReturns
       summary: 'Phiếu trả, mới nhất trước (Task M2-22)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.read
       parameters:
         - name: status
@@ -2568,7 +2566,6 @@ paths:
     get:
       operationId: getReturn
       summary: 'Một phiếu trả kèm dòng (Task M2-22)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.read
       parameters:
         - $ref: "#/components/parameters/ReturnID"
@@ -2585,7 +2582,6 @@ paths:
     post:
       operationId: receiveReturn
       summary: 'Kho nhận hàng trả: tình trạng từng dòng, nhập lại kho cùng lúc (Task M2-22)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.return.receive
       parameters:
         - $ref: "#/components/parameters/ReturnID"
@@ -2609,7 +2605,6 @@ paths:
     post:
       operationId: closeReturn
       summary: 'Đóng phiếu trả đã nhập kho (Task M2-22)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.return
       parameters:
         - $ref: "#/components/parameters/ReturnID"
@@ -2633,7 +2628,6 @@ paths:
     post:
       operationId: cancelReturn
       summary: 'Hủy phiếu trả chưa nhận (phiếu đổi: hủy luôn đơn thay thế chưa gửi hãng) (Task M2-22)'
-      description: Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
       x-permission: order.return
       parameters:
         - $ref: "#/components/parameters/ReturnID"

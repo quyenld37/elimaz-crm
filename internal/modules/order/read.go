@@ -73,7 +73,7 @@ func GetDetail(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID) (OrderDet
 	d.Customer = CustomerSummary{
 		ID: o.CustomerID, RootID: p.ID, Code: p.Code, FullName: p.FullName, Stats: p.Stats,
 	}
-	if d.CouponCode, err = promotion.ActiveCouponCode(ctx, tx, o.ID); err != nil {
+	if d.CouponCode, err = promotion.OrderCouponCode(ctx, tx, o.ID); err != nil {
 		return OrderDetail{}, fmt.Errorf("đọc mã giảm giá của đơn: %w", err)
 	}
 	q := store.New(tx)

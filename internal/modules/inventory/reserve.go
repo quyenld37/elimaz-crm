@@ -160,19 +160,9 @@ func (w Writer) transition(ctx context.Context, tx pgx.Tx, reservationIDs []uuid
 		return nil
 	}
 	q := store.New(tx)
-	if _, err := q.LockBalancesOfReservations(ctx, ids); err != nil {
-		return fmt.Errorf("khóa số dư: %w", err)
-	}
-	res, err := q.LockReservations(ctx, ids)
+	res, err := lockInState(ctx, q, ids, c.from)
 	if err != nil {
-		return fmt.Errorf("khóa giữ hàng: %w", err)
-	}
-	if len(res) != len(ids) {
-		return fmt.Errorf("%w: %d/%d dòng giữ hàng", ErrStateConflict, len(res), len(ids))
-	}
-	// Đã khóa: kiểm trước để sai trạng thái không ghi gì (UPDATE dưới vẫn giữ điều kiện state = <cũ>).
-	if slices.ContainsFunc(res, func(r store.LockReservationsRow) bool { return r.State != c.from }) {
-		return fmt.Errorf("%w: cần %s", ErrStateConflict, c.from)
+		return err
 	}
 	reason := pgtype.Text{String: c.reason, Valid: c.reason != ""}
 	changed, err := q.SetReservationState(ctx, store.SetReservationStateParams{
@@ -196,6 +186,26 @@ func (w Writer) transition(ctx context.Context, tx pgx.Tx, reservationIDs []uuid
 		}
 	}
 	return nil
+}
+
+// lockInState khóa số dư của các dòng giữ hàng ids (đã sắp tăng dần, không trùng) theo (variant_id, warehouse_id)
+// tăng dần rồi khóa chính các dòng đó theo id (ADR-46 nhóm 11: số dư trước giữ hàng); thiếu dòng nào hay có dòng không
+// ở trạng thái from → ErrStateConflict (đã khóa: kiểm trước để sai trạng thái không ghi gì).
+func lockInState(ctx context.Context, q *store.Queries, ids []uuid.UUID, from string) ([]store.LockReservationsRow, error) {
+	if _, err := q.LockBalancesOfReservations(ctx, ids); err != nil {
+		return nil, fmt.Errorf("khóa số dư: %w", err)
+	}
+	res, err := q.LockReservations(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("khóa giữ hàng: %w", err)
+	}
+	if len(res) != len(ids) {
+		return nil, fmt.Errorf("%w: %d/%d dòng giữ hàng", ErrStateConflict, len(res), len(ids))
+	}
+	if slices.ContainsFunc(res, func(r store.LockReservationsRow) bool { return r.State != from }) {
+		return nil, fmt.Errorf("%w: cần %s", ErrStateConflict, from)
+	}
+	return res, nil
 }
 
 // applyMoves áp các thay đổi số dư của c cho dòng giữ hàng r (đã khóa) rồi phát một stock.changed.

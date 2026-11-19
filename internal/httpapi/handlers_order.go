@@ -106,10 +106,7 @@ func createOrderInput(req *gen.CreateOrderRequest, key uuid.UUID) (order.CreateI
 		in.Customer = customer.OrderCustomerInput{CustomerID: optUUID(req.CustomerId)}
 	}
 	if a, ok := req.ShipAddress.Get(); ok {
-		in.ShipAddress = &order.ShipAddress{
-			Name: a.Name, Phone: logging.Phone(a.Phone), Line: logging.Address(a.Line),
-			ProvinceCode: a.ProvinceCode.Or(""), WardCode: a.WardCode.Or(""),
-		}
+		in.ShipAddress = shipAddressIn(a)
 	} else if in.Intent == "" || in.Intent == order.IntentConfirmed {
 		return order.CreateInput{}, fmt.Errorf("tạo đơn confirmed thiếu địa chỉ giao: %w", order.ErrInvalidInput)
 	}
@@ -128,6 +125,21 @@ func createOrderInput(req *gen.CreateOrderRequest, key uuid.UUID) (order.CreateI
 	return in, nil
 }
 
+// shipAddressIn dịch địa chỉ giao của hợp đồng (createOrder, updateOrder, đơn thay thế của createReturn) sang
+// order.ShipAddress.
+func shipAddressIn(a gen.ShipAddress) *order.ShipAddress {
+	return &order.ShipAddress{
+		Name: a.Name, Phone: logging.Phone(a.Phone), Line: logging.Address(a.Line),
+		ProvinceCode: a.ProvinceCode.Or(""), WardCode: a.WardCode.Or(""),
+	}
+}
+
+// orderActor là người làm việc trên đơn từ người dùng đã xác thực u; quyền duyệt giảm giá máy chủ tự tính từ grant
+// (không bao giờ lấy từ thân yêu cầu).
+func orderActor(u identity.AuthUser) order.Actor {
+	return order.Actor{TenantID: u.TenantID, UserID: u.UserID, CanApproveDiscount: identity.Can(u, permDiscountApprove, nil)}
+}
+
 func optUUID(o gen.OptUUID) *uuid.UUID {
 	if v, ok := o.Get(); ok {
 		return &v
@@ -137,10 +149,7 @@ func optUUID(o gen.OptUUID) *uuid.UUID {
 
 func createOrder(ctx context.Context, tx pgx.Tx, w order.Writer, in order.CreateInput, u identity.AuthUser,
 ) (order.CreateResult, error) {
-	a := order.Actor{
-		TenantID: u.TenantID, UserID: u.UserID, CanApproveDiscount: identity.Can(u, permDiscountApprove, nil),
-	}
-	res, err := w.Create(ctx, tx, in, a, time.Now().UTC())
+	res, err := w.Create(ctx, tx, in, orderActor(u), time.Now().UTC())
 	if err != nil || res.Replayed {
 		return res, err //nolint:wrapcheck // sentinel của order
 	}

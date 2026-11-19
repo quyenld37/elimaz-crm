@@ -148,7 +148,7 @@ func orderAudit(ctx context.Context, tx pgx.Tx, orderID uuid.UUID) ([]order.Audi
 	}
 	out := make([]order.AuditChange, 0, len(recs))
 	for _, r := range recs {
-		c := order.AuditChange{ID: r.ID, Action: r.Action, Fields: r.ChangedFields, Diff: r.HasBefore, At: r.CreatedAt}
+		c := order.AuditChange{ID: r.ID, Action: r.Action, Edited: r.ListedFields, At: r.CreatedAt}
 		if id, err := uuid.Parse(r.ActorID); err == nil {
 			c.ActorID = &id
 		}

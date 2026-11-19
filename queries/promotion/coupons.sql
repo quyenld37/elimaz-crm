@@ -17,6 +17,15 @@ FROM promotion.coupons
 WHERE code = sqlc.arg(code)::text::citext
 FOR UPDATE;
 
+-- name: LockCouponsByCodes :many
+-- Khóa trước nhiều mã trong một transaction (sửa đơn đổi mã, hủy nhiều đơn nháp): theo id tăng dần (ADR-46 nhóm 10,
+-- cùng bảng theo khóa chính); khóa sau đó của Redeem, Release, Detach lấy lại dòng đã giữ nên không tạo vòng chờ.
+SELECT id
+FROM promotion.coupons
+WHERE code = ANY(sqlc.arg(codes)::text[]::citext[])
+ORDER BY id
+FOR UPDATE;
+
 -- name: CouponByIDForUpdate :one
 -- Trả lượt, tính lại (Release, Detach, Reprice): khóa dòng mã trước mọi bảng lượt (ADR-46 nhóm 10).
 SELECT id, code::text AS code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, seller_id,

@@ -126,9 +126,11 @@ func (w Writer) Redeem(ctx context.Context, tx pgx.Tx, code string, o OrderRef, 
 	return Redemption{CouponID: c.ID, Code: c.Code, Discount: discount}, nil
 }
 
-// ActiveCouponCode trả mã (đúng chữ đã lưu) của lượt đang hiệu lực của đơn orderID; đơn không dùng mã → "".
-func ActiveCouponCode(ctx context.Context, tx pgx.Tx, orderID uuid.UUID) (string, error) {
-	code, err := store.New(tx).ActiveCouponCodeByOrder(ctx, orderID)
+// OrderCouponCode trả mã (đúng chữ đã lưu) mà đơn orderID đang dùng, cho dấu vân tay lần gửi lại tạo đơn: mã của lượt
+// đang hiệu lực; đơn đã hủy (lượt đã trả) → mã của lượt đã trả gần nhất; lượt bị bỏ khi sửa đơn (Detach) không tính.
+// Đơn không dùng mã → "".
+func OrderCouponCode(ctx context.Context, tx pgx.Tx, orderID uuid.UUID) (string, error) {
+	code, err := store.New(tx).OrderCouponCode(ctx, store.OrderCouponCodeParams{OrderID: orderID, DetachReason: detachReason})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", nil
 	}
@@ -136,6 +138,16 @@ func ActiveCouponCode(ctx context.Context, tx pgx.Tx, orderID uuid.UUID) (string
 		return "", fmt.Errorf("đọc mã của đơn: %w", err)
 	}
 	return code, nil
+}
+
+// LockCoupons khóa trước các dòng mã có chữ trong codes (không phân biệt hoa thường; "" và mã không có bị bỏ qua) theo
+// id tăng dần, cho transaction chạm nhiều mã (sửa đơn đổi mã, hủy nhiều đơn nháp): ADR-46 nhóm 10, cùng bảng theo khóa
+// chính. Redeem, Release, Detach, Reprice gọi sau đó lấy lại dòng đã giữ nên mọi đường giữ cùng một thứ tự.
+func LockCoupons(ctx context.Context, tx pgx.Tx, codes []string) error {
+	if _, err := store.New(tx).LockCouponsByCodes(ctx, codes); err != nil {
+		return fmt.Errorf("khóa các mã giảm giá: %w", err)
+	}
+	return nil
 }
 
 // Release trả lượt mã của đơn orderID khi đơn hủy (reason: lý do hủy, 1–100 ký tự). Không có lượt active, hoặc mã có

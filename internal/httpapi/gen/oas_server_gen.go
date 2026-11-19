@@ -111,7 +111,8 @@ type Handler interface {
 	CancelOrder(ctx context.Context, req *CancelOrderRequest, params CancelOrderParams) (CancelOrderRes, error)
 	// CancelReturn implements cancelReturn operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Hủy phiếu trả chưa nhận (phiếu đổi: hủy luôn đơn thay thế chưa gửi hãng)
+	// (Task M2-22).
 	//
 	// POST /api/v1/returns/{returnId}/cancel
 	CancelReturn(ctx context.Context, req *VersionRequest, params CancelReturnParams) (CancelReturnRes, error)
@@ -142,7 +143,7 @@ type Handler interface {
 	CheckOrderDuplicates(ctx context.Context, params CheckOrderDuplicatesParams) (CheckOrderDuplicatesRes, error)
 	// CloseReturn implements closeReturn operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Đóng phiếu trả đã nhập kho (Task M2-22).
 	//
 	// POST /api/v1/returns/{returnId}/close
 	CloseReturn(ctx context.Context, req *VersionRequest, params CloseReturnParams) (CloseReturnRes, error)
@@ -226,7 +227,8 @@ type Handler interface {
 	CreateProduct(ctx context.Context, req *CreateProductRequest, params CreateProductParams) (CreateProductRes, error)
 	// CreateReturn implements createReturn operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Tạo phiếu trả theo dòng (khách trả) hoặc đổi hàng (kèm đơn thay thế) cho đơn
+	// đã giao; chưa đổi tồn (Task M2-22).
 	//
 	// POST /api/v1/orders/{id}/returns
 	CreateReturn(ctx context.Context, req *CreateReturnRequest, params CreateReturnParams) (CreateReturnRes, error)
@@ -411,7 +413,7 @@ type Handler interface {
 	GetProductClassification(ctx context.Context, params GetProductClassificationParams) (GetProductClassificationRes, error)
 	// GetReturn implements getReturn operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Một phiếu trả kèm dòng (Task M2-22).
 	//
 	// GET /api/v1/returns/{returnId}
 	GetReturn(ctx context.Context, params GetReturnParams) (GetReturnRes, error)
@@ -553,7 +555,7 @@ type Handler interface {
 	ListProducts(ctx context.Context, params ListProductsParams) (ListProductsRes, error)
 	// ListReturns implements listReturns operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Phiếu trả, mới nhất trước (Task M2-22).
 	//
 	// GET /api/v1/returns
 	ListReturns(ctx context.Context, params ListReturnsParams) (ListReturnsRes, error)
@@ -635,7 +637,7 @@ type Handler interface {
 	PutCustomerTagRule(ctx context.Context, req *PutCustomerTagRuleRequest, params PutCustomerTagRuleParams) (PutCustomerTagRuleRes, error)
 	// ReceiveReturn implements receiveReturn operation.
 	//
-	// Chưa làm ở Task M2-02 (trả 501 not_implemented) cho tới task ghi trong summary.
+	// Kho nhận hàng trả: tình trạng từng dòng, nhập lại kho cùng lúc (Task M2-22).
 	//
 	// POST /api/v1/returns/{returnId}/receive
 	ReceiveReturn(ctx context.Context, req *ReceiveReturnRequest, params ReceiveReturnParams) (ReceiveReturnRes, error)

@@ -12,21 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const activeCouponCodeByOrder = `-- name: ActiveCouponCodeByOrder :one
-SELECT c.code::text AS code
-FROM promotion.coupon_redemptions r
-JOIN promotion.coupons c ON c.id = r.coupon_id
-WHERE r.order_id = $1 AND r.status = 'active'
-`
-
-// Mã (đúng chữ đã lưu) của lượt đang hiệu lực của đơn (dấu vân tay lần gửi lại tạo đơn).
-func (q *Queries) ActiveCouponCodeByOrder(ctx context.Context, orderID uuid.UUID) (string, error) {
-	row := q.db.QueryRow(ctx, activeCouponCodeByOrder, orderID)
-	var code string
-	err := row.Scan(&code)
-	return code, err
-}
-
 const activeRedemptionByOrder = `-- name: ActiveRedemptionByOrder :one
 SELECT id, coupon_id, customer_id, discount
 FROM promotion.coupon_redemptions
@@ -143,6 +128,29 @@ func (q *Queries) IncrementUsed(ctx context.Context, id uuid.UUID) (int64, error
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const orderCouponCode = `-- name: OrderCouponCode :one
+SELECT c.code::text AS code
+FROM promotion.coupon_redemptions r
+JOIN promotion.coupons c ON c.id = r.coupon_id
+WHERE r.order_id = $1 AND (r.status = 'active' OR r.release_reason <> $2::text)
+ORDER BY r.status = 'active' DESC, r.released_at DESC, r.id DESC
+LIMIT 1
+`
+
+type OrderCouponCodeParams struct {
+	OrderID      uuid.UUID
+	DetachReason string
+}
+
+// Mã (đúng chữ đã lưu) mà đơn đang dùng (dấu vân tay lần gửi lại tạo đơn): lượt đang hiệu lực; không có thì lượt đã
+// trả gần nhất trừ lượt bị bỏ khi sửa đơn (detach_reason): đơn đã hủy vẫn được nhận ra là cùng đơn (Task M2-21).
+func (q *Queries) OrderCouponCode(ctx context.Context, arg OrderCouponCodeParams) (string, error) {
+	row := q.db.QueryRow(ctx, orderCouponCode, arg.OrderID, arg.DetachReason)
+	var code string
+	err := row.Scan(&code)
+	return code, err
 }
 
 const releaseRedemption = `-- name: ReleaseRedemption :execrows

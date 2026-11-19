@@ -193,3 +193,73 @@ func TestOrderRead_TenantIsolation(t *testing.T) {
 		t.Errorf("ghi chú lọt vào đơn B: %d", n)
 	}
 }
+
+// DH06 qua HTTP (Task 77, 78 thật): tạo (lên đơn) → PATCH địa chỉ và số lượng (sale) → hủy có lý do, ghi chú (người hủy)
+// → timeline mới nhất trước: hủy (lý do), sửa (lines, shipAddress "changed", tên người sửa), tạo; không địa chỉ, SĐT cũ
+// hay mới trong timeline; getOrder trả cancelReason, cancelNote của lần hủy.
+func TestOrderRead_EditCancelTimeline(t *testing.T) {
+	e := newOrderReadEnv(t)
+	e.grantCanceller()
+	v := e.variant(e.shop.Seller, 250000, 5)
+	o := e.mustCreate("ec1", m2Body("new", fullAddr, 0, m2Line(v, 1, 0)))
+	id := fmt.Sprint(o["id"])
+	newAddr := `{"name":"Chị Lan","phone":"0987654321","line":"99 Hai Bà Trưng","provinceCode":"T01","wardCode":"T01001"}`
+	rec := e.patchOrder(readSale, "ec2", id, fmt.Sprintf(`{"version":%v,"shipAddress":%s,"lines":[{"itemId":"%v",`+
+		`"variantId":"%s","qty":2}]}`, o["version"], newAddr, firstItemID(t, o), v))
+	edited := decodeJSON(t, rec)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("sửa: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec = e.cancelOrder(orderCanceller, "ec3", id, edited["version"], "wrong_info", "Khách nhầm địa chỉ"); rec.Code != http.StatusOK {
+		t.Fatalf("hủy: %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec = e.get(orderViewer, "/api/v1/orders/"+id+"/timeline")
+	items, _ := decodeJSON(t, rec)["items"].([]any)
+	if rec.Code != http.StatusOK || len(items) != 3 {
+		t.Fatalf("timeline: %d %s", rec.Code, rec.Body.String())
+	}
+	checkTimelineItems(t, items, []timelineItemWant{
+		{"status", orderCanceller, map[string]any{"to": "cancelled", "reason": "wrong_info"}},
+		{"edit", readSale, map[string]any{"action": "order.update", "lines": "changed", "shipAddress": "changed"}},
+		{"status", orderClerk, map[string]any{"to": "new"}},
+	})
+	for _, pii := range []string{"0901234567", "0987654321", "Lê Lợi", "Hai Bà Trưng", "Chị Lan", "nhầm địa chỉ"} {
+		if strings.Contains(rec.Body.String(), pii) {
+			t.Errorf("timeline lộ %q: %s", pii, rec.Body.String())
+		}
+	}
+
+	rec = e.get(orderViewer, "/api/v1/orders/"+id)
+	d := decodeJSON(t, rec)
+	if rec.Code != http.StatusOK || d["status"] != "cancelled" || d["cancelReason"] != "wrong_info" ||
+		d["cancelNote"] != "Khách nhầm địa chỉ" || d["cancelledAt"] == nil {
+		t.Errorf("getOrder sau hủy: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+// timelineItemWant: một mục TimelineItem mong đợi: loại, tên người làm, các khóa summary (mục edit: đúng bằng các khóa đó).
+type timelineItemWant struct {
+	kind, actor string
+	sum         map[string]any
+}
+
+func checkTimelineItems(t *testing.T, items []any, want []timelineItemWant) {
+	t.Helper()
+	for i, w := range want {
+		it := items[i].(map[string]any)
+		actor, _ := it["actor"].(map[string]any)
+		sum, _ := it["summary"].(map[string]any)
+		if it["kind"] != w.kind || actor == nil || actor["name"] != w.actor {
+			t.Errorf("mục %d: %v, muốn %s của %s", i, it, w.kind, w.actor)
+		}
+		for k, v := range w.sum {
+			if sum[k] != v {
+				t.Errorf("mục %d summary[%s] = %v, muốn %v (%v)", i, k, sum[k], v, sum)
+			}
+		}
+		if w.kind == "edit" && len(sum) != len(w.sum) {
+			t.Errorf("mục sửa có trường thừa: %v", sum)
+		}
+	}
+}

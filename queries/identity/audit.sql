@@ -20,9 +20,12 @@ VALUES (
 
 -- name: ListEntityAudit :many
 -- Dòng audit của một thực thể (kế hoạch M2, Task M2-24: lịch sử thao tác của đơn), cũ trước, tối đa 500 dòng. Chỉ tên
--- trường đổi và có before hay không; không đọc giá trị before/after.
-SELECT id, actor_type, COALESCE(actor_id, '')::text AS actor_id, action, changed_fields,
-       (before IS NOT NULL)::boolean AS has_before, created_at
+-- trường bên ghi liệt kê ở after.fields (mảng chuỗi; không phải mảng → rỗng); không đọc giá trị before/after.
+SELECT id, actor_type, COALESCE(actor_id, '')::text AS actor_id, action,
+       (CASE WHEN jsonb_typeof(after -> 'fields') = 'array'
+             THEN ARRAY(SELECT jsonb_array_elements_text(after -> 'fields'))
+             ELSE '{}'::text[] END)::text[] AS listed_fields,
+       created_at
 FROM identity.audit_logs
 WHERE entity_type = @entity_type AND entity_id = @entity_id::text
 ORDER BY created_at, id

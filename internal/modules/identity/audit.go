@@ -138,14 +138,13 @@ func redactedJSON(m map[string]any) ([]byte, error) {
 }
 
 // AuditRecord là một dòng audit đọc lại cho lịch sử thao tác: người làm (ActorID rỗng khi không rõ), việc, tên các trường
-// cấp đầu đã đổi, HasBefore khi dòng có trạng thái trước (bản so trước/sau, ChangedFields là trường thật sự đổi), lúc
-// ghi. Không mang giá trị before/after (có thể có dữ liệu cá nhân).
+// bên ghi tự liệt kê ở After["fields"] (mảng chuỗi, ví dụ trường đã sửa của đơn; không có → rỗng, không nil), lúc ghi.
+// Không mang giá trị before/after (có thể có dữ liệu cá nhân).
 type AuditRecord struct {
 	ID                 uuid.UUID
 	ActorType, ActorID string
 	Action             string
-	ChangedFields      []string
-	HasBefore          bool
+	ListedFields       []string
 	CreatedAt          time.Time
 }
 
@@ -162,8 +161,8 @@ func ListEntityAudit(ctx context.Context, tx pgx.Tx, entityType, entityID string
 	out := make([]AuditRecord, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, AuditRecord{
-			ID: r.ID, ActorType: r.ActorType, ActorID: r.ActorID, Action: r.Action, ChangedFields: r.ChangedFields,
-			HasBefore: r.HasBefore, CreatedAt: r.CreatedAt,
+			ID: r.ID, ActorType: r.ActorType, ActorID: r.ActorID, Action: r.Action, ListedFields: r.ListedFields,
+			CreatedAt: r.CreatedAt,
 		})
 	}
 	return out, nil
