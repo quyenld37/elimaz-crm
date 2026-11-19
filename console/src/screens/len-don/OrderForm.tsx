@@ -476,6 +476,14 @@ export function OrderForm({ initialCustomer, onCreated, edit }: OrderFormProps) 
       );
     } else if (couponRejected !== null) {
       alert = <div className="box box-err">Chưa lưu đơn: bỏ mã hoặc đổi mã giảm giá rồi lưu lại.</div>;
+    } else if (err instanceof ApiError && err.status === 403 && err.code === "forbidden" && edit === undefined) {
+      // Task 411: lên đơn bị chặn khi kho giữ hàng (bỏ trống là kho chính) ngoài phạm vi order.create của người gọi.
+      alert = (
+        <div className="box box-err">
+          Chưa lưu đơn: bạn chưa được giao kho giữ hàng của đơn. Nhờ chủ shop gán quyền lên đơn ở kho này hoặc toàn
+          shop.
+        </div>
+      );
     } else if (err instanceof ApiError && err.code === "version_conflict" && edit !== undefined) {
       alert = (
         <div className="box box-err">

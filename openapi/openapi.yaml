@@ -1442,7 +1442,8 @@ paths:
         M1. Trường M2 (customerId, intent, giảm giá, mã, nguồn, ghi chú hãng, người phụ trách, mã tỉnh/xã…) có nghiệp vụ
         từ Task M2-16, M2-17; trước đó gửi trường M2 → 501 not_implemented. Đúng một trong customerId, customer (sai →
         400 invalid_input). Khóa nghiệp vụ của đơn dựng từ Idempotency-Key và nhân viên (Q-T57-4); cùng khóa nghiệp vụ,
-        cùng nội dung sau khi bản ghi chống trùng hết hạn → 200 trả đơn đã có.
+        cùng nội dung sau khi bản ghi chống trùng hết hạn → 200 trả đơn đã có. Kho giữ hàng (warehouseId, bỏ trống là
+        kho chính) ngoài phạm vi order.create của người gọi → 403 forbidden, không lưu theo khóa (Task 411).
       x-permission: order.create
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -3921,7 +3922,9 @@ components:
         warehouseId:
           type: string
           format: uuid
-          description: Bỏ trống → kho chính
+          description: >-
+            Bỏ trống → kho chính. Kho (kể cả kho chính) phải nằm trong phạm vi order.create của người gọi (gán toàn
+            shop hoặc theo đúng kho đó), không thì 403 forbidden (Task 411, docs/quyen.md)
         items:
           type: array
           minItems: 1

@@ -155,6 +155,19 @@ func Can(u AuthUser, p Permission, target *Scope) bool {
 	return false
 }
 
+// GrantedAt trả lời "u có grant hiệu lực của p ở phạm vi all hoặc đúng target không", không xét loại phạm vi của p
+// (mặc định từ chối). Dùng khi một quyền none (có hiệu lực toàn shop với Can) vẫn phải giới hạn theo đích ở một thao
+// tác cụ thể: order.create giữ hàng ở kho (Task 411, docs/quyen.md). Quyền theo đích dùng Can. Quyền lạ: luôn sai;
+// grant không hiệu lực (Effective sai) không tính. GrantedAt đúng thì Can(u, p, &target) cũng đúng.
+func GrantedAt(u AuthUser, p Permission, target Scope) bool {
+	if !IsKnown(p) {
+		return false
+	}
+	return slices.ContainsFunc(u.Grants, func(g Grant) bool {
+		return g.Permission == p && Effective(g) && (isAll(g.Scope) || g.Scope == target)
+	})
+}
+
 // Effective cho biết grant g có hiệu lực không: grant của quyền ScopeShop chỉ có hiệu lực ở phạm vi all; quyền khác
 // luôn có (phạm vi của chúng do Can kiểm theo đích).
 func Effective(g Grant) bool {
