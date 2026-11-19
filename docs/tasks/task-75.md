@@ -103,6 +103,10 @@ Hợp đồng này là **đầu vào của kế hoạch M3** (báo cáo soát ch
 6. **`AttachShipmentBy` trên đơn không `confirmed` hay còn `pending_reason` → `ErrInvalidTransition`** (kế hoạch); M1
    trả `ErrStatusConflict` — lớp bọc giờ trả `ErrInvalidTransition` (chỗ gọi duy nhất `CreateForOrder` đã tự kiểm
    `confirmed` trước nên không chạm tới). `ErrStatusConflict` vẫn dùng cho bất biến hỏng ở `OnShipmentEvent`.
+7. **Lượt 2 (gộp main): trùng tên `orderEnv.dh01`.** Task 74 có `dh01(v1, v2, code) order.CreateInput` (dựng đầu
+   vào DH01 kèm mã); bản của task này tạo đơn confirmed và biến thể — khác nghĩa, nên đổi tên bản của mình thành
+   `confirmedDH01()` và cho nó dựng đầu vào bằng `e.dh01(v1, v2, "")` của Task 74 (một nguồn cho dữ liệu DH01).
+   Phương án khác: xóa hẳn bản của mình và lặp 3 dòng tạo biến thể ở 11 chỗ gọi — dài hơn, không thêm gì.
 
 ## Bằng chứng
 
@@ -124,6 +128,8 @@ Hợp đồng này là **đầu vào của kế hoạch M3** (báo cáo soát ch
 | fulfillment: hủy vận đơn creating gỡ khỏi đơn qua `Writer.DetachShipment` | `internal/modules/fulfillment` (terminal_test) | `scripts/agent/ci-task.sh` | `ok elimaz.com.vn/crm/internal/modules/fulfillment 48.092s` |
 | Luật kiến trúc (status chỉ ở transition.sql, lỗi được ánh xạ) | `tests/arch` | `ci-task.sh` | `ok elimaz.com.vn/crm/tests/arch 8.415s` |
 | Cổng tĩnh: lint, jscpd | — | `golangci-lint run ./internal/modules/...`; `jscpd --config .jscpd.json --similarity --baseline jscpd-baseline.json --fail-on-new-clones=0 .` | `0 issues.`; `Found 0 clones.` (lần ci-task đầu báo 1 clone trong shiphooks.go → gom `lockForShipment`, `wired`) |
+| Lượt 2: gộp main, trùng `dh01` hết (vet) và test vận đơn, thanh toán, DH01 vẫn đạt | `TestAttachShipmentBy*`, `TestOnShipmentEvent*`, `TestWriterDetachShipment`, `TestApplyPaymentTotals*`, `TestShipmentWrappers_SameAsNew`, `TestApplyShipmentProgress*`, `TestCreateCoupon_DH01` | `go vet ./internal/modules/order/`; `go test -race -count=1 -timeout 580s -run 'Shipment\|PaymentTotals\|Attach\|Detach\|OnShipment\|DH01' ./internal/modules/order/` | `VET_OK`; `ok elimaz.com.vn/crm/internal/modules/order 13.229s` |
+| Lượt 2: cổng ci-task trên bản gộp | gói đổi, phụ thuộc, vùng cao; `tests/arch`, `tests/e2e` | `scripts/agent/ci-task.sh` (nền, một lần) | build, vet, lint, sqlc-vet, catalog-check, jscpd, gitleaks, oasdiff, test-guard qua; test qua (`ok …/tests/arch 13.171s`, `ok …/tests/e2e 58.464s`, bước test 140 giây). `gen-check` ĐỎ giả: `git diff --exit-code -- internal console/src/api` chỉ chứa hai tệp test chưa commit của task (`payments_test.go`, `shiphooks_test.go`); `git diff --name-only` trên `internal/httpapi/gen`, `routes_gen.go`, `console/src/api`, `**/internal/store/**` sau `make gen` rỗng → mã sinh khớp nguồn. Lint của hook Stop báo `typecheck` gói `gen` một lần vì ci-task đang `ogen -clean` cùng lúc; chạy lại `golangci-lint run ./internal/modules/order/... ./cmd/...` → `0 issues.` |
 
 ## Test bị xóa hoặc tắt
 
@@ -166,3 +172,7 @@ chủ shop 1–6: reviewer đánh giá đúng kế hoạch, an toàn (QĐ1: kho�
 Ghi chú không bắt buộc (chuyển cho M3, ghi ở Việc phát hiện thêm): `ApplyPaymentTotals` tính lại `payment_status` mỗi
 lần nên sẽ ghi đè `refunded`; không xét trạng thái đơn (đơn `cancelled` vẫn ghi được); lớp bọc `AttachShipment` kiểm
 thêm `pending_reason = ''` (vô hại).
+
+Lượt 2 (gộp main, `git diff --cached` 3 tệp): ĐẠT. Phát hiện phải sửa: không có. Reviewer tự chạy lại `go vet
+./internal/modules/order/` (qua), xác nhận `confirmedDH01` dựng đầu vào giống hệt bản cũ (đơn không mã, 690.000), đủ
+12 chỗ gọi đã đổi, không assertion nào bị bỏ hay nới; giải thích gen-check đỏ giả hợp lý (phần stage không chạm mã sinh).

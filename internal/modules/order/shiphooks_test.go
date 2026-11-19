@@ -12,12 +12,12 @@ import (
 	"elimaz.com.vn/crm/internal/queries/orderview"
 )
 
-// dh01 tạo đơn DH01 (kế hoạch M2, Task M2-16): confirmed, V1 ×2 (giảm 20.000), V2 ×1, phí 30.000 → tổng 690.000.
-// Trả đơn và hai biến thể (V1 on_hand 5, V2 on_hand 1).
-func (e *orderEnv) dh01() (order.Order, uuid.UUID, uuid.UUID) {
+// confirmedDH01 tạo đơn DH01 không mã (đầu vào dh01 của create_coupon_test.go): confirmed, V1 ×2 (giảm 20.000),
+// V2 ×1, phí 30.000 → tổng 690.000. Trả đơn và hai biến thể (V1 on_hand 5, V2 on_hand 1).
+func (e *orderEnv) confirmedDH01() (order.Order, uuid.UUID, uuid.UUID) {
 	e.t.Helper()
 	v1, v2 := e.variant(250000, 5), e.variant(180000, 1)
-	o := e.mustCreateM2(e.m2Input(30000, ln(v1, 2, 20000), ln(v2, 1, 0))).Order
+	o := e.mustCreateM2(e.dh01(v1, v2, "")).Order
 	if o.GrandTotal != 690000 || o.Status != order.StatusConfirmed {
 		e.t.Fatalf("DH01: %+v", o)
 	}
@@ -70,7 +70,7 @@ func (e *orderEnv) events(o uuid.UUID, topic string, seq int64) int {
 // ErrShipmentAlreadyAttached; đơn không có hay người bán khác → ErrNotFound.
 func TestAttachShipmentBy(t *testing.T) {
 	e := newM2Env(t)
-	o, _, _ := e.dh01()
+	o, _, _ := e.confirmedDH01()
 	s1, s2 := uuid.New(), uuid.New()
 	if err := e.attachBy(o.ID, s1); err != nil {
 		t.Fatalf("gắn S1: %v", err)
@@ -96,7 +96,7 @@ func TestAttachShipmentBy(t *testing.T) {
 	if err := e.attachBy(uuid.New(), s1); !errors.Is(err, order.ErrNotFound) {
 		t.Errorf("đơn không có: %v; muốn ErrNotFound", err)
 	}
-	o2, _, _ := e.dh01()
+	o2, _, _ := e.confirmedDH01()
 	if err := e.app(func(tx pgx.Tx) error {
 		return e.writer().AttachShipmentBy(t.Context(), tx, e.partner, o2.ID, s2, e.actor, e.now())
 	}); !errors.Is(err, order.ErrNotFound) {
@@ -125,7 +125,7 @@ func TestAttachShipmentBy_NotConfirmed(t *testing.T) {
 // seq = version; delivered lần hai → applied=false, on_hand không giảm thêm (AT47).
 func TestOnShipmentEvent_PickedUpThenDelivered(t *testing.T) {
 	e := newM2Env(t)
-	o, v1, v2 := e.dh01()
+	o, v1, v2 := e.confirmedDH01()
 	s1 := uuid.New()
 	if err := e.attachBy(o.ID, s1); err != nil {
 		t.Fatal(err)
@@ -168,7 +168,7 @@ func TestOnShipmentEvent_PickedUpThenDelivered(t *testing.T) {
 // B1: gắn S1, gỡ S1, gắn S2; delivered(S1) tới muộn → applied=false, đơn và tồn không đổi; delivered(S2) → applied.
 func TestOnShipmentEvent_StaleShipment(t *testing.T) {
 	e := newM2Env(t)
-	o, v1, _ := e.dh01()
+	o, v1, _ := e.confirmedDH01()
 	s1, s2 := uuid.New(), uuid.New()
 	if err := e.attachBy(o.ID, s1); err != nil {
 		t.Fatal(err)
@@ -193,7 +193,7 @@ func TestOnShipmentEvent_StaleShipment(t *testing.T) {
 // delivered khi chưa picked_up → held → in_transit → consumed trong một transaction.
 func TestOnShipmentEvent_DeliveredWithoutPickup(t *testing.T) {
 	e := newM2Env(t)
-	o, v1, v2 := e.dh01()
+	o, v1, v2 := e.confirmedDH01()
 	s := uuid.New()
 	if err := e.attachBy(o.ID, s); err != nil {
 		t.Fatal(err)
@@ -210,7 +210,7 @@ func TestOnShipmentEvent_DeliveredWithoutPickup(t *testing.T) {
 // vận đơn khác → applied=false không đổi; người bán khác hay đơn không có → ErrNotFound.
 func TestWriterDetachShipment(t *testing.T) {
 	e := newM2Env(t)
-	o, v1, _ := e.dh01()
+	o, v1, _ := e.confirmedDH01()
 	s := uuid.New()
 	if err := e.attachBy(o.ID, s); err != nil {
 		t.Fatal(err)
@@ -255,7 +255,7 @@ func TestShipmentWrappers_SameAsNew(t *testing.T) {
 		onHand, inTransit int32
 	}
 	run := func(wrapper bool) result {
-		o, v1, _ := e.dh01()
+		o, v1, _ := e.confirmedDH01()
 		s := uuid.New()
 		var err error
 		if wrapper {

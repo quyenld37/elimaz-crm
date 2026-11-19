@@ -23,7 +23,7 @@ func (e *orderEnv) pay(o uuid.UUID, paid int64) error {
 // mỗi lần đổi: version +1, order.updated seq = version; cùng tổng lần hai → không đổi gì.
 func TestApplyPaymentTotals(t *testing.T) {
 	e := newM2Env(t)
-	o, _, _ := e.dh01()
+	o, _, _ := e.confirmedDH01()
 	version := o.Version
 	for _, c := range []struct {
 		paid, cod int64
@@ -66,7 +66,7 @@ func TestApplyPaymentTotals(t *testing.T) {
 // Đơn có vận đơn hiện hành: đổi COD → ErrLockedByShipment, không đổi gì; đổi tổng mà COD giữ 0 → được.
 func TestApplyPaymentTotals_LockedByShipment(t *testing.T) {
 	e := newM2Env(t)
-	o, _, _ := e.dh01()
+	o, _, _ := e.confirmedDH01()
 	if err := e.attachBy(o.ID, uuid.New()); err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestApplyPaymentTotals_LockedByShipment(t *testing.T) {
 		t.Errorf("đơn bị đổi: %+v", g)
 	}
 
-	paid, _, _ := e.dh01()
+	paid, _, _ := e.confirmedDH01()
 	if err := e.pay(paid.ID, 690000); err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestApplyPaymentTotals_LockedByShipment(t *testing.T) {
 // trạng thái theo ngưỡng, version tăng đúng khi tổng thật sự đổi (cùng tổng → không đổi).
 func TestApplyPaymentTotals_AllTransitions(t *testing.T) {
 	e := newM2Env(t)
-	o, _, _ := e.dh01()
+	o, _, _ := e.confirmedDH01()
 	levels := []int64{0, 1, 200000, 689999, 690000, 700000}
 	version, prev := o.Version, int64(0)
 	for _, from := range levels {
