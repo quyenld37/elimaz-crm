@@ -32,6 +32,8 @@ var (
 	ErrSupplierArchived = errors.New("inventory: nhà cung cấp đã lưu trữ")
 	// ErrSupplierNotForKind: nhà cung cấp chỉ gắn với phiếu nhập.
 	ErrSupplierNotForKind = errors.New("inventory: nhà cung cấp chỉ cho phiếu nhập")
+	// ErrReasonRequired: đảo phiếu xuất hay ghi hàng thất lạc không có lý do (kế hoạch M3, Task M3-05).
+	ErrReasonRequired = errors.New("inventory: thiếu lý do")
 )
 
 // InsufficientError là chi tiết của ErrInsufficient: dòng đầu tiên (theo thứ tự khóa) không đủ hàng.

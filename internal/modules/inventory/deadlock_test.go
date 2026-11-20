@@ -1,12 +1,14 @@
 package inventory_test
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/inventory"
 )
@@ -20,6 +22,43 @@ func (e *invEnv) deadlocks() int64 {
 		e.t.Fatal(err)
 	}
 	return n
+}
+
+// noNewDeadlocks: pg_stat_database.deadlocks vẫn bằng before. Số đếm thống kê được đẩy lên khi backend rảnh: kiểm
+// lặp trong 2 s cho chắc.
+func (e *invEnv) noNewDeadlocks(before int64) {
+	e.t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := e.staff.Owner.Pool.Exec(e.t.Context(), "SELECT pg_stat_clear_snapshot()"); err != nil {
+			e.t.Fatal(err)
+		}
+		if got := e.deadlocks(); got != before {
+			e.t.Fatalf("pg_stat_database.deadlocks tăng từ %d lên %d", before, got)
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+
+// rawTx chạy fn trong một transaction mở thẳng trên pool bằng crm_app của tenant e (không RetryTx: lỗi 40P01 không bị
+// chạy lại che mất), giữ khóa thêm một chút trước khi commit để các transaction song song chắc chắn chồng nhau.
+func (e *invEnv) rawTx(fn func(ctx context.Context, tx pgx.Tx, w inventory.Writer) error) error {
+	ctx := e.t.Context()
+	tx, err := e.staff.App.Pool.Begin(ctx)
+	if err != nil {
+		return err //nolint:wrapcheck // test
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", e.tenant.String()); err != nil {
+		return err //nolint:wrapcheck // test
+	}
+	if err := fn(ctx, tx, e.writer()); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, "SELECT pg_sleep(0.001)"); err != nil {
+		return err //nolint:wrapcheck // test
+	}
+	return tx.Commit(ctx) //nolint:wrapcheck // test
 }
 
 // both chạy f và g song song, chờ cả hai, trả lỗi gộp.
@@ -40,22 +79,10 @@ func TestReserve_NoDeadlockOnCrossOrder(t *testing.T) {
 	a, b := e.stock(1000), e.stock(1000)
 	before := e.deadlocks()
 	reserve := func(first, second inventory.ReserveLine) error {
-		ctx := t.Context()
-		tx, err := e.staff.App.Pool.Begin(ctx)
-		if err != nil {
+		return e.rawTx(func(ctx context.Context, tx pgx.Tx, w inventory.Writer) error {
+			_, err := w.Reserve(ctx, tx, []inventory.ReserveLine{first, second}, sysActor())
 			return err //nolint:wrapcheck // test
-		}
-		defer func() { _ = tx.Rollback(ctx) }()
-		if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", e.tenant.String()); err != nil {
-			return err //nolint:wrapcheck // test
-		}
-		if _, err := e.writer().Reserve(ctx, tx, []inventory.ReserveLine{first, second}, sysActor()); err != nil {
-			return err //nolint:wrapcheck // test
-		}
-		if _, err := tx.Exec(ctx, "SELECT pg_sleep(0.001)"); err != nil {
-			return err //nolint:wrapcheck // test
-		}
-		return tx.Commit(ctx)
+		})
 	}
 	for round := range 200 {
 		if err := both(
@@ -67,17 +94,7 @@ func TestReserve_NoDeadlockOnCrossOrder(t *testing.T) {
 	}
 	want(t, e.balance(a), inventory.Balance{OnHand: 1000, Held: 400, Available: 600})
 	want(t, e.balance(b), inventory.Balance{OnHand: 1000, Held: 400, Available: 600})
-	// Số đếm thống kê được đẩy lên khi backend rảnh: chờ tối đa 2 s cho chắc.
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		if _, err := e.staff.Owner.Pool.Exec(t.Context(), "SELECT pg_stat_clear_snapshot()"); err != nil {
-			t.Fatal(err)
-		}
-		if got := e.deadlocks(); got != before {
-			t.Fatalf("pg_stat_database.deadlocks tăng từ %d lên %d", before, got)
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
+	e.noNewDeadlocks(before)
 }
 
 // Nhả và đi giao chéo thứ tự: hai transaction cùng chạm hai dòng số dư theo hai danh sách ngược nhau.
