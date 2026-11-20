@@ -124,6 +124,7 @@ func TestCancel_RaceWithAttach(t *testing.T) {
 	for i := range 100 {
 		o := e.mustCreateM2(e.m2Input(0, ln(v, 1, 0))).Order
 		s := uuid.New()
+		e.stubShipment(o.ID, s)
 		var wg sync.WaitGroup
 		start := make(chan struct{})
 		var cancelErr, attachErr error
@@ -134,7 +135,7 @@ func TestCancel_RaceWithAttach(t *testing.T) {
 				_, cancelErr = e.cancel(e.get(o.ID))
 			}
 		})
-		wg.Go(func() { <-start; attachErr = e.attachBy(o.ID, s) })
+		wg.Go(func() { <-start; attachErr = e.attachOnly(o.ID, s) })
 		close(start)
 		wg.Wait()
 		if cancelErr != nil {

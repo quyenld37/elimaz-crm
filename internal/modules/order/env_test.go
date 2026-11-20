@@ -141,3 +141,12 @@ func (e *orderEnv) count(q string, args ...any) int {
 }
 
 func item(v uuid.UUID, q int32) order.ItemInput { return order.ItemInput{VariantID: v, Qty: q} }
+
+// stubShipment tạo dòng vận đơn s (đã hủy) cho đơn o bằng chủ bảng, để gắn s làm vận đơn hiện hành thỏa khóa ngoại.
+func (e *orderEnv) stubShipment(o, s uuid.UUID) {
+	e.t.Helper()
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		testkit.StubShipment(e.t, tx, o, s)
+		return nil
+	})
+}

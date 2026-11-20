@@ -696,7 +696,8 @@ func TestSchemaViewsAndRules(t *testing.T) {
 			"actor_type, actor_id, reason, occurred_at, recorded_at",
 		"returns_v": "id, tenant_id, code, order_id, shipment_id, kind, status, refund_amount, replacement_order_id, " +
 			"received_at, created_at",
-		"return_items_v":    "id, tenant_id, return_id, order_item_id, quantity, condition, refund_amount",
+		"return_items_v": "id, tenant_id, return_id, order_item_id, quantity, condition, refund_amount, " +
+			"sellable_qty, damaged_qty, missing_qty",
 		"traffic_sources_v": "id, tenant_id, key, name, channel_account_id, active, position",
 	}
 	testkit.CheckViews(t, owner, "ord", want)

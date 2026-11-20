@@ -30,7 +30,7 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `catalog.product_attribute_values_v` | `product_id, attribute_value_id` | 34 | M5–M7 |
 | `catalog.product_images_v` (chỉ ảnh chưa xóa) | `image_id, product_id, file_id, color, position` | 44 | M5, M7 |
 | `platform.file_variants_v` (A2-12; chỉ tệp `ready`, chưa xóa, mục đích chế độ `standard`, biến thể `public` — R10; đường dẫn = `FILES_PUBLIC_BASE_URL` + `/` + `key`; ghép với `catalog.product_images_v` theo `file_id`) | `file_id, preset_version, width, format, key` | 44 | M5 |
-| `inventory.warehouses_v` (M3 thêm cột địa chỉ, SĐT vào cuối) | `warehouse_id, operated_by_seller_id, code, name, status` | 28 | M2–M7 |
+| `inventory.warehouses_v` (M3 Task 92 nối địa chỉ lấy hàng, SĐT của shop vào cuối) | `warehouse_id, operated_by_seller_id, code, name, status, pickup_address, pickup_phone` | 28, 92 | M2–M7 |
 | `inventory.stock_available_v` (view số dư duy nhất; B11: không có `stock_balances_v`, `availability_v`) | `variant_id, warehouse_id, seller_id, on_hand, held, in_transit, damaged, available, updated_at` | 28 | M2–M7 |
 | `inventory.stock_ledger_v` | `ledger_id, variant_id, warehouse_id, bucket, delta, doc_type, doc_id, step, actor_type, actor_id, created_at` | 28 | M6, M7 |
 | `inventory.reconcile_runs_v` | `run_id, ran_at, ok, checked, mismatch_count` | 36 | M6, M7 |
@@ -43,10 +43,13 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `ord.order_items_v` (M2, viết trước ở Task 59) | `id, tenant_id, seller_id, order_id, variant_id, position, sku_snapshot, name_snapshot, quantity, unit_price, line_discount, allocated_order_discount, net_amount` | 62 | M2 (`customer` đọc: ngoại lệ chỉ đọc view, Q19), M3, M5, M6 |
 | `ord.order_status_history_v` (`from_status` của dòng tạo đơn là `''`, kể cả dòng M1 ghi `NULL`) | `id, tenant_id, order_id, from_status, to_status, from_pending, to_pending, actor_type, actor_id, reason, occurred_at, recorded_at` | 62 | M2 (`customer` đọc: ngoại lệ chỉ đọc view, Q19), M6 |
 | `ord.returns_v` | `id, tenant_id, code, order_id, shipment_id, kind, status, refund_amount, replacement_order_id, received_at, created_at` | 62 | M2 (`customer` đọc: ngoại lệ chỉ đọc view, Q19), M3, M6 |
-| `ord.return_items_v` (M3 nối ba cột số lượng vào cuối, R11) | `id, tenant_id, return_id, order_item_id, quantity, condition, refund_amount` | 62 | M3, M6, P2 |
+| `ord.return_items_v` (M3 Task 92 nối ba cột số lượng vào cuối, R11; cộng lại là 0 khi chưa nhận hoặc đúng `quantity`) | `id, tenant_id, return_id, order_item_id, quantity, condition, refund_amount, sellable_qty, damaged_qty, missing_qty` | 62, 92 | M3, M6, P2 |
 | `ord.traffic_sources_v` | `id, tenant_id, key, name, channel_account_id, active, position` | 62 | M4, M5, M6 |
 | `promotion.coupons_v` (B2-11; không có `bound_phone`, `bound_customer_id`) | `id, tenant_id, code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, seller_id, max_uses, used_count, per_customer_limit, valid_from, valid_to, status, created_at, updated_at` | 63 | M5, M7 |
-| `fulfillment.shipments_v` (tối thiểu; M3 mở rộng) | `id, order_id, code, carrier_key, carrier_account_id, tracking_code, status, cod_amount, fee` | 31 | M3 trở đi |
+| `fulfillment.shipments_v` (M1 chín cột; M3 Task 92 nối sau `fee`; không `ship_to`, `options`, `create_job_id`; `province_code` = `ship_to->>'province_code'`) | `id, order_id, code, carrier_key, carrier_account_id, tracking_code, status, cod_amount, fee, tenant_id, seller_id, mode, service, sub_status, cancel_kind, create_state, cod_collected_amount, declared_value, fee_actual, weight_grams, partial, picked_up_at, delivered_at, carrier_reported_returned_at, returned_at, last_status_at, last_carrier_event_at, last_synced_at, last_sync_error, stuck_since, needs_review, label_file_id, label_printed_at, created_at, province_code` | 31, 92 | M3 trở đi |
+| `fulfillment.carrier_accounts_v` (không `credential_enc`, `credential_key_id`, `route_key`, `external_account_ref`) | `tenant_id, id, seller_id, carrier_key, mode, environment, name, warehouse_id, status, is_default_for_warehouse, show_on_web, web_sort, last_check_at, last_check_result, created_at, updated_at` | 92 | M5–M7 |
+| `fulfillment.shipment_events_v` (không `raw`, `event_key`) | `tenant_id, id, shipment_id, source, raw_status, canonical, status, sub_status, occurred_at, recorded_at, applied, ignored_reason` | 92 | M6, M7 |
+| `fulfillment.locations_v` | `tenant_id, carrier_key, level, our_code, carrier_code, carrier_name, synced_at` | 92 | M5 |
 | `cash.cod_balances_v` (tối thiểu; M3 mở rộng) | `shipment_id, account, balance` | 32 | M3 trở đi |
 
 ## Khóa ngoại xuyên module
@@ -59,6 +62,9 @@ phép lệch nhau. Module chủ của bảng bị trỏ không đổi khóa (c�
 | `inventory.stock_reservations (tenant_id, order_item_id) → ord.order_items (tenant_id, id)` `ON DELETE SET NULL (order_item_id)` | giữ hàng luôn thuộc một dòng đơn có thật (M1); từ M2 sửa đơn bỏ được dòng đã nhả hàng: dòng giữ hàng `released` và sổ tồn còn, chỉ mất liên kết (`order_item_id` cho phép rỗng; `0204` của `ord` `ALTER` bảng của `inventory`) | 30, 62 |
 | `ord.orders (tenant_id, warehouse_id) → inventory.warehouses (tenant_id, id)` | kho giữ hàng của đơn | 62 |
 | `ord.order_items (tenant_id, seller_id, variant_id) → catalog.variants (tenant_id, seller_id, id)`; `ord.orders (tenant_id, seller_id) → catalog.sellers`; `ord.orders (tenant_id, customer_id) → customer.customers` | một đơn một người bán (ADR-29, KH14); đơn trỏ khách có thật | 30 |
+| `fulfillment.shipments (tenant_id, seller_id, order_id) → ord.orders (tenant_id, seller_id, id)`; `fulfillment.callback_tasks`, `fulfillment.shipping_quotes (tenant_id, order_id) → ord.orders (tenant_id, id)` | vận đơn cùng người bán với đơn và tài khoản hãng (KH14 cho vận đơn, ADR-29); việc gọi lại, báo giá thuộc đơn có thật | 31, 92 |
+| `ord.orders (tenant_id, current_shipment_id) → fulfillment.shipments (tenant_id, id)` (`orders_current_shipment_fk`; M2 Task 05 để lại cho M3) | vận đơn hiện hành của đơn là vận đơn có thật; đường tạo chèn vận đơn trước rồi gắn | 92 |
+| `fulfillment.shipments (tenant_id, label_file_id)`, `fulfillment.label_batches (tenant_id, file_id) → platform.files (tenant_id, id)` | tem in là tệp có thật | 92 |
 
 ## Hàm tìm công bố
 
@@ -107,4 +113,8 @@ dưới; `viewsdoc_test` đòi hai tập bằng nhau.
 | `ord.orders_code_key` | mã đơn duy nhất trên cả shop (05, Q26: một sequence sinh mã) | 30 |
 | `ord.orders_idempotency_key_key` | khóa nghiệp vụ của lần tạo đơn duy nhất trên cả shop (05, 04 mục 5.5) | 30 |
 | `fulfillment.carrier_accounts_ref_key` | một tài khoản ở hãng (`carrier_key`, `external_account_ref`) chỉ thuộc một người bán trong shop | 31 |
+| `fulfillment.carrier_accounts_route_key` | khóa tuyến webhook duy nhất trên cả shop (định tuyến tới đúng một tài khoản) | 92 |
+| `fulfillment.shipments_code_key` | mã vận đơn của CRM (`NewShipmentCode`) duy nhất trên cả shop | 31, 92 |
+| `fulfillment.shipments_tracking_key` | mã hãng duy nhất theo hãng trên cả shop (VC13; tín hiệu webhook tra theo mã hãng) | 31, 92 |
+| `fulfillment.shipments_active_order` | một đơn một vận đơn chưa hủy (B1); đơn đã thuộc đúng một người bán | 31, 92 |
 | `promotion.coupons_code_key` | khách gõ mã ở một ô chung của shop: mã duy nhất trên cả shop, kể cả mã của người bán (05 mục 2) | 63 |

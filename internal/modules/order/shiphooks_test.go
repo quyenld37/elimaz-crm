@@ -24,8 +24,15 @@ func (e *orderEnv) confirmedDH01() (order.Order, uuid.UUID, uuid.UUID) {
 	return o, v1, v2
 }
 
-// attachBy gắn vận đơn s vào đơn o bằng Writer.AttachShipmentBy (người làm e.actor, giờ e.now()).
+// attachBy gắn vận đơn s vào đơn o bằng Writer.AttachShipmentBy (người làm e.actor, giờ e.now()); trước đó tạo dòng
+// vận đơn s (khóa ngoại của current_shipment_id).
 func (e *orderEnv) attachBy(o, s uuid.UUID) error {
+	e.stubShipment(o, s)
+	return e.attachOnly(o, s)
+}
+
+// attachOnly là attachBy không tạo dòng vận đơn (gọi được từ goroutine; bên gọi tạo trước bằng stubShipment).
+func (e *orderEnv) attachOnly(o, s uuid.UUID) error {
 	return e.app(func(tx pgx.Tx) error {
 		return e.writer().AttachShipmentBy(e.t.Context(), tx, e.seller, o, s, e.actor, e.now())
 	})

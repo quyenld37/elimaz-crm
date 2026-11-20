@@ -15,14 +15,14 @@ import (
 
 const cancelCreatingShipment = `-- name: CancelCreatingShipment :one
 UPDATE fulfillment.shipments
-SET status = 'cancelled', last_status_at = now(), updated_at = now(), version = version + 1
+SET status = 'cancelled', cancel_kind = 'create_rejected', last_status_at = now(), updated_at = now(), version = version + 1
 WHERE id = $1 AND status = 'creating' AND create_in_doubt_at IS NULL
 RETURNING version
 `
 
 // Vận đơn còn creating (dòng đã khóa) → cancelled khi lệnh tạo kết thúc mà chắc chắn hãng chưa tạo; trả version mới.
 // Không còn creating, hay lệnh tạo từng in_doubt (create_in_doubt_at: hãng có thể đã có kiện) → không dòng nào
-// (pgx.ErrNoRows).
+// (pgx.ErrNoRows). Loại hủy create_rejected: lệnh tạo kết thúc mà hãng chắc chắn không tạo.
 func (q *Queries) CancelCreatingShipment(ctx context.Context, id uuid.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, cancelCreatingShipment, id)
 	var version int64
@@ -92,15 +92,16 @@ func (q *Queries) HasActiveShipment(ctx context.Context, orderID uuid.UUID) (boo
 const insertShipment = `-- name: InsertShipment :one
 
 INSERT INTO fulfillment.shipments
-    (id, tenant_id, code, order_id, carrier_key, carrier_account_id, status, cod_amount, created_by)
-VALUES ($1, NULLIF(current_setting('app.tenant_id', true), '')::uuid, $2, $3, $4,
-        $5, 'creating', $6, $7::uuid)
+    (id, tenant_id, seller_id, code, order_id, carrier_key, carrier_account_id, status, cod_amount, created_by)
+VALUES ($1, NULLIF(current_setting('app.tenant_id', true), '')::uuid, $2, $3, $4, $5,
+        $6, 'creating', $7, $8::uuid)
 ON CONFLICT DO NOTHING
 RETURNING created_at
 `
 
 type InsertShipmentParams struct {
 	ID               uuid.UUID
+	SellerID         uuid.UUID
 	Code             string
 	OrderID          uuid.UUID
 	CarrierKey       string
@@ -115,6 +116,7 @@ type InsertShipmentParams struct {
 func (q *Queries) InsertShipment(ctx context.Context, arg InsertShipmentParams) (time.Time, error) {
 	row := q.db.QueryRow(ctx, insertShipment,
 		arg.ID,
+		arg.SellerID,
 		arg.Code,
 		arg.OrderID,
 		arg.CarrierKey,
@@ -195,6 +197,8 @@ const updateShipmentProgress = `-- name: UpdateShipmentProgress :one
 UPDATE fulfillment.shipments
 SET status = $1,
     tracking_code = COALESCE(tracking_code, $2::text),
+    create_state = CASE WHEN COALESCE(tracking_code, $2::text) IS NOT NULL THEN 'created'
+                        ELSE create_state END,
     fee = COALESCE(fee, $3::bigint),
     last_status_at = now(), updated_at = now(), version = version + 1
 WHERE id = $4
@@ -208,7 +212,8 @@ type UpdateShipmentProgressParams struct {
 	ID           uuid.UUID
 }
 
-// Đổi trạng thái, điền mã hãng, phí (chỉ khi còn trống) trên dòng đã khóa; trả version mới.
+// Đổi trạng thái, điền mã hãng, phí (chỉ khi còn trống) trên dòng đã khóa; trả version mới. Có mã hãng → hãng đã tạo
+// (create_state = 'created', như dòng M1 được điền ở 0300).
 func (q *Queries) UpdateShipmentProgress(ctx context.Context, arg UpdateShipmentProgressParams) (int64, error) {
 	row := q.db.QueryRow(ctx, updateShipmentProgress,
 		arg.Status,

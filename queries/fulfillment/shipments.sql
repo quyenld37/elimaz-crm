@@ -4,8 +4,8 @@
 -- name: InsertShipment :one
 -- Chèn vận đơn creating; trùng mã hay đơn đã có vận đơn chưa hủy (unique một phần) → không dòng nào (pgx.ErrNoRows).
 INSERT INTO fulfillment.shipments
-    (id, tenant_id, code, order_id, carrier_key, carrier_account_id, status, cod_amount, created_by)
-VALUES (@id, NULLIF(current_setting('app.tenant_id', true), '')::uuid, @code, @order_id, @carrier_key,
+    (id, tenant_id, seller_id, code, order_id, carrier_key, carrier_account_id, status, cod_amount, created_by)
+VALUES (@id, NULLIF(current_setting('app.tenant_id', true), '')::uuid, @seller_id, @code, @order_id, @carrier_key,
         @carrier_account_id, 'creating', @cod_amount, sqlc.narg(created_by)::uuid)
 ON CONFLICT DO NOTHING
 RETURNING created_at;
@@ -35,10 +35,13 @@ JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.ca
 WHERE s.carrier_key = @carrier_key AND s.tracking_code = @tracking_code AND a.external_account_ref = @account_ref;
 
 -- name: UpdateShipmentProgress :one
--- Đổi trạng thái, điền mã hãng, phí (chỉ khi còn trống) trên dòng đã khóa; trả version mới.
+-- Đổi trạng thái, điền mã hãng, phí (chỉ khi còn trống) trên dòng đã khóa; trả version mới. Có mã hãng → hãng đã tạo
+-- (create_state = 'created', như dòng M1 được điền ở 0300).
 UPDATE fulfillment.shipments
 SET status = @status,
     tracking_code = COALESCE(tracking_code, sqlc.narg(tracking_code)::text),
+    create_state = CASE WHEN COALESCE(tracking_code, sqlc.narg(tracking_code)::text) IS NOT NULL THEN 'created'
+                        ELSE create_state END,
     fee = COALESCE(fee, sqlc.narg(fee)::bigint),
     last_status_at = now(), updated_at = now(), version = version + 1
 WHERE id = @id
@@ -47,9 +50,9 @@ RETURNING version;
 -- name: CancelCreatingShipment :one
 -- Vận đơn còn creating (dòng đã khóa) → cancelled khi lệnh tạo kết thúc mà chắc chắn hãng chưa tạo; trả version mới.
 -- Không còn creating, hay lệnh tạo từng in_doubt (create_in_doubt_at: hãng có thể đã có kiện) → không dòng nào
--- (pgx.ErrNoRows).
+-- (pgx.ErrNoRows). Loại hủy create_rejected: lệnh tạo kết thúc mà hãng chắc chắn không tạo.
 UPDATE fulfillment.shipments
-SET status = 'cancelled', last_status_at = now(), updated_at = now(), version = version + 1
+SET status = 'cancelled', cancel_kind = 'create_rejected', last_status_at = now(), updated_at = now(), version = version + 1
 WHERE id = @id AND status = 'creating' AND create_in_doubt_at IS NULL
 RETURNING version;
 

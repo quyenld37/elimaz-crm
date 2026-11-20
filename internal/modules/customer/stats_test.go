@@ -120,6 +120,10 @@ func (e *statsEnv) step(o order.Order, s uuid.UUID, st order.ShipmentStep) {
 func (e *statsEnv) attach(o order.Order) uuid.UUID {
 	e.t.Helper()
 	s := uuid.New()
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		testkit.StubShipment(e.t, tx, o.ID, s)
+		return nil
+	})
 	e.app(func(tx pgx.Tx) error {
 		return e.ow().AttachShipmentBy(e.t.Context(), tx, e.shop.Seller, o.ID, s, e.oa, e.now)
 	})

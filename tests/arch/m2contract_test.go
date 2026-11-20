@@ -123,7 +123,9 @@ func TestM2Contract_ViewsDoc(t *testing.T) {
 			"actor_id, reason, occurred_at, recorded_at",
 		"ord.returns_v": "id, tenant_id, code, order_id, shipment_id, kind, status, refund_amount, replacement_order_id, " +
 			"received_at, created_at",
-		"ord.return_items_v":    "id, tenant_id, return_id, order_item_id, quantity, condition, refund_amount",
+		// M3 Task 92 nối ba cột số lượng vào cuối (Q-X2: chỉ thêm cuối).
+		"ord.return_items_v": "id, tenant_id, return_id, order_item_id, quantity, condition, refund_amount, " +
+			"sellable_qty, damaged_qty, missing_qty",
 		"ord.traffic_sources_v": "id, tenant_id, key, name, channel_account_id, active, position",
 		"promotion.coupons_v": "id, tenant_id, code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, " +
 			"seller_id, max_uses, used_count, per_customer_limit, valid_from, valid_to, status, created_at, updated_at",

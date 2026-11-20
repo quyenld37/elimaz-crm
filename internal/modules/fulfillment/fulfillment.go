@@ -4,6 +4,11 @@
 // tín hiệu (SignalHandler ghi lệnh fulfillment.refresh_status), trạng thái thật đọc qua API của hãng (RefreshCommand)
 // rồi áp lên đơn và tồn qua order. M3 mở rộng (hãng thật, hủy, hoàn, báo phí), không tạo lại.
 //
+// Chủ dữ liệu (Task M3-01): mọi bảng fulfillment.* (tài khoản hãng, vận đơn, sự kiện hãng, việc gọi lại và nhật ký,
+// yêu cầu đổi địa chỉ, vận đơn cần xem, báo giá, lô tem, mã địa giới của hãng). Cột địa chỉ lấy hàng của
+// inventory.warehouses thuộc inventory, cột số lượng tốt/hỏng/thiếu của ord.return_items thuộc order: migration M3 chỉ
+// thêm cột, module chủ ghi.
+//
 // Gọi hãng chỉ ở Execute/Lookup của lệnh (ngoài transaction), qua CarrierAdapter; bản gọi mạng ở
 // internal/adapters/<hãng>. Module không nhập net/http.
 //
@@ -191,7 +196,7 @@ func insertShipment(ctx context.Context, q *store.Queries, o order.Order, a stor
 		}
 		code := NewShipmentCode(time.Now(), rand.Reader)
 		created, err := q.InsertShipment(ctx, store.InsertShipmentParams{
-			ID: id, Code: code, OrderID: o.ID, CarrierKey: a.CarrierKey, CarrierAccountID: a.ID, CodAmount: o.CODAmount,
+			ID: id, SellerID: a.SellerID, Code: code, OrderID: o.ID, CarrierKey: a.CarrierKey, CarrierAccountID: a.ID, CodAmount: o.CODAmount,
 			CreatedBy: pgtype.UUID{Bytes: actor.UserID, Valid: actor.UserID != uuid.Nil},
 		})
 		if err == nil {

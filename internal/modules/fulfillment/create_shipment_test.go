@@ -138,19 +138,21 @@ func TestShipment_DatabaseGuards(t *testing.T) {
 	e := newShipEnv(t)
 	o, _ := e.order(1)
 	s := e.mustCreateShipment(o.ID)
-	ins := `INSERT INTO fulfillment.shipments (tenant_id, code, order_id, carrier_key, carrier_account_id, status, cod_amount)
-		VALUES ($1, $2, $3, 'fake', $4, 'creating', 0)`
-	if err := e.appExec(ins, e.tenant, "E261118ABCDEF", o.ID, e.account); err == nil {
+	ins := `INSERT INTO fulfillment.shipments
+		(tenant_id, seller_id, code, order_id, carrier_key, carrier_account_id, status, cod_amount)
+		VALUES ($1, $5, $2, $3, 'fake', $4, 'creating', 0)`
+	if err := e.appExec(ins, e.tenant, "E261118ABCDEF", o.ID, e.account, e.seller); err == nil {
 		t.Fatal("vận đơn thứ hai cho cùng đơn chèn được")
 	}
 	o2, _ := e.order(1)
-	if err := e.appExec(ins, e.tenant, "X261118ABCDEF", o2.ID, e.account); err == nil {
+	if err := e.appExec(ins, e.tenant, "X261118ABCDEF", o2.ID, e.account, e.seller); err == nil {
 		t.Fatal("mã sai mẫu chèn được")
 	}
-	if err := e.appExec("UPDATE fulfillment.shipments SET status = 'cancelled' WHERE id = $1", s.ID); err != nil {
+	if err := e.appExec("UPDATE fulfillment.shipments SET status = 'cancelled', cancel_kind = 'manual' WHERE id = $1",
+		s.ID); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.appExec(ins, e.tenant, "E261118ABCDEF", o.ID, e.account); err != nil {
+	if err := e.appExec(ins, e.tenant, "E261118ABCDEF", o.ID, e.account, e.seller); err != nil {
 		t.Fatalf("vận đơn đầu đã hủy mà không chèn được vận đơn mới: %v", err)
 	}
 	if err := e.appExec("UPDATE fulfillment.shipment_events SET raw_status = 'x'"); err == nil {
