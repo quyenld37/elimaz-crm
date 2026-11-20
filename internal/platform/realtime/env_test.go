@@ -61,6 +61,19 @@ func newRTEnv(t *testing.T) *rtEnv {
 	}
 	logger := slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil))
 	e.hub = realtime.NewPGHub(realtime.PGHubOptions{URL: appURL, Metrics: e.reg, Logger: logger})
+	// Hub đặt listening = true rồi mới phát resync cho mọi client: chỉ chờ listening thì client của test có thể đăng
+	// ký vào giữa hai bước (máy bận) và nhận thêm một resync như khi LISTEN rớt (Task 440). Chờ chính khung resync đầu
+	// của hub bằng một đăng ký dò, đặt trước khi Run chạy; khi nó tới, mọi client đăng ký sau không nhận khung đó nữa
+	// (broadcast giữ khóa đọc của danh sách đăng ký, Subscribe phải chờ khóa ghi).
+	firstResync := make(chan struct{}, 1)
+	probe := e.hub.Subscribe(identity.AuthUser{}, func(f realtime.Frame) {
+		if f.Event == "resync" {
+			select {
+			case firstResync <- struct{}{}:
+			default:
+			}
+		}
+	})
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	wg.Go(func() { e.hub.Run(ctx) })
@@ -78,7 +91,12 @@ func newRTEnv(t *testing.T) *rtEnv {
 		cancel()
 		wg.Wait()
 	})
-	e.waitListening(true, 10*time.Second)
+	select {
+	case <-firstResync:
+	case <-time.After(hangGuard):
+		t.Fatal("hub không nghe được (chưa phát resync đầu)")
+	}
+	probe()
 	return e
 }
 
@@ -90,6 +108,83 @@ type statusSpy struct {
 	mu    sync.Mutex
 	pings int
 	idle  chan struct{} // sức chứa 1: có lời gọi Status nhận false
+	gate  *frameGate    // khác nil: luồng SSE đăng ký sau đó nhận khung của hub qua cổng này
+}
+
+// hold: mọi luồng SSE mở sau lời gọi này nhận khung của hub qua g.
+func (s *statusSpy) hold(g *frameGate) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.gate = g
+}
+
+func (s *statusSpy) Subscribe(u identity.AuthUser, send func(realtime.Frame)) func() {
+	s.mu.Lock()
+	g := s.gate
+	s.mu.Unlock()
+	if g != nil {
+		send = g.wrap(send)
+	}
+	return s.Bus.Subscribe(u, send)
+}
+
+// frameGate giữ các khung hub gửi cho một luồng SSE tới khi test thả, rồi đưa cả lượt vào hàng chờ của luồng liền
+// nhau: test quyết định các khung rơi vào cùng một lô, không đoán bằng độ dài lô (Task 440: ba NOTIFY của ba
+// transaction tới cách nhau hơn một lô 100 ms khi máy bận). Sau khi thả, khung đi thẳng.
+type frameGate struct {
+	mu       sync.Mutex
+	send     func(realtime.Frame)
+	held     []realtime.Frame
+	released bool
+	arrived  chan struct{} // một tín hiệu cho mỗi khung bị giữ
+}
+
+func newFrameGate() *frameGate { return &frameGate{arrived: make(chan struct{}, 1024)} }
+
+func (g *frameGate) wrap(send func(realtime.Frame)) func(realtime.Frame) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.send = send
+	return g.add
+}
+
+func (g *frameGate) add(f realtime.Frame) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.released {
+		g.send(f)
+		return
+	}
+	g.held = append(g.held, f)
+	select {
+	case g.arrived <- struct{}{}:
+	default:
+	}
+}
+
+// waitHeld chờ tới khi cổng giữ đủ n khung (hangGuard chỉ là chốt chống treo) và trả bản sao các khung đang giữ.
+func (g *frameGate) waitHeld(t *testing.T, n int) []realtime.Frame {
+	t.Helper()
+	for range n {
+		select {
+		case <-g.arrived:
+		case <-time.After(hangGuard):
+			t.Fatalf("cổng chưa nhận đủ %d khung", n)
+		}
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return append([]realtime.Frame(nil), g.held...)
+}
+
+// release đưa mọi khung đang giữ vào hàng chờ của luồng liền một lượt (send không chặn), rồi cho khung sau đi thẳng.
+func (g *frameGate) release() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	for _, f := range g.held {
+		g.send(f)
+	}
+	g.held, g.released = nil, true
 }
 
 func (s *statusSpy) Status() (bool, int) {
@@ -165,7 +260,7 @@ func (e *rtEnv) publish(s realtime.Signal, rollback bool) {
 func (e *rtEnv) open(token string) *testkit.SSEClient {
 	e.t.Helper()
 	c := testkit.OpenSSE(e.t, e.srv.URL, token)
-	ev, data, err := c.Next(2 * time.Second)
+	ev, data, err := c.Next(hangGuard)
 	if err != nil || ev != "resync" || string(data) != "{}" {
 		e.t.Fatalf("khung đầu: %q %s %v, mong resync {}", ev, data, err)
 	}
