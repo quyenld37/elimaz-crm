@@ -210,8 +210,7 @@ func TestReceiveReturnQty_NotCurrentShipment(t *testing.T) {
 }
 
 // Phiếu khách trả theo số lượng: dòng 2 cái nhận S1 D1 → on_hand +2, damaged +1, tiền hoàn đủ, condition mixed;
-// order.returned mang kind customer_return, missingQty 0. Dòng vừa có hàng vừa thiếu → ErrInvalidInput (tiền hoàn
-// một phần của dòng thiếu là việc của Task M3-24).
+// order.returned mang kind customer_return, missingQty 0. (Dòng thiếu một phần: returns_qty_customer_test.go, M3-24.)
 func TestReceiveReturnQty_Customer(t *testing.T) {
 	e := newM2Env(t)
 	a := e.variant(250000, 5)
@@ -219,9 +218,6 @@ func TestReceiveReturnQty_Customer(t *testing.T) {
 	i := o.Items[0].ID
 	r := e.mustReturn(o.ID, custReturn(rl(i, 2)))
 	b := e.balance(a)
-	if _, err := e.receiveQty(r, qty(i, 1, 0, 1)); !errors.Is(err, order.ErrInvalidInput) {
-		t.Fatalf("khách trả có dòng thiếu một phần: %v", err)
-	}
 	got := e.mustReceiveQty(r, qty(i, 1, 1, 0))
 	if got.RefundAmount != r.RefundAmount || got.Status != order.ReturnRestocked {
 		t.Errorf("phiếu: %+v", got)

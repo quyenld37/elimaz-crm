@@ -221,8 +221,8 @@ type pricedLine struct {
 }
 
 // priceReturnLines kiểm số trả của từng dòng với các phiếu chưa hủy (prior) và tính tiền hoàn bằng pricing.RefundFor.
-// "Đã hoàn trước" của dòng phiếu missing (tiền hoàn đã về 0 khi kho nhận) là phần lẽ ra của nó, floor(net × q / qty),
-// để đơn vị cuối không nhận tiền của món thiếu.
+// "Đã hoàn trước" của dòng phiếu đã nhận có món thiếu (cả dòng hay một phần, M3-24: tiền hoàn đã giảm khi kho nhận)
+// là phần lẽ ra của cả dòng, floor(net × q / qty), để đơn vị cuối không nhận tiền của món thiếu.
 func priceReturnLines(items []store.LockOrderItemsForReturnRow, prior []store.ReturnedLinesOfOrderRow,
 	in []ReturnLineInput,
 ) ([]pricedLine, int64, error) {
@@ -244,7 +244,7 @@ func priceReturnLines(items []store.LockOrderItemsForReturnRow, prior []store.Re
 				continue
 			}
 			returned += int64(p.Quantity)
-			if p.Condition == ConditionMissing {
+			if p.MissingQty > 0 {
 				refunded += pricing.RefundFor(it.NetAmount, qty, 0, int64(p.Quantity), 0)
 			} else {
 				refunded += p.RefundAmount

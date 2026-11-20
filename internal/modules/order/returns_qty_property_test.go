@@ -2,6 +2,7 @@ package order
 
 import (
 	"errors"
+	"math/big"
 	"testing"
 
 	"github.com/google/uuid"
@@ -82,4 +83,33 @@ func wantCondition(l ReceiveQtyLine) string {
 		return ConditionMixed
 	}
 	return name
+}
+
+// Quy luật tiền hoàn của dòng đã nhận (Task M3-24): R là tiền hoàn chia lúc tạo phiếu cho Q đơn vị; nhận S tốt, D hỏng,
+// M thiếu → 0 ≤ hoàn ≤ R; không thiếu → đúng R; không món nào về → 0; còn lại floor(R × (S+D) / Q).
+func TestReceivedRefund_Property(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		q := rapid.Int32Range(1, maxReturnQty).Draw(rt, "q")
+		r := rapid.Int64Range(0, 1<<53-1).Draw(rt, "R")
+		s := rapid.Int32Range(0, q).Draw(rt, "tốt")
+		d := rapid.Int32Range(0, q-s).Draw(rt, "hỏng")
+		ln := qtyLine{
+			item:           store.LockReturnItemsRow{Quantity: q, RefundAmount: r},
+			ReceiveQtyLine: ReceiveQtyLine{Sellable: s, Damaged: d, Missing: q - s - d},
+		}
+		got := receivedRefund(ln)
+		switch {
+		case got < 0 || got > r:
+			rt.Fatalf("hoàn %d ngoài [0, %d]", got, r)
+		case ln.Missing == 0 && got != r:
+			rt.Fatalf("không thiếu mà hoàn %d ≠ %d", got, r)
+		case s+d == 0 && got != 0:
+			rt.Fatalf("không món nào về mà hoàn %d", got)
+		case ln.Missing > 0 && s+d > 0:
+			want := new(big.Int).Div(new(big.Int).Mul(big.NewInt(r), big.NewInt(int64(s+d))), big.NewInt(int64(q)))
+			if want.Int64() != got {
+				rt.Fatalf("hoàn %d, muốn floor(%d × %d / %d) = %s", got, r, s+d, q, want)
+			}
+		}
+	})
 }

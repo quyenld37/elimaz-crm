@@ -508,7 +508,7 @@ func (q *Queries) ReturnOrderRef(ctx context.Context, arg ReturnOrderRefParams) 
 }
 
 const returnedLinesOfOrder = `-- name: ReturnedLinesOfOrder :many
-SELECT ri.order_item_id, ri.quantity, ri.condition, ri.refund_amount, r.status
+SELECT ri.order_item_id, ri.quantity, ri.condition, ri.refund_amount, ri.missing_qty, r.status
 FROM ord.return_items AS ri
 JOIN ord.returns AS r ON r.id = ri.return_id
 WHERE r.order_id = $1 AND r.status <> 'cancelled'
@@ -519,10 +519,12 @@ type ReturnedLinesOfOrderRow struct {
 	Quantity     int32
 	Condition    string
 	RefundAmount int64
+	MissingQty   int32
 	Status       string
 }
 
-// Dòng của mọi phiếu chưa hủy của đơn (đơn đã khóa: phiếu của đơn chỉ đổi khi giữ khóa đơn).
+// Dòng của mọi phiếu chưa hủy của đơn (đơn đã khóa: phiếu của đơn chỉ đổi khi giữ khóa đơn). missing_qty > 0: dòng đã
+// nhận có món thiếu (M3-24).
 func (q *Queries) ReturnedLinesOfOrder(ctx context.Context, orderID uuid.UUID) ([]ReturnedLinesOfOrderRow, error) {
 	rows, err := q.db.Query(ctx, returnedLinesOfOrder, orderID)
 	if err != nil {
@@ -537,6 +539,7 @@ func (q *Queries) ReturnedLinesOfOrder(ctx context.Context, orderID uuid.UUID) (
 			&i.Quantity,
 			&i.Condition,
 			&i.RefundAmount,
+			&i.MissingQty,
 			&i.Status,
 		); err != nil {
 			return nil, err

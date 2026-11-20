@@ -12,11 +12,13 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/inventory"
+	"elimaz.com.vn/crm/internal/modules/order/internal/pricing"
 	"elimaz.com.vn/crm/internal/modules/order/internal/state"
 	"elimaz.com.vn/crm/internal/modules/order/internal/store"
 )
 
-// Kho nhận phiếu trả theo số lượng tốt, hỏng, thiếu trên từng dòng (kế hoạch M3, Task M3-23; Q-34). ReceiveReturn
+// Kho nhận phiếu trả theo số lượng tốt, hỏng, thiếu trên từng dòng (kế hoạch M3, Task M3-23; Q-34; tiền hoàn theo số
+// đã về của phiếu khách trả, đổi: M3-24). ReceiveReturn
 // (M2, tình trạng cả dòng) dựng dòng số lượng rồi đi cùng một thân với ReceiveReturnQty.
 
 // reasonCarrierMissing: lý do của chứng từ thất lạc khi kiện hoàn của hãng về thiếu món (TD04, Q-27).
@@ -64,17 +66,17 @@ type buildLines func(items []store.LockReturnItemsRow) ([]ReceiveQtyLine, error)
 // trong tx của bên gọi (lớp HTTP đã kiểm order.return.receive). Khóa đơn → phiếu → dòng phiếu; phiếu không requested →
 // ErrReturnNotAllowed; version khác → ErrVersionConflict. Mỗi dòng phiếu đúng một dòng nhận, Sellable + Damaged +
 // Missing = số của dòng (thiếu dòng, dòng lạ, trùng, lệch tổng → ErrQtyMismatch; số âm → ErrInvalidInput). Ghi ba số,
-// tình trạng (một loại: tên loại; trộn: mixed), tiền hoàn (dòng có món thiếu: 0); phiếu sang restocked.
+// tình trạng (một loại: tên loại; trộn: mixed), tiền hoàn của số đã về (receivedRefund: món thiếu không hoàn); phiếu
+// sang restocked.
 //
 //   - carrier_return: chỉ khi đơn confirmed và vận đơn của phiếu là vận đơn hiện hành của đơn (Q-T91-8; khác →
 //     ErrInvalidTransition). Nhả giữ hàng in_transit của mọi dòng (inventory.ReleaseInTransitByItems), số hỏng vào ngăn
 //     hỏng (MoveToDamaged), số thiếu ghi thất lạc một lần cho cả phiếu (RecordLoss, ref = mã phiếu, lý do
 //     carrier_return_missing). Đơn confirmed → returned; order.returned mang payload ReturnReceived (kind, shipmentId,
 //     missingQty; fulfillment nghe để đưa vận đơn sang returned).
-//   - customer_return, exchange: tốt → on_hand +; hỏng → on_hand + rồi damaged +; dòng thiếu cả dòng → không ghi kho.
-//     Dòng vừa có hàng về vừa thiếu → ErrInvalidInput (tiền hoàn một phần là việc của M3-24). Đơn gốc giữ trạng thái
-//     (version + 1); order.returned khi mọi dòng đơn đã trả đủ qua các phiếu đã nhận, không thì
-//     order.partially_returned (payload ReturnReceived).
+//   - customer_return, exchange (M3-24): tốt → on_hand +; hỏng → on_hand + rồi damaged +; thiếu → không ghi kho. Đơn
+//     gốc giữ trạng thái (version + 1); order.returned khi mọi dòng đơn đã trả đủ (theo số của dòng phiếu, kể cả món
+//     thiếu) qua các phiếu đã nhận, không thì order.partially_returned (payload ReturnReceived: kind, refundAmount).
 //   - Loại khác (partial_delivery: M3-26) → ErrReturnNotAllowed.
 func (w Writer) ReceiveReturnQty(ctx context.Context, tx pgx.Tx, sellerID, returnID uuid.UUID, version int64,
 	lines []ReceiveQtyLine, a Actor, now time.Time,
@@ -194,13 +196,6 @@ func (w Writer) receive(ctx context.Context, tx pgx.Tx, sellerID uuid.UUID, l lo
 	if err != nil {
 		return err
 	}
-	if l.r.Kind != ReturnCarrier {
-		for _, ln := range lines {
-			if ln.Missing > 0 && ln.Missing != ln.item.Quantity {
-				return fmt.Errorf("%w: phiếu khách trả có dòng %s thiếu một phần", ErrInvalidInput, ln.OrderItemID)
-			}
-		}
-	}
 	full, err := Get(ctx, tx, sellerID, l.order.ID)
 	if err != nil {
 		return err
@@ -217,15 +212,20 @@ func (w Writer) receive(ctx context.Context, tx pgx.Tx, sellerID uuid.UUID, l lo
 	return w.receiveCustomer(ctx, tx, stock, l, lines, full, total, who, a, now)
 }
 
-// markReceived ghi ba số, tình trạng, tiền hoàn (dòng có món thiếu → 0) từng dòng và phiếu requested → restocked; trả
-// tổng tiền hoàn.
+// receivedRefund là tiền hoàn của dòng phiếu đã nhận: phần của Sellable + Damaged đơn vị trong tiền hoàn R đã chia lúc
+// tạo phiếu cho Quantity đơn vị, bằng pricing.RefundFor(R, Quantity, 0, Sellable+Damaged, 0) — không thiếu → đúng R;
+// không món nào về → 0; còn lại floor(R × (Sellable+Damaged) / Quantity). Món thiếu không hoàn (luật missing của M2).
+// Phiếu hoàn của hãng có R = 0.
+func receivedRefund(ln qtyLine) int64 {
+	return pricing.RefundFor(ln.item.RefundAmount, int64(ln.item.Quantity), 0, int64(ln.Sellable+ln.Damaged), 0)
+}
+
+// markReceived ghi ba số, tình trạng, tiền hoàn (receivedRefund) từng dòng và phiếu requested → restocked; trả tổng
+// tiền hoàn.
 func markReceived(ctx context.Context, l lockedReturn, lines []qtyLine, a Actor, now time.Time) (int64, error) {
 	var total int64
 	for _, ln := range lines {
-		refund := ln.item.RefundAmount
-		if ln.Missing > 0 {
-			refund = 0
-		}
+		refund := receivedRefund(ln)
 		if err := l.q.SetReturnItemQty(ctx, store.SetReturnItemQtyParams{
 			Condition: ln.condition(), RefundAmount: refund, SellableQty: ln.Sellable, DamagedQty: ln.Damaged,
 			MissingQty: ln.Missing, ID: ln.item.ID,
