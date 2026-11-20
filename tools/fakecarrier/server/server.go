@@ -12,6 +12,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"elimaz.com.vn/crm/internal/platform/logging"
@@ -19,6 +20,12 @@ import (
 
 // maxBodyBytes giới hạn thân yêu cầu đọc vào.
 const maxBodyBytes = 64 << 10
+
+// defaultHang là thời gian giữ yêu cầu ở chế độ timeout_* khi Options.Hang bằng 0.
+const defaultHang = 30 * time.Second
+
+// retryAfterSeconds là Retry-After của chế độ rate_limited.
+const retryAfterSeconds = "7"
 
 // Options là cấu hình của máy chủ: kho trạng thái (nil → chỉ trong bộ nhớ), bí mật Bearer và chữ ký webhook, URL nhận
 // webhook (rỗng: không gửi), thời gian giữ yêu cầu ở chế độ timeout_after_create, client gửi webhook, logger.
@@ -40,6 +47,9 @@ type Server struct {
 	hc     *http.Client
 	logger *slog.Logger
 	now    func() time.Time
+
+	mu    sync.Mutex
+	calls map[string]int
 }
 
 // New dựng các route: /v1/* (Bearer), /admin/* (không xác thực: công cụ dev chỉ nghe 127.0.0.1), /health.
@@ -56,11 +66,15 @@ func New(o Options) *Server {
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
-	s := &Server{st: st, cfg: o, hc: hc, logger: logger, now: time.Now}
+	if o.Hang <= 0 {
+		o.Hang = defaultHang
+	}
+	s := &Server{st: st, cfg: o, hc: hc, logger: logger, now: time.Now, calls: map[string]int{}}
 	mux := http.NewServeMux()
-	mux.Handle("POST /v1/parcels", s.auth(s.createParcel))
-	mux.Handle("GET /v1/parcels", s.auth(s.parcelByCode))
-	mux.Handle("GET /v1/parcels/{tracking}", s.auth(s.parcelByTracking))
+	mux.Handle("POST /v1/parcels", s.auth(opCreate, s.createParcel))
+	mux.Handle("GET /v1/parcels", s.auth("lookup", s.parcelByCode))
+	mux.Handle("GET /v1/parcels/{tracking}", s.auth("status", s.parcelByTracking))
+	s.routesM3(mux)
 	mux.HandleFunc("POST /admin/parcels/{tracking}/advance", s.advance)
 	mux.HandleFunc("POST /admin/mode", s.setMode)
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
@@ -70,25 +84,48 @@ func New(o Options) *Server {
 	return s
 }
 
-func (s *Server) auth(next http.HandlerFunc) http.Handler {
+// auth kiểm Bearer rồi đếm một lần gọi thao tác op (Calls).
+func (s *Server) auth(op string, next http.HandlerFunc) http.Handler {
 	want := []byte("Bearer " + s.cfg.Secret)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), want) != 1 {
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthenticated"})
 			return
 		}
+		s.mu.Lock()
+		s.calls[op]++
+		s.mu.Unlock()
 		next(w, r)
 	})
+}
+
+// failMode trả lời theo chế độ lỗi chung (reject 422, auth_revoked 401, rate_limited 429 Retry-After: 7); true khi đã
+// trả lời.
+func failMode(w http.ResponseWriter, mode string) bool {
+	switch mode {
+	case modeReject:
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "rejected"})
+	case modeAuthRevoked:
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "token_revoked"})
+	case modeRateLimited:
+		w.Header().Set("Retry-After", retryAfterSeconds)
+		writeJSON(w, http.StatusTooManyRequests, map[string]string{"error": "rate_limited"})
+	default:
+		return false
+	}
+	return true
 }
 
 type createReq struct {
 	Code       string `json:"code"`
 	CODAmount  int64  `json:"codAmount"`
 	AccountKey string `json:"accountKey"`
+	RouteKey   string `json:"routeKey"`
 }
 
-// createParcel: fail_before_create → 503 (chưa tạo); timeout_after_create → tạo rồi giữ yêu cầu tới khi bên gọi bỏ;
-// ok, forge → 200 {tracking, fee}; cùng code lần hai trả kiện cũ.
+// createParcel: fail_before_create → 503 (chưa tạo); reject, auth_revoked, rate_limited → 422, 401, 429 (chưa tạo);
+// timeout_after_create → tạo rồi giữ yêu cầu tới khi bên gọi bỏ; ok, forge → 200 {tracking, fee}; cùng code lần hai
+// trả kiện cũ.
 func (s *Server) createParcel(w http.ResponseWriter, r *http.Request) {
 	var in createReq
 	if err := decode(r, &in); err != nil || in.Code == "" || in.AccountKey == "" || in.CODAmount < 0 {
@@ -100,7 +137,10 @@ func (s *Server) createParcel(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "not_created"})
 		return
 	}
-	p, err := s.st.create(in.Code, in.AccountKey, in.CODAmount, s.now())
+	if failMode(w, mode) {
+		return
+	}
+	p, err := s.st.create(in.Code, in.AccountKey, in.RouteKey, in.CODAmount, s.now())
 	if err != nil {
 		s.logger.Error("lưu kiện", logging.Err(err))
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal"})
@@ -127,12 +167,18 @@ func (s *Server) parcelByCode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) parcelByTracking(w http.ResponseWriter, r *http.Request) {
+	if p, ok := s.pathParcel(w, r); ok {
+		writeJSON(w, http.StatusOK, p)
+	}
+}
+
+// pathParcel đọc kiện theo {tracking} của đường; không có → trả 404, ok = false.
+func (s *Server) pathParcel(w http.ResponseWriter, r *http.Request) (parcel, bool) {
 	p, ok := s.st.byTracking(r.PathValue("tracking"))
 	if !ok {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not_found"})
-		return
 	}
-	writeJSON(w, http.StatusOK, p)
+	return p, ok
 }
 
 func decode(r *http.Request, v any) error {

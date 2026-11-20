@@ -14,6 +14,8 @@ khi làm tới (P2). Không hứa gì về sàn.
 
 - `CarrierAdapter` (bộ contract test trên hãng giả): `TestClientCreateShipment`, `TestClientLookupAndStatus`,
   `TestSourceSignatureAndSplit` (internal/adapters/carrier/fake/fake_test.go). Ba hãng thật: chưa có, làm ở mốc M3.
+- Bộ contract chung của `CarrierAdapter` (M3 Task 3): `TestContractFake`, `TestContractFrames`, `TestContractCatchesLie`
+  (internal/adapters/carrier/carriertest/contract_test.go); testdata từng hãng ở `carriertest/testdata/<hãng>/`.
 - Phần nguồn webhook dùng chung (`challenge`, `verifySignature`, `split`): `TestChallenge`, `TestVerifySignature`, `TestSplit`
   (internal/platform/selftest/source_test.go).
 - `MessagingAdapter`, `sendPolicy`: chưa có, làm ở mốc M4.

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"time"
 
 	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
@@ -60,15 +61,20 @@ func (s *Server) sendWebhook(ctx context.Context, p parcel, claim string) int {
 	if s.cfg.WebhookURL == "" {
 		return 0
 	}
+	target := s.cfg.WebhookURL
+	if p.RouteKey != "" {
+		target += "/" + url.PathEscape(p.RouteKey)
+	}
 	body, err := json.Marshal(fake.Packet{Events: []fake.Event{{
-		EventID: newEventID(), AccountKey: p.AccountKey, Tracking: p.Tracking, Status: claim, SentAt: s.now().UTC(),
+		EventID: newEventID(), AccountKey: p.AccountKey, Tracking: p.Tracking, Code: p.Code, Status: claim,
+		SentAt: s.now().UTC(),
 	}}})
 	if err != nil {
 		return 0
 	}
 	ctx, cancel := context.WithTimeout(ctx, webhookTimeout)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.cfg.WebhookURL, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, target, bytes.NewReader(body))
 	if err != nil {
 		return 0
 	}
@@ -90,19 +96,22 @@ func newEventID() string {
 }
 
 type modeReq struct {
+	Op   string `json:"op"`
 	Mode string `json:"mode"`
 }
 
-// setMode (POST /admin/mode {mode}): ok, timeout_after_create, fail_before_create, forge.
+// setMode (POST /admin/mode {op, mode}): op rỗng hay create → chế độ tạo kiện (ok, timeout_after_create,
+// fail_before_create, forge, reject, auth_revoked, rate_limited); op cancel, quote, track, labels, address, redeliver,
+// locations, health → ok, reject, auth_revoked, rate_limited, timeout_after_send, fail_before_send. Sai → 422.
 func (s *Server) setMode(w http.ResponseWriter, r *http.Request) {
 	var in modeReq
 	if err := decode(r, &in); err != nil {
 		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "invalid_mode"})
 		return
 	}
-	if err := s.st.setMode(in.Mode); err != nil {
+	if err := s.st.setMode(in.Op, in.Mode); err != nil {
 		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "invalid_mode"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"mode": in.Mode})
+	writeJSON(w, http.StatusOK, map[string]string{"op": in.Op, "mode": in.Mode})
 }

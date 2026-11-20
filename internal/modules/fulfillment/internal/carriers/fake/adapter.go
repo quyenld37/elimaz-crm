@@ -42,8 +42,11 @@ type parcel struct {
 	seq                    int
 }
 
-// Carrier là hãng giả, an toàn khi gọi song song.
+// Carrier là hãng giả, an toàn khi gọi song song. Chỉ làm phần M1 (tạo, tra theo mã, đọc trạng thái); phần M3 trả
+// fulfillment.ErrNotSupported (hãng giả đủ khả năng là internal/adapters/carrier/fake).
 type Carrier struct {
+	fulfillment.Unsupported
+
 	mu         sync.Mutex
 	mode       string
 	byCode     map[string]*parcel
@@ -138,11 +141,26 @@ func (c *Carrier) GetStatus(_ context.Context, _ fulfillment.Account, tracking s
 	}, nil
 }
 
-// MapStatus đổi trạng thái thô: created → awaiting_pickup, picked_up → shipping, delivered → delivered.
-func (*Carrier) MapStatus(raw string) (fulfillment.Status, bool) {
-	st, ok := map[string]fulfillment.Status{
-		RawCreated: fulfillment.StatusAwaitingPickup, RawPickedUp: fulfillment.StatusShipping,
-		RawDelivered: fulfillment.StatusDelivered,
+// Capabilities trả hai khả năng: tạo kiện và tra theo mã.
+func (*Carrier) Capabilities() fulfillment.Capabilities {
+	return fulfillment.Capabilities{Create: true, LookupByRef: true}
+}
+
+// MapCanonical đổi trạng thái thô: created → awaiting_pickup, picked_up → picked_up, delivered → delivered.
+func (*Carrier) MapCanonical(raw string) (fulfillment.Canonical, bool) {
+	c, ok := map[string]fulfillment.Canonical{
+		RawCreated: fulfillment.CanonAwaitingPickup, RawPickedUp: fulfillment.CanonPickedUp,
+		RawDelivered: fulfillment.CanonDelivered,
 	}[raw]
-	return st, ok
+	if !ok {
+		return fulfillment.CanonUnknown, false
+	}
+	return c, true
+}
+
+// MapStatus đổi trạng thái thô qua MapCanonical: created → awaiting_pickup, picked_up → shipping, delivered → delivered.
+// Mã lạ ra CanonUnknown, StatusFromCanonical của nó là ("", false).
+func (c *Carrier) MapStatus(raw string) (fulfillment.Status, bool) {
+	canon, _ := c.MapCanonical(raw)
+	return fulfillment.StatusFromCanonical(canon)
 }

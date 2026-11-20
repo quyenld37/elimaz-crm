@@ -49,7 +49,7 @@ func TestClientCreateShipment(t *testing.T) {
 	var seen http.Request
 	c := stub(t, http.StatusOK, `{"tracking":"FK1","fee":25000}`, &seen)
 	res, err := c.CreateShipment(t.Context(), account(), fulfillment.CreateRequest{Code: "E261118ABCDEF", CODAmount: 530000})
-	if err != nil || res != (fulfillment.CreateResult{TrackingCode: "FK1", Fee: 25000}) {
+	if err != nil || res != (fulfillment.CreateResult{TrackingCode: "FK1", Fee: 25000, FeeKnown: true}) {
 		t.Fatalf("CreateShipment = %+v %v", res, err)
 	}
 	if seen.Method != http.MethodPost || seen.URL.Path != "/v1/parcels" || seen.Header.Get("Authorization") != "Bearer "+secret {
@@ -272,4 +272,33 @@ func counter(rows []metrics.Row, name, label string) int64 {
 		}
 	}
 	return n
+}
+
+// Hai hàm đọc giữ nghĩa M1 (refresh_status coi ErrRejected là dừng hẳn): chỉ GetStatus 404 bọc ErrRejected; 401, 403,
+// 422, 429, 500 không bọc ErrRejected (lệnh đọc thử lại) nhưng vẫn mang lớp lỗi.
+func TestReadErrorsKeepM1Meaning(t *testing.T) {
+	cases := []struct {
+		status int
+		class  fulfillment.ErrorClass
+	}{
+		{http.StatusUnauthorized, fulfillment.ClassAuth},
+		{http.StatusForbidden, fulfillment.ClassAuth},
+		{http.StatusUnprocessableEntity, fulfillment.ClassRejected},
+		{http.StatusTooManyRequests, fulfillment.ClassRateLimited},
+		{http.StatusInternalServerError, fulfillment.ClassUnknownOutcome},
+	}
+	for _, c := range cases {
+		cli := stub(t, c.status, `{}`, nil)
+		_, lerr := cli.LookupByCode(t.Context(), account(), "E1")
+		_, serr := cli.GetStatus(t.Context(), account(), "FK1")
+		for name, err := range map[string]error{"LookupByCode": lerr, "GetStatus": serr} {
+			ce, ok := errors.AsType[*fulfillment.CarrierError](err)
+			if errors.Is(err, fulfillment.ErrRejected) || !ok || ce.Class != c.class {
+				t.Errorf("%s %d = %v, muốn lớp %s, không bọc ErrRejected", name, c.status, err, c.class)
+			}
+		}
+	}
+	if _, err := stub(t, http.StatusNotFound, ``, nil).GetStatus(t.Context(), account(), "FK1"); !errors.Is(err, fulfillment.ErrRejected) {
+		t.Fatalf("GetStatus 404 = %v, muốn ErrRejected", err)
+	}
 }
