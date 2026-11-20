@@ -76,15 +76,19 @@ func (w Writer) applyTransition(ctx context.Context, tx pgx.Tx, o *Order, to sta
 type transitionOpt struct {
 	// topic thay tên sự kiện order.<to> (rỗng: order.<to>).
 	topic string
+	// carrierCorrection mở cạnh delivered → confirmed (hãng sửa "đã giao", M3-06; chỉ ReverseDelivery đặt).
+	carrierCorrection bool
+	// partial đặt Changed.Partial của sự kiện (giao một phần, M3-06).
+	partial bool
 }
 
-// applyTransitionWith là applyTransition với tùy chọn opt (tên sự kiện riêng).
+// applyTransitionWith là applyTransition với tùy chọn opt (tên sự kiện riêng, cạnh sửa của hãng, cờ giao một phần).
 func (w Writer) applyTransitionWith(ctx context.Context, tx pgx.Tx, o *Order, to state.Status, pending, reason string,
 	opt transitionOpt, a Actor, now time.Time,
 ) error {
 	if err := state.Check(state.Status(o.Status), to, state.Conditions{
 		HasCurrentShipment: o.CurrentShipmentID != nil, AddressComplete: o.AddressComplete,
-		PendingReason: o.PendingReason,
+		PendingReason: o.PendingReason, CarrierCorrection: opt.carrierCorrection,
 	}); err != nil {
 		return stateError(err)
 	}
@@ -106,7 +110,10 @@ func (w Writer) applyTransitionWith(ctx context.Context, tx pgx.Tx, o *Order, to
 	if topic == "" {
 		topic = "order." + string(to)
 	}
-	if err := w.emit(ctx, tx, a.TenantID, *o, topic, version); err != nil {
+	if err := w.emitChanged(ctx, tx, a.TenantID, topic, version, Changed{
+		OrderID: o.ID, SellerID: o.SellerID, Version: version, CustomerID: o.CustomerID, Status: o.Status,
+		Partial: opt.partial,
+	}); err != nil {
 		return err
 	}
 	return w.signal(ctx, tx, a.TenantID, *o)
