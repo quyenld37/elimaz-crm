@@ -78,7 +78,11 @@ trước (sự kiện vận đơn đổi đơn và tồn) khóa dòng nhóm trư
   `cash` theo `shipment.status_changed`; chốt bảng kê M3-32, điều chỉnh M3-33 khi làm phải lấy cùng khóa) lấy
   `pg_advisory_xact_lock` theo vận đơn (`queries/cash/cod.sql` `LockShipmentCOD`, khóa `cash.cod:<shipment>`) **trước
   mọi khóa dòng của nhóm 9**, rồi mới đọc số dư và chèn bút toán (`cod_transfers`, `cod_ledger_entries` chỉ chèn). Hai
-  đường cùng vận đơn chạy lần lượt; đường nhiều vận đơn lấy khóa theo mã vận đơn tăng dần.
+  đường cùng vận đơn chạy lần lượt; đường nhiều vận đơn lấy khóa theo mã vận đơn tăng dần. Chốt bảng kê (M3-32,
+  Task 123): đường HTTP chỉ đổi trạng thái bảng kê theo version; consumer `cash_statements` ghi tiền theo lô ≤ 200 dòng
+  có vận đơn mỗi transaction (`statement.PostBatch`): khóa tư vấn các vận đơn của lô theo mã tăng dần → khóa
+  `cod_statements` (tăng version) → khóa `cod_statement_lines` của lô theo `line_no` → chèn bút toán. Lô nhỏ để số khóa
+  tư vấn mỗi transaction không vượt bảng khóa (`max_locks_per_transaction` × `max_connections`).
 
 ## Luật cho mốc sau (Q-X4, C14)
 

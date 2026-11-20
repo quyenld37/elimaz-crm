@@ -87,13 +87,17 @@ func (m *Module) statementsHandlers() []commands.Handler {
 	if err != nil {
 		return nil
 	}
-	return []commands.Handler{statement.NewParser(m.d.DB, m.d.Files, reg, StatementPurposeKey)}
+	return []commands.Handler{statement.NewParser(m.d.DB, m.d.Files, reg, StatementPurposeKey, m.Service.statementParsed)}
 }
 
 func (*Module) statementsInbound() []webhooks.InboundHandler { return nil }
-func (*Module) statementsConsumers() []events.Consumer       { return nil }
-func (*Module) statementsSchedules() []schedules.Schedule    { return nil }
-func (*Module) statementsCleanups() []schedules.CleanupFunc  { return nil }
+
+// statementsConsumers: consumer cash.statements (khớp dòng sau khi đọc tệp, ghi tiền theo lô sau khi chốt).
+func (m *Module) statementsConsumers() []events.Consumer {
+	return []events.Consumer{statementsConsumer{s: m.Service}}
+}
+func (*Module) statementsSchedules() []schedules.Schedule   { return nil }
+func (*Module) statementsCleanups() []schedules.CleanupFunc { return nil }
 
 // StatementFile là tệp bảng kê đã đọc và băm (PrepareStatementImport), dùng cho ImportStatement của cùng tenant.
 type StatementFile struct {

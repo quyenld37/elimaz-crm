@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	ht "github.com/ogen-go/ogen/http"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/cash"
@@ -19,7 +18,8 @@ import (
 // Vùng cod_statements (kế hoạch M3, Task M3-31, M3-32): bảng kê COD, lệch đối soát, quá hạn chưa có tiền.
 // Khung của Task M3-04: mỗi operation trả 501 not_implemented
 // (tests/arch/testdata/m3_pending.txt); task của vùng thay thân hàm trong tệp này, không sửa tệp của vùng khác.
-// Task M3-31: importCodStatement, listCodStatements, getCodStatement.
+// Task M3-31: importCodStatement, listCodStatements, getCodStatement. Task M3-32: confirmCodStatement,
+// listCodDiscrepancies, listCodOverdue.
 
 // errNoCash: Deps.Cash chưa nối (lỗi dựng; cmd/crm luôn nối cho api).
 var errNoCash = errors.New("httpapi: chưa nối module tiền")
@@ -239,23 +239,149 @@ func codStatementLineOut(l cash.StatementLine) gen.CodStatementLine {
 	return out
 }
 
-// ConfirmCodStatement (POST /api/v1/cod-statements/{id}/confirm).
+// ConfirmCodStatement (POST /api/v1/cod-statements/{id}/confirm, cash.statements.confirm): chốt bảng kê đã khớp khi
+// version còn khớp (WriteTx: đổi trạng thái, phát sự kiện ghi tiền theo lô chạy sau commit, audit) → 200 kèm cảnh báo
+// không chặn (tổng thực nhận lệch tổng khai). Version khác hay chưa khớp xong → 409 statement_changed (TI07); không có
+// → 404. Từ chối không lưu theo khóa chống trùng.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
-func (*handler) ConfirmCodStatement(_ context.Context, _ *gen.VersionRequest, _ gen.ConfirmCodStatementParams) (gen.ConfirmCodStatementRes, error) {
-	return nil, ht.ErrNotImplemented
+func (h *handler) ConfirmCodStatement(ctx context.Context, req *gen.VersionRequest, params gen.ConfirmCodStatementParams) (gen.ConfirmCodStatementRes, error) {
+	if h.d.Cash == nil {
+		return nil, errNoCash
+	}
+	out, err := h.refusableWrite(ctx, http.StatusOK, isCashRefusal, "chốt bảng kê COD",
+		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
+			c, err := h.d.Cash.ConfirmStatement(ctx, tx, u.TenantID, params.ID, req.Version, u.UserID)
+			if err != nil {
+				return nil, err //nolint:wrapcheck // sentinel của cash
+			}
+			head, err := codStatementOut(ctx, tx, c.Statement)
+			if err != nil {
+				return nil, err
+			}
+			return &gen.CodStatementConfirmed{Statement: *head, Warnings: c.Warnings},
+				h.audit(ctx, tx, u, "cash.statement.confirm", "cash.cod_statement", c.Statement.ID, nil, map[string]any{
+					"version": c.Statement.Version, "warnings": len(c.Warnings),
+				})
+		})
+	if err != nil {
+		return nil, err
+	}
+	return out.(*gen.CodStatementConfirmed), nil //nolint:forcetypeassert // fn trên trả *gen.CodStatementConfirmed
 }
 
-// ListCodDiscrepancies (GET /api/v1/cod/discrepancies).
-//
-//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
-func (*handler) ListCodDiscrepancies(_ context.Context, _ gen.ListCodDiscrepanciesParams) (gen.ListCodDiscrepanciesRes, error) {
-	return nil, ht.ErrNotImplemented
+// uuidCursor đọc con trỏ trang là một mã (sai dạng → cash.ErrInvalidInput, 400).
+func uuidCursor(c gen.OptString, what string) (*uuid.UUID, error) {
+	v, ok := c.Get()
+	if !ok {
+		return nil, nil //nolint:nilnil // không có con trỏ: trang đầu
+	}
+	id, err := uuid.Parse(v)
+	if err != nil {
+		return nil, fmt.Errorf("con trỏ trang %s: %w", what, cash.ErrInvalidInput)
+	}
+	return &id, nil
 }
 
-// ListCodOverdue (GET /api/v1/cod/overdue).
+// ListCodDiscrepancies (GET /api/v1/cod/discrepancies, cash.cod.read): "Lệch đối soát" mới nhất trước — dòng lệch
+// tiền (vận đơn còn lệch), trùng, ngoài hệ thống của bảng kê đã chốt; phần còn mở; tiền về rồi mới hoàn. Con trỏ là mã
+// mục cuối trang trước.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
-func (*handler) ListCodOverdue(_ context.Context, _ gen.ListCodOverdueParams) (gen.ListCodOverdueRes, error) {
-	return nil, ht.ErrNotImplemented
+func (h *handler) ListCodDiscrepancies(ctx context.Context, params gen.ListCodDiscrepanciesParams) (gen.ListCodDiscrepanciesRes, error) {
+	if h.d.Cash == nil {
+		return nil, errNoCash
+	}
+	before, err := uuidCursor(params.Cursor, "lệch đối soát")
+	if err != nil {
+		return nil, err
+	}
+	page := &gen.CodDiscrepancyPage{Items: []gen.CodDiscrepancy{}}
+	err = h.catalogRead(ctx, func(tx pgx.Tx) error {
+		items, next, err := h.d.Cash.ListDiscrepancies(ctx, tx, before, int(params.Limit.Or(defaultStatementLimit)))
+		if err != nil {
+			return err //nolint:wrapcheck // cash đã bọc
+		}
+		page.Items, page.NextCursor = make([]gen.CodDiscrepancy, 0, len(items)), gen.OptString{}
+		for _, d := range items {
+			page.Items = append(page.Items, codDiscrepancyOut(d))
+		}
+		if next != nil {
+			page.NextCursor = gen.NewOptString(next.String())
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("đọc lệch đối soát: %w", err)
+	}
+	return page, nil
+}
+
+func codDiscrepancyOut(d cash.Discrepancy) gen.CodDiscrepancy {
+	out := gen.CodDiscrepancy{Kind: gen.CodDiscrepancyKind(d.Kind)}
+	if d.StatementID != nil {
+		out.StatementId = gen.NewOptUUID(*d.StatementID)
+	}
+	if d.LineNo > 0 {
+		out.LineNo = gen.NewOptInt32(d.LineNo)
+	}
+	if d.ShipmentID != nil {
+		out.ShipmentId = gen.NewOptUUID(*d.ShipmentID)
+	}
+	if d.OrderCode != "" {
+		out.OrderCode = gen.NewOptString(d.OrderCode)
+	}
+	if d.TrackingCode != "" {
+		out.TrackingCode = gen.NewOptString(d.TrackingCode)
+	}
+	if d.Kind != cash.DiscrepancyRemittedThenReturned || d.ShipmentID != nil {
+		out.CodAmount = gen.NewOptMoney(gen.Money(d.COD))
+	}
+	if d.Expected != nil {
+		out.ExpectedAmount = gen.NewOptSignedMoney(gen.SignedMoney(*d.Expected))
+	}
+	if d.Diff != nil {
+		out.Diff = gen.NewOptSignedMoney(gen.SignedMoney(*d.Diff))
+	}
+	if d.MatchStatus != "" {
+		out.MatchStatus = gen.NewOptCodMatchStatus(gen.CodMatchStatus(d.MatchStatus))
+	}
+	return out
+}
+
+// ListCodOverdue (GET /api/v1/cod/overdue, cash.cod.read): vận đơn giao xong quá số ngày codOverdueDays (cài đặt vận
+// chuyển) mà hãng chưa trả tiền COD; con trỏ là mã vận đơn cuối trang trước.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ListCodOverdue(ctx context.Context, params gen.ListCodOverdueParams) (gen.ListCodOverdueRes, error) {
+	if h.d.Cash == nil {
+		return nil, errNoCash
+	}
+	after, err := uuidCursor(params.Cursor, "quá hạn chưa có tiền")
+	if err != nil {
+		return nil, err
+	}
+	page := &gen.CodOverduePage{Items: []gen.CodOverdue{}}
+	err = h.catalogRead(ctx, func(tx pgx.Tx) error {
+		items, next, err := h.d.Cash.ListOverdue(ctx, tx, after, int(params.Limit.Or(defaultStatementLimit)))
+		if err != nil {
+			return err //nolint:wrapcheck // cash đã bọc
+		}
+		page.Items, page.NextCursor = make([]gen.CodOverdue, 0, len(items)), gen.OptString{}
+		for _, o := range items {
+			page.Items = append(page.Items, gen.CodOverdue{
+				ShipmentId: o.ShipmentID, OrderId: gen.NewOptUUID(o.OrderID), OrderCode: o.OrderCode,
+				CarrierKey: o.CarrierKey, TrackingCode: o.TrackingCode, DeliveredAt: o.DeliveredAt,
+				CarrierHolding: gen.SignedMoney(o.CarrierHolding), Days: o.Days,
+			})
+		}
+		if next != nil {
+			page.NextCursor = gen.NewOptString(next.String())
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("đọc quá hạn chưa có tiền: %w", err)
+	}
+	return page, nil
 }

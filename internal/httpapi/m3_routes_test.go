@@ -14,6 +14,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/platform/config"
+	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/testkit"
@@ -37,6 +38,8 @@ type m3Env struct {
 	// files, cash: kho tệp và module tiền mà server dùng (Deps.Files, Deps.Cash; bảng kê COD, Task M3-31).
 	files *files.MemStore
 	cash  *cash.Module
+	// events là sổ sự kiện của module tiền, có mọi consumer của cash (khớp, ghi tiền bảng kê; Task M3-32).
+	events *events.Registry
 }
 
 func newM3Env(t *testing.T) *m3Env {
@@ -51,7 +54,13 @@ func newM3Env(t *testing.T) *m3Env {
 	e.staff.Grant(t, e.tenant, e.staff.User(t, e.tenant, m3Reader, "active"), []string{"fulfillment.read"}, "all", "")
 	authE := &authEnv{t: t, keys: e.keys}
 	e.files = testkit.MemFileStore(t)
-	e.cash = cash.New(cash.Deps{DB: e.staff.App, Queue: queue.NewQueue(), Files: e.files})
+	e.events = events.NewRegistry()
+	e.cash = cash.New(cash.Deps{DB: e.staff.App, Queue: queue.NewQueue(), Files: e.files, Events: e.events})
+	for _, c := range e.cash.Consumers() {
+		if err := e.events.Register(c); err != nil {
+			t.Fatal(err)
+		}
+	}
 	e.srv = NewServer(Deps{
 		Config: config.Config{ConsoleOrigins: []string{testOrigin}}, DB: e.staff.App, Logger: discardLogger(t),
 		Access: authE.verifier(), Realtime: &testkit.RecordingBus{}, Files: e.files, Cash: e.cash.Service,

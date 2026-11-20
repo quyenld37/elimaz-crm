@@ -29,6 +29,49 @@ func (q *Queries) CarrierAccountKey(ctx context.Context, id uuid.UUID) (string, 
 	return carrier_key, err
 }
 
+const confirmStatement = `-- name: ConfirmStatement :one
+UPDATE cash.cod_statements
+SET status = 'confirmed', confirmed_by = $1, confirmed_at = now(), updated_at = now(), version = version + 1
+WHERE id = $2
+  AND version = $3
+  AND status = 'matched'
+RETURNING id, tenant_id, carrier_key, carrier_account_id, file_id, file_sha256, format, period_from, period_to, declared_total, status, parse_error, line_count, imported_by, confirmed_by, confirmed_at, created_at, updated_at, version
+`
+
+type ConfirmStatementParams struct {
+	ConfirmedBy pgtype.UUID
+	ID          uuid.UUID
+	Version     int64
+}
+
+// Chốt bảng kê khi version còn khớp và đang matched (TI07: người lưu sau → không dòng nào).
+func (q *Queries) ConfirmStatement(ctx context.Context, arg ConfirmStatementParams) (CashCodStatement, error) {
+	row := q.db.QueryRow(ctx, confirmStatement, arg.ConfirmedBy, arg.ID, arg.Version)
+	var i CashCodStatement
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.CarrierKey,
+		&i.CarrierAccountID,
+		&i.FileID,
+		&i.FileSha256,
+		&i.Format,
+		&i.PeriodFrom,
+		&i.PeriodTo,
+		&i.DeclaredTotal,
+		&i.Status,
+		&i.ParseError,
+		&i.LineCount,
+		&i.ImportedBy,
+		&i.ConfirmedBy,
+		&i.ConfirmedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
 const failParse = `-- name: FailParse :execrows
 UPDATE cash.cod_statements
 SET status = 'parse_failed', parse_error = $1, updated_at = now(), version = version + 1
@@ -50,7 +93,7 @@ func (q *Queries) FailParse(ctx context.Context, arg FailParseParams) (int64, er
 	return result.RowsAffected(), nil
 }
 
-const finishParse = `-- name: FinishParse :execrows
+const finishParse = `-- name: FinishParse :one
 UPDATE cash.cod_statements s
 SET status      = 'parsed',
     line_count  = l.n,
@@ -63,16 +106,16 @@ FROM (SELECT count(*)::int AS n, min(paid_on) AS first_day, max(paid_on) AS last
       WHERE statement_id = $1) l
 WHERE s.id = $1
   AND s.status IN ('imported', 'parsing')
+RETURNING s.version
 `
 
 // Đọc tệp xong: parsed, số dòng và kỳ bảng kê (ngày chuyển nhỏ nhất, lớn nhất) đếm từ dòng đã ghi; chỉ khi chưa
-// đọc xong.
+// đọc xong (đã đọc xong → không dòng nào, pgx.ErrNoRows). Trả version mới (số thứ tự của sự kiện đã đọc xong).
 func (q *Queries) FinishParse(ctx context.Context, id uuid.UUID) (int64, error) {
-	result, err := q.db.Exec(ctx, finishParse, id)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+	row := q.db.QueryRow(ctx, finishParse, id)
+	var version int64
+	err := row.Scan(&version)
+	return version, err
 }
 
 const getStatement = `-- name: GetStatement :one
@@ -325,6 +368,324 @@ func (q *Queries) ListStatements(ctx context.Context, arg ListStatementsParams) 
 	return items, nil
 }
 
+const lockLineRange = `-- name: LockLineRange :many
+SELECT id
+FROM cash.cod_statement_lines
+WHERE statement_id = $1
+  AND line_no BETWEEN $2 AND $3
+  AND shipment_id IS NOT NULL
+ORDER BY line_no
+FOR UPDATE
+`
+
+type LockLineRangeParams struct {
+	StatementID uuid.UUID
+	FromLineNo  int32
+	ToLineNo    int32
+}
+
+// Khóa các dòng có vận đơn của lô theo line_no tăng dần.
+func (q *Queries) LockLineRange(ctx context.Context, arg LockLineRangeParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, lockLineRange, arg.StatementID, arg.FromLineNo, arg.ToLineNo)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockParsedStatement = `-- name: LockParsedStatement :one
+
+SELECT id, carrier_account_id
+FROM cash.cod_statements
+WHERE id = $1
+  AND status = 'parsed'
+FOR UPDATE
+`
+
+type LockParsedStatementRow struct {
+	ID               uuid.UUID
+	CarrierAccountID uuid.UUID
+}
+
+// Khớp và chốt bảng kê (Task M3-32). Thứ tự khóa ADR-46: khóa tư vấn sổ COD theo vận đơn tăng dần (LockShipmentCOD)
+// trước mọi khóa dòng nhóm 9, rồi cod_statements → cod_statement_lines theo line_no → chèn bút toán.
+// Khóa bảng kê đã đọc xong để khớp dòng; đã khớp, đã chốt (sự kiện giao lại) → không dòng nào.
+func (q *Queries) LockParsedStatement(ctx context.Context, id uuid.UUID) (LockParsedStatementRow, error) {
+	row := q.db.QueryRow(ctx, lockParsedStatement, id)
+	var i LockParsedStatementRow
+	err := row.Scan(&i.ID, &i.CarrierAccountID)
+	return i, err
+}
+
+const markMatched = `-- name: MarkMatched :one
+UPDATE cash.cod_statements
+SET status = 'matched', updated_at = now(), version = version + 1
+WHERE id = $1
+  AND status = 'parsed'
+RETURNING version
+`
+
+// Bảng kê đã khớp xong: parsed → matched; trả version mới.
+func (q *Queries) MarkMatched(ctx context.Context, id uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, markMatched, id)
+	var version int64
+	err := row.Scan(&version)
+	return version, err
+}
+
+const matchFacts = `-- name: MatchFacts :many
+SELECT l.id, l.line_no, l.cod_amount, l.fee_amount, l.other_fee, l.posted_transfer_id,
+       s.id AS shipment_id, coalesce(s.status = 'delivered' AND NOT s.partial, false)::boolean AS delivered,
+       coalesce((SELECT sum(e.amount)
+                 FROM cash.cod_ledger_entries e
+                 WHERE e.shipment_id = s.id
+                   AND e.account = 'carrier_holding'), 0)::bigint AS carrier_holding,
+       EXISTS (SELECT 1
+               FROM cash.cod_transfers t
+               WHERE t.shipment_id = s.id
+                 AND t.kind = 'remitted'
+                 AND NOT EXISTS (SELECT 1 FROM cash.cod_transfers r WHERE r.reverses_transfer_id = t.id)) AS remitted
+FROM cash.cod_statement_lines l
+LEFT JOIN fulfillment.shipments_v s
+       ON s.carrier_account_id = $1::uuid
+      AND s.tracking_code = l.tracking_code
+WHERE l.statement_id = $2
+ORDER BY l.line_no
+`
+
+type MatchFactsParams struct {
+	CarrierAccountID uuid.UUID
+	StatementID      uuid.UUID
+}
+
+type MatchFactsRow struct {
+	ID               uuid.UUID
+	LineNo           int32
+	CodAmount        int64
+	FeeAmount        int64
+	OtherFee         int64
+	PostedTransferID pgtype.UUID
+	ShipmentID       pgtype.UUID
+	Delivered        bool
+	CarrierHolding   int64
+	Remitted         bool
+}
+
+// Mọi dòng của bảng kê theo line_no cùng vận đơn tìm theo (tài khoản hãng của bảng kê, mã vận đơn) (Q-7, VC13: không
+// tìm chỉ theo mã), số dư carrier_holding và đã có remitted chưa bị đảo của vận đơn đó.
+func (q *Queries) MatchFacts(ctx context.Context, arg MatchFactsParams) ([]MatchFactsRow, error) {
+	rows, err := q.db.Query(ctx, matchFacts, arg.CarrierAccountID, arg.StatementID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MatchFactsRow{}
+	for rows.Next() {
+		var i MatchFactsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.LineNo,
+			&i.CodAmount,
+			&i.FeeAmount,
+			&i.OtherFee,
+			&i.PostedTransferID,
+			&i.ShipmentID,
+			&i.Delivered,
+			&i.CarrierHolding,
+			&i.Remitted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const postBatchLines = `-- name: PostBatchLines :many
+SELECT line_no, shipment_id::uuid AS shipment_id
+FROM cash.cod_statement_lines
+WHERE statement_id = $1
+  AND line_no > $2
+  AND shipment_id IS NOT NULL
+ORDER BY line_no
+LIMIT $3
+`
+
+type PostBatchLinesParams struct {
+	StatementID uuid.UUID
+	AfterLineNo int32
+	Lim         int32
+}
+
+type PostBatchLinesRow struct {
+	LineNo     int32
+	ShipmentID uuid.UUID
+}
+
+// Lô dòng có vận đơn kế tiếp sau line_no after (không khóa: chỉ để biết vận đơn cần khóa tư vấn).
+func (q *Queries) PostBatchLines(ctx context.Context, arg PostBatchLinesParams) ([]PostBatchLinesRow, error) {
+	rows, err := q.db.Query(ctx, postBatchLines, arg.StatementID, arg.AfterLineNo, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PostBatchLinesRow{}
+	for rows.Next() {
+		var i PostBatchLinesRow
+		if err := rows.Scan(&i.LineNo, &i.ShipmentID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const postFacts = `-- name: PostFacts :many
+SELECT l.id, l.line_no, l.cod_amount, l.fee_amount, l.other_fee, l.posted_transfer_id,
+       s.id AS shipment_id, coalesce(s.status = 'delivered' AND NOT s.partial, false)::boolean AS delivered,
+       coalesce((SELECT sum(e.amount)
+                 FROM cash.cod_ledger_entries e
+                 WHERE e.shipment_id = s.id
+                   AND e.account = 'carrier_holding'), 0)::bigint AS carrier_holding,
+       EXISTS (SELECT 1
+               FROM cash.cod_transfers t
+               WHERE t.shipment_id = s.id
+                 AND t.kind = 'remitted'
+                 AND NOT EXISTS (SELECT 1 FROM cash.cod_transfers r WHERE r.reverses_transfer_id = t.id)) AS remitted
+FROM cash.cod_statement_lines l
+JOIN fulfillment.shipments_v s ON s.id = l.shipment_id
+WHERE l.statement_id = $1
+  AND l.line_no BETWEEN $2 AND $3
+ORDER BY l.line_no
+`
+
+type PostFactsParams struct {
+	StatementID uuid.UUID
+	FromLineNo  int32
+	ToLineNo    int32
+}
+
+type PostFactsRow struct {
+	ID               uuid.UUID
+	LineNo           int32
+	CodAmount        int64
+	FeeAmount        int64
+	OtherFee         int64
+	PostedTransferID pgtype.UUID
+	ShipmentID       uuid.UUID
+	Delivered        bool
+	CarrierHolding   int64
+	Remitted         bool
+}
+
+// Như MatchFacts cho các dòng có vận đơn của lô (vận đơn đã gắn lúc khớp), đọc sau khóa: số dư mới nhất.
+func (q *Queries) PostFacts(ctx context.Context, arg PostFactsParams) ([]PostFactsRow, error) {
+	rows, err := q.db.Query(ctx, postFacts, arg.StatementID, arg.FromLineNo, arg.ToLineNo)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PostFactsRow{}
+	for rows.Next() {
+		var i PostFactsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.LineNo,
+			&i.CodAmount,
+			&i.FeeAmount,
+			&i.OtherFee,
+			&i.PostedTransferID,
+			&i.ShipmentID,
+			&i.Delivered,
+			&i.CarrierHolding,
+			&i.Remitted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const postableNet = `-- name: PostableNet :one
+SELECT coalesce(sum(net_amount), 0)::bigint
+FROM cash.cod_statement_lines
+WHERE statement_id = $1
+  AND match_status IN ('matched', 'amount_mismatch', 'fee_only')
+`
+
+// Tổng thực nhận của các dòng sẽ ghi tiền (matched, amount_mismatch, fee_only) để so với tổng khai trên tệp.
+func (q *Queries) PostableNet(ctx context.Context, statementID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, postableNet, statementID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const setLineResults = `-- name: SetLineResults :exec
+UPDATE cash.cod_statement_lines l
+SET match_status       = u.status,
+    shipment_id        = NULLIF(u.shipment_id, '00000000-0000-0000-0000-000000000000'::uuid),
+    expected_amount    = CASE WHEN u.has_amount THEN u.expected END,
+    diff_amount        = CASE WHEN u.has_amount THEN u.diff END,
+    posted_transfer_id = coalesce(NULLIF(u.posted, '00000000-0000-0000-0000-000000000000'::uuid), l.posted_transfer_id),
+    updated_at         = now()
+FROM (SELECT unnest($1::uuid[])            AS id,
+             unnest($2::text[])       AS status,
+             unnest($3::uuid[])   AS shipment_id,
+             unnest($4::boolean[]) AS has_amount,
+             unnest($5::bigint[])     AS expected,
+             unnest($6::bigint[])        AS diff,
+             unnest($7::uuid[])         AS posted) u
+WHERE l.id = u.id
+`
+
+type SetLineResultsParams struct {
+	Ids         []uuid.UUID
+	Statuses    []string
+	ShipmentIds []uuid.UUID
+	HasAmounts  []bool
+	Expected    []int64
+	Diffs       []int64
+	Posted      []uuid.UUID
+}
+
+// Ghi kết quả khớp (và bút toán đã ghi) cho các dòng; các mảng cùng độ dài. Mã rỗng (uuid toàn 0) → NULL; has_amount
+// false → expected, diff NULL; bút toán rỗng giữ bút toán cũ của dòng.
+func (q *Queries) SetLineResults(ctx context.Context, arg SetLineResultsParams) error {
+	_, err := q.db.Exec(ctx, setLineResults,
+		arg.Ids,
+		arg.Statuses,
+		arg.ShipmentIds,
+		arg.HasAmounts,
+		arg.Expected,
+		arg.Diffs,
+		arg.Posted,
+	)
+	return err
+}
+
 const startParsing = `-- name: StartParsing :exec
 UPDATE cash.cod_statements
 SET status = 'parsing', updated_at = now(), version = version + 1
@@ -391,4 +752,25 @@ func (q *Queries) StatementTotals(ctx context.Context, statementID uuid.UUID) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const touchConfirmed = `-- name: TouchConfirmed :one
+UPDATE cash.cod_statements
+SET updated_at = now(), version = version + 1
+WHERE id = $1
+  AND status = 'confirmed'
+RETURNING version, confirmed_by
+`
+
+type TouchConfirmedRow struct {
+	Version     int64
+	ConfirmedBy pgtype.UUID
+}
+
+// Khóa bảng kê đã chốt cho một lô ghi tiền và tăng version (số thứ tự của sự kiện lô sau); chưa chốt → không dòng nào.
+func (q *Queries) TouchConfirmed(ctx context.Context, id uuid.UUID) (TouchConfirmedRow, error) {
+	row := q.db.QueryRow(ctx, touchConfirmed, id)
+	var i TouchConfirmedRow
+	err := row.Scan(&i.Version, &i.ConfirmedBy)
+	return i, err
 }

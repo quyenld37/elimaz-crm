@@ -21,6 +21,17 @@ import (
 const statementCSV = "ma_van_don,tien_cod,phi_van_chuyen,phi_khac,thuc_nhan\n" +
 	"FK0001,630.000,32.000,0,598.000\nFK0002,0,25.000,0,-25.000\nNHANH9999,450000,30000,0,420000\n"
 
+// shopAccount dựng cửa hàng shiptest trong tenant của e và trả tài khoản hãng giả của người bán ELIMAZ.
+func (e *m3Env) shopAccount() uuid.UUID {
+	e.t.Helper()
+	var account uuid.UUID
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		account = shiptest.NewShop(e.t, tx, e.tenant).Account
+		return nil
+	})
+	return account
+}
+
 // uploadStatement tải body lên tenant của e (mục đích cod_statement) như kế toán và trả mã tệp.
 func (e *m3Env) uploadStatement(name string, body []byte) uuid.UUID {
 	e.t.Helper()
@@ -59,11 +70,7 @@ func importBody(account, file uuid.UUID, format string) string {
 // bảng kê lạ → 404; danh sách mới nhất trước.
 func TestCodStatementsAPI(t *testing.T) {
 	e := newM3Env(t)
-	var account uuid.UUID
-	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
-		account = shiptest.NewShop(t, tx, e.tenant).Account
-		return nil
-	})
+	account := e.shopAccount()
 	file := e.uploadStatement("bang-ke.csv", []byte(statementCSV))
 	code, got := e.send(http.MethodPost, "/api/v1/cod-statements", m3Accounter, importBody(account, file, ""))
 	imported, _ := got["importedBy"].(map[string]any)
@@ -160,5 +167,91 @@ func checkStatementRead(t *testing.T, e *m3Env, id string) {
 	}
 	if code, b := e.send(http.MethodGet, "/api/v1/cod-statements?cursor=x", m3Manager, ""); code != http.StatusBadRequest || b["error"] != "invalid_input" {
 		t.Errorf("con trỏ danh sách sai: %d %v", code, b)
+	}
+}
+
+// Chốt bảng kê, lệch đối soát, quá hạn qua HTTP (Task M3-32, TI07): bảng kê sau khi đọc tệp tự khớp (tenant chưa có vận
+// đơn: mọi dòng external) → matched; chốt sai version → 409 statement_changed; Kho → 403; bảng kê lạ → 404; đúng
+// version → 200 confirmed kèm người chốt, cảnh báo rỗng, audit cash.statement.confirm; chốt lại cùng version → 409.
+// Lệch đối soát có 3 dòng ngoài hệ thống (trang 2 mục có nextCursor); quá hạn rỗng; con trỏ sai → 400.
+func TestCodStatementConfirmAPI(t *testing.T) {
+	e := newM3Env(t)
+	account := e.shopAccount()
+	code, got := e.send(http.MethodPost, "/api/v1/cod-statements", m3Accounter,
+		importBody(account, e.uploadStatement("bk.csv", []byte(statementCSV)), ""))
+	if code != http.StatusAccepted {
+		t.Fatalf("nhập: %d %v", code, got)
+	}
+	id, _ := got["id"].(string)
+	wk := queue.NewWorker(e.staff.App, e.events.JobHandlers(), queue.WorkerOptions{
+		WorkerID: "w-" + uuid.NewString(), Commands: commands.NewRunner(e.staff.App, e.cash.CommandHandlers()),
+	})
+	e.staff.DrainJobs(t, wk)
+	_, got = e.send(http.MethodGet, "/api/v1/cod-statements/"+id, m3Accounter, "")
+	head, _ := got["statement"].(map[string]any)
+	version, _ := head["version"].(float64)
+	if head["status"] != "matched" {
+		t.Fatalf("sau khi đọc tệp: %v, mong matched", head)
+	}
+	confirm := "/api/v1/cod-statements/" + id + "/confirm"
+	for _, c := range []struct {
+		name, email, path, body, code string
+		status                        int
+	}{
+		{"sai version", m3Accounter, confirm, fmt.Sprintf(`{"version":%d}`, int64(version)-1), "statement_changed", http.StatusConflict},
+		{"Kho", m3Warehouse, confirm, fmt.Sprintf(`{"version":%d}`, int64(version)), "forbidden", http.StatusForbidden},
+		{"bảng kê lạ", m3Accounter, "/api/v1/cod-statements/" + uuid.NewString() + "/confirm", `{"version":1}`, "not_found", http.StatusNotFound},
+	} {
+		if code, b := e.send(http.MethodPost, c.path, c.email, c.body); code != c.status || b["error"] != c.code {
+			t.Errorf("%s: %d %v, mong %d %s", c.name, code, b, c.status, c.code)
+		}
+	}
+	code, got = e.send(http.MethodPost, confirm, m3Accounter, fmt.Sprintf(`{"version":%d}`, int64(version)))
+	st, _ := got["statement"].(map[string]any)
+	warnings, ok := got["warnings"].([]any)
+	if code != http.StatusOK || st["status"] != "confirmed" || st["confirmedBy"] == nil || !ok || len(warnings) != 0 {
+		t.Fatalf("chốt: %d %v", code, got)
+	}
+	if n := e.staff.CountIn(t, e.tenant, `SELECT count(*) FROM identity.audit_logs WHERE action = 'cash.statement.confirm'
+		AND entity_id = $1`, id); n != 1 {
+		t.Errorf("%d dòng audit chốt", n)
+	}
+	if code, b := e.send(http.MethodPost, confirm, m3Accounter, fmt.Sprintf(`{"version":%d}`, int64(version))); code != http.StatusConflict ||
+		b["error"] != "statement_changed" {
+		t.Errorf("chốt lại: %d %v", code, b)
+	}
+	e.staff.DrainJobs(t, wk)
+	checkCodLists(t, e, id)
+}
+
+// checkCodLists: lệch đối soát có 3 dòng ngoài hệ thống của bảng kê id (trang 2 mục, con trỏ), quá hạn rỗng, con trỏ
+// sai → 400.
+func checkCodLists(t *testing.T, e *m3Env, id string) {
+	t.Helper()
+	code, got := e.send(http.MethodGet, "/api/v1/cod/discrepancies?limit=2", m3Accounter, "")
+	items, _ := got["items"].([]any)
+	if code != http.StatusOK || len(items) != 2 || got["nextCursor"] == nil {
+		t.Fatalf("lệch đối soát: %d %v", code, got)
+	}
+	first, _ := items[0].(map[string]any)
+	if first["kind"] != "statement_line" || first["matchStatus"] != "external" || first["statementId"] != id ||
+		first["lineNo"] != float64(4) || first["trackingCode"] != "NHANH9999" || first["shipmentId"] != nil {
+		t.Errorf("mục đầu: %v", first)
+	}
+	cur, _ := got["nextCursor"].(string)
+	if code, got := e.send(http.MethodGet, "/api/v1/cod/discrepancies?limit=2&cursor="+cur, m3Accounter, ""); code != http.StatusOK {
+		t.Errorf("trang 2: %d %v", code, got)
+	} else if ls, _ := got["items"].([]any); len(ls) != 1 || got["nextCursor"] != nil {
+		t.Errorf("trang 2: %v", got)
+	}
+	if code, got := e.send(http.MethodGet, "/api/v1/cod/overdue", m3Manager, ""); code != http.StatusOK {
+		t.Errorf("quá hạn: %d %v", code, got)
+	} else if ls, ok := got["items"].([]any); !ok || len(ls) != 0 {
+		t.Errorf("quá hạn: %v", got)
+	}
+	for _, path := range []string{"/api/v1/cod/discrepancies?cursor=x", "/api/v1/cod/overdue?cursor=x"} {
+		if code, b := e.send(http.MethodGet, path, m3Accounter, ""); code != http.StatusBadRequest || b["error"] != "invalid_input" {
+			t.Errorf("%s: %d %v", path, code, b)
+		}
 	}
 }
