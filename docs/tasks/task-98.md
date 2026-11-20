@@ -142,5 +142,9 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m3-van-chuyen.md` (Ta
   bằng chứng khớp. Ghi chú đã xử lý: comment `graph.go` ghi "bốn cạnh" (sửa ở commit 3), fuzz chạy lại đủ 60 giây, dòng
   VC11 ghi rõ số ca. Ghi chú để Task 99: một tin `older` là tin kết thúc (vd. `delivered` đến sau một tin mới hơn bất
   thường) có thể nên mở "Cần xem" (đã thêm vào Việc phát hiện thêm).
+- Commit 3/3 (`Advance` gọi `Decide`, 4 hằng, xóa `rank`): **ĐẠT**, không có phát hiện phải sửa. Reviewer kiểm tay mọi
+  nhóm cặp (cur, next) so với bảng hạng cũ, hai chỗ gọi (`create_shipment.go:257`, `refresh_status.go:134`) không đổi
+  hành vi kể cả với vận đơn M3 trong DB; `rank` đã xóa. Ghi chú: Task 99 dùng thẳng `Decide`, không qua `Advance`
+  (để không mất tác động).
 
 Kết luận: ĐẠT

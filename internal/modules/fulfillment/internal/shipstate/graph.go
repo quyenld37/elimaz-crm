@@ -21,7 +21,7 @@ func moved(c Canonical) bool {
 	return false
 }
 
-// lookup là bảng cạnh của kế hoạch M3 Task 98 (cộng bốn cạnh returned_to_shop, tệp task 98 Quyết định 2). Không cạnh
+// lookup là bảng cạnh của kế hoạch M3 Task 98 (cộng năm cạnh returned_to_shop, tệp task 98 Quyết định 2). Không cạnh
 // nào tới returned (chỉ kho nhận, Task 23) hay rời cancelled, returned, creating (creating → awaiting_pickup do
 // AttachTrackingCode, không qua sự kiện của hãng).
 func lookup(from Status, c Canonical) (edge, bool) {

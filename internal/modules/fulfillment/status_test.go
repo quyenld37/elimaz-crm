@@ -40,6 +40,34 @@ func TestAdvance(t *testing.T) {
 	}
 }
 
+// Advance gọi shipstate.Decide nhưng giữ đúng luật thứ hạng của M1 (creating 0 < awaiting_pickup 1 < shipping 2 <
+// delivered 4; trạng thái khác không có hạng) trên mọi cặp của chín trạng thái và một mã lạ (Task 98: không đổi hành vi).
+func TestAdvance_SameAsM1Rank(t *testing.T) {
+	m1Rank := map[fulfillment.Status]int{
+		fulfillment.StatusCreating: 0, fulfillment.StatusAwaitingPickup: 1, fulfillment.StatusShipping: 2,
+		fulfillment.StatusDelivered: 4,
+	}
+	all := []fulfillment.Status{
+		fulfillment.StatusCreating, fulfillment.StatusAwaitingPickup, fulfillment.StatusShipping,
+		fulfillment.StatusDeliveryFailed, fulfillment.StatusDelivered, fulfillment.StatusReturning,
+		fulfillment.StatusReturned, fulfillment.StatusCancelRequested, fulfillment.StatusCancelled, "lạ",
+	}
+	for _, cur := range all {
+		for _, next := range all {
+			rc, okc := m1Rank[cur]
+			rn, okn := m1Rank[next]
+			wantOK := okc && okn && rn > rc
+			want := cur
+			if wantOK {
+				want = next
+			}
+			if got, ok := fulfillment.Advance(cur, next); got != want || ok != wantOK {
+				t.Errorf("Advance(%s, %s) = %s %v, muốn %s %v", cur, next, got, ok, want, wantOK)
+			}
+		}
+	}
+}
+
 // Chuỗi tin ngẫu nhiên (lặp, đảo thứ tự) → trạng thái cuối là tin có hạng cao nhất, không bao giờ lùi.
 func TestAdvance_Property(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
@@ -73,7 +101,8 @@ func TestStatusStep(t *testing.T) {
 	want := map[fulfillment.Status]order.ShipmentStep{
 		fulfillment.StatusShipping: order.StepPickedUp, fulfillment.StatusDelivered: order.StepDelivered,
 	}
-	for _, s := range append(forwardStatuses(), fulfillment.StatusCancelled) {
+	for _, s := range append(forwardStatuses(), fulfillment.StatusCancelled, fulfillment.StatusDeliveryFailed,
+		fulfillment.StatusReturning, fulfillment.StatusReturned, fulfillment.StatusCancelRequested) {
 		step, ok := s.Step()
 		if w, has := want[s]; ok != has || step != w {
 			t.Errorf("%s.Step() = %q %v", s, step, ok)
