@@ -68,7 +68,7 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m3-van-chuyen.md` (Ta
    tương ứng cộng `EffCarrierReturned`. Vì sao: khi tra bằng API hãng chỉ trả trạng thái mới nhất; bỏ lỡ tin "đang hoàn"
    thì theo bảng gốc vận đơn kẹt ở `shipping` với anomaly `invalid_edge` dù hàng đã về shop. Cùng tinh thần cạnh
    `awaiting_pickup + Delivered` (thiếu tin vẫn xuất tác động đúng một lần). Không cạnh nào tới `returned` (Q-9 giữ).
-   Phương án khác: giữ bảng gốc (nhân viên xử lý tay từng vận đơn). Đảo: xóa bốn dòng `CanonReturnedToShop` trong
+   Phương án khác: giữ bảng gốc (nhân viên xử lý tay từng vận đơn). Đảo: xóa năm dòng `CanonReturnedToShop` trong
    `graph.go` và các ca test tương ứng.
 3. **`Decision.AdvanceLast` (trường thêm):** bên gọi dời `last_carrier_event_at` khi `Apply` **và** khi sự kiện trùng
    trạng thái nhưng mới hơn. Vì sao: nếu chỉ dời khi `Apply` (như chữ kế hoạch), chuỗi thất bại(t2) → thất bại(t4) đến
@@ -97,14 +97,14 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m3-van-chuyen.md` (Ta
 | VC09 tin cũ → `older`, không anomaly | `TestDecide_PlanCases` ca "VC09 tin cũ" | như trên | ok |
 | VC08 trùng trạng thái → `duplicate_state` (mới hơn: `AdvanceLast`) | `TestDecide_PlanCases` "VC08 …" (2 ca) | như trên | ok |
 | delivered + in_transit mới hơn → `invalid_edge` + anomaly | `TestDecide_PlanCases` "delivered rồi in_transit mới hơn" | như trên | ok |
-| VC11 không hiện hành: hủy → không anomaly; lấy hàng → `not_current_moved` | `TestDecide_PlanCases` "VC11 …", "không hiện hành, hàng rời kho …" (6 ca) | như trên | ok |
+| VC11 không hiện hành: hủy → không anomaly; lấy hàng → `not_current_moved` | `TestDecide_PlanCases` 2 ca "VC11 …", 6 ca "không hiện hành, hàng rời kho …", 2 ca thêm (chờ lấy, tin cũ) | như trên | ok |
 | VC12 cancel_requested + picked_up → `[EffPickedUp, EffCancelRejected]` | `TestDecide_PlanCases` "VC12 …" | như trên | ok |
 | Thiếu tin lấy hàng: awaiting + delivered → `[EffPickedUp, EffDelivered]` | `TestDecide_PlanCases` "thiếu tin lấy hàng", "đã lấy hàng thì không phát lại picked_up" | như trên | ok |
 | TD10: API/nhân viên → `[EffDeliveryReversed, EffReturning]`; hệ thống, rỗng → `invalid_edge` | `TestDecide_Edges` "TD10 …" (4 ca) | như trên | ok |
 | unknown → `unmapped`; giao một phần → `review` + `partial_reported`; mất, hỏng → `lost_or_damaged` | `TestDecide_PlanCases` | như trên | ok |
 | Không tới `returned`, không rời `cancelled`/`returned` (9 trạng thái × 13 sự kiện × 3 nguồn) | `TestDecide_TerminalAndReturned` | như trên | ok |
 | Thuộc tính 1.000 lượt: cuối = trạng thái sự kiện mới nhất, picked_up 1 lần, delivered 1/0, không returned, không anomaly | `TestDecide_ShuffledJourney` (`testkit.SetRapidChecks(1000)`) | như trên | ok; đột biến tay "bỏ AdvanceLast khi trùng" → `FAIL … cuối shipping, muốn delivery_failed` |
-| Fuzz không sập, quyết định nhất quán | `FuzzDecide` | `go test -run '^$' -fuzz=FuzzDecide -fuzztime=60s ./internal/modules/fulfillment/internal/shipstate/` | `elapsed: 1m0s, execs: 2945562 … PASS` (bản trước khi tách hàm); bản cuối 30 giây `PASS` |
+| Fuzz không sập, quyết định nhất quán | `FuzzDecide` | `go test -run '^$' -fuzz=FuzzDecide -fuzztime=60s ./internal/modules/fulfillment/internal/shipstate/` | bản cuối: `elapsed: 1m0s, execs: 2235718 … PASS` |
 | `Target`, `Display` | `TestTarget`, `TestDisplay` | như trên | ok |
 | `Advance` giữ đúng luật hạng M1 (10×10 cặp), test M1 xanh | `TestAdvance_SameAsM1Rank`, `TestAdvance`, `TestAdvance_Property`, `TestStatusStep`, `TestStatusFromCanonical`, `refresh_status_test`, `create_shipment_test` | `go test -race ./internal/modules/fulfillment/` | `ok … fulfillment 24.826s`; đột biến tay "bỏ giới hạn cur" → 3 lỗi `muốn …` |
 | Cổng kiểm của task | build, vet, lint, catalog, jscpd (0 clone), gitleaks, oasdiff, test-guard, test gói đổi + phụ thuộc | `ci-task.sh` | `CI-TASK XANH (so với điểm tách nhánh 4535a0dc…)` (lần 1 ĐỎ do funlen/gocognit ở test, đã tách hàm) |
@@ -123,6 +123,8 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m3-van-chuyen.md` (Ta
 
 ## Việc phát hiện thêm
 
+- Task 99: cân nhắc mở "Cần xem" khi tin bị bỏ vì `older` là tin kết thúc (`delivered`, `returning`) — chỉ xảy ra khi dữ
+  liệu hãng bất thường (reviewer commit 2).
 - **Task 99 (`ApplyTracking`)**: ghi `last_carrier_event_at` khi `Decision.AdvanceLast` (không chỉ khi `Apply`), và
   cập nhật `PickedUp` theo mốc `picked_up_at`/hàng không còn `held`. Kế hoạch dòng 748 ghi "khi Apply" — cần sửa theo.
 - `cancel_requested + Delivered/DeliveryFailed` (hãng giao dù đã yêu cầu hủy) vẫn là `invalid_edge` theo bảng của kế
@@ -135,5 +137,10 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m3-van-chuyen.md` (Ta
 - Commit 1/3 (dời `Canonical`, alias): **ĐẠT**, không có phát hiện phải sửa. Reviewer đọc từng chỗ dùng `Canonical`/
   `Canon*` (fake, carriertest, fixtures, carriers/fake, unsupported, adapter, types, credentials_test): cùng kiểu, cùng
   giá trị, không có method trên `Canonical`. Ghi chú: nhãn commit ở mục Ảnh hưởng lệch, danh sách adapter thừa — đã sửa.
+- Commit 2/3 (máy trạng thái `shipstate`): **ĐẠT**, không có phát hiện phải sửa. Reviewer kiểm từng Quyết định 2–7, bảng
+  cạnh khớp kế hoạch dòng 702–714 (tác động và thứ tự), chuỗi lý do/anomaly/nguồn khớp CHECK migration 0300, số ca bảng
+  bằng chứng khớp. Ghi chú đã xử lý: comment `graph.go` ghi "bốn cạnh" (sửa ở commit 3), fuzz chạy lại đủ 60 giây, dòng
+  VC11 ghi rõ số ca. Ghi chú để Task 99: một tin `older` là tin kết thúc (vd. `delivered` đến sau một tin mới hơn bất
+  thường) có thể nên mở "Cần xem" (đã thêm vào Việc phát hiện thêm).
 
 Kết luận: ĐẠT
