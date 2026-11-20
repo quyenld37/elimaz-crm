@@ -35,6 +35,3 @@ waiveRefundObligation
 previewCodAdjustment
 createCodAdjustment
 listReconcileFindings
-confirmCodStatement
-listCodDiscrepancies
-listCodOverdue

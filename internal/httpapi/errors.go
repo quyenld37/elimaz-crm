@@ -83,6 +83,7 @@ const (
 
 	// Bảng kê COD (kế hoạch M3, Task M3-31).
 	codeStatementDuplicate = "statement_duplicate"
+	codeStatementChanged   = "statement_changed"
 
 	// Khách, đơn, mã giảm giá (kế hoạch M2, Task M2-02).
 	codeShipmentAlreadyAttached = "shipment_already_attached"
@@ -522,6 +523,7 @@ func cashError(err error) (status int, code string, ok bool) {
 	}{
 		{cash.ErrCarrierAccountNotFound, http.StatusNotFound, codeNotFound},
 		{cash.ErrStatementNotFound, http.StatusNotFound, codeNotFound},
+		{cash.ErrStatementChanged, http.StatusConflict, codeStatementChanged},
 		{cash.ErrShipmentNotFound, http.StatusNotFound, codeNotFound},
 		{cash.ErrUnknownStatementFormat, http.StatusUnprocessableEntity, codeInvalidInput},
 		{cash.ErrStatementFileNotReady, http.StatusConflict, codeFileNotReady},

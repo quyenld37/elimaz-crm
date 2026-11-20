@@ -61,13 +61,18 @@ type Parser struct {
 	reg        *formats.Registry
 	purpose    string
 	lim        Limits
+	parsed     ParsedFunc
 	afterBatch func(written int) error // test: chạy sau mỗi lô đã commit; lỗi → Execute trả lỗi (in_doubt)
 }
 
+// ParsedFunc chạy trong tx của OnDone khi bảng kê id của tenant vừa thành parsed với version mới version (xếp việc khớp
+// dòng, Task M3-32).
+type ParsedFunc func(ctx context.Context, tx pgx.Tx, tenantID, id uuid.UUID, version int64) error
+
 // NewParser dựng lệnh đọc tệp: d (crm_app), fs (kho tệp; nil → not_sent cho tới khi nối), reg (sổ định dạng),
-// purpose (mục đích tệp bảng kê).
-func NewParser(d *db.DB, fs files.FileStore, reg *formats.Registry, purpose string) *Parser {
-	return &Parser{db: d, files: fs, reg: reg, purpose: purpose, lim: DefaultLimits()}
+// purpose (mục đích tệp bảng kê), parsed (chạy khi bảng kê vừa đọc xong; nil: không làm gì).
+func NewParser(d *db.DB, fs files.FileStore, reg *formats.Registry, purpose string, parsed ParsedFunc) *Parser {
+	return &Parser{db: d, files: fs, reg: reg, purpose: purpose, lim: DefaultLimits(), parsed: parsed}
 }
 
 // Kind implements commands.Handler.
@@ -220,16 +225,23 @@ func (p *Parser) Lookup(ctx context.Context, j queue.Job) (string, error) {
 }
 
 // OnDone implements commands.DoneHook: parsed, line_count, kỳ bảng kê đếm từ dòng đã ghi (chỉ khi chưa đọc xong).
-// Việc khớp dòng (Task M3-32) xếp ở đây.
-func (*Parser) OnDone(ctx context.Context, j queue.Job, _ json.RawMessage, tx pgx.Tx) error {
-	_, id, ok := target(j)
+// Lần đầu thành parsed thì gọi parsed (xếp việc khớp dòng, Task M3-32) trong cùng tx.
+func (p *Parser) OnDone(ctx context.Context, j queue.Job, _ json.RawMessage, tx pgx.Tx) error {
+	tenant, id, ok := target(j)
 	if !ok {
 		return nil
 	}
-	if _, err := store.New(tx).FinishParse(ctx, id); err != nil {
+	version, err := store.New(tx).FinishParse(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil // đã đọc xong ở lần trước
+	}
+	if err != nil {
 		return fmt.Errorf("ghi bảng kê %s đã đọc: %w", id, err)
 	}
-	return nil
+	if p.parsed == nil {
+		return nil
+	}
+	return p.parsed(ctx, tx, tenant, id, version)
 }
 
 // OnTerminal implements queue.TerminalHook: lệnh dead hay expired mà bảng kê chưa đọc xong (hết lượt vì lỗi tạm) →

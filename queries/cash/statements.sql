@@ -53,9 +53,9 @@ SET status = 'parse_failed', parse_error = @parse_error, updated_at = now(), ver
 WHERE id = @id
   AND status IN ('imported', 'parsing');
 
--- name: FinishParse :execrows
+-- name: FinishParse :one
 -- Đọc tệp xong: parsed, số dòng và kỳ bảng kê (ngày chuyển nhỏ nhất, lớn nhất) đếm từ dòng đã ghi; chỉ khi chưa
--- đọc xong.
+-- đọc xong (đã đọc xong → không dòng nào, pgx.ErrNoRows). Trả version mới (số thứ tự của sự kiện đã đọc xong).
 UPDATE cash.cod_statements s
 SET status      = 'parsed',
     line_count  = l.n,
@@ -67,7 +67,8 @@ FROM (SELECT count(*)::int AS n, min(paid_on) AS first_day, max(paid_on) AS last
       FROM cash.cod_statement_lines
       WHERE statement_id = @id) l
 WHERE s.id = @id
-  AND s.status IN ('imported', 'parsing');
+  AND s.status IN ('imported', 'parsing')
+RETURNING s.version;
 
 -- name: InsertStatementLines :execrows
 -- Ghi một lô dòng; dòng đã có (cùng số dòng) → bỏ qua, nên chạy lại cả lô an toàn. Các mảng cùng độ dài (bên gọi
@@ -96,3 +97,125 @@ FROM cash.cod_statement_lines
 WHERE statement_id = @statement_id
 GROUP BY match_status
 ORDER BY match_status;
+
+-- Khớp và chốt bảng kê (Task M3-32). Thứ tự khóa ADR-46: khóa tư vấn sổ COD theo vận đơn tăng dần (LockShipmentCOD)
+-- trước mọi khóa dòng nhóm 9, rồi cod_statements → cod_statement_lines theo line_no → chèn bút toán.
+
+-- name: LockParsedStatement :one
+-- Khóa bảng kê đã đọc xong để khớp dòng; đã khớp, đã chốt (sự kiện giao lại) → không dòng nào.
+SELECT id, carrier_account_id
+FROM cash.cod_statements
+WHERE id = @id
+  AND status = 'parsed'
+FOR UPDATE;
+
+-- name: MatchFacts :many
+-- Mọi dòng của bảng kê theo line_no cùng vận đơn tìm theo (tài khoản hãng của bảng kê, mã vận đơn) (Q-7, VC13: không
+-- tìm chỉ theo mã), số dư carrier_holding và đã có remitted chưa bị đảo của vận đơn đó.
+SELECT l.id, l.line_no, l.cod_amount, l.fee_amount, l.other_fee, l.posted_transfer_id,
+       s.id AS shipment_id, coalesce(s.status = 'delivered' AND NOT s.partial, false)::boolean AS delivered,
+       coalesce((SELECT sum(e.amount)
+                 FROM cash.cod_ledger_entries e
+                 WHERE e.shipment_id = s.id
+                   AND e.account = 'carrier_holding'), 0)::bigint AS carrier_holding,
+       EXISTS (SELECT 1
+               FROM cash.cod_transfers t
+               WHERE t.shipment_id = s.id
+                 AND t.kind = 'remitted'
+                 AND NOT EXISTS (SELECT 1 FROM cash.cod_transfers r WHERE r.reverses_transfer_id = t.id)) AS remitted
+FROM cash.cod_statement_lines l
+LEFT JOIN fulfillment.shipments_v s
+       ON s.carrier_account_id = @carrier_account_id::uuid
+      AND s.tracking_code = l.tracking_code
+WHERE l.statement_id = @statement_id
+ORDER BY l.line_no;
+
+-- name: SetLineResults :exec
+-- Ghi kết quả khớp (và bút toán đã ghi) cho các dòng; các mảng cùng độ dài. Mã rỗng (uuid toàn 0) → NULL; has_amount
+-- false → expected, diff NULL; bút toán rỗng giữ bút toán cũ của dòng.
+UPDATE cash.cod_statement_lines l
+SET match_status       = u.status,
+    shipment_id        = NULLIF(u.shipment_id, '00000000-0000-0000-0000-000000000000'::uuid),
+    expected_amount    = CASE WHEN u.has_amount THEN u.expected END,
+    diff_amount        = CASE WHEN u.has_amount THEN u.diff END,
+    posted_transfer_id = coalesce(NULLIF(u.posted, '00000000-0000-0000-0000-000000000000'::uuid), l.posted_transfer_id),
+    updated_at         = now()
+FROM (SELECT unnest(@ids::uuid[])            AS id,
+             unnest(@statuses::text[])       AS status,
+             unnest(@shipment_ids::uuid[])   AS shipment_id,
+             unnest(@has_amounts::boolean[]) AS has_amount,
+             unnest(@expected::bigint[])     AS expected,
+             unnest(@diffs::bigint[])        AS diff,
+             unnest(@posted::uuid[])         AS posted) u
+WHERE l.id = u.id;
+
+-- name: MarkMatched :one
+-- Bảng kê đã khớp xong: parsed → matched; trả version mới.
+UPDATE cash.cod_statements
+SET status = 'matched', updated_at = now(), version = version + 1
+WHERE id = @id
+  AND status = 'parsed'
+RETURNING version;
+
+-- name: ConfirmStatement :one
+-- Chốt bảng kê khi version còn khớp và đang matched (TI07: người lưu sau → không dòng nào).
+UPDATE cash.cod_statements
+SET status = 'confirmed', confirmed_by = @confirmed_by, confirmed_at = now(), updated_at = now(), version = version + 1
+WHERE id = @id
+  AND version = @version
+  AND status = 'matched'
+RETURNING *;
+
+-- name: PostableNet :one
+-- Tổng thực nhận của các dòng sẽ ghi tiền (matched, amount_mismatch, fee_only) để so với tổng khai trên tệp.
+SELECT coalesce(sum(net_amount), 0)::bigint
+FROM cash.cod_statement_lines
+WHERE statement_id = @statement_id
+  AND match_status IN ('matched', 'amount_mismatch', 'fee_only');
+
+-- name: PostBatchLines :many
+-- Lô dòng có vận đơn kế tiếp sau line_no after (không khóa: chỉ để biết vận đơn cần khóa tư vấn).
+SELECT line_no, shipment_id::uuid AS shipment_id
+FROM cash.cod_statement_lines
+WHERE statement_id = @statement_id
+  AND line_no > @after_line_no
+  AND shipment_id IS NOT NULL
+ORDER BY line_no
+LIMIT @lim;
+
+-- name: TouchConfirmed :one
+-- Khóa bảng kê đã chốt cho một lô ghi tiền và tăng version (số thứ tự của sự kiện lô sau); chưa chốt → không dòng nào.
+UPDATE cash.cod_statements
+SET updated_at = now(), version = version + 1
+WHERE id = @id
+  AND status = 'confirmed'
+RETURNING version, confirmed_by;
+
+-- name: LockLineRange :many
+-- Khóa các dòng có vận đơn của lô theo line_no tăng dần.
+SELECT id
+FROM cash.cod_statement_lines
+WHERE statement_id = @statement_id
+  AND line_no BETWEEN @from_line_no AND @to_line_no
+  AND shipment_id IS NOT NULL
+ORDER BY line_no
+FOR UPDATE;
+
+-- name: PostFacts :many
+-- Như MatchFacts cho các dòng có vận đơn của lô (vận đơn đã gắn lúc khớp), đọc sau khóa: số dư mới nhất.
+SELECT l.id, l.line_no, l.cod_amount, l.fee_amount, l.other_fee, l.posted_transfer_id,
+       s.id AS shipment_id, coalesce(s.status = 'delivered' AND NOT s.partial, false)::boolean AS delivered,
+       coalesce((SELECT sum(e.amount)
+                 FROM cash.cod_ledger_entries e
+                 WHERE e.shipment_id = s.id
+                   AND e.account = 'carrier_holding'), 0)::bigint AS carrier_holding,
+       EXISTS (SELECT 1
+               FROM cash.cod_transfers t
+               WHERE t.shipment_id = s.id
+                 AND t.kind = 'remitted'
+                 AND NOT EXISTS (SELECT 1 FROM cash.cod_transfers r WHERE r.reverses_transfer_id = t.id)) AS remitted
+FROM cash.cod_statement_lines l
+JOIN fulfillment.shipments_v s ON s.id = l.shipment_id
+WHERE l.statement_id = @statement_id
+  AND l.line_no BETWEEN @from_line_no AND @to_line_no
+ORDER BY l.line_no;

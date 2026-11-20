@@ -22,6 +22,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/cash/internal/statement"
 	"elimaz.com.vn/crm/internal/platform/commands"
+	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/files/filestest"
 	"elimaz.com.vn/crm/internal/platform/queue"
@@ -61,7 +62,7 @@ func newImportEnv(t *testing.T) *importEnv {
 		e.shop = shiptest.NewShop(t, tx, e.tenant)
 		return nil
 	})
-	e.mod = cash.New(cash.Deps{DB: e.staff.App, Queue: queue.NewQueue(), Files: e.store})
+	e.mod = cash.New(cash.Deps{DB: e.staff.App, Queue: queue.NewQueue(), Files: e.store, Events: events.NewRegistry()})
 	e.hs = e.mod.CommandHandlers()
 	for _, h := range e.hs {
 		if p, ok := h.(*statement.Parser); ok {
@@ -508,7 +509,7 @@ func TestImport_RetriesExhaustedAndLookup(t *testing.T) {
 	if s, err := e.parser.Lookup(t.Context(), job); err != nil || s != commands.StatusNotSent {
 		t.Fatalf("Lookup trước khi đọc: %s, %v", s, err)
 	}
-	noFiles := cash.New(cash.Deps{DB: e.staff.App, Queue: queue.NewQueue()})
+	noFiles := cash.New(cash.Deps{DB: e.staff.App, Queue: queue.NewQueue(), Events: events.NewRegistry()})
 	e.staff.DrainJobs(t, e.worker(noFiles.CommandHandlers()))
 	got := e.get(st.ID, "", 0, 1).Statement
 	if s := e.jobStatus(st.ID); s != "dead" || got.Status != statement.StatusParseFailed || got.ParseError.Code != "read_failed" {
