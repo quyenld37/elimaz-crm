@@ -16,6 +16,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/platform/webhooks"
@@ -203,25 +204,69 @@ func (e *shipEnv) count(q string, args ...any) int {
 	return e.staff.CountIn(e.t, e.tenant, q, args...)
 }
 
-// signal giao một tín hiệu webhook (đã định tuyến về tenant A) của tài khoản hãng e.accountRef cho handler của nguồn
-// fakecarrier, trong tx crm_app. Mã sự kiện gửi đi là "<accountRef>/<eventID>": hai lượt eachSeller dùng cùng eventID
-// trên một database mà không bị chống trùng gộp (khóa evt:<mã sự kiện> theo tenant).
+// signal giao một tín hiệu webhook của tài khoản hãng e.account (khóa tuyến route_key của nó) cho handler vào của
+// module (nguồn "fake"), trong tx crm_app. Khóa sự kiện là "<accountRef>/<eventID>": hai lượt eachSeller dùng cùng
+// eventID trên một database mà không bị chống trùng gộp. Lỗi làm test đỏ.
 func (e *shipEnv) signal(tracking, eventID string) {
 	e.t.Helper()
-	data, err := json.Marshal(fulfillment.Signal{
-		CarrierKey: fake.Key, AccountKey: e.accountRef, TrackingCode: tracking, EventID: e.accountRef + "/" + eventID,
-	})
+	sig := fulfillment.Signal{RouteKey: e.routeKey(e.account), EventKey: e.accountRef + "/" + eventID, TrackingCode: tracking}
+	if err := e.trySignal(sig, nil); err != nil {
+		e.t.Fatalf("tín hiệu %s: %v", eventID, err)
+	}
+}
+
+// trySignal giao tín hiệu sig cho handler vào của module có một hãng giả nhận webhook (khóa "fake"); reg nil: không
+// đếm chỉ số.
+func (e *shipEnv) trySignal(sig fulfillment.Signal, reg *metrics.Registry) error {
+	e.t.Helper()
+	return e.trySignalFrom(hookCarrier{Carrier: e.carrier}, sig, reg)
+}
+
+// trySignalFrom như trySignal với hãng a (nguồn a.Key()).
+func (e *shipEnv) trySignalFrom(a fulfillment.CarrierAdapter, sig fulfillment.Signal, reg *metrics.Registry) error {
+	e.t.Helper()
+	hs := fulfillment.New(fulfillment.Deps{
+		DB: e.staff.App, Queue: queue.NewQueue(), Carriers: mustRegistry(e.t, a), Metrics: reg,
+	}).InboundHandlers()
+	if len(hs) != 1 || hs[0].Source() != a.Key() {
+		e.t.Fatalf("handler vào = %d, muốn 1 của nguồn %s", len(hs), a.Key())
+	}
+	data, err := json.Marshal(sig)
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	h := fulfillment.NewSignalHandler("fakecarrier")
-	if err := e.app(func(tx pgx.Tx) error {
-		return h.Handle(e.t.Context(), webhooks.Inbound{
+	return e.app(func(tx pgx.Tx) error {
+		return hs[0].Handle(e.t.Context(), webhooks.Inbound{
 			Type: fulfillment.SignalType, Data: data, JobID: uuid.New(), TenantID: e.tenant,
 		}, tx)
-	}); err != nil {
-		e.t.Fatalf("tín hiệu %s: %v", eventID, err)
+	})
+}
+
+// routeKey trả route_key của tài khoản hãng account.
+func (e *shipEnv) routeKey(account uuid.UUID) string {
+	e.t.Helper()
+	return readAs(e, func(ctx context.Context, tx pgx.Tx) (string, error) {
+		var rk string
+		err := tx.QueryRow(ctx, "SELECT route_key FROM fulfillment.carrier_accounts WHERE id = $1", account).Scan(&rk)
+		return rk, err //nolint:wrapcheck // test
+	})
+}
+
+// hookCarrier là hãng giả trong bộ nhớ có khai khả năng Webhook (module dựng handler vào cho nó).
+type hookCarrier struct {
+	*fake.Carrier
+	key string
+}
+
+func (h hookCarrier) Key() string {
+	if h.key != "" {
+		return h.key
 	}
+	return h.Carrier.Key()
+}
+
+func (hookCarrier) Capabilities() fulfillment.Capabilities {
+	return fulfillment.Capabilities{Webhook: true}
 }
 
 // ownerExec chạy câu bằng chủ bảng trong ngữ cảnh tenant A (sửa dữ liệu như kẻ có quyền database, dựng tình huống).

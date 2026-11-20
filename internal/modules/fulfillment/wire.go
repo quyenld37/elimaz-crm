@@ -43,7 +43,7 @@ func (m *Module) CommandHandlers() []commands.Handler {
 	)
 }
 
-// InboundHandlers trả handler sự kiện vào của các vùng (handler tín hiệu hãng giả của M1 do cmd/crm nối cùng nguồn).
+// InboundHandlers trả handler sự kiện vào của các vùng (tín hiệu webhook hãng: vùng inbound).
 func (m *Module) InboundHandlers() []webhooks.InboundHandler {
 	return background.Collect(
 		m.accountsInbound(),
@@ -64,7 +64,7 @@ func (m *Module) InboundHandlers() []webhooks.InboundHandler {
 	)
 }
 
-// WebhookSources trả nguồn webhook của các vùng (nguồn của hãng giả M1 do cmd/crm nối).
+// WebhookSources trả nguồn webhook của các vùng (nguồn của hãng do cmd/crm nối: carrier.WebhookSources).
 func (m *Module) WebhookSources() []webhooks.Source {
 	return background.Collect(
 		m.accountsSources(),

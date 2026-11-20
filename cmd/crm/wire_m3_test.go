@@ -2,12 +2,14 @@ package main
 
 import (
 	"errors"
+	"net/http"
 	"slices"
 	"testing"
 
 	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
 	"elimaz.com.vn/crm/internal/platform/background"
 	"elimaz.com.vn/crm/internal/platform/config"
+	"elimaz.com.vn/crm/internal/platform/webhooks"
 )
 
 // wireM3 giữ đúng điều kiện của M1 (Task M3-04, commit cấu trúc): consumer sổ COD luôn có; hai lệnh vận chuyển, nguồn
@@ -66,7 +68,7 @@ func checkM3Parts(t *testing.T, cfg config.Config, commands []string, source boo
 		want = 1
 	}
 	if len(p.Sources) != want || len(p.Inbound) != want ||
-		(source && (p.Sources[0].Key() != fake.Key || p.Inbound[0].Source() != fake.Key)) {
+		(source && (p.Sources[0].Key() != fake.CarrierKey || p.Inbound[0].Source() != fake.CarrierKey)) {
 		t.Errorf("nguồn %d, handler vào %d, mong hãng giả = %v", len(p.Sources), len(p.Inbound), source)
 	}
 	if len(p.Schedules)+len(p.Cleanups) != 0 {
@@ -88,5 +90,31 @@ func TestCheckM3Unique(t *testing.T) {
 	p.Sources = append(p.Sources, p.Sources[0])
 	if err := checkM3Unique(p); !errors.Is(err, background.ErrDuplicatePart) {
 		t.Fatalf("trùng consumer, nguồn: mong ErrDuplicatePart, có %v", err)
+	}
+}
+
+// Nguồn hãng giả (Task M3-10): /hooks/fake/<route_key>, kiểm chữ ký bằng FAKECARRIER_WEBHOOK_SECRET chỉ ở vai trò
+// ingest; worker dựng nguồn với bí mật rỗng (chỉ tách gói, chữ ký không bao giờ đúng).
+func TestWireM3_FakeWebhookSecretByRole(t *testing.T) {
+	t.Parallel()
+	const secret = "0123456789abcdef0123456789abcdef"
+	cfg := config.Config{Env: "development", FakeCarrierURL: "http://127.0.0.1:1", FakeCarrierWebhookSecret: secret}
+	body := []byte(`{"events":[]}`)
+	h := http.Header{}
+	h.Set(fake.SignatureHeader, fake.Sign(body, secret))
+	for role, want := range map[config.Role]bool{config.RoleIngest: true, config.RoleWorker: false} {
+		p, err := wireM3(role, cfg, m3Deps{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(p.Sources) != 1 || p.Sources[0].Key() != fake.CarrierKey {
+			t.Fatalf("%s: nguồn = %d", role, len(p.Sources))
+		}
+		if _, routed := p.Sources[0].(webhooks.RoutedSource); !routed {
+			t.Fatalf("%s: nguồn hãng giả không nhận đường có route_key", role)
+		}
+		if got := p.Sources[0].VerifySignature(body, h); got != want {
+			t.Errorf("%s: chữ ký đúng → %v, muốn %v", role, got, want)
+		}
 	}
 }

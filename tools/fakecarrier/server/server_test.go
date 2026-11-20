@@ -22,7 +22,7 @@ import (
 
 const secret = "0123456789abcdef0123456789abcdef"
 
-// hookSink nhận webhook và kiểm chữ ký bằng nguồn fakecarrier của CRM.
+// hookSink nhận webhook và kiểm chữ ký bằng fake.Verify của CRM.
 type hookSink struct {
 	mu   sync.Mutex
 	got  []fake.Event
@@ -33,14 +33,13 @@ type hookSink struct {
 func newSink(t *testing.T) *hookSink {
 	t.Helper()
 	k := &hookSink{}
-	src := fake.NewSource(secret)
 	k.srv = httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		b, _ := io.ReadAll(r.Body)
 		var p fake.Packet
 		_ = json.Unmarshal(b, &p)
 		k.mu.Lock()
 		k.got = append(k.got, p.Events...)
-		k.auth = append(k.auth, src.VerifySignature(b, r.Header))
+		k.auth = append(k.auth, fake.Verify(b, r.Header, secret))
 		k.mu.Unlock()
 	}))
 	t.Cleanup(k.srv.Close)

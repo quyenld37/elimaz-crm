@@ -63,16 +63,15 @@ func TestWebhookRouteKey(t *testing.T) {
 		paths []string
 		auth  []bool
 	)
-	src := fake.NewSource(secret)
 	sink := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		b := make([]byte, r.ContentLength)
 		_, _ = r.Body.Read(b)
 		mu.Lock()
-		paths, auth = append(paths, r.URL.Path), append(auth, src.VerifySignature(b, r.Header))
+		paths, auth = append(paths, r.URL.Path), append(auth, fake.Verify(b, r.Header, secret))
 		mu.Unlock()
 	}))
 	t.Cleanup(sink.Close)
-	srv := httptest.NewServer(New(Options{Secret: secret, WebhookURL: sink.URL + "/hooks/fakecarrier"}))
+	srv := httptest.NewServer(New(Options{Secret: secret, WebhookURL: sink.URL + "/hooks/fake"}))
 	t.Cleanup(srv.Close)
 	cli := fake.NewClient(srv.URL, secret, srv.Client())
 	withRoute := account()
@@ -90,7 +89,7 @@ func TestWebhookRouteKey(t *testing.T) {
 	r.admin("/admin/parcels/"+b.TrackingCode+"/advance", `{"to":"picked_up"}`)
 	mu.Lock()
 	defer mu.Unlock()
-	if len(paths) != 2 || paths[0] != "/hooks/fakecarrier/rk-01" || paths[1] != "/hooks/fakecarrier" || !auth[0] || !auth[1] {
+	if len(paths) != 2 || paths[0] != "/hooks/fake/rk-01" || paths[1] != "/hooks/fake" || !auth[0] || !auth[1] {
 		t.Fatalf("đường webhook = %v, chữ ký %v", paths, auth)
 	}
 }

@@ -135,7 +135,7 @@ func parsePayload(j queue.Job) (commandPayload, error) {
 }
 
 func (s Shipment) account() Account {
-	return Account{ID: s.CarrierAccountID, ExternalAccountRef: s.accountRef}
+	return Account{ID: s.CarrierAccountID, ExternalAccountRef: s.accountRef, RouteKey: s.routeKey}
 }
 
 // emitStatus phát shipment.status_changed với Seq = version mới của vận đơn.

@@ -85,12 +85,3 @@ func TestRefresh_LateShippingAfterDelivered(t *testing.T) {
 	}
 	e.stockIs(v, [3]int32{4, 0, 0})
 }
-
-// Tín hiệu của mã hãng lạ (không có vận đơn) hay của tài khoản khác → bỏ qua, không lệnh nào.
-func TestSignal_UnknownShipmentIgnored(t *testing.T) {
-	e := newShipEnv(t)
-	e.signal("TRK-NOPE", "ev-x")
-	if n := e.count("SELECT count(*) FROM platform.jobs WHERE kind = 'fulfillment.refresh_status'"); n != 0 {
-		t.Fatalf("lệnh tra = %d, muốn 0", n)
-	}
-}

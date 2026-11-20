@@ -60,7 +60,7 @@ func (c *Client) MapStatus(raw string) (fulfillment.Status, bool) {
 
 // VerifyWebhook kiểm chữ ký x-fake-signature với bí mật secret (rỗng → false).
 func (*Client) VerifyWebhook(raw []byte, h fulfillment.Header, secret string) bool {
-	return NewSource(secret).VerifySignature(raw, http.Header(h))
+	return Verify(raw, http.Header(h), secret)
 }
 
 // SplitWebhook đọc gói {"events":[…]}: mỗi sự kiện đủ eventId, tracking thành một tín hiệu (code của kiện nếu hãng

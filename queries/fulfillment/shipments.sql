@@ -14,9 +14,9 @@ RETURNING created_at;
 SELECT EXISTS (SELECT 1 FROM fulfillment.shipments WHERE order_id = @order_id AND status <> 'cancelled');
 
 -- name: GetShipment :one
--- Vận đơn kèm tài khoản hãng (kho, người bán, mã tài khoản ở hãng).
+-- Vận đơn kèm tài khoản hãng (kho, người bán, mã tài khoản ở hãng, khóa tuyến webhook).
 SELECT s.id, s.code, s.order_id, s.carrier_key, s.carrier_account_id, s.tracking_code, s.status, s.cod_amount, s.fee,
-       s.version, s.created_at, a.warehouse_id, a.seller_id, a.external_account_ref
+       s.version, s.created_at, a.warehouse_id, a.seller_id, a.external_account_ref, a.route_key
 FROM fulfillment.shipments s
 JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
 WHERE s.id = @id;
@@ -26,13 +26,6 @@ SELECT id, order_id, tracking_code, status, cod_amount, version
 FROM fulfillment.shipments
 WHERE id = @id
 FOR UPDATE;
-
--- name: ShipmentByTracking :one
--- Vận đơn theo mã hãng của đúng tài khoản (tín hiệu webhook); không có → pgx.ErrNoRows.
-SELECT s.id
-FROM fulfillment.shipments s
-JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
-WHERE s.carrier_key = @carrier_key AND s.tracking_code = @tracking_code AND a.external_account_ref = @account_ref;
 
 -- name: UpdateShipmentProgress :one
 -- Đổi trạng thái, điền mã hãng, phí (chỉ khi còn trống) trên dòng đã khóa; trả version mới. Có mã hãng → hãng đã tạo

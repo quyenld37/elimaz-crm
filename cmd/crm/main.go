@@ -515,8 +515,8 @@ func ingestHandler(cfg config.Config, d *db.DB, reg *metrics.Registry, logger *s
 	return mux, nil
 }
 
-// ingestSources là các nguồn webhook của ingest: selftest và nguồn của M3 từ wireM3 (fakecarrier khi carrier.FakeOn,
-// kèm bí mật; production không bao giờ có /hooks/fakecarrier).
+// ingestSources là các nguồn webhook của ingest: selftest và nguồn của M3 từ wireM3 (/hooks/<hãng>/<route_key> của hãng
+// có webhook, kèm bí mật; hãng giả chỉ khi carrier.FakeOn: production không bao giờ có /hooks/fake).
 func ingestSources(cfg config.Config) ([]webhooks.Source, error) {
 	m3, err := wireM3(config.RoleIngest, cfg, m3Deps{})
 	if err != nil {

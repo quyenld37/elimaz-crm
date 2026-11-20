@@ -1,65 +1,77 @@
 package fulfillment
 
 import (
-	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
-
-	"elimaz.com.vn/crm/internal/modules/fulfillment/internal/store"
-	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/modules/fulfillment/internal/inbound"
 	"elimaz.com.vn/crm/internal/platform/webhooks"
 )
 
 // SignalType là webhooks.InboundEvent.Type của tín hiệu hãng: "vận đơn này vừa đổi, hãy hỏi lại".
-const SignalType = "carrier.signal"
+const SignalType = inbound.SignalType
 
-// Signal là payload chuẩn của một tín hiệu hãng (nguồn webhook của từng hãng — internal/adapters/<hãng> — tách gói
-// ra dạng này). Không mang trạng thái: trạng thái thật chỉ đọc qua API có xác thực (B10).
-type Signal struct {
-	CarrierKey   string `json:"carrierKey"`
-	AccountKey   string `json:"accountKey"`
-	TrackingCode string `json:"trackingCode"`
-	EventID      string `json:"eventId"`
-}
+// Signal là payload chuẩn của một tín hiệu hãng (SplitSignals dựng, handler vào của module đọc). Không mang trạng
+// thái: trạng thái thật chỉ đọc qua API có xác thực (B10).
+type Signal = inbound.Signal
 
-// SignalHandler là webhooks.InboundHandler của một nguồn hãng: webhook chỉ là tín hiệu, handler không gọi hãng, chỉ
-// ghi lệnh fulfillment.refresh_status (DedupeKey evt:<eventId>, OrderKey shipment:<id>) trong tx của việc.
-type SignalHandler struct {
-	source string
-	q      queue.JobQueue
-}
+// ErrShipmentNotYetKnown báo tài khoản có nhưng chưa có vận đơn mang mã của tín hiệu; lỗi tạm (việc vào thử lại theo
+// lịch của hàng đợi, hết lượt thì dead và cảnh báo).
+var ErrShipmentNotYetKnown = inbound.ErrShipmentNotYetKnown
 
-// NewSignalHandler tạo handler cho nguồn source (/hooks/<source>).
-func NewSignalHandler(source string) *SignalHandler {
-	return &SignalHandler{source: source, q: queue.NewQueue()}
-}
+// ErrNoRouteKey báo gói webhook hãng nhận ở đường không có khóa tuyến (/hooks/<hãng>); hãng chỉ được đăng ký đường
+// /hooks/<hãng>/<route_key>.
+var ErrNoRouteKey = errors.New("fulfillment: webhook hãng không có khóa tuyến")
 
-// Source trả tên nguồn.
-func (h *SignalHandler) Source() string { return h.source }
+// skippedInvalid là nhãn SplitResult.Skipped của tín hiệu không có mã vận đơn nào.
+const skippedInvalid = "invalid"
 
-// Handle ghi lệnh tra trạng thái cho vận đơn của tín hiệu. Loại lạ, payload không đọc được, thiếu trường → queue.ErrPermanent. Vận đơn lạ (mã hãng không có trong
-// tenant, hay của tài khoản khác) → bỏ qua, không lỗi.
-func (h *SignalHandler) Handle(ctx context.Context, e webhooks.Inbound, tx pgx.Tx) error {
-	if e.Type != SignalType {
-		return fmt.Errorf("fulfillment: loại sự kiện %q: %w", e.Type, queue.ErrPermanent)
+// SplitSignals tách gói webhook raw của hãng a nhận ở đường có khóa tuyến routeKey: a.SplitWebhook, mỗi tín hiệu →
+// InboundEvent{Type: SignalType, DedupeKey: routeKey:eventKey (hãng không cho khóa: sha256 của thân + ":" + chỉ số),
+// Route: carrier_account:routeKey, OrderKey: shipment:<mã CRM hoặc mã hãng>, Payload: Signal}. Tín hiệu không có mã
+// nào → Skipped["invalid"]. routeKey rỗng → ErrNoRouteKey; thân không đọc được → lỗi (ingest coi là thân hỏng).
+func SplitSignals(a CarrierAdapter, raw []byte, routeKey string) (webhooks.SplitResult, error) {
+	if routeKey == "" {
+		return webhooks.SplitResult{}, ErrNoRouteKey
 	}
-	var s Signal
-	if err := json.Unmarshal(e.Data, &s); err != nil || s.CarrierKey == "" || s.AccountKey == "" ||
-		s.TrackingCode == "" || s.EventID == "" {
-		return fmt.Errorf("fulfillment: tín hiệu hãng thiếu trường: %w", queue.ErrPermanent)
-	}
-	id, err := store.New(tx).ShipmentByTracking(ctx, store.ShipmentByTrackingParams{
-		CarrierKey: s.CarrierKey, TrackingCode: pgtype.Text{String: s.TrackingCode, Valid: true}, AccountRef: s.AccountKey,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil
-	}
+	sigs, err := a.SplitWebhook(raw)
 	if err != nil {
-		return fmt.Errorf("tìm vận đơn của tín hiệu: %w", err)
+		return webhooks.SplitResult{}, fmt.Errorf("tách webhook hãng %s: %w", a.Key(), err)
 	}
-	return enqueueRefresh(ctx, tx, h.q, e.TenantID, id, "evt:"+s.EventID)
+	res := webhooks.SplitResult{Skipped: map[string]int{}}
+	var bodyHash string
+	for i, s := range sigs {
+		code := s.ShipmentCode
+		if code == "" {
+			code = s.TrackingCode
+		}
+		if code == "" {
+			res.Skipped[skippedInvalid]++
+			continue
+		}
+		key := s.EventKey
+		if key == "" {
+			if bodyHash == "" {
+				sum := sha256.Sum256(raw)
+				bodyHash = hex.EncodeToString(sum[:])
+			}
+			key = bodyHash + ":" + strconv.Itoa(i)
+		}
+		payload, err := json.Marshal(Signal{
+			RouteKey: routeKey, EventKey: key, TrackingCode: s.TrackingCode, ShipmentCode: s.ShipmentCode,
+		})
+		if err != nil {
+			return webhooks.SplitResult{}, fmt.Errorf("mã hóa tín hiệu hãng: %w", err)
+		}
+		res.Events = append(res.Events, webhooks.InboundEvent{
+			Type: SignalType, DedupeKey: routeKey + ":" + key,
+			Route:    webhooks.Route{Kind: RouteKindCarrierAccount, ExternalKey: routeKey},
+			OrderKey: "shipment:" + code, Payload: payload,
+		})
+	}
+	return res, nil
 }
