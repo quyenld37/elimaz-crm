@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M3 — Kết nối vận chuyển</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="m3.css">
+<style>
+@media (min-width: 760px) { .acc td:first-child { width: 30%; } .acc .c-act { width: 1%; white-space: nowrap; } }
+.acc .ten { display: grid; gap: 2px; min-width: 0; }
+</style>
+</head>
+<body data-page="ket-noi-van-chuyen" data-title="Kết nối vận chuyển">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Vận chuyển / Kết nối vận chuyển</p><h1>Kết nối vận chuyển</h1><p class="sub">Tài khoản của shop ở từng hãng. Danh sách hãng hiện trên website lấy từ cột "Hiện trên web" ở đây (một nơi lưu).</p></div>
+	<div class="row"><a class="btn btn-quiet" href="#cai-dat">Cài đặt vận chuyển</a><button class="btn btn-dark">+ Thêm tài khoản</button></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="ds-tai-khoan vc15 ten-60"><p class="xs">TRẠNG THÁI A</p><h2>Danh sách 9 tài khoản (Viettel Post 2, Best Express 3, SPX 2, nhập mã tay 1, tự giao 1): đủ sáu trạng thái, tên 60 ký tự, tài khoản thử</h2></section>
+
+<div class="toolbar">
+	<input class="input is-search" placeholder="Tìm theo tên tài khoản" aria-label="Tìm tài khoản">
+	<div class="select-wrap"><select aria-label="Hãng"><option>Mọi hãng</option><option>Viettel Post</option><option>Best Express</option><option>SPX</option></select></div>
+	<div class="select-wrap"><select aria-label="Kho"><option>Mọi kho</option><option>Kho chính</option><option>Kho Hà Nội</option></select></div>
+</div>
+<div class="tbl-frame">
+<table class="tbl acc">
+	<thead><tr><th>Tài khoản</th><th>Kho · mặc định</th><th>Trạng thái</th><th>Lần kiểm gần nhất</th><th>Hiện trên web</th><th class="c-act"></th></tr></thead>
+	<tbody>
+	<tr data-ca="tt-hoat-dong moi-truong kho mac-dinh lan-kiem hien-tren-web">
+		<td class="lead"><div class="ten"><b class="clamp2">Viettel Post — Kho chính</b><span class="small muted">Viettel Post · API · <span class="chip chip-line">Thật</span></span></div></td>
+		<td data-label="Kho · mặc định"><span>Kho chính · <b>Mặc định</b></span></td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đang hoạt động</span></td>
+		<td data-label="Lần kiểm gần nhất"><span class="small num">09:12 · 21/11 · Đạt</span></td>
+		<td data-label="Hiện trên web">Có · thứ tự 1</td>
+		<td class="c-act"><a class="btn btn-quiet" href="#chi-tiet">Sửa</a></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="ten"><b class="clamp2">Best Express — Kho chính</b><span class="small muted">Best Express · API · <span class="chip chip-line">Thật</span></span></div></td>
+		<td data-label="Kho · mặc định">Kho chính</td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đang hoạt động</span></td>
+		<td data-label="Lần kiểm gần nhất"><span class="small num">09:12 · 21/11 · Đạt</span></td>
+		<td data-label="Hiện trên web">Có · thứ tự 2</td>
+		<td class="c-act"><a class="btn btn-quiet" href="#chi-tiet">Sửa</a></td>
+	</tr>
+	<tr class="is-err" data-ca="tt-cap-quyen-lai ten-60">
+		<td class="lead"><div class="ten"><b class="clamp2 wrap-any">BestExpressTaiKhoanPhuChoDonSiCuaKhoChinhChiNhanhMienBacSo02</b><span class="small muted">Best Express · API · <span class="chip chip-line">Thật</span></span></div></td>
+		<td data-label="Kho · mặc định">Kho chính</td>
+		<td data-label="Trạng thái"><span class="chip chip-err">Cần cấp quyền lại</span></td>
+		<td data-label="Lần kiểm gần nhất"><span class="small num err-text">08:00 · 21/11 · Hãng từ chối khóa</span></td>
+		<td data-label="Hiện trên web">Không</td>
+		<td class="c-act"><a class="btn btn-line" href="#can-cap-quyen">Thay khóa</a></td>
+	</tr>
+	<tr data-ca="tt-tam-ngung">
+		<td class="lead"><div class="ten"><b class="clamp2">Best Express — Kho Hà Nội</b><span class="small muted">Best Express · API · <span class="chip chip-line">Thật</span></span></div></td>
+		<td data-label="Kho · mặc định"><span>Kho Hà Nội · <b>Mặc định</b></span></td>
+		<td data-label="Trạng thái"><span class="chip">Tạm ngừng</span></td>
+		<td data-label="Lần kiểm gần nhất"><span class="small num">15:40 · 10/11 · Đạt</span></td>
+		<td data-label="Hiện trên web">Không</td>
+		<td class="c-act"><a class="btn btn-quiet" href="#chi-tiet">Sửa</a></td>
+	</tr>
+	<tr class="is-muted" data-ca="tt-thu-hoi">
+		<td class="lead"><div class="ten"><b class="clamp2">SPX — Kho chính</b><span class="small muted">SPX · API · <span class="chip chip-line">Thật</span></span></div></td>
+		<td data-label="Kho · mặc định">Kho chính</td>
+		<td data-label="Trạng thái"><span class="chip chip-dark">Đã thu hồi</span></td>
+		<td data-label="Lần kiểm gần nhất"><span class="small num">02/11 · Đạt</span></td>
+		<td data-label="Hiện trên web">Không</td>
+		<td class="c-act"><a class="btn btn-quiet" href="#thu-hoi">Xem</a></td>
+	</tr>
+	<tr data-ca="nhap-tay">
+		<td class="lead"><div class="ten"><b class="clamp2">GHN — nhập mã tay</b><span class="small muted">Hãng khác (GHN) · Nhập mã tay · không gọi API</span></div></td>
+		<td data-label="Kho · mặc định">Kho chính</td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đang hoạt động</span></td>
+		<td data-label="Lần kiểm gần nhất"><span class="small muted">Không kiểm (nhập tay)</span></td>
+		<td data-label="Hiện trên web">Không</td>
+		<td class="c-act"><a class="btn btn-quiet" href="#chi-tiet">Sửa</a></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="ten"><b class="clamp2">Shop tự giao (nội thành)</b><span class="small muted">Tự giao · Nhập tay</span></div></td>
+		<td data-label="Kho · mặc định">Kho chính</td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đang hoạt động</span></td>
+		<td data-label="Lần kiểm gần nhất"><span class="small muted">Không kiểm (nhập tay)</span></td>
+		<td data-label="Hiện trên web">Có · thứ tự 3</td>
+		<td class="c-act"><a class="btn btn-quiet" href="#chi-tiet">Sửa</a></td>
+	</tr>
+	<tr data-ca="tt-dang-kiem">
+		<td class="lead"><div class="ten"><b class="clamp2">SPX — thử nghiệm</b><span class="small muted">SPX · API · <span class="chip">Thử (sandbox)</span></span></div></td>
+		<td data-label="Kho · mặc định">Kho chính</td>
+		<td data-label="Trạng thái"><span class="chip">Đang kiểm tra…</span></td>
+		<td data-label="Lần kiểm gần nhất"><span class="small muted">Đang hỏi hãng</span></td>
+		<td data-label="Hiện trên web">Không</td>
+		<td class="c-act"><a class="btn btn-quiet" href="#chi-tiet">Sửa</a></td>
+	</tr>
+	<tr data-ca="tt-nhap">
+		<td class="lead"><div class="ten"><b class="clamp2">Viettel Post — Kho Hà Nội</b><span class="small muted">Viettel Post · API · <span class="chip chip-line">Thật</span></span></div></td>
+		<td data-label="Kho · mặc định">Kho Hà Nội</td>
+		<td data-label="Trạng thái"><span class="chip chip-line">Nháp · chưa có khóa</span></td>
+		<td data-label="Lần kiểm gần nhất"><span class="small muted">Chưa kiểm</span></td>
+		<td data-label="Hiện trên web">Không</td>
+		<td class="c-act"><a class="btn btn-quiet" href="#chi-tiet">Nhập khóa</a></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+<p class="hint" style="margin-top:8px">Sáu trạng thái: Nháp · Đang kiểm tra · Đang hoạt động · Cần cấp quyền lại · Tạm ngừng · Đã thu hồi. Chỉ tài khoản "Đang hoạt động" được báo phí và gửi đơn mới. Tài khoản lỗi không bao giờ tự được thay bằng tài khoản khác.</p>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="them-tai-khoan chon-hang o-khoa vc01"><p class="xs">TRẠNG THÁI B</p><h2>Thêm tài khoản: chọn hãng, cách nối, môi trường, kho; nhập khóa bằng ô mật khẩu; lưu và kiểm tra kết nối</h2></section>
+
+<div class="dlgs">
+<div class="dlg" role="dialog" aria-label="Thêm tài khoản hãng" style="max-width:none">
+	<div class="dlg-h"><h2>Thêm tài khoản hãng</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+	<div class="dlg-b">
+		<div class="field" data-ca="chon-hang"><span>Hãng *</span>
+			<div class="radios" role="radiogroup" aria-label="Hãng">
+				<label class="check"><input type="radio" name="h" checked> Viettel Post</label>
+				<label class="check"><input type="radio" name="h"> Best Express</label>
+				<label class="check"><input type="radio" name="h"> SPX</label>
+				<label class="check"><input type="radio" name="h"> Hãng khác (chỉ nhập mã tay)</label>
+				<label class="check"><input type="radio" name="h"> Shop tự giao</label>
+			</div>
+		</div>
+		<div class="field"><span>Cách nối *</span>
+			<div class="row" role="radiogroup" aria-label="Cách nối"><button class="toggle" aria-pressed="true">Nối API của hãng</button><button class="toggle" aria-pressed="false">Nhập mã vận đơn tay</button></div>
+			<span class="hint">Nhập mã tay: tạo vận đơn trên trang của hãng rồi dán mã vào CRM; trạng thái cập nhật tay.</span>
+		</div>
+		<div class="grid-f">
+			<label class="field"><span>Tên tài khoản *</span><input class="input" value="Viettel Post — Kho Hà Nội"></label>
+			<label class="field"><span>Môi trường *</span><span class="select-wrap"><select><option>Thật (production)</option><option>Thử (sandbox)</option></select></span></label>
+			<label class="field"><span>Kho gửi hàng *</span><span class="select-wrap"><select><option>Kho Hà Nội</option><option>Kho chính</option></select></span></label>
+			<label class="field"><span>Mã khách hàng ở hãng</span><input class="input num" value="VTP-1029384"></label>
+		</div>
+		<div class="field" data-ca="o-khoa"><span>Khóa API</span>
+			<div class="grid-f">
+				<label class="field"><span>Tên đăng nhập API</span><input class="input secret" type="password" autocomplete="new-password" aria-label="Tên đăng nhập API"></label>
+				<label class="field"><span>Mật khẩu API</span><input class="input secret" type="password" autocomplete="new-password" aria-label="Mật khẩu API"></label>
+			</div>
+			<span class="hint">Khóa lưu dạng mã hóa; sau khi lưu không ai xem lại được, kể cả Chủ. Muốn đổi thì bấm "Thay khóa". Bỏ trống thì tài khoản ở trạng thái Nháp.</span>
+		</div>
+		<div class="grid-f">
+			<label class="field"><span>Dịch vụ mặc định</span><span class="select-wrap"><select><option>Chuyển phát nhanh (VCN)</option><option>Tiết kiệm (VTK)</option></select></span></label>
+			<label class="field"><span>Cho xem hàng mặc định</span><span class="select-wrap"><select><option>Cho xem, không thử</option><option>Cho thử</option><option>Không cho xem</option></select></span></label>
+		</div>
+		<label class="check"><input type="checkbox" checked> Mặc định cho Kho Hà Nội (chọn sẵn khi gửi đơn của kho này)</label>
+		<div class="row"><label class="check"><input type="checkbox"> Hiện trên website</label><label class="unit"><span>thứ tự</span><input class="input" value="4" aria-label="Thứ tự trên web"></label></div>
+	</div>
+	<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-line">Lưu nháp</button><button class="btn btn-dark">Lưu và kiểm tra kết nối</button></div>
+</div>
+<div class="stack-sm" data-ca="kiem-tra">
+	<div class="box box-info small"><b>Đang kiểm tra kết nối…</b> CRM đang hỏi Viettel Post bằng khóa vừa lưu. Có thể đóng hộp này; kết quả hiện ở dòng tài khoản.</div>
+	<div class="box box-ok small"><b class="ok-text">Kết nối đạt</b> · 09:12 21/11. Tài khoản chuyển "Đang hoạt động". Ô khóa đã được xóa khỏi màn hình.</div>
+	<div class="box box-err small"><b>Kết nối không đạt: hãng từ chối khóa.</b> Kiểm lại tên đăng nhập, mật khẩu API trên trang Viettel Post rồi bấm "Thay khóa". Tài khoản giữ trạng thái "Cần cấp quyền lại", không gửi được đơn.</div>
+	<div class="box box-err small"><b>Không hỏi được hãng (hết giờ chờ).</b> Thử lại sau ít phút. Chưa đổi trạng thái tài khoản.</div>
+	<p class="mk"><b>Mockup:</b> "Lưu và kiểm tra" gửi một lần tạo tài khoản kèm khóa, rồi một lần kiểm (<code>checkCarrierAccount</code>). Kết quả về theo báo hiệu <code>carrier_account.changed</code>.</p>
+</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" id="chi-tiet" data-ca="thay-khoa webhook dia-gioi-dong-bo dia-gioi-chua-khop dia-chi-lay-hang"><p class="xs">TRẠNG THÁI C</p><h2>Sửa tài khoản Viettel Post — Kho chính: khóa đã lưu (chỉ "Thay khóa"), kiểm tra kết nối, URL webhook, việc hãng làm được, địa giới chưa khớp, địa chỉ lấy hàng</h2></section>
+
+<div class="cols">
+<div class="stack">
+	<div class="card">
+		<div class="row-between"><h2>Viettel Post — Kho chính</h2><span class="chip chip-ok">Đang hoạt động</span></div>
+		<div class="grid-f">
+			<label class="field"><span>Tên tài khoản *</span><input class="input" value="Viettel Post — Kho chính"></label>
+			<label class="field"><span>Môi trường</span><span class="select-wrap"><select><option>Thật (production)</option><option>Thử (sandbox)</option></select></span></label>
+			<label class="field"><span>Kho gửi hàng</span><span class="select-wrap"><select><option>Kho chính</option><option>Kho Hà Nội</option></select></span></label>
+			<label class="field"><span>Dịch vụ mặc định</span><span class="select-wrap"><select><option>Chuyển phát nhanh (VCN)</option></select></span></label>
+		</div>
+		<div class="row" style="margin-top:8px"><label class="check"><input type="checkbox" checked> Mặc định cho Kho chính</label><label class="check"><input type="checkbox" checked> Hiện trên website</label><label class="unit"><span>thứ tự</span><input class="input" value="1" aria-label="Thứ tự trên web"></label></div>
+		<div class="savebar" style="margin-top:16px"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark">Lưu thay đổi</button></div>
+		<p class="hint">Chỉ gửi trường đã đổi, kèm phiên bản đang xem. Người khác vừa lưu: "Tài khoản vừa được người khác sửa — tải lại".</p>
+	</div>
+
+	<div class="card" data-ca="thay-khoa">
+		<div class="row-between"><h2>Khóa API</h2><button class="btn btn-line">Thay khóa</button></div>
+		<p>Đã lưu khóa · cập nhật 02/11 bởi Nguyễn Thị Lan</p>
+		<p class="hint">Khóa không bao giờ hiện lại. "Thay khóa" mở hộp nhập khóa mới (ô trống), lưu xong tự kiểm tra kết nối.</p>
+		<div class="box box-soft small" style="margin-top:8px"><b>Khóa đang mã hóa bằng khóa cũ của hệ thống.</b> Nhập lại khóa (Thay khóa) để mã hóa bằng khóa mới; tài khoản vẫn gửi đơn bình thường.</div>
+	</div>
+
+	<div class="card" data-ca="webhook">
+		<h2>URL nhận tin của hãng (webhook)</h2>
+		<div class="copy" style="margin-top:8px"><input class="input" readonly value="https://crm.elimaz.com.vn/hooks/viettelpost/q7Hk2mP0sVx9LrT4bNc8WdYe1Za6Uf3G" aria-label="URL webhook"><button class="btn btn-line">Sao chép</button></div>
+		<p class="hint">Dán URL này vào trang quản lý của Viettel Post. Tin của hãng chỉ là tín hiệu: CRM luôn hỏi lại hãng trước khi đổi trạng thái. Chỉ người có quyền quản lý kết nối thấy URL.</p>
+	</div>
+
+	<div class="card" data-ca="dia-gioi-dong-bo dia-gioi-chua-khop">
+		<div class="row-between"><h2>Địa giới của hãng</h2><button class="btn btn-line">Đồng bộ địa giới</button></div>
+		<p class="small">Đồng bộ lần cuối 03:00 · 20/11 · 34 tỉnh, 3.321 xã/phường. <b class="err-text">3 địa giới chưa khớp</b>: đơn có địa chỉ ở đây không báo phí, không gửi được qua hãng này.</p>
+		<div class="tbl-frame" style="margin-top:8px">
+		<table class="tbl">
+			<thead><tr><th>Cấp</th><th>Mã CRM</th><th>Tên</th><th>Thuộc</th></tr></thead>
+			<tbody>
+				<tr><td class="lead">Xã/phường</td><td data-label="Mã CRM" class="num">26734</td><td data-label="Tên">Phường Vĩnh Hưng</td><td data-label="Thuộc">Hà Nội</td></tr>
+				<tr><td class="lead">Xã/phường</td><td data-label="Mã CRM" class="num">31120</td><td data-label="Tên">Xã Đảo Thạnh An</td><td data-label="Thuộc">TP Hồ Chí Minh</td></tr>
+				<tr><td class="lead">Xã/phường</td><td data-label="Mã CRM" class="num">00412</td><td data-label="Tên">Đặc khu Bạch Long Vĩ</td><td data-label="Thuộc">Hải Phòng</td></tr>
+			</tbody>
+		</table>
+		</div>
+		<p class="hint">Danh sách tự cập nhật sau mỗi lần đồng bộ. CRM không đoán mã gần đúng; báo cho hãng hoặc gửi bằng tài khoản khác.</p>
+	</div>
+</div>
+
+<div class="stack">
+	<div class="card" data-ca="kiem-tra lan-kiem">
+		<h2>Kiểm tra kết nối</h2>
+		<p class="small">Lần kiểm gần nhất: <b>09:12 · 21/11 · Đạt</b></p>
+		<button class="btn btn-line btn-wide" style="margin-top:8px">Kiểm tra kết nối</button>
+	</div>
+	<div class="card">
+		<h2>Hãng này làm được</h2>
+		<ul class="small" style="margin:8px 0 0;padding-left:20px">
+			<li>Báo phí, tạo vận đơn, hủy, tra trạng thái, nhận webhook</li>
+			<li>In nhãn theo lô (một tệp PDF cho nhiều mã)</li>
+			<li>Sửa địa chỉ sau khi gửi: <b>có</b></li>
+			<li>Bảng kê COD: <b>có định dạng</b> (Viettel Post v1)</li>
+		</ul>
+		<p class="hint">Nút trên đơn ẩn/hiện theo danh sách này; máy chủ vẫn kiểm.</p>
+	</div>
+	<div class="card">
+		<h2>Trạng thái tài khoản</h2>
+		<div class="acts" style="margin-top:8px"><div class="act"><button class="btn btn-line">Tạm ngừng</button><span class="reason">Không báo phí, không gửi đơn mới, không tra trạng thái tự động</span></div><div class="act"><button class="btn btn-danger">Thu hồi</button><span class="reason">Ngừng hẳn; không bật lại được</span></div></div>
+	</div>
+	<div class="card" data-ca="dia-chi-lay-hang">
+		<h2>Địa chỉ lấy hàng · Kho chính</h2>
+		<div class="stack-sm" style="margin-top:8px">
+			<label class="field"><span>Người giao hàng cho hãng *</span><input class="input" value="Kho ELIMAZ"></label>
+			<label class="field"><span>SĐT kho *</span><input class="input num" value="0987 654 321" inputmode="tel"></label>
+			<label class="field"><span>Địa chỉ *</span><input class="input" value="18 ngõ 120 Trường Chinh"></label>
+			<label class="field"><span>Tỉnh</span><span class="select-wrap"><select><option>Hà Nội</option></select></span></label>
+			<label class="field"><span>Xã/phường</span><span class="select-wrap"><select><option>Phường Kim Liên</option></select></span></label>
+			<button class="btn btn-line">Lưu địa chỉ lấy hàng</button>
+			<p class="hint">Của kho, dùng cho mọi hãng gửi từ kho này. Không phải địa chỉ khách.</p>
+		</div>
+	</div>
+</div>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st" id="can-cap-quyen" data-ca="tt-cap-quyen-lai thay-khoa vc15"><p class="xs">TRẠNG THÁI D</p><h2>Tài khoản bị hãng từ chối khóa hoặc đã thu hồi (VC15): báo "không sẵn sàng", không tự đổi tài khoản, vận đơn cũ ngừng tra tự động; hộp Thay khóa</h2></section>
+
+<div class="dlgs">
+	<div class="card stack-sm">
+		<div class="box box-err small"><b>Cần cấp quyền lại.</b> Lần kiểm 08:00 · 21/11: hãng từ chối khóa. Không báo phí, không gửi đơn mới bằng tài khoản này; CRM không tự chuyển sang tài khoản khác. 41 vận đơn đã gửi không được tra tự động tới khi thay khóa đạt; theo dõi trên trang hãng hoặc trong "Đơn kẹt".</div>
+		<div class="box box-info small" id="thu-hoi"><b>SPX — Kho chính · Đã thu hồi</b> 02/11 bởi Nguyễn Thị Lan. Không gửi đơn mới. 6 vận đơn cũ không được tra tự động nữa; theo dõi trên trang hãng.</div>
+		<p class="mk"><b>Mockup:</b> trên đơn, tài khoản không sẵn sàng hiện mờ trong bảng so phí kèm câu "Tài khoản cần cấp quyền lại" (xem <a href="don-van-chuyen.html">Khối Vận chuyển</a>).</p>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Thay khóa" style="max-width:none">
+		<div class="dlg-h"><h2>Thay khóa · Best Express</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<label class="field"><span>Mã ứng dụng (App ID) *</span><input class="input secret" type="password" autocomplete="new-password" aria-label="Mã ứng dụng"></label>
+			<label class="field"><span>Khóa bí mật (Secret) *</span><input class="input secret" type="password" autocomplete="new-password" aria-label="Khóa bí mật"></label>
+			<p class="hint">Khóa cũ bị thay hẳn khi lưu. Lưu xong CRM tự kiểm tra kết nối.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark">Lưu khóa mới</button></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI E ============ -->
+<section class="st" data-ca="chi-doc 0-tai-khoan"><p class="xs">TRẠNG THÁI E</p><h2>Người chỉ có quyền xem (vai trò Kho): không nút sửa, không URL webhook; shop chưa có tài khoản nào</h2></section>
+
+<div class="dlgs">
+	<div class="card" data-ca="chi-doc">
+		<div class="row-between"><h2>Viettel Post — Kho chính</h2><span class="chip chip-ok">Đang hoạt động</span></div>
+		<dl class="kv" style="margin-top:8px"><dt>Kho</dt><dd>Kho chính · Mặc định</dd><dt>Môi trường</dt><dd>Thật</dd><dt>Lần kiểm</dt><dd>09:12 · 21/11 · Đạt</dd><dt>Hiện trên web</dt><dd>Có · thứ tự 1</dd></dl>
+		<p class="hint" style="margin-top:8px">Bạn chỉ có quyền xem kết nối vận chuyển. Sửa, thay khóa, URL webhook cần quyền "Quản lý kết nối vận chuyển" (Chủ, Quản lý).</p>
+	</div>
+	<div class="empty" data-ca="0-tai-khoan">
+		<h2>Chưa kết nối hãng nào</h2>
+		<p class="small muted">Thêm tài khoản Viettel Post, Best Express, SPX, hoặc tài khoản nhập mã tay để gửi đơn.</p>
+		<button class="btn btn-dark">+ Thêm tài khoản</button>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI F ============ -->
+<section class="st" id="cai-dat" data-ca="cai-dat nguong-don-ket nguong-goi-lai nguong-hay-hoan nguong-qua-han-tien nguong-giu-hang"><p class="xs">TRẠNG THÁI F</p><h2>Cài đặt vận chuyển (đường riêng): ngưỡng đơn kẹt theo trạng thái, hạn gọi lại, khách hay hoàn, quá hạn tiền, giữ hàng quá hạn; nhập "0%" báo lỗi tại ô</h2></section>
+
+<div class="card">
+	<div class="row-between"><h2>Cài đặt vận chuyển</h2><span class="small muted">Đang dùng mặc định (chưa lưu lần nào)</span></div>
+	<div class="stack" style="margin-top:16px">
+		<div data-ca="nguong-don-ket"><h3>Đơn kẹt: hãng không cập nhật quá</h3>
+			<div class="set-g" style="margin-top:8px">
+				<label class="field"><span>Chờ thu gom</span><span class="unit"><input class="input" value="48"><span>giờ</span></span></label>
+				<label class="field"><span>Đang chuyển</span><span class="unit"><input class="input" value="72"><span>giờ</span></span></label>
+				<label class="field"><span>Thất bại</span><span class="unit"><input class="input" value="24"><span>giờ</span></span></label>
+				<label class="field"><span>Đang chuyển hoàn</span><span class="unit"><input class="input" value="168"><span>giờ</span></span></label>
+				<label class="field"><span>Đang yêu cầu hủy</span><span class="unit"><input class="input" value="24"><span>giờ</span></span></label>
+			</div>
+		</div>
+		<div class="set-g">
+			<label class="field" data-ca="nguong-goi-lai"><span>Hạn gọi lại sau khi giao thất bại</span><span class="unit"><input class="input" value="24"><span>giờ</span></span></label>
+			<label class="field" data-ca="nguong-qua-han-tien"><span>Quá hạn chưa có tiền sau khi giao</span><span class="unit"><input class="input" value="14"><span>ngày</span></span></label>
+			<label class="field" data-ca="nguong-giu-hang"><span>Giữ hàng quá hạn (chưa gửi)</span><span class="unit"><input class="input" value="20"><span>ngày</span></span></label>
+			<label class="field"><span>Đang giao quá hạn</span><span class="unit"><input class="input" value="180"><span>ngày</span></span></label>
+		</div>
+		<div data-ca="nguong-hay-hoan"><h3>Khách hay hoàn</h3>
+			<div class="set-g" style="margin-top:8px">
+				<label class="field"><span>"Có hoàn" khi số đơn hoàn từ</span><span class="unit"><input class="input" value="1"><span>đơn</span></span></label>
+				<label class="field"><span>"Hay hoàn" khi số đơn hoàn từ</span><span class="unit"><input class="input" value="2"><span>đơn</span></span></label>
+				<label class="field"><span>và tỷ lệ hoàn từ</span><span class="unit"><input class="input is-err" value="0"><span>%</span></span><span class="field-err">Nhập từ 1% đến 100%</span></label>
+			</div>
+		</div>
+		<div class="set-g">
+			<label class="field"><span>Cân nặng mặc định mỗi món</span><span class="unit"><input class="input" value="300"><span>gam</span></span></label>
+			<label class="field"><span>Báo phí còn hiệu lực</span><span class="unit"><input class="input" value="30"><span>phút</span></span></label>
+		</div>
+	</div>
+	<div class="savebar" style="margin-top:16px"><button class="btn btn-quiet">Về mặc định</button><button class="btn btn-dark" disabled>Lưu cài đặt</button></div>
+	<p class="hint">Mọi số phải lớn hơn 0. Chu kỳ tra trạng thái theo từng trạng thái để ở mặc định (máy chủ giữ), không hiện trên màn này.</p>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

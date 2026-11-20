@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M3 — Thẻ khách nhận/hoàn</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="m3.css">
+</head>
+<body data-page="the-khach" data-title="Lên đơn">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><p class="crumb"><a href="../m2/len-don.html">Đơn hàng</a> / Lên đơn</p><h1>Thẻ khách có tỷ lệ nhận/hoàn</h1><p class="sub">Một huy hiệu dùng chung: trong ô chọn khách của Lên đơn (M2) và trên khối Vận chuyển của đơn. Số lấy từ chỉ số khách của M2; M3 chỉ thêm mức.</p></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="dh03 len-don nhan-hoan muc-khong muc-co-hoan muc-hay-hoan goi-y"><p class="xs">TRẠNG THÁI A</p><h2>Ô chọn khách của Lên đơn: ba mức (không, "Có hoàn", "Hay hoàn" kèm gợi ý) và khách chưa có đơn kết thúc</h2></section>
+
+<div class="dlgs">
+	<div class="card stack-sm" data-ca="muc-khong nhan-hoan">
+		<h3>Khách</h3>
+		<div class="picked"><span class="avatar" aria-hidden="true">M</span><div class="grow stack-sm" style="gap:2px"><b class="ellip">Lê Hà My</b><span class="small muted num">KH004410 · 0987 111 222</span><span class="risk"><span>Nhận 12 · Hoàn 0 (0%)</span></span></div><button class="btn btn-quiet">Đổi</button></div>
+		<p class="hint">Mức "không": chỉ hiện số, không chip.</p>
+	</div>
+	<div class="card stack-sm" data-ca="muc-co-hoan">
+		<h3>Khách</h3>
+		<div class="picked"><span class="avatar" aria-hidden="true">T</span><div class="grow stack-sm" style="gap:2px"><b class="ellip">Phạm Văn Tú</b><span class="small muted num">KH000877 · 0903 456 789</span><span class="risk"><span>Nhận 9 · Hoàn 1 (10%)</span><span class="chip">Có hoàn</span></span></div><button class="btn btn-quiet">Đổi</button></div>
+		<p class="hint">Có hoàn: từ 1 đơn hoàn (cài đặt). Không có gợi ý, không chặn.</p>
+	</div>
+	<div class="card stack-sm" data-ca="muc-hay-hoan goi-y">
+		<h3>Khách</h3>
+		<div class="picked"><span class="avatar" aria-hidden="true">H</span><div class="grow stack-sm" style="gap:2px"><b class="ellip">Trần Thị Thu Hà</b><span class="small muted num">KH000231 · 0912 345 678</span><span class="risk"><span>Nhận 3 · Hoàn 2 (40%)</span><span class="chip chip-err">Hay hoàn</span></span></div><button class="btn btn-quiet">Đổi</button></div>
+		<div class="box box-err small"><b>Khách hay hoàn.</b> Nên xin cọc hoặc gọi xác nhận trước khi gửi hãng.</div>
+		<p class="hint">Hay hoàn: từ 2 đơn hoàn và tỷ lệ từ 30%. Chỉ gợi ý, vẫn lên đơn được.</p>
+	</div>
+	<div class="card stack-sm" data-ca="chua-co-don">
+		<h3>Khách</h3>
+		<div class="picked"><span class="avatar" aria-hidden="true">Q</span><div class="grow stack-sm" style="gap:2px"><b class="ellip">Đỗ Minh Quân</b><span class="small muted num">KH005301 · 0977 000 321</span><span class="risk muted"><span>Chưa có đơn giao xong</span></span></div><button class="btn btn-quiet">Đổi</button></div>
+		<p class="hint">Tỷ lệ chỉ tính đơn đã kết thúc (nhận hoặc hoàn); đơn đang giao không tính.</p>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="ten-60"><p class="xs">TRẠNG THÁI B</p><h2>Danh sách gợi ý khi tìm khách: huy hiệu ngay trong dòng gợi ý; tên 60 ký tự không dấu cách</h2></section>
+
+<div class="card" style="max-width:640px">
+	<div class="combo">
+		<input class="input" value="0912" aria-label="Tìm khách">
+		<div class="sugg" role="listbox">
+			<div class="sugg-i" role="option" aria-selected="true"><b class="ellip">Trần Thị Thu Hà</b><span class="chip chip-err">Hay hoàn</span><span class="sub num">0912 345 678 · Nhận 3 · Hoàn 2 (40%)</span></div>
+			<div class="sugg-i" role="option" aria-selected="false"><b class="ellip">NguyễnThịThuHàShopThờiTrangCôngSởXuấtKhẩuHàNộiChiNhánhSố0205</b><span class="chip">Có hoàn</span><span class="sub num">0912 888 000 · Nhận 9 · Hoàn 1 (10%)</span></div>
+			<div class="sugg-i" role="option" aria-selected="false"><b class="ellip">Vũ Thanh Bình</b><span></span><span class="sub num">0912 765 432 · Nhận 4 · Hoàn 0 (0%)</span></div>
+			<div class="sugg-new">+ Khách mới với số 0912</div>
+		</div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" data-ca="khoi-van-chuyen dh03"><p class="xs">TRẠNG THÁI C</p><h2>Trên khối Vận chuyển của đơn (cột phải chi tiết đơn) và trên dòng "Cần gọi lại"</h2></section>
+
+<div class="dlgs">
+	<div class="card">
+		<div class="row" style="flex-wrap:nowrap"><span class="avatar" aria-hidden="true">H</span><div class="grow"><b class="ellip" style="display:block">Trần Thị Thu Hà</b><span class="risk"><span>Nhận 3 · Hoàn 2 (40%)</span><span class="chip chip-err">Hay hoàn</span></span></div><a class="btn btn-quiet" href="../m2/khach-ho-so.html">Hồ sơ</a></div>
+		<p class="mk" style="margin-top:8px"><b>Mockup:</b> xem đủ ở <a href="don-van-chuyen.html">Khối Vận chuyển</a>: băng gợi ý nằm ngay trên nút "Gửi hãng".</p>
+	</div>
+	<div class="card">
+		<div class="row" style="flex-wrap:nowrap"><span class="avatar" aria-hidden="true">N</span><div class="grow"><b class="ellip" style="display:block">NguyễnThịThuHàShopThờiTrangCôngSởXuấtKhẩuHàNộiChiNhánhSố0205</b><span class="risk"><span>Nhận 9 · Hoàn 1 (10%)</span><span class="chip">Có hoàn</span></span></div></div>
+		<p class="hint" style="margin-top:8px">Tên dài cắt bằng dấu … trên một dòng; tên đủ ở Hồ sơ.</p>
+	</div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

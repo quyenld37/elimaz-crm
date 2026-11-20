@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M3 — Danh sách vận hành</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="m3.css">
+<style>
+@media (min-width: 760px) { .ops .c-act { width: 1%; white-space: nowrap; } .ops td:first-child { width: 26%; } }
+.who-c { display: grid; gap: 2px; min-width: 0; }
+</style>
+</head>
+<body data-page="van-hanh" data-title="Cần gọi lại">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><p class="crumb">Vận chuyển</p><h1>Danh sách vận hành</h1><p class="sub">Bốn danh sách, mỗi danh sách một đường riêng; tự tải lại khi có báo hiệu và mỗi 20 giây.</p><p class="mk" style="margin-top:8px"><b>Mockup:</b> số đếm là của cả danh sách; mỗi bảng chỉ vẽ mẫu vài dòng.</p></div>
+</div>
+<div class="scroll-x"><div class="lblbar" role="tablist" aria-label="Danh sách">
+	<a class="lbl is-attn" href="#goi-lai" aria-pressed="true">Cần gọi lại <span class="n">12 · 3 quá hạn</span></a>
+	<a class="lbl" href="#don-ket" aria-pressed="false">Đơn kẹt <span class="n">4</span></a>
+	<a class="lbl" href="#can-xem" aria-pressed="false">Cần xem <span class="n">6</span></a>
+	<a class="lbl" href="#giu-hang" aria-pressed="false">Giữ hàng quá hạn <span class="n">3</span></a>
+</div></div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" id="goi-lai" data-ca="goi-lai vc07 qua-han-dau hien-so nhan-viec giao-lai ten-60 200-dong"><p class="xs">TRẠNG THÁI A</p><h2>Cần gọi lại (/ops/callbacks): 200 việc mở, quá hạn đứng đầu có nhãn "Quá hạn 3 giờ"; Gọi, Hiện số, Ghi kết quả, Nhận việc, Giao lại</h2></section>
+
+<div class="toolbar">
+	<input class="input is-search" placeholder="Tìm mã đơn, mã vận đơn" aria-label="Tìm">
+	<div class="select-wrap"><select aria-label="Người làm"><option>Mọi người</option><option>Của tôi</option><option>Chưa ai nhận</option></select></div>
+	<div class="select-wrap"><select aria-label="Trạng thái việc"><option>Đang mở</option><option>Đang xử lý</option><option>Đã xong</option></select></div>
+</div>
+<div class="tbl-frame">
+<table class="tbl ops">
+	<thead><tr><th>Đơn · khách</th><th>Giao thất bại</th><th>Hạn gọi</th><th>Người làm</th><th class="c-act"></th></tr></thead>
+	<tbody>
+	<tr class="is-err" data-ca="qua-han-dau">
+		<td class="lead"><div class="who-c"><a href="don-van-chuyen.html" class="cell-a num bold">DH0001231</a><span class="ellip">Trần Thị Thu Hà</span><span class="risk"><span class="xs">Nhận 3 · Hoàn 2 (40%)</span><span class="chip chip-err">Hay hoàn</span></span></div></td>
+		<td data-label="Giao thất bại"><span class="small">Lần 2 · Viettel Post<br>Khách hẹn giao lại</span></td>
+		<td data-label="Hạn gọi"><span class="stack-sm" style="gap:2px;justify-items:end"><span class="chip chip-err">Quá hạn 3 giờ</span><span class="xs num">hạn 10:00 · 22/11</span></span></td>
+		<td data-label="Người làm"><span class="small">Chưa ai nhận</span></td>
+		<td class="c-act"><div class="row" data-ca="nhan-viec"><button class="btn btn-quiet">Hiện số</button><button class="btn btn-quiet">Nhận việc</button><button class="btn btn-dark">Ghi kết quả</button></div></td>
+	</tr>
+	<tr class="is-err">
+		<td class="lead"><div class="who-c"><a href="don-van-chuyen.html" class="cell-a num bold">DH0001188</a><span class="ellip">NguyễnThịThuHàShopThờiTrangCôngSởXuấtKhẩuHàNộiChiNhánhSố0205</span><span class="risk"><span class="xs">Nhận 9 · Hoàn 1 (10%)</span><span class="chip">Có hoàn</span></span></div></td>
+		<td data-label="Giao thất bại"><span class="small">Lần 1 · Best Express<br>Không liên lạc được người nhận</span></td>
+		<td data-label="Hạn gọi"><span class="stack-sm" style="gap:2px;justify-items:end"><span class="chip chip-err">Quá hạn 1 giờ</span><span class="xs num">hạn 12:00 · 22/11</span></span></td>
+		<td data-label="Người làm"><span class="small">Lê Văn Đức</span></td>
+		<td class="c-act"><div class="row" data-ca="hien-so"><a class="btn btn-line num" href="tel:0912888000">Gọi 0912 888 000</a><button class="btn btn-quiet">Giao lại</button><button class="btn btn-dark">Ghi kết quả</button></div></td>
+	</tr>
+	<tr data-ca="hen-goi-lai">
+		<td class="lead"><div class="who-c"><a href="don-van-chuyen.html" class="cell-a num bold">DH0001240</a><span class="ellip">Vũ Thanh Bình</span><span class="risk"><span class="xs">Nhận 4 · Hoàn 0 (0%)</span></span></div></td>
+		<td data-label="Giao thất bại"><span class="small">Lần 1 · Viettel Post<br>Sai địa chỉ</span></td>
+		<td data-label="Hạn gọi"><span class="stack-sm" style="gap:2px;justify-items:end"><span class="chip">Đang xử lý · gọi lại 15:00</span><span class="xs num">hạn 09:30 · 23/11</span></span></td>
+		<td data-label="Người làm"><span class="small">Nguyễn Thị Lan (bạn)</span></td>
+		<td class="c-act"><div class="row" data-ca="giao-lai"><button class="btn btn-quiet">Hiện số</button><button class="btn btn-quiet">Giao lại</button><button class="btn btn-dark">Ghi kết quả</button></div></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="who-c"><a href="don-van-chuyen.html" class="cell-a num bold">DH0001236</a><span class="ellip">Lê Hà My</span><span class="risk"><span class="xs">Nhận 12 · Hoàn 0 (0%)</span></span></div></td>
+		<td data-label="Giao thất bại"><span class="small">Lần 1 · SPX<br>Khách đi vắng</span></td>
+		<td data-label="Hạn gọi"><span class="xs num">hạn 16:45 · 23/11</span></td>
+		<td data-label="Người làm"><span class="small">Chưa ai nhận</span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Hiện số</button><button class="btn btn-quiet">Nhận việc</button><button class="btn btn-dark">Ghi kết quả</button></div></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+<div class="more"><span>200 việc mở · 3 quá hạn · đang hiện 50, cuộn để tải tiếp</span><span>Sắp theo hạn gọi, quá hạn trước</span></div>
+<p class="hint">Số điện thoại chỉ hiện khi bấm "Hiện số" (giảm lộ trên màn chia sẻ); nút "Gọi" mở ứng dụng điện thoại. Mỗi lần giao thất bại sinh một việc, hạn 24 giờ.</p>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="ghi-ket-qua hen-goi-lai doi-dia-chi giao-lai"><p class="xs">TRẠNG THÁI B</p><h2>Hộp Ghi kết quả cuộc gọi (5 kết quả; "Không nghe máy" hẹn 15:00 → dòng sang "Đang xử lý"; "Giao lại địa chỉ mới" đòi địa chỉ); hộp Giao lại cho người khác</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="Ghi kết quả cuộc gọi">
+		<div class="dlg-h"><h2>Kết quả gọi · DH0001231</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<div class="radios" role="radiogroup" aria-label="Kết quả">
+				<label class="check"><input type="radio" name="kq"> Khách nhận, giao lại</label>
+				<label class="check"><input type="radio" name="kq"> Giao lại tới địa chỉ mới</label>
+				<label class="check"><input type="radio" name="kq"> Khách hủy, không nhận</label>
+				<label class="check"><input type="radio" name="kq" checked> Không nghe máy</label>
+				<label class="check"><input type="radio" name="kq"> Khách hẹn gọi lại</label>
+			</div>
+			<label class="field"><span>Gọi lại lúc</span><input class="input num" value="15:00 22/11/2026"></label>
+			<label class="field"><span>Ghi chú</span><input class="input" value="Gọi 2 lần không bắt máy"></label>
+			<p class="hint">Giao lại: CRM báo hãng giao lại (khi hãng hỗ trợ) hoặc hiện câu "Gọi hãng yêu cầu giao lại". Khách hủy: hãng chuyển hoàn, hàng đi luồng hàng hoàn.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark">Lưu kết quả</button></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Giao lại địa chỉ mới" data-ca="doi-dia-chi">
+		<div class="dlg-h"><h2>Giao lại tới địa chỉ mới</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<label class="field"><span>Địa chỉ mới *</span><input class="input" value="Tầng 5, 89 Láng Hạ"></label>
+			<div class="grid-f"><label class="field"><span>Tỉnh *</span><span class="select-wrap"><select><option>Hà Nội</option></select></span></label><label class="field"><span>Xã/phường *</span><span class="select-wrap"><select><option>Phường Láng Hạ</option></select></span></label></div>
+			<p class="small">Gửi yêu cầu đổi địa chỉ cho hãng (như Đổi địa chỉ trên đơn). Địa chỉ trên đơn chỉ đổi khi hãng nhận.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark">Lưu và gửi hãng</button></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Giao lại việc">
+		<div class="dlg-h"><h2>Giao việc cho người khác</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<label class="field"><span>Người nhận việc *</span><span class="select-wrap"><select><option>Trần Minh An · đang có 8 việc</option><option>Lê Văn Đức · đang có 14 việc</option></select></span></label>
+			<p class="hint">Chỉ hiện nhân viên có quyền gọi lại khách.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark">Giao</button></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" data-ca="0-dong 1-dong"><p class="xs">TRẠNG THÁI C</p><h2>Không còn việc (0 dòng) và còn đúng 1 việc</h2></section>
+
+<div class="dlgs">
+	<div class="empty" data-ca="0-dong"><h2>Không có đơn cần gọi lại</h2><p class="small muted">Mỗi lần hãng báo giao thất bại, đơn tự vào đây.</p></div>
+	<div class="tbl-frame" data-ca="1-dong">
+	<table class="tbl ops">
+		<thead><tr><th>Đơn · khách</th><th>Hạn gọi</th><th class="c-act"></th></tr></thead>
+		<tbody><tr>
+			<td class="lead"><div class="who-c"><a href="don-van-chuyen.html" class="cell-a num bold">DH0001236</a><span class="ellip">Lê Hà My</span></div></td>
+			<td data-label="Hạn gọi"><span class="xs num">hạn 16:45 · 23/11</span></td>
+			<td class="c-act"><button class="btn btn-dark">Ghi kết quả</button></td>
+		</tr></tbody>
+	</table>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st" id="don-ket" data-ca="don-ket vc18 vc16"><p class="xs">TRẠNG THÁI D</p><h2>Đơn kẹt (/ops/stuck): hãng không cập nhật quá ngưỡng của từng trạng thái; lệnh gửi hãng không chạy xong</h2></section>
+
+<div class="tbl-frame">
+<table class="tbl ops">
+	<thead><tr><th>Đơn · vận đơn</th><th>Trạng thái</th><th>Không cập nhật</th><th>Lần CRM hỏi hãng</th><th class="c-act"></th></tr></thead>
+	<tbody>
+	<tr>
+		<td class="lead"><div class="who-c"><a href="don-van-chuyen.html" class="cell-a num bold">DH0001199</a><span class="small muted num">Best Express · BE0098812736VN</span></div></td>
+		<td data-label="Trạng thái"><span class="chip chip-dark">Đang chuyển</span></td>
+		<td data-label="Không cập nhật"><span class="small"><b class="err-text">80 giờ</b> (ngưỡng 72)</span></td>
+		<td data-label="Lần CRM hỏi hãng"><span class="small">14:00 · 22/11 · <span class="err-text">hãng không trả lời</span></span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-line">Đồng bộ lại</button><a class="btn btn-quiet" href="don-van-chuyen.html">Mở đơn</a></div></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="who-c"><a href="don-van-chuyen.html" class="cell-a num bold">DH0001170</a><span class="small muted num">Viettel Post · 1234567811111</span></div></td>
+		<td data-label="Trạng thái"><span class="chip chip-dark">Chờ thu gom</span></td>
+		<td data-label="Không cập nhật"><span class="small"><b class="err-text">52 giờ</b> (ngưỡng 48)</span></td>
+		<td data-label="Lần CRM hỏi hãng"><span class="small">13:58 · 22/11 · đạt</span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-line">Đồng bộ lại</button><a class="btn btn-quiet" href="don-van-chuyen.html">Mở đơn</a></div></td>
+	</tr>
+	<tr data-ca="vc16">
+		<td class="lead"><div class="who-c"><a href="don-van-chuyen.html" class="cell-a num bold">DH0001232</a><span class="small muted num">SPX · E261120M4T9QB</span></div></td>
+		<td data-label="Trạng thái"><span class="chip chip-err">Đang gửi hãng</span></td>
+		<td data-label="Không cập nhật"><span class="small"><b class="err-text">26 giờ</b> · lệnh gửi không chạy xong</span></td>
+		<td data-label="Lần CRM hỏi hãng"><span class="small muted">Chưa có mã hãng</span></td>
+		<td class="c-act"><a class="btn btn-dark" href="don-van-chuyen.html">Mở đơn, xử lý</a></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+<p class="hint">Ngưỡng theo trạng thái ở Cài đặt vận chuyển. Mỗi ngày một cảnh báo Telegram chỉ mang số lượng, không có tên khách.</p>
+
+<!-- ============ TRẠNG THÁI E ============ -->
+<section class="st" id="can-xem" data-ca="can-xem theo-loai cau-huong-dan nut-xu-ly vc16"><p class="xs">TRẠNG THÁI E</p><h2>Cần xem (/ops/review): lọc theo loại, mỗi dòng một câu hướng dẫn và nút xử lý; "Đã xử lý" đòi ghi cách xử lý</h2></section>
+
+<div class="scroll-x" data-ca="theo-loai"><div class="lblbar">
+	<button class="lbl" aria-pressed="true">Mọi loại <span class="n">6</span></button>
+	<button class="lbl is-attn" aria-pressed="false">Không rõ đã tạo <span class="n">1</span></button>
+	<button class="lbl" aria-pressed="false">Kiện hoàn thiếu món <span class="n">2</span></button>
+	<button class="lbl" aria-pressed="false">Giao một phần <span class="n">1</span></button>
+	<button class="lbl" aria-pressed="false">Mã vận đơn trùng <span class="n">1</span></button>
+	<button class="lbl" aria-pressed="false">Thiếu tồn khi xuất <span class="n">1</span></button>
+</div></div>
+<div class="tbl-frame">
+<table class="tbl ops">
+	<thead><tr><th>Đơn · loại</th><th>Cần làm</th><th class="c-act"></th></tr></thead>
+	<tbody>
+	<tr data-ca="vc16">
+		<td class="lead"><div class="who-c"><a href="don-van-chuyen.html" class="cell-a num bold">DH0001240</a><span class="chip chip-err">Không rõ hãng đã tạo chưa</span></div></td>
+		<td data-label="Cần làm" class="full"><span class="small" data-ca="cau-huong-dan">Tìm mã E261121K7Q2MX trên trang Viettel Post. Có: bấm "Đã tạo" và dán mã hãng. Không có: bấm "Chưa tạo" để gửi lại.</span></td>
+		<td class="c-act"><div class="row" data-ca="nut-xu-ly"><button class="btn btn-line">Đã tạo</button><button class="btn btn-line">Chưa tạo</button></div></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="who-c"><a href="kho.html#nhan-hoan" class="cell-a num bold">DH0001088</a><span class="chip">Kiện hoàn thiếu món</span></div></td>
+		<td data-label="Cần làm" class="full"><span class="small">Kho nhận thiếu 1 món (TUI0090-NAU). Đã ghi thất lạc, tồn đã trừ. Làm khiếu nại với Best Express rồi bấm "Đã xử lý".</span></td>
+		<td class="c-act"><button class="btn btn-line">Đã xử lý</button></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="who-c"><a href="tra-doi.html" class="cell-a num bold">DH0001150</a><span class="chip">Giao một phần</span></div></td>
+		<td data-label="Cần làm" class="full"><span class="small">Hãng báo khách chỉ nhận một phần. Hỏi khách món nào đã nhận và số tiền shipper thu, rồi ghi giao một phần.</span></td>
+		<td class="c-act"><a class="btn btn-dark" href="tra-doi.html#giao-mot-phan">Ghi giao một phần</a></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="who-c"><a href="don-van-chuyen.html" class="cell-a num bold">DH0001201</a><span class="chip">Mã vận đơn trùng</span></div></td>
+		<td data-label="Cần làm" class="full"><span class="small">Mã 1234567890123 đã gắn với DH0001180 ở tài khoản Viettel Post khác. Không ghép đơn. Kiểm trên trang hãng, sửa mã đúng hoặc hủy vận đơn này.</span></td>
+		<td class="c-act"><button class="btn btn-line">Đã xử lý</button></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="who-c"><a href="don-van-chuyen.html" class="cell-a num bold">DH0001215</a><span class="chip">Thiếu tồn khi xuất</span></div></td>
+		<td data-label="Cần làm" class="full"><span class="small">Hãng báo đã lấy hàng nhưng sổ kho thiếu 1 món AO0101-DEN-M. Kiểm kho, nhập điều chỉnh; CRM tự thử lại ở lần tra sau.</span></td>
+		<td class="c-act"><a class="btn btn-line" href="../m1/kho-phieu.html">Phiếu kho</a></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+<div class="dlgs" style="margin-top:16px">
+	<div class="dlg" role="dialog" aria-label="Đã xử lý">
+		<div class="dlg-h"><h2>Đã xử lý · DH0001088</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b"><label class="field"><span>Đã làm gì *</span><textarea class="input" style="min-height:64px">Đã gửi khiếu nại Best Express số KN-2211, hãng hẹn đền 7 ngày</textarea></label></div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark">Lưu</button></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI F ============ -->
+<section class="st" id="giu-hang" data-ca="giu-hang kh09 khong-nha-hang"><p class="xs">TRẠNG THÁI F</p><h2>Giữ hàng quá hạn (/ops/aged-holds): đang giữ quá 20 ngày, đang giao quá 180 ngày; chỉ có "Mở đơn", không nút nhả hàng</h2></section>
+
+<div class="tbl-frame">
+<table class="tbl ops">
+	<thead><tr><th>Đơn</th><th>Mẫu · kho</th><th>Trạng thái</th><th class="r">SL</th><th>Từ ngày</th><th class="c-act"></th></tr></thead>
+	<tbody>
+	<tr>
+		<td class="lead"><a href="../m2/don-chi-tiet.html" class="cell-a num bold">DH0001002</a></td>
+		<td data-label="Mẫu · kho"><span class="small num">DAM0123-BE-M · Kho chính</span></td>
+		<td data-label="Trạng thái"><span class="chip">Đang giữ · 23 ngày</span></td>
+		<td data-label="SL" class="r num">2</td>
+		<td data-label="Từ ngày"><span class="small num">30/10</span></td>
+		<td class="c-act"><a class="btn btn-quiet" href="../m2/don-chi-tiet.html">Mở đơn</a></td>
+	</tr>
+	<tr>
+		<td class="lead"><a href="../m2/don-chi-tiet.html" class="cell-a num bold">DH0000412</a></td>
+		<td data-label="Mẫu · kho"><span class="small num">AO0101-DEN-M · Kho chính</span></td>
+		<td data-label="Trạng thái"><span class="chip chip-err">Đang giao · 184 ngày</span></td>
+		<td data-label="SL" class="r num">1</td>
+		<td data-label="Từ ngày"><span class="small num">21/05</span></td>
+		<td class="c-act"><a class="btn btn-quiet" href="../m2/don-chi-tiet.html">Mở đơn</a></td>
+	</tr>
+	<tr>
+		<td class="lead"><a href="../m2/don-chi-tiet.html" class="cell-a num bold">DH0000998</a></td>
+		<td data-label="Mẫu · kho"><span class="small num">KHAN0012-HOA · Kho Hà Nội</span></td>
+		<td data-label="Trạng thái"><span class="chip">Đang giữ · 21 ngày</span></td>
+		<td data-label="SL" class="r num">10</td>
+		<td data-label="Từ ngày"><span class="small num">01/11</span></td>
+		<td class="c-act"><a class="btn btn-quiet" href="../m2/don-chi-tiet.html">Mở đơn</a></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+<p class="hint" data-ca="khong-nha-hang">Hệ thống không tự trả hàng về kho. Người xử lý mở đơn: hủy đơn (hàng về "có thể bán") hoặc liên hệ hãng về kiện đang giao quá lâu. Chỉ hiện kho mình có quyền xem.</p>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>
