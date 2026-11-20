@@ -39,8 +39,14 @@ for p in pkgs:
 targets = set()
 if any(d in (".",) for d in go_dirs) and any(p in ("go.mod", "go.sum") for p in changed):
     targets = {p["ImportPath"] for p in pkgs}          # đổi phụ thuộc: test hết
+# Thư mục chỉ đổi tệp _test.go: chỉ chạy lại test của chính gói đó, không lan (20/11, chủ shop "chỉ test những case ảnh
+# hưởng"): tệp _test.go không được biên dịch vào gói nào nhập gói này, nên mã và test của các gói kia không đổi.
+code_dirs = {os.path.dirname(p) or "." for p in changed if (p.endswith(".go") and not p.endswith("_test.go")) or p.endswith("go.mod") or p.endswith("go.sum")}
+test_only = set()
 for d in go_dirs:
-    if d in by_dir: targets.add(by_dir[d])
+    if d not in by_dir: continue
+    if d in code_dirs: targets.add(by_dir[d])
+    else: test_only.add(by_dir[d])
 stack = list(targets)
 reached = set(targets)          # gói có mã chạy bị ảnh hưởng (lan tiếp được)
 while stack:
@@ -48,7 +54,7 @@ while stack:
     for up in importers.get(cur, ()):
         if up not in reached:
             reached.add(up); stack.append(up)
-targets = set(reached)
+targets = set(reached) | test_only
 for cur in reached:             # test của gói nhập gói bị ảnh hưởng: chạy lại, không lan tiếp
     targets |= test_importers.get(cur, set())
 for hr in high_risk:

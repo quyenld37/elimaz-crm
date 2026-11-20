@@ -26,23 +26,37 @@ step oasdiff make oasdiff OASDIFF_BASE=-base-ref="$base"
 step test-guard scripts/agent/test-guard.sh "$base"
 if printf '%s\n' "$changed" | grep -E -q '^(go\.mod|go\.sum)$'; then step vuln make vuln; fi
 if printf '%s\n' "$changed" | grep -q '^console/'; then step console-check make console-check; fi
-if printf '%s\n' "$changed" | grep -E -q '^(migrations/|go\.mod$|go\.sum$|internal/testkit/)'; then
-  step "test (toàn bộ: đổi migration/go.mod/testkit)" make test
+# Lần chạy lại chỉ test phần đổi từ lần test xanh trước (20/11, chủ shop: "chỉ test những case ảnh hưởng"). Gói không
+# bị phần đổi chạm (trực tiếp hay qua phụ thuộc) có mã và test y hệt bản đã xanh nên kết quả không đổi. Dấu xanh là
+# mã cây (git write-tree) của bản đã test, lưu riêng cho từng worktree; merge-task.sh cũng đọc dấu này.
+snap_tree() { local idx; idx=$(mktemp); cp "$(git rev-parse --git-path index)" "$idx" 2>/dev/null; GIT_INDEX_FILE=$idx git add -A . >/dev/null 2>&1 && GIT_INDEX_FILE=$idx git write-tree; rm -f "$idx"; }
+stamp="$(git rev-parse --git-dir)/crm-ci-test-xanh"
+now_tree=$(snap_tree)
+tchanged=$changed; tnote=""
+if [ -n "$now_tree" ] && [ -f "$stamp" ] && old=$(cat "$stamp") && git cat-file -e "$old^{tree}" 2>/dev/null; then
+  tchanged=$(git diff --name-only "$old" "$now_tree"); tnote=", chỉ phần đổi từ lần test xanh trước"
+fi
+fail_before=$fail
+if [ -n "$tnote" ] && [ -z "$tchanged" ]; then
+  echo "== test: bỏ (không đổi gì từ lần test xanh trước)"
+elif printf '%s\n' "$tchanged" | grep -E -q '^(migrations/|go\.mod$|go\.sum$|internal/testkit/)'; then
+  step "test (toàn bộ: đổi migration/go.mod/testkit$tnote)" make test
 else
-  pkgs=$(printf '%s\n' "$changed" | python3 scripts/agent/affected.py); arc=$?
+  pkgs=$(printf '%s\n' "$tchanged" | python3 scripts/agent/affected.py); arc=$?
   if [ "$arc" != 0 ]; then
     # Không xác định được gói bị ảnh hưởng: chạy toàn bộ thay vì bỏ sót (19/11: lỗi NFD/NFC làm mọi task chỉ chạy tests/arch).
     step "test (toàn bộ: affected.py thoát $arc)" make test
   elif [ -n "$pkgs" ]; then
     # shellcheck disable=SC2086
-    step "test (gói đổi, phụ thuộc, vùng cao)" go test -race -count=1 $pkgs ./tests/arch/...
+    step "test (gói đổi, phụ thuộc, vùng cao$tnote)" go test -race -count=1 $pkgs ./tests/arch/...
   else
     step "test kiến trúc" go test -count=1 ./tests/arch/...
   fi
 fi
 # Test cấu hình quy trình và Makefile (Task 401): affected.py chỉ xét tệp Go nên đổi Makefile không kích test nào.
-if printf '%s\n' "$changed" | grep -E -q '^(Makefile|tools/versions\.mk|scripts/|\.github/|\.githooks/|docker/)'; then
+if printf '%s\n' "$tchanged" | grep -E -q '^(Makefile|tools/versions\.mk|scripts/|\.github/|\.githooks/|docker/)'; then
   step "test deploy (đổi Makefile/scripts/docker)" go test -count=1 ./tests/deploy/...
 fi
+if [ "$fail" = "$fail_before" ] && [ -n "$now_tree" ]; then echo "$now_tree" > "$stamp"; fi
 if [ -n "$fail" ]; then echo "CI-TASK ĐỎ:$fail"; exit 1; fi
 echo "CI-TASK XANH (so với điểm tách nhánh $base)"
