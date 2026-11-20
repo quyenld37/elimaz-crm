@@ -206,14 +206,23 @@ func (h *handler) PutCarrierCredentials(ctx context.Context, req *gen.PutCarrier
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) CheckCarrierAccount(ctx context.Context, params gen.CheckCarrierAccountParams) (gen.CheckCarrierAccountRes, error) {
-	out, err := h.accountWrite(ctx, http.StatusAccepted, "kiểm kết nối tài khoản hãng",
+	return h.accountJob(ctx, "kiểm kết nối tài khoản hãng", "fulfillment.carrier_account.check", params.ID,
+		(*fulfillment.Service).CheckAccount)
+}
+
+// accountJob ghi một lệnh nền của tài khoản id bằng enqueue (trong refusableWrite), ghi audit action có jobId, trả 202
+// {jobId}. Lỗi nghiệp vụ của fulfillment là câu trả lời không đổi gì.
+func (h *handler) accountJob(ctx context.Context, what, action string, id uuid.UUID,
+	enqueue func(s *fulfillment.Service, ctx context.Context, tx pgx.Tx, id uuid.UUID, a fulfillment.Actor) (uuid.UUID, error),
+) (*gen.JobAccepted, error) {
+	out, err := h.accountWrite(ctx, http.StatusAccepted, what,
 		func(tx pgx.Tx, s *fulfillment.Service, u identity.AuthUser, a fulfillment.Actor) (any, error) {
-			job, err := s.CheckAccount(ctx, tx, params.ID, a)
+			job, err := enqueue(s, ctx, tx, id, a)
 			if err != nil {
-				return nil, err //nolint:wrapcheck // sentinel của fulfillment
+				return nil, err // sentinel của fulfillment (refusableWrite đổi sang câu trả lời)
 			}
-			return &gen.JobAccepted{JobId: job}, h.audit(ctx, tx, u, "fulfillment.carrier_account.check",
-				entityCarrierAccount, params.ID, nil, map[string]any{"jobId": job.String()})
+			return &gen.JobAccepted{JobId: job}, h.audit(ctx, tx, u, action, entityCarrierAccount, id, nil,
+				map[string]any{"jobId": job.String()})
 		})
 	if err != nil {
 		return nil, err
