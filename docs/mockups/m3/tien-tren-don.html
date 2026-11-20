@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M3 — Tiền trên đơn</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="m3.css">
+<style>
+.who-c { display: grid; gap: 2px; min-width: 0; }
+</style>
+</head>
+<body data-page="tien-tren-don" data-title="Đơn DH0001240">
+<div class="app"><main class="main">
+
+<p class="crumb"><a href="../m2/don-danh-sach.html">Đơn hàng</a> / DH0001240</p>
+<div class="page-h">
+	<div class="grow"><h1>Tiền trên đơn</h1><p class="sub">Phiếu thu, cọc, nghĩa vụ hoàn, điều chỉnh COD, đảo "Thành công". Mọi thao tác "đảo", "điều chỉnh" đi hai bước: xem trước rồi xác nhận; không xóa dòng cũ.</p></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="phieu-thu coc da-gui-hang-khong-doi"><p class="xs">TRẠNG THÁI A</p><h2>Khối Tiền trên đơn chưa gửi hãng: phiếu thu, cọc; ghi cọc làm COD tự tính lại; đơn đã gửi hãng thì không ghi được</h2></section>
+
+<div class="dlgs">
+	<div class="card stack-sm" data-ca="phieu-thu">
+		<div class="row-between"><h2>Tiền đã thu</h2><button class="btn btn-line">Ghi phiếu thu</button></div>
+		<ul class="tl">
+			<li><span class="at">10:25 · 21/11</span><div><b>Cọc · chuyển khoản</b> <span class="money">200.000 ₫</span><br><span class="small muted">Mã GD FT26325118842 · Lê Văn Đức</span></div></li>
+		</ul>
+		<div class="sum">
+			<div class="sum-r"><span>Tổng đơn</span><span class="money">2.160.000 ₫</span></div>
+			<div class="sum-r"><span>Đã thu</span><span class="money">200.000 ₫</span></div>
+			<div class="sum-r is-total"><span>Thu hộ (COD)</span><span class="money">1.960.000 ₫</span></div>
+		</div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Ghi phiếu thu" data-ca="coc">
+		<div class="dlg-h"><h2>Ghi phiếu thu · DH0001240</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<div class="row" role="radiogroup" aria-label="Loại"><button class="toggle" aria-pressed="false">Chuyển khoản</button><button class="toggle" aria-pressed="true">Cọc</button><button class="toggle" aria-pressed="false">Tiền mặt</button></div>
+			<label class="field"><span>Số tiền *</span><input class="input num" value="500.000"></label>
+			<label class="field"><span>Mã giao dịch / ghi chú</span><input class="input" value="FT26325119001"></label>
+			<label class="field"><span>Lúc nhận</span><input class="input num" value="11:02 21/11/2026"></label>
+			<p class="small">COD của đơn tự tính lại: <span class="money">1.960.000 ₫</span> → <span class="money">1.460.000 ₫</span>.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark">Ghi phiếu thu</button></div>
+	</div>
+	<div class="card stack-sm" data-ca="da-gui-hang-khong-doi">
+		<div class="row-between"><h2>Tiền đã thu</h2><span class="chip chip-dark">Đã gửi hãng</span></div>
+		<div class="acts"><div class="act" style="max-width:none"><button class="btn btn-line" disabled>Ghi phiếu thu</button><span class="reason">Đơn đã gửi hãng, không đổi được tiền thu hộ. Muốn đổi COD: hủy vận đơn rồi gửi lại.</span></div></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" id="nghia-vu" data-ca="nghia-vu-hoan ti09 chi-hoan mien-hoan"><p class="xs">TRẠNG THÁI B</p><h2>Hủy đơn đã nhận cọc: nghĩa vụ hoàn mở đúng số đã thu, "Chưa chi — chưa tính là đã hoàn"; chi một phần; miễn có lý do (chỉ Chủ); danh sách Nghĩa vụ hoàn</h2></section>
+
+<div class="dlgs">
+	<div class="card stack-sm" data-ca="nghia-vu-hoan">
+		<div class="row-between"><h2>Nghĩa vụ hoàn · DH0001190</h2><span class="chip chip-err">Chưa chi</span></div>
+		<p class="small">Đơn đã hủy lúc 09:00 22/11. Khách đã cọc <span class="money">200.000 ₫</span>.</p>
+		<div class="box box-err small"><b>Chưa chi — chưa tính là đã hoàn.</b> Còn phải hoàn <span class="money">200.000 ₫</span>.</div>
+		<div class="acts"><div class="act"><button class="btn btn-dark">Ghi phiếu chi</button></div><div class="act"><button class="btn btn-line">Miễn hoàn</button><span class="reason">Khách đồng ý mất cọc; ghi lý do</span></div></div>
+		<p class="hint">Chính sách mất cọc của shop chưa chốt: CRM không tự miễn; người làm quyết và ghi lý do.</p>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Ghi phiếu chi" data-ca="chi-hoan">
+		<div class="dlg-h"><h2>Chi hoàn · DH0001190</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<label class="field"><span>Số tiền chi *</span><input class="input num" value="100.000"><span class="hint">Còn phải hoàn 200.000 ₫; chi một phần được.</span></label>
+			<label class="field"><span>Mã giao dịch</span><input class="input" value="FT26326000123"></label>
+			<p class="small">Sau khi chi: đã hoàn <span class="money">100.000 ₫</span>, còn <span class="money">100.000 ₫</span>, nghĩa vụ vẫn mở.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark">Ghi phiếu chi</button></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Miễn hoàn" data-ca="mien-hoan">
+		<div class="dlg-h"><h2>Miễn hoàn · DH0001190</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<label class="field"><span>Lý do *</span><textarea class="input" style="min-height:64px">Khách hủy sau khi shop đã đặt hàng riêng, đồng ý mất cọc (tin nhắn 21/11)</textarea></label>
+			<p class="small">Đóng nghĩa vụ "không hoàn" <span class="money">200.000 ₫</span>. Ghi lịch sử, không xóa.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-danger">Miễn hoàn</button></div>
+	</div>
+	<div class="card stack-sm">
+		<h3>Người không phải Chủ</h3>
+		<div class="acts"><div class="act" style="max-width:none"><button class="btn btn-line" disabled>Miễn hoàn</button><span class="reason">Chỉ Chủ được miễn hoàn</span></div></div>
+	</div>
+</div>
+
+<div class="tbl-frame" style="margin-top:16px">
+<table class="tbl">
+	<thead><tr><th>Đơn</th><th>Nguồn</th><th class="r">Phải hoàn</th><th class="r">Đã chi</th><th>Trạng thái</th></tr></thead>
+	<tbody>
+	<tr><td class="lead"><a class="cell-a num bold" href="#nghia-vu">DH0001190</a></td><td data-label="Nguồn">Hủy đơn có cọc</td><td data-label="Phải hoàn" class="r"><span class="money">200.000 ₫</span></td><td data-label="Đã chi" class="r"><span class="money">0 ₫</span></td><td data-label="Trạng thái"><span class="chip chip-err">Chưa chi</span></td></tr>
+	<tr><td class="lead"><a class="cell-a num bold" href="tra-doi.html">DH0001102</a></td><td data-label="Nguồn">Khách trả hàng (TH0000012)</td><td data-label="Phải hoàn" class="r"><span class="money">620.000 ₫</span></td><td data-label="Đã chi" class="r"><span class="money">300.000 ₫</span></td><td data-label="Trạng thái"><span class="chip chip-err">Còn 320.000 ₫</span></td></tr>
+	<tr class="is-muted"><td class="lead"><a class="cell-a num bold" href="#nghia-vu">DH0001003</a></td><td data-label="Nguồn">Hủy đơn có cọc</td><td data-label="Phải hoàn" class="r"><span class="money">150.000 ₫</span></td><td data-label="Đã chi" class="r"><span class="money">0 ₫</span></td><td data-label="Trạng thái"><span class="chip">Miễn · khách đồng ý mất cọc</span></td></tr>
+	</tbody>
+</table>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" id="dieu-chinh" data-ca="dieu-chinh-cod xem-truoc canh-bao-am xem-truoc-cu"><p class="xs">TRẠNG THÁI C</p><h2>Điều chỉnh COD (kế toán): bước 1 chọn cách, số, lý do; bước 2 xem trước trước/sau, cảnh báo ngăn âm; số liệu vừa đổi thì hiện bản xem trước mới</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="Điều chỉnh COD" data-ca="dieu-chinh-cod">
+		<div class="dlg-h"><h2>Điều chỉnh COD · DH0001101</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p class="small muted">Bước 1/2 · Viettel Post 1234567890001</p>
+			<div class="radios" role="radiogroup" aria-label="Cách điều chỉnh">
+				<label class="check"><input type="radio" name="dc"> Đảo một bút toán đã ghi</label>
+				<label class="check"><input type="radio" name="dc" checked> Chuyển tiền giữa hai ngăn</label>
+			</div>
+			<div class="grid-f">
+				<label class="field"><span>Từ ngăn</span><span class="select-wrap"><select><option>Hãng đang giữ</option><option>Đang đi thu</option><option>Đã về</option><option>Phí hãng</option></select></span></label>
+				<label class="field"><span>Sang ngăn</span><span class="select-wrap"><select><option>Phí hãng</option><option>Đã về</option></select></span></label>
+			</div>
+			<label class="field"><span>Số tiền *</span><input class="input num" value="120.000"></label>
+			<label class="field"><span>Lý do *</span><input class="input" value="Hãng trừ phí giao lại lần 2, xác nhận qua email 22/11"></label>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark">Xem trước</button></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Xem trước điều chỉnh" data-ca="xem-truoc canh-bao-am">
+		<div class="dlg-h"><h2>Xem trước · DH0001101</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p class="small muted">Bước 2/2 · chưa ghi gì</p>
+			<div class="tbl-frame">
+			<table class="tbl ba">
+				<thead><tr><th>Ngăn</th><th class="r">Trước</th><th class="r">Sau</th></tr></thead>
+				<tbody>
+				<tr><td class="lead">Hãng đang giữ</td><td data-label="Trước" class="r"><span class="money">90.000 ₫</span></td><td data-label="Sau" class="r neg"><span class="money">−30.000 ₫</span></td></tr>
+				<tr><td class="lead">Phí hãng</td><td data-label="Trước" class="r"><span class="money">32.000 ₫</span></td><td data-label="Sau" class="r"><span class="money">152.000 ₫</span></td></tr>
+				<tr><td class="lead">Đã về</td><td data-label="Trước" class="r"><span class="money">1.168.000 ₫</span></td><td data-label="Sau" class="r"><span class="money">1.168.000 ₫</span></td></tr>
+				</tbody>
+			</table>
+			</div>
+			<div class="box box-err small" data-ca="canh-bao-am"><b>Ngăn "Hãng đang giữ" sẽ âm −30.000 ₫</b> (đang giữ 90.000 ₫, chuyển 120.000 ₫). Kiểm lại số tiền; vẫn xác nhận được nếu đúng.</div>
+			<p class="small">Ghi một bút toán điều chỉnh hai vế, kèm lý do và người làm. Không xóa bút toán cũ.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Quay lại</button><button class="btn btn-dark">Xác nhận điều chỉnh</button></div>
+	</div>
+	<div class="box box-soft small" data-ca="xem-truoc-cu"><b>Số liệu vừa đổi, đây là bản xem trước mới.</b> Một bảng kê vừa được chốt cho vận đơn này. Xem lại trước khi xác nhận.</div>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st" data-ca="dao-thanh-cong td10 ti08 bi-chan tien-9-so"><p class="xs">TRẠNG THÁI D</p><h2>Đảo "Thành công" (hãng sửa lại thành hoàn, hoặc nhân viên sửa nhầm): xem trước tác động lên đơn, tồn, COD, khách; bị chặn khi hãng đã chuyển tiền; sổ COD có dòng đảo</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="Đảo Thành công" data-ca="dao-thanh-cong">
+		<div class="dlg-h"><h2>Đảo "Thành công" · DH0001211</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p class="small">Vận đơn 1234567890321 · Thành công → Đang chuyển hoàn</p>
+			<label class="field"><span>Lý do *</span><input class="input" value="Hãng xác nhận giao nhầm, khách không nhận (gọi 22/11)"></label>
+			<h3>Sẽ xảy ra</h3>
+			<ul class="fx small">
+				<li>Đơn về "Đã xác nhận", tạo phiếu hoàn của hãng; kho nhận hàng về như hàng hoàn thường</li>
+				<li>Tồn: 3 món từ "đã xuất" về "đang giao" (chứng từ đảo, không xóa phiếu xuất)</li>
+				<li>COD: đảo bút toán thu <span class="money">1.960.000 ₫</span>, ghi hoàn; "Hãng đang giữ" về <span class="money">0 ₫</span></li>
+				<li>Chỉ số khách: Nhận 3 → 2 ngay; Hoàn tăng khi kho nhận hàng hoàn</li>
+			</ul>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-danger">Xác nhận đảo</button></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Đảo Thành công bị chặn" data-ca="bi-chan">
+		<div class="dlg-h"><h2>Đảo "Thành công" · DH0001044</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<div class="box box-err small"><b>Không đảo được: hãng đã chuyển tiền cho vận đơn này</b> (bảng kê Viettel Post 08/11–14/11, đơn sỉ <span class="money">108.900.000 ₫</span>). CRM không tự sửa tiền; kế toán làm điều chỉnh COD có xem trước.</div>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><a class="btn btn-line" href="#dieu-chinh">Điều chỉnh COD</a></div>
+	</div>
+	<div class="card stack-sm" data-ca="ti08">
+		<div class="row-between"><h2>Sổ COD · 1234567890321</h2><span class="small muted">Chỉ ghi thêm</span></div>
+		<ul class="tl">
+			<li><span class="at">16:40 · 22/11</span><div><b>Đảo bút toán thu</b> <span class="money">−1.960.000 ₫</span><br><span class="small muted">Lý do: hãng xác nhận giao nhầm · Nguyễn Thị Lan</span></div></li>
+			<li><span class="at">16:40 · 22/11</span><div><b>Hoàn</b> <span class="money">1.960.000 ₫</span> · Đang đi thu → khoản trừ doanh thu</div></li>
+			<li><span class="at">09:15 · 20/11</span><div><b>Hãng thu</b> <span class="money">1.960.000 ₫</span> · Đang đi thu → Hãng đang giữ</div></li>
+			<li><span class="at">10:43 · 19/11</span><div><b>Chờ thu</b> <span class="money">1.960.000 ₫</span></div></li>
+		</ul>
+	</div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

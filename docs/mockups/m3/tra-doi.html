@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M3 — Trả, đổi, giao một phần</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="m3.css">
+</head>
+<body data-page="tra-doi" data-title="Đơn DH0001102">
+<div class="app"><main class="main">
+
+<p class="crumb"><a href="../m2/don-danh-sach.html">Đơn hàng</a> / DH0001102</p>
+<div class="page-h">
+	<div class="grow"><div class="row"><h1 class="num">DH0001102</h1><span class="chip chip-ok">Thành công</span></div>
+	<p class="sub ellip">Khách NguyễnThịThuHàShopThờiTrangCôngSởXuấtKhẩuHàNộiChiNhánhSố0205 · giao 18/11 · Viettel Post</p></div>
+</div>
+<p class="mk" data-ca="ten-60"><b>Mockup:</b> hộp trả/đổi và nhận hàng trả là của M2 (chi tiết đơn). M3 chỉ thêm: số còn được trả, tiền cấn trừ của đơn thay thế, ba ô Tốt / Hỏng / Thiếu, giao một phần. Không có hộp trả/đổi thứ hai.</p>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="phieu-tra td05 so-con-tra duyet td08"><p class="xs">TRẠNG THÁI A</p><h2>Khách trả 1 trong 2 món: phiếu trả theo món, số còn được trả (tính cả phiếu đang mở); tạo phiếu là đã duyệt, tồn và tiền chưa đổi tới khi kho nhận</h2></section>
+
+<div class="backdrop">
+	<div class="dlg" role="dialog" aria-label="Trả hoặc đổi hàng" style="max-width:760px">
+		<div class="dlg-h"><h2>Trả/đổi hàng · DH0001102</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<div class="row" role="radiogroup" aria-label="Loại phiếu"><button class="toggle" aria-pressed="true">Khách trả hàng</button><button class="toggle" aria-pressed="false">Đổi hàng</button></div>
+			<div class="tbl-frame" data-ca="so-con-tra">
+			<table class="tbl">
+				<thead><tr><th>Dòng</th><th class="r">Đã mua</th><th class="r">Đã/đang trả</th><th class="r">Còn được trả</th><th>Trả lần này</th><th class="r">Hoàn dự kiến</th></tr></thead>
+				<tbody>
+				<tr><td class="lead"><label class="check"><input type="checkbox" checked> <span>DAM0123-BE-M</span></label></td><td data-label="Đã mua" class="r num">2</td><td data-label="Đã/đang trả" class="r num">0</td><td data-label="Còn được trả" class="r num">2</td><td data-label="Trả lần này"><span class="stepper"><button class="ibtn" aria-label="Bớt 1">−</button><input class="input" value="1" aria-label="Số lượng trả"><button class="ibtn" aria-label="Thêm 1">+</button></span></td><td data-label="Hoàn dự kiến" class="r"><span class="money">620.000 ₫</span></td></tr>
+				<tr class="is-muted"><td class="lead"><label class="check is-off"><input type="checkbox" disabled> <span>TUI0090-NAU</span></label></td><td data-label="Đã mua" class="r num">1</td><td data-label="Đã/đang trả" class="r num">1</td><td data-label="Còn được trả" class="r num">0</td><td data-label="Trả lần này" class="muted">Đang có phiếu TH0000029</td><td data-label="Hoàn dự kiến" class="r"><span class="money">0 ₫</span></td></tr>
+				</tbody>
+			</table>
+			</div>
+			<label class="field"><span>Lý do trả</span><input class="input" value="Không vừa size"></label>
+			<div class="box box-info small" data-ca="duyet td08"><b>Tạo phiếu là đã duyệt.</b> Tồn chưa tăng, chưa hoàn tiền: kho bấm nhận hàng thì tồn mới tăng và mở nghĩa vụ hoàn <span class="money">620.000 ₫</span> cho kế toán chi.</div>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark">Tạo phiếu trả</button></div>
+	</div>
+</div>
+
+<div class="card" style="margin-top:16px" data-ca="huy-phieu">
+	<div class="row-between"><h2>Phiếu trả, đổi</h2><span class="small muted">2 phiếu</span></div>
+	<div class="tbl-frame">
+	<table class="tbl">
+		<thead><tr><th>Phiếu</th><th>Loại</th><th>Trạng thái</th><th class="r">Hoàn dự kiến</th><th class="c-act"></th></tr></thead>
+		<tbody>
+			<tr><td class="lead num bold">TH0000012</td><td data-label="Loại">Khách trả · 1 món</td><td data-label="Trạng thái"><span class="chip">Chờ nhận hàng</span></td><td data-label="Hoàn dự kiến" class="r"><span class="money">620.000 ₫</span></td><td class="c-act"><div class="row"><a class="btn btn-line" href="kho.html#nhan-hoan">Nhận hàng trả</a><button class="btn btn-quiet">Hủy phiếu</button></div></td></tr>
+			<tr><td class="lead num bold">TH0000029</td><td data-label="Loại">Khách trả · 1 món</td><td data-label="Trạng thái"><span class="chip">Chờ nhận hàng</span></td><td data-label="Hoàn dự kiến" class="r"><span class="money">290.000 ₫</span></td><td class="c-act"><div class="row"><a class="btn btn-line" href="kho.html#nhan-hoan">Nhận hàng trả</a><button class="btn btn-quiet">Hủy phiếu</button></div></td></tr>
+		</tbody>
+	</table>
+	</div>
+	<p class="hint">Hủy phiếu chỉ khi chưa nhận hàng; số "còn được trả" của món đó trả lại như cũ.</p>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="doi-hang td06 mon-tra mon-moi can-tru cod-don-moi"><p class="xs">TRẠNG THÁI B</p><h2>Đổi size: món trả, món mới, tiền cấn trừ, COD của đơn mới; khi món trả đắt hơn thì phần dư thành nghĩa vụ hoàn sau khi kho nhận</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="Đổi hàng" style="max-width:none">
+		<div class="dlg-h"><h2>Đổi hàng · DH0001102</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<div class="row" role="radiogroup" aria-label="Loại phiếu"><button class="toggle" aria-pressed="false">Khách trả hàng</button><button class="toggle" aria-pressed="true">Đổi hàng</button></div>
+			<div data-ca="mon-tra"><h3>Món khách trả</h3>
+				<div class="line"><div class="sp"><span class="code">AO0105-TRANG-S · Trắng · S</span><span class="nm">Áo sơ mi lụa</span><span class="xs">Khách đã trả 177.049 ₫ cho món này (sau giảm giá chia theo món)</span></div><span class="num">× 1</span></div>
+			</div>
+			<div data-ca="mon-moi"><h3>Món mới</h3>
+				<div class="line"><div class="sp"><span class="code">AO0105-TRANG-M · Trắng · M</span><span class="nm">Áo sơ mi lụa</span><span class="avail">Có thể bán 6</span></div><span class="num">× 1</span></div>
+			</div>
+			<div class="sum" data-ca="can-tru cod-don-moi">
+				<div class="sum-r"><span>Món mới</span><span class="money">180.000 ₫</span></div>
+				<div class="sum-r"><span>Cấn trừ món trả</span><span class="money">−177.049 ₫</span></div>
+				<div class="sum-r"><span>Phí ship đơn đổi</span><span class="money">0 ₫</span></div>
+				<div class="sum-r is-total"><span>COD đơn mới</span><span class="money">2.951 ₫</span></div>
+			</div>
+			<p class="small"><b>Cấn trừ 177.049 ₫ — khách trả thêm 2.951 ₫.</b> Tạo phiếu đổi và đơn mới DH0001250; đơn gốc giữ nguyên.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark">Tạo phiếu đổi và đơn mới</button></div>
+	</div>
+	<div class="card stack-sm">
+		<h3>Món trả đắt hơn món mới</h3>
+		<div class="sum">
+			<div class="sum-r"><span>Món mới</span><span class="money">450.000 ₫</span></div>
+			<div class="sum-r"><span>Cấn trừ món trả</span><span class="money">−495.000 ₫</span></div>
+			<div class="sum-r is-total"><span>COD đơn mới</span><span class="money">0 ₫</span></div>
+		</div>
+		<div class="box box-soft small"><b>Dư 45.000 ₫ cho khách.</b> Thành nghĩa vụ hoàn khi kho đã nhận món trả; kế toán chi hoặc Chủ miễn kèm lý do.</div>
+		<p class="hint">COD đơn mới không bao giờ âm.</p>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" id="giao-mot-phan" data-ca="giao-mot-phan td09 mon-nhan tien-thuc-thu"><p class="xs">TRẠNG THÁI C</p><h2>Giao một phần (người có quyền sửa vận đơn): món khách nhận, tiền shipper thực thu; phần còn lại thành phiếu hoàn đi luồng nhận hàng hoàn</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="Ghi giao một phần" style="max-width:none">
+		<div class="dlg-h"><h2>Giao một phần · DH0001150</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p class="small muted">Viettel Post 1234567899876 · hãng báo "giao một phần" 14:10 22/11 · COD gửi hãng <span class="money">1.330.000 ₫</span></p>
+			<div class="tbl-frame" data-ca="mon-nhan">
+			<table class="tbl">
+				<thead><tr><th>Dòng</th><th class="r">Đã gửi</th><th>Khách nhận</th></tr></thead>
+				<tbody>
+				<tr><td class="lead"><span class="num">DAM0201-BE-L</span></td><td data-label="Đã gửi" class="r num">1</td><td data-label="Khách nhận"><span class="stepper"><button class="ibtn" aria-label="Bớt 1">−</button><input class="input" value="1" aria-label="Khách nhận DAM0201-BE-L"><button class="ibtn" aria-label="Thêm 1" disabled>+</button></span></td></tr>
+				<tr><td class="lead"><span class="num">QU0220-DEN-27</span></td><td data-label="Đã gửi" class="r num">1</td><td data-label="Khách nhận"><span class="stepper"><button class="ibtn" aria-label="Bớt 1" disabled>−</button><input class="input" value="0" aria-label="Khách nhận QU0220-DEN-27"><button class="ibtn" aria-label="Thêm 1">+</button></span></td></tr>
+				</tbody>
+			</table>
+			</div>
+			<label class="field" data-ca="tien-thuc-thu"><span>Tiền shipper thực thu *</span><input class="input num" value="990.000"><span class="hint">Hỏi khách hoặc xem app của hãng. Có thể khác giá món.</span></label>
+			<label class="field"><span>Lý do *</span><input class="input" value="Khách không vừa quần, chỉ lấy đầm"></label>
+			<ul class="fx small"><li>Đơn thành công một phần: 1 món xuất kho</li><li>1 món (QU0220-DEN-27) thành phiếu hoàn "giao một phần", kho nhận khi hàng về</li><li>Sổ COD ghi thu <span class="money">990.000 ₫</span>, phần còn lại <span class="money">340.000 ₫</span> không thu</li></ul>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark">Ghi giao một phần</button></div>
+	</div>
+	<div class="card stack-sm">
+		<div class="acts"><div class="act" style="max-width:none"><button class="btn btn-line" disabled>Ghi giao một phần</button><span class="reason">Cần quyền "Sửa vận đơn" (Chủ, Quản lý)</span></div></div>
+		<p class="hint">CRM không tự ghi giao một phần theo tin của hãng: tin đó chỉ đưa đơn vào "Cần xem".</p>
+	</div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+/* Mockup M3 vận chuyển và tiền (Task M3-40, số toàn cục 131). Nạp SAU ../m1/m1.css (hệ thiết kế đã duyệt ở M1, console
+   dùng đúng token đó) và ../m2/m2.css (thành phần M2: tổng tiền, kv, dòng thời gian, nút mờ kèm lý do, ô chọn).
+   Tệp này chỉ thêm thành phần chưa có, chỉ bằng biến của m1.css: không màu, cỡ chữ, bo góc mới.
+   Không có gì chỉ hiện khi rê chuột. */
+
+/* Số đếm trên menu (Cần gọi lại, Cần xem…): có chữ trong aria-label; quá hạn thì nền đỏ */
+.nav-a .grow { min-width: 0; }
+.nav-n { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--surface); color: var(--label); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; flex: none; }
+.nav-n.is-late { background: var(--buy); color: var(--paper); }
+
+/* Hai cột của chi tiết đơn: nội dung | cột phải (khối Vận chuyển, tiền). Dùng .cols của M1 (cột phải 420px). */
+.ship { display: grid; gap: var(--space-md); }
+.ship-h { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; }
+.ship-h > .grow { min-width: 0; }
+.ship-code { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--title); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* Bảng so phí: một dòng mỗi tài khoản hãng; dòng lỗi có chữ, không bao giờ hiện 0 ₫ thay cho lỗi */
+.qt { display: grid; gap: 0; border: 1px solid var(--rule); border-radius: var(--r-box); }
+.qt-r { cursor: pointer; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px var(--space-sm); align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--rule); min-height: var(--tap); }
+.qt-r:last-child { border-bottom: 0; }
+.qt-r.is-pick { background: var(--surface); box-shadow: inset 2px 0 0 var(--buy); }
+.qt-r.is-err, .qt-r.is-wait { color: var(--muted); }
+.qt-r .sub { grid-column: 2 / -1; font-size: 12px; color: var(--muted); }
+.qt-r.is-err .sub { color: var(--buy); }
+.qt-r .qt-fee { text-align: right; }
+.qt-r input[type="radio"] { width: 18px; height: 18px; accent-color: var(--ink); margin: 0; }
+
+/* Khung COD bốn ngăn: đang đi thu / hãng đang giữ / đã về / phí hãng */
+.cod { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
+.cod-c { border: 1px solid var(--rule); border-radius: var(--r-box); padding: 8px 12px; display: grid; gap: 2px; min-width: 0; }
+.cod-c .money { font-size: 16px; }
+.cod-c.is-on { border-color: var(--ink); }
+.cod-c.is-bad { border-color: var(--buy); background: var(--soft-sale); }
+
+/* Thẻ khách: ô số (cùng cách của khung bên phải M4) */
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
+.stat { border: 1px solid var(--rule); border-radius: var(--r-box); padding: 8px 12px; display: grid; gap: 2px; min-width: 0; }
+.stat .v { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--title); font-variant-numeric: tabular-nums; }
+.stat.is-bad { border-color: var(--buy); background: var(--soft-sale); }
+.stat.is-bad .v { color: var(--buy); }
+.risk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; flex-wrap: wrap; }
+
+/* Dòng thời gian có nguồn: chip nguồn; sự kiện bị bỏ qua hiện nhạt, viền đứt, ghi lý do */
+.tl li.is-ign { color: var(--muted); }
+.tl li.is-ign > div { border-left: 2px dashed var(--edge); padding-left: 8px; }
+.src { display: inline-flex; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--rule); color: var(--label); background: var(--paper); line-height: 1.6; white-space: nowrap; }
+.src.is-staff { border-color: var(--edge); color: var(--ink); }
+
+/* Thanh chọn nhiều (kho): hiện khi đã chọn ít nhất một dòng; trên điện thoại xuống dòng */
+.selbar { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; background: var(--ink); color: var(--paper); border-radius: var(--r-box); padding: 8px 8px 8px var(--space-md); margin-bottom: var(--space-md); }
+.selbar .grow { min-width: 160px; font-weight: 600; }
+.selbar .btn { border-color: var(--paper); background: var(--ink); color: var(--paper); }
+.selbar .btn-dark { background: var(--paper); color: var(--ink); }
+.c-chk { width: 48px; }
+.c-chk .check { min-width: var(--tap); justify-content: center; }
+
+/* Ô số lượng Tốt / Hỏng / Thiếu trên một dòng hàng hoàn */
+.q3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-sm); min-width: 0; }
+.q3 .field > span:first-child { font-size: 12px; }
+.q3 .input { text-align: center; font-variant-numeric: tabular-nums; padding: 8px 4px; }
+.rline { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 300px); gap: var(--space-sm) var(--space-md); align-items: center; padding: var(--space-sm) 0; border-bottom: 1px solid var(--rule); }
+.rline.is-err { background: var(--soft-sale); }
+@media (max-width: 759px) { .rline { grid-template-columns: minmax(0, 1fr); } }
+
+/* Xem trang in phiếu nhặt (giấy A4 thu nhỏ, chỉ đen trắng) */
+.paper { border: 1px solid var(--edge); border-radius: var(--r); padding: var(--space-lg); background: var(--paper); display: grid; gap: var(--space-md); max-width: 820px; }
+.paper .tbl th { background: var(--paper); border-bottom: 1px solid var(--ink); }
+@media (max-width: 759px) { .paper { padding: var(--space-md); } }
+
+/* Nhóm kết quả khớp bảng kê: mỗi nhóm một ô có số dòng và tổng tiền */
+.grps { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-sm); }
+.grp { border: 1px solid var(--rule); border-radius: var(--r-box); padding: 8px 12px; display: grid; gap: 2px; min-width: 0; text-decoration: none; color: var(--ink); min-height: var(--tap); }
+.grp[aria-current="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.grp.is-bad { border-color: var(--buy); background: var(--soft-sale); }
+.grp.is-off { background: var(--surface); }
+.grp .money { font-size: 16px; }
+
+/* Bảng trước / sau của bản xem trước (điều chỉnh COD, đảo Thành công) */
+.ba td.neg { color: var(--buy); font-weight: 700; }
+.fx { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+
+/* Ô sao chép (URL webhook) */
+.copy { display: flex; gap: 8px; align-items: stretch; }
+.copy .input { flex: 1 1 auto; min-width: 0; font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+
+/* Cài đặt ngưỡng: lưới ô số có đơn vị */
+.unit { display: flex; align-items: center; gap: 8px; }
+.unit .input { width: 96px; text-align: right; font-variant-numeric: tabular-nums; }
+.unit span { color: var(--muted); font-size: 13px; }
+.set-g { align-items: start; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-md); }
+
+/* Ẩn/hiện theo cỡ màn (không theo rê chuột) */
+@media (max-width: 999px) { .only-desk { display: none; } }
+@media (min-width: 1000px) { .only-phone { display: none; } }
+
+/* Thanh danh sách dạng liên kết (bốn danh sách vận hành) */
+a.lbl { text-decoration: none; }
+.lbl.is-attn[aria-pressed="true"] .n { color: var(--paper); }
+@media (min-width: 760px) { .tbl .c-act .row { flex-wrap: nowrap; justify-content: flex-end; } }
+
+/* Tiền không xuống dòng giữa số và ₫ */
+.money { white-space: nowrap; }
