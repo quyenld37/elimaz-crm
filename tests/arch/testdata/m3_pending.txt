@@ -4,8 +4,6 @@
 listOrderShipments
 resendShipment
 resolveShipmentCreate
-requestShippingQuotes
-listShippingQuotes
 requestAddressChange
 resolveAddressChange
 setShipmentManualStatus
