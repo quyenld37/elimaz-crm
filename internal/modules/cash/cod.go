@@ -18,36 +18,6 @@ import (
 	"elimaz.com.vn/crm/internal/modules/cash/internal/store"
 )
 
-// Loại bút toán (05 mục 2). M1 chỉ ghi expected, collected; ba loại sau có kiểu nhưng chưa có đường gọi (M3).
-const (
-	KindExpected   = "expected"
-	KindCollected  = "collected"
-	KindRemitted   = "remitted"
-	KindReturned   = "returned"
-	KindAdjustment = "adjustment"
-)
-
-// Ngăn tiền (05 mục 2).
-const (
-	// AccountToCollect: hãng đang đi giao, sẽ thu của khách.
-	AccountToCollect = "to_collect"
-	// AccountCarrierHolding: hãng đã thu, đang giữ, chưa chuyển cho shop.
-	AccountCarrierHolding = "carrier_holding"
-	// AccountShopReceived: tiền đã về shop theo bảng kê.
-	AccountShopReceived = "shop_received"
-	// AccountCarrierFee: phí hãng trừ lại khi chuyển tiền.
-	AccountCarrierFee = "carrier_fee"
-	// AccountSalesClearing: vế đối ứng, giá trị COD đã giao cho hãng đi thu.
-	AccountSalesClearing = "sales_clearing"
-)
-
-// Tác nhân của bút toán.
-const (
-	ActorStaff   = "staff"
-	ActorSystem  = "system"
-	ActorCarrier = "carrier"
-)
-
 // maxAmount là 2^53 − 1: số đồng lớn nhất một dòng sổ mang (khớp CHECK của bảng, JSON không mất chính xác).
 const maxAmount = 1<<53 - 1
 
@@ -88,8 +58,14 @@ type Transfer struct {
 // Database kiểm lại cân hai vế lúc commit (trigger hoãn). Khóa chống trùng đã có cho cùng vận đơn và loại →
 // created = false, không chèn dòng; đã có cho bút toán khác → ErrIdempotencyKeyReused.
 func Post(ctx context.Context, tx pgx.Tx, t Transfer) (created bool, err error) {
+	_, created, err = PostWithID(ctx, tx, t)
+	return created, err
+}
+
+// PostWithID như Post và trả thêm mã bút toán: bút toán mới, hay bút toán đã có cùng khóa chống trùng (created = false).
+func PostWithID(ctx context.Context, tx pgx.Tx, t Transfer) (uuid.UUID, bool, error) {
 	if err := t.validate(); err != nil {
-		return false, err
+		return uuid.Nil, false, err
 	}
 	q := store.New(tx)
 	id, err := q.InsertTransfer(ctx, store.InsertTransferParams{
@@ -99,22 +75,22 @@ func Post(ctx context.Context, tx pgx.Tx, t Transfer) (created bool, err error) 
 	if errors.Is(err, pgx.ErrNoRows) {
 		old, err := q.GetTransferByKey(ctx, t.IdempotencyKey)
 		if err != nil {
-			return false, fmt.Errorf("đọc bút toán cùng khóa: %w", err)
+			return uuid.Nil, false, fmt.Errorf("đọc bút toán cùng khóa: %w", err)
 		}
 		if old.ShipmentID != t.ShipmentID || old.Kind != t.Kind {
-			return false, ErrIdempotencyKeyReused
+			return uuid.Nil, false, ErrIdempotencyKeyReused
 		}
-		return false, nil
+		return old.ID, false, nil
 	}
 	if err != nil {
-		return false, fmt.Errorf("chèn bút toán: %w", err)
+		return uuid.Nil, false, fmt.Errorf("chèn bút toán: %w", err)
 	}
 	for _, en := range t.Entries {
 		if err := q.InsertEntry(ctx, store.InsertEntryParams{TransferID: id, Account: en.Account, Amount: en.Amount}); err != nil {
-			return false, fmt.Errorf("chèn dòng sổ: %w", err)
+			return uuid.Nil, false, fmt.Errorf("chèn dòng sổ: %w", err)
 		}
 	}
-	return true, nil
+	return id, true, nil
 }
 
 func (t Transfer) validate() error {
