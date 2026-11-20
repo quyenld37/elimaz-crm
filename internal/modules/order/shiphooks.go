@@ -127,56 +127,90 @@ func (w Writer) OnShipmentEvent(ctx context.Context, tx pgx.Tx, sellerID, orderI
 	if step != StepPickedUp && step != StepDelivered {
 		return false, fmt.Errorf("%w: bước vận đơn %q", ErrInvalidInput, step)
 	}
-	stock, err := w.stock()
-	if err != nil {
+	d, ok, err := w.beginShipmentStep(ctx, tx, sellerID, orderID, shipmentID, step, a)
+	if err != nil || !ok {
 		return false, err
+	}
+	if step == StepPickedUp {
+		return d.held, nil
+	}
+	if err := d.stock.ConsumeByItems(ctx, tx, d.items, d.who); err != nil {
+		return false, fmt.Errorf("trừ tồn khi giao xong: %w", err)
+	}
+	if err := w.finishDelivered(ctx, tx, d, transitionOpt{}, a, now); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// shipmentStep là phần đã làm của một bước vận đơn (beginShipmentStep): đơn đã khóa, dòng đơn, giữ hàng còn held lúc
+// bắt đầu (đã chuyển sang in_transit), bộ ghi tồn và người làm theo kiểu của inventory.
+type shipmentStep struct {
+	q     *store.Queries
+	o     store.LockOrderRow
+	items []uuid.UUID
+	held  bool
+	stock inventory.Writer
+	who   inventory.Actor
+}
+
+// beginShipmentStep là phần đầu chung của bước step (OnShipmentEvent, MarkDeliveredPartial): khóa đơn (ADR-46 nhóm 7);
+// vận đơn không hiện hành hay đơn đã delivered → ok=false, không đổi gì; đơn không ở confirmed/cancel_requested hay
+// không còn giữ hàng held/in_transit → ErrStatusConflict; giữ hàng held → in_transit (StartTransitByItems).
+func (w Writer) beginShipmentStep(ctx context.Context, tx pgx.Tx, sellerID, orderID, shipmentID uuid.UUID,
+	step ShipmentStep, a Actor,
+) (d shipmentStep, ok bool, err error) {
+	if d.stock, err = w.stock(); err != nil {
+		return d, false, err
 	}
 	q, o, current, err := lockForShipment(ctx, tx, sellerID, orderID, shipmentID)
 	if err != nil || !current {
-		return false, err
+		return d, false, err
 	}
+	d.q, d.o = q, o
 	switch o.Status {
 	case StatusDelivered:
-		return false, nil
+		return d, false, nil
 	case StatusConfirmed, StatusCancelRequested:
 	default:
-		return false, fmt.Errorf("%w: áp %s lên đơn %s", ErrStatusConflict, step, o.Status)
+		return d, false, fmt.Errorf("%w: áp %s lên đơn %s", ErrStatusConflict, step, o.Status)
 	}
-	items, err := q.OrderItemIDs(ctx, store.OrderItemIDsParams{SellerID: sellerID, OrderID: orderID})
+	if d.items, err = q.OrderItemIDs(ctx, store.OrderItemIDsParams{SellerID: sellerID, OrderID: orderID}); err != nil {
+		return d, false, fmt.Errorf("đọc dòng đơn: %w", err)
+	}
+	states, err := inventory.ReservationStatesByItems(ctx, tx, d.items)
 	if err != nil {
-		return false, fmt.Errorf("đọc dòng đơn: %w", err)
+		return d, false, fmt.Errorf("đọc giữ hàng của đơn: %w", err)
 	}
-	states, err := inventory.ReservationStatesByItems(ctx, tx, items)
-	if err != nil {
-		return false, fmt.Errorf("đọc giữ hàng của đơn: %w", err)
+	d.held = states[inventory.StateHeld] > 0
+	if !d.held && states[inventory.StateInTransit] == 0 {
+		return d, false, fmt.Errorf("%w: đơn %s không còn giữ hàng held, in_transit", ErrStatusConflict, o.Status)
 	}
-	held := states[inventory.StateHeld] > 0
-	if !held && states[inventory.StateInTransit] == 0 {
-		return false, fmt.Errorf("%w: đơn %s không còn giữ hàng held, in_transit", ErrStatusConflict, o.Status)
-	}
-	who := inventory.Actor{Type: a.kind(), ID: a.UserID}
-	if held {
-		if err := stock.StartTransitByItems(ctx, tx, items, who); err != nil {
-			return false, fmt.Errorf("chuyển giữ hàng sang đang giao: %w", err)
+	d.who = inventory.Actor{Type: a.kind(), ID: a.UserID}
+	if d.held {
+		if err := d.stock.StartTransitByItems(ctx, tx, d.items, d.who); err != nil {
+			return d, false, fmt.Errorf("chuyển giữ hàng sang đang giao: %w", err)
 		}
 	}
-	if step == StepPickedUp {
-		return held, nil
-	}
-	if err := stock.ConsumeByItems(ctx, tx, items, who); err != nil {
-		return false, fmt.Errorf("trừ tồn khi giao xong: %w", err)
-	}
-	cur := lockedOrder(o)
-	a.TenantID = o.TenantID
-	if o.Status == StatusCancelRequested { // sau số dư (ADR-46 nhóm 11), trước lịch sử, sự kiện
-		if err := w.rejectRequestedCancel(ctx, tx, q, &cur, a, now); err != nil {
-			return false, fmt.Errorf("đơn giao xong khi đang yêu cầu hủy: %w", err)
+	return d, true, nil
+}
+
+// finishDelivered là phần cuối chung của "giao xong" sau khi đã trừ tồn: đơn cancel_requested về confirmed (hãng giao
+// trước khi kịp hủy), rồi confirmed → delivered qua applyTransitionWith với opt.
+func (w Writer) finishDelivered(ctx context.Context, tx pgx.Tx, d shipmentStep, opt transitionOpt, a Actor,
+	now time.Time,
+) error {
+	cur := lockedOrder(d.o)
+	a.TenantID = d.o.TenantID
+	if d.o.Status == StatusCancelRequested { // sau số dư (ADR-46 nhóm 11), trước lịch sử, sự kiện
+		if err := w.rejectRequestedCancel(ctx, tx, d.q, &cur, a, now); err != nil {
+			return fmt.Errorf("đơn giao xong khi đang yêu cầu hủy: %w", err)
 		}
 	}
-	if err := w.applyTransition(ctx, tx, &cur, state.Delivered, "", "", a, now); err != nil {
-		return false, fmt.Errorf("đơn sang delivered: %w", err)
+	if err := w.applyTransitionWith(ctx, tx, &cur, state.Delivered, "", "", opt, a, now); err != nil {
+		return fmt.Errorf("đơn sang delivered: %w", err)
 	}
-	return true, nil
+	return nil
 }
 
 // lockForShipment khóa đơn orderID (ADR-46 nhóm 7) và cho biết shipmentID có đang là vận đơn hiện hành của đơn không;
