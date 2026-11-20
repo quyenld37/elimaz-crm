@@ -51,6 +51,11 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `fulfillment.shipment_events_v` (không `raw`, `event_key`) | `tenant_id, id, shipment_id, source, raw_status, canonical, status, sub_status, occurred_at, recorded_at, applied, ignored_reason` | 92 | M6, M7 |
 | `fulfillment.locations_v` | `tenant_id, carrier_key, level, our_code, carrier_code, carrier_name, synced_at` | 92 | M5 |
 | `cash.cod_balances_v` (tối thiểu; M3 mở rộng) | `shipment_id, account, balance` | 32 | M3 trở đi |
+| `cash.shipment_cod_v` (số dư từng ngăn theo vận đơn, dạng ngang; vận đơn chưa có dòng sổ thì không có dòng) | `tenant_id, shipment_id, to_collect, carrier_holding, shop_received, carrier_fee, sales_clearing` | 93 | M3 trở đi |
+| `cash.cod_transfers_v` (không `idempotency_key`, `actor_id`) | `tenant_id, id, shipment_id, kind, statement_line_id, reverses_transfer_id, reason, actor_type, occurred_at` | 93 | M3, M6, M7 |
+| `cash.payments_v` | `tenant_id, id, order_id, method, amount, received_at` | 93 | M3, M6, M7 |
+| `cash.refund_obligations_v` | `tenant_id, id, order_id, return_id, source, amount, paid_amount, status` | 93 | M3, M6, M7 |
+| `cash.reconcile_runs_v` | `tenant_id, id, ran_at, ok, findings` | 93 | M7 (A22) |
 
 ## Khóa ngoại xuyên module
 
@@ -65,6 +70,8 @@ phép lệch nhau. Module chủ của bảng bị trỏ không đổi khóa (c�
 | `fulfillment.shipments (tenant_id, seller_id, order_id) → ord.orders (tenant_id, seller_id, id)`; `fulfillment.callback_tasks`, `fulfillment.shipping_quotes (tenant_id, order_id) → ord.orders (tenant_id, id)` | vận đơn cùng người bán với đơn và tài khoản hãng (KH14 cho vận đơn, ADR-29); việc gọi lại, báo giá thuộc đơn có thật | 31, 92 |
 | `ord.orders (tenant_id, current_shipment_id) → fulfillment.shipments (tenant_id, id)` (`orders_current_shipment_fk`; M2 Task 05 để lại cho M3) | vận đơn hiện hành của đơn là vận đơn có thật; đường tạo chèn vận đơn trước rồi gắn | 92 |
 | `fulfillment.shipments (tenant_id, label_file_id)`, `fulfillment.label_batches (tenant_id, file_id) → platform.files (tenant_id, id)` | tem in là tệp có thật | 92 |
+| `cash.cod_statements (tenant_id, carrier_account_id) → fulfillment.carrier_accounts (tenant_id, id)` | bảng kê COD thuộc một tài khoản hãng có thật | 93 |
+| `cash.payments`, `cash.refund_obligations (tenant_id, order_id) → ord.orders (tenant_id, id)`; `cash.refund_obligations (tenant_id, return_id) → ord.returns (tenant_id, id)` | phiếu thu, nghĩa vụ hoàn thuộc đơn (và phiếu trả) có thật | 93 |
 
 ## Hàm tìm công bố
 

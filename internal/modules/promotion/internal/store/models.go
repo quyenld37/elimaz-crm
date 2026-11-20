@@ -25,6 +25,49 @@ type CashCodLedgerEntry struct {
 	Account    string
 	Amount     int64
 	CreatedAt  time.Time
+	ShipmentID uuid.UUID
+}
+
+type CashCodStatement struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	CarrierKey       string
+	CarrierAccountID uuid.UUID
+	FileID           uuid.UUID
+	FileSha256       string
+	Format           string
+	PeriodFrom       pgtype.Date
+	PeriodTo         pgtype.Date
+	DeclaredTotal    pgtype.Int8
+	Status           string
+	ParseError       pgtype.Text
+	LineCount        int32
+	ImportedBy       uuid.UUID
+	ConfirmedBy      *uuid.UUID
+	ConfirmedAt      pgtype.Timestamptz
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	Version          int64
+}
+
+type CashCodStatementLine struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	StatementID      uuid.UUID
+	LineNo           int32
+	TrackingCode     string
+	CodAmount        int64
+	FeeAmount        int64
+	OtherFee         int64
+	NetAmount        int64
+	PaidOn           pgtype.Date
+	MatchStatus      string
+	ShipmentID       *uuid.UUID
+	ExpectedAmount   pgtype.Int8
+	DiffAmount       pgtype.Int8
+	PostedTransferID *uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 type CashCodTransfer struct {
@@ -39,6 +82,104 @@ type CashCodTransfer struct {
 	ActorType          string
 	ActorID            *uuid.UUID
 	CreatedAt          time.Time
+	OccurredAt         time.Time
+}
+
+type CashCodTransfersV struct {
+	TenantID           uuid.UUID
+	ID                 uuid.UUID
+	ShipmentID         uuid.UUID
+	Kind               string
+	StatementLineID    *uuid.UUID
+	ReversesTransferID *uuid.UUID
+	Reason             string
+	ActorType          string
+	OccurredAt         time.Time
+}
+
+type CashPayment struct {
+	ID                 uuid.UUID
+	TenantID           uuid.UUID
+	OrderID            uuid.UUID
+	Method             string
+	Amount             int64
+	Reference          string
+	ReceivedAt         time.Time
+	RefundObligationID *uuid.UUID
+	ActorID            uuid.UUID
+	CreatedAt          time.Time
+}
+
+type CashPaymentsV struct {
+	TenantID   uuid.UUID
+	ID         uuid.UUID
+	OrderID    uuid.UUID
+	Method     string
+	Amount     int64
+	ReceivedAt time.Time
+}
+
+type CashReconcileFinding struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	RunID      uuid.UUID
+	Kind       string
+	ShipmentID *uuid.UUID
+	Detail     []byte
+	CreatedAt  time.Time
+}
+
+type CashReconcileRun struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	RanAt     time.Time
+	Ok        bool
+	Findings  int32
+	CreatedAt time.Time
+}
+
+type CashReconcileRunsV struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	RanAt    time.Time
+	Ok       bool
+	Findings int32
+}
+
+type CashRefundObligation struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	OrderID     uuid.UUID
+	ReturnID    *uuid.UUID
+	Source      string
+	Amount      int64
+	PaidAmount  int64
+	Status      string
+	WaiveReason pgtype.Text
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Version     int64
+}
+
+type CashRefundObligationsV struct {
+	TenantID   uuid.UUID
+	ID         uuid.UUID
+	OrderID    uuid.UUID
+	ReturnID   *uuid.UUID
+	Source     string
+	Amount     int64
+	PaidAmount int64
+	Status     string
+}
+
+type CashShipmentCodV struct {
+	TenantID       uuid.UUID
+	ShipmentID     uuid.UUID
+	ToCollect      int64
+	CarrierHolding int64
+	ShopReceived   int64
+	CarrierFee     int64
+	SalesClearing  int64
 }
 
 type CatalogAttribute struct {

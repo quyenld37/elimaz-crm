@@ -14,22 +14,40 @@ import (
 	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
-// rawTransfer chèn (crm_app, SQL thẳng, không qua Post) một bút toán của vận đơn id với các dòng amounts theo thứ tự
-// ngăn accounts; trả lỗi của cả transaction (kể cả lỗi lúc commit của trigger hoãn).
+// rawTransfer chèn (crm_app, SQL thẳng, không qua Post) một bút toán adjustment của vận đơn id với các dòng amounts
+// theo thứ tự ngăn accounts, mọi dòng cùng vận đơn id; trả lỗi của cả transaction (kể cả lỗi lúc commit của trigger
+// hoãn).
 func (e *codEnv) rawTransfer(id uuid.UUID, amounts ...int64) error {
 	accounts := []string{cash.AccountToCollect, cash.AccountSalesClearing, cash.AccountCarrierHolding}
+	lines := make([]rawLine, len(amounts))
+	for i, a := range amounts {
+		lines[i] = rawLine{shipment: id, account: accounts[i], amount: a}
+	}
+	return e.rawLines(id, lines...)
+}
+
+// rawLine là một dòng sổ chèn thẳng: vận đơn ghi ở dòng (có thể khác vận đơn của bút toán), ngăn, số tiền.
+type rawLine struct {
+	shipment uuid.UUID
+	account  string
+	amount   int64
+}
+
+// rawLines chèn (crm_app, SQL thẳng) một bút toán adjustment (có lý do) của vận đơn id với các dòng lines.
+func (e *codEnv) rawLines(id uuid.UUID, lines ...rawLine) error {
 	return e.app(func(tx pgx.Tx) error {
 		var tid uuid.UUID
 		if err := tx.QueryRow(e.t.Context(), `INSERT INTO cash.cod_transfers
-			(tenant_id, shipment_id, kind, idempotency_key, actor_type)
-			VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, 'adjustment', $2, 'staff')
+			(tenant_id, shipment_id, kind, idempotency_key, reason, actor_type)
+			VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, 'adjustment', $2, 'test', 'staff')
 			RETURNING id`, id, uuid.NewString()).Scan(&tid); err != nil {
 			return err //nolint:wrapcheck // test
 		}
-		for i, a := range amounts {
-			if _, err := tx.Exec(e.t.Context(), `INSERT INTO cash.cod_ledger_entries (tenant_id, transfer_id, account, amount)
-				VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3)`,
-				tid, accounts[i], a); err != nil {
+		for _, l := range lines {
+			if _, err := tx.Exec(e.t.Context(), `INSERT INTO cash.cod_ledger_entries
+				(tenant_id, transfer_id, shipment_id, account, amount)
+				VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3, $4)`,
+				tid, l.shipment, l.account, l.amount); err != nil {
 				return err //nolint:wrapcheck // test
 			}
 		}
@@ -88,8 +106,8 @@ func withBalancedTransfer(t *testing.T) *codEnv {
 func TestDatabaseRejectsLaterUnbalancedLine(t *testing.T) {
 	t.Parallel()
 	e := withBalancedTransfer(t)
-	err := e.execApp(`INSERT INTO cash.cod_ledger_entries (tenant_id, transfer_id, account, amount)
-		SELECT tenant_id, id, 'carrier_fee', 1000 FROM cash.cod_transfers`)
+	err := e.execApp(`INSERT INTO cash.cod_ledger_entries (tenant_id, transfer_id, shipment_id, account, amount)
+		SELECT tenant_id, id, shipment_id, 'carrier_fee', 1000 FROM cash.cod_transfers`)
 	if pgCode(err) != "23514" {
 		t.Fatalf("mong lỗi 23514, có %v", err)
 	}
@@ -341,9 +359,14 @@ func TestPostLimitsAndActorID(t *testing.T) {
 	s := e.shipment(530000)
 	const maxAmount = 1<<53 - 1
 	staff := uuid.New()
+	// Từ M3 (0303) lý do chỉ có (và bắt buộc) ở adjustment, reversal: biên lý do đo trên adjustment.
 	tr := func(key, reason string, amount int64, actor uuid.UUID) cash.Transfer {
+		kind := cash.KindExpected
+		if reason != "" {
+			kind = cash.KindAdjustment
+		}
 		return cash.Transfer{
-			ShipmentID: s, Kind: cash.KindExpected, IdempotencyKey: key, Reason: reason,
+			ShipmentID: s, Kind: kind, IdempotencyKey: key, Reason: reason,
 			Actor:   cash.Actor{Type: cash.ActorStaff, ID: actor},
 			Entries: []cash.Entry{{Account: cash.AccountToCollect, Amount: amount}, {Account: cash.AccountSalesClearing, Amount: -amount}},
 		}
