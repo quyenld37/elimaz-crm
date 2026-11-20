@@ -13,41 +13,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const insertShipmentEvent = `-- name: InsertShipmentEvent :execrows
-
-INSERT INTO fulfillment.shipment_events (tenant_id, shipment_id, event_key, raw_status, status, occurred_at, raw)
-VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3, $4,
-        $5, $6)
-ON CONFLICT (tenant_id, shipment_id, event_key) DO NOTHING
-`
-
-type InsertShipmentEventParams struct {
-	ShipmentID uuid.UUID
-	EventKey   string
-	RawStatus  string
-	Status     string
-	OccurredAt time.Time
-	Raw        []byte
-}
-
-// Sự kiện vận đơn chỉ ghi thêm (kế hoạch M1, Task M1-31). Chạy trong tenancy.WithTenant.
-// Trùng (shipment_id, event_key) → 0 dòng, không lỗi.
-func (q *Queries) InsertShipmentEvent(ctx context.Context, arg InsertShipmentEventParams) (int64, error) {
-	result, err := q.db.Exec(ctx, insertShipmentEvent,
-		arg.ShipmentID,
-		arg.EventKey,
-		arg.RawStatus,
-		arg.Status,
-		arg.OccurredAt,
-		arg.Raw,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
 const insertTrackedEvent = `-- name: InsertTrackedEvent :one
+
 INSERT INTO fulfillment.shipment_events
     (tenant_id, shipment_id, event_key, raw_status, status, occurred_at, raw, canonical, source, sub_status, applied,
      ignored_reason, actor_id)
@@ -73,6 +40,7 @@ type InsertTrackedEventParams struct {
 	ActorID       pgtype.UUID
 }
 
+// Sự kiện vận đơn chỉ ghi thêm (kế hoạch M1, Task M1-31). Chạy trong tenancy.WithTenant.
 // Sự kiện của một lần áp kết quả tra (M3, Task M3-08) kèm quyết định của máy trạng thái. Trùng (shipment_id,
 // event_key) → pgx.ErrNoRows (đã xét, bỏ qua).
 func (q *Queries) InsertTrackedEvent(ctx context.Context, arg InsertTrackedEventParams) (uuid.UUID, error) {

@@ -31,8 +31,8 @@ func TestMain(m *testing.M) {
 }
 
 // shipEnv: database thử, tenant A (shiptest.Shop: tài khoản hãng giả fake-1 của ELIMAZ, fake-2 của PARTNER1 ở kho
-// MAIN), hãng giả trong bộ nhớ, worker chạy hai lệnh của fulfillment. seller là người bán của đơn trong test (mặc định
-// ELIMAZ), account, accountRef là tài khoản hãng của người bán đó.
+// MAIN), hãng giả trong bộ nhớ, worker chạy hai lệnh của fulfillment (lệnh tra dựng từ Service có hãng giả). seller
+// là người bán của đơn trong test (mặc định ELIMAZ), account, accountRef là tài khoản hãng của người bán đó.
 type shipEnv struct {
 	t          *testing.T
 	staff      *testkit.Staff
@@ -61,11 +61,19 @@ func newShipEnv(t *testing.T) *shipEnv {
 		DB: e.staff.App, Adapters: []fulfillment.CarrierAdapter{e.carrier},
 		Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{},
 	}
-	e.cmds = []commands.Handler{fulfillment.NewCreateCommand(o), fulfillment.NewRefreshCommand(o)}
-	e.worker = queue.NewWorker(e.staff.App, nil, queue.WorkerOptions{
-		WorkerID: "test/" + uuid.NewString(), Commands: commands.NewRunner(e.staff.App, e.cmds),
-	})
+	svc := fulfillment.New(fulfillment.Deps{
+		DB: o.DB, Queue: o.Queue, Events: o.Events, Bus: o.Realtime, Carriers: mustRegistry(t, e.carrier),
+	}).Service
+	e.useCommands([]commands.Handler{fulfillment.NewCreateCommand(o), fulfillment.NewRefreshCommand(svc)})
 	return e
+}
+
+// useCommands đặt lệnh của worker là hs (dựng lại worker).
+func (e *shipEnv) useCommands(hs []commands.Handler) {
+	e.cmds = hs
+	e.worker = queue.NewWorker(e.staff.App, nil, queue.WorkerOptions{
+		WorkerID: "test/" + uuid.NewString(), Commands: commands.NewRunner(e.staff.App, hs),
+	})
 }
 
 // eachSeller chạy body trên cùng một database lần lượt với từng người bán làm người bán của đơn (KH14, ADR-29).
@@ -214,6 +222,15 @@ func (e *shipEnv) signal(tracking, eventID string) {
 	}); err != nil {
 		e.t.Fatalf("tín hiệu %s: %v", eventID, err)
 	}
+}
+
+// ownerExec chạy câu bằng chủ bảng trong ngữ cảnh tenant A (sửa dữ liệu như kẻ có quyền database, dựng tình huống).
+func (e *shipEnv) ownerExec(sql string, args ...any) {
+	e.t.Helper()
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(e.t.Context(), sql, args...)
+		return err //nolint:wrapcheck // test
+	})
 }
 
 // appExec chạy một câu bằng crm_app trong ngữ cảnh tenant A.
