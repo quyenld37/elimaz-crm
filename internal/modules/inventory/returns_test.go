@@ -70,6 +70,13 @@ func TestReceiveCustomerReturn(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM inventory.stock_ledger WHERE doc_id = $1 AND doc_type = 'return'`, doc); n != 3 {
 		t.Errorf("dòng sổ return = %d, mong 3", n)
 	}
+	// Mutation testing (Task 403): mỗi dòng số dư đổi (kể cả dòng có hàng hỏng) có một stock.changed.
+	for _, v := range []uuid.UUID{good, bad} {
+		if n := e.count(`SELECT count(*) FROM platform.domain_events WHERE topic = 'stock.changed' AND aggregate_id = $1`,
+			v.String()+":"+e.warehouse.String()); n == 0 {
+			t.Errorf("biến thể %s: không có stock.changed", v)
+		}
+	}
 	for name, lines := range map[string][]inventory.ReturnLine{
 		"rỗng":        nil,
 		"số 0":        {{VariantID: good, WarehouseID: e.warehouse, Qty: 0}},
@@ -118,5 +125,16 @@ func TestMoveToDamaged(t *testing.T) {
 	}
 	if err := move(uuid.New(), 0); !errors.Is(err, inventory.ErrInvalidInput) {
 		t.Errorf("số 0: %v", err)
+	} // Mutation testing (Task 403): thiếu từng mã một → ErrInvalidInput.
+	for name, ids := range map[string][3]uuid.UUID{
+		"thiếu mã phiếu": {uuid.Nil, v, e.warehouse},
+		"thiếu biến thể": {uuid.New(), uuid.Nil, e.warehouse},
+		"thiếu kho":      {uuid.New(), v, uuid.Nil},
+	} {
+		if err := e.do(func(ctx context.Context, tx pgx.Tx, w inventory.Writer) error {
+			return w.MoveToDamaged(ctx, tx, ids[0], ids[1], ids[2], 1, sysActor())
+		}); !errors.Is(err, inventory.ErrInvalidInput) {
+			t.Errorf("%s: %v", name, err)
+		}
 	}
 }

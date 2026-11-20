@@ -19,3 +19,6 @@ func ApplyTransition(ctx context.Context, tx pgx.Tx, w Writer, o *Order, to, pen
 ) error {
 	return w.applyTransition(ctx, tx, o, state.Status(to), pending, reason, a, now)
 }
+
+// MergeLines cho test gói order_test gọi hàm gộp dòng cùng biến thể (mutation testing, Task 403).
+func MergeLines(items []LineInput) ([]LineInput, error) { return mergeLines(items) }

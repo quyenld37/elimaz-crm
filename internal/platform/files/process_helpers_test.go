@@ -38,8 +38,10 @@ var testHTTP = &http.Client{Timeout: 30 * time.Second}
 const publicBase = "https://img.test"
 
 // Nội dung ảnh thử điều khiển imager giả: "HANG" treo tới khi bên gọi bỏ; "REJ:<lý do>\n" trả rejected với lý do đó;
-// "BUSY" trả 503 bận; "E500" trả 500; nội dung khác là ảnh tốt (JPEG 2000×1500).
+// "BUSY" trả 503 bận; "E500" trả 500; "ODD:h0", "ODD:w0", "ODD:type", "ODD:w", "ODD:fmt", "ODD:b0" trả ảnh tốt nhưng kết quả lạ
+// (cao 0, rộng 0, thiếu loại đã nhận; đầu ra đầu tiên sai rộng, sai định dạng, 0 byte); nội dung khác là ảnh tốt (JPEG 2000×1500).
 const (
+	oddPrefix  = "ODD:"
 	hangPrefix = "HANG"
 	rejPrefix  = "REJ:"
 	busyPrefix = "BUSY"
@@ -150,12 +152,31 @@ func (f *fakeImager) serve(w http.ResponseWriter, r *http.Request) {
 	if f.delay > 0 {
 		time.Sleep(f.delay)
 	}
-	// Ảnh tốt: như imager giả dùng chung (đọc lại nguồn, ghi từng đầu ra bằng PutURL, trả JPEG 2000×1500).
-	res, err := testkit.StubImager{}.Process(r.Context(), req)
+	writeResult(w, goodResult(r.Context(), req, string(src)))
+}
+
+// goodResult xử lý ảnh tốt như imager giả dùng chung (đọc lại nguồn, ghi từng đầu ra bằng PutURL, trả JPEG 2000×1500),
+// rồi làm lạ kết quả theo nội dung "ODD:…" (Task 403: kết quả imager lạ không được ghi ready).
+func goodResult(ctx context.Context, req imager.Request, src string) imager.Result {
+	res, err := testkit.StubImager{}.Process(ctx, req)
 	if err != nil {
-		res = imager.Result{Status: imager.StatusRejected, Reason: imager.ReasonInternal}
+		return imager.Result{Status: imager.StatusRejected, Reason: imager.ReasonInternal}
 	}
-	writeResult(w, res)
+	switch src {
+	case oddPrefix + "h0":
+		res.Height = 0
+	case oddPrefix + "w0":
+		res.Width = 0
+	case oddPrefix + "type":
+		res.DetectedType = ""
+	case oddPrefix + "w":
+		res.Outputs[0].Width++
+	case oddPrefix + "fmt":
+		res.Outputs[0].Format = "gif"
+	case oddPrefix + "b0":
+		res.Outputs[0].Bytes = 0
+	}
+	return res
 }
 
 // hangUpIfDown: imager đang ngừng (down) → đóng kết nối không trả lời (bên gọi nhận lỗi mạng), trả true.

@@ -104,6 +104,9 @@ func TestVerifier_MarksMissingLost(t *testing.T) {
 		key string
 	}{
 		{files.BucketOriginals, files.OriginalKey(shaHex(bodyX))},
+		// Tệp tải lên tạm của x đã hết hạn như ngoài đời (lifecycle crm-tmp): dựng lại phải đọc từ ảnh gốc tải lại
+		// (Task 403: MemStore không tự xóa crm-tmp nên đột biến bỏ nhánh "tệp mất" trước đây vẫn qua).
+		{files.BucketTmp, files.TmpKey(p.a, x)},
 		{files.BucketPublic, goneVariant},
 		{files.BucketPrivate, files.ServerKey(p.a, srvGone)},
 		{files.BucketOriginals, files.OriginalKey(shaHex(bodyB))},

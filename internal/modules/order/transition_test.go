@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/order"
+	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // transition chạy order.ApplyTransition trên đơn o trong một transaction crm_app.
@@ -17,14 +18,19 @@ func (e *orderEnv) transition(o *order.Order, to, pending string, at time.Time) 
 	})
 }
 
+// draftOrder tạo một đơn nháp một dòng (biến thể mới, giá 1000, tồn 5).
+func (e *orderEnv) draftOrder() order.Order {
+	e.t.Helper()
+	in := e.m2Input(0, ln(e.variant(1000, 5), 1, 0))
+	in.Intent = order.IntentDraft
+	return e.mustCreateM2(in).Order
+}
+
 // applyTransition: draft → confirmed đổi trạng thái, version + 1, bỏ hạn nháp, ghi confirmed_at, một dòng lịch sử
 // (from draft), sự kiện order.confirmed với seq = version mới.
 func TestApplyTransition_DraftToConfirmed(t *testing.T) {
 	e := newM2Env(t)
-	v := e.variant(1000, 5)
-	in := e.m2Input(0, ln(v, 1, 0))
-	in.Intent = order.IntentDraft
-	o := e.mustCreateM2(in).Order
+	o := e.draftOrder()
 	at := e.now().Add(time.Hour)
 	if err := e.transition(&o, order.StatusConfirmed, "", at); err != nil {
 		t.Fatalf("draft → confirmed: %v", err)
@@ -81,5 +87,23 @@ func TestApplyTransition_Refusals(t *testing.T) {
 	}
 	if got := e.get(o.ID); got.Status != order.StatusCancelled || got.DraftExpiresAt != nil || got.CancelledAt == nil {
 		t.Errorf("sau hủy: %+v", got)
+	}
+}
+
+// Mutation testing (Task 403): đổi trạng thái xong phát báo hiệu order cho đơn đó (sau sự kiện).
+func TestApplyTransition_Signals(t *testing.T) {
+	e := newM2Env(t)
+	o := e.draftOrder()
+	bus := &testkit.RecordingBus{}
+	w := e.writer()
+	w.Realtime = bus
+	if err := e.app(func(tx pgx.Tx) error {
+		return order.ApplyTransition(t.Context(), tx, w, &o, order.StatusConfirmed, "", "", e.actor, e.now())
+	}); err != nil {
+		t.Fatal(err)
+	}
+	sig := bus.Signals()
+	if len(sig) != 1 || sig[0].Entity.ID != o.ID.String() || sig[0].TenantID != e.actor.TenantID {
+		t.Fatalf("báo hiệu: %+v", sig)
 	}
 }

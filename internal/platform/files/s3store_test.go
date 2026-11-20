@@ -55,6 +55,10 @@ func contractPutHead(t *testing.T, store files.FileStore, body []byte) string {
 	if _, err := store.Head(ctx, files.BucketOriginals, key); !errors.Is(err, files.ErrObjectNotFound) {
 		t.Fatalf("Head khóa chưa có: muốn ErrObjectNotFound, nhận %v", err)
 	}
+	// Mutation testing (Task 403): kích thước 0 bị từ chối, không tạo đối tượng rỗng.
+	if err := store.Put(ctx, files.BucketOriginals, key, bytes.NewReader(nil), 0, "image/png"); err == nil {
+		t.Fatal("Put 0 byte phải lỗi")
+	}
 	if err := store.Put(ctx, files.BucketOriginals, key, bytes.NewReader(body), int64(len(body)), "image/png"); err != nil {
 		t.Fatal(err)
 	}
@@ -64,6 +68,18 @@ func contractPutHead(t *testing.T, store files.FileStore, body []byte) string {
 	}
 	if err := store.Put(ctx, files.BucketOriginals, key, bytes.NewReader(body[:10]), 10, "image/png"); !errors.Is(err, files.ErrObjectExists) {
 		t.Fatalf("Put lần hai: muốn ErrObjectExists, nhận %v", err)
+	}
+	// Mutation testing (Task 403): nội dung đã đọc dở (vị trí khác 0) → ghi đúng phần còn lại.
+	mid := testKey(t)
+	r := bytes.NewReader(body)
+	if _, err := r.Seek(5, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Put(ctx, files.BucketOriginals, mid, r, int64(len(body)-5), "image/png"); err != nil {
+		t.Fatalf("Put từ vị trí 5: %v", err)
+	}
+	if info, err := store.Head(ctx, files.BucketOriginals, mid); err != nil || info.Size != int64(len(body)-5) {
+		t.Fatalf("Head sau Put từ vị trí 5: %+v %v", info, err)
 	}
 	bad := testKey(t)
 	if err := store.Put(ctx, files.BucketOriginals, bad, bytes.NewReader(body[:10]), 11, "image/png"); err == nil {
@@ -251,3 +267,72 @@ func TestFileStore_PresignPutAnySize(t *testing.T) {
 		})
 	}
 }
+
+// Mutation testing (Task 403): kho trả nhiều hơn số byte đã khai → lần đọc sau khi đủ left byte báo ErrTooLarge ngay
+// (không trả 0 byte mà không lỗi, làm io.ReadAll quay mãi); đúng left byte thì hết bằng io.EOF.
+func TestLimitedBody_Boundary(t *testing.T) {
+	buf := make([]byte, 8)
+	over := files.LimitedBody(io.NopCloser(strings.NewReader("abcdef")), 3)
+	if n, err := over.Read(buf); n != 3 || err != nil {
+		t.Fatalf("lần đọc đầu: %d %v", n, err)
+	}
+	if _, err := over.Read(buf); !errors.Is(err, files.ErrTooLarge) {
+		t.Fatalf("đọc quá left: muốn ErrTooLarge, nhận %v", err)
+	}
+	exact, err := io.ReadAll(files.LimitedBody(io.NopCloser(strings.NewReader("abc")), 3))
+	if err != nil || string(exact) != "abc" {
+		t.Fatalf("đúng left byte: %q %v", exact, err)
+	}
+}
+
+// Mutation testing (Task 403): ký PUT với tham số sai bị từ chối ở cả hai kho; header trả về không gồm Host,
+// Content-Length (trình duyệt tự đặt).
+func TestFileStore_PresignRejectsBadParams(t *testing.T) {
+	for name, store := range stores(t) {
+		t.Run(name, func(t *testing.T) {
+			ctx := t.Context()
+			for what, err := range map[string]error{
+				"cỡ 0":               second(store.PresignPut(ctx, files.BucketTmp, testKey(t), 0, "image/jpeg", time.Minute)),
+				"hạn 0":              second(store.PresignPut(ctx, files.BucketTmp, testKey(t), 10, "image/jpeg", 0)),
+				"bất kỳ, hạn 0":      second(store.PresignPutAnySize(ctx, files.BucketTmp, testKey(t), "image/jpeg", 0)),
+				"bất kỳ, không loại": second(store.PresignPutAnySize(ctx, files.BucketTmp, testKey(t), "", time.Minute)),
+			} {
+				if err == nil {
+					t.Errorf("%s: phải lỗi", what)
+				}
+			}
+			put, err := store.PresignPut(ctx, files.BucketTmp, testKey(t), 10, "image/jpeg", time.Minute)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, ok := put.Headers["Host"]; ok || put.Headers["Content-Length"] != "" || put.Headers["Content-Type"] != "image/jpeg" {
+				t.Errorf("header của PUT ký sẵn: %v", put.Headers)
+			}
+		})
+	}
+}
+
+// Mutation testing (Task 403): Open đúng maxBytes byte thì đọc đủ ở cả hai kho.
+func TestFileStore_OpenExactlyMaxBytes(t *testing.T) {
+	for name, store := range stores(t) {
+		t.Run(name, func(t *testing.T) {
+			ctx := t.Context()
+			body := randomBytes(t, 64)
+			key := testKey(t)
+			if err := store.Put(ctx, files.BucketOriginals, key, bytes.NewReader(body), int64(len(body)), "image/png"); err != nil {
+				t.Fatal(err)
+			}
+			rc, err := store.Open(ctx, files.BucketOriginals, key, int64(len(body)))
+			if err != nil {
+				t.Fatalf("Open đúng maxBytes: %v", err)
+			}
+			got, err := io.ReadAll(rc)
+			_ = rc.Close()
+			if err != nil || !bytes.Equal(got, body) {
+				t.Fatalf("đọc đúng maxBytes: %d byte, %v", len(got), err)
+			}
+		})
+	}
+}
+
+func second[T any](_ T, err error) error { return err }

@@ -129,6 +129,40 @@ func TestRegisterPurpose_PanicsOnInvalid(t *testing.T) {
 	}
 }
 
+// Mutation testing (Task 403): khai lại cùng khóa mà khác đúng một trường nào cũng panic (samePurpose so đủ trường).
+func TestRegisterPurpose_PanicsOnEachChangedField(t *testing.T) {
+	priv := testPrivateImagePurpose()
+	files.RegisterPurpose(priv)
+	var img files.Purpose
+	for _, p := range files.M1Purposes() {
+		if p.Key == "product_image" {
+			img = p
+		}
+	}
+	if img.Key == "" {
+		t.Fatal("không có product_image")
+	}
+	cases := map[string]func() files.Purpose{
+		"bucket":   func() files.Purpose { p := img; p.Bucket = files.BucketPrivate; return p },
+		"loại":     func() files.Purpose { p := img; p.AllowedTypes = []string{"image/jpeg"}; return p },
+		"MaxBytes": func() files.Purpose { p := img; p.MaxBytes++; return p },
+		"Image":    func() files.Purpose { p := img; p.Image = !p.Image; return p },
+		"Upload":   func() files.Purpose { p := img; p.Upload = !p.Upload; return p },
+		"Private":  func() files.Purpose { p := priv; p.Private = false; return p },
+	}
+	for name, changed := range cases {
+		t.Run(name, func(t *testing.T) {
+			p := changed()
+			defer func() {
+				if recover() == nil {
+					t.Fatalf("khai lại %s khác trường %s phải panic", p.Key, name)
+				}
+			}()
+			files.RegisterPurpose(p)
+		})
+	}
+}
+
 // Register với mục đích chế độ private → ErrPurposeMode (ảnh riêng tư phải qua imager, R10). Tải lên với mục đích
 // private (Upload) → complete xếp file.process_private, không xếp file.process.
 func TestPurposes_PrivateMode(t *testing.T) {

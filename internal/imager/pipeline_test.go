@@ -642,12 +642,7 @@ func TestImager_SourceUnavailable(t *testing.T) {
 	rec := &recorder{next: jpegFake()}
 	res := imager.Process(t.Context(), rec, imager.NewHTTPClient(5*time.Second),
 		request(st.srv.URL+"/expired/src", twelve(st.srv.URL)), limits(t))
-	if res.Status != imager.StatusRejected || res.Reason != imager.ReasonSourceFailed {
-		t.Fatalf("kết quả %+v", res)
-	}
-	if len(rec.calls) != 0 {
-		t.Fatalf("không được gọi lệnh con: %v", rec.calls)
-	}
+	wantSourceFailedNoCalls(t, res, rec)
 }
 
 func TestImager_TempFilesRemoved(t *testing.T) {
