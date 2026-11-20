@@ -431,6 +431,7 @@ func orderError(err error) (status int, code string, ok bool) {
 		{order.ErrTotalOverflow, http.StatusUnprocessableEntity, codeTotalOverflow},
 		{order.ErrDuplicateOrder, http.StatusUnprocessableEntity, codeIdempotencyKeyReused},
 		{order.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
+		{order.ErrStockShort, http.StatusConflict, codeStockShort}, // cùng giá trị inventory.ErrStockShort (M3-08)
 		{order.ErrNotFound, http.StatusNotFound, codeNotFound},
 		{customer.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
 		// M1 chưa ánh xạ (trước đây 500); M2 thêm.
@@ -477,6 +478,10 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		// Cài đặt vận chuyển (M3, Task M3-04).
 		{fulfillment.ErrSettingOutOfRange, http.StatusUnprocessableEntity, codeSettingOutOfRange},
 		{fulfillment.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
+		// Áp kết quả tra, lịch sử vận đơn (M3, Task M3-08).
+		{fulfillment.ErrInvalidPage, http.StatusBadRequest, codeInvalidInput},
+		{fulfillment.ErrInvalidTracking, http.StatusBadRequest, codeInvalidInput},
+		{fulfillment.ErrStockShort, http.StatusConflict, codeStockShort},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

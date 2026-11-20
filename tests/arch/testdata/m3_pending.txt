@@ -9,7 +9,6 @@ checkCarrierAccount
 setCarrierAccountStatus
 syncCarrierLocations
 listUnmappedLocations
-listShipmentEvents
 listOrderShipments
 resendShipment
 resolveShipmentCreate

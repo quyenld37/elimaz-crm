@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const insertShipmentEvent = `-- name: InsertShipmentEvent :execrows
@@ -44,4 +45,128 @@ func (q *Queries) InsertShipmentEvent(ctx context.Context, arg InsertShipmentEve
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const insertTrackedEvent = `-- name: InsertTrackedEvent :one
+INSERT INTO fulfillment.shipment_events
+    (tenant_id, shipment_id, event_key, raw_status, status, occurred_at, raw, canonical, source, sub_status, applied,
+     ignored_reason, actor_id)
+VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3, $4,
+        $5, $6, $7, $8, $9, $10, $11::text,
+        $12::uuid)
+ON CONFLICT (tenant_id, shipment_id, event_key) DO NOTHING
+RETURNING id
+`
+
+type InsertTrackedEventParams struct {
+	ShipmentID    uuid.UUID
+	EventKey      string
+	RawStatus     string
+	Status        string
+	OccurredAt    time.Time
+	Raw           []byte
+	Canonical     pgtype.Text
+	Source        pgtype.Text
+	SubStatus     string
+	Applied       pgtype.Bool
+	IgnoredReason pgtype.Text
+	ActorID       pgtype.UUID
+}
+
+// Sự kiện của một lần áp kết quả tra (M3, Task M3-08) kèm quyết định của máy trạng thái. Trùng (shipment_id,
+// event_key) → pgx.ErrNoRows (đã xét, bỏ qua).
+func (q *Queries) InsertTrackedEvent(ctx context.Context, arg InsertTrackedEventParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertTrackedEvent,
+		arg.ShipmentID,
+		arg.EventKey,
+		arg.RawStatus,
+		arg.Status,
+		arg.OccurredAt,
+		arg.Raw,
+		arg.Canonical,
+		arg.Source,
+		arg.SubStatus,
+		arg.Applied,
+		arg.IgnoredReason,
+		arg.ActorID,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const listShipmentEvents = `-- name: ListShipmentEvents :many
+SELECT e.id, e.occurred_at, e.recorded_at, COALESCE(e.source, 'carrier_api')::text AS source, e.raw_status,
+       e.status, e.applied, e.ignored_reason
+FROM fulfillment.shipment_events e
+WHERE e.shipment_id = $1
+  AND ($2::uuid IS NULL OR (e.occurred_at, e.id) < (
+        SELECT a.occurred_at, a.id FROM fulfillment.shipment_events a
+        WHERE a.shipment_id = $1 AND a.id = $2::uuid))
+ORDER BY e.occurred_at DESC, e.id DESC
+LIMIT $3
+`
+
+type ListShipmentEventsParams struct {
+	ShipmentID uuid.UUID
+	AfterID    pgtype.UUID
+	Lim        int32
+}
+
+type ListShipmentEventsRow struct {
+	ID            uuid.UUID
+	OccurredAt    time.Time
+	RecordedAt    time.Time
+	Source        string
+	RawStatus     string
+	Status        string
+	Applied       pgtype.Bool
+	IgnoredReason pgtype.Text
+}
+
+// Lịch sử vận đơn, mới nhất trước (occurred_at, id giảm dần); after_id: dòng cuối trang trước (không có → từ đầu).
+func (q *Queries) ListShipmentEvents(ctx context.Context, arg ListShipmentEventsParams) ([]ListShipmentEventsRow, error) {
+	rows, err := q.db.Query(ctx, listShipmentEvents, arg.ShipmentID, arg.AfterID, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListShipmentEventsRow{}
+	for rows.Next() {
+		var i ListShipmentEventsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OccurredAt,
+			&i.RecordedAt,
+			&i.Source,
+			&i.RawStatus,
+			&i.Status,
+			&i.Applied,
+			&i.IgnoredReason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const shipmentEventExists = `-- name: ShipmentEventExists :one
+SELECT EXISTS (SELECT 1 FROM fulfillment.shipment_events WHERE shipment_id = $1 AND id = $2)
+`
+
+type ShipmentEventExistsParams struct {
+	ShipmentID uuid.UUID
+	ID         uuid.UUID
+}
+
+// Dòng id có phải sự kiện của vận đơn shipment_id không (kiểm con trỏ trang).
+func (q *Queries) ShipmentEventExists(ctx context.Context, arg ShipmentEventExistsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, shipmentEventExists, arg.ShipmentID, arg.ID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
