@@ -111,6 +111,9 @@ func isStdlib(imp string) bool {
 // cho gói nhãn đơn internal/queries/orderview: chỉ thư viện chuẩn, để module order và gói internal/queries cùng nhập
 // (ngoại lệ có lý do: một nguồn nhãn cho màn đơn M2, cảnh báo M3, báo cáo M6).
 func readerViolation(pkg, imp string) string {
+	if v := carrierViolation(pkg, imp); v != "" {
+		return v
+	}
 	switch {
 	case hasPathPrefix(pkg, "internal/queries/orderview") && !isStdlib(imp):
 		return "(i) internal/queries/orderview chỉ nhập thư viện chuẩn"
@@ -122,6 +125,35 @@ func readerViolation(pkg, imp string) string {
 		return "(f) internal/queries chỉ đọc view, không nhập internal/modules/**"
 	case (hasPathPrefix(pkg, "internal/imager") || hasPathPrefix(pkg, "cmd/imager")) && imagerForbidden(imp):
 		return "(g) imager không nhập internal/modules/**, database, cấu hình, hàng đợi, pgx"
+	}
+	return ""
+}
+
+// carrierAllowed: gói nội bộ adapter hãng được nhập (luật (j) của M3, Task M3-04): phần công khai của fulfillment (kiểu,
+// interface CarrierAdapter), log, dấu vết, cấu hình, kiểu nguồn webhook (Source của ingest, Q-T91-7) và các gói adapter
+// hãng khác.
+func carrierAllowed(rel string) bool {
+	if rel == "internal/modules/fulfillment" || hasPathPrefix(rel, "internal/adapters/carrier") {
+		return true
+	}
+	for _, p := range []string{"logging", "telemetry", "config", "webhooks"} {
+		if hasPathPrefix(rel, "internal/platform/"+p) {
+			return true
+		}
+	}
+	return false
+}
+
+// carrierViolation: luật (j), (k) của M3 (Task M3-04; Global Constraints "Ranh giới module"). (j) adapter hãng
+// (internal/adapters/carrier/**) chỉ nhập thư viện chuẩn và carrierAllowed; (k) không module nào nhập
+// internal/adapters/** (cmd/crm nối adapter vào module).
+func carrierViolation(pkg, imp string) string {
+	rel, internal := strings.CutPrefix(imp, modPrefix)
+	switch {
+	case strings.HasPrefix(pkg, "internal/modules/") && internal && hasPathPrefix(rel, "internal/adapters"):
+		return "(k) module không nhập internal/adapters/**"
+	case hasPathPrefix(pkg, "internal/adapters/carrier") && !isStdlib(imp) && (!internal || !carrierAllowed(rel)):
+		return "(j) adapter hãng chỉ nhập phần công khai của fulfillment, platform/{logging,telemetry,config,webhooks}, thư viện chuẩn"
 	}
 	return ""
 }
@@ -180,7 +212,7 @@ func imagerDepViolation(p listedPackage, pkg, dep string) string {
 	return fmt.Sprintf("%s phụ thuộc gián tiếp %s: (g) imager không liên kết database, cấu hình, hàng đợi, pgx", pkg, dep)
 }
 
-// checkBoundaries trả mọi vi phạm luật a–i trong dir (một module Go có đường dẫn elimaz.com.vn/crm).
+// checkBoundaries trả mọi vi phạm luật a–k trong dir (một module Go có đường dẫn elimaz.com.vn/crm).
 func checkBoundaries(t *testing.T, dir string) []string {
 	t.Helper()
 	var out []string
@@ -221,18 +253,11 @@ func TestBoundariesTestdata(t *testing.T) {
 		"internal/queries/orderview nhập elimaz.com.vn/crm/internal/modules/order: (i)",
 		"tools/probe nhập elimaz.com.vn/crm/spikes/flashsale: (e)",
 	}
-	if len(got) != len(want) {
-		t.Fatalf("mong đúng %d vi phạm, có %d:\n%s", len(want), len(got), strings.Join(got, "\n"))
-	}
-	for i := range want {
-		if !strings.HasPrefix(got[i], want[i]) {
-			t.Errorf("vi phạm %d: mong bắt đầu %q, có %q", i, want[i], got[i])
-		}
-	}
+	checkViolations(t, got, want)
 }
 
 func TestBoundariesNotCalledModule(t *testing.T) {
-	cases := []struct{ pkg, imp, want string }{
+	cases := []boundaryCase{
 		{"internal/modules/catalog", modPrefix + "internal/modules/order", "(a)"},
 		{"internal/modules/affiliate", modPrefix + "internal/modules/order", "(a)"},
 		{"internal/modules/moi", modPrefix + "internal/modules/identity", "(a)"},
@@ -289,16 +314,80 @@ func TestBoundariesNotCalledModule(t *testing.T) {
 		{"internal/modules/order/internal/state", modPrefix + "internal/queries/orderview", ""},
 		{"internal/queries", modPrefix + "internal/queries/orderview", ""},
 	}
-	for _, c := range cases {
-		got := boundaryViolation(c.pkg, c.imp)
-		if (c.want == "") != (got == "") || !strings.HasPrefix(got, c.want) {
-			t.Errorf("%s nhập %s: mong %q, có %q", c.pkg, c.imp, c.want, got)
-		}
+	checkCases(t, cases)
+}
+
+// Module mẫu của M3 (Task M3-04): fulfillment nhập cash (a), adapter hãng nhập order (j), module nhập adapter (k) —
+// đúng ba vi phạm; gói hợp lệ (adapter nhập fulfillment, cash nhập fulfillment) không báo.
+func TestBoundariesTestdataM3(t *testing.T) {
+	got := checkBoundaries(t, filepath.Join("testdata", "boundaries_m3"))
+	want := []string{
+		"internal/adapters/carrier/bad nhập elimaz.com.vn/crm/internal/modules/order: (j)",
+		"internal/modules/fulfillment nhập elimaz.com.vn/crm/internal/modules/cash: (a)",
+		"internal/modules/order nhập elimaz.com.vn/crm/internal/adapters/carrier/good: (k)",
 	}
+	checkViolations(t, got, want)
+}
+
+func TestBoundariesM3Rules(t *testing.T) {
+	cases := []boundaryCase{
+		// (a) theo bảng 04 mục 3: fulfillment chỉ gọi order; cash gọi order, fulfillment (phần công khai).
+		{"internal/modules/fulfillment", modPrefix + "internal/modules/cash", "(a)"},
+		{"internal/modules/fulfillment/internal/apply", modPrefix + "internal/modules/inventory", "(a)"},
+		{"internal/modules/fulfillment", modPrefix + "internal/modules/customer", "(a)"},
+		{"internal/modules/cash", modPrefix + "internal/modules/fulfillment/internal/store", "(a)"},
+		{"internal/modules/cash/internal/ledger", modPrefix + "internal/modules/inventory", "(a)"},
+		{"internal/modules/cash", modPrefix + "internal/modules/order", ""},
+		// (j) adapter hãng.
+		{"internal/adapters/carrier/vtp", modPrefix + "internal/modules/fulfillment", ""},
+		{"internal/adapters/carrier/vtp", modPrefix + "internal/modules/fulfillment/internal/store", "(j)"},
+		{"internal/adapters/carrier/vtp", modPrefix + "internal/modules/order", "(j)"},
+		{"internal/adapters/carrier/vtp", modPrefix + "internal/platform/db", "(j)"},
+		{"internal/adapters/carrier/vtp", modPrefix + "internal/platform/logging", ""},
+		{"internal/adapters/carrier/vtp", modPrefix + "internal/platform/telemetry", ""},
+		{"internal/adapters/carrier/vtp", modPrefix + "internal/platform/config", ""},
+		{"internal/adapters/carrier/fake", modPrefix + "internal/platform/webhooks", ""},
+		{"internal/adapters/carrier", modPrefix + "internal/adapters/carrier/vtp", ""},
+		{"internal/adapters/carrier/vtp", "github.com/jackc/pgx/v5", "(j)"},
+		{"internal/adapters/carrier/vtp", "net/http", ""},
+		{"internal/adapters/cfaccess", modPrefix + "internal/modules/identity", ""},
+		// (k) module không nhập adapter.
+		{"internal/modules/fulfillment", modPrefix + "internal/adapters/carrier", "(k)"},
+		{"internal/modules/order/internal/x", modPrefix + "internal/adapters/carrier/fake", "(k)"},
+		{"internal/modules/identity", modPrefix + "internal/adapters/cfaccess", "(k)"},
+		{"cmd/crm", modPrefix + "internal/adapters/carrier", ""},
+	}
+	checkCases(t, cases)
 }
 
 func TestBoundariesRealCode(t *testing.T) {
 	if got := checkBoundaries(t, repoRoot(t)); len(got) > 0 {
 		t.Fatalf("mã thật vi phạm ranh giới:\n%s", strings.Join(got, "\n"))
+	}
+}
+
+// checkViolations: got có đúng len(want) vi phạm, vi phạm thứ i bắt đầu bằng want[i].
+func checkViolations(t *testing.T, got, want []string) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("mong đúng %d vi phạm, có %d:\n%s", len(want), len(got), strings.Join(got, "\n"))
+	}
+	for i := range want {
+		if !strings.HasPrefix(got[i], want[i]) {
+			t.Errorf("vi phạm %d: mong bắt đầu %q, có %q", i, want[i], got[i])
+		}
+	}
+}
+
+// boundaryCase: gói pkg nhập imp thì boundaryViolation bắt đầu bằng want (rỗng: hợp lệ).
+type boundaryCase struct{ pkg, imp, want string }
+
+func checkCases(t *testing.T, cases []boundaryCase) {
+	t.Helper()
+	for _, c := range cases {
+		got := boundaryViolation(c.pkg, c.imp)
+		if (c.want == "") != (got == "") || !strings.HasPrefix(got, c.want) {
+			t.Errorf("%s nhập %s: mong %q, có %q", c.pkg, c.imp, c.want, got)
+		}
 	}
 }

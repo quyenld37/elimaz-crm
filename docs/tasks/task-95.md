@@ -134,6 +134,12 @@ Ca kiểm (11-kich-ban-kiem-thu.md): không có mã ca riêng; task là hợp đ
    đúng 5 trạng thái.
 9. **Danh sách 501 hai chiều**: `TestM3Routes_PendingList` gọi mọi route bằng owner; 501 ⇒ có trong `m3_pending.txt`;
    có trong danh sách ⇒ chỉ 501 hoặc 400 (thân `{}` không tới handler). Task làm xong operation phải xóa dòng.
+11. **Vai trò mẫu Kế toán nhận thêm `files.upload`** (quyền M1). Vì sao: `importCodStatement` nhận `fileId` của tệp
+    tải lên qua `createUpload`/`completeUpload` (đòi `files.upload`); không có quyền này thì Kế toán — vai trò được giao
+    `cash.statements.import` — không nhập được bảng kê (reviewer commit 2, lượt 1). Rủi ro: `files.upload` chỉ tạo tệp
+    tạm theo mục đích; gắn tệp vào sản phẩm, nhập khách vẫn đòi `catalog.manage`, `customer.import`. Phương án khác:
+    quyền riêng cho tải bảng kê (thêm một quyền, đổi luồng tải lên của M1) hoặc để Task M3-31 quyết. Đảo: bỏ một phần tử
+    khỏi `roles.go`, `docs/quyen.md`; vai trò đã nhận qua `SyncDefaultRoles` phải gỡ tay.
 10. Commit chia hai: cấu trúc (khung nối, `wireM3`, dời phần đăng ký M1) rồi hành vi (hợp đồng, quyền, cài đặt,
     migration, test), mỗi commit một lần reviewer.
 
@@ -162,13 +168,15 @@ quyền, cài đặt, migration, mục đích tệp, test hợp đồng). Commit
 | `LoadSettings` tenant chưa có dòng → mặc định (`shipping` 72, `HighRateBP` 3000), version 0 | `TestLoadSettings_Defaults` | `go test -race ./internal/modules/fulfillment/` | `ok` |
 | Luật kiểm cài đặt (15 ca, biên 1 và 10.000) | `TestSettings_Validate` | như trên | `ok` |
 | `Get`/`Put`: mặc định gộp theo khóa, version, xung đột, RLS tenant, đầu vào sai | `TestGetPut_DefaultsAndMerge`, `TestPut_VersionConflictAndTenant`, `TestPut_Invalid`, `TestSaveSettings` | `go test -race ./internal/platform/settings/ ./internal/modules/fulfillment/` | `ok … settings 2.328s` |
-| PUT cài đặt: `HighRateBP = 0` → 422; hợp lệ → audit có `changed_fields`; version cũ → 409; Kho → 403 | `TestFulfillmentSettingsAPI` | `go test -race -run TestFulfillmentSettingsAPI ./internal/httpapi/` | `ok` |
+| PUT cài đặt: `HighRateBP = 0` → 422; hợp lệ → audit có `changed_fields`; version cũ → 409; version âm → 400 (`minimum: 0` của hợp đồng); Kho → 403 | `TestFulfillmentSettingsAPI` | `go test -race -run TestFulfillmentSettingsAPI ./internal/httpapi/` | `ok` |
 | `boundaries_m3/`: đúng 3 lỗi (a, j, k); mã thật 0 | `TestBoundariesTestdataM3`, `TestBoundariesM3Rules`, `TestBoundariesRealCode` | `go test -race ./tests/arch/` | `ok` |
 | ADR-46 đủ bảng M3 (nhóm 8, 9, 12c, mục f) | `TestLockOrderFrame`, `TestLockOrder_M3TablesListed` | như trên | `ok` |
-| `platform.file_purposes` có `carrier_label`, `cod_statement` khớp Go; tải `cod_statement` .xlsx 3 MiB được, 11 MiB → `file_too_large` | `TestPurposes_GoMatchesTable`, `TestCodStatementUploadPurpose` | `go test -race ./internal/platform/files/ ./internal/httpapi/` | cổng kiểm task: `ok … files 91.697s`, httpapi `ok` |
+| `platform.file_purposes` có `carrier_label`, `cod_statement` khớp Go; Kế toán (vai trò mẫu) tải `cod_statement` .xlsx 3 MiB được, 11 MiB → `file_too_large` | `TestPurposes_GoMatchesTable`, `TestCodStatementUploadPurpose` | `go test -race ./internal/platform/files/ ./internal/httpapi/` | cổng kiểm task: `ok … files 91.697s`, httpapi `ok` |
 | `make oasdiff` chỉ thêm (8 dòng enum đã duyệt, Quyết định 2) | — | `make oasdiff` | 8 dòng `đã duyệt: …`, thoát 0 |
 | Màn hình: câu cho 13 mã mới, kiểu sinh lại | `errors.test.ts` | `cd console && npx tsc --noEmit && npx vitest run src/app/errors.test.ts` | `Tests 17 passed (17)` |
 | Cổng kiểm của task (lần 1, trước khi stage) | — | ci-task | test toàn bộ xanh (235 s); đỏ gen-check, catalog-check (do chưa stage), jscpd (6 đoạn trùng → đã tách helper `checkContractOps`, `checkViolations`, `checkCases`, `syncOldTenant`, `get`), prettier `errors.ts` (đã sửa); chạy lại sau khi stage commit 2 |
+| Cổng kiểm của task (lần 2, sau khi stage commit 2) | — | ci-task (lần chạy đầu bị dừng do hết giờ của lệnh nền khi máy chậm, chạy lại cùng phần stage) | `CI-TASK XANH (so với điểm tách nhánh 2235d7c)`; `ok … httpapi 122.259s`, `identity 230.159s`, `fulfillment 37.351s`, `cash 96.394s`, `files 135.684s`, `settings 2.669s`, `tests/arch 30.673s` |
+| Sau sửa reviewer commit 2 lượt 1 (Kế toán `files.upload`; `version` âm) | `TestCodStatementUploadPurpose`, `TestFulfillmentSettingsAPI`, `TestDefaultRoles_Content`, cả gói | `make gen`, `make oasdiff`, `go test -race ./internal/httpapi/ ./internal/modules/identity/ ./tests/arch/ ./cmd/crm/`, `golangci-lint` hai gói | `ok … httpapi 70.998s`, `identity 89.573s`, `tests/arch 53.295s`, `cmd/crm 2.901s`; `0 issues.`; oasdiff chỉ 8 dòng đã duyệt |
 
 ## Test bị xóa hoặc tắt
 
@@ -191,4 +199,22 @@ quyền, cài đặt, migration, mục đích tệp, test hợp đồng). Commit
 
 ## Reviewer
 
-Kết luận: CHƯA REVIEW
+### Commit 1 (cấu trúc, 8ff686d)
+
+Kết luận: ĐẠT (lượt 1). Không phát hiện phải sửa. Reviewer so từng điều kiện đăng ký trước/sau: consumer `cash` vẫn
+đứng đầu sổ sự kiện; hai lệnh M1 chỉ khi `FakeOn`, vẫn vào `NewInDoubtResolver`; bí mật webhook chỉ ở ingest; mọi chỗ
+gọi `newModules`, `newInbound`, `newCommands`, `ingestSources` đã sửa. Ghi chú không bắt buộc đã làm ở commit 2: chú
+thích "trùng tên → lỗi khởi động" của `wireM3` chưa đúng hết (`Check` chỉ xét trong từng module) → thêm
+`checkM3Unique` sau khi gom hai module và phần hãng giả, test `TestCheckM3Unique`.
+
+### Commit 2 (hành vi)
+
+Lượt 1: CẦN SỬA — (1) Kế toán có `cash.statements.import` mà không có `files.upload` nên không tải được bảng kê; ca
+test ghi "kế toán" mà chạy bằng Chủ → Quyết định 11, ca test đổi sang Kế toán; (2) `PUT /fulfillment-settings` với
+`version` âm ra 500 (`settings.ErrInvalid` không ánh xạ) → hợp đồng thêm `minimum: 0` (400), thêm ca test.
+
+Lượt 2: ĐẠT. Không phát hiện phải sửa; hai sửa của lượt 1 đã đúng (vai trò mẫu Kế toán có `files.upload`, test chạy
+bằng Kế toán; `version` có `minimum: 0`, ca -1 → 400). Ghi chú: hai dòng `openapi/breaking-approved.yaml` cần xóa ngay
+sau khi gộp vào main.
+
+Kết luận: ĐẠT

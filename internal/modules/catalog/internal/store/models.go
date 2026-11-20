@@ -1559,6 +1559,15 @@ type PlatformSchedule struct {
 	LastEnqueuedAt pgtype.Timestamptz
 }
 
+type PlatformSetting struct {
+	TenantID  uuid.UUID
+	Key       string
+	Value     []byte
+	Version   int64
+	UpdatedBy *uuid.UUID
+	UpdatedAt time.Time
+}
+
 type PlatformTenant struct {
 	ID        uuid.UUID
 	Name      string

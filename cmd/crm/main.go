@@ -23,8 +23,10 @@ import (
 	"elimaz.com.vn/crm/internal/adapters/cfaccess"
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/imager"
+	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/customer"
+	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/platform/commands"
@@ -145,8 +147,11 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 
 	logger.Info("khởi động", slog.Any("config", cfg))
 	// Sổ mục đích tệp trong Go phải khớp platform.file_purposes (Task M1-41): lệch là lỗi khởi động, không phục vụ.
-	// Mốc sau gọi files.RegisterPurpose ở đây, trước lần kiểm này: customer_import (M2, Task M2-13).
+	// Mốc sau gọi files.RegisterPurpose ở đây, trước lần kiểm này: customer_import (M2, Task M2-13), carrier_label và
+	// cod_statement (M3, Task M3-04).
 	customer.RegisterFilePurposes()
+	fulfillment.RegisterFilePurposes() // carrier_label (M3, Task M3-04, 0306)
+	cash.RegisterFilePurposes()        // cod_statement (M3, Task M3-04, 0306)
 	if cfg.Role == config.RoleAPI || cfg.Role == config.RoleWorker {
 		if err := files.CheckPurposes(ctx, d); err != nil {
 			return fmt.Errorf("kiểm mục đích tệp: %w", err)

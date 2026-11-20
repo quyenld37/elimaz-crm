@@ -959,6 +959,17 @@ func (*Source) Split(raw []byte) (webhooks.SplitResult, error)
 func (s *Source) VerifySignature(raw []byte, h http.Header) bool
 ```
 
+## `internal/platform/settings` (gói `settings`)
+
+Package settings giữ cài đặt theo tenant dạng khóa → object JSON, có version (bảng platform.settings, kế hoạch M3 Task M3-04; Q-35, B17; spec 05 mục 5).
+
+**Khi nào không dùng:** Không dùng cho cài đặt cần cột riêng, CHECK hay khóa ngoại do database kiểm (bảng riêng của module, như ord.order_settings), cho dữ liệu nghiệp vụ, danh sách lớn hay bí mật (khóa API mã hóa bằng fieldcrypt trong bảng của module). Không gọi ngoài transaction có ngữ cảnh tenant (WithTenant, WriteTx). Không để module khác đọc khóa của module mình qua Get: đọc qua hàm của module chủ (vd. fulfillment.LoadSettings) để có mặc định và luật kiểm một nơi. PUT cài đặt sửa platform.settings một mình (ADR-46 nhóm 12c).
+
+```go
+func Get[T any](ctx context.Context, tx pgx.Tx, key string, def T) (T, int64, error)
+func Put(ctx context.Context, tx pgx.Tx, key string, version int64, v any, actor string) error
+```
+
 ## `internal/platform/telemetry` (gói `telemetry`)
 
 Package telemetry dựng dấu vết OpenTelemetry của tiến trình: tracer provider toàn cục, sampler theo cấu hình, exporter OTLP HTTP tới Jaeger, và bộ truyền ngữ cảnh W3C traceparent.

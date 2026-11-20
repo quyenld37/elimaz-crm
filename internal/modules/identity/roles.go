@@ -35,9 +35,14 @@ var DefaultRoles = defaultRoles() //nolint:gochecknoglobals // danh sách hằng
 func defaultRoles() []RoleDef {
 	all := make([]Permission, 0, len(Permissions))
 	var manager []Permission
+	// M3 (Task M3-04): nhập, chốt bảng kê, điều chỉnh sổ COD, ghi và miễn khoản hoàn tiền chỉ Chủ và Kế toán.
+	notManager := []Permission{
+		"identity.users.manage", "identity.roles.manage",
+		"cash.statements.import", "cash.statements.confirm", "cash.adjust", "cash.refunds.record", "cash.refunds.waive",
+	}
 	for _, d := range Permissions {
 		all = append(all, d.Key)
-		if d.Key != "identity.users.manage" && d.Key != "identity.roles.manage" && !strings.HasPrefix(string(d.Key), "platform.") {
+		if !slices.Contains(notManager, d.Key) && !strings.HasPrefix(string(d.Key), "platform.") {
 			manager = append(manager, d.Key)
 		}
 	}
@@ -50,17 +55,25 @@ func defaultRoles() []RoleDef {
 			// M2 (Task M2-01).
 			"customer.read", "customer.write", "order.update", "order.confirm", "order.cancel", "order.return",
 			"promotion.read",
+			// M3 (Task M3-04).
+			"fulfillment.quote", "fulfillment.cancel", "fulfillment.callbacks.work", "cash.payments.record",
 		}},
 		{Key: "warehouse", Name: "Kho", Permissions: []Permission{
 			"catalog.read", "inventory.read", "inventory.documents.create", "inventory.stocktake", "fulfillment.read",
 			"fulfillment.ship", "inventory.suppliers.manage", "realtime.subscribe",
 			// M2 (Task M2-01).
 			"order.read", "order.return.receive", "customer.read",
+			// M3 (Task M3-04).
+			"fulfillment.carrier_accounts.read", "fulfillment.quote", "fulfillment.cancel", "fulfillment.print",
+			"fulfillment.pack", "fulfillment.manual_status", "inventory.aged.read",
 		}},
 		{Key: "accountant", Name: "Kế toán", Permissions: []Permission{
 			"catalog.read", "inventory.read", "order.read", "fulfillment.read", "realtime.subscribe",
 			// M2 (Task M2-01).
 			"customer.read", "promotion.read",
+			// M3 (Task M3-04).
+			"cash.cod.read", "cash.statements.import", "cash.statements.confirm", "cash.adjust", "cash.payments.record",
+			"cash.refunds.record", "files.upload",
 		}},
 	}
 }
@@ -504,15 +517,34 @@ func permissionLabels() map[Permission][3]string {
 		"promotion.manage":           {groupPromo, "Tạo, sửa mã giảm giá và đợt mã", ""},
 		"fulfillment.read":           {groupShipping, "Xem vận đơn", ScopeWarehouse},
 		"fulfillment.ship":           {groupShipping, "Tạo vận đơn, giao hàng", ScopeWarehouse},
-		"conversation.read":          {groupChat, "Xem hội thoại", ScopePage},
-		"files.upload":               {groupFiles, "Tải tệp lên", ""},
-		"platform.files.manage":      {groupFiles, "Kiểm tệp, tạo lại cỡ ảnh", ""},
-		"realtime.subscribe":         {groupSystem, "Nhận cập nhật tức thì", ""},
-		"platform.health.read":       {groupSystem, "Xem sức khỏe hệ thống", ""},
-		"platform.jobs.manage":       {groupSystem, "Xử lý việc nền hỏng", ""},
-		"audit.read":                 {groupSystem, "Xem nhật ký thao tác", ""},
-		"identity.users.manage":      {groupAdmin, "Quản lý nhân viên", ""},
-		"identity.roles.manage":      {groupAdmin, "Quản lý vai trò", ""},
+		// M3 (Task M3-04).
+		"fulfillment.carrier_accounts.read":   {groupShipping, "Xem kết nối hãng vận chuyển", ""},
+		"fulfillment.carrier_accounts.manage": {groupShipping, "Quản lý kết nối hãng, khóa API, địa chỉ lấy hàng", ""},
+		"fulfillment.settings.manage":         {groupShipping, "Cài đặt vận chuyển", ""},
+		"fulfillment.quote":                   {groupShipping, "So phí các hãng", ScopeWarehouse},
+		"fulfillment.cancel":                  {groupShipping, "Hủy vận đơn, đổi hãng", ScopeWarehouse},
+		"fulfillment.print":                   {groupShipping, "In tem, phiếu nhặt hàng", ScopeWarehouse},
+		"fulfillment.pack":                    {groupShipping, "Đánh dấu đóng gói", ScopeWarehouse},
+		"fulfillment.manual_status":           {groupShipping, "Cập nhật tay trạng thái vận đơn", ScopeWarehouse},
+		"fulfillment.correct":                 {groupShipping, "Sửa sai vận đơn, giao một phần", ""},
+		"fulfillment.callbacks.work":          {groupShipping, "Gọi lại khách giao thất bại", ""},
+		"cash.cod.read":                       {groupShipping, "Xem tiền COD, bảng kê, khoản hoàn", ""},
+		"cash.statements.import":              {groupShipping, "Nhập bảng kê COD", ""},
+		"cash.statements.confirm":             {groupShipping, "Chốt bảng kê COD", ""},
+		"cash.adjust":                         {groupShipping, "Điều chỉnh sổ COD", ""},
+		"cash.payments.record":                {groupShipping, "Ghi phiếu thu, cọc", ""},
+		"cash.refunds.record":                 {groupShipping, "Ghi phiếu chi hoàn tiền", ""},
+		"cash.refunds.waive":                  {groupShipping, "Đóng khoản hoàn không hoàn tiền", ""},
+		"inventory.aged.read":                 {groupInventory, "Xem hàng giữ quá hạn", ScopeWarehouse},
+		"conversation.read":                   {groupChat, "Xem hội thoại", ScopePage},
+		"files.upload":                        {groupFiles, "Tải tệp lên", ""},
+		"platform.files.manage":               {groupFiles, "Kiểm tệp, tạo lại cỡ ảnh", ""},
+		"realtime.subscribe":                  {groupSystem, "Nhận cập nhật tức thì", ""},
+		"platform.health.read":                {groupSystem, "Xem sức khỏe hệ thống", ""},
+		"platform.jobs.manage":                {groupSystem, "Xử lý việc nền hỏng", ""},
+		"audit.read":                          {groupSystem, "Xem nhật ký thao tác", ""},
+		"identity.users.manage":               {groupAdmin, "Quản lý nhân viên", ""},
+		"identity.roles.manage":               {groupAdmin, "Quản lý vai trò", ""},
 	}
 }
 

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"errors"
 	"slices"
 	"testing"
 
 	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
+	"elimaz.com.vn/crm/internal/platform/background"
 	"elimaz.com.vn/crm/internal/platform/config"
 )
 
@@ -62,5 +64,22 @@ func checkM3Parts(t *testing.T, cfg config.Config, commands []string, source boo
 	}
 	if len(p.Schedules)+len(p.Cleanups) != 0 {
 		t.Errorf("khung chưa có lịch, dọn: %d %d", len(p.Schedules), len(p.Cleanups))
+	}
+}
+
+// Hai phần cùng tên giữa hai module (hay với phần hãng giả nối thêm) là lỗi khởi động.
+func TestCheckM3Unique(t *testing.T) {
+	t.Parallel()
+	p, err := wireM3(config.RoleWorker, config.Config{Env: "development", FakeCarrierURL: "http://127.0.0.1:1"}, m3Deps{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := checkM3Unique(p); err != nil {
+		t.Fatalf("không trùng: %v", err)
+	}
+	p.Consumers = append(p.Consumers, p.Consumers[0])
+	p.Sources = append(p.Sources, p.Sources[0])
+	if err := checkM3Unique(p); !errors.Is(err, background.ErrDuplicatePart) {
+		t.Fatalf("trùng consumer, nguồn: mong ErrDuplicatePart, có %v", err)
 	}
 }

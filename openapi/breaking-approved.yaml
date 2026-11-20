@@ -3,4 +3,8 @@
 #   - {operationId: <id>, reason: "<lý do bằng lời nghiệp vụ>", approvedOn: YYYY-MM-DD}
 # Dòng thiếu một trong ba trường không được tính. Xóa dòng sau khi thay đổi đã gộp vào main (dòng còn lại sẽ cho
 # qua mọi thay đổi phá vỡ sau này của cùng operation).
-approved: []
+approved:
+  # Task 95 (M3-04): quyết định thay chủ shop theo ủy quyền 20/11 (docs/tasks/task-95.md). Database (0300) đã nhận 9
+  # trạng thái; màn hình chỉ đọc nên thêm giá trị không làm hỏng client. Xóa hai dòng sau khi gộp vào main.
+  - {operationId: createShipment, reason: "M3 thêm trạng thái vận đơn giao thất bại, đang hoàn, đã hoàn, chờ hủy (thêm giá trị enum ở thân trả)", approvedOn: 2026-11-20}
+  - {operationId: getShipment, reason: "M3 thêm trạng thái vận đơn giao thất bại, đang hoàn, đã hoàn, chờ hủy (thêm giá trị enum ở thân trả)", approvedOn: 2026-11-20}

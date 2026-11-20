@@ -9,7 +9,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/customer"
+	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -28,15 +30,22 @@ func pgCode(err error) string {
 	return ""
 }
 
+// allPurposes là mọi mục đích có dòng trong bảng sau migration (M1, M2 customer_import, M3 carrier_label và
+// cod_statement) cùng extra.
+func allPurposes(extra ...files.Purpose) []files.Purpose {
+	ps := append(files.M1Purposes(), customer.ImportPurpose(), fulfillment.LabelPurpose(), cash.StatementPurpose())
+	return append(ps, extra...)
+}
+
 // Sổ mục đích trong Go phải bằng đúng các dòng của platform.file_purposes, cùng bucket, cùng mode (Q38, R10).
 func TestPurposes_GoMatchesTable(t *testing.T) {
 	e := newEnv(t)
 	ctx := t.Context()
 	// Mục đích của mốc sau (dòng INSERT trong migration của mốc đó + RegisterPurpose ở module): M2 customer_import
-	// (Task M2-13, 0208).
-	m1 := files.NewRegistry(append(files.M1Purposes(), customer.ImportPurpose())...)
+	// (Task M2-13, 0208); M3 carrier_label, cod_statement (Task M3-04, 0306).
+	m1 := files.NewRegistry(allPurposes()...)
 	if err := m1.Check(ctx, e.staff.App); err != nil {
-		t.Fatalf("mục đích M1, M2 phải khớp bảng sau migration: %v", err)
+		t.Fatalf("mục đích M1, M2, M3 phải khớp bảng sau migration: %v", err)
 	}
 	for _, key := range []string{"product_image", "catalog_import"} {
 		p, ok := files.PurposeOf(key)
@@ -49,7 +58,7 @@ func TestPurposes_GoMatchesTable(t *testing.T) {
 	}
 
 	// Go có test_export mà bảng không có → lệch, nêu khóa.
-	extra := files.NewRegistry(append(files.M1Purposes(), customer.ImportPurpose(), testExportPurpose())...)
+	extra := files.NewRegistry(allPurposes(testExportPurpose())...)
 	if err := extra.Check(ctx, e.staff.App); !errors.Is(err, files.ErrPurposeMismatch) || !strings.Contains(err.Error(), "test_export") {
 		t.Fatalf("thiếu dòng test_export phải báo lệch nêu khóa, nhận %v", err)
 	}
@@ -67,14 +76,14 @@ func TestPurposes_GoMatchesTable(t *testing.T) {
 	if err := e.addPurposeRow("test_private_image", "private", "standard"); err != nil {
 		t.Fatal(err)
 	}
-	priv := files.NewRegistry(append(files.M1Purposes(), customer.ImportPurpose(), testExportPurpose(), testPrivateImagePurpose())...)
+	priv := files.NewRegistry(allPurposes(testExportPurpose(), testPrivateImagePurpose())...)
 	if err := priv.Check(ctx, e.staff.App); !errors.Is(err, files.ErrPurposeMismatch) || !strings.Contains(err.Error(), "test_private_image") {
 		t.Fatalf("Private trong Go, standard trong bảng phải báo lệch nêu khóa, nhận %v", err)
 	}
 	// Bucket khác → lệch.
 	pub := testExportPurpose()
 	pub.Bucket = files.BucketPublic
-	if err := files.NewRegistry(append(files.M1Purposes(), customer.ImportPurpose(), pub)...).Check(ctx, e.staff.App); !errors.Is(err, files.ErrPurposeMismatch) {
+	if err := files.NewRegistry(allPurposes(pub)...).Check(ctx, e.staff.App); !errors.Is(err, files.ErrPurposeMismatch) {
 		t.Fatalf("bucket khác phải báo lệch, nhận %v", err)
 	}
 }

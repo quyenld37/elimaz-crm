@@ -1557,6 +1557,37 @@ paths:
           required: false
           schema:
             type: boolean
+        - name: carrierKey
+          in: query
+          required: false
+          description: 'Hãng của vận đơn hiện hành (M3, Task M3-28)'
+          schema:
+            type: string
+            maxLength: 32
+        - name: shipmentStatus
+          in: query
+          required: false
+          description: 'Trạng thái vận đơn hiện hành (M3, Task M3-28)'
+          schema:
+            type: array
+            maxItems: 20
+            items:
+              $ref: "#/components/schemas/ShipmentStatus"
+          explode: true
+        - name: codState
+          in: query
+          required: false
+          description: 'collecting = còn phải thu; holding = hãng đang giữ; received = shop đã nhận; none = không có COD (M3, Task M3-28)'
+          schema:
+            type: string
+            enum: [collecting, holding, received, none]
+        - name: packingStatus
+          in: query
+          required: false
+          description: 'Trạng thái đóng gói (M3, Task M3-28)'
+          schema:
+            type: string
+            enum: [none, picking, packed]
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/Limit"
       responses:
@@ -1628,6 +1659,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Shipment"
+        default:
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: listOrderShipments
+      summary: 'Mọi vận đơn của đơn (cả đã hủy), mới nhất trước (Task M3-12)'
+      x-permission: fulfillment.read
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listOrderShipments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShipmentPage"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/shipments/{id}:
@@ -2364,6 +2412,7 @@ paths:
     get:
       operationId: getOrderTimeline
       summary: 'Lịch sử thao tác của đơn: đổi trạng thái, tên trường đã sửa (không giá trị dữ liệu cá nhân), ghi chú (Task M2-24)'
+      description: 'M3 (Task M3-28) thêm mục kind shipment (sự kiện vận đơn), payment (phiếu thu, hoàn tiền), return (phiếu trả); mỗi mục ghi nguồn Nhân viên, Hệ thống hoặc Hãng.'
       x-permission: order.read
       parameters:
         - $ref: "#/components/parameters/OrderID"
@@ -2900,6 +2949,1128 @@ paths:
                 $ref: "#/components/schemas/CouponCheck"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/carrier-accounts:
+    get:
+      operationId: listCarrierAccounts
+      summary: 'Tài khoản hãng vận chuyển của shop; không bao giờ có khóa API, webhookUrl chỉ trả cho quyền manage (Task M3-09)'
+      x-permission: fulfillment.carrier_accounts.read
+      parameters:
+        - name: warehouseId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/CarrierAccountStatus"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listCarrierAccounts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarrierAccountPage"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createCarrierAccount
+      summary: 'Tạo tài khoản hãng (api: draft, manual: active); hãng không có adapter → 422 capability_not_supported (Task M3-09)'
+      x-permission: fulfillment.carrier_accounts.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCarrierAccountRequest"
+      responses:
+        "201":
+          description: createCarrierAccount
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarrierAccount"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/carrier-accounts/{id}:
+    patch:
+      operationId: updateCarrierAccount
+      summary: 'Sửa tài khoản hãng khi version còn khớp (sai → 409 version_conflict) (Task M3-09)'
+      x-permission: fulfillment.carrier_accounts.manage
+      parameters:
+        - $ref: "#/components/parameters/CarrierAccountID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCarrierAccountRequest"
+      responses:
+        "200":
+          description: updateCarrierAccount
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarrierAccount"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/carrier-accounts/{id}/credentials:
+    put:
+      operationId: putCarrierCredentials
+      summary: 'Ghi khóa API của tài khoản (chỉ ghi, mã hóa; không bao giờ trả lại), tài khoản sang checking (Task M3-09)'
+      x-permission: fulfillment.carrier_accounts.manage
+      parameters:
+        - $ref: "#/components/parameters/CarrierAccountID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PutCarrierCredentialsRequest"
+      responses:
+        "200":
+          description: putCarrierCredentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarrierAccount"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/carrier-accounts/{id}/check:
+    post:
+      operationId: checkCarrierAccount
+      summary: 'Kiểm kết nối với hãng (việc nền; kết quả active hoặc auth_failed) (Task M3-09)'
+      x-permission: fulfillment.carrier_accounts.manage
+      parameters:
+        - $ref: "#/components/parameters/CarrierAccountID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Đã ghi việc kiểm
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/carrier-accounts/{id}/status:
+    post:
+      operationId: setCarrierAccountStatus
+      summary: 'Đổi trạng thái tài khoản: active (manual hoặc đã có khóa), paused, revoked (Task M3-09)'
+      x-permission: fulfillment.carrier_accounts.manage
+      parameters:
+        - $ref: "#/components/parameters/CarrierAccountID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetCarrierAccountStatusRequest"
+      responses:
+        "200":
+          description: setCarrierAccountStatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarrierAccount"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/warehouses/{id}/pickup:
+    put:
+      operationId: setWarehousePickup
+      summary: 'Địa chỉ lấy hàng của kho khi version còn khớp; audit chỉ ghi tên trường (Task M3-09)'
+      x-permission: fulfillment.settings.manage
+      parameters:
+        - $ref: "#/components/parameters/WarehouseID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetWarehousePickupRequest"
+      responses:
+        "200":
+          description: setWarehousePickup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarehousePickup"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/carrier-accounts/{id}/locations/sync:
+    post:
+      operationId: syncCarrierLocations
+      summary: 'Tải địa giới của hãng và khớp với mã của CRM (việc nền) (Task M3-18)'
+      x-permission: fulfillment.carrier_accounts.manage
+      parameters:
+        - $ref: "#/components/parameters/CarrierAccountID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Đã ghi việc đồng bộ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/carrier-locations/unmapped:
+    get:
+      operationId: listUnmappedLocations
+      summary: 'Mã địa giới của CRM chưa có mã của hãng (Task M3-18)'
+      x-permission: fulfillment.carrier_accounts.read
+      parameters:
+        - name: carrier
+          in: query
+          required: true
+          description: 'Mã hãng (carrierKey)'
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 32
+        - name: level
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [province, ward]
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listUnmappedLocations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnmappedLocationPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/orders/{id}/shipping-quotes:
+    post:
+      operationId: requestShippingQuotes
+      summary: 'So phí các hãng cho đơn: mỗi tài khoản một việc báo phí; đơn đã có vận đơn → 409 shipment_exists (Task M3-13)'
+      x-permission: fulfillment.quote
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestShippingQuotesRequest"
+      responses:
+        "202":
+          description: Đã ghi việc báo phí
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShippingQuoteRequestAccepted"
+        default:
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: listShippingQuotes
+      summary: 'Kết quả báo phí của một lần so phí (mặc định lần gần nhất): ok theo phí tăng dần, rồi pending, rồi lỗi; không bao giờ phí 0 thay lỗi (Task M3-13)'
+      x-permission: fulfillment.quote
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+        - name: requestId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: listShippingQuotes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShippingQuoteList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipments/{id}/events:
+    get:
+      operationId: listShipmentEvents
+      summary: 'Lịch sử sự kiện của vận đơn, mới nhất trước; không có thân thô của hãng (Task M3-08)'
+      x-permission: fulfillment.read
+      parameters:
+        - $ref: "#/components/parameters/ShipmentID"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listShipmentEvents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShipmentEventPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipments/{id}/resend:
+    post:
+      operationId: resendShipment
+      summary: 'Gửi lại hãng vận đơn creating có create_state not_sent; trạng thái khác → 409 create_in_progress (Task M3-12)'
+      x-permission: fulfillment.ship
+      parameters:
+        - $ref: "#/components/parameters/ShipmentID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Đã ghi lệnh tạo mới
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipments/{id}/resolve-create:
+    post:
+      operationId: resolveShipmentCreate
+      summary: 'Xử lý "không rõ hãng đã tạo vận đơn chưa" sau khi nhân viên tra trang hãng (Task M3-12)'
+      x-permission: fulfillment.ship
+      parameters:
+        - $ref: "#/components/parameters/ShipmentID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveShipmentCreateRequest"
+      responses:
+        "200":
+          description: resolveShipmentCreate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipments/{id}/cancel:
+    post:
+      operationId: cancelShipment
+      summary: 'Hủy vận đơn để đổi hãng (hủy đơn đi qua cancelOrder); đã lấy hàng → 409 shipment_not_cancellable (Task M3-14)'
+      x-permission: fulfillment.cancel
+      parameters:
+        - $ref: "#/components/parameters/ShipmentID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelShipmentRequest"
+      responses:
+        "200":
+          description: cancelShipment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipments/{id}/sync:
+    post:
+      operationId: syncShipment
+      summary: 'Tra trạng thái ở hãng ngay (một việc mỗi phút cho mỗi vận đơn) (Task M3-11)'
+      x-permission: fulfillment.read
+      parameters:
+        - $ref: "#/components/parameters/ShipmentID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Đã ghi việc tra
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipments/{id}/manual-status:
+    post:
+      operationId: setShipmentManualStatus
+      summary: 'Nhân viên cập nhật trạng thái vận đơn nhập tay hoặc tự giao (cùng máy trạng thái); returned chỉ qua nhận hàng hoàn (Task M3-15)'
+      x-permission: fulfillment.manual_status
+      parameters:
+        - $ref: "#/components/parameters/ShipmentID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetShipmentManualStatusRequest"
+      responses:
+        "200":
+          description: setShipmentManualStatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipments/{id}/address-changes:
+    post:
+      operationId: requestAddressChange
+      summary: 'Yêu cầu đổi địa chỉ giao sau khi đã gửi hãng (một yêu cầu mở mỗi vận đơn); địa chỉ chưa khớp hãng → 422 address_unmapped (Task M3-17)'
+      x-permission: fulfillment.ship
+      parameters:
+        - $ref: "#/components/parameters/ShipmentID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestAddressChangeRequest"
+      responses:
+        "201":
+          description: requestAddressChange
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddressChange"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/address-changes/{id}/resolve:
+    post:
+      operationId: resolveAddressChange
+      summary: 'Nhân viên xác nhận kết quả đổi địa chỉ (yêu cầu manual, sent hoặc unknown) (Task M3-17)'
+      x-permission: fulfillment.ship
+      parameters:
+        - $ref: "#/components/parameters/AddressChangeID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveAddressChangeRequest"
+      responses:
+        "200":
+          description: resolveAddressChange
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddressChange"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/label-batches:
+    post:
+      operationId: createLabelBatch
+      summary: 'In nhãn theo lô: nhóm vận đơn theo tài khoản hãng, mỗi nhóm một việc tải nhãn; in không đổi trạng thái (Task M3-16)'
+      x-permission: fulfillment.print
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLabelBatchRequest"
+      responses:
+        "202":
+          description: Đã ghi việc tải nhãn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LabelBatchCreated"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/label-batches/{id}:
+    get:
+      operationId: getLabelBatch
+      summary: 'Trạng thái lô nhãn; url ký sẵn 5 phút khi ready (Task M3-16)'
+      x-permission: fulfillment.print
+      parameters:
+        - $ref: "#/components/parameters/LabelBatchID"
+      responses:
+        "200":
+          description: getLabelBatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LabelBatch"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/picking-list:
+    get:
+      operationId: getPickingList
+      summary: 'Phiếu nhặt hàng gộp theo SKU cho các vận đơn đã chọn; không địa chỉ, không SĐT (Task M3-16)'
+      x-permission: fulfillment.print
+      parameters:
+        - name: shipmentIds
+          in: query
+          required: true
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 200
+            items:
+              type: string
+              format: uuid
+          explode: true
+      responses:
+        "200":
+          description: getPickingList
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PickingList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/orders/packing:
+    post:
+      operationId: setPackingStatus
+      summary: 'Đánh dấu đang nhặt hoặc đã đóng gói cho nhiều đơn (chỉ đi tới); kết quả từng đơn (Task M3-16)'
+      x-permission: fulfillment.pack
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPackingStatusRequest"
+      responses:
+        "200":
+          description: setPackingStatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PackingResultList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/callback-tasks:
+    get:
+      operationId: listCallbackTasks
+      summary: 'Đơn giao thất bại cần gọi lại: quá hạn trước, rồi hạn gần nhất (Task M3-19)'
+      x-permission: fulfillment.callbacks.work
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [open, in_progress, done]
+        - name: dueBefore
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: assignee
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [me, any]
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listCallbackTasks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallbackTaskPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/callback-tasks/{id}/outcomes:
+    post:
+      operationId: recordCallbackOutcome
+      summary: 'Ghi kết quả cuộc gọi khi version còn khớp (Task M3-19)'
+      x-permission: fulfillment.callbacks.work
+      parameters:
+        - $ref: "#/components/parameters/CallbackTaskID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordCallbackOutcomeRequest"
+      responses:
+        "200":
+          description: recordCallbackOutcome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallbackTask"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/callback-tasks/{id}/assign:
+    post:
+      operationId: assignCallbackTask
+      summary: 'Giao việc gọi lại cho nhân viên có quyền fulfillment.callbacks.work (Task M3-19)'
+      x-permission: fulfillment.callbacks.work
+      parameters:
+        - $ref: "#/components/parameters/CallbackTaskID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignCallbackTaskRequest"
+      responses:
+        "200":
+          description: assignCallbackTask
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallbackTask"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipments/stuck:
+    get:
+      operationId: listStuckShipments
+      summary: 'Vận đơn kẹt (lâu không có cập nhật), lâu nhất trước; lọc theo phạm vi kho (Task M3-20)'
+      x-permission: fulfillment.read
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ShipmentStatus"
+        - name: carrierAccountId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listStuckShipments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StuckShipmentPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipments/review:
+    get:
+      operationId: listShipmentsForReview
+      summary: 'Việc "Cần xem" của vận đơn (anomaly mở) kèm số đếm các danh sách vận hành (Task M3-20)'
+      x-permission: fulfillment.read
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listShipmentsForReview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShipmentReviewPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipment-anomalies/{id}/resolve:
+    post:
+      operationId: resolveShipmentAnomaly
+      summary: 'Đóng một việc Cần xem kèm cách xử lý; in_doubt_create phải qua resolveShipmentCreate → 409 (Task M3-20)'
+      x-permission: fulfillment.correct
+      parameters:
+        - $ref: "#/components/parameters/ShipmentAnomalyID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveShipmentAnomalyRequest"
+      responses:
+        "200":
+          description: resolveShipmentAnomaly
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShipmentAnomaly"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/inventory/aged-reservations:
+    get:
+      operationId: listAgedReservations
+      summary: 'Hàng giữ quá hạn (giữ cho đơn, đang đi đường); chỉ đọc, không tự nhả hàng (Task M3-22)'
+      x-permission: inventory.aged.read
+      parameters:
+        - name: warehouseId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [held, in_transit]
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listAgedReservations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgedReservationPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customers/{id}/delivery-stats:
+    get:
+      operationId: getCustomerDeliveryStats
+      summary: 'Số đơn giao xong, hoàn và mức "khách hay hoàn" của khách (Task M3-21)'
+      x-permission: customer.read
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+      responses:
+        "200":
+          description: getCustomerDeliveryStats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryStats"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipments/{id}/partial-delivery:
+    post:
+      operationId: recordPartialDelivery
+      summary: 'Ghi giao một phần: số đã giao từng dòng, tiền đã thu; tạo phiếu trả cho phần còn lại (Task M3-26)'
+      x-permission: fulfillment.correct
+      parameters:
+        - $ref: "#/components/parameters/ShipmentID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordPartialDeliveryRequest"
+      responses:
+        "200":
+          description: recordPartialDelivery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipments/{id}/corrections/preview:
+    post:
+      operationId: previewShipmentCorrection
+      summary: 'Xem trước việc đảo Thành công của vận đơn (không đổi dữ liệu); trả token để xác nhận (Task M3-27)'
+      x-permission: fulfillment.correct
+      parameters:
+        - $ref: "#/components/parameters/ShipmentID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShipmentCorrectionRequest"
+      responses:
+        "200":
+          description: previewShipmentCorrection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShipmentCorrectionPreview"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipments/{id}/corrections:
+    post:
+      operationId: applyShipmentCorrection
+      summary: 'Đảo Thành công theo bản xem trước; token khác → 409 preview_stale, bị chặn → 409 correction_blocked (Task M3-27)'
+      x-permission: fulfillment.correct
+      parameters:
+        - $ref: "#/components/parameters/ShipmentID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplyShipmentCorrectionRequest"
+      responses:
+        "200":
+          description: applyShipmentCorrection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/shipments/{id}/cod:
+    get:
+      operationId: getShipmentCod
+      summary: 'Số dư COD theo ngăn và các bút toán của vận đơn (Task M3-29)'
+      x-permission: cash.cod.read
+      parameters:
+        - $ref: "#/components/parameters/ShipmentID"
+      responses:
+        "200":
+          description: getShipmentCod
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShipmentCod"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/orders/{id}/payments:
+    post:
+      operationId: recordPayment
+      summary: 'Ghi phiếu thu, cọc cho đơn; đơn đã gửi hãng → 409 cod_locked_by_shipment (Task M3-30)'
+      x-permission: cash.payments.record
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordPaymentRequest"
+      responses:
+        "201":
+          description: recordPayment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        default:
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: listOrderPayments
+      summary: 'Phiếu thu, cọc, hoàn tiền của đơn, mới nhất trước (Task M3-30)'
+      x-permission: cash.payments.record
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listOrderPayments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/refund-obligations:
+    get:
+      operationId: listRefundObligations
+      summary: 'Nghĩa vụ hoàn tiền cho khách (Task M3-30)'
+      x-permission: cash.cod.read
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [open, paid, waived]
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listRefundObligations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefundObligationPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/refund-obligations/{id}/payments:
+    post:
+      operationId: payRefundObligation
+      summary: 'Ghi một lần hoàn tiền cho khách; vượt số còn phải hoàn → 409 (Task M3-30)'
+      x-permission: cash.refunds.record
+      parameters:
+        - $ref: "#/components/parameters/RefundObligationID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayRefundObligationRequest"
+      responses:
+        "200":
+          description: payRefundObligation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefundObligation"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/refund-obligations/{id}/waive:
+    post:
+      operationId: waiveRefundObligation
+      summary: 'Bỏ nghĩa vụ hoàn tiền kèm lý do (Task M3-30)'
+      x-permission: cash.refunds.waive
+      parameters:
+        - $ref: "#/components/parameters/RefundObligationID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WaiveRefundObligationRequest"
+      responses:
+        "200":
+          description: waiveRefundObligation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefundObligation"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/cod-statements:
+    post:
+      operationId: importCodStatement
+      summary: 'Nhập bảng kê COD từ tệp đã tải lên (mục đích cod_statement); tệp đã nhập → 409 statement_duplicate (Task M3-31)'
+      x-permission: cash.statements.import
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportCodStatementRequest"
+      responses:
+        "202":
+          description: Đã ghi việc đọc bảng kê
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodStatement"
+        default:
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: listCodStatements
+      summary: 'Bảng kê COD, mới nhất trước (Task M3-31)'
+      x-permission: cash.cod.read
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/CodStatementStatus"
+        - name: carrierAccountId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listCodStatements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodStatementPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/cod-statements/{id}:
+    get:
+      operationId: getCodStatement
+      summary: 'Một bảng kê: đầu bảng kê, tổng theo kết quả khớp và dòng theo số dòng (Task M3-31, M3-32)'
+      x-permission: cash.cod.read
+      parameters:
+        - $ref: "#/components/parameters/CodStatementID"
+        - name: matchStatus
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/CodMatchStatus"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: getCodStatement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodStatementDetail"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/cod-statements/{id}/confirm:
+    post:
+      operationId: confirmCodStatement
+      summary: 'Chốt bảng kê đã khớp khi version còn khớp (sai → 409 statement_changed): ghi tiền về cho từng dòng (Task M3-32)'
+      x-permission: cash.statements.confirm
+      parameters:
+        - $ref: "#/components/parameters/CodStatementID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VersionRequest"
+      responses:
+        "200":
+          description: confirmCodStatement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodStatementConfirmed"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/cod/discrepancies:
+    get:
+      operationId: listCodDiscrepancies
+      summary: 'Lệch đối soát: dòng lệch tiền, trùng, ngoài hệ thống; phần thiếu còn mở; tiền về rồi mới hoàn (Task M3-32)'
+      x-permission: cash.cod.read
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listCodDiscrepancies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodDiscrepancyPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/cod/overdue:
+    get:
+      operationId: listCodOverdue
+      summary: 'Vận đơn giao xong quá hạn mà hãng chưa trả tiền COD (Task M3-32)'
+      x-permission: cash.cod.read
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listCodOverdue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodOverduePage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/cod/adjustments/preview:
+    post:
+      operationId: previewCodAdjustment
+      summary: 'Xem trước điều chỉnh COD (không đổi dữ liệu): số dư trước, sau, cảnh báo, token (Task M3-33)'
+      x-permission: cash.adjust
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CodAdjustmentRequest"
+      responses:
+        "200":
+          description: previewCodAdjustment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodAdjustmentPreview"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/cod/adjustments:
+    post:
+      operationId: createCodAdjustment
+      summary: 'Ghi điều chỉnh COD theo bản xem trước (đảo hoặc chuyển ngăn, không xóa dòng cũ); token khác → 409 preview_stale (Task M3-33)'
+      x-permission: cash.adjust
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCodAdjustmentRequest"
+      responses:
+        "201":
+          description: createCodAdjustment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodTransfer"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/cod/reconcile-findings:
+    get:
+      operationId: listReconcileFindings
+      summary: 'Kết quả đối chiếu sổ COD hằng đêm (mặc định lần chạy gần nhất) (Task M3-33)'
+      x-permission: cash.cod.read
+      parameters:
+        - name: runId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listReconcileFindings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReconcileFindingPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/fulfillment-settings:
+    get:
+      operationId: getFulfillmentSettings
+      summary: 'Cài đặt vận chuyển của shop; thiếu khóa nào lấy mặc định (Task M3-04)'
+      x-permission: fulfillment.read
+      responses:
+        "200":
+          description: getFulfillmentSettings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FulfillmentSettings"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: updateFulfillmentSettings
+      summary: 'Ghi cài đặt vận chuyển khi version còn khớp (sai → 409 version_conflict); số ngoài khoảng → 422 (Task M3-04)'
+      x-permission: fulfillment.settings.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFulfillmentSettingsRequest"
+      responses:
+        "200":
+          description: updateFulfillmentSettings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FulfillmentSettings"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -3099,6 +4270,62 @@ components:
       schema:
         type: string
         format: uuid
+    CarrierAccountID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    WarehouseID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AddressChangeID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    LabelBatchID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CallbackTaskID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ShipmentAnomalyID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RefundObligationID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CodStatementID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     Cursor:
       name: cursor
       in: query
@@ -3229,6 +4456,20 @@ components:
         - unknown_admin_unit
         - variant_not_found
         - ward_not_in_province
+        # Vận chuyển, tiền (M3, Task M3-04)
+        - address_unmapped
+        - capability_not_supported
+        - carrier_account_unavailable
+        - cod_locked_by_shipment
+        - correction_blocked
+        - create_in_progress
+        - order_not_shippable
+        - preview_stale
+        - quote_stale
+        - shipment_not_cancellable
+        - statement_changed
+        - statement_duplicate
+        - tracking_code_conflict
       properties:
         error:
           type: string
@@ -3257,6 +4498,10 @@ components:
           type: string
           enum: [draftTtlMinutes, duplicateWindowMinutes, discountApprovalThresholdBp, returnWarningDays]
           description: Chỉ có ở setting_out_of_range — tên trường cài đặt đơn ngoài khoảng (Task M2-15)
+        statementId:
+          type: string
+          format: uuid
+          description: Chỉ có ở statement_duplicate — bảng kê COD đã nhập trước với cùng tệp (Task M3-31)
     HealthStatus:
       type: object
       required: [status]
@@ -4114,10 +5359,53 @@ components:
     CreateShipmentRequest:
       type: object
       required: [carrierAccountId]
+      description: >-
+        Thân của M1 ({carrierAccountId}) vẫn hợp lệ. M3 (Task M3-12, M3-15) thêm trường tùy chọn; bỏ trống thì dùng
+        mặc định của tài khoản hãng và cài đặt vận chuyển. trackingCode, feeActual chỉ cho tài khoản nhập tay
+        (mode manual; hãng self thì CRM tự sinh mã).
       properties:
         carrierAccountId:
           type: string
           format: uuid
+        service:
+          type: string
+          maxLength: 64
+          description: Mã dịch vụ của hãng; rỗng là dịch vụ mặc định của tài khoản
+        quoteId:
+          type: string
+          format: uuid
+          description: Dòng báo phí đã chọn; hết hạn hoặc đơn đã đổi → 409 quote_stale
+        weightGrams:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000000
+        lengthCm:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+        widthCm:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+        heightCm:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000
+        declaredValue:
+          $ref: "#/components/schemas/Money"
+        options:
+          $ref: "#/components/schemas/CarrierOptions"
+        trackingCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Mã hãng nhập tay (chỉ tài khoản mode manual); trùng vận đơn khác → 409 tracking_code_conflict
+        feeActual:
+          $ref: "#/components/schemas/Money"
     Shipment:
       type: object
       required: [id, orderId, code, carrierKey, carrierAccountId, status, codAmount, createdAt]
@@ -4140,8 +5428,7 @@ components:
           type: string
           description: Mã của hãng; chưa có khi vận đơn còn creating
         status:
-          type: string
-          enum: [creating, awaiting_pickup, shipping, delivered, cancelled]
+          $ref: "#/components/schemas/ShipmentStatus"
         codAmount:
           $ref: "#/components/schemas/Money"
         fee:
@@ -4149,6 +5436,72 @@ components:
         createdAt:
           type: string
           format: date-time
+        # Trường của ShipmentView (M3, Task M3-12); tùy chọn để thân của M1 vẫn đúng. Không bao giờ có ship_to.
+        accountName:
+          type: string
+        mode:
+          $ref: "#/components/schemas/CarrierAccountMode"
+        service:
+          type: string
+        label:
+          type: string
+          description: Nhãn hiển thị của trạng thái (orderview)
+        subStatus:
+          type: string
+          description: Trạng thái phụ của hãng (mã, không dữ liệu cá nhân)
+        createState:
+          type: string
+          enum: [pending, not_sent, unknown, created, rejected, manual]
+          description: Kết quả lệnh tạo ở hãng (Q-5); unknown là "không rõ hãng đã tạo chưa"
+        cancelKind:
+          type: string
+          description: 'Lý do hủy: order_cancel, replace, create_rejected, carrier_cancelled, manual, staff_after_unknown'
+        codCollectedAmount:
+          $ref: "#/components/schemas/Money"
+        feeActual:
+          $ref: "#/components/schemas/Money"
+        weightGrams:
+          type: integer
+          format: int32
+        options:
+          $ref: "#/components/schemas/CarrierOptions"
+        pickedUpAt:
+          type: string
+          format: date-time
+        deliveredAt:
+          type: string
+          format: date-time
+        lastStatusAt:
+          type: string
+          format: date-time
+        lastCarrierEventAt:
+          type: string
+          format: date-time
+        lastSyncedAt:
+          type: string
+          format: date-time
+        lastSyncError:
+          type: string
+          description: Mã lỗi lần tra gần nhất (không thông điệp thô của hãng)
+        stuckSince:
+          type: string
+          format: date-time
+        needsReview:
+          type: boolean
+        labelReady:
+          type: boolean
+        partial:
+          type: boolean
+          description: Giao một phần (Task M3-26)
+        version:
+          type: integer
+          format: int64
+    ShipmentStatus:
+      type: string
+      description: >-
+        Trạng thái vận đơn (M1 năm giá trị; M3 Task M3-07 thêm delivery_failed, returning, returned,
+        cancel_requested). creating là "đang gửi hãng".
+      enum: [creating, awaiting_pickup, shipping, delivery_failed, delivered, returning, returned, cancel_requested, cancelled]
     Money:
       type: integer
       format: int64
@@ -5230,7 +6583,7 @@ components:
           type: string
           description: >-
             Chuỗi mở, không phải enum (M4 thêm conversation, C7). Khách: order_created, order_status, note, merge,
-            merge_undone, tag. Đơn: status, edit, note.
+            merge_undone, tag. Đơn: status, edit, note; M3 thêm shipment, payment, return.
         refId:
           type: string
           format: uuid
@@ -5957,6 +7310,10 @@ components:
           format: date-time
         duplicateSuspect:
           type: boolean
+        shipment:
+          $ref: "#/components/schemas/OrderShipmentSummary"
+        cod:
+          $ref: "#/components/schemas/OrderCodSummary"
     OrderPage:
       type: object
       required: [items]
@@ -6162,6 +7519,21 @@ components:
               condition:
                 type: string
                 enum: [sellable, damaged, missing]
+              sellable:
+                type: integer
+                format: int32
+                minimum: 0
+                description: Số lượng nhập lại kho bán được (M3, Task M3-23); có đủ ba số thì bỏ qua condition
+              damaged:
+                type: integer
+                format: int32
+                minimum: 0
+                description: Số lượng hỏng (M3); sellable + damaged + missing phải bằng số trên dòng phiếu
+              missing:
+                type: integer
+                format: int32
+                minimum: 0
+                description: Số lượng thiếu (M3)
     TrafficSource:
       type: object
       required: [id, name, active, position, version]
@@ -6560,3 +7932,1745 @@ components:
         remainingUses:
           type: integer
           format: int32
+    # --- Vận chuyển (fulfillment, M3, Task M3-04) ---
+    JobAccepted:
+      type: object
+      required: [jobId]
+      description: Việc nền đã ghi; kết quả đến qua luồng báo tức thời hoặc đọc lại tài nguyên
+      properties:
+        jobId:
+          type: string
+          format: uuid
+    CarrierAccountMode:
+      type: string
+      description: api = gọi API của hãng; manual = nhân viên nhập mã hãng, cập nhật tay (hãng self luôn manual)
+      enum: [api, manual]
+    CarrierAccountStatus:
+      type: string
+      description: disabled là giá trị cũ của M1 (migration đổi thành paused)
+      enum: [draft, checking, active, auth_failed, paused, revoked, disabled]
+    CarrierOptions:
+      type: object
+      additionalProperties: false
+      description: Tùy chọn gửi hãng (fulfillment.Options)
+      properties:
+        inspection:
+          type: string
+          maxLength: 32
+          description: Cho xem hàng (mã của CRM; adapter đổi sang mã hãng)
+        feeOnRefuse:
+          $ref: "#/components/schemas/Money"
+        payer:
+          type: string
+          maxLength: 32
+          description: Bên trả phí ship (shop, receiver)
+        pickup:
+          type: boolean
+          description: true = hãng tới lấy; false = shop mang ra bưu cục
+        note:
+          type: string
+          maxLength: 500
+          description: Ghi chú cho hãng
+    CarrierCapabilities:
+      type: object
+      description: Việc adapter của hãng làm được (fulfillment.Capabilities)
+      required: [quote, create, cancel, track, webhook, labels, updateAddress, redeliver, locations, statement]
+      properties:
+        quote:
+          type: boolean
+        create:
+          type: boolean
+        lookupByRef:
+          type: boolean
+        cancel:
+          type: boolean
+        cancelIdempotent:
+          type: boolean
+        track:
+          type: boolean
+        webhook:
+          type: boolean
+        labels:
+          type: boolean
+        labelsBatch:
+          type: boolean
+        updateAddress:
+          type: boolean
+        redeliver:
+          type: boolean
+        locations:
+          type: boolean
+        statement:
+          type: boolean
+        inspection:
+          type: boolean
+        declaredValue:
+          type: boolean
+        feeOnRefuse:
+          type: boolean
+    CarrierAccount:
+      type: object
+      description: Tài khoản hãng (AccountView). Không bao giờ có khóa API; chỉ hasCredentials.
+      required: [id, carrierKey, mode, environment, name, status, warehouseId, isDefaultForWarehouse, showOnWeb, webSort, hasCredentials, needsRewrap, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sellerId:
+          type: string
+          format: uuid
+        carrierKey:
+          type: string
+        mode:
+          $ref: "#/components/schemas/CarrierAccountMode"
+        environment:
+          type: string
+          enum: [sandbox, production]
+        name:
+          type: string
+        status:
+          $ref: "#/components/schemas/CarrierAccountStatus"
+        warehouseId:
+          type: string
+          format: uuid
+        defaultService:
+          type: string
+        defaultOptions:
+          $ref: "#/components/schemas/CarrierOptions"
+        isDefaultForWarehouse:
+          type: boolean
+        showOnWeb:
+          type: boolean
+        webSort:
+          type: integer
+          format: int32
+        lastCheckAt:
+          type: string
+          format: date-time
+        lastCheckResult:
+          type: string
+          description: Mã kết quả lần kiểm gần nhất (không thông điệp thô của hãng)
+        hasCredentials:
+          type: boolean
+        needsRewrap:
+          type: boolean
+          description: Khóa API đang mã hóa bằng khóa cũ; ghi lại khóa để mã hóa bằng khóa mới
+        webhookUrl:
+          type: string
+          description: Đường nhận webhook /hooks/<hãng>/<routeKey>; chỉ trả cho người có quyền manage
+        capabilities:
+          $ref: "#/components/schemas/CarrierCapabilities"
+        version:
+          type: integer
+          format: int64
+    CarrierAccountPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CarrierAccount"
+        nextCursor:
+          type: string
+    CarrierCredentials:
+      type: object
+      description: Bộ khóa API của hãng (tên trường theo hãng); chỉ ghi, không bao giờ trả lại
+      minProperties: 1
+      maxProperties: 20
+      additionalProperties:
+        type: string
+        minLength: 1
+        maxLength: 4096
+    CreateCarrierAccountRequest:
+      type: object
+      additionalProperties: false
+      required: [carrierKey, mode, name, warehouseId]
+      properties:
+        carrierKey:
+          type: string
+          minLength: 1
+          maxLength: 32
+        mode:
+          $ref: "#/components/schemas/CarrierAccountMode"
+        environment:
+          type: string
+          enum: [sandbox, production]
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        sellerId:
+          type: string
+          format: uuid
+          description: Bỏ trống là người bán của shop
+        externalAccountRef:
+          type: string
+          maxLength: 128
+          description: Mã tài khoản ở hãng (shop id); rỗng thì CRM ghi local:<id>
+        warehouseId:
+          type: string
+          format: uuid
+        defaultService:
+          type: string
+          maxLength: 64
+        defaultOptions:
+          $ref: "#/components/schemas/CarrierOptions"
+        isDefaultForWarehouse:
+          type: boolean
+        showOnWeb:
+          type: boolean
+        webSort:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000
+        credentials:
+          $ref: "#/components/schemas/CarrierCredentials"
+    UpdateCarrierAccountRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      description: Chỉ gửi trường người dùng đổi
+      properties:
+        version:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        environment:
+          type: string
+          enum: [sandbox, production]
+        externalAccountRef:
+          type: string
+          maxLength: 128
+        warehouseId:
+          type: string
+          format: uuid
+        defaultService:
+          type: string
+          maxLength: 64
+        defaultOptions:
+          $ref: "#/components/schemas/CarrierOptions"
+        isDefaultForWarehouse:
+          type: boolean
+        showOnWeb:
+          type: boolean
+        webSort:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000
+    PutCarrierCredentialsRequest:
+      type: object
+      additionalProperties: false
+      required: [credentials]
+      properties:
+        credentials:
+          $ref: "#/components/schemas/CarrierCredentials"
+    SetCarrierAccountStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [active, paused, revoked]
+        version:
+          type: integer
+          format: int64
+          description: Có thì phải khớp (sai → 409 version_conflict)
+    SetWarehousePickupRequest:
+      type: object
+      additionalProperties: false
+      required: [version, name, phone, line, provinceCode, wardCode]
+      description: Địa chỉ lấy hàng của kho (của shop, không phải của khách)
+      properties:
+        version:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        phone:
+          $ref: "#/components/schemas/PhoneInput"
+        line:
+          type: string
+          minLength: 1
+          maxLength: 500
+        provinceCode:
+          type: string
+          minLength: 1
+          maxLength: 16
+        wardCode:
+          type: string
+          minLength: 1
+          maxLength: 16
+    WarehousePickup:
+      type: object
+      required: [warehouseId, version]
+      properties:
+        warehouseId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phone:
+          type: string
+        line:
+          type: string
+        provinceCode:
+          type: string
+        wardCode:
+          type: string
+        version:
+          type: integer
+          format: int64
+    UnmappedLocation:
+      type: object
+      required: [level, ourCode, name]
+      properties:
+        level:
+          type: string
+          enum: [province, ward]
+        ourCode:
+          type: string
+        name:
+          type: string
+        parentCode:
+          type: string
+    UnmappedLocationPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnmappedLocation"
+        nextCursor:
+          type: string
+    RequestShippingQuotesRequest:
+      type: object
+      additionalProperties: false
+      description: Mọi trường tùy chọn; bỏ trống carrierAccountIds = mọi tài khoản active báo phí được của kho đơn
+      properties:
+        weightGrams:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1000000
+        declaredValue:
+          $ref: "#/components/schemas/Money"
+        options:
+          $ref: "#/components/schemas/CarrierOptions"
+        carrierAccountIds:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            format: uuid
+    ShippingQuoteAccount:
+      type: object
+      required: [id, name, carrierKey]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        carrierKey:
+          type: string
+    ShippingQuoteRequestAccepted:
+      type: object
+      required: [requestId, accounts]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        accounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShippingQuoteAccount"
+    ShippingQuote:
+      type: object
+      required: [carrierAccountId, accountName, carrierKey, status]
+      description: feeTotal chỉ có khi status ok (không bao giờ 0 thay cho lỗi)
+      properties:
+        quoteId:
+          type: string
+          format: uuid
+        carrierAccountId:
+          type: string
+          format: uuid
+        accountName:
+          type: string
+        carrierKey:
+          type: string
+        status:
+          type: string
+          enum: [pending, ok, error, unavailable]
+        service:
+          type: string
+        serviceName:
+          type: string
+        feeTotal:
+          $ref: "#/components/schemas/Money"
+        expectedDays:
+          type: integer
+          format: int32
+        validUntil:
+          type: string
+          format: date-time
+        errorCode:
+          type: string
+          description: timeout, rate_limited, auth, address_unmapped, rejected
+    ShippingQuoteList:
+      type: object
+      required: [items]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShippingQuote"
+    ShipmentPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Shipment"
+        nextCursor:
+          type: string
+    ShipmentEvent:
+      type: object
+      required: [occurredAt, recordedAt, source, rawStatus]
+      description: Một sự kiện của vận đơn; không có thân thô của hãng
+      properties:
+        id:
+          type: string
+          format: uuid
+        occurredAt:
+          type: string
+          format: date-time
+        recordedAt:
+          type: string
+          format: date-time
+        source:
+          type: string
+          enum: [carrier_api, carrier_webhook, staff, system]
+        rawStatus:
+          type: string
+        label:
+          type: string
+        status:
+          $ref: "#/components/schemas/ShipmentStatus"
+        applied:
+          type: boolean
+        ignoredReason:
+          type: string
+          description: older, duplicate_state, not_current, invalid_edge, unmapped, review
+    ShipmentEventPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShipmentEvent"
+        nextCursor:
+          type: string
+    ResolveShipmentCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [result, reason]
+      properties:
+        result:
+          type: string
+          enum: [created, not_created]
+        trackingCode:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Bắt buộc khi result created
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    CancelShipmentRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    SetShipmentManualStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [to, at, reason]
+      properties:
+        to:
+          type: string
+          enum: [shipping, delivery_failed, delivered, returning, cancelled]
+          description: returned không nhận ở đây (chỉ qua nhận hàng hoàn)
+        at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        codCollected:
+          $ref: "#/components/schemas/Money"
+        version:
+          type: integer
+          format: int64
+          description: Có thì phải khớp version của vận đơn
+    RequestAddressChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [address]
+      properties:
+        address:
+          $ref: "#/components/schemas/AddressInput"
+        note:
+          type: string
+          maxLength: 1000
+    ResolveAddressChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [result]
+      properties:
+        result:
+          type: string
+          enum: [confirmed, rejected]
+        note:
+          type: string
+          maxLength: 1000
+    AddressChange:
+      type: object
+      required: [id, shipmentId, mode, status, createdAt]
+      description: Yêu cầu đổi địa chỉ (không trả lại địa chỉ)
+      properties:
+        id:
+          type: string
+          format: uuid
+        shipmentId:
+          type: string
+          format: uuid
+        mode:
+          $ref: "#/components/schemas/CarrierAccountMode"
+        status:
+          type: string
+          enum: [pending, sent, confirmed, rejected, unknown]
+        note:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+    CreateLabelBatchRequest:
+      type: object
+      additionalProperties: false
+      required: [shipmentIds]
+      properties:
+        shipmentIds:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: string
+            format: uuid
+    LabelBatchSummary:
+      type: object
+      required: [id, carrierAccountId, count]
+      properties:
+        id:
+          type: string
+          format: uuid
+        carrierAccountId:
+          type: string
+          format: uuid
+        count:
+          type: integer
+          format: int32
+    LabelBatchSkipped:
+      type: object
+      required: [shipmentId, reason]
+      properties:
+        shipmentId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          description: no_carrier_label, no_tracking_code
+    LabelBatchCreated:
+      type: object
+      required: [batches, skipped]
+      properties:
+        batches:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelBatchSummary"
+        skipped:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelBatchSkipped"
+    LabelBatch:
+      type: object
+      required: [id, carrierAccountId, status, count, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        carrierAccountId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, ready, failed]
+        count:
+          type: integer
+          format: int32
+        url:
+          type: string
+          description: Đường dẫn ký sẵn 5 phút; chỉ có khi ready
+        errorCode:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    PickingLine:
+      type: object
+      required: [sku, name, qty, orderCodes]
+      properties:
+        sku:
+          type: string
+        name:
+          type: string
+        variant:
+          type: string
+        qty:
+          type: integer
+          format: int32
+        orderCodes:
+          type: array
+          items:
+            type: string
+    PickingOrder:
+      type: object
+      required: [code, shipmentCode, carrier, itemCount, codAmount]
+      properties:
+        code:
+          type: string
+        shipmentCode:
+          type: string
+        trackingCode:
+          type: string
+        carrier:
+          type: string
+        itemCount:
+          type: integer
+          format: int32
+        codAmount:
+          $ref: "#/components/schemas/Money"
+    PickingList:
+      type: object
+      required: [lines, orders]
+      properties:
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/PickingLine"
+        orders:
+          type: array
+          items:
+            $ref: "#/components/schemas/PickingOrder"
+    SetPackingStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [orderIds, to]
+      properties:
+        orderIds:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: string
+            format: uuid
+        to:
+          type: string
+          enum: [picking, packed]
+    PackingResult:
+      type: object
+      required: [orderId, result]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        result:
+          type: string
+          enum: [updated, already_further, not_allowed]
+    PackingResultList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PackingResult"
+    DeliveryStats:
+      type: object
+      required: [delivered, returned, returnRateBp, risk]
+      properties:
+        delivered:
+          type: integer
+          format: int32
+        returned:
+          type: integer
+          format: int32
+        returnRateBp:
+          type: integer
+          format: int32
+          description: Tỷ lệ hoàn theo phần vạn (công thức của M2); 0 khi chưa có đơn kết thúc
+        risk:
+          type: string
+          enum: [none, watch, high]
+        hint:
+          type: string
+          description: Câu gợi ý tiếng Việt; rỗng khi risk none
+    CallbackTask:
+      type: object
+      required: [id, shipmentId, orderId, orderCode, attemptNo, failedAt, dueAt, overdue, status, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        shipmentId:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+        customerName:
+          type: string
+        carrierKey:
+          type: string
+        trackingCode:
+          type: string
+        attemptNo:
+          type: integer
+          format: int32
+        failedReason:
+          type: string
+        failedAt:
+          type: string
+          format: date-time
+        dueAt:
+          type: string
+          format: date-time
+        overdue:
+          type: boolean
+        status:
+          type: string
+          enum: [open, in_progress, done, closed]
+        outcome:
+          type: string
+          description: redeliver, redeliver_new_address, customer_cancel, no_answer, reschedule, carrier_returning, delivered
+        nextCallAt:
+          type: string
+          format: date-time
+        assignee:
+          $ref: "#/components/schemas/Actor"
+        deliveryStats:
+          $ref: "#/components/schemas/DeliveryStats"
+        version:
+          type: integer
+          format: int64
+    CallbackTaskPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CallbackTask"
+        nextCursor:
+          type: string
+        openCount:
+          type: integer
+          format: int32
+          description: Số việc mở (đếm tối đa 1.000)
+    RecordCallbackOutcomeRequest:
+      type: object
+      additionalProperties: false
+      required: [outcome, version]
+      properties:
+        outcome:
+          type: string
+          enum: [redeliver, redeliver_new_address, customer_cancel, no_answer, reschedule]
+        note:
+          type: string
+          maxLength: 1000
+        nextCallAt:
+          type: string
+          format: date-time
+        newAddress:
+          $ref: "#/components/schemas/AddressInput"
+        version:
+          type: integer
+          format: int64
+    AssignCallbackTaskRequest:
+      type: object
+      additionalProperties: false
+      required: [assigneeId]
+      properties:
+        assigneeId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          format: int64
+          description: Có thì phải khớp version của việc
+    StuckShipment:
+      type: object
+      required: [shipmentId, orderCode, carrierKey, status, stuckSince, hoursSinceUpdate]
+      properties:
+        shipmentId:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+        carrierKey:
+          type: string
+        accountName:
+          type: string
+        trackingCode:
+          type: string
+        status:
+          $ref: "#/components/schemas/ShipmentStatus"
+        label:
+          type: string
+        stuckSince:
+          type: string
+          format: date-time
+        lastCarrierEventAt:
+          type: string
+          format: date-time
+        lastSyncedAt:
+          type: string
+          format: date-time
+        lastSyncError:
+          type: string
+        hoursSinceUpdate:
+          type: integer
+          format: int32
+    StuckShipmentPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StuckShipment"
+        nextCursor:
+          type: string
+    ShipmentReviewItem:
+      type: object
+      required: [anomalyId, shipmentId, orderCode, kind, label, createdAt]
+      properties:
+        anomalyId:
+          type: string
+          format: uuid
+        shipmentId:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+        kind:
+          type: string
+          description: Loại anomaly (in_doubt_create, manual_cancel, tracking_conflict, missing_items…); chuỗi mở
+        label:
+          type: string
+          description: Câu tiếng Việt kèm hướng xử lý
+        detail:
+          type: object
+          description: Mã, trạng thái, số tiền (dạng chuỗi); không dữ liệu cá nhân
+          additionalProperties:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+    ShipmentReviewCounts:
+      type: object
+      required: [review, stuck, callbacksOpen, callbacksOverdue, inDoubt]
+      properties:
+        review:
+          type: integer
+          format: int32
+        stuck:
+          type: integer
+          format: int32
+        callbacksOpen:
+          type: integer
+          format: int32
+        callbacksOverdue:
+          type: integer
+          format: int32
+        inDoubt:
+          type: integer
+          format: int32
+    ShipmentReviewPage:
+      type: object
+      required: [items, counts]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShipmentReviewItem"
+        counts:
+          $ref: "#/components/schemas/ShipmentReviewCounts"
+        nextCursor:
+          type: string
+    ResolveShipmentAnomalyRequest:
+      type: object
+      additionalProperties: false
+      required: [resolution]
+      properties:
+        resolution:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    ShipmentAnomaly:
+      type: object
+      required: [id, shipmentId, kind, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        shipmentId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        status:
+          type: string
+          enum: [open, resolved]
+        resolution:
+          type: string
+        resolvedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    AgedReservation:
+      type: object
+      required: [reservationId, orderItemId, orderId, orderCode, variantId, sku, warehouseId, state, quantity, since, ageDays]
+      properties:
+        reservationId:
+          type: string
+          format: uuid
+        orderItemId:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+        variantId:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        warehouseId:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum: [held, in_transit]
+        quantity:
+          type: integer
+          format: int32
+        since:
+          type: string
+          format: date-time
+        ageDays:
+          type: integer
+          format: int32
+    AgedReservationPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgedReservation"
+        nextCursor:
+          type: string
+    RecordPartialDeliveryRequest:
+      type: object
+      additionalProperties: false
+      required: [items, codCollected, reason]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [orderItemId, deliveredQty]
+            properties:
+              orderItemId:
+                type: string
+                format: uuid
+              deliveredQty:
+                type: integer
+                format: int32
+                minimum: 0
+        codCollected:
+          $ref: "#/components/schemas/Money"
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    ShipmentCorrectionRequest:
+      type: object
+      additionalProperties: false
+      required: [to, reason]
+      properties:
+        to:
+          type: string
+          enum: [returning]
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    ApplyShipmentCorrectionRequest:
+      type: object
+      additionalProperties: false
+      required: [to, reason, previewToken]
+      properties:
+        to:
+          type: string
+          enum: [returning]
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        previewToken:
+          type: string
+          minLength: 1
+          maxLength: 128
+    ShipmentCorrectionPreview:
+      type: object
+      required: [shipmentId, from, to, effects, blocking, token]
+      properties:
+        shipmentId:
+          type: string
+          format: uuid
+        from:
+          type: string
+        to:
+          type: string
+        effects:
+          type: array
+          description: Câu tiếng Việt cho từng tác động
+          items:
+            type: string
+        blocking:
+          type: array
+          description: Lý do chặn (câu tiếng Việt); khác rỗng thì không áp được
+          items:
+            type: string
+        token:
+          type: string
+    # --- Tiền (cash, M3) ---
+    CodAccount:
+      type: string
+      enum: [to_collect, carrier_holding, shop_received, carrier_fee, sales_clearing]
+    CodBalances:
+      type: object
+      required: [toCollect, carrierHolding, shopReceived, carrierFee, salesClearing]
+      properties:
+        toCollect:
+          $ref: "#/components/schemas/SignedMoney"
+        carrierHolding:
+          $ref: "#/components/schemas/SignedMoney"
+        shopReceived:
+          $ref: "#/components/schemas/SignedMoney"
+        carrierFee:
+          $ref: "#/components/schemas/SignedMoney"
+        salesClearing:
+          $ref: "#/components/schemas/SignedMoney"
+    CodEntry:
+      type: object
+      required: [account, amount]
+      properties:
+        account:
+          $ref: "#/components/schemas/CodAccount"
+        amount:
+          $ref: "#/components/schemas/SignedMoney"
+    CodTransfer:
+      type: object
+      required: [id, kind, occurredAt, entries]
+      properties:
+        id:
+          type: string
+          format: uuid
+        shipmentId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [expected, collected, remitted, returned, adjustment, fee, reversal]
+        occurredAt:
+          type: string
+          format: date-time
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodEntry"
+        reason:
+          type: string
+        actor:
+          $ref: "#/components/schemas/Actor"
+        statementLineId:
+          type: string
+          format: uuid
+        reversesTransferId:
+          type: string
+          format: uuid
+    ShipmentCod:
+      type: object
+      required: [balances, transfers]
+      properties:
+        balances:
+          $ref: "#/components/schemas/CodBalances"
+        transfers:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodTransfer"
+    RecordPaymentRequest:
+      type: object
+      additionalProperties: false
+      required: [method, amount]
+      properties:
+        method:
+          type: string
+          enum: [bank_transfer, deposit, cash]
+        amount:
+          $ref: "#/components/schemas/Money"
+        reference:
+          type: string
+          maxLength: 200
+        receivedAt:
+          type: string
+          format: date-time
+          description: Bỏ trống là lúc ghi
+    Payment:
+      type: object
+      required: [id, orderId, method, amount, receivedAt, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        method:
+          type: string
+          enum: [bank_transfer, deposit, cash, exchange_credit, refund]
+        amount:
+          $ref: "#/components/schemas/SignedMoney"
+        reference:
+          type: string
+        refundObligationId:
+          type: string
+          format: uuid
+        receivedAt:
+          type: string
+          format: date-time
+        actor:
+          $ref: "#/components/schemas/Actor"
+        createdAt:
+          type: string
+          format: date-time
+    PaymentPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payment"
+        nextCursor:
+          type: string
+    RefundObligation:
+      type: object
+      required: [id, orderId, source, amount, paidAmount, status, createdAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+        returnId:
+          type: string
+          format: uuid
+        source:
+          type: string
+          enum: [order_cancel, customer_return, exchange, partial_delivery]
+        amount:
+          $ref: "#/components/schemas/Money"
+        paidAmount:
+          $ref: "#/components/schemas/Money"
+        status:
+          type: string
+          enum: [open, paid, waived]
+        waiveReason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+    RefundObligationPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RefundObligation"
+        nextCursor:
+          type: string
+    PayRefundObligationRequest:
+      type: object
+      additionalProperties: false
+      required: [amount]
+      properties:
+        amount:
+          $ref: "#/components/schemas/Money"
+        reference:
+          type: string
+          maxLength: 200
+    WaiveRefundObligationRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    ImportCodStatementRequest:
+      type: object
+      additionalProperties: false
+      required: [carrierAccountId, fileId]
+      properties:
+        carrierAccountId:
+          type: string
+          format: uuid
+        fileId:
+          type: string
+          format: uuid
+          description: Tệp đã tải lên với mục đích cod_statement (createUpload, completeUpload)
+        format:
+          type: string
+          maxLength: 64
+          description: Định dạng bảng kê; rỗng là định dạng mặc định của hãng
+    CodStatementStatus:
+      type: string
+      enum: [imported, parsing, parse_failed, parsed, matched, confirmed]
+    CodMatchStatus:
+      type: string
+      enum: [pending, matched, amount_mismatch, external, duplicate, fee_only]
+    CodStatementParseError:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          description: missing_column, bad_amount, too_many_rows, formula_not_allowed…
+        column:
+          type: string
+        line:
+          type: integer
+          format: int32
+    CodStatement:
+      type: object
+      required: [id, carrierKey, carrierAccountId, fileId, format, status, lineCount, createdAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        carrierKey:
+          type: string
+        carrierAccountId:
+          type: string
+          format: uuid
+        fileId:
+          type: string
+          format: uuid
+        format:
+          type: string
+        periodFrom:
+          type: string
+          format: date
+        periodTo:
+          type: string
+          format: date
+        declaredTotal:
+          $ref: "#/components/schemas/SignedMoney"
+        status:
+          $ref: "#/components/schemas/CodStatementStatus"
+        parseError:
+          $ref: "#/components/schemas/CodStatementParseError"
+        lineCount:
+          type: integer
+          format: int32
+        importedBy:
+          $ref: "#/components/schemas/Actor"
+        confirmedBy:
+          $ref: "#/components/schemas/Actor"
+        confirmedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+    CodStatementPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodStatement"
+        nextCursor:
+          type: string
+    CodStatementLine:
+      type: object
+      required: [id, lineNo, trackingCode, codAmount, feeAmount, otherFee, netAmount, matchStatus]
+      properties:
+        id:
+          type: string
+          format: uuid
+        lineNo:
+          type: integer
+          format: int32
+        trackingCode:
+          type: string
+        shipmentId:
+          type: string
+          format: uuid
+        codAmount:
+          $ref: "#/components/schemas/Money"
+        feeAmount:
+          $ref: "#/components/schemas/SignedMoney"
+        otherFee:
+          $ref: "#/components/schemas/SignedMoney"
+        netAmount:
+          $ref: "#/components/schemas/SignedMoney"
+        paidOn:
+          type: string
+          format: date
+        matchStatus:
+          $ref: "#/components/schemas/CodMatchStatus"
+        expectedAmount:
+          $ref: "#/components/schemas/SignedMoney"
+        diffAmount:
+          $ref: "#/components/schemas/SignedMoney"
+        postedTransferId:
+          type: string
+          format: uuid
+    CodMatchTotal:
+      type: object
+      required: [matchStatus, count, codAmount]
+      properties:
+        matchStatus:
+          $ref: "#/components/schemas/CodMatchStatus"
+        count:
+          type: integer
+          format: int32
+        codAmount:
+          $ref: "#/components/schemas/Money"
+    CodStatementDetail:
+      type: object
+      required: [statement, totals, lines]
+      properties:
+        statement:
+          $ref: "#/components/schemas/CodStatement"
+        totals:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodMatchTotal"
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodStatementLine"
+        nextCursor:
+          type: string
+    CodStatementConfirmed:
+      type: object
+      required: [statement, warnings]
+      properties:
+        statement:
+          $ref: "#/components/schemas/CodStatement"
+        warnings:
+          type: array
+          description: Cảnh báo không chặn (ví dụ tổng thực nhận lệch tổng khai trên tệp)
+          items:
+            type: string
+    CodDiscrepancy:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum: [statement_line, open_remainder, remitted_then_returned]
+        statementId:
+          type: string
+          format: uuid
+        lineNo:
+          type: integer
+          format: int32
+        shipmentId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+        trackingCode:
+          type: string
+        codAmount:
+          $ref: "#/components/schemas/Money"
+        expectedAmount:
+          $ref: "#/components/schemas/SignedMoney"
+        diff:
+          $ref: "#/components/schemas/SignedMoney"
+        matchStatus:
+          $ref: "#/components/schemas/CodMatchStatus"
+    CodDiscrepancyPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodDiscrepancy"
+        nextCursor:
+          type: string
+    CodOverdue:
+      type: object
+      required: [shipmentId, orderCode, carrierKey, trackingCode, deliveredAt, carrierHolding, days]
+      properties:
+        shipmentId:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+        carrierKey:
+          type: string
+        trackingCode:
+          type: string
+        deliveredAt:
+          type: string
+          format: date-time
+        carrierHolding:
+          $ref: "#/components/schemas/SignedMoney"
+        days:
+          type: integer
+          format: int32
+    CodOverduePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodOverdue"
+        nextCursor:
+          type: string
+    CodAdjustmentRequest:
+      type: object
+      additionalProperties: false
+      required: [shipmentId, mode, reason]
+      description: reverse cần reversesTransferId; move cần from, to, amount
+      properties:
+        shipmentId:
+          type: string
+          format: uuid
+        mode:
+          type: string
+          enum: [reverse, move]
+        reversesTransferId:
+          type: string
+          format: uuid
+        from:
+          $ref: "#/components/schemas/CodAccount"
+        to:
+          $ref: "#/components/schemas/CodAccount"
+        amount:
+          $ref: "#/components/schemas/Money"
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    CreateCodAdjustmentRequest:
+      type: object
+      additionalProperties: false
+      required: [shipmentId, mode, reason, token]
+      description: Như CodAdjustmentRequest cộng token của bản xem trước
+      properties:
+        shipmentId:
+          type: string
+          format: uuid
+        mode:
+          type: string
+          enum: [reverse, move]
+        reversesTransferId:
+          type: string
+          format: uuid
+        from:
+          $ref: "#/components/schemas/CodAccount"
+        to:
+          $ref: "#/components/schemas/CodAccount"
+        amount:
+          $ref: "#/components/schemas/Money"
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        token:
+          type: string
+          minLength: 1
+          maxLength: 128
+    CodAdjustmentTransfer:
+      type: object
+      required: [kind, entries]
+      properties:
+        kind:
+          type: string
+          enum: [adjustment, reversal]
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodEntry"
+    CodAdjustmentPreview:
+      type: object
+      required: [before, after, transfer, warnings, token]
+      properties:
+        before:
+          $ref: "#/components/schemas/CodBalances"
+        after:
+          $ref: "#/components/schemas/CodBalances"
+        transfer:
+          $ref: "#/components/schemas/CodAdjustmentTransfer"
+        warnings:
+          type: array
+          items:
+            type: string
+        token:
+          type: string
+    ReconcileFinding:
+      type: object
+      required: [id, runId, kind, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        runId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          description: ledger_nonzero, transfer_unbalanced, balance_mismatch, skipped; chuỗi mở
+        shipmentId:
+          type: string
+          format: uuid
+        detail:
+          type: object
+          description: Mã, số tiền (dạng chuỗi); không dữ liệu cá nhân
+          additionalProperties:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+    ReconcileFindingPage:
+      type: object
+      required: [items]
+      properties:
+        runId:
+          type: string
+          format: uuid
+          description: Lần chạy đang xem; không có khi chưa chạy lần nào
+        runAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReconcileFinding"
+        nextCursor:
+          type: string
+    # --- Cài đặt vận chuyển (Task M3-04) ---
+    ReturnRiskSettings:
+      type: object
+      additionalProperties: false
+      required: [watchMinReturned, highMinReturned, highRateBp]
+      properties:
+        watchMinReturned:
+          type: integer
+          format: int32
+        highMinReturned:
+          type: integer
+          format: int32
+        highRateBp:
+          type: integer
+          format: int32
+          description: 1–10.000 (phần vạn)
+    AgedDaysSettings:
+      type: object
+      additionalProperties: false
+      required: [held, inTransit]
+      properties:
+        held:
+          type: integer
+          format: int32
+        inTransit:
+          type: integer
+          format: int32
+    FulfillmentSettings:
+      type: object
+      required: [stuckHours, callbackDeadlineHours, pollMinutes, defaultWeightGramsPerItem, quoteValidMinutes, returnRisk, codOverdueDays, agedDays, version]
+      properties:
+        stuckHours:
+          type: object
+          description: Số giờ không cập nhật thì coi là kẹt, theo trạng thái vận đơn
+          additionalProperties:
+            type: integer
+            format: int32
+        callbackDeadlineHours:
+          type: integer
+          format: int32
+        pollMinutes:
+          type: object
+          description: Chu kỳ tra trạng thái (phút) theo trạng thái vận đơn
+          additionalProperties:
+            type: integer
+            format: int32
+        defaultWeightGramsPerItem:
+          type: integer
+          format: int32
+        quoteValidMinutes:
+          type: integer
+          format: int32
+        returnRisk:
+          $ref: "#/components/schemas/ReturnRiskSettings"
+        codOverdueDays:
+          type: integer
+          format: int32
+        agedDays:
+          $ref: "#/components/schemas/AgedDaysSettings"
+        version:
+          type: integer
+          format: int64
+          description: 0 khi shop chưa lưu cài đặt nào (đang dùng mặc định)
+    UpdateFulfillmentSettingsRequest:
+      type: object
+      additionalProperties: false
+      required: [stuckHours, callbackDeadlineHours, pollMinutes, defaultWeightGramsPerItem, quoteValidMinutes, returnRisk, codOverdueDays, agedDays, version]
+      description: Ghi cả bộ; mọi số > 0, highRateBp 1–10.000 (kiểm ở máy chủ, sai → 422)
+      properties:
+        stuckHours:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
+        callbackDeadlineHours:
+          type: integer
+          format: int32
+        pollMinutes:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
+        defaultWeightGramsPerItem:
+          type: integer
+          format: int32
+        quoteValidMinutes:
+          type: integer
+          format: int32
+        returnRisk:
+          $ref: "#/components/schemas/ReturnRiskSettings"
+        codOverdueDays:
+          type: integer
+          format: int32
+        agedDays:
+          $ref: "#/components/schemas/AgedDaysSettings"
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Version đang lưu (0 khi shop chưa lưu lần nào); âm → 400
+    # --- Dòng đơn có vận đơn, COD (Task M3-28) ---
+    OrderShipmentSummary:
+      type: object
+      required: [code, carrierKey, status]
+      properties:
+        code:
+          type: string
+        carrierKey:
+          type: string
+        trackingCode:
+          type: string
+        status:
+          $ref: "#/components/schemas/ShipmentStatus"
+        label:
+          type: string
+        stuckSince:
+          type: string
+          format: date-time
+        needsReview:
+          type: boolean
+    OrderCodSummary:
+      type: object
+      required: [toCollect, carrierHolding, shopReceived]
+      properties:
+        toCollect:
+          $ref: "#/components/schemas/SignedMoney"
+        carrierHolding:
+          $ref: "#/components/schemas/SignedMoney"
+        shopReceived:
+          $ref: "#/components/schemas/SignedMoney"

@@ -78,6 +78,13 @@ func TestM2Contract_Operations(t *testing.T) {
 	if len(want) != 57 {
 		t.Fatalf("bảng kế hoạch có 55 operation mới và 2 của M1, bảng test có %d", len(want))
 	}
+	checkContractOps(t, "M2", want)
+}
+
+// checkContractOps: mỗi dòng (operationId, "METHOD đường", quyền) có trong Routes đúng đường, quyền, cờ ghi; route ghi
+// bắt buộc Idempotency-Key; operationId không trùng. milestone chỉ để nêu trong thông báo lỗi.
+func checkContractOps(t *testing.T, milestone string, want [][3]string) {
+	t.Helper()
 	byID := map[string]httpapi.Route{}
 	for _, r := range httpapi.Routes {
 		if _, dup := byID[r.OperationID]; dup {
@@ -95,7 +102,7 @@ func TestM2Contract_Operations(t *testing.T) {
 		case r.Write != !strings.HasPrefix(w[1], "GET "):
 			t.Errorf("%s: cờ ghi sai", w[0])
 		case r.Write && r.IdempotencyMode != "required":
-			t.Errorf("%s: route ghi M2 phải bắt buộc Idempotency-Key, có %q", w[0], r.IdempotencyMode)
+			t.Errorf("%s: route ghi %s phải bắt buộc Idempotency-Key, có %q", w[0], milestone, r.IdempotencyMode)
 		}
 	}
 }

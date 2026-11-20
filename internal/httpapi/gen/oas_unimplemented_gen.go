@@ -101,6 +101,16 @@ func (UnimplementedHandler) ApplyCatalogImport(ctx context.Context, req *Version
 	return r, ht.ErrNotImplemented
 }
 
+// ApplyShipmentCorrection implements applyShipmentCorrection operation.
+//
+// Đảo Thành công theo bản xem trước; token khác → 409 preview_stale, bị chặn → 409
+// correction_blocked (Task M3-27).
+//
+// POST /api/v1/shipments/{id}/corrections
+func (UnimplementedHandler) ApplyShipmentCorrection(ctx context.Context, req *ApplyShipmentCorrectionRequest, params ApplyShipmentCorrectionParams) (r ApplyShipmentCorrectionRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ApplyStocktake implements applyStocktake operation.
 //
 // Áp dụng phiên (cộng chênh lệch vào tồn, không đụng phần giữ); trả danh sách
@@ -139,6 +149,15 @@ func (UnimplementedHandler) ArchiveRole(ctx context.Context, req *ArchiveRoleReq
 	return r, ht.ErrNotImplemented
 }
 
+// AssignCallbackTask implements assignCallbackTask operation.
+//
+// Giao việc gọi lại cho nhân viên có quyền fulfillment.callbacks.work (Task M3-19).
+//
+// POST /api/v1/callback-tasks/{id}/assign
+func (UnimplementedHandler) AssignCallbackTask(ctx context.Context, req *AssignCallbackTaskRequest, params AssignCallbackTaskParams) (r AssignCallbackTaskRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // AttachProductImage implements attachProductImage operation.
 //
 // Color (không bắt buộc) là một màu đang có của biến thể trong mẫu. Tệp chưa
@@ -171,6 +190,16 @@ func (UnimplementedHandler) CancelReturn(ctx context.Context, req *VersionReques
 	return r, ht.ErrNotImplemented
 }
 
+// CancelShipment implements cancelShipment operation.
+//
+// Hủy vận đơn để đổi hãng (hủy đơn đi qua cancelOrder); đã lấy hàng → 409
+// shipment_not_cancellable (Task M3-14).
+//
+// POST /api/v1/shipments/{id}/cancel
+func (UnimplementedHandler) CancelShipment(ctx context.Context, req *CancelShipmentRequest, params CancelShipmentParams) (r CancelShipmentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CancelStockDocument implements cancelStockDocument operation.
 //
 // Hủy phiếu nháp.
@@ -186,6 +215,15 @@ func (UnimplementedHandler) CancelStockDocument(ctx context.Context, req *StockD
 //
 // POST /api/v1/inventory/stocktakes/{id}/cancel
 func (UnimplementedHandler) CancelStocktake(ctx context.Context, req *VersionRequest, params CancelStocktakeParams) (r CancelStocktakeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CheckCarrierAccount implements checkCarrierAccount operation.
+//
+// Kiểm kết nối với hãng (việc nền; kết quả active hoặc auth_failed) (Task M3-09).
+//
+// POST /api/v1/carrier-accounts/{id}/check
+func (UnimplementedHandler) CheckCarrierAccount(ctx context.Context, params CheckCarrierAccountParams) (r CheckCarrierAccountRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -228,6 +266,16 @@ func (UnimplementedHandler) CompleteUpload(ctx context.Context, params CompleteU
 	return r, ht.ErrNotImplemented
 }
 
+// ConfirmCodStatement implements confirmCodStatement operation.
+//
+// Chốt bảng kê đã khớp khi version còn khớp (sai → 409 statement_changed): ghi tiền
+// về cho từng dòng (Task M3-32).
+//
+// POST /api/v1/cod-statements/{id}/confirm
+func (UnimplementedHandler) ConfirmCodStatement(ctx context.Context, req *VersionRequest, params ConfirmCodStatementParams) (r ConfirmCodStatementRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ConfirmOrder implements confirmOrder operation.
 //
 // Xác nhận đơn mới hoặc chốt đơn nháp (cần địa chỉ đủ); chờ duyệt giảm
@@ -244,6 +292,16 @@ func (UnimplementedHandler) ConfirmOrder(ctx context.Context, req *VersionReques
 //
 // POST /api/v1/catalog/attributes
 func (UnimplementedHandler) CreateAttribute(ctx context.Context, req *CreateAttributeRequest, params CreateAttributeParams) (r CreateAttributeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateCarrierAccount implements createCarrierAccount operation.
+//
+// Tạo tài khoản hãng (api: draft, manual: active); hãng không có adapter → 422
+// capability_not_supported (Task M3-09).
+//
+// POST /api/v1/carrier-accounts
+func (UnimplementedHandler) CreateCarrierAccount(ctx context.Context, req *CreateCarrierAccountRequest, params CreateCarrierAccountParams) (r CreateCarrierAccountRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -265,6 +323,16 @@ func (UnimplementedHandler) CreateCatalogImport(ctx context.Context, req *Create
 //
 // POST /api/v1/catalog/categories
 func (UnimplementedHandler) CreateCategory(ctx context.Context, req *CreateCategoryRequest, params CreateCategoryParams) (r CreateCategoryRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateCodAdjustment implements createCodAdjustment operation.
+//
+// Ghi điều chỉnh COD theo bản xem trước (đảo hoặc chuyển ngăn, không xóa dòng
+// cũ); token khác → 409 preview_stale (Task M3-33).
+//
+// POST /api/v1/cod/adjustments
+func (UnimplementedHandler) CreateCodAdjustment(ctx context.Context, req *CreateCodAdjustmentRequest, params CreateCodAdjustmentParams) (r CreateCodAdjustmentRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -302,6 +370,16 @@ func (UnimplementedHandler) CreateCustomer(ctx context.Context, req *CreateCusto
 //
 // POST /api/v1/customer-tags
 func (UnimplementedHandler) CreateCustomerTag(ctx context.Context, req *CreateCustomerTagRequest, params CreateCustomerTagParams) (r CreateCustomerTagRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CreateLabelBatch implements createLabelBatch operation.
+//
+// In nhãn theo lô: nhóm vận đơn theo tài khoản hãng, mỗi nhóm một việc tải nhãn;
+// in không đổi trạng thái (Task M3-16).
+//
+// POST /api/v1/label-batches
+func (UnimplementedHandler) CreateLabelBatch(ctx context.Context, req *CreateLabelBatchRequest, params CreateLabelBatchParams) (r CreateLabelBatchRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -455,6 +533,16 @@ func (UnimplementedHandler) GetCatalogImportTemplate(ctx context.Context) (r Get
 	return r, ht.ErrNotImplemented
 }
 
+// GetCodStatement implements getCodStatement operation.
+//
+// Một bảng kê: đầu bảng kê, tổng theo kết quả khớp và dòng theo số dòng (Task
+// M3-31, M3-32).
+//
+// GET /api/v1/cod-statements/{id}
+func (UnimplementedHandler) GetCodStatement(ctx context.Context, params GetCodStatementParams) (r GetCodStatementRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetCoupon implements getCoupon operation.
 //
 // Một mã kèm số lượt đã dùng, còn lại (Task M2-14).
@@ -480,6 +568,15 @@ func (UnimplementedHandler) GetCouponBatch(ctx context.Context, params GetCoupon
 //
 // GET /api/v1/customers/{id}
 func (UnimplementedHandler) GetCustomer(ctx context.Context, params GetCustomerParams) (r GetCustomerRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetCustomerDeliveryStats implements getCustomerDeliveryStats operation.
+//
+// Số đơn giao xong, hoàn và mức "khách hay hoàn" của khách (Task M3-21).
+//
+// GET /api/v1/customers/{id}/delivery-stats
+func (UnimplementedHandler) GetCustomerDeliveryStats(ctx context.Context, params GetCustomerDeliveryStatsParams) (r GetCustomerDeliveryStatsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -529,6 +626,24 @@ func (UnimplementedHandler) GetFile(ctx context.Context, params GetFileParams) (
 	return r, ht.ErrNotImplemented
 }
 
+// GetFulfillmentSettings implements getFulfillmentSettings operation.
+//
+// Cài đặt vận chuyển của shop; thiếu khóa nào lấy mặc định (Task M3-04).
+//
+// GET /api/v1/fulfillment-settings
+func (UnimplementedHandler) GetFulfillmentSettings(ctx context.Context) (r GetFulfillmentSettingsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetLabelBatch implements getLabelBatch operation.
+//
+// Trạng thái lô nhãn; url ký sẵn 5 phút khi ready (Task M3-16).
+//
+// GET /api/v1/label-batches/{id}
+func (UnimplementedHandler) GetLabelBatch(ctx context.Context, params GetLabelBatchParams) (r GetLabelBatchRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetMe implements getMe operation.
 //
 // Chỉ cần đăng nhập và tài khoản không bị khóa (Task 315); nhân viên chưa có grant
@@ -560,8 +675,8 @@ func (UnimplementedHandler) GetOrderSettings(ctx context.Context) (r GetOrderSet
 
 // GetOrderTimeline implements getOrderTimeline operation.
 //
-// Lịch sử thao tác của đơn: đổi trạng thái, tên trường đã sửa (không giá
-// trị dữ liệu cá nhân), ghi chú (Task M2-24).
+// M3 (Task M3-28) thêm mục kind shipment (sự kiện vận đơn), payment (phiếu thu, hoàn
+// tiền), return (phiếu trả); mỗi mục ghi nguồn Nhân viên, Hệ thống hoặc Hãng.
 //
 // GET /api/v1/orders/{id}/timeline
 func (UnimplementedHandler) GetOrderTimeline(ctx context.Context, params GetOrderTimelineParams) (r GetOrderTimelineRes, _ error) {
@@ -575,6 +690,16 @@ func (UnimplementedHandler) GetOrderTimeline(ctx context.Context, params GetOrde
 //
 // GET /api/v1/catalog/products/{id}/images/{imageId}/original
 func (UnimplementedHandler) GetOriginalImageURL(ctx context.Context, params GetOriginalImageURLParams) (r GetOriginalImageURLRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetPickingList implements getPickingList operation.
+//
+// Phiếu nhặt hàng gộp theo SKU cho các vận đơn đã chọn; không địa chỉ, không
+// SĐT (Task M3-16).
+//
+// GET /api/v1/picking-list
+func (UnimplementedHandler) GetPickingList(ctx context.Context, params GetPickingListParams) (r GetPickingListRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -625,6 +750,15 @@ func (UnimplementedHandler) GetShipment(ctx context.Context, params GetShipmentP
 	return r, ht.ErrNotImplemented
 }
 
+// GetShipmentCod implements getShipmentCod operation.
+//
+// Số dư COD theo ngăn và các bút toán của vận đơn (Task M3-29).
+//
+// GET /api/v1/shipments/{id}/cod
+func (UnimplementedHandler) GetShipmentCod(ctx context.Context, params GetShipmentCodParams) (r GetShipmentCodRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetStockDocument implements getStockDocument operation.
 //
 // Một phiếu kho kèm dòng.
@@ -671,6 +805,16 @@ func (UnimplementedHandler) HealthReady(ctx context.Context) (r HealthReadyRes, 
 	return r, ht.ErrNotImplemented
 }
 
+// ImportCodStatement implements importCodStatement operation.
+//
+// Nhập bảng kê COD từ tệp đã tải lên (mục đích cod_statement); tệp đã nhập →
+// 409 statement_duplicate (Task M3-31).
+//
+// POST /api/v1/cod-statements
+func (UnimplementedHandler) ImportCodStatement(ctx context.Context, req *ImportCodStatementRequest, params ImportCodStatementParams) (r ImportCodStatementRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListAdminUnits implements listAdminUnits operation.
 //
 // Tỉnh theo mã; xã theo tên, tối đa 50, q bỏ dấu và không phân biệt hoa thường.
@@ -678,6 +822,16 @@ func (UnimplementedHandler) HealthReady(ctx context.Context) (r HealthReadyRes, 
 //
 // GET /api/v1/admin-units
 func (UnimplementedHandler) ListAdminUnits(ctx context.Context, params ListAdminUnitsParams) (r ListAdminUnitsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListAgedReservations implements listAgedReservations operation.
+//
+// Hàng giữ quá hạn (giữ cho đơn, đang đi đường); chỉ đọc, không tự nhả hàng
+// (Task M3-22).
+//
+// GET /api/v1/inventory/aged-reservations
+func (UnimplementedHandler) ListAgedReservations(ctx context.Context, params ListAgedReservationsParams) (r ListAgedReservationsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -702,6 +856,26 @@ func (UnimplementedHandler) ListBalances(ctx context.Context, params ListBalance
 	return r, ht.ErrNotImplemented
 }
 
+// ListCallbackTasks implements listCallbackTasks operation.
+//
+// Đơn giao thất bại cần gọi lại: quá hạn trước, rồi hạn gần nhất (Task
+// M3-19).
+//
+// GET /api/v1/callback-tasks
+func (UnimplementedHandler) ListCallbackTasks(ctx context.Context, params ListCallbackTasksParams) (r ListCallbackTasksRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListCarrierAccounts implements listCarrierAccounts operation.
+//
+// Tài khoản hãng vận chuyển của shop; không bao giờ có khóa API, webhookUrl chỉ trả
+// cho quyền manage (Task M3-09).
+//
+// GET /api/v1/carrier-accounts
+func (UnimplementedHandler) ListCarrierAccounts(ctx context.Context, params ListCarrierAccountsParams) (r ListCarrierAccountsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListCategories implements listCategories operation.
 //
 // Mọi danh mục của shop (cả đã lưu trữ) theo cấp, vị trí, tên; màn hình dựng
@@ -709,6 +883,34 @@ func (UnimplementedHandler) ListBalances(ctx context.Context, params ListBalance
 //
 // GET /api/v1/catalog/categories
 func (UnimplementedHandler) ListCategories(ctx context.Context) (r ListCategoriesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListCodDiscrepancies implements listCodDiscrepancies operation.
+//
+// Lệch đối soát: dòng lệch tiền, trùng, ngoài hệ thống; phần thiếu còn mở;
+// tiền về rồi mới hoàn (Task M3-32).
+//
+// GET /api/v1/cod/discrepancies
+func (UnimplementedHandler) ListCodDiscrepancies(ctx context.Context, params ListCodDiscrepanciesParams) (r ListCodDiscrepanciesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListCodOverdue implements listCodOverdue operation.
+//
+// Vận đơn giao xong quá hạn mà hãng chưa trả tiền COD (Task M3-32).
+//
+// GET /api/v1/cod/overdue
+func (UnimplementedHandler) ListCodOverdue(ctx context.Context, params ListCodOverdueParams) (r ListCodOverdueRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListCodStatements implements listCodStatements operation.
+//
+// Bảng kê COD, mới nhất trước (Task M3-31).
+//
+// GET /api/v1/cod-statements
+func (UnimplementedHandler) ListCodStatements(ctx context.Context, params ListCodStatementsParams) (r ListCodStatementsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -787,6 +989,24 @@ func (UnimplementedHandler) ListOrderDuplicates(ctx context.Context, params List
 	return r, ht.ErrNotImplemented
 }
 
+// ListOrderPayments implements listOrderPayments operation.
+//
+// Phiếu thu, cọc, hoàn tiền của đơn, mới nhất trước (Task M3-30).
+//
+// GET /api/v1/orders/{id}/payments
+func (UnimplementedHandler) ListOrderPayments(ctx context.Context, params ListOrderPaymentsParams) (r ListOrderPaymentsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListOrderShipments implements listOrderShipments operation.
+//
+// Mọi vận đơn của đơn (cả đã hủy), mới nhất trước (Task M3-12).
+//
+// GET /api/v1/orders/{id}/shipments
+func (UnimplementedHandler) ListOrderShipments(ctx context.Context, params ListOrderShipmentsParams) (r ListOrderShipmentsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListOrders implements listOrders operation.
 //
 // Danh sách đơn, mới nhất trước, keyset; lọc theo nhãn, trạng thái, nguồn, người
@@ -818,6 +1038,25 @@ func (UnimplementedHandler) ListProducts(ctx context.Context, params ListProduct
 	return r, ht.ErrNotImplemented
 }
 
+// ListReconcileFindings implements listReconcileFindings operation.
+//
+// Kết quả đối chiếu sổ COD hằng đêm (mặc định lần chạy gần nhất) (Task
+// M3-33).
+//
+// GET /api/v1/cod/reconcile-findings
+func (UnimplementedHandler) ListReconcileFindings(ctx context.Context, params ListReconcileFindingsParams) (r ListReconcileFindingsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListRefundObligations implements listRefundObligations operation.
+//
+// Nghĩa vụ hoàn tiền cho khách (Task M3-30).
+//
+// GET /api/v1/refund-obligations
+func (UnimplementedHandler) ListRefundObligations(ctx context.Context, params ListRefundObligationsParams) (r ListRefundObligationsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListReturns implements listReturns operation.
 //
 // Phiếu trả, mới nhất trước (Task M2-22).
@@ -846,6 +1085,36 @@ func (UnimplementedHandler) ListRolesToManage(ctx context.Context) (r ListRolesT
 	return r, ht.ErrNotImplemented
 }
 
+// ListShipmentEvents implements listShipmentEvents operation.
+//
+// Lịch sử sự kiện của vận đơn, mới nhất trước; không có thân thô của hãng
+// (Task M3-08).
+//
+// GET /api/v1/shipments/{id}/events
+func (UnimplementedHandler) ListShipmentEvents(ctx context.Context, params ListShipmentEventsParams) (r ListShipmentEventsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListShipmentsForReview implements listShipmentsForReview operation.
+//
+// Việc "Cần xem" của vận đơn (anomaly mở) kèm số đếm các danh sách vận hành
+// (Task M3-20).
+//
+// GET /api/v1/shipments/review
+func (UnimplementedHandler) ListShipmentsForReview(ctx context.Context, params ListShipmentsForReviewParams) (r ListShipmentsForReviewRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListShippingQuotes implements listShippingQuotes operation.
+//
+// Kết quả báo phí của một lần so phí (mặc định lần gần nhất): ok theo phí
+// tăng dần, rồi pending, rồi lỗi; không bao giờ phí 0 thay lỗi (Task M3-13).
+//
+// GET /api/v1/orders/{id}/shipping-quotes
+func (UnimplementedHandler) ListShippingQuotes(ctx context.Context, params ListShippingQuotesParams) (r ListShippingQuotesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListStaff implements listStaff operation.
 //
 // Mọi nhân viên của shop kèm vai trò theo phạm vi.
@@ -862,6 +1131,16 @@ func (UnimplementedHandler) ListStaff(ctx context.Context) (r ListStaffRes, _ er
 //
 // GET /api/v1/inventory/documents
 func (UnimplementedHandler) ListStockDocuments(ctx context.Context, params ListStockDocumentsParams) (r ListStockDocumentsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListStuckShipments implements listStuckShipments operation.
+//
+// Vận đơn kẹt (lâu không có cập nhật), lâu nhất trước; lọc theo phạm vi kho
+// (Task M3-20).
+//
+// GET /api/v1/shipments/stuck
+func (UnimplementedHandler) ListStuckShipments(ctx context.Context, params ListStuckShipmentsParams) (r ListStuckShipmentsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -889,6 +1168,15 @@ func (UnimplementedHandler) ListTags(ctx context.Context) (r ListTagsRes, _ erro
 //
 // GET /api/v1/traffic-sources
 func (UnimplementedHandler) ListTrafficSources(ctx context.Context) (r ListTrafficSourcesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListUnmappedLocations implements listUnmappedLocations operation.
+//
+// Mã địa giới của CRM chưa có mã của hãng (Task M3-18).
+//
+// GET /api/v1/carrier-locations/unmapped
+func (UnimplementedHandler) ListUnmappedLocations(ctx context.Context, params ListUnmappedLocationsParams) (r ListUnmappedLocationsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -921,6 +1209,15 @@ func (UnimplementedHandler) MergeCustomer(ctx context.Context, req *MergeCustome
 	return r, ht.ErrNotImplemented
 }
 
+// PayRefundObligation implements payRefundObligation operation.
+//
+// Ghi một lần hoàn tiền cho khách; vượt số còn phải hoàn → 409 (Task M3-30).
+//
+// POST /api/v1/refund-obligations/{id}/payments
+func (UnimplementedHandler) PayRefundObligation(ctx context.Context, req *PayRefundObligationRequest, params PayRefundObligationParams) (r PayRefundObligationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // PostStockDocument implements postStockDocument operation.
 //
 // Ghi sổ phiếu nháp (đổi tồn); thiếu hàng ở một dòng thì cả phiếu không ghi
@@ -928,6 +1225,36 @@ func (UnimplementedHandler) MergeCustomer(ctx context.Context, req *MergeCustome
 //
 // POST /api/v1/inventory/documents/{id}/post
 func (UnimplementedHandler) PostStockDocument(ctx context.Context, req *StockDocumentVersion, params PostStockDocumentParams) (r PostStockDocumentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// PreviewCodAdjustment implements previewCodAdjustment operation.
+//
+// Xem trước điều chỉnh COD (không đổi dữ liệu): số dư trước, sau, cảnh báo,
+// token (Task M3-33).
+//
+// POST /api/v1/cod/adjustments/preview
+func (UnimplementedHandler) PreviewCodAdjustment(ctx context.Context, req *CodAdjustmentRequest, params PreviewCodAdjustmentParams) (r PreviewCodAdjustmentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// PreviewShipmentCorrection implements previewShipmentCorrection operation.
+//
+// Xem trước việc đảo Thành công của vận đơn (không đổi dữ liệu); trả token
+// để xác nhận (Task M3-27).
+//
+// POST /api/v1/shipments/{id}/corrections/preview
+func (UnimplementedHandler) PreviewShipmentCorrection(ctx context.Context, req *ShipmentCorrectionRequest, params PreviewShipmentCorrectionParams) (r PreviewShipmentCorrectionRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// PutCarrierCredentials implements putCarrierCredentials operation.
+//
+// Ghi khóa API của tài khoản (chỉ ghi, mã hóa; không bao giờ trả lại), tài khoản
+// sang checking (Task M3-09).
+//
+// PUT /api/v1/carrier-accounts/{id}/credentials
+func (UnimplementedHandler) PutCarrierCredentials(ctx context.Context, req *PutCarrierCredentialsRequest, params PutCarrierCredentialsParams) (r PutCarrierCredentialsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -947,6 +1274,34 @@ func (UnimplementedHandler) PutCustomerTagRule(ctx context.Context, req *PutCust
 //
 // POST /api/v1/returns/{returnId}/receive
 func (UnimplementedHandler) ReceiveReturn(ctx context.Context, req *ReceiveReturnRequest, params ReceiveReturnParams) (r ReceiveReturnRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// RecordCallbackOutcome implements recordCallbackOutcome operation.
+//
+// Ghi kết quả cuộc gọi khi version còn khớp (Task M3-19).
+//
+// POST /api/v1/callback-tasks/{id}/outcomes
+func (UnimplementedHandler) RecordCallbackOutcome(ctx context.Context, req *RecordCallbackOutcomeRequest, params RecordCallbackOutcomeParams) (r RecordCallbackOutcomeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// RecordPartialDelivery implements recordPartialDelivery operation.
+//
+// Ghi giao một phần: số đã giao từng dòng, tiền đã thu; tạo phiếu trả cho phần
+// còn lại (Task M3-26).
+//
+// POST /api/v1/shipments/{id}/partial-delivery
+func (UnimplementedHandler) RecordPartialDelivery(ctx context.Context, req *RecordPartialDeliveryRequest, params RecordPartialDeliveryParams) (r RecordPartialDeliveryRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// RecordPayment implements recordPayment operation.
+//
+// Ghi phiếu thu, cọc cho đơn; đơn đã gửi hãng → 409 cod_locked_by_shipment (Task M3-30).
+//
+// POST /api/v1/orders/{id}/payments
+func (UnimplementedHandler) RecordPayment(ctx context.Context, req *RecordPaymentRequest, params RecordPaymentParams) (r RecordPaymentRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1017,6 +1372,46 @@ func (UnimplementedHandler) ReplaceStockDocumentLines(ctx context.Context, req *
 	return r, ht.ErrNotImplemented
 }
 
+// RequestAddressChange implements requestAddressChange operation.
+//
+// Yêu cầu đổi địa chỉ giao sau khi đã gửi hãng (một yêu cầu mở mỗi vận
+// đơn); địa chỉ chưa khớp hãng → 422 address_unmapped (Task M3-17).
+//
+// POST /api/v1/shipments/{id}/address-changes
+func (UnimplementedHandler) RequestAddressChange(ctx context.Context, req *RequestAddressChangeRequest, params RequestAddressChangeParams) (r RequestAddressChangeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// RequestShippingQuotes implements requestShippingQuotes operation.
+//
+// So phí các hãng cho đơn: mỗi tài khoản một việc báo phí; đơn đã có vận đơn
+// → 409 shipment_exists (Task M3-13).
+//
+// POST /api/v1/orders/{id}/shipping-quotes
+func (UnimplementedHandler) RequestShippingQuotes(ctx context.Context, req *RequestShippingQuotesRequest, params RequestShippingQuotesParams) (r RequestShippingQuotesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ResendShipment implements resendShipment operation.
+//
+// Gửi lại hãng vận đơn creating có create_state not_sent; trạng thái khác → 409
+// create_in_progress (Task M3-12).
+//
+// POST /api/v1/shipments/{id}/resend
+func (UnimplementedHandler) ResendShipment(ctx context.Context, params ResendShipmentParams) (r ResendShipmentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ResolveAddressChange implements resolveAddressChange operation.
+//
+// Nhân viên xác nhận kết quả đổi địa chỉ (yêu cầu manual, sent hoặc unknown)
+// (Task M3-17).
+//
+// POST /api/v1/address-changes/{id}/resolve
+func (UnimplementedHandler) ResolveAddressChange(ctx context.Context, req *ResolveAddressChangeRequest, params ResolveAddressChangeParams) (r ResolveAddressChangeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ResolveOrderDuplicate implements resolveOrderDuplicate operation.
 //
 // Xử lý một cặp nghi trùng: không trùng, hoặc hủy một đơn (lý do duplicate); không
@@ -1024,6 +1419,26 @@ func (UnimplementedHandler) ReplaceStockDocumentLines(ctx context.Context, req *
 //
 // POST /api/v1/order-duplicates/{orderId}/{otherOrderId}/resolve
 func (UnimplementedHandler) ResolveOrderDuplicate(ctx context.Context, req *ResolveOrderDuplicateRequest, params ResolveOrderDuplicateParams) (r ResolveOrderDuplicateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ResolveShipmentAnomaly implements resolveShipmentAnomaly operation.
+//
+// Đóng một việc Cần xem kèm cách xử lý; in_doubt_create phải qua resolveShipmentCreate
+// → 409 (Task M3-20).
+//
+// POST /api/v1/shipment-anomalies/{id}/resolve
+func (UnimplementedHandler) ResolveShipmentAnomaly(ctx context.Context, req *ResolveShipmentAnomalyRequest, params ResolveShipmentAnomalyParams) (r ResolveShipmentAnomalyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ResolveShipmentCreate implements resolveShipmentCreate operation.
+//
+// Xử lý "không rõ hãng đã tạo vận đơn chưa" sau khi nhân viên tra trang hãng (Task
+// M3-12).
+//
+// POST /api/v1/shipments/{id}/resolve-create
+func (UnimplementedHandler) ResolveShipmentCreate(ctx context.Context, req *ResolveShipmentCreateRequest, params ResolveShipmentCreateParams) (r ResolveShipmentCreateRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1056,12 +1471,32 @@ func (UnimplementedHandler) SearchVariants(ctx context.Context, params SearchVar
 	return r, ht.ErrNotImplemented
 }
 
+// SetCarrierAccountStatus implements setCarrierAccountStatus operation.
+//
+// Đổi trạng thái tài khoản: active (manual hoặc đã có khóa), paused, revoked (Task
+// M3-09).
+//
+// POST /api/v1/carrier-accounts/{id}/status
+func (UnimplementedHandler) SetCarrierAccountStatus(ctx context.Context, req *SetCarrierAccountStatusRequest, params SetCarrierAccountStatusParams) (r SetCarrierAccountStatusRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // SetOrderPending implements setOrderPending operation.
 //
 // Đặt hoặc bỏ lý do chờ của đơn mới (chờ khách, hết hàng) (Task M2-19).
 //
 // POST /api/v1/orders/{id}/pending
 func (UnimplementedHandler) SetOrderPending(ctx context.Context, req *SetOrderPendingRequest, params SetOrderPendingParams) (r SetOrderPendingRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SetPackingStatus implements setPackingStatus operation.
+//
+// Đánh dấu đang nhặt hoặc đã đóng gói cho nhiều đơn (chỉ đi tới); kết quả
+// từng đơn (Task M3-16).
+//
+// POST /api/v1/orders/packing
+func (UnimplementedHandler) SetPackingStatus(ctx context.Context, req *SetPackingStatusRequest, params SetPackingStatusParams) (r SetPackingStatusRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1083,6 +1518,26 @@ func (UnimplementedHandler) SetProductClassification(ctx context.Context, req *S
 //
 // PUT /api/v1/catalog/products/{id}/images/{imageId}/color
 func (UnimplementedHandler) SetProductImageColor(ctx context.Context, req *SetProductImageColorRequest, params SetProductImageColorParams) (r SetProductImageColorRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SetShipmentManualStatus implements setShipmentManualStatus operation.
+//
+// Nhân viên cập nhật trạng thái vận đơn nhập tay hoặc tự giao (cùng máy trạng
+// thái); returned chỉ qua nhận hàng hoàn (Task M3-15).
+//
+// POST /api/v1/shipments/{id}/manual-status
+func (UnimplementedHandler) SetShipmentManualStatus(ctx context.Context, req *SetShipmentManualStatusRequest, params SetShipmentManualStatusParams) (r SetShipmentManualStatusRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SetWarehousePickup implements setWarehousePickup operation.
+//
+// Địa chỉ lấy hàng của kho khi version còn khớp; audit chỉ ghi tên trường (Task
+// M3-09).
+//
+// PUT /api/v1/inventory/warehouses/{id}/pickup
+func (UnimplementedHandler) SetWarehousePickup(ctx context.Context, req *SetWarehousePickupRequest, params SetWarehousePickupParams) (r SetWarehousePickupRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1115,6 +1570,24 @@ func (UnimplementedHandler) Stream(ctx context.Context) (r StreamRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
+// SyncCarrierLocations implements syncCarrierLocations operation.
+//
+// Tải địa giới của hãng và khớp với mã của CRM (việc nền) (Task M3-18).
+//
+// POST /api/v1/carrier-accounts/{id}/locations/sync
+func (UnimplementedHandler) SyncCarrierLocations(ctx context.Context, params SyncCarrierLocationsParams) (r SyncCarrierLocationsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SyncShipment implements syncShipment operation.
+//
+// Tra trạng thái ở hãng ngay (một việc mỗi phút cho mỗi vận đơn) (Task M3-11).
+//
+// POST /api/v1/shipments/{id}/sync
+func (UnimplementedHandler) SyncShipment(ctx context.Context, params SyncShipmentParams) (r SyncShipmentRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // UndoCustomerMerge implements undoCustomerMerge operation.
 //
 // Hoàn tác một lần gộp trong 30 ngày khi còn là lần gần nhất (Q14); không thì 409
@@ -1131,6 +1604,15 @@ func (UnimplementedHandler) UndoCustomerMerge(ctx context.Context, params UndoCu
 //
 // POST /api/v1/identity/users/{id}/unlock
 func (UnimplementedHandler) UnlockStaff(ctx context.Context, params UnlockStaffParams) (r UnlockStaffRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateCarrierAccount implements updateCarrierAccount operation.
+//
+// Sửa tài khoản hãng khi version còn khớp (sai → 409 version_conflict) (Task M3-09).
+//
+// PATCH /api/v1/carrier-accounts/{id}
+func (UnimplementedHandler) UpdateCarrierAccount(ctx context.Context, req *UpdateCarrierAccountRequest, params UpdateCarrierAccountParams) (r UpdateCarrierAccountRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1178,6 +1660,16 @@ func (UnimplementedHandler) UpdateCustomerAddress(ctx context.Context, req *Upda
 //
 // PATCH /api/v1/customer-tags/{tagId}
 func (UnimplementedHandler) UpdateCustomerTag(ctx context.Context, req *UpdateCustomerTagRequest, params UpdateCustomerTagParams) (r UpdateCustomerTagRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateFulfillmentSettings implements updateFulfillmentSettings operation.
+//
+// Ghi cài đặt vận chuyển khi version còn khớp (sai → 409 version_conflict); số ngoài
+// khoảng → 422 (Task M3-04).
+//
+// PUT /api/v1/fulfillment-settings
+func (UnimplementedHandler) UpdateFulfillmentSettings(ctx context.Context, req *UpdateFulfillmentSettingsRequest, params UpdateFulfillmentSettingsParams) (r UpdateFulfillmentSettingsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1255,5 +1747,14 @@ func (UnimplementedHandler) UpdateVariant(ctx context.Context, req *UpdateVarian
 //
 // POST /api/v1/platform/files/verify
 func (UnimplementedHandler) VerifyFiles(ctx context.Context, params VerifyFilesParams) (r VerifyFilesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// WaiveRefundObligation implements waiveRefundObligation operation.
+//
+// Bỏ nghĩa vụ hoàn tiền kèm lý do (Task M3-30).
+//
+// POST /api/v1/refund-obligations/{id}/waive
+func (UnimplementedHandler) WaiveRefundObligation(ctx context.Context, req *WaiveRefundObligationRequest, params WaiveRefundObligationParams) (r WaiveRefundObligationRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

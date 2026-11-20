@@ -70,9 +70,6 @@ func wireM3(role config.Role, cfg config.Config, d m3Deps) (m3Parts, error) {
 	csh := cash.New(cash.Deps{
 		DB: d.DB, Queue: queue.NewQueue(), Bus: d.Bus, Events: d.Events, Carriers: reg, Metrics: d.Metrics,
 	})
-	if err := errors.Join(ful.Check(), csh.Check()); err != nil {
-		return m3Parts{}, fmt.Errorf("nối module M3: %w", err)
-	}
 	p := m3Parts{
 		Fulfillment: ful, Cash: csh,
 		Consumers: background.Collect(ful.Consumers(), csh.Consumers()),
@@ -90,5 +87,20 @@ func wireM3(role config.Role, cfg config.Config, d m3Deps) (m3Parts, error) {
 		p.Sources = append(p.Sources, fake.NewSource(secret))
 		p.Inbound = append(p.Inbound, fulfillment.NewSignalHandler(fake.Key))
 	}
+	if err := errors.Join(ful.Check(), csh.Check(), checkM3Unique(p)); err != nil {
+		return m3Parts{}, fmt.Errorf("nối module M3: %w", err)
+	}
 	return p, nil
+}
+
+// checkM3Unique kiểm không trùng tên giữa hai module và phần hãng giả nối thêm (Check của mỗi module chỉ xét trong
+// module đó).
+func checkM3Unique(p m3Parts) error {
+	return errors.Join(
+		background.UniqueNames("lệnh", p.Commands, func(h commands.Handler) string { return h.Kind().Name }),
+		background.UniqueNames("handler vào", p.Inbound, func(h webhooks.InboundHandler) string { return h.Source() }),
+		background.UniqueNames("nguồn webhook", p.Sources, func(s webhooks.Source) string { return s.Key() }),
+		background.UniqueNames("consumer", p.Consumers, func(c events.Consumer) string { return c.Name() }),
+		background.UniqueNames("lịch", p.Schedules, func(s schedules.Schedule) string { return s.Name }),
+	)
 }

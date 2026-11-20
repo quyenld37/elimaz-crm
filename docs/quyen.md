@@ -20,7 +20,7 @@ trị nhân viên, vai trò, nền tảng là loại `toàn shop`.
   quản lý nhân viên, không xem nhật ký, không vào mục nền tảng.
 - Quyền quản trị (loại `toàn shop`) hiện có: `identity.users.manage`, `identity.roles.manage`, `platform.jobs.manage`,
   `platform.health.read`, `platform.files.manage`, `audit.read`; chính sách toàn shop của M2: `order.settings.manage`,
-  `promotion.manage`.
+  `promotion.manage`; của M3: `fulfillment.carrier_accounts.manage`, `fulfillment.settings.manage`.
 - **Lên đơn giữ hàng theo phạm vi kho** (Task 411, quyết định 19/11 cho phát hiện D-02): `order.create` vẫn là loại
   `none` (vào màn Lên đơn, kiểm mã giảm giá, kiểm đơn trùng như cũ), nhưng lúc tạo đơn (`POST /api/v1/orders`) kho giữ
   hàng của đơn — `warehouseId` gửi lên, bỏ trống là kho chính — phải nằm trong phạm vi của chính quyền `order.create`:
@@ -68,7 +68,7 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `catalog.import` | none | M1 | owner, manager | Nhập sản phẩm bằng tệp Excel |
 | `order.create` | none | M1 | owner, manager, sale | Tạo đơn |
 | `order.read` | none | M1 | owner, manager, sale, warehouse, accountant | Xem đơn (Kho nhận từ M2) |
-| `files.upload` | none | M1 | owner, manager | Tải ảnh, tệp lên kho tệp |
+| `files.upload` | none | M1 | owner, manager, accountant | Tải ảnh, tệp lên kho tệp (Kế toán nhận từ M3: tải bảng kê COD) |
 | `platform.files.manage` | toàn shop | M1 | owner | Quản trị kho tệp (khôi phục, tình trạng bản sao) |
 | `inventory.suppliers.manage` | none | M1 | owner, manager, warehouse | Quản lý danh bạ nhà cung cấp |
 | `identity.roles.manage` | toàn shop | M1 | owner | Tạo, sửa, lưu trữ vai trò tự định nghĩa (Task M1-56) |
@@ -94,3 +94,21 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `order.settings.manage` | toàn shop | M2 | owner, manager | Cài đặt đơn của shop (ngưỡng duyệt giảm giá…), nguồn đơn |
 | `promotion.read` | none | M2 | owner, manager, sale, accountant | Xem mã giảm giá, đợt mã (M5 dùng lại) |
 | `promotion.manage` | toàn shop | M2 | owner, manager | Tạo, sửa, ngừng mã giảm giá và đợt mã |
+| `fulfillment.carrier_accounts.read` | none | M3 | owner, manager, warehouse | Xem kết nối hãng vận chuyển (tài khoản hãng, trạng thái kết nối; không bao giờ thấy khóa API) |
+| `fulfillment.carrier_accounts.manage` | toàn shop | M3 | owner, manager | Thêm, sửa, tắt tài khoản hãng, nhập khóa API, kiểm kết nối, địa chỉ lấy hàng của kho, đồng bộ địa giới |
+| `fulfillment.settings.manage` | toàn shop | M3 | owner, manager | Cài đặt vận chuyển của shop (ngưỡng đơn kẹt, chu kỳ tra, hạn gọi lại, mức khách hay hoàn…) |
+| `fulfillment.quote` | theo đích: warehouse | M3 | owner, manager, sale, warehouse | So phí các hãng cho đơn giao từ kho được giao |
+| `fulfillment.cancel` | theo đích: warehouse | M3 | owner, manager, sale, warehouse | Hủy vận đơn ở hãng, đổi hãng (hủy đơn vẫn qua `order.cancel`) |
+| `fulfillment.print` | theo đích: warehouse | M3 | owner, manager, warehouse | In tem theo lô, phiếu nhặt hàng của kho được giao |
+| `fulfillment.pack` | theo đích: warehouse | M3 | owner, manager, warehouse | Đánh dấu đơn đã đóng gói |
+| `fulfillment.manual_status` | theo đích: warehouse | M3 | owner, manager, warehouse | Cập nhật tay trạng thái vận đơn (hãng tự giao, nhập mã tay) |
+| `fulfillment.correct` | none | M3 | owner, manager | Sửa sai vận đơn (đảo "Thành công"), giao một phần, xử lý vận đơn "Cần xem" |
+| `fulfillment.callbacks.work` | none | M3 | owner, manager, sale | Làm danh sách gọi lại khách giao thất bại: ghi kết quả, nhận việc |
+| `inventory.aged.read` | theo đích: warehouse | M3 | owner, manager, warehouse | Xem hàng giữ quá hạn của kho được giao |
+| `cash.cod.read` | none | M3 | owner, manager, accountant | Xem tiền COD theo vận đơn, bảng kê, lệch đối soát, quá hạn, khoản phải hoàn |
+| `cash.statements.import` | none | M3 | owner, accountant | Nhập bảng kê COD của hãng |
+| `cash.statements.confirm` | none | M3 | owner, accountant | Chốt bảng kê COD (ghi tiền về sổ) |
+| `cash.adjust` | none | M3 | owner, accountant | Điều chỉnh sổ COD có xem trước và lý do |
+| `cash.payments.record` | none | M3 | owner, manager, sale, accountant | Ghi phiếu thu, cọc, chuyển khoản trên đơn |
+| `cash.refunds.record` | none | M3 | owner, accountant | Ghi phiếu chi trả khoản hoàn tiền cho khách |
+| `cash.refunds.waive` | none | M3 | owner | Đóng khoản hoàn "không hoàn" kèm lý do (khách đồng ý mất cọc) |
