@@ -11,9 +11,20 @@ import (
 // Khung của Task M3-04: mọi hàm trả nil; task của vùng điền các hàm dưới (và thêm
 // phương thức của Service trong tệp của vùng), không sửa module.go, wire.go.
 
-func (*Module) quotesHandlers() []commands.Handler       { return nil }
+// quotesHandlers: lệnh báo phí command.shipping.quote (quote_command.go) khi có database.
+func (m *Module) quotesHandlers() []commands.Handler {
+	if m.d.DB == nil {
+		return nil
+	}
+	return []commands.Handler{NewQuoteCommand(m.Service)}
+}
+
 func (*Module) quotesInbound() []webhooks.InboundHandler { return nil }
 func (*Module) quotesSources() []webhooks.Source         { return nil }
 func (*Module) quotesConsumers() []events.Consumer       { return nil }
 func (*Module) quotesSchedules() []schedules.Schedule    { return nil }
-func (*Module) quotesCleanups() []schedules.CleanupFunc  { return nil }
+
+// quotesCleanups: dọn báo phí quá 7 ngày (trừ báo phí vận đơn đã dùng).
+func (*Module) quotesCleanups() []schedules.CleanupFunc {
+	return []schedules.CleanupFunc{cleanupQuotes}
+}

@@ -72,8 +72,9 @@ func checkM3Parts(t *testing.T, cfg config.Config, commands []string, source boo
 		(source && (p.Sources[0].Key() != fake.CarrierKey || p.Inbound[0].Source() != fake.CarrierKey)) {
 		t.Errorf("nguồn %d, handler vào %d, mong hãng giả = %v", len(p.Sources), len(p.Inbound), source)
 	}
-	if len(p.Schedules)+len(p.Cleanups) != 0 {
-		t.Errorf("khung chưa có lịch, dọn: %d %d", len(p.Schedules), len(p.Cleanups))
+	// Dọn: một hàm của vùng quotes (báo phí quá 7 ngày, Task M3-13); chưa vùng nào có lịch.
+	if len(p.Schedules) != 0 || len(p.Cleanups) != 1 {
+		t.Errorf("lịch, dọn: %d %d, mong 0 1", len(p.Schedules), len(p.Cleanups))
 	}
 }
 
