@@ -9,7 +9,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY internal ./internal
-# migrations: gói nhúng mà internal/platform/db cần (fakecarrier nhập adapters/fakecarrier → fulfillment → db).
+# migrations: gói nhúng mà internal/platform/db cần (fakecarrier nhập adapters/carrier/fake → fulfillment → db).
 COPY migrations ./migrations
 COPY tools/fakecarrier ./tools/fakecarrier
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \

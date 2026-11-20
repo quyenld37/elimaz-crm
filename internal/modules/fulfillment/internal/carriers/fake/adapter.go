@@ -1,6 +1,6 @@
 // Package fake là hãng vận chuyển giả trong bộ nhớ (không mạng) cho test của fulfillment: hiện thực
 // fulfillment.CarrierAdapter, tạo kiện theo mã của CRM (cùng mã lần hai trả lại kiện cũ), đổi chế độ lỗi, đổi trạng
-// thái kiện bằng Advance. Bản gọi mạng tới chương trình tools/fakecarrier ở internal/adapters/fakecarrier.
+// thái kiện bằng Advance. Bản gọi mạng tới chương trình tools/fakecarrier ở internal/adapters/carrier/fake.
 package fake
 
 import (

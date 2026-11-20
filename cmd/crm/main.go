@@ -20,8 +20,8 @@ import (
 
 	"github.com/google/uuid"
 
+	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
 	"elimaz.com.vn/crm/internal/adapters/cfaccess"
-	"elimaz.com.vn/crm/internal/adapters/fakecarrier"
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/imager"
 	"elimaz.com.vn/crm/internal/modules/catalog"
@@ -200,8 +200,8 @@ func newInbound(cfg config.Config, reg *metrics.Registry, bus selftest.Publisher
 	sources := []webhooks.Source{selftest.NewSource("")}
 	handlers := []webhooks.InboundHandler{selftest.NewInbound(bus)}
 	if fakeCarrierOn(cfg) {
-		sources = append(sources, fakecarrier.NewSource(""))
-		handlers = append(handlers, fulfillment.NewSignalHandler(fakecarrier.Key))
+		sources = append(sources, fake.NewSource(""))
+		handlers = append(handlers, fulfillment.NewSignalHandler(fake.Key))
 	}
 	split, err := webhooks.NewSplitHandler(webhooks.SplitOptions{Sources: sources, Metrics: reg})
 	if err != nil {
@@ -260,7 +260,7 @@ func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtim
 	if fakeCarrierOn(cfg) {
 		o := fulfillment.CommandOptions{
 			DB: d, Adapters: []fulfillment.CarrierAdapter{
-				fakecarrier.NewClient(cfg.FakeCarrierURL, cfg.FakeCarrierWebhookSecret, &http.Client{}),
+				fake.NewClient(cfg.FakeCarrierURL, cfg.FakeCarrierWebhookSecret, &http.Client{}),
 			},
 			Events: evs, Queue: queue.NewQueue(), Realtime: bus,
 		}
@@ -519,7 +519,7 @@ func ingestHandler(cfg config.Config, d *db.DB, reg *metrics.Registry, logger *s
 func ingestSources(cfg config.Config) []webhooks.Source {
 	sources := []webhooks.Source{selftest.NewSource(cfg.SelftestWebhookSecret)}
 	if fakeCarrierOn(cfg) {
-		sources = append(sources, fakecarrier.NewSource(cfg.FakeCarrierWebhookSecret))
+		sources = append(sources, fake.NewSource(cfg.FakeCarrierWebhookSecret))
 	}
 	return sources
 }

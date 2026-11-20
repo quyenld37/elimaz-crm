@@ -1,11 +1,11 @@
-// Package fakecarrier nối CRM với chương trình hãng vận chuyển giả tools/fakecarrier (chỉ dev, staging: cmd/crm chỉ
+// Package fake nối CRM với chương trình hãng vận chuyển giả tools/fakecarrier (chỉ dev, staging: cmd/crm chỉ
 // đăng ký khi CRM_ENV khác production và có FAKECARRIER_URL). Client hiện thực fulfillment.CarrierAdapter qua HTTP
 // (Bearer FAKECARRIER_WEBHOOK_SECRET); Source hiện thực webhooks.Source cho /hooks/fakecarrier (chữ ký
 // x-fake-signature: sha256=<HMAC-SHA256>), tách gói thành tín hiệu fulfillment.Signal.
 //
 // Khi nào không dùng: không làm mẫu dữ liệu cho hãng thật (mỗi hãng một gói internal/adapters/<hãng>); không chạy ở
 // production.
-package fakecarrier
+package fake
 
 import (
 	"bytes"

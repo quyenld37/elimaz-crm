@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"encoding/json"
@@ -19,7 +19,7 @@ const (
 	modeForge              = "forge"
 )
 
-// Trạng thái thô của kiện (khớp internal/adapters/fakecarrier).
+// Trạng thái thô của kiện (khớp internal/adapters/carrier/fake).
 const (
 	rawCreated   = "created"
 	rawPickedUp  = "picked_up"
@@ -48,9 +48,9 @@ type state struct {
 	Parcels map[string]*parcel `json:"parcels"` // theo tracking
 }
 
-// store giữ trạng thái trong bộ nhớ, ghi tệp JSON (ghi tệp tạm rồi đổi tên) sau mỗi lần đổi để sống qua khởi động
+// Store giữ trạng thái trong bộ nhớ, ghi tệp JSON (ghi tệp tạm rồi đổi tên) sau mỗi lần đổi để sống qua khởi động
 // lại; path rỗng thì chỉ trong bộ nhớ.
-type store struct {
+type Store struct {
 	mu   sync.Mutex
 	path string
 	st   state
@@ -58,9 +58,9 @@ type store struct {
 
 var errBadMode = errors.New("fakecarrier: chế độ lạ")
 
-// openStore đọc tệp path (không có tệp → trạng thái rỗng, chế độ ok).
-func openStore(path string) (*store, error) {
-	s := &store{path: path, st: state{Mode: modeOK, Parcels: map[string]*parcel{}}}
+// OpenStore đọc tệp path (không có tệp → trạng thái rỗng, chế độ ok).
+func OpenStore(path string) (*Store, error) {
+	s := &Store{path: path, st: state{Mode: modeOK, Parcels: map[string]*parcel{}}}
 	if path == "" {
 		return s, nil
 	}
@@ -81,7 +81,7 @@ func openStore(path string) (*store, error) {
 }
 
 // saveLocked ghi trạng thái ra tệp; gọi khi đang giữ mu.
-func (s *store) saveLocked() error {
+func (s *Store) saveLocked() error {
 	if s.path == "" {
 		return nil
 	}
@@ -99,13 +99,13 @@ func (s *store) saveLocked() error {
 	return nil
 }
 
-func (s *store) mode() string {
+func (s *Store) mode() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.st.Mode
 }
 
-func (s *store) setMode(m string) error {
+func (s *Store) setMode(m string) error {
 	switch m {
 	case modeOK, modeTimeoutAfterCreate, modeFailBeforeCreate, modeForge:
 	default:
@@ -118,7 +118,7 @@ func (s *store) setMode(m string) error {
 }
 
 // create tạo kiện cho code, hoặc trả kiện đã có cùng code (cùng tài khoản).
-func (s *store) create(code, accountKey string, cod int64, now time.Time) (parcel, error) {
+func (s *Store) create(code, accountKey string, cod int64, now time.Time) (parcel, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, p := range s.st.Parcels {
@@ -135,7 +135,7 @@ func (s *store) create(code, accountKey string, cod int64, now time.Time) (parce
 	return *p, s.saveLocked()
 }
 
-func (s *store) byCode(code, accountKey string) (parcel, bool) {
+func (s *Store) byCode(code, accountKey string) (parcel, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, p := range s.st.Parcels {
@@ -146,7 +146,7 @@ func (s *store) byCode(code, accountKey string) (parcel, bool) {
 	return parcel{}, false
 }
 
-func (s *store) byTracking(tracking string) (parcel, bool) {
+func (s *Store) byTracking(tracking string) (parcel, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p, ok := s.st.Parcels[tracking]
@@ -157,7 +157,7 @@ func (s *store) byTracking(tracking string) (parcel, bool) {
 }
 
 // advance đổi trạng thái kiện (kể cả lùi, để thử tin đến muộn); ok = false khi không có kiện.
-func (s *store) advance(tracking, to string, now time.Time) (parcel, bool, error) {
+func (s *Store) advance(tracking, to string, now time.Time) (parcel, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p, ok := s.st.Parcels[tracking]
@@ -168,7 +168,7 @@ func (s *store) advance(tracking, to string, now time.Time) (parcel, bool, error
 	return *p, true, s.saveLocked()
 }
 
-func (s *store) count() int {
+func (s *Store) count() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return len(s.st.Parcels)

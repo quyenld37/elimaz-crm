@@ -1,4 +1,4 @@
-package fakecarrier
+package fake
 
 import (
 	"crypto/hmac"
