@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -148,4 +149,65 @@ func TestReturnAPI_Exchange(t *testing.T) {
 	expect(t, "đổi thiếu replacement", e.returnPost(returnSale, "e3", fmt.Sprintf("/api/v1/orders/%s/returns", o["id"]),
 		fmt.Sprintf(`{"kind":"exchange","lines":[{"orderItemId":"%s","qty":1}]}`, firstItem(o))),
 		http.StatusBadRequest, "invalid_input")
+}
+
+// receiveReturn theo số lượng (M3-23): đơn V1 ×2, V2 ×1 đã giao, phiếu khách trả đủ hai dòng. Thiếu một dòng → 422
+// qty_mismatch; S+D+M lệch → 422 qty_mismatch; dòng có số cùng dòng chỉ có condition → dòng sau 0/0/0 → 422;
+// đúng (V1 S1 D1, V2 S1) → 200 restocked, dòng V1 trộn không có condition, V2 sellable, tồn V1 +2 (hỏng 1); cùng khóa
+// → cùng kết quả; khóa khác với version cũ → 409 version_conflict.
+func TestReturnAPI_ReceiveQty(t *testing.T) {
+	e := newReturnAPIEnv(t)
+	v1, v2 := e.variant(e.shop.Seller, 250000, 3), e.variant(e.shop.Seller, 180000, 3)
+	o := e.mustCreate("q1", m2Body("confirmed", fullAddr, 0, m2Line(v1, 2, 0), m2Line(v2, 1, 0)))
+	id := uuid.MustParse(o["id"].(string))
+	e.deliver(id)
+	items := o["items"].([]any)
+	i1, i2 := items[0].(map[string]any)["id"], items[1].(map[string]any)["id"]
+	rec := e.returnPost(returnSale, "q2", fmt.Sprintf("/api/v1/orders/%s/returns", id), fmt.Sprintf(
+		`{"kind":"customer_return","lines":[{"orderItemId":"%s","qty":2},{"orderItemId":"%s","qty":1}]}`, i1, i2))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("createReturn: %d %s", rec.Code, rec.Body.String())
+	}
+	r := decodeJSON(t, rec)
+	path := fmt.Sprintf("/api/v1/returns/%s/receive", r["id"])
+	line := func(item any, s, d, m int) string {
+		return fmt.Sprintf(`{"orderItemId":"%s","condition":"sellable","sellable":%d,"damaged":%d,"missing":%d}`,
+			item, s, d, m)
+	}
+	body := func(lines ...string) string {
+		return fmt.Sprintf(`{"version":%v,"lines":[%s]}`, r["version"], strings.Join(lines, ","))
+	}
+	expect(t, "thiếu một dòng", e.returnPost(returnWarehouse, "k1", path, body(line(i1, 1, 1, 0))),
+		http.StatusUnprocessableEntity, "qty_mismatch")
+	expect(t, "tổng lệch", e.returnPost(returnWarehouse, "k2", path, body(line(i1, 1, 0, 0), line(i2, 1, 0, 0))),
+		http.StatusUnprocessableEntity, "qty_mismatch")
+	expect(t, "dòng chỉ có condition", e.returnPost(returnWarehouse, "k3", path,
+		body(line(i1, 1, 1, 0), fmt.Sprintf(`{"orderItemId":"%s","condition":"sellable"}`, i2))),
+		http.StatusUnprocessableEntity, "qty_mismatch")
+	onHand := func() int { return e.count(`SELECT on_hand FROM inventory.stock_balances WHERE variant_id = $1`, v1) }
+	before := onHand()
+	ok := body(line(i1, 1, 1, 0), line(i2, 1, 0, 0))
+	rec = e.returnPost(returnWarehouse, "k4", path, ok)
+	got := decodeJSON(t, rec)
+	if rec.Code != http.StatusOK || got["status"] != "restocked" {
+		t.Fatalf("receiveReturn: %d %s", rec.Code, rec.Body.String())
+	}
+	for _, it := range got["items"].([]any) {
+		m := it.(map[string]any)
+		if want := map[any]any{i1: nil, i2: "sellable"}[m["orderItemId"]]; m["condition"] != want {
+			t.Errorf("dòng %v: condition %v, mong %v", m["orderItemId"], m["condition"], want)
+		}
+	}
+	if after := onHand(); after != before+2 {
+		t.Errorf("on_hand V1 %d → %d", before, after)
+	}
+	if d := e.count(`SELECT damaged FROM inventory.stock_balances WHERE variant_id = $1`, v1); d != 1 {
+		t.Errorf("damaged V1 = %d", d)
+	}
+	again := e.returnPost(returnWarehouse, "k4", path, ok)
+	if again.Code != http.StatusOK || again.Body.String() != rec.Body.String() {
+		t.Errorf("cùng khóa: %d %s", again.Code, again.Body.String())
+	}
+	expect(t, "khóa khác, version cũ", e.returnPost(returnWarehouse, "k5", path, ok), http.StatusConflict,
+		"version_conflict")
 }

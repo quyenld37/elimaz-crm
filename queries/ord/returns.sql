@@ -59,11 +59,6 @@ WHERE return_id = @return_id
 ORDER BY id
 FOR UPDATE;
 
--- name: SetReturnItemReceived :exec
-UPDATE ord.return_items
-SET condition = @condition, refund_amount = @refund_amount
-WHERE id = @id;
-
 -- name: MarkReturnReceived :one
 -- requested → restocked (kho nhận và nhập kho cùng lúc) khi version còn khớp; trả version mới.
 UPDATE ord.returns

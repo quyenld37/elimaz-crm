@@ -47,6 +47,8 @@ const (
 	ConditionSellable = "sellable"
 	ConditionDamaged  = "damaged"
 	ConditionMissing  = "missing"
+	// ConditionMixed: dòng nhận có từ hai loại số (tốt, hỏng, thiếu) khác 0 (M3-23; CHECK của 0302).
+	ConditionMixed = "mixed"
 )
 
 // Sự kiện khi kho nhận phiếu khách trả / đổi (payload ReturnReceived); phiếu hoàn của hãng: order.returned do
@@ -107,14 +109,17 @@ type Return struct {
 	Version                        int64
 }
 
-// ReturnReceived là payload của order.partially_returned / order.returned khi kho nhận phiếu khách trả hay đổi: phần
-// Changed của đơn (version = seq) cộng mã phiếu, loại, tiền hoàn của phiếu (chỉ mã và số, A16).
+// ReturnReceived là payload của order.partially_returned / order.returned khi kho nhận một phiếu (khách trả, đổi; phiếu
+// hoàn của hãng từ M3-23): phần Changed của đơn (version = seq) cộng mã phiếu, loại, tiền hoàn của phiếu, vận đơn của
+// phiếu (chỉ phiếu hoàn của hãng, giao một phần) và tổng số món thiếu (chỉ mã và số, A16).
 type ReturnReceived struct {
 	Changed
 
-	ReturnID     uuid.UUID `json:"returnId"`
-	Kind         string    `json:"kind"`
-	RefundAmount int64     `json:"refundAmount"`
+	ReturnID     uuid.UUID  `json:"returnId"`
+	Kind         string     `json:"kind"`
+	RefundAmount int64      `json:"refundAmount"`
+	ShipmentID   *uuid.UUID `json:"shipmentId,omitempty"`
+	MissingQty   int32      `json:"missingQty"`
 }
 
 // CreateReturn tạo phiếu trả cho đơn orderID đã giao của người bán sellerID, trong tx của bên gọi: khóa đơn rồi dòng
@@ -410,15 +415,9 @@ func lockReturn(ctx context.Context, tx pgx.Tx, sellerID, returnID uuid.UUID, ve
 	return l, nil
 }
 
-// ReceiveReturn là kho nhận hàng của phiếu returnID (người bán sellerID) ở version, tình trạng từng dòng lines (mỗi
-// dòng phiếu đúng một lần; sai → ErrInvalidInput), trong tx của bên gọi (lớp HTTP đã kiểm order.return.receive; M3
-// gọi cho kiện hoàn). Khóa đơn → phiếu → dòng phiếu; phiếu không requested → ErrReturnNotAllowed. Phiếu sang restocked.
-//
-//   - customer_return, exchange: sellable → on_hand +; damaged → on_hand + rồi damaged +; missing → không ghi kho, tiền
-//     hoàn dòng 0. Đơn gốc không đổi trạng thái (version + 1); sự kiện order.returned khi mọi dòng đơn đã trả đủ qua các
-//     phiếu đã nhận, không thì order.partially_returned (payload ReturnReceived).
-//   - carrier_return: dòng sellable, damaged nhả giữ hàng in_transit (hàng về kho); damaged thêm vào ngăn hỏng; missing
-//     giữ in_transit cho M3 xử lý thất lạc (TD04). Đơn confirmed → returned qua applyTransition (order.returned).
+// ReceiveReturn là kho nhận hàng của phiếu returnID (người bán sellerID) ở version, tình trạng cả dòng lines (mỗi
+// dòng phiếu đúng một lần; sai → ErrInvalidInput), trong tx của bên gọi (lớp HTTP đã kiểm order.return.receive). Dựng
+// dòng số lượng (cả số của dòng vào loại của tình trạng) rồi nhận như ReceiveReturnQty.
 func (w Writer) ReceiveReturn(ctx context.Context, tx pgx.Tx, sellerID, returnID uuid.UUID, version int64,
 	lines []ReceiveLine, a Actor, now time.Time,
 ) (Return, error) {
@@ -478,7 +477,8 @@ func (w Writer) receiveCustomer(ctx context.Context, tx pgx.Tx, stock inventory.
 			Changed: Changed{
 				OrderID: full.ID, SellerID: full.SellerID, Version: version, CustomerID: full.CustomerID, Status: full.Status,
 			},
-			ReturnID: l.r.ID, Kind: l.r.Kind, RefundAmount: total,
+			ReturnID: l.r.ID, Kind: l.r.Kind, RefundAmount: total, ShipmentID: uuidPtr(l.r.ShipmentID),
+			MissingQty: missingOf(lines),
 		},
 	}); err != nil {
 		return fmt.Errorf("phát %s: %w", topic, err)

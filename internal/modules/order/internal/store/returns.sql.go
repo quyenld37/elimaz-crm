@@ -549,23 +549,6 @@ func (q *Queries) ReturnedLinesOfOrder(ctx context.Context, orderID uuid.UUID) (
 	return items, nil
 }
 
-const setReturnItemReceived = `-- name: SetReturnItemReceived :exec
-UPDATE ord.return_items
-SET condition = $1, refund_amount = $2
-WHERE id = $3
-`
-
-type SetReturnItemReceivedParams struct {
-	Condition    string
-	RefundAmount int64
-	ID           uuid.UUID
-}
-
-func (q *Queries) SetReturnItemReceived(ctx context.Context, arg SetReturnItemReceivedParams) error {
-	_, err := q.db.Exec(ctx, setReturnItemReceived, arg.Condition, arg.RefundAmount, arg.ID)
-	return err
-}
-
 const setReturnStatus = `-- name: SetReturnStatus :one
 UPDATE ord.returns
 SET status = $1::text, updated_at = $2::timestamptz, version = version + 1

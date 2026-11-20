@@ -11,7 +11,8 @@ import (
 )
 
 // wireM3 giữ đúng điều kiện của M1 (Task M3-04, commit cấu trúc): consumer sổ COD luôn có; hai lệnh vận chuyển, nguồn
-// webhook và handler tín hiệu của hãng giả chỉ khi ngoài production và có FAKECARRIER_URL; khung các vùng chưa thêm gì.
+// webhook và handler tín hiệu của hãng giả chỉ khi ngoài production và có FAKECARRIER_URL; vùng returns (M3-23) thêm
+// consumer fulfillment_return_received.
 func TestWireM3_KeepsM1Parts(t *testing.T) {
 	t.Parallel()
 	fakeCfg := config.Config{Env: "development", FakeCarrierURL: "http://127.0.0.1:1"}
@@ -51,8 +52,14 @@ func checkM3Parts(t *testing.T, cfg config.Config, commands []string, source boo
 	if !slices.Equal(kinds, commands) {
 		t.Errorf("lệnh = %v, mong %v", kinds, commands)
 	}
-	if len(p.Consumers) != 1 || p.Consumers[0].Name() != "cash" {
-		t.Errorf("consumer phải đúng một cash, có %d", len(p.Consumers))
+	consumers := make([]string, 0, len(p.Consumers))
+	for _, c := range p.Consumers {
+		consumers = append(consumers, c.Name())
+	}
+	slices.Sort(consumers)
+	// cash (M1) và fulfillment_return_received (vùng returns, Task M3-23).
+	if want := []string{"cash", "fulfillment_return_received"}; !slices.Equal(consumers, want) {
+		t.Errorf("consumer = %v, mong %v", consumers, want)
 	}
 	want := 0
 	if source {

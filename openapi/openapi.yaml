@@ -4447,6 +4447,7 @@ components:
         - needs_approval
         - order_discount_exceeds
         - order_locked_by_shipment
+        - qty_mismatch
         - query_too_short
         - return_not_allowed
         - return_qty_exceeds

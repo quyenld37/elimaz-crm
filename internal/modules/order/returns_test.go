@@ -527,16 +527,18 @@ func TestCarrierReturn_TD02Receive(t *testing.T) {
 	}
 }
 
-// Phiếu hoàn của hãng: dòng missing không nhả giữ hàng in_transit (Quyết định 2); dòng sellable nhả.
-func TestCarrierReturn_MissingStaysInTransit(t *testing.T) {
+// Phiếu hoàn của hãng: dòng missing nhả giữ hàng in_transit rồi ghi thất lạc (M3-23, TD04: M2 Quyết định 2 để phần
+// này cho M3): V2 in_transit 0, on_hand −1, có thể bán không đổi; dòng sellable nhả.
+func TestCarrierReturn_MissingRecordsLoss(t *testing.T) {
 	e := newM2Env(t)
 	o, v1, v2, s1 := e.pickedUpDH01()
+	b2 := e.balance(v2)
 	r := e.openCarrierReturn(o.ID, s1)
 	e.mustReceive(r,
 		order.ReceiveLine{OrderItemID: itemOf(t, o, v1).ID, Condition: order.ConditionSellable},
 		order.ReceiveLine{OrderItemID: itemOf(t, o, v2).ID, Condition: order.ConditionMissing})
-	if b := e.balance(v2); b.InTransit != 1 {
-		t.Errorf("V2 thiếu: %+v (mong in_transit 1)", b)
+	if b := e.balance(v2); b.InTransit != 0 || b.OnHand != b2.OnHand-1 || b.Available != b2.Available {
+		t.Errorf("V2 thiếu: %+v (trước %+v; mong in_transit 0, on_hand −1)", b, b2)
 	}
 	if b := e.balance(v1); b.InTransit != 0 {
 		t.Errorf("V1: %+v", b)

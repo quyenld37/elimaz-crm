@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -162,17 +163,42 @@ func (h *handler) GetReturn(ctx context.Context, params gen.GetReturnParams) (ge
 }
 
 // ReceiveReturn (POST /api/v1/returns/{returnId}/receive, order.return.receive): kho ghi tình trạng từng dòng và nhập
-// lại kho cùng lúc → 200 phiếu restocked. Audit order.return.receive (số dòng theo tình trạng, tiền hoàn).
+// lại kho cùng lúc → 200 phiếu restocked. Thân có sellable, damaged, missing ở bất kỳ dòng nào → nhận theo số lượng
+// (M3-23; số không gửi là 0, condition bỏ qua; lệch → 422 qty_mismatch); không thì tình trạng cả dòng như M2. Audit
+// order.return.receive (phần trước/sau của phiếu).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) ReceiveReturn(ctx context.Context, req *gen.ReceiveReturnRequest, params gen.ReceiveReturnParams) (gen.ReceiveReturnRes, error) {
-	lines := make([]order.ReceiveLine, 0, len(req.Lines))
-	for _, l := range req.Lines {
-		lines = append(lines, order.ReceiveLine{OrderItemID: l.OrderItemId, Condition: string(l.Condition)})
-	}
+	byQty := slices.ContainsFunc(req.Lines, func(l gen.ReceiveReturnRequestLinesItem) bool {
+		return l.Sellable.Set || l.Damaged.Set || l.Missing.Set
+	})
 	return h.returnChange(ctx, "order.return.receive", "nhận phiếu trả", func(tx pgx.Tx, w order.Writer, seller uuid.UUID, a order.Actor) (order.Return, error) {
-		return w.ReceiveReturn(ctx, tx, seller, params.ReturnId, req.Version, lines, a, time.Now().UTC())
+		if byQty {
+			return w.ReceiveReturnQty(ctx, tx, seller, params.ReturnId, req.Version, receiveQtyLines(req.Lines), a,
+				time.Now().UTC())
+		}
+		return w.ReceiveReturn(ctx, tx, seller, params.ReturnId, req.Version, receiveLines(req.Lines), a, time.Now().UTC())
 	}, params.ReturnId)
+}
+
+// receiveLines: thân M2, tình trạng cả dòng.
+func receiveLines(in []gen.ReceiveReturnRequestLinesItem) []order.ReceiveLine {
+	out := make([]order.ReceiveLine, 0, len(in))
+	for _, l := range in {
+		out = append(out, order.ReceiveLine{OrderItemID: l.OrderItemId, Condition: string(l.Condition)})
+	}
+	return out
+}
+
+// receiveQtyLines: thân theo số lượng; số không gửi là 0.
+func receiveQtyLines(in []gen.ReceiveReturnRequestLinesItem) []order.ReceiveQtyLine {
+	out := make([]order.ReceiveQtyLine, 0, len(in))
+	for _, l := range in {
+		out = append(out, order.ReceiveQtyLine{
+			OrderItemID: l.OrderItemId, Sellable: l.Sellable.Or(0), Damaged: l.Damaged.Or(0), Missing: l.Missing.Or(0),
+		})
+	}
+	return out
 }
 
 // CloseReturn (POST /api/v1/returns/{returnId}/close, order.return): phiếu restocked → closed.
@@ -261,7 +287,8 @@ func returnOut(r order.Return) *gen.Return {
 			ID: it.ID, OrderItemId: it.OrderItemID, Qty: int32(it.Quantity), //nolint:gosec // ≤ 10.000 (hợp đồng)
 			RefundAmount: gen.Money(it.RefundAmount),
 		}
-		if r.ReceivedAt != nil {
+		// Dòng trộn (mixed, M3-23) không có tên tình trạng trong hợp đồng: bỏ trường ("trộn thì rỗng").
+		if r.ReceivedAt != nil && it.Condition != order.ConditionMixed {
 			item.Condition = gen.NewOptReturnItemCondition(gen.ReturnItemCondition(it.Condition))
 		}
 		out.Items = append(out.Items, item)

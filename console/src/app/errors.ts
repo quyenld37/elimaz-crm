@@ -98,6 +98,7 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   query_too_short: "Nhập thêm vài ký tự để tìm",
   return_not_allowed: "Đơn hoặc phiếu trả không ở trạng thái làm được việc này",
   return_qty_exceeds: "Số lượng trả vượt số còn trả được",
+  qty_mismatch: "Số tốt, hỏng, thiếu của mỗi dòng phải cộng đúng bằng số trên phiếu, và đủ mọi dòng",
   setting_out_of_range: "Giá trị cài đặt ngoài khoảng cho phép",
   shipment_already_attached: "Đơn đã có vận đơn khác",
   traffic_source_inactive: "Nguồn đơn đã tắt",
