@@ -14,8 +14,9 @@ import (
 	"elimaz.com.vn/crm/internal/modules/order"
 )
 
-// attach gắn vận đơn s vào đơn o bằng crm_app.
+// attach gắn vận đơn s vào đơn o bằng crm_app (trước đó tạo dòng vận đơn s: khóa ngoại của current_shipment_id).
 func (e *orderEnv) attach(o, s uuid.UUID) error {
+	e.stubShipment(o, s)
 	return e.app(func(tx pgx.Tx) error {
 		return order.AttachShipment(e.t.Context(), tx, e.seller, o, s)
 	})

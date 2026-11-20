@@ -279,8 +279,10 @@ func TestDuplicates_NotDuplicate(t *testing.T) {
 		AND resolved_at IS NOT NULL AND resolved_by = $1`, d.actor.UserID); n != 1 {
 		t.Errorf("dòng đã xử lý: %d", n)
 	}
+	s := uuid.New()
+	d.stubShipment(o2.ID, s)
 	if err := d.app(func(tx pgx.Tx) error {
-		return d.w().AttachShipmentBy(t.Context(), tx, d.seller, o2.ID, uuid.New(), d.actor, at(15))
+		return d.w().AttachShipmentBy(t.Context(), tx, d.seller, o2.ID, s, d.actor, at(15))
 	}); err != nil {
 		t.Fatal(err)
 	}

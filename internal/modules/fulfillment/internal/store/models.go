@@ -449,62 +449,286 @@ type CustomerCustomersV struct {
 	Version        int64
 }
 
+type FulfillmentAddressChangeRequest struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	ShipmentID  uuid.UUID
+	NewAddress  []byte
+	Mode        string
+	Status      string
+	JobID       pgtype.UUID
+	RequestedBy uuid.UUID
+	ResolvedBy  pgtype.UUID
+	ResolvedAt  pgtype.Timestamptz
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Version     int64
+}
+
+type FulfillmentCallbackTask struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	ShipmentID    uuid.UUID
+	OrderID       uuid.UUID
+	AttemptNo     int32
+	FailedEventID pgtype.UUID
+	FailedReason  string
+	FailedAt      time.Time
+	DueAt         time.Time
+	Status        string
+	Outcome       pgtype.Text
+	NextCallAt    pgtype.Timestamptz
+	AssigneeID    pgtype.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	Version       int64
+}
+
+type FulfillmentCallbackTaskLog struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	TaskID     uuid.UUID
+	Outcome    string
+	Note       string
+	NextCallAt pgtype.Timestamptz
+	ActorID    uuid.UUID
+	CreatedAt  time.Time
+}
+
 type FulfillmentCarrierAccount struct {
-	ID                 uuid.UUID
-	TenantID           uuid.UUID
-	SellerID           uuid.UUID
-	CarrierKey         string
-	Name               string
-	ExternalAccountRef string
-	WarehouseID        uuid.UUID
-	CredentialEnc      []byte
-	Status             string
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
-	Version            int64
+	ID                    uuid.UUID
+	TenantID              uuid.UUID
+	SellerID              uuid.UUID
+	CarrierKey            string
+	Name                  string
+	ExternalAccountRef    string
+	WarehouseID           uuid.UUID
+	CredentialEnc         []byte
+	Status                string
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+	Version               int64
+	Mode                  string
+	Environment           string
+	RouteKey              string
+	DefaultService        string
+	DefaultOptions        []byte
+	IsDefaultForWarehouse bool
+	ShowOnWeb             bool
+	WebSort               int32
+	CredentialKeyID       pgtype.Text
+	CredentialUpdatedAt   pgtype.Timestamptz
+	LastCheckAt           pgtype.Timestamptz
+	LastCheckResult       pgtype.Text
+}
+
+type FulfillmentCarrierAccountsV struct {
+	TenantID              uuid.UUID
+	ID                    uuid.UUID
+	SellerID              uuid.UUID
+	CarrierKey            string
+	Mode                  string
+	Environment           string
+	Name                  string
+	WarehouseID           uuid.UUID
+	Status                string
+	IsDefaultForWarehouse bool
+	ShowOnWeb             bool
+	WebSort               int32
+	LastCheckAt           pgtype.Timestamptz
+	LastCheckResult       pgtype.Text
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+}
+
+type FulfillmentCarrierLocation struct {
+	TenantID    uuid.UUID
+	CarrierKey  string
+	Level       string
+	OurCode     string
+	CarrierCode string
+	CarrierName string
+	SyncedAt    time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type FulfillmentLabelBatch struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	CarrierAccountID uuid.UUID
+	ShipmentIds      []uuid.UUID
+	Status           string
+	FileID           pgtype.UUID
+	ErrorCode        pgtype.Text
+	CreatedBy        uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type FulfillmentLocationsV struct {
+	TenantID    uuid.UUID
+	CarrierKey  string
+	Level       string
+	OurCode     string
+	CarrierCode string
+	CarrierName string
+	SyncedAt    time.Time
 }
 
 type FulfillmentShipment struct {
-	ID               uuid.UUID
-	TenantID         uuid.UUID
-	Code             string
-	OrderID          uuid.UUID
-	CarrierKey       string
-	CarrierAccountID uuid.UUID
-	TrackingCode     pgtype.Text
-	Status           string
-	CodAmount        int64
-	Fee              pgtype.Int8
-	LastStatusAt     pgtype.Timestamptz
-	CreatedBy        pgtype.UUID
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	Version          int64
-	CreateInDoubtAt  pgtype.Timestamptz
+	ID                        uuid.UUID
+	TenantID                  uuid.UUID
+	Code                      string
+	OrderID                   uuid.UUID
+	CarrierKey                string
+	CarrierAccountID          uuid.UUID
+	TrackingCode              pgtype.Text
+	Status                    string
+	CodAmount                 int64
+	Fee                       pgtype.Int8
+	LastStatusAt              time.Time
+	CreatedBy                 pgtype.UUID
+	CreatedAt                 time.Time
+	UpdatedAt                 time.Time
+	Version                   int64
+	CreateInDoubtAt           pgtype.Timestamptz
+	SellerID                  uuid.UUID
+	Mode                      string
+	Service                   string
+	SubStatus                 string
+	CancelKind                pgtype.Text
+	CancelIntent              pgtype.Text
+	CreateState               string
+	CreateAttempts            int32
+	CreateJobID               pgtype.UUID
+	CodCollectedAmount        pgtype.Int8
+	DeclaredValue             int64
+	FeeActual                 pgtype.Int8
+	QuoteID                   pgtype.UUID
+	WeightGrams               pgtype.Int4
+	LengthCm                  pgtype.Int4
+	WidthCm                   pgtype.Int4
+	HeightCm                  pgtype.Int4
+	Options                   []byte
+	ShipTo                    []byte
+	Partial                   bool
+	PickedUpAt                pgtype.Timestamptz
+	DeliveredAt               pgtype.Timestamptz
+	CarrierReportedReturnedAt pgtype.Timestamptz
+	ReturnedAt                pgtype.Timestamptz
+	LastCarrierEventAt        pgtype.Timestamptz
+	LastSyncedAt              pgtype.Timestamptz
+	LastSyncError             pgtype.Text
+	StuckSince                pgtype.Timestamptz
+	NeedsReview               bool
+	LabelFileID               pgtype.UUID
+	LabelPrintedAt            pgtype.Timestamptz
 }
 
-type FulfillmentShipmentEvent struct {
+type FulfillmentShipmentAnomaly struct {
 	ID         uuid.UUID
 	TenantID   uuid.UUID
 	ShipmentID uuid.UUID
-	EventKey   string
-	RawStatus  string
+	Kind       string
+	Detail     []byte
 	Status     string
-	OccurredAt time.Time
-	Raw        []byte
-	RecordedAt time.Time
+	Resolution pgtype.Text
+	ResolvedBy pgtype.UUID
+	ResolvedAt pgtype.Timestamptz
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+type FulfillmentShipmentEvent struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	ShipmentID    uuid.UUID
+	EventKey      string
+	RawStatus     string
+	Status        string
+	OccurredAt    time.Time
+	Raw           []byte
+	RecordedAt    time.Time
+	Canonical     pgtype.Text
+	Source        pgtype.Text
+	SubStatus     string
+	Applied       pgtype.Bool
+	IgnoredReason pgtype.Text
+	ActorID       pgtype.UUID
+}
+
+type FulfillmentShipmentEventsV struct {
+	TenantID      uuid.UUID
+	ID            uuid.UUID
+	ShipmentID    uuid.UUID
+	Source        pgtype.Text
+	RawStatus     string
+	Canonical     pgtype.Text
+	Status        string
+	SubStatus     string
+	OccurredAt    time.Time
+	RecordedAt    time.Time
+	Applied       pgtype.Bool
+	IgnoredReason pgtype.Text
 }
 
 type FulfillmentShipmentsV struct {
+	ID                        uuid.UUID
+	OrderID                   uuid.UUID
+	Code                      string
+	CarrierKey                string
+	CarrierAccountID          uuid.UUID
+	TrackingCode              pgtype.Text
+	Status                    string
+	CodAmount                 int64
+	Fee                       pgtype.Int8
+	TenantID                  uuid.UUID
+	SellerID                  uuid.UUID
+	Mode                      string
+	Service                   string
+	SubStatus                 string
+	CancelKind                pgtype.Text
+	CreateState               string
+	CodCollectedAmount        pgtype.Int8
+	DeclaredValue             int64
+	FeeActual                 pgtype.Int8
+	WeightGrams               pgtype.Int4
+	Partial                   bool
+	PickedUpAt                pgtype.Timestamptz
+	DeliveredAt               pgtype.Timestamptz
+	CarrierReportedReturnedAt pgtype.Timestamptz
+	ReturnedAt                pgtype.Timestamptz
+	LastStatusAt              time.Time
+	LastCarrierEventAt        pgtype.Timestamptz
+	LastSyncedAt              pgtype.Timestamptz
+	LastSyncError             pgtype.Text
+	StuckSince                pgtype.Timestamptz
+	NeedsReview               bool
+	LabelFileID               pgtype.UUID
+	LabelPrintedAt            pgtype.Timestamptz
+	CreatedAt                 time.Time
+	ProvinceCode              interface{}
+}
+
+type FulfillmentShippingQuote struct {
 	ID               uuid.UUID
+	TenantID         uuid.UUID
 	OrderID          uuid.UUID
-	Code             string
-	CarrierKey       string
+	RequestID        uuid.UUID
 	CarrierAccountID uuid.UUID
-	TrackingCode     pgtype.Text
+	CarrierKey       string
 	Status           string
-	CodAmount        int64
-	Fee              pgtype.Int8
+	Service          string
+	ServiceName      string
+	FeeTotal         pgtype.Int8
+	FeeBreakdown     []byte
+	ExpectedDays     pgtype.Int4
+	ErrorCode        pgtype.Text
+	InputHash        []byte
+	ValidUntil       pgtype.Timestamptz
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 type IdentityAuditLog struct {
@@ -734,6 +958,8 @@ type InventoryWarehouse struct {
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 	Version            int64
+	PickupAddress      []byte
+	PickupPhone        string
 }
 
 type InventoryWarehousesV struct {
@@ -742,6 +968,8 @@ type InventoryWarehousesV struct {
 	Code               string
 	Name               string
 	Status             string
+	PickupAddress      []byte
+	PickupPhone        string
 }
 
 type OrdOrder struct {
@@ -958,6 +1186,9 @@ type OrdReturnItem struct {
 	Quantity     int32
 	Condition    string
 	RefundAmount int64
+	SellableQty  int32
+	DamagedQty   int32
+	MissingQty   int32
 }
 
 type OrdReturnItemsV struct {
@@ -968,6 +1199,9 @@ type OrdReturnItemsV struct {
 	Quantity     int32
 	Condition    string
 	RefundAmount int64
+	SellableQty  int32
+	DamagedQty   int32
+	MissingQty   int32
 }
 
 type OrdReturnsV struct {

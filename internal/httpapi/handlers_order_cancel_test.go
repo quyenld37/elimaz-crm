@@ -14,6 +14,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // orderCanceller có order.read, order.cancel (không order.create).
@@ -50,6 +51,7 @@ func (e *orderAPIEnv) deliver(id uuid.UUID) {
 	w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue()}
 	s := uuid.New()
 	e.staff.Exec(e.t, e.shop.Tenant, func(tx pgx.Tx) error {
+		testkit.StubShipment(e.t, tx, id, s)
 		a := order.Actor{TenantID: e.shop.Tenant, Type: "carrier"}
 		if err := w.AttachShipmentBy(e.t.Context(), tx, e.shop.Seller, id, s, a, time.Now().UTC()); err != nil {
 			return err //nolint:wrapcheck // test
