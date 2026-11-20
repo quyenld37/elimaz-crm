@@ -587,6 +587,21 @@ func TestSchemaReturns(t *testing.T) {
 	}
 }
 
+// Hằng Go của loại partial_delivery, trạng thái received (Q-T91-4) khớp CHECK của ord.returns.
+func TestSchemaReturnM3Constants(t *testing.T) {
+	e := newSchemaEnv(t)
+	ctx := t.Context()
+	id := e.mustInsert(t, baseOrder())
+	if err := tenancy.WithTenant(ctx, e.staff.App, e.a, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `INSERT INTO ord.returns (tenant_id, code, order_id, shipment_id, kind, status)
+			VALUES ($1, 'TH9100001', $2, $3, $4, $5)`, e.a, id, uuid.New(), order.ReturnPartialDelivery,
+			order.ReturnStatusReceived)
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		t.Fatalf("phiếu %s/%s: %v", order.ReturnPartialDelivery, order.ReturnStatusReceived, err)
+	}
+}
+
 func TestNextReturnCode(t *testing.T) {
 	e := newSchemaEnv(t)
 	var codes []string

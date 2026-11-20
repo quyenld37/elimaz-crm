@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M3 — Kho: đóng gói, nhận hàng hoàn</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="m3.css">
+<style>
+.who-c { display: grid; gap: 2px; min-width: 0; }
+</style>
+</head>
+<body data-page="kho" data-title="Đóng gói">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><p class="crumb">Kho / Đóng gói</p><h1>Đóng gói và in nhãn</h1><p class="sub">Vận đơn "Chờ thu gom" của kho bạn có quyền. Chọn nhiều dòng để in nhãn theo lô, in phiếu nhặt, đánh dấu đóng gói.</p></div>
+	<div class="select-wrap" style="min-width:180px"><select aria-label="Kho"><option>Kho chính</option><option>Kho Hà Nội</option></select></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="chon-nhieu vc04 200-dong"><p class="xs">TRẠNG THÁI A</p><h2>Chọn 5 vận đơn của hai hãng và một đơn tự giao; thanh chọn nhiều có In nhãn, In phiếu nhặt, Đang đóng gói, Đã đóng gói</h2></section>
+
+<div class="scroll-x"><div class="lblbar">
+	<button class="lbl" aria-pressed="true">Chờ thu gom <span class="n">200</span></button>
+	<button class="lbl" aria-pressed="false">Chưa in nhãn <span class="n">38</span></button>
+	<button class="lbl" aria-pressed="false">Chưa đóng gói <span class="n">61</span></button>
+	<button class="lbl" aria-pressed="false">Đang đóng gói <span class="n">9</span></button>
+	<button class="lbl" aria-pressed="false">Đã đóng gói <span class="n">130</span></button>
+</div></div>
+<div class="selbar" data-ca="chon-nhieu">
+	<span class="grow">Đã chọn 5 vận đơn · Viettel Post 3, Best Express 1, tự giao 1</span>
+	<button class="btn">In nhãn</button><button class="btn">In phiếu nhặt</button><button class="btn">Đang đóng gói</button><button class="btn btn-dark">Đã đóng gói</button>
+</div>
+<div class="tbl-frame">
+<table class="tbl">
+	<thead><tr><th class="c-chk"><label class="check"><input type="checkbox" aria-label="Chọn cả trang"></label></th><th>Đơn · vận đơn</th><th class="r">Món</th><th>Nhãn</th><th>Đóng gói</th><th class="r">Thu hộ</th></tr></thead>
+	<tbody>
+	<tr><td class="c-chk lead"><label class="check"><input type="checkbox" checked aria-label="Chọn DH0001240"></label></td><td data-label="Đơn · vận đơn"><span class="who-c"><a class="cell-a num bold" href="don-van-chuyen.html">DH0001240</a><span class="small muted num">Viettel Post · 1234567890123</span></span></td><td data-label="Món" class="r num">3</td><td data-label="Nhãn"><span class="small">Đã in 15:12</span></td><td data-label="Đóng gói"><span class="chip">Chưa đóng gói</span></td><td data-label="Thu hộ" class="r"><span class="money">1.960.000 ₫</span></td></tr>
+	<tr><td class="c-chk lead"><label class="check"><input type="checkbox" checked aria-label="Chọn DH0001241"></label></td><td data-label="Đơn · vận đơn"><span class="who-c"><a class="cell-a num bold" href="don-van-chuyen.html">DH0001241</a><span class="small muted num">Viettel Post · 1234567890124</span></span></td><td data-label="Món" class="r num">1</td><td data-label="Nhãn"><span class="small muted">Chưa in</span></td><td data-label="Đóng gói"><span class="chip">Chưa đóng gói</span></td><td data-label="Thu hộ" class="r"><span class="money">690.000 ₫</span></td></tr>
+	<tr><td class="c-chk lead"><label class="check"><input type="checkbox" checked aria-label="Chọn DH0001242"></label></td><td data-label="Đơn · vận đơn"><span class="who-c"><a class="cell-a num bold" href="don-van-chuyen.html">DH0001242</a><span class="small muted num">Viettel Post · 1234567890125</span></span></td><td data-label="Món" class="r num">64</td><td data-label="Nhãn"><span class="small muted">Chưa in</span></td><td data-label="Đóng gói"><span class="chip chip-dark">Đang đóng gói</span></td><td data-label="Thu hộ" class="r"><span class="money">112.450.000 ₫</span></td></tr>
+	<tr><td class="c-chk lead"><label class="check"><input type="checkbox" checked aria-label="Chọn DH0001243"></label></td><td data-label="Đơn · vận đơn"><span class="who-c"><a class="cell-a num bold" href="don-van-chuyen.html">DH0001243</a><span class="small muted num">Best Express · BE0098812737VN</span></span></td><td data-label="Món" class="r num">2</td><td data-label="Nhãn"><span class="small muted">Chưa in</span></td><td data-label="Đóng gói"><span class="chip chip-ok">Đã đóng gói</span></td><td data-label="Thu hộ" class="r"><span class="money">0 ₫</span></td></tr>
+	<tr><td class="c-chk lead"><label class="check"><input type="checkbox" checked aria-label="Chọn DH0001225"></label></td><td data-label="Đơn · vận đơn"><span class="who-c"><a class="cell-a num bold" href="don-van-chuyen.html">DH0001225</a><span class="small muted num">Shop tự giao · E261121R2W8KN</span></span></td><td data-label="Món" class="r num">1</td><td data-label="Nhãn"><span class="small muted">Không có nhãn hãng</span></td><td data-label="Đóng gói"><span class="chip">Chưa đóng gói</span></td><td data-label="Thu hộ" class="r"><span class="money">450.000 ₫</span></td></tr>
+	<tr><td class="c-chk lead"><label class="check"><input type="checkbox" aria-label="Chọn DH0001244"></label></td><td data-label="Đơn · vận đơn"><span class="who-c"><a class="cell-a num bold" href="don-van-chuyen.html">DH0001244</a><span class="small muted num">SPX · SPXVN0612345678</span></span></td><td data-label="Món" class="r num">1</td><td data-label="Nhãn"><span class="small">Đã in 14:02</span></td><td data-label="Đóng gói"><span class="chip chip-ok">Đã đóng gói</span></td><td data-label="Thu hộ" class="r"><span class="money">320.000 ₫</span></td></tr>
+	</tbody>
+</table>
+</div>
+<div class="more"><span>200 vận đơn chờ thu gom · đang hiện 50, cuộn để tải tiếp</span><span>Chọn tối đa 200 dòng mỗi lần</span></div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="in-nhan-lo tu-giao-khong-nhan dong-goi da-o-buoc-sau"><p class="xs">TRẠNG THÁI B</p><h2>Kết quả "In nhãn": mỗi tài khoản hãng một tệp PDF của hãng, vận đơn tự giao bị bỏ qua có câu; đánh dấu đóng gói khi có đơn đã ở bước sau</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="In nhãn theo lô" data-ca="in-nhan-lo">
+		<div class="dlg-h"><h2>In nhãn · 5 vận đơn</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<div class="oitem" style="border:1px solid var(--rule);border-radius:var(--r-box)"><span class="grow"><b>Viettel Post — Kho chính</b><br><span class="small">3 vận đơn · sẵn sàng</span></span><a class="btn btn-dark" href="#">Mở tệp nhãn (PDF)</a></div>
+			<div class="oitem" style="border:1px solid var(--rule);border-radius:var(--r-box)"><span class="grow"><b>Best Express — Kho chính</b><br><span class="small muted">1 vận đơn · đang lấy nhãn từ hãng…</span></span><button class="btn btn-line" disabled>Mở tệp nhãn</button></div>
+			<div class="box box-info small" data-ca="tu-giao-khong-nhan"><b>1 vận đơn tự giao không có nhãn hãng</b> (DH0001225). In phiếu nhặt để dán mã đơn lên gói.</div>
+			<div class="box box-err small"><b>SPX — Kho chính: hãng không trả nhãn.</b> Thử lại sau ít phút; các lô khác không ảnh hưởng. <button class="btn btn-line" style="margin-top:8px">Thử lại lô SPX</button></div>
+			<p class="hint">Nhãn đúng mẫu của hãng; không ghép tệp giữa các hãng. Liên kết tệp hết hạn sau 5 phút, mở lại thì lấy liên kết mới. In lại không đổi cột "Đóng gói".</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button></div>
+	</div>
+	<div class="stack-sm" data-ca="dong-goi da-o-buoc-sau">
+		<div class="toast"><span class="grow">Đã đánh dấu 4 đơn "Đang đóng gói". 1 đơn đã ở bước sau (DH0001243 · Đã đóng gói), không đổi.</span><button class="btn">Xem đơn</button></div>
+		<div class="toast"><span class="grow">Đã đánh dấu 5 đơn "Đã đóng gói".</span></div>
+		<p class="mk"><b>Mockup:</b> đóng gói chỉ đi tới (Chưa → Đang đóng gói → Đã đóng gói); chọn lùi bước thì dòng đó không đổi và được kể trong thông báo. Máy chủ trả từng dòng <code>updated</code>, <code>already_further</code>, <code>not_allowed</code>.</p>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" data-ca="phieu-nhat trang-in"><p class="xs">TRẠNG THÁI C</p><h2>Phiếu nhặt hàng (trang in, đen trắng): gom theo mẫu rồi kê theo đơn; không có địa chỉ, SĐT khách</h2></section>
+
+<div class="paper" data-ca="trang-in">
+	<div class="row-between"><div><h2>Phiếu nhặt hàng · Kho chính</h2><p class="small">In 15:20 · 21/11 bởi Phạm Thu Trang · 5 đơn · 71 món</p></div><button class="btn btn-line">In</button></div>
+	<div class="tbl-frame">
+	<table class="tbl">
+		<thead><tr><th>Mẫu</th><th>Tên</th><th class="r">SL</th><th>Đơn</th></tr></thead>
+		<tbody>
+		<tr><td class="lead num bold">AO0101-DEN-M</td><td data-label="Tên">Áo thun cổ tròn basic · Đen · M</td><td data-label="SL" class="r num">21</td><td data-label="Đơn"><span class="small num">DH0001240, DH0001242</span></td></tr>
+		<tr><td class="lead num bold">DAM0201-BE-L</td><td data-label="Tên">Đầm lụa be dáng suông · Be · L</td><td data-label="SL" class="r num">3</td><td data-label="Đơn"><span class="small num">DH0001240, DH0001241</span></td></tr>
+		<tr><td class="lead num bold">DAM0123-BE-M</td><td data-label="Tên"><span class="clamp2">Đầm maxi lụa Hàn cao cấp cổ yếm phối ren hoa thủ công tay phồng nhẹ dáng xòe xếp ly nhiều tầng · Be · M</span></td><td data-label="SL" class="r num">44</td><td data-label="Đơn"><span class="small num">DH0001242</span></td></tr>
+		<tr><td class="lead num bold">TUI0090-NAU</td><td data-label="Tên">Túi da mini · Nâu</td><td data-label="SL" class="r num">3</td><td data-label="Đơn"><span class="small num">DH0001243, DH0001225</span></td></tr>
+		</tbody>
+	</table>
+	</div>
+	<div class="tbl-frame">
+	<table class="tbl">
+		<thead><tr><th>Đơn</th><th>Vận đơn</th><th>Hãng</th><th class="r">Món</th><th class="r">Thu hộ</th></tr></thead>
+		<tbody>
+		<tr><td class="lead num bold">DH0001240</td><td data-label="Vận đơn" class="num">1234567890123</td><td data-label="Hãng">Viettel Post</td><td data-label="Món" class="r num">3</td><td data-label="Thu hộ" class="r"><span class="money">1.960.000 ₫</span></td></tr>
+		<tr><td class="lead num bold">DH0001242</td><td data-label="Vận đơn" class="num">1234567890125</td><td data-label="Hãng">Viettel Post</td><td data-label="Món" class="r num">64</td><td data-label="Thu hộ" class="r"><span class="money">112.450.000 ₫</span></td></tr>
+		<tr><td class="lead num bold">DH0001225</td><td data-label="Vận đơn" class="num">E261121R2W8KN</td><td data-label="Hãng">Tự giao</td><td data-label="Món" class="r num">1</td><td data-label="Thu hộ" class="r"><span class="money">450.000 ₫</span></td></tr>
+		</tbody>
+	</table>
+	</div>
+	<p class="xs">Trang in theo khổ A4, chữ đen; không in địa chỉ, SĐT khách (nhãn hãng đã có).</p>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st" id="nhan-hoan" data-ca="nhan-hoan td02 td04 tot-hong-thieu nut-khoa-chua-du"><p class="xs">TRẠNG THÁI D</p><h2>Nhận hàng hoàn của hãng theo món: Tốt / Hỏng / Thiếu; tổng phải bằng số đã gửi mới bấm được "Nhận vào kho"; hãng báo đã hoàn về chưa làm đổi tồn</h2></section>
+
+<div class="cols">
+<div class="stack">
+	<div class="card">
+		<div class="row-between"><h2>Phiếu hoàn chờ nhận</h2><span class="small muted">3 phiếu</span></div>
+		<ul class="tl" style="margin-top:8px">
+			<li><span class="at num">TH0000031</span><div><a class="cell-a bold" href="#nhan">DH0001088 · Best Express</a><br><span class="small">2 dòng · 3 món · hãng báo đã hoàn về 20/11</span></div></li>
+			<li><span class="at num">TH0000030</span><div><a class="cell-a bold" href="#nhan">DH0001150 · Viettel Post</a><br><span class="small">Giao một phần · 1 món về kho</span></div></li>
+			<li><span class="at num">TH0000028</span><div><a class="cell-a bold" href="#nhan">DH0001077 · SPX</a><br><span class="small muted">Đang hoàn, hãng chưa báo về</span></div></li>
+		</ul>
+	</div>
+	<div class="box box-info small" data-ca="td02"><b>Hãng báo "đã hoàn về shop" chưa làm đổi tồn.</b> Tồn chỉ tăng khi kho đếm hàng và bấm "Nhận vào kho".</div>
+</div>
+<div class="stack">
+	<div class="card" id="nhan" data-ca="tot-hong-thieu nut-khoa-chua-du">
+		<div class="row-between"><h2>Nhận hàng hoàn · TH0000031</h2><span class="chip">Chờ nhận</span></div>
+		<p class="small muted">DH0001088 · Best Express BE0098811111VN · 3 món</p>
+		<div class="rline is-err">
+			<div class="sp"><span class="code">DAM0123-BE-M · Be · M</span><span class="nm clamp2">Đầm maxi lụa Hàn cao cấp cổ yếm phối ren hoa</span><span class="xs">Gửi đi 2</span></div>
+			<div class="q3"><label class="field"><span>Tốt</span><input class="input" value="1" inputmode="numeric"></label><label class="field"><span>Hỏng</span><input class="input" value="0" inputmode="numeric"></label><label class="field"><span>Thiếu</span><input class="input" value="0" inputmode="numeric"></label></div>
+		</div>
+		<div class="rline">
+			<div class="sp"><span class="code">TUI0090-NAU · Nâu</span><span class="nm">Túi da mini</span><span class="xs">Gửi đi 1</span></div>
+			<div class="q3"><label class="field"><span>Tốt</span><input class="input" value="1" inputmode="numeric"></label><label class="field"><span>Hỏng</span><input class="input" value="0" inputmode="numeric"></label><label class="field"><span>Thiếu</span><input class="input" value="0" inputmode="numeric"></label></div>
+		</div>
+		<p class="field-err" style="margin-top:8px">Còn thiếu 1 món chưa phân loại (DAM0123-BE-M).</p>
+		<button class="btn btn-dark btn-wide" disabled style="margin-top:8px">Nhận vào kho</button>
+	</div>
+	<div class="card" data-ca="td04">
+		<div class="row-between"><h2>Nhận hàng hoàn · TH0000031</h2><span class="chip">Chờ nhận</span></div>
+		<div class="rline">
+			<div class="sp"><span class="code">DAM0123-BE-M · Be · M</span><span class="xs">Gửi đi 2</span></div>
+			<div class="q3"><label class="field"><span>Tốt</span><input class="input" value="1" inputmode="numeric"></label><label class="field"><span>Hỏng</span><input class="input" value="1" inputmode="numeric"></label><label class="field"><span>Thiếu</span><input class="input" value="0" inputmode="numeric"></label></div>
+		</div>
+		<div class="rline">
+			<div class="sp"><span class="code">TUI0090-NAU · Nâu</span><span class="xs">Gửi đi 1</span></div>
+			<div class="q3"><label class="field"><span>Tốt</span><input class="input" value="0" inputmode="numeric"></label><label class="field"><span>Hỏng</span><input class="input" value="0" inputmode="numeric"></label><label class="field"><span>Thiếu</span><input class="input" value="1" inputmode="numeric"></label></div>
+		</div>
+		<ul class="fx small" style="margin-top:8px"><li>1 món tốt về "có thể bán"</li><li>1 món hỏng vào "lỗi"</li><li>1 món thiếu ghi thất lạc (trừ tồn) và vào "Cần xem" để khiếu nại hãng</li></ul>
+		<button class="btn btn-dark btn-wide" style="margin-top:8px">Nhận vào kho</button>
+	</div>
+</div>
+</div>
+
+<!-- ============ TRẠNG THÁI E ============ -->
+<section class="st" data-ca="nhan-khach-tra 0-dong"><p class="xs">TRẠNG THÁI E</p><h2>Nhận hàng khách trả (phiếu của M2, cùng ba ô); không có đơn chờ đóng gói</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="Nhận hàng khách trả" data-ca="nhan-khach-tra">
+		<div class="dlg-h"><h2>Nhận hàng trả · TH0000012</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p class="small muted">Khách trả · DH0001102 · hoàn dự kiến <span class="money">620.000 ₫</span></p>
+			<div class="rline">
+				<div class="sp"><span class="code">DAM0123-BE-M · Be · M</span><span class="xs">Khách trả 1</span></div>
+				<div class="q3"><label class="field"><span>Tốt</span><input class="input" value="1" inputmode="numeric"></label><label class="field"><span>Hỏng</span><input class="input" value="0" inputmode="numeric"></label><label class="field"><span>Thiếu</span><input class="input" value="0" inputmode="numeric"></label></div>
+			</div>
+			<p class="hint">Nhận xong thì tồn tăng và mở nghĩa vụ hoàn <span class="money">620.000 ₫</span> cho kế toán chi.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark">Nhận vào kho</button></div>
+	</div>
+	<div class="empty" data-ca="0-dong"><h2>Không có đơn chờ đóng gói</h2><p class="small muted">Đơn gửi hãng xong sẽ vào đây.</p></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

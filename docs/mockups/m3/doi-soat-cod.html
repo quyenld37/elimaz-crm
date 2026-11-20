@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M3 — Đối soát COD</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="m3.css">
+<style>
+.who-c { display: grid; gap: 2px; min-width: 0; }
+@media (min-width: 760px) { .cod-t .c-act { width: 1%; white-space: nowrap; } }
+</style>
+</head>
+<body data-page="doi-soat-cod" data-title="Đối soát COD">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><p class="crumb">Tiền / Đối soát COD</p><h1>Đối soát COD</h1><p class="sub">Bảng kê tiền thu hộ của hãng: nhập tệp, CRM tự khớp từng dòng theo mã vận đơn và tài khoản hãng, kế toán chốt.</p></div>
+	<button class="btn btn-dark">Nhập bảng kê</button>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="dang-phan-tich loi-cot"><p class="xs">TRẠNG THÁI A</p><h2>Danh sách bảng kê (/cod/statements): đang phân tích, lỗi tệp (tên cột tiếng Việt), đã khớp chờ chốt, đã chốt</h2></section>
+
+<div class="tbl-frame">
+<table class="tbl cod-t">
+	<thead><tr><th>Bảng kê</th><th>Kỳ</th><th class="r">Dòng</th><th class="r">Tổng khai trên tệp</th><th>Trạng thái</th><th class="c-act"></th></tr></thead>
+	<tbody>
+	<tr data-ca="dang-phan-tich"><td class="lead"><div class="who-c"><b>Viettel Post — Kho chính</b><span class="xs muted">Nhập 09:40 · 22/11 · Mai Thị Kế</span></div></td><td data-label="Kỳ"><span class="small num">15/11–21/11</span></td><td data-label="Dòng" class="r num">—</td><td data-label="Tổng khai trên tệp" class="r"><span class="small muted">—</span></td><td data-label="Trạng thái"><span class="stack-sm" style="gap:4px;min-width:140px"><span class="chip">Đang phân tích · 60%</span><span class="bar" aria-label="Tiến độ 60%"><i style="width:60%"></i></span></span></td><td class="c-act"><button class="btn btn-quiet" disabled>Xem</button></td></tr>
+	<tr class="is-err" data-ca="loi-cot"><td class="lead"><div class="who-c"><b>Best Express — Kho chính</b><span class="xs muted">Nhập 09:12 · 22/11 · Mai Thị Kế</span></div></td><td data-label="Kỳ"><span class="small num">—</span></td><td data-label="Dòng" class="r num">—</td><td data-label="Tổng khai trên tệp" class="r"><span class="small muted">—</span></td><td data-label="Trạng thái"><span class="stack-sm" style="gap:2px;justify-items:end"><span class="chip chip-err">Lỗi tệp</span><span class="xs err-text">Thiếu cột "Tiền thu hộ"</span></span></td><td class="c-act"><button class="btn btn-line">Nhập lại</button></td></tr>
+	<tr><td class="lead"><div class="who-c"><b>Viettel Post — Kho chính</b><span class="xs muted">Nhập 16:05 · 21/11 · Mai Thị Kế</span></div></td><td data-label="Kỳ"><span class="small num">08/11–14/11</span></td><td data-label="Dòng" class="r num">206</td><td data-label="Tổng khai trên tệp" class="r"><span class="money">127.896.789 ₫</span></td><td data-label="Trạng thái"><span class="chip chip-dark">Đã khớp · chờ chốt</span></td><td class="c-act"><a class="btn btn-dark" href="#chi-tiet">Xem và chốt</a></td></tr>
+	<tr><td class="lead"><div class="who-c"><b>SPX — Kho chính</b><span class="xs muted">Nhập 10:00 · 18/11 · Mai Thị Kế</span></div></td><td data-label="Kỳ"><span class="small num">01/11–07/11</span></td><td data-label="Dòng" class="r num">41</td><td data-label="Tổng khai trên tệp" class="r"><span class="money">18.230.000 ₫</span></td><td data-label="Trạng thái"><span class="chip chip-ok">Đã chốt 18/11</span></td><td class="c-act"><a class="btn btn-quiet" href="#chi-tiet">Xem</a></td></tr>
+	</tbody>
+</table>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="nhap-bang-ke chon-tai-khoan tai-tep dinh-dang tep-trung ti04"><p class="xs">TRẠNG THÁI B</p><h2>Hộp Nhập bảng kê: chọn tài khoản hãng, tải tệp, định dạng; tệp trùng bị từ chối kèm liên kết bảng kê cũ</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="Nhập bảng kê" style="max-width:none" data-ca="nhap-bang-ke">
+		<div class="dlg-h"><h2>Nhập bảng kê COD</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<label class="field" data-ca="chon-tai-khoan"><span>Tài khoản hãng *</span><span class="select-wrap"><select><option>Viettel Post — Kho chính</option><option>Best Express — Kho chính</option><option>SPX — Kho chính (đã thu hồi)</option></select></span><span class="hint">Mỗi dòng chỉ khớp với vận đơn của đúng tài khoản này.</span></label>
+			<div class="drop" data-ca="tai-tep"><b>Kéo tệp vào đây</b><span class="small muted">Excel (.xlsx) hoặc CSV, tối đa 10 MB, 20.000 dòng</span><button class="btn btn-line">Chọn tệp</button></div>
+			<div class="oitem" style="border:1px solid var(--rule);border-radius:var(--r-box)"><span class="grow small"><b>BK_VTP_08-14_11.xlsx</b> · 84 KB · đã tải lên</span><button class="btn btn-quiet">Bỏ</button></div>
+			<label class="field" data-ca="dinh-dang"><span>Định dạng</span><span class="select-wrap"><select><option>Viettel Post v1 (mặc định của hãng)</option><option>Mẫu chung ELIMAZ</option></select></span><span class="hint">Hãng đổi mẫu hoặc tài khoản nhập mã tay: dán số vào mẫu chung ELIMAZ.</span></label>
+			<a class="btn btn-text" href="#">Tải mẫu chung ELIMAZ (.xlsx)</a>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark">Nhập</button></div>
+	</div>
+	<div class="stack-sm">
+		<div class="box box-err small" data-ca="tep-trung"><b>Tệp này đã nhập ngày 18/11</b> (bảng kê SPX — Kho chính, kỳ 01/11–07/11). Không nhập lần hai.<div class="row" style="margin-top:8px"><a class="btn btn-line" href="#chi-tiet">Xem bảng kê đó</a></div></div>
+		<div class="box box-err small"><b>Tệp lỗi: thiếu cột "Tiền thu hộ".</b> Kiểm lại định dạng đã chọn hoặc dùng mẫu chung ELIMAZ.</div>
+		<div class="box box-err small"><b>Tệp lỗi: số tiền không đọc được ở dòng 57, cột "Phí dịch vụ".</b></div>
+		<div class="box box-err small"><b>Tệp có công thức ở dòng 3.</b> Lưu lại thành giá trị rồi nhập.</div>
+		<p class="mk"><b>Mockup:</b> tệp phân tích ở máy chủ (không chặn màn hình); kết quả về theo báo hiệu <code>cod_statement.changed</code>. Dòng bảng kê chỉ giữ mã vận đơn và số tiền, không giữ tên, SĐT, địa chỉ có trong tệp.</p>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" id="chi-tiet" data-ca="ti02 nhom-khop nhom-lech nhom-ngoai nhom-trung nhom-chi-phi tong-tien tien-9-so ti05 ti06 200-dong chot"><p class="xs">TRẠNG THÁI C</p><h2>Chi tiết bảng kê 206 dòng: năm nhóm có số dòng và tổng tiền (9 chữ số), đang xem nhóm Lệch; thanh Chốt</h2></section>
+
+<div class="card stack">
+	<div class="row-between"><div><h2>Viettel Post — Kho chính · 08/11–14/11</h2><p class="small muted">206 dòng · tổng khai trên tệp <span class="money">127.896.789 ₫</span> · nhập 16:05 21/11 bởi Mai Thị Kế</p></div><span class="chip chip-dark">Đã khớp · chờ chốt</span></div>
+	<div class="grps" data-ca="tong-tien">
+		<a class="grp" href="#" data-ca="nhom-khop"><span class="small">Khớp · 196 dòng</span><span class="money">123.456.789 ₫</span></a>
+		<a class="grp is-bad" href="#" aria-current="true" data-ca="nhom-lech"><span class="small">Lệch tiền · 3 dòng</span><span class="money">2.140.000 ₫</span></a>
+		<a class="grp is-off" href="#" data-ca="nhom-ngoai"><span class="small">Ngoài hệ thống · 4 dòng</span><span class="money">1.610.000 ₫</span><span class="xs muted">Không tính vào số liệu</span></a>
+		<a class="grp" href="#" data-ca="nhom-trung"><span class="small">Trùng · 1 dòng</span><span class="money">690.000 ₫</span></a>
+		<a class="grp" href="#" data-ca="nhom-chi-phi"><span class="small">Chỉ phí · 2 dòng</span><span class="money">0 ₫</span><span class="xs muted">Phí hãng, không có thu hộ</span></a>
+	</div>
+	<div class="tbl-frame">
+	<table class="tbl">
+		<thead><tr><th>Dòng · mã vận đơn</th><th>Đơn</th><th class="r">Hãng thu</th><th class="r">CRM chờ</th><th class="r">Lệch</th><th class="r">Phí hãng</th></tr></thead>
+		<tbody>
+		<tr class="is-err"><td class="lead"><span class="who-c"><span class="num bold">1234567890001</span><span class="xs muted">Dòng 12</span></span></td><td data-label="Đơn"><a class="cell-a num" href="don-van-chuyen.html">DH0001101</a></td><td data-label="Hãng thu" class="r"><span class="money">1.200.000 ₫</span></td><td data-label="CRM chờ" class="r"><span class="money">1.290.000 ₫</span></td><td data-label="Lệch" class="r"><span class="money err-text">−90.000 ₫</span></td><td data-label="Phí hãng" class="r"><span class="money">−32.000 ₫</span></td></tr>
+		<tr class="is-err"><td class="lead"><span class="who-c"><span class="num bold">1234567890045</span><span class="xs muted">Dòng 57</span></span></td><td data-label="Đơn"><a class="cell-a num" href="don-van-chuyen.html">DH0001120</a></td><td data-label="Hãng thu" class="r"><span class="money">450.000 ₫</span></td><td data-label="CRM chờ" class="r"><span class="money">460.000 ₫</span></td><td data-label="Lệch" class="r"><span class="money err-text">−10.000 ₫</span></td><td data-label="Phí hãng" class="r"><span class="money">−28.000 ₫</span></td></tr>
+		<tr class="is-err"><td class="lead"><span class="who-c"><span class="num bold">1234567890102</span><span class="xs muted">Dòng 140</span></span></td><td data-label="Đơn"><a class="cell-a num" href="don-van-chuyen.html">DH0001133</a></td><td data-label="Hãng thu" class="r"><span class="money">490.000 ₫</span></td><td data-label="CRM chờ" class="r"><span class="money">390.000 ₫</span></td><td data-label="Lệch" class="r"><span class="money">+100.000 ₫</span></td><td data-label="Phí hãng" class="r"><span class="money">−30.000 ₫</span></td></tr>
+		</tbody>
+	</table>
+	</div>
+	<div class="tbl-frame" data-ca="ti06">
+	<table class="tbl">
+		<thead><tr><th>Ngoài hệ thống (1 trong 4 dòng)</th><th class="r">Hãng thu</th><th>Ghi chú</th></tr></thead>
+		<tbody>
+		<tr class="is-muted"><td class="lead num">0987654321777</td><td data-label="Hãng thu" class="r"><span class="money">520.000 ₫</span></td><td data-label="Ghi chú"><span class="small">Không có vận đơn này trong CRM (đơn Nhanh cũ) · không tính vào số liệu</span></td></tr>
+		</tbody>
+	</table>
+	</div>
+	<div class="more" data-ca="200-dong"><span>Nhóm Khớp 196 dòng · hiện 50, cuộn để tải tiếp</span><span>Lệch tiền tính bằng hãng thu − CRM chờ</span></div>
+	<div class="box box-info" data-ca="chot ti05">
+		<div class="row-between"><div class="grow"><b>Chốt bảng kê</b><p class="small">Ghi tiền về shop cho 196 dòng khớp và 3 dòng lệch theo số hãng thu; phần thiếu <span class="money">100.000 ₫</span> vẫn mở và vào "Lệch đối soát". Tách phí hãng <span class="money">6.240.000 ₫</span>. Dòng ngoài hệ thống, trùng không ghi.</p></div><button class="btn btn-dark">Chốt bảng kê</button></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st" data-ca="nguoi-khac-chot ti07"><p class="xs">TRẠNG THÁI D</p><h2>Hai kế toán cùng chốt: người bấm sau bị chặn, số đang hiện không đổi; chốt xong có cảnh báo không chặn</h2></section>
+
+<div class="dlgs">
+	<div class="box box-err" data-ca="nguoi-khac-chot"><b>Bảng kê vừa được người khác chốt hoặc đổi — tải lại.</b> <span class="small">Chưa ghi gì từ lần bấm của bạn. Số trên màn là bản bạn đang xem lúc 16:20.</span><div class="row" style="margin-top:8px"><button class="btn btn-line">Tải lại</button></div></div>
+	<div class="box box-ok small"><b class="ok-text">Đã chốt</b> 16:22 · 21/11 bởi Mai Thị Kế. Cảnh báo: tổng thực nhận lệch tổng khai trên tệp <span class="money">12.000 ₫</span>; kiểm lại với hãng.</div>
+</div>
+
+<!-- ============ TRẠNG THÁI E ============ -->
+<section class="st" id="lech" data-ca="lech-doi-soat ti05"><p class="xs">TRẠNG THÁI E</p><h2>Lệch đối soát (/cod/discrepancies): dòng lệch tiền, phần thiếu còn mở, hãng chuyển tiền rồi báo hoàn</h2></section>
+
+<div class="tbl-frame">
+<table class="tbl cod-t">
+	<thead><tr><th>Đơn · mã vận đơn</th><th>Loại</th><th class="r">CRM chờ</th><th class="r">Lệch</th><th class="c-act"></th></tr></thead>
+	<tbody>
+	<tr><td class="lead"><span class="who-c"><a class="cell-a num bold" href="don-van-chuyen.html">DH0001101</a><span class="xs muted num">Viettel Post · 1234567890001</span></span></td><td data-label="Loại"><span class="small">Phần thiếu còn mở · bảng kê 08/11–14/11</span></td><td data-label="CRM chờ" class="r"><span class="money">1.290.000 ₫</span></td><td data-label="Lệch" class="r"><span class="money err-text">−90.000 ₫</span></td><td class="c-act"><a class="btn btn-line" href="tien-tren-don.html#dieu-chinh">Điều chỉnh</a></td></tr>
+	<tr><td class="lead"><span class="who-c"><a class="cell-a num bold" href="don-van-chuyen.html">DH0001133</a><span class="xs muted num">Viettel Post · 1234567890102</span></span></td><td data-label="Loại"><span class="small">Hãng chuyển dư</span></td><td data-label="CRM chờ" class="r"><span class="money">390.000 ₫</span></td><td data-label="Lệch" class="r"><span class="money">+100.000 ₫</span></td><td class="c-act"><a class="btn btn-line" href="tien-tren-don.html#dieu-chinh">Điều chỉnh</a></td></tr>
+	<tr><td class="lead"><span class="who-c"><a class="cell-a num bold" href="tien-tren-don.html">DH0000987</a><span class="xs muted num">Best Express · BE0098800000VN</span></span></td><td data-label="Loại"><span class="small">Hãng chuyển tiền rồi báo hoàn</span></td><td data-label="CRM chờ" class="r"><span class="money">0 ₫</span></td><td data-label="Lệch" class="r"><span class="money err-text">−1.290.000 ₫</span></td><td class="c-act"><a class="btn btn-line" href="tien-tren-don.html#dieu-chinh">Điều chỉnh</a></td></tr>
+	</tbody>
+</table>
+</div>
+<p class="hint">Không có nút "bỏ qua": lệch chỉ đóng khi có bảng kê bù hoặc điều chỉnh COD có lý do.</p>
+
+<!-- ============ TRẠNG THÁI F ============ -->
+<section class="st" id="qua-han" data-ca="qua-han 0-dong"><p class="xs">TRẠNG THÁI F</p><h2>Quá hạn chưa có tiền (/cod/overdue): giao quá 14 ngày mà hãng còn giữ tiền; không có dòng nào</h2></section>
+
+<div class="dlgs">
+	<div class="tbl-frame">
+	<table class="tbl cod-t">
+		<thead><tr><th>Đơn · mã vận đơn</th><th>Giao</th><th class="r">Hãng đang giữ</th></tr></thead>
+		<tbody>
+		<tr><td class="lead"><span class="who-c"><a class="cell-a num bold" href="don-van-chuyen.html">DH0001001</a><span class="xs muted num">Viettel Post · 1234567812345</span></span></td><td data-label="Giao"><span class="small num">03/11 · <b class="err-text">19 ngày</b></span></td><td data-label="Hãng đang giữ" class="r"><span class="money">112.450.000 ₫</span></td></tr>
+		<tr><td class="lead"><span class="who-c"><a class="cell-a num bold" href="don-van-chuyen.html">DH0001010</a><span class="xs muted num">SPX · SPXVN0611111111</span></span></td><td data-label="Giao"><span class="small num">06/11 · <b class="err-text">16 ngày</b></span></td><td data-label="Hãng đang giữ" class="r"><span class="money">650.000 ₫</span></td></tr>
+		</tbody>
+	</table>
+	</div>
+	<div class="empty" data-ca="0-dong"><h2>Không có đơn quá hạn chưa có tiền</h2><p class="small muted">Đơn giao quá 14 ngày mà hãng chưa chuyển tiền sẽ vào đây.</p></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

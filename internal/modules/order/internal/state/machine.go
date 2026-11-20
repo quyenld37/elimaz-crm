@@ -41,6 +41,8 @@ var (
 type Conditions struct {
 	HasCurrentShipment, AddressComplete bool
 	PendingReason                       string
+	// CarrierCorrection: hãng sửa "đã giao" của vận đơn hiện hành (M3-06, TD10, Q-1); chỉ order.ReverseDelivery đặt.
+	CarrierCorrection bool
 }
 
 // Check trả nil khi đơn được chuyển from → to với điều kiện c. Chỉ đúng các cạnh của sơ đồ đơn ở 05 mục 2, cộng
@@ -51,7 +53,8 @@ type Conditions struct {
 //   - draft → cancelled, new → cancelled, new → new, draft → draft, cancel_requested → cancelled, cancel_requested → confirmed,
 //     confirmed → delivered, confirmed → returned: không điều kiện;
 //   - new → confirmed: lý do chờ khác discount_approval (không thì ErrNeedsApproval);
-//   - confirmed → cancelled chỉ khi chưa có vận đơn hiện hành, confirmed → cancel_requested chỉ khi có.
+//   - confirmed → cancelled chỉ khi chưa có vận đơn hiện hành, confirmed → cancel_requested chỉ khi có;
+//   - delivered → confirmed chỉ khi CarrierCorrection (M3-06: hãng sửa "đã giao" thành "hoàn").
 //
 // Mọi cặp khác, kể cả draft → new, trả ErrInvalidTransition.
 func Check(from, to Status, c Conditions) error {
@@ -78,6 +81,11 @@ func Check(from, to Status, c Conditions) error {
 		return nil
 	case [2]Status{Confirmed, CancelRequested}:
 		if !c.HasCurrentShipment {
+			return ErrInvalidTransition
+		}
+		return nil
+	case [2]Status{Delivered, Confirmed}:
+		if !c.CarrierCorrection {
 			return ErrInvalidTransition
 		}
 		return nil

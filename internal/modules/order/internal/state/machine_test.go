@@ -143,3 +143,32 @@ func TestCheck_Conditions(t *testing.T) {
 		})
 	}
 }
+
+// TD10, Q-1 (M3-06): cạnh delivered → confirmed chỉ đi được khi CarrierCorrection (hãng sửa "đã giao"); với mọi cặp
+// khác và mọi tổ hợp điều kiện, bật cờ không đổi kết quả của Check (bảng 49 cặp ở trên giữ nguyên với cờ mặc định).
+func TestCheck_CarrierCorrection(t *testing.T) {
+	t.Parallel()
+	if err := state.Check(state.Delivered, state.Confirmed, state.Conditions{}); !errors.Is(err, state.ErrInvalidTransition) {
+		t.Errorf("delivered → confirmed không cờ: %v, muốn ErrInvalidTransition", err)
+	}
+	for _, c := range allConditions() {
+		c.CarrierCorrection = true
+		if err := state.Check(state.Delivered, state.Confirmed, c); err != nil {
+			t.Errorf("delivered → confirmed với cờ, %+v: %v, muốn nil", c, err)
+		}
+	}
+	for _, from := range allStatuses() {
+		for _, to := range allStatuses() {
+			if from == state.Delivered && to == state.Confirmed {
+				continue
+			}
+			for _, c := range allConditions() {
+				flagged := c
+				flagged.CarrierCorrection = true
+				if a, b := state.Check(from, to, c), state.Check(from, to, flagged); !errors.Is(b, a) {
+					t.Errorf("%s → %s, %+v: cờ đổi kết quả %v → %v", from, to, c, a, b)
+				}
+			}
+		}
+	}
+}
