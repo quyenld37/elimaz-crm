@@ -75,6 +75,36 @@ func (q *Queries) DetachCurrentShipment(ctx context.Context, arg DetachCurrentSh
 	return version, err
 }
 
+const setPaymentRefunded = `-- name: SetPaymentRefunded :one
+UPDATE ord.orders
+SET payment_status = 'refunded',
+    version        = version + 1,
+    updated_at     = $1::timestamptz
+WHERE seller_id = $2 AND id = $3 AND version = $4 AND prepaid_total = 0
+RETURNING version
+`
+
+type SetPaymentRefundedParams struct {
+	Now      time.Time
+	SellerID uuid.UUID
+	ID       uuid.UUID
+	Version  int64
+}
+
+// Đơn đã hoàn hết tiền cho khách (cash, M3-30): payment_status refunded khi tổng đã thanh toán đã về 0; trả version
+// mới. prepaid_total ≠ 0 → không dòng.
+func (q *Queries) SetPaymentRefunded(ctx context.Context, arg SetPaymentRefundedParams) (int64, error) {
+	row := q.db.QueryRow(ctx, setPaymentRefunded,
+		arg.Now,
+		arg.SellerID,
+		arg.ID,
+		arg.Version,
+	)
+	var version int64
+	err := row.Scan(&version)
+	return version, err
+}
+
 const setPaymentTotals = `-- name: SetPaymentTotals :one
 UPDATE ord.orders
 SET prepaid_total  = $1,

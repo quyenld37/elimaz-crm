@@ -195,3 +195,49 @@ func (e *orderEnv) payDeliverRace(v uuid.UUID, price int64) error {
 	}
 	return nil
 }
+
+// refund đặt đơn o thành refunded bằng Writer.MarkRefunded.
+func (e *orderEnv) refund(o uuid.UUID) error {
+	return e.app(func(tx pgx.Tx) error {
+		return e.writer().MarkRefunded(e.t.Context(), tx, e.seller, o, e.actor, e.now())
+	})
+}
+
+// MarkRefunded (M3-30, TI09): đơn còn tổng đã thanh toán ≠ 0 → ErrInvalidTransition, không đổi gì; tổng về 0 rồi
+// MarkRefunded → refunded, version +1, order.updated seq = version; gọi lại → không đổi gì; người bán khác →
+// ErrNotFound.
+func TestMarkRefunded(t *testing.T) {
+	e := newM2Env(t)
+	o, _, _ := e.confirmedDH01()
+	if err := e.pay(o.ID, 200000); err != nil {
+		t.Fatal(err)
+	}
+	paid := e.get(o.ID)
+	if err := e.refund(o.ID); !errors.Is(err, order.ErrInvalidTransition) {
+		t.Errorf("còn 200.000: %v; muốn ErrInvalidTransition", err)
+	}
+	if g := e.get(o.ID); g.PaymentStatus != order.PaymentPartial || g.Version != paid.Version {
+		t.Errorf("đơn bị đổi: %s v%d", g.PaymentStatus, g.Version)
+	}
+	if err := e.pay(o.ID, 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.refund(o.ID); err != nil {
+		t.Fatalf("MarkRefunded: %v", err)
+	}
+	g := e.get(o.ID)
+	if g.PaymentStatus != order.PaymentRefunded || g.PrepaidTotal != 0 || g.CODAmount != 690000 || g.Version != paid.Version+2 {
+		t.Errorf("sau MarkRefunded: %s prepaid %d cod %d v%d", g.PaymentStatus, g.PrepaidTotal, g.CODAmount, g.Version)
+	}
+	if n := e.events(o.ID, order.TopicOrderUpdated, g.Version); n != 1 {
+		t.Errorf("order.updated seq %d: %d", g.Version, n)
+	}
+	if err := e.refund(o.ID); err != nil || e.get(o.ID).Version != g.Version {
+		t.Errorf("gọi lại: %v, version %d; muốn %d", err, e.get(o.ID).Version, g.Version)
+	}
+	if err := e.app(func(tx pgx.Tx) error {
+		return e.writer().MarkRefunded(t.Context(), tx, e.partner, o.ID, e.actor, e.now())
+	}); !errors.Is(err, order.ErrNotFound) {
+		t.Errorf("người bán khác: %v; muốn ErrNotFound", err)
+	}
+}

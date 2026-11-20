@@ -11,11 +11,12 @@ import (
 	"elimaz.com.vn/crm/internal/modules/order/internal/store"
 )
 
-// Trạng thái thanh toán của đơn (05: payment_status). refunded do cash đặt ở M3 qua hàm riêng.
+// Trạng thái thanh toán của đơn (05: payment_status). refunded do cash đặt ở M3 bằng MarkRefunded.
 const (
-	PaymentUnpaid  = "unpaid"
-	PaymentPartial = "partial"
-	PaymentPaid    = "paid"
+	PaymentUnpaid   = "unpaid"
+	PaymentPartial  = "partial"
+	PaymentPaid     = "paid"
+	PaymentRefunded = "refunded"
 )
 
 // ApplyPaymentTotals ghi tổng đã thanh toán paidTotal (đồng, do cash của M3 tính từ phiếu thu) của đơn orderID của
@@ -30,11 +31,7 @@ func (w Writer) ApplyPaymentTotals(ctx context.Context, tx pgx.Tx, sellerID, ord
 	if paidTotal < 0 || paidTotal > maxMoney {
 		return fmt.Errorf("%w: tổng đã thanh toán %d", ErrInvalidInput, paidTotal)
 	}
-	if err := w.wired(); err != nil {
-		return err
-	}
-	q := store.New(tx)
-	o, err := lockOrder(ctx, q, sellerID, orderID)
+	q, o, err := w.lockForPayment(ctx, tx, sellerID, orderID)
 	if err != nil {
 		return err
 	}
@@ -59,4 +56,42 @@ func (w Writer) ApplyPaymentTotals(ctx context.Context, tx pgx.Tx, sellerID, ord
 		return fmt.Errorf("ghi tổng đã thanh toán: %w", err)
 	}
 	return w.emitUpdated(ctx, tx, o, version)
+}
+
+// MarkRefunded đặt payment_status = refunded cho đơn orderID của người bán sellerID khi cash đã chi hoàn hết tiền khách
+// trả (kế hoạch M3, Task M3-30; TI09), trong tx của bên gọi: khóa đơn trước (ADR-46 nhóm 7); tổng đã thanh toán
+// (prepaid_total) phải đã về 0 qua ApplyPaymentTotals, không thì ErrInvalidTransition và không đổi gì; đã refunded →
+// không đổi gì (gọi lại an toàn); version + 1, sự kiện order.updated (seq = version mới), báo hiệu. Không có đơn →
+// ErrNotFound.
+func (w Writer) MarkRefunded(ctx context.Context, tx pgx.Tx, sellerID, orderID uuid.UUID, _ Actor, now time.Time) error {
+	q, o, err := w.lockForPayment(ctx, tx, sellerID, orderID)
+	if err != nil {
+		return err
+	}
+	switch {
+	case o.PaymentStatus == PaymentRefunded:
+		return nil
+	case o.PrepaidTotal != 0:
+		return fmt.Errorf("%w: đơn còn %d đã thanh toán, chưa hoàn hết", ErrInvalidTransition, o.PrepaidTotal)
+	}
+	version, err := q.SetPaymentRefunded(ctx, store.SetPaymentRefundedParams{
+		Now: now, SellerID: sellerID, ID: orderID, Version: o.Version,
+	})
+	if err != nil {
+		return fmt.Errorf("ghi đơn đã hoàn tiền: %w", err)
+	}
+	return w.emitUpdated(ctx, tx, o, version)
+}
+
+// lockForPayment kiểm w đã nối rồi khóa đơn orderID của người bán sellerID (ADR-46 nhóm 7) cho một lần ghi tiền của
+// đơn (ApplyPaymentTotals, MarkRefunded). Không có đơn → ErrNotFound.
+func (w Writer) lockForPayment(ctx context.Context, tx pgx.Tx, sellerID, orderID uuid.UUID) (
+	*store.Queries, store.LockOrderRow, error,
+) {
+	if err := w.wired(); err != nil {
+		return nil, store.LockOrderRow{}, err
+	}
+	q := store.New(tx)
+	o, err := lockOrder(ctx, q, sellerID, orderID)
+	return q, o, err
 }
