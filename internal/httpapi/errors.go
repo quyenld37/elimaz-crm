@@ -522,6 +522,7 @@ func cashError(err error) (status int, code string, ok bool) {
 	}{
 		{cash.ErrCarrierAccountNotFound, http.StatusNotFound, codeNotFound},
 		{cash.ErrStatementNotFound, http.StatusNotFound, codeNotFound},
+		{cash.ErrShipmentNotFound, http.StatusNotFound, codeNotFound},
 		{cash.ErrUnknownStatementFormat, http.StatusUnprocessableEntity, codeInvalidInput},
 		{cash.ErrStatementFileNotReady, http.StatusConflict, codeFileNotReady},
 		{cash.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},

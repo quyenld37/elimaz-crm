@@ -22,3 +22,14 @@ SELECT coalesce(sum(amount) FILTER (WHERE account = 'to_collect'), 0)::bigint   
        coalesce(sum(amount) FILTER (WHERE account = 'sales_clearing'), 0)::bigint  AS sales_clearing
 FROM cash.cod_ledger_entries
 WHERE shipment_id = @shipment_id;
+
+-- name: ShipmentTransferList :many
+-- Bút toán của vận đơn cho màn hình, theo thứ tự ghi.
+SELECT id, kind, occurred_at, reason, actor_type, actor_id, statement_line_id, reverses_transfer_id
+FROM cash.cod_transfers
+WHERE shipment_id = @shipment_id
+ORDER BY id;
+
+-- name: ShipmentExists :one
+-- Vận đơn có trong tenant (đọc qua view công bố của fulfillment; RLS: tenant khác như không có).
+SELECT EXISTS (SELECT 1 FROM fulfillment.shipments_v WHERE id = @id);

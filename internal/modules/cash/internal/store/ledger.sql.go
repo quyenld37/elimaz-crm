@@ -7,8 +7,10 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getTransfer = `-- name: GetTransfer :one
@@ -63,6 +65,66 @@ func (q *Queries) ShipmentBalances(ctx context.Context, shipmentID uuid.UUID) (S
 		&i.SalesClearing,
 	)
 	return i, err
+}
+
+const shipmentExists = `-- name: ShipmentExists :one
+SELECT EXISTS (SELECT 1 FROM fulfillment.shipments_v WHERE id = $1)
+`
+
+// Vận đơn có trong tenant (đọc qua view công bố của fulfillment; RLS: tenant khác như không có).
+func (q *Queries) ShipmentExists(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, shipmentExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const shipmentTransferList = `-- name: ShipmentTransferList :many
+SELECT id, kind, occurred_at, reason, actor_type, actor_id, statement_line_id, reverses_transfer_id
+FROM cash.cod_transfers
+WHERE shipment_id = $1
+ORDER BY id
+`
+
+type ShipmentTransferListRow struct {
+	ID                 uuid.UUID
+	Kind               string
+	OccurredAt         time.Time
+	Reason             string
+	ActorType          string
+	ActorID            pgtype.UUID
+	StatementLineID    pgtype.UUID
+	ReversesTransferID pgtype.UUID
+}
+
+// Bút toán của vận đơn cho màn hình, theo thứ tự ghi.
+func (q *Queries) ShipmentTransferList(ctx context.Context, shipmentID uuid.UUID) ([]ShipmentTransferListRow, error) {
+	rows, err := q.db.Query(ctx, shipmentTransferList, shipmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ShipmentTransferListRow{}
+	for rows.Next() {
+		var i ShipmentTransferListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.OccurredAt,
+			&i.Reason,
+			&i.ActorType,
+			&i.ActorID,
+			&i.StatementLineID,
+			&i.ReversesTransferID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const transferEntries = `-- name: TransferEntries :many

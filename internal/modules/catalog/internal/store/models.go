@@ -122,11 +122,12 @@ type CashPaymentsV struct {
 type CashReconcileFinding struct {
 	ID         uuid.UUID
 	TenantID   uuid.UUID
-	RunID      uuid.UUID
+	RunID      *uuid.UUID
 	Kind       string
 	ShipmentID *uuid.UUID
 	Detail     []byte
 	CreatedAt  time.Time
+	SourceKey  pgtype.Text
 }
 
 type CashReconcileRun struct {
