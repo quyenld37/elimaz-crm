@@ -26,7 +26,7 @@ func TestShipmentAPI(t *testing.T) {
 	var account, w2 uuid.UUID
 	e.staff.Exec(t, tenant, func(tx pgx.Tx) error {
 		var err error
-		account, err = fulfillment.EnsureCarrierAccount(t.Context(), tx, fulfillment.AccountInput{
+		account, err = fulfillment.EnsureCarrierAccount(t.Context(), tx, fulfillment.SeedAccountInput{
 			SellerID: e.shop.Seller, WarehouseID: e.shop.Warehouse, CarrierKey: "fake", Name: "Hãng giả", ExternalAccountRef: "fake-1",
 		})
 		if err != nil {

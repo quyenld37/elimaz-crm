@@ -204,7 +204,7 @@ func TestShipment_AccountOfOtherWarehouse(t *testing.T) {
 			return err //nolint:wrapcheck // test
 		}
 		var err error
-		other, err = fulfillment.EnsureCarrierAccount(t.Context(), tx, fulfillment.AccountInput{
+		other, err = fulfillment.EnsureCarrierAccount(t.Context(), tx, fulfillment.SeedAccountInput{
 			SellerID: e.seller, WarehouseID: w2, CarrierKey: shiptest.CarrierKey, Name: "Hãng giả W2", ExternalAccountRef: "w2-ref",
 		})
 		return err //nolint:wrapcheck // test

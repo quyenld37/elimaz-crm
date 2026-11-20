@@ -173,6 +173,9 @@ Mục 6:
   tệp M1 không có hàm đặt `expires_at` cho tệp đã tải lên, và `expires_at` hiện nghĩa là "tệp tạm hết hạn, không tải
   được" (`DownloadURL` → `ErrExpired`). Không đặt ở task này; cần một task của `platform/files` (vùng rủi ro cao).
 
+- `TestImager_HangKilledWithinDeadline` (`internal/imager/pipeline_test.go:571`) đỏ một lần khi máy tải nặng (chờ
+  script giả chạy chỉ 1 giây). Không sửa ở đây (vùng rủi ro cao, ngoài phạm vi); để task của imager chờ theo sự kiện.
+
 ## Reviewer
 
 - Commit 1 (cấu trúc, 613fbaa): lần 1 CẦN SỬA (dòng bằng chứng ghi "cả bộ", "panic excelize" không khớp lệnh đã chạy;
@@ -183,5 +186,16 @@ Mục 6:
   bảng/lệnh/log/audit; UPDATE chỉ chạm cột đã GRANT (0303); hai quyết định thay chủ shop khớp mã. Hai ghi chú không bắt
   buộc: (1) ghi rõ tệp sai mục đích trả 409 `file_not_ready` trong bảng bằng chứng — đã sửa dòng; (2) bảng kê
   `parse_failed` vì lỗi tạm không nhập lại được cùng tệp — đã ghi vào "Việc phát hiện thêm".
+- Lượt gộp main (sau khi Task 99, 100 gộp): xung đột ở `cmd/crm/main.go` (nối `Deps`) và `internal/httpapi/server.go`
+  (import, trường `Deps`): giữ cả hai bên — `Cash: mods.M3.Cash.Service` và `Fulfillment: mods.M3.Fulfillment.Service`,
+  cả hai import `cash`, `fulfillment`; `gofmt`. Không đổi mã khác. Kiểm: `go build ./...`, `go vet ./...`,
+  `go test -race ./internal/httpapi/... ./cmd/crm/... ./tests/arch/...` (ok cả ba), cổng `ci-task.sh`: lần 1 ĐỎ chỉ ở
+  `TestImager_HangKilledWithinDeadline` ("script giả chưa chạy" sau 1 giây, máy tải 14; `internal/imager` không đổi ở
+  nhánh hay lượt gộp), chạy lẻ `-count=3` ok; lần 2 `CI-TASK XANH`. Test chờ 1 giây dễ chập chờn khi máy tải nặng:
+  ghi ở "Việc phát hiện thêm" cho task của imager.
+- Commit gộp: **ĐẠT** lần đầu. Reviewer đối chiếu hai chiều (`git diff main --cached` chỉ còn phần của Task 122;
+  `git diff HEAD --cached` chỉ còn phần main mang vào): `Deps` có cả `Cash` và `Fulfillment`, cả hai đều có handler dùng;
+  `errors.go` giữ `fulfillmentError` của main và `cashError` của task này; `m3_pending.txt` bỏ đúng dòng của cả hai bên;
+  `views.md` đủ dòng của Task 99, 100, 122.
 
 Kết luận: ĐẠT
