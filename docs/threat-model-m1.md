@@ -117,8 +117,8 @@ Chỉ dev và staging (`CRM_ENV != production` và có `FAKECARRIER_URL`). Là b
 | R | Hãng nói đã gửi, CRM nói chưa nhận | `webhook_deliveries` lưu gói gốc (M0 Task 14); `shipment_events` chỉ ghi thêm | M1-31 |
 | I | Payload mang dữ liệu khách vào log | Payload sự kiện chỉ mang mã; log che sâu của M0 | M1-31, M0 Task 3 |
 | D | Gửi dồn dập, gửi trùng | Chống trùng theo `eventId` (`DedupeKey`); giới hạn thân và chặn IP của `ingest` (M0 Task 14) | M1-31; M0 Task 14 |
-| E | Hãng giả chạy trên production | Không đăng ký nguồn khi `CRM_ENV=production` | M1-31: "`POST /hooks/fakecarrier` → 404" |
-| E | Webhook của tài khoản lạ đổi đơn của shop khác | Định tuyến theo `carrier_account:<accountKey>`; không có tuyến → `inbound_unrouted`, không việc nào | M1-31: "tài khoản lạ … không việc nào" |
+| E | Hãng giả chạy trên production | Không đăng ký nguồn khi `CRM_ENV=production` | M1-31: "`POST /hooks/fakecarrier` → 404" (từ M3-10: `/hooks/fake/<route_key>`, cùng test) |
+| E | Webhook của tài khoản lạ đổi đơn của shop khác | Định tuyến theo `carrier_account:<accountKey>` (từ M3-10: `<route_key>` 32 ký tự của tài khoản, vận đơn tìm theo đúng tài khoản); không có tuyến → `inbound_unrouted`, không việc nào | M1-31: "tài khoản lạ … không việc nào" |
 
 ## Lỗ hổng chưa có trong kế hoạch (đề xuất)
 

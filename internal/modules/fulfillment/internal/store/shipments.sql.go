@@ -155,7 +155,7 @@ func (q *Queries) FinishShipmentSync(ctx context.Context, arg FinishShipmentSync
 
 const getShipment = `-- name: GetShipment :one
 SELECT s.id, s.code, s.order_id, s.carrier_key, s.carrier_account_id, s.tracking_code, s.status, s.cod_amount, s.fee,
-       s.version, s.created_at, a.warehouse_id, a.seller_id, a.external_account_ref
+       s.version, s.created_at, a.warehouse_id, a.seller_id, a.external_account_ref, a.route_key
 FROM fulfillment.shipments s
 JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
 WHERE s.id = $1
@@ -176,9 +176,10 @@ type GetShipmentRow struct {
 	WarehouseID        uuid.UUID
 	SellerID           uuid.UUID
 	ExternalAccountRef string
+	RouteKey           string
 }
 
-// Vận đơn kèm tài khoản hãng (kho, người bán, mã tài khoản ở hãng).
+// Vận đơn kèm tài khoản hãng (kho, người bán, mã tài khoản ở hãng, khóa tuyến webhook).
 func (q *Queries) GetShipment(ctx context.Context, id uuid.UUID) (GetShipmentRow, error) {
 	row := q.db.QueryRow(ctx, getShipment, id)
 	var i GetShipmentRow
@@ -197,6 +198,7 @@ func (q *Queries) GetShipment(ctx context.Context, id uuid.UUID) (GetShipmentRow
 		&i.WarehouseID,
 		&i.SellerID,
 		&i.ExternalAccountRef,
+		&i.RouteKey,
 	)
 	return i, err
 }
@@ -349,27 +351,6 @@ UPDATE fulfillment.shipments SET needs_review = true, updated_at = now() WHERE i
 func (q *Queries) MarkShipmentNeedsReview(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, markShipmentNeedsReview, id)
 	return err
-}
-
-const shipmentByTracking = `-- name: ShipmentByTracking :one
-SELECT s.id
-FROM fulfillment.shipments s
-JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
-WHERE s.carrier_key = $1 AND s.tracking_code = $2 AND a.external_account_ref = $3
-`
-
-type ShipmentByTrackingParams struct {
-	CarrierKey   string
-	TrackingCode pgtype.Text
-	AccountRef   string
-}
-
-// Vận đơn theo mã hãng của đúng tài khoản (tín hiệu webhook); không có → pgx.ErrNoRows.
-func (q *Queries) ShipmentByTracking(ctx context.Context, arg ShipmentByTrackingParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, shipmentByTracking, arg.CarrierKey, arg.TrackingCode, arg.AccountRef)
-	var id uuid.UUID
-	err := row.Scan(&id)
-	return id, err
 }
 
 const shipmentOrderRef = `-- name: ShipmentOrderRef :one

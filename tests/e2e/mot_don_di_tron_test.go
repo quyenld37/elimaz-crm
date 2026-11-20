@@ -211,7 +211,7 @@ func newOrderRun(t *testing.T) *orderRun {
 	bin := buildPackage(t, "./tools/fakecarrier")
 	_, _, stdout, stderr := startRole(t, bin, []string{
 		"PORT=" + strconv.Itoa(port), "FAKECARRIER_WEBHOOK_SECRET=" + secret32, "FAKECARRIER_DATA=-",
-		"FAKECARRIER_WEBHOOK_URL=" + s.ingest.URL + "/hooks/fakecarrier",
+		"FAKECARRIER_WEBHOOK_URL=" + s.ingest.URL + "/hooks/fake",
 	})
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
@@ -436,7 +436,7 @@ func (r *orderRun) inTenant(fn func(tx pgx.Tx) error) {
 	}
 }
 
-// traceLinksWebhookToCash: có một dấu vết chứa span nhận webhook /hooks/fakecarrier (ingest), span lệnh
+// traceLinksWebhookToCash: có một dấu vết chứa span nhận webhook /hooks/fake/<route_key> (ingest), span lệnh
 // fulfillment.refresh_status và span consumer cash (job event.cash). Span job kết thúc sau commit nên chờ tối đa 5 s.
 func (r *orderRun) traceLinksWebhookToCash() {
 	r.t.Helper()

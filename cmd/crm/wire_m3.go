@@ -49,9 +49,9 @@ type m3Parts struct {
 
 // wireM3 dựng hai module M3 (fulfillment, cash; kế hoạch M3, Task M3-04) và gom phần chạy nền của chúng; task của từng
 // vùng chỉ sửa tệp area_*.go của module, không sửa tệp này. Phần của M1 giữ nguyên điều kiện cũ: consumer sổ COD
-// (cash.Consumer) luôn có; hãng giả (lệnh fulfillment.create_shipment, fulfillment.refresh_status, nguồn webhook
-// fakecarrier và handler tín hiệu của nó) chỉ khi carrier.FakeOn (ngoài production, có FAKECARRIER_URL). Bí mật webhook
-// chỉ ở vai trò ingest (worker chỉ tách gói, không kiểm chữ ký). Hai phần trùng tên → lỗi khởi động.
+// (cash.Consumer) luôn có; adapter hãng (lệnh fulfillment.create_shipment, fulfillment.refresh_status, nguồn webhook
+// /hooks/<hãng>/<route_key> và handler tín hiệu) chỉ khi carrier.FakeOn (ngoài production, có FAKECARRIER_URL). Bí mật
+// webhook chỉ ở vai trò ingest (worker chỉ tách gói, không kiểm chữ ký). Hai phần trùng tên → lỗi khởi động.
 func wireM3(role config.Role, cfg config.Config, d m3Deps) (m3Parts, error) {
 	var adapters []fulfillment.CarrierAdapter
 	if carrier.FakeOn(cfg) {
@@ -82,14 +82,9 @@ func wireM3(role config.Role, cfg config.Config, d m3Deps) (m3Parts, error) {
 		Schedules: background.Collect(ful.Schedules(), csh.Schedules()),
 		Cleanups:  background.Collect(ful.Cleanups(), csh.Cleanups()),
 	}
-	if carrier.FakeOn(cfg) {
-		secret := ""
-		if role == config.RoleIngest {
-			secret = cfg.FakeCarrierWebhookSecret
-		}
-		p.Sources = append(p.Sources, fake.NewSource(secret))
-		p.Inbound = append(p.Inbound, fulfillment.NewSignalHandler(fake.Key))
-	}
+	// Nguồn webhook theo hãng (Task M3-10): /hooks/<hãng>/<route_key> của mọi hãng khai Capabilities().Webhook, cùng tập
+	// với handler vào của fulfillment.
+	p.Sources = append(p.Sources, carrier.WebhookSources(adapters, func(key string) string { return webhookSecret(role, cfg, key) })...)
 	if err := errors.Join(ful.Check(), csh.Check(), cash.CheckStatementFormats(reg), checkM3Unique(p)); err != nil {
 		return m3Parts{}, fmt.Errorf("nối module M3: %w", err)
 	}
@@ -106,4 +101,16 @@ func checkM3Unique(p m3Parts) error {
 		background.UniqueNames("consumer", p.Consumers, func(c events.Consumer) string { return c.Name() }),
 		background.UniqueNames("lịch", p.Schedules, func(s schedules.Schedule) string { return s.Name }),
 	)
+}
+
+// webhookSecret là bí mật kiểm chữ ký webhook của hãng key: chỉ vai trò ingest (worker chỉ tách gói); hãng giả dùng
+// FAKECARRIER_WEBHOOK_SECRET, hãng thật CARRIER_<KEY>_WEBHOOK_SECRET (rỗng khi không đặt).
+func webhookSecret(role config.Role, cfg config.Config, key string) string {
+	if role != config.RoleIngest {
+		return ""
+	}
+	if key == fake.CarrierKey {
+		return cfg.FakeCarrierWebhookSecret
+	}
+	return string(cfg.CarrierWebhookSecrets[key])
 }

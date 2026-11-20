@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,11 +15,6 @@ import (
 
 	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
-	"elimaz.com.vn/crm/internal/platform/metrics"
-	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/platform/tenancy"
-	"elimaz.com.vn/crm/internal/platform/webhooks"
-	"elimaz.com.vn/crm/internal/testkit"
 )
 
 const secret = "0123456789abcdef0123456789abcdef"
@@ -140,14 +134,14 @@ func ev(id, account string) fake.Event {
 	return fake.Event{EventID: id, AccountKey: account, Tracking: "FK1", Status: "delivered", SentAt: time.Now()}
 }
 
-// Chữ ký: đúng → true; sai khóa, thiếu tiền tố, thân đổi, bí mật rỗng → false. Split: tín hiệu carrier.signal định
-// tuyến carrier_account:<accountKey>, chống trùng theo eventId; thiếu trường → invalid.
-func TestSourceSignatureAndSplit(t *testing.T) {
-	s := fake.NewSource(secret)
+// Chữ ký: đúng → true; sai khóa, thiếu tiền tố, thân đổi, bí mật rỗng → false. SplitWebhook: mỗi sự kiện đủ eventId,
+// tracking → một tín hiệu (code của kiện nếu có); thiếu trường bị bỏ; thân không phải JSON → lỗi.
+func TestVerifyAndSplitWebhook(t *testing.T) {
+	c := fake.NewClient("http://khong-dung", secret, nil)
 	body := packet(t, ev("e1", "fake-1"))
 	h := http.Header{}
 	h.Set(fake.SignatureHeader, fake.Sign(body, secret))
-	if !s.VerifySignature(body, h) {
+	if !c.VerifyWebhook(body, fulfillment.Header(h), secret) {
 		t.Fatal("chữ ký đúng bị từ chối")
 	}
 	for name, hdr := range map[string]string{
@@ -155,123 +149,23 @@ func TestSourceSignatureAndSplit(t *testing.T) {
 	} {
 		h := http.Header{}
 		h.Set(fake.SignatureHeader, hdr)
-		if s.VerifySignature(body, h) {
+		if c.VerifyWebhook(body, fulfillment.Header(h), secret) {
 			t.Errorf("%s: chữ ký được nhận", name)
 		}
 	}
-	if s.VerifySignature(append(bytes.Clone(body), ' '), h) || fake.NewSource("").VerifySignature(body, h) {
+	if c.VerifyWebhook(append(bytes.Clone(body), ' '), fulfillment.Header(h), secret) || c.VerifyWebhook(body, fulfillment.Header(h), "") {
 		t.Fatal("thân đổi hay bí mật rỗng mà chữ ký vẫn đúng")
 	}
-	if _, ok := s.Challenge(nil); ok || s.Key() != "fakecarrier" {
-		t.Fatal("Challenge phải false, Key fakecarrier")
+	withCode := ev("e2", "fake-1")
+	withCode.Code = "E261121AAAAAA"
+	sigs, err := c.SplitWebhook(packet(t, ev("e1", "fake-1"), ev("", "fake-1"), withCode))
+	want := []fulfillment.WebhookSignal{{EventKey: "e1", TrackingCode: "FK1"}, {EventKey: "e2", TrackingCode: "FK1", ShipmentCode: "E261121AAAAAA"}}
+	if err != nil || len(sigs) != 2 || sigs[0] != want[0] || sigs[1] != want[1] {
+		t.Fatalf("SplitWebhook = %+v %v", sigs, err)
 	}
-	bad := ev("", "fake-1")
-	res, err := s.Split(packet(t, ev("e1", "fake-1"), bad))
-	if err != nil || len(res.Events) != 1 || res.Skipped["invalid"] != 1 {
-		t.Fatalf("Split = %+v %v", res, err)
+	if _, err := c.SplitWebhook([]byte("không phải json")); err == nil {
+		t.Fatal("thân hỏng mà không lỗi")
 	}
-	e := res.Events[0]
-	var sig fulfillment.Signal
-	if err := json.Unmarshal(e.Payload, &sig); err != nil {
-		t.Fatal(err)
-	}
-	if e.Type != fulfillment.SignalType || e.DedupeKey != "e1" || e.OrderKey != "FK1" ||
-		e.Route != (webhooks.Route{Kind: "carrier_account", ExternalKey: "fake-1"}) ||
-		sig != (fulfillment.Signal{CarrierKey: "fake", AccountKey: "fake-1", TrackingCode: "FK1", EventID: "e1"}) {
-		t.Fatalf("sự kiện = %+v, tín hiệu %+v", e, sig)
-	}
-}
-
-// Đường vào thật (ingest + tách gói + handler tín hiệu): chữ ký sai → 401, không lưu; tài khoản lạ (không tuyến) →
-// inbound_unrouted tăng, không việc inbound nào; cùng eventId gửi 3 lần → 1 việc inbound.
-func TestIngestPipeline(t *testing.T) {
-	staff := testkit.OpenStaff(t)
-	tenant := staff.Tenant(t, "A")
-	if err := tenancy.AddRoute(t.Context(), staff.Owner, fulfillment.RouteKindCarrierAccount, "fake-1", tenant); err != nil {
-		t.Fatal(err)
-	}
-	reg := metrics.NewRegistry()
-	src := fake.NewSource(secret)
-	in, err := webhooks.NewIngest(webhooks.IngestOptions{
-		Role: "ingest", DB: staff.App, Sources: []webhooks.Source{src}, Spool: &webhooks.Spool{Dir: t.TempDir()},
-		Lockout: webhooks.NewLockout(webhooks.LockoutOptions{}), Metrics: reg, Logger: slog.New(slog.DiscardHandler),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	mux := http.NewServeMux()
-	in.Register(mux)
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
-	post := func(body []byte, sig string) int {
-		req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL+"/hooks/fakecarrier", bytes.NewReader(body))
-		req.Header.Set(fake.SignatureHeader, sig)
-		req.Header.Set("Content-Type", "application/json")
-		status, _, _ := testkit.Do(t, req)
-		return status
-	}
-	count := func(q string) int { return staff.Count(t, q) }
-
-	body := packet(t, ev("e-bad", "fake-1"))
-	if s := post(body, fake.Sign(body, "sai-khoa-sai-khoa-sai-khoa-sai-khoa")); s != http.StatusUnauthorized {
-		t.Fatalf("chữ ký sai = %d, muốn 401", s)
-	}
-	if n := count("SELECT count(*) FROM platform.webhook_deliveries"); n != 0 {
-		t.Fatalf("bản nhận = %d sau chữ ký sai", n)
-	}
-
-	for i := range 3 {
-		b := packet(t, fake.Event{EventID: "e-dup", AccountKey: "fake-1", Tracking: "FK1", SentAt: time.Unix(int64(1_795_510_800+i), 0)})
-		if s := post(b, fake.Sign(b, secret)); s != http.StatusOK {
-			t.Fatalf("POST %d = %d", i, s)
-		}
-	}
-	strange := packet(t, ev("e-x", "tai-khoan-la"))
-	if s := post(strange, fake.Sign(strange, secret)); s != http.StatusOK {
-		t.Fatalf("POST tài khoản lạ = %d", s)
-	}
-
-	sources := []webhooks.Source{fake.NewSource("")}
-	split, splitErr := webhooks.NewSplitHandler(webhooks.SplitOptions{Sources: sources, Metrics: reg})
-	inbound, inboundErr := webhooks.InboundJobHandlers(sources, []webhooks.InboundHandler{fulfillment.NewSignalHandler(fake.Key)})
-	if err := errors.Join(splitErr, inboundErr); err != nil {
-		t.Fatal(err)
-	}
-	w := queue.NewWorker(staff.App, append([]queue.Handler{split}, inbound...), queue.WorkerOptions{})
-	drain(t, w)
-	if n := count("SELECT count(*) FROM platform.jobs WHERE kind = 'inbound.fakecarrier'"); n != 1 {
-		t.Fatalf("việc inbound = %d, muốn 1 (cùng eventId 3 lần, tài khoản lạ không có việc)", n)
-	}
-	if n := count("SELECT count(*) FROM platform.jobs WHERE kind = 'inbound.fakecarrier' AND status = 'done'"); n != 1 {
-		t.Fatalf("việc inbound chưa done")
-	}
-	if unrouted := counter(reg.Drain(), "inbound_unrouted", "fakecarrier"); unrouted != 1 {
-		t.Fatalf("inbound_unrouted fakecarrier = %d, muốn 1", unrouted)
-	}
-}
-
-// drain chạy worker tới khi không còn việc tới hạn.
-func drain(t *testing.T, w *queue.Worker) {
-	t.Helper()
-	for range 10 {
-		n, err := w.RunOnce(t.Context(), 10)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if n == 0 {
-			return
-		}
-	}
-}
-
-func counter(rows []metrics.Row, name, label string) int64 {
-	var n int64
-	for _, r := range rows {
-		if r.Name == name && r.Label == label {
-			n += r.Count
-		}
-	}
-	return n
 }
 
 // Hai hàm đọc giữ nghĩa M1 (refresh_status coi ErrRejected là dừng hẳn): chỉ GetStatus 404 bọc ErrRejected; 401, 403,

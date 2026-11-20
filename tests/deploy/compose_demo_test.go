@@ -13,7 +13,7 @@ import (
 const (
 	demoSecret       = "0123456789abcdef0123456789abcdef-demo"
 	fakeCarrierURL   = "http://fakecarrier:4194"
-	fakeCarrierHook  = "http://crm-ingest:4191/hooks/fakecarrier"
+	fakeCarrierHook  = "http://crm-ingest:4191/hooks/fake"
 	devAccessDomain  = "devaccess:8443"
 	devAccessCADir   = "/etc/ssl/devaccess"
 	devAccessCAVol   = "devaccess-ca"

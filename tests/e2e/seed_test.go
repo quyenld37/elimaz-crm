@@ -86,20 +86,22 @@ func TestSeedDev(t *testing.T) {
 	}
 }
 
-// checkSeedCarrier: tài khoản hãng giả fake-1 ở kho MAIN và tuyến carrier_account:fake-1 → tenant, đúng một dòng sau hai
-// lần chạy (Task M1-31).
+// checkSeedCarrier: tài khoản hãng giả fake-1 ở kho MAIN và tuyến carrier_account:<route_key của fake-1> → tenant,
+// đúng một dòng sau hai lần chạy (Task M1-31; tuyến theo route_key từ Task M3-10, không còn carrier_account:fake-1).
 func checkSeedCarrier(t *testing.T, d *db.DB, tenant uuid.UUID) {
 	t.Helper()
-	var accounts, routes int
+	var accounts, routes, old int
+	var rk string
 	if err := tenancy.WithTenant(t.Context(), d, tenant, func(tx pgx.Tx) error {
-		return tx.QueryRow(t.Context(), `SELECT count(*) FROM fulfillment.carrier_accounts AS a
+		return tx.QueryRow(t.Context(), `SELECT count(*), max(a.route_key) FROM fulfillment.carrier_accounts AS a
 			JOIN inventory.warehouses_v AS w ON w.warehouse_id = a.warehouse_id
-			WHERE a.carrier_key = 'fake' AND a.external_account_ref = 'fake-1' AND w.code = 'MAIN'`).Scan(&accounts)
+			WHERE a.carrier_key = 'fake' AND a.external_account_ref = 'fake-1' AND w.code = 'MAIN'`).Scan(&accounts, &rk)
 	}); err != nil || accounts != 1 {
 		t.Fatalf("mong đúng 1 tài khoản hãng giả fake-1, có %d, %v", accounts, err)
 	}
-	if err := d.Pool.QueryRow(t.Context(), `SELECT count(*) FROM platform.tenant_routes
-		WHERE kind = 'carrier_account' AND external_key = 'fake-1' AND tenant_id = $1`, tenant).Scan(&routes); err != nil || routes != 1 {
-		t.Fatalf("mong đúng 1 tuyến carrier_account:fake-1, có %d, %v", routes, err)
+	if err := d.Pool.QueryRow(t.Context(), `SELECT count(*) FILTER (WHERE external_key = $2 AND tenant_id = $1),
+		count(*) FILTER (WHERE external_key = 'fake-1')
+		FROM platform.tenant_routes WHERE kind = 'carrier_account'`, tenant, rk).Scan(&routes, &old); err != nil || routes != 1 || old != 0 {
+		t.Fatalf("mong đúng 1 tuyến carrier_account:<route_key>, 0 tuyến fake-1; có %d, %d, %v", routes, old, err)
 	}
 }

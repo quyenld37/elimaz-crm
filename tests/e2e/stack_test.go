@@ -23,6 +23,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
+	"elimaz.com.vn/crm/internal/adapters/carrier"
 	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/modules/cash"
@@ -55,8 +56,8 @@ const (
 // LISTEN thật, thẻ Access thử) và worker (queue.Worker với việc tách gói, selftest.Inbound phát qua hub, lệnh
 // command.selftest gọi FakeExternal; sự kiện nội bộ vào sổ COD cash). Cùng một database thật đã migrate; tenant có chủ
 // shop (identity.SeedOwner), định tuyến ("selftest", stackTenantKey), người bán ELIMAZ, kho MAIN và tài khoản hãng giả
-// fake-1 (shiptest.Shop, tuyến carrier_account:fake-1). Có stackOptions.fakeCarrierURL thì nối hãng giả như cmd/crm
-// (nguồn /hooks/fakecarrier ở ingest và worker, hai lệnh vận chuyển).
+// fake-1 (shiptest.Shop, tuyến carrier_account:<route_key>). Có stackOptions.fakeCarrierURL thì nối hãng giả như cmd/crm
+// (nguồn /hooks/fake/<route_key> ở ingest và worker, handler tín hiệu của fulfillment, hai lệnh vận chuyển).
 type stack struct {
 	t      *testing.T
 	owner  *db.DB // chủ bảng: dựng dữ liệu, đếm dòng
@@ -131,7 +132,8 @@ func newStack(t *testing.T, o stackOptions) *stack {
 	// ingest: /hooks/* + Drainer.
 	ingestSources := []webhooks.Source{selftest.NewSource(secret32)}
 	if o.fakeCarrierURL != "" {
-		ingestSources = append(ingestSources, fake.NewSource(secret32))
+		hook := fake.NewClient(o.fakeCarrierURL, secret32, nil)
+		ingestSources = append(ingestSources, carrier.WebhookSource(hook, secret32))
 	}
 	in, err := webhooks.NewIngest(webhooks.IngestOptions{
 		DB: ingestDB, Sources: ingestSources, Spool: s.spool,
@@ -177,9 +179,8 @@ func (s *stack) workerHandlers(o stackOptions, hub *realtime.PGHub, evs *events.
 	inboundHandlers := []webhooks.InboundHandler{selftest.NewInbound(hub)}
 	cmds := []commands.Handler{selftest.NewCommand(s.ext)}
 	if o.fakeCarrierURL != "" {
-		sources = append(sources, fake.NewSource(""))
-		inboundHandlers = append(inboundHandlers, fulfillment.NewSignalHandler(fake.Key))
 		client := fake.NewClient(o.fakeCarrierURL, secret32, nil)
+		sources = append(sources, carrier.WebhookSource(client, ""))
 		co := fulfillment.CommandOptions{
 			DB: s.app, Adapters: []fulfillment.CarrierAdapter{client}, Events: evs, Queue: queue.NewQueue(), Realtime: hub,
 		}
@@ -187,10 +188,11 @@ func (s *stack) workerHandlers(o stackOptions, hub *realtime.PGHub, evs *events.
 		if err != nil {
 			s.t.Fatal(err)
 		}
-		svc := fulfillment.New(fulfillment.Deps{
+		mod := fulfillment.New(fulfillment.Deps{
 			DB: s.app, Queue: queue.NewQueue(), Bus: hub, Events: evs, Carriers: reg,
-		}).Service
-		cmds = append(cmds, fulfillment.NewCreateCommand(co), fulfillment.NewRefreshCommand(svc))
+		})
+		inboundHandlers = append(inboundHandlers, mod.InboundHandlers()...)
+		cmds = append(cmds, fulfillment.NewCreateCommand(co), fulfillment.NewRefreshCommand(mod.Service))
 	}
 	split, err := webhooks.NewSplitHandler(webhooks.SplitOptions{Sources: sources, Metrics: reg})
 	if err != nil {
@@ -214,7 +216,7 @@ func openPool(t *testing.T, u string, tracing bool) *db.DB {
 }
 
 // seed: tenant, chủ shop có mọi quyền (vai trò owner, phạm vi all), cửa hàng có tài khoản hãng giả (shiptest.Shop) và
-// tuyến carrier_account:fake-1 (như seed-dev), thẻ Access của chủ shop.
+// tuyến webhook carrier_account:<route_key> của fake-1 (như seed-dev), thẻ Access của chủ shop.
 func (s *stack) seed() {
 	s.t.Helper()
 	ctx := s.t.Context()
@@ -229,7 +231,10 @@ func (s *stack) seed() {
 	}); err != nil {
 		s.t.Fatal(err)
 	}
-	if err := tenancy.AddRoute(ctx, s.owner, fulfillment.RouteKindCarrierAccount, shiptest.AccountRef, id); err != nil {
+	if err := tenancy.WithTenant(ctx, s.owner, id, func(tx pgx.Tx) error {
+		_, err := fulfillment.EnsureAccountRoute(ctx, tx, s.shop.Account)
+		return err //nolint:wrapcheck // test
+	}); err != nil {
 		s.t.Fatal(err)
 	}
 	s.token = s.keys.Sign(testkit.AccessClaims{Email: stackOwner, AUD: stackAUD, MFA: []string{"mfa"}})
