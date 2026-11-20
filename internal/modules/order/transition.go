@@ -80,6 +80,9 @@ type transitionOpt struct {
 	carrierCorrection bool
 	// partial đặt Changed.Partial của sự kiện (giao một phần, M3-06).
 	partial bool
+	// returned: payload là phiếu này (ReturnReceived, Changed điền sau khi đổi) thay cho Changed (kho nhận phiếu hoàn
+	// của hãng, M3-23).
+	returned *ReturnReceived
 }
 
 // applyTransitionWith là applyTransition với tùy chọn opt (tên sự kiện riêng, cạnh sửa của hãng, cờ giao một phần).
@@ -110,10 +113,17 @@ func (w Writer) applyTransitionWith(ctx context.Context, tx pgx.Tx, o *Order, to
 	if topic == "" {
 		topic = "order." + string(to)
 	}
-	if err := w.emitChanged(ctx, tx, a.TenantID, topic, version, Changed{
+	ch := Changed{
 		OrderID: o.ID, SellerID: o.SellerID, Version: version, CustomerID: o.CustomerID, Status: o.Status,
 		Partial: opt.partial,
-	}); err != nil {
+	}
+	var payload any = ch
+	if opt.returned != nil {
+		p := *opt.returned
+		p.Changed = ch
+		payload = p
+	}
+	if err := w.emitPayload(ctx, tx, a.TenantID, topic, o.ID, version, payload); err != nil {
 		return err
 	}
 	return w.signal(ctx, tx, a.TenantID, *o)

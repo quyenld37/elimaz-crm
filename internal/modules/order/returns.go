@@ -16,7 +16,6 @@ import (
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order/internal/pricing"
-	"elimaz.com.vn/crm/internal/modules/order/internal/state"
 	"elimaz.com.vn/crm/internal/modules/order/internal/store"
 	"elimaz.com.vn/crm/internal/platform/events"
 )
@@ -48,6 +47,8 @@ const (
 	ConditionSellable = "sellable"
 	ConditionDamaged  = "damaged"
 	ConditionMissing  = "missing"
+	// ConditionMixed: dòng nhận có từ hai loại số (tốt, hỏng, thiếu) khác 0 (M3-23; CHECK của 0302).
+	ConditionMixed = "mixed"
 )
 
 // Sự kiện khi kho nhận phiếu khách trả / đổi (payload ReturnReceived); phiếu hoàn của hãng: order.returned do
@@ -108,14 +109,17 @@ type Return struct {
 	Version                        int64
 }
 
-// ReturnReceived là payload của order.partially_returned / order.returned khi kho nhận phiếu khách trả hay đổi: phần
-// Changed của đơn (version = seq) cộng mã phiếu, loại, tiền hoàn của phiếu (chỉ mã và số, A16).
+// ReturnReceived là payload của order.partially_returned / order.returned khi kho nhận một phiếu (khách trả, đổi; phiếu
+// hoàn của hãng từ M3-23): phần Changed của đơn (version = seq) cộng mã phiếu, loại, tiền hoàn của phiếu, vận đơn của
+// phiếu (chỉ phiếu hoàn của hãng, giao một phần) và tổng số món thiếu (chỉ mã và số, A16).
 type ReturnReceived struct {
 	Changed
 
-	ReturnID     uuid.UUID `json:"returnId"`
-	Kind         string    `json:"kind"`
-	RefundAmount int64     `json:"refundAmount"`
+	ReturnID     uuid.UUID  `json:"returnId"`
+	Kind         string     `json:"kind"`
+	RefundAmount int64      `json:"refundAmount"`
+	ShipmentID   *uuid.UUID `json:"shipmentId,omitempty"`
+	MissingQty   int32      `json:"missingQty"`
 }
 
 // CreateReturn tạo phiếu trả cho đơn orderID đã giao của người bán sellerID, trong tx của bên gọi: khóa đơn rồi dòng
@@ -411,112 +415,13 @@ func lockReturn(ctx context.Context, tx pgx.Tx, sellerID, returnID uuid.UUID, ve
 	return l, nil
 }
 
-// ReceiveReturn là kho nhận hàng của phiếu returnID (người bán sellerID) ở version, tình trạng từng dòng lines (mỗi
-// dòng phiếu đúng một lần; sai → ErrInvalidInput), trong tx của bên gọi (lớp HTTP đã kiểm order.return.receive; M3
-// gọi cho kiện hoàn). Khóa đơn → phiếu → dòng phiếu; phiếu không requested → ErrReturnNotAllowed. Phiếu sang restocked.
-//
-//   - customer_return, exchange: sellable → on_hand +; damaged → on_hand + rồi damaged +; missing → không ghi kho, tiền
-//     hoàn dòng 0. Đơn gốc không đổi trạng thái (version + 1); sự kiện order.returned khi mọi dòng đơn đã trả đủ qua các
-//     phiếu đã nhận, không thì order.partially_returned (payload ReturnReceived).
-//   - carrier_return: dòng sellable, damaged nhả giữ hàng in_transit (hàng về kho); damaged thêm vào ngăn hỏng; missing
-//     giữ in_transit cho M3 xử lý thất lạc (TD04). Đơn confirmed → returned qua applyTransition (order.returned).
+// ReceiveReturn là kho nhận hàng của phiếu returnID (người bán sellerID) ở version, tình trạng cả dòng lines (mỗi
+// dòng phiếu đúng một lần; sai → ErrInvalidInput), trong tx của bên gọi (lớp HTTP đã kiểm order.return.receive). Dựng
+// dòng số lượng (cả số của dòng vào loại của tình trạng) rồi nhận như ReceiveReturnQty.
 func (w Writer) ReceiveReturn(ctx context.Context, tx pgx.Tx, sellerID, returnID uuid.UUID, version int64,
 	lines []ReceiveLine, a Actor, now time.Time,
 ) (Return, error) {
-	now = now.UTC()
-	return w.changeReturn(ctx, tx, sellerID, returnID, version, ReturnRequested, false, func(l lockedReturn) error {
-		return w.receive(ctx, tx, sellerID, l, lines, a, now)
-	})
-}
-
-// receive là thân ReceiveReturn trên phiếu đã khóa ở requested.
-func (w Writer) receive(ctx context.Context, tx pgx.Tx, sellerID uuid.UUID, l lockedReturn, lines []ReceiveLine,
-	a Actor, now time.Time,
-) error {
-	stock, err := w.stock()
-	if err != nil {
-		return err
-	}
-	switch {
-	case l.r.Kind != ReturnCustomer && l.r.Kind != ReturnExchange && l.r.Kind != ReturnCarrier:
-		return fmt.Errorf("%w: phiếu loại %s", ErrReturnNotAllowed, l.r.Kind)
-	case l.r.Kind == ReturnCarrier && l.order.Status != StatusConfirmed:
-		return fmt.Errorf("%w: nhận hàng hoàn của đơn %s", ErrInvalidTransition, l.order.Status)
-	}
-	items, err := l.q.LockReturnItems(ctx, l.r.ID)
-	if err != nil {
-		return fmt.Errorf("khóa dòng phiếu trả: %w", err)
-	}
-	conds, err := receiveConditions(items, lines)
-	if err != nil {
-		return err
-	}
-	full, err := Get(ctx, tx, sellerID, l.order.ID)
-	if err != nil {
-		return err
-	}
-	total, err := markReceived(ctx, l, items, conds, a, now)
-	if err != nil {
-		return err
-	}
-	a.TenantID = l.order.TenantID
-	who := inventory.Actor{Type: a.kind(), ID: a.UserID}
-	if l.r.Kind == ReturnCarrier {
-		return w.receiveCarrier(ctx, tx, stock, l, items, conds, full, who, a, now)
-	}
-	return w.receiveCustomer(ctx, tx, stock, l, items, conds, full, total, who, a, now)
-}
-
-// receiveConditions ghép tình trạng của lines vào dòng phiếu: mỗi dòng phiếu đúng một lần, tình trạng hợp lệ.
-func receiveConditions(items []store.LockReturnItemsRow, lines []ReceiveLine) (map[uuid.UUID]string, error) {
-	if len(lines) != len(items) {
-		return nil, fmt.Errorf("%w: cần đúng %d dòng nhận", ErrInvalidInput, len(items))
-	}
-	conds := make(map[uuid.UUID]string, len(lines))
-	for _, ln := range lines {
-		if !slices.Contains([]string{ConditionSellable, ConditionDamaged, ConditionMissing}, ln.Condition) {
-			return nil, fmt.Errorf("%w: tình trạng %q", ErrInvalidInput, ln.Condition)
-		}
-		conds[ln.OrderItemID] = ln.Condition
-	}
-	for _, it := range items {
-		if _, ok := conds[it.OrderItemID]; !ok {
-			return nil, fmt.Errorf("%w: thiếu dòng %s hoặc dòng lạ", ErrInvalidInput, it.OrderItemID)
-		}
-	}
-	if len(conds) != len(items) {
-		return nil, fmt.Errorf("%w: dòng nhận trùng", ErrInvalidInput)
-	}
-	return conds, nil
-}
-
-// markReceived ghi tình trạng, tiền hoàn (missing → 0) từng dòng và phiếu requested → restocked; trả tổng tiền hoàn.
-func markReceived(ctx context.Context, l lockedReturn, items []store.LockReturnItemsRow, conds map[uuid.UUID]string,
-	a Actor, now time.Time,
-) (int64, error) {
-	var total int64
-	for _, it := range items {
-		refund := it.RefundAmount
-		if conds[it.OrderItemID] == ConditionMissing {
-			refund = 0
-		}
-		if err := l.q.SetReturnItemReceived(ctx, store.SetReturnItemReceivedParams{
-			Condition: conds[it.OrderItemID], RefundAmount: refund, ID: it.ID,
-		}); err != nil {
-			return 0, fmt.Errorf("ghi tình trạng dòng phiếu: %w", err)
-		}
-		total += refund
-	}
-	_, err := l.q.MarkReturnReceived(ctx, store.MarkReturnReceivedParams{
-		RefundAmount: total, ReceivedBy: a.id(), Now: now, ID: l.r.ID, Version: l.r.Version,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, ErrVersionConflict
-	}
-	if err != nil {
-		return 0, fmt.Errorf("ghi phiếu đã nhận: %w", err)
-	}
-	return total, nil
+	return w.receiveQty(ctx, tx, sellerID, returnID, version, conditionLines(lines), a, now)
 }
 
 // variantOf trả biến thể của dòng đơn id trong đơn o.
@@ -531,22 +436,25 @@ func variantOf(o Order, id uuid.UUID) (uuid.UUID, error) {
 
 // receiveCustomer nhập kho hàng khách trả, tăng version đơn gốc và phát order.partially_returned / order.returned.
 func (w Writer) receiveCustomer(ctx context.Context, tx pgx.Tx, stock inventory.Writer, l lockedReturn,
-	items []store.LockReturnItemsRow, conds map[uuid.UUID]string, full Order, total int64, who inventory.Actor,
-	a Actor, now time.Time,
+	lines []qtyLine, full Order, total int64, who inventory.Actor, a Actor, now time.Time,
 ) error {
 	var in []inventory.ReturnLine
-	for _, it := range items {
-		c := conds[it.OrderItemID]
-		if c == ConditionMissing {
+	for _, ln := range lines {
+		if ln.Sellable+ln.Damaged == 0 {
 			continue
 		}
-		v, err := variantOf(full, it.OrderItemID)
+		v, err := variantOf(full, ln.OrderItemID)
 		if err != nil {
 			return err
 		}
-		in = append(in, inventory.ReturnLine{
-			VariantID: v, WarehouseID: full.WarehouseID, Qty: it.Quantity, Damaged: c == ConditionDamaged,
-		})
+		if ln.Sellable > 0 {
+			in = append(in, inventory.ReturnLine{VariantID: v, WarehouseID: full.WarehouseID, Qty: ln.Sellable})
+		}
+		if ln.Damaged > 0 {
+			in = append(in, inventory.ReturnLine{
+				VariantID: v, WarehouseID: full.WarehouseID, Qty: ln.Damaged, Damaged: true,
+			})
+		}
 	}
 	if len(in) > 0 {
 		if err := stock.ReceiveCustomerReturn(ctx, tx, l.r.ID, in, who); err != nil {
@@ -569,7 +477,8 @@ func (w Writer) receiveCustomer(ctx context.Context, tx pgx.Tx, stock inventory.
 			Changed: Changed{
 				OrderID: full.ID, SellerID: full.SellerID, Version: version, CustomerID: full.CustomerID, Status: full.Status,
 			},
-			ReturnID: l.r.ID, Kind: l.r.Kind, RefundAmount: total,
+			ReturnID: l.r.ID, Kind: l.r.Kind, RefundAmount: total, ShipmentID: uuidPtr(l.r.ShipmentID),
+			MissingQty: missingOf(lines),
 		},
 	}); err != nil {
 		return fmt.Errorf("phát %s: %w", topic, err)
@@ -596,49 +505,6 @@ func receivedTopic(ctx context.Context, q *store.Queries, o Order) (string, erro
 		}
 	}
 	return TopicOrderReturned, nil
-}
-
-// receiveCarrier nhả giữ hàng in_transit của dòng về kho (sellable, damaged), chuyển dòng hỏng sang ngăn hỏng, rồi đơn
-// confirmed → returned.
-func (w Writer) receiveCarrier(ctx context.Context, tx pgx.Tx, stock inventory.Writer, l lockedReturn,
-	items []store.LockReturnItemsRow, conds map[uuid.UUID]string, full Order, who inventory.Actor, a Actor,
-	now time.Time,
-) error {
-	var back []uuid.UUID
-	type damaged struct {
-		v   uuid.UUID
-		qty int32
-	}
-	var hurt []damaged
-	for _, it := range items {
-		switch conds[it.OrderItemID] {
-		case ConditionMissing:
-			continue
-		case ConditionDamaged:
-			v, err := variantOf(full, it.OrderItemID)
-			if err != nil {
-				return err
-			}
-			hurt = append(hurt, damaged{v: v, qty: it.Quantity})
-		}
-		back = append(back, it.OrderItemID)
-	}
-	if len(back) > 0 {
-		if err := stock.ReleaseInTransitByItems(ctx, tx, back, who); err != nil {
-			return fmt.Errorf("nhả hàng hoàn về kho: %w", err)
-		}
-	}
-	slices.SortFunc(hurt, func(x, y damaged) int { return bytes.Compare(x.v[:], y.v[:]) })
-	for _, d := range hurt {
-		if err := stock.MoveToDamaged(ctx, tx, l.r.ID, d.v, full.WarehouseID, d.qty, who); err != nil {
-			return fmt.Errorf("chuyển hàng hoàn hỏng: %w", err)
-		}
-	}
-	cur := lockedOrder(l.order)
-	if err := w.applyTransition(ctx, tx, &cur, state.Returned, "", reasonCarrierReturned, a, now); err != nil {
-		return fmt.Errorf("đơn sang returned: %w", err)
-	}
-	return nil
 }
 
 // CloseReturn đóng phiếu returnID ở version (restocked → closed: cash báo đã hoàn tiền ở M3, hoặc nhân viên đóng khi

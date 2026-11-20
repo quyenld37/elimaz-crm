@@ -99,6 +99,7 @@ const (
 	codeOrderDiscountExceeds      = "order_discount_exceeds"
 	codeTrafficSourceInactive     = "traffic_source_inactive"
 	codeReturnQtyExceeds          = "return_qty_exceeds"
+	codeQtyMismatch               = "qty_mismatch"
 	codeReturnNotAllowed          = "return_not_allowed"
 	codeSettingOutOfRange         = "setting_out_of_range"
 	codeInvalidPhone              = "invalid_phone"
@@ -461,6 +462,7 @@ func orderError(err error) (status int, code string, ok bool) {
 		{order.ErrOrderDiscountExceeds, http.StatusUnprocessableEntity, codeOrderDiscountExceeds},
 		{order.ErrTrafficSourceInactive, http.StatusUnprocessableEntity, codeTrafficSourceInactive},
 		{order.ErrReturnQtyExceeds, http.StatusUnprocessableEntity, codeReturnQtyExceeds},
+		{order.ErrQtyMismatch, http.StatusUnprocessableEntity, codeQtyMismatch},
 		{order.ErrReturnNotAllowed, http.StatusUnprocessableEntity, codeReturnNotAllowed},
 		{order.ErrSettingOutOfRange, http.StatusUnprocessableEntity, codeSettingOutOfRange},
 		// Task M2-15: tên nguồn đơn trùng (Q-T72-1: mã chung already_exists).

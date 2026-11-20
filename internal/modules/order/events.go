@@ -47,8 +47,15 @@ func (w Writer) emit(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID, o Order
 // emitChanged phát topic với payload p đã dựng (seq = p.Version).
 func (w Writer) emitChanged(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID, topic string, seq int64, p Changed,
 ) error {
+	return w.emitPayload(ctx, tx, tenantID, topic, p.OrderID, seq, p)
+}
+
+// emitPayload phát topic của đơn orderID với payload p (Changed hay kiểu nhúng Changed), seq = version mới.
+func (w Writer) emitPayload(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID, topic string, orderID uuid.UUID,
+	seq int64, p any,
+) error {
 	if _, _, err := w.Events.Emit(ctx, tx, w.Queue, events.Event{
-		TenantID: tenantID, AggregateType: aggregateOrder, AggregateID: p.OrderID.String(), Seq: seq, Topic: topic,
+		TenantID: tenantID, AggregateType: aggregateOrder, AggregateID: orderID.String(), Seq: seq, Topic: topic,
 		Payload: p,
 	}); err != nil {
 		return fmt.Errorf("phát %s: %w", topic, err)

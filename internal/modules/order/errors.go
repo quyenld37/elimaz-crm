@@ -52,6 +52,9 @@ var (
 	ErrTrafficSourceInactive = errors.New("order: nguồn đơn không dùng được")
 	// ErrReturnQtyExceeds: số trả vượt số đã mua trừ số đã trả (kể cả phiếu đang mở).
 	ErrReturnQtyExceeds = errors.New("order: số lượng trả vượt số còn trả được")
+	// ErrQtyMismatch: số kho nhận không khớp phiếu: thiếu dòng, dòng lạ hay trùng, tốt + hỏng + thiếu khác số của dòng
+	// (Task M3-23).
+	ErrQtyMismatch = errors.New("order: số lượng nhận không khớp phiếu trả")
 	// ErrReturnNotAllowed: đơn không ở trạng thái cho tạo phiếu trả, hoặc phiếu không ở trạng thái cho việc này.
 	ErrReturnNotAllowed = errors.New("order: không trả hàng được")
 	// ErrSettingOutOfRange: cài đặt đơn ngoài khoảng cho phép; chi tiết (tên trường) là *SettingOutOfRangeError.
