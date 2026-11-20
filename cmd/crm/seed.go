@@ -75,7 +75,7 @@ func seedDev(ctx context.Context, cfg config.Config, email string, logger *slog.
 			return err //nolint:wrapcheck // đã bọc trong order
 		}
 		// Tài khoản hãng giả fake-1 ở kho MAIN (Task M1-31); chỉ dùng khi worker có FAKECARRIER_URL.
-		_, err = fulfillment.EnsureCarrierAccount(ctx, tx, fulfillment.AccountInput{
+		_, err = fulfillment.EnsureCarrierAccount(ctx, tx, fulfillment.SeedAccountInput{
 			SellerID: sellerID, WarehouseID: warehouseID, CarrierKey: fake.CarrierKey, Name: "Hãng giả",
 			ExternalAccountRef: seedCarrierAccount,
 		})

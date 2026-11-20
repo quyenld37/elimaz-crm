@@ -71,15 +71,15 @@ func (s Shipment) AuditFields() map[string]any {
 	}
 }
 
-// AccountInput là tài khoản hãng cần có (seed, test).
-type AccountInput struct {
+// SeedAccountInput là tài khoản hãng cần có (seed, test).
+type SeedAccountInput struct {
 	SellerID, WarehouseID                uuid.UUID
 	CarrierKey, Name, ExternalAccountRef string
 }
 
 // EnsureCarrierAccount chèn tài khoản hãng của tenant trong ngữ cảnh tx (cần quyền INSERT: chủ bảng — crm_app chỉ đọc), hoặc
 // trả mã của tài khoản đã có cùng (CarrierKey, ExternalAccountRef). Chạy lại được.
-func EnsureCarrierAccount(ctx context.Context, tx pgx.Tx, in AccountInput) (uuid.UUID, error) {
+func EnsureCarrierAccount(ctx context.Context, tx pgx.Tx, in SeedAccountInput) (uuid.UUID, error) {
 	id, err := store.New(tx).InsertCarrierAccount(ctx, store.InsertCarrierAccountParams{
 		SellerID: in.SellerID, CarrierKey: in.CarrierKey, Name: in.Name, ExternalAccountRef: in.ExternalAccountRef,
 		WarehouseID: in.WarehouseID,
