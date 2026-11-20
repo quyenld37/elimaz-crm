@@ -179,11 +179,18 @@ func (s *stack) workerHandlers(o stackOptions, hub *realtime.PGHub, evs *events.
 	if o.fakeCarrierURL != "" {
 		sources = append(sources, fake.NewSource(""))
 		inboundHandlers = append(inboundHandlers, fulfillment.NewSignalHandler(fake.Key))
+		client := fake.NewClient(o.fakeCarrierURL, secret32, nil)
 		co := fulfillment.CommandOptions{
-			DB: s.app, Adapters: []fulfillment.CarrierAdapter{fake.NewClient(o.fakeCarrierURL, secret32, nil)},
-			Events: evs, Queue: queue.NewQueue(), Realtime: hub,
+			DB: s.app, Adapters: []fulfillment.CarrierAdapter{client}, Events: evs, Queue: queue.NewQueue(), Realtime: hub,
 		}
-		cmds = append(cmds, fulfillment.NewCreateCommand(co), fulfillment.NewRefreshCommand(co))
+		reg, err := fulfillment.NewRegistry(client)
+		if err != nil {
+			s.t.Fatal(err)
+		}
+		svc := fulfillment.New(fulfillment.Deps{
+			DB: s.app, Queue: queue.NewQueue(), Bus: hub, Events: evs, Carriers: reg,
+		}).Service
+		cmds = append(cmds, fulfillment.NewCreateCommand(co), fulfillment.NewRefreshCommand(svc))
 	}
 	split, err := webhooks.NewSplitHandler(webhooks.SplitOptions{Sources: sources, Metrics: reg})
 	if err != nil {

@@ -6,7 +6,6 @@ listUnmappedLocations
 listOrderShipments
 resendShipment
 resolveShipmentCreate
-syncShipment
 requestShippingQuotes
 listShippingQuotes
 requestAddressChange

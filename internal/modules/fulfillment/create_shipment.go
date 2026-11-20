@@ -33,14 +33,13 @@ const (
 	TopicShipmentStatusChanged = "shipment.status_changed"
 	aggregateShipment          = "shipment"
 
-	reasonNoAdapter     = "no_adapter"
-	reasonRejected      = "carrier_rejected"
-	reasonNotSent       = "carrier_not_sent"
-	reasonUnknownStatus = "unknown_status"
-	reasonNotFound      = "carrier_not_found"
-	reasonReadFailed    = "carrier_read_failed"
-	reasonStale         = "shipment_not_creating"
-	reasonBadPayload    = "bad_payload"
+	reasonNoAdapter  = "no_adapter"
+	reasonRejected   = "carrier_rejected"
+	reasonNotSent    = "carrier_not_sent"
+	reasonNotFound   = "carrier_not_found"
+	reasonReadFailed = "carrier_read_failed"
+	reasonStale      = "shipment_not_creating"
+	reasonBadPayload = "bad_payload"
 )
 
 // StatusChanged là payload của shipment.status_changed: chỉ mã và số (A16). Ba trường đầu của M1; M3 (Task M3-08,
@@ -64,16 +63,8 @@ func CreateCommandKind() queue.Kind {
 	return commands.CommandKind(createCommandName, createExpires, commandTimeout)
 }
 
-// RefreshCommandKind là loại lệnh fulfillment.refresh_status (không hết hạn, 30 s). Thứ tự best_effort: một lần tra
-// dead (trạng thái lạ) không chặn các lần tra sau của cùng vận đơn; chỉ lần đang chạy chặn.
-func RefreshCommandKind() queue.Kind {
-	k := commands.CommandKind(refreshCommandName, 0, commandTimeout)
-	k.Policy.OrderMode = queue.OrderBestEffort
-	return k
-}
-
-// CommandOptions là phụ thuộc của hai lệnh (cmd/crm nối): database (đọc ngoài transaction), adapter theo Key(), và
-// đường ghi của order (Events, Queue, Realtime) cho bước áp lên đơn và tồn.
+// CommandOptions là phụ thuộc của lệnh tạo vận đơn (cmd/crm nối; lệnh tra dựng từ Service, NewRefreshCommand):
+// database (đọc ngoài transaction), adapter theo Key(), và đường ghi của order (Events, Queue, Realtime).
 type CommandOptions struct {
 	DB       *db.DB
 	Adapters []CarrierAdapter
@@ -82,7 +73,7 @@ type CommandOptions struct {
 	Realtime realtime.Bus
 }
 
-// commandPayload là payload của cả hai lệnh: chỉ mã vận đơn.
+// commandPayload là payload của lệnh tạo và lệnh tra: chỉ mã vận đơn.
 type commandPayload struct {
 	ShipmentID uuid.UUID `json:"shipmentId"`
 }

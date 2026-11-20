@@ -12,8 +12,8 @@ import (
 // của M1. cmd/crm/wire_m3.go đăng ký: lệnh, handler vào, consumer, lịch, dọn vào worker; nguồn webhook vào ingest và
 // worker. Check (kinds.go) kiểm không trùng tên. Thêm vùng mới thì thêm một dòng mỗi hàm ở đây.
 
-// CommandHandlers trả lệnh ra ngoài: hai lệnh của M1 (fulfillment.create_shipment, fulfillment.refresh_status) khi
-// Carriers có adapter, cùng lệnh của các vùng.
+// CommandHandlers trả lệnh ra ngoài: lệnh tạo vận đơn của M1 (fulfillment.create_shipment) khi Carriers có adapter,
+// cùng lệnh của các vùng (lệnh tra fulfillment.refresh_status của M1 nay ở vùng track, Task M3-11).
 func (m *Module) CommandHandlers() []commands.Handler {
 	var out []commands.Handler
 	if m.d.Carriers != nil && len(m.d.Carriers.Keys()) > 0 {
@@ -22,7 +22,7 @@ func (m *Module) CommandHandlers() []commands.Handler {
 			a, _ := m.d.Carriers.Get(k)
 			o.Adapters = append(o.Adapters, a)
 		}
-		out = append(out, NewCreateCommand(o), NewRefreshCommand(o))
+		out = append(out, NewCreateCommand(o))
 	}
 	return background.Collect(out,
 		m.accountsHandlers(),

@@ -191,15 +191,6 @@ func (e *accEnv) setStatus(id uuid.UUID, to string) (fulfillment.AccountView, er
 	return v, err
 }
 
-// ownerExec chạy câu SQL bằng chủ bảng trong ngữ cảnh tenant A (sửa bản mã như kẻ có quyền database).
-func (e *accEnv) ownerExec(sql string, args ...any) {
-	e.t.Helper()
-	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
-		_, err := tx.Exec(e.t.Context(), sql, args...)
-		return err //nolint:wrapcheck // test
-	})
-}
-
 func (e *accEnv) credentialRow(id uuid.UUID) (enc []byte, kid string) {
 	e.t.Helper()
 	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
