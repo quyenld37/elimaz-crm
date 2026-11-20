@@ -25,11 +25,6 @@ listStuckShipments
 listShipmentsForReview
 resolveShipmentAnomaly
 getCustomerDeliveryStats
-recordPayment
-listOrderPayments
-listRefundObligations
-payRefundObligation
-waiveRefundObligation
 previewCodAdjustment
 createCodAdjustment
 listReconcileFindings

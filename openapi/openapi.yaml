@@ -4465,8 +4465,10 @@ components:
         - correction_blocked
         - create_in_progress
         - order_not_shippable
+        - payment_exceeds_total
         - preview_stale
         - quote_stale
+        - refund_exceeds_remaining
         - shipment_not_cancellable
         - statement_changed
         - statement_duplicate

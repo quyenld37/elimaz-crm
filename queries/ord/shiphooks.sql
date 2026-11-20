@@ -27,3 +27,13 @@ SET prepaid_total  = @prepaid_total,
     updated_at     = @now::timestamptz
 WHERE seller_id = @seller_id AND id = @id AND version = @version
 RETURNING version;
+
+-- name: SetPaymentRefunded :one
+-- Đơn đã hoàn hết tiền cho khách (cash, M3-30): payment_status refunded khi tổng đã thanh toán đã về 0; trả version
+-- mới. prepaid_total ≠ 0 → không dòng.
+UPDATE ord.orders
+SET payment_status = 'refunded',
+    version        = version + 1,
+    updated_at     = @now::timestamptz
+WHERE seller_id = @seller_id AND id = @id AND version = @version AND prepaid_total = 0
+RETURNING version;

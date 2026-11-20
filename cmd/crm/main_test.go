@@ -23,7 +23,8 @@ func TestNewModulesRegistersCash(t *testing.T) {
 		kinds = append(kinds, h.Kind().Name)
 	}
 	want := []string{
-		"event.fulfillment_return_received", "event.cash", "event.cash_statements", "event.customer_stats",
+		"event.fulfillment_return_received", "event.cash", "event.cash_statements", "event.cash_refunds",
+		"event.customer_stats",
 		"event.order_duplicates",
 	}
 	if !slices.Equal(kinds, want) {
