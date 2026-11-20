@@ -9,6 +9,8 @@ Package background giữ kiểu chung của phần chạy nền (việc nền, c
 **Khi nào không dùng:** Không đặt phụ thuộc riêng của một module vào Deps (thêm vào kiểu riêng của module) và không dùng cho đường yêu cầu HTTP (httpapi.Deps). Không dựng Deps hay gọi Background của module ở chỗ khác ngoài cmd/crm (newModules), mỗi tiến trình một lần: gọi hai lần sinh hai sổ consumer lệch nhau. Parts chỉ liệt kê việc nền, consumer, lịch; không chạy gì lúc dựng.
 
 ```go
+func Collect[T any](parts ...[]T) []T
+func UniqueNames[T any](what string, items []T, name func(T) string) error
 type Deps struct {
 	DB *db.DB
 
