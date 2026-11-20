@@ -284,14 +284,18 @@ func (h *handler) now() time.Time {
 }
 
 // couponCursor đọc con trỏ trang (id của dòng cuối trang trước); sai dạng → 400 invalid_input.
-func couponCursor(c gen.OptString) (*uuid.UUID, error) {
+func couponCursor(c gen.OptString) (*uuid.UUID, error) { return idCursor(c, promotion.ErrInvalidInput) }
+
+// idCursor đọc con trỏ trang dạng id (dòng cuối trang trước); sai dạng → invalid (lỗi nghiệp vụ "dữ liệu sai" của
+// module, đổi sang 400 invalid_input ở errors.go).
+func idCursor(c gen.OptString, invalid error) (*uuid.UUID, error) {
 	v, ok := c.Get()
 	if !ok {
 		return nil, nil
 	}
 	id, err := uuid.Parse(v)
 	if err != nil {
-		return nil, fmt.Errorf("con trỏ trang: %w", promotion.ErrInvalidInput)
+		return nil, fmt.Errorf("con trỏ trang: %w", invalid)
 	}
 	return &id, nil
 }

@@ -30,7 +30,7 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `catalog.product_attribute_values_v` | `product_id, attribute_value_id` | 34 | M5–M7 |
 | `catalog.product_images_v` (chỉ ảnh chưa xóa) | `image_id, product_id, file_id, color, position` | 44 | M5, M7 |
 | `platform.file_variants_v` (A2-12; chỉ tệp `ready`, chưa xóa, mục đích chế độ `standard`, biến thể `public` — R10; đường dẫn = `FILES_PUBLIC_BASE_URL` + `/` + `key`; ghép với `catalog.product_images_v` theo `file_id`) | `file_id, preset_version, width, format, key` | 44 | M5 |
-| `inventory.warehouses_v` (M3 Task 92 nối địa chỉ lấy hàng, SĐT của shop vào cuối) | `warehouse_id, operated_by_seller_id, code, name, status, pickup_address, pickup_phone` | 28, 92 | M2–M7 |
+| `inventory.warehouses_v` (M3 Task 92 nối địa chỉ lấy hàng, SĐT của shop vào cuối) | `warehouse_id, operated_by_seller_id, code, name, status, pickup_address, pickup_phone` | 28, 92 | M2–M7 (M3: fulfillment đọc địa chỉ lấy hàng, ngoại lệ "chỉ đọc view" — Task 100) |
 | `inventory.stock_available_v` (view số dư duy nhất; B11: không có `stock_balances_v`, `availability_v`) | `variant_id, warehouse_id, seller_id, on_hand, held, in_transit, damaged, available, updated_at` | 28 | M2–M7 |
 | `inventory.stock_ledger_v` | `ledger_id, variant_id, warehouse_id, bucket, delta, doc_type, doc_id, step, actor_type, actor_id, created_at` | 28 | M6, M7 |
 | `inventory.reconcile_runs_v` | `run_id, ran_at, ok, checked, mismatch_count` | 36 | M6, M7 |

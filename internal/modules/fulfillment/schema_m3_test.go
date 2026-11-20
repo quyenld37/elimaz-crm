@@ -211,7 +211,7 @@ func TestSchemaM3_CarrierAccounts(t *testing.T) {
 func fulfillmentAccount(e *shipEnv, seller uuid.UUID, ref string) (uuid.UUID, error) {
 	var id uuid.UUID
 	err := e.staff.TryExec(e.t.Context(), e.tenant, func(tx pgx.Tx) (err error) {
-		id, err = fulfillment.EnsureCarrierAccount(e.t.Context(), tx, fulfillment.AccountInput{
+		id, err = fulfillment.EnsureCarrierAccount(e.t.Context(), tx, fulfillment.SeedAccountInput{
 			SellerID: seller, WarehouseID: e.shop.Warehouse, CarrierKey: "fake", Name: "Hãng giả 3",
 			ExternalAccountRef: ref,
 		})
