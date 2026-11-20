@@ -18,6 +18,11 @@ import (
 // (partial.go, TD09), đóng gói chỉ đi tới (packing.go, VC04), đổi địa chỉ khi hãng đã nhận (address_change.go, DH15).
 // Móc nối vận đơn của M2 (shiphooks.go) dùng nguyên; các hàm ở đây chỉ thêm. Mọi hàm khóa đơn trước (ADR-46 nhóm 7).
 
+// ErrStockShort là inventory.ErrStockShort (cùng giá trị): bước lấy hàng, giao xong gặp tồn thực không đủ. Đặt lại ở
+// order để bên gọi không được nhập inventory (fulfillment, cột "Được gọi" của 04 mục 3) kiểm bằng errors.Is; lỗi của
+// inventory đi qua order luôn bọc %w.
+var ErrStockShort = inventory.ErrStockShort
+
 // reasonRe là mẫu lý do mã máy (CHECK của ord.order_status_history.reason, inventory reasonRe).
 var reasonRe = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 

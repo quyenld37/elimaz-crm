@@ -216,3 +216,5 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m3-van-chuyen.md` (Ta
 - Commit 2/2, vòng 2: **ĐẠT**, không còn phát hiện phải sửa. Reviewer xác nhận thứ tự khóa ADR-46 (PutRoute đầu tx),
   RetryTx gán lại biến, khóa API không vào log/span/audit/việc nền/câu trả lời, AAD gắn tenant|bảng|cột|dòng, không
   test nào bị tắt hay nới; mọi dòng bằng chứng trỏ đúng test có kiểm thật.
+
+**Lượt gộp main (sau Task 99, 21/11):** giải xung đột `internal/httpapi/errors.go` (giữ 6 dòng tài khoản hãng của nhánh và 3 dòng `ErrInvalidPage`, `ErrInvalidTracking`, `ErrStockShort` của main); sửa `internal/httpapi/shipment_events_test.go:128` (tệp mới của main) `AccountInput` → `SeedAccountInput` theo đổi tên ở d13358a. `make gen` không chênh; ci-task XANH (httpapi, fulfillment, order, tests/arch, tests/e2e ok). Reviewer lượt gộp: **ĐẠT** — không mất dòng bên nào, 9 sentinel độc lập nên thứ tự `errors.Is` không che nhau, không còn chỗ dùng tên cũ.

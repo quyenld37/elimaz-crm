@@ -43,11 +43,20 @@ const (
 	reasonBadPayload    = "bad_payload"
 )
 
-// StatusChanged là payload của shipment.status_changed: chỉ mã và số (A16).
+// StatusChanged là payload của shipment.status_changed: chỉ mã và số (A16). Ba trường đầu của M1; M3 (Task M3-08,
+// ApplyTracking) thêm phần sau, bỏ trống khi không có (sự kiện của M1 không có): OrderID, From (trạng thái trước),
+// Effects (tác động của bước, theo thứ tự), CODCollected (tiền hãng báo đã thu), Partial (giao một phần), OccurredAt
+// (giờ sự kiện của hãng).
 type StatusChanged struct {
-	ShipmentID uuid.UUID `json:"shipmentId"`
-	Status     Status    `json:"status"`
-	CODAmount  int64     `json:"codAmount"`
+	ShipmentID   uuid.UUID  `json:"shipmentId"`
+	Status       Status     `json:"status"`
+	CODAmount    int64      `json:"codAmount"`
+	OrderID      uuid.UUID  `json:"orderId,omitzero"`
+	From         Status     `json:"from,omitempty"`
+	Effects      []string   `json:"effects,omitempty"`
+	CODCollected *int64     `json:"codCollected,omitempty"`
+	Partial      bool       `json:"partial,omitempty"`
+	OccurredAt   *time.Time `json:"occurredAt,omitempty"`
 }
 
 // CreateCommandKind là loại lệnh fulfillment.create_shipment: hết hạn sau 10 phút chờ, mỗi lần gửi tối đa 30 s.
