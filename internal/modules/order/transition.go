@@ -69,6 +69,19 @@ func (w Writer) recordCreated(ctx context.Context, tx pgx.Tx, o Order, a Actor, 
 func (w Writer) applyTransition(ctx context.Context, tx pgx.Tx, o *Order, to state.Status, pending, reason string,
 	a Actor, now time.Time,
 ) error {
+	return w.applyTransitionWith(ctx, tx, o, to, pending, reason, transitionOpt{}, a, now)
+}
+
+// transitionOpt là phần tùy chọn của một lần đổi trạng thái; giá trị rỗng là đường chung của applyTransition.
+type transitionOpt struct {
+	// topic thay tên sự kiện order.<to> (rỗng: order.<to>).
+	topic string
+}
+
+// applyTransitionWith là applyTransition với tùy chọn opt (tên sự kiện riêng).
+func (w Writer) applyTransitionWith(ctx context.Context, tx pgx.Tx, o *Order, to state.Status, pending, reason string,
+	opt transitionOpt, a Actor, now time.Time,
+) error {
 	if err := state.Check(state.Status(o.Status), to, state.Conditions{
 		HasCurrentShipment: o.CurrentShipmentID != nil, AddressComplete: o.AddressComplete,
 		PendingReason: o.PendingReason,
@@ -89,7 +102,11 @@ func (w Writer) applyTransition(ctx context.Context, tx pgx.Tx, o *Order, to sta
 		return err
 	}
 	o.Status, o.PendingReason, o.Version, o.UpdatedAt = string(to), pending, version, now
-	if err := w.emit(ctx, tx, a.TenantID, *o, "order."+string(to), version); err != nil {
+	topic := opt.topic
+	if topic == "" {
+		topic = "order." + string(to)
+	}
+	if err := w.emit(ctx, tx, a.TenantID, *o, topic, version); err != nil {
 		return err
 	}
 	return w.signal(ctx, tx, a.TenantID, *o)

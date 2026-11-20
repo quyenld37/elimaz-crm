@@ -33,10 +33,18 @@ type Changed struct {
 	Status     string    `json:"status"`
 }
 
+// emit phát topic của đơn o với payload Changed (version = seq).
 func (w Writer) emit(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID, o Order, topic string, seq int64) error {
+	return w.emitChanged(ctx, tx, tenantID, topic, seq,
+		Changed{OrderID: o.ID, SellerID: o.SellerID, Version: seq, CustomerID: o.CustomerID, Status: o.Status})
+}
+
+// emitChanged phát topic với payload p đã dựng (seq = p.Version).
+func (w Writer) emitChanged(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID, topic string, seq int64, p Changed,
+) error {
 	if _, _, err := w.Events.Emit(ctx, tx, w.Queue, events.Event{
-		TenantID: tenantID, AggregateType: aggregateOrder, AggregateID: o.ID.String(), Seq: seq, Topic: topic,
-		Payload: Changed{OrderID: o.ID, SellerID: o.SellerID, Version: seq, CustomerID: o.CustomerID, Status: o.Status},
+		TenantID: tenantID, AggregateType: aggregateOrder, AggregateID: p.OrderID.String(), Seq: seq, Topic: topic,
+		Payload: p,
 	}); err != nil {
 		return fmt.Errorf("phát %s: %w", topic, err)
 	}

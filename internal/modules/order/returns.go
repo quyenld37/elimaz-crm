@@ -34,11 +34,16 @@ const (
 	ReturnCustomer = "customer_return"
 	ReturnExchange = "exchange"
 	ReturnCarrier  = "carrier_return"
+	// ReturnPartialDelivery: phiếu phần khách không nhận khi giao một phần (M3, TD09; Q-T91-4).
+	ReturnPartialDelivery = "partial_delivery"
 
 	ReturnRequested = "requested"
-	ReturnRestocked = "restocked"
-	ReturnClosed    = "closed"
-	ReturnCancelled = "cancelled"
+	// ReturnStatusReceived: kho đã nhận một phần hàng của phiếu (M3, nhận theo số lượng; Q-T91-4). Tên có Status vì
+	// ReturnReceived là kiểu payload sự kiện của M2.
+	ReturnStatusReceived = "received"
+	ReturnRestocked      = "restocked"
+	ReturnClosed         = "closed"
+	ReturnCancelled      = "cancelled"
 
 	ConditionSellable = "sellable"
 	ConditionDamaged  = "damaged"
