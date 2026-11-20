@@ -85,6 +85,11 @@ Có dần theo kế hoạch; lệnh nào chưa có thì task tương ứng sẽ 
 - **Module có chiều người bán (Task 27):** `internal/modules/catalog` — mọi hàm đọc nhận `sellerID` (ADR-29),
   sửa có `version` (khóa dòng rồi so), đường ghi là phương thức của một kiểu `Writer` tự ghi sự kiện, báo hiệu, audit
   trong transaction của bên gọi; module khác đọc qua view `catalog.*_v` (`docs/views.md`).
+- **Số dư và sổ chỉ ghi thêm (Task 28):** `internal/modules/inventory` — mỗi lần đổi tồn là một câu UPDATE có điều kiện
+  (`movement.go`, `applyDelta`; 0 dòng → sentinel) cùng một dòng sổ trong tx của bên gọi, không đọc số ra Go rồi ghi lại;
+  khóa theo ADR-46 nhóm 11 (số dư theo khóa tăng dần, rồi giữ hàng); test quy luật rapid (`property_test.go`), test hai
+  đường song song không deadlock (`deadlock_test.go`); module khác nạp tồn bằng `invtest`. Dựng module mới: bản nháp
+  `docs/skill-drafts/them-module.md`.
 - **Gọi dịch vụ ngoài:** bộ nối ở `internal/adapters/<tên>` (mẫu: `cfaccess`), hiện thực interface do module khai;
   `cmd/crm` nối. Module không nhập `net/http`.
 - **Đường ghi (Task 12):** `POST /api/v1/platform/jobs/{id}/retry` (`internal/httpapi/handlers_jobs.go`) — hợp đồng
@@ -113,3 +118,8 @@ Thêm một dòng mỗi khi chủ shop hoặc reviewer phải sửa cùng một 
 - Lỗi pgx tạm thời (57014, 57P01, 57P03, 53300, lỗi lúc nối): phân loại đúng là tạm thời, có test.
 - Màn hình đọc dữ liệu phân trang: còn `nextCursor` thì chưa được coi là "hết"/"0" (Task 84); sửa (PATCH) chỉ gửi trường người dùng đổi (Task 85).
 - Test không lấy một route, một ca "chưa làm" cụ thể của mã thật làm mẫu (gãy khi task khác làm nó): dò tự động hoặc dùng handler giả (Task 69, 82, 427).
+- (M1, gom 21/11 ở Task 405.) Lượt thử và kết quả không chắc: bận/429/503 chờ theo `Retry-After`, không tiêu lượt nhưng có trần; mọi đường lỗi (kể cả khi ghi trạng thái lỗi cũng lỗi) phải tới `dead` có cảnh báo; không chắc đã gửi thì `in_doubt`, không tự hủy hay gửi lại; mỗi nhánh một test (Task 35, 43, 48, 408, 409).
+- Chỉ đưa kết quả của transaction vào biến, bộ nhớ sau khi commit thành công (tx lùi thì giữ bản đã đọc); bản kê, `manifest` chỉ tin khi đối chiếu được với kho thật (Task 46, 409).
+- Test so thời gian chỉ dùng một đồng hồ (không so `now()` của database với `time.Now()` của máy test); đúng/sai chờ theo sự kiện, giờ thật chỉ làm chốt chống treo (Task 400, 403, 420).
+- Màn hình lúc đang tải, đang lưu, vừa lỗi 403: không vẽ như dữ liệu rỗng hay bảng cũ; khóa mọi thao tác (cả kéo thả) khi một lần ghi đang chạy (Task 48, 325, 330).
+- Lệnh trong `RUNBOOK.md`, kể cả đường lui, chạy thật một lần và trích kết quả vào bảng bằng chứng (SQL trong ngữ cảnh tenant, biến compose bắt buộc) (Task 33, 410).
