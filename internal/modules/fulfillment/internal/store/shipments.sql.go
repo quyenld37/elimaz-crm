@@ -13,6 +13,100 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const advanceShipmentLastEvent = `-- name: AdvanceShipmentLastEvent :exec
+UPDATE fulfillment.shipments
+SET last_carrier_event_at = GREATEST(last_carrier_event_at, $1::timestamptz), updated_at = now()
+WHERE id = $2
+`
+
+type AdvanceShipmentLastEventParams struct {
+	EventAt time.Time
+	ID      uuid.UUID
+}
+
+// Dời mốc sự kiện mới nhất đã xét (Decision.AdvanceLast mà không áp); không lùi, không tăng version.
+func (q *Queries) AdvanceShipmentLastEvent(ctx context.Context, arg AdvanceShipmentLastEventParams) error {
+	_, err := q.db.Exec(ctx, advanceShipmentLastEvent, arg.EventAt, arg.ID)
+	return err
+}
+
+const applyShipmentStatus = `-- name: ApplyShipmentStatus :one
+UPDATE fulfillment.shipments
+SET status = $1,
+    sub_status = $2,
+    last_status_at = now(),
+    last_carrier_event_at = GREATEST(last_carrier_event_at, $3::timestamptz),
+    picked_up_at = COALESCE(picked_up_at, $4::timestamptz),
+    delivered_at = COALESCE(delivered_at, $5::timestamptz),
+    carrier_reported_returned_at = COALESCE(carrier_reported_returned_at, $6::timestamptz),
+    cancel_kind = CASE WHEN $1 = 'cancelled' THEN COALESCE(cancel_kind, cancel_intent, 'carrier_cancelled')
+                       ELSE cancel_kind END,
+    updated_at = now(),
+    version = version + 1
+WHERE id = $7
+RETURNING version
+`
+
+type ApplyShipmentStatusParams struct {
+	Status             string
+	SubStatus          string
+	EventAt            time.Time
+	PickedUpAt         pgtype.Timestamptz
+	DeliveredAt        pgtype.Timestamptz
+	ReturnedReportedAt pgtype.Timestamptz
+	ID                 uuid.UUID
+}
+
+// Áp một bước của máy trạng thái lên dòng đã khóa; trả version mới. Mốc picked_up_at, delivered_at,
+// carrier_reported_returned_at giữ lần đầu; last_carrier_event_at không lùi. Sang cancelled: cancel_kind theo ý định
+// hủy của nhân viên, không có thì hãng tự hủy.
+func (q *Queries) ApplyShipmentStatus(ctx context.Context, arg ApplyShipmentStatusParams) (int64, error) {
+	row := q.db.QueryRow(ctx, applyShipmentStatus,
+		arg.Status,
+		arg.SubStatus,
+		arg.EventAt,
+		arg.PickedUpAt,
+		arg.DeliveredAt,
+		arg.ReturnedReportedAt,
+		arg.ID,
+	)
+	var version int64
+	err := row.Scan(&version)
+	return version, err
+}
+
+const attachShipmentTracking = `-- name: AttachShipmentTracking :one
+UPDATE fulfillment.shipments
+SET tracking_code = $1,
+    create_state = 'created',
+    fee = COALESCE(fee, $2::bigint),
+    status = 'awaiting_pickup',
+    last_status_at = now(), updated_at = now(), version = version + 2
+WHERE id = $3 AND status = 'creating'
+RETURNING version, fee
+`
+
+type AttachShipmentTrackingParams struct {
+	TrackingCode pgtype.Text
+	Fee          pgtype.Int8
+	ID           uuid.UUID
+}
+
+type AttachShipmentTrackingRow struct {
+	Version int64
+	Fee     pgtype.Int8
+}
+
+// Vận đơn creating (dòng đã khóa) nhận mã hãng: created, awaiting_pickup, phí (chỉ khi còn trống). version + 2: hai
+// sự kiện shipment.created (v+1) và shipment.status_changed (v+2). Trùng mã của vận đơn khác cùng hãng → 23505
+// shipments_tracking_key (bên gọi chạy trong savepoint).
+func (q *Queries) AttachShipmentTracking(ctx context.Context, arg AttachShipmentTrackingParams) (AttachShipmentTrackingRow, error) {
+	row := q.db.QueryRow(ctx, attachShipmentTracking, arg.TrackingCode, arg.Fee, arg.ID)
+	var i AttachShipmentTrackingRow
+	err := row.Scan(&i.Version, &i.Fee)
+	return i, err
+}
+
 const cancelCreatingShipment = `-- name: CancelCreatingShipment :one
 UPDATE fulfillment.shipments
 SET status = 'cancelled', cancel_kind = 'create_rejected', last_status_at = now(), updated_at = now(), version = version + 1
@@ -28,6 +122,35 @@ func (q *Queries) CancelCreatingShipment(ctx context.Context, id uuid.UUID) (int
 	var version int64
 	err := row.Scan(&version)
 	return version, err
+}
+
+const finishShipmentSync = `-- name: FinishShipmentSync :exec
+UPDATE fulfillment.shipments
+SET last_synced_at = $1,
+    last_sync_error = NULL,
+    stuck_since = NULL,
+    fee_actual = COALESCE($2::bigint, fee_actual),
+    cod_collected_amount = COALESCE($3::bigint, cod_collected_amount),
+    updated_at = now()
+WHERE id = $4
+`
+
+type FinishShipmentSyncParams struct {
+	SyncedAt     pgtype.Timestamptz
+	FeeActual    pgtype.Int8
+	CodCollected pgtype.Int8
+	ID           uuid.UUID
+}
+
+// Cuối một lần áp kết quả tra: mốc đồng bộ, xóa lỗi đồng bộ và dấu kẹt; phí thật, tiền COD hãng báo khi có.
+func (q *Queries) FinishShipmentSync(ctx context.Context, arg FinishShipmentSyncParams) error {
+	_, err := q.db.Exec(ctx, finishShipmentSync,
+		arg.SyncedAt,
+		arg.FeeActual,
+		arg.CodCollected,
+		arg.ID,
+	)
+	return err
 }
 
 const getShipment = `-- name: GetShipment :one
@@ -159,6 +282,53 @@ func (q *Queries) LockShipment(ctx context.Context, id uuid.UUID) (LockShipmentR
 	return i, err
 }
 
+const lockShipmentForApply = `-- name: LockShipmentForApply :one
+SELECT s.id, s.tenant_id, s.order_id, s.seller_id, s.carrier_key, s.tracking_code, s.status, s.cod_amount, s.version,
+       s.last_carrier_event_at, s.picked_up_at, s.cancel_intent, a.warehouse_id
+FROM fulfillment.shipments s
+JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
+WHERE s.id = $1
+FOR UPDATE OF s
+`
+
+type LockShipmentForApplyRow struct {
+	ID                 uuid.UUID
+	TenantID           uuid.UUID
+	OrderID            uuid.UUID
+	SellerID           uuid.UUID
+	CarrierKey         string
+	TrackingCode       pgtype.Text
+	Status             string
+	CodAmount          int64
+	Version            int64
+	LastCarrierEventAt pgtype.Timestamptz
+	PickedUpAt         pgtype.Timestamptz
+	CancelIntent       pgtype.Text
+	WarehouseID        uuid.UUID
+}
+
+// Khóa vận đơn (chỉ dòng vận đơn, FOR UPDATE OF s) kèm kho của tài khoản hãng (phạm vi báo hiệu).
+func (q *Queries) LockShipmentForApply(ctx context.Context, id uuid.UUID) (LockShipmentForApplyRow, error) {
+	row := q.db.QueryRow(ctx, lockShipmentForApply, id)
+	var i LockShipmentForApplyRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.OrderID,
+		&i.SellerID,
+		&i.CarrierKey,
+		&i.TrackingCode,
+		&i.Status,
+		&i.CodAmount,
+		&i.Version,
+		&i.LastCarrierEventAt,
+		&i.PickedUpAt,
+		&i.CancelIntent,
+		&i.WarehouseID,
+	)
+	return i, err
+}
+
 const markCreateInDoubt = `-- name: MarkCreateInDoubt :exec
 UPDATE fulfillment.shipments
 SET create_in_doubt_at = COALESCE(create_in_doubt_at, now()), updated_at = now()
@@ -169,6 +339,15 @@ WHERE id = $1 AND status = 'creating'
 // thái, không tăng version (không phải đổi của người dùng, không phát sự kiện).
 func (q *Queries) MarkCreateInDoubt(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, markCreateInDoubt, id)
+	return err
+}
+
+const markShipmentNeedsReview = `-- name: MarkShipmentNeedsReview :exec
+UPDATE fulfillment.shipments SET needs_review = true, updated_at = now() WHERE id = $1 AND NOT needs_review
+`
+
+func (q *Queries) MarkShipmentNeedsReview(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markShipmentNeedsReview, id)
 	return err
 }
 
@@ -191,6 +370,28 @@ func (q *Queries) ShipmentByTracking(ctx context.Context, arg ShipmentByTracking
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const shipmentOrderRef = `-- name: ShipmentOrderRef :one
+
+SELECT order_id, seller_id
+FROM fulfillment.shipments
+WHERE id = $1
+`
+
+type ShipmentOrderRefRow struct {
+	OrderID  uuid.UUID
+	SellerID uuid.UUID
+}
+
+// Áp kết quả tra (kế hoạch M3, Task M3-08). Thứ tự khóa: ShipmentOrderRef (không khóa) → order.LockSnapshot (nhóm 7)
+// → LockShipmentForApply (nhóm 8).
+// Đơn, người bán của vận đơn, đọc không khóa để khóa đơn trước; không có (hay tenant khác) → pgx.ErrNoRows.
+func (q *Queries) ShipmentOrderRef(ctx context.Context, id uuid.UUID) (ShipmentOrderRefRow, error) {
+	row := q.db.QueryRow(ctx, shipmentOrderRef, id)
+	var i ShipmentOrderRefRow
+	err := row.Scan(&i.OrderID, &i.SellerID)
+	return i, err
 }
 
 const updateShipmentProgress = `-- name: UpdateShipmentProgress :one
