@@ -1,24 +1,26 @@
 package fulfillment
 
+import "elimaz.com.vn/crm/internal/modules/fulfillment/internal/shipstate"
+
 // Canonical là trạng thái chuẩn của vận đơn, chung cho mọi hãng (04 mục 4): adapter đổi mã thô của hãng sang đây qua
-// MapCanonical.
-type Canonical string
+// MapCanonical. Kiểu nằm ở máy trạng thái (shipstate) để Decide dùng được mà không nhập ngược fulfillment.
+type Canonical = shipstate.Canonical
 
 // Trạng thái chuẩn.
 const (
-	CanonAwaitingPickup     Canonical = "awaiting_pickup"
-	CanonPickedUp           Canonical = "picked_up"
-	CanonInTransit          Canonical = "in_transit"
-	CanonOutForDelivery     Canonical = "out_for_delivery"
-	CanonDeliveryFailed     Canonical = "delivery_failed"
-	CanonDelivered          Canonical = "delivered"
-	CanonPartiallyDelivered Canonical = "partially_delivered"
-	CanonReturning          Canonical = "returning"
-	CanonReturnedToShop     Canonical = "returned_to_shop"
-	CanonCancelled          Canonical = "cancelled"
-	CanonLost               Canonical = "lost"
-	CanonDamaged            Canonical = "damaged"
-	CanonUnknown            Canonical = "unknown"
+	CanonAwaitingPickup     = shipstate.CanonAwaitingPickup
+	CanonPickedUp           = shipstate.CanonPickedUp
+	CanonInTransit          = shipstate.CanonInTransit
+	CanonOutForDelivery     = shipstate.CanonOutForDelivery
+	CanonDeliveryFailed     = shipstate.CanonDeliveryFailed
+	CanonDelivered          = shipstate.CanonDelivered
+	CanonPartiallyDelivered = shipstate.CanonPartiallyDelivered
+	CanonReturning          = shipstate.CanonReturning
+	CanonReturnedToShop     = shipstate.CanonReturnedToShop
+	CanonCancelled          = shipstate.CanonCancelled
+	CanonLost               = shipstate.CanonLost
+	CanonDamaged            = shipstate.CanonDamaged
+	CanonUnknown            = shipstate.CanonUnknown
 )
 
 // StatusFromCanonical đổi trạng thái chuẩn sang trạng thái vận đơn của M1, dùng chung để adapter hiện thực MapStatus
