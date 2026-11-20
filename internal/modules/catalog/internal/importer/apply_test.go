@@ -95,21 +95,45 @@ func TestRecheck(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			plan, now := recheckPlan()
-			c.change(&now)
-			errs := importer.Recheck(plan, now)
-			if c.code == "" {
-				if len(errs) != 0 {
-					t.Fatalf("lỗi %+v", errs)
-				}
-				return
-			}
-			if len(errs) != 1 || errs[0].Row != c.row || errs[0].Column != c.column || errs[0].Code != c.code ||
-				errs[0].Message == "" {
-				t.Fatalf("lỗi %+v, mong dòng %d cột %s mã %s", errs, c.row, c.column, c.code)
-			}
+			assertRecheck(t, c.change, c.row, c.column, c.code)
 		})
 	}
+}
+
+// assertRecheck áp change lên dữ liệu lúc áp rồi Recheck: code rỗng → không lỗi; khác → đúng một lỗi đúng dòng, cột, mã.
+func assertRecheck(t *testing.T, change func(now *importer.Refs), row int, column, code string) {
+	t.Helper()
+	plan, now := recheckPlan()
+	change(&now)
+	errs := importer.Recheck(plan, now)
+	if code == "" {
+		if len(errs) != 0 {
+			t.Fatalf("lỗi %+v", errs)
+		}
+		return
+	}
+	if len(errs) != 1 || errs[0].Row != row || errs[0].Column != column || errs[0].Code != code || errs[0].Message == "" {
+		t.Fatalf("lỗi %+v, mong dòng %d cột %s mã %s", errs, row, column, code)
+	}
+}
+
+// Mutation testing (Task 403): mã mẫu hay SKU còn nhưng là bản ghi khác (xóa rồi tạo lại cùng mã, cùng SKU) → lỗi
+// "đổi từ lúc kiểm", không chỉ khi mất mã.
+func TestRecheck_RecreatedSameKey(t *testing.T) {
+	t.Parallel()
+	t.Run("mẫu có sẵn vừa bị xóa rồi tạo lại cùng mã", func(t *testing.T) {
+		t.Parallel()
+		assertRecheck(t, func(now *importer.Refs) { now.ExistingProducts["DAM01"] = importer.ExistingProduct{ID: uuid.New()} },
+			4, importer.ColCode, importer.CodeChangedSinceValidation)
+	})
+	t.Run("biến thể sửa vừa bị xóa rồi tạo lại cùng SKU", func(t *testing.T) {
+		t.Parallel()
+		assertRecheck(t, func(now *importer.Refs) {
+			v := now.ExistingSKUs["DAM01-S"]
+			v.ID = uuid.New()
+			now.ExistingSKUs["DAM01-S"] = v
+		}, 4, importer.ColSKU, importer.CodeChangedSinceValidation)
+	})
 }
 
 // Nhiều lỗi xếp theo dòng.
@@ -120,6 +144,32 @@ func TestRecheck_SortedByRow(t *testing.T) {
 	now.ExistingSKUs["AO01-D-S"] = importer.ExistingVariant{ID: uuid.New(), ProductCode: "VAY09"}
 	errs := importer.Recheck(plan, now)
 	if len(errs) != 2 || errs[0].Row != 2 || errs[1].Row != 5 {
+		t.Fatalf("lỗi %+v", errs)
+	}
+}
+
+// Mutation testing (Task 403): mẫu không có dòng biến thể nào được bỏ qua mà không dừng vòng lặp — mẫu sau nó vẫn được
+// kiểm lại.
+func TestRecheck_ProductWithoutVariantsSkipped(t *testing.T) {
+	t.Parallel()
+	plan, now := recheckPlan()
+	plan.Products = append([]importer.PlannedProduct{{Code: "RONG01", Name: "Rỗng"}}, plan.Products...)
+	now.ExistingProducts["AO01"] = importer.ExistingProduct{ID: uuid.New()}
+	errs := importer.Recheck(plan, now)
+	if len(errs) != 1 || errs[0].Row != 2 || errs[0].Code != importer.CodeCodeTaken {
+		t.Fatalf("lỗi %+v", errs)
+	}
+}
+
+// Mutation testing (Task 403): biến thể sửa hay giữ nguyên mà plan thiếu ExistingID (không phải tạo mới) là "đã đổi",
+// kể cả khi SKU vẫn còn và version khớp.
+func TestRecheck_UpdateWithoutExistingID(t *testing.T) {
+	t.Parallel()
+	plan, now := recheckPlan()
+	plan.Products[1].Variants[0].ExistingID = nil
+	errs := importer.Recheck(plan, now)
+	if len(errs) != 1 || errs[0].Row != 4 || errs[0].Column != importer.ColSKU ||
+		errs[0].Code != importer.CodeChangedSinceValidation {
 		t.Fatalf("lỗi %+v", errs)
 	}
 }

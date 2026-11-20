@@ -173,3 +173,38 @@ func TestArticleHTML_PublicVariantsCalls(t *testing.T) {
 		}
 	}
 }
+
+// Mutation testing (Task 403): sửa bài viết có khối ảnh cũ đứng trước — mọi tệp mới phía sau vẫn được kiểm, kể cả
+// khi giữa chúng có một tệp mới hợp lệ.
+func TestArticleImages_SaveChecksEveryNewFile(t *testing.T) {
+	e := newCatalogEnv(t)
+	bad := e.badFiles().processing
+	old := e.image()
+	in := dam01(e.seller)
+	in.Article = json.RawMessage("[" + imageBlock(old, "cũ") + "]")
+	p, err := e.create(in)
+	if err != nil {
+		t.Fatalf("tạo: %v", err)
+	}
+	for name, raw := range map[string]string{
+		"cũ rồi tệp hỏng":          "[" + imageBlock(old, "") + "," + imageBlock(bad, "") + "]",
+		"cũ, tệp tốt rồi tệp hỏng": "[" + imageBlock(old, "") + "," + imageBlock(e.image(), "") + "," + imageBlock(bad, "") + "]",
+	} {
+		if _, err := e.writerUpdateArticle(p.ID, raw); !errors.Is(err, catalog.ErrInvalidArticle) {
+			t.Errorf("%s: mong ErrInvalidArticle, có %v", name, err)
+		}
+	}
+}
+
+// Mutation testing (Task 403): tệp không còn bản công khai → Image = nil (không phải ảnh rỗng).
+func TestResolveArticleImages_MissingFileLeavesNil(t *testing.T) {
+	e := newCatalogEnv(t)
+	blocks, err := catalog.DecodeArticle(json.RawMessage("[" + imageBlock(uuid.New(), "") + "]"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.must(func(tx pgx.Tx) error { return catalog.ResolveArticleImages(t.Context(), tx, blocks, testView()) })
+	if blocks[0].Image != nil {
+		t.Fatalf("Image = %+v, mong nil", blocks[0].Image)
+	}
+}

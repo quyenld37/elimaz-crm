@@ -1,6 +1,7 @@
 package files
 
 import (
+	"io"
 	"time"
 
 	"elimaz.com.vn/crm/internal/platform/commands"
@@ -24,3 +25,10 @@ func SetVerifyBatch(v *Verifier, n int) { v.batch = n }
 func RetryDelay(elapsed, hint, retryMax time.Duration, rnd func() float64) time.Duration {
 	return retryDelay(elapsed, hint, retryMax, rnd)
 }
+
+// LimitedBody bọc rc như S3Store.Open (đọc tối đa left byte; thừa → ErrTooLarge) để test biên đọc mà không cần kho trả
+// sai Content-Length (mutation testing, Task 403).
+func LimitedBody(rc io.ReadCloser, left int64) io.ReadCloser { return &limitedBody{rc: rc, left: left} }
+
+// SetRegenerateTimeout đổi hạn một lần chạy của file.regenerate (mutation testing, Task 403).
+func SetRegenerateTimeout(h *Regenerator, d time.Duration) { h.timeout = d }

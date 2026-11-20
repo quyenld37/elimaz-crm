@@ -3,6 +3,7 @@ package order_test
 import (
 	"errors"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 
@@ -194,13 +195,17 @@ func TestCreateManual_InvalidInput(t *testing.T) {
 		long[i] = 'a'
 	}
 	bad := map[string]func(in *order.CreateManualInput){
-		"không dòng":          func(in *order.CreateManualInput) { in.Items = nil },
-		"số lượng 0":          func(in *order.CreateManualInput) { in.Items[0].Qty = 0 },
-		"phí âm":              func(in *order.CreateManualInput) { in.ShippingFee = -1 },
-		"thiếu khóa":          func(in *order.CreateManualInput) { in.IdempotencyKey = uuid.Nil },
-		"SĐT sai":             func(in *order.CreateManualInput) { in.ShipAddress.Phone = "12ab" },
-		"tên người nhận rỗng": func(in *order.CreateManualInput) { in.ShipAddress.Name = " " },
-		"địa chỉ quá dài":     func(in *order.CreateManualInput) { in.ShipAddress.Line = logging.Address(long) },
+		"không dòng":           func(in *order.CreateManualInput) { in.Items = nil },
+		"số lượng 0":           func(in *order.CreateManualInput) { in.Items[0].Qty = 0 },
+		"phí âm":               func(in *order.CreateManualInput) { in.ShippingFee = -1 },
+		"thiếu khóa":           func(in *order.CreateManualInput) { in.IdempotencyKey = uuid.Nil },
+		"thiếu người bán":      func(in *order.CreateManualInput) { in.SellerID = uuid.Nil },
+		"SĐT sai":              func(in *order.CreateManualInput) { in.ShipAddress.Phone = "12ab" },
+		"tên người nhận rỗng":  func(in *order.CreateManualInput) { in.ShipAddress.Name = " " },
+		"tên có ký tự \\x01":   func(in *order.CreateManualInput) { in.ShipAddress.Name = "Lan\x01" },
+		"tên có ký tự \\u007f": func(in *order.CreateManualInput) { in.ShipAddress.Name = "Lan\u007f" },
+		"tên có ký tự \\u009f": func(in *order.CreateManualInput) { in.ShipAddress.Name = "Lan\u009f" },
+		"địa chỉ quá dài":      func(in *order.CreateManualInput) { in.ShipAddress.Line = logging.Address(long) },
 	}
 	for name, mutate := range bad {
 		in := e.input(0, item(v, 1))
@@ -208,6 +213,20 @@ func TestCreateManual_InvalidInput(t *testing.T) {
 		if _, err := e.create(in); !errors.Is(err, order.ErrInvalidInput) {
 			t.Errorf("%s: lỗi = %v, mong ErrInvalidInput", name, err)
 		}
+	}
+	// Đúng giới hạn (500 ký tự địa chỉ, 120 ký tự tên, kể cả chữ có dấu) thì được.
+	at := e.input(0, item(v, 1))
+	at.ShipAddress.Line = logging.Address(strings.Repeat("ạ", 500))
+	at.ShipAddress.Name = strings.Repeat("Ư", 120)
+	if _, err := e.create(at); err != nil {
+		t.Errorf("địa chỉ 500, tên 120 ký tự: %v", err)
+	}
+	// Thiếu khách (e.create luôn tạo khách nên gọi thẳng CreateManual).
+	if err := e.app(func(tx pgx.Tx) error {
+		_, err := e.writer().CreateManual(t.Context(), tx, e.input(0, item(v, 1)), e.actor)
+		return err //nolint:wrapcheck // test
+	}); !errors.Is(err, order.ErrInvalidInput) {
+		t.Errorf("thiếu khách: lỗi = %v, mong ErrInvalidInput", err)
 	}
 	if err := e.app(func(tx pgx.Tx) error {
 		_, err := customer.Create(t.Context(), tx, "  ")

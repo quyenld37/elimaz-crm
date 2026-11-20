@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"pgregory.net/rapid"
 
@@ -48,6 +49,11 @@ func TestCreateUpload_TooLarge(t *testing.T) {
 	e.must(e.a, func(tx pgx.Tx) error { return tx.QueryRow(t.Context(), "SELECT count(*) FROM platform.files").Scan(&n) })
 	if n != 0 {
 		t.Fatalf("bị từ chối mà vẫn có %d dòng", n)
+	} // Mutation testing (Task 403): tên đúng 255 ký tự (chữ có dấu, nhiều byte) được nhận.
+	if _, _, err := e.create(store, files.UploadInput{
+		TenantID: e.a, Purpose: "product_image", FileName: strings.Repeat("ả", 251) + ".jpg", ContentType: "image/jpeg", SizeBytes: 100,
+	}); err != nil {
+		t.Fatalf("tên đúng 255 ký tự: %v", err)
 	}
 }
 
@@ -223,4 +229,28 @@ func TestUpload_KeyHasNoUserFileName(t *testing.T) {
 			rt.Fatalf("khóa %q không phải TmpKey", f.Key)
 		}
 	})
+}
+
+// Mutation testing (Task 403): created_by là người tạo; không có người (uuid.Nil) → NULL.
+func TestCreateUpload_CreatedBy(t *testing.T) {
+	e := newEnv(t)
+	store := testkit.MemFileStore(t)
+	in := files.UploadInput{TenantID: e.a, Purpose: "product_image", FileName: "a.jpg", ContentType: "image/jpeg", SizeBytes: 10}
+	createdBy := func(actor uuid.UUID) *uuid.UUID {
+		var by *uuid.UUID
+		e.must(e.a, func(tx pgx.Tx) error {
+			f, _, err := files.CreateUpload(t.Context(), tx, store, in, actor)
+			if err != nil {
+				return err //nolint:wrapcheck // test
+			}
+			return tx.QueryRow(t.Context(), "SELECT created_by FROM platform.files WHERE id = $1", f.ID).Scan(&by)
+		})
+		return by
+	}
+	if by := createdBy(e.actor); by == nil || *by != e.actor {
+		t.Errorf("created_by = %v, mong %s", by, e.actor)
+	}
+	if by := createdBy(uuid.Nil); by != nil {
+		t.Errorf("không có người tạo: created_by = %v, mong NULL", by)
+	}
 }

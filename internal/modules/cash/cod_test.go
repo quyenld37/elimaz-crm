@@ -289,6 +289,12 @@ func TestConsumerPermanentErrors(t *testing.T) {
 	if err := e.handle(bad); !errors.Is(err, queue.ErrPermanent) {
 		t.Errorf("payload hỏng: mong ErrPermanent, có %v", err)
 	}
+	// Mutation testing (Task 403): payload có shipmentId đúng nhưng trường khác sai kiểu — json.Unmarshal vẫn điền
+	// shipmentId rồi báo lỗi; vẫn là lỗi vĩnh viễn, không bỏ qua im lặng.
+	bad.Payload = []byte(`{"shipmentId":"` + e.shipment(1000).String() + `","status":5}`)
+	if err := e.handle(bad); !errors.Is(err, queue.ErrPermanent) {
+		t.Errorf("payload sai kiểu: mong ErrPermanent, có %v", err)
+	}
 }
 
 // Nối dây: sổ sự kiện có consumer cash; Emit shipment.status_changed rồi worker chạy việc event.cash.
@@ -324,5 +330,50 @@ func TestConsumerThroughRegistryAndWorker(t *testing.T) {
 	b := e.balances(s)
 	if b[cash.AccountToCollect] != 0 || b[cash.AccountCarrierHolding] != 530000 {
 		t.Fatalf("số dư %v", b)
+	}
+}
+
+// Mutation testing (Task 403): biên của Post — khóa đúng 200 ký tự, lý do đúng 500 ký tự, dòng đúng ±(2^53 − 1) được
+// nhận (một ký tự, một đồng hơn thì bị từ chối); actor_id lưu đúng người thao tác, uuid.Nil thành NULL.
+func TestPostLimitsAndActorID(t *testing.T) {
+	t.Parallel()
+	e := newCODEnv(t)
+	s := e.shipment(530000)
+	const maxAmount = 1<<53 - 1
+	staff := uuid.New()
+	tr := func(key, reason string, amount int64, actor uuid.UUID) cash.Transfer {
+		return cash.Transfer{
+			ShipmentID: s, Kind: cash.KindExpected, IdempotencyKey: key, Reason: reason,
+			Actor:   cash.Actor{Type: cash.ActorStaff, ID: actor},
+			Entries: []cash.Entry{{Account: cash.AccountToCollect, Amount: amount}, {Account: cash.AccountSalesClearing, Amount: -amount}},
+		}
+	}
+	post := func(x cash.Transfer) error {
+		return e.app(func(tx pgx.Tx) error {
+			_, err := cash.Post(e.t.Context(), tx, x)
+			return err //nolint:wrapcheck // test
+		})
+	}
+	for name, bad := range map[string]cash.Transfer{
+		"khóa 201 ký tự":  tr(strings.Repeat("k", 201), "", 1, uuid.Nil),
+		"lý do 501 ký tự": tr("k-reason", strings.Repeat("r", 501), 1, uuid.Nil),
+		"dòng 2^53":       tr("k-amount", "", maxAmount+1, uuid.Nil),
+	} {
+		if err := post(bad); !errors.Is(err, cash.ErrInvalidTransfer) {
+			t.Errorf("%s: mong ErrInvalidTransfer, có %v", name, err)
+		}
+	}
+	key := strings.Repeat("k", 200)
+	if err := post(tr(key, strings.Repeat("r", 500), maxAmount, staff)); err != nil {
+		t.Fatalf("đúng biên: %v", err)
+	}
+	if err := post(tr("k-system", "", -maxAmount, uuid.Nil)); err != nil {
+		t.Fatalf("đúng biên âm: %v", err)
+	}
+	if n := e.count("SELECT count(*) FROM cash.cod_transfers WHERE idempotency_key = $1 AND actor_id = $2", key, staff); n != 1 {
+		t.Errorf("actor_id của người thao tác: %d dòng khớp, mong 1", n)
+	}
+	if n := e.count("SELECT count(*) FROM cash.cod_transfers WHERE idempotency_key = 'k-system' AND actor_id IS NULL"); n != 1 {
+		t.Errorf("actor uuid.Nil: %d dòng actor_id NULL, mong 1", n)
 	}
 }

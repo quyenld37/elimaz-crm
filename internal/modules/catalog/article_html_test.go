@@ -318,3 +318,41 @@ func FuzzRenderArticleHTML(f *testing.F) {
 		checkAllowed(t, out)
 	})
 }
+
+// Mutation testing (Task 403): chiều rộng biến thể 1 và 10000 là biên hợp lệ; 0, 10001 và URL có khoảng trắng →
+// ErrInvalidArticle.
+func TestRenderArticleHTML_VariantBounds(t *testing.T) {
+	img := func(w int, url string) []catalog.ArticleBlock {
+		return []catalog.ArticleBlock{{Type: "image", FileID: fileID(), Image: &catalog.ArticleImage{
+			Variants: []catalog.ArticleImageVariant{{Width: w, Format: "jpeg", URL: url}},
+		}}}
+	}
+	const u = "https://cdn.elimaz.test/img/abc/v1/x.jpeg"
+	for name, c := range map[string]struct {
+		blocks []catalog.ArticleBlock
+		ok     bool
+	}{
+		"rộng 1":           {img(1, u), true},
+		"rộng 10000":       {img(10000, u), true},
+		"rộng 0":           {img(0, u), false},
+		"rộng 10001":       {img(10001, u), false},
+		"URL khoảng trắng": {img(640, "https://cdn.elimaz.test/img/a b.jpeg"), false},
+	} {
+		_, err := catalog.RenderArticleHTML(c.blocks)
+		if (err == nil) != c.ok || (err != nil && !errors.Is(err, catalog.ErrInvalidArticle)) {
+			t.Errorf("%s: lỗi %v, mong hợp lệ = %v", name, err, c.ok)
+		}
+	}
+}
+
+// Mutation testing (Task 403): img src là bản JPEG gần 640 nhất, kể cả khi bản đó rộng hơn 640.
+func TestRenderArticleHTML_SrcClosestTo640(t *testing.T) {
+	var vs []catalog.ArticleImageVariant
+	for _, w := range []int{320, 800} {
+		vs = append(vs, catalog.ArticleImageVariant{Width: w, Format: "jpeg", URL: fmt.Sprintf("https://cdn.elimaz.test/%d.jpeg", w)})
+	}
+	out, err := catalog.RenderArticleHTML([]catalog.ArticleBlock{{Type: "image", FileID: fileID(), Image: &catalog.ArticleImage{Variants: vs}}})
+	if err != nil || !strings.Contains(out, `<img src="https://cdn.elimaz.test/800.jpeg"`) {
+		t.Fatalf("mong src bản 800: %v\n%s", err, out)
+	}
+}

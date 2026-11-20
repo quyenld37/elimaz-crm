@@ -121,3 +121,10 @@ func TestOriginalURL_Refusals(t *testing.T) {
 		}
 	}
 }
+
+// Mutation testing (Task 403): hạn đường dẫn ảnh gốc cho nhân viên đúng 5 phút (TP05), không thành 0.
+func TestOriginalTTL(t *testing.T) {
+	if files.OriginalTTL != 5*time.Minute {
+		t.Fatalf("OriginalTTL = %v, mong 5m", files.OriginalTTL)
+	}
+}

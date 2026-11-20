@@ -40,6 +40,10 @@ func TestReadContent(t *testing.T) {
 	if got, err := read(e.a, ok, "catalog_import", 1<<20); err != nil || !bytes.Equal(got, body) {
 		t.Fatalf("đọc tệp: %q %v", got, err)
 	}
+	// Mutation testing (Task 403): đúng maxBytes byte là đọc đủ, không cắt bớt.
+	if got, err := read(e.a, ok, "catalog_import", int64(len(body))); err != nil || !bytes.Equal(got, body) {
+		t.Fatalf("đọc tệp đúng maxBytes: %q %v", got, err)
+	}
 	waiting, _ := e.mustCreate(mem, files.UploadInput{
 		TenantID: e.a, Purpose: "catalog_import", FileName: "b.xlsx", ContentType: sheetType, SizeBytes: 5,
 	})

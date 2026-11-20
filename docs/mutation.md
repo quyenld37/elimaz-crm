@@ -153,3 +153,145 @@ mỗi khách (các test song song giết hết).
 **customer** (9): `merge.go:124, 127, 130, 225` (đọc lại dưới khóa: `||` → `&&` chỉ khác khi một lần gộp khác commit
 chen giữa — test song song gộp chéo trả `ErrMergeConflict` qua đường khác), `fororder.go:116, 162, 163, 175` (trường
 audit và nhánh audit khi gốc khác hồ sơ).
+
+## Lần chạy 19/11/2026 — vùng cao M1 (Task 403, M1-55b)
+
+Máy dev bận (load 15–28, nhiều phiên khác cùng chạy), `GOFLAGS="-count=1 -p=3"`, `workers: 2` của `.gremlins.yaml`.
+Vùng cao M1 theo dòng "Vùng rủi ro cao của M1" của kế hoạch M1. Các mục chưa có trong `HIGH_RISK_DIRS` (điều phối viên
+thêm, xem `docs/tasks/task-403.md` mục "Dừng để hỏi") được chạy bằng đúng lệnh `make mutation` sẽ chạy cho mục đó:
+thư mục → `gremlins unleash --config .gremlins.yaml -E '/' ./<thư mục>`; tệp lẻ → thêm `-E '^<tệp khác>\.go$'` cho mọi tệp
+khác của gói. Khác `make mutation` một điểm: thư mục cũng loại thư mục con (`-E '/'`) để không đột biến mã sinh sqlc
+`internal/store` (mã sinh không sửa tay; đột biến ở đó đo test của sqlc, không đo luật nghiệp vụ).
+
+Ba điều chỉnh khi đọc số của gremlins v0.6.0 (giữ cho các lần chạy sau):
+
+1. **Không biên dịch được ≠ bị giết.** `ARITHMETIC_BASE` trên phép nối chuỗi (`"a" + b` → `"a" - b`) làm gói không
+   biên dịch; gremlins ghi KILLED. Các đột biến này bị loại khỏi phép tính (kiểm bằng cách cài từng đột biến KILLED rồi
+   `go test -run '^$'`). Đột biến bị `go vet` (chạy trong `go test`) chặn — ví dụ `h == "a" && h == "b"` — vẫn tính là
+   bị giết: cổng CI cũng chạy vet.
+2. **Biểu thức `case` của `switch {}` luôn hiện "không phủ".** Gremlins lấy vùng phủ theo khối lệnh của `go test
+   -cover`; biểu thức sau `case` nằm ngoài mọi khối nên mọi đột biến ở đó thành NOT COVERED dù test chạy qua. Các đột
+   biến này được cài tay từng cái (cùng phép đổi của gremlins) và chạy test của gói; kết quả ghi trong bảng (cột "cài
+   tay").
+3. Test cần libvips và `prlimit` (Linux) tự bỏ qua trên máy dev macOS: số của `internal/imager` đo **không** có các test
+   đó. Lượt CI theo lịch (Linux, có libvips) có thể giết thêm, không bớt.
+
+| Mục | Gremlins: giết / sống / không phủ (không biên dịch) | Cài tay (không phủ) | Hiệu quả trước test thêm | Sau test thêm | Thời gian |
+|---|---|---|---|---|---|
+| `catalog/internal/importer/apply.go` | 14 / 0 / 19 (13) | 19: 15 giết, 4 sống | 16/20 = 80,0% | 20/20 = 100% | 13 s |
+| `fulfillment/status.go` | 4 / 0 / 0 (0) | — | 100% | 100% | 32 s |
+| `modules/cash` | 34 / 4 / 8 (3) | 8: 6 giết, 2 sống | 37/43 = 86,0% | 43/43 = 100% | 10 phút 48 s |
+| `internal/imager` | 92 / 28 / 33 (16) | 31 có nghĩa (2 không biên dịch) | 78/106 = 73,6% (chỉ phần gremlins chạy) | 136/137 = 99,3% | 4 phút 39 s |
+| `catalog/article_html.go` | 50 / 11 / 0 (5) | — | 45/56 = 80,4% | 52/56 = 92,9% | 17 phút |
+| `platform/files` (trừ `memstore.go`) | 316 / 85 / 154 (51); 2 quá hạn; **18 chưa chạy** | 83: 65 giết, 16 sống, 2 không biên dịch → sau test thêm 78/81 | 265/350 = **75,7%** | 330/350 = 94,3% | ~6 giờ (hai phần) |
+| `modules/inventory` | 187 / 16 / 66 (5); 1 quá hạn; **45 chưa chạy** | 6/66: 6 giết | 182/198 = 91,9% | 192/198 = 97,0% | dừng sau 3 giờ 50 phút |
+| `modules/order` (6 tệp M1) | 55 / 16 / 0 (1) | — | 54/70 = **77,1%** | 69/70 = 98,6% | 1 giờ 41 phút |
+| `modules/identity` (`staff.go`, `roles.go`) | không chạy lại: dùng lần đo 18/11 (91,53%) | — | — | — | — |
+
+"Sau test thêm": mỗi đột biến còn sống (và mỗi đột biến không phủ cài tay) được cài lại vào một bản sao mã và chạy
+đúng test mới → đỏ; chưa chạy lại cả lượt gremlins.
+
+Ghi chú cho các dòng mới (đo đêm 19–20/11):
+
+- **Phần chưa chạy.** Từ 01:39 ngày 20/11 máy dev vào trạng thái ngủ ("Dark Wake Thermal Emergency", `pmset -g log`), chỉ
+  thức khoảng một phút mỗi 15 phút, nên lượt `inventory` dừng ở 203/248 đột biến và phần 2 của `platform/files` ở
+  333/351 (18 đột biến cuối của `verify.go` chưa chạy). Hiệu quả trên tính trên phần đã chạy; lượt CI theo lịch sẽ đo đủ
+  khi các thư mục này vào `HIGH_RISK_DIRS`.
+- **`platform/files`** chạy thành hai phần (phần 1 bị dừng giữa chừng; phần 2 giữ 9 tệp `process`, `process_private`,
+  `purpose`, `regenerate`, `register`, `s3store`, `store`, `upload`, `verify`), số trong bảng là hợp của hai phần.
+  `memstore.go` (kho tệp giả trong bộ nhớ, chỉ test dùng) không tính. Đột biến không phủ chỉ cài tay 83/154 (phần có
+  trong log lúc bắt đầu cài); phần còn lại không tính vào hiệu quả như định nghĩa của gremlins.
+- **`inventory`**: cả gói test mất hơn 10 phút trên máy đang tải, nên đột biến không phủ cài tay chỉ chạy test của tệp
+  tương ứng (bỏ test `*Deadlock*`); làm được 6/66 trước khi máy ngủ. Một đột biến quá hạn (treo tới hạn của gremlins).
+- **`order`**: Task 89 (mục "Lần chạy M2" ở trên) đã đo cả gói `order` (91,01%, 800/879) và xếp 15 đột biến của
+  `create.go`, `transition.go` vào nhóm chấp nhận; test thêm của Task 403 giết 15 đột biến đó (bảng dưới), nên số của cả
+  gói sau Task 403 là 815/879 = 92,7%. Ở 6 tệp M1, đột biến còn lại duy nhất là `order.go:147` (tương đương, xem dưới).
+- `verify.go:235:12` (`err != nil` → `==`) làm test treo hơn 30 phút khi cài tay; dừng tay và tính là quá hạn.
+
+### Test thêm (Task 403)
+
+| Đột biến | Test | Ý nghĩa |
+|---|---|---|
+| `apply.go:18` `continue` → `break` | `TestRecheck_ProductWithoutVariantsSkipped` | mẫu không có dòng biến thể làm dừng kiểm lại các mẫu sau |
+| `apply.go:26` `!has \|\| ex.ID != …` → `&&` | `TestRecheck_RecreatedSameKey` ca "mẫu có sẵn vừa bị xóa rồi tạo lại cùng mã" | áp nhập Excel lên mẫu khác cùng mã |
+| `apply.go:47` hai `\|\|` đầu → `&&` | `TestRecheck_RecreatedSameKey` ca "biến thể sửa vừa bị xóa rồi tạo lại cùng SKU", `TestRecheck_UpdateWithoutExistingID` | ghi đè biến thể khác cùng SKU |
+| `cash/cod.go:97` `actor.ID != uuid.Nil` → `==` | `TestPostLimitsAndActorID` | `actor_id` của bút toán lưu sai người |
+| `cash/cod.go:122` `len(key) > 200`, `len(reason) > 500` → `>=` | `TestPostLimitsAndActorID` | biên độ dài khớp CHECK của bảng |
+| `cash/cod.go:136` `> maxAmount`, `< -maxAmount` → `>=`, `<=` | `TestPostLimitsAndActorID` | dòng đúng ±(2^53 − 1) bị từ chối sai |
+| `cash/consumer.go:43` `err != nil \|\| id == Nil` → `&&` | `TestConsumerPermanentErrors` (payload sai kiểu) | sự kiện hỏng bị bỏ qua im lặng thay vì lỗi vĩnh viễn |
+| `imager/client.go:94` (4 đột biến Retry-After) | `TestClient_RetryAfterBounds` | chờ 0 s (gửi dồn) hay 301 s |
+| `imager/pipeline.go:114–129` biên `Validate` (33 đầu ra, rộng 8193, chất lượng −1/101, 9 header) | `TestRequestValidate_Boundaries` | yêu cầu vượt giới hạn lọt vào imager |
+| `pipeline.go:231`, `247` `> MaxBytes` → `>=`; `241` mất lỗi đọc | `TestImager_MaxBytesBoundary`, `TestImager_SourceCutMidway` | nguồn bị cắt giữa chừng vẫn được xử lý |
+| `pipeline.go:296` `w*h > MaxPixels` (`*` → `/`, `>` → `>=`) | `TestImager_MaxPixelsBoundary` | **bom điểm ảnh lọt qua khi không có libvips thật trong test** |
+| `pipeline.go:307`, `312` (dòng tóm tắt thiếu tên tệp, chiều 0, số tràn) | `TestImager_SummaryLineRejected` | |
+| `pipeline.go:337` `Quality > 0` | `TestImager_QualityOption` | |
+| `pipeline.go:383` (JPEG đầu ra khai chiều 0) | `TestImager_OutputZeroDimensionRejected` | |
+| `pipeline.go:419` Content-Type của PUT; `428` mã 299; `434` hết hạn khi PUT | `TestImager_PutContentType`, `TestImager_PutStatusRange`, `TestImager_PutTimeout` | đường dẫn ký sẵn ký cả Content-Type |
+| `pipeline.go:468` (`context.Canceled` là hết hạn) | `TestImager_CanceledCountsAsTimeout` | |
+| `runner.go:94`, `96` (`capped`) | `TestExecRunner_StdoutExactlyAtLimit`, `TestExecRunner_StderrKeptUpToLimit` | |
+| `article_html.go:113` `continue` → `break`; `119` `err != nil` → `==` | `TestArticleImages_SaveChecksEveryNewFile` | **tệp mới sau một tệp cũ (hay sau một tệp mới hợp lệ) không được kiểm — gắn được tệp chưa ready/của mục đích khác vào bài viết** |
+| `article_html.go:87` `len(vs) > 0` → `>=` | `TestResolveArticleImages_MissingFileLeavesNil` | |
+| `article_html.go:178` biên chiều rộng 1, 10000 | `TestRenderArticleHTML_VariantBounds` | |
+| `article_html.go:203` `w - 640` → `w + 640` | `TestRenderArticleHTML_SrcClosestTo640` | |
+| `files/content.go:41` `maxBytes+1` → `-1` | `TestReadContent` (đọc đúng `maxBytes` byte) | tệp nhập Excel bị cắt bớt im lặng |
+| `files/process.go:581` rộng 0, `590` đầu ra sai rộng/định dạng/0 byte | `TestFileProcess_OddImagerResultNotReady` (test mới, các ca `ODD:h0`, `ODD:w0`, `ODD:type`, `ODD:w`, `ODD:fmt`, `ODD:b0`) | **imager trả rộng 0 → tệp ready với width NULL** |
+| `files/process.go:185`, `197`, `41` (nhánh chờ thử lại; trần tính từ lúc ghi lệnh; chờ ≥ 30 s khi imager quá giờ) | `TestProcessor_ExecuteDoneSkipsRetry`, `TestProcessor_RetryCapFromJobWhenProcessingOlder`, `TestProcessor_TimeoutRetryAtLeast30s` | tệp kẹt processing bị rejected ngay ở lỗi tạm đầu tiên |
+| `files/process.go:683`, `696`, `709` (OnDone: thiếu tenant, tệp đã ready/đã xóa, mã băm sai dạng) | `TestProcessor_OnDoneWithoutTenantIgnored`, `TestProcessor_OnDoneSkipsReadyAndDeleted`, `TestProcessor_OnDoneBadSHARejected` | |
+| `files/process.go:744`, `750`, `760` (OnTerminal: dead/expired, thiếu tenant, tệp riêng tư hay không phải ảnh) | `TestProcessor_OnTerminal` | lệnh công khai chết làm hỏng ảnh riêng tư, tệp Excel |
+| `files/process.go:245` (dựng lại tệp mất từ ảnh gốc) | `TestVerifier_MarksMissingLost` (xóa cả tệp tạm của x như lifecycle crm-tmp) | MemStore không tự xóa crm-tmp nên trước đây đột biến vẫn qua |
+| `files/process.go:628` (bản kê vượt/đúng 40 triệu điểm ảnh) | `TestFileProcess_ManifestPixelLimit` | |
+| `files/purpose.go:74–75` (`samePurpose` so đủ trường) | `TestRegisterPurpose_PanicsOnEachChangedField` | khai lại mục đích khác mà không panic |
+| `files/regenerate.go:29`, `33`, `95`, `verify.go:33`, `38` (hạn, số lượt của lệnh) | `TestProcessor_KindTimeout`, `TestRegenerate_ExecuteGuards` | |
+| `files/regenerate.go:114`, `125`, `130`, `148`, `171`, `172`, `182` (chặn đầu Execute/OnDone của file.regenerate) | `TestRegenerate_ExecuteGuards`, `TestRegenerate_SkipsWhenNotNeeded`, `TestRegenerate_OnDoneOnlyReadySameSHA`, `TestRegenerate_OnDoneIgnoresOddJobs` | chèn biến thể vào tệp đã xóa / khác mã băm |
+| `files/verify.go:125` (payload file.verify) | `TestVerifier_BadPayload` | |
+| `files/s3store.go:105`, `120`, `137`, `193`, `207`, `262`, `298` (tham số ký PUT, header ký, biên Open/đọc, Put 0 byte, Put từ vị trí đọc dở) | `TestFileStore_PresignRejectsBadParams`, `TestFileStore_OpenExactlyMaxBytes`, `TestLimitedBody_Boundary`, `TestFileStore_Contract` | kho trả thừa byte làm `io.ReadAll` quay mãi |
+| `files/upload.go:128`, `170`; `lost.go:31`, `35`; `original_url.go:15` | `TestCreateUpload_TooLarge` (tên đúng 255 ký tự), `TestCreateUpload_CreatedBy`, `TestListLost_Pages`, `TestOriginalTTL` | |
+| `inventory/documents.go:319`, `335`, `373` (limit 1…200, trang cuối, đúng 500 dòng) | `TestListDocuments_LimitBounds`, `TestReplaceLines_MaxLines` | |
+| `inventory/movement.go:113` (Writer thiếu Events/Queue) | `TestPostDocument_WriterNotWired` | đổi tồn không có sự kiện |
+| `inventory/returns.go:75` (`err != nil` → `==` sau dòng hàng hỏng) | `TestReceiveCustomerReturn` (mỗi dòng số dư có stock.changed) | **nhận hàng trả bỏ dở các dòng sau, không phát sự kiện** |
+| `inventory/returns.go:92` (thiếu mã phiếu/biến thể/kho) | `TestMoveToDamaged` | |
+| `order/create.go:40`, `98`, `99` (thiếu khách/người bán; đúng 500/120 ký tự; ký tự điều khiển) | `TestCreateManual_InvalidInput` | |
+| `order/create.go:87`, `104`, `107` (gộp dòng: tổng đúng MaxInt32, giảm dòng âm/tràn/đúng MaxMoney) | `TestMergeLines_Bounds` | |
+| `order/transition.go:92`, `126` (báo hiệu sau đổi trạng thái) | `TestApplyTransition_Signals` | |
+
+### Đột biến còn sống và vì sao chấp nhận (Task 403)
+
+- `imager/runner.go:96` `room > 0` → `>= 0`: tương đương (`room` không âm; ghi `p[:0]` không đổi gì).
+- `catalog/article_html.go:202` `w > 640` → `>=`: tương đương (`distance(640)` bằng 0 ở cả hai nhánh).
+- `catalog/article_html.go:223` `r >= 0x7f` → `> 0x7f`: tương đương — ký tự DEL (0x7f) lọt qua thì `url.Parse` ngay sau
+  đó từ chối (ký tự điều khiển), vẫn `ErrInvalidArticle`.
+- `catalog/article_html.go:84`, `98` (`||` ↔ `&&` trong điều kiện "khối image có fileId"): tương đương với mọi đầu vào
+  hợp lệ — `article.Validate`/`Check` bảo đảm khối image luôn có `fileId` và khối khác không bao giờ có; đường duy nhất
+  gọi hai hàm này nhận khối từ `DecodeArticle`.
+- `files/process.go:202` `elapsed < RetryMax` → `<=`, `223` `d > left` → `>=`: tương đương (chỉ khác khi bằng đúng tới
+  nano giây; nhánh "bằng" gán cùng giá trị).
+- `files/process.go:590` `o.Bytes <= 0` → `< 0`: database chặn (`CHECK (size_bytes > 0)` của `file_variants`) — ca
+  `ODD:b0` vẫn không ready.
+- `files/process.go:810` `n > 0` → `>= 0`: tương đương với mọi bên gọi (assemble/readManifest đã đòi > 0; bản ≥ 1).
+- `files/process.go:245` `Status == Lost && len(sha) == 32` → `||`: tương đương — tệp xử lý được khác lost (uploaded,
+  processing) chưa bao giờ có `content_sha256` (chỉ markReady ghi).
+- `files/download.go:108` `v.Width > best` → `>=`: tương đương (`UNIQUE (tenant_id, file_id, preset_version, width,
+  format)`).
+- `files/regenerate.go:58` (hai `||` đầu → `&&`), `59` `continue` → `break`: tương đương — chỉ đường xử lý ảnh ghi
+  `content_sha256`, câu `ListFilesMissingPreset` đòi `content_sha256 IS NOT NULL` và `mode = 'standard'`, nên tệp không
+  phải ảnh hay ảnh riêng tư không bao giờ có trong kết quả.
+- `files/regenerate.go:86` `o.Signer == nil` → `!=`: tương đương — `newProcessor` lại đặt `Signer = Store` khi thiếu.
+- `files/regenerate.go:171` (`||` trước `res.Skipped` → `&&`): tương đương — vế `res.Preset != pl.Preset` vẫn bắt kết
+  quả hỏng (`res.Preset = 0`) vì bản trong lệnh luôn ≥ 1.
+- `files/s3store.go:35`: chỉ đổi thuộc tính log `secret_set`. `s3store.go:299`: chỉ đổi chữ của thông báo lỗi.
+- `files/s3store.go:91`, `96` (nhận "không có", "điều kiện sai" theo mã lỗi S3 hoặc mã HTTP): các dấu hiệu dư nhau — kho
+  thật trả cả mã lỗi lẫn mã HTTP, đổi một vế vẫn còn vế kia.
+- `files/s3store.go:214` `len(p) > left` → `>=`: tương đương (bằng nhau thì `p[:left]` là `p`).
+- `files/store.go:96` `len(s)*3` → `/3`: chỉ là dung lượng ban đầu của slice.
+- `files/upload.go:195` (`||` → `&&`): tệp đã xóa mà còn awaiting chỉ bị hỏi kho thêm một lần; `ApplyUpload` kiểm lại
+  `DeletedAt` dưới khóa và trả `ErrNotFound`.
+- `files/original_url.go:28` (`||` → `&&`): `detected_type` của tệp ảnh chỉ là image/jpeg, image/png, image/webp.
+- `inventory/byitems.go:106` `d > 0` → `>= 0`: tương đương (`d == 0` đã trả về ở dòng 102).
+- `inventory/documents.go:102` `q < 0` → `<= 0`: tương đương (dòng 382 từ chối `q == 0` trước).
+- `inventory/movement.go:87` (`abs`) `v < 0` → `<= 0`: tương đương (−0 = 0).
+- `inventory/reconcile.go:64` `batch > ReconcileBatch` → `>=` (tương đương) và → `<=` (mọi batch hợp lệ thành
+  `ReconcileBatch`: cùng kết quả, chỉ khác số câu đọc).
+- `inventory/reserve.go:178` (`k != 0` → `==` trong hàm sắp thứ tự đổi số dư): không đổi kết quả — mọi dòng số dư đã khóa
+  đúng thứ tự ADR-46 ở `lockInState`; bước đổi số dư chỉ cập nhật dòng đã giữ khóa, mỗi `stock.changed` mang `Seq` riêng.
+- `order/order.go:147` (`Events == nil || Queue == nil` → `&&`): `inventory.Writer` tự kiểm lại nên vẫn lỗi và lùi
+  transaction (`TestCreateManual_WriterNotWired` giữ hành vi này).

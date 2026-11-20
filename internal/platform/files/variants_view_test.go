@@ -122,6 +122,10 @@ func TestSelectPreset(t *testing.T) {
 	if got := files.SelectPreset(nil, 1); got != nil {
 		t.Errorf("không có biến thể: mong nil, có %v", got)
 	}
+	// Mutation testing (Task 403): biến thể cùng bản nhưng không thuộc bộ kích thước (rộng lạ, định dạng lạ) bị bỏ.
+	if got := files.SelectPreset(append(fullPreset(1), variant(1, 999, "jpeg"), variant(1, 320, "gif")), 1); len(got) != 12 {
+		t.Errorf("biến thể ngoài bộ kích thước phải bị bỏ: mong 12, có %d", len(got))
+	}
 	rapid.Check(t, func(rt *rapid.T) {
 		want := rapid.IntRange(1, 3).Draw(rt, "want")
 		var in []files.VariantURL
