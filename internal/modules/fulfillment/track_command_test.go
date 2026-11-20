@@ -245,7 +245,8 @@ func TestTrack_SkipsWithoutCalling(t *testing.T) {
 }
 
 // VC10: V4 creating (lệnh tạo in_doubt), hãng đã có kiện theo mã của V4 và PickedUp → tra theo mã vận đơn → V4 có
-// mã hãng, shipping; lệnh tạo sau đó tra lại thấy đã tạo (done) → không đổi gì thêm, không anomaly.
+// mã hãng, shipping; lệnh tạo sau đó tra lại thấy đã tạo (done) → không đổi gì thêm; việc "không rõ đã tạo" mở lúc
+// in_doubt (Task M3-12, VC16) được đóng, không còn anomaly mở.
 func TestTrack_InDoubtCreateFoundByCode(t *testing.T) {
 	e := newTrackEnv(t)
 	o, v := e.order(1)
@@ -281,8 +282,11 @@ func TestTrack_InDoubtCreateFoundByCode(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM fulfillment.shipment_events WHERE shipment_id = $1`, s.ID); n != events {
 		t.Fatalf("sự kiện = %d, muốn %d", n, events)
 	}
-	if n := e.count(`SELECT count(*) FROM fulfillment.shipment_anomalies WHERE shipment_id = $1`, s.ID); n != 0 {
-		t.Fatalf("anomaly = %d, muốn 0", n)
+	if n := e.count(`SELECT count(*) FROM fulfillment.shipment_anomalies WHERE shipment_id = $1 AND status = 'open'`, s.ID); n != 0 {
+		t.Fatalf("anomaly mở = %d, muốn 0", n)
+	}
+	if n := e.count(`SELECT count(*) FROM fulfillment.shipments WHERE id = $1 AND needs_review`, s.ID); n != 0 {
+		t.Fatal("vận đơn còn cần xem sau khi lệnh tạo xong")
 	}
 	e.stockIs(v, [3]int32{5, 0, 1})
 }

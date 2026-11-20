@@ -1,6 +1,7 @@
 package fulfillment_test
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -101,28 +102,44 @@ func testShipmentCreateRejectedCancels(t *testing.T, e *shipEnv) {
 	}
 }
 
-// D-03: lệnh chắc chắn chưa gửi mà quá hạn 10 phút (expired) → vận đơn cancelled, đơn gỡ vận đơn hiện hành.
-func TestShipment_CreateExpiredCancels(t *testing.T) {
+// Lệnh tạo không còn hết hạn khi chờ (Task M3-12; M1: 10 phút → vận đơn cancelled). Lệnh cũ còn expires_at mà quá
+// hạn (expired, chưa gửi) → vận đơn creating, create_state not_sent, vẫn gắn đơn, tồn giữ; hãng không được gọi.
+func TestShipment_CreateExpiredWaits(t *testing.T) {
 	e := newShipEnv(t)
 	o, v := e.order(1)
 	before := e.stock(v)
 	s := e.mustCreateShipment(o.ID)
-	attached := e.getOrder(o.ID).Version
-	e.carrier.SetMode(fake.ModeFailBeforeCreate)
-	e.drain()
-	if _, st := e.createJob(s.ID); st != "pending" {
-		t.Fatalf("lệnh = %s, muốn pending", st)
+	if n := e.count(`SELECT count(*) FROM platform.jobs WHERE kind = 'fulfillment.create_shipment'
+		AND payload->>'shipmentId' = $1 AND expires_at IS NULL`, s.ID.String()); n != 1 {
+		t.Fatal("lệnh tạo mới phải không có hạn sống")
 	}
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
-		_, err := tx.Exec(t.Context(), `UPDATE platform.jobs SET expires_at = now() - interval '1 second', run_at = now()
+		_, err := tx.Exec(t.Context(), `UPDATE platform.jobs SET expires_at = now() - interval '1 second'
 			WHERE kind = 'fulfillment.create_shipment' AND payload->>'shipmentId' = $1`, s.ID.String())
 		return err //nolint:wrapcheck // test
 	})
 	e.drain()
-	e.expectCancelled(s, attached, queue.StatusExpired, v, before)
-	if e.carrier.Parcels() != 0 {
-		t.Fatalf("hãng có %d kiện, muốn 0", e.carrier.Parcels())
+	if _, st := e.createJob(s.ID); st != queue.StatusExpired {
+		t.Fatalf("lệnh = %s, muốn expired", st)
 	}
+	if st := e.createState(s.ID); st != "not_sent" {
+		t.Fatalf("create_state = %s, muốn not_sent", st)
+	}
+	e.stillAttached(s)
+	e.stockIs(v, before)
+	if e.carrier.Calls("create") != 0 {
+		t.Fatalf("hãng bị gọi %d lần, muốn 0", e.carrier.Calls("create"))
+	}
+}
+
+// createState trả create_state của vận đơn id.
+func (e *shipEnv) createState(id uuid.UUID) string {
+	e.t.Helper()
+	return readAs(e, func(ctx context.Context, tx pgx.Tx) (string, error) {
+		var st string
+		err := tx.QueryRow(ctx, "SELECT create_state FROM fulfillment.shipments WHERE id = $1", id).Scan(&st)
+		return st, err //nolint:wrapcheck // test
+	})
 }
 
 // createTimedOut tạo đơn 1 cái và vận đơn mà hãng tạo kiện nhưng trả lời quá giờ (lệnh tạo thành in_doubt).
@@ -165,32 +182,37 @@ func (e *shipEnv) stillAttached(s fulfillment.Shipment) {
 	}
 }
 
-// Lệnh từng in_doubt (hãng đã tạo kiện nhưng trả lời quá giờ) → vận đơn có dấu, vẫn creating và gắn; người chạy lại,
-// lần này hãng từ chối (vd. mã trùng) → dead nhưng KHÔNG hủy: kiện của lần gửi đầu có thể còn ở hãng (reviewer Task 408).
-func TestShipment_InDoubtThenDeadKeeps(t *testing.T) {
+// Lệnh từng in_doubt (hãng đã tạo kiện nhưng trả lời quá giờ) → vận đơn có dấu, create_state unknown, vẫn creating
+// và gắn; người chạy lại lệnh (queue.RetryJob), lần này hãng ở chế độ từ chối → Execute tra theo mã trước, không gửi
+// lần hai (Task M3-12, M1: gửi lại rồi dead giữ vận đơn): thấy kiện → done, vận đơn có mã hãng; hãng vẫn 1 kiện, 1 lần
+// gọi tạo.
+func TestShipment_InDoubtRetryLooksUpFirst(t *testing.T) {
 	e := newShipEnv(t)
 	o, s := e.createTimedOut()
-	if _, st := e.createJob(s.ID); st != queue.StatusInDoubt || !e.inDoubtMarked(s.ID) {
-		t.Fatalf("lệnh = %s, dấu in_doubt %v; muốn in_doubt, có dấu", st, e.inDoubtMarked(s.ID))
+	if _, st := e.createJob(s.ID); st != queue.StatusInDoubt || !e.inDoubtMarked(s.ID) || e.createState(s.ID) != "unknown" {
+		t.Fatalf("lệnh = %s, dấu in_doubt %v, create_state %s", st, e.inDoubtMarked(s.ID), e.createState(s.ID))
 	}
 	e.stillAttached(s)
 	e.carrier.SetMode(fake.ModeReject)
 	e.retryCreate(s.ID)
 	e.drain()
-	if _, st := e.createJob(s.ID); st != queue.StatusDead {
-		t.Fatalf("lệnh = %s, muốn dead", st)
+	if _, st := e.createJob(s.ID); st != "done" {
+		t.Fatalf("lệnh = %s, muốn done", st)
 	}
-	e.stillAttached(s)
+	if got := e.shipment(s.ID); got.Status != fulfillment.StatusAwaitingPickup || got.TrackingCode != e.carrier.Tracking(s.Code) {
+		t.Fatalf("vận đơn = %+v", got)
+	}
 	if _, err := e.createShipment(o.ID); err == nil {
-		t.Fatal("tạo được vận đơn thứ hai khi kiện đầu có thể còn ở hãng")
+		t.Fatal("tạo được vận đơn thứ hai")
 	}
-	if e.carrier.Parcels() != 1 {
-		t.Fatalf("hãng có %d kiện, muốn 1", e.carrier.Parcels())
+	if e.carrier.Parcels() != 1 || e.carrier.Calls("create") != 1 {
+		t.Fatalf("hãng có %d kiện, gọi tạo %d lần; muốn 1, 1", e.carrier.Parcels(), e.carrier.Calls("create"))
 	}
 }
 
-// Hook gọi thẳng: in_doubt chỉ ghi dấu; vận đơn không có, payload hỏng, vận đơn đã qua creating → không đổi; vận đơn
-// creating chưa từng in_doubt gọi dead hai lần → hủy một lần, một sự kiện, đơn gỡ vận đơn.
+// Hook gọi thẳng: vận đơn không có, payload hỏng, vận đơn đã qua creating → không đổi; vận đơn creating chưa gửi
+// (pending) gọi dead hai lần → not_sent, vẫn gắn (Task M3-12; M1 hủy); có dấu hãng từ chối (rejected) gọi dead hai lần
+// → hủy một lần, một sự kiện, đơn gỡ vận đơn; in_doubt → dấu, unknown, rồi expired → not_sent (đã xác nhận chưa có).
 func TestShipment_CreateTerminalHookDirect(t *testing.T) {
 	e := newShipEnv(t)
 	hook, ok := e.cmds[0].(queue.TerminalHook)
@@ -202,7 +224,11 @@ func TestShipment_CreateTerminalHookDirect(t *testing.T) {
 		if payload == nil {
 			payload, _ = json.Marshal(map[string]string{"shipmentId": id.String()})
 		}
-		j := queue.Job{ID: uuid.New(), Kind: fulfillment.CreateCommandKind().Name, TenantID: &e.tenant, Payload: payload}
+		jobID := uuid.New() // lệnh của lần gửi hiện tại (create_job_id) khi vận đơn có
+		if e.count("SELECT count(*) FROM fulfillment.shipments WHERE id = $1 AND create_job_id IS NOT NULL", id) == 1 {
+			jobID, _ = e.createJob(id)
+		}
+		j := queue.Job{ID: jobID, Kind: fulfillment.CreateCommandKind().Name, TenantID: &e.tenant, Payload: payload}
 		if err := e.app(func(tx pgx.Tx) error { return hook.OnTerminal(t.Context(), j, status, tx) }); err != nil {
 			t.Fatalf("OnTerminal(%s): %v", status, err)
 		}
@@ -231,6 +257,13 @@ func TestShipment_CreateTerminalHookDirect(t *testing.T) {
 
 	call(s.ID, queue.StatusDead, nil)
 	call(s.ID, queue.StatusDead, nil)
+	e.stillAttached(s)
+	if st := e.createState(s.ID); st != "not_sent" {
+		t.Fatalf("dead khi chưa gửi: create_state %s, muốn not_sent", st)
+	}
+	e.ownerExec("UPDATE fulfillment.shipments SET create_state = 'rejected' WHERE id = $1", s.ID)
+	call(s.ID, queue.StatusDead, nil)
+	call(s.ID, queue.StatusDead, nil)
 	if got := e.shipment(s.ID); got.Status != fulfillment.StatusCancelled || got.Version != s.Version+1 {
 		t.Fatalf("hook gọi hai lần: %+v", got)
 	}
@@ -241,12 +274,21 @@ func TestShipment_CreateTerminalHookDirect(t *testing.T) {
 		t.Fatalf("đơn còn gắn vận đơn đã hủy: %v", got.CurrentShipmentID)
 	}
 
+	e.inDoubtThenExpired(call)
+}
+
+// inDoubtThenExpired: hook in_doubt → dấu, unknown; rồi expired (đã xác nhận chưa có) → not_sent, xóa dấu, vẫn gắn.
+func (e *shipEnv) inDoubtThenExpired(call func(id uuid.UUID, status string, payload []byte)) {
+	e.t.Helper()
 	o3, _ := e.order(1)
 	s3 := e.mustCreateShipment(o3.ID)
 	call(s3.ID, queue.StatusInDoubt, nil)
+	if !e.inDoubtMarked(s3.ID) || e.createState(s3.ID) != "unknown" {
+		e.t.Fatal("in_doubt không ghi dấu")
+	}
 	call(s3.ID, queue.StatusExpired, nil)
-	if !e.inDoubtMarked(s3.ID) {
-		t.Fatal("in_doubt không ghi dấu")
+	if e.inDoubtMarked(s3.ID) || e.createState(s3.ID) != "not_sent" {
+		e.t.Fatalf("expired sau in_doubt: dấu %v, create_state %s", e.inDoubtMarked(s3.ID), e.createState(s3.ID))
 	}
 	e.stillAttached(s3)
 }

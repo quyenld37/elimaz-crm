@@ -111,20 +111,20 @@ func newStack(t *testing.T, o stackOptions) *stack {
 	reg := metrics.NewRegistry()
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
-
 	// Sổ consumer dùng chung cho api, lệnh vận chuyển và worker, như newModules của cmd/crm.
 	evs := events.NewRegistry()
 	if err := evs.Register(cash.Consumer{}); err != nil {
 		t.Fatal(err)
 	}
 
-	// api: hub LISTEN thật + máy chủ HTTP thật.
+	// api: hub LISTEN thật + máy chủ HTTP thật (fulfillment.Service như cmd/crm, cho gửi hãng của M3).
 	hub := realtime.NewPGHub(realtime.PGHubOptions{URL: appURL, Metrics: reg, Logger: logger})
 	wg.Go(func() { hub.Run(ctx) })
 	streamStop := make(chan struct{})
 	s.api = httptest.NewUnstartedServer(httpapi.NewServer(httpapi.Deps{
-		Config: config.Config{ConsoleOrigins: []string{stackOrigin}}, DB: s.app, Logger: logger,
-		Access: s.keys.Verifier(t, stackAUD), Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop}, Events: evs,
+		Config: config.Config{ConsoleOrigins: []string{stackOrigin}}, DB: s.app, Logger: logger, Events: evs,
+		Access: s.keys.Verifier(t, stackAUD), Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop},
+		Fulfillment: fulfillment.New(fulfillment.Deps{DB: s.app, Queue: queue.NewQueue(), Bus: hub, Events: evs}).Service,
 	}))
 	s.api.Config.RegisterOnShutdown(func() { close(streamStop) })
 	s.api.Start()

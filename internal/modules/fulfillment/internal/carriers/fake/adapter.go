@@ -23,6 +23,8 @@ const (
 	ModeFailBeforeCreate   = "fail_before_create"
 	// ModeReject: hãng từ chối yêu cầu tạo (4xx), không tạo kiện.
 	ModeReject = "reject"
+	// ModeTimeoutNoCreate: quá giờ mà hãng chưa tạo kiện (tra theo mã sẽ nói thật "không có").
+	ModeTimeoutNoCreate = "timeout_no_create"
 )
 
 // Trạng thái thô của kiện.
@@ -47,15 +49,48 @@ type parcel struct {
 type Carrier struct {
 	fulfillment.Unsupported
 
-	mu         sync.Mutex
-	mode       string
-	byCode     map[string]*parcel
-	byTracking map[string]*parcel
+	mu           sync.Mutex
+	mode         string
+	inconclusive bool
+	createHook   func()
+	calls        map[string]int
+	byCode       map[string]*parcel
+	byTracking   map[string]*parcel
 }
 
 // New tạo hãng giả ở chế độ ok.
 func New() *Carrier {
-	return &Carrier{mode: ModeOK, byCode: map[string]*parcel{}, byTracking: map[string]*parcel{}}
+	return &Carrier{mode: ModeOK, calls: map[string]int{}, byCode: map[string]*parcel{}, byTracking: map[string]*parcel{}}
+}
+
+// SetLookupInconclusive đặt v = true thì LookupByCode trả Inconclusive (hãng không trả lời chắc chắn), không tra kiện.
+func (c *Carrier) SetLookupInconclusive(v bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.inconclusive = v
+}
+
+// SetCreateHook đặt hàm chạy trong CreateShipment sau khi đã xử lý yêu cầu, trước khi trả lời (nil: bỏ). Hàm chạy
+// ngoài khóa của hãng giả (giả lập tiến trình chết, chậm giữa lúc chờ trả lời).
+func (c *Carrier) SetCreateHook(f func()) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.createHook = f
+}
+
+// Calls trả số lần gọi op ("create", "lookup").
+func (c *Carrier) Calls(op string) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.calls[op]
+}
+
+// Has cho biết hãng có kiện mang mã CRM code.
+func (c *Carrier) Has(code string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	_, ok := c.byCode[code]
+	return ok
 }
 
 // SetMode đổi chế độ.
@@ -95,16 +130,28 @@ func (c *Carrier) Advance(tracking, raw string) {
 // Key trả "fake".
 func (*Carrier) Key() string { return Key }
 
-// CreateShipment theo chế độ: fail_before_create → ErrNotSent; reject → ErrRejected; timeout_after_create → tạo kiện rồi trả lỗi không rõ;
-// ok → tạo (hoặc trả kiện cũ cùng mã).
+// CreateShipment theo chế độ: fail_before_create → ErrNotSent; reject → ErrRejected; timeout_after_create → tạo kiện
+// rồi trả lỗi không rõ; timeout_no_create → lỗi không rõ, không tạo; ok → tạo (hoặc trả kiện cũ cùng mã). Móc
+// SetCreateHook chạy trước khi trả lời.
 func (c *Carrier) CreateShipment(_ context.Context, _ fulfillment.Account, r fulfillment.CreateRequest) (fulfillment.CreateResult, error) {
+	res, hook, err := c.create(r)
+	if hook != nil {
+		hook()
+	}
+	return res, err
+}
+
+func (c *Carrier) create(r fulfillment.CreateRequest) (fulfillment.CreateResult, func(), error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.mode == ModeFailBeforeCreate {
-		return fulfillment.CreateResult{}, fulfillment.ErrNotSent
-	}
-	if c.mode == ModeReject {
-		return fulfillment.CreateResult{}, fulfillment.ErrRejected
+	c.calls["create"]++
+	switch c.mode {
+	case ModeFailBeforeCreate:
+		return fulfillment.CreateResult{}, c.createHook, fulfillment.ErrNotSent
+	case ModeReject:
+		return fulfillment.CreateResult{}, c.createHook, fulfillment.ErrRejected
+	case ModeTimeoutNoCreate:
+		return fulfillment.CreateResult{}, c.createHook, errTimeout
 	}
 	p, ok := c.byCode[r.Code]
 	if !ok {
@@ -112,15 +159,19 @@ func (c *Carrier) CreateShipment(_ context.Context, _ fulfillment.Account, r ful
 		c.byCode[r.Code], c.byTracking[p.tracking] = p, p
 	}
 	if c.mode == ModeTimeoutAfterCreate {
-		return fulfillment.CreateResult{}, errTimeout
+		return fulfillment.CreateResult{}, c.createHook, errTimeout
 	}
-	return fulfillment.CreateResult{TrackingCode: p.tracking, Fee: fee}, nil
+	return fulfillment.CreateResult{TrackingCode: p.tracking, Fee: fee, FeeKnown: true}, c.createHook, nil
 }
 
 // LookupByCode tra kiện theo mã CRM.
 func (c *Carrier) LookupByCode(_ context.Context, _ fulfillment.Account, code string) (fulfillment.LookupResult, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.calls["lookup"]++
+	if c.inconclusive {
+		return fulfillment.LookupResult{Inconclusive: true}, nil
+	}
 	p, ok := c.byCode[code]
 	if !ok {
 		return fulfillment.LookupResult{}, nil

@@ -92,6 +92,11 @@ const (
 	// Tài khoản hãng (M3, Task M3-09).
 	codeCapabilityNotSupported    = "capability_not_supported"
 	codeCarrierAccountUnavailable = "carrier_account_unavailable"
+	codeOrderNotShippable         = "order_not_shippable"
+	codeQuoteStale                = "quote_stale"
+	codeAddressUnmapped           = "address_unmapped"
+	codeCreateInProgress          = "create_in_progress"
+	codeTrackingCodeConflict      = "tracking_code_conflict"
 	codeAddressIncomplete         = "address_incomplete"
 	codeNeedsApproval             = "needs_approval"
 	codeDiscountNeedsApproval     = "discount_needs_approval"
@@ -488,7 +493,8 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 	}{
 		{errForbiddenTarget, http.StatusForbidden, codeForbidden},
 		{fulfillment.ErrShipmentExists, http.StatusConflict, codeShipmentExists},
-		{fulfillment.ErrOrderNotShippable, http.StatusNotFound, codeNotFound},
+		{fulfillment.ErrOrderNotShippable, http.StatusConflict, codeOrderNotShippable},
+		{fulfillment.ErrOrderNotFound, http.StatusNotFound, codeNotFound},
 		{fulfillment.ErrAccountNotFound, http.StatusNotFound, codeNotFound},
 		{fulfillment.ErrNotFound, http.StatusNotFound, codeNotFound},
 		// Cài đặt vận chuyển (M3, Task M3-04).
@@ -505,6 +511,12 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		{fulfillment.ErrInvalidPage, http.StatusBadRequest, codeInvalidInput},
 		{fulfillment.ErrInvalidTracking, http.StatusBadRequest, codeInvalidInput},
 		{fulfillment.ErrStockShort, http.StatusConflict, codeStockShort},
+		// Gửi hãng (M3, Task M3-12).
+		{fulfillment.ErrQuoteStale, http.StatusConflict, codeQuoteStale},
+		{fulfillment.ErrAddressUnmapped, http.StatusUnprocessableEntity, codeAddressUnmapped},
+		{fulfillment.ErrCreateInProgress, http.StatusConflict, codeCreateInProgress},
+		{fulfillment.ErrShipInvalid, http.StatusBadRequest, codeInvalidInput},
+		{fulfillment.ErrTrackingCodeConflict, http.StatusConflict, codeTrackingCodeConflict},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true
