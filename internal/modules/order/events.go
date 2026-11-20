@@ -19,24 +19,37 @@ const (
 	// TopicOrderUpdated: đơn đổi trường mà không đổi trạng thái (gắn, gỡ vận đơn hiện hành, tổng đã thanh toán; Task
 	// M2-18).
 	TopicOrderUpdated = "order.updated"
+	// TopicOrderDeliveryReversed: hãng sửa "đã giao" của vận đơn hiện hành, đơn delivered → confirmed (M3-06, TD10,
+	// Q-1; Writer.ReverseDelivery). Consumer customer_stats nghe đúng tên này (customer.TopicOrderDeliveryReversed).
+	TopicOrderDeliveryReversed = "order.delivery_reversed"
 
 	aggregateOrder = "order"
 )
 
 // Changed là payload của mọi sự kiện order.*: mã đơn, người bán, version (= seq), khách và trạng thái đơn sau thay
-// đổi (Task M2-16 thêm customerId, status; không dữ liệu cá nhân).
+// đổi (Task M2-16 thêm customerId, status; không dữ liệu cá nhân); partial chỉ có ở lần giao một phần (M3-06).
 type Changed struct {
 	OrderID    uuid.UUID `json:"orderId"`
 	SellerID   uuid.UUID `json:"sellerId"`
 	Version    int64     `json:"version"`
 	CustomerID uuid.UUID `json:"customerId"`
 	Status     string    `json:"status"`
+	// Partial: order.delivered của lần giao một phần (Writer.MarkDeliveredPartial, M3-06); false thì không có khóa.
+	Partial bool `json:"partial,omitempty"`
 }
 
+// emit phát topic của đơn o với payload Changed (version = seq).
 func (w Writer) emit(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID, o Order, topic string, seq int64) error {
+	return w.emitChanged(ctx, tx, tenantID, topic, seq,
+		Changed{OrderID: o.ID, SellerID: o.SellerID, Version: seq, CustomerID: o.CustomerID, Status: o.Status})
+}
+
+// emitChanged phát topic với payload p đã dựng (seq = p.Version).
+func (w Writer) emitChanged(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID, topic string, seq int64, p Changed,
+) error {
 	if _, _, err := w.Events.Emit(ctx, tx, w.Queue, events.Event{
-		TenantID: tenantID, AggregateType: aggregateOrder, AggregateID: o.ID.String(), Seq: seq, Topic: topic,
-		Payload: Changed{OrderID: o.ID, SellerID: o.SellerID, Version: seq, CustomerID: o.CustomerID, Status: o.Status},
+		TenantID: tenantID, AggregateType: aggregateOrder, AggregateID: p.OrderID.String(), Seq: seq, Topic: topic,
+		Payload: p,
 	}); err != nil {
 		return fmt.Errorf("phát %s: %w", topic, err)
 	}
