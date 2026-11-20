@@ -123,6 +123,9 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m3-van-chuyen.md` (Ta
   Không ảnh hưởng production (không có hãng giả), không ảnh hưởng `go test` (e2e dựng stack riêng với `/hooks/fake`).
   `docs/RUNBOOK.md` đã ghi `/hooks/fake` nên tới khi áp bản vá, RUNBOOK và compose khác nhau.
 - Database dev cũ: việc `inbound.fakecarrier` còn chờ (nếu có) không còn handler, sẽ dead; vô hại, chỉ ở dev.
+- **Lượt bổ sung 21/11: điều phối viên đã OK, đã áp** hai dòng trên (`/hooks/fakecarrier` → `/hooks/fake` ở
+  `docker/compose.dev.yml:284` và `tests/deploy/compose_demo_test.go:16`), một commit riêng; không dựng lại container nào.
+  `make demo-mot-don` chưa chạy thật (cần dựng compose dev, ngoài phạm vi được OK).
 
 ## Bằng chứng
 
@@ -145,6 +148,7 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m3-van-chuyen.md` (Ta
 | Seed: tuyến `carrier_account:<route_key>`, không còn `fake-1`, chạy 2 lần 1 dòng | `TestSeedDev` (`checkSeedCarrier`) | `go test -count=1 -run TestSeedDev ./tests/e2e/` | `--- PASS: TestSeedDev` |
 | selftest M0 còn xanh; một đơn đi trọn qua webhook hãng giả thật trên `/hooks/fake/<route_key>`; production → 404 | `TestPipelineUnderTwoSecondsOneTrace`, `TestBinaryWorkerHandlesSelftest`, `TestDatabaseOutageKeepsWebhooks`, `TestIngestServesHooks`, `TestMotDonDiTron`, `TestMotDonDiTron_HaiDonSongSongTon1`, `TestIngestFakeCarrierOnlyOutsideProduction` | `go test -race -count=1 ./tests/e2e/ -run '…'` | `--- PASS` tất cả |
 | Cổng của task | ci-task | lần 2, sau khi sửa lint, gitleaks, jscpd của lần 1 | `CI-TASK XANH (so với điểm tách nhánh fcbcdcf…)`; `ok tests/e2e 52.6s`, `ok fulfillment 59.6s`, `ok tests/arch 26.1s` |
+| (Lượt bổ sung) Compose dev: hãng giả gửi webhook tới `/hooks/fake` | `TestDevCompose_FakeCarrierWiredWithRuntimeSecret` trong `tests/deploy/compose_demo_test.go` (hằng `fakeCarrierHook`) | `go test -count=1 ./tests/deploy/...`; ci-task lượt bổ sung | `ok tests/deploy 2.9s`; `CI-TASK XANH`, `ok tests/deploy 4.0s`, `ok tests/arch 19.8s` |
 
 ## Test bị xóa hoặc tắt
 
@@ -176,3 +180,6 @@ Kết luận: ĐẠT (lượt 2).
   chứng trỏ tới test có thật và kiểm đúng điều đó; ba test bị xóa có lý do và test thay. Ghi chú: phải áp hai dòng
   compose/test deploy cùng lúc rồi chạy `go test ./tests/deploy/` và `make demo-mot-don`; adapter hãng thật sau này phải
   giữ quy ước `VerifyWebhook` (không chữ ký + bí mật rỗng → true; có bí mật mà sai → false).
+- Lượt bổ sung (21/11, đổi `/hooks/fakecarrier` → `/hooks/fake` ở compose dev và test deploy): ĐẠT, không phát hiện
+  phải sửa; đường mới khớp `POST /hooks/{source}/{routeKey}` của ingest và cách hãng giả ghép route_key
+  (`tools/fakecarrier/server/admin.go`); không còn chỗ dùng đường cũ ngoài tài liệu lịch sử.

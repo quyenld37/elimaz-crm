@@ -281,7 +281,7 @@ services:
       dockerfile: tools/fakecarrier/Dockerfile
     image: crm-fakecarrier:dev
     environment:
-      FAKECARRIER_WEBHOOK_URL: ${CRM_FAKECARRIER_SECRET:+http://crm-ingest:4191/hooks/fakecarrier}
+      FAKECARRIER_WEBHOOK_URL: ${CRM_FAKECARRIER_SECRET:+http://crm-ingest:4191/hooks/fake}
       FAKECARRIER_WEBHOOK_SECRET: ${CRM_FAKECARRIER_SECRET:-}
       # Kiện giữ trong volume: dựng lại container (khóa mới mỗi lần chạy) không làm mã hãng quay về FC00000001.
       FAKECARRIER_DATA: /data/fakecarrier.json
