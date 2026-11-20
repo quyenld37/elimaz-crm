@@ -137,9 +137,11 @@ func TestHubFiltersByRequiredPermissionNotScopeOnly(t *testing.T) {
 func TestStreamBatchDedupe(t *testing.T) {
 	e := newRTEnv(t)
 	a := e.staff.Tenant(t, "A")
+	g := newFrameGate()
+	e.spy.hold(g)
 	c := e.openSub(a, "lan@elimaz.test")
 	s := sig(a, "t.same", "1")
-	// Ba Publish giống hệt nhau trong cùng một transaction: tới hub gần như cùng lúc, nằm trong một lô.
+	// Ba Publish giống hệt nhau trong cùng một transaction: PostgreSQL tự gộp NOTIFY trùng, tới hub một khung.
 	ctx := t.Context()
 	tx, err := e.staff.App.Pool.Begin(ctx)
 	if err != nil {
@@ -150,13 +152,21 @@ func TestStreamBatchDedupe(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// PostgreSQL tự gộp NOTIFY trùng trong một transaction; thêm hai transaction riêng sát nhau để lô ở hub phải gộp.
 	if err := tx.Commit(ctx); err != nil {
 		t.Fatal(err)
 	}
+	// Thêm hai transaction riêng: ba khung giống hệt nhau tới luồng; cổng giữ đủ ba rồi thả cùng lúc (một lô), để lô
+	// ở luồng SSE phải gộp chúng thành một.
 	e.publish(s, false)
 	e.publish(s, false)
-	if ev, data, err := nextNonPing(c, time.Second); err != nil || ev != "changed" {
+	held := g.waitHeld(t, 3)
+	for i, f := range held {
+		if f.Event != realtime.EventChanged || string(f.Data) != string(held[0].Data) {
+			t.Fatalf("khung %d hub gửi: %s %s, muốn ba khung changed giống hệt nhau", i, f.Event, f.Data)
+		}
+	}
+	g.release()
+	if ev, data, err := nextNonPing(c, hangGuard); err != nil || ev != "changed" {
 		t.Fatalf("mong một changed: %q %s %v", ev, data, err)
 	}
 	expectNothing(t, "khung trùng trong lô", c, 3*testBatch)

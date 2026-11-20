@@ -34,11 +34,14 @@ func deepGet(t *testing.T, srv http.Handler, auth string) *httptest.ResponseReco
 	return rec
 }
 
+// beat ghi nhịp sống tuổi age theo đồng hồ Go, như tiến trình thật (metrics.flusher ghi time.Now()) và như
+// DeepHealth đọc (so với time.Now()). Không dùng now() của PostgreSQL: đồng hồ của VM Docker trên máy dev có thể lệch
+// đồng hồ máy hàng phút (Task 440: workerHeartbeatAgeS = 929 thay 200).
 func beat(t *testing.T, d Deps, process, role string, age time.Duration) {
 	t.Helper()
 	if _, err := d.DB.Pool.Exec(t.Context(), `INSERT INTO platform.process_heartbeats (process, role, at)
-		VALUES ($1, $2, now() - make_interval(secs => $3)) ON CONFLICT (process) DO UPDATE SET at = EXCLUDED.at`,
-		process, role, age.Seconds()); err != nil {
+		VALUES ($1, $2, $3) ON CONFLICT (process) DO UPDATE SET at = EXCLUDED.at`,
+		process, role, time.Now().Add(-age).UTC()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -253,9 +256,12 @@ func TestHealthDeepFileSyncAge(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = admin.Close(context.Background()) }()
+	// Mốc theo đồng hồ Go mà DeepHealth so (time.Now()), không theo now() của PostgreSQL (lệch đồng hồ VM Docker trên
+	// máy dev: Task 440, 42 phút thay 30).
 	if _, err := admin.Exec(t.Context(), `INSERT INTO platform.file_sync_runs (kind, bucket, ok, started_at, finished_at)
-		SELECT 'copy', b, true, now() - interval '32 minutes', now() - interval '30 minutes'
-		FROM unnest(ARRAY['public', 'originals', 'private']) b`); err != nil {
+		SELECT 'copy', b, true, $1::timestamptz, $2::timestamptz
+		FROM unnest(ARRAY['public', 'originals', 'private']) b`,
+		time.Now().Add(-32*time.Minute).UTC(), time.Now().Add(-30*time.Minute).UTC()); err != nil {
 		t.Fatal(err)
 	}
 	if age, _ := get()["lastFileSyncAgeM"].(float64); age < 30 || age > 31 {

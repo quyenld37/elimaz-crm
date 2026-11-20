@@ -543,37 +543,49 @@ func TestImager_LoaderMustMatchDetectedType(t *testing.T) {
 	}
 }
 
+// Lệnh con treo bị giết khi hết hạn bước: kết quả rejected timeout, Process có đặt hạn bước cho lệnh con, cả nhóm tiến
+// trình (sh và sleep con) không còn. Lúc giết được lùi tới khi script đã chạy (gatedRunner), nên test không đỏ oan khi
+// máy tải cao làm sh khởi động chậm hơn hạn (Task 440). Trần thời gian "trả lời ≤ 2 s kể từ lúc lệnh treo chạy" nằm
+// ở test nhãn perf TestImager_HangKilledTimeBudget (make perf-test).
 func TestImager_HangKilledWithinDeadline(t *testing.T) {
 	st := newStore(t)
+	lim, pidfile := hangLimits(t)
+	hang := lim.VipsBin
+	r := gatedRunner{
+		t: t, inner: imager.NewExecRunner([]string{"FAKEVIPS_PIDFILE=" + pidfile}), hang: hang, pidfile: pidfile,
+		deadlines: make(chan time.Duration, 1),
+	}
+	res := imager.Process(t.Context(), r, imager.NewHTTPClient(5*time.Second),
+		request(st.addSource(t, "hang", readImage(t, "photo-gps.jpg")), twelve(st.srv.URL)), lim)
+	if res.Status != imager.StatusRejected || res.Reason != imager.ReasonTimeout {
+		t.Fatalf("kết quả %+v", res)
+	}
+	select {
+	case left := <-r.deadlines:
+		if left <= 0 || left > lim.StepTimeout {
+			t.Fatalf("ctx của lệnh treo còn %v tới hạn, muốn trong (0, %v]", left, lim.StepTimeout)
+		}
+	default:
+		t.Fatal("Process không chạy lệnh treo")
+	}
+	assertGroupGone(t, pidfile)
+}
+
+// hangLimits: vips và vipsheader là hang.sh (trong container: vipsheader thật, treo ở bước giải mã), hạn bước 1 s;
+// trả cả đường pidfile mà script ghi số nhóm tiến trình.
+func hangLimits(t *testing.T) (imager.Limits, string) {
+	t.Helper()
 	lim := limits(t)
 	lim.StepTimeout = time.Second
 	lim.StepMemory = 0
 	if _, err := exec.LookPath("prlimit"); err == nil {
 		lim.StepMemory = 256 * mib
 	}
-	pidfile := filepath.Join(t.TempDir(), "pid")
 	lim.VipsBin, lim.VipsHeaderBin = fakeVips(t, "hang.sh"), fakeVips(t, "hang.sh")
 	if _, err := exec.LookPath("vipsheader"); err == nil {
-		lim.VipsHeaderBin = "vipsheader" // trong container: vipsheader thật, treo ở bước giải mã
+		lim.VipsHeaderBin = "vipsheader"
 	}
-	r := imager.NewExecRunner([]string{"FAKEVIPS_PIDFILE=" + pidfile})
-	res := imager.Process(t.Context(), r, imager.NewHTTPClient(5*time.Second),
-		request(st.addSource(t, "hang", readImage(t, "photo-gps.jpg")), twelve(st.srv.URL)), lim)
-	done := time.Now()
-	if res.Status != imager.StatusRejected || res.Reason != imager.ReasonTimeout {
-		t.Fatalf("kết quả %+v", res)
-	}
-	// Đồng hồ 2 s chạy từ lúc lệnh treo đã khởi động (giờ sửa của pidfile mà script ghi), không từ đầu Process: tải
-	// nguồn, đọc đầu tệp trước đó chậm đi khi máy tải cao nhưng không thuộc phép đo "lệnh treo bị giết trong hạn"
-	// (Task 317). Hạn bước bắt đầu trước khi script chạy, nên phép đo này không dễ hơn phép đo của hạn bước.
-	fi, err := os.Stat(pidfile)
-	if err != nil {
-		t.Fatalf("script giả chưa chạy: %v", err)
-	}
-	if elapsed := done.Sub(fi.ModTime()); elapsed > 2*time.Second {
-		t.Fatalf("trả lời sau %v kể từ lúc lệnh treo chạy, cần ≤ 2 s", elapsed)
-	}
-	assertGroupGone(t, pidfile)
+	return lim, filepath.Join(t.TempDir(), "pid")
 }
 
 // assertGroupGone: nhóm tiến trình của lệnh treo (sh và sleep con) không còn tiến trình nào.

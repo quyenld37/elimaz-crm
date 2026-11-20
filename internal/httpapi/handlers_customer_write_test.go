@@ -124,9 +124,15 @@ func (e *customerAPIEnv) checkCreate(t *testing.T) (string, any) {
 	}
 
 	rec = e.send(http.MethodPost, "/api/v1/customers", customerWriter, `{"fullName":"Khách khác","phone":"0912 345 678"}`)
-	if b := decodeJSON(t, rec); rec.Code != http.StatusConflict || b["error"] != "identity_taken" || b["ownerId"] != id ||
-		strings.Contains(rec.Body.String(), "912") {
+	if b := decodeJSON(t, rec); rec.Code != http.StatusConflict || b["error"] != "identity_taken" || b["ownerId"] != id {
 		t.Errorf("thân identity_taken: %s", rec.Body.String())
+	}
+	// Kiểm SĐT đầy đủ ở mọi dạng (gõ vào, đã chuẩn hóa, đảo ngược để tìm đuôi), không kiểm mẩu ngắn như "912": thân lỗi
+	// mang ownerId và request_id là UUID ngẫu nhiên, chữ số hex có thể chứa "912" (Task 440).
+	for _, bad := range []string{"912345678", "912 345 678", "87654321948"} {
+		if strings.Contains(rec.Body.String(), bad) {
+			t.Errorf("thân identity_taken mang SĐT (%q): %s", bad, rec.Body.String())
+		}
 	}
 	expect(t, "chỉ xem không tạo được", e.send(http.MethodPost, "/api/v1/customers", customerReader, `{"fullName":"Lan"}`),
 		http.StatusForbidden, "forbidden")

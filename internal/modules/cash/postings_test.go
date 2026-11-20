@@ -253,8 +253,10 @@ func TestPostings_ReversalAfterRemit(t *testing.T) {
 			t.Errorf("cảnh báo lộ %q: %s / %s", leak, f.text, payloads[0])
 		}
 	}
-	if regexp.MustCompile(`\d{9,}`).MatchString(f.text) {
-		t.Errorf("cảnh báo có dãy số như SĐT: %s", f.text)
+	// Mã vận đơn là chuỗi ngẫu nhiên (có thể có ≥ 9 chữ số liền, vd. E261121602JMK) và được phép có trong văn bản:
+	// bỏ nó ra trước khi tìm dãy số như SĐT trong phần còn lại.
+	if rest := strings.ReplaceAll(f.text, shipCode, ""); regexp.MustCompile(`\d{9,}`).MatchString(rest) {
+		t.Errorf("cảnh báo có dãy số như SĐT ngoài mã vận đơn: %s", f.text)
 	}
 	// Không có Alerter → rejected, không treo.
 	if out, _ := cash.NewRemittedReturnedAlertCommand(nil).Execute(t.Context(), queue.Job{Payload: payloads[0]}); out.Status != commands.StatusRejected {

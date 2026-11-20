@@ -50,16 +50,14 @@ func TestExecRunner_TimeoutKillsProcessGroup(t *testing.T) {
 	r := imager.NewExecRunner([]string{"FAKEVIPS_PIDFILE=" + pidfile})
 	ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
 	defer cancel()
-	start := time.Now()
-	_, err := r.Run(ctx, fakeVips(t, "hang.sh"), nil, 0)
+	// Giết khi hết hạn VÀ script đã ghi pidfile (startGate): máy tải cao làm sh khởi động chậm hơn 500 ms thì vẫn kiểm
+	// được nhóm tiến trình (Task 440). Trần thời gian trả về nằm ở test nhãn perf TestExecRunner_TimeoutTimeBudget.
+	_, err := r.Run(gateOnPidfile(ctx, t, pidfile), fakeVips(t, "hang.sh"), nil, 0)
 	if err == nil {
 		t.Fatal("lệnh treo phải trả lỗi")
 	}
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("lỗi %v, cần bọc context.DeadlineExceeded", err)
-	}
-	if d := time.Since(start); d > 1500*time.Millisecond {
-		t.Fatalf("Run trả về sau %v", d)
 	}
 	assertGroupGone(t, pidfile)
 }
