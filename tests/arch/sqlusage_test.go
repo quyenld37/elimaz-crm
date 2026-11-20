@@ -167,7 +167,8 @@ func viewReadExceptions() map[string][]string {
 		"customer": {"ord.orders_v", "ord.order_items_v", "ord.order_status_history_v", "ord.returns_v"},
 		// fulfillment đọc địa chỉ lấy hàng của kho để gửi hãng mà không nhập gói inventory (kế hoạch M3, Global
 		// Constraints "Ranh giới module"; Task M3-09 ResolveAccount, Task M3-12 lệnh tạo vận đơn).
-		"fulfillment": {"inventory.warehouses_v"},
+		// Danh mục địa giới để khớp với mã của từng hãng (Task M3-18): customer.ListWards chặn 50 xã mỗi lần.
+		"fulfillment": {"inventory.warehouses_v", "customer.admin_units_v"},
 	}
 }
 
