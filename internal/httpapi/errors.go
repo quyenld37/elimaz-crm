@@ -84,30 +84,33 @@ const (
 	codeShipmentAlreadyAttached = "shipment_already_attached"
 	codeOrderLockedByShipment   = "order_locked_by_shipment"
 	codeInvalidTransition       = "invalid_transition"
-	codeAddressIncomplete       = "address_incomplete"
-	codeNeedsApproval           = "needs_approval"
-	codeDiscountNeedsApproval   = "discount_needs_approval"
-	codeVariantNotFound         = "variant_not_found"
-	codeLineDiscountExceeds     = "line_discount_exceeds"
-	codeOrderDiscountExceeds    = "order_discount_exceeds"
-	codeTrafficSourceInactive   = "traffic_source_inactive"
-	codeReturnQtyExceeds        = "return_qty_exceeds"
-	codeReturnNotAllowed        = "return_not_allowed"
-	codeSettingOutOfRange       = "setting_out_of_range"
-	codeInvalidPhone            = "invalid_phone"
-	codeIdentityTaken           = "identity_taken"
-	codeWardNotInProvince       = "ward_not_in_province"
-	codeUnknownAdminUnit        = "unknown_admin_unit"
-	codeQueryTooShort           = "query_too_short"
-	codeMergeSameCustomer       = "merge_same_customer"
-	codeMergeNotLatest          = "merge_not_latest"
-	codeMergeWindowExpired      = "merge_window_expired"
-	codeImportTooLarge          = "import_too_large"
-	codeImportFileInvalid       = "import_file_invalid"
-	codeInvalidTagRule          = "invalid_tag_rule"
-	codeCouponRejected          = "coupon_rejected"
-	codeCouponLockedAfterUse    = "coupon_locked_after_use"
-	codeMaxUsesBelowUsed        = "max_uses_below_used"
+	// Tài khoản hãng (M3, Task M3-09).
+	codeCapabilityNotSupported    = "capability_not_supported"
+	codeCarrierAccountUnavailable = "carrier_account_unavailable"
+	codeAddressIncomplete         = "address_incomplete"
+	codeNeedsApproval             = "needs_approval"
+	codeDiscountNeedsApproval     = "discount_needs_approval"
+	codeVariantNotFound           = "variant_not_found"
+	codeLineDiscountExceeds       = "line_discount_exceeds"
+	codeOrderDiscountExceeds      = "order_discount_exceeds"
+	codeTrafficSourceInactive     = "traffic_source_inactive"
+	codeReturnQtyExceeds          = "return_qty_exceeds"
+	codeReturnNotAllowed          = "return_not_allowed"
+	codeSettingOutOfRange         = "setting_out_of_range"
+	codeInvalidPhone              = "invalid_phone"
+	codeIdentityTaken             = "identity_taken"
+	codeWardNotInProvince         = "ward_not_in_province"
+	codeUnknownAdminUnit          = "unknown_admin_unit"
+	codeQueryTooShort             = "query_too_short"
+	codeMergeSameCustomer         = "merge_same_customer"
+	codeMergeNotLatest            = "merge_not_latest"
+	codeMergeWindowExpired        = "merge_window_expired"
+	codeImportTooLarge            = "import_too_large"
+	codeImportFileInvalid         = "import_file_invalid"
+	codeInvalidTagRule            = "invalid_tag_rule"
+	codeCouponRejected            = "coupon_rejected"
+	codeCouponLockedAfterUse      = "coupon_locked_after_use"
+	codeMaxUsesBelowUsed          = "max_uses_below_used"
 
 	// Kho tệp (kế hoạch M1 Task M1-41).
 	codeFileTooLarge          = "file_too_large"
@@ -478,6 +481,13 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		// Cài đặt vận chuyển (M3, Task M3-04).
 		{fulfillment.ErrSettingOutOfRange, http.StatusUnprocessableEntity, codeSettingOutOfRange},
 		{fulfillment.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
+		// Tài khoản hãng (M3, Task M3-09; tệp task 100, Quyết định 6: chỉ mã có sẵn trong hợp đồng).
+		{fulfillment.ErrCarrierNotSupported, http.StatusUnprocessableEntity, codeCapabilityNotSupported},
+		{fulfillment.ErrAccountUnavailable, http.StatusConflict, codeCarrierAccountUnavailable},
+		{fulfillment.ErrAccountTransition, http.StatusConflict, codeInvalidTransition},
+		{fulfillment.ErrAccountTaken, http.StatusConflict, codeAlreadyExists},
+		{fulfillment.ErrAccountInvalid, http.StatusBadRequest, codeInvalidInput},
+		{fulfillment.ErrAccountTargetNotFound, http.StatusNotFound, codeNotFound},
 		// Áp kết quả tra, lịch sử vận đơn (M3, Task M3-08).
 		{fulfillment.ErrInvalidPage, http.StatusBadRequest, codeInvalidInput},
 		{fulfillment.ErrInvalidTracking, http.StatusBadRequest, codeInvalidInput},

@@ -125,7 +125,7 @@ func seedShipmentEvents(t *testing.T, e *orderAPIEnv) uuid.UUID {
 // seedCarrierAccount tạo tài khoản hãng giả fake-1 của người bán ELIMAZ ở kho MAIN (chủ bảng).
 func seedCarrierAccount(t *testing.T, e *orderAPIEnv) uuid.UUID {
 	t.Helper()
-	in := fulfillment.AccountInput{
+	in := fulfillment.SeedAccountInput{
 		SellerID: e.shop.Seller, WarehouseID: e.shop.Warehouse, CarrierKey: "fake", Name: "Hãng giả",
 		ExternalAccountRef: "fake-1",
 	}

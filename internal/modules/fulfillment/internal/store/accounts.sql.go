@@ -7,9 +7,203 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const activeAccounts = `-- name: ActiveAccounts :many
+SELECT id, tenant_id, seller_id, carrier_key, mode, environment, name, external_account_ref, warehouse_id, route_key,
+       default_service, default_options, is_default_for_warehouse, show_on_web, web_sort, credential_enc,
+       credential_key_id, credential_updated_at, status, last_check_at, last_check_result, version
+FROM fulfillment.carrier_accounts
+WHERE status = 'active'
+  AND ($1::uuid IS NULL OR warehouse_id = $1)
+  AND ($2::boolean IS NULL OR show_on_web = $2)
+ORDER BY web_sort, id
+`
+
+type ActiveAccountsParams struct {
+	WarehouseID pgtype.UUID
+	ShowOnWeb   pgtype.Bool
+}
+
+type ActiveAccountsRow struct {
+	ID                    uuid.UUID
+	TenantID              uuid.UUID
+	SellerID              uuid.UUID
+	CarrierKey            string
+	Mode                  string
+	Environment           string
+	Name                  string
+	ExternalAccountRef    string
+	WarehouseID           uuid.UUID
+	RouteKey              string
+	DefaultService        string
+	DefaultOptions        []byte
+	IsDefaultForWarehouse bool
+	ShowOnWeb             bool
+	WebSort               int32
+	CredentialEnc         []byte
+	CredentialKeyID       pgtype.Text
+	CredentialUpdatedAt   pgtype.Timestamptz
+	Status                string
+	LastCheckAt           pgtype.Timestamptz
+	LastCheckResult       pgtype.Text
+	Version               int64
+}
+
+// Tài khoản active (worker, báo phí trên web): lọc kho, cờ hiện trên web; xếp theo web_sort rồi id.
+func (q *Queries) ActiveAccounts(ctx context.Context, arg ActiveAccountsParams) ([]ActiveAccountsRow, error) {
+	rows, err := q.db.Query(ctx, activeAccounts, arg.WarehouseID, arg.ShowOnWeb)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ActiveAccountsRow{}
+	for rows.Next() {
+		var i ActiveAccountsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SellerID,
+			&i.CarrierKey,
+			&i.Mode,
+			&i.Environment,
+			&i.Name,
+			&i.ExternalAccountRef,
+			&i.WarehouseID,
+			&i.RouteKey,
+			&i.DefaultService,
+			&i.DefaultOptions,
+			&i.IsDefaultForWarehouse,
+			&i.ShowOnWeb,
+			&i.WebSort,
+			&i.CredentialEnc,
+			&i.CredentialKeyID,
+			&i.CredentialUpdatedAt,
+			&i.Status,
+			&i.LastCheckAt,
+			&i.LastCheckResult,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const applyCheckResult = `-- name: ApplyCheckResult :one
+UPDATE fulfillment.carrier_accounts a
+SET status = CASE WHEN a.status IN ('draft', 'checking', 'active', 'auth_failed') THEN $1 ELSE a.status END,
+    last_check_at = now(), last_check_result = $2, version = a.version + 1, updated_at = now()
+FROM (SELECT c.id AS prev_id, c.status AS prev_status FROM fulfillment.carrier_accounts c WHERE c.id = $4 FOR UPDATE) prev
+WHERE a.id = prev.prev_id AND a.status <> 'revoked'
+  AND a.credential_updated_at IS NOT DISTINCT FROM $3::timestamptz
+RETURNING prev.prev_status, a.status, a.tenant_id, a.carrier_key
+`
+
+type ApplyCheckResultParams struct {
+	Status              string
+	Result              pgtype.Text
+	CredentialUpdatedAt pgtype.Timestamptz
+	ID                  uuid.UUID
+}
+
+type ApplyCheckResultRow struct {
+	PrevStatus string
+	Status     string
+	TenantID   uuid.UUID
+	CarrierKey string
+}
+
+// Kết quả lệnh kiểm: chỉ khi khóa chưa đổi từ lúc kiểm (credential_updated_at); trạng thái chỉ đổi khi tài khoản đang
+// draft, checking, active, auth_failed (paused giữ nguyên, chỉ ghi kết quả). Trả trạng thái trước để biết có vừa sang
+// auth_failed không. Không dòng nào: khóa đã đổi hoặc tài khoản đã revoked.
+func (q *Queries) ApplyCheckResult(ctx context.Context, arg ApplyCheckResultParams) (ApplyCheckResultRow, error) {
+	row := q.db.QueryRow(ctx, applyCheckResult,
+		arg.Status,
+		arg.Result,
+		arg.CredentialUpdatedAt,
+		arg.ID,
+	)
+	var i ApplyCheckResultRow
+	err := row.Scan(
+		&i.PrevStatus,
+		&i.Status,
+		&i.TenantID,
+		&i.CarrierKey,
+	)
+	return i, err
+}
+
+const getAccount = `-- name: GetAccount :one
+SELECT id, tenant_id, seller_id, carrier_key, mode, environment, name, external_account_ref, warehouse_id, route_key,
+       default_service, default_options, is_default_for_warehouse, show_on_web, web_sort, credential_enc,
+       credential_key_id, credential_updated_at, status, last_check_at, last_check_result, version
+FROM fulfillment.carrier_accounts
+WHERE id = $1
+`
+
+type GetAccountRow struct {
+	ID                    uuid.UUID
+	TenantID              uuid.UUID
+	SellerID              uuid.UUID
+	CarrierKey            string
+	Mode                  string
+	Environment           string
+	Name                  string
+	ExternalAccountRef    string
+	WarehouseID           uuid.UUID
+	RouteKey              string
+	DefaultService        string
+	DefaultOptions        []byte
+	IsDefaultForWarehouse bool
+	ShowOnWeb             bool
+	WebSort               int32
+	CredentialEnc         []byte
+	CredentialKeyID       pgtype.Text
+	CredentialUpdatedAt   pgtype.Timestamptz
+	Status                string
+	LastCheckAt           pgtype.Timestamptz
+	LastCheckResult       pgtype.Text
+	Version               int64
+}
+
+func (q *Queries) GetAccount(ctx context.Context, id uuid.UUID) (GetAccountRow, error) {
+	row := q.db.QueryRow(ctx, getAccount, id)
+	var i GetAccountRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.SellerID,
+		&i.CarrierKey,
+		&i.Mode,
+		&i.Environment,
+		&i.Name,
+		&i.ExternalAccountRef,
+		&i.WarehouseID,
+		&i.RouteKey,
+		&i.DefaultService,
+		&i.DefaultOptions,
+		&i.IsDefaultForWarehouse,
+		&i.ShowOnWeb,
+		&i.WebSort,
+		&i.CredentialEnc,
+		&i.CredentialKeyID,
+		&i.CredentialUpdatedAt,
+		&i.Status,
+		&i.LastCheckAt,
+		&i.LastCheckResult,
+		&i.Version,
+	)
+	return i, err
+}
 
 const getCarrierAccount = `-- name: GetCarrierAccount :one
 SELECT id, seller_id, carrier_key, external_account_ref, warehouse_id, status
@@ -38,6 +232,67 @@ func (q *Queries) GetCarrierAccount(ctx context.Context, id uuid.UUID) (GetCarri
 		&i.Status,
 	)
 	return i, err
+}
+
+const insertAccount = `-- name: InsertAccount :one
+
+INSERT INTO fulfillment.carrier_accounts (id, tenant_id, seller_id, carrier_key, mode, environment, name,
+    external_account_ref, warehouse_id, route_key, default_service, default_options, is_default_for_warehouse,
+    show_on_web, web_sort, credential_enc, credential_key_id, credential_updated_at, status)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+    $10, $11, $12, $13, $14, $15,
+    $16, $17,
+    CASE WHEN $16::bytea IS NULL THEN NULL ELSE now() END, $18)
+RETURNING created_at
+`
+
+type InsertAccountParams struct {
+	ID                    uuid.UUID
+	TenantID              uuid.UUID
+	SellerID              uuid.UUID
+	CarrierKey            string
+	Mode                  string
+	Environment           string
+	Name                  string
+	ExternalAccountRef    string
+	WarehouseID           uuid.UUID
+	RouteKey              string
+	DefaultService        string
+	DefaultOptions        []byte
+	IsDefaultForWarehouse bool
+	ShowOnWeb             bool
+	WebSort               int32
+	CredentialEnc         []byte
+	CredentialKeyID       pgtype.Text
+	Status                string
+}
+
+// Tài khoản hãng M3 (kế hoạch M3, Task M3-09). Mọi câu trong tenancy.WithTenant (crm_app). Khóa: nhóm 8 của ADR-46,
+// tuyến platform.tenant_routes (nhóm 1) ghi trước bằng tenancy.PutRoute.
+func (q *Queries) InsertAccount(ctx context.Context, arg InsertAccountParams) (time.Time, error) {
+	row := q.db.QueryRow(ctx, insertAccount,
+		arg.ID,
+		arg.TenantID,
+		arg.SellerID,
+		arg.CarrierKey,
+		arg.Mode,
+		arg.Environment,
+		arg.Name,
+		arg.ExternalAccountRef,
+		arg.WarehouseID,
+		arg.RouteKey,
+		arg.DefaultService,
+		arg.DefaultOptions,
+		arg.IsDefaultForWarehouse,
+		arg.ShowOnWeb,
+		arg.WebSort,
+		arg.CredentialEnc,
+		arg.CredentialKeyID,
+		arg.Status,
+	)
+	var created_at time.Time
+	err := row.Scan(&created_at)
+	return created_at, err
 }
 
 const insertCarrierAccount = `-- name: InsertCarrierAccount :one
@@ -70,4 +325,287 @@ func (q *Queries) InsertCarrierAccount(ctx context.Context, arg InsertCarrierAcc
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const listAccounts = `-- name: ListAccounts :many
+SELECT id, tenant_id, seller_id, carrier_key, mode, environment, name, external_account_ref, warehouse_id, route_key,
+       default_service, default_options, is_default_for_warehouse, show_on_web, web_sort, credential_enc,
+       credential_key_id, credential_updated_at, status, last_check_at, last_check_result, version
+FROM fulfillment.carrier_accounts
+WHERE ($1::uuid IS NULL OR warehouse_id = $1)
+  AND ($2::text IS NULL OR status = $2)
+  AND ($3::uuid IS NULL OR id > $3)
+ORDER BY id
+LIMIT $4
+`
+
+type ListAccountsParams struct {
+	WarehouseID pgtype.UUID
+	Status      pgtype.Text
+	After       pgtype.UUID
+	Lim         int32
+}
+
+type ListAccountsRow struct {
+	ID                    uuid.UUID
+	TenantID              uuid.UUID
+	SellerID              uuid.UUID
+	CarrierKey            string
+	Mode                  string
+	Environment           string
+	Name                  string
+	ExternalAccountRef    string
+	WarehouseID           uuid.UUID
+	RouteKey              string
+	DefaultService        string
+	DefaultOptions        []byte
+	IsDefaultForWarehouse bool
+	ShowOnWeb             bool
+	WebSort               int32
+	CredentialEnc         []byte
+	CredentialKeyID       pgtype.Text
+	CredentialUpdatedAt   pgtype.Timestamptz
+	Status                string
+	LastCheckAt           pgtype.Timestamptz
+	LastCheckResult       pgtype.Text
+	Version               int64
+}
+
+// Trang theo id tăng dần (con trỏ: id của dòng cuối trang trước).
+func (q *Queries) ListAccounts(ctx context.Context, arg ListAccountsParams) ([]ListAccountsRow, error) {
+	rows, err := q.db.Query(ctx, listAccounts,
+		arg.WarehouseID,
+		arg.Status,
+		arg.After,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAccountsRow{}
+	for rows.Next() {
+		var i ListAccountsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.SellerID,
+			&i.CarrierKey,
+			&i.Mode,
+			&i.Environment,
+			&i.Name,
+			&i.ExternalAccountRef,
+			&i.WarehouseID,
+			&i.RouteKey,
+			&i.DefaultService,
+			&i.DefaultOptions,
+			&i.IsDefaultForWarehouse,
+			&i.ShowOnWeb,
+			&i.WebSort,
+			&i.CredentialEnc,
+			&i.CredentialKeyID,
+			&i.CredentialUpdatedAt,
+			&i.Status,
+			&i.LastCheckAt,
+			&i.LastCheckResult,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockAccount = `-- name: LockAccount :one
+SELECT id, tenant_id, seller_id, carrier_key, mode, environment, name, external_account_ref, warehouse_id, route_key,
+       default_service, default_options, is_default_for_warehouse, show_on_web, web_sort, credential_enc,
+       credential_key_id, credential_updated_at, status, last_check_at, last_check_result, version
+FROM fulfillment.carrier_accounts
+WHERE id = $1
+FOR UPDATE
+`
+
+type LockAccountRow struct {
+	ID                    uuid.UUID
+	TenantID              uuid.UUID
+	SellerID              uuid.UUID
+	CarrierKey            string
+	Mode                  string
+	Environment           string
+	Name                  string
+	ExternalAccountRef    string
+	WarehouseID           uuid.UUID
+	RouteKey              string
+	DefaultService        string
+	DefaultOptions        []byte
+	IsDefaultForWarehouse bool
+	ShowOnWeb             bool
+	WebSort               int32
+	CredentialEnc         []byte
+	CredentialKeyID       pgtype.Text
+	CredentialUpdatedAt   pgtype.Timestamptz
+	Status                string
+	LastCheckAt           pgtype.Timestamptz
+	LastCheckResult       pgtype.Text
+	Version               int64
+}
+
+func (q *Queries) LockAccount(ctx context.Context, id uuid.UUID) (LockAccountRow, error) {
+	row := q.db.QueryRow(ctx, lockAccount, id)
+	var i LockAccountRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.SellerID,
+		&i.CarrierKey,
+		&i.Mode,
+		&i.Environment,
+		&i.Name,
+		&i.ExternalAccountRef,
+		&i.WarehouseID,
+		&i.RouteKey,
+		&i.DefaultService,
+		&i.DefaultOptions,
+		&i.IsDefaultForWarehouse,
+		&i.ShowOnWeb,
+		&i.WebSort,
+		&i.CredentialEnc,
+		&i.CredentialKeyID,
+		&i.CredentialUpdatedAt,
+		&i.Status,
+		&i.LastCheckAt,
+		&i.LastCheckResult,
+		&i.Version,
+	)
+	return i, err
+}
+
+const markAuthFailed = `-- name: MarkAuthFailed :one
+UPDATE fulfillment.carrier_accounts a
+SET status = 'auth_failed', last_check_at = now(), last_check_result = $1, version = a.version + 1,
+    updated_at = now()
+FROM (SELECT c.id AS prev_id, c.status AS prev_status FROM fulfillment.carrier_accounts c WHERE c.id = $2 FOR UPDATE) prev
+WHERE a.id = prev.prev_id AND a.status IN ('active', 'checking', 'draft', 'auth_failed')
+RETURNING prev.prev_status, a.tenant_id, a.carrier_key
+`
+
+type MarkAuthFailedParams struct {
+	Result pgtype.Text
+	ID     uuid.UUID
+}
+
+type MarkAuthFailedRow struct {
+	PrevStatus string
+	TenantID   uuid.UUID
+	CarrierKey string
+}
+
+// Hãng từ chối khóa ở một lệnh bất kỳ của tài khoản: active, checking, draft → auth_failed. Trả trạng thái trước.
+func (q *Queries) MarkAuthFailed(ctx context.Context, arg MarkAuthFailedParams) (MarkAuthFailedRow, error) {
+	row := q.db.QueryRow(ctx, markAuthFailed, arg.Result, arg.ID)
+	var i MarkAuthFailedRow
+	err := row.Scan(&i.PrevStatus, &i.TenantID, &i.CarrierKey)
+	return i, err
+}
+
+const setAccountCredentials = `-- name: SetAccountCredentials :one
+UPDATE fulfillment.carrier_accounts
+SET credential_enc = $1, credential_key_id = $2, credential_updated_at = now(),
+    status = CASE WHEN status = 'paused' THEN 'paused' ELSE 'checking' END, version = version + 1, updated_at = now()
+WHERE id = $3
+RETURNING version
+`
+
+type SetAccountCredentialsParams struct {
+	CredentialEnc   []byte
+	CredentialKeyID pgtype.Text
+	ID              uuid.UUID
+}
+
+// Ghi khóa API đã mã hóa, tài khoản sang checking (bên gọi ghi lệnh kiểm); tài khoản paused giữ paused (ghi khóa không
+// bật lại tài khoản chủ shop đã tạm dừng).
+func (q *Queries) SetAccountCredentials(ctx context.Context, arg SetAccountCredentialsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, setAccountCredentials, arg.CredentialEnc, arg.CredentialKeyID, arg.ID)
+	var version int64
+	err := row.Scan(&version)
+	return version, err
+}
+
+const setAccountStatus = `-- name: SetAccountStatus :one
+UPDATE fulfillment.carrier_accounts
+SET status = $1, version = version + 1, updated_at = now()
+WHERE id = $2
+RETURNING version
+`
+
+type SetAccountStatusParams struct {
+	Status string
+	ID     uuid.UUID
+}
+
+func (q *Queries) SetAccountStatus(ctx context.Context, arg SetAccountStatusParams) (int64, error) {
+	row := q.db.QueryRow(ctx, setAccountStatus, arg.Status, arg.ID)
+	var version int64
+	err := row.Scan(&version)
+	return version, err
+}
+
+const updateAccount = `-- name: UpdateAccount :one
+UPDATE fulfillment.carrier_accounts
+SET name = $1, environment = $2, warehouse_id = $3, default_service = $4,
+    default_options = $5, is_default_for_warehouse = $6,
+    show_on_web = $7, web_sort = $8, version = version + 1, updated_at = now()
+WHERE id = $9
+RETURNING version
+`
+
+type UpdateAccountParams struct {
+	Name                  string
+	Environment           string
+	WarehouseID           uuid.UUID
+	DefaultService        string
+	DefaultOptions        []byte
+	IsDefaultForWarehouse bool
+	ShowOnWeb             bool
+	WebSort               int32
+	ID                    uuid.UUID
+}
+
+// Bên gọi đã khóa dòng (LockAccount) và so version.
+func (q *Queries) UpdateAccount(ctx context.Context, arg UpdateAccountParams) (int64, error) {
+	row := q.db.QueryRow(ctx, updateAccount,
+		arg.Name,
+		arg.Environment,
+		arg.WarehouseID,
+		arg.DefaultService,
+		arg.DefaultOptions,
+		arg.IsDefaultForWarehouse,
+		arg.ShowOnWeb,
+		arg.WebSort,
+		arg.ID,
+	)
+	var version int64
+	err := row.Scan(&version)
+	return version, err
+}
+
+const warehousePickup = `-- name: WarehousePickup :one
+SELECT pickup_address, pickup_phone FROM inventory.warehouses_v WHERE warehouse_id = $1
+`
+
+type WarehousePickupRow struct {
+	PickupAddress []byte
+	PickupPhone   string
+}
+
+// Địa chỉ lấy hàng của kho (view công bố của inventory, docs/views.md).
+func (q *Queries) WarehousePickup(ctx context.Context, warehouseID uuid.UUID) (WarehousePickupRow, error) {
+	row := q.db.QueryRow(ctx, warehousePickup, warehouseID)
+	var i WarehousePickupRow
+	err := row.Scan(&i.PickupAddress, &i.PickupPhone)
+	return i, err
 }

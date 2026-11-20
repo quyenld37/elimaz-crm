@@ -350,9 +350,10 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 		}
 	}
 	// Cảnh báo thiếu hàng sau kiểm kho (Task M1-35) và lệch sổ sau đối chiếu đêm (Task M1-36): lệnh do inventory ghi,
-	// không phải lịch.
+	// không phải lịch. Cảnh báo hãng từ chối khóa API (Task M3-09): lệnh do fulfillment.MarkAuthFailed ghi.
 	return []commands.Handler{
 		alerts, digest, inventory.NewShortageAlertCommand(alerter, logger), inventory.NewStockMismatchCommand(alerter, logger),
+		fulfillment.NewAuthAlertCommand(alerter, logger),
 	}, nil
 }
 
@@ -445,6 +446,7 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 		handler = httpapi.NewServer(httpapi.Deps{
 			Config: cfg, DB: d, Logger: logger, Access: access, Files: store,
 			Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop}, Events: mods.Events, Metrics: reg,
+			Fulfillment: mods.M3.Fulfillment.Service,
 		})
 	} else {
 		h, err := ingestHandler(cfg, d, reg, logger)

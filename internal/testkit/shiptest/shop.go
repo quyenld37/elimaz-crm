@@ -50,7 +50,7 @@ func NewShop(t testing.TB, tx pgx.Tx, tenantID uuid.UUID) *Shop {
 		seller uuid.UUID
 		ref    string
 	}{{&s.Account, s.Seller, AccountRef}, {&s.PartnerAccount, s.Partner, PartnerAccountRef}} {
-		id, err := fulfillment.EnsureCarrierAccount(t.Context(), tx, fulfillment.AccountInput{
+		id, err := fulfillment.EnsureCarrierAccount(t.Context(), tx, fulfillment.SeedAccountInput{
 			SellerID: a.seller, WarehouseID: s.Warehouse, CarrierKey: CarrierKey, Name: "Hãng giả", ExternalAccountRef: a.ref,
 		})
 		if err != nil {
