@@ -1171,6 +1171,12 @@ type Limits struct {
 	MaxCellChars int
 }
 func DefaultLimits() Limits
+type RawRow struct {
+	Number   int
+	Cells    []string
+	Formulas []int
+}
+func ReadRows(r io.ReaderAt, size int64, lim Limits) (rows []RawRow, err error)
 type Row struct {
 	Number int
 	Cells  map[string]string

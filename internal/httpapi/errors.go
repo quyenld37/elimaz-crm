@@ -10,6 +10,7 @@ import (
 	"github.com/ogen-go/ogen/ogenerrors"
 	"github.com/ogen-go/ogen/validate"
 
+	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
@@ -79,6 +80,9 @@ const (
 	codeMixedSellers      = "mixed_sellers"
 	codeTotalOverflow     = "total_overflow"
 	codeShipmentExists    = "shipment_exists"
+
+	// Bảng kê COD (kế hoạch M3, Task M3-31).
+	codeStatementDuplicate = "statement_duplicate"
 
 	// Khách, đơn, mã giảm giá (kế hoạch M2, Task M2-02).
 	codeShipmentAlreadyAttached = "shipment_already_attached"
@@ -150,6 +154,8 @@ type errorBody struct {
 	Reason          *string `json:"reason,omitempty"`
 	// Chỉ có ở setting_out_of_range (Task M2-15): tên trường cài đặt ngoài khoảng.
 	Field *string `json:"field,omitempty"`
+	// Chỉ có ở statement_duplicate (Task M3-31): bảng kê COD đã nhập trước với cùng tệp.
+	StatementID *string `json:"statementId,omitempty"`
 }
 
 // writeError ghi lỗi theo dạng duy nhất {"error": "<mã>", "request_id": "<id>"}; không bao giờ có vết lỗi.
@@ -237,7 +243,7 @@ func writeDomainError(w http.ResponseWriter, r *http.Request, err error) bool {
 	}
 	for _, mapErr := range []func(error) (int, string, bool){
 		identityError, catalogError, filesError, orderError, customerError, promotionError, inventoryError,
-		queriesError, fulfillmentError,
+		queriesError, fulfillmentError, cashError,
 	} {
 		if status, code, ok := mapErr(err); ok {
 			writeError(w, r, status, code)
@@ -260,6 +266,10 @@ func detailedError(err error) (errorBody, int, bool) {
 	if e, ok := errors.AsType[*promotion.RejectError](err); ok {
 		reason := string(e.Reason)
 		return errorBody{Error: codeCouponRejected, Reason: &reason}, http.StatusUnprocessableEntity, true
+	}
+	if e, ok := errors.AsType[*cash.DuplicateStatementError](err); ok {
+		id := e.StatementID.String()
+		return errorBody{Error: codeStatementDuplicate, StatementID: &id}, http.StatusConflict, true
 	}
 	if e, ok := errors.AsType[*order.SettingOutOfRangeError](err); ok {
 		field := string(e.Field)
@@ -492,6 +502,27 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		{fulfillment.ErrInvalidPage, http.StatusBadRequest, codeInvalidInput},
 		{fulfillment.ErrInvalidTracking, http.StatusBadRequest, codeInvalidInput},
 		{fulfillment.ErrStockShort, http.StatusConflict, codeStockShort},
+	} {
+		if errors.Is(err, m.err) {
+			return m.status, m.code, true
+		}
+	}
+	return 0, "", false
+}
+
+// cashError đổi lỗi nghiệp vụ của tiền, bảng kê COD (M3, Task M3-31) sang mã HTTP. Tài khoản hãng, bảng kê không
+// có hay của tenant khác: 404 (không cho biết là có). DuplicateStatementError có thân riêng ở detailedError.
+func cashError(err error) (status int, code string, ok bool) {
+	for _, m := range []struct {
+		err    error
+		status int
+		code   string
+	}{
+		{cash.ErrCarrierAccountNotFound, http.StatusNotFound, codeNotFound},
+		{cash.ErrStatementNotFound, http.StatusNotFound, codeNotFound},
+		{cash.ErrUnknownStatementFormat, http.StatusUnprocessableEntity, codeInvalidInput},
+		{cash.ErrStatementFileNotReady, http.StatusConflict, codeFileNotReady},
+		{cash.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

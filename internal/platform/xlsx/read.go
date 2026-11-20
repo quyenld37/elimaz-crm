@@ -53,22 +53,39 @@ type CellError struct {
 // được), ErrTooManyRows (quá lim.MaxRows dòng không trống), ErrHeaderMismatch.
 func Read(r io.ReaderAt, size int64, lim Limits, header []string) (rows []Row, cellErrs []CellError, err error) {
 	lim = lim.withDefaults()
+	err = openFirstSheet(r, size, lim, func(f *excelize.File, sheet string, formulas map[int][]int) error {
+		var e error
+		rows, cellErrs, e = readSheet(f, sheet, lim, header, formulas)
+		return e
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return rows, cellErrs, nil
+}
+
+// openFirstSheet kiểm tệp (kích thước, tổng giải nén, từng phần nén, trần số ô, vị trí công thức của scanBook) trước
+// khi excelize mở, rồi gọi read với sổ đã mở, tên trang đầu và vị trí ô công thức (dòng → cột, từ 1). lim đã qua
+// withDefaults. Panic của excelize trong lúc mở hay trong read thành ErrNotXlsx.
+func openFirstSheet(r io.ReaderAt, size int64, lim Limits,
+	read func(f *excelize.File, sheet string, formulas map[int][]int) error,
+) (err error) {
 	if size > lim.MaxBytes {
-		return nil, nil, ErrTooLarge
+		return ErrTooLarge
 	}
 	zr, err := checkZip(r, size, lim)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 	first, formulas, err := scanBook(zr)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 	// excelize đọc dữ liệu người dùng: lỗi lập trình của nó (đã có nhiều báo cáo panic với tệp hỏng) không được làm
 	// sập tiến trình gọi.
 	defer func() {
 		if recover() != nil {
-			rows, cellErrs, err = nil, nil, fmt.Errorf("%w: excelize lỗi khi đọc", ErrNotXlsx)
+			err = fmt.Errorf("%w: excelize lỗi khi đọc", ErrNotXlsx)
 		}
 	}()
 	f, err := excelize.OpenReader(io.NewSectionReader(r, 0, size), excelize.Options{
@@ -76,14 +93,14 @@ func Read(r io.ReaderAt, size int64, lim Limits, header []string) (rows []Row, c
 	})
 	if err != nil {
 		// Tổng giải nén đã kiểm ở checkZip, nên lỗi ở đây là tệp hỏng.
-		return nil, nil, broken("mở sổ")
+		return broken("mở sổ")
 	}
 	defer func() { _ = f.Close() }()
 	// Trang đầu của excelize phải là trang scanBook đã quét (trần số ô, công thức).
 	if sheets := f.GetSheetList(); len(sheets) == 0 || sheets[0] != first.name {
-		return nil, nil, fmt.Errorf("%w: trang đầu không khớp", ErrNotXlsx)
+		return fmt.Errorf("%w: trang đầu không khớp", ErrNotXlsx)
 	}
-	return readSheet(f, first.name, lim, header, formulas)
+	return read(f, first.name, formulas)
 }
 
 // checkZip từ chối tệp không phải zip, thiếu phần sổ của xlsx, hoặc tổng giải nén theo header vượt giới hạn.

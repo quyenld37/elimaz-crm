@@ -37,9 +37,6 @@ previewCodAdjustment
 createCodAdjustment
 listReconcileFindings
 getShipmentCod
-importCodStatement
-listCodStatements
-getCodStatement
 confirmCodStatement
 listCodDiscrepancies
 listCodOverdue
