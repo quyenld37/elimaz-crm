@@ -267,7 +267,11 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	}
 	// Worker chỉ phát báo hiệu (Publish chạy pg_notify trong tx của việc), không LISTEN: không gọi hub.Run.
 	hub := realtime.NewPGHub(realtime.PGHubOptions{URL: cfg.DatabaseURL, Metrics: reg, Logger: logger})
-	mods, err := newModules(cfg, d, hub, reg)
+	fs, err := files.NewS3Store(s3Config(cfg))
+	if err != nil {
+		return fmt.Errorf("dựng kho tệp: %w", err)
+	}
+	mods, err := newModules(cfg, d, hub, reg, fs)
 	if err != nil {
 		return err
 	}
@@ -438,13 +442,14 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 		if err != nil {
 			return fmt.Errorf("dựng kho tệp: %w", err)
 		}
-		mods, err := newModules(cfg, d, hub, reg)
+		mods, err := newModules(cfg, d, hub, reg, store)
 		if err != nil {
 			return err
 		}
 		handler = httpapi.NewServer(httpapi.Deps{
 			Config: cfg, DB: d, Logger: logger, Access: access, Files: store,
 			Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop}, Events: mods.Events, Metrics: reg,
+			Cash: mods.M3.Cash.Service,
 		})
 	} else {
 		h, err := ingestHandler(cfg, d, reg, logger)

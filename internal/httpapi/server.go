@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
+	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
@@ -46,6 +47,9 @@ type Deps struct {
 	Events *events.Registry
 	// Metrics đếm counter errors khi ghi lỗi 500 (cmd/crm nối registry của tiến trình); nil: không đếm.
 	Metrics *metrics.Registry
+	// Cash là public API của module tiền M3 (cmd/crm nối từ wireM3, cùng sổ định dạng bảng kê, hàng đợi, kho tệp); nil
+	// → route bảng kê COD trả 500.
+	Cash *cash.Service
 	// Now là đồng hồ của nghiệp vụ cần "bây giờ" (kiểm mã giảm giá); nil → time.Now (test cắm ngày cố định).
 	Now func() time.Time
 

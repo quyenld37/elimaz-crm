@@ -14,6 +14,8 @@ import (
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/platform/config"
+	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
@@ -32,6 +34,9 @@ type m3Env struct {
 	srv    http.Handler
 	tenant uuid.UUID
 	key    int
+	// files, cash: kho tệp và module tiền mà server dùng (Deps.Files, Deps.Cash; bảng kê COD, Task M3-31).
+	files *files.MemStore
+	cash  *cash.Module
 }
 
 func newM3Env(t *testing.T) *m3Env {
@@ -45,9 +50,11 @@ func newM3Env(t *testing.T) *m3Env {
 	}
 	e.staff.Grant(t, e.tenant, e.staff.User(t, e.tenant, m3Reader, "active"), []string{"fulfillment.read"}, "all", "")
 	authE := &authEnv{t: t, keys: e.keys}
+	e.files = testkit.MemFileStore(t)
+	e.cash = cash.New(cash.Deps{DB: e.staff.App, Queue: queue.NewQueue(), Files: e.files})
 	e.srv = NewServer(Deps{
 		Config: config.Config{ConsoleOrigins: []string{testOrigin}}, DB: e.staff.App, Logger: discardLogger(t),
-		Access: authE.verifier(), Realtime: &testkit.RecordingBus{}, Files: testkit.MemFileStore(t),
+		Access: authE.verifier(), Realtime: &testkit.RecordingBus{}, Files: e.files, Cash: e.cash.Service,
 	})
 	return e
 }

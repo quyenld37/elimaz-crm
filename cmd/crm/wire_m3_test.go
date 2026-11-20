@@ -21,9 +21,9 @@ func TestWireM3_KeepsM1Parts(t *testing.T) {
 		commands []string
 		source   bool
 	}{
-		{"hãng giả", fakeCfg, []string{"fulfillment.create_shipment", "fulfillment.refresh_status"}, true},
-		{"production", config.Config{Env: "production", FakeCarrierURL: "http://127.0.0.1:1"}, []string{}, false},
-		{"không URL", config.Config{Env: "development"}, []string{}, false},
+		{"hãng giả", fakeCfg, []string{"command.cash.statement_parse", "fulfillment.create_shipment", "fulfillment.refresh_status"}, true},
+		{"production", config.Config{Env: "production", FakeCarrierURL: "http://127.0.0.1:1"}, []string{"command.cash.statement_parse"}, false},
+		{"không URL", config.Config{Env: "development"}, []string{"command.cash.statement_parse"}, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

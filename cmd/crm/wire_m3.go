@@ -14,6 +14,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/fieldcrypt"
+	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
@@ -28,6 +29,8 @@ type m3Deps struct {
 	Bus     realtime.Bus
 	Events  *events.Registry
 	Metrics *metrics.Registry
+	// Files là kho tệp (đọc tệp bảng kê COD của cash, Task M3-31); nil: lệnh đọc tệp chờ trong hàng đợi.
+	Files files.FileStore
 }
 
 // m3Parts là phần của M3 mà tiến trình đăng ký: consumer vào sổ sự kiện (api và worker), lệnh, handler vào, lịch, dọn
@@ -68,7 +71,7 @@ func wireM3(role config.Role, cfg config.Config, d m3Deps) (m3Parts, error) {
 		DB: d.DB, Queue: queue.NewQueue(), Bus: d.Bus, Events: d.Events, Carriers: reg, Keys: keys, Metrics: d.Metrics,
 	})
 	csh := cash.New(cash.Deps{
-		DB: d.DB, Queue: queue.NewQueue(), Bus: d.Bus, Events: d.Events, Carriers: reg, Metrics: d.Metrics,
+		DB: d.DB, Queue: queue.NewQueue(), Bus: d.Bus, Events: d.Events, Carriers: reg, Metrics: d.Metrics, Files: d.Files,
 	})
 	p := m3Parts{
 		Fulfillment: ful, Cash: csh,
@@ -87,7 +90,7 @@ func wireM3(role config.Role, cfg config.Config, d m3Deps) (m3Parts, error) {
 		p.Sources = append(p.Sources, fake.NewSource(secret))
 		p.Inbound = append(p.Inbound, fulfillment.NewSignalHandler(fake.Key))
 	}
-	if err := errors.Join(ful.Check(), csh.Check(), checkM3Unique(p)); err != nil {
+	if err := errors.Join(ful.Check(), csh.Check(), cash.CheckStatementFormats(reg), checkM3Unique(p)); err != nil {
 		return m3Parts{}, fmt.Errorf("nối module M3: %w", err)
 	}
 	return p, nil

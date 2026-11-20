@@ -13,7 +13,7 @@ import (
 // customer_stats và lịch nhãn đêm customer.tag_rules_nightly (Task M2-25).
 func TestNewModulesRegistersCash(t *testing.T) {
 	t.Parallel()
-	m, err := newModules(config.Config{Role: config.RoleWorker}, nil, nil, nil)
+	m, err := newModules(config.Config{Role: config.RoleWorker}, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -10,6 +10,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime"
@@ -32,12 +33,13 @@ type modules struct {
 
 // newModules dựng sổ sự kiện, gọi đúng một lần Background của ba module M2 customer, order, promotion (kế hoạch M2,
 // Task M2-02) và wireM3 của hai module M3 fulfillment, cash (Task M3-04; consumer sổ COD cash của M1 ở đó); task sau
-// chỉ thêm phần tử trong module.go (M2) hay area_*.go (M3) của module mình. bus nil: không phát báo hiệu.
-func newModules(cfg config.Config, d *db.DB, bus realtime.Bus, reg *metrics.Registry) (modules, error) {
+// chỉ thêm phần tử trong module.go (M2) hay area_*.go (M3) của module mình. bus nil: không phát báo hiệu. fs là kho
+// tệp của M3 (đọc tệp bảng kê COD, Task M3-31); nil: lệnh cần kho tệp chờ trong hàng đợi.
+func newModules(cfg config.Config, d *db.DB, bus realtime.Bus, reg *metrics.Registry, fs files.FileStore) (modules, error) {
 	evs := events.NewRegistry()
 	deps := background.Deps{DB: d, Queue: queue.NewQueue(), Bus: bus, Events: evs}
 	parts := []background.Parts{customer.Background(deps), order.Background(deps), promotion.Background(deps)}
-	m3, err := wireM3(cfg.Role, cfg, m3Deps{DB: d, Bus: bus, Events: evs, Metrics: reg})
+	m3, err := wireM3(cfg.Role, cfg, m3Deps{DB: d, Bus: bus, Events: evs, Metrics: reg, Files: fs})
 	if err != nil {
 		return modules{}, err
 	}
