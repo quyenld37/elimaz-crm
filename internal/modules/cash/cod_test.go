@@ -273,9 +273,10 @@ func TestConsumerIsIdempotent(t *testing.T) {
 	if n := e.count("SELECT count(*) FROM cash.cod_transfers"); n != 1 {
 		t.Fatalf("số bút toán = %d, mong 1", n)
 	}
+	// M3 (Task M3-29): khóa expected theo vận đơn (M1: evt:<id>:expected).
 	if n := e.count("SELECT count(*) FROM cash.cod_transfers WHERE idempotency_key = $1",
-		"evt:"+ev.ID.String()+":expected"); n != 1 {
-		t.Fatalf("khóa chống trùng không theo evt:<id>:expected")
+		"expected:"+s.String()); n != 1 {
+		t.Fatalf("khóa chống trùng không theo expected:<vận đơn>")
 	}
 	d := e.event(uuid.New(), s, fulfillment.StatusDelivered)
 	e.mustHandle(d)

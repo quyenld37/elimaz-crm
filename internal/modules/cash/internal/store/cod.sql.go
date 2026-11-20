@@ -53,6 +53,33 @@ func (q *Queries) InsertEntry(ctx context.Context, arg InsertEntryParams) error 
 	return err
 }
 
+const insertEventFinding = `-- name: InsertEventFinding :execrows
+INSERT INTO cash.reconcile_findings (tenant_id, kind, shipment_id, detail, source_key)
+VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3, $4)
+ON CONFLICT ON CONSTRAINT reconcile_findings_source_key DO NOTHING
+`
+
+type InsertEventFindingParams struct {
+	Kind       string
+	ShipmentID pgtype.UUID
+	Detail     []byte
+	SourceKey  pgtype.Text
+}
+
+// Phát hiện do sự kiện vận đơn mở (không thuộc lần đối chiếu nào); trùng source_key → không chèn (0 dòng).
+func (q *Queries) InsertEventFinding(ctx context.Context, arg InsertEventFindingParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertEventFinding,
+		arg.Kind,
+		arg.ShipmentID,
+		arg.Detail,
+		arg.SourceKey,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const insertTransfer = `-- name: InsertTransfer :one
 
 INSERT INTO cash.cod_transfers (tenant_id, shipment_id, kind, idempotency_key, reason, actor_type, actor_id,
@@ -96,40 +123,104 @@ func (q *Queries) InsertTransfer(ctx context.Context, arg InsertTransferParams) 
 	return id, err
 }
 
+const lockShipmentCOD = `-- name: LockShipmentCOD :exec
+SELECT pg_advisory_xact_lock(hashtextextended('cash.cod:' || $1::uuid::text, 0))
+`
+
+// Khóa tư vấn sổ COD của một vận đơn đến hết transaction (ADR-46 mục advisory): đường ghi chọn bút toán theo số dư
+// (consumer sự kiện vận đơn; chốt bảng kê, điều chỉnh sau này) lấy khóa này trước khi đọc số dư.
+func (q *Queries) LockShipmentCOD(ctx context.Context, shipmentID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, lockShipmentCOD, shipmentID)
+	return err
+}
+
 const shipmentCOD = `-- name: ShipmentCOD :one
-SELECT cod_amount
+SELECT cod_amount, code
 FROM fulfillment.shipments_v
 WHERE id = $1
 `
 
-// Số COD của vận đơn, đọc qua view công bố của fulfillment.
-func (q *Queries) ShipmentCOD(ctx context.Context, id uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, shipmentCOD, id)
-	var cod_amount int64
-	err := row.Scan(&cod_amount)
-	return cod_amount, err
+type ShipmentCODRow struct {
+	CodAmount int64
+	Code      string
 }
 
-const transferKinds = `-- name: TransferKinds :many
-SELECT DISTINCT kind
-FROM cash.cod_transfers
+// Số COD và mã vận đơn nội bộ (cho cảnh báo), đọc qua view công bố của fulfillment.
+func (q *Queries) ShipmentCOD(ctx context.Context, id uuid.UUID) (ShipmentCODRow, error) {
+	row := q.db.QueryRow(ctx, shipmentCOD, id)
+	var i ShipmentCODRow
+	err := row.Scan(&i.CodAmount, &i.Code)
+	return i, err
+}
+
+const shipmentEntries = `-- name: ShipmentEntries :many
+SELECT transfer_id, account, amount
+FROM cash.cod_ledger_entries
 WHERE shipment_id = $1
+ORDER BY transfer_id, id
 `
 
-// Các loại bút toán đã ghi cho vận đơn.
-func (q *Queries) TransferKinds(ctx context.Context, shipmentID uuid.UUID) ([]string, error) {
-	rows, err := q.db.Query(ctx, transferKinds, shipmentID)
+type ShipmentEntriesRow struct {
+	TransferID uuid.UUID
+	Account    string
+	Amount     int64
+}
+
+// Mọi dòng sổ của vận đơn theo bút toán, thứ tự chèn.
+func (q *Queries) ShipmentEntries(ctx context.Context, shipmentID uuid.UUID) ([]ShipmentEntriesRow, error) {
+	rows, err := q.db.Query(ctx, shipmentEntries, shipmentID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []string{}
+	items := []ShipmentEntriesRow{}
 	for rows.Next() {
-		var kind string
-		if err := rows.Scan(&kind); err != nil {
+		var i ShipmentEntriesRow
+		if err := rows.Scan(&i.TransferID, &i.Account, &i.Amount); err != nil {
 			return nil, err
 		}
-		items = append(items, kind)
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const shipmentTransfers = `-- name: ShipmentTransfers :many
+SELECT t.id, t.kind, t.idempotency_key,
+       EXISTS (SELECT 1 FROM cash.cod_transfers r WHERE r.reverses_transfer_id = t.id) AS reversed
+FROM cash.cod_transfers t
+WHERE t.shipment_id = $1
+ORDER BY t.id
+`
+
+type ShipmentTransfersRow struct {
+	ID             uuid.UUID
+	Kind           string
+	IdempotencyKey string
+	Reversed       bool
+}
+
+// Bút toán của vận đơn theo thứ tự ghi (id uuidv7 tăng theo thời gian), kèm đã bị đảo chưa.
+func (q *Queries) ShipmentTransfers(ctx context.Context, shipmentID uuid.UUID) ([]ShipmentTransfersRow, error) {
+	rows, err := q.db.Query(ctx, shipmentTransfers, shipmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ShipmentTransfersRow{}
+	for rows.Next() {
+		var i ShipmentTransfersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.IdempotencyKey,
+			&i.Reversed,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

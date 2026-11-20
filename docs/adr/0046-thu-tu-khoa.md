@@ -74,6 +74,11 @@ trước (sự kiện vận đơn đổi đơn và tồn) khóa dòng nhóm trư
   người bán) (`queries/catalog/imports.sql` `LockImportApplySeller`) **trước mọi khóa dòng**, rồi khóa `catalog.imports`
   → danh mục (chia sẻ, id tăng dần) → mẫu có sẵn của plan (id tăng dần, `LockProductsByIDs`) → biến thể. Chỉ đường này
   lấy khóa đó: hai lần áp của cùng người bán chạy lần lượt, lần sau kiểm lại trên dữ liệu lần trước vừa ghi.
+- `cash` sổ COD theo vận đơn (M3 Task M3-29): đường ghi chọn bút toán theo số dư hiện tại của một vận đơn (consumer
+  `cash` theo `shipment.status_changed`; chốt bảng kê M3-32, điều chỉnh M3-33 khi làm phải lấy cùng khóa) lấy
+  `pg_advisory_xact_lock` theo vận đơn (`queries/cash/cod.sql` `LockShipmentCOD`, khóa `cash.cod:<shipment>`) **trước
+  mọi khóa dòng của nhóm 9**, rồi mới đọc số dư và chèn bút toán (`cod_transfers`, `cod_ledger_entries` chỉ chèn). Hai
+  đường cùng vận đơn chạy lần lượt; đường nhiều vận đơn lấy khóa theo mã vận đơn tăng dần.
 
 ## Luật cho mốc sau (Q-X4, C14)
 
