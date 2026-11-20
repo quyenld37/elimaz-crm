@@ -2,9 +2,12 @@
 
 -- name: InsertTransfer :one
 -- Chèn bút toán; trùng (tenant_id, idempotency_key) → không dòng nào (pgx.ErrNoRows).
-INSERT INTO cash.cod_transfers (tenant_id, shipment_id, kind, idempotency_key, reason, actor_type, actor_id)
+-- occurred_at rỗng → now() (giờ của transaction).
+INSERT INTO cash.cod_transfers (tenant_id, shipment_id, kind, idempotency_key, reason, actor_type, actor_id,
+                                statement_line_id, reverses_transfer_id, occurred_at)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, @shipment_id, @kind, @idempotency_key, @reason,
-        @actor_type, sqlc.narg(actor_id)::uuid)
+        @actor_type, sqlc.narg(actor_id)::uuid, sqlc.narg(statement_line_id)::uuid,
+        sqlc.narg(reverses_transfer_id)::uuid, coalesce(sqlc.narg(occurred_at)::timestamptz, now()))
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 RETURNING id;
 
@@ -14,8 +17,8 @@ FROM cash.cod_transfers
 WHERE idempotency_key = @idempotency_key;
 
 -- name: InsertEntry :exec
-INSERT INTO cash.cod_ledger_entries (tenant_id, transfer_id, account, amount)
-VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, @transfer_id, @account, @amount);
+INSERT INTO cash.cod_ledger_entries (tenant_id, transfer_id, shipment_id, account, amount)
+VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, @transfer_id, @shipment_id, @account, @amount);
 
 -- name: TransferKinds :many
 -- Các loại bút toán đã ghi cho vận đơn.

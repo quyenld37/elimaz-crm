@@ -32,41 +32,53 @@ func (q *Queries) GetTransferByKey(ctx context.Context, idempotencyKey string) (
 }
 
 const insertEntry = `-- name: InsertEntry :exec
-INSERT INTO cash.cod_ledger_entries (tenant_id, transfer_id, account, amount)
-VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3)
+INSERT INTO cash.cod_ledger_entries (tenant_id, transfer_id, shipment_id, account, amount)
+VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3, $4)
 `
 
 type InsertEntryParams struct {
 	TransferID uuid.UUID
+	ShipmentID uuid.UUID
 	Account    string
 	Amount     int64
 }
 
 func (q *Queries) InsertEntry(ctx context.Context, arg InsertEntryParams) error {
-	_, err := q.db.Exec(ctx, insertEntry, arg.TransferID, arg.Account, arg.Amount)
+	_, err := q.db.Exec(ctx, insertEntry,
+		arg.TransferID,
+		arg.ShipmentID,
+		arg.Account,
+		arg.Amount,
+	)
 	return err
 }
 
 const insertTransfer = `-- name: InsertTransfer :one
 
-INSERT INTO cash.cod_transfers (tenant_id, shipment_id, kind, idempotency_key, reason, actor_type, actor_id)
+INSERT INTO cash.cod_transfers (tenant_id, shipment_id, kind, idempotency_key, reason, actor_type, actor_id,
+                                statement_line_id, reverses_transfer_id, occurred_at)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3, $4,
-        $5, $6::uuid)
+        $5, $6::uuid, $7::uuid,
+        $8::uuid, coalesce($9::timestamptz, now()))
 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 RETURNING id
 `
 
 type InsertTransferParams struct {
-	ShipmentID     uuid.UUID
-	Kind           string
-	IdempotencyKey string
-	Reason         string
-	ActorType      string
-	ActorID        pgtype.UUID
+	ShipmentID         uuid.UUID
+	Kind               string
+	IdempotencyKey     string
+	Reason             string
+	ActorType          string
+	ActorID            pgtype.UUID
+	StatementLineID    pgtype.UUID
+	ReversesTransferID pgtype.UUID
+	OccurredAt         pgtype.Timestamptz
 }
 
 // Sổ COD (kế hoạch M1, Task M1-32; 05 mục 2). Chạy trong tenancy.WithTenant. Thứ tự khóa ADR-46 nhóm 9; chỉ chèn.
 // Chèn bút toán; trùng (tenant_id, idempotency_key) → không dòng nào (pgx.ErrNoRows).
+// occurred_at rỗng → now() (giờ của transaction).
 func (q *Queries) InsertTransfer(ctx context.Context, arg InsertTransferParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, insertTransfer,
 		arg.ShipmentID,
@@ -75,6 +87,9 @@ func (q *Queries) InsertTransfer(ctx context.Context, arg InsertTransferParams) 
 		arg.Reason,
 		arg.ActorType,
 		arg.ActorID,
+		arg.StatementLineID,
+		arg.ReversesTransferID,
+		arg.OccurredAt,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)

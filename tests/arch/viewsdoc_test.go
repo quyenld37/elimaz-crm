@@ -196,9 +196,10 @@ func TestViewsDocParses(t *testing.T) {
 		t.Fatalf("inventory.stock_available_v đọc sai: %v", got)
 	}
 	// 20 view của M1, 10 view mới của M2 viết trước ở Task M2-02 (kế hoạch M2; customers_v, orders_v là của M1) và 3 view
-	// mới của M3 Task 92 (carrier_accounts_v, shipment_events_v, locations_v).
-	if len(doc.views) != 33 {
-		t.Fatalf("docs/views.md phải có 33 view (20 của M1, 10 mới của M2, 3 mới của M3), có %d", len(doc.views))
+	// mới của M3 Task 92 (carrier_accounts_v, shipment_events_v, locations_v), 5 view mới của M3 Task 93 (shipment_cod_v,
+	// cod_transfers_v, payments_v, refund_obligations_v, reconcile_runs_v).
+	if len(doc.views) != 38 {
+		t.Fatalf("docs/views.md phải có 38 view (20 của M1, 10 mới của M2, 8 mới của M3), có %d", len(doc.views))
 	}
 	for _, bad := range []string{"| `catalog.variants` | `a` | 27 | M2 |", "| `catalog.x_v` | a, b | 27 | M2 |"} {
 		if _, err := parseViewsDoc([]byte("## View công bố\n\n| View | Cột | Task | Mốc |\n|---|---|---|---|\n" + bad + "\n")); err == nil {
