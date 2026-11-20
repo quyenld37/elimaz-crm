@@ -11,8 +11,9 @@ ORDER BY id
 FOR UPDATE;
 
 -- name: ReturnedLinesOfOrder :many
--- Dòng của mọi phiếu chưa hủy của đơn (đơn đã khóa: phiếu của đơn chỉ đổi khi giữ khóa đơn).
-SELECT ri.order_item_id, ri.quantity, ri.condition, ri.refund_amount, r.status
+-- Dòng của mọi phiếu chưa hủy của đơn (đơn đã khóa: phiếu của đơn chỉ đổi khi giữ khóa đơn). missing_qty > 0: dòng đã
+-- nhận có món thiếu (M3-24).
+SELECT ri.order_item_id, ri.quantity, ri.condition, ri.refund_amount, ri.missing_qty, r.status
 FROM ord.return_items AS ri
 JOIN ord.returns AS r ON r.id = ri.return_id
 WHERE r.order_id = @order_id AND r.status <> 'cancelled';

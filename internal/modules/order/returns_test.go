@@ -52,6 +52,16 @@ func itemOf(t *testing.T, o order.Order, v uuid.UUID) order.Item {
 	return order.Item{}
 }
 
+// exchangeReturn tạo phiếu đổi lines của đơn o, đơn thay thế giữ một biến thể mới (250.000, tồn 3) ×1, địa chỉ của
+// đơn gốc. Trả phiếu và biến thể mới.
+func (e *orderEnv) exchangeReturn(o uuid.UUID, lines ...order.ReturnLineInput) (order.Return, uuid.UUID) {
+	e.t.Helper()
+	al := e.variant(250000, 3)
+	repl := e.m2Input(0, ln(al, 1, 0))
+	repl.ShipAddress = nil
+	return e.mustReturn(o, order.CreateReturnInput{Kind: order.ReturnExchange, Lines: lines, Replacement: &repl}), al
+}
+
 func custReturn(lines ...order.ReturnLineInput) order.CreateReturnInput {
 	return order.CreateReturnInput{Kind: order.ReturnCustomer, Lines: lines, Reason: "khách không vừa"}
 }
@@ -321,12 +331,7 @@ func TestReceiveReturn_DamagedAndMissing(t *testing.T) {
 func TestCreateReturn_TD06Exchange(t *testing.T) {
 	e := newM2Env(t)
 	o, a, _ := e.orderD()
-	al := e.variant(250000, 3)
-	repl := e.m2Input(0, ln(al, 1, 0))
-	repl.ShipAddress = nil
-	r := e.mustReturn(o.ID, order.CreateReturnInput{
-		Kind: order.ReturnExchange, Lines: []order.ReturnLineInput{rl(itemOf(t, o, a).ID, 1)}, Replacement: &repl,
-	})
+	r, al := e.exchangeReturn(o.ID, rl(itemOf(t, o, a).ID, 1))
 	if r.Kind != order.ReturnExchange || r.Status != order.ReturnRequested || r.ReplacementOrderID == nil {
 		t.Fatalf("phiếu đổi: %+v", r)
 	}
