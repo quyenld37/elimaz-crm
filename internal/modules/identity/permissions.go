@@ -37,7 +37,8 @@ type PermissionDef struct {
 	Scope ScopeKind
 }
 
-// Permissions là mọi quyền của CRM: M0 (kế hoạch M0 Task 7), M1 (kế hoạch M1 Task M1-26) và M2 (Task M2-01). Bảng chuẩn kèm việc
+// Permissions là mọi quyền của CRM: M0 (kế hoạch M0 Task 7), M1 (kế hoạch M1 Task M1-26), M2 (Task M2-01) và M3
+// (Task M3-04). Bảng chuẩn kèm việc
 // của từng quyền: docs/quyen.md (test giữ hai bên khớp). Mốc sau chỉ thêm quyền, không đổi loại phạm vi của quyền
 // đã có (ngoại lệ đã duyệt: Task 315 lượt 2 chuyển sáu quyền quản trị sang ScopeShop). Quyền mới ghi chính sách
 // toàn shop hay quản trị là ScopeShop. Route khai quyền ngoài danh sách này thì tests/arch đỏ.
@@ -81,6 +82,26 @@ var Permissions = []PermissionDef{ //nolint:gochecknoglobals // danh sách hằn
 	{"order.settings.manage", ScopeShop},
 	{"promotion.read", ScopeNone},
 	{"promotion.manage", ScopeShop},
+	// M3 (kế hoạch M3 Task M3-04). Kết nối hãng và cài đặt vận chuyển là chính sách toàn shop: ScopeShop. Thao tác
+	// của kho (báo phí, hủy, in tem, đóng gói, cập nhật tay, giữ hàng quá hạn) theo kho như fulfillment.ship.
+	{"fulfillment.carrier_accounts.read", ScopeNone},
+	{"fulfillment.carrier_accounts.manage", ScopeShop},
+	{"fulfillment.settings.manage", ScopeShop},
+	{"fulfillment.quote", ScopeByTarget},
+	{"fulfillment.cancel", ScopeByTarget},
+	{"fulfillment.print", ScopeByTarget},
+	{"fulfillment.pack", ScopeByTarget},
+	{"fulfillment.manual_status", ScopeByTarget},
+	{"fulfillment.correct", ScopeNone},
+	{"fulfillment.callbacks.work", ScopeNone},
+	{"inventory.aged.read", ScopeByTarget},
+	{"cash.cod.read", ScopeNone},
+	{"cash.statements.import", ScopeNone},
+	{"cash.statements.confirm", ScopeNone},
+	{"cash.adjust", ScopeNone},
+	{"cash.payments.record", ScopeNone},
+	{"cash.refunds.record", ScopeNone},
+	{"cash.refunds.waive", ScopeNone},
 }
 
 // Loại phạm vi của một grant (cột user_role_grants.scope_type).

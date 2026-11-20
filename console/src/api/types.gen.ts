@@ -31,6 +31,10 @@ export type Error = {
      * Chỉ có ở setting_out_of_range — tên trường cài đặt đơn ngoài khoảng (Task M2-15)
      */
     field?: 'draftTtlMinutes' | 'duplicateWindowMinutes' | 'discountApprovalThresholdBp' | 'returnWarningDays';
+    /**
+     * Chỉ có ở statement_duplicate — bảng kê COD đã nhập trước với cùng tệp (Task M3-31)
+     */
+    statementId?: string;
 };
 
 export type HealthStatus = {
@@ -499,8 +503,30 @@ export type OrderItem = {
     allocatedOrderDiscount?: Money;
 };
 
+/**
+ * Thân của M1 ({carrierAccountId}) vẫn hợp lệ. M3 (Task M3-12, M3-15) thêm trường tùy chọn; bỏ trống thì dùng mặc định của tài khoản hãng và cài đặt vận chuyển. trackingCode, feeActual chỉ cho tài khoản nhập tay (mode manual; hãng self thì CRM tự sinh mã).
+ */
 export type CreateShipmentRequest = {
     carrierAccountId: string;
+    /**
+     * Mã dịch vụ của hãng; rỗng là dịch vụ mặc định của tài khoản
+     */
+    service?: string;
+    /**
+     * Dòng báo phí đã chọn; hết hạn hoặc đơn đã đổi → 409 quote_stale
+     */
+    quoteId?: string;
+    weightGrams?: number;
+    lengthCm?: number;
+    widthCm?: number;
+    heightCm?: number;
+    declaredValue?: Money;
+    options?: CarrierOptions;
+    /**
+     * Mã hãng nhập tay (chỉ tài khoản mode manual); trùng vận đơn khác → 409 tracking_code_conflict
+     */
+    trackingCode?: string;
+    feeActual?: Money;
 };
 
 export type Shipment = {
@@ -516,11 +542,56 @@ export type Shipment = {
      * Mã của hãng; chưa có khi vận đơn còn creating
      */
     trackingCode?: string;
-    status: 'creating' | 'awaiting_pickup' | 'shipping' | 'delivered' | 'cancelled';
+    status: ShipmentStatus;
     codAmount: Money;
     fee?: Money;
     createdAt: string;
+    accountName?: string;
+    mode?: CarrierAccountMode;
+    service?: string;
+    /**
+     * Nhãn hiển thị của trạng thái (orderview)
+     */
+    label?: string;
+    /**
+     * Trạng thái phụ của hãng (mã, không dữ liệu cá nhân)
+     */
+    subStatus?: string;
+    /**
+     * Kết quả lệnh tạo ở hãng (Q-5); unknown là "không rõ hãng đã tạo chưa"
+     */
+    createState?: 'pending' | 'not_sent' | 'unknown' | 'created' | 'rejected' | 'manual';
+    /**
+     * Lý do hủy: order_cancel, replace, create_rejected, carrier_cancelled, manual, staff_after_unknown
+     */
+    cancelKind?: string;
+    codCollectedAmount?: Money;
+    feeActual?: Money;
+    weightGrams?: number;
+    options?: CarrierOptions;
+    pickedUpAt?: string;
+    deliveredAt?: string;
+    lastStatusAt?: string;
+    lastCarrierEventAt?: string;
+    lastSyncedAt?: string;
+    /**
+     * Mã lỗi lần tra gần nhất (không thông điệp thô của hãng)
+     */
+    lastSyncError?: string;
+    stuckSince?: string;
+    needsReview?: boolean;
+    labelReady?: boolean;
+    /**
+     * Giao một phần (Task M3-26)
+     */
+    partial?: boolean;
+    version?: number;
 };
+
+/**
+ * Trạng thái vận đơn (M1 năm giá trị; M3 Task M3-07 thêm delivery_failed, returning, returned, cancel_requested). creating là "đang gửi hãng".
+ */
+export type ShipmentStatus = 'creating' | 'awaiting_pickup' | 'shipping' | 'delivery_failed' | 'delivered' | 'returning' | 'returned' | 'cancel_requested' | 'cancelled';
 
 /**
  * Tiền, số nguyên đồng
@@ -1140,7 +1211,7 @@ export type Note = {
 export type TimelineItem = {
     at: string;
     /**
-     * Chuỗi mở, không phải enum (M4 thêm conversation, C7). Khách: order_created, order_status, note, merge, merge_undone, tag. Đơn: status, edit, note.
+     * Chuỗi mở, không phải enum (M4 thêm conversation, C7). Khách: order_created, order_status, note, merge, merge_undone, tag. Đơn: status, edit, note; M3 thêm shipment, payment, return.
      */
     kind: string;
     refId: string;
@@ -1523,6 +1594,8 @@ export type OrderListItem = {
     careBy?: Actor;
     createdAt: string;
     duplicateSuspect: boolean;
+    shipment?: OrderShipmentSummary;
+    cod?: OrderCodSummary;
 };
 
 export type OrderPage = {
@@ -1614,6 +1687,18 @@ export type ReceiveReturnRequest = {
     lines: Array<{
         orderItemId: string;
         condition: 'sellable' | 'damaged' | 'missing';
+        /**
+         * Số lượng nhập lại kho bán được (M3, Task M3-23); có đủ ba số thì bỏ qua condition
+         */
+        sellable?: number;
+        /**
+         * Số lượng hỏng (M3); sellable + damaged + missing phải bằng số trên dòng phiếu
+         */
+        damaged?: number;
+        /**
+         * Số lượng thiếu (M3)
+         */
+        missing?: number;
     }>;
 };
 
@@ -1800,6 +1885,934 @@ export type CouponCheck = {
     remainingUses?: number;
 };
 
+/**
+ * Việc nền đã ghi; kết quả đến qua luồng báo tức thời hoặc đọc lại tài nguyên
+ */
+export type JobAccepted = {
+    jobId: string;
+};
+
+/**
+ * api = gọi API của hãng; manual = nhân viên nhập mã hãng, cập nhật tay (hãng self luôn manual)
+ */
+export type CarrierAccountMode = 'api' | 'manual';
+
+/**
+ * disabled là giá trị cũ của M1 (migration đổi thành paused)
+ */
+export type CarrierAccountStatus = 'draft' | 'checking' | 'active' | 'auth_failed' | 'paused' | 'revoked' | 'disabled';
+
+/**
+ * Tùy chọn gửi hãng (fulfillment.Options)
+ */
+export type CarrierOptions = {
+    /**
+     * Cho xem hàng (mã của CRM; adapter đổi sang mã hãng)
+     */
+    inspection?: string;
+    feeOnRefuse?: Money;
+    /**
+     * Bên trả phí ship (shop, receiver)
+     */
+    payer?: string;
+    /**
+     * true = hãng tới lấy; false = shop mang ra bưu cục
+     */
+    pickup?: boolean;
+    /**
+     * Ghi chú cho hãng
+     */
+    note?: string;
+};
+
+/**
+ * Việc adapter của hãng làm được (fulfillment.Capabilities)
+ */
+export type CarrierCapabilities = {
+    quote: boolean;
+    create: boolean;
+    lookupByRef?: boolean;
+    cancel: boolean;
+    cancelIdempotent?: boolean;
+    track: boolean;
+    webhook: boolean;
+    labels: boolean;
+    labelsBatch?: boolean;
+    updateAddress: boolean;
+    redeliver: boolean;
+    locations: boolean;
+    statement: boolean;
+    inspection?: boolean;
+    declaredValue?: boolean;
+    feeOnRefuse?: boolean;
+};
+
+/**
+ * Tài khoản hãng (AccountView). Không bao giờ có khóa API; chỉ hasCredentials.
+ */
+export type CarrierAccount = {
+    id: string;
+    sellerId?: string;
+    carrierKey: string;
+    mode: CarrierAccountMode;
+    environment: 'sandbox' | 'production';
+    name: string;
+    status: CarrierAccountStatus;
+    warehouseId: string;
+    defaultService?: string;
+    defaultOptions?: CarrierOptions;
+    isDefaultForWarehouse: boolean;
+    showOnWeb: boolean;
+    webSort: number;
+    lastCheckAt?: string;
+    /**
+     * Mã kết quả lần kiểm gần nhất (không thông điệp thô của hãng)
+     */
+    lastCheckResult?: string;
+    hasCredentials: boolean;
+    /**
+     * Khóa API đang mã hóa bằng khóa cũ; ghi lại khóa để mã hóa bằng khóa mới
+     */
+    needsRewrap: boolean;
+    /**
+     * Đường nhận webhook /hooks/<hãng>/<routeKey>; chỉ trả cho người có quyền manage
+     */
+    webhookUrl?: string;
+    capabilities?: CarrierCapabilities;
+    version: number;
+};
+
+export type CarrierAccountPage = {
+    items: Array<CarrierAccount>;
+    nextCursor?: string;
+};
+
+/**
+ * Bộ khóa API của hãng (tên trường theo hãng); chỉ ghi, không bao giờ trả lại
+ */
+export type CarrierCredentials = {
+    [key: string]: string;
+};
+
+export type CreateCarrierAccountRequest = {
+    carrierKey: string;
+    mode: CarrierAccountMode;
+    environment?: 'sandbox' | 'production';
+    name: string;
+    /**
+     * Bỏ trống là người bán của shop
+     */
+    sellerId?: string;
+    /**
+     * Mã tài khoản ở hãng (shop id); rỗng thì CRM ghi local:<id>
+     */
+    externalAccountRef?: string;
+    warehouseId: string;
+    defaultService?: string;
+    defaultOptions?: CarrierOptions;
+    isDefaultForWarehouse?: boolean;
+    showOnWeb?: boolean;
+    webSort?: number;
+    credentials?: CarrierCredentials;
+};
+
+/**
+ * Chỉ gửi trường người dùng đổi
+ */
+export type UpdateCarrierAccountRequest = {
+    version: number;
+    name?: string;
+    environment?: 'sandbox' | 'production';
+    externalAccountRef?: string;
+    warehouseId?: string;
+    defaultService?: string;
+    defaultOptions?: CarrierOptions;
+    isDefaultForWarehouse?: boolean;
+    showOnWeb?: boolean;
+    webSort?: number;
+};
+
+export type PutCarrierCredentialsRequest = {
+    credentials: CarrierCredentials;
+};
+
+export type SetCarrierAccountStatusRequest = {
+    status: 'active' | 'paused' | 'revoked';
+    /**
+     * Có thì phải khớp (sai → 409 version_conflict)
+     */
+    version?: number;
+};
+
+/**
+ * Địa chỉ lấy hàng của kho (của shop, không phải của khách)
+ */
+export type SetWarehousePickupRequest = {
+    version: number;
+    name: string;
+    phone: PhoneInput;
+    line: string;
+    provinceCode: string;
+    wardCode: string;
+};
+
+export type WarehousePickup = {
+    warehouseId: string;
+    name?: string;
+    phone?: string;
+    line?: string;
+    provinceCode?: string;
+    wardCode?: string;
+    version: number;
+};
+
+export type UnmappedLocation = {
+    level: 'province' | 'ward';
+    ourCode: string;
+    name: string;
+    parentCode?: string;
+};
+
+export type UnmappedLocationPage = {
+    items: Array<UnmappedLocation>;
+    nextCursor?: string;
+};
+
+/**
+ * Mọi trường tùy chọn; bỏ trống carrierAccountIds = mọi tài khoản active báo phí được của kho đơn
+ */
+export type RequestShippingQuotesRequest = {
+    weightGrams?: number;
+    declaredValue?: Money;
+    options?: CarrierOptions;
+    carrierAccountIds?: Array<string>;
+};
+
+export type ShippingQuoteAccount = {
+    id: string;
+    name: string;
+    carrierKey: string;
+};
+
+export type ShippingQuoteRequestAccepted = {
+    requestId: string;
+    accounts: Array<ShippingQuoteAccount>;
+};
+
+/**
+ * feeTotal chỉ có khi status ok (không bao giờ 0 thay cho lỗi)
+ */
+export type ShippingQuote = {
+    quoteId?: string;
+    carrierAccountId: string;
+    accountName: string;
+    carrierKey: string;
+    status: 'pending' | 'ok' | 'error' | 'unavailable';
+    service?: string;
+    serviceName?: string;
+    feeTotal?: Money;
+    expectedDays?: number;
+    validUntil?: string;
+    /**
+     * timeout, rate_limited, auth, address_unmapped, rejected
+     */
+    errorCode?: string;
+};
+
+export type ShippingQuoteList = {
+    requestId?: string;
+    items: Array<ShippingQuote>;
+};
+
+export type ShipmentPage = {
+    items: Array<Shipment>;
+    nextCursor?: string;
+};
+
+/**
+ * Một sự kiện của vận đơn; không có thân thô của hãng
+ */
+export type ShipmentEvent = {
+    id?: string;
+    occurredAt: string;
+    recordedAt: string;
+    source: 'carrier_api' | 'carrier_webhook' | 'staff' | 'system';
+    rawStatus: string;
+    label?: string;
+    status?: ShipmentStatus;
+    applied?: boolean;
+    /**
+     * older, duplicate_state, not_current, invalid_edge, unmapped, review
+     */
+    ignoredReason?: string;
+};
+
+export type ShipmentEventPage = {
+    items: Array<ShipmentEvent>;
+    nextCursor?: string;
+};
+
+export type ResolveShipmentCreateRequest = {
+    result: 'created' | 'not_created';
+    /**
+     * Bắt buộc khi result created
+     */
+    trackingCode?: string;
+    reason: string;
+};
+
+export type CancelShipmentRequest = {
+    reason: string;
+};
+
+export type SetShipmentManualStatusRequest = {
+    /**
+     * returned không nhận ở đây (chỉ qua nhận hàng hoàn)
+     */
+    to: 'shipping' | 'delivery_failed' | 'delivered' | 'returning' | 'cancelled';
+    at: string;
+    reason: string;
+    codCollected?: Money;
+    /**
+     * Có thì phải khớp version của vận đơn
+     */
+    version?: number;
+};
+
+export type RequestAddressChangeRequest = {
+    address: AddressInput;
+    note?: string;
+};
+
+export type ResolveAddressChangeRequest = {
+    result: 'confirmed' | 'rejected';
+    note?: string;
+};
+
+/**
+ * Yêu cầu đổi địa chỉ (không trả lại địa chỉ)
+ */
+export type AddressChange = {
+    id: string;
+    shipmentId: string;
+    mode: CarrierAccountMode;
+    status: 'pending' | 'sent' | 'confirmed' | 'rejected' | 'unknown';
+    note?: string;
+    createdAt: string;
+    resolvedAt?: string;
+};
+
+export type CreateLabelBatchRequest = {
+    shipmentIds: Array<string>;
+};
+
+export type LabelBatchSummary = {
+    id: string;
+    carrierAccountId: string;
+    count: number;
+};
+
+export type LabelBatchSkipped = {
+    shipmentId: string;
+    /**
+     * no_carrier_label, no_tracking_code
+     */
+    reason: string;
+};
+
+export type LabelBatchCreated = {
+    batches: Array<LabelBatchSummary>;
+    skipped: Array<LabelBatchSkipped>;
+};
+
+export type LabelBatch = {
+    id: string;
+    carrierAccountId: string;
+    status: 'pending' | 'ready' | 'failed';
+    count: number;
+    /**
+     * Đường dẫn ký sẵn 5 phút; chỉ có khi ready
+     */
+    url?: string;
+    errorCode?: string;
+    createdAt: string;
+};
+
+export type PickingLine = {
+    sku: string;
+    name: string;
+    variant?: string;
+    qty: number;
+    orderCodes: Array<string>;
+};
+
+export type PickingOrder = {
+    code: string;
+    shipmentCode: string;
+    trackingCode?: string;
+    carrier: string;
+    itemCount: number;
+    codAmount: Money;
+};
+
+export type PickingList = {
+    lines: Array<PickingLine>;
+    orders: Array<PickingOrder>;
+};
+
+export type SetPackingStatusRequest = {
+    orderIds: Array<string>;
+    to: 'picking' | 'packed';
+};
+
+export type PackingResult = {
+    orderId: string;
+    result: 'updated' | 'already_further' | 'not_allowed';
+};
+
+export type PackingResultList = {
+    items: Array<PackingResult>;
+};
+
+export type DeliveryStats = {
+    delivered: number;
+    returned: number;
+    /**
+     * Tỷ lệ hoàn theo phần vạn (công thức của M2); 0 khi chưa có đơn kết thúc
+     */
+    returnRateBp: number;
+    risk: 'none' | 'watch' | 'high';
+    /**
+     * Câu gợi ý tiếng Việt; rỗng khi risk none
+     */
+    hint?: string;
+};
+
+export type CallbackTask = {
+    id: string;
+    shipmentId: string;
+    orderId: string;
+    orderCode: string;
+    customerName?: string;
+    carrierKey?: string;
+    trackingCode?: string;
+    attemptNo: number;
+    failedReason?: string;
+    failedAt: string;
+    dueAt: string;
+    overdue: boolean;
+    status: 'open' | 'in_progress' | 'done' | 'closed';
+    /**
+     * redeliver, redeliver_new_address, customer_cancel, no_answer, reschedule, carrier_returning, delivered
+     */
+    outcome?: string;
+    nextCallAt?: string;
+    assignee?: Actor;
+    deliveryStats?: DeliveryStats;
+    version: number;
+};
+
+export type CallbackTaskPage = {
+    items: Array<CallbackTask>;
+    nextCursor?: string;
+    /**
+     * Số việc mở (đếm tối đa 1.000)
+     */
+    openCount?: number;
+};
+
+export type RecordCallbackOutcomeRequest = {
+    outcome: 'redeliver' | 'redeliver_new_address' | 'customer_cancel' | 'no_answer' | 'reschedule';
+    note?: string;
+    nextCallAt?: string;
+    newAddress?: AddressInput;
+    version: number;
+};
+
+export type AssignCallbackTaskRequest = {
+    assigneeId: string;
+    /**
+     * Có thì phải khớp version của việc
+     */
+    version?: number;
+};
+
+export type StuckShipment = {
+    shipmentId: string;
+    orderId?: string;
+    orderCode: string;
+    carrierKey: string;
+    accountName?: string;
+    trackingCode?: string;
+    status: ShipmentStatus;
+    label?: string;
+    stuckSince: string;
+    lastCarrierEventAt?: string;
+    lastSyncedAt?: string;
+    lastSyncError?: string;
+    hoursSinceUpdate: number;
+};
+
+export type StuckShipmentPage = {
+    items: Array<StuckShipment>;
+    nextCursor?: string;
+};
+
+export type ShipmentReviewItem = {
+    anomalyId: string;
+    shipmentId: string;
+    orderId?: string;
+    orderCode: string;
+    /**
+     * Loại anomaly (in_doubt_create, manual_cancel, tracking_conflict, missing_items…); chuỗi mở
+     */
+    kind: string;
+    /**
+     * Câu tiếng Việt kèm hướng xử lý
+     */
+    label: string;
+    /**
+     * Mã, trạng thái, số tiền (dạng chuỗi); không dữ liệu cá nhân
+     */
+    detail?: {
+        [key: string]: string;
+    };
+    createdAt: string;
+};
+
+export type ShipmentReviewCounts = {
+    review: number;
+    stuck: number;
+    callbacksOpen: number;
+    callbacksOverdue: number;
+    inDoubt: number;
+};
+
+export type ShipmentReviewPage = {
+    items: Array<ShipmentReviewItem>;
+    counts: ShipmentReviewCounts;
+    nextCursor?: string;
+};
+
+export type ResolveShipmentAnomalyRequest = {
+    resolution: string;
+};
+
+export type ShipmentAnomaly = {
+    id: string;
+    shipmentId: string;
+    kind: string;
+    status: 'open' | 'resolved';
+    resolution?: string;
+    resolvedAt?: string;
+    createdAt: string;
+};
+
+export type AgedReservation = {
+    reservationId: string;
+    orderItemId: string;
+    orderId: string;
+    orderCode: string;
+    variantId: string;
+    sku: string;
+    warehouseId: string;
+    state: 'held' | 'in_transit';
+    quantity: number;
+    since: string;
+    ageDays: number;
+};
+
+export type AgedReservationPage = {
+    items: Array<AgedReservation>;
+    nextCursor?: string;
+};
+
+export type RecordPartialDeliveryRequest = {
+    items: Array<{
+        orderItemId: string;
+        deliveredQty: number;
+    }>;
+    codCollected: Money;
+    reason: string;
+};
+
+export type ShipmentCorrectionRequest = {
+    to: 'returning';
+    reason: string;
+};
+
+export type ApplyShipmentCorrectionRequest = {
+    to: 'returning';
+    reason: string;
+    previewToken: string;
+};
+
+export type ShipmentCorrectionPreview = {
+    shipmentId: string;
+    from: string;
+    to: string;
+    /**
+     * Câu tiếng Việt cho từng tác động
+     */
+    effects: Array<string>;
+    /**
+     * Lý do chặn (câu tiếng Việt); khác rỗng thì không áp được
+     */
+    blocking: Array<string>;
+    token: string;
+};
+
+export type CodAccount = 'to_collect' | 'carrier_holding' | 'shop_received' | 'carrier_fee' | 'sales_clearing';
+
+export type CodBalances = {
+    toCollect: SignedMoney;
+    carrierHolding: SignedMoney;
+    shopReceived: SignedMoney;
+    carrierFee: SignedMoney;
+    salesClearing: SignedMoney;
+};
+
+export type CodEntry = {
+    account: CodAccount;
+    amount: SignedMoney;
+};
+
+export type CodTransfer = {
+    id: string;
+    shipmentId?: string;
+    kind: 'expected' | 'collected' | 'remitted' | 'returned' | 'adjustment' | 'fee' | 'reversal';
+    occurredAt: string;
+    entries: Array<CodEntry>;
+    reason?: string;
+    actor?: Actor;
+    statementLineId?: string;
+    reversesTransferId?: string;
+};
+
+export type ShipmentCod = {
+    balances: CodBalances;
+    transfers: Array<CodTransfer>;
+};
+
+export type RecordPaymentRequest = {
+    method: 'bank_transfer' | 'deposit' | 'cash';
+    amount: Money;
+    reference?: string;
+    /**
+     * Bỏ trống là lúc ghi
+     */
+    receivedAt?: string;
+};
+
+export type Payment = {
+    id: string;
+    orderId: string;
+    method: 'bank_transfer' | 'deposit' | 'cash' | 'exchange_credit' | 'refund';
+    amount: SignedMoney;
+    reference?: string;
+    refundObligationId?: string;
+    receivedAt: string;
+    actor?: Actor;
+    createdAt: string;
+};
+
+export type PaymentPage = {
+    items: Array<Payment>;
+    nextCursor?: string;
+};
+
+export type RefundObligation = {
+    id: string;
+    orderId: string;
+    orderCode?: string;
+    returnId?: string;
+    source: 'order_cancel' | 'customer_return' | 'exchange' | 'partial_delivery';
+    amount: Money;
+    paidAmount: Money;
+    status: 'open' | 'paid' | 'waived';
+    waiveReason?: string;
+    createdAt: string;
+    version: number;
+};
+
+export type RefundObligationPage = {
+    items: Array<RefundObligation>;
+    nextCursor?: string;
+};
+
+export type PayRefundObligationRequest = {
+    amount: Money;
+    reference?: string;
+};
+
+export type WaiveRefundObligationRequest = {
+    reason: string;
+};
+
+export type ImportCodStatementRequest = {
+    carrierAccountId: string;
+    /**
+     * Tệp đã tải lên với mục đích cod_statement (createUpload, completeUpload)
+     */
+    fileId: string;
+    /**
+     * Định dạng bảng kê; rỗng là định dạng mặc định của hãng
+     */
+    format?: string;
+};
+
+export type CodStatementStatus = 'imported' | 'parsing' | 'parse_failed' | 'parsed' | 'matched' | 'confirmed';
+
+export type CodMatchStatus = 'pending' | 'matched' | 'amount_mismatch' | 'external' | 'duplicate' | 'fee_only';
+
+export type CodStatementParseError = {
+    /**
+     * missing_column, bad_amount, too_many_rows, formula_not_allowed…
+     */
+    code: string;
+    column?: string;
+    line?: number;
+};
+
+export type CodStatement = {
+    id: string;
+    carrierKey: string;
+    carrierAccountId: string;
+    fileId: string;
+    format: string;
+    periodFrom?: string;
+    periodTo?: string;
+    declaredTotal?: SignedMoney;
+    status: CodStatementStatus;
+    parseError?: CodStatementParseError;
+    lineCount: number;
+    importedBy?: Actor;
+    confirmedBy?: Actor;
+    confirmedAt?: string;
+    createdAt: string;
+    version: number;
+};
+
+export type CodStatementPage = {
+    items: Array<CodStatement>;
+    nextCursor?: string;
+};
+
+export type CodStatementLine = {
+    id: string;
+    lineNo: number;
+    trackingCode: string;
+    shipmentId?: string;
+    codAmount: Money;
+    feeAmount: SignedMoney;
+    otherFee: SignedMoney;
+    netAmount: SignedMoney;
+    paidOn?: string;
+    matchStatus: CodMatchStatus;
+    expectedAmount?: SignedMoney;
+    diffAmount?: SignedMoney;
+    postedTransferId?: string;
+};
+
+export type CodMatchTotal = {
+    matchStatus: CodMatchStatus;
+    count: number;
+    codAmount: Money;
+};
+
+export type CodStatementDetail = {
+    statement: CodStatement;
+    totals: Array<CodMatchTotal>;
+    lines: Array<CodStatementLine>;
+    nextCursor?: string;
+};
+
+export type CodStatementConfirmed = {
+    statement: CodStatement;
+    /**
+     * Cảnh báo không chặn (ví dụ tổng thực nhận lệch tổng khai trên tệp)
+     */
+    warnings: Array<string>;
+};
+
+export type CodDiscrepancy = {
+    kind: 'statement_line' | 'open_remainder' | 'remitted_then_returned';
+    statementId?: string;
+    lineNo?: number;
+    shipmentId?: string;
+    orderCode?: string;
+    trackingCode?: string;
+    codAmount?: Money;
+    expectedAmount?: SignedMoney;
+    diff?: SignedMoney;
+    matchStatus?: CodMatchStatus;
+};
+
+export type CodDiscrepancyPage = {
+    items: Array<CodDiscrepancy>;
+    nextCursor?: string;
+};
+
+export type CodOverdue = {
+    shipmentId: string;
+    orderId?: string;
+    orderCode: string;
+    carrierKey: string;
+    trackingCode: string;
+    deliveredAt: string;
+    carrierHolding: SignedMoney;
+    days: number;
+};
+
+export type CodOverduePage = {
+    items: Array<CodOverdue>;
+    nextCursor?: string;
+};
+
+/**
+ * reverse cần reversesTransferId; move cần from, to, amount
+ */
+export type CodAdjustmentRequest = {
+    shipmentId: string;
+    mode: 'reverse' | 'move';
+    reversesTransferId?: string;
+    from?: CodAccount;
+    to?: CodAccount;
+    amount?: Money;
+    reason: string;
+};
+
+/**
+ * Như CodAdjustmentRequest cộng token của bản xem trước
+ */
+export type CreateCodAdjustmentRequest = {
+    shipmentId: string;
+    mode: 'reverse' | 'move';
+    reversesTransferId?: string;
+    from?: CodAccount;
+    to?: CodAccount;
+    amount?: Money;
+    reason: string;
+    token: string;
+};
+
+export type CodAdjustmentTransfer = {
+    kind: 'adjustment' | 'reversal';
+    entries: Array<CodEntry>;
+};
+
+export type CodAdjustmentPreview = {
+    before: CodBalances;
+    after: CodBalances;
+    transfer: CodAdjustmentTransfer;
+    warnings: Array<string>;
+    token: string;
+};
+
+export type ReconcileFinding = {
+    id: string;
+    runId: string;
+    /**
+     * ledger_nonzero, transfer_unbalanced, balance_mismatch, skipped; chuỗi mở
+     */
+    kind: string;
+    shipmentId?: string;
+    /**
+     * Mã, số tiền (dạng chuỗi); không dữ liệu cá nhân
+     */
+    detail?: {
+        [key: string]: string;
+    };
+    createdAt: string;
+};
+
+export type ReconcileFindingPage = {
+    /**
+     * Lần chạy đang xem; không có khi chưa chạy lần nào
+     */
+    runId?: string;
+    runAt?: string;
+    items: Array<ReconcileFinding>;
+    nextCursor?: string;
+};
+
+export type ReturnRiskSettings = {
+    watchMinReturned: number;
+    highMinReturned: number;
+    /**
+     * 1–10.000 (phần vạn)
+     */
+    highRateBp: number;
+};
+
+export type AgedDaysSettings = {
+    held: number;
+    inTransit: number;
+};
+
+export type FulfillmentSettings = {
+    /**
+     * Số giờ không cập nhật thì coi là kẹt, theo trạng thái vận đơn
+     */
+    stuckHours: {
+        [key: string]: number;
+    };
+    callbackDeadlineHours: number;
+    /**
+     * Chu kỳ tra trạng thái (phút) theo trạng thái vận đơn
+     */
+    pollMinutes: {
+        [key: string]: number;
+    };
+    defaultWeightGramsPerItem: number;
+    quoteValidMinutes: number;
+    returnRisk: ReturnRiskSettings;
+    codOverdueDays: number;
+    agedDays: AgedDaysSettings;
+    /**
+     * 0 khi shop chưa lưu cài đặt nào (đang dùng mặc định)
+     */
+    version: number;
+};
+
+/**
+ * Ghi cả bộ; mọi số > 0, highRateBp 1–10.000 (kiểm ở máy chủ, sai → 422)
+ */
+export type UpdateFulfillmentSettingsRequest = {
+    stuckHours: {
+        [key: string]: number;
+    };
+    callbackDeadlineHours: number;
+    pollMinutes: {
+        [key: string]: number;
+    };
+    defaultWeightGramsPerItem: number;
+    quoteValidMinutes: number;
+    returnRisk: ReturnRiskSettings;
+    codOverdueDays: number;
+    agedDays: AgedDaysSettings;
+    /**
+     * Version đang lưu (0 khi shop chưa lưu lần nào); âm → 400
+     */
+    version: number;
+};
+
+export type OrderShipmentSummary = {
+    code: string;
+    carrierKey: string;
+    trackingCode?: string;
+    status: ShipmentStatus;
+    label?: string;
+    stuckSince?: string;
+    needsReview?: boolean;
+};
+
+export type OrderCodSummary = {
+    toCollect: SignedMoney;
+    carrierHolding: SignedMoney;
+    shopReceived: SignedMoney;
+};
+
 export type ProductWritable = {
     id: string;
     code: string;
@@ -1873,6 +2886,22 @@ export type TrafficSourceId = string;
 export type CouponId = string;
 
 export type CouponBatchId = string;
+
+export type CarrierAccountId = string;
+
+export type WarehouseId = string;
+
+export type AddressChangeId = string;
+
+export type LabelBatchId = string;
+
+export type CallbackTaskId = string;
+
+export type ShipmentAnomalyId = string;
+
+export type RefundObligationId = string;
+
+export type CodStatementId = string;
 
 /**
  * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
@@ -3846,6 +4875,22 @@ export type ListOrdersData = {
         q?: string;
         duplicateSuspect?: boolean;
         /**
+         * Hãng của vận đơn hiện hành (M3, Task M3-28)
+         */
+        carrierKey?: string;
+        /**
+         * Trạng thái vận đơn hiện hành (M3, Task M3-28)
+         */
+        shipmentStatus?: Array<ShipmentStatus>;
+        /**
+         * collecting = còn phải thu; holding = hãng đang giữ; received = shop đã nhận; none = không có COD (M3, Task M3-28)
+         */
+        codState?: 'collecting' | 'holding' | 'received' | 'none';
+        /**
+         * Trạng thái đóng gói (M3, Task M3-28)
+         */
+        packingStatus?: 'none' | 'picking' | 'packed';
+        /**
          * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
          */
         cursor?: string;
@@ -3966,6 +5011,39 @@ export type UpdateOrderResponses = {
 };
 
 export type UpdateOrderResponse = UpdateOrderResponses[keyof UpdateOrderResponses];
+
+export type ListOrderShipmentsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/orders/{id}/shipments';
+};
+
+export type ListOrderShipmentsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListOrderShipmentsError = ListOrderShipmentsErrors[keyof ListOrderShipmentsErrors];
+
+export type ListOrderShipmentsResponses = {
+    /**
+     * listOrderShipments
+     */
+    200: ShipmentPage;
+};
+
+export type ListOrderShipmentsResponse = ListOrderShipmentsResponses[keyof ListOrderShipmentsResponses];
 
 export type CreateShipmentData = {
     body: CreateShipmentRequest;
@@ -5848,3 +6926,1633 @@ export type CheckCouponResponses = {
 };
 
 export type CheckCouponResponse = CheckCouponResponses[keyof CheckCouponResponses];
+
+export type ListCarrierAccountsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        warehouseId?: string;
+        status?: CarrierAccountStatus;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/carrier-accounts';
+};
+
+export type ListCarrierAccountsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListCarrierAccountsError = ListCarrierAccountsErrors[keyof ListCarrierAccountsErrors];
+
+export type ListCarrierAccountsResponses = {
+    /**
+     * listCarrierAccounts
+     */
+    200: CarrierAccountPage;
+};
+
+export type ListCarrierAccountsResponse = ListCarrierAccountsResponses[keyof ListCarrierAccountsResponses];
+
+export type CreateCarrierAccountData = {
+    body: CreateCarrierAccountRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/carrier-accounts';
+};
+
+export type CreateCarrierAccountErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateCarrierAccountError = CreateCarrierAccountErrors[keyof CreateCarrierAccountErrors];
+
+export type CreateCarrierAccountResponses = {
+    /**
+     * createCarrierAccount
+     */
+    201: CarrierAccount;
+};
+
+export type CreateCarrierAccountResponse = CreateCarrierAccountResponses[keyof CreateCarrierAccountResponses];
+
+export type UpdateCarrierAccountData = {
+    body: UpdateCarrierAccountRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/carrier-accounts/{id}';
+};
+
+export type UpdateCarrierAccountErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UpdateCarrierAccountError = UpdateCarrierAccountErrors[keyof UpdateCarrierAccountErrors];
+
+export type UpdateCarrierAccountResponses = {
+    /**
+     * updateCarrierAccount
+     */
+    200: CarrierAccount;
+};
+
+export type UpdateCarrierAccountResponse = UpdateCarrierAccountResponses[keyof UpdateCarrierAccountResponses];
+
+export type PutCarrierCredentialsData = {
+    body: PutCarrierCredentialsRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/carrier-accounts/{id}/credentials';
+};
+
+export type PutCarrierCredentialsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type PutCarrierCredentialsError = PutCarrierCredentialsErrors[keyof PutCarrierCredentialsErrors];
+
+export type PutCarrierCredentialsResponses = {
+    /**
+     * putCarrierCredentials
+     */
+    200: CarrierAccount;
+};
+
+export type PutCarrierCredentialsResponse = PutCarrierCredentialsResponses[keyof PutCarrierCredentialsResponses];
+
+export type CheckCarrierAccountData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/carrier-accounts/{id}/check';
+};
+
+export type CheckCarrierAccountErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CheckCarrierAccountError = CheckCarrierAccountErrors[keyof CheckCarrierAccountErrors];
+
+export type CheckCarrierAccountResponses = {
+    /**
+     * Đã ghi việc kiểm
+     */
+    202: JobAccepted;
+};
+
+export type CheckCarrierAccountResponse = CheckCarrierAccountResponses[keyof CheckCarrierAccountResponses];
+
+export type SetCarrierAccountStatusData = {
+    body: SetCarrierAccountStatusRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/carrier-accounts/{id}/status';
+};
+
+export type SetCarrierAccountStatusErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SetCarrierAccountStatusError = SetCarrierAccountStatusErrors[keyof SetCarrierAccountStatusErrors];
+
+export type SetCarrierAccountStatusResponses = {
+    /**
+     * setCarrierAccountStatus
+     */
+    200: CarrierAccount;
+};
+
+export type SetCarrierAccountStatusResponse = SetCarrierAccountStatusResponses[keyof SetCarrierAccountStatusResponses];
+
+export type SetWarehousePickupData = {
+    body: SetWarehousePickupRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/warehouses/{id}/pickup';
+};
+
+export type SetWarehousePickupErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SetWarehousePickupError = SetWarehousePickupErrors[keyof SetWarehousePickupErrors];
+
+export type SetWarehousePickupResponses = {
+    /**
+     * setWarehousePickup
+     */
+    200: WarehousePickup;
+};
+
+export type SetWarehousePickupResponse = SetWarehousePickupResponses[keyof SetWarehousePickupResponses];
+
+export type SyncCarrierLocationsData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/carrier-accounts/{id}/locations/sync';
+};
+
+export type SyncCarrierLocationsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SyncCarrierLocationsError = SyncCarrierLocationsErrors[keyof SyncCarrierLocationsErrors];
+
+export type SyncCarrierLocationsResponses = {
+    /**
+     * Đã ghi việc đồng bộ
+     */
+    202: JobAccepted;
+};
+
+export type SyncCarrierLocationsResponse = SyncCarrierLocationsResponses[keyof SyncCarrierLocationsResponses];
+
+export type ListUnmappedLocationsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Mã hãng (carrierKey)
+         */
+        carrier: string;
+        level?: 'province' | 'ward';
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/carrier-locations/unmapped';
+};
+
+export type ListUnmappedLocationsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListUnmappedLocationsError = ListUnmappedLocationsErrors[keyof ListUnmappedLocationsErrors];
+
+export type ListUnmappedLocationsResponses = {
+    /**
+     * listUnmappedLocations
+     */
+    200: UnmappedLocationPage;
+};
+
+export type ListUnmappedLocationsResponse = ListUnmappedLocationsResponses[keyof ListUnmappedLocationsResponses];
+
+export type ListShippingQuotesData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        requestId?: string;
+    };
+    url: '/api/v1/orders/{id}/shipping-quotes';
+};
+
+export type ListShippingQuotesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListShippingQuotesError = ListShippingQuotesErrors[keyof ListShippingQuotesErrors];
+
+export type ListShippingQuotesResponses = {
+    /**
+     * listShippingQuotes
+     */
+    200: ShippingQuoteList;
+};
+
+export type ListShippingQuotesResponse = ListShippingQuotesResponses[keyof ListShippingQuotesResponses];
+
+export type RequestShippingQuotesData = {
+    body: RequestShippingQuotesRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/orders/{id}/shipping-quotes';
+};
+
+export type RequestShippingQuotesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RequestShippingQuotesError = RequestShippingQuotesErrors[keyof RequestShippingQuotesErrors];
+
+export type RequestShippingQuotesResponses = {
+    /**
+     * Đã ghi việc báo phí
+     */
+    202: ShippingQuoteRequestAccepted;
+};
+
+export type RequestShippingQuotesResponse = RequestShippingQuotesResponses[keyof RequestShippingQuotesResponses];
+
+export type ListShipmentEventsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/shipments/{id}/events';
+};
+
+export type ListShipmentEventsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListShipmentEventsError = ListShipmentEventsErrors[keyof ListShipmentEventsErrors];
+
+export type ListShipmentEventsResponses = {
+    /**
+     * listShipmentEvents
+     */
+    200: ShipmentEventPage;
+};
+
+export type ListShipmentEventsResponse = ListShipmentEventsResponses[keyof ListShipmentEventsResponses];
+
+export type ResendShipmentData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/shipments/{id}/resend';
+};
+
+export type ResendShipmentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ResendShipmentError = ResendShipmentErrors[keyof ResendShipmentErrors];
+
+export type ResendShipmentResponses = {
+    /**
+     * Đã ghi lệnh tạo mới
+     */
+    202: Shipment;
+};
+
+export type ResendShipmentResponse = ResendShipmentResponses[keyof ResendShipmentResponses];
+
+export type ResolveShipmentCreateData = {
+    body: ResolveShipmentCreateRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/shipments/{id}/resolve-create';
+};
+
+export type ResolveShipmentCreateErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ResolveShipmentCreateError = ResolveShipmentCreateErrors[keyof ResolveShipmentCreateErrors];
+
+export type ResolveShipmentCreateResponses = {
+    /**
+     * resolveShipmentCreate
+     */
+    200: Shipment;
+};
+
+export type ResolveShipmentCreateResponse = ResolveShipmentCreateResponses[keyof ResolveShipmentCreateResponses];
+
+export type CancelShipmentData = {
+    body: CancelShipmentRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/shipments/{id}/cancel';
+};
+
+export type CancelShipmentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CancelShipmentError = CancelShipmentErrors[keyof CancelShipmentErrors];
+
+export type CancelShipmentResponses = {
+    /**
+     * cancelShipment
+     */
+    200: Shipment;
+};
+
+export type CancelShipmentResponse = CancelShipmentResponses[keyof CancelShipmentResponses];
+
+export type SyncShipmentData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/shipments/{id}/sync';
+};
+
+export type SyncShipmentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SyncShipmentError = SyncShipmentErrors[keyof SyncShipmentErrors];
+
+export type SyncShipmentResponses = {
+    /**
+     * Đã ghi việc tra
+     */
+    202: JobAccepted;
+};
+
+export type SyncShipmentResponse = SyncShipmentResponses[keyof SyncShipmentResponses];
+
+export type SetShipmentManualStatusData = {
+    body: SetShipmentManualStatusRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/shipments/{id}/manual-status';
+};
+
+export type SetShipmentManualStatusErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SetShipmentManualStatusError = SetShipmentManualStatusErrors[keyof SetShipmentManualStatusErrors];
+
+export type SetShipmentManualStatusResponses = {
+    /**
+     * setShipmentManualStatus
+     */
+    200: Shipment;
+};
+
+export type SetShipmentManualStatusResponse = SetShipmentManualStatusResponses[keyof SetShipmentManualStatusResponses];
+
+export type RequestAddressChangeData = {
+    body: RequestAddressChangeRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/shipments/{id}/address-changes';
+};
+
+export type RequestAddressChangeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RequestAddressChangeError = RequestAddressChangeErrors[keyof RequestAddressChangeErrors];
+
+export type RequestAddressChangeResponses = {
+    /**
+     * requestAddressChange
+     */
+    201: AddressChange;
+};
+
+export type RequestAddressChangeResponse = RequestAddressChangeResponses[keyof RequestAddressChangeResponses];
+
+export type ResolveAddressChangeData = {
+    body: ResolveAddressChangeRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/address-changes/{id}/resolve';
+};
+
+export type ResolveAddressChangeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ResolveAddressChangeError = ResolveAddressChangeErrors[keyof ResolveAddressChangeErrors];
+
+export type ResolveAddressChangeResponses = {
+    /**
+     * resolveAddressChange
+     */
+    200: AddressChange;
+};
+
+export type ResolveAddressChangeResponse = ResolveAddressChangeResponses[keyof ResolveAddressChangeResponses];
+
+export type CreateLabelBatchData = {
+    body: CreateLabelBatchRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/label-batches';
+};
+
+export type CreateLabelBatchErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateLabelBatchError = CreateLabelBatchErrors[keyof CreateLabelBatchErrors];
+
+export type CreateLabelBatchResponses = {
+    /**
+     * Đã ghi việc tải nhãn
+     */
+    202: LabelBatchCreated;
+};
+
+export type CreateLabelBatchResponse = CreateLabelBatchResponses[keyof CreateLabelBatchResponses];
+
+export type GetLabelBatchData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/label-batches/{id}';
+};
+
+export type GetLabelBatchErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetLabelBatchError = GetLabelBatchErrors[keyof GetLabelBatchErrors];
+
+export type GetLabelBatchResponses = {
+    /**
+     * getLabelBatch
+     */
+    200: LabelBatch;
+};
+
+export type GetLabelBatchResponse = GetLabelBatchResponses[keyof GetLabelBatchResponses];
+
+export type GetPickingListData = {
+    body?: never;
+    path?: never;
+    query: {
+        shipmentIds: Array<string>;
+    };
+    url: '/api/v1/picking-list';
+};
+
+export type GetPickingListErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetPickingListError = GetPickingListErrors[keyof GetPickingListErrors];
+
+export type GetPickingListResponses = {
+    /**
+     * getPickingList
+     */
+    200: PickingList;
+};
+
+export type GetPickingListResponse = GetPickingListResponses[keyof GetPickingListResponses];
+
+export type SetPackingStatusData = {
+    body: SetPackingStatusRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/orders/packing';
+};
+
+export type SetPackingStatusErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SetPackingStatusError = SetPackingStatusErrors[keyof SetPackingStatusErrors];
+
+export type SetPackingStatusResponses = {
+    /**
+     * setPackingStatus
+     */
+    200: PackingResultList;
+};
+
+export type SetPackingStatusResponse = SetPackingStatusResponses[keyof SetPackingStatusResponses];
+
+export type ListCallbackTasksData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: 'open' | 'in_progress' | 'done';
+        dueBefore?: string;
+        assignee?: 'me' | 'any';
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/callback-tasks';
+};
+
+export type ListCallbackTasksErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListCallbackTasksError = ListCallbackTasksErrors[keyof ListCallbackTasksErrors];
+
+export type ListCallbackTasksResponses = {
+    /**
+     * listCallbackTasks
+     */
+    200: CallbackTaskPage;
+};
+
+export type ListCallbackTasksResponse = ListCallbackTasksResponses[keyof ListCallbackTasksResponses];
+
+export type RecordCallbackOutcomeData = {
+    body: RecordCallbackOutcomeRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/callback-tasks/{id}/outcomes';
+};
+
+export type RecordCallbackOutcomeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RecordCallbackOutcomeError = RecordCallbackOutcomeErrors[keyof RecordCallbackOutcomeErrors];
+
+export type RecordCallbackOutcomeResponses = {
+    /**
+     * recordCallbackOutcome
+     */
+    200: CallbackTask;
+};
+
+export type RecordCallbackOutcomeResponse = RecordCallbackOutcomeResponses[keyof RecordCallbackOutcomeResponses];
+
+export type AssignCallbackTaskData = {
+    body: AssignCallbackTaskRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/callback-tasks/{id}/assign';
+};
+
+export type AssignCallbackTaskErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type AssignCallbackTaskError = AssignCallbackTaskErrors[keyof AssignCallbackTaskErrors];
+
+export type AssignCallbackTaskResponses = {
+    /**
+     * assignCallbackTask
+     */
+    200: CallbackTask;
+};
+
+export type AssignCallbackTaskResponse = AssignCallbackTaskResponses[keyof AssignCallbackTaskResponses];
+
+export type ListStuckShipmentsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: ShipmentStatus;
+        carrierAccountId?: string;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/shipments/stuck';
+};
+
+export type ListStuckShipmentsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListStuckShipmentsError = ListStuckShipmentsErrors[keyof ListStuckShipmentsErrors];
+
+export type ListStuckShipmentsResponses = {
+    /**
+     * listStuckShipments
+     */
+    200: StuckShipmentPage;
+};
+
+export type ListStuckShipmentsResponse = ListStuckShipmentsResponses[keyof ListStuckShipmentsResponses];
+
+export type ListShipmentsForReviewData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/shipments/review';
+};
+
+export type ListShipmentsForReviewErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListShipmentsForReviewError = ListShipmentsForReviewErrors[keyof ListShipmentsForReviewErrors];
+
+export type ListShipmentsForReviewResponses = {
+    /**
+     * listShipmentsForReview
+     */
+    200: ShipmentReviewPage;
+};
+
+export type ListShipmentsForReviewResponse = ListShipmentsForReviewResponses[keyof ListShipmentsForReviewResponses];
+
+export type ResolveShipmentAnomalyData = {
+    body: ResolveShipmentAnomalyRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/shipment-anomalies/{id}/resolve';
+};
+
+export type ResolveShipmentAnomalyErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ResolveShipmentAnomalyError = ResolveShipmentAnomalyErrors[keyof ResolveShipmentAnomalyErrors];
+
+export type ResolveShipmentAnomalyResponses = {
+    /**
+     * resolveShipmentAnomaly
+     */
+    200: ShipmentAnomaly;
+};
+
+export type ResolveShipmentAnomalyResponse = ResolveShipmentAnomalyResponses[keyof ResolveShipmentAnomalyResponses];
+
+export type ListAgedReservationsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        warehouseId?: string;
+        state?: 'held' | 'in_transit';
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/inventory/aged-reservations';
+};
+
+export type ListAgedReservationsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListAgedReservationsError = ListAgedReservationsErrors[keyof ListAgedReservationsErrors];
+
+export type ListAgedReservationsResponses = {
+    /**
+     * listAgedReservations
+     */
+    200: AgedReservationPage;
+};
+
+export type ListAgedReservationsResponse = ListAgedReservationsResponses[keyof ListAgedReservationsResponses];
+
+export type GetCustomerDeliveryStatsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/customers/{id}/delivery-stats';
+};
+
+export type GetCustomerDeliveryStatsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetCustomerDeliveryStatsError = GetCustomerDeliveryStatsErrors[keyof GetCustomerDeliveryStatsErrors];
+
+export type GetCustomerDeliveryStatsResponses = {
+    /**
+     * getCustomerDeliveryStats
+     */
+    200: DeliveryStats;
+};
+
+export type GetCustomerDeliveryStatsResponse = GetCustomerDeliveryStatsResponses[keyof GetCustomerDeliveryStatsResponses];
+
+export type RecordPartialDeliveryData = {
+    body: RecordPartialDeliveryRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/shipments/{id}/partial-delivery';
+};
+
+export type RecordPartialDeliveryErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RecordPartialDeliveryError = RecordPartialDeliveryErrors[keyof RecordPartialDeliveryErrors];
+
+export type RecordPartialDeliveryResponses = {
+    /**
+     * recordPartialDelivery
+     */
+    200: Shipment;
+};
+
+export type RecordPartialDeliveryResponse = RecordPartialDeliveryResponses[keyof RecordPartialDeliveryResponses];
+
+export type PreviewShipmentCorrectionData = {
+    body: ShipmentCorrectionRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/shipments/{id}/corrections/preview';
+};
+
+export type PreviewShipmentCorrectionErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type PreviewShipmentCorrectionError = PreviewShipmentCorrectionErrors[keyof PreviewShipmentCorrectionErrors];
+
+export type PreviewShipmentCorrectionResponses = {
+    /**
+     * previewShipmentCorrection
+     */
+    200: ShipmentCorrectionPreview;
+};
+
+export type PreviewShipmentCorrectionResponse = PreviewShipmentCorrectionResponses[keyof PreviewShipmentCorrectionResponses];
+
+export type ApplyShipmentCorrectionData = {
+    body: ApplyShipmentCorrectionRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/shipments/{id}/corrections';
+};
+
+export type ApplyShipmentCorrectionErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ApplyShipmentCorrectionError = ApplyShipmentCorrectionErrors[keyof ApplyShipmentCorrectionErrors];
+
+export type ApplyShipmentCorrectionResponses = {
+    /**
+     * applyShipmentCorrection
+     */
+    200: Shipment;
+};
+
+export type ApplyShipmentCorrectionResponse = ApplyShipmentCorrectionResponses[keyof ApplyShipmentCorrectionResponses];
+
+export type GetShipmentCodData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/shipments/{id}/cod';
+};
+
+export type GetShipmentCodErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetShipmentCodError = GetShipmentCodErrors[keyof GetShipmentCodErrors];
+
+export type GetShipmentCodResponses = {
+    /**
+     * getShipmentCod
+     */
+    200: ShipmentCod;
+};
+
+export type GetShipmentCodResponse = GetShipmentCodResponses[keyof GetShipmentCodResponses];
+
+export type ListOrderPaymentsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/orders/{id}/payments';
+};
+
+export type ListOrderPaymentsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListOrderPaymentsError = ListOrderPaymentsErrors[keyof ListOrderPaymentsErrors];
+
+export type ListOrderPaymentsResponses = {
+    /**
+     * listOrderPayments
+     */
+    200: PaymentPage;
+};
+
+export type ListOrderPaymentsResponse = ListOrderPaymentsResponses[keyof ListOrderPaymentsResponses];
+
+export type RecordPaymentData = {
+    body: RecordPaymentRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/orders/{id}/payments';
+};
+
+export type RecordPaymentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RecordPaymentError = RecordPaymentErrors[keyof RecordPaymentErrors];
+
+export type RecordPaymentResponses = {
+    /**
+     * recordPayment
+     */
+    201: Payment;
+};
+
+export type RecordPaymentResponse = RecordPaymentResponses[keyof RecordPaymentResponses];
+
+export type ListRefundObligationsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: 'open' | 'paid' | 'waived';
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/refund-obligations';
+};
+
+export type ListRefundObligationsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListRefundObligationsError = ListRefundObligationsErrors[keyof ListRefundObligationsErrors];
+
+export type ListRefundObligationsResponses = {
+    /**
+     * listRefundObligations
+     */
+    200: RefundObligationPage;
+};
+
+export type ListRefundObligationsResponse = ListRefundObligationsResponses[keyof ListRefundObligationsResponses];
+
+export type PayRefundObligationData = {
+    body: PayRefundObligationRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/refund-obligations/{id}/payments';
+};
+
+export type PayRefundObligationErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type PayRefundObligationError = PayRefundObligationErrors[keyof PayRefundObligationErrors];
+
+export type PayRefundObligationResponses = {
+    /**
+     * payRefundObligation
+     */
+    200: RefundObligation;
+};
+
+export type PayRefundObligationResponse = PayRefundObligationResponses[keyof PayRefundObligationResponses];
+
+export type WaiveRefundObligationData = {
+    body: WaiveRefundObligationRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/refund-obligations/{id}/waive';
+};
+
+export type WaiveRefundObligationErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WaiveRefundObligationError = WaiveRefundObligationErrors[keyof WaiveRefundObligationErrors];
+
+export type WaiveRefundObligationResponses = {
+    /**
+     * waiveRefundObligation
+     */
+    200: RefundObligation;
+};
+
+export type WaiveRefundObligationResponse = WaiveRefundObligationResponses[keyof WaiveRefundObligationResponses];
+
+export type ListCodStatementsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: CodStatementStatus;
+        carrierAccountId?: string;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/cod-statements';
+};
+
+export type ListCodStatementsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListCodStatementsError = ListCodStatementsErrors[keyof ListCodStatementsErrors];
+
+export type ListCodStatementsResponses = {
+    /**
+     * listCodStatements
+     */
+    200: CodStatementPage;
+};
+
+export type ListCodStatementsResponse = ListCodStatementsResponses[keyof ListCodStatementsResponses];
+
+export type ImportCodStatementData = {
+    body: ImportCodStatementRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/cod-statements';
+};
+
+export type ImportCodStatementErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ImportCodStatementError = ImportCodStatementErrors[keyof ImportCodStatementErrors];
+
+export type ImportCodStatementResponses = {
+    /**
+     * Đã ghi việc đọc bảng kê
+     */
+    202: CodStatement;
+};
+
+export type ImportCodStatementResponse = ImportCodStatementResponses[keyof ImportCodStatementResponses];
+
+export type GetCodStatementData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        matchStatus?: CodMatchStatus;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/cod-statements/{id}';
+};
+
+export type GetCodStatementErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetCodStatementError = GetCodStatementErrors[keyof GetCodStatementErrors];
+
+export type GetCodStatementResponses = {
+    /**
+     * getCodStatement
+     */
+    200: CodStatementDetail;
+};
+
+export type GetCodStatementResponse = GetCodStatementResponses[keyof GetCodStatementResponses];
+
+export type ConfirmCodStatementData = {
+    body: VersionRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/cod-statements/{id}/confirm';
+};
+
+export type ConfirmCodStatementErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ConfirmCodStatementError = ConfirmCodStatementErrors[keyof ConfirmCodStatementErrors];
+
+export type ConfirmCodStatementResponses = {
+    /**
+     * confirmCodStatement
+     */
+    200: CodStatementConfirmed;
+};
+
+export type ConfirmCodStatementResponse = ConfirmCodStatementResponses[keyof ConfirmCodStatementResponses];
+
+export type ListCodDiscrepanciesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/cod/discrepancies';
+};
+
+export type ListCodDiscrepanciesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListCodDiscrepanciesError = ListCodDiscrepanciesErrors[keyof ListCodDiscrepanciesErrors];
+
+export type ListCodDiscrepanciesResponses = {
+    /**
+     * listCodDiscrepancies
+     */
+    200: CodDiscrepancyPage;
+};
+
+export type ListCodDiscrepanciesResponse = ListCodDiscrepanciesResponses[keyof ListCodDiscrepanciesResponses];
+
+export type ListCodOverdueData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/cod/overdue';
+};
+
+export type ListCodOverdueErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListCodOverdueError = ListCodOverdueErrors[keyof ListCodOverdueErrors];
+
+export type ListCodOverdueResponses = {
+    /**
+     * listCodOverdue
+     */
+    200: CodOverduePage;
+};
+
+export type ListCodOverdueResponse = ListCodOverdueResponses[keyof ListCodOverdueResponses];
+
+export type PreviewCodAdjustmentData = {
+    body: CodAdjustmentRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/cod/adjustments/preview';
+};
+
+export type PreviewCodAdjustmentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type PreviewCodAdjustmentError = PreviewCodAdjustmentErrors[keyof PreviewCodAdjustmentErrors];
+
+export type PreviewCodAdjustmentResponses = {
+    /**
+     * previewCodAdjustment
+     */
+    200: CodAdjustmentPreview;
+};
+
+export type PreviewCodAdjustmentResponse = PreviewCodAdjustmentResponses[keyof PreviewCodAdjustmentResponses];
+
+export type CreateCodAdjustmentData = {
+    body: CreateCodAdjustmentRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/cod/adjustments';
+};
+
+export type CreateCodAdjustmentErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateCodAdjustmentError = CreateCodAdjustmentErrors[keyof CreateCodAdjustmentErrors];
+
+export type CreateCodAdjustmentResponses = {
+    /**
+     * createCodAdjustment
+     */
+    201: CodTransfer;
+};
+
+export type CreateCodAdjustmentResponse = CreateCodAdjustmentResponses[keyof CreateCodAdjustmentResponses];
+
+export type ListReconcileFindingsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        runId?: string;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/cod/reconcile-findings';
+};
+
+export type ListReconcileFindingsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListReconcileFindingsError = ListReconcileFindingsErrors[keyof ListReconcileFindingsErrors];
+
+export type ListReconcileFindingsResponses = {
+    /**
+     * listReconcileFindings
+     */
+    200: ReconcileFindingPage;
+};
+
+export type ListReconcileFindingsResponse = ListReconcileFindingsResponses[keyof ListReconcileFindingsResponses];
+
+export type GetFulfillmentSettingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/fulfillment-settings';
+};
+
+export type GetFulfillmentSettingsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetFulfillmentSettingsError = GetFulfillmentSettingsErrors[keyof GetFulfillmentSettingsErrors];
+
+export type GetFulfillmentSettingsResponses = {
+    /**
+     * getFulfillmentSettings
+     */
+    200: FulfillmentSettings;
+};
+
+export type GetFulfillmentSettingsResponse = GetFulfillmentSettingsResponses[keyof GetFulfillmentSettingsResponses];
+
+export type UpdateFulfillmentSettingsData = {
+    body: UpdateFulfillmentSettingsRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/fulfillment-settings';
+};
+
+export type UpdateFulfillmentSettingsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UpdateFulfillmentSettingsError = UpdateFulfillmentSettingsErrors[keyof UpdateFulfillmentSettingsErrors];
+
+export type UpdateFulfillmentSettingsResponses = {
+    /**
+     * updateFulfillmentSettings
+     */
+    200: FulfillmentSettings;
+};
+
+export type UpdateFulfillmentSettingsResponse = UpdateFulfillmentSettingsResponses[keyof UpdateFulfillmentSettingsResponses];

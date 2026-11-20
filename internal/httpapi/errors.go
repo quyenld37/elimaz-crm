@@ -474,6 +474,9 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		{fulfillment.ErrOrderNotShippable, http.StatusNotFound, codeNotFound},
 		{fulfillment.ErrAccountNotFound, http.StatusNotFound, codeNotFound},
 		{fulfillment.ErrNotFound, http.StatusNotFound, codeNotFound},
+		// Cài đặt vận chuyển (M3, Task M3-04).
+		{fulfillment.ErrSettingOutOfRange, http.StatusUnprocessableEntity, codeSettingOutOfRange},
+		{fulfillment.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

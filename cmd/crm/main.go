@@ -20,11 +20,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"elimaz.com.vn/crm/internal/adapters/carrier"
-	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
 	"elimaz.com.vn/crm/internal/adapters/cfaccess"
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/imager"
+	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
@@ -148,8 +147,11 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 
 	logger.Info("khởi động", slog.Any("config", cfg))
 	// Sổ mục đích tệp trong Go phải khớp platform.file_purposes (Task M1-41): lệch là lỗi khởi động, không phục vụ.
-	// Mốc sau gọi files.RegisterPurpose ở đây, trước lần kiểm này: customer_import (M2, Task M2-13).
+	// Mốc sau gọi files.RegisterPurpose ở đây, trước lần kiểm này: customer_import (M2, Task M2-13), carrier_label và
+	// cod_statement (M3, Task M3-04).
 	customer.RegisterFilePurposes()
+	fulfillment.RegisterFilePurposes() // carrier_label (M3, Task M3-04, 0306)
+	cash.RegisterFilePurposes()        // cod_statement (M3, Task M3-04, 0306)
 	if cfg.Role == config.RoleAPI || cfg.Role == config.RoleWorker {
 		if err := files.CheckPurposes(ctx, d); err != nil {
 			return fmt.Errorf("kiểm mục đích tệp: %w", err)
@@ -189,15 +191,11 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 
 // newInbound dựng việc tách gói webhook và handler sự kiện vào của worker. Worker chỉ tách gói (Split), không kiểm
 // chữ ký (ingest đã kiểm), nên các nguồn dựng không cần bí mật. selftest.Inbound phát báo hiệu selftest.pong qua bus
-// (pg_notify trong transaction của việc); nguồn fakecarrier (carrier.FakeOn) giao tín hiệu cho
-// fulfillment.SignalHandler. Module của mốc sau thêm handler ở đây, cùng danh sách nguồn với ingest.
-func newInbound(cfg config.Config, reg *metrics.Registry, bus selftest.Publisher) ([]queue.Handler, error) {
-	sources := []webhooks.Source{selftest.NewSource("")}
-	handlers := []webhooks.InboundHandler{selftest.NewInbound(bus)}
-	if carrier.FakeOn(cfg) {
-		sources = append(sources, fake.NewSource(""))
-		handlers = append(handlers, fulfillment.NewSignalHandler(fake.Key))
-	}
+// (pg_notify trong transaction của việc); nguồn và handler vào của M3 (gồm hãng giả của M1 khi carrier.FakeOn) đến từ
+// wireM3, cùng danh sách nguồn với ingest.
+func newInbound(reg *metrics.Registry, bus selftest.Publisher, m3 m3Parts) ([]queue.Handler, error) {
+	sources := append([]webhooks.Source{selftest.NewSource("")}, m3.Sources...)
+	handlers := append([]webhooks.InboundHandler{selftest.NewInbound(bus)}, m3.Inbound...)
 	split, err := webhooks.NewSplitHandler(webhooks.SplitOptions{Sources: sources, Metrics: reg})
 	if err != nil {
 		return nil, fmt.Errorf("dựng việc tách gói: %w", err)
@@ -213,10 +211,10 @@ func newInbound(cfg config.Config, reg *metrics.Registry, bus selftest.Publisher
 // đọc kho tệp), nhập khách customer.import (Task M2-13; đọc kho tệp, ghi theo lô), xử lý ảnh file.process, file.process_private (Task M1-43),
 // tạo lại kích thước file.regenerate (Task M1-44d;
 // chỉ khi có IMAGER_URL, thiếu thì lệnh chờ trong hàng đợi), lệnh thử command.selftest (bên ngoài tại chỗ, không
-// gửi gì thật, chỉ khi CRM_ENV khác production) và hai lệnh vận chuyển fulfillment.create_shipment,
-// fulfillment.refresh_status với hãng giả (carrier.FakeOn; Task M1-31); module của mốc sau thêm lệnh thật ở đây.
+// gửi gì thật, chỉ khi CRM_ENV khác production) và lệnh của M3 (m3.Commands, gồm hai lệnh vận chuyển của M1
+// fulfillment.create_shipment, fulfillment.refresh_status với hãng giả khi carrier.FakeOn; Task M1-31, M3-04).
 func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtime.Bus, evs *events.Registry,
-	logger *slog.Logger,
+	m3 m3Parts, logger *slog.Logger,
 ) ([]commands.Handler, error) {
 	fs, err := files.NewS3Store(s3Config(cfg))
 	if err != nil {
@@ -252,13 +250,7 @@ func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtim
 	if cfg.Env != "production" {
 		hs = append(hs, selftest.NewCommand(selftest.Loopback{}))
 	}
-	if carrier.FakeOn(cfg) {
-		o := fulfillment.CommandOptions{
-			DB: d, Adapters: carrier.All(cfg), Events: evs, Queue: queue.NewQueue(), Realtime: bus,
-		}
-		hs = append(hs, fulfillment.NewCreateCommand(o), fulfillment.NewRefreshCommand(o))
-	}
-	return hs, nil
+	return append(hs, m3.Commands...), nil
 }
 
 // runWorker chạy hàng đợi (queue.Worker) với handler của sự kiện nội bộ và dọn dữ liệu, lệnh ra ngoài (Runner, kèm
@@ -275,16 +267,19 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	}
 	// Worker chỉ phát báo hiệu (Publish chạy pg_notify trong tx của việc), không LISTEN: không gọi hub.Run.
 	hub := realtime.NewPGHub(realtime.PGHubOptions{URL: cfg.DatabaseURL, Metrics: reg, Logger: logger})
-	mods, err := newModules(d, hub)
+	mods, err := newModules(cfg, d, hub, reg)
 	if err != nil {
 		return err
 	}
-	for _, s := range mods.Schedules {
+	for _, fn := range mods.M3.Cleanups {
+		cleanup.RegisterTenantCleanup(fn)
+	}
+	for _, s := range append(mods.Schedules, mods.M3.Schedules...) {
 		if err := plan.Define(s); err != nil {
 			return fmt.Errorf("định nghĩa lịch %s: %w", s.Name, err)
 		}
 	}
-	cmds, err := newCommands(cfg, d, reg, hub, mods.Events, logger)
+	cmds, err := newCommands(cfg, d, reg, hub, mods.Events, mods.M3, logger)
 	if err != nil {
 		return err
 	}
@@ -304,7 +299,7 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	}); err != nil {
 		return fmt.Errorf("định nghĩa lịch đối chiếu tồn: %w", err)
 	}
-	inbound, err := newInbound(cfg, reg, hub)
+	inbound, err := newInbound(reg, hub, mods.M3)
 	if err != nil {
 		return err
 	}
@@ -443,7 +438,7 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 		if err != nil {
 			return fmt.Errorf("dựng kho tệp: %w", err)
 		}
-		mods, err := newModules(d, hub)
+		mods, err := newModules(cfg, d, hub, reg)
 		if err != nil {
 			return err
 		}
@@ -488,10 +483,14 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 // ingestHandler dựng các route của vai trò ingest: /hooks/{source} (GET xác minh, POST nhận), /health (số tệp tạm)
 // và /health/live, /health/ready. Không có route nào của api.
 func ingestHandler(cfg config.Config, d *db.DB, reg *metrics.Registry, logger *slog.Logger) (http.Handler, error) {
+	sources, err := ingestSources(cfg)
+	if err != nil {
+		return nil, err
+	}
 	in, err := webhooks.NewIngest(webhooks.IngestOptions{
 		Role:    string(cfg.Role),
 		DB:      d,
-		Sources: ingestSources(cfg),
+		Sources: sources,
 		Spool:   &webhooks.Spool{Dir: cfg.SpoolDir},
 		Lockout: webhooks.NewLockout(webhooks.LockoutOptions{}),
 		Metrics: reg,
@@ -506,14 +505,14 @@ func ingestHandler(cfg config.Config, d *db.DB, reg *metrics.Registry, logger *s
 	return mux, nil
 }
 
-// ingestSources là các nguồn webhook của ingest: selftest, và fakecarrier khi carrier.FakeOn (production không bao giờ
-// có /hooks/fakecarrier).
-func ingestSources(cfg config.Config) []webhooks.Source {
-	sources := []webhooks.Source{selftest.NewSource(cfg.SelftestWebhookSecret)}
-	if carrier.FakeOn(cfg) {
-		sources = append(sources, fake.NewSource(cfg.FakeCarrierWebhookSecret))
+// ingestSources là các nguồn webhook của ingest: selftest và nguồn của M3 từ wireM3 (fakecarrier khi carrier.FakeOn,
+// kèm bí mật; production không bao giờ có /hooks/fakecarrier).
+func ingestSources(cfg config.Config) ([]webhooks.Source, error) {
+	m3, err := wireM3(config.RoleIngest, cfg, m3Deps{})
+	if err != nil {
+		return nil, err
 	}
-	return sources
+	return append([]webhooks.Source{selftest.NewSource(cfg.SelftestWebhookSecret)}, m3.Sources...), nil
 }
 
 // healthcheck: ingest và api gọi /health/live của chính nó; worker đòi nhịp sống của chính nó

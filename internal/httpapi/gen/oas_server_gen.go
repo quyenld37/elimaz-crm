@@ -69,6 +69,13 @@ type Handler interface {
 	//
 	// POST /api/v1/catalog/imports/{id}/apply
 	ApplyCatalogImport(ctx context.Context, req *VersionRequest, params ApplyCatalogImportParams) (ApplyCatalogImportRes, error)
+	// ApplyShipmentCorrection implements applyShipmentCorrection operation.
+	//
+	// Đảo Thành công theo bản xem trước; token khác → 409 preview_stale, bị chặn → 409
+	// correction_blocked (Task M3-27).
+	//
+	// POST /api/v1/shipments/{id}/corrections
+	ApplyShipmentCorrection(ctx context.Context, req *ApplyShipmentCorrectionRequest, params ApplyShipmentCorrectionParams) (ApplyShipmentCorrectionRes, error)
 	// ApplyStocktake implements applyStocktake operation.
 	//
 	// Áp dụng phiên (cộng chênh lệch vào tồn, không đụng phần giữ); trả danh sách
@@ -95,6 +102,12 @@ type Handler interface {
 	//
 	// POST /api/v1/identity/roles/{id}/archive
 	ArchiveRole(ctx context.Context, req *ArchiveRoleRequest, params ArchiveRoleParams) (ArchiveRoleRes, error)
+	// AssignCallbackTask implements assignCallbackTask operation.
+	//
+	// Giao việc gọi lại cho nhân viên có quyền fulfillment.callbacks.work (Task M3-19).
+	//
+	// POST /api/v1/callback-tasks/{id}/assign
+	AssignCallbackTask(ctx context.Context, req *AssignCallbackTaskRequest, params AssignCallbackTaskParams) (AssignCallbackTaskRes, error)
 	// AttachProductImage implements attachProductImage operation.
 	//
 	// Color (không bắt buộc) là một màu đang có của biến thể trong mẫu. Tệp chưa
@@ -118,6 +131,13 @@ type Handler interface {
 	//
 	// POST /api/v1/returns/{returnId}/cancel
 	CancelReturn(ctx context.Context, req *VersionRequest, params CancelReturnParams) (CancelReturnRes, error)
+	// CancelShipment implements cancelShipment operation.
+	//
+	// Hủy vận đơn để đổi hãng (hủy đơn đi qua cancelOrder); đã lấy hàng → 409
+	// shipment_not_cancellable (Task M3-14).
+	//
+	// POST /api/v1/shipments/{id}/cancel
+	CancelShipment(ctx context.Context, req *CancelShipmentRequest, params CancelShipmentParams) (CancelShipmentRes, error)
 	// CancelStockDocument implements cancelStockDocument operation.
 	//
 	// Hủy phiếu nháp.
@@ -130,6 +150,12 @@ type Handler interface {
 	//
 	// POST /api/v1/inventory/stocktakes/{id}/cancel
 	CancelStocktake(ctx context.Context, req *VersionRequest, params CancelStocktakeParams) (CancelStocktakeRes, error)
+	// CheckCarrierAccount implements checkCarrierAccount operation.
+	//
+	// Kiểm kết nối với hãng (việc nền; kết quả active hoặc auth_failed) (Task M3-09).
+	//
+	// POST /api/v1/carrier-accounts/{id}/check
+	CheckCarrierAccount(ctx context.Context, params CheckCarrierAccountParams) (CheckCarrierAccountRes, error)
 	// CheckCoupon implements checkCoupon operation.
 	//
 	// Kiểm mã cho form lên đơn: số giảm, lý do từ chối, lượt còn; không đổi lượt
@@ -157,6 +183,13 @@ type Handler interface {
 	//
 	// POST /api/v1/files/{id}/complete
 	CompleteUpload(ctx context.Context, params CompleteUploadParams) (CompleteUploadRes, error)
+	// ConfirmCodStatement implements confirmCodStatement operation.
+	//
+	// Chốt bảng kê đã khớp khi version còn khớp (sai → 409 statement_changed): ghi tiền
+	// về cho từng dòng (Task M3-32).
+	//
+	// POST /api/v1/cod-statements/{id}/confirm
+	ConfirmCodStatement(ctx context.Context, req *VersionRequest, params ConfirmCodStatementParams) (ConfirmCodStatementRes, error)
 	// ConfirmOrder implements confirmOrder operation.
 	//
 	// Xác nhận đơn mới hoặc chốt đơn nháp (cần địa chỉ đủ); chờ duyệt giảm
@@ -170,6 +203,13 @@ type Handler interface {
 	//
 	// POST /api/v1/catalog/attributes
 	CreateAttribute(ctx context.Context, req *CreateAttributeRequest, params CreateAttributeParams) (CreateAttributeRes, error)
+	// CreateCarrierAccount implements createCarrierAccount operation.
+	//
+	// Tạo tài khoản hãng (api: draft, manual: active); hãng không có adapter → 422
+	// capability_not_supported (Task M3-09).
+	//
+	// POST /api/v1/carrier-accounts
+	CreateCarrierAccount(ctx context.Context, req *CreateCarrierAccountRequest, params CreateCarrierAccountParams) (CreateCarrierAccountRes, error)
 	// CreateCatalogImport implements createCatalogImport operation.
 	//
 	// Tạo bản nhập ở trạng thái validating và xếp lệnh kiểm tệp
@@ -185,6 +225,13 @@ type Handler interface {
 	//
 	// POST /api/v1/catalog/categories
 	CreateCategory(ctx context.Context, req *CreateCategoryRequest, params CreateCategoryParams) (CreateCategoryRes, error)
+	// CreateCodAdjustment implements createCodAdjustment operation.
+	//
+	// Ghi điều chỉnh COD theo bản xem trước (đảo hoặc chuyển ngăn, không xóa dòng
+	// cũ); token khác → 409 preview_stale (Task M3-33).
+	//
+	// POST /api/v1/cod/adjustments
+	CreateCodAdjustment(ctx context.Context, req *CreateCodAdjustmentRequest, params CreateCodAdjustmentParams) (CreateCodAdjustmentRes, error)
 	// CreateCoupon implements createCoupon operation.
 	//
 	// Tạo mã giảm giá (để trống code thì sinh mã); trùng → 409 code_taken (Task M2-14).
@@ -210,6 +257,13 @@ type Handler interface {
 	//
 	// POST /api/v1/customer-tags
 	CreateCustomerTag(ctx context.Context, req *CreateCustomerTagRequest, params CreateCustomerTagParams) (CreateCustomerTagRes, error)
+	// CreateLabelBatch implements createLabelBatch operation.
+	//
+	// In nhãn theo lô: nhóm vận đơn theo tài khoản hãng, mỗi nhóm một việc tải nhãn;
+	// in không đổi trạng thái (Task M3-16).
+	//
+	// POST /api/v1/label-batches
+	CreateLabelBatch(ctx context.Context, req *CreateLabelBatchRequest, params CreateLabelBatchParams) (CreateLabelBatchRes, error)
 	// CreateOrder implements createOrder operation.
 	//
 	// Thân kiểu M1 (không intent, có customer.fullName, shipAddress name/phone/line) tạo thẳng
@@ -315,6 +369,13 @@ type Handler interface {
 	//
 	// GET /api/v1/catalog/imports/template
 	GetCatalogImportTemplate(ctx context.Context) (GetCatalogImportTemplateRes, error)
+	// GetCodStatement implements getCodStatement operation.
+	//
+	// Một bảng kê: đầu bảng kê, tổng theo kết quả khớp và dòng theo số dòng (Task
+	// M3-31, M3-32).
+	//
+	// GET /api/v1/cod-statements/{id}
+	GetCodStatement(ctx context.Context, params GetCodStatementParams) (GetCodStatementRes, error)
 	// GetCoupon implements getCoupon operation.
 	//
 	// Một mã kèm số lượt đã dùng, còn lại (Task M2-14).
@@ -334,6 +395,12 @@ type Handler interface {
 	//
 	// GET /api/v1/customers/{id}
 	GetCustomer(ctx context.Context, params GetCustomerParams) (GetCustomerRes, error)
+	// GetCustomerDeliveryStats implements getCustomerDeliveryStats operation.
+	//
+	// Số đơn giao xong, hoàn và mức "khách hay hoàn" của khách (Task M3-21).
+	//
+	// GET /api/v1/customers/{id}/delivery-stats
+	GetCustomerDeliveryStats(ctx context.Context, params GetCustomerDeliveryStatsParams) (GetCustomerDeliveryStatsRes, error)
 	// GetCustomerImport implements getCustomerImport operation.
 	//
 	// Trạng thái, số đếm và lỗi từng dòng (không giá trị) của một lần nhập
@@ -365,6 +432,18 @@ type Handler interface {
 	//
 	// GET /api/v1/files/{id}
 	GetFile(ctx context.Context, params GetFileParams) (GetFileRes, error)
+	// GetFulfillmentSettings implements getFulfillmentSettings operation.
+	//
+	// Cài đặt vận chuyển của shop; thiếu khóa nào lấy mặc định (Task M3-04).
+	//
+	// GET /api/v1/fulfillment-settings
+	GetFulfillmentSettings(ctx context.Context) (GetFulfillmentSettingsRes, error)
+	// GetLabelBatch implements getLabelBatch operation.
+	//
+	// Trạng thái lô nhãn; url ký sẵn 5 phút khi ready (Task M3-16).
+	//
+	// GET /api/v1/label-batches/{id}
+	GetLabelBatch(ctx context.Context, params GetLabelBatchParams) (GetLabelBatchRes, error)
 	// GetMe implements getMe operation.
 	//
 	// Chỉ cần đăng nhập và tài khoản không bị khóa (Task 315); nhân viên chưa có grant
@@ -387,8 +466,8 @@ type Handler interface {
 	GetOrderSettings(ctx context.Context) (GetOrderSettingsRes, error)
 	// GetOrderTimeline implements getOrderTimeline operation.
 	//
-	// Lịch sử thao tác của đơn: đổi trạng thái, tên trường đã sửa (không giá
-	// trị dữ liệu cá nhân), ghi chú (Task M2-24).
+	// M3 (Task M3-28) thêm mục kind shipment (sự kiện vận đơn), payment (phiếu thu, hoàn
+	// tiền), return (phiếu trả); mỗi mục ghi nguồn Nhân viên, Hệ thống hoặc Hãng.
 	//
 	// GET /api/v1/orders/{id}/timeline
 	GetOrderTimeline(ctx context.Context, params GetOrderTimelineParams) (GetOrderTimelineRes, error)
@@ -399,6 +478,13 @@ type Handler interface {
 	//
 	// GET /api/v1/catalog/products/{id}/images/{imageId}/original
 	GetOriginalImageURL(ctx context.Context, params GetOriginalImageURLParams) (GetOriginalImageURLRes, error)
+	// GetPickingList implements getPickingList operation.
+	//
+	// Phiếu nhặt hàng gộp theo SKU cho các vận đơn đã chọn; không địa chỉ, không
+	// SĐT (Task M3-16).
+	//
+	// GET /api/v1/picking-list
+	GetPickingList(ctx context.Context, params GetPickingListParams) (GetPickingListRes, error)
 	// GetPlatformHealth implements getPlatformHealth operation.
 	//
 	// Tình trạng tiến trình, hàng đợi, sao lưu, lỗi và cảnh báo 24 giờ.
@@ -431,6 +517,12 @@ type Handler interface {
 	//
 	// GET /api/v1/shipments/{id}
 	GetShipment(ctx context.Context, params GetShipmentParams) (GetShipmentRes, error)
+	// GetShipmentCod implements getShipmentCod operation.
+	//
+	// Số dư COD theo ngăn và các bút toán của vận đơn (Task M3-29).
+	//
+	// GET /api/v1/shipments/{id}/cod
+	GetShipmentCod(ctx context.Context, params GetShipmentCodParams) (GetShipmentCodRes, error)
 	// GetStockDocument implements getStockDocument operation.
 	//
 	// Một phiếu kho kèm dòng.
@@ -462,6 +554,13 @@ type Handler interface {
 	//
 	// GET /health/ready
 	HealthReady(ctx context.Context) (HealthReadyRes, error)
+	// ImportCodStatement implements importCodStatement operation.
+	//
+	// Nhập bảng kê COD từ tệp đã tải lên (mục đích cod_statement); tệp đã nhập →
+	// 409 statement_duplicate (Task M3-31).
+	//
+	// POST /api/v1/cod-statements
+	ImportCodStatement(ctx context.Context, req *ImportCodStatementRequest, params ImportCodStatementParams) (ImportCodStatementRes, error)
 	// ListAdminUnits implements listAdminUnits operation.
 	//
 	// Tỉnh theo mã; xã theo tên, tối đa 50, q bỏ dấu và không phân biệt hoa thường.
@@ -469,6 +568,13 @@ type Handler interface {
 	//
 	// GET /api/v1/admin-units
 	ListAdminUnits(ctx context.Context, params ListAdminUnitsParams) (ListAdminUnitsRes, error)
+	// ListAgedReservations implements listAgedReservations operation.
+	//
+	// Hàng giữ quá hạn (giữ cho đơn, đang đi đường); chỉ đọc, không tự nhả hàng
+	// (Task M3-22).
+	//
+	// GET /api/v1/inventory/aged-reservations
+	ListAgedReservations(ctx context.Context, params ListAgedReservationsParams) (ListAgedReservationsRes, error)
 	// ListAttributes implements listAttributes operation.
 	//
 	// Mọi thuộc tính của shop kèm giá trị, theo vị trí.
@@ -484,6 +590,20 @@ type Handler interface {
 	//
 	// GET /api/v1/inventory/balances
 	ListBalances(ctx context.Context, params ListBalancesParams) (ListBalancesRes, error)
+	// ListCallbackTasks implements listCallbackTasks operation.
+	//
+	// Đơn giao thất bại cần gọi lại: quá hạn trước, rồi hạn gần nhất (Task
+	// M3-19).
+	//
+	// GET /api/v1/callback-tasks
+	ListCallbackTasks(ctx context.Context, params ListCallbackTasksParams) (ListCallbackTasksRes, error)
+	// ListCarrierAccounts implements listCarrierAccounts operation.
+	//
+	// Tài khoản hãng vận chuyển của shop; không bao giờ có khóa API, webhookUrl chỉ trả
+	// cho quyền manage (Task M3-09).
+	//
+	// GET /api/v1/carrier-accounts
+	ListCarrierAccounts(ctx context.Context, params ListCarrierAccountsParams) (ListCarrierAccountsRes, error)
 	// ListCategories implements listCategories operation.
 	//
 	// Mọi danh mục của shop (cả đã lưu trữ) theo cấp, vị trí, tên; màn hình dựng
@@ -491,6 +611,25 @@ type Handler interface {
 	//
 	// GET /api/v1/catalog/categories
 	ListCategories(ctx context.Context) (ListCategoriesRes, error)
+	// ListCodDiscrepancies implements listCodDiscrepancies operation.
+	//
+	// Lệch đối soát: dòng lệch tiền, trùng, ngoài hệ thống; phần thiếu còn mở;
+	// tiền về rồi mới hoàn (Task M3-32).
+	//
+	// GET /api/v1/cod/discrepancies
+	ListCodDiscrepancies(ctx context.Context, params ListCodDiscrepanciesParams) (ListCodDiscrepanciesRes, error)
+	// ListCodOverdue implements listCodOverdue operation.
+	//
+	// Vận đơn giao xong quá hạn mà hãng chưa trả tiền COD (Task M3-32).
+	//
+	// GET /api/v1/cod/overdue
+	ListCodOverdue(ctx context.Context, params ListCodOverdueParams) (ListCodOverdueRes, error)
+	// ListCodStatements implements listCodStatements operation.
+	//
+	// Bảng kê COD, mới nhất trước (Task M3-31).
+	//
+	// GET /api/v1/cod-statements
+	ListCodStatements(ctx context.Context, params ListCodStatementsParams) (ListCodStatementsRes, error)
 	// ListCouponRedemptions implements listCouponRedemptions operation.
 	//
 	// Lượt dùng của một mã: mã đơn, số giảm, trạng thái; không SĐT (Task M2-14).
@@ -542,6 +681,18 @@ type Handler interface {
 	//
 	// GET /api/v1/order-duplicates
 	ListOrderDuplicates(ctx context.Context, params ListOrderDuplicatesParams) (ListOrderDuplicatesRes, error)
+	// ListOrderPayments implements listOrderPayments operation.
+	//
+	// Phiếu thu, cọc, hoàn tiền của đơn, mới nhất trước (Task M3-30).
+	//
+	// GET /api/v1/orders/{id}/payments
+	ListOrderPayments(ctx context.Context, params ListOrderPaymentsParams) (ListOrderPaymentsRes, error)
+	// ListOrderShipments implements listOrderShipments operation.
+	//
+	// Mọi vận đơn của đơn (cả đã hủy), mới nhất trước (Task M3-12).
+	//
+	// GET /api/v1/orders/{id}/shipments
+	ListOrderShipments(ctx context.Context, params ListOrderShipmentsParams) (ListOrderShipmentsRes, error)
 	// ListOrders implements listOrders operation.
 	//
 	// Danh sách đơn, mới nhất trước, keyset; lọc theo nhãn, trạng thái, nguồn, người
@@ -564,6 +715,19 @@ type Handler interface {
 	//
 	// GET /api/v1/catalog/products
 	ListProducts(ctx context.Context, params ListProductsParams) (ListProductsRes, error)
+	// ListReconcileFindings implements listReconcileFindings operation.
+	//
+	// Kết quả đối chiếu sổ COD hằng đêm (mặc định lần chạy gần nhất) (Task
+	// M3-33).
+	//
+	// GET /api/v1/cod/reconcile-findings
+	ListReconcileFindings(ctx context.Context, params ListReconcileFindingsParams) (ListReconcileFindingsRes, error)
+	// ListRefundObligations implements listRefundObligations operation.
+	//
+	// Nghĩa vụ hoàn tiền cho khách (Task M3-30).
+	//
+	// GET /api/v1/refund-obligations
+	ListRefundObligations(ctx context.Context, params ListRefundObligationsParams) (ListRefundObligationsRes, error)
 	// ListReturns implements listReturns operation.
 	//
 	// Phiếu trả, mới nhất trước (Task M2-22).
@@ -583,6 +747,27 @@ type Handler interface {
 	//
 	// GET /api/v1/identity/roles/manage
 	ListRolesToManage(ctx context.Context) (ListRolesToManageRes, error)
+	// ListShipmentEvents implements listShipmentEvents operation.
+	//
+	// Lịch sử sự kiện của vận đơn, mới nhất trước; không có thân thô của hãng
+	// (Task M3-08).
+	//
+	// GET /api/v1/shipments/{id}/events
+	ListShipmentEvents(ctx context.Context, params ListShipmentEventsParams) (ListShipmentEventsRes, error)
+	// ListShipmentsForReview implements listShipmentsForReview operation.
+	//
+	// Việc "Cần xem" của vận đơn (anomaly mở) kèm số đếm các danh sách vận hành
+	// (Task M3-20).
+	//
+	// GET /api/v1/shipments/review
+	ListShipmentsForReview(ctx context.Context, params ListShipmentsForReviewParams) (ListShipmentsForReviewRes, error)
+	// ListShippingQuotes implements listShippingQuotes operation.
+	//
+	// Kết quả báo phí của một lần so phí (mặc định lần gần nhất): ok theo phí
+	// tăng dần, rồi pending, rồi lỗi; không bao giờ phí 0 thay lỗi (Task M3-13).
+	//
+	// GET /api/v1/orders/{id}/shipping-quotes
+	ListShippingQuotes(ctx context.Context, params ListShippingQuotesParams) (ListShippingQuotesRes, error)
 	// ListStaff implements listStaff operation.
 	//
 	// Mọi nhân viên của shop kèm vai trò theo phạm vi.
@@ -596,6 +781,13 @@ type Handler interface {
 	//
 	// GET /api/v1/inventory/documents
 	ListStockDocuments(ctx context.Context, params ListStockDocumentsParams) (ListStockDocumentsRes, error)
+	// ListStuckShipments implements listStuckShipments operation.
+	//
+	// Vận đơn kẹt (lâu không có cập nhật), lâu nhất trước; lọc theo phạm vi kho
+	// (Task M3-20).
+	//
+	// GET /api/v1/shipments/stuck
+	ListStuckShipments(ctx context.Context, params ListStuckShipmentsParams) (ListStuckShipmentsRes, error)
 	// ListSuppliers implements listSuppliers operation.
 	//
 	// Nhà cung cấp theo tên (tối đa 200); q tìm theo tên bỏ dấu.
@@ -614,6 +806,12 @@ type Handler interface {
 	//
 	// GET /api/v1/traffic-sources
 	ListTrafficSources(ctx context.Context) (ListTrafficSourcesRes, error)
+	// ListUnmappedLocations implements listUnmappedLocations operation.
+	//
+	// Mã địa giới của CRM chưa có mã của hãng (Task M3-18).
+	//
+	// GET /api/v1/carrier-locations/unmapped
+	ListUnmappedLocations(ctx context.Context, params ListUnmappedLocationsParams) (ListUnmappedLocationsRes, error)
 	// ListWarehouses implements listWarehouses operation.
 	//
 	// Các kho người gọi được xem (có inventory.read ở kho đó hoặc toàn shop), kho chính
@@ -634,6 +832,12 @@ type Handler interface {
 	//
 	// POST /api/v1/customers/{id}/merge
 	MergeCustomer(ctx context.Context, req *MergeCustomerRequest, params MergeCustomerParams) (MergeCustomerRes, error)
+	// PayRefundObligation implements payRefundObligation operation.
+	//
+	// Ghi một lần hoàn tiền cho khách; vượt số còn phải hoàn → 409 (Task M3-30).
+	//
+	// POST /api/v1/refund-obligations/{id}/payments
+	PayRefundObligation(ctx context.Context, req *PayRefundObligationRequest, params PayRefundObligationParams) (PayRefundObligationRes, error)
 	// PostStockDocument implements postStockDocument operation.
 	//
 	// Ghi sổ phiếu nháp (đổi tồn); thiếu hàng ở một dòng thì cả phiếu không ghi
@@ -641,6 +845,27 @@ type Handler interface {
 	//
 	// POST /api/v1/inventory/documents/{id}/post
 	PostStockDocument(ctx context.Context, req *StockDocumentVersion, params PostStockDocumentParams) (PostStockDocumentRes, error)
+	// PreviewCodAdjustment implements previewCodAdjustment operation.
+	//
+	// Xem trước điều chỉnh COD (không đổi dữ liệu): số dư trước, sau, cảnh báo,
+	// token (Task M3-33).
+	//
+	// POST /api/v1/cod/adjustments/preview
+	PreviewCodAdjustment(ctx context.Context, req *CodAdjustmentRequest, params PreviewCodAdjustmentParams) (PreviewCodAdjustmentRes, error)
+	// PreviewShipmentCorrection implements previewShipmentCorrection operation.
+	//
+	// Xem trước việc đảo Thành công của vận đơn (không đổi dữ liệu); trả token
+	// để xác nhận (Task M3-27).
+	//
+	// POST /api/v1/shipments/{id}/corrections/preview
+	PreviewShipmentCorrection(ctx context.Context, req *ShipmentCorrectionRequest, params PreviewShipmentCorrectionParams) (PreviewShipmentCorrectionRes, error)
+	// PutCarrierCredentials implements putCarrierCredentials operation.
+	//
+	// Ghi khóa API của tài khoản (chỉ ghi, mã hóa; không bao giờ trả lại), tài khoản
+	// sang checking (Task M3-09).
+	//
+	// PUT /api/v1/carrier-accounts/{id}/credentials
+	PutCarrierCredentials(ctx context.Context, req *PutCarrierCredentialsRequest, params PutCarrierCredentialsParams) (PutCarrierCredentialsRes, error)
 	// PutCustomerTagRule implements putCustomerTagRule operation.
 	//
 	// Đặt quy tắc tự gắn nhãn (điều kiện nối bằng VÀ); sai trường hay phép → 422
@@ -654,6 +879,25 @@ type Handler interface {
 	//
 	// POST /api/v1/returns/{returnId}/receive
 	ReceiveReturn(ctx context.Context, req *ReceiveReturnRequest, params ReceiveReturnParams) (ReceiveReturnRes, error)
+	// RecordCallbackOutcome implements recordCallbackOutcome operation.
+	//
+	// Ghi kết quả cuộc gọi khi version còn khớp (Task M3-19).
+	//
+	// POST /api/v1/callback-tasks/{id}/outcomes
+	RecordCallbackOutcome(ctx context.Context, req *RecordCallbackOutcomeRequest, params RecordCallbackOutcomeParams) (RecordCallbackOutcomeRes, error)
+	// RecordPartialDelivery implements recordPartialDelivery operation.
+	//
+	// Ghi giao một phần: số đã giao từng dòng, tiền đã thu; tạo phiếu trả cho phần
+	// còn lại (Task M3-26).
+	//
+	// POST /api/v1/shipments/{id}/partial-delivery
+	RecordPartialDelivery(ctx context.Context, req *RecordPartialDeliveryRequest, params RecordPartialDeliveryParams) (RecordPartialDeliveryRes, error)
+	// RecordPayment implements recordPayment operation.
+	//
+	// Ghi phiếu thu, cọc cho đơn; đơn đã gửi hãng → 409 cod_locked_by_shipment (Task M3-30).
+	//
+	// POST /api/v1/orders/{id}/payments
+	RecordPayment(ctx context.Context, req *RecordPaymentRequest, params RecordPaymentParams) (RecordPaymentRes, error)
 	// RecordStocktakeCount implements recordStocktakeCount operation.
 	//
 	// Ghi số đếm của một biến thể (chụp tồn trên kệ = on_hand − in_transit lúc
@@ -700,6 +944,34 @@ type Handler interface {
 	//
 	// PUT /api/v1/inventory/documents/{id}/lines
 	ReplaceStockDocumentLines(ctx context.Context, req *ReplaceStockDocumentLinesRequest, params ReplaceStockDocumentLinesParams) (ReplaceStockDocumentLinesRes, error)
+	// RequestAddressChange implements requestAddressChange operation.
+	//
+	// Yêu cầu đổi địa chỉ giao sau khi đã gửi hãng (một yêu cầu mở mỗi vận
+	// đơn); địa chỉ chưa khớp hãng → 422 address_unmapped (Task M3-17).
+	//
+	// POST /api/v1/shipments/{id}/address-changes
+	RequestAddressChange(ctx context.Context, req *RequestAddressChangeRequest, params RequestAddressChangeParams) (RequestAddressChangeRes, error)
+	// RequestShippingQuotes implements requestShippingQuotes operation.
+	//
+	// So phí các hãng cho đơn: mỗi tài khoản một việc báo phí; đơn đã có vận đơn
+	// → 409 shipment_exists (Task M3-13).
+	//
+	// POST /api/v1/orders/{id}/shipping-quotes
+	RequestShippingQuotes(ctx context.Context, req *RequestShippingQuotesRequest, params RequestShippingQuotesParams) (RequestShippingQuotesRes, error)
+	// ResendShipment implements resendShipment operation.
+	//
+	// Gửi lại hãng vận đơn creating có create_state not_sent; trạng thái khác → 409
+	// create_in_progress (Task M3-12).
+	//
+	// POST /api/v1/shipments/{id}/resend
+	ResendShipment(ctx context.Context, params ResendShipmentParams) (ResendShipmentRes, error)
+	// ResolveAddressChange implements resolveAddressChange operation.
+	//
+	// Nhân viên xác nhận kết quả đổi địa chỉ (yêu cầu manual, sent hoặc unknown)
+	// (Task M3-17).
+	//
+	// POST /api/v1/address-changes/{id}/resolve
+	ResolveAddressChange(ctx context.Context, req *ResolveAddressChangeRequest, params ResolveAddressChangeParams) (ResolveAddressChangeRes, error)
 	// ResolveOrderDuplicate implements resolveOrderDuplicate operation.
 	//
 	// Xử lý một cặp nghi trùng: không trùng, hoặc hủy một đơn (lý do duplicate); không
@@ -707,6 +979,20 @@ type Handler interface {
 	//
 	// POST /api/v1/order-duplicates/{orderId}/{otherOrderId}/resolve
 	ResolveOrderDuplicate(ctx context.Context, req *ResolveOrderDuplicateRequest, params ResolveOrderDuplicateParams) (ResolveOrderDuplicateRes, error)
+	// ResolveShipmentAnomaly implements resolveShipmentAnomaly operation.
+	//
+	// Đóng một việc Cần xem kèm cách xử lý; in_doubt_create phải qua resolveShipmentCreate
+	// → 409 (Task M3-20).
+	//
+	// POST /api/v1/shipment-anomalies/{id}/resolve
+	ResolveShipmentAnomaly(ctx context.Context, req *ResolveShipmentAnomalyRequest, params ResolveShipmentAnomalyParams) (ResolveShipmentAnomalyRes, error)
+	// ResolveShipmentCreate implements resolveShipmentCreate operation.
+	//
+	// Xử lý "không rõ hãng đã tạo vận đơn chưa" sau khi nhân viên tra trang hãng (Task
+	// M3-12).
+	//
+	// POST /api/v1/shipments/{id}/resolve-create
+	ResolveShipmentCreate(ctx context.Context, req *ResolveShipmentCreateRequest, params ResolveShipmentCreateParams) (ResolveShipmentCreateRes, error)
 	// RestoreProductImage implements restoreProductImage operation.
 	//
 	// Khôi phục ảnh đã xóa về vị trí cũ; quá 30 ngày → 410 restore_expired; ảnh đang
@@ -727,12 +1013,26 @@ type Handler interface {
 	//
 	// GET /api/v1/catalog/variants/search
 	SearchVariants(ctx context.Context, params SearchVariantsParams) (SearchVariantsRes, error)
+	// SetCarrierAccountStatus implements setCarrierAccountStatus operation.
+	//
+	// Đổi trạng thái tài khoản: active (manual hoặc đã có khóa), paused, revoked (Task
+	// M3-09).
+	//
+	// POST /api/v1/carrier-accounts/{id}/status
+	SetCarrierAccountStatus(ctx context.Context, req *SetCarrierAccountStatusRequest, params SetCarrierAccountStatusParams) (SetCarrierAccountStatusRes, error)
 	// SetOrderPending implements setOrderPending operation.
 	//
 	// Đặt hoặc bỏ lý do chờ của đơn mới (chờ khách, hết hàng) (Task M2-19).
 	//
 	// POST /api/v1/orders/{id}/pending
 	SetOrderPending(ctx context.Context, req *SetOrderPendingRequest, params SetOrderPendingParams) (SetOrderPendingRes, error)
+	// SetPackingStatus implements setPackingStatus operation.
+	//
+	// Đánh dấu đang nhặt hoặc đã đóng gói cho nhiều đơn (chỉ đi tới); kết quả
+	// từng đơn (Task M3-16).
+	//
+	// POST /api/v1/orders/packing
+	SetPackingStatus(ctx context.Context, req *SetPackingStatusRequest, params SetPackingStatusParams) (SetPackingStatusRes, error)
 	// SetProductClassification implements setProductClassification operation.
 	//
 	// Thay toàn bộ danh mục, giá trị thuộc tính, nhãn của mẫu khi version của mẫu còn
@@ -748,6 +1048,20 @@ type Handler interface {
 	//
 	// PUT /api/v1/catalog/products/{id}/images/{imageId}/color
 	SetProductImageColor(ctx context.Context, req *SetProductImageColorRequest, params SetProductImageColorParams) (SetProductImageColorRes, error)
+	// SetShipmentManualStatus implements setShipmentManualStatus operation.
+	//
+	// Nhân viên cập nhật trạng thái vận đơn nhập tay hoặc tự giao (cùng máy trạng
+	// thái); returned chỉ qua nhận hàng hoàn (Task M3-15).
+	//
+	// POST /api/v1/shipments/{id}/manual-status
+	SetShipmentManualStatus(ctx context.Context, req *SetShipmentManualStatusRequest, params SetShipmentManualStatusParams) (SetShipmentManualStatusRes, error)
+	// SetWarehousePickup implements setWarehousePickup operation.
+	//
+	// Địa chỉ lấy hàng của kho khi version còn khớp; audit chỉ ghi tên trường (Task
+	// M3-09).
+	//
+	// PUT /api/v1/inventory/warehouses/{id}/pickup
+	SetWarehousePickup(ctx context.Context, req *SetWarehousePickupRequest, params SetWarehousePickupParams) (SetWarehousePickupRes, error)
 	// StartCustomerImport implements startCustomerImport operation.
 	//
 	// Nhập khách từ tệp Excel đã tải lên (mục đích customer_import); chạy nền; tệp
@@ -768,6 +1082,18 @@ type Handler interface {
 	//
 	// GET /api/v1/stream
 	Stream(ctx context.Context) (StreamRes, error)
+	// SyncCarrierLocations implements syncCarrierLocations operation.
+	//
+	// Tải địa giới của hãng và khớp với mã của CRM (việc nền) (Task M3-18).
+	//
+	// POST /api/v1/carrier-accounts/{id}/locations/sync
+	SyncCarrierLocations(ctx context.Context, params SyncCarrierLocationsParams) (SyncCarrierLocationsRes, error)
+	// SyncShipment implements syncShipment operation.
+	//
+	// Tra trạng thái ở hãng ngay (một việc mỗi phút cho mỗi vận đơn) (Task M3-11).
+	//
+	// POST /api/v1/shipments/{id}/sync
+	SyncShipment(ctx context.Context, params SyncShipmentParams) (SyncShipmentRes, error)
 	// UndoCustomerMerge implements undoCustomerMerge operation.
 	//
 	// Hoàn tác một lần gộp trong 30 ngày khi còn là lần gần nhất (Q14); không thì 409
@@ -781,6 +1107,12 @@ type Handler interface {
 	//
 	// POST /api/v1/identity/users/{id}/unlock
 	UnlockStaff(ctx context.Context, params UnlockStaffParams) (UnlockStaffRes, error)
+	// UpdateCarrierAccount implements updateCarrierAccount operation.
+	//
+	// Sửa tài khoản hãng khi version còn khớp (sai → 409 version_conflict) (Task M3-09).
+	//
+	// PATCH /api/v1/carrier-accounts/{id}
+	UpdateCarrierAccount(ctx context.Context, req *UpdateCarrierAccountRequest, params UpdateCarrierAccountParams) (UpdateCarrierAccountRes, error)
 	// UpdateCategory implements updateCategory operation.
 	//
 	// Sửa tên, slug, vị trí, cha của danh mục khi version còn khớp (không thành con của
@@ -813,6 +1145,13 @@ type Handler interface {
 	//
 	// PATCH /api/v1/customer-tags/{tagId}
 	UpdateCustomerTag(ctx context.Context, req *UpdateCustomerTagRequest, params UpdateCustomerTagParams) (UpdateCustomerTagRes, error)
+	// UpdateFulfillmentSettings implements updateFulfillmentSettings operation.
+	//
+	// Ghi cài đặt vận chuyển khi version còn khớp (sai → 409 version_conflict); số ngoài
+	// khoảng → 422 (Task M3-04).
+	//
+	// PUT /api/v1/fulfillment-settings
+	UpdateFulfillmentSettings(ctx context.Context, req *UpdateFulfillmentSettingsRequest, params UpdateFulfillmentSettingsParams) (UpdateFulfillmentSettingsRes, error)
 	// UpdateOrder implements updateOrder operation.
 	//
 	// Sửa đơn khi version còn khớp: dòng, giảm giá, mã, phí, địa chỉ, ghi chú hãng,
@@ -866,6 +1205,12 @@ type Handler interface {
 	//
 	// POST /api/v1/platform/files/verify
 	VerifyFiles(ctx context.Context, params VerifyFilesParams) (VerifyFilesRes, error)
+	// WaiveRefundObligation implements waiveRefundObligation operation.
+	//
+	// Bỏ nghĩa vụ hoàn tiền kèm lý do (Task M3-30).
+	//
+	// POST /api/v1/refund-obligations/{id}/waive
+	WaiveRefundObligation(ctx context.Context, req *WaiveRefundObligationRequest, params WaiveRefundObligationParams) (WaiveRefundObligationRes, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and

@@ -9,6 +9,8 @@ Package background giữ kiểu chung của phần chạy nền (việc nền, c
 **Khi nào không dùng:** Không đặt phụ thuộc riêng của một module vào Deps (thêm vào kiểu riêng của module) và không dùng cho đường yêu cầu HTTP (httpapi.Deps). Không dựng Deps hay gọi Background của module ở chỗ khác ngoài cmd/crm (newModules), mỗi tiến trình một lần: gọi hai lần sinh hai sổ consumer lệch nhau. Parts chỉ liệt kê việc nền, consumer, lịch; không chạy gì lúc dựng.
 
 ```go
+func Collect[T any](parts ...[]T) []T
+func UniqueNames[T any](what string, items []T, name func(T) string) error
 type Deps struct {
 	DB *db.DB
 
@@ -955,6 +957,17 @@ func (s *Source) Challenge(q url.Values) (string, bool)
 func (*Source) Key() string
 func (*Source) Split(raw []byte) (webhooks.SplitResult, error)
 func (s *Source) VerifySignature(raw []byte, h http.Header) bool
+```
+
+## `internal/platform/settings` (gói `settings`)
+
+Package settings giữ cài đặt theo tenant dạng khóa → object JSON, có version (bảng platform.settings, kế hoạch M3 Task M3-04; Q-35, B17; spec 05 mục 5).
+
+**Khi nào không dùng:** Không dùng cho cài đặt cần cột riêng, CHECK hay khóa ngoại do database kiểm (bảng riêng của module, như ord.order_settings), cho dữ liệu nghiệp vụ, danh sách lớn hay bí mật (khóa API mã hóa bằng fieldcrypt trong bảng của module). Không gọi ngoài transaction có ngữ cảnh tenant (WithTenant, WriteTx). Không để module khác đọc khóa của module mình qua Get: đọc qua hàm của module chủ (vd. fulfillment.LoadSettings) để có mặc định và luật kiểm một nơi. PUT cài đặt sửa platform.settings một mình (ADR-46 nhóm 12c).
+
+```go
+func Get[T any](ctx context.Context, tx pgx.Tx, key string, def T) (T, int64, error)
+func Put(ctx context.Context, tx pgx.Tx, key string, version int64, v any, actor string) error
 ```
 
 ## `internal/platform/telemetry` (gói `telemetry`)

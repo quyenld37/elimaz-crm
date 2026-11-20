@@ -7,6 +7,9 @@
 package background
 
 import (
+	"errors"
+	"fmt"
+
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
@@ -31,4 +34,30 @@ type Parts struct {
 	JobHandlers []queue.Handler
 	Consumers   []events.Consumer
 	Schedules   []schedules.Schedule
+}
+
+// ErrDuplicatePart báo hai phần chạy nền (lệnh, handler vào, nguồn webhook, consumer, lịch) của module cùng tên.
+var ErrDuplicatePart = errors.New("background: hai phần chạy nền trùng tên")
+
+// Collect nối mọi lát trong parts theo thứ tự (khung nối theo vùng của M3: mỗi vùng trả một lát, có thể nil).
+func Collect[T any](parts ...[]T) []T {
+	var out []T
+	for _, p := range parts {
+		out = append(out, p...)
+	}
+	return out
+}
+
+// UniqueNames trả lỗi bọc ErrDuplicatePart nêu loại what và tên đầu tiên bị trùng trong items (mỗi phần đăng ký một
+// lần); nil khi không trùng.
+func UniqueNames[T any](what string, items []T, name func(T) string) error {
+	seen := make(map[string]bool, len(items))
+	for _, it := range items {
+		n := name(it)
+		if seen[n] {
+			return fmt.Errorf("%s %q: %w", what, n, ErrDuplicatePart)
+		}
+		seen[n] = true
+	}
+	return nil
 }

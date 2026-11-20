@@ -3,6 +3,8 @@ package main
 import (
 	"slices"
 	"testing"
+
+	"elimaz.com.vn/crm/internal/platform/config"
 )
 
 // Sổ sự kiện dùng chung của api, lệnh vận chuyển và worker có consumer sổ COD (Task M1-32): worker có handler
@@ -11,7 +13,7 @@ import (
 // customer_stats và lịch nhãn đêm customer.tag_rules_nightly (Task M2-25).
 func TestNewModulesRegistersCash(t *testing.T) {
 	t.Parallel()
-	m, err := newModules(nil, nil)
+	m, err := newModules(config.Config{Role: config.RoleWorker}, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

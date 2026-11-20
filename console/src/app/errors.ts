@@ -104,6 +104,21 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   unknown_admin_unit: "Không tìm thấy tỉnh hoặc xã đã chọn",
   variant_not_found: "Có sản phẩm không còn trong danh mục",
   ward_not_in_province: "Xã/phường không thuộc tỉnh đã chọn",
+  // Vận chuyển, tiền (M3, Task M3-04)
+  address_unmapped: "Hãng chưa nhận địa chỉ này (tỉnh hoặc xã chưa khớp mã của hãng). Báo quản lý đối chiếu địa giới",
+  capability_not_supported: "Hãng hoặc tài khoản này không hỗ trợ việc này",
+  carrier_account_unavailable:
+    "Tài khoản hãng chưa sẵn sàng (chưa kết nối, tạm dừng hoặc lỗi khóa). Chọn tài khoản khác hoặc báo quản lý",
+  cod_locked_by_shipment: "Đơn đã gửi hãng, không đổi được tiền thu hộ. Ghi tiền sau khi vận đơn kết thúc hoặc đã hủy",
+  correction_blocked: "Chưa sửa được: vận đơn đã có tiền về trong bảng kê đã chốt. Kế toán điều chỉnh tiền trước",
+  create_in_progress: "Đang gửi hãng hoặc chưa rõ hãng đã tạo vận đơn. Chờ kết quả hoặc xử lý mục Không rõ trước",
+  order_not_shippable: "Đơn chưa ở trạng thái gửi hãng được (phải Đã xác nhận và chưa có vận đơn)",
+  preview_stale: "Dữ liệu đã đổi sau khi xem trước. Xem trước lại rồi xác nhận",
+  quote_stale: "Báo phí đã hết hạn hoặc đơn đã đổi. Bấm so phí lại",
+  shipment_not_cancellable: "Hãng đã lấy hàng, không hủy được vận đơn. Chờ hãng chuyển hoàn",
+  statement_changed: "Bảng kê vừa được người khác thay đổi. Tải lại rồi chốt lại",
+  statement_duplicate: "Tệp bảng kê này đã được nhập trước đó",
+  tracking_code_conflict: "Mã vận đơn của hãng đã dùng cho vận đơn khác",
 };
 
 /** Câu cho từng lý do từ chối mã giảm giá (CouponRejectReason: checkCoupon.reason, thân lỗi coupon_rejected.reason). */

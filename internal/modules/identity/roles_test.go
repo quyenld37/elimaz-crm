@@ -20,8 +20,13 @@ func TestDefaultRoles_Content(t *testing.T) {
 		all = append(all, d.Key)
 	}
 	var manager []identity.Permission
+	// M3 (Task M3-04): Quản lý không nhập, chốt bảng kê, không điều chỉnh sổ COD, không ghi hay miễn khoản hoàn tiền.
+	cashOnlyOwner := []identity.Permission{
+		"cash.statements.import", "cash.statements.confirm", "cash.adjust", "cash.refunds.record", "cash.refunds.waive",
+	}
 	for _, p := range all {
-		if p != "identity.users.manage" && p != "identity.roles.manage" && (len(p) < 9 || p[:9] != "platform.") {
+		if p != "identity.users.manage" && p != "identity.roles.manage" && (len(p) < 9 || p[:9] != "platform.") &&
+			!slices.Contains(cashOnlyOwner, p) {
 			manager = append(manager, p)
 		}
 	}
@@ -32,17 +37,25 @@ func TestDefaultRoles_Content(t *testing.T) {
 			"catalog.read", "order.create", "order.read", "inventory.read", "fulfillment.read", "fulfillment.ship", "realtime.subscribe",
 			// M2 (Task M2-01).
 			"customer.read", "customer.write", "order.update", "order.confirm", "order.cancel", "order.return", "promotion.read",
+			// M3 (Task M3-04).
+			"fulfillment.quote", "fulfillment.cancel", "fulfillment.callbacks.work", "cash.payments.record",
 		},
 		"warehouse": {
 			"catalog.read", "inventory.read", "inventory.documents.create", "inventory.stocktake", "fulfillment.read",
 			"fulfillment.ship", "inventory.suppliers.manage", "realtime.subscribe",
 			// M2 (Task M2-01).
 			"order.read", "order.return.receive", "customer.read",
+			// M3 (Task M3-04).
+			"fulfillment.carrier_accounts.read", "fulfillment.quote", "fulfillment.cancel", "fulfillment.print",
+			"fulfillment.pack", "fulfillment.manual_status", "inventory.aged.read",
 		},
 		"accountant": {
 			"catalog.read", "inventory.read", "order.read", "fulfillment.read", "realtime.subscribe",
 			// M2 (Task M2-01).
 			"customer.read", "promotion.read",
+			// M3 (Task M3-04).
+			"cash.cod.read", "cash.statements.import", "cash.statements.confirm", "cash.adjust", "cash.payments.record",
+			"cash.refunds.record", "files.upload",
 		},
 	}
 	names := map[string]string{"owner": "Chủ", "manager": "Quản lý", "sale": "Bán hàng", "warehouse": "Kho", "accountant": "Kế toán"}
@@ -306,17 +319,7 @@ func TestSyncDefaultRoles_M2(t *testing.T) {
 		"INSERT INTO identity.roles (tenant_id, key, name, customized) VALUES (current_setting('app.tenant_id')::uuid, 'custom_ab12cd34', 'Tự đặt', true)",
 		"INSERT INTO identity.role_permissions (tenant_id, role_id, permission) SELECT tenant_id, id, 'catalog.read' FROM identity.roles WHERE key = 'custom_ab12cd34'",
 	)
-	before, err := identity.LoadUser(t.Context(), s.App, email)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if identity.Can(before, "customer.merge", nil) {
-		t.Fatal("giả lập tenant cũ hỏng: chủ đã có customer.merge trước khi đồng bộ")
-	}
-	if _, err := identity.SyncDefaultRoles(t.Context(), s.Owner); err != nil {
-		t.Fatal(err)
-	}
-	r := rolesByKey(t, s, a)
+	r := syncOldTenant(t, s, a, email, "customer.merge")
 	for _, p := range m2Permissions() {
 		if !slices.Contains(r["owner"].Permissions, p) {
 			t.Errorf("owner (customized) thiếu %s", p)
@@ -345,4 +348,101 @@ func TestSyncDefaultRoles_M2(t *testing.T) {
 			t.Errorf("chủ shop không có %s sau đồng bộ", p)
 		}
 	}
+}
+
+// m3Permissions là 18 quyền Task M3-04 thêm (quyền M1, M2 dùng lại không khai lại).
+func m3Permissions() []identity.Permission {
+	return []identity.Permission{
+		"fulfillment.carrier_accounts.read", "fulfillment.carrier_accounts.manage", "fulfillment.settings.manage",
+		"fulfillment.quote", "fulfillment.cancel", "fulfillment.print", "fulfillment.pack", "fulfillment.manual_status",
+		"fulfillment.correct", "fulfillment.callbacks.work", "inventory.aged.read", "cash.cod.read",
+		"cash.statements.import", "cash.statements.confirm", "cash.adjust", "cash.payments.record",
+		"cash.refunds.record", "cash.refunds.waive",
+	}
+}
+
+// Tenant mới (Task M3-04): Kho có fulfillment.print, không có cash.adjust; sale vẫn có fulfillment.ship của M1; owner
+// đủ 18 quyền M3; manager không có quyền sổ COD chỉ dành cho Chủ, Kế toán.
+func TestEnsureDefaultRoles_M3(t *testing.T) {
+	s, a := rolesTenant(t)
+	r := rolesByKey(t, s, a)
+	if !slices.Contains(r["warehouse"].Permissions, "fulfillment.print") || slices.Contains(r["warehouse"].Permissions, "cash.adjust") {
+		t.Errorf("Kho phải có fulfillment.print, không có cash.adjust: %v", r["warehouse"].Permissions)
+	}
+	if !slices.Contains(r["sale"].Permissions, "fulfillment.ship") {
+		t.Errorf("sale phải giữ fulfillment.ship của M1: %v", r["sale"].Permissions)
+	}
+	for _, p := range m3Permissions() {
+		if !slices.Contains(r["owner"].Permissions, p) {
+			t.Errorf("owner thiếu %s", p)
+		}
+	}
+	for _, p := range []identity.Permission{"cash.adjust", "cash.refunds.waive", "cash.statements.confirm"} {
+		if slices.Contains(r["manager"].Permissions, p) {
+			t.Errorf("manager không được có %s", p)
+		}
+	}
+	if slices.Contains(r["accountant"].Permissions, "cash.refunds.waive") || !slices.Contains(r["accountant"].Permissions, "cash.adjust") {
+		t.Errorf("Kế toán: có cash.adjust, không có cash.refunds.waive: %v", r["accountant"].Permissions)
+	}
+}
+
+// Thay migration 0305 (Q-T91-5): tenant có trước M3 (xóa mọi quyền M3) chạy SyncDefaultRoles: owner (đã customized)
+// đủ 18 quyền và dùng được ngay; warehouse chưa sửa nhận phần M3 của mình; accountant đã customized không nhận gì.
+func TestSyncDefaultRoles_M3(t *testing.T) {
+	s := testkit.OpenStaff(t)
+	a := s.Tenant(t, "A")
+	const email = "chu-m3@elimaz.test"
+	s.User(t, a, email, "active")
+	if err := identity.SeedOwner(t.Context(), s.Owner, a, email); err != nil {
+		t.Fatal(err)
+	}
+	m3 := make([]string, 0, len(m3Permissions()))
+	for _, p := range m3Permissions() {
+		m3 = append(m3, "'"+string(p)+"'")
+	}
+	execAll(t, s, a,
+		"DELETE FROM identity.role_permissions WHERE permission IN ("+strings.Join(m3, ", ")+")",
+		"UPDATE identity.roles SET customized = true WHERE key IN ('accountant', 'owner')",
+	)
+	r := syncOldTenant(t, s, a, email, "cash.adjust")
+	for _, p := range m3Permissions() {
+		if !slices.Contains(r["owner"].Permissions, p) {
+			t.Errorf("owner (customized) thiếu %s", p)
+		}
+		if slices.Contains(r["accountant"].Permissions, p) {
+			t.Errorf("accountant đã sửa không được nhận %s", p)
+		}
+	}
+	for _, p := range []identity.Permission{"fulfillment.print", "fulfillment.pack", "inventory.aged.read"} {
+		if !slices.Contains(r["warehouse"].Permissions, p) {
+			t.Errorf("warehouse chưa sửa thiếu %s sau đồng bộ", p)
+		}
+	}
+	u, err := identity.LoadUser(t.Context(), s.App, email)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range m3Permissions() {
+		if !identity.Can(u, p, nil) {
+			t.Errorf("chủ shop không có %s sau đồng bộ", p)
+		}
+	}
+}
+
+// syncOldTenant kiểm chủ shop email chưa có quyền missing (giả lập tenant cũ đúng), chạy SyncDefaultRoles rồi trả vai
+// trò của tenant a theo khóa.
+func syncOldTenant(t *testing.T, s *testkit.Staff, a uuid.UUID, email string, missing identity.Permission) map[string]identity.RoleRow {
+	t.Helper()
+	before, err := identity.LoadUser(t.Context(), s.App, email)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if identity.Can(before, missing, nil) {
+		t.Fatalf("giả lập tenant cũ hỏng: chủ đã có %s trước khi đồng bộ", missing)
+	}
+	if _, err := identity.SyncDefaultRoles(t.Context(), s.Owner); err != nil {
+		t.Fatal(err)
+	}
+	return rolesByKey(t, s, a)
 }

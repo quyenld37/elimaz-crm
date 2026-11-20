@@ -343,6 +343,153 @@ func (s *Address) SetWardName(val OptString) {
 	s.WardName = val
 }
 
+// Yêu cầu đổi địa chỉ (không trả lại địa chỉ).
+// Ref: #/components/schemas/AddressChange
+type AddressChange struct {
+	ID         uuid.UUID           `json:"id"`
+	ShipmentId uuid.UUID           `json:"shipmentId"`
+	Mode       CarrierAccountMode  `json:"mode"`
+	Status     AddressChangeStatus `json:"status"`
+	Note       OptString           `json:"note"`
+	CreatedAt  time.Time           `json:"createdAt"`
+	ResolvedAt OptDateTime         `json:"resolvedAt"`
+}
+
+// GetID returns the value of ID.
+func (s *AddressChange) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetShipmentId returns the value of ShipmentId.
+func (s *AddressChange) GetShipmentId() uuid.UUID {
+	return s.ShipmentId
+}
+
+// GetMode returns the value of Mode.
+func (s *AddressChange) GetMode() CarrierAccountMode {
+	return s.Mode
+}
+
+// GetStatus returns the value of Status.
+func (s *AddressChange) GetStatus() AddressChangeStatus {
+	return s.Status
+}
+
+// GetNote returns the value of Note.
+func (s *AddressChange) GetNote() OptString {
+	return s.Note
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *AddressChange) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetResolvedAt returns the value of ResolvedAt.
+func (s *AddressChange) GetResolvedAt() OptDateTime {
+	return s.ResolvedAt
+}
+
+// SetID sets the value of ID.
+func (s *AddressChange) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetShipmentId sets the value of ShipmentId.
+func (s *AddressChange) SetShipmentId(val uuid.UUID) {
+	s.ShipmentId = val
+}
+
+// SetMode sets the value of Mode.
+func (s *AddressChange) SetMode(val CarrierAccountMode) {
+	s.Mode = val
+}
+
+// SetStatus sets the value of Status.
+func (s *AddressChange) SetStatus(val AddressChangeStatus) {
+	s.Status = val
+}
+
+// SetNote sets the value of Note.
+func (s *AddressChange) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *AddressChange) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetResolvedAt sets the value of ResolvedAt.
+func (s *AddressChange) SetResolvedAt(val OptDateTime) {
+	s.ResolvedAt = val
+}
+
+func (*AddressChange) requestAddressChangeRes() {}
+func (*AddressChange) resolveAddressChangeRes() {}
+
+type AddressChangeStatus string
+
+const (
+	AddressChangeStatusPending   AddressChangeStatus = "pending"
+	AddressChangeStatusSent      AddressChangeStatus = "sent"
+	AddressChangeStatusConfirmed AddressChangeStatus = "confirmed"
+	AddressChangeStatusRejected  AddressChangeStatus = "rejected"
+	AddressChangeStatusUnknown   AddressChangeStatus = "unknown"
+)
+
+// AllValues returns all AddressChangeStatus values.
+func (AddressChangeStatus) AllValues() []AddressChangeStatus {
+	return []AddressChangeStatus{
+		AddressChangeStatusPending,
+		AddressChangeStatusSent,
+		AddressChangeStatusConfirmed,
+		AddressChangeStatusRejected,
+		AddressChangeStatusUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AddressChangeStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case AddressChangeStatusPending:
+		return []byte(s), nil
+	case AddressChangeStatusSent:
+		return []byte(s), nil
+	case AddressChangeStatusConfirmed:
+		return []byte(s), nil
+	case AddressChangeStatusRejected:
+		return []byte(s), nil
+	case AddressChangeStatusUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AddressChangeStatus) UnmarshalText(data []byte) error {
+	switch AddressChangeStatus(data) {
+	case AddressChangeStatusPending:
+		*s = AddressChangeStatusPending
+		return nil
+	case AddressChangeStatusSent:
+		*s = AddressChangeStatusSent
+		return nil
+	case AddressChangeStatusConfirmed:
+		*s = AddressChangeStatusConfirmed
+		return nil
+	case AddressChangeStatusRejected:
+		*s = AddressChangeStatusRejected
+		return nil
+	case AddressChangeStatusUnknown:
+		*s = AddressChangeStatusUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Địa chỉ đủ hai cấp hành chính (tên trường như ShipAddress của M1; name là
 // người nhận, line là số nhà, đường).
 // Ref: #/components/schemas/AddressInput
@@ -510,6 +657,226 @@ func (s *AdminUnitList) SetItems(val []AdminUnit) {
 
 func (*AdminUnitList) listAdminUnitsRes() {}
 
+// Ref: #/components/schemas/AgedDaysSettings
+type AgedDaysSettings struct {
+	Held      int32 `json:"held"`
+	InTransit int32 `json:"inTransit"`
+}
+
+// GetHeld returns the value of Held.
+func (s *AgedDaysSettings) GetHeld() int32 {
+	return s.Held
+}
+
+// GetInTransit returns the value of InTransit.
+func (s *AgedDaysSettings) GetInTransit() int32 {
+	return s.InTransit
+}
+
+// SetHeld sets the value of Held.
+func (s *AgedDaysSettings) SetHeld(val int32) {
+	s.Held = val
+}
+
+// SetInTransit sets the value of InTransit.
+func (s *AgedDaysSettings) SetInTransit(val int32) {
+	s.InTransit = val
+}
+
+// Ref: #/components/schemas/AgedReservation
+type AgedReservation struct {
+	ReservationId uuid.UUID            `json:"reservationId"`
+	OrderItemId   uuid.UUID            `json:"orderItemId"`
+	OrderId       uuid.UUID            `json:"orderId"`
+	OrderCode     string               `json:"orderCode"`
+	VariantId     uuid.UUID            `json:"variantId"`
+	Sku           string               `json:"sku"`
+	WarehouseId   uuid.UUID            `json:"warehouseId"`
+	State         AgedReservationState `json:"state"`
+	Quantity      int32                `json:"quantity"`
+	Since         time.Time            `json:"since"`
+	AgeDays       int32                `json:"ageDays"`
+}
+
+// GetReservationId returns the value of ReservationId.
+func (s *AgedReservation) GetReservationId() uuid.UUID {
+	return s.ReservationId
+}
+
+// GetOrderItemId returns the value of OrderItemId.
+func (s *AgedReservation) GetOrderItemId() uuid.UUID {
+	return s.OrderItemId
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *AgedReservation) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetOrderCode returns the value of OrderCode.
+func (s *AgedReservation) GetOrderCode() string {
+	return s.OrderCode
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *AgedReservation) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetSku returns the value of Sku.
+func (s *AgedReservation) GetSku() string {
+	return s.Sku
+}
+
+// GetWarehouseId returns the value of WarehouseId.
+func (s *AgedReservation) GetWarehouseId() uuid.UUID {
+	return s.WarehouseId
+}
+
+// GetState returns the value of State.
+func (s *AgedReservation) GetState() AgedReservationState {
+	return s.State
+}
+
+// GetQuantity returns the value of Quantity.
+func (s *AgedReservation) GetQuantity() int32 {
+	return s.Quantity
+}
+
+// GetSince returns the value of Since.
+func (s *AgedReservation) GetSince() time.Time {
+	return s.Since
+}
+
+// GetAgeDays returns the value of AgeDays.
+func (s *AgedReservation) GetAgeDays() int32 {
+	return s.AgeDays
+}
+
+// SetReservationId sets the value of ReservationId.
+func (s *AgedReservation) SetReservationId(val uuid.UUID) {
+	s.ReservationId = val
+}
+
+// SetOrderItemId sets the value of OrderItemId.
+func (s *AgedReservation) SetOrderItemId(val uuid.UUID) {
+	s.OrderItemId = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *AgedReservation) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetOrderCode sets the value of OrderCode.
+func (s *AgedReservation) SetOrderCode(val string) {
+	s.OrderCode = val
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *AgedReservation) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetSku sets the value of Sku.
+func (s *AgedReservation) SetSku(val string) {
+	s.Sku = val
+}
+
+// SetWarehouseId sets the value of WarehouseId.
+func (s *AgedReservation) SetWarehouseId(val uuid.UUID) {
+	s.WarehouseId = val
+}
+
+// SetState sets the value of State.
+func (s *AgedReservation) SetState(val AgedReservationState) {
+	s.State = val
+}
+
+// SetQuantity sets the value of Quantity.
+func (s *AgedReservation) SetQuantity(val int32) {
+	s.Quantity = val
+}
+
+// SetSince sets the value of Since.
+func (s *AgedReservation) SetSince(val time.Time) {
+	s.Since = val
+}
+
+// SetAgeDays sets the value of AgeDays.
+func (s *AgedReservation) SetAgeDays(val int32) {
+	s.AgeDays = val
+}
+
+// Ref: #/components/schemas/AgedReservationPage
+type AgedReservationPage struct {
+	Items      []AgedReservation `json:"items"`
+	NextCursor OptString         `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *AgedReservationPage) GetItems() []AgedReservation {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *AgedReservationPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *AgedReservationPage) SetItems(val []AgedReservation) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *AgedReservationPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*AgedReservationPage) listAgedReservationsRes() {}
+
+type AgedReservationState string
+
+const (
+	AgedReservationStateHeld      AgedReservationState = "held"
+	AgedReservationStateInTransit AgedReservationState = "in_transit"
+)
+
+// AllValues returns all AgedReservationState values.
+func (AgedReservationState) AllValues() []AgedReservationState {
+	return []AgedReservationState{
+		AgedReservationStateHeld,
+		AgedReservationStateInTransit,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AgedReservationState) MarshalText() ([]byte, error) {
+	switch s {
+	case AgedReservationStateHeld:
+		return []byte(s), nil
+	case AgedReservationStateInTransit:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AgedReservationState) UnmarshalText(data []byte) error {
+	switch AgedReservationState(data) {
+	case AgedReservationStateHeld:
+		*s = AgedReservationStateHeld
+		return nil
+	case AgedReservationStateInTransit:
+		*s = AgedReservationStateInTransit
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/AlertSummary
 type AlertSummary struct {
 	Key      string               `json:"key"`
@@ -582,6 +949,77 @@ func (s *AlertSummarySeverity) UnmarshalText(data []byte) error {
 		return nil
 	case AlertSummarySeverityUrgent:
 		*s = AlertSummarySeverityUrgent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ApplyShipmentCorrectionRequest
+type ApplyShipmentCorrectionRequest struct {
+	To           ApplyShipmentCorrectionRequestTo `json:"to"`
+	Reason       string                           `json:"reason"`
+	PreviewToken string                           `json:"previewToken"`
+}
+
+// GetTo returns the value of To.
+func (s *ApplyShipmentCorrectionRequest) GetTo() ApplyShipmentCorrectionRequestTo {
+	return s.To
+}
+
+// GetReason returns the value of Reason.
+func (s *ApplyShipmentCorrectionRequest) GetReason() string {
+	return s.Reason
+}
+
+// GetPreviewToken returns the value of PreviewToken.
+func (s *ApplyShipmentCorrectionRequest) GetPreviewToken() string {
+	return s.PreviewToken
+}
+
+// SetTo sets the value of To.
+func (s *ApplyShipmentCorrectionRequest) SetTo(val ApplyShipmentCorrectionRequestTo) {
+	s.To = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ApplyShipmentCorrectionRequest) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetPreviewToken sets the value of PreviewToken.
+func (s *ApplyShipmentCorrectionRequest) SetPreviewToken(val string) {
+	s.PreviewToken = val
+}
+
+type ApplyShipmentCorrectionRequestTo string
+
+const (
+	ApplyShipmentCorrectionRequestToReturning ApplyShipmentCorrectionRequestTo = "returning"
+)
+
+// AllValues returns all ApplyShipmentCorrectionRequestTo values.
+func (ApplyShipmentCorrectionRequestTo) AllValues() []ApplyShipmentCorrectionRequestTo {
+	return []ApplyShipmentCorrectionRequestTo{
+		ApplyShipmentCorrectionRequestToReturning,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ApplyShipmentCorrectionRequestTo) MarshalText() ([]byte, error) {
+	switch s {
+	case ApplyShipmentCorrectionRequestToReturning:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ApplyShipmentCorrectionRequestTo) UnmarshalText(data []byte) error {
+	switch ApplyShipmentCorrectionRequestTo(data) {
+	case ApplyShipmentCorrectionRequestToReturning:
+		*s = ApplyShipmentCorrectionRequestToReturning
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -786,6 +1224,33 @@ func (s *ArticleBlockType) UnmarshalText(data []byte) error {
 }
 
 type ArticleInput []jx.Raw
+
+// Ref: #/components/schemas/AssignCallbackTaskRequest
+type AssignCallbackTaskRequest struct {
+	AssigneeId uuid.UUID `json:"assigneeId"`
+	// Có thì phải khớp version của việc.
+	Version OptInt64 `json:"version"`
+}
+
+// GetAssigneeId returns the value of AssigneeId.
+func (s *AssignCallbackTaskRequest) GetAssigneeId() uuid.UUID {
+	return s.AssigneeId
+}
+
+// GetVersion returns the value of Version.
+func (s *AssignCallbackTaskRequest) GetVersion() OptInt64 {
+	return s.Version
+}
+
+// SetAssigneeId sets the value of AssigneeId.
+func (s *AssignCallbackTaskRequest) SetAssigneeId(val uuid.UUID) {
+	s.AssigneeId = val
+}
+
+// SetVersion sets the value of Version.
+func (s *AssignCallbackTaskRequest) SetVersion(val OptInt64) {
+	s.Version = val
+}
 
 // Ref: #/components/schemas/AttachProductImageRequest
 type AttachProductImageRequest struct {
@@ -1166,6 +1631,308 @@ func (*BalancePage) listBalancesRes() {}
 
 type Barcode string
 
+// Ref: #/components/schemas/CallbackTask
+type CallbackTask struct {
+	ID           uuid.UUID          `json:"id"`
+	ShipmentId   uuid.UUID          `json:"shipmentId"`
+	OrderId      uuid.UUID          `json:"orderId"`
+	OrderCode    string             `json:"orderCode"`
+	CustomerName OptString          `json:"customerName"`
+	CarrierKey   OptString          `json:"carrierKey"`
+	TrackingCode OptString          `json:"trackingCode"`
+	AttemptNo    int32              `json:"attemptNo"`
+	FailedReason OptString          `json:"failedReason"`
+	FailedAt     time.Time          `json:"failedAt"`
+	DueAt        time.Time          `json:"dueAt"`
+	Overdue      bool               `json:"overdue"`
+	Status       CallbackTaskStatus `json:"status"`
+	// Redeliver, redeliver_new_address, customer_cancel, no_answer, reschedule, carrier_returning,
+	// delivered.
+	Outcome       OptString        `json:"outcome"`
+	NextCallAt    OptDateTime      `json:"nextCallAt"`
+	Assignee      OptActor         `json:"assignee"`
+	DeliveryStats OptDeliveryStats `json:"deliveryStats"`
+	Version       int64            `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *CallbackTask) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetShipmentId returns the value of ShipmentId.
+func (s *CallbackTask) GetShipmentId() uuid.UUID {
+	return s.ShipmentId
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *CallbackTask) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetOrderCode returns the value of OrderCode.
+func (s *CallbackTask) GetOrderCode() string {
+	return s.OrderCode
+}
+
+// GetCustomerName returns the value of CustomerName.
+func (s *CallbackTask) GetCustomerName() OptString {
+	return s.CustomerName
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *CallbackTask) GetCarrierKey() OptString {
+	return s.CarrierKey
+}
+
+// GetTrackingCode returns the value of TrackingCode.
+func (s *CallbackTask) GetTrackingCode() OptString {
+	return s.TrackingCode
+}
+
+// GetAttemptNo returns the value of AttemptNo.
+func (s *CallbackTask) GetAttemptNo() int32 {
+	return s.AttemptNo
+}
+
+// GetFailedReason returns the value of FailedReason.
+func (s *CallbackTask) GetFailedReason() OptString {
+	return s.FailedReason
+}
+
+// GetFailedAt returns the value of FailedAt.
+func (s *CallbackTask) GetFailedAt() time.Time {
+	return s.FailedAt
+}
+
+// GetDueAt returns the value of DueAt.
+func (s *CallbackTask) GetDueAt() time.Time {
+	return s.DueAt
+}
+
+// GetOverdue returns the value of Overdue.
+func (s *CallbackTask) GetOverdue() bool {
+	return s.Overdue
+}
+
+// GetStatus returns the value of Status.
+func (s *CallbackTask) GetStatus() CallbackTaskStatus {
+	return s.Status
+}
+
+// GetOutcome returns the value of Outcome.
+func (s *CallbackTask) GetOutcome() OptString {
+	return s.Outcome
+}
+
+// GetNextCallAt returns the value of NextCallAt.
+func (s *CallbackTask) GetNextCallAt() OptDateTime {
+	return s.NextCallAt
+}
+
+// GetAssignee returns the value of Assignee.
+func (s *CallbackTask) GetAssignee() OptActor {
+	return s.Assignee
+}
+
+// GetDeliveryStats returns the value of DeliveryStats.
+func (s *CallbackTask) GetDeliveryStats() OptDeliveryStats {
+	return s.DeliveryStats
+}
+
+// GetVersion returns the value of Version.
+func (s *CallbackTask) GetVersion() int64 {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *CallbackTask) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetShipmentId sets the value of ShipmentId.
+func (s *CallbackTask) SetShipmentId(val uuid.UUID) {
+	s.ShipmentId = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *CallbackTask) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetOrderCode sets the value of OrderCode.
+func (s *CallbackTask) SetOrderCode(val string) {
+	s.OrderCode = val
+}
+
+// SetCustomerName sets the value of CustomerName.
+func (s *CallbackTask) SetCustomerName(val OptString) {
+	s.CustomerName = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *CallbackTask) SetCarrierKey(val OptString) {
+	s.CarrierKey = val
+}
+
+// SetTrackingCode sets the value of TrackingCode.
+func (s *CallbackTask) SetTrackingCode(val OptString) {
+	s.TrackingCode = val
+}
+
+// SetAttemptNo sets the value of AttemptNo.
+func (s *CallbackTask) SetAttemptNo(val int32) {
+	s.AttemptNo = val
+}
+
+// SetFailedReason sets the value of FailedReason.
+func (s *CallbackTask) SetFailedReason(val OptString) {
+	s.FailedReason = val
+}
+
+// SetFailedAt sets the value of FailedAt.
+func (s *CallbackTask) SetFailedAt(val time.Time) {
+	s.FailedAt = val
+}
+
+// SetDueAt sets the value of DueAt.
+func (s *CallbackTask) SetDueAt(val time.Time) {
+	s.DueAt = val
+}
+
+// SetOverdue sets the value of Overdue.
+func (s *CallbackTask) SetOverdue(val bool) {
+	s.Overdue = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CallbackTask) SetStatus(val CallbackTaskStatus) {
+	s.Status = val
+}
+
+// SetOutcome sets the value of Outcome.
+func (s *CallbackTask) SetOutcome(val OptString) {
+	s.Outcome = val
+}
+
+// SetNextCallAt sets the value of NextCallAt.
+func (s *CallbackTask) SetNextCallAt(val OptDateTime) {
+	s.NextCallAt = val
+}
+
+// SetAssignee sets the value of Assignee.
+func (s *CallbackTask) SetAssignee(val OptActor) {
+	s.Assignee = val
+}
+
+// SetDeliveryStats sets the value of DeliveryStats.
+func (s *CallbackTask) SetDeliveryStats(val OptDeliveryStats) {
+	s.DeliveryStats = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CallbackTask) SetVersion(val int64) {
+	s.Version = val
+}
+
+func (*CallbackTask) assignCallbackTaskRes()    {}
+func (*CallbackTask) recordCallbackOutcomeRes() {}
+
+// Ref: #/components/schemas/CallbackTaskPage
+type CallbackTaskPage struct {
+	Items      []CallbackTask `json:"items"`
+	NextCursor OptString      `json:"nextCursor"`
+	// Số việc mở (đếm tối đa 1.000).
+	OpenCount OptInt32 `json:"openCount"`
+}
+
+// GetItems returns the value of Items.
+func (s *CallbackTaskPage) GetItems() []CallbackTask {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *CallbackTaskPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// GetOpenCount returns the value of OpenCount.
+func (s *CallbackTaskPage) GetOpenCount() OptInt32 {
+	return s.OpenCount
+}
+
+// SetItems sets the value of Items.
+func (s *CallbackTaskPage) SetItems(val []CallbackTask) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *CallbackTaskPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+// SetOpenCount sets the value of OpenCount.
+func (s *CallbackTaskPage) SetOpenCount(val OptInt32) {
+	s.OpenCount = val
+}
+
+func (*CallbackTaskPage) listCallbackTasksRes() {}
+
+type CallbackTaskStatus string
+
+const (
+	CallbackTaskStatusOpen       CallbackTaskStatus = "open"
+	CallbackTaskStatusInProgress CallbackTaskStatus = "in_progress"
+	CallbackTaskStatusDone       CallbackTaskStatus = "done"
+	CallbackTaskStatusClosed     CallbackTaskStatus = "closed"
+)
+
+// AllValues returns all CallbackTaskStatus values.
+func (CallbackTaskStatus) AllValues() []CallbackTaskStatus {
+	return []CallbackTaskStatus{
+		CallbackTaskStatusOpen,
+		CallbackTaskStatusInProgress,
+		CallbackTaskStatusDone,
+		CallbackTaskStatusClosed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CallbackTaskStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CallbackTaskStatusOpen:
+		return []byte(s), nil
+	case CallbackTaskStatusInProgress:
+		return []byte(s), nil
+	case CallbackTaskStatusDone:
+		return []byte(s), nil
+	case CallbackTaskStatusClosed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CallbackTaskStatus) UnmarshalText(data []byte) error {
+	switch CallbackTaskStatus(data) {
+	case CallbackTaskStatusOpen:
+		*s = CallbackTaskStatusOpen
+		return nil
+	case CallbackTaskStatusInProgress:
+		*s = CallbackTaskStatusInProgress
+		return nil
+	case CallbackTaskStatusDone:
+		*s = CallbackTaskStatusDone
+		return nil
+	case CallbackTaskStatusClosed:
+		*s = CallbackTaskStatusClosed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/CancelOrderRequest
 type CancelOrderRequest struct {
 	Version int64                    `json:"version"`
@@ -1341,6 +2108,703 @@ func (s *CancelReason) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Ref: #/components/schemas/CancelShipmentRequest
+type CancelShipmentRequest struct {
+	Reason string `json:"reason"`
+}
+
+// GetReason returns the value of Reason.
+func (s *CancelShipmentRequest) GetReason() string {
+	return s.Reason
+}
+
+// SetReason sets the value of Reason.
+func (s *CancelShipmentRequest) SetReason(val string) {
+	s.Reason = val
+}
+
+// Tài khoản hãng (AccountView). Không bao giờ có khóa API; chỉ hasCredentials.
+// Ref: #/components/schemas/CarrierAccount
+type CarrierAccount struct {
+	ID                    uuid.UUID                 `json:"id"`
+	SellerId              OptUUID                   `json:"sellerId"`
+	CarrierKey            string                    `json:"carrierKey"`
+	Mode                  CarrierAccountMode        `json:"mode"`
+	Environment           CarrierAccountEnvironment `json:"environment"`
+	Name                  string                    `json:"name"`
+	Status                CarrierAccountStatus      `json:"status"`
+	WarehouseId           uuid.UUID                 `json:"warehouseId"`
+	DefaultService        OptString                 `json:"defaultService"`
+	DefaultOptions        OptCarrierOptions         `json:"defaultOptions"`
+	IsDefaultForWarehouse bool                      `json:"isDefaultForWarehouse"`
+	ShowOnWeb             bool                      `json:"showOnWeb"`
+	WebSort               int32                     `json:"webSort"`
+	LastCheckAt           OptDateTime               `json:"lastCheckAt"`
+	// Mã kết quả lần kiểm gần nhất (không thông điệp thô của hãng).
+	LastCheckResult OptString `json:"lastCheckResult"`
+	HasCredentials  bool      `json:"hasCredentials"`
+	// Khóa API đang mã hóa bằng khóa cũ; ghi lại khóa để mã hóa bằng khóa mới.
+	NeedsRewrap bool `json:"needsRewrap"`
+	// Đường nhận webhook /hooks/<hãng>/; chỉ trả cho người có quyền manage.
+	WebhookUrl   OptString              `json:"webhookUrl"`
+	Capabilities OptCarrierCapabilities `json:"capabilities"`
+	Version      int64                  `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *CarrierAccount) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetSellerId returns the value of SellerId.
+func (s *CarrierAccount) GetSellerId() OptUUID {
+	return s.SellerId
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *CarrierAccount) GetCarrierKey() string {
+	return s.CarrierKey
+}
+
+// GetMode returns the value of Mode.
+func (s *CarrierAccount) GetMode() CarrierAccountMode {
+	return s.Mode
+}
+
+// GetEnvironment returns the value of Environment.
+func (s *CarrierAccount) GetEnvironment() CarrierAccountEnvironment {
+	return s.Environment
+}
+
+// GetName returns the value of Name.
+func (s *CarrierAccount) GetName() string {
+	return s.Name
+}
+
+// GetStatus returns the value of Status.
+func (s *CarrierAccount) GetStatus() CarrierAccountStatus {
+	return s.Status
+}
+
+// GetWarehouseId returns the value of WarehouseId.
+func (s *CarrierAccount) GetWarehouseId() uuid.UUID {
+	return s.WarehouseId
+}
+
+// GetDefaultService returns the value of DefaultService.
+func (s *CarrierAccount) GetDefaultService() OptString {
+	return s.DefaultService
+}
+
+// GetDefaultOptions returns the value of DefaultOptions.
+func (s *CarrierAccount) GetDefaultOptions() OptCarrierOptions {
+	return s.DefaultOptions
+}
+
+// GetIsDefaultForWarehouse returns the value of IsDefaultForWarehouse.
+func (s *CarrierAccount) GetIsDefaultForWarehouse() bool {
+	return s.IsDefaultForWarehouse
+}
+
+// GetShowOnWeb returns the value of ShowOnWeb.
+func (s *CarrierAccount) GetShowOnWeb() bool {
+	return s.ShowOnWeb
+}
+
+// GetWebSort returns the value of WebSort.
+func (s *CarrierAccount) GetWebSort() int32 {
+	return s.WebSort
+}
+
+// GetLastCheckAt returns the value of LastCheckAt.
+func (s *CarrierAccount) GetLastCheckAt() OptDateTime {
+	return s.LastCheckAt
+}
+
+// GetLastCheckResult returns the value of LastCheckResult.
+func (s *CarrierAccount) GetLastCheckResult() OptString {
+	return s.LastCheckResult
+}
+
+// GetHasCredentials returns the value of HasCredentials.
+func (s *CarrierAccount) GetHasCredentials() bool {
+	return s.HasCredentials
+}
+
+// GetNeedsRewrap returns the value of NeedsRewrap.
+func (s *CarrierAccount) GetNeedsRewrap() bool {
+	return s.NeedsRewrap
+}
+
+// GetWebhookUrl returns the value of WebhookUrl.
+func (s *CarrierAccount) GetWebhookUrl() OptString {
+	return s.WebhookUrl
+}
+
+// GetCapabilities returns the value of Capabilities.
+func (s *CarrierAccount) GetCapabilities() OptCarrierCapabilities {
+	return s.Capabilities
+}
+
+// GetVersion returns the value of Version.
+func (s *CarrierAccount) GetVersion() int64 {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *CarrierAccount) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetSellerId sets the value of SellerId.
+func (s *CarrierAccount) SetSellerId(val OptUUID) {
+	s.SellerId = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *CarrierAccount) SetCarrierKey(val string) {
+	s.CarrierKey = val
+}
+
+// SetMode sets the value of Mode.
+func (s *CarrierAccount) SetMode(val CarrierAccountMode) {
+	s.Mode = val
+}
+
+// SetEnvironment sets the value of Environment.
+func (s *CarrierAccount) SetEnvironment(val CarrierAccountEnvironment) {
+	s.Environment = val
+}
+
+// SetName sets the value of Name.
+func (s *CarrierAccount) SetName(val string) {
+	s.Name = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CarrierAccount) SetStatus(val CarrierAccountStatus) {
+	s.Status = val
+}
+
+// SetWarehouseId sets the value of WarehouseId.
+func (s *CarrierAccount) SetWarehouseId(val uuid.UUID) {
+	s.WarehouseId = val
+}
+
+// SetDefaultService sets the value of DefaultService.
+func (s *CarrierAccount) SetDefaultService(val OptString) {
+	s.DefaultService = val
+}
+
+// SetDefaultOptions sets the value of DefaultOptions.
+func (s *CarrierAccount) SetDefaultOptions(val OptCarrierOptions) {
+	s.DefaultOptions = val
+}
+
+// SetIsDefaultForWarehouse sets the value of IsDefaultForWarehouse.
+func (s *CarrierAccount) SetIsDefaultForWarehouse(val bool) {
+	s.IsDefaultForWarehouse = val
+}
+
+// SetShowOnWeb sets the value of ShowOnWeb.
+func (s *CarrierAccount) SetShowOnWeb(val bool) {
+	s.ShowOnWeb = val
+}
+
+// SetWebSort sets the value of WebSort.
+func (s *CarrierAccount) SetWebSort(val int32) {
+	s.WebSort = val
+}
+
+// SetLastCheckAt sets the value of LastCheckAt.
+func (s *CarrierAccount) SetLastCheckAt(val OptDateTime) {
+	s.LastCheckAt = val
+}
+
+// SetLastCheckResult sets the value of LastCheckResult.
+func (s *CarrierAccount) SetLastCheckResult(val OptString) {
+	s.LastCheckResult = val
+}
+
+// SetHasCredentials sets the value of HasCredentials.
+func (s *CarrierAccount) SetHasCredentials(val bool) {
+	s.HasCredentials = val
+}
+
+// SetNeedsRewrap sets the value of NeedsRewrap.
+func (s *CarrierAccount) SetNeedsRewrap(val bool) {
+	s.NeedsRewrap = val
+}
+
+// SetWebhookUrl sets the value of WebhookUrl.
+func (s *CarrierAccount) SetWebhookUrl(val OptString) {
+	s.WebhookUrl = val
+}
+
+// SetCapabilities sets the value of Capabilities.
+func (s *CarrierAccount) SetCapabilities(val OptCarrierCapabilities) {
+	s.Capabilities = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CarrierAccount) SetVersion(val int64) {
+	s.Version = val
+}
+
+func (*CarrierAccount) createCarrierAccountRes()    {}
+func (*CarrierAccount) putCarrierCredentialsRes()   {}
+func (*CarrierAccount) setCarrierAccountStatusRes() {}
+func (*CarrierAccount) updateCarrierAccountRes()    {}
+
+type CarrierAccountEnvironment string
+
+const (
+	CarrierAccountEnvironmentSandbox    CarrierAccountEnvironment = "sandbox"
+	CarrierAccountEnvironmentProduction CarrierAccountEnvironment = "production"
+)
+
+// AllValues returns all CarrierAccountEnvironment values.
+func (CarrierAccountEnvironment) AllValues() []CarrierAccountEnvironment {
+	return []CarrierAccountEnvironment{
+		CarrierAccountEnvironmentSandbox,
+		CarrierAccountEnvironmentProduction,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CarrierAccountEnvironment) MarshalText() ([]byte, error) {
+	switch s {
+	case CarrierAccountEnvironmentSandbox:
+		return []byte(s), nil
+	case CarrierAccountEnvironmentProduction:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CarrierAccountEnvironment) UnmarshalText(data []byte) error {
+	switch CarrierAccountEnvironment(data) {
+	case CarrierAccountEnvironmentSandbox:
+		*s = CarrierAccountEnvironmentSandbox
+		return nil
+	case CarrierAccountEnvironmentProduction:
+		*s = CarrierAccountEnvironmentProduction
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Api = gọi API của hãng; manual = nhân viên nhập mã hãng, cập nhật tay (hãng self
+// luôn manual).
+// Ref: #/components/schemas/CarrierAccountMode
+type CarrierAccountMode string
+
+const (
+	CarrierAccountModeAPI    CarrierAccountMode = "api"
+	CarrierAccountModeManual CarrierAccountMode = "manual"
+)
+
+// AllValues returns all CarrierAccountMode values.
+func (CarrierAccountMode) AllValues() []CarrierAccountMode {
+	return []CarrierAccountMode{
+		CarrierAccountModeAPI,
+		CarrierAccountModeManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CarrierAccountMode) MarshalText() ([]byte, error) {
+	switch s {
+	case CarrierAccountModeAPI:
+		return []byte(s), nil
+	case CarrierAccountModeManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CarrierAccountMode) UnmarshalText(data []byte) error {
+	switch CarrierAccountMode(data) {
+	case CarrierAccountModeAPI:
+		*s = CarrierAccountModeAPI
+		return nil
+	case CarrierAccountModeManual:
+		*s = CarrierAccountModeManual
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CarrierAccountPage
+type CarrierAccountPage struct {
+	Items      []CarrierAccount `json:"items"`
+	NextCursor OptString        `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *CarrierAccountPage) GetItems() []CarrierAccount {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *CarrierAccountPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *CarrierAccountPage) SetItems(val []CarrierAccount) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *CarrierAccountPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*CarrierAccountPage) listCarrierAccountsRes() {}
+
+// Disabled là giá trị cũ của M1 (migration đổi thành paused).
+// Ref: #/components/schemas/CarrierAccountStatus
+type CarrierAccountStatus string
+
+const (
+	CarrierAccountStatusDraft      CarrierAccountStatus = "draft"
+	CarrierAccountStatusChecking   CarrierAccountStatus = "checking"
+	CarrierAccountStatusActive     CarrierAccountStatus = "active"
+	CarrierAccountStatusAuthFailed CarrierAccountStatus = "auth_failed"
+	CarrierAccountStatusPaused     CarrierAccountStatus = "paused"
+	CarrierAccountStatusRevoked    CarrierAccountStatus = "revoked"
+	CarrierAccountStatusDisabled   CarrierAccountStatus = "disabled"
+)
+
+// AllValues returns all CarrierAccountStatus values.
+func (CarrierAccountStatus) AllValues() []CarrierAccountStatus {
+	return []CarrierAccountStatus{
+		CarrierAccountStatusDraft,
+		CarrierAccountStatusChecking,
+		CarrierAccountStatusActive,
+		CarrierAccountStatusAuthFailed,
+		CarrierAccountStatusPaused,
+		CarrierAccountStatusRevoked,
+		CarrierAccountStatusDisabled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CarrierAccountStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CarrierAccountStatusDraft:
+		return []byte(s), nil
+	case CarrierAccountStatusChecking:
+		return []byte(s), nil
+	case CarrierAccountStatusActive:
+		return []byte(s), nil
+	case CarrierAccountStatusAuthFailed:
+		return []byte(s), nil
+	case CarrierAccountStatusPaused:
+		return []byte(s), nil
+	case CarrierAccountStatusRevoked:
+		return []byte(s), nil
+	case CarrierAccountStatusDisabled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CarrierAccountStatus) UnmarshalText(data []byte) error {
+	switch CarrierAccountStatus(data) {
+	case CarrierAccountStatusDraft:
+		*s = CarrierAccountStatusDraft
+		return nil
+	case CarrierAccountStatusChecking:
+		*s = CarrierAccountStatusChecking
+		return nil
+	case CarrierAccountStatusActive:
+		*s = CarrierAccountStatusActive
+		return nil
+	case CarrierAccountStatusAuthFailed:
+		*s = CarrierAccountStatusAuthFailed
+		return nil
+	case CarrierAccountStatusPaused:
+		*s = CarrierAccountStatusPaused
+		return nil
+	case CarrierAccountStatusRevoked:
+		*s = CarrierAccountStatusRevoked
+		return nil
+	case CarrierAccountStatusDisabled:
+		*s = CarrierAccountStatusDisabled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Việc adapter của hãng làm được (fulfillment.Capabilities).
+// Ref: #/components/schemas/CarrierCapabilities
+type CarrierCapabilities struct {
+	Quote            bool    `json:"quote"`
+	Create           bool    `json:"create"`
+	LookupByRef      OptBool `json:"lookupByRef"`
+	Cancel           bool    `json:"cancel"`
+	CancelIdempotent OptBool `json:"cancelIdempotent"`
+	Track            bool    `json:"track"`
+	Webhook          bool    `json:"webhook"`
+	Labels           bool    `json:"labels"`
+	LabelsBatch      OptBool `json:"labelsBatch"`
+	UpdateAddress    bool    `json:"updateAddress"`
+	Redeliver        bool    `json:"redeliver"`
+	Locations        bool    `json:"locations"`
+	Statement        bool    `json:"statement"`
+	Inspection       OptBool `json:"inspection"`
+	DeclaredValue    OptBool `json:"declaredValue"`
+	FeeOnRefuse      OptBool `json:"feeOnRefuse"`
+}
+
+// GetQuote returns the value of Quote.
+func (s *CarrierCapabilities) GetQuote() bool {
+	return s.Quote
+}
+
+// GetCreate returns the value of Create.
+func (s *CarrierCapabilities) GetCreate() bool {
+	return s.Create
+}
+
+// GetLookupByRef returns the value of LookupByRef.
+func (s *CarrierCapabilities) GetLookupByRef() OptBool {
+	return s.LookupByRef
+}
+
+// GetCancel returns the value of Cancel.
+func (s *CarrierCapabilities) GetCancel() bool {
+	return s.Cancel
+}
+
+// GetCancelIdempotent returns the value of CancelIdempotent.
+func (s *CarrierCapabilities) GetCancelIdempotent() OptBool {
+	return s.CancelIdempotent
+}
+
+// GetTrack returns the value of Track.
+func (s *CarrierCapabilities) GetTrack() bool {
+	return s.Track
+}
+
+// GetWebhook returns the value of Webhook.
+func (s *CarrierCapabilities) GetWebhook() bool {
+	return s.Webhook
+}
+
+// GetLabels returns the value of Labels.
+func (s *CarrierCapabilities) GetLabels() bool {
+	return s.Labels
+}
+
+// GetLabelsBatch returns the value of LabelsBatch.
+func (s *CarrierCapabilities) GetLabelsBatch() OptBool {
+	return s.LabelsBatch
+}
+
+// GetUpdateAddress returns the value of UpdateAddress.
+func (s *CarrierCapabilities) GetUpdateAddress() bool {
+	return s.UpdateAddress
+}
+
+// GetRedeliver returns the value of Redeliver.
+func (s *CarrierCapabilities) GetRedeliver() bool {
+	return s.Redeliver
+}
+
+// GetLocations returns the value of Locations.
+func (s *CarrierCapabilities) GetLocations() bool {
+	return s.Locations
+}
+
+// GetStatement returns the value of Statement.
+func (s *CarrierCapabilities) GetStatement() bool {
+	return s.Statement
+}
+
+// GetInspection returns the value of Inspection.
+func (s *CarrierCapabilities) GetInspection() OptBool {
+	return s.Inspection
+}
+
+// GetDeclaredValue returns the value of DeclaredValue.
+func (s *CarrierCapabilities) GetDeclaredValue() OptBool {
+	return s.DeclaredValue
+}
+
+// GetFeeOnRefuse returns the value of FeeOnRefuse.
+func (s *CarrierCapabilities) GetFeeOnRefuse() OptBool {
+	return s.FeeOnRefuse
+}
+
+// SetQuote sets the value of Quote.
+func (s *CarrierCapabilities) SetQuote(val bool) {
+	s.Quote = val
+}
+
+// SetCreate sets the value of Create.
+func (s *CarrierCapabilities) SetCreate(val bool) {
+	s.Create = val
+}
+
+// SetLookupByRef sets the value of LookupByRef.
+func (s *CarrierCapabilities) SetLookupByRef(val OptBool) {
+	s.LookupByRef = val
+}
+
+// SetCancel sets the value of Cancel.
+func (s *CarrierCapabilities) SetCancel(val bool) {
+	s.Cancel = val
+}
+
+// SetCancelIdempotent sets the value of CancelIdempotent.
+func (s *CarrierCapabilities) SetCancelIdempotent(val OptBool) {
+	s.CancelIdempotent = val
+}
+
+// SetTrack sets the value of Track.
+func (s *CarrierCapabilities) SetTrack(val bool) {
+	s.Track = val
+}
+
+// SetWebhook sets the value of Webhook.
+func (s *CarrierCapabilities) SetWebhook(val bool) {
+	s.Webhook = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *CarrierCapabilities) SetLabels(val bool) {
+	s.Labels = val
+}
+
+// SetLabelsBatch sets the value of LabelsBatch.
+func (s *CarrierCapabilities) SetLabelsBatch(val OptBool) {
+	s.LabelsBatch = val
+}
+
+// SetUpdateAddress sets the value of UpdateAddress.
+func (s *CarrierCapabilities) SetUpdateAddress(val bool) {
+	s.UpdateAddress = val
+}
+
+// SetRedeliver sets the value of Redeliver.
+func (s *CarrierCapabilities) SetRedeliver(val bool) {
+	s.Redeliver = val
+}
+
+// SetLocations sets the value of Locations.
+func (s *CarrierCapabilities) SetLocations(val bool) {
+	s.Locations = val
+}
+
+// SetStatement sets the value of Statement.
+func (s *CarrierCapabilities) SetStatement(val bool) {
+	s.Statement = val
+}
+
+// SetInspection sets the value of Inspection.
+func (s *CarrierCapabilities) SetInspection(val OptBool) {
+	s.Inspection = val
+}
+
+// SetDeclaredValue sets the value of DeclaredValue.
+func (s *CarrierCapabilities) SetDeclaredValue(val OptBool) {
+	s.DeclaredValue = val
+}
+
+// SetFeeOnRefuse sets the value of FeeOnRefuse.
+func (s *CarrierCapabilities) SetFeeOnRefuse(val OptBool) {
+	s.FeeOnRefuse = val
+}
+
+// Bộ khóa API của hãng (tên trường theo hãng); chỉ ghi, không bao giờ trả lại.
+// Ref: #/components/schemas/CarrierCredentials
+type CarrierCredentials map[string]string
+
+func (s *CarrierCredentials) init() CarrierCredentials {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// Tùy chọn gửi hãng (fulfillment.Options).
+// Ref: #/components/schemas/CarrierOptions
+type CarrierOptions struct {
+	// Cho xem hàng (mã của CRM; adapter đổi sang mã hãng).
+	Inspection  OptString `json:"inspection"`
+	FeeOnRefuse OptMoney  `json:"feeOnRefuse"`
+	// Bên trả phí ship (shop, receiver).
+	Payer OptString `json:"payer"`
+	// True = hãng tới lấy; false = shop mang ra bưu cục.
+	Pickup OptBool `json:"pickup"`
+	// Ghi chú cho hãng.
+	Note OptString `json:"note"`
+}
+
+// GetInspection returns the value of Inspection.
+func (s *CarrierOptions) GetInspection() OptString {
+	return s.Inspection
+}
+
+// GetFeeOnRefuse returns the value of FeeOnRefuse.
+func (s *CarrierOptions) GetFeeOnRefuse() OptMoney {
+	return s.FeeOnRefuse
+}
+
+// GetPayer returns the value of Payer.
+func (s *CarrierOptions) GetPayer() OptString {
+	return s.Payer
+}
+
+// GetPickup returns the value of Pickup.
+func (s *CarrierOptions) GetPickup() OptBool {
+	return s.Pickup
+}
+
+// GetNote returns the value of Note.
+func (s *CarrierOptions) GetNote() OptString {
+	return s.Note
+}
+
+// SetInspection sets the value of Inspection.
+func (s *CarrierOptions) SetInspection(val OptString) {
+	s.Inspection = val
+}
+
+// SetFeeOnRefuse sets the value of FeeOnRefuse.
+func (s *CarrierOptions) SetFeeOnRefuse(val OptMoney) {
+	s.FeeOnRefuse = val
+}
+
+// SetPayer sets the value of Payer.
+func (s *CarrierOptions) SetPayer(val OptString) {
+	s.Payer = val
+}
+
+// SetPickup sets the value of Pickup.
+func (s *CarrierOptions) SetPickup(val OptBool) {
+	s.Pickup = val
+}
+
+// SetNote sets the value of Note.
+func (s *CarrierOptions) SetNote(val OptString) {
+	s.Note = val
 }
 
 type CatalogCode string
@@ -1786,6 +3250,1547 @@ func (s *CategoryStatus) UnmarshalText(data []byte) error {
 type ClassCode string
 
 type ClassName string
+
+// Ref: #/components/schemas/CodAccount
+type CodAccount string
+
+const (
+	CodAccountToCollect      CodAccount = "to_collect"
+	CodAccountCarrierHolding CodAccount = "carrier_holding"
+	CodAccountShopReceived   CodAccount = "shop_received"
+	CodAccountCarrierFee     CodAccount = "carrier_fee"
+	CodAccountSalesClearing  CodAccount = "sales_clearing"
+)
+
+// AllValues returns all CodAccount values.
+func (CodAccount) AllValues() []CodAccount {
+	return []CodAccount{
+		CodAccountToCollect,
+		CodAccountCarrierHolding,
+		CodAccountShopReceived,
+		CodAccountCarrierFee,
+		CodAccountSalesClearing,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CodAccount) MarshalText() ([]byte, error) {
+	switch s {
+	case CodAccountToCollect:
+		return []byte(s), nil
+	case CodAccountCarrierHolding:
+		return []byte(s), nil
+	case CodAccountShopReceived:
+		return []byte(s), nil
+	case CodAccountCarrierFee:
+		return []byte(s), nil
+	case CodAccountSalesClearing:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CodAccount) UnmarshalText(data []byte) error {
+	switch CodAccount(data) {
+	case CodAccountToCollect:
+		*s = CodAccountToCollect
+		return nil
+	case CodAccountCarrierHolding:
+		*s = CodAccountCarrierHolding
+		return nil
+	case CodAccountShopReceived:
+		*s = CodAccountShopReceived
+		return nil
+	case CodAccountCarrierFee:
+		*s = CodAccountCarrierFee
+		return nil
+	case CodAccountSalesClearing:
+		*s = CodAccountSalesClearing
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CodAdjustmentPreview
+type CodAdjustmentPreview struct {
+	Before   CodBalances           `json:"before"`
+	After    CodBalances           `json:"after"`
+	Transfer CodAdjustmentTransfer `json:"transfer"`
+	Warnings []string              `json:"warnings"`
+	Token    string                `json:"token"`
+}
+
+// GetBefore returns the value of Before.
+func (s *CodAdjustmentPreview) GetBefore() CodBalances {
+	return s.Before
+}
+
+// GetAfter returns the value of After.
+func (s *CodAdjustmentPreview) GetAfter() CodBalances {
+	return s.After
+}
+
+// GetTransfer returns the value of Transfer.
+func (s *CodAdjustmentPreview) GetTransfer() CodAdjustmentTransfer {
+	return s.Transfer
+}
+
+// GetWarnings returns the value of Warnings.
+func (s *CodAdjustmentPreview) GetWarnings() []string {
+	return s.Warnings
+}
+
+// GetToken returns the value of Token.
+func (s *CodAdjustmentPreview) GetToken() string {
+	return s.Token
+}
+
+// SetBefore sets the value of Before.
+func (s *CodAdjustmentPreview) SetBefore(val CodBalances) {
+	s.Before = val
+}
+
+// SetAfter sets the value of After.
+func (s *CodAdjustmentPreview) SetAfter(val CodBalances) {
+	s.After = val
+}
+
+// SetTransfer sets the value of Transfer.
+func (s *CodAdjustmentPreview) SetTransfer(val CodAdjustmentTransfer) {
+	s.Transfer = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *CodAdjustmentPreview) SetWarnings(val []string) {
+	s.Warnings = val
+}
+
+// SetToken sets the value of Token.
+func (s *CodAdjustmentPreview) SetToken(val string) {
+	s.Token = val
+}
+
+func (*CodAdjustmentPreview) previewCodAdjustmentRes() {}
+
+// Reverse cần reversesTransferId; move cần from, to, amount.
+// Ref: #/components/schemas/CodAdjustmentRequest
+type CodAdjustmentRequest struct {
+	ShipmentId         uuid.UUID                `json:"shipmentId"`
+	Mode               CodAdjustmentRequestMode `json:"mode"`
+	ReversesTransferId OptUUID                  `json:"reversesTransferId"`
+	From               OptCodAccount            `json:"from"`
+	To                 OptCodAccount            `json:"to"`
+	Amount             OptMoney                 `json:"amount"`
+	Reason             string                   `json:"reason"`
+}
+
+// GetShipmentId returns the value of ShipmentId.
+func (s *CodAdjustmentRequest) GetShipmentId() uuid.UUID {
+	return s.ShipmentId
+}
+
+// GetMode returns the value of Mode.
+func (s *CodAdjustmentRequest) GetMode() CodAdjustmentRequestMode {
+	return s.Mode
+}
+
+// GetReversesTransferId returns the value of ReversesTransferId.
+func (s *CodAdjustmentRequest) GetReversesTransferId() OptUUID {
+	return s.ReversesTransferId
+}
+
+// GetFrom returns the value of From.
+func (s *CodAdjustmentRequest) GetFrom() OptCodAccount {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *CodAdjustmentRequest) GetTo() OptCodAccount {
+	return s.To
+}
+
+// GetAmount returns the value of Amount.
+func (s *CodAdjustmentRequest) GetAmount() OptMoney {
+	return s.Amount
+}
+
+// GetReason returns the value of Reason.
+func (s *CodAdjustmentRequest) GetReason() string {
+	return s.Reason
+}
+
+// SetShipmentId sets the value of ShipmentId.
+func (s *CodAdjustmentRequest) SetShipmentId(val uuid.UUID) {
+	s.ShipmentId = val
+}
+
+// SetMode sets the value of Mode.
+func (s *CodAdjustmentRequest) SetMode(val CodAdjustmentRequestMode) {
+	s.Mode = val
+}
+
+// SetReversesTransferId sets the value of ReversesTransferId.
+func (s *CodAdjustmentRequest) SetReversesTransferId(val OptUUID) {
+	s.ReversesTransferId = val
+}
+
+// SetFrom sets the value of From.
+func (s *CodAdjustmentRequest) SetFrom(val OptCodAccount) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *CodAdjustmentRequest) SetTo(val OptCodAccount) {
+	s.To = val
+}
+
+// SetAmount sets the value of Amount.
+func (s *CodAdjustmentRequest) SetAmount(val OptMoney) {
+	s.Amount = val
+}
+
+// SetReason sets the value of Reason.
+func (s *CodAdjustmentRequest) SetReason(val string) {
+	s.Reason = val
+}
+
+type CodAdjustmentRequestMode string
+
+const (
+	CodAdjustmentRequestModeReverse CodAdjustmentRequestMode = "reverse"
+	CodAdjustmentRequestModeMove    CodAdjustmentRequestMode = "move"
+)
+
+// AllValues returns all CodAdjustmentRequestMode values.
+func (CodAdjustmentRequestMode) AllValues() []CodAdjustmentRequestMode {
+	return []CodAdjustmentRequestMode{
+		CodAdjustmentRequestModeReverse,
+		CodAdjustmentRequestModeMove,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CodAdjustmentRequestMode) MarshalText() ([]byte, error) {
+	switch s {
+	case CodAdjustmentRequestModeReverse:
+		return []byte(s), nil
+	case CodAdjustmentRequestModeMove:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CodAdjustmentRequestMode) UnmarshalText(data []byte) error {
+	switch CodAdjustmentRequestMode(data) {
+	case CodAdjustmentRequestModeReverse:
+		*s = CodAdjustmentRequestModeReverse
+		return nil
+	case CodAdjustmentRequestModeMove:
+		*s = CodAdjustmentRequestModeMove
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CodAdjustmentTransfer
+type CodAdjustmentTransfer struct {
+	Kind    CodAdjustmentTransferKind `json:"kind"`
+	Entries []CodEntry                `json:"entries"`
+}
+
+// GetKind returns the value of Kind.
+func (s *CodAdjustmentTransfer) GetKind() CodAdjustmentTransferKind {
+	return s.Kind
+}
+
+// GetEntries returns the value of Entries.
+func (s *CodAdjustmentTransfer) GetEntries() []CodEntry {
+	return s.Entries
+}
+
+// SetKind sets the value of Kind.
+func (s *CodAdjustmentTransfer) SetKind(val CodAdjustmentTransferKind) {
+	s.Kind = val
+}
+
+// SetEntries sets the value of Entries.
+func (s *CodAdjustmentTransfer) SetEntries(val []CodEntry) {
+	s.Entries = val
+}
+
+type CodAdjustmentTransferKind string
+
+const (
+	CodAdjustmentTransferKindAdjustment CodAdjustmentTransferKind = "adjustment"
+	CodAdjustmentTransferKindReversal   CodAdjustmentTransferKind = "reversal"
+)
+
+// AllValues returns all CodAdjustmentTransferKind values.
+func (CodAdjustmentTransferKind) AllValues() []CodAdjustmentTransferKind {
+	return []CodAdjustmentTransferKind{
+		CodAdjustmentTransferKindAdjustment,
+		CodAdjustmentTransferKindReversal,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CodAdjustmentTransferKind) MarshalText() ([]byte, error) {
+	switch s {
+	case CodAdjustmentTransferKindAdjustment:
+		return []byte(s), nil
+	case CodAdjustmentTransferKindReversal:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CodAdjustmentTransferKind) UnmarshalText(data []byte) error {
+	switch CodAdjustmentTransferKind(data) {
+	case CodAdjustmentTransferKindAdjustment:
+		*s = CodAdjustmentTransferKindAdjustment
+		return nil
+	case CodAdjustmentTransferKindReversal:
+		*s = CodAdjustmentTransferKindReversal
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CodBalances
+type CodBalances struct {
+	ToCollect      SignedMoney `json:"toCollect"`
+	CarrierHolding SignedMoney `json:"carrierHolding"`
+	ShopReceived   SignedMoney `json:"shopReceived"`
+	CarrierFee     SignedMoney `json:"carrierFee"`
+	SalesClearing  SignedMoney `json:"salesClearing"`
+}
+
+// GetToCollect returns the value of ToCollect.
+func (s *CodBalances) GetToCollect() SignedMoney {
+	return s.ToCollect
+}
+
+// GetCarrierHolding returns the value of CarrierHolding.
+func (s *CodBalances) GetCarrierHolding() SignedMoney {
+	return s.CarrierHolding
+}
+
+// GetShopReceived returns the value of ShopReceived.
+func (s *CodBalances) GetShopReceived() SignedMoney {
+	return s.ShopReceived
+}
+
+// GetCarrierFee returns the value of CarrierFee.
+func (s *CodBalances) GetCarrierFee() SignedMoney {
+	return s.CarrierFee
+}
+
+// GetSalesClearing returns the value of SalesClearing.
+func (s *CodBalances) GetSalesClearing() SignedMoney {
+	return s.SalesClearing
+}
+
+// SetToCollect sets the value of ToCollect.
+func (s *CodBalances) SetToCollect(val SignedMoney) {
+	s.ToCollect = val
+}
+
+// SetCarrierHolding sets the value of CarrierHolding.
+func (s *CodBalances) SetCarrierHolding(val SignedMoney) {
+	s.CarrierHolding = val
+}
+
+// SetShopReceived sets the value of ShopReceived.
+func (s *CodBalances) SetShopReceived(val SignedMoney) {
+	s.ShopReceived = val
+}
+
+// SetCarrierFee sets the value of CarrierFee.
+func (s *CodBalances) SetCarrierFee(val SignedMoney) {
+	s.CarrierFee = val
+}
+
+// SetSalesClearing sets the value of SalesClearing.
+func (s *CodBalances) SetSalesClearing(val SignedMoney) {
+	s.SalesClearing = val
+}
+
+// Ref: #/components/schemas/CodDiscrepancy
+type CodDiscrepancy struct {
+	Kind           CodDiscrepancyKind `json:"kind"`
+	StatementId    OptUUID            `json:"statementId"`
+	LineNo         OptInt32           `json:"lineNo"`
+	ShipmentId     OptUUID            `json:"shipmentId"`
+	OrderCode      OptString          `json:"orderCode"`
+	TrackingCode   OptString          `json:"trackingCode"`
+	CodAmount      OptMoney           `json:"codAmount"`
+	ExpectedAmount OptSignedMoney     `json:"expectedAmount"`
+	Diff           OptSignedMoney     `json:"diff"`
+	MatchStatus    OptCodMatchStatus  `json:"matchStatus"`
+}
+
+// GetKind returns the value of Kind.
+func (s *CodDiscrepancy) GetKind() CodDiscrepancyKind {
+	return s.Kind
+}
+
+// GetStatementId returns the value of StatementId.
+func (s *CodDiscrepancy) GetStatementId() OptUUID {
+	return s.StatementId
+}
+
+// GetLineNo returns the value of LineNo.
+func (s *CodDiscrepancy) GetLineNo() OptInt32 {
+	return s.LineNo
+}
+
+// GetShipmentId returns the value of ShipmentId.
+func (s *CodDiscrepancy) GetShipmentId() OptUUID {
+	return s.ShipmentId
+}
+
+// GetOrderCode returns the value of OrderCode.
+func (s *CodDiscrepancy) GetOrderCode() OptString {
+	return s.OrderCode
+}
+
+// GetTrackingCode returns the value of TrackingCode.
+func (s *CodDiscrepancy) GetTrackingCode() OptString {
+	return s.TrackingCode
+}
+
+// GetCodAmount returns the value of CodAmount.
+func (s *CodDiscrepancy) GetCodAmount() OptMoney {
+	return s.CodAmount
+}
+
+// GetExpectedAmount returns the value of ExpectedAmount.
+func (s *CodDiscrepancy) GetExpectedAmount() OptSignedMoney {
+	return s.ExpectedAmount
+}
+
+// GetDiff returns the value of Diff.
+func (s *CodDiscrepancy) GetDiff() OptSignedMoney {
+	return s.Diff
+}
+
+// GetMatchStatus returns the value of MatchStatus.
+func (s *CodDiscrepancy) GetMatchStatus() OptCodMatchStatus {
+	return s.MatchStatus
+}
+
+// SetKind sets the value of Kind.
+func (s *CodDiscrepancy) SetKind(val CodDiscrepancyKind) {
+	s.Kind = val
+}
+
+// SetStatementId sets the value of StatementId.
+func (s *CodDiscrepancy) SetStatementId(val OptUUID) {
+	s.StatementId = val
+}
+
+// SetLineNo sets the value of LineNo.
+func (s *CodDiscrepancy) SetLineNo(val OptInt32) {
+	s.LineNo = val
+}
+
+// SetShipmentId sets the value of ShipmentId.
+func (s *CodDiscrepancy) SetShipmentId(val OptUUID) {
+	s.ShipmentId = val
+}
+
+// SetOrderCode sets the value of OrderCode.
+func (s *CodDiscrepancy) SetOrderCode(val OptString) {
+	s.OrderCode = val
+}
+
+// SetTrackingCode sets the value of TrackingCode.
+func (s *CodDiscrepancy) SetTrackingCode(val OptString) {
+	s.TrackingCode = val
+}
+
+// SetCodAmount sets the value of CodAmount.
+func (s *CodDiscrepancy) SetCodAmount(val OptMoney) {
+	s.CodAmount = val
+}
+
+// SetExpectedAmount sets the value of ExpectedAmount.
+func (s *CodDiscrepancy) SetExpectedAmount(val OptSignedMoney) {
+	s.ExpectedAmount = val
+}
+
+// SetDiff sets the value of Diff.
+func (s *CodDiscrepancy) SetDiff(val OptSignedMoney) {
+	s.Diff = val
+}
+
+// SetMatchStatus sets the value of MatchStatus.
+func (s *CodDiscrepancy) SetMatchStatus(val OptCodMatchStatus) {
+	s.MatchStatus = val
+}
+
+type CodDiscrepancyKind string
+
+const (
+	CodDiscrepancyKindStatementLine        CodDiscrepancyKind = "statement_line"
+	CodDiscrepancyKindOpenRemainder        CodDiscrepancyKind = "open_remainder"
+	CodDiscrepancyKindRemittedThenReturned CodDiscrepancyKind = "remitted_then_returned"
+)
+
+// AllValues returns all CodDiscrepancyKind values.
+func (CodDiscrepancyKind) AllValues() []CodDiscrepancyKind {
+	return []CodDiscrepancyKind{
+		CodDiscrepancyKindStatementLine,
+		CodDiscrepancyKindOpenRemainder,
+		CodDiscrepancyKindRemittedThenReturned,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CodDiscrepancyKind) MarshalText() ([]byte, error) {
+	switch s {
+	case CodDiscrepancyKindStatementLine:
+		return []byte(s), nil
+	case CodDiscrepancyKindOpenRemainder:
+		return []byte(s), nil
+	case CodDiscrepancyKindRemittedThenReturned:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CodDiscrepancyKind) UnmarshalText(data []byte) error {
+	switch CodDiscrepancyKind(data) {
+	case CodDiscrepancyKindStatementLine:
+		*s = CodDiscrepancyKindStatementLine
+		return nil
+	case CodDiscrepancyKindOpenRemainder:
+		*s = CodDiscrepancyKindOpenRemainder
+		return nil
+	case CodDiscrepancyKindRemittedThenReturned:
+		*s = CodDiscrepancyKindRemittedThenReturned
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CodDiscrepancyPage
+type CodDiscrepancyPage struct {
+	Items      []CodDiscrepancy `json:"items"`
+	NextCursor OptString        `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *CodDiscrepancyPage) GetItems() []CodDiscrepancy {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *CodDiscrepancyPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *CodDiscrepancyPage) SetItems(val []CodDiscrepancy) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *CodDiscrepancyPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*CodDiscrepancyPage) listCodDiscrepanciesRes() {}
+
+// Ref: #/components/schemas/CodEntry
+type CodEntry struct {
+	Account CodAccount  `json:"account"`
+	Amount  SignedMoney `json:"amount"`
+}
+
+// GetAccount returns the value of Account.
+func (s *CodEntry) GetAccount() CodAccount {
+	return s.Account
+}
+
+// GetAmount returns the value of Amount.
+func (s *CodEntry) GetAmount() SignedMoney {
+	return s.Amount
+}
+
+// SetAccount sets the value of Account.
+func (s *CodEntry) SetAccount(val CodAccount) {
+	s.Account = val
+}
+
+// SetAmount sets the value of Amount.
+func (s *CodEntry) SetAmount(val SignedMoney) {
+	s.Amount = val
+}
+
+// Ref: #/components/schemas/CodMatchStatus
+type CodMatchStatus string
+
+const (
+	CodMatchStatusPending        CodMatchStatus = "pending"
+	CodMatchStatusMatched        CodMatchStatus = "matched"
+	CodMatchStatusAmountMismatch CodMatchStatus = "amount_mismatch"
+	CodMatchStatusExternal       CodMatchStatus = "external"
+	CodMatchStatusDuplicate      CodMatchStatus = "duplicate"
+	CodMatchStatusFeeOnly        CodMatchStatus = "fee_only"
+)
+
+// AllValues returns all CodMatchStatus values.
+func (CodMatchStatus) AllValues() []CodMatchStatus {
+	return []CodMatchStatus{
+		CodMatchStatusPending,
+		CodMatchStatusMatched,
+		CodMatchStatusAmountMismatch,
+		CodMatchStatusExternal,
+		CodMatchStatusDuplicate,
+		CodMatchStatusFeeOnly,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CodMatchStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CodMatchStatusPending:
+		return []byte(s), nil
+	case CodMatchStatusMatched:
+		return []byte(s), nil
+	case CodMatchStatusAmountMismatch:
+		return []byte(s), nil
+	case CodMatchStatusExternal:
+		return []byte(s), nil
+	case CodMatchStatusDuplicate:
+		return []byte(s), nil
+	case CodMatchStatusFeeOnly:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CodMatchStatus) UnmarshalText(data []byte) error {
+	switch CodMatchStatus(data) {
+	case CodMatchStatusPending:
+		*s = CodMatchStatusPending
+		return nil
+	case CodMatchStatusMatched:
+		*s = CodMatchStatusMatched
+		return nil
+	case CodMatchStatusAmountMismatch:
+		*s = CodMatchStatusAmountMismatch
+		return nil
+	case CodMatchStatusExternal:
+		*s = CodMatchStatusExternal
+		return nil
+	case CodMatchStatusDuplicate:
+		*s = CodMatchStatusDuplicate
+		return nil
+	case CodMatchStatusFeeOnly:
+		*s = CodMatchStatusFeeOnly
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CodMatchTotal
+type CodMatchTotal struct {
+	MatchStatus CodMatchStatus `json:"matchStatus"`
+	Count       int32          `json:"count"`
+	CodAmount   Money          `json:"codAmount"`
+}
+
+// GetMatchStatus returns the value of MatchStatus.
+func (s *CodMatchTotal) GetMatchStatus() CodMatchStatus {
+	return s.MatchStatus
+}
+
+// GetCount returns the value of Count.
+func (s *CodMatchTotal) GetCount() int32 {
+	return s.Count
+}
+
+// GetCodAmount returns the value of CodAmount.
+func (s *CodMatchTotal) GetCodAmount() Money {
+	return s.CodAmount
+}
+
+// SetMatchStatus sets the value of MatchStatus.
+func (s *CodMatchTotal) SetMatchStatus(val CodMatchStatus) {
+	s.MatchStatus = val
+}
+
+// SetCount sets the value of Count.
+func (s *CodMatchTotal) SetCount(val int32) {
+	s.Count = val
+}
+
+// SetCodAmount sets the value of CodAmount.
+func (s *CodMatchTotal) SetCodAmount(val Money) {
+	s.CodAmount = val
+}
+
+// Ref: #/components/schemas/CodOverdue
+type CodOverdue struct {
+	ShipmentId     uuid.UUID   `json:"shipmentId"`
+	OrderId        OptUUID     `json:"orderId"`
+	OrderCode      string      `json:"orderCode"`
+	CarrierKey     string      `json:"carrierKey"`
+	TrackingCode   string      `json:"trackingCode"`
+	DeliveredAt    time.Time   `json:"deliveredAt"`
+	CarrierHolding SignedMoney `json:"carrierHolding"`
+	Days           int32       `json:"days"`
+}
+
+// GetShipmentId returns the value of ShipmentId.
+func (s *CodOverdue) GetShipmentId() uuid.UUID {
+	return s.ShipmentId
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *CodOverdue) GetOrderId() OptUUID {
+	return s.OrderId
+}
+
+// GetOrderCode returns the value of OrderCode.
+func (s *CodOverdue) GetOrderCode() string {
+	return s.OrderCode
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *CodOverdue) GetCarrierKey() string {
+	return s.CarrierKey
+}
+
+// GetTrackingCode returns the value of TrackingCode.
+func (s *CodOverdue) GetTrackingCode() string {
+	return s.TrackingCode
+}
+
+// GetDeliveredAt returns the value of DeliveredAt.
+func (s *CodOverdue) GetDeliveredAt() time.Time {
+	return s.DeliveredAt
+}
+
+// GetCarrierHolding returns the value of CarrierHolding.
+func (s *CodOverdue) GetCarrierHolding() SignedMoney {
+	return s.CarrierHolding
+}
+
+// GetDays returns the value of Days.
+func (s *CodOverdue) GetDays() int32 {
+	return s.Days
+}
+
+// SetShipmentId sets the value of ShipmentId.
+func (s *CodOverdue) SetShipmentId(val uuid.UUID) {
+	s.ShipmentId = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *CodOverdue) SetOrderId(val OptUUID) {
+	s.OrderId = val
+}
+
+// SetOrderCode sets the value of OrderCode.
+func (s *CodOverdue) SetOrderCode(val string) {
+	s.OrderCode = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *CodOverdue) SetCarrierKey(val string) {
+	s.CarrierKey = val
+}
+
+// SetTrackingCode sets the value of TrackingCode.
+func (s *CodOverdue) SetTrackingCode(val string) {
+	s.TrackingCode = val
+}
+
+// SetDeliveredAt sets the value of DeliveredAt.
+func (s *CodOverdue) SetDeliveredAt(val time.Time) {
+	s.DeliveredAt = val
+}
+
+// SetCarrierHolding sets the value of CarrierHolding.
+func (s *CodOverdue) SetCarrierHolding(val SignedMoney) {
+	s.CarrierHolding = val
+}
+
+// SetDays sets the value of Days.
+func (s *CodOverdue) SetDays(val int32) {
+	s.Days = val
+}
+
+// Ref: #/components/schemas/CodOverduePage
+type CodOverduePage struct {
+	Items      []CodOverdue `json:"items"`
+	NextCursor OptString    `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *CodOverduePage) GetItems() []CodOverdue {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *CodOverduePage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *CodOverduePage) SetItems(val []CodOverdue) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *CodOverduePage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*CodOverduePage) listCodOverdueRes() {}
+
+// Ref: #/components/schemas/CodStatement
+type CodStatement struct {
+	ID               uuid.UUID                 `json:"id"`
+	CarrierKey       string                    `json:"carrierKey"`
+	CarrierAccountId uuid.UUID                 `json:"carrierAccountId"`
+	FileId           uuid.UUID                 `json:"fileId"`
+	Format           string                    `json:"format"`
+	PeriodFrom       OptDate                   `json:"periodFrom"`
+	PeriodTo         OptDate                   `json:"periodTo"`
+	DeclaredTotal    OptSignedMoney            `json:"declaredTotal"`
+	Status           CodStatementStatus        `json:"status"`
+	ParseError       OptCodStatementParseError `json:"parseError"`
+	LineCount        int32                     `json:"lineCount"`
+	ImportedBy       OptActor                  `json:"importedBy"`
+	ConfirmedBy      OptActor                  `json:"confirmedBy"`
+	ConfirmedAt      OptDateTime               `json:"confirmedAt"`
+	CreatedAt        time.Time                 `json:"createdAt"`
+	Version          int64                     `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *CodStatement) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *CodStatement) GetCarrierKey() string {
+	return s.CarrierKey
+}
+
+// GetCarrierAccountId returns the value of CarrierAccountId.
+func (s *CodStatement) GetCarrierAccountId() uuid.UUID {
+	return s.CarrierAccountId
+}
+
+// GetFileId returns the value of FileId.
+func (s *CodStatement) GetFileId() uuid.UUID {
+	return s.FileId
+}
+
+// GetFormat returns the value of Format.
+func (s *CodStatement) GetFormat() string {
+	return s.Format
+}
+
+// GetPeriodFrom returns the value of PeriodFrom.
+func (s *CodStatement) GetPeriodFrom() OptDate {
+	return s.PeriodFrom
+}
+
+// GetPeriodTo returns the value of PeriodTo.
+func (s *CodStatement) GetPeriodTo() OptDate {
+	return s.PeriodTo
+}
+
+// GetDeclaredTotal returns the value of DeclaredTotal.
+func (s *CodStatement) GetDeclaredTotal() OptSignedMoney {
+	return s.DeclaredTotal
+}
+
+// GetStatus returns the value of Status.
+func (s *CodStatement) GetStatus() CodStatementStatus {
+	return s.Status
+}
+
+// GetParseError returns the value of ParseError.
+func (s *CodStatement) GetParseError() OptCodStatementParseError {
+	return s.ParseError
+}
+
+// GetLineCount returns the value of LineCount.
+func (s *CodStatement) GetLineCount() int32 {
+	return s.LineCount
+}
+
+// GetImportedBy returns the value of ImportedBy.
+func (s *CodStatement) GetImportedBy() OptActor {
+	return s.ImportedBy
+}
+
+// GetConfirmedBy returns the value of ConfirmedBy.
+func (s *CodStatement) GetConfirmedBy() OptActor {
+	return s.ConfirmedBy
+}
+
+// GetConfirmedAt returns the value of ConfirmedAt.
+func (s *CodStatement) GetConfirmedAt() OptDateTime {
+	return s.ConfirmedAt
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *CodStatement) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetVersion returns the value of Version.
+func (s *CodStatement) GetVersion() int64 {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *CodStatement) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *CodStatement) SetCarrierKey(val string) {
+	s.CarrierKey = val
+}
+
+// SetCarrierAccountId sets the value of CarrierAccountId.
+func (s *CodStatement) SetCarrierAccountId(val uuid.UUID) {
+	s.CarrierAccountId = val
+}
+
+// SetFileId sets the value of FileId.
+func (s *CodStatement) SetFileId(val uuid.UUID) {
+	s.FileId = val
+}
+
+// SetFormat sets the value of Format.
+func (s *CodStatement) SetFormat(val string) {
+	s.Format = val
+}
+
+// SetPeriodFrom sets the value of PeriodFrom.
+func (s *CodStatement) SetPeriodFrom(val OptDate) {
+	s.PeriodFrom = val
+}
+
+// SetPeriodTo sets the value of PeriodTo.
+func (s *CodStatement) SetPeriodTo(val OptDate) {
+	s.PeriodTo = val
+}
+
+// SetDeclaredTotal sets the value of DeclaredTotal.
+func (s *CodStatement) SetDeclaredTotal(val OptSignedMoney) {
+	s.DeclaredTotal = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CodStatement) SetStatus(val CodStatementStatus) {
+	s.Status = val
+}
+
+// SetParseError sets the value of ParseError.
+func (s *CodStatement) SetParseError(val OptCodStatementParseError) {
+	s.ParseError = val
+}
+
+// SetLineCount sets the value of LineCount.
+func (s *CodStatement) SetLineCount(val int32) {
+	s.LineCount = val
+}
+
+// SetImportedBy sets the value of ImportedBy.
+func (s *CodStatement) SetImportedBy(val OptActor) {
+	s.ImportedBy = val
+}
+
+// SetConfirmedBy sets the value of ConfirmedBy.
+func (s *CodStatement) SetConfirmedBy(val OptActor) {
+	s.ConfirmedBy = val
+}
+
+// SetConfirmedAt sets the value of ConfirmedAt.
+func (s *CodStatement) SetConfirmedAt(val OptDateTime) {
+	s.ConfirmedAt = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *CodStatement) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CodStatement) SetVersion(val int64) {
+	s.Version = val
+}
+
+func (*CodStatement) importCodStatementRes() {}
+
+// Ref: #/components/schemas/CodStatementConfirmed
+type CodStatementConfirmed struct {
+	Statement CodStatement `json:"statement"`
+	// Cảnh báo không chặn (ví dụ tổng thực nhận lệch tổng khai trên tệp).
+	Warnings []string `json:"warnings"`
+}
+
+// GetStatement returns the value of Statement.
+func (s *CodStatementConfirmed) GetStatement() CodStatement {
+	return s.Statement
+}
+
+// GetWarnings returns the value of Warnings.
+func (s *CodStatementConfirmed) GetWarnings() []string {
+	return s.Warnings
+}
+
+// SetStatement sets the value of Statement.
+func (s *CodStatementConfirmed) SetStatement(val CodStatement) {
+	s.Statement = val
+}
+
+// SetWarnings sets the value of Warnings.
+func (s *CodStatementConfirmed) SetWarnings(val []string) {
+	s.Warnings = val
+}
+
+func (*CodStatementConfirmed) confirmCodStatementRes() {}
+
+// Ref: #/components/schemas/CodStatementDetail
+type CodStatementDetail struct {
+	Statement  CodStatement       `json:"statement"`
+	Totals     []CodMatchTotal    `json:"totals"`
+	Lines      []CodStatementLine `json:"lines"`
+	NextCursor OptString          `json:"nextCursor"`
+}
+
+// GetStatement returns the value of Statement.
+func (s *CodStatementDetail) GetStatement() CodStatement {
+	return s.Statement
+}
+
+// GetTotals returns the value of Totals.
+func (s *CodStatementDetail) GetTotals() []CodMatchTotal {
+	return s.Totals
+}
+
+// GetLines returns the value of Lines.
+func (s *CodStatementDetail) GetLines() []CodStatementLine {
+	return s.Lines
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *CodStatementDetail) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetStatement sets the value of Statement.
+func (s *CodStatementDetail) SetStatement(val CodStatement) {
+	s.Statement = val
+}
+
+// SetTotals sets the value of Totals.
+func (s *CodStatementDetail) SetTotals(val []CodMatchTotal) {
+	s.Totals = val
+}
+
+// SetLines sets the value of Lines.
+func (s *CodStatementDetail) SetLines(val []CodStatementLine) {
+	s.Lines = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *CodStatementDetail) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*CodStatementDetail) getCodStatementRes() {}
+
+// Ref: #/components/schemas/CodStatementLine
+type CodStatementLine struct {
+	ID               uuid.UUID      `json:"id"`
+	LineNo           int32          `json:"lineNo"`
+	TrackingCode     string         `json:"trackingCode"`
+	ShipmentId       OptUUID        `json:"shipmentId"`
+	CodAmount        Money          `json:"codAmount"`
+	FeeAmount        SignedMoney    `json:"feeAmount"`
+	OtherFee         SignedMoney    `json:"otherFee"`
+	NetAmount        SignedMoney    `json:"netAmount"`
+	PaidOn           OptDate        `json:"paidOn"`
+	MatchStatus      CodMatchStatus `json:"matchStatus"`
+	ExpectedAmount   OptSignedMoney `json:"expectedAmount"`
+	DiffAmount       OptSignedMoney `json:"diffAmount"`
+	PostedTransferId OptUUID        `json:"postedTransferId"`
+}
+
+// GetID returns the value of ID.
+func (s *CodStatementLine) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetLineNo returns the value of LineNo.
+func (s *CodStatementLine) GetLineNo() int32 {
+	return s.LineNo
+}
+
+// GetTrackingCode returns the value of TrackingCode.
+func (s *CodStatementLine) GetTrackingCode() string {
+	return s.TrackingCode
+}
+
+// GetShipmentId returns the value of ShipmentId.
+func (s *CodStatementLine) GetShipmentId() OptUUID {
+	return s.ShipmentId
+}
+
+// GetCodAmount returns the value of CodAmount.
+func (s *CodStatementLine) GetCodAmount() Money {
+	return s.CodAmount
+}
+
+// GetFeeAmount returns the value of FeeAmount.
+func (s *CodStatementLine) GetFeeAmount() SignedMoney {
+	return s.FeeAmount
+}
+
+// GetOtherFee returns the value of OtherFee.
+func (s *CodStatementLine) GetOtherFee() SignedMoney {
+	return s.OtherFee
+}
+
+// GetNetAmount returns the value of NetAmount.
+func (s *CodStatementLine) GetNetAmount() SignedMoney {
+	return s.NetAmount
+}
+
+// GetPaidOn returns the value of PaidOn.
+func (s *CodStatementLine) GetPaidOn() OptDate {
+	return s.PaidOn
+}
+
+// GetMatchStatus returns the value of MatchStatus.
+func (s *CodStatementLine) GetMatchStatus() CodMatchStatus {
+	return s.MatchStatus
+}
+
+// GetExpectedAmount returns the value of ExpectedAmount.
+func (s *CodStatementLine) GetExpectedAmount() OptSignedMoney {
+	return s.ExpectedAmount
+}
+
+// GetDiffAmount returns the value of DiffAmount.
+func (s *CodStatementLine) GetDiffAmount() OptSignedMoney {
+	return s.DiffAmount
+}
+
+// GetPostedTransferId returns the value of PostedTransferId.
+func (s *CodStatementLine) GetPostedTransferId() OptUUID {
+	return s.PostedTransferId
+}
+
+// SetID sets the value of ID.
+func (s *CodStatementLine) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetLineNo sets the value of LineNo.
+func (s *CodStatementLine) SetLineNo(val int32) {
+	s.LineNo = val
+}
+
+// SetTrackingCode sets the value of TrackingCode.
+func (s *CodStatementLine) SetTrackingCode(val string) {
+	s.TrackingCode = val
+}
+
+// SetShipmentId sets the value of ShipmentId.
+func (s *CodStatementLine) SetShipmentId(val OptUUID) {
+	s.ShipmentId = val
+}
+
+// SetCodAmount sets the value of CodAmount.
+func (s *CodStatementLine) SetCodAmount(val Money) {
+	s.CodAmount = val
+}
+
+// SetFeeAmount sets the value of FeeAmount.
+func (s *CodStatementLine) SetFeeAmount(val SignedMoney) {
+	s.FeeAmount = val
+}
+
+// SetOtherFee sets the value of OtherFee.
+func (s *CodStatementLine) SetOtherFee(val SignedMoney) {
+	s.OtherFee = val
+}
+
+// SetNetAmount sets the value of NetAmount.
+func (s *CodStatementLine) SetNetAmount(val SignedMoney) {
+	s.NetAmount = val
+}
+
+// SetPaidOn sets the value of PaidOn.
+func (s *CodStatementLine) SetPaidOn(val OptDate) {
+	s.PaidOn = val
+}
+
+// SetMatchStatus sets the value of MatchStatus.
+func (s *CodStatementLine) SetMatchStatus(val CodMatchStatus) {
+	s.MatchStatus = val
+}
+
+// SetExpectedAmount sets the value of ExpectedAmount.
+func (s *CodStatementLine) SetExpectedAmount(val OptSignedMoney) {
+	s.ExpectedAmount = val
+}
+
+// SetDiffAmount sets the value of DiffAmount.
+func (s *CodStatementLine) SetDiffAmount(val OptSignedMoney) {
+	s.DiffAmount = val
+}
+
+// SetPostedTransferId sets the value of PostedTransferId.
+func (s *CodStatementLine) SetPostedTransferId(val OptUUID) {
+	s.PostedTransferId = val
+}
+
+// Ref: #/components/schemas/CodStatementPage
+type CodStatementPage struct {
+	Items      []CodStatement `json:"items"`
+	NextCursor OptString      `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *CodStatementPage) GetItems() []CodStatement {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *CodStatementPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *CodStatementPage) SetItems(val []CodStatement) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *CodStatementPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*CodStatementPage) listCodStatementsRes() {}
+
+// Ref: #/components/schemas/CodStatementParseError
+type CodStatementParseError struct {
+	// Missing_column, bad_amount, too_many_rows, formula_not_allowed….
+	Code   string    `json:"code"`
+	Column OptString `json:"column"`
+	Line   OptInt32  `json:"line"`
+}
+
+// GetCode returns the value of Code.
+func (s *CodStatementParseError) GetCode() string {
+	return s.Code
+}
+
+// GetColumn returns the value of Column.
+func (s *CodStatementParseError) GetColumn() OptString {
+	return s.Column
+}
+
+// GetLine returns the value of Line.
+func (s *CodStatementParseError) GetLine() OptInt32 {
+	return s.Line
+}
+
+// SetCode sets the value of Code.
+func (s *CodStatementParseError) SetCode(val string) {
+	s.Code = val
+}
+
+// SetColumn sets the value of Column.
+func (s *CodStatementParseError) SetColumn(val OptString) {
+	s.Column = val
+}
+
+// SetLine sets the value of Line.
+func (s *CodStatementParseError) SetLine(val OptInt32) {
+	s.Line = val
+}
+
+// Ref: #/components/schemas/CodStatementStatus
+type CodStatementStatus string
+
+const (
+	CodStatementStatusImported    CodStatementStatus = "imported"
+	CodStatementStatusParsing     CodStatementStatus = "parsing"
+	CodStatementStatusParseFailed CodStatementStatus = "parse_failed"
+	CodStatementStatusParsed      CodStatementStatus = "parsed"
+	CodStatementStatusMatched     CodStatementStatus = "matched"
+	CodStatementStatusConfirmed   CodStatementStatus = "confirmed"
+)
+
+// AllValues returns all CodStatementStatus values.
+func (CodStatementStatus) AllValues() []CodStatementStatus {
+	return []CodStatementStatus{
+		CodStatementStatusImported,
+		CodStatementStatusParsing,
+		CodStatementStatusParseFailed,
+		CodStatementStatusParsed,
+		CodStatementStatusMatched,
+		CodStatementStatusConfirmed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CodStatementStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CodStatementStatusImported:
+		return []byte(s), nil
+	case CodStatementStatusParsing:
+		return []byte(s), nil
+	case CodStatementStatusParseFailed:
+		return []byte(s), nil
+	case CodStatementStatusParsed:
+		return []byte(s), nil
+	case CodStatementStatusMatched:
+		return []byte(s), nil
+	case CodStatementStatusConfirmed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CodStatementStatus) UnmarshalText(data []byte) error {
+	switch CodStatementStatus(data) {
+	case CodStatementStatusImported:
+		*s = CodStatementStatusImported
+		return nil
+	case CodStatementStatusParsing:
+		*s = CodStatementStatusParsing
+		return nil
+	case CodStatementStatusParseFailed:
+		*s = CodStatementStatusParseFailed
+		return nil
+	case CodStatementStatusParsed:
+		*s = CodStatementStatusParsed
+		return nil
+	case CodStatementStatusMatched:
+		*s = CodStatementStatusMatched
+		return nil
+	case CodStatementStatusConfirmed:
+		*s = CodStatementStatusConfirmed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/CodTransfer
+type CodTransfer struct {
+	ID                 uuid.UUID       `json:"id"`
+	ShipmentId         OptUUID         `json:"shipmentId"`
+	Kind               CodTransferKind `json:"kind"`
+	OccurredAt         time.Time       `json:"occurredAt"`
+	Entries            []CodEntry      `json:"entries"`
+	Reason             OptString       `json:"reason"`
+	Actor              OptActor        `json:"actor"`
+	StatementLineId    OptUUID         `json:"statementLineId"`
+	ReversesTransferId OptUUID         `json:"reversesTransferId"`
+}
+
+// GetID returns the value of ID.
+func (s *CodTransfer) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetShipmentId returns the value of ShipmentId.
+func (s *CodTransfer) GetShipmentId() OptUUID {
+	return s.ShipmentId
+}
+
+// GetKind returns the value of Kind.
+func (s *CodTransfer) GetKind() CodTransferKind {
+	return s.Kind
+}
+
+// GetOccurredAt returns the value of OccurredAt.
+func (s *CodTransfer) GetOccurredAt() time.Time {
+	return s.OccurredAt
+}
+
+// GetEntries returns the value of Entries.
+func (s *CodTransfer) GetEntries() []CodEntry {
+	return s.Entries
+}
+
+// GetReason returns the value of Reason.
+func (s *CodTransfer) GetReason() OptString {
+	return s.Reason
+}
+
+// GetActor returns the value of Actor.
+func (s *CodTransfer) GetActor() OptActor {
+	return s.Actor
+}
+
+// GetStatementLineId returns the value of StatementLineId.
+func (s *CodTransfer) GetStatementLineId() OptUUID {
+	return s.StatementLineId
+}
+
+// GetReversesTransferId returns the value of ReversesTransferId.
+func (s *CodTransfer) GetReversesTransferId() OptUUID {
+	return s.ReversesTransferId
+}
+
+// SetID sets the value of ID.
+func (s *CodTransfer) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetShipmentId sets the value of ShipmentId.
+func (s *CodTransfer) SetShipmentId(val OptUUID) {
+	s.ShipmentId = val
+}
+
+// SetKind sets the value of Kind.
+func (s *CodTransfer) SetKind(val CodTransferKind) {
+	s.Kind = val
+}
+
+// SetOccurredAt sets the value of OccurredAt.
+func (s *CodTransfer) SetOccurredAt(val time.Time) {
+	s.OccurredAt = val
+}
+
+// SetEntries sets the value of Entries.
+func (s *CodTransfer) SetEntries(val []CodEntry) {
+	s.Entries = val
+}
+
+// SetReason sets the value of Reason.
+func (s *CodTransfer) SetReason(val OptString) {
+	s.Reason = val
+}
+
+// SetActor sets the value of Actor.
+func (s *CodTransfer) SetActor(val OptActor) {
+	s.Actor = val
+}
+
+// SetStatementLineId sets the value of StatementLineId.
+func (s *CodTransfer) SetStatementLineId(val OptUUID) {
+	s.StatementLineId = val
+}
+
+// SetReversesTransferId sets the value of ReversesTransferId.
+func (s *CodTransfer) SetReversesTransferId(val OptUUID) {
+	s.ReversesTransferId = val
+}
+
+func (*CodTransfer) createCodAdjustmentRes() {}
+
+type CodTransferKind string
+
+const (
+	CodTransferKindExpected   CodTransferKind = "expected"
+	CodTransferKindCollected  CodTransferKind = "collected"
+	CodTransferKindRemitted   CodTransferKind = "remitted"
+	CodTransferKindReturned   CodTransferKind = "returned"
+	CodTransferKindAdjustment CodTransferKind = "adjustment"
+	CodTransferKindFee        CodTransferKind = "fee"
+	CodTransferKindReversal   CodTransferKind = "reversal"
+)
+
+// AllValues returns all CodTransferKind values.
+func (CodTransferKind) AllValues() []CodTransferKind {
+	return []CodTransferKind{
+		CodTransferKindExpected,
+		CodTransferKindCollected,
+		CodTransferKindRemitted,
+		CodTransferKindReturned,
+		CodTransferKindAdjustment,
+		CodTransferKindFee,
+		CodTransferKindReversal,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CodTransferKind) MarshalText() ([]byte, error) {
+	switch s {
+	case CodTransferKindExpected:
+		return []byte(s), nil
+	case CodTransferKindCollected:
+		return []byte(s), nil
+	case CodTransferKindRemitted:
+		return []byte(s), nil
+	case CodTransferKindReturned:
+		return []byte(s), nil
+	case CodTransferKindAdjustment:
+		return []byte(s), nil
+	case CodTransferKindFee:
+		return []byte(s), nil
+	case CodTransferKindReversal:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CodTransferKind) UnmarshalText(data []byte) error {
+	switch CodTransferKind(data) {
+	case CodTransferKindExpected:
+		*s = CodTransferKindExpected
+		return nil
+	case CodTransferKindCollected:
+		*s = CodTransferKindCollected
+		return nil
+	case CodTransferKindRemitted:
+		*s = CodTransferKindRemitted
+		return nil
+	case CodTransferKindReturned:
+		*s = CodTransferKindReturned
+		return nil
+	case CodTransferKindAdjustment:
+		*s = CodTransferKindAdjustment
+		return nil
+	case CodTransferKindFee:
+		*s = CodTransferKindFee
+		return nil
+	case CodTransferKindReversal:
+		*s = CodTransferKindReversal
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 type ColorHex string
 
@@ -2601,6 +5606,196 @@ func (s *CreateAttributeRequest) SetPosition(val OptPosition) {
 	s.Position = val
 }
 
+// Ref: #/components/schemas/CreateCarrierAccountRequest
+type CreateCarrierAccountRequest struct {
+	CarrierKey  string                                    `json:"carrierKey"`
+	Mode        CarrierAccountMode                        `json:"mode"`
+	Environment OptCreateCarrierAccountRequestEnvironment `json:"environment"`
+	Name        string                                    `json:"name"`
+	// Bỏ trống là người bán của shop.
+	SellerId OptUUID `json:"sellerId"`
+	// Mã tài khoản ở hãng (shop id); rỗng thì CRM ghi local:.
+	ExternalAccountRef    OptString             `json:"externalAccountRef"`
+	WarehouseId           uuid.UUID             `json:"warehouseId"`
+	DefaultService        OptString             `json:"defaultService"`
+	DefaultOptions        OptCarrierOptions     `json:"defaultOptions"`
+	IsDefaultForWarehouse OptBool               `json:"isDefaultForWarehouse"`
+	ShowOnWeb             OptBool               `json:"showOnWeb"`
+	WebSort               OptInt32              `json:"webSort"`
+	Credentials           OptCarrierCredentials `json:"credentials"`
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *CreateCarrierAccountRequest) GetCarrierKey() string {
+	return s.CarrierKey
+}
+
+// GetMode returns the value of Mode.
+func (s *CreateCarrierAccountRequest) GetMode() CarrierAccountMode {
+	return s.Mode
+}
+
+// GetEnvironment returns the value of Environment.
+func (s *CreateCarrierAccountRequest) GetEnvironment() OptCreateCarrierAccountRequestEnvironment {
+	return s.Environment
+}
+
+// GetName returns the value of Name.
+func (s *CreateCarrierAccountRequest) GetName() string {
+	return s.Name
+}
+
+// GetSellerId returns the value of SellerId.
+func (s *CreateCarrierAccountRequest) GetSellerId() OptUUID {
+	return s.SellerId
+}
+
+// GetExternalAccountRef returns the value of ExternalAccountRef.
+func (s *CreateCarrierAccountRequest) GetExternalAccountRef() OptString {
+	return s.ExternalAccountRef
+}
+
+// GetWarehouseId returns the value of WarehouseId.
+func (s *CreateCarrierAccountRequest) GetWarehouseId() uuid.UUID {
+	return s.WarehouseId
+}
+
+// GetDefaultService returns the value of DefaultService.
+func (s *CreateCarrierAccountRequest) GetDefaultService() OptString {
+	return s.DefaultService
+}
+
+// GetDefaultOptions returns the value of DefaultOptions.
+func (s *CreateCarrierAccountRequest) GetDefaultOptions() OptCarrierOptions {
+	return s.DefaultOptions
+}
+
+// GetIsDefaultForWarehouse returns the value of IsDefaultForWarehouse.
+func (s *CreateCarrierAccountRequest) GetIsDefaultForWarehouse() OptBool {
+	return s.IsDefaultForWarehouse
+}
+
+// GetShowOnWeb returns the value of ShowOnWeb.
+func (s *CreateCarrierAccountRequest) GetShowOnWeb() OptBool {
+	return s.ShowOnWeb
+}
+
+// GetWebSort returns the value of WebSort.
+func (s *CreateCarrierAccountRequest) GetWebSort() OptInt32 {
+	return s.WebSort
+}
+
+// GetCredentials returns the value of Credentials.
+func (s *CreateCarrierAccountRequest) GetCredentials() OptCarrierCredentials {
+	return s.Credentials
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *CreateCarrierAccountRequest) SetCarrierKey(val string) {
+	s.CarrierKey = val
+}
+
+// SetMode sets the value of Mode.
+func (s *CreateCarrierAccountRequest) SetMode(val CarrierAccountMode) {
+	s.Mode = val
+}
+
+// SetEnvironment sets the value of Environment.
+func (s *CreateCarrierAccountRequest) SetEnvironment(val OptCreateCarrierAccountRequestEnvironment) {
+	s.Environment = val
+}
+
+// SetName sets the value of Name.
+func (s *CreateCarrierAccountRequest) SetName(val string) {
+	s.Name = val
+}
+
+// SetSellerId sets the value of SellerId.
+func (s *CreateCarrierAccountRequest) SetSellerId(val OptUUID) {
+	s.SellerId = val
+}
+
+// SetExternalAccountRef sets the value of ExternalAccountRef.
+func (s *CreateCarrierAccountRequest) SetExternalAccountRef(val OptString) {
+	s.ExternalAccountRef = val
+}
+
+// SetWarehouseId sets the value of WarehouseId.
+func (s *CreateCarrierAccountRequest) SetWarehouseId(val uuid.UUID) {
+	s.WarehouseId = val
+}
+
+// SetDefaultService sets the value of DefaultService.
+func (s *CreateCarrierAccountRequest) SetDefaultService(val OptString) {
+	s.DefaultService = val
+}
+
+// SetDefaultOptions sets the value of DefaultOptions.
+func (s *CreateCarrierAccountRequest) SetDefaultOptions(val OptCarrierOptions) {
+	s.DefaultOptions = val
+}
+
+// SetIsDefaultForWarehouse sets the value of IsDefaultForWarehouse.
+func (s *CreateCarrierAccountRequest) SetIsDefaultForWarehouse(val OptBool) {
+	s.IsDefaultForWarehouse = val
+}
+
+// SetShowOnWeb sets the value of ShowOnWeb.
+func (s *CreateCarrierAccountRequest) SetShowOnWeb(val OptBool) {
+	s.ShowOnWeb = val
+}
+
+// SetWebSort sets the value of WebSort.
+func (s *CreateCarrierAccountRequest) SetWebSort(val OptInt32) {
+	s.WebSort = val
+}
+
+// SetCredentials sets the value of Credentials.
+func (s *CreateCarrierAccountRequest) SetCredentials(val OptCarrierCredentials) {
+	s.Credentials = val
+}
+
+type CreateCarrierAccountRequestEnvironment string
+
+const (
+	CreateCarrierAccountRequestEnvironmentSandbox    CreateCarrierAccountRequestEnvironment = "sandbox"
+	CreateCarrierAccountRequestEnvironmentProduction CreateCarrierAccountRequestEnvironment = "production"
+)
+
+// AllValues returns all CreateCarrierAccountRequestEnvironment values.
+func (CreateCarrierAccountRequestEnvironment) AllValues() []CreateCarrierAccountRequestEnvironment {
+	return []CreateCarrierAccountRequestEnvironment{
+		CreateCarrierAccountRequestEnvironmentSandbox,
+		CreateCarrierAccountRequestEnvironmentProduction,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CreateCarrierAccountRequestEnvironment) MarshalText() ([]byte, error) {
+	switch s {
+	case CreateCarrierAccountRequestEnvironmentSandbox:
+		return []byte(s), nil
+	case CreateCarrierAccountRequestEnvironmentProduction:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CreateCarrierAccountRequestEnvironment) UnmarshalText(data []byte) error {
+	switch CreateCarrierAccountRequestEnvironment(data) {
+	case CreateCarrierAccountRequestEnvironmentSandbox:
+		*s = CreateCarrierAccountRequestEnvironmentSandbox
+		return nil
+	case CreateCarrierAccountRequestEnvironmentProduction:
+		*s = CreateCarrierAccountRequestEnvironmentProduction
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/CreateCatalogImportRequest
 type CreateCatalogImportRequest struct {
 	// Tệp .xlsx đã tải lên bằng createUpload (purpose catalog_import) và completeUpload.
@@ -2663,6 +5858,140 @@ func (s *CreateCategoryRequest) SetParentId(val OptUUID) {
 // SetPosition sets the value of Position.
 func (s *CreateCategoryRequest) SetPosition(val OptPosition) {
 	s.Position = val
+}
+
+// Như CodAdjustmentRequest cộng token của bản xem trước.
+// Ref: #/components/schemas/CreateCodAdjustmentRequest
+type CreateCodAdjustmentRequest struct {
+	ShipmentId         uuid.UUID                      `json:"shipmentId"`
+	Mode               CreateCodAdjustmentRequestMode `json:"mode"`
+	ReversesTransferId OptUUID                        `json:"reversesTransferId"`
+	From               OptCodAccount                  `json:"from"`
+	To                 OptCodAccount                  `json:"to"`
+	Amount             OptMoney                       `json:"amount"`
+	Reason             string                         `json:"reason"`
+	Token              string                         `json:"token"`
+}
+
+// GetShipmentId returns the value of ShipmentId.
+func (s *CreateCodAdjustmentRequest) GetShipmentId() uuid.UUID {
+	return s.ShipmentId
+}
+
+// GetMode returns the value of Mode.
+func (s *CreateCodAdjustmentRequest) GetMode() CreateCodAdjustmentRequestMode {
+	return s.Mode
+}
+
+// GetReversesTransferId returns the value of ReversesTransferId.
+func (s *CreateCodAdjustmentRequest) GetReversesTransferId() OptUUID {
+	return s.ReversesTransferId
+}
+
+// GetFrom returns the value of From.
+func (s *CreateCodAdjustmentRequest) GetFrom() OptCodAccount {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *CreateCodAdjustmentRequest) GetTo() OptCodAccount {
+	return s.To
+}
+
+// GetAmount returns the value of Amount.
+func (s *CreateCodAdjustmentRequest) GetAmount() OptMoney {
+	return s.Amount
+}
+
+// GetReason returns the value of Reason.
+func (s *CreateCodAdjustmentRequest) GetReason() string {
+	return s.Reason
+}
+
+// GetToken returns the value of Token.
+func (s *CreateCodAdjustmentRequest) GetToken() string {
+	return s.Token
+}
+
+// SetShipmentId sets the value of ShipmentId.
+func (s *CreateCodAdjustmentRequest) SetShipmentId(val uuid.UUID) {
+	s.ShipmentId = val
+}
+
+// SetMode sets the value of Mode.
+func (s *CreateCodAdjustmentRequest) SetMode(val CreateCodAdjustmentRequestMode) {
+	s.Mode = val
+}
+
+// SetReversesTransferId sets the value of ReversesTransferId.
+func (s *CreateCodAdjustmentRequest) SetReversesTransferId(val OptUUID) {
+	s.ReversesTransferId = val
+}
+
+// SetFrom sets the value of From.
+func (s *CreateCodAdjustmentRequest) SetFrom(val OptCodAccount) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *CreateCodAdjustmentRequest) SetTo(val OptCodAccount) {
+	s.To = val
+}
+
+// SetAmount sets the value of Amount.
+func (s *CreateCodAdjustmentRequest) SetAmount(val OptMoney) {
+	s.Amount = val
+}
+
+// SetReason sets the value of Reason.
+func (s *CreateCodAdjustmentRequest) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetToken sets the value of Token.
+func (s *CreateCodAdjustmentRequest) SetToken(val string) {
+	s.Token = val
+}
+
+type CreateCodAdjustmentRequestMode string
+
+const (
+	CreateCodAdjustmentRequestModeReverse CreateCodAdjustmentRequestMode = "reverse"
+	CreateCodAdjustmentRequestModeMove    CreateCodAdjustmentRequestMode = "move"
+)
+
+// AllValues returns all CreateCodAdjustmentRequestMode values.
+func (CreateCodAdjustmentRequestMode) AllValues() []CreateCodAdjustmentRequestMode {
+	return []CreateCodAdjustmentRequestMode{
+		CreateCodAdjustmentRequestModeReverse,
+		CreateCodAdjustmentRequestModeMove,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CreateCodAdjustmentRequestMode) MarshalText() ([]byte, error) {
+	switch s {
+	case CreateCodAdjustmentRequestModeReverse:
+		return []byte(s), nil
+	case CreateCodAdjustmentRequestModeMove:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CreateCodAdjustmentRequestMode) UnmarshalText(data []byte) error {
+	switch CreateCodAdjustmentRequestMode(data) {
+	case CreateCodAdjustmentRequestModeReverse:
+		*s = CreateCodAdjustmentRequestModeReverse
+		return nil
+	case CreateCodAdjustmentRequestModeMove:
+		*s = CreateCodAdjustmentRequestModeMove
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/CreateCouponBatchRequest
@@ -2957,6 +6286,21 @@ func (s *CreateCustomerTagRequest) SetName(val string) {
 // SetColor sets the value of Color.
 func (s *CreateCustomerTagRequest) SetColor(val TagColor) {
 	s.Color = val
+}
+
+// Ref: #/components/schemas/CreateLabelBatchRequest
+type CreateLabelBatchRequest struct {
+	ShipmentIds []uuid.UUID `json:"shipmentIds"`
+}
+
+// GetShipmentIds returns the value of ShipmentIds.
+func (s *CreateLabelBatchRequest) GetShipmentIds() []uuid.UUID {
+	return s.ShipmentIds
+}
+
+// SetShipmentIds sets the value of ShipmentIds.
+func (s *CreateLabelBatchRequest) SetShipmentIds(val []uuid.UUID) {
+	s.ShipmentIds = val
 }
 
 type CreateOrderCreated Order
@@ -3527,9 +6871,27 @@ func (s *CreateRoleRequest) SetPermissions(val []string) {
 	s.Permissions = val
 }
 
+// Thân của M1 ({carrierAccountId}) vẫn hợp lệ. M3 (Task M3-12, M3-15) thêm trường tùy
+// chọn; bỏ trống thì dùng mặc định của tài khoản hãng và cài đặt vận
+// chuyển. trackingCode, feeActual chỉ cho tài khoản nhập tay (mode manual; hãng self thì
+// CRM tự sinh mã).
 // Ref: #/components/schemas/CreateShipmentRequest
 type CreateShipmentRequest struct {
 	CarrierAccountId uuid.UUID `json:"carrierAccountId"`
+	// Mã dịch vụ của hãng; rỗng là dịch vụ mặc định của tài khoản.
+	Service OptString `json:"service"`
+	// Dòng báo phí đã chọn; hết hạn hoặc đơn đã đổi → 409 quote_stale.
+	QuoteId       OptUUID           `json:"quoteId"`
+	WeightGrams   OptInt32          `json:"weightGrams"`
+	LengthCm      OptInt32          `json:"lengthCm"`
+	WidthCm       OptInt32          `json:"widthCm"`
+	HeightCm      OptInt32          `json:"heightCm"`
+	DeclaredValue OptMoney          `json:"declaredValue"`
+	Options       OptCarrierOptions `json:"options"`
+	// Mã hãng nhập tay (chỉ tài khoản mode manual); trùng vận đơn khác → 409
+	// tracking_code_conflict.
+	TrackingCode OptString `json:"trackingCode"`
+	FeeActual    OptMoney  `json:"feeActual"`
 }
 
 // GetCarrierAccountId returns the value of CarrierAccountId.
@@ -3537,9 +6899,109 @@ func (s *CreateShipmentRequest) GetCarrierAccountId() uuid.UUID {
 	return s.CarrierAccountId
 }
 
+// GetService returns the value of Service.
+func (s *CreateShipmentRequest) GetService() OptString {
+	return s.Service
+}
+
+// GetQuoteId returns the value of QuoteId.
+func (s *CreateShipmentRequest) GetQuoteId() OptUUID {
+	return s.QuoteId
+}
+
+// GetWeightGrams returns the value of WeightGrams.
+func (s *CreateShipmentRequest) GetWeightGrams() OptInt32 {
+	return s.WeightGrams
+}
+
+// GetLengthCm returns the value of LengthCm.
+func (s *CreateShipmentRequest) GetLengthCm() OptInt32 {
+	return s.LengthCm
+}
+
+// GetWidthCm returns the value of WidthCm.
+func (s *CreateShipmentRequest) GetWidthCm() OptInt32 {
+	return s.WidthCm
+}
+
+// GetHeightCm returns the value of HeightCm.
+func (s *CreateShipmentRequest) GetHeightCm() OptInt32 {
+	return s.HeightCm
+}
+
+// GetDeclaredValue returns the value of DeclaredValue.
+func (s *CreateShipmentRequest) GetDeclaredValue() OptMoney {
+	return s.DeclaredValue
+}
+
+// GetOptions returns the value of Options.
+func (s *CreateShipmentRequest) GetOptions() OptCarrierOptions {
+	return s.Options
+}
+
+// GetTrackingCode returns the value of TrackingCode.
+func (s *CreateShipmentRequest) GetTrackingCode() OptString {
+	return s.TrackingCode
+}
+
+// GetFeeActual returns the value of FeeActual.
+func (s *CreateShipmentRequest) GetFeeActual() OptMoney {
+	return s.FeeActual
+}
+
 // SetCarrierAccountId sets the value of CarrierAccountId.
 func (s *CreateShipmentRequest) SetCarrierAccountId(val uuid.UUID) {
 	s.CarrierAccountId = val
+}
+
+// SetService sets the value of Service.
+func (s *CreateShipmentRequest) SetService(val OptString) {
+	s.Service = val
+}
+
+// SetQuoteId sets the value of QuoteId.
+func (s *CreateShipmentRequest) SetQuoteId(val OptUUID) {
+	s.QuoteId = val
+}
+
+// SetWeightGrams sets the value of WeightGrams.
+func (s *CreateShipmentRequest) SetWeightGrams(val OptInt32) {
+	s.WeightGrams = val
+}
+
+// SetLengthCm sets the value of LengthCm.
+func (s *CreateShipmentRequest) SetLengthCm(val OptInt32) {
+	s.LengthCm = val
+}
+
+// SetWidthCm sets the value of WidthCm.
+func (s *CreateShipmentRequest) SetWidthCm(val OptInt32) {
+	s.WidthCm = val
+}
+
+// SetHeightCm sets the value of HeightCm.
+func (s *CreateShipmentRequest) SetHeightCm(val OptInt32) {
+	s.HeightCm = val
+}
+
+// SetDeclaredValue sets the value of DeclaredValue.
+func (s *CreateShipmentRequest) SetDeclaredValue(val OptMoney) {
+	s.DeclaredValue = val
+}
+
+// SetOptions sets the value of Options.
+func (s *CreateShipmentRequest) SetOptions(val OptCarrierOptions) {
+	s.Options = val
+}
+
+// SetTrackingCode sets the value of TrackingCode.
+func (s *CreateShipmentRequest) SetTrackingCode(val OptString) {
+	s.TrackingCode = val
+}
+
+// SetFeeActual sets the value of FeeActual.
+func (s *CreateShipmentRequest) SetFeeActual(val OptMoney) {
+	s.FeeActual = val
 }
 
 // Ref: #/components/schemas/CreateStaffRequest
@@ -5109,6 +8571,117 @@ func (s *DeepHealth) SetLastFileSyncAgeM(val OptInt64) {
 	s.LastFileSyncAgeM = val
 }
 
+// Ref: #/components/schemas/DeliveryStats
+type DeliveryStats struct {
+	Delivered int32 `json:"delivered"`
+	Returned  int32 `json:"returned"`
+	// Tỷ lệ hoàn theo phần vạn (công thức của M2); 0 khi chưa có đơn kết thúc.
+	ReturnRateBp int32             `json:"returnRateBp"`
+	Risk         DeliveryStatsRisk `json:"risk"`
+	// Câu gợi ý tiếng Việt; rỗng khi risk none.
+	Hint OptString `json:"hint"`
+}
+
+// GetDelivered returns the value of Delivered.
+func (s *DeliveryStats) GetDelivered() int32 {
+	return s.Delivered
+}
+
+// GetReturned returns the value of Returned.
+func (s *DeliveryStats) GetReturned() int32 {
+	return s.Returned
+}
+
+// GetReturnRateBp returns the value of ReturnRateBp.
+func (s *DeliveryStats) GetReturnRateBp() int32 {
+	return s.ReturnRateBp
+}
+
+// GetRisk returns the value of Risk.
+func (s *DeliveryStats) GetRisk() DeliveryStatsRisk {
+	return s.Risk
+}
+
+// GetHint returns the value of Hint.
+func (s *DeliveryStats) GetHint() OptString {
+	return s.Hint
+}
+
+// SetDelivered sets the value of Delivered.
+func (s *DeliveryStats) SetDelivered(val int32) {
+	s.Delivered = val
+}
+
+// SetReturned sets the value of Returned.
+func (s *DeliveryStats) SetReturned(val int32) {
+	s.Returned = val
+}
+
+// SetReturnRateBp sets the value of ReturnRateBp.
+func (s *DeliveryStats) SetReturnRateBp(val int32) {
+	s.ReturnRateBp = val
+}
+
+// SetRisk sets the value of Risk.
+func (s *DeliveryStats) SetRisk(val DeliveryStatsRisk) {
+	s.Risk = val
+}
+
+// SetHint sets the value of Hint.
+func (s *DeliveryStats) SetHint(val OptString) {
+	s.Hint = val
+}
+
+func (*DeliveryStats) getCustomerDeliveryStatsRes() {}
+
+type DeliveryStatsRisk string
+
+const (
+	DeliveryStatsRiskNone  DeliveryStatsRisk = "none"
+	DeliveryStatsRiskWatch DeliveryStatsRisk = "watch"
+	DeliveryStatsRiskHigh  DeliveryStatsRisk = "high"
+)
+
+// AllValues returns all DeliveryStatsRisk values.
+func (DeliveryStatsRisk) AllValues() []DeliveryStatsRisk {
+	return []DeliveryStatsRisk{
+		DeliveryStatsRiskNone,
+		DeliveryStatsRiskWatch,
+		DeliveryStatsRiskHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s DeliveryStatsRisk) MarshalText() ([]byte, error) {
+	switch s {
+	case DeliveryStatsRiskNone:
+		return []byte(s), nil
+	case DeliveryStatsRiskWatch:
+		return []byte(s), nil
+	case DeliveryStatsRiskHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *DeliveryStatsRisk) UnmarshalText(data []byte) error {
+	switch DeliveryStatsRisk(data) {
+	case DeliveryStatsRiskNone:
+		*s = DeliveryStatsRiskNone
+		return nil
+	case DeliveryStatsRiskWatch:
+		*s = DeliveryStatsRiskWatch
+		return nil
+	case DeliveryStatsRiskHigh:
+		*s = DeliveryStatsRiskHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/DiscountKind
 type DiscountKind string
 
@@ -5314,6 +8887,9 @@ type Error struct {
 	Reason          OptCouponRejectReason `json:"reason"`
 	// Chỉ có ở setting_out_of_range — tên trường cài đặt đơn ngoài khoảng (Task M2-15).
 	Field OptErrorField `json:"field"`
+	// Chỉ có ở statement_duplicate — bảng kê COD đã nhập trước với cùng tệp (Task
+	// M3-31).
+	StatementId OptUUID `json:"statementId"`
 }
 
 // GetError returns the value of Error.
@@ -5356,6 +8932,11 @@ func (s *Error) GetField() OptErrorField {
 	return s.Field
 }
 
+// GetStatementId returns the value of StatementId.
+func (s *Error) GetStatementId() OptUUID {
+	return s.StatementId
+}
+
 // SetError sets the value of Error.
 func (s *Error) SetError(val string) {
 	s.Error = val
@@ -5394,6 +8975,11 @@ func (s *Error) SetReason(val OptCouponRejectReason) {
 // SetField sets the value of Field.
 func (s *Error) SetField(val OptErrorField) {
 	s.Field = val
+}
+
+// SetStatementId sets the value of StatementId.
+func (s *Error) SetStatementId(val OptUUID) {
+	s.StatementId = val
 }
 
 // Chỉ có ở setting_out_of_range — tên trường cài đặt đơn ngoài khoảng (Task M2-15).
@@ -5487,27 +9073,35 @@ func (*ErrorStatusCode) addCustomerTagRes()              {}
 func (*ErrorStatusCode) addOrderNoteRes()                {}
 func (*ErrorStatusCode) addVariantRes()                  {}
 func (*ErrorStatusCode) applyCatalogImportRes()          {}
+func (*ErrorStatusCode) applyShipmentCorrectionRes()     {}
 func (*ErrorStatusCode) applyStocktakeRes()              {}
 func (*ErrorStatusCode) approveOrderDiscountRes()        {}
 func (*ErrorStatusCode) archiveCategoryRes()             {}
 func (*ErrorStatusCode) archiveRoleRes()                 {}
+func (*ErrorStatusCode) assignCallbackTaskRes()          {}
 func (*ErrorStatusCode) attachProductImageRes()          {}
 func (*ErrorStatusCode) cancelOrderRes()                 {}
 func (*ErrorStatusCode) cancelReturnRes()                {}
+func (*ErrorStatusCode) cancelShipmentRes()              {}
 func (*ErrorStatusCode) cancelStockDocumentRes()         {}
 func (*ErrorStatusCode) cancelStocktakeRes()             {}
+func (*ErrorStatusCode) checkCarrierAccountRes()         {}
 func (*ErrorStatusCode) checkCouponRes()                 {}
 func (*ErrorStatusCode) checkOrderDuplicatesRes()        {}
 func (*ErrorStatusCode) closeReturnRes()                 {}
 func (*ErrorStatusCode) completeUploadRes()              {}
+func (*ErrorStatusCode) confirmCodStatementRes()         {}
 func (*ErrorStatusCode) confirmOrderRes()                {}
 func (*ErrorStatusCode) createAttributeRes()             {}
+func (*ErrorStatusCode) createCarrierAccountRes()        {}
 func (*ErrorStatusCode) createCatalogImportRes()         {}
 func (*ErrorStatusCode) createCategoryRes()              {}
+func (*ErrorStatusCode) createCodAdjustmentRes()         {}
 func (*ErrorStatusCode) createCouponBatchRes()           {}
 func (*ErrorStatusCode) createCouponRes()                {}
 func (*ErrorStatusCode) createCustomerRes()              {}
 func (*ErrorStatusCode) createCustomerTagRes()           {}
+func (*ErrorStatusCode) createLabelBatchRes()            {}
 func (*ErrorStatusCode) createOrderRes()                 {}
 func (*ErrorStatusCode) createProductRes()               {}
 func (*ErrorStatusCode) createReturnRes()                {}
@@ -5523,31 +9117,44 @@ func (*ErrorStatusCode) deleteCustomerAddressRes()       {}
 func (*ErrorStatusCode) deleteProductImageRes()          {}
 func (*ErrorStatusCode) getCatalogImportRes()            {}
 func (*ErrorStatusCode) getCatalogImportTemplateRes()    {}
+func (*ErrorStatusCode) getCodStatementRes()             {}
 func (*ErrorStatusCode) getCouponBatchRes()              {}
 func (*ErrorStatusCode) getCouponRes()                   {}
+func (*ErrorStatusCode) getCustomerDeliveryStatsRes()    {}
 func (*ErrorStatusCode) getCustomerImportRes()           {}
 func (*ErrorStatusCode) getCustomerImportTemplateRes()   {}
 func (*ErrorStatusCode) getCustomerRes()                 {}
 func (*ErrorStatusCode) getCustomerTagRuleRes()          {}
 func (*ErrorStatusCode) getCustomerTimelineRes()         {}
 func (*ErrorStatusCode) getFileRes()                     {}
+func (*ErrorStatusCode) getFulfillmentSettingsRes()      {}
+func (*ErrorStatusCode) getLabelBatchRes()               {}
 func (*ErrorStatusCode) getMeRes()                       {}
 func (*ErrorStatusCode) getOrderRes()                    {}
 func (*ErrorStatusCode) getOrderSettingsRes()            {}
 func (*ErrorStatusCode) getOrderTimelineRes()            {}
 func (*ErrorStatusCode) getOriginalImageURLRes()         {}
+func (*ErrorStatusCode) getPickingListRes()              {}
 func (*ErrorStatusCode) getPlatformHealthRes()           {}
 func (*ErrorStatusCode) getProductClassificationRes()    {}
 func (*ErrorStatusCode) getProductRes()                  {}
 func (*ErrorStatusCode) getReturnRes()                   {}
+func (*ErrorStatusCode) getShipmentCodRes()              {}
 func (*ErrorStatusCode) getShipmentRes()                 {}
 func (*ErrorStatusCode) getStockDocumentRes()            {}
 func (*ErrorStatusCode) getStocktakeRes()                {}
 func (*ErrorStatusCode) healthDeepRes()                  {}
+func (*ErrorStatusCode) importCodStatementRes()          {}
 func (*ErrorStatusCode) listAdminUnitsRes()              {}
+func (*ErrorStatusCode) listAgedReservationsRes()        {}
 func (*ErrorStatusCode) listAttributesRes()              {}
 func (*ErrorStatusCode) listBalancesRes()                {}
+func (*ErrorStatusCode) listCallbackTasksRes()           {}
+func (*ErrorStatusCode) listCarrierAccountsRes()         {}
 func (*ErrorStatusCode) listCategoriesRes()              {}
+func (*ErrorStatusCode) listCodDiscrepanciesRes()        {}
+func (*ErrorStatusCode) listCodOverdueRes()              {}
+func (*ErrorStatusCode) listCodStatementsRes()           {}
 func (*ErrorStatusCode) listCouponRedemptionsRes()       {}
 func (*ErrorStatusCode) listCouponsRes()                 {}
 func (*ErrorStatusCode) listCustomerMergeCandidatesRes() {}
@@ -5556,23 +9163,39 @@ func (*ErrorStatusCode) listCustomersRes()               {}
 func (*ErrorStatusCode) listJobsRes()                    {}
 func (*ErrorStatusCode) listLostFilesRes()               {}
 func (*ErrorStatusCode) listOrderDuplicatesRes()         {}
+func (*ErrorStatusCode) listOrderPaymentsRes()           {}
+func (*ErrorStatusCode) listOrderShipmentsRes()          {}
 func (*ErrorStatusCode) listOrdersRes()                  {}
 func (*ErrorStatusCode) listPermissionsRes()             {}
 func (*ErrorStatusCode) listProductsRes()                {}
+func (*ErrorStatusCode) listReconcileFindingsRes()       {}
+func (*ErrorStatusCode) listRefundObligationsRes()       {}
 func (*ErrorStatusCode) listReturnsRes()                 {}
 func (*ErrorStatusCode) listRolesRes()                   {}
 func (*ErrorStatusCode) listRolesToManageRes()           {}
+func (*ErrorStatusCode) listShipmentEventsRes()          {}
+func (*ErrorStatusCode) listShipmentsForReviewRes()      {}
+func (*ErrorStatusCode) listShippingQuotesRes()          {}
 func (*ErrorStatusCode) listStaffRes()                   {}
 func (*ErrorStatusCode) listStockDocumentsRes()          {}
+func (*ErrorStatusCode) listStuckShipmentsRes()          {}
 func (*ErrorStatusCode) listSuppliersRes()               {}
 func (*ErrorStatusCode) listTagsRes()                    {}
 func (*ErrorStatusCode) listTrafficSourcesRes()          {}
+func (*ErrorStatusCode) listUnmappedLocationsRes()       {}
 func (*ErrorStatusCode) listWarehousesRes()              {}
 func (*ErrorStatusCode) lockStaffRes()                   {}
 func (*ErrorStatusCode) mergeCustomerRes()               {}
+func (*ErrorStatusCode) payRefundObligationRes()         {}
 func (*ErrorStatusCode) postStockDocumentRes()           {}
+func (*ErrorStatusCode) previewCodAdjustmentRes()        {}
+func (*ErrorStatusCode) previewShipmentCorrectionRes()   {}
+func (*ErrorStatusCode) putCarrierCredentialsRes()       {}
 func (*ErrorStatusCode) putCustomerTagRuleRes()          {}
 func (*ErrorStatusCode) receiveReturnRes()               {}
+func (*ErrorStatusCode) recordCallbackOutcomeRes()       {}
+func (*ErrorStatusCode) recordPartialDeliveryRes()       {}
+func (*ErrorStatusCode) recordPaymentRes()               {}
 func (*ErrorStatusCode) recordStocktakeCountRes()        {}
 func (*ErrorStatusCode) regenerateImagesRes()            {}
 func (*ErrorStatusCode) removeCustomerIdentityRes()      {}
@@ -5580,23 +9203,37 @@ func (*ErrorStatusCode) removeCustomerTagRes()           {}
 func (*ErrorStatusCode) reorderProductImagesRes()        {}
 func (*ErrorStatusCode) replaceStaffGrantsRes()          {}
 func (*ErrorStatusCode) replaceStockDocumentLinesRes()   {}
+func (*ErrorStatusCode) requestAddressChangeRes()        {}
+func (*ErrorStatusCode) requestShippingQuotesRes()       {}
+func (*ErrorStatusCode) resendShipmentRes()              {}
+func (*ErrorStatusCode) resolveAddressChangeRes()        {}
 func (*ErrorStatusCode) resolveOrderDuplicateRes()       {}
+func (*ErrorStatusCode) resolveShipmentAnomalyRes()      {}
+func (*ErrorStatusCode) resolveShipmentCreateRes()       {}
 func (*ErrorStatusCode) restoreProductImageRes()         {}
 func (*ErrorStatusCode) retryJobRes()                    {}
 func (*ErrorStatusCode) searchVariantsRes()              {}
+func (*ErrorStatusCode) setCarrierAccountStatusRes()     {}
 func (*ErrorStatusCode) setOrderPendingRes()             {}
+func (*ErrorStatusCode) setPackingStatusRes()            {}
 func (*ErrorStatusCode) setProductClassificationRes()    {}
 func (*ErrorStatusCode) setProductImageColorRes()        {}
+func (*ErrorStatusCode) setShipmentManualStatusRes()     {}
+func (*ErrorStatusCode) setWarehousePickupRes()          {}
 func (*ErrorStatusCode) startCustomerImportRes()         {}
 func (*ErrorStatusCode) startStocktakeRes()              {}
 func (*ErrorStatusCode) streamRes()                      {}
+func (*ErrorStatusCode) syncCarrierLocationsRes()        {}
+func (*ErrorStatusCode) syncShipmentRes()                {}
 func (*ErrorStatusCode) undoCustomerMergeRes()           {}
 func (*ErrorStatusCode) unlockStaffRes()                 {}
+func (*ErrorStatusCode) updateCarrierAccountRes()        {}
 func (*ErrorStatusCode) updateCategoryRes()              {}
 func (*ErrorStatusCode) updateCouponRes()                {}
 func (*ErrorStatusCode) updateCustomerAddressRes()       {}
 func (*ErrorStatusCode) updateCustomerRes()              {}
 func (*ErrorStatusCode) updateCustomerTagRes()           {}
+func (*ErrorStatusCode) updateFulfillmentSettingsRes()   {}
 func (*ErrorStatusCode) updateOrderRes()                 {}
 func (*ErrorStatusCode) updateOrderSettingsRes()         {}
 func (*ErrorStatusCode) updateProductRes()               {}
@@ -5605,6 +9242,7 @@ func (*ErrorStatusCode) updateSupplierRes()              {}
 func (*ErrorStatusCode) updateTrafficSourceRes()         {}
 func (*ErrorStatusCode) updateVariantRes()               {}
 func (*ErrorStatusCode) verifyFilesRes()                 {}
+func (*ErrorStatusCode) waiveRefundObligationRes()       {}
 
 // Một loại lỗi ứng dụng gộp theo dấu vân tay (Task 20). message đã lọc chuỗi từ
 // 8 chữ số và email.
@@ -5927,6 +9565,139 @@ func (s *FileVariantFormat) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/FulfillmentSettings
+type FulfillmentSettings struct {
+	// Số giờ không cập nhật thì coi là kẹt, theo trạng thái vận đơn.
+	StuckHours            FulfillmentSettingsStuckHours `json:"stuckHours"`
+	CallbackDeadlineHours int32                         `json:"callbackDeadlineHours"`
+	// Chu kỳ tra trạng thái (phút) theo trạng thái vận đơn.
+	PollMinutes               FulfillmentSettingsPollMinutes `json:"pollMinutes"`
+	DefaultWeightGramsPerItem int32                          `json:"defaultWeightGramsPerItem"`
+	QuoteValidMinutes         int32                          `json:"quoteValidMinutes"`
+	ReturnRisk                ReturnRiskSettings             `json:"returnRisk"`
+	CodOverdueDays            int32                          `json:"codOverdueDays"`
+	AgedDays                  AgedDaysSettings               `json:"agedDays"`
+	// 0 khi shop chưa lưu cài đặt nào (đang dùng mặc định).
+	Version int64 `json:"version"`
+}
+
+// GetStuckHours returns the value of StuckHours.
+func (s *FulfillmentSettings) GetStuckHours() FulfillmentSettingsStuckHours {
+	return s.StuckHours
+}
+
+// GetCallbackDeadlineHours returns the value of CallbackDeadlineHours.
+func (s *FulfillmentSettings) GetCallbackDeadlineHours() int32 {
+	return s.CallbackDeadlineHours
+}
+
+// GetPollMinutes returns the value of PollMinutes.
+func (s *FulfillmentSettings) GetPollMinutes() FulfillmentSettingsPollMinutes {
+	return s.PollMinutes
+}
+
+// GetDefaultWeightGramsPerItem returns the value of DefaultWeightGramsPerItem.
+func (s *FulfillmentSettings) GetDefaultWeightGramsPerItem() int32 {
+	return s.DefaultWeightGramsPerItem
+}
+
+// GetQuoteValidMinutes returns the value of QuoteValidMinutes.
+func (s *FulfillmentSettings) GetQuoteValidMinutes() int32 {
+	return s.QuoteValidMinutes
+}
+
+// GetReturnRisk returns the value of ReturnRisk.
+func (s *FulfillmentSettings) GetReturnRisk() ReturnRiskSettings {
+	return s.ReturnRisk
+}
+
+// GetCodOverdueDays returns the value of CodOverdueDays.
+func (s *FulfillmentSettings) GetCodOverdueDays() int32 {
+	return s.CodOverdueDays
+}
+
+// GetAgedDays returns the value of AgedDays.
+func (s *FulfillmentSettings) GetAgedDays() AgedDaysSettings {
+	return s.AgedDays
+}
+
+// GetVersion returns the value of Version.
+func (s *FulfillmentSettings) GetVersion() int64 {
+	return s.Version
+}
+
+// SetStuckHours sets the value of StuckHours.
+func (s *FulfillmentSettings) SetStuckHours(val FulfillmentSettingsStuckHours) {
+	s.StuckHours = val
+}
+
+// SetCallbackDeadlineHours sets the value of CallbackDeadlineHours.
+func (s *FulfillmentSettings) SetCallbackDeadlineHours(val int32) {
+	s.CallbackDeadlineHours = val
+}
+
+// SetPollMinutes sets the value of PollMinutes.
+func (s *FulfillmentSettings) SetPollMinutes(val FulfillmentSettingsPollMinutes) {
+	s.PollMinutes = val
+}
+
+// SetDefaultWeightGramsPerItem sets the value of DefaultWeightGramsPerItem.
+func (s *FulfillmentSettings) SetDefaultWeightGramsPerItem(val int32) {
+	s.DefaultWeightGramsPerItem = val
+}
+
+// SetQuoteValidMinutes sets the value of QuoteValidMinutes.
+func (s *FulfillmentSettings) SetQuoteValidMinutes(val int32) {
+	s.QuoteValidMinutes = val
+}
+
+// SetReturnRisk sets the value of ReturnRisk.
+func (s *FulfillmentSettings) SetReturnRisk(val ReturnRiskSettings) {
+	s.ReturnRisk = val
+}
+
+// SetCodOverdueDays sets the value of CodOverdueDays.
+func (s *FulfillmentSettings) SetCodOverdueDays(val int32) {
+	s.CodOverdueDays = val
+}
+
+// SetAgedDays sets the value of AgedDays.
+func (s *FulfillmentSettings) SetAgedDays(val AgedDaysSettings) {
+	s.AgedDays = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FulfillmentSettings) SetVersion(val int64) {
+	s.Version = val
+}
+
+func (*FulfillmentSettings) getFulfillmentSettingsRes()    {}
+func (*FulfillmentSettings) updateFulfillmentSettingsRes() {}
+
+// Chu kỳ tra trạng thái (phút) theo trạng thái vận đơn.
+type FulfillmentSettingsPollMinutes map[string]int32
+
+func (s *FulfillmentSettingsPollMinutes) init() FulfillmentSettingsPollMinutes {
+	m := *s
+	if m == nil {
+		m = map[string]int32{}
+		*s = m
+	}
+	return m
+}
+
+// Số giờ không cập nhật thì coi là kẹt, theo trạng thái vận đơn.
+type FulfillmentSettingsStuckHours map[string]int32
+
+func (s *FulfillmentSettingsStuckHours) init() FulfillmentSettingsStuckHours {
+	m := *s
+	if m == nil {
+		m = map[string]int32{}
+		*s = m
+	}
+	return m
+}
+
 type GetCatalogImportTemplateOK struct {
 	Data io.Reader
 }
@@ -6131,6 +9902,45 @@ func (s *HealthStatusStatus) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/ImportCodStatementRequest
+type ImportCodStatementRequest struct {
+	CarrierAccountId uuid.UUID `json:"carrierAccountId"`
+	// Tệp đã tải lên với mục đích cod_statement (createUpload, completeUpload).
+	FileId uuid.UUID `json:"fileId"`
+	// Định dạng bảng kê; rỗng là định dạng mặc định của hãng.
+	Format OptString `json:"format"`
+}
+
+// GetCarrierAccountId returns the value of CarrierAccountId.
+func (s *ImportCodStatementRequest) GetCarrierAccountId() uuid.UUID {
+	return s.CarrierAccountId
+}
+
+// GetFileId returns the value of FileId.
+func (s *ImportCodStatementRequest) GetFileId() uuid.UUID {
+	return s.FileId
+}
+
+// GetFormat returns the value of Format.
+func (s *ImportCodStatementRequest) GetFormat() OptString {
+	return s.Format
+}
+
+// SetCarrierAccountId sets the value of CarrierAccountId.
+func (s *ImportCodStatementRequest) SetCarrierAccountId(val uuid.UUID) {
+	s.CarrierAccountId = val
+}
+
+// SetFileId sets the value of FileId.
+func (s *ImportCodStatementRequest) SetFileId(val uuid.UUID) {
+	s.FileId = val
+}
+
+// SetFormat sets the value of Format.
+func (s *ImportCodStatementRequest) SetFormat(val OptString) {
+	s.Format = val
+}
+
 // Ref: #/components/schemas/IngestHealth
 type IngestHealth struct {
 	SpoolFiles int64 `json:"spoolFiles"`
@@ -6219,9 +10029,384 @@ func (s *Job) SetCreatedAt(val time.Time) {
 func (*Job) abandonJobRes() {}
 func (*Job) retryJobRes()   {}
 
+// Việc nền đã ghi; kết quả đến qua luồng báo tức thời hoặc đọc lại tài
+// nguyên.
+// Ref: #/components/schemas/JobAccepted
+type JobAccepted struct {
+	JobId uuid.UUID `json:"jobId"`
+}
+
+// GetJobId returns the value of JobId.
+func (s *JobAccepted) GetJobId() uuid.UUID {
+	return s.JobId
+}
+
+// SetJobId sets the value of JobId.
+func (s *JobAccepted) SetJobId(val uuid.UUID) {
+	s.JobId = val
+}
+
+func (*JobAccepted) checkCarrierAccountRes()  {}
+func (*JobAccepted) syncCarrierLocationsRes() {}
+func (*JobAccepted) syncShipmentRes()         {}
+
+// Ref: #/components/schemas/LabelBatch
+type LabelBatch struct {
+	ID               uuid.UUID        `json:"id"`
+	CarrierAccountId uuid.UUID        `json:"carrierAccountId"`
+	Status           LabelBatchStatus `json:"status"`
+	Count            int32            `json:"count"`
+	// Đường dẫn ký sẵn 5 phút; chỉ có khi ready.
+	URL       OptString `json:"url"`
+	ErrorCode OptString `json:"errorCode"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// GetID returns the value of ID.
+func (s *LabelBatch) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCarrierAccountId returns the value of CarrierAccountId.
+func (s *LabelBatch) GetCarrierAccountId() uuid.UUID {
+	return s.CarrierAccountId
+}
+
+// GetStatus returns the value of Status.
+func (s *LabelBatch) GetStatus() LabelBatchStatus {
+	return s.Status
+}
+
+// GetCount returns the value of Count.
+func (s *LabelBatch) GetCount() int32 {
+	return s.Count
+}
+
+// GetURL returns the value of URL.
+func (s *LabelBatch) GetURL() OptString {
+	return s.URL
+}
+
+// GetErrorCode returns the value of ErrorCode.
+func (s *LabelBatch) GetErrorCode() OptString {
+	return s.ErrorCode
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *LabelBatch) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetID sets the value of ID.
+func (s *LabelBatch) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCarrierAccountId sets the value of CarrierAccountId.
+func (s *LabelBatch) SetCarrierAccountId(val uuid.UUID) {
+	s.CarrierAccountId = val
+}
+
+// SetStatus sets the value of Status.
+func (s *LabelBatch) SetStatus(val LabelBatchStatus) {
+	s.Status = val
+}
+
+// SetCount sets the value of Count.
+func (s *LabelBatch) SetCount(val int32) {
+	s.Count = val
+}
+
+// SetURL sets the value of URL.
+func (s *LabelBatch) SetURL(val OptString) {
+	s.URL = val
+}
+
+// SetErrorCode sets the value of ErrorCode.
+func (s *LabelBatch) SetErrorCode(val OptString) {
+	s.ErrorCode = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *LabelBatch) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+func (*LabelBatch) getLabelBatchRes() {}
+
+// Ref: #/components/schemas/LabelBatchCreated
+type LabelBatchCreated struct {
+	Batches []LabelBatchSummary `json:"batches"`
+	Skipped []LabelBatchSkipped `json:"skipped"`
+}
+
+// GetBatches returns the value of Batches.
+func (s *LabelBatchCreated) GetBatches() []LabelBatchSummary {
+	return s.Batches
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *LabelBatchCreated) GetSkipped() []LabelBatchSkipped {
+	return s.Skipped
+}
+
+// SetBatches sets the value of Batches.
+func (s *LabelBatchCreated) SetBatches(val []LabelBatchSummary) {
+	s.Batches = val
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *LabelBatchCreated) SetSkipped(val []LabelBatchSkipped) {
+	s.Skipped = val
+}
+
+func (*LabelBatchCreated) createLabelBatchRes() {}
+
+// Ref: #/components/schemas/LabelBatchSkipped
+type LabelBatchSkipped struct {
+	ShipmentId uuid.UUID `json:"shipmentId"`
+	// No_carrier_label, no_tracking_code.
+	Reason string `json:"reason"`
+}
+
+// GetShipmentId returns the value of ShipmentId.
+func (s *LabelBatchSkipped) GetShipmentId() uuid.UUID {
+	return s.ShipmentId
+}
+
+// GetReason returns the value of Reason.
+func (s *LabelBatchSkipped) GetReason() string {
+	return s.Reason
+}
+
+// SetShipmentId sets the value of ShipmentId.
+func (s *LabelBatchSkipped) SetShipmentId(val uuid.UUID) {
+	s.ShipmentId = val
+}
+
+// SetReason sets the value of Reason.
+func (s *LabelBatchSkipped) SetReason(val string) {
+	s.Reason = val
+}
+
+type LabelBatchStatus string
+
+const (
+	LabelBatchStatusPending LabelBatchStatus = "pending"
+	LabelBatchStatusReady   LabelBatchStatus = "ready"
+	LabelBatchStatusFailed  LabelBatchStatus = "failed"
+)
+
+// AllValues returns all LabelBatchStatus values.
+func (LabelBatchStatus) AllValues() []LabelBatchStatus {
+	return []LabelBatchStatus{
+		LabelBatchStatusPending,
+		LabelBatchStatusReady,
+		LabelBatchStatusFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LabelBatchStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case LabelBatchStatusPending:
+		return []byte(s), nil
+	case LabelBatchStatusReady:
+		return []byte(s), nil
+	case LabelBatchStatusFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LabelBatchStatus) UnmarshalText(data []byte) error {
+	switch LabelBatchStatus(data) {
+	case LabelBatchStatusPending:
+		*s = LabelBatchStatusPending
+		return nil
+	case LabelBatchStatusReady:
+		*s = LabelBatchStatusReady
+		return nil
+	case LabelBatchStatusFailed:
+		*s = LabelBatchStatusFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/LabelBatchSummary
+type LabelBatchSummary struct {
+	ID               uuid.UUID `json:"id"`
+	CarrierAccountId uuid.UUID `json:"carrierAccountId"`
+	Count            int32     `json:"count"`
+}
+
+// GetID returns the value of ID.
+func (s *LabelBatchSummary) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCarrierAccountId returns the value of CarrierAccountId.
+func (s *LabelBatchSummary) GetCarrierAccountId() uuid.UUID {
+	return s.CarrierAccountId
+}
+
+// GetCount returns the value of Count.
+func (s *LabelBatchSummary) GetCount() int32 {
+	return s.Count
+}
+
+// SetID sets the value of ID.
+func (s *LabelBatchSummary) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCarrierAccountId sets the value of CarrierAccountId.
+func (s *LabelBatchSummary) SetCarrierAccountId(val uuid.UUID) {
+	s.CarrierAccountId = val
+}
+
+// SetCount sets the value of Count.
+func (s *LabelBatchSummary) SetCount(val int32) {
+	s.Count = val
+}
+
+type ListAgedReservationsState string
+
+const (
+	ListAgedReservationsStateHeld      ListAgedReservationsState = "held"
+	ListAgedReservationsStateInTransit ListAgedReservationsState = "in_transit"
+)
+
+// AllValues returns all ListAgedReservationsState values.
+func (ListAgedReservationsState) AllValues() []ListAgedReservationsState {
+	return []ListAgedReservationsState{
+		ListAgedReservationsStateHeld,
+		ListAgedReservationsStateInTransit,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListAgedReservationsState) MarshalText() ([]byte, error) {
+	switch s {
+	case ListAgedReservationsStateHeld:
+		return []byte(s), nil
+	case ListAgedReservationsStateInTransit:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListAgedReservationsState) UnmarshalText(data []byte) error {
+	switch ListAgedReservationsState(data) {
+	case ListAgedReservationsStateHeld:
+		*s = ListAgedReservationsStateHeld
+		return nil
+	case ListAgedReservationsStateInTransit:
+		*s = ListAgedReservationsStateInTransit
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ListAttributesOKApplicationJSON []Attribute
 
 func (*ListAttributesOKApplicationJSON) listAttributesRes() {}
+
+type ListCallbackTasksAssignee string
+
+const (
+	ListCallbackTasksAssigneeMe  ListCallbackTasksAssignee = "me"
+	ListCallbackTasksAssigneeAny ListCallbackTasksAssignee = "any"
+)
+
+// AllValues returns all ListCallbackTasksAssignee values.
+func (ListCallbackTasksAssignee) AllValues() []ListCallbackTasksAssignee {
+	return []ListCallbackTasksAssignee{
+		ListCallbackTasksAssigneeMe,
+		ListCallbackTasksAssigneeAny,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListCallbackTasksAssignee) MarshalText() ([]byte, error) {
+	switch s {
+	case ListCallbackTasksAssigneeMe:
+		return []byte(s), nil
+	case ListCallbackTasksAssigneeAny:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListCallbackTasksAssignee) UnmarshalText(data []byte) error {
+	switch ListCallbackTasksAssignee(data) {
+	case ListCallbackTasksAssigneeMe:
+		*s = ListCallbackTasksAssigneeMe
+		return nil
+	case ListCallbackTasksAssigneeAny:
+		*s = ListCallbackTasksAssigneeAny
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ListCallbackTasksStatus string
+
+const (
+	ListCallbackTasksStatusOpen       ListCallbackTasksStatus = "open"
+	ListCallbackTasksStatusInProgress ListCallbackTasksStatus = "in_progress"
+	ListCallbackTasksStatusDone       ListCallbackTasksStatus = "done"
+)
+
+// AllValues returns all ListCallbackTasksStatus values.
+func (ListCallbackTasksStatus) AllValues() []ListCallbackTasksStatus {
+	return []ListCallbackTasksStatus{
+		ListCallbackTasksStatusOpen,
+		ListCallbackTasksStatusInProgress,
+		ListCallbackTasksStatusDone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListCallbackTasksStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ListCallbackTasksStatusOpen:
+		return []byte(s), nil
+	case ListCallbackTasksStatusInProgress:
+		return []byte(s), nil
+	case ListCallbackTasksStatusDone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListCallbackTasksStatus) UnmarshalText(data []byte) error {
+	switch ListCallbackTasksStatus(data) {
+	case ListCallbackTasksStatusOpen:
+		*s = ListCallbackTasksStatusOpen
+		return nil
+	case ListCallbackTasksStatusInProgress:
+		*s = ListCallbackTasksStatusInProgress
+		return nil
+	case ListCallbackTasksStatusDone:
+		*s = ListCallbackTasksStatusDone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 type ListCategoriesOKApplicationJSON []Category
 
@@ -6279,9 +10464,160 @@ func (s *ListJobsStatus) UnmarshalText(data []byte) error {
 	}
 }
 
+type ListOrdersCodState string
+
+const (
+	ListOrdersCodStateCollecting ListOrdersCodState = "collecting"
+	ListOrdersCodStateHolding    ListOrdersCodState = "holding"
+	ListOrdersCodStateReceived   ListOrdersCodState = "received"
+	ListOrdersCodStateNone       ListOrdersCodState = "none"
+)
+
+// AllValues returns all ListOrdersCodState values.
+func (ListOrdersCodState) AllValues() []ListOrdersCodState {
+	return []ListOrdersCodState{
+		ListOrdersCodStateCollecting,
+		ListOrdersCodStateHolding,
+		ListOrdersCodStateReceived,
+		ListOrdersCodStateNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListOrdersCodState) MarshalText() ([]byte, error) {
+	switch s {
+	case ListOrdersCodStateCollecting:
+		return []byte(s), nil
+	case ListOrdersCodStateHolding:
+		return []byte(s), nil
+	case ListOrdersCodStateReceived:
+		return []byte(s), nil
+	case ListOrdersCodStateNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListOrdersCodState) UnmarshalText(data []byte) error {
+	switch ListOrdersCodState(data) {
+	case ListOrdersCodStateCollecting:
+		*s = ListOrdersCodStateCollecting
+		return nil
+	case ListOrdersCodStateHolding:
+		*s = ListOrdersCodStateHolding
+		return nil
+	case ListOrdersCodStateReceived:
+		*s = ListOrdersCodStateReceived
+		return nil
+	case ListOrdersCodStateNone:
+		*s = ListOrdersCodStateNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ListOrdersPackingStatus string
+
+const (
+	ListOrdersPackingStatusNone    ListOrdersPackingStatus = "none"
+	ListOrdersPackingStatusPicking ListOrdersPackingStatus = "picking"
+	ListOrdersPackingStatusPacked  ListOrdersPackingStatus = "packed"
+)
+
+// AllValues returns all ListOrdersPackingStatus values.
+func (ListOrdersPackingStatus) AllValues() []ListOrdersPackingStatus {
+	return []ListOrdersPackingStatus{
+		ListOrdersPackingStatusNone,
+		ListOrdersPackingStatusPicking,
+		ListOrdersPackingStatusPacked,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListOrdersPackingStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ListOrdersPackingStatusNone:
+		return []byte(s), nil
+	case ListOrdersPackingStatusPicking:
+		return []byte(s), nil
+	case ListOrdersPackingStatusPacked:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListOrdersPackingStatus) UnmarshalText(data []byte) error {
+	switch ListOrdersPackingStatus(data) {
+	case ListOrdersPackingStatusNone:
+		*s = ListOrdersPackingStatusNone
+		return nil
+	case ListOrdersPackingStatusPicking:
+		*s = ListOrdersPackingStatusPicking
+		return nil
+	case ListOrdersPackingStatusPacked:
+		*s = ListOrdersPackingStatusPacked
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ListPermissionsOKApplicationJSON []PermissionInfo
 
 func (*ListPermissionsOKApplicationJSON) listPermissionsRes() {}
+
+type ListRefundObligationsStatus string
+
+const (
+	ListRefundObligationsStatusOpen   ListRefundObligationsStatus = "open"
+	ListRefundObligationsStatusPaid   ListRefundObligationsStatus = "paid"
+	ListRefundObligationsStatusWaived ListRefundObligationsStatus = "waived"
+)
+
+// AllValues returns all ListRefundObligationsStatus values.
+func (ListRefundObligationsStatus) AllValues() []ListRefundObligationsStatus {
+	return []ListRefundObligationsStatus{
+		ListRefundObligationsStatusOpen,
+		ListRefundObligationsStatusPaid,
+		ListRefundObligationsStatusWaived,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListRefundObligationsStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ListRefundObligationsStatusOpen:
+		return []byte(s), nil
+	case ListRefundObligationsStatusPaid:
+		return []byte(s), nil
+	case ListRefundObligationsStatusWaived:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListRefundObligationsStatus) UnmarshalText(data []byte) error {
+	switch ListRefundObligationsStatus(data) {
+	case ListRefundObligationsStatusOpen:
+		*s = ListRefundObligationsStatusOpen
+		return nil
+	case ListRefundObligationsStatusPaid:
+		*s = ListRefundObligationsStatusPaid
+		return nil
+	case ListRefundObligationsStatusWaived:
+		*s = ListRefundObligationsStatusWaived
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 type ListRolesOKApplicationJSON []Role
 
@@ -6302,6 +10638,47 @@ func (*ListSuppliersOKApplicationJSON) listSuppliersRes() {}
 type ListTagsOKApplicationJSON []Tag
 
 func (*ListTagsOKApplicationJSON) listTagsRes() {}
+
+type ListUnmappedLocationsLevel string
+
+const (
+	ListUnmappedLocationsLevelProvince ListUnmappedLocationsLevel = "province"
+	ListUnmappedLocationsLevelWard     ListUnmappedLocationsLevel = "ward"
+)
+
+// AllValues returns all ListUnmappedLocationsLevel values.
+func (ListUnmappedLocationsLevel) AllValues() []ListUnmappedLocationsLevel {
+	return []ListUnmappedLocationsLevel{
+		ListUnmappedLocationsLevelProvince,
+		ListUnmappedLocationsLevelWard,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListUnmappedLocationsLevel) MarshalText() ([]byte, error) {
+	switch s {
+	case ListUnmappedLocationsLevelProvince:
+		return []byte(s), nil
+	case ListUnmappedLocationsLevelWard:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListUnmappedLocationsLevel) UnmarshalText(data []byte) error {
+	switch ListUnmappedLocationsLevel(data) {
+	case ListUnmappedLocationsLevelProvince:
+		*s = ListUnmappedLocationsLevelProvince
+		return nil
+	case ListUnmappedLocationsLevelWard:
+		*s = ListUnmappedLocationsLevelWard
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 type ListWarehousesOKApplicationJSON []Warehouse
 
@@ -6967,6 +11344,236 @@ func (o OptCancelReason) Or(d CancelReason) CancelReason {
 	return d
 }
 
+// NewOptCarrierAccountMode returns new OptCarrierAccountMode with value set to v.
+func NewOptCarrierAccountMode(v CarrierAccountMode) OptCarrierAccountMode {
+	return OptCarrierAccountMode{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCarrierAccountMode is optional CarrierAccountMode.
+type OptCarrierAccountMode struct {
+	Value CarrierAccountMode
+	Set   bool
+}
+
+// IsSet returns true if OptCarrierAccountMode was set.
+func (o OptCarrierAccountMode) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCarrierAccountMode) Reset() {
+	var v CarrierAccountMode
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCarrierAccountMode) SetTo(v CarrierAccountMode) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCarrierAccountMode) Get() (v CarrierAccountMode, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCarrierAccountMode) Or(d CarrierAccountMode) CarrierAccountMode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCarrierAccountStatus returns new OptCarrierAccountStatus with value set to v.
+func NewOptCarrierAccountStatus(v CarrierAccountStatus) OptCarrierAccountStatus {
+	return OptCarrierAccountStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCarrierAccountStatus is optional CarrierAccountStatus.
+type OptCarrierAccountStatus struct {
+	Value CarrierAccountStatus
+	Set   bool
+}
+
+// IsSet returns true if OptCarrierAccountStatus was set.
+func (o OptCarrierAccountStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCarrierAccountStatus) Reset() {
+	var v CarrierAccountStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCarrierAccountStatus) SetTo(v CarrierAccountStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCarrierAccountStatus) Get() (v CarrierAccountStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCarrierAccountStatus) Or(d CarrierAccountStatus) CarrierAccountStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCarrierCapabilities returns new OptCarrierCapabilities with value set to v.
+func NewOptCarrierCapabilities(v CarrierCapabilities) OptCarrierCapabilities {
+	return OptCarrierCapabilities{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCarrierCapabilities is optional CarrierCapabilities.
+type OptCarrierCapabilities struct {
+	Value CarrierCapabilities
+	Set   bool
+}
+
+// IsSet returns true if OptCarrierCapabilities was set.
+func (o OptCarrierCapabilities) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCarrierCapabilities) Reset() {
+	var v CarrierCapabilities
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCarrierCapabilities) SetTo(v CarrierCapabilities) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCarrierCapabilities) Get() (v CarrierCapabilities, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCarrierCapabilities) Or(d CarrierCapabilities) CarrierCapabilities {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCarrierCredentials returns new OptCarrierCredentials with value set to v.
+func NewOptCarrierCredentials(v CarrierCredentials) OptCarrierCredentials {
+	return OptCarrierCredentials{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCarrierCredentials is optional CarrierCredentials.
+type OptCarrierCredentials struct {
+	Value CarrierCredentials
+	Set   bool
+}
+
+// IsSet returns true if OptCarrierCredentials was set.
+func (o OptCarrierCredentials) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCarrierCredentials) Reset() {
+	var v CarrierCredentials
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCarrierCredentials) SetTo(v CarrierCredentials) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCarrierCredentials) Get() (v CarrierCredentials, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCarrierCredentials) Or(d CarrierCredentials) CarrierCredentials {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCarrierOptions returns new OptCarrierOptions with value set to v.
+func NewOptCarrierOptions(v CarrierOptions) OptCarrierOptions {
+	return OptCarrierOptions{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCarrierOptions is optional CarrierOptions.
+type OptCarrierOptions struct {
+	Value CarrierOptions
+	Set   bool
+}
+
+// IsSet returns true if OptCarrierOptions was set.
+func (o OptCarrierOptions) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCarrierOptions) Reset() {
+	var v CarrierOptions
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCarrierOptions) SetTo(v CarrierOptions) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCarrierOptions) Get() (v CarrierOptions, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCarrierOptions) Or(d CarrierOptions) CarrierOptions {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptCatalogCode returns new OptCatalogCode with value set to v.
 func NewOptCatalogCode(v CatalogCode) OptCatalogCode {
 	return OptCatalogCode{
@@ -7105,6 +11712,190 @@ func (o OptClassName) Or(d ClassName) ClassName {
 	return d
 }
 
+// NewOptCodAccount returns new OptCodAccount with value set to v.
+func NewOptCodAccount(v CodAccount) OptCodAccount {
+	return OptCodAccount{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCodAccount is optional CodAccount.
+type OptCodAccount struct {
+	Value CodAccount
+	Set   bool
+}
+
+// IsSet returns true if OptCodAccount was set.
+func (o OptCodAccount) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCodAccount) Reset() {
+	var v CodAccount
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCodAccount) SetTo(v CodAccount) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCodAccount) Get() (v CodAccount, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCodAccount) Or(d CodAccount) CodAccount {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCodMatchStatus returns new OptCodMatchStatus with value set to v.
+func NewOptCodMatchStatus(v CodMatchStatus) OptCodMatchStatus {
+	return OptCodMatchStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCodMatchStatus is optional CodMatchStatus.
+type OptCodMatchStatus struct {
+	Value CodMatchStatus
+	Set   bool
+}
+
+// IsSet returns true if OptCodMatchStatus was set.
+func (o OptCodMatchStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCodMatchStatus) Reset() {
+	var v CodMatchStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCodMatchStatus) SetTo(v CodMatchStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCodMatchStatus) Get() (v CodMatchStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCodMatchStatus) Or(d CodMatchStatus) CodMatchStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCodStatementParseError returns new OptCodStatementParseError with value set to v.
+func NewOptCodStatementParseError(v CodStatementParseError) OptCodStatementParseError {
+	return OptCodStatementParseError{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCodStatementParseError is optional CodStatementParseError.
+type OptCodStatementParseError struct {
+	Value CodStatementParseError
+	Set   bool
+}
+
+// IsSet returns true if OptCodStatementParseError was set.
+func (o OptCodStatementParseError) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCodStatementParseError) Reset() {
+	var v CodStatementParseError
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCodStatementParseError) SetTo(v CodStatementParseError) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCodStatementParseError) Get() (v CodStatementParseError, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCodStatementParseError) Or(d CodStatementParseError) CodStatementParseError {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCodStatementStatus returns new OptCodStatementStatus with value set to v.
+func NewOptCodStatementStatus(v CodStatementStatus) OptCodStatementStatus {
+	return OptCodStatementStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCodStatementStatus is optional CodStatementStatus.
+type OptCodStatementStatus struct {
+	Value CodStatementStatus
+	Set   bool
+}
+
+// IsSet returns true if OptCodStatementStatus was set.
+func (o OptCodStatementStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCodStatementStatus) Reset() {
+	var v CodStatementStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCodStatementStatus) SetTo(v CodStatementStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCodStatementStatus) Get() (v CodStatementStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCodStatementStatus) Or(d CodStatementStatus) CodStatementStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptColorHex returns new OptColorHex with value set to v.
 func NewOptColorHex(v ColorHex) OptColorHex {
 	return OptColorHex{
@@ -7237,6 +12028,52 @@ func (o OptCouponStatus) Get() (v CouponStatus, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptCouponStatus) Or(d CouponStatus) CouponStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCreateCarrierAccountRequestEnvironment returns new OptCreateCarrierAccountRequestEnvironment with value set to v.
+func NewOptCreateCarrierAccountRequestEnvironment(v CreateCarrierAccountRequestEnvironment) OptCreateCarrierAccountRequestEnvironment {
+	return OptCreateCarrierAccountRequestEnvironment{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCreateCarrierAccountRequestEnvironment is optional CreateCarrierAccountRequestEnvironment.
+type OptCreateCarrierAccountRequestEnvironment struct {
+	Value CreateCarrierAccountRequestEnvironment
+	Set   bool
+}
+
+// IsSet returns true if OptCreateCarrierAccountRequestEnvironment was set.
+func (o OptCreateCarrierAccountRequestEnvironment) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCreateCarrierAccountRequestEnvironment) Reset() {
+	var v CreateCarrierAccountRequestEnvironment
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCreateCarrierAccountRequestEnvironment) SetTo(v CreateCarrierAccountRequestEnvironment) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCreateCarrierAccountRequestEnvironment) Get() (v CreateCarrierAccountRequestEnvironment, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCreateCarrierAccountRequestEnvironment) Or(d CreateCarrierAccountRequestEnvironment) CreateCarrierAccountRequestEnvironment {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -7611,6 +12448,52 @@ func (o OptDateTime) Or(d time.Time) time.Time {
 	return d
 }
 
+// NewOptDeliveryStats returns new OptDeliveryStats with value set to v.
+func NewOptDeliveryStats(v DeliveryStats) OptDeliveryStats {
+	return OptDeliveryStats{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDeliveryStats is optional DeliveryStats.
+type OptDeliveryStats struct {
+	Value DeliveryStats
+	Set   bool
+}
+
+// IsSet returns true if OptDeliveryStats was set.
+func (o OptDeliveryStats) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDeliveryStats) Reset() {
+	var v DeliveryStats
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDeliveryStats) SetTo(v DeliveryStats) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDeliveryStats) Get() (v DeliveryStats, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDeliveryStats) Or(d DeliveryStats) DeliveryStats {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptDiscountKind returns new OptDiscountKind with value set to v.
 func NewOptDiscountKind(v DiscountKind) OptDiscountKind {
 	return OptDiscountKind{
@@ -7887,6 +12770,144 @@ func (o OptInt64) Or(d int64) int64 {
 	return d
 }
 
+// NewOptListAgedReservationsState returns new OptListAgedReservationsState with value set to v.
+func NewOptListAgedReservationsState(v ListAgedReservationsState) OptListAgedReservationsState {
+	return OptListAgedReservationsState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListAgedReservationsState is optional ListAgedReservationsState.
+type OptListAgedReservationsState struct {
+	Value ListAgedReservationsState
+	Set   bool
+}
+
+// IsSet returns true if OptListAgedReservationsState was set.
+func (o OptListAgedReservationsState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListAgedReservationsState) Reset() {
+	var v ListAgedReservationsState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListAgedReservationsState) SetTo(v ListAgedReservationsState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListAgedReservationsState) Get() (v ListAgedReservationsState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListAgedReservationsState) Or(d ListAgedReservationsState) ListAgedReservationsState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListCallbackTasksAssignee returns new OptListCallbackTasksAssignee with value set to v.
+func NewOptListCallbackTasksAssignee(v ListCallbackTasksAssignee) OptListCallbackTasksAssignee {
+	return OptListCallbackTasksAssignee{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListCallbackTasksAssignee is optional ListCallbackTasksAssignee.
+type OptListCallbackTasksAssignee struct {
+	Value ListCallbackTasksAssignee
+	Set   bool
+}
+
+// IsSet returns true if OptListCallbackTasksAssignee was set.
+func (o OptListCallbackTasksAssignee) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListCallbackTasksAssignee) Reset() {
+	var v ListCallbackTasksAssignee
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListCallbackTasksAssignee) SetTo(v ListCallbackTasksAssignee) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListCallbackTasksAssignee) Get() (v ListCallbackTasksAssignee, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListCallbackTasksAssignee) Or(d ListCallbackTasksAssignee) ListCallbackTasksAssignee {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListCallbackTasksStatus returns new OptListCallbackTasksStatus with value set to v.
+func NewOptListCallbackTasksStatus(v ListCallbackTasksStatus) OptListCallbackTasksStatus {
+	return OptListCallbackTasksStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListCallbackTasksStatus is optional ListCallbackTasksStatus.
+type OptListCallbackTasksStatus struct {
+	Value ListCallbackTasksStatus
+	Set   bool
+}
+
+// IsSet returns true if OptListCallbackTasksStatus was set.
+func (o OptListCallbackTasksStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListCallbackTasksStatus) Reset() {
+	var v ListCallbackTasksStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListCallbackTasksStatus) SetTo(v ListCallbackTasksStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListCallbackTasksStatus) Get() (v ListCallbackTasksStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListCallbackTasksStatus) Or(d ListCallbackTasksStatus) ListCallbackTasksStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptListJobsStatus returns new OptListJobsStatus with value set to v.
 func NewOptListJobsStatus(v ListJobsStatus) OptListJobsStatus {
 	return OptListJobsStatus{
@@ -7927,6 +12948,190 @@ func (o OptListJobsStatus) Get() (v ListJobsStatus, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptListJobsStatus) Or(d ListJobsStatus) ListJobsStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListOrdersCodState returns new OptListOrdersCodState with value set to v.
+func NewOptListOrdersCodState(v ListOrdersCodState) OptListOrdersCodState {
+	return OptListOrdersCodState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListOrdersCodState is optional ListOrdersCodState.
+type OptListOrdersCodState struct {
+	Value ListOrdersCodState
+	Set   bool
+}
+
+// IsSet returns true if OptListOrdersCodState was set.
+func (o OptListOrdersCodState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListOrdersCodState) Reset() {
+	var v ListOrdersCodState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListOrdersCodState) SetTo(v ListOrdersCodState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListOrdersCodState) Get() (v ListOrdersCodState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListOrdersCodState) Or(d ListOrdersCodState) ListOrdersCodState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListOrdersPackingStatus returns new OptListOrdersPackingStatus with value set to v.
+func NewOptListOrdersPackingStatus(v ListOrdersPackingStatus) OptListOrdersPackingStatus {
+	return OptListOrdersPackingStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListOrdersPackingStatus is optional ListOrdersPackingStatus.
+type OptListOrdersPackingStatus struct {
+	Value ListOrdersPackingStatus
+	Set   bool
+}
+
+// IsSet returns true if OptListOrdersPackingStatus was set.
+func (o OptListOrdersPackingStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListOrdersPackingStatus) Reset() {
+	var v ListOrdersPackingStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListOrdersPackingStatus) SetTo(v ListOrdersPackingStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListOrdersPackingStatus) Get() (v ListOrdersPackingStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListOrdersPackingStatus) Or(d ListOrdersPackingStatus) ListOrdersPackingStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListRefundObligationsStatus returns new OptListRefundObligationsStatus with value set to v.
+func NewOptListRefundObligationsStatus(v ListRefundObligationsStatus) OptListRefundObligationsStatus {
+	return OptListRefundObligationsStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListRefundObligationsStatus is optional ListRefundObligationsStatus.
+type OptListRefundObligationsStatus struct {
+	Value ListRefundObligationsStatus
+	Set   bool
+}
+
+// IsSet returns true if OptListRefundObligationsStatus was set.
+func (o OptListRefundObligationsStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListRefundObligationsStatus) Reset() {
+	var v ListRefundObligationsStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListRefundObligationsStatus) SetTo(v ListRefundObligationsStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListRefundObligationsStatus) Get() (v ListRefundObligationsStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListRefundObligationsStatus) Or(d ListRefundObligationsStatus) ListRefundObligationsStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptListUnmappedLocationsLevel returns new OptListUnmappedLocationsLevel with value set to v.
+func NewOptListUnmappedLocationsLevel(v ListUnmappedLocationsLevel) OptListUnmappedLocationsLevel {
+	return OptListUnmappedLocationsLevel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptListUnmappedLocationsLevel is optional ListUnmappedLocationsLevel.
+type OptListUnmappedLocationsLevel struct {
+	Value ListUnmappedLocationsLevel
+	Set   bool
+}
+
+// IsSet returns true if OptListUnmappedLocationsLevel was set.
+func (o OptListUnmappedLocationsLevel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptListUnmappedLocationsLevel) Reset() {
+	var v ListUnmappedLocationsLevel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptListUnmappedLocationsLevel) SetTo(v ListUnmappedLocationsLevel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptListUnmappedLocationsLevel) Get() (v ListUnmappedLocationsLevel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptListUnmappedLocationsLevel) Or(d ListUnmappedLocationsLevel) ListUnmappedLocationsLevel {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -8201,6 +13406,52 @@ func (o OptOrderChannel) Get() (v OrderChannel, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptOrderChannel) Or(d OrderChannel) OrderChannel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptOrderCodSummary returns new OptOrderCodSummary with value set to v.
+func NewOptOrderCodSummary(v OrderCodSummary) OptOrderCodSummary {
+	return OptOrderCodSummary{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptOrderCodSummary is optional OrderCodSummary.
+type OptOrderCodSummary struct {
+	Value OrderCodSummary
+	Set   bool
+}
+
+// IsSet returns true if OptOrderCodSummary was set.
+func (o OptOrderCodSummary) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptOrderCodSummary) Reset() {
+	var v OrderCodSummary
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptOrderCodSummary) SetTo(v OrderCodSummary) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptOrderCodSummary) Get() (v OrderCodSummary, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptOrderCodSummary) Or(d OrderCodSummary) OrderCodSummary {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -8483,6 +13734,52 @@ func (o OptOrderPaymentStatus) Or(d OrderPaymentStatus) OrderPaymentStatus {
 	return d
 }
 
+// NewOptOrderShipmentSummary returns new OptOrderShipmentSummary with value set to v.
+func NewOptOrderShipmentSummary(v OrderShipmentSummary) OptOrderShipmentSummary {
+	return OptOrderShipmentSummary{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptOrderShipmentSummary is optional OrderShipmentSummary.
+type OptOrderShipmentSummary struct {
+	Value OrderShipmentSummary
+	Set   bool
+}
+
+// IsSet returns true if OptOrderShipmentSummary was set.
+func (o OptOrderShipmentSummary) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptOrderShipmentSummary) Reset() {
+	var v OrderShipmentSummary
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptOrderShipmentSummary) SetTo(v OrderShipmentSummary) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptOrderShipmentSummary) Get() (v OrderShipmentSummary, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptOrderShipmentSummary) Or(d OrderShipmentSummary) OrderShipmentSummary {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptPendingReason returns new OptPendingReason with value set to v.
 func NewOptPendingReason(v PendingReason) OptPendingReason {
 	return OptPendingReason{
@@ -8713,6 +14010,52 @@ func (o OptProductStatus) Or(d ProductStatus) ProductStatus {
 	return d
 }
 
+// NewOptReconcileFindingDetail returns new OptReconcileFindingDetail with value set to v.
+func NewOptReconcileFindingDetail(v ReconcileFindingDetail) OptReconcileFindingDetail {
+	return OptReconcileFindingDetail{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptReconcileFindingDetail is optional ReconcileFindingDetail.
+type OptReconcileFindingDetail struct {
+	Value ReconcileFindingDetail
+	Set   bool
+}
+
+// IsSet returns true if OptReconcileFindingDetail was set.
+func (o OptReconcileFindingDetail) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptReconcileFindingDetail) Reset() {
+	var v ReconcileFindingDetail
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptReconcileFindingDetail) SetTo(v ReconcileFindingDetail) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptReconcileFindingDetail) Get() (v ReconcileFindingDetail, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptReconcileFindingDetail) Or(d ReconcileFindingDetail) ReconcileFindingDetail {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptReturnItemCondition returns new OptReturnItemCondition with value set to v.
 func NewOptReturnItemCondition(v ReturnItemCondition) OptReturnItemCondition {
 	return OptReturnItemCondition{
@@ -8937,6 +14280,190 @@ func (o OptShipAddress) Get() (v ShipAddress, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptShipAddress) Or(d ShipAddress) ShipAddress {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptShipmentCreateState returns new OptShipmentCreateState with value set to v.
+func NewOptShipmentCreateState(v ShipmentCreateState) OptShipmentCreateState {
+	return OptShipmentCreateState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptShipmentCreateState is optional ShipmentCreateState.
+type OptShipmentCreateState struct {
+	Value ShipmentCreateState
+	Set   bool
+}
+
+// IsSet returns true if OptShipmentCreateState was set.
+func (o OptShipmentCreateState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptShipmentCreateState) Reset() {
+	var v ShipmentCreateState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptShipmentCreateState) SetTo(v ShipmentCreateState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptShipmentCreateState) Get() (v ShipmentCreateState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptShipmentCreateState) Or(d ShipmentCreateState) ShipmentCreateState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptShipmentReviewItemDetail returns new OptShipmentReviewItemDetail with value set to v.
+func NewOptShipmentReviewItemDetail(v ShipmentReviewItemDetail) OptShipmentReviewItemDetail {
+	return OptShipmentReviewItemDetail{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptShipmentReviewItemDetail is optional ShipmentReviewItemDetail.
+type OptShipmentReviewItemDetail struct {
+	Value ShipmentReviewItemDetail
+	Set   bool
+}
+
+// IsSet returns true if OptShipmentReviewItemDetail was set.
+func (o OptShipmentReviewItemDetail) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptShipmentReviewItemDetail) Reset() {
+	var v ShipmentReviewItemDetail
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptShipmentReviewItemDetail) SetTo(v ShipmentReviewItemDetail) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptShipmentReviewItemDetail) Get() (v ShipmentReviewItemDetail, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptShipmentReviewItemDetail) Or(d ShipmentReviewItemDetail) ShipmentReviewItemDetail {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptShipmentStatus returns new OptShipmentStatus with value set to v.
+func NewOptShipmentStatus(v ShipmentStatus) OptShipmentStatus {
+	return OptShipmentStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptShipmentStatus is optional ShipmentStatus.
+type OptShipmentStatus struct {
+	Value ShipmentStatus
+	Set   bool
+}
+
+// IsSet returns true if OptShipmentStatus was set.
+func (o OptShipmentStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptShipmentStatus) Reset() {
+	var v ShipmentStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptShipmentStatus) SetTo(v ShipmentStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptShipmentStatus) Get() (v ShipmentStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptShipmentStatus) Or(d ShipmentStatus) ShipmentStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSignedMoney returns new OptSignedMoney with value set to v.
+func NewOptSignedMoney(v SignedMoney) OptSignedMoney {
+	return OptSignedMoney{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSignedMoney is optional SignedMoney.
+type OptSignedMoney struct {
+	Value SignedMoney
+	Set   bool
+}
+
+// IsSet returns true if OptSignedMoney was set.
+func (o OptSignedMoney) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSignedMoney) Reset() {
+	var v SignedMoney
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSignedMoney) SetTo(v SignedMoney) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSignedMoney) Get() (v SignedMoney, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSignedMoney) Or(d SignedMoney) SignedMoney {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -9259,6 +14786,52 @@ func (o OptUUID) Get() (v uuid.UUID, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptUUID) Or(d uuid.UUID) uuid.UUID {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptUpdateCarrierAccountRequestEnvironment returns new OptUpdateCarrierAccountRequestEnvironment with value set to v.
+func NewOptUpdateCarrierAccountRequestEnvironment(v UpdateCarrierAccountRequestEnvironment) OptUpdateCarrierAccountRequestEnvironment {
+	return OptUpdateCarrierAccountRequestEnvironment{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptUpdateCarrierAccountRequestEnvironment is optional UpdateCarrierAccountRequestEnvironment.
+type OptUpdateCarrierAccountRequestEnvironment struct {
+	Value UpdateCarrierAccountRequestEnvironment
+	Set   bool
+}
+
+// IsSet returns true if OptUpdateCarrierAccountRequestEnvironment was set.
+func (o OptUpdateCarrierAccountRequestEnvironment) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptUpdateCarrierAccountRequestEnvironment) Reset() {
+	var v UpdateCarrierAccountRequestEnvironment
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptUpdateCarrierAccountRequestEnvironment) SetTo(v UpdateCarrierAccountRequestEnvironment) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptUpdateCarrierAccountRequestEnvironment) Get() (v UpdateCarrierAccountRequestEnvironment, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptUpdateCarrierAccountRequestEnvironment) Or(d UpdateCarrierAccountRequestEnvironment) UpdateCarrierAccountRequestEnvironment {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -9798,6 +15371,43 @@ func (*Order) setOrderPendingRes()      {}
 func (*Order) updateOrderRes()          {}
 
 type OrderChannel string
+
+// Ref: #/components/schemas/OrderCodSummary
+type OrderCodSummary struct {
+	ToCollect      SignedMoney `json:"toCollect"`
+	CarrierHolding SignedMoney `json:"carrierHolding"`
+	ShopReceived   SignedMoney `json:"shopReceived"`
+}
+
+// GetToCollect returns the value of ToCollect.
+func (s *OrderCodSummary) GetToCollect() SignedMoney {
+	return s.ToCollect
+}
+
+// GetCarrierHolding returns the value of CarrierHolding.
+func (s *OrderCodSummary) GetCarrierHolding() SignedMoney {
+	return s.CarrierHolding
+}
+
+// GetShopReceived returns the value of ShopReceived.
+func (s *OrderCodSummary) GetShopReceived() SignedMoney {
+	return s.ShopReceived
+}
+
+// SetToCollect sets the value of ToCollect.
+func (s *OrderCodSummary) SetToCollect(val SignedMoney) {
+	s.ToCollect = val
+}
+
+// SetCarrierHolding sets the value of CarrierHolding.
+func (s *OrderCodSummary) SetCarrierHolding(val SignedMoney) {
+	s.CarrierHolding = val
+}
+
+// SetShopReceived sets the value of ShopReceived.
+func (s *OrderCodSummary) SetShopReceived(val SignedMoney) {
+	s.ShopReceived = val
+}
 
 // Ref: #/components/schemas/OrderCustomer
 type OrderCustomer struct {
@@ -10359,17 +15969,19 @@ type OrderListItem struct {
 	Status        OrderStatus      `json:"status"`
 	PendingReason OptPendingReason `json:"pendingReason"`
 	// Gốc của khách.
-	CustomerId       uuid.UUID `json:"customerId"`
-	CustomerName     string    `json:"customerName"`
-	ShipPhone        OptString `json:"shipPhone"`
-	GrandTotal       Money     `json:"grandTotal"`
-	CodAmount        Money     `json:"codAmount"`
-	ItemCount        int32     `json:"itemCount"`
-	Channel          OptString `json:"channel"`
-	TrafficSourceId  OptUUID   `json:"trafficSourceId"`
-	CareBy           OptActor  `json:"careBy"`
-	CreatedAt        time.Time `json:"createdAt"`
-	DuplicateSuspect bool      `json:"duplicateSuspect"`
+	CustomerId       uuid.UUID               `json:"customerId"`
+	CustomerName     string                  `json:"customerName"`
+	ShipPhone        OptString               `json:"shipPhone"`
+	GrandTotal       Money                   `json:"grandTotal"`
+	CodAmount        Money                   `json:"codAmount"`
+	ItemCount        int32                   `json:"itemCount"`
+	Channel          OptString               `json:"channel"`
+	TrafficSourceId  OptUUID                 `json:"trafficSourceId"`
+	CareBy           OptActor                `json:"careBy"`
+	CreatedAt        time.Time               `json:"createdAt"`
+	DuplicateSuspect bool                    `json:"duplicateSuspect"`
+	Shipment         OptOrderShipmentSummary `json:"shipment"`
+	Cod              OptOrderCodSummary      `json:"cod"`
 }
 
 // GetID returns the value of ID.
@@ -10452,6 +16064,16 @@ func (s *OrderListItem) GetDuplicateSuspect() bool {
 	return s.DuplicateSuspect
 }
 
+// GetShipment returns the value of Shipment.
+func (s *OrderListItem) GetShipment() OptOrderShipmentSummary {
+	return s.Shipment
+}
+
+// GetCod returns the value of Cod.
+func (s *OrderListItem) GetCod() OptOrderCodSummary {
+	return s.Cod
+}
+
 // SetID sets the value of ID.
 func (s *OrderListItem) SetID(val uuid.UUID) {
 	s.ID = val
@@ -10530,6 +16152,16 @@ func (s *OrderListItem) SetCreatedAt(val time.Time) {
 // SetDuplicateSuspect sets the value of DuplicateSuspect.
 func (s *OrderListItem) SetDuplicateSuspect(val bool) {
 	s.DuplicateSuspect = val
+}
+
+// SetShipment sets the value of Shipment.
+func (s *OrderListItem) SetShipment(val OptOrderShipmentSummary) {
+	s.Shipment = val
+}
+
+// SetCod sets the value of Cod.
+func (s *OrderListItem) SetCod(val OptOrderCodSummary) {
+	s.Cod = val
 }
 
 type OrderOrderType string
@@ -10773,6 +16405,87 @@ func (s *OrderSettings) SetVersion(val int64) {
 func (*OrderSettings) getOrderSettingsRes()    {}
 func (*OrderSettings) updateOrderSettingsRes() {}
 
+// Ref: #/components/schemas/OrderShipmentSummary
+type OrderShipmentSummary struct {
+	Code         string         `json:"code"`
+	CarrierKey   string         `json:"carrierKey"`
+	TrackingCode OptString      `json:"trackingCode"`
+	Status       ShipmentStatus `json:"status"`
+	Label        OptString      `json:"label"`
+	StuckSince   OptDateTime    `json:"stuckSince"`
+	NeedsReview  OptBool        `json:"needsReview"`
+}
+
+// GetCode returns the value of Code.
+func (s *OrderShipmentSummary) GetCode() string {
+	return s.Code
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *OrderShipmentSummary) GetCarrierKey() string {
+	return s.CarrierKey
+}
+
+// GetTrackingCode returns the value of TrackingCode.
+func (s *OrderShipmentSummary) GetTrackingCode() OptString {
+	return s.TrackingCode
+}
+
+// GetStatus returns the value of Status.
+func (s *OrderShipmentSummary) GetStatus() ShipmentStatus {
+	return s.Status
+}
+
+// GetLabel returns the value of Label.
+func (s *OrderShipmentSummary) GetLabel() OptString {
+	return s.Label
+}
+
+// GetStuckSince returns the value of StuckSince.
+func (s *OrderShipmentSummary) GetStuckSince() OptDateTime {
+	return s.StuckSince
+}
+
+// GetNeedsReview returns the value of NeedsReview.
+func (s *OrderShipmentSummary) GetNeedsReview() OptBool {
+	return s.NeedsReview
+}
+
+// SetCode sets the value of Code.
+func (s *OrderShipmentSummary) SetCode(val string) {
+	s.Code = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *OrderShipmentSummary) SetCarrierKey(val string) {
+	s.CarrierKey = val
+}
+
+// SetTrackingCode sets the value of TrackingCode.
+func (s *OrderShipmentSummary) SetTrackingCode(val OptString) {
+	s.TrackingCode = val
+}
+
+// SetStatus sets the value of Status.
+func (s *OrderShipmentSummary) SetStatus(val ShipmentStatus) {
+	s.Status = val
+}
+
+// SetLabel sets the value of Label.
+func (s *OrderShipmentSummary) SetLabel(val OptString) {
+	s.Label = val
+}
+
+// SetStuckSince sets the value of StuckSince.
+func (s *OrderShipmentSummary) SetStuckSince(val OptDateTime) {
+	s.StuckSince = val
+}
+
+// SetNeedsReview sets the value of NeedsReview.
+func (s *OrderShipmentSummary) SetNeedsReview(val OptBool) {
+	s.NeedsReview = val
+}
+
 // Ref: #/components/schemas/OrderStatus
 type OrderStatus string
 
@@ -10893,6 +16606,318 @@ func (s *OrderWarning) SetCode(val string) {
 func (s *OrderWarning) SetRefId(val OptUUID) {
 	s.RefId = val
 }
+
+// Ref: #/components/schemas/PackingResult
+type PackingResult struct {
+	OrderId uuid.UUID           `json:"orderId"`
+	Result  PackingResultResult `json:"result"`
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *PackingResult) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetResult returns the value of Result.
+func (s *PackingResult) GetResult() PackingResultResult {
+	return s.Result
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *PackingResult) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetResult sets the value of Result.
+func (s *PackingResult) SetResult(val PackingResultResult) {
+	s.Result = val
+}
+
+// Ref: #/components/schemas/PackingResultList
+type PackingResultList struct {
+	Items []PackingResult `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *PackingResultList) GetItems() []PackingResult {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *PackingResultList) SetItems(val []PackingResult) {
+	s.Items = val
+}
+
+func (*PackingResultList) setPackingStatusRes() {}
+
+type PackingResultResult string
+
+const (
+	PackingResultResultUpdated        PackingResultResult = "updated"
+	PackingResultResultAlreadyFurther PackingResultResult = "already_further"
+	PackingResultResultNotAllowed     PackingResultResult = "not_allowed"
+)
+
+// AllValues returns all PackingResultResult values.
+func (PackingResultResult) AllValues() []PackingResultResult {
+	return []PackingResultResult{
+		PackingResultResultUpdated,
+		PackingResultResultAlreadyFurther,
+		PackingResultResultNotAllowed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PackingResultResult) MarshalText() ([]byte, error) {
+	switch s {
+	case PackingResultResultUpdated:
+		return []byte(s), nil
+	case PackingResultResultAlreadyFurther:
+		return []byte(s), nil
+	case PackingResultResultNotAllowed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PackingResultResult) UnmarshalText(data []byte) error {
+	switch PackingResultResult(data) {
+	case PackingResultResultUpdated:
+		*s = PackingResultResultUpdated
+		return nil
+	case PackingResultResultAlreadyFurther:
+		*s = PackingResultResultAlreadyFurther
+		return nil
+	case PackingResultResultNotAllowed:
+		*s = PackingResultResultNotAllowed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/PayRefundObligationRequest
+type PayRefundObligationRequest struct {
+	Amount    Money     `json:"amount"`
+	Reference OptString `json:"reference"`
+}
+
+// GetAmount returns the value of Amount.
+func (s *PayRefundObligationRequest) GetAmount() Money {
+	return s.Amount
+}
+
+// GetReference returns the value of Reference.
+func (s *PayRefundObligationRequest) GetReference() OptString {
+	return s.Reference
+}
+
+// SetAmount sets the value of Amount.
+func (s *PayRefundObligationRequest) SetAmount(val Money) {
+	s.Amount = val
+}
+
+// SetReference sets the value of Reference.
+func (s *PayRefundObligationRequest) SetReference(val OptString) {
+	s.Reference = val
+}
+
+// Ref: #/components/schemas/Payment
+type Payment struct {
+	ID                 uuid.UUID     `json:"id"`
+	OrderId            uuid.UUID     `json:"orderId"`
+	Method             PaymentMethod `json:"method"`
+	Amount             SignedMoney   `json:"amount"`
+	Reference          OptString     `json:"reference"`
+	RefundObligationId OptUUID       `json:"refundObligationId"`
+	ReceivedAt         time.Time     `json:"receivedAt"`
+	Actor              OptActor      `json:"actor"`
+	CreatedAt          time.Time     `json:"createdAt"`
+}
+
+// GetID returns the value of ID.
+func (s *Payment) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *Payment) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetMethod returns the value of Method.
+func (s *Payment) GetMethod() PaymentMethod {
+	return s.Method
+}
+
+// GetAmount returns the value of Amount.
+func (s *Payment) GetAmount() SignedMoney {
+	return s.Amount
+}
+
+// GetReference returns the value of Reference.
+func (s *Payment) GetReference() OptString {
+	return s.Reference
+}
+
+// GetRefundObligationId returns the value of RefundObligationId.
+func (s *Payment) GetRefundObligationId() OptUUID {
+	return s.RefundObligationId
+}
+
+// GetReceivedAt returns the value of ReceivedAt.
+func (s *Payment) GetReceivedAt() time.Time {
+	return s.ReceivedAt
+}
+
+// GetActor returns the value of Actor.
+func (s *Payment) GetActor() OptActor {
+	return s.Actor
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *Payment) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetID sets the value of ID.
+func (s *Payment) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *Payment) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetMethod sets the value of Method.
+func (s *Payment) SetMethod(val PaymentMethod) {
+	s.Method = val
+}
+
+// SetAmount sets the value of Amount.
+func (s *Payment) SetAmount(val SignedMoney) {
+	s.Amount = val
+}
+
+// SetReference sets the value of Reference.
+func (s *Payment) SetReference(val OptString) {
+	s.Reference = val
+}
+
+// SetRefundObligationId sets the value of RefundObligationId.
+func (s *Payment) SetRefundObligationId(val OptUUID) {
+	s.RefundObligationId = val
+}
+
+// SetReceivedAt sets the value of ReceivedAt.
+func (s *Payment) SetReceivedAt(val time.Time) {
+	s.ReceivedAt = val
+}
+
+// SetActor sets the value of Actor.
+func (s *Payment) SetActor(val OptActor) {
+	s.Actor = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *Payment) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+func (*Payment) recordPaymentRes() {}
+
+type PaymentMethod string
+
+const (
+	PaymentMethodBankTransfer   PaymentMethod = "bank_transfer"
+	PaymentMethodDeposit        PaymentMethod = "deposit"
+	PaymentMethodCash           PaymentMethod = "cash"
+	PaymentMethodExchangeCredit PaymentMethod = "exchange_credit"
+	PaymentMethodRefund         PaymentMethod = "refund"
+)
+
+// AllValues returns all PaymentMethod values.
+func (PaymentMethod) AllValues() []PaymentMethod {
+	return []PaymentMethod{
+		PaymentMethodBankTransfer,
+		PaymentMethodDeposit,
+		PaymentMethodCash,
+		PaymentMethodExchangeCredit,
+		PaymentMethodRefund,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PaymentMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case PaymentMethodBankTransfer:
+		return []byte(s), nil
+	case PaymentMethodDeposit:
+		return []byte(s), nil
+	case PaymentMethodCash:
+		return []byte(s), nil
+	case PaymentMethodExchangeCredit:
+		return []byte(s), nil
+	case PaymentMethodRefund:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PaymentMethod) UnmarshalText(data []byte) error {
+	switch PaymentMethod(data) {
+	case PaymentMethodBankTransfer:
+		*s = PaymentMethodBankTransfer
+		return nil
+	case PaymentMethodDeposit:
+		*s = PaymentMethodDeposit
+		return nil
+	case PaymentMethodCash:
+		*s = PaymentMethodCash
+		return nil
+	case PaymentMethodExchangeCredit:
+		*s = PaymentMethodExchangeCredit
+		return nil
+	case PaymentMethodRefund:
+		*s = PaymentMethodRefund
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/PaymentPage
+type PaymentPage struct {
+	Items      []Payment `json:"items"`
+	NextCursor OptString `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *PaymentPage) GetItems() []Payment {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *PaymentPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *PaymentPage) SetItems(val []Payment) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *PaymentPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*PaymentPage) listOrderPaymentsRes() {}
 
 // Lý do đơn mới còn chờ; không có trường này nghĩa là không chờ.
 // Ref: #/components/schemas/PendingReason
@@ -11052,6 +17077,163 @@ func (s *PermissionInfoScopeType) UnmarshalText(data []byte) error {
 }
 
 type PhoneInput string
+
+// Ref: #/components/schemas/PickingLine
+type PickingLine struct {
+	Sku        string    `json:"sku"`
+	Name       string    `json:"name"`
+	Variant    OptString `json:"variant"`
+	Qty        int32     `json:"qty"`
+	OrderCodes []string  `json:"orderCodes"`
+}
+
+// GetSku returns the value of Sku.
+func (s *PickingLine) GetSku() string {
+	return s.Sku
+}
+
+// GetName returns the value of Name.
+func (s *PickingLine) GetName() string {
+	return s.Name
+}
+
+// GetVariant returns the value of Variant.
+func (s *PickingLine) GetVariant() OptString {
+	return s.Variant
+}
+
+// GetQty returns the value of Qty.
+func (s *PickingLine) GetQty() int32 {
+	return s.Qty
+}
+
+// GetOrderCodes returns the value of OrderCodes.
+func (s *PickingLine) GetOrderCodes() []string {
+	return s.OrderCodes
+}
+
+// SetSku sets the value of Sku.
+func (s *PickingLine) SetSku(val string) {
+	s.Sku = val
+}
+
+// SetName sets the value of Name.
+func (s *PickingLine) SetName(val string) {
+	s.Name = val
+}
+
+// SetVariant sets the value of Variant.
+func (s *PickingLine) SetVariant(val OptString) {
+	s.Variant = val
+}
+
+// SetQty sets the value of Qty.
+func (s *PickingLine) SetQty(val int32) {
+	s.Qty = val
+}
+
+// SetOrderCodes sets the value of OrderCodes.
+func (s *PickingLine) SetOrderCodes(val []string) {
+	s.OrderCodes = val
+}
+
+// Ref: #/components/schemas/PickingList
+type PickingList struct {
+	Lines  []PickingLine  `json:"lines"`
+	Orders []PickingOrder `json:"orders"`
+}
+
+// GetLines returns the value of Lines.
+func (s *PickingList) GetLines() []PickingLine {
+	return s.Lines
+}
+
+// GetOrders returns the value of Orders.
+func (s *PickingList) GetOrders() []PickingOrder {
+	return s.Orders
+}
+
+// SetLines sets the value of Lines.
+func (s *PickingList) SetLines(val []PickingLine) {
+	s.Lines = val
+}
+
+// SetOrders sets the value of Orders.
+func (s *PickingList) SetOrders(val []PickingOrder) {
+	s.Orders = val
+}
+
+func (*PickingList) getPickingListRes() {}
+
+// Ref: #/components/schemas/PickingOrder
+type PickingOrder struct {
+	Code         string    `json:"code"`
+	ShipmentCode string    `json:"shipmentCode"`
+	TrackingCode OptString `json:"trackingCode"`
+	Carrier      string    `json:"carrier"`
+	ItemCount    int32     `json:"itemCount"`
+	CodAmount    Money     `json:"codAmount"`
+}
+
+// GetCode returns the value of Code.
+func (s *PickingOrder) GetCode() string {
+	return s.Code
+}
+
+// GetShipmentCode returns the value of ShipmentCode.
+func (s *PickingOrder) GetShipmentCode() string {
+	return s.ShipmentCode
+}
+
+// GetTrackingCode returns the value of TrackingCode.
+func (s *PickingOrder) GetTrackingCode() OptString {
+	return s.TrackingCode
+}
+
+// GetCarrier returns the value of Carrier.
+func (s *PickingOrder) GetCarrier() string {
+	return s.Carrier
+}
+
+// GetItemCount returns the value of ItemCount.
+func (s *PickingOrder) GetItemCount() int32 {
+	return s.ItemCount
+}
+
+// GetCodAmount returns the value of CodAmount.
+func (s *PickingOrder) GetCodAmount() Money {
+	return s.CodAmount
+}
+
+// SetCode sets the value of Code.
+func (s *PickingOrder) SetCode(val string) {
+	s.Code = val
+}
+
+// SetShipmentCode sets the value of ShipmentCode.
+func (s *PickingOrder) SetShipmentCode(val string) {
+	s.ShipmentCode = val
+}
+
+// SetTrackingCode sets the value of TrackingCode.
+func (s *PickingOrder) SetTrackingCode(val OptString) {
+	s.TrackingCode = val
+}
+
+// SetCarrier sets the value of Carrier.
+func (s *PickingOrder) SetCarrier(val string) {
+	s.Carrier = val
+}
+
+// SetItemCount sets the value of ItemCount.
+func (s *PickingOrder) SetItemCount(val int32) {
+	s.ItemCount = val
+}
+
+// SetCodAmount sets the value of CodAmount.
+func (s *PickingOrder) SetCodAmount(val Money) {
+	s.CodAmount = val
+}
 
 // Ref: #/components/schemas/PlatformHealth
 type PlatformHealth struct {
@@ -11757,6 +17939,21 @@ func (s *ProductStatus) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/PutCarrierCredentialsRequest
+type PutCarrierCredentialsRequest struct {
+	Credentials CarrierCredentials `json:"credentials"`
+}
+
+// GetCredentials returns the value of Credentials.
+func (s *PutCarrierCredentialsRequest) GetCredentials() CarrierCredentials {
+	return s.Credentials
+}
+
+// SetCredentials sets the value of Credentials.
+func (s *PutCarrierCredentialsRequest) SetCredentials(val CarrierCredentials) {
+	s.Credentials = val
+}
+
 // Ref: #/components/schemas/PutCustomerTagRuleRequest
 type PutCustomerTagRuleRequest struct {
 	// Bỏ trống khi nhãn chưa có quy tắc; có quy tắc thì phải khớp version hiện tại.
@@ -11872,6 +18069,13 @@ func (s *ReceiveReturnRequest) SetLines(val []ReceiveReturnRequestLinesItem) {
 type ReceiveReturnRequestLinesItem struct {
 	OrderItemId uuid.UUID                              `json:"orderItemId"`
 	Condition   ReceiveReturnRequestLinesItemCondition `json:"condition"`
+	// Số lượng nhập lại kho bán được (M3, Task M3-23); có đủ ba số thì bỏ qua
+	// condition.
+	Sellable OptInt32 `json:"sellable"`
+	// Số lượng hỏng (M3); sellable + damaged + missing phải bằng số trên dòng phiếu.
+	Damaged OptInt32 `json:"damaged"`
+	// Số lượng thiếu (M3).
+	Missing OptInt32 `json:"missing"`
 }
 
 // GetOrderItemId returns the value of OrderItemId.
@@ -11884,6 +18088,21 @@ func (s *ReceiveReturnRequestLinesItem) GetCondition() ReceiveReturnRequestLines
 	return s.Condition
 }
 
+// GetSellable returns the value of Sellable.
+func (s *ReceiveReturnRequestLinesItem) GetSellable() OptInt32 {
+	return s.Sellable
+}
+
+// GetDamaged returns the value of Damaged.
+func (s *ReceiveReturnRequestLinesItem) GetDamaged() OptInt32 {
+	return s.Damaged
+}
+
+// GetMissing returns the value of Missing.
+func (s *ReceiveReturnRequestLinesItem) GetMissing() OptInt32 {
+	return s.Missing
+}
+
 // SetOrderItemId sets the value of OrderItemId.
 func (s *ReceiveReturnRequestLinesItem) SetOrderItemId(val uuid.UUID) {
 	s.OrderItemId = val
@@ -11892,6 +18111,21 @@ func (s *ReceiveReturnRequestLinesItem) SetOrderItemId(val uuid.UUID) {
 // SetCondition sets the value of Condition.
 func (s *ReceiveReturnRequestLinesItem) SetCondition(val ReceiveReturnRequestLinesItemCondition) {
 	s.Condition = val
+}
+
+// SetSellable sets the value of Sellable.
+func (s *ReceiveReturnRequestLinesItem) SetSellable(val OptInt32) {
+	s.Sellable = val
+}
+
+// SetDamaged sets the value of Damaged.
+func (s *ReceiveReturnRequestLinesItem) SetDamaged(val OptInt32) {
+	s.Damaged = val
+}
+
+// SetMissing sets the value of Missing.
+func (s *ReceiveReturnRequestLinesItem) SetMissing(val OptInt32) {
+	s.Missing = val
 }
 
 type ReceiveReturnRequestLinesItemCondition string
@@ -11942,6 +18176,421 @@ func (s *ReceiveReturnRequestLinesItemCondition) UnmarshalText(data []byte) erro
 	}
 }
 
+// Ref: #/components/schemas/ReconcileFinding
+type ReconcileFinding struct {
+	ID    uuid.UUID `json:"id"`
+	RunId uuid.UUID `json:"runId"`
+	// Ledger_nonzero, transfer_unbalanced, balance_mismatch, skipped; chuỗi mở.
+	Kind       string  `json:"kind"`
+	ShipmentId OptUUID `json:"shipmentId"`
+	// Mã, số tiền (dạng chuỗi); không dữ liệu cá nhân.
+	Detail    OptReconcileFindingDetail `json:"detail"`
+	CreatedAt time.Time                 `json:"createdAt"`
+}
+
+// GetID returns the value of ID.
+func (s *ReconcileFinding) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetRunId returns the value of RunId.
+func (s *ReconcileFinding) GetRunId() uuid.UUID {
+	return s.RunId
+}
+
+// GetKind returns the value of Kind.
+func (s *ReconcileFinding) GetKind() string {
+	return s.Kind
+}
+
+// GetShipmentId returns the value of ShipmentId.
+func (s *ReconcileFinding) GetShipmentId() OptUUID {
+	return s.ShipmentId
+}
+
+// GetDetail returns the value of Detail.
+func (s *ReconcileFinding) GetDetail() OptReconcileFindingDetail {
+	return s.Detail
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ReconcileFinding) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetID sets the value of ID.
+func (s *ReconcileFinding) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetRunId sets the value of RunId.
+func (s *ReconcileFinding) SetRunId(val uuid.UUID) {
+	s.RunId = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ReconcileFinding) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetShipmentId sets the value of ShipmentId.
+func (s *ReconcileFinding) SetShipmentId(val OptUUID) {
+	s.ShipmentId = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *ReconcileFinding) SetDetail(val OptReconcileFindingDetail) {
+	s.Detail = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ReconcileFinding) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// Mã, số tiền (dạng chuỗi); không dữ liệu cá nhân.
+type ReconcileFindingDetail map[string]string
+
+func (s *ReconcileFindingDetail) init() ReconcileFindingDetail {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// Ref: #/components/schemas/ReconcileFindingPage
+type ReconcileFindingPage struct {
+	// Lần chạy đang xem; không có khi chưa chạy lần nào.
+	RunId      OptUUID            `json:"runId"`
+	RunAt      OptDateTime        `json:"runAt"`
+	Items      []ReconcileFinding `json:"items"`
+	NextCursor OptString          `json:"nextCursor"`
+}
+
+// GetRunId returns the value of RunId.
+func (s *ReconcileFindingPage) GetRunId() OptUUID {
+	return s.RunId
+}
+
+// GetRunAt returns the value of RunAt.
+func (s *ReconcileFindingPage) GetRunAt() OptDateTime {
+	return s.RunAt
+}
+
+// GetItems returns the value of Items.
+func (s *ReconcileFindingPage) GetItems() []ReconcileFinding {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *ReconcileFindingPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetRunId sets the value of RunId.
+func (s *ReconcileFindingPage) SetRunId(val OptUUID) {
+	s.RunId = val
+}
+
+// SetRunAt sets the value of RunAt.
+func (s *ReconcileFindingPage) SetRunAt(val OptDateTime) {
+	s.RunAt = val
+}
+
+// SetItems sets the value of Items.
+func (s *ReconcileFindingPage) SetItems(val []ReconcileFinding) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *ReconcileFindingPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*ReconcileFindingPage) listReconcileFindingsRes() {}
+
+// Ref: #/components/schemas/RecordCallbackOutcomeRequest
+type RecordCallbackOutcomeRequest struct {
+	Outcome    RecordCallbackOutcomeRequestOutcome `json:"outcome"`
+	Note       OptString                           `json:"note"`
+	NextCallAt OptDateTime                         `json:"nextCallAt"`
+	NewAddress OptAddressInput                     `json:"newAddress"`
+	Version    int64                               `json:"version"`
+}
+
+// GetOutcome returns the value of Outcome.
+func (s *RecordCallbackOutcomeRequest) GetOutcome() RecordCallbackOutcomeRequestOutcome {
+	return s.Outcome
+}
+
+// GetNote returns the value of Note.
+func (s *RecordCallbackOutcomeRequest) GetNote() OptString {
+	return s.Note
+}
+
+// GetNextCallAt returns the value of NextCallAt.
+func (s *RecordCallbackOutcomeRequest) GetNextCallAt() OptDateTime {
+	return s.NextCallAt
+}
+
+// GetNewAddress returns the value of NewAddress.
+func (s *RecordCallbackOutcomeRequest) GetNewAddress() OptAddressInput {
+	return s.NewAddress
+}
+
+// GetVersion returns the value of Version.
+func (s *RecordCallbackOutcomeRequest) GetVersion() int64 {
+	return s.Version
+}
+
+// SetOutcome sets the value of Outcome.
+func (s *RecordCallbackOutcomeRequest) SetOutcome(val RecordCallbackOutcomeRequestOutcome) {
+	s.Outcome = val
+}
+
+// SetNote sets the value of Note.
+func (s *RecordCallbackOutcomeRequest) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetNextCallAt sets the value of NextCallAt.
+func (s *RecordCallbackOutcomeRequest) SetNextCallAt(val OptDateTime) {
+	s.NextCallAt = val
+}
+
+// SetNewAddress sets the value of NewAddress.
+func (s *RecordCallbackOutcomeRequest) SetNewAddress(val OptAddressInput) {
+	s.NewAddress = val
+}
+
+// SetVersion sets the value of Version.
+func (s *RecordCallbackOutcomeRequest) SetVersion(val int64) {
+	s.Version = val
+}
+
+type RecordCallbackOutcomeRequestOutcome string
+
+const (
+	RecordCallbackOutcomeRequestOutcomeRedeliver           RecordCallbackOutcomeRequestOutcome = "redeliver"
+	RecordCallbackOutcomeRequestOutcomeRedeliverNewAddress RecordCallbackOutcomeRequestOutcome = "redeliver_new_address"
+	RecordCallbackOutcomeRequestOutcomeCustomerCancel      RecordCallbackOutcomeRequestOutcome = "customer_cancel"
+	RecordCallbackOutcomeRequestOutcomeNoAnswer            RecordCallbackOutcomeRequestOutcome = "no_answer"
+	RecordCallbackOutcomeRequestOutcomeReschedule          RecordCallbackOutcomeRequestOutcome = "reschedule"
+)
+
+// AllValues returns all RecordCallbackOutcomeRequestOutcome values.
+func (RecordCallbackOutcomeRequestOutcome) AllValues() []RecordCallbackOutcomeRequestOutcome {
+	return []RecordCallbackOutcomeRequestOutcome{
+		RecordCallbackOutcomeRequestOutcomeRedeliver,
+		RecordCallbackOutcomeRequestOutcomeRedeliverNewAddress,
+		RecordCallbackOutcomeRequestOutcomeCustomerCancel,
+		RecordCallbackOutcomeRequestOutcomeNoAnswer,
+		RecordCallbackOutcomeRequestOutcomeReschedule,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s RecordCallbackOutcomeRequestOutcome) MarshalText() ([]byte, error) {
+	switch s {
+	case RecordCallbackOutcomeRequestOutcomeRedeliver:
+		return []byte(s), nil
+	case RecordCallbackOutcomeRequestOutcomeRedeliverNewAddress:
+		return []byte(s), nil
+	case RecordCallbackOutcomeRequestOutcomeCustomerCancel:
+		return []byte(s), nil
+	case RecordCallbackOutcomeRequestOutcomeNoAnswer:
+		return []byte(s), nil
+	case RecordCallbackOutcomeRequestOutcomeReschedule:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *RecordCallbackOutcomeRequestOutcome) UnmarshalText(data []byte) error {
+	switch RecordCallbackOutcomeRequestOutcome(data) {
+	case RecordCallbackOutcomeRequestOutcomeRedeliver:
+		*s = RecordCallbackOutcomeRequestOutcomeRedeliver
+		return nil
+	case RecordCallbackOutcomeRequestOutcomeRedeliverNewAddress:
+		*s = RecordCallbackOutcomeRequestOutcomeRedeliverNewAddress
+		return nil
+	case RecordCallbackOutcomeRequestOutcomeCustomerCancel:
+		*s = RecordCallbackOutcomeRequestOutcomeCustomerCancel
+		return nil
+	case RecordCallbackOutcomeRequestOutcomeNoAnswer:
+		*s = RecordCallbackOutcomeRequestOutcomeNoAnswer
+		return nil
+	case RecordCallbackOutcomeRequestOutcomeReschedule:
+		*s = RecordCallbackOutcomeRequestOutcomeReschedule
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/RecordPartialDeliveryRequest
+type RecordPartialDeliveryRequest struct {
+	Items        []RecordPartialDeliveryRequestItemsItem `json:"items"`
+	CodCollected Money                                   `json:"codCollected"`
+	Reason       string                                  `json:"reason"`
+}
+
+// GetItems returns the value of Items.
+func (s *RecordPartialDeliveryRequest) GetItems() []RecordPartialDeliveryRequestItemsItem {
+	return s.Items
+}
+
+// GetCodCollected returns the value of CodCollected.
+func (s *RecordPartialDeliveryRequest) GetCodCollected() Money {
+	return s.CodCollected
+}
+
+// GetReason returns the value of Reason.
+func (s *RecordPartialDeliveryRequest) GetReason() string {
+	return s.Reason
+}
+
+// SetItems sets the value of Items.
+func (s *RecordPartialDeliveryRequest) SetItems(val []RecordPartialDeliveryRequestItemsItem) {
+	s.Items = val
+}
+
+// SetCodCollected sets the value of CodCollected.
+func (s *RecordPartialDeliveryRequest) SetCodCollected(val Money) {
+	s.CodCollected = val
+}
+
+// SetReason sets the value of Reason.
+func (s *RecordPartialDeliveryRequest) SetReason(val string) {
+	s.Reason = val
+}
+
+type RecordPartialDeliveryRequestItemsItem struct {
+	OrderItemId  uuid.UUID `json:"orderItemId"`
+	DeliveredQty int32     `json:"deliveredQty"`
+}
+
+// GetOrderItemId returns the value of OrderItemId.
+func (s *RecordPartialDeliveryRequestItemsItem) GetOrderItemId() uuid.UUID {
+	return s.OrderItemId
+}
+
+// GetDeliveredQty returns the value of DeliveredQty.
+func (s *RecordPartialDeliveryRequestItemsItem) GetDeliveredQty() int32 {
+	return s.DeliveredQty
+}
+
+// SetOrderItemId sets the value of OrderItemId.
+func (s *RecordPartialDeliveryRequestItemsItem) SetOrderItemId(val uuid.UUID) {
+	s.OrderItemId = val
+}
+
+// SetDeliveredQty sets the value of DeliveredQty.
+func (s *RecordPartialDeliveryRequestItemsItem) SetDeliveredQty(val int32) {
+	s.DeliveredQty = val
+}
+
+// Ref: #/components/schemas/RecordPaymentRequest
+type RecordPaymentRequest struct {
+	Method    RecordPaymentRequestMethod `json:"method"`
+	Amount    Money                      `json:"amount"`
+	Reference OptString                  `json:"reference"`
+	// Bỏ trống là lúc ghi.
+	ReceivedAt OptDateTime `json:"receivedAt"`
+}
+
+// GetMethod returns the value of Method.
+func (s *RecordPaymentRequest) GetMethod() RecordPaymentRequestMethod {
+	return s.Method
+}
+
+// GetAmount returns the value of Amount.
+func (s *RecordPaymentRequest) GetAmount() Money {
+	return s.Amount
+}
+
+// GetReference returns the value of Reference.
+func (s *RecordPaymentRequest) GetReference() OptString {
+	return s.Reference
+}
+
+// GetReceivedAt returns the value of ReceivedAt.
+func (s *RecordPaymentRequest) GetReceivedAt() OptDateTime {
+	return s.ReceivedAt
+}
+
+// SetMethod sets the value of Method.
+func (s *RecordPaymentRequest) SetMethod(val RecordPaymentRequestMethod) {
+	s.Method = val
+}
+
+// SetAmount sets the value of Amount.
+func (s *RecordPaymentRequest) SetAmount(val Money) {
+	s.Amount = val
+}
+
+// SetReference sets the value of Reference.
+func (s *RecordPaymentRequest) SetReference(val OptString) {
+	s.Reference = val
+}
+
+// SetReceivedAt sets the value of ReceivedAt.
+func (s *RecordPaymentRequest) SetReceivedAt(val OptDateTime) {
+	s.ReceivedAt = val
+}
+
+type RecordPaymentRequestMethod string
+
+const (
+	RecordPaymentRequestMethodBankTransfer RecordPaymentRequestMethod = "bank_transfer"
+	RecordPaymentRequestMethodDeposit      RecordPaymentRequestMethod = "deposit"
+	RecordPaymentRequestMethodCash         RecordPaymentRequestMethod = "cash"
+)
+
+// AllValues returns all RecordPaymentRequestMethod values.
+func (RecordPaymentRequestMethod) AllValues() []RecordPaymentRequestMethod {
+	return []RecordPaymentRequestMethod{
+		RecordPaymentRequestMethodBankTransfer,
+		RecordPaymentRequestMethodDeposit,
+		RecordPaymentRequestMethodCash,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s RecordPaymentRequestMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case RecordPaymentRequestMethodBankTransfer:
+		return []byte(s), nil
+	case RecordPaymentRequestMethodDeposit:
+		return []byte(s), nil
+	case RecordPaymentRequestMethodCash:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *RecordPaymentRequestMethod) UnmarshalText(data []byte) error {
+	switch RecordPaymentRequestMethod(data) {
+	case RecordPaymentRequestMethodBankTransfer:
+		*s = RecordPaymentRequestMethodBankTransfer
+		return nil
+	case RecordPaymentRequestMethodDeposit:
+		*s = RecordPaymentRequestMethodDeposit
+		return nil
+	case RecordPaymentRequestMethodCash:
+		*s = RecordPaymentRequestMethodCash
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/RecordStocktakeCountRequest
 type RecordStocktakeCountRequest struct {
 	Counted int32 `json:"counted"`
@@ -11968,6 +18617,265 @@ func (s *RecordStocktakeCountRequest) SetCounted(val int32) {
 // SetLineVersion sets the value of LineVersion.
 func (s *RecordStocktakeCountRequest) SetLineVersion(val OptInt64) {
 	s.LineVersion = val
+}
+
+// Ref: #/components/schemas/RefundObligation
+type RefundObligation struct {
+	ID          uuid.UUID              `json:"id"`
+	OrderId     uuid.UUID              `json:"orderId"`
+	OrderCode   OptString              `json:"orderCode"`
+	ReturnId    OptUUID                `json:"returnId"`
+	Source      RefundObligationSource `json:"source"`
+	Amount      Money                  `json:"amount"`
+	PaidAmount  Money                  `json:"paidAmount"`
+	Status      RefundObligationStatus `json:"status"`
+	WaiveReason OptString              `json:"waiveReason"`
+	CreatedAt   time.Time              `json:"createdAt"`
+	Version     int64                  `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *RefundObligation) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *RefundObligation) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetOrderCode returns the value of OrderCode.
+func (s *RefundObligation) GetOrderCode() OptString {
+	return s.OrderCode
+}
+
+// GetReturnId returns the value of ReturnId.
+func (s *RefundObligation) GetReturnId() OptUUID {
+	return s.ReturnId
+}
+
+// GetSource returns the value of Source.
+func (s *RefundObligation) GetSource() RefundObligationSource {
+	return s.Source
+}
+
+// GetAmount returns the value of Amount.
+func (s *RefundObligation) GetAmount() Money {
+	return s.Amount
+}
+
+// GetPaidAmount returns the value of PaidAmount.
+func (s *RefundObligation) GetPaidAmount() Money {
+	return s.PaidAmount
+}
+
+// GetStatus returns the value of Status.
+func (s *RefundObligation) GetStatus() RefundObligationStatus {
+	return s.Status
+}
+
+// GetWaiveReason returns the value of WaiveReason.
+func (s *RefundObligation) GetWaiveReason() OptString {
+	return s.WaiveReason
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *RefundObligation) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetVersion returns the value of Version.
+func (s *RefundObligation) GetVersion() int64 {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *RefundObligation) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *RefundObligation) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetOrderCode sets the value of OrderCode.
+func (s *RefundObligation) SetOrderCode(val OptString) {
+	s.OrderCode = val
+}
+
+// SetReturnId sets the value of ReturnId.
+func (s *RefundObligation) SetReturnId(val OptUUID) {
+	s.ReturnId = val
+}
+
+// SetSource sets the value of Source.
+func (s *RefundObligation) SetSource(val RefundObligationSource) {
+	s.Source = val
+}
+
+// SetAmount sets the value of Amount.
+func (s *RefundObligation) SetAmount(val Money) {
+	s.Amount = val
+}
+
+// SetPaidAmount sets the value of PaidAmount.
+func (s *RefundObligation) SetPaidAmount(val Money) {
+	s.PaidAmount = val
+}
+
+// SetStatus sets the value of Status.
+func (s *RefundObligation) SetStatus(val RefundObligationStatus) {
+	s.Status = val
+}
+
+// SetWaiveReason sets the value of WaiveReason.
+func (s *RefundObligation) SetWaiveReason(val OptString) {
+	s.WaiveReason = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *RefundObligation) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *RefundObligation) SetVersion(val int64) {
+	s.Version = val
+}
+
+func (*RefundObligation) payRefundObligationRes()   {}
+func (*RefundObligation) waiveRefundObligationRes() {}
+
+// Ref: #/components/schemas/RefundObligationPage
+type RefundObligationPage struct {
+	Items      []RefundObligation `json:"items"`
+	NextCursor OptString          `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *RefundObligationPage) GetItems() []RefundObligation {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *RefundObligationPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *RefundObligationPage) SetItems(val []RefundObligation) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *RefundObligationPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*RefundObligationPage) listRefundObligationsRes() {}
+
+type RefundObligationSource string
+
+const (
+	RefundObligationSourceOrderCancel     RefundObligationSource = "order_cancel"
+	RefundObligationSourceCustomerReturn  RefundObligationSource = "customer_return"
+	RefundObligationSourceExchange        RefundObligationSource = "exchange"
+	RefundObligationSourcePartialDelivery RefundObligationSource = "partial_delivery"
+)
+
+// AllValues returns all RefundObligationSource values.
+func (RefundObligationSource) AllValues() []RefundObligationSource {
+	return []RefundObligationSource{
+		RefundObligationSourceOrderCancel,
+		RefundObligationSourceCustomerReturn,
+		RefundObligationSourceExchange,
+		RefundObligationSourcePartialDelivery,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s RefundObligationSource) MarshalText() ([]byte, error) {
+	switch s {
+	case RefundObligationSourceOrderCancel:
+		return []byte(s), nil
+	case RefundObligationSourceCustomerReturn:
+		return []byte(s), nil
+	case RefundObligationSourceExchange:
+		return []byte(s), nil
+	case RefundObligationSourcePartialDelivery:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *RefundObligationSource) UnmarshalText(data []byte) error {
+	switch RefundObligationSource(data) {
+	case RefundObligationSourceOrderCancel:
+		*s = RefundObligationSourceOrderCancel
+		return nil
+	case RefundObligationSourceCustomerReturn:
+		*s = RefundObligationSourceCustomerReturn
+		return nil
+	case RefundObligationSourceExchange:
+		*s = RefundObligationSourceExchange
+		return nil
+	case RefundObligationSourcePartialDelivery:
+		*s = RefundObligationSourcePartialDelivery
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type RefundObligationStatus string
+
+const (
+	RefundObligationStatusOpen   RefundObligationStatus = "open"
+	RefundObligationStatusPaid   RefundObligationStatus = "paid"
+	RefundObligationStatusWaived RefundObligationStatus = "waived"
+)
+
+// AllValues returns all RefundObligationStatus values.
+func (RefundObligationStatus) AllValues() []RefundObligationStatus {
+	return []RefundObligationStatus{
+		RefundObligationStatusOpen,
+		RefundObligationStatusPaid,
+		RefundObligationStatusWaived,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s RefundObligationStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case RefundObligationStatusOpen:
+		return []byte(s), nil
+	case RefundObligationStatusPaid:
+		return []byte(s), nil
+	case RefundObligationStatusWaived:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *RefundObligationStatus) UnmarshalText(data []byte) error {
+	switch RefundObligationStatus(data) {
+	case RefundObligationStatusOpen:
+		*s = RefundObligationStatusOpen
+		return nil
+	case RefundObligationStatusPaid:
+		*s = RefundObligationStatusPaid
+		return nil
+	case RefundObligationStatusWaived:
+		*s = RefundObligationStatusWaived
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/RegenerateImagesRequest
@@ -12083,6 +18991,149 @@ func (s *ReplaceStockDocumentLinesRequest) SetLines(val []StockDocumentLine) {
 	s.Lines = val
 }
 
+// Ref: #/components/schemas/RequestAddressChangeRequest
+type RequestAddressChangeRequest struct {
+	Address AddressInput `json:"address"`
+	Note    OptString    `json:"note"`
+}
+
+// GetAddress returns the value of Address.
+func (s *RequestAddressChangeRequest) GetAddress() AddressInput {
+	return s.Address
+}
+
+// GetNote returns the value of Note.
+func (s *RequestAddressChangeRequest) GetNote() OptString {
+	return s.Note
+}
+
+// SetAddress sets the value of Address.
+func (s *RequestAddressChangeRequest) SetAddress(val AddressInput) {
+	s.Address = val
+}
+
+// SetNote sets the value of Note.
+func (s *RequestAddressChangeRequest) SetNote(val OptString) {
+	s.Note = val
+}
+
+// Mọi trường tùy chọn; bỏ trống carrierAccountIds = mọi tài khoản active báo phí
+// được của kho đơn.
+// Ref: #/components/schemas/RequestShippingQuotesRequest
+type RequestShippingQuotesRequest struct {
+	WeightGrams       OptInt32          `json:"weightGrams"`
+	DeclaredValue     OptMoney          `json:"declaredValue"`
+	Options           OptCarrierOptions `json:"options"`
+	CarrierAccountIds []uuid.UUID       `json:"carrierAccountIds"`
+}
+
+// GetWeightGrams returns the value of WeightGrams.
+func (s *RequestShippingQuotesRequest) GetWeightGrams() OptInt32 {
+	return s.WeightGrams
+}
+
+// GetDeclaredValue returns the value of DeclaredValue.
+func (s *RequestShippingQuotesRequest) GetDeclaredValue() OptMoney {
+	return s.DeclaredValue
+}
+
+// GetOptions returns the value of Options.
+func (s *RequestShippingQuotesRequest) GetOptions() OptCarrierOptions {
+	return s.Options
+}
+
+// GetCarrierAccountIds returns the value of CarrierAccountIds.
+func (s *RequestShippingQuotesRequest) GetCarrierAccountIds() []uuid.UUID {
+	return s.CarrierAccountIds
+}
+
+// SetWeightGrams sets the value of WeightGrams.
+func (s *RequestShippingQuotesRequest) SetWeightGrams(val OptInt32) {
+	s.WeightGrams = val
+}
+
+// SetDeclaredValue sets the value of DeclaredValue.
+func (s *RequestShippingQuotesRequest) SetDeclaredValue(val OptMoney) {
+	s.DeclaredValue = val
+}
+
+// SetOptions sets the value of Options.
+func (s *RequestShippingQuotesRequest) SetOptions(val OptCarrierOptions) {
+	s.Options = val
+}
+
+// SetCarrierAccountIds sets the value of CarrierAccountIds.
+func (s *RequestShippingQuotesRequest) SetCarrierAccountIds(val []uuid.UUID) {
+	s.CarrierAccountIds = val
+}
+
+// Ref: #/components/schemas/ResolveAddressChangeRequest
+type ResolveAddressChangeRequest struct {
+	Result ResolveAddressChangeRequestResult `json:"result"`
+	Note   OptString                         `json:"note"`
+}
+
+// GetResult returns the value of Result.
+func (s *ResolveAddressChangeRequest) GetResult() ResolveAddressChangeRequestResult {
+	return s.Result
+}
+
+// GetNote returns the value of Note.
+func (s *ResolveAddressChangeRequest) GetNote() OptString {
+	return s.Note
+}
+
+// SetResult sets the value of Result.
+func (s *ResolveAddressChangeRequest) SetResult(val ResolveAddressChangeRequestResult) {
+	s.Result = val
+}
+
+// SetNote sets the value of Note.
+func (s *ResolveAddressChangeRequest) SetNote(val OptString) {
+	s.Note = val
+}
+
+type ResolveAddressChangeRequestResult string
+
+const (
+	ResolveAddressChangeRequestResultConfirmed ResolveAddressChangeRequestResult = "confirmed"
+	ResolveAddressChangeRequestResultRejected  ResolveAddressChangeRequestResult = "rejected"
+)
+
+// AllValues returns all ResolveAddressChangeRequestResult values.
+func (ResolveAddressChangeRequestResult) AllValues() []ResolveAddressChangeRequestResult {
+	return []ResolveAddressChangeRequestResult{
+		ResolveAddressChangeRequestResultConfirmed,
+		ResolveAddressChangeRequestResultRejected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResolveAddressChangeRequestResult) MarshalText() ([]byte, error) {
+	switch s {
+	case ResolveAddressChangeRequestResultConfirmed:
+		return []byte(s), nil
+	case ResolveAddressChangeRequestResultRejected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResolveAddressChangeRequestResult) UnmarshalText(data []byte) error {
+	switch ResolveAddressChangeRequestResult(data) {
+	case ResolveAddressChangeRequestResultConfirmed:
+		*s = ResolveAddressChangeRequestResultConfirmed
+		return nil
+	case ResolveAddressChangeRequestResultRejected:
+		*s = ResolveAddressChangeRequestResultRejected
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/ResolveOrderDuplicateRequest
 type ResolveOrderDuplicateRequest struct {
 	Action ResolveOrderDuplicateRequestAction `json:"action"`
@@ -12140,6 +19191,100 @@ func (s *ResolveOrderDuplicateRequestAction) UnmarshalText(data []byte) error {
 		return nil
 	case ResolveOrderDuplicateRequestActionCancelThis:
 		*s = ResolveOrderDuplicateRequestActionCancelThis
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ResolveShipmentAnomalyRequest
+type ResolveShipmentAnomalyRequest struct {
+	Resolution string `json:"resolution"`
+}
+
+// GetResolution returns the value of Resolution.
+func (s *ResolveShipmentAnomalyRequest) GetResolution() string {
+	return s.Resolution
+}
+
+// SetResolution sets the value of Resolution.
+func (s *ResolveShipmentAnomalyRequest) SetResolution(val string) {
+	s.Resolution = val
+}
+
+// Ref: #/components/schemas/ResolveShipmentCreateRequest
+type ResolveShipmentCreateRequest struct {
+	Result ResolveShipmentCreateRequestResult `json:"result"`
+	// Bắt buộc khi result created.
+	TrackingCode OptString `json:"trackingCode"`
+	Reason       string    `json:"reason"`
+}
+
+// GetResult returns the value of Result.
+func (s *ResolveShipmentCreateRequest) GetResult() ResolveShipmentCreateRequestResult {
+	return s.Result
+}
+
+// GetTrackingCode returns the value of TrackingCode.
+func (s *ResolveShipmentCreateRequest) GetTrackingCode() OptString {
+	return s.TrackingCode
+}
+
+// GetReason returns the value of Reason.
+func (s *ResolveShipmentCreateRequest) GetReason() string {
+	return s.Reason
+}
+
+// SetResult sets the value of Result.
+func (s *ResolveShipmentCreateRequest) SetResult(val ResolveShipmentCreateRequestResult) {
+	s.Result = val
+}
+
+// SetTrackingCode sets the value of TrackingCode.
+func (s *ResolveShipmentCreateRequest) SetTrackingCode(val OptString) {
+	s.TrackingCode = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ResolveShipmentCreateRequest) SetReason(val string) {
+	s.Reason = val
+}
+
+type ResolveShipmentCreateRequestResult string
+
+const (
+	ResolveShipmentCreateRequestResultCreated    ResolveShipmentCreateRequestResult = "created"
+	ResolveShipmentCreateRequestResultNotCreated ResolveShipmentCreateRequestResult = "not_created"
+)
+
+// AllValues returns all ResolveShipmentCreateRequestResult values.
+func (ResolveShipmentCreateRequestResult) AllValues() []ResolveShipmentCreateRequestResult {
+	return []ResolveShipmentCreateRequestResult{
+		ResolveShipmentCreateRequestResultCreated,
+		ResolveShipmentCreateRequestResultNotCreated,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResolveShipmentCreateRequestResult) MarshalText() ([]byte, error) {
+	switch s {
+	case ResolveShipmentCreateRequestResultCreated:
+		return []byte(s), nil
+	case ResolveShipmentCreateRequestResultNotCreated:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResolveShipmentCreateRequestResult) UnmarshalText(data []byte) error {
+	switch ResolveShipmentCreateRequestResult(data) {
+	case ResolveShipmentCreateRequestResultCreated:
+		*s = ResolveShipmentCreateRequestResultCreated
+		return nil
+	case ResolveShipmentCreateRequestResultNotCreated:
+		*s = ResolveShipmentCreateRequestResultNotCreated
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -12490,6 +19635,44 @@ func (s *ReturnPage) SetNextCursor(val OptString) {
 }
 
 func (*ReturnPage) listReturnsRes() {}
+
+// Ref: #/components/schemas/ReturnRiskSettings
+type ReturnRiskSettings struct {
+	WatchMinReturned int32 `json:"watchMinReturned"`
+	HighMinReturned  int32 `json:"highMinReturned"`
+	// 1–10.000 (phần vạn).
+	HighRateBp int32 `json:"highRateBp"`
+}
+
+// GetWatchMinReturned returns the value of WatchMinReturned.
+func (s *ReturnRiskSettings) GetWatchMinReturned() int32 {
+	return s.WatchMinReturned
+}
+
+// GetHighMinReturned returns the value of HighMinReturned.
+func (s *ReturnRiskSettings) GetHighMinReturned() int32 {
+	return s.HighMinReturned
+}
+
+// GetHighRateBp returns the value of HighRateBp.
+func (s *ReturnRiskSettings) GetHighRateBp() int32 {
+	return s.HighRateBp
+}
+
+// SetWatchMinReturned sets the value of WatchMinReturned.
+func (s *ReturnRiskSettings) SetWatchMinReturned(val int32) {
+	s.WatchMinReturned = val
+}
+
+// SetHighMinReturned sets the value of HighMinReturned.
+func (s *ReturnRiskSettings) SetHighMinReturned(val int32) {
+	s.HighMinReturned = val
+}
+
+// SetHighRateBp sets the value of HighRateBp.
+func (s *ReturnRiskSettings) SetHighRateBp(val int32) {
+	s.HighRateBp = val
+}
 
 // Ref: #/components/schemas/ReturnStatus
 type ReturnStatus string
@@ -12975,6 +20158,81 @@ type SearchVariantsOKApplicationJSON []VariantSearchHit
 
 func (*SearchVariantsOKApplicationJSON) searchVariantsRes() {}
 
+// Ref: #/components/schemas/SetCarrierAccountStatusRequest
+type SetCarrierAccountStatusRequest struct {
+	Status SetCarrierAccountStatusRequestStatus `json:"status"`
+	// Có thì phải khớp (sai → 409 version_conflict).
+	Version OptInt64 `json:"version"`
+}
+
+// GetStatus returns the value of Status.
+func (s *SetCarrierAccountStatusRequest) GetStatus() SetCarrierAccountStatusRequestStatus {
+	return s.Status
+}
+
+// GetVersion returns the value of Version.
+func (s *SetCarrierAccountStatusRequest) GetVersion() OptInt64 {
+	return s.Version
+}
+
+// SetStatus sets the value of Status.
+func (s *SetCarrierAccountStatusRequest) SetStatus(val SetCarrierAccountStatusRequestStatus) {
+	s.Status = val
+}
+
+// SetVersion sets the value of Version.
+func (s *SetCarrierAccountStatusRequest) SetVersion(val OptInt64) {
+	s.Version = val
+}
+
+type SetCarrierAccountStatusRequestStatus string
+
+const (
+	SetCarrierAccountStatusRequestStatusActive  SetCarrierAccountStatusRequestStatus = "active"
+	SetCarrierAccountStatusRequestStatusPaused  SetCarrierAccountStatusRequestStatus = "paused"
+	SetCarrierAccountStatusRequestStatusRevoked SetCarrierAccountStatusRequestStatus = "revoked"
+)
+
+// AllValues returns all SetCarrierAccountStatusRequestStatus values.
+func (SetCarrierAccountStatusRequestStatus) AllValues() []SetCarrierAccountStatusRequestStatus {
+	return []SetCarrierAccountStatusRequestStatus{
+		SetCarrierAccountStatusRequestStatusActive,
+		SetCarrierAccountStatusRequestStatusPaused,
+		SetCarrierAccountStatusRequestStatusRevoked,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SetCarrierAccountStatusRequestStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case SetCarrierAccountStatusRequestStatusActive:
+		return []byte(s), nil
+	case SetCarrierAccountStatusRequestStatusPaused:
+		return []byte(s), nil
+	case SetCarrierAccountStatusRequestStatusRevoked:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SetCarrierAccountStatusRequestStatus) UnmarshalText(data []byte) error {
+	switch SetCarrierAccountStatusRequestStatus(data) {
+	case SetCarrierAccountStatusRequestStatusActive:
+		*s = SetCarrierAccountStatusRequestStatusActive
+		return nil
+	case SetCarrierAccountStatusRequestStatusPaused:
+		*s = SetCarrierAccountStatusRequestStatusPaused
+		return nil
+	case SetCarrierAccountStatusRequestStatusRevoked:
+		*s = SetCarrierAccountStatusRequestStatusRevoked
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/SetClassificationRequest
 type SetClassificationRequest struct {
 	// Version hiện tại của mẫu.
@@ -13094,6 +20352,73 @@ func (s *SetOrderPendingRequestReason) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/SetPackingStatusRequest
+type SetPackingStatusRequest struct {
+	OrderIds []uuid.UUID               `json:"orderIds"`
+	To       SetPackingStatusRequestTo `json:"to"`
+}
+
+// GetOrderIds returns the value of OrderIds.
+func (s *SetPackingStatusRequest) GetOrderIds() []uuid.UUID {
+	return s.OrderIds
+}
+
+// GetTo returns the value of To.
+func (s *SetPackingStatusRequest) GetTo() SetPackingStatusRequestTo {
+	return s.To
+}
+
+// SetOrderIds sets the value of OrderIds.
+func (s *SetPackingStatusRequest) SetOrderIds(val []uuid.UUID) {
+	s.OrderIds = val
+}
+
+// SetTo sets the value of To.
+func (s *SetPackingStatusRequest) SetTo(val SetPackingStatusRequestTo) {
+	s.To = val
+}
+
+type SetPackingStatusRequestTo string
+
+const (
+	SetPackingStatusRequestToPicking SetPackingStatusRequestTo = "picking"
+	SetPackingStatusRequestToPacked  SetPackingStatusRequestTo = "packed"
+)
+
+// AllValues returns all SetPackingStatusRequestTo values.
+func (SetPackingStatusRequestTo) AllValues() []SetPackingStatusRequestTo {
+	return []SetPackingStatusRequestTo{
+		SetPackingStatusRequestToPicking,
+		SetPackingStatusRequestToPacked,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SetPackingStatusRequestTo) MarshalText() ([]byte, error) {
+	switch s {
+	case SetPackingStatusRequestToPicking:
+		return []byte(s), nil
+	case SetPackingStatusRequestToPacked:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SetPackingStatusRequestTo) UnmarshalText(data []byte) error {
+	switch SetPackingStatusRequestTo(data) {
+	case SetPackingStatusRequestToPicking:
+		*s = SetPackingStatusRequestToPicking
+		return nil
+	case SetPackingStatusRequestToPacked:
+		*s = SetPackingStatusRequestToPacked
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/SetProductImageColorRequest
 type SetProductImageColorRequest struct {
 	ProductVersion int64 `json:"productVersion"`
@@ -13119,6 +20444,201 @@ func (s *SetProductImageColorRequest) SetProductVersion(val int64) {
 // SetColor sets the value of Color.
 func (s *SetProductImageColorRequest) SetColor(val OptString) {
 	s.Color = val
+}
+
+// Ref: #/components/schemas/SetShipmentManualStatusRequest
+type SetShipmentManualStatusRequest struct {
+	// Returned không nhận ở đây (chỉ qua nhận hàng hoàn).
+	To           SetShipmentManualStatusRequestTo `json:"to"`
+	At           time.Time                        `json:"at"`
+	Reason       string                           `json:"reason"`
+	CodCollected OptMoney                         `json:"codCollected"`
+	// Có thì phải khớp version của vận đơn.
+	Version OptInt64 `json:"version"`
+}
+
+// GetTo returns the value of To.
+func (s *SetShipmentManualStatusRequest) GetTo() SetShipmentManualStatusRequestTo {
+	return s.To
+}
+
+// GetAt returns the value of At.
+func (s *SetShipmentManualStatusRequest) GetAt() time.Time {
+	return s.At
+}
+
+// GetReason returns the value of Reason.
+func (s *SetShipmentManualStatusRequest) GetReason() string {
+	return s.Reason
+}
+
+// GetCodCollected returns the value of CodCollected.
+func (s *SetShipmentManualStatusRequest) GetCodCollected() OptMoney {
+	return s.CodCollected
+}
+
+// GetVersion returns the value of Version.
+func (s *SetShipmentManualStatusRequest) GetVersion() OptInt64 {
+	return s.Version
+}
+
+// SetTo sets the value of To.
+func (s *SetShipmentManualStatusRequest) SetTo(val SetShipmentManualStatusRequestTo) {
+	s.To = val
+}
+
+// SetAt sets the value of At.
+func (s *SetShipmentManualStatusRequest) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetReason sets the value of Reason.
+func (s *SetShipmentManualStatusRequest) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetCodCollected sets the value of CodCollected.
+func (s *SetShipmentManualStatusRequest) SetCodCollected(val OptMoney) {
+	s.CodCollected = val
+}
+
+// SetVersion sets the value of Version.
+func (s *SetShipmentManualStatusRequest) SetVersion(val OptInt64) {
+	s.Version = val
+}
+
+// Returned không nhận ở đây (chỉ qua nhận hàng hoàn).
+type SetShipmentManualStatusRequestTo string
+
+const (
+	SetShipmentManualStatusRequestToShipping       SetShipmentManualStatusRequestTo = "shipping"
+	SetShipmentManualStatusRequestToDeliveryFailed SetShipmentManualStatusRequestTo = "delivery_failed"
+	SetShipmentManualStatusRequestToDelivered      SetShipmentManualStatusRequestTo = "delivered"
+	SetShipmentManualStatusRequestToReturning      SetShipmentManualStatusRequestTo = "returning"
+	SetShipmentManualStatusRequestToCancelled      SetShipmentManualStatusRequestTo = "cancelled"
+)
+
+// AllValues returns all SetShipmentManualStatusRequestTo values.
+func (SetShipmentManualStatusRequestTo) AllValues() []SetShipmentManualStatusRequestTo {
+	return []SetShipmentManualStatusRequestTo{
+		SetShipmentManualStatusRequestToShipping,
+		SetShipmentManualStatusRequestToDeliveryFailed,
+		SetShipmentManualStatusRequestToDelivered,
+		SetShipmentManualStatusRequestToReturning,
+		SetShipmentManualStatusRequestToCancelled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SetShipmentManualStatusRequestTo) MarshalText() ([]byte, error) {
+	switch s {
+	case SetShipmentManualStatusRequestToShipping:
+		return []byte(s), nil
+	case SetShipmentManualStatusRequestToDeliveryFailed:
+		return []byte(s), nil
+	case SetShipmentManualStatusRequestToDelivered:
+		return []byte(s), nil
+	case SetShipmentManualStatusRequestToReturning:
+		return []byte(s), nil
+	case SetShipmentManualStatusRequestToCancelled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SetShipmentManualStatusRequestTo) UnmarshalText(data []byte) error {
+	switch SetShipmentManualStatusRequestTo(data) {
+	case SetShipmentManualStatusRequestToShipping:
+		*s = SetShipmentManualStatusRequestToShipping
+		return nil
+	case SetShipmentManualStatusRequestToDeliveryFailed:
+		*s = SetShipmentManualStatusRequestToDeliveryFailed
+		return nil
+	case SetShipmentManualStatusRequestToDelivered:
+		*s = SetShipmentManualStatusRequestToDelivered
+		return nil
+	case SetShipmentManualStatusRequestToReturning:
+		*s = SetShipmentManualStatusRequestToReturning
+		return nil
+	case SetShipmentManualStatusRequestToCancelled:
+		*s = SetShipmentManualStatusRequestToCancelled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Địa chỉ lấy hàng của kho (của shop, không phải của khách).
+// Ref: #/components/schemas/SetWarehousePickupRequest
+type SetWarehousePickupRequest struct {
+	Version      int64      `json:"version"`
+	Name         string     `json:"name"`
+	Phone        PhoneInput `json:"phone"`
+	Line         string     `json:"line"`
+	ProvinceCode string     `json:"provinceCode"`
+	WardCode     string     `json:"wardCode"`
+}
+
+// GetVersion returns the value of Version.
+func (s *SetWarehousePickupRequest) GetVersion() int64 {
+	return s.Version
+}
+
+// GetName returns the value of Name.
+func (s *SetWarehousePickupRequest) GetName() string {
+	return s.Name
+}
+
+// GetPhone returns the value of Phone.
+func (s *SetWarehousePickupRequest) GetPhone() PhoneInput {
+	return s.Phone
+}
+
+// GetLine returns the value of Line.
+func (s *SetWarehousePickupRequest) GetLine() string {
+	return s.Line
+}
+
+// GetProvinceCode returns the value of ProvinceCode.
+func (s *SetWarehousePickupRequest) GetProvinceCode() string {
+	return s.ProvinceCode
+}
+
+// GetWardCode returns the value of WardCode.
+func (s *SetWarehousePickupRequest) GetWardCode() string {
+	return s.WardCode
+}
+
+// SetVersion sets the value of Version.
+func (s *SetWarehousePickupRequest) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetName sets the value of Name.
+func (s *SetWarehousePickupRequest) SetName(val string) {
+	s.Name = val
+}
+
+// SetPhone sets the value of Phone.
+func (s *SetWarehousePickupRequest) SetPhone(val PhoneInput) {
+	s.Phone = val
+}
+
+// SetLine sets the value of Line.
+func (s *SetWarehousePickupRequest) SetLine(val string) {
+	s.Line = val
+}
+
+// SetProvinceCode sets the value of ProvinceCode.
+func (s *SetWarehousePickupRequest) SetProvinceCode(val string) {
+	s.ProvinceCode = val
+}
+
+// SetWardCode sets the value of WardCode.
+func (s *SetWarehousePickupRequest) SetWardCode(val string) {
+	s.WardCode = val
 }
 
 // Ref: #/components/schemas/ShipAddress
@@ -13191,11 +20711,39 @@ type Shipment struct {
 	CarrierKey       string    `json:"carrierKey"`
 	CarrierAccountId uuid.UUID `json:"carrierAccountId"`
 	// Mã của hãng; chưa có khi vận đơn còn creating.
-	TrackingCode OptString      `json:"trackingCode"`
-	Status       ShipmentStatus `json:"status"`
-	CodAmount    Money          `json:"codAmount"`
-	Fee          OptMoney       `json:"fee"`
-	CreatedAt    time.Time      `json:"createdAt"`
+	TrackingCode OptString             `json:"trackingCode"`
+	Status       ShipmentStatus        `json:"status"`
+	CodAmount    Money                 `json:"codAmount"`
+	Fee          OptMoney              `json:"fee"`
+	CreatedAt    time.Time             `json:"createdAt"`
+	AccountName  OptString             `json:"accountName"`
+	Mode         OptCarrierAccountMode `json:"mode"`
+	Service      OptString             `json:"service"`
+	// Nhãn hiển thị của trạng thái (orderview).
+	Label OptString `json:"label"`
+	// Trạng thái phụ của hãng (mã, không dữ liệu cá nhân).
+	SubStatus OptString `json:"subStatus"`
+	// Kết quả lệnh tạo ở hãng (Q-5); unknown là "không rõ hãng đã tạo chưa".
+	CreateState OptShipmentCreateState `json:"createState"`
+	// Lý do hủy: order_cancel, replace, create_rejected, carrier_cancelled, manual, staff_after_unknown.
+	CancelKind         OptString         `json:"cancelKind"`
+	CodCollectedAmount OptMoney          `json:"codCollectedAmount"`
+	FeeActual          OptMoney          `json:"feeActual"`
+	WeightGrams        OptInt32          `json:"weightGrams"`
+	Options            OptCarrierOptions `json:"options"`
+	PickedUpAt         OptDateTime       `json:"pickedUpAt"`
+	DeliveredAt        OptDateTime       `json:"deliveredAt"`
+	LastStatusAt       OptDateTime       `json:"lastStatusAt"`
+	LastCarrierEventAt OptDateTime       `json:"lastCarrierEventAt"`
+	LastSyncedAt       OptDateTime       `json:"lastSyncedAt"`
+	// Mã lỗi lần tra gần nhất (không thông điệp thô của hãng).
+	LastSyncError OptString   `json:"lastSyncError"`
+	StuckSince    OptDateTime `json:"stuckSince"`
+	NeedsReview   OptBool     `json:"needsReview"`
+	LabelReady    OptBool     `json:"labelReady"`
+	// Giao một phần (Task M3-26).
+	Partial OptBool  `json:"partial"`
+	Version OptInt64 `json:"version"`
 }
 
 // GetID returns the value of ID.
@@ -13248,6 +20796,116 @@ func (s *Shipment) GetCreatedAt() time.Time {
 	return s.CreatedAt
 }
 
+// GetAccountName returns the value of AccountName.
+func (s *Shipment) GetAccountName() OptString {
+	return s.AccountName
+}
+
+// GetMode returns the value of Mode.
+func (s *Shipment) GetMode() OptCarrierAccountMode {
+	return s.Mode
+}
+
+// GetService returns the value of Service.
+func (s *Shipment) GetService() OptString {
+	return s.Service
+}
+
+// GetLabel returns the value of Label.
+func (s *Shipment) GetLabel() OptString {
+	return s.Label
+}
+
+// GetSubStatus returns the value of SubStatus.
+func (s *Shipment) GetSubStatus() OptString {
+	return s.SubStatus
+}
+
+// GetCreateState returns the value of CreateState.
+func (s *Shipment) GetCreateState() OptShipmentCreateState {
+	return s.CreateState
+}
+
+// GetCancelKind returns the value of CancelKind.
+func (s *Shipment) GetCancelKind() OptString {
+	return s.CancelKind
+}
+
+// GetCodCollectedAmount returns the value of CodCollectedAmount.
+func (s *Shipment) GetCodCollectedAmount() OptMoney {
+	return s.CodCollectedAmount
+}
+
+// GetFeeActual returns the value of FeeActual.
+func (s *Shipment) GetFeeActual() OptMoney {
+	return s.FeeActual
+}
+
+// GetWeightGrams returns the value of WeightGrams.
+func (s *Shipment) GetWeightGrams() OptInt32 {
+	return s.WeightGrams
+}
+
+// GetOptions returns the value of Options.
+func (s *Shipment) GetOptions() OptCarrierOptions {
+	return s.Options
+}
+
+// GetPickedUpAt returns the value of PickedUpAt.
+func (s *Shipment) GetPickedUpAt() OptDateTime {
+	return s.PickedUpAt
+}
+
+// GetDeliveredAt returns the value of DeliveredAt.
+func (s *Shipment) GetDeliveredAt() OptDateTime {
+	return s.DeliveredAt
+}
+
+// GetLastStatusAt returns the value of LastStatusAt.
+func (s *Shipment) GetLastStatusAt() OptDateTime {
+	return s.LastStatusAt
+}
+
+// GetLastCarrierEventAt returns the value of LastCarrierEventAt.
+func (s *Shipment) GetLastCarrierEventAt() OptDateTime {
+	return s.LastCarrierEventAt
+}
+
+// GetLastSyncedAt returns the value of LastSyncedAt.
+func (s *Shipment) GetLastSyncedAt() OptDateTime {
+	return s.LastSyncedAt
+}
+
+// GetLastSyncError returns the value of LastSyncError.
+func (s *Shipment) GetLastSyncError() OptString {
+	return s.LastSyncError
+}
+
+// GetStuckSince returns the value of StuckSince.
+func (s *Shipment) GetStuckSince() OptDateTime {
+	return s.StuckSince
+}
+
+// GetNeedsReview returns the value of NeedsReview.
+func (s *Shipment) GetNeedsReview() OptBool {
+	return s.NeedsReview
+}
+
+// GetLabelReady returns the value of LabelReady.
+func (s *Shipment) GetLabelReady() OptBool {
+	return s.LabelReady
+}
+
+// GetPartial returns the value of Partial.
+func (s *Shipment) GetPartial() OptBool {
+	return s.Partial
+}
+
+// GetVersion returns the value of Version.
+func (s *Shipment) GetVersion() OptInt64 {
+	return s.Version
+}
+
 // SetID sets the value of ID.
 func (s *Shipment) SetID(val uuid.UUID) {
 	s.ID = val
@@ -13298,17 +20956,917 @@ func (s *Shipment) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
 }
 
-func (*Shipment) createShipmentRes() {}
-func (*Shipment) getShipmentRes()    {}
+// SetAccountName sets the value of AccountName.
+func (s *Shipment) SetAccountName(val OptString) {
+	s.AccountName = val
+}
 
+// SetMode sets the value of Mode.
+func (s *Shipment) SetMode(val OptCarrierAccountMode) {
+	s.Mode = val
+}
+
+// SetService sets the value of Service.
+func (s *Shipment) SetService(val OptString) {
+	s.Service = val
+}
+
+// SetLabel sets the value of Label.
+func (s *Shipment) SetLabel(val OptString) {
+	s.Label = val
+}
+
+// SetSubStatus sets the value of SubStatus.
+func (s *Shipment) SetSubStatus(val OptString) {
+	s.SubStatus = val
+}
+
+// SetCreateState sets the value of CreateState.
+func (s *Shipment) SetCreateState(val OptShipmentCreateState) {
+	s.CreateState = val
+}
+
+// SetCancelKind sets the value of CancelKind.
+func (s *Shipment) SetCancelKind(val OptString) {
+	s.CancelKind = val
+}
+
+// SetCodCollectedAmount sets the value of CodCollectedAmount.
+func (s *Shipment) SetCodCollectedAmount(val OptMoney) {
+	s.CodCollectedAmount = val
+}
+
+// SetFeeActual sets the value of FeeActual.
+func (s *Shipment) SetFeeActual(val OptMoney) {
+	s.FeeActual = val
+}
+
+// SetWeightGrams sets the value of WeightGrams.
+func (s *Shipment) SetWeightGrams(val OptInt32) {
+	s.WeightGrams = val
+}
+
+// SetOptions sets the value of Options.
+func (s *Shipment) SetOptions(val OptCarrierOptions) {
+	s.Options = val
+}
+
+// SetPickedUpAt sets the value of PickedUpAt.
+func (s *Shipment) SetPickedUpAt(val OptDateTime) {
+	s.PickedUpAt = val
+}
+
+// SetDeliveredAt sets the value of DeliveredAt.
+func (s *Shipment) SetDeliveredAt(val OptDateTime) {
+	s.DeliveredAt = val
+}
+
+// SetLastStatusAt sets the value of LastStatusAt.
+func (s *Shipment) SetLastStatusAt(val OptDateTime) {
+	s.LastStatusAt = val
+}
+
+// SetLastCarrierEventAt sets the value of LastCarrierEventAt.
+func (s *Shipment) SetLastCarrierEventAt(val OptDateTime) {
+	s.LastCarrierEventAt = val
+}
+
+// SetLastSyncedAt sets the value of LastSyncedAt.
+func (s *Shipment) SetLastSyncedAt(val OptDateTime) {
+	s.LastSyncedAt = val
+}
+
+// SetLastSyncError sets the value of LastSyncError.
+func (s *Shipment) SetLastSyncError(val OptString) {
+	s.LastSyncError = val
+}
+
+// SetStuckSince sets the value of StuckSince.
+func (s *Shipment) SetStuckSince(val OptDateTime) {
+	s.StuckSince = val
+}
+
+// SetNeedsReview sets the value of NeedsReview.
+func (s *Shipment) SetNeedsReview(val OptBool) {
+	s.NeedsReview = val
+}
+
+// SetLabelReady sets the value of LabelReady.
+func (s *Shipment) SetLabelReady(val OptBool) {
+	s.LabelReady = val
+}
+
+// SetPartial sets the value of Partial.
+func (s *Shipment) SetPartial(val OptBool) {
+	s.Partial = val
+}
+
+// SetVersion sets the value of Version.
+func (s *Shipment) SetVersion(val OptInt64) {
+	s.Version = val
+}
+
+func (*Shipment) applyShipmentCorrectionRes() {}
+func (*Shipment) cancelShipmentRes()          {}
+func (*Shipment) createShipmentRes()          {}
+func (*Shipment) getShipmentRes()             {}
+func (*Shipment) recordPartialDeliveryRes()   {}
+func (*Shipment) resendShipmentRes()          {}
+func (*Shipment) resolveShipmentCreateRes()   {}
+func (*Shipment) setShipmentManualStatusRes() {}
+
+// Ref: #/components/schemas/ShipmentAnomaly
+type ShipmentAnomaly struct {
+	ID         uuid.UUID             `json:"id"`
+	ShipmentId uuid.UUID             `json:"shipmentId"`
+	Kind       string                `json:"kind"`
+	Status     ShipmentAnomalyStatus `json:"status"`
+	Resolution OptString             `json:"resolution"`
+	ResolvedAt OptDateTime           `json:"resolvedAt"`
+	CreatedAt  time.Time             `json:"createdAt"`
+}
+
+// GetID returns the value of ID.
+func (s *ShipmentAnomaly) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetShipmentId returns the value of ShipmentId.
+func (s *ShipmentAnomaly) GetShipmentId() uuid.UUID {
+	return s.ShipmentId
+}
+
+// GetKind returns the value of Kind.
+func (s *ShipmentAnomaly) GetKind() string {
+	return s.Kind
+}
+
+// GetStatus returns the value of Status.
+func (s *ShipmentAnomaly) GetStatus() ShipmentAnomalyStatus {
+	return s.Status
+}
+
+// GetResolution returns the value of Resolution.
+func (s *ShipmentAnomaly) GetResolution() OptString {
+	return s.Resolution
+}
+
+// GetResolvedAt returns the value of ResolvedAt.
+func (s *ShipmentAnomaly) GetResolvedAt() OptDateTime {
+	return s.ResolvedAt
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ShipmentAnomaly) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetID sets the value of ID.
+func (s *ShipmentAnomaly) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetShipmentId sets the value of ShipmentId.
+func (s *ShipmentAnomaly) SetShipmentId(val uuid.UUID) {
+	s.ShipmentId = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ShipmentAnomaly) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ShipmentAnomaly) SetStatus(val ShipmentAnomalyStatus) {
+	s.Status = val
+}
+
+// SetResolution sets the value of Resolution.
+func (s *ShipmentAnomaly) SetResolution(val OptString) {
+	s.Resolution = val
+}
+
+// SetResolvedAt sets the value of ResolvedAt.
+func (s *ShipmentAnomaly) SetResolvedAt(val OptDateTime) {
+	s.ResolvedAt = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ShipmentAnomaly) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+func (*ShipmentAnomaly) resolveShipmentAnomalyRes() {}
+
+type ShipmentAnomalyStatus string
+
+const (
+	ShipmentAnomalyStatusOpen     ShipmentAnomalyStatus = "open"
+	ShipmentAnomalyStatusResolved ShipmentAnomalyStatus = "resolved"
+)
+
+// AllValues returns all ShipmentAnomalyStatus values.
+func (ShipmentAnomalyStatus) AllValues() []ShipmentAnomalyStatus {
+	return []ShipmentAnomalyStatus{
+		ShipmentAnomalyStatusOpen,
+		ShipmentAnomalyStatusResolved,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ShipmentAnomalyStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ShipmentAnomalyStatusOpen:
+		return []byte(s), nil
+	case ShipmentAnomalyStatusResolved:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ShipmentAnomalyStatus) UnmarshalText(data []byte) error {
+	switch ShipmentAnomalyStatus(data) {
+	case ShipmentAnomalyStatusOpen:
+		*s = ShipmentAnomalyStatusOpen
+		return nil
+	case ShipmentAnomalyStatusResolved:
+		*s = ShipmentAnomalyStatusResolved
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ShipmentCod
+type ShipmentCod struct {
+	Balances  CodBalances   `json:"balances"`
+	Transfers []CodTransfer `json:"transfers"`
+}
+
+// GetBalances returns the value of Balances.
+func (s *ShipmentCod) GetBalances() CodBalances {
+	return s.Balances
+}
+
+// GetTransfers returns the value of Transfers.
+func (s *ShipmentCod) GetTransfers() []CodTransfer {
+	return s.Transfers
+}
+
+// SetBalances sets the value of Balances.
+func (s *ShipmentCod) SetBalances(val CodBalances) {
+	s.Balances = val
+}
+
+// SetTransfers sets the value of Transfers.
+func (s *ShipmentCod) SetTransfers(val []CodTransfer) {
+	s.Transfers = val
+}
+
+func (*ShipmentCod) getShipmentCodRes() {}
+
+// Ref: #/components/schemas/ShipmentCorrectionPreview
+type ShipmentCorrectionPreview struct {
+	ShipmentId uuid.UUID `json:"shipmentId"`
+	From       string    `json:"from"`
+	To         string    `json:"to"`
+	// Câu tiếng Việt cho từng tác động.
+	Effects []string `json:"effects"`
+	// Lý do chặn (câu tiếng Việt); khác rỗng thì không áp được.
+	Blocking []string `json:"blocking"`
+	Token    string   `json:"token"`
+}
+
+// GetShipmentId returns the value of ShipmentId.
+func (s *ShipmentCorrectionPreview) GetShipmentId() uuid.UUID {
+	return s.ShipmentId
+}
+
+// GetFrom returns the value of From.
+func (s *ShipmentCorrectionPreview) GetFrom() string {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *ShipmentCorrectionPreview) GetTo() string {
+	return s.To
+}
+
+// GetEffects returns the value of Effects.
+func (s *ShipmentCorrectionPreview) GetEffects() []string {
+	return s.Effects
+}
+
+// GetBlocking returns the value of Blocking.
+func (s *ShipmentCorrectionPreview) GetBlocking() []string {
+	return s.Blocking
+}
+
+// GetToken returns the value of Token.
+func (s *ShipmentCorrectionPreview) GetToken() string {
+	return s.Token
+}
+
+// SetShipmentId sets the value of ShipmentId.
+func (s *ShipmentCorrectionPreview) SetShipmentId(val uuid.UUID) {
+	s.ShipmentId = val
+}
+
+// SetFrom sets the value of From.
+func (s *ShipmentCorrectionPreview) SetFrom(val string) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *ShipmentCorrectionPreview) SetTo(val string) {
+	s.To = val
+}
+
+// SetEffects sets the value of Effects.
+func (s *ShipmentCorrectionPreview) SetEffects(val []string) {
+	s.Effects = val
+}
+
+// SetBlocking sets the value of Blocking.
+func (s *ShipmentCorrectionPreview) SetBlocking(val []string) {
+	s.Blocking = val
+}
+
+// SetToken sets the value of Token.
+func (s *ShipmentCorrectionPreview) SetToken(val string) {
+	s.Token = val
+}
+
+func (*ShipmentCorrectionPreview) previewShipmentCorrectionRes() {}
+
+// Ref: #/components/schemas/ShipmentCorrectionRequest
+type ShipmentCorrectionRequest struct {
+	To     ShipmentCorrectionRequestTo `json:"to"`
+	Reason string                      `json:"reason"`
+}
+
+// GetTo returns the value of To.
+func (s *ShipmentCorrectionRequest) GetTo() ShipmentCorrectionRequestTo {
+	return s.To
+}
+
+// GetReason returns the value of Reason.
+func (s *ShipmentCorrectionRequest) GetReason() string {
+	return s.Reason
+}
+
+// SetTo sets the value of To.
+func (s *ShipmentCorrectionRequest) SetTo(val ShipmentCorrectionRequestTo) {
+	s.To = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ShipmentCorrectionRequest) SetReason(val string) {
+	s.Reason = val
+}
+
+type ShipmentCorrectionRequestTo string
+
+const (
+	ShipmentCorrectionRequestToReturning ShipmentCorrectionRequestTo = "returning"
+)
+
+// AllValues returns all ShipmentCorrectionRequestTo values.
+func (ShipmentCorrectionRequestTo) AllValues() []ShipmentCorrectionRequestTo {
+	return []ShipmentCorrectionRequestTo{
+		ShipmentCorrectionRequestToReturning,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ShipmentCorrectionRequestTo) MarshalText() ([]byte, error) {
+	switch s {
+	case ShipmentCorrectionRequestToReturning:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ShipmentCorrectionRequestTo) UnmarshalText(data []byte) error {
+	switch ShipmentCorrectionRequestTo(data) {
+	case ShipmentCorrectionRequestToReturning:
+		*s = ShipmentCorrectionRequestToReturning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Kết quả lệnh tạo ở hãng (Q-5); unknown là "không rõ hãng đã tạo chưa".
+type ShipmentCreateState string
+
+const (
+	ShipmentCreateStatePending  ShipmentCreateState = "pending"
+	ShipmentCreateStateNotSent  ShipmentCreateState = "not_sent"
+	ShipmentCreateStateUnknown  ShipmentCreateState = "unknown"
+	ShipmentCreateStateCreated  ShipmentCreateState = "created"
+	ShipmentCreateStateRejected ShipmentCreateState = "rejected"
+	ShipmentCreateStateManual   ShipmentCreateState = "manual"
+)
+
+// AllValues returns all ShipmentCreateState values.
+func (ShipmentCreateState) AllValues() []ShipmentCreateState {
+	return []ShipmentCreateState{
+		ShipmentCreateStatePending,
+		ShipmentCreateStateNotSent,
+		ShipmentCreateStateUnknown,
+		ShipmentCreateStateCreated,
+		ShipmentCreateStateRejected,
+		ShipmentCreateStateManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ShipmentCreateState) MarshalText() ([]byte, error) {
+	switch s {
+	case ShipmentCreateStatePending:
+		return []byte(s), nil
+	case ShipmentCreateStateNotSent:
+		return []byte(s), nil
+	case ShipmentCreateStateUnknown:
+		return []byte(s), nil
+	case ShipmentCreateStateCreated:
+		return []byte(s), nil
+	case ShipmentCreateStateRejected:
+		return []byte(s), nil
+	case ShipmentCreateStateManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ShipmentCreateState) UnmarshalText(data []byte) error {
+	switch ShipmentCreateState(data) {
+	case ShipmentCreateStatePending:
+		*s = ShipmentCreateStatePending
+		return nil
+	case ShipmentCreateStateNotSent:
+		*s = ShipmentCreateStateNotSent
+		return nil
+	case ShipmentCreateStateUnknown:
+		*s = ShipmentCreateStateUnknown
+		return nil
+	case ShipmentCreateStateCreated:
+		*s = ShipmentCreateStateCreated
+		return nil
+	case ShipmentCreateStateRejected:
+		*s = ShipmentCreateStateRejected
+		return nil
+	case ShipmentCreateStateManual:
+		*s = ShipmentCreateStateManual
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Một sự kiện của vận đơn; không có thân thô của hãng.
+// Ref: #/components/schemas/ShipmentEvent
+type ShipmentEvent struct {
+	ID         OptUUID             `json:"id"`
+	OccurredAt time.Time           `json:"occurredAt"`
+	RecordedAt time.Time           `json:"recordedAt"`
+	Source     ShipmentEventSource `json:"source"`
+	RawStatus  string              `json:"rawStatus"`
+	Label      OptString           `json:"label"`
+	Status     OptShipmentStatus   `json:"status"`
+	Applied    OptBool             `json:"applied"`
+	// Older, duplicate_state, not_current, invalid_edge, unmapped, review.
+	IgnoredReason OptString `json:"ignoredReason"`
+}
+
+// GetID returns the value of ID.
+func (s *ShipmentEvent) GetID() OptUUID {
+	return s.ID
+}
+
+// GetOccurredAt returns the value of OccurredAt.
+func (s *ShipmentEvent) GetOccurredAt() time.Time {
+	return s.OccurredAt
+}
+
+// GetRecordedAt returns the value of RecordedAt.
+func (s *ShipmentEvent) GetRecordedAt() time.Time {
+	return s.RecordedAt
+}
+
+// GetSource returns the value of Source.
+func (s *ShipmentEvent) GetSource() ShipmentEventSource {
+	return s.Source
+}
+
+// GetRawStatus returns the value of RawStatus.
+func (s *ShipmentEvent) GetRawStatus() string {
+	return s.RawStatus
+}
+
+// GetLabel returns the value of Label.
+func (s *ShipmentEvent) GetLabel() OptString {
+	return s.Label
+}
+
+// GetStatus returns the value of Status.
+func (s *ShipmentEvent) GetStatus() OptShipmentStatus {
+	return s.Status
+}
+
+// GetApplied returns the value of Applied.
+func (s *ShipmentEvent) GetApplied() OptBool {
+	return s.Applied
+}
+
+// GetIgnoredReason returns the value of IgnoredReason.
+func (s *ShipmentEvent) GetIgnoredReason() OptString {
+	return s.IgnoredReason
+}
+
+// SetID sets the value of ID.
+func (s *ShipmentEvent) SetID(val OptUUID) {
+	s.ID = val
+}
+
+// SetOccurredAt sets the value of OccurredAt.
+func (s *ShipmentEvent) SetOccurredAt(val time.Time) {
+	s.OccurredAt = val
+}
+
+// SetRecordedAt sets the value of RecordedAt.
+func (s *ShipmentEvent) SetRecordedAt(val time.Time) {
+	s.RecordedAt = val
+}
+
+// SetSource sets the value of Source.
+func (s *ShipmentEvent) SetSource(val ShipmentEventSource) {
+	s.Source = val
+}
+
+// SetRawStatus sets the value of RawStatus.
+func (s *ShipmentEvent) SetRawStatus(val string) {
+	s.RawStatus = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ShipmentEvent) SetLabel(val OptString) {
+	s.Label = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ShipmentEvent) SetStatus(val OptShipmentStatus) {
+	s.Status = val
+}
+
+// SetApplied sets the value of Applied.
+func (s *ShipmentEvent) SetApplied(val OptBool) {
+	s.Applied = val
+}
+
+// SetIgnoredReason sets the value of IgnoredReason.
+func (s *ShipmentEvent) SetIgnoredReason(val OptString) {
+	s.IgnoredReason = val
+}
+
+// Ref: #/components/schemas/ShipmentEventPage
+type ShipmentEventPage struct {
+	Items      []ShipmentEvent `json:"items"`
+	NextCursor OptString       `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *ShipmentEventPage) GetItems() []ShipmentEvent {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *ShipmentEventPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *ShipmentEventPage) SetItems(val []ShipmentEvent) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *ShipmentEventPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*ShipmentEventPage) listShipmentEventsRes() {}
+
+type ShipmentEventSource string
+
+const (
+	ShipmentEventSourceCarrierAPI     ShipmentEventSource = "carrier_api"
+	ShipmentEventSourceCarrierWebhook ShipmentEventSource = "carrier_webhook"
+	ShipmentEventSourceStaff          ShipmentEventSource = "staff"
+	ShipmentEventSourceSystem         ShipmentEventSource = "system"
+)
+
+// AllValues returns all ShipmentEventSource values.
+func (ShipmentEventSource) AllValues() []ShipmentEventSource {
+	return []ShipmentEventSource{
+		ShipmentEventSourceCarrierAPI,
+		ShipmentEventSourceCarrierWebhook,
+		ShipmentEventSourceStaff,
+		ShipmentEventSourceSystem,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ShipmentEventSource) MarshalText() ([]byte, error) {
+	switch s {
+	case ShipmentEventSourceCarrierAPI:
+		return []byte(s), nil
+	case ShipmentEventSourceCarrierWebhook:
+		return []byte(s), nil
+	case ShipmentEventSourceStaff:
+		return []byte(s), nil
+	case ShipmentEventSourceSystem:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ShipmentEventSource) UnmarshalText(data []byte) error {
+	switch ShipmentEventSource(data) {
+	case ShipmentEventSourceCarrierAPI:
+		*s = ShipmentEventSourceCarrierAPI
+		return nil
+	case ShipmentEventSourceCarrierWebhook:
+		*s = ShipmentEventSourceCarrierWebhook
+		return nil
+	case ShipmentEventSourceStaff:
+		*s = ShipmentEventSourceStaff
+		return nil
+	case ShipmentEventSourceSystem:
+		*s = ShipmentEventSourceSystem
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ShipmentPage
+type ShipmentPage struct {
+	Items      []Shipment `json:"items"`
+	NextCursor OptString  `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *ShipmentPage) GetItems() []Shipment {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *ShipmentPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *ShipmentPage) SetItems(val []Shipment) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *ShipmentPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*ShipmentPage) listOrderShipmentsRes() {}
+
+// Ref: #/components/schemas/ShipmentReviewCounts
+type ShipmentReviewCounts struct {
+	Review           int32 `json:"review"`
+	Stuck            int32 `json:"stuck"`
+	CallbacksOpen    int32 `json:"callbacksOpen"`
+	CallbacksOverdue int32 `json:"callbacksOverdue"`
+	InDoubt          int32 `json:"inDoubt"`
+}
+
+// GetReview returns the value of Review.
+func (s *ShipmentReviewCounts) GetReview() int32 {
+	return s.Review
+}
+
+// GetStuck returns the value of Stuck.
+func (s *ShipmentReviewCounts) GetStuck() int32 {
+	return s.Stuck
+}
+
+// GetCallbacksOpen returns the value of CallbacksOpen.
+func (s *ShipmentReviewCounts) GetCallbacksOpen() int32 {
+	return s.CallbacksOpen
+}
+
+// GetCallbacksOverdue returns the value of CallbacksOverdue.
+func (s *ShipmentReviewCounts) GetCallbacksOverdue() int32 {
+	return s.CallbacksOverdue
+}
+
+// GetInDoubt returns the value of InDoubt.
+func (s *ShipmentReviewCounts) GetInDoubt() int32 {
+	return s.InDoubt
+}
+
+// SetReview sets the value of Review.
+func (s *ShipmentReviewCounts) SetReview(val int32) {
+	s.Review = val
+}
+
+// SetStuck sets the value of Stuck.
+func (s *ShipmentReviewCounts) SetStuck(val int32) {
+	s.Stuck = val
+}
+
+// SetCallbacksOpen sets the value of CallbacksOpen.
+func (s *ShipmentReviewCounts) SetCallbacksOpen(val int32) {
+	s.CallbacksOpen = val
+}
+
+// SetCallbacksOverdue sets the value of CallbacksOverdue.
+func (s *ShipmentReviewCounts) SetCallbacksOverdue(val int32) {
+	s.CallbacksOverdue = val
+}
+
+// SetInDoubt sets the value of InDoubt.
+func (s *ShipmentReviewCounts) SetInDoubt(val int32) {
+	s.InDoubt = val
+}
+
+// Ref: #/components/schemas/ShipmentReviewItem
+type ShipmentReviewItem struct {
+	AnomalyId  uuid.UUID `json:"anomalyId"`
+	ShipmentId uuid.UUID `json:"shipmentId"`
+	OrderId    OptUUID   `json:"orderId"`
+	OrderCode  string    `json:"orderCode"`
+	// Loại anomaly (in_doubt_create, manual_cancel, tracking_conflict, missing_items…); chuỗi mở.
+	Kind string `json:"kind"`
+	// Câu tiếng Việt kèm hướng xử lý.
+	Label string `json:"label"`
+	// Mã, trạng thái, số tiền (dạng chuỗi); không dữ liệu cá nhân.
+	Detail    OptShipmentReviewItemDetail `json:"detail"`
+	CreatedAt time.Time                   `json:"createdAt"`
+}
+
+// GetAnomalyId returns the value of AnomalyId.
+func (s *ShipmentReviewItem) GetAnomalyId() uuid.UUID {
+	return s.AnomalyId
+}
+
+// GetShipmentId returns the value of ShipmentId.
+func (s *ShipmentReviewItem) GetShipmentId() uuid.UUID {
+	return s.ShipmentId
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *ShipmentReviewItem) GetOrderId() OptUUID {
+	return s.OrderId
+}
+
+// GetOrderCode returns the value of OrderCode.
+func (s *ShipmentReviewItem) GetOrderCode() string {
+	return s.OrderCode
+}
+
+// GetKind returns the value of Kind.
+func (s *ShipmentReviewItem) GetKind() string {
+	return s.Kind
+}
+
+// GetLabel returns the value of Label.
+func (s *ShipmentReviewItem) GetLabel() string {
+	return s.Label
+}
+
+// GetDetail returns the value of Detail.
+func (s *ShipmentReviewItem) GetDetail() OptShipmentReviewItemDetail {
+	return s.Detail
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ShipmentReviewItem) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetAnomalyId sets the value of AnomalyId.
+func (s *ShipmentReviewItem) SetAnomalyId(val uuid.UUID) {
+	s.AnomalyId = val
+}
+
+// SetShipmentId sets the value of ShipmentId.
+func (s *ShipmentReviewItem) SetShipmentId(val uuid.UUID) {
+	s.ShipmentId = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *ShipmentReviewItem) SetOrderId(val OptUUID) {
+	s.OrderId = val
+}
+
+// SetOrderCode sets the value of OrderCode.
+func (s *ShipmentReviewItem) SetOrderCode(val string) {
+	s.OrderCode = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ShipmentReviewItem) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ShipmentReviewItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *ShipmentReviewItem) SetDetail(val OptShipmentReviewItemDetail) {
+	s.Detail = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ShipmentReviewItem) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// Mã, trạng thái, số tiền (dạng chuỗi); không dữ liệu cá nhân.
+type ShipmentReviewItemDetail map[string]string
+
+func (s *ShipmentReviewItemDetail) init() ShipmentReviewItemDetail {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// Ref: #/components/schemas/ShipmentReviewPage
+type ShipmentReviewPage struct {
+	Items      []ShipmentReviewItem `json:"items"`
+	Counts     ShipmentReviewCounts `json:"counts"`
+	NextCursor OptString            `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *ShipmentReviewPage) GetItems() []ShipmentReviewItem {
+	return s.Items
+}
+
+// GetCounts returns the value of Counts.
+func (s *ShipmentReviewPage) GetCounts() ShipmentReviewCounts {
+	return s.Counts
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *ShipmentReviewPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *ShipmentReviewPage) SetItems(val []ShipmentReviewItem) {
+	s.Items = val
+}
+
+// SetCounts sets the value of Counts.
+func (s *ShipmentReviewPage) SetCounts(val ShipmentReviewCounts) {
+	s.Counts = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *ShipmentReviewPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*ShipmentReviewPage) listShipmentsForReviewRes() {}
+
+// Trạng thái vận đơn (M1 năm giá trị; M3 Task M3-07 thêm delivery_failed, returning,
+// returned, cancel_requested). creating là "đang gửi hãng".
+// Ref: #/components/schemas/ShipmentStatus
 type ShipmentStatus string
 
 const (
-	ShipmentStatusCreating       ShipmentStatus = "creating"
-	ShipmentStatusAwaitingPickup ShipmentStatus = "awaiting_pickup"
-	ShipmentStatusShipping       ShipmentStatus = "shipping"
-	ShipmentStatusDelivered      ShipmentStatus = "delivered"
-	ShipmentStatusCancelled      ShipmentStatus = "cancelled"
+	ShipmentStatusCreating        ShipmentStatus = "creating"
+	ShipmentStatusAwaitingPickup  ShipmentStatus = "awaiting_pickup"
+	ShipmentStatusShipping        ShipmentStatus = "shipping"
+	ShipmentStatusDeliveryFailed  ShipmentStatus = "delivery_failed"
+	ShipmentStatusDelivered       ShipmentStatus = "delivered"
+	ShipmentStatusReturning       ShipmentStatus = "returning"
+	ShipmentStatusReturned        ShipmentStatus = "returned"
+	ShipmentStatusCancelRequested ShipmentStatus = "cancel_requested"
+	ShipmentStatusCancelled       ShipmentStatus = "cancelled"
 )
 
 // AllValues returns all ShipmentStatus values.
@@ -13317,7 +21875,11 @@ func (ShipmentStatus) AllValues() []ShipmentStatus {
 		ShipmentStatusCreating,
 		ShipmentStatusAwaitingPickup,
 		ShipmentStatusShipping,
+		ShipmentStatusDeliveryFailed,
 		ShipmentStatusDelivered,
+		ShipmentStatusReturning,
+		ShipmentStatusReturned,
+		ShipmentStatusCancelRequested,
 		ShipmentStatusCancelled,
 	}
 }
@@ -13331,7 +21893,15 @@ func (s ShipmentStatus) MarshalText() ([]byte, error) {
 		return []byte(s), nil
 	case ShipmentStatusShipping:
 		return []byte(s), nil
+	case ShipmentStatusDeliveryFailed:
+		return []byte(s), nil
 	case ShipmentStatusDelivered:
+		return []byte(s), nil
+	case ShipmentStatusReturning:
+		return []byte(s), nil
+	case ShipmentStatusReturned:
+		return []byte(s), nil
+	case ShipmentStatusCancelRequested:
 		return []byte(s), nil
 	case ShipmentStatusCancelled:
 		return []byte(s), nil
@@ -13352,8 +21922,20 @@ func (s *ShipmentStatus) UnmarshalText(data []byte) error {
 	case ShipmentStatusShipping:
 		*s = ShipmentStatusShipping
 		return nil
+	case ShipmentStatusDeliveryFailed:
+		*s = ShipmentStatusDeliveryFailed
+		return nil
 	case ShipmentStatusDelivered:
 		*s = ShipmentStatusDelivered
+		return nil
+	case ShipmentStatusReturning:
+		*s = ShipmentStatusReturning
+		return nil
+	case ShipmentStatusReturned:
+		*s = ShipmentStatusReturned
+		return nil
+	case ShipmentStatusCancelRequested:
+		*s = ShipmentStatusCancelRequested
 		return nil
 	case ShipmentStatusCancelled:
 		*s = ShipmentStatusCancelled
@@ -13362,6 +21944,283 @@ func (s *ShipmentStatus) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+// FeeTotal chỉ có khi status ok (không bao giờ 0 thay cho lỗi).
+// Ref: #/components/schemas/ShippingQuote
+type ShippingQuote struct {
+	QuoteId          OptUUID             `json:"quoteId"`
+	CarrierAccountId uuid.UUID           `json:"carrierAccountId"`
+	AccountName      string              `json:"accountName"`
+	CarrierKey       string              `json:"carrierKey"`
+	Status           ShippingQuoteStatus `json:"status"`
+	Service          OptString           `json:"service"`
+	ServiceName      OptString           `json:"serviceName"`
+	FeeTotal         OptMoney            `json:"feeTotal"`
+	ExpectedDays     OptInt32            `json:"expectedDays"`
+	ValidUntil       OptDateTime         `json:"validUntil"`
+	// Timeout, rate_limited, auth, address_unmapped, rejected.
+	ErrorCode OptString `json:"errorCode"`
+}
+
+// GetQuoteId returns the value of QuoteId.
+func (s *ShippingQuote) GetQuoteId() OptUUID {
+	return s.QuoteId
+}
+
+// GetCarrierAccountId returns the value of CarrierAccountId.
+func (s *ShippingQuote) GetCarrierAccountId() uuid.UUID {
+	return s.CarrierAccountId
+}
+
+// GetAccountName returns the value of AccountName.
+func (s *ShippingQuote) GetAccountName() string {
+	return s.AccountName
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *ShippingQuote) GetCarrierKey() string {
+	return s.CarrierKey
+}
+
+// GetStatus returns the value of Status.
+func (s *ShippingQuote) GetStatus() ShippingQuoteStatus {
+	return s.Status
+}
+
+// GetService returns the value of Service.
+func (s *ShippingQuote) GetService() OptString {
+	return s.Service
+}
+
+// GetServiceName returns the value of ServiceName.
+func (s *ShippingQuote) GetServiceName() OptString {
+	return s.ServiceName
+}
+
+// GetFeeTotal returns the value of FeeTotal.
+func (s *ShippingQuote) GetFeeTotal() OptMoney {
+	return s.FeeTotal
+}
+
+// GetExpectedDays returns the value of ExpectedDays.
+func (s *ShippingQuote) GetExpectedDays() OptInt32 {
+	return s.ExpectedDays
+}
+
+// GetValidUntil returns the value of ValidUntil.
+func (s *ShippingQuote) GetValidUntil() OptDateTime {
+	return s.ValidUntil
+}
+
+// GetErrorCode returns the value of ErrorCode.
+func (s *ShippingQuote) GetErrorCode() OptString {
+	return s.ErrorCode
+}
+
+// SetQuoteId sets the value of QuoteId.
+func (s *ShippingQuote) SetQuoteId(val OptUUID) {
+	s.QuoteId = val
+}
+
+// SetCarrierAccountId sets the value of CarrierAccountId.
+func (s *ShippingQuote) SetCarrierAccountId(val uuid.UUID) {
+	s.CarrierAccountId = val
+}
+
+// SetAccountName sets the value of AccountName.
+func (s *ShippingQuote) SetAccountName(val string) {
+	s.AccountName = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *ShippingQuote) SetCarrierKey(val string) {
+	s.CarrierKey = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ShippingQuote) SetStatus(val ShippingQuoteStatus) {
+	s.Status = val
+}
+
+// SetService sets the value of Service.
+func (s *ShippingQuote) SetService(val OptString) {
+	s.Service = val
+}
+
+// SetServiceName sets the value of ServiceName.
+func (s *ShippingQuote) SetServiceName(val OptString) {
+	s.ServiceName = val
+}
+
+// SetFeeTotal sets the value of FeeTotal.
+func (s *ShippingQuote) SetFeeTotal(val OptMoney) {
+	s.FeeTotal = val
+}
+
+// SetExpectedDays sets the value of ExpectedDays.
+func (s *ShippingQuote) SetExpectedDays(val OptInt32) {
+	s.ExpectedDays = val
+}
+
+// SetValidUntil sets the value of ValidUntil.
+func (s *ShippingQuote) SetValidUntil(val OptDateTime) {
+	s.ValidUntil = val
+}
+
+// SetErrorCode sets the value of ErrorCode.
+func (s *ShippingQuote) SetErrorCode(val OptString) {
+	s.ErrorCode = val
+}
+
+// Ref: #/components/schemas/ShippingQuoteAccount
+type ShippingQuoteAccount struct {
+	ID         uuid.UUID `json:"id"`
+	Name       string    `json:"name"`
+	CarrierKey string    `json:"carrierKey"`
+}
+
+// GetID returns the value of ID.
+func (s *ShippingQuoteAccount) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ShippingQuoteAccount) GetName() string {
+	return s.Name
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *ShippingQuoteAccount) GetCarrierKey() string {
+	return s.CarrierKey
+}
+
+// SetID sets the value of ID.
+func (s *ShippingQuoteAccount) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ShippingQuoteAccount) SetName(val string) {
+	s.Name = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *ShippingQuoteAccount) SetCarrierKey(val string) {
+	s.CarrierKey = val
+}
+
+// Ref: #/components/schemas/ShippingQuoteList
+type ShippingQuoteList struct {
+	RequestId OptUUID         `json:"requestId"`
+	Items     []ShippingQuote `json:"items"`
+}
+
+// GetRequestId returns the value of RequestId.
+func (s *ShippingQuoteList) GetRequestId() OptUUID {
+	return s.RequestId
+}
+
+// GetItems returns the value of Items.
+func (s *ShippingQuoteList) GetItems() []ShippingQuote {
+	return s.Items
+}
+
+// SetRequestId sets the value of RequestId.
+func (s *ShippingQuoteList) SetRequestId(val OptUUID) {
+	s.RequestId = val
+}
+
+// SetItems sets the value of Items.
+func (s *ShippingQuoteList) SetItems(val []ShippingQuote) {
+	s.Items = val
+}
+
+func (*ShippingQuoteList) listShippingQuotesRes() {}
+
+// Ref: #/components/schemas/ShippingQuoteRequestAccepted
+type ShippingQuoteRequestAccepted struct {
+	RequestId uuid.UUID              `json:"requestId"`
+	Accounts  []ShippingQuoteAccount `json:"accounts"`
+}
+
+// GetRequestId returns the value of RequestId.
+func (s *ShippingQuoteRequestAccepted) GetRequestId() uuid.UUID {
+	return s.RequestId
+}
+
+// GetAccounts returns the value of Accounts.
+func (s *ShippingQuoteRequestAccepted) GetAccounts() []ShippingQuoteAccount {
+	return s.Accounts
+}
+
+// SetRequestId sets the value of RequestId.
+func (s *ShippingQuoteRequestAccepted) SetRequestId(val uuid.UUID) {
+	s.RequestId = val
+}
+
+// SetAccounts sets the value of Accounts.
+func (s *ShippingQuoteRequestAccepted) SetAccounts(val []ShippingQuoteAccount) {
+	s.Accounts = val
+}
+
+func (*ShippingQuoteRequestAccepted) requestShippingQuotesRes() {}
+
+type ShippingQuoteStatus string
+
+const (
+	ShippingQuoteStatusPending     ShippingQuoteStatus = "pending"
+	ShippingQuoteStatusOk          ShippingQuoteStatus = "ok"
+	ShippingQuoteStatusError       ShippingQuoteStatus = "error"
+	ShippingQuoteStatusUnavailable ShippingQuoteStatus = "unavailable"
+)
+
+// AllValues returns all ShippingQuoteStatus values.
+func (ShippingQuoteStatus) AllValues() []ShippingQuoteStatus {
+	return []ShippingQuoteStatus{
+		ShippingQuoteStatusPending,
+		ShippingQuoteStatusOk,
+		ShippingQuoteStatusError,
+		ShippingQuoteStatusUnavailable,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ShippingQuoteStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ShippingQuoteStatusPending:
+		return []byte(s), nil
+	case ShippingQuoteStatusOk:
+		return []byte(s), nil
+	case ShippingQuoteStatusError:
+		return []byte(s), nil
+	case ShippingQuoteStatusUnavailable:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ShippingQuoteStatus) UnmarshalText(data []byte) error {
+	switch ShippingQuoteStatus(data) {
+	case ShippingQuoteStatusPending:
+		*s = ShippingQuoteStatusPending
+		return nil
+	case ShippingQuoteStatusOk:
+		*s = ShippingQuoteStatusOk
+		return nil
+	case ShippingQuoteStatusError:
+		*s = ShippingQuoteStatusError
+		return nil
+	case ShippingQuoteStatusUnavailable:
+		*s = ShippingQuoteStatusUnavailable
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type SignedMoney int64
 
 // Đường dẫn GET ký sẵn có hạn tới một tệp trên kho.
 // Ref: #/components/schemas/SignedUrl
@@ -14382,6 +23241,181 @@ func (s StreamOK) Read(p []byte) (n int, err error) {
 
 func (*StreamOK) streamRes() {}
 
+// Ref: #/components/schemas/StuckShipment
+type StuckShipment struct {
+	ShipmentId         uuid.UUID      `json:"shipmentId"`
+	OrderId            OptUUID        `json:"orderId"`
+	OrderCode          string         `json:"orderCode"`
+	CarrierKey         string         `json:"carrierKey"`
+	AccountName        OptString      `json:"accountName"`
+	TrackingCode       OptString      `json:"trackingCode"`
+	Status             ShipmentStatus `json:"status"`
+	Label              OptString      `json:"label"`
+	StuckSince         time.Time      `json:"stuckSince"`
+	LastCarrierEventAt OptDateTime    `json:"lastCarrierEventAt"`
+	LastSyncedAt       OptDateTime    `json:"lastSyncedAt"`
+	LastSyncError      OptString      `json:"lastSyncError"`
+	HoursSinceUpdate   int32          `json:"hoursSinceUpdate"`
+}
+
+// GetShipmentId returns the value of ShipmentId.
+func (s *StuckShipment) GetShipmentId() uuid.UUID {
+	return s.ShipmentId
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *StuckShipment) GetOrderId() OptUUID {
+	return s.OrderId
+}
+
+// GetOrderCode returns the value of OrderCode.
+func (s *StuckShipment) GetOrderCode() string {
+	return s.OrderCode
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *StuckShipment) GetCarrierKey() string {
+	return s.CarrierKey
+}
+
+// GetAccountName returns the value of AccountName.
+func (s *StuckShipment) GetAccountName() OptString {
+	return s.AccountName
+}
+
+// GetTrackingCode returns the value of TrackingCode.
+func (s *StuckShipment) GetTrackingCode() OptString {
+	return s.TrackingCode
+}
+
+// GetStatus returns the value of Status.
+func (s *StuckShipment) GetStatus() ShipmentStatus {
+	return s.Status
+}
+
+// GetLabel returns the value of Label.
+func (s *StuckShipment) GetLabel() OptString {
+	return s.Label
+}
+
+// GetStuckSince returns the value of StuckSince.
+func (s *StuckShipment) GetStuckSince() time.Time {
+	return s.StuckSince
+}
+
+// GetLastCarrierEventAt returns the value of LastCarrierEventAt.
+func (s *StuckShipment) GetLastCarrierEventAt() OptDateTime {
+	return s.LastCarrierEventAt
+}
+
+// GetLastSyncedAt returns the value of LastSyncedAt.
+func (s *StuckShipment) GetLastSyncedAt() OptDateTime {
+	return s.LastSyncedAt
+}
+
+// GetLastSyncError returns the value of LastSyncError.
+func (s *StuckShipment) GetLastSyncError() OptString {
+	return s.LastSyncError
+}
+
+// GetHoursSinceUpdate returns the value of HoursSinceUpdate.
+func (s *StuckShipment) GetHoursSinceUpdate() int32 {
+	return s.HoursSinceUpdate
+}
+
+// SetShipmentId sets the value of ShipmentId.
+func (s *StuckShipment) SetShipmentId(val uuid.UUID) {
+	s.ShipmentId = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *StuckShipment) SetOrderId(val OptUUID) {
+	s.OrderId = val
+}
+
+// SetOrderCode sets the value of OrderCode.
+func (s *StuckShipment) SetOrderCode(val string) {
+	s.OrderCode = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *StuckShipment) SetCarrierKey(val string) {
+	s.CarrierKey = val
+}
+
+// SetAccountName sets the value of AccountName.
+func (s *StuckShipment) SetAccountName(val OptString) {
+	s.AccountName = val
+}
+
+// SetTrackingCode sets the value of TrackingCode.
+func (s *StuckShipment) SetTrackingCode(val OptString) {
+	s.TrackingCode = val
+}
+
+// SetStatus sets the value of Status.
+func (s *StuckShipment) SetStatus(val ShipmentStatus) {
+	s.Status = val
+}
+
+// SetLabel sets the value of Label.
+func (s *StuckShipment) SetLabel(val OptString) {
+	s.Label = val
+}
+
+// SetStuckSince sets the value of StuckSince.
+func (s *StuckShipment) SetStuckSince(val time.Time) {
+	s.StuckSince = val
+}
+
+// SetLastCarrierEventAt sets the value of LastCarrierEventAt.
+func (s *StuckShipment) SetLastCarrierEventAt(val OptDateTime) {
+	s.LastCarrierEventAt = val
+}
+
+// SetLastSyncedAt sets the value of LastSyncedAt.
+func (s *StuckShipment) SetLastSyncedAt(val OptDateTime) {
+	s.LastSyncedAt = val
+}
+
+// SetLastSyncError sets the value of LastSyncError.
+func (s *StuckShipment) SetLastSyncError(val OptString) {
+	s.LastSyncError = val
+}
+
+// SetHoursSinceUpdate sets the value of HoursSinceUpdate.
+func (s *StuckShipment) SetHoursSinceUpdate(val int32) {
+	s.HoursSinceUpdate = val
+}
+
+// Ref: #/components/schemas/StuckShipmentPage
+type StuckShipmentPage struct {
+	Items      []StuckShipment `json:"items"`
+	NextCursor OptString       `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *StuckShipmentPage) GetItems() []StuckShipment {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *StuckShipmentPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *StuckShipmentPage) SetItems(val []StuckShipment) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *StuckShipmentPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*StuckShipmentPage) listStuckShipmentsRes() {}
+
 // Ref: #/components/schemas/Supplier
 type Supplier struct {
 	ID      uuid.UUID      `json:"id"`
@@ -14728,7 +23762,7 @@ func (s *TagConditionOp) UnmarshalText(data []byte) error {
 type TimelineItem struct {
 	At time.Time `json:"at"`
 	// Chuỗi mở, không phải enum (M4 thêm conversation, C7). Khách: order_created, order_status,
-	// note, merge, merge_undone, tag. Đơn: status, edit, note.
+	// note, merge, merge_undone, tag. Đơn: status, edit, note; M3 thêm shipment, payment, return.
 	Kind  string    `json:"kind"`
 	RefId uuid.UUID `json:"refId"`
 	Actor OptActor  `json:"actor"`
@@ -14931,6 +23965,279 @@ func (s *TrafficSourceList) SetItems(val []TrafficSource) {
 }
 
 func (*TrafficSourceList) listTrafficSourcesRes() {}
+
+// Ref: #/components/schemas/UnmappedLocation
+type UnmappedLocation struct {
+	Level      UnmappedLocationLevel `json:"level"`
+	OurCode    string                `json:"ourCode"`
+	Name       string                `json:"name"`
+	ParentCode OptString             `json:"parentCode"`
+}
+
+// GetLevel returns the value of Level.
+func (s *UnmappedLocation) GetLevel() UnmappedLocationLevel {
+	return s.Level
+}
+
+// GetOurCode returns the value of OurCode.
+func (s *UnmappedLocation) GetOurCode() string {
+	return s.OurCode
+}
+
+// GetName returns the value of Name.
+func (s *UnmappedLocation) GetName() string {
+	return s.Name
+}
+
+// GetParentCode returns the value of ParentCode.
+func (s *UnmappedLocation) GetParentCode() OptString {
+	return s.ParentCode
+}
+
+// SetLevel sets the value of Level.
+func (s *UnmappedLocation) SetLevel(val UnmappedLocationLevel) {
+	s.Level = val
+}
+
+// SetOurCode sets the value of OurCode.
+func (s *UnmappedLocation) SetOurCode(val string) {
+	s.OurCode = val
+}
+
+// SetName sets the value of Name.
+func (s *UnmappedLocation) SetName(val string) {
+	s.Name = val
+}
+
+// SetParentCode sets the value of ParentCode.
+func (s *UnmappedLocation) SetParentCode(val OptString) {
+	s.ParentCode = val
+}
+
+type UnmappedLocationLevel string
+
+const (
+	UnmappedLocationLevelProvince UnmappedLocationLevel = "province"
+	UnmappedLocationLevelWard     UnmappedLocationLevel = "ward"
+)
+
+// AllValues returns all UnmappedLocationLevel values.
+func (UnmappedLocationLevel) AllValues() []UnmappedLocationLevel {
+	return []UnmappedLocationLevel{
+		UnmappedLocationLevelProvince,
+		UnmappedLocationLevelWard,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s UnmappedLocationLevel) MarshalText() ([]byte, error) {
+	switch s {
+	case UnmappedLocationLevelProvince:
+		return []byte(s), nil
+	case UnmappedLocationLevelWard:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *UnmappedLocationLevel) UnmarshalText(data []byte) error {
+	switch UnmappedLocationLevel(data) {
+	case UnmappedLocationLevelProvince:
+		*s = UnmappedLocationLevelProvince
+		return nil
+	case UnmappedLocationLevelWard:
+		*s = UnmappedLocationLevelWard
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/UnmappedLocationPage
+type UnmappedLocationPage struct {
+	Items      []UnmappedLocation `json:"items"`
+	NextCursor OptString          `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *UnmappedLocationPage) GetItems() []UnmappedLocation {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *UnmappedLocationPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *UnmappedLocationPage) SetItems(val []UnmappedLocation) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *UnmappedLocationPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*UnmappedLocationPage) listUnmappedLocationsRes() {}
+
+// Chỉ gửi trường người dùng đổi.
+// Ref: #/components/schemas/UpdateCarrierAccountRequest
+type UpdateCarrierAccountRequest struct {
+	Version               int64                                     `json:"version"`
+	Name                  OptString                                 `json:"name"`
+	Environment           OptUpdateCarrierAccountRequestEnvironment `json:"environment"`
+	ExternalAccountRef    OptString                                 `json:"externalAccountRef"`
+	WarehouseId           OptUUID                                   `json:"warehouseId"`
+	DefaultService        OptString                                 `json:"defaultService"`
+	DefaultOptions        OptCarrierOptions                         `json:"defaultOptions"`
+	IsDefaultForWarehouse OptBool                                   `json:"isDefaultForWarehouse"`
+	ShowOnWeb             OptBool                                   `json:"showOnWeb"`
+	WebSort               OptInt32                                  `json:"webSort"`
+}
+
+// GetVersion returns the value of Version.
+func (s *UpdateCarrierAccountRequest) GetVersion() int64 {
+	return s.Version
+}
+
+// GetName returns the value of Name.
+func (s *UpdateCarrierAccountRequest) GetName() OptString {
+	return s.Name
+}
+
+// GetEnvironment returns the value of Environment.
+func (s *UpdateCarrierAccountRequest) GetEnvironment() OptUpdateCarrierAccountRequestEnvironment {
+	return s.Environment
+}
+
+// GetExternalAccountRef returns the value of ExternalAccountRef.
+func (s *UpdateCarrierAccountRequest) GetExternalAccountRef() OptString {
+	return s.ExternalAccountRef
+}
+
+// GetWarehouseId returns the value of WarehouseId.
+func (s *UpdateCarrierAccountRequest) GetWarehouseId() OptUUID {
+	return s.WarehouseId
+}
+
+// GetDefaultService returns the value of DefaultService.
+func (s *UpdateCarrierAccountRequest) GetDefaultService() OptString {
+	return s.DefaultService
+}
+
+// GetDefaultOptions returns the value of DefaultOptions.
+func (s *UpdateCarrierAccountRequest) GetDefaultOptions() OptCarrierOptions {
+	return s.DefaultOptions
+}
+
+// GetIsDefaultForWarehouse returns the value of IsDefaultForWarehouse.
+func (s *UpdateCarrierAccountRequest) GetIsDefaultForWarehouse() OptBool {
+	return s.IsDefaultForWarehouse
+}
+
+// GetShowOnWeb returns the value of ShowOnWeb.
+func (s *UpdateCarrierAccountRequest) GetShowOnWeb() OptBool {
+	return s.ShowOnWeb
+}
+
+// GetWebSort returns the value of WebSort.
+func (s *UpdateCarrierAccountRequest) GetWebSort() OptInt32 {
+	return s.WebSort
+}
+
+// SetVersion sets the value of Version.
+func (s *UpdateCarrierAccountRequest) SetVersion(val int64) {
+	s.Version = val
+}
+
+// SetName sets the value of Name.
+func (s *UpdateCarrierAccountRequest) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetEnvironment sets the value of Environment.
+func (s *UpdateCarrierAccountRequest) SetEnvironment(val OptUpdateCarrierAccountRequestEnvironment) {
+	s.Environment = val
+}
+
+// SetExternalAccountRef sets the value of ExternalAccountRef.
+func (s *UpdateCarrierAccountRequest) SetExternalAccountRef(val OptString) {
+	s.ExternalAccountRef = val
+}
+
+// SetWarehouseId sets the value of WarehouseId.
+func (s *UpdateCarrierAccountRequest) SetWarehouseId(val OptUUID) {
+	s.WarehouseId = val
+}
+
+// SetDefaultService sets the value of DefaultService.
+func (s *UpdateCarrierAccountRequest) SetDefaultService(val OptString) {
+	s.DefaultService = val
+}
+
+// SetDefaultOptions sets the value of DefaultOptions.
+func (s *UpdateCarrierAccountRequest) SetDefaultOptions(val OptCarrierOptions) {
+	s.DefaultOptions = val
+}
+
+// SetIsDefaultForWarehouse sets the value of IsDefaultForWarehouse.
+func (s *UpdateCarrierAccountRequest) SetIsDefaultForWarehouse(val OptBool) {
+	s.IsDefaultForWarehouse = val
+}
+
+// SetShowOnWeb sets the value of ShowOnWeb.
+func (s *UpdateCarrierAccountRequest) SetShowOnWeb(val OptBool) {
+	s.ShowOnWeb = val
+}
+
+// SetWebSort sets the value of WebSort.
+func (s *UpdateCarrierAccountRequest) SetWebSort(val OptInt32) {
+	s.WebSort = val
+}
+
+type UpdateCarrierAccountRequestEnvironment string
+
+const (
+	UpdateCarrierAccountRequestEnvironmentSandbox    UpdateCarrierAccountRequestEnvironment = "sandbox"
+	UpdateCarrierAccountRequestEnvironmentProduction UpdateCarrierAccountRequestEnvironment = "production"
+)
+
+// AllValues returns all UpdateCarrierAccountRequestEnvironment values.
+func (UpdateCarrierAccountRequestEnvironment) AllValues() []UpdateCarrierAccountRequestEnvironment {
+	return []UpdateCarrierAccountRequestEnvironment{
+		UpdateCarrierAccountRequestEnvironmentSandbox,
+		UpdateCarrierAccountRequestEnvironmentProduction,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s UpdateCarrierAccountRequestEnvironment) MarshalText() ([]byte, error) {
+	switch s {
+	case UpdateCarrierAccountRequestEnvironmentSandbox:
+		return []byte(s), nil
+	case UpdateCarrierAccountRequestEnvironmentProduction:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *UpdateCarrierAccountRequestEnvironment) UnmarshalText(data []byte) error {
+	switch UpdateCarrierAccountRequestEnvironment(data) {
+	case UpdateCarrierAccountRequestEnvironmentSandbox:
+		*s = UpdateCarrierAccountRequestEnvironmentSandbox
+		return nil
+	case UpdateCarrierAccountRequestEnvironmentProduction:
+		*s = UpdateCarrierAccountRequestEnvironmentProduction
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 // Ref: #/components/schemas/UpdateCategoryRequest
 type UpdateCategoryRequest struct {
@@ -15261,6 +24568,133 @@ func (s *UpdateCustomerTagRequest) SetName(val OptString) {
 // SetColor sets the value of Color.
 func (s *UpdateCustomerTagRequest) SetColor(val OptTagColor) {
 	s.Color = val
+}
+
+// Ghi cả bộ; mọi số > 0, highRateBp 1–10.000 (kiểm ở máy chủ, sai → 422).
+// Ref: #/components/schemas/UpdateFulfillmentSettingsRequest
+type UpdateFulfillmentSettingsRequest struct {
+	StuckHours                UpdateFulfillmentSettingsRequestStuckHours  `json:"stuckHours"`
+	CallbackDeadlineHours     int32                                       `json:"callbackDeadlineHours"`
+	PollMinutes               UpdateFulfillmentSettingsRequestPollMinutes `json:"pollMinutes"`
+	DefaultWeightGramsPerItem int32                                       `json:"defaultWeightGramsPerItem"`
+	QuoteValidMinutes         int32                                       `json:"quoteValidMinutes"`
+	ReturnRisk                ReturnRiskSettings                          `json:"returnRisk"`
+	CodOverdueDays            int32                                       `json:"codOverdueDays"`
+	AgedDays                  AgedDaysSettings                            `json:"agedDays"`
+	// Version đang lưu (0 khi shop chưa lưu lần nào); âm → 400.
+	Version int64 `json:"version"`
+}
+
+// GetStuckHours returns the value of StuckHours.
+func (s *UpdateFulfillmentSettingsRequest) GetStuckHours() UpdateFulfillmentSettingsRequestStuckHours {
+	return s.StuckHours
+}
+
+// GetCallbackDeadlineHours returns the value of CallbackDeadlineHours.
+func (s *UpdateFulfillmentSettingsRequest) GetCallbackDeadlineHours() int32 {
+	return s.CallbackDeadlineHours
+}
+
+// GetPollMinutes returns the value of PollMinutes.
+func (s *UpdateFulfillmentSettingsRequest) GetPollMinutes() UpdateFulfillmentSettingsRequestPollMinutes {
+	return s.PollMinutes
+}
+
+// GetDefaultWeightGramsPerItem returns the value of DefaultWeightGramsPerItem.
+func (s *UpdateFulfillmentSettingsRequest) GetDefaultWeightGramsPerItem() int32 {
+	return s.DefaultWeightGramsPerItem
+}
+
+// GetQuoteValidMinutes returns the value of QuoteValidMinutes.
+func (s *UpdateFulfillmentSettingsRequest) GetQuoteValidMinutes() int32 {
+	return s.QuoteValidMinutes
+}
+
+// GetReturnRisk returns the value of ReturnRisk.
+func (s *UpdateFulfillmentSettingsRequest) GetReturnRisk() ReturnRiskSettings {
+	return s.ReturnRisk
+}
+
+// GetCodOverdueDays returns the value of CodOverdueDays.
+func (s *UpdateFulfillmentSettingsRequest) GetCodOverdueDays() int32 {
+	return s.CodOverdueDays
+}
+
+// GetAgedDays returns the value of AgedDays.
+func (s *UpdateFulfillmentSettingsRequest) GetAgedDays() AgedDaysSettings {
+	return s.AgedDays
+}
+
+// GetVersion returns the value of Version.
+func (s *UpdateFulfillmentSettingsRequest) GetVersion() int64 {
+	return s.Version
+}
+
+// SetStuckHours sets the value of StuckHours.
+func (s *UpdateFulfillmentSettingsRequest) SetStuckHours(val UpdateFulfillmentSettingsRequestStuckHours) {
+	s.StuckHours = val
+}
+
+// SetCallbackDeadlineHours sets the value of CallbackDeadlineHours.
+func (s *UpdateFulfillmentSettingsRequest) SetCallbackDeadlineHours(val int32) {
+	s.CallbackDeadlineHours = val
+}
+
+// SetPollMinutes sets the value of PollMinutes.
+func (s *UpdateFulfillmentSettingsRequest) SetPollMinutes(val UpdateFulfillmentSettingsRequestPollMinutes) {
+	s.PollMinutes = val
+}
+
+// SetDefaultWeightGramsPerItem sets the value of DefaultWeightGramsPerItem.
+func (s *UpdateFulfillmentSettingsRequest) SetDefaultWeightGramsPerItem(val int32) {
+	s.DefaultWeightGramsPerItem = val
+}
+
+// SetQuoteValidMinutes sets the value of QuoteValidMinutes.
+func (s *UpdateFulfillmentSettingsRequest) SetQuoteValidMinutes(val int32) {
+	s.QuoteValidMinutes = val
+}
+
+// SetReturnRisk sets the value of ReturnRisk.
+func (s *UpdateFulfillmentSettingsRequest) SetReturnRisk(val ReturnRiskSettings) {
+	s.ReturnRisk = val
+}
+
+// SetCodOverdueDays sets the value of CodOverdueDays.
+func (s *UpdateFulfillmentSettingsRequest) SetCodOverdueDays(val int32) {
+	s.CodOverdueDays = val
+}
+
+// SetAgedDays sets the value of AgedDays.
+func (s *UpdateFulfillmentSettingsRequest) SetAgedDays(val AgedDaysSettings) {
+	s.AgedDays = val
+}
+
+// SetVersion sets the value of Version.
+func (s *UpdateFulfillmentSettingsRequest) SetVersion(val int64) {
+	s.Version = val
+}
+
+type UpdateFulfillmentSettingsRequestPollMinutes map[string]int32
+
+func (s *UpdateFulfillmentSettingsRequestPollMinutes) init() UpdateFulfillmentSettingsRequestPollMinutes {
+	m := *s
+	if m == nil {
+		m = map[string]int32{}
+		*s = m
+	}
+	return m
+}
+
+type UpdateFulfillmentSettingsRequestStuckHours map[string]int32
+
+func (s *UpdateFulfillmentSettingsRequestStuckHours) init() UpdateFulfillmentSettingsRequestStuckHours {
+	m := *s
+	if m == nil {
+		m = map[string]int32{}
+		*s = m
+	}
+	return m
 }
 
 // Chỉ gửi trường muốn đổi; lines là danh sách dòng mong muốn, đủ cả dòng giữ
@@ -16197,6 +25631,21 @@ func (s *VersionRequest) SetVersion(val int64) {
 	s.Version = val
 }
 
+// Ref: #/components/schemas/WaiveRefundObligationRequest
+type WaiveRefundObligationRequest struct {
+	Reason string `json:"reason"`
+}
+
+// GetReason returns the value of Reason.
+func (s *WaiveRefundObligationRequest) GetReason() string {
+	return s.Reason
+}
+
+// SetReason sets the value of Reason.
+func (s *WaiveRefundObligationRequest) SetReason(val string) {
+	s.Reason = val
+}
+
 // Ref: #/components/schemas/Warehouse
 type Warehouse struct {
 	ID     uuid.UUID       `json:"id"`
@@ -16244,6 +25693,89 @@ func (s *Warehouse) SetName(val string) {
 func (s *Warehouse) SetStatus(val WarehouseStatus) {
 	s.Status = val
 }
+
+// Ref: #/components/schemas/WarehousePickup
+type WarehousePickup struct {
+	WarehouseId  uuid.UUID `json:"warehouseId"`
+	Name         OptString `json:"name"`
+	Phone        OptString `json:"phone"`
+	Line         OptString `json:"line"`
+	ProvinceCode OptString `json:"provinceCode"`
+	WardCode     OptString `json:"wardCode"`
+	Version      int64     `json:"version"`
+}
+
+// GetWarehouseId returns the value of WarehouseId.
+func (s *WarehousePickup) GetWarehouseId() uuid.UUID {
+	return s.WarehouseId
+}
+
+// GetName returns the value of Name.
+func (s *WarehousePickup) GetName() OptString {
+	return s.Name
+}
+
+// GetPhone returns the value of Phone.
+func (s *WarehousePickup) GetPhone() OptString {
+	return s.Phone
+}
+
+// GetLine returns the value of Line.
+func (s *WarehousePickup) GetLine() OptString {
+	return s.Line
+}
+
+// GetProvinceCode returns the value of ProvinceCode.
+func (s *WarehousePickup) GetProvinceCode() OptString {
+	return s.ProvinceCode
+}
+
+// GetWardCode returns the value of WardCode.
+func (s *WarehousePickup) GetWardCode() OptString {
+	return s.WardCode
+}
+
+// GetVersion returns the value of Version.
+func (s *WarehousePickup) GetVersion() int64 {
+	return s.Version
+}
+
+// SetWarehouseId sets the value of WarehouseId.
+func (s *WarehousePickup) SetWarehouseId(val uuid.UUID) {
+	s.WarehouseId = val
+}
+
+// SetName sets the value of Name.
+func (s *WarehousePickup) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetPhone sets the value of Phone.
+func (s *WarehousePickup) SetPhone(val OptString) {
+	s.Phone = val
+}
+
+// SetLine sets the value of Line.
+func (s *WarehousePickup) SetLine(val OptString) {
+	s.Line = val
+}
+
+// SetProvinceCode sets the value of ProvinceCode.
+func (s *WarehousePickup) SetProvinceCode(val OptString) {
+	s.ProvinceCode = val
+}
+
+// SetWardCode sets the value of WardCode.
+func (s *WarehousePickup) SetWardCode(val OptString) {
+	s.WardCode = val
+}
+
+// SetVersion sets the value of Version.
+func (s *WarehousePickup) SetVersion(val int64) {
+	s.Version = val
+}
+
+func (*WarehousePickup) setWarehousePickupRes() {}
 
 // Ref: #/components/schemas/WarehouseStatus
 type WarehouseStatus string

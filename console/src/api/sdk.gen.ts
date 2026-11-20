@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, AddAttributeValueData, AddAttributeValueErrors, AddAttributeValueResponses, AddCustomerAddressData, AddCustomerAddressErrors, AddCustomerAddressResponses, AddCustomerIdentityData, AddCustomerIdentityErrors, AddCustomerIdentityResponses, AddCustomerNoteData, AddCustomerNoteErrors, AddCustomerNoteResponses, AddCustomerTagData, AddCustomerTagErrors, AddCustomerTagResponses, AddOrderNoteData, AddOrderNoteErrors, AddOrderNoteResponses, AddVariantData, AddVariantErrors, AddVariantResponses, ApplyCatalogImportData, ApplyCatalogImportErrors, ApplyCatalogImportResponses, ApplyStocktakeData, ApplyStocktakeErrors, ApplyStocktakeResponses, ApproveOrderDiscountData, ApproveOrderDiscountErrors, ApproveOrderDiscountResponses, ArchiveCategoryData, ArchiveCategoryErrors, ArchiveCategoryResponses, ArchiveRoleData, ArchiveRoleErrors, ArchiveRoleResponses, AttachProductImageData, AttachProductImageErrors, AttachProductImageResponses, CancelOrderData, CancelOrderErrors, CancelOrderResponses, CancelReturnData, CancelReturnErrors, CancelReturnResponses, CancelStockDocumentData, CancelStockDocumentErrors, CancelStockDocumentResponses, CancelStocktakeData, CancelStocktakeErrors, CancelStocktakeResponses, CheckCouponData, CheckCouponErrors, CheckCouponResponses, CheckOrderDuplicatesData, CheckOrderDuplicatesErrors, CheckOrderDuplicatesResponses, CloseReturnData, CloseReturnErrors, CloseReturnResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, ConfirmOrderData, ConfirmOrderErrors, ConfirmOrderResponses, CreateAttributeData, CreateAttributeErrors, CreateAttributeResponses, CreateCatalogImportData, CreateCatalogImportErrors, CreateCatalogImportResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateCouponBatchData, CreateCouponBatchErrors, CreateCouponBatchResponses, CreateCouponData, CreateCouponErrors, CreateCouponResponses, CreateCustomerData, CreateCustomerErrors, CreateCustomerResponses, CreateCustomerTagData, CreateCustomerTagErrors, CreateCustomerTagResponses, CreateOrderData, CreateOrderErrors, CreateOrderResponses, CreateProductData, CreateProductErrors, CreateProductResponses, CreateReturnData, CreateReturnErrors, CreateReturnResponses, CreateRoleData, CreateRoleErrors, CreateRoleResponses, CreateShipmentData, CreateShipmentErrors, CreateShipmentResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, CreateStockDocumentData, CreateStockDocumentErrors, CreateStockDocumentResponses, CreateSupplierData, CreateSupplierErrors, CreateSupplierResponses, CreateTagData, CreateTagErrors, CreateTagResponses, CreateTrafficSourceData, CreateTrafficSourceErrors, CreateTrafficSourceResponses, CreateUploadData, CreateUploadErrors, CreateUploadResponses, DeleteCustomerAddressData, DeleteCustomerAddressErrors, DeleteCustomerAddressResponses, DeleteProductImageData, DeleteProductImageErrors, DeleteProductImageResponses, GetCatalogImportData, GetCatalogImportErrors, GetCatalogImportResponses, GetCatalogImportTemplateData, GetCatalogImportTemplateErrors, GetCatalogImportTemplateResponses, GetCouponBatchData, GetCouponBatchErrors, GetCouponBatchResponses, GetCouponData, GetCouponErrors, GetCouponResponses, GetCustomerData, GetCustomerErrors, GetCustomerImportData, GetCustomerImportErrors, GetCustomerImportResponses, GetCustomerImportTemplateData, GetCustomerImportTemplateErrors, GetCustomerImportTemplateResponses, GetCustomerResponses, GetCustomerTagRuleData, GetCustomerTagRuleErrors, GetCustomerTagRuleResponses, GetCustomerTimelineData, GetCustomerTimelineErrors, GetCustomerTimelineResponses, GetFileData, GetFileErrors, GetFileResponses, GetMeData, GetMeErrors, GetMeResponses, GetOrderData, GetOrderErrors, GetOrderResponses, GetOrderSettingsData, GetOrderSettingsErrors, GetOrderSettingsResponses, GetOrderTimelineData, GetOrderTimelineErrors, GetOrderTimelineResponses, GetOriginalImageUrlData, GetOriginalImageUrlErrors, GetOriginalImageUrlResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, GetProductClassificationData, GetProductClassificationErrors, GetProductClassificationResponses, GetProductData, GetProductErrors, GetProductResponses, GetReturnData, GetReturnErrors, GetReturnResponses, GetShipmentData, GetShipmentErrors, GetShipmentResponses, GetStockDocumentData, GetStockDocumentErrors, GetStockDocumentResponses, GetStocktakeData, GetStocktakeErrors, GetStocktakeResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ListAdminUnitsData, ListAdminUnitsErrors, ListAdminUnitsResponses, ListAttributesData, ListAttributesErrors, ListAttributesResponses, ListBalancesData, ListBalancesErrors, ListBalancesResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListCouponRedemptionsData, ListCouponRedemptionsErrors, ListCouponRedemptionsResponses, ListCouponsData, ListCouponsErrors, ListCouponsResponses, ListCustomerMergeCandidatesData, ListCustomerMergeCandidatesErrors, ListCustomerMergeCandidatesResponses, ListCustomersData, ListCustomersErrors, ListCustomersResponses, ListCustomerTagsData, ListCustomerTagsErrors, ListCustomerTagsResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListLostFilesData, ListLostFilesErrors, ListLostFilesResponses, ListOrderDuplicatesData, ListOrderDuplicatesErrors, ListOrderDuplicatesResponses, ListOrdersData, ListOrdersErrors, ListOrdersResponses, ListPermissionsData, ListPermissionsErrors, ListPermissionsResponses, ListProductsData, ListProductsErrors, ListProductsResponses, ListReturnsData, ListReturnsErrors, ListReturnsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListRolesToManageData, ListRolesToManageErrors, ListRolesToManageResponses, ListStaffData, ListStaffErrors, ListStaffResponses, ListStockDocumentsData, ListStockDocumentsErrors, ListStockDocumentsResponses, ListSuppliersData, ListSuppliersErrors, ListSuppliersResponses, ListTagsData, ListTagsErrors, ListTagsResponses, ListTrafficSourcesData, ListTrafficSourcesErrors, ListTrafficSourcesResponses, ListWarehousesData, ListWarehousesErrors, ListWarehousesResponses, LockStaffData, LockStaffErrors, LockStaffResponses, MergeCustomerData, MergeCustomerErrors, MergeCustomerResponses, PostStockDocumentData, PostStockDocumentErrors, PostStockDocumentResponses, PutCustomerTagRuleData, PutCustomerTagRuleErrors, PutCustomerTagRuleResponses, ReceiveReturnData, ReceiveReturnErrors, ReceiveReturnResponses, RecordStocktakeCountData, RecordStocktakeCountErrors, RecordStocktakeCountResponses, RegenerateImagesData, RegenerateImagesErrors, RegenerateImagesResponses, RemoveCustomerIdentityData, RemoveCustomerIdentityErrors, RemoveCustomerIdentityResponses, RemoveCustomerTagData, RemoveCustomerTagErrors, RemoveCustomerTagResponses, ReorderProductImagesData, ReorderProductImagesErrors, ReorderProductImagesResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, ReplaceStockDocumentLinesData, ReplaceStockDocumentLinesErrors, ReplaceStockDocumentLinesResponses, ResolveOrderDuplicateData, ResolveOrderDuplicateErrors, ResolveOrderDuplicateResponses, RestoreProductImageData, RestoreProductImageErrors, RestoreProductImageResponses, RetryJobData, RetryJobErrors, RetryJobResponses, SearchVariantsData, SearchVariantsErrors, SearchVariantsResponses, SetOrderPendingData, SetOrderPendingErrors, SetOrderPendingResponses, SetProductClassificationData, SetProductClassificationErrors, SetProductClassificationResponses, SetProductImageColorData, SetProductImageColorErrors, SetProductImageColorResponses, StartCustomerImportData, StartCustomerImportErrors, StartCustomerImportResponses, StartStocktakeData, StartStocktakeErrors, StartStocktakeResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, UndoCustomerMergeData, UndoCustomerMergeErrors, UndoCustomerMergeResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateCouponData, UpdateCouponErrors, UpdateCouponResponses, UpdateCustomerAddressData, UpdateCustomerAddressErrors, UpdateCustomerAddressResponses, UpdateCustomerData, UpdateCustomerErrors, UpdateCustomerResponses, UpdateCustomerTagData, UpdateCustomerTagErrors, UpdateCustomerTagResponses, UpdateOrderData, UpdateOrderErrors, UpdateOrderResponses, UpdateOrderSettingsData, UpdateOrderSettingsErrors, UpdateOrderSettingsResponses, UpdateProductData, UpdateProductErrors, UpdateProductResponses, UpdateRoleData, UpdateRoleErrors, UpdateRoleResponses, UpdateSupplierData, UpdateSupplierErrors, UpdateSupplierResponses, UpdateTrafficSourceData, UpdateTrafficSourceErrors, UpdateTrafficSourceResponses, UpdateVariantData, UpdateVariantErrors, UpdateVariantResponses, VerifyFilesData, VerifyFilesErrors, VerifyFilesResponses } from './types.gen';
+import type { AbandonJobData, AbandonJobErrors, AbandonJobResponses, AddAttributeValueData, AddAttributeValueErrors, AddAttributeValueResponses, AddCustomerAddressData, AddCustomerAddressErrors, AddCustomerAddressResponses, AddCustomerIdentityData, AddCustomerIdentityErrors, AddCustomerIdentityResponses, AddCustomerNoteData, AddCustomerNoteErrors, AddCustomerNoteResponses, AddCustomerTagData, AddCustomerTagErrors, AddCustomerTagResponses, AddOrderNoteData, AddOrderNoteErrors, AddOrderNoteResponses, AddVariantData, AddVariantErrors, AddVariantResponses, ApplyCatalogImportData, ApplyCatalogImportErrors, ApplyCatalogImportResponses, ApplyShipmentCorrectionData, ApplyShipmentCorrectionErrors, ApplyShipmentCorrectionResponses, ApplyStocktakeData, ApplyStocktakeErrors, ApplyStocktakeResponses, ApproveOrderDiscountData, ApproveOrderDiscountErrors, ApproveOrderDiscountResponses, ArchiveCategoryData, ArchiveCategoryErrors, ArchiveCategoryResponses, ArchiveRoleData, ArchiveRoleErrors, ArchiveRoleResponses, AssignCallbackTaskData, AssignCallbackTaskErrors, AssignCallbackTaskResponses, AttachProductImageData, AttachProductImageErrors, AttachProductImageResponses, CancelOrderData, CancelOrderErrors, CancelOrderResponses, CancelReturnData, CancelReturnErrors, CancelReturnResponses, CancelShipmentData, CancelShipmentErrors, CancelShipmentResponses, CancelStockDocumentData, CancelStockDocumentErrors, CancelStockDocumentResponses, CancelStocktakeData, CancelStocktakeErrors, CancelStocktakeResponses, CheckCarrierAccountData, CheckCarrierAccountErrors, CheckCarrierAccountResponses, CheckCouponData, CheckCouponErrors, CheckCouponResponses, CheckOrderDuplicatesData, CheckOrderDuplicatesErrors, CheckOrderDuplicatesResponses, CloseReturnData, CloseReturnErrors, CloseReturnResponses, CompleteUploadData, CompleteUploadErrors, CompleteUploadResponses, ConfirmCodStatementData, ConfirmCodStatementErrors, ConfirmCodStatementResponses, ConfirmOrderData, ConfirmOrderErrors, ConfirmOrderResponses, CreateAttributeData, CreateAttributeErrors, CreateAttributeResponses, CreateCarrierAccountData, CreateCarrierAccountErrors, CreateCarrierAccountResponses, CreateCatalogImportData, CreateCatalogImportErrors, CreateCatalogImportResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateCodAdjustmentData, CreateCodAdjustmentErrors, CreateCodAdjustmentResponses, CreateCouponBatchData, CreateCouponBatchErrors, CreateCouponBatchResponses, CreateCouponData, CreateCouponErrors, CreateCouponResponses, CreateCustomerData, CreateCustomerErrors, CreateCustomerResponses, CreateCustomerTagData, CreateCustomerTagErrors, CreateCustomerTagResponses, CreateLabelBatchData, CreateLabelBatchErrors, CreateLabelBatchResponses, CreateOrderData, CreateOrderErrors, CreateOrderResponses, CreateProductData, CreateProductErrors, CreateProductResponses, CreateReturnData, CreateReturnErrors, CreateReturnResponses, CreateRoleData, CreateRoleErrors, CreateRoleResponses, CreateShipmentData, CreateShipmentErrors, CreateShipmentResponses, CreateStaffData, CreateStaffErrors, CreateStaffResponses, CreateStockDocumentData, CreateStockDocumentErrors, CreateStockDocumentResponses, CreateSupplierData, CreateSupplierErrors, CreateSupplierResponses, CreateTagData, CreateTagErrors, CreateTagResponses, CreateTrafficSourceData, CreateTrafficSourceErrors, CreateTrafficSourceResponses, CreateUploadData, CreateUploadErrors, CreateUploadResponses, DeleteCustomerAddressData, DeleteCustomerAddressErrors, DeleteCustomerAddressResponses, DeleteProductImageData, DeleteProductImageErrors, DeleteProductImageResponses, GetCatalogImportData, GetCatalogImportErrors, GetCatalogImportResponses, GetCatalogImportTemplateData, GetCatalogImportTemplateErrors, GetCatalogImportTemplateResponses, GetCodStatementData, GetCodStatementErrors, GetCodStatementResponses, GetCouponBatchData, GetCouponBatchErrors, GetCouponBatchResponses, GetCouponData, GetCouponErrors, GetCouponResponses, GetCustomerData, GetCustomerDeliveryStatsData, GetCustomerDeliveryStatsErrors, GetCustomerDeliveryStatsResponses, GetCustomerErrors, GetCustomerImportData, GetCustomerImportErrors, GetCustomerImportResponses, GetCustomerImportTemplateData, GetCustomerImportTemplateErrors, GetCustomerImportTemplateResponses, GetCustomerResponses, GetCustomerTagRuleData, GetCustomerTagRuleErrors, GetCustomerTagRuleResponses, GetCustomerTimelineData, GetCustomerTimelineErrors, GetCustomerTimelineResponses, GetFileData, GetFileErrors, GetFileResponses, GetFulfillmentSettingsData, GetFulfillmentSettingsErrors, GetFulfillmentSettingsResponses, GetLabelBatchData, GetLabelBatchErrors, GetLabelBatchResponses, GetMeData, GetMeErrors, GetMeResponses, GetOrderData, GetOrderErrors, GetOrderResponses, GetOrderSettingsData, GetOrderSettingsErrors, GetOrderSettingsResponses, GetOrderTimelineData, GetOrderTimelineErrors, GetOrderTimelineResponses, GetOriginalImageUrlData, GetOriginalImageUrlErrors, GetOriginalImageUrlResponses, GetPickingListData, GetPickingListErrors, GetPickingListResponses, GetPlatformHealthData, GetPlatformHealthErrors, GetPlatformHealthResponses, GetProductClassificationData, GetProductClassificationErrors, GetProductClassificationResponses, GetProductData, GetProductErrors, GetProductResponses, GetReturnData, GetReturnErrors, GetReturnResponses, GetShipmentCodData, GetShipmentCodErrors, GetShipmentCodResponses, GetShipmentData, GetShipmentErrors, GetShipmentResponses, GetStockDocumentData, GetStockDocumentErrors, GetStockDocumentResponses, GetStocktakeData, GetStocktakeErrors, GetStocktakeResponses, HealthDeepData, HealthDeepErrors, HealthDeepResponses, HealthLiveData, HealthLiveResponses, HealthReadyData, HealthReadyErrors, HealthReadyResponses, ImportCodStatementData, ImportCodStatementErrors, ImportCodStatementResponses, ListAdminUnitsData, ListAdminUnitsErrors, ListAdminUnitsResponses, ListAgedReservationsData, ListAgedReservationsErrors, ListAgedReservationsResponses, ListAttributesData, ListAttributesErrors, ListAttributesResponses, ListBalancesData, ListBalancesErrors, ListBalancesResponses, ListCallbackTasksData, ListCallbackTasksErrors, ListCallbackTasksResponses, ListCarrierAccountsData, ListCarrierAccountsErrors, ListCarrierAccountsResponses, ListCategoriesData, ListCategoriesErrors, ListCategoriesResponses, ListCodDiscrepanciesData, ListCodDiscrepanciesErrors, ListCodDiscrepanciesResponses, ListCodOverdueData, ListCodOverdueErrors, ListCodOverdueResponses, ListCodStatementsData, ListCodStatementsErrors, ListCodStatementsResponses, ListCouponRedemptionsData, ListCouponRedemptionsErrors, ListCouponRedemptionsResponses, ListCouponsData, ListCouponsErrors, ListCouponsResponses, ListCustomerMergeCandidatesData, ListCustomerMergeCandidatesErrors, ListCustomerMergeCandidatesResponses, ListCustomersData, ListCustomersErrors, ListCustomersResponses, ListCustomerTagsData, ListCustomerTagsErrors, ListCustomerTagsResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListLostFilesData, ListLostFilesErrors, ListLostFilesResponses, ListOrderDuplicatesData, ListOrderDuplicatesErrors, ListOrderDuplicatesResponses, ListOrderPaymentsData, ListOrderPaymentsErrors, ListOrderPaymentsResponses, ListOrdersData, ListOrdersErrors, ListOrderShipmentsData, ListOrderShipmentsErrors, ListOrderShipmentsResponses, ListOrdersResponses, ListPermissionsData, ListPermissionsErrors, ListPermissionsResponses, ListProductsData, ListProductsErrors, ListProductsResponses, ListReconcileFindingsData, ListReconcileFindingsErrors, ListReconcileFindingsResponses, ListRefundObligationsData, ListRefundObligationsErrors, ListRefundObligationsResponses, ListReturnsData, ListReturnsErrors, ListReturnsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListRolesToManageData, ListRolesToManageErrors, ListRolesToManageResponses, ListShipmentEventsData, ListShipmentEventsErrors, ListShipmentEventsResponses, ListShipmentsForReviewData, ListShipmentsForReviewErrors, ListShipmentsForReviewResponses, ListShippingQuotesData, ListShippingQuotesErrors, ListShippingQuotesResponses, ListStaffData, ListStaffErrors, ListStaffResponses, ListStockDocumentsData, ListStockDocumentsErrors, ListStockDocumentsResponses, ListStuckShipmentsData, ListStuckShipmentsErrors, ListStuckShipmentsResponses, ListSuppliersData, ListSuppliersErrors, ListSuppliersResponses, ListTagsData, ListTagsErrors, ListTagsResponses, ListTrafficSourcesData, ListTrafficSourcesErrors, ListTrafficSourcesResponses, ListUnmappedLocationsData, ListUnmappedLocationsErrors, ListUnmappedLocationsResponses, ListWarehousesData, ListWarehousesErrors, ListWarehousesResponses, LockStaffData, LockStaffErrors, LockStaffResponses, MergeCustomerData, MergeCustomerErrors, MergeCustomerResponses, PayRefundObligationData, PayRefundObligationErrors, PayRefundObligationResponses, PostStockDocumentData, PostStockDocumentErrors, PostStockDocumentResponses, PreviewCodAdjustmentData, PreviewCodAdjustmentErrors, PreviewCodAdjustmentResponses, PreviewShipmentCorrectionData, PreviewShipmentCorrectionErrors, PreviewShipmentCorrectionResponses, PutCarrierCredentialsData, PutCarrierCredentialsErrors, PutCarrierCredentialsResponses, PutCustomerTagRuleData, PutCustomerTagRuleErrors, PutCustomerTagRuleResponses, ReceiveReturnData, ReceiveReturnErrors, ReceiveReturnResponses, RecordCallbackOutcomeData, RecordCallbackOutcomeErrors, RecordCallbackOutcomeResponses, RecordPartialDeliveryData, RecordPartialDeliveryErrors, RecordPartialDeliveryResponses, RecordPaymentData, RecordPaymentErrors, RecordPaymentResponses, RecordStocktakeCountData, RecordStocktakeCountErrors, RecordStocktakeCountResponses, RegenerateImagesData, RegenerateImagesErrors, RegenerateImagesResponses, RemoveCustomerIdentityData, RemoveCustomerIdentityErrors, RemoveCustomerIdentityResponses, RemoveCustomerTagData, RemoveCustomerTagErrors, RemoveCustomerTagResponses, ReorderProductImagesData, ReorderProductImagesErrors, ReorderProductImagesResponses, ReplaceStaffGrantsData, ReplaceStaffGrantsErrors, ReplaceStaffGrantsResponses, ReplaceStockDocumentLinesData, ReplaceStockDocumentLinesErrors, ReplaceStockDocumentLinesResponses, RequestAddressChangeData, RequestAddressChangeErrors, RequestAddressChangeResponses, RequestShippingQuotesData, RequestShippingQuotesErrors, RequestShippingQuotesResponses, ResendShipmentData, ResendShipmentErrors, ResendShipmentResponses, ResolveAddressChangeData, ResolveAddressChangeErrors, ResolveAddressChangeResponses, ResolveOrderDuplicateData, ResolveOrderDuplicateErrors, ResolveOrderDuplicateResponses, ResolveShipmentAnomalyData, ResolveShipmentAnomalyErrors, ResolveShipmentAnomalyResponses, ResolveShipmentCreateData, ResolveShipmentCreateErrors, ResolveShipmentCreateResponses, RestoreProductImageData, RestoreProductImageErrors, RestoreProductImageResponses, RetryJobData, RetryJobErrors, RetryJobResponses, SearchVariantsData, SearchVariantsErrors, SearchVariantsResponses, SetCarrierAccountStatusData, SetCarrierAccountStatusErrors, SetCarrierAccountStatusResponses, SetOrderPendingData, SetOrderPendingErrors, SetOrderPendingResponses, SetPackingStatusData, SetPackingStatusErrors, SetPackingStatusResponses, SetProductClassificationData, SetProductClassificationErrors, SetProductClassificationResponses, SetProductImageColorData, SetProductImageColorErrors, SetProductImageColorResponses, SetShipmentManualStatusData, SetShipmentManualStatusErrors, SetShipmentManualStatusResponses, SetWarehousePickupData, SetWarehousePickupErrors, SetWarehousePickupResponses, StartCustomerImportData, StartCustomerImportErrors, StartCustomerImportResponses, StartStocktakeData, StartStocktakeErrors, StartStocktakeResponses, StreamData, StreamErrors, StreamResponse, StreamResponses, SyncCarrierLocationsData, SyncCarrierLocationsErrors, SyncCarrierLocationsResponses, SyncShipmentData, SyncShipmentErrors, SyncShipmentResponses, UndoCustomerMergeData, UndoCustomerMergeErrors, UndoCustomerMergeResponses, UnlockStaffData, UnlockStaffErrors, UnlockStaffResponses, UpdateCarrierAccountData, UpdateCarrierAccountErrors, UpdateCarrierAccountResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateCouponData, UpdateCouponErrors, UpdateCouponResponses, UpdateCustomerAddressData, UpdateCustomerAddressErrors, UpdateCustomerAddressResponses, UpdateCustomerData, UpdateCustomerErrors, UpdateCustomerResponses, UpdateCustomerTagData, UpdateCustomerTagErrors, UpdateCustomerTagResponses, UpdateFulfillmentSettingsData, UpdateFulfillmentSettingsErrors, UpdateFulfillmentSettingsResponses, UpdateOrderData, UpdateOrderErrors, UpdateOrderResponses, UpdateOrderSettingsData, UpdateOrderSettingsErrors, UpdateOrderSettingsResponses, UpdateProductData, UpdateProductErrors, UpdateProductResponses, UpdateRoleData, UpdateRoleErrors, UpdateRoleResponses, UpdateSupplierData, UpdateSupplierErrors, UpdateSupplierResponses, UpdateTrafficSourceData, UpdateTrafficSourceErrors, UpdateTrafficSourceResponses, UpdateVariantData, UpdateVariantErrors, UpdateVariantResponses, VerifyFilesData, VerifyFilesErrors, VerifyFilesResponses, WaiveRefundObligationData, WaiveRefundObligationErrors, WaiveRefundObligationResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -597,6 +597,11 @@ export const updateOrder = <ThrowOnError extends boolean = false>(options: Optio
 });
 
 /**
+ * Mọi vận đơn của đơn (cả đã hủy), mới nhất trước (Task M3-12)
+ */
+export const listOrderShipments = <ThrowOnError extends boolean = false>(options: Options<ListOrderShipmentsData, ThrowOnError>): RequestResult<ListOrderShipmentsResponses, ListOrderShipmentsErrors, ThrowOnError> => (options.client ?? client).get<ListOrderShipmentsResponses, ListOrderShipmentsErrors, ThrowOnError>({ url: '/api/v1/orders/{id}/shipments', ...options });
+
+/**
  * Tạo vận đơn cho đơn bằng một tài khoản hãng (vận đơn creating, lệnh tạo ở hãng chạy nền)
  *
  * Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa hủy → shipment_exists.
@@ -924,6 +929,8 @@ export const cancelOrder = <ThrowOnError extends boolean = false>(options: Optio
 
 /**
  * Lịch sử thao tác của đơn: đổi trạng thái, tên trường đã sửa (không giá trị dữ liệu cá nhân), ghi chú (Task M2-24)
+ *
+ * M3 (Task M3-28) thêm mục kind shipment (sự kiện vận đơn), payment (phiếu thu, hoàn tiền), return (phiếu trả); mỗi mục ghi nguồn Nhân viên, Hệ thống hoặc Hãng.
  */
 export const getOrderTimeline = <ThrowOnError extends boolean = false>(options: Options<GetOrderTimelineData, ThrowOnError>): RequestResult<GetOrderTimelineResponses, GetOrderTimelineErrors, ThrowOnError> => (options.client ?? client).get<GetOrderTimelineResponses, GetOrderTimelineErrors, ThrowOnError>({ url: '/api/v1/orders/{id}/timeline', ...options });
 
@@ -1125,3 +1132,447 @@ export const listCouponRedemptions = <ThrowOnError extends boolean = false>(opti
  * Kiểm mã cho form lên đơn: số giảm, lý do từ chối, lượt còn; không đổi lượt dùng (Task M2-14)
  */
 export const checkCoupon = <ThrowOnError extends boolean = false>(options: Options<CheckCouponData, ThrowOnError>): RequestResult<CheckCouponResponses, CheckCouponErrors, ThrowOnError> => (options.client ?? client).get<CheckCouponResponses, CheckCouponErrors, ThrowOnError>({ url: '/api/v1/coupon-check', ...options });
+
+/**
+ * Tài khoản hãng vận chuyển của shop; không bao giờ có khóa API, webhookUrl chỉ trả cho quyền manage (Task M3-09)
+ */
+export const listCarrierAccounts = <ThrowOnError extends boolean = false>(options?: Options<ListCarrierAccountsData, ThrowOnError>): RequestResult<ListCarrierAccountsResponses, ListCarrierAccountsErrors, ThrowOnError> => (options?.client ?? client).get<ListCarrierAccountsResponses, ListCarrierAccountsErrors, ThrowOnError>({ url: '/api/v1/carrier-accounts', ...options });
+
+/**
+ * Tạo tài khoản hãng (api: draft, manual: active); hãng không có adapter → 422 capability_not_supported (Task M3-09)
+ */
+export const createCarrierAccount = <ThrowOnError extends boolean = false>(options: Options<CreateCarrierAccountData, ThrowOnError>): RequestResult<CreateCarrierAccountResponses, CreateCarrierAccountErrors, ThrowOnError> => (options.client ?? client).post<CreateCarrierAccountResponses, CreateCarrierAccountErrors, ThrowOnError>({
+    url: '/api/v1/carrier-accounts',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Sửa tài khoản hãng khi version còn khớp (sai → 409 version_conflict) (Task M3-09)
+ */
+export const updateCarrierAccount = <ThrowOnError extends boolean = false>(options: Options<UpdateCarrierAccountData, ThrowOnError>): RequestResult<UpdateCarrierAccountResponses, UpdateCarrierAccountErrors, ThrowOnError> => (options.client ?? client).patch<UpdateCarrierAccountResponses, UpdateCarrierAccountErrors, ThrowOnError>({
+    url: '/api/v1/carrier-accounts/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Ghi khóa API của tài khoản (chỉ ghi, mã hóa; không bao giờ trả lại), tài khoản sang checking (Task M3-09)
+ */
+export const putCarrierCredentials = <ThrowOnError extends boolean = false>(options: Options<PutCarrierCredentialsData, ThrowOnError>): RequestResult<PutCarrierCredentialsResponses, PutCarrierCredentialsErrors, ThrowOnError> => (options.client ?? client).put<PutCarrierCredentialsResponses, PutCarrierCredentialsErrors, ThrowOnError>({
+    url: '/api/v1/carrier-accounts/{id}/credentials',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Kiểm kết nối với hãng (việc nền; kết quả active hoặc auth_failed) (Task M3-09)
+ */
+export const checkCarrierAccount = <ThrowOnError extends boolean = false>(options: Options<CheckCarrierAccountData, ThrowOnError>): RequestResult<CheckCarrierAccountResponses, CheckCarrierAccountErrors, ThrowOnError> => (options.client ?? client).post<CheckCarrierAccountResponses, CheckCarrierAccountErrors, ThrowOnError>({ url: '/api/v1/carrier-accounts/{id}/check', ...options });
+
+/**
+ * Đổi trạng thái tài khoản: active (manual hoặc đã có khóa), paused, revoked (Task M3-09)
+ */
+export const setCarrierAccountStatus = <ThrowOnError extends boolean = false>(options: Options<SetCarrierAccountStatusData, ThrowOnError>): RequestResult<SetCarrierAccountStatusResponses, SetCarrierAccountStatusErrors, ThrowOnError> => (options.client ?? client).post<SetCarrierAccountStatusResponses, SetCarrierAccountStatusErrors, ThrowOnError>({
+    url: '/api/v1/carrier-accounts/{id}/status',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Địa chỉ lấy hàng của kho khi version còn khớp; audit chỉ ghi tên trường (Task M3-09)
+ */
+export const setWarehousePickup = <ThrowOnError extends boolean = false>(options: Options<SetWarehousePickupData, ThrowOnError>): RequestResult<SetWarehousePickupResponses, SetWarehousePickupErrors, ThrowOnError> => (options.client ?? client).put<SetWarehousePickupResponses, SetWarehousePickupErrors, ThrowOnError>({
+    url: '/api/v1/inventory/warehouses/{id}/pickup',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Tải địa giới của hãng và khớp với mã của CRM (việc nền) (Task M3-18)
+ */
+export const syncCarrierLocations = <ThrowOnError extends boolean = false>(options: Options<SyncCarrierLocationsData, ThrowOnError>): RequestResult<SyncCarrierLocationsResponses, SyncCarrierLocationsErrors, ThrowOnError> => (options.client ?? client).post<SyncCarrierLocationsResponses, SyncCarrierLocationsErrors, ThrowOnError>({ url: '/api/v1/carrier-accounts/{id}/locations/sync', ...options });
+
+/**
+ * Mã địa giới của CRM chưa có mã của hãng (Task M3-18)
+ */
+export const listUnmappedLocations = <ThrowOnError extends boolean = false>(options: Options<ListUnmappedLocationsData, ThrowOnError>): RequestResult<ListUnmappedLocationsResponses, ListUnmappedLocationsErrors, ThrowOnError> => (options.client ?? client).get<ListUnmappedLocationsResponses, ListUnmappedLocationsErrors, ThrowOnError>({ url: '/api/v1/carrier-locations/unmapped', ...options });
+
+/**
+ * Kết quả báo phí của một lần so phí (mặc định lần gần nhất): ok theo phí tăng dần, rồi pending, rồi lỗi; không bao giờ phí 0 thay lỗi (Task M3-13)
+ */
+export const listShippingQuotes = <ThrowOnError extends boolean = false>(options: Options<ListShippingQuotesData, ThrowOnError>): RequestResult<ListShippingQuotesResponses, ListShippingQuotesErrors, ThrowOnError> => (options.client ?? client).get<ListShippingQuotesResponses, ListShippingQuotesErrors, ThrowOnError>({ url: '/api/v1/orders/{id}/shipping-quotes', ...options });
+
+/**
+ * So phí các hãng cho đơn: mỗi tài khoản một việc báo phí; đơn đã có vận đơn → 409 shipment_exists (Task M3-13)
+ */
+export const requestShippingQuotes = <ThrowOnError extends boolean = false>(options: Options<RequestShippingQuotesData, ThrowOnError>): RequestResult<RequestShippingQuotesResponses, RequestShippingQuotesErrors, ThrowOnError> => (options.client ?? client).post<RequestShippingQuotesResponses, RequestShippingQuotesErrors, ThrowOnError>({
+    url: '/api/v1/orders/{id}/shipping-quotes',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Lịch sử sự kiện của vận đơn, mới nhất trước; không có thân thô của hãng (Task M3-08)
+ */
+export const listShipmentEvents = <ThrowOnError extends boolean = false>(options: Options<ListShipmentEventsData, ThrowOnError>): RequestResult<ListShipmentEventsResponses, ListShipmentEventsErrors, ThrowOnError> => (options.client ?? client).get<ListShipmentEventsResponses, ListShipmentEventsErrors, ThrowOnError>({ url: '/api/v1/shipments/{id}/events', ...options });
+
+/**
+ * Gửi lại hãng vận đơn creating có create_state not_sent; trạng thái khác → 409 create_in_progress (Task M3-12)
+ */
+export const resendShipment = <ThrowOnError extends boolean = false>(options: Options<ResendShipmentData, ThrowOnError>): RequestResult<ResendShipmentResponses, ResendShipmentErrors, ThrowOnError> => (options.client ?? client).post<ResendShipmentResponses, ResendShipmentErrors, ThrowOnError>({ url: '/api/v1/shipments/{id}/resend', ...options });
+
+/**
+ * Xử lý "không rõ hãng đã tạo vận đơn chưa" sau khi nhân viên tra trang hãng (Task M3-12)
+ */
+export const resolveShipmentCreate = <ThrowOnError extends boolean = false>(options: Options<ResolveShipmentCreateData, ThrowOnError>): RequestResult<ResolveShipmentCreateResponses, ResolveShipmentCreateErrors, ThrowOnError> => (options.client ?? client).post<ResolveShipmentCreateResponses, ResolveShipmentCreateErrors, ThrowOnError>({
+    url: '/api/v1/shipments/{id}/resolve-create',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Hủy vận đơn để đổi hãng (hủy đơn đi qua cancelOrder); đã lấy hàng → 409 shipment_not_cancellable (Task M3-14)
+ */
+export const cancelShipment = <ThrowOnError extends boolean = false>(options: Options<CancelShipmentData, ThrowOnError>): RequestResult<CancelShipmentResponses, CancelShipmentErrors, ThrowOnError> => (options.client ?? client).post<CancelShipmentResponses, CancelShipmentErrors, ThrowOnError>({
+    url: '/api/v1/shipments/{id}/cancel',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Tra trạng thái ở hãng ngay (một việc mỗi phút cho mỗi vận đơn) (Task M3-11)
+ */
+export const syncShipment = <ThrowOnError extends boolean = false>(options: Options<SyncShipmentData, ThrowOnError>): RequestResult<SyncShipmentResponses, SyncShipmentErrors, ThrowOnError> => (options.client ?? client).post<SyncShipmentResponses, SyncShipmentErrors, ThrowOnError>({ url: '/api/v1/shipments/{id}/sync', ...options });
+
+/**
+ * Nhân viên cập nhật trạng thái vận đơn nhập tay hoặc tự giao (cùng máy trạng thái); returned chỉ qua nhận hàng hoàn (Task M3-15)
+ */
+export const setShipmentManualStatus = <ThrowOnError extends boolean = false>(options: Options<SetShipmentManualStatusData, ThrowOnError>): RequestResult<SetShipmentManualStatusResponses, SetShipmentManualStatusErrors, ThrowOnError> => (options.client ?? client).post<SetShipmentManualStatusResponses, SetShipmentManualStatusErrors, ThrowOnError>({
+    url: '/api/v1/shipments/{id}/manual-status',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Yêu cầu đổi địa chỉ giao sau khi đã gửi hãng (một yêu cầu mở mỗi vận đơn); địa chỉ chưa khớp hãng → 422 address_unmapped (Task M3-17)
+ */
+export const requestAddressChange = <ThrowOnError extends boolean = false>(options: Options<RequestAddressChangeData, ThrowOnError>): RequestResult<RequestAddressChangeResponses, RequestAddressChangeErrors, ThrowOnError> => (options.client ?? client).post<RequestAddressChangeResponses, RequestAddressChangeErrors, ThrowOnError>({
+    url: '/api/v1/shipments/{id}/address-changes',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Nhân viên xác nhận kết quả đổi địa chỉ (yêu cầu manual, sent hoặc unknown) (Task M3-17)
+ */
+export const resolveAddressChange = <ThrowOnError extends boolean = false>(options: Options<ResolveAddressChangeData, ThrowOnError>): RequestResult<ResolveAddressChangeResponses, ResolveAddressChangeErrors, ThrowOnError> => (options.client ?? client).post<ResolveAddressChangeResponses, ResolveAddressChangeErrors, ThrowOnError>({
+    url: '/api/v1/address-changes/{id}/resolve',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * In nhãn theo lô: nhóm vận đơn theo tài khoản hãng, mỗi nhóm một việc tải nhãn; in không đổi trạng thái (Task M3-16)
+ */
+export const createLabelBatch = <ThrowOnError extends boolean = false>(options: Options<CreateLabelBatchData, ThrowOnError>): RequestResult<CreateLabelBatchResponses, CreateLabelBatchErrors, ThrowOnError> => (options.client ?? client).post<CreateLabelBatchResponses, CreateLabelBatchErrors, ThrowOnError>({
+    url: '/api/v1/label-batches',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Trạng thái lô nhãn; url ký sẵn 5 phút khi ready (Task M3-16)
+ */
+export const getLabelBatch = <ThrowOnError extends boolean = false>(options: Options<GetLabelBatchData, ThrowOnError>): RequestResult<GetLabelBatchResponses, GetLabelBatchErrors, ThrowOnError> => (options.client ?? client).get<GetLabelBatchResponses, GetLabelBatchErrors, ThrowOnError>({ url: '/api/v1/label-batches/{id}', ...options });
+
+/**
+ * Phiếu nhặt hàng gộp theo SKU cho các vận đơn đã chọn; không địa chỉ, không SĐT (Task M3-16)
+ */
+export const getPickingList = <ThrowOnError extends boolean = false>(options: Options<GetPickingListData, ThrowOnError>): RequestResult<GetPickingListResponses, GetPickingListErrors, ThrowOnError> => (options.client ?? client).get<GetPickingListResponses, GetPickingListErrors, ThrowOnError>({ url: '/api/v1/picking-list', ...options });
+
+/**
+ * Đánh dấu đang nhặt hoặc đã đóng gói cho nhiều đơn (chỉ đi tới); kết quả từng đơn (Task M3-16)
+ */
+export const setPackingStatus = <ThrowOnError extends boolean = false>(options: Options<SetPackingStatusData, ThrowOnError>): RequestResult<SetPackingStatusResponses, SetPackingStatusErrors, ThrowOnError> => (options.client ?? client).post<SetPackingStatusResponses, SetPackingStatusErrors, ThrowOnError>({
+    url: '/api/v1/orders/packing',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Đơn giao thất bại cần gọi lại: quá hạn trước, rồi hạn gần nhất (Task M3-19)
+ */
+export const listCallbackTasks = <ThrowOnError extends boolean = false>(options?: Options<ListCallbackTasksData, ThrowOnError>): RequestResult<ListCallbackTasksResponses, ListCallbackTasksErrors, ThrowOnError> => (options?.client ?? client).get<ListCallbackTasksResponses, ListCallbackTasksErrors, ThrowOnError>({ url: '/api/v1/callback-tasks', ...options });
+
+/**
+ * Ghi kết quả cuộc gọi khi version còn khớp (Task M3-19)
+ */
+export const recordCallbackOutcome = <ThrowOnError extends boolean = false>(options: Options<RecordCallbackOutcomeData, ThrowOnError>): RequestResult<RecordCallbackOutcomeResponses, RecordCallbackOutcomeErrors, ThrowOnError> => (options.client ?? client).post<RecordCallbackOutcomeResponses, RecordCallbackOutcomeErrors, ThrowOnError>({
+    url: '/api/v1/callback-tasks/{id}/outcomes',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Giao việc gọi lại cho nhân viên có quyền fulfillment.callbacks.work (Task M3-19)
+ */
+export const assignCallbackTask = <ThrowOnError extends boolean = false>(options: Options<AssignCallbackTaskData, ThrowOnError>): RequestResult<AssignCallbackTaskResponses, AssignCallbackTaskErrors, ThrowOnError> => (options.client ?? client).post<AssignCallbackTaskResponses, AssignCallbackTaskErrors, ThrowOnError>({
+    url: '/api/v1/callback-tasks/{id}/assign',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Vận đơn kẹt (lâu không có cập nhật), lâu nhất trước; lọc theo phạm vi kho (Task M3-20)
+ */
+export const listStuckShipments = <ThrowOnError extends boolean = false>(options?: Options<ListStuckShipmentsData, ThrowOnError>): RequestResult<ListStuckShipmentsResponses, ListStuckShipmentsErrors, ThrowOnError> => (options?.client ?? client).get<ListStuckShipmentsResponses, ListStuckShipmentsErrors, ThrowOnError>({ url: '/api/v1/shipments/stuck', ...options });
+
+/**
+ * Việc "Cần xem" của vận đơn (anomaly mở) kèm số đếm các danh sách vận hành (Task M3-20)
+ */
+export const listShipmentsForReview = <ThrowOnError extends boolean = false>(options?: Options<ListShipmentsForReviewData, ThrowOnError>): RequestResult<ListShipmentsForReviewResponses, ListShipmentsForReviewErrors, ThrowOnError> => (options?.client ?? client).get<ListShipmentsForReviewResponses, ListShipmentsForReviewErrors, ThrowOnError>({ url: '/api/v1/shipments/review', ...options });
+
+/**
+ * Đóng một việc Cần xem kèm cách xử lý; in_doubt_create phải qua resolveShipmentCreate → 409 (Task M3-20)
+ */
+export const resolveShipmentAnomaly = <ThrowOnError extends boolean = false>(options: Options<ResolveShipmentAnomalyData, ThrowOnError>): RequestResult<ResolveShipmentAnomalyResponses, ResolveShipmentAnomalyErrors, ThrowOnError> => (options.client ?? client).post<ResolveShipmentAnomalyResponses, ResolveShipmentAnomalyErrors, ThrowOnError>({
+    url: '/api/v1/shipment-anomalies/{id}/resolve',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Hàng giữ quá hạn (giữ cho đơn, đang đi đường); chỉ đọc, không tự nhả hàng (Task M3-22)
+ */
+export const listAgedReservations = <ThrowOnError extends boolean = false>(options?: Options<ListAgedReservationsData, ThrowOnError>): RequestResult<ListAgedReservationsResponses, ListAgedReservationsErrors, ThrowOnError> => (options?.client ?? client).get<ListAgedReservationsResponses, ListAgedReservationsErrors, ThrowOnError>({ url: '/api/v1/inventory/aged-reservations', ...options });
+
+/**
+ * Số đơn giao xong, hoàn và mức "khách hay hoàn" của khách (Task M3-21)
+ */
+export const getCustomerDeliveryStats = <ThrowOnError extends boolean = false>(options: Options<GetCustomerDeliveryStatsData, ThrowOnError>): RequestResult<GetCustomerDeliveryStatsResponses, GetCustomerDeliveryStatsErrors, ThrowOnError> => (options.client ?? client).get<GetCustomerDeliveryStatsResponses, GetCustomerDeliveryStatsErrors, ThrowOnError>({ url: '/api/v1/customers/{id}/delivery-stats', ...options });
+
+/**
+ * Ghi giao một phần: số đã giao từng dòng, tiền đã thu; tạo phiếu trả cho phần còn lại (Task M3-26)
+ */
+export const recordPartialDelivery = <ThrowOnError extends boolean = false>(options: Options<RecordPartialDeliveryData, ThrowOnError>): RequestResult<RecordPartialDeliveryResponses, RecordPartialDeliveryErrors, ThrowOnError> => (options.client ?? client).post<RecordPartialDeliveryResponses, RecordPartialDeliveryErrors, ThrowOnError>({
+    url: '/api/v1/shipments/{id}/partial-delivery',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Xem trước việc đảo Thành công của vận đơn (không đổi dữ liệu); trả token để xác nhận (Task M3-27)
+ */
+export const previewShipmentCorrection = <ThrowOnError extends boolean = false>(options: Options<PreviewShipmentCorrectionData, ThrowOnError>): RequestResult<PreviewShipmentCorrectionResponses, PreviewShipmentCorrectionErrors, ThrowOnError> => (options.client ?? client).post<PreviewShipmentCorrectionResponses, PreviewShipmentCorrectionErrors, ThrowOnError>({
+    url: '/api/v1/shipments/{id}/corrections/preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Đảo Thành công theo bản xem trước; token khác → 409 preview_stale, bị chặn → 409 correction_blocked (Task M3-27)
+ */
+export const applyShipmentCorrection = <ThrowOnError extends boolean = false>(options: Options<ApplyShipmentCorrectionData, ThrowOnError>): RequestResult<ApplyShipmentCorrectionResponses, ApplyShipmentCorrectionErrors, ThrowOnError> => (options.client ?? client).post<ApplyShipmentCorrectionResponses, ApplyShipmentCorrectionErrors, ThrowOnError>({
+    url: '/api/v1/shipments/{id}/corrections',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Số dư COD theo ngăn và các bút toán của vận đơn (Task M3-29)
+ */
+export const getShipmentCod = <ThrowOnError extends boolean = false>(options: Options<GetShipmentCodData, ThrowOnError>): RequestResult<GetShipmentCodResponses, GetShipmentCodErrors, ThrowOnError> => (options.client ?? client).get<GetShipmentCodResponses, GetShipmentCodErrors, ThrowOnError>({ url: '/api/v1/shipments/{id}/cod', ...options });
+
+/**
+ * Phiếu thu, cọc, hoàn tiền của đơn, mới nhất trước (Task M3-30)
+ */
+export const listOrderPayments = <ThrowOnError extends boolean = false>(options: Options<ListOrderPaymentsData, ThrowOnError>): RequestResult<ListOrderPaymentsResponses, ListOrderPaymentsErrors, ThrowOnError> => (options.client ?? client).get<ListOrderPaymentsResponses, ListOrderPaymentsErrors, ThrowOnError>({ url: '/api/v1/orders/{id}/payments', ...options });
+
+/**
+ * Ghi phiếu thu, cọc cho đơn; đơn đã gửi hãng → 409 cod_locked_by_shipment (Task M3-30)
+ */
+export const recordPayment = <ThrowOnError extends boolean = false>(options: Options<RecordPaymentData, ThrowOnError>): RequestResult<RecordPaymentResponses, RecordPaymentErrors, ThrowOnError> => (options.client ?? client).post<RecordPaymentResponses, RecordPaymentErrors, ThrowOnError>({
+    url: '/api/v1/orders/{id}/payments',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Nghĩa vụ hoàn tiền cho khách (Task M3-30)
+ */
+export const listRefundObligations = <ThrowOnError extends boolean = false>(options?: Options<ListRefundObligationsData, ThrowOnError>): RequestResult<ListRefundObligationsResponses, ListRefundObligationsErrors, ThrowOnError> => (options?.client ?? client).get<ListRefundObligationsResponses, ListRefundObligationsErrors, ThrowOnError>({ url: '/api/v1/refund-obligations', ...options });
+
+/**
+ * Ghi một lần hoàn tiền cho khách; vượt số còn phải hoàn → 409 (Task M3-30)
+ */
+export const payRefundObligation = <ThrowOnError extends boolean = false>(options: Options<PayRefundObligationData, ThrowOnError>): RequestResult<PayRefundObligationResponses, PayRefundObligationErrors, ThrowOnError> => (options.client ?? client).post<PayRefundObligationResponses, PayRefundObligationErrors, ThrowOnError>({
+    url: '/api/v1/refund-obligations/{id}/payments',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Bỏ nghĩa vụ hoàn tiền kèm lý do (Task M3-30)
+ */
+export const waiveRefundObligation = <ThrowOnError extends boolean = false>(options: Options<WaiveRefundObligationData, ThrowOnError>): RequestResult<WaiveRefundObligationResponses, WaiveRefundObligationErrors, ThrowOnError> => (options.client ?? client).post<WaiveRefundObligationResponses, WaiveRefundObligationErrors, ThrowOnError>({
+    url: '/api/v1/refund-obligations/{id}/waive',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Bảng kê COD, mới nhất trước (Task M3-31)
+ */
+export const listCodStatements = <ThrowOnError extends boolean = false>(options?: Options<ListCodStatementsData, ThrowOnError>): RequestResult<ListCodStatementsResponses, ListCodStatementsErrors, ThrowOnError> => (options?.client ?? client).get<ListCodStatementsResponses, ListCodStatementsErrors, ThrowOnError>({ url: '/api/v1/cod-statements', ...options });
+
+/**
+ * Nhập bảng kê COD từ tệp đã tải lên (mục đích cod_statement); tệp đã nhập → 409 statement_duplicate (Task M3-31)
+ */
+export const importCodStatement = <ThrowOnError extends boolean = false>(options: Options<ImportCodStatementData, ThrowOnError>): RequestResult<ImportCodStatementResponses, ImportCodStatementErrors, ThrowOnError> => (options.client ?? client).post<ImportCodStatementResponses, ImportCodStatementErrors, ThrowOnError>({
+    url: '/api/v1/cod-statements',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Một bảng kê: đầu bảng kê, tổng theo kết quả khớp và dòng theo số dòng (Task M3-31, M3-32)
+ */
+export const getCodStatement = <ThrowOnError extends boolean = false>(options: Options<GetCodStatementData, ThrowOnError>): RequestResult<GetCodStatementResponses, GetCodStatementErrors, ThrowOnError> => (options.client ?? client).get<GetCodStatementResponses, GetCodStatementErrors, ThrowOnError>({ url: '/api/v1/cod-statements/{id}', ...options });
+
+/**
+ * Chốt bảng kê đã khớp khi version còn khớp (sai → 409 statement_changed): ghi tiền về cho từng dòng (Task M3-32)
+ */
+export const confirmCodStatement = <ThrowOnError extends boolean = false>(options: Options<ConfirmCodStatementData, ThrowOnError>): RequestResult<ConfirmCodStatementResponses, ConfirmCodStatementErrors, ThrowOnError> => (options.client ?? client).post<ConfirmCodStatementResponses, ConfirmCodStatementErrors, ThrowOnError>({
+    url: '/api/v1/cod-statements/{id}/confirm',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Lệch đối soát: dòng lệch tiền, trùng, ngoài hệ thống; phần thiếu còn mở; tiền về rồi mới hoàn (Task M3-32)
+ */
+export const listCodDiscrepancies = <ThrowOnError extends boolean = false>(options?: Options<ListCodDiscrepanciesData, ThrowOnError>): RequestResult<ListCodDiscrepanciesResponses, ListCodDiscrepanciesErrors, ThrowOnError> => (options?.client ?? client).get<ListCodDiscrepanciesResponses, ListCodDiscrepanciesErrors, ThrowOnError>({ url: '/api/v1/cod/discrepancies', ...options });
+
+/**
+ * Vận đơn giao xong quá hạn mà hãng chưa trả tiền COD (Task M3-32)
+ */
+export const listCodOverdue = <ThrowOnError extends boolean = false>(options?: Options<ListCodOverdueData, ThrowOnError>): RequestResult<ListCodOverdueResponses, ListCodOverdueErrors, ThrowOnError> => (options?.client ?? client).get<ListCodOverdueResponses, ListCodOverdueErrors, ThrowOnError>({ url: '/api/v1/cod/overdue', ...options });
+
+/**
+ * Xem trước điều chỉnh COD (không đổi dữ liệu): số dư trước, sau, cảnh báo, token (Task M3-33)
+ */
+export const previewCodAdjustment = <ThrowOnError extends boolean = false>(options: Options<PreviewCodAdjustmentData, ThrowOnError>): RequestResult<PreviewCodAdjustmentResponses, PreviewCodAdjustmentErrors, ThrowOnError> => (options.client ?? client).post<PreviewCodAdjustmentResponses, PreviewCodAdjustmentErrors, ThrowOnError>({
+    url: '/api/v1/cod/adjustments/preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Ghi điều chỉnh COD theo bản xem trước (đảo hoặc chuyển ngăn, không xóa dòng cũ); token khác → 409 preview_stale (Task M3-33)
+ */
+export const createCodAdjustment = <ThrowOnError extends boolean = false>(options: Options<CreateCodAdjustmentData, ThrowOnError>): RequestResult<CreateCodAdjustmentResponses, CreateCodAdjustmentErrors, ThrowOnError> => (options.client ?? client).post<CreateCodAdjustmentResponses, CreateCodAdjustmentErrors, ThrowOnError>({
+    url: '/api/v1/cod/adjustments',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Kết quả đối chiếu sổ COD hằng đêm (mặc định lần chạy gần nhất) (Task M3-33)
+ */
+export const listReconcileFindings = <ThrowOnError extends boolean = false>(options?: Options<ListReconcileFindingsData, ThrowOnError>): RequestResult<ListReconcileFindingsResponses, ListReconcileFindingsErrors, ThrowOnError> => (options?.client ?? client).get<ListReconcileFindingsResponses, ListReconcileFindingsErrors, ThrowOnError>({ url: '/api/v1/cod/reconcile-findings', ...options });
+
+/**
+ * Cài đặt vận chuyển của shop; thiếu khóa nào lấy mặc định (Task M3-04)
+ */
+export const getFulfillmentSettings = <ThrowOnError extends boolean = false>(options?: Options<GetFulfillmentSettingsData, ThrowOnError>): RequestResult<GetFulfillmentSettingsResponses, GetFulfillmentSettingsErrors, ThrowOnError> => (options?.client ?? client).get<GetFulfillmentSettingsResponses, GetFulfillmentSettingsErrors, ThrowOnError>({ url: '/api/v1/fulfillment-settings', ...options });
+
+/**
+ * Ghi cài đặt vận chuyển khi version còn khớp (sai → 409 version_conflict); số ngoài khoảng → 422 (Task M3-04)
+ */
+export const updateFulfillmentSettings = <ThrowOnError extends boolean = false>(options: Options<UpdateFulfillmentSettingsData, ThrowOnError>): RequestResult<UpdateFulfillmentSettingsResponses, UpdateFulfillmentSettingsErrors, ThrowOnError> => (options.client ?? client).put<UpdateFulfillmentSettingsResponses, UpdateFulfillmentSettingsErrors, ThrowOnError>({
+    url: '/api/v1/fulfillment-settings',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});

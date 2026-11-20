@@ -100,6 +100,16 @@ func TestPermissionsList(t *testing.T) {
 		"order.return.receive": identity.ScopeNone, "order.duplicates.resolve": identity.ScopeNone,
 		"order.settings.manage": identity.ScopeShop, "promotion.read": identity.ScopeNone,
 		"promotion.manage": identity.ScopeShop,
+		// M3 (kế hoạch M3 Task M3-04; kết nối hãng và cài đặt vận chuyển là chính sách toàn shop: ScopeShop).
+		"fulfillment.carrier_accounts.read": identity.ScopeNone, "fulfillment.carrier_accounts.manage": identity.ScopeShop,
+		"fulfillment.settings.manage": identity.ScopeShop, "fulfillment.quote": identity.ScopeByTarget,
+		"fulfillment.cancel": identity.ScopeByTarget, "fulfillment.print": identity.ScopeByTarget,
+		"fulfillment.pack": identity.ScopeByTarget, "fulfillment.manual_status": identity.ScopeByTarget,
+		"fulfillment.correct": identity.ScopeNone, "fulfillment.callbacks.work": identity.ScopeNone,
+		"inventory.aged.read": identity.ScopeByTarget, "cash.cod.read": identity.ScopeNone,
+		"cash.statements.import": identity.ScopeNone, "cash.statements.confirm": identity.ScopeNone,
+		"cash.adjust": identity.ScopeNone, "cash.payments.record": identity.ScopeNone,
+		"cash.refunds.record": identity.ScopeNone, "cash.refunds.waive": identity.ScopeNone,
 	}
 	seen := map[identity.Permission]bool{}
 	for _, d := range identity.Permissions {
@@ -309,5 +319,27 @@ func TestCanShopScopeGrantOrderAndEmptyID(t *testing.T) {
 		if identity.Can(u, "platform.health.read", nil) {
 			t.Errorf("grant %+v không phải phạm vi all mà vẫn cho quyền quản trị", s)
 		}
+	}
+}
+
+// Quyền theo kho của M3 (Task M3-04): fulfillment.ship gán theo kho W1 không cho kho W2; ScopesFor trả [W1]; quyền kho
+// M3 mới (in tem) cũng chỉ ở đúng kho được gán.
+func TestCan_M3WarehouseScope(t *testing.T) {
+	w1 := identity.Scope{Type: identity.ScopeWarehouse, ID: "W1"}
+	w2 := identity.Scope{Type: identity.ScopeWarehouse, ID: "W2"}
+	u := identity.AuthUser{Grants: []identity.Grant{
+		{Permission: "fulfillment.ship", Scope: w1}, {Permission: "fulfillment.print", Scope: w1},
+	}}
+	if identity.Can(u, "fulfillment.ship", &w2) || identity.Can(u, "fulfillment.print", &w2) {
+		t.Error("gán theo W1 không được có quyền ở W2")
+	}
+	if !identity.Can(u, "fulfillment.ship", &w1) || !identity.Can(u, "fulfillment.print", &w1) {
+		t.Error("gán theo W1 phải có quyền ở W1")
+	}
+	if all, ids := identity.ScopesFor(u, "fulfillment.ship"); all || len(ids) != 1 || ids[0] != "W1" {
+		t.Errorf("ScopesFor: mong [W1], có all=%v %v", all, ids)
+	}
+	if identity.Can(u, "fulfillment.quote", &w1) {
+		t.Error("không có grant fulfillment.quote thì không có quyền")
 	}
 }
