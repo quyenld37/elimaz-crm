@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"elimaz.com.vn/crm/internal/platform/fieldcrypt/keyspec"
+	"elimaz.com.vn/crm/internal/platform/logging"
 )
 
 // Role là vai trò của tiến trình, chọn bằng CRM_ROLE.
@@ -101,6 +102,9 @@ type Config struct {
 	// Hãng vận chuyển giả (ingest, worker), chỉ ngoài production (Q2). Có FakeCarrierURL thì bí mật bắt buộc, ≥ 32 ký tự.
 	FakeCarrierURL           string
 	FakeCarrierWebhookSecret string
+	// CarrierWebhookSecrets là bí mật kiểm chữ ký webhook của hãng thật theo khóa hãng (vtp, best, spx), chỉ vai trò
+	// ingest, đọc từ CARRIER_<KEY>_WEBHOOK_SECRET tùy chọn (≥ 32 ký tự khi đặt); nil với vai trò khác.
+	CarrierWebhookSecrets map[string]logging.Secret
 
 	// Luật cảnh báo (Task 19), chỉ vai trò worker: BackupExpected bật backup-age (BACKUP_EXPECTED, mặc định false);
 	// DBDiskBudgetBytes > 0 bật db-size (DB_DISK_BUDGET_BYTES, mặc định 0 = tắt); DBConnBudget là tổng kết nối của
@@ -144,6 +148,7 @@ func (c Config) LogValue() slog.Value {
 		slog.Bool("imager_configured", c.ImagerURL != ""),
 		slog.Int("image_preset_version", c.ImagePresetVersion),
 		slog.Bool("fakecarrier_configured", c.FakeCarrierURL != ""),
+		slog.Int("carrier_webhook_secrets", len(c.CarrierWebhookSecrets)),
 		slog.Bool("filesync_expected", c.FileSyncExpected),
 		slog.Bool("backup_expected", c.BackupExpected),
 		slog.Int64("db_disk_budget_bytes", c.DBDiskBudgetBytes),
@@ -194,6 +199,7 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		cfg.SpoolDir = r.required("SPOOL_DIR")
 		cfg.SelftestWebhookSecret = r.secret("SELFTEST_WEBHOOK_SECRET")
 		r.fakeCarrier(&cfg)
+		cfg.CarrierWebhookSecrets = r.carrierWebhookSecrets()
 	case RoleAPI:
 		cfg.Port = r.integer("PORT", 4190, 1, 65535)
 		cfg.AccessTeamDomain = r.required("ACCESS_TEAM_DOMAIN")
@@ -353,6 +359,19 @@ func (r *reader) fakeCarrier(cfg *Config) {
 	if cfg.FakeCarrierURL != "" || r.optional("FAKECARRIER_WEBHOOK_SECRET") != "" {
 		cfg.FakeCarrierWebhookSecret = r.secret("FAKECARRIER_WEBHOOK_SECRET")
 	}
+}
+
+// carrierWebhookSecrets đọc CARRIER_<KEY>_WEBHOOK_SECRET tùy chọn của từng hãng có webhook (vtp, best, spx); có thì
+// phải ≥ 32 ký tự.
+func (r *reader) carrierWebhookSecrets() map[string]logging.Secret {
+	m := map[string]logging.Secret{}
+	for _, k := range []string{"vtp", "best", "spx"} {
+		name := "CARRIER_" + strings.ToUpper(k) + "_WEBHOOK_SECRET"
+		if r.optional(name) != "" {
+			m[k] = logging.Secret(r.secret(name))
+		}
+	}
+	return m
 }
 
 // httpURL đọc biến tùy chọn; có giá trị thì phải là URL tuyệt đối http hoặc https có host.

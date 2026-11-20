@@ -1,0 +1,12 @@
+{
+  "created": "awaiting_pickup",
+  "picked_up": "picked_up",
+  "in_transit": "in_transit",
+  "out_for_delivery": "out_for_delivery",
+  "delivery_failed": "delivery_failed",
+  "delivered": "delivered",
+  "returning": "returning",
+  "returned": "returned_to_shop",
+  "cancelled": "cancelled",
+  "lost": "lost"
+}

@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	// CarrierKey là carrier_key của hãng giả (trùng fakecarrier.CarrierKey và hãng giả trong bộ nhớ của fulfillment).
+	// CarrierKey là carrier_key của hãng giả (trùng fake.CarrierKey của internal/adapters/carrier/fake và hãng giả trong bộ nhớ của fulfillment).
 	CarrierKey = "fake"
 	// AccountRef là mã tài khoản hãng giả (như seed-dev), cũng là khóa tuyến carrier_account.
 	AccountRef = "fake-1"

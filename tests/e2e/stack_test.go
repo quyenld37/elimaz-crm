@@ -23,7 +23,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
-	"elimaz.com.vn/crm/internal/adapters/fakecarrier"
+	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
@@ -131,7 +131,7 @@ func newStack(t *testing.T, o stackOptions) *stack {
 	// ingest: /hooks/* + Drainer.
 	ingestSources := []webhooks.Source{selftest.NewSource(secret32)}
 	if o.fakeCarrierURL != "" {
-		ingestSources = append(ingestSources, fakecarrier.NewSource(secret32))
+		ingestSources = append(ingestSources, fake.NewSource(secret32))
 	}
 	in, err := webhooks.NewIngest(webhooks.IngestOptions{
 		DB: ingestDB, Sources: ingestSources, Spool: s.spool,
@@ -177,10 +177,10 @@ func (s *stack) workerHandlers(o stackOptions, hub *realtime.PGHub, evs *events.
 	inboundHandlers := []webhooks.InboundHandler{selftest.NewInbound(hub)}
 	cmds := []commands.Handler{selftest.NewCommand(s.ext)}
 	if o.fakeCarrierURL != "" {
-		sources = append(sources, fakecarrier.NewSource(""))
-		inboundHandlers = append(inboundHandlers, fulfillment.NewSignalHandler(fakecarrier.Key))
+		sources = append(sources, fake.NewSource(""))
+		inboundHandlers = append(inboundHandlers, fulfillment.NewSignalHandler(fake.Key))
 		co := fulfillment.CommandOptions{
-			DB: s.app, Adapters: []fulfillment.CarrierAdapter{fakecarrier.NewClient(o.fakeCarrierURL, secret32, nil)},
+			DB: s.app, Adapters: []fulfillment.CarrierAdapter{fake.NewClient(o.fakeCarrierURL, secret32, nil)},
 			Events: evs, Queue: queue.NewQueue(), Realtime: hub,
 		}
 		cmds = append(cmds, fulfillment.NewCreateCommand(co), fulfillment.NewRefreshCommand(co))

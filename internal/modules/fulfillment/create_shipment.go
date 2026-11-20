@@ -189,7 +189,7 @@ func (c *CreateCommand) Execute(ctx context.Context, j queue.Job) (commands.Outc
 	case err != nil:
 		return commands.Outcome{}, fmt.Errorf("tạo vận đơn ở hãng: %w", err)
 	}
-	b, err := json.Marshal(createResult(res))
+	b, err := json.Marshal(createResult{TrackingCode: res.TrackingCode, Fee: res.Fee})
 	if err != nil {
 		return commands.Outcome{}, fmt.Errorf("mã hóa kết quả tạo vận đơn: %w", err)
 	}

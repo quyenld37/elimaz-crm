@@ -1,4 +1,4 @@
-package fakecarrier_test
+package fake_test
 
 import (
 	"bytes"
@@ -14,7 +14,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"elimaz.com.vn/crm/internal/adapters/fakecarrier"
+	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
@@ -30,7 +30,7 @@ func account() fulfillment.Account {
 }
 
 // stub là API hãng giả tối thiểu: ghi lại yêu cầu, trả theo status/body cho sẵn.
-func stub(t *testing.T, status int, body string, seen *http.Request) *fakecarrier.Client {
+func stub(t *testing.T, status int, body string, seen *http.Request) *fake.Client {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if seen != nil {
@@ -40,7 +40,7 @@ func stub(t *testing.T, status int, body string, seen *http.Request) *fakecarrie
 		_, _ = io.WriteString(w, body)
 	}))
 	t.Cleanup(srv.Close)
-	return fakecarrier.NewClient(srv.URL+"/", secret, srv.Client())
+	return fake.NewClient(srv.URL+"/", secret, srv.Client())
 }
 
 // CreateShipment: 200 → mã hãng, phí, có Bearer; 503 → ErrNotSent; 422 → ErrRejected; 500 → lỗi không rõ (không
@@ -49,7 +49,7 @@ func TestClientCreateShipment(t *testing.T) {
 	var seen http.Request
 	c := stub(t, http.StatusOK, `{"tracking":"FK1","fee":25000}`, &seen)
 	res, err := c.CreateShipment(t.Context(), account(), fulfillment.CreateRequest{Code: "E261118ABCDEF", CODAmount: 530000})
-	if err != nil || res != (fulfillment.CreateResult{TrackingCode: "FK1", Fee: 25000}) {
+	if err != nil || res != (fulfillment.CreateResult{TrackingCode: "FK1", Fee: 25000, FeeKnown: true}) {
 		t.Fatalf("CreateShipment = %+v %v", res, err)
 	}
 	if seen.Method != http.MethodPost || seen.URL.Path != "/v1/parcels" || seen.Header.Get("Authorization") != "Bearer "+secret {
@@ -75,7 +75,7 @@ func TestClientCreateShipment(t *testing.T) {
 			}
 		}
 	}
-	dead := fakecarrier.NewClient("http://127.0.0.1:1", secret, nil)
+	dead := fake.NewClient("http://127.0.0.1:1", secret, nil)
 	if _, err := dead.CreateShipment(t.Context(), account(), fulfillment.CreateRequest{Code: "E1"}); !errors.Is(err, fulfillment.ErrNotSent) {
 		t.Fatalf("không nối được: %v, muốn ErrNotSent", err)
 	}
@@ -89,7 +89,7 @@ func TestClientCreateShipment(t *testing.T) {
 	t.Cleanup(slow.Close)
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
-	_, err = fakecarrier.NewClient(slow.URL, secret, nil).CreateShipment(ctx, account(), fulfillment.CreateRequest{Code: "E1"})
+	_, err = fake.NewClient(slow.URL, secret, nil).CreateShipment(ctx, account(), fulfillment.CreateRequest{Code: "E1"})
 	if err == nil || errors.Is(err, fulfillment.ErrNotSent) || errors.Is(err, fulfillment.ErrRejected) {
 		t.Fatalf("quá giờ: %v, muốn lỗi không rõ", err)
 	}
@@ -114,7 +114,7 @@ func TestClientLookupAndStatus(t *testing.T) {
 	if _, err := stub(t, http.StatusNotFound, ``, nil).GetStatus(t.Context(), account(), "FK1"); !errors.Is(err, fulfillment.ErrRejected) {
 		t.Fatalf("GetStatus 404: %v", err)
 	}
-	c := fakecarrier.NewClient("http://x", secret, nil)
+	c := fake.NewClient("http://x", secret, nil)
 	for raw, want := range map[string]fulfillment.Status{
 		"created": fulfillment.StatusAwaitingPickup, "picked_up": fulfillment.StatusShipping, "delivered": fulfillment.StatusDelivered,
 	} {
@@ -127,39 +127,39 @@ func TestClientLookupAndStatus(t *testing.T) {
 	}
 }
 
-func packet(t *testing.T, evs ...fakecarrier.Event) []byte {
+func packet(t *testing.T, evs ...fake.Event) []byte {
 	t.Helper()
-	b, err := json.Marshal(fakecarrier.Packet{Events: evs})
+	b, err := json.Marshal(fake.Packet{Events: evs})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return b
 }
 
-func ev(id, account string) fakecarrier.Event {
-	return fakecarrier.Event{EventID: id, AccountKey: account, Tracking: "FK1", Status: "delivered", SentAt: time.Now()}
+func ev(id, account string) fake.Event {
+	return fake.Event{EventID: id, AccountKey: account, Tracking: "FK1", Status: "delivered", SentAt: time.Now()}
 }
 
 // Chữ ký: đúng → true; sai khóa, thiếu tiền tố, thân đổi, bí mật rỗng → false. Split: tín hiệu carrier.signal định
 // tuyến carrier_account:<accountKey>, chống trùng theo eventId; thiếu trường → invalid.
 func TestSourceSignatureAndSplit(t *testing.T) {
-	s := fakecarrier.NewSource(secret)
+	s := fake.NewSource(secret)
 	body := packet(t, ev("e1", "fake-1"))
 	h := http.Header{}
-	h.Set(fakecarrier.SignatureHeader, fakecarrier.Sign(body, secret))
+	h.Set(fake.SignatureHeader, fake.Sign(body, secret))
 	if !s.VerifySignature(body, h) {
 		t.Fatal("chữ ký đúng bị từ chối")
 	}
 	for name, hdr := range map[string]string{
-		"sai khóa": fakecarrier.Sign(body, "khac"), "thiếu tiền tố": fakecarrier.Sign(body, secret)[7:], "rỗng": "",
+		"sai khóa": fake.Sign(body, "khac"), "thiếu tiền tố": fake.Sign(body, secret)[7:], "rỗng": "",
 	} {
 		h := http.Header{}
-		h.Set(fakecarrier.SignatureHeader, hdr)
+		h.Set(fake.SignatureHeader, hdr)
 		if s.VerifySignature(body, h) {
 			t.Errorf("%s: chữ ký được nhận", name)
 		}
 	}
-	if s.VerifySignature(append(bytes.Clone(body), ' '), h) || fakecarrier.NewSource("").VerifySignature(body, h) {
+	if s.VerifySignature(append(bytes.Clone(body), ' '), h) || fake.NewSource("").VerifySignature(body, h) {
 		t.Fatal("thân đổi hay bí mật rỗng mà chữ ký vẫn đúng")
 	}
 	if _, ok := s.Challenge(nil); ok || s.Key() != "fakecarrier" {
@@ -191,7 +191,7 @@ func TestIngestPipeline(t *testing.T) {
 		t.Fatal(err)
 	}
 	reg := metrics.NewRegistry()
-	src := fakecarrier.NewSource(secret)
+	src := fake.NewSource(secret)
 	in, err := webhooks.NewIngest(webhooks.IngestOptions{
 		Role: "ingest", DB: staff.App, Sources: []webhooks.Source{src}, Spool: &webhooks.Spool{Dir: t.TempDir()},
 		Lockout: webhooks.NewLockout(webhooks.LockoutOptions{}), Metrics: reg, Logger: slog.New(slog.DiscardHandler),
@@ -205,7 +205,7 @@ func TestIngestPipeline(t *testing.T) {
 	t.Cleanup(srv.Close)
 	post := func(body []byte, sig string) int {
 		req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL+"/hooks/fakecarrier", bytes.NewReader(body))
-		req.Header.Set(fakecarrier.SignatureHeader, sig)
+		req.Header.Set(fake.SignatureHeader, sig)
 		req.Header.Set("Content-Type", "application/json")
 		status, _, _ := testkit.Do(t, req)
 		return status
@@ -213,7 +213,7 @@ func TestIngestPipeline(t *testing.T) {
 	count := func(q string) int { return staff.Count(t, q) }
 
 	body := packet(t, ev("e-bad", "fake-1"))
-	if s := post(body, fakecarrier.Sign(body, "sai-khoa-sai-khoa-sai-khoa-sai-khoa")); s != http.StatusUnauthorized {
+	if s := post(body, fake.Sign(body, "sai-khoa-sai-khoa-sai-khoa-sai-khoa")); s != http.StatusUnauthorized {
 		t.Fatalf("chữ ký sai = %d, muốn 401", s)
 	}
 	if n := count("SELECT count(*) FROM platform.webhook_deliveries"); n != 0 {
@@ -221,19 +221,19 @@ func TestIngestPipeline(t *testing.T) {
 	}
 
 	for i := range 3 {
-		b := packet(t, fakecarrier.Event{EventID: "e-dup", AccountKey: "fake-1", Tracking: "FK1", SentAt: time.Unix(int64(1_795_510_800+i), 0)})
-		if s := post(b, fakecarrier.Sign(b, secret)); s != http.StatusOK {
+		b := packet(t, fake.Event{EventID: "e-dup", AccountKey: "fake-1", Tracking: "FK1", SentAt: time.Unix(int64(1_795_510_800+i), 0)})
+		if s := post(b, fake.Sign(b, secret)); s != http.StatusOK {
 			t.Fatalf("POST %d = %d", i, s)
 		}
 	}
 	strange := packet(t, ev("e-x", "tai-khoan-la"))
-	if s := post(strange, fakecarrier.Sign(strange, secret)); s != http.StatusOK {
+	if s := post(strange, fake.Sign(strange, secret)); s != http.StatusOK {
 		t.Fatalf("POST tài khoản lạ = %d", s)
 	}
 
-	sources := []webhooks.Source{fakecarrier.NewSource("")}
+	sources := []webhooks.Source{fake.NewSource("")}
 	split, splitErr := webhooks.NewSplitHandler(webhooks.SplitOptions{Sources: sources, Metrics: reg})
-	inbound, inboundErr := webhooks.InboundJobHandlers(sources, []webhooks.InboundHandler{fulfillment.NewSignalHandler(fakecarrier.Key)})
+	inbound, inboundErr := webhooks.InboundJobHandlers(sources, []webhooks.InboundHandler{fulfillment.NewSignalHandler(fake.Key)})
 	if err := errors.Join(splitErr, inboundErr); err != nil {
 		t.Fatal(err)
 	}
@@ -272,4 +272,33 @@ func counter(rows []metrics.Row, name, label string) int64 {
 		}
 	}
 	return n
+}
+
+// Hai hàm đọc giữ nghĩa M1 (refresh_status coi ErrRejected là dừng hẳn): chỉ GetStatus 404 bọc ErrRejected; 401, 403,
+// 422, 429, 500 không bọc ErrRejected (lệnh đọc thử lại) nhưng vẫn mang lớp lỗi.
+func TestReadErrorsKeepM1Meaning(t *testing.T) {
+	cases := []struct {
+		status int
+		class  fulfillment.ErrorClass
+	}{
+		{http.StatusUnauthorized, fulfillment.ClassAuth},
+		{http.StatusForbidden, fulfillment.ClassAuth},
+		{http.StatusUnprocessableEntity, fulfillment.ClassRejected},
+		{http.StatusTooManyRequests, fulfillment.ClassRateLimited},
+		{http.StatusInternalServerError, fulfillment.ClassUnknownOutcome},
+	}
+	for _, c := range cases {
+		cli := stub(t, c.status, `{}`, nil)
+		_, lerr := cli.LookupByCode(t.Context(), account(), "E1")
+		_, serr := cli.GetStatus(t.Context(), account(), "FK1")
+		for name, err := range map[string]error{"LookupByCode": lerr, "GetStatus": serr} {
+			ce, ok := errors.AsType[*fulfillment.CarrierError](err)
+			if errors.Is(err, fulfillment.ErrRejected) || !ok || ce.Class != c.class {
+				t.Errorf("%s %d = %v, muốn lớp %s, không bọc ErrRejected", name, c.status, err, c.class)
+			}
+		}
+	}
+	if _, err := stub(t, http.StatusNotFound, ``, nil).GetStatus(t.Context(), account(), "FK1"); !errors.Is(err, fulfillment.ErrRejected) {
+		t.Fatalf("GetStatus 404 = %v, muốn ErrRejected", err)
+	}
 }

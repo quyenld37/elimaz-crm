@@ -1,0 +1,21 @@
+{
+  "secret": "carriertest-fake-webhook-secret-0000000",
+  "headers": {
+    "X-Fake-Signature": [
+      "sha256=41fb0cec8743310a50f2b66e9a177720583698279f6c3de28afa4d8468df45c7"
+    ]
+  },
+  "body": "{\"events\":[{\"eventId\":\"fc-1\",\"accountKey\":\"fake-1\",\"tracking\":\"FC00000001\",\"code\":\"E261120AAAAAA\",\"status\":\"delivered\",\"sentAt\":\"2026-11-20T09:00:00Z\"},{\"eventId\":\"fc-2\",\"accountKey\":\"fake-1\",\"tracking\":\"FC00000002\",\"status\":\"picked_up\",\"sentAt\":\"2026-11-20T09:05:00Z\"}]}",
+  "signals": [
+    {
+      "EventKey": "fc-1",
+      "TrackingCode": "FC00000001",
+      "ShipmentCode": "E261120AAAAAA"
+    },
+    {
+      "EventKey": "fc-2",
+      "TrackingCode": "FC00000002",
+      "ShipmentCode": ""
+    }
+  ]
+}

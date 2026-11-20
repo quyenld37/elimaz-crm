@@ -253,7 +253,7 @@ func TestBoundariesNotCalledModule(t *testing.T) {
 		{"internal/modules/fulfillment", "net/http", "(b)"},
 		{"internal/modules/fulfillment/internal/carriers/fake", "net/http", "(b)"},
 		{"internal/modules/fulfillment", modPrefix + "internal/modules/order", ""},
-		{"internal/adapters/fakecarrier", "net/http", ""},
+		{"internal/adapters/carrier/fake", "net/http", ""},
 		{"internal/queries", modPrefix + "internal/modules/catalog", "(f)"},
 		{"internal/queries/x", modPrefix + "internal/modules/identity/internal/store", "(f)"},
 		{"internal/queries", modPrefix + "internal/platform/db", ""},

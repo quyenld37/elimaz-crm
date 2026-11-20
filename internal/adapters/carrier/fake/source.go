@@ -1,4 +1,4 @@
-package fakecarrier
+package fake
 
 import (
 	"crypto/hmac"
@@ -57,11 +57,13 @@ func (s *Source) VerifySignature(raw []byte, h http.Header) bool {
 	return hmac.Equal([]byte(strings.ToLower(got)), []byte(Sign(raw, string(s.secret))))
 }
 
-// Event là một sự kiện trong gói webhook của hãng giả. Status chỉ để người đọc; CRM không tin nó (B10).
+// Event là một sự kiện trong gói webhook của hãng giả; Code là mã vận đơn của CRM (có khi kiện tạo qua M3). Status
+// chỉ để người đọc; CRM không tin nó (B10).
 type Event struct {
 	EventID    string    `json:"eventId"`
 	AccountKey string    `json:"accountKey"`
 	Tracking   string    `json:"tracking"`
+	Code       string    `json:"code,omitempty"`
 	Status     string    `json:"status"`
 	SentAt     time.Time `json:"sentAt"`
 }

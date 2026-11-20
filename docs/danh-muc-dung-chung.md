@@ -126,6 +126,8 @@ type Config struct {
 	FakeCarrierURL           string
 	FakeCarrierWebhookSecret string
 
+	CarrierWebhookSecrets map[string]logging.Secret
+
 	BackupExpected    bool
 	DBDiskBudgetBytes int64
 	DBConnBudget      int

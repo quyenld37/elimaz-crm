@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"elimaz.com.vn/crm/internal/adapters/fakecarrier"
+	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
@@ -76,7 +76,7 @@ func seedDev(ctx context.Context, cfg config.Config, email string, logger *slog.
 		}
 		// Tài khoản hãng giả fake-1 ở kho MAIN (Task M1-31); chỉ dùng khi worker có FAKECARRIER_URL.
 		_, err = fulfillment.EnsureCarrierAccount(ctx, tx, fulfillment.AccountInput{
-			SellerID: sellerID, WarehouseID: warehouseID, CarrierKey: fakecarrier.CarrierKey, Name: "Hãng giả",
+			SellerID: sellerID, WarehouseID: warehouseID, CarrierKey: fake.CarrierKey, Name: "Hãng giả",
 			ExternalAccountRef: seedCarrierAccount,
 		})
 		return err //nolint:wrapcheck // đã bọc trong fulfillment
