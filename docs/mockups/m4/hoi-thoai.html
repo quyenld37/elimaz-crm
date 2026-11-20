@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M4 — Hội thoại</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="m4.css">
+<style>.clamp8 { display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; overflow: hidden; }</style>
+</head>
+<body data-page="hoi-thoai" data-title="Hội thoại">
+<div class="app"><main class="main is-chat">
+
+<div class="page-h">
+	<div><p class="crumb"><a href="inbox.html">Hộp chat</a> / Hội thoại</p><h1>Hội thoại</h1><p class="sub">Cột giữa của Hộp chat. Trên điện thoại là màn riêng: nút "‹" về danh sách, nút "Khách" mở khung khách.</p></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="ch01 ch03 ch04 ch07 ch08 ch10 ch12 ch14 tin-vao tin-ra-nv tin-tu-dong tin-ngoai-crm ghi-chu tin-he-thong tin-lich-su anh-cao tep tt-da-gui tt-dang-gui o-go-duoc dang-xem ten-60"><p class="xs">TRẠNG THÁI A</p><h2>Hội thoại tin nhắn đủ loại tin: lịch sử trước khi kết nối CRM, tin chào tự động, tin nhân viên, tin gửi từ ngoài CRM, ghi chú nội bộ, ảnh dọc rất cao, tệp tên dài, đang gửi ảnh; "An đang xem"; ô gõ còn giờ</h2></section>
+
+<div class="chat is-1" style="max-width:860px">
+	<div class="pane-conv">
+		<div class="conv-h">
+			<a class="ibtn only-phone" href="inbox.html" aria-label="Về danh sách">‹</a>
+			<div style="min-width:0"><b class="ellip" style="display:block">NguyễnThịThuHàShopThờiTrangCôngSởXuấtKhẩuHàNộiChiNhánhSố0205</b><span class="small muted">ELIMAZ Official · Tin nhắn · Trần Minh An phụ trách</span></div>
+			<a class="btn btn-quiet only-phone" href="khung-ben-phai.html">Khách</a>
+			<div class="acts">
+				<span class="select-wrap" style="width:150px"><select aria-label="Trạng thái hội thoại"><option>Đang mở</option><option>Chờ khách</option><option>Xong</option><option>Spam</option></select></span>
+				<button class="btn btn-quiet">Giao cho…</button>
+			</div>
+		</div>
+		<div class="presence" data-ca="dang-xem" role="status"><span class="dot dot-ok"></span>Trần Minh An đang xem</div>
+		<div class="thread">
+			<p class="sys-line">Trước khi kết nối CRM · 20 tin lấy từ Facebook</p>
+			<div class="msg in hist" data-ca="tin-lich-su"><span class="who">Khách · 02/11 · trước khi kết nối CRM</span><div class="bub">Shop ơi áo len cổ lọ còn màu kem không?</div></div>
+			<div class="msg out hist"><span class="who">Page · 02/11 · trước khi kết nối CRM</span><div class="bub">Dạ còn ạ, chị mặc size nào ạ?</div></div>
+			<p class="sys-line">Kết nối CRM 15/11</p>
+			<p class="sys" data-ca="tin-he-thong ch08">CRM tạo hồ sơ khách tiềm năng KH005120 cho tài khoản Facebook này</p>
+			<div class="msg in" data-ca="tin-vao ch01"><div class="bub">Chị ơi đầm lụa be còn size L không, chị lấy 2 cái</div><div class="meta">09:02</div></div>
+			<div class="msg out auto" data-ca="tin-tu-dong ch12"><span class="who">Tự động · Tin chào</span><div class="bub"><span class="bub-k">Tin tự động</span>ELIMAZ chào chị! Shop trả lời trong ít phút. Chị chọn nhanh bên dưới nhé.</div><div class="lbs" style="justify-content:flex-end"><span class="chip chip-line">Xem bảng size</span><span class="chip chip-line">Phí ship</span><span class="chip chip-line">Gặp nhân viên</span></div><div class="meta">09:02 · <span class="st-ok">Đã gửi</span></div></div>
+			<div class="msg out" data-ca="tin-ra-nv ch03 tt-da-gui"><span class="who">Trần Minh An</span><div class="bub">Dạ còn chị ạ. Size L còn 3 cái màu be, em giữ 2 cái cho chị nhé</div><div class="meta">09:05 · <span class="st-ok">Đã gửi</span></div></div>
+			<div class="msg out ext" data-ca="tin-ngoai-crm ch14"><span class="who">Gửi từ ứng dụng Meta (ngoài CRM)</span><div class="bub">Chị gửi em địa chỉ nhận hàng nha</div><div class="meta">09:07 · <span>không biết người gửi</span></div></div>
+			<div class="msg out note" data-ca="ghi-chu ch07"><span class="who">Trần Minh An · ghi chú</span><div class="bub"><span class="bub-k">Ghi chú nội bộ · Chỉ nhân viên thấy</span>Khách quen, hay đổi size. Gửi kèm bảng size trước khi chốt.</div><div class="meta">09:08 · không gửi cho khách</div></div>
+			<div class="msg in" data-ca="anh-cao"><a class="att-img is-tall" href="#" aria-label="Ảnh khách gửi, 1080 × 4320, bấm để xem cỡ thật">Ảnh 1080 × 4320</a><div class="meta">09:10 · ảnh dọc cao, giới hạn 360 px, bấm xem cỡ thật</div></div>
+			<div class="msg in" data-ca="tep"><div class="att-file"><div class="grow"><b class="wrap-any">bang-do-so-do-khach-hang-dat-may-rieng-thang-11-2026-ban-cuoi-cung-da-sua-lan-3.pdf</b><span class="xs muted">PDF · 2,4 MB · không xem trước</span></div><a class="btn btn-quiet" href="#">Tải về</a></div><div class="meta">09:11</div></div>
+			<div class="msg out" data-ca="ch04 tt-dang-gui"><span class="who">Trần Minh An</span><div class="att-img is-up"><span>Ảnh bảng size</span><div class="bar" aria-label="Đã tải lên 60%"><i style="width:60%"></i></div></div><div class="meta"><span class="st-wait">Đang gửi…</span> · tải ảnh lên kho tệp rồi gửi</div></div>
+			<p class="sys">Lê Thu Hằng giao hội thoại cho Trần Minh An · 09:12</p>
+		</div>
+		<div class="cmp" data-ca="o-go-duoc">
+			<div class="cmp-tabs" role="tablist"><button class="tab" role="tab" aria-selected="true">Trả lời</button><button class="tab" role="tab" aria-selected="false">Ghi chú nội bộ</button></div>
+			<textarea class="input" aria-label="Nội dung trả lời" placeholder="Gõ trả lời, gõ / để chọn mẫu"></textarea>
+			<div class="cmp-f"><button class="btn btn-quiet">Ảnh</button><button class="btn btn-quiet">Mẫu /</button><span class="grow clock">Còn 23 giờ 10 phút để trả lời</span><button class="btn btn-dark">Gửi</button></div>
+			<p class="hint">Facebook cho Page trả lời trong 24 giờ từ tin cuối của khách. Enter xuống dòng, Ctrl/⌘ + Enter gửi. Mỗi tin chữ hoặc một ảnh.</p>
+		</div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="ch18 ch19 tt-dang-gui tt-da-gui tt-dang-kiem-tra tt-khong-ro tt-chua-gui tt-loi dang-tra-loi"><p class="xs">TRẠNG THÁI B</p><h2>Sáu trạng thái gửi; "An đang trả lời"</h2></section>
+
+<div class="chat is-1" style="max-width:860px">
+	<div class="pane-conv">
+		<div class="presence" data-ca="dang-tra-loi" role="status"><span class="dot dot-ok"></span>Trần Minh An đang trả lời…</div>
+		<div class="thread">
+			<div class="msg out" data-ca="tt-dang-gui"><span class="who">Nguyễn Thị Lan</span><div class="bub">Chị ơi shop gửi bảng size ạ</div><div class="meta"><span class="st-wait">Đang gửi…</span></div></div>
+			<div class="msg out" data-ca="tt-da-gui"><div class="bub">Dạ đơn của chị đã lên rồi ạ</div><div class="meta">10:01 · <span class="st-ok">Đã gửi</span></div></div>
+			<div class="msg out" data-ca="tt-dang-kiem-tra"><div class="bub">Chị chuyển khoản theo số tài khoản này nhé</div><div class="meta">10:02 · <span class="st-wait">Đang kiểm tra</span> · mạng chập chờn, đang chờ Facebook xác nhận (tối đa 60 giây)</div></div>
+			<div class="msg out" data-ca="tt-khong-ro ch18"><div class="bub">Em giữ hàng tới 20:00 tối nay ạ</div>
+				<div class="sendfix is-err"><span><b class="err-text">Không rõ đã gửi chưa.</b> Mạng rớt đúng lúc gửi; sau 60 giây vẫn chưa thấy Facebook xác nhận. CRM không tự gửi lại.</span><span class="small">Gửi lại thì khách có thể nhận hai lần. Xem trên điện thoại Page trước nếu được.</span><div class="acts"><button class="btn btn-quiet">Bỏ</button><button class="btn btn-line">Gửi lại</button></div></div>
+				<div class="meta">10:03</div></div>
+			<div class="msg out" data-ca="tt-chua-gui ch19"><div class="bub">Shop gửi mã vận đơn ạ</div>
+				<div class="sendfix is-err"><span><b class="err-text">Chưa gửi được.</b> Quá 3 phút Facebook vẫn bận nên CRM dừng, khách chưa nhận tin này. Không tự gửi trễ.</span><div class="acts"><button class="btn btn-quiet">Bỏ</button><button class="btn btn-line">Gửi lại</button></div></div>
+				<div class="meta">10:04</div></div>
+			<div class="msg out" data-ca="tt-loi"><div class="bub">Chị ơi mẫu này về rồi ạ</div>
+				<div class="sendfix is-err"><span><b class="err-text">Lỗi:</b> Khách đã chặn tin từ Page hoặc không nhận tin.</span></div>
+				<div class="meta">10:05</div></div>
+			<p class="mk"><b>Mockup:</b> câu lỗi lấy từ bảng lý do của adapter (Task M4-08): "Đã quá 24 giờ từ tin cuối của khách", "Đã nhắn riêng cho comment này, Facebook chỉ cho một tin", "Mất kết nối với Page, cần quản trị kết nối lại", "Facebook từ chối (mã N)". Tin bị "Bỏ" hiện mờ "Đã bỏ, không gửi".</p>
+		</div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" data-ca="ch02 ch05 ch11 ch12 ch13 comment-bai comment-an comment-sua-xoa comment-2000 nhan-rieng-khoa-mot-tin nhan-rieng-khoa-7-ngay"><p class="xs">TRẠNG THÁI C</p><h2>Hội thoại comment: thẻ bài viết, trả lời công khai, nhắn riêng (khóa sau một tin, khóa khi quá 7 ngày), tự trả lời một lần, comment bị ẩn, khách sửa, khách xóa, comment 2.000 ký tự</h2></section>
+
+<div class="chat is-1" style="max-width:860px">
+	<div class="pane-conv">
+		<div class="conv-h">
+			<a class="ibtn only-phone" href="inbox.html" aria-label="Về danh sách">‹</a>
+			<div style="min-width:0"><b class="ellip" style="display:block">Hoàng Văn Nam</b><span class="small muted">ELIMAZ Official · Comment · Chưa ai nhận</span></div>
+			<a class="btn btn-quiet only-phone" href="khung-ben-phai.html">Khách</a>
+			<div class="acts" data-ca="nut-nhan ch06"><button class="btn btn-dark">Nhận</button><button class="btn btn-quiet">Giao cho…</button><span class="reason">Chưa ai nhận: bấm "Nhận" để thành người phụ trách (hội thoại vào "Của tôi").</span></div>
+		</div>
+		<div class="thread">
+			<div class="post" data-ca="comment-bai ch02"><span class="thumb">Ảnh bài</span><div class="grow"><b class="ellip">Áo khoác dạ dáng dài — hàng mới về, đủ size S đến XL</b><span class="xs muted">Bài của ELIMAZ Official · 18/11 20:00</span></div><a class="btn btn-quiet" href="#">Mở bài</a></div>
+
+			<div class="msg in" data-ca="ch05 nhan-rieng-khoa-mot-tin"><span class="who">Hoàng Văn Nam · comment</span><div class="bub">Giá bao nhiêu vậy shop? Có màu ghi không?</div><div class="meta">08:52</div>
+				<div class="cacts"><button class="btn btn-quiet">Trả lời công khai</button><div class="act"><button class="btn" disabled>Nhắn riêng</button><span class="reason">Đã nhắn riêng 1 tin cho comment này. Facebook chỉ cho một tin; khách trả lời thì nhắn tiếp ở hộp thư.</span></div><button class="btn btn-quiet">Ẩn trên Page</button></div>
+				<div class="reply-in">
+					<span class="who">Trả lời công khai · Nguyễn Thị Lan</span><div class="bub">Shop đã nhắn riêng giá cho anh ạ</div><div class="meta">08:55 · <span class="st-ok">Đã gửi</span></div>
+					<span class="who">Nhắn riêng · Nguyễn Thị Lan · tới hộp thư của khách</span><div class="bub">Áo 1.290.000đ, có màu ghi size M, L ạ</div><div class="meta">08:55 · <span class="st-ok">Đã gửi</span></div>
+				</div>
+			</div>
+
+			<div class="msg in" data-ca="ch12"><span class="who">Đặng Thu Hương · comment</span><div class="bub">Còn size S không ạ</div><div class="meta">08:40</div>
+				<div class="reply-in">
+					<span class="who">Tự động · Trả lời comment (câu 2/5)</span><div class="bub" style="background:var(--paper);border:1px solid var(--edge)">Shop đã inbox chị ạ, chị kiểm tra tin nhắn nhé</div><div class="meta">08:40 · <span class="st-ok">Đã gửi</span></div>
+					<span class="who">Tự động · Nhắn riêng</span><div class="bub" style="background:var(--paper);border:1px solid var(--edge)">Chào chị, mẫu áo khoác dạ còn size S màu đen và ghi ạ</div><div class="meta">08:40 · <span class="st-ok">Đã gửi</span> · mỗi comment chỉ một tin tự động</div>
+				</div>
+			</div>
+
+			<div class="msg in" data-ca="comment-an ch11"><span class="who">Bùi Thanh Tâm · comment</span><div class="bub">Lấy 1 cái size M, sđt 0987 654 321 nhé</div><div class="meta">08:31 · <span class="chip">Đã ẩn trên Page</span> · tự ẩn vì có SĐT; trên Facebook chỉ người comment và bạn bè họ thấy, CRM vẫn hiện đủ</div>
+				<div class="cacts"><button class="btn btn-quiet">Trả lời công khai</button><button class="btn btn-quiet">Nhắn riêng</button><button class="btn btn-quiet">Hiện lại trên Page</button></div>
+			</div>
+
+			<div class="msg in" data-ca="comment-sua-xoa ch13"><span class="who">Lý Minh Châu · comment</span><div class="bub">Lấy 2 cái size L</div><div class="meta">08:20 · <span class="chip chip-line">Khách đã sửa lúc 08:24</span></div>
+				<ul class="revs" aria-label="Lịch sử sửa"><li><span class="at">08:24 · bản hiện tại</span>Lấy 2 cái size L</li><li><span class="at">08:20 · bản đầu</span>Lấy 1 cái size M</li></ul>
+			</div>
+			<div class="msg in gone"><span class="who">Lý Minh Châu · comment</span><div class="bub">Khách đã xóa comment này lúc 08:30</div>
+				<ul class="revs" aria-label="Nội dung trước khi xóa"><li><span class="at">08:21 · trước khi xóa</span>Ship về Đà Nẵng mất mấy ngày shop?</li></ul>
+			</div>
+
+			<div class="msg in" data-ca="nhan-rieng-khoa-7-ngay"><span class="who">Mai Phương Linh · comment · 10/11</span><div class="bub">Có ship COD không shop</div><div class="meta">10/11 21:15</div>
+				<div class="cacts"><button class="btn btn-quiet">Trả lời công khai</button><div class="act"><button class="btn" disabled>Nhắn riêng</button><span class="reason">Comment đã quá 7 ngày: Facebook không cho nhắn riêng nữa.</span></div></div>
+			</div>
+
+			<div class="msg in" data-ca="comment-2000"><span class="who">Trịnh Ngọc Ánh · comment · 2.000 ký tự</span><div class="bub bub-full"><span class="clamp8">Shop ơi cho mình hỏi mẫu áo khoác dạ này có size cho người cao 1m58 nặng 52kg không, mình hay mặc size S nhưng vai hơi rộng nên không biết có bị chật không, chất dạ có bị xù sau khi giặt không, có lót bên trong không, màu ghi ngoài đời có giống ảnh không hay bị tối hơn, ship về Hải Phòng mất mấy ngày và phí bao nhiêu, nếu không vừa thì đổi được trong bao lâu. Shop ơi cho mình hỏi mẫu áo khoác dạ này có size cho người cao 1m58 nặng 52kg không, mình hay mặc size S nhưng vai hơi rộng nên không biết có bị chật không, chất dạ có bị xù sau khi giặt không, có lót bên trong không, màu ghi ngoài đời có giống ảnh không hay bị tối hơn, ship về Hải Phòng mất mấy ngày và phí bao nhiêu, nếu không vừa thì đổi được trong bao lâu. Shop ơi cho mình hỏi mẫu áo khoác dạ này có size cho người cao 1m58 nặng 52kg không, mình hay mặc size S nhưng vai hơi rộng nên không biết có bị chật không, chất dạ có bị xù sau khi giặt không, có lót bên trong không, màu ghi ngoài đời có giống ảnh không hay bị tối hơn, ship về Hải Phòng mất mấy ngày và phí bao nhiêu, nếu không vừa thì đổi được trong bao lâu. Shop ơi cho mình hỏi mẫu áo khoác dạ này có size cho người cao 1m58 nặng 52kg không, mình hay mặc size S nhưng vai hơi rộng nên không biết có bị chật không, chất dạ có bị xù sau khi giặt không, có lót bên trong không, màu ghi ngoài đời có giống ảnh không hay bị tối hơn, ship về Hải Phòng mất mấy ngày và phí bao nhiêu, nếu không vừa thì đổi được trong bao lâu. Shop ơi cho mình hỏi mẫu áo khoác dạ này có size cho người cao 1m58 nặng 52kg không, mình hay mặc size S nhưng vai hơi rộng nên không biết có bị chật không, chất dạ có bị xù sau khi giặt không, có lót bên trong không, màu ghi ngoài đời có giống ảnh không hay bị tối hơn, ship về Hải Phòng mất mấy ngày và phí bao nhiêu, nếu không vừa thì đổi được trong bao lâu. Shop ơi cho mình hỏi mẫu áo khoác dạ này có size cho người cao 1m58 nặng 52kg không, mình hay mặc size S nhưng vai hơi rộng nên không biết có bị chật không, chất dạ có bị xù sau khi giặt khô</span></div><div class="meta">08:05 · <button class="btn btn-text">Xem hết (2.000 ký tự)</button></div></div>
+		</div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st" data-ca="ch09 o-go-het-24h o-go-human-agent o-go-chi-xem menu-mau ch07"><p class="xs">TRẠNG THÁI D</p><h2>Ô gõ theo luật gửi của Facebook: hết 24 giờ (khóa, có lý do và hạn), được thẻ Human Agent, Page chỉ xem; menu "/" chọn mẫu trả lời</h2></section>
+
+<div class="dlgs">
+	<div class="card" style="padding:0">
+		<div class="cmp" data-ca="o-go-het-24h ch09" style="border-top:0">
+			<p class="label">Hết 24 giờ</p>
+			<textarea class="input" disabled aria-label="Nội dung trả lời" placeholder="Không gửi được tin cho khách lúc này"></textarea>
+			<div class="box box-soft small"><b>Đã quá 24 giờ từ tin cuối của khách</b> (khách nhắn lúc 09:14 18/11, hết hạn 09:14 19/11). Facebook không cho Page nhắn tiếp tới khi khách nhắn lại. Vẫn viết được ghi chú nội bộ.</div>
+			<div class="cmp-f"><a class="btn btn-quiet" href="tel:0912345678">Gọi khách</a><button class="btn btn-quiet">Nhắc tôi lúc…</button><span class="grow"></span><button class="btn" disabled>Gửi</button></div>
+		</div>
+	</div>
+	<div class="card" style="padding:0">
+		<div class="cmp" data-ca="o-go-human-agent" style="border-top:0">
+			<p class="label">Hết 24 giờ, Page có thẻ Human Agent</p>
+			<textarea class="input" aria-label="Nội dung trả lời">Dạ chị ơi đơn của chị đã giao cho hãng chiều nay ạ</textarea>
+			<p class="small">Đã quá 24 giờ. Page được Meta cấp thẻ <b>Human Agent</b>: nhân viên tự trả lời được tới <b>09:14 25/11</b> (7 ngày từ tin cuối của khách). Không dùng cho tin tự động, mẫu nhắc lại.</p>
+			<div class="cmp-f"><button class="btn btn-quiet">Ảnh</button><span class="grow clock is-low">Còn 5 ngày 2 giờ</span><button class="btn btn-dark">Trả lời (nhân viên)</button></div>
+		</div>
+	</div>
+	<div class="card" style="padding:0">
+		<div class="cmp" data-ca="o-go-chi-xem" style="border-top:0">
+			<p class="label">Page chỉ xem</p>
+			<textarea class="input" disabled aria-label="Nội dung trả lời" placeholder="Page đang ở chế độ chỉ xem"></textarea>
+			<div class="box box-info small"><b>ELIMAZ Sale đang ở chế độ chỉ xem:</b> CRM nhận tin nhưng không gửi gì ra Facebook (chạy thử). Trả lời khách bằng công cụ đang dùng. Quản trị bật gửi ở Kết nối Page.</div>
+			<div class="cmp-f"><span class="grow"></span><button class="btn" disabled>Gửi</button></div>
+		</div>
+	</div>
+	<div class="card" style="padding:0">
+		<div class="cmp" data-ca="menu-mau ch07" style="border-top:0">
+			<p class="label">Gõ "/" chọn mẫu trả lời</p>
+			<div class="cmp-slash">
+				<div class="sugg" role="listbox" aria-label="Mẫu trả lời">
+					<div class="sugg-i" role="option" aria-selected="true"><b>/stk</b><span class="small muted">mọi Page</span><span class="sub">Chị chuyển khoản giúp em vào STK 0123 456 789, Vietcombank, ghi nội dung: {ma_don}</span></div>
+					<div class="sugg-i" role="option" aria-selected="false"><b>/size</b><span class="small muted">mọi Page</span><span class="sub">Chị cho em xin chiều cao, cân nặng để em tư vấn size ạ</span></div>
+					<div class="sugg-i" role="option" aria-selected="false"><b>/ship</b><span class="small muted">ELIMAZ Sale</span><span class="sub">Phí ship nội thành 30.000đ, ngoại thành 35.000đ, miễn phí đơn từ 1 triệu</span></div>
+				</div>
+			</div>
+			<textarea class="input" aria-label="Nội dung trả lời">/st</textarea>
+			<p class="hint">↑ ↓ chọn, Enter chèn mẫu vào ô (biến {ten}, {ma_don} điền sẵn), sửa được trước khi gửi. Esc đóng.</p>
+			<div class="cmp-f"><button class="btn btn-quiet">Ảnh</button><button class="btn btn-quiet">Mẫu /</button><span class="grow clock">Còn 20 giờ</span><button class="btn btn-dark">Gửi</button></div>
+		</div>
+	</div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

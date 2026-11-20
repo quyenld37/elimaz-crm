@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M4 — Hộp chat (Inbox)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="m4.css">
+</head>
+<body data-page="inbox" data-title="Hộp chat">
+<div class="app"><main class="main is-chat">
+
+<div class="page-h">
+	<div><h1>Hộp chat</h1><p class="sub">Tin nhắn và comment của hai Page chung một chỗ. Danh sách tự cập nhật; hội thoại mới nhất lên đầu.</p></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="ch01 ch02 ch06 ch07 ch08 dong ten-60 9-chua-doc 120-chua-doc 14-nhan 200-hoi-thoai cot-page loc"><p class="xs">TRẠNG THÁI A</p><h2>Danh sách đủ loại: tin mới vừa vào (nhảy lên đầu), comment kèm tên bài, tên khách 60 ký tự, 120 và 9 chưa đọc, 14 nhãn, người lạ lần đầu, 200 hội thoại</h2></section>
+
+<div class="chat is-2">
+	<div class="pane-list">
+		<div class="pane-b" style="gap:12px">
+			<nav class="pg" aria-label="Page">
+				<a class="pg-a" href="#" aria-current="true"><span class="grow">Tất cả Page</span><span class="unr" aria-label="129 chưa đọc">99+</span></a>
+				<a class="pg-a" href="#"><span class="grow ellip">ELIMAZ Official</span><span class="unr" aria-label="120 chưa đọc">99+</span></a>
+				<a class="pg-a" href="#"><span class="grow ellip">ELIMAZ Sale</span><span class="unr" aria-label="9 chưa đọc">9</span></a>
+			</nav>
+			<input class="input is-search" type="search" aria-label="Tìm theo tên hoặc SĐT khách" placeholder="Tìm tên hoặc SĐT khách">
+			<div class="row" style="gap:8px">
+				<span class="select-wrap grow"><select aria-label="Trạng thái"><option>Đang mở</option><option>Chờ khách</option><option>Xong</option><option>Spam</option><option>Mọi trạng thái</option></select></span>
+				<span class="select-wrap grow"><select aria-label="Người phụ trách"><option>Mọi người</option><option>Của tôi</option><option>Chưa ai nhận</option><option>Trần Minh An</option><option>Lê Thu Hằng</option></select></span>
+			</div>
+			<div class="row" style="gap:8px">
+				<span class="select-wrap grow"><select aria-label="Nhãn"><option>Mọi nhãn</option><option>Hỏi size</option><option>Đã lên đơn</option><option>Khách sỉ</option></select></span>
+				<span class="select-wrap grow"><select aria-label="Loại"><option>Tin và comment</option><option>Chỉ tin nhắn</option><option>Chỉ comment</option></select></span>
+			</div>
+			<div class="row" style="gap:8px">
+				<button class="toggle" aria-pressed="false">Chỉ chưa đọc</button>
+				<button class="toggle" aria-pressed="false">Khách chưa trả lời</button>
+			</div>
+		</div>
+		<div class="cvlist" aria-label="Hội thoại">
+			<a class="cv is-new is-unread" href="hoi-thoai.html" data-ca="ch01">
+				<span class="avatar" aria-hidden="true">T</span>
+				<span class="cv-n ellip">Phạm Thu Trang</span>
+				<span class="cv-r"><span class="cv-t">vừa xong</span><span class="unr" aria-label="1 chưa đọc">1</span></span>
+				<span class="cv-s ellip" style="grid-column:2 / -1">Chị ơi váy này còn size M không ạ?</span>
+				<span class="cv-m"><span class="muted">ELIMAZ Sale · Tin nhắn</span><span class="lb lb-1">Hỏi size</span><span class="muted">· Chưa ai nhận</span></span>
+			</a>
+			<a class="cv is-unread" href="hoi-thoai.html" data-ca="ch02">
+				<span class="avatar" aria-hidden="true">N</span>
+				<span class="cv-n ellip">NguyễnThịThuHàShopThờiTrangCôngSởXuấtKhẩuHàNộiChiNhánhSố0205</span>
+				<span class="cv-r"><span class="cv-t">2 phút</span><span class="unr" aria-label="120 chưa đọc">99+</span></span>
+				<span class="cv-s ellip" style="grid-column:2 / -1">Comment: Lấy em 2 cái màu be size L, ship Hà Đông nhé shop</span>
+				<span class="cv-m"><span class="chip chip-line">Comment</span><span class="ellip muted">Bài: Đầm lụa thu đông 2026 — bộ sưu tập mới về, giá ưu đãi tuần đầu</span></span>
+				<span class="cv-m"><span class="lb lb-1">Hỏi giá</span><span class="lb lb-3">Khách quen</span><span class="lb lb-4">Khách sỉ</span><span class="lb lb-more" aria-label="Còn 11 nhãn">+11</span><span class="muted">· Trần Minh An</span></span>
+			</a>
+			<a class="cv is-unread" href="hoi-thoai.html" aria-current="true" data-ca="ch06 ch07">
+				<span class="avatar" aria-hidden="true">M</span>
+				<span class="cv-n ellip">Lê Hà My</span>
+				<span class="cv-r"><span class="cv-t">09:14</span><span class="unr" aria-label="9 chưa đọc">9</span></span>
+				<span class="cv-s ellip" style="grid-column:2 / -1">Em gửi địa chỉ: 12 ngõ 45 Trần Duy Hưng, Trung Hòa, Cầu Giấy</span>
+				<span class="cv-m"><span class="muted">ELIMAZ Official · Tin nhắn</span><span class="lb lb-3">Đã lên đơn</span><span class="lb lb-1">Hỏi size</span><span class="lb lb-2">Chờ chuyển khoản</span><span class="muted">· Của tôi</span></span>
+			</a>
+			<a class="cv is-unread" href="hoi-thoai.html" data-ca="ch08">
+				<span class="avatar" aria-hidden="true">?</span>
+				<span class="cv-n ellip">Hoàng Văn Nam</span>
+				<span class="cv-r"><span class="cv-t">08:52</span><span class="unr" aria-label="1 chưa đọc">1</span></span>
+				<span class="cv-s ellip" style="grid-column:2 / -1">Comment: Giá bao nhiêu vậy shop?</span>
+				<span class="cv-m"><span class="chip chip-line">Comment</span><span class="ellip muted">Bài: Áo khoác dạ dáng dài</span></span>
+				<span class="cv-m"><span class="chip">Khách tiềm năng mới</span><span class="muted">· Chưa ai nhận</span></span>
+			</a>
+			<a class="cv" href="hoi-thoai.html">
+				<span class="avatar" aria-hidden="true">Q</span>
+				<span class="cv-n ellip">Đỗ Minh Quân</span>
+				<span class="cv-r"><span class="cv-t">Hôm qua</span></span>
+				<span class="cv-s ellip" style="grid-column:2 / -1">Bạn: Dạ shop gửi mã vận đơn ạ</span>
+				<span class="cv-m"><span class="muted">ELIMAZ Official · Tin nhắn · Xong · Lê Thu Hằng</span></span>
+			</a>
+		</div>
+		<div class="pane-b">
+			<div class="more" style="margin-top:0"><span>Đang xem 5 / 200 hội thoại</span><button class="btn btn-quiet">Tải thêm 50</button></div>
+			<p class="mk"><b>Mockup:</b> dòng nền hồng là hội thoại vừa có tin mới (CH01): nhảy lên đầu, tăng số chưa đọc, nền hồng 5 giây. Trên 99 chưa đọc hiện "99+". Nhãn hiện tối đa 3, còn lại "+n" (ở đây 14 nhãn). Comment có chữ "Comment" và tên bài. Người comment lần đầu tự có hồ sơ "Khách tiềm năng mới" (CH08).</p>
+		</div>
+	</div>
+	<div class="pane-conv only-desk">
+		<div class="conv-h">
+			<span class="avatar" aria-hidden="true">M</span>
+			<div style="min-width:0"><b class="ellip" style="display:block">Lê Hà My</b><span class="small muted">ELIMAZ Official · Tin nhắn · Của tôi</span></div>
+			<a class="btn btn-quiet" href="hoi-thoai.html">Mở đầy đủ</a>
+		</div>
+		<div class="thread">
+			<div class="msg in"><div class="bub">Em gửi địa chỉ: 12 ngõ 45 Trần Duy Hưng, Trung Hòa, Cầu Giấy. SĐT 0912 345 678</div><div class="meta">09:14</div></div>
+			<div class="msg out"><span class="who">Nguyễn Thị Lan</span><div class="bub">Dạ shop lên đơn cho chị luôn ạ</div><div class="meta">09:15 · <span class="st-ok">Đã gửi</span></div></div>
+		</div>
+		<div class="pane-b"><p class="mk"><b>Mockup:</b> ở 1512 bấm một dòng mở hội thoại ở cột giữa và khung khách ở cột phải (xem <a href="hoi-thoai.html">Hội thoại</a>, <a href="khung-ben-phai.html">Khung bên phải</a>). Trên điện thoại bấm dòng mở hội thoại thành màn riêng, nút "‹" quay về danh sách.</p></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="tim bang-mat-ket-noi 1-hoi-thoai 0-nhan ch06"><p class="xs">TRẠNG THÁI B</p><h2>Mất kết nối cập nhật tự động; lọc "Của tôi" + "Chỉ chưa đọc" còn 1 hội thoại, không nhãn; tìm "5678"</h2></section>
+
+<div class="chat is-1" style="max-width:420px">
+	<div class="pane-list">
+		<div class="pane-b" style="gap:12px">
+			<div class="bnr bnr-warn" role="status" data-ca="bang-mat-ket-noi"><span class="grow"><b>Mất kết nối, đang nối lại.</b> Tin mới có thể chưa hiện. Trong lúc chờ, danh sách tự tải lại mỗi 20 giây.</span><button class="btn btn-quiet">Tải lại ngay</button></div>
+			<input class="input is-search" type="search" value="5678" aria-label="Tìm theo tên hoặc SĐT khách">
+			<div class="row" style="gap:8px">
+				<span class="select-wrap grow"><select aria-label="Trạng thái"><option>Đang mở</option></select></span>
+				<span class="select-wrap grow"><select aria-label="Người phụ trách"><option>Của tôi</option></select></span>
+			</div>
+			<div class="row" style="gap:8px"><button class="toggle" aria-pressed="true">Chỉ chưa đọc</button><button class="toggle" aria-pressed="false">Khách chưa trả lời</button><button class="btn btn-text">Bỏ lọc</button></div>
+		</div>
+		<div class="cvlist" aria-label="Hội thoại">
+			<a class="cv is-unread" href="hoi-thoai.html">
+				<span class="avatar" aria-hidden="true">H</span>
+				<span class="cv-n ellip">Trần Thị Thu Hà</span>
+				<span class="cv-r"><span class="cv-t">10:02</span><span class="unr" aria-label="2 chưa đọc">2</span></span>
+				<span class="cv-s ellip" style="grid-column:2 / -1">SĐT •••• •• <mark>5678</mark> · Chị chuyển khoản rồi nhé</span>
+				<span class="cv-m"><span class="muted">ELIMAZ Sale · Tin nhắn · Của tôi</span></span>
+			</a>
+		</div>
+		<div class="pane-b"><p class="small muted">1 hội thoại khớp. Tìm theo tên không dấu hoặc từ 4 số cuối SĐT, như ô tìm khách ở Lên đơn.</p></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" data-ca="0-hoi-thoai 0-chua-doc bang-chi-xem bang-page-mat-ket-noi"><p class="xs">TRẠNG THÁI C</p><h2>Không có hội thoại nào; không còn tin chưa đọc; một Page đang ở chế độ chỉ xem, một Page mất kết nối</h2></section>
+
+<div class="chat is-1" style="max-width:420px">
+	<div class="pane-list">
+		<div class="pane-b" style="gap:12px">
+			<div class="bnr bnr-info" data-ca="bang-chi-xem"><span class="grow"><b>ELIMAZ Sale đang ở chế độ chỉ xem.</b> CRM nhận tin và comment nhưng chưa gửi gì ra Facebook. Quản trị bật gửi ở Kết nối Page.</span></div>
+			<div class="bnr bnr-err" data-ca="bang-page-mat-ket-noi"><b>ELIMAZ Official mất kết nối.</b><span class="grow">Facebook không còn nhận mã truy cập của Page (đổi mật khẩu hoặc gỡ quyền). Tin mới không về CRM và không gửi được. Quản trị cần kết nối lại.</span><a class="btn btn-quiet" href="#">Mở Kết nối Page</a></div>
+			<nav class="pg" aria-label="Page">
+				<a class="pg-a" href="#" aria-current="true"><span class="grow">Tất cả Page</span><span class="small muted">đã đọc hết</span></a>
+				<a class="pg-a" href="#"><span class="grow ellip">ELIMAZ Official</span><span class="chip chip-err">Mất kết nối</span></a>
+				<a class="pg-a" href="#"><span class="grow ellip">ELIMAZ Sale</span><span class="chip">Chỉ xem</span></a>
+			</nav>
+			<div class="row" style="gap:8px"><button class="toggle" aria-pressed="true">Chỉ chưa đọc</button><button class="btn btn-text">Bỏ lọc</button></div>
+			<div class="empty"><h2>Không có hội thoại nào</h2><p class="muted small">Không còn tin chưa đọc. Bỏ lọc để xem cả hội thoại đã đọc.</p><button class="btn btn-line">Bỏ lọc</button></div>
+		</div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st" data-ca="ch16"><p class="xs">TRẠNG THÁI D</p><h2>Khách chưa trả lời: gửi mẫu nhắc lại bằng một chạm (CH16)</h2></section>
+
+<div class="chat is-1" style="max-width:520px">
+	<div class="pane-list">
+		<div class="pane-b" style="gap:12px">
+			<div class="row" style="gap:8px"><button class="toggle" aria-pressed="false">Chỉ chưa đọc</button><button class="toggle" aria-pressed="true">Khách chưa trả lời</button></div>
+			<div class="row" style="gap:8px;align-items:flex-end"><label class="field grow"><span>Im lặng quá</span><span class="select-wrap"><select><option>3 giờ</option><option>1 giờ</option><option>6 giờ</option><option>12 giờ</option></select></span></label></div>
+			<label class="field"><span>Mẫu nhắc lại</span><span class="select-wrap"><select><option>/nhac — Chị ơi mẫu chị hỏi còn ít…</option><option>/stk — Thông tin chuyển khoản</option></select></span></label>
+			<p class="small muted">Hội thoại tin nhắn đang mở hoặc chờ khách mà shop nói sau cùng và khách im lặng quá 3 giờ. Không có trong danh sách: khách quá 24 giờ (còn dưới 5 phút), khách "không liên hệ", khách đã chặn Page. Bấm "Gửi mẫu" gửi ngay một tin theo mẫu; dòng chuyển "Đã gửi". Tự nhắn lại một bước bật ở Cài đặt hộp chat (mặc định tắt).</p>
+		</div>
+		<div class="cvlist" aria-label="Khách chưa trả lời">
+			<div class="cv">
+				<span class="avatar" aria-hidden="true">L</span>
+				<span class="cv-n ellip">Vũ Thị Lan Anh</span>
+				<span class="cv-r"><span class="cv-t">5 giờ</span></span>
+				<span class="cv-s ellip" style="grid-column:2 / -1">Bạn: Dạ mẫu này còn màu đen và be ạ</span>
+				<span class="cv-m"><span class="clock">Còn 19 giờ để nhắn</span></span>
+				<span class="cv-m"><button class="btn btn-dark">Gửi mẫu /nhac</button></span>
+			</div>
+			<div class="cv">
+				<span class="avatar" aria-hidden="true">K</span>
+				<span class="cv-n ellip">Ngô Kim Khánh</span>
+				<span class="cv-r"><span class="cv-t">7 giờ</span></span>
+				<span class="cv-s ellip" style="grid-column:2 / -1">Bạn: Chị chốt size nào để em giữ hàng ạ?</span>
+				<span class="cv-m"><span class="meta" style="justify-content:flex-start"><span class="st-ok">Đã gửi mẫu /nhac lúc 14:05</span> · dòng rời danh sách ở lần tải sau</span></span>
+			</div>
+		</div>
+	</div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>
