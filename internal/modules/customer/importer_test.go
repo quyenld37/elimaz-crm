@@ -148,18 +148,10 @@ func (e *importEnv) startRows(rows [][]string) customer.Import {
 	return imp
 }
 
-// drain chạy worker tới khi không còn việc đến hạn.
+// drain chạy worker tới khi không còn việc pending nào, kể cả việc được hẹn chạy lại sau (Task 429).
 func (e *importEnv) drain() {
 	e.t.Helper()
-	for range 50 {
-		n, err := e.wk.RunOnce(e.t.Context(), 10)
-		if err != nil {
-			e.t.Fatalf("RunOnce: %v", err)
-		}
-		if n == 0 {
-			return
-		}
-	}
+	e.staff.DrainJobs(e.t, e.wk)
 }
 
 // run tải body, bắt đầu lần nhập, chạy lệnh và trả lần nhập sau khi chạy.
@@ -473,5 +465,20 @@ func TestImportTemplate(t *testing.T) {
 	rows, cellErrs, err := xlsx.Read(bytes.NewReader(b), int64(len(b)), xlsx.Limits{}, want)
 	if err != nil || len(rows) != 0 || len(cellErrs) != 0 {
 		t.Fatalf("đọc lại mẫu: %v %d %d", err, len(rows), len(cellErrs))
+	}
+}
+
+// Task 429: lệnh nhập bị hẹn chạy lại sau (như sau một lỗi tạm khi máy bận) → drain vẫn chạy nó tới cuối thay vì dừng
+// khi hết việc đến hạn; lần nhập done.
+func TestImport_DrainRunsScheduledRetry(t *testing.T) {
+	e := newImportEnv(t)
+	imp := e.startRows([][]string{{"Nguyễn Văn An", "0912000001"}})
+	if _, err := e.staff.Owner.Pool.Exec(t.Context(), `UPDATE platform.jobs SET run_at = now() + interval '1 hour',
+		attempts = 1 WHERE status = 'pending'`); err != nil {
+		t.Fatal(err)
+	}
+	e.drain()
+	if got := e.get(imp.ID); got.Status != customer.ImportDone || got.OKRows != 1 {
+		t.Fatalf("lần nhập: %+v, mong done 1 dòng", got)
 	}
 }

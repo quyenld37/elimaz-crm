@@ -162,18 +162,10 @@ func (e *importEnv) getImport(id uuid.UUID) catalog.Import {
 	return imp
 }
 
-// drain chạy worker tới khi không còn việc đến hạn.
+// drain chạy worker tới khi không còn việc pending nào, kể cả việc được hẹn chạy lại sau (Task 429).
 func (e *importEnv) drain() {
 	e.t.Helper()
-	for range 20 {
-		n, err := e.w.RunOnce(e.t.Context(), 10)
-		if err != nil {
-			e.t.Fatalf("RunOnce: %v", err)
-		}
-		if n == 0 {
-			return
-		}
-	}
+	e.staff.DrainJobs(e.t, e.w)
 }
 
 // validate tải body lên, tạo bản nhập, chạy lệnh kiểm và trả bản nhập sau khi kiểm.
