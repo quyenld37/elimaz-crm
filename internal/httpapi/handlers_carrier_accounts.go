@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	ht "github.com/ogen-go/ogen/http"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/catalog"
@@ -19,7 +18,7 @@ import (
 // Vùng carrier_accounts (kế hoạch M3, Task M3-09, M3-18): tài khoản hãng, khóa API, kiểm kết nối, đồng bộ địa giới.
 // Đọc cần fulfillment.carrier_accounts.read (webhookUrl chỉ trả cho người có …manage), ghi cần …manage (toàn shop;
 // guard kiểm trước handler). Audit ghi ở đây, cùng tx (fulfillment không nhập identity); không bao giờ có khóa API
-// trong câu trả lời, audit hay log. SyncCarrierLocations, ListUnmappedLocations còn là khung của Task M3-18.
+// trong câu trả lời, audit hay log. Đồng bộ địa giới ghi lệnh nền (Task M3-18); danh sách chưa khớp theo hãng, toàn shop.
 
 const (
 	permCarrierAccountsManage = identity.Permission("fulfillment.carrier_accounts.manage")
@@ -301,16 +300,46 @@ func carrierAccountOut(v fulfillment.AccountView, manage bool) *gen.CarrierAccou
 	return out
 }
 
-// SyncCarrierLocations (POST /api/v1/carrier-accounts/{id}/locations/sync).
+// SyncCarrierLocations (POST /api/v1/carrier-accounts/{id}/locations/sync): ghi lệnh đồng bộ địa giới, 202 {jobId}.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
-func (*handler) SyncCarrierLocations(_ context.Context, _ gen.SyncCarrierLocationsParams) (gen.SyncCarrierLocationsRes, error) {
-	return nil, ht.ErrNotImplemented
+func (h *handler) SyncCarrierLocations(ctx context.Context, params gen.SyncCarrierLocationsParams) (gen.SyncCarrierLocationsRes, error) {
+	return h.accountJob(ctx, "đồng bộ địa giới của hãng", "fulfillment.carrier_account.locations_sync", params.ID,
+		(*fulfillment.Service).SyncLocations)
 }
 
-// ListUnmappedLocations (GET /api/v1/carrier-locations/unmapped).
+// ListUnmappedLocations (GET /api/v1/carrier-locations/unmapped): mã địa giới của CRM chưa có mã của hãng, theo (cấp,
+// mã); nextCursor là "<cấp>:<mã>" của dòng cuối.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
-func (*handler) ListUnmappedLocations(_ context.Context, _ gen.ListUnmappedLocationsParams) (gen.ListUnmappedLocationsRes, error) {
-	return nil, ht.ErrNotImplemented
+func (h *handler) ListUnmappedLocations(ctx context.Context, params gen.ListUnmappedLocationsParams) (gen.ListUnmappedLocationsRes, error) {
+	s, err := h.fulfillmentService()
+	if err != nil {
+		return nil, err
+	}
+	f := fulfillment.UnmappedFilter{
+		CarrierKey: params.Carrier, Level: string(params.Level.Or("")), After: params.Cursor.Or(""),
+		Limit: int(params.Limit.Or(0)),
+	}
+	var items []fulfillment.UnmappedLocation
+	var more bool
+	if err := h.inventoryRead(ctx, func(tx pgx.Tx, _ identity.AuthUser) (err error) {
+		items, more, err = s.UnmappedLocations(ctx, tx, f)
+		return err //nolint:wrapcheck // fulfillment đã bọc
+	}); err != nil {
+		return nil, fmt.Errorf("đọc địa giới chưa khớp: %w", err)
+	}
+	out := &gen.UnmappedLocationPage{Items: make([]gen.UnmappedLocation, 0, len(items))}
+	for _, v := range items {
+		it := gen.UnmappedLocation{Level: gen.UnmappedLocationLevel(v.Level), OurCode: v.OurCode, Name: v.Name}
+		if v.ParentCode != "" {
+			it.ParentCode = gen.NewOptString(v.ParentCode)
+		}
+		out.Items = append(out.Items, it)
+	}
+	if more && len(items) > 0 {
+		last := items[len(items)-1]
+		out.NextCursor = gen.NewOptString(last.Level + ":" + last.OurCode)
+	}
+	return out, nil
 }

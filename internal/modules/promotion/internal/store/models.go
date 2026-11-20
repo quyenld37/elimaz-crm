@@ -418,6 +418,13 @@ type CustomerAdminUnit struct {
 	Source        string
 }
 
+type CustomerAdminUnitsV struct {
+	Code       string
+	Level      string
+	ParentCode pgtype.Text
+	Name       string
+}
+
 type CustomerCustomer struct {
 	ID             uuid.UUID
 	TenantID       uuid.UUID
