@@ -204,6 +204,7 @@ func (*Service) lockShippable(ctx context.Context, tx pgx.Tx, q *store.Queries, 
 
 // shareAccount đọc tài khoản id FOR SHARE và kiểm dùng được cho đơn o: active, mode api hay manual (Task M3-15), cùng
 // người bán (ADR-29), cùng kho giữ hàng của đơn (ADR-18).
+// Đổi điều kiện ở đây thì đổi cả ShipAccounts (ship_accounts.go: danh sách tài khoản màn cho chọn).
 func shareAccount(ctx context.Context, q *store.Queries, id uuid.UUID, o order.Snapshot) (store.ShareAccountForShipRow, error) {
 	acc, err := q.ShareAccountForShip(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {

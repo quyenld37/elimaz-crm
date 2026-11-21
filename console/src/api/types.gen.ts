@@ -2012,6 +2012,27 @@ export type CarrierAccountPage = {
 };
 
 /**
+ * Tài khoản hãng dùng được để gửi một đơn (chỉ phần người gửi cần chọn; không khóa, không cấu hình)
+ */
+export type ShipAccount = {
+    id: string;
+    name: string;
+    /**
+     * Khóa hãng; self = shop tự giao
+     */
+    carrierKey: string;
+    mode: CarrierAccountMode;
+    status: CarrierAccountStatus;
+};
+
+export type ShipAccountList = {
+    /**
+     * Xếp web_sort rồi id
+     */
+    items: Array<ShipAccount>;
+};
+
+/**
  * Bộ khóa API của hãng (tên trường theo hãng); chỉ ghi, không bao giờ trả lại
  */
 export type CarrierCredentials = {
@@ -7332,6 +7353,33 @@ export type RequestShippingQuotesResponses = {
 };
 
 export type RequestShippingQuotesResponse = RequestShippingQuotesResponses[keyof RequestShippingQuotesResponses];
+
+export type ListOrderShippingAccountsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/orders/{id}/shipping-accounts';
+};
+
+export type ListOrderShippingAccountsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListOrderShippingAccountsError = ListOrderShippingAccountsErrors[keyof ListOrderShippingAccountsErrors];
+
+export type ListOrderShippingAccountsResponses = {
+    /**
+     * listOrderShippingAccounts
+     */
+    200: ShipAccountList;
+};
+
+export type ListOrderShippingAccountsResponse = ListOrderShippingAccountsResponses[keyof ListOrderShippingAccountsResponses];
 
 export type ListShipmentEventsData = {
     body?: never;

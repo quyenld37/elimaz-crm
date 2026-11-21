@@ -164,6 +164,7 @@ var Routes = []Route{
 	{Method: "POST", Pattern: "POST /api/v1/orders/{id}/returns", OperationID: "createReturn", Permission: "order.return", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/orders/{id}/shipments", OperationID: "listOrderShipments", Permission: "fulfillment.read"},
 	{Method: "POST", Pattern: "POST /api/v1/orders/{id}/shipments", OperationID: "createShipment", Permission: "fulfillment.ship", Write: true, IdempotencyMode: "required"},
+	{Method: "GET", Pattern: "GET /api/v1/orders/{id}/shipping-accounts", OperationID: "listOrderShippingAccounts", Permission: "fulfillment.ship"},
 	{Method: "GET", Pattern: "GET /api/v1/orders/{id}/shipping-quotes", OperationID: "listShippingQuotes", Permission: "fulfillment.quote"},
 	{Method: "POST", Pattern: "POST /api/v1/orders/{id}/shipping-quotes", OperationID: "requestShippingQuotes", Permission: "fulfillment.quote", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/orders/{id}/timeline", OperationID: "getOrderTimeline", Permission: "order.read"},

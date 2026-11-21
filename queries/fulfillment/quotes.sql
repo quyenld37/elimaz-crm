@@ -3,8 +3,9 @@
 -- carrier_accounts, mà đường này chỉ đọc carrier_accounts không khóa).
 
 -- name: QuoteAccounts :many
--- Tài khoản hãng của người bán ở kho (bỏ trống ids: mọi tài khoản của người bán ở kho đó; có ids: đúng các tài khoản
--- đó của người bán, mọi kho, mọi trạng thái để bên gọi báo lý do). Xếp web_sort rồi id.
+-- Tài khoản hãng của người bán ở kho (bỏ trống ids — mảng rỗng, không NULL: mọi tài khoản của người bán ở kho đó;
+-- có ids: đúng các tài khoản đó của người bán, mọi kho, mọi trạng thái để bên gọi báo lý do). Xếp web_sort rồi id.
+-- Dùng cho so phí và ShipAccounts (tài khoản gửi được của đơn, Task 449).
 SELECT id, name, carrier_key, mode, status, warehouse_id, default_options
 FROM fulfillment.carrier_accounts
 WHERE seller_id = @seller_id

@@ -9503,6 +9503,91 @@ func (s *Server) handleListOrderShipmentsRequest(args [1]string, argsEscaped boo
 	}
 }
 
+// handleListOrderShippingAccountsRequest handles listOrderShippingAccounts operation.
+//
+// Quyền fulfillment.ship ở kho của đơn (thiếu → 403); đơn lạ → 404. Không bao giờ
+// có khóa API, địa chỉ lấy hàng, cấu hình hay webhookUrl.
+//
+// GET /api/v1/orders/{id}/shipping-accounts
+func (s *Server) handleListOrderShippingAccountsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListOrderShippingAccountsOperation,
+			ID:   "listOrderShippingAccounts",
+		}
+	)
+	params, err := decodeListOrderShippingAccountsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListOrderShippingAccountsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListOrderShippingAccountsOperation,
+			OperationSummary: "Tài khoản hãng gửi được cho đơn (active, cùng người bán và kho của đơn; api có adapter, nhập tay, tự giao); chỉ id, tên, hãng, chế độ, trạng thái (Task 449)",
+			OperationID:      "listOrderShippingAccounts",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListOrderShippingAccountsParams
+			Response = ListOrderShippingAccountsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListOrderShippingAccountsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListOrderShippingAccounts(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListOrderShippingAccounts(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListOrderShippingAccountsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleListOrdersRequest handles listOrders operation.
 //
 // Danh sách đơn, mới nhất trước, keyset; lọc theo nhãn, trạng thái, nguồn, người

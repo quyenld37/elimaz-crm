@@ -409,6 +409,10 @@ type ListOrderShipmentsRes interface {
 	listOrderShipmentsRes()
 }
 
+type ListOrderShippingAccountsRes interface {
+	listOrderShippingAccountsRes()
+}
+
 type ListOrdersRes interface {
 	listOrdersRes()
 }

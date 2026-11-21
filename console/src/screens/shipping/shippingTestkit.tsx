@@ -4,12 +4,12 @@ import { render } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { vi } from "vitest";
 import type {
-  CarrierAccount,
   DeliveryStats,
   FulfillmentSettings,
   Grant,
   Me,
   Order,
+  ShipAccount,
   Shipment,
   ShippingQuote,
 } from "../../api";
@@ -57,21 +57,17 @@ export function quote(p: Partial<ShippingQuote> = {}): ShippingQuote {
   };
 }
 
-export function account(p: Partial<CarrierAccount> = {}): CarrierAccount {
+/** Tài khoản hãng của API giả: ShipAccount kèm kho (máy chủ chỉ trả tài khoản của kho của đơn, không trả kho). */
+export type FakeAccount = ShipAccount & { warehouseId: string };
+
+export function account(p: Partial<FakeAccount> = {}): FakeAccount {
   return {
     id: A_GHN,
     carrierKey: "ghn",
     mode: "manual",
-    environment: "production",
     name: "GHN — nhập mã tay",
     status: "active",
     warehouseId: WH,
-    isDefaultForWarehouse: false,
-    showOnWeb: false,
-    webSort: 0,
-    hasCredentials: false,
-    needsRewrap: false,
-    version: 1,
     ...p,
   };
 }
@@ -101,14 +97,17 @@ export const grantsAt = (warehouse: string, ...perms: string[]): Grant[] =>
     scope: permission.startsWith("fulfillment.") ? { type: "warehouse", id: warehouse } : { type: "all", id: "" },
   }));
 
-export const SENDER = ["fulfillment.quote", "fulfillment.ship", "fulfillment.carrier_accounts.read"];
+/** Quyền gửi của vai Bán hàng (sale) ở kho: không có fulfillment.carrier_accounts.read (Task 449). */
+export const SENDER = ["fulfillment.quote", "fulfillment.ship"];
 
 export interface Fake {
   grants: Grant[];
   /** Kết quả listShippingQuotes theo requestId ("" = lần gần nhất). */
   quotes: Map<string, { requestId?: string; items: ShippingQuote[] }>;
   quoteCalls: (string | null)[];
-  accounts: CarrierAccount[];
+  accounts: FakeAccount[];
+  /** Đường đã đọc của listOrderShippingAccounts và listCarrierAccounts (khối Vận chuyển chỉ được dùng đường đầu). */
+  accountReads: string[];
   shipments: Map<string, Shipment>;
   orderShipments: Shipment[];
   stats: DeliveryStats | null;
@@ -133,7 +132,9 @@ const SETTINGS: FulfillmentSettings = {
   version: 1,
 };
 
-const has = (f: Fake, p: string) => f.grants.some((g) => g.permission === p);
+/** Như máy chủ: quyền p toàn shop hoặc đúng kho wh. */
+const hasAt = (f: Fake, p: string, wh: string) =>
+  f.grants.some((g) => g.permission === p && (g.scope.type === "all" || g.scope.id === wh));
 
 export function installFake(): Fake {
   const fake: Fake = {
@@ -141,6 +142,7 @@ export function installFake(): Fake {
     quotes: new Map(),
     quoteCalls: [],
     accounts: [],
+    accountReads: [],
     shipments: new Map(),
     orderShipments: [],
     stats: { delivered: 9, returned: 1, returnRateBp: 1000, risk: "none" },
@@ -170,9 +172,23 @@ export function installFake(): Fake {
     if (path === "/api/v1/me") return reply(me);
     if (path === "/api/v1/fulfillment-settings") return reply(SETTINGS);
     if (path === "/api/v1/carrier-accounts") {
-      return has(fake, "fulfillment.carrier_accounts.read")
-        ? reply({ items: fake.accounts.filter((a) => a.warehouseId === q.get("warehouseId")) })
-        : reply(FORBIDDEN, 403);
+      fake.accountReads.push(path);
+      return reply(FORBIDDEN, 403);
+    }
+    // listOrderShippingAccounts: đơn của test luôn ở kho WH (confirmedOrder); fulfillment.ship ở WH, không thì 403.
+    if (/^\/api\/v1\/orders\/[^/]+\/shipping-accounts$/.test(path)) {
+      fake.accountReads.push(path);
+      if (!hasAt(fake, "fulfillment.ship", WH)) return reply(FORBIDDEN, 403);
+      const items = fake.accounts
+        .filter((a) => a.warehouseId === WH && a.status === "active")
+        .map((a): ShipAccount => ({
+          id: a.id,
+          name: a.name,
+          carrierKey: a.carrierKey,
+          mode: a.mode,
+          status: a.status,
+        }));
+      return reply({ items });
     }
     if (/^\/api\/v1\/orders\/[^/]+\/shipping-quotes$/.test(path)) {
       const rid = q.get("requestId");

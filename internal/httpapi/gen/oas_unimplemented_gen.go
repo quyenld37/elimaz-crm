@@ -1007,6 +1007,16 @@ func (UnimplementedHandler) ListOrderShipments(ctx context.Context, params ListO
 	return r, ht.ErrNotImplemented
 }
 
+// ListOrderShippingAccounts implements listOrderShippingAccounts operation.
+//
+// Quyền fulfillment.ship ở kho của đơn (thiếu → 403); đơn lạ → 404. Không bao giờ
+// có khóa API, địa chỉ lấy hàng, cấu hình hay webhookUrl.
+//
+// GET /api/v1/orders/{id}/shipping-accounts
+func (UnimplementedHandler) ListOrderShippingAccounts(ctx context.Context, params ListOrderShippingAccountsParams) (r ListOrderShippingAccountsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListOrders implements listOrders operation.
 //
 // Danh sách đơn, mới nhất trước, keyset; lọc theo nhãn, trạng thái, nguồn, người

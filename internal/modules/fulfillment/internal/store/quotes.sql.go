@@ -283,8 +283,9 @@ type QuoteAccountsRow struct {
 // Báo phí các hãng trên đơn (kế hoạch M3, Task M3-13). Mọi câu trong tenancy.WithTenant (crm_app). Không khóa dòng:
 // chỉ chèn dòng mới và đổi dòng còn pending bằng câu có điều kiện (ADR-46 nhóm 8: shipping_quotes sau
 // carrier_accounts, mà đường này chỉ đọc carrier_accounts không khóa).
-// Tài khoản hãng của người bán ở kho (bỏ trống ids: mọi tài khoản của người bán ở kho đó; có ids: đúng các tài khoản
-// đó của người bán, mọi kho, mọi trạng thái để bên gọi báo lý do). Xếp web_sort rồi id.
+// Tài khoản hãng của người bán ở kho (bỏ trống ids — mảng rỗng, không NULL: mọi tài khoản của người bán ở kho đó;
+// có ids: đúng các tài khoản đó của người bán, mọi kho, mọi trạng thái để bên gọi báo lý do). Xếp web_sort rồi id.
+// Dùng cho so phí và ShipAccounts (tài khoản gửi được của đơn, Task 449).
 func (q *Queries) QuoteAccounts(ctx context.Context, arg QuoteAccountsParams) ([]QuoteAccountsRow, error) {
 	rows, err := q.db.Query(ctx, quoteAccounts, arg.SellerID, arg.Ids, arg.WarehouseID)
 	if err != nil {
