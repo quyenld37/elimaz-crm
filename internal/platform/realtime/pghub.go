@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -58,13 +59,19 @@ type PGHub struct {
 	o         PGHubOptions
 	listening atomic.Bool
 
-	mu   sync.RWMutex
-	subs map[*subscriber]struct{}
+	mu      sync.RWMutex
+	subs    map[*subscriber]struct{}
+	sysSubs map[*systemSubscriber]struct{}
 }
 
 type subscriber struct {
 	u    identity.AuthUser
 	send func(Frame)
+}
+
+type systemSubscriber struct {
+	prefix string
+	fn     func(Signal)
 }
 
 // NewPGHub dựng hub; gọi Run để bắt đầu nghe.
@@ -84,7 +91,7 @@ func NewPGHub(o PGHubOptions) *PGHub {
 	if o.Logger == nil {
 		o.Logger = slog.Default()
 	}
-	return &PGHub{o: o, subs: map[*subscriber]struct{}{}}
+	return &PGHub{o: o, subs: map[*subscriber]struct{}{}, sysSubs: map[*systemSubscriber]struct{}{}}
 }
 
 // Publish phát s bằng pg_notify trong tx: PostgreSQL chỉ giao khi tx commit.
@@ -113,6 +120,23 @@ func (h *PGHub) Subscribe(u identity.AuthUser, send func(Frame)) (cancel func())
 			delete(h.subs, s)
 			h.mu.Unlock()
 			h.clientsGauge()
+		})
+	}
+}
+
+// SubscribeSystem đăng ký nhận báo hiệu hệ thống có Topic bắt đầu bằng topicPrefix, và TopicSystemResync; fn được
+// gọi từ goroutine của hub nên không được chặn.
+func (h *PGHub) SubscribeSystem(topicPrefix string, fn func(Signal)) (cancel func()) {
+	s := &systemSubscriber{prefix: topicPrefix, fn: fn}
+	h.mu.Lock()
+	h.sysSubs[s] = struct{}{}
+	h.mu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			h.mu.Lock()
+			delete(h.sysSubs, s)
+			h.mu.Unlock()
 		})
 	}
 }
@@ -174,6 +198,8 @@ func (h *PGHub) listen(ctx context.Context) (listened bool, err error) {
 		return false, fmt.Errorf("LISTEN rt: %w", err)
 	}
 	h.setListening(true)
+	// Hệ thống trước, SSE sau: ai đã thấy khung resync của lần nghe này thì cũng đã qua lượt system.resync của nó.
+	h.broadcastSystem(Signal{Topic: TopicSystemResync, System: true})
 	h.broadcast(resyncFrame())
 	for {
 		wctx, cancel := context.WithTimeout(ctx, h.o.CheckEvery)
@@ -199,11 +225,16 @@ func (h *PGHub) listen(ctx context.Context) (listened bool, err error) {
 	}
 }
 
-// dispatch đọc payload của NOTIFY và gửi khung changed cho client đúng tenant, có quyền Requires trên Scope.
+// dispatch đọc payload của NOTIFY và gửi khung changed cho client đúng tenant, có quyền Requires trên Scope. Báo hiệu
+// hệ thống chỉ tới người đăng ký hệ thống có tiền tố khớp, không bao giờ tới kết nối SSE.
 func (h *PGHub) dispatch(payload string) {
 	var w wireSignal
 	if err := json.Unmarshal([]byte(payload), &w); err != nil {
 		h.inc(metricBadPayload)
+		return
+	}
+	if w.System {
+		h.dispatchSystem(Signal{TenantID: w.TenantID, Topic: w.Topic, Entity: w.Entity, System: true})
 		return
 	}
 	var scope *identity.Scope
@@ -223,6 +254,26 @@ func (h *PGHub) dispatch(payload string) {
 		if s.u.TenantID == w.TenantID && identity.Can(s.u, req, scope) {
 			s.send(f)
 		}
+	}
+}
+
+// dispatchSystem gửi s cho người đăng ký hệ thống có tiền tố khớp s.Topic.
+func (h *PGHub) dispatchSystem(s Signal) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for sub := range h.sysSubs {
+		if strings.HasPrefix(s.Topic, sub.prefix) {
+			sub.fn(s)
+		}
+	}
+}
+
+// broadcastSystem gửi s cho mọi người đăng ký hệ thống, không xét tiền tố.
+func (h *PGHub) broadcastSystem(s Signal) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for sub := range h.sysSubs {
+		sub.fn(s)
 	}
 }
 

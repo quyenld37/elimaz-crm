@@ -1,8 +1,9 @@
 // Package realtime phát báo hiệu "đối tượng X vừa đổi" tới màn hình nhân viên qua SSE (spec 04 mục 6, ADR-05,
 // ADR-17). Báo hiệu không mang dữ liệu: màn hình nhận rồi tải lại bằng API thường, nên mất báo hiệu không mất dữ liệu.
 //
-// Phần công khai: Signal (báo hiệu), Bus (phát, đăng ký nhận, trạng thái), PGHub (bản hiện thực bằng LISTEN/NOTIFY
-// của PostgreSQL, tự nối lại) và ServeSSE (luồng text/event-stream của GET /api/v1/stream, gộp theo lô, nhịp tim).
+// Phần công khai: Signal (báo hiệu; System: báo hiệu cho tiến trình, không tới SSE), Bus (phát, đăng ký nhận của nhân
+// viên và của hệ thống, trạng thái), PGHub (bản hiện thực bằng LISTEN/NOTIFY của PostgreSQL, tự nối lại) và ServeSSE
+// (luồng text/event-stream của GET /api/v1/stream, gộp theo lô, nhịp tim).
 //
 // Khi nào không dùng: không gửi dữ liệu nghiệp vụ hay dữ liệu cá nhân qua báo hiệu (chỉ mã đối tượng); không dùng
 // làm hàng đợi hay sự kiện nội bộ (báo hiệu được phép mất: dùng events.Emit, commands); không phát ngoài transaction
@@ -33,7 +34,7 @@ const maxPayload = 7000
 
 var (
 	// ErrInvalidSignal là lỗi khi báo hiệu thiếu tenant, thiếu chủ đề, Requires không phải quyền đã biết, hoặc Requires
-	// là quyền theo đích mà thiếu Scope.
+	// là quyền theo đích mà thiếu Scope; hoặc báo hiệu hệ thống có Requires hay Scope.
 	ErrInvalidSignal = errors.New("realtime: báo hiệu không hợp lệ")
 	// ErrSignalTooLarge là lỗi khi JSON của báo hiệu vượt 7.000 byte.
 	ErrSignalTooLarge = errors.New("realtime: báo hiệu quá 7.000 byte")
@@ -47,13 +48,21 @@ type Entity struct {
 
 // Signal là một báo hiệu: chỉ nhân viên cùng TenantID và có quyền Requires trên Scope (identity.Can) nhận được. Scope
 // nil chỉ được với quyền không theo đích (identity.ScopeNone). Không mang dữ liệu cá nhân hay nội dung (chỉ chủ đề và mã).
+//
+// System: báo hiệu cho tiến trình (ví dụ xóa khóa bộ đệm, kế hoạch M5 Task 185), không bao giờ tới kết nối SSE của
+// nhân viên; chỉ người đăng ký SubscribeSystem có tiền tố khớp Topic nhận. Báo hiệu hệ thống không có Requires, Scope.
 type Signal struct {
 	TenantID uuid.UUID
 	Topic    string
 	Requires identity.Permission
 	Scope    *identity.Scope
 	Entity   Entity
+	System   bool
 }
+
+// TopicSystemResync là chủ đề của báo hiệu hệ thống (TenantID rỗng) gửi cho mọi người đăng ký hệ thống mỗi lần kết
+// nối LISTEN nghe được (lần đầu và sau khi nối lại): báo hiệu trong lúc rớt có thể đã mất, bên nhận làm mới tất cả.
+const TopicSystemResync = "system.resync"
 
 // WarehouseScope là Scope của báo hiệu đòi quyền theo kho warehouseID (identity.ScopeWarehouse), cho module không
 // được nhập identity theo cột "Được gọi" của 04 mục 3 (inventory).
@@ -75,7 +84,10 @@ type Bus interface {
 	// Subscribe nhận khung cho nhân viên u (đã lọc tenant và quyền) qua send; send không được chặn lâu. cancel hủy
 	// đăng ký, gọi nhiều lần được.
 	Subscribe(u identity.AuthUser, send func(Frame)) (cancel func())
-	// Status: tầng dưới đang nghe được không, và số client đang đăng ký.
+	// SubscribeSystem nhận báo hiệu hệ thống có Topic bắt đầu bằng topicPrefix (mọi tenant), và TopicSystemResync,
+	// qua fn; fn được gọi từ goroutine của tầng dưới nên không được chặn. cancel hủy đăng ký, gọi nhiều lần được.
+	SubscribeSystem(topicPrefix string, fn func(Signal)) (cancel func())
+	// Status: tầng dưới đang nghe được không, và số client đang đăng ký (kết nối SSE, không tính người đăng ký hệ thống).
 	Status() (listening bool, clients int)
 }
 
@@ -92,6 +104,7 @@ type wireSignal struct {
 	Requires string     `json:"req"`
 	Scope    *wireScope `json:"scope,omitempty"`
 	Entity   Entity     `json:"entity"`
+	System   bool       `json:"sys,omitempty"`
 }
 
 // changedData là data của khung changed (không có tenant, quyền).
@@ -103,6 +116,12 @@ type changedData struct {
 
 // encodeSignal kiểm s rồi trả JSON của NOTIFY.
 func encodeSignal(s Signal) (string, error) {
+	if s.System {
+		if s.TenantID == uuid.Nil || s.Topic == "" || s.Requires != "" || s.Scope != nil {
+			return "", ErrInvalidSignal
+		}
+		return marshalSignal(wireSignal{TenantID: s.TenantID, Topic: s.Topic, Entity: s.Entity, System: true})
+	}
 	if s.TenantID == uuid.Nil || s.Topic == "" || !identity.IsKnown(s.Requires) {
 		return "", ErrInvalidSignal
 	}
@@ -114,6 +133,11 @@ func encodeSignal(s Signal) (string, error) {
 	if s.Scope != nil {
 		w.Scope = &wireScope{Type: s.Scope.Type, ID: s.Scope.ID}
 	}
+	return marshalSignal(w)
+}
+
+// marshalSignal trả JSON của w, tối đa maxPayload byte.
+func marshalSignal(w wireSignal) (string, error) {
 	b, err := json.Marshal(w)
 	if err != nil {
 		return "", errors.Join(ErrInvalidSignal, err)

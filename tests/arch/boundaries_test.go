@@ -115,6 +115,9 @@ func readerViolation(pkg, imp string) string {
 	if v := carrierViolation(pkg, imp); v != "" {
 		return v
 	}
+	if v := wiringViolation(pkg, imp); v != "" {
+		return v
+	}
 	switch {
 	case strings.HasPrefix(pkg, "internal/modules/") && hasPathPrefix(imp, modPrefix+"internal/platform/cache"):
 		// Luật (l) của M5 (Task 184, ADR-39): Valkey không quyết định nghiệp vụ nào; module không chạm lớp nối Valkey.
@@ -160,6 +163,33 @@ func carrierViolation(pkg, imp string) string {
 		return "(j) adapter hãng chỉ nhập phần công khai của fulfillment, platform/{logging,telemetry,config,webhooks}, thư viện chuẩn"
 	}
 	return ""
+}
+
+// wiringViolation: luật (m) của M5 (Task 185; kế hoạch ghi "(g)", chữ đó đã là luật của imager): gói nối
+// internal/wiring/** chỉ nhập phần công khai của internal/modules/*, internal/platform/** và gói wiring khác; chỉ cmd/
+// (và chính internal/wiring) được nhập internal/wiring/**.
+func wiringViolation(pkg, imp string) string {
+	rel, internal := strings.CutPrefix(imp, modPrefix)
+	if !internal {
+		return ""
+	}
+	fromWiring := hasPathPrefix(pkg, "internal/wiring")
+	switch {
+	case !fromWiring && !hasPathPrefix(pkg, "cmd") && hasPathPrefix(rel, "internal/wiring"):
+		return "(m) chỉ cmd/ được nhập internal/wiring/**"
+	case fromWiring && !wiringAllowed(rel):
+		return "(m) internal/wiring chỉ nhập phần công khai của internal/modules/*, internal/platform/**, internal/wiring/**"
+	}
+	return ""
+}
+
+// wiringAllowed: gói nội bộ mà internal/wiring/** được nhập.
+func wiringAllowed(rel string) bool {
+	if hasPathPrefix(rel, "internal/platform") || hasPathPrefix(rel, "internal/wiring") {
+		return true
+	}
+	_, isMod := moduleOf(rel)
+	return isMod && !strings.Contains(strings.TrimPrefix(rel, "internal/modules/"), "/internal")
 }
 
 // boundaryViolation trả lời vi phạm (rỗng nếu không) của một lần nhập imp từ gói pkg (đường dẫn tương đối so với
@@ -216,7 +246,7 @@ func imagerDepViolation(p listedPackage, pkg, dep string) string {
 	return fmt.Sprintf("%s phụ thuộc gián tiếp %s: (g) imager không liên kết database, cấu hình, hàng đợi, pgx", pkg, dep)
 }
 
-// checkBoundaries trả mọi vi phạm luật a–l trong dir (một module Go có đường dẫn elimaz.com.vn/crm).
+// checkBoundaries trả mọi vi phạm luật a–m trong dir (một module Go có đường dẫn elimaz.com.vn/crm).
 func checkBoundaries(t *testing.T, dir string) []string {
 	t.Helper()
 	var out []string
@@ -245,6 +275,7 @@ func TestBoundariesTestdata(t *testing.T) {
 	want := []string{
 		"cmd/imager nhập elimaz.com.vn/crm/internal/platform/config: (g)",
 		"cmd/imager phụ thuộc gián tiếp github.com/jackc/pgx/v5: (g)",
+		"internal/httpapi nhập elimaz.com.vn/crm/internal/wiring/webcache: (m)",
 		"internal/imager nhập github.com/jackc/pgx/v5: (g)",
 		"internal/imager/viahealth phụ thuộc gián tiếp elimaz.com.vn/crm/internal/platform/db: (g)",
 		"internal/modules/catalog nhập elimaz.com.vn/crm/internal/modules/order/internal/store: (a)",
@@ -256,6 +287,7 @@ func TestBoundariesTestdata(t *testing.T) {
 		"internal/platform/queue nhập elimaz.com.vn/crm/internal/modules/order: (c)",
 		"internal/queries nhập elimaz.com.vn/crm/internal/modules/catalog: (f)",
 		"internal/queries/orderview nhập elimaz.com.vn/crm/internal/modules/order: (i)",
+		"internal/wiring/badwire nhập elimaz.com.vn/crm/internal/modules/order/internal/store: (m)",
 		"tools/probe nhập elimaz.com.vn/crm/spikes/flashsale: (e)",
 	}
 	checkViolations(t, got, want)
@@ -367,6 +399,33 @@ func TestBoundariesM3Rules(t *testing.T) {
 		{"internal/modules/order/internal/x", modPrefix + "internal/adapters/carrier/fake", "(k)"},
 		{"internal/modules/identity", modPrefix + "internal/adapters/cfaccess", "(k)"},
 		{"cmd/crm", modPrefix + "internal/adapters/carrier", ""},
+	}
+	checkCases(t, cases)
+}
+
+// Luật (m) của M5 (Task 185): internal/wiring/** nhập phần công khai của module và internal/platform; chỉ cmd/ nhập
+// internal/wiring/**.
+func TestBoundariesWiringRule(t *testing.T) {
+	cases := []boundaryCase{
+		{"internal/wiring/webcache", modPrefix + "internal/modules/catalog", ""},
+		{"internal/wiring/webcache", modPrefix + "internal/modules/order", ""},
+		{"internal/wiring/webcache", modPrefix + "internal/platform/cache", ""},
+		{"internal/wiring/webcache", modPrefix + "internal/platform/realtime/realtimetest", ""},
+		{"internal/wiring/flashstate", modPrefix + "internal/wiring/webcache", ""},
+		{"internal/wiring/webcache", modPrefix + "internal/modules/catalog/internal/store", "(m)"},
+		{"internal/wiring/webcache", modPrefix + "internal/httpapi", "(m)"},
+		{"internal/wiring/webcache", modPrefix + "internal/adapters/cfaccess", "(m)"},
+		{"internal/wiring/webcache", modPrefix + "internal/queries", "(m)"},
+		{"internal/wiring/webcache", modPrefix + "cmd/crm", "(m)"},
+		{"internal/wiring/webcache", "github.com/jackc/pgx/v5", ""},
+		{"cmd/crm", modPrefix + "internal/wiring/webcache", ""},
+		{"cmd/crm/sub", modPrefix + "internal/wiring/flashstate", ""},
+		{"internal/httpapi", modPrefix + "internal/wiring/webcache", "(m)"},
+		{"internal/httpapi/web", modPrefix + "internal/wiring/webcache", "(m)"},
+		{"internal/modules/order", modPrefix + "internal/wiring/webcache", "(m)"},
+		{"internal/platform/queue", modPrefix + "internal/wiring", "(m)"},
+		{"internal/httpapi", modPrefix + "internal/wiringx", ""},
+		{"cmdx", modPrefix + "internal/wiring/webcache", "(m)"},
 	}
 	checkCases(t, cases)
 }

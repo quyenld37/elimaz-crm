@@ -12,7 +12,8 @@ import (
 )
 
 // RecordingBus là realtime.Bus giả cho test của module: Publish chỉ ghi lại báo hiệu (kể cả khi tx sau đó lùi), không
-// giao cho ai; Subscribe không nhận gì. Dùng an toàn từ nhiều goroutine. Test luồng SSE thật dùng realtime.PGHub.
+// giao cho ai; Subscribe, SubscribeSystem không nhận gì. Dùng an toàn từ nhiều goroutine. Test luồng SSE thật dùng
+// realtime.PGHub.
 type RecordingBus struct {
 	mu      sync.Mutex
 	signals []realtime.Signal
@@ -28,6 +29,9 @@ func (b *RecordingBus) Publish(_ context.Context, _ pgx.Tx, s realtime.Signal) e
 
 // Subscribe không nhận gì; cancel không làm gì.
 func (b *RecordingBus) Subscribe(identity.AuthUser, func(realtime.Frame)) func() { return func() {} }
+
+// SubscribeSystem không nhận gì; cancel không làm gì.
+func (b *RecordingBus) SubscribeSystem(string, func(realtime.Signal)) func() { return func() {} }
 
 // Status báo đang nghe, 0 client.
 func (b *RecordingBus) Status() (listening bool, clients int) { return true, 0 }
