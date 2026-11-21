@@ -14,7 +14,7 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m3-van-chuyen.md` (Ta
 
 ## Tái dùng
 
-- Đã kiểm trong danh mục dùng chung và tìm theo tên, theo việc: `docs/danh-muc-dung-chung.md` (con trỏ trang: chỉ có con trỏ riêng từng module như `order.ReturnCursor`, `files.LostCursor`; không có gói con trỏ chung); `fulfillment.LoadSettings` + `Settings.AgedDays` (Task M3-04) cho ngưỡng 20/180; `identity.ScopesFor` cho phạm vi kho; `testkit.ExplainAsApp`, `testkit.OpenStaffSeeded` cho test kế hoạch câu; `invtest`, `orderAPIEnv` cho test handler.
+- Đã kiểm trong danh mục dùng chung và tìm theo tên, theo việc: `docs/danh-muc-dung-chung.md` (con trỏ trang: chỉ có con trỏ riêng từng module như `order.ReturnCursor`, `files.LostCursor`; không có gói con trỏ chung); `fulfillment.LoadSettings` + `Settings.AgedDays` (Task M3-04) cho ngưỡng 20/180; `identity.ScopesFor` cho phạm vi kho; `testkit.ExplainAsApp`, `testkit.OpenStaffSeeded` cho test kế hoạch câu; `invtest`, `orderScopeEnv` (kho MAIN + W2) cho test handler.
 - Dùng lại / viết mới vì: dùng lại `fulfillment.LoadSettings` (không đọc JSON cài đặt lần hai), `identity.ScopesFor`, `h.inventoryRead` (tenancy.WithTenant). Viết mới `AgedCursor` (khóa trang là `(state_changed_at, id)`, khác các con trỏ có sẵn chỉ theo id) theo mẫu `order.ReturnCursor` (base64url, hỏng → `ErrInvalidInput`). `readableWarehouses` trong `handlers_inventory.go` gắn cứng `inventory.read`; bản chép cho `inventory.aged.read` bị jscpd báo trùng → gộp: commit cấu trúc riêng (commit 1) cho `readableWarehouses(u, perm)` nhận quyền (1 chỗ gọi: `ListStockDocuments`, truyền `permInvRead`, hành vi không đổi), commit hành vi (commit 2) dùng lại nó. Cảnh báo jscpd thứ hai (vòng lặp đọc `items` giống `listCodes` trong test) xử lý bằng đọc JSON vào struct có kiểu.
 
 ## Soát thiết kế
@@ -50,6 +50,8 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m3-van-chuyen.md` (Ta
 | Đầu vào sai: ngưỡng ≤ 0, trạng thái lạ, con trỏ hỏng → ErrInvalidInput; API con trỏ hỏng → 400 `invalid_input` | `TestAgedReservations_InvalidInput`, `TestAgedAPI_Scope` | như trên | ok |
 | Mã đơn, SKU ghép qua view công bố; tenant khác, mã lạ không có; rỗng không lỗi | `TestAgedRefs` | `go test -race ./internal/queries/ -run TestAgedRefs -count=1` | `ok elimaz.com.vn/crm/internal/queries 3.252s` |
 | Operation không còn trả 501; cả bộ inventory (vùng rủi ro cao), queries, kiến trúc | `TestM3Routes_*`, cả gói | `go test -race ./internal/modules/inventory/... ./internal/queries/... ./tests/arch/... -count=1` | `ok …/inventory 93.147s`, `ok …/queries 47.331s`, `ok …/tests/arch 27.123s` |
+| Migration 0307 áp đúng một lần khi hai lần migrate chạy song song (bản CONCURRENTLY đỏ: `55P03`/`42P07`) | `TestMigrateConcurrentRunsApplyOnce` | `go test -race ./internal/platform/db/ -run TestMigrate -count=1` | `ok elimaz.com.vn/crm/internal/platform/db 31.228s` |
+| Cổng kiểm của task sau khi gộp main (Task 103): build, vet, lint, gen-check, sqlc-vet, jscpd (0 đoạn trùng mới), oasdiff, test-guard, toàn bộ test (đổi migration) | — | `ci-task.sh` | `CI-TASK XANH (so với điểm tách nhánh d6ce1c34…)`; `ok …/inventory 120.229s`, `ok …/platform/db 18.607s`, `ok …/tests/arch 52.644s` |
 
 ## Test bị xóa hoặc tắt
 
@@ -71,8 +73,10 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m3-van-chuyen.md` (Ta
 
 ## Việc phát hiện thêm
 
-(không có)
+- `ParseAgedCursor` nhận mọi chuỗi 24 byte: con trỏ tự chế có mốc ngoài miền của PostgreSQL có thể ra 500 thay vì 400 (chỉ ảnh hưởng người gửi con trỏ chế; không lộ dữ liệu, không vượt quyền). Có thể chặn mốc ngoài khoảng hợp lý sau.
 
 ## Reviewer
 
 Commit 1 (cấu trúc, `readableWarehouses(u, perm)`): **ĐẠT** — chỉ đổi cấu trúc, chỗ gọi duy nhất truyền `permInvRead`, không sót chỗ gọi (cả test). Ghi chú: sửa dòng migration ở mục Ảnh hưởng cho khớp (đã sửa).
+
+Commit 2 (hành vi, sau khi gộp main có Task 103): **ĐẠT** — không phát hiện phải sửa. Đã soát biên ngưỡng (`<=` mốc `now − N ngày`), chỉ đọc (một SELECT, không khóa), phạm vi kho (nil/rỗng/`canAt` → 403), phân trang keyset có mốc trùng, con trỏ theo micro giây, test EXPLAIN bắt đúng câu ứng dụng chạy, migration không CONCURRENTLY có lý do, ranh giới module. Ghi chú không bắt buộc: con trỏ tự chế ngoài miền thời gian (ghi ở Việc phát hiện thêm); tên env test trong Tái dùng (đã sửa).
