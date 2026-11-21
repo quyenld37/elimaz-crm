@@ -5,6 +5,8 @@
 # đang chạy, tránh báo đỏ nhầm). Toàn bộ test vẫn chạy trên main do phiên điều phối sau mỗi đợt gộp.
 set -u
 cd "${CLAUDE_PROJECT_DIR:-$(pwd)}" || exit 1
+# 21/11: cả cổng kiểm chạy trong lượt test duy nhất của máy, ưu tiên thấp (scripts/agent/run-in-slot.py) — phiên khác chờ tới lượt.
+if [ "${CRM_TEST_SLOT_HELD:-}" != 1 ]; then exec python3 scripts/agent/run-in-slot.py bash "$0" "$@"; fi
 . scripts/agent/lib.sh
 export HIGH_RISK_DIRS PATH="$HOME/go/bin:$PATH"
 base=$(git merge-base HEAD main 2>/dev/null || echo main)
