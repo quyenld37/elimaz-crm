@@ -242,12 +242,16 @@ export function OrderForm({ initialCustomer, onCreated, edit }: OrderFormProps) 
   const customerId = customer?.kind === "existing" ? customer.id : null;
   const phone = cleanPhone(address.phone);
   const phoneOrNull = phone.replace(/\D/g, "").length >= 8 ? phone : null;
-  // Sửa đơn giữ mã cũ: không kiểm lại (mã đã dùng cho chính đơn này; máy chủ tính lại khi lưu), hiện số giảm hiện tại.
+  // Sửa đơn giữ mã cũ: không kiểm lại (lượt đã dùng cho chính đơn này). Máy chủ giữ số giảm đang lưu khi tạm tính sau
+  // giảm không đổi, đổi thì tính lại mã (mã %, mức tối thiểu; edit.go applyCoupon): khi đó màn không trừ số cũ mà báo
+  // "tính lại khi lưu", tổng hiện là tổng chưa trừ mã.
   const keepCoupon = eo !== undefined && couponCode === (eo.couponCode ?? "");
+  const savedBase = eo === undefined ? null : eo.subtotal - (eo.lineDiscountTotal ?? 0) - (eo.orderDiscount ?? 0);
+  const couponRecalc = keepCoupon && couponCode !== "" && base !== null && base !== savedBase;
   const coupon = useCouponCheck({ code: keepCoupon ? "" : couponCode, base, customerId, phone: phoneOrNull });
   const couponDiscount = keepCoupon ? (eo.couponDiscount ?? 0) : coupon.check?.ok === true ? coupon.check.discount : 0;
   const after =
-    before.totals === null
+    before.totals === null || couponRecalc
       ? before
       : tryCompute({
           lines: pricingLines,
@@ -721,6 +725,7 @@ export function OrderForm({ initialCustomer, onCreated, edit }: OrderFormProps) 
             shippingFeeInvalid={shipN === null}
             onEnter={focusNext}
             error={inputsOk ? after.error : null}
+            couponRecalc={couponRecalc ? couponCode : null}
             coupon={
               <CouponField
                 text={couponText}

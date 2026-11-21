@@ -187,6 +187,8 @@ export interface Fake {
   returnWarningDays: number;
   /** Kết quả tìm biến thể (ô thêm sản phẩm của hộp thoại đổi hàng); mặc định rỗng. */
   variantHits: VariantSearchHit[];
+  /** Số lần gọi /api/v1/coupon-check (kiểm mã trước khi lưu). */
+  couponChecks: number;
 }
 
 const json = (b: unknown, status = 200) =>
@@ -212,6 +214,7 @@ export function installFake(): Fake {
     replies: [],
     returnWarningDays: 7,
     variantHits: [],
+    couponChecks: 0,
   };
   // Yêu cầu ghi: ghi lại khóa, thân; trả câu trả lời xếp sẵn hoặc đối tượng hiện tại.
   const onWrite = async (req: Request, p: string): Promise<Response> => {
@@ -305,7 +308,10 @@ export function installFake(): Fake {
       }
       if (p === "/api/v1/catalog/variants/search") return json(fake.variantHits);
       if (p === "/api/v1/order-duplicate-check") return json({ items: [] });
-      if (p === "/api/v1/coupon-check") return json({ ok: true, discount: 0 });
+      if (p === "/api/v1/coupon-check") {
+        fake.couponChecks += 1;
+        return json({ ok: true, discount: 0 });
+      }
       if (p === "/api/v1/admin-units") return json({ items: [] });
       const cm = /^\/api\/v1\/customers\/([^/]+)$/.exec(p);
       if (cm !== null) return json(NOT_FOUND, 404);
