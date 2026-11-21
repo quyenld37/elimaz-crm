@@ -8519,7 +8519,7 @@ components:
           format: uuid
         reason:
           type: string
-          description: no_carrier_label, no_tracking_code
+          description: no_carrier_label, no_tracking_code, cancelled
     LabelBatchCreated:
       type: object
       required: [batches, skipped]
