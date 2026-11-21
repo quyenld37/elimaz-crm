@@ -13,6 +13,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/schedules"
+	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // reconcile chạy Reconcile bằng crm_app trong ngữ cảnh tenant của e, với statement_timeout của việc nền (30 s).
@@ -327,6 +328,7 @@ func TestReconcile_NightlySchedule(t *testing.T) {
 
 	w := queue.NewWorker(e.staff.App, []queue.Handler{inventory.NewReconcileHandler(queue.NewQueue())},
 		queue.WorkerOptions{WorkerID: "w", Concurrency: 2})
+	testkit.MakeDueSoon(t, e.staff.Owner) // việc vừa ghi có thể lệch hạn vì đồng hồ PostgreSQL lùi (Task 451)
 	if _, err := w.RunOnce(t.Context(), 10); err != nil {
 		t.Fatal(err)
 	}

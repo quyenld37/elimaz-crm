@@ -23,11 +23,11 @@ func TestListEntityAudit(t *testing.T) {
 	edit := orderEntry(a)
 	create := identity.AuditEntry{
 		TenantID: a, ActorType: "staff", ActorID: "u-0", Action: "order.create", EntityType: "order", EntityID: "o-1",
-		After: map[string]any{"phone": "0911", "status": "new", "fields": "shipAddress"},
+		After: map[string]any{"phone": "0911000111", "status": "new", "fields": "shipAddress"},
 	}
 	update := identity.AuditEntry{
 		TenantID: a, ActorType: "staff", ActorID: "u-2", Action: "order.update", EntityType: "order", EntityID: "o-1",
-		After: map[string]any{"phone": "0933", "fields": []string{"lines", "shipAddress"}},
+		After: map[string]any{"phone": "0933000333", "fields": []string{"lines", "shipAddress"}},
 	}
 	other := orderEntry(a)
 	other.EntityID = "o-2"
@@ -55,13 +55,32 @@ func TestListEntityAudit(t *testing.T) {
 	if c.CreatedAt.After(e.CreatedAt) || e.CreatedAt.After(u.CreatedAt) {
 		t.Errorf("không mới nhất trước: %v, %v, %v", u.CreatedAt, e.CreatedAt, c.CreatedAt)
 	}
+	assertNoAuditValues(t, got, "0911000111", "0911222333", "0922333444", "0933000333")
+}
+
+// assertNoAuditValues: bản JSON của các dòng không có trường giá trị before/after và không chứa SĐT đầy đủ nào đã gài
+// (Task 451: tìm mẩu 4 chữ số từng bắt nhầm chữ số trong UUID của dòng).
+func assertNoAuditValues(t *testing.T, got []identity.AuditRecord, phones ...string) {
+	t.Helper()
 	raw, err := json.Marshal(got)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(raw), "0911") || strings.Contains(string(raw), "0922") ||
-		strings.Contains(string(raw), "0933") {
-		t.Errorf("AuditRecord mang giá trị before/after: %s", raw)
+	var rows []map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &rows); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rows {
+		for k := range r {
+			if l := strings.ToLower(k); strings.Contains(l, "before") || strings.Contains(l, "after") {
+				t.Errorf("AuditRecord có trường giá trị %q: %s", k, raw)
+			}
+		}
+	}
+	for _, p := range phones {
+		if strings.Contains(string(raw), p) {
+			t.Errorf("AuditRecord mang SĐT %s của before/after: %s", p, raw)
+		}
 	}
 }
 

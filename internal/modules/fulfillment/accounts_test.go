@@ -24,6 +24,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
+	"elimaz.com.vn/crm/internal/testkit"
 	"elimaz.com.vn/crm/tools/fakecarrier/server"
 )
 
@@ -564,6 +565,7 @@ func TestAccounts_StaleCheckIgnored(t *testing.T) {
 			t.Errorf("PutCredentials giữa lúc kiểm: %v", err)
 		}
 	})
+	testkit.MakeDueSoon(t, e.staff.Owner) // lệnh kiểm vừa ghi có thể lệch hạn vì đồng hồ PostgreSQL lùi (Task 451)
 	if _, err := e.worker.RunOnce(context.Background(), 1); err != nil {
 		t.Fatal(err)
 	}

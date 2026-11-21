@@ -122,13 +122,13 @@ func TestBestEffortRunningBlocksSameConversation(t *testing.T) {
 	second := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "2", OrderKey: "conv:x", OrderSeq: 2})
 	other := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "o", OrderKey: "conv:y", OrderSeq: 1})
 	w1, w2 := worker(e, "w1", h), worker(e, "w2", h)
-	finish := holdRunOnce(t, w1, 1, started, release)
+	finish := e.holdRunOnce(t, w1, 1, started, release)
 	// w2: tin 2 bị chặn vì tin 1 đang running; hội thoại khác không bị chặn.
-	if n := runOnce(t, w2, 10); n != 1 || h.callsOf(second) != 0 || e.job(t, other).Status != "done" {
+	if n := e.runOnce(t, w2, 10); n != 1 || h.callsOf(second) != 0 || e.job(t, other).Status != "done" {
 		t.Fatalf("w2 nhận %d việc; tin 2 gọi %d lần; hội thoại khác %+v", n, h.callsOf(second), e.job(t, other))
 	}
 	finish()
-	runOnce(t, w2, 10)
+	e.runOnce(t, w2, 10)
 	if e.job(t, first).Status != "done" || e.job(t, second).Status != "done" {
 		t.Fatalf("muốn cả hai xong: %+v %+v", e.job(t, first), e.job(t, second))
 	}
@@ -145,13 +145,13 @@ func TestBestEffortRunningLaterBlocksDueEarlier(t *testing.T) {
 	})
 	second = e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "2", OrderKey: "conv:x", OrderSeq: 2})
 	w1, w2 := worker(e, "w1", h), worker(e, "w2", h)
-	finish := holdRunOnce(t, w1, 10, started, release)
+	finish := e.holdRunOnce(t, w1, 10, started, release)
 	e.makeDue(t) // tin 1 tới lịch trong lúc tin 2 đang chạy
-	if n := runOnce(t, w2, 10); n != 0 || h.callsOf(first) != 0 {
+	if n := e.runOnce(t, w2, 10); n != 0 || h.callsOf(first) != 0 {
 		t.Fatalf("tin 1 không được chạy song song với tin 2: nhận %d, gọi %d", n, h.callsOf(first))
 	}
 	finish()
-	runOnce(t, w2, 10)
+	e.runOnce(t, w2, 10)
 	if e.job(t, first).Status != "done" {
 		t.Fatalf("tin 1 phải xong sau khi tin 2 xong: %+v", e.job(t, first))
 	}
@@ -183,6 +183,7 @@ func TestBestEffortClaimRaceLosesQuietly(t *testing.T) {
 		err error
 	}
 	got := make(chan res, 1)
+	testkit.MakeDueSoon(t, e.owner) // tin 2 phải tới hạn để lần nhận chờ khóa của tin 1 (xem runOnce)
 	go func() { n, err := w.RunOnce(context.Background(), 10); got <- res{n, err} }()
 	waitForLockWait(t, e)
 	if err := tx.Commit(t.Context()); err != nil {
@@ -199,8 +200,9 @@ func TestBestEffortClaimRaceLosesQuietly(t *testing.T) {
 
 // holdRunOnce chạy w.RunOnce(limit) trên một goroutine và chờ handler giữ việc bắt đầu (started đóng). Trả hàm thả
 // việc (đóng release) rồi chờ RunOnce đó xong, test đỏ khi nó lỗi.
-func holdRunOnce(t *testing.T, w *queue.Worker, limit int, started, release chan struct{}) func() {
+func (e *env) holdRunOnce(t *testing.T, w *queue.Worker, limit int, started, release chan struct{}) func() {
 	t.Helper()
+	testkit.MakeDueSoon(t, e.owner) // xem runOnce: việc vừa ghi lệch hạn vì đồng hồ PostgreSQL lùi
 	done := make(chan error, 1)
 	go func() { _, err := w.RunOnce(context.Background(), limit); done <- err }()
 	waitClosed(t, started)
@@ -309,6 +311,7 @@ func runParallelUntilIdle(t *testing.T, e *env, ws ...*queue.Worker) {
 			t.Fatal("chưa hết việc nhận được sau 200 lượt")
 		}
 		e.ownerExec(t, "UPDATE platform.jobs SET run_at = now() + interval '1 hour' WHERE status = 'pending' AND attempts > 0")
+		testkit.MakeDueSoon(t, e.owner) // lượt nhận 0 vì đồng hồ PostgreSQL lùi không được tính là hết việc (xem runOnce)
 		var (
 			wg    sync.WaitGroup
 			total atomic.Int64

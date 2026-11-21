@@ -49,7 +49,7 @@ func TestHandlerErrorRecordsErrorEvent(t *testing.T) {
 	})
 	reg := metrics.NewRegistry()
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
-	runOnce(t, queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Metrics: reg}), 10)
+	e.runOnce(t, queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Metrics: reg}), 10)
 	rows := e.errorEvents(t)
 	if len(rows) != 1 || rows[0].JobID == nil || *rows[0].JobID != id || rows[0].Role != "worker" || rows[0].Count != 1 {
 		t.Fatalf("error_events: %+v, muốn một dòng role worker, sample_job_id %s", rows, id)
@@ -72,7 +72,7 @@ func TestHandlerErrorFingerprintPerKind(t *testing.T) {
 	a, b := newFH(kind("t.a"), fail), newFH(kind("t.b"), fail)
 	e.enqueue(t, a.kind, queue.NewJob{DedupeKey: "a"})
 	e.enqueue(t, b.kind, queue.NewJob{DedupeKey: "b"})
-	runOnce(t, worker(e, "w1", a, b), 10)
+	e.runOnce(t, worker(e, "w1", a, b), 10)
 	if rows := e.errorEvents(t); len(rows) != 2 {
 		t.Fatalf("error_events có %d dòng, muốn 2 (mỗi loại việc một dòng)", len(rows))
 	}
@@ -90,7 +90,7 @@ func TestHandlerPanicIsRecoveredAndRecorded(t *testing.T) {
 		return nil, nil
 	})
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
-	runOnce(t, worker(e, "w1", h), 10)
+	e.runOnce(t, worker(e, "w1", h), 10)
 	r := e.job(t, id)
 	if r.Status != "pending" || r.Attempts != 1 || r.LastError == nil {
 		t.Fatalf("việc sau panic: %+v, muốn pending, attempts 1, có last_error", r)
@@ -116,7 +116,7 @@ func panicInHandler() { panic("boom 0912345678") }
 func TestPermanentErrorNotRecorded(t *testing.T) {
 	e := newEnv(t)
 	h, id := e.enqueuePermanentError(t)
-	runOnce(t, worker(e, "w1", h), 10)
+	e.runOnce(t, worker(e, "w1", h), 10)
 	if st := e.job(t, id).Status; st != "dead" {
 		t.Fatalf("trạng thái %s, muốn dead", st)
 	}

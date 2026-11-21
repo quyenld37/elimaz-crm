@@ -186,8 +186,11 @@ func worker(e *env, id string, hs ...commands.Handler) *queue.Worker {
 	return queue.NewWorker(e.app, nil, queue.WorkerOptions{WorkerID: id, Commands: commands.NewRunner(e.app, hs)})
 }
 
-func runOnce(t testing.TB, w *queue.Worker) {
+// runOnce chạy một lượt RunOnce; trước lượt đó testkit.MakeDueSoon đưa về hạn việc chỉ lệch hạn vì đồng hồ PostgreSQL
+// lùi (việc vừa ghi "chạy ngay" có run_at lớn hơn now() của lần nhận, Task 446, 451). Lịch thử lại thật giữ nguyên.
+func (e *env) runOnce(t testing.TB, w *queue.Worker) {
 	t.Helper()
+	testkit.MakeDueSoon(t, e.owner)
 	if _, err := w.RunOnce(t.Context(), 10); err != nil {
 		t.Fatalf("RunOnce: %v", err)
 	}

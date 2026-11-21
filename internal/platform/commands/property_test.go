@@ -67,7 +67,7 @@ func (p *propRun) step(rt *rapid.T, s int) {
 	case 0:
 		p.ext.SetMode(rapid.SampledFrom(fakeModes).Draw(rt, "mode"))
 	case 1:
-		runOnce(p.t, worker(p.e, wid, p.h))
+		p.e.runOnce(p.t, worker(p.e, wid, p.h))
 	case 2, 3: // worker nhận lệnh rồi chết, sau (2) hoặc trước (3) khi bên ngoài nhận
 		id := p.ids[rapid.IntRange(0, len(p.ids)-1).Draw(rt, "pick")]
 		tag, err := p.e.owner.Pool.Exec(context.Background(), `UPDATE platform.jobs SET status = 'running',

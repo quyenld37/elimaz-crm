@@ -21,11 +21,11 @@ func inDoubtJob(t *testing.T, e *env, h *lookH, key string, sent bool) uuid.UUID
 	id := e.enqueue(t, h.kind, key)
 	if sent {
 		h.ext.SetMode(testkit.FakeTimeoutAfterSend)
-		runOnce(t, worker(e, "w-"+key, h))
+		e.runOnce(t, worker(e, "w-"+key, h))
 		h.ext.SetMode(testkit.FakeOK)
 	} else {
 		e.crash(t, id)
-		runOnce(t, worker(e, "w-"+key, h))
+		e.runOnce(t, worker(e, "w-"+key, h))
 	}
 	if r := e.job(t, id); r.Status != "in_doubt" {
 		t.Fatalf("dựng in_doubt: %+v", r)
@@ -67,7 +67,7 @@ func TestResolveNotSentRequeues(t *testing.T) {
 	if st := e.job(t, id).Status; st != "pending" || len(h.ext.Calls()) != 0 {
 		t.Fatalf("muốn pending chưa gửi: %s %v", st, h.ext.Calls())
 	}
-	runOnce(t, worker(e, "w2", h))
+	e.runOnce(t, worker(e, "w2", h))
 	if st := e.job(t, id).Status; st != "done" || len(h.ext.Calls()) != 1 {
 		t.Fatalf("muốn done sau 1 lần gửi: %s %v", st, h.ext.Calls())
 	}
@@ -83,7 +83,7 @@ func TestResolveUnknownAndNoLooker(t *testing.T) {
 	plain := newCmd("command.plain", &testkit.FakeExternal{})
 	pid := e.enqueue(t, plain.kind, "p")
 	e.crash(t, pid)
-	runOnce(t, worker(e, "wp", plain))
+	e.runOnce(t, worker(e, "wp", plain))
 	if d, r, s := resolve(t, e, h, plain); d != 0 || r != 0 || s != 1 {
 		t.Fatalf("đếm %d %d %d", d, r, s)
 	}
@@ -124,7 +124,7 @@ func TestInDoubtResolverJob(t *testing.T) {
 		t.Fatalf("chính sách của việc tra lại: %+v", p)
 	}
 	rid := e.enqueueJob(t, res.Kind(), queue.NewJob{DedupeKey: "slot-1"}) // không tenant, như Ticker
-	runOnce(t, worker(e, "wr", h, res))
+	e.runOnce(t, worker(e, "wr", h, res))
 	r := e.job(t, rid)
 	if r.Status != "done" || string(r.Result) != `{"done": 1, "still": 0, "requeued": 1}` {
 		t.Fatalf("muốn việc tra lại done kèm số đếm: %+v (%s)", r, r.Result)
@@ -144,7 +144,7 @@ func TestInDoubtResolverJobLookupFails(t *testing.T) {
 	id := inDoubtJob(t, e, h, "a", true)
 	res := commands.NewInDoubtResolver(e.app, []commands.Handler{h})
 	rid := e.enqueueJob(t, res.Kind(), queue.NewJob{DedupeKey: "slot-1"}) // không tenant, như Ticker
-	runOnce(t, worker(e, "wr", h, res))
+	e.runOnce(t, worker(e, "wr", h, res))
 	r := e.job(t, rid)
 	if r.Status != "pending" || r.LastError == nil || *r.LastError != "not_sent: lookup_failed" {
 		t.Fatalf("muốn pending, lý do mã cố định: %+v", r)
@@ -213,7 +213,7 @@ func TestResolveNotSentNoAutoRetryIsDead(t *testing.T) {
 	if added := terms[len(before):]; len(added) != 1 || added[0] != id.String()+":dead" {
 		t.Fatalf("OnTerminal thêm %v, muốn đúng [%s:dead]", added, id)
 	}
-	runOnce(t, worker(e, "w2", h))
+	e.runOnce(t, worker(e, "w2", h))
 	if st := e.job(t, id).Status; st != "dead" || len(h.ext.Calls()) != 0 {
 		t.Fatalf("lệnh dead không được gửi: %s %v", st, h.ext.Calls())
 	}
@@ -258,7 +258,7 @@ func TestAbandon(t *testing.T) {
 		expectStatus(t, e, e.tenant, id, "expired")
 	}
 	calls := len(h.ext.Calls())
-	runOnce(t, worker(e, "w2", h))
+	e.runOnce(t, worker(e, "w2", h))
 	if len(h.ext.Calls()) != calls {
 		t.Fatalf("lệnh đã bỏ bị gửi: %v", h.ext.Calls())
 	}
