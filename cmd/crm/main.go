@@ -99,9 +99,10 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 			_, _ = fmt.Fprintf(stderr, "mã khách %q không phải UUID; cách gọi: `crm %s <mã khách>`\n", args[1], recomputeCommand)
 			return exitConfig
 		}
+	case isServiceKeyCommand(args):
 	case len(args) > 0:
-		_, _ = fmt.Fprintf(stderr, "lệnh lạ %q; chỉ có `crm`, `crm healthcheck`, `crm seed-dev <email>` hoặc "+
-			"`crm %s <mã khách>`\n", args, recomputeCommand)
+		_, _ = fmt.Fprintf(stderr, "lệnh lạ %q; chỉ có `crm`, `crm healthcheck`, `crm seed-dev <email>`, "+
+			"`crm %s <mã khách>` hoặc `crm %s create|revoke …`\n", args, recomputeCommand, serviceKeyCommand)
 		return exitConfig
 	}
 
@@ -121,6 +122,8 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 			return exitFail
 		}
 		return exitOK
+	case isServiceKeyCommand(args):
+		return serviceKeyExit(runServiceKey(ctx, cfg, args[1:], stdout, logger), stderr)
 	case len(args) == 2 && args[0] == recomputeCommand:
 		if err := runRecompute(ctx, cfg, uuid.MustParse(args[1]), stdout, logger); err != nil {
 			_, _ = fmt.Fprintln(stderr, recomputeCommand+":", err)
@@ -468,11 +471,17 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 		if err != nil {
 			return err
 		}
+		web, err := newWebKeys(ctx, cfg, d, hub, reg, logger)
+		if err != nil {
+			return err
+		}
+		defer web.stop() // sau khi máy chủ HTTP tắt: ghi nốt last_used_at, đóng Valkey
 		handler = httpapi.NewServer(httpapi.Deps{
 			Config: cfg, DB: d, Logger: logger, Access: access, Files: store,
 			Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop}, Events: mods.Events, Metrics: reg,
 			Cash:        mods.M3.Cash.Service,
 			Fulfillment: mods.M3.Fulfillment.Service,
+			ServiceKeys: web.keys, RateLimiter: web.limiter,
 		})
 	} else {
 		h, err := ingestHandler(cfg, d, reg, logger)

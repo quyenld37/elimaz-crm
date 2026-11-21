@@ -56,3 +56,16 @@ func TestLoadValkey(t *testing.T) {
 		}
 	}
 }
+
+// RATE_LIMITS_JSON (Task 189): chỉ vai trò api đọc, giữ nguyên chuỗi (cmd/crm kiểm bằng cache.ParseLimits).
+func TestLoadRateLimitsJSON(t *testing.T) {
+	const raw = `{"web_key":{"max":1500}}`
+	cfg, err := config.Load(config.RoleAPI, env(with(apiEnv(), "RATE_LIMITS_JSON", raw)))
+	if err != nil || cfg.RateLimitsJSON != raw {
+		t.Fatalf("api: %q, %v", cfg.RateLimitsJSON, err)
+	}
+	cfg, err = config.Load(config.RoleAPI, env(apiEnv()))
+	if err != nil || cfg.RateLimitsJSON != "" {
+		t.Fatalf("không đặt: %q, %v", cfg.RateLimitsJSON, err)
+	}
+}

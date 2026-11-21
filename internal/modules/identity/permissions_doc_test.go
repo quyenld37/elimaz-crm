@@ -79,7 +79,19 @@ func TestPermissionsDoc_MatchesCode(t *testing.T) {
 		}
 		delete(doc, d.Key)
 	}
+	// Quyền của khóa dịch vụ (Task 189): cũng có dòng, loại none, không vai trò mẫu nào nhận.
+	for _, p := range identity.ServiceKeyPermissions {
+		r, ok := doc[p]
+		switch {
+		case !ok:
+			t.Errorf("docs/quyen.md thiếu %s", p)
+			continue
+		case !strings.HasPrefix(r.scope, "none") || len(r.roles) != 0:
+			t.Errorf("%s: quyền khóa dịch vụ phải loại none, không vai trò mẫu; tài liệu %q %v", p, r.scope, r.roles)
+		}
+		delete(doc, p)
+	}
 	for k := range doc {
-		t.Errorf("docs/quyen.md có quyền %s không có trong identity.Permissions", k)
+		t.Errorf("docs/quyen.md có quyền %s không có trong identity.Permissions hay identity.ServiceKeyPermissions", k)
 	}
 }

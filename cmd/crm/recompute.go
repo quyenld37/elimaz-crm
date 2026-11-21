@@ -72,15 +72,24 @@ func recomputeCustomerStats(ctx context.Context, d *db.DB, bus realtime.Bus, cus
 	return recomputeResult{}, fmt.Errorf("%s: %w", customerID, errCustomerUnknown)
 }
 
-// runRecompute mở pool bằng DATABASE_URL (crm_app, RLS vẫn áp) của vai trò đang chạy, tính lại cho customerID và in một
-// dòng kết quả (chỉ mã và số, không dữ liệu cá nhân). Báo hiệu customer.changed đi qua pg_notify trong transaction.
-func runRecompute(ctx context.Context, cfg config.Config, customerID uuid.UUID, stdout io.Writer, logger *slog.Logger,
-) error {
+// openCommandDB mở pool nhỏ (2 kết nối) bằng DATABASE_URL (crm_app, RLS vẫn áp) cho lệnh vận hành một lần.
+func openCommandDB(ctx context.Context, cfg config.Config) (*db.DB, error) {
 	opts := poolOptions(cfg)
 	opts.MaxConns = 2
 	d, err := db.Open(ctx, cfg.DatabaseURL, opts)
 	if err != nil {
-		return fmt.Errorf("mở database: %w", err)
+		return nil, fmt.Errorf("mở database: %w", err)
+	}
+	return d, nil
+}
+
+// runRecompute mở pool bằng DATABASE_URL (crm_app, RLS vẫn áp) của vai trò đang chạy, tính lại cho customerID và in một
+// dòng kết quả (chỉ mã và số, không dữ liệu cá nhân). Báo hiệu customer.changed đi qua pg_notify trong transaction.
+func runRecompute(ctx context.Context, cfg config.Config, customerID uuid.UUID, stdout io.Writer, logger *slog.Logger,
+) error {
+	d, err := openCommandDB(ctx, cfg)
+	if err != nil {
+		return err
 	}
 	defer d.Pool.Close()
 	hub := realtime.NewPGHub(realtime.PGHubOptions{URL: cfg.DatabaseURL, Logger: logger})

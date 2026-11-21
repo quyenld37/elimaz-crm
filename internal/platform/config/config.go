@@ -131,6 +131,9 @@ type Config struct {
 	ValkeyCacheURL string
 	ValkeyGateURL  string
 	CacheKeySecret logging.Secret
+	// RateLimitsJSON (api; RATE_LIMITS_JSON, tùy chọn, Task 189) đè số của giới hạn tần suất website; cmd/crm đọc bằng
+	// cache.ParseLimits (sai → không khởi động). Rỗng: cache.DefaultLimits.
+	RateLimitsJSON string
 
 	// Migrate chỉ khác nil khi Role là RoleMigrate: vai trò khác không bao giờ giữ chuỗi kết nối của chủ bảng.
 	Migrate *MigrateConfig
@@ -390,6 +393,7 @@ func (r *reader) carrierWebhookSecrets() map[string]logging.Secret {
 func (r *reader) valkey(cfg *Config) {
 	cfg.ValkeyCacheURL = r.valkeyURL("VALKEY_CACHE_URL")
 	cfg.ValkeyGateURL = r.valkeyURL("VALKEY_GATE_URL")
+	cfg.RateLimitsJSON = r.optional("RATE_LIMITS_JSON")
 	if r.optional("VALKEY_CACHE_URL") != "" || r.optional("VALKEY_GATE_URL") != "" {
 		cfg.CacheKeySecret = logging.Secret(r.secret("CACHE_KEY_SECRET"))
 	}

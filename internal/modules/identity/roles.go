@@ -37,7 +37,7 @@ func defaultRoles() []RoleDef {
 	var manager []Permission
 	// M3 (Task M3-04): nhập, chốt bảng kê, điều chỉnh sổ COD, ghi và miễn khoản hoàn tiền chỉ Chủ và Kế toán.
 	notManager := []Permission{
-		"identity.users.manage", "identity.roles.manage",
+		"identity.users.manage", "identity.roles.manage", "identity.service_keys.manage",
 		"cash.statements.import", "cash.statements.confirm", "cash.adjust", "cash.refunds.record", "cash.refunds.waive",
 	}
 	for _, d := range Permissions {
@@ -425,7 +425,8 @@ func normalizeRoleInput(in RoleInput) (string, []Permission, error) {
 	}
 	want := slices.Clone(in.Permissions)
 	for _, p := range want {
-		if !IsKnown(p) {
+		// Quyền web.* chỉ khóa dịch vụ giữ (ServiceKeyPermissions), vai trò nhân viên không nhận.
+		if !IsKnown(p) || IsServiceKeyPermission(p) {
 			return "", nil, ErrUnknownPermission
 		}
 	}
@@ -545,6 +546,7 @@ func permissionLabels() map[Permission][3]string {
 		"audit.read":                          {groupSystem, "Xem nhật ký thao tác", ""},
 		"identity.users.manage":               {groupAdmin, "Quản lý nhân viên", ""},
 		"identity.roles.manage":               {groupAdmin, "Quản lý vai trò", ""},
+		"identity.service_keys.manage":        {groupAdmin, "Quản lý khóa cho website", ""},
 	}
 }
 

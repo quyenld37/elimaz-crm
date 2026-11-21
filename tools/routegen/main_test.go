@@ -176,6 +176,13 @@ func TestRealContractWritesRequired(t *testing.T) {
 			continue
 		}
 		writes++
+		// Ngoại lệ duy nhất (Task 189, luật openapi 3): createServiceKey trả bí mật một lần, no-replay kèm lý do.
+		if strings.Contains(line, `OperationID: "createServiceKey"`) {
+			if !strings.HasSuffix(strings.TrimSpace(line), `Write: true, IdempotencyMode: "no-replay", IdempotencyReason: "Trả bí mật của khóa đúng một lần", Auth: "access"},`) {
+				t.Errorf("createServiceKey phải no-replay kèm lý do: %s", line)
+			}
+			continue
+		}
 		if !strings.HasSuffix(strings.TrimSpace(line), `Write: true, IdempotencyMode: "required", Auth: "access"},`) {
 			t.Errorf("route ghi của M0 phải required, không lý do: %s", line)
 		}

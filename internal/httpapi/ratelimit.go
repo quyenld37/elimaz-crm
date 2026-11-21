@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"elimaz.com.vn/crm/internal/modules/identity"
+	"elimaz.com.vn/crm/internal/platform/cache"
 )
 
 // Giới hạn mặc định của mỗi nhân viên (spec 04 mục 11, ADR-30): 300 yêu cầu trong 60 s trượt.
@@ -18,15 +19,31 @@ const (
 	defaultRateMax    = 300
 	defaultRateWindow = 60 * time.Second
 	// defaultServiceRateMax: ngưỡng mỗi khóa dịch vụ mỗi phút khi chưa nối Deps.RateLimiter (bằng FallbackMax của
-	// LimitWebKey trong kế hoạch M5-03).
+	// cache.DefaultLimits().WebKey).
 	defaultServiceRateMax = 600
 )
 
-// WebRateLimiter giới hạn tần suất theo khóa dịch vụ (M5-05): subject là "svc:<mã>"; trả có được phép không và thời
-// gian chờ khi không. Không trả lỗi (bản Valkey tự lùi về bộ đếm trong tiến trình). Bản thật nối ở M5-06 qua
-// cache.RateLimiter với LimitWebKey.
+// WebRateLimiter giới hạn tần suất theo khóa dịch vụ (M5-05): subject là "svc:<ServiceKeyID>"; trả có được phép không
+// và thời gian chờ khi không. Không trả lỗi (bản Valkey tự lùi về bộ đếm trong tiến trình). Bản thật: NewWebKeyLimiter
+// (cache.RateLimiter với cache.Limits.WebKey, Task 189).
 type WebRateLimiter interface {
 	AllowWebKey(ctx context.Context, subject string) (allowed bool, retryAfter time.Duration)
+}
+
+// NewWebKeyLimiter nối cache.RateLimiter vào WebRateLimiter với giới hạn l (cmd/crm: cache.Limits.WebKey của
+// RATE_LIMITS_JSON).
+func NewWebKeyLimiter(rl cache.RateLimiter, l cache.Limit) WebRateLimiter { //nolint:ireturn // trả interface phía dùng (Deps.RateLimiter)
+	return webKeyLimiter{rl: rl, l: l}
+}
+
+type webKeyLimiter struct {
+	rl cache.RateLimiter
+	l  cache.Limit
+}
+
+func (w webKeyLimiter) AllowWebKey(ctx context.Context, subject string) (bool, time.Duration) {
+	d := w.rl.Allow(ctx, w.l, subject)
+	return d.Allowed, d.RetryAfter
 }
 
 // RateLimit là ngưỡng giới hạn tần suất theo nhân viên; trường bằng 0 lấy mặc định (300 / 60 s, time.Now). Test đặt
@@ -119,14 +136,14 @@ func userRateLimit(l *userLimiter, next http.Handler) http.Handler {
 	return limitBy(func(_ *http.Request, u identity.AuthUser) (bool, time.Duration) { return l.allow(u.UserID) }, next)
 }
 
-// serviceRateLimit: giới hạn tần suất của route service_key, đặt sau serviceKeyAuth và guard. d.RateLimiter nil →
-// bộ đếm trong tiến trình d.serviceLimiter. Vượt → 429 rate_limited kèm Retry-After.
+// serviceRateLimit: giới hạn tần suất của route service_key theo khóa (ServiceKeyID), đặt sau serviceKeyAuth và guard.
+// d.RateLimiter nil → bộ đếm trong tiến trình d.serviceLimiter. Vượt → 429 rate_limited kèm Retry-After.
 func serviceRateLimit(d Deps, next http.Handler) http.Handler {
 	return limitBy(func(r *http.Request, u identity.AuthUser) (bool, time.Duration) {
 		if d.RateLimiter != nil {
-			return d.RateLimiter.AllowWebKey(r.Context(), "svc:"+u.UserID.String())
+			return d.RateLimiter.AllowWebKey(r.Context(), "svc:"+u.ServiceKeyID.String())
 		}
-		return d.serviceLimiter.allow(u.UserID)
+		return d.serviceLimiter.allow(u.ServiceKeyID)
 	}, next)
 }
 

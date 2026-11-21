@@ -56,7 +56,7 @@ type Deps struct {
 	Fulfillment *fulfillment.Service
 	// Now là đồng hồ của nghiệp vụ cần "bây giờ" (kiểm mã giảm giá); nil → time.Now (test cắm ngày cố định).
 	Now func() time.Time
-	// ServiceKeys kiểm khóa dịch vụ của website cho route x-auth: service_key (M5-05; bản thật nối ở M5-06). nil →
+	// ServiceKeys kiểm khóa dịch vụ của website cho route x-auth: service_key (M5-05; bản thật KeyVerifier, Task 189). nil →
 	// mọi route service_key 401.
 	ServiceKeys ServiceKeyVerifier
 	// RateLimiter giới hạn tần suất theo khóa dịch vụ (Valkey, M5-03/M5-06). nil → bộ đếm trong tiến trình

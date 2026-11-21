@@ -4270,6 +4270,106 @@ func (s *Server) handleCreateRoleRequest(args [0]string, argsEscaped bool, w htt
 	}
 }
 
+// handleCreateServiceKeyRequest handles createServiceKey operation.
+//
+// Gửi lại cùng Idempotency-Key → 409 already_processed (không tạo khóa thứ hai, không
+// trả lại bí mật). Quyền ngoài web.* → 422 permission_not_allowed_for_key.
+//
+// POST /api/v1/identity/service-keys
+func (s *Server) handleCreateServiceKeyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CreateServiceKeyOperation,
+			ID:   "createServiceKey",
+		}
+	)
+	params, err := decodeCreateServiceKeyParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateServiceKeyRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response CreateServiceKeyRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CreateServiceKeyOperation,
+			OperationSummary: "Tạo khóa dịch vụ cho website với các quyền web.*; khóa đầy đủ chỉ có trong câu trả lời này",
+			OperationID:      "createServiceKey",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *CreateServiceKeyRequest
+			Params   = CreateServiceKeyParams
+			Response = CreateServiceKeyRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCreateServiceKeyParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CreateServiceKey(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CreateServiceKey(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCreateServiceKeyResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleCreateShipmentRequest handles createShipment operation.
 //
 // Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa
@@ -10418,6 +10518,71 @@ func (s *Server) handleListRolesToManageRequest(args [0]string, argsEscaped bool
 	}
 }
 
+// handleListServiceKeysRequest handles listServiceKeys operation.
+//
+// Khóa dịch vụ của website (không bao giờ kèm bí mật hay băm).
+//
+// GET /api/v1/identity/service-keys
+func (s *Server) handleListServiceKeysRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response ListServiceKeysRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListServiceKeysOperation,
+			OperationSummary: "Khóa dịch vụ của website (không bao giờ kèm bí mật hay băm)",
+			OperationID:      "listServiceKeys",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = ListServiceKeysRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListServiceKeys(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListServiceKeys(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListServiceKeysResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleListShipmentAddressChangesRequest handles listShipmentAddressChanges operation.
 //
 // Quyền fulfillment.read theo kho của tài khoản hãng của vận đơn; thiếu phạm vi →
@@ -14235,6 +14400,109 @@ func (s *Server) handleRetryJobRequest(args [1]string, argsEscaped bool, w http.
 	}
 
 	if err := encodeRetryJobResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleRevokeServiceKeyRequest handles revokeServiceKey operation.
+//
+// Thu hồi khóa dịch vụ (yêu cầu kế tiếp dùng khóa nhận 401 trong vài giây).
+//
+// POST /api/v1/identity/service-keys/{id}/revoke
+func (s *Server) handleRevokeServiceKeyRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: RevokeServiceKeyOperation,
+			ID:   "revokeServiceKey",
+		}
+	)
+	params, err := decodeRevokeServiceKeyParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeRevokeServiceKeyRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response RevokeServiceKeyRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    RevokeServiceKeyOperation,
+			OperationSummary: "Thu hồi khóa dịch vụ (yêu cầu kế tiếp dùng khóa nhận 401 trong vài giây)",
+			OperationID:      "revokeServiceKey",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *RevokeServiceKeyRequest
+			Params   = RevokeServiceKeyParams
+			Response = RevokeServiceKeyRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackRevokeServiceKeyParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.RevokeServiceKey(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.RevokeServiceKey(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeRevokeServiceKeyResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

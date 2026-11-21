@@ -40,6 +40,8 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   role_in_use: "Vai trò đang được gán cho nhân viên, gỡ ra trước rồi mới lưu trữ",
   role_name_taken: "Đã có vai trò cùng tên",
   unknown_permission: "Có quyền không còn trong hệ thống. Tải lại trang",
+  ip_not_allowed: "Máy gọi không nằm trong dải IP được phép của khóa",
+  permission_not_allowed_for_key: "Khóa cho website chỉ nhận các quyền web.*",
   // Sản phẩm, danh mục
   already_exists: "Đã có mục cùng tên hoặc cùng mã",
   barcode_taken: "Mã vạch đã dùng cho biến thể khác",

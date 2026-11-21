@@ -266,6 +266,71 @@ paths:
                   $ref: "#/components/schemas/PermissionInfo"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/identity/service-keys:
+    get:
+      operationId: listServiceKeys
+      summary: Khóa dịch vụ của website (không bao giờ kèm bí mật hay băm)
+      x-permission: identity.service_keys.manage
+      responses:
+        "200":
+          description: Khóa, cũ trước
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceKey"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createServiceKey
+      summary: Tạo khóa dịch vụ cho website với các quyền web.*; khóa đầy đủ chỉ có trong câu trả lời này
+      description: >-
+        Gửi lại cùng Idempotency-Key → 409 already_processed (không tạo khóa thứ hai, không trả lại bí mật).
+        Quyền ngoài web.* → 422 permission_not_allowed_for_key.
+      x-permission: identity.service_keys.manage
+      x-idempotency: no-replay
+      x-idempotency-reason: "Trả bí mật của khóa đúng một lần"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateServiceKeyRequest"
+      responses:
+        "201":
+          description: Khóa vừa tạo kèm bí mật (secret), hiện một lần
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedServiceKey"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/identity/service-keys/{id}/revoke:
+    post:
+      operationId: revokeServiceKey
+      summary: Thu hồi khóa dịch vụ (yêu cầu kế tiếp dùng khóa nhận 401 trong vài giây)
+      x-permission: identity.service_keys.manage
+      parameters:
+        - $ref: "#/components/parameters/ServiceKeyID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevokeServiceKeyRequest"
+      responses:
+        "200":
+          description: Khóa sau khi thu hồi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceKey"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/me:
     get:
       operationId: getMe
@@ -4159,6 +4224,13 @@ components:
       schema:
         type: string
         format: uuid
+    ServiceKeyID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     RoleID:
       name: id
       in: path
@@ -4478,6 +4550,9 @@ components:
         - role_in_use
         - role_name_taken
         - unknown_permission
+        # Khóa dịch vụ của website (Task 189)
+        - ip_not_allowed
+        - permission_not_allowed_for_key
         # Sản phẩm, danh mục (M1-27, M1-34)
         - already_exists
         - barcode_taken
@@ -4760,6 +4835,76 @@ components:
           maxItems: 100
           items:
             $ref: "#/components/schemas/StaffGrant"
+    ServiceKey:
+      type: object
+      required: [id, name, keyPrefix, permissions, allowedCidrs, createdAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        keyPrefix:
+          type: string
+          description: 12 ký tự đầu (không bí mật) để nhận ra khóa; khóa đầy đủ dạng ek_{keyPrefix}_{bí mật}
+        permissions:
+          type: array
+          items:
+            type: string
+        allowedCidrs:
+          type: array
+          description: Dải IP được dùng khóa; rỗng là mọi IP
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: string
+          format: date-time
+          description: Lần dùng gần nhất (ghi tối đa một lần mỗi phút)
+        version:
+          type: integer
+    CreatedServiceKey:
+      allOf:
+        - $ref: "#/components/schemas/ServiceKey"
+        - type: object
+          required: [secret]
+          properties:
+            secret:
+              type: string
+              description: Khóa đầy đủ, chỉ có ở câu trả lời tạo khóa; CRM không lưu, không hiện lại
+    CreateServiceKeyRequest:
+      type: object
+      required: [name, permissions]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        permissions:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: string
+        allowedCidrs:
+          type: array
+          maxItems: 32
+          items:
+            type: string
+            maxLength: 50
+    RevokeServiceKeyRequest:
+      type: object
+      required: [version]
+      additionalProperties: false
+      properties:
+        version:
+          type: integer
     Role:
       type: object
       required: [id, key, name, status, customized, version, holderCount, permissions]
