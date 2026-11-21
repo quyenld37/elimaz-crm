@@ -32,7 +32,8 @@ type AttachResult struct {
 // AttachTrackingCode gắn mã hãng trackingCode (và phí fee khi còn trống) cho vận đơn shipmentID trong tx của bên gọi
 // (Task M3-11, M3-12): khóa đơn rồi vận đơn (ADR-46 nhóm 7 → 8); vận đơn creating → mã, create_state created,
 // awaiting_pickup, version + 2, phát shipment.created (Seq v+1) và shipment.status_changed (Seq v+2), báo hiệu
-// shipment.changed. Đã có đúng mã → Already. Có mã khác, không còn creating, hay mã đã thuộc vận đơn khác cùng hãng
+// shipment.changed; vận đơn có ý định hủy hay đơn đã cancel_requested (khách hủy trong lúc lệnh tạo gọi hãng, Task
+// M3-14) → ghi lệnh hủy ngay (RequestCancel). Đã có đúng mã → Already. Có mã khác, không còn creating, hay mã đã thuộc vận đơn khác cùng hãng
 // (unique shipments_tracking_key, bắt trong savepoint) → Conflict, anomaly tracking_conflict, needs_review, vận đơn
 // giữ nguyên. Lỗi: mã rỗng hay dài quá 64 → ErrInvalidTracking; không có vận đơn, đơn → ErrNotFound.
 func (s *Service) AttachTrackingCode(ctx context.Context, tx pgx.Tx, shipmentID uuid.UUID, trackingCode string,
@@ -52,7 +53,8 @@ func (s *Service) AttachTrackingCode(ctx context.Context, tx pgx.Tx, shipmentID 
 	if err != nil {
 		return AttachResult{}, fmt.Errorf("đọc đơn của vận đơn: %w", err)
 	}
-	if err := order.Lock(ctx, tx, ref.SellerID, ref.OrderID); errors.Is(err, order.ErrNotFound) {
+	snap, err := order.LockSnapshot(ctx, tx, ref.SellerID, ref.OrderID)
+	if errors.Is(err, order.ErrNotFound) {
 		return AttachResult{}, ErrNotFound
 	} else if err != nil {
 		return AttachResult{}, fmt.Errorf("khóa đơn của vận đơn: %w", err)
@@ -81,6 +83,20 @@ func (s *Service) AttachTrackingCode(ctx context.Context, tx pgx.Tx, shipmentID 
 	if err != nil {
 		return AttachResult{}, fmt.Errorf("gắn mã hãng: %w", err)
 	}
+	if err := s.emitAttached(ctx, tx, sh, row, trackingCode); err != nil {
+		return AttachResult{}, err
+	}
+	if err := s.cancelAfterAttach(ctx, tx, sh.TenantID, sh.ID, sh.CancelIntent, snap.Status); err != nil {
+		return AttachResult{}, err
+	}
+	return AttachResult{Version: row.Version}, nil
+}
+
+// emitAttached phát shipment.created (Seq v−1), shipment.status_changed (Seq v) và báo hiệu shipment.changed sau khi
+// vận đơn sh nhận mã hãng (row là kết quả của câu gắn).
+func (s *Service) emitAttached(ctx context.Context, tx pgx.Tx, sh store.LockShipmentForApplyRow,
+	row store.AttachShipmentTrackingRow, trackingCode string,
+) error {
 	var feeOut *int64
 	if row.Fee.Valid {
 		feeOut = &row.Fee.Int64
@@ -90,7 +106,7 @@ func (s *Service) AttachTrackingCode(ctx context.Context, tx pgx.Tx, shipmentID 
 		Topic:   TopicShipmentCreated,
 		Payload: ShipmentCreated{ShipmentID: sh.ID, OrderID: sh.OrderID, TrackingCode: trackingCode, Fee: feeOut},
 	}); err != nil {
-		return AttachResult{}, fmt.Errorf("phát %s: %w", TopicShipmentCreated, err)
+		return fmt.Errorf("phát %s: %w", TopicShipmentCreated, err)
 	}
 	if _, _, err := s.d.Events.Emit(ctx, tx, s.d.Queue, events.Event{
 		TenantID: sh.TenantID, AggregateType: aggregateShipment, AggregateID: sh.ID.String(), Seq: row.Version,
@@ -100,12 +116,9 @@ func (s *Service) AttachTrackingCode(ctx context.Context, tx pgx.Tx, shipmentID 
 			From: StatusCreating,
 		},
 	}); err != nil {
-		return AttachResult{}, fmt.Errorf("phát %s: %w", TopicShipmentStatusChanged, err)
+		return fmt.Errorf("phát %s: %w", TopicShipmentStatusChanged, err)
 	}
-	if err := s.publishShipment(ctx, tx, sh.TenantID, sh.ID, sh.WarehouseID); err != nil {
-		return AttachResult{}, err
-	}
-	return AttachResult{Version: row.Version}, nil
+	return s.publishShipment(ctx, tx, sh.TenantID, sh.ID, sh.WarehouseID)
 }
 
 // conflict mở anomaly tracking_conflict (chi tiết: mã hãng mới, lý do) và đặt needs_review của vận đơn sh.

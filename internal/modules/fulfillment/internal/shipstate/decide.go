@@ -50,7 +50,10 @@ func Decide(in Input) Decision {
 	}
 	older := in.LastEventAt != nil && in.EventAt.Before(*in.LastEventAt)
 	e, hasEdge := lookup(in.Current, in.Event)
-	if target == in.Current && !hasEdge { // returning + returned_to_shop là cạnh, không phải trùng
+	// returning + returned_to_shop là cạnh, không phải trùng. Đang chờ hãng trả lời yêu cầu hủy mà hãng báo kiện vẫn chờ
+	// thu gom: cũng là trùng (kiện chưa đổi; Task M3-14, hãng trả CancelPending rồi tra bù).
+	waiting := in.Current == CancelRequested && in.Event == CanonAwaitingPickup
+	if (target == in.Current || waiting) && !hasEdge {
 		return Decision{Ignored: ReasonDuplicateState, AdvanceLast: !older}
 	}
 	if older {

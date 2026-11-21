@@ -617,11 +617,17 @@ func (s *Service) resolveNotCreated(ctx context.Context, tx pgx.Tx, q *store.Que
 	return s.ShipmentView(ctx, tx, row.ID)
 }
 
-// createCommand là lệnh tạo dựng từ phụ thuộc của Service (OnDone cho ResolveManually; không gọi hãng).
+// createCommand là lệnh tạo dựng từ phụ thuộc của Service, cùng bộ hãng (OnDone cho ResolveManually, cancelEnded;
+// không gọi hãng).
 func (s *Service) createCommand() *CreateCommand {
-	return NewCreateCommand(CommandOptions{
-		DB: s.d.DB, Events: s.d.Events, Queue: s.d.Queue, Realtime: s.d.Bus, Keys: s.d.Keys, Now: s.d.Now,
-	})
+	o := CommandOptions{DB: s.d.DB, Events: s.d.Events, Queue: s.d.Queue, Realtime: s.d.Bus, Keys: s.d.Keys, Now: s.d.Now}
+	if s.d.Carriers != nil {
+		for _, k := range s.d.Carriers.Keys() {
+			a, _ := s.d.Carriers.Get(k)
+			o.Adapters = append(o.Adapters, a)
+		}
+	}
+	return NewCreateCommand(o)
 }
 
 // commandBusy: lệnh tạo vừa được chạy lại (pending, running sau queue.RetryJob) hay đã xong theo đường khác →

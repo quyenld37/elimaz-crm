@@ -218,6 +218,9 @@ func TestDecide_PlanCases(t *testing.T) {
 	check(t, "cùng thời điểm không phải cũ",
 		ss.Decide(in(ss.Shipping, ss.CanonDelivered, pickedUp, last("10:00"), evAt("10:00"))),
 		applied(ss.Delivered, ss.EffDelivered, ss.EffCloseCallbacks))
+	check(t, "đang yêu cầu hủy, kiện vẫn chờ thu gom (Task M3-14)",
+		ss.Decide(in(ss.CancelRequested, ss.CanonAwaitingPickup, last("09:00"))),
+		ss.Decision{Ignored: ss.ReasonDuplicateState, AdvanceLast: true})
 	check(t, "VC11 không hiện hành, hủy", ss.Decide(in(ss.AwaitingPickup, ss.CanonCancelled, notCurrent)),
 		ignored(ss.ReasonNotCurrent, ""))
 	check(t, "VC11 không hiện hành, lấy hàng", ss.Decide(in(ss.Cancelled, ss.CanonPickedUp, notCurrent)),

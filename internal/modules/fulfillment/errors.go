@@ -35,3 +35,9 @@ var (
 	// ErrTrackingCodeConflict: mã hãng nhân viên nhập đã thuộc vận đơn khác cùng hãng.
 	ErrTrackingCodeConflict = errors.New("fulfillment: mã hãng đã thuộc vận đơn khác")
 )
+
+// Lỗi của hủy vận đơn, đổi hãng (kế hoạch M3, Task M3-14).
+var (
+	// ErrShipmentNotCancellable: đổi hãng khi vận đơn đã đang hủy, đã hủy, hay hàng đã đi (phải chờ hoàn).
+	ErrShipmentNotCancellable = errors.New("fulfillment: vận đơn không hủy được")
+)

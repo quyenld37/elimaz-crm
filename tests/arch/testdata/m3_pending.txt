@@ -4,7 +4,6 @@
 requestAddressChange
 resolveAddressChange
 setShipmentManualStatus
-cancelShipment
 recordPartialDelivery
 listCallbackTasks
 recordCallbackOutcome

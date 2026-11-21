@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -132,8 +134,16 @@ func NewCreateCommand(o CommandOptions) *CreateCommand {
 	if now == nil {
 		now = time.Now
 	}
+	// Bộ hãng của Service: gắn mã hãng xong mà vận đơn có ý định hủy thì RequestCancel cần biết hãng hủy qua API được
+	// không (Task M3-14). Adapter trùng khóa đã bị map trên gộp; lỗi dựng (khóa rỗng) → nil: hủy đi đường nhập tay.
+	carriers, err := NewRegistry(slices.Collect(maps.Values(m))...)
+	if err != nil {
+		carriers = nil
+	}
 	return &CreateCommand{
-		svc:      &Service{d: Deps{DB: o.DB, Queue: o.Queue, Events: o.Events, Bus: o.Realtime, Keys: o.Keys, Now: now}},
+		svc: &Service{d: Deps{
+			DB: o.DB, Queue: o.Queue, Events: o.Events, Bus: o.Realtime, Keys: o.Keys, Now: now, Carriers: carriers,
+		}},
 		adapters: m,
 	}
 }
@@ -221,11 +231,8 @@ func (c *CreateCommand) Execute(ctx context.Context, j queue.Job) (commands.Outc
 		return rejectBadPayload()
 	}
 	t, err := c.target(ctx, j, p.ShipmentID)
-	switch {
-	case errors.Is(err, ErrNotFound):
-		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonStale}, nil
-	case err != nil:
-		return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonReadFailed}, nil //nolint:nilerr // chưa gửi gì
+	if out, failed := targetFailed(err); failed {
+		return out, nil
 	}
 	switch create.ExecuteGate(t.ship) {
 	case create.GateStale:
@@ -253,6 +260,18 @@ func (c *CreateCommand) Execute(ctx context.Context, j queue.Job) (commands.Outc
 		return commands.Outcome{}, fmt.Errorf("tạo vận đơn ở hãng: %w", err)
 	}
 	return c.refuse(ctx, j, t, out, authCode)
+}
+
+// targetFailed: đọc vận đơn của lệnh (trước khi gọi hãng) lỗi → không có vận đơn: rejected (dừng hẳn); lỗi đọc:
+// not_sent (chưa gửi gì). err nil → failed = false.
+func targetFailed(err error) (commands.Outcome, bool) {
+	switch {
+	case err == nil:
+		return commands.Outcome{}, false
+	case errors.Is(err, ErrNotFound):
+		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonStale}, true
+	}
+	return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonReadFailed}, true
 }
 
 func doneOutcome(tracking string, fee int64, feeKnown bool) (commands.Outcome, error) {
@@ -405,7 +424,8 @@ func (c *CreateCommand) Lookup(ctx context.Context, j queue.Job) (string, error)
 // phí; đã có đúng mã → không làm gì; mã khác → anomaly tracking_conflict) rồi đóng việc in_doubt_create. Không có mã
 // (done do tra lại): create_state created (không còn "không tạo", "Gửi lại"), đóng việc in_doubt_create và ghi lệnh
 // tra trạng thái để điền mã hãng (khóa created:<id>).
-// Ý định hủy trong lúc gửi (Task M3-14) chưa có ở bản này: vận đơn đã tạo được hủy bằng đường hủy của M3-14.
+// Ý định hủy trong lúc gửi (Task M3-14): AttachTrackingCode ghi lệnh hủy ngay khi vận đơn có ý định hủy hay đơn đã
+// cancel_requested.
 func (c *CreateCommand) OnDone(ctx context.Context, j queue.Job, result json.RawMessage, tx pgx.Tx) error {
 	p, err := parsePayload(j)
 	if err != nil {

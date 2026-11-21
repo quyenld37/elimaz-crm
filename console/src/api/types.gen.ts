@@ -2163,6 +2163,10 @@ export type ResolveShipmentCreateRequest = {
 
 export type CancelShipmentRequest = {
     reason: string;
+    /**
+     * Nhân viên đã tra trang hãng và hãng không có vận đơn này: chỉ dùng cho vận đơn đang tạo kẹt ("không rõ" hay lệnh tạo bị bỏ) → hủy với cancelKind staff_after_unknown; không có thì vận đơn đang tạo trả 409 create_in_progress (Task M3-14)
+     */
+    carrierChecked?: boolean;
 };
 
 export type SetShipmentManualStatusRequest = {
