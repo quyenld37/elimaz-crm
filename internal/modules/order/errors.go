@@ -61,9 +61,6 @@ var (
 	ErrSettingOutOfRange = errors.New("order: cài đặt ngoài khoảng cho phép")
 	// ErrTrafficSourceNameTaken: đã có nguồn đơn cùng tên trong shop (Task M2-15).
 	ErrTrafficSourceNameTaken = errors.New("order: đã có nguồn đơn cùng tên")
-	// ErrLabelNotFilterable: lọc danh sách theo nhãn của trục vận đơn (chờ thu gom, đang chuyển, thất bại, đang hoàn)
-	// trước khi có vận đơn (M3) (Task M2-24).
-	ErrLabelNotFilterable = errors.New("order: nhãn này chưa lọc được")
 )
 
 // OutOfStockError là chi tiết của ErrOutOfStock: dòng đầu tiên (theo thứ tự khóa) không đủ hàng.

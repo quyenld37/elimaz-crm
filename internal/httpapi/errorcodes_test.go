@@ -5,6 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -21,7 +22,7 @@ func TestErrorCodes_DeclaredInContract(t *testing.T) {
 	declared := contractErrorCodes(t)
 	for _, code := range errorsGoCodes(t) {
 		if !slices.Contains(declared, code) {
-			t.Errorf("mã lỗi %q có trong internal/httpapi/errors.go nhưng thiếu ở x-error-codes của openapi.yaml", code)
+			t.Errorf("mã lỗi %q có trong internal/httpapi/errors*.go nhưng thiếu ở x-error-codes của openapi.yaml", code)
 		}
 	}
 }
@@ -68,28 +69,39 @@ func contractErrorCodes(t *testing.T) []string {
 	return codes
 }
 
-// errorsGoCodes đọc giá trị của mọi hằng chuỗi tên code* trong errors.go.
+// errorsGoCodes đọc giá trị của mọi hằng chuỗi tên code* trong errors.go và các tệp theo vùng errors_<vùng>.go (Task
+// 441), không gồm tệp test.
 func errorsGoCodes(t *testing.T) []string {
 	t.Helper()
-	f, err := parser.ParseFile(token.NewFileSet(), "errors.go", nil, 0)
+	names, err := filepath.Glob("errors*.go")
 	if err != nil {
 		t.Fatal(err)
 	}
 	var codes []string
-	ast.Inspect(f, func(n ast.Node) bool {
-		vs, ok := n.(*ast.ValueSpec)
-		if !ok {
-			return true
+	for _, name := range names {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
 		}
-		for i, name := range vs.Names {
-			if v, ok := codeLiteral(name.Name, vs.Values, i); ok {
-				codes = append(codes, v)
+		f, err := parser.ParseFile(token.NewFileSet(), name, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			vs, ok := n.(*ast.ValueSpec)
+			if !ok {
+				return true
 			}
-		}
-		return false
-	})
-	if len(codes) < 10 {
-		t.Fatalf("chỉ đọc được %d mã lỗi từ errors.go; cách đọc đã sai", len(codes))
+			for i, name := range vs.Names {
+				if v, ok := codeLiteral(name.Name, vs.Values, i); ok {
+					codes = append(codes, v)
+				}
+			}
+			return false
+		})
+	}
+	// Trước khi tách (Task 441) errors.go có 104 mã; errors.go một mình nay chỉ còn mã chung (29).
+	if len(codes) < 100 {
+		t.Fatalf("chỉ đọc được %d mã lỗi từ errors*.go; cách đọc đã sai", len(codes))
 	}
 	return codes
 }
