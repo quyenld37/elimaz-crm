@@ -14,8 +14,8 @@ import (
 	"elimaz.com.vn/crm/internal/platform/background"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
-	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // expire chạy ExpireDrafts(now, limit) trong một transaction crm_app của tenant e.
@@ -114,7 +114,7 @@ func TestExpireDraftsSchedule(t *testing.T) {
 	clock := created.Add(48 * time.Hour)
 	parts := order.Background(background.Deps{
 		Queue: queue.NewQueue(), Events: events.NewRegistry(),
-		Bus: &testkit.RecordingBus{}, Now: func() time.Time { return clock },
+		Bus: &realtimetest.RecordingBus{}, Now: func() time.Time { return clock },
 	})
 	if len(parts.Schedules) != 1 || len(parts.JobHandlers) != 1 {
 		t.Fatalf("lịch, việc nền: %d, %d", len(parts.Schedules), len(parts.JobHandlers))

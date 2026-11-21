@@ -16,7 +16,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/fieldcrypt"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 )
 
 // Danh mục thử của CRM (kế hoạch M3, Task M3-18, bước 1): 3 tỉnh, 12 phường (mã có chữ L: không trùng mẫu khác).
@@ -134,7 +134,7 @@ func newLocEnv(t *testing.T) *locEnv {
 		t.Fatal(err)
 	}
 	m := fulfillment.New(fulfillment.Deps{
-		DB: e.staff.App, Queue: queue.NewQueue(), Carriers: reg, Keys: keys, Bus: &testkit.RecordingBus{}, Now: e.clock.Now,
+		DB: e.staff.App, Queue: queue.NewQueue(), Carriers: reg, Keys: keys, Bus: &realtimetest.RecordingBus{}, Now: e.clock.Now,
 	})
 	e.svc = m.Service
 	e.worker = queue.NewWorker(e.staff.App, nil, queue.WorkerOptions{

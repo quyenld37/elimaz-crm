@@ -1,4 +1,6 @@
-package testkit
+package filestest
+
+// Tệp này dời từ internal/testkit (Task 424): gói files nhập identity, nên testkit không được nhập files.
 
 import (
 	"context"

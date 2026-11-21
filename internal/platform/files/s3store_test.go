@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 
 	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
@@ -26,7 +27,7 @@ func testKey(t *testing.T) string {
 // adminClient: client S3 bằng danh tính crm-admin của kho dev (chỉ test đọc bản cũ theo phiên bản).
 func adminClient(t *testing.T) *s3.Client {
 	t.Helper()
-	c := testkit.S3Config(t, testkit.S3Admin)
+	c := filestest.S3Config(t, filestest.S3Admin)
 	return s3.New(s3.Options{
 		Region: c.Region, BaseEndpoint: aws.String(c.Endpoint), UsePathStyle: true,
 		Credentials: aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
@@ -172,7 +173,7 @@ func TestFileStore_PresignGetExpires(t *testing.T) {
 
 // Delete bằng crm-app chỉ tạo dấu xóa: crm-admin vẫn đọc được bản cũ theo phiên bản (bucket giữ phiên bản, ADR-36).
 func TestS3Store_DeleteKeepsVersion(t *testing.T) {
-	store := testkit.S3FileStore(t)
+	store := filestest.S3FileStore(t)
 	admin := adminClient(t)
 	ctx := t.Context()
 	for _, b := range []files.Bucket{files.BucketPublic, files.BucketOriginals, files.BucketPrivate} {
@@ -186,7 +187,7 @@ func TestS3Store_DeleteKeepsVersion(t *testing.T) {
 		if _, err := store.Head(ctx, b, key); !errors.Is(err, files.ErrObjectNotFound) {
 			t.Fatalf("%s: sau Delete, Head phải ErrObjectNotFound, nhận %v", b, err)
 		}
-		bucket := testkit.S3Config(t, testkit.S3Admin).BucketPrefix + string(b)
+		bucket := filestest.S3Config(t, filestest.S3Admin).BucketPrefix + string(b)
 		vs, err := admin.ListObjectVersions(ctx, &s3.ListObjectVersionsInput{Bucket: aws.String(bucket), Prefix: aws.String(key)})
 		if err != nil {
 			t.Fatal(err)
@@ -208,7 +209,7 @@ func TestS3Store_DeleteKeepsVersion(t *testing.T) {
 
 // MemStore mô phỏng cùng luật: dấu xóa, bản cũ còn.
 func TestMemStore_DeleteKeepsVersion(t *testing.T) {
-	store := testkit.MemFileStore(t)
+	store := filestest.MemFileStore(t)
 	key := testKey(t)
 	if err := store.Put(t.Context(), files.BucketPrivate, key, strings.NewReader("con-day"), 7, "text/plain"); err != nil {
 		t.Fatal(err)

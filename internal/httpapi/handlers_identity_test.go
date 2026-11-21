@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -24,7 +25,7 @@ import (
 type staffAPIEnv struct {
 	t      *testing.T
 	staff  *testkit.Staff
-	keys   *testkit.AccessKeys
+	keys   *cfaccesstest.AccessKeys
 	srv    http.Handler
 	tenant uuid.UUID
 	ids    map[string]uuid.UUID
@@ -39,7 +40,7 @@ const (
 
 func newStaffAPIEnv(t *testing.T) *staffAPIEnv {
 	t.Helper()
-	e := &staffAPIEnv{t: t, staff: testkit.OpenStaff(t), keys: testkit.AccessKeyServer(t), ids: map[string]uuid.UUID{}}
+	e := &staffAPIEnv{t: t, staff: testkit.OpenStaff(t), keys: cfaccesstest.AccessKeyServer(t), ids: map[string]uuid.UUID{}}
 	e.tenant = e.staff.Tenant(t, "A")
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error { return identity.EnsureDefaultRoles(t.Context(), tx, e.tenant) })
 	for email, role := range map[string][3]string{

@@ -23,7 +23,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 )
 
 // labelCarrier là hãng giả trong bộ nhớ có in nhãn: body trả thân nhãn cho các mã hãng (nil: PDF có các mã); err
@@ -81,7 +81,7 @@ func newLabelEnv(t *testing.T, batch bool) *labelEnv {
 	e := &labelEnv{shipEnv: newShipEnv(t), store: files.NewMemStore()}
 	e.lc = &labelCarrier{Carrier: e.carrier, batch: batch}
 	e.lsvc = fulfillment.New(fulfillment.Deps{
-		DB: e.staff.App, Queue: queue.NewQueue(), Events: events.NewRegistry(), Bus: &testkit.RecordingBus{},
+		DB: e.staff.App, Queue: queue.NewQueue(), Events: events.NewRegistry(), Bus: &realtimetest.RecordingBus{},
 		Carriers: mustRegistry(t, e.lc), Files: e.store,
 	}).Service
 	e.cmd = fulfillment.NewLabelsCommand(e.lsvc)
@@ -271,7 +271,7 @@ func TestLabels_ReprintKeepsState(t *testing.T) {
 	}
 	first := e.mustCreate(ids...)
 	e.drain()
-	w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}}
+	w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}}
 	if err := e.app(func(tx pgx.Tx) error {
 		_, err := w.SetPackingStatus(e.t.Context(), tx, e.seller, orders, order.PackingPacked,
 			order.Actor{TenantID: e.tenant, UserID: e.actor.UserID, Type: "staff"}, time.Now().UTC())

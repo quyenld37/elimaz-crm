@@ -15,7 +15,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/testkit/shiptest"
 )
 
@@ -34,7 +34,7 @@ func newCancelEnv(t *testing.T) *shipEnv {
 func (e *shipEnv) orderCancelConsumer() events.Consumer { //nolint:ireturn // consumer của module chỉ lộ qua interface
 	e.t.Helper()
 	m := fulfillment.New(fulfillment.Deps{
-		DB: e.staff.App, Queue: queue.NewQueue(), Events: events.NewRegistry(), Bus: &testkit.RecordingBus{},
+		DB: e.staff.App, Queue: queue.NewQueue(), Events: events.NewRegistry(), Bus: &realtimetest.RecordingBus{},
 		Carriers: mustRegistry(e.t, e.carrier),
 	})
 	for _, c := range m.Consumers() {

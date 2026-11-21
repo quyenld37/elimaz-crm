@@ -12,7 +12,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 )
 
 // payEnv là codEnv cộng module tiền (Service, consumer cash_refunds) và order.Writer dùng chung sổ sự kiện.
@@ -26,7 +26,7 @@ type payEnv struct {
 func newPayEnv(t *testing.T) *payEnv {
 	t.Helper()
 	e := &payEnv{codEnv: newCODEnv(t)}
-	reg, bus := events.NewRegistry(), &testkit.RecordingBus{}
+	reg, bus := events.NewRegistry(), &realtimetest.RecordingBus{}
 	m := cash.New(cash.Deps{DB: e.staff.App, Queue: queue.NewQueue(), Events: reg, Bus: bus})
 	e.svc = m.Service
 	for _, c := range m.Consumers() {

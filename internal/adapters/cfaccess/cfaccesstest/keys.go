@@ -1,4 +1,6 @@
-package testkit
+// Package cfaccesstest dựng máy chủ khóa Cloudflare Access thử và thẻ ký bằng khóa đó cho test. Tách khỏi
+// internal/testkit vì bộ kiểm thẻ cfaccess nhập identity (Task 424).
+package cfaccesstest
 
 import (
 	"crypto/rand"

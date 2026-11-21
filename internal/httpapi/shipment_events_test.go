@@ -13,8 +13,8 @@ import (
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
-	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // listShipmentEvents: không có fulfillment.read ở kho của tài khoản hãng → 404; có quyền → mới nhất trước, đủ trường,
@@ -92,7 +92,7 @@ func seedShipmentEvents(t *testing.T, e *orderAPIEnv) uuid.UUID {
 	v := e.variant(e.shop.Seller, 250000, 5)
 	orderID := uuid.MustParse(fmt.Sprint(e.mustCreate("o1", orderBody(30000, line(v, 2)))["id"]))
 	svc := fulfillment.New(fulfillment.Deps{
-		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &testkit.RecordingBus{}, Events: events.NewRegistry(),
+		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &realtimetest.RecordingBus{}, Events: events.NewRegistry(),
 	}).Service
 	at := time.Date(2026, 11, 21, 8, 0, 0, 0, time.UTC)
 	var shipmentID uuid.UUID

@@ -14,8 +14,8 @@ import (
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
-	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // anomalyOf trả mã anomaly mở loại kind của vận đơn id.
@@ -68,7 +68,7 @@ func (e *shipEnv) addCallback(s fulfillment.Shipment, attempt int, status string
 
 func newListsModule(e *shipEnv, now func() time.Time) *fulfillment.Module {
 	return fulfillment.New(fulfillment.Deps{
-		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &testkit.RecordingBus{}, Events: events.NewRegistry(), Now: now,
+		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &realtimetest.RecordingBus{}, Events: events.NewRegistry(), Now: now,
 	})
 }
 

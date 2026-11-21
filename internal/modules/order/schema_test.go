@@ -22,8 +22,10 @@ import (
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/testkit/shoptest"
 )
 
 func pgCode(err error) string {
@@ -304,7 +306,7 @@ func checkCreateAfter(t *testing.T, app *db.DB, tenant uuid.UUID, s m1Seeded) {
 	testkit.InTenant(t, app, tenant, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, "SELECT variant_id FROM inventory.stock_available_v WHERE available > 0 LIMIT 1").Scan(&v)
 	})
-	w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}}
+	w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}}
 	testkit.InTenant(t, app, tenant, func(tx pgx.Tx) error {
 		c, err := customer.Create(ctx, tx, "Anh Bình")
 		if err != nil {
@@ -339,7 +341,7 @@ func checkCreateAfter(t *testing.T, app *db.DB, tenant uuid.UUID, s m1Seeded) {
 type schemaEnv struct {
 	staff      *testkit.Staff
 	a, b       uuid.UUID
-	cat        testkit.Catalog
+	cat        shoptest.Catalog
 	custA      uuid.UUID
 	codeSerial int
 }
@@ -348,7 +350,7 @@ func newSchemaEnv(t *testing.T) *schemaEnv {
 	t.Helper()
 	e := &schemaEnv{staff: testkit.OpenStaff(t), codeSerial: 9000000}
 	e.a, e.b = e.staff.Tenant(t, "A"), e.staff.Tenant(t, "B")
-	e.cat = testkit.SeedCatalog(t, e.staff.Owner, e.a, testkit.SeedOptions{Variants: []testkit.SeedVariant{
+	e.cat = shoptest.SeedCatalog(t, e.staff.Owner, e.a, shoptest.SeedOptions{Variants: []shoptest.SeedVariant{
 		{SKU: "V1", Price: 250000},
 		{SKU: "V2", Price: 180000},
 		{SKU: "V3", Price: 320000},

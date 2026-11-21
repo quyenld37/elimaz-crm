@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -23,7 +24,7 @@ import (
 type jobsEnv struct {
 	t        *testing.T
 	staff    *testkit.Staff
-	keys     *testkit.AccessKeys
+	keys     *cfaccesstest.AccessKeys
 	srv      http.Handler
 	tenantA  uuid.UUID
 	tenantB  uuid.UUID
@@ -37,7 +38,7 @@ const (
 
 func newJobsEnv(t *testing.T, lockTimeout time.Duration) *jobsEnv {
 	t.Helper()
-	e := &jobsEnv{t: t, staff: testkit.OpenStaff(t), keys: testkit.AccessKeyServer(t), managers: map[string]uuid.UUID{}}
+	e := &jobsEnv{t: t, staff: testkit.OpenStaff(t), keys: cfaccesstest.AccessKeyServer(t), managers: map[string]uuid.UUID{}}
 	e.tenantA, e.tenantB = e.staff.Tenant(t, "A"), e.staff.Tenant(t, "B")
 	m := e.staff.User(t, e.tenantA, jobsManager, "active")
 	e.staff.Grant(t, e.tenantA, m, []string{"platform.jobs.manage"}, "all", "")

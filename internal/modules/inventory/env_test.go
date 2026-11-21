@@ -17,6 +17,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/inventory/invtest"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -38,7 +39,7 @@ type invEnv struct {
 	tenant    uuid.UUID
 	seller    uuid.UUID
 	warehouse uuid.UUID
-	bus       *testkit.RecordingBus
+	bus       *realtimetest.RecordingBus
 	product   uuid.UUID
 	products  map[uuid.UUID]uuid.UUID
 	nVariants int
@@ -52,7 +53,7 @@ func newInvEnv(t *testing.T) *invEnv {
 // newInvEnvOn dựng tenant name trên staff có sẵn (nhiều tenant chung một database).
 func newInvEnvOn(t *testing.T, staff *testkit.Staff, name string) *invEnv {
 	t.Helper()
-	e := &invEnv{t: t, staff: staff, bus: &testkit.RecordingBus{}}
+	e := &invEnv{t: t, staff: staff, bus: &realtimetest.RecordingBus{}}
 	e.tenant = staff.Tenant(t, name)
 	e.products = map[uuid.UUID]uuid.UUID{}
 	staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
@@ -92,7 +93,7 @@ func eachSeller(t *testing.T, body func(t *testing.T, e *invEnv)) {
 	base := newInvEnv(t)
 	testkit.ForEachSeller(t, base.sellers(), func(t *testing.T, s uuid.UUID) {
 		e := *base
-		e.t, e.seller, e.product, e.bus = t, s, base.products[s], &testkit.RecordingBus{}
+		e.t, e.seller, e.product, e.bus = t, s, base.products[s], &realtimetest.RecordingBus{}
 		body(t, &e)
 	})
 }

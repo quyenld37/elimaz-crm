@@ -25,6 +25,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/adapters/carrier"
 	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
@@ -65,7 +66,7 @@ type stack struct {
 	tenant uuid.UUID
 	shop   *shiptest.Shop
 	token  string // thẻ Access của chủ shop
-	keys   *testkit.AccessKeys
+	keys   *cfaccesstest.AccessKeys
 	spans  *tracetest.InMemoryExporter
 	spool  *webhooks.Spool
 	ext    *testkit.FakeExternal
@@ -85,7 +86,7 @@ type stackOptions struct {
 func newStack(t *testing.T, o stackOptions) *stack {
 	t.Helper()
 	s := &stack{
-		t: t, spans: tracetest.NewInMemoryExporter(), keys: testkit.AccessKeyServer(t),
+		t: t, spans: tracetest.NewInMemoryExporter(), keys: cfaccesstest.AccessKeyServer(t),
 		spool: &webhooks.Spool{Dir: t.TempDir()}, ext: &testkit.FakeExternal{Mode: testkit.FakeOK},
 	}
 	// Dấu vết bật, mọi span được giữ, xuất ngay khi kết thúc: đặt trước khi mở pool và dựng handler (otelpgx,
@@ -237,7 +238,7 @@ func (s *stack) seed() {
 	}); err != nil {
 		s.t.Fatal(err)
 	}
-	s.token = s.keys.Sign(testkit.AccessClaims{Email: stackOwner, AUD: stackAUD, MFA: []string{"mfa"}})
+	s.token = s.keys.Sign(cfaccesstest.AccessClaims{Email: stackOwner, AUD: stackAUD, MFA: []string{"mfa"}})
 }
 
 // seedSelftestTenant dựng tenant "E2E", chủ shop stackOwner (identity.SeedOwner), định tuyến email và định tuyến

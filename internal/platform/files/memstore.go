@@ -21,7 +21,7 @@ import (
 // MemStore là FileStore trong bộ nhớ cho test của mọi mốc, mô phỏng đúng luật mà CRM dựa vào ở S3: không ghi đè
 // (Put, đường dẫn PUT ký sẵn có If-None-Match: *), đường dẫn ký sẵn có hạn, gồm kích thước và loại, Delete chỉ thêm
 // dấu xóa (Versions còn thấy bản cũ). MemStore là http.Handler phục vụ đường dẫn ký sẵn: test dựng
-// httptest.NewServer(m) rồi SetBaseURL (testkit.MemFileStore làm sẵn).
+// httptest.NewServer(m) rồi SetBaseURL (filestest.MemFileStore làm sẵn).
 type MemStore struct {
 	mu      sync.Mutex
 	baseURL string

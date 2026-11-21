@@ -16,7 +16,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 )
 
 // In nhãn, phiếu nhặt, đóng gói qua HTTP (kế hoạch M3, Task M3-16; VC04, AT08).
@@ -75,7 +75,7 @@ func labelService(t *testing.T, e *labelAPIEnv) *fulfillment.Service {
 	}
 	return fulfillment.New(fulfillment.Deps{
 		Files: e.store, Carriers: carriers, DB: e.staff.App, Events: events.NewRegistry(), Queue: queue.NewQueue(),
-		Bus: &testkit.RecordingBus{},
+		Bus: &realtimetest.RecordingBus{},
 	}).Service
 }
 

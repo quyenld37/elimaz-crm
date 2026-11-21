@@ -19,7 +19,9 @@ import (
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
 	"elimaz.com.vn/crm/internal/testkit/shiptest"
@@ -38,14 +40,14 @@ type flowEnv struct {
 	reg     *events.Registry
 	mod     *cash.Module
 	wk      *queue.Worker
-	bus     *testkit.RecordingBus
+	bus     *realtimetest.RecordingBus
 	now     time.Time
 }
 
 func newFlowEnv(t testing.TB) *flowEnv {
 	t.Helper()
 	e := &flowEnv{
-		t: t, staff: testkit.OpenStaff(t), bus: &testkit.RecordingBus{},
+		t: t, staff: testkit.OpenStaff(t), bus: &realtimetest.RecordingBus{},
 		now: time.Date(2026, 11, 20, 3, 0, 0, 0, time.UTC),
 	}
 	e.tenant = e.staff.Tenant(t, "A")
@@ -60,7 +62,7 @@ func newFlowEnv(t testing.TB) *flowEnv {
 		})
 		return err //nolint:wrapcheck // test
 	})
-	e.wire(testkit.MemFileStore(t))
+	e.wire(filestest.MemFileStore(t))
 	return e
 }
 
@@ -409,7 +411,7 @@ func TestMatch_AfterRealParse(t *testing.T) {
 	t.Parallel()
 	ie := newImportEnv(t)
 	e := &flowEnv{
-		t: t, staff: ie.staff, tenant: ie.tenant, user: ie.user, shop: ie.shop, bus: &testkit.RecordingBus{},
+		t: t, staff: ie.staff, tenant: ie.tenant, user: ie.user, shop: ie.shop, bus: &realtimetest.RecordingBus{},
 		now: time.Now(),
 	}
 	e.wire(ie.store)
@@ -517,7 +519,7 @@ func TestConfirm_Concurrent(t *testing.T) {
 }
 
 // hasSignal báo bus đã nhận báo hiệu topic cho bảng kê id.
-func hasSignal(bus *testkit.RecordingBus, topic string, id uuid.UUID) bool {
+func hasSignal(bus *realtimetest.RecordingBus, topic string, id uuid.UUID) bool {
 	for _, s := range bus.Signals() {
 		if s.Topic == topic && s.Entity.ID == id.String() {
 			return true

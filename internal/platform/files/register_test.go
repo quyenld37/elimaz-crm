@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/platform/files"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 )
 
 // testExportPurpose: tệp xuất thử ghi từ máy chủ (như tệp xuất M6), chỉ có trong sổ của test và dòng thử của bảng.
@@ -193,7 +193,7 @@ func TestRegister_Refusals(t *testing.T) {
 // Trạng thái chưa sẵn sàng hay bị từ chối không ký đường dẫn tải (R10).
 func TestDownloadURL_NotReadyAndRejected(t *testing.T) {
 	e := newEnv(t)
-	store := testkit.MemFileStore(t)
+	store := filestest.MemFileStore(t)
 	f, put := e.mustCreate(store, imageInput(e.a, 10))
 	if _, err := e.downloadURL(store, e.a, f.ID, time.Minute); !errors.Is(err, files.ErrNotReady) {
 		t.Fatalf("awaiting_upload: muốn ErrNotReady, nhận %v", err)

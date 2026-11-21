@@ -16,6 +16,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
@@ -36,7 +37,7 @@ func newDupEnv(t *testing.T) *dupEnv {
 }
 
 func (d *dupEnv) w() order.Writer {
-	return order.Writer{Events: d.reg, Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}}
+	return order.Writer{Events: d.reg, Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}}
 }
 
 // at là giờ h (giờ thứ h tính từ 00:00 ngày 19/11/2026 UTC).

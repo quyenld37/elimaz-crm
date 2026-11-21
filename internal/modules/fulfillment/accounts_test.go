@@ -22,8 +22,8 @@ import (
 	"elimaz.com.vn/crm/internal/platform/fieldcrypt"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
-	"elimaz.com.vn/crm/internal/testkit"
 	"elimaz.com.vn/crm/tools/fakecarrier/server"
 )
 
@@ -120,7 +120,7 @@ func (e *accEnv) useKeys(spec string) {
 	}
 	m := fulfillment.New(fulfillment.Deps{
 		DB: e.staff.App, Queue: queue.NewQueue(), Carriers: e.reg, Keys: keys,
-		Bus: &testkit.RecordingBus{},
+		Bus: &realtimetest.RecordingBus{},
 	})
 	e.svc = m.Service
 	hs := append(m.CommandHandlers(), fulfillment.NewAuthAlertCommand(e.notes, nil))

@@ -21,6 +21,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/testkit"
 	"elimaz.com.vn/crm/tools/fakecarrier/server"
 )
@@ -75,7 +76,7 @@ func newTrackEnv(t *testing.T) *trackEnv {
 		t.Fatal(err)
 	}
 	e.mod = fulfillment.New(fulfillment.Deps{
-		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &testkit.RecordingBus{}, Events: events.NewRegistry(),
+		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &realtimetest.RecordingBus{}, Events: events.NewRegistry(),
 		Carriers: reg, Now: e.clock.Now, Metrics: e.metrics,
 	})
 	e.useCommands(append(e.mod.CommandHandlers(), fulfillment.NewTrackAlertCommand(e.staff.App, e.notes, nil)))

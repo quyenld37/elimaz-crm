@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/platform/files"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 )
 
 const sheetType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -18,7 +18,7 @@ const sheetType = "application/vnd.openxmlformats-officedocument.spreadsheetml.s
 // tenant khác, không có → ErrNotFound; vượt maxBytes → ErrTooLarge; mất trên kho → ErrObjectNotFound.
 func TestReadContent(t *testing.T) {
 	e := newEnv(t)
-	mem := testkit.MemFileStore(t)
+	mem := filestest.MemFileStore(t)
 	upload := func(tenant uuid.UUID, body []byte) uuid.UUID {
 		t.Helper()
 		f, _ := e.mustCreate(mem, files.UploadInput{

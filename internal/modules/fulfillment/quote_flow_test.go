@@ -15,7 +15,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 )
 
 // quoteEnv: shipEnv cộng các tài khoản hãng báo phí (mỗi hãng giả một tài khoản của người bán ELIMAZ ở kho MAIN),
@@ -24,7 +24,7 @@ type quoteEnv struct {
 	*shipEnv
 	svc      *fulfillment.Service
 	cmd      *fulfillment.QuoteCommand
-	bus      *testkit.RecordingBus
+	bus      *realtimetest.RecordingBus
 	now      time.Time
 	accounts map[string]uuid.UUID
 }
@@ -32,7 +32,7 @@ type quoteEnv struct {
 func newQuoteEnv(t *testing.T, carriers ...*quoteCarrier) *quoteEnv {
 	t.Helper()
 	e := &quoteEnv{
-		shipEnv: newShipEnv(t), bus: &testkit.RecordingBus{}, accounts: map[string]uuid.UUID{},
+		shipEnv: newShipEnv(t), bus: &realtimetest.RecordingBus{}, accounts: map[string]uuid.UUID{},
 		now: time.Date(2026, 11, 21, 9, 0, 0, 0, time.UTC),
 	}
 	adapters := make([]fulfillment.CarrierAdapter, 0, len(carriers))

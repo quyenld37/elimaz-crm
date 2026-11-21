@@ -12,6 +12,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -24,7 +25,7 @@ type writeEnv struct {
 	staff  *testkit.Staff
 	tenant uuid.UUID
 	other  uuid.UUID
-	bus    *testkit.RecordingBus
+	bus    *realtimetest.RecordingBus
 	w      customer.Writer
 	actor  customer.Actor
 	now    time.Time
@@ -35,7 +36,7 @@ func newWriteEnv(t *testing.T) *writeEnv {
 	s := testkit.OpenStaff(t)
 	seedAdminUnits(t, s)
 	e := &writeEnv{
-		t: t, staff: s, tenant: s.Tenant(t, "A"), other: s.Tenant(t, "B"), bus: &testkit.RecordingBus{},
+		t: t, staff: s, tenant: s.Tenant(t, "A"), other: s.Tenant(t, "B"), bus: &realtimetest.RecordingBus{},
 		actor: customer.Actor{Type: customer.ActorStaff, ID: uuid.New(), RequestID: "req-1", IP: "10.0.0.1"},
 		now:   time.Date(2026, 11, 19, 8, 0, 0, 0, time.UTC),
 	}

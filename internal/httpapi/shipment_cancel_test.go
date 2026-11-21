@@ -11,7 +11,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 )
 
 // Đổi hãng qua HTTP (kế hoạch M3, Task M3-14): cancelShipment.
@@ -40,7 +40,7 @@ func newShipCancelAPIEnv(t *testing.T) *shipAPIEnv {
 	}
 	d := testServerDeps(t, e.staff, e.keys, 0)
 	d.Fulfillment = fulfillment.New(fulfillment.Deps{
-		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &testkit.RecordingBus{}, Events: events.NewRegistry(), Carriers: reg,
+		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &realtimetest.RecordingBus{}, Events: events.NewRegistry(), Carriers: reg,
 	}).Service
 	e.srv = NewServer(d)
 	tenant := e.shop.Tenant

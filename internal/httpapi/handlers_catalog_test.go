@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/testkit"
@@ -25,7 +26,7 @@ const (
 type catalogAPIEnv struct {
 	t      *testing.T
 	staff  *testkit.Staff
-	keys   *testkit.AccessKeys
+	keys   *cfaccesstest.AccessKeys
 	srv    http.Handler
 	tenant uuid.UUID
 	mem    *files.MemStore // kho tệp của máy chủ useImageServer
@@ -33,7 +34,7 @@ type catalogAPIEnv struct {
 
 func newCatalogAPIEnv(t *testing.T) *catalogAPIEnv {
 	t.Helper()
-	e := &catalogAPIEnv{t: t, staff: testkit.OpenStaff(t), keys: testkit.AccessKeyServer(t)}
+	e := &catalogAPIEnv{t: t, staff: testkit.OpenStaff(t), keys: cfaccesstest.AccessKeyServer(t)}
 	e.tenant = e.staff.Tenant(t, "A")
 	b := e.staff.Tenant(t, "B")
 	for _, tid := range []uuid.UUID{e.tenant, b} {

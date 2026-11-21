@@ -59,7 +59,7 @@ func getWithHeader(t *testing.T, url string) (int, string, http.Header) {
 // sau 3 s kho trả 403.
 func TestOriginalURL_ExpiresOnStore(t *testing.T) {
 	e := newEnv(t)
-	fs := testkit.S3FileStore(t)
+	fs := filestest.S3FileStore(t)
 	id, body := e.imageWithOriginal(fs)
 	before := time.Now()
 	su, err := e.originalURL(fs, e.a, id, 2*time.Second, "DAM01-2")
@@ -86,7 +86,7 @@ func TestOriginalURL_ExpiresOnStore(t *testing.T) {
 // ảnh riêng tư (R10) và tệp không phải ảnh → ErrNotFound (không bao giờ ký tới bản thô hay bản khác ảnh gốc).
 func TestOriginalURL_Refusals(t *testing.T) {
 	e := newEnv(t)
-	fs := testkit.MemFileStore(t)
+	fs := filestest.MemFileStore(t)
 	id, _ := e.imageWithOriginal(fs)
 	if _, err := e.originalURL(fs, e.b, id, time.Minute, "x"); !errors.Is(err, files.ErrNotFound) {
 		t.Errorf("tenant B: muốn ErrNotFound, nhận %v", err)

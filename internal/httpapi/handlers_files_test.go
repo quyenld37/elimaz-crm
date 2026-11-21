@@ -15,8 +15,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
@@ -29,7 +31,7 @@ const (
 type filesAPIEnv struct {
 	t     *testing.T
 	staff *testkit.Staff
-	keys  *testkit.AccessKeys
+	keys  *cfaccesstest.AccessKeys
 	store *files.MemStore
 	srv   http.Handler
 	a     uuid.UUID
@@ -44,7 +46,7 @@ func newFilesAPIEnv(t *testing.T) *filesAPIEnv {
 // newFilesAPIEnvLog như newFilesAPIEnv, log của máy chủ ghi vào logger.
 func newFilesAPIEnvLog(t *testing.T, logger *slog.Logger) *filesAPIEnv {
 	t.Helper()
-	e := &filesAPIEnv{t: t, staff: testkit.OpenStaff(t), keys: testkit.AccessKeyServer(t), store: testkit.MemFileStore(t)}
+	e := &filesAPIEnv{t: t, staff: testkit.OpenStaff(t), keys: cfaccesstest.AccessKeyServer(t), store: filestest.MemFileStore(t)}
 	a, b := e.staff.Tenant(t, "A"), e.staff.Tenant(t, "B")
 	e.a = a
 	e.staff.Grant(t, a, e.staff.User(t, a, filesA, "active"), []string{"files.upload"}, "all", "")

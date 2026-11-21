@@ -13,12 +13,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/platform/xlsx"
 	"elimaz.com.vn/crm/internal/testkit"
@@ -32,7 +35,7 @@ const (
 type customerImportEnv struct {
 	t             *testing.T
 	staff         *testkit.Staff
-	keys          *testkit.AccessKeys
+	keys          *cfaccesstest.AccessKeys
 	store         *files.MemStore
 	srv           http.Handler
 	tenant, other uuid.UUID
@@ -43,7 +46,7 @@ type customerImportEnv struct {
 func newCustomerImportEnv(t *testing.T) *customerImportEnv {
 	t.Helper()
 	customer.RegisterFilePurposes()
-	e := &customerImportEnv{t: t, staff: testkit.OpenStaff(t), keys: testkit.AccessKeyServer(t), store: testkit.MemFileStore(t)}
+	e := &customerImportEnv{t: t, staff: testkit.OpenStaff(t), keys: cfaccesstest.AccessKeyServer(t), store: filestest.MemFileStore(t)}
 	e.tenant, e.other = e.staff.Tenant(t, "A"), e.staff.Tenant(t, "B")
 	e.importer = e.staff.User(t, e.tenant, customerImporter, "active")
 	e.staff.Grant(t, e.tenant, e.importer, []string{"customer.import", "customer.read", "files.upload"}, "all", "")
@@ -51,7 +54,7 @@ func newCustomerImportEnv(t *testing.T) *customerImportEnv {
 	authE := &authEnv{t: t, keys: e.keys}
 	e.srv = NewServer(Deps{
 		Config: config.Config{ConsoleOrigins: []string{testOrigin}}, DB: e.staff.App, Logger: discardLogger(t),
-		Access: authE.verifier(), Realtime: &testkit.RecordingBus{}, Files: e.store,
+		Access: authE.verifier(), Realtime: &realtimetest.RecordingBus{}, Files: e.store,
 	})
 	return e
 }

@@ -17,7 +17,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 )
 
 // journey là hành trình của một vận đơn chia lô theo thứ tự thời gian; collected là tiền hãng báo đã thu, gắn vào lô
@@ -222,7 +222,7 @@ func TestPostings_PropertyApplyTrackingJourneys(t *testing.T) {
 	t.Parallel()
 	e := newCODEnv(t)
 	svc := fulfillment.New(fulfillment.Deps{
-		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &testkit.RecordingBus{}, Events: events.NewRegistry(),
+		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &realtimetest.RecordingBus{}, Events: events.NewRegistry(),
 	}).Service
 	rapid.Check(t, func(rt *rapid.T) {
 		cod := rapid.OneOf(rapid.Just(int64(0)), rapid.Just(int64(v1COD)), rapid.Int64Range(1, 1<<45)).Draw(rt, "cod")

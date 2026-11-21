@@ -23,6 +23,7 @@ import (
 	"elimaz.com.vn/crm/internal/imager"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime"
@@ -283,7 +284,7 @@ func newProcEnv(t *testing.T) *procEnv {
 func newProcEnvWith(t *testing.T, opt func(*files.ProcessorOptions)) *procEnv {
 	t.Helper()
 	p := &procEnv{
-		env: newEnv(t), mem: testkit.MemFileStore(t), img: newFakeImager(t), bus: &fakeBus{},
+		env: newEnv(t), mem: filestest.MemFileStore(t), img: newFakeImager(t), bus: &fakeBus{},
 		reg: metrics.NewRegistry(), q: queue.NewQueue(),
 	}
 	files.RegisterPurpose(testPrivateImagePurpose())

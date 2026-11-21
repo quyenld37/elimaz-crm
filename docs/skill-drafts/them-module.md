@@ -97,7 +97,7 @@ Mẫu: `migrations/0112_m1_schemas.sql` (tạo schema), `0114_catalog.sql`, `011
 ## 7. Test
 
 - Gói `_test` trên PostgreSQL thật: `testkit.OpenStaff(t)` (database nhân bản từ mẫu đã migrate), dữ liệu dựng bằng
-  bộ seed của module (`catalogtest`, `invtest.NewShop`, `testkit.SeedSellers`); module khác nạp dữ liệu của module này
+  bộ seed của module (`catalogtest`, `invtest.NewShop`, `shoptest.SeedSellers`); module khác nạp dữ liệu của module này
   qua bộ seed đó, không chèn thẳng bảng.
 - Mỗi luật: một ca đúng, một ca biên, một ca sai; tenant khác thấy 0 dòng/404; mọi câu kiểm trong test cũng chạy trong
   `tenancy.WithTenant` (RLS áp cả chủ bảng). Module có người bán: chạy ca chính trong `testkit.ForEachSeller`.

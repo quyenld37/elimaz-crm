@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/catalog/catalogtest"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/testkit/shoptest"
 )
 
 // TestCatalogAPI_PartnerSellerIs404 (KH14, ADR-29): API chỉ làm việc với người bán mặc định; mẫu, biến thể của người
@@ -17,7 +17,7 @@ import (
 // của ELIMAZ vẫn tạo được.
 func TestCatalogAPI_PartnerSellerIs404(t *testing.T) {
 	e := newCatalogAPIEnv(t)
-	_, partner := testkit.SeedSellers(t, e.staff.Owner, e.tenant)
+	_, partner := shoptest.SeedSellers(t, e.staff.Owner, e.tenant)
 	var pid, vid uuid.UUID
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
 		pid = catalogtest.Product(t, tx, e.tenant, partner, "AO01")

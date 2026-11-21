@@ -12,8 +12,8 @@ import (
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
-	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // syncShipment: 5 lần bấm trong một phút (mỗi lần một Idempotency-Key) → 202 cùng jobId, 1 việc tra; không có
@@ -38,7 +38,7 @@ func TestSyncShipmentAPI(t *testing.T) {
 	}
 	now := time.Date(2026, 11, 21, 9, 30, 15, 0, time.UTC)
 	m := fulfillment.New(fulfillment.Deps{
-		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &testkit.RecordingBus{}, Events: events.NewRegistry(),
+		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &realtimetest.RecordingBus{}, Events: events.NewRegistry(),
 		Now: func() time.Time { return now },
 	})
 	d := testServerDeps(t, e.staff, e.keys, 0)

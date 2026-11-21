@@ -19,6 +19,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/schedules"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -58,7 +59,7 @@ type stuckRunner struct {
 func newStuckRunner(e *shipEnv, clock *testClock) *stuckRunner {
 	r := &stuckRunner{e: e, clock: clock, notes: &textNotifier{}}
 	r.mod = fulfillment.New(fulfillment.Deps{
-		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &testkit.RecordingBus{}, Events: events.NewRegistry(), Now: clock.Now,
+		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &realtimetest.RecordingBus{}, Events: events.NewRegistry(), Now: clock.Now,
 	})
 	e.useCommands(append(slices.Clone(e.cmds), fulfillment.NewStuckAlertCommand(e.staff.App, r.notes, nil)))
 	return r

@@ -20,15 +20,15 @@ import (
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
-	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // applyEnv là shipEnv cộng Service của M3 (ApplyTracking, AttachTrackingCode) với sổ sự kiện, báo hiệu ghi lại.
 type applyEnv struct {
 	*shipEnv
 	svc *fulfillment.Service
-	bus *testkit.RecordingBus
+	bus *realtimetest.RecordingBus
 }
 
 // testDay là ngày của mọi sự kiện trong test (giờ UTC).
@@ -36,7 +36,7 @@ func testDay() time.Time { return time.Date(2026, 11, 21, 0, 0, 0, 0, time.UTC) 
 
 func newApplyEnv(t *testing.T) *applyEnv {
 	t.Helper()
-	e := &applyEnv{shipEnv: newShipEnv(t), bus: &testkit.RecordingBus{}}
+	e := &applyEnv{shipEnv: newShipEnv(t), bus: &realtimetest.RecordingBus{}}
 	e.svc = fulfillment.New(fulfillment.Deps{
 		DB: e.staff.App, Queue: queue.NewQueue(), Bus: e.bus, Events: events.NewRegistry(),
 	}).Service

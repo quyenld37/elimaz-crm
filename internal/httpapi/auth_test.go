@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/adapters/cfaccess"
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/testkit"
@@ -26,14 +27,14 @@ const testAUD = "aud-crm"
 type authEnv struct {
 	t     *testing.T
 	staff *testkit.Staff
-	keys  *testkit.AccessKeys
+	keys  *cfaccesstest.AccessKeys
 	mux   *http.ServeMux
 	logs  *bytes.Buffer
 }
 
 func newAuthEnv(t *testing.T, rl RateLimit) *authEnv {
 	t.Helper()
-	e := &authEnv{t: t, staff: testkit.OpenStaff(t), keys: testkit.AccessKeyServer(t), logs: &bytes.Buffer{}}
+	e := &authEnv{t: t, staff: testkit.OpenStaff(t), keys: cfaccesstest.AccessKeyServer(t), logs: &bytes.Buffer{}}
 	v := e.verifier()
 	d := prepare(Deps{
 		Config: config.Config{ConsoleOrigins: []string{testOrigin}}, DB: e.staff.App,
@@ -91,7 +92,7 @@ func (e *authEnv) get(path, tok string, mod ...func(*http.Request)) *httptest.Re
 }
 
 func (e *authEnv) token(email string) string {
-	return e.keys.Sign(testkit.AccessClaims{Email: email, AUD: testAUD, MFA: []string{"mfa"}})
+	return e.keys.Sign(cfaccesstest.AccessClaims{Email: email, AUD: testAUD, MFA: []string{"mfa"}})
 }
 
 func expect(t *testing.T, name string, rec *httptest.ResponseRecorder, status int, code string) {
@@ -115,7 +116,7 @@ func TestAuthTokens(t *testing.T) {
 
 	expect(t, "thẻ hợp lệ có MFA, grant all", e.get("/api/v1/_probe", e.token("lan@elimaz.test")), 200, "")
 	k := e.keys
-	c := testkit.AccessClaims{Email: "lan@elimaz.test", AUD: testAUD, MFA: []string{"mfa"}}
+	c := cfaccesstest.AccessClaims{Email: "lan@elimaz.test", AUD: testAUD, MFA: []string{"mfa"}}
 	wrongAud, wrongIss, expired := c, c, c
 	wrongAud.AUD = "khac"
 	wrongIss.Iss = "https://khac.cloudflareaccess.com"

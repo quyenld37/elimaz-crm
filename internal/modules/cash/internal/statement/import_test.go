@@ -55,7 +55,7 @@ type importEnv struct {
 func newImportEnv(t *testing.T) *importEnv {
 	t.Helper()
 	cash.RegisterFilePurposes()
-	e := &importEnv{t: t, staff: testkit.OpenStaff(t), store: testkit.MemFileStore(t), logs: &bytes.Buffer{}}
+	e := &importEnv{t: t, staff: testkit.OpenStaff(t), store: filestest.MemFileStore(t), logs: &bytes.Buffer{}}
 	e.tenant = e.staff.Tenant(t, "A")
 	e.user = e.staff.User(t, e.tenant, "ketoan@elimaz.test", "active")
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {

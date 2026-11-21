@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/inventory"
@@ -37,7 +38,7 @@ const (
 type invAPIEnv struct {
 	t        *testing.T
 	staff    *testkit.Staff
-	keys     *testkit.AccessKeys
+	keys     *cfaccesstest.AccessKeys
 	srv      http.Handler
 	logs     *lockedBuffer
 	tenant   uuid.UUID
@@ -49,7 +50,7 @@ type invAPIEnv struct {
 
 func newInvAPIEnv(t *testing.T) *invAPIEnv {
 	t.Helper()
-	e := &invAPIEnv{t: t, staff: testkit.OpenStaff(t), keys: testkit.AccessKeyServer(t), logs: &lockedBuffer{buf: &bytes.Buffer{}}}
+	e := &invAPIEnv{t: t, staff: testkit.OpenStaff(t), keys: cfaccesstest.AccessKeyServer(t), logs: &lockedBuffer{buf: &bytes.Buffer{}}}
 	e.tenant = e.staff.Tenant(t, "A")
 	b := e.staff.Tenant(t, "B")
 	e.seller, e.w1 = seedSellerWarehouse(t, e.staff, e.tenant)

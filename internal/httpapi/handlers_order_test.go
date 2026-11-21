@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/inventory/invtest"
 	"elimaz.com.vn/crm/internal/testkit"
@@ -29,7 +30,7 @@ const (
 type orderAPIEnv struct {
 	t     *testing.T
 	staff *testkit.Staff
-	keys  *testkit.AccessKeys
+	keys  *cfaccesstest.AccessKeys
 	srv   http.Handler
 	shop  *invtest.Shop
 }
@@ -42,7 +43,7 @@ func newOrderAPIEnv(t *testing.T) *orderAPIEnv {
 // newOrderAPIEnvWith như newOrderAPIEnv, máy chủ chờ khóa tối đa lockTimeout (0: mặc định).
 func newOrderAPIEnvWith(t *testing.T, lockTimeout time.Duration) *orderAPIEnv {
 	t.Helper()
-	e := &orderAPIEnv{t: t, staff: testkit.OpenStaff(t), keys: testkit.AccessKeyServer(t)}
+	e := &orderAPIEnv{t: t, staff: testkit.OpenStaff(t), keys: cfaccesstest.AccessKeyServer(t)}
 	tenant := e.staff.Tenant(t, "A")
 	e.staff.Exec(t, tenant, func(tx pgx.Tx) error {
 		e.shop = invtest.NewShop(t, tx, tenant)
