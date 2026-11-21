@@ -61,10 +61,10 @@ func (e *trackEnv) poll(slot time.Time) int {
 
 // clone chèn n vận đơn (mỗi cái một đơn chép từ đơn của tmpl) cùng tài khoản hãng, trạng thái status; vận đơn thứ g có
 // last_synced_at = synced − g phút (synced nil → NULL), delivered_at = deliveredAt. Mã đơn, mã vận đơn, mã hãng theo
-// tiền tố prefix (một chữ số) để nhiều lần gọi không trùng.
+// tiền tố prefix (một chữ số) để nhiều lần gọi không trùng. Chạy trong ownerBulk (giới hạn thời gian riêng của bước nạp).
 func (e *trackEnv) clone(tmpl fulfillment.Shipment, prefix, n int, status string, synced *time.Time, deliveredAt *time.Time) {
 	e.t.Helper()
-	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+	e.ownerBulk(func(tx pgx.Tx) error {
 		ctx := e.t.Context()
 		cols := func(schema, table string, skip ...string) (string, error) {
 			var c string
