@@ -210,3 +210,25 @@ func deref(p *int64) any {
 	}
 	return *p
 }
+
+// Đồng hồ Go lệch ±5 phút so với PostgreSQL: tuổi bản sao lưu và lần diễn tập (mốc ghi bằng now() của PostgreSQL) vẫn
+// tính theo đồng hồ PostgreSQL. Mốc x giờ 3 phút bắt đồng hồ Go chậm, x giờ 57 phút bắt đồng hồ Go nhanh (Task 445).
+func TestSummaryBackupClockSkew(t *testing.T) {
+	for _, skew := range []time.Duration{-5 * time.Minute, 5 * time.Minute} {
+		for _, extra := range []string{"3 minutes", "57 minutes"} {
+			t.Run(skew.String()+" "+extra, func(t *testing.T) {
+				app, owner := openOwner(t)
+				exec(t, owner, `INSERT INTO platform.backup_runs (kind, ok, finished_at) VALUES
+					('base', true, now() - interval '30 hours' - $1::interval),
+					('restore_drill', true, now() - interval '5 hours' - $1::interval)`, extra)
+				s, err := observability.Summary(t.Context(), app, time.Now().UTC().Add(skew))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if b := s.Backup; b.LastBaseAgeH == nil || *b.LastBaseAgeH != 30 || b.LastDrillAgeH == nil || *b.LastDrillAgeH != 5 {
+					t.Fatalf("backup = base %v, drill %v; muốn 30, 5", deref(b.LastBaseAgeH), deref(b.LastDrillAgeH))
+				}
+			})
+		}
+	}
+}

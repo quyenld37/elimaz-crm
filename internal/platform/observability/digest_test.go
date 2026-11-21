@@ -69,3 +69,26 @@ func TestDailyDigestNoBackup(t *testing.T) {
 		t.Fatalf("tin: %+v", f.sent)
 	}
 }
+
+// Đồng hồ Go lệch ±5 phút so với PostgreSQL: tuổi bản sao lưu trong tin tổng kết tính theo đồng hồ PostgreSQL (bên ghi
+// mốc). 4 giờ 33 phút (4,55 → 5) bắt đồng hồ Go chậm; 5 giờ 27 phút (5,45 → 5) bắt đồng hồ Go nhanh (Task 445).
+func TestDailyDigestBackupClockSkew(t *testing.T) {
+	for _, c := range []struct {
+		skew time.Duration
+		ago  string
+	}{{-5 * time.Minute, "4 hours 33 minutes"}, {5 * time.Minute, "5 hours 27 minutes"}} {
+		t.Run(c.skew.String(), func(t *testing.T) {
+			e := newEnv(t)
+			tg, client := newTelegram(t)
+			a := observability.NewTelegramAlerter(e.d, tgConfig(), client, quiet())
+			e.exec(t, "INSERT INTO platform.backup_runs (kind, ok, finished_at) VALUES ('base', true, now() - $1::interval)", c.ago)
+			if err := observability.SendDailyDigest(t.Context(), e.d, a, time.Now().Add(c.skew)); err != nil {
+				t.Fatalf("SendDailyDigest: %v", err)
+			}
+			got := tg.calls()
+			if len(got) != 1 || !strings.Contains(got[0].text, "sao lưu: 5 giờ") {
+				t.Fatalf("muốn một tin có 'sao lưu: 5 giờ', có %+v", got)
+			}
+		})
+	}
+}

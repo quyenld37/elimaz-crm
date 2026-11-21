@@ -153,6 +153,20 @@ func (q *Queries) InsertAlertEvent(ctx context.Context, arg InsertAlertEventPara
 	return err
 }
 
+const lastBackupAgeSeconds = `-- name: LastBackupAgeSeconds :one
+SELECT extract(epoch FROM now() - finished_at)::float8 AS age_s
+FROM platform.backup_runs WHERE kind = $1 AND ok ORDER BY finished_at DESC LIMIT 1
+`
+
+// Tuổi (giây) lần sao lưu thành công gần nhất của kind, theo đồng hồ của database: mốc do scripts/backup ghi bằng now()
+// của PostgreSQL nên tuổi cũng tính bằng now(), không so với đồng hồ của tiến trình (Task 445).
+func (q *Queries) LastBackupAgeSeconds(ctx context.Context, kind string) (float64, error) {
+	row := q.db.QueryRow(ctx, lastBackupAgeSeconds, kind)
+	var age_s float64
+	err := row.Scan(&age_s)
+	return age_s, err
+}
+
 const lastBackupAt = `-- name: LastBackupAt :one
 SELECT finished_at FROM platform.backup_runs WHERE kind = $1 AND ok ORDER BY finished_at DESC LIMIT 1
 `
@@ -166,19 +180,22 @@ func (q *Queries) LastBackupAt(ctx context.Context, kind string) (time.Time, err
 }
 
 const lastBackupRun = `-- name: LastBackupRun :one
-SELECT finished_at, ok FROM platform.backup_runs WHERE kind = $1 ORDER BY finished_at DESC LIMIT 1
+SELECT finished_at, ok, extract(epoch FROM now() - finished_at)::float8 AS age_s
+FROM platform.backup_runs WHERE kind = $1 ORDER BY finished_at DESC LIMIT 1
 `
 
 type LastBackupRunRow struct {
 	FinishedAt time.Time
 	Ok         bool
+	AgeS       float64
 }
 
-// Lần chạy gần nhất của kind, thành công hay hỏng (tóm tắt sức khỏe: lần diễn tập khôi phục gần nhất kèm ok).
+// Lần chạy gần nhất của kind, thành công hay hỏng (tóm tắt sức khỏe: lần diễn tập khôi phục gần nhất kèm ok); age_s:
+// tuổi (giây) theo đồng hồ của database như LastBackupAgeSeconds.
 func (q *Queries) LastBackupRun(ctx context.Context, kind string) (LastBackupRunRow, error) {
 	row := q.db.QueryRow(ctx, lastBackupRun, kind)
 	var i LastBackupRunRow
-	err := row.Scan(&i.FinishedAt, &i.Ok)
+	err := row.Scan(&i.FinishedAt, &i.Ok, &i.AgeS)
 	return i, err
 }
 

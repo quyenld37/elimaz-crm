@@ -30,10 +30,13 @@ type slowQuery struct {
 type pgStats struct {
 	archiveOn                            bool
 	lastArchived, lastFailed, statsReset time.Time
-	dbBytes, walBytes                    int64
-	longTx, lockWait, appConns           int64
-	jobsDeadTuples                       int64
-	slow                                 []slowQuery
+	// lastArchivedAgeS: tuổi (giây) của lastArchived theo đồng hồ PostgreSQL; nil khi chưa đẩy lần nào (chỉ /health/deep
+	// dùng; luật wal-archive so lastArchived với o.Now).
+	lastArchivedAgeS           *int64
+	dbBytes, walBytes          int64
+	longTx, lockWait, appConns int64
+	jobsDeadTuples             int64
+	slow                       []slowQuery
 }
 
 // pgRules: wal-archive, db-size (urgent); wal-size, long-tx, jobs-dead-tuples, pg-connections, lock-wait, slow-query
