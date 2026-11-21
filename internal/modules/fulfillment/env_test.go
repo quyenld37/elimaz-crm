@@ -281,6 +281,23 @@ func (e *shipEnv) ownerExec(sql string, args ...any) {
 	})
 }
 
+// bulkLoadTimeout là giới hạn mỗi câu của transaction nạp dữ liệu thử lớn (ownerBulk). Pool của test giữ giới hạn 30 s
+// của ứng dụng (ADR-26) cho câu đang được kiểm; câu nạp hàng chục nghìn dòng lúc máy chung bận (tải ~15, nhiều phiên
+// cùng chạy) từng vượt 30 s (57014) — cùng lý do seedTimeout của testkit (Task 423) là 8 phút.
+const bulkLoadTimeout = "5min"
+
+// ownerBulk chạy fn bằng chủ bảng trong ngữ cảnh tenant A như ownerExec, với statement_timeout riêng bulkLoadTimeout
+// (SET LOCAL: hết transaction là hết) — chỉ dùng để dựng dữ liệu thử lớn, không cho câu đang được kiểm.
+func (e *shipEnv) ownerBulk(fn func(tx pgx.Tx) error) {
+	e.t.Helper()
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(e.t.Context(), "SET LOCAL statement_timeout = '"+bulkLoadTimeout+"'"); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		return fn(tx)
+	})
+}
+
 // appExec chạy một câu bằng crm_app trong ngữ cảnh tenant A.
 func (e *shipEnv) appExec(sql string, args ...any) error {
 	return e.app(func(tx pgx.Tx) error {

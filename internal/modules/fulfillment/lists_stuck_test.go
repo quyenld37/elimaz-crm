@@ -424,7 +424,10 @@ func TestStuck_PlanUsesIndexes(t *testing.T) {
 	e := te.shipEnv
 	_, _, tmpl := te.shipped(1)
 	old := time.Now().Add(-200 * time.Hour)
-	for p := 1; p <= 8; p++ { // 8 × 6.250 = 50.000 vận đơn đã kết thúc (mỗi lần chèn ngắn hơn giới hạn 30 s của câu)
+	// Nạp dữ liệu thử bằng câu INSERT … SELECT generate_series trong ownerBulk (giới hạn thời gian riêng của bước nạp:
+	// lúc máy chung bận, nạp 6.250 dòng từng vượt 30 s của ứng dụng); câu đang được kiểm (EXPLAIN bên dưới) vẫn chạy
+	// bằng crm_app với giới hạn 30 s.
+	for p := 1; p <= 8; p++ { // 8 × 6.250 = 50.000 vận đơn đã kết thúc
 		st := "delivered"
 		if p%2 == 0 {
 			st = "returned"
@@ -432,20 +435,30 @@ func TestStuck_PlanUsesIndexes(t *testing.T) {
 		te.clone(tmpl, p, 6250, st, &old, &old)
 	}
 	te.clone(tmpl, 9, 500, "shipping", &old, nil)
-	e.ownerExec(`UPDATE fulfillment.shipments SET stuck_since = now() WHERE code LIKE 'E9%' AND code < 'E900000000050'`)
-	// Việc Cần xem đã đóng của vận đơn đã kết thúc (bảng không rỗng như khi chạy thật), vài việc mở của vận đơn mở.
-	e.ownerExec(`INSERT INTO fulfillment.shipment_anomalies (tenant_id, shipment_id, kind, status, resolved_at)
-		SELECT tenant_id, id, 'missing_items', 'resolved', now() FROM fulfillment.shipments WHERE code LIKE 'E1%'`)
-	e.ownerExec(`INSERT INTO fulfillment.shipment_anomalies (tenant_id, shipment_id, kind)
-		SELECT tenant_id, id, 'stock_short' FROM fulfillment.shipments WHERE code LIKE 'E9%' AND code < 'E900000000020'`)
-	// Việc gọi lại đã xong của vận đơn đã kết thúc, vài việc mở của vận đơn mở.
-	e.ownerExec(`INSERT INTO fulfillment.callback_tasks (tenant_id, shipment_id, order_id, attempt_no, failed_at, due_at, status)
-		SELECT tenant_id, id, order_id, 1, now(), now(), 'done' FROM fulfillment.shipments WHERE code LIKE 'E2%'`)
-	e.ownerExec(`INSERT INTO fulfillment.callback_tasks (tenant_id, shipment_id, order_id, attempt_no, failed_at, due_at)
-		SELECT tenant_id, id, order_id, 1, now(), now() FROM fulfillment.shipments WHERE code LIKE 'E9%' AND code < 'E900000000010'`)
-	e.ownerExec(`ANALYZE fulfillment.callback_tasks`)
-	e.ownerExec(`ANALYZE fulfillment.shipments`)
-	e.ownerExec(`ANALYZE fulfillment.shipment_anomalies`)
+	e.ownerBulk(func(tx pgx.Tx) error {
+		for _, q := range []string{
+			`UPDATE fulfillment.shipments SET stuck_since = now() WHERE code LIKE 'E9%' AND code < 'E900000000050'`,
+			// Việc Cần xem đã đóng của vận đơn đã kết thúc (bảng không rỗng như khi chạy thật), vài việc mở của vận đơn mở.
+			`INSERT INTO fulfillment.shipment_anomalies (tenant_id, shipment_id, kind, status, resolved_at)
+				SELECT tenant_id, id, 'missing_items', 'resolved', now() FROM fulfillment.shipments WHERE code LIKE 'E1%'`,
+			`INSERT INTO fulfillment.shipment_anomalies (tenant_id, shipment_id, kind)
+				SELECT tenant_id, id, 'stock_short' FROM fulfillment.shipments WHERE code LIKE 'E9%' AND code < 'E900000000020'`,
+			// Việc gọi lại đã xong của vận đơn đã kết thúc, vài việc mở của vận đơn mở.
+			`INSERT INTO fulfillment.callback_tasks (tenant_id, shipment_id, order_id, attempt_no, failed_at, due_at, status)
+				SELECT tenant_id, id, order_id, 1, now(), now(), 'done' FROM fulfillment.shipments WHERE code LIKE 'E2%'`,
+			`INSERT INTO fulfillment.callback_tasks (tenant_id, shipment_id, order_id, attempt_no, failed_at, due_at)
+				SELECT tenant_id, id, order_id, 1, now(), now() FROM fulfillment.shipments WHERE code LIKE 'E9%' AND code < 'E900000000010'`,
+		} {
+			if _, err := tx.Exec(t.Context(), q); err != nil {
+				return err //nolint:wrapcheck // test
+			}
+		}
+		return nil
+	})
+	e.ownerBulk(func(tx pgx.Tx) error { // thống kê sau khi dữ liệu đã commit
+		_, err := tx.Exec(t.Context(), `ANALYZE fulfillment.callback_tasks, fulfillment.shipments, fulfillment.shipment_anomalies`)
+		return err //nolint:wrapcheck // test
+	})
 	hours, err := json.Marshal(fulfillment.DefaultSettings().StuckHours)
 	if err != nil {
 		t.Fatal(err)
