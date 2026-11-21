@@ -20,6 +20,7 @@ func (e *orderEnv) deliverPartial(o, s uuid.UUID, lines ...order.DeliveredLine) 
 // TD09: vB in_transit 2, giao [vA×1, vB×1] → đơn delivered, vA on_hand 4, vB on_hand 9, in_transit 1; order.delivered
 // (seq = version) có partial: true; lịch sử confirmed → delivered; gọi lại → false, tồn không đổi.
 func TestMarkDeliveredPartial(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, va, vb := e.pickedUpD1()
 	balanceIs(t, e.balance(vb), 10, 0, 2)
@@ -51,6 +52,7 @@ func TestMarkDeliveredPartial(t *testing.T) {
 
 // Giao đủ qua OnShipmentEvent (M2): payload order.delivered không có khóa partial (omitempty, payload M2 giữ nguyên).
 func TestOnShipmentEvent_DeliveredNoPartialKey(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, _ := e.deliveredD1()
 	if p := e.returnEvent(o.ID, order.TopicOrderDelivered); p == nil {
@@ -62,6 +64,7 @@ func TestOnShipmentEvent_DeliveredNoPartialKey(t *testing.T) {
 
 // Hãng giao khi chưa báo lấy hàng: dòng held → in_transit trước, rồi giao một phần.
 func TestMarkDeliveredPartial_FromHeld(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, va, vb := e.attachedD1()
 	if applied, err := e.deliverPartial(o.ID, shipS1(), order.DeliveredLine{OrderItemID: o.Items[1].ID, Qty: 1}); err != nil ||
@@ -78,6 +81,7 @@ func TestMarkDeliveredPartial_FromHeld(t *testing.T) {
 // Lỗi: không dòng, dòng của đơn khác → ErrInvalidInput; số lớn hơn số đang giữ → lỗi của inventory; vận đơn khác hay
 // đơn chưa gắn → false. Mọi lần lỗi không đổi gì.
 func TestMarkDeliveredPartial_Rejects(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, vb := e.pickedUpD1()
 	other, _, _ := e.d1()
@@ -109,6 +113,7 @@ func TestMarkDeliveredPartial_Rejects(t *testing.T) {
 // Đơn cancel_requested mà hãng giao một phần (giao trước khi kịp hủy): về confirmed (carrier_rejected_cancel) rồi
 // delivered, như OnShipmentEvent(delivered) của M2.
 func TestMarkDeliveredPartial_CancelRequested(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, _ := e.pickedUpD1()
 	if _, err := e.cancel(o); err != nil {

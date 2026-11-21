@@ -58,6 +58,7 @@ func (e *orderEnv) activeSource(id uuid.UUID) error {
 }
 
 func TestSources_ListDefaults(t *testing.T) {
+	t.Parallel()
 	e := withDefaults(t)
 	ss := e.sources()
 	if len(ss) != 10 || ss[0].Key != order.SourceKeyManual || ss[0].Name != "Nhập tay" || ss[9].Key != order.SourceKeyReorder {
@@ -71,6 +72,7 @@ func TestSources_ListDefaults(t *testing.T) {
 }
 
 func TestSources_CreateUpdate(t *testing.T) {
+	t.Parallel()
 	e := withDefaults(t)
 	s, err := e.createSource("  Tiktok  ")
 	if err != nil {
@@ -116,6 +118,7 @@ func TestSources_CreateUpdate(t *testing.T) {
 }
 
 func TestSources_ActiveSource(t *testing.T) {
+	t.Parallel()
 	e := withDefaults(t)
 	zalo := e.sourceNamed("Zalo")
 	if err := e.activeSource(zalo.ID); err != nil {

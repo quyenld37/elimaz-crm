@@ -24,6 +24,7 @@ func editSwap(t *testing.T, o order.Order, to, shared uuid.UUID, q int32) order.
 // kia bỏ V3 thêm V1 (lần sau đảo lại), cả hai cùng đổi số lượng dòng V2 → không lần nào lỗi 40P01,
 // pg_stat_database.deadlocks không tăng; tổng giữ mỗi biến thể bằng số lượng trên hai đơn.
 func TestEdit_NoDeadlock(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v1, v2, v3 := e.variant(1000, 1000), e.variant(1000, 1000), e.variant(1000, 1000)
 	deadlocks := func() int {
@@ -67,6 +68,7 @@ func TestEdit_NoDeadlock(t *testing.T) {
 // và B, hủy một đơn mang A → không lần nào lỗi, pg_stat_database.deadlocks không tăng; cuối cùng mỗi mã còn đúng một
 // lượt (của X hoặc Y), mọi đơn nháp và đơn hủy đã trả lượt.
 func TestEdit_CouponSwapNoDeadlock(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	codeA, codeB := "SWAPA", "SWAPB"
 	ca, cb := e.coupon(sale10(codeA, 0)), e.coupon(sale10(codeB, 0))

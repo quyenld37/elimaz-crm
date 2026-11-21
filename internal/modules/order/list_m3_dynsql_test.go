@@ -178,6 +178,7 @@ func (e *orderEnv) listM3ByID() map[uuid.UUID]queries.OrderListRow {
 // Lọc theo vận đơn, hãng, tiền COD, đóng gói (kế hoạch M3, Task M3-28): shipmentStatus=shipping → đúng 2;
 // codState=holding → đúng đơn đã giao chưa có bảng kê; carrierKey=fake_b → đúng 1; đơn của người bán kia không lẫn vào.
 func TestListM3_Filters(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	x := newListM3Fixture(e)
 	sameIDs(t, "mặc định (không lẫn người bán kia)", e.mustListM3(queries.OrderFilter{}),
@@ -214,6 +215,7 @@ func TestListM3_Filters(t *testing.T) {
 // Mỗi dòng mang vận đơn hiện hành (mã, hãng, mã hãng, trạng thái, kẹt, cần xem) và số dư COD ba ngăn; đơn không vận đơn
 // → cả hai nil; vận đơn chưa bút toán → cod nil. Nhãn dòng lấy từ orderview.Label có trục vận đơn.
 func TestListM3_RowShipmentAndCOD(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	x := newListM3Fixture(e)
 	byID := e.listM3ByID()
@@ -254,6 +256,7 @@ func TestListM3_RowShipmentAndCOD(t *testing.T) {
 // Mọi nhãn (cả nhãn vận đơn, trước là ErrLabelNotFilterable) lọc được: mỗi nhãn chỉ trả đơn có đúng nhãn đó và mọi
 // đơn có trong đúng một nhãn.
 func TestListM3_EveryLabelFilterable(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	x := newListM3Fixture(e)
 	checkEachLabelOnce(t, e.mustListM3(queries.OrderFilter{}), func(l orderview.LabelKey) []queries.OrderListRow {
@@ -270,6 +273,7 @@ func TestListM3_EveryLabelFilterable(t *testing.T) {
 // và giờ in nhãn (nil khi chưa in). Lọc labelPrinted (đã/chưa in nhãn, chỉ đơn có vận đơn) và warehouseId (kho của
 // đơn; kho khác → rỗng).
 func TestListM3_PackFields(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	x := newListM3Fixture(e)
 	printed := listBase().Add(-30 * time.Minute)

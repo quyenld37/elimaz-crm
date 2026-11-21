@@ -41,6 +41,7 @@ func (e *orderEnv) receiveD1(t *testing.T, s, d, m int32) (o order.Order, r orde
 // TD05/AT13: phiếu trả 2 vB, nhận S1 D1 M0 → vB on_hand +2, damaged +1; tiền hoàn dòng 354.098; đơn còn vA nên
 // order.partially_returned (kind customer_return, refundAmount 354.098); đơn vẫn delivered.
 func TestReceiveReturnQty_CustomerTD05(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, r, ib, b, got := e.receiveD1(t, 1, 1, 0)
 	if got.Status != order.ReturnRestocked || got.RefundAmount != 354098 || got.Items[0].RefundAmount != 354098 {
@@ -65,6 +66,7 @@ func TestReceiveReturnQty_CustomerTD05(t *testing.T) {
 // Phiếu trả 2 vB, nhận S1 D0 M1 → vB on_hand +1, damaged giữ; tiền hoàn dòng 177.049 (một đơn vị, floor theo
 // RefundFor); dòng mixed, missing_qty 1; sự kiện mang refundAmount 177.049, missingQty 1.
 func TestReceiveReturnQty_CustomerPartialMissing(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, r, ib, b, got := e.receiveD1(t, 1, 0, 1)
 	if got.Status != order.ReturnRestocked || got.RefundAmount != 177049 || got.Items[0].RefundAmount != 177049 {
@@ -85,6 +87,7 @@ func TestReceiveReturnQty_CustomerPartialMissing(t *testing.T) {
 // Dòng có món thiếu một phần không làm đơn vị trả sau nhận phần tiền của món thiếu: C ×3 net 300.003; phiếu 1 trả 2
 // (hoàn lúc tạo 200.002), nhận S1 M1 → 100.001; phiếu 2 trả nốt 1 → 100.001 (không phải 200.002). Tổng 200.002 ≤ net.
 func TestReceiveReturnQty_MissingShareNotPaidLater(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	c := e.variant(100001, 5)
 	o := e.deliveredOrder(ln(c, 3, 0))
@@ -108,6 +111,7 @@ func TestReceiveReturnQty_MissingShareNotPaidLater(t *testing.T) {
 // Phiếu đổi (exchange) nhận theo số lượng cũng hoàn theo số đã nhận: đổi 2 vB, nhận S0 D1 M1 → on_hand +1, damaged
 // +1, tiền hoàn 177.049; đơn thay thế không đổi.
 func TestReceiveReturnQty_ExchangePartialMissing(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, vb, ib := e.orderD1(t)
 	r, _ := e.exchangeReturn(o.ID, rl(ib.ID, 2))
@@ -134,6 +138,7 @@ func TestReceiveReturnQty_ExchangePartialMissing(t *testing.T) {
 // mua; Σ refund_amount của dòng phiếu đã nhận ≤ net_amount; on_hand tăng đúng Σ (tốt + hỏng), damaged tăng đúng Σ hỏng;
 // trả hết không món thiếu → hoàn đúng net.
 func TestReceiveReturnQty_CustomerInvariants(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		o := e.drawDeliveredOrder(rt, 3, 5)

@@ -168,6 +168,7 @@ func seedM1(t *testing.T, owner, app *db.DB, tenant uuid.UUID) m1Seeded {
 // Mở rộng bảng của M1: đơn có sẵn trước 0204 giữ mã, vị trí dòng; được điền kho, SĐT, confirmed_at; ràng buộc mới và
 // trigger tổng tiền đạt; orders_v giữ 11 cột đầu; sequence mã đơn không bị đặt lại; CreateManual sau migrate ra mã kế.
 func TestSchemaExtendsM1Orders(t *testing.T) {
+	t.Parallel()
 	_, ownerURL, appURL := testkit.CreateDatabase(t)
 	testkit.MigrateBefore(t, ownerURL, "0204")
 	owner, app := testkit.OpenDB(t, ownerURL), testkit.OpenDB(t, appURL)
@@ -442,6 +443,7 @@ func baseOrder() draftOrder {
 }
 
 func TestSchemaOrderMoneyChecks(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	if _, err := e.insert(t, baseOrder()); err != nil {
 		t.Fatalf("đơn đúng tổng: %v", err)
@@ -482,6 +484,7 @@ func TestSchemaOrderMoneyChecks(t *testing.T) {
 
 // Giảm cả đơn 100.001 chia ba dòng: đúng tổng thì commit được, lệch 1 đồng thì commit lỗi nêu allocated_order_discount.
 func TestSchemaAllocatedDiscountAtCommit(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	order3 := func(first int64) draftOrder {
 		return draftOrder{
@@ -503,6 +506,7 @@ func TestSchemaAllocatedDiscountAtCommit(t *testing.T) {
 }
 
 func TestSchemaOrderItemRules(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	// Dòng của đơn người bán S1 trỏ biến thể của S2 → khóa ngoại ghép (KH14, ADR-29).
 	o := draftOrder{
@@ -522,6 +526,7 @@ func TestSchemaOrderItemRules(t *testing.T) {
 }
 
 func TestSchemaStatusRules(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	draft := baseOrder()
 	draft.status = "draft"
@@ -547,6 +552,7 @@ func TestSchemaStatusRules(t *testing.T) {
 }
 
 func TestSchemaAppendOnly(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	ctx := t.Context()
 	id := e.mustInsert(t, baseOrder())
@@ -564,6 +570,7 @@ func TestSchemaAppendOnly(t *testing.T) {
 }
 
 func TestSchemaReturns(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	ctx := t.Context()
 	id := e.mustInsert(t, baseOrder())
@@ -591,6 +598,7 @@ func TestSchemaReturns(t *testing.T) {
 
 // Hằng Go của loại partial_delivery, trạng thái received (Q-T91-4) khớp CHECK của ord.returns.
 func TestSchemaReturnM3Constants(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	ctx := t.Context()
 	id := e.mustInsert(t, baseOrder())
@@ -605,6 +613,7 @@ func TestSchemaReturnM3Constants(t *testing.T) {
 }
 
 func TestNextReturnCode(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	var codes []string
 	for range 2 {
@@ -622,6 +631,7 @@ func TestNextReturnCode(t *testing.T) {
 // Không câu SQL nào của ứng dụng ngoài queries/ord/code.sql (mã sqlc sinh từ nó, chú thích ở code.go) gọi nextval của sequence mã đơn,
 // mã phiếu trả (R2: một chỗ sinh mã).
 func TestCodeSequenceSingleSource(t *testing.T) {
+	t.Parallel()
 	root, err := os.OpenRoot(filepath.Join("..", "..", ".."))
 	if err != nil {
 		t.Fatal(err)
@@ -659,6 +669,7 @@ func TestCodeSequenceSingleSource(t *testing.T) {
 }
 
 func TestSchemaTenantIsolation(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	id, ctx := e.mustInsert(t, baseOrder()), t.Context()
 	testkit.InTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
@@ -698,6 +709,7 @@ func TestSchemaTenantIsolation(t *testing.T) {
 }
 
 func TestSchemaViewsAndRules(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	owner := e.staff.Owner
 	want := map[string]string{
@@ -723,6 +735,7 @@ func TestSchemaViewsAndRules(t *testing.T) {
 
 // Dòng lịch sử tạo đơn của Writer.CreateManual đọc qua view có from_status ”.
 func TestSchemaHistoryViewCreateRow(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	v := e.variant(250000, 5)
 	o := e.mustCreate(e.input(0, item(v, 1)))
@@ -739,6 +752,7 @@ func TestSchemaHistoryViewCreateRow(t *testing.T) {
 }
 
 func TestEnsureDefaults(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	ctx := t.Context()
 	for range 2 {
@@ -806,6 +820,7 @@ func checkSourceByKey(t *testing.T, e *schemaEnv) {
 // Writer.CreateManual gộp dòng nhập cùng biến thể thành một dòng (cộng số lượng, giữ vị trí đầu) để đúng ràng buộc một
 // biến thể một dòng.
 func TestCreateManual_MergesSameVariant(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	v1, v2 := e.variant(250000, 10), e.variant(180000, 10)
 	o := e.mustCreate(e.input(0, item(v1, 1), item(v2, 2), item(v1, 3)))

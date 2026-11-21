@@ -46,6 +46,7 @@ func (e *orderEnv) moves(o uuid.UUID, from, to, actor string) int {
 // applied, held → in_transit, đơn GIỮ cancel_requested (version không đổi, chưa có lời hãng về lệnh hủy); lấy hàng
 // lần hai → false; hãng từ chối hủy → confirmed, vẫn in_transit, held 0; giao xong → delivered, on_hand −.
 func TestOnShipmentEvent_PickedUpWhileCancelRequested(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	req, s1, v1, v2 := e.requestedDH01()
 	e.mustOnEvent(req.ID, s1, order.StepPickedUp, true)
@@ -83,6 +84,7 @@ func TestOnShipmentEvent_PickedUpWhileCancelRequested(t *testing.T) {
 // Đơn cancel_requested đã lấy hàng mà hãng lại báo xác nhận hủy (mâu thuẫn) → ErrInvalidTransition, không nhả, đơn
 // giữ cancel_requested (M3 mở anomaly cancel_conflict).
 func TestOnShipmentEvent_PickedUpWhileCancelRequestedThenCarrierConfirms(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	req, s1, v1, _ := e.requestedDH01()
 	e.mustOnEvent(req.ID, s1, order.StepPickedUp, true)
@@ -99,6 +101,7 @@ func TestOnShipmentEvent_PickedUpWhileCancelRequestedThenCarrierConfirms(t *test
 // cancel_requested → confirmed (lý do carrier_rejected_cancel, bỏ lý do hủy, order.confirmed seq v+1) → delivered
 // (order.delivered seq v+2), held → in_transit → consumed, một transaction; gọi lại → false.
 func TestOnShipmentEvent_DeliveredWhileCancelRequested(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	req, s1, v1, v2 := e.requestedDH01()
 	e.mustOnEvent(req.ID, s1, order.StepDelivered, true)
@@ -133,6 +136,7 @@ func TestOnShipmentEvent_DeliveredWhileCancelRequested(t *testing.T) {
 // Nhân viên yêu cầu hủy SAU khi hãng đã lấy hàng (đơn cancel_requested, hàng in_transit): tin lấy hàng lặp lại →
 // false, đơn giữ cancel_requested; giao xong → delivered, trừ tồn đúng một lần.
 func TestOnShipmentEvent_CancelRequestedAfterPickup(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	req, s1, v1 := e.requestedAfterPickup()
 	o := req
@@ -151,6 +155,7 @@ func TestOnShipmentEvent_CancelRequestedAfterPickup(t *testing.T) {
 // nhận hủy: cancelled, gỡ vận đơn, nhả held, giữ lý do, order.cancelled, lịch sử của người gọi; gỡ lần hai và
 // OnShipmentCancelConfirmed gọi sau → false, không đổi gì.
 func TestDetachShipment_CancelRequestedCancelsOrder(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	req, s1, v1, v2 := e.requestedDH01()
 	applied, err := e.detachBy(e.seller, req.ID, s1)
@@ -184,6 +189,7 @@ func TestDetachShipment_CancelRequestedCancelsOrder(t *testing.T) {
 // Thứ tự ngược (M3 gọi OnShipmentCancelConfirmed trước rồi DetachShipment) → cùng kết quả, DetachShipment gọi sau →
 // false.
 func TestDetachShipment_AfterCarrierConfirmsCancel(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	req, s1, _, _ := e.requestedDH01()
 	if applied, err := e.carrierCancel(req.ID, s1, true); err != nil || !applied {
@@ -198,6 +204,7 @@ func TestDetachShipment_AfterCarrierConfirmsCancel(t *testing.T) {
 // DetachShipment trên đơn cancel_requested mà hàng đã in_transit → ErrInvalidTransition, không đổi gì (phải đi
 // đường hoàn); trên đơn delivered còn vận đơn hiện hành → ErrInvalidTransition, không đổi gì.
 func TestDetachShipment_RefusedStates(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	req, s1, v1 := e.requestedAfterPickup()
 	o := req

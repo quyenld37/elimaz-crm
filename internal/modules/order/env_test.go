@@ -3,6 +3,8 @@ package order_test
 import (
 	"flag"
 	"os"
+	"runtime"
+	"strconv"
 	"testing"
 
 	"github.com/google/uuid"
@@ -20,10 +22,21 @@ import (
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
-// TestMain đặt số lượt rapid 200 (kế hoạch Task M1-30), trừ khi người chạy đã đặt -rapid.checks hay RAPID_CHECKS.
+// orderParallel là số test chạy song song mặc định của gói (Task 469): mỗi test có database riêng và tới 9 kết nối
+// PostgreSQL (2 pool × MaxConns 4 + 1 kết nối quản trị lúc tạo database); máy chủ thử dùng chung nhiều phiên có
+// max_connections 300.
+const orderParallel = 6
+
+// TestMain đặt số lượt rapid 200 (kế hoạch Task M1-30), trừ khi người chạy đã đặt -rapid.checks hay RAPID_CHECKS;
+// đặt -parallel thành min(orderParallel, GOMAXPROCS), trừ khi người chạy đã đặt -parallel.
 func TestMain(m *testing.M) {
 	flag.Parse()
 	testkit.SetRapidChecks(200)
+	explicit := false
+	flag.Visit(func(f *flag.Flag) { explicit = explicit || f.Name == "test.parallel" })
+	if !explicit {
+		_ = flag.Set("test.parallel", strconv.Itoa(min(orderParallel, runtime.GOMAXPROCS(0))))
+	}
 	os.Exit(m.Run())
 }
 

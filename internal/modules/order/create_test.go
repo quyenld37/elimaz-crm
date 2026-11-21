@@ -20,6 +20,7 @@ import (
 var codeRe = regexp.MustCompile(`^DH[0-9]{7,}$`)
 
 func TestCreateManual_Totals(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, testCreateManualTotals)
 }
 
@@ -71,6 +72,7 @@ func testCreateManualTotals(t *testing.T, e *orderEnv) {
 }
 
 func TestCreateManual_CodesUnique(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	v := e.variant(1000, 100)
 	codes := make([]string, 100)
@@ -96,6 +98,7 @@ func TestCreateManual_CodesUnique(t *testing.T) {
 }
 
 func TestCreateManual_SecondLineShort(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	a, b := e.variant(1000, 5), e.variant(1000, 1)
 	_, err := e.create(e.input(0, item(a, 2), item(b, 2)))
@@ -119,6 +122,7 @@ func TestCreateManual_SecondLineShort(t *testing.T) {
 
 // TestOrderItems_SellerFK (KH14): biến thể của người bán P không vào được đơn của ELIMAZ — ở Go và ở database.
 func TestOrderItems_SellerFK(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	own := e.variant(1000, 5)
 	p := e.variantOf(e.partner, 1000, 0)
@@ -143,6 +147,7 @@ func TestOrderItems_SellerFK(t *testing.T) {
 // TestCreateOrder_DiscontinuedVariant (KH12): biến thể ngừng bán không lên đơn mới; đơn cũ vẫn đọc được, tên chụp
 // lúc đặt giữ nguyên.
 func TestCreateOrder_DiscontinuedVariant(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	v := e.variant(1000, 5)
 	old := e.mustCreate(e.input(0, item(v, 1)))
@@ -167,6 +172,7 @@ func TestCreateOrder_DiscontinuedVariant(t *testing.T) {
 }
 
 func TestCreateManual_TotalOverflow(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	v := e.variant(catalog.MaxMoney, 5)
 	cases := map[string]order.CreateManualInput{
@@ -188,6 +194,7 @@ func TestCreateManual_TotalOverflow(t *testing.T) {
 }
 
 func TestCreateManual_InvalidInput(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	v := e.variant(1000, 5)
 	long := make([]byte, 501)
@@ -237,6 +244,7 @@ func TestCreateManual_InvalidInput(t *testing.T) {
 }
 
 func TestCreateManual_DuplicateBusinessKey(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	v := e.variant(1000, 5)
 	in := e.input(0, item(v, 1))
@@ -258,6 +266,7 @@ func isPgCode(err error, code string) bool {
 }
 
 func TestOrderStatusHistory_AppendOnly(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	v := e.variant(1000, 5)
 	e.mustCreate(e.input(0, item(v, 1)))

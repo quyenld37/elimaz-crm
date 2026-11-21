@@ -18,6 +18,7 @@ import (
 // tới delivered mà không có lần đảo delivered → confirmed ở giữa; seq sự kiện của đơn tăng ngặt và seq lớn nhất bằng
 // version; một lần bị từ chối hay applied=false không đổi version; tồn không âm, in_transit ≤ on_hand.
 func TestShipping_Invariants(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		o, va, vb := e.d1()

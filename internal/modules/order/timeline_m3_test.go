@@ -126,6 +126,7 @@ func (e *orderEnv) seedTimelineM3(d1 order.Order) (evs []m3Event, payID, retID u
 // đơn; sự kiện trùng trạng thái (duplicate_state) không hiện; dòng hãng actorType = carrier không người làm, dòng nhân
 // viên actorType = staff có người làm; summary chỉ mã, trạng thái, loại, số tiền.
 func TestTimelineM3_ShipmentPaymentReturn(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	d1, _, _ := e.d1()
 	evs, payID, retID := e.seedTimelineM3(d1)

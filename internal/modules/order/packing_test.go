@@ -38,6 +38,7 @@ func (e *orderEnv) mustPack(to string, ids ...uuid.UUID) map[uuid.UUID]string {
 // đi tới; packed lần hai → already_further; đơn new → not_allowed. Mỗi lần đổi: version + 1, order.updated, lịch sử
 // confirmed → confirmed lý do packing_<to> với người đóng gói.
 func TestSetPackingStatus(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	d1, _, _ := e.d1()
 	d2, _, _ := e.d1()
@@ -84,6 +85,7 @@ func TestSetPackingStatus(t *testing.T) {
 // Đầu vào sai → ErrInvalidInput; đơn không có hay của người bán khác → ErrNotFound, không đơn nào bị đổi; mã trùng
 // trong danh sách → một kết quả.
 func TestSetPackingStatus_Rejects(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	d1, _, _ := e.d1()
 	for _, to := range []string{"", order.PackingNone, "shipped"} {
@@ -107,6 +109,7 @@ func TestSetPackingStatus_Rejects(t *testing.T) {
 
 // Hai goroutine cùng SetPackingStatus trên [D1, D2] và [D2, D1] (lặp 10 lần) → không deadlock: mọi lần xong không lỗi.
 func TestSetPackingStatus_NoDeadlock(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	for range 10 {
 		d1, _, _ := e.d1()

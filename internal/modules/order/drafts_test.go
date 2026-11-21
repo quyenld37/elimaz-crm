@@ -44,6 +44,7 @@ func (e *orderEnv) draftWith(v uuid.UUID, qty int32, code string) order.Order {
 // Đơn nháp tạo lúc T, hạn 24 giờ: ExpireDrafts(T + 23h) → 0; ExpireDrafts(T + 24h + 1m) → cancelled, cancel_reason
 // draft_expired, người làm system, hàng và lượt mã được trả; đơn nháp đã chốt trước hạn không bị đụng.
 func TestExpireDrafts(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	cid := e.coupon(sale10("SALE10", 0))
 	v := e.variant(250000, 10)
@@ -85,6 +86,7 @@ func TestExpireDrafts(t *testing.T) {
 
 // Mỗi lần tối đa limit đơn (theo mã đơn tăng dần); limit ≤ 0 → ErrInvalidInput.
 func TestExpireDrafts_Limit(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(1000, 10)
 	for range 3 {
@@ -109,6 +111,7 @@ func TestExpireDrafts_Limit(t *testing.T) {
 // ExpireDrafts với giờ của background.Deps.Now (B-05, Task 436: không gọi time.Now trong module) trong tx của việc và trả
 // {"expired": n}; dòng lịch sử hủy mang đúng giờ đó (một đồng hồ cho lịch sử đơn).
 func TestExpireDraftsSchedule(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	created := time.Now().UTC().AddDate(1, 0, 0).Truncate(time.Microsecond) // năm sau: theo giờ thật chưa quá hạn
 	clock := created.Add(48 * time.Hour)

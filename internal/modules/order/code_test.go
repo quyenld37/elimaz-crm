@@ -21,6 +21,7 @@ func (e *orderEnv) twoSellerOrders() (order.Order, order.Order) {
 // Codes trả mã đơn theo id của đúng người bán (ADR-29); đơn của người bán khác, id không có, tenant khác bị bỏ; danh
 // sách rỗng → map rỗng.
 func TestCodes(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	mine, partner := e.twoSellerOrders()
 	codes := func(tenant, seller uuid.UUID, ids []uuid.UUID) map[uuid.UUID]string {
@@ -57,6 +58,7 @@ func TestCodes(t *testing.T) {
 // ItemOrders trả đơn theo mã dòng đơn của đúng người bán (ADR-29); dòng của người bán khác, mã không có, tenant khác bị
 // bỏ; danh sách rỗng → map rỗng.
 func TestItemOrders(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	mine, partner := e.twoSellerOrders()
 	items := []uuid.UUID{mine.Items[0].ID, partner.Items[0].ID, uuid.New()}

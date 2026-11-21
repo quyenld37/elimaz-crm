@@ -61,6 +61,7 @@ func (e *orderEnv) couponOrder(v, cust uuid.UUID, code string) order.CreateInput
 // Mã gắn khách A, 1 lượt mỗi khách; gộp A vào B. Đơn của hồ sơ B dùng được mã (gốc hiện tại của A là B); đơn tiếp theo
 // của nhóm (hồ sơ A) → customer_limit, cả nhóm chỉ một lượt.
 func TestCreateCoupon_BoundCustomerAfterMerge(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	a, b := e.twoCustomers()
 	e.limitedCoupon("RIENGA", a)
@@ -80,6 +81,7 @@ func TestCreateCoupon_BoundCustomerAfterMerge(t *testing.T) {
 // (pg_stat_database.deadlocks không tăng), không lỗi khác; kết quả là một trong hai thứ tự: đơn trước gộp → đơn đạt (B
 // còn riêng), gộp trước đơn → customer_limit (nhóm đã dùng).
 func TestCreateCoupon_MergeRaceNoDeadlock(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	deadlocks := func() int {
 		return e.staff.Count(t, `SELECT deadlocks::int FROM pg_stat_database WHERE datname = current_database()`)

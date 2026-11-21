@@ -40,6 +40,7 @@ func (e *orderEnv) updateSettings(version int64, p order.SettingsPatch) (order.S
 }
 
 func TestSettings_Defaults(t *testing.T) {
+	t.Parallel()
 	e := withDefaults(t)
 	s := e.settings()
 	if s.DraftTTL != 1440*time.Minute || s.DuplicateWindow != 1440*time.Minute || s.DiscountApprovalThresholdBP != 1000 ||
@@ -49,6 +50,7 @@ func TestSettings_Defaults(t *testing.T) {
 }
 
 func TestSettings_UpdateAndVersion(t *testing.T) {
+	t.Parallel()
 	e := withDefaults(t)
 	ch, err := e.updateSettings(1, order.SettingsPatch{DiscountApprovalThresholdBP: new(2000)})
 	if err != nil {
@@ -81,6 +83,7 @@ func TestSettings_UpdateAndVersion(t *testing.T) {
 }
 
 func TestSettings_OutOfRange(t *testing.T) {
+	t.Parallel()
 	e := withDefaults(t)
 	for _, c := range []struct {
 		name  string

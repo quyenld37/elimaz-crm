@@ -77,6 +77,7 @@ func (e *orderEnv) eventCount(id uuid.UUID, topic string, seq int64) int {
 // new → confirm: confirmed, version + 1, confirmed_at/by, một dòng lịch sử new → confirmed, sự kiện order.confirmed
 // với seq = version; version cũ → ErrVersionConflict, không đổi gì.
 func TestConfirm_New(t *testing.T) {
+	t.Parallel()
 	base := newM2Env(t)
 	testkit.ForEachSeller(t, []uuid.UUID{base.shop.Seller, base.shop.Partner}, func(t *testing.T, s uuid.UUID) {
 		e := *base
@@ -115,6 +116,7 @@ func TestConfirm_New(t *testing.T) {
 
 // Đơn của người bán khác (cùng tenant) không thấy được: ErrNotFound (ADR-29).
 func TestConfirm_OtherSeller(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o := e.createIntent(order.IntentNew, fullAddress(), 0)
 	other := *e
@@ -127,6 +129,7 @@ func TestConfirm_OtherSeller(t *testing.T) {
 // DH16: đơn chờ duyệt; nhân viên confirm → ErrNeedsApproval, approve → ErrDiscountNeedsApproval; quản lý approve →
 // confirmed, ghi người duyệt, lịch sử có lý do discount_approved (new → new) rồi new → confirmed, sự kiện seq = version.
 func TestApproveDiscount_New(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o := e.createIntent(order.IntentConfirmed, fullAddress(), 100001)
 	if o.Status != order.StatusNew || o.PendingReason != order.PendingDiscountApproval {
@@ -169,6 +172,7 @@ func TestApproveDiscount_New(t *testing.T) {
 
 // Người có quyền duyệt bấm confirm trên đơn chờ duyệt: ghi duyệt rồi xác nhận trong cùng lần.
 func TestConfirm_ApproverConfirmsPending(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o := e.createIntent(order.IntentNew, fullAddress(), 100001)
 	mgr := e.manager()
@@ -186,6 +190,7 @@ func TestConfirm_ApproverConfirmsPending(t *testing.T) {
 
 // Đơn không chờ duyệt: approve → ErrInvalidTransition kể cả với quản lý.
 func TestApproveDiscount_NotPending(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o := e.createIntent(order.IntentNew, fullAddress(), 0)
 	if _, err := e.approve(o.ID, 1, e.manager(), e.now()); !errors.Is(err, order.ErrInvalidTransition) {
@@ -196,6 +201,7 @@ func TestApproveDiscount_NotPending(t *testing.T) {
 // Chốt đơn nháp: thiếu phường → ErrAddressIncomplete; địa chỉ đủ → confirmed, bỏ hạn nháp. Nháp chờ duyệt: quản lý
 // duyệt → vẫn draft, bỏ lý do, giữ hạn nháp; rồi nhân viên chốt được.
 func TestConfirm_Draft(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	noWard := fullAddress()
 	noWard.WardCode = ""
@@ -248,6 +254,7 @@ func TestConfirm_Draft(t *testing.T) {
 // SetPending: new → chờ khách (lý do đổi, vẫn new); confirm → confirmed; đặt lý do trên đơn confirmed →
 // ErrInvalidTransition; lý do lạ → ErrInvalidInput; đặt đúng lý do đang có → không ghi gì.
 func TestSetPending(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o := e.createIntent(order.IntentNew, fullAddress(), 0)
 	if _, err := e.setPending(o.ID, 1, "discount_approval", e.now()); !errors.Is(err, order.ErrInvalidInput) {
@@ -278,6 +285,7 @@ func TestSetPending(t *testing.T) {
 
 // Đơn đã hủy: confirm → ErrInvalidTransition.
 func TestConfirm_Cancelled(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o := e.createIntent(order.IntentNew, fullAddress(), 0)
 	if err := e.transition(&o, order.StatusCancelled, "", e.now()); err != nil {

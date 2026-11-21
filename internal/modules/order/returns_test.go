@@ -181,6 +181,7 @@ func (e *orderEnv) returnEvent(o uuid.UUID, topic string) map[string]any {
 // ErrReturnQtyExceeds; trả quá số mua, dòng lạ, trùng dòng → lỗi; đơn chưa giao → ErrReturnNotAllowed; người bán khác,
 // đơn không có → ErrNotFound.
 func TestCreateReturn_TD05PerLine(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, a, b := e.orderD()
 	ia, ib := itemOf(t, o, a), itemOf(t, o, b)
@@ -233,6 +234,7 @@ func TestCreateReturn_TD05PerLine(t *testing.T) {
 
 // Làm tròn (WAT31): D2 dòng C ×2 net 500.001 → trả C ×1 = 250.000, lần sau C ×1 = 250.001, tổng 500.001.
 func TestCreateReturn_RoundingLastUnit(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	c := e.variant(250001, 5)
 	o := e.deliveredOrder(ln(c, 2, 1))
@@ -252,6 +254,7 @@ func TestCreateReturn_RoundingLastUnit(t *testing.T) {
 // của dòng (A ×1: floor(netA / 3)), không theo giá mới hay đơn giá; trả nốt → dòng nhận phần còn lại, Σ hoàn = Σ net =
 // tổng đơn trừ phí ship.
 func TestCreateReturn_WAT31OrderDiscountAfterPriceChange(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	c := sale10("WAT31", 0)
 	c.maxDiscount = 0
@@ -303,6 +306,7 @@ func TestCreateReturn_WAT31OrderDiscountAfterPriceChange(t *testing.T) {
 // restocked, sự kiện order.partially_returned có refundAmount 250.000, đơn vẫn delivered (version +1). Nhận lần hai,
 // version cũ → lỗi. Trả nốt B và nhận → order.returned.
 func TestReceiveReturn_TD08Restock(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, a, b := e.orderD()
 	before := e.balance(a)
@@ -354,6 +358,7 @@ func TestReceiveReturn_TD08Restock(t *testing.T) {
 
 // Hàng hỏng: nhận damaged → on_hand +1, damaged +1, Available không đổi; missing → tồn không đổi, tiền hoàn dòng 0.
 func TestReceiveReturn_DamagedAndMissing(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, a, b := e.orderD()
 	ba, bb := e.balance(a), e.balance(b)
@@ -387,6 +392,7 @@ func TestReceiveReturn_DamagedAndMissing(t *testing.T) {
 // TD06/AT14: đổi A size M lấy A size L → phiếu exchange + đơn thay thế orderType exchange giữ A-L ×1, cùng khách, người
 // bán, ReplacedReturnID; đơn D không đổi dòng, tổng, trạng thái. Hủy phiếu đổi → đơn thay thế cancelled, A-L nhả.
 func TestCreateReturn_TD06Exchange(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, a, _ := e.orderD()
 	r, al := e.exchangeReturn(o.ID, rl(itemOf(t, o, a).ID, 1))
@@ -430,6 +436,7 @@ func TestCreateReturn_TD06Exchange(t *testing.T) {
 
 // Hủy phiếu đổi khi đơn thay thế đã gửi hãng → ErrReturnNotAllowed, không đổi gì.
 func TestCancelReturn_ExchangeShipped(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, a, _ := e.orderD()
 	repl := e.m2Input(0, ln(e.variant(250000, 3), 1, 0))
@@ -450,6 +457,7 @@ func TestCancelReturn_ExchangeShipped(t *testing.T) {
 // Đóng, hủy: requested → cancelled (số đã trả mở lại); restocked → closed; đóng phiếu requested, hủy phiếu restocked →
 // ErrReturnNotAllowed; version cũ → ErrVersionConflict; phiếu không có → ErrNotFound.
 func TestCloseCancelReturn(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, a, _ := e.orderD()
 	ia := itemOf(t, o, a).ID
@@ -528,6 +536,7 @@ func (e *orderEnv) carrierReturnFor(s uuid.UUID) (order.Return, error) {
 // dòng, đơn confirmed, Available không đổi; lần hai, vận đơn cũ → false; CarrierReturnFor(S1) trả phiếu đó, vận đơn
 // lạ → ErrNotFound.
 func TestCarrierReturn_TD02Requested(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, v1, v2, s1 := e.pickedUpDH01()
 	b1, b2 := e.balance(v1), e.balance(v2)
@@ -561,13 +570,13 @@ func TestCarrierReturn_TD02Requested(t *testing.T) {
 // TD02 (phía đơn): kho nhận kiện hoàn (V1 sellable, V2 damaged) → in_transit về 0, V2 damaged +1, đơn returned, nhãn
 // returned, sự kiện order.returned, mọi giữ hàng released.
 func TestCarrierReturn_TD02Receive(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
-	o, v1, v2, s1 := e.pickedUpDH01()
-	b1, b2 := e.balance(v1), e.balance(v2)
-	r := e.openCarrierReturn(o.ID, s1)
-	got := e.mustReceive(r,
-		order.ReceiveLine{OrderItemID: itemOf(t, o, v1).ID, Condition: order.ConditionSellable},
-		order.ReceiveLine{OrderItemID: itemOf(t, o, v2).ID, Condition: order.ConditionDamaged})
+	c := e.carrierCase(t)
+	o, v1, v2, b1, b2 := c.o, c.v1, c.v2, c.b1, c.b2
+	got := e.mustReceive(c.r,
+		order.ReceiveLine{OrderItemID: c.i1, Condition: order.ConditionSellable},
+		order.ReceiveLine{OrderItemID: c.i2, Condition: order.ConditionDamaged})
 	if got.Status != order.ReturnRestocked {
 		t.Errorf("phiếu sau nhận: %s", got.Status)
 	}
@@ -593,6 +602,7 @@ func TestCarrierReturn_TD02Receive(t *testing.T) {
 // Phiếu hoàn của hãng: dòng missing nhả giữ hàng in_transit rồi ghi thất lạc (M3-23, TD04: M2 Quyết định 2 để phần
 // này cho M3): V2 in_transit 0, on_hand −1, có thể bán không đổi; dòng sellable nhả.
 func TestCarrierReturn_MissingRecordsLoss(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, v1, v2, s1 := e.pickedUpDH01()
 	b2 := e.balance(v2)
@@ -613,6 +623,7 @@ func TestCarrierReturn_MissingRecordsLoss(t *testing.T) {
 
 // listReturns: mới nhất trước, lọc trạng thái, loại; trang sau theo con trỏ; người bán khác không thấy.
 func TestListReturns(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, a, b := e.orderD()
 	r1 := e.mustReturn(o.ID, custReturn(rl(itemOf(t, o, a).ID, 1)))

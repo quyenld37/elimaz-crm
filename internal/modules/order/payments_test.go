@@ -22,6 +22,7 @@ func (e *orderEnv) pay(o uuid.UUID, paid int64) error {
 // DH01 (690.000): trả 200.000 → cod 490.000 partial; 690.000 → cod 0 paid; 700.000 → cod 0 paid; −1 → ErrInvalidInput;
 // mỗi lần đổi: version +1, order.updated seq = version; cùng tổng lần hai → không đổi gì.
 func TestApplyPaymentTotals(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, _ := e.confirmedDH01()
 	version := o.Version
@@ -65,6 +66,7 @@ func TestApplyPaymentTotals(t *testing.T) {
 
 // Đơn có vận đơn hiện hành: đổi COD → ErrLockedByShipment, không đổi gì; đổi tổng mà COD giữ 0 → được.
 func TestApplyPaymentTotals_LockedByShipment(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, _ := e.confirmedDH01()
 	if err := e.attachBy(o.ID, uuid.New()); err != nil {
@@ -96,6 +98,7 @@ func TestApplyPaymentTotals_LockedByShipment(t *testing.T) {
 // Quy luật (vét cạn mọi cặp chuyển giữa 6 mức trả, một đơn 690.000): sau mỗi lần trả, cod = max(grand − paid, 0),
 // trạng thái theo ngưỡng, version tăng đúng khi tổng thật sự đổi (cùng tổng → không đổi).
 func TestApplyPaymentTotals_AllTransitions(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, _ := e.confirmedDH01()
 	levels := []int64{0, 1, 200000, 689999, 690000, 700000}
@@ -138,6 +141,7 @@ func paidState(g order.Order, p, version int64) string {
 // delivered chạy song song với ApplyPaymentTotals cùng đơn (100 đơn, 10 luồng mỗi luồng 10 đơn): không deadlock, cả
 // hai được áp, version +2, tồn trừ đúng một lần. Đơn đã trả đủ trước khi gửi hãng để lần trả thêm không đổi COD.
 func TestApplyPaymentTotals_ConcurrentWithDelivered(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	const workers, perWorker, price = 10, 10, 100000
 	v := e.variant(price, workers*perWorker)
@@ -207,6 +211,7 @@ func (e *orderEnv) refund(o uuid.UUID) error {
 // MarkRefunded → refunded, version +1, order.updated seq = version; gọi lại → không đổi gì; người bán khác →
 // ErrNotFound.
 func TestMarkRefunded(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, _ := e.confirmedDH01()
 	if err := e.pay(o.ID, 200000); err != nil {

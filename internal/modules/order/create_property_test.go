@@ -17,6 +17,7 @@ import (
 // in_transit; đơn bị từ chối chỉ vì thiếu hàng; mọi đơn tạo được đã qua trigger tổng tiền lúc commit và có
 // grand_total = Σ net + phí.
 func TestCreate_ConcurrentReservations(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		vs := make([]uuid.UUID, rapid.IntRange(1, 3).Draw(rt, "variants"))
