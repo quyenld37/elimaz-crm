@@ -27,12 +27,9 @@ import (
 func (w Writer) ApplyAddressChange(ctx context.Context, tx pgx.Tx, sellerID, orderID, shipmentID uuid.UUID,
 	addr ShipAddress, _ Actor, now time.Time,
 ) (changed bool, err error) {
-	clean, err := cleanAddress(addr)
+	clean, err := checkShape(addr)
 	if err != nil {
 		return false, err
-	}
-	if clean.ProvinceCode == "" || clean.WardCode == "" {
-		return false, ErrAddressIncomplete
 	}
 	q, o, current, err := w.lockCurrentShipment(ctx, tx, sellerID, orderID, shipmentID)
 	if err != nil {
@@ -46,11 +43,11 @@ func (w Writer) ApplyAddressChange(ctx context.Context, tx pgx.Tx, sellerID, ord
 	if err != nil {
 		return false, err
 	}
-	if cur.ShipAddress == *clean {
+	if cur.ShipAddress == clean {
 		return false, nil
 	}
-	if _, err := customer.ValidateUnits(ctx, tx, clean.ProvinceCode, clean.WardCode); err != nil {
-		return false, fmt.Errorf("kiểm địa chỉ giao: %w", err)
+	if err := validateUnits(ctx, tx, clean); err != nil {
+		return false, err
 	}
 	raw, err := json.Marshal(clean)
 	if err != nil {
@@ -71,4 +68,24 @@ func (w Writer) ApplyAddressChange(ctx context.Context, tx pgx.Tx, sellerID, ord
 		return false, err
 	}
 	return true, nil
+}
+
+// checkShape: phần không cần database của kiểm địa chỉ giao (dạng, đủ tỉnh và xã).
+func checkShape(addr ShipAddress) (ShipAddress, error) {
+	clean, err := cleanAddress(addr)
+	if err != nil {
+		return ShipAddress{}, err
+	}
+	if clean.ProvinceCode == "" || clean.WardCode == "" {
+		return ShipAddress{}, ErrAddressIncomplete
+	}
+	return *clean, nil
+}
+
+// validateUnits: mã tỉnh, xã của addr có trong danh mục địa giới.
+func validateUnits(ctx context.Context, tx pgx.Tx, addr ShipAddress) error {
+	if _, err := customer.ValidateUnits(ctx, tx, addr.ProvinceCode, addr.WardCode); err != nil {
+		return fmt.Errorf("kiểm địa chỉ giao: %w", err)
+	}
+	return nil
 }
