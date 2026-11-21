@@ -18,6 +18,7 @@ import (
 // Gộp hai dòng cùng biến thể: tổng số lượng đúng MaxInt32 được; vượt một cái, hay tổng giảm dòng không hợp lệ (âm,
 // tràn) → ErrInvalidInput.
 func TestMergeLines_Bounds(t *testing.T) {
+	t.Parallel()
 	v := uuid.New()
 	got, err := order.MergeLines([]order.LineInput{{VariantID: v, Quantity: math.MaxInt32 - 5}, {VariantID: v, Quantity: 5}})
 	if err != nil || len(got) != 1 || got[0].Quantity != math.MaxInt32 {
@@ -45,6 +46,7 @@ func TestMergeLines_Bounds(t *testing.T) {
 
 // Writer thiếu Events hoặc Queue → CreateManual lỗi (không tạo đơn, không giữ hàng).
 func TestCreateManual_WriterNotWired(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	v := e.variant(1000, 5)
 	full := e.writer()

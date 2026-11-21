@@ -27,6 +27,7 @@ type editOp struct {
 // đã qua lúc commit; kiểm lại cả net và grand_total); (3) tổng giữ held của mỗi biến thể = tổng số lượng của các đơn
 // còn mở = số dư held; (4) used_count của mỗi mã = số lượt active.
 func TestEdit_Invariants(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	m := e.manager()
 	iter := 0

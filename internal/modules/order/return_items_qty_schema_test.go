@@ -89,6 +89,7 @@ type qtyLine struct {
 
 // 0302 trên dữ liệu M2: dòng của phiếu đã nhận điền số lượng theo condition; phiếu chưa nhận giữ 0/0/0.
 func TestReturnItemsQty_BackfillM2(t *testing.T) {
+	t.Parallel()
 	_, ownerURL, appURL := testkit.CreateDatabase(t)
 	testkit.MigrateBefore(t, ownerURL, "0302")
 	owner, app := testkit.OpenDB(t, ownerURL), testkit.OpenDB(t, appURL)
@@ -134,6 +135,7 @@ func TestReturnItemsQty_BackfillM2(t *testing.T) {
 
 // CHECK: ba số lượng cộng lại là 0 hoặc đúng quantity; mỗi số ≥ 0; condition thêm mixed.
 func TestReturnItemsQty_Checks(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	q := seedQtyOrder(t, s.Owner, s.App)
 	ret := insertReturn(t, s.Owner, q, "TH0000001", "received", nil)

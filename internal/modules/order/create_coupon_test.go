@@ -81,6 +81,7 @@ func (e *orderEnv) dh01(v1, v2 uuid.UUID, code string) order.CreateInput {
 // Mutation M2-32 (create_coupon.go:38): mã % tính trên tạm tính trừ giảm dòng và giảm cấp đơn. 2 × 250.000, giảm dòng
 // 20.000, giảm đơn 30.000, mã 10% không trần → nền 450.000, giảm mã 45.000, tổng 405.000.
 func TestCreateCoupon_BaseAfterManualDiscounts(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	c := sale10("BASE10", 0)
 	c.maxDiscount = 0
@@ -97,6 +98,7 @@ func TestCreateCoupon_BaseAfterManualDiscounts(t *testing.T) {
 // Mutation M2-32 (create_coupon.go:32): mã gắn SĐT, khách mới chưa có danh tính SĐT → luật mã so với SĐT người nhận;
 // SĐT người nhận khác → bound_other; khách có danh tính SĐT đúng số gắn mã gửi hộ người khác → so với SĐT của khách.
 func TestCreateCoupon_BoundPhoneUsesRecipient(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	c := sale10("", 0)
 	if err := e.app(func(tx pgx.Tx) error {
@@ -136,6 +138,7 @@ func TestCreateCoupon_BoundPhoneUsesRecipient(t *testing.T) {
 // DH01 với SALE10 (gõ chữ thường): couponDiscount 50.000 (10% của 660.000, chặn trần), grandTotal 640.000, phần giảm
 // chia về dòng (trigger tổng tiền qua lúc commit), used_count 1, dòng coupon_redemptions active, sự kiện coupon.used.
 func TestCreateCoupon_DH01(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	cid := e.coupon(sale10("SALE10", 0))
 	v1, v2 := e.variant(250000, 5), e.variant(180000, 5)
@@ -171,6 +174,7 @@ func TestCreateCoupon_DH01(t *testing.T) {
 
 // KM01: max_uses 2 → đơn thứ ba bị từ chối exhausted; không có đơn thứ ba, giữ hàng không đổi, used_count 2.
 func TestCreateCoupon_Exhausted(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	cid := e.coupon(sale10("KM01", 2))
 	v1, v2 := e.variant(250000, 10), e.variant(180000, 10)
@@ -194,6 +198,7 @@ func TestCreateCoupon_Exhausted(t *testing.T) {
 
 // KM02 và các lý do khác: mã hết hạn → expired; mã không có → not_found; cả lần tạo lùi (không khách mới, không đơn).
 func TestCreateCoupon_Rejected(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	old := sale10("KM02", 0)
 	old.from, old.to = time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
@@ -223,6 +228,7 @@ func TestCreateCoupon_Rejected(t *testing.T) {
 // WAT07 (phần CRM): max_uses 1, hai đơn cùng mã cùng lúc, lặp 20 lần → mỗi lần đúng một đơn có mã, một exhausted;
 // used_count 1.
 func TestCreateCoupon_ConcurrentLastUse(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v1, v2 := e.variant(250000, 100), e.variant(180000, 100)
 	for i := range 20 {
@@ -260,6 +266,7 @@ func TestCreateCoupon_ConcurrentLastUse(t *testing.T) {
 // Gửi lại cùng khóa nghiệp vụ: cùng mã (khác hoa thường) → trả đơn cũ, không dùng mã lần hai; khác mã hay bỏ mã →
 // ErrDuplicateOrder.
 func TestCreateCoupon_Replay(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	cid := e.coupon(sale10("SALE10", 0))
 	e.coupon(sale10("SALE20", 0))

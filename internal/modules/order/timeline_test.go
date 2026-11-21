@@ -81,6 +81,7 @@ func (e *orderEnv) addNote(seller, id uuid.UUID, body string, a order.Actor) (or
 // order.cancel before/after kèm cancelReason, hasNote): Timeline có 4 mục thao tác và 1 ghi chú, mới nhất trước, đúng
 // người; mục sửa ghi shipAddress, lines là "changed", không có địa chỉ, SĐT cũ hay mới; audit hủy không thành mục sửa.
 func TestTimeline_DH06(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	editor := e.staff.User(t, e.tenant, "sua@elimaz.test", "active")
 	confirmer := e.staff.User(t, e.tenant, "xacnhan@elimaz.test", "active")
@@ -89,7 +90,6 @@ func TestTimeline_DH06(t *testing.T) {
 	in.Intent = order.IntentNew
 	o := e.createAt(in, e.dbNow())
 	e.audit(e.actor.UserID, "order.create", o.ID, nil, o.AuditFields())
-
 	item := o.Items[0].ID
 	newAddr := &order.ShipAddress{
 		Name: "Chị Lan", Phone: "0987654321", Line: "99 Hai Bà Trưng", ProvinceCode: "T01", WardCode: "T01001",
@@ -171,6 +171,7 @@ func TestTimeline_DH06(t *testing.T) {
 // AddNote: thân rỗng hay chỉ khoảng trắng, quá 2.000 ký tự → ErrInvalidInput; đơn của người bán khác hay không có →
 // ErrNotFound; thân 2.000 ký tự (có dấu) ghi được, giữ nguyên.
 func TestAddNote_Validation(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(100000, 5)
 	o := e.createAt(e.m2Input(0, ln(v, 1, 0)), e.dbNow())
@@ -221,6 +222,7 @@ func checkTimeline(t *testing.T, items []order.OrderTimelineItem, wants []timeli
 // Task 425: đơn có hơn 500 dòng audit (trần đọc của ListEntityAudit) vẫn hiện lần sửa mới nhất: 500 lần sửa cũ
 // (shipAddress) rồi một lần sửa sau cùng (lines) → mục sửa mới nhất của Timeline là lần sửa sau cùng, đúng người.
 func TestTimeline_ManyAuditsKeepsLatestEdit(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	editor := e.staff.User(t, e.tenant, "sua@elimaz.test", "active")
 	o := e.createAt(e.m2Input(0, ln(e.variant(250000, 10), 1, 0)), e.dbNow())

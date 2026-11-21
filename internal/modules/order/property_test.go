@@ -17,6 +17,7 @@ import (
 // hoặc có đủ dòng giữ hàng (một dòng held cho mỗi dòng đơn, đúng số lượng; dòng nhập cùng biến thể gộp làm một, M2-05) hoặc không tồn tại; (3) đơn bị từ chối chỉ
 // vì thiếu hàng.
 func TestCreateManual_NoOversell(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		vs := make([]uuid.UUID, rapid.IntRange(1, 3).Draw(rt, "variants"))

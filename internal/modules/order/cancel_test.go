@@ -102,6 +102,7 @@ func (e *orderEnv) attachedDH01() (order.Order, uuid.UUID) {
 // TD01: đơn confirmed V2 ×1 (tồn 1) → hủy → cancelled, Available(V2) = 1 ngay, lý do, ghi chú, giờ hủy, lịch sử và
 // sự kiện order.cancelled (seq = version); đơn khác V2 ×1 tạo ngay sau → được.
 func TestCancel_TD01ReleasesStock(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, v2 := e.confirmedDH01()
 	if b := e.balance(v2); b.Available != 0 {
@@ -140,6 +141,7 @@ func TestCancel_TD01ReleasesStock(t *testing.T) {
 
 // Hủy đơn draft, new (kể cả chờ duyệt giảm giá) → cancelled, nhả hàng; draft bỏ hạn nháp.
 func TestCancel_DraftAndNew(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(100000, 5)
 	for _, intent := range []string{order.IntentDraft, order.IntentNew} {
@@ -171,6 +173,7 @@ func TestCancel_DraftAndNew(t *testing.T) {
 // KM03: đơn dùng SALE10 (used_count 1) → hủy → used_count 0, lượt released; mã tắt release_on_cancel → used_count giữ
 // 1, lượt vẫn active.
 func TestCancel_KM03ReleasesCoupon(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, cid, _ := e.sale10Order()
 	if e.usedCount(cid) != 1 {
@@ -206,6 +209,7 @@ func TestCancel_KM03ReleasesCoupon(t *testing.T) {
 // TD03 phía đơn: đơn có vận đơn S1 → hủy → cancel_requested (nhãn cancel_requested), giữ hàng, lượt mã không đổi, sự
 // kiện order.cancel_requested; OnShipmentCancelConfirmed(S1) → cancelled, gỡ vận đơn, nhả hàng, trả lượt, giữ lý do.
 func TestCancel_TD03RequestThenCarrierConfirms(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, cid, _ := e.sale10Order()
 	s1 := uuid.New()
@@ -261,6 +265,7 @@ func TestCancel_TD03RequestThenCarrierConfirms(t *testing.T) {
 
 // TD03 trường hợp khác: hãng từ chối hủy → confirmed, vẫn vận đơn S1, giữ hàng, bỏ lý do hủy.
 func TestCancel_CarrierRejects(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, s1 := e.attachedDH01()
 	req := e.mustCancel(o)
@@ -285,6 +290,7 @@ func TestCancel_CarrierRejects(t *testing.T) {
 
 // Vận đơn cũ: hiện hành là S1, hãng báo về S0 → applied false, không đổi gì (cả xác nhận lẫn từ chối).
 func TestCancel_StaleShipment(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _ := e.attachedDH01()
 	req := e.mustCancel(o)
@@ -300,6 +306,7 @@ func TestCancel_StaleShipment(t *testing.T) {
 
 // Hàng đã in_transit mà hãng báo hủy thành công → ErrInvalidTransition, không nhả, đơn vẫn cancel_requested.
 func TestCancel_InTransitCannotBeCancelled(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, v1, _ := e.confirmedDH01()
 	s1 := uuid.New()
@@ -326,6 +333,7 @@ func TestCancel_InTransitCannotBeCancelled(t *testing.T) {
 // Đơn confirmed có vận đơn mà không yêu cầu hủy (chỉ hủy vận đơn để gửi lại): hãng xác nhận hủy → như DetachShipment:
 // vẫn confirmed, gỡ vận đơn, giữ hàng.
 func TestCancel_CarrierConfirmsOnConfirmedOrderDetaches(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, s1 := e.attachedDH01()
 	if applied, err := e.carrierCancel(o.ID, s1, true); err != nil || !applied {
@@ -343,6 +351,7 @@ func TestCancel_CarrierConfirmsOnConfirmedOrderDetaches(t *testing.T) {
 // Từ chối: đơn delivered, đơn đã hủy, đơn đang yêu cầu hủy → ErrInvalidTransition; version cũ → ErrVersionConflict;
 // lý do ngoài Q18, ghi chú quá 500 ký tự → ErrInvalidInput; người bán khác, đơn không có → ErrNotFound. Không đổi gì.
 func TestCancel_Refusals(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	delivered, _, _ := e.confirmedDH01()
 	s := uuid.New()
@@ -396,6 +405,7 @@ func TestCancel_Refusals(t *testing.T) {
 // Việc để lại của Task 74: gửi lại cùng khóa nghiệp vụ, cùng mã sau khi đơn gốc đã hủy và lượt mã đã trả → trả đơn
 // cũ (đã hủy), không dùng mã lần hai; khác mã → ErrDuplicateOrder.
 func TestCancel_ReplayAfterCancel(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	first, cid, in := e.sale10Order()
 	e.coupon(sale10("SALE20", 0))

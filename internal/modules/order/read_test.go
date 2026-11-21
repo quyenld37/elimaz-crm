@@ -26,6 +26,7 @@ func (e *orderEnv) detail(seller, id uuid.UUID) (order.OrderDetail, error) {
 // GetDetail: đơn (như Get), nhãn, phạm vi sửa, khách gốc (đơn của hồ sơ đã gộp; chỉ số khách tính ở Task M2-25), mã giảm giá, cảnh báo đơn
 // nghi trùng chưa xử lý, phiếu trả; người bán khác, đơn không có → ErrNotFound.
 func TestGetDetail(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	f := newListFixture(e)
 	v1, v2 := e.variant(250000, 10), e.variant(180000, 10)

@@ -166,6 +166,7 @@ func newListFixture(e *orderEnv) listFixture {
 // vận đơn lọc được từ M3 (không đơn nào có vận đơn → rỗng; trước là ErrLabelNotFilterable); người bán khác không thấy
 // đơn (ADR-29).
 func TestList_Filters(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	f := newListFixture(e)
 	o1, o2, o3 := f.o1.ID, f.o2.ID, f.o3.ID
@@ -226,6 +227,7 @@ func TestList_Filters(t *testing.T) {
 // Mỗi nhãn lọc được ở M2 chỉ trả đơn có đúng nhãn đó (lọc khớp orderview.Label của dòng), và mọi đơn có trong đúng
 // một nhãn.
 func TestList_LabelMatchesRowLabel(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	f := newListFixture(e)
 	v := e.variant(100000, 100)
@@ -283,6 +285,7 @@ func checkEachLabelOnce(t *testing.T, all []uuid.UUID, byLabel func(orderview.La
 // 250 đơn, limit 100 → ba trang 100/100/50, không trùng, không sót, đúng thứ tự (created_at, id) giảm; chèn 5 đơn mới
 // giữa trang 1 và 2 → trang 2, 3 vẫn đúng phần còn lại của tập ban đầu. Con trỏ hỏng → ErrInvalidInput.
 func TestList_KeysetPagination(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(10000, 1000)
 	type made struct {

@@ -16,6 +16,7 @@ import (
 // chưa hủy ≤ số mua; Σ refund_amount của dòng phiếu đã nhận sellable/damaged ≤ net_amount; khi mọi đơn vị đã trả qua
 // phiếu đã nhận và không dòng nào missing thì bằng đúng net_amount.
 func TestReturns_Invariants(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		o := e.drawDeliveredOrder(rt, 2, 3)

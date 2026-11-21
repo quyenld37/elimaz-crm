@@ -42,6 +42,7 @@ Có dần theo kế hoạch; lệnh nào chưa có thì task tương ứng sẽ 
 - `make ci` — toàn bộ cổng kiểm (từ Task 3): build, vet, golangci-lint, sinh lại mã và đòi không chênh, `sqlc vet`, `go test -race ./...`, govulncheck, test kiến trúc, oasdiff, jscpd, `test-guard.sh`, danh mục dùng chung, gitleaks.
 - Test một gói: `go test -race ./internal/platform/queue/...`
 - Chọn test: chỉ gói vừa đổi và gói nhập chúng. Ngoại lệ: chạm vào vùng rủi ro cao thì chạy cả bộ của vùng đó. Vùng rủi ro cao (một nguồn: `HIGH_RISK_DIRS` trong `scripts/agent/lib.sh`): `internal/platform/{tenancy,queue,commands,idempotency,db,webhooks,fieldcrypt,files}`, `internal/modules/{identity,inventory,order,promotion,cash}`, `internal/imager`, `internal/httpapi/guard.go`, `fulfillment/status.go`, `catalog/internal/importer/apply.go`, `catalog/article_html.go` (mở rộng 20/11 sau đóng M1, M2).
+- Test mới của gói lớn (order, fulfillment, inventory, customer, catalog…) gọi `t.Parallel()` ở dòng đầu khi có database riêng (`testkit.OpenStaff`) và không dùng trạng thái chung của tiến trình (`t.Setenv`, biến cấp gói, `CaptureSpans`, cổng cố định); test con dùng chung một env chạy lần lượt. Gói order giới hạn 6 test song song trong `TestMain` (máy chủ thử 300 kết nối, nhiều phiên); đổi bằng `-parallel N` (Task 469).
 - `make gen` — sinh lại mã ogen, sqlc, bảng route (từ Task 4 và Task 6).
 - Màn hình (từ Task 17): `cd console && npm test`, `npx tsc --noEmit`, `npx eslint .`
 - PostgreSQL dev: `make db-up` (PostgreSQL 5442, Jaeger 16686, OTLP 4318). Không dùng cổng 4175, 4176, 4180, 4181.

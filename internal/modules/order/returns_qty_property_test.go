@@ -14,6 +14,7 @@ import (
 // Quy luật của qtySplit (Task M3-23): chỉ nhận khi mỗi dòng phiếu có đúng một dòng nhận và S+D+M = số của dòng (mọi
 // số ≥ 0); khi nhận, mỗi dòng ra giữ nguyên ba số và tình trạng là tên loại duy nhất khác 0, trộn thì mixed.
 func TestQtySplit_Property(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		items, lines := drawSplit(rt)
 		lines, want := breakSplit(rt, lines)
@@ -88,6 +89,7 @@ func wantCondition(l ReceiveQtyLine) string {
 // Quy luật tiền hoàn của dòng đã nhận (Task M3-24): R là tiền hoàn chia lúc tạo phiếu cho Q đơn vị; nhận S tốt, D hỏng,
 // M thiếu → 0 ≤ hoàn ≤ R; không thiếu → đúng R; không món nào về → 0; còn lại floor(R × (S+D) / Q).
 func TestReceivedRefund_Property(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		q := rapid.Int32Range(1, maxReturnQty).Draw(rt, "q")
 		r := rapid.Int64Range(0, 1<<53-1).Draw(rt, "R")

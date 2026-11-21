@@ -13,6 +13,7 @@ import (
 
 // NeedsApproval (Q3): giảm tay (giảm dòng + cấp đơn, không tính mã) vượt ngưỡng và người gọi không có quyền duyệt.
 func TestNeedsApproval(t *testing.T) {
+	t.Parallel()
 	ten := order.Settings{DiscountApprovalThresholdBP: 1000}
 	twenty := order.Settings{DiscountApprovalThresholdBP: 2000}
 	tot := func(line, ord, coupon int64) pricing.Totals {
@@ -66,6 +67,7 @@ func (e *orderEnv) createAs(in order.CreateInput, a order.Actor) order.Order {
 // order.created); manager cùng đầu vào → confirmed, discountApprovedBy = manager; mã giảm 200.000, giảm tay 0 →
 // confirmed; ý định draft vượt ngưỡng → draft chờ duyệt, ý định new → new chờ duyệt.
 func TestCreate_DiscountApproval(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(1000000, 100)
 	sale := e.actor
@@ -126,6 +128,7 @@ func TestCreate_DiscountApproval(t *testing.T) {
 
 // Ngưỡng đổi thành 2000 (Task M2-15) → sale giảm tay 150.000 → confirmed; 200.001 → chờ duyệt.
 func TestCreate_DiscountApprovalThresholdSetting(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(1000000, 10)
 	if err := e.app(func(tx pgx.Tx) error {

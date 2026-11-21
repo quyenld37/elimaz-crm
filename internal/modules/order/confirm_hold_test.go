@@ -53,6 +53,7 @@ func (e *orderEnv) heldOrder(intent string, discount int64) (order.Order, uuid.U
 // confirm, nháp → chốt, chờ duyệt → quản lý duyệt, chờ duyệt → quản lý xác nhận, nháp chờ duyệt → duyệt → chốt) không
 // giữ thêm (số dư, dòng giữ, sổ kho không đổi) và không dùng mã lần hai (mã max_uses 1: used_count vẫn 1, đúng một lượt).
 func TestConfirm_NoSecondHoldOrRedemption(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	mgr := e.manager()
 	cases := []struct {

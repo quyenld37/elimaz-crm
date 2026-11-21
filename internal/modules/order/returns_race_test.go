@@ -11,6 +11,7 @@ import (
 // Đồng thời (TD07, WAT28): hai phiếu trả cho đơn vị cuối của một dòng cùng lúc → đúng một thành công, một
 // ErrReturnQtyExceeds; lặp 20 lần, mỗi lần một đơn mới.
 func TestCreateReturn_LastUnitRace(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(99999, 100)
 	for i := range 20 {
@@ -48,6 +49,7 @@ func TestCreateReturn_LastUnitRace(t *testing.T) {
 // đơn thắng trước thì hủy phiếu chỉ hủy phiếu; hủy phiếu thắng trước thì hủy đơn gặp version mới), hàng nhả đúng một
 // lần.
 func TestCancelReturn_ExchangeRaceNoDeadlock(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	a := e.variant(250000, 100)
 	al := e.variant(250000, 100)

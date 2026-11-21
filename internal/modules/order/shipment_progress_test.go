@@ -74,6 +74,7 @@ func balanceIs(t *testing.T, b inventory.Balance, onHand, held, inTransit int32)
 }
 
 func TestAttachShipment(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, testAttachShipment)
 }
 
@@ -114,6 +115,7 @@ func testAttachShipment(t *testing.T, e *orderEnv) {
 }
 
 func TestApplyShipmentProgress_Flow(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, testApplyShipmentProgressFlow)
 }
 
@@ -180,6 +182,7 @@ func testApplyShipmentProgressFlow(t *testing.T, e *orderEnv) {
 
 // Hãng báo giao mà chưa báo lấy hàng (Quyết định 3): dòng held qua in_transit rồi consumed trong cùng lần.
 func TestApplyShipmentProgress_DeliveredWithoutPickup(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, testDeliveredWithoutPickup)
 }
 
@@ -201,6 +204,7 @@ func testDeliveredWithoutPickup(t *testing.T, e *orderEnv) {
 // Bất biến hỏng (đơn không còn giữ hàng nào) → lỗi, không applied=false im lặng, không đổi gì (lưu ý reviewer Task
 // 30: không nuốt ErrStateConflict).
 func TestApplyShipmentProgress_BrokenReservationsIsError(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	o, v, s := e.attachedOrder(2)
 	// Nhả giữ hàng bằng đường của inventory (không qua đơn) để tạo trạng thái hỏng.
@@ -224,6 +228,7 @@ func TestApplyShipmentProgress_BrokenReservationsIsError(t *testing.T) {
 }
 
 func TestApplyShipmentProgress_UnknownStep(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	o, _, s := e.attachedOrder(1)
 	if _, err := e.progress(o.ID, s, order.ShipmentStep("returned")); !errors.Is(err, order.ErrInvalidInput) {
@@ -235,6 +240,7 @@ func TestApplyShipmentProgress_UnknownStep(t *testing.T) {
 // được áp; số dư luôn khớp trạng thái đơn (held trước lấy hàng, in_transit sau lấy hàng, on_hand giảm đúng một lần
 // khi giao); mỗi bước được áp nhiều nhất một lần.
 func TestApplyShipmentProgress_OnlyCurrentShipment(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		qty := rapid.Int32Range(1, 3).Draw(rt, "qty")
@@ -269,6 +275,7 @@ func TestApplyShipmentProgress_OnlyCurrentShipment(t *testing.T) {
 
 // Hai tín hiệu giao cùng lúc (webhook và hỏi trạng thái) → đúng một lần áp, on_hand trừ một lần (khóa đơn trước).
 func TestApplyShipmentProgress_ConcurrentDelivered(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	o, v, s := e.attachedOrder(2)
 	const n = 8
@@ -325,6 +332,7 @@ func (m shipModel) balance(qty int32) [3]int32 {
 
 // Lock: đơn có → khóa được; không có (hay tenant khác, người bán khác) → ErrNotFound.
 func TestLock(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	o := e.mustCreate(e.input(0, item(e.variant(100000, 5), 1)))
 	if err := e.app(func(tx pgx.Tx) error { return order.Lock(e.t.Context(), tx, e.seller, o.ID) }); err != nil {
@@ -348,6 +356,7 @@ func (e *orderEnv) detach(seller, o, s uuid.UUID) error {
 // D-03: gỡ vận đơn hiện hành chỉ khi đúng vận đơn đó (version +1); vận đơn khác, gỡ lần hai → không đổi, không lỗi;
 // đơn không có hay của người bán khác → ErrNotFound; gỡ xong gắn lại vận đơn mới được.
 func TestDetachShipment(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, testDetachShipment)
 }
 
@@ -412,6 +421,7 @@ func (e *orderEnv) countDown(v uuid.UUID, counted int32) {
 // lỗi Is inventory.ErrStockShort (không phải lỗi CHECK), applied=false, đơn vẫn confirmed, giữ hàng vẫn held, số dư
 // không đổi; nhập thêm (nhân viên điều chỉnh) thì đơn 2 giao xong.
 func TestApplyShipmentProgress_StockShortAfterStocktake(t *testing.T) {
+	t.Parallel()
 	e := newOrderEnv(t)
 	v := e.variant(100000, 4)
 	o1, o2 := e.mustCreate(e.input(0, item(v, 2))), e.mustCreate(e.input(0, item(v, 2)))

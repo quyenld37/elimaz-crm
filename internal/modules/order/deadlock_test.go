@@ -46,6 +46,7 @@ func (e *orderEnv) cancelWithCoupon(o order.Order) error {
 // Không deadlock: 200 lần lặp, mỗi lần chạy song song "tạo đơn dùng mã X với V1" và "hủy đơn cũ dùng mã X giữ V1"
 // → không lần nào lỗi 40P01, pg_stat_database.deadlocks không tăng; used_count của X bằng số đơn đang dùng mã.
 func TestCreateCoupon_NoDeadlockWithCancel(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	cid := e.coupon(sale10("XDEAD", 0))
 	v1 := e.variant(250000, 1000)

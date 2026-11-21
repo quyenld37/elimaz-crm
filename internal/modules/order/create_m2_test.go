@@ -101,6 +101,7 @@ func (e *orderEnv) newCustomer(name, phone string) customer.Customer {
 // DH01: đơn confirmed hai dòng, giảm dòng, phí ship → tổng, giữ hàng, lịch sử, sự kiện created (seq 1), confirmed
 // (seq 2).
 func TestCreate_ConfirmedTotals(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v1, v2 := e.variant(250000, 5), e.variant(180000, 1)
 	res := e.mustCreateM2(e.m2Input(30000, ln(v1, 2, 20000), ln(v2, 1, 0)))
@@ -144,6 +145,7 @@ func TestCreate_ConfirmedTotals(t *testing.T) {
 
 // DH04: kênh manual, nguồn "Nhập tay" → đơn ghi đúng nguồn, kênh; nguồn đã tắt → ErrTrafficSourceInactive.
 func TestCreate_SourceAndChannel(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(1000, 10)
 	var manual uuid.UUID
@@ -181,6 +183,7 @@ func TestCreate_SourceAndChannel(t *testing.T) {
 
 // KH11/AT21: đơn chụp giá lúc tạo; đổi giá sau đó không đổi đơn cũ.
 func TestCreate_PriceSnapshot(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(250000, 10)
 	o1 := e.mustCreateM2(e.m2Input(0, ln(v, 1, 0))).Order
@@ -200,6 +203,7 @@ func TestCreate_PriceSnapshot(t *testing.T) {
 // Khóa nghiệp vụ (Q-T57-4): cùng khóa, cùng nội dung → đơn cũ (Replayed), không giữ thêm; khác dòng →
 // ErrDuplicateOrder.
 func TestCreate_BusinessKeyReplay(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(250000, 5)
 	in := e.m2Input(30000, ln(v, 2, 0))
@@ -222,6 +226,7 @@ func TestCreate_BusinessKeyReplay(t *testing.T) {
 
 // Nguyên tử: dòng 2 thiếu hàng → không đơn, không giữ, không khách mới (kể cả SĐT mới gắn làm danh tính).
 func TestCreate_AtomicOnOutOfStock(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v1, v2 := e.variant(250000, 5), e.variant(180000, 1)
 	in := e.m2Input(0, ln(v1, 2, 0), ln(v2, 2, 0))
@@ -249,6 +254,7 @@ func TestCreate_AtomicOnOutOfStock(t *testing.T) {
 // KH14: biến thể của hai người bán trong một đơn → ErrMixedSellers; đơn chỉ biến thể của người bán kia với SellerID
 // của họ → tạo được.
 func TestCreate_MixedSellers(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v1 := e.variant(250000, 5)
 	w1 := e.variantOf(e.partner, 99000, 3)
@@ -265,6 +271,7 @@ func TestCreate_MixedSellers(t *testing.T) {
 
 // Biến thể ngừng bán → ErrNotForSale; biến thể của tenant khác (hay không có) → ErrVariantNotFound.
 func TestCreate_VariantErrors(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	gone := e.variant(1000, 5)
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
@@ -290,6 +297,7 @@ func TestCreate_VariantErrors(t *testing.T) {
 
 // Ý định: draft giữ hàng, hạn = now + 24 h; confirmed thiếu xã → ErrAddressIncomplete; new không địa chỉ → tạo được.
 func TestCreate_Intents(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(1000, 10)
 	in := e.m2Input(0, ln(v, 2, 0))
@@ -335,6 +343,7 @@ func TestCreate_Intents(t *testing.T) {
 
 // Tiền: giảm dòng vượt tiền dòng, giảm đơn vượt tạm tính, phí vượt giới hạn.
 func TestCreate_MoneyErrors(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(250000, 10)
 	if _, err := e.createM2(e.m2Input(0, ln(v, 2, 500001))); !errors.Is(err, order.ErrLineDiscountExceeds) {
@@ -366,6 +375,7 @@ func TestCreate_MoneyErrors(t *testing.T) {
 // DH12: khách A đặt hộ mẹ — SĐT người nhận không phải của khách → đơn có ship_phone đó, A không có danh tính mới.
 // Cảnh báo: SĐT đánh dấu là của khách nhưng thuộc khách B → tạo đơn cho A, cảnh báo phone_belongs_to_other_customer.
 func TestCreate_PhoneOwnership(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(1000, 10)
 	a := e.newCustomer("Anh A", "")
@@ -392,6 +402,7 @@ func TestCreate_PhoneOwnership(t *testing.T) {
 
 // R2: Create và CreateManual dùng chung một chỗ sinh mã: 100 đơn xen kẽ hai đường → 100 mã DH… khác nhau.
 func TestCreate_CodesSharedWithCreateManual(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(1000, 200)
 	type result struct {
@@ -427,6 +438,7 @@ func TestCreate_CodesSharedWithCreateManual(t *testing.T) {
 
 // PQ02: sau các lần tạo đơn, audit, việc nền, sự kiện không chứa SĐT, tên khách, địa chỉ.
 func TestCreate_NoPersonalDataInEventsAndJobs(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(1000, 10)
 	in := e.m2Input(0, ln(v, 1, 0))

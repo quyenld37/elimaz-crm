@@ -38,6 +38,7 @@ func (e *orderEnv) partialD1() (o order.Order, va, vb uuid.UUID, r order.Return)
 // TD09 phía đơn: phiếu partial_delivery requested, vận đơn S1, tiền hoàn 0, mã TH…, một dòng vB ×1; đơn không đổi
 // (delivered, cùng version); tồn không đổi (vB on_hand 9, in_transit 1).
 func TestCreatePartialReturn(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, vb, r := e.partialD1()
 	if r.Kind != order.ReturnPartialDelivery || r.Status != order.ReturnRequested || r.RefundAmount != 0 ||
@@ -58,6 +59,7 @@ func TestCreatePartialReturn(t *testing.T) {
 // vận đơn hiện hành của đơn → ErrInvalidTransition; không dòng, số ≤ 0, dòng của đơn khác, dòng trùng →
 // ErrInvalidInput; số vượt số mua − phiếu chưa hủy → ErrReturnQtyExceeds. Mọi lần từ chối không thêm phiếu.
 func TestCreatePartialReturn_Rejects(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, va, _, _ := e.partialD1()
 	ia := itemOf(t, o, va).ID
@@ -109,6 +111,7 @@ func (e *orderEnv) deliveredD1Again() (order.Order, uuid.UUID, uuid.UUID) {
 // delivered, version + 1; order.partially_returned (seq = version) mang kind partial_delivery, refundAmount 0,
 // shipmentId S1, missingQty 0; không ghi thất lạc.
 func TestReceivePartialReturn_Sellable(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, vb, r := e.partialD1()
 	before := e.balance(vb)
@@ -144,6 +147,7 @@ func TestReceivePartialReturn_Sellable(t *testing.T) {
 
 // Hỏng → ngăn hỏng; thiếu → thất lạc (on_hand −1), missingQty 1.
 func TestReceivePartialReturn_DamagedMissing(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		name            string
 		line            func(uuid.UUID) order.ReceiveQtyLine
@@ -154,6 +158,7 @@ func TestReceivePartialReturn_DamagedMissing(t *testing.T) {
 		{"thiếu", func(i uuid.UUID) order.ReceiveQtyLine { return qty(i, 0, 0, 1) }, 8, 0, 1},
 	} {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			e := newM2Env(t)
 			o, _, vb, r := e.partialD1()
 			e.mustReceiveQty(r, c.line(itemOf(t, o, vb).ID))
@@ -176,6 +181,7 @@ func TestReceivePartialReturn_DamagedMissing(t *testing.T) {
 // Phiếu sai số, sai version như mọi phiếu: lệch tổng → ErrQtyMismatch, version cũ → ErrVersionConflict; hủy phiếu giao
 // một phần → ErrReturnNotAllowed (phiếu vẫn requested); không đổi gì.
 func TestReceivePartialReturn_Guards(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, vb, r := e.partialD1()
 	ib := itemOf(t, o, vb).ID
@@ -199,6 +205,7 @@ func TestReceivePartialReturn_Guards(t *testing.T) {
 // Khách trả sau phần đã nhận (vB 1 đã giao, 1 vB đi phiếu partial_delivery): hoàn floor(420.000 × 1 / 2) = 210.000,
 // không phải cả dòng 420.000; trả 2 vB → ErrReturnQtyExceeds (chỉ còn 1 cái khách giữ).
 func TestCreateReturn_AfterPartialDeliveryRefund(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, vb, _ := e.partialD1()
 	ib := itemOf(t, o, vb).ID

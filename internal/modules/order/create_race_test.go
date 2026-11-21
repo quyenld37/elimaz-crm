@@ -11,6 +11,7 @@ import (
 // DH08/AT05: V2 còn 1; hai nhân viên tạo đơn V2 × 1 cùng lúc, lặp 20 lần (mỗi lần biến thể mới, tồn 1) → mỗi lần đúng
 // một đơn, một OutOfStockError (V2, có thể bán 0); held của V2 luôn 1.
 func TestCreate_LastUnitRace(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	for range 20 {
 		v := e.variant(180000, 1)

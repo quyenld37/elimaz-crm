@@ -79,6 +79,7 @@ func sameOrder(a, b order.Order) bool {
 // thể bán 3), đơn, version, dòng, giữ hàng không đổi; thành 5 → có thể bán 0, version + 1, đơn giá giữ, order.updated
 // seq = version, sổ bước edit_v<version>; thành 1 → có thể bán 4. Chạy với cả hai người bán (ADR-29).
 func TestEdit_DH10_Quantity(t *testing.T) {
+	t.Parallel()
 	eachM2Seller(t, func(t *testing.T, e *orderEnv) {
 		v1 := e.variant(250000, 5)
 		in := e.m2Input(30000, ln(v1, 2, 0))
@@ -131,10 +132,18 @@ func eachM2Seller(t *testing.T, body func(t *testing.T, e *orderEnv)) {
 
 func itoa(v int64) string { return strconv.FormatInt(v, 10) }
 
+// discountOrder tạo đơn một dòng biến thể giá 1.000.000 (tồn 10), không giảm tay, để thử ngưỡng duyệt giảm tay.
+func (e *orderEnv) discountOrder() order.Order {
+	e.t.Helper()
+	v := e.variant(1000000, 10)
+	return e.mustCreateM2(e.m2Input(0, ln(v, 1, 0))).Order
+}
+
 // Bỏ dòng V2 (đã giữ hàng; việc từ Task 62), thêm V3 ×1: V2 được nhả (lý do order_edited, dòng giữ hàng còn, mất liên
 // kết dòng đơn), dòng V2 bị xóa; V3 giữ 1, dòng mới giá hiện hành, nối sau dòng cuối; tổng tiền đúng (trigger qua lúc
 // commit).
 func TestEdit_RemoveAndAddLines(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v1, v2, v3 := e.variant(250000, 5), e.variant(180000, 5), e.variant(99000, 5)
 	o := e.mustCreateM2(e.m2Input(30000, ln(v1, 2, 20000), ln(v2, 1, 0))).Order
@@ -168,6 +177,7 @@ func TestEdit_RemoveAndAddLines(t *testing.T) {
 // DH11/AT28: hai người cùng đọc một version; đúng một người lưu được (version + 1), người kia ErrVersionConflict; dữ
 // liệu là của người lưu được.
 func TestEdit_DH11_VersionConflict(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v1 := e.variant(250000, 10)
 	o := e.mustCreateM2(e.m2Input(0, ln(v1, 2, 0))).Order
@@ -208,6 +218,7 @@ func TestEdit_DH11_VersionConflict(t *testing.T) {
 // KH11: đổi giá V1 thành 270.000 sau khi tạo; sửa số lượng dòng V1 → đơn giá vẫn 250.000; thêm V3 → giá hiện hành;
 // gửi V1 không itemId (Quyết định 7) → vẫn là dòng cũ, giá cũ.
 func TestEdit_KH11_PriceSnapshot(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v1, v3 := e.variant(250000, 10), e.variant(100000, 10)
 	o := e.mustCreateM2(e.m2Input(0, ln(v1, 1, 0))).Order
@@ -232,6 +243,7 @@ func TestEdit_KH11_PriceSnapshot(t *testing.T) {
 // 93.000); bỏ V2 làm base còn 500.000 → coupon_rejected (min_subtotal), không đổi gì; đổi sang mã khác → lượt cũ trả,
 // lượt mới dùng; couponCode "" → bỏ mã, used_count − 1; mã trùng mã đang dùng (khác hoa thường) → không đổi.
 func TestEdit_Coupon(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	min600 := e.editCoupon("MIN600", 600000)
 	other := e.editCoupon("KHAC", 0)
@@ -306,6 +318,7 @@ func (e *orderEnv) editCoupon(code string, minSubtotal int64) uuid.UUID {
 // phụ trách → được (gửi kèm dòng không đổi vẫn được, Quyết định 5); đơn delivered → sửa dòng ErrLockedByShipment, người
 // phụ trách được.
 func TestEdit_LockedByShipment(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, v1, _ := e.confirmedDH01()
 	if err := e.attachBy(o.ID, uuid.New()); err != nil {
@@ -360,9 +373,9 @@ func TestEdit_LockedByShipment(t *testing.T) {
 // ErrDiscountNeedsApproval, không đổi gì; người có quyền → được, ghi người duyệt; đơn new → chờ duyệt (lý do
 // discount_approval, lịch sử, version + 2); giảm tay vượt ngưỡng không tăng thêm (tăng số lượng) → không đòi duyệt lại.
 func TestEdit_DiscountApproval(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
-	v := e.variant(1000000, 10)
-	o := e.mustCreateM2(e.m2Input(0, ln(v, 1, 0))).Order
+	o := e.discountOrder()
 	if _, err := e.editOrder(o.ID, order.EditInput{Version: o.Version, OrderDiscount: editPtr(int64(100001))},
 		e.actor); !errors.Is(err, order.ErrDiscountNeedsApproval) {
 		t.Fatalf("nhân viên vượt ngưỡng: %v, mong ErrDiscountNeedsApproval", err)
@@ -399,9 +412,9 @@ func TestEdit_DiscountApproval(t *testing.T) {
 // tay theo cùng tỷ lệ (tỷ lệ không tăng nhưng số tiền tăng) → ErrDiscountNeedsApproval, không đổi gì; giảm bớt tiền giảm
 // tay, hay đổi chỗ giữa giảm dòng và giảm đơn với tổng không đổi, thì vẫn được, không đòi duyệt lại.
 func TestEdit_DiscountApprovalAmountUp(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
-	v := e.variant(1000000, 10)
-	o := e.mustCreateM2(e.m2Input(0, ln(v, 1, 0))).Order
+	o := e.discountOrder()
 	m := e.manager()
 	o = e.mustEdit(o.ID, order.EditInput{Version: o.Version, OrderDiscount: editPtr(int64(200000))}, m)
 	if o.DiscountApprovedBy == nil || o.Status != order.StatusConfirmed {
@@ -441,6 +454,7 @@ func hundredOneLines(i1 order.Item) *[]order.EditLine {
 // itemId lạ, itemId với biến thể khác, phí âm, mã quá dài; đơn không có, đơn của người bán khác → ErrNotFound; dòng mới
 // của người bán khác → ErrMixedSellers; version cũ → ErrVersionConflict.
 func TestEdit_Errors(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v1, v2 := e.variant(250000, 10), e.variant(180000, 10)
 	o := e.mustCreateM2(e.m2Input(0, ln(v1, 1, 0), ln(v2, 1, 0))).Order
@@ -496,6 +510,7 @@ func TestEdit_Errors(t *testing.T) {
 // Không trường nào khác giá trị hiện tại → trả đơn, không ghi gì (version, sự kiện giữ nguyên); đổi địa chỉ đơn
 // confirmed thành thiếu xã → ErrAddressIncomplete; địa chỉ đủ mới → ShipPhone chuẩn hóa mới, Fields có shipAddress.
 func TestEdit_NoChangeAndAddress(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v1 := e.variant(250000, 10)
 	o := e.mustCreateM2(e.m2Input(30000, ln(v1, 1, 0))).Order
@@ -527,6 +542,7 @@ func TestEdit_NoChangeAndAddress(t *testing.T) {
 // Đơn đã trả trước đủ 250.000 (paid, COD 0): sửa V1 thành 2 → partial, COD 250.000; về lại 1 → paid, COD 0 (luật của
 // ApplyPaymentTotals).
 func TestEdit_PrepaidOrder(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v1 := e.variant(250000, 10)
 	o := e.mustCreateM2(e.m2Input(0, ln(v1, 1, 0))).Order

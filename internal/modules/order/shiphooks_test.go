@@ -76,6 +76,7 @@ func (e *orderEnv) events(o uuid.UUID, topic string, seq int64) int {
 // AttachShipmentBy: gắn S1 → current S1, version +1, order.updated (seq = version); gắn lại S1 → không đổi; S2 →
 // ErrShipmentAlreadyAttached; đơn không có hay người bán khác → ErrNotFound.
 func TestAttachShipmentBy(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, _ := e.confirmedDH01()
 	s1, s2 := uuid.New(), uuid.New()
@@ -113,6 +114,7 @@ func TestAttachShipmentBy(t *testing.T) {
 
 // Đơn new (hay draft) → ErrInvalidTransition, không đổi gì.
 func TestAttachShipmentBy_NotConfirmed(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(100000, 5)
 	for _, intent := range []string{order.IntentNew, order.IntentDraft} {
@@ -131,6 +133,7 @@ func TestAttachShipmentBy_NotConfirmed(t *testing.T) {
 // picked_up → giữ hàng in_transit, Available không đổi; delivered → delivered, nhãn delivered, on_hand −, order.delivered
 // seq = version; delivered lần hai → applied=false, on_hand không giảm thêm (AT47).
 func TestOnShipmentEvent_PickedUpThenDelivered(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, v1, v2 := e.confirmedDH01()
 	s1 := uuid.New()
@@ -174,6 +177,7 @@ func TestOnShipmentEvent_PickedUpThenDelivered(t *testing.T) {
 
 // B1: gắn S1, gỡ S1, gắn S2; delivered(S1) tới muộn → applied=false, đơn và tồn không đổi; delivered(S2) → applied.
 func TestOnShipmentEvent_StaleShipment(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, v1, _ := e.confirmedDH01()
 	s1, s2 := uuid.New(), uuid.New()
@@ -199,6 +203,7 @@ func TestOnShipmentEvent_StaleShipment(t *testing.T) {
 
 // delivered khi chưa picked_up → held → in_transit → consumed trong một transaction.
 func TestOnShipmentEvent_DeliveredWithoutPickup(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, v1, v2 := e.confirmedDH01()
 	s := uuid.New()
@@ -216,6 +221,7 @@ func TestOnShipmentEvent_DeliveredWithoutPickup(t *testing.T) {
 // DetachShipment: chỉ khi đúng vận đơn hiện hành; đơn giữ confirmed, giữ hàng không đổi, order.updated; gỡ lần hai,
 // vận đơn khác → applied=false không đổi; người bán khác hay đơn không có → ErrNotFound.
 func TestWriterDetachShipment(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, v1, _ := e.confirmedDH01()
 	s := uuid.New()
@@ -254,6 +260,7 @@ func TestWriterDetachShipment(t *testing.T) {
 // Lớp bọc M1 (Q30): AttachShipment, ApplyShipmentProgress(picked_up, delivered) cho cùng kết quả như hai hàm mới;
 // lịch sử ghi người làm carrier.
 func TestShipmentWrappers_SameAsNew(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	type result struct {
 		status            string

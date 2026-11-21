@@ -29,6 +29,7 @@ func (e *orderEnv) draftOrder() order.Order {
 // applyTransition: draft → confirmed đổi trạng thái, version + 1, bỏ hạn nháp, ghi confirmed_at, một dòng lịch sử
 // (from draft), sự kiện order.confirmed với seq = version mới.
 func TestApplyTransition_DraftToConfirmed(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o := e.draftOrder()
 	at := e.now().Add(time.Hour)
@@ -56,6 +57,7 @@ func TestApplyTransition_DraftToConfirmed(t *testing.T) {
 // applyTransition từ chối: version cũ → ErrVersionConflict; cặp không có trong sơ đồ → ErrInvalidTransition; nháp
 // thiếu địa chỉ → ErrAddressIncomplete. Không đổi gì.
 func TestApplyTransition_Refusals(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(1000, 5)
 	in := e.m2Input(0, ln(v, 1, 0))
@@ -92,6 +94,7 @@ func TestApplyTransition_Refusals(t *testing.T) {
 
 // Mutation testing (Task 403): đổi trạng thái xong phát báo hiệu order cho đơn đó (sau sự kiện).
 func TestApplyTransition_Signals(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o := e.draftOrder()
 	bus := &realtimetest.RecordingBus{}

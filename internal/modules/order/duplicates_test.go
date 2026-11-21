@@ -161,6 +161,15 @@ func (d *dupEnv) pair(phone string, v uuid.UUID) (order.Order, order.Order) {
 	return o1, o2
 }
 
+// newDupPair là dupEnv có biến thể v1 (tồn 20) và cặp đơn trùng O1 (10:00), O2 (13:00) cùng SĐT shipPhone.
+func newDupPair(t *testing.T) (d *dupEnv, v1 uuid.UUID, o1, o2 order.Order) {
+	t.Helper()
+	d = newDupEnv(t)
+	v1 = d.variant(250000, 20)
+	o1, o2 = d.pair(shipPhone, v1)
+	return d, v1, o1, o2
+}
+
 func ids(s []order.Summary) map[uuid.UUID]bool {
 	out := make(map[uuid.UUID]bool, len(s))
 	for _, o := range s {
@@ -173,6 +182,7 @@ func ids(s []order.Summary) map[uuid.UUID]bool {
 // matched_by phone, có trong ListDuplicates, không đơn nào bị hủy; O3 (chỉ V3) không liên kết; O4 lúc 11:00 hôm sau
 // (25 giờ sau O1, 22 giờ sau O2) liên kết với O2, không với O1. checkOrderDuplicates lúc 14:00 (SĐT X, V1) → O1, O2.
 func TestDuplicates_DH09(t *testing.T) {
+	t.Parallel()
 	d := newDupEnv(t)
 	v1, v3 := d.variant(250000, 20), d.variant(180000, 20)
 	o1, o2 := d.pair(shipPhone, v1)
@@ -226,6 +236,7 @@ func TestDuplicates_DH09(t *testing.T) {
 
 // Cùng khách gốc, SĐT người nhận khác → matched_by customer. Đơn đã hủy không liên kết.
 func TestDuplicates_SameCustomer(t *testing.T) {
+	t.Parallel()
 	d := newDupEnv(t)
 	v1 := d.variant(250000, 20)
 	c := d.newCustomer("Chị Hoa", momPhone)
@@ -252,6 +263,7 @@ func TestDuplicates_SameCustomer(t *testing.T) {
 
 // Cửa sổ 0 (tắt) → không liên kết, CheckDuplicates rỗng.
 func TestDuplicates_WindowZero(t *testing.T) {
+	t.Parallel()
 	d := newDupEnv(t)
 	d.staff.Exec(t, d.tenant, func(tx pgx.Tx) error {
 		_, err := tx.Exec(t.Context(), `UPDATE ord.order_settings SET duplicate_window_minutes = 0`)
@@ -272,9 +284,8 @@ func TestDuplicates_WindowZero(t *testing.T) {
 // not_duplicate → hai đơn hết cờ, cặp ghi resolution; order.updated của O2 sau đó (gắn vận đơn) → không liên kết lại.
 // Đơn còn cặp mở khác giữ cờ.
 func TestDuplicates_NotDuplicate(t *testing.T) {
-	d := newDupEnv(t)
-	v1 := d.variant(250000, 20)
-	o1, o2 := d.pair(shipPhone, v1)
+	t.Parallel()
+	d, v1, o1, o2 := newDupPair(t)
 	if err := d.resolve(o2.ID, o1.ID, order.DuplicateNotDuplicate); err != nil {
 		t.Fatalf("not_duplicate: %v", err)
 	}
@@ -313,9 +324,8 @@ func TestDuplicates_NotDuplicate(t *testing.T) {
 // cancel_other từ O1 → O2 cancelled lý do duplicate, hàng nhả, cặp resolution cancelled, hai đơn hết cờ;
 // cancel_this hủy chính đơn trên đường dẫn. Cặp không có → ErrNotFound; hành động lạ, hai mã trùng → ErrInvalidInput.
 func TestDuplicates_Cancel(t *testing.T) {
-	d := newDupEnv(t)
-	v1 := d.variant(250000, 20)
-	o1, o2 := d.pair(shipPhone, v1)
+	t.Parallel()
+	d, v1, o1, o2 := newDupPair(t)
 	if err := d.resolve(o1.ID, o2.ID, "merge"); !errors.Is(err, order.ErrInvalidInput) {
 		t.Errorf("hành động lạ: %v", err)
 	}
@@ -375,6 +385,7 @@ func TestDuplicates_Cancel(t *testing.T) {
 // song (consumer của bốn đơn chạy song song, mỗi việc khóa nhiều đơn theo id tăng dần) → đủ 6 cặp, worker không lỗi
 // (không deadlock).
 func TestDuplicates_ConcurrentCreate(t *testing.T) {
+	t.Parallel()
 	d := newDupEnv(t)
 	v1 := d.variant(250000, 20)
 	parallel := func(n int, phone string) []order.Order {
@@ -413,6 +424,7 @@ func TestDuplicates_ConcurrentCreate(t *testing.T) {
 // Consumer nhận lại cùng sự kiện bốn lần song song sau khi cặp đã xử lý → không thêm dòng, không bật lại cờ; consumer
 // tên order_duplicates nghe order.created, order.updated, order.cancelled; payload hỏng → ErrPermanent.
 func TestDuplicates_ConsumerReplay(t *testing.T) {
+	t.Parallel()
 	d := newDupEnv(t)
 	c := order.DuplicatesConsumer{Now: time.Now}
 	if c.Name() != "order_duplicates" ||
@@ -453,6 +465,7 @@ func TestDuplicates_ConsumerReplay(t *testing.T) {
 // ListDuplicates phân trang: ba cặp, limit 2 → trang 2 cặp kèm con trỏ, trang sau 1 cặp không con trỏ, không trùng;
 // con trỏ qua String/ParseDuplicateCursor giữ nguyên; chuỗi hỏng → ErrInvalidInput.
 func TestDuplicates_ListPages(t *testing.T) {
+	t.Parallel()
 	d := newDupEnv(t)
 	v1 := d.variant(250000, 20)
 	for _, p := range []string{shipPhone, momPhone, "0933000111"} {
@@ -499,6 +512,7 @@ func TestDuplicates_ListPages(t *testing.T) {
 // B-05 (Task 436): consumer lấy giờ từ đồng hồ được giao (background.Deps.Now), không gọi time.Now trong module: mốc của
 // cặp nghi trùng là đúng giờ của đồng hồ đó; thiếu đồng hồ → lỗi, không ghi cặp.
 func TestDuplicates_ConsumerClock(t *testing.T) {
+	t.Parallel()
 	d := newDupEnv(t)
 	v := d.variant(250000, 20)
 	o1 := d.place(shipPhone, at(10), v)

@@ -19,6 +19,7 @@ import (
 // 50 lần hủy song song cùng version → đúng một lần được, các lần khác ErrVersionConflict hoặc ErrInvalidTransition;
 // một dòng lịch sử sang cancelled, used_count giảm đúng 1.
 func TestCancel_Parallel50SameVersion(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	cid := e.coupon(sale10("SALE10", 0))
 	e.coupon(sale10("KHAC", 0))
@@ -70,6 +71,7 @@ func (e *orderEnv) confirmDraft(d order.Order) error {
 // thắng: confirmed (giữ hàng held, lượt active) hoặc cancelled (không giữ, lượt released; Confirm thua nhận
 // ErrVersionConflict hay ErrInvalidTransition). Đếm số lần mỗi bên thắng để thấy cả hai nhánh đều xảy ra.
 func TestExpireDrafts_RaceWithConfirm(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	cid := e.coupon(sale10("SALE10", 0))
 	v := e.variant(250000, 1000)
@@ -118,6 +120,7 @@ func TestExpireDrafts_RaceWithConfirm(t *testing.T) {
 // cancelled còn vận đơn hiện hành: hoặc (cancelled, không vận đơn, gắn bị từ chối ErrInvalidTransition, hết giữ hàng)
 // hoặc (gắn trước → hủy với version mới → cancel_requested, vẫn vận đơn, giữ hàng).
 func TestCancel_RaceWithAttach(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	v := e.variant(100000, 1000)
 	cancelledFirst := 0
@@ -179,6 +182,7 @@ type cancelModel struct {
 // cancel_requested mà mất vận đơn hiện hành (B-02). Lấy hàng, giao xong bằng vận đơn hiện hành không bao giờ lỗi, kể
 // cả khi đơn đang cancel_requested (B-01, Task 431).
 func TestCancel_Invariants(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		v := e.variant(1000, 100)
@@ -308,6 +312,7 @@ func (e *orderEnv) checkCancelInvariants(v, cid uuid.UUID, ms []*cancelModel) st
 // biến thể tăng dần) → không lần nào lỗi, pg_stat_database.deadlocks không tăng (lỗi 40P01 bị db.RetryTx chạy lại nên
 // chỉ thấy ở bộ đếm); held khớp số đơn còn mở.
 func TestExpireDrafts_ManyOrdersNoDeadlock(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	lo, hi := e.variant(100000, 1000), e.variant(100000, 1000)
 	if bytes.Compare(lo[:], hi[:]) > 0 {

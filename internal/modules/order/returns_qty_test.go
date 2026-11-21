@@ -92,6 +92,7 @@ func (e *orderEnv) carrierCase(t *testing.T) carrierCase {
 // damaged_qty 1, condition mixed; đơn returned; order.returned mang kind carrier_return, shipmentId S1, missingQty 0,
 // returnId; không ghi thất lạc.
 func TestReceiveReturnQty_CarrierSplit(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	c := e.carrierCase(t)
 	o, v1, v2, s1, i1, i2, b1, b2, r := c.o, c.v1, c.v2, c.s1, c.i1, c.i2, c.b1, c.b2, c.r
@@ -133,6 +134,7 @@ func TestReceiveReturnQty_CarrierSplit(t *testing.T) {
 // TD04 (ca b, phía đơn): V1 S0 D1 M1, V2 S0 D0 M1 → mọi in_transit về 0; V1 on_hand −1 (bước loss), damaged 1; V2
 // on_hand −1; sổ thất lạc doc_id = mã phiếu; missingQty = 2.
 func TestReceiveReturnQty_CarrierMissingRecordsLoss(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	c := e.carrierCase(t)
 	o, v1, v2, i1, i2, b1, b2, r := c.o, c.v1, c.v2, c.i1, c.i2, c.b1, c.b2, c.r
@@ -161,6 +163,7 @@ func TestReceiveReturnQty_CarrierMissingRecordsLoss(t *testing.T) {
 // Kiểm số lượng: thiếu dòng, dòng lạ, dòng trùng, S+D+M lệch → ErrQtyMismatch; số âm → ErrInvalidInput; phiếu vẫn
 // requested, tồn không đổi.
 func TestReceiveReturnQty_Mismatch(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, v1, v2, s1 := e.pickedUpDH01()
 	r := e.openCarrierReturn(o.ID, s1)
@@ -193,6 +196,7 @@ func TestReceiveReturnQty_Mismatch(t *testing.T) {
 // Q-T91-8: phiếu carrier_return mà vận đơn của phiếu không còn là vận đơn hiện hành của đơn → ErrInvalidTransition,
 // không đổi gì.
 func TestReceiveReturnQty_NotCurrentShipment(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, v1, v2, s1 := e.pickedUpDH01()
 	r := e.openCarrierReturn(o.ID, s1)
@@ -212,6 +216,7 @@ func TestReceiveReturnQty_NotCurrentShipment(t *testing.T) {
 // Task 442: phiếu hoàn của hãng không hủy được (như phiếu giao một phần, Task 117) — hàng hoàn chỉ về kho qua phiếu này;
 // hủy → ErrReturnNotAllowed, phiếu vẫn requested, đơn vẫn confirmed, tồn không đổi, sau đó kho vẫn nhận được phiếu.
 func TestCancelReturn_CarrierRefused(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	c := e.carrierCase(t)
 	b1, b2, o0 := e.balance(c.v1), e.balance(c.v2), e.get(c.o.ID)
@@ -235,6 +240,7 @@ func TestCancelReturn_CarrierRefused(t *testing.T) {
 // Phiếu khách trả theo số lượng: dòng 2 cái nhận S1 D1 → on_hand +2, damaged +1, tiền hoàn đủ, condition mixed;
 // order.returned mang kind customer_return, missingQty 0. (Dòng thiếu một phần: returns_qty_customer_test.go, M3-24.)
 func TestReceiveReturnQty_Customer(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	a := e.variant(250000, 5)
 	o := e.deliveredOrder(ln(a, 2, 0))
@@ -259,6 +265,7 @@ func TestReceiveReturnQty_Customer(t *testing.T) {
 
 // Thân M2 (tình trạng cả dòng) giờ ghi cả ba số: sellable → sellable_qty = số dòng; missing → missing_qty.
 func TestReceiveReturn_WritesQtyColumns(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, a, b := e.orderD()
 	ia, ib := itemOf(t, o, a).ID, itemOf(t, o, b).ID

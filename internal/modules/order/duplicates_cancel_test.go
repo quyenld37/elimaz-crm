@@ -73,9 +73,8 @@ func (d *dupEnv) openLinks() int {
 // luận, còn ở danh sách, hai đơn còn cờ). Hãng từ chối → O2 confirmed, cặp vẫn hiện. Hủy lại, hãng xác nhận → O2
 // cancelled, nhả hàng; sau worker cặp rời danh sách, hai đơn hết cờ; cặp không bị ghi kết luận thay nhân viên.
 func TestDuplicates_CancelShipped(t *testing.T) {
-	d := newDupEnv(t)
-	v1 := d.variant(250000, 20)
-	o1, o2 := d.pair(shipPhone, v1)
+	t.Parallel()
+	d, _, o1, o2 := newDupPair(t)
 	s := d.attachShipment(o2.ID)
 	d.drain()
 	stillOpen := func(when string, status string) {
@@ -121,9 +120,8 @@ func TestDuplicates_CancelShipped(t *testing.T) {
 // E-08: hủy một đơn qua xử lý đơn trùng cần version của đơn bị hủy: thiếu → ErrInvalidInput; khác version hiện tại (đơn
 // vừa được sửa) → ErrVersionConflict; cả hai không đổi đơn, cặp, cờ. not_duplicate không cần version.
 func TestDuplicates_CancelVersion(t *testing.T) {
-	d := newDupEnv(t)
-	v1 := d.variant(250000, 20)
-	o1, o2 := d.pair(shipPhone, v1)
+	t.Parallel()
+	d, _, o1, o2 := newDupPair(t)
 	if err := d.resolveV(o1.ID, o2.ID, order.DuplicateCancelOther, nil); !errors.Is(err, order.ErrInvalidInput) {
 		t.Errorf("thiếu version: %v", err)
 	}
@@ -146,6 +144,7 @@ func TestDuplicates_CancelVersion(t *testing.T) {
 // B-04: ba đơn A, B, C cùng SĐT, cùng biến thể (ba cặp). Hủy tay A → sau worker A hết cờ, B, C giữ cờ (cặp B–C còn
 // mở). Hủy tay C → B, C hết cờ. Không cặp nào bị ghi kết luận.
 func TestDuplicates_OtherCancelClearsFlag(t *testing.T) {
+	t.Parallel()
 	d := newDupEnv(t)
 	v1 := d.variant(250000, 20)
 	a := d.place(shipPhone, at(10), v1)
@@ -171,9 +170,8 @@ func TestDuplicates_OtherCancelClearsFlag(t *testing.T) {
 // 6.3: hai đơn của một cặp bị hủy; consumer nhận order.cancelled của cả hai, bốn lần mỗi đơn, song song (mỗi lần khóa
 // hai đơn theo id tăng dần) → không lỗi (không deadlock), hai đơn hết cờ.
 func TestDuplicates_CancelledConsumerParallel(t *testing.T) {
-	d := newDupEnv(t)
-	v1 := d.variant(250000, 20)
-	o1, o2 := d.pair(shipPhone, v1)
+	t.Parallel()
+	d, _, o1, o2 := newDupPair(t)
 	c := order.DuplicatesConsumer{Now: time.Now}
 	evs := make([]events.StoredEvent, 0, 2)
 	for _, o := range []order.Order{o1, o2} {

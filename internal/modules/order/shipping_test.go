@@ -87,6 +87,7 @@ func (e *orderEnv) changeAddress(o, s uuid.UUID, addr order.ShipAddress) (bool, 
 // một order.delivery_reversed (Seq = version, payload Changed); lịch sử delivered → confirmed lý do; gọi lại R1 →
 // false; S2 (không hiện hành) → false, không đổi gì; thiếu lý do → ErrInvalidInput.
 func TestReverseDelivery(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, va, vb := e.deliveredD1()
 	balanceIs(t, e.balance(va), 4, 0, 0)
@@ -141,6 +142,7 @@ func TestReverseDelivery(t *testing.T) {
 
 // Đơn chưa giao (confirmed) hay không có vận đơn → false; đơn của người bán khác → ErrNotFound.
 func TestReverseDelivery_NotDelivered(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, _ := e.d1()
 	if applied, err := e.reverse(o.ID, shipS1(), uuid.New(), "carrier_corrected"); err != nil || applied {
@@ -163,6 +165,7 @@ func TestReverseDelivery_NotDelivered(t *testing.T) {
 
 // Sau đảo, đơn đi đường hoàn của M2 như đơn confirmed đang giao: OnShipmentReturning (M2) tạo phiếu hoàn.
 func TestReverseDelivery_ThenReturning(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, _ := e.deliveredD1()
 	if applied, err := e.reverse(o.ID, shipS1(), uuid.New(), "carrier_corrected"); err != nil || !applied {
@@ -178,6 +181,7 @@ func TestReverseDelivery_ThenReturning(t *testing.T) {
 
 // LockSnapshot: đọc dưới khóa đúng các trường; không có, người bán khác → ErrNotFound.
 func TestLockSnapshot(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, _ := e.attachedD1()
 	var s order.Snapshot
@@ -219,6 +223,7 @@ func TestLockSnapshot(t *testing.T) {
 // chỉ lần hai → false; Edit (M2) đổi địa chỉ khi có S1 vẫn ErrLockedByShipment; vận đơn khác → ErrInvalidTransition;
 // địa chỉ thiếu xã → ErrAddressIncomplete; sai dạng → ErrInvalidInput.
 func TestApplyAddressChange(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, _ := e.pickedUpD1()
 	before := e.get(o.ID)
@@ -274,6 +279,7 @@ func TestApplyAddressChange(t *testing.T) {
 
 // Đơn đã giao không đổi địa chỉ được (ErrInvalidTransition), dù S1 vẫn là vận đơn hiện hành.
 func TestApplyAddressChange_Delivered(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	o, _, _ := e.deliveredD1()
 	if _, err := e.changeAddress(o.ID, shipS1(), *fullAddress()); !errors.Is(err, order.ErrInvalidTransition) {
@@ -285,6 +291,7 @@ func TestApplyAddressChange_Delivered(t *testing.T) {
 // ApplyAddressChange; thiếu xã → ErrAddressIncomplete; SĐT sai → ErrInvalidInput; xã lạ → customer.ErrUnknownAdminUnit;
 // không đổi đơn nào.
 func TestCheckShipAddress(t *testing.T) {
+	t.Parallel()
 	e := newM2Env(t)
 	ok := order.ShipAddress{
 		Name: " Anh Minh ", Phone: logging.Phone(" 0912345678 "), Line: " 99 Hai Bà Trưng ", ProvinceCode: "T01",
