@@ -15,7 +15,6 @@ getPickingList
 setPackingStatus
 previewShipmentCorrection
 applyShipmentCorrection
-listAgedReservations
 listStuckShipments
 listShipmentsForReview
 resolveShipmentAnomaly
