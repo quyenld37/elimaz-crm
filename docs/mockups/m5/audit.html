@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M5 — Nhật ký thao tác</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m5.css">
+<style>
+@media (min-width: 760px) { .au td:first-child { width: 120px; } }
+.au .who { display: grid; gap: 2px; min-width: 0; justify-items: start; }
+@media (max-width: 759px) { .au .who { justify-items: end; } }
+</style>
+</head>
+<body data-page="audit" data-title="Nhật ký thao tác">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Quản trị / Nhật ký thao tác</p><h1>Nhật ký thao tác</h1><p class="sub">Mọi thao tác ghi dữ liệu trong CRM: ai (nhân viên, khóa dịch vụ của website hay hệ thống), làm gì, trên mục nào, đổi những trường nào. Nhật ký chỉ ghi tên trường, không ghi nội dung (SĐT, địa chỉ, tin nhắn, lý do…).</p></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="ds-nhat-ky ten-truong khong-gia-tri"><p class="xs">TRẠNG THÁI A</p><h2>Mới nhất trước; ba loại người làm; lọc hành động, người, khoảng ngày</h2></section>
+
+<div class="toolbar">
+	<div class="select-wrap" data-ca="loc-hanh-dong"><select aria-label="Hành động"><option>Mọi thao tác</option><option>Tạm dừng nhận đơn web</option><option>Đổi trạng thái yêu cầu</option><option>Lưu banner trang chủ</option><option>Kích hoạt chiến dịch</option><option>Tạo khóa dịch vụ</option></select></div>
+	<div class="select-wrap" data-ca="loc-nguoi"><select aria-label="Người làm"><option>Mọi người</option><option>Nguyễn Thị Lan</option><option>Trần Minh Thư</option><option>Khóa: Website ELIMAZ</option><option>Hệ thống</option></select></div>
+	<div class="row" data-ca="khoang-ngay"><label class="field"><span class="sr">Từ ngày</span><input class="input num" value="14/11/2026" aria-label="Từ ngày" style="width:140px"></label><span class="muted">→</span><label class="field"><span class="sr">Đến ngày</span><input class="input num" value="21/11/2026" aria-label="Đến ngày" style="width:140px"></label></div>
+</div>
+<div class="tbl-frame">
+<table class="tbl au">
+	<thead><tr><th>Thời gian</th><th>Người làm</th><th>Thao tác</th><th>Mục</th><th>Trường đổi</th></tr></thead>
+	<tbody>
+	<tr data-ca="nguoi-nhan-vien">
+		<td class="lead"><span class="num small">13:05 · 21/11</span></td>
+		<td data-label="Người làm"><div class="who"><span>Nguyễn Thị Lan</span><span class="chip">Nhân viên</span></div></td>
+		<td data-label="Thao tác"><b>Tạm dừng nhận đơn web</b></td>
+		<td data-label="Mục"><a class="cell-a" href="web-intake.html">Nhận đơn web</a></td>
+		<td data-label="Trường đổi"><span class="small">tạm dừng, lý do</span></td>
+	</tr>
+	<tr>
+		<td class="lead"><span class="num small">11:02 · 21/11</span></td>
+		<td data-label="Người làm"><div class="who"><span>Trần Minh Thư</span><span class="chip">Nhân viên</span></div></td>
+		<td data-label="Thao tác"><b>Đổi trạng thái yêu cầu</b></td>
+		<td data-label="Mục"><a class="cell-a" href="order-requests.html">YC0000144</a></td>
+		<td data-label="Trường đổi"><span class="small">trạng thái, gửi trả, tin nhắn</span></td>
+	</tr>
+	<tr data-ca="nguoi-khoa">
+		<td class="lead"><span class="num small">10:42 · 21/11</span></td>
+		<td data-label="Người làm"><div class="who"><span>Website ELIMAZ — bản chính</span><span class="chip chip-line">Khóa dịch vụ</span></div></td>
+		<td data-label="Thao tác"><b>Tạo yêu cầu về đơn hàng</b></td>
+		<td data-label="Mục"><a class="cell-a" href="order-requests.html">YC0000148</a></td>
+		<td data-label="Trường đổi"><span class="small muted">—</span></td>
+	</tr>
+	<tr>
+		<td class="lead"><span class="num small">09:40 · 21/11</span></td>
+		<td data-label="Người làm"><div class="who"><span>Website ELIMAZ — bản chính</span><span class="chip chip-line">Khóa dịch vụ</span></div></td>
+		<td data-label="Thao tác"><b>Nhận góp ý</b></td>
+		<td data-label="Mục"><a class="cell-a" href="feedback.html">Góp ý 21/11 09:40</a></td>
+		<td data-label="Trường đổi"><span class="small muted">—</span></td>
+	</tr>
+	<tr data-ca="nguoi-he-thong">
+		<td class="lead"><span class="num small">09:00 · 21/11</span></td>
+		<td data-label="Người làm"><div class="who"><span>Hệ thống</span><span class="chip chip-dark">Hệ thống</span></div></td>
+		<td data-label="Thao tác"><b>Tạo mã quà sinh nhật</b></td>
+		<td data-label="Mục"><a class="cell-a" href="birthday-gifts.html">Sinh nhật 21/11/2026</a></td>
+		<td data-label="Trường đổi"><span class="small muted">—</span></td>
+	</tr>
+	<tr>
+		<td class="lead"><span class="num small">08:40 · 21/11</span></td>
+		<td data-label="Người làm"><div class="who"><span>Nguyễn Thị Lan</span><span class="chip">Nhân viên</span></div></td>
+		<td data-label="Thao tác"><b>Kích hoạt chiến dịch</b></td>
+		<td data-label="Mục"><a class="cell-a" href="web-campaigns.html">Xả hàng thu đông</a></td>
+		<td data-label="Trường đổi"><span class="small">trạng thái, lý do</span></td>
+	</tr>
+	<tr>
+		<td class="lead"><span class="num small">08:30 · 21/11</span></td>
+		<td data-label="Người làm"><div class="who"><span>Nguyễn Thị Lan</span><span class="chip">Nhân viên</span></div></td>
+		<td data-label="Thao tác"><b>Xuất danh sách sinh nhật</b></td>
+		<td data-label="Mục"><a class="cell-a" href="birthday-gifts.html">Quà sinh nhật</a></td>
+		<td data-label="Trường đổi"><span class="small">117 dòng</span></td>
+	</tr>
+	<tr>
+		<td class="lead"><span class="num small">08:14 · 21/11</span></td>
+		<td data-label="Người làm"><div class="who"><span>Nguyễn Thị Lan</span><span class="chip">Nhân viên</span></div></td>
+		<td data-label="Thao tác"><b>Tạo khóa dịch vụ</b></td>
+		<td data-label="Mục"><a class="cell-a clamp2 wrap-any" href="service-keys.html">WebsiteELIMAZBanChinhMayChuSingaporeChoDonHangVaDanhMucKhoaThayTheThang11Nam2026</a></td>
+		<td data-label="Trường đổi"><span class="small">tên, quyền, IP được gọi</span></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+<div class="more" data-ca="xem-them"><span>Đang hiện 8 / 50 dòng đầu · còn nữa</span><button class="btn btn-quiet">Xem thêm</button></div>
+<p class="mk" style="margin-top:8px"><b>Mockup:</b> nhật ký trên admin cũ không chuyển sang CRM (QĐ38); bản xuất CSV của admin giữ ngoài CRM. Màn này bắt đầu từ ngày CRM nhận việc.</p>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI B</p><h2>Không có thao tác khớp bộ lọc; không có quyền (403)</h2></section>
+
+<div class="dlgs">
+	<div class="empty" data-ca="0-dong"><h2>Không có thao tác phù hợp</h2><p class="muted">Đổi hành động, người làm hoặc khoảng ngày.</p></div>
+	<div class="box box-err stack-sm" data-ca="khong-quyen-403"><b>Bạn không có quyền xem nhật ký thao tác.</b><p>Chỉ người có quyền "Xem nhật ký" (vai trò Chủ, Quản lý) mở được màn này.</p></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+/* Mockup M5 đợt 1 (Task M5-22, số toàn cục 205). Nạp SAU ../m1/m1.css (hệ thiết kế đã duyệt ở M1, console dùng đúng token
+   đó), ../m2/m2.css và ../m3/m3.css (thành phần M2, M3). Tệp này chỉ thêm thành phần chưa có, chỉ bằng biến của m1.css:
+   không màu, cỡ chữ, bo góc mới. Không có gì chỉ hiện khi rê chuột. */
+
+/* Dòng tin hai phía của yêu cầu về đơn hàng: tin khách, tin nhân viên khách thấy, ghi chú nội bộ (viền đứt) */
+.msgs { display: grid; gap: var(--space-sm); }
+.msg { border: 1px solid var(--rule); border-radius: var(--r-box); padding: 8px 12px; display: grid; gap: 4px; min-width: 0; }
+.msg.is-cust { background: var(--surface); border-color: var(--surface); margin-right: 48px; }
+.msg.is-staff { margin-left: 48px; }
+.msg.is-int { margin-left: 48px; border-style: dashed; border-color: var(--edge); }
+.msg .body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg-h { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; font-size: 13px; }
+.msg-h .grow { font-weight: 600; min-width: 0; }
+@media (max-width: 759px) { .msg.is-cust { margin-right: 16px; } .msg.is-staff, .msg.is-int { margin-left: 16px; } }
+
+/* Khóa dịch vụ hiện một lần: ô chỉ đọc chữ đơn cách + nút chép, lời nhắc ngay trên */
+.once { border: 1px solid var(--ink); border-radius: var(--r-box); padding: var(--space-md); display: grid; gap: var(--space-sm); min-width: 0; }
+.once .input { font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+
+/* Xem trước banner: khung đúng tỉ lệ ảnh máy tính 2368 × 600, điện thoại 1080 × 640; màu nền theo chủ đề banner */
+.pv-frame { border: 1px solid var(--rule); border-radius: var(--r-box); padding: var(--space-sm); background: var(--surface); display: grid; gap: var(--space-sm); min-width: 0; }
+.bn-pv { position: relative; border-radius: var(--r); overflow: hidden; display: grid; align-content: center; gap: 4px; padding: 0 14%; background: linear-gradient(120deg, var(--tint), var(--surface)); color: var(--title); min-width: 0; }
+.bn-pv.is-desk { aspect-ratio: 2368 / 600; }
+.bn-pv.is-phone { aspect-ratio: 1080 / 640; max-width: 360px; width: 100%; padding: 0 10%; }
+.bn-pv.is-red { background: var(--buy); color: var(--paper); }
+.bn-pv.is-black { background: var(--ink); color: var(--paper); }
+.bn-pv.is-light { background: var(--surface); }
+.bn-pv.is-hidden { background: var(--paper); border: 1px dashed var(--edge); color: var(--muted); }
+.bn-pv .k { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; }
+.bn-pv .t { font-family: var(--font-display); font-size: 18px; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
+.bn-pv .safe { position: absolute; top: 0; bottom: 0; left: 12%; right: 12%; border-left: 1px dashed var(--edge); border-right: 1px dashed var(--edge); }
+.bn-pv.is-phone .safe { left: 8%; right: 8%; }
+@media (max-width: 759px) { .bn-pv .t { font-size: 14px; } }
+
+/* Ảnh người mẫu của bộ phối với chấm sản phẩm (bấm hoặc kéo; vị trí tính theo % ảnh) */
+.lk-photo { position: relative; aspect-ratio: 4 / 5; max-width: 320px; width: 100%; border-radius: var(--r-box); background: linear-gradient(160deg, var(--tint), var(--surface)); }
+.lk-dot { position: absolute; transform: translate(-50%, -50%); width: var(--tap); height: var(--tap); border-radius: 50%; border: 2px solid var(--paper); background: var(--ink); color: var(--paper); font: 700 14px/1 var(--font-body); display: inline-flex; align-items: center; justify-content: center; padding: 0; cursor: grab; }
+.lk-dot.is-pick { background: var(--buy); }
+.lk-thumbs { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
+.lk-thumb { width: 64px; aspect-ratio: 4 / 5; border-radius: var(--r); border: 1px solid var(--rule); background: linear-gradient(160deg, var(--tint), var(--surface)); padding: 0; cursor: pointer; font-size: 12px; color: var(--label); }
+.lk-thumb[aria-pressed="true"] { border: 2px solid var(--ink); }
+
+/* Dòng banner/bộ phối trong danh sách sắp xếp (dùng .olist/.oitem của M2): dòng đang sửa, số thứ tự, lý do ẩn */
+.oitem.is-pick { background: var(--surface); box-shadow: inset 2px 0 0 var(--buy); }
+.ord { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--edge); font-size: 12px; font-weight: 700; flex: none; }
+.why-hide { font-size: 12px; color: var(--buy); }
+
+/* Lưới hai cột của trình sửa (danh sách | form) */
+.ed { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: var(--space-lg); align-items: start; }
+@media (max-width: 1199px) { .ed { grid-template-columns: minmax(0, 1fr); } }
+
+/* Menu điện thoại mở (chỉ mockup menu): chép từ khung, chỉ hiện dưới 1000px */
+.drawer-nav { border: 1px solid var(--rule); border-radius: var(--r-box); padding: var(--space-sm) 0; max-width: 320px; }
+@media (min-width: 1000px) { #drawer { display: none; } }
+
+/* Bật/tắt dạng ô chọn có chữ trạng thái (Hiện trên trang chủ, Hiện trên website) */
+.sw { display: inline-flex; align-items: center; gap: var(--space-sm); min-height: var(--tap); cursor: pointer; font-weight: 600; }
+.sw input { width: 18px; height: 18px; accent-color: var(--ink); margin: 0; flex: none; }
+.sw.is-off { color: var(--muted); cursor: not-allowed; }
+.drawer-nav .nav-a { min-height: var(--tap); }
+@media (max-width: 999px) { .drawer-nav .nav-a { min-height: 44px; } }

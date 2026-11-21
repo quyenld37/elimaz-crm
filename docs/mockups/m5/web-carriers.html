@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M5 — Hãng trên website</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m5.css">
+<style>
+.wc .oitem { gap: 8px 16px; }
+.wc .grow { min-width: 200px; }
+</style>
+</head>
+<body data-page="web-carriers" data-title="Hãng trên web">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Vận chuyển / <a href="../m3/ket-noi-van-chuyen.html">Kết nối vận chuyển</a> / Hãng trên website</p><h1>Hãng trên website</h1><p class="sub">Phần cuối của màn Kết nối vận chuyển (mục "Hãng trên web" ở nhóm Website mở thẳng tới đây). Khách chỉ thấy các hãng đang hiện ở bước đặt hàng; phí ship lấy từ tài khoản của shop ở từng hãng.</p></div>
+</div>
+<p class="mk" style="margin-bottom:16px"><b>Mockup:</b> bảng tài khoản phía trên giữ nguyên như mockup M3 (<a class="cell-a" href="../m3/ket-noi-van-chuyen.html">Kết nối vận chuyển</a>); cột "Hiện trên web" ở đó đọc từ phần này.</p>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="hien-tren-web thu-tu chon-san tk-khong-hoat-dong"><p class="xs">TRẠNG THÁI A</p><h2>Hai hãng đang hiện (Best Express chọn sẵn), một hãng ẩn, hai tài khoản không hoạt động không bật được</h2></section>
+
+<section class="card wc">
+	<div class="row-between"><div><h2>Hãng trên website</h2><p class="small muted">Bật hiện, đổi thứ tự là lưu ngay từng tài khoản. Thứ tự là thứ tự khách thấy.</p></div><span class="chip chip-ok">2 hãng đang hiện</span></div>
+	<div class="olist">
+		<div class="oitem">
+			<span class="ord">1</span>
+			<div class="grow"><b>Viettel Post — Kho chính</b><br><span class="small muted">Viettel Post · Đang hoạt động · 412 vận đơn trong 30 ngày</span></div>
+			<label class="sw"><input type="checkbox" checked> Hiện trên website</label>
+			<div class="row"><button class="ibtn" aria-label="Đưa Viettel Post lên" disabled>↑</button><button class="ibtn" aria-label="Đưa Viettel Post xuống">↓</button></div>
+		</div>
+		<div class="oitem">
+			<span class="ord">2</span>
+			<div class="grow"><b>Best Express — Kho chính</b><br><span class="small muted">Best Express · Đang hoạt động · 37 vận đơn trong 30 ngày · <b>Chọn sẵn</b></span></div>
+			<label class="sw"><input type="checkbox" checked> Hiện trên website</label>
+			<div class="row"><button class="ibtn" aria-label="Đưa Best Express lên">↑</button><button class="ibtn" aria-label="Đưa Best Express xuống" disabled>↓</button></div>
+		</div>
+		<div class="oitem">
+			<span class="ord">–</span>
+			<div class="grow"><b>SPX — Kho chính</b><br><span class="small muted">SPX · Đang hoạt động · 0 vận đơn trong 30 ngày</span></div>
+			<label class="sw"><input type="checkbox"> Hiện trên website</label>
+		</div>
+		<div class="oitem is-off">
+			<span class="ord">–</span>
+			<div class="grow"><b>Best Express — Kho Hà Nội</b><br><span class="small">Tạm ngừng: bật lại tài khoản ở Kết nối vận chuyển rồi mới hiện được trên website.</span></div>
+			<label class="sw is-off"><input type="checkbox" disabled> Hiện trên website</label>
+		</div>
+		<div class="oitem is-off">
+			<span class="ord">–</span>
+			<div class="grow"><b class="wrap-any">BestExpressTaiKhoanPhuChoDonSiCuaKhoChinhChiNhanhMienBacSo02</b><br><span class="small err-text">Cần cấp quyền lại: hãng từ chối khóa, chưa hiện được trên website.</span></div>
+			<label class="sw is-off"><input type="checkbox" disabled> Hiện trên website</label>
+		</div>
+	</div>
+
+	<div class="stack" style="margin-top:24px">
+		<fieldset class="stack-sm" style="border:0;padding:0;margin:0" data-ca="khong-chon-re-nhat">
+			<legend class="label">Hãng chọn sẵn ở bước đặt hàng</legend>
+			<div class="radios">
+				<label class="check"><input type="radio" name="pref"> Không chọn sẵn (website chọn hãng rẻ nhất)</label>
+				<label class="check"><input type="radio" name="pref"> Viettel Post — Kho chính</label>
+				<label class="check"><input type="radio" name="pref" checked> Best Express — Kho chính</label>
+			</div>
+			<p class="hint">Chỉ chọn được hãng đang hiện trên website. Hãng chọn sẵn đứng đầu và được tích trước; khách vẫn đổi được.</p>
+		</fieldset>
+		<fieldset class="stack-sm" style="border:0;padding:0;margin:0" data-ca="phi-du-phong">
+			<legend class="label">Phí dự phòng</legend>
+			<label class="check"><input type="checkbox"> Dùng phí dự phòng khi không hãng nào báo được phí</label>
+			<div class="unit"><input class="input" value="" placeholder="30.000" disabled aria-label="Phí dự phòng"><span>₫ · 0–500.000</span></div>
+			<p class="hint">Mặc định tắt: hãng nào cũng không báo được phí thì khách thấy "Chưa tính được phí giao hàng, thử lại sau" và chưa đặt được. Bật thì khách thấy phí này ghi "ước tính".</p>
+		</fieldset>
+		<div class="savebar"><span class="small muted grow">Chưa có thay đổi.</span><button class="btn btn-quiet" disabled>Bỏ thay đổi</button><button class="btn btn-dark" disabled>Lưu</button></div>
+	</div>
+</section>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="it-nhat-mot-hang chon-san-phai-bat dang-luu"><p class="xs">TRẠNG THÁI B</p><h2>Ẩn hãng đang chọn sẵn (tự bỏ chọn sẵn, như admin); ẩn hãng cuối cùng bị chặn; một dòng đang lưu; đã bật phí dự phòng, chưa lưu</h2></section>
+
+<section class="card wc">
+	<div class="olist">
+		<div class="oitem">
+			<span class="ord">1</span>
+			<div class="grow"><b>Viettel Post — Kho chính</b><br><span class="small muted">Đang lưu…</span></div>
+			<label class="sw is-off"><input type="checkbox" checked disabled> Hiện trên website</label>
+			<div class="row"><button class="ibtn" aria-label="Đưa Viettel Post lên" disabled>↑</button><button class="ibtn" aria-label="Đưa Viettel Post xuống" disabled>↓</button></div>
+		</div>
+		<div class="oitem">
+			<span class="ord">–</span>
+			<div class="grow"><b>Best Express — Kho chính</b><br><span class="small muted">Best Express · Đang hoạt động · 37 vận đơn trong 30 ngày</span></div>
+			<label class="sw"><input type="checkbox"> Hiện trên website</label>
+		</div>
+	</div>
+	<div class="box box-info" style="margin-top:16px">Đã ẩn Best Express — Kho chính. Hãng này đang là hãng chọn sẵn nên <b>đã bỏ chọn sẵn</b>: website chọn hãng rẻ nhất.</div>
+	<div class="box box-err" style="margin-top:16px"><b>Phải hiện ít nhất 1 hãng</b>, nếu không khách không đặt được hàng trên website.</div>
+	<p class="mk" style="margin-top:8px"><b>Mockup:</b> câu trên hiện khi bỏ tích hãng cuối cùng đang hiện; ô vẫn giữ tích. Máy chủ cũng từ chối (422 <code>last_web_carrier</code>, Task 198 "Bổ sung Task 450").</p>
+	<div class="stack-sm" style="margin-top:16px">
+		<label class="check"><input type="checkbox" checked> Dùng phí dự phòng khi không hãng nào báo được phí</label>
+		<div class="unit"><input class="input" value="30.000" aria-label="Phí dự phòng"><span>₫ · 0–500.000</span></div>
+		<div class="savebar"><span class="small muted grow">Có thay đổi chưa lưu.</span><button class="btn btn-quiet">Bỏ thay đổi</button><button class="btn btn-dark">Lưu</button></div>
+	</div>
+</section>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Người khác vừa đổi (409); chỉ có quyền xem; chưa có tài khoản hãng nào hoạt động</h2></section>
+
+<div class="dlgs">
+	<div class="box box-err stack-sm" data-ca="xung-dot-409"><b>Người khác vừa đổi phần này.</b><p>Đã tải lại: SPX đang hiện ở thứ tự 3 (Trần Minh Thư, 11:20). Xem lại rồi chọn lại.</p><div><button class="btn btn-line">Đã hiểu</button></div></div>
+	<section class="card" data-ca="chi-doc">
+		<h2>Hãng trên website</h2>
+		<p class="small">Viettel Post — Kho chính · thứ tự 1<br>Best Express — Kho chính · thứ tự 2 · chọn sẵn<br>Phí dự phòng: tắt</p>
+		<p class="reason">Bạn chỉ có quyền xem (thiếu quyền "Quản lý tài khoản hãng"); không bật, tắt, đổi thứ tự được.</p>
+	</section>
+	<div class="empty" data-ca="0-tai-khoan"><h2>Chưa có tài khoản hãng nào hoạt động</h2><p class="muted">Website chưa có hãng để khách chọn. Thêm và kiểm tra tài khoản hãng ở Kết nối vận chuyển.</p><a class="btn btn-dark" href="../m3/ket-noi-van-chuyen.html">Thêm tài khoản</a></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

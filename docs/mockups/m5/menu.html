@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M5 — Menu CRM</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m5.css">
+<style>
+.mt td { overflow-wrap: anywhere; }
+/* Mockup menu: menu trái hiện hết chiều dài để ảnh chụp cả trang thấy đủ nhóm (máy thật cuộn trong cột). */
+.side { position: static; height: auto; }
+</style>
+</head>
+<body data-page="menu" data-title="Menu CRM">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Khung</p><h1>Menu CRM sau M5 đợt 1</h1><p class="sub">Mọi việc của trang quản trị website chuyển vào CRM. Menu bên trái (máy tính) là menu thật của tài khoản Chủ; điện thoại mở menu bằng nút ☰ ở thanh trên.</p></div>
+</div>
+
+<section class="st" data-ca="dien-thoai"><p class="xs">TRẠNG THÁI A</p><h2>Menu đủ nhóm theo thứ tự: Đơn hàng · Vận chuyển · Tiền · Khách hàng · Khuyến mãi · Website (mới) · Sản phẩm · Kho · Hệ thống · Quản trị</h2></section>
+
+<div id="drawer"></div>
+
+<section class="card stack-sm" style="margin-top:16px">
+	<h2>Mục mới của M5 đợt 1</h2>
+	<div class="tbl-frame">
+	<table class="tbl mt">
+		<thead><tr><th>Nhóm</th><th>Mục</th><th>Thay cho (admin)</th><th>Màn</th></tr></thead>
+		<tbody>
+		<tr><td class="lead"><b>Đơn hàng</b></td><td data-label="Mục">Yêu cầu về đơn hàng <span class="nav-n" aria-label="8 việc">8</span></td><td data-label="Thay cho">Yêu cầu về đơn hàng; số đếm thay ô "Yêu cầu về đơn hàng" ở Tổng quan</td><td data-label="Màn"><a class="btn btn-quiet" href="order-requests.html">Mở</a></td></tr>
+		<tr><td class="lead"><b>Khách hàng</b></td><td data-label="Mục">Góp ý</td><td data-label="Thay cho">Góp ý khách hàng</td><td data-label="Màn"><a class="btn btn-quiet" href="feedback.html">Mở</a></td></tr>
+		<tr><td class="lead"><b>Khuyến mãi</b></td><td data-label="Mục">Chiến dịch giảm giá</td><td data-label="Thay cho">Chiến dịch giảm giá</td><td data-label="Màn"><a class="btn btn-quiet" href="web-campaigns.html">Mở</a></td></tr>
+		<tr><td class="lead"><b>Khuyến mãi</b></td><td data-label="Mục">Quà sinh nhật</td><td data-label="Thay cho">Sinh nhật khách</td><td data-label="Màn"><a class="btn btn-quiet" href="birthday-gifts.html">Mở</a></td></tr>
+		<tr><td class="lead"><b>Website</b></td><td data-label="Mục">Banner trang chủ</td><td data-label="Thay cho">Banner trang chủ</td><td data-label="Màn"><a class="btn btn-quiet" href="web-banners.html">Mở</a></td></tr>
+		<tr><td class="lead"><b>Website</b></td><td data-label="Mục">Bộ phối</td><td data-label="Thay cho">Bộ phối trang chủ</td><td data-label="Màn"><a class="btn btn-quiet" href="web-looks.html">Mở</a></td></tr>
+		<tr><td class="lead"><b>Website</b></td><td data-label="Mục">Hãng trên web</td><td data-label="Thay cho">Vận hành website → Hãng giao hàng trên web</td><td data-label="Màn"><a class="btn btn-quiet" href="web-carriers.html">Mở</a></td></tr>
+		<tr><td class="lead"><b>Website</b></td><td data-label="Mục">Nhận đơn web</td><td data-label="Thay cho">Vận hành website → Tiếp nhận đơn; trạng thái ở Tổng quan</td><td data-label="Màn"><a class="btn btn-quiet" href="web-intake.html">Mở</a></td></tr>
+		<tr><td class="lead"><b>Website</b></td><td data-label="Mục">Khóa dịch vụ</td><td data-label="Thay cho">(mới: khóa để website gọi CRM)</td><td data-label="Màn"><a class="btn btn-quiet" href="service-keys.html">Mở</a></td></tr>
+		<tr><td class="lead"><b>Quản trị</b></td><td data-label="Mục">Nhật ký thao tác</td><td data-label="Thay cho">Nhật ký thao tác; 5 dòng "Hoạt động gần đây" ở Tổng quan</td><td data-label="Màn"><a class="btn btn-quiet" href="audit.html">Mở</a></td></tr>
+		</tbody>
+	</table>
+	</div>
+	<p class="small"><b>Không có trong CRM:</b> Tổng quan (bỏ màn riêng: số yêu cầu đang mở ở cạnh mục menu, trạng thái nhận đơn ở Nhận đơn web, nhật ký ở Nhật ký thao tác), Đơn cần kiểm tra (đơn web vào thẳng CRM), Kết nối Nhanh (CRM không dùng Nhanh). Flash sale là đợt 2, chưa có mục.</p>
+</section>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

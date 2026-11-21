@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M5 — Nhận đơn web</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m5.css">
+</head>
+<body data-page="web-intake" data-title="Nhận đơn web">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Website / Nhận đơn web</p><h1>Nhận đơn web</h1><p class="sub">Tạm dừng khi cần (kiểm kho, sự cố giao hàng…): khách vẫn xem sản phẩm nhưng không đặt được đơn mới trên website. Đơn tại cửa hàng và đơn nhân viên lên không bị ảnh hưởng.</p></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="dang-nhan"><p class="xs">TRẠNG THÁI A</p><h2>Đang nhận đơn</h2></section>
+
+<section class="card stack-sm" style="max-width:760px">
+	<div class="row-between"><h2>Website đang nhận đơn</h2><span class="chip chip-ok">Đang nhận đơn</span></div>
+	<p class="small muted">Mở lại lúc 08:00 · 20/11/2026 bởi Nguyễn Thị Lan.</p>
+	<div><button class="btn btn-danger">Tạm dừng nhận đơn</button></div>
+</section>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="tam-dung ly-do-bat-buoc xac-nhan hang-doi-van-vao"><p class="xs">TRẠNG THÁI B</p><h2>Hộp tạm dừng: lý do bắt buộc (nút khóa khi trống), nói rõ đơn nào vẫn vào</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="Tạm dừng nhận đơn (chưa nhập lý do)">
+		<div class="dlg-h"><h2>Tạm dừng nhận đơn mới?</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p>Khách sẽ không đặt được đơn mới trên website cho tới khi bạn mở lại. Khách thấy câu: "ELIMAZ đang tạm dừng nhận đơn trên website…".</p>
+			<p class="small">Đơn khách đã bấm đặt trước lúc tạm dừng (kể cả đơn website đang gửi lại vì mạng chập chờn) <b>vẫn vào CRM</b>.</p>
+			<label class="field"><span>Lý do *</span><textarea class="input" placeholder="Nhập lý do để đội ngũ cùng theo dõi"></textarea><span class="hint num">0 / 300</span></label>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><div class="act" style="justify-items:end"><button class="btn btn-danger" disabled>Xác nhận tạm dừng</button><span class="reason">Nhập lý do để tạm dừng</span></div></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Tạm dừng nhận đơn (đã nhập lý do)">
+		<div class="dlg-h"><h2>Tạm dừng nhận đơn mới?</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p>Khách sẽ không đặt được đơn mới trên website cho tới khi bạn mở lại.</p>
+			<label class="field"><span>Lý do *</span><textarea class="input">Kiểm kho cuối tháng, mở lại 18:00</textarea><span class="hint num">34 / 300</span></label>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-danger">Xác nhận tạm dừng</button></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" data-ca="dang-tam-dung ai-luc-nao mo-lai"><p class="xs">TRẠNG THÁI C</p><h2>Đang tạm dừng: lý do, ai, lúc nào; mở lại có xác nhận</h2></section>
+
+<div class="dlgs">
+	<section class="card stack-sm">
+		<div class="row-between"><h2>Website đang tạm dừng nhận đơn mới</h2><span class="chip chip-err">Đang tạm dừng</span></div>
+		<div class="box box-soft"><b>Lý do: Kiểm kho cuối tháng, mở lại 18:00</b><br><span class="small">Nguyễn Thị Lan · 13:05 · 21/11/2026</span></div>
+		<div><button class="btn btn-dark">Mở lại nhận đơn</button></div>
+	</section>
+	<div class="dlg" role="dialog" aria-label="Mở lại nhận đơn">
+		<div class="dlg-h"><h2>Mở lại nhận đơn?</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b"><p>Khách đặt được đơn mới trên website ngay (website đọc lại trạng thái trong vài giây).</p></div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark">Mở lại nhận đơn</button></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI D</p><h2>Đang lưu; người khác vừa đổi (409); chỉ có quyền xem</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="Đang lưu" data-ca="dang-luu">
+		<div class="dlg-h"><h2>Tạm dừng nhận đơn mới?</h2></div>
+		<div class="dlg-b"><label class="field"><span>Lý do *</span><textarea class="input" disabled>Kiểm kho cuối tháng, mở lại 18:00</textarea></label></div>
+		<div class="dlg-f"><button class="btn" disabled>Đóng</button><button class="btn" disabled>Đang lưu…</button></div>
+	</div>
+	<div class="box box-err stack-sm" data-ca="xung-dot-409"><b>Trạng thái vừa được người khác đổi.</b><p>Đã tải lại: website <b>đang tạm dừng</b> (Trần Minh Thư, 13:04, lý do "Sự cố hãng giao hàng"). Chưa đổi gì thêm.</p><div><button class="btn btn-line">Đã hiểu</button></div></div>
+	<section class="card stack-sm" data-ca="chi-doc">
+		<div class="row-between"><h2>Website đang nhận đơn</h2><span class="chip chip-ok">Đang nhận đơn</span></div>
+		<div class="act"><button class="btn" disabled>Tạm dừng nhận đơn</button><span class="reason">Bạn chỉ xem được (thiếu quyền "Tạm dừng nhận đơn web").</span></div>
+	</section>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>
