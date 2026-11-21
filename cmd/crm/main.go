@@ -1,6 +1,7 @@
 // Lệnh crm là tệp chạy duy nhất của CRM. CRM_ROLE chọn vai trò: ingest, api, worker, migrate.
 // `crm healthcheck` kiểm tiến trình cùng cấu hình đang sống (dùng trong image không có shell).
 // `crm seed-dev <email>` (CRM_ROLE=migrate) dựng tenant, chủ shop và định tuyến email cho máy dev.
+// `crm recompute-customer-stats <mã khách>` (mọi vai trò, bằng DATABASE_URL) tính lại chỉ số khách cho gốc hiện tại.
 package main
 
 import (
@@ -93,8 +94,14 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 		}
 		return exitOK
 	case len(args) == 2 && args[0] == "seed-dev":
+	case len(args) == 2 && args[0] == recomputeCommand:
+		if _, err := uuid.Parse(args[1]); err != nil {
+			_, _ = fmt.Fprintf(stderr, "mã khách %q không phải UUID; cách gọi: `crm %s <mã khách>`\n", args[1], recomputeCommand)
+			return exitConfig
+		}
 	case len(args) > 0:
-		_, _ = fmt.Fprintf(stderr, "lệnh lạ %q; chỉ có `crm`, `crm healthcheck` hoặc `crm seed-dev <email>`\n", args)
+		_, _ = fmt.Fprintf(stderr, "lệnh lạ %q; chỉ có `crm`, `crm healthcheck`, `crm seed-dev <email>` hoặc "+
+			"`crm %s <mã khách>`\n", args, recomputeCommand)
 		return exitConfig
 	}
 
@@ -107,9 +114,16 @@ func run(ctx context.Context, args []string, getenv func(string) string, stdout,
 	}
 	defer func() { _ = closer.Close() }()
 
-	if len(args) == 2 { // seed-dev
+	switch {
+	case len(args) == 2 && args[0] == "seed-dev":
 		if err := seedDev(ctx, cfg, args[1], logger); err != nil {
 			_, _ = fmt.Fprintln(stderr, "seed-dev:", err)
+			return exitFail
+		}
+		return exitOK
+	case len(args) == 2 && args[0] == recomputeCommand:
+		if err := runRecompute(ctx, cfg, uuid.MustParse(args[1]), stdout, logger); err != nil {
+			_, _ = fmt.Fprintln(stderr, recomputeCommand+":", err)
 			return exitFail
 		}
 		return exitOK

@@ -338,9 +338,19 @@ SELECT status, count(*), max(finished_at) FROM platform.jobs WHERE kind = 'event
   AND created_at > now() - interval '1 day' GROUP BY status;
 ```
 
-Việc `dead` của đúng khách: thử lại qua `POST /api/v1/platform/jobs/{id}/retry` (tính lại cho gốc hiện tại). Chưa có
-lệnh chạy lại cho một gốc bất kỳ khi không có việc lỗi (task bù 434); tạm thời mọi thao tác đổi trạng thái đơn của
-khách đó (hay gộp, hoàn tác) đều kích tính lại.
+Việc `dead` của đúng khách: thử lại qua `POST /api/v1/platform/jobs/{id}/retry` (tính lại cho gốc hiện tại). Không có
+việc lỗi mà số vẫn sai (Task 434): chạy lệnh vận hành trong container worker (dùng DATABASE_URL = `crm_app` của
+container, RLS vẫn áp; mã là của hồ sơ gốc hay hồ sơ con, tenant tự tìm):
+
+```sh
+docker compose -f /srv/crm/compose.prod.yml --env-file /srv/crm/crm.env exec -T crm-worker \
+  /crm recompute-customer-stats <mã khách>
+# tenant <mã>, gốc <mã>: 3 đơn, 2 đã giao, 1 hoàn qua hãng, tổng chi 740000 đồng, tỷ lệ hoàn 3333/10000, đơn cuối …
+```
+
+Lệnh làm đúng hai bước của consumer `customer_stats` trong một transaction: tính lại chỉ số cả nhóm từ đơn, phiếu (gốc
+`lead` có đơn sang `customer`), rồi áp quy tắc nhãn; chạy lại bao nhiêu lần cũng cho cùng số. Mã thoát 0 xong; 1 khi
+khách không có ở tenant nào hay database lỗi (chạy lại); 2 khi thiếu mã hay mã sai dạng.
 
 **Pha thu hẹp sau khi bản M2 chạy ổn trên staging (Q30).** Lớp bọc M1 `customer.Create(ctx, tx, fullName)` (gọi
 `CreateCustomer` với nguồn `staff`, người làm `system`) còn để giữ chữ ký M1; khi `grep -rn "customer.Create(" internal
