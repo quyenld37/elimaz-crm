@@ -8,10 +8,6 @@ recordPartialDelivery
 listCallbackTasks
 recordCallbackOutcome
 assignCallbackTask
-createLabelBatch
-getLabelBatch
-getPickingList
-setPackingStatus
 previewShipmentCorrection
 applyShipmentCorrection
 listStuckShipments
