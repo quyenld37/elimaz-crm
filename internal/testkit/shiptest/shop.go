@@ -21,7 +21,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 )
 
 const (
@@ -93,7 +93,7 @@ func (s *Shop) Order(ctx context.Context, tx pgx.Tx, seller, userID uuid.UUID, s
 	if err != nil {
 		return order.Order{}, fmt.Errorf("shiptest: tạo khách: %w", err)
 	}
-	w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}}
+	w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}}
 	o, err := w.CreateManual(ctx, tx, order.CreateManualInput{
 		IdempotencyKey: uuid.New(), SellerID: seller, CustomerID: c, ShippingFee: shippingFee, Items: items,
 		ShipAddress: order.ShipAddress{Name: "Chị Lan", Phone: logging.Phone("0901234567"), Line: "12 Lê Lợi, Q1"},

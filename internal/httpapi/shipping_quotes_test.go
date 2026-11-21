@@ -10,12 +10,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
-	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // apiQuoteCarrier là hãng giả chỉ báo phí: trả results hay err.
@@ -67,7 +68,7 @@ func TestShippingQuotesAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := fulfillment.New(fulfillment.Deps{
-		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &testkit.RecordingBus{}, Events: events.NewRegistry(), Carriers: reg,
+		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &realtimetest.RecordingBus{}, Events: events.NewRegistry(), Carriers: reg,
 	})
 	d := testServerDeps(t, e.staff, e.keys, 0)
 	d.Fulfillment = m.Service
@@ -117,7 +118,7 @@ func TestShippingQuotesAPI(t *testing.T) {
 }
 
 // postQuotesTwice gửi so phí hai lần cùng khóa k1: cả hai 202 hai tài khoản, cùng requestId; trả requestId.
-func postQuotesTwice(t *testing.T, srv http.Handler, keys *testkit.AccessKeys, path string) any {
+func postQuotesTwice(t *testing.T, srv http.Handler, keys *cfaccesstest.AccessKeys, path string) any {
 	t.Helper()
 	var reqID any
 	for i := range 2 {

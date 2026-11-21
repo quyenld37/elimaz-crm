@@ -74,7 +74,7 @@ func Variant(t testing.TB, tx pgx.Tx, tenantID, sellerID, productID uuid.UUID, n
 }
 
 // VariantWithSKU tạo biến thể mã hàng sku (barcode "BC-<sku>", màu Đỏ, size bằng sku, giá price) của mẫu productID và
-// trả mã; dùng khi test cần tra biến thể theo SKU (testkit.SeedCatalog, kế hoạch M2 Task M2-02). sku phải khác nhau
+// trả mã; dùng khi test cần tra biến thể theo SKU (shoptest.SeedCatalog, kế hoạch M2 Task M2-02). sku phải khác nhau
 // trong một người bán.
 func VariantWithSKU(t testing.TB, tx pgx.Tx, tenantID, sellerID, productID uuid.UUID, sku string, price int64) uuid.UUID {
 	t.Helper()

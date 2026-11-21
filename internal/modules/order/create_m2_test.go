@@ -16,7 +16,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/promotion"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 )
 
 // Số SĐT dùng trong test M2-16 (dạng nhập và dạng chuẩn hóa).
@@ -88,7 +88,7 @@ func (e *orderEnv) newCustomer(name, phone string) customer.Customer {
 	var c customer.Customer
 	if err := e.app(func(tx pgx.Tx) error {
 		var err error
-		w := customer.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}}
+		w := customer.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}}
 		c, err = w.CreateCustomer(e.t.Context(), tx, customer.CreateInput{FullName: name, Phone: phone},
 			customer.Actor{ID: e.actor.UserID}, e.now())
 		return err //nolint:wrapcheck // test

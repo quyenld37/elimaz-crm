@@ -1,4 +1,6 @@
-package testkit
+// Package shoptest dựng dữ liệu thử của một shop trên nhiều module (người bán, kho, biến thể, tồn) cho test. Tách khỏi
+// internal/testkit để gói nền đó không nhập internal/modules/** (Task 424).
+package shoptest
 
 import (
 	"fmt"
@@ -68,7 +70,7 @@ func SeedCatalog(t testing.TB, d *db.DB, tenantID uuid.UUID, o SeedOptions) Cata
 		}
 		return nil
 	}); err != nil {
-		t.Fatalf("testkit: dựng danh mục thử: %v", err)
+		t.Fatalf("shoptest: dựng danh mục thử: %v", err)
 	}
 	return c
 }

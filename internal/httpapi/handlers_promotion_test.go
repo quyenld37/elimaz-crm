@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/promotion"
 	"elimaz.com.vn/crm/internal/platform/config"
@@ -36,7 +37,7 @@ func vnTime(y int, m time.Month, d, h int) time.Time {
 type couponEnv struct {
 	t      *testing.T
 	staff  *testkit.Staff
-	keys   *testkit.AccessKeys
+	keys   *cfaccesstest.AccessKeys
 	srv    http.Handler
 	tenant uuid.UUID
 	now    time.Time
@@ -44,7 +45,7 @@ type couponEnv struct {
 
 func newCouponEnv(t *testing.T) *couponEnv {
 	t.Helper()
-	e := &couponEnv{t: t, staff: testkit.OpenStaff(t), keys: testkit.AccessKeyServer(t)}
+	e := &couponEnv{t: t, staff: testkit.OpenStaff(t), keys: cfaccesstest.AccessKeyServer(t)}
 	e.tenant = e.staff.Tenant(t, "A")
 	m := e.staff.User(t, e.tenant, couponManager, "active")
 	e.staff.Grant(t, e.tenant, m, rolePerms(t, "manager"), "all", "")

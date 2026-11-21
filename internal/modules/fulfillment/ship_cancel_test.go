@@ -13,7 +13,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 )
 
 // Đơn đã yêu cầu hủy (cancel_requested, M2) lúc lệnh tạo vận đơn đang chạy (Task 431, kế hoạch M3-12 "Bổ sung Task
@@ -38,7 +38,7 @@ func (e *shipEnv) tryRequestCancel(id uuid.UUID) error {
 		if err != nil {
 			return err //nolint:wrapcheck // test
 		}
-		w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}}
+		w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}}
 		_, err = w.Cancel(e.t.Context(), tx, e.seller, id, cur.Version, order.CancelCustomerChangedMind, "",
 			e.orderActor(), time.Now())
 		return err //nolint:wrapcheck // test

@@ -14,7 +14,7 @@ import (
 	"pgregory.net/rapid"
 
 	"elimaz.com.vn/crm/internal/platform/files"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 )
 
 const mib = 1 << 20
@@ -22,7 +22,7 @@ const mib = 1 << 20
 // TP03 (phần kích thước): giới hạn theo mục đích, trước khi có dòng nào.
 func TestCreateUpload_TooLarge(t *testing.T) {
 	e := newEnv(t)
-	store := testkit.MemFileStore(t)
+	store := filestest.MemFileStore(t)
 	cases := []struct {
 		name string
 		in   files.UploadInput
@@ -65,7 +65,7 @@ func TestCreateUpload_PurposeWithoutUpload(t *testing.T) {
 		AllowedTypes: []string{"application/pdf"}, MaxBytes: mib,
 	})
 	in := files.UploadInput{TenantID: e.a, Purpose: "test_server_only", FileName: "a.pdf", ContentType: "application/pdf", SizeBytes: 100}
-	if _, _, err := e.create(testkit.MemFileStore(t), in); !errors.Is(err, files.ErrUploadNotAllowed) {
+	if _, _, err := e.create(filestest.MemFileStore(t), in); !errors.Is(err, files.ErrUploadNotAllowed) {
 		t.Fatalf("muốn ErrUploadNotAllowed, nhận %v", err)
 	}
 }
@@ -125,7 +125,7 @@ func checkResend(t *testing.T, e *env, store files.FileStore, f files.File, put 
 // 50 lần complete cùng lúc → vẫn đúng 1 lệnh, mọi lần trả uploaded.
 func TestUpload_ConcurrentComplete(t *testing.T) {
 	e := newEnv(t)
-	store := testkit.MemFileStore(t)
+	store := filestest.MemFileStore(t)
 	f, put := e.mustCreate(store, imageInput(e.a, 500))
 	if code := putVia(t, put, randomBytes(t, 500)); code != http.StatusOK {
 		t.Fatalf("PUT: %d", code)
@@ -186,7 +186,7 @@ func TestUpload_MissingAndSizeMismatch(t *testing.T) {
 // PQ08: tenant B không complete được tệp của A.
 func TestUpload_OtherTenantNotFound(t *testing.T) {
 	e := newEnv(t)
-	store := testkit.MemFileStore(t)
+	store := filestest.MemFileStore(t)
 	f, put := e.mustCreate(store, imageInput(e.a, 10))
 	if code := putVia(t, put, randomBytes(t, 10)); code != http.StatusOK {
 		t.Fatalf("PUT: %d", code)
@@ -209,7 +209,7 @@ func TestUpload_OtherTenantNotFound(t *testing.T) {
 // Khóa trên kho không bao giờ chứa tên tệp của người dùng (ca cố định và quy luật rapid).
 func TestUpload_KeyHasNoUserFileName(t *testing.T) {
 	e := newEnv(t)
-	store := testkit.MemFileStore(t)
+	store := filestest.MemFileStore(t)
 	for _, name := range []string{"../../etc/passwd.jpg", "<script>.png", "a/b\\c.jpg", "ảnh áo dài.jpg"} {
 		f, put := e.mustCreate(store, files.UploadInput{TenantID: e.a, Purpose: "product_image", FileName: name, ContentType: "image/png", SizeBytes: 10})
 		if f.Key != files.TmpKey(e.a, f.ID) || f.OriginalName != name {
@@ -234,7 +234,7 @@ func TestUpload_KeyHasNoUserFileName(t *testing.T) {
 // Mutation testing (Task 403): created_by là người tạo; không có người (uuid.Nil) → NULL.
 func TestCreateUpload_CreatedBy(t *testing.T) {
 	e := newEnv(t)
-	store := testkit.MemFileStore(t)
+	store := filestest.MemFileStore(t)
 	in := files.UploadInput{TenantID: e.a, Purpose: "product_image", FileName: "a.jpg", ContentType: "image/jpeg", SizeBytes: 10}
 	createdBy := func(actor uuid.UUID) *uuid.UUID {
 		var by *uuid.UUID

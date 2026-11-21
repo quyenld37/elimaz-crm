@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
@@ -17,7 +18,7 @@ const (
 // listAdminUnits qua HTTP: parent rỗng → tỉnh; có parent → xã của tỉnh đó lọc theo q, tối đa 50; thiếu quyền → 403.
 func TestListAdminUnitsAPI(t *testing.T) {
 	staff := testkit.OpenStaff(t)
-	keys := testkit.AccessKeyServer(t)
+	keys := cfaccesstest.AccessKeyServer(t)
 	if _, err := staff.Owner.Pool.Exec(t.Context(), `INSERT INTO customer.admin_units
 		(code, level, parent_code, name, name_search, effective_from, source) VALUES
 		('T01', 'province', NULL, 'Thành phố Thử Một', 'thanh pho thu mot', DATE '2025-07-01', 'test'),

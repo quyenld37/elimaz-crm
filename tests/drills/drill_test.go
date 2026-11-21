@@ -31,10 +31,12 @@ import (
 
 	"github.com/google/uuid"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -52,7 +54,7 @@ type drill struct {
 	project string
 	staff   *testkit.Staff
 	tenant  uuid.UUID
-	keys    *testkit.AccessKeys
+	keys    *cfaccesstest.AccessKeys
 	fs      *files.S3Store
 	api     *httptest.Server
 	w       *queue.Worker
@@ -73,8 +75,8 @@ func newDrill(t *testing.T) *drill {
 	}
 	s := testkit.OpenStaff(t)
 	d := &drill{
-		t: t, project: project, staff: s, tenant: s.Tenant(t, "A"), keys: testkit.AccessKeyServer(t),
-		fs: testkit.S3FileStore(t), hc: &http.Client{Timeout: 60 * time.Second},
+		t: t, project: project, staff: s, tenant: s.Tenant(t, "A"), keys: cfaccesstest.AccessKeyServer(t),
+		fs: filestest.S3FileStore(t), hc: &http.Client{Timeout: 60 * time.Second},
 	}
 	s.Grant(t, d.tenant, s.User(t, d.tenant, drillStaff, "active"), []string{"files.upload", "platform.files.manage"}, "all", "")
 	d.api = httptest.NewServer(httpapi.NewServer(httpapi.Deps{
@@ -98,7 +100,7 @@ func (d *drill) call(ctx context.Context, method, path, body string) (int, []byt
 	if err != nil {
 		return 0, nil, err //nolint:wrapcheck // test
 	}
-	req.Header.Set("Cf-Access-Jwt-Assertion", d.keys.Sign(testkit.AccessClaims{Email: drillStaff, AUD: drillAUD, MFA: []string{"mfa"}}))
+	req.Header.Set("Cf-Access-Jwt-Assertion", d.keys.Sign(cfaccesstest.AccessClaims{Email: drillStaff, AUD: drillAUD, MFA: []string{"mfa"}}))
 	if method != http.MethodGet {
 		req.Header.Set("Origin", drillOrigin)
 		req.Header.Set("Content-Type", "application/json")

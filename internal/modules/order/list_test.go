@@ -15,9 +15,9 @@ import (
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/queries"
 	"elimaz.com.vn/crm/internal/queries/orderview"
-	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // listBase là mốc giờ của đơn trong test danh sách; đơn thứ i tạo lúc listBase + i giây.
@@ -107,7 +107,7 @@ func sameIDs(t *testing.T, what string, got []uuid.UUID, want ...uuid.UUID) {
 
 // customerWriter là customer.Writer của test.
 func customerWriter() customer.Writer {
-	return customer.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}}
+	return customer.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}}
 }
 
 // listFixture: khách A "Hồng Nhung" và B "Bảo Ngọc" (B gộp vào A), khách C "Trần Tèo"; nguồn S.

@@ -1,4 +1,4 @@
-package testkit_test
+package shoptest_test
 
 import (
 	"errors"
@@ -11,6 +11,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/testkit/shoptest"
 )
 
 // TestSeedCatalog: 3 biến thể của ELIMAZ, 1 của người bán thứ hai (một ngừng bán) → tồn ở kho chính đúng số nạp,
@@ -18,7 +19,7 @@ import (
 func TestSeedCatalog(t *testing.T) {
 	s := testkit.OpenStaff(t)
 	tenant := s.Tenant(t, "A")
-	c := testkit.SeedCatalog(t, s.Owner, tenant, testkit.SeedOptions{Variants: []testkit.SeedVariant{
+	c := shoptest.SeedCatalog(t, s.Owner, tenant, shoptest.SeedOptions{Variants: []shoptest.SeedVariant{
 		{SKU: "AO-DO-S", Price: 250000, Stock: 5},
 		{SKU: "AO-DO-M", Price: 260000, Stock: 0},
 		{SKU: "AO-XANH-S", Price: 270000, Stock: 3, Discontinued: true},
@@ -52,7 +53,7 @@ func TestSeedCatalog(t *testing.T) {
 	}
 }
 
-func checkStock(t *testing.T, c testkit.Catalog, bal []inventory.Balance, stock map[string]int32) {
+func checkStock(t *testing.T, c shoptest.Catalog, bal []inventory.Balance, stock map[string]int32) {
 	t.Helper()
 	for sku, id := range c.Variants {
 		for _, b := range bal {
@@ -65,7 +66,7 @@ func checkStock(t *testing.T, c testkit.Catalog, bal []inventory.Balance, stock 
 
 // checkSaleErrors: biến thể người bán thứ hai bán được dưới người bán đó, không có dưới ELIMAZ; biến thể ngừng bán →
 // ErrNotForSale.
-func checkSaleErrors(t *testing.T, tx pgx.Tx, c testkit.Catalog) {
+func checkSaleErrors(t *testing.T, tx pgx.Tx, c shoptest.Catalog) {
 	t.Helper()
 	if _, err := catalog.VariantForSale(t.Context(), tx, c.Sellers[1], c.Variants["P-TUI"]); err != nil {
 		t.Errorf("biến thể của người bán thứ hai: %v", err)

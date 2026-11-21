@@ -15,9 +15,9 @@ import (
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/xlsx"
-	"elimaz.com.vn/crm/internal/testkit"
 )
 
 const xlsxType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -36,7 +36,7 @@ type importEnv struct {
 func newImportEnv(t *testing.T) *importEnv {
 	t.Helper()
 	customer.RegisterFilePurposes()
-	e := &importEnv{writeEnv: newWriteEnv(t), store: testkit.MemFileStore(t)}
+	e := &importEnv{writeEnv: newWriteEnv(t), store: filestest.MemFileStore(t)}
 	e.imp = customer.NewImporter(customer.ImporterOptions{DB: e.staff.App, Store: e.store, Writer: e.w})
 	// Không tự dừng theo giờ thật (máy tải nặng làm một lô quá 20 s, lượt dừng giữa chừng và drain kết thúc sớm);
 	// test tự dừng đặt ngân sách riêng.

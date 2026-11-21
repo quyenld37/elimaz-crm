@@ -16,7 +16,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/testkit/shiptest"
 )
 
@@ -297,7 +297,7 @@ func TestShip_AccountUnavailable(t *testing.T) {
 	un := &unsupportedCarrier{}
 	e.useCommands([]commands.Handler{fulfillment.NewCreateCommand(fulfillment.CommandOptions{
 		DB: e.staff.App, Adapters: []fulfillment.CarrierAdapter{un}, Events: events.NewRegistry(), Queue: queue.NewQueue(),
-		Realtime: &testkit.RecordingBus{},
+		Realtime: &realtimetest.RecordingBus{},
 	})})
 	o2, _ := e.order(1)
 	s2 := e.mustCreateShipment(o2.ID)

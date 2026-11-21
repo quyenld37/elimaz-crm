@@ -14,7 +14,6 @@ import (
 
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/files/filestest"
-	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // usePrivatePurpose đăng ký mục đích thử test_private_image (chế độ private, R10) ở sổ Go và bảng.
@@ -151,7 +150,7 @@ func TestSelectPreset(t *testing.T) {
 // DownloadURL của ảnh sản phẩm ký tới ảnh gốc orig/<sha> trên crm-originals (không phải tmp/… tự xóa sau 24 giờ).
 func TestDownloadURL_ProductImageSignsOriginal(t *testing.T) {
 	e := newEnv(t)
-	mem := testkit.MemFileStore(t)
+	mem := filestest.MemFileStore(t)
 	var id uuid.UUID
 	var sha string
 	e.must(e.a, func(tx pgx.Tx) error {

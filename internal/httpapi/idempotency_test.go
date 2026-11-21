@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/idempotency"
 	"elimaz.com.vn/crm/internal/testkit"
@@ -30,7 +31,7 @@ var errProbeHandler = errors.New("probe: lỗi giữa transaction")
 type idemEnv struct {
 	t      *testing.T
 	staff  *testkit.Staff
-	keys   *testkit.AccessKeys
+	keys   *cfaccesstest.AccessKeys
 	mux    *http.ServeMux
 	logs   *bytes.Buffer
 	tenant uuid.UUID
@@ -45,7 +46,7 @@ const (
 
 func newIdemEnv(t *testing.T) *idemEnv {
 	t.Helper()
-	e := &idemEnv{t: t, staff: testkit.OpenStaff(t), keys: testkit.AccessKeyServer(t), logs: &bytes.Buffer{}}
+	e := &idemEnv{t: t, staff: testkit.OpenStaff(t), keys: cfaccesstest.AccessKeyServer(t), logs: &bytes.Buffer{}}
 	e.staff.ProbeCounter(t)
 	e.tenant = e.staff.Tenant(t, "A")
 	e.users = map[string]uuid.UUID{}
@@ -208,7 +209,7 @@ func (e *idemEnv) post(path, email, key, body string, mod ...func(*http.Request)
 	req := httptest.NewRequestWithContext(e.t.Context(), http.MethodPost, path, strings.NewReader(body))
 	req.Header.Set("Origin", testOrigin)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Cf-Access-Jwt-Assertion", e.keys.Sign(testkit.AccessClaims{Email: email, AUD: testAUD, MFA: []string{"mfa"}}))
+	req.Header.Set("Cf-Access-Jwt-Assertion", e.keys.Sign(cfaccesstest.AccessClaims{Email: email, AUD: testAUD, MFA: []string{"mfa"}}))
 	if key != "" {
 		req.Header.Set("Idempotency-Key", key)
 	}

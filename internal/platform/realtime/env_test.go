@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/config"
@@ -37,7 +38,7 @@ type rtEnv struct {
 	t        *testing.T
 	staff    *testkit.Staff
 	adminURL string
-	keys     *testkit.AccessKeys
+	keys     *cfaccesstest.AccessKeys
 	hub      *realtime.PGHub
 	spy      *statusSpy // Bus mà máy chủ HTTP dùng: hub, có đếm lời gọi Status của luồng SSE
 	reg      *metrics.Registry
@@ -47,7 +48,7 @@ type rtEnv struct {
 func newRTEnv(t *testing.T) *rtEnv {
 	t.Helper()
 	adminURL, ownerURL, appURL := testkit.StartPostgres(t)
-	e := &rtEnv{t: t, staff: &testkit.Staff{}, adminURL: adminURL, keys: testkit.AccessKeyServer(t), reg: metrics.NewRegistry()}
+	e := &rtEnv{t: t, staff: &testkit.Staff{}, adminURL: adminURL, keys: cfaccesstest.AccessKeyServer(t), reg: metrics.NewRegistry()}
 	for _, p := range []struct {
 		dst **db.DB
 		url string
@@ -233,7 +234,7 @@ func (e *rtEnv) user(tenant uuid.UUID, email string, grants map[string][]string)
 		}
 		e.staff.Grant(e.t, tenant, uid, perms, typ, id)
 	}
-	return e.keys.Sign(testkit.AccessClaims{Email: email, AUD: testAUD, MFA: []string{"mfa"}})
+	return e.keys.Sign(cfaccesstest.AccessClaims{Email: email, AUD: testAUD, MFA: []string{"mfa"}})
 }
 
 var errRollback = errors.New("lùi transaction thử")

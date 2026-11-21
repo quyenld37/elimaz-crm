@@ -18,6 +18,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/platform/webhooks"
 	"elimaz.com.vn/crm/internal/testkit"
@@ -62,7 +63,7 @@ func newShipEnv(t *testing.T) *shipEnv {
 	})
 	o := fulfillment.CommandOptions{
 		DB: e.staff.App, Adapters: []fulfillment.CarrierAdapter{e.carrier},
-		Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{},
+		Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{},
 	}
 	svc := fulfillment.New(fulfillment.Deps{
 		DB: o.DB, Queue: o.Queue, Events: o.Events, Bus: o.Realtime, Carriers: mustRegistry(t, e.carrier),

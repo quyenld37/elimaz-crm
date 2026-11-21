@@ -15,6 +15,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -82,7 +83,7 @@ func (e *orderEnv) variantOf(seller uuid.UUID, price int64, onHand int32) uuid.U
 }
 
 func (e *orderEnv) writer() order.Writer {
-	return order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}}
+	return order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}}
 }
 
 // app chạy fn bằng crm_app trong ngữ cảnh tenant của e.

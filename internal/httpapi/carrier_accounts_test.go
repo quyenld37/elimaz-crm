@@ -14,6 +14,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
 	"elimaz.com.vn/crm/internal/adapters/carrier/manual"
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/inventory/invtest"
 	"elimaz.com.vn/crm/internal/platform/commands"
@@ -21,6 +22,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/fieldcrypt"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/testkit"
 	"elimaz.com.vn/crm/tools/fakecarrier/server"
 )
@@ -36,7 +38,7 @@ const (
 type caEnv struct {
 	t      *testing.T
 	staff  *testkit.Staff
-	keys   *testkit.AccessKeys
+	keys   *cfaccesstest.AccessKeys
 	shop   *invtest.Shop
 	srv    http.Handler
 	worker *queue.Worker
@@ -66,13 +68,13 @@ func newCAEnv(t *testing.T) *caEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := fulfillment.New(fulfillment.Deps{DB: e.staff.App, Queue: queue.NewQueue(), Carriers: reg, Keys: ring, Bus: &testkit.RecordingBus{}})
+	m := fulfillment.New(fulfillment.Deps{DB: e.staff.App, Queue: queue.NewQueue(), Carriers: reg, Keys: ring, Bus: &realtimetest.RecordingBus{}})
 	logger, buf := testkit.CaptureLog(t)
 	e.logs = buf
 	authE := &authEnv{t: t, keys: e.keys}
 	e.srv = NewServer(Deps{
 		Config: config.Config{ConsoleOrigins: []string{testOrigin}}, DB: e.staff.App, Logger: logger,
-		Access: authE.verifier(), Realtime: &testkit.RecordingBus{}, Fulfillment: m.Service,
+		Access: authE.verifier(), Realtime: &realtimetest.RecordingBus{}, Fulfillment: m.Service,
 	})
 	e.worker = queue.NewWorker(e.staff.App, nil, queue.WorkerOptions{
 		Logger:   logger,

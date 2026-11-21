@@ -13,8 +13,8 @@ import (
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
-	"elimaz.com.vn/crm/internal/testkit"
 	"elimaz.com.vn/crm/internal/testkit/shiptest"
 )
 
@@ -35,7 +35,7 @@ func (e *m3Env) payOrder(shop *shiptest.Shop, user uuid.UUID) order.Order {
 func (e *m3Env) cancelAndRefund(shop *shiptest.Shop, user uuid.UUID, o order.Order) {
 	e.t.Helper()
 	ctx := e.t.Context()
-	w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}}
+	w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}}
 	var ev events.StoredEvent
 	if err := tenancy.WithTenant(ctx, e.staff.App, e.tenant, func(tx pgx.Tx) error {
 		cur, err := order.Get(ctx, tx, shop.Seller, o.ID)

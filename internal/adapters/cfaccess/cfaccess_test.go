@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"elimaz.com.vn/crm/internal/adapters/cfaccess"
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/modules/identity"
-	"elimaz.com.vn/crm/internal/testkit"
 )
 
 const aud = "aud-crm"
@@ -26,14 +26,14 @@ func newClock() *clock {
 
 func (c *clock) Now() time.Time      { return time.Unix(0, c.ns.Load()) }
 func (c *clock) Add(d time.Duration) { c.ns.Add(int64(d)) }
-func (c *clock) opts(k *testkit.AccessKeys) cfaccess.Options {
+func (c *clock) opts(k *cfaccesstest.AccessKeys) cfaccess.Options {
 	return cfaccess.Options{
-		TeamDomain: k.TeamDomain, AUD: aud, MFAClaim: testkit.AccessMFAClaim, MFAValues: []string{"mfa"},
+		TeamDomain: k.TeamDomain, AUD: aud, MFAClaim: cfaccesstest.AccessMFAClaim, MFAValues: []string{"mfa"},
 		HTTPClient: k.Client, Now: c.Now,
 	}
 }
 
-func newVerifier(t *testing.T, k *testkit.AccessKeys, c *clock) *cfaccess.Verifier {
+func newVerifier(t *testing.T, k *cfaccesstest.AccessKeys, c *clock) *cfaccess.Verifier {
 	t.Helper()
 	v, err := cfaccess.New(c.opts(k))
 	if err != nil {
@@ -43,9 +43,9 @@ func newVerifier(t *testing.T, k *testkit.AccessKeys, c *clock) *cfaccess.Verifi
 }
 
 // primed: máy chủ khóa, đồng hồ giả và bộ kiểm thẻ đã kiểm một thẻ hợp lệ (đã tải khóa một lần).
-func primed(t *testing.T) (*testkit.AccessKeys, *clock, *cfaccess.Verifier) {
+func primed(t *testing.T) (*cfaccesstest.AccessKeys, *clock, *cfaccess.Verifier) {
 	t.Helper()
-	k := testkit.AccessKeyServer(t)
+	k := cfaccesstest.AccessKeyServer(t)
 	c := newClock()
 	v := newVerifier(t, k, c)
 	if _, err := v.Verify(t.Context(), k.Sign(good("a@e.test"))); err != nil {
@@ -60,12 +60,12 @@ func noneToken() string {
 	return enc([]byte(`{"alg":"none","typ":"JWT"}`)) + "." + enc([]byte(`{"email":"a@e.test","aud":"`+aud+`"}`)) + "."
 }
 
-func good(email string) testkit.AccessClaims {
-	return testkit.AccessClaims{Email: email, AUD: aud, MFA: []string{"pwd", "mfa"}}
+func good(email string) cfaccesstest.AccessClaims {
+	return cfaccesstest.AccessClaims{Email: email, AUD: aud, MFA: []string{"pwd", "mfa"}}
 }
 
 func TestVerify(t *testing.T) {
-	k := testkit.AccessKeyServer(t)
+	k := cfaccesstest.AccessKeyServer(t)
 	v := newVerifier(t, k, newClock())
 	email, err := v.Verify(t.Context(), k.Sign(good("lan@elimaz.test")))
 	if err != nil || email != "lan@elimaz.test" {
@@ -75,12 +75,12 @@ func TestVerify(t *testing.T) {
 	bad := map[string]string{
 		"rỗng":           "",
 		"không phải JWT": "abc.def",
-		"sai aud":        k.Sign(testkit.AccessClaims{Email: "a@e.test", AUD: "khac", MFA: []string{"mfa"}}),
-		"sai iss":        k.Sign(testkit.AccessClaims{Email: "a@e.test", AUD: aud, Iss: "https://khac.cloudflareaccess.com", MFA: []string{"mfa"}}),
-		"hết hạn":        k.Sign(testkit.AccessClaims{Email: "a@e.test", AUD: aud, Exp: -time.Minute, MFA: []string{"mfa"}}),
+		"sai aud":        k.Sign(cfaccesstest.AccessClaims{Email: "a@e.test", AUD: "khac", MFA: []string{"mfa"}}),
+		"sai iss":        k.Sign(cfaccesstest.AccessClaims{Email: "a@e.test", AUD: aud, Iss: "https://khac.cloudflareaccess.com", MFA: []string{"mfa"}}),
+		"hết hạn":        k.Sign(cfaccesstest.AccessClaims{Email: "a@e.test", AUD: aud, Exp: -time.Minute, MFA: []string{"mfa"}}),
 		"khóa khác":      k.SignForeign(good("a@e.test")),
-		"thiếu email":    k.Sign(testkit.AccessClaims{AUD: aud, MFA: []string{"mfa"}}),
-		"thiếu exp":      k.Sign(testkit.AccessClaims{Email: "a@e.test", AUD: aud, MFA: []string{"mfa"}, Extra: map[string]any{"exp": nil}}),
+		"thiếu email":    k.Sign(cfaccesstest.AccessClaims{AUD: aud, MFA: []string{"mfa"}}),
+		"thiếu exp":      k.Sign(cfaccesstest.AccessClaims{Email: "a@e.test", AUD: aud, MFA: []string{"mfa"}, Extra: map[string]any{"exp": nil}}),
 		"alg none":       noneToken(),
 	}
 	for name, tok := range bad {
@@ -89,10 +89,10 @@ func TestVerify(t *testing.T) {
 		}
 	}
 
-	mfa := map[string]testkit.AccessClaims{
+	mfa := map[string]cfaccesstest.AccessClaims{
 		"thiếu trường MFA":   {Email: "a@e.test", AUD: aud},
 		"MFA không cho phép": {Email: "a@e.test", AUD: aud, MFA: []string{"pwd"}},
-		"MFA kiểu lạ":        {Email: "a@e.test", AUD: aud, Extra: map[string]any{testkit.AccessMFAClaim: true}},
+		"MFA kiểu lạ":        {Email: "a@e.test", AUD: aud, Extra: map[string]any{cfaccesstest.AccessMFAClaim: true}},
 	}
 	for name, c := range mfa {
 		if _, err := v.Verify(t.Context(), k.Sign(c)); !errors.Is(err, identity.ErrMFARequired) {
@@ -100,7 +100,7 @@ func TestVerify(t *testing.T) {
 		}
 	}
 	// MFA là chuỗi đơn cũng nhận.
-	if _, err := v.Verify(t.Context(), k.Sign(testkit.AccessClaims{Email: "a@e.test", AUD: aud, Extra: map[string]any{testkit.AccessMFAClaim: "mfa"}})); err != nil {
+	if _, err := v.Verify(t.Context(), k.Sign(cfaccesstest.AccessClaims{Email: "a@e.test", AUD: aud, Extra: map[string]any{cfaccesstest.AccessMFAClaim: "mfa"}})); err != nil {
 		t.Fatalf("MFA chuỗi đơn: %v", err)
 	}
 }
@@ -171,7 +171,7 @@ func TestUnknownKidThrottled(t *testing.T) {
 
 // Khóa cũ hơn 10 phút được làm mới ở lần kiểm sau; máy chủ khóa lỗi thì giữ khóa cũ.
 func TestPeriodicRefreshKeepsOldKeysOnFailure(t *testing.T) {
-	k := testkit.AccessKeyServer(t)
+	k := cfaccesstest.AccessKeyServer(t)
 	c := newClock()
 	v := newVerifier(t, k, c)
 	claims := good("a@e.test")
@@ -202,7 +202,7 @@ func TestPeriodicRefreshKeepsOldKeysOnFailure(t *testing.T) {
 
 // Chưa từng tải được khóa (máy chủ khóa lỗi) → thẻ không hợp lệ, không lỗi lạ.
 func TestNoKeysYet(t *testing.T) {
-	k := testkit.AccessKeyServer(t)
+	k := cfaccesstest.AccessKeyServer(t)
 	k.SetFailing(true)
 	v := newVerifier(t, k, newClock())
 	if _, err := v.Verify(t.Context(), k.Sign(good("a@e.test"))); !errors.Is(err, identity.ErrInvalidToken) {

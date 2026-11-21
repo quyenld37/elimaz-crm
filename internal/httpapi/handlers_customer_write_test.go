@@ -12,8 +12,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/platform/config"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
@@ -25,7 +27,7 @@ const (
 type customerAPIEnv struct {
 	t             *testing.T
 	staff         *testkit.Staff
-	keys          *testkit.AccessKeys
+	keys          *cfaccesstest.AccessKeys
 	srv           http.Handler
 	tenant, other uuid.UUID
 	logs          fmt.Stringer
@@ -34,7 +36,7 @@ type customerAPIEnv struct {
 
 func newCustomerAPIEnv(t *testing.T) *customerAPIEnv {
 	t.Helper()
-	e := &customerAPIEnv{t: t, staff: testkit.OpenStaff(t), keys: testkit.AccessKeyServer(t)}
+	e := &customerAPIEnv{t: t, staff: testkit.OpenStaff(t), keys: cfaccesstest.AccessKeyServer(t)}
 	// Danh mục mẫu mã T… (dữ liệu thật chưa nạp, chờ chủ shop OK): mã, cấp, tỉnh cha, tên, tên bỏ dấu.
 	for _, u := range [][5]string{
 		{"T01", "province", "", "Thành phố Thử Một", "thanh pho thu mot"},
@@ -57,7 +59,7 @@ func newCustomerAPIEnv(t *testing.T) *customerAPIEnv {
 	authE := &authEnv{t: t, keys: e.keys}
 	e.srv = NewServer(Deps{
 		Config: config.Config{ConsoleOrigins: []string{testOrigin}}, DB: e.staff.App, Logger: logger,
-		Access: authE.verifier(), Realtime: &testkit.RecordingBus{},
+		Access: authE.verifier(), Realtime: &realtimetest.RecordingBus{},
 	})
 	return e
 }

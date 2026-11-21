@@ -18,8 +18,10 @@ import (
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/testkit/shoptest"
 )
 
 // TestMain nâng số lượt rapid lên 500 (kế hoạch Task M1-27: thuộc tính của bộ dựng HTML 500 lượt), trừ khi người chạy
@@ -38,14 +40,14 @@ type catalogEnv struct {
 	// partner là người bán thứ hai PARTNER1 (ADR-29, KH14).
 	partner uuid.UUID
 	actor   identity.AuthUser
-	bus     *testkit.RecordingBus
+	bus     *realtimetest.RecordingBus
 }
 
 func newCatalogEnv(t *testing.T) *catalogEnv {
 	t.Helper()
-	e := &catalogEnv{t: t, staff: testkit.OpenStaff(t), bus: &testkit.RecordingBus{}}
+	e := &catalogEnv{t: t, staff: testkit.OpenStaff(t), bus: &realtimetest.RecordingBus{}}
 	e.tenant = e.staff.Tenant(t, "A")
-	e.seller, e.partner = testkit.SeedSellers(t, e.staff.Owner, e.tenant)
+	e.seller, e.partner = shoptest.SeedSellers(t, e.staff.Owner, e.tenant)
 	uid := e.staff.User(t, e.tenant, "chu@elimaz.test", "active")
 	e.actor = identity.AuthUser{
 		UserID: uid, TenantID: e.tenant, Email: "chu@elimaz.test",

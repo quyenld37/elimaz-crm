@@ -14,6 +14,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
@@ -136,5 +137,5 @@ func readAll(t *testing.T, s files.FileStore, b files.Bucket, key string) []byte
 // stores: hai bản hiện thực thật của FileStore, mọi ca của đường tải lên chạy trên cả hai.
 func stores(t *testing.T) map[string]files.FileStore {
 	t.Helper()
-	return map[string]files.FileStore{"mem": testkit.MemFileStore(t), "s3": testkit.S3FileStore(t)}
+	return map[string]files.FileStore{"mem": filestest.MemFileStore(t), "s3": filestest.S3FileStore(t)}
 }

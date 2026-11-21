@@ -12,7 +12,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/testkit/shiptest"
 )
 
@@ -303,7 +303,7 @@ func TestManual_StaffCancelTask(t *testing.T) {
 func TestManual_SelfAccountWithoutCarriers(t *testing.T) {
 	e := newShipEnv(t)
 	svc := fulfillment.New(fulfillment.Deps{
-		DB: e.staff.App, Queue: queue.NewQueue(), Events: events.NewRegistry(), Bus: &testkit.RecordingBus{},
+		DB: e.staff.App, Queue: queue.NewQueue(), Events: events.NewRegistry(), Bus: &realtimetest.RecordingBus{},
 	}).Service
 	seller := e.seller
 	in := func(key, mode string) fulfillment.AccountInput {

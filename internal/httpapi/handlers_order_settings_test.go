@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/testkit"
@@ -22,7 +23,7 @@ const (
 type orderSettingsEnv struct {
 	t      *testing.T
 	staff  *testkit.Staff
-	keys   *testkit.AccessKeys
+	keys   *cfaccesstest.AccessKeys
 	srv    http.Handler
 	tenant uuid.UUID
 }
@@ -45,7 +46,7 @@ func rolePerms(t *testing.T, key string) []string {
 
 func newOrderSettingsEnv(t *testing.T) *orderSettingsEnv {
 	t.Helper()
-	e := &orderSettingsEnv{t: t, staff: testkit.OpenStaff(t), keys: testkit.AccessKeyServer(t)}
+	e := &orderSettingsEnv{t: t, staff: testkit.OpenStaff(t), keys: cfaccesstest.AccessKeyServer(t)}
 	e.tenant = e.staff.Tenant(t, "A")
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error { return order.EnsureDefaults(t.Context(), tx, e.tenant) })
 	m := e.staff.User(t, e.tenant, settingsManager, "active")

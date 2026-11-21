@@ -22,7 +22,6 @@ import (
 	"elimaz.com.vn/crm/internal/platform/files/filestest"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/xlsx"
-	"elimaz.com.vn/crm/internal/testkit"
 )
 
 const xlsxType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -37,7 +36,7 @@ type importEnv struct {
 
 func newImportEnv(t *testing.T) *importEnv {
 	t.Helper()
-	e := &importEnv{catalogEnv: newCatalogEnv(t), store: testkit.MemFileStore(t)}
+	e := &importEnv{catalogEnv: newCatalogEnv(t), store: filestest.MemFileStore(t)}
 	e.seedClassification()
 	v := catalog.NewImportValidator(catalog.ImportValidatorOptions{DB: e.staff.App, Store: e.store})
 	e.w = e.newWorker(v)

@@ -13,6 +13,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
@@ -43,7 +44,7 @@ func seedQtyOrder(t *testing.T, owner, app *db.DB) qtyOrder {
 		if err != nil {
 			return err //nolint:wrapcheck // test
 		}
-		w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}}
+		w := order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}}
 		o, err := w.CreateManual(ctx, tx, order.CreateManualInput{
 			IdempotencyKey: uuid.New(), SellerID: shop.Seller, CustomerID: c,
 			Items:       []order.ItemInput{{VariantID: v1, Qty: 2}, {VariantID: v2, Qty: 2}},

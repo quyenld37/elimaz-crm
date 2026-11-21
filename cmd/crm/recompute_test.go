@@ -13,6 +13,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -31,7 +32,7 @@ func newRecomputeEnv(t *testing.T) *recomputeEnv {
 	t.Helper()
 	s := testkit.OpenStaff(t)
 	e := &recomputeEnv{s: s, a: s.Tenant(t, "A"), b: s.Tenant(t, "B"), created: time.Date(2026, 11, 21, 8, 0, 0, 0, time.UTC)}
-	w := customer.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}}
+	w := customer.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}}
 	actor := customer.Actor{Type: customer.ActorStaff, ID: uuid.New()}
 	app := func(fn func(tx pgx.Tx) error) {
 		t.Helper()
@@ -105,7 +106,7 @@ func (e *recomputeEnv) link(t *testing.T) string {
 // báo hiệu customer.changed cho gốc; chạy lần hai cho cùng kết quả. Mã không có ở tenant nào → errCustomerUnknown.
 func TestRecomputeCustomerStats(t *testing.T) {
 	e := newRecomputeEnv(t)
-	bus := &testkit.RecordingBus{}
+	bus := &realtimetest.RecordingBus{}
 	for i := range 2 {
 		res, err := recomputeCustomerStats(t.Context(), e.s.App, bus, e.y, e.created.Add(time.Hour))
 		if err != nil {

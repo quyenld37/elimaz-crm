@@ -13,7 +13,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/platform/files"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 )
 
 func testPrivateImagePurpose() files.Purpose {
@@ -184,7 +184,7 @@ func TestPurposes_PrivateMode(t *testing.T) {
 	}); !errors.Is(err, files.ErrPurposeMode) {
 		t.Fatalf("Register mục đích private: muốn ErrPurposeMode, nhận %v", err)
 	}
-	store := testkit.MemFileStore(t)
+	store := filestest.MemFileStore(t)
 	f, put := e.mustCreate(store, files.UploadInput{TenantID: e.a, Purpose: "test_private_image", FileName: "a.jpg", ContentType: "image/jpeg", SizeBytes: 10})
 	if f.Bucket != files.BucketTmp || f.Key != files.TmpKey(e.a, f.ID) {
 		t.Fatalf("ảnh riêng tư vẫn chỉ vào crm-tmp: %+v", f)

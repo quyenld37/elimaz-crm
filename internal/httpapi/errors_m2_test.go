@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/order"
@@ -131,7 +132,7 @@ func domainErrorRecorder(t *testing.T, err error) *httptest.ResponseRecorder {
 // ht.ErrNotImplemented như route chưa làm trong máy chủ thật) qua đúng chain và writeHandlerError của newMux: test
 // không gãy khi làm thêm route.
 func TestM2Routes_Unimplemented(t *testing.T) {
-	staff, keys := testkit.OpenStaff(t), testkit.AccessKeyServer(t)
+	staff, keys := testkit.OpenStaff(t), cfaccesstest.AccessKeyServer(t)
 	tenant := staff.Tenant(t, "A")
 	owner := staff.User(t, tenant, "chu@elimaz.test", "active")
 	staff.Grant(t, tenant, owner, []string{"customer.read", "order.create", "order.read"}, "all", "")

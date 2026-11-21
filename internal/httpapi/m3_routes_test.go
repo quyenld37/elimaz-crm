@@ -11,12 +11,15 @@ import (
 
 	"github.com/google/uuid"
 
+	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
@@ -31,7 +34,7 @@ const (
 type m3Env struct {
 	t      *testing.T
 	staff  *testkit.Staff
-	keys   *testkit.AccessKeys
+	keys   *cfaccesstest.AccessKeys
 	srv    http.Handler
 	tenant uuid.UUID
 	key    int
@@ -46,14 +49,14 @@ func newM3Env(t *testing.T) *m3Env {
 	t.Helper()
 	cash.RegisterFilePurposes()
 	fulfillment.RegisterFilePurposes()
-	e := &m3Env{t: t, staff: testkit.OpenStaff(t), keys: testkit.AccessKeyServer(t)}
+	e := &m3Env{t: t, staff: testkit.OpenStaff(t), keys: cfaccesstest.AccessKeyServer(t)}
 	e.tenant = e.staff.Tenant(t, "A")
 	for email, role := range map[string]string{m3Owner: "owner", m3Manager: "manager", m3Warehouse: "warehouse", m3Accounter: "accountant"} {
 		e.staff.Grant(t, e.tenant, e.staff.User(t, e.tenant, email, "active"), rolePerms(t, role), "all", "")
 	}
 	e.staff.Grant(t, e.tenant, e.staff.User(t, e.tenant, m3Reader, "active"), []string{"fulfillment.read"}, "all", "")
 	authE := &authEnv{t: t, keys: e.keys}
-	e.files = testkit.MemFileStore(t)
+	e.files = filestest.MemFileStore(t)
 	e.events = events.NewRegistry()
 	e.cash = cash.New(cash.Deps{DB: e.staff.App, Queue: queue.NewQueue(), Files: e.files, Events: e.events})
 	for _, c := range e.cash.Consumers() {
@@ -63,7 +66,7 @@ func newM3Env(t *testing.T) *m3Env {
 	}
 	e.srv = NewServer(Deps{
 		Config: config.Config{ConsoleOrigins: []string{testOrigin}}, DB: e.staff.App, Logger: discardLogger(t),
-		Access: authE.verifier(), Realtime: &testkit.RecordingBus{}, Files: e.files, Cash: e.cash.Service,
+		Access: authE.verifier(), Realtime: &realtimetest.RecordingBus{}, Files: e.files, Cash: e.cash.Service,
 	})
 	return e
 }

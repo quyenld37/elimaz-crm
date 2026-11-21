@@ -27,6 +27,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
@@ -52,7 +53,7 @@ func envOr(key, def string) string {
 func newPipeline(t *testing.T) *pipeline {
 	t.Helper()
 	s := testkit.OpenStaff(t)
-	p := &pipeline{t: t, staff: s, tenant: s.Tenant(t, "A"), fs: testkit.S3FileStore(t)}
+	p := &pipeline{t: t, staff: s, tenant: s.Tenant(t, "A"), fs: filestest.S3FileStore(t)}
 	files.RegisterPurpose(files.Purpose{
 		Key: e2ePrivatePurpose, Bucket: files.BucketPrivate, AllowedTypes: []string{"image/jpeg", "image/png", "image/webp"},
 		MaxBytes: 20 << 20, Image: true, Upload: true, Private: true,
@@ -62,7 +63,7 @@ func newPipeline(t *testing.T) *pipeline {
 		e2ePrivatePurpose); err != nil {
 		t.Fatal(err)
 	}
-	signCfg := testkit.S3Config(t, testkit.S3App)
+	signCfg := filestest.S3Config(t, filestest.S3App)
 	signCfg.Endpoint = envOr("S3_IMAGER_ENDPOINT", "http://s3-imaging:8333")
 	signer, err := files.NewS3Store(signCfg)
 	if err != nil {

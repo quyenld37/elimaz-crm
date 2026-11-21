@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/order"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 )
 
 // transition chạy order.ApplyTransition trên đơn o trong một transaction crm_app.
@@ -94,7 +94,7 @@ func TestApplyTransition_Refusals(t *testing.T) {
 func TestApplyTransition_Signals(t *testing.T) {
 	e := newM2Env(t)
 	o := e.draftOrder()
-	bus := &testkit.RecordingBus{}
+	bus := &realtimetest.RecordingBus{}
 	w := e.writer()
 	w.Realtime = bus
 	if err := e.app(func(tx pgx.Tx) error {

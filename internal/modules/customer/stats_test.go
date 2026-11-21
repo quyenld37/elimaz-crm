@@ -17,6 +17,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -43,7 +44,7 @@ func newStatsEnv(t *testing.T) *statsEnv {
 	s.SeedAdminUnits(t)
 	e := &statsEnv{
 		t: t, staff: s, tenant: s.Tenant(t, "A"), now: time.Date(2026, 11, 19, 8, 30, 0, 0, time.UTC),
-		cw:    customer.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}},
+		cw:    customer.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}},
 		actor: customer.Actor{Type: customer.ActorStaff, ID: uuid.New()},
 		fed:   map[uuid.UUID]bool{},
 	}
@@ -63,7 +64,7 @@ func (e *statsEnv) app(fn func(tx pgx.Tx) error) {
 }
 
 func (e *statsEnv) ow() order.Writer {
-	return order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{}}
+	return order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}}
 }
 
 func (e *statsEnv) newCustomer(name string) uuid.UUID {

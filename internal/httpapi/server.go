@@ -31,7 +31,7 @@ type Deps struct {
 	Config config.Config
 	DB     *db.DB
 	Logger *slog.Logger
-	// Files là kho tệp (cmd/crm nối files.S3Store; test nối testkit.MemFileStore). nil → route tệp trả 500.
+	// Files là kho tệp (cmd/crm nối files.S3Store; test nối filestest.MemFileStore). nil → route tệp trả 500.
 	Files files.FileStore
 	// Access kiểm thẻ Cloudflare Access (cmd/crm nối internal/adapters/cfaccess). nil → mọi route không công khai 401.
 	Access identity.Verifier

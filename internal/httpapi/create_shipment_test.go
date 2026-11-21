@@ -15,7 +15,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/testkit"
+	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 )
 
 // Gửi hãng qua HTTP (kế hoạch M3, Task M3-12): VC03, bấm hai lần, gửi song song, "Gửi lại", xử lý "không rõ".
@@ -87,7 +87,7 @@ func shipServer(t *testing.T, e *orderAPIEnv) http.Handler {
 	t.Helper()
 	d := testServerDeps(t, e.staff, e.keys, 0)
 	d.Fulfillment = fulfillment.New(fulfillment.Deps{
-		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &testkit.RecordingBus{}, Events: events.NewRegistry(),
+		DB: e.staff.App, Queue: queue.NewQueue(), Bus: &realtimetest.RecordingBus{}, Events: events.NewRegistry(),
 	}).Service
 	return NewServer(d)
 }
@@ -121,7 +121,7 @@ func newShipAPIEnv(t *testing.T) *shipAPIEnv {
 	e.srv = shipServer(t, e.orderAPIEnv)
 	e.cmds = []commands.Handler{fulfillment.NewCreateCommand(fulfillment.CommandOptions{
 		DB: e.staff.App, Adapters: []fulfillment.CarrierAdapter{e.carrier}, Events: events.NewRegistry(),
-		Queue: queue.NewQueue(), Realtime: &testkit.RecordingBus{},
+		Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{},
 	})}
 	e.worker = queue.NewWorker(e.staff.App, nil, queue.WorkerOptions{
 		WorkerID: "test/" + uuid.NewString(), Commands: commands.NewRunner(e.staff.App, e.cmds),

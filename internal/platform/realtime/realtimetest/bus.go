@@ -1,4 +1,5 @@
-package testkit
+// Package realtimetest có bản giả của realtime.Bus cho test của module.
+package realtimetest
 
 import (
 	"context"
