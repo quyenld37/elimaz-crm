@@ -33,7 +33,7 @@ func TestOkDone(t *testing.T) {
 	ext := &testkit.FakeExternal{Mode: testkit.FakeOK}
 	h := newCmd("command.ok", ext)
 	id := e.enqueue(t, h.kind, "k")
-	runOnce(t, worker(e, "w1", h))
+	e.runOnce(t, worker(e, "w1", h))
 	r := e.job(t, id)
 	if r.Status != "done" || !strings.Contains(string(r.Result), "x-1") {
 		t.Fatalf("muốn done có kết quả: %+v", r)
@@ -56,7 +56,7 @@ func TestExecuteAfterRunningCommitted(t *testing.T) {
 		return commands.Outcome{Status: commands.StatusDone}, nil
 	}
 	id := e.enqueue(t, h.kind, "k")
-	runOnce(t, worker(e, "w1", h))
+	e.runOnce(t, worker(e, "w1", h))
 	if seen != "running" || e.job(t, id).Status != "done" {
 		t.Fatalf("trong Execute người khác phải thấy running, có %q", seen)
 	}
@@ -69,14 +69,14 @@ func TestTimeoutAfterSendInDoubtNeverResent(t *testing.T) {
 	h := newCmd("command.timeout", ext)
 	id := e.enqueue(t, h.kind, "k")
 	w := worker(e, "w1", h)
-	runOnce(t, w)
+	e.runOnce(t, w)
 	if r := e.job(t, id); r.Status != "in_doubt" || r.LastError == nil {
 		t.Fatalf("muốn in_doubt có last_error: %+v", r)
 	}
 	ext.SetMode(testkit.FakeOK)
 	for range 3 {
 		e.makeDue(t)
-		runOnce(t, w)
+		e.runOnce(t, w)
 	}
 	_, _, terms := h.snapshot()
 	if len(ext.Calls()) != 1 || e.job(t, id).Status != "in_doubt" || len(terms) != 1 || terms[0] != id.String()+":in_doubt" {
@@ -91,7 +91,7 @@ func TestLeaseExpiredInDoubtWithoutExecute(t *testing.T) {
 	h := newCmd("command.crash", ext)
 	id := e.enqueue(t, h.kind, "k")
 	e.crash(t, id)
-	runOnce(t, worker(e, "w1", h))
+	e.runOnce(t, worker(e, "w1", h))
 	execs, _, terms := h.snapshot()
 	if r := e.job(t, id); r.Status != "in_doubt" || execs != 0 || len(ext.Calls()) != 0 || len(terms) != 1 {
 		t.Fatalf("muốn in_doubt không gọi Execute: %+v, executes %d, terminals %v", r, execs, terms)
@@ -118,7 +118,7 @@ func TestNotSent(t *testing.T) {
 			h := newCmd("command.notsent", ext)
 			h.autoRetry, h.retryAfter = c.auto, c.after
 			id := e.enqueue(t, h.kind, "k")
-			runOnce(t, worker(e, "w1", h))
+			e.runOnce(t, worker(e, "w1", h))
 			r := e.job(t, id)
 			_, _, terms := h.snapshot()
 			if r.Status != c.want || (c.want == "pending" && (r.RunInS < c.minS || r.RunInS > c.maxS)) {
@@ -140,7 +140,7 @@ func TestNotSentLastAttemptDead(t *testing.T) {
 	h := newCmd("command.max", &testkit.FakeExternal{Mode: testkit.FakeFailBeforeSend})
 	id := e.enqueue(t, h.kind, "k")
 	e.ownerExec(t, "UPDATE platform.jobs SET attempts = 7 WHERE id = $1", id)
-	runOnce(t, worker(e, "w1", h))
+	e.runOnce(t, worker(e, "w1", h))
 	if r := e.job(t, id); r.Status != "dead" || r.Attempts != 8 {
 		t.Fatalf("lần thứ 8 chưa gửi → dead: %+v", r)
 	}
@@ -179,7 +179,7 @@ func TestNotSentKeepAttempt(t *testing.T) {
 					return commands.Outcome{Status: commands.StatusNotSent, Reason: "x", KeepAttempt: true}, nil
 				}
 			}
-			runOnce(t, worker(e, "w1", h))
+			e.runOnce(t, worker(e, "w1", h))
 			r := e.job(t, id)
 			_, _, terms := h.snapshot()
 			if r.Status != c.want || r.Attempts != c.attempts || len(terms) != c.terminals {
@@ -197,7 +197,7 @@ func TestRejectDead(t *testing.T) {
 	e := newEnv(t)
 	h := newCmd("command.reject", &testkit.FakeExternal{Mode: testkit.FakeReject})
 	id := e.enqueue(t, h.kind, "k")
-	runOnce(t, worker(e, "w1", h))
+	e.runOnce(t, worker(e, "w1", h))
 	r := e.job(t, id)
 	_, _, terms := h.snapshot()
 	if r.Status != "dead" || r.LastError == nil || !strings.Contains(*r.LastError, "policy") ||
@@ -224,7 +224,7 @@ func TestUnknownOutcomesInDoubt(t *testing.T) {
 			h := newCmd("command.unknown", nil)
 			h.exec = exec
 			id := e.enqueue(t, h.kind, "k")
-			runOnce(t, worker(e, "w1", h))
+			e.runOnce(t, worker(e, "w1", h))
 			if r := e.job(t, id); r.Status != "in_doubt" {
 				t.Fatalf("muốn in_doubt: %+v", r)
 			}
@@ -239,7 +239,7 @@ func TestExecuteTimeoutInDoubt(t *testing.T) {
 	h := newCmd("command.hang", ext)
 	h.kind = commands.CommandKind("command.hang", 0, 50*time.Millisecond)
 	id := e.enqueue(t, h.kind, "k")
-	runOnce(t, worker(e, "w1", h)) // không có Timeout thì Execute treo tới hết hạn của test
+	e.runOnce(t, worker(e, "w1", h)) // không có Timeout thì Execute treo tới hết hạn của test
 	if r := e.job(t, id); r.Status != "in_doubt" || r.LastError == nil || !strings.Contains(*r.LastError, "deadline") {
 		t.Fatalf("muốn in_doubt vì quá giờ: %+v", r)
 	}
@@ -256,10 +256,10 @@ func TestCommandExpires(t *testing.T) {
 	h.kind = commands.CommandKind("command.expire", 100*time.Millisecond, time.Second)
 	id := e.enqueue(t, h.kind, "k")
 	w := worker(e, "w1", h)
-	runOnce(t, w)
+	e.runOnce(t, w)
 	time.Sleep(150 * time.Millisecond)
-	runOnce(t, w)
-	runOnce(t, w)
+	e.runOnce(t, w)
+	e.runOnce(t, w)
 	_, _, terms := h.snapshot()
 	if r := e.job(t, id); r.Status != "expired" || len(terms) != 1 || terms[0] != id.String()+":expired" {
 		t.Fatalf("muốn expired, OnTerminal một lần: %+v %v", r, terms)
@@ -277,10 +277,10 @@ func TestCommandExpiredCountsMetric(t *testing.T) {
 	w := queue.NewWorker(e.app, nil, queue.WorkerOptions{
 		WorkerID: "w1", Metrics: reg, Commands: commands.NewRunner(e.app, []commands.Handler{h}),
 	})
-	runOnce(t, w)
+	e.runOnce(t, w)
 	time.Sleep(150 * time.Millisecond)
-	runOnce(t, w)
-	runOnce(t, w)
+	e.runOnce(t, w)
+	e.runOnce(t, w)
 	var n int64
 	for _, r := range reg.Drain() {
 		if r.Name == "jobs_expired" && r.Label == "command.expm" {
@@ -300,6 +300,7 @@ func TestStopDuringExecuteInDoubt(t *testing.T) {
 	id := e.enqueue(t, h.kind, "k")
 	w := worker(e, "w1", h)
 	done := make(chan error, 1)
+	testkit.MakeDueSoon(t, e.owner) // xem runOnce
 	go func() { _, err := w.RunOnce(context.Background(), 10); done <- err }()
 	deadline := time.Now().Add(3 * time.Second)
 	for len(ext.Calls()) == 0 && time.Now().Before(deadline) {
@@ -324,7 +325,7 @@ func TestStoppedBeforeExecuteReleased(t *testing.T) {
 	id := e.enqueue(t, h.kind, "k")
 	w := worker(e, "w1", h)
 	_ = w.Stop(0)
-	runOnce(t, w)
+	e.runOnce(t, w)
 	if r := e.job(t, id); r.Status != "pending" || r.Attempts != 0 || len(ext.Calls()) != 0 {
 		t.Fatalf("muốn pending, attempts 0, không gọi: %+v %v", r, ext.Calls())
 	}
@@ -336,13 +337,13 @@ func TestCommandWithoutHandler(t *testing.T) {
 	ext := &testkit.FakeExternal{}
 	known := newCmd("command.known", ext)
 	id := e.enqueue(t, commands.CommandKind("command.other", 0, time.Second), "k")
-	runOnce(t, worker(e, "w1", known))
+	e.runOnce(t, worker(e, "w1", known))
 	if r := e.job(t, id); r.Status != "dead" || r.LastError == nil || *r.LastError != "no handler" {
 		t.Fatalf("muốn dead no handler: %+v", r)
 	}
 	id2 := e.enqueue(t, known.kind, "k2")
 	plain := queue.NewWorker(e.app, nil, queue.WorkerOptions{WorkerID: "plain"})
-	runOnce(t, plain)
+	e.runOnce(t, plain)
 	if r := e.job(t, id2); r.Status != "pending" || len(ext.Calls()) != 0 {
 		t.Fatalf("worker không có runner không được nhận lệnh: %+v", r)
 	}
@@ -355,9 +356,9 @@ func TestDoneRecordFailsInDoubt(t *testing.T) {
 	h := &failDone{cmdH: newCmd("command.faildone", ext)}
 	id := e.enqueue(t, h.kind, "k")
 	w := worker(e, "w1", h)
-	runOnce(t, w)
+	e.runOnce(t, w)
 	e.makeDue(t)
-	runOnce(t, w)
+	e.runOnce(t, w)
 	if r := e.job(t, id); r.Status != "in_doubt" || len(ext.Calls()) != 1 {
 		t.Fatalf("muốn in_doubt, 1 lần gửi: %+v %v", r, ext.Calls())
 	}
@@ -385,7 +386,7 @@ func TestRecordAfterLongExecute(t *testing.T) {
 	id := e.enqueue(t, h.kind, "k")
 	r := commands.NewRunner(e.app, []commands.Handler{h})
 	commands.SetRecordTimeout(r, record)
-	runOnce(t, queue.NewWorker(e.app, nil, queue.WorkerOptions{WorkerID: "w1", Commands: r}))
+	e.runOnce(t, queue.NewWorker(e.app, nil, queue.WorkerOptions{WorkerID: "w1", Commands: r}))
 	_, dones, _ := h.snapshot()
 	if st := e.job(t, id).Status; st != "done" || len(dones) != 1 {
 		t.Fatalf("muốn done, OnDone 1 lần sau Execute chạy lâu: %s %v", st, dones)
@@ -415,7 +416,7 @@ func TestCommandTimeoutBelowLease(t *testing.T) {
 		WorkerID: "w1", Lease: lease,
 		Commands: commands.NewRunner(e.app, []commands.Handler{h}),
 	})
-	runOnce(t, w)
+	e.runOnce(t, w)
 	r := e.job(t, id)
 	if left > lease/2 || r.Status != "in_doubt" || r.LastError == nil || !strings.Contains(*r.LastError, "deadline") {
 		t.Fatalf("muốn in_doubt do quá Timeout đã chặn dưới nửa giữ chỗ; hạn còn %v lúc Execute bắt đầu: %+v", left, r)
@@ -449,14 +450,14 @@ func TestNotSentPastExpiryExpires(t *testing.T) {
 			}
 			id := e.enqueue(t, h.kind, "k")
 			e.ownerExec(t, "UPDATE platform.jobs SET attempts = $2 WHERE id = $1", id, c.attempts)
-			runOnce(t, worker(e, "w1", h))
+			e.runOnce(t, worker(e, "w1", h))
 			r := e.job(t, id)
 			_, _, terms := h.snapshot()
 			if r.Status != "expired" || r.LastError == nil || !strings.Contains(*r.LastError, "not_sent") ||
 				len(terms) != 1 || terms[0] != id.String()+":expired" {
 				t.Fatalf("muốn expired, OnTerminal(expired) một lần: %+v, terminals %v", r, terms)
 			}
-			runOnce(t, worker(e, "w2", h))
+			e.runOnce(t, worker(e, "w2", h))
 			if execs, _, _ := h.snapshot(); execs != 1 {
 				t.Fatalf("expired không được gửi lại: executes %d", execs)
 			}

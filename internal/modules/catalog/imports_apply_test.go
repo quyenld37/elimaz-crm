@@ -17,6 +17,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/platform/xlsx"
+	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // apply gọi Writer.ApplyImport cho bản nhập imp ở version của nó (chưa chạy việc).
@@ -260,6 +261,7 @@ func TestApply_TwoImportsSameSKUConcurrently(t *testing.T) {
 	workers := []*queue.Worker{e.newWorker(v), e.newWorker(v)}
 	var wg sync.WaitGroup
 	errs := make([]error, len(workers))
+	testkit.MakeDueSoon(t, e.staff.Owner) // hai việc áp phải tới hạn để hai worker nhận song song (Task 451)
 	for i, w := range workers {
 		wg.Go(func() { _, errs[i] = w.RunOnce(t.Context(), 1) })
 	}

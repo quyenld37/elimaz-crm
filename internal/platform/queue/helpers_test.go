@@ -213,9 +213,12 @@ func worker(e *env, id string, hs ...queue.Handler) *queue.Worker {
 	return queue.NewWorker(e.app, hs, queue.WorkerOptions{WorkerID: id, Concurrency: 8})
 }
 
-// runOnce gọi RunOnce và làm test đỏ khi lỗi.
-func runOnce(t testing.TB, w *queue.Worker, limit int) int {
+// runOnce gọi RunOnce một lượt và làm test đỏ khi lỗi. Trước lượt đó, testkit.MakeDueSoon đưa về hạn việc chỉ lệch
+// tới hạn vì đồng hồ PostgreSQL lùi (việc vừa ghi "chạy ngay" có run_at lớn hơn now() của lần nhận, Task 446, 451);
+// việc hẹn thật (lịch thử lại từ 4 s, RunAt xa) giữ lịch, nên số việc nhận và việc còn pending vẫn đúng như test kiểm.
+func (e *env) runOnce(t testing.TB, w *queue.Worker, limit int) int {
 	t.Helper()
+	testkit.MakeDueSoon(t, e.owner)
 	n, err := w.RunOnce(t.Context(), limit)
 	if err != nil {
 		t.Fatalf("RunOnce: %v", err)

@@ -47,6 +47,7 @@ func TestWorkerCrashDoesNotSendTwice(t *testing.T) {
 	w1 := queue.NewWorker(staff.App, nil, queue.WorkerOptions{WorkerID: "w1", Commands: commands.NewRunner(staff.App, hs)})
 	ctx1, abandon := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
+	testkit.MakeDueSoon(t, staff.Owner) // lệnh vừa ghi có thể lệch hạn vì đồng hồ PostgreSQL lùi (Task 451)
 	wg.Go(func() { _, _ = w1.RunOnce(ctx1, 1) })
 	stopped := false
 	stop := func() {

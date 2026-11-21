@@ -12,6 +12,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // rawTransfer chèn (crm_app, SQL thẳng, không qua Post) một bút toán adjustment của vận đơn id với các dòng amounts
@@ -341,11 +342,7 @@ func TestConsumerThroughRegistryAndWorker(t *testing.T) {
 		}
 	}
 	w := queue.NewWorker(e.staff.App, r.JobHandlers(), queue.WorkerOptions{WorkerID: "test/" + uuid.NewString()})
-	for range 2 {
-		if _, err := w.RunOnce(t.Context(), 10); err != nil {
-			t.Fatal(err)
-		}
-	}
+	testkit.DrainDue(t, e.staff.Owner, w)
 	b := e.balances(s)
 	if b[cash.AccountToCollect] != 0 || b[cash.AccountCarrierHolding] != 530000 {
 		t.Fatalf("số dư %v", b)

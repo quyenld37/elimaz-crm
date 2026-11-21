@@ -32,7 +32,7 @@ func TestHandlerErrorPersonalDataNotLeaked(t *testing.T) {
 	w := queue.NewWorker(e.app, []queue.Handler{temp, perm}, queue.WorkerOptions{
 		WorkerID: "w1", Logger: slog.New(slog.NewJSONHandler(&logs, nil)),
 	})
-	runOnce(t, w, 10)
+	e.runOnce(t, w, 10)
 
 	for _, id := range []uuid.UUID{tempID, permID} {
 		r := e.job(t, id)

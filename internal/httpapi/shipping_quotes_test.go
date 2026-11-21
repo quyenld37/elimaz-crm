@@ -17,6 +17,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
+	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // apiQuoteCarrier là hãng giả chỉ báo phí: trả results hay err.
@@ -91,11 +92,7 @@ func TestShippingQuotesAPI(t *testing.T) {
 		WorkerID: "test/" + uuid.NewString(),
 		Commands: commands.NewRunner(e.staff.App, []commands.Handler{fulfillment.NewQuoteCommand(m.Service)}),
 	})
-	for range 5 {
-		if _, err := w.RunOnce(t.Context(), 10); err != nil {
-			t.Fatal(err)
-		}
-	}
+	testkit.DrainDue(t, e.staff.Owner, w)
 	checkQuoteList(t, serveAs(srv, e.keys, http.MethodGet, path+"?requestId="+fmt.Sprint(reqID), shipAll, "", ""), reqID, accounts)
 	// Không requestId → lần gần nhất.
 	if latest := decodeJSON(t, serveAs(srv, e.keys, http.MethodGet, path, shipAll, "", "")); latest["requestId"] != reqID {

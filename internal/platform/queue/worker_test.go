@@ -15,6 +15,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/testkit"
 )
 
 var errTemp = errors.New("lỗi tạm")
@@ -30,7 +31,7 @@ func TestHandlerSuccessMarksDoneWithResult(t *testing.T) {
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k", Payload: map[string]string{"ref": "x"}})
 	reg := metrics.NewRegistry()
 	w := queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Metrics: reg})
-	if n := runOnce(t, w, 10); n != 1 {
+	if n := e.runOnce(t, w, 10); n != 1 {
 		t.Fatalf("RunOnce xử lý %d việc, muốn 1", n)
 	}
 	r := e.job(t, id)
@@ -40,7 +41,7 @@ func TestHandlerSuccessMarksDoneWithResult(t *testing.T) {
 	if n := e.count(t, "SELECT count(*) FROM probe.side WHERE job_id = $1", id); n != 1 {
 		t.Fatalf("thay đổi của handler: %d dòng, muốn 1", n)
 	}
-	if n := runOnce(t, w, 10); n != 0 || h.callsOf(id) != 1 {
+	if n := e.runOnce(t, w, 10); n != 0 || h.callsOf(id) != 1 {
 		t.Fatalf("việc done không được chạy lại: n=%d calls=%d", n, h.callsOf(id))
 	}
 	names := map[string]bool{}
@@ -64,7 +65,7 @@ func TestHandlerErrorRollsBackAndReschedules(t *testing.T) {
 	// Mốc giờ database trước và sau lượt chạy: run_at = now() + chờ (5 s ±20%) với now() nằm giữa hai mốc. Không so
 	// với now() lúc đọc (máy bận thì thời gian từ lúc ghi tới lúc đọc làm lệch biên dưới).
 	before := e.dbNow(t)
-	runOnce(t, worker(e, "w1", h), 10)
+	e.runOnce(t, worker(e, "w1", h), 10)
 	after := e.dbNow(t)
 	r := e.job(t, id)
 	if r.Status != "pending" || r.Attempts != 1 || r.LockedBy != nil ||
@@ -87,11 +88,12 @@ func TestLostLeaseRollsBack(t *testing.T) {
 	h := newFH(kind("t.lost"), sideThen(started, func(context.Context) error { <-release; return nil }))
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
 	done := make(chan error, 1)
+	testkit.MakeDueSoon(t, e.owner) // xem runOnce: việc vừa ghi lệch hạn vì đồng hồ PostgreSQL lùi
 	go func() {
 		_, err := worker(e, "w1", h).RunOnce(t.Context(), 10)
 		done <- err
 	}()
-	<-started
+	waitClosed(t, started)
 	e.ownerExec(t, fmt.Sprintf("UPDATE platform.jobs SET locked_by = 'w2' WHERE id = '%s'", id))
 	close(release)
 	if err := <-done; err != nil {
@@ -111,9 +113,9 @@ func TestPermanentErrorGoesDeadOnce(t *testing.T) {
 	h, id := e.enqueuePermanentError(t)
 	reg := metrics.NewRegistry()
 	w := queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Metrics: reg})
-	runOnce(t, w, 10)
+	e.runOnce(t, w, 10)
 	e.makeDue(t)
-	runOnce(t, w, 10)
+	e.runOnce(t, w, 10)
 	r := e.job(t, id)
 	if r.Status != "dead" || r.Attempts != 1 || r.FinishedAt == nil {
 		t.Fatalf("ErrPermanent phải dead ngay: %+v", r)
@@ -141,13 +143,13 @@ func TestEighthFailureGoesDead(t *testing.T) {
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
 	w := worker(e, "w1", h)
 	for i := 1; i <= 7; i++ {
-		runOnce(t, w, 10)
+		e.runOnce(t, w, 10)
 		if r := e.job(t, id); r.Status != "pending" || r.Attempts != i {
 			t.Fatalf("sau lần lỗi %d: %+v", i, r)
 		}
 		e.makeDue(t)
 	}
-	runOnce(t, w, 10)
+	e.runOnce(t, w, 10)
 	if r := e.job(t, id); r.Status != "dead" || r.Attempts != 8 {
 		t.Fatalf("lỗi lần thứ 8 phải dead: %+v", r)
 	}
@@ -163,7 +165,7 @@ func TestExpiredLeaseRetry(t *testing.T) {
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
 	e.ownerExec(t, fmt.Sprintf(`UPDATE platform.jobs SET status = 'running', attempts = 1, locked_by = 'dead-worker',
 		lease_until = now() - interval '1 second' WHERE id = '%s'`, id))
-	runOnce(t, worker(e, "w1", h), 10)
+	e.runOnce(t, worker(e, "w1", h), 10)
 	if r := e.job(t, id); r.Status != "done" || r.Attempts != 2 || h.callsOf(id) != 1 {
 		t.Fatalf("muốn done sau khi chạy lại: %+v, calls %d", r, h.callsOf(id))
 	}
@@ -179,7 +181,7 @@ func TestLiveLeaseNotReclaimed(t *testing.T) {
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
 	e.ownerExec(t, fmt.Sprintf(`UPDATE platform.jobs SET status = 'running', attempts = 1, locked_by = 'other',
 		lease_until = now() + interval '60 seconds' WHERE id = '%s'`, id))
-	runOnce(t, worker(e, "w1", h), 10)
+	e.runOnce(t, worker(e, "w1", h), 10)
 	if r := e.job(t, id); r.Status != "running" || h.callsOf(id) != 0 {
 		t.Fatalf("giữ chỗ còn hạn bị nhận lại: %+v", r)
 	}
@@ -192,7 +194,7 @@ func TestExpiredLeaseAtMaxAttemptsGoesDead(t *testing.T) {
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
 	e.ownerExec(t, fmt.Sprintf(`UPDATE platform.jobs SET status = 'running', attempts = 2, locked_by = 'dead-worker',
 		lease_until = now() - interval '1 second' WHERE id = '%s'`, id))
-	runOnce(t, worker(e, "w1", h), 10)
+	e.runOnce(t, worker(e, "w1", h), 10)
 	if r := e.job(t, id); r.Status != "dead" || h.callsOf(id) != 0 || r.LastError == nil || !strings.Contains(*r.LastError, "lease") {
 		t.Fatalf("muốn dead, không chạy lại: %+v", r)
 	}
@@ -210,8 +212,8 @@ func TestExpiredLeaseInDoubt(t *testing.T) {
 		lease_until = now() - interval '1 second' WHERE id = '%s'`, id))
 	reg := metrics.NewRegistry()
 	w := queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Metrics: reg})
-	runOnce(t, w, 10)
-	runOnce(t, w, 10)
+	e.runOnce(t, w, 10)
+	e.runOnce(t, w, 10)
 	if r := e.job(t, id); r.Status != "in_doubt" || h.callsOf(id) != 0 {
 		t.Fatalf("muốn in_doubt, không chạy lại: %+v", r)
 	}
@@ -279,7 +281,7 @@ func TestHandlerRunsInTenantContext(t *testing.T) {
 	})
 	ja := e.enqueue(t, h.kind, queue.NewJob{TenantID: &a, DedupeKey: "a"})
 	jn := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "none"})
-	runOnce(t, worker(e, "w1", h), 10)
+	e.runOnce(t, worker(e, "w1", h), 10)
 	if r := e.job(t, ja); r.Status != "done" || string(r.Result) != `{"seen": 2}` {
 		t.Fatalf("việc của A phải thấy đúng 2 dòng của A: %+v %s", r, r.Result)
 	}
@@ -311,7 +313,7 @@ func TestHandlerTimeout(t *testing.T) {
 			return nil, ctx.Err()
 		})
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
-	runOnce(t, worker(e, "w1", h), 10)
+	e.runOnce(t, worker(e, "w1", h), 10)
 	if !sawErr { // không bị hủy thì handler chờ hết 5 s và thấy ctx còn sống: phân biệt bằng sự kiện, không bằng giờ
 		t.Fatal("handler phải bị hủy sau Timeout")
 	}
@@ -328,8 +330,8 @@ func TestPendingPastExpiryExpires(t *testing.T) {
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
 	e.ownerExec(t, fmt.Sprintf("UPDATE platform.jobs SET expires_at = now() - interval '1 second' WHERE id = '%s'", id))
 	w := worker(e, "w1", h)
-	runOnce(t, w, 10)
-	runOnce(t, w, 10)
+	e.runOnce(t, w, 10)
+	e.runOnce(t, w, 10)
 	if r := e.job(t, id); r.Status != "expired" || r.FinishedAt == nil || h.callsOf(id) != 0 {
 		t.Fatalf("muốn expired, không Handle: %+v calls %d", r, h.callsOf(id))
 	}
@@ -345,7 +347,7 @@ func TestExpiredCountsMetric(t *testing.T) {
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
 	e.ownerExec(t, fmt.Sprintf("UPDATE platform.jobs SET expires_at = now() - interval '1 second' WHERE id = '%s'", id))
 	reg := metrics.NewRegistry()
-	runOnce(t, queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Metrics: reg}), 10)
+	e.runOnce(t, queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Metrics: reg}), 10)
 	if !hasCounter(reg.Drain(), "jobs_expired", "t.expm", 1) {
 		t.Fatal("việc expired phải đếm jobs_expired")
 	}
@@ -354,7 +356,7 @@ func TestExpiredCountsMetric(t *testing.T) {
 func TestNoHandlerGoesDead(t *testing.T) {
 	e := newEnv(t)
 	id := e.enqueue(t, kind("t.unknown"), queue.NewJob{DedupeKey: "k"})
-	runOnce(t, worker(e, "w1", newFH(kind("t.other"), nil)), 10)
+	e.runOnce(t, worker(e, "w1", newFH(kind("t.other"), nil)), 10)
 	r := e.job(t, id)
 	if r.Status != "dead" || r.LastError == nil || *r.LastError != "no handler" {
 		t.Fatalf("muốn dead, last_error 'no handler': %+v", r)
@@ -368,7 +370,7 @@ func TestCommandJobsNotClaimed(t *testing.T) {
 	k := queue.Kind{Name: "command.t", Policy: queue.Policy{Mode: "command", OnLeaseExpired: "in_doubt"}}
 	h := newFH(k, nil)
 	id := e.enqueue(t, k, queue.NewJob{DedupeKey: "k"})
-	runOnce(t, worker(e, "w1", h), 10)
+	e.runOnce(t, worker(e, "w1", h), 10)
 	if r := e.job(t, id); r.Status != "pending" || r.Attempts != 0 || h.callsOf(id) != 0 {
 		t.Fatalf("worker không có runner không được nhận việc command: %+v", r)
 	}
@@ -378,7 +380,7 @@ func TestRunAtInFutureNotClaimed(t *testing.T) {
 	e := newEnv(t)
 	h := newFH(kind("t.later"), nil)
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k", RunAt: time.Now().Add(time.Hour)})
-	runOnce(t, worker(e, "w1", h), 10)
+	e.runOnce(t, worker(e, "w1", h), 10)
 	if r := e.job(t, id); r.Status != "pending" || r.RunInS < 3500 {
 		t.Fatalf("việc hoãn tới giờ bị chạy sớm: %+v", r)
 	}
@@ -452,7 +454,7 @@ func TestOldestPendingGauge(t *testing.T) {
 	e.ownerExec(t, fmt.Sprintf("UPDATE platform.jobs SET run_at = now() - interval '42 seconds', mode = 'command' WHERE id = '%s'", id))
 	reg := metrics.NewRegistry()
 	w := queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Metrics: reg})
-	runOnce(t, w, 10)
+	e.runOnce(t, w, 10)
 	for _, r := range reg.Drain() {
 		if r.Name == "jobs_oldest_pending_age_s" {
 			if r.Sum < 41 || r.Sum > 60 {
@@ -477,7 +479,7 @@ func TestRecordAfterLongHandler(t *testing.T) {
 	id := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "k"})
 	w := worker(e, "w1", h)
 	queue.SetRecordTimeout(w, record)
-	runOnce(t, w, 10)
+	e.runOnce(t, w, 10)
 	if r := e.job(t, id); r.Status != "pending" || r.RunInS < 3 {
 		t.Fatalf("muốn pending hẹn theo lịch sau handler chạy lâu: %+v", r)
 	}

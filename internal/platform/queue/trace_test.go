@@ -44,7 +44,7 @@ func TestTraceFlowsThroughQueue(t *testing.T) {
 	if err := e.owner.Pool.QueryRow(t.Context(), "SELECT trace_context::text FROM platform.jobs").Scan(&stored); err != nil {
 		t.Fatal(err)
 	}
-	runOnce(t, worker(e, "w1", h), 10)
+	e.runOnce(t, worker(e, "w1", h), 10)
 
 	if inHandler.TraceID() != parent.TraceID() || inHandler.SpanID() == parent.SpanID() {
 		t.Fatalf("handler phải ở span con cùng TraceID %s: %s/%s (trace_context %s)",
@@ -69,7 +69,7 @@ func TestNoTraceStoresNull(t *testing.T) {
 	if n := e.count(t, "SELECT count(*) FROM platform.jobs WHERE trace_context IS NULL AND id = $1", id); n != 1 {
 		t.Fatal("trace_context phải NULL khi không có span")
 	}
-	runOnce(t, worker(e, "w1", h), 10)
+	e.runOnce(t, worker(e, "w1", h), 10)
 	if e.job(t, id).Status != "done" {
 		t.Fatal("việc không dấu vết phải chạy được")
 	}
