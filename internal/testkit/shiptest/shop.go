@@ -69,6 +69,22 @@ func (s *Shop) AccountOf(seller uuid.UUID) uuid.UUID {
 	return s.Account
 }
 
+// ManualAccount tạo tài khoản hãng key mode manual, active (nhập mã tay hay tự giao, Task M3-15) của người bán seller ở
+// kho warehouse, mã ở hãng ref, trong tx (chủ bảng, tenancy.WithTenant của tenant). Lỗi làm test dừng.
+func ManualAccount(t testing.TB, tx pgx.Tx, seller, warehouse uuid.UUID, key, ref string) uuid.UUID {
+	t.Helper()
+	id, err := fulfillment.EnsureCarrierAccount(t.Context(), tx, fulfillment.SeedAccountInput{
+		SellerID: seller, WarehouseID: warehouse, CarrierKey: key, Name: "Tay " + ref, ExternalAccountRef: ref,
+	})
+	if err != nil {
+		t.Fatalf("shiptest: tài khoản tay %s: %v", ref, err)
+	}
+	if _, err := tx.Exec(t.Context(), "UPDATE fulfillment.carrier_accounts SET mode = 'manual', status = 'active' WHERE id = $1", id); err != nil {
+		t.Fatalf("shiptest: đổi tài khoản %s sang mode manual: %v", ref, err)
+	}
+	return id
+}
+
 // Order tạo khách "Chị Lan" và đơn tay của người bán seller (phí ship shippingFee, các dòng items) trong tx (crm_app,
 // tenancy.WithTenant của tenant của Shop), tác nhân userID; sự kiện ghi vào sổ rỗng (không consumer nào).
 func (s *Shop) Order(ctx context.Context, tx pgx.Tx, seller, userID uuid.UUID, shippingFee int64, items ...order.ItemInput,
