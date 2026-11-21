@@ -4415,6 +4415,28 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+    RetryLater:
+      # M5-05: máy chủ tạm bận (lỗi tạm của database, bộ đệm quá tải, cổng nhận vào từ chối); thử lại sau số giây
+      # của Retry-After với cùng Idempotency-Key. Thân là Error với mã retry_later.
+      description: Tạm bận, thử lại sau
+      headers:
+        Retry-After:
+          description: Số giây chờ trước khi gửi lại
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  securitySchemes:
+    # M5-05 (ADR-18): khóa dịch vụ của website, header Authorization: Bearer ek_<tiền tố>_<bí mật>; chỉ path
+    # /api/v1/web/* (x-auth: service_key). Route của nhân viên xác thực bằng header cf-access-jwt-assertion, không
+    # khai ở đây; lớp HTTP (internal/httpapi/auth.go) kiểm cả hai, không qua bộ kiểm bảo mật của ogen.
+    ServiceKey:
+      type: http
+      scheme: bearer
   schemas:
     Error:
       type: object

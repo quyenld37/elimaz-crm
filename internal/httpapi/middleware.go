@@ -17,7 +17,8 @@ import (
 	"elimaz.com.vn/crm/internal/platform/observability"
 )
 
-// maxBodyBytes: thân yêu cầu tối đa 1 MiB (kế hoạch M0, Task 6).
+// maxBodyBytes: thân yêu cầu tối đa mặc định 1 MiB (kế hoạch M0, Task 6); route khai x-body-limit (M5-05, 1 KiB – 8
+// MiB, routegen kiểm) dùng Route.BodyLimit.
 const maxBodyBytes = 1 << 20
 
 // requestIDPattern: x-request-id gửi lên chỉ được nhận khi khớp mẫu này (không chèn được ký tự lạ vào log).
@@ -65,15 +66,18 @@ func recoverPanic(d Deps, rt Route, next http.Handler) http.Handler {
 	})
 }
 
-// bodyLimit: Content-Length quá 1 MiB → 413 ngay; thân không khai độ dài bị cắt khi đọc (lỗi *http.MaxBytesError,
-// writeHandlerError đổi thành 413).
-func bodyLimit(next http.Handler) http.Handler {
+// bodyLimit: Content-Length quá limit (≤ 0: mặc định 1 MiB) → 413 ngay; thân không khai độ dài bị cắt khi đọc (lỗi
+// *http.MaxBytesError, writeHandlerError đổi thành 413).
+func bodyLimit(limit int64, next http.Handler) http.Handler {
+	if limit <= 0 {
+		limit = maxBodyBytes
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.ContentLength > maxBodyBytes {
+		if r.ContentLength > limit {
 			writeError(w, r, http.StatusRequestEntityTooLarge, codeBodyTooLarge)
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
 		next.ServeHTTP(w, r)
 	})
 }

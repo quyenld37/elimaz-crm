@@ -1,0 +1,38 @@
+openapi: 3.0.3
+info: {title: t, version: "1"}
+paths:
+  /api/v1/web/orders:
+    post:
+      operationId: webCreateOrder
+      x-permission: web.orders.create
+      x-auth: service_key
+      x-body-limit: 6291456
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: {"200": {description: ok}}
+  /api/v1/web/flash/buy:
+    post:
+      operationId: webFlashBuy
+      x-permission: web.flash.buy
+      x-auth: service_key
+      x-admission: flash
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: {"200": {description: ok}}
+  /api/v1/things:
+    get:
+      operationId: listThings
+      x-permission: things.read
+      responses: {"200": {description: ok}}
+  /health/live:
+    get:
+      operationId: live
+      x-public: true
+      responses: {"200": {description: ok}}
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string}

@@ -123,3 +123,67 @@ func TestRoutesIdempotencyModes(t *testing.T) {
 		}
 	}
 }
+
+// authProblems trả mỗi route sai luật x-auth (M5-05, luật openapi 6) một dòng nêu operationId: Auth chỉ nhận access,
+// service_key, public; public đúng khi Public; route service_key chỉ ở /api/v1/web/*, khai quyền web.*, path
+// /api/v1/web/* luôn service_key; Admission chỉ trên route service_key required; BodyLimit 0 hoặc 1 KiB – 8 MiB.
+func authProblems(routes []httpapi.Route) []string {
+	var out []string
+	for _, r := range routes {
+		_, path, _ := strings.Cut(r.Pattern, " ")
+		web := strings.HasPrefix(path, "/api/v1/web/")
+		switch {
+		case r.Auth != "access" && r.Auth != "service_key" && r.Auth != "public":
+			out = append(out, r.OperationID+": Auth lạ "+strconv.Quote(r.Auth))
+		case (r.Auth == "public") != r.Public:
+			out = append(out, r.OperationID+": Auth public phải đi cùng Public")
+		case web != (r.Auth == "service_key"):
+			out = append(out, r.OperationID+": path /api/v1/web/* khi và chỉ khi Auth service_key")
+		case r.Auth == "service_key" && !strings.HasPrefix(r.Permission, "web."):
+			out = append(out, r.OperationID+": route service_key phải có quyền web.*, có "+strconv.Quote(r.Permission))
+		}
+		if r.Admission != "" && (r.Auth != "service_key" || r.IdempotencyMode != "required") {
+			out = append(out, r.OperationID+": Admission chỉ trên route service_key required")
+		}
+		if r.BodyLimit != 0 && (r.BodyLimit < 1<<10 || r.BodyLimit > 8<<20) {
+			out = append(out, r.OperationID+": BodyLimit ngoài 1 KiB – 8 MiB")
+		}
+	}
+	return out
+}
+
+func TestRoutesAuthRules(t *testing.T) {
+	if got := authProblems(httpapi.Routes); len(got) != 0 {
+		t.Fatalf("bảng route sai luật x-auth:\n%s", strings.Join(got, "\n"))
+	}
+	fake := []httpapi.Route{
+		{Pattern: "GET /api/v1/web/products", OperationID: "okWeb", Permission: "web.catalog.read", Auth: "service_key"},
+		{
+			Pattern: "POST /api/v1/web/flash", OperationID: "okFlash", Permission: "web.flash.buy", Auth: "service_key",
+			Write: true, IdempotencyMode: "required", Admission: "flash", BodyLimit: 4 << 20,
+		},
+		{Pattern: "GET /health/live", OperationID: "okPublic", Public: true, Auth: "public"},
+		{Pattern: "GET /api/v1/x", OperationID: "okStaff", Permission: "catalog.read", Auth: "access"},
+		{Pattern: "GET /api/v1/web/a", OperationID: "webStaffPerm", Permission: "catalog.read", Auth: "service_key"},
+		{Pattern: "GET /api/v1/web/b", OperationID: "webAccess", Permission: "web.catalog.read", Auth: "access"},
+		{Pattern: "GET /api/v1/c", OperationID: "serviceOffWeb", Permission: "web.catalog.read", Auth: "service_key"},
+		{Pattern: "GET /api/v1/d", OperationID: "noAuth", Permission: "catalog.read"},
+		{Pattern: "GET /health/x", OperationID: "publicNotMarked", Public: true, Auth: "access"},
+		{
+			Pattern: "POST /api/v1/web/e", OperationID: "admissionExempt", Permission: "web.flash.buy", Auth: "service_key",
+			Write: true, IdempotencyMode: "exempt", Admission: "flash",
+		},
+		{Pattern: "POST /api/v1/f", OperationID: "bodyTooBig", Permission: "catalog.read", Auth: "access", BodyLimit: 16 << 20},
+	}
+	got := strings.Join(authProblems(fake), "\n")
+	for _, w := range []string{"webStaffPerm", "webAccess", "serviceOffWeb", "noAuth", "publicNotMarked", "admissionExempt", "bodyTooBig"} {
+		if !strings.Contains(got, w) {
+			t.Errorf("bảng giả phải báo %s, có:\n%s", w, got)
+		}
+	}
+	for _, ok := range []string{"okWeb", "okFlash", "okPublic", "okStaff"} {
+		if strings.Contains(got, ok) {
+			t.Errorf("route đúng luật %s không được bị báo:\n%s", ok, got)
+		}
+	}
+}

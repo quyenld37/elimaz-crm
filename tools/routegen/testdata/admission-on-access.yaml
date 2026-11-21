@@ -1,0 +1,52 @@
+openapi: 3.0.3
+info: {title: t, version: "1"}
+paths:
+  /api/v1/flash:
+    post:
+      operationId: admissionOnAccess
+      x-permission: things.write
+      x-admission: flash
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: {"200": {description: ok}}
+  /api/v1/web/quote:
+    post:
+      operationId: admissionOnExempt
+      x-permission: web.flash.buy
+      x-auth: service_key
+      x-admission: flash
+      x-idempotency: exempt
+      x-idempotency-reason: "chỉ đọc"
+      responses: {"200": {description: ok}}
+  /api/v1/web/read:
+    get:
+      operationId: admissionOnRead
+      x-permission: web.catalog.read
+      x-auth: service_key
+      x-admission: flash
+      responses: {"200": {description: ok}}
+  /api/v1/web/bad-name:
+    post:
+      operationId: admissionBadName
+      x-permission: web.flash.buy
+      x-auth: service_key
+      x-admission: "Flash Sale"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: {"200": {description: ok}}
+  /api/v1/web/buy:
+    post:
+      operationId: admissionOk
+      x-permission: web.flash.buy
+      x-auth: service_key
+      x-admission: flash
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: {"200": {description: ok}}
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string}

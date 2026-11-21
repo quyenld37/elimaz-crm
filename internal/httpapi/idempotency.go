@@ -95,7 +95,7 @@ func idempotent(d Deps, rt Route, next http.Handler) http.Handler {
 			writeHandlerError(d, w, r, errNoActor)
 			return
 		}
-		body, err := io.ReadAll(r.Body) // bodyLimit đã giới hạn 1 MiB
+		body, err := io.ReadAll(r.Body) // bodyLimit đã giới hạn (Route.BodyLimit, mặc định 1 MiB)
 		if err != nil {
 			writeHandlerError(d, w, r, fmt.Errorf("đọc thân yêu cầu: %w", err))
 			return

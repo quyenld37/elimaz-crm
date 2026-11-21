@@ -56,14 +56,27 @@ type Deps struct {
 	Fulfillment *fulfillment.Service
 	// Now là đồng hồ của nghiệp vụ cần "bây giờ" (kiểm mã giảm giá); nil → time.Now (test cắm ngày cố định).
 	Now func() time.Time
+	// ServiceKeys kiểm khóa dịch vụ của website cho route x-auth: service_key (M5-05; bản thật nối ở M5-06). nil →
+	// mọi route service_key 401.
+	ServiceKeys ServiceKeyVerifier
+	// RateLimiter giới hạn tần suất theo khóa dịch vụ (Valkey, M5-03/M5-06). nil → bộ đếm trong tiến trình
+	// defaultServiceRateMax yêu cầu / phút mỗi khóa.
+	RateLimiter WebRateLimiter
+	// Admission: cổng nhận vào theo tên của x-admission (flash sale, Task 187). Route khai tên không có ở đây → 503
+	// retry_later (đóng, không cho qua).
+	Admission map[string]func(http.Handler) http.Handler
 
-	limiter *userLimiter // một bộ đếm chung cho mọi route của server (prepare)
+	limiter        *userLimiter // một bộ đếm chung cho mọi route của nhân viên (prepare)
+	serviceLimiter *userLimiter // bộ đếm dự phòng của khóa dịch vụ khi RateLimiter nil (prepare)
 }
 
 // prepare dựng phần dùng chung giữa các route (bộ đếm tần suất) một lần cho mỗi server.
 func prepare(d Deps) Deps {
 	if d.limiter == nil {
 		d.limiter = newUserLimiter(d.RateLimit)
+	}
+	if d.serviceLimiter == nil {
+		d.serviceLimiter = newUserLimiter(RateLimit{Max: defaultServiceRateMax, Window: time.Minute, Now: d.RateLimit.Now})
 	}
 	if d.Events == nil {
 		d.Events = events.NewRegistry()
@@ -116,30 +129,55 @@ func newMux(d Deps) (*http.ServeMux, int) {
 	return mux, registered
 }
 
-// chain bọc h theo thứ tự của kế hoạch: requestID → recover → otelhttp → bodyLimit(1 MiB) → origin (chỉ Write) →
-// auth → guard(route) → userRateLimit (bỏ qua Stream) → idempotent (route Write có IdempotencyMode required hoặc
-// no-replay; route exempt bỏ qua, ADR-47) → handler; route Public bỏ qua auth, guard, userRateLimit. Riêng healthDeep
-// (công khai) qua healthToken (thẻ HEALTH_TOKEN) ở chỗ của auth.
+// chain bọc h theo thứ tự của kế hoạch (M0, mở rộng ở M5-05): requestID → recover → otelhttp →
+// bodyLimit(route.BodyLimit, mặc định 1 MiB) → origin (route Write trừ service_key) → auth(route.Auth) →
+// guard(route) → rateLimit (nhân viên: userRateLimit, bỏ qua Stream; service_key: serviceRateLimit) → admission
+// (route có Admission) → idempotent (route Write có IdempotencyMode required hoặc no-replay; route exempt bỏ qua,
+// ADR-47) → handler. Route Public bỏ qua auth, guard, rateLimit. Riêng healthDeep (công khai) qua healthToken (thẻ
+// HEALTH_TOKEN) ở chỗ của auth. Cổng nhận vào đứng trước chống trùng: yêu cầu bị cổng từ chối không giữ khóa.
 func chain(d Deps, rt Route, h http.Handler) http.Handler {
 	d = prepare(d)
+	service := rt.Auth == authServiceKey
 	if rt.Write && (rt.IdempotencyMode == modeRequired || rt.IdempotencyMode == modeNoReplay) {
 		h = idempotent(d, rt, h)
 	}
+	if rt.Admission != "" {
+		h = admission(d, rt, h)
+	}
 	if !rt.Public {
-		if !rt.Stream {
+		switch {
+		case service:
+			h = serviceRateLimit(d, h)
+		case !rt.Stream:
 			h = userRateLimit(d.limiter, h)
 		}
 		h = guard(rt, h)
-		h = auth(d, h)
+		if service {
+			h = serviceKeyAuth(d, h)
+		} else {
+			h = auth(d, h)
+		}
 	}
 	if rt.OperationID == opHealthDeep {
 		h = healthToken(d.Config.HealthToken, h)
 	}
-	if rt.Write {
+	if rt.Write && !service {
 		h = origin(d.Config.ConsoleOrigins, h)
 	}
-	h = bodyLimit(h)
+	h = bodyLimit(rt.BodyLimit, h)
 	h = otelhttp.NewHandler(observability.ScrubPanics(h), rt.Pattern)
 	h = recoverPanic(d, rt, h)
 	return requestID(h)
+}
+
+// admission gắn cổng nhận vào d.Admission[rt.Admission]; tên chưa nối → mọi yêu cầu 503 retry_later có Retry-After
+// (cổng là chỗ bảo vệ khi quá tải: thiếu cổng thì đóng, không cho qua).
+func admission(d Deps, rt Route, next http.Handler) http.Handler {
+	if gate, ok := d.Admission[rt.Admission]; ok && gate != nil {
+		return gate(next)
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "1")
+		writeError(w, r, http.StatusServiceUnavailable, codeRetryLater)
+	})
 }
