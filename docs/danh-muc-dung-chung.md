@@ -38,6 +38,7 @@ func Abandon(ctx context.Context, tx pgx.Tx, jobID uuid.UUID, reason string) err
 func CommandKind(name string, expiresAfter, timeout time.Duration) queue.Kind
 func ResolveInDoubt(ctx context.Context, d *db.DB, hs []Handler, limit int) (done, requeued, still int, err error)
 func ResolveManually(ctx context.Context, tx pgx.Tx, jobID uuid.UUID, result json.RawMessage, hs []Handler) error
+func Status(ctx context.Context, tx pgx.Tx, jobID uuid.UUID) (string, error)
 type DoneHook interface {
 	OnDone(ctx context.Context, j queue.Job, result json.RawMessage, tx pgx.Tx) error
 }

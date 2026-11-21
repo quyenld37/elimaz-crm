@@ -8,6 +8,3 @@ recordCallbackOutcome
 assignCallbackTask
 previewShipmentCorrection
 applyShipmentCorrection
-listStuckShipments
-listShipmentsForReview
-resolveShipmentAnomaly
