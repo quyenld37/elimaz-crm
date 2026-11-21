@@ -8167,9 +8167,21 @@ func (s *CodDiscrepancy) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.OrderId.Set {
+			e.FieldStart("orderId")
+			s.OrderId.Encode(e)
+		}
+	}
+	{
 		if s.OrderCode.Set {
 			e.FieldStart("orderCode")
 			s.OrderCode.Encode(e)
+		}
+	}
+	{
+		if s.CarrierKey.Set {
+			e.FieldStart("carrierKey")
+			s.CarrierKey.Encode(e)
 		}
 	}
 	{
@@ -8204,17 +8216,19 @@ func (s *CodDiscrepancy) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCodDiscrepancy = [10]string{
-	0: "kind",
-	1: "statementId",
-	2: "lineNo",
-	3: "shipmentId",
-	4: "orderCode",
-	5: "trackingCode",
-	6: "codAmount",
-	7: "expectedAmount",
-	8: "diff",
-	9: "matchStatus",
+var jsonFieldsNameOfCodDiscrepancy = [12]string{
+	0:  "kind",
+	1:  "statementId",
+	2:  "lineNo",
+	3:  "shipmentId",
+	4:  "orderId",
+	5:  "orderCode",
+	6:  "carrierKey",
+	7:  "trackingCode",
+	8:  "codAmount",
+	9:  "expectedAmount",
+	10: "diff",
+	11: "matchStatus",
 }
 
 // Decode decodes CodDiscrepancy from json.
@@ -8266,6 +8280,16 @@ func (s *CodDiscrepancy) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"shipmentId\"")
 			}
+		case "orderId":
+			if err := func() error {
+				s.OrderId.Reset()
+				if err := s.OrderId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"orderId\"")
+			}
 		case "orderCode":
 			if err := func() error {
 				s.OrderCode.Reset()
@@ -8275,6 +8299,16 @@ func (s *CodDiscrepancy) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"orderCode\"")
+			}
+		case "carrierKey":
+			if err := func() error {
+				s.CarrierKey.Reset()
+				if err := s.CarrierKey.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"carrierKey\"")
 			}
 		case "trackingCode":
 			if err := func() error {
@@ -8726,12 +8760,26 @@ func (s *CodMatchTotal) encodeFields(e *jx.Encoder) {
 		e.FieldStart("codAmount")
 		s.CodAmount.Encode(e)
 	}
+	{
+		if s.FeeAmount.Set {
+			e.FieldStart("feeAmount")
+			s.FeeAmount.Encode(e)
+		}
+	}
+	{
+		if s.ShortAmount.Set {
+			e.FieldStart("shortAmount")
+			s.ShortAmount.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfCodMatchTotal = [3]string{
+var jsonFieldsNameOfCodMatchTotal = [5]string{
 	0: "matchStatus",
 	1: "count",
 	2: "codAmount",
+	3: "feeAmount",
+	4: "shortAmount",
 }
 
 // Decode decodes CodMatchTotal from json.
@@ -8774,6 +8822,26 @@ func (s *CodMatchTotal) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"codAmount\"")
+			}
+		case "feeAmount":
+			if err := func() error {
+				s.FeeAmount.Reset()
+				if err := s.FeeAmount.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"feeAmount\"")
+			}
+		case "shortAmount":
+			if err := func() error {
+				s.ShortAmount.Reset()
+				if err := s.ShortAmount.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"shortAmount\"")
 			}
 		default:
 			return d.Skip()
@@ -9189,6 +9257,12 @@ func (s *CodStatement) encodeFields(e *jx.Encoder) {
 		json.EncodeUUID(e, s.CarrierAccountId)
 	}
 	{
+		if s.CarrierAccountName.Set {
+			e.FieldStart("carrierAccountName")
+			s.CarrierAccountName.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("fileId")
 		json.EncodeUUID(e, s.FileId)
 	}
@@ -9256,23 +9330,24 @@ func (s *CodStatement) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCodStatement = [16]string{
+var jsonFieldsNameOfCodStatement = [17]string{
 	0:  "id",
 	1:  "carrierKey",
 	2:  "carrierAccountId",
-	3:  "fileId",
-	4:  "format",
-	5:  "periodFrom",
-	6:  "periodTo",
-	7:  "declaredTotal",
-	8:  "status",
-	9:  "parseError",
-	10: "lineCount",
-	11: "importedBy",
-	12: "confirmedBy",
-	13: "confirmedAt",
-	14: "createdAt",
-	15: "version",
+	3:  "carrierAccountName",
+	4:  "fileId",
+	5:  "format",
+	6:  "periodFrom",
+	7:  "periodTo",
+	8:  "declaredTotal",
+	9:  "status",
+	10: "parseError",
+	11: "lineCount",
+	12: "importedBy",
+	13: "confirmedBy",
+	14: "confirmedAt",
+	15: "createdAt",
+	16: "version",
 }
 
 // Decode decodes CodStatement from json.
@@ -9280,7 +9355,7 @@ func (s *CodStatement) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode CodStatement to nil")
 	}
-	var requiredBitSet [2]uint8
+	var requiredBitSet [3]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -9320,8 +9395,18 @@ func (s *CodStatement) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"carrierAccountId\"")
 			}
+		case "carrierAccountName":
+			if err := func() error {
+				s.CarrierAccountName.Reset()
+				if err := s.CarrierAccountName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"carrierAccountName\"")
+			}
 		case "fileId":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := json.DecodeUUID(d)
 				s.FileId = v
@@ -9333,7 +9418,7 @@ func (s *CodStatement) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"fileId\"")
 			}
 		case "format":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Format = string(v)
@@ -9375,7 +9460,7 @@ func (s *CodStatement) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"declaredTotal\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -9395,7 +9480,7 @@ func (s *CodStatement) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"parseError\"")
 			}
 		case "lineCount":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int32()
 				s.LineCount = int32(v)
@@ -9437,7 +9522,7 @@ func (s *CodStatement) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"confirmedAt\"")
 			}
 		case "createdAt":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CreatedAt = v
@@ -9449,7 +9534,7 @@ func (s *CodStatement) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"createdAt\"")
 			}
 		case "version":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int64()
 				s.Version = int64(v)
@@ -9469,9 +9554,10 @@ func (s *CodStatement) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
-		0b00011111,
-		0b11000101,
+	for i, mask := range [3]uint8{
+		0b00110111,
+		0b10001010,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -9833,6 +9919,18 @@ func (s *CodStatementLine) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.OrderId.Set {
+			e.FieldStart("orderId")
+			s.OrderId.Encode(e)
+		}
+	}
+	{
+		if s.OrderCode.Set {
+			e.FieldStart("orderCode")
+			s.OrderCode.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("codAmount")
 		s.CodAmount.Encode(e)
 	}
@@ -9878,20 +9976,22 @@ func (s *CodStatementLine) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCodStatementLine = [13]string{
+var jsonFieldsNameOfCodStatementLine = [15]string{
 	0:  "id",
 	1:  "lineNo",
 	2:  "trackingCode",
 	3:  "shipmentId",
-	4:  "codAmount",
-	5:  "feeAmount",
-	6:  "otherFee",
-	7:  "netAmount",
-	8:  "paidOn",
-	9:  "matchStatus",
-	10: "expectedAmount",
-	11: "diffAmount",
-	12: "postedTransferId",
+	4:  "orderId",
+	5:  "orderCode",
+	6:  "codAmount",
+	7:  "feeAmount",
+	8:  "otherFee",
+	9:  "netAmount",
+	10: "paidOn",
+	11: "matchStatus",
+	12: "expectedAmount",
+	13: "diffAmount",
+	14: "postedTransferId",
 }
 
 // Decode decodes CodStatementLine from json.
@@ -9949,8 +10049,28 @@ func (s *CodStatementLine) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"shipmentId\"")
 			}
+		case "orderId":
+			if err := func() error {
+				s.OrderId.Reset()
+				if err := s.OrderId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"orderId\"")
+			}
+		case "orderCode":
+			if err := func() error {
+				s.OrderCode.Reset()
+				if err := s.OrderCode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"orderCode\"")
+			}
 		case "codAmount":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.CodAmount.Decode(d); err != nil {
 					return err
@@ -9960,7 +10080,7 @@ func (s *CodStatementLine) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"codAmount\"")
 			}
 		case "feeAmount":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.FeeAmount.Decode(d); err != nil {
 					return err
@@ -9970,7 +10090,7 @@ func (s *CodStatementLine) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"feeAmount\"")
 			}
 		case "otherFee":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.OtherFee.Decode(d); err != nil {
 					return err
@@ -9980,7 +10100,7 @@ func (s *CodStatementLine) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"otherFee\"")
 			}
 		case "netAmount":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.NetAmount.Decode(d); err != nil {
 					return err
@@ -10000,7 +10120,7 @@ func (s *CodStatementLine) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"paidOn\"")
 			}
 		case "matchStatus":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.MatchStatus.Decode(d); err != nil {
 					return err
@@ -10049,8 +10169,8 @@ func (s *CodStatementLine) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11110111,
-		0b00000010,
+		0b11000111,
+		0b00001011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

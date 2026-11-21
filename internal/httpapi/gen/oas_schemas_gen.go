@@ -3641,16 +3641,20 @@ func (s *CodBalances) SetSalesClearing(val SignedMoney) {
 
 // Ref: #/components/schemas/CodDiscrepancy
 type CodDiscrepancy struct {
-	Kind           CodDiscrepancyKind `json:"kind"`
-	StatementId    OptUUID            `json:"statementId"`
-	LineNo         OptInt32           `json:"lineNo"`
-	ShipmentId     OptUUID            `json:"shipmentId"`
-	OrderCode      OptString          `json:"orderCode"`
-	TrackingCode   OptString          `json:"trackingCode"`
-	CodAmount      OptMoney           `json:"codAmount"`
-	ExpectedAmount OptSignedMoney     `json:"expectedAmount"`
-	Diff           OptSignedMoney     `json:"diff"`
-	MatchStatus    OptCodMatchStatus  `json:"matchStatus"`
+	Kind        CodDiscrepancyKind `json:"kind"`
+	StatementId OptUUID            `json:"statementId"`
+	LineNo      OptInt32           `json:"lineNo"`
+	ShipmentId  OptUUID            `json:"shipmentId"`
+	// Đơn của vận đơn (Task M3-46).
+	OrderId   OptUUID   `json:"orderId"`
+	OrderCode OptString `json:"orderCode"`
+	// Hãng của bảng kê hay của vận đơn (Task M3-46).
+	CarrierKey     OptString         `json:"carrierKey"`
+	TrackingCode   OptString         `json:"trackingCode"`
+	CodAmount      OptMoney          `json:"codAmount"`
+	ExpectedAmount OptSignedMoney    `json:"expectedAmount"`
+	Diff           OptSignedMoney    `json:"diff"`
+	MatchStatus    OptCodMatchStatus `json:"matchStatus"`
 }
 
 // GetKind returns the value of Kind.
@@ -3673,9 +3677,19 @@ func (s *CodDiscrepancy) GetShipmentId() OptUUID {
 	return s.ShipmentId
 }
 
+// GetOrderId returns the value of OrderId.
+func (s *CodDiscrepancy) GetOrderId() OptUUID {
+	return s.OrderId
+}
+
 // GetOrderCode returns the value of OrderCode.
 func (s *CodDiscrepancy) GetOrderCode() OptString {
 	return s.OrderCode
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *CodDiscrepancy) GetCarrierKey() OptString {
+	return s.CarrierKey
 }
 
 // GetTrackingCode returns the value of TrackingCode.
@@ -3723,9 +3737,19 @@ func (s *CodDiscrepancy) SetShipmentId(val OptUUID) {
 	s.ShipmentId = val
 }
 
+// SetOrderId sets the value of OrderId.
+func (s *CodDiscrepancy) SetOrderId(val OptUUID) {
+	s.OrderId = val
+}
+
 // SetOrderCode sets the value of OrderCode.
 func (s *CodDiscrepancy) SetOrderCode(val OptString) {
 	s.OrderCode = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *CodDiscrepancy) SetCarrierKey(val OptString) {
+	s.CarrierKey = val
 }
 
 // SetTrackingCode sets the value of TrackingCode.
@@ -3925,11 +3949,16 @@ func (s *CodMatchStatus) UnmarshalText(data []byte) error {
 	}
 }
 
+// Một nhóm kết quả khớp: số dòng, tổng COD; feeAmount là tổng phí hãng (phí + phí
+// khác), shortAmount là tổng phần hãng trả thiếu (chênh âm, đổi dấu) của các
+// dòng trong nhóm (Task M3-46).
 // Ref: #/components/schemas/CodMatchTotal
 type CodMatchTotal struct {
 	MatchStatus CodMatchStatus `json:"matchStatus"`
 	Count       int32          `json:"count"`
 	CodAmount   Money          `json:"codAmount"`
+	FeeAmount   OptSignedMoney `json:"feeAmount"`
+	ShortAmount OptSignedMoney `json:"shortAmount"`
 }
 
 // GetMatchStatus returns the value of MatchStatus.
@@ -3947,6 +3976,16 @@ func (s *CodMatchTotal) GetCodAmount() Money {
 	return s.CodAmount
 }
 
+// GetFeeAmount returns the value of FeeAmount.
+func (s *CodMatchTotal) GetFeeAmount() OptSignedMoney {
+	return s.FeeAmount
+}
+
+// GetShortAmount returns the value of ShortAmount.
+func (s *CodMatchTotal) GetShortAmount() OptSignedMoney {
+	return s.ShortAmount
+}
+
 // SetMatchStatus sets the value of MatchStatus.
 func (s *CodMatchTotal) SetMatchStatus(val CodMatchStatus) {
 	s.MatchStatus = val
@@ -3960,6 +3999,16 @@ func (s *CodMatchTotal) SetCount(val int32) {
 // SetCodAmount sets the value of CodAmount.
 func (s *CodMatchTotal) SetCodAmount(val Money) {
 	s.CodAmount = val
+}
+
+// SetFeeAmount sets the value of FeeAmount.
+func (s *CodMatchTotal) SetFeeAmount(val OptSignedMoney) {
+	s.FeeAmount = val
+}
+
+// SetShortAmount sets the value of ShortAmount.
+func (s *CodMatchTotal) SetShortAmount(val OptSignedMoney) {
+	s.ShortAmount = val
 }
 
 // Ref: #/components/schemas/CodOverdue
@@ -4084,22 +4133,25 @@ func (*CodOverduePage) listCodOverdueRes() {}
 
 // Ref: #/components/schemas/CodStatement
 type CodStatement struct {
-	ID               uuid.UUID                 `json:"id"`
-	CarrierKey       string                    `json:"carrierKey"`
-	CarrierAccountId uuid.UUID                 `json:"carrierAccountId"`
-	FileId           uuid.UUID                 `json:"fileId"`
-	Format           string                    `json:"format"`
-	PeriodFrom       OptDate                   `json:"periodFrom"`
-	PeriodTo         OptDate                   `json:"periodTo"`
-	DeclaredTotal    OptSignedMoney            `json:"declaredTotal"`
-	Status           CodStatementStatus        `json:"status"`
-	ParseError       OptCodStatementParseError `json:"parseError"`
-	LineCount        int32                     `json:"lineCount"`
-	ImportedBy       OptActor                  `json:"importedBy"`
-	ConfirmedBy      OptActor                  `json:"confirmedBy"`
-	ConfirmedAt      OptDateTime               `json:"confirmedAt"`
-	CreatedAt        time.Time                 `json:"createdAt"`
-	Version          int64                     `json:"version"`
+	ID               uuid.UUID `json:"id"`
+	CarrierKey       string    `json:"carrierKey"`
+	CarrierAccountId uuid.UUID `json:"carrierAccountId"`
+	// Tên tài khoản hãng (đọc từ kết nối vận chuyển); để màn hiện mà người xem
+	// không cần quyền xem kết nối (Task M3-46).
+	CarrierAccountName OptString                 `json:"carrierAccountName"`
+	FileId             uuid.UUID                 `json:"fileId"`
+	Format             string                    `json:"format"`
+	PeriodFrom         OptDate                   `json:"periodFrom"`
+	PeriodTo           OptDate                   `json:"periodTo"`
+	DeclaredTotal      OptSignedMoney            `json:"declaredTotal"`
+	Status             CodStatementStatus        `json:"status"`
+	ParseError         OptCodStatementParseError `json:"parseError"`
+	LineCount          int32                     `json:"lineCount"`
+	ImportedBy         OptActor                  `json:"importedBy"`
+	ConfirmedBy        OptActor                  `json:"confirmedBy"`
+	ConfirmedAt        OptDateTime               `json:"confirmedAt"`
+	CreatedAt          time.Time                 `json:"createdAt"`
+	Version            int64                     `json:"version"`
 }
 
 // GetID returns the value of ID.
@@ -4115,6 +4167,11 @@ func (s *CodStatement) GetCarrierKey() string {
 // GetCarrierAccountId returns the value of CarrierAccountId.
 func (s *CodStatement) GetCarrierAccountId() uuid.UUID {
 	return s.CarrierAccountId
+}
+
+// GetCarrierAccountName returns the value of CarrierAccountName.
+func (s *CodStatement) GetCarrierAccountName() OptString {
+	return s.CarrierAccountName
 }
 
 // GetFileId returns the value of FileId.
@@ -4195,6 +4252,11 @@ func (s *CodStatement) SetCarrierKey(val string) {
 // SetCarrierAccountId sets the value of CarrierAccountId.
 func (s *CodStatement) SetCarrierAccountId(val uuid.UUID) {
 	s.CarrierAccountId = val
+}
+
+// SetCarrierAccountName sets the value of CarrierAccountName.
+func (s *CodStatement) SetCarrierAccountName(val OptString) {
+	s.CarrierAccountName = val
 }
 
 // SetFileId sets the value of FileId.
@@ -4345,10 +4407,14 @@ func (*CodStatementDetail) getCodStatementRes() {}
 
 // Ref: #/components/schemas/CodStatementLine
 type CodStatementLine struct {
-	ID               uuid.UUID      `json:"id"`
-	LineNo           int32          `json:"lineNo"`
-	TrackingCode     string         `json:"trackingCode"`
-	ShipmentId       OptUUID        `json:"shipmentId"`
+	ID           uuid.UUID `json:"id"`
+	LineNo       int32     `json:"lineNo"`
+	TrackingCode string    `json:"trackingCode"`
+	ShipmentId   OptUUID   `json:"shipmentId"`
+	// Đơn của vận đơn đã khớp (Task M3-46).
+	OrderId OptUUID `json:"orderId"`
+	// Số đơn của vận đơn đã khớp (Task M3-46).
+	OrderCode        OptString      `json:"orderCode"`
 	CodAmount        Money          `json:"codAmount"`
 	FeeAmount        SignedMoney    `json:"feeAmount"`
 	OtherFee         SignedMoney    `json:"otherFee"`
@@ -4378,6 +4444,16 @@ func (s *CodStatementLine) GetTrackingCode() string {
 // GetShipmentId returns the value of ShipmentId.
 func (s *CodStatementLine) GetShipmentId() OptUUID {
 	return s.ShipmentId
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *CodStatementLine) GetOrderId() OptUUID {
+	return s.OrderId
+}
+
+// GetOrderCode returns the value of OrderCode.
+func (s *CodStatementLine) GetOrderCode() OptString {
+	return s.OrderCode
 }
 
 // GetCodAmount returns the value of CodAmount.
@@ -4443,6 +4519,16 @@ func (s *CodStatementLine) SetTrackingCode(val string) {
 // SetShipmentId sets the value of ShipmentId.
 func (s *CodStatementLine) SetShipmentId(val OptUUID) {
 	s.ShipmentId = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *CodStatementLine) SetOrderId(val OptUUID) {
+	s.OrderId = val
+}
+
+// SetOrderCode sets the value of OrderCode.
+func (s *CodStatementLine) SetOrderCode(val OptString) {
+	s.OrderCode = val
 }
 
 // SetCodAmount sets the value of CodAmount.

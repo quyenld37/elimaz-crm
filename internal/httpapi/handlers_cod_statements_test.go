@@ -75,7 +75,7 @@ func TestCodStatementsAPI(t *testing.T) {
 	code, got := e.send(http.MethodPost, "/api/v1/cod-statements", m3Accounter, importBody(account, file, ""))
 	imported, _ := got["importedBy"].(map[string]any)
 	if code != http.StatusAccepted || got["status"] != "imported" || got["format"] != "elimaz_v1" ||
-		got["carrierKey"] != shiptest.CarrierKey || imported["id"] == nil {
+		got["carrierKey"] != shiptest.CarrierKey || got["carrierAccountName"] != "Hãng giả" || imported["id"] == nil {
 		t.Fatalf("nhập: %d %v", code, got)
 	}
 	id, _ := got["id"].(string)
@@ -146,7 +146,9 @@ func checkStatementRead(t *testing.T, e *m3Env, id string) {
 	first, _ := lines[0].(map[string]any)
 	total, _ := totals[0].(map[string]any)
 	if first["trackingCode"] != "FK0001" || first["codAmount"] != float64(630000) || first["netAmount"] != float64(598000) ||
-		first["matchStatus"] != "pending" || total["count"] != float64(3) || total["codAmount"] != float64(1080000) {
+		first["matchStatus"] != "pending" || first["orderId"] != nil || first["orderCode"] != nil ||
+		total["count"] != float64(3) || total["codAmount"] != float64(1080000) || total["feeAmount"] != float64(87000) ||
+		total["shortAmount"] != float64(0) || head["carrierAccountName"] != "Hãng giả" {
 		t.Errorf("dòng đầu %v, tổng %v", first, total)
 	}
 	if code, got := e.send(http.MethodGet, "/api/v1/cod-statements/"+id+"?limit=2&cursor=3", m3Accounter, ""); code != http.StatusOK {
@@ -235,7 +237,8 @@ func checkCodLists(t *testing.T, e *m3Env, id string) {
 	}
 	first, _ := items[0].(map[string]any)
 	if first["kind"] != "statement_line" || first["matchStatus"] != "external" || first["statementId"] != id ||
-		first["lineNo"] != float64(4) || first["trackingCode"] != "NHANH9999" || first["shipmentId"] != nil {
+		first["lineNo"] != float64(4) || first["trackingCode"] != "NHANH9999" || first["shipmentId"] != nil ||
+		first["carrierKey"] != shiptest.CarrierKey || first["orderId"] != nil {
 		t.Errorf("mục đầu: %v", first)
 	}
 	cur, _ := got["nextCursor"].(string)

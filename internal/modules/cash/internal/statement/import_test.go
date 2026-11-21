@@ -209,7 +209,7 @@ func TestImport_ThreeLinesParsed(t *testing.T) {
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("dòng %v, mong %v", got, want)
 	}
-	if fmt.Sprint(d.Totals) != fmt.Sprint([]cash.MatchTotal{{MatchStatus: "pending", Lines: 3, COD: 1080000}}) {
+	if fmt.Sprint(d.Totals) != fmt.Sprint([]cash.MatchTotal{{MatchStatus: "pending", Lines: 3, COD: 1080000, Fee: 87000}}) {
 		t.Errorf("tổng %+v", d.Totals)
 	}
 	if s := e.jobStatus(st.ID); s != "done" {

@@ -81,22 +81,34 @@ SELECT NULLIF(current_setting('app.tenant_id', true), '')::uuid, @statement_id::
 ON CONFLICT ON CONSTRAINT cod_statement_lines_line_key DO NOTHING;
 
 -- name: ListStatementLines :many
--- Dòng của bảng kê theo số dòng tăng dần, lọc tùy chọn theo kết quả khớp; trang sau bắt đầu sau số dòng cuối.
-SELECT *
-FROM cash.cod_statement_lines
-WHERE statement_id = @statement_id
-  AND (sqlc.narg(match_status)::text IS NULL OR match_status = sqlc.narg(match_status)::text)
-  AND line_no > @after_line_no
-ORDER BY line_no
+-- Dòng của bảng kê theo số dòng tăng dần, lọc tùy chọn theo kết quả khớp; trang sau bắt đầu sau số dòng cuối. Kèm mã,
+-- số đơn của vận đơn đã khớp (view công bố của fulfillment, ord; dòng chưa khớp vận đơn: NULL) cho cột "Đơn" của màn.
+SELECT l.*, o.id AS order_id, o.code AS order_code
+FROM cash.cod_statement_lines l
+LEFT JOIN fulfillment.shipments_v s ON s.id = l.shipment_id
+LEFT JOIN ord.orders_v o ON o.id = s.order_id
+WHERE l.statement_id = @statement_id
+  AND (sqlc.narg(match_status)::text IS NULL OR l.match_status = sqlc.narg(match_status)::text)
+  AND l.line_no > @after_line_no
+ORDER BY l.line_no
 LIMIT @lim;
 
 -- name: StatementTotals :many
--- Số dòng và tổng tiền COD theo kết quả khớp của mọi dòng của bảng kê.
-SELECT match_status, count(*)::int AS lines, coalesce(sum(cod_amount), 0)::bigint AS cod_amount
+-- Số dòng, tổng tiền COD, tổng phí hãng (phí + phí khác) và tổng phần hãng trả thiếu (chênh âm, đổi dấu) theo kết quả
+-- khớp của mọi dòng của bảng kê.
+SELECT match_status, count(*)::int AS lines, coalesce(sum(cod_amount), 0)::bigint AS cod_amount,
+       coalesce(sum(fee_amount + other_fee), 0)::bigint AS fee_amount,
+       coalesce(sum(greatest(-diff_amount, 0)), 0)::bigint AS short_amount
 FROM cash.cod_statement_lines
 WHERE statement_id = @statement_id
 GROUP BY match_status
 ORDER BY match_status;
+
+-- name: CarrierAccountNames :many
+-- Tên tài khoản hãng theo mã (view công bố của fulfillment; RLS: tenant khác như không có).
+SELECT id, name
+FROM fulfillment.carrier_accounts_v
+WHERE id = ANY (@ids::uuid[]);
 
 -- Khớp và chốt bảng kê (Task M3-32). Thứ tự khóa ADR-46: khóa tư vấn sổ COD theo vận đơn tăng dần (LockShipmentCOD)
 -- trước mọi khóa dòng nhóm 9, rồi cod_statements → cod_statement_lines theo line_no → chèn bút toán.

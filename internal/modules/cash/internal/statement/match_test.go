@@ -198,6 +198,16 @@ func (e *flowEnv) statement(account uuid.UUID, declared *int64, ls ...line) uuid
 
 func (e *flowEnv) drain() { e.t.Helper(); e.staff.DrainJobs(e.t, e.wk) }
 
+// orderOf đọc (chủ bảng) mã đơn của vận đơn sid.
+func (e *flowEnv) orderOf(sid uuid.UUID) uuid.UUID {
+	e.t.Helper()
+	var id uuid.UUID
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(e.t.Context(), `SELECT order_id FROM fulfillment.shipments WHERE id = $1`, sid).Scan(&id)
+	})
+	return id
+}
+
 // get đọc bảng kê id cùng mọi dòng (≤ 1.000).
 func (e *flowEnv) get(id uuid.UUID) cash.StatementDetail {
 	e.t.Helper()
@@ -343,6 +353,19 @@ func TestMatch_Classifies(t *testing.T) {
 	}
 	if n := e.count("SELECT count(*) FROM cash.cod_transfers"); n != before {
 		t.Errorf("khớp đã ghi %d bút toán (chỉ chốt mới ghi)", n-before)
+	}
+	// Task 137: dòng có vận đơn mang mã, số đơn (cột "Đơn" của màn); ngoài hệ thống không có. Tổng theo nhóm có tổng phí
+	// (phí + phí khác) và tổng phần hãng trả thiếu (chênh âm) của mọi dòng nhóm.
+	if l := lineOf(t, d, "FK0001"); l.OrderID == nil || *l.OrderID != e.orderOf(v1) || !strings.HasPrefix(l.OrderCode, "DH") {
+		t.Errorf("FK0001: đơn %v %q, mong %s DH…", l.OrderID, l.OrderCode, e.orderOf(v1))
+	}
+	if l := lineOf(t, d, "NHANH9999"); l.OrderID != nil || l.OrderCode != "" {
+		t.Errorf("NHANH9999: đơn %v %q, mong không có", l.OrderID, l.OrderCode)
+	}
+	wantTotals := "[{amount_mismatch 3 920000 70000 30000} {external 1 450000 30000 0} {fee_only 1 0 25000 0} " +
+		"{matched 1 630000 32000 0}]"
+	if got := fmt.Sprint(d.Totals); got != wantTotals {
+		t.Errorf("tổng %s, mong %s", got, wantTotals)
 	}
 	if !hasSignal(e.bus, cash.SignalStatementChanged, id) {
 		t.Error("không báo hiệu bảng kê đổi")

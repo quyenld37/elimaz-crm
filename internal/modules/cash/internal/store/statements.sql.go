@@ -7,6 +7,7 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -27,6 +28,38 @@ func (q *Queries) CarrierAccountKey(ctx context.Context, id uuid.UUID) (string, 
 	var carrier_key string
 	err := row.Scan(&carrier_key)
 	return carrier_key, err
+}
+
+const carrierAccountNames = `-- name: CarrierAccountNames :many
+SELECT id, name
+FROM fulfillment.carrier_accounts_v
+WHERE id = ANY ($1::uuid[])
+`
+
+type CarrierAccountNamesRow struct {
+	ID   uuid.UUID
+	Name string
+}
+
+// Tên tài khoản hãng theo mã (view công bố của fulfillment; RLS: tenant khác như không có).
+func (q *Queries) CarrierAccountNames(ctx context.Context, ids []uuid.UUID) ([]CarrierAccountNamesRow, error) {
+	rows, err := q.db.Query(ctx, carrierAccountNames, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CarrierAccountNamesRow{}
+	for rows.Next() {
+		var i CarrierAccountNamesRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const confirmStatement = `-- name: ConfirmStatement :one
@@ -244,12 +277,14 @@ func (q *Queries) InsertStatementLines(ctx context.Context, arg InsertStatementL
 }
 
 const listStatementLines = `-- name: ListStatementLines :many
-SELECT id, tenant_id, statement_id, line_no, tracking_code, cod_amount, fee_amount, other_fee, net_amount, paid_on, match_status, shipment_id, expected_amount, diff_amount, posted_transfer_id, created_at, updated_at
-FROM cash.cod_statement_lines
-WHERE statement_id = $1
-  AND ($2::text IS NULL OR match_status = $2::text)
-  AND line_no > $3
-ORDER BY line_no
+SELECT l.id, l.tenant_id, l.statement_id, l.line_no, l.tracking_code, l.cod_amount, l.fee_amount, l.other_fee, l.net_amount, l.paid_on, l.match_status, l.shipment_id, l.expected_amount, l.diff_amount, l.posted_transfer_id, l.created_at, l.updated_at, o.id AS order_id, o.code AS order_code
+FROM cash.cod_statement_lines l
+LEFT JOIN fulfillment.shipments_v s ON s.id = l.shipment_id
+LEFT JOIN ord.orders_v o ON o.id = s.order_id
+WHERE l.statement_id = $1
+  AND ($2::text IS NULL OR l.match_status = $2::text)
+  AND l.line_no > $3
+ORDER BY l.line_no
 LIMIT $4
 `
 
@@ -260,8 +295,31 @@ type ListStatementLinesParams struct {
 	Lim         int32
 }
 
-// Dòng của bảng kê theo số dòng tăng dần, lọc tùy chọn theo kết quả khớp; trang sau bắt đầu sau số dòng cuối.
-func (q *Queries) ListStatementLines(ctx context.Context, arg ListStatementLinesParams) ([]CashCodStatementLine, error) {
+type ListStatementLinesRow struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	StatementID      uuid.UUID
+	LineNo           int32
+	TrackingCode     string
+	CodAmount        int64
+	FeeAmount        int64
+	OtherFee         int64
+	NetAmount        int64
+	PaidOn           pgtype.Date
+	MatchStatus      string
+	ShipmentID       pgtype.UUID
+	ExpectedAmount   pgtype.Int8
+	DiffAmount       pgtype.Int8
+	PostedTransferID pgtype.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	OrderID          pgtype.UUID
+	OrderCode        pgtype.Text
+}
+
+// Dòng của bảng kê theo số dòng tăng dần, lọc tùy chọn theo kết quả khớp; trang sau bắt đầu sau số dòng cuối. Kèm mã,
+// số đơn của vận đơn đã khớp (view công bố của fulfillment, ord; dòng chưa khớp vận đơn: NULL) cho cột "Đơn" của màn.
+func (q *Queries) ListStatementLines(ctx context.Context, arg ListStatementLinesParams) ([]ListStatementLinesRow, error) {
 	rows, err := q.db.Query(ctx, listStatementLines,
 		arg.StatementID,
 		arg.MatchStatus,
@@ -272,9 +330,9 @@ func (q *Queries) ListStatementLines(ctx context.Context, arg ListStatementLines
 		return nil, err
 	}
 	defer rows.Close()
-	items := []CashCodStatementLine{}
+	items := []ListStatementLinesRow{}
 	for rows.Next() {
-		var i CashCodStatementLine
+		var i ListStatementLinesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.TenantID,
@@ -293,6 +351,8 @@ func (q *Queries) ListStatementLines(ctx context.Context, arg ListStatementLines
 			&i.PostedTransferID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.OrderID,
+			&i.OrderCode,
 		); err != nil {
 			return nil, err
 		}
@@ -720,7 +780,9 @@ func (q *Queries) StatementIDByFile(ctx context.Context, arg StatementIDByFilePa
 }
 
 const statementTotals = `-- name: StatementTotals :many
-SELECT match_status, count(*)::int AS lines, coalesce(sum(cod_amount), 0)::bigint AS cod_amount
+SELECT match_status, count(*)::int AS lines, coalesce(sum(cod_amount), 0)::bigint AS cod_amount,
+       coalesce(sum(fee_amount + other_fee), 0)::bigint AS fee_amount,
+       coalesce(sum(greatest(-diff_amount, 0)), 0)::bigint AS short_amount
 FROM cash.cod_statement_lines
 WHERE statement_id = $1
 GROUP BY match_status
@@ -731,9 +793,12 @@ type StatementTotalsRow struct {
 	MatchStatus string
 	Lines       int32
 	CodAmount   int64
+	FeeAmount   int64
+	ShortAmount int64
 }
 
-// Số dòng và tổng tiền COD theo kết quả khớp của mọi dòng của bảng kê.
+// Số dòng, tổng tiền COD, tổng phí hãng (phí + phí khác) và tổng phần hãng trả thiếu (chênh âm, đổi dấu) theo kết quả
+// khớp của mọi dòng của bảng kê.
 func (q *Queries) StatementTotals(ctx context.Context, statementID uuid.UUID) ([]StatementTotalsRow, error) {
 	rows, err := q.db.Query(ctx, statementTotals, statementID)
 	if err != nil {
@@ -743,7 +808,13 @@ func (q *Queries) StatementTotals(ctx context.Context, statementID uuid.UUID) ([
 	items := []StatementTotalsRow{}
 	for rows.Next() {
 		var i StatementTotalsRow
-		if err := rows.Scan(&i.MatchStatus, &i.Lines, &i.CodAmount); err != nil {
+		if err := rows.Scan(
+			&i.MatchStatus,
+			&i.Lines,
+			&i.CodAmount,
+			&i.FeeAmount,
+			&i.ShortAmount,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -32,11 +32,13 @@ const maxLimit = 200
 // trường không có ở loại mục là giá trị rỗng (nil, 0, "").
 type Discrepancy struct {
 	Kind, OrderCode, TrackingCode, MatchStatus string
-	ID                                         uuid.UUID
-	StatementID, ShipmentID                    *uuid.UUID
-	LineNo                                     int32
-	COD                                        int64
-	Expected, Diff                             *int64
+	// CarrierKey: hãng của bảng kê (dòng bảng kê) hay của vận đơn (mục khác).
+	CarrierKey                       string
+	ID                               uuid.UUID
+	StatementID, ShipmentID, OrderID *uuid.UUID
+	LineNo                           int32
+	COD                              int64
+	Expected, Diff                   *int64
 }
 
 // Discrepancies đọc tối đa limit mục mới nhất trước, sau mã mục before (nil: trang đầu).
@@ -52,7 +54,7 @@ func Discrepancies(ctx context.Context, tx pgx.Tx, before *uuid.UUID, limit int)
 		d := Discrepancy{
 			Kind: r.Kind, ID: r.ItemID, OrderCode: r.OrderCode, TrackingCode: r.TrackingCode, MatchStatus: r.MatchStatus,
 			LineNo: r.LineNo, COD: r.CodAmount, ShipmentID: uuidPtr(r.ShipmentID), Expected: int8Ptr(r.ExpectedAmount),
-			Diff: int8Ptr(r.DiffAmount),
+			Diff: int8Ptr(r.DiffAmount), OrderID: uuidPtr(r.OrderID), CarrierKey: r.CarrierKey,
 		}
 		if r.StatementID != uuid.Nil {
 			d.StatementID = new(r.StatementID)

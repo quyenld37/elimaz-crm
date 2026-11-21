@@ -7,11 +7,13 @@
 -- remitted_then_returned. Mới nhất trước theo mã mục (uuidv7); trang sau bắt đầu sau mã mục cuối.
 -- Cột không có ở một loại mục: mã rỗng (uuid toàn 0), số 0, chuỗi rỗng (bên đọc bỏ qua).
 SELECT kind, item_id, coalesce(statement_id, '00000000-0000-0000-0000-000000000000'::uuid)::uuid AS statement_id,
-       coalesce(line_no, 0)::int AS line_no, shipment_id, coalesce(order_code, '')::text AS order_code,
+       coalesce(line_no, 0)::int AS line_no, shipment_id, order_id, coalesce(order_code, '')::text AS order_code,
+       coalesce(carrier_key, '')::text AS carrier_key,
        coalesce(tracking_code, '')::text AS tracking_code, coalesce(cod_amount, 0)::bigint AS cod_amount,
        expected_amount, diff_amount, coalesce(match_status, '')::text AS match_status
 FROM (SELECT 'statement_line'::text AS kind, l.id AS item_id, l.statement_id::uuid AS statement_id,
-             l.line_no::int AS line_no, l.shipment_id AS shipment_id, o.code::text AS order_code,
+             l.line_no::int AS line_no, l.shipment_id AS shipment_id, o.id AS order_id, o.code::text AS order_code,
+             st.carrier_key::text AS carrier_key,
              l.tracking_code::text AS tracking_code, l.cod_amount::bigint AS cod_amount,
              l.expected_amount AS expected_amount, l.diff_amount AS diff_amount, l.match_status::text AS match_status
       FROM cash.cod_statement_lines l
@@ -25,7 +27,8 @@ FROM (SELECT 'statement_line'::text AS kind, l.id AS item_id, l.statement_id::uu
                         WHERE e.shipment_id = l.shipment_id
                           AND e.account = 'carrier_holding'), 0) <> 0)
       UNION ALL
-      SELECT 'open_remainder', b.shipment_id, NULL, NULL, b.shipment_id, o.code, s.tracking_code, s.cod_amount,
+      SELECT 'open_remainder', b.shipment_id, NULL, NULL, b.shipment_id, o.id, o.code, s.carrier_key, s.tracking_code,
+             s.cod_amount,
              b.carrier_holding, -b.carrier_holding, NULL
       FROM cash.shipment_cod_v b
       JOIN fulfillment.shipments_v s ON s.id = b.shipment_id
@@ -42,7 +45,8 @@ FROM (SELECT 'statement_line'::text AS kind, l.id AS item_id, l.statement_id::uu
                         WHERE ml.shipment_id = b.shipment_id
                           AND ml.match_status = 'amount_mismatch')
       UNION ALL
-      SELECT 'remitted_then_returned', f.id, NULL, NULL, f.shipment_id, o.code, s.tracking_code, s.cod_amount, NULL,
+      SELECT 'remitted_then_returned', f.id, NULL, NULL, f.shipment_id, o.id, o.code, s.carrier_key, s.tracking_code,
+             s.cod_amount, NULL,
              NULL, NULL
       FROM cash.reconcile_findings f
       LEFT JOIN fulfillment.shipments_v s ON s.id = f.shipment_id

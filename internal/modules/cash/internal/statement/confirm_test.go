@@ -13,6 +13,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/testkit/shiptest"
 )
 
 // settledFor đếm sự kiện cod.settled của vận đơn id.
@@ -73,7 +74,8 @@ func TestConfirm_TI05Shortfall(t *testing.T) {
 		if d.ShipmentID != nil && *d.ShipmentID == v2 {
 			found = d.Kind == cash.DiscrepancyStatementLine && d.MatchStatus == statement.MatchAmountMismatch &&
 				d.Diff != nil && *d.Diff == -30000 && d.StatementID != nil && *d.StatementID == first && d.LineNo == 1 &&
-				d.COD == 420000 && d.Expected != nil && *d.Expected == 450000 && d.TrackingCode == "FK0002"
+				d.COD == 420000 && d.Expected != nil && *d.Expected == 450000 && d.TrackingCode == "FK0002" &&
+				d.OrderID != nil && *d.OrderID == e.orderOf(v2) && d.CarrierKey == shiptest.CarrierKey
 		}
 	}
 	if !found {

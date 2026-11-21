@@ -64,7 +64,7 @@ func (h *handler) ImportCodStatement(ctx context.Context, req *gen.ImportCodStat
 			if err != nil {
 				return nil, err //nolint:wrapcheck // sentinel của cash
 			}
-			body, err := codStatementOut(ctx, tx, st)
+			body, err := h.codStatementOut(ctx, tx, st)
 			if err != nil {
 				return nil, err
 			}
@@ -105,7 +105,7 @@ func (h *handler) ListCodStatements(ctx context.Context, params gen.ListCodState
 		}
 		page.Items, page.NextCursor = make([]gen.CodStatement, 0, len(items)), gen.OptString{}
 		for _, st := range items {
-			body, err := codStatementOut(ctx, tx, st)
+			body, err := h.codStatementOut(ctx, tx, st)
 			if err != nil {
 				return err
 			}
@@ -145,7 +145,7 @@ func (h *handler) GetCodStatement(ctx context.Context, params gen.GetCodStatemen
 		if err != nil {
 			return err //nolint:wrapcheck // cash đã bọc
 		}
-		head, err := codStatementOut(ctx, tx, d.Statement)
+		head, err := h.codStatementOut(ctx, tx, d.Statement)
 		if err != nil {
 			return err
 		}
@@ -156,6 +156,7 @@ func (h *handler) GetCodStatement(ctx context.Context, params gen.GetCodStatemen
 		for _, t := range d.Totals {
 			out.Totals = append(out.Totals, gen.CodMatchTotal{
 				MatchStatus: gen.CodMatchStatus(t.MatchStatus), Count: t.Lines, CodAmount: gen.Money(t.COD),
+				FeeAmount: gen.NewOptSignedMoney(gen.SignedMoney(t.Fee)), ShortAmount: gen.NewOptSignedMoney(gen.SignedMoney(t.Short)),
 			})
 		}
 		for _, l := range d.Lines {
@@ -172,8 +173,8 @@ func (h *handler) GetCodStatement(ctx context.Context, params gen.GetCodStatemen
 	return out, nil
 }
 
-// codStatementOut dựng thân CodStatement, đọc tên người nhập, người chốt cùng tx.
-func codStatementOut(ctx context.Context, tx pgx.Tx, st cash.Statement) (*gen.CodStatement, error) {
+// codStatementOut dựng thân CodStatement, đọc tên người nhập, người chốt, tên tài khoản hãng cùng tx.
+func (h *handler) codStatementOut(ctx context.Context, tx pgx.Tx, st cash.Statement) (*gen.CodStatement, error) {
 	ids := []uuid.UUID{st.ImportedBy}
 	if st.ConfirmedBy != nil {
 		ids = append(ids, *st.ConfirmedBy)
@@ -182,10 +183,17 @@ func codStatementOut(ctx context.Context, tx pgx.Tx, st cash.Statement) (*gen.Co
 	if err != nil {
 		return nil, err
 	}
+	accounts, err := h.d.Cash.CarrierAccountNames(ctx, tx, []uuid.UUID{st.CarrierAccountID})
+	if err != nil {
+		return nil, fmt.Errorf("đọc tên tài khoản hãng của bảng kê: %w", err)
+	}
 	out := &gen.CodStatement{
 		ID: st.ID, CarrierKey: st.CarrierKey, CarrierAccountId: st.CarrierAccountID, FileId: st.FileID, Format: st.Format,
 		Status: gen.CodStatementStatus(st.Status), LineCount: st.LineCount, CreatedAt: st.CreatedAt, Version: st.Version,
 		ImportedBy: gen.NewOptActor(gen.Actor{ID: st.ImportedBy, Name: names[st.ImportedBy]}),
+	}
+	if name, ok := accounts[st.CarrierAccountID]; ok {
+		out.CarrierAccountName = gen.NewOptString(name)
 	}
 	if st.PeriodFrom != nil {
 		out.PeriodFrom = gen.NewOptDate(*st.PeriodFrom)
@@ -227,6 +235,12 @@ func codStatementLineOut(l cash.StatementLine) gen.CodStatementLine {
 	if l.PaidOn != nil {
 		out.PaidOn = gen.NewOptDate(*l.PaidOn)
 	}
+	if l.OrderID != nil {
+		out.OrderId = gen.NewOptUUID(*l.OrderID)
+	}
+	if l.OrderCode != "" {
+		out.OrderCode = gen.NewOptString(l.OrderCode)
+	}
 	if l.ExpectedAmount != nil {
 		out.ExpectedAmount = gen.NewOptSignedMoney(gen.SignedMoney(*l.ExpectedAmount))
 	}
@@ -255,7 +269,7 @@ func (h *handler) ConfirmCodStatement(ctx context.Context, req *gen.VersionReque
 			if err != nil {
 				return nil, err //nolint:wrapcheck // sentinel của cash
 			}
-			head, err := codStatementOut(ctx, tx, c.Statement)
+			head, err := h.codStatementOut(ctx, tx, c.Statement)
 			if err != nil {
 				return nil, err
 			}
@@ -330,6 +344,12 @@ func codDiscrepancyOut(d cash.Discrepancy) gen.CodDiscrepancy {
 	}
 	if d.OrderCode != "" {
 		out.OrderCode = gen.NewOptString(d.OrderCode)
+	}
+	if d.OrderID != nil {
+		out.OrderId = gen.NewOptUUID(*d.OrderID)
+	}
+	if d.CarrierKey != "" {
+		out.CarrierKey = gen.NewOptString(d.CarrierKey)
 	}
 	if d.TrackingCode != "" {
 		out.TrackingCode = gen.NewOptString(d.TrackingCode)
