@@ -1414,8 +1414,9 @@ func (UnimplementedHandler) ResolveAddressChange(ctx context.Context, req *Resol
 
 // ResolveOrderDuplicate implements resolveOrderDuplicate operation.
 //
-// Xử lý một cặp nghi trùng: không trùng, hoặc hủy một đơn (lý do duplicate); không
-// tự hủy (Task M2-23).
+// Hủy một đơn gửi version của đơn đó. Đơn đã gửi hãng chỉ sang
+// cancel_requested: cặp giữ mở (không có resolution) cho tới khi hãng xác nhận hủy
+// (cặp rời danh sách) hoặc từ chối (cặp chờ xử lý lại) (Task 432).
 //
 // POST /api/v1/order-duplicates/{orderId}/{otherOrderId}/resolve
 func (UnimplementedHandler) ResolveOrderDuplicate(ctx context.Context, req *ResolveOrderDuplicateRequest, params ResolveOrderDuplicateParams) (r ResolveOrderDuplicateRes, _ error) {

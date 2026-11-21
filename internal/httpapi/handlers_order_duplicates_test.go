@@ -36,8 +36,9 @@ func (e *orderAPIEnv) detectDuplicates(id any) {
 }
 
 // Ba operation đơn trùng qua API: check (order.create) trả hai đơn cùng SĐT, cùng biến thể; list (order.read) một cặp
-// matchedBy phone; cả ba trả người phụ trách (careBy: mã, tên hiển thị; Task M2-24) của đơn có người phụ trách; resolve (order.duplicates.resolve) cancel_other → 200 resolution cancelled, đơn kia cancelled,
-// audit; gửi lại cùng khóa → cùng kết quả; khóa khác → 422 invalid_transition; không quyền → 403; cặp không có → 404;
+// matchedBy phone; cả ba trả người phụ trách (careBy: mã, tên hiển thị; Task M2-24) của đơn có người phụ trách; resolve
+// (order.duplicates.resolve) cancel_other thiếu version → 400, version cũ → 409 version_conflict (Task 432); đúng version
+// → 200 resolution cancelled, đơn kia cancelled, audit; gửi lại cùng khóa → cùng kết quả; khóa khác → 422 invalid_transition; không quyền → 403; cặp không có → 404;
 // con trỏ hỏng → 400.
 func TestOrderAPI_Duplicates(t *testing.T) {
 	e := newOrderAPIEnv(t)
@@ -72,7 +73,12 @@ func TestOrderAPI_Duplicates(t *testing.T) {
 		"", ""), http.StatusBadRequest, "invalid_input")
 
 	path := fmt.Sprintf("/api/v1/order-duplicates/%v/%v/resolve", o1["id"], o2["id"])
-	body := `{"action":"cancel_other"}`
+	expect(t, "hủy thiếu version", serveAs(e.srv, e.keys, http.MethodPost, path, orderDupResolver, "r-nv",
+		`{"action":"cancel_other"}`), http.StatusBadRequest, "invalid_input")
+	expect(t, "hủy version cũ", serveAs(e.srv, e.keys, http.MethodPost, path, orderDupResolver, "r-old",
+		fmt.Sprintf(`{"action":"cancel_other","version":%v}`, o2["version"].(float64)-1)), http.StatusConflict,
+		"version_conflict")
+	body := fmt.Sprintf(`{"action":"cancel_other","version":%v}`, o2["version"])
 	expect(t, "resolve không quyền", serveAs(e.srv, e.keys, http.MethodPost, path, orderViewer, "r0", body),
 		http.StatusForbidden, "forbidden")
 	expect(t, "cặp không có", serveAs(e.srv, e.keys, http.MethodPost,

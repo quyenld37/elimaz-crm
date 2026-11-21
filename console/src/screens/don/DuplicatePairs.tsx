@@ -1,6 +1,8 @@
 // Màn Đơn trùng /don/trung (kế hoạch M2 Task M2-28; mockup docs/mockups/m2/don-trung.html trạng thái A–C; HV25).
 // Cặp đơn nghi trùng chưa xử lý, mới nhất trước; hai đơn cạnh nhau, sản phẩm chung tô nền. "Hủy đơn này" cần xác
-// nhận (máy chủ hủy với lý do duplicate); "Không trùng" không cần xác nhận, có thông báo. Hệ thống không tự hủy.
+// nhận (máy chủ hủy với lý do duplicate, gửi version của đơn đã đọc); "Không trùng" không cần xác nhận, có thông báo.
+// Hệ thống không tự hủy. Đơn đã gửi hãng (có vận đơn hiện hành): máy chủ chỉ chuyển "Đang yêu cầu hủy", hàng chưa về
+// kho, cặp còn ở danh sách tới khi hãng xác nhận (Task 432).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -20,7 +22,7 @@ import { displayPhone } from "../len-don/orderRules";
 import { formatMoney } from "../products/productRules";
 import { Dialog } from "../staff/staffData";
 import { LABEL_TEXT, labelChip } from "./labels";
-import { ORDER_TOPIC, useOrder, useOrderSettings, usePerms, useSources } from "./orderData";
+import { ORDER_TOPIC, reloadOrder, useOrder, useOrderSettings, usePerms, useSources } from "./orderData";
 import "./don.css";
 
 const percent = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
@@ -107,7 +109,7 @@ function Side({
         <span className="money">{formatMoney(row.grandTotal)}</span>
       </div>
       {canResolve && CANCELLABLE.has(row.status) && (
-        <button type="button" className="btn btn-danger" onClick={onCancel}>
+        <button type="button" className="btn btn-danger" disabled={detail === undefined} onClick={onCancel}>
           Hủy đơn này
         </button>
       )}
@@ -124,7 +126,7 @@ function Pair({
   p: OrderDuplicate;
   canResolve: boolean;
   pending: boolean;
-  onResolve: (action: ResolveOrderDuplicateRequest["action"]) => void;
+  onResolve: (req: ResolveOrderDuplicateRequest) => void;
 }) {
   const left = useOrder(p.order.id).data;
   const right = useOrder(p.otherOrder.id).data;
@@ -135,6 +137,8 @@ function Pair({
   const sameCustomer = p.order.customerId === p.otherOrder.customerId;
   const target = confirm === "cancel_this" ? p.order : p.otherOrder;
   const kept = confirm === "cancel_this" ? p.otherOrder : p.order;
+  const targetDetail = confirm === "cancel_this" ? left : right;
+  const shipped = targetDetail?.currentShipmentId !== undefined;
   return (
     <article className="pair-c" aria-label={`${p.order.code} và ${p.otherOrder.code}`}>
       <div className="row-between">
@@ -167,7 +171,7 @@ function Pair({
       <div className="row-between">
         <span className="small muted">
           {sameCustomer || p.matchedBy === "customer"
-            ? 'Sản phẩm chung tô nền hồng. Hủy một đơn: lý do "Đơn trùng", nhả hàng và trả lượt mã của đơn đó.'
+            ? 'Sản phẩm chung tô nền hồng. Hủy một đơn: lý do "Đơn trùng", nhả hàng và trả lượt mã của đơn đó (đơn đã gửi hãng: khi hãng xác nhận hủy).'
             : "Hai hồ sơ khách khác nhau dùng cùng một số: xem gợi ý gộp ở hồ sơ khách."}
         </span>
         {canResolve && (
@@ -176,7 +180,7 @@ function Pair({
             className="btn btn-line"
             disabled={pending}
             onClick={() => {
-              onResolve("not_duplicate");
+              onResolve({ action: "not_duplicate" });
             }}
           >
             Không trùng
@@ -203,20 +207,27 @@ function Pair({
               <button
                 type="button"
                 className="btn btn-danger"
-                disabled={pending}
+                disabled={pending || targetDetail === undefined}
                 onClick={() => {
-                  onResolve(confirm);
+                  if (targetDetail === undefined) return;
+                  onResolve({ action: confirm, version: targetDetail.version ?? 0 });
                   setConfirm(null);
                 }}
               >
-                {`Hủy ${target.code}`}
+                {shipped ? `Gửi yêu cầu hủy ${target.code}` : `Hủy ${target.code}`}
               </button>
             </>
           }
         >
-          <p>
-            {`Đơn bị hủy với lý do "Đơn trùng". Hàng của đơn trả về có thể bán ngay; mã giảm giá (nếu có) được trả lượt. Đơn ${kept.code} giữ nguyên.`}
-          </p>
+          {shipped ? (
+            <p>
+              {`Đơn đã gửi hãng. Đơn sẽ thành "Đang yêu cầu hủy" với lý do "Đơn trùng"; hàng chưa trả về kho, mã giảm giá chưa được trả lượt cho tới khi hãng xác nhận hủy. Hãng từ chối thì đơn quay lại "Đã xác nhận" và cặp vẫn ở đây. Đơn ${kept.code} giữ nguyên.`}
+            </p>
+          ) : (
+            <p>
+              {`Đơn bị hủy với lý do "Đơn trùng". Hàng của đơn trả về có thể bán ngay; mã giảm giá (nếu có) được trả lượt. Đơn ${kept.code} giữ nguyên.`}
+            </p>
+          )}
         </Dialog>
       )}
     </article>
@@ -241,16 +252,22 @@ export function DuplicatePairs() {
   );
   const canResolve = perms.can("order.duplicates.resolve");
 
-  const resolve = async (p: OrderDuplicate, action: ResolveOrderDuplicateRequest["action"]) => {
+  const resolve = async (p: OrderDuplicate, req: ResolveOrderDuplicateRequest) => {
     setToast(null);
-    const r = await write.run({ orderId: p.order.id, otherOrderId: p.otherOrder.id, req: { action } });
-    if (!r.ok) return;
-    setToast(
-      action === "not_duplicate"
-        ? `Đã ghi ${p.order.code} và ${p.otherOrder.code} là không trùng.`
-        : `Đã hủy ${action === "cancel_this" ? p.order.code : p.otherOrder.code}.`,
-    );
+    const r = await write.run({ orderId: p.order.id, otherOrderId: p.otherOrder.id, req });
+    // Thành công hay bị từ chối (409 người khác vừa sửa đơn): đọc lại hai đơn và danh sách để thấy bản mới.
+    reloadOrder(qc, p.order.id);
+    reloadOrder(qc, p.otherOrder.id);
     void qc.invalidateQueries({ queryKey: queryKey(ORDER_TOPIC, "duplicates") });
+    if (!r.ok) return;
+    const after = req.action === "cancel_this" ? r.data.order : r.data.otherOrder;
+    setToast(
+      req.action === "not_duplicate"
+        ? `Đã ghi ${p.order.code} và ${p.otherOrder.code} là không trùng.`
+        : after.status === "cancel_requested"
+          ? `Đã gửi yêu cầu hủy ${after.code}. Hàng chưa về kho cho tới khi hãng xác nhận; cặp còn ở danh sách tới lúc đó.`
+          : `Đã hủy ${after.code}.`,
+    );
   };
 
   const hours = settings.data === undefined ? null : percent.format(settings.data.duplicateWindowMinutes / 60);
@@ -293,8 +310,8 @@ export function DuplicatePairs() {
           p={p}
           canResolve={canResolve}
           pending={write.pending}
-          onResolve={(action) => {
-            void resolve(p, action);
+          onResolve={(req) => {
+            void resolve(p, req);
           }}
         />
       ))}

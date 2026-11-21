@@ -13484,8 +13484,9 @@ func (s *Server) handleResolveAddressChangeRequest(args [1]string, argsEscaped b
 
 // handleResolveOrderDuplicateRequest handles resolveOrderDuplicate operation.
 //
-// Xử lý một cặp nghi trùng: không trùng, hoặc hủy một đơn (lý do duplicate); không
-// tự hủy (Task M2-23).
+// Hủy một đơn gửi version của đơn đó. Đơn đã gửi hãng chỉ sang
+// cancel_requested: cặp giữ mở (không có resolution) cho tới khi hãng xác nhận hủy
+// (cặp rời danh sách) hoặc từ chối (cặp chờ xử lý lại) (Task 432).
 //
 // POST /api/v1/order-duplicates/{orderId}/{otherOrderId}/resolve
 func (s *Server) handleResolveOrderDuplicateRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

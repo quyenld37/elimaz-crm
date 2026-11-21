@@ -102,3 +102,15 @@ FROM ord.orders o
 JOIN customer.customers_v c ON c.id = o.customer_id
 JOIN customer.customers_v r ON r.id = c.root_id
 WHERE o.seller_id = @seller_id AND o.id = ANY(@ids::uuid[]);
+
+-- name: SuspectPairedOrders :many
+-- Đơn id và các đơn ghép cặp với nó (mọi kết luận) mà còn cờ nghi trùng, theo id tăng dần (thứ tự khóa); consumer gỡ
+-- cờ khi đơn id đã hủy.
+SELECT o.id
+FROM ord.orders o
+WHERE o.seller_id = @seller_id AND o.duplicate_suspect
+  AND (o.id = @id::uuid
+       OR EXISTS (SELECT 1 FROM ord.order_duplicate_links l
+                  WHERE (l.order_id = @id::uuid AND l.other_order_id = o.id)
+                     OR (l.other_order_id = @id::uuid AND l.order_id = o.id)))
+ORDER BY o.id;
