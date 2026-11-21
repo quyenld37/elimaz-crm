@@ -261,7 +261,8 @@ func TestCouponAPI_Redemptions(t *testing.T) {
 		}
 		_, err = promotion.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue()}.Redeem(t.Context(), tx, "SALE10",
 			promotion.OrderRef{TenantID: e.tenant, ID: o.ID, Version: o.Version}, promotion.EvalInput{
-				Base: 400000, Channel: "manual", CustomerRootID: o.CustomerID, SellerID: shop.Seller, Now: vnTime(2026, 12, 15, 10),
+				Base: 400000, Channel: "manual", CustomerID: o.CustomerID, CustomerRootID: o.CustomerID, SellerID: shop.Seller,
+				Now: vnTime(2026, 12, 15, 10),
 			})
 		return err //nolint:wrapcheck // test
 	})

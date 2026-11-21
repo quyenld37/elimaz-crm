@@ -18,7 +18,8 @@ const percentScale = 10000
 type EvalInput struct {
 	Base           int64         // tạm tính sau giảm dòng và giảm tay cấp đơn
 	Channel        string        // kênh của đơn (facebook, web, manual)
-	CustomerRootID uuid.UUID     // hồ sơ gốc của khách (sau gộp)
+	CustomerID     uuid.UUID     // hồ sơ khách của đơn (Redeem ghi lượt mỗi khách theo hồ sơ này; Check không cần)
+	CustomerRootID uuid.UUID     // hồ sơ gốc hiện tại của khách (sau gộp)
 	Phone          logging.Phone // SĐT nhận hàng của đơn, dạng nào cũng được (so sau khi chuẩn hóa)
 	SellerID       uuid.UUID     // người bán của đơn
 	Now            time.Time
@@ -64,7 +65,8 @@ func rejectReason(c Coupon, in EvalInput) Reason {
 	return ""
 }
 
-// boundMatches: mã không gắn ai → đúng; mã gắn khách và/hoặc SĐT → đúng khi đơn khớp ít nhất một thứ đã gắn.
+// boundMatches: mã không gắn ai → đúng; mã gắn khách và/hoặc SĐT → đúng khi đơn khớp ít nhất một thứ đã gắn. Khách
+// gắn mã so theo gốc: bên gọi có database (Redeem, Check, Reprice) đã đổi c.BoundCustomerID về gốc hiện tại.
 func boundMatches(c Coupon, in EvalInput) bool {
 	if c.BoundCustomerID == uuid.Nil && c.BoundPhone == "" {
 		return true

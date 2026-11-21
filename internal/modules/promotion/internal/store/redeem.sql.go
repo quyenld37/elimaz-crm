@@ -38,9 +38,11 @@ func (q *Queries) ActiveRedemptionByOrder(ctx context.Context, orderID uuid.UUID
 }
 
 const customerUsed = `-- name: CustomerUsed :one
-SELECT coalesce(max(used), 0)::int AS used
-FROM promotion.coupon_customer_uses
-WHERE coupon_id = $1 AND customer_id = $2
+SELECT coalesce(sum(u.used), 0)::int AS used
+FROM promotion.coupon_customer_uses u
+JOIN customer.customers_v m ON m.id = u.customer_id
+WHERE u.coupon_id = $1::uuid
+  AND m.root_id = (SELECT g.root_id FROM customer.customers_v g WHERE g.id = $2::uuid)
 `
 
 type CustomerUsedParams struct {
@@ -48,7 +50,8 @@ type CustomerUsedParams struct {
 	CustomerID uuid.UUID
 }
 
-// Số lượt đang hiệu lực của khách với mã (Check); chưa có dòng → 0.
+// Tổng lượt đang hiệu lực của nhóm khách hiện tại của customer_id (mọi hồ sơ cùng root_id, qua customer.customers_v;
+// Task 430) với mã (Check); chưa có dòng → 0.
 func (q *Queries) CustomerUsed(ctx context.Context, arg CustomerUsedParams) (int32, error) {
 	row := q.db.QueryRow(ctx, customerUsed, arg.CouponID, arg.CustomerID)
 	var used int32
@@ -91,11 +94,16 @@ func (q *Queries) DecrementUsed(ctx context.Context, id uuid.UUID) (int64, error
 
 const incrementCustomerUse = `-- name: IncrementCustomerUse :execrows
 INSERT INTO promotion.coupon_customer_uses (tenant_id, coupon_id, customer_id, used)
-VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, 1)
+SELECT NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1::uuid, $2::uuid, 1
+WHERE $3::int IS NULL
+   OR (SELECT coalesce(sum(u.used), 0)
+       FROM promotion.coupon_customer_uses u
+       JOIN customer.customers_v m ON m.id = u.customer_id
+       WHERE u.coupon_id = $1::uuid
+         AND m.root_id = (SELECT g.root_id FROM customer.customers_v g WHERE g.id = $2::uuid))
+      < $3::int
 ON CONFLICT (tenant_id, coupon_id, customer_id) DO UPDATE
 SET used = promotion.coupon_customer_uses.used + 1
-WHERE $3::int IS NULL
-   OR promotion.coupon_customer_uses.used < $3::int
 `
 
 type IncrementCustomerUseParams struct {
@@ -104,7 +112,10 @@ type IncrementCustomerUseParams struct {
 	PerCustomerLimit pgtype.Int4
 }
 
-// Một lượt nữa của khách với mã; per_customer_limit rỗng là không giới hạn (vẫn đếm).
+// Một lượt nữa của hồ sơ customer_id (hồ sơ của đơn) với mã. per_customer_limit (rỗng: không giới hạn, vẫn đếm) so với
+// tổng lượt của cả nhóm khách hiện tại: mọi hồ sơ cùng root_id với customer_id, đọc qua customer.customers_v (Task 430),
+// nên gộp, hoàn tác đổi nhóm thì tổng tự đúng. Bên gọi đã khóa dòng mã (mọi lượt của mã tuần tự) và hồ sơ + gốc của
+// khách (gộp vào nhóm này chờ). 0 dòng: nhóm đã dùng đủ.
 func (q *Queries) IncrementCustomerUse(ctx context.Context, arg IncrementCustomerUseParams) (int64, error) {
 	result, err := q.db.Exec(ctx, incrementCustomerUse, arg.CouponID, arg.CustomerID, arg.PerCustomerLimit)
 	if err != nil {

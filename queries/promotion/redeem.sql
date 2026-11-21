@@ -12,13 +12,21 @@ SET used_count = used_count - 1
 WHERE id = @id AND used_count > 0;
 
 -- name: IncrementCustomerUse :execrows
--- Một lượt nữa của khách với mã; per_customer_limit rỗng là không giới hạn (vẫn đếm).
+-- Một lượt nữa của hồ sơ customer_id (hồ sơ của đơn) với mã. per_customer_limit (rỗng: không giới hạn, vẫn đếm) so với
+-- tổng lượt của cả nhóm khách hiện tại: mọi hồ sơ cùng root_id với customer_id, đọc qua customer.customers_v (Task 430),
+-- nên gộp, hoàn tác đổi nhóm thì tổng tự đúng. Bên gọi đã khóa dòng mã (mọi lượt của mã tuần tự) và hồ sơ + gốc của
+-- khách (gộp vào nhóm này chờ). 0 dòng: nhóm đã dùng đủ.
 INSERT INTO promotion.coupon_customer_uses (tenant_id, coupon_id, customer_id, used)
-VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, @coupon_id, @customer_id, 1)
-ON CONFLICT (tenant_id, coupon_id, customer_id) DO UPDATE
-SET used = promotion.coupon_customer_uses.used + 1
+SELECT NULLIF(current_setting('app.tenant_id', true), '')::uuid, @coupon_id::uuid, @customer_id::uuid, 1
 WHERE sqlc.narg(per_customer_limit)::int IS NULL
-   OR promotion.coupon_customer_uses.used < sqlc.narg(per_customer_limit)::int;
+   OR (SELECT coalesce(sum(u.used), 0)
+       FROM promotion.coupon_customer_uses u
+       JOIN customer.customers_v m ON m.id = u.customer_id
+       WHERE u.coupon_id = @coupon_id::uuid
+         AND m.root_id = (SELECT g.root_id FROM customer.customers_v g WHERE g.id = @customer_id::uuid))
+      < sqlc.narg(per_customer_limit)::int
+ON CONFLICT (tenant_id, coupon_id, customer_id) DO UPDATE
+SET used = promotion.coupon_customer_uses.used + 1;
 
 -- name: DecrementCustomerUse :execrows
 UPDATE promotion.coupon_customer_uses
@@ -26,10 +34,13 @@ SET used = used - 1
 WHERE coupon_id = @coupon_id AND customer_id = @customer_id AND used > 0;
 
 -- name: CustomerUsed :one
--- Số lượt đang hiệu lực của khách với mã (Check); chưa có dòng → 0.
-SELECT coalesce(max(used), 0)::int AS used
-FROM promotion.coupon_customer_uses
-WHERE coupon_id = @coupon_id AND customer_id = @customer_id;
+-- Tổng lượt đang hiệu lực của nhóm khách hiện tại của customer_id (mọi hồ sơ cùng root_id, qua customer.customers_v;
+-- Task 430) với mã (Check); chưa có dòng → 0.
+SELECT coalesce(sum(u.used), 0)::int AS used
+FROM promotion.coupon_customer_uses u
+JOIN customer.customers_v m ON m.id = u.customer_id
+WHERE u.coupon_id = @coupon_id::uuid
+  AND m.root_id = (SELECT g.root_id FROM customer.customers_v g WHERE g.id = @customer_id::uuid);
 
 -- name: ActiveRedemptionByOrder :one
 SELECT id, coupon_id, customer_id, discount

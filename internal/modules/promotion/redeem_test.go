@@ -150,10 +150,11 @@ func (e *env) code(id uuid.UUID) string {
 	return c
 }
 
-// input là đầu vào của khách cust, tạm tính base, kênh manual, người bán ELIMAZ, giờ hiện tại.
+// input là đầu vào của khách cust (hồ sơ của đơn và gốc là chính nó), tạm tính base, kênh manual, người bán ELIMAZ,
+// giờ hiện tại.
 func (e *env) input(cust uuid.UUID, base int64) promotion.EvalInput {
 	return promotion.EvalInput{
-		Base: base, Channel: "manual", CustomerRootID: cust, Phone: logging.Phone("+84901111111"),
+		Base: base, Channel: "manual", CustomerID: cust, CustomerRootID: cust, Phone: logging.Phone("+84901111111"),
 		SellerID: e.shop.Seller, Now: time.Now(),
 	}
 }

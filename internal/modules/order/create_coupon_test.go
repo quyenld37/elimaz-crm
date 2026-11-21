@@ -15,13 +15,15 @@ import (
 )
 
 // couponTerms là mã phần trăm value (phần vạn), trần maxDiscount (0: không trần), số lượt maxUses (0: không giới hạn),
-// hạn [from, to).
+// hạn [from, to), lượt mỗi khách perCustomer, khách gắn mã boundCustomer.
 type couponTerms struct {
 	code               string
 	kind               string
 	value, maxDiscount int64
 	maxUses            int32
 	from, to           time.Time
+	perCustomer        int32     // 0: không giới hạn lượt mỗi khách
+	boundCustomer      uuid.UUID // uuid.Nil: không gắn khách
 }
 
 // sale10 là mã SALE10 của kế hoạch (10%, trần 50.000) còn hạn ở giờ thử e.now().
@@ -45,6 +47,10 @@ func (e *orderEnv) coupon(c couponTerms) uuid.UUID {
 	if c.maxUses > 0 {
 		in.MaxUses = &c.maxUses
 	}
+	if c.perCustomer > 0 {
+		in.PerCustomerLimit = &c.perCustomer
+	}
+	in.BoundCustomerID = c.boundCustomer
 	var out promotion.Coupon
 	if err := e.app(func(tx pgx.Tx) error {
 		var err error

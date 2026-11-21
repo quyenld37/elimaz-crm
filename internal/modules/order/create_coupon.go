@@ -35,8 +35,8 @@ func (w Writer) applyCoupon(ctx context.Context, tx pgx.Tx, p prepared, d drafte
 	r, err := promotion.Writer{Events: w.Events, Queue: w.Queue}.Redeem(ctx, tx, p.coupon,
 		promotion.OrderRef{TenantID: a.TenantID, ID: orderID, Version: d.version},
 		promotion.EvalInput{
-			Base: t.Subtotal - t.LineDiscountTotal - t.OrderDiscount, Channel: p.channel, CustomerRootID: cust.RootID,
-			Phone: phone, SellerID: p.seller, Now: now,
+			Base: t.Subtotal - t.LineDiscountTotal - t.OrderDiscount, Channel: p.channel, CustomerID: cust.CustomerID,
+			CustomerRootID: cust.RootID, Phone: phone, SellerID: p.seller, Now: now,
 		})
 	if err != nil {
 		return fmt.Errorf("dùng mã giảm giá: %w", err)
