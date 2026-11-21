@@ -63,6 +63,32 @@ type DialOptions struct {
 	Tracing   bool
 }
 type Health string
+type Limit struct {
+	Name        string
+	Max         int
+	Window      time.Duration
+	FallbackMax int
+}
+type Limits struct {
+	WebKey Limit
+
+	FlashCustomer Limit
+
+	FlashIP Limit
+
+	WebOrderCustomer Limit
+}
+func DefaultLimits() Limits
+func ParseLimits(raw string) (Limits, error)
+type RateDecision struct {
+	Allowed    bool
+	RetryAfter time.Duration
+	Degraded   bool
+}
+type RateLimiter interface {
+	Allow(ctx context.Context, l Limit, subjectKey string) RateDecision
+}
+func NewRateLimiter(c *Conn, now func() time.Time, m *metrics.Registry) RateLimiter
 type ReadCache interface {
 	GetOrLoad(ctx context.Context, tenant uuid.UUID, space Space, id string, ttl time.Duration,
 		load func(context.Context) ([]byte, error)) ([]byte, Source, error)
