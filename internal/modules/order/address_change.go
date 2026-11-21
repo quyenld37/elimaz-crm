@@ -70,6 +70,20 @@ func (w Writer) ApplyAddressChange(ctx context.Context, tx pgx.Tx, sellerID, ord
 	return true, nil
 }
 
+// CheckShipAddress kiểm và chuẩn hóa địa chỉ giao addr theo đúng luật của ApplyAddressChange (trong tx của bên gọi, chỉ
+// đọc danh mục địa giới): bên gọi kiểm trước khi gửi yêu cầu đổi địa chỉ ra hãng (Task M3-17). Lỗi: addr sai dạng →
+// ErrInvalidInput; thiếu tỉnh hay xã → ErrAddressIncomplete; mã tỉnh, xã không có → lỗi của customer.ValidateUnits.
+func CheckShipAddress(ctx context.Context, tx pgx.Tx, addr ShipAddress) (ShipAddress, error) {
+	clean, err := checkShape(addr)
+	if err != nil {
+		return ShipAddress{}, err
+	}
+	if err := validateUnits(ctx, tx, clean); err != nil {
+		return ShipAddress{}, err
+	}
+	return clean, nil
+}
+
 // checkShape: phần không cần database của kiểm địa chỉ giao (dạng, đủ tỉnh và xã).
 func checkShape(addr ShipAddress) (ShipAddress, error) {
 	clean, err := cleanAddress(addr)

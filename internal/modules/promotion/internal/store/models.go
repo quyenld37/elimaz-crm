@@ -613,6 +613,7 @@ type FulfillmentAddressChangeRequest struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Version     int64
+	Note        pgtype.Text
 }
 
 type FulfillmentCallbackTask struct {

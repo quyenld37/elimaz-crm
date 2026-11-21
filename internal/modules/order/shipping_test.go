@@ -280,3 +280,41 @@ func TestApplyAddressChange_Delivered(t *testing.T) {
 		t.Errorf("đơn delivered: %v; muốn ErrInvalidTransition", err)
 	}
 }
+
+// CheckShipAddress (Task M3-17: fulfillment kiểm địa chỉ trước khi gửi hãng): chuẩn hóa (bỏ khoảng trắng) như
+// ApplyAddressChange; thiếu xã → ErrAddressIncomplete; SĐT sai → ErrInvalidInput; xã lạ → customer.ErrUnknownAdminUnit;
+// không đổi đơn nào.
+func TestCheckShipAddress(t *testing.T) {
+	e := newM2Env(t)
+	ok := order.ShipAddress{
+		Name: " Anh Minh ", Phone: logging.Phone(" 0912345678 "), Line: " 99 Hai Bà Trưng ", ProvinceCode: "T01",
+		WardCode: "T01001",
+	}
+	check := func(a order.ShipAddress) (order.ShipAddress, error) {
+		var out order.ShipAddress
+		err := e.app(func(tx pgx.Tx) (err error) {
+			out, err = order.CheckShipAddress(e.t.Context(), tx, a)
+			return err //nolint:wrapcheck // test
+		})
+		return out, err
+	}
+	got, err := check(ok)
+	if err != nil || got.Name != "Anh Minh" || got.Phone != "0912345678" || got.Line != "99 Hai Bà Trưng" {
+		t.Fatalf("địa chỉ hợp lệ: %+v, %v", got, err)
+	}
+	for _, c := range []struct {
+		name string
+		edit func(*order.ShipAddress)
+		want error
+	}{
+		{"thiếu xã", func(a *order.ShipAddress) { a.WardCode = "" }, order.ErrAddressIncomplete},
+		{"SĐT sai", func(a *order.ShipAddress) { a.Phone = "abc" }, order.ErrInvalidInput},
+		{"xã lạ", func(a *order.ShipAddress) { a.WardCode = "T01999" }, customer.ErrUnknownAdminUnit},
+	} {
+		bad := ok
+		c.edit(&bad)
+		if _, err := check(bad); !errors.Is(err, c.want) {
+			t.Errorf("%s: %v; muốn %v", c.name, err, c.want)
+		}
+	}
+}

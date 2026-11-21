@@ -531,6 +531,9 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		{fulfillment.ErrManualNotAllowed, http.StatusConflict, codeInvalidTransition},
 		// In nhãn (M3, Task M3-16).
 		{fulfillment.ErrLabelBatchInvalid, http.StatusBadRequest, codeInvalidInput},
+		// Đổi địa chỉ sau khi gửi hãng (M3, Task M3-17; chỉ mã có sẵn trong hợp đồng).
+		{fulfillment.ErrAddressChangeOpen, http.StatusConflict, codeAlreadyExists},
+		{fulfillment.ErrAddressChangeNotAllowed, http.StatusConflict, codeInvalidTransition},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

@@ -6,6 +6,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/adapters/carrier"
 	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
+	"elimaz.com.vn/crm/internal/httpapi"
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/platform/background"
@@ -86,6 +87,14 @@ func wireM3(role config.Role, cfg config.Config, d m3Deps) (m3Parts, error) {
 	// Nguồn webhook theo hãng (Task M3-10): /hooks/<hãng>/<route_key> của mọi hãng khai Capabilities().Webhook, cùng tập
 	// với handler vào của fulfillment.
 	p.Sources = append(p.Sources, carrier.WebhookSources(adapters, func(key string) string { return webhookSecret(role, cfg, key) })...)
+	// Lệnh sửa địa chỉ ở hãng (Task M3-17): cần hàm ghi audit (fulfillment không nhập identity); không có adapter → nil.
+	addr, err := ful.AddressCommand(httpapi.RecordFulfillmentAudit)
+	if err != nil {
+		return m3Parts{}, fmt.Errorf("dựng lệnh sửa địa chỉ: %w", err)
+	}
+	if addr != nil {
+		p.Commands = append(p.Commands, addr)
+	}
 	if err := errors.Join(ful.Check(), csh.Check(), cash.CheckStatementFormats(reg), checkM3Unique(p)); err != nil {
 		return m3Parts{}, fmt.Errorf("nối module M3: %w", err)
 	}
