@@ -74,18 +74,14 @@ func (h *handler) ListOrders(ctx context.Context, params gen.ListOrdersParams) (
 		if r.PendingReason != "" {
 			item.PendingReason = gen.NewOptPendingReason(gen.PendingReason(r.PendingReason))
 		}
+		// packing_status NOT NULL (none | picking | packed): luôn có.
+		item.PackingStatus = gen.NewOptOrderListItemPackingStatus(gen.OrderListItemPackingStatus(r.PackingStatus))
 		setOpt(&item.TrafficSourceId, r.TrafficSource)
 		if r.CareBy != nil {
 			item.CareBy = gen.NewOptActor(gen.Actor{ID: *r.CareBy, Name: names[*r.CareBy]})
 		}
 		if sh := r.Shipment; sh != nil {
-			sum := gen.OrderShipmentSummary{
-				Code: sh.Code, CarrierKey: sh.CarrierKey, TrackingCode: nonEmpty(sh.TrackingCode),
-				Status: gen.ShipmentStatus(sh.Status), Label: gen.NewOptString(fulfillment.StatusLabel(sh.CarrierKey, sh.Status, sh.SubStatus)),
-				NeedsReview: gen.NewOptBool(sh.NeedsReview),
-			}
-			setOptTime(&sum.StuckSince, sh.StuckSince)
-			item.Shipment = gen.NewOptOrderShipmentSummary(sum)
+			item.Shipment = gen.NewOptOrderShipmentSummary(orderShipmentOut(sh))
 		}
 		if c := r.COD; c != nil {
 			item.Cod = gen.NewOptOrderCodSummary(gen.OrderCodSummary{
@@ -101,6 +97,22 @@ func (h *handler) ListOrders(ctx context.Context, params gen.ListOrdersParams) (
 	return out, nil
 }
 
+// orderShipmentOut là khối vận đơn hiện hành của một dòng danh sách đơn.
+func orderShipmentOut(sh *queries.OrderShipment) gen.OrderShipmentSummary {
+	sum := gen.OrderShipmentSummary{
+		Code: sh.Code, CarrierKey: sh.CarrierKey, TrackingCode: nonEmpty(sh.TrackingCode),
+		Status: gen.ShipmentStatus(sh.Status), Label: gen.NewOptString(fulfillment.StatusLabel(sh.CarrierKey, sh.Status, sh.SubStatus)),
+		NeedsReview: gen.NewOptBool(sh.NeedsReview), ID: gen.NewOptUUID(sh.ID),
+		CarrierAccountId: gen.NewOptUUID(sh.CarrierAccountID),
+	}
+	if sh.Mode != "" {
+		sum.Mode = gen.NewOptCarrierAccountMode(gen.CarrierAccountMode(sh.Mode))
+	}
+	setOptTime(&sum.StuckSince, sh.StuckSince)
+	setOptTime(&sum.LabelPrintedAt, sh.LabelPrintedAt)
+	return sum
+}
+
 // orderListErr đổi lỗi bộ lọc của queries.OrderList sang sentinel của order (errors.go ánh xạ sentinel của order).
 func orderListErr(err error) error {
 	if errors.Is(err, queries.ErrInvalidOrderFilter) {
@@ -114,6 +126,10 @@ func listOrdersFilter(p gen.ListOrdersParams) queries.OrderFilter {
 	f := queries.OrderFilter{
 		TrafficSourceIDs: p.TrafficSourceId, CareBy: optUUID(p.CareBy), CarrierKey: p.CarrierKey.Or(""),
 		CODState: string(p.CodState.Or("")), PackingStatus: string(p.PackingStatus.Or("")),
+		WarehouseID: optUUID(p.WarehouseId),
+	}
+	if v, ok := p.LabelPrinted.Get(); ok {
+		f.LabelPrinted = &v
 	}
 	for _, s := range p.ShipmentStatus {
 		f.ShipmentStatuses = append(f.ShipmentStatuses, string(s))

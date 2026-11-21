@@ -5,9 +5,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { OrderLabel } from "../../api";
 import { COUPON_REASON_MESSAGES } from "../../app/errors";
+import { QTY_TEXT } from "./receiveRules";
 import {
   CANCEL_REASON_TEXT,
-  CONDITION_TEXT,
   LABEL_BAR,
   LABEL_ORDER,
   LABEL_TEXT,
@@ -107,7 +107,8 @@ describe("labels", () => {
     expect(filled(CANCEL_REASON_TEXT, schemaEnum("CancelReason"))).toEqual([]);
     expect(filled(RETURN_KIND_TEXT, schemaEnum("ReturnKind"))).toEqual([]);
     expect(filled(RETURN_STATUS_TEXT, schemaEnum("ReturnStatus"))).toEqual([]);
-    expect(filled(CONDITION_TEXT, ["sellable", "damaged", "missing"])).toEqual([]);
+    // Task 136: ba ô Tốt / Hỏng / Thiếu thay ô chọn một tình trạng (CONDITION_TEXT đã xóa).
+    expect(filled(QTY_TEXT, ["sellable", "damaged", "missing"])).toEqual([]);
   });
 
   it("mọi lý do từ chối mã (CouponRejectReason) có chữ", () => {

@@ -26191,6 +26191,39 @@ func (s *OptOrderLabel) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes OrderListItemPackingStatus as json.
+func (o OptOrderListItemPackingStatus) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes OrderListItemPackingStatus from json.
+func (o *OptOrderListItemPackingStatus) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptOrderListItemPackingStatus to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptOrderListItemPackingStatus) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptOrderListItemPackingStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes OrderOrderType as json.
 func (o OptOrderOrderType) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -29308,6 +29341,12 @@ func (s *OrderListItem) encodeFields(e *jx.Encoder) {
 		e.Bool(s.DuplicateSuspect)
 	}
 	{
+		if s.PackingStatus.Set {
+			e.FieldStart("packingStatus")
+			s.PackingStatus.Encode(e)
+		}
+	}
+	{
 		if s.Shipment.Set {
 			e.FieldStart("shipment")
 			s.Shipment.Encode(e)
@@ -29321,7 +29360,7 @@ func (s *OrderListItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfOrderListItem = [18]string{
+var jsonFieldsNameOfOrderListItem = [19]string{
 	0:  "id",
 	1:  "code",
 	2:  "label",
@@ -29338,8 +29377,9 @@ var jsonFieldsNameOfOrderListItem = [18]string{
 	13: "careBy",
 	14: "createdAt",
 	15: "duplicateSuspect",
-	16: "shipment",
-	17: "cod",
+	16: "packingStatus",
+	17: "shipment",
+	18: "cod",
 }
 
 // Decode decodes OrderListItem from json.
@@ -29525,6 +29565,16 @@ func (s *OrderListItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"duplicateSuspect\"")
 			}
+		case "packingStatus":
+			if err := func() error {
+				s.PackingStatus.Reset()
+				if err := s.PackingStatus.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"packingStatus\"")
+			}
 		case "shipment":
 			if err := func() error {
 				s.Shipment.Reset()
@@ -29599,6 +29649,48 @@ func (s *OrderListItem) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OrderListItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes OrderListItemPackingStatus as json.
+func (s OrderListItemPackingStatus) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes OrderListItemPackingStatus from json.
+func (s *OrderListItemPackingStatus) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode OrderListItemPackingStatus to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch OrderListItemPackingStatus(v) {
+	case OrderListItemPackingStatusNone:
+		*s = OrderListItemPackingStatusNone
+	case OrderListItemPackingStatusPicking:
+		*s = OrderListItemPackingStatusPicking
+	case OrderListItemPackingStatusPacked:
+		*s = OrderListItemPackingStatusPacked
+	default:
+		*s = OrderListItemPackingStatus(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OrderListItemPackingStatus) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OrderListItemPackingStatus) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -30028,6 +30120,30 @@ func (s *OrderShipmentSummary) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *OrderShipmentSummary) encodeFields(e *jx.Encoder) {
 	{
+		if s.ID.Set {
+			e.FieldStart("id")
+			s.ID.Encode(e)
+		}
+	}
+	{
+		if s.CarrierAccountId.Set {
+			e.FieldStart("carrierAccountId")
+			s.CarrierAccountId.Encode(e)
+		}
+	}
+	{
+		if s.Mode.Set {
+			e.FieldStart("mode")
+			s.Mode.Encode(e)
+		}
+	}
+	{
+		if s.LabelPrintedAt.Set {
+			e.FieldStart("labelPrintedAt")
+			s.LabelPrintedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -30065,14 +30181,18 @@ func (s *OrderShipmentSummary) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfOrderShipmentSummary = [7]string{
-	0: "code",
-	1: "carrierKey",
-	2: "trackingCode",
-	3: "status",
-	4: "label",
-	5: "stuckSince",
-	6: "needsReview",
+var jsonFieldsNameOfOrderShipmentSummary = [11]string{
+	0:  "id",
+	1:  "carrierAccountId",
+	2:  "mode",
+	3:  "labelPrintedAt",
+	4:  "code",
+	5:  "carrierKey",
+	6:  "trackingCode",
+	7:  "status",
+	8:  "label",
+	9:  "stuckSince",
+	10: "needsReview",
 }
 
 // Decode decodes OrderShipmentSummary from json.
@@ -30080,12 +30200,52 @@ func (s *OrderShipmentSummary) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode OrderShipmentSummary to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "id":
+			if err := func() error {
+				s.ID.Reset()
+				if err := s.ID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "carrierAccountId":
+			if err := func() error {
+				s.CarrierAccountId.Reset()
+				if err := s.CarrierAccountId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"carrierAccountId\"")
+			}
+		case "mode":
+			if err := func() error {
+				s.Mode.Reset()
+				if err := s.Mode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mode\"")
+			}
+		case "labelPrintedAt":
+			if err := func() error {
+				s.LabelPrintedAt.Reset()
+				if err := s.LabelPrintedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"labelPrintedAt\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -30097,7 +30257,7 @@ func (s *OrderShipmentSummary) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"code\"")
 			}
 		case "carrierKey":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.CarrierKey = string(v)
@@ -30119,7 +30279,7 @@ func (s *OrderShipmentSummary) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"trackingCode\"")
 			}
 		case "status":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -30167,8 +30327,9 @@ func (s *OrderShipmentSummary) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00001011,
+	for i, mask := range [2]uint8{
+		0b10110000,
+		0b00000000,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -37734,14 +37895,35 @@ func (s *ReturnItem) encodeFields(e *jx.Encoder) {
 		e.FieldStart("refundAmount")
 		s.RefundAmount.Encode(e)
 	}
+	{
+		if s.Sellable.Set {
+			e.FieldStart("sellable")
+			s.Sellable.Encode(e)
+		}
+	}
+	{
+		if s.Damaged.Set {
+			e.FieldStart("damaged")
+			s.Damaged.Encode(e)
+		}
+	}
+	{
+		if s.Missing.Set {
+			e.FieldStart("missing")
+			s.Missing.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfReturnItem = [5]string{
+var jsonFieldsNameOfReturnItem = [8]string{
 	0: "id",
 	1: "orderItemId",
 	2: "qty",
 	3: "condition",
 	4: "refundAmount",
+	5: "sellable",
+	6: "damaged",
+	7: "missing",
 }
 
 // Decode decodes ReturnItem from json.
@@ -37808,6 +37990,36 @@ func (s *ReturnItem) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"refundAmount\"")
+			}
+		case "sellable":
+			if err := func() error {
+				s.Sellable.Reset()
+				if err := s.Sellable.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sellable\"")
+			}
+		case "damaged":
+			if err := func() error {
+				s.Damaged.Reset()
+				if err := s.Damaged.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"damaged\"")
+			}
+		case "missing":
+			if err := func() error {
+				s.Missing.Reset()
+				if err := s.Missing.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"missing\"")
 			}
 		default:
 			return d.Skip()

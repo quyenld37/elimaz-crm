@@ -165,6 +165,16 @@ func (e *orderEnv) listM3Rows(f queries.OrderFilter) []queries.OrderListRow {
 	return rows
 }
 
+// listM3ByID đọc danh sách không lọc của người bán e.seller, theo mã đơn.
+func (e *orderEnv) listM3ByID() map[uuid.UUID]queries.OrderListRow {
+	e.t.Helper()
+	byID := map[uuid.UUID]queries.OrderListRow{}
+	for _, r := range e.listM3Rows(queries.OrderFilter{}) {
+		byID[r.ID] = r
+	}
+	return byID
+}
+
 // Lọc theo vận đơn, hãng, tiền COD, đóng gói (kế hoạch M3, Task M3-28): shipmentStatus=shipping → đúng 2;
 // codState=holding → đúng đơn đã giao chưa có bảng kê; carrierKey=fake_b → đúng 1; đơn của người bán kia không lẫn vào.
 func TestListM3_Filters(t *testing.T) {
@@ -206,10 +216,7 @@ func TestListM3_Filters(t *testing.T) {
 func TestListM3_RowShipmentAndCOD(t *testing.T) {
 	e := newM2Env(t)
 	x := newListM3Fixture(e)
-	byID := map[uuid.UUID]queries.OrderListRow{}
-	for _, r := range e.listM3Rows(queries.OrderFilter{}) {
-		byID[r.ID] = r
-	}
+	byID := e.listM3ByID()
 	if r := byID[x.a.ID]; r.Shipment != nil || r.COD != nil || r.Label != orderview.LabelPacked {
 		t.Errorf("a: %+v %+v %s", r.Shipment, r.COD, r.Label)
 	}
@@ -257,4 +264,44 @@ func TestListM3_EveryLabelFilterable(t *testing.T) {
 	sameIDs(t, "nhãn chờ thu gom, thất bại", e.mustListM3(queries.OrderFilter{Labels: []orderview.LabelKey{
 		orderview.LabelAwaitingPickup, orderview.LabelDeliveryFailed,
 	}}), x.h.ID, x.g.ID)
+}
+
+// Trường của màn Đóng gói (Task 136): mỗi dòng có trạng thái đóng gói; vận đơn có mã tài khoản hãng, cách nối (mode)
+// và giờ in nhãn (nil khi chưa in). Lọc labelPrinted (đã/chưa in nhãn, chỉ đơn có vận đơn) và warehouseId (kho của
+// đơn; kho khác → rỗng).
+func TestListM3_PackFields(t *testing.T) {
+	e := newM2Env(t)
+	x := newListM3Fixture(e)
+	printed := listBase().Add(-30 * time.Minute)
+	var warehouse uuid.UUID
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(t.Context(), `UPDATE fulfillment.shipments SET label_printed_at = $2, mode = 'manual'
+			WHERE id = $1`, x.shipD, printed); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		return tx.QueryRow(t.Context(), "SELECT warehouse_id FROM ord.orders WHERE id = $1", x.d.ID).Scan(&warehouse)
+	})
+	byID := e.listM3ByID()
+	if r := byID[x.a.ID]; r.PackingStatus != "packed" || r.Shipment != nil {
+		t.Errorf("a: packing %q", r.PackingStatus)
+	}
+	if r := byID[x.b.ID]; r.PackingStatus != "picking" || r.Shipment == nil || r.Shipment.Mode != "api" ||
+		r.Shipment.LabelPrintedAt != nil || r.Shipment.CarrierAccountID == uuid.Nil {
+		t.Errorf("b: packing %q, vận đơn %+v", r.PackingStatus, r.Shipment)
+	}
+	if r := byID[x.d.ID]; r.Shipment == nil || r.Shipment.Mode != "manual" || r.Shipment.LabelPrintedAt == nil ||
+		!r.Shipment.LabelPrintedAt.Equal(printed) {
+		t.Errorf("d: vận đơn %+v", r.Shipment)
+	}
+	yes, no := true, false
+	sameIDs(t, "đã in nhãn", e.mustListM3(queries.OrderFilter{LabelPrinted: &yes}), x.d.ID)
+	sameIDs(t, "chưa in nhãn, chờ thu gom", e.mustListM3(queries.OrderFilter{
+		LabelPrinted: &no, ShipmentStatuses: []string{"awaiting_pickup"},
+	}), x.g.ID)
+	sameIDs(t, "chưa in nhãn (chỉ đơn có vận đơn)", e.mustListM3(queries.OrderFilter{LabelPrinted: &no}),
+		x.h.ID, x.g.ID, x.f.ID, x.e.ID, x.c.ID, x.b.ID)
+	sameIDs(t, "kho của đơn", e.mustListM3(queries.OrderFilter{WarehouseID: &warehouse}),
+		x.h.ID, x.g.ID, x.f.ID, x.e.ID, x.d.ID, x.c.ID, x.b.ID, x.a.ID)
+	other := uuid.New()
+	sameIDs(t, "kho khác", e.mustListM3(queries.OrderFilter{WarehouseID: &other}))
 }

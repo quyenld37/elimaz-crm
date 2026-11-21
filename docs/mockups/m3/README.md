@@ -89,16 +89,16 @@ Theo luật "Behaviour changes need own OK": mỗi dòng cần chủ shop OK ri�
 | HV20 | Vận hành | Ghi kết quả gọi là hộp thoại 5 lựa chọn; "Không nghe máy" và "Khách hẹn gọi lại" có ô giờ gọi lại, dòng chuyển "Đang xử lý · gọi lại 15:00"; "Giao lại tới địa chỉ mới" mở hộp địa chỉ và gửi yêu cầu đổi địa chỉ cho hãng. | Chưa khảo sát (nhân viên tự ghi nhớ). | chưa |
 | HV21 | Vận hành | Cần xem: lọc theo loại; mỗi dòng một câu hướng dẫn và nút xử lý riêng theo loại (Đã tạo/Chưa tạo, Ghi giao một phần, Phiếu kho); "Đã xử lý" đòi ghi đã làm gì. | — | chưa |
 | HV22 | Vận hành | Giữ hàng quá hạn chỉ có "Mở đơn", không nút nhả hàng. | — | chưa |
-| HV23 | Kho | Màn Đóng gói: chọn nhiều dòng → thanh đen trên bảng (In nhãn, In phiếu nhặt, Đang đóng gói, Đã đóng gói); In nhãn mở hộp kết quả, mỗi tài khoản hãng một tệp PDF của hãng, vận đơn tự giao bị bỏ qua có câu. | Nhanh: in nhãn hàng loạt; chưa khảo sát. | chưa |
-| HV24 | Kho | Đóng gói chỉ đi tới; dòng chọn lùi bước không đổi, được kể trong thông báo; in lại nhãn không đổi cột "Đóng gói". | — | chưa |
-| HV25 | Kho | Phiếu nhặt hàng là trang in A4 đen trắng: gom theo mẫu rồi kê theo đơn; không địa chỉ, SĐT khách. | Chưa khảo sát. | chưa |
-| HV26 | Kho, Trả đổi | Nhận hàng hoàn và hàng khách trả: mỗi dòng ba ô Tốt / Hỏng / Thiếu; nút "Nhận vào kho" khóa tới khi tổng bằng số đã gửi/trả, kèm câu "Còn thiếu n món chưa phân loại". | Màn M2: một tình trạng cho cả dòng, hai tình trạng thì tạo hai phiếu. | chưa |
+| HV23 | Kho | Màn Đóng gói: chọn nhiều dòng → thanh đen trên bảng (In nhãn, In phiếu nhặt, Đang đóng gói, Đã đóng gói); In nhãn mở hộp kết quả, mỗi tài khoản hãng một tệp PDF của hãng, vận đơn tự giao bị bỏ qua có câu. | Nhanh: in nhãn hàng loạt; chưa khảo sát. | OK chủ shop 21/11 |
+| HV24 | Kho | Đóng gói chỉ đi tới; dòng chọn lùi bước không đổi, được kể trong thông báo; in lại nhãn không đổi cột "Đóng gói". | — | OK chủ shop 21/11 |
+| HV25 | Kho | Phiếu nhặt hàng là trang in A4 đen trắng: gom theo mẫu rồi kê theo đơn; không địa chỉ, SĐT khách. | Chưa khảo sát. | OK chủ shop 21/11 |
+| HV26 | Kho, Trả đổi | Nhận hàng hoàn và hàng khách trả: mỗi dòng ba ô Tốt / Hỏng / Thiếu; nút "Nhận vào kho" khóa tới khi tổng bằng số đã gửi/trả, kèm câu "Còn thiếu n món chưa phân loại". | Màn M2: một tình trạng cho cả dòng, hai tình trạng thì tạo hai phiếu. | OK chủ shop 21/11 |
 | HV27 | Trả đổi | Hộp trả/đổi của M2 thêm cột "Còn được trả" (tính cả phiếu đang mở) và hộp "Tạo phiếu là đã duyệt — tồn, tiền chưa đổi tới khi kho nhận"; không có bước duyệt riêng (Q-28). | Màn M2: cột "Đã trả", không ghi rõ chưa đổi tồn. | chưa |
 | HV28 | Trả đổi | Đổi hàng hiện món trả, món mới, "Cấn trừ" và "COD đơn mới" (không âm); món trả đắt hơn thì phần dư thành nghĩa vụ hoàn sau khi kho nhận. | Màn M2: phiếu đổi tạo đơn mới, chưa có tiền cấn trừ. | chưa |
 | HV29 | Trả đổi | Giao một phần là hộp thoại mở từ "Cần xem" hoặc đơn, chỉ người có quyền sửa vận đơn (Chủ, Quản lý); người khác thấy nút mờ kèm lý do. | — | chưa |
-| HV30 | Đối soát | Nhập bảng kê là hộp thoại (tài khoản, tệp, định dạng); phân tích chạy nền, danh sách có thanh tiến độ; tệp trùng bị từ chối kèm nút "Xem bảng kê đó". | Chưa khảo sát (kế toán đối chiếu bằng Excel). | chưa |
-| HV31 | Đối soát | Chi tiết bảng kê: năm ô nhóm (Khớp, Lệch tiền, Ngoài hệ thống, Trùng, Chỉ phí) bấm để lọc bảng; chốt cả bảng kê một lần, không chốt từng dòng. | Chưa khảo sát. | chưa |
-| HV32 | Đối soát | Lệch đối soát không có nút "bỏ qua": chỉ đóng khi có bảng kê bù hoặc điều chỉnh COD có lý do. | — | chưa |
+| HV30 | Đối soát | Nhập bảng kê là hộp thoại (tài khoản, tệp, định dạng); phân tích chạy nền, danh sách có thanh tiến độ; tệp trùng bị từ chối kèm nút "Xem bảng kê đó". | Chưa khảo sát (kế toán đối chiếu bằng Excel). | OK chủ shop 21/11 |
+| HV31 | Đối soát | Chi tiết bảng kê: năm ô nhóm (Khớp, Lệch tiền, Ngoài hệ thống, Trùng, Chỉ phí) bấm để lọc bảng; chốt cả bảng kê một lần, không chốt từng dòng. | Chưa khảo sát. | OK chủ shop 21/11 |
+| HV32 | Đối soát | Lệch đối soát không có nút "bỏ qua": chỉ đóng khi có bảng kê bù hoặc điều chỉnh COD có lý do. | — | OK chủ shop 21/11 |
 | HV33 | Tiền | Ghi phiếu thu, cọc là hộp thoại; hiện COD trước → sau; đơn đã gửi hãng thì nút mờ kèm lý do (đổi COD phải hủy vận đơn rồi gửi lại). | Nhanh: chưa khảo sát. | chưa |
 | HV34 | Tiền | Nghĩa vụ hoàn: chi một phần được; "Miễn hoàn" chỉ Chủ, đòi lý do; danh sách Nghĩa vụ hoàn có cột Phải hoàn / Đã chi / Trạng thái. | — | chưa |
 | HV35 | Tiền | Điều chỉnh COD và đảo "Thành công" đi hai bước (xem trước rồi xác nhận); cảnh báo ngăn âm vẫn cho xác nhận; bị chặn thì không có nút xác nhận, chỉ có lối sang "Điều chỉnh COD". | — | chưa |

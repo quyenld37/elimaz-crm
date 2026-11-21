@@ -12034,6 +12034,11 @@ type ListOrdersParams struct {
 	CodState OptListOrdersCodState `json:",omitempty,omitzero"`
 	// Trạng thái đóng gói (M3, Task M3-28).
 	PackingStatus OptListOrdersPackingStatus `json:",omitempty,omitzero"`
+	// Kho của đơn (màn Đóng gói, Task M3-45).
+	WarehouseId OptUUID `json:",omitempty,omitzero"`
+	// True = vận đơn hiện hành đã in nhãn; false = có vận đơn hiện hành, chưa in nhãn
+	// (Task M3-45).
+	LabelPrinted OptBool `json:",omitempty,omitzero"`
 	// Chuỗi mờ nextCursor của trang trước; gửi lại nguyên.
 	Cursor OptString `json:",omitempty,omitzero"`
 	Limit  OptInt32  `json:",omitempty,omitzero"`
@@ -12173,6 +12178,24 @@ func unpackListOrdersParams(packed middleware.Parameters) (params ListOrdersPara
 		}
 		if v, ok := packed[key]; ok {
 			params.PackingStatus = v.(OptListOrdersPackingStatus)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "warehouseId",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.WarehouseId = v.(OptUUID)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "labelPrinted",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.LabelPrinted = v.(OptBool)
 		}
 	}
 	{
@@ -13099,6 +13122,88 @@ func decodeListOrdersParams(args [0]string, argsEscaped bool, r *http.Request) (
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "packingStatus",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: warehouseId.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "warehouseId",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotWarehouseIdVal uuid.UUID
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToUUID(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotWarehouseIdVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.WarehouseId.SetTo(paramsDotWarehouseIdVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "warehouseId",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: labelPrinted.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "labelPrinted",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotLabelPrintedVal bool
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToBool(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotLabelPrintedVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.LabelPrinted.SetTo(paramsDotLabelPrintedVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "labelPrinted",
 			In:   "query",
 			Err:  err,
 		}

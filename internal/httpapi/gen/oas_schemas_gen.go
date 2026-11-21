@@ -13611,6 +13611,52 @@ func (o OptOrderLabel) Or(d OrderLabel) OrderLabel {
 	return d
 }
 
+// NewOptOrderListItemPackingStatus returns new OptOrderListItemPackingStatus with value set to v.
+func NewOptOrderListItemPackingStatus(v OrderListItemPackingStatus) OptOrderListItemPackingStatus {
+	return OptOrderListItemPackingStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptOrderListItemPackingStatus is optional OrderListItemPackingStatus.
+type OptOrderListItemPackingStatus struct {
+	Value OrderListItemPackingStatus
+	Set   bool
+}
+
+// IsSet returns true if OptOrderListItemPackingStatus was set.
+func (o OptOrderListItemPackingStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptOrderListItemPackingStatus) Reset() {
+	var v OrderListItemPackingStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptOrderListItemPackingStatus) SetTo(v OrderListItemPackingStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptOrderListItemPackingStatus) Get() (v OrderListItemPackingStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptOrderListItemPackingStatus) Or(d OrderListItemPackingStatus) OrderListItemPackingStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptOrderOrderType returns new OptOrderOrderType with value set to v.
 func NewOptOrderOrderType(v OrderOrderType) OptOrderOrderType {
 	return OptOrderOrderType{
@@ -16038,19 +16084,21 @@ type OrderListItem struct {
 	Status        OrderStatus      `json:"status"`
 	PendingReason OptPendingReason `json:"pendingReason"`
 	// Gốc của khách.
-	CustomerId       uuid.UUID               `json:"customerId"`
-	CustomerName     string                  `json:"customerName"`
-	ShipPhone        OptString               `json:"shipPhone"`
-	GrandTotal       Money                   `json:"grandTotal"`
-	CodAmount        Money                   `json:"codAmount"`
-	ItemCount        int32                   `json:"itemCount"`
-	Channel          OptString               `json:"channel"`
-	TrafficSourceId  OptUUID                 `json:"trafficSourceId"`
-	CareBy           OptActor                `json:"careBy"`
-	CreatedAt        time.Time               `json:"createdAt"`
-	DuplicateSuspect bool                    `json:"duplicateSuspect"`
-	Shipment         OptOrderShipmentSummary `json:"shipment"`
-	Cod              OptOrderCodSummary      `json:"cod"`
+	CustomerId       uuid.UUID `json:"customerId"`
+	CustomerName     string    `json:"customerName"`
+	ShipPhone        OptString `json:"shipPhone"`
+	GrandTotal       Money     `json:"grandTotal"`
+	CodAmount        Money     `json:"codAmount"`
+	ItemCount        int32     `json:"itemCount"`
+	Channel          OptString `json:"channel"`
+	TrafficSourceId  OptUUID   `json:"trafficSourceId"`
+	CareBy           OptActor  `json:"careBy"`
+	CreatedAt        time.Time `json:"createdAt"`
+	DuplicateSuspect bool      `json:"duplicateSuspect"`
+	// Trạng thái đóng gói (Task M3-45).
+	PackingStatus OptOrderListItemPackingStatus `json:"packingStatus"`
+	Shipment      OptOrderShipmentSummary       `json:"shipment"`
+	Cod           OptOrderCodSummary            `json:"cod"`
 }
 
 // GetID returns the value of ID.
@@ -16131,6 +16179,11 @@ func (s *OrderListItem) GetCreatedAt() time.Time {
 // GetDuplicateSuspect returns the value of DuplicateSuspect.
 func (s *OrderListItem) GetDuplicateSuspect() bool {
 	return s.DuplicateSuspect
+}
+
+// GetPackingStatus returns the value of PackingStatus.
+func (s *OrderListItem) GetPackingStatus() OptOrderListItemPackingStatus {
+	return s.PackingStatus
 }
 
 // GetShipment returns the value of Shipment.
@@ -16223,6 +16276,11 @@ func (s *OrderListItem) SetDuplicateSuspect(val bool) {
 	s.DuplicateSuspect = val
 }
 
+// SetPackingStatus sets the value of PackingStatus.
+func (s *OrderListItem) SetPackingStatus(val OptOrderListItemPackingStatus) {
+	s.PackingStatus = val
+}
+
 // SetShipment sets the value of Shipment.
 func (s *OrderListItem) SetShipment(val OptOrderShipmentSummary) {
 	s.Shipment = val
@@ -16231,6 +16289,55 @@ func (s *OrderListItem) SetShipment(val OptOrderShipmentSummary) {
 // SetCod sets the value of Cod.
 func (s *OrderListItem) SetCod(val OptOrderCodSummary) {
 	s.Cod = val
+}
+
+// Trạng thái đóng gói (Task M3-45).
+type OrderListItemPackingStatus string
+
+const (
+	OrderListItemPackingStatusNone    OrderListItemPackingStatus = "none"
+	OrderListItemPackingStatusPicking OrderListItemPackingStatus = "picking"
+	OrderListItemPackingStatusPacked  OrderListItemPackingStatus = "packed"
+)
+
+// AllValues returns all OrderListItemPackingStatus values.
+func (OrderListItemPackingStatus) AllValues() []OrderListItemPackingStatus {
+	return []OrderListItemPackingStatus{
+		OrderListItemPackingStatusNone,
+		OrderListItemPackingStatusPicking,
+		OrderListItemPackingStatusPacked,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s OrderListItemPackingStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case OrderListItemPackingStatusNone:
+		return []byte(s), nil
+	case OrderListItemPackingStatusPicking:
+		return []byte(s), nil
+	case OrderListItemPackingStatusPacked:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *OrderListItemPackingStatus) UnmarshalText(data []byte) error {
+	switch OrderListItemPackingStatus(data) {
+	case OrderListItemPackingStatusNone:
+		*s = OrderListItemPackingStatusNone
+		return nil
+	case OrderListItemPackingStatusPicking:
+		*s = OrderListItemPackingStatusPicking
+		return nil
+	case OrderListItemPackingStatusPacked:
+		*s = OrderListItemPackingStatusPacked
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type OrderOrderType string
@@ -16476,13 +16583,39 @@ func (*OrderSettings) updateOrderSettingsRes() {}
 
 // Ref: #/components/schemas/OrderShipmentSummary
 type OrderShipmentSummary struct {
-	Code         string         `json:"code"`
-	CarrierKey   string         `json:"carrierKey"`
-	TrackingCode OptString      `json:"trackingCode"`
-	Status       ShipmentStatus `json:"status"`
-	Label        OptString      `json:"label"`
-	StuckSince   OptDateTime    `json:"stuckSince"`
-	NeedsReview  OptBool        `json:"needsReview"`
+	// Mã vận đơn (in nhãn, phiếu nhặt; Task M3-45).
+	ID               OptUUID               `json:"id"`
+	CarrierAccountId OptUUID               `json:"carrierAccountId"`
+	Mode             OptCarrierAccountMode `json:"mode"`
+	// Giờ in nhãn của hãng gần nhất; không có khi chưa in.
+	LabelPrintedAt OptDateTime    `json:"labelPrintedAt"`
+	Code           string         `json:"code"`
+	CarrierKey     string         `json:"carrierKey"`
+	TrackingCode   OptString      `json:"trackingCode"`
+	Status         ShipmentStatus `json:"status"`
+	Label          OptString      `json:"label"`
+	StuckSince     OptDateTime    `json:"stuckSince"`
+	NeedsReview    OptBool        `json:"needsReview"`
+}
+
+// GetID returns the value of ID.
+func (s *OrderShipmentSummary) GetID() OptUUID {
+	return s.ID
+}
+
+// GetCarrierAccountId returns the value of CarrierAccountId.
+func (s *OrderShipmentSummary) GetCarrierAccountId() OptUUID {
+	return s.CarrierAccountId
+}
+
+// GetMode returns the value of Mode.
+func (s *OrderShipmentSummary) GetMode() OptCarrierAccountMode {
+	return s.Mode
+}
+
+// GetLabelPrintedAt returns the value of LabelPrintedAt.
+func (s *OrderShipmentSummary) GetLabelPrintedAt() OptDateTime {
+	return s.LabelPrintedAt
 }
 
 // GetCode returns the value of Code.
@@ -16518,6 +16651,26 @@ func (s *OrderShipmentSummary) GetStuckSince() OptDateTime {
 // GetNeedsReview returns the value of NeedsReview.
 func (s *OrderShipmentSummary) GetNeedsReview() OptBool {
 	return s.NeedsReview
+}
+
+// SetID sets the value of ID.
+func (s *OrderShipmentSummary) SetID(val OptUUID) {
+	s.ID = val
+}
+
+// SetCarrierAccountId sets the value of CarrierAccountId.
+func (s *OrderShipmentSummary) SetCarrierAccountId(val OptUUID) {
+	s.CarrierAccountId = val
+}
+
+// SetMode sets the value of Mode.
+func (s *OrderShipmentSummary) SetMode(val OptCarrierAccountMode) {
+	s.Mode = val
+}
+
+// SetLabelPrintedAt sets the value of LabelPrintedAt.
+func (s *OrderShipmentSummary) SetLabelPrintedAt(val OptDateTime) {
+	s.LabelPrintedAt = val
 }
 
 // SetCode sets the value of Code.
@@ -19535,6 +19688,12 @@ type ReturnItem struct {
 	Qty          int32                  `json:"qty"`
 	Condition    OptReturnItemCondition `json:"condition"`
 	RefundAmount Money                  `json:"refundAmount"`
+	// Số món tốt khi kho nhận (Task M3-45); chỉ có sau khi nhận.
+	Sellable OptInt32 `json:"sellable"`
+	// Số món hỏng khi kho nhận; chỉ có sau khi nhận.
+	Damaged OptInt32 `json:"damaged"`
+	// Số món thiếu khi kho nhận; chỉ có sau khi nhận.
+	Missing OptInt32 `json:"missing"`
 }
 
 // GetID returns the value of ID.
@@ -19562,6 +19721,21 @@ func (s *ReturnItem) GetRefundAmount() Money {
 	return s.RefundAmount
 }
 
+// GetSellable returns the value of Sellable.
+func (s *ReturnItem) GetSellable() OptInt32 {
+	return s.Sellable
+}
+
+// GetDamaged returns the value of Damaged.
+func (s *ReturnItem) GetDamaged() OptInt32 {
+	return s.Damaged
+}
+
+// GetMissing returns the value of Missing.
+func (s *ReturnItem) GetMissing() OptInt32 {
+	return s.Missing
+}
+
 // SetID sets the value of ID.
 func (s *ReturnItem) SetID(val uuid.UUID) {
 	s.ID = val
@@ -19585,6 +19759,21 @@ func (s *ReturnItem) SetCondition(val OptReturnItemCondition) {
 // SetRefundAmount sets the value of RefundAmount.
 func (s *ReturnItem) SetRefundAmount(val Money) {
 	s.RefundAmount = val
+}
+
+// SetSellable sets the value of Sellable.
+func (s *ReturnItem) SetSellable(val OptInt32) {
+	s.Sellable = val
+}
+
+// SetDamaged sets the value of Damaged.
+func (s *ReturnItem) SetDamaged(val OptInt32) {
+	s.Damaged = val
+}
+
+// SetMissing sets the value of Missing.
+func (s *ReturnItem) SetMissing(val OptInt32) {
+	s.Missing = val
 }
 
 type ReturnItemCondition string

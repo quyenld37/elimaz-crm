@@ -51,7 +51,8 @@ type OrderSearch struct {
 // OrderFilter là bộ lọc của OrderList. SellerID bắt buộc (ADR-29). Mỗi danh sách rỗng là không lọc; nhiều giá trị
 // trong một danh sách là "hoặc", các bộ lọc khác nhau là "và". CreatedFrom ≤ created_at < CreatedTo. CarrierKey,
 // ShipmentStatuses: hãng, trạng thái của vận đơn hiện hành; CODState: một trong CODCollecting, CODHolding, CODReceived,
-// CODNone; PackingStatus: none, picking, packed ("" không lọc).
+// CODNone; PackingStatus: none, picking, packed ("" không lọc). WarehouseID: kho của đơn (nil không lọc). LabelPrinted:
+// vận đơn hiện hành đã (true) hay chưa (false) in nhãn; khác nil thì chỉ đơn có vận đơn hiện hành (nil không lọc).
 type OrderFilter struct {
 	SellerID               uuid.UUID
 	Labels                 []orderview.LabelKey
@@ -66,15 +67,18 @@ type OrderFilter struct {
 	ShipmentStatuses       []string
 	CODState               string
 	PackingStatus          string
+	WarehouseID            *uuid.UUID
+	LabelPrinted           *bool
 	Search                 OrderSearch
 }
 
-// OrderShipment là vận đơn hiện hành của một đơn (fulfillment.shipments_v). TrackingCode "" khi hãng chưa cấp.
+// OrderShipment là vận đơn hiện hành của một đơn (fulfillment.shipments_v). TrackingCode "" khi hãng chưa cấp. Mode:
+// api hay manual (cách nối của tài khoản lúc gửi); LabelPrintedAt nil khi chưa in nhãn của hãng.
 type OrderShipment struct {
-	ID                             uuid.UUID
+	ID, CarrierAccountID           uuid.UUID
 	Code, CarrierKey, TrackingCode string
-	Status, SubStatus              string
-	StuckSince                     *time.Time
+	Status, SubStatus, Mode        string
+	StuckSince, LabelPrintedAt     *time.Time
 	NeedsReview                    bool
 }
 
@@ -99,6 +103,7 @@ type OrderListRow struct {
 	Code                  string
 	Label                 orderview.LabelKey
 	Status, PendingReason string
+	PackingStatus         string
 	CustomerRootID        uuid.UUID
 	CustomerName          string
 	ShipPhone             logging.Phone
@@ -149,31 +154,35 @@ func OrderList(ctx context.Context, tx pgx.Tx, f OrderFilter, cursor OrderCursor
 // scanOrderListRow đọc một dòng của orderListSQL và tính nhãn gộp bằng orderview.Label.
 func scanOrderListRow(r pgx.CollectableRow) (OrderListRow, error) {
 	var (
-		o                                    OrderListRow
-		packing                              string
-		items                                int64
-		shipID                               pgtype.UUID
-		code, carrier, tracking, status, sub pgtype.Text
-		stuck                                pgtype.Timestamptz
-		review                               pgtype.Bool
-		toCollect, holding, received         pgtype.Int8
+		o                                          OrderListRow
+		items                                      int64
+		shipID, accountID                          pgtype.UUID
+		code, carrier, tracking, status, sub, mode pgtype.Text
+		stuck, printed                             pgtype.Timestamptz
+		review                                     pgtype.Bool
+		toCollect, holding, received               pgtype.Int8
 	)
-	if err := r.Scan(&o.ID, &o.Code, &o.Status, &o.PendingReason, &packing, &o.CustomerRootID, &o.CustomerName,
+	if err := r.Scan(&o.ID, &o.Code, &o.Status, &o.PendingReason, &o.PackingStatus, &o.CustomerRootID, &o.CustomerName,
 		&o.ShipPhone, &o.GrandTotal, &o.CodAmount, &items, &o.Channel, &o.TrafficSource, &o.CareBy, &o.CreatedAt,
 		&o.DuplicateSuspect, &shipID, &code, &carrier, &tracking, &status, &sub, &stuck, &review,
-		&toCollect, &holding, &received); err != nil {
+		&toCollect, &holding, &received, &accountID, &mode, &printed); err != nil {
 		return OrderListRow{}, err //nolint:wrapcheck // bên gọi bọc
 	}
 	o.ItemCount = int(items)
-	axes := orderview.Axes{Status: o.Status, PendingReason: o.PendingReason, PackingStatus: packing}
+	axes := orderview.Axes{Status: o.Status, PendingReason: o.PendingReason, PackingStatus: o.PackingStatus}
 	if shipID.Valid {
 		o.Shipment = &OrderShipment{
-			ID: shipID.Bytes, Code: code.String, CarrierKey: carrier.String, TrackingCode: tracking.String,
-			Status: status.String, SubStatus: sub.String, NeedsReview: review.Bool,
+			ID: shipID.Bytes, CarrierAccountID: accountID.Bytes, Code: code.String, CarrierKey: carrier.String,
+			TrackingCode: tracking.String, Status: status.String, SubStatus: sub.String, Mode: mode.String,
+			NeedsReview: review.Bool,
 		}
 		if stuck.Valid {
 			t := stuck.Time
 			o.Shipment.StuckSince = &t
+		}
+		if printed.Valid {
+			t := printed.Time
+			o.Shipment.LabelPrintedAt = &t
 		}
 		axes.ShipmentStatus = o.Shipment.Status
 	}
@@ -319,6 +328,9 @@ func orderFieldConds(f OrderFilter, a *sqlArgs) []string {
 	if f.PackingStatus != "" {
 		where = append(where, "o.packing_status = "+a.add(f.PackingStatus))
 	}
+	if f.WarehouseID != nil {
+		where = append(where, "o.warehouse_id = "+a.add(*f.WarehouseID))
+	}
 	return where
 }
 
@@ -331,6 +343,13 @@ func shipmentConds(f OrderFilter, a *sqlArgs) ([]string, error) {
 	}
 	if len(f.ShipmentStatuses) > 0 {
 		where = append(where, "s.status = ANY("+a.add(f.ShipmentStatuses)+"::text[])")
+	}
+	switch {
+	case f.LabelPrinted == nil:
+	case *f.LabelPrinted:
+		where = append(where, "s.label_printed_at IS NOT NULL")
+	default:
+		where = append(where, "s.id IS NOT NULL AND s.label_printed_at IS NULL")
 	}
 	if f.CODState != "" {
 		cond, err := codCond(f.CODState)
@@ -373,7 +392,7 @@ const orderListSelect = `SELECT o.id, o.code, o.status, o.pending_reason, o.pack
                  WHERE i.tenant_id = o.tenant_id AND i.seller_id = o.seller_id AND i.order_id = o.id), 0)::bigint,
        o.channel, o.traffic_source_id, o.care_by, o.created_at, o.duplicate_suspect,
        s.id, s.code, s.carrier_key, s.tracking_code, s.status, s.sub_status, s.stuck_since, s.needs_review,
-       cod.to_collect, cod.carrier_holding, cod.shop_received
+       cod.to_collect, cod.carrier_holding, cod.shop_received, s.carrier_account_id, s.mode, s.label_printed_at
 FROM ord.orders_v AS o
 JOIN customer.customers_v AS c ON c.id = o.customer_id
 JOIN customer.customers_v AS r ON r.id = c.root_id

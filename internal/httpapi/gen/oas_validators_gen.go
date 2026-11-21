@@ -8086,6 +8086,24 @@ func (s *OrderListItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.PackingStatus.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "packingStatus",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.Shipment.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -8125,6 +8143,19 @@ func (s *OrderListItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s OrderListItemPackingStatus) Validate() error {
+	switch s {
+	case "none":
+		return nil
+	case "picking":
+		return nil
+	case "packed":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s OrderOrderType) Validate() error {
@@ -8214,6 +8245,24 @@ func (s *OrderShipmentSummary) Validate() error {
 	}
 
 	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Mode.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "mode",
+			Error: err,
+		})
+	}
 	if err := func() error {
 		if err := s.Status.Validate(); err != nil {
 			return err

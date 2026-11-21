@@ -119,13 +119,6 @@ export const RETURN_STATUS_TEXT: Readonly<Record<ReturnStatus, string>> = {
   cancelled: "Đã hủy",
 };
 
-export type Condition = "sellable" | "damaged" | "missing";
-export const CONDITION_TEXT: Readonly<Record<Condition, string>> = {
-  sellable: "Bán lại được (vào tồn)",
-  damaged: "Hỏng (vào hàng lỗi)",
-  missing: "Thiếu (không về kho)",
-};
-
 // Lý do máy chủ ghi ở lịch sử trạng thái ngoài lý do hủy (internal/modules/order: discountpolicy.go, confirm.go,
 // cancel.go, returns.go).
 const SERVER_REASON_TEXT: Readonly<Record<string, string>> = {

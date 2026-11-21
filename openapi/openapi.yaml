@@ -1588,6 +1588,19 @@ paths:
           schema:
             type: string
             enum: [none, picking, packed]
+        - name: warehouseId
+          in: query
+          required: false
+          description: 'Kho của đơn (màn Đóng gói, Task M3-45)'
+          schema:
+            type: string
+            format: uuid
+        - name: labelPrinted
+          in: query
+          required: false
+          description: 'true = vận đơn hiện hành đã in nhãn; false = có vận đơn hiện hành, chưa in nhãn (Task M3-45)'
+          schema:
+            type: boolean
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/Limit"
       responses:
@@ -7321,6 +7334,10 @@ components:
           format: date-time
         duplicateSuspect:
           type: boolean
+        packingStatus:
+          type: string
+          enum: [none, picking, packed]
+          description: Trạng thái đóng gói (Task M3-45)
         shipment:
           $ref: "#/components/schemas/OrderShipmentSummary"
         cod:
@@ -7419,6 +7436,18 @@ components:
           enum: [sellable, damaged, missing]
         refundAmount:
           $ref: "#/components/schemas/Money"
+        sellable:
+          type: integer
+          format: int32
+          description: Số món tốt khi kho nhận (Task M3-45); chỉ có sau khi nhận
+        damaged:
+          type: integer
+          format: int32
+          description: Số món hỏng khi kho nhận; chỉ có sau khi nhận
+        missing:
+          type: integer
+          format: int32
+          description: Số món thiếu khi kho nhận; chỉ có sau khi nhận
     Return:
       type: object
       required: [id, code, orderId, kind, status, refundAmount, items, createdAt, version]
@@ -9669,6 +9698,19 @@ components:
       type: object
       required: [code, carrierKey, status]
       properties:
+        id:
+          type: string
+          format: uuid
+          description: Mã vận đơn (in nhãn, phiếu nhặt; Task M3-45)
+        carrierAccountId:
+          type: string
+          format: uuid
+        mode:
+          $ref: "#/components/schemas/CarrierAccountMode"
+        labelPrintedAt:
+          type: string
+          format: date-time
+          description: Giờ in nhãn của hãng gần nhất; không có khi chưa in
         code:
           type: string
         carrierKey:

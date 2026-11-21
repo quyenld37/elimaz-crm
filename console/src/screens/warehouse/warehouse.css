@@ -1,0 +1,140 @@
+/* Lớp riêng của màn Kho M3 (Đóng gói, phiếu nhặt, Nhận hàng hoàn), chép từ docs/mockups/m3/m3.css (.selbar, .c-chk,
+   .q3, .rline, .paper, .fx) và khối <style> của docs/mockups/m3/kho.html (.who-c). Lớp đã có dùng lại: .lblbar, .lbl,
+   .scroll-x, .toast, .tl (don.css), .sp (len-don.css), .oitem (khach.css), .tbl, .check, .box, .chip, .empty, .cols
+   (styles.css). Chỉ dùng biến có sẵn: không màu, cỡ chữ, bo góc mới. Không có gì chỉ hiện khi rê chuột. */
+
+.who-c {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Thanh chọn nhiều: hiện khi đã chọn ít nhất một dòng; trên điện thoại xuống dòng */
+.selbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: var(--r-box);
+  padding: 8px 8px 8px var(--space-md);
+}
+.selbar .grow {
+  min-width: 160px;
+  font-weight: 600;
+}
+.selbar .btn {
+  border-color: var(--paper);
+  background: var(--ink);
+  color: var(--paper);
+}
+.selbar .btn-dark {
+  background: var(--paper);
+  color: var(--ink);
+}
+.c-chk {
+  width: 48px;
+}
+.c-chk .check {
+  min-width: var(--tap);
+  justify-content: center;
+}
+
+/* Kết quả in nhãn: một ô mỗi lô */
+.lb-item {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+}
+.lb-item:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+/* Ô số lượng Tốt / Hỏng / Thiếu trên một dòng hàng hoàn */
+.q3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.q3 .field > span:first-child {
+  font-size: 12px;
+}
+.q3 .input {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  padding: 8px 4px;
+  min-width: 0;
+  width: 100%;
+}
+.rline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+  gap: var(--space-sm) var(--space-md);
+  align-items: center;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--rule);
+}
+.rline.is-err {
+  background: var(--soft-sale);
+}
+@media (max-width: 759px) {
+  .rline {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.fx {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+}
+
+/* Phiếu nhặt (giấy A4, chỉ đen trắng) */
+.paper {
+  border: 1px solid var(--edge);
+  border-radius: var(--r);
+  padding: var(--space-lg);
+  background: var(--paper);
+  display: grid;
+  gap: var(--space-md);
+  max-width: 820px;
+}
+.paper .tbl th {
+  background: var(--paper);
+  border-bottom: 1px solid var(--ink);
+}
+@media (max-width: 759px) {
+  .paper {
+    padding: var(--space-md);
+  }
+}
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .paper,
+  .paper * {
+    visibility: visible;
+    color: var(--ink);
+  }
+  .paper {
+    position: absolute;
+    inset: 0 auto auto 0;
+    border: 0;
+    padding: 0;
+    max-width: none;
+    width: 100%;
+  }
+  .no-print {
+    display: none;
+  }
+}
+
+.money {
+  white-space: nowrap;
+}

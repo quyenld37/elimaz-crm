@@ -95,6 +95,8 @@ type ReturnItem struct {
 	Quantity        int
 	Condition       string
 	RefundAmount    int64
+	// Sellable, Damaged, Missing: số lượng theo tình trạng khi kho nhận (M3-23); cả ba 0 khi chưa nhận.
+	Sellable, Damaged, Missing int
 }
 
 // Return là một phiếu trả kèm dòng (theo id). RefundAmount = tổng tiền hoàn của dòng.
@@ -751,7 +753,8 @@ func withItems(ctx context.Context, q *store.Queries, rows []store.GetReturnRowR
 		r := &out[pos[it.ReturnID]]
 		r.Items = append(r.Items, ReturnItem{
 			ID: it.ID, OrderItemID: it.OrderItemID, Quantity: int(it.Quantity), Condition: it.Condition,
-			RefundAmount: it.RefundAmount,
+			RefundAmount: it.RefundAmount, Sellable: int(it.SellableQty), Damaged: int(it.DamagedQty),
+			Missing: int(it.MissingQty),
 		})
 	}
 	return out, nil

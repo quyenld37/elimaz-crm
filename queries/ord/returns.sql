@@ -98,7 +98,7 @@ WHERE r.shipment_id = @shipment_id::uuid AND r.kind = 'carrier_return' AND r.sta
 
 -- name: ListReturnItemsOf :many
 -- Dòng của các phiếu ids (bên gọi đã đọc phiếu qua đơn của người bán).
-SELECT id, return_id, order_item_id, quantity, condition, refund_amount
+SELECT id, return_id, order_item_id, quantity, condition, refund_amount, sellable_qty, damaged_qty, missing_qty
 FROM ord.return_items
 WHERE return_id = ANY (@return_ids::uuid[])
 ORDER BY return_id, id;

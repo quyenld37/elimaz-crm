@@ -454,20 +454,27 @@ describe("Chi tiết đơn — phiếu trả", () => {
     expect(screen.getByRole<HTMLButtonElement>("button", { name: "Tạo phiếu trả/đổi" }).disabled).toBe(true);
   });
 
-  it("nhận hàng trả: tình trạng từng dòng, gửi version của phiếu", async () => {
+  // Task 136 (HV26): hộp một tình trạng cả dòng của M2 thay bằng ba ô Tốt / Hỏng / Thiếu theo món.
+  it("nhận hàng trả: ba ô Tốt / Hỏng / Thiếu, khóa tới khi đủ, gửi ba số và version của phiếu", async () => {
     delivered();
     await open(["order.return.receive"]);
     const row = await screen.findByRole("row", { name: /TH0000012/ });
     fireEvent.click(within(row).getByRole("button", { name: "Nhận hàng trả" }));
-    const dlg = await screen.findByRole("dialog", { name: "Nhận hàng trả TH0000012" });
-    fireEvent.change(within(dlg).getByRole("combobox", { name: "Tình trạng DAM0123-BE-M" }), {
-      target: { value: "damaged" },
-    });
-    fireEvent.click(within(dlg).getByRole("button", { name: "Nhận và nhập kho" }));
+    const dlg = await screen.findByRole("dialog", { name: "Nhận hàng trả · TH0000012" });
+    const send = within(dlg).getByRole<HTMLButtonElement>("button", { name: "Nhận vào kho" });
+    expect(send.disabled).toBe(true);
+    expect(within(dlg).getByText("Còn thiếu 2 món chưa phân loại (DAM0123-BE-M).")).toBeTruthy();
+    fireEvent.change(within(dlg).getByRole("textbox", { name: "Tốt DAM0123-BE-M" }), { target: { value: "1" } });
+    fireEvent.change(within(dlg).getByRole("textbox", { name: "Hỏng DAM0123-BE-M" }), { target: { value: "1" } });
+    expect(send.disabled).toBe(false);
+    fireEvent.click(send);
     await waitFor(() => {
       expect(fake.writes.at(-1)).toMatchObject({
         path: `/api/v1/returns/${R1}/receive`,
-        body: { version: 1, lines: [{ orderItemId: I1, condition: "damaged" }] },
+        body: {
+          version: 1,
+          lines: [{ orderItemId: I1, condition: "sellable", sellable: 1, damaged: 1, missing: 0 }],
+        },
       });
     });
   });

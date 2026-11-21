@@ -9605,6 +9605,14 @@ func (s *Server) handleListOrdersRequest(args [0]string, argsEscaped bool, w htt
 					In:   "query",
 				}: params.PackingStatus,
 				{
+					Name: "warehouseId",
+					In:   "query",
+				}: params.WarehouseId,
+				{
+					Name: "labelPrinted",
+					In:   "query",
+				}: params.LabelPrinted,
+				{
 					Name: "cursor",
 					In:   "query",
 				}: params.Cursor,
