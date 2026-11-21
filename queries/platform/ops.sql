@@ -81,12 +81,20 @@ FROM (
 -- name: LastBackupAt :one
 SELECT finished_at FROM platform.backup_runs WHERE kind = @kind AND ok ORDER BY finished_at DESC LIMIT 1;
 
+-- Tuổi (giây) lần sao lưu thành công gần nhất của kind, theo đồng hồ của database: mốc do scripts/backup ghi bằng now()
+-- của PostgreSQL nên tuổi cũng tính bằng now(), không so với đồng hồ của tiến trình (Task 445).
+-- name: LastBackupAgeSeconds :one
+SELECT extract(epoch FROM now() - finished_at)::float8 AS age_s
+FROM platform.backup_runs WHERE kind = @kind AND ok ORDER BY finished_at DESC LIMIT 1;
+
 -- name: DBAndWALBytes :one
 SELECT pg_database_size(current_database())::bigint AS db_bytes, platform.wal_bytes()::bigint AS wal_bytes;
 
--- Lần chạy gần nhất của kind, thành công hay hỏng (tóm tắt sức khỏe: lần diễn tập khôi phục gần nhất kèm ok).
+-- Lần chạy gần nhất của kind, thành công hay hỏng (tóm tắt sức khỏe: lần diễn tập khôi phục gần nhất kèm ok); age_s:
+-- tuổi (giây) theo đồng hồ của database như LastBackupAgeSeconds.
 -- name: LastBackupRun :one
-SELECT finished_at, ok FROM platform.backup_runs WHERE kind = @kind ORDER BY finished_at DESC LIMIT 1;
+SELECT finished_at, ok, extract(epoch FROM now() - finished_at)::float8 AS age_s
+FROM platform.backup_runs WHERE kind = @kind ORDER BY finished_at DESC LIMIT 1;
 
 -- Cảnh báo đã gửi từ since, mới nhất trước, trừ tin tổng kết (tóm tắt sức khỏe). Không trả text.
 -- name: ListAlertsSince :many

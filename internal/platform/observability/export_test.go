@@ -2,6 +2,7 @@ package observability
 
 import (
 	"context"
+	"time"
 
 	"elimaz.com.vn/crm/internal/platform/db"
 )
@@ -19,4 +20,9 @@ func ReadPGStats(ctx context.Context, d *db.DB, o RuleOptions) (PGStatsView, err
 		DBBytes: s.dbBytes, WALBytes: s.walBytes, AppConns: s.appConns,
 		LongTx: s.longTx, LockWait: s.lockWait, JobsDeadTuples: s.jobsDeadTuples,
 	}, err
+}
+
+// DeepHealthAt chạy DeepHealth với đồng hồ Go now (test giả lệch đồng hồ giữa Go và PostgreSQL).
+func DeepHealthAt(ctx context.Context, d *db.DB, now time.Time) (DeepHealthReport, error) {
+	return deepHealth(ctx, d, now)
 }

@@ -34,9 +34,17 @@ type DeepHealthReport struct {
 
 // DeepHealth đọc báo cáo kiểm sâu. OK false khi nhịp sống của worker hay ingest cũ hơn 90 s (hay chưa có), hoặc việc
 // tới hạn chờ lâu nhất quá 120 s.
+//
+// Mỗi tuổi so với đồng hồ của bên ghi mốc (Task 445): sao lưu (scripts/backup ghi bằng now()), WAL (pg_stat_archiver) và
+// việc chờ tính bằng now() của PostgreSQL trong SQL; nhịp sống (metrics ghi bằng time.Now()) và lần chép tệp
+// (scripts/filesync, date +%s) so với now của tiến trình.
 func DeepHealth(ctx context.Context, d *db.DB) (DeepHealthReport, error) {
+	return deepHealth(ctx, d, time.Now())
+}
+
+// deepHealth là DeepHealth với đồng hồ tiến trình now (test giả lệch đồng hồ qua DeepHealthAt).
+func deepHealth(ctx context.Context, d *db.DB, now time.Time) (DeepHealthReport, error) {
 	q := store.New(d.Pool)
-	now := time.Now()
 	var r DeepHealthReport
 	ages, err := q.HeartbeatAgesByRole(ctx, now)
 	if err != nil {
@@ -66,16 +74,16 @@ func DeepHealth(ctx context.Context, d *db.DB) (DeepHealthReport, error) {
 		return r, fmt.Errorf("đọc số tệp tạm: %w", err)
 	}
 	r.SpoolFiles = int64(spool)
-	if r.LastWalArchivedAgeS, err = walArchivedAge(ctx, d, now); err != nil {
+	if r.LastWalArchivedAgeS, err = walArchivedAge(ctx, d); err != nil {
 		return r, err
 	}
-	backup, err := q.LastBackupAt(ctx, "base")
+	backupS, err := q.LastBackupAgeSeconds(ctx, "base")
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 	case err != nil:
 		return r, fmt.Errorf("đọc lần sao lưu: %w", err)
 	default:
-		h := int64(now.Sub(backup).Hours())
+		h := int64(backupS / 3600)
 		r.LastBackupAgeH = &h
 	}
 	if r.LastFileSyncAgeM, err = fileSyncAge(ctx, q, now); err != nil {
@@ -88,17 +96,17 @@ func DeepHealth(ctx context.Context, d *db.DB) (DeepHealthReport, error) {
 	return r, nil
 }
 
-// walArchivedAge: tuổi (giây) lần đẩy WAL thành công cuối; nil khi archive tắt hay chưa đẩy lần nào.
-func walArchivedAge(ctx context.Context, d *db.DB, now time.Time) (*int64, error) {
+// walArchivedAge: tuổi (giây) lần đẩy WAL thành công cuối, theo đồng hồ PostgreSQL; nil khi archive tắt hay chưa đẩy
+// lần nào.
+func walArchivedAge(ctx context.Context, d *db.DB) (*int64, error) {
 	s, err := readArchiver(ctx, d)
 	if err != nil {
 		return nil, err
 	}
-	if !s.archiveOn || s.lastArchived.IsZero() {
+	if !s.archiveOn {
 		return nil, nil
 	}
-	v := int64(now.Sub(s.lastArchived).Seconds())
-	return &v, nil
+	return s.lastArchivedAgeS, nil
 }
 
 // fileSyncAge: tuổi (phút) của lần copy ok gần nhất cũ nhất trong syncedBuckets; nil khi một bucket chưa có.

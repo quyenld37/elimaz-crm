@@ -119,13 +119,14 @@ func Summary(ctx context.Context, d *db.DB, now time.Time) (HealthSummary, error
 }
 
 // backupAndAlerts điền s.Backup (tuổi giờ của base thành công gần nhất; tuổi và ok của restore_drill gần nhất, kể cả
-// khi hỏng) và s.Alerts. Trường sao lưu để nil khi chưa có lần nào.
+// khi hỏng) và s.Alerts. Trường sao lưu để nil khi chưa có lần nào. Tuổi sao lưu tính theo đồng hồ PostgreSQL
+// (scripts/backup ghi mốc bằng now()), không so với now (Task 445).
 func backupAndAlerts(ctx context.Context, q *store.Queries, now time.Time, s *HealthSummary) error {
-	ageH := func(at time.Time) *int64 {
-		h := floorNonNeg(now.Sub(at).Hours())
+	ageH := func(ageS float64) *int64 {
+		h := floorNonNeg(ageS / 3600)
 		return &h
 	}
-	base, err := q.LastBackupAt(ctx, "base")
+	base, err := q.LastBackupAgeSeconds(ctx, "base")
 	switch {
 	case err == nil:
 		s.Backup.LastBaseAgeH = ageH(base)
@@ -135,7 +136,7 @@ func backupAndAlerts(ctx context.Context, q *store.Queries, now time.Time, s *He
 	drill, err := q.LastBackupRun(ctx, "restore_drill")
 	switch {
 	case err == nil:
-		s.Backup.LastDrillAgeH = ageH(drill.FinishedAt)
+		s.Backup.LastDrillAgeH = ageH(drill.AgeS)
 		s.Backup.LastDrillOk = &drill.Ok
 	case !errors.Is(err, pgx.ErrNoRows):
 		return fmt.Errorf("đọc lần diễn tập khôi phục: %w", err)

@@ -17,7 +17,10 @@ import (
 // pg_stat_statements): sqlc không có danh mục các view này nên câu nằm ở đây (CLAUDE.md, mục "Cơ sở dữ liệu"); câu
 // tĩnh, chỉ tham số qua $n. crm_app đọc được mọi phiên nhờ pg_monitor (migration 0010).
 const (
-	archiverSQL = `SELECT (current_setting('archive_mode') <> 'off')::bool, last_archived_time, last_failed_time, stats_reset
+	// Cột cuối: tuổi (giây) lần đẩy WAL thành công cuối theo đồng hồ của PostgreSQL (bên ghi last_archived_time); NULL
+	// khi chưa đẩy lần nào.
+	archiverSQL = `SELECT (current_setting('archive_mode') <> 'off')::bool, last_archived_time, last_failed_time, stats_reset,
+		extract(epoch FROM now() - last_archived_time)::float8
 		FROM pg_catalog.pg_stat_archiver`
 	activitySQL = `SELECT
 		count(*) FILTER (WHERE backend_type = 'client backend' AND xact_start < $1 AND pid <> pg_backend_pid()),
@@ -70,10 +73,15 @@ func readPGStats(ctx context.Context, d *db.DB, o RuleOptions) (pgStats, error) 
 func readArchiver(ctx context.Context, d *db.DB) (pgStats, error) {
 	var s pgStats
 	var archived, failed, reset pgtype.Timestamptz
-	if err := d.Pool.QueryRow(ctx, archiverSQL).Scan(&s.archiveOn, &archived, &failed, &reset); err != nil {
+	var ageS pgtype.Float8
+	if err := d.Pool.QueryRow(ctx, archiverSQL).Scan(&s.archiveOn, &archived, &failed, &reset, &ageS); err != nil {
 		return s, fmt.Errorf("đọc pg_stat_archiver: %w", err)
 	}
 	s.lastArchived, s.lastFailed, s.statsReset = tsOrZero(archived), tsOrZero(failed), tsOrZero(reset)
+	if ageS.Valid {
+		v := int64(ageS.Float64)
+		s.lastArchivedAgeS = &v
+	}
 	return s, nil
 }
 

@@ -47,13 +47,14 @@ func SendDailyDigest(ctx context.Context, d *db.DB, a Alerter, now time.Time) er
 		return fmt.Errorf("đếm việc dead, in_doubt: %w", err)
 	}
 	backup := "chưa có"
-	at, err := q.LastBackupAt(ctx, "base")
+	// Tuổi theo đồng hồ PostgreSQL (scripts/backup ghi mốc bằng now()), không so với now của tiến trình (Task 445).
+	ageS, err := q.LastBackupAgeSeconds(ctx, "base")
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 	case err != nil:
 		return fmt.Errorf("đọc lần sao lưu: %w", err)
 	default:
-		backup = fmt.Sprintf("%d giờ", int(math.Round(now.Sub(at).Hours())))
+		backup = fmt.Sprintf("%d giờ", int(math.Round(ageS/3600)))
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "Tổng kết 24 giờ (%s)\n", now.In(vietnam).Format(time.DateOnly))
