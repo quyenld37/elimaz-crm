@@ -71,11 +71,12 @@ func newEnv(t *testing.T) *env {
 		Username: testUser, Password: testPass,
 		Login: sample(t, "login.json"), Provinces: sample(t, "provinces_v3.json"), Wards: sample(t, "wards_v3.json"),
 		PriceAll: sample(t, "price_all.json"), Price: sample(t, "price.json"), CreateOrder: sample(t, "create_order.json"),
+		UpdateOrder: sample(t, "update_order.json"), PrintingCode: sample(t, "printing_code.json"),
 		Hang: 2 * time.Second,
 	})
 	hs := httptest.NewServer(srv)
 	t.Cleanup(hs.Close)
-	ad := vtp.New(vtp.Config{BaseURL: hs.URL, HTTPClient: hs.Client()})
+	ad := vtp.New(vtp.Config{BaseURL: hs.URL, PrintURL: hs.URL, HTTPClient: hs.Client()})
 	acc := fulfillment.Account{
 		ID: uuid.New(), ExternalAccountRef: "vtp-1", CarrierKey: vtp.Key, Environment: "sandbox", RouteKey: "rk-vtp-1",
 		Creds: fulfillment.Credentials{"username": testUser, "password": testPass},

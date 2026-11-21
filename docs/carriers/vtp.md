@@ -1,7 +1,7 @@
 # Viettel Post (khóa hãng `vtp`)
 
-Task 125 (M3-34): xác thực, địa giới, báo phí, tạo vận đơn. Task 126 (M3-35): hủy, webhook, nhãn, bảng kê. Gọi thật ở
-môi trường thử của hãng chỉ ở Task 49, khi chủ shop OK. Tên địa giới đặc biệt: xem `dia-gioi.md`.
+Task 125 (M3-34): xác thực, địa giới, báo phí, tạo vận đơn. Task 126 (M3-35): hủy, phát tiếp, webhook, nhãn (bảng kê
+COD: **chờ tệp mẫu của VTP**). Gọi thật ở môi trường thử của hãng chỉ ở Task 49, khi chủ shop OK. Tên địa giới đặc biệt: xem `dia-gioi.md`.
 
 ## Nguồn và ngày đọc
 
@@ -11,7 +11,9 @@ môi trường thử của hãng chỉ ở Task 49, khi chủ shop OK. Tên đ�
   - `/document/environment-parameter` (môi trường, phong bì trả lời, bảng thông báo lỗi), `/document/token-authen`,
     `/document/new-place-province`, `/document/new-place-ward`, `/document/get-list-service-by-address-id`
     (`getPriceAll`), `/document/charges-id-address` (`getPrice`), `/document/create-order-id-address` (`createOrder`),
-    `/document/webhook`; khóa `error-status`, `document.*` của `vi.json`.
+    `/document/webhook`; khóa `error-status`, `document.*` của `vi.json`. Task 126 đọc thêm (cùng bản tải ngày 21/11):
+    `/document/update-bill-of-lading-status` (`UpdateOrder`), `/document/update-info-order` (`edit`),
+    `/document/sync-end-status` ("Lấy link in vận đơn", `printing-code`), `/document/webhook-sample`.
 - Ghi chú cũ: `docs/nhanh-survey/recheck-20261018/viettel-official-webhook.json` (trang Webhook, đọc 18/10/2026) và
   `docs/crm/specs/core-e2e/05-carrier-integration.md` mục I15. Bảng trạng thái của trang Webhook đọc ngày 21/11 trùng
   với bản 18/10.
@@ -102,12 +104,13 @@ Mã trong thân (`status`), theo khóa `error-status` của tài liệu; HTTP th
 | HTTP 503, không nối được | chưa nhận | `not_sent_retry` | `http_503`, `dial` |
 | Thân 201 "Hủy nhập phiếu gửi", 203 thiếu trường, 204 dữ liệu sai / "Giá không áp dụng cho hành trình này" | hãng từ chối | `rejected` | `vtp_201`, `vtp_203`, `vtp_204` |
 | Tạo đơn, thân 206 "Mã đơn hàng đã tồn tại trên hệ thống" | đơn đã có ở VTP, không biết mã hãng | `unknown_outcome` (in_doubt, người nhập mã hãng) | `vtp_206_duplicate` |
-| Tạo đơn: thân 205 "Lỗi hệ thống", HTTP 5xx khác, quá giờ, đứt kết nối sau khi gửi, thân không đọc được | không rõ | `unknown_outcome` | `vtp_205`, `http_5xx`, `transport`, `bad_reply` |
-| Việc khác (báo phí, địa giới): 205, 5xx | lỗi tạm | `not_sent_retry` | như trên |
+| Tạo đơn, hủy, phát tiếp: thân 205 "Lỗi hệ thống", HTTP 5xx khác, quá giờ, đứt kết nối sau khi gửi, thân không đọc được | không rõ | `unknown_outcome` | `vtp_205`, `http_5xx`, `transport`, `bad_reply` |
+| Việc khác (báo phí, địa giới, mã in, tải nhãn): 205, 5xx | lỗi tạm | `not_sent_retry` | như trên |
+| Máy in nhãn: 3xx, 4xx khác 429, thân không phải PDF, quá 20 MB | không dùng được | `permanent` | `vtp_label_redirect`, `http_4xx`, `invalid_pdf`, `too_large` |
 
 Thông báo của hãng không chép vào lỗi (chỉ mã). Thân yêu cầu (tên, SĐT, địa chỉ) không vào log, lỗi, dấu vết.
 
-Hạn giờ client (Global Constraints): báo phí 10 s, tạo vận đơn 20 s, địa giới và đăng nhập 15 s.
+Hạn giờ client (Global Constraints): báo phí 10 s, tạo vận đơn 20 s, địa giới, đăng nhập, hủy, phát tiếp, nhãn 15 s.
 
 ## Khả năng (`Capabilities`)
 
@@ -115,10 +118,15 @@ Hạn giờ client (Global Constraints): báo phí 10 s, tạo vận đơn 20 s,
 |---|---|---|
 | `Quote`, `Create`, `Locations` | true | có API (trên) |
 | `DeclaredValue` | true | `PRODUCT_PRICE` = giá trị hàng trong cả báo phí và tạo đơn |
+| `Cancel`, `Redeliver` | true | `UpdateOrder` TYPE 4, TYPE 3 (dưới) |
+| `CancelIdempotent` | false | tài liệu không nói hủy lại đơn đã hủy trả gì (Q-24); Task 49 thử ở môi trường thử |
+| `Labels`, `LabelsBatch` | true | `printing-code` nhận tối đa 100 mã một lần |
+| `Webhook` | true | kiểm token, tách tín hiệu (dưới); `Track` vẫn false nên lõi không đổi trạng thái theo webhook |
+| `UpdateAddress` | false | `POST /v2/order/edit` đòi gửi lại cả đơn (người gửi, dịch vụ, `ORDER_PAYMENT`…), interface chỉ có địa chỉ mới |
+| `Statement` | false | chưa có tệp bảng kê COD thật của VTP: **chờ tệp mẫu**, kế toán dùng `elimaz_v1` trong lúc chờ |
 | `LookupByRef` | **false** | tài liệu không có API tra đơn theo mã đối tác hay mã vận đơn (danh sách API: địa danh, dịch vụ, tính cước, tạo đơn, cập nhật đơn, cập nhật trạng thái, link in). `LookupByCode` trả `ErrNotSupported`: vận đơn "không rõ" luôn chờ người (Task 12) |
 | `Inspection`, `FeeOnRefuse` | false | làm qua dịch vụ cộng thêm (`XMG` "Thu tiền xem hàng", `EXTRA_MONEY`) mà mã dịch vụ cộng thêm do `getPriceAll` trả theo từng tài khoản; chưa có mẫu thật để đổi `none/view/try` sang mã. Task 49 xác minh rồi bật |
-| `Track` | false | tài liệu không có API hành trình; trạng thái về bằng webhook (Task 126) |
-| `Cancel`, `UpdateAddress`, `Redeliver`, `Labels`, `Webhook`, `Statement` | false ở Task 125 | `UpdateOrder` (TYPE 4 hủy, 2 duyệt hoàn, 3 phát tiếp), `edit`, `printing-code`, webhook: Task 126 |
+| `Track` | false | tài liệu không có API hành trình; trạng thái chỉ về bằng webhook. `Track`, `GetStatus` trả `ErrNotSupported` |
 
 `Options.Pickup` (hãng tới lấy hay shop mang ra bưu cục): tài liệu không có trường tương ứng ở `createOrder`; bỏ qua.
 
@@ -165,8 +173,62 @@ Mã khác → `unknown` (không đổi trạng thái vận đơn, chờ người
 6. Mã dịch vụ cộng thêm cho "cho xem hàng", "cho thử", và thu phí khi khách không nhận (`XMG` + `EXTRA_MONEY`?).
 7. Token của `Login` có hạn bao lâu (mẫu `expired: 0`)?
 
-## Webhook (Task 126)
+8. **Hủy đơn đã lấy hàng** (`UpdateOrder` TYPE 4 khi `ORDER_STATUS ≥ 200`) trả mã lỗi nào? Hủy lại đơn đã hủy (107)
+   trả thành công hay lỗi?
+9. **Token webhook**: header `Authorization` là giá trị shop tự đặt khi cấu hình webhook, hay token do VTP cấp? `TOKEN`
+   trong thân (mẫu `0333333333`) là gì? Có ký thân (HMAC) không?
+10. **Link in** `DigitalizePrint/report.do` trả tệp PDF hay trang HTML? Khổ A6 dùng `type=2` hay `type=a6_1`?
+11. Có API đọc trạng thái/hành trình cho đối tác không (như câu 3)? Trang "Đồng bộ hành trình" của bảng điều khiển có
+    gọi được bằng API không?
 
-Ghi chú từ trang Webhook: POST JSON, header `Authorization` là token xác thực, thân `{"DATA": {...}, "TOKEN": "…"}`;
-một URL mỗi tài khoản; trả lời dưới 1 s; thử lại tối đa 5 lần; có thể trùng hay thừa; `ORDER_NUMBER` là mã vận đơn,
-`ORDER_REFERENCE` là mã đối tác; thời điểm `ORDER_STATUSDATE` dạng `dd/MM/yyyy HH:mm:ss` (giờ Việt Nam).
+## Hủy, phát tiếp (`Cancel`, `Redeliver`, `cancel.go`)
+
+`POST /v2/order/UpdateOrder` thân `{"TYPE": …, "ORDER_NUMBER": "<mã vận đơn VTP>", "NOTE": "…" (≤ 150 ký tự)}`.
+
+| TYPE | Nghĩa (tài liệu) | CRM |
+|---|---|---|
+| 4 | Hủy đơn, "chỉ áp dụng với đơn chưa nhận thành công (ORDER_STATUS < 200)" | `Cancel` → `CancelDone` khi hãng nhận |
+| 3 | Phát tiếp, khi đơn ở 505 | `Redeliver` → `UpdateDone`; hãng từ chối → `UpdateRejected` |
+| 1, 2, 5 | duyệt đơn, duyệt hoàn, xóa đơn đã hủy | không dùng |
+
+- Tài liệu chỉ có thông báo "Hủy đơn hàng thành công", không có mẫu lỗi. Hãng từ chối hủy (đơn đã lấy, đã hủy, mã
+  sai) → lỗi lớp `rejected` mã `vtp_<status>`: lệnh hủy thành `rejected` và việc hủy chờ người. **Không** trả
+  `CancelRejectedPickedUp` (lõi sẽ coi kiện đã rời kho) khi chưa biết mã lỗi riêng của "đã lấy" (câu 8).
+- Lỗi sau khi gửi (quá giờ, 205, 5xx, thân không đọc được) → `unknown_outcome` (in_doubt, không tự gửi lại): tra lại
+  không được vì không có API đọc, nên chờ người. Hạn giờ client 15 s.
+
+## Nhãn (`Labels`, `labels.go`)
+
+1. `POST /v2/order/printing-code` thân `{"EXPIRY_TIME": <bây giờ + 10 phút, mili giây>, "ORDER_ARRAY": [mã vận đơn VTP,
+   1–100 mã]}` → mã in ở `message` của phong bì (mẫu `ISJDgZ3N…=`, có `+ / =`).
+2. Tải `<máy in>/DigitalizePrint/report.do?type=2&bill=<mã in đã escape>&showPostage=0`. Máy in **khai cứng** theo môi
+   trường (`sandbox` → `https://dev-release-print.viettelpost.vn`, `production` → `https://digitalize.viettelpost.vn`),
+   không bao giờ lấy từ trả lời của hãng (chống SSRF, Task 107); không theo chuyển hướng (3xx → lỗi `permanent`
+   `vtp_label_redirect`); không gửi header `Token` sang máy in.
+3. Thân phải bắt đầu `%PDF-` (không → `permanent` `invalid_pdf`) và ≤ 20 MB (`too_large`). `Pages` = số mã.
+
+`type=2` là link thứ hai của tài liệu, dưới mục "Nhãn A6" (`type=1` A5, `100`/`1001` A7, còn `a6_1`); `showPostage=0`
+không in tiền cước. Cả hai là hằng trong `labels.go`, Task 49 xác minh (câu 10).
+
+## Webhook (`VerifyWebhook`, `SplitWebhook`, `webhook.go`)
+
+Trang Webhook: POST JSON, header `Authorization` là "token xác thực", thân `{"DATA": {...}, "TOKEN": "…"}`; một URL
+mỗi tài khoản (cấu hình ở bảng điều khiển Partner, URL CRM: `/hooks/vtp/<route_key>`); trả lời dưới 1 s; thử lại tối
+đa 5 lần; có thể trùng hay thừa; sau trạng thái cuối không còn bản ghi. Mẫu: `testdata/webhook_*.json`.
+
+- **Kiểm** (`VerifyWebhook`): header `Authorization` (một giá trị; bỏ tiền tố `Bearer `) so thời gian hằng với bí mật
+  webhook của hãng `vtp` trong cấu hình CRM (`CarrierWebhookSecrets["vtp"]`); bí mật rỗng, thiếu, sai → từ chối.
+  VTP không ký thân: lộ token là giả được thân (câu 9). `TOKEN` trong thân không dùng.
+- **Tách** (`SplitWebhook`): mỗi thân một `WebhookSignal` — `TrackingCode = ORDER_NUMBER`, `ShipmentCode =
+  ORDER_REFERENCE`, `EventKey = vtp:<mã>:<ORDER_STATUS>:<ORDER_STATUSDATE đổi giờ Việt Nam (+07:00) sang UTC>`.
+  Không đưa trạng thái, tiền COD, tên, SĐT ra lõi (luật B10). Thời điểm không đọc được hay thiếu mã trạng thái → khóa
+  rỗng (lõi chống trùng theo băm thân). Không phải JSON, `DATA` không phải đối tượng, `ORDER_STATUS` không phải số,
+  thiếu cả hai mã → lỗi.
+- **Điều đang xảy ra với luật hiện tại:** tín hiệu vào → lệnh tra của lõi → `Track`/`GetStatus`/`LookupByCode` trả
+  `ErrNotSupported` → lệnh `rejected`, `last_sync_error = not_supported`; trạng thái vận đơn VTP **không đổi** theo
+  webhook, nhân viên cập nhật tay. Đổi luật là quyết định của chủ shop (tệp task 126, "Việc phát hiện thêm").
+
+## Bảng kê COD (`Statement`)
+
+Chưa có tệp đối soát thật của VTP: **chờ tệp mẫu của VTP** (chủ shop gửi một tệp thật, CRM dựng `testdata/
+statement_vtp_v1.xlsx` bằng số giả cùng tiêu đề cột). Trong lúc chờ kế toán dùng định dạng `elimaz_v1`.

@@ -1,0 +1,9 @@
+{
+ "_source": "https://partner2.viettelpost.vn/document/sync-end-status (Lấy link in vận đơn) — Response của POST /v2/order/printing-code (đọc 21/11/2026), chép nguyên; message là mã in, máy chủ giả thay bằng mã nó sinh",
+ "reply": {
+  "status": 200,
+  "error": false,
+  "message": "ISJDgZ3NSiYMtPUk7vTzQK8ZWUDexvvDKIclc0NplOU=",
+  "data": null
+ }
+}

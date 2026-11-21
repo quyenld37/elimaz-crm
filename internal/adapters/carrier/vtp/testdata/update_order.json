@@ -1,0 +1,9 @@
+{
+ "_source": "https://partner2.viettelpost.vn/document/update-bill-of-lading-status (Cập nhật trạng thái vận đơn) — POST /v2/order/UpdateOrder (đọc 21/11/2026): trang chỉ có thông báo \"Hủy đơn hàng thành công\", không có thân trả lời mẫu; phong bì theo trang \"Môi trường và tham số chung\"",
+ "reply": {
+  "status": 200,
+  "error": false,
+  "message": "Hủy đơn hàng thành công",
+  "data": null
+ }
+}

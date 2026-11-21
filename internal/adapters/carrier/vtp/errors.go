@@ -10,8 +10,9 @@ import (
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 )
 
-// kind là loại việc của một lời gọi: quyết định hạn giờ và nghĩa của lỗi sau khi đã gửi (chỉ tạo vận đơn có "không
-// rõ hãng đã làm chưa"; đăng nhập, báo phí, địa giới không đổi gì ở hãng nên lỗi tạm là chưa gửi, gửi lại được).
+// kind là loại việc của một lời gọi: quyết định hạn giờ và nghĩa của lỗi sau khi đã gửi. Việc đổi đơn ở hãng (tạo,
+// hủy, phát tiếp) có "không rõ hãng đã làm chưa"; đăng nhập, báo phí, địa giới, lấy mã in và tải nhãn không đổi gì ở
+// hãng nên lỗi tạm là chưa gửi, gửi lại được.
 type kind int
 
 const (
@@ -19,19 +20,25 @@ const (
 	kindQuote
 	kindCreate
 	kindLogin
+	kindCancel
+	kindUpdate
+	kindLabel
 )
 
-// Hạn giờ client (Global Constraints M3): báo phí 10 s, tạo vận đơn 20 s, còn lại 15 s.
+// Hạn giờ client (Global Constraints M3): báo phí 10 s, tạo vận đơn 20 s, còn lại (tra, hủy, nhãn, đăng nhập) 15 s.
 func (k kind) timeout() time.Duration {
 	switch k {
 	case kindQuote:
 		return 10 * time.Second
 	case kindCreate:
 		return 20 * time.Second
-	case kindRead, kindLogin:
+	case kindRead, kindLogin, kindCancel, kindUpdate, kindLabel:
 	}
 	return 15 * time.Second
 }
+
+// changes: việc đổi đơn ở hãng — lỗi sau khi gửi là không rõ (in_doubt), không tự gửi lại.
+func (k kind) changes() bool { return k == kindCreate || k == kindCancel || k == kindUpdate }
 
 // Mã lỗi (CarrierError.Code) của adapter; mã của VTP là vtp_<status trong thân>.
 const (
@@ -63,8 +70,9 @@ const (
 const retryAfterDefault = 30 * time.Second
 
 var (
-	errStatus  = errors.New("vtp: hãng trả lời lỗi")
-	errUnknown = errors.New("vtp: không rõ hãng đã tạo đơn chưa")
+	errStatus        = errors.New("vtp: hãng trả lời lỗi")
+	errUnknown       = errors.New("vtp: không rõ hãng đã tạo đơn chưa")
+	errUnknownChange = errors.New("vtp: không rõ hãng đã cập nhật đơn chưa")
 )
 
 // tokenMessages là thông báo lỗi token trong bảng thông báo lỗi của tài liệu.
@@ -120,11 +128,14 @@ func classifyBody(k kind, status int, msg string) *fulfillment.CarrierError {
 	return rejected(code)
 }
 
-// afterSend là lỗi sau khi yêu cầu đã tới hãng mà không có trả lời dùng được: tạo vận đơn → không rõ (in_doubt);
-// việc khác → chưa gửi, gửi lại được.
+// afterSend là lỗi sau khi yêu cầu đã tới hãng mà không có trả lời dùng được: việc đổi đơn (tạo, hủy, phát tiếp) →
+// không rõ (in_doubt); việc khác → chưa gửi, gửi lại được.
 func afterSend(k kind, code string) *fulfillment.CarrierError {
-	if k == kindCreate {
+	switch {
+	case k == kindCreate:
 		return &fulfillment.CarrierError{Class: fulfillment.ClassUnknownOutcome, Code: code, Err: errUnknown}
+	case k.changes():
+		return &fulfillment.CarrierError{Class: fulfillment.ClassUnknownOutcome, Code: code, Err: errUnknownChange}
 	}
 	return notSent(code)
 }

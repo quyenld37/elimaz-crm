@@ -1,0 +1,17 @@
+{
+  "secret": "carriertest-vtp-webhook-token-0000000",
+  "tokenOnly": true,
+  "headers": {
+    "Authorization": [
+      "carriertest-vtp-webhook-token-0000000"
+    ]
+  },
+  "body": "{\"DATA\":{\"ORDER_NUMBER\":\"TUANPAD3024822076\",\"ORDER_REFERENCE\":\"TUANPAD3024822076\",\"ORDER_STATUSDATE\":\"10/11/2025 11:07:16\",\"ORDER_STATUS\":104,\"STATUS_NAME\":\"Giao cho Bưu tá đi nhận\",\"LOCALION_CURRENTLY\":\"HNI, GLM, Bưu cục Mẫu - HNI - Hà Nội, 0912345678, 131003, PHƯỜNG MẪU\",\"NOTE\":\"Phân công bưu tá nhận hàng\",\"MONEY_COLLECTION\":0,\"MONEY_FEECOD\":1000,\"MONEY_TOTALFEE\":236115,\"MONEY_TOTAL\":266884,\"MONEY_TOTALVAT\":19769,\"EXPECTED_DELIVERY\":\"Dịch vụ chưa quy định chỉ tiêu\",\"PRODUCT_WEIGHT\":7100,\"ORDER_SERVICE\":\"VHT\",\"ORDER_SERVICE_ADD\":null,\"ORDER_PAYMENT\":1,\"EXPECTED_DELIVERY_DATE\":null,\"DETAIL\":[{\"CODE\":\"GNG\",\"VALUE\":0}],\"VOUCHER_VALUE\":0,\"MONEY_COLLECTION_ORIGIN\":null,\"EMPLOYEE_NAME\":\"Bưu Tá Mẫu\",\"EMPLOYEE_PHONE\":\"84912345678\",\"IS_RETURNING\":false,\"POD\":{\"IMAGES\":[]},\"REASON_CODE\":null,\"RECEIVER_FULLNAME\":\"Nguyễn Văn Thử\",\"LOCATION_CURRENTLY\":\"HNI, GLM, Bưu cục Mẫu - HNI - Hà Nội, 0912345678, 131003, PHƯỜNG MẪU\"},\"TOKEN\":\"0900000001\"}",
+  "signals": [
+    {
+      "EventKey": "vtp:TUANPAD3024822076:104:2025-11-10T04:07:16Z",
+      "TrackingCode": "TUANPAD3024822076",
+      "ShipmentCode": "TUANPAD3024822076"
+    }
+  ]
+}

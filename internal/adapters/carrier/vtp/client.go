@@ -32,78 +32,95 @@ type envelope struct {
 	Data    json.RawMessage `json:"data"`
 }
 
-// baseURL chọn đường dẫn gốc: Config.BaseURL, hoặc theo môi trường của tài khoản; môi trường lạ → lỗi permanent,
-// không gọi mạng.
+// baseURL chọn đường dẫn gốc của API: Config.BaseURL, hoặc theo môi trường của tài khoản.
 func (a *Adapter) baseURL(acc fulfillment.Account) (string, error) {
-	if a.base != "" {
-		return a.base, nil
+	return byEnvironment(a.base, acc, sandboxURL, productionURL)
+}
+
+// byEnvironment trả override khi khác rỗng, không thì địa chỉ của môi trường tài khoản (sandbox, production); môi
+// trường lạ → lỗi permanent, không gọi mạng. Địa chỉ luôn do adapter khai, không lấy từ trả lời của hãng.
+func byEnvironment(override string, acc fulfillment.Account, sandbox, production string) (string, error) {
+	if override != "" {
+		return override, nil
 	}
 	switch acc.Environment {
 	case "sandbox":
-		return sandboxURL, nil
+		return sandbox, nil
 	case "production":
-		return productionURL, nil
+		return production, nil
 	}
 	return "", &fulfillment.CarrierError{Class: fulfillment.ClassPermanent, Code: codeEnvironment, Err: errStatus}
 }
 
-// call gọi một API cần mã truy cập: lấy mã (trong bộ nhớ hay đăng nhập), gửi, đọc phong bì, giải data vào out. Hãng báo
-// lỗi token (mã hết hạn, bị thu hồi) → bỏ mã, đăng nhập lại đúng một lần rồi gửi lại (lỗi token nghĩa là hãng chưa xử
-// lý yêu cầu); lần hai vẫn lỗi token → lỗi auth. Lỗi của bước đăng nhập là "chưa gửi" với yêu cầu chính.
+// call gọi một API cần mã truy cập qua exchange rồi giải data vào out (nil: bỏ data). Data không giải được → lỗi sau
+// khi gửi (việc đổi đơn: không rõ).
 func (a *Adapter) call(ctx context.Context, acc fulfillment.Account, k kind, method, path string, in, out any) error {
-	base, err := a.baseURL(acc)
+	data, _, err := a.exchange(ctx, acc, k, method, path, in)
 	if err != nil {
 		return err
 	}
+	if out != nil {
+		if err := json.Unmarshal(data, out); err != nil {
+			return afterSend(k, codeBadReply)
+		}
+	}
+	return nil
+}
+
+// exchange gọi một API cần mã truy cập: lấy mã (trong bộ nhớ hay đăng nhập), gửi, đọc phong bì, trả data và message
+// của phong bì (printing-code trả mã in ở message). Hãng báo lỗi token (mã hết hạn, bị thu hồi) → bỏ mã, đăng nhập lại
+// đúng một lần rồi gửi lại (lỗi token nghĩa là hãng chưa xử lý yêu cầu); lần hai vẫn lỗi token → lỗi auth. Lỗi của
+// bước đăng nhập là "chưa gửi" với yêu cầu chính.
+func (a *Adapter) exchange(ctx context.Context, acc fulfillment.Account, k kind, method, path string, in any,
+) (data, message json.RawMessage, err error) {
+	base, err := a.baseURL(acc)
+	if err != nil {
+		return nil, nil, err
+	}
 	tok, err := a.token(ctx, acc, base)
 	if err != nil {
-		return asNotSent(err)
+		return nil, nil, asNotSent(err)
 	}
 	for retried := false; ; retried = true {
 		rep, err := a.send(ctx, k, base, method, path, tok, in)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
-		data, ce := decode(k, rep)
+		d, m, ce := decode(k, rep)
 		if ce != nil && ce.Code == codeToken && !retried {
 			a.tokens.drop(sessionKey(acc, base), tok)
 			if tok, err = a.login(ctx, acc, base); err != nil {
-				return asNotSent(err)
+				return nil, nil, asNotSent(err)
 			}
 			continue
 		}
 		if ce != nil {
-			return ce
+			return nil, nil, ce
 		}
-		if out != nil {
-			if err := json.Unmarshal(data, out); err != nil {
-				return afterSend(k, codeBadReply)
-			}
-		}
-		return nil
+		return d, m, nil
 	}
 }
 
 // decode đọc trả lời: HTTP khác 200 → classifyHTTP; thân là mảng trần (getPriceAll) → chính nó; phong bì lỗi →
-// classifyBody; thân không đọc được → lỗi sau khi gửi (tạo vận đơn: không rõ).
-func decode(k kind, rep reply) (json.RawMessage, *fulfillment.CarrierError) {
+// classifyBody; thân không đọc được → lỗi sau khi gửi (việc đổi đơn: không rõ). Trả data và message của phong bì.
+func decode(k kind, rep reply) (data, message json.RawMessage, ce *fulfillment.CarrierError) {
 	if rep.status != http.StatusOK {
-		return nil, classifyHTTP(k, rep.status, rep.header)
+		return nil, nil, classifyHTTP(k, rep.status, rep.header)
 	}
 	body := bytes.TrimSpace(rep.body)
 	if len(body) > 0 && body[0] == '[' {
-		return body, nil
+		return body, nil, nil
 	}
 	var env envelope
 	if err := json.Unmarshal(body, &env); err != nil || env.Status == 0 {
-		return nil, afterSend(k, codeBadReply) // không phải phong bì của VTP: không biết hãng đã làm gì
+		return nil, nil, afterSend(k, codeBadReply) // không phải phong bì của VTP: không biết hãng đã làm gì
 	}
 	if env.Status != vtpOK || env.Error {
 		var msg string
 		_ = json.Unmarshal(env.Message, &msg) // message dạng mảng: chỉ phân lớp theo mã
-		return nil, classifyBody(k, env.Status, msg)
+		return nil, nil, classifyBody(k, env.Status, msg)
 	}
-	return env.Data, nil
+	return env.Data, env.Message, nil
 }
 
 // send gửi một yêu cầu với hạn giờ của loại việc k. Không dựng được hay không nối được → chưa gửi; lỗi khác sau khi

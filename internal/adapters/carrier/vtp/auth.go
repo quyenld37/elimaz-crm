@@ -98,7 +98,7 @@ func (a *Adapter) login(ctx context.Context, acc fulfillment.Account, base strin
 	if err != nil {
 		return "", err
 	}
-	data, ce := decode(kindLogin, rep)
+	data, _, ce := decode(kindLogin, rep)
 	if ce != nil {
 		if ce.Class == fulfillment.ClassAuth {
 			ce.Code = codeLogin

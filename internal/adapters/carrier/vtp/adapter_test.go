@@ -497,7 +497,10 @@ func TestMapCanonical(t *testing.T) {
 // Khả năng khai theo tài liệu (docs/carriers/vtp.md).
 func TestCapabilities(t *testing.T) {
 	got := vtp.New(vtp.Config{}).Capabilities()
-	want := fulfillment.Capabilities{Quote: true, Create: true, Locations: true, DeclaredValue: true}
+	want := fulfillment.Capabilities{
+		Quote: true, Create: true, Locations: true, DeclaredValue: true,
+		Cancel: true, Webhook: true, Labels: true, LabelsBatch: true, Redeliver: true,
+	}
 	if got != want {
 		t.Errorf("Capabilities = %+v, muốn %+v", got, want)
 	}
