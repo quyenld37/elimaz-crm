@@ -1631,6 +1631,10 @@ export type OrderDuplicatePage = {
 
 export type ResolveOrderDuplicateRequest = {
     action: 'not_duplicate' | 'cancel_other' | 'cancel_this';
+    /**
+     * Version của đơn bị hủy mà nhân viên đã xem; bắt buộc với cancel_other, cancel_this (thiếu → 400 invalid_input, khác version hiện tại → 409 version_conflict); not_duplicate bỏ qua (Task 432).
+     */
+    version?: number;
 };
 
 export type ReturnKind = 'carrier_return' | 'customer_return' | 'exchange' | 'partial_delivery';

@@ -36994,10 +36994,17 @@ func (s *ResolveOrderDuplicateRequest) encodeFields(e *jx.Encoder) {
 		e.FieldStart("action")
 		s.Action.Encode(e)
 	}
+	{
+		if s.Version.Set {
+			e.FieldStart("version")
+			s.Version.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfResolveOrderDuplicateRequest = [1]string{
+var jsonFieldsNameOfResolveOrderDuplicateRequest = [2]string{
 	0: "action",
+	1: "version",
 }
 
 // Decode decodes ResolveOrderDuplicateRequest from json.
@@ -37018,6 +37025,16 @@ func (s *ResolveOrderDuplicateRequest) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "version":
+			if err := func() error {
+				s.Version.Reset()
+				if err := s.Version.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)

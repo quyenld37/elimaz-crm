@@ -33,6 +33,9 @@ var errDuplicatesNoClock = errors.New("order: DuplicatesConsumer thiếu đồng
 // DuplicatesConsumerName là tên consumer phát hiện đơn trùng (việc event.order_duplicates); đổi tên làm mất tiến độ.
 const DuplicatesConsumerName = "order_duplicates"
 
+// topicOrderCancelled là sự kiện order.<trạng thái> khi đơn sang cancelled (applyTransition phát; docs/views.md).
+const topicOrderCancelled = "order." + StatusCancelled
+
 // Cách khớp của một cặp (CHECK ord.order_duplicate_links.matched_by).
 const (
 	MatchedByCustomer = "customer"
@@ -121,10 +124,12 @@ func ParseDuplicateCursor(s string) (DuplicateCursor, error) {
 }
 
 // DuplicatesConsumer phát hiện đơn trùng sau commit (events.Consumer; module.go đăng ký): với đơn X của sự kiện
-// order.created, order.updated (bỏ qua khi X cancelled hay cửa sổ 0), mỗi đơn O khớp (luật ở đầu tệp) mà cặp (X, O)
+// order.created, order.updated (bỏ qua khi cửa sổ 0), mỗi đơn O khớp (luật ở đầu tệp) mà cặp (X, O)
 // chưa có dòng: khóa hai đơn theo id tăng dần, kiểm lại cả hai chưa cancelled, chèn dòng (ON CONFLICT DO NOTHING) và
 // chỉ khi chèn được thì bật duplicate_suspect của hai đơn (không tăng version, không phát order.updated nên không
-// lặp). Cặp đã có dòng (mở hay đã xử lý) không đụng lại. Chạy lại được; payload hỏng → queue.ErrPermanent. Now là đồng hồ
+// lặp). Cặp đã có dòng (mở hay đã xử lý) không đụng lại. Đơn X đã cancelled (sự kiện order.cancelled của mọi đường hủy:
+// hủy tay, nháp hết hạn, hãng xác nhận hủy, xử lý đơn trùng; review M2 B-04) → gỡ cờ của X và của các đơn ghép cặp với
+// X không còn cặp mở (clearCancelledPairs). Chạy lại được; payload hỏng → queue.ErrPermanent. Now là đồng hồ
 // cho mốc của cặp (bắt buộc; Background giao background.Deps.Clock): nil → lỗi, không ghi gì.
 type DuplicatesConsumer struct {
 	Now func() time.Time
@@ -133,8 +138,10 @@ type DuplicatesConsumer struct {
 // Name trả DuplicatesConsumerName.
 func (DuplicatesConsumer) Name() string { return DuplicatesConsumerName }
 
-// Topics trả order.created, order.updated.
-func (DuplicatesConsumer) Topics() []string { return []string{TopicOrderCreated, TopicOrderUpdated} }
+// Topics trả order.created, order.updated, order.cancelled.
+func (DuplicatesConsumer) Topics() []string {
+	return []string{TopicOrderCreated, TopicOrderUpdated, topicOrderCancelled}
+}
 
 // Handle tìm và ghi cặp nghi trùng của đơn trong sự kiện e, trong tx của worker.
 func (c DuplicatesConsumer) Handle(ctx context.Context, e events.StoredEvent, tx pgx.Tx) error {
@@ -154,7 +161,7 @@ func (c DuplicatesConsumer) Handle(ctx context.Context, e events.StoredEvent, tx
 		return fmt.Errorf("đọc đơn của sự kiện: %w", err)
 	}
 	if x.Status == StatusCancelled {
-		return nil
+		return clearCancelledPairs(ctx, q, p.SellerID, x.ID)
 	}
 	window, err := duplicateWindow(ctx, tx)
 	if err != nil || window == 0 {
@@ -216,6 +223,28 @@ func linkAll(ctx context.Context, q *store.Queries, sellerID, x uuid.UUID, found
 			SellerID: sellerID, Suspect: true, Ids: []uuid.UUID{lo, hi},
 		}); err != nil {
 			return fmt.Errorf("đánh dấu nghi trùng: %w", err)
+		}
+	}
+	return nil
+}
+
+// clearCancelledPairs gỡ cờ nghi trùng của đơn cancelled x và của mọi đơn ghép cặp với x không còn cặp mở: khóa các
+// đơn còn cờ (x và đơn ghép cặp) theo id tăng dần (ADR-46 nhóm 7, như linkAll; không còn cặp mới nào với x vì linkAll bỏ
+// đơn cancelled dưới khóa), rồi clearSuspectIfClosed từng đơn.
+func clearCancelledPairs(ctx context.Context, q *store.Queries, sellerID, x uuid.UUID) error {
+	ids, err := q.SuspectPairedOrders(ctx, store.SuspectPairedOrdersParams{SellerID: sellerID, ID: x})
+	if err != nil {
+		return fmt.Errorf("đọc đơn còn cờ ghép cặp với đơn hủy: %w", err)
+	}
+	slices.SortFunc(ids, func(a, b uuid.UUID) int { return slices.Compare(a[:], b[:]) })
+	for _, id := range ids {
+		if _, err := lockOrder(ctx, q, sellerID, id); err != nil {
+			return fmt.Errorf("khóa đơn để gỡ cờ nghi trùng: %w", err)
+		}
+	}
+	for _, id := range ids {
+		if err := clearSuspectIfClosed(ctx, q, sellerID, id); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -344,15 +373,19 @@ func GetDuplicate(ctx context.Context, tx pgx.Tx, sellerID, orderID, otherOrderI
 // ResolveDuplicate xử lý cặp (orderID, otherOrderID) của người bán sellerID trong tx của bên gọi (không bao giờ tự
 // hủy; nhân viên chọn):
 //
-//   - not_duplicate: ghi kết luận not_duplicate.
-//   - cancel_other / cancel_this: Cancel đơn otherOrderID / orderID (lý do duplicate, như hủy tay: nhả hàng, trả lượt
-//     mã; đơn đã gửi hãng → cancel_requested) rồi ghi kết luận cancelled.
+//   - not_duplicate: ghi kết luận not_duplicate (version không dùng).
+//   - cancel_other / cancel_this: Cancel đơn otherOrderID / orderID ở version (version của đơn bị hủy mà nhân viên đã
+//     xem, bắt buộc; khác version hiện tại → ErrVersionConflict, không đổi gì) với lý do duplicate, như hủy tay: nhả
+//     hàng, trả lượt mã, rồi ghi kết luận cancelled. Đơn đã gửi hãng thì Cancel chỉ đưa sang cancel_requested: cặp giữ
+//     mở, giữ cờ (review M2 B-03); hãng xác nhận hủy thì cặp rời danh sách và DuplicatesConsumer gỡ cờ, hãng từ chối
+//     thì đơn về confirmed và cặp vẫn chờ nhân viên.
 //
-// Sau đó đơn nào của cặp không còn cặp mở (chưa xử lý, đơn kia chưa hủy) thì gỡ duplicate_suspect. Khóa hai đơn theo id
-// tăng dần rồi dòng cặp. Hành động lạ, hai mã trùng → ErrInvalidInput; không có cặp (hay đơn của người bán khác) →
-// ErrNotFound; cặp đã xử lý → ErrInvalidTransition; lỗi của Cancel trả nguyên. Audit do bên gọi ghi.
+// Sau khi ghi kết luận, đơn nào của cặp không còn cặp mở (chưa xử lý, đơn kia chưa hủy) thì gỡ duplicate_suspect. Khóa
+// hai đơn theo id tăng dần rồi dòng cặp. Hành động lạ, hai mã trùng, hủy mà thiếu version → ErrInvalidInput; không có
+// cặp (hay đơn của người bán khác) → ErrNotFound; cặp đã xử lý → ErrInvalidTransition; lỗi của Cancel trả nguyên.
+// Audit do bên gọi ghi.
 func (w Writer) ResolveDuplicate(ctx context.Context, tx pgx.Tx, sellerID, orderID, otherOrderID uuid.UUID,
-	action string, a Actor, now time.Time,
+	action string, version *int64, a Actor, now time.Time,
 ) error {
 	if err := w.wired(); err != nil {
 		return err
@@ -361,11 +394,13 @@ func (w Writer) ResolveDuplicate(ctx context.Context, tx pgx.Tx, sellerID, order
 		!slices.Contains([]string{DuplicateNotDuplicate, DuplicateCancelOther, DuplicateCancelThis}, action) {
 		return fmt.Errorf("%w: hành động xử lý đơn trùng", ErrInvalidInput)
 	}
+	if action != DuplicateNotDuplicate && version == nil {
+		return fmt.Errorf("%w: hủy đơn trùng cần version của đơn bị hủy", ErrInvalidInput)
+	}
 	now = now.UTC()
 	q := store.New(tx)
 	lo, hi := orderedPair(orderID, otherOrderID)
-	versions, err := lockOpenPair(ctx, q, sellerID, lo, hi)
-	if err != nil {
+	if err := lockOpenPair(ctx, q, sellerID, lo, hi); err != nil {
 		return err
 	}
 	resolution := resolutionNotDuplicate
@@ -374,8 +409,12 @@ func (w Writer) ResolveDuplicate(ctx context.Context, tx pgx.Tx, sellerID, order
 		if action == DuplicateCancelThis {
 			target = orderID
 		}
-		if _, err := w.Cancel(ctx, tx, sellerID, target, versions[target], CancelDuplicate, "", a, now); err != nil {
+		got, err := w.Cancel(ctx, tx, sellerID, target, *version, CancelDuplicate, "", a, now)
+		if err != nil {
 			return err
+		}
+		if got.Status != StatusCancelled { // cancel_requested: chờ hãng, cặp giữ mở
+			return nil
 		}
 		resolution = resolutionCancelled
 	}
@@ -396,28 +435,25 @@ func (w Writer) ResolveDuplicate(ctx context.Context, tx pgx.Tx, sellerID, order
 	return nil
 }
 
-// lockOpenPair khóa hai đơn lo < hi của người bán (theo id tăng dần) rồi dòng cặp; trả version của hai đơn dưới khóa.
-// Đơn không có → ErrNotFound; không có cặp → ErrNotFound; cặp đã xử lý → ErrInvalidTransition.
-func lockOpenPair(ctx context.Context, q *store.Queries, sellerID, lo, hi uuid.UUID) (map[uuid.UUID]int64, error) {
-	versions := make(map[uuid.UUID]int64, 2)
+// lockOpenPair khóa hai đơn lo < hi của người bán (theo id tăng dần) rồi dòng cặp. Đơn không có → ErrNotFound; không
+// có cặp → ErrNotFound; cặp đã xử lý → ErrInvalidTransition.
+func lockOpenPair(ctx context.Context, q *store.Queries, sellerID, lo, hi uuid.UUID) error {
 	for _, id := range []uuid.UUID{lo, hi} {
-		o, err := lockOrder(ctx, q, sellerID, id)
-		if err != nil {
-			return nil, err
+		if _, err := lockOrder(ctx, q, sellerID, id); err != nil {
+			return err
 		}
-		versions[id] = o.Version
 	}
 	link, err := q.LockDuplicateLink(ctx, store.LockDuplicateLinkParams{OrderID: lo, OtherOrderID: hi})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, fmt.Errorf("%w: cặp nghi trùng", ErrNotFound)
+		return fmt.Errorf("%w: cặp nghi trùng", ErrNotFound)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("khóa cặp nghi trùng: %w", err)
+		return fmt.Errorf("khóa cặp nghi trùng: %w", err)
 	}
 	if link.Resolution.Valid {
-		return nil, fmt.Errorf("%w: cặp nghi trùng đã xử lý", ErrInvalidTransition)
+		return fmt.Errorf("%w: cặp nghi trùng đã xử lý", ErrInvalidTransition)
 	}
-	return versions, nil
+	return nil
 }
 
 // clearSuspectIfClosed gỡ duplicate_suspect của đơn id (đã khóa) khi đơn không còn cặp mở nào.

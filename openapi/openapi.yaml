@@ -2507,6 +2507,9 @@ paths:
     post:
       operationId: resolveOrderDuplicate
       summary: 'Xử lý một cặp nghi trùng: không trùng, hoặc hủy một đơn (lý do duplicate); không tự hủy (Task M2-23)'
+      description: >-
+        Hủy một đơn gửi version của đơn đó. Đơn đã gửi hãng chỉ sang cancel_requested: cặp giữ mở (không có
+        resolution) cho tới khi hãng xác nhận hủy (cặp rời danh sách) hoặc từ chối (cặp chờ xử lý lại) (Task 432).
       x-permission: order.duplicates.resolve
       parameters:
         - $ref: "#/components/parameters/DuplicateOrderID"
@@ -7386,6 +7389,12 @@ components:
         action:
           type: string
           enum: [not_duplicate, cancel_other, cancel_this]
+        version:
+          description: >-
+            Version của đơn bị hủy mà nhân viên đã xem; bắt buộc với cancel_other, cancel_this (thiếu → 400
+            invalid_input, khác version hiện tại → 409 version_conflict); not_duplicate bỏ qua (Task 432).
+          type: integer
+          format: int64
     ReturnKind:
       type: string
       enum: [carrier_return, customer_return, exchange, partial_delivery]

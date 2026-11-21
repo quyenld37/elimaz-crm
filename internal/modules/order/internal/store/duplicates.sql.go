@@ -465,3 +465,41 @@ func (q *Queries) SetDuplicateSuspect(ctx context.Context, arg SetDuplicateSuspe
 	_, err := q.db.Exec(ctx, setDuplicateSuspect, arg.Suspect, arg.SellerID, arg.Ids)
 	return err
 }
+
+const suspectPairedOrders = `-- name: SuspectPairedOrders :many
+SELECT o.id
+FROM ord.orders o
+WHERE o.seller_id = $1 AND o.duplicate_suspect
+  AND (o.id = $2::uuid
+       OR EXISTS (SELECT 1 FROM ord.order_duplicate_links l
+                  WHERE (l.order_id = $2::uuid AND l.other_order_id = o.id)
+                     OR (l.other_order_id = $2::uuid AND l.order_id = o.id)))
+ORDER BY o.id
+`
+
+type SuspectPairedOrdersParams struct {
+	SellerID uuid.UUID
+	ID       uuid.UUID
+}
+
+// Đơn id và các đơn ghép cặp với nó (mọi kết luận) mà còn cờ nghi trùng, theo id tăng dần (thứ tự khóa); consumer gỡ
+// cờ khi đơn id đã hủy.
+func (q *Queries) SuspectPairedOrders(ctx context.Context, arg SuspectPairedOrdersParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, suspectPairedOrders, arg.SellerID, arg.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

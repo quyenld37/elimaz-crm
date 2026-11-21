@@ -94,7 +94,8 @@ func (h *handler) ListOrderDuplicates(ctx context.Context, params gen.ListOrderD
 }
 
 // ResolveOrderDuplicate (POST /api/v1/order-duplicates/{orderId}/{otherOrderId}/resolve, order.duplicates.resolve):
-// nhân viên kết luận "không trùng" hoặc hủy một đơn (lý do duplicate) → 200 cặp sau xử lý. Lỗi nghiệp vụ (cặp đã xử lý
+// nhân viên kết luận "không trùng" hoặc hủy một đơn (lý do duplicate, version của đơn bị hủy) → 200 cặp sau xử lý (đơn
+// đã gửi hãng: đơn cancel_requested, cặp chưa có resolution). Lỗi nghiệp vụ (cặp đã xử lý
 // 422, không có 404, đơn không hủy được) không lưu theo khóa. Audit order.duplicate.resolve chỉ ghi mã hai đơn, hành
 // động.
 //
@@ -103,6 +104,10 @@ func (h *handler) ResolveOrderDuplicate(ctx context.Context, req *gen.ResolveOrd
 	params gen.ResolveOrderDuplicateParams,
 ) (gen.ResolveOrderDuplicateRes, error) {
 	action := string(req.Action)
+	var version *int64
+	if v, ok := req.Version.Get(); ok {
+		version = &v
+	}
 	out, err := h.refusableWrite(ctx, http.StatusOK, isOrderCancelRefusal, "xử lý đơn trùng",
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 			seller, err := catalog.DefaultSeller(ctx, tx)
@@ -110,7 +115,7 @@ func (h *handler) ResolveOrderDuplicate(ctx context.Context, req *gen.ResolveOrd
 				return nil, err //nolint:wrapcheck // sentinel của catalog
 			}
 			w := order.Writer{Events: h.d.Events, Queue: queue.NewQueue(), Realtime: h.d.Realtime}
-			if err := w.ResolveDuplicate(ctx, tx, seller, params.OrderId, params.OtherOrderId, action,
+			if err := w.ResolveDuplicate(ctx, tx, seller, params.OrderId, params.OtherOrderId, action, version,
 				order.Actor{TenantID: u.TenantID, UserID: u.UserID}, h.now().UTC()); err != nil {
 				return nil, err //nolint:wrapcheck // sentinel của order
 			}

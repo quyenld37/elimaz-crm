@@ -2,6 +2,7 @@ package order_test
 
 import (
 	"errors"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -105,9 +106,22 @@ func (d *dupEnv) suspect(o uuid.UUID) bool {
 	return d.count(`SELECT count(*) FROM ord.orders WHERE id = $1 AND duplicate_suspect`, o) == 1
 }
 
+// resolve xử lý cặp (o, other) bằng action; hủy một đơn thì gửi version hiện tại của đơn bị hủy (đơn không có: không
+// gửi version).
 func (d *dupEnv) resolve(o, other uuid.UUID, action string) error {
+	var version *int64
+	target := map[string]uuid.UUID{order.DuplicateCancelOther: other, order.DuplicateCancelThis: o}[action]
+	if target != uuid.Nil && d.count(`SELECT count(*) FROM ord.orders WHERE id = $1`, target) == 1 {
+		v := d.get(target).Version
+		version = &v
+	}
+	return d.resolveV(o, other, action, version)
+}
+
+// resolveV như resolve, version gửi đúng như đưa vào (nil: không gửi).
+func (d *dupEnv) resolveV(o, other uuid.UUID, action string, version *int64) error {
 	return d.app(func(tx pgx.Tx) error {
-		return d.w().ResolveDuplicate(d.t.Context(), tx, d.seller, o, other, action, d.actor, at(20))
+		return d.w().ResolveDuplicate(d.t.Context(), tx, d.seller, o, other, action, version, d.actor, at(20))
 	})
 }
 
@@ -270,13 +284,7 @@ func TestDuplicates_NotDuplicate(t *testing.T) {
 		AND resolved_at IS NOT NULL AND resolved_by = $1`, d.actor.UserID); n != 1 {
 		t.Errorf("dòng đã xử lý: %d", n)
 	}
-	s := uuid.New()
-	d.stubShipment(o2.ID, s)
-	if err := d.app(func(tx pgx.Tx) error {
-		return d.w().AttachShipmentBy(t.Context(), tx, d.seller, o2.ID, s, d.actor, at(15))
-	}); err != nil {
-		t.Fatal(err)
-	}
+	d.attachShipment(o2.ID)
 	if n := d.events(o2.ID, order.TopicOrderUpdated, o2.Version+1); n != 1 {
 		t.Fatalf("order.updated của O2: %d", n)
 	}
@@ -401,11 +409,13 @@ func TestDuplicates_ConcurrentCreate(t *testing.T) {
 	}
 }
 
-// Consumer nhận lại cùng sự kiện bốn lần song song sau khi cặp đã xử lý → không thêm dòng, không bật lại cờ; consumer tên order_duplicates nghe order.created, order.updated; payload hỏng → ErrPermanent.
+// Consumer nhận lại cùng sự kiện bốn lần song song sau khi cặp đã xử lý → không thêm dòng, không bật lại cờ; consumer
+// tên order_duplicates nghe order.created, order.updated, order.cancelled; payload hỏng → ErrPermanent.
 func TestDuplicates_ConsumerReplay(t *testing.T) {
 	d := newDupEnv(t)
 	c := order.DuplicatesConsumer{Now: time.Now}
-	if c.Name() != "order_duplicates" || len(c.Topics()) != 2 {
+	if c.Name() != "order_duplicates" ||
+		!slices.Equal(c.Topics(), []string{order.TopicOrderCreated, order.TopicOrderUpdated, "order.cancelled"}) {
 		t.Fatalf("consumer: %s %v", c.Name(), c.Topics())
 	}
 	v1 := d.variant(250000, 20)

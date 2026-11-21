@@ -19206,6 +19206,10 @@ func (s *ResolveAddressChangeRequestResult) UnmarshalText(data []byte) error {
 // Ref: #/components/schemas/ResolveOrderDuplicateRequest
 type ResolveOrderDuplicateRequest struct {
 	Action ResolveOrderDuplicateRequestAction `json:"action"`
+	// Version của đơn bị hủy mà nhân viên đã xem; bắt buộc với cancel_other,
+	// cancel_this (thiếu → 400 invalid_input, khác version hiện tại → 409 version_conflict);
+	// not_duplicate bỏ qua (Task 432).
+	Version OptInt64 `json:"version"`
 }
 
 // GetAction returns the value of Action.
@@ -19213,9 +19217,19 @@ func (s *ResolveOrderDuplicateRequest) GetAction() ResolveOrderDuplicateRequestA
 	return s.Action
 }
 
+// GetVersion returns the value of Version.
+func (s *ResolveOrderDuplicateRequest) GetVersion() OptInt64 {
+	return s.Version
+}
+
 // SetAction sets the value of Action.
 func (s *ResolveOrderDuplicateRequest) SetAction(val ResolveOrderDuplicateRequestAction) {
 	s.Action = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ResolveOrderDuplicateRequest) SetVersion(val OptInt64) {
+	s.Version = val
 }
 
 type ResolveOrderDuplicateRequestAction string
