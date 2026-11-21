@@ -1,0 +1,38 @@
+openapi: 3.0.3
+info: {title: t, version: "1"}
+paths:
+  /api/v1/web/x:
+    get:
+      operationId: webNoAuth
+      x-permission: web.catalog.read
+      responses: {"200": {description: ok}}
+  /api/v1/things:
+    get:
+      operationId: thingsServiceKey
+      x-permission: web.catalog.read
+      x-auth: service_key
+      responses: {"200": {description: ok}}
+  /api/v1/web/bad-value:
+    get:
+      operationId: webAuthAccess
+      x-permission: web.catalog.read
+      x-auth: access
+      responses: {"200": {description: ok}}
+  /api/v1/web/public:
+    get:
+      operationId: webPublic
+      x-public: true
+      x-auth: service_key
+      responses: {"200": {description: ok}}
+  /api/v1/web/staff-perm:
+    get:
+      operationId: webStaffPermission
+      x-permission: catalog.read
+      x-auth: service_key
+      responses: {"200": {description: ok}}
+  /api/v1/web/ok:
+    get:
+      operationId: webOk
+      x-permission: web.catalog.read
+      x-auth: service_key
+      responses: {"200": {description: ok}}

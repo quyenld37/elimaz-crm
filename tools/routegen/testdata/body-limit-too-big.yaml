@@ -1,0 +1,42 @@
+openapi: 3.0.3
+info: {title: t, version: "1"}
+paths:
+  /api/v1/big:
+    post:
+      operationId: bodyTooBig
+      x-permission: things.write
+      x-body-limit: 16777216
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: {"200": {description: ok}}
+  /api/v1/small:
+    post:
+      operationId: bodyTooSmall
+      x-permission: things.write
+      x-body-limit: 1023
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: {"200": {description: ok}}
+  /api/v1/text:
+    post:
+      operationId: bodyNotInt
+      x-permission: things.write
+      x-body-limit: "2MiB"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: {"200": {description: ok}}
+  /api/v1/ok:
+    post:
+      operationId: bodyOk
+      x-permission: things.write
+      x-body-limit: 8388608
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses: {"200": {description: ok}}
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string}

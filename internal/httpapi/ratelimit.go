@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"math"
 	"net/http"
 	"strconv"
@@ -8,13 +9,25 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"elimaz.com.vn/crm/internal/modules/identity"
 )
 
 // Giới hạn mặc định của mỗi nhân viên (spec 04 mục 11, ADR-30): 300 yêu cầu trong 60 s trượt.
 const (
 	defaultRateMax    = 300
 	defaultRateWindow = 60 * time.Second
+	// defaultServiceRateMax: ngưỡng mỗi khóa dịch vụ mỗi phút khi chưa nối Deps.RateLimiter (bằng FallbackMax của
+	// LimitWebKey trong kế hoạch M5-03).
+	defaultServiceRateMax = 600
 )
+
+// WebRateLimiter giới hạn tần suất theo khóa dịch vụ (M5-05): subject là "svc:<mã>"; trả có được phép không và thời
+// gian chờ khi không. Không trả lỗi (bản Valkey tự lùi về bộ đếm trong tiến trình). Bản thật nối ở M5-06 qua
+// cache.RateLimiter với LimitWebKey.
+type WebRateLimiter interface {
+	AllowWebKey(ctx context.Context, subject string) (allowed bool, retryAfter time.Duration)
+}
 
 // RateLimit là ngưỡng giới hạn tần suất theo nhân viên; trường bằng 0 lấy mặc định (300 / 60 s, time.Now). Test đặt
 // ngưỡng nhỏ và đồng hồ giả.
@@ -103,13 +116,29 @@ func retryAfterSeconds(d time.Duration) string {
 // userRateLimit: vượt ngưỡng → 429 rate_limited kèm Retry-After. Đặt sau auth và guard (đếm theo UserID); route
 // Stream không gắn (cmd chain bỏ qua).
 func userRateLimit(l *userLimiter, next http.Handler) http.Handler {
+	return limitBy(func(_ *http.Request, u identity.AuthUser) (bool, time.Duration) { return l.allow(u.UserID) }, next)
+}
+
+// serviceRateLimit: giới hạn tần suất của route service_key, đặt sau serviceKeyAuth và guard. d.RateLimiter nil →
+// bộ đếm trong tiến trình d.serviceLimiter. Vượt → 429 rate_limited kèm Retry-After.
+func serviceRateLimit(d Deps, next http.Handler) http.Handler {
+	return limitBy(func(r *http.Request, u identity.AuthUser) (bool, time.Duration) {
+		if d.RateLimiter != nil {
+			return d.RateLimiter.AllowWebKey(r.Context(), "svc:"+u.UserID.String())
+		}
+		return d.serviceLimiter.allow(u.UserID)
+	}, next)
+}
+
+// limitBy: không có người gọi trong ctx → 403; allow từ chối → 429 rate_limited kèm Retry-After (giây, làm tròn lên).
+func limitBy(allow func(*http.Request, identity.AuthUser) (bool, time.Duration), next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u, ok := authUser(r.Context())
 		if !ok {
 			writeError(w, r, http.StatusForbidden, codeForbidden)
 			return
 		}
-		if allowed, wait := l.allow(u.UserID); !allowed {
+		if allowed, wait := allow(r, u); !allowed {
 			w.Header().Set("Retry-After", retryAfterSeconds(wait))
 			writeError(w, r, http.StatusTooManyRequests, codeRateLimited)
 			return

@@ -10,6 +10,11 @@
 // Ngoại lệ chống trùng (ADR-47, Q-X5): `x-idempotency: exempt | no-replay` kèm `x-idempotency-reason: "<lý do>"`.
 // Route ghi không khai cờ là "required". Lỗi khi: cờ có giá trị khác; thiếu lý do hoặc lý do rỗng; cờ trên method
 // khác POST; `exempt` vẫn khai IdempotencyKey; `no-replay` không khai IdempotencyKey; có lý do mà không có cờ.
+//
+// Đường của website (M5-05, luật openapi 6): path `/api/v1/web/*` khai `x-auth: service_key` và ngược lại (giá trị
+// khác bị từ chối); route service_key khai `x-permission` bắt đầu `web.`; `x-admission: <tên>` chỉ trên route
+// service_key có chế độ chống trùng required; `x-body-limit: <byte>` là số nguyên trong 1 KiB – 8 MiB. Route không
+// khai x-auth: Auth "public" khi x-public, còn lại "access".
 package main
 
 import (
@@ -20,6 +25,7 @@ import (
 	"go/format"
 	"io"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -35,6 +41,20 @@ const (
 	modeExempt   = "exempt"
 	modeNoReplay = "no-replay"
 )
+
+// Cách xác thực của route (Route.Auth) và luật đường của website (M5-05).
+const (
+	authAccess     = "access"
+	authServiceKey = "service_key"
+	authPublic     = "public"
+	webPathPrefix  = "/api/v1/web/"
+	webPermPrefix  = "web."
+	minBodyLimit   = 1 << 10
+	maxBodyLimit   = 8 << 20
+)
+
+// admissionName: tên cổng nhận vào (khóa của httpapi.Deps.Admission).
+var admissionName = regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}$`)
 
 var errInvalidContract = errors.New("hợp đồng vi phạm luật route")
 
@@ -75,6 +95,8 @@ type route struct {
 	Method, Path, OperationID, Permission string
 	Public, Authenticated, Write, Stream  bool
 	IdempotencyMode, IdempotencyReason    string
+	Auth, Admission                       string
+	BodyLimit                             int64
 }
 
 // generate kiểm mọi operation và trả mã Go đã định dạng; lỗi liệt kê mọi vi phạm cùng lúc.
@@ -182,7 +204,56 @@ func checkOperation(path, method string, item *ogen.PathItem, op *ogen.Operation
 	hasKey := hasIdempotencyKey(item.Parameters) || hasIdempotencyKey(op.Parameters)
 	mode, reason, errs := idempotencyMode(name, method, ext, hasKey)
 	r.IdempotencyMode, r.IdempotencyReason = mode, reason
-	return r, append(problems, errs...)
+	problems = append(problems, errs...)
+	problems = append(problems, webRules(name, path, ext, &r)...)
+	return r, problems
+}
+
+// webRules đọc x-auth, x-admission, x-body-limit (M5-05) vào r và trả các vi phạm; chạy sau khi r đã có quyền và chế
+// độ chống trùng.
+func webRules(name, path string, ext ogen.Extensions, r *route) []string {
+	var problems []string
+	r.Auth = authAccess
+	if r.Public {
+		r.Auth = authPublic
+	}
+	authNode, hasAuth := ext["x-auth"]
+	switch {
+	case hasAuth && (authNode.Tag != "!!str" || authNode.Value != authServiceKey):
+		problems = append(problems, name+": x-auth chỉ nhận service_key, có "+strconv.Quote(authNode.Value))
+	case hasAuth:
+		r.Auth = authServiceKey
+	}
+	onWebPath := strings.HasPrefix(path, webPathPrefix)
+	switch {
+	case onWebPath && r.Auth != authServiceKey:
+		problems = append(problems, name+": path "+webPathPrefix+"* phải khai x-auth: service_key")
+	case !onWebPath && r.Auth == authServiceKey:
+		problems = append(problems, name+": x-auth: service_key chỉ cho path "+webPathPrefix+"*")
+	}
+	if r.Auth == authServiceKey && !strings.HasPrefix(r.Permission, webPermPrefix) {
+		problems = append(problems, name+": route x-auth: service_key phải khai x-permission bắt đầu bằng "+webPermPrefix)
+	}
+	if node, ok := ext["x-admission"]; ok {
+		switch {
+		case node.Tag != "!!str" || !admissionName.MatchString(node.Value):
+			problems = append(problems, name+": x-admission phải là tên chữ thường (a-z, 0-9, _), có "+strconv.Quote(node.Value))
+		case r.Auth != authServiceKey || r.IdempotencyMode != modeRequired:
+			problems = append(problems, name+": x-admission chỉ trên operation x-auth: service_key có khóa chống trùng bắt buộc (required)")
+		default:
+			r.Admission = node.Value
+		}
+	}
+	if node, ok := ext["x-body-limit"]; ok {
+		n, err := strconv.ParseInt(node.Value, 10, 64)
+		if node.Tag != "!!int" || err != nil || n < minBodyLimit || n > maxBodyLimit {
+			problems = append(problems, fmt.Sprintf("%s: x-body-limit phải là số byte nguyên trong %d – %d, có %q",
+				name, minBodyLimit, maxBodyLimit, node.Value))
+		} else {
+			r.BodyLimit = n
+		}
+	}
+	return problems
 }
 
 // idempotencyMode đọc x-idempotency, x-idempotency-reason (ADR-47) và kiểm luật cùng tham số IdempotencyKey; trả chế
@@ -261,6 +332,11 @@ type Route struct {
 	// route đọc.
 	IdempotencyMode   string
 	IdempotencyReason string // x-idempotency-reason khi exempt hoặc no-replay
+	// Auth (M5-05): "access" (thẻ Cloudflare Access của nhân viên), "service_key" (khóa dịch vụ của website,
+	// x-auth: service_key, chỉ path /api/v1/web/*) hoặc "public" (x-public).
+	Auth        string
+	Admission   string // x-admission: tên cổng nhận vào (httpapi.Deps.Admission); rỗng: không có cổng
+	BodyLimit   int64  // x-body-limit: số byte thân tối đa; 0: mặc định 1 MiB
 }
 
 // Routes là mọi operation của hợp đồng, theo thứ tự đường dẫn rồi method.
@@ -292,6 +368,13 @@ func render(routes []route) ([]byte, error) {
 		}
 		if r.IdempotencyReason != "" {
 			fields = append(fields, "IdempotencyReason: "+strconv.Quote(r.IdempotencyReason))
+		}
+		fields = append(fields, "Auth: "+strconv.Quote(r.Auth))
+		if r.Admission != "" {
+			fields = append(fields, "Admission: "+strconv.Quote(r.Admission))
+		}
+		if r.BodyLimit != 0 {
+			fields = append(fields, "BodyLimit: "+strconv.FormatInt(r.BodyLimit, 10))
 		}
 		b.WriteString("\t{" + strings.Join(fields, ", ") + "},\n")
 	}
