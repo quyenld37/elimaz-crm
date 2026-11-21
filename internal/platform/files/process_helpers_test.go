@@ -309,18 +309,11 @@ func (p *procEnv) newWorker() *queue.Worker {
 	})
 }
 
-// drain chạy worker tới khi không còn việc đến hạn (tối đa 20 lượt).
+// drain chạy worker tới khi không còn việc đến hạn (testkit.DrainDue: chịu được đồng hồ PostgreSQL lùi; việc hẹn thử
+// lại giữ lịch).
 func (p *procEnv) drain() {
 	p.t.Helper()
-	for range 20 {
-		n, err := p.w.RunOnce(p.t.Context(), 10)
-		if err != nil {
-			p.t.Fatalf("RunOnce: %v", err)
-		}
-		if n == 0 {
-			return
-		}
-	}
+	testkit.DrainDue(p.t, p.staff.Owner, p.w)
 }
 
 // makeDue đưa mọi việc pending về hạn chạy ngay (thay cho chờ lịch thử lại). Bỏ qua dòng đang bị khóa (worker chạy

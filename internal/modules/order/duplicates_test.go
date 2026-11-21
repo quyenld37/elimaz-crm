@@ -85,16 +85,7 @@ func (d *dupEnv) place(phone string, when time.Time, vs ...uuid.UUID) order.Orde
 func (d *dupEnv) drain() {
 	d.t.Helper()
 	w := queue.NewWorker(d.staff.App, d.reg.JobHandlers(), queue.WorkerOptions{WorkerID: "dup-" + uuid.NewString()})
-	for range 20 {
-		n, err := w.RunOnce(d.t.Context(), 100)
-		if err != nil {
-			d.t.Fatalf("worker: %v", err)
-		}
-		if n == 0 {
-			return
-		}
-	}
-	d.t.Fatal("worker chưa hết việc sau 20 lượt")
+	testkit.DrainDue(d.t, d.staff.Owner, w)
 }
 
 // links đếm dòng liên kết giữa a và b (hai chiều), matchedBy rỗng là mọi cách khớp.

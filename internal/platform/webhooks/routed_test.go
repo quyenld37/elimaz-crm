@@ -292,11 +292,7 @@ func TestRoutedSplitUsesRouteKey(t *testing.T) {
 			t.Fatalf("Save: %v %v", created, err)
 		}
 	}
-	for range 10 {
-		if n, err := w.RunOnce(t.Context(), 100); err != nil || n == 0 {
-			break
-		}
-	}
+	testkit.DrainDue(t, s.Owner, w)
 	routed, plain := src.calls()
 	// Việc tách gọi SplitRouted/Split một lần; mỗi việc vào đọc lại bản nhận gọi thêm một lần.
 	if len(routed) != 2 || routed[0] != rkA || routed[1] != rkA || plain != 2 {

@@ -36,7 +36,7 @@ const (
 		ORDER BY mean_exec_time DESC LIMIT 5`
 )
 
-// readPGStats đọc pgStats; so sánh thời gian (transaction dài, chờ khóa) theo o.Now. pg_stat_statements chưa nạp
+// readPGStats đọc pgStats; so sánh thời gian (transaction dài, chờ khóa) theo đồng hồ database o.dbNow. pg_stat_statements chưa nạp
 // (shared_preload_libraries) hay chưa cài thì bỏ qua luật câu chậm, không lỗi.
 func readPGStats(ctx context.Context, d *db.DB, o RuleOptions) (pgStats, error) {
 	var s pgStats
@@ -53,7 +53,7 @@ func readPGStats(ctx context.Context, d *db.DB, o RuleOptions) (pgStats, error) 
 	}
 	s.archiveOn, s.lastArchived, s.lastFailed, s.statsReset = a.archiveOn, a.lastArchived, a.lastFailed, a.statsReset
 
-	err = d.Pool.QueryRow(ctx, activitySQL, o.Now.Add(-longTxAfter), o.Now.Add(-lockWaitAfter)).
+	err = d.Pool.QueryRow(ctx, activitySQL, o.dbNow.Add(-longTxAfter), o.dbNow.Add(-lockWaitAfter)).
 		Scan(&s.longTx, &s.lockWait, &s.appConns)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("đọc pg_stat_activity: %w", err))

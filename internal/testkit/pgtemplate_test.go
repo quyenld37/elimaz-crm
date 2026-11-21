@@ -212,6 +212,11 @@ func TestStartPostgresClonesMigratedTemplate(t *testing.T) {
 	}
 }
 
+// anyAge là ngưỡng tuổi của lượt dọn trong test muốn mọi database vừa tạo đều coi là đủ cũ. Ngưỡng 0 (mốc tệp
+// PG_VERSION < now()) đỏ thất thường: mốc tệp cắt xuống giây và đồng hồ máy ảo PostgreSQL có lúc lùi tới 0,36 s ngay
+// sau khi tạo (Task 446).
+const anyAge = -time.Minute
+
 // Dọn chỉ xóa database đúng tiền tố, cũ hơn ngưỡng, không có kết nối; không xóa database được giữ lại (mẫu hiện tại)
 // và database đang có kết nối; mẫu (IS_TEMPLATE) cũ cũng xóa được. Tiền tố riêng của lần chạy: không chạm database
 // của phiên khác trên máy chủ chung.
@@ -237,7 +242,7 @@ func TestCleanupStaleDropsOnlyIdleOldDatabases(t *testing.T) {
 	builder := connect(ctx, t, withDB(base, nil, base.Path))
 	defer func() { _ = builder.Close(ctx) }()
 	exec(ctx, t, builder, fmt.Sprintf("SELECT pg_advisory_lock(%d)", locks.template))
-	cleanupStale(ctx, t, admin, locks, []string{prefix}, keep, 0)
+	cleanupStale(ctx, t, admin, locks, []string{prefix}, keep, anyAge)
 	var tplLeft bool
 	if err := admin.QueryRow(ctx, "SELECT datistemplate FROM pg_database WHERE datname = $1", tpl).Scan(&tplLeft); err != nil ||
 		!tplLeft {
@@ -245,7 +250,7 @@ func TestCleanupStaleDropsOnlyIdleOldDatabases(t *testing.T) {
 	}
 	exec(ctx, t, builder, fmt.Sprintf("SELECT pg_advisory_unlock(%d)", locks.template))
 
-	cleanupStale(ctx, t, admin, locks, []string{prefix}, keep, 0)
+	cleanupStale(ctx, t, admin, locks, []string{prefix}, keep, anyAge)
 
 	exists := func(n string) bool {
 		var ok bool

@@ -22,10 +22,9 @@ func TestDeepHealth(t *testing.T) {
 		t.Fatalf("chưa có nhịp sống: muốn OK false, %+v", r)
 	}
 	fresh(t, e)
-	fin := time.Now()
-	e.job(t, "t.a", "dead", `{}`, time.Now(), &fin)
-	e.job(t, "t.b", "in_doubt", `{}`, time.Now(), &fin)
-	e.job(t, "t.c", "pending", `{}`, time.Now().Add(-100*time.Second), nil)
+	e.job(t, "t.a", "dead", `{}`, 0, ago(0))
+	e.job(t, "t.b", "in_doubt", `{}`, 0, ago(0))
+	e.job(t, "t.c", "pending", `{}`, 100*time.Second, nil)
 	e.metric(t, time.Now(), "ingest@a", "spool_files", "", 2)
 	e.exec(t, "INSERT INTO platform.backup_runs (kind, ok, finished_at) VALUES ('base', true, now() - interval '3 hours')")
 	r := deep(t, e)
@@ -35,7 +34,7 @@ func TestDeepHealth(t *testing.T) {
 	if r.LastBackupAgeH == nil || *r.LastBackupAgeH != 3 || r.WorkerHeartbeatAgeS == nil || *r.WorkerHeartbeatAgeS > 30 {
 		t.Fatalf("tuổi: %+v", r)
 	}
-	e.job(t, "t.c", "pending", `{}`, time.Now().Add(-125*time.Second), nil)
+	e.job(t, "t.c", "pending", `{}`, 125*time.Second, nil)
 	if r := deep(t, e); r.OK {
 		t.Fatalf("việc chờ 125 s phải OK false: %+v", r)
 	}

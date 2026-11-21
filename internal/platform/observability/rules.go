@@ -30,7 +30,10 @@ const (
 	minuteGapTolerated = 2 * time.Minute
 )
 
-// RuleOptions là đầu vào của CheckRules. Now là đồng hồ của mọi phép so sánh (test đặt đồng hồ giả).
+// RuleOptions là đầu vào của CheckRules. Now là đồng hồ của lượt (rỗng: đồng hồ máy; test đặt đồng hồ giả): mốc do
+// tiến trình Go ghi (chỉ số theo phút, nhịp sống, lần chép tệp) so với Now; mốc do PostgreSQL ghi bằng now() (hàng đợi,
+// sao lưu, loại lỗi mới, alert_events, thống kê PostgreSQL) so với now() của PostgreSQL dời cùng độ lệch của Now so với
+// đồng hồ máy — mỗi mốc so với đồng hồ của bên ghi, máy app và máy database lệch giờ không đổi kết quả (Task 446).
 // BackupExpected bật luật backup-age và backup-verify; FileSyncExpected bật file-sync-age, file-sync-failed,
 // file-sync-mismatch (FILESYNC_EXPECTED, Task M1-45); DBDiskBudgetBytes > 0 bật db-size; ConnBudget > 0 bật pg-connections.
 type RuleOptions struct {
@@ -39,18 +42,31 @@ type RuleOptions struct {
 	FileSyncExpected  bool
 	DBDiskBudgetBytes int64
 	ConnBudget        int
+	// dbNow: đồng hồ database của lượt (CheckRules đặt, dbClock).
+	dbNow time.Time
 }
 
 // alert là một luật đã chạm ngưỡng.
 type alert struct{ key, severity, text string }
 
 // CheckRules đọc trạng thái hàng đợi, chỉ số theo phút, nhịp sống, sao lưu và PostgreSQL, rồi Notify mỗi luật chạm
-// ngưỡng (Alerter tự chống lặp; Alerter của gói ghi mốc alert_events là o.Now, lúc đọc). Trả key của mọi luật chạm ngưỡng (kể cả khi Alerter không gửi lại). Một lần đọc hay
-// Notify lỗi không chặn các luật khác: lỗi được gộp và trả cùng các key đã có.
+// ngưỡng (Alerter tự chống lặp; Alerter của gói ghi mốc alert_events là lúc đọc theo đồng hồ database). Trả key của
+// mọi luật chạm ngưỡng (kể cả khi Alerter không gửi lại). Một lần đọc hay Notify lỗi không chặn các luật khác: lỗi được
+// gộp và trả cùng các key đã có; không đọc được đồng hồ database thì không chạy luật nào.
 func CheckRules(ctx context.Context, d *db.DB, a Alerter, o RuleOptions) ([]string, error) {
+	return checkRules(ctx, d, a, o, time.Now())
+}
+
+// checkRules là CheckRules với đồng hồ máy goNow (test giả lệch đồng hồ giữa Go và PostgreSQL).
+func checkRules(ctx context.Context, d *db.DB, a Alerter, o RuleOptions, goNow time.Time) ([]string, error) {
 	if o.Now.IsZero() {
-		o.Now = time.Now()
+		o.Now = goNow
 	}
+	dbNow, err := dbClock(ctx, store.New(d.Pool), o.Now, goNow)
+	if err != nil {
+		return nil, err
+	}
+	o.dbNow = dbNow
 	var errs []error
 	alerts, err := tableRules(ctx, d, o)
 	errs = append(errs, err)
@@ -63,7 +79,7 @@ func CheckRules(ctx context.Context, d *db.DB, a Alerter, o RuleOptions) ([]stri
 		notify := a.Notify
 		if na, ok := a.(asOfNotifier); ok {
 			notify = func(ctx context.Context, key, severity, text string) error {
-				return na.notifyAsOf(ctx, key, severity, text, o.Now)
+				return na.notifyAsOf(ctx, key, severity, text, o.dbNow)
 			}
 		}
 		if err := notify(ctx, al.key, al.severity, al.text); err != nil {
@@ -95,8 +111,18 @@ func tableRules(ctx context.Context, d *db.DB, o RuleOptions) ([]alert, error) {
 	return out, errors.Join(errs...)
 }
 
+// dbClock trả now() của PostgreSQL dời cùng độ lệch của now (đồng hồ của lượt) so với goNow (đồng hồ máy lúc gọi):
+// lịch chạy thật now = goNow → đúng now() của PostgreSQL; test đặt now giả lệch d thì đồng hồ database cũng lệch d.
+func dbClock(ctx context.Context, q *store.Queries, now, goNow time.Time) (time.Time, error) {
+	at, err := q.DBNow(ctx)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("đọc đồng hồ database: %w", err)
+	}
+	return at.Add(now.Sub(goNow)), nil
+}
+
 func queueLagRule(ctx context.Context, q *store.Queries, o RuleOptions) ([]alert, error) {
-	r, err := q.QueueLag(ctx, store.QueueLagParams{Now: o.Now, LagS: queueLagAfter.Seconds()})
+	r, err := q.QueueLag(ctx, store.QueueLagParams{Now: o.dbNow, LagS: queueLagAfter.Seconds()})
 	if err != nil {
 		return nil, fmt.Errorf("đọc việc chờ: %w", err)
 	}
@@ -112,7 +138,7 @@ func queueLagRule(ctx context.Context, q *store.Queries, o RuleOptions) ([]alert
 // terminalRule: việc status mới (sau lần cảnh báo cuối của cùng key) theo kind; văn bản chỉ có số và mã việc.
 func terminalRule(ctx context.Context, q *store.Queries, o RuleOptions, status, prefix string, minAge time.Duration) ([]alert, error) {
 	rows, err := q.NewTerminalJobs(ctx, store.NewTerminalJobsParams{
-		Status: status, Now: o.Now, MinAgeS: minAge.Seconds(), KeyPrefix: prefix,
+		Status: status, Now: o.dbNow, MinAgeS: minAge.Seconds(), KeyPrefix: prefix,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("đọc việc %s: %w", status, err)
@@ -268,7 +294,7 @@ func heartbeatRules(ctx context.Context, q *store.Queries, o RuleOptions) ([]ale
 
 // errorRules: hai luật lỗi ứng dụng của Task 20 (new-error:<dấu vân tay rút gọn>, error-spike) qua ErrorRules.
 func errorRules(ctx context.Context, d *db.DB, o RuleOptions) ([]alert, error) {
-	hits, err := ErrorRules(ctx, d, o.Now)
+	hits, err := errorRulesAt(ctx, store.New(d.Pool), o.Now, o.dbNow)
 	out := make([]alert, 0, len(hits))
 	for _, h := range hits {
 		out = append(out, alert{h.Key, h.Severity, h.Text})
@@ -294,7 +320,7 @@ func ageRule(ctx context.Context, q *store.Queries, o RuleOptions) ([]alert, err
 	case err != nil:
 		return nil, fmt.Errorf("đọc lần sao lưu: %w", err)
 	}
-	if age := o.Now.Sub(at); age > backupMaxAge {
+	if age := o.dbNow.Sub(at); age > backupMaxAge { // finished_at ghi bằng now() (scripts/backup)
 		return []alert{{"backup-age", SeverityUrgent, fmt.Sprintf("backup-age: bản sao lưu đầy đủ cuối cũ %d giờ (quá 26 giờ)", int(age.Hours()))}}, nil
 	}
 	return nil, nil

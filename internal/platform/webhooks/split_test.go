@@ -78,7 +78,7 @@ func (e *splitEnv) drain(t *testing.T) {
 		if err != nil {
 			t.Logf("RunOnce: %v", err) // lỗi của từng việc (test cố ý làm lỗi) không dừng vòng
 		}
-		if n == 0 {
+		if n == 0 && testkit.MakeDueSoon(t, e.Owner) == 0 { // bù đồng hồ PostgreSQL lùi (testkit.DrainDue)
 			return
 		}
 	}

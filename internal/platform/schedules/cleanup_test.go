@@ -80,15 +80,7 @@ func (e *env) runCleanup(t *testing.T, c *schedules.Cleanup) {
 	t.Helper()
 	e.tickCleanup(t, c)
 	w := queue.NewWorker(e.App, c.Handlers(), queue.WorkerOptions{WorkerID: "w", Concurrency: 4})
-	for range 10 {
-		n, err := w.RunOnce(t.Context(), 10)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if n == 0 {
-			break
-		}
-	}
+	testkit.DrainDue(t, e.Owner, w)
 	if n := e.Count(t, "SELECT count(*) FROM platform.jobs WHERE kind LIKE 'task.platform.cleanup%' AND status <> 'done'"); n != 0 {
 		t.Fatalf("%d việc dọn chưa done", n)
 	}

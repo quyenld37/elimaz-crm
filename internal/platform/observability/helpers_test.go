@@ -62,19 +62,28 @@ func (e *env) count(t *testing.T, q string, args ...any) int {
 	return n
 }
 
-// job chèn một việc với trạng thái, run_at và finished_at cho trước; trả mã việc.
-func (e *env) job(t *testing.T, kind, status, payload string, runAt time.Time, finishedAt *time.Time) uuid.UUID {
+// job chèn một việc với trạng thái, run_at = now() − runAgo và finished_at = now() − finishedAgo (nil: NULL) theo
+// đồng hồ PostgreSQL, như hàng đợi ghi (một đồng hồ, Task 446); trả mã việc.
+func (e *env) job(t *testing.T, kind, status, payload string, runAgo time.Duration, finishedAgo *time.Duration) uuid.UUID {
 	t.Helper()
+	var fin *float64
+	if finishedAgo != nil {
+		fin = new(finishedAgo.Seconds())
+	}
 	var id uuid.UUID
 	err := e.d.Pool.QueryRow(t.Context(), `
 		INSERT INTO platform.jobs (kind, mode, payload, dedupe_key, on_lease_expired, max_attempts, status, run_at, finished_at)
-		VALUES ($1, 'transactional', $2::jsonb, gen_random_uuid()::text, 'retry', 8, $3, $4, $5) RETURNING id`,
-		kind, payload, status, runAt, finishedAt).Scan(&id)
+		VALUES ($1, 'transactional', $2::jsonb, gen_random_uuid()::text, 'retry', 8, $3, now() - make_interval(secs => $4),
+			now() - make_interval(secs => $5::float8)) RETURNING id`,
+		kind, payload, status, runAgo.Seconds(), fin).Scan(&id)
 	if err != nil {
 		t.Fatalf("chèn việc: %v", err)
 	}
 	return id
 }
+
+// ago trả con trỏ tới d (tham số finishedAgo của job).
+func ago(d time.Duration) *time.Duration { return &d }
 
 // metric chèn một dòng metrics_minute (sum = value, max = value, count = 1).
 func (e *env) metric(t *testing.T, bucket time.Time, process, name, label string, value float64) {

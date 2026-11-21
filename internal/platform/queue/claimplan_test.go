@@ -173,7 +173,7 @@ func TestNullTenantOrdering(t *testing.T) {
 				e.ownerExec(t, fmt.Sprintf(`UPDATE platform.jobs SET status = 'running', attempts = 1,
 					lease_until = now() + interval '1 hour', locked_by = 'other' WHERE id = '%s'`, first))
 			}
-			drain(t, orderedWorker(e, ok))
+			e.drain(t, orderedWorker(e, ok))
 			if r := e.job(t, second); r.Status != "pending" || ok.callsOf(second) != 0 {
 				t.Fatalf("việc sau không tenant phải bị chặn: %+v", r)
 			}
@@ -183,7 +183,7 @@ func TestNullTenantOrdering(t *testing.T) {
 			// Việc đầu xong → việc sau được nhận.
 			e.ownerExec(t, fmt.Sprintf(`UPDATE platform.jobs SET status = 'done', finished_at = now(), lease_until = NULL,
 				locked_by = NULL WHERE id = '%s'`, first))
-			drain(t, orderedWorker(e, ok))
+			e.drain(t, orderedWorker(e, ok))
 			if r := e.job(t, second); r.Status != "done" {
 				t.Fatalf("việc sau không tenant phải chạy sau khi việc đầu xong: %+v", r)
 			}

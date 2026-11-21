@@ -197,14 +197,14 @@ func TestCleanupStaleSkipsSeededTemplateBeingBuilt(t *testing.T) {
 		}
 		return ok
 	}
-	cleanupStale(ctx, t, admin, locks, []string{prefix}, "", 0)
+	cleanupStale(ctx, t, admin, locks, []string{prefix}, "", anyAge)
 	if !exists() {
 		t.Fatal("mẫu bị dọn khi khóa dựng mẫu có dữ liệu của nó đang bị giữ")
 	}
 	if _, err := builder.Exec(ctx, "SELECT pg_advisory_unlock($1, hashtext($2))", int32(seedLockKey), tpl); err != nil {
 		t.Fatal(err)
 	}
-	cleanupStale(ctx, t, admin, locks, []string{prefix}, "", 0)
+	cleanupStale(ctx, t, admin, locks, []string{prefix}, "", anyAge)
 	if exists() {
 		t.Fatal("mẫu cũ không ai giữ khóa phải bị dọn")
 	}

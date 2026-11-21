@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/internal/store"
 )
 
 // PGStatsView là các số readPGStats đọc được, mở cho test ở gói observability_test (gói đó mới được nhập testkit:
@@ -15,6 +16,11 @@ type PGStatsView struct {
 
 // ReadPGStats chạy readPGStats (các câu của pgwatch_dynsql.go) và trả các số đã đọc.
 func ReadPGStats(ctx context.Context, d *db.DB, o RuleOptions) (PGStatsView, error) {
+	dbNow, err := dbClock(ctx, store.New(d.Pool), o.Now, time.Now())
+	if err != nil {
+		return PGStatsView{}, err
+	}
+	o.dbNow = dbNow
 	s, err := readPGStats(ctx, d, o)
 	return PGStatsView{
 		DBBytes: s.dbBytes, WALBytes: s.walBytes, AppConns: s.appConns,
@@ -25,4 +31,9 @@ func ReadPGStats(ctx context.Context, d *db.DB, o RuleOptions) (PGStatsView, err
 // DeepHealthAt chạy DeepHealth với đồng hồ Go now (test giả lệch đồng hồ giữa Go và PostgreSQL).
 func DeepHealthAt(ctx context.Context, d *db.DB, now time.Time) (DeepHealthReport, error) {
 	return deepHealth(ctx, d, now)
+}
+
+// CheckRulesAt chạy CheckRules với đồng hồ Go goNow (test giả lệch đồng hồ giữa Go và PostgreSQL).
+func CheckRulesAt(ctx context.Context, d *db.DB, a Alerter, o RuleOptions, goNow time.Time) ([]string, error) {
+	return checkRules(ctx, d, a, o, goNow)
 }

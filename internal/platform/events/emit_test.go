@@ -121,23 +121,6 @@ func newWorker(e *env, r *events.Registry, concurrency int) *queue.Worker {
 	return queue.NewWorker(e.App, r.JobHandlers(), queue.WorkerOptions{WorkerID: "w", Concurrency: concurrency})
 }
 
-// drain gọi RunOnce tới khi không còn việc nhận được, đưa việc hẹn thử lại về hạn mỗi vòng (tối đa 30 vòng).
-func (e *env) drain(t *testing.T, w *queue.Worker) {
-	t.Helper()
-	for range 30 {
-		if _, err := e.Owner.Pool.Exec(t.Context(), "UPDATE platform.jobs SET run_at = now() WHERE status = 'pending'"); err != nil {
-			t.Fatal(err)
-		}
-		n, err := w.RunOnce(t.Context(), 10)
-		if err != nil {
-			t.Fatalf("RunOnce: %v", err)
-		}
-		if n == 0 {
-			return
-		}
-	}
-}
-
 func (e *env) ev(seq int64, topic string) events.Event {
 	return events.Event{
 		TenantID: e.tenant, AggregateType: "order", AggregateID: "o-1", Seq: seq, Topic: topic,
@@ -229,7 +212,7 @@ func TestConsumerFailureIsIndependent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.drain(t, newWorker(e, r, 2))
+	e.DrainJobs(t, newWorker(e, r, 2))
 	if a.callsOf(id) != 1 || b.callsOf(id) != 2 {
 		t.Fatalf("số lần gọi a=%d b=%d, muốn 1 và 2", a.callsOf(id), b.callsOf(id))
 	}
@@ -250,7 +233,7 @@ func TestEventsRunInSeqOrder(t *testing.T) {
 			c := newConsumer("aff", "order.delivered", "order.returned")
 			r := registry(t, c)
 			e.emitReturnedThenDelivered(t, r)
-			e.drain(t, newWorker(e, r, 4))
+			e.DrainJobs(t, newWorker(e, r, 4))
 			if got := c.handled(); !slices.Equal(got, []string{"order.delivered", "order.returned"}) {
 				t.Fatalf("thứ tự %v", got)
 			}
@@ -270,7 +253,7 @@ func TestDeadEventBlocksLaterEvents(t *testing.T) {
 	}
 	r := registry(t, c)
 	e.emitReturnedThenDelivered(t, r)
-	e.drain(t, newWorker(e, r, 4))
+	e.DrainJobs(t, newWorker(e, r, 4))
 	if n := e.Count(t, "SELECT count(*) FROM platform.jobs WHERE order_seq = 1 AND status = 'dead'"); n != 1 {
 		t.Fatalf("delivered phải dead sau 8 lần")
 	}

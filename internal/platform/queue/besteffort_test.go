@@ -44,14 +44,14 @@ func TestBestEffortRetryingHeadDoesNotBlock(t *testing.T) {
 	})
 	w := orderedWorker(e, h)
 	first = e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "1", OrderKey: "conv:x", OrderSeq: 1})
-	drain(t, w)
+	e.drain(t, w)
 	if r := e.job(t, first); r.Status != "pending" || r.Attempts != 1 {
 		t.Fatalf("tin 1 phải chờ thử lại: %+v", r)
 	}
 	e.ownerExec(t, fmt.Sprintf("UPDATE platform.jobs SET run_at = now() + interval '6 hours' WHERE id = '%s'", first))
 	second := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "2", OrderKey: "conv:x", OrderSeq: 2})
 	third := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "3", OrderKey: "conv:x", OrderSeq: 3})
-	drain(t, w)
+	e.drain(t, w)
 	if e.job(t, second).Status != "done" || e.job(t, third).Status != "done" {
 		t.Fatalf("tin 2, 3 phải xong ngay: %+v %+v", e.job(t, second), e.job(t, third))
 	}
@@ -61,7 +61,7 @@ func TestBestEffortRetryingHeadDoesNotBlock(t *testing.T) {
 	// Tới lịch: tin 1 chạy lại và xong.
 	failFirst.Store(false)
 	e.makeDue(t)
-	drain(t, w)
+	e.drain(t, w)
 	if r := e.job(t, first); r.Status != "done" || r.Attempts != 2 {
 		t.Fatalf("tin 1 phải chạy lại đúng lịch: %+v", r)
 	}
@@ -81,7 +81,7 @@ func TestBestEffortDeadDoesNotBlockButAlerts(t *testing.T) {
 	first = e.enqueue(t, k, queue.NewJob{DedupeKey: "1", OrderKey: "conv:x", OrderSeq: 1})
 	second := e.enqueue(t, k, queue.NewJob{DedupeKey: "2", OrderKey: "conv:x", OrderSeq: 2})
 	reg := metrics.NewRegistry()
-	drain(t, queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Concurrency: 3, Metrics: reg}))
+	e.drain(t, queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Concurrency: 3, Metrics: reg}))
 	if e.job(t, first).Status != "dead" || e.job(t, second).Status != "done" {
 		t.Fatalf("muốn dead rồi done: %+v %+v", e.job(t, first), e.job(t, second))
 	}
@@ -89,7 +89,7 @@ func TestBestEffortDeadDoesNotBlockButAlerts(t *testing.T) {
 		t.Fatal("tin dead phải báo động jobs_dead")
 	}
 	third := e.enqueue(t, k, queue.NewJob{DedupeKey: "3", OrderKey: "conv:x", OrderSeq: 3})
-	drain(t, orderedWorker(e, h))
+	e.drain(t, orderedWorker(e, h))
 	if e.job(t, third).Status != "done" {
 		t.Fatalf("tin đến sau tin dead phải chạy: %+v", e.job(t, third))
 	}

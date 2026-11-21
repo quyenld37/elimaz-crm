@@ -191,15 +191,7 @@ func (e *customerImportEnv) runImporter() {
 		WorkerID: "w-" + uuid.NewString(), Poll: 50 * time.Millisecond,
 		Commands: commands.NewRunner(e.staff.App, []commands.Handler{imp}),
 	})
-	for range 20 {
-		n, err := wk.RunOnce(e.t.Context(), 10)
-		if err != nil {
-			e.t.Fatal(err)
-		}
-		if n == 0 {
-			return
-		}
-	}
+	testkit.DrainDue(e.t, e.staff.Owner, wk)
 }
 
 func discardLogger(t *testing.T) *slog.Logger {
