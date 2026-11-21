@@ -33,6 +33,16 @@ func (e *shipAPIEnv) partialShipment(key string) (shipment string, item uuid.UUI
 	return shipment, item
 }
 
+// returnOf trả mã và version của phiếu loại kind chưa hủy của vận đơn shipment.
+func (e *shipAPIEnv) returnOf(shipment, kind string) (id string, version int64) {
+	e.t.Helper()
+	e.staff.Exec(e.t, e.shop.Tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(e.t.Context(), `SELECT id, version FROM ord.returns WHERE shipment_id = $1 AND kind = $2
+			AND status <> 'cancelled'`, shipment, kind).Scan(&id, &version)
+	})
+	return id, version
+}
+
 // Thiếu fulfillment.correct → 403; giao đủ, giao 0 → 422 qty_mismatch; thu 700.000 > COD → 422 payment_exceeds_total;
 // ghi đúng → 200 vận đơn delivered, partial, codCollectedAmount; bấm lại cùng khóa → cùng thân, một phiếu, một audit
 // (lý do đã che SĐT); khóa khác → 409 invalid_transition. Kho nhận phiếu qua receiveReturn → 200 restocked.
@@ -86,12 +96,7 @@ func TestRecordPartialDeliveryAPI(t *testing.T) {
 		t.Fatalf("khóa khác = %d %v, muốn 409 invalid_transition", rec.Code, b)
 	}
 
-	var returnID string
-	var version int64
-	e.staff.Exec(t, tenant, func(tx pgx.Tx) error {
-		return tx.QueryRow(t.Context(), `SELECT id, version FROM ord.returns WHERE shipment_id = $1`, id).
-			Scan(&returnID, &version)
-	})
+	returnID, version := e.returnOf(id, "partial_delivery")
 	rec = serveAs(e.srv, e.keys, http.MethodPost, "/api/v1/returns/"+returnID+"/receive", receiver, "rv1",
 		fmt.Sprintf(`{"version":%d,"lines":[{"orderItemId":"%s","condition":"sellable"}]}`, version, item))
 	if b := decodeJSON(t, rec); rec.Code != http.StatusOK || b["status"] != "restocked" || b["kind"] != "partial_delivery" {

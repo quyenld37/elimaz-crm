@@ -1,5 +1,6 @@
 // Thẻ phiếu trả của đơn (mockup docs/mockups/m2/don-chi-tiet.html trạng thái B). Nút theo trạng thái phiếu và quyền:
-// Chờ nhận hàng → "Nhận hàng trả" (order.return.receive), "Hủy phiếu" (order.return); Đã nhập kho → "Đóng phiếu"
+// Chờ nhận hàng → "Nhận hàng trả" (order.return.receive), "Hủy phiếu" (order.return; không có với phiếu hoàn của hãng và
+// phiếu giao một phần: máy chủ từ chối, hàng chỉ về kho qua kho nhận — Task 442); Đã nhập kho → "Đóng phiếu"
 // (order.return). Mọi thao tác gửi version của phiếu qua useWriteAction.
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -16,6 +17,7 @@ import { errorMessage, unwrap } from "../../app/errors";
 import { useWriteAction } from "../../app/idempotency";
 import { formatMoney } from "../products/productRules";
 import { RETURN_KIND_TEXT, RETURN_STATUS_TEXT } from "./labels";
+import { returnCancellable } from "./returnRules";
 import { ORDER_TOPIC, orderKey, timelineKey } from "./orderData";
 import { ReceiveReturnDialog } from "./ReceiveReturnDialog";
 import { queryKey } from "../../app/queryClient";
@@ -121,7 +123,7 @@ export function ReturnsCard({ order, returns, error, can }: ReturnsCardProps) {
                           Nhận hàng trả
                         </button>
                       )}
-                      {r.status === "requested" && can("order.return") && (
+                      {r.status === "requested" && returnCancellable(r) && can("order.return") && (
                         <button
                           type="button"
                           className="btn btn-quiet"

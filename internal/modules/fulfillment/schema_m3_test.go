@@ -290,3 +290,43 @@ func TestSchemaM3_CurrentShipmentFK(t *testing.T) {
 		t.Fatalf("CreateForOrder không gắn vận đơn hiện hành: %v", got.CurrentShipmentID)
 	}
 }
+
+// Task 442: cột province_code của shipments_v là mã tỉnh trong bản chụp địa chỉ mà Ship ghi (shipToDoc, khóa
+// provinceCode); đơn có mã tỉnh 79 → "79", đơn không mã tỉnh (đơn M1) → NULL. Đọc bằng crm_app trong tenant.
+func TestSchemaM3_ShipmentsVProvince(t *testing.T) {
+	e := newShipEnv(t)
+	withProvince, _ := e.order(1)
+	e.ownerExec(`UPDATE ord.orders SET ship_address = ship_address || '{"provinceCode":"79","wardCode":"26734"}'
+		WHERE id = $1`, withProvince.ID)
+	without, _ := e.order(1)
+	for _, c := range []struct {
+		name  string
+		order uuid.UUID
+		want  *string
+	}{
+		{"có mã tỉnh", withProvince.ID, new("79")},
+		{"không mã tỉnh", without.ID, nil},
+	} {
+		v, err := e.ship(fulfillment.ShipInput{OrderID: c.order, CarrierAccountID: e.account})
+		if err != nil {
+			t.Fatalf("%s: gửi hãng: %v", c.name, err)
+		}
+		var got *string
+		if err := e.app(func(tx pgx.Tx) error {
+			return tx.QueryRow(t.Context(), `SELECT province_code FROM fulfillment.shipments_v WHERE id = $1`, v.ID).
+				Scan(&got)
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if (got == nil) != (c.want == nil) || (got != nil && *got != *c.want) {
+			t.Errorf("%s: province_code = %v, muốn %v", c.name, deref(got), deref(c.want))
+		}
+	}
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return "NULL"
+	}
+	return *s
+}
