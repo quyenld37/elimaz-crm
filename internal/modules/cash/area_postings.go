@@ -72,22 +72,29 @@ func (remittedReturnedAlert) AutoRetryNotSent() bool { return true }
 
 func (a remittedReturnedAlert) Execute(ctx context.Context, j queue.Job) (commands.Outcome, error) {
 	p, ok := decodeRemittedReturned(j.Payload)
-	switch {
-	case !ok:
-		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonBadPayload}, nil
-	case a.n == nil:
-		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonAlerter}, nil
-	}
 	text := fmt.Sprintf("Vận đơn %s: hãng sửa Thành công sang Đang chuyển hoàn sau khi tiền COD đã về shop. "+
 		"Sổ COD không tự đổi; kế toán xem ở Lệch đối soát và điều chỉnh có xem trước.", p.Code)
-	if err := a.n.Notify(ctx, "cod-remitted-returned:"+p.Code, alertSeverityUsual, text); err != nil {
+	return notifyOutcome(ctx, a.n, ok, "cod-remitted-returned:"+p.Code, text), nil
+}
+
+// notifyOutcome gửi cảnh báo thường text với key qua n và trả kết quả lệnh: payload hỏng (!ok) → rejected bad_payload;
+// n nil → rejected alerter_missing; Notify lỗi → not_sent (tự gửi lại; Alerter chống lặp theo key), Telegram 429 →
+// chờ đúng thời gian Telegram yêu cầu; gửi được → done. Dùng chung cho các lệnh cảnh báo của cash.
+func notifyOutcome(ctx context.Context, n observability.Alerter, ok bool, key, text string) commands.Outcome {
+	switch {
+	case !ok:
+		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonBadPayload}
+	case n == nil:
+		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonAlerter}
+	}
+	if err := n.Notify(ctx, key, alertSeverityUsual, text); err != nil {
 		out := commands.Outcome{Status: commands.StatusNotSent, Reason: reasonAlertFailed}
 		if re, ok := errors.AsType[*observability.TelegramRetryError](err); ok {
 			out.RetryAfter = re.After
 		}
-		return out, nil
+		return out
 	}
-	return commands.Outcome{Status: commands.StatusDone}, nil
+	return commands.Outcome{Status: commands.StatusDone}
 }
 
 // NewRemittedReturnedAlertCommand trả lệnh RemittedReturnedAlertKind gửi qua n. cmd/crm đăng ký cùng các lệnh cảnh

@@ -88,6 +88,8 @@ const (
 	codeCODLockedByShipment = "cod_locked_by_shipment"
 	codePaymentExceedsTotal = "payment_exceeds_total"
 	codeRefundExceeds       = "refund_exceeds_remaining"
+	// Điều chỉnh sổ COD (kế hoạch M3, Task M3-33).
+	codePreviewStale = "preview_stale"
 
 	// Khách, đơn, mã giảm giá (kế hoạch M2, Task M2-02).
 	codeShipmentAlreadyAttached = "shipment_already_attached"
@@ -545,6 +547,15 @@ func cashError(err error) (status int, code string, ok bool) {
 		{cash.ErrUnknownStatementFormat, http.StatusUnprocessableEntity, codeInvalidInput},
 		{cash.ErrStatementFileNotReady, http.StatusConflict, codeFileNotReady},
 		{cash.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
+		// Điều chỉnh COD (Task M3-33): ErrPreviewStale đứng trước ErrAdjustmentBlocked, ErrAdjustTargetNotFound (lúc ghi
+		// hai lỗi đó bọc thêm ErrPreviewStale).
+		{cash.ErrPreviewStale, http.StatusConflict, codePreviewStale},
+		{cash.ErrAdjustReasonRequired, http.StatusUnprocessableEntity, codeInvalidInput},
+		{cash.ErrAdjustmentInvalid, http.StatusUnprocessableEntity, codeInvalidInput},
+		{cash.ErrAdjustTargetNotFound, http.StatusNotFound, codeNotFound},
+		{cash.ErrAdjustmentBlocked, http.StatusConflict, codeInvalidTransition},
+		{cash.ErrAlreadyReversed, http.StatusConflict, codeInvalidTransition},
+		{cash.ErrReconcileRunNotFound, http.StatusNotFound, codeNotFound},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true
