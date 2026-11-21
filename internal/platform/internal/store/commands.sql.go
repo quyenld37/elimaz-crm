@@ -37,6 +37,40 @@ func (q *Queries) AbandonCommand(ctx context.Context, arg AbandonCommandParams) 
 	return result.RowsAffected(), nil
 }
 
+const commandForResolve = `-- name: CommandForResolve :one
+SELECT id, tenant_id, kind, payload, attempts, created_at, status
+FROM platform.jobs
+WHERE id = $1 AND mode = 'command'
+  AND tenant_id IS NOT DISTINCT FROM NULLIF(current_setting('app.tenant_id', true), '')::uuid
+`
+
+type CommandForResolveRow struct {
+	ID        uuid.UUID
+	TenantID  pgtype.UUID
+	Kind      string
+	Payload   []byte
+	Attempts  int32
+	CreatedAt time.Time
+	Status    string
+}
+
+// Người quyết kết quả của lệnh (Task M3-12, commands.ResolveManually). Đọc không khóa (ADR-46: dòng nghiệp vụ của bên
+// gọi khóa trước, platform.jobs sửa cuối); cùng ngữ cảnh tenant như AbandonCommand.
+func (q *Queries) CommandForResolve(ctx context.Context, id uuid.UUID) (CommandForResolveRow, error) {
+	row := q.db.QueryRow(ctx, commandForResolve, id)
+	var i CommandForResolveRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Kind,
+		&i.Payload,
+		&i.Attempts,
+		&i.CreatedAt,
+		&i.Status,
+	)
+	return i, err
+}
+
 const commandPastExpiry = `-- name: CommandPastExpiry :one
 SELECT coalesce(expires_at <= now(), false)::bool AS past FROM platform.jobs WHERE id = $1
 `
@@ -192,6 +226,28 @@ func (q *Queries) RescheduleNotSent(ctx context.Context, arg RescheduleNotSentPa
 		arg.ID,
 		arg.LockedBy,
 	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const resolveCommandManually = `-- name: ResolveCommandManually :execrows
+UPDATE platform.jobs
+SET status = 'done', result = $1::jsonb, finished_at = now(), last_error = NULL, lease_until = NULL,
+    locked_by = NULL
+WHERE id = $2 AND mode = 'command' AND status IN ('in_doubt', 'dead')
+  AND tenant_id IS NOT DISTINCT FROM NULLIF(current_setting('app.tenant_id', true), '')::uuid
+`
+
+type ResolveCommandManuallyParams struct {
+	Result []byte
+	ID     uuid.UUID
+}
+
+// Lệnh in_doubt hay dead → done kèm kết quả người nhập; trạng thái đã đổi từ lúc đọc → 0 dòng.
+func (q *Queries) ResolveCommandManually(ctx context.Context, arg ResolveCommandManuallyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, resolveCommandManually, arg.Result, arg.ID)
 	if err != nil {
 		return 0, err
 	}

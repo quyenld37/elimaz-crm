@@ -18,8 +18,9 @@ const (
 	shipReader = "xem-van-don@elimaz.test"
 )
 
-// Tạo vận đơn (202, creating, mã E…), lần hai cùng đơn → 409 shipment_exists; có fulfillment.ship ở kho w2 mà tài
-// khoản hãng ở kho MAIN → 403; chỉ có order.read → getShipment 403; fulfillment.read → 200.
+// Tạo vận đơn (202, creating, mã E…), lần hai cùng đơn → 409 shipment_exists; có fulfillment.ship ở kho w2 mà đơn ở
+// kho MAIN → 404 (Task M3-12: phạm vi theo kho của đơn, không lộ đơn; M1: 403 theo kho tài khoản); chỉ có order.read →
+// getShipment 403; fulfillment.read → 200.
 func TestShipmentAPI(t *testing.T) {
 	e := newOrderAPIEnv(t)
 	tenant := e.shop.Tenant
@@ -38,14 +39,15 @@ func TestShipmentAPI(t *testing.T) {
 	e.staff.Grant(t, tenant, e.staff.User(t, tenant, shipAll, "active"), []string{"fulfillment.ship", "fulfillment.read"}, "all", "")
 	e.staff.Grant(t, tenant, e.staff.User(t, tenant, shipW2, "active"), []string{"fulfillment.ship", "fulfillment.read"}, "warehouse", w2.String())
 	e.staff.Grant(t, tenant, e.staff.User(t, tenant, shipReader, "active"), []string{"order.read"}, "all", "")
+	e.srv = shipServer(t, e)
 
 	v := e.variant(e.shop.Seller, 250000, 5)
 	orderID := e.mustCreate("o1", orderBody(30000, line(v, 2)))["id"]
 	path := fmt.Sprintf("/api/v1/orders/%v/shipments", orderID)
 	body := fmt.Sprintf(`{"carrierAccountId":"%s"}`, account)
 
-	if rec := serveAs(e.srv, e.keys, http.MethodPost, path, shipW2, "s0", body); rec.Code != http.StatusForbidden {
-		t.Fatalf("kho w2 tạo bằng tài khoản kho MAIN = %d %s, muốn 403", rec.Code, rec.Body.String())
+	if rec := serveAs(e.srv, e.keys, http.MethodPost, path, shipW2, "s0", body); rec.Code != http.StatusNotFound {
+		t.Fatalf("kho w2 gửi đơn của kho MAIN = %d %s, muốn 404", rec.Code, rec.Body.String())
 	}
 	rec := serveAs(e.srv, e.keys, http.MethodPost, path, shipAll, "s1", body)
 	if rec.Code != http.StatusAccepted {

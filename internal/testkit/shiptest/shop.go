@@ -89,14 +89,25 @@ func (s *Shop) Order(ctx context.Context, tx pgx.Tx, seller, userID uuid.UUID, s
 }
 
 // Shipment tạo vận đơn (trạng thái creating, lệnh tạo trong hàng chờ) của đơn orderID của người bán seller bằng tài
-// khoản hãng giả của người bán đó, trong tx (crm_app), tác nhân userID.
+// khoản hãng giả của người bán đó, trong tx (crm_app), tác nhân userID. Cân nặng cố định (shipWeightGrams), không đọc
+// cài đặt vận chuyển: test dữ liệu M1 dựng vận đơn trên schema chưa có platform.settings (trước 0304).
 func (s *Shop) Shipment(ctx context.Context, tx pgx.Tx, seller, orderID, userID uuid.UUID) (fulfillment.Shipment, error) {
-	sh, err := fulfillment.CreateForOrder(ctx, tx, orderID, s.AccountOf(seller), fulfillment.Actor{TenantID: s.Tenant, UserID: userID})
+	svc := fulfillment.New(fulfillment.Deps{Queue: queue.NewQueue(), Events: events.NewRegistry()}).Service
+	v, err := svc.Ship(ctx, tx, fulfillment.ShipInput{
+		OrderID: orderID, CarrierAccountID: s.AccountOf(seller), WeightGrams: shipWeightGrams,
+	}, order.Actor{TenantID: s.Tenant, UserID: userID, Type: "staff"})
 	if err != nil {
 		return fulfillment.Shipment{}, fmt.Errorf("shiptest: tạo vận đơn: %w", err)
 	}
+	sh, err := fulfillment.Get(ctx, tx, v.ID)
+	if err != nil {
+		return fulfillment.Shipment{}, fmt.Errorf("shiptest: đọc vận đơn: %w", err)
+	}
 	return sh, nil
 }
+
+// shipWeightGrams là cân nặng kiện của vận đơn thử.
+const shipWeightGrams = 500
 
 // CODBalances đọc số dư từng ngăn sổ COD của vận đơn shipmentID qua cash.cod_balances_v trong tx (tenancy.WithTenant
 // của tenant; crm_app hay chủ bảng); ngăn số dư 0 vẫn có mặt nếu đã có dòng sổ.

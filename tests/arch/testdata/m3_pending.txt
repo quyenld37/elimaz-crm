@@ -1,9 +1,6 @@
 # Operation M3 được tạm trả 501 not_implemented (kế hoạch M3, Task M3-04): một operationId mỗi dòng. Task hiện thực
 # operation xóa dòng của mình (test TestM3Routes_PendingList đỏ khi operation đã làm mà còn dòng, hay trả 501 mà không
 # có dòng). Task M3-48 đòi tệp này không còn dòng nào (TestM3Contract_PendingEmptyAtClose khi bật).
-listOrderShipments
-resendShipment
-resolveShipmentCreate
 requestAddressChange
 resolveAddressChange
 setShipmentManualStatus

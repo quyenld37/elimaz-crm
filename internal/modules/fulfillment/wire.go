@@ -17,7 +17,7 @@ import (
 func (m *Module) CommandHandlers() []commands.Handler {
 	var out []commands.Handler
 	if m.d.Carriers != nil && len(m.d.Carriers.Keys()) > 0 {
-		o := CommandOptions{DB: m.d.DB, Events: m.d.Events, Queue: m.d.Queue, Realtime: m.d.Bus}
+		o := CommandOptions{DB: m.d.DB, Events: m.d.Events, Queue: m.d.Queue, Realtime: m.d.Bus, Keys: m.d.Keys, Now: m.d.Now}
 		for _, k := range m.d.Carriers.Keys() {
 			a, _ := m.d.Carriers.Get(k)
 			o.Adapters = append(o.Adapters, a)

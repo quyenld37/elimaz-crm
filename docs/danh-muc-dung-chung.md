@@ -37,6 +37,7 @@ Package commands là đường ra của CRM: lệnh ra ngoài (gửi tin, trả 
 func Abandon(ctx context.Context, tx pgx.Tx, jobID uuid.UUID, reason string) error
 func CommandKind(name string, expiresAfter, timeout time.Duration) queue.Kind
 func ResolveInDoubt(ctx context.Context, d *db.DB, hs []Handler, limit int) (done, requeued, still int, err error)
+func ResolveManually(ctx context.Context, tx pgx.Tx, jobID uuid.UUID, result json.RawMessage, hs []Handler) error
 type DoneHook interface {
 	OnDone(ctx context.Context, j queue.Job, result json.RawMessage, tx pgx.Tx) error
 }

@@ -74,3 +74,19 @@ WHERE id = @id AND mode = 'command' AND status IN ('pending', 'in_doubt')
 SELECT status FROM platform.jobs
 WHERE id = @id AND mode = 'command'
   AND tenant_id IS NOT DISTINCT FROM NULLIF(current_setting('app.tenant_id', true), '')::uuid;
+
+-- Người quyết kết quả của lệnh (Task M3-12, commands.ResolveManually). Đọc không khóa (ADR-46: dòng nghiệp vụ của bên
+-- gọi khóa trước, platform.jobs sửa cuối); cùng ngữ cảnh tenant như AbandonCommand.
+-- name: CommandForResolve :one
+SELECT id, tenant_id, kind, payload, attempts, created_at, status
+FROM platform.jobs
+WHERE id = @id AND mode = 'command'
+  AND tenant_id IS NOT DISTINCT FROM NULLIF(current_setting('app.tenant_id', true), '')::uuid;
+
+-- Lệnh in_doubt hay dead → done kèm kết quả người nhập; trạng thái đã đổi từ lúc đọc → 0 dòng.
+-- name: ResolveCommandManually :execrows
+UPDATE platform.jobs
+SET status = 'done', result = sqlc.arg(result)::jsonb, finished_at = now(), last_error = NULL, lease_until = NULL,
+    locked_by = NULL
+WHERE id = @id AND mode = 'command' AND status IN ('in_doubt', 'dead')
+  AND tenant_id IS NOT DISTINCT FROM NULLIF(current_setting('app.tenant_id', true), '')::uuid;

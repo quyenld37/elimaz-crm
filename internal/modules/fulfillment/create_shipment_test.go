@@ -101,19 +101,21 @@ func TestShipment_TimeoutAfterCreate(t *testing.T) {
 	}
 }
 
-// fail_before_create: chắc chắn chưa tạo → not_sent, tự gửi lại lần sau; không có kiện nào cho tới khi hãng nhận.
+// fail_before_create: chắc chắn chưa tạo → not_sent; Q-5 (Task M3-12, AutoRetryNotSent = false, M1 tự gửi lại): lệnh
+// dead, không hẹn chạy lại, vận đơn creating với create_state not_sent, vẫn gắn đơn; hãng không có kiện, gọi đúng 1 lần.
 func TestShipment_FailBeforeCreate(t *testing.T) {
 	e := newShipEnv(t)
-	o, _ := e.order(1)
-	s := e.mustCreateShipment(o.ID)
-	e.carrier.SetMode(fake.ModeFailBeforeCreate)
-	e.drain()
-	if n := e.count("SELECT count(*) FROM platform.jobs WHERE kind = 'fulfillment.create_shipment' AND status = 'pending'"); n != 1 {
-		t.Fatalf("lệnh chờ gửi lại = %d, muốn 1", n)
+	_, s := e.notSentShipment()
+	if _, st := e.createJob(s.ID); st != "dead" {
+		t.Fatalf("lệnh = %s, muốn dead", st)
 	}
-	if e.carrier.Parcels() != 0 || e.shipment(s.ID).Status != fulfillment.StatusCreating {
-		t.Fatalf("hãng có %d kiện, vận đơn %s", e.carrier.Parcels(), e.shipment(s.ID).Status)
+	if e.carrier.Parcels() != 0 || e.carrier.Calls("create") != 1 || e.shipment(s.ID).Status != fulfillment.StatusCreating {
+		t.Fatalf("hãng có %d kiện, gọi %d lần, vận đơn %s", e.carrier.Parcels(), e.carrier.Calls("create"), e.shipment(s.ID).Status)
 	}
+	if st := e.createState(s.ID); st != "not_sent" {
+		t.Fatalf("create_state = %s, muốn not_sent", st)
+	}
+	e.stillAttached(s)
 }
 
 // Vận đơn thứ hai cho cùng đơn khi vận đơn đầu chưa hủy → ErrShipmentExists, không thêm dòng, không thêm lệnh.
@@ -160,8 +162,8 @@ func TestShipment_DatabaseGuards(t *testing.T) {
 	}
 }
 
-// Vận đơn của đơn người bán này bằng tài khoản hãng của người bán kia (ADR-29) → ErrOrderNotShippable; đơn không
-// đổi, không có vận đơn, không có lệnh.
+// Vận đơn của đơn người bán này bằng tài khoản hãng của người bán kia (ADR-29) → ErrAccountUnavailable (Task M3-12:
+// 409 carrier_account_unavailable; M1 là ErrOrderNotShippable); đơn không đổi, không có vận đơn, không có lệnh.
 func TestShipment_AccountOfOtherSeller(t *testing.T) {
 	eachSeller(t, func(_ *testing.T, e *shipEnv) {
 		o, _ := e.order(1)
@@ -169,19 +171,19 @@ func TestShipment_AccountOfOtherSeller(t *testing.T) {
 		if other == e.account {
 			other = e.shop.PartnerAccount
 		}
-		e.expectNotShippable(o, other)
+		e.expectRefused(o, other, fulfillment.ErrAccountUnavailable)
 	})
 }
 
-// expectNotShippable: tạo vận đơn cho o bằng tài khoản account → ErrOrderNotShippable; đơn không đổi, không có vận đơn.
-func (e *shipEnv) expectNotShippable(o order.Order, account uuid.UUID) {
+// expectRefused: tạo vận đơn cho o bằng tài khoản account → lỗi want; đơn không đổi, không có vận đơn.
+func (e *shipEnv) expectRefused(o order.Order, account uuid.UUID, want error) {
 	e.t.Helper()
 	err := e.app(func(tx pgx.Tx) error {
 		_, err := fulfillment.CreateForOrder(e.t.Context(), tx, o.ID, account, e.actor)
 		return err //nolint:wrapcheck // test
 	})
-	if !errors.Is(err, fulfillment.ErrOrderNotShippable) {
-		e.t.Fatalf("tạo vận đơn: %v, muốn ErrOrderNotShippable", err)
+	if !errors.Is(err, want) {
+		e.t.Fatalf("tạo vận đơn: %v, muốn %v", err, want)
 	}
 	if got := e.getOrder(o.ID); got.CurrentShipmentID != nil || got.Version != o.Version {
 		e.t.Errorf("đơn bị đổi: %v, version %d", got.CurrentShipmentID, got.Version)
@@ -191,7 +193,8 @@ func (e *shipEnv) expectNotShippable(o order.Order, account uuid.UUID) {
 	}
 }
 
-// D-01 (review độc lập M1): tài khoản hãng của kho khác kho giữ hàng của đơn → ErrOrderNotShippable; đơn, tồn không
+// D-01 (review độc lập M1): tài khoản hãng của kho khác kho giữ hàng của đơn → ErrAccountUnavailable (M1:
+// ErrOrderNotShippable); đơn, tồn không
 // đổi, không có vận đơn (hãng lấy ở kho này mà tồn trừ ở kho kia là sai sổ cả hai kho, ADR-18).
 func TestShipment_AccountOfOtherWarehouse(t *testing.T) {
 	e := newShipEnv(t)
@@ -210,6 +213,6 @@ func TestShipment_AccountOfOtherWarehouse(t *testing.T) {
 		return err //nolint:wrapcheck // test
 	})
 	before := e.stock(v)
-	e.expectNotShippable(o, other)
+	e.expectRefused(o, other, fulfillment.ErrAccountUnavailable)
 	e.stockIs(v, before)
 }
