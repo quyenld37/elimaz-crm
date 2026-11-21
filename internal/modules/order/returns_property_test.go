@@ -29,16 +29,21 @@ func TestReturns_Invariants(t *testing.T) {
 	})
 }
 
-// drawDeliveredOrder tạo đơn đã giao 1–maxLines dòng (số lượng 1–maxQty, đơn giá lẻ, giảm dòng dưới ngưỡng duyệt).
+// drawDeliveredOrder tạo đơn đã giao 1–maxLines dòng (số lượng 1–maxQty, đơn giá lẻ) có giảm dòng và giảm cấp đơn
+// (WAT31: phần chia về dòng), tổng giảm tay không quá ngưỡng duyệt 10% (mỗi phần ≤ 5% tạm tính).
 func (e *orderEnv) drawDeliveredOrder(rt *rapid.T, maxLines int, maxQty int32) order.Order {
 	var lines []order.LineInput
+	var subtotal int64
 	for range rapid.IntRange(1, maxLines).Draw(rt, "lines") {
 		qty := rapid.Int32Range(1, maxQty).Draw(rt, "qty")
 		price := rapid.Int64Range(1, 99999).Draw(rt, "price")
-		disc := rapid.Int64Range(0, int64(qty)*price/20).Draw(rt, "discount") // dưới ngưỡng duyệt 10%
+		disc := rapid.Int64Range(0, int64(qty)*price/20).Draw(rt, "discount")
 		lines = append(lines, ln(e.variant(price, 10), qty, disc))
+		subtotal += int64(qty) * price
 	}
-	return e.deliveredOrder(lines...)
+	in := e.m2Input(30000, lines...)
+	in.OrderDiscount = rapid.Int64Range(0, subtotal/20).Draw(rt, "orderDiscount")
+	return e.deliveredFrom(in)
 }
 
 // propCreate tạo một phiếu khách trả trên các dòng rút ngẫu nhiên của o (số 1–maxQty), thêm vào rs khi tạo được.
