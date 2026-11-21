@@ -19,10 +19,11 @@ import (
 // SelfKey là khóa hãng của giao tay (shop tự giao).
 const SelfKey = "self"
 
-// All trả adapter của mọi hãng: giao tay (self), Viettel Post, BEST, SPX; cộng hãng giả khi CRM_ENV khác production và
+// All trả adapter của mọi hãng: giao tay (self), Viettel Post (chưa nối API: khung giao tay khóa "vtp" tới khi chủ
+// shop OK gọi thật, Task 49), BEST, SPX; cộng hãng giả khi CRM_ENV khác production và
 // có FAKECARRIER_URL (đúng điều kiện của M1). Khóa không trùng nhau (fulfillment.NewRegistry dựng được).
 func All(cfg config.Config) []fulfillment.CarrierAdapter {
-	as := []fulfillment.CarrierAdapter{manual.New(SelfKey), vtp.New(cfg), best.New(cfg), spx.New(cfg)}
+	as := []fulfillment.CarrierAdapter{manual.New(SelfKey), manual.New(vtp.Key), best.New(cfg), spx.New(cfg)}
 	if FakeOn(cfg) {
 		as = append(as, fake.NewClient(cfg.FakeCarrierURL, cfg.FakeCarrierWebhookSecret, &http.Client{}))
 	}

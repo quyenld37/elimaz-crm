@@ -1,0 +1,4 @@
+{
+  "_source": "https://partner2.viettelpost.vn/document/token-authen — Response của POST /v2/user/Login (đọc 21/11/2026); token, SĐT thay bằng giá trị giả.",
+  "reply": {"status": 200, "error": false, "message": "OK", "data": {"userId": 7856551, "token": "vtptest-token", "partner": 7856551, "phone": "0900000001", "postcode": null, "expired": 0, "encrypted": null, "source": 5}}
+}

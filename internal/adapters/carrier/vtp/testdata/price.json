@@ -1,0 +1,4 @@
+{
+  "_source": "https://partner2.viettelpost.vn/document/charges-id-address — Response của POST /v2/order/getPrice (đọc 21/11/2026), chép nguyên.",
+  "reply": {"status": 200, "error": false, "message": "OK", "data": {"MONEY_TOTAL_OLD": 14700, "MONEY_TOTAL": 14700, "MONEY_TOTAL_FEE": 13363, "MONEY_FEE": 0, "MONEY_COLLECTION_FEE": 0, "MONEY_OTHER_FEE": 0, "MONEY_VAS": 0, "MONEY_VAT": 1337, "KPI_HT": 48}}
+}

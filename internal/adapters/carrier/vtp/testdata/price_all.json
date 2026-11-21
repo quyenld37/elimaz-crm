@@ -1,0 +1,4 @@
+{
+  "_source": "https://partner2.viettelpost.vn/document/get-list-service-by-address-id — Response của POST /v2/order/getPriceAll (đọc 21/11/2026), chép nguyên (mảng trần, không phong bì).",
+  "reply": [{"MA_DV_CHINH": "PHS", "TEN_DICHVU": "Nội tỉnh tiết kiệm", "GIA_CUOC": 26400, "THOI_GIAN": "48 giờ", "EXCHANGE_WEIGHT": 0, "EXTRA_SERVICE": [{"SERVICE_CODE": "GBP", "SERVICE_NAME": "Báo phát", "DESCRIPTION": null}, {"SERVICE_CODE": "XMG", "SERVICE_NAME": "Thu tiền xem hàng", "DESCRIPTION": null}]}]
+}

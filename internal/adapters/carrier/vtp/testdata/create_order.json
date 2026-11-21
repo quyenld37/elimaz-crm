@@ -1,0 +1,4 @@
+{
+  "_source": "https://partner2.viettelpost.vn/document/create-order-id-address — Response của POST /v2/order/createOrder (đọc 21/11/2026), chép nguyên; máy chủ giả thay ORDER_NUMBER bằng mã vận đơn nó sinh.",
+  "reply": {"status": 200, "error": false, "message": "OK", "data": {"ORDER_NUMBER": "15878180012", "MONEY_COLLECTION": 562000, "EXCHANGE_WEIGHT": 50, "MONEY_TOTAL": 16500, "MONEY_TOTAL_FEE": 15000, "MONEY_FEE": 0, "MONEY_COLLECTION_FEE": 0, "MONEY_OTHER_FEE": 0, "MONEY_VAS": 0, "MONEY_VAT": 1500, "KPI_HT": 48, "RECEIVER_PROVINCE": 34, "RECEIVER_DISTRICT": 390, "RECEIVER_WARD": 7393, "SORT_CODE": "HNI-CẦU GIẤY-NAT"}}
+}
