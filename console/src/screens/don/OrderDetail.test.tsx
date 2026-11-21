@@ -397,21 +397,21 @@ describe("Chi tiết đơn — hủy", () => {
 });
 
 describe("Chi tiết đơn — phiếu trả", () => {
-  const delivered = () => {
+  const delivered = (kind: "customer_return" | "carrier_return" | "partial_delivery" = "customer_return") => {
     fake.orders.set(
       O1,
       order({
         status: "delivered",
         label: "delivered",
         editScope: CARE_ONLY,
-        returns: [{ id: R1, code: "TH0000012", kind: "customer_return", status: "requested" }],
+        returns: [{ id: R1, code: "TH0000012", kind, status: "requested" }],
       }),
     );
     fake.returns.set(R1, {
       id: R1,
       code: "TH0000012",
       orderId: O1,
-      kind: "customer_return",
+      kind,
       status: "requested",
       refundAmount: 1_240_000,
       items: [{ id: "ri1", orderItemId: I1, qty: 2, refundAmount: 1_240_000 }],
@@ -434,6 +434,17 @@ describe("Chi tiết đơn — phiếu trả", () => {
       within(await screen.findByRole("row", { name: /TH0000012/ })).getByRole("button", { name: "Nhận hàng trả" }),
     ).toBeTruthy();
   });
+
+  it.each(["carrier_return", "partial_delivery"] as const)(
+    "phiếu %s chờ nhận: có Nhận hàng trả, không có Hủy phiếu (máy chủ từ chối, Task 442)",
+    async (kind) => {
+      delivered(kind);
+      await open(["order.return", "order.return.receive"]);
+      const row = await screen.findByRole("row", { name: /TH0000012/ });
+      expect(within(row).getByRole("button", { name: "Nhận hàng trả" })).toBeTruthy();
+      expect(within(row).queryByRole("button", { name: "Hủy phiếu" })).toBeNull();
+    },
+  );
 
   it("đọc phiếu trả lỗi: câu lỗi riêng, nút tạo phiếu mờ (không treo ở đang tải)", async () => {
     delivered();

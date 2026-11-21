@@ -570,16 +570,18 @@ func (w Writer) CloseReturn(ctx context.Context, tx pgx.Tx, sellerID, returnID u
 // CancelReturn hủy phiếu returnID ở version (requested → cancelled; số đã trả của dòng mở lại). Phiếu exchange có đơn
 // thay thế chưa gửi hãng (draft, new, confirmed không vận đơn hiện hành) thì hủy luôn đơn đó bằng Cancel (lý do other:
 // nhả hàng, trả lượt); đơn thay thế đã hủy → chỉ hủy phiếu; đã gửi hãng, đã giao, đã trả → ErrReturnNotAllowed. Phiếu
-// không requested → ErrReturnNotAllowed. Phiếu partial_delivery (M3-26) không hủy được → ErrReturnNotAllowed: phần
-// khách chưa nhận (vẫn in_transit) chỉ về kho qua phiếu này, và phiếu đã hủy không còn được tính khi khách trả phần đã
-// nhận (hoàn thừa).
+// không requested → ErrReturnNotAllowed. Phiếu partial_delivery (M3-26) và carrier_return (Task 442) không hủy được →
+// ErrReturnNotAllowed: hàng của phiếu (vẫn in_transit) chỉ về kho qua chính phiếu đó (vận đơn đã giao hay đang hoàn,
+// không tạo lại phiếu), và phiếu partial_delivery đã hủy không còn được tính khi khách trả phần đã nhận (hoàn thừa).
+// Hàng thật sự mất thì kho nhận phiếu với số "thiếu" (ghi thất lạc).
 func (w Writer) CancelReturn(ctx context.Context, tx pgx.Tx, sellerID, returnID uuid.UUID, version int64, a Actor,
 	now time.Time,
 ) (Return, error) {
 	now = now.UTC()
 	return w.changeReturn(ctx, tx, sellerID, returnID, version, ReturnRequested, true, func(l lockedReturn) error {
-		if l.r.Kind == ReturnPartialDelivery {
-			return fmt.Errorf("%w: phiếu giao một phần %s không hủy được", ErrReturnNotAllowed, l.r.Code)
+		if l.r.Kind == ReturnPartialDelivery || l.r.Kind == ReturnCarrier {
+			return fmt.Errorf("%w: phiếu %s (%s) chỉ đóng bằng kho nhận, không hủy được", ErrReturnNotAllowed, l.r.Code,
+				l.r.Kind)
 		}
 		repl := l.replacement
 		cancelReplacement := false

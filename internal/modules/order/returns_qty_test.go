@@ -209,6 +209,29 @@ func TestReceiveReturnQty_NotCurrentShipment(t *testing.T) {
 	}
 }
 
+// Task 442: phiếu hoàn của hãng không hủy được (như phiếu giao một phần, Task 117) — hàng hoàn chỉ về kho qua phiếu này;
+// hủy → ErrReturnNotAllowed, phiếu vẫn requested, đơn vẫn confirmed, tồn không đổi, sau đó kho vẫn nhận được phiếu.
+func TestCancelReturn_CarrierRefused(t *testing.T) {
+	e := newM2Env(t)
+	c := e.carrierCase(t)
+	b1, b2, o0 := e.balance(c.v1), e.balance(c.v2), e.get(c.o.ID)
+	if _, err := e.cancelReturn(c.r); !errors.Is(err, order.ErrReturnNotAllowed) {
+		t.Fatalf("hủy phiếu hoàn của hãng: %v; muốn ErrReturnNotAllowed", err)
+	}
+	if g := e.getReturn(c.r.ID); g.Status != order.ReturnRequested || g.Version != c.r.Version {
+		t.Fatalf("phiếu sau lần hủy bị chặn: %s v%d, muốn requested v%d", g.Status, g.Version, c.r.Version)
+	}
+	if o := e.get(c.o.ID); o.Status != order.StatusConfirmed || o.Version != o0.Version {
+		t.Fatalf("đơn sau lần hủy bị chặn: %s v%d", o.Status, o.Version)
+	}
+	if e.balance(c.v1) != b1 || e.balance(c.v2) != b2 {
+		t.Fatal("tồn đổi sau lần hủy bị chặn")
+	}
+	if r := e.mustReceiveQty(c.r, qty(c.i1, 2, 0, 0), qty(c.i2, 1, 0, 0)); r.Status != order.ReturnRestocked {
+		t.Fatalf("nhận phiếu sau lần hủy bị chặn: %s", r.Status)
+	}
+}
+
 // Phiếu khách trả theo số lượng: dòng 2 cái nhận S1 D1 → on_hand +2, damaged +1, tiền hoàn đủ, condition mixed;
 // order.returned mang kind customer_return, missingQty 0. (Dòng thiếu một phần: returns_qty_customer_test.go, M3-24.)
 func TestReceiveReturnQty_Customer(t *testing.T) {

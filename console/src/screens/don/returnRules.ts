@@ -72,3 +72,11 @@ const DAY_MS = 86_400_000;
 export function daysSince(iso: string, now: Date): number {
   return Math.floor((now.getTime() - new Date(iso).getTime()) / DAY_MS);
 }
+
+/**
+ * Phiếu có hủy được không theo loại (máy chủ: order.Writer.CancelReturn, Task 117 và 442): phiếu hoàn của hãng và phiếu
+ * giao một phần chỉ đóng bằng kho nhận (hàng đang về kho chỉ đi qua chính phiếu đó). Trạng thái, quyền kiểm riêng.
+ */
+export function returnCancellable(r: Pick<Return, "kind">): boolean {
+  return r.kind !== "carrier_return" && r.kind !== "partial_delivery";
+}

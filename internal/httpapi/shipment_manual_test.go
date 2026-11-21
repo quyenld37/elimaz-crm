@@ -28,6 +28,14 @@ func (e *shipAPIEnv) manualAccount(key, ref string) uuid.UUID {
 	return id
 }
 
+// grantManual tạo nhân viên manualUser có quyền gửi hãng, xem và ghi tay trạng thái vận đơn ở mọi kho.
+func (e *shipAPIEnv) grantManual() {
+	e.t.Helper()
+	tenant := e.shop.Tenant
+	e.staff.Grant(e.t, tenant, e.staff.User(e.t, tenant, manualUser, "active"),
+		[]string{"fulfillment.ship", "fulfillment.read", "fulfillment.manual_status"}, "all", "")
+}
+
 func (e *shipAPIEnv) manualStatus(user, id, key, body string) (int, map[string]any) {
 	e.t.Helper()
 	rec := serveAs(e.srv, e.keys, http.MethodPost, "/api/v1/shipments/"+id+"/manual-status", user, key, body)
@@ -40,9 +48,7 @@ func (e *shipAPIEnv) manualStatus(user, id, key, body string) (int, map[string]a
 // khoản tay khác → 409 tracking_code_conflict; vận đơn lạ → 404.
 func TestShipmentManualAPI(t *testing.T) {
 	e := newShipAPIEnv(t)
-	tenant := e.shop.Tenant
-	e.staff.Grant(t, tenant, e.staff.User(t, tenant, manualUser, "active"),
-		[]string{"fulfillment.ship", "fulfillment.read", "fulfillment.manual_status"}, "all", "")
+	e.grantManual()
 	a1, a2 := e.manualAccount("best", "best-tay-1"), e.manualAccount("best", "best-tay-2")
 
 	orderID := e.confirmedOrder("o-1")
