@@ -6,7 +6,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import {
   getWarehousePickup,
-  listAdminUnits,
   setWarehousePickup,
   type SetWarehousePickupRequest,
   type WarehousePickup,
@@ -14,14 +13,13 @@ import {
 import { unwrap } from "../../app/errors";
 import { useWriteAction } from "../../app/idempotency";
 import { queryKey } from "../../app/queryClient";
-import { WardField } from "../len-don/AddressFields";
+import { ProvinceField, WardField } from "../len-don/AddressFields";
 import type { AddressInput } from "../len-don/orderRules";
 import { RefusalBox } from "../staff/staffData";
 import { QueryState } from "./QueryState";
 import "../len-don/len-don.css";
 
 const pickupKey = (warehouseId: string) => queryKey("inventory.warehouse_pickup", warehouseId);
-const ADMIN_TOPIC = "customer.admin-units";
 
 interface PickupFormProps {
   p: WarehousePickup;
@@ -41,11 +39,6 @@ function PickupForm({ p, warehouseId, saved, setSaved }: PickupFormProps) {
     wardCode: p.wardCode ?? "",
   });
   const [missing, setMissing] = useState(false);
-  const provinces = useQuery({
-    queryKey: queryKey(ADMIN_TOPIC, "provinces"),
-    queryFn: () => unwrap(listAdminUnits({})),
-    staleTime: Number.POSITIVE_INFINITY,
-  });
   const save = useWriteAction((key, body: SetWarehousePickupRequest) =>
     unwrap(setWarehousePickup({ path: { id: warehouseId }, body, headers: { "Idempotency-Key": key } })),
   );
@@ -106,24 +99,7 @@ function PickupForm({ p, warehouseId, saved, setSaved }: PickupFormProps) {
           }}
         />
       </label>
-      <label className="field">
-        <span>Tỉnh *</span>
-        <span className="select-wrap">
-          <select
-            value={v.provinceCode}
-            onChange={(e) => {
-              set({ provinceCode: e.target.value, wardCode: "", wardName: "" });
-            }}
-          >
-            <option value="">Chọn tỉnh/thành</option>
-            {(provinces.data?.items ?? []).map((u) => (
-              <option key={u.code} value={u.code}>
-                {u.name}
-              </option>
-            ))}
-          </select>
-        </span>
-      </label>
+      <ProvinceField label="Tỉnh *" value={v} onChange={set} />
       <WardField value={v} onChange={set} />
       {v.wardCode !== "" && (v.wardName ?? "") === "" && (
         <span className="hint">Đang lưu xã/phường mã {v.wardCode}. Gõ tên để đổi.</span>

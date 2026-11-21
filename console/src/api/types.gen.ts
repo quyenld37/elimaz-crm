@@ -2238,6 +2238,10 @@ export type ResolveAddressChangeRequest = {
     note?: string;
 };
 
+export type AddressChangeList = {
+    items: Array<AddressChange>;
+};
+
 /**
  * Yêu cầu đổi địa chỉ (không trả lại địa chỉ)
  */
@@ -7605,6 +7609,33 @@ export type SetShipmentManualStatusResponses = {
 };
 
 export type SetShipmentManualStatusResponse = SetShipmentManualStatusResponses[keyof SetShipmentManualStatusResponses];
+
+export type ListShipmentAddressChangesData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/shipments/{id}/address-changes';
+};
+
+export type ListShipmentAddressChangesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListShipmentAddressChangesError = ListShipmentAddressChangesErrors[keyof ListShipmentAddressChangesErrors];
+
+export type ListShipmentAddressChangesResponses = {
+    /**
+     * listShipmentAddressChanges
+     */
+    200: AddressChangeList;
+};
+
+export type ListShipmentAddressChangesResponse = ListShipmentAddressChangesResponses[keyof ListShipmentAddressChangesResponses];
 
 export type RequestAddressChangeData = {
     body: RequestAddressChangeRequest;

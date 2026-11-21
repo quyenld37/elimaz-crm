@@ -152,7 +152,20 @@ async function shipApi(api: FakeApi, o: Order) {
   );
   await api.on(/\/api\/v1\/orders\/[^/]+\/shipments/, (r) => json(r, 200, { items: [] }));
   await api.on(/\/api\/v1\/shipments\/[^/?]+$/, (r) => json(r, 200, shipment({})));
-  await api.on(/\/api\/v1\/carrier-accounts/, (r) => json(r, 200, { items: ACCOUNTS }));
+  // Dòng thời gian vận đơn ở cột trái (Task 134).
+  await api.on(/\/api\/v1\/shipments\/[^/]+\/events/, (r) => json(r, 200, { items: [] }));
+  // Khối Vận chuyển đọc tài khoản gửi được của đơn (Task 449), không đọc danh sách carrier-accounts.
+  await api.on(/\/api\/v1\/orders\/[^/]+\/shipping-accounts/, (r) =>
+    json(r, 200, {
+      items: ACCOUNTS.map((a) => ({
+        id: a.id,
+        name: a.name,
+        carrierKey: a.carrierKey,
+        mode: a.mode,
+        status: a.status,
+      })),
+    }),
+  );
   await api.on("**/api/v1/fulfillment-settings", (r) =>
     json(r, 200, {
       stuckHours: {},

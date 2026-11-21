@@ -8,6 +8,7 @@ import { unwrap } from "../../app/errors";
 import { queryKey } from "../../app/queryClient";
 import { SEARCH_DELAY_MS, useDebounced } from "../inventory/Balances";
 import { formatMoney } from "../products/productRules";
+import { DeliveryStatsBadge } from "./DeliveryStatsBadge";
 import { customerQuery, displayPhone, maskPhone, shortDate } from "./orderRules";
 import { useCombo } from "./useCombo";
 
@@ -204,6 +205,7 @@ function Picked({ value, onClear }: { value: CustomerChoice; onClear: () => void
             </span>
           ))}
         </div>
+        <DeliveryStatsBadge customerId={value.id} />
         {s !== undefined && (
           <p className="small muted">
             {phone === undefined ? "Chưa có SĐT" : displayPhone(phone)} · {s.orderCount} đơn · {s.deliveredCount} thành

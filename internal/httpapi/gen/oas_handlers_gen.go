@@ -10418,6 +10418,91 @@ func (s *Server) handleListRolesToManageRequest(args [0]string, argsEscaped bool
 	}
 }
 
+// handleListShipmentAddressChangesRequest handles listShipmentAddressChanges operation.
+//
+// Quyền fulfillment.read theo kho của tài khoản hãng của vận đơn; thiếu phạm vi →
+// 404.
+//
+// GET /api/v1/shipments/{id}/address-changes
+func (s *Server) handleListShipmentAddressChangesRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListShipmentAddressChangesOperation,
+			ID:   "listShipmentAddressChanges",
+		}
+	)
+	params, err := decodeListShipmentAddressChangesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListShipmentAddressChangesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListShipmentAddressChangesOperation,
+			OperationSummary: "Yêu cầu đổi địa chỉ đang mở của vận đơn (pending, sent, unknown; nhiều nhất một), để nhân viên xác nhận sau khi tải lại trang; không trả địa chỉ (Task 134)",
+			OperationID:      "listShipmentAddressChanges",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListShipmentAddressChangesParams
+			Response = ListShipmentAddressChangesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListShipmentAddressChangesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListShipmentAddressChanges(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListShipmentAddressChanges(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListShipmentAddressChangesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleListShipmentEventsRequest handles listShipmentEvents operation.
 //
 // Lịch sử sự kiện của vận đơn, mới nhất trước; không có thân thô của hãng

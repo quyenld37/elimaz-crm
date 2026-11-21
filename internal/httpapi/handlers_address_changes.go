@@ -85,6 +85,33 @@ func (h *handler) ResolveAddressChange(ctx context.Context, req *gen.ResolveAddr
 	return out.(*gen.AddressChange), nil //nolint:forcetypeassert // fn trên trả *gen.AddressChange
 }
 
+// ListShipmentAddressChanges (GET /api/v1/shipments/{id}/address-changes, fulfillment.read ở kho của tài khoản hãng
+// của vận đơn) → 200: yêu cầu đang mở (nhiều nhất một), không có địa chỉ; thiếu phạm vi ở kho hay vận đơn lạ → 404
+// (Task 134).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ListShipmentAddressChanges(ctx context.Context, params gen.ListShipmentAddressChangesParams) (gen.ListShipmentAddressChangesRes, error) {
+	var open []fulfillment.AddressChange
+	if err := h.inventoryRead(ctx, func(tx pgx.Tx, u identity.AuthUser) error {
+		s, err := fulfillment.Get(ctx, tx, params.ID)
+		if err != nil {
+			return err //nolint:wrapcheck // sentinel của fulfillment
+		}
+		if canAt(u, s.WarehouseID, permShipRead) != nil {
+			return fulfillment.ErrNotFound
+		}
+		open, err = fulfillment.OpenAddressChanges(ctx, tx, s)
+		return err //nolint:wrapcheck // fulfillment đã bọc
+	}); err != nil {
+		return nil, fmt.Errorf("đọc yêu cầu đổi địa chỉ: %w", err)
+	}
+	out := &gen.AddressChangeList{Items: make([]gen.AddressChange, 0, len(open))}
+	for _, c := range open {
+		out.Items = append(out.Items, *addressChangeOut(c))
+	}
+	return out, nil
+}
+
 // RecordFulfillmentAudit ghi dòng audit fulfillment dựng (đổi địa chỉ đơn theo yêu cầu đổi địa chỉ) bằng
 // identity.RecordAudit trong tx của bên gọi; cmd/crm truyền hàm này cho lệnh sửa địa chỉ (fulfillment.AuditFunc).
 // request id lấy từ ctx (rỗng ở worker).

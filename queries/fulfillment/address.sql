@@ -59,3 +59,10 @@ WHERE r.id = @id;
 UPDATE fulfillment.shipments
 SET ship_to = @ship_to, updated_at = now()
 WHERE id = @id;
+
+-- name: OpenAddressChanges :many
+-- Yêu cầu còn mở của vận đơn (nhiều nhất một: index address_change_requests_open); không đọc địa chỉ (Task 134).
+SELECT id, shipment_id, mode, status, note, created_at, resolved_at
+FROM fulfillment.address_change_requests
+WHERE shipment_id = @shipment_id AND status IN ('pending', 'sent', 'unknown')
+ORDER BY created_at DESC, id DESC;

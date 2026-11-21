@@ -761,6 +761,13 @@ type Handler interface {
 	//
 	// GET /api/v1/identity/roles/manage
 	ListRolesToManage(ctx context.Context) (ListRolesToManageRes, error)
+	// ListShipmentAddressChanges implements listShipmentAddressChanges operation.
+	//
+	// Quyền fulfillment.read theo kho của tài khoản hãng của vận đơn; thiếu phạm vi →
+	// 404.
+	//
+	// GET /api/v1/shipments/{id}/address-changes
+	ListShipmentAddressChanges(ctx context.Context, params ListShipmentAddressChangesParams) (ListShipmentAddressChangesRes, error)
 	// ListShipmentEvents implements listShipmentEvents operation.
 	//
 	// Lịch sử sự kiện của vận đơn, mới nhất trước; không có thân thô của hãng

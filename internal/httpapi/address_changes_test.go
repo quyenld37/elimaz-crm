@@ -142,3 +142,66 @@ func TestAddressChangeAPI_Refusals(t *testing.T) {
 		t.Fatalf("đã giao = %d %v, muốn 409 invalid_transition", code, b)
 	}
 }
+
+// listShipmentAddressChanges (Task 134): chỉ yêu cầu đang mở (pending, sent, unknown), không có địa chỉ; chưa có → rỗng;
+// sau khi xác nhận → rỗng; fulfillment.read ở kho khác → 404; chỉ order.read → 403; vận đơn lạ → 404.
+func TestAddressChangeAPI_ListOpen(t *testing.T) {
+	e := newShipAPIEnv(t)
+	e.staff.SeedAdminUnits(t)
+	e.staff.Grant(t, e.shop.Tenant, e.staff.User(t, e.shop.Tenant, shipW2, "active"), []string{"fulfillment.read"},
+		"warehouse", uuid.NewString())
+	_, id := e.addrShipment("lo")
+	path := "/api/v1/shipments/" + id + "/address-changes"
+	list := func(user string) (int, []any) {
+		t.Helper()
+		rec := serveAs(e.srv, e.keys, http.MethodGet, path, user, "", "")
+		if rec.Code != http.StatusOK {
+			return rec.Code, nil
+		}
+		items, ok := decodeJSON(t, rec)["items"].([]any)
+		if !ok {
+			t.Fatalf("thân không có items: %s", rec.Body.String())
+		}
+		return rec.Code, items
+	}
+	if code, items := list(shipAll); code != http.StatusOK || len(items) != 0 {
+		t.Fatalf("chưa có yêu cầu = %d %v, muốn 200 rỗng", code, items)
+	}
+	if code, _ := list(shipW2); code != http.StatusNotFound {
+		t.Fatalf("fulfillment.read kho khác = %d, muốn 404", code)
+	}
+	if code, _ := list(orderViewer); code != http.StatusForbidden {
+		t.Fatalf("chỉ order.read = %d, muốn 403", code)
+	}
+	rec := serveAs(e.srv, e.keys, http.MethodGet, "/api/v1/shipments/"+uuid.NewString()+"/address-changes", shipAll, "", "")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("vận đơn lạ = %d, muốn 404", rec.Code)
+	}
+
+	code, c := e.addrPost(shipAll, path, "lo-1", fmt.Sprintf(`{"address":%s,"note":"Khách nhờ"}`,
+		addrJSON(testkit.SampleWardCode)))
+	if code != http.StatusCreated {
+		t.Fatalf("yêu cầu = %d %v", code, c)
+	}
+	code, items := list(shipAll)
+	if code != http.StatusOK || len(items) != 1 {
+		t.Fatalf("có một yêu cầu mở = %d %v", code, items)
+	}
+	got, _ := items[0].(map[string]any)
+	if got["id"] != c["id"] || got["status"] != "pending" || got["mode"] != "manual" || got["shipmentId"] != id ||
+		got["note"] != "Khách nhờ" {
+		t.Fatalf("yêu cầu mở = %v", got)
+	}
+	for _, k := range []string{"address", "newAddress", "line", "phone"} {
+		if _, ok := got[k]; ok {
+			t.Fatalf("yêu cầu mở lộ khóa %q: %v", k, got)
+		}
+	}
+	if code, b := e.addrPost(shipAll, "/api/v1/address-changes/"+fmt.Sprint(c["id"])+"/resolve", "lo-2",
+		`{"result":"rejected"}`); code != http.StatusOK {
+		t.Fatalf("hãng không đổi được = %d %v", code, b)
+	}
+	if code, items := list(shipAll); code != http.StatusOK || len(items) != 0 {
+		t.Fatalf("sau khi đóng = %d %v, muốn rỗng", code, items)
+	}
+}

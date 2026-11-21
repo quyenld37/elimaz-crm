@@ -2,8 +2,9 @@
 // C, G, H; HV07–HV11, HV16 chủ shop OK 21/11). Đơn "Đã xác nhận" chưa có vận đơn: so phí các tài khoản của kho đơn
 // (mở khối mà đơn chưa từng so phí thì tự hỏi một lần), chọn sẵn giá rẻ nhất, gửi hãng ngay không hộp xác nhận; báo phí
 // quá hạn hay đổi cân nặng, tùy chọn sau khi so phí thì nút gửi thành "Báo phí lại"; 409 quote_stale tự báo phí lại và
-// giữ tài khoản đã chọn. Tài khoản nhập mã tay dán mã khi gửi; tự giao chỉ một nút. Có vận đơn: kết quả lệnh tạo
-// (CreateStateBanner). Nút theo quyền ở kho của đơn; máy chủ vẫn kiểm.
+// giữ tài khoản đã chọn. Tài khoản nhập mã tay dán mã khi gửi; tự giao chỉ một nút. Có vận đơn: đang tạo → kết quả
+// lệnh tạo (CreateStateBanner, kèm "Hủy để đổi hãng" khi lệnh tạo đã kết thúc); đã gửi → ShipmentCard (Task 134). Nút
+// theo quyền ở kho của đơn; máy chủ vẫn kiểm.
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
@@ -20,6 +21,7 @@ import { reloadOrder } from "../don/orderData";
 import { canAt } from "../inventory/stocktakeRules";
 import { parseMoney } from "../products/editRules";
 import { formatMoney } from "../products/productRules";
+import { CancelDialog } from "./CancelDialog";
 import { Act, CreateStateBanner, RejectedNote, TEXT_NO_SHIP_PERM } from "./CreateStateBanner";
 import { QuoteTable, buildRows, carrierName, isExpired, isPriced, resolvePick, type PickRow } from "./QuoteTable";
 import {
@@ -32,6 +34,7 @@ import {
   type ParcelForm,
   type Params,
 } from "./SendForm";
+import { ShipmentCard, ShipmentExtras } from "./ShipmentCard";
 import {
   SELF_CARRIER,
   shipmentKey,
@@ -335,18 +338,69 @@ function Compose({
 }
 
 function Current({ id, o, onEdit }: { id: string; o: Order; onEdit?: (() => void) | undefined }) {
-  const { grants } = useGrants();
+  const { loaded, grants } = useGrants();
   const s = useCurrentShipment(id);
-  if (s.isError) return <div className="box box-err small">Chưa đọc được vận đơn. Tải lại trang.</div>;
-  if (s.data === undefined) return <p className="small muted">Đang tải vận đơn…</p>;
+  const [cancel, setCancel] = useState(false);
+  const sent = s.data !== undefined && s.data.status !== "creating" ? s.data : null;
+  const wh = o.warehouseId ?? "";
+  const canReplace = canAt(grants, "fulfillment.cancel", wh);
+  // Lệnh tạo kết thúc mà chưa có vận đơn ở hãng (Task 105, HV12): hủy để đổi hãng; "Không rõ" đòi tick đã tra hãng.
+  const state = s.data?.createState;
+  const replaceable = state === "unknown" || state === "not_sent";
+  // Nội dung của <section> chung (ShippingPanel): khối không dựng lại khi vận đơn tải xong hay đổi trạng thái.
   return (
-    <CreateStateBanner
-      s={s.data}
-      canShip={canAt(grants, "fulfillment.ship", o.warehouseId ?? "")}
-      orderId={o.id}
-      onEdit={onEdit}
-    />
+    <>
+      {sent !== null ? (
+        <ShipmentCard s={sent} order={o} />
+      ) : s.isError ? (
+        <div className="box box-err small">Chưa đọc được vận đơn. Tải lại trang.</div>
+      ) : s.data === undefined ? (
+        <p className="small muted">Đang tải vận đơn…</p>
+      ) : (
+        <>
+          <CreateStateBanner
+            s={s.data}
+            canShip={canAt(grants, "fulfillment.ship", wh)}
+            orderId={o.id}
+            onEdit={onEdit}
+          />
+          {replaceable && (
+            <Act reason={loaded && !canReplace ? "Bạn không có quyền hủy vận đơn ở kho của đơn này" : null}>
+              <button
+                type="button"
+                className="btn btn-quiet"
+                disabled={!canReplace}
+                onClick={() => {
+                  setCancel(true);
+                }}
+              >
+                Hủy để đổi hãng
+              </button>
+            </Act>
+          )}
+          {cancel && (
+            <CancelDialog
+              s={s.data}
+              order={o}
+              canReplace={canReplace}
+              canCancelOrder={false}
+              needsCheck={state === "unknown"}
+              replaceOnly
+              onClose={() => {
+                setCancel(false);
+              }}
+            />
+          )}
+        </>
+      )}
+    </>
   );
+}
+
+/** Thẻ dưới khối Vận chuyển (đổi địa chỉ, COD) khi vận đơn id đã gửi hãng. */
+function CurrentExtras({ id, o }: { id: string; o: Order }) {
+  const s = useCurrentShipment(id);
+  return s.data !== undefined && s.data.status !== "creating" ? <ShipmentExtras s={s.data} order={o} /> : null;
 }
 
 /** Khối Vận chuyển của đơn o: hiện khi đơn đã xác nhận hoặc đã có vận đơn hiện hành. */
@@ -356,21 +410,25 @@ export function ShippingPanel({ order: o, onEdit }: { order: Order; onEdit?: () 
   const [created, setCreated] = useState<{ id: string; version: number | undefined } | null>(null);
   if (o.status !== "confirmed" && o.currentShipmentId === undefined) return null;
   const id = o.currentShipmentId ?? (created !== null && created.version === o.version ? created.id : undefined);
+  // Một <section> cho cả hai nhánh: gửi xong (Compose → Current) không dựng lại khối.
   return (
-    <section className="card ship" aria-label="Vận chuyển">
-      {id !== undefined ? (
-        <Current id={id} o={o} onEdit={onEdit} />
-      ) : (
-        <Compose
-          o={o}
-          onEdit={onEdit}
-          onCreated={(s) => {
-            qc.setQueryData(shipmentKey(s.id), s);
-            setCreated({ id: s.id, version: o.version });
-            reloadOrder(qc, o.id);
-          }}
-        />
-      )}
-    </section>
+    <>
+      <section className="card ship" aria-label="Vận chuyển">
+        {id !== undefined ? (
+          <Current id={id} o={o} onEdit={onEdit} />
+        ) : (
+          <Compose
+            o={o}
+            onEdit={onEdit}
+            onCreated={(s) => {
+              qc.setQueryData(shipmentKey(s.id), s);
+              setCreated({ id: s.id, version: o.version });
+              reloadOrder(qc, o.id);
+            }}
+          />
+        )}
+      </section>
+      {id !== undefined && <CurrentExtras id={id} o={o} />}
+    </>
   );
 }

@@ -189,6 +189,7 @@ var Routes = []Route{
 	{Method: "GET", Pattern: "GET /api/v1/shipments/review", OperationID: "listShipmentsForReview", Permission: "fulfillment.read"},
 	{Method: "GET", Pattern: "GET /api/v1/shipments/stuck", OperationID: "listStuckShipments", Permission: "fulfillment.read"},
 	{Method: "GET", Pattern: "GET /api/v1/shipments/{id}", OperationID: "getShipment", Permission: "fulfillment.read"},
+	{Method: "GET", Pattern: "GET /api/v1/shipments/{id}/address-changes", OperationID: "listShipmentAddressChanges", Permission: "fulfillment.read"},
 	{Method: "POST", Pattern: "POST /api/v1/shipments/{id}/address-changes", OperationID: "requestAddressChange", Permission: "fulfillment.ship", Write: true, IdempotencyMode: "required"},
 	{Method: "POST", Pattern: "POST /api/v1/shipments/{id}/cancel", OperationID: "cancelShipment", Permission: "fulfillment.cancel", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/shipments/{id}/cod", OperationID: "getShipmentCod", Permission: "cash.cod.read"},

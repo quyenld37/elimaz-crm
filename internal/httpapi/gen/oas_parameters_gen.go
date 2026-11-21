@@ -14738,6 +14738,71 @@ func decodeListReturnsParams(args [0]string, argsEscaped bool, r *http.Request) 
 	return params, nil
 }
 
+// ListShipmentAddressChangesParams is parameters of listShipmentAddressChanges operation.
+type ListShipmentAddressChangesParams struct {
+	ID uuid.UUID
+}
+
+func unpackListShipmentAddressChangesParams(packed middleware.Parameters) (params ListShipmentAddressChangesParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeListShipmentAddressChangesParams(args [1]string, argsEscaped bool, r *http.Request) (params ListShipmentAddressChangesParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // ListShipmentEventsParams is parameters of listShipmentEvents operation.
 type ListShipmentEventsParams struct {
 	ID uuid.UUID

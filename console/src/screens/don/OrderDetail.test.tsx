@@ -17,6 +17,7 @@ import {
   orderItem,
   renderAt,
   stubDialog,
+  LONG_COMPANY,
   type Fake,
 } from "./donTestkit";
 
@@ -550,5 +551,18 @@ describe("Chi tiết đơn — chỗ gắn khối Vận chuyển (M3 Task 133)",
     fake.orders.set(O1, order());
     await open();
     expect(screen.queryByRole("region", { name: "Vận chuyển" })).toBeNull();
+  });
+});
+
+describe("Chi tiết đơn — thẻ khách có mức nhận/hoàn (M3 Task 134, DH03)", () => {
+  it("tên khách 60+ ký tự giữ trong thẻ (cắt hai dòng); huy hiệu 'Nhận 3 · Hoàn 2 (40%)' 'Hay hoàn'", async () => {
+    fake.deliveryStats = { delivered: 3, returned: 2, returnRateBp: 4000, risk: "high" };
+    await open();
+    const name = screen.getByText(LONG_COMPANY);
+    expect(LONG_COMPANY.length).toBeGreaterThanOrEqual(60);
+    expect(name.className).toContain("clamp2");
+    const badge = await screen.findByLabelText("Nhận, hoàn của khách");
+    expect(badge.textContent).toBe("Nhận 3 · Hoàn 2 (40%)Hay hoàn");
+    expect(name.parentElement?.contains(badge)).toBe(true);
   });
 });

@@ -4,6 +4,8 @@ import { render } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { vi } from "vitest";
 import type {
+  AddressChange,
+  AdminUnit,
   DeliveryStats,
   FulfillmentSettings,
   Grant,
@@ -11,6 +13,8 @@ import type {
   Order,
   ShipAccount,
   Shipment,
+  ShipmentCod,
+  ShipmentEvent,
   ShippingQuote,
 } from "../../api";
 import { NOT_FOUND, bodyOf, reply, type Write } from "../../app/screenTestkit";
@@ -116,11 +120,20 @@ export interface Fake {
   replies: { status: number; body: unknown; headers?: Record<string, string> }[];
   /** Thân trả mặc định của createShipment (202). */
   created: Shipment;
+  /** Trang sự kiện của vận đơn theo con trỏ ("" = trang đầu). */
+  events: Map<string, { items: ShipmentEvent[]; nextCursor?: string }>;
+  /** Khung COD (null → 403 như người thiếu cash.cod.read). */
+  cod: ShipmentCod | null;
+  /** Yêu cầu đổi địa chỉ đang mở (listShipmentAddressChanges). */
+  addressChanges: AddressChange[];
+  settings: FulfillmentSettings;
+  /** Danh mục địa giới: tỉnh (parent rỗng) và xã theo mã tỉnh. */
+  adminUnits: AdminUnit[];
 }
 
 const FORBIDDEN = { error: "forbidden", request_id: "t" };
 
-const SETTINGS: FulfillmentSettings = {
+export const SETTINGS: FulfillmentSettings = {
   stuckHours: {},
   callbackDeadlineHours: 24,
   pollMinutes: {},
@@ -149,6 +162,11 @@ export function installFake(): Fake {
     writes: [],
     replies: [],
     created: shipment(),
+    events: new Map(),
+    cod: null,
+    addressChanges: [],
+    settings: SETTINGS,
+    adminUnits: [],
   };
   // Yêu cầu ghi: ghi lại; trả câu trả lời xếp sẵn (kèm header như Retry-After) hoặc mặc định theo đường.
   const onWrite = async (req: Request, path: string): Promise<Response> => {
@@ -170,7 +188,15 @@ export function installFake(): Fake {
   const onRead = (path: string, q: URLSearchParams): Response => {
     const me: Me = { userId: ME, email: "sale@elimaz.vn", grants: fake.grants };
     if (path === "/api/v1/me") return reply(me);
-    if (path === "/api/v1/fulfillment-settings") return reply(SETTINGS);
+    if (path === "/api/v1/fulfillment-settings") return reply(fake.settings);
+    if (path === "/api/v1/admin-units") {
+      const parent = q.get("parent") ?? "";
+      return reply({ items: fake.adminUnits.filter((u) => (u.parentCode ?? "") === parent) });
+    }
+    const sub = /^\/api\/v1\/shipments\/[^/]+\/(events|cod|address-changes)$/.exec(path)?.[1];
+    if (sub === "events") return reply(fake.events.get(q.get("cursor") ?? "") ?? { items: [] });
+    if (sub === "cod") return fake.cod === null ? reply(FORBIDDEN, 403) : reply(fake.cod);
+    if (sub === "address-changes") return reply({ items: fake.addressChanges });
     if (path === "/api/v1/carrier-accounts") {
       fake.accountReads.push(path);
       return reply(FORBIDDEN, 403);

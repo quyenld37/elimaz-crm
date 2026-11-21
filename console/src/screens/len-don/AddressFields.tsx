@@ -49,12 +49,6 @@ export function AddressFields({ value, onChange, customer, phoneIsCustomers, onP
     (c) => (c.matchedBy === "phone" || c.matchedBy === undefined) && c.id !== customerId,
   );
 
-  const provinces = useQuery({
-    queryKey: queryKey(ADMIN_TOPIC, "provinces"),
-    queryFn: () => unwrap(listAdminUnits({})),
-    staleTime: Number.POSITIVE_INFINITY,
-  });
-
   return (
     <section className="card" aria-labelledby={`${id}-h`}>
       <div className="row-between">
@@ -162,24 +156,7 @@ export function AddressFields({ value, onChange, customer, phoneIsCustomers, onP
         </>
       )}
       <div className="grid-f" style={{ marginTop: 12 }}>
-        <label className="field">
-          <span>Tỉnh/thành *</span>
-          <span className="select-wrap">
-            <select
-              value={value.provinceCode}
-              onChange={(e) => {
-                set({ provinceCode: e.target.value, wardCode: "", wardName: "" });
-              }}
-            >
-              <option value="">Chọn tỉnh/thành</option>
-              {(provinces.data?.items ?? []).map((p) => (
-                <option key={p.code} value={p.code}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </span>
-        </label>
+        <ProvinceField label="Tỉnh/thành *" value={value} onChange={onChange} />
         <WardField value={value} onChange={onChange} />
       </div>
       <label className="field" style={{ marginTop: 12 }}>
@@ -202,6 +179,44 @@ export function AddressFields({ value, onChange, customer, phoneIsCustomers, onP
   );
 }
 
+/** Ô chọn tỉnh/thành (danh mục listAdminUnits); đổi tỉnh thì xóa xã. Dùng lại ở hộp đổi địa chỉ sau khi gửi hãng và địa chỉ lấy hàng của kho. */
+export function ProvinceField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: AddressInput;
+  onChange: (a: AddressInput) => void;
+}) {
+  const provinces = useQuery({
+    queryKey: queryKey(ADMIN_TOPIC, "provinces"),
+    queryFn: () => unwrap(listAdminUnits({})),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <span className="select-wrap">
+        <select
+          value={value.provinceCode}
+          onChange={(e) => {
+            onChange({ ...value, provinceCode: e.target.value, wardCode: "", wardName: "" });
+          }}
+        >
+          <option value="">Chọn tỉnh/thành</option>
+          {(provinces.data?.items ?? []).map((p) => (
+            <option key={p.code} value={p.code}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </span>
+    </label>
+  );
+}
+
+/** Ô xã/phường (gõ để lọc trong tỉnh đã chọn); dùng lại ở hộp đổi địa chỉ sau khi gửi hãng (Task 134) và địa chỉ lấy hàng của kho (Task 132). */
 export function WardField({ value, onChange }: { value: AddressInput; onChange: (a: AddressInput) => void }) {
   const inputId = useId();
   const listId = useId();

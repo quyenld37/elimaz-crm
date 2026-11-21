@@ -1105,6 +1105,16 @@ func (UnimplementedHandler) ListRolesToManage(ctx context.Context) (r ListRolesT
 	return r, ht.ErrNotImplemented
 }
 
+// ListShipmentAddressChanges implements listShipmentAddressChanges operation.
+//
+// Quyền fulfillment.read theo kho của tài khoản hãng của vận đơn; thiếu phạm vi →
+// 404.
+//
+// GET /api/v1/shipments/{id}/address-changes
+func (UnimplementedHandler) ListShipmentAddressChanges(ctx context.Context, params ListShipmentAddressChangesParams) (r ListShipmentAddressChangesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListShipmentEvents implements listShipmentEvents operation.
 //
 // Lịch sử sự kiện của vận đơn, mới nhất trước; không có thân thô của hãng

@@ -3369,6 +3369,22 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /api/v1/shipments/{id}/address-changes:
+    get:
+      operationId: listShipmentAddressChanges
+      summary: 'Yêu cầu đổi địa chỉ đang mở của vận đơn (pending, sent, unknown; nhiều nhất một), để nhân viên xác nhận sau khi tải lại trang; không trả địa chỉ (Task 134)'
+      description: Quyền fulfillment.read theo kho của tài khoản hãng của vận đơn; thiếu phạm vi → 404.
+      x-permission: fulfillment.read
+      parameters:
+        - $ref: "#/components/parameters/ShipmentID"
+      responses:
+        "200":
+          description: listShipmentAddressChanges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddressChangeList"
+        default:
+          $ref: "#/components/responses/Error"
     post:
       operationId: requestAddressChange
       summary: 'Yêu cầu đổi địa chỉ giao sau khi đã gửi hãng (một yêu cầu mở mỗi vận đơn); địa chỉ chưa khớp hãng → 422 address_unmapped (Task M3-17)'
@@ -8562,6 +8578,15 @@ components:
         note:
           type: string
           maxLength: 1000
+    AddressChangeList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 1
+          items:
+            $ref: "#/components/schemas/AddressChange"
     AddressChange:
       type: object
       required: [id, shipmentId, mode, status, createdAt]
