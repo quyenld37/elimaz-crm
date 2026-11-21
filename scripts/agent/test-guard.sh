@@ -43,7 +43,11 @@ done
 
 [ -z "$findings" ] && exit 0
 
-task=${TASK_FILE:-$(ls -t docs/tasks/task-*.md 2>/dev/null | head -1)}
+# 21/11 (Task 451 ghi): chọn tệp task theo task ĐANG CHẠY (crm-task-state do new-task.sh ghi), không theo tệp mới sửa nhất —
+# sau khi gộp main, tệp task của task khác có thể mới hơn và test-guard đòi ghi lý do nhầm chỗ.
+cur=$(sed -n 's/^Task: *//p' "$(git rev-parse --git-dir 2>/dev/null)/crm-task-state" 2>/dev/null | head -1)
+[ -n "$cur" ] && [ -f "docs/tasks/task-$cur.md" ] && cur_file="docs/tasks/task-$cur.md" || cur_file=""
+task=${TASK_FILE:-${cur_file:-$(ls -t docs/tasks/task-*.md 2>/dev/null | head -1)}}
 section=""
 [ -n "$task" ] && [ -f "$task" ] && section=$(awk '/^## Test bị xóa hoặc tắt/{on=1;next} /^## /{on=0} on' "$task")
 
