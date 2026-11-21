@@ -80,6 +80,9 @@ func lockGroupsOnce(ctx context.Context, tx pgx.Tx, ids []uuid.UUID) (lockedGrou
 		if err != nil {
 			return lockedGroups{}, err
 		}
+		if len(members) == 0 { // gốc vừa bị gộp vào gốc khác sau câu RootOf: đọc lại gốc (Task M3-21 sửa panic)
+			return lockedGroups{}, errGroupRetry
+		}
 		g.members[root] = members
 		g.roots = append(g.roots, root)
 		for _, m := range members {
