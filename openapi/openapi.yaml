@@ -3101,6 +3101,21 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /api/v1/inventory/warehouses/{id}/pickup:
+    get:
+      operationId: getWarehousePickup
+      summary: 'Địa chỉ lấy hàng đang lưu của kho và version để ghi (chưa ghi lần nào: chỉ warehouseId, version) (Task M3-41)'
+      x-permission: fulfillment.settings.manage
+      parameters:
+        - $ref: "#/components/parameters/WarehouseID"
+      responses:
+        "200":
+          description: getWarehousePickup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarehousePickup"
+        default:
+          $ref: "#/components/responses/Error"
     put:
       operationId: setWarehousePickup
       summary: 'Địa chỉ lấy hàng của kho khi version còn khớp; audit chỉ ghi tên trường (Task M3-09)'

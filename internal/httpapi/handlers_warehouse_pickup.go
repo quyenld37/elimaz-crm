@@ -16,6 +16,30 @@ import (
 // Vùng warehouse_pickup (kế hoạch M3, Task M3-09): địa chỉ lấy hàng của kho (của shop, không phải của khách).
 // Quyền fulfillment.settings.manage (toàn shop, guard kiểm trước handler). Audit chỉ ghi tên trường đổi, không giá trị.
 
+// GetWarehousePickup (GET /api/v1/inventory/warehouses/{id}/pickup, Task M3-41): địa chỉ lấy hàng đang lưu và version
+// để màn gửi khi ghi; trường chưa ghi bỏ trống. Kho không có (hay tenant khác) → 404.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) GetWarehousePickup(ctx context.Context, params gen.GetWarehousePickupParams) (gen.GetWarehousePickupRes, error) {
+	var p inventory.WarehousePickup
+	if err := h.catalogRead(ctx, func(tx pgx.Tx) (err error) {
+		p, err = inventory.GetWarehousePickup(ctx, tx, params.ID)
+		return err //nolint:wrapcheck // sentinel của inventory
+	}); err != nil {
+		return nil, fmt.Errorf("đọc địa chỉ lấy hàng: %w", err)
+	}
+	opt := func(s string) gen.OptString {
+		if s == "" {
+			return gen.OptString{}
+		}
+		return gen.NewOptString(s)
+	}
+	return &gen.WarehousePickup{
+		WarehouseId: params.ID, Name: opt(p.Address.Name), Phone: opt(string(p.Phone)), Line: opt(p.Address.Line),
+		ProvinceCode: opt(p.Address.ProvinceCode), WardCode: opt(p.Address.WardCode), Version: p.Version,
+	}, nil
+}
+
 // SetWarehousePickup (PUT /api/v1/inventory/warehouses/{id}/pickup): ghi khi version còn khớp (sai → 409); SĐT chuẩn
 // hóa về +84… (sai → 422 invalid_phone).
 //

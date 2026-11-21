@@ -94,6 +94,12 @@ shop OK 21/11).
 9. **Băng VC12 "Hãng từ chối hủy"** của mockup E chưa vẽ: `Shipment` không có trường cho biết lần hủy vừa bị hãng từ
    chối (vận đơn chỉ quay lại "Đang chuyển"); ghi ở Việc phát hiện thêm, không đoán từ dòng thời gian.
 
+10. **Lượt gộp Task 132 (xung đột `AddressFields.tsx`):** giữ một cách tách duy nhất là bản của task này
+   (`ProvinceField` + `WardField` xuất ra) vì bản của main chỉ xuất `WardField`, không đủ cho hộp đổi địa chỉ; ô Tỉnh
+   viết riêng trong `carriers/PickupPanel.tsx` (Task 132) chuyển sang `ProvinceField` (cùng nhãn "Tỉnh *", cùng khóa
+   truy vấn tỉnh, đổi tỉnh vẫn xóa xã và tắt "Đã lưu" qua `set`), xóa truy vấn tỉnh và `ADMIN_TOPIC` thừa. Phương án
+   khác: để ô Tỉnh viết riêng ở hộp đổi địa chỉ (jscpd tăng) hay để PickupPanel giữ bản riêng (hai cách cùng việc).
+
 ## Bằng chứng
 
 Thứ tự: đường đọc API viết test trước (`TestAddressChangeAPI_ListOpen` đỏ 403 vì người dùng kho khác chưa có trong môi
@@ -117,6 +123,9 @@ trường, sửa phần dựng test rồi xanh); phần màn hình viết mã c�
 | Luật thuần: giờ VN hai chiều, ngày sai → null, giờ kẹt, câu lỗi lạ không lộ chữ thô | `shipmentRules.test.ts` (5 ca) | như trên | qua |
 | Bố cục 1512 và 390 không tràn, không cuộn ngang (tên khách 60 ký tự, 12 sự kiện, 112.450.000 ₫, hộp hủy, đổi địa chỉ, cập nhật tay); ảnh so mockup | `e2e/van-chuyen-sau-gui.spec.ts` (D, E kẹt, E đang hủy, F, G × 2 cỡ) | `cd console && CRM_E2E_PORT=5234 npx playwright test e2e/van-chuyen-sau-gui.spec.ts --project=chromium` | `10 passed (5.2s)`; ảnh `console/test-results/van-chuyen-sau-gui-*-{1512,390}.png` so `docs/mockups/m3/png/don-van-chuyen-{1512,390}.png` trạng thái D: cùng bố cục hai cột, cùng thứ tự (dòng thời gian, vận đơn của đơn ở trái; thẻ vận đơn, COD ở phải), chip nguồn, sự kiện bỏ qua viền đứt; khác: không có dòng mô tả phụ dưới sự kiện và tên người (API không có), nút hủy mờ khi đã lấy hàng (Quyết định 6), không có liên kết "Sổ của vận đơn" (chưa có màn) |
 | Cổng tĩnh (build, vet, lint, gen-check, sqlc-vet, catalog, jscpd, gitleaks, oasdiff, test-guard, console-check) và test gói đổi + phụ thuộc | ci-task | `scripts/agent/ci-task.sh` (sau khi gộp main, toàn bộ đã stage) | `CI-TASK XANH (so với điểm tách nhánh a6131971…)` |
+| Lượt gộp Task 132: một cách tách ô Tỉnh/Xã; PickupPanel dùng `ProvinceField`; spec Task 133 có API giả `GET /orders/{id}/shipping-accounts` | `e2e/van-chuyen.spec.ts` (A, G, C), `e2e/van-chuyen-sau-gui.spec.ts`, `e2e/carriers.spec.ts` × 1512/390 (carriers thêm 1280) | `cd console && CRM_E2E_PORT=5234 npx playwright test e2e/van-chuyen.spec.ts e2e/van-chuyen-sau-gui.spec.ts e2e/carriers.spec.ts --project=chromium` | `25 passed (7.5s)` (ca A, G của van-chuyen hết đỏ) |
+| Lượt gộp: test màn của các vùng chạm | vitest shipping, carriers, len-don, don, app | `cd console && npx vitest run src/screens/shipping src/screens/carriers src/screens/len-don src/screens/don src/app`; `npx tsc --noEmit`; `npx eslint .` | `Test Files 25 passed (25)`, `Tests 548 passed (548)`; tsc, eslint không lỗi |
+| Lượt gộp: cổng tĩnh và test gói đổi trên bản đã gộp | ci-task | ci-task.sh (lần 1 đỏ prettier ở `e2e/van-chuyen.spec.ts`, đã định dạng; lần 2) | `Found 0 clones.`, `CI-TASK XANH (so với điểm tách nhánh a6131971…)` |
 | Spec cũ của màn Đơn, Lên đơn, Task 133 vẫn qua (thêm đường API giả mới) | `e2e/don.spec.ts`, `e2e/len-don.spec.ts`, `e2e/van-chuyen.spec.ts` | `CRM_E2E_PORT=5234 npx playwright test e2e/len-don.spec.ts e2e/don.spec.ts e2e/van-chuyen.spec.ts --project=chromium` | `16 passed` (don, len-don) + `6 passed` (van-chuyen) |
 
 ## Test bị xóa hoặc tắt
@@ -132,6 +141,7 @@ trường, sửa phần dựng test rồi xanh); phần màn hình viết mã c�
   thẻ Khách; API giả của `e2e/{don,len-don,van-chuyen}.spec.ts`, `donTestkit.tsx`, `shippingTestkit.tsx` thêm đường mới.
 - `CreateStateBanner.tsx`: bỏ khối tóm tắt `Sent` (thay bằng `ShipmentCard`); `ShippingPanel.tsx`: nhánh có vận đơn
   dựng `ShipmentCard` / băng lệnh tạo trong cùng một `<section>` (không dựng lại khối khi gửi xong); không đổi `Compose`.
+- Lượt gộp main (Task 132): `carriers/PickupPanel.tsx` dùng `ProvinceField` (Quyết định 10).
 - Commit cấu trúc riêng: `AddressFields.tsx` tách `ProvinceField`, xuất `WardField` (không đổi hành vi) để hộp đổi địa
   chỉ dùng lại.
 
@@ -141,9 +151,9 @@ trường, sửa phần dựng test rồi xanh); phần màn hình viết mã c�
   vận đơn chỉ quay lại "Đang chuyển" (Quyết định 9).
 - `ShipmentEvent` không có người làm, không có mô tả phụ của hãng (mockup D có "Phạm Thu Trang", "Bưu tá đang đi phát").
 - Nút "Giao một phần" (Task 117) chưa có ở khối Vận chuyển; mockup đơn vận chuyển chưa vẽ.
-- `console/e2e/van-chuyen.spec.ts` ca A và G (1512, 390) đỏ ngay trên `main` sau khi gộp Task 449: API giả chưa khai
-  `GET /api/v1/orders/{id}/shipping-accounts` (đường mới của Task 449) — phần chọn tài khoản không thuộc task này nên
-  không sửa; các ca C của spec đó và spec của task này qua.
+- (Đã sửa ở lượt gộp, theo giao việc của điều phối viên) `console/e2e/van-chuyen.spec.ts` ca A và G đỏ trên `main` sau
+  Task 449 vì API giả thiếu `GET /api/v1/orders/{id}/shipping-accounts`; nay khai đường đó, bỏ đường `carrier-accounts`
+  khối Vận chuyển không còn đọc.
 - Liên kết "Sổ của vận đơn" ở khung COD chờ màn tiền trên đơn (mockup `tien-tren-don.html`).
 
 ## Reviewer
@@ -161,3 +171,9 @@ Quyết định 8, có test); khung COD hiện "Đang tải" thay vì câu "khô
 Commit 2 vòng 2: **ĐẠT** — phát hiện vòng 1 đã sửa (In nhãn có test href và ca thiếu quyền); `replaceOnly` chỉ truyền từ
 "Hủy để đổi hãng"; `CodBox` không gọi API khi quyền chưa tải; không test nào bị xóa, tắt, nới. ci-task chạy lại sau
 sửa: `CI-TASK XANH`.
+
+Commit gộp main (Task 132, 449; xung đột `AddressFields.tsx`, mã sinh): **ĐẠT** vòng 1 — một cách tách duy nhất
+(`ProvinceField`, `WardField`); `PickupPanel` giữ hành vi (đổi tỉnh xóa xã, `setSaved(false)`, cùng khóa truy vấn
+tỉnh); mã sinh đủ thao tác hai bên (184 `export const` = 184 `operationId`); API giả `shipping-accounts` đủ 5 trường
+bắt buộc của `ShipAccount`. Ghi chú không bắt buộc: `van-chuyen-sau-gui.spec.ts` không khai `shipping-accounts` (chưa
+sai: mọi ca đã có vận đơn, truy vấn không bật).

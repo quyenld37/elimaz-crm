@@ -158,6 +158,41 @@ a {
 .nav-a:hover {
   background: var(--surface);
 }
+/* Số đếm cạnh mục menu (HV02 M3, docs/mockups/m3/m3.css): quá hạn thì nền đỏ */
+.nav-a .grow {
+  min-width: 0;
+}
+.nav-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--label);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.nav-n.is-late {
+  background: var(--buy);
+  color: var(--paper);
+}
+/* Chữ chỉ cho trình đọc màn hình */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .side-user {
   margin: var(--space-md) var(--space-lg) 0;
   padding-top: var(--space-md);

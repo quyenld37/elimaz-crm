@@ -7194,6 +7194,33 @@ export type SetCarrierAccountStatusResponses = {
 
 export type SetCarrierAccountStatusResponse = SetCarrierAccountStatusResponses[keyof SetCarrierAccountStatusResponses];
 
+export type GetWarehousePickupData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/inventory/warehouses/{id}/pickup';
+};
+
+export type GetWarehousePickupErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetWarehousePickupError = GetWarehousePickupErrors[keyof GetWarehousePickupErrors];
+
+export type GetWarehousePickupResponses = {
+    /**
+     * getWarehousePickup
+     */
+    200: WarehousePickup;
+};
+
+export type GetWarehousePickupResponse = GetWarehousePickupResponses[keyof GetWarehousePickupResponses];
+
 export type SetWarehousePickupData = {
     body: SetWarehousePickupRequest;
     headers: {

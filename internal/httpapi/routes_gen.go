@@ -140,6 +140,7 @@ var Routes = []Route{
 	{Method: "POST", Pattern: "POST /api/v1/inventory/suppliers", OperationID: "createSupplier", Permission: "inventory.suppliers.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "PATCH", Pattern: "PATCH /api/v1/inventory/suppliers/{id}", OperationID: "updateSupplier", Permission: "inventory.suppliers.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/inventory/warehouses", OperationID: "listWarehouses", Permission: "inventory.read"},
+	{Method: "GET", Pattern: "GET /api/v1/inventory/warehouses/{id}/pickup", OperationID: "getWarehousePickup", Permission: "fulfillment.settings.manage"},
 	{Method: "PUT", Pattern: "PUT /api/v1/inventory/warehouses/{id}/pickup", OperationID: "setWarehousePickup", Permission: "fulfillment.settings.manage", Write: true, IdempotencyMode: "required"},
 	{Method: "POST", Pattern: "POST /api/v1/label-batches", OperationID: "createLabelBatch", Permission: "fulfillment.print", Write: true, IdempotencyMode: "required"},
 	{Method: "GET", Pattern: "GET /api/v1/label-batches/{id}", OperationID: "getLabelBatch", Permission: "fulfillment.print"},

@@ -179,7 +179,7 @@ export function AddressFields({ value, onChange, customer, phoneIsCustomers, onP
   );
 }
 
-/** Ô chọn tỉnh/thành (danh mục listAdminUnits); đổi tỉnh thì xóa xã. Dùng lại ở hộp đổi địa chỉ sau khi gửi hãng. */
+/** Ô chọn tỉnh/thành (danh mục listAdminUnits); đổi tỉnh thì xóa xã. Dùng lại ở hộp đổi địa chỉ sau khi gửi hãng và địa chỉ lấy hàng của kho. */
 export function ProvinceField({
   label,
   value,
@@ -216,7 +216,7 @@ export function ProvinceField({
   );
 }
 
-/** Ô xã/phường (gõ để lọc trong tỉnh đã chọn); dùng lại ở hộp đổi địa chỉ sau khi gửi hãng (Task 134). */
+/** Ô xã/phường (gõ để lọc trong tỉnh đã chọn); dùng lại ở hộp đổi địa chỉ sau khi gửi hãng (Task 134) và địa chỉ lấy hàng của kho (Task 132). */
 export function WardField({ value, onChange }: { value: AddressInput; onChange: (a: AddressInput) => void }) {
   const inputId = useId();
   const listId = useId();
