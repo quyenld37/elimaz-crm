@@ -49,6 +49,20 @@ const (
 	CancelModeReject = "reject"
 )
 
+// Chế độ sửa địa chỉ của hãng giả (SetUpdateMode; Task M3-17). Rỗng (mặc định): hãng không sửa địa chỉ qua API.
+const (
+	// UpdateModeDone: hãng nhận địa chỉ mới (UpdateDone).
+	UpdateModeDone = "done"
+	// UpdateModeRejected: hãng trả lời không sửa (UpdateRejected).
+	UpdateModeRejected = "rejected"
+	// UpdateModePending: hãng nhận yêu cầu, chưa trả lời chắc (UpdatePending).
+	UpdateModePending = "pending"
+	// UpdateModeTimeoutAfterSend: hãng nhận địa chỉ rồi quá giờ (lỗi không rõ).
+	UpdateModeTimeoutAfterSend = "timeout_after_send"
+	// UpdateModeNotSent: chắc chưa gửi (ErrNotSent).
+	UpdateModeNotSent = "not_sent"
+)
+
 // Phí cố định của mỗi kiện.
 const fee = 25000
 
@@ -59,8 +73,9 @@ type parcel struct {
 	seq                    int
 }
 
-// Carrier là hãng giả, an toàn khi gọi song song. Làm phần M1 (tạo, tra theo mã, đọc trạng thái) và hủy (Task M3-14);
-// phần M3 khác trả fulfillment.ErrNotSupported (hãng giả đủ khả năng là internal/adapters/carrier/fake).
+// Carrier là hãng giả, an toàn khi gọi song song. Làm phần M1 (tạo, tra theo mã, đọc trạng thái), hủy (Task M3-14),
+// sửa địa chỉ (Task M3-17); phần M3 khác trả fulfillment.ErrNotSupported (hãng giả đủ khả năng là
+// internal/adapters/carrier/fake).
 type Carrier struct {
 	fulfillment.Unsupported
 
@@ -70,6 +85,8 @@ type Carrier struct {
 	noCancel     bool
 	idempotent   bool
 	inconclusive bool
+	updateMode   string
+	updated      map[string]fulfillment.Address
 	createHook   func()
 	calls        map[string]int
 	byCode       map[string]*parcel
@@ -78,7 +95,7 @@ type Carrier struct {
 
 // New tạo hãng giả ở chế độ ok.
 func New() *Carrier {
-	return &Carrier{mode: ModeOK, cancelMode: CancelModeOK, calls: map[string]int{}, byCode: map[string]*parcel{}, byTracking: map[string]*parcel{}}
+	return &Carrier{mode: ModeOK, cancelMode: CancelModeOK, calls: map[string]int{}, updated: map[string]fulfillment.Address{}, byCode: map[string]*parcel{}, byTracking: map[string]*parcel{}}
 }
 
 // SetLookupInconclusive đặt v = true thì LookupByCode trả Inconclusive (hãng không trả lời chắc chắn), không tra kiện.
@@ -96,7 +113,7 @@ func (c *Carrier) SetCreateHook(f func()) {
 	c.createHook = f
 }
 
-// Calls trả số lần gọi op ("create", "lookup", "cancel").
+// Calls trả số lần gọi op ("create", "lookup", "cancel", "update_address").
 func (c *Carrier) Calls(op string) int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -220,7 +237,9 @@ func (c *Carrier) GetStatus(_ context.Context, _ fulfillment.Account, tracking s
 func (c *Carrier) Capabilities() fulfillment.Capabilities {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return fulfillment.Capabilities{Create: true, LookupByRef: true, Cancel: !c.noCancel, CancelIdempotent: c.idempotent}
+	return fulfillment.Capabilities{
+		Create: true, LookupByRef: true, Cancel: !c.noCancel, CancelIdempotent: c.idempotent, UpdateAddress: c.updateMode != "",
+	}
 }
 
 // SetCancelMode đổi chế độ hủy (CancelMode*).
@@ -298,4 +317,48 @@ func (*Carrier) MapCanonical(raw string) (fulfillment.Canonical, bool) {
 func (c *Carrier) MapStatus(raw string) (fulfillment.Status, bool) {
 	canon, _ := c.MapCanonical(raw)
 	return fulfillment.StatusFromCanonical(canon)
+}
+
+// SetUpdateMode đặt chế độ sửa địa chỉ (UpdateMode*; rỗng: hãng không sửa địa chỉ qua API, Capabilities.UpdateAddress
+// false).
+func (c *Carrier) SetUpdateMode(m string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.updateMode = m
+}
+
+// Updated trả địa chỉ hãng đã nhận lần gần nhất cho kiện tracking (false: chưa nhận lần nào).
+func (c *Carrier) Updated(tracking string) (fulfillment.Address, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	a, ok := c.updated[tracking]
+	return a, ok
+}
+
+// UpdateAddress sửa địa chỉ kiện tracking theo chế độ sửa (đếm "update_address"): rỗng → ErrNotSupported; not_sent →
+// ErrNotSent; không có kiện → ErrRejected; done → nhận địa chỉ (UpdateDone); rejected → UpdateRejected; pending →
+// UpdatePending; timeout_after_send → nhận địa chỉ rồi lỗi không rõ.
+func (c *Carrier) UpdateAddress(_ context.Context, _ fulfillment.Account, tracking string, to fulfillment.Address,
+) (fulfillment.UpdateResult, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.calls["update_address"]++
+	_, ok := c.byTracking[tracking]
+	switch {
+	case c.updateMode == "":
+		return "", fulfillment.ErrNotSupported
+	case c.updateMode == UpdateModeNotSent:
+		return "", fulfillment.ErrNotSent
+	case !ok:
+		return "", fulfillment.ErrRejected
+	case c.updateMode == UpdateModeRejected:
+		return fulfillment.UpdateRejected, nil
+	case c.updateMode == UpdateModePending:
+		return fulfillment.UpdatePending, nil
+	}
+	c.updated[tracking] = to
+	if c.updateMode == UpdateModeTimeoutAfterSend {
+		return "", errTimeout
+	}
+	return fulfillment.UpdateDone, nil
 }

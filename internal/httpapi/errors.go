@@ -535,6 +535,9 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		{fulfillment.ErrManualNotAllowed, http.StatusConflict, codeInvalidTransition},
 		// In nhãn (M3, Task M3-16).
 		{fulfillment.ErrLabelBatchInvalid, http.StatusBadRequest, codeInvalidInput},
+		// Đổi địa chỉ sau khi gửi hãng (M3, Task M3-17; chỉ mã có sẵn trong hợp đồng).
+		{fulfillment.ErrAddressChangeOpen, http.StatusConflict, codeAlreadyExists},
+		{fulfillment.ErrAddressChangeNotAllowed, http.StatusConflict, codeInvalidTransition},
 		// Cần xem (M3, Task M3-20): việc không có / ngoài phạm vi → 404; đã đóng, in_doubt_create → 409.
 		{fulfillment.ErrAnomalyNotFound, http.StatusNotFound, codeNotFound},
 		{fulfillment.ErrAnomalyNotResolvable, http.StatusConflict, codeInvalidTransition},
