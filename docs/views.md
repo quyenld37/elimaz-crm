@@ -88,6 +88,9 @@ Tìm dưới RLS mà không Seq Scan (spec 04 mục 7, đo ở Task M0-05): hàm
 ## Sự kiện công bố
 
 Sự kiện nội bộ (`events.Registry.Emit`, spec 04 mục 5.4) mà mốc sau nghe. `Seq` là `version` mới của đối tượng.
+`Seq` của một đối tượng chỉ tăng nhưng **có thể nhảy** (không liền nhau): có lần đổi tăng `version` mà không phát sự kiện
+(ví dụ lớp bọc M1 `order.AttachShipment`; review M1 D-06, Task 415). Consumer chỉ dựa vào thứ tự (Seq lớn hơn là mới hơn,
+như hàng đợi `OrderStrict`), không coi Seq nhảy là mất sự kiện.
 Payload chỉ mang mã và số (A16): consumer đọc dữ liệu qua view ở trên. Mốc chủ chỉ thêm khóa vào payload, không đổi
 hay bỏ khóa đã có.
 

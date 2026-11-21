@@ -23,7 +23,7 @@ TP10, TP01 với imager thật, phần OOM của tiêu chí 7) ghi ở E-04.
 |---|---|---|---|---|
 | A-01 | lớn | internal/modules/inventory/reserve.go:133-140 | Kiểm kho cho on_hand < phần giữ (Q8) → giao xong (Consume) và ghi số đếm lỗi CHECK, đơn kẹt | Task 406 (cần chủ shop chọn hành vi, đụng Q8) |
 | A-02 | nhỏ | migrations/0115_inventory.sql:129 | crm_app INSERT mọi cột stock_balances, stock_reservations | Task 414 |
-| A-03 | nghi ngờ | migrations/0204_order.sql:227-232 | M2: order_item_id NULL, ON DELETE SET NULL → giữ hàng mồ côi nếu sau này xóa dòng đơn | Task 415 (ghi cho M2) |
+| A-03 | nghi ngờ | migrations/0204_order.sql:227-232 | M2: order_item_id NULL, ON DELETE SET NULL → giữ hàng mồ côi nếu sau này xóa dòng đơn | Task 415: M2-20 (Task 77) xóa dòng đơn chỉ sau khi nhả giữ hàng `held` trong cùng transaction (`order/edit.go`, `DeleteOrderItems`), đơn có vận đơn hiện hành không sửa dòng; test `TestEdit_RemoveAndAddLines`. Chưa có chốt ở database (trigger): ghi ở Việc phát hiện thêm của Task 415 |
 | B-01 | lớn | internal/modules/catalog/imports_apply.go:27-29 | Tệp nhập > ~3.000 biến thể vượt hạn 30 s ở mọi lượt, không bao giờ áp được | Task 407 |
 | B-02 | lớn | internal/modules/catalog/internal/article/validate.go:24 | Bài viết sát trần 200 KB lưu được nhưng đọc lại jsonb (có dấu cách) vượt trần → mẫu bị khóa | **Đã sửa** (test `TestArticle_NearLimitReadsBack`) |
 | B-03 | nhỏ | internal/modules/catalog/imports.go:201 | Bước kiểm không bắt barcode gõ tay trùng biến thể có sẵn ngoài tệp; áp thì failed với câu báo sai | **Đã sửa** (test `TestImport_BarcodeTakenInDatabase`) |
@@ -42,12 +42,12 @@ TP10, TP01 với imager thật, phần OOM của tiêu chí 7) ghi ở E-04.
 | D-01 | lớn | internal/modules/fulfillment/fulfillment.go:134-166 | Vận đơn tạo bằng tài khoản hãng của kho khác kho giữ hàng → tồn trừ sai kho, vượt phạm vi kho | **Đã sửa** (test `TestShipment_AccountOfOtherWarehouse`) |
 | D-02 | nhỏ | internal/httpapi/handlers_order.go:51-53 | Lên đơn giữ hàng ở kho bất kỳ, không kiểm phạm vi kho | Task 411 (cần quyết định quyền) |
 | D-03 | nhỏ | internal/modules/fulfillment/create_shipment.go:151-196 | Lệnh tạo vận đơn rejected/expired/dead để vận đơn kẹt creating, đơn không tạo lại được | Task 408 |
-| D-04 | nhỏ | queries/customer/customers.sql | `customer.Create` của M1 không ghi `name_search`, `lifecycle` M2 thêm | Task 415 (ghi cho M2) |
-| D-05 | nghi ngờ | internal/modules/order/shipment_progress.go:90-96 | Đơn `cancel_requested` (M2) làm bước vận đơn của M1 lỗi mãi | Task 415 (ghi cho M2) |
-| D-06 | nghi ngờ | queries/ord/orders.sql (`SetCurrentShipment`) | Gắn vận đơn tăng version đơn mà không phát sự kiện | Task 415 (ghi cho M2) |
+| D-04 | nhỏ | queries/customer/customers.sql | `customer.Create` của M1 không ghi `name_search`, `lifecycle` M2 thêm | Task 415: đã sửa ở M2-09 (Task 66) — `customer.Create` là lớp bọc của `Writer.CreateCustomer` (ghi `name_search`, `lifecycle` lead, lên `customer` khi tính chỉ số); test `TestCreateM1Wrapper` |
+| D-05 | nghi ngờ | internal/modules/order/shipment_progress.go:90-96 | Đơn `cancel_requested` (M2) làm bước vận đơn của M1 lỗi mãi | Task 415: đã sửa ở Task 431 (M2-r2) — `Writer.OnShipmentEvent` (lõi của `ApplyShipmentProgress`) nhận đơn `confirmed` và `cancel_requested`; test `TestOnShipmentEvent_PickedUpWhileCancelRequested`, `TestOnShipmentEvent_DeliveredWhileCancelRequested` |
+| D-06 | nghi ngờ | queries/ord/orders.sql (`SetCurrentShipment`) | Gắn vận đơn tăng version đơn mà không phát sự kiện | Task 415: đường đang chạy `Writer.AttachShipmentBy` (Task 75) phát `order.updated`; lớp bọc M1 `order.AttachShipment` không phát và không còn chỗ gọi ngoài test. Luật Seq "chỉ tăng, có thể nhảy" ghi ở `docs/views.md` |
 | E-01 | nhỏ | console/src/screens/inventory/DocumentEdit.tsx:100-108 | Màn phiếu kho bỏ qua phạm vi kho của quyền | Task 412 |
 | E-02 | nhỏ | console/src/screens/imports/route.tsx:7,12 | Màn Nhập Excel thiếu điều kiện `files.upload`; màn Kiểm kho thiếu `inventory.read` | Task 412 |
-| E-03 | nhỏ | openapi/openapi.yaml:764; internal/modules/identity/staff.go:189,246 | Tên lệch kế hoạch: `getOriginalImageURL`; `ReplaceGrants`, `SetLocked` trả `(Change, error)` | Task 415 (sửa kế hoạch theo mã, xem Quyết định) |
+| E-03 | nhỏ | openapi/openapi.yaml:764; internal/modules/identity/staff.go:189,246 | Tên lệch kế hoạch: `getOriginalImageURL`; `ReplaceGrants`, `SetLocked` trả `(Change, error)` | Task 415: đã sửa kế hoạch M1 (Task 26, 321, 325 và mục "Tên theo mã") và dòng giả định của kế hoạch M7 theo mã; operationId không đổi |
 | E-04 | nhỏ | internal/imager/pipeline_test.go:148-158 | Ca TP03, TP08, TP09, TP10, TP01 imager thật, OOM tiêu chí 7 không chạy ở CI, SKIP trên máy dev | Task 414 |
 | E-05 | nhỏ | docs/threat-model-m1.md:70,125-132 | Lỗ hổng L1 (kiểm loại biến thể, nosniff), L3 (log không có URL ký) chưa task nào làm | Task 414 |
 | E-06 | nhỏ | console/src/screens/staff/staffRules.ts:69-75 | Màn Nhân viên khóa gán vai trò mà máy chủ cho phép (quyền `none`) | Task 412 |
@@ -67,7 +67,7 @@ TP10, TP01 với imager thật, phần OOM của tiêu chí 7) ghi ở E-04.
 | 412 | Màn hình khớp quyền máy chủ: phạm vi kho, quyền tải tệp, quyền `none`, cột Có thể bán, mock e2e nhập Excel | E-01, E-02, E-06, E-07, E-08 | |
 | 413 | Catalog: khóa bộ đếm barcode khi áp, danh mục lưu trữ, ký tự `>`/`;`, thứ tự từ khóa rộng | B-04, B-05, B-06, B-07 | |
 | 414 | Gia cố: GRANT cột số dư, imager không liên kết db/config, ca chạy tay có lịch chạy, L1/L3 threat model | A-02, C-05, E-04, E-05 | |
-| 415 | Ghi cho M2 và kế hoạch: giữ hàng mồ côi, khách M1 thiếu cột M2, cancel_requested, version đơn; đồng bộ tên kế hoạch | A-03, D-04, D-05, D-06, E-03 | |
+| 415 | Ghi cho M2 và kế hoạch: giữ hàng mồ côi, khách M1 thiếu cột M2, cancel_requested, version đơn; đồng bộ tên kế hoạch | A-03, D-04, D-05, D-06, E-03 | Xong 21/11: D-04, D-05, D-06 đã được M2 sửa; A-03 chốt ở mã; tên kế hoạch M1, M2 đồng bộ theo mã |
 
 ## Sửa trong Task 404
 
