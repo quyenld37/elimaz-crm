@@ -27,7 +27,14 @@ trị nhân viên, vai trò, nền tảng là loại `toàn shop`.
   gán vai trò **toàn shop** hoặc gán **theo đúng kho đó**. Ngoài phạm vi (gán theo kho khác, chỉ gán theo một Page, kho
   không có) → 403 `forbidden`, không tạo đơn, không giữ hàng; yêu cầu không lưu theo `Idempotency-Key` (được cấp kho
   rồi gửi lại cùng khóa thì xử lý lại). Chủ shop, Quản lý gán toàn shop không bị ảnh hưởng. Mã: `identity.GrantedAt`.
-  Đơn thay thế của phiếu đổi hàng dùng kho của đơn gốc (không chọn kho), không kiểm thêm.
+- **Phiếu đổi hàng cần quyền lên đơn ở kho của đơn gốc** (Task 436, quyết định 21/11 cho phát hiện B-06 của review
+  độc lập M2): phiếu đổi (`POST /api/v1/orders/{id}/returns`, `kind: exchange`) tạo một đơn thay thế giữ hàng ở kho của
+  đơn gốc (không chọn kho) và có thể thẳng `confirmed`. Ngoài `order.return` của route, người tạo phải có `order.create`
+  ở kho đó (gán toàn shop hoặc theo đúng kho), như luật lên đơn ở trên. Không có → 403 `forbidden`, không phiếu, không
+  giữ hàng, không lưu theo `Idempotency-Key`. Không đòi thêm `order.confirm`: tạo đơn `confirmed` qua `POST
+  /api/v1/orders` cũng chỉ cần `order.create`. Phiếu khách trả hàng (`customer_return`, không tạo đơn) chỉ cần
+  `order.return`. Màn Đơn khóa lựa chọn "Đổi hàng" khi nhân viên không có `order.create` ở gán nào. Mã:
+  `exchangeWarehouseAllowed` (`internal/httpapi/handlers_order_returns.go`).
 - `GET /api/v1/me` không cần quyền nào: chỉ cần đăng nhập và tài khoản không bị khóa (`x-authenticated`, Task 315).
 - **Vai trò mẫu**: `owner` Chủ, `manager` Quản lý, `sale` Bán hàng, `warehouse` Kho, `accountant` Kế toán. Vai trò
   chủ shop đã sửa (`customized`) không được thêm quyền tự động, trừ `owner` luôn đủ mọi quyền. Mỗi lần `migrate` xong,
@@ -88,7 +95,7 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `order.confirm` | none | M2 | owner, manager, sale | Xác nhận đơn, chuyển chờ khách, chốt đơn nháp |
 | `order.cancel` | none | M2 | owner, manager, sale | Hủy đơn, xử lý yêu cầu hủy |
 | `order.discount.approve` | none | M2 | owner, manager | Duyệt đơn giảm tay vượt ngưỡng; tự lên đơn giảm vượt ngưỡng không phải chờ |
-| `order.return` | none | M2 | owner, manager, sale | Tạo phiếu trả hàng, đổi hàng (M3 dùng lại) |
+| `order.return` | none | M2 | owner, manager, sale | Tạo phiếu trả hàng, đổi hàng (M3 dùng lại); đổi hàng cần thêm `order.create` ở kho của đơn gốc |
 | `order.return.receive` | none | M2 | owner, manager, warehouse | Nhận hàng trả về kho, ghi tình trạng từng dòng (M3 dùng lại) |
 | `order.duplicates.resolve` | none | M2 | owner, manager | Xử lý cặp đơn có thể trùng |
 | `order.settings.manage` | toàn shop | M2 | owner, manager | Cài đặt đơn của shop (ngưỡng duyệt giảm giá…), nguồn đơn |

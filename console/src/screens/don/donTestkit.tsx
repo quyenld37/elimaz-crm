@@ -14,6 +14,7 @@ import type {
   StaffMember,
   TimelineItem,
   TrafficSource,
+  VariantSearchHit,
 } from "../../api";
 import { screens } from "./route";
 
@@ -184,6 +185,8 @@ export interface Fake {
   /** Trả lần lượt cho mỗi yêu cầu ghi: mã HTTP và thân. Hết thì 200 (201 cho tạo) với đơn hiện tại hay phiếu. */
   replies: { status: number; body: unknown }[];
   returnWarningDays: number;
+  /** Kết quả tìm biến thể (ô thêm sản phẩm của hộp thoại đổi hàng); mặc định rỗng. */
+  variantHits: VariantSearchHit[];
 }
 
 const json = (b: unknown, status = 200) =>
@@ -208,6 +211,7 @@ export function installFake(): Fake {
     writes: [],
     replies: [],
     returnWarningDays: 7,
+    variantHits: [],
   };
   // Yêu cầu ghi: ghi lại khóa, thân; trả câu trả lời xếp sẵn hoặc đối tượng hiện tại.
   const onWrite = async (req: Request, p: string): Promise<Response> => {
@@ -299,7 +303,7 @@ export function installFake(): Fake {
         ];
         return json(staff);
       }
-      if (p === "/api/v1/catalog/variants/search") return json([]);
+      if (p === "/api/v1/catalog/variants/search") return json(fake.variantHits);
       if (p === "/api/v1/order-duplicate-check") return json({ items: [] });
       if (p === "/api/v1/coupon-check") return json({ ok: true, discount: 0 });
       if (p === "/api/v1/admin-units") return json({ items: [] });

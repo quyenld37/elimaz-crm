@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -99,6 +100,41 @@ func TestListEntityAudit_KeepsNewest500(t *testing.T) {
 		if r.Action == "order.create" {
 			t.Fatalf("dòng cũ nhất (order.create) vẫn có trong 500 dòng: %+v", r)
 		}
+	}
+}
+
+// Task 436: At khác zero là mốc của dòng (mốc của bên gọi lệch now() của transaction ±5 phút vẫn lưu đúng mốc đó, thứ
+// tự đọc theo mốc đó); At zero → now() của transaction. Một đồng hồ: mọi mốc tính từ now() đã đọc của transaction.
+func TestRecordAudit_At(t *testing.T) {
+	s := testkit.OpenStaff(t)
+	a := s.Tenant(t, "A")
+	ahead, behind, def := orderEntry(a), orderEntry(a), orderEntry(a)
+	ahead.ActorID, behind.ActorID, def.ActorID = "u-ahead", "u-behind", "u-default"
+	var txNow time.Time
+	if err := tenancy.WithTenant(t.Context(), s.App, a, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(t.Context(), "SELECT now()").Scan(&txNow); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		ahead.At, behind.At = txNow.Add(5*time.Minute), txNow.Add(-5*time.Minute)
+		for _, e := range []identity.AuditEntry{ahead, behind, def} {
+			if err := identity.RecordAudit(t.Context(), tx, e); err != nil {
+				return err //nolint:wrapcheck // test
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got := listOrderAudit(t, s, a)
+	if len(got) != 3 || got[0].ActorID != "u-ahead" || got[1].ActorID != "u-default" || got[2].ActorID != "u-behind" {
+		t.Fatalf("thứ tự theo mốc: %+v", got)
+	}
+	if !got[0].CreatedAt.Equal(ahead.At) ||
+		!got[2].CreatedAt.Equal(behind.At) {
+		t.Errorf("mốc lưu %v, %v; muốn %v, %v", got[0].CreatedAt, got[2].CreatedAt, ahead.At, behind.At)
+	}
+	if !got[1].CreatedAt.Equal(txNow) {
+		t.Errorf("At zero lưu %v, muốn now() của transaction %v", got[1].CreatedAt, txNow)
 	}
 }
 

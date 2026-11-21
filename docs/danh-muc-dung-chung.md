@@ -19,7 +19,10 @@ type Deps struct {
 	Bus realtime.Bus
 
 	Events *events.Registry
+
+	Now func() time.Time
 }
+func (d Deps) Clock() func() time.Time
 type Parts struct {
 	JobHandlers []queue.Handler
 	Consumers   []events.Consumer

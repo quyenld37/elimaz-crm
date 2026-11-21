@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -20,7 +19,7 @@ import (
 // UpdateOrder (PATCH /api/v1/orders/{id}, order.update): sửa đơn của người bán mặc định khi version còn khớp (Task
 // M2-20; order.Writer.Edit, một transaction cùng giữ hàng và mã giảm giá) → 200 thân đơn. Từ chối nghiệp vụ (version
 // cũ, đã gửi hãng, hết hàng, mã bị từ chối, giảm giá cần duyệt…) không lưu theo khóa. Audit order.update ghi tên các
-// trường đổi (không giá trị địa chỉ, SĐT); không trường nào đổi thì không ghi gì.
+// trường đổi (không giá trị địa chỉ, SĐT), mốc là now đã đưa vào Writer.Edit; không trường nào đổi thì không ghi gì.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) UpdateOrder(ctx context.Context, req *gen.UpdateOrderRequest, params gen.UpdateOrderParams) (gen.UpdateOrderRes, error) {
@@ -28,7 +27,8 @@ func (h *handler) UpdateOrder(ctx context.Context, req *gen.UpdateOrderRequest, 
 	out, err := h.orderWriteAsDefaultSeller(ctx, http.StatusOK, isOrderEditRefusal, "sửa đơn", func(tx pgx.Tx,
 		w order.Writer, u identity.AuthUser, seller uuid.UUID, a order.Actor,
 	) (any, error) {
-		res, err := w.Edit(ctx, tx, seller, params.ID, in, a, time.Now().UTC())
+		now := h.now().UTC()
+		res, err := w.Edit(ctx, tx, seller, params.ID, in, a, now)
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của order, promotion
 		}
@@ -36,9 +36,11 @@ func (h *handler) UpdateOrder(ctx context.Context, req *gen.UpdateOrderRequest, 
 			after := res.Order.AuditFields()
 			after["fields"] = res.Fields
 			after["pendingReason"] = res.Order.PendingReason
+			// Mục sửa của lịch sử đơn: cùng đồng hồ với dòng lịch sử trạng thái (now của module), không now() của
+			// database (Task 436).
 			if err := identity.RecordAudit(ctx, tx, identity.AuditEntry{
 				TenantID: u.TenantID, ActorType: "staff", ActorID: u.UserID.String(), Action: "order.update",
-				EntityType: "order", EntityID: res.Order.ID.String(), After: after, RequestID: RequestID(ctx),
+				EntityType: "order", EntityID: res.Order.ID.String(), After: after, RequestID: RequestID(ctx), At: now,
 			}); err != nil {
 				return nil, fmt.Errorf("ghi audit order.update: %w", err)
 			}

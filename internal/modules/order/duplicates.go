@@ -27,6 +27,9 @@ import (
 // tắt), cùng hồ sơ gốc của khách hoặc cùng SĐT giao (khác rỗng), và có ít nhất một biến thể chung. Không tự gộp dòng.
 // Thứ tự khóa (ADR-46 nhóm 7): hai đơn theo id tăng dần → order_duplicate_links → (khi hủy) như Cancel.
 
+// errDuplicatesNoClock: DuplicatesConsumer dựng không có đồng hồ (lỗi nối dây, không phải dữ liệu).
+var errDuplicatesNoClock = errors.New("order: DuplicatesConsumer thiếu đồng hồ Now")
+
 // DuplicatesConsumerName là tên consumer phát hiện đơn trùng (việc event.order_duplicates); đổi tên làm mất tiến độ.
 const DuplicatesConsumerName = "order_duplicates"
 
@@ -121,8 +124,11 @@ func ParseDuplicateCursor(s string) (DuplicateCursor, error) {
 // order.created, order.updated (bỏ qua khi X cancelled hay cửa sổ 0), mỗi đơn O khớp (luật ở đầu tệp) mà cặp (X, O)
 // chưa có dòng: khóa hai đơn theo id tăng dần, kiểm lại cả hai chưa cancelled, chèn dòng (ON CONFLICT DO NOTHING) và
 // chỉ khi chèn được thì bật duplicate_suspect của hai đơn (không tăng version, không phát order.updated nên không
-// lặp). Cặp đã có dòng (mở hay đã xử lý) không đụng lại. Chạy lại được; payload hỏng → queue.ErrPermanent.
-type DuplicatesConsumer struct{}
+// lặp). Cặp đã có dòng (mở hay đã xử lý) không đụng lại. Chạy lại được; payload hỏng → queue.ErrPermanent. Now là đồng hồ
+// cho mốc của cặp (bắt buộc; Background giao background.Deps.Clock): nil → lỗi, không ghi gì.
+type DuplicatesConsumer struct {
+	Now func() time.Time
+}
 
 // Name trả DuplicatesConsumerName.
 func (DuplicatesConsumer) Name() string { return DuplicatesConsumerName }
@@ -131,7 +137,10 @@ func (DuplicatesConsumer) Name() string { return DuplicatesConsumerName }
 func (DuplicatesConsumer) Topics() []string { return []string{TopicOrderCreated, TopicOrderUpdated} }
 
 // Handle tìm và ghi cặp nghi trùng của đơn trong sự kiện e, trong tx của worker.
-func (DuplicatesConsumer) Handle(ctx context.Context, e events.StoredEvent, tx pgx.Tx) error {
+func (c DuplicatesConsumer) Handle(ctx context.Context, e events.StoredEvent, tx pgx.Tx) error {
+	if c.Now == nil {
+		return errDuplicatesNoClock
+	}
 	var p Changed
 	if err := json.Unmarshal(e.Payload, &p); err != nil || p.OrderID == uuid.Nil || p.SellerID == uuid.Nil {
 		return fmt.Errorf("sự kiện %s: payload không hợp lệ: %w", e.ID, queue.ErrPermanent)
@@ -165,13 +174,13 @@ func (DuplicatesConsumer) Handle(ctx context.Context, e events.StoredEvent, tx p
 	if err != nil {
 		return fmt.Errorf("tìm đơn trùng: %w", err)
 	}
-	return linkAll(ctx, q, p.SellerID, x.ID, found, e)
+	return linkAll(ctx, q, p.SellerID, x.ID, found, e, c.Now().UTC())
 }
 
 // linkAll ghi các cặp (x, ứng viên) chưa có: khóa một lần x và mọi ứng viên theo id tăng dần (ADR-46: không khóa
 // ngược chiều khi x nằm giữa các ứng viên), bỏ cặp có đơn vừa bị hủy, chèn dòng; dòng chèn được thì bật cờ hai đơn.
 func linkAll(ctx context.Context, q *store.Queries, sellerID, x uuid.UUID, found []store.FindDuplicateCandidatesRow,
-	e events.StoredEvent,
+	e events.StoredEvent, now time.Time,
 ) error {
 	ids := []uuid.UUID{x}
 	for _, o := range found {
@@ -189,7 +198,6 @@ func linkAll(ctx context.Context, q *store.Queries, sellerID, x uuid.UUID, found
 	if cancelled[x] {
 		return nil
 	}
-	now := time.Now().UTC()
 	for _, o := range found {
 		if cancelled[o.ID] {
 			continue

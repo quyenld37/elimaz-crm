@@ -150,10 +150,51 @@ describe("Hộp thoại Trả/đổi", () => {
   });
 
   it("đổi hàng: cần chọn hàng đổi mới tạo được phiếu", async () => {
+    fake.grants = grantsOf("order.return", "order.create");
     const dlg = await openDialog();
+    expect(within(dlg).queryByText("Đổi hàng cần quyền lên đơn ở kho của đơn này.")).toBeNull();
     fireEvent.click(within(dlg).getByRole("radio", { name: "Đổi hàng" }));
     fireEvent.click(within(within(dlg).getByRole("row", { name: /DAM0123-BE-M/ })).getByRole("checkbox"));
     expect(within(dlg).getByRole<HTMLButtonElement>("button", { name: "Tạo phiếu đổi" }).disabled).toBe(true);
     expect(within(dlg).getByText("Chọn hàng đổi cho khách")).toBeTruthy();
+  });
+
+  it("chỉ có order.return: khóa Đổi hàng, vẫn tạo phiếu khách trả", async () => {
+    const dlg = await openDialog();
+    expect(within(dlg).getByRole<HTMLButtonElement>("radio", { name: "Đổi hàng" }).disabled).toBe(true);
+    expect(within(dlg).getByText("Đổi hàng cần quyền lên đơn ở kho của đơn này.")).toBeTruthy();
+    expect(within(dlg).getByRole<HTMLButtonElement>("radio", { name: "Khách trả hàng" }).disabled).toBe(false);
+  });
+
+  it("order.create theo kho khác: máy chủ trả 403, hộp thoại hiện lỗi, không đóng", async () => {
+    fake.grants = grantsOf("order.return", "order.create");
+    const dlg = await openDialog();
+    fireEvent.click(within(dlg).getByRole("radio", { name: "Đổi hàng" }));
+    fireEvent.click(within(within(dlg).getByRole("row", { name: /DAM0123-BE-M/ })).getByRole("checkbox"));
+    fake.replies.push({ status: 403, body: { error: "forbidden", request_id: "t" } });
+    fake.variantHits = [
+      {
+        variantId: V3,
+        productId: "p9",
+        sku: "DAM0999-DO-M",
+        barcode: "",
+        productCode: "DAM0999",
+        productName: "Đầm đỏ",
+        color: "Đỏ",
+        size: "M",
+        price: 450_000,
+        sellable: true,
+      },
+    ];
+    const box = within(dlg).getByRole("combobox", { name: "Thêm sản phẩm theo mã, tên hoặc barcode" });
+    fireEvent.focus(box);
+    fireEvent.change(box, { target: { value: "DAM0999" } });
+    fireEvent.click(await within(dlg).findByRole("option", { name: /DAM0999-DO-M/ }));
+    fireEvent.click(within(dlg).getByRole("button", { name: "Tạo phiếu đổi" }));
+    expect(await within(dlg).findByText("Bạn chưa được cấp quyền làm việc này")).toBeTruthy();
+    expect(fake.writes.at(-1)).toMatchObject({
+      body: { kind: "exchange", replacement: { items: [{ variantId: V3, qty: 1 }] } },
+    });
+    expect(screen.getByRole("dialog", { name: "Trả/đổi hàng · DH0001235" })).toBeTruthy();
   });
 });

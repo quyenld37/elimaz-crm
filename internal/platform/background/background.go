@@ -9,6 +9,7 @@ package background
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/events"
@@ -26,6 +27,17 @@ type Deps struct {
 	Bus realtime.Bus
 	// Events là sổ sự kiện nội bộ của tiến trình (Emit trong transaction).
 	Events *events.Registry
+	// Now là đồng hồ của phần chạy nền (module không gọi time.Now, kế hoạch M2 "Đồng hồ"); nil → time.Now. Đọc qua
+	// Clock.
+	Now func() time.Time
+}
+
+// Clock trả đồng hồ của d: d.Now, hoặc time.Now khi nil.
+func (d Deps) Clock() func() time.Time {
+	if d.Now != nil {
+		return d.Now
+	}
+	return time.Now
 }
 
 // Parts là phần chạy nền một module khai: việc nền (worker đăng ký), consumer sự kiện nội bộ (cmd/crm đăng ký vào

@@ -106,12 +106,15 @@ func TestExpireDrafts_Limit(t *testing.T) {
 }
 
 // Background của order khai lịch order.expire_drafts mỗi 60 giây theo tenant và handler cùng Kind; handler chạy
-// ExpireDrafts với giờ thật trong tx của việc và trả {"expired": n}.
+// ExpireDrafts với giờ của background.Deps.Now (B-05, Task 436: không gọi time.Now trong module) trong tx của việc và trả
+// {"expired": n}; dòng lịch sử hủy mang đúng giờ đó (một đồng hồ cho lịch sử đơn).
 func TestExpireDraftsSchedule(t *testing.T) {
 	e := newM2Env(t)
+	created := time.Now().UTC().AddDate(1, 0, 0).Truncate(time.Microsecond) // năm sau: theo giờ thật chưa quá hạn
+	clock := created.Add(48 * time.Hour)
 	parts := order.Background(background.Deps{
 		Queue: queue.NewQueue(), Events: events.NewRegistry(),
-		Bus: &testkit.RecordingBus{},
+		Bus: &testkit.RecordingBus{}, Now: func() time.Time { return clock },
 	})
 	if len(parts.Schedules) != 1 || len(parts.JobHandlers) != 1 {
 		t.Fatalf("lịch, việc nền: %d, %d", len(parts.Schedules), len(parts.JobHandlers))
@@ -125,8 +128,8 @@ func TestExpireDraftsSchedule(t *testing.T) {
 	in := e.m2Input(0, ln(v, 1, 0))
 	in.Intent = order.IntentDraft
 	var d order.Order
-	if err := e.app(func(tx pgx.Tx) error { // tạo lúc giờ thật − 2 ngày: đã quá hạn theo giờ thật
-		res, err := e.writer().Create(t.Context(), tx, in, e.actor, time.Now().UTC().Add(-48*time.Hour))
+	if err := e.app(func(tx pgx.Tx) error { // tạo lúc clock − 2 ngày: quá hạn theo đồng hồ của Deps
+		res, err := e.writer().Create(t.Context(), tx, in, e.actor, created)
 		d = res.Order
 		return err //nolint:wrapcheck // test
 	}); err != nil {
@@ -143,7 +146,7 @@ func TestExpireDraftsSchedule(t *testing.T) {
 	if string(out) != `{"expired":1}` {
 		t.Errorf("kết quả %s", out)
 	}
-	if g := e.get(d.ID); g.Status != order.StatusCancelled {
-		t.Errorf("đơn nháp sau việc nền: %s", g.Status)
+	if g := e.get(d.ID); g.Status != order.StatusCancelled || g.CancelledAt == nil || !g.CancelledAt.Equal(clock) {
+		t.Errorf("đơn nháp sau việc nền: %s, hủy lúc %v, muốn %v", g.Status, g.CancelledAt, clock)
 	}
 }

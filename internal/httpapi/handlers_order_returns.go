@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -60,7 +59,8 @@ func isReturnRefusal(err error) bool {
 }
 
 // CreateReturn (POST /api/v1/orders/{id}/returns, order.return): phiếu khách trả theo dòng, hoặc đổi hàng kèm đơn thay
-// thế (cùng transaction, giữ hàng của đơn mới) → 201 phiếu requested; chưa đổi tồn. Audit order.return.create.
+// thế (cùng transaction, giữ hàng của đơn mới) → 201 phiếu requested; chưa đổi tồn. Audit order.return.create. Đổi hàng
+// còn cần order.create ở kho của đơn gốc (Task 436, B-06; docs/quyen.md) → không thì 403, không lưu theo khóa.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) CreateReturn(ctx context.Context, req *gen.CreateReturnRequest, params gen.CreateReturnParams) (gen.CreateReturnRes, error) {
@@ -72,7 +72,12 @@ func (h *handler) CreateReturn(ctx context.Context, req *gen.CreateReturnRequest
 		w order.Writer, u identity.AuthUser, seller uuid.UUID, a order.Actor,
 	) (any, error) {
 		in.Replacement = replacementInput(req, u.UserID, params.IdempotencyKey)
-		r, err := w.CreateReturn(ctx, tx, seller, params.ID, in, a, time.Now().UTC())
+		if in.Replacement != nil {
+			if err := exchangeWarehouseAllowed(ctx, tx, u, seller, params.ID); err != nil {
+				return nil, err
+			}
+		}
+		r, err := w.CreateReturn(ctx, tx, seller, params.ID, in, a, h.now().UTC())
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của order
 		}
@@ -82,6 +87,19 @@ func (h *handler) CreateReturn(ctx context.Context, req *gen.CreateReturnRequest
 		return nil, err
 	}
 	return out.(*gen.Return), nil //nolint:forcetypeassert // fn trên trả *gen.Return
+}
+
+// exchangeWarehouseAllowed kiểm người gọi u có order.create ở kho giữ hàng của đơn thay thế — kho của đơn gốc orderID
+// (createReplacement không cho chọn kho) — như createOrder (orderWarehouseAt, Task 411). Đọc không khóa trước khi
+// CreateReturn khóa đơn (warehouse_id NOT NULL, không đổi sau khi tạo). Không có đơn → order.ErrNotFound; ngoài phạm vi →
+// errForbiddenTarget.
+func exchangeWarehouseAllowed(ctx context.Context, tx pgx.Tx, u identity.AuthUser, seller, orderID uuid.UUID) error {
+	orig, err := order.Get(ctx, tx, seller, orderID)
+	if err != nil {
+		return err //nolint:wrapcheck // sentinel của order
+	}
+	_, err = orderWarehouseAt(ctx, tx, u, orig.WarehouseID)
+	return err
 }
 
 // replacementInput dịch phần replacement của createReturn sang order.CreateInput (nil khi không gửi).
@@ -175,9 +193,9 @@ func (h *handler) ReceiveReturn(ctx context.Context, req *gen.ReceiveReturnReque
 	return h.returnChange(ctx, "order.return.receive", "nhận phiếu trả", func(tx pgx.Tx, w order.Writer, seller uuid.UUID, a order.Actor) (order.Return, error) {
 		if byQty {
 			return w.ReceiveReturnQty(ctx, tx, seller, params.ReturnId, req.Version, receiveQtyLines(req.Lines), a,
-				time.Now().UTC())
+				h.now().UTC())
 		}
-		return w.ReceiveReturn(ctx, tx, seller, params.ReturnId, req.Version, receiveLines(req.Lines), a, time.Now().UTC())
+		return w.ReceiveReturn(ctx, tx, seller, params.ReturnId, req.Version, receiveLines(req.Lines), a, h.now().UTC())
 	}, params.ReturnId)
 }
 
@@ -206,7 +224,7 @@ func receiveQtyLines(in []gen.ReceiveReturnRequestLinesItem) []order.ReceiveQtyL
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) CloseReturn(ctx context.Context, req *gen.VersionRequest, params gen.CloseReturnParams) (gen.CloseReturnRes, error) {
 	return h.returnChange(ctx, "order.return.close", "đóng phiếu trả", func(tx pgx.Tx, w order.Writer, seller uuid.UUID, a order.Actor) (order.Return, error) {
-		return w.CloseReturn(ctx, tx, seller, params.ReturnId, req.Version, a, time.Now().UTC())
+		return w.CloseReturn(ctx, tx, seller, params.ReturnId, req.Version, a, h.now().UTC())
 	}, params.ReturnId)
 }
 
@@ -216,7 +234,7 @@ func (h *handler) CloseReturn(ctx context.Context, req *gen.VersionRequest, para
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) CancelReturn(ctx context.Context, req *gen.VersionRequest, params gen.CancelReturnParams) (gen.CancelReturnRes, error) {
 	return h.returnChange(ctx, "order.return.cancel", "hủy phiếu trả", func(tx pgx.Tx, w order.Writer, seller uuid.UUID, a order.Actor) (order.Return, error) {
-		return w.CancelReturn(ctx, tx, seller, params.ReturnId, req.Version, a, time.Now().UTC())
+		return w.CancelReturn(ctx, tx, seller, params.ReturnId, req.Version, a, h.now().UTC())
 	}, params.ReturnId)
 }
 

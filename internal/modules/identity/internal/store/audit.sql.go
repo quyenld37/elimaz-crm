@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const insertAuditLog = `-- name: InsertAuditLog :exec
 
 INSERT INTO identity.audit_logs
-    (tenant_id, actor_type, actor_id, action, entity_type, entity_id, changed_fields, before, after, ip, request_id)
+    (tenant_id, actor_type, actor_id, action, entity_type, entity_id, changed_fields, before, after, ip, request_id,
+     created_at)
 VALUES (
     $1,
     $2,
@@ -27,7 +29,8 @@ VALUES (
     $8::jsonb,
     $9::jsonb,
     NULLIF($10::text, '')::inet,
-    NULLIF($11::text, '')
+    NULLIF($11::text, ''),
+    COALESCE($12::timestamptz, now())
 )
 `
 
@@ -43,10 +46,12 @@ type InsertAuditLogParams struct {
 	After         []byte
 	Ip            string
 	RequestID     string
+	CreatedAt     pgtype.Timestamptz
 }
 
 // Nhật ký thao tác chỉ ghi thêm (kế hoạch M0, Task 8). Chạy trong transaction của bên gọi, trong tenancy.WithTenant.
-// Chuỗi rỗng của cột tùy chọn lưu NULL; before/after nil lưu NULL.
+// Chuỗi rỗng của cột tùy chọn lưu NULL; before/after nil lưu NULL. created_at NULL → now() của transaction (bên gọi
+// truyền mốc của mình khi dòng audit là một mốc của lịch sử nghiệp vụ dùng đồng hồ đó, Task 436).
 func (q *Queries) InsertAuditLog(ctx context.Context, arg InsertAuditLogParams) error {
 	_, err := q.db.Exec(ctx, insertAuditLog,
 		arg.TenantID,
@@ -60,6 +65,7 @@ func (q *Queries) InsertAuditLog(ctx context.Context, arg InsertAuditLogParams) 
 		arg.After,
 		arg.Ip,
 		arg.RequestID,
+		arg.CreatedAt,
 	)
 	return err
 }

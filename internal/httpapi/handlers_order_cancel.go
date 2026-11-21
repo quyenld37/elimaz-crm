@@ -3,7 +3,6 @@ package httpapi
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -28,7 +27,7 @@ func (h *handler) CancelOrder(ctx context.Context, req *gen.CancelOrderRequest, 
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của order
 		}
-		o, err := w.Cancel(ctx, tx, seller, params.ID, req.Version, string(req.Reason), note, a, time.Now().UTC())
+		o, err := w.Cancel(ctx, tx, seller, params.ID, req.Version, string(req.Reason), note, a, h.now().UTC())
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của order
 		}
