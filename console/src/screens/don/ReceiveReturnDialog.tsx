@@ -1,80 +1,161 @@
-// Hộp thoại Nhận hàng trả (mockup docs/mockups/m2/don-chi-tiet.html trạng thái E; HV20). Chỉ người có
-// order.return.receive thấy nút mở (máy chủ vẫn chặn). Một tình trạng cho cả dòng; bấm nhận là nhập kho ngay.
-import { useState } from "react";
-import type { OrderItem, Return } from "../../api";
+// Nhận hàng trả/hoàn theo món (mockup docs/mockups/m3/kho.html trạng thái D, E; HV26, chủ shop OK 21/11; thay hộp một
+// tình trạng cả dòng của M2): mỗi dòng ba ô Tốt / Hỏng / Thiếu; "Nhận vào kho" khóa tới khi tổng mỗi dòng bằng số trên
+// phiếu, kèm câu "Còn thiếu n món chưa phân loại". Hai cách hiện: hộp thoại (chi tiết đơn, ReturnsCard) và thẻ trên
+// trang Nhận hàng hoàn của kho (ReceiveReturnCard). Chỉ người có order.return.receive thấy (máy chủ vẫn chặn).
+import { useState, type ReactNode } from "react";
+import type { OrderItem, ReceiveReturnRequest, Return } from "../../api";
+import { formatMoney } from "../products/productRules";
 import { Dialog } from "../staff/staffData";
-import { CONDITION_TEXT, type Condition } from "./labels";
+import {
+  EMPTY_SPLIT,
+  QTY_KEYS,
+  QTY_TEXT,
+  checkReceive,
+  fromCarrier,
+  receiveEffects,
+  receiveLines,
+  type QtyKey,
+  type Split,
+} from "./receiveRules";
 
-const CONDITIONS: readonly Condition[] = ["sellable", "damaged", "missing"];
-
-export interface ReceiveReturnDialogProps {
+export interface ReceiveReturnProps {
   ret: Return;
   items: readonly OrderItem[];
   pending: boolean;
   error: string | null;
+  onReceive: (lines: ReceiveReturnRequest["lines"]) => void;
+}
+
+/** Trạng thái ba số của các dòng và phần thân (các dòng, câu báo, câu "nhận xong thì…"). */
+function useReceiveForm({ ret, items }: Pick<ReceiveReturnProps, "ret" | "items">) {
+  const [splits, setSplits] = useState<ReadonlyMap<string, Split>>(new Map());
+  const item = (id: string) => items.find((i) => i.id === id);
+  const skuOf = (id: string) => item(id)?.sku ?? "";
+  const check = checkReceive(ret, splits, skuOf);
+  const set = (id: string, k: QtyKey, v: string) => {
+    setSplits((m) => new Map(m).set(id, { ...(m.get(id) ?? EMPTY_SPLIT), [k]: v }));
+  };
+  const sent = fromCarrier(ret) ? "Gửi đi" : "Khách trả";
+  const body = (
+    <>
+      {ret.items.map((it) => {
+        const sp = splits.get(it.orderItemId) ?? EMPTY_SPLIT;
+        const sku = skuOf(it.orderItemId);
+        return (
+          <div key={it.id} className={check.badLines.has(it.orderItemId) ? "rline is-err" : "rline"}>
+            <div className="sp">
+              <span className="code">{sku}</span>
+              <span className="nm clamp2">{item(it.orderItemId)?.name ?? ""}</span>
+              <span className="xs">{`${sent} ${String(it.qty)}`}</span>
+            </div>
+            <div className="q3">
+              {QTY_KEYS.map((k) => (
+                <label key={k} className="field">
+                  <span>{QTY_TEXT[k]}</span>
+                  <input
+                    className="input"
+                    inputMode="numeric"
+                    aria-label={`${QTY_TEXT[k]} ${sku}`}
+                    value={sp[k]}
+                    onChange={(e) => {
+                      set(it.orderItemId, k, e.target.value);
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      {check.message !== null ? (
+        <p className="field-err" style={{ marginTop: 8 }}>
+          {check.message}
+        </p>
+      ) : (
+        <ul className="fx small" style={{ marginTop: 8 }} aria-label="Nhận xong">
+          {receiveEffects(ret, check.totals).map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+  return { body, ok: check.ok, lines: () => receiveLines(ret, splits) };
+}
+
+export interface ReceiveReturnDialogProps extends ReceiveReturnProps {
   onClose: () => void;
-  onReceive: (lines: { orderItemId: string; condition: Condition }[]) => void;
 }
 
 export function ReceiveReturnDialog({ ret, items, pending, error, onClose, onReceive }: ReceiveReturnDialogProps) {
-  const [cond, setCond] = useState<ReadonlyMap<string, Condition>>(new Map());
-  const skuOf = (orderItemId: string) => items.find((i) => i.id === orderItemId)?.sku ?? "";
+  const form = useReceiveForm({ ret, items });
   return (
     <Dialog
-      title={`Nhận hàng trả ${ret.code}`}
+      title={`Nhận hàng trả · ${ret.code}`}
       onClose={onClose}
       footer={
         <>
-          <button type="button" className="btn btn-line" onClick={onClose}>
-            Quay lại
+          <button type="button" className="btn btn-quiet" onClick={onClose}>
+            Đóng
           </button>
           <button
             type="button"
             className="btn btn-dark"
-            disabled={pending}
+            disabled={pending || !form.ok}
             onClick={() => {
-              onReceive(
-                ret.items.map((it) => ({
-                  orderItemId: it.orderItemId,
-                  condition: cond.get(it.orderItemId) ?? "sellable",
-                })),
-              );
+              onReceive(form.lines());
             }}
           >
-            Nhận và nhập kho
+            Nhận vào kho
           </button>
         </>
       }
     >
-      {ret.items.map((it) => (
-        <div key={it.id} className="field">
-          <span>{`${skuOf(it.orderItemId)} × ${String(it.qty)}`}</span>
-          <span className="select-wrap">
-            <select
-              aria-label={`Tình trạng ${skuOf(it.orderItemId)}`}
-              value={cond.get(it.orderItemId) ?? "sellable"}
-              onChange={(e) => {
-                const c = CONDITIONS.find((x) => x === e.target.value);
-                if (c !== undefined) setCond((m) => new Map(m).set(it.orderItemId, c));
-              }}
-            >
-              {CONDITIONS.map((c) => (
-                <option key={c} value={c}>
-                  {CONDITION_TEXT[c]}
-                </option>
-              ))}
-            </select>
-          </span>
-        </div>
-      ))}
-      <p className="small muted">
-        Một tình trạng cho cả dòng. Hai món khác tình trạng (một bán được, một hỏng) thì tạo hai phiếu.
-      </p>
-      <p className="small muted">
-        Bấm nhận là nhập kho ngay: món bán lại được tăng &quot;có thể bán&quot;; món hỏng vào hàng lỗi; món thiếu không
-        hoàn tiền.
-      </p>
+      {!fromCarrier(ret) && (
+        <p className="small muted">
+          Khách trả · hoàn dự kiến <span className="money">{formatMoney(ret.refundAmount)}</span>
+        </p>
+      )}
+      {form.body}
+      {!fromCarrier(ret) && (
+        <p className="hint">
+          Nhận xong thì tồn tăng và mở nghĩa vụ hoàn <span className="money">{formatMoney(ret.refundAmount)}</span> cho
+          kế toán chi (món thiếu không hoàn).
+        </p>
+      )}
       {error !== null && <div className="box box-err">{error}</div>}
     </Dialog>
+  );
+}
+
+export interface ReceiveReturnCardProps extends ReceiveReturnProps {
+  /** Dòng phụ dưới tiêu đề (đơn, hãng, mã hãng, số món). */
+  sub: ReactNode;
+}
+
+/** Thẻ nhận hàng hoàn của trang kho (trạng thái D). */
+export function ReceiveReturnCard({ ret, items, pending, error, onReceive, sub }: ReceiveReturnCardProps) {
+  const form = useReceiveForm({ ret, items });
+  return (
+    <section className="card" aria-label={`Nhận hàng hoàn · ${ret.code}`}>
+      <div className="row-between">
+        <h2>{`Nhận hàng hoàn · ${ret.code}`}</h2>
+        <span className="chip">Chờ nhận</span>
+      </div>
+      <p className="small muted">{sub}</p>
+      {form.body}
+      {error !== null && <div className="box box-err">{error}</div>}
+      <button
+        type="button"
+        className="btn btn-dark btn-wide"
+        style={{ marginTop: 8 }}
+        disabled={pending || !form.ok}
+        onClick={() => {
+          onReceive(form.lines());
+        }}
+      >
+        Nhận vào kho
+      </button>
+    </section>
   );
 }

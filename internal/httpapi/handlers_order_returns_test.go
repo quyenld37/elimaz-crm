@@ -169,6 +169,9 @@ func TestReturnAPI_ReceiveQty(t *testing.T) {
 		t.Fatalf("createReturn: %d %s", rec.Code, rec.Body.String())
 	}
 	r := decodeJSON(t, rec)
+	if first := r["items"].([]any)[0].(map[string]any); first["sellable"] != nil || first["missing"] != nil {
+		t.Errorf("phiếu chưa nhận không có ba số: %v", first)
+	}
 	path := fmt.Sprintf("/api/v1/returns/%s/receive", r["id"])
 	line := func(item any, s, d, m int) string {
 		return fmt.Sprintf(`{"orderItemId":"%s","condition":"sellable","sellable":%d,"damaged":%d,"missing":%d}`,
@@ -196,6 +199,12 @@ func TestReturnAPI_ReceiveQty(t *testing.T) {
 		m := it.(map[string]any)
 		if want := map[any]any{i1: nil, i2: "sellable"}[m["orderItemId"]]; m["condition"] != want {
 			t.Errorf("dòng %v: condition %v, mong %v", m["orderItemId"], m["condition"], want)
+		}
+		// Ba số của lúc nhận có trong thân trả về (Task 136).
+		want := map[any][3]float64{i1: {1, 1, 0}, i2: {1, 0, 0}}[m["orderItemId"]]
+		if m["sellable"] != want[0] || m["damaged"] != want[1] || m["missing"] != want[2] {
+			t.Errorf("dòng %v: tốt/hỏng/thiếu %v/%v/%v, mong %v", m["orderItemId"], m["sellable"], m["damaged"],
+				m["missing"], want)
 		}
 	}
 	if after := onHand(); after != before+2 {

@@ -49,10 +49,21 @@ func (e *orderAPIEnv) shipOrderM3(id uuid.UUID, staff uuid.UUID, at time.Time) u
 	return ship
 }
 
+// checkPackFields: dòng có vận đơn mang trường của màn Đóng gói (Task 136): packingStatus, id vận đơn, tài khoản hãng,
+// mode; chưa in nhãn thì không có labelPrintedAt.
+func checkPackFields(t *testing.T, row, sh map[string]any, ship uuid.UUID) {
+	t.Helper()
+	if row["packingStatus"] != "packed" || sh["id"] != ship.String() || sh["carrierAccountId"] == nil ||
+		sh["mode"] == nil || sh["labelPrintedAt"] != nil {
+		t.Errorf("trường đóng gói: %v", row)
+	}
+}
+
 // listOrders, getOrderTimeline qua HTTP với vận đơn (kế hoạch M3, Task M3-28): lọc shipmentStatus, carrierKey, codState,
 // packingStatus, nhãn vận đơn; dòng có shipment (mã, hãng, mã hãng, trạng thái, nhãn hiển thị) và cod; đơn không vận
 // đơn không có hai khối đó; dòng thời gian có mục shipment với actorType carrier (không người làm) và staff (tên nhân
-// viên), các mục cũ có actorType staff.
+// viên), các mục cũ có actorType staff. Màn Đóng gói (Task 136): dòng có packingStatus, vận đơn có id, carrierAccountId,
+// mode (chưa in nhãn: không labelPrintedAt); lọc labelPrinted, warehouseId.
 func TestOrderRead_ListTimelineM3(t *testing.T) {
 	e := newOrderReadEnv(t)
 	v := e.variant(e.shop.Seller, 500000, 10)
@@ -63,7 +74,8 @@ func TestOrderRead_ListTimelineM3(t *testing.T) {
 		return tx.QueryRow(t.Context(), "SELECT id FROM identity.users WHERE email = $1", readSale).Scan(&staff)
 	})
 	sid := uuid.MustParse(fmt.Sprint(shipped["id"]))
-	e.shipOrderM3(sid, staff, time.Now().UTC().Add(time.Hour))
+	ship := e.shipOrderM3(sid, staff, time.Now().UTC().Add(time.Hour))
+	warehouse := fmt.Sprint(shipped["warehouseId"])
 
 	for _, c := range []struct{ name, query, want string }{
 		{"đang chuyển", "shipmentStatus=shipping", fmt.Sprint(shipped["code"])},
@@ -74,6 +86,10 @@ func TestOrderRead_ListTimelineM3(t *testing.T) {
 		{"đã gói", "packingStatus=packed", fmt.Sprint(shipped["code"])},
 		{"nhãn đang chuyển", "label=shipping", fmt.Sprint(shipped["code"])},
 		{"nhãn đã xác nhận", "label=confirmed", fmt.Sprint(plain["code"])},
+		{"chưa in nhãn", "labelPrinted=false", fmt.Sprint(shipped["code"])},
+		{"đã in nhãn", "labelPrinted=true", ""},
+		{"kho của đơn", "warehouseId=" + warehouse, fmt.Sprint(shipped["code"]) + "," + fmt.Sprint(plain["code"])},
+		{"kho khác", "warehouseId=" + uuid.NewString(), ""},
 	} {
 		rec := e.get(orderViewer, "/api/v1/orders?"+c.query)
 		if got := strings.Join(listCodes(t, decodeJSON(t, rec)), ","); rec.Code != http.StatusOK || got != c.want {
@@ -97,7 +113,8 @@ func TestOrderRead_ListTimelineM3(t *testing.T) {
 		cod["shopReceived"] != float64(0) {
 		t.Errorf("dòng có vận đơn: %v", got)
 	}
-	if first := items[1].(map[string]any); first["shipment"] != nil || first["cod"] != nil {
+	checkPackFields(t, got, sh, ship)
+	if first := items[1].(map[string]any); first["shipment"] != nil || first["cod"] != nil || first["packingStatus"] != "none" {
 		t.Errorf("dòng không vận đơn: %v", first)
 	}
 

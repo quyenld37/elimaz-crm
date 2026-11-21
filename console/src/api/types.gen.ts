@@ -1598,6 +1598,10 @@ export type OrderListItem = {
     careBy?: Actor;
     createdAt: string;
     duplicateSuspect: boolean;
+    /**
+     * Trạng thái đóng gói (Task M3-45)
+     */
+    packingStatus?: 'none' | 'picking' | 'packed';
     shipment?: OrderShipmentSummary;
     cod?: OrderCodSummary;
 };
@@ -1647,6 +1651,18 @@ export type ReturnItem = {
     qty: number;
     condition?: 'sellable' | 'damaged' | 'missing';
     refundAmount: Money;
+    /**
+     * Số món tốt khi kho nhận (Task M3-45); chỉ có sau khi nhận
+     */
+    sellable?: number;
+    /**
+     * Số món hỏng khi kho nhận; chỉ có sau khi nhận
+     */
+    damaged?: number;
+    /**
+     * Số món thiếu khi kho nhận; chỉ có sau khi nhận
+     */
+    missing?: number;
 };
 
 export type Return = {
@@ -2810,6 +2826,16 @@ export type UpdateFulfillmentSettingsRequest = {
 };
 
 export type OrderShipmentSummary = {
+    /**
+     * Mã vận đơn (in nhãn, phiếu nhặt; Task M3-45)
+     */
+    id?: string;
+    carrierAccountId?: string;
+    mode?: CarrierAccountMode;
+    /**
+     * Giờ in nhãn của hãng gần nhất; không có khi chưa in
+     */
+    labelPrintedAt?: string;
     code: string;
     carrierKey: string;
     trackingCode?: string;
@@ -4902,6 +4928,14 @@ export type ListOrdersData = {
          * Trạng thái đóng gói (M3, Task M3-28)
          */
         packingStatus?: 'none' | 'picking' | 'packed';
+        /**
+         * Kho của đơn (màn Đóng gói, Task M3-45)
+         */
+        warehouseId?: string;
+        /**
+         * true = vận đơn hiện hành đã in nhãn; false = có vận đơn hiện hành, chưa in nhãn (Task M3-45)
+         */
+        labelPrinted?: boolean;
         /**
          * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
          */

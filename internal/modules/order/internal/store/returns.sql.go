@@ -203,7 +203,7 @@ func (q *Queries) InsertReturnItem(ctx context.Context, arg InsertReturnItemPara
 }
 
 const listReturnItemsOf = `-- name: ListReturnItemsOf :many
-SELECT id, return_id, order_item_id, quantity, condition, refund_amount
+SELECT id, return_id, order_item_id, quantity, condition, refund_amount, sellable_qty, damaged_qty, missing_qty
 FROM ord.return_items
 WHERE return_id = ANY ($1::uuid[])
 ORDER BY return_id, id
@@ -216,6 +216,9 @@ type ListReturnItemsOfRow struct {
 	Quantity     int32
 	Condition    string
 	RefundAmount int64
+	SellableQty  int32
+	DamagedQty   int32
+	MissingQty   int32
 }
 
 // Dòng của các phiếu ids (bên gọi đã đọc phiếu qua đơn của người bán).
@@ -235,6 +238,9 @@ func (q *Queries) ListReturnItemsOf(ctx context.Context, returnIds []uuid.UUID) 
 			&i.Quantity,
 			&i.Condition,
 			&i.RefundAmount,
+			&i.SellableQty,
+			&i.DamagedQty,
+			&i.MissingQty,
 		); err != nil {
 			return nil, err
 		}

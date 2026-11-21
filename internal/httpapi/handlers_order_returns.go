@@ -281,7 +281,7 @@ func returnAudit(r order.Return) map[string]any {
 	return m
 }
 
-// returnOut là thân Return; condition của dòng chỉ có sau khi kho nhận.
+// returnOut là thân Return; condition và ba số sellable, damaged, missing của dòng chỉ có sau khi kho nhận.
 func returnOut(r order.Return) *gen.Return {
 	out := &gen.Return{
 		ID: r.ID, Code: r.Code, OrderId: r.OrderID, Kind: gen.ReturnKind(r.Kind), Status: gen.ReturnStatus(r.Status),
@@ -308,6 +308,11 @@ func returnOut(r order.Return) *gen.Return {
 		// Dòng trộn (mixed, M3-23) không có tên tình trạng trong hợp đồng: bỏ trường ("trộn thì rỗng").
 		if r.ReceivedAt != nil && it.Condition != order.ConditionMixed {
 			item.Condition = gen.NewOptReturnItemCondition(gen.ReturnItemCondition(it.Condition))
+		}
+		if r.ReceivedAt != nil {
+			item.Sellable = gen.NewOptInt32(int32(it.Sellable)) //nolint:gosec // ≤ qty của dòng (≤ 10.000)
+			item.Damaged = gen.NewOptInt32(int32(it.Damaged))   //nolint:gosec // như trên
+			item.Missing = gen.NewOptInt32(int32(it.Missing))   //nolint:gosec // như trên
 		}
 		out.Items = append(out.Items, item)
 	}
