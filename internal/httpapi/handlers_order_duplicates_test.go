@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -28,7 +29,7 @@ func (e *orderAPIEnv) detectDuplicates(id any) {
 		Payload: []byte(`{"orderId":"` + oid.String() + `","sellerId":"` + e.shop.Seller.String() + `"}`),
 	}
 	if err := tenancy.WithTenant(e.t.Context(), e.staff.App, e.shop.Tenant, func(tx pgx.Tx) error {
-		return order.DuplicatesConsumer{}.Handle(e.t.Context(), ev, tx)
+		return order.DuplicatesConsumer{Now: time.Now}.Handle(e.t.Context(), ev, tx)
 	}); err != nil {
 		e.t.Fatal(err)
 	}

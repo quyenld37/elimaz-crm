@@ -1,7 +1,8 @@
 // Hộp thoại Trả/đổi (mockup docs/mockups/m2/don-chi-tiet.html trạng thái D; HV19). Chỉ đơn Thành công. Không cho chọn
 // quá số còn trả được (trừ cả phiếu đang mở); tiền hoàn dự kiến tính như máy chủ (returnRules.refundFor), số máy chủ
 // trả là số cuối. Quá số ngày đổi trả của shop chỉ cảnh báo (Q26). Tạo phiếu không đổi tồn; đổi hàng tạo đơn thay thế
-// cùng khách, giao tới địa chỉ của đơn gốc.
+// cùng khách, giao tới địa chỉ của đơn gốc, nên cần thêm quyền lên đơn ở kho của đơn gốc (Task 436, docs/quyen.md):
+// không có order.create ở gán nào thì khóa "Đổi hàng"; có nhưng theo kho khác thì máy chủ trả 403, hộp thoại hiện lỗi.
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import {
@@ -41,12 +42,22 @@ export interface ReturnDialogProps {
   returns: readonly Return[];
   timeline: readonly TimelineItem[];
   canReadStock: boolean;
+  /** Nhân viên có order.create ở ít nhất một gán (đơn thay thế của phiếu đổi là một lần lên đơn). */
+  canExchange: boolean;
   onClose: () => void;
   /** Phiếu máy chủ vừa tạo. */
   onCreated: (r: Return) => void;
 }
 
-export function ReturnDialog({ order, returns, timeline, canReadStock, onClose, onCreated }: ReturnDialogProps) {
+export function ReturnDialog({
+  order,
+  returns,
+  timeline,
+  canReadStock,
+  canExchange,
+  onClose,
+  onCreated,
+}: ReturnDialogProps) {
   const qc = useQueryClient();
   const settings = useOrderSettings();
   const productRef = useRef<HTMLInputElement>(null);
@@ -152,6 +163,7 @@ export function ReturnDialog({ order, returns, timeline, canReadStock, onClose, 
             className="toggle"
             aria-checked={kind === k}
             aria-pressed={kind === k}
+            disabled={k === "exchange" && !canExchange}
             onClick={() => {
               setKind(k);
             }}
@@ -160,6 +172,7 @@ export function ReturnDialog({ order, returns, timeline, canReadStock, onClose, 
           </button>
         ))}
       </div>
+      {!canExchange && <p className="hint">Đổi hàng cần quyền lên đơn ở kho của đơn này.</p>}
       {late && (
         <div className="box box-soft">
           {`Đơn giao thành công ${String(days)} ngày trước, quá ${String(limit)} ngày đổi trả của shop. Vẫn tạo được phiếu.`}

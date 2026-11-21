@@ -87,14 +87,18 @@ func expireDraftsSchedule() schedules.Schedule {
 	return schedules.Schedule{Name: ExpireDraftsSchedule, Every: expireDraftsEvery, PerTenant: true, Kind: expireDraftsKind()}
 }
 
-// expireDraftsHandler chạy ExpireDrafts với giờ thật trong tx của việc (worker đặt WithTenant của tenant của việc).
-type expireDraftsHandler struct{ w Writer }
+// expireDraftsHandler chạy ExpireDrafts với giờ của now (background.Deps.Clock, cùng đồng hồ với lớp HTTP) trong tx của
+// việc (worker đặt WithTenant của tenant của việc).
+type expireDraftsHandler struct {
+	w   Writer
+	now func() time.Time
+}
 
 func (expireDraftsHandler) Kind() queue.Kind { return expireDraftsKind() }
 
 // Handle hủy tối đa 200 đơn nháp quá hạn; kết quả {"expired": n}.
 func (h expireDraftsHandler) Handle(ctx context.Context, _ queue.Job, tx pgx.Tx) (json.RawMessage, error) {
-	n, err := h.w.ExpireDrafts(ctx, tx, time.Now(), expireDraftsBatch)
+	n, err := h.w.ExpireDrafts(ctx, tx, h.now(), expireDraftsBatch)
 	if err != nil {
 		return nil, err
 	}

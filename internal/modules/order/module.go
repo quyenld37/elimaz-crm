@@ -9,12 +9,13 @@ import (
 
 // Background trả phần chạy nền của module order (đơn): việc nền, consumer sự kiện, lịch. cmd/crm gọi đúng một lần mỗi
 // tiến trình (kế hoạch M2, Task M2-02); task M2 sau thêm phần tử vào đây. Task M2-21: lịch order.expire_drafts và
-// handler của nó (đường ghi dựng từ Events, Queue, Bus của d). Task M2-23: consumer order_duplicates.
+// handler của nó (đường ghi dựng từ Events, Queue, Bus của d). Task M2-23: consumer order_duplicates. Giờ của cả hai lấy
+// từ d.Clock() (Task 436).
 func Background(d background.Deps) background.Parts {
-	w := Writer{Events: d.Events, Queue: d.Queue, Realtime: d.Bus}
+	w, now := Writer{Events: d.Events, Queue: d.Queue, Realtime: d.Bus}, d.Clock()
 	return background.Parts{
-		JobHandlers: []queue.Handler{expireDraftsHandler{w: w}},
-		Consumers:   []events.Consumer{DuplicatesConsumer{}},
+		JobHandlers: []queue.Handler{expireDraftsHandler{w: w, now: now}},
+		Consumers:   []events.Consumer{DuplicatesConsumer{Now: now}},
 		Schedules:   []schedules.Schedule{expireDraftsSchedule()},
 	}
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/identity/internal/store"
 	"elimaz.com.vn/crm/internal/platform/logging"
@@ -23,12 +24,15 @@ var ErrInvalidAudit = errors.New("identity: dòng audit không hợp lệ")
 
 // AuditEntry là một dòng nhật ký thao tác. ActorType là một trong staff, system, carrier, customer, service. ActorID,
 // EntityID, IP, RequestID rỗng thì lưu NULL. IP nhận địa chỉ IPv4/IPv6 hoặc dạng ip:port (chỉ lưu ip). Before là
-// trạng thái trước (nil khi tạo mới), After là trạng thái sau (nil khi xóa).
+// trạng thái trước (nil khi tạo mới), After là trạng thái sau (nil khi xóa). At là lúc ghi: zero → now() của transaction;
+// bên gọi đặt At khi dòng audit là một mốc của lịch sử nghiệp vụ dùng đồng hồ của bên gọi (lịch sử đơn: mục sửa xếp
+// cùng dòng đổi trạng thái ghi bằng now của module, Task 436), để một lịch sử không trộn hai đồng hồ.
 type AuditEntry struct {
 	TenantID                                         uuid.UUID
 	ActorType, ActorID, Action, EntityType, EntityID string
 	Before, After                                    map[string]any
 	IP, RequestID                                    string
+	At                                               time.Time
 }
 
 // auditActorTypes khớp CHECK của identity.audit_logs.actor_type (migration 0004).
@@ -52,6 +56,7 @@ func RecordAudit(ctx context.Context, tx pgx.Tx, e AuditEntry) error {
 		TenantID: e.TenantID, ActorType: e.ActorType, ActorID: e.ActorID, Action: e.Action,
 		EntityType: e.EntityType, EntityID: e.EntityID, ChangedFields: changed,
 		Before: before, After: after, Ip: ip, RequestID: e.RequestID,
+		CreatedAt: pgtype.Timestamptz{Time: e.At.UTC(), Valid: !e.At.IsZero()},
 	}); err != nil {
 		return fmt.Errorf("ghi audit: %w", err)
 	}

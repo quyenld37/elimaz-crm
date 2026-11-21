@@ -60,7 +60,7 @@ func (h *handler) orderChange(ctx context.Context, action string,
 		if err != nil {
 			return nil, fmt.Errorf("người bán mặc định: %w", err)
 		}
-		o, err := change(tx, w, seller, orderActor(u), time.Now().UTC())
+		o, err := change(tx, w, seller, orderActor(u), h.now().UTC())
 		if err != nil {
 			return nil, err
 		}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -33,7 +32,7 @@ func (h *handler) CheckOrderDuplicates(ctx context.Context, params gen.CheckOrde
 	err := h.readAsDefaultSeller(ctx, u, func(tx pgx.Tx, seller uuid.UUID) error {
 		var err error
 		found, err = order.CheckDuplicates(ctx, tx, seller, optUUID(params.CustomerId), string(params.Phone.Or("")),
-			params.VariantIds, time.Now().UTC())
+			params.VariantIds, h.now().UTC())
 		if err != nil {
 			return err //nolint:wrapcheck // sentinel của order
 		}
@@ -112,7 +111,7 @@ func (h *handler) ResolveOrderDuplicate(ctx context.Context, req *gen.ResolveOrd
 			}
 			w := order.Writer{Events: h.d.Events, Queue: queue.NewQueue(), Realtime: h.d.Realtime}
 			if err := w.ResolveDuplicate(ctx, tx, seller, params.OrderId, params.OtherOrderId, action,
-				order.Actor{TenantID: u.TenantID, UserID: u.UserID}, time.Now().UTC()); err != nil {
+				order.Actor{TenantID: u.TenantID, UserID: u.UserID}, h.now().UTC()); err != nil {
 				return nil, err //nolint:wrapcheck // sentinel của order
 			}
 			d, err := order.GetDuplicate(ctx, tx, seller, params.OrderId, params.OtherOrderId)

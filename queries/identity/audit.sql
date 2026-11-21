@@ -1,9 +1,11 @@
 -- Nhật ký thao tác chỉ ghi thêm (kế hoạch M0, Task 8). Chạy trong transaction của bên gọi, trong tenancy.WithTenant.
--- Chuỗi rỗng của cột tùy chọn lưu NULL; before/after nil lưu NULL.
+-- Chuỗi rỗng của cột tùy chọn lưu NULL; before/after nil lưu NULL. created_at NULL → now() của transaction (bên gọi
+-- truyền mốc của mình khi dòng audit là một mốc của lịch sử nghiệp vụ dùng đồng hồ đó, Task 436).
 
 -- name: InsertAuditLog :exec
 INSERT INTO identity.audit_logs
-    (tenant_id, actor_type, actor_id, action, entity_type, entity_id, changed_fields, before, after, ip, request_id)
+    (tenant_id, actor_type, actor_id, action, entity_type, entity_id, changed_fields, before, after, ip, request_id,
+     created_at)
 VALUES (
     @tenant_id,
     @actor_type,
@@ -15,7 +17,8 @@ VALUES (
     sqlc.narg(before)::jsonb,
     sqlc.narg(after)::jsonb,
     NULLIF(@ip::text, '')::inet,
-    NULLIF(@request_id::text, '')
+    NULLIF(@request_id::text, ''),
+    COALESCE(sqlc.narg(created_at)::timestamptz, now())
 );
 
 -- name: ListEntityAudit :many

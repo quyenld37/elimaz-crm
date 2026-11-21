@@ -702,6 +702,7 @@ function OrderView({ o, refetch }: { o: Order; refetch: () => void }) {
           returns={returns}
           timeline={timeline.data?.items ?? []}
           canReadStock={can("inventory.read")}
+          canExchange={can("order.create")}
           onClose={() => {
             setDialog(null);
           }}

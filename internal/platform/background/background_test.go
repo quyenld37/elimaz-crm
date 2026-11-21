@@ -4,6 +4,7 @@ import (
 	"errors"
 	"slices"
 	"testing"
+	"time"
 
 	"elimaz.com.vn/crm/internal/platform/background"
 )
@@ -25,5 +26,17 @@ func TestUniqueNames(t *testing.T) {
 	err := background.UniqueNames("lệnh", []string{"a", "b", "a"}, id)
 	if !errors.Is(err, background.ErrDuplicatePart) || err.Error() != `lệnh "a": background: hai phần chạy nền trùng tên` {
 		t.Fatalf("trùng a: mong ErrDuplicatePart nêu tên, có %v", err)
+	}
+}
+
+// Clock: Deps.Now khi có (Task 436: module nhận đồng hồ qua Deps), nil → đồng hồ máy.
+func TestDepsClock(t *testing.T) {
+	fixed := time.Date(2026, 11, 21, 8, 0, 0, 0, time.UTC)
+	if got := (background.Deps{Now: func() time.Time { return fixed }}).Clock()(); !got.Equal(fixed) {
+		t.Errorf("Now đặt: %v, muốn %v", got, fixed)
+	}
+	before := time.Now()
+	if got := (background.Deps{}).Clock()(); got.Before(before) || got.After(time.Now()) {
+		t.Errorf("Now nil: %v, muốn giờ máy", got)
 	}
 }

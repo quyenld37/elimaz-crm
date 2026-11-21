@@ -28,7 +28,7 @@ type dupEnv struct {
 func newDupEnv(t *testing.T) *dupEnv {
 	t.Helper()
 	d := &dupEnv{orderEnv: newM2Env(t), reg: events.NewRegistry()}
-	if err := d.reg.Register(order.DuplicatesConsumer{}); err != nil {
+	if err := d.reg.Register(order.DuplicatesConsumer{Now: time.Now}); err != nil {
 		t.Fatal(err)
 	}
 	return d
@@ -413,7 +413,7 @@ func TestDuplicates_ConcurrentCreate(t *testing.T) {
 // Consumer nhận lại cùng sự kiện bốn lần song song sau khi cặp đã xử lý → không thêm dòng, không bật lại cờ; consumer tên order_duplicates nghe order.created, order.updated; payload hỏng → ErrPermanent.
 func TestDuplicates_ConsumerReplay(t *testing.T) {
 	d := newDupEnv(t)
-	c := order.DuplicatesConsumer{}
+	c := order.DuplicatesConsumer{Now: time.Now}
 	if c.Name() != "order_duplicates" || len(c.Topics()) != 2 {
 		t.Fatalf("consumer: %s %v", c.Name(), c.Topics())
 	}
@@ -491,5 +491,41 @@ func TestDuplicates_ListPages(t *testing.T) {
 		if _, err := order.ParseDuplicateCursor(s); !errors.Is(err, order.ErrInvalidInput) {
 			t.Errorf("con trỏ %q: %v", s, err)
 		}
+	}
+}
+
+// B-05 (Task 436): consumer lấy giờ từ đồng hồ được giao (background.Deps.Now), không gọi time.Now trong module: mốc của
+// cặp nghi trùng là đúng giờ của đồng hồ đó; thiếu đồng hồ → lỗi, không ghi cặp.
+func TestDuplicates_ConsumerClock(t *testing.T) {
+	d := newDupEnv(t)
+	v := d.variant(250000, 20)
+	o1 := d.place(shipPhone, at(10), v)
+	o2 := d.place(shipPhone, at(13), v)
+	ev := events.StoredEvent{
+		ID: uuid.New(), TenantID: d.tenant, AggregateType: "order", AggregateID: o2.ID.String(), Seq: 1,
+		Topic:   order.TopicOrderCreated,
+		Payload: []byte(`{"orderId":"` + o2.ID.String() + `","sellerId":"` + d.seller.String() + `"}`),
+	}
+	if err := d.app(func(tx pgx.Tx) error {
+		return order.DuplicatesConsumer{}.Handle(t.Context(), ev, tx)
+	}); err == nil || d.links(o1.ID, o2.ID, "") != 0 {
+		t.Fatalf("thiếu đồng hồ: %v, %d cặp", err, d.links(o1.ID, o2.ID, ""))
+	}
+	clock := at(14).Add(1234 * time.Microsecond)
+	if err := d.app(func(tx pgx.Tx) error {
+		return order.DuplicatesConsumer{Now: func() time.Time { return clock }}.Handle(t.Context(), ev, tx)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var got order.Duplicate
+	if err := d.app(func(tx pgx.Tx) error {
+		var err error
+		got, err = order.GetDuplicate(t.Context(), tx, d.seller, o1.ID, o2.ID)
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !got.CreatedAt.Equal(clock) {
+		t.Errorf("mốc cặp %v, muốn %v (đồng hồ của consumer)", got.CreatedAt, clock)
 	}
 }

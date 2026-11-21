@@ -65,7 +65,7 @@ func (h *handler) CreateOrder(ctx context.Context, req *gen.CreateOrderRequest, 
 		wh, err := orderWarehouseAt(ctx, tx, u, in.WarehouseID)
 		if err == nil {
 			run.WarehouseID = wh
-			res, err = createOrder(ctx, tx, w, run, u)
+			res, err = createOrder(ctx, tx, w, run, u, h.now().UTC())
 		}
 		switch {
 		case isOrderRefusal(err):
@@ -176,8 +176,9 @@ func optUUID(o gen.OptUUID) *uuid.UUID {
 }
 
 func createOrder(ctx context.Context, tx pgx.Tx, w order.Writer, in order.CreateInput, u identity.AuthUser,
+	now time.Time,
 ) (order.CreateResult, error) {
-	res, err := w.Create(ctx, tx, in, orderActor(u), time.Now().UTC())
+	res, err := w.Create(ctx, tx, in, orderActor(u), now)
 	if err != nil || res.Replayed {
 		return res, err //nolint:wrapcheck // sentinel của order
 	}
