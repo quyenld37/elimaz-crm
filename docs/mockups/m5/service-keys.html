@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M5 — Khóa dịch vụ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m5.css">
+<style>
+@media (min-width: 760px) { .sk td:first-child { width: 26%; } .sk .c-act { width: 1%; white-space: nowrap; } }
+.sk .perms { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+@media (min-width: 760px) { .sk .perms { justify-content: flex-start; } }
+.code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; overflow-wrap: anywhere; }
+.perm-d { display: grid; gap: 0; }
+</style>
+</head>
+<body data-page="service-keys" data-title="Khóa dịch vụ">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Website / Khóa dịch vụ</p><h1>Khóa dịch vụ</h1><p class="sub">Khóa để website gọi CRM (đọc sản phẩm, gửi đơn, yêu cầu, góp ý…). Mỗi khóa chỉ có đúng các quyền website cần; khóa đầy đủ chỉ hiện một lần lúc tạo.</p></div>
+	<div class="row"><button class="btn btn-dark">+ Tạo khóa</button></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="ds-khoa ten-80"><p class="xs">TRẠNG THÁI A</p><h2>Danh sách 4 khóa: đang dùng, giới hạn địa chỉ IP, chưa dùng lần nào (tên 80 ký tự), đã thu hồi</h2></section>
+
+<div class="tbl-frame">
+<table class="tbl sk">
+	<thead><tr><th>Tên</th><th>Tiền tố</th><th>Quyền</th><th>IP được gọi</th><th>Lần dùng cuối</th><th>Trạng thái</th><th class="c-act"></th></tr></thead>
+	<tbody>
+	<tr data-ca="tien-to quyen lan-dung-cuoi">
+		<td class="lead"><div class="stack-sm" style="gap:2px"><b class="clamp2">Website ELIMAZ — bản chính</b><span class="small muted">Tạo 14/11/2026</span></div></td>
+		<td data-label="Tiền tố"><span class="code">ek_k3p7q2mxzvfa_…</span></td>
+		<td data-label="Quyền"><div class="perms"><span class="chip">9 quyền website</span></div></td>
+		<td data-label="IP được gọi"><span class="small">Mọi địa chỉ</span></td>
+		<td data-label="Lần dùng cuối"><span class="small num">2 phút trước</span></td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đang dùng</span></td>
+		<td class="c-act"><button class="btn btn-danger">Thu hồi</button></td>
+	</tr>
+	<tr data-ca="ip">
+		<td class="lead"><div class="stack-sm" style="gap:2px"><b class="clamp2">Website ELIMAZ — bản thử (staging)</b><span class="small muted">Tạo 12/11/2026</span></div></td>
+		<td data-label="Tiền tố"><span class="code">ek_q4ztb6wnc2hd_…</span></td>
+		<td data-label="Quyền"><div class="perms"><span class="chip">9 quyền website</span></div></td>
+		<td data-label="IP được gọi"><span class="small num">13.140.64.56/32</span></td>
+		<td data-label="Lần dùng cuối"><span class="small num">08:14 · 21/11</span></td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đang dùng</span></td>
+		<td class="c-act"><button class="btn btn-danger">Thu hồi</button></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="stack-sm" style="gap:2px"><b class="clamp2 wrap-any">WebsiteELIMAZBanChinhMayChuSingaporeChoDonHangVaDanhMucKhoaThayTheThang11Nam2026</b><span class="small muted">Tạo 08:14 · 21/11/2026</span></div></td>
+		<td data-label="Tiền tố"><span class="code">ek_r7mvd3aysk5e_…</span></td>
+		<td data-label="Quyền"><div class="perms"><span class="chip">Đọc danh mục</span><span class="chip">Tạo đơn</span></div></td>
+		<td data-label="IP được gọi"><span class="small">Mọi địa chỉ</span></td>
+		<td data-label="Lần dùng cuối"><span class="small muted">Chưa dùng</span></td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đang dùng</span></td>
+		<td class="c-act"><button class="btn btn-danger">Thu hồi</button></td>
+	</tr>
+	<tr class="is-muted" data-ca="da-thu-hoi">
+		<td class="lead"><div class="stack-sm" style="gap:2px"><b class="clamp2">Thử nối website ngày 10/11</b><span class="small muted">Tạo 10/11/2026</span></div></td>
+		<td data-label="Tiền tố"><span class="code">ek_b2xw6pfq3nuj_…</span></td>
+		<td data-label="Quyền"><div class="perms"><span class="chip">Đọc danh mục</span></div></td>
+		<td data-label="IP được gọi"><span class="small">Mọi địa chỉ</span></td>
+		<td data-label="Lần dùng cuối"><span class="small num">17:02 · 10/11</span></td>
+		<td data-label="Trạng thái"><span class="chip chip-dark">Đã thu hồi 11/11</span></td>
+		<td class="c-act"><span class="small muted">—</span></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+<p class="hint" style="margin-top:8px">Danh sách không bao giờ có khóa đầy đủ, chỉ có tiền tố để nhận ra khóa nào đang được dùng ở đâu.</p>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="tao-khoa"><p class="xs">TRẠNG THÁI B</p><h2>Tạo khóa: tên, quyền (chỉ quyền dành cho website), IP được gọi</h2></section>
+
+<div class="backdrop">
+	<div class="dlg" role="dialog" aria-label="Tạo khóa dịch vụ" style="max-width:640px">
+		<div class="dlg-h"><h2>Tạo khóa dịch vụ</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<label class="field"><span>Tên khóa *</span><input class="input" value="Website ELIMAZ — bản chính"><span class="hint">1–80 ký tự; ghi khóa dùng ở đâu để sau này biết thu hồi khóa nào.</span></label>
+			<fieldset class="perm-d" style="border:0;padding:0;margin:0">
+				<legend class="label">Quyền của khóa *</legend>
+				<label class="perm"><input type="checkbox" checked><span><b>Đọc danh mục</b><br><span class="small muted">Sản phẩm, giá, còn hàng, chiến dịch, banner, bộ phối, trạng thái nhận đơn</span></span></label>
+				<label class="perm"><input type="checkbox" checked><span><b>Tạo đơn web</b></span></label>
+				<label class="perm"><input type="checkbox" checked><span><b>Tra đơn web</b><br><span class="small muted">Trang đơn hàng của khách, yêu cầu và tin khách thấy</span></span></label>
+				<label class="perm"><input type="checkbox" checked><span><b>Khách hủy đơn web</b></span></label>
+				<label class="perm"><input type="checkbox" checked><span><b>Gửi yêu cầu về đơn hàng</b><br><span class="small muted">Kèm ảnh khách tải lên</span></span></label>
+				<label class="perm"><input type="checkbox" checked><span><b>Mã giảm giá và quà sinh nhật</b><br><span class="small muted">Kiểm mã, đánh dấu đã gửi quà</span></span></label>
+				<label class="perm"><input type="checkbox" checked><span><b>Báo phí giao hàng</b></span></label>
+				<label class="perm"><input type="checkbox" checked><span><b>Gửi góp ý</b></span></label>
+				<label class="perm"><input type="checkbox" checked><span><b>Đăng ký sinh nhật</b></span></label>
+				<label class="perm"><input type="checkbox"><span><b>Mua flash sale</b><br><span class="small muted">Chỉ dùng khi bật flash sale (đợt 2)</span></span></label>
+			</fieldset>
+			<label class="field"><span>IP được gọi</span><textarea class="input" placeholder="Để trống: mọi địa chỉ. Mỗi dòng một địa chỉ hoặc dải, ví dụ 13.140.64.56/32"></textarea><span class="hint">Nên giới hạn đúng địa chỉ máy chủ website.</span></label>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark">Tạo khóa</button></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" data-ca="khoa-mot-lan chep-khoa"><p class="xs">TRẠNG THÁI C</p><h2>Khóa vừa tạo: hiện một lần, nút chép, lời nhắc; đóng hộp là mất</h2></section>
+
+<div class="backdrop">
+	<div class="dlg" role="dialog" aria-label="Khóa đã tạo" style="max-width:640px">
+		<div class="dlg-h"><h2>Đã tạo khóa "Website ELIMAZ — bản chính"</h2></div>
+		<div class="dlg-b">
+			<div class="once">
+				<p><b class="err-text">Khóa chỉ hiện một lần này.</b> Chép ngay và dán vào cấu hình của website (biến <span class="code">CRM_SERVICE_KEY</span>). Đóng hộp này là không xem lại được; CRM chỉ giữ dấu băm của khóa.</p>
+				<div class="copy"><input class="input" readonly autocomplete="off" aria-label="Khóa dịch vụ" value="ek_k3p7q2mxzvfa_VDVE26FEPSRK4QE5IHJENTRD2NSXU3Q3L74YBOOEZEP3XRGXJ7YQ"><button class="btn btn-dark">Chép</button></div>
+				<p class="small ok-text">Đã chép vào bộ nhớ tạm.</p>
+			</div>
+			<p class="hint">Màn hình không lưu khóa vào trình duyệt. Nếu lỡ đóng trước khi chép: thu hồi khóa này và tạo khóa mới.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-dark">Tôi đã chép, đóng</button></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI D</p><h2>Gửi lại lần tạo vừa rồi (409 đã xử lý); thu hồi có xác nhận; người khác vừa đổi (409); chưa có khóa</h2></section>
+
+<div class="dlgs">
+	<div class="box box-err stack-sm" data-ca="da-xu-ly-409"><b>Khóa đã được tạo ở lần bấm trước, không hiện lại được.</b><p>Mạng chập chờn nên màn hình gửi lại; CRM không tạo khóa thứ hai. Nếu bạn chưa kịp chép khóa: thu hồi khóa "Website ELIMAZ — bản chính" trong danh sách rồi tạo khóa mới.</p><div><button class="btn btn-line">Về danh sách</button></div></div>
+	<div class="dlg" role="dialog" aria-label="Thu hồi khóa" data-ca="thu-hoi xac-nhan-thu-hoi">
+		<div class="dlg-h"><h2>Thu hồi khóa này?</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p><b>Website ELIMAZ — bản thử (staging)</b> · <span class="code">ek_q4ztb6wnc2hd_…</span></p>
+			<p>Trong vài giây, mọi lần gọi bằng khóa này bị từ chối: website dùng khóa này sẽ không đọc được sản phẩm, không gửi được đơn. <b>Không mở lại được</b>; muốn dùng tiếp thì tạo khóa mới.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-danger">Thu hồi khóa</button></div>
+	</div>
+	<div class="box box-err stack-sm" data-ca="xung-dot-409"><b>Khóa vừa được người khác đổi.</b><p>Đã tải lại danh sách: khóa này đã bị thu hồi lúc 10:05. Không cần làm gì thêm.</p><div><button class="btn btn-line">Đã hiểu</button></div></div>
+	<div class="empty" data-ca="0-khoa"><h2>Chưa có khóa nào</h2><p class="muted">Website chưa nối được CRM. Tạo một khóa rồi dán vào cấu hình website.</p><button class="btn btn-dark">+ Tạo khóa</button></div>
+</div>
+<p class="mk" style="margin-top:16px"><b>Mockup:</b> chỉ người có quyền "Quản lý khóa dịch vụ" (vai trò Chủ) thấy mục này trên menu. Người khác không thấy màn.</p>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

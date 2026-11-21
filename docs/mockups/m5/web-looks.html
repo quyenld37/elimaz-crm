@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M5 — Bộ phối</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m5.css">
+<style>
+.lk .oitem { align-items: flex-start; }
+.lk .grow { min-width: 150px; }
+.step { border-top: 1px solid var(--rule); padding-top: 16px; display: grid; gap: 8px; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.piece { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 180px) auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+@media (max-width: 759px) { .piece { grid-template-columns: auto minmax(0, 1fr) auto; } .piece .select-wrap { grid-column: 2 / -1; } }
+.reasons { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 2px; }
+.lk-card { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 759px) { .lk-card { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body data-page="web-looks" data-title="Bộ phối">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Website / Bộ phối</p><h1>Bộ phối</h1><p class="sub">Mục "Hôm nay mặc gì?" trên trang chủ: mỗi bộ là một ảnh người mẫu và 1–3 sản phẩm, chấm trên ảnh dẫn tới sản phẩm. Bộ nào cũng có liên kết riêng để gửi khách; tối đa 6 bộ hiện trên trang chủ. Giá, size, còn hàng lấy từ CRM.</p></div>
+	<div class="row"><button class="btn btn-dark">+ Thêm bộ phối</button></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="ds-bo-phoi dem-trang-chu toi-da-6 xep-thu-tu"><p class="xs">TRẠNG THÁI A</p><h2>124 bộ, 6/6 bật hiện trên trang chủ (5 đang hiện, 1 ẩn vì hết hàng); bộ thứ 7 không bật thêm được</h2></section>
+
+<div class="toolbar"><input class="input is-search" placeholder="Tìm bộ phối theo tên dịp hoặc sản phẩm" aria-label="Tìm bộ phối"><span class="small">124 bộ · <b>6/6</b> bật hiện trên trang chủ · 5 đang hiện</span></div>
+<section class="card lk">
+	<div class="olist">
+		<div class="oitem is-pick"><span class="ord">1</span><span class="thumb"></span><div class="grow"><b>Đi làm ngày thường</b><br><span class="small muted">Sơ mi lụa tay bồng, chân váy bút chì, giày mũi nhọn · Đang hiện</span></div><label class="sw"><input type="checkbox" checked> Trang chủ</label><div class="row"><button class="ibtn" aria-label="Đưa bộ 1 lên" disabled>↑</button><button class="ibtn" aria-label="Đưa bộ 1 xuống">↓</button><button class="btn btn-quiet" data-ca="chep-lien-ket">Chép liên kết</button></div></div>
+		<div class="oitem"><span class="ord">2</span><span class="thumb"></span><div class="grow"><b>Họp quan trọng</b><br><span class="small muted">Blazer dáng suông, quần âu ống đứng, giày mũi nhọn · Đang hiện</span></div><label class="sw"><input type="checkbox" checked> Trang chủ</label><div class="row"><button class="ibtn" aria-label="Đưa bộ 2 lên">↑</button><button class="ibtn" aria-label="Đưa bộ 2 xuống">↓</button><button class="btn btn-quiet">Chép liên kết</button></div></div>
+		<div class="oitem"><span class="ord">3</span><span class="thumb"></span><div class="grow"><b>Đứng lớp cả ngày</b><br><span class="small muted">Đầm suông cổ vuông · </span><span class="why-hide">Đang ẩn: một món đã hết hàng mọi size (Đầm suông cổ vuông)</span></div><label class="sw"><input type="checkbox" checked> Trang chủ</label><div class="row"><button class="ibtn" aria-label="Đưa bộ 3 lên">↑</button><button class="ibtn" aria-label="Đưa bộ 3 xuống">↓</button><button class="btn btn-quiet">Chép liên kết</button></div></div>
+		<div class="oitem"><span class="ord">4</span><span class="thumb"></span><div class="grow"><b>Hẹn sau giờ làm</b><br><span class="small muted">Đầm lụa hai dây, áo khoác cardigan · Đang hiện</span></div><label class="sw"><input type="checkbox" checked> Trang chủ</label><div class="row"><button class="ibtn" aria-label="Đưa bộ 4 lên">↑</button><button class="ibtn" aria-label="Đưa bộ 4 xuống">↓</button><button class="btn btn-quiet">Chép liên kết</button></div></div>
+		<div class="oitem"><span class="ord">5</span><span class="thumb"></span><div class="grow"><b>Cuối tuần ở nhà</b><br><span class="small muted">Bộ mặc nhà cotton · Đang hiện</span></div><label class="sw"><input type="checkbox" checked> Trang chủ</label><div class="row"><button class="ibtn" aria-label="Đưa bộ 5 lên">↑</button><button class="ibtn" aria-label="Đưa bộ 5 xuống">↓</button><button class="btn btn-quiet">Chép liên kết</button></div></div>
+		<div class="oitem"><span class="ord">6</span><span class="thumb"></span><div class="grow"><b class="wrap-any">ThứHaiĐầuTuầnMặcGìĐểTựTinNhé</b><br><span class="small muted">Tên 28 ký tự · Áo len cổ lọ, chân váy dạ · Đang hiện</span></div><label class="sw"><input type="checkbox" checked> Trang chủ</label><div class="row"><button class="ibtn" aria-label="Đưa bộ 6 lên">↑</button><button class="ibtn" aria-label="Đưa bộ 6 xuống">↓</button><button class="btn btn-quiet">Chép liên kết</button></div></div>
+		<div class="oitem"><span class="ord">7</span><span class="thumb"></span><div class="grow"><b>Tiệc cuối năm công ty</b><br><span class="small muted">Đầm nhung đỏ · Không hiện trên trang chủ (liên kết riêng vẫn mở được)</span><br><span class="reason">Trang chủ hiện tối đa 6 bộ phối. Tắt "Trang chủ" ở một bộ khác trước.</span></div><label class="sw is-off"><input type="checkbox" disabled> Trang chủ</label><div class="row"><button class="ibtn" aria-label="Đưa bộ 7 lên">↑</button><button class="ibtn" aria-label="Đưa bộ 7 xuống">↓</button><button class="btn btn-quiet">Chép liên kết</button></div></div>
+	</div>
+	<div class="more" data-ca="toi-da-500"><span>Mockup vẽ 7 / 124 bộ; màn thật tải cả danh sách một lần (tối đa 500 bộ) vì lưu là lưu cả danh sách, cuộn để xem hết.</span></div>
+</section>
+<div class="toast" style="margin-top:8px"><span class="grow">Đã chép liên kết bộ phối: elimaz.com.vn/bo-phoi/di-lam-ngay-thuong-0193b2f1</span></div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="ten-dip ten-goi-y san-pham-1-3 mau anh-nguoi-mau cham-san-pham keo-kep"><p class="xs">TRẠNG THÁI B</p><h2>Sửa bộ "Đi làm ngày thường": tên dịp và tên gợi ý, 3 sản phẩm với màu trong ảnh, chọn ảnh từ ảnh sản phẩm, đặt chấm (chấm 3 kéo ra mép được giữ ở 97%)</h2></section>
+
+<section class="card stack">
+	<div class="row-between"><h2>Bộ 1 · Đi làm ngày thường</h2><div class="row"><button class="btn btn-quiet" data-ca="nhan-ban">Nhân bản</button><button class="btn btn-danger">Xóa</button></div></div>
+	<label class="field"><span>1. Tên dịp *</span><input class="input" value="Đi làm ngày thường"><span class="hint num">18 / 28</span></label>
+	<div class="chips"><button class="btn btn-quiet">Đi làm ngày thường</button><button class="btn btn-quiet">Họp quan trọng</button><button class="btn btn-quiet">Đứng lớp cả ngày</button><button class="btn btn-quiet">Hẹn sau giờ làm</button><button class="btn btn-quiet">Cuối tuần ở nhà</button></div>
+	<div class="step">
+		<p class="label">2. Sản phẩm trong ảnh (1–3)</p>
+		<div class="piece"><span class="ord">1</span><b>Áo sơ mi lụa tay bồng</b><span class="select-wrap"><select aria-label="Màu trong ảnh của Áo sơ mi lụa tay bồng"><option>Trắng</option></select></span><button class="ibtn" aria-label="Bỏ Áo sơ mi lụa tay bồng">×</button></div>
+		<div class="piece"><span class="ord">2</span><b>Chân váy bút chì</b><span class="select-wrap"><select aria-label="Màu trong ảnh của Chân váy bút chì"><option>Đen</option></select></span><button class="ibtn" aria-label="Bỏ Chân váy bút chì">×</button></div>
+		<div class="piece"><span class="ord">3</span><b>Giày mũi nhọn da bò</b><span class="select-wrap"><select aria-label="Màu trong ảnh của Giày mũi nhọn da bò"><option>Kem</option></select></span><button class="ibtn" aria-label="Bỏ Giày mũi nhọn da bò">×</button></div>
+		<input class="input is-search" placeholder="Đã đủ 3 sản phẩm — bỏ một món để thêm" aria-label="Tìm sản phẩm" disabled>
+	</div>
+	<div class="step">
+		<p class="label">3. Ảnh người mẫu</p>
+		<div class="lk-thumbs" role="group" aria-label="Ảnh của các sản phẩm đã chọn"><button class="lk-thumb" aria-pressed="false">1</button><button class="lk-thumb" aria-pressed="true">2</button><button class="lk-thumb" aria-pressed="false">3</button><button class="lk-thumb" aria-pressed="false">4</button><button class="lk-thumb" aria-pressed="false">5</button></div>
+		<p class="hint">Chọn từ ảnh của 3 sản phẩm trên (màu đã chọn đứng trước). Đặt chấm: chọn số rồi bấm vào ảnh, hoặc kéo chấm.</p>
+		<div class="lk-photo"><button class="lk-dot" style="left:50%;top:28%" aria-label="Chấm 1: Áo sơ mi lụa tay bồng">1</button><button class="lk-dot" style="left:46%;top:62%" aria-label="Chấm 2: Chân váy bút chì">2</button><button class="lk-dot is-pick" style="left:97%;top:92%" aria-label="Chấm 3: Giày mũi nhọn da bò">3</button></div>
+		<p class="small muted">Chấm 3 kéo ra mép phải: giữ ở 97% để khách vẫn bấm được.</p>
+	</div>
+	<div class="step" data-ca="tieu-de-tu-dong cau-mo-dau cau-chuyen">
+		<label class="field"><span>4. Dòng tiêu đề <span class="muted">(không bắt buộc)</span></span><input class="input" placeholder="Tự động: Áo sơ mi lụa tay bồng, chân váy bút chì, giày mũi nhọn da bò"><span class="hint">Tối đa 60 ký tự; trống thì dùng tên các món</span></label>
+		<label class="field"><span>Câu mở đầu <span class="muted">(không bắt buộc)</span></span><input class="input" value="Sáng thứ Hai đi làm — mặc gì để gọn gàng mà vẫn mềm mại?"><span class="hint num">56 / 90 · trống thì "Mặc gì cho Đi làm ngày thường?"</span></label>
+		<label class="field"><span>Câu chuyện <span class="muted">(không bắt buộc)</span></span><textarea class="input">Sơ mi lụa mát cả ngày ngồi điều hòa, chân váy bút chì giữ dáng khi đứng thuyết trình.</textarea><span class="hint num">86 / 220 · trống thì không hiện</span></label>
+	</div>
+	<div class="step">
+		<p class="label">5. Thêm lựa chọn cho dịp này</p>
+		<div class="chips" data-ca="danh-muc-them"><span class="tag">Áo sơ mi</span><span class="tag">Chân váy</span><span class="tag">Giày</span></div>
+		<p class="hint">Tối đa 6 danh mục; trống thì dùng danh mục của các món trong ảnh.</p>
+		<div class="grid-f" data-ca="chieu-cao-co"><label class="field"><span>Người mẫu cao (cm)</span><input class="input num" value="162"><span class="hint">130–200</span></label><label class="field"><span>Đang mặc size</span><input class="input" value="S"><span class="hint">Tối đa 6 ký tự</span></label></div>
+	</div>
+	<div class="step" data-ca="thoi-gian-hien">
+		<p class="label">6. Thời gian hiện <span class="muted">(không bắt buộc)</span></p>
+		<div class="grid-f"><label class="field"><span>Hiện từ (giờ Việt Nam)</span><input class="input num" placeholder="Luôn hiện"></label><label class="field"><span>Hiện đến</span><input class="input num" placeholder="Luôn hiện"></label></div>
+	</div>
+	<div class="savebar"><span class="small grow">Có thay đổi chưa lưu</span><button class="btn btn-quiet">Bỏ thay đổi</button><button class="btn btn-dark">Lưu bộ phối</button></div>
+</section>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" data-ca="xem-truoc ly-do-an"><p class="xs">TRẠNG THÁI C</p><h2>Xem trước một bộ trên trang chủ; bộ đang ẩn ghi lý do</h2></section>
+
+<div class="dlgs">
+	<section class="card stack-sm">
+		<div class="row-between"><h3>Xem trước</h3><div class="row" role="group" aria-label="Thiết bị"><button class="toggle" aria-pressed="true">Máy tính</button><button class="toggle" aria-pressed="false">Điện thoại</button></div></div>
+		<div class="pv-frame"><div class="lk-card"><div class="lk-photo"><span class="lk-dot" style="left:50%;top:28%">1</span><span class="lk-dot" style="left:46%;top:62%">2</span><span class="lk-dot" style="left:97%;top:92%">3</span></div><div class="stack-sm"><p class="xs label">HÔM NAY MẶC GÌ?</p><h3>Sáng thứ Hai đi làm — mặc gì để gọn gàng mà vẫn mềm mại?</h3><p class="small">Mẫu 1m62 · size S</p><p class="small">Áo sơ mi lụa tay bồng <span class="money">590.000 ₫</span><br>Chân váy bút chì <span class="money">420.000 ₫</span><br>Giày mũi nhọn da bò <span class="money">890.000 ₫</span></p></div></div></div>
+	</section>
+	<section class="card stack-sm">
+		<h3>Bộ 3 · Đứng lớp cả ngày</h3>
+		<div class="box box-soft"><b>Bộ phối này đang ẩn:</b> Một món đã hết hàng mọi size (Đầm suông cổ vuông). Khách mở liên kết riêng sẽ thấy báo bộ phối tạm hết.</div>
+		<div class="mk" data-ca="6-ly-do"><b>Mockup — 6 lý do ẩn (đúng 6 lý do của website):</b><ol class="reasons"><li>Không hiện trên trang chủ</li><li>Chưa tới giờ hiện</li><li>Đã hết thời gian hiện</li><li>Một món đã ngừng bán</li><li>Một món đã hết hàng mọi size</li><li>Ảnh đã chọn không còn, chọn lại ảnh</li></ol></div>
+	</section>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI D</p><h2>Xóa có xác nhận (liên kết chết); người khác vừa lưu (409); chưa có bộ phối</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="Xóa bộ phối" data-ca="xoa-xac-nhan">
+		<div class="dlg-h"><h2>Xóa bộ "Tiệc cuối năm công ty"?</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b"><p>Liên kết đã gửi khách (<span class="small">elimaz.com.vn/bo-phoi/tiec-cuoi-nam-cong-ty-0193c4a0</span>) <b>sẽ không mở được nữa</b>. Bấm Lưu bộ phối để áp dụng.</p></div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-danger">Xóa bộ phối</button></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Người khác vừa lưu" data-ca="xung-dot-409">
+		<div class="dlg-h"><h2>Bộ phối vừa được người khác lưu</h2></div>
+		<div class="dlg-b"><p>Bản bạn đang sửa vẫn còn trên màn hình, chưa lưu. Tải bản mới sẽ bỏ thay đổi của bạn.</p></div>
+		<div class="dlg-f"><button class="btn btn-quiet">Giữ bản đang sửa</button><button class="btn btn-dark">Tải bản mới</button></div>
+	</div>
+	<div class="empty" data-ca="0-bo-phoi"><h2>Chưa có bộ phối nào</h2><p class="muted">Trang chủ đang hiện hàng tròn danh mục. Bấm Thêm bộ phối, ví dụ "Đi làm ngày thường".</p><button class="btn btn-dark">+ Thêm bộ phối</button></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

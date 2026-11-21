@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M5 đợt 1 — CRM ELIMAZ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m5.css">
+<style>
+.doc { max-width: 1320px; margin: 0 auto; padding: 24px 40px 64px; display: grid; gap: 24px; }
+@media (max-width: 999px) { .doc { padding: 16px 16px 48px; } }
+.pair, .cur { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: 16px; margin-top: 8px; align-items: start; }
+.cur { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+figure { margin: 0; display: grid; gap: 4px; min-width: 0; }
+.pair img, .cur img { width: 100%; height: 420px; object-fit: cover; object-position: top; border: 1px solid var(--rule); border-radius: var(--r-box); display: block; }
+.cur img { height: 260px; }
+figure > a { display: block; }
+figcaption a { display: inline-flex; min-height: var(--tap); align-items: center; }
+@media (max-width: 759px) { .pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .pair img { height: 260px; } }
+.tbl td { overflow-wrap: anywhere; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (min-width: 760px) { .btbl td:first-child { width: 64px; } .btbl td:nth-child(2) { width: 120px; } .btbl td:nth-child(4) { width: 240px; } .btbl td:last-child { width: 100px; } }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="stack-sm">
+	<p class="xs label">CRM ELIMAZ · M5 ĐỢT 1 · TASK M5-22 (205) · 21/11/2026</p>
+	<h1>Mockup M5 đợt 1: mọi màn chuyển từ admin sang CRM, Hiện tại / Đề xuất</h1>
+	<p class="muted">Mười một màn của M5 đợt 1 (màn Đợt flash sale là đợt 2, chưa vẽ), vẽ bằng đúng hệ thiết kế CRM đã duyệt ở M1 (<code>docs/mockups/m1/m1.css</code>) và thành phần M2, M3: chỉ màu, cỡ chữ, bo góc có sẵn; không có gì chỉ hiện khi rê chuột; nút trên điện thoại cao ít nhất 44 px. Mỗi màn có nhiều <b>trạng thái</b> xếp dọc (khung viền đứt là ghi chú của mockup).</p>
+	<div class="box box-soft"><b>Trạng thái duyệt: hình do điều phối viên chốt (Điểm dừng B, Q-X8, C3-3), xem README.md.</b> Mỗi dòng ở bảng "Hành vi khác admin" cần chủ shop OK riêng; dòng chưa OK chỉ chặn đúng màn có hành vi đó.</div>
+</header>
+
+<section class="card">
+	<h2>Đọc trang này thế nào</h2>
+	<ul class="small" style="margin:8px 0 0;padding-left:20px">
+		<li><b>Hiện tại</b>: ảnh chụp admin đang chạy (<code>apps/admin</code> origin/main 7199466, bản build chạy riêng trên máy với dữ liệu mẫu, không phải dữ liệu thật của shop).</li>
+		<li><b>Đề xuất</b>: ảnh 1512 × 767 (laptop của chủ shop), 390 × 844 và 360 × 800 (điện thoại). Bấm ảnh để xem cả trang.</li>
+		<li>Ảnh đề xuất và tự soát sinh lại bằng <code>docs/mockups/m5/soat.mjs</code>.</li>
+	</ul>
+	<div class="toc" style="margin-top:16px"><a class="btn btn-quiet" href="#order-requests">(1) Yêu cầu về đơn hàng</a><a class="btn btn-quiet" href="#web-carriers">(2) Hãng trên website</a><a class="btn btn-quiet" href="#service-keys">(3) Khóa dịch vụ</a><a class="btn btn-quiet" href="#birthday-gifts">(4) Quà sinh nhật</a><a class="btn btn-quiet" href="#web-campaigns">(5) Chiến dịch giảm giá</a><a class="btn btn-quiet" href="#web-banners">(6) Banner trang chủ</a><a class="btn btn-quiet" href="#web-looks">(7) Bộ phối</a><a class="btn btn-quiet" href="#feedback">(8) Góp ý</a><a class="btn btn-quiet" href="#web-intake">(9) Nhận đơn web</a><a class="btn btn-quiet" href="#audit">(10) Nhật ký thao tác</a><a class="btn btn-quiet" href="#menu">(11) Menu</a><a class="btn btn-quiet" href="#ca-kiem">Ca kiểm</a><a class="btn btn-quiet" href="#hanh-vi">Hành vi khác admin</a></div>
+</section>
+
+<section class="card scr" id="order-requests">
+	<div class="row-between"><h2>(1) Yêu cầu về đơn hàng</h2><a class="btn btn-quiet" href="order-requests.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Đơn hàng → Yêu cầu về đơn hàng · <code>/don/yeu-cau</code>, <code>/don/yeu-cau/:id</code> · Task 207 (M5-24). <b>Ca kiểm:</b> WB04. <b>Trạng thái:</b> A danh sách lọc 10 nhãn trạng thái có số, lọc loại, tìm không dấu, 11 dòng đủ 8 trạng thái và 4 loại, tên 60 ký tự, 200 dòng theo con trỏ · B chi tiết đổi hàng: đơn, món muốn đổi sang, 3 ảnh (sẵn sàng, đang xử lý, bị từ chối), tin hai phía Khách thấy / Nội bộ, nội dung có &lt;script&gt; hiện nguyên chữ, đổi trạng thái · C Đã xác nhận đổi: địa chỉ gửi trả, mã kiện, hạn (lỗi nhập) · D hộp Cần bổ sung, Từ chối, Hoàn tất · E đã đóng, khách đã hủy, yêu cầu hủy đơn đã gửi hãng · F rỗng, lỗi tải, 409, chỉ xem</p>
+	<p class="label" style="margin-top:12px">Hiện tại</p><div class="cur"><figure><a href="shots/hien-tai-yeu-cau-1512.png"><img src="shots/hien-tai-yeu-cau-1512.png" alt="Hiện tại (1) Yêu cầu về đơn hàng danh sách 1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) 1512 · danh sách · <a href="shots/hien-tai-yeu-cau-390.png">ảnh 390</a></figcaption></figure><figure><a href="shots/hien-tai-yeu-cau-chi-tiet-1512.png"><img src="shots/hien-tai-yeu-cau-chi-tiet-1512.png" alt="Hiện tại (1) Yêu cầu về đơn hàng chi tiết, đang chọn Đã xác nhận đổi 1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) 1512 · chi tiết, đang chọn Đã xác nhận đổi · <a href="shots/hien-tai-yeu-cau-chi-tiet-390.png">ảnh 390</a></figcaption></figure></div>
+	<p class="label" style="margin-top:12px">Đề xuất</p>
+	<div class="pair">
+		<figure><a href="shots/order-requests-1512.png"><img src="shots/order-requests-1512.png" alt="Đề xuất (1) Yêu cầu về đơn hàng 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="shots/order-requests-390.png"><img src="shots/order-requests-390.png" alt="Đề xuất (1) Yêu cầu về đơn hàng 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="shots/order-requests-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="web-carriers">
+	<div class="row-between"><h2>(2) Hãng trên website</h2><a class="btn btn-quiet" href="web-carriers.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Website → Hãng trên web = phần cuối màn Kết nối vận chuyển (M3) · Task 208 (M5-25). <b>Ca kiểm:</b> —. <b>Trạng thái:</b> A bật hiện, thứ tự, số vận đơn 30 ngày, chọn sẵn hoặc rẻ nhất, phí dự phòng (mặc định tắt), tài khoản không hoạt động không bật được · B ẩn hãng chọn sẵn thì tự bỏ chọn sẵn, ẩn hãng cuối cùng bị chặn, đang lưu · C 409, chỉ xem, 0 tài khoản</p>
+	<p class="label" style="margin-top:12px">Hiện tại</p><div class="cur"><figure><a href="shots/hien-tai-van-hanh-1512.png"><img src="shots/hien-tai-van-hanh-1512.png" alt="Hiện tại (2) Hãng trên website Vận hành website: Tiếp nhận đơn + Hãng giao hàng trên web 1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) 1512 · Vận hành website: Tiếp nhận đơn + Hãng giao hàng trên web · <a href="shots/hien-tai-van-hanh-390.png">ảnh 390</a></figcaption></figure></div>
+	<p class="label" style="margin-top:12px">Đề xuất</p>
+	<div class="pair">
+		<figure><a href="shots/web-carriers-1512.png"><img src="shots/web-carriers-1512.png" alt="Đề xuất (2) Hãng trên website 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="shots/web-carriers-390.png"><img src="shots/web-carriers-390.png" alt="Đề xuất (2) Hãng trên website 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="shots/web-carriers-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="service-keys">
+	<div class="row-between"><h2>(3) Khóa dịch vụ</h2><a class="btn btn-quiet" href="service-keys.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Website → Khóa dịch vụ · <code>/website/khoa-dich-vu</code> · Task 208 (M5-25). <b>Ca kiểm:</b> —. <b>Trạng thái:</b> A 4 khóa (đang dùng, giới hạn IP, tên 80 ký tự chưa dùng, đã thu hồi), chỉ hiện tiền tố · B tạo khóa: tên, quyền web, IP · C khóa hiện một lần, nút Chép, lời nhắc · D gửi lại 409 đã xử lý, thu hồi có xác nhận, 409, 0 khóa</p>
+	<p class="label" style="margin-top:12px">Hiện tại</p><div class="cur"><div class="box box-info small">Hiện tại: admin không có màn này.</div></div>
+	<p class="label" style="margin-top:12px">Đề xuất</p>
+	<div class="pair">
+		<figure><a href="shots/service-keys-1512.png"><img src="shots/service-keys-1512.png" alt="Đề xuất (3) Khóa dịch vụ 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="shots/service-keys-390.png"><img src="shots/service-keys-390.png" alt="Đề xuất (3) Khóa dịch vụ 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="shots/service-keys-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="birthday-gifts">
+	<div class="row-between"><h2>(4) Quà sinh nhật</h2><a class="btn btn-quiet" href="birthday-gifts.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Khuyến mãi → Quà sinh nhật · <code>/khuyen-mai/qua-sinh-nhat</code> · Task 209 (M5-26, bốn tab theo Task 468). <b>Ca kiểm:</b> WB05. <b>Trạng thái:</b> Đầu trang: trạng thái quà, lần chạy gần nhất, 4 số, Tạo mã ngay · A Cần nhắn: chọn nhiều, Chép tin, Mở Zalo, Đã nhắn, rỗng · B Tất cả khách: 8 trạng thái, tháng sinh, tìm, Xuất CSV, xem thêm · C Cài đặt quà: 5 ô số (lỗi bội số 1.000), xem trước câu khách thấy, lượt khác đang chạy (409) · D Đợt mã: đợt theo ngày, đợt rỗng, mã chưa tặng / đã tặng / đã dùng (đơn) / hết hạn, không quyền</p>
+	<p class="label" style="margin-top:12px">Hiện tại</p><div class="cur"><figure><a href="shots/hien-tai-sinh-nhat-can-nhan-1512.png"><img src="shots/hien-tai-sinh-nhat-can-nhan-1512.png" alt="Hiện tại (4) Quà sinh nhật tab Cần nhắn 1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) 1512 · tab Cần nhắn · <a href="shots/hien-tai-sinh-nhat-can-nhan-390.png">ảnh 390</a></figcaption></figure><figure><a href="shots/hien-tai-sinh-nhat-tat-ca-1512.png"><img src="shots/hien-tai-sinh-nhat-tat-ca-1512.png" alt="Hiện tại (4) Quà sinh nhật tab Tất cả khách 1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) 1512 · tab Tất cả khách · <a href="shots/hien-tai-sinh-nhat-tat-ca-390.png">ảnh 390</a></figcaption></figure><figure><a href="shots/hien-tai-sinh-nhat-cai-dat-1512.png"><img src="shots/hien-tai-sinh-nhat-cai-dat-1512.png" alt="Hiện tại (4) Quà sinh nhật tab Cài đặt 1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) 1512 · tab Cài đặt · <a href="shots/hien-tai-sinh-nhat-cai-dat-390.png">ảnh 390</a></figcaption></figure></div>
+	<p class="label" style="margin-top:12px">Đề xuất</p>
+	<div class="pair">
+		<figure><a href="shots/birthday-gifts-1512.png"><img src="shots/birthday-gifts-1512.png" alt="Đề xuất (4) Quà sinh nhật 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="shots/birthday-gifts-390.png"><img src="shots/birthday-gifts-390.png" alt="Đề xuất (4) Quà sinh nhật 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="shots/birthday-gifts-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="web-campaigns">
+	<div class="row-between"><h2>(5) Chiến dịch giảm giá</h2><a class="btn btn-quiet" href="web-campaigns.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Khuyến mãi → Chiến dịch giảm giá · <code>/khuyen-mai/chien-dich</code> · Task 458 (M5-46). <b>Ca kiểm:</b> —. <b>Trạng thái:</b> A 5 chiến dịch đủ 5 trạng thái, tên 120 ký tự, lọc, tìm, cỡ trang, chép liên kết · B form: phạm vi, chọn đích (2/30, đủ 30/30), giờ VN, dùng kèm mã, hàng cắt mã, xem trước giá · C kích hoạt có lý do, phải xem trước lại, vượt trần, tạm dừng, sửa khi đang chạy · D xóa (banner tự ẩn), 409 giữ form, chỉ xem, 0 chiến dịch</p>
+	<p class="label" style="margin-top:12px">Hiện tại</p><div class="cur"><figure><a href="shots/hien-tai-chien-dich-1512.png"><img src="shots/hien-tai-chien-dich-1512.png" alt="Hiện tại (5) Chiến dịch giảm giá danh sách 1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) 1512 · danh sách · <a href="shots/hien-tai-chien-dich-390.png">ảnh 390</a></figcaption></figure><figure><a href="shots/hien-tai-chien-dich-sua-1512.png"><img src="shots/hien-tai-chien-dich-sua-1512.png" alt="Hiện tại (5) Chiến dịch giảm giá sửa + xem trước giá 1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) 1512 · sửa + xem trước giá · <a href="shots/hien-tai-chien-dich-sua-390.png">ảnh 390</a></figcaption></figure></div>
+	<p class="label" style="margin-top:12px">Đề xuất</p>
+	<div class="pair">
+		<figure><a href="shots/web-campaigns-1512.png"><img src="shots/web-campaigns-1512.png" alt="Đề xuất (5) Chiến dịch giảm giá 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="shots/web-campaigns-390.png"><img src="shots/web-campaigns-390.png" alt="Đề xuất (5) Chiến dịch giảm giá 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="shots/web-campaigns-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="web-banners">
+	<div class="row-between"><h2>(6) Banner trang chủ</h2><a class="btn btn-quiet" href="web-banners.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Website → Banner trang chủ · <code>/website/banner</code> · Task 459 (M5-47). <b>Ca kiểm:</b> —. <b>Trạng thái:</b> A 7 banner (lý do ẩn), sửa banner ảnh: ảnh máy tính sẵn sàng, ảnh điện thoại đang xử lý → Lưu khóa · B banner giảm giá: chiến dịch, màu nền, chữ tự động, ghim 3, theo giờ chiến dịch · C tải ảnh: đang tải, lệch tỉ lệ, bị từ chối · D xem trước máy tính / điện thoại, banner ẩn, 9 lý do · E đủ 8, đang lưu khóa hết, 409 giữ bản sửa, chỉ xem, 0 banner</p>
+	<p class="label" style="margin-top:12px">Hiện tại</p><div class="cur"><figure><a href="shots/hien-tai-banner-1512.png"><img src="shots/hien-tai-banner-1512.png" alt="Hiện tại (6) Banner trang chủ banner ảnh đang chọn 1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) 1512 · banner ảnh đang chọn · <a href="shots/hien-tai-banner-390.png">ảnh 390</a></figcaption></figure></div>
+	<p class="label" style="margin-top:12px">Đề xuất</p>
+	<div class="pair">
+		<figure><a href="shots/web-banners-1512.png"><img src="shots/web-banners-1512.png" alt="Đề xuất (6) Banner trang chủ 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="shots/web-banners-390.png"><img src="shots/web-banners-390.png" alt="Đề xuất (6) Banner trang chủ 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="shots/web-banners-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="web-looks">
+	<div class="row-between"><h2>(7) Bộ phối</h2><a class="btn btn-quiet" href="web-looks.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Website → Bộ phối · <code>/website/bo-phoi</code> · Task 460 (M5-48). <b>Ca kiểm:</b> —. <b>Trạng thái:</b> A 124 bộ, 6/6 trang chủ (1 ẩn vì hết hàng), bộ thứ 7 khóa ô Trang chủ, chép liên kết · B sửa: tên dịp 28 ký tự + 5 tên gợi ý, 3 sản phẩm và màu, chọn ảnh, chấm kẹp ở 97%, tiêu đề tự động, câu mở đầu, câu chuyện, danh mục thêm, chiều cao/size, giờ hiện · C xem trước, lý do ẩn, 6 lý do · D xóa (liên kết chết), 409, 0 bộ</p>
+	<p class="label" style="margin-top:12px">Hiện tại</p><div class="cur"><figure><a href="shots/hien-tai-bo-phoi-1512.png"><img src="shots/hien-tai-bo-phoi-1512.png" alt="Hiện tại (7) Bộ phối danh sách + bộ 1 đang sửa 1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) 1512 · danh sách + bộ 1 đang sửa · <a href="shots/hien-tai-bo-phoi-390.png">ảnh 390</a></figcaption></figure></div>
+	<p class="label" style="margin-top:12px">Đề xuất</p>
+	<div class="pair">
+		<figure><a href="shots/web-looks-1512.png"><img src="shots/web-looks-1512.png" alt="Đề xuất (7) Bộ phối 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="shots/web-looks-390.png"><img src="shots/web-looks-390.png" alt="Đề xuất (7) Bộ phối 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="shots/web-looks-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="feedback">
+	<div class="row-between"><h2>(8) Góp ý</h2><a class="btn btn-quiet" href="feedback.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Khách hàng → Góp ý · <code>/khach/gop-y</code> + khối Góp ý trong hồ sơ khách · Task 461 (M5-49). <b>Ca kiểm:</b> —. <b>Trạng thái:</b> A lọc trạng thái có số, chủ đề, 5 dòng đủ 5 chủ đề, gắn / không gắn hồ sơ, &lt;script&gt; hiện nguyên chữ, dòng mở: đơn, trang, thiết bị, ghi chú nội bộ, đổi trạng thái, còn trang sau · B khối Góp ý trong hồ sơ khách · C rỗng, 409, 403</p>
+	<p class="label" style="margin-top:12px">Hiện tại</p><div class="cur"><figure><a href="shots/hien-tai-gop-y-1512.png"><img src="shots/hien-tai-gop-y-1512.png" alt="Hiện tại (8) Góp ý  1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) 1512 · <a href="shots/hien-tai-gop-y-390.png">ảnh 390</a></figcaption></figure></div>
+	<p class="label" style="margin-top:12px">Đề xuất</p>
+	<div class="pair">
+		<figure><a href="shots/feedback-1512.png"><img src="shots/feedback-1512.png" alt="Đề xuất (8) Góp ý 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="shots/feedback-390.png"><img src="shots/feedback-390.png" alt="Đề xuất (8) Góp ý 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="shots/feedback-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="web-intake">
+	<div class="row-between"><h2>(9) Nhận đơn web</h2><a class="btn btn-quiet" href="web-intake.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Website → Nhận đơn web · <code>/website/nhan-don</code> · Task 462 (M5-50). <b>Ca kiểm:</b> —. <b>Trạng thái:</b> A đang nhận · B hộp tạm dừng (nút khóa khi chưa có lý do; đơn đã gửi vẫn vào) · C đang tạm dừng: lý do, ai, lúc nào; mở lại có xác nhận · D đang lưu, 409, chỉ xem</p>
+	<p class="label" style="margin-top:12px">Hiện tại</p><div class="cur"><figure><a href="shots/hien-tai-van-hanh-1512.png"><img src="shots/hien-tai-van-hanh-1512.png" alt="Hiện tại (9) Nhận đơn web đang tạm dừng 1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) 1512 · đang tạm dừng · <a href="shots/hien-tai-van-hanh-390.png">ảnh 390</a></figcaption></figure><figure><a href="shots/hien-tai-van-hanh-dang-mo-1512.png"><img src="shots/hien-tai-van-hanh-dang-mo-1512.png" alt="Hiện tại (9) Nhận đơn web đang mở 1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) 1512 · đang mở · <a href="shots/hien-tai-van-hanh-dang-mo-390.png">ảnh 390</a></figcaption></figure></div>
+	<p class="label" style="margin-top:12px">Đề xuất</p>
+	<div class="pair">
+		<figure><a href="shots/web-intake-1512.png"><img src="shots/web-intake-1512.png" alt="Đề xuất (9) Nhận đơn web 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="shots/web-intake-390.png"><img src="shots/web-intake-390.png" alt="Đề xuất (9) Nhận đơn web 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="shots/web-intake-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="audit">
+	<div class="row-between"><h2>(10) Nhật ký thao tác</h2><a class="btn btn-quiet" href="audit.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Quản trị → Nhật ký thao tác · <code>/quan-tri/nhat-ky</code> · Task 462 (M5-50). <b>Ca kiểm:</b> —. <b>Trạng thái:</b> A mới nhất trước; người làm là nhân viên, khóa dịch vụ, hệ thống; lọc hành động, người, khoảng ngày; chỉ tên trường đổi; xem thêm theo con trỏ · B rỗng, 403</p>
+	<p class="label" style="margin-top:12px">Hiện tại</p><div class="cur"><figure><a href="shots/hien-tai-nhat-ky-1512.png"><img src="shots/hien-tai-nhat-ky-1512.png" alt="Hiện tại (10) Nhật ký thao tác  1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) 1512 · <a href="shots/hien-tai-nhat-ky-390.png">ảnh 390</a></figcaption></figure></div>
+	<p class="label" style="margin-top:12px">Đề xuất</p>
+	<div class="pair">
+		<figure><a href="shots/audit-1512.png"><img src="shots/audit-1512.png" alt="Đề xuất (10) Nhật ký thao tác 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="shots/audit-390.png"><img src="shots/audit-390.png" alt="Đề xuất (10) Nhật ký thao tác 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="shots/audit-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+<section class="card scr" id="menu">
+	<div class="row-between"><h2>(11) Menu</h2><a class="btn btn-quiet" href="menu.html">Mở mockup</a></div>
+	<p class="small"><b>Đường:</b> Khung · <code>console/src/app/nav.ts</code> · Task 462 (M5-50). <b>Ca kiểm:</b> —. <b>Trạng thái:</b> Menu đủ 10 nhóm theo mục "Xếp module": nhóm Website mới, mục mới ở Đơn hàng, Khách hàng, Khuyến mãi, Quản trị, số đếm yêu cầu đang mở; không Tổng quan, Đơn cần kiểm tra, Kết nối Nhanh, Flash sale; menu điện thoại mở</p>
+	<p class="label" style="margin-top:12px">Hiện tại</p><div class="cur"><figure><a href="shots/hien-tai-tong-quan-1512.png"><img src="shots/hien-tai-tong-quan-1512.png" alt="Hiện tại (11) Menu Tổng quan (bỏ) 1512" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) 1512 · Tổng quan (bỏ) · <a href="shots/hien-tai-tong-quan-390.png">ảnh 390</a></figcaption></figure><figure><a href="shots/hien-tai-menu-390.png"><img src="shots/hien-tai-menu-390.png" alt="Hiện tại menu admin 390" loading="lazy"></a><figcaption class="xs muted">Hiện tại (admin) menu điện thoại 390</figcaption></figure></div>
+	<p class="label" style="margin-top:12px">Đề xuất</p>
+	<div class="pair">
+		<figure><a href="shots/menu-1512.png"><img src="shots/menu-1512.png" alt="Đề xuất (11) Menu 1512" loading="lazy"></a><figcaption class="xs muted">1512 × 767 (cả trang)</figcaption></figure>
+		<figure><a href="shots/menu-390.png"><img src="shots/menu-390.png" alt="Đề xuất (11) Menu 390" loading="lazy"></a><figcaption class="xs muted">390 × 844 · <a href="shots/menu-360.png">ảnh 360</a></figcaption></figure>
+	</div>
+</section>
+
+<section class="card" id="ca-kiem">
+	<h2>Ca kiểm của spec</h2>
+	<div class="tbl-frame"><table class="tbl"><thead><tr><th>Ca</th><th>Nội dung (spec 11)</th><th>Vẽ ở</th></tr></thead><tbody>
+	<tr><td class="lead"><b>WB04</b></td><td data-label="Nội dung">Khách gửi yêu cầu hủy hoặc đổi từ trang đơn hàng → yêu cầu vào CRM cho nhân viên xử lý</td><td data-label="Vẽ ở">(1) A–F</td></tr>
+	<tr><td class="lead"><b>WB05</b></td><td data-label="Nội dung">Khách dùng quà sinh nhật → mã được kiểm và ghi lượt dùng ở CRM</td><td data-label="Vẽ ở">(4) B, D (mã "Đã dùng · DH0001288")</td></tr>
+	<tr><td class="lead"><b>FS01</b></td><td data-label="Nội dung">Flash sale</td><td data-label="Vẽ ở">Đợt 2, chưa vẽ</td></tr>
+	</tbody></table></div>
+</section>
+
+<section class="card" id="hanh-vi">
+	<h2>Hành vi khác admin hiện tại (chủ shop OK từng dòng)</h2>
+	<p class="small muted">Hình do điều phối viên chốt; việc OK hành vi tách riêng. Dòng chưa OK chỉ chặn màn có hành vi đó (Task 207, phần Hãng trên web của 208, 209, 458–462); Khóa dịch vụ (Task 208) không chờ.</p>
+	<div class="tbl-frame"><table class="tbl btbl"><thead><tr><th>#</th><th>Màn</th><th>Đề xuất</th><th>Admin hiện tại</th><th>Chủ shop OK</th></tr></thead><tbody>
+	<tr><td class="num"><b>HV01</b></td><td>Menu</td><td>Mọi mục của admin vào menu CRM: nhóm mới &quot;Website&quot; (Banner trang chủ, Bộ phối, Hãng trên web, Nhận đơn web, Khóa dịch vụ) giữa Khuyến mãi và Sản phẩm; &quot;Yêu cầu về đơn hàng&quot; ở Đơn hàng; &quot;Góp ý&quot; ở Khách hàng; &quot;Chiến dịch giảm giá&quot;, &quot;Quà sinh nhật&quot; ở Khuyến mãi; &quot;Nhật ký thao tác&quot; ở Quản trị.</td><td class="small">Admin riêng, menu: Tổng quan · Cửa hàng · Cần xử lý · Hệ thống.</td><td>chưa</td></tr><tr><td class="num"><b>HV02</b></td><td>Menu</td><td>Không có màn Tổng quan (QĐ37): số yêu cầu đang mở là số đếm cạnh mục &quot;Yêu cầu về đơn hàng&quot;; trạng thái nhận đơn ở màn Nhận đơn web; hoạt động gần đây ở Nhật ký thao tác. Không có &quot;Đơn cần kiểm tra&quot;, &quot;Kết nối Nhanh&quot;.</td><td class="small">Tổng quan có 2 ô số, trạng thái website, 5 dòng hoạt động.</td><td>chưa</td></tr><tr><td class="num"><b>HV03</b></td><td>Yêu cầu</td><td>Danh sách là bảng có thanh lọc trạng thái kèm số đếm và lọc loại; mở một yêu cầu là trang chi tiết riêng.</td><td class="small">Danh sách thẻ gập/mở, lọc &quot;Đang mở&quot; bằng ô chọn.</td><td>chưa</td></tr><tr><td class="num"><b>HV04</b></td><td>Yêu cầu</td><td>Tin nhân viên chọn &quot;Khách thấy&quot; hoặc &quot;Ghi chú nội bộ&quot; (khách không thấy).</td><td class="small">Mọi tin nhân viên khách đều thấy.</td><td>chưa</td></tr><tr><td class="num"><b>HV05</b></td><td>Yêu cầu</td><td>Chi tiết hiện món khách muốn đổi, biến thể muốn đổi sang kèm số còn, và ảnh khách gửi (mở bằng link có hạn 10 phút; ảnh đang xử lý, bị từ chối hiện riêng); lý do hiện bằng chữ.</td><td class="small">Không hiện ảnh; lý do hiện mã thô (&quot;SIZE&quot;).</td><td>chưa</td></tr><tr><td class="num"><b>HV06</b></td><td>Yêu cầu</td><td>Thêm loại &quot;Trả hàng&quot; (M5-12) bên cạnh Đổi hàng, Hủy đơn, Hỏi về đơn.</td><td class="small">Ba loại: đổi, hủy, hỏi.</td><td>chưa</td></tr><tr><td class="num"><b>HV07</b></td><td>Yêu cầu</td><td>Yêu cầu hủy đơn đã gửi hãng có nút &quot;Mở đơn để hủy vận đơn&quot;: hủy, đổi hãng, tạo đơn đổi làm ngay trong CRM, rồi quay lại Hoàn tất.</td><td class="small">&quot;Hủy đơn, tạo đơn đổi và hoàn tiền vẫn thực hiện trên Nhanh.&quot;</td><td>chưa</td></tr><tr><td class="num"><b>HV08</b></td><td>Yêu cầu</td><td>Cần bổ sung, Từ chối, Hoàn tất mở hộp thoại riêng (Cần bổ sung bắt buộc lời nhắn; Từ chối, Hoàn tất hỏi xác nhận vì không mở lại được).</td><td class="small">Một form; chỉ Hoàn tất, Từ chối hỏi xác nhận.</td><td>chưa</td></tr><tr><td class="num"><b>HV09</b></td><td>Hãng trên web</td><td>Chọn hãng hiện trên website ở CRM, trên tài khoản hãng của màn Kết nối vận chuyển (một nơi lưu); bật/tắt và thứ tự lưu ngay từng tài khoản; chọn sẵn và phí dự phòng có nút Lưu riêng.</td><td class="small">Một danh sách 3 hãng Nhanh, một nút Lưu, không đổi thứ tự.</td><td>chưa</td></tr><tr><td class="num"><b>HV10</b></td><td>Hãng trên web</td><td>Có thứ tự hãng khách thấy (↑ ↓); tài khoản tạm ngừng hoặc cần cấp quyền lại không bật được, có câu lý do.</td><td class="small">Không có thứ tự; danh sách lấy từ đơn Nhanh 30 ngày.</td><td>chưa</td></tr><tr><td class="num"><b>HV11</b></td><td>Hãng trên web</td><td>Thêm &quot;Phí dự phòng&quot; (mặc định tắt): khi mọi hãng không báo được phí, khách thấy phí này ghi &quot;ước tính&quot;.</td><td class="small">Không có.</td><td>chưa</td></tr><tr><td class="num"><b>HV12</b></td><td>Hãng trên web</td><td>Số &quot;vận đơn trong 30 ngày&quot; mỗi tài khoản đếm vận đơn trong CRM (không còn đếm đơn Nhanh).</td><td class="small">&quot;n đơn trong Nhanh 30 ngày qua&quot; mỗi hãng.</td><td>chưa</td></tr><tr><td class="num"><b>HV13</b></td><td>Khóa dịch vụ</td><td>Màn mới: Chủ tạo khóa cho website (chọn quyền, IP); khóa hiện một lần, chép ngay; thu hồi có xác nhận, có hiệu lực trong vài giây.</td><td class="small">Không có (admin dùng tài khoản đăng nhập).</td><td>chưa</td></tr><tr><td class="num"><b>HV14</b></td><td>Quà sinh nhật</td><td>Quà sinh nhật ở CRM, bốn tab: Cần nhắn, Tất cả khách, Cài đặt quà, thêm tab &quot;Đợt mã&quot; (mã theo ngày, đã tặng, đã dùng kèm đơn, hết hạn); mã tạo trong CRM.</td><td class="small">Ba tab; mã tạo trong Nhanh.</td><td>chưa</td></tr><tr><td class="num"><b>HV15</b></td><td>Quà sinh nhật</td><td>Cài đặt có ô &quot;Lưu ngày sinh trước ít nhất (0–120 ngày)&quot;; không hiện trạng thái kết nối Zalo OA, email (website giữ kết nối, tự gửi).</td><td class="small">Có khối &quot;Kênh gửi tự động&quot; Zalo OA / Email.</td><td>chưa</td></tr><tr><td class="num"><b>HV16</b></td><td>Chiến dịch</td><td>Kích hoạt, tạm dừng, sửa khi đang chạy, xóa là hộp thoại trên danh sách; danh sách tải theo &quot;Xem thêm&quot; (giữ chọn 10/20/50 dòng).</td><td class="small">Màn đổi sang khung kích hoạt riêng; phân trang số.</td><td>chưa</td></tr><tr><td class="num"><b>HV17</b></td><td>Chiến dịch</td><td>Vượt trần phần trăm báo &quot;vượt trần của shop (50%), nhờ Chủ nâng trần&quot;.</td><td class="small">Câu lỗi nói biến PROMO_CAMPAIGN_MAX_PERCENT trên máy chủ.</td><td>chưa</td></tr><tr><td class="num"><b>HV18</b></td><td>Banner</td><td>Ảnh banner tải lên kho tệp của CRM: có trạng thái &quot;Đang xử lý ảnh&quot;, ảnh có thể bị từ chối sau xử lý (rộng dưới 600 px); đang xử lý thì nút Lưu khóa kèm lý do.</td><td class="small">Website xử lý ảnh ngay khi tải, lỗi báo ngay.</td><td>chưa</td></tr><tr><td class="num"><b>HV19</b></td><td>Banner, Bộ phối</td><td>Người khác vừa lưu: hộp &quot;Giữ bản đang sửa / Tải bản mới&quot;, không mất bản đang sửa.</td><td class="small">Báo &quot;Chọn Bỏ thay đổi để tải bản mới rồi sửa lại&quot;.</td><td>chưa</td></tr><tr><td class="num"><b>HV20</b></td><td>Bộ phối</td><td>Thêm ô &quot;Câu mở đầu&quot; (≤ 90) và &quot;Câu chuyện&quot; (≤ 220) mà website đã hỗ trợ.</td><td class="small">Admin chưa có hai ô này.</td><td>chưa</td></tr><tr><td class="num"><b>HV21</b></td><td>Bộ phối</td><td>Ảnh người mẫu chọn từ ảnh sản phẩm trong CRM.</td><td class="small">Ảnh lấy từ URL ảnh Nhanh.</td><td>chưa</td></tr><tr><td class="num"><b>HV22</b></td><td>Góp ý</td><td>Mức hài lòng hiện bằng chữ (&quot;2/5 · Không hài lòng&quot;); góp ý có SĐT trùng khách thì gắn hồ sơ, có liên kết sang hồ sơ và khối &quot;Góp ý&quot; trong hồ sơ khách; lọc trạng thái bằng thanh nhãn có số.</td><td class="small">Mặt cười; không gắn khách.</td><td>chưa</td></tr><tr><td class="num"><b>HV23</b></td><td>Nhận đơn web</td><td>Tạm dừng/mở lại nhận đơn là màn riêng &quot;Nhận đơn web&quot; (nhóm Website), tách khỏi hãng giao hàng.</td><td class="small">Chung trang &quot;Vận hành website&quot; với hãng giao hàng.</td><td>chưa</td></tr><tr><td class="num"><b>HV24</b></td><td>Nhật ký</td><td>Chỉ hiện tên trường đổi, không hiện nội dung (lý do, tên, mức giảm); người làm có thể là nhân viên, khóa dịch vụ của website, hệ thống; lọc người và khoảng ngày, không có ô tìm chữ; xem thêm theo con trỏ.</td><td class="small">Hiện &quot;Lý do: …&quot;, tên chiến dịch, mức giảm; ô tìm; phân trang số.</td><td>chưa</td></tr><tr><td class="num"><b>HV25</b></td><td>Nhật ký</td><td>Nhật ký cũ của admin không chuyển vào CRM (QĐ38), chỉ giữ bản xuất CSV.</td><td class="small">—</td><td>chưa</td></tr>
+	</tbody></table></div>
+</section>
+
+</div>
+</body>
+</html>

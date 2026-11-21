@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M5 — Góp ý</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m5.css">
+<style>
+@media (min-width: 760px) { .fb td:nth-child(4) { width: 36%; } .fb .c-act { width: 1%; } }
+.fb .who { display: grid; gap: 2px; min-width: 0; }
+.fb tr.is-open td { background: var(--surface); }
+.fb-d { display: grid; gap: 12px; padding: 4px 0; }
+.fb-d .body { white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+</head>
+<body data-page="feedback" data-title="Góp ý">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Khách hàng / Góp ý</p><h1>Góp ý của khách</h1><p class="sub">Khách gửi ở trang "Góp ý cho ELIMAZ" trên website. Góp ý có số điện thoại trùng một khách trong CRM thì gắn vào hồ sơ khách đó; không tạo khách mới.</p></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="ds-gop-y"><p class="xs">TRẠNG THÁI A</p><h2>Danh sách lọc "Tất cả": đủ 5 chủ đề, 3 trạng thái, có và không có mức hài lòng, gắn và không gắn hồ sơ khách; một dòng đang mở</h2></section>
+
+<div class="scroll-x" data-ca="loc-trang-thai"><div class="lblbar" role="group" aria-label="Lọc theo trạng thái">
+	<button class="lbl is-attn" aria-pressed="false">Mới <span class="n">12</span></button>
+	<button class="lbl" aria-pressed="false">Đã xem <span class="n">5</span></button>
+	<button class="lbl" aria-pressed="false">Đã phản hồi <span class="n">40</span></button>
+	<button class="lbl" aria-pressed="true">Tất cả <span class="n">57</span></button>
+</div></div>
+<div class="toolbar"><div class="select-wrap" data-ca="loc-chu-de"><select aria-label="Chủ đề"><option>Mọi chủ đề</option><option>Sản phẩm</option><option>Giao hàng</option><option>Trang web</option><option>Tư vấn, chăm sóc</option><option>Khác</option></select></div></div>
+
+<div class="tbl-frame">
+<table class="tbl fb">
+	<thead><tr><th>Thời gian</th><th>Chủ đề</th><th>Mức</th><th>Nội dung</th><th>Người gửi</th><th>Trạng thái</th><th class="c-act"></th></tr></thead>
+	<tbody>
+	<tr class="is-open" data-ca="diem lien-he khach-gan">
+		<td class="lead"><span class="num small">10:12 · 21/11</span></td>
+		<td data-label="Chủ đề">Giao hàng</td>
+		<td data-label="Mức"><span class="num">2/5</span> · <span class="small">Không hài lòng</span></td>
+		<td data-label="Nội dung"><span class="clamp2">Shipper giao trễ 2 ngày, không gọi trước, hộp bị móp một góc…</span></td>
+		<td data-label="Người gửi"><div class="who"><span>Trần Thị Thu Hà · 0912 345 678</span><a class="cell-a small" href="../m2/khach-ho-so.html">Hồ sơ KH000231</a></div></td>
+		<td data-label="Trạng thái"><span class="chip chip-err">Mới</span></td>
+		<td class="c-act"><button class="btn btn-quiet">Đóng</button></td>
+	</tr>
+	<tr class="is-open" data-ca="noi-dung don trang thiet-bi doi-trang-thai ghi-chu">
+		<td class="full" colspan="7"><div class="fb-d">
+			<p class="body">Shipper giao trễ 2 ngày, không gọi trước, hộp bị móp một góc. Váy thì đẹp, đúng như ảnh. Lần sau shop dặn hãng gọi trước giúp mình nhé.</p>
+			<p class="small muted">Mã đơn: <a class="cell-a" href="../m2/don-chi-tiet.html">DH0001312</a> · Trang khách đang xem: /don-hang/DH0001312 · Thiết bị: iPhone · Safari 18</p>
+			<label class="field"><span>Ghi chú nội bộ</span><textarea class="input" placeholder="Ví dụ: đã gọi lại khách, đã báo hãng…">Đã báo Viettel Post, hẹn gọi lại khách chiều nay.</textarea><span class="hint num">49 / 1000 · khách không thấy</span></label>
+			<div class="acts"><button class="btn btn-line">Lưu ghi chú</button><button class="btn btn-line">Đánh dấu đã xem</button><button class="btn btn-dark">Đã phản hồi khách</button></div>
+			<p class="xs muted">Thay đổi được ghi vào nhật ký thao tác (chỉ tên trường, không ghi nội dung).</p>
+		</div></td>
+	</tr>
+	<tr data-ca="khong-gan">
+		<td class="lead"><span class="num small">09:40 · 21/11</span></td>
+		<td data-label="Chủ đề">Trang web</td>
+		<td data-label="Mức"><span class="num">5/5</span> · <span class="small">Rất hài lòng</span></td>
+		<td data-label="Nội dung"><span class="clamp2 wrap-any" data-ca="xss-text">Trang mới dễ xem hơn hẳn &lt;script&gt;alert(1)&lt;/script&gt;</span></td>
+		<td data-label="Người gửi"><div class="who"><span>Lan · lan.nguyen@example.com</span><span class="small muted">Không gắn hồ sơ (không phải SĐT)</span></div></td>
+		<td data-label="Trạng thái"><span class="chip chip-err">Mới</span></td>
+		<td class="c-act"><button class="btn btn-quiet">Mở</button></td>
+	</tr>
+	<tr>
+		<td class="lead"><span class="num small">16:05 · 20/11</span></td>
+		<td data-label="Chủ đề">Sản phẩm</td>
+		<td data-label="Mức"><span class="num">4/5</span> · <span class="small">Hài lòng</span></td>
+		<td data-label="Nội dung"><span class="clamp2">Áo sơ mi lụa mặc mát, nhưng size S hơi rộng vai so với bảng size trên web, shop xem lại bảng size giúp…</span></td>
+		<td data-label="Người gửi"><span class="muted">Không để lại</span></td>
+		<td data-label="Trạng thái"><span class="chip">Đã xem</span></td>
+		<td class="c-act"><button class="btn btn-quiet">Mở</button></td>
+	</tr>
+	<tr>
+		<td class="lead"><span class="num small">11:20 · 19/11</span></td>
+		<td data-label="Chủ đề">Tư vấn, chăm sóc</td>
+		<td data-label="Mức"><span class="num">1/5</span> · <span class="small">Rất không hài lòng</span></td>
+		<td data-label="Nội dung"><span class="clamp2">Nhắn page 2 ngày không ai trả lời.</span></td>
+		<td data-label="Người gửi"><div class="who"><span class="clamp2 wrap-any">NguyễnThịThuHàShopThờiTrangCôngSởXuấtKhẩuHàNộiChiNhánhSố0205 · 0987 654 321</span><span class="small muted">Không gắn hồ sơ (SĐT chưa có trong CRM)</span></div></td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đã phản hồi</span></td>
+		<td class="c-act"><button class="btn btn-quiet">Mở</button></td>
+	</tr>
+	<tr>
+		<td class="lead"><span class="num small">08:02 · 18/11</span></td>
+		<td data-label="Chủ đề">Khác</td>
+		<td data-label="Mức"><span class="muted">—</span></td>
+		<td data-label="Nội dung"><span class="clamp2">Shop có mở cửa hàng ở Đà Nẵng không ạ?</span></td>
+		<td data-label="Người gửi"><span>Minh · 0903 111 222</span></td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Đã phản hồi</span></td>
+		<td class="c-act"><button class="btn btn-quiet">Mở</button></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+<div class="more" data-ca="xem-them"><span>Đang hiện 5 / 57 · còn nữa</span><button class="btn btn-quiet">Xem thêm</button></div>
+<p class="hint">Nội dung hiện đúng chữ khách gõ (không chạy mã, không định dạng). Còn trang sau thì không ghi "đã hết".</p>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="khoi-ho-so"><p class="xs">TRẠNG THÁI B</p><h2>Khối "Góp ý" trong hồ sơ khách (màn Hồ sơ khách của M2, thêm ở cột phải)</h2></section>
+
+<div class="cols">
+	<section class="card"><p class="crumb"><a href="../m2/khach-ho-so.html">Khách hàng</a> / KH000231</p><h2>Trần Thị Thu Hà</h2><p class="small muted">Phần còn lại của hồ sơ giữ nguyên như mockup M2 (<a class="cell-a" href="../m2/khach-ho-so.html">Hồ sơ khách</a>).</p></section>
+	<section class="card stack-sm">
+		<div class="row-between"><h2>Góp ý (2)</h2><a class="btn btn-quiet" href="#">Xem ở Góp ý</a></div>
+		<ol class="tl">
+			<li><span class="at">21/11</span><div><b>Giao hàng · 2/5</b> <span class="chip chip-err">Mới</span><p class="small clamp2">Shipper giao trễ 2 ngày, không gọi trước, hộp bị móp một góc…</p></div></li>
+			<li><span class="at">02/10</span><div><b>Sản phẩm · 5/5</b> <span class="chip chip-ok">Đã phản hồi</span><p class="small clamp2">Đầm suông mặc rất đẹp, sẽ ủng hộ shop tiếp.</p></div></li>
+		</ol>
+		<p class="hint">Gồm góp ý của mọi hồ sơ đã gộp vào khách này.</p>
+	</section>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI C</p><h2>Chưa có góp ý; người khác vừa đổi (409); không có quyền (403)</h2></section>
+
+<div class="dlgs">
+	<div class="empty" data-ca="0-dong"><h2>Chưa có góp ý nào trong mục này</h2><p class="muted">Đổi bộ lọc trạng thái hoặc chủ đề.</p></div>
+	<div class="box box-err stack-sm" data-ca="xung-dot-409"><b>Góp ý vừa được người khác đổi.</b><p>Đã tải lại: góp ý này giờ là "Đã phản hồi" (Lê Hồng Nhung, 10:30). Ghi chú bạn đang gõ vẫn giữ trong ô; lưu lại nếu cần.</p></div>
+	<div class="box box-err stack-sm" data-ca="khong-quyen-403"><b>Bạn không có quyền xem góp ý của khách.</b><p>Nhờ Quản lý cấp quyền "Xem góp ý". Hồ sơ khách vẫn mở được, chỉ không có khối Góp ý.</p></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

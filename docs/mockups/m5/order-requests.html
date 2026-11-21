@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M5 — Yêu cầu về đơn hàng</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m5.css">
+<style>
+@media (min-width: 760px) { .rq td:first-child { width: 150px; } .rq .c-act { width: 1%; white-space: nowrap; } }
+.rq .who { display: grid; gap: 2px; min-width: 0; }
+</style>
+</head>
+<body data-page="order-requests" data-title="Yêu cầu về đơn hàng">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Đơn hàng / Yêu cầu về đơn hàng</p><h1>Yêu cầu về đơn hàng</h1><p class="sub">Khách gửi từ trang đơn hàng trên website: đổi hàng, trả hàng, hủy đơn, hỏi về đơn. Yêu cầu mới tự hiện (không cần tải lại); số cạnh mục menu là số yêu cầu đang mở.</p></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="ds-yeu-cau wb04 ten-60"><p class="xs">TRẠNG THÁI A</p><h2>Danh sách: lọc "Tất cả" để thấy đủ 8 trạng thái và 4 loại; tên khách 60 ký tự; tin mới</h2></section>
+
+<div class="scroll-x" data-ca="loc-trang-thai"><div class="lblbar" role="group" aria-label="Lọc theo trạng thái">
+	<button class="lbl is-attn" aria-pressed="false">Đang mở <span class="n">8</span></button>
+	<button class="lbl" aria-pressed="false">Đã tiếp nhận <span class="n">3</span></button>
+	<button class="lbl" aria-pressed="false">Đang kiểm tra <span class="n">2</span></button>
+	<button class="lbl" aria-pressed="false">Cần bổ sung <span class="n">1</span></button>
+	<button class="lbl" aria-pressed="false">Đã xác nhận đổi <span class="n">1</span></button>
+	<button class="lbl" aria-pressed="false">Đã nhận hàng gửi về <span class="n">1</span></button>
+	<button class="lbl" aria-pressed="false">Hoàn tất <span class="n">40</span></button>
+	<button class="lbl" aria-pressed="false">Từ chối <span class="n">6</span></button>
+	<button class="lbl" aria-pressed="false">Khách đã hủy <span class="n">2</span></button>
+	<button class="lbl" aria-pressed="true">Tất cả <span class="n">56</span></button>
+</div></div>
+<div class="toolbar">
+	<input class="input is-search" placeholder="Tìm mã yêu cầu, mã đơn, tên khách (gõ không dấu cũng được)" aria-label="Tìm yêu cầu" data-ca="tim-khong-dau">
+	<div class="select-wrap" data-ca="loc-loai"><select aria-label="Loại yêu cầu"><option>Mọi loại</option><option>Đổi hàng</option><option>Trả hàng</option><option>Hủy đơn</option><option>Hỏi về đơn</option></select></div>
+</div>
+<div class="tbl-frame">
+<table class="tbl rq">
+	<thead><tr><th>Yêu cầu</th><th>Đơn</th><th>Khách</th><th>Trạng thái</th><th>Ảnh</th><th>Cập nhật</th><th class="c-act"></th></tr></thead>
+	<tbody>
+	<tr data-ca="loai-doi tt-da-tiep-nhan">
+		<td class="lead"><div class="who"><b class="num">YC0000148</b><span class="small">Đổi hàng · <b class="err-text">Tin mới</b></span></div></td>
+		<td data-label="Đơn"><a class="cell-a num" href="../m2/don-chi-tiet.html">DH0001312</a></td>
+		<td data-label="Khách"><span class="clamp2 wrap-any">NguyễnThịThuHàShopThờiTrangCôngSởXuấtKhẩuHàNộiChiNhánhSố0205</span></td>
+		<td data-label="Trạng thái"><span class="chip chip-err">Đã tiếp nhận</span></td>
+		<td data-label="Ảnh"><span class="num">3</span></td>
+		<td data-label="Cập nhật"><span class="small num">10:42 hôm nay</span></td>
+		<td class="c-act"><a class="btn btn-quiet" href="#chi-tiet">Mở</a></td>
+	</tr>
+	<tr data-ca="loai-huy">
+		<td class="lead"><div class="who"><b class="num">YC0000147</b><span class="small">Hủy đơn</span></div></td>
+		<td data-label="Đơn"><a class="cell-a num" href="../m2/don-chi-tiet.html">DH0001309</a></td>
+		<td data-label="Khách">Phạm Minh Anh</td>
+		<td data-label="Trạng thái"><span class="chip chip-err">Đã tiếp nhận</span></td>
+		<td data-label="Ảnh"><span class="muted">—</span></td>
+		<td data-label="Cập nhật"><span class="small num">09:15 hôm nay</span></td>
+		<td class="c-act"><a class="btn btn-quiet" href="#huy-don">Mở</a></td>
+	</tr>
+	<tr data-ca="loai-hoi">
+		<td class="lead"><div class="who"><b class="num">YC0000146</b><span class="small">Hỏi về đơn</span></div></td>
+		<td data-label="Đơn"><a class="cell-a num" href="../m2/don-chi-tiet.html">DH0001290</a></td>
+		<td data-label="Khách">Lê Thu Trang</td>
+		<td data-label="Trạng thái"><span class="chip chip-err">Đã tiếp nhận</span></td>
+		<td data-label="Ảnh"><span class="muted">—</span></td>
+		<td data-label="Cập nhật"><span class="small num">08:02 hôm nay</span></td>
+		<td class="c-act"><a class="btn btn-quiet" href="#chi-tiet">Mở</a></td>
+	</tr>
+	<tr data-ca="loai-tra tt-dang-kiem-tra">
+		<td class="lead"><div class="who"><b class="num">YC0000145</b><span class="small">Trả hàng</span></div></td>
+		<td data-label="Đơn"><a class="cell-a num" href="../m2/don-chi-tiet.html">DH0001270</a></td>
+		<td data-label="Khách">Đỗ Hải Yến</td>
+		<td data-label="Trạng thái"><span class="chip">Đang kiểm tra</span></td>
+		<td data-label="Ảnh"><span class="num">2</span></td>
+		<td data-label="Cập nhật"><span class="small num">16:30 · 20/11</span></td>
+		<td class="c-act"><a class="btn btn-quiet" href="#chi-tiet">Mở</a></td>
+	</tr>
+	<tr>
+		<td class="lead"><div class="who"><b class="num">YC0000144</b><span class="small">Đổi hàng</span></div></td>
+		<td data-label="Đơn"><a class="cell-a num" href="../m2/don-chi-tiet.html">DH0001266</a></td>
+		<td data-label="Khách">Vũ Ngọc Mai</td>
+		<td data-label="Trạng thái"><span class="chip">Đang kiểm tra</span></td>
+		<td data-label="Ảnh"><span class="num">1</span></td>
+		<td data-label="Cập nhật"><span class="small num">11:05 · 20/11</span></td>
+		<td class="c-act"><a class="btn btn-quiet" href="#chi-tiet">Mở</a></td>
+	</tr>
+	<tr data-ca="tt-can-bo-sung">
+		<td class="lead"><div class="who"><b class="num">YC0000143</b><span class="small">Đổi hàng</span></div></td>
+		<td data-label="Đơn"><a class="cell-a num" href="../m2/don-chi-tiet.html">DH0001251</a></td>
+		<td data-label="Khách">Hoàng Thị Hương</td>
+		<td data-label="Trạng thái"><span class="chip chip-line">Cần bổ sung</span></td>
+		<td data-label="Ảnh"><span class="num">0</span></td>
+		<td data-label="Cập nhật"><span class="small num">14:20 · 19/11</span></td>
+		<td class="c-act"><a class="btn btn-quiet" href="#chi-tiet">Mở</a></td>
+	</tr>
+	<tr data-ca="tt-da-xac-nhan-doi">
+		<td class="lead"><div class="who"><b class="num">YC0000141</b><span class="small">Đổi hàng</span></div></td>
+		<td data-label="Đơn"><a class="cell-a num" href="../m2/don-chi-tiet.html">DH0001240</a></td>
+		<td data-label="Khách">Trần Thị Thu Hà</td>
+		<td data-label="Trạng thái"><span class="chip chip-line">Đã xác nhận đổi · gửi trước 25/11</span></td>
+		<td data-label="Ảnh"><span class="num">2</span></td>
+		<td data-label="Cập nhật"><span class="small num">09:40 · 18/11</span></td>
+		<td class="c-act"><a class="btn btn-quiet" href="#da-xac-nhan">Mở</a></td>
+	</tr>
+	<tr data-ca="tt-da-nhan-hang">
+		<td class="lead"><div class="who"><b class="num">YC0000139</b><span class="small">Đổi hàng</span></div></td>
+		<td data-label="Đơn"><a class="cell-a num" href="../m2/don-chi-tiet.html">DH0001233</a></td>
+		<td data-label="Khách">Ngô Bảo Châu</td>
+		<td data-label="Trạng thái"><span class="chip chip-line">Đã nhận hàng gửi về</span></td>
+		<td data-label="Ảnh"><span class="num">1</span></td>
+		<td data-label="Cập nhật"><span class="small num">15:10 · 17/11</span></td>
+		<td class="c-act"><a class="btn btn-quiet" href="#chi-tiet">Mở</a></td>
+	</tr>
+	<tr class="is-muted" data-ca="tt-hoan-tat">
+		<td class="lead"><div class="who"><b class="num">YC0000131</b><span class="small">Hủy đơn</span></div></td>
+		<td data-label="Đơn"><a class="cell-a num" href="../m2/don-chi-tiet.html">DH0001201</a></td>
+		<td data-label="Khách">Bùi Lan Phương</td>
+		<td data-label="Trạng thái"><span class="chip chip-ok">Hoàn tất</span></td>
+		<td data-label="Ảnh"><span class="muted">—</span></td>
+		<td data-label="Cập nhật"><span class="small num">12/11</span></td>
+		<td class="c-act"><a class="btn btn-quiet" href="#da-dong">Mở</a></td>
+	</tr>
+	<tr class="is-muted" data-ca="tt-tu-choi">
+		<td class="lead"><div class="who"><b class="num">YC0000128</b><span class="small">Đổi hàng</span></div></td>
+		<td data-label="Đơn"><a class="cell-a num" href="../m2/don-chi-tiet.html">DH0001188</a></td>
+		<td data-label="Khách">Mai Thanh Tâm</td>
+		<td data-label="Trạng thái"><span class="chip">Từ chối</span></td>
+		<td data-label="Ảnh"><span class="num">1</span></td>
+		<td data-label="Cập nhật"><span class="small num">10/11</span></td>
+		<td class="c-act"><a class="btn btn-quiet" href="#da-dong">Mở</a></td>
+	</tr>
+	<tr class="is-muted" data-ca="tt-khach-huy">
+		<td class="lead"><div class="who"><b class="num">YC0000125</b><span class="small">Hủy đơn</span></div></td>
+		<td data-label="Đơn"><a class="cell-a num" href="../m2/don-chi-tiet.html">DH0001176</a></td>
+		<td data-label="Khách">Đinh Quỳnh</td>
+		<td data-label="Trạng thái"><span class="chip">Khách đã hủy</span></td>
+		<td data-label="Ảnh"><span class="muted">—</span></td>
+		<td data-label="Cập nhật"><span class="small num">09/11</span></td>
+		<td class="c-act"><a class="btn btn-quiet" href="#da-dong">Mở</a></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+<div class="more" data-ca="200-dong"><span>Đang hiện 11 / 56 yêu cầu (mockup vẽ mẫu; danh sách tải 50 dòng mỗi lần theo con trỏ, 200 dòng vẫn cuộn mượt)</span><button class="btn btn-quiet">Xem thêm</button></div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" id="chi-tiet" data-ca="chi-tiet"><p class="xs">TRẠNG THÁI B</p><h2>Chi tiết yêu cầu đổi hàng "Đã tiếp nhận": đơn, dòng hàng và món muốn đổi sang, 3 ảnh (sẵn sàng, đang xử lý, bị từ chối), dòng tin hai phía, đổi trạng thái</h2></section>
+
+<p class="crumb"><a href="#">Yêu cầu về đơn hàng</a> / YC0000148</p>
+<div class="page-h">
+	<div class="grow"><div class="row"><h1>Yêu cầu đổi hàng YC0000148</h1><span class="chip chip-err">Đã tiếp nhận</span></div>
+	<p class="sub">Gửi từ website lúc 10:42 · 21/11/2026 · đơn giao thành công 18/11, còn 4 ngày trong hạn đổi 7 ngày</p></div>
+	<div class="row"><a class="btn btn-line" href="../m2/don-chi-tiet.html">Mở đơn DH0001312</a></div>
+</div>
+
+<div class="cols">
+<div class="stack">
+	<section class="card">
+		<h2>Đơn và khách</h2>
+		<dl class="kv">
+			<dt>Đơn</dt><dd><a class="cell-a num" href="../m2/don-chi-tiet.html">DH0001312</a> · Website · <span class="money">1.270.000 ₫</span></dd>
+			<dt>Khách</dt><dd><a class="cell-a wrap-any" href="../m2/khach-ho-so.html">NguyễnThịThuHàShopThờiTrangCôngSởXuấtKhẩuHàNộiChiNhánhSố0205</a></dd>
+			<dt>Giao thành công</dt><dd class="num">16:05 · 18/11/2026 (Viettel Post)</dd>
+		</dl>
+	</section>
+
+	<section class="card" data-ca="dong-hang">
+		<h2>Món khách muốn đổi</h2>
+		<div class="tbl-frame">
+		<table class="tbl">
+			<thead><tr><th>Món đã mua</th><th>SL</th><th>Lý do</th><th>Muốn đổi sang</th></tr></thead>
+			<tbody>
+			<tr data-ca="muon-doi-sang">
+				<td class="lead"><div class="sp"><span class="nm">Đầm suông cổ vuông</span><span class="code">DS2201-DEN-M · Đen / M</span></div></td>
+				<td data-label="SL" class="num">1</td>
+				<td data-label="Lý do">Không vừa size</td>
+				<td data-label="Muốn đổi sang"><div class="sp"><span class="nm">Đen / L</span><span class="avail">còn 4 ở Kho chính</span></div></td>
+			</tr>
+			<tr>
+				<td class="lead"><div class="sp"><span class="nm">Áo sơ mi lụa tay bồng</span><span class="code">SM1408-TRA-S · Trắng / S</span></div></td>
+				<td data-label="SL" class="num">1</td>
+				<td data-label="Lý do">Lỗi sản phẩm (cần ảnh)</td>
+				<td data-label="Muốn đổi sang"><div class="sp"><span class="nm">Trắng / S</span><span class="avail is-low">còn 1 ở Kho chính</span></div></td>
+			</tr>
+			</tbody>
+		</table>
+		</div>
+	</section>
+
+	<section class="card" data-ca="anh-khach">
+		<h2>Ảnh khách gửi (3)</h2>
+		<div class="imgs">
+			<div class="img-tile"><div class="img-ph">Ảnh 1<br>đường may bung</div><div class="img-b"><a class="btn btn-quiet" href="#">Mở ảnh</a><span class="xs muted">Mở ở tab mới · link có hạn 10 phút</span></div></div>
+			<div class="img-tile" data-ca="anh-dang-xu-ly"><div class="img-ph is-proc">Đang xử lý ảnh…</div><div class="img-b"><span class="xs muted">Ảnh sẽ hiện khi xử lý xong</span></div></div>
+			<div class="img-tile" data-ca="anh-bi-tu-choi"><div class="img-ph is-bad">Ảnh bị từ chối</div><div class="img-b"><span class="xs err-text">Tệp không phải ảnh hợp lệ, không mở được</span></div></div>
+		</div>
+	</section>
+
+	<section class="card" data-ca="tin-hai-phia">
+		<div class="row-between"><h2>Trao đổi với khách</h2><span class="small muted">Mới nhất ở dưới</span></div>
+		<div class="msgs">
+			<div class="msg is-cust"><div class="msg-h"><span class="grow">Khách · qua website</span><span class="xs muted num">10:42 · 21/11</span></div><p class="body" data-ca="xss-text">Váy mặc chật ở ngực, cho mình đổi sang size L nhé. Áo sơ mi bị bung đường may ở vai, mình gửi ảnh kèm. &lt;script&gt;alert('x')&lt;/script&gt;</p></div>
+			<div class="msg is-staff" data-ca="khach-thay"><div class="msg-h"><span class="grow">Lê Hồng Nhung</span><span class="chip chip-ok">Khách thấy</span><span class="xs muted num">10:50 · 21/11</span></div><p class="body">Chào chị, ELIMAZ đã nhận yêu cầu. Bên em kiểm tra ảnh và báo lại chị trong hôm nay ạ.</p></div>
+			<div class="msg is-int" data-ca="noi-bo"><div class="msg-h"><span class="grow">Trần Minh Thư</span><span class="chip chip-line">Nội bộ · khách không thấy</span><span class="xs muted num">10:52 · 21/11</span></div><p class="body">Kho còn 4 chiếc Đen / L. Sơ mi Trắng / S chỉ còn 1, kiểm ảnh rồi giữ cho khách.</p></div>
+		</div>
+		<div class="stack-sm">
+			<label class="field"><span>Viết tin</span><textarea class="input" placeholder="Nhập nội dung (5–1000 ký tự)"></textarea></label>
+			<div class="row-between">
+				<div class="radios" role="radiogroup" aria-label="Ai thấy tin này" style="display:flex;gap:16px;flex-wrap:wrap">
+					<label class="check"><input type="radio" name="vis" checked> Khách thấy</label>
+					<label class="check"><input type="radio" name="vis"> Ghi chú nội bộ</label>
+				</div>
+				<div class="row"><span class="xs muted num">0 / 1000</span><button class="btn btn-dark">Gửi</button></div>
+			</div>
+			<p class="hint">Tin "Khách thấy" hiện ở trang đơn hàng của khách trên website. Nội dung hiện đúng chữ đã gõ (không chạy mã, không định dạng).</p>
+		</div>
+	</section>
+</div>
+
+<aside class="stack">
+	<section class="card" data-ca="doi-trang-thai">
+		<h2>Xử lý yêu cầu</h2>
+		<label class="field"><span>Trạng thái tiếp theo</span><span class="select-wrap"><select><option>Giữ nguyên, chỉ trả lời</option><option>Đang kiểm tra</option><option>Cần bổ sung</option><option>Đã xác nhận đổi</option><option>Hoàn tất</option><option>Từ chối</option></select></span></label>
+		<p class="hint">Từ "Đã tiếp nhận" chuyển được sang: Đang kiểm tra, Cần bổ sung, Đã xác nhận đổi (chỉ yêu cầu đổi hàng), Hoàn tất, Từ chối. Hoàn tất và Từ chối hỏi xác nhận vì không mở lại được.</p>
+		<label class="field"><span>Lời nhắn cho khách</span><textarea class="input" placeholder="Không bắt buộc; bắt buộc khi chọn Cần bổ sung"></textarea></label>
+		<div class="savebar"><span class="xs muted grow">Thay đổi được ghi vào nhật ký thao tác.</span><button class="btn btn-dark">Lưu xử lý</button></div>
+	</section>
+	<section class="card">
+		<h2>Lịch sử</h2>
+		<ol class="tl">
+			<li><span class="at">10:52 · 21/11</span><div><b>Ghi chú nội bộ</b><p class="who">Trần Minh Thư</p></div></li>
+			<li><span class="at">10:50 · 21/11</span><div><b>Trả lời khách</b><p class="who">Lê Hồng Nhung</p></div></li>
+			<li><span class="at">10:42 · 21/11</span><div><b>Khách gửi yêu cầu</b><p class="who">Website · 3 ảnh</p></div></li>
+		</ol>
+	</section>
+</aside>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" id="xac-nhan-doi" data-ca="gui-tra ma-goi han-gui"><p class="xs">TRẠNG THÁI C</p><h2>Chọn "Đã xác nhận đổi": hướng dẫn khách gửi hàng về (địa chỉ, mã ghi trên kiện, hạn gửi theo giờ Việt Nam), kèm lỗi nhập</h2></section>
+
+<div class="cols">
+<section class="card">
+	<h2>Xử lý yêu cầu YC0000144</h2>
+	<label class="field"><span>Trạng thái tiếp theo</span><span class="select-wrap"><select><option>Đã xác nhận đổi</option></select></span></label>
+	<fieldset class="stack" style="border:1px solid var(--rule);border-radius:var(--r-box);padding:16px;margin:0">
+		<legend class="label" style="padding:0 4px">Hướng dẫn gửi hàng về</legend>
+		<label class="field"><span>Địa chỉ nhận hàng *</span><input class="input is-err" value="Kho ELIMAZ"><span class="field-err">Địa chỉ nhận hàng cần ít nhất 10 ký tự.</span></label>
+		<div class="grid-f">
+			<label class="field"><span>Mã ghi trên kiện hàng *</span><input class="input" value="YC144-DOI"><span class="hint">3–40 ký tự, khách ghi ngoài kiện</span></label>
+			<label class="field"><span>Gửi trước ngày (giờ Việt Nam) *</span><input class="input is-err num" value="20/11/2026"><span class="field-err">Hạn gửi hàng không được là ngày đã qua.</span></label>
+		</div>
+		<p class="hint">Khách thấy hướng dẫn này ở trang đơn hàng; hạn tính tới 23:59 của ngày đã chọn.</p>
+	</fieldset>
+	<label class="field"><span>Lời nhắn cho khách</span><textarea class="input">ELIMAZ đồng ý đổi size cho chị. Chị gửi lại váy theo địa chỉ bên dưới, ghi mã YC144-DOI ngoài kiện giúp em nhé.</textarea></label>
+	<div class="savebar"><span class="xs muted grow">Sửa 2 lỗi để lưu.</span><button class="btn btn-dark" disabled>Lưu xử lý</button></div>
+</section>
+<section class="card" id="da-xac-nhan" data-ca="tt-da-xac-nhan-doi">
+	<div class="row"><h2>YC0000141 · Đã xác nhận đổi</h2></div>
+	<div class="box box-info stack-sm">
+		<b>Khách gửi hàng về</b>
+		<dl class="kv">
+			<dt>Địa chỉ</dt><dd>Kho ELIMAZ, 18 ngõ 64 Nguyễn Lương Bằng, Phường Đống Đa, Hà Nội · 0243 999 8888</dd>
+			<dt>Mã trên kiện</dt><dd class="num">YC141-DOI</dd>
+			<dt>Gửi trước</dt><dd class="num">23:59 · 25/11/2026 (còn 4 ngày)</dd>
+		</dl>
+	</div>
+	<label class="field"><span>Trạng thái tiếp theo</span><span class="select-wrap"><select><option>Giữ nguyên, chỉ trả lời</option><option>Đã nhận hàng gửi về</option><option>Từ chối</option></select></span></label>
+	<p class="hint">Kho nhận hàng gửi về thì chọn "Đã nhận hàng gửi về"; tạo đơn đổi ở màn Đơn (phiếu đổi của M2, M3), rồi Hoàn tất kèm mã vận đơn đơn đổi.</p>
+</section>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st" data-ca="xac-nhan-dong can-bo-sung-bat-buoc"><p class="xs">TRẠNG THÁI D</p><h2>Ba hộp: Cần bổ sung (bắt buộc lời nhắn), Từ chối (lý do khách thấy, hỏi xác nhận), Hoàn tất (mã vận đơn đơn đổi, hỏi xác nhận)</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="Cần bổ sung">
+		<div class="dlg-h"><h2>Cần khách bổ sung</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<label class="field"><span>Lời nhắn cho khách *</span><textarea class="input is-err">Ảnh</textarea><span class="field-err">Lời nhắn cần ít nhất 5 ký tự.</span></label>
+			<p class="hint">Khách thấy lời nhắn ở trang đơn hàng và gửi thêm thông tin; yêu cầu quay về "Đang kiểm tra" khi nhân viên xem lại.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark" disabled>Gửi và chuyển trạng thái</button></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Từ chối yêu cầu" data-ca="ly-do-tu-choi">
+		<div class="dlg-h"><h2>Từ chối yêu cầu này?</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p>Khách sẽ thấy lý do từ chối. Yêu cầu đóng lại và <b>không mở lại được</b>.</p>
+			<label class="field"><span>Lý do từ chối *</span><textarea class="input">Sản phẩm đã quá 7 ngày kể từ ngày nhận nên không đổi được ạ.</textarea><span class="hint num">62 / 500</span></label>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-danger">Từ chối yêu cầu</button></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Hoàn tất yêu cầu" data-ca="ma-van-don">
+		<div class="dlg-h"><h2>Hoàn tất yêu cầu này?</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p>Yêu cầu đóng lại và <b>không mở lại được</b>.</p>
+			<label class="field"><span>Mã vận đơn đơn đổi (nếu có)</span><input class="input num" value="VTP2611208877"><span class="hint">Tối đa 60 ký tự; khách thấy để tra đơn đổi.</span></label>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Đóng</button><button class="btn btn-dark">Hoàn tất yêu cầu</button></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI E ============ -->
+<section class="st" id="da-dong" data-ca="da-dong"><p class="xs">TRẠNG THÁI E</p><h2>Yêu cầu đã đóng (Hoàn tất, Từ chối, Khách đã hủy) và yêu cầu hủy đơn đã gửi hãng</h2></section>
+
+<div class="dlgs">
+	<section class="card">
+		<div class="row"><h2>YC0000131 · Hủy đơn</h2><span class="chip chip-ok">Hoàn tất</span></div>
+		<div class="box box-info"><b>Yêu cầu đã đóng.</b> Hoàn tất lúc 15:20 · 12/11 bởi Trần Minh Thư. Đơn DH0001201 đã hủy ở màn Đơn.</div>
+		<p class="small muted">Không còn ô trả lời, không đổi được trạng thái. Lịch sử và tin vẫn xem được.</p>
+	</section>
+	<section class="card">
+		<div class="row"><h2>YC0000128 · Đổi hàng</h2><span class="chip">Từ chối</span></div>
+		<div class="box box-info"><b>Yêu cầu đã đóng.</b> Lý do khách thấy: "Sản phẩm đã quá 7 ngày kể từ ngày nhận nên không đổi được ạ."</div>
+	</section>
+	<section class="card">
+		<div class="row"><h2>YC0000125 · Hủy đơn</h2><span class="chip">Khách đã hủy</span></div>
+		<div class="box box-info"><b>Khách đã rút yêu cầu trên website</b> lúc 09:30 · 09/11. Không cần xử lý.</div>
+	</section>
+	<section class="card" id="huy-don">
+		<div class="row"><h2>YC0000147 · Hủy đơn</h2><span class="chip chip-err">Đã tiếp nhận</span></div>
+		<p>Đơn DH0001309 <b>đã gửi hãng</b> (Chờ thu gom) nên website không tự hủy được; khách gửi yêu cầu hủy.</p>
+		<div class="acts"><a class="btn btn-dark" href="../m3/don-van-chuyen.html">Mở đơn để hủy vận đơn</a></div>
+		<p class="hint">Hủy đơn, đổi hãng làm ở màn Đơn (khối Vận chuyển của M3). Xong thì quay lại đây chọn Hoàn tất. Yêu cầu hủy không có bước "Đã xác nhận đổi".</p>
+	</section>
+</div>
+
+<!-- ============ TRẠNG THÁI F ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI F</p><h2>Không có yêu cầu đang mở; lỗi tải; người khác vừa đổi (409); chỉ có quyền xem</h2></section>
+
+<div class="dlgs">
+	<div class="empty" data-ca="0-dong"><h2>Không có yêu cầu đang mở</h2><p class="muted">Yêu cầu mới từ website sẽ tự hiện ở đây.</p><button class="btn btn-quiet">Xem tất cả yêu cầu</button></div>
+	<div class="box box-err stack-sm" data-ca="loi-tai"><b>Chưa tải được danh sách yêu cầu.</b><p>Kiểm tra mạng rồi thử lại. Danh sách cũ không hiện để tránh xử lý nhầm.</p><div><button class="btn btn-line">Thử lại</button></div></div>
+	<div class="box box-err stack-sm" data-ca="xung-dot-409"><b>Yêu cầu vừa được người khác đổi trạng thái.</b><p>Đã tải lại: YC0000144 giờ là "Đã xác nhận đổi" (Trần Minh Thư, 11:02). Lời nhắn bạn đang gõ vẫn giữ trong ô; xem lại rồi lưu.</p><div><button class="btn btn-line">Đã hiểu</button></div></div>
+	<section class="card" data-ca="chi-doc">
+		<h2>Xử lý yêu cầu</h2>
+		<p class="small muted">Bạn chỉ có quyền xem yêu cầu (thiếu quyền "Xử lý yêu cầu về đơn hàng"). Không gửi tin, không đổi trạng thái được; nhờ Quản lý cấp quyền.</p>
+	</section>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

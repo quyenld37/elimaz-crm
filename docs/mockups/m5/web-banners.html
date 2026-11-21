@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M5 — Banner trang chủ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m5.css">
+<style>
+.bl .oitem { align-items: flex-start; }
+.bl .grow { min-width: 150px; }
+.img-row { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 12px; align-items: start; }
+.img-row .img-ph { aspect-ratio: 2368 / 600; padding: 4px; }
+.img-row .img-ph.is-phone { aspect-ratio: 1080 / 640; }
+@media (max-width: 759px) { .img-row { grid-template-columns: minmax(0, 1fr); } }
+.step { border-top: 1px solid var(--rule); padding-top: 16px; display: grid; gap: 8px; }
+.pins { display: flex; gap: 8px; flex-wrap: wrap; }
+.pins .tag { min-height: var(--tap); }
+.pins .tag button { border: 0; background: none; min-width: var(--tap); min-height: var(--tap); cursor: pointer; font-size: 14px; color: var(--ink); padding: 0; }
+.reasons { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 2px; }
+</style>
+</head>
+<body data-page="web-banners" data-title="Banner trang chủ">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Website / Banner trang chủ</p><h1>Banner trang chủ</h1><p class="sub">Tối đa 8 banner chạy lần lượt trên trang chủ. Banner tự động lấy sản phẩm và giá từ CRM; banner ảnh hiện đúng ảnh thiết kế. Lưu là lưu cả danh sách.</p></div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="ds-banner loai-anh tai-anh anh-dang-xu-ly dich-den mo-ta-anh"><p class="xs">TRẠNG THÁI A</p><h2>7 banner (4 đang hiện, 3 đang ẩn kèm lý do); đang sửa banner ảnh: ảnh máy tính sẵn sàng, ảnh điện thoại đang xử lý nên chưa lưu được</h2></section>
+
+<div class="ed">
+<section class="card stack bl">
+	<div class="row-between"><h2>Banner trên trang chủ</h2><span class="small muted">4 đang hiện · 3 đang ẩn</span></div>
+	<div class="olist">
+		<div class="oitem" data-ca="bat-tat len-xuong loai-giam-gia"><span class="ord">1</span><div class="grow"><b>Xả hàng thu đông</b><br><span class="small muted">Giảm giá · Đang hiện</span></div><div class="row"><label class="sw"><input type="checkbox" checked> Bật</label><button class="ibtn" aria-label="Đưa banner 1 lên" disabled>↑</button><button class="ibtn" aria-label="Đưa banner 1 xuống">↓</button></div></div>
+		<div class="oitem is-pick"><span class="ord">2</span><div class="grow"><b>Black Friday 27.11</b><br><span class="small muted">Ảnh thiết kế · </span><span class="why-hide">Đang ẩn: chưa tới giờ hiện</span></div><div class="row"><label class="sw"><input type="checkbox" checked> Bật</label><button class="ibtn" aria-label="Đưa banner 2 lên">↑</button><button class="ibtn" aria-label="Đưa banner 2 xuống">↓</button></div></div>
+		<div class="oitem"><span class="ord">3</span><div class="grow"><b>Tri ân khách quen</b><br><span class="small muted">Giảm giá · </span><span class="why-hide">Đang ẩn: chiến dịch chưa áp dụng</span></div><div class="row"><label class="sw"><input type="checkbox" checked> Bật</label><button class="ibtn" aria-label="Đưa banner 3 lên">↑</button><button class="ibtn" aria-label="Đưa banner 3 xuống">↓</button></div></div>
+		<div class="oitem" data-ca="loai-xu-huong"><span class="ord">4</span><div class="grow"><b>Bán chạy tuần này</b><br><span class="small muted">Xu hướng · Đang hiện</span></div><div class="row"><label class="sw"><input type="checkbox" checked> Bật</label><button class="ibtn" aria-label="Đưa banner 4 lên">↑</button><button class="ibtn" aria-label="Đưa banner 4 xuống">↓</button></div></div>
+		<div class="oitem" data-ca="loai-hang-moi"><span class="ord">5</span><div class="grow"><b>Hàng mới về</b><br><span class="small muted">Hàng mới · Đang hiện</span></div><div class="row"><label class="sw"><input type="checkbox" checked> Bật</label><button class="ibtn" aria-label="Đưa banner 5 lên">↑</button><button class="ibtn" aria-label="Đưa banner 5 xuống">↓</button></div></div>
+		<div class="oitem" data-ca="loai-danh-muc"><span class="ord">6</span><div class="grow"><b>Đầm công sở</b><br><span class="small muted">Danh mục · Đang hiện</span></div><div class="row"><label class="sw"><input type="checkbox" checked> Bật</label><button class="ibtn" aria-label="Đưa banner 6 lên">↑</button><button class="ibtn" aria-label="Đưa banner 6 xuống">↓</button></div></div>
+		<div class="oitem"><span class="ord">7</span><div class="grow"><b>Giáng sinh an lành</b><br><span class="small muted">Ảnh thiết kế · </span><span class="why-hide">Đang ẩn: đang tắt</span></div><div class="row"><label class="sw"><input type="checkbox"> Bật</label><button class="ibtn" aria-label="Đưa banner 7 lên">↑</button><button class="ibtn" aria-label="Đưa banner 7 xuống" disabled>↓</button></div></div>
+	</div>
+	<div class="inline-f"><span class="select-wrap grow"><select aria-label="Loại banner mới"><option>Giảm giá</option><option>Xu hướng</option><option>Hàng mới</option><option>Danh mục</option><option>Ảnh thiết kế</option></select></span><button class="btn btn-line">+ Thêm banner</button></div>
+</section>
+
+<section class="card stack">
+	<div class="row-between"><h2>Banner 2 · Ảnh thiết kế</h2><div class="row"><button class="btn btn-quiet" data-ca="nhan-ban">Nhân bản</button><button class="btn btn-danger" data-ca="xoa">Xóa</button></div></div>
+	<label class="field"><span>1. Loại banner</span><span class="select-wrap"><select><option>Ảnh thiết kế sẵn</option></select></span><span class="hint">Tải banner designer đã làm sẵn (chữ, giá, hình đều nằm trong ảnh). Website hiện đúng ảnh đó.</span></label>
+	<div class="step">
+		<p class="label">2. Ảnh cho máy tính *</p>
+		<div class="img-row"><div class="img-ph">black-friday-pc.jpg</div><div class="stack-sm"><p class="small"><span class="chip chip-ok">Sẵn sàng</span> 2368 × 600 · đúng tỉ lệ</p><p class="hint">Chữ nằm trong vùng giữa rộng 1800 px. JPG, PNG hoặc WebP, tối đa 8 MB.</p><div class="row"><button class="btn btn-quiet">Thay ảnh</button><button class="btn btn-quiet">Bỏ ảnh</button></div></div></div>
+	</div>
+	<div class="step" data-ca="anh-dien-thoai">
+		<p class="label">3. Ảnh cho điện thoại (nên có)</p>
+		<div class="img-row"><div class="img-ph is-phone is-proc">Đang xử lý…</div><div class="stack-sm"><p class="small"><span class="chip">Đang xử lý ảnh</span> 1080 × 640 · đúng tỉ lệ</p><p class="hint">Chữ nằm trong vùng giữa rộng 900 px. Không có ảnh điện thoại thì điện thoại dùng ảnh máy tính, chữ sẽ nhỏ khó đọc.</p></div></div>
+	</div>
+	<div class="step">
+		<p class="label">4. Bấm vào banner thì đến</p>
+		<div class="grid-f">
+			<span class="select-wrap"><select aria-label="Loại đích"><option>Trang Ưu đãi</option><option>Chiến dịch giảm giá</option><option>Danh mục</option><option>Một sản phẩm</option></select></span>
+			<span class="hint">Khách đến trang Ưu đãi, nơi có mọi chương trình đang chạy.</span>
+		</div>
+	</div>
+	<div class="step">
+		<label class="field"><span>5. Mô tả ảnh * <span class="muted">(cho Google và người dùng đọc màn hình)</span></span><input class="input" value="Black Friday 27.11, giảm đến 40% toàn bộ cửa hàng"><span class="hint num">50 / 120</span></label>
+	</div>
+	<div class="step">
+		<p class="label">6. Thời gian hiện</p>
+		<div class="grid-f"><label class="field"><span>Hiện từ (giờ Việt Nam)</span><input class="input num" value="27/11/2026 00:00"></label><label class="field"><span>Hiện đến</span><input class="input num" value="30/11/2026 23:59"></label></div>
+		<p class="hint">Chữ và giá trong ảnh không tự đổi theo CRM. Đặt giờ kết thúc trùng với chương trình để banner tự tắt đúng lúc.</p>
+	</div>
+</section>
+</div>
+
+<div class="savebar is-sticky" style="margin-top:16px" data-ca="co-thay-doi luu-khoa-anh"><span class="small grow">Có thay đổi chưa lưu · <span class="muted">Ảnh điện thoại của banner 2 đang xử lý, chờ xong mới lưu được.</span></span><button class="btn btn-quiet">Bỏ thay đổi</button><button class="btn btn-dark" disabled>Lưu banner</button></div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="mau-nen chu-tren-banner ghim-3 theo-tg-chien-dich"><p class="xs">TRẠNG THÁI B</p><h2>Sửa banner giảm giá: chiến dịch, màu nền, chữ (để trống thì tự động), ghim đủ 3 sản phẩm, giờ theo chiến dịch</h2></section>
+
+<section class="card stack">
+	<h2>Banner 1 · Giảm giá</h2>
+	<div class="grid-f">
+		<label class="field"><span>1. Loại banner</span><span class="select-wrap"><select><option>Chiến dịch giảm giá</option></select></span></label>
+		<label class="field"><span>Sản phẩm lấy từ chiến dịch</span><span class="select-wrap"><select><option>Xả hàng thu đông</option></select></span><span class="hint">Đang áp dụng. Banner tự ẩn khi chiến dịch tạm dừng hoặc hết hạn.</span></label>
+	</div>
+	<div class="step">
+		<p class="label">2. Màu nền</p>
+		<div class="radios" style="display:flex;gap:16px;flex-wrap:wrap"><label class="check"><input type="radio" name="th" checked> Tự động</label><label class="check"><input type="radio" name="th"> Đỏ</label><label class="check"><input type="radio" name="th"> Đen</label><label class="check"><input type="radio" name="th"> Sáng</label></div>
+		<p class="hint">Tự động: đỏ cho giảm giá, đen cho xu hướng, sáng cho loại khác.</p>
+	</div>
+	<div class="step">
+		<p class="label">3. Chữ trên banner <span class="muted">(để trống thì dùng chữ tự động)</span></p>
+		<div class="grid-f">
+			<label class="field"><span>Dòng nhỏ phía trên</span><input class="input" placeholder="Tự động: GIẢM ĐẾN 50%"><span class="hint">Tối đa 40 ký tự</span></label>
+			<label class="field"><span>Tiêu đề (dấu phẩy để xuống dòng)</span><input class="input" value="Xả hàng thu đông, chỉ còn 10 ngày"><span class="hint num">33 / 60</span></label>
+			<label class="field"><span>Chữ trên nút</span><input class="input" placeholder="Tự động: Mua ngay"><span class="hint">Tối đa 30 ký tự</span></label>
+		</div>
+	</div>
+	<div class="step">
+		<p class="label">4. Sản phẩm trên banner <span class="muted">(ghim tối đa 3; chỗ còn lại tự lấy theo chiến dịch)</span></p>
+		<div class="pins"><span class="tag">Áo khoác dạ dáng dài <button aria-label="Bỏ ghim Áo khoác dạ dáng dài">×</button></span><span class="tag">Áo len cổ lọ <button aria-label="Bỏ ghim Áo len cổ lọ">×</button></span><span class="tag">Chân váy dạ xếp ly <button aria-label="Bỏ ghim Chân váy dạ xếp ly">×</button></span></div>
+		<p class="small muted">Đã ghim đủ 3 sản phẩm. Chỉ ghim được sản phẩm thuộc chiến dịch đã chọn.</p>
+	</div>
+	<div class="step">
+		<p class="label">5. Thời gian hiện</p>
+		<div class="grid-f"><label class="field"><span>Hiện từ (giờ Việt Nam)</span><input class="input num" value="15/11/2026 00:00"></label><label class="field"><span>Hiện đến</span><input class="input num" value="25/11/2026 23:59"></label></div>
+		<div><button class="btn btn-quiet">Theo thời gian chiến dịch</button></div>
+	</div>
+</section>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" data-ca="anh-bi-tu-choi lech-ti-le"><p class="xs">TRẠNG THÁI C</p><h2>Tải ảnh: đang tải, ảnh lệch tỉ lệ hơn 2%, ảnh bị từ chối sau khi xử lý</h2></section>
+
+<section class="card stack">
+	<div class="img-row"><div class="img-ph is-proc">Đang tải ảnh… 60%</div><div class="stack-sm"><div class="bar"><i style="width:60%"></i></div><p class="hint">giang-sinh-pc.png · 3,1 MB</p></div></div>
+	<div class="img-row"><div class="img-ph">giang-sinh-pc.jpg</div><div class="stack-sm"><p class="small"><span class="chip chip-line">Sẵn sàng</span> 1920 × 600 · <b class="err-text">khác tỉ lệ 2368 × 600: khoảng 19% ảnh ở trên và dưới sẽ bị cắt</b></p><p class="hint">Vẫn lưu được; nên xuất lại ảnh đúng 2368 × 600.</p></div></div>
+	<div class="img-row"><div class="img-ph is-bad">Ảnh bị từ chối</div><div class="stack-sm"><p class="small err-text">Ảnh quá nhỏ: cần rộng ít nhất 600 px. Xuất lại ảnh rồi tải lên.</p><p class="hint">Ảnh bị từ chối không dùng được; banner có ảnh này không lưu được.</p><div><button class="btn btn-quiet">Tải ảnh khác</button></div></div></div>
+	<div class="drop"><b>Kéo ảnh vào đây hoặc bấm để chọn</b><span class="hint">JPG, PNG hoặc WebP, tối đa 8 MB</span><button class="btn btn-line">Chọn ảnh</button></div>
+</section>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st" data-ca="xem-truoc-may-tinh xem-truoc-dien-thoai ly-do-an"><p class="xs">TRẠNG THÁI D</p><h2>Xem trước máy tính / điện thoại (tự làm mới 0,35 giây sau khi ngừng sửa); banner đang ẩn ghi lý do</h2></section>
+
+<section class="card stack">
+	<div class="row-between"><h2>Xem trước</h2><div class="row" role="group" aria-label="Thiết bị"><button class="toggle" aria-pressed="true">Máy tính</button><button class="toggle" aria-pressed="false">Điện thoại</button></div></div>
+	<div class="pv-frame">
+		<div class="bn-pv is-desk is-red"><span class="safe"></span><span class="k">GIẢM ĐẾN 50%</span><span class="t">Xả hàng thu đông,<br>chỉ còn 10 ngày</span><span class="small">Mua ngay · 3 sản phẩm ghim + 5 sản phẩm của chiến dịch</span></div>
+		<p class="xs muted">Banner 1 · khung 2368 × 600, vạch đứt là vùng an toàn</p>
+	</div>
+	<div class="pv-frame">
+		<div class="bn-pv is-phone is-black"><span class="safe"></span><span class="k">XU HƯỚNG</span><span class="t">Bán chạy tuần này</span></div>
+		<p class="xs muted">Banner 4 trên điện thoại · khung 1080 × 640</p>
+	</div>
+	<div class="pv-frame">
+		<div class="bn-pv is-desk is-hidden"><span class="t">Banner này đang ẩn</span><span class="small">Chiến dịch chưa áp dụng (bản nháp, tạm dừng, chưa tới giờ hoặc hết hạn).</span></div>
+		<p class="xs muted">Banner 3</p>
+	</div>
+	<div class="mk" data-ca="9-ly-do"><b>Mockup — 9 lý do ẩn (chữ hiện ở danh sách và xem trước, đúng 9 lý do của website):</b>
+		<ol class="reasons"><li>Đang tắt</li><li>Chưa tới giờ hiện</li><li>Đã hết thời gian hiện</li><li>Chưa chọn chiến dịch, hoặc chiến dịch đã bị xóa</li><li>Chiến dịch chưa áp dụng (bản nháp, tạm dừng, chưa tới giờ hoặc hết hạn)</li><li>Chưa chọn danh mục</li><li>Chưa có sản phẩm phù hợp để hiện</li><li>Chưa tải ảnh, hoặc ảnh không còn trên máy chủ</li><li>Sản phẩm liên kết không còn bán</li></ol>
+	</div>
+</section>
+
+<!-- ============ TRẠNG THÁI E ============ -->
+<section class="st"><p class="xs">TRẠNG THÁI E</p><h2>Đủ 8 banner; đang lưu (khóa mọi thao tác); người khác vừa lưu (409, giữ bản đang sửa); chỉ có quyền xem; chưa có banner</h2></section>
+
+<div class="dlgs">
+	<section class="card stack-sm" data-ca="toi-da-8"><div class="row-between"><h3>8 banner</h3><span class="small muted">6 đang hiện · 2 đang ẩn</span></div><div class="inline-f"><span class="select-wrap grow"><select aria-label="Loại banner mới" disabled><option>Giảm giá</option></select></span><button class="btn" disabled>+ Thêm banner</button></div><p class="reason">Đã đủ 8 banner. Xóa một banner để thêm banner mới.</p></section>
+	<section class="card stack-sm" data-ca="dang-luu-khoa"><h3>Đang lưu…</h3><div class="olist"><div class="oitem is-off"><span class="ord">1</span><div class="grow"><b>Xả hàng thu đông</b></div><div class="row"><label class="sw is-off"><input type="checkbox" checked disabled> Bật</label><button class="ibtn" aria-label="Đưa banner 1 lên" disabled>↑</button><button class="ibtn" aria-label="Đưa banner 1 xuống" disabled>↓</button></div></div></div><p class="reason">Trong lúc lưu không bật/tắt, đổi thứ tự, sửa hay kéo thả được.</p><div class="savebar"><button class="btn" disabled>Bỏ thay đổi</button><button class="btn" disabled>Đang lưu…</button></div></section>
+	<div class="dlg" role="dialog" aria-label="Người khác vừa lưu" data-ca="xung-dot-409">
+		<div class="dlg-h"><h2>Banner vừa được người khác lưu</h2></div>
+		<div class="dlg-b"><p>Trần Minh Thư lưu lúc 11:42. Bản bạn đang sửa <b>vẫn còn</b> trên màn hình, chưa lưu.</p><p class="small muted">Tải bản mới sẽ bỏ thay đổi của bạn. Giữ bản đang sửa để chép lại nội dung trước.</p></div>
+		<div class="dlg-f"><button class="btn btn-quiet">Giữ bản đang sửa</button><button class="btn btn-dark">Tải bản mới</button></div>
+	</div>
+	<section class="card stack-sm" data-ca="chi-doc"><h3>Chỉ xem</h3><p class="small">Danh sách và xem trước hiện như trạng thái A, mọi ô và nút sửa bị khóa.</p><p class="reason">Bạn chỉ có quyền xem nội dung website (thiếu quyền "Quản lý nội dung website").</p></section>
+	<div class="empty" data-ca="0-banner"><h2>Chưa có banner</h2><p class="muted">Trang chủ đang dùng banner mặc định. Chọn một loại ở "Thêm banner" để bắt đầu, ví dụ Giảm giá cho chiến dịch đang chạy.</p></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

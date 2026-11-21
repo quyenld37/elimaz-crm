@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M5 — Quà sinh nhật</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="../m3/m3.css">
+<link rel="stylesheet" href="m5.css">
+<style>
+.code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+.who { display: grid; gap: 2px; min-width: 0; }
+@media (min-width: 760px) { .bd .c-act { width: 1%; white-space: nowrap; } .bd td.who-c { width: 30%; } }
+.scroll-x .tabs { width: max-content; min-width: 100%; }
+</style>
+</head>
+<body data-page="birthday-gifts" data-title="Quà sinh nhật">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div class="grow"><p class="crumb">Khuyến mãi / Quà sinh nhật</p><h1>Quà sinh nhật</h1><p class="sub">Khách lưu ngày sinh ở trang cảm ơn của website. Trước sinh nhật, CRM tạo mỗi khách một mã chỉ dùng một lần cho đơn giao tới đúng số của khách; website tự gửi qua Zalo, email với khách đồng ý kênh đó.</p></div>
+	<div class="row" data-ca="tao-ma-ngay"><button class="btn btn-dark">Tạo mã ngay</button></div>
+</div>
+
+<div class="box box-info stack-sm" style="margin-bottom:16px" data-ca="lan-chay-cuoi">
+	<p><span class="chip chip-ok">Đang bật</span> Giảm <b class="money">50.000 ₫</b> · gửi trước 7 ngày · dùng trong 14 ngày · <a class="cell-a" href="#cai-dat">Đổi cài đặt</a></p>
+	<p class="small">Lần chạy gần nhất <b>09:00 hôm nay</b> (theo lịch, mỗi giờ trong 9:00–21:00): 6 mã mới, 0 lỗi; 2 khách đến hạn đang chờ đơn giao thành công.</p>
+</div>
+
+<div class="kpis" style="margin-bottom:24px" data-ca="so-tong">
+	<div class="kpi is-bad"><p class="small muted">Cần nhắn</p><p class="v">4</p><p class="xs muted">mã chưa gửi tự động được</p></div>
+	<div class="kpi"><p class="small muted">Sắp gửi · 7 ngày tới</p><p class="v">12</p><p class="xs muted">khách đủ điều kiện</p></div>
+	<div class="kpi"><p class="small muted">Mã đã dùng · năm 2026</p><p class="v">38 / 112</p><p class="xs muted">mã đã tặng</p></div>
+	<div class="kpi"><p class="small muted">Khách đã lưu sinh nhật</p><p class="v">1.284</p><p class="xs muted">31 khách đã hủy nhận</p></div>
+</div>
+
+<div class="scroll-x"><div class="tabs" role="tablist" aria-label="Quà sinh nhật">
+	<button class="tab" role="tab" aria-selected="true">Cần nhắn (4)</button>
+	<button class="tab" role="tab" aria-selected="false">Tất cả khách</button>
+	<button class="tab" role="tab" aria-selected="false">Cài đặt quà</button>
+	<button class="tab" role="tab" aria-selected="false">Đợt mã</button>
+</div></div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="tab-can-nhan ten-60"><p class="xs">TRẠNG THÁI A · TAB CẦN NHẮN</p><h2>4 mã chưa gửi tự động (khách không đồng ý Zalo, email, hoặc gửi lỗi): chép tin, mở Zalo, đánh dấu đã nhắn một hay nhiều khách</h2></section>
+
+<div class="selbar" data-ca="chon-nhieu"><span class="grow">Đã chọn 2 khách</span><button class="btn">Bỏ chọn</button><button class="btn btn-dark">Đánh dấu đã nhắn</button></div>
+<div class="tbl-frame">
+<table class="tbl bd">
+	<thead><tr><th class="c-chk"><label class="check"><input type="checkbox" aria-label="Chọn cả trang"></label></th><th>Khách</th><th>Sinh nhật</th><th>Mã quà</th><th>Hạn dùng</th><th class="c-act"></th></tr></thead>
+	<tbody>
+	<tr>
+		<td class="c-chk"><label class="check"><input type="checkbox" checked aria-label="Chọn Nguyễn Thị Lan"></label></td>
+		<td class="lead who-c"><div class="who"><b>Nguyễn Thị Lan</b><span class="small muted num">0912 *** 678</span></div></td>
+		<td data-label="Sinh nhật"><span class="num">24/11</span> · <span class="small muted">còn 3 ngày</span></td>
+		<td data-label="Mã quà"><span class="code">SN4E1C95</span></td>
+		<td data-label="Hạn dùng"><span class="num small">01/12/2026</span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet" data-ca="chep-tin">Chép tin</button><a class="btn btn-quiet" href="#" data-ca="mo-zalo">Mở Zalo</a><button class="btn btn-line" data-ca="da-nhan">Đã nhắn</button></div></td>
+	</tr>
+	<tr>
+		<td class="c-chk"><label class="check"><input type="checkbox" checked aria-label="Chọn khách tên dài"></label></td>
+		<td class="lead who-c"><div class="who"><b class="clamp2 wrap-any">NguyễnThịThuHàShopThờiTrangCôngSởXuấtKhẩuHàNộiChiNhánhSố0205</b><span class="small muted num">0987 *** 321</span></div></td>
+		<td data-label="Sinh nhật"><span class="num">25/11</span> · <span class="small muted">còn 4 ngày</span></td>
+		<td data-label="Mã quà"><span class="code">SN7Q2HXA</span></td>
+		<td data-label="Hạn dùng"><span class="num small">02/12/2026</span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Chép tin</button><a class="btn btn-quiet" href="#">Mở Zalo</a><button class="btn btn-line">Đã nhắn</button></div></td>
+	</tr>
+	<tr>
+		<td class="c-chk"><label class="check"><input type="checkbox" aria-label="Chọn Lê Thu Trang"></label></td>
+		<td class="lead who-c"><div class="who"><b>Lê Thu Trang</b><span class="small muted num">0903 *** 112</span></div></td>
+		<td data-label="Sinh nhật"><span class="num">21/11</span> · <span class="small err-text">hôm nay</span></td>
+		<td data-label="Mã quà"><span class="code">SNB8M3KD</span></td>
+		<td data-label="Hạn dùng"><span class="num small">28/11/2026</span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Chép tin</button><a class="btn btn-quiet" href="#">Mở Zalo</a><button class="btn btn-line">Đã nhắn</button></div></td>
+	</tr>
+	<tr>
+		<td class="c-chk"><label class="check"><input type="checkbox" aria-label="Chọn Phạm Minh Anh"></label></td>
+		<td class="lead who-c"><div class="who"><b>Phạm Minh Anh</b><span class="small muted num">0934 *** 905</span></div></td>
+		<td data-label="Sinh nhật"><span class="num">19/11</span> · <span class="small muted">đã qua 2 ngày</span></td>
+		<td data-label="Mã quà"><span class="code">SNW2C6PE</span></td>
+		<td data-label="Hạn dùng"><span class="num small">26/11/2026</span></td>
+		<td class="c-act"><div class="row"><button class="btn btn-quiet">Chép tin</button><a class="btn btn-quiet" href="#">Mở Zalo</a><button class="btn btn-line">Đã nhắn</button></div></td>
+	</tr>
+	</tbody>
+</table>
+</div>
+<div class="toast" style="margin-top:16px"><span class="grow">Đã chép tin cho Nguyễn Thị Lan. Dán vào Zalo rồi bấm "Đã nhắn".</span></div>
+<p class="hint" style="margin-top:8px">"Mở Zalo" mở cuộc trò chuyện với số đầy đủ của khách; danh sách chỉ hiện số che giữa.</p>
+<div class="empty" style="margin-top:16px" data-ca="0-can-nhan"><h2>Không có mã nào cần nhắn tay</h2><p class="muted">Mã mới đều đã được website gửi tự động.</p></div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="tab-tat-ca 8-trang-thai"><p class="xs">TRẠNG THÁI B · TAB TẤT CẢ KHÁCH</p><h2>Tìm, lọc 8 trạng thái và tháng sinh, xuất CSV; mỗi trạng thái một dòng</h2></section>
+
+<div class="toolbar">
+	<input class="input is-search" placeholder="Tìm tên hoặc số điện thoại" aria-label="Tìm khách">
+	<div class="select-wrap"><select aria-label="Trạng thái"><option>Mọi trạng thái</option><option>Cần nhắn</option><option>Đến hạn, chờ tạo mã</option><option>Chờ đơn giao thành công</option><option>Chờ ngày gửi</option><option>Đã gửi mã</option><option>Đã dùng</option><option>Hết hạn, chưa dùng</option><option>Đã hủy nhận</option></select></div>
+	<div class="select-wrap" data-ca="loc-thang"><select aria-label="Tháng sinh"><option>Tháng 11</option><option>Mọi tháng</option></select></div>
+	<button class="btn btn-line" data-ca="xuat-csv">Xuất CSV</button>
+</div>
+<div class="tbl-frame">
+<table class="tbl">
+	<thead><tr><th>Khách</th><th>Sinh nhật</th><th>Ngày gửi mã</th><th>Nhận qua</th><th>Mã quà</th><th>Trạng thái</th></tr></thead>
+	<tbody>
+	<tr><td class="lead"><div class="who"><b>Nguyễn Thị Lan</b><span class="small muted num">0912 *** 678</span></div></td><td data-label="Sinh nhật" class="num">24/11</td><td data-label="Ngày gửi mã" class="num">17/11</td><td data-label="Nhận qua">—</td><td data-label="Mã quà"><span class="code">SN4E1C95</span></td><td data-label="Trạng thái"><span class="chip chip-err">Cần nhắn</span></td></tr>
+	<tr><td class="lead"><div class="who"><b>Đỗ Hải Yến</b><span class="small muted num">0976 *** 450</span></div></td><td data-label="Sinh nhật" class="num">28/11</td><td data-label="Ngày gửi mã" class="num">hôm nay</td><td data-label="Nhận qua">Zalo</td><td data-label="Mã quà"><span class="muted">—</span></td><td data-label="Trạng thái"><span class="chip chip-err">Đến hạn, chờ tạo mã</span></td></tr>
+	<tr><td class="lead"><div class="who"><b>Vũ Ngọc Mai</b><span class="small muted num">0868 *** 017</span></div></td><td data-label="Sinh nhật" class="num">26/11</td><td data-label="Ngày gửi mã" class="num">19/11</td><td data-label="Nhận qua">Zalo · Email</td><td data-label="Mã quà"><span class="muted">—</span></td><td data-label="Trạng thái"><span class="chip">Chờ đơn giao thành công</span></td></tr>
+	<tr><td class="lead"><div class="who"><b>Hoàng Thị Hương</b><span class="small muted num">0915 *** 233</span></div></td><td data-label="Sinh nhật" class="num">30/11</td><td data-label="Ngày gửi mã" class="num">23/11</td><td data-label="Nhận qua">Email</td><td data-label="Mã quà"><span class="muted">—</span></td><td data-label="Trạng thái"><span class="chip">Chờ ngày gửi</span></td></tr>
+	<tr><td class="lead"><div class="who"><b>Ngô Bảo Châu</b><span class="small muted num">0988 *** 004</span></div></td><td data-label="Sinh nhật" class="num">20/11</td><td data-label="Ngày gửi mã" class="num">13/11</td><td data-label="Nhận qua">Zalo</td><td data-label="Mã quà"><span class="code">SNK5T9RA</span></td><td data-label="Trạng thái"><span class="chip chip-ok">Đã gửi mã</span></td></tr>
+	<tr><td class="lead"><div class="who"><b>Bùi Lan Phương</b><span class="small muted num">0905 *** 781</span></div></td><td data-label="Sinh nhật" class="num">15/11</td><td data-label="Ngày gửi mã" class="num">08/11</td><td data-label="Nhận qua">Zalo</td><td data-label="Mã quà"><span class="code">SNP3V8QE</span></td><td data-label="Trạng thái"><span class="chip chip-ok">Đã dùng · DH0001288</span></td></tr>
+	<tr><td class="lead"><div class="who"><b>Mai Thanh Tâm</b><span class="small muted num">0938 *** 662</span></div></td><td data-label="Sinh nhật" class="num">02/11</td><td data-label="Ngày gửi mã" class="num">26/10</td><td data-label="Nhận qua">Email</td><td data-label="Mã quà"><span class="code">SNA6D2WM</span></td><td data-label="Trạng thái"><span class="chip">Hết hạn, chưa dùng</span></td></tr>
+	<tr class="is-muted"><td class="lead"><div class="who"><b>Đinh Quỳnh</b><span class="small muted num">0977 *** 519</span></div></td><td data-label="Sinh nhật" class="num">28/11</td><td data-label="Ngày gửi mã" class="num">—</td><td data-label="Nhận qua">—</td><td data-label="Mã quà"><span class="muted">—</span></td><td data-label="Trạng thái"><span class="chip chip-dark">Đã hủy nhận</span></td></tr>
+	</tbody>
+</table>
+</div>
+<div class="more" data-ca="xem-them"><span>Đang hiện 8 / 117 khách sinh tháng 11 (tải 50 dòng mỗi lần)</span><button class="btn btn-quiet">Xem thêm</button></div>
+<p class="hint">Tệp CSV có số điện thoại đầy đủ (Tên, SĐT, ngày sinh, ngày gửi mã, Zalo, Email, mã quà, trạng thái, đơn đã dùng). Mỗi lần xuất ghi vào nhật ký thao tác kèm số dòng.</p>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" id="cai-dat" data-ca="tab-cai-dat cai-dat-bat"><p class="xs">TRẠNG THÁI C · TAB CÀI ĐẶT QUÀ</p><h2>Bật/tắt, mức giảm (lỗi không chia hết 1.000), điều kiện, xem trước câu khách thấy; Tạo mã ngay khi lượt khác đang chạy</h2></section>
+
+<div class="cols">
+<section class="card stack">
+	<label class="check"><input type="checkbox" checked> <b>Bật quà sinh nhật</b></label>
+	<p class="hint">Tắt thì trang cảm ơn của website thôi hỏi ngày sinh và CRM ngừng tạo mã mới. Mã đã tạo vẫn dùng được tới hạn.</p>
+	<div class="set-g">
+		<label class="field" data-ca="muc-giam loi-boi-so"><span>Mức giảm</span><span class="unit"><input class="input is-err" value="10.500"><span>₫</span></span><span class="field-err">Mức giảm từ 10.000 tới 1.000.000 ₫, bội số của 1.000.</span></label>
+		<label class="field" data-ca="don-toi-thieu"><span>Đơn tối thiểu</span><span class="unit"><input class="input" value="0"><span>₫</span></span><span class="hint">0 = đơn nào cũng dùng được</span></label>
+		<label class="field" data-ca="gui-truoc"><span>Gửi trước sinh nhật</span><span class="unit"><input class="input" value="7"><span>ngày</span></span><span class="hint">0–30; CRM tạo mã trong khung 9:00–21:00</span></label>
+		<label class="field" data-ca="dung-trong"><span>Dùng trong</span><span class="unit"><input class="input" value="14"><span>ngày</span></span><span class="hint">1–60 ngày kể từ lúc tạo mã</span></label>
+		<label class="field" data-ca="dang-ky-truoc"><span>Lưu ngày sinh trước ít nhất</span><span class="unit"><input class="input" value="30"><span>ngày</span></span><span class="hint">0–120; chống khách vừa lưu đã nhận quà</span></label>
+	</div>
+	<p class="small">Chỉ tặng khách đã nhận thành công ít nhất 1 đơn đặt trên website. Khách chưa có đơn giao thành công chờ tới khi có đơn trước sinh nhật.</p>
+	<p class="small muted">Áp dụng cho mã tạo từ lần chạy sau; mã đã tạo giữ nguyên.</p>
+	<div class="savebar"><span class="small err-text grow">Sửa 1 lỗi để lưu.</span><button class="btn btn-quiet">Hủy thay đổi</button><button class="btn btn-dark" disabled>Lưu cài đặt</button></div>
+</section>
+<aside class="stack">
+	<section class="card stack-sm" data-ca="xem-truoc-tin">
+		<h3>Khách thấy trên trang cảm ơn</h3>
+		<p class="note-box">Trước sinh nhật 7 ngày, bạn nhận mã giảm 50.000 ₫, dùng trong 14 ngày.</p>
+		<h3>Tin nhắn gửi khách (mẫu)</h3>
+		<p class="note-box" style="white-space:pre-wrap">ELIMAZ chúc mừng sinh nhật chị Lan!
+Quà của chị: mã SN4E1C95 giảm 50.000 ₫, dùng trong 14 ngày cho đơn giao tới số của chị.
+Đặt hàng tại elimaz.com.vn/?qua=SN4E1C95</p>
+	</section>
+	<div class="box box-err stack-sm" data-ca="dang-chay-409"><b>Đang có một lần tạo mã khác chạy.</b><p>Lần chạy theo lịch bắt đầu 10:00 chưa xong. Thử lại sau vài phút; không cần bấm lại nhiều lần.</p></div>
+	<div class="box box-err stack-sm" data-ca="xung-dot-409"><b>Cài đặt vừa được người khác đổi.</b><p>Đã tải lại bản mới (Trần Minh Thư, 10:12). Nhập lại thay đổi của bạn rồi lưu.</p></div>
+</aside>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st" data-ca="tab-dot-ma dot-ma wb05"><p class="xs">TRẠNG THÁI D · TAB ĐỢT MÃ</p><h2>Đợt mã theo ngày (số đã tặng, đã dùng, hết hạn); chi tiết đợt từng mã và trạng thái; đợt rỗng; không có quyền</h2></section>
+
+<div class="tbl-frame">
+<table class="tbl">
+	<thead><tr><th>Đợt</th><th class="r">Mã</th><th class="r">Đã tặng</th><th class="r">Đã dùng</th><th class="r">Hết hạn</th><th class="c-act"></th></tr></thead>
+	<tbody>
+	<tr><td class="lead"><b>Sinh nhật 21/11/2026</b></td><td data-label="Mã" class="r num">6</td><td data-label="Đã tặng" class="r num">2</td><td data-label="Đã dùng" class="r num">0</td><td data-label="Hết hạn" class="r num">0</td><td class="c-act"><a class="btn btn-quiet" href="#chi-tiet-dot">Mở</a></td></tr>
+	<tr><td class="lead"><b>Sinh nhật 08/11/2026</b></td><td data-label="Mã" class="r num">9</td><td data-label="Đã tặng" class="r num">8</td><td data-label="Đã dùng" class="r num">4</td><td data-label="Hết hạn" class="r num">0</td><td class="c-act"><a class="btn btn-quiet" href="#chi-tiet-dot">Mở</a></td></tr>
+	<tr><td class="lead"><b>Sinh nhật 26/10/2026</b></td><td data-label="Mã" class="r num">11</td><td data-label="Đã tặng" class="r num">11</td><td data-label="Đã dùng" class="r num">5</td><td data-label="Hết hạn" class="r num">6</td><td class="c-act"><a class="btn btn-quiet" href="#chi-tiet-dot">Mở</a></td></tr>
+	<tr data-ca="dot-rong"><td class="lead"><b>Sinh nhật 20/11/2026</b></td><td data-label="Mã" class="r num">0</td><td data-label="Đã tặng" class="r num">0</td><td data-label="Đã dùng" class="r num">0</td><td data-label="Hết hạn" class="r num">0</td><td class="c-act"><span class="small muted">Không có khách đến hạn</span></td></tr>
+	<tr><td class="lead"><b>Mã chuyển từ website cũ</b><br><span class="small muted">nhập đêm mở, mã còn hạn</span></td><td data-label="Mã" class="r num">23</td><td data-label="Đã tặng" class="r num">23</td><td data-label="Đã dùng" class="r num">2</td><td data-label="Hết hạn" class="r num">0</td><td class="c-act"><a class="btn btn-quiet" href="#chi-tiet-dot">Mở</a></td></tr>
+	</tbody>
+</table>
+</div>
+
+<div class="stack" id="chi-tiet-dot" style="margin-top:24px" data-ca="chi-tiet-dot">
+	<div class="row-between"><h2>Sinh nhật 08/11/2026 · 9 mã</h2><span class="small muted">Giảm 50.000 ₫ · đơn từ 0 ₫ · mỗi mã dùng 1 lần, chỉ cho đơn giao tới số đã gắn</span></div>
+	<div class="tbl-frame">
+	<table class="tbl">
+		<thead><tr><th>Mã</th><th>Gắn với số</th><th>Trạng thái</th><th>Hạn dùng</th></tr></thead>
+		<tbody>
+		<tr data-ca="ma-da-dung"><td class="lead"><span class="code">SNP3V8QE</span></td><td data-label="Gắn với số" class="num">0905 *** 781</td><td data-label="Trạng thái"><span class="chip chip-ok">Đã dùng · <a class="cell-a" href="../m2/don-chi-tiet.html">DH0001288</a></span></td><td data-label="Hạn dùng" class="num">22/11/2026</td></tr>
+		<tr data-ca="ma-da-tang"><td class="lead"><span class="code">SNH2R6TC</span></td><td data-label="Gắn với số" class="num">0916 *** 442</td><td data-label="Trạng thái"><span class="chip">Đã tặng 08/11 · qua Zalo</span></td><td data-label="Hạn dùng" class="num">22/11/2026</td></tr>
+		<tr data-ca="ma-chua-tang"><td class="lead"><span class="code">SNT4F7ZB</span></td><td data-label="Gắn với số" class="num">0919 *** 538</td><td data-label="Trạng thái"><span class="chip chip-err">Chưa tặng · website đang gửi lại</span></td><td data-label="Hạn dùng" class="num">22/11/2026</td></tr>
+		</tbody>
+	</table>
+	</div>
+	<div class="tbl-frame">
+	<table class="tbl">
+		<thead><tr><th>Mã (đợt 26/10/2026)</th><th>Gắn với số</th><th>Trạng thái</th><th>Hạn dùng</th></tr></thead>
+		<tbody>
+		<tr class="is-muted" data-ca="ma-het-han"><td class="lead"><span class="code">SNA6D2WM</span></td><td data-label="Gắn với số" class="num">0938 *** 662</td><td data-label="Trạng thái"><span class="chip">Hết hạn, chưa dùng</span></td><td data-label="Hạn dùng" class="num">09/11/2026</td></tr>
+		</tbody>
+	</table>
+	</div>
+	<div class="box box-err stack-sm" data-ca="khong-quyen-403"><b>Bạn không có quyền xem khuyến mãi.</b><p>Nhờ Quản lý cấp quyền "Xem khuyến mãi" (tab Đợt mã) hoặc "Quản lý quà sinh nhật" (ba tab còn lại).</p></div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>
