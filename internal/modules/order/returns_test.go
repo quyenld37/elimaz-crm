@@ -16,7 +16,13 @@ import (
 // deliveredOrder tạo đơn confirmed các dòng lines (phí 30.000) rồi gắn vận đơn mới và báo giao xong → delivered.
 func (e *orderEnv) deliveredOrder(lines ...order.LineInput) order.Order {
 	e.t.Helper()
-	o := e.mustCreateM2(e.m2Input(30000, lines...)).Order
+	return e.deliveredFrom(e.m2Input(30000, lines...))
+}
+
+// deliveredFrom tạo đơn confirmed theo in rồi gắn vận đơn mới và báo giao xong → delivered.
+func (e *orderEnv) deliveredFrom(in order.CreateInput) order.Order {
+	e.t.Helper()
+	o := e.mustCreateM2(in).Order
 	s := uuid.New()
 	if err := e.attachBy(o.ID, s); err != nil {
 		e.t.Fatal(err)
@@ -238,6 +244,58 @@ func TestCreateReturn_RoundingLastUnit(t *testing.T) {
 	r2 := e.mustReturn(o.ID, custReturn(rl(ic.ID, 1)))
 	if r1.RefundAmount != 250000 || r2.RefundAmount != 250001 {
 		t.Fatalf("tiền hoàn %d + %d, mong 250000 + 250001", r1.RefundAmount, r2.RefundAmount)
+	}
+}
+
+// WAT31 (phía đơn, ca database): đơn A 250.001 ×3 (giảm dòng 1) + B 180.000 ×1, giảm cấp đơn 50.001 và mã 10% không
+// trần, đã giao; phần giảm cấp đơn và mã chia về cả hai dòng. Đổi giá A, B rồi trả một phần → tiền hoàn theo net đã chụp
+// của dòng (A ×1: floor(netA / 3)), không theo giá mới hay đơn giá; trả nốt → dòng nhận phần còn lại, Σ hoàn = Σ net =
+// tổng đơn trừ phí ship.
+func TestCreateReturn_WAT31OrderDiscountAfterPriceChange(t *testing.T) {
+	e := newM2Env(t)
+	c := sale10("WAT31", 0)
+	c.maxDiscount = 0
+	e.coupon(c)
+	a, b := e.variant(250001, 5), e.variant(180000, 5)
+	in := e.m2Input(30000, ln(a, 3, 1), ln(b, 1, 0))
+	in.OrderDiscount, in.CouponCode = 50001, "WAT31"
+	o := e.deliveredFrom(in)
+	if o.OrderDiscount != 50001 || o.CouponDiscount != 88000 {
+		t.Fatalf("giảm cấp đơn %d, giảm mã %d; mong 50.001, 88.000", o.OrderDiscount, o.CouponDiscount)
+	}
+	ia, ib := itemOf(t, o, a), itemOf(t, o, b)
+	for _, it := range []order.Item{ia, ib} {
+		if it.AllocatedOrderDiscount <= 0 ||
+			it.NetAmount != int64(it.Qty)*it.UnitPrice-it.LineDiscount-it.AllocatedOrderDiscount {
+			t.Fatalf("dòng %s chưa nhận phần giảm cấp đơn: %+v", it.SKU, it)
+		}
+	}
+	if ia.AllocatedOrderDiscount+ib.AllocatedOrderDiscount != 50001+88000 {
+		t.Fatalf("Σ phân bổ %d, mong 138.001", ia.AllocatedOrderDiscount+ib.AllocatedOrderDiscount)
+	}
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(), `UPDATE catalog.variants SET price = CASE WHEN id = $1 THEN 300000 ELSE 150000 END
+			WHERE id IN ($1, $2)`, a, b)
+		return err //nolint:wrapcheck // test
+	})
+
+	r1 := e.mustReturn(o.ID, custReturn(rl(ia.ID, 1), rl(ib.ID, 1)))
+	wantA1 := ia.NetAmount / 3
+	byItem := map[uuid.UUID]int64{}
+	for _, it := range r1.Items {
+		byItem[it.OrderItemID] = it.RefundAmount
+	}
+	if byItem[ia.ID] != wantA1 || byItem[ib.ID] != ib.NetAmount || r1.RefundAmount != wantA1+ib.NetAmount {
+		t.Fatalf("phiếu 1: A %d (mong %d), B %d (mong %d), tổng %d", byItem[ia.ID], wantA1, byItem[ib.ID],
+			ib.NetAmount, r1.RefundAmount)
+	}
+	r2 := e.mustReturn(o.ID, custReturn(rl(ia.ID, 2)))
+	if r2.RefundAmount != ia.NetAmount-wantA1 {
+		t.Fatalf("phiếu 2 (A ×2 cuối): %d, mong %d", r2.RefundAmount, ia.NetAmount-wantA1)
+	}
+	if sum := r1.RefundAmount + r2.RefundAmount; sum != o.GrandTotal-o.ShippingFee || sum != ia.NetAmount+ib.NetAmount {
+		t.Errorf("Σ hoàn %d, mong Σ net %d = tổng %d − ship %d", sum, ia.NetAmount+ib.NetAmount, o.GrandTotal,
+			o.ShippingFee)
 	}
 }
 
