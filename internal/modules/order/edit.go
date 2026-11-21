@@ -551,8 +551,8 @@ func (e *editRun) evalInput(ctx context.Context, base int64) (promotion.EvalInpu
 		return promotion.EvalInput{}, fmt.Errorf("khách gốc của đơn: %w", err)
 	}
 	return promotion.EvalInput{
-		Base: base, Channel: e.cur.Channel, CustomerRootID: root, Phone: e.p.addr.Phone, SellerID: e.cur.SellerID,
-		Now: e.now,
+		Base: base, Channel: e.cur.Channel, CustomerID: e.cur.CustomerID, CustomerRootID: root, Phone: e.p.addr.Phone,
+		SellerID: e.cur.SellerID, Now: e.now,
 	}, nil
 }
 

@@ -43,6 +43,10 @@ const aggregateOrderCoupon = "order_coupon"
 // errWriterNotWired: Redeem cần Writer có Events và Queue (lỗi nối dây, HTTP 500).
 var errWriterNotWired = errors.New("promotion: Writer thiếu Events hoặc Queue")
 
+// errNoOrderCustomer: Redeem cần hồ sơ khách của đơn (EvalInput.CustomerID) để ghi lượt mỗi khách (lỗi lập trình, HTTP
+// 500).
+var errNoOrderCustomer = errors.New("promotion: thiếu hồ sơ khách của đơn")
+
 // OrderRef là đơn dùng mã: tenant, mã đơn và version hiện tại của đơn (đơn đã chèn hoặc đã khóa trong tx của bên gọi;
 // làm Seq của coupon.used).
 type OrderRef struct {
@@ -59,14 +63,19 @@ type Used struct {
 }
 
 // Redeem dùng mã code (không phân biệt hoa thường) cho đơn o trong tx của bên gọi: khóa dòng mã (ADR-46 nhóm 10:
-// coupons → coupon_customer_uses → coupon_redemptions), Evaluate, tăng used_count có điều kiện (0 dòng → exhausted),
-// tăng lượt của khách in.CustomerRootID có điều kiện (0 dòng → customer_limit), chèn lượt của đơn hoặc đổi dòng
-// released cũ của cùng (mã, đơn) về active, rồi phát coupon.used. Từ chối → *RejectError (errors.Is
-// ErrCouponRejected); bên gọi lùi cả transaction. Đơn đã có lượt active → lỗi (bên gọi Detach trước). Writer thiếu
-// Events hoặc Queue → lỗi trước khi đọc gì.
+// coupons → coupon_customer_uses → coupon_redemptions), đổi khách gắn mã về gốc hiện tại, Evaluate, tăng used_count có
+// điều kiện (0 dòng → exhausted), tăng lượt của hồ sơ in.CustomerID có điều kiện tổng lượt của cả nhóm khách hiện tại
+// dưới per_customer_limit (0 dòng → customer_limit), chèn lượt của đơn (khách: in.CustomerID) hoặc đổi dòng released
+// cũ của cùng (mã, đơn) về active, rồi phát coupon.used (customerId: in.CustomerRootID). Từ chối → *RejectError
+// (errors.Is ErrCouponRejected); bên gọi lùi cả transaction. Đơn đã có lượt active → lỗi (bên gọi Detach trước). Writer
+// thiếu Events hoặc Queue, hay in.CustomerID rỗng → lỗi trước khi đọc gì. Bên gọi giữ khóa hồ sơ và gốc của khách
+// (customer.FindOrCreateForOrder) để nhóm không đổi tới cuối tx.
 func (w Writer) Redeem(ctx context.Context, tx pgx.Tx, code string, o OrderRef, in EvalInput) (Redemption, error) {
 	if w.Events == nil || w.Queue == nil {
 		return Redemption{}, errWriterNotWired
+	}
+	if in.CustomerID == uuid.Nil {
+		return Redemption{}, errNoOrderCustomer
 	}
 	orderID := o.ID
 	q := store.New(tx)
@@ -78,6 +87,9 @@ func (w Writer) Redeem(ctx context.Context, tx pgx.Tx, code string, o OrderRef, 
 		return Redemption{}, fmt.Errorf("khóa mã giảm giá: %w", err)
 	}
 	c := couponFrom(store.CouponByCodeRow(row))
+	if err := currentBound(ctx, q, &c); err != nil {
+		return Redemption{}, err
+	}
 	discount, reason := Evaluate(c, in)
 	if reason != "" {
 		return Redemption{}, &RejectError{Reason: reason}
@@ -99,7 +111,7 @@ func (w Writer) Redeem(ctx context.Context, tx pgx.Tx, code string, o OrderRef, 
 		limit = pgtype.Int4{Int32: *c.PerCustomerLimit, Valid: true}
 	}
 	n, err = q.IncrementCustomerUse(ctx, store.IncrementCustomerUseParams{
-		CouponID: c.ID, CustomerID: in.CustomerRootID, PerCustomerLimit: limit,
+		CouponID: c.ID, CustomerID: in.CustomerID, PerCustomerLimit: limit,
 	})
 	if err != nil {
 		return Redemption{}, fmt.Errorf("tăng lượt dùng mã của khách: %w", err)
@@ -108,7 +120,7 @@ func (w Writer) Redeem(ctx context.Context, tx pgx.Tx, code string, o OrderRef, 
 		return Redemption{}, &RejectError{Reason: ReasonCustomerLimit}
 	}
 	n, err = q.UpsertRedemption(ctx, store.UpsertRedemptionParams{
-		CouponID: c.ID, OrderID: orderID, CustomerID: in.CustomerRootID, Discount: discount,
+		CouponID: c.ID, OrderID: orderID, CustomerID: in.CustomerID, Discount: discount,
 	})
 	if err != nil {
 		return Redemption{}, fmt.Errorf("ghi lượt dùng mã của đơn: %w", err)
@@ -198,6 +210,9 @@ func Reprice(ctx context.Context, tx pgx.Tx, orderID uuid.UUID, in EvalInput) (d
 	if err != nil || !ok {
 		return 0, err
 	}
+	if err := currentBound(ctx, q, &c); err != nil {
+		return 0, err
+	}
 	discount, reason := Evaluate(c, in)
 	if reason != "" {
 		return 0, &RejectError{Reason: reason}
@@ -239,6 +254,20 @@ func lockActive(ctx context.Context, q *store.Queries, orderID uuid.UUID) (
 	return Coupon{}, r, false, errRedemptionMoved
 }
 
+// currentBound đổi c.BoundCustomerID (hồ sơ gốc lúc tạo mã) về gốc hiện tại của hồ sơ đó (qua customer.customers_v), để
+// mã gắn khách vẫn đúng người sau gộp và hoàn tác gộp (Task 430). Mã không gắn khách: không đọc gì.
+func currentBound(ctx context.Context, q *store.Queries, c *Coupon) error {
+	if c.BoundCustomerID == uuid.Nil {
+		return nil
+	}
+	root, err := q.CustomerRoot(ctx, c.BoundCustomerID)
+	if err != nil {
+		return fmt.Errorf("đọc gốc hiện tại của khách gắn mã: %w", err)
+	}
+	c.BoundCustomerID = root
+	return nil
+}
+
 // CheckResult là kết quả kiểm mã cho form lên đơn (CouponCheck của hợp đồng API).
 type CheckResult struct {
 	OK            bool
@@ -248,8 +277,8 @@ type CheckResult struct {
 	RemainingUses *int32    // lượt còn của mã (nil: không giới hạn, hoặc mã bị từ chối trước bước kiểm lượt)
 }
 
-// Check kiểm mã code cho đơn in mà không đổi gì, không khóa: Evaluate, rồi lượt còn lại của mã (hết → exhausted) và
-// lượt của khách in.CustomerRootID (đủ → customer_limit; Nil → bỏ qua). Mã bị từ chối là kết quả (OK = false), không
+// Check kiểm mã code cho đơn in mà không đổi gì, không khóa: đổi khách gắn mã về gốc hiện tại, Evaluate, rồi lượt còn
+// lại của mã (hết → exhausted) và tổng lượt của nhóm khách in.CustomerRootID (đủ → customer_limit; Nil → bỏ qua). Mã bị từ chối là kết quả (OK = false), không
 // phải lỗi; kết quả có thể khác lúc Redeem nếu người khác dùng mã giữa hai lần.
 func Check(ctx context.Context, tx pgx.Tx, code string, in EvalInput) (CheckResult, error) {
 	q := store.New(tx)
@@ -261,6 +290,9 @@ func Check(ctx context.Context, tx pgx.Tx, code string, in EvalInput) (CheckResu
 		return CheckResult{}, fmt.Errorf("đọc mã giảm giá: %w", err)
 	}
 	c := couponFrom(row)
+	if err := currentBound(ctx, q, &c); err != nil {
+		return CheckResult{}, err
+	}
 	res := CheckResult{CouponID: c.ID}
 	discount, reason := Evaluate(c, in)
 	if reason != "" {

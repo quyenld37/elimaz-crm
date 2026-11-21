@@ -43,7 +43,9 @@ type OrderCustomer struct {
 //   - Còn lại: tạo khách mới (lifecycle customer); chỉ chèn danh tính khi PhoneIsCustomers (DH12). Hai yêu cầu cùng SĐT
 //     mới chạy song song: bên thua lùi savepoint (hồ sơ vừa chèn biến mất, chưa ai thấy) và dùng hồ sơ của bên thắng.
 //
-// Hồ sơ gốc đang lead thì sang customer (đơn đầu tiên).
+// Hồ sơ gốc đang lead thì sang customer (đơn đầu tiên). Hồ sơ có sẵn (chọn hay tìm theo SĐT) luôn được khóa cùng gốc
+// (ADR-46 nhóm 5) trước khi promote: RootID trả về là gốc đọc dưới khóa, giữ tới cuối tx của bên gọi (mã giảm giá đếm
+// lượt theo nhóm của gốc này; gộp song song chờ).
 func (w Writer) FindOrCreateForOrder(ctx context.Context, tx pgx.Tx, in OrderCustomerInput, a Actor, now time.Time,
 ) (OrderCustomer, error) {
 	if err := w.check(); err != nil {
@@ -91,16 +93,15 @@ func (w Writer) useExisting(ctx context.Context, tx pgx.Tx, id uuid.UUID, linkPh
 	if err != nil {
 		return err
 	}
+	// ADR-46 nhóm 5: khóa dòng khách (hồ sơ và gốc, theo mã tăng dần) trước khi chạm danh tính, kể cả khi không gắn
+	// SĐT: promote và mã giảm giá của bên gọi dùng gốc đọc dưới khóa (gộp song song chờ đơn, Task 430).
+	if root, err = lockPair(ctx, tx, id, root); err != nil {
+		return err
+	}
 	out.CustomerID, out.RootID = id, root
 	if !linkPhone {
 		return nil
 	}
-	// ADR-46 nhóm 5: khóa dòng khách (hồ sơ và gốc, theo mã tăng dần) trước khi chạm danh tính; promote sau đó đổi
-	// dòng gốc đã khóa.
-	if root, err = lockPair(ctx, tx, id, root); err != nil {
-		return err
-	}
-	out.RootID = root
 	ident, tenant, taken, err := insertIdentity(ctx, tx, id, IdentityPhone, "", string(out.Phone), source, a)
 	if err != nil {
 		return err
@@ -129,8 +130,7 @@ func (w Writer) findOrCreate(ctx context.Context, tx pgx.Tx, fullName string, li
 			return err
 		}
 		if found {
-			out.CustomerID, out.RootID = o.customerID, o.rootID
-			return nil
+			return lockFound(ctx, tx, o.customerID, o.rootID, out)
 		}
 	}
 	in := CreateInput{FullName: fullName, Source: source}
@@ -142,10 +142,20 @@ func (w Writer) findOrCreate(ctx context.Context, tx pgx.Tx, fullName string, li
 		return err
 	}
 	if taken != nil { // yêu cầu song song vừa giữ SĐT này: dùng hồ sơ của bên đó
-		out.CustomerID, out.RootID = taken.customerID, taken.rootID
-		return nil
+		return lockFound(ctx, tx, taken.customerID, taken.rootID, out)
 	}
 	out.CustomerID, out.RootID, out.Created = c.ID, c.RootID, true
+	return nil
+}
+
+// lockFound: đơn gắn vào hồ sơ id có sẵn (tìm được theo SĐT) với gốc root đọc không khóa; khóa hồ sơ và gốc rồi dùng
+// gốc đọc dưới khóa (ADR-46 điểm 4, Task 430).
+func lockFound(ctx context.Context, tx pgx.Tx, id, root uuid.UUID, out *OrderCustomer) error {
+	root, err := lockPair(ctx, tx, id, root)
+	if err != nil {
+		return err
+	}
+	out.CustomerID, out.RootID = id, root
 	return nil
 }
 
