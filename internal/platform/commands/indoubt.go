@@ -127,6 +127,20 @@ var (
 	ErrCommandRunning = errors.New("commands: lệnh đang chạy, không bỏ được")
 )
 
+// Status trả trạng thái hiện tại của lệnh jobID (pending, running, done, dead, in_doubt, expired) trong ngữ cảnh tenant
+// của tx (tenancy.WithTenant), như Abandon; không có hay của tenant khác → ErrCommandNotFound. Chỉ đọc, không khóa: mã
+// nghiệp vụ dùng để biết lệnh đã kết thúc mà không qua OnTerminal (bỏ tay bằng queue.AbandonJob, Task M3-20).
+func Status(ctx context.Context, tx pgx.Tx, jobID uuid.UUID) (string, error) {
+	status, err := store.New(tx).CommandStatus(ctx, jobID)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return "", fmt.Errorf("đọc lệnh %s: %w", jobID, ErrCommandNotFound)
+	case err != nil:
+		return "", fmt.Errorf("đọc lệnh %s: %w", jobID, err)
+	}
+	return status, nil
+}
+
 // Abandon bỏ lệnh jobID do mã nghiệp vụ quyết (tin bị hủy, vận đơn xác nhận chưa tạo): pending hay in_doubt →
 // expired, last_error = "abandoned: <reason>" (reason là mã ngắn, không dữ liệu cá nhân); không gọi OnTerminal (bên gọi
 // đang tự đổi dữ liệu của mình trong cùng tx). Đã kết thúc (done, dead, expired) → không đổi, nil (gọi lại an toàn).

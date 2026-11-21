@@ -235,12 +235,16 @@ func abandon(t *testing.T, e *env, tenant uuid.UUID, id uuid.UUID) error {
 }
 
 // Abandon (M4, M3): lệnh in_doubt hay pending → expired với lý do; gọi lại không đổi, không lỗi; lệnh đang chạy →
-// ErrCommandRunning; lệnh của tenant khác hay không có → ErrCommandNotFound; lệnh đã bỏ không bị worker chạy.
+// ErrCommandRunning; lệnh của tenant khác hay không có → ErrCommandNotFound; lệnh đã bỏ không bị worker chạy. Status
+// (M3-20) đọc đúng trạng thái trước và sau Abandon, cùng phạm vi tenant.
 func TestAbandon(t *testing.T) {
 	e := newEnv(t)
 	h := &lookH{cmdH: newCmd("command.look", &testkit.FakeExternal{})}
 	doubt := inDoubtJob(t, e, h, "k1", true)
 	pending := e.enqueue(t, h.kind, "k2")
+	// Status (Task M3-20): trạng thái hiện tại trong tenant của tx; sau Abandon → expired.
+	expectStatus(t, e, e.tenant, doubt, "in_doubt")
+	expectStatus(t, e, e.tenant, pending, "pending")
 	for _, id := range []uuid.UUID{doubt, pending} {
 		for range 2 {
 			if err := abandon(t, e, e.tenant, id); err != nil {
@@ -251,6 +255,7 @@ func TestAbandon(t *testing.T) {
 		if row.Status != "expired" || row.LastError == nil || *row.LastError != "abandoned: order_cancelled" {
 			t.Fatalf("muốn expired: %+v %v", row, row.LastError)
 		}
+		expectStatus(t, e, e.tenant, id, "expired")
 	}
 	calls := len(h.ext.Calls())
 	runOnce(t, worker(e, "w2", h))
@@ -274,10 +279,25 @@ func TestAbandon(t *testing.T) {
 	if err := abandon(t, e, other, other4); !errors.Is(err, commands.ErrCommandNotFound) {
 		t.Fatalf("tenant khác: %v, muốn ErrCommandNotFound", err)
 	}
+	expectStatus(t, e, other, other4, "") // tenant khác
+	expectStatus(t, e, e.tenant, uuid.New(), "")
 	if err := abandon(t, e, e.tenant, uuid.New()); !errors.Is(err, commands.ErrCommandNotFound) {
 		t.Fatalf("mã lạ: %v, muốn ErrCommandNotFound", err)
 	}
 	if st := e.job(t, other4).Status; st != "pending" {
 		t.Fatalf("lệnh của tenant A bị tenant B bỏ: %s", st)
+	}
+}
+
+// expectStatus: commands.Status của lệnh id trong tenant là want; want rỗng → ErrCommandNotFound.
+func expectStatus(t *testing.T, e *env, tenant, id uuid.UUID, want string) {
+	t.Helper()
+	var st string
+	err := tenancy.WithTenant(t.Context(), e.app, tenant, func(tx pgx.Tx) (err error) {
+		st, err = commands.Status(t.Context(), tx, id)
+		return err //nolint:wrapcheck // test
+	})
+	if want == "" && !errors.Is(err, commands.ErrCommandNotFound) || want != "" && (err != nil || st != want) {
+		t.Fatalf("Status(%s) = %q %v, muốn %q (rỗng: ErrCommandNotFound)", id, st, err, want)
 	}
 }
