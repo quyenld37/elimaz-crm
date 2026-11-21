@@ -43,12 +43,14 @@ var phoneRe = regexp.MustCompile(`0[0-9]{9}`)
 var testdata embed.FS
 
 // webhookSample là testdata/<hãng>/webhook.json: thân mẫu (chuỗi, đúng từng byte), header có chữ ký đúng với bí mật,
-// và tín hiệu SplitWebhook phải trả.
+// và tín hiệu SplitWebhook phải trả. TokenOnly: hãng xác thực bằng token chung trong header, không ký thân (Viettel
+// Post) — contract không đòi phát hiện thân bị sửa mà đòi token khác bị từ chối.
 type webhookSample struct {
-	Secret  string                      `json:"secret"`
-	Headers map[string][]string         `json:"headers"`
-	Body    string                      `json:"body"`
-	Signals []fulfillment.WebhookSignal `json:"signals"`
+	Secret    string                      `json:"secret"`
+	TokenOnly bool                        `json:"tokenOnly"`
+	Headers   map[string][]string         `json:"headers"`
+	Body      string                      `json:"body"`
+	Signals   []fulfillment.WebhookSignal `json:"signals"`
 }
 
 // statuses đọc testdata/<hãng>/statuses.json: mã thô → trạng thái chuẩn.

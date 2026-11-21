@@ -1,0 +1,43 @@
+{
+ "_source": "https://partner2.viettelpost.vn/document/webhook — Request Sample của Webhook (đọc 21/11/2026, trùng bản 18/10/2026 ở docs/nhanh-survey/recheck-20261018/viettel-official-webhook.json); tên, SĐT, địa chỉ bưu cục thay bằng dữ liệu giả; mã vận đơn, mã tham chiếu, mã trạng thái, thời điểm theo bảng trạng thái của trang",
+ "request": {
+  "DATA": {
+   "ORDER_NUMBER": "1587818000500",
+   "ORDER_REFERENCE": "E261118ABC500",
+   "ORDER_STATUSDATE": "13/11/2025 07:05:59",
+   "ORDER_STATUS": 500,
+   "STATUS_NAME": "Giao bưu tá đi phát",
+   "LOCALION_CURRENTLY": "HNI, GLM, Bưu cục Mẫu - HNI - Hà Nội, 0912345678, 131003, PHƯỜNG MẪU",
+   "NOTE": "Bưu tá đi phát",
+   "MONEY_COLLECTION": 0,
+   "MONEY_FEECOD": 1000,
+   "MONEY_TOTALFEE": 236115,
+   "MONEY_TOTAL": 266884,
+   "MONEY_TOTALVAT": 19769,
+   "EXPECTED_DELIVERY": "Dịch vụ chưa quy định chỉ tiêu",
+   "PRODUCT_WEIGHT": 7100,
+   "ORDER_SERVICE": "VHT",
+   "ORDER_SERVICE_ADD": null,
+   "ORDER_PAYMENT": 1,
+   "EXPECTED_DELIVERY_DATE": null,
+   "DETAIL": [
+    {
+     "CODE": "GNG",
+     "VALUE": 0
+    }
+   ],
+   "VOUCHER_VALUE": 0,
+   "MONEY_COLLECTION_ORIGIN": null,
+   "EMPLOYEE_NAME": "Bưu Tá Mẫu",
+   "EMPLOYEE_PHONE": "84912345678",
+   "IS_RETURNING": false,
+   "POD": {
+    "IMAGES": []
+   },
+   "REASON_CODE": null,
+   "RECEIVER_FULLNAME": "Nguyễn Văn Thử",
+   "LOCATION_CURRENTLY": "HNI, GLM, Bưu cục Mẫu - HNI - Hà Nội, 0912345678, 131003, PHƯỜNG MẪU"
+  },
+  "TOKEN": "0900000001"
+ }
+}

@@ -525,7 +525,17 @@ func (s *suite) webhook(t *testing.T) {
 	if a.VerifyWebhook(body, w.Headers, w.Secret+"x") {
 		t.Error("VerifyWebhook sai bí mật = true")
 	}
-	if a.VerifyWebhook(append(slices.Clone(body), ' '), w.Headers, w.Secret) {
+	if w.TokenOnly {
+		other := fulfillment.Header{}
+		for k, vs := range w.Headers {
+			for _, v := range vs {
+				other[k] = append(other[k], v+"x")
+			}
+		}
+		if a.VerifyWebhook(body, other, w.Secret) {
+			t.Error("VerifyWebhook token trong header khác bí mật = true")
+		}
+	} else if a.VerifyWebhook(append(slices.Clone(body), ' '), w.Headers, w.Secret) {
 		t.Error("VerifyWebhook thân bị sửa = true")
 	}
 	if a.VerifyWebhook(body, fulfillment.Header{}, w.Secret) || a.VerifyWebhook(body, w.Headers, "") {
