@@ -52,6 +52,8 @@ export interface TotalsPanelProps {
   coupon: ReactNode;
   /** Câu lỗi tính tiền (giảm quá tiền hàng…). */
   error: string | null;
+  /** Sửa đơn giữ mã này mà tạm tính sau giảm đã đổi: máy chủ tính lại mã khi lưu, totals là tổng chưa trừ mã. */
+  couponRecalc?: string | null;
 }
 
 const minus = (v: number) => (v === 0 ? formatMoney(0) : `−${formatMoney(v)}`);
@@ -59,6 +61,7 @@ const minus = (v: number) => (v === 0 ? formatMoney(0) : `−${formatMoney(v)}`)
 export function TotalsPanel(p: TotalsPanelProps) {
   const id = useId();
   const t = p.totals;
+  const recalc = p.couponRecalc ?? null;
   return (
     <section className="card" aria-labelledby={id}>
       <h2 id={id}>Tiền</h2>
@@ -81,7 +84,9 @@ export function TotalsPanel(p: TotalsPanelProps) {
         {p.coupon}
         <div className="sum-r">
           <span>Giảm theo mã</span>
-          <span className="money">{t === null ? "—" : minus(t.couponDiscount)}</span>
+          <span className="money">
+            {recalc !== null ? "Tính lại khi lưu" : t === null ? "—" : minus(t.couponDiscount)}
+          </span>
         </div>
         <MoneyField
           label="Phí ship báo khách"
@@ -91,15 +96,21 @@ export function TotalsPanel(p: TotalsPanelProps) {
           onEnter={p.onEnter}
         />
         <div className="sum-r is-total">
-          <span>Tổng</span>
+          <span>{recalc === null ? "Tổng" : "Tổng (chưa trừ mã)"}</span>
           <span className="money">{t === null ? "—" : formatMoney(t.grandTotal)}</span>
         </div>
         <div className="sum-r">
-          <span>Thu hộ (COD)</span>
+          <span>{recalc === null ? "Thu hộ (COD)" : "Thu hộ (COD, chưa trừ mã)"}</span>
           <span className="money">{t === null ? "—" : formatMoney(t.grandTotal)}</span>
         </div>
       </div>
       {p.error !== null && <p className="field-err">{p.error}</p>}
+      {recalc !== null && (
+        <p className="hint">
+          Tiền hàng hoặc giảm giá đã đổi: mã {recalc} sẽ được tính lại khi lưu; đơn dưới mức tối thiểu của mã thì không
+          lưu được.
+        </p>
+      )}
       <p className="hint">
         Số hiện ở đây là tính trước trên máy; số máy chủ trả về là số cuối. Mã giảm giá kiểm ngay khi gõ xong, không tốn
         lượt; lượt chỉ bị trừ khi lưu đơn.

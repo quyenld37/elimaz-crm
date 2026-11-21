@@ -266,6 +266,106 @@ describe("Chi tiết đơn — đổi phiên bản (version_conflict)", () => {
   });
 });
 
+// D-02 (Task 437): sửa đơn giữ mã cũ không gọi checkCoupon (lượt của chính đơn); máy chủ giữ số giảm cũ khi tạm tính
+// sau giảm (tạm tính − giảm dòng − giảm cấp đơn) không đổi, đổi thì tính lại (mã %, mức tối thiểu) — edit.go applyCoupon.
+describe("Chi tiết đơn — sửa đơn giữ mã giảm giá", () => {
+  // Tạm tính 2.070.000, giảm dòng 210.000 → sau giảm 1.860.000; mã GIAM10 đang giảm 186.000; tổng 1.674.000.
+  const withCoupon = () =>
+    order({
+      couponCode: "GIAM10",
+      couponDiscount: 186_000,
+      discountTotal: 396_000,
+      grandTotal: 1_674_000,
+      codAmount: 1_674_000,
+    });
+  const RECALC =
+    "Tiền hàng hoặc giảm giá đã đổi: mã GIAM10 sẽ được tính lại khi lưu; đơn dưới mức tối thiểu của mã thì không lưu được.";
+
+  async function openEdit() {
+    await open();
+    fireEvent.click(within(actions()).getByRole("button", { name: "Sửa đơn" }));
+    const dlg = await screen.findByRole("dialog", { name: "Sửa đơn DH0001235" });
+    return { dlg, sum: within(dlg).getByRole("region", { name: "Tiền" }) };
+  }
+  const row = (sum: HTMLElement, label: string) => {
+    const r = within(sum).getByText(label).closest(".sum-r");
+    if (!(r instanceof HTMLElement)) throw new Error(`không có dòng ${label}`);
+    return r.textContent;
+  };
+  const qty = (dlg: HTMLElement, v: string) => {
+    fireEvent.change(within(dlg).getByRole("textbox", { name: "Số lượng DAM0123-BE-M" }), { target: { value: v } });
+  };
+
+  it("tạm tính sau giảm chưa đổi: hiện số giảm đang lưu, tổng chắc; không kiểm mã", async () => {
+    fake.orders.set(O1, withCoupon());
+    const { sum } = await openEdit();
+    expect(row(sum, "Giảm theo mã")).toBe("Giảm theo mã−186.000 ₫");
+    expect(row(sum, "Tổng")).toBe("Tổng1.674.000 ₫");
+    expect(row(sum, "Thu hộ (COD)")).toBe("Thu hộ (COD)1.674.000 ₫");
+    expect(within(sum).queryByText(RECALC)).toBeNull();
+    expect(fake.couponChecks).toBe(0);
+  });
+
+  it("đổi số lượng: giảm theo mã 'Tính lại khi lưu', tổng ghi chưa trừ mã; đổi lại như cũ thì số cũ trở lại", async () => {
+    fake.orders.set(O1, withCoupon());
+    const { dlg, sum } = await openEdit();
+    qty(dlg, "4"); // 4 × 690.000 − 210.000 = 2.550.000
+    expect(row(sum, "Giảm theo mã")).toBe("Giảm theo mãTính lại khi lưu");
+    expect(row(sum, "Tổng (chưa trừ mã)")).toBe("Tổng (chưa trừ mã)2.550.000 ₫");
+    expect(row(sum, "Thu hộ (COD, chưa trừ mã)")).toBe("Thu hộ (COD, chưa trừ mã)2.550.000 ₫");
+    expect(within(sum).queryByText("−186.000 ₫")).toBeNull();
+    expect(within(sum).getByText(RECALC)).toBeTruthy();
+    qty(dlg, "3");
+    expect(row(sum, "Giảm theo mã")).toBe("Giảm theo mã−186.000 ₫");
+    expect(row(sum, "Tổng")).toBe("Tổng1.674.000 ₫");
+    expect(within(sum).queryByText(RECALC)).toBeNull();
+    expect(fake.couponChecks).toBe(0);
+  });
+
+  it("số giảm cũ lớn hơn tiền hàng sau sửa: không báo lỗi giả 'giảm quá tiền hàng', lưu được (máy chủ quyết)", async () => {
+    // 1 × 690.000 − giảm dòng 600.000 = 90.000 < 186.000 (số giảm của mã đang lưu).
+    fake.orders.set(O1, withCoupon());
+    const { dlg, sum } = await openEdit();
+    qty(dlg, "1");
+    fireEvent.change(within(dlg).getByRole("textbox", { name: "Giảm dòng DAM0123-BE-M (đồng)" }), {
+      target: { value: "600.000" },
+    });
+    expect(row(sum, "Tổng (chưa trừ mã)")).toBe("Tổng (chưa trừ mã)90.000 ₫");
+    expect(within(sum).getByText(RECALC)).toBeTruthy();
+    expect(within(dlg).queryAllByText("Giảm giá đơn lớn hơn tạm tính")).toHaveLength(0);
+    expect(within(dlg).getByRole<HTMLButtonElement>("button", { name: "Lưu thay đổi" }).disabled).toBe(false);
+  });
+
+  it("đổi giảm cấp đơn: tính lại khi lưu; chỉ đổi phí ship: giữ số giảm, tổng chắc", async () => {
+    fake.orders.set(O1, withCoupon());
+    const { dlg, sum } = await openEdit();
+    fireEvent.change(within(dlg).getByRole("textbox", { name: "Phí ship báo khách" }), { target: { value: "30.000" } });
+    expect(row(sum, "Giảm theo mã")).toBe("Giảm theo mã−186.000 ₫");
+    expect(row(sum, "Tổng")).toBe("Tổng1.704.000 ₫");
+    fireEvent.change(within(dlg).getByRole("textbox", { name: "Giảm cấp đơn" }), { target: { value: "60.000" } });
+    expect(row(sum, "Giảm theo mã")).toBe("Giảm theo mãTính lại khi lưu");
+    expect(row(sum, "Tổng (chưa trừ mã)")).toBe("Tổng (chưa trừ mã)1.830.000 ₫"); // 1.860.000 − 60.000 + 30.000
+    expect(within(sum).getByText(RECALC)).toBeTruthy();
+  });
+
+  it("bỏ mã rồi đổi số lượng: giảm theo mã 0, tổng chắc; đơn không có mã: không có câu tính lại", async () => {
+    fake.orders.set(O1, withCoupon());
+    const { dlg, sum } = await openEdit();
+    fireEvent.click(within(dlg).getByRole("button", { name: "Bỏ mã" }));
+    qty(dlg, "4");
+    expect(row(sum, "Giảm theo mã")).toBe("Giảm theo mã0 ₫");
+    expect(row(sum, "Tổng")).toBe("Tổng2.550.000 ₫");
+    expect(within(sum).queryByText(RECALC)).toBeNull();
+    cleanup();
+    fake.orders.set(O1, order());
+    const b = await openEdit();
+    qty(b.dlg, "4");
+    expect(row(b.sum, "Giảm theo mã")).toBe("Giảm theo mã0 ₫");
+    expect(row(b.sum, "Tổng")).toBe("Tổng2.550.000 ₫");
+    expect(within(b.sum).queryByText(/sẽ được tính lại khi lưu/)).toBeNull();
+  });
+});
+
 describe("Chi tiết đơn — hủy", () => {
   it("chưa gửi hãng: 5 lý do, ghi chú; gửi version, lý do, ghi chú", async () => {
     await open();
