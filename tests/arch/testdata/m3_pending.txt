@@ -23,6 +23,3 @@ listStuckShipments
 listShipmentsForReview
 resolveShipmentAnomaly
 getCustomerDeliveryStats
-previewCodAdjustment
-createCodAdjustment
-listReconcileFindings

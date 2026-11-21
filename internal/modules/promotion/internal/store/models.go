@@ -137,6 +137,7 @@ type CashReconcileRun struct {
 	Ok        bool
 	Findings  int32
 	CreatedAt time.Time
+	Slot      pgtype.Timestamptz
 }
 
 type CashReconcileRunsV struct {

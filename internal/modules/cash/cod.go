@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"slices"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -112,7 +113,8 @@ func PostWithID(ctx context.Context, tx pgx.Tx, t Transfer) (uuid.UUID, bool, er
 
 func (t Transfer) validate() error {
 	switch {
-	case t.ShipmentID == uuid.Nil, t.IdempotencyKey == "", len(t.IdempotencyKey) > 200, len(t.Reason) > 500:
+	case t.ShipmentID == uuid.Nil, t.IdempotencyKey == "", len(t.IdempotencyKey) > 200,
+		utf8.RuneCountInString(t.Reason) > 500: // ký tự, như CHECK length(reason) <= 500
 		return fmt.Errorf("%w: thiếu vận đơn hay khóa, hoặc khóa, lý do quá dài", ErrInvalidTransfer)
 	case !isKind(t.Kind):
 		return fmt.Errorf("%w: loại %q", ErrInvalidTransfer, t.Kind)

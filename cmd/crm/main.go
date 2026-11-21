@@ -356,11 +356,13 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 	// Cảnh báo thiếu hàng sau kiểm kho (Task M1-35) và lệch sổ sau đối chiếu đêm (Task M1-36): lệnh do inventory ghi,
 	// không phải lịch. Cảnh báo hãng từ chối khóa API (Task M3-09): lệnh do fulfillment.MarkAuthFailed ghi. Cảnh báo
 	// đồng bộ vận đơn (tồn thiếu khi áp, Task M3-11): lệnh do lệnh tra fulfillment.refresh_status ghi. Cảnh báo tiền COD
-	// đã về rồi hãng sửa thành hoàn (Task M3-29): lệnh do consumer cash ghi.
+	// đã về rồi hãng sửa thành hoàn (Task M3-29): lệnh do consumer cash ghi. Cảnh báo lệch sổ COD sau đối chiếu đêm
+	// (Task M3-33): lệnh do lệnh cash.reconcile ghi.
 	return []commands.Handler{
 		alerts, digest, inventory.NewShortageAlertCommand(alerter, logger), inventory.NewStockMismatchCommand(alerter, logger),
 		fulfillment.NewAuthAlertCommand(alerter, logger), fulfillment.NewTrackAlertCommand(d, alerter, logger),
 		cash.NewRemittedReturnedAlertCommand(alerter),
+		cash.NewReconcileAlertCommand(alerter),
 	}, nil
 }
 
