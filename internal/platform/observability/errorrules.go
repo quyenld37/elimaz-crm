@@ -33,11 +33,21 @@ type RuleHit struct {
 //     alert_events của key đó (báo một lần, lần gửi hỏng thì lượt sau báo lại);
 //   - error-spike (normal): tổng counter errors của mọi tiến trình trong 5 phút gần nhất vượt 50.
 //
-// Bộ chạy luật (CheckRules, Task 19) gửi từng RuleHit qua Alerter.
+// Bộ chạy luật (CheckRules, Task 19) gửi từng RuleHit qua Alerter. first_seen_at do PostgreSQL ghi (now()) nên so với
+// đồng hồ database dời cùng độ lệch của now so với đồng hồ máy; counter errors do tiến trình ghi so với now (Task 446).
 func ErrorRules(ctx context.Context, d *db.DB, now time.Time) ([]RuleHit, error) {
 	q := store.New(d.Pool)
+	dbNow, err := dbClock(ctx, q, now, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	return errorRulesAt(ctx, q, now, dbNow)
+}
+
+// errorRulesAt là ErrorRules với đồng hồ database dbNow đã đọc.
+func errorRulesAt(ctx context.Context, q *store.Queries, now, dbNow time.Time) ([]RuleHit, error) {
 	fps, err := q.ListNewErrorFingerprints(ctx, store.ListNewErrorFingerprintsParams{
-		Since: now.Add(-newErrorLookback), PrefixLen: keyPrefixLen,
+		Since: dbNow.Add(-newErrorLookback), PrefixLen: keyPrefixLen,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("đọc lỗi mới: %w", err)

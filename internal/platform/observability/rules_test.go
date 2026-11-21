@@ -45,10 +45,10 @@ func fresh(t *testing.T, e *env) {
 func TestRuleQueueLag(t *testing.T) {
 	e := newEnv(t)
 	fresh(t, e)
-	e.job(t, "t.q", "pending", `{}`, time.Now().Add(-30*time.Second), nil)
+	e.job(t, "t.q", "pending", `{}`, 30*time.Second, nil)
 	keys, _ := check(t, e, observability.RuleOptions{})
 	wantKey(t, keys, "queue-lag", false)
-	e.job(t, "t.q", "pending", `{}`, time.Now().Add(-61*time.Second), nil)
+	e.job(t, "t.q", "pending", `{}`, 61*time.Second, nil)
 	keys, f := check(t, e, observability.RuleOptions{})
 	wantKey(t, keys, "queue-lag", true)
 	if s, _ := f.find("queue-lag"); s.severity != "urgent" {
@@ -62,8 +62,7 @@ func TestRuleDeadNoPayload(t *testing.T) {
 	fresh(t, e)
 	keys, _ := check(t, e, observability.RuleOptions{})
 	wantKey(t, keys, "dead:msg.send", false)
-	fin := time.Now().Add(-time.Second)
-	id := e.job(t, "msg.send", "dead", `{"phone":"0911222333"}`, time.Now(), &fin)
+	id := e.job(t, "msg.send", "dead", `{"phone":"0911222333"}`, 0, ago(time.Second))
 	e.exec(t, "UPDATE platform.jobs SET last_error = 'gọi 0911222333 lỗi' WHERE id = $1", id)
 	keys, f := check(t, e, observability.RuleOptions{})
 	wantKey(t, keys, "dead:msg.send", true)
@@ -80,12 +79,10 @@ func TestRuleDeadNoPayload(t *testing.T) {
 func TestRuleInDoubt(t *testing.T) {
 	e := newEnv(t)
 	fresh(t, e)
-	recent := time.Now().Add(-60 * time.Second)
-	e.job(t, "cmd.x", "in_doubt", `{}`, time.Now(), &recent)
+	e.job(t, "cmd.x", "in_doubt", `{}`, 0, ago(60*time.Second))
 	keys, _ := check(t, e, observability.RuleOptions{})
 	wantKey(t, keys, "in-doubt:cmd.x", false)
-	old := time.Now().Add(-121 * time.Second)
-	e.job(t, "cmd.x", "in_doubt", `{}`, time.Now(), &old)
+	e.job(t, "cmd.x", "in_doubt", `{}`, 0, ago(121*time.Second))
 	keys, _ = check(t, e, observability.RuleOptions{})
 	wantKey(t, keys, "in-doubt:cmd.x", true)
 }
@@ -275,9 +272,8 @@ func TestRulesQuiet(t *testing.T) {
 func TestRuleInDoubtAfterEarlierAlert(t *testing.T) {
 	e := newEnv(t)
 	fresh(t, e)
-	fin := time.Now().Add(-150 * time.Second) // đủ 120 s lúc now - 30 s
-	e.job(t, "cmd.y", "in_doubt", `{}`, time.Now(), &fin)
-	e.alertSent(t, "in-doubt:cmd.y", 60*time.Second) // lần báo trước (việc khác) lúc now - 60 s
+	e.job(t, "cmd.y", "in_doubt", `{}`, 0, ago(150*time.Second)) // đủ 120 s lúc now - 30 s
+	e.alertSent(t, "in-doubt:cmd.y", 60*time.Second)             // lần báo trước (việc khác) lúc now - 60 s
 	keys, _ := check(t, e, observability.RuleOptions{})
 	wantKey(t, keys, "in-doubt:cmd.y", true)
 }
@@ -290,10 +286,8 @@ func TestRuleDeadDuringSendNotLost(t *testing.T) {
 	tg, client := newTelegram(t)
 	a := observability.NewTelegramAlerter(e.d, tgConfig(), client, quiet())
 	now := time.Now()
-	early := now.Add(-time.Minute)
-	e.job(t, "msg.z", "dead", `{}`, now, &early)
-	late := now.Add(-2 * time.Second)
-	e.job(t, "msg.z", "dead", `{}`, now, &late)
+	e.job(t, "msg.z", "dead", `{}`, 0, ago(time.Minute))
+	e.job(t, "msg.z", "dead", `{}`, 0, ago(2*time.Second))
 	// Lượt 1 đọc lúc now - 5 s: chỉ thấy việc sớm; việc muộn kết thúc sau lúc đọc.
 	keys, err := observability.CheckRules(t.Context(), e.d, a, observability.RuleOptions{Now: now.Add(-5 * time.Second)})
 	if err != nil || !has(keys, "dead:msg.z") || len(tg.calls()) == 0 {

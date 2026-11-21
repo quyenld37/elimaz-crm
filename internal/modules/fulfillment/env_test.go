@@ -134,19 +134,10 @@ func (e *shipEnv) mustCreateShipment(orderID uuid.UUID) fulfillment.Shipment {
 	return s
 }
 
-// drain chạy worker tới khi không còn việc nào nhận được.
+// drain chạy worker tới khi không còn việc tới hạn (testkit.DrainDue: chịu được đồng hồ PostgreSQL lùi).
 func (e *shipEnv) drain() {
 	e.t.Helper()
-	for range 20 {
-		n, err := e.worker.RunOnce(context.Background(), 10)
-		if err != nil {
-			e.t.Fatalf("RunOnce: %v", err)
-		}
-		if n == 0 {
-			return
-		}
-	}
-	e.t.Fatal("worker vẫn còn việc sau 20 lượt")
+	testkit.DrainDue(e.t, e.staff.Owner, e.worker)
 }
 
 // readAs đọc một giá trị bằng crm_app trong ngữ cảnh tenant A; lỗi làm test đỏ.

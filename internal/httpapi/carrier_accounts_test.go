@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -98,15 +97,7 @@ func (e *caEnv) send(method, path, email, body string) (int, map[string]any, str
 
 func (e *caEnv) run() {
 	e.t.Helper()
-	for range 10 {
-		n, err := e.worker.RunOnce(context.Background(), 10)
-		if err != nil {
-			e.t.Fatal(err)
-		}
-		if n == 0 {
-			return
-		}
-	}
+	testkit.DrainDue(e.t, e.staff.Owner, e.worker)
 }
 
 func (e *caEnv) count(q string, args ...any) int {

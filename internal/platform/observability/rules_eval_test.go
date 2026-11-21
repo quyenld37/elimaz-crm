@@ -18,7 +18,7 @@ func pgKeys(s pgStats, o RuleOptions) []string {
 // Luật đọc view hệ thống của PostgreSQL khó dựng thật (WAL, dòng chết, câu chậm): kiểm ngưỡng trên số đã đọc.
 func TestPGRuleThresholds(t *testing.T) {
 	now := time.Date(2026, 11, 18, 10, 0, 0, 0, time.UTC)
-	o := RuleOptions{Now: now, ConnBudget: 20}
+	o := RuleOptions{Now: now, dbNow: now, ConnBudget: 20}
 	cases := []struct {
 		name string
 		s    pgStats
@@ -61,7 +61,7 @@ func TestPGRuleSeverityAndText(t *testing.T) {
 	now := time.Now()
 	s := pgStats{archiveOn: true, lastArchived: now.Add(-time.Hour), walBytes: 3 << 30, slow: []slowQuery{{queryID: 7, calls: 120, meanMs: 900}}}
 	want := map[string]string{"wal-archive": "urgent", "wal-size": "normal", "slow-query": "normal"}
-	for _, a := range pgRules(s, RuleOptions{Now: now}) {
+	for _, a := range pgRules(s, RuleOptions{Now: now, dbNow: now}) {
 		if w, ok := want[a.key]; ok && a.severity != w {
 			t.Fatalf("%s mức %s, muốn %s", a.key, a.severity, w)
 		}

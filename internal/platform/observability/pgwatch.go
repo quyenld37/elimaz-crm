@@ -31,7 +31,7 @@ type pgStats struct {
 	archiveOn                            bool
 	lastArchived, lastFailed, statsReset time.Time
 	// lastArchivedAgeS: tuổi (giây) của lastArchived theo đồng hồ PostgreSQL; nil khi chưa đẩy lần nào (chỉ /health/deep
-	// dùng; luật wal-archive so lastArchived với o.Now).
+	// dùng; luật wal-archive so lastArchived với đồng hồ database o.dbNow).
 	lastArchivedAgeS           *int64
 	dbBytes, walBytes          int64
 	longTx, lockWait, appConns int64
@@ -40,7 +40,8 @@ type pgStats struct {
 }
 
 // pgRules: wal-archive, db-size (urgent); wal-size, long-tx, jobs-dead-tuples, pg-connections, lock-wait, slow-query
-// (normal). long-tx và lock-wait đã so với o.Now lúc đọc (readPGStats).
+// (normal). long-tx và lock-wait đã so với đồng hồ database o.dbNow lúc đọc (readPGStats). Mốc của pg_stat_* theo
+// đồng hồ PostgreSQL.
 func pgRules(s pgStats, o RuleOptions) []alert {
 	var out []alert
 	if s.archiveOn {
@@ -51,10 +52,10 @@ func pgRules(s pgStats, o RuleOptions) []alert {
 		switch {
 		case !s.lastFailed.IsZero() && s.lastFailed.After(s.lastArchived):
 			out = append(out, alert{"wal-archive", SeverityUrgent, "wal-archive: lần đẩy WAL cuối bị lỗi"})
-		case !lastOK.IsZero() && o.Now.Sub(lastOK) > walArchiveMaxAge:
+		case !lastOK.IsZero() && o.dbNow.Sub(lastOK) > walArchiveMaxAge:
 			out = append(out, alert{
 				"wal-archive", SeverityUrgent,
-				fmt.Sprintf("wal-archive: lần đẩy WAL thành công cuối cũ %d phút (quá 5 phút)", int(o.Now.Sub(lastOK).Minutes())),
+				fmt.Sprintf("wal-archive: lần đẩy WAL thành công cuối cũ %d phút (quá 5 phút)", int(o.dbNow.Sub(lastOK).Minutes())),
 			})
 		}
 	}

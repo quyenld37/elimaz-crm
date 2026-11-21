@@ -48,16 +48,7 @@ func newVerifyAPIEnv(t *testing.T) *verifyAPIEnv {
 // drain chạy worker tới khi không còn việc đến hạn.
 func (e *verifyAPIEnv) drain() {
 	e.t.Helper()
-	for range 30 {
-		n, err := e.w.RunOnce(e.t.Context(), 10)
-		if err != nil {
-			e.t.Fatalf("RunOnce: %v", err)
-		}
-		if n == 0 {
-			return
-		}
-	}
-	e.t.Fatal("worker còn việc sau 30 lượt")
+	testkit.DrainDue(e.t, e.staff.Owner, e.w)
 }
 
 func (e *verifyAPIEnv) key() string {

@@ -19,11 +19,10 @@ func TestDailyDigestOncePerDay(t *testing.T) {
 	e.alertSent(t, "spool", 3*time.Hour)
 	e.alertSent(t, "cu-qua", 25*time.Hour)
 	now := time.Now()
-	fin := now.Add(-time.Hour)
-	e.job(t, "t.a", "dead", `{}`, now, &fin)
-	e.job(t, "t.b", "dead", `{}`, now, &fin)
-	e.job(t, "t.c", "in_doubt", `{}`, now, &fin)
-	e.job(t, "t.d", "done", `{}`, now, &fin)
+	e.job(t, "t.a", "dead", `{}`, 0, ago(time.Hour))
+	e.job(t, "t.b", "dead", `{}`, 0, ago(time.Hour))
+	e.job(t, "t.c", "in_doubt", `{}`, 0, ago(time.Hour))
+	e.job(t, "t.d", "done", `{}`, 0, ago(time.Hour))
 	e.exec(t, `INSERT INTO platform.backup_runs (kind, ok, finished_at) VALUES ('base', true, now() - interval '5 hours'),
 		('base', false, now() - interval '1 hour')`)
 

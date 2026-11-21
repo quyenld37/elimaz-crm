@@ -103,3 +103,7 @@ FROM platform.alert_events
 WHERE sent_at >= sqlc.arg(since)::timestamptz AND key NOT LIKE 'digest:%'
 ORDER BY sent_at DESC, id DESC
 LIMIT sqlc.arg(max_rows);
+
+-- Đồng hồ database của một lượt luật cảnh báo (mốc do PostgreSQL ghi so với đồng hồ này, Task 446).
+-- name: DBNow :one
+SELECT now()::timestamptz AS now;

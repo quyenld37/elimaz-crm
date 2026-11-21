@@ -97,6 +97,18 @@ func (q *Queries) DBAndWALBytes(ctx context.Context) (DBAndWALBytesRow, error) {
 	return i, err
 }
 
+const dBNow = `-- name: DBNow :one
+SELECT now()::timestamptz AS now
+`
+
+// Đồng hồ database của một lượt luật cảnh báo (mốc do PostgreSQL ghi so với đồng hồ này, Task 446).
+func (q *Queries) DBNow(ctx context.Context) (time.Time, error) {
+	row := q.db.QueryRow(ctx, dBNow)
+	var now time.Time
+	err := row.Scan(&now)
+	return now, err
+}
+
 const heartbeatAgesByRole = `-- name: HeartbeatAgesByRole :many
 SELECT role, extract(epoch FROM $1::timestamptz - max(at))::float8 AS age_s
 FROM platform.process_heartbeats

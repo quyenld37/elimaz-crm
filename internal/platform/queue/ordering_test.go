@@ -12,20 +12,18 @@ import (
 
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/testkit"
 )
 
 func orderedWorker(e *env, hs ...queue.Handler) *queue.Worker {
 	return queue.NewWorker(e.app, hs, queue.WorkerOptions{WorkerID: "w1", Concurrency: 3})
 }
 
-// drain gọi RunOnce tới khi không còn việc nhận được (tối đa 20 vòng).
-func drain(t *testing.T, w *queue.Worker) {
+// drain chạy w tới khi không còn việc tới hạn (testkit.DrainDue: chịu được đồng hồ PostgreSQL lùi; việc hẹn thử lại
+// giữ lịch).
+func (e *env) drain(t *testing.T, w *queue.Worker) {
 	t.Helper()
-	for range 20 {
-		if runOnce(t, w, 10) == 0 {
-			return
-		}
-	}
+	testkit.DrainDue(t, e.owner, w)
 }
 
 // Ba việc cùng OrderKey ghi theo OrderSeq 3, 2, 1 chạy theo 1, 2, 3 dù Concurrency 3.
@@ -36,7 +34,7 @@ func TestOrderingBySeq(t *testing.T) {
 	for _, seq := range []int64{3, 2, 1} {
 		ids[seq] = e.enqueue(t, h.kind, queue.NewJob{DedupeKey: fmt.Sprint(seq), OrderKey: "order:1", OrderSeq: seq})
 	}
-	drain(t, orderedWorker(e, h))
+	e.drain(t, orderedWorker(e, h))
 	if got, want := h.handled(), []uuid.UUID{ids[1], ids[2], ids[3]}; !slices.Equal(got, want) {
 		t.Fatalf("thứ tự Handle %v, muốn %v", got, want)
 	}
@@ -66,7 +64,7 @@ func TestStrictDeadBlocksAndAlerts(t *testing.T) {
 			h, add := deadFirst(mode)
 			first, second := add(e, t)
 			reg := metrics.NewRegistry()
-			drain(t, queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Concurrency: 3, Metrics: reg}))
+			e.drain(t, queue.NewWorker(e.app, []queue.Handler{h}, queue.WorkerOptions{WorkerID: "w1", Concurrency: 3, Metrics: reg}))
 			if r := e.job(t, first); r.Status != "dead" {
 				t.Fatalf("việc đầu: %+v", r)
 			}
@@ -92,7 +90,7 @@ func TestRetryingHeadBlocks(t *testing.T) {
 	})
 	firstID = e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "1", OrderKey: "o", OrderSeq: 1})
 	second := e.enqueue(t, h.kind, queue.NewJob{DedupeKey: "2", OrderKey: "o", OrderSeq: 2})
-	drain(t, orderedWorker(e, h))
+	e.drain(t, orderedWorker(e, h))
 	if h.callsOf(second) != 0 || e.job(t, second).Status != "pending" {
 		t.Fatalf("việc sau chạy khi việc đầu còn chờ thử lại: %+v", e.job(t, second))
 	}
@@ -110,7 +108,7 @@ func TestSameOrderKeyOtherTenantDoesNotBlock(t *testing.T) {
 	laterA := e.enqueue(t, k, queue.NewJob{TenantID: &a, DedupeKey: "a2", OrderKey: "o", OrderSeq: 2})
 	onlyB := e.enqueue(t, k, queue.NewJob{TenantID: &b, DedupeKey: "b2", OrderKey: "o", OrderSeq: 2})
 	noTenant := e.enqueue(t, k, queue.NewJob{DedupeKey: "n2", OrderKey: "o", OrderSeq: 2})
-	drain(t, orderedWorker(e, h, ok))
+	e.drain(t, orderedWorker(e, h, ok))
 	if e.job(t, laterA).Status != "pending" {
 		t.Fatalf("việc sau của A phải bị chặn: %+v", e.job(t, laterA))
 	}

@@ -147,16 +147,7 @@ func (e *hookEnv) post(path, key string, ev fake.Event) int {
 
 func (e *hookEnv) drain() {
 	e.t.Helper()
-	for range 20 {
-		n, err := e.worker.RunOnce(e.t.Context(), 10)
-		if err != nil {
-			e.t.Fatal(err)
-		}
-		if n == 0 {
-			return
-		}
-	}
-	e.t.Fatal("worker còn việc sau 20 lượt")
+	testkit.DrainDue(e.t, e.staff.Owner, e.worker)
 }
 
 func (e *hookEnv) countIn(q string, args ...any) int {
