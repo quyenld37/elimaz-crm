@@ -17,4 +17,3 @@ applyShipmentCorrection
 listStuckShipments
 listShipmentsForReview
 resolveShipmentAnomaly
-getCustomerDeliveryStats
