@@ -25,9 +25,6 @@ import (
 const (
 	// seedRecipe phải đổi khi cách dựng mẫu có dữ liệu đổi (cách chạy câu, vai trò chạy câu…).
 	seedRecipe = "testkit-seed-v1"
-	// seedLockKey: khóa advisory hai số (seedLockKey, hashtext(tên mẫu)) — mỗi mẫu có dữ liệu một khóa, dựng bộ này
-	// không chặn phiên đang cần bộ khác hay mẫu migration (khóa 727391).
-	seedLockKey = 727393
 	// seedTimeout: dựng mẫu có dữ liệu lúc máy chủ chung bận có thể mất vài phút (một câu INSERT … generate_series lớn
 	// từng chạy 2 phút khi 6–7 phiên song song).
 	seedTimeout = 8 * time.Minute
@@ -47,7 +44,7 @@ type Seed struct {
 
 // StartPostgresSeeded như StartPostgres nhưng database đã có dữ liệu của s: lần đầu (mỗi giờ, mỗi bộ migration, mỗi
 // nội dung s) dựng mẫu có dữ liệu dưới khóa (nhiều tiến trình, nhiều phiên không dựng trùng), các lần sau chỉ nhân bản.
-// Mẫu cũ dọn theo cùng luật với mẫu migration (cleanupStale).
+// Mẫu cũ dọn theo cùng luật với mẫu migration (cleanupStale, pruneOlderHours).
 func StartPostgresSeeded(t testing.TB, s Seed) (adminURL, ownerURL, appURL string) {
 	t.Helper()
 	return cloneSeeded(t, migrations.FS, migrateDB, time.Now(), s)
@@ -94,10 +91,11 @@ func cloneSeeded(t testing.TB, fsys fs.FS, migrate migrateFunc, at time.Time, s 
 	ctx, cancel := context.WithTimeout(context.Background(), seedTimeout)
 	defer cancel()
 	withAdmin(ctx, t, base, func(admin *pgx.Conn) {
-		cleanupStale(ctx, t, admin, serverLocks(), []string{testDBPrefix, templatePrefix}, stpl, staleAfter)
+		cleanupStale(ctx, t, admin, cleanupLockKey, []string{testDBPrefix, templatePrefix}, stpl, staleAfter)
 		createFromTemplate(ctx, t, admin, name, stpl, func() {
 			ensureSeeded(ctx, t, admin, base, tpl, stpl, fsys, migrate, s)
 		})
+		pruneOlderHours(ctx, t, admin, tpl)
 	})
 	return adminURL, ownerURL, appURL
 }
@@ -122,7 +120,7 @@ func createFromTemplate(ctx context.Context, t testing.TB, admin *pgx.Conn, name
 }
 
 // ensureSeeded bảo đảm mẫu có dữ liệu stpl đã dựng xong (datistemplate = true, đặt ở bước cuối). Chưa có thì dựng dưới
-// khóa (seedLockKey, hashtext(stpl)): nhân bản từ mẫu migration tpl (dựng tpl nếu thiếu), chạy các câu của s bằng
+// khóa (nameLockKey, hashtext(stpl)): nhân bản từ mẫu migration tpl (dựng tpl nếu thiếu), chạy các câu của s bằng
 // người quản trị, chặn mọi kết nối vào mẫu, đánh dấu mẫu. Mẫu dở dang (tiến trình dựng chết giữa chừng, hay câu lỗi)
 // bị xóa và dựng lại.
 func ensureSeeded(ctx context.Context, t testing.TB, admin *pgx.Conn, base *url.URL, tpl, stpl string, fsys fs.FS,
@@ -132,12 +130,8 @@ func ensureSeeded(ctx context.Context, t testing.TB, admin *pgx.Conn, base *url.
 	if exists, done := templateState(ctx, t, admin, stpl); exists && done {
 		return
 	}
-	if _, err := admin.Exec(ctx, "SELECT pg_advisory_lock($1, hashtext($2))", int32(seedLockKey), stpl); err != nil {
-		t.Fatalf("testkit: chờ khóa dựng database mẫu có dữ liệu: %v", err)
-	}
-	defer func() {
-		_, _ = admin.Exec(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock($1, hashtext($2))", int32(seedLockKey), stpl)
-	}()
+	lockName(ctx, t, admin, stpl)
+	defer unlockName(ctx, admin, stpl)
 	exists, done := templateState(ctx, t, admin, stpl)
 	if done {
 		return

@@ -235,22 +235,27 @@ func TestCleanupStaleDropsOnlyIdleOldDatabases(t *testing.T) {
 	exec(ctx, t, admin, "ALTER DATABASE "+tpl+" IS_TEMPLATE true")
 	holder := connect(ctx, t, withDB(base, nil, busy))
 	defer func() { _ = holder.Close(ctx) }()
-	// Khóa dọn, khóa dựng mẫu riêng của lần chạy: không chờ khóa chung mà phiên khác trên máy chủ thử đang giữ (Task 425).
-	locks := privateLocks(t)
+	// Khóa dọn riêng của lần chạy: không chờ khóa chung mà phiên khác trên máy chủ thử đang giữ (Task 425).
+	locks := privateCleanupLock(t)
 
-	// Đang có người giữ khóa dựng mẫu: mẫu cũ chưa bị xóa (dọn không chen vào lúc dựng lại mẫu).
+	// Đang có người giữ khóa theo tên của mẫu: mẫu cũ chưa bị xóa (dọn không chen vào lúc dựng lại mẫu).
 	builder := connect(ctx, t, withDB(base, nil, base.Path))
 	defer func() { _ = builder.Close(ctx) }()
-	exec(ctx, t, builder, fmt.Sprintf("SELECT pg_advisory_lock(%d)", locks.template))
+	lockName(ctx, t, builder, tpl)
 	cleanupStale(ctx, t, admin, locks, []string{prefix}, keep, anyAge)
 	var tplLeft bool
 	if err := admin.QueryRow(ctx, "SELECT datistemplate FROM pg_database WHERE datname = $1", tpl).Scan(&tplLeft); err != nil ||
 		!tplLeft {
-		t.Fatalf("mẫu bị dọn (hay bị bỏ dấu mẫu) khi khóa dựng mẫu đang bị giữ: %v %v", tplLeft, err)
+		t.Fatalf("mẫu bị dọn (hay bị bỏ dấu mẫu) khi khóa theo tên của nó đang bị giữ: %v %v", tplLeft, err)
 	}
-	exec(ctx, t, builder, fmt.Sprintf("SELECT pg_advisory_unlock(%d)", locks.template))
+	if _, err := builder.Exec(ctx, "SELECT pg_advisory_unlock_all()"); err != nil {
+		t.Fatal(err)
+	}
 
+	// Khóa dựng mẫu chung (phiên khác đang dựng một mẫu khác) không chặn việc dọn (Task 447).
+	exec(ctx, t, builder, fmt.Sprintf("SELECT pg_advisory_lock(%d)", templateLockKey))
 	cleanupStale(ctx, t, admin, locks, []string{prefix}, keep, anyAge)
+	exec(ctx, t, builder, fmt.Sprintf("SELECT pg_advisory_unlock(%d)", templateLockKey))
 
 	exists := func(n string) bool {
 		var ok bool
@@ -275,21 +280,15 @@ func TestCleanupStaleDropsOnlyIdleOldDatabases(t *testing.T) {
 	}
 }
 
-// privateLocks trả cặp khóa dọn, khóa dựng mẫu ngẫu nhiên riêng của lần chạy (khác khóa chung của máy chủ thử).
-func privateLocks(t *testing.T) cleanupLocks {
+// privateCleanupLock trả khóa dọn ngẫu nhiên riêng của lần chạy (khác khóa chung của máy chủ thử).
+func privateCleanupLock(t *testing.T) int64 {
 	t.Helper()
-	server := serverLocks()
 	for {
-		var b [16]byte
+		var b [8]byte
 		if _, err := rand.Read(b[:]); err != nil {
 			t.Fatal(err)
 		}
-		l := cleanupLocks{
-			cleanup:  int64(binary.BigEndian.Uint64(b[:8]) >> 1),
-			template: int64(binary.BigEndian.Uint64(b[8:]) >> 1),
-		}
-		if l.cleanup != l.template && l.cleanup != server.cleanup && l.cleanup != server.template &&
-			l.template != server.cleanup && l.template != server.template {
+		if l := int64(binary.BigEndian.Uint64(b[:]) >> 1); l != cleanupLockKey && l != templateLockKey {
 			return l
 		}
 	}
