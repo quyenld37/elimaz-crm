@@ -67,21 +67,21 @@ Theo luật "Behaviour changes need own OK": mỗi dòng cần chủ shop OK ri�
 
 | # | Màn | Hành vi đề xuất | Hiện tại | Chủ shop OK |
 |---|---|---|---|---|
-| HV01 | Khung | Menu thêm nhóm "Vận chuyển" (Cần gọi lại, Đơn kẹt, Cần xem, Giữ hàng quá hạn, Kết nối vận chuyển, Cài đặt vận chuyển) và "Tiền" (Đối soát COD, Lệch đối soát, Quá hạn chưa có tiền, Nghĩa vụ hoàn) ngay sau "Đơn hàng"; nhóm Kho thêm "Đóng gói", "Nhận hàng hoàn". | Menu M2: Đơn hàng, Khách hàng, Khuyến mãi, Sản phẩm, Kho, Hệ thống, Quản trị. | chưa |
-| HV02 | Khung | Số đếm cạnh mục menu (Cần gọi lại, Đơn kẹt, Cần xem, Lệch đối soát, Quá hạn chưa có tiền, Nghĩa vụ hoàn); Cần gọi lại nền đỏ khi có việc quá hạn; cập nhật theo báo hiệu. | Menu M2 không có số. | chưa |
-| HV03 | Kết nối | Danh sách tài khoản là một bảng; thêm tài khoản là hộp thoại; sửa là trang riêng `/settings/carriers/:id`. | Nhanh: kết nối hãng trong cài đặt của Nhanh; chưa khảo sát. | chưa |
-| HV04 | Kết nối | Khóa API không bao giờ hiện lại (cả Chủ); chỉ có "Thay khóa" mở hộp ô trống; lưu xong CRM tự kiểm tra kết nối; ô khóa xóa khỏi màn sau khi lưu. | Chưa khảo sát. | chưa |
-| HV05 | Kết nối | "Hiện trên web" và thứ tự đặt ở tài khoản hãng trong CRM; website đọc từ đây (một nơi lưu, Q-30). | Chọn hãng hiện trên web nằm ở admin website. | chưa |
-| HV06 | Kết nối | Cài đặt vận chuyển là trang riêng; tỷ lệ "hay hoàn" nhập theo %; chu kỳ tra trạng thái không hiện (máy chủ giữ mặc định). | — | chưa |
+| HV01 | Khung | Menu thêm nhóm "Vận chuyển" (Cần gọi lại, Đơn kẹt, Cần xem, Giữ hàng quá hạn, Kết nối vận chuyển, Cài đặt vận chuyển) và "Tiền" (Đối soát COD, Lệch đối soát, Quá hạn chưa có tiền, Nghĩa vụ hoàn) ngay sau "Đơn hàng"; nhóm Kho thêm "Đóng gói", "Nhận hàng hoàn". | Menu M2: Đơn hàng, Khách hàng, Khuyến mãi, Sản phẩm, Kho, Hệ thống, Quản trị. | OK chủ shop 21/11 (chat) |
+| HV02 | Khung | Số đếm cạnh mục menu (Cần gọi lại, Đơn kẹt, Cần xem, Lệch đối soát, Quá hạn chưa có tiền, Nghĩa vụ hoàn); Cần gọi lại nền đỏ khi có việc quá hạn; cập nhật theo báo hiệu. | Menu M2 không có số. | OK chủ shop 21/11 (chat) |
+| HV03 | Kết nối | Danh sách tài khoản là một bảng; thêm tài khoản là hộp thoại; sửa là trang riêng `/settings/carriers/:id`. | Nhanh: kết nối hãng trong cài đặt của Nhanh; chưa khảo sát. | OK chủ shop 21/11 (chat) |
+| HV04 | Kết nối | Khóa API không bao giờ hiện lại (cả Chủ); chỉ có "Thay khóa" mở hộp ô trống; lưu xong CRM tự kiểm tra kết nối; ô khóa xóa khỏi màn sau khi lưu. | Chưa khảo sát. | OK chủ shop 21/11 (chat) |
+| HV05 | Kết nối | "Hiện trên web" và thứ tự đặt ở tài khoản hãng trong CRM; website đọc từ đây (một nơi lưu, Q-30). | Chọn hãng hiện trên web nằm ở admin website. | OK chủ shop 21/11 (chat) |
+| HV06 | Kết nối | Cài đặt vận chuyển là trang riêng; tỷ lệ "hay hoàn" nhập theo %; chu kỳ tra trạng thái không hiện (máy chủ giữ mặc định). | — | OK chủ shop 21/11 (chat) |
 | HV07 | Khối Vận chuyển | Mở đơn "Đã xác nhận" chưa gửi hãng: CRM tự hỏi phí mọi tài khoản đang hoạt động của kho đơn một lần (giữ 30 phút); "Báo phí lại" để hỏi lại; quá hạn thì nút gửi thành "Báo phí lại". | Nhanh: chưa khảo sát. | OK chủ shop 21/11 |
 | HV08 | Khối Vận chuyển | Chọn sẵn giá rẻ nhất; tài khoản lỗi hoặc không dùng được vẫn hiện một dòng kèm lý do, không bao giờ hiện "0 ₫"; tài khoản nhập mã tay hiện "Không báo phí". | — | OK chủ shop 21/11 |
 | HV09 | Khối Vận chuyển | Băng đỏ "Khách hay hoàn" ngay trên nút "Gửi hãng", chỉ gợi ý, không chặn. | — | OK chủ shop 21/11 |
 | HV10 | Khối Vận chuyển | Nút "Gửi hãng · <hãng> · <phí>" gửi ngay, không hộp xác nhận; khóa khi đang gửi. | — | OK chủ shop 21/11 |
 | HV11 | Khối Vận chuyển | "Không rõ hãng đã tạo chưa": hai nút "Hãng đã tạo" (đòi mã hãng) / "Hãng chưa tạo", không có "Gửi lại"; "Chưa gửi được" có "Gửi lại", CRM không tự gửi. | — | OK chủ shop 21/11 |
-| HV12 | Khối Vận chuyển | Hủy vận đơn và đổi hãng chung một hộp (chọn "Hủy đơn" hoặc "Đổi hãng khác"), lý do bắt buộc. | Màn M2: "Hủy đơn" riêng (đơn đã gửi hãng thành yêu cầu hủy). | chưa |
-| HV13 | Khối Vận chuyển | Đổi địa chỉ sau khi gửi là hộp thoại; hãng không sửa được qua API thì hiện việc chờ với hai nút "Hãng đã nhận" / "Hãng không đổi được"; địa chỉ trên đơn chỉ đổi khi hãng nhận. | Màn M2: địa chỉ khóa sau khi gửi hãng. | chưa |
-| HV14 | Khối Vận chuyển | Dòng thời gian vận đơn mới nhất trên đầu, chip nguồn (Hãng (API) / Nhân viên / Hệ thống; tin webhook chỉ làm CRM hỏi lại hãng, không là nguồn); sự kiện bị bỏ qua vẫn hiện, nhạt, viền đứt, kèm lý do. | Nhanh: lịch sử trạng thái; chưa khảo sát. | chưa |
-| HV15 | Khối Vận chuyển | Khung COD bốn ngăn (Đang đi thu / Hãng đang giữ / Đã về tài khoản shop / Phí hãng), ngăn đang có tiền viền đậm, liên kết "Sổ của vận đơn". | Màn M2: chỉ dòng "Thu hộ (COD)". | chưa |
+| HV12 | Khối Vận chuyển | Hủy vận đơn và đổi hãng chung một hộp (chọn "Hủy đơn" hoặc "Đổi hãng khác"), lý do bắt buộc. | Màn M2: "Hủy đơn" riêng (đơn đã gửi hãng thành yêu cầu hủy). | OK chủ shop 21/11 (chat) |
+| HV13 | Khối Vận chuyển | Đổi địa chỉ sau khi gửi là hộp thoại; hãng không sửa được qua API thì hiện việc chờ với hai nút "Hãng đã nhận" / "Hãng không đổi được"; địa chỉ trên đơn chỉ đổi khi hãng nhận. | Màn M2: địa chỉ khóa sau khi gửi hãng. | OK chủ shop 21/11 (chat) |
+| HV14 | Khối Vận chuyển | Dòng thời gian vận đơn mới nhất trên đầu, chip nguồn (Hãng (API) / Nhân viên / Hệ thống; tin webhook chỉ làm CRM hỏi lại hãng, không là nguồn); sự kiện bị bỏ qua vẫn hiện, nhạt, viền đứt, kèm lý do. | Nhanh: lịch sử trạng thái; chưa khảo sát. | OK chủ shop 21/11 (chat) |
+| HV15 | Khối Vận chuyển | Khung COD bốn ngăn (Đang đi thu / Hãng đang giữ / Đã về tài khoản shop / Phí hãng), ngăn đang có tiền viền đậm, liên kết "Sổ của vận đơn". | Màn M2: chỉ dòng "Thu hộ (COD)". | OK chủ shop 21/11 (chat) |
 | HV16 | Khối Vận chuyển | Vận đơn nhập tay: dán mã khi gửi; "Cập nhật trạng thái" là hộp thoại đòi giờ và lý do; "Đã hoàn về kho" không chọn ở đây. | — | OK chủ shop 21/11 |
 | HV17 | Thẻ khách | Huy hiệu "Nhận n · Hoàn m (x%)" và chip "Có hoàn"/"Hay hoàn" ở ô chọn khách, dòng gợi ý khi tìm, khối Vận chuyển, dòng Cần gọi lại; "Hay hoàn" thêm hộp gợi ý "xin cọc hoặc gọi xác nhận". | Màn M2: thẻ khách có số đơn, chưa có mức hoàn. | chưa |
 | HV18 | Vận hành | Bốn danh sách có thanh chuyển nhanh kèm số đếm trên đầu (mỗi danh sách vẫn là một đường riêng). | — | chưa |

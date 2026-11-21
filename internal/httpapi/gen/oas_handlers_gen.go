@@ -7428,6 +7428,91 @@ func (s *Server) handleGetStocktakeRequest(args [1]string, argsEscaped bool, w h
 	}
 }
 
+// handleGetWarehousePickupRequest handles getWarehousePickup operation.
+//
+// Địa chỉ lấy hàng đang lưu của kho và version để ghi (chưa ghi lần nào: chỉ
+// warehouseId, version) (Task M3-41).
+//
+// GET /api/v1/inventory/warehouses/{id}/pickup
+func (s *Server) handleGetWarehousePickupRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetWarehousePickupOperation,
+			ID:   "getWarehousePickup",
+		}
+	)
+	params, err := decodeGetWarehousePickupParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetWarehousePickupRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetWarehousePickupOperation,
+			OperationSummary: "Địa chỉ lấy hàng đang lưu của kho và version để ghi (chưa ghi lần nào: chỉ warehouseId, version) (Task M3-41)",
+			OperationID:      "getWarehousePickup",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetWarehousePickupParams
+			Response = GetWarehousePickupRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetWarehousePickupParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetWarehousePickup(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetWarehousePickup(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetWarehousePickupResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleHealthDeepRequest handles healthDeep operation.
 //
 // Kiểm sâu cho dịch vụ canh ngoài (Bearer HEALTH_TOKEN, Task 20); không có dữ liệu

@@ -1218,6 +1218,8 @@ export { NAV_GROUPS, allowedScreens, hasPermission, navSections } from "../app/n
 export type { NavGroup, NavSection, Screen } from "../app/nav";
 export { Layout } from "../shell/Layout"; // Khung điều hướng theo mockup M1: menu trái, thanh trên 56 px, menu trượt trên điện thoại.
 export type { LayoutProps } from "../shell/Layout";
+export { NavCount } from "../shell/NavCount"; // Số đếm cạnh mục menu (HV02 M3): màn khai `badge: <NavCount n={…} late={…} />` trong route.tsx.
+export type { NavCountProps } from "../shell/NavCount";
 export { OrderForm } from "../screens/len-don/OrderForm"; // Form lên đơn nhanh (màn /don/moi, Task 84): dùng lại nguyên khối ở M4 cạnh hội thoại; gửi đơn qua useWriteAction.
 export type { OrderFormProps } from "../screens/len-don/OrderForm";
 ```

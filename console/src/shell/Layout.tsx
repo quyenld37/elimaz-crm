@@ -64,7 +64,8 @@ export function Layout({ screens, grants, email, banner, children }: LayoutProps
                     close(false);
                   }}
                 >
-                  {item.label}
+                  <span className="grow">{item.label}</span>
+                  {item.badge}
                 </Link>
               ))}
             </div>

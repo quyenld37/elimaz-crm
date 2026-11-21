@@ -85,6 +85,7 @@ const (
 	GetShipmentCodOperation              OperationName = "GetShipmentCod"
 	GetStockDocumentOperation            OperationName = "GetStockDocument"
 	GetStocktakeOperation                OperationName = "GetStocktake"
+	GetWarehousePickupOperation          OperationName = "GetWarehousePickup"
 	HealthDeepOperation                  OperationName = "HealthDeep"
 	HealthLiveOperation                  OperationName = "HealthLive"
 	HealthReadyOperation                 OperationName = "HealthReady"

@@ -535,6 +535,13 @@ type Handler interface {
 	//
 	// GET /api/v1/inventory/stocktakes/{id}
 	GetStocktake(ctx context.Context, params GetStocktakeParams) (GetStocktakeRes, error)
+	// GetWarehousePickup implements getWarehousePickup operation.
+	//
+	// Địa chỉ lấy hàng đang lưu của kho và version để ghi (chưa ghi lần nào: chỉ
+	// warehouseId, version) (Task M3-41).
+	//
+	// GET /api/v1/inventory/warehouses/{id}/pickup
+	GetWarehousePickup(ctx context.Context, params GetWarehousePickupParams) (GetWarehousePickupRes, error)
 	// HealthDeep implements healthDeep operation.
 	//
 	// Kiểm sâu cho dịch vụ canh ngoài (Bearer HEALTH_TOKEN, Task 20); không có dữ liệu

@@ -9158,6 +9158,7 @@ func (*ErrorStatusCode) getShipmentCodRes()              {}
 func (*ErrorStatusCode) getShipmentRes()                 {}
 func (*ErrorStatusCode) getStockDocumentRes()            {}
 func (*ErrorStatusCode) getStocktakeRes()                {}
+func (*ErrorStatusCode) getWarehousePickupRes()          {}
 func (*ErrorStatusCode) healthDeepRes()                  {}
 func (*ErrorStatusCode) importCodStatementRes()          {}
 func (*ErrorStatusCode) listAdminUnitsRes()              {}
@@ -26124,6 +26125,7 @@ func (s *WarehousePickup) SetVersion(val int64) {
 	s.Version = val
 }
 
+func (*WarehousePickup) getWarehousePickupRes() {}
 func (*WarehousePickup) setWarehousePickupRes() {}
 
 // Ref: #/components/schemas/WarehouseStatus
