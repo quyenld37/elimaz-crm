@@ -104,6 +104,8 @@ Mục 6:
 | `order.CheckShipAddress`: chuẩn hóa, thiếu xã, SĐT sai, xã lạ | `TestCheckShipAddress` | `go test -race -run 'TestCheckShipAddress|TestApplyAddressChange' ./internal/modules/order/` | `ok elimaz.com.vn/crm/internal/modules/order 18.333s` |
 | wireM3 có lệnh sửa địa chỉ khi có hãng giả, không có ở production | `TestWireM3_KeepsM1Parts` | `go test -race -run TestWireM3 ./cmd/crm/` | `ok elimaz.com.vn/crm/cmd/crm 1.630s` |
 | Mọi cổng tĩnh + toàn bộ test (đổi migration → cả bộ) | ci-task | `ci-task.sh` | lần 2: `CI-TASK XANH (so với điểm tách nhánh c382cc2…)`, test 569 giây (`ok …/fulfillment 410.9s`, `ok …/order 541.3s`, `ok …/httpapi 284.6s`, `ok …/tests/arch 49.1s`, `ok …/cmd/crm 1.6s`); lần 1 ĐỎ: lint (gocognit `RequestAddressChange`, gofumpt 2 tệp test), gen-check (mã chưa stage), jscpd 4 đoạn trùng — đã sửa (tách `checkAddressRequest`, `insertAddressChange`; `commandAccount`, `addressRefusal`; dùng lại `awaitingShipment`) |
+| Lượt gộp main (Task 117 giao một phần, 111 Cần xem): xung đột `errors.go` giữ đủ dòng hai bên; `m3_pending.txt` bỏ `recordPartialDelivery`, `requestAddressChange`, `resolveAddressChange`; `make gen` không chênh; không trùng số migration (0328 main, 0329 nhánh) | test gói fulfillment, order, httpapi, tests/arch, cmd/crm | `go test -race ./internal/modules/fulfillment/... ./internal/modules/order/... ./internal/httpapi/... ./tests/arch/... ./cmd/crm/...` | `ok …/fulfillment 165.9s`, `ok …/order 248.7s`, `ok …/httpapi 102.2s`, `ok …/tests/arch 55.9s`, `ok …/cmd/crm 6.5s` |
+| ci-task sau gộp | ci-task | `ci-task.sh` | mọi cổng tĩnh xanh; test ĐỎ một ca `TestStuck_PlanUsesIndexes` (test của Task 111): `testkit: ghi dữ liệu thử: … statement timeout (SQLSTATE 57014)` lúc nạp dữ liệu, máy tải 14,9; chạy lại riêng `go test -race -count=1 -run TestStuck_PlanUsesIndexes ./internal/modules/fulfillment/` → `ok … 6.314s`. Không do phần gộp (task này không chạm danh sách kẹt); mọi gói khác `ok` |
 | Commit 1 (cấu trúc): tách `checkShape`, `validateUnits` khỏi `ApplyAddressChange`, không đổi hành vi | `TestApplyAddressChange`, `TestApplyAddressChange_Delivered` và cả gói order | `go test -race ./internal/modules/order/` | `ok elimaz.com.vn/crm/internal/modules/order 216.850s` |
 
 ## Test bị xóa hoặc tắt
@@ -153,6 +155,8 @@ Mục 6:
 - Lỗi có sẵn (ngoài task, reviewer nêu): view `fulfillment.shipments_v` đọc `ship_to ->> 'province_code'`
   (`migrations/0300_fulfillment_m3.sql:341`) mà `shipToDoc` ghi khóa `provinceCode` (`area_create.go`) → cột
   `province_code` của view có thể luôn NULL. Cần một migration sửa view ở task riêng.
+- Yêu cầu đổi địa chỉ `unknown` (lệnh in_doubt) không tạo anomaly nên không hiện ở Cần xem, không vào `counts.inDoubt` (`lists.InDoubtKinds`); kế hoạch không đòi. Nếu muốn gom, xét ở Task 134/135 (M3-43, M3-44).
+- Sau gộp, `TestStuck_PlanUsesIndexes` (Task 111) hết giờ chờ câu lệnh lúc nạp dữ liệu khi máy tải nặng (57014); nên cho phần nạp dữ liệu thử của test này một `statement_timeout` riêng hoặc nạp ít hơn, ở task riêng.
 - Hợp đồng `AddressInput` đòi `wardCode`, nên qua HTTP thiếu xã ra 400 `bad_request` (lớp ogen), không tới
   `address_incomplete`; đường Service vẫn trả `order.ErrAddressIncomplete` (có test).
 
@@ -170,5 +174,9 @@ Commit 2, lần 2: ĐẠT, không phát hiện phải sửa (ba nhánh lỗi c�
 Ghi chú không bắt buộc: nhánh `ErrCommandRunning` chưa có test (khó dựng); có thể kiểm thêm lệnh đã bị xóa thật trong ca
 mới; deadlock có thể có giữa xử lý tay lệnh in_doubt sang done và ResolveAddressChange được PostgreSQL phát hiện (40P01),
 RetryTx chạy lại — cùng khuôn với lệnh hủy, không sai dữ liệu.
+
+Kết luận (commit 1, 2): ĐẠT
+
+Lượt gộp main (Task 117, 111): ĐẠT, không phát hiện phải sửa. Đã soát: `fulfillmentError` giữ đủ dòng giao một phần, đổi địa chỉ, Cần xem; `m3_pending.txt` khớp `TestM3Routes_PendingList`; giao một phần khi còn yêu cầu mở không sai dữ liệu (lệnh api → `shipment_not_changeable` → rejected; xác nhận tay → `order.ErrInvalidTransition`, địa chỉ đơn giữ nguyên); `resolveShipmentAnomaly` không chạm `address_change_requests`, không tạo vòng khóa. Ghi chú không bắt buộc: yêu cầu đổi địa chỉ `unknown` không hiện ở Cần xem hay `counts.inDoubt` (đã ghi Việc phát hiện thêm).
 
 Kết luận: ĐẠT

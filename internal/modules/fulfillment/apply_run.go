@@ -65,12 +65,8 @@ func (s *Service) ApplyTracking(ctx context.Context, tx pgx.Tx, in ApplyInput) (
 			return ApplyReport{}, fmt.Errorf("%w: khóa sự kiện dài %d", ErrInvalidTracking, len(e.Key))
 		}
 	}
-	r := &applyRun{
-		s: s, tx: tx, q: store.New(tx), in: in, actor: actorFor(in),
-		w:   order.Writer{Events: s.d.Events, Queue: s.d.Queue, Realtime: s.d.Bus},
-		now: s.d.Now().UTC(),
-	}
-	if err := r.lock(ctx); err != nil {
+	r, err := s.lockRun(ctx, tx, in, actorFor(in))
+	if err != nil {
 		return ApplyReport{}, err
 	}
 	r.rep.From = shipstate.Status(r.sh.Status)
@@ -96,6 +92,19 @@ func (s *Service) ApplyTracking(ctx context.Context, tx pgx.Tx, in ApplyInput) (
 		}
 	}
 	return r.rep, nil
+}
+
+// lockRun dựng một lần áp in (người làm actor) trong tx rồi khóa đơn, vận đơn (lock).
+func (s *Service) lockRun(ctx context.Context, tx pgx.Tx, in ApplyInput, actor order.Actor) (*applyRun, error) {
+	r := &applyRun{
+		s: s, tx: tx, q: store.New(tx), in: in, actor: actor,
+		w:   order.Writer{Events: s.d.Events, Queue: s.d.Queue, Realtime: s.d.Bus},
+		now: s.d.Now().UTC(),
+	}
+	if err := r.lock(ctx); err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 // lock khóa đơn rồi vận đơn (ADR-46 nhóm 7 → 8) và ghi đơn có đang gắn vận đơn này không.
@@ -144,7 +153,7 @@ func (r *applyRun) event(ctx context.Context, e CarrierEvent) error {
 	}
 	d := shipstate.Decide(shipstate.Input{
 		Current: shipstate.Status(r.sh.Status), LastEventAt: last, PickedUp: r.sh.PickedUpAt.Valid,
-		IsCurrent: r.isCurrent, Event: e.Canonical, EventAt: e.OccurredAt, Source: r.in.Source,
+		IsCurrent: r.isCurrent, Partial: r.sh.Partial, Event: e.Canonical, EventAt: e.OccurredAt, Source: r.in.Source,
 	})
 	eventID, inserted, err := r.insertEvent(ctx, e, d)
 	if err != nil || !inserted {

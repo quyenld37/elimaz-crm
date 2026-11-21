@@ -363,6 +363,8 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 		fulfillment.NewAuthAlertCommand(alerter, logger), fulfillment.NewTrackAlertCommand(d, alerter, logger),
 		cash.NewRemittedReturnedAlertCommand(alerter),
 		cash.NewReconcileAlertCommand(alerter),
+		// Cảnh báo đơn kẹt mỗi ngày (Task M3-20): lệnh do lịch fulfillment.stuck ghi.
+		fulfillment.NewStuckAlertCommand(d, alerter, logger),
 	}, nil
 }
 

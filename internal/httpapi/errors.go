@@ -526,6 +526,10 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		{fulfillment.ErrTrackingCodeConflict, http.StatusConflict, codeTrackingCodeConflict},
 		// Hủy vận đơn, đổi hãng (M3, Task M3-14).
 		{fulfillment.ErrShipmentNotCancellable, http.StatusConflict, codeShipmentNotCancellable},
+		// Giao một phần (M3, Task M3-26; tệp task 117, Quyết định 3: chỉ mã có sẵn trong hợp đồng).
+		{fulfillment.ErrPartialNotAllowed, http.StatusConflict, codeInvalidTransition},
+		{fulfillment.ErrPartialQty, http.StatusUnprocessableEntity, codeQtyMismatch},
+		{fulfillment.ErrPartialCOD, http.StatusUnprocessableEntity, codePaymentExceedsTotal},
 		// Nhập mã tay, cập nhật tay trạng thái vận đơn (M3, Task M3-15).
 		{fulfillment.ErrManualReasonRequired, http.StatusUnprocessableEntity, codeInvalidInput},
 		{fulfillment.ErrManualNotAllowed, http.StatusConflict, codeInvalidTransition},
@@ -534,6 +538,9 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		// Đổi địa chỉ sau khi gửi hãng (M3, Task M3-17; chỉ mã có sẵn trong hợp đồng).
 		{fulfillment.ErrAddressChangeOpen, http.StatusConflict, codeAlreadyExists},
 		{fulfillment.ErrAddressChangeNotAllowed, http.StatusConflict, codeInvalidTransition},
+		// Cần xem (M3, Task M3-20): việc không có / ngoài phạm vi → 404; đã đóng, in_doubt_create → 409.
+		{fulfillment.ErrAnomalyNotFound, http.StatusNotFound, codeNotFound},
+		{fulfillment.ErrAnomalyNotResolvable, http.StatusConflict, codeInvalidTransition},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

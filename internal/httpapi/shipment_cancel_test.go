@@ -59,7 +59,12 @@ func (e *shipAPIEnv) cancel(path, key, body string) (int, map[string]any) {
 // awaitingShipment tạo đơn, gửi hãng, chạy worker; trả mã vận đơn (chờ thu gom).
 func (e *shipAPIEnv) awaitingShipment(key string) string {
 	e.t.Helper()
-	orderID := e.confirmedOrder("o-" + key)
+	return e.shipOrder(e.confirmedOrder("o-"+key), key)
+}
+
+// shipOrder gửi hãng đơn orderID bằng tài khoản đầu (khóa s-<key>), chạy worker; trả mã vận đơn (chờ thu gom).
+func (e *shipAPIEnv) shipOrder(orderID, key string) string {
+	e.t.Helper()
 	code, s := e.post("/api/v1/orders/"+orderID+"/shipments", "s-"+key, fmt.Sprintf(`{"carrierAccountId":"%s"}`, e.accounts[0]))
 	if code != http.StatusAccepted {
 		e.t.Fatalf("gửi hãng = %d %v", code, s)

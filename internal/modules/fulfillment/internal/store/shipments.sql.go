@@ -202,7 +202,7 @@ func (q *Queries) HasActiveShipment(ctx context.Context, orderID uuid.UUID) (boo
 
 const lockShipmentForApply = `-- name: LockShipmentForApply :one
 SELECT s.id, s.tenant_id, s.order_id, s.seller_id, s.carrier_key, s.tracking_code, s.status, s.cod_amount, s.version,
-       s.last_carrier_event_at, s.picked_up_at, s.cancel_intent, a.warehouse_id
+       s.last_carrier_event_at, s.picked_up_at, s.cancel_intent, s.partial, a.warehouse_id
 FROM fulfillment.shipments s
 JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
 WHERE s.id = $1
@@ -222,6 +222,7 @@ type LockShipmentForApplyRow struct {
 	LastCarrierEventAt pgtype.Timestamptz
 	PickedUpAt         pgtype.Timestamptz
 	CancelIntent       pgtype.Text
+	Partial            bool
 	WarehouseID        uuid.UUID
 }
 
@@ -242,6 +243,7 @@ func (q *Queries) LockShipmentForApply(ctx context.Context, id uuid.UUID) (LockS
 		&i.LastCarrierEventAt,
 		&i.PickedUpAt,
 		&i.CancelIntent,
+		&i.Partial,
 		&i.WarehouseID,
 	)
 	return i, err
