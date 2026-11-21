@@ -529,6 +529,8 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		// Nhập mã tay, cập nhật tay trạng thái vận đơn (M3, Task M3-15).
 		{fulfillment.ErrManualReasonRequired, http.StatusUnprocessableEntity, codeInvalidInput},
 		{fulfillment.ErrManualNotAllowed, http.StatusConflict, codeInvalidTransition},
+		// In nhãn (M3, Task M3-16).
+		{fulfillment.ErrLabelBatchInvalid, http.StatusBadRequest, codeInvalidInput},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

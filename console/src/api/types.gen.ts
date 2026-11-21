@@ -2219,7 +2219,7 @@ export type LabelBatchSummary = {
 export type LabelBatchSkipped = {
     shipmentId: string;
     /**
-     * no_carrier_label, no_tracking_code
+     * no_carrier_label, no_tracking_code, cancelled
      */
     reason: string;
 };

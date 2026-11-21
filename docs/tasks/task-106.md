@@ -151,3 +151,14 @@ Kết luận: ĐẠT (lần 1, agent reviewer trên phần đã stage sau khi g�
 - Ghi chú không bắt buộc: (1) tên câu trong mục Ảnh hưởng ghi nhầm `OpenStaffCancelTask` — đã sửa thành
   `StaffCancelTaskOpen`; (2) lý do rỗng hẳn ra 400 do hợp đồng, chỉ khoảng trắng ra 422 — đã ghi ở Quyết định 4;
   (3) `MarkShipmentManual` không kiểm số dòng — luôn đúng 1 dòng (cùng tx, dòng đã khóa), không sửa.
+
+### Lượt gộp main sau Task 107 (21/11)
+
+- `git merge main` (f9a34e2, Task 107 in nhãn): xung đột duy nhất ở `internal/httpapi/errors.go` — hai bên cùng thêm
+  dòng ánh xạ lỗi; giữ cả hai (M3-15: `ErrManualReasonRequired` 422, `ErrManualNotAllowed` 409; M3-16:
+  `ErrLabelBatchInvalid` 400), gofmt sạch. `tests/arch/testdata/m3_pending.txt` tự gộp (bỏ `setShipmentManualStatus`).
+- `go build ./...` qua; `make gen` không sinh chênh; cổng ci-task của task → `CI-TASK XANH` (gói đổi, phụ thuộc,
+  vùng cao: fulfillment, labels, httpapi, tests/arch, tests/e2e…; 225 giây).
+- Reviewer trên bản gộp: ĐẠT, không phát hiện phải sửa. Đã soát: mỗi sentinel đúng một dòng ánh xạ; cây gộp = main +
+  đúng 18 tệp của e763d13; vận đơn mode `manual` bị `labels.Plan` bỏ qua (`no_carrier_label`, có test); lệnh tải nhãn
+  không đổi `status`/`version`; thứ tự khóa vận đơn → `label_batches` giữ ADR-46.
