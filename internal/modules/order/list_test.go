@@ -15,6 +15,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/queries"
 	"elimaz.com.vn/crm/internal/queries/orderview"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -37,21 +38,47 @@ func (e *orderEnv) createAt(in order.CreateInput, at time.Time) order.Order {
 	return o
 }
 
-// list gọi order.List của người bán e.seller trong một transaction crm_app.
-func (e *orderEnv) list(f order.ListFilter, c order.Cursor, limit int) ([]order.OrderRow, order.Cursor, error) {
-	e.t.Helper()
-	f.SellerID = e.seller
-	var rows []order.OrderRow
-	var next order.Cursor
-	err := e.app(func(tx pgx.Tx) error {
-		var err error
-		rows, next, err = order.List(e.t.Context(), tx, f, c, limit)
-		return err //nolint:wrapcheck // test
-	})
-	return rows, next, err
+// listFilter là bộ lọc của danh sách đơn như tham số của listOrders: phần lọc của queries.OrderFilter cộng q và khách
+// lọc (order.ResolveListSearch giải).
+type listFilter struct {
+	Labels                 []orderview.LabelKey
+	Statuses               []string
+	PendingReasons         []string
+	Channels               []string
+	TrafficSourceIDs       []uuid.UUID
+	CareBy                 *uuid.UUID
+	CustomerID             *uuid.UUID
+	CreatedFrom, CreatedTo *time.Time
+	Q                      string
+	DuplicateSuspect       *bool
 }
 
-func (e *orderEnv) mustList(f order.ListFilter) []uuid.UUID {
+// list đọc danh sách đơn của người bán e.seller như handler listOrders (order.ResolveListSearch rồi queries.OrderList)
+// trong một transaction crm_app.
+func (e *orderEnv) list(f listFilter, c order.Cursor, limit int) ([]queries.OrderListRow, order.Cursor, error) {
+	e.t.Helper()
+	var rows []queries.OrderListRow
+	var next queries.OrderCursor
+	err := e.app(func(tx pgx.Tx) error {
+		s, err := order.ResolveListSearch(e.t.Context(), tx, f.Q, f.CustomerID)
+		if err != nil || s.Empty {
+			return err //nolint:wrapcheck // test
+		}
+		qf := queries.OrderFilter{
+			SellerID: e.seller, Labels: f.Labels, Statuses: f.Statuses, PendingReasons: f.PendingReasons,
+			Channels: f.Channels, TrafficSourceIDs: f.TrafficSourceIDs, CareBy: f.CareBy, CreatedFrom: f.CreatedFrom,
+			CreatedTo: f.CreatedTo, DuplicateSuspect: f.DuplicateSuspect,
+			Search: queries.OrderSearch{
+				CustomerRoots: s.CustomerRoots, NameRoots: s.NameRoots, Code: s.Code, Phone: s.Phone, PhoneTail: s.PhoneTail,
+			},
+		}
+		rows, next, err = queries.OrderList(e.t.Context(), tx, qf, queries.OrderCursor{CreatedAt: c.CreatedAt, ID: c.ID}, limit)
+		return err //nolint:wrapcheck // test
+	})
+	return rows, order.Cursor{CreatedAt: next.CreatedAt, ID: next.ID}, err
+}
+
+func (e *orderEnv) mustList(f listFilter) []uuid.UUID {
 	e.t.Helper()
 	rows, next, err := e.list(f, order.Cursor{}, 100)
 	if err != nil {
@@ -63,7 +90,7 @@ func (e *orderEnv) mustList(f order.ListFilter) []uuid.UUID {
 	return rowIDs(rows)
 }
 
-func rowIDs(rows []order.OrderRow) []uuid.UUID {
+func rowIDs(rows []queries.OrderListRow) []uuid.UUID {
 	out := make([]uuid.UUID, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, r.ID)
@@ -136,44 +163,43 @@ func newListFixture(e *orderEnv) listFixture {
 }
 
 // Lọc theo nhãn, kênh, nguồn, khách gốc (cả nhóm), người phụ trách, ngày, q (mã, đuôi SĐT, SĐT đủ, tên); nhãn của
-// vận đơn → ErrLabelNotFilterable; người bán khác không thấy đơn (ADR-29).
+// vận đơn lọc được từ M3 (không đơn nào có vận đơn → rỗng; trước là ErrLabelNotFilterable); người bán khác không thấy
+// đơn (ADR-29).
 func TestList_Filters(t *testing.T) {
 	e := newM2Env(t)
 	f := newListFixture(e)
 	o1, o2, o3 := f.o1.ID, f.o2.ID, f.o3.ID
-	sameIDs(t, "mặc định (mới nhất trước)", e.mustList(order.ListFilter{}), o3, o2, o1)
+	sameIDs(t, "mặc định (mới nhất trước)", e.mustList(listFilter{}), o3, o2, o1)
 	sameIDs(t, "label awaiting_discount_approval",
-		e.mustList(order.ListFilter{Labels: []orderview.LabelKey{orderview.LabelAwaitingDiscountApproval}}), o3)
-	sameIDs(t, "label confirmed", e.mustList(order.ListFilter{Labels: []orderview.LabelKey{orderview.LabelConfirmed}}), o2, o1)
-	sameIDs(t, "channel manual", e.mustList(order.ListFilter{Channels: []string{order.ChannelManual}}), o3, o1)
-	sameIDs(t, "nguồn S", e.mustList(order.ListFilter{TrafficSourceIDs: []uuid.UUID{f.source}}), o3)
-	sameIDs(t, "khách gốc A", e.mustList(order.ListFilter{CustomerID: &f.a.ID}), o2, o1)
-	sameIDs(t, "khách B (cả nhóm gốc A)", e.mustList(order.ListFilter{CustomerID: &f.b.ID}), o2, o1)
-	sameIDs(t, "người phụ trách", e.mustList(order.ListFilter{CareBy: &e.actor.UserID}), o1)
-	sameIDs(t, "trạng thái new", e.mustList(order.ListFilter{Statuses: []string{order.StatusNew}}), o3)
-	sameIDs(t, "lý do chờ", e.mustList(order.ListFilter{PendingReasons: []string{order.PendingDiscountApproval}}), o3)
+		e.mustList(listFilter{Labels: []orderview.LabelKey{orderview.LabelAwaitingDiscountApproval}}), o3)
+	sameIDs(t, "label confirmed", e.mustList(listFilter{Labels: []orderview.LabelKey{orderview.LabelConfirmed}}), o2, o1)
+	sameIDs(t, "channel manual", e.mustList(listFilter{Channels: []string{order.ChannelManual}}), o3, o1)
+	sameIDs(t, "nguồn S", e.mustList(listFilter{TrafficSourceIDs: []uuid.UUID{f.source}}), o3)
+	sameIDs(t, "khách gốc A", e.mustList(listFilter{CustomerID: &f.a.ID}), o2, o1)
+	sameIDs(t, "khách B (cả nhóm gốc A)", e.mustList(listFilter{CustomerID: &f.b.ID}), o2, o1)
+	sameIDs(t, "người phụ trách", e.mustList(listFilter{CareBy: &e.actor.UserID}), o1)
+	sameIDs(t, "trạng thái new", e.mustList(listFilter{Statuses: []string{order.StatusNew}}), o3)
+	sameIDs(t, "lý do chờ", e.mustList(listFilter{PendingReasons: []string{order.PendingDiscountApproval}}), o3)
 	from, to := listBase().Add(2*time.Second), listBase().Add(3*time.Second)
-	sameIDs(t, "ngày [from, to)", e.mustList(order.ListFilter{CreatedFrom: &from, CreatedTo: &to}), o2)
+	sameIDs(t, "ngày [from, to)", e.mustList(listFilter{CreatedFrom: &from, CreatedTo: &to}), o2)
 	no := false
-	sameIDs(t, "không nghi trùng", e.mustList(order.ListFilter{DuplicateSuspect: &no}), o3, o2, o1)
-	sameIDs(t, "q mã đơn", e.mustList(order.ListFilter{Q: f.o2.Code}), o2)
-	sameIDs(t, "q mã đơn chữ thường", e.mustList(order.ListFilter{Q: "dh" + f.o2.Code[2:]}), o2)
-	sameIDs(t, "q đuôi SĐT 5678", e.mustList(order.ListFilter{Q: "5678"}), o1)
-	sameIDs(t, "q SĐT đủ", e.mustList(order.ListFilter{Q: "0901 235 678"}), o1)
-	sameIDs(t, "q tên hong nhung", e.mustList(order.ListFilter{Q: "hong nhung"}), o2, o1)
-	sameIDs(t, "q tên không ai", e.mustList(order.ListFilter{Q: "khong ai ten nay"}))
-	sameIDs(t, "q và khách", e.mustList(order.ListFilter{Q: "5678", CustomerID: &f.c.ID}))
-	if _, _, err := e.list(order.ListFilter{Labels: []orderview.LabelKey{orderview.LabelShipping}}, order.Cursor{}, 10); !errors.Is(err, order.ErrLabelNotFilterable) {
-		t.Errorf("label shipping: %v, muốn ErrLabelNotFilterable", err)
-	}
-	if _, _, err := e.list(order.ListFilter{Q: "56"}, order.Cursor{}, 10); !errors.Is(err, customer.ErrQueryTooShort) {
+	sameIDs(t, "không nghi trùng", e.mustList(listFilter{DuplicateSuspect: &no}), o3, o2, o1)
+	sameIDs(t, "q mã đơn", e.mustList(listFilter{Q: f.o2.Code}), o2)
+	sameIDs(t, "q mã đơn chữ thường", e.mustList(listFilter{Q: "dh" + f.o2.Code[2:]}), o2)
+	sameIDs(t, "q đuôi SĐT 5678", e.mustList(listFilter{Q: "5678"}), o1)
+	sameIDs(t, "q SĐT đủ", e.mustList(listFilter{Q: "0901 235 678"}), o1)
+	sameIDs(t, "q tên hong nhung", e.mustList(listFilter{Q: "hong nhung"}), o2, o1)
+	sameIDs(t, "q tên không ai", e.mustList(listFilter{Q: "khong ai ten nay"}))
+	sameIDs(t, "q và khách", e.mustList(listFilter{Q: "5678", CustomerID: &f.c.ID}))
+	sameIDs(t, "label shipping (M3)", e.mustList(listFilter{Labels: []orderview.LabelKey{orderview.LabelShipping}}))
+	if _, _, err := e.list(listFilter{Q: "56"}, order.Cursor{}, 10); !errors.Is(err, customer.ErrQueryTooShort) {
 		t.Errorf("q 2 chữ số: %v, muốn ErrQueryTooShort", err)
 	}
-	if _, _, err := e.list(order.ListFilter{Labels: []orderview.LabelKey{"khac"}}, order.Cursor{}, 10); !errors.Is(err, order.ErrInvalidInput) {
+	if _, _, err := e.list(listFilter{Labels: []orderview.LabelKey{"khac"}}, order.Cursor{}, 10); !errors.Is(err, queries.ErrInvalidOrderFilter) {
 		t.Errorf("label lạ: %v, muốn ErrInvalidInput", err)
 	}
 
-	rows, _, err := e.list(order.ListFilter{Q: f.o1.Code}, order.Cursor{}, 10)
+	rows, _, err := e.list(listFilter{Q: f.o1.Code}, order.Cursor{}, 10)
 	if err != nil || len(rows) != 1 {
 		t.Fatalf("đọc o1: %v %v", rows, err)
 	}
@@ -185,14 +211,14 @@ func TestList_Filters(t *testing.T) {
 		!r.CreatedAt.Equal(listBase().Add(time.Second)) || r.DuplicateSuspect {
 		t.Errorf("dòng o1: %+v", r)
 	}
-	rows, _, _ = e.list(order.ListFilter{Q: f.o2.Code}, order.Cursor{}, 10)
+	rows, _, _ = e.list(listFilter{Q: f.o2.Code}, order.Cursor{}, 10)
 	if len(rows) != 1 || rows[0].CustomerRootID != f.a.ID || rows[0].CustomerName != "Hồng Nhung" {
 		t.Errorf("dòng o2 phải mang khách gốc A: %+v", rows)
 	}
 
 	other := *e
 	other.seller = e.partner
-	if ids := other.mustList(order.ListFilter{}); len(ids) != 0 {
+	if ids := other.mustList(listFilter{}); len(ids) != 0 {
 		t.Errorf("người bán khác thấy %d đơn", len(ids))
 	}
 }
@@ -222,17 +248,25 @@ func TestList_LabelMatchesRowLabel(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	all := e.mustList(order.ListFilter{})
-	seen := map[uuid.UUID]int{}
-	for _, l := range orderview.Labels() {
-		rows, _, err := e.list(order.ListFilter{Labels: []orderview.LabelKey{l}}, order.Cursor{}, 100)
-		if errors.Is(err, order.ErrLabelNotFilterable) {
-			continue
-		}
+	checkEachLabelOnce(t, e.mustList(listFilter{}), func(l orderview.LabelKey) []queries.OrderListRow {
+		rows, _, err := e.list(listFilter{Labels: []orderview.LabelKey{l}}, order.Cursor{}, 100)
 		if err != nil {
 			t.Fatalf("nhãn %s: %v", l, err)
 		}
-		for _, r := range rows {
+		return rows
+	})
+	got := e.mustList(listFilter{Labels: []orderview.LabelKey{orderview.LabelAwaitingCustomer, orderview.LabelCancelled}})
+	sameIDs(t, "hai nhãn", got, c.ID, p.ID)
+	_ = f
+}
+
+// checkEachLabelOnce: với mọi nhãn của orderview.Labels(), byLabel(l) chỉ trả đơn có nhãn l, và mỗi đơn của all có
+// trong đúng một nhãn.
+func checkEachLabelOnce(t *testing.T, all []uuid.UUID, byLabel func(orderview.LabelKey) []queries.OrderListRow) {
+	t.Helper()
+	seen := map[uuid.UUID]int{}
+	for _, l := range orderview.Labels() {
+		for _, r := range byLabel(l) {
 			seen[r.ID]++
 			if r.Label != l {
 				t.Errorf("nhãn %s trả đơn %s nhãn %s", l, r.Code, r.Label)
@@ -244,9 +278,6 @@ func TestList_LabelMatchesRowLabel(t *testing.T) {
 			t.Errorf("đơn %s có trong %d nhãn", id, seen[id])
 		}
 	}
-	got := e.mustList(order.ListFilter{Labels: []orderview.LabelKey{orderview.LabelAwaitingCustomer, orderview.LabelCancelled}})
-	sameIDs(t, "hai nhãn", got, c.ID, p.ID)
-	_ = f
 }
 
 // 250 đơn, limit 100 → ba trang 100/100/50, không trùng, không sót, đúng thứ tự (created_at, id) giảm; chèn 5 đơn mới
@@ -264,7 +295,7 @@ func TestList_KeysetPagination(t *testing.T) {
 		at := listBase().Add(time.Duration(i/2) * time.Second)
 		initial = append(initial, made{e.createAt(e.m2Input(0, ln(v, 1, 0)), at).ID, at})
 	}
-	rows, next, err := e.list(order.ListFilter{}, order.Cursor{}, 100)
+	rows, next, err := e.list(listFilter{}, order.Cursor{}, 100)
 	if err != nil || len(rows) != 100 || next == (order.Cursor{}) {
 		t.Fatalf("trang 1: %d %v %v", len(rows), next, err)
 	}
@@ -276,12 +307,12 @@ func TestList_KeysetPagination(t *testing.T) {
 	if err != nil || !parsed.CreatedAt.Equal(next.CreatedAt) || parsed.ID != next.ID {
 		t.Fatalf("ParseCursor(String) = %v %v, muốn %v", parsed, err, next)
 	}
-	rows, next, err = e.list(order.ListFilter{}, parsed, 100)
+	rows, next, err = e.list(listFilter{}, parsed, 100)
 	if err != nil || len(rows) != 100 || next == (order.Cursor{}) {
 		t.Fatalf("trang 2: %d %v", len(rows), err)
 	}
 	got = append(got, rowIDs(rows)...)
-	rows, next, err = e.list(order.ListFilter{}, next, 100)
+	rows, next, err = e.list(listFilter{}, next, 100)
 	if err != nil || len(rows) != 50 || next != (order.Cursor{}) {
 		t.Fatalf("trang 3: %d %v %v", len(rows), next, err)
 	}

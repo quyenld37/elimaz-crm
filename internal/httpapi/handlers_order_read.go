@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,14 +11,18 @@ import (
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/order"
+	"elimaz.com.vn/crm/internal/queries"
 	"elimaz.com.vn/crm/internal/queries/orderview"
 )
 
 // ListOrders (GET /api/v1/orders, order.read): một trang đơn của người bán mặc định, mới nhất trước, keyset (Task
-// M2-24). Con trỏ hỏng → 400 invalid_input; nhãn của vận đơn (chưa có ở M2) → 422 invalid_input; q chỉ chữ số dưới 4
-// số → 422 query_too_short. Không ghi q vào log.
+// M2-24; M3 Task M3-28: lọc theo hãng, trạng thái vận đơn, tiền COD, đóng gói; mỗi dòng có vận đơn hiện hành và số dư
+// COD, mọi nhãn lọc được). Phần tìm (q, khách) giải bằng order.ResolveListSearch, câu danh sách ghép view ở
+// queries.OrderList (spec 04 mục 3). Con trỏ hỏng → 400 invalid_input; q chỉ chữ số dưới 4 số → 422 query_too_short.
+// Không ghi q vào log.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) ListOrders(ctx context.Context, params gen.ListOrdersParams) (gen.ListOrdersRes, error) {
@@ -26,27 +31,33 @@ func (h *handler) ListOrders(ctx context.Context, params gen.ListOrdersParams) (
 		return nil, errNoAuthUser
 	}
 	f := listOrdersFilter(params)
-	var cursor order.Cursor
+	var cursor queries.OrderCursor
 	if s, ok := params.Cursor.Get(); ok {
 		c, err := order.ParseCursor(s)
 		if err != nil {
 			return nil, fmt.Errorf("danh sách đơn: %w", err)
 		}
-		cursor = c
+		cursor = queries.OrderCursor{CreatedAt: c.CreatedAt, ID: c.ID}
 	}
 	var (
-		rows  []order.OrderRow
-		next  order.Cursor
+		rows  []queries.OrderListRow
+		next  queries.OrderCursor
 		names map[uuid.UUID]string
 	)
 	err := h.readAsDefaultSeller(ctx, u, func(tx pgx.Tx, seller uuid.UUID) error {
-		f.SellerID = seller
-		var err error
-		rows, next, err = order.List(ctx, tx, f, cursor, int(params.Limit.Or(0)))
-		if err != nil {
+		s, err := order.ResolveListSearch(ctx, tx, params.Q.Or(""), optUUID(params.CustomerId))
+		if err != nil || s.Empty {
 			return err //nolint:wrapcheck // lỗi của order đã bọc
 		}
-		names, err = actorNamesOf(ctx, tx, rows, func(r order.OrderRow) *uuid.UUID { return r.CareBy })
+		f.SellerID = seller
+		f.Search = queries.OrderSearch{
+			CustomerRoots: s.CustomerRoots, NameRoots: s.NameRoots, Code: s.Code, Phone: s.Phone, PhoneTail: s.PhoneTail,
+		}
+		rows, next, err = queries.OrderList(ctx, tx, f, cursor, int(params.Limit.Or(0)))
+		if err != nil {
+			return orderListErr(err)
+		}
+		names, err = actorNamesOf(ctx, tx, rows, func(r queries.OrderListRow) *uuid.UUID { return r.CareBy })
 		return err
 	})
 	if err != nil {
@@ -56,7 +67,7 @@ func (h *handler) ListOrders(ctx context.Context, params gen.ListOrdersParams) (
 	for _, r := range rows {
 		item := gen.OrderListItem{
 			ID: r.ID, Code: r.Code, Label: gen.OrderLabel(r.Label), Status: gen.OrderStatus(r.Status),
-			CustomerId: r.CustomerRootID, CustomerName: string(r.CustomerName), ShipPhone: nonEmpty(string(r.ShipPhone)),
+			CustomerId: r.CustomerRootID, CustomerName: r.CustomerName, ShipPhone: nonEmpty(string(r.ShipPhone)),
 			GrandTotal: gen.Money(r.GrandTotal), CodAmount: gen.Money(r.CodAmount), ItemCount: int32(r.ItemCount), //nolint:gosec // tổng số lượng của một đơn
 			Channel: nonEmpty(r.Channel), CreatedAt: r.CreatedAt, DuplicateSuspect: r.DuplicateSuspect,
 		}
@@ -67,19 +78,45 @@ func (h *handler) ListOrders(ctx context.Context, params gen.ListOrdersParams) (
 		if r.CareBy != nil {
 			item.CareBy = gen.NewOptActor(gen.Actor{ID: *r.CareBy, Name: names[*r.CareBy]})
 		}
+		if sh := r.Shipment; sh != nil {
+			sum := gen.OrderShipmentSummary{
+				Code: sh.Code, CarrierKey: sh.CarrierKey, TrackingCode: nonEmpty(sh.TrackingCode),
+				Status: gen.ShipmentStatus(sh.Status), Label: gen.NewOptString(fulfillment.StatusLabel(sh.CarrierKey, sh.Status, sh.SubStatus)),
+				NeedsReview: gen.NewOptBool(sh.NeedsReview),
+			}
+			setOptTime(&sum.StuckSince, sh.StuckSince)
+			item.Shipment = gen.NewOptOrderShipmentSummary(sum)
+		}
+		if c := r.COD; c != nil {
+			item.Cod = gen.NewOptOrderCodSummary(gen.OrderCodSummary{
+				ToCollect: gen.SignedMoney(c.ToCollect), CarrierHolding: gen.SignedMoney(c.CarrierHolding),
+				ShopReceived: gen.SignedMoney(c.ShopReceived),
+			})
+		}
 		out.Items = append(out.Items, item)
 	}
-	if next != (order.Cursor{}) {
-		out.NextCursor = gen.NewOptString(next.String())
+	if next != (queries.OrderCursor{}) {
+		out.NextCursor = gen.NewOptString(order.Cursor{CreatedAt: next.CreatedAt, ID: next.ID}.String())
 	}
 	return out, nil
 }
 
-// listOrdersFilter dịch tham số của listOrders sang order.ListFilter (chưa có SellerID).
-func listOrdersFilter(p gen.ListOrdersParams) order.ListFilter {
-	f := order.ListFilter{
-		TrafficSourceIDs: p.TrafficSourceId, CareBy: optUUID(p.CareBy), CustomerID: optUUID(p.CustomerId),
-		Q: p.Q.Or(""),
+// orderListErr đổi lỗi bộ lọc của queries.OrderList sang sentinel của order (errors.go ánh xạ sentinel của order).
+func orderListErr(err error) error {
+	if errors.Is(err, queries.ErrInvalidOrderFilter) {
+		return fmt.Errorf("%w: %w", order.ErrInvalidInput, err)
+	}
+	return err
+}
+
+// listOrdersFilter dịch tham số của listOrders sang queries.OrderFilter (chưa có SellerID, Search).
+func listOrdersFilter(p gen.ListOrdersParams) queries.OrderFilter {
+	f := queries.OrderFilter{
+		TrafficSourceIDs: p.TrafficSourceId, CareBy: optUUID(p.CareBy), CarrierKey: p.CarrierKey.Or(""),
+		CODState: string(p.CodState.Or("")), PackingStatus: string(p.PackingStatus.Or("")),
+	}
+	for _, s := range p.ShipmentStatus {
+		f.ShipmentStatuses = append(f.ShipmentStatuses, string(s))
 	}
 	for _, l := range p.Label {
 		f.Labels = append(f.Labels, orderview.LabelKey(l))
@@ -106,7 +143,9 @@ func listOrdersFilter(p gen.ListOrdersParams) order.ListFilter {
 }
 
 // GetOrderTimeline (GET /api/v1/orders/{id}/timeline, order.read): lịch sử thao tác của đơn (đổi trạng thái, tên trường
-// đã sửa, ghi chú), mới nhất trước, kèm tên người làm; đơn không có (hay của tenant, người bán khác) → 404.
+// đã sửa, ghi chú, phiếu trả của order.Timeline; sự kiện vận đơn, phiếu thu của queries.OrderShippingTimeline — M3 Task
+// M3-28), mới nhất trước (order.SortTimeline), kèm nguồn (actorType) và tên người làm; đơn không có (hay của tenant,
+// người bán khác) → 404.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) GetOrderTimeline(ctx context.Context, params gen.GetOrderTimelineParams) (gen.GetOrderTimelineRes, error) {
@@ -124,6 +163,16 @@ func (h *handler) GetOrderTimeline(ctx context.Context, params gen.GetOrderTimel
 		if err != nil {
 			return err //nolint:wrapcheck // sentinel của order
 		}
+		ship, err := queries.OrderShippingTimeline(ctx, tx, seller, params.ID)
+		if err != nil {
+			return err //nolint:wrapcheck // lỗi của queries đã bọc
+		}
+		for _, s := range ship {
+			items = append(items, order.OrderTimelineItem{
+				At: s.At, Kind: s.Kind, RefID: s.RefID, ActorID: s.ActorID, ActorType: s.ActorType, Summary: s.Summary,
+			})
+		}
+		order.SortTimeline(items)
 		names, err = actorNamesOf(ctx, tx, items, func(it order.OrderTimelineItem) *uuid.UUID { return it.ActorID })
 		return err
 	})
@@ -133,7 +182,7 @@ func (h *handler) GetOrderTimeline(ctx context.Context, params gen.GetOrderTimel
 	out := &gen.OrderTimeline{Items: make([]gen.TimelineItem, 0, len(items))}
 	for _, it := range items {
 		out.Items = append(out.Items, timelineItemOut(timelineEntry{
-			At: it.At, Kind: it.Kind, RefID: it.RefID, ActorID: it.ActorID, Summary: it.Summary,
+			At: it.At, Kind: it.Kind, RefID: it.RefID, ActorID: it.ActorID, ActorType: it.ActorType, Summary: it.Summary,
 			Note: string(it.Note), IsNote: it.Kind == order.TimelineNote,
 		}, names))
 	}

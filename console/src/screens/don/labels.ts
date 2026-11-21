@@ -1,9 +1,9 @@
 // Chữ tiếng Việt của nhãn đơn, trạng thái, lý do hủy, lý do chờ, phiếu trả (kế hoạch M2 Task M2-28; bảng nhãn ở Task
-// M2-08, lý do hủy Q18). 16 nhãn đúng thứ tự orderview.Labels() (internal/queries/orderview/label.go): nguồn duy nhất
-// của nhãn là máy chủ, màn chỉ đổi khóa sang chữ. Câu lý do từ chối mã: COUPON_REASON_MESSAGES (src/app/errors.ts).
+// M2-08, lý do hủy Q18). 17 nhãn (sending của M3 Task M3-28) đúng thứ tự orderview.Labels()
+// (internal/queries/orderview/label.go): nguồn duy nhất của nhãn là máy chủ, màn chỉ đổi khóa sang chữ. Câu lý do từ chối mã: COUPON_REASON_MESSAGES (src/app/errors.ts).
 import type { CancelReason, OrderLabel, OrderStatus, PendingReason, ReturnKind, ReturnStatus } from "../../api";
 
-/** 16 nhãn theo thứ tự thanh nhãn (orderview.Labels()). */
+/** 17 nhãn theo thứ tự thanh nhãn (orderview.Labels()). */
 export const LABEL_ORDER: readonly OrderLabel[] = [
   "draft",
   "new",
@@ -13,6 +13,7 @@ export const LABEL_ORDER: readonly OrderLabel[] = [
   "confirmed",
   "packing",
   "packed",
+  "sending",
   "awaiting_pickup",
   "shipping",
   "delivery_failed",
@@ -32,6 +33,7 @@ export const LABEL_TEXT: Readonly<Record<OrderLabel, string>> = {
   confirmed: "Đã xác nhận",
   packing: "Đang đóng gói",
   packed: "Đã đóng gói",
+  sending: "Đang gửi hãng",
   awaiting_pickup: "Chờ thu gom",
   shipping: "Đang chuyển",
   delivery_failed: "Thất bại",
@@ -46,6 +48,7 @@ export const LABEL_TEXT: Readonly<Record<OrderLabel, string>> = {
 const SHIPPING_LABELS: ReadonlySet<OrderLabel> = new Set([
   "packing",
   "packed",
+  "sending",
   "awaiting_pickup",
   "shipping",
   "delivery_failed",

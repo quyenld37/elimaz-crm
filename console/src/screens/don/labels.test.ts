@@ -1,5 +1,5 @@
 // Chữ của nhãn đơn, lý do hủy, lý do chờ, phiếu trả (kế hoạch M2 Task M2-28): mọi giá trị enum của hợp đồng
-// (openapi.yaml, nguồn của client sinh) có chữ; 16 nhãn đúng thứ tự orderview.Labels() (Task M2-08).
+// (openapi.yaml, nguồn của client sinh) có chữ; 17 nhãn đúng thứ tự orderview.Labels() (Task M2-08; sending của M3 Task M3-28).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -54,6 +54,7 @@ const GO_LABELS: OrderLabel[] = [
   "confirmed",
   "packing",
   "packed",
+  "sending",
   "awaiting_pickup",
   "shipping",
   "delivery_failed",
@@ -67,7 +68,7 @@ const GO_LABELS: OrderLabel[] = [
 const filled = (m: Readonly<Record<string, string>>, keys: string[]) => keys.filter((k) => (m[k] ?? "").trim() === "");
 
 describe("labels", () => {
-  it("16 nhãn, đúng thứ tự orderview.Labels() và đúng enum OrderLabel của hợp đồng; nhãn nào cũng có chữ", () => {
+  it("17 nhãn, đúng thứ tự orderview.Labels() và đúng enum OrderLabel của hợp đồng; nhãn nào cũng có chữ", () => {
     expect(LABEL_ORDER).toEqual(GO_LABELS);
     expect(schemaEnum("OrderLabel")).toEqual(GO_LABELS);
     expect(filled(LABEL_TEXT, GO_LABELS)).toEqual([]);
@@ -81,6 +82,7 @@ describe("labels", () => {
     expect(LABEL_TEXT.returning).toBe("Đang chuyển hoàn");
     expect(LABEL_TEXT.delivered).toBe("Thành công");
     expect(LABEL_TEXT.returned).toBe("Đã hoàn");
+    expect(LABEL_TEXT.sending).toBe("Đang gửi hãng");
   });
 
   it("thanh nhãn theo mockup: 10 nhãn lọc được ở M2 rồi Tất cả; nhãn cần người xử lý viền đỏ", () => {

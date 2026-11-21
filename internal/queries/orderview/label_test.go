@@ -9,14 +9,10 @@ import (
 	"elimaz.com.vn/crm/internal/queries/orderview"
 )
 
-// Bảng nhãn của kế hoạch M2, Task M2-08: 16 hàng, đúng thứ tự thanh nhãn.
+// Bảng nhãn của kế hoạch M2, Task M2-08: 16 hàng, đúng thứ tự thanh nhãn (M3 thêm sending, label_m3_test.go).
 func TestLabel_Table(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
-		name string
-		a    orderview.Axes
-		want orderview.LabelKey
-	}{
+	cases := []labelCase{
 		{"draft", orderview.Axes{Status: "draft", PackingStatus: "none"}, "draft"},
 		{"new không lý do", orderview.Axes{Status: "new", PackingStatus: "none"}, "new"},
 		{"new chờ duyệt giảm", orderview.Axes{Status: "new", PendingReason: "discount_approval", PackingStatus: "none"}, "awaiting_discount_approval"},
@@ -39,13 +35,27 @@ func TestLabel_Table(t *testing.T) {
 		{"cancelled + vận đơn theo Status", orderview.Axes{Status: "cancelled", ShipmentStatus: "shipping"}, "cancelled"},
 		{"new lý do lạ", orderview.Axes{Status: "new", PendingReason: "khac"}, "new"},
 		{"draft có lý do", orderview.Axes{Status: "draft", PendingReason: "awaiting_customer"}, "draft"},
-		{"vận đơn creating, đang lấy", orderview.Axes{Status: "confirmed", PackingStatus: "picking", ShipmentStatus: "creating"}, "packing"},
-		{"vận đơn creating, đã gói", orderview.Axes{Status: "confirmed", PackingStatus: "packed", ShipmentStatus: "creating"}, "confirmed"},
+		// M3 (Task M3-28): vận đơn creating → sending (trước là theo trục đóng gói); ca đầy đủ ở label_m3_test.go.
+		{"vận đơn creating, đang lấy", orderview.Axes{Status: "confirmed", PackingStatus: "picking", ShipmentStatus: "creating"}, "sending"},
+		{"vận đơn creating, đã gói", orderview.Axes{Status: "confirmed", PackingStatus: "packed", ShipmentStatus: "creating"}, "sending"},
 		{"vận đơn chờ thu gom, đang lấy", orderview.Axes{Status: "confirmed", PackingStatus: "picking", ShipmentStatus: "awaiting_pickup"}, "awaiting_pickup"},
 		{"packing rỗng", orderview.Axes{Status: "confirmed"}, "confirmed"},
 		{"trạng thái lạ", orderview.Axes{Status: "shipping"}, ""},
 		{"trạng thái rỗng", orderview.Axes{}, ""},
 	}
+	checkLabelCases(t, cases)
+}
+
+// labelCase là một ca của bảng nhãn: tên, các trục, nhãn mong đợi.
+type labelCase struct {
+	name string
+	a    orderview.Axes
+	want orderview.LabelKey
+}
+
+// checkLabelCases chạy song song từng ca: orderview.Label(c.a) phải bằng c.want.
+func checkLabelCases(t *testing.T, cases []labelCase) {
+	t.Helper()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
@@ -61,7 +71,8 @@ func TestLabels_OrderAndConstants(t *testing.T) {
 	want := []orderview.LabelKey{
 		orderview.LabelDraft, orderview.LabelNew, orderview.LabelAwaitingDiscountApproval,
 		orderview.LabelAwaitingCustomer, orderview.LabelOutOfStock, orderview.LabelConfirmed, orderview.LabelPacking,
-		orderview.LabelPacked, orderview.LabelAwaitingPickup, orderview.LabelShipping, orderview.LabelDeliveryFailed,
+		orderview.LabelPacked, orderview.LabelSending, orderview.LabelAwaitingPickup, orderview.LabelShipping,
+		orderview.LabelDeliveryFailed,
 		orderview.LabelReturning, orderview.LabelCancelRequested, orderview.LabelCancelled, orderview.LabelDelivered,
 		orderview.LabelReturned,
 	}
@@ -75,7 +86,7 @@ func TestLabels_OrderAndConstants(t *testing.T) {
 	}
 	wantStr := []string{
 		"draft", "new", "awaiting_discount_approval", "awaiting_customer", "out_of_stock", "confirmed",
-		"packing", "packed", "awaiting_pickup", "shipping", "delivery_failed", "returning", "cancel_requested",
+		"packing", "packed", "sending", "awaiting_pickup", "shipping", "delivery_failed", "returning", "cancel_requested",
 		"cancelled", "delivered", "returned",
 	}
 	for i, k := range want {

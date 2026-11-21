@@ -1151,9 +1151,9 @@ export type PhoneInput = string;
 export type OrderStatus = 'draft' | 'new' | 'confirmed' | 'cancel_requested' | 'cancelled' | 'delivered' | 'returned';
 
 /**
- * Nhãn gộp của đơn (internal/queries/orderview, Task M2-08), đúng thứ tự thanh nhãn
+ * Nhãn gộp của đơn (internal/queries/orderview, Task M2-08; sending từ M3 Task M3-28), đúng thứ tự thanh nhãn
  */
-export type OrderLabel = 'draft' | 'new' | 'awaiting_discount_approval' | 'awaiting_customer' | 'out_of_stock' | 'confirmed' | 'packing' | 'packed' | 'awaiting_pickup' | 'shipping' | 'delivery_failed' | 'returning' | 'cancel_requested' | 'cancelled' | 'delivered' | 'returned';
+export type OrderLabel = 'draft' | 'new' | 'awaiting_discount_approval' | 'awaiting_customer' | 'out_of_stock' | 'confirmed' | 'packing' | 'packed' | 'sending' | 'awaiting_pickup' | 'shipping' | 'delivery_failed' | 'returning' | 'cancel_requested' | 'cancelled' | 'delivered' | 'returned';
 
 /**
  * Lý do đơn mới còn chờ; không có trường này nghĩa là không chờ
@@ -1216,6 +1216,10 @@ export type TimelineItem = {
     kind: string;
     refId: string;
     actor?: Actor;
+    /**
+     * Nguồn của mục (I09): staff (nhân viên, có actor), system (hệ thống), carrier (hãng), customer, service. Hiện chỉ dòng thời gian của đơn đặt (M3, Task M3-28)
+     */
+    actorType?: 'staff' | 'system' | 'carrier' | 'customer' | 'service';
     /**
      * Tóm tắt máy đọc (mã, trạng thái, tên trường đã đổi); không giá trị dữ liệu cá nhân
      */

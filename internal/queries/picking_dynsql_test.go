@@ -129,31 +129,55 @@ func (f *pickingFixture) checkOrders(t *testing.T, orders []queries.PickingOrder
 	}
 }
 
-// TestOrderWarehouses: kho của từng đơn qua ord.orders_v; mã lạ không có trong kết quả.
-func TestOrderWarehouses(t *testing.T) {
-	s := testkit.OpenStaff(t)
-	a := s.Tenant(t, "A")
-	user := s.User(t, a, "kho@elimaz.test", "active")
-	var shop *shiptest.Shop
-	var v uuid.UUID
-	s.Exec(t, a, func(tx pgx.Tx) error {
-		shop = shiptest.NewShop(t, tx, a)
-		v = shop.Variant(t, tx, shop.Seller, 100000, 10)
+// oneShop: tenant A có cửa hàng shiptest (hãng giả của từng người bán), một nhân viên kho và một biến thể có tồn 10.
+type oneShop struct {
+	s    *testkit.Staff
+	a    uuid.UUID
+	user uuid.UUID
+	shop *shiptest.Shop
+	v    uuid.UUID
+}
+
+func newOneShop(t *testing.T) *oneShop {
+	t.Helper()
+	f := &oneShop{s: testkit.OpenStaff(t)}
+	f.a = f.s.Tenant(t, "A")
+	f.user = f.s.User(t, f.a, "kho@elimaz.test", "active")
+	f.s.Exec(t, f.a, func(tx pgx.Tx) error {
+		f.shop = shiptest.NewShop(t, tx, f.a)
+		f.v = f.shop.Variant(t, tx, f.shop.Seller, 100000, 10)
 		return nil
 	})
-	var got map[uuid.UUID]uuid.UUID
+	return f
+}
+
+// order tạo một đơn (biến thể v × 1, người bán ELIMAZ) bằng crm_app.
+func (f *oneShop) order(t *testing.T) order.Order {
+	t.Helper()
 	var o order.Order
-	if err := tenancy.WithTenant(t.Context(), s.App, a, func(tx pgx.Tx) error {
+	if err := tenancy.WithTenant(t.Context(), f.s.App, f.a, func(tx pgx.Tx) error {
 		var err error
-		if o, err = shop.Order(t.Context(), tx, shop.Seller, user, 0, order.ItemInput{VariantID: v, Qty: 1}); err != nil {
-			return err //nolint:wrapcheck // test
-		}
+		o, err = f.shop.Order(t.Context(), tx, f.shop.Seller, f.user, 0, order.ItemInput{VariantID: f.v, Qty: 1})
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return o
+}
+
+// TestOrderWarehouses: kho của từng đơn qua ord.orders_v; mã lạ không có trong kết quả.
+func TestOrderWarehouses(t *testing.T) {
+	f := newOneShop(t)
+	o := f.order(t)
+	var got map[uuid.UUID]uuid.UUID
+	if err := tenancy.WithTenant(t.Context(), f.s.App, f.a, func(tx pgx.Tx) error {
+		var err error
 		got, err = queries.OrderWarehouses(t.Context(), tx, []uuid.UUID{o.ID, uuid.New()})
 		return err //nolint:wrapcheck // test
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[o.ID] != shop.Warehouse {
-		t.Fatalf("kho = %v, muốn %s", got, shop.Warehouse)
+	if len(got) != 1 || got[o.ID] != f.shop.Warehouse {
+		t.Fatalf("kho = %v, muốn %s", got, f.shop.Warehouse)
 	}
 }

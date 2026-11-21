@@ -10,14 +10,26 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order/internal/store"
 )
 
-// Loại mục của lịch sử thao tác đơn (kind là chuỗi mở trong openapi.yaml TimelineItem: "Đơn: status, edit, note").
+// Loại mục của lịch sử thao tác đơn (kind là chuỗi mở trong openapi.yaml TimelineItem: "Đơn: status, edit, note; M3
+// thêm shipment, payment, return"). TimelineShipment, TimelinePayment do internal/queries dựng (view của fulfillment,
+// cash), lớp HTTP trộn vào rồi gọi SortTimeline.
 const (
-	TimelineStatus = "status"
-	TimelineEdit   = "edit"
-	TimelineNote   = "note"
+	TimelineStatus   = "status"
+	TimelineEdit     = "edit"
+	TimelineNote     = "note"
+	TimelineShipment = "shipment"
+	TimelinePayment  = "payment"
+	TimelineReturn   = "return"
+)
+
+// Bước của mục return (Summary["step"]): phiếu được tạo, hàng trả đã nhận.
+const (
+	returnStepCreated  = "created"
+	returnStepReceived = "received"
 )
 
 // fieldChanged là giá trị của một trường đã sửa trong Summary của mục edit (màn hình hiện "đã đổi").
@@ -37,8 +49,9 @@ type AuditChange struct {
 type AuditSource func(ctx context.Context, tx pgx.Tx, orderID uuid.UUID) ([]AuditChange, error)
 
 // OrderTimelineItem là một mục của lịch sử thao tác đơn. Kind là TimelineStatus (RefID: dòng lịch sử trạng thái),
-// TimelineEdit (RefID: dòng audit) hay TimelineNote (RefID: ghi chú). ActorID nil khi không rõ người làm; ActorType là
-// staff, system, carrier, customer, service (rỗng ở edit, note). Summary chỉ mang trạng thái, lý do, tên trường đã đổi
+// TimelineEdit (RefID: dòng audit), TimelineNote (RefID: ghi chú), TimelineReturn (RefID: phiếu trả), TimelineShipment,
+// TimelinePayment (lớp HTTP trộn từ internal/queries). ActorID nil khi không rõ người làm; ActorType là staff, system,
+// carrier, customer, service (I09: mọi mục đều có nguồn; edit, note là staff). Summary chỉ mang trạng thái, lý do, tên trường đã đổi
 // (giá trị "changed") — không giá trị dữ liệu cá nhân; Note là nội dung ghi chú (chỉ ở note).
 type OrderTimelineItem struct { //nolint:revive // tên theo Interfaces của kế hoạch M2 (Task M2-24), task sau dùng
 	At        time.Time
@@ -50,9 +63,10 @@ type OrderTimelineItem struct { //nolint:revive // tên theo Interfaces của k�
 	Note      NoteBody
 }
 
-// Timeline trả lịch sử thao tác của đơn id của người bán sellerID (ADR-29), mới nhất trước (cùng lúc: theo kind rồi
-// RefID giảm): mọi dòng lịch sử trạng thái (tạo đơn, đổi trạng thái, đặt bỏ lý do chờ, hủy), mỗi audit có liệt kê trường
-// đã sửa (lần sửa đơn) thành một mục edit liệt kê tên trường (không giá trị), mọi ghi chú. Audit khác (tạo, xác nhận,
+// Timeline trả lịch sử thao tác của đơn id của người bán sellerID (ADR-29), mới nhất trước (SortTimeline): mọi dòng lịch
+// sử trạng thái (tạo đơn, đổi trạng thái, đặt bỏ lý do chờ, hủy), mỗi audit có liệt kê trường đã sửa (lần sửa đơn)
+// thành một mục edit liệt kê tên trường (không giá trị), mọi ghi chú, mỗi phiếu trả một mục lúc tạo (người tạo; trống →
+// system) và một mục lúc nhận hàng (người nhận) — Summary: code, kind, status, step. Audit khác (tạo, xác nhận,
 // hủy, xử lý đơn trùng) không thành mục: việc đó đã có ở lịch sử trạng thái. Không có đơn → ErrNotFound. Tên người làm do bên gọi đọc (order không nhập identity).
 func Timeline(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID, src AuditSource) ([]OrderTimelineItem, error) {
 	if err := orderOfSeller(ctx, tx, sellerID, id); err != nil {
@@ -73,7 +87,11 @@ func Timeline(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID, src AuditS
 			return nil, fmt.Errorf("đọc audit của đơn: %w", err)
 		}
 	}
-	out := make([]OrderTimelineItem, 0, len(hist)+len(notes)+len(audits))
+	returns, err := q.ListOrderReturnsForTimeline(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("đọc phiếu trả của đơn: %w", err)
+	}
+	out := make([]OrderTimelineItem, 0, len(hist)+len(notes)+len(audits)+2*len(returns))
 	for _, h := range hist {
 		out = append(out, OrderTimelineItem{
 			At: h.OccurredAt, Kind: TimelineStatus, RefID: h.ID, ActorID: uuidPtr(h.ActorID), ActorType: h.ActorType,
@@ -91,14 +109,39 @@ func Timeline(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID, src AuditS
 	for _, n := range notes {
 		author := n.AuthorID
 		out = append(out, OrderTimelineItem{
-			At: n.CreatedAt, Kind: TimelineNote, RefID: n.ID, ActorID: &author, Summary: map[string]string{},
-			Note: NoteBody(n.Body),
+			At: n.CreatedAt, Kind: TimelineNote, RefID: n.ID, ActorID: &author, ActorType: inventory.ActorStaff,
+			Summary: map[string]string{}, Note: NoteBody(n.Body),
 		})
 	}
-	slices.SortFunc(out, func(x, y OrderTimelineItem) int {
+	for _, r := range returns {
+		out = append(out, returnItem(r.ID, r.Code, r.Kind, r.Status, returnStepCreated, r.CreatedAt, uuidPtr(r.CreatedBy)))
+		if r.ReceivedAt.Valid {
+			out = append(out, returnItem(r.ID, r.Code, r.Kind, r.Status, returnStepReceived, r.ReceivedAt.Time,
+				uuidPtr(r.ReceivedBy)))
+		}
+	}
+	SortTimeline(out)
+	return out, nil
+}
+
+// SortTimeline sắp items mới nhất trước; cùng lúc: theo Kind rồi RefID giảm. Lớp HTTP gọi lại sau khi trộn mục vận
+// đơn, thu tiền (một quy tắc sắp cho cả dòng thời gian).
+func SortTimeline(items []OrderTimelineItem) {
+	slices.SortFunc(items, func(x, y OrderTimelineItem) int {
 		return cmp.Or(y.At.Compare(x.At), cmp.Compare(y.Kind, x.Kind), slices.Compare(y.RefID[:], x.RefID[:]))
 	})
-	return out, nil
+}
+
+// returnItem dựng mục return của phiếu id ở bước step; người làm nil → system.
+func returnItem(id uuid.UUID, code, kind, status, step string, at time.Time, actor *uuid.UUID) OrderTimelineItem {
+	it := OrderTimelineItem{
+		At: at, Kind: TimelineReturn, RefID: id, ActorID: actor, ActorType: inventory.ActorStaff,
+		Summary: map[string]string{"code": code, "kind": kind, "status": status, "step": step},
+	}
+	if actor == nil {
+		it.ActorType = inventory.ActorSystem
+	}
+	return it
 }
 
 // editItem dựng mục edit từ audit a: chỉ audit có liệt kê trường đã sửa.
@@ -113,7 +156,13 @@ func editItem(a AuditChange) (OrderTimelineItem, bool) {
 		return OrderTimelineItem{}, false
 	}
 	sum["action"] = a.Action
-	return OrderTimelineItem{At: a.At, Kind: TimelineEdit, RefID: a.ID, ActorID: a.ActorID, Summary: sum}, true
+	it := OrderTimelineItem{
+		At: a.At, Kind: TimelineEdit, RefID: a.ID, ActorID: a.ActorID, ActorType: inventory.ActorStaff, Summary: sum,
+	}
+	if a.ActorID == nil {
+		it.ActorType = inventory.ActorSystem
+	}
+	return it, true
 }
 
 // nonEmptyMap bỏ khóa có giá trị rỗng.

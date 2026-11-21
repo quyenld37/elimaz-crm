@@ -117,6 +117,7 @@ type CashPaymentsV struct {
 	Method     string
 	Amount     int64
 	ReceivedAt time.Time
+	ActorID    uuid.UUID
 }
 
 type CashReconcileFinding struct {
@@ -821,6 +822,7 @@ type FulfillmentShipmentEventsV struct {
 	RecordedAt    time.Time
 	Applied       pgtype.Bool
 	IgnoredReason pgtype.Text
+	ActorID       pgtype.UUID
 }
 
 type FulfillmentShipmentsV struct {
@@ -1307,6 +1309,7 @@ type OrdOrdersV struct {
 	DraftExpiresAt     pgtype.Timestamptz
 	DuplicateSuspect   bool
 	Version            int64
+	ShipPhoneReversed  string
 }
 
 type OrdReturn struct {

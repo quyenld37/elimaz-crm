@@ -3,4 +3,15 @@
 #   - {operationId: <id>, reason: "<lý do bằng lời nghiệp vụ>", approvedOn: YYYY-MM-DD}
 # Dòng thiếu một trong ba trường không được tính. Xóa dòng sau khi thay đổi đã gộp vào main (dòng còn lại sẽ cho
 # qua mọi thay đổi phá vỡ sau này của cùng operation).
-approved: []
+approved:
+  - {operationId: checkOrderDuplicates, reason: "Nhãn đơn thêm sending (Đang gửi hãng) theo kế hoạch M3 Task M3-28; màn hình cập nhật cùng commit (Task 119, quyết định thay chủ shop 21/11)", approvedOn: 2026-11-21}
+  - {operationId: listOrderDuplicates, reason: "Nhãn đơn thêm sending (Đang gửi hãng) theo kế hoạch M3 Task M3-28; màn hình cập nhật cùng commit (Task 119, quyết định thay chủ shop 21/11)", approvedOn: 2026-11-21}
+  - {operationId: resolveOrderDuplicate, reason: "Nhãn đơn thêm sending (Đang gửi hãng) theo kế hoạch M3 Task M3-28; màn hình cập nhật cùng commit (Task 119, quyết định thay chủ shop 21/11)", approvedOn: 2026-11-21}
+  - {operationId: listOrders, reason: "Nhãn đơn thêm sending (Đang gửi hãng) theo kế hoạch M3 Task M3-28; màn hình cập nhật cùng commit (Task 119, quyết định thay chủ shop 21/11)", approvedOn: 2026-11-21}
+  - {operationId: createOrder, reason: "Nhãn đơn thêm sending (Đang gửi hãng) theo kế hoạch M3 Task M3-28; màn hình cập nhật cùng commit (Task 119, quyết định thay chủ shop 21/11)", approvedOn: 2026-11-21}
+  - {operationId: getOrder, reason: "Nhãn đơn thêm sending (Đang gửi hãng) theo kế hoạch M3 Task M3-28; màn hình cập nhật cùng commit (Task 119, quyết định thay chủ shop 21/11)", approvedOn: 2026-11-21}
+  - {operationId: updateOrder, reason: "Nhãn đơn thêm sending (Đang gửi hãng) theo kế hoạch M3 Task M3-28; màn hình cập nhật cùng commit (Task 119, quyết định thay chủ shop 21/11)", approvedOn: 2026-11-21}
+  - {operationId: approveOrderDiscount, reason: "Nhãn đơn thêm sending (Đang gửi hãng) theo kế hoạch M3 Task M3-28; màn hình cập nhật cùng commit (Task 119, quyết định thay chủ shop 21/11)", approvedOn: 2026-11-21}
+  - {operationId: cancelOrder, reason: "Nhãn đơn thêm sending (Đang gửi hãng) theo kế hoạch M3 Task M3-28; màn hình cập nhật cùng commit (Task 119, quyết định thay chủ shop 21/11)", approvedOn: 2026-11-21}
+  - {operationId: confirmOrder, reason: "Nhãn đơn thêm sending (Đang gửi hãng) theo kế hoạch M3 Task M3-28; màn hình cập nhật cùng commit (Task 119, quyết định thay chủ shop 21/11)", approvedOn: 2026-11-21}
+  - {operationId: setOrderPending, reason: "Nhãn đơn thêm sending (Đang gửi hãng) theo kế hoạch M3 Task M3-28; màn hình cập nhật cùng commit (Task 119, quyết định thay chủ shop 21/11)", approvedOn: 2026-11-21}

@@ -119,7 +119,7 @@ func TestM2Contract_ViewsDoc(t *testing.T) {
 			"traffic_source_id, conversation_id, external_ref, order_type, warehouse_id, ship_phone, address_complete, " +
 			"subtotal, line_discount_total, order_discount, coupon_discount, discount_total, shipping_fee_charged, " +
 			"prepaid_total, created_by, care_by, confirmed_at, cancelled_at, cancel_reason, draft_expires_at, " +
-			"duplicate_suspect, version",
+			"duplicate_suspect, version, ship_phone_reversed", // M3 Task 119 nối ship_phone_reversed (Q-X2: chỉ thêm cuối)
 		"customer.customer_identities_v": "tenant_id, id, customer_id, kind, scope, value, verified_at, source, created_at",
 		"customer.customer_addresses_v":  "tenant_id, id, customer_id, recipient_name, phone, province_code, ward_code, street, is_default",
 		"customer.customer_tags_v":       "tenant_id, id, name, color",
