@@ -340,3 +340,34 @@ func TestRuleNewErrorNotLost(t *testing.T) {
 	keys, _ = check(t, e, observability.RuleOptions{})
 	wantKey(t, keys, "new-error:"+old[:8], false)
 }
+
+// valkey-down:<tên> (kế hoạch M5 Task 184): cầu dao mở (valkey_breaker_open = 1) 2 phút liền; 1 phút chưa báo; cầu
+// dao đóng lại hay tiến trình ngừng ghi thì hết báo. Mỗi tiến trình Valkey một key.
+func TestRuleValkeyDown(t *testing.T) {
+	now := time.Now()
+	e := newEnv(t)
+	fresh(t, e)
+	e.metric(t, now.Add(-time.Minute), "api@a", "valkey_breaker_open", "cache", 0)
+	e.metric(t, now, "api@a", "valkey_breaker_open", "cache", 1)
+	e.metric(t, now, "api@a", "valkey_breaker_open", "gate", 0)
+	keys, _ := check(t, e, observability.RuleOptions{Now: now})
+	wantKey(t, keys, "valkey-down:cache", false) // mới 1 phút
+	e.metric(t, now.Add(time.Minute), "api@a", "valkey_breaker_open", "cache", 1)
+	keys, f := check(t, e, observability.RuleOptions{Now: now.Add(time.Minute)})
+	wantKey(t, keys, "valkey-down:cache", true)
+	wantKey(t, keys, "valkey-down:gate", false)
+	if s, _ := f.find("valkey-down:cache"); s.severity != observability.SeverityNormal {
+		t.Fatalf("mức valkey-down:cache = %q, muốn normal", s.severity)
+	}
+	e.metric(t, now.Add(2*time.Minute), "api@a", "valkey_breaker_open", "cache", 0)
+	keys, _ = check(t, e, observability.RuleOptions{Now: now.Add(2 * time.Minute)})
+	wantKey(t, keys, "valkey-down:cache", false)
+	// gate mở 3 phút ở một tiến trình api khác.
+	for i := range 3 {
+		e.metric(t, now.Add(time.Duration(i)*time.Minute), "api@b", "valkey_breaker_open", "gate", 1)
+	}
+	keys, _ = check(t, e, observability.RuleOptions{Now: now.Add(2 * time.Minute)})
+	wantKey(t, keys, "valkey-down:gate", true)
+	keys, _ = check(t, e, observability.RuleOptions{Now: now.Add(10 * time.Minute)})
+	wantKey(t, keys, "valkey-down:gate", false)
+}

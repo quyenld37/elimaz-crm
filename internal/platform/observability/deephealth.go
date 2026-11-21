@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/platform/cache"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/internal/store"
 	"elimaz.com.vn/crm/internal/platform/metrics"
@@ -30,22 +31,32 @@ type DeepHealthReport struct {
 	// LastFileSyncAgeM: tuổi (phút) lần chép tốt cũ nhất trong ba bucket chép sang kho ngoài; nil khi còn bucket chưa
 	// có lần chép tốt nào (Task M1-45). Không tính vào OK: cảnh báo file-sync-age lo việc này.
 	LastFileSyncAgeM *int64
+	// Valkey: trạng thái hai tiến trình Valkey của tiến trình api (kế hoạch M5 Task 184). Không tính vào OK: Valkey
+	// ngừng là chậm đi, không phải hỏng (ADR-39); cảnh báo valkey-down:<tên> lo việc này.
+	Valkey ValkeyHealth
 }
+
+// Valkey là hai kết nối Valkey của tiến trình gọi DeepHealth; Conn nil là không cấu hình (báo off).
+type Valkey struct{ Cache, Gate *cache.Conn }
+
+// ValkeyHealth là trạng thái ok|down|off của valkey-cache và valkey-gate.
+type ValkeyHealth struct{ Cache, Gate cache.Health }
 
 // DeepHealth đọc báo cáo kiểm sâu. OK false khi nhịp sống của worker hay ingest cũ hơn 90 s (hay chưa có), hoặc việc
 // tới hạn chờ lâu nhất quá 120 s.
 //
 // Mỗi tuổi so với đồng hồ của bên ghi mốc (Task 445): sao lưu (scripts/backup ghi bằng now()), WAL (pg_stat_archiver) và
 // việc chờ tính bằng now() của PostgreSQL trong SQL; nhịp sống (metrics ghi bằng time.Now()) và lần chép tệp
-// (scripts/filesync, date +%s) so với now của tiến trình.
-func DeepHealth(ctx context.Context, d *db.DB) (DeepHealthReport, error) {
-	return deepHealth(ctx, d, time.Now())
+// (scripts/filesync, date +%s) so với now của tiến trình. Valkey: Ping từng kết nối của vk (hạn 50 ms mỗi lần, qua cầu
+// dao), không đổi OK.
+func DeepHealth(ctx context.Context, d *db.DB, vk Valkey) (DeepHealthReport, error) {
+	return deepHealth(ctx, d, vk, time.Now())
 }
 
 // deepHealth là DeepHealth với đồng hồ tiến trình now (test giả lệch đồng hồ qua DeepHealthAt).
-func deepHealth(ctx context.Context, d *db.DB, now time.Time) (DeepHealthReport, error) {
+func deepHealth(ctx context.Context, d *db.DB, vk Valkey, now time.Time) (DeepHealthReport, error) {
 	q := store.New(d.Pool)
-	var r DeepHealthReport
+	r := DeepHealthReport{Valkey: ValkeyHealth{Cache: vk.Cache.Health(ctx), Gate: vk.Gate.Health(ctx)}}
 	ages, err := q.HeartbeatAgesByRole(ctx, now)
 	if err != nil {
 		return r, fmt.Errorf("đọc nhịp sống: %w", err)

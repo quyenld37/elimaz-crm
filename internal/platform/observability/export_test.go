@@ -30,7 +30,7 @@ func ReadPGStats(ctx context.Context, d *db.DB, o RuleOptions) (PGStatsView, err
 
 // DeepHealthAt chạy DeepHealth với đồng hồ Go now (test giả lệch đồng hồ giữa Go và PostgreSQL).
 func DeepHealthAt(ctx context.Context, d *db.DB, now time.Time) (DeepHealthReport, error) {
-	return deepHealth(ctx, d, now)
+	return deepHealth(ctx, d, Valkey{}, now)
 }
 
 // CheckRulesAt chạy CheckRules với đồng hồ Go goNow (test giả lệch đồng hồ giữa Go và PostgreSQL).

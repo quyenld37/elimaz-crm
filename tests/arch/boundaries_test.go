@@ -109,12 +109,16 @@ func isStdlib(imp string) bool {
 // readerViolation: luật (f), (g) của M1 (Task M1-25) cho gói chỉ đọc view và cho imager; luật (h) của Task M1-38
 // cho gói Excel dùng chung (không biết nghiệp vụ, là chỗ duy nhất nhập excelize); luật (i) của M2 (Task M2-02, Q32)
 // cho gói nhãn đơn internal/queries/orderview: chỉ thư viện chuẩn, để module order và gói internal/queries cùng nhập
-// (ngoại lệ có lý do: một nguồn nhãn cho màn đơn M2, cảnh báo M3, báo cáo M6).
+// (ngoại lệ có lý do: một nguồn nhãn cho màn đơn M2, cảnh báo M3, báo cáo M6); luật (l) của M5 (Task 184) cho lớp nối
+// Valkey.
 func readerViolation(pkg, imp string) string {
 	if v := carrierViolation(pkg, imp); v != "" {
 		return v
 	}
 	switch {
+	case strings.HasPrefix(pkg, "internal/modules/") && hasPathPrefix(imp, modPrefix+"internal/platform/cache"):
+		// Luật (l) của M5 (Task 184, ADR-39): Valkey không quyết định nghiệp vụ nào; module không chạm lớp nối Valkey.
+		return "(l) module nghiệp vụ không nhập internal/platform/cache"
 	case hasPathPrefix(pkg, "internal/queries/orderview") && !isStdlib(imp):
 		return "(i) internal/queries/orderview chỉ nhập thư viện chuẩn"
 	case hasPathPrefix(pkg, "internal/platform/xlsx") && hasPathPrefix(imp, modPrefix+"internal/modules"):
@@ -212,7 +216,7 @@ func imagerDepViolation(p listedPackage, pkg, dep string) string {
 	return fmt.Sprintf("%s phụ thuộc gián tiếp %s: (g) imager không liên kết database, cấu hình, hàng đợi, pgx", pkg, dep)
 }
 
-// checkBoundaries trả mọi vi phạm luật a–k trong dir (một module Go có đường dẫn elimaz.com.vn/crm).
+// checkBoundaries trả mọi vi phạm luật a–l trong dir (một module Go có đường dẫn elimaz.com.vn/crm).
 func checkBoundaries(t *testing.T, dir string) []string {
 	t.Helper()
 	var out []string
@@ -248,6 +252,7 @@ func TestBoundariesTestdata(t *testing.T) {
 		"internal/modules/customer/callorder nhập elimaz.com.vn/crm/internal/modules/order: (a)",
 		"internal/modules/identity nhập net/http: (b)",
 		"internal/modules/inventory nhập elimaz.com.vn/crm/internal/modules/order: (a)",
+		"internal/modules/modcache nhập elimaz.com.vn/crm/internal/platform/cache: (l)",
 		"internal/platform/queue nhập elimaz.com.vn/crm/internal/modules/order: (c)",
 		"internal/queries nhập elimaz.com.vn/crm/internal/modules/catalog: (f)",
 		"internal/queries/orderview nhập elimaz.com.vn/crm/internal/modules/order: (i)",
@@ -266,6 +271,12 @@ func TestBoundariesNotCalledModule(t *testing.T) {
 		{"internal/platform/queue", modPrefix + "internal/modules/identity", ""},
 		{"internal/platform/queue", modPrefix + "internal/modules/identity/internal/store", "(c)"},
 		{"internal/platform/cache", "github.com/valkey-io/valkey-go", ""},
+		// Task 184 (M5-01): chỉ platform, httpapi, cmd nhập lớp nối Valkey; module nghiệp vụ, kể cả phần internal, thì không.
+		{"internal/modules/order", modPrefix + "internal/platform/cache", "(l)"},
+		{"internal/modules/promotion/internal/flash", modPrefix + "internal/platform/cache/x", "(l)"},
+		{"internal/modules/order", modPrefix + "internal/platform/cachex", ""},
+		{"internal/httpapi", modPrefix + "internal/platform/cache", ""},
+		{"internal/platform/observability", modPrefix + "internal/platform/cache", ""},
 		{"internal/httpapi", "github.com/aws/aws-sdk-go-v2/service/s3", "(d)"},
 		{"internal/modules/order", modPrefix + "internal/httpapi/gen", "(b)"},
 		{"internal/modules/order", "net/http/httptest", "(b)"},

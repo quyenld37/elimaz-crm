@@ -1,7 +1,7 @@
 # Hạ tầng dev của CRM (kế hoạch M0 bản 5, Task 1; mọi dịch vụ dev của M1 thêm một lần ở Task M1-40). Image ghim
 # theo digest. Cổng đọc từ biến môi trường để nhiều phiên chạy song song trên một máy; mặc định đúng cổng của kế
 # hoạch: PostgreSQL 5442, Jaeger UI 16686, OTLP 4318, SeaweedFS 8333, kho ngoài giả 8334, imager 4193, fakecarrier 4194,
-# devaccess 4195.
+# devaccess 4195, valkey-cache 6390, valkey-gate 6391 (CRM_VALKEY_CACHE_PORT, CRM_VALKEY_GATE_PORT).
 #   docker compose -f docker/compose.dev.yml up -d --wait
 #   CRM_PG_PORT=5452 CRM_S3_PORT=8440 docker compose -p crm-khac -f docker/compose.dev.yml up -d --wait
 # imager, fakecarrier, filesync, devaccess chỉ chạy khi bật profile cùng tên (mã của chúng có ở Task M1-42, M1-31,
@@ -69,6 +69,52 @@ services:
     ports:
       - "127.0.0.1:${CRM_JAEGER_UI_PORT:-16686}:16686"
       - "127.0.0.1:${CRM_OTLP_PORT:-4318}:4318"
+
+  # Valkey hai tiến trình (ADR-39, kế hoạch M5 Task 184): valkey-cache là bộ đệm đọc (tự xóa khóa cũ, không ghi đĩa),
+  # valkey-gate là bộ đếm và cờ (không tự xóa, ghi đĩa mỗi giây). start.sh dựng danh sách quyền từ users.acl.tmpl vào
+  # tmpfs rồi chạy valkey-server bằng người dùng valkey. Mật khẩu dưới đây là chuỗi giả chỉ cho máy dev. mem_limit nhỏ
+  # (máy dev colima 4 GB): trần maxmemory của tệp cấu hình cộng phần phụ của tiến trình. Profile `valkey` (make dev bật;
+  # make db-up không bật để các phiên song song không tranh cổng 6390, 6391; test dựng container riêng bằng
+  # testkit.StartValkey):
+  #   CRM_VALKEY_CACHE_PORT=6490 CRM_VALKEY_GATE_PORT=6491 docker compose -p crm-khac -f docker/compose.dev.yml up -d --wait valkey-cache valkey-gate
+  valkey-cache:
+    profiles: [valkey]
+    # valkey/valkey:9.1 (9.1.4), digest của image index đa nền tảng, lấy ngày 21/11/2026
+    image: &valkey valkey/valkey:9.1@sha256:3ab0eca823ebbf0fe352476ebac330ac9e5f14b592b9a954eab296d341e81b0e
+    entrypoint: ["sh", "/etc/valkey-src/start.sh"]
+    command: ["cache.conf"]
+    environment: &valkey-env
+      VALKEY_CACHE_PASSWORD: crm-cache-dev-0123456789abcdef
+      VALKEY_GATE_PASSWORD: crm-gate-dev-0123456789abcdef
+      VALKEY_ADMIN_PASSWORD: crm-admin-dev-0123456789abcdef
+    ports:
+      - "127.0.0.1:${CRM_VALKEY_CACHE_PORT:-6390}:6379"
+    tmpfs:
+      - /etc/valkey
+    volumes:
+      - ./valkey:/etc/valkey-src:ro
+    mem_limit: 320m
+    healthcheck: &valkey-health
+      test: ["CMD", "valkey-cli", "--user", "crm_admin", "--pass", "crm-admin-dev-0123456789abcdef", "--no-auth-warning", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  valkey-gate:
+    profiles: [valkey]
+    image: *valkey
+    entrypoint: ["sh", "/etc/valkey-src/start.sh"]
+    command: ["gate.conf"]
+    environment: *valkey-env
+    ports:
+      - "127.0.0.1:${CRM_VALKEY_GATE_PORT:-6391}:6379"
+    tmpfs:
+      - /etc/valkey
+    volumes:
+      - ./valkey:/etc/valkey-src:ro
+      - valkey-gate:/data
+    mem_limit: 192m
+    healthcheck: *valkey-health
 
   # Kho tệp chính (ADR-36). Khóa dev cố định trong seaweedfs/s3.json, chỉ cho máy dev.
   seaweedfs:
@@ -364,6 +410,7 @@ networks:
 
 volumes:
   pgdata:
+  valkey-gate:
   seaweed:
   seaweed-offsite:
   spool:

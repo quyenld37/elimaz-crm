@@ -1,0 +1,10 @@
+# Mẫu danh sách quyền của hai tiến trình Valkey (kế hoạch M5 Task 184). start.sh bỏ dòng chú thích, thay
+# @CRM_*_PASSWORD@ bằng biến môi trường rồi ghi /etc/valkey/users.acl (tmpfs). Mật khẩu dev cố định chỉ ở
+# docker/compose.dev.yml. default tắt và không có mật khẩu rỗng (protected-mode không mở cho người lạ).
+# crm_cache: khóa c:* (bộ đệm), g:* ; crm_gate: rl:* (giới hạn tần suất), gt:* (cổng), fs:* (cờ flash sale).
+# +@connection cho HELLO, PING, CLIENT SETINFO mà valkey-go gửi khi nối; -@dangerous bỏ FLUSHALL, CONFIG, CLIENT KILL…
+# crm_admin chỉ dùng trong test và sổ tay vận hành (được FLUSHALL, CLIENT PAUSE).
+user default off resetpass resetkeys -@all
+user crm_cache on >@CRM_CACHE_PASSWORD@ resetkeys ~c:* ~g:* -@all +@read +@write +@string +@scripting +@connection -@dangerous
+user crm_gate on >@CRM_GATE_PASSWORD@ resetkeys ~rl:* ~gt:* ~fs:* -@all +@read +@write +@string +@hash +@scripting +@connection -@dangerous
+user crm_admin on >@CRM_ADMIN_PASSWORD@ ~* &* +@all

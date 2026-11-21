@@ -9,7 +9,7 @@ import (
 
 func deep(t *testing.T, e *env) observability.DeepHealthReport {
 	t.Helper()
-	r, err := observability.DeepHealth(t.Context(), e.d)
+	r, err := observability.DeepHealth(t.Context(), e.d, observability.Valkey{})
 	if err != nil {
 		t.Fatalf("DeepHealth: %v", err)
 	}
