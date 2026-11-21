@@ -107,23 +107,6 @@ func (q *Queries) AttachShipmentTracking(ctx context.Context, arg AttachShipment
 	return i, err
 }
 
-const cancelCreatingShipment = `-- name: CancelCreatingShipment :one
-UPDATE fulfillment.shipments
-SET status = 'cancelled', cancel_kind = 'create_rejected', last_status_at = now(), updated_at = now(), version = version + 1
-WHERE id = $1 AND status = 'creating' AND create_in_doubt_at IS NULL
-RETURNING version
-`
-
-// Vận đơn còn creating (dòng đã khóa) → cancelled khi lệnh tạo kết thúc mà chắc chắn hãng chưa tạo; trả version mới.
-// Không còn creating, hay lệnh tạo từng in_doubt (create_in_doubt_at: hãng có thể đã có kiện) → không dòng nào
-// (pgx.ErrNoRows). Loại hủy create_rejected: lệnh tạo kết thúc mà hãng chắc chắn không tạo.
-func (q *Queries) CancelCreatingShipment(ctx context.Context, id uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, cancelCreatingShipment, id)
-	var version int64
-	err := row.Scan(&version)
-	return version, err
-}
-
 const finishShipmentSync = `-- name: FinishShipmentSync :exec
 UPDATE fulfillment.shipments
 SET last_synced_at = $1,
@@ -204,84 +187,17 @@ func (q *Queries) GetShipment(ctx context.Context, id uuid.UUID) (GetShipmentRow
 }
 
 const hasActiveShipment = `-- name: HasActiveShipment :one
+
 SELECT EXISTS (SELECT 1 FROM fulfillment.shipments WHERE order_id = $1 AND status <> 'cancelled')
 `
 
+// Vận đơn (kế hoạch M1, Task M1-31; 05 mục 2). Chạy trong tenancy.WithTenant. Thứ tự khóa ADR-46 nhóm 8; đường bắt
+// đầu từ vận đơn mà đổi đơn khóa ord.orders (nhóm 7, qua order.Lock) trước LockShipmentForApply / LockShipmentForCreate (create.sql).
 func (q *Queries) HasActiveShipment(ctx context.Context, orderID uuid.UUID) (bool, error) {
 	row := q.db.QueryRow(ctx, hasActiveShipment, orderID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
-}
-
-const insertShipment = `-- name: InsertShipment :one
-
-INSERT INTO fulfillment.shipments
-    (id, tenant_id, seller_id, code, order_id, carrier_key, carrier_account_id, status, cod_amount, created_by)
-VALUES ($1, NULLIF(current_setting('app.tenant_id', true), '')::uuid, $2, $3, $4, $5,
-        $6, 'creating', $7, $8::uuid)
-ON CONFLICT DO NOTHING
-RETURNING created_at
-`
-
-type InsertShipmentParams struct {
-	ID               uuid.UUID
-	SellerID         uuid.UUID
-	Code             string
-	OrderID          uuid.UUID
-	CarrierKey       string
-	CarrierAccountID uuid.UUID
-	CodAmount        int64
-	CreatedBy        pgtype.UUID
-}
-
-// Vận đơn (kế hoạch M1, Task M1-31; 05 mục 2). Chạy trong tenancy.WithTenant. Thứ tự khóa ADR-46 nhóm 8; đường bắt
-// đầu từ vận đơn mà đổi đơn khóa ord.orders (nhóm 7, qua order.Lock) trước LockShipment.
-// Chèn vận đơn creating; trùng mã hay đơn đã có vận đơn chưa hủy (unique một phần) → không dòng nào (pgx.ErrNoRows).
-func (q *Queries) InsertShipment(ctx context.Context, arg InsertShipmentParams) (time.Time, error) {
-	row := q.db.QueryRow(ctx, insertShipment,
-		arg.ID,
-		arg.SellerID,
-		arg.Code,
-		arg.OrderID,
-		arg.CarrierKey,
-		arg.CarrierAccountID,
-		arg.CodAmount,
-		arg.CreatedBy,
-	)
-	var created_at time.Time
-	err := row.Scan(&created_at)
-	return created_at, err
-}
-
-const lockShipment = `-- name: LockShipment :one
-SELECT id, order_id, tracking_code, status, cod_amount, version
-FROM fulfillment.shipments
-WHERE id = $1
-FOR UPDATE
-`
-
-type LockShipmentRow struct {
-	ID           uuid.UUID
-	OrderID      uuid.UUID
-	TrackingCode pgtype.Text
-	Status       string
-	CodAmount    int64
-	Version      int64
-}
-
-func (q *Queries) LockShipment(ctx context.Context, id uuid.UUID) (LockShipmentRow, error) {
-	row := q.db.QueryRow(ctx, lockShipment, id)
-	var i LockShipmentRow
-	err := row.Scan(
-		&i.ID,
-		&i.OrderID,
-		&i.TrackingCode,
-		&i.Status,
-		&i.CodAmount,
-		&i.Version,
-	)
-	return i, err
 }
 
 const lockShipmentForApply = `-- name: LockShipmentForApply :one
@@ -331,19 +247,6 @@ func (q *Queries) LockShipmentForApply(ctx context.Context, id uuid.UUID) (LockS
 	return i, err
 }
 
-const markCreateInDoubt = `-- name: MarkCreateInDoubt :exec
-UPDATE fulfillment.shipments
-SET create_in_doubt_at = COALESCE(create_in_doubt_at, now()), updated_at = now()
-WHERE id = $1 AND status = 'creating'
-`
-
-// Lệnh tạo vào in_doubt: ghi dấu "hãng có thể đã nhận" cho vận đơn còn creating (giữ mốc lần đầu). Không đổi trạng
-// thái, không tăng version (không phải đổi của người dùng, không phát sự kiện).
-func (q *Queries) MarkCreateInDoubt(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, markCreateInDoubt, id)
-	return err
-}
-
 const markShipmentNeedsReview = `-- name: MarkShipmentNeedsReview :exec
 UPDATE fulfillment.shipments SET needs_review = true, updated_at = now() WHERE id = $1 AND NOT needs_review
 `
@@ -373,37 +276,4 @@ func (q *Queries) ShipmentOrderRef(ctx context.Context, id uuid.UUID) (ShipmentO
 	var i ShipmentOrderRefRow
 	err := row.Scan(&i.OrderID, &i.SellerID)
 	return i, err
-}
-
-const updateShipmentProgress = `-- name: UpdateShipmentProgress :one
-UPDATE fulfillment.shipments
-SET status = $1,
-    tracking_code = COALESCE(tracking_code, $2::text),
-    create_state = CASE WHEN COALESCE(tracking_code, $2::text) IS NOT NULL THEN 'created'
-                        ELSE create_state END,
-    fee = COALESCE(fee, $3::bigint),
-    last_status_at = now(), updated_at = now(), version = version + 1
-WHERE id = $4
-RETURNING version
-`
-
-type UpdateShipmentProgressParams struct {
-	Status       string
-	TrackingCode pgtype.Text
-	Fee          pgtype.Int8
-	ID           uuid.UUID
-}
-
-// Đổi trạng thái, điền mã hãng, phí (chỉ khi còn trống) trên dòng đã khóa; trả version mới. Có mã hãng → hãng đã tạo
-// (create_state = 'created', như dòng M1 được điền ở 0300).
-func (q *Queries) UpdateShipmentProgress(ctx context.Context, arg UpdateShipmentProgressParams) (int64, error) {
-	row := q.db.QueryRow(ctx, updateShipmentProgress,
-		arg.Status,
-		arg.TrackingCode,
-		arg.Fee,
-		arg.ID,
-	)
-	var version int64
-	err := row.Scan(&version)
-	return version, err
 }

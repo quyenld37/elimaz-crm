@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
@@ -12,9 +14,9 @@ import (
 	"elimaz.com.vn/crm/internal/modules/identity"
 )
 
-// Vận chuyển (kế hoạch M1, Task M1-31). fulfillment.ship, fulfillment.read là quyền theo đích kho: guard chỉ kiểm có
-// grant; handler kiểm đích bằng canAt với kho của tài khoản hãng (B6), đọc trong cùng transaction. Audit ghi ở đây
-// (fulfillment không nhập identity).
+// Vận chuyển (kế hoạch M1, Task M1-31; M3 Task M3-12). fulfillment.ship, fulfillment.read là quyền theo đích kho:
+// guard chỉ kiểm có grant; handler kiểm đích bằng canAt (B6). Gửi hãng kiểm theo kho của ĐƠN, dưới khóa đơn (Service
+// gọi lại Authorize); thiếu phạm vi → 404 như đơn không có. Audit ghi ở đây (fulfillment không nhập identity).
 
 const (
 	permShip      = identity.Permission("fulfillment.ship")
@@ -22,26 +24,35 @@ const (
 	statusCreated = http.StatusAccepted
 )
 
-// CreateShipment (POST /api/v1/orders/{id}/shipments, fulfillment.ship ở kho của tài khoản hãng) → 202: vận đơn
-// creating; lệnh tạo ở hãng chạy nền. Từ chối nghiệp vụ, thiếu quyền ở kho: không lưu theo khóa.
+// shipAuthorize: người gọi phải có perm ở kho; thiếu → hidden (404 không lộ sự tồn tại) hay errForbiddenTarget.
+func shipAuthorize(u identity.AuthUser, perm identity.Permission, hidden error) fulfillment.Authorize {
+	return func(wh uuid.UUID) error {
+		if err := canAt(u, wh, perm); err != nil {
+			if hidden != nil {
+				return hidden
+			}
+			return err
+		}
+		return nil
+	}
+}
+
+// CreateShipment (POST /api/v1/orders/{id}/shipments, fulfillment.ship ở kho của đơn) → 202: vận đơn creating; lệnh
+// tạo ở hãng chạy nền. Từ chối nghiệp vụ, thiếu phạm vi: không lưu theo khóa.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) CreateShipment(ctx context.Context, req *gen.CreateShipmentRequest, params gen.CreateShipmentParams) (gen.CreateShipmentRes, error) {
+	svc, err := h.fulfillmentService()
+	if err != nil {
+		return nil, err
+	}
 	out, err := h.refusableWrite(ctx, statusCreated, isShipmentRefusal, "tạo vận đơn",
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
-			wh, err := fulfillment.AccountWarehouse(ctx, tx, req.CarrierAccountId)
+			v, err := svc.Ship(ctx, tx, shipInput(params.ID, req, u), orderActor(u))
 			if err != nil {
 				return nil, err //nolint:wrapcheck // sentinel của fulfillment
 			}
-			if err := canAt(u, wh, permShip); err != nil {
-				return nil, err
-			}
-			s, err := fulfillment.CreateForOrder(ctx, tx, params.ID, req.CarrierAccountId,
-				fulfillment.Actor{TenantID: u.TenantID, UserID: u.UserID})
-			if err != nil {
-				return nil, err //nolint:wrapcheck // sentinel của fulfillment
-			}
-			return shipmentOut(s), h.audit(ctx, tx, u, "fulfillment.shipment.create", "shipment", s.ID, nil, s.AuditFields())
+			return shipmentViewOut(v), h.audit(ctx, tx, u, "fulfillment.shipment.create", "shipment", v.ID, nil, v.AuditFields())
 		})
 	if err != nil {
 		return nil, err
@@ -49,37 +60,89 @@ func (h *handler) CreateShipment(ctx context.Context, req *gen.CreateShipmentReq
 	return out.(*gen.Shipment), nil //nolint:forcetypeassert // fn trên trả *gen.Shipment
 }
 
+func shipInput(orderID uuid.UUID, req *gen.CreateShipmentRequest, u identity.AuthUser) fulfillment.ShipInput {
+	in := fulfillment.ShipInput{
+		OrderID: orderID, CarrierAccountID: req.CarrierAccountId, Service: req.Service.Or(""),
+		QuoteID: optUUID(req.QuoteId), WeightGrams: int(req.WeightGrams.Or(0)), LengthCm: int(req.LengthCm.Or(0)),
+		WidthCm: int(req.WidthCm.Or(0)), HeightCm: int(req.HeightCm.Or(0)),
+		DeclaredValue: int64(req.DeclaredValue.Or(0)), TrackingCode: req.TrackingCode.Or(""),
+		Authorize: shipAuthorize(u, permShip, fulfillment.ErrOrderNotFound),
+	}
+	if o, ok := req.Options.Get(); ok {
+		in.Options = carrierOptionsIn(o)
+	}
+	if f, ok := req.FeeActual.Get(); ok {
+		fee := int64(f)
+		in.FeeActual = &fee
+	}
+	return in
+}
+
 func isShipmentRefusal(err error) bool {
 	_, _, ok := fulfillmentError(err)
 	return ok
 }
 
-// GetShipment (GET /api/v1/shipments/{id}, fulfillment.read ở kho của tài khoản hãng của vận đơn).
+// GetShipment (GET /api/v1/shipments/{id}, fulfillment.read ở kho của tài khoản hãng của vận đơn): ShipmentView.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) GetShipment(ctx context.Context, params gen.GetShipmentParams) (gen.GetShipmentRes, error) {
-	var s fulfillment.Shipment
+	svc, err := h.fulfillmentService()
+	if err != nil {
+		return nil, err
+	}
+	var v fulfillment.ShipmentView
 	if err := h.inventoryRead(ctx, func(tx pgx.Tx, u identity.AuthUser) (err error) {
-		if s, err = fulfillment.Get(ctx, tx, params.ID); err != nil {
+		if v, err = svc.ShipmentView(ctx, tx, params.ID); err != nil {
 			return err //nolint:wrapcheck // sentinel của fulfillment
 		}
-		return canAt(u, s.WarehouseID, permShipRead)
+		return canAt(u, v.WarehouseID, permShipRead)
 	}); err != nil {
 		return nil, fmt.Errorf("đọc vận đơn: %w", err)
 	}
-	return shipmentOut(s), nil
+	return shipmentViewOut(v), nil
 }
 
-func shipmentOut(s fulfillment.Shipment) *gen.Shipment {
+// shipmentViewOut dựng thân Shipment (mọi trường M1 giữ tên; trường M3 tùy chọn, có khi có giá trị). Không ship_to.
+func shipmentViewOut(v fulfillment.ShipmentView) *gen.Shipment {
 	out := &gen.Shipment{
-		ID: s.ID, OrderId: s.OrderID, Code: s.Code, CarrierKey: s.CarrierKey, CarrierAccountId: s.CarrierAccountID,
-		Status: gen.ShipmentStatus(s.Status), CodAmount: gen.Money(s.CODAmount), CreatedAt: s.CreatedAt,
+		ID: v.ID, OrderId: v.OrderID, Code: v.Code, CarrierKey: v.CarrierKey, CarrierAccountId: v.CarrierAccountID,
+		Status: gen.ShipmentStatus(v.Status), CodAmount: gen.Money(v.CODAmount), CreatedAt: v.CreatedAt,
+		AccountName: gen.NewOptString(v.AccountName), Mode: gen.NewOptCarrierAccountMode(gen.CarrierAccountMode(v.Mode)),
+		Service: gen.NewOptString(v.Service), Label: gen.NewOptString(v.Label),
+		SubStatus: gen.NewOptString(v.SubStatus), CreateState: gen.NewOptShipmentCreateState(gen.ShipmentCreateState(v.CreateState)),
+		LastStatusAt: gen.NewOptDateTime(v.LastStatusAt), NeedsReview: gen.NewOptBool(v.NeedsReview),
+		LabelReady: gen.NewOptBool(v.LabelReady), Partial: gen.NewOptBool(v.Partial), Version: gen.NewOptInt64(v.Version),
+		Options: gen.NewOptCarrierOptions(carrierOptionsOut(v.Options)),
 	}
-	if s.TrackingCode != "" {
-		out.TrackingCode = gen.NewOptString(s.TrackingCode)
+	if v.TrackingCode != "" {
+		out.TrackingCode = gen.NewOptString(v.TrackingCode)
 	}
-	if s.Fee != nil {
-		out.Fee = gen.NewOptMoney(gen.Money(*s.Fee))
+	if v.CancelKind != "" {
+		out.CancelKind = gen.NewOptString(v.CancelKind)
+	}
+	if v.LastSyncError != "" {
+		out.LastSyncError = gen.NewOptString(v.LastSyncError)
+	}
+	setMoney(&out.Fee, v.Fee)
+	setMoney(&out.FeeActual, v.FeeActual)
+	setMoney(&out.CodCollectedAmount, v.CODCollectedAmount)
+	if v.WeightGrams != nil {
+		out.WeightGrams = gen.NewOptInt32(int32(min(*v.WeightGrams, 1<<31-1))) //nolint:gosec // đã chặn
+	}
+	for dst, src := range map[*gen.OptDateTime]*time.Time{
+		&out.PickedUpAt: v.PickedUpAt, &out.DeliveredAt: v.DeliveredAt, &out.LastCarrierEventAt: v.LastCarrierEventAt,
+		&out.LastSyncedAt: v.LastSyncedAt, &out.StuckSince: v.StuckSince,
+	} {
+		if src != nil {
+			*dst = gen.NewOptDateTime(*src)
+		}
 	}
 	return out
+}
+
+func setMoney(dst *gen.OptMoney, v *int64) {
+	if v != nil {
+		*dst = gen.NewOptMoney(gen.Money(*v))
+	}
 }

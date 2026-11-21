@@ -46,6 +46,8 @@ type shipEnv struct {
 	cmds       []commands.Handler
 	worker     *queue.Worker
 	actor      fulfillment.Actor
+	// svc là Service có hãng giả (Ship, Resend, ResolveCreate của Task M3-12; lệnh tra).
+	svc *fulfillment.Service
 }
 
 func newShipEnv(t *testing.T) *shipEnv {
@@ -65,6 +67,7 @@ func newShipEnv(t *testing.T) *shipEnv {
 	svc := fulfillment.New(fulfillment.Deps{
 		DB: o.DB, Queue: o.Queue, Events: o.Events, Bus: o.Realtime, Carriers: mustRegistry(t, e.carrier),
 	}).Service
+	e.svc = svc
 	e.useCommands([]commands.Handler{fulfillment.NewCreateCommand(o), fulfillment.NewRefreshCommand(svc)})
 	return e
 }

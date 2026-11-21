@@ -11,11 +11,13 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"elimaz.com.vn/crm/internal/modules/fulfillment/internal/create"
 	"elimaz.com.vn/crm/internal/modules/fulfillment/internal/store"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/fieldcrypt"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
@@ -25,21 +27,29 @@ import (
 const (
 	createCommandName  = "fulfillment.create_shipment"
 	refreshCommandName = "fulfillment.refresh_status"
-	createExpires      = 10 * time.Minute
-	commandTimeout     = 30 * time.Second
+	// createTimeout là hạn của một lần gửi hãng (04 mục 5.3); lệnh tạo không hết hạn khi chờ (Q-5: người quyết).
+	createTimeout = 25 * time.Second
 
 	// TopicShipmentStatusChanged phát mỗi lần vận đơn tiến trạng thái, hay sang cancelled khi lệnh tạo kết thúc hỏng
 	// (Seq = shipments.version; docs/views.md).
 	TopicShipmentStatusChanged = "shipment.status_changed"
 	aggregateShipment          = "shipment"
 
-	reasonNoAdapter  = "no_adapter"
-	reasonRejected   = "carrier_rejected"
-	reasonNotSent    = "carrier_not_sent"
-	reasonNotFound   = "carrier_not_found"
-	reasonReadFailed = "carrier_read_failed"
-	reasonStale      = "shipment_not_creating"
-	reasonBadPayload = "bad_payload"
+	reasonNoAdapter    = "no_adapter"
+	reasonRejected     = "carrier_rejected"
+	reasonNotSent      = "carrier_not_sent"
+	reasonNotFound     = "carrier_not_found"
+	reasonReadFailed   = "carrier_read_failed"
+	reasonStale        = "shipment_not_creating"
+	reasonBadPayload   = "bad_payload"
+	reasonNotSupported = "not_supported"
+	// reasonOrderCancelRequested: đơn đã yêu cầu hủy trước khi lệnh gửi hãng (chắc chưa gửi; OnTerminal hủy vận đơn).
+	reasonOrderCancelRequested = "order_cancel_requested"
+	reasonKeys                 = "credentials_unreadable"
+	reasonConfirmed            = "confirmed_not_sent"
+	reasonInconclusive         = "lookup_inconclusive"
+
+	anomalyInDoubtCreate = "in_doubt_create"
 )
 
 // StatusChanged là payload của shipment.status_changed: chỉ mã và số (A16). Ba trường đầu của M1; M3 (Task M3-08,
@@ -58,72 +68,28 @@ type StatusChanged struct {
 	OccurredAt   *time.Time `json:"occurredAt,omitempty"`
 }
 
-// CreateCommandKind là loại lệnh fulfillment.create_shipment: hết hạn sau 10 phút chờ, mỗi lần gửi tối đa 30 s.
+// CreateCommandKind là loại lệnh fulfillment.create_shipment của M1 (giữ tên): không hết hạn khi chờ, mỗi lần gửi tối
+// đa 25 s (kế hoạch M3, Task M3-12).
 func CreateCommandKind() queue.Kind {
-	return commands.CommandKind(createCommandName, createExpires, commandTimeout)
+	return commands.CommandKind(createCommandName, 0, createTimeout)
 }
 
 // CommandOptions là phụ thuộc của lệnh tạo vận đơn (cmd/crm nối; lệnh tra dựng từ Service, NewRefreshCommand):
-// database (đọc ngoài transaction), adapter theo Key(), và đường ghi của order (Events, Queue, Realtime).
+// database (đọc ngoài transaction), adapter theo Key(), đường ghi của order (Events, Queue, Realtime), bộ khóa giải mã
+// khóa API của tài khoản hãng (nil: tài khoản có khóa thì không gửi được), đồng hồ (nil: time.Now).
 type CommandOptions struct {
 	DB       *db.DB
 	Adapters []CarrierAdapter
 	Events   *events.Registry
 	Queue    queue.JobQueue
 	Realtime realtime.Bus
+	Keys     *fieldcrypt.Keyring
+	Now      func() time.Time
 }
 
 // commandPayload là payload của lệnh tạo và lệnh tra: chỉ mã vận đơn.
 type commandPayload struct {
 	ShipmentID uuid.UUID `json:"shipmentId"`
-}
-
-type commandBase struct {
-	o        CommandOptions
-	adapters map[string]CarrierAdapter
-}
-
-func newBase(o CommandOptions) commandBase {
-	m := make(map[string]CarrierAdapter, len(o.Adapters))
-	for _, a := range o.Adapters {
-		m[a.Key()] = a
-	}
-	return commandBase{o: o, adapters: m}
-}
-
-// loadOutcome như load cho Execute: chưa gọi hãng nên lỗi đọc là not_sent (đọc lại sau), payload hỏng là rejected,
-// thiếu adapter là not_sent; ok = false kèm Outcome để trả ngay.
-func (b commandBase) loadOutcome( //nolint:ireturn // adapter theo carrier_key
-	ctx context.Context, j queue.Job,
-) (Shipment, CarrierAdapter, commands.Outcome, bool) {
-	s, ad, err := b.load(ctx, j)
-	switch {
-	case errors.Is(err, queue.ErrPermanent):
-		return s, nil, commands.Outcome{Status: commands.StatusRejected, Reason: reasonBadPayload}, false
-	case err != nil:
-		return s, nil, commands.Outcome{Status: commands.StatusNotSent, Reason: reasonReadFailed}, false
-	case ad == nil:
-		return s, nil, commands.Outcome{Status: commands.StatusNotSent, Reason: reasonNoAdapter}, false
-	}
-	return s, ad, commands.Outcome{}, true
-}
-
-// load đọc vận đơn của lệnh j trong một transaction đọc ngắn (ngoài transaction của lệnh) và adapter của hãng.
-func (b commandBase) load( //nolint:ireturn // adapter theo carrier_key
-	ctx context.Context, j queue.Job,
-) (Shipment, CarrierAdapter, error) {
-	p, err := parsePayload(j)
-	if err != nil {
-		return Shipment{}, nil, err
-	}
-	var s Shipment
-	if err := tenancy.WithTenant(ctx, b.o.DB, *j.TenantID, func(tx pgx.Tx) error {
-		s, err = Get(ctx, tx, p.ShipmentID)
-		return err
-	}, db.TxWorker); err != nil {
-		return Shipment{}, nil, fmt.Errorf("đọc vận đơn của lệnh: %w", err)
-	}
-	return s, b.adapters[s.CarrierKey], nil
 }
 
 func parsePayload(j queue.Job) (commandPayload, error) {
@@ -134,150 +100,367 @@ func parsePayload(j queue.Job) (commandPayload, error) {
 	return p, nil
 }
 
-func (s Shipment) account() Account {
-	return Account{ID: s.CarrierAccountID, ExternalAccountRef: s.accountRef, RouteKey: s.routeKey}
-}
-
 // emitStatus phát shipment.status_changed với Seq = version mới của vận đơn.
-func (b commandBase) emitStatus(ctx context.Context, tx pgx.Tx, tenant, id uuid.UUID, st Status, cod, version int64) error {
-	if _, _, err := b.o.Events.Emit(ctx, tx, b.o.Queue, events.Event{
+func emitStatus(ctx context.Context, tx pgx.Tx, ev *events.Registry, jq queue.JobQueue, tenant, id, orderID uuid.UUID,
+	st, from Status, cod, version int64,
+) error {
+	if _, _, err := ev.Emit(ctx, tx, jq, events.Event{
 		TenantID: tenant, AggregateType: aggregateShipment, AggregateID: id.String(), Seq: version,
-		Topic: TopicShipmentStatusChanged, Payload: StatusChanged{ShipmentID: id, Status: st, CODAmount: cod},
+		Topic:   TopicShipmentStatusChanged,
+		Payload: StatusChanged{ShipmentID: id, Status: st, CODAmount: cod, OrderID: orderID, From: from},
 	}); err != nil {
 		return fmt.Errorf("phát %s: %w", TopicShipmentStatusChanged, err)
 	}
 	return nil
 }
 
-// CreateCommand là lệnh fulfillment.create_shipment (commands.Handler, Looker, DoneHook, queue.TerminalHook).
-type CreateCommand struct{ commandBase }
+// CreateCommand là lệnh fulfillment.create_shipment (commands.Handler, Looker, DoneHook, queue.TerminalHook). Gửi hãng
+// theo mã vận đơn của CRM; không rõ thì tra trước, không bao giờ tự gửi lại (AutoRetryNotSent = false, Q-5): chỉ người
+// bấm "Gửi lại" (Service.Resend).
+type CreateCommand struct {
+	svc      *Service
+	adapters map[string]CarrierAdapter
+}
 
 // NewCreateCommand tạo lệnh tạo vận đơn.
-func NewCreateCommand(o CommandOptions) *CreateCommand { return &CreateCommand{newBase(o)} }
+func NewCreateCommand(o CommandOptions) *CreateCommand {
+	m := make(map[string]CarrierAdapter, len(o.Adapters))
+	for _, a := range o.Adapters {
+		m[a.Key()] = a
+	}
+	now := o.Now
+	if now == nil {
+		now = time.Now
+	}
+	return &CreateCommand{
+		svc:      &Service{d: Deps{DB: o.DB, Queue: o.Queue, Events: o.Events, Bus: o.Realtime, Keys: o.Keys, Now: now}},
+		adapters: m,
+	}
+}
 
 // Kind trả CreateCommandKind().
 func (*CreateCommand) Kind() queue.Kind { return CreateCommandKind() }
 
-// AutoRetryNotSent trả true: chắc chắn chưa gửi thì tự gửi lại.
-func (*CreateCommand) AutoRetryNotSent() bool { return true }
+// AutoRetryNotSent trả false (Q-5, 04 mục 5.3): chắc chắn chưa gửi thì lệnh dead, vận đơn not_sent chờ người gửi lại
+// (M1 để true cho lát mỏng).
+func (*CreateCommand) AutoRetryNotSent() bool { return false }
 
 type createResult struct {
 	TrackingCode string `json:"trackingCode"`
-	Fee          int64  `json:"fee"`
+	Fee          *int64 `json:"fee,omitempty"`
 }
 
-// Execute gọi CreateShipment theo shipments.code (ngoài transaction). ErrRejected → rejected; ErrNotSent → not_sent;
-// lỗi khác hay quá giờ → lỗi (Runner: in_doubt, không gửi lại). Vận đơn không còn creating → rejected (không gửi).
+// createTarget là vận đơn của lệnh đã đọc kèm tài khoản (giải mã), adapter, yêu cầu gửi; refused khác nil: không gửi
+// được (lý do trong outcome).
+type createTarget struct {
+	row     store.CreateTargetRow
+	ship    create.Shipment
+	acc     Account
+	ad      CarrierAdapter
+	refused *commands.Outcome
+}
+
+// target đọc vận đơn và tài khoản trong một transaction ngắn (ngoài transaction của lệnh). Không có vận đơn →
+// ErrNotFound; lỗi đọc trả lên. Tài khoản không active, nhập tay, không có, hãng không có adapter → refused rejected
+// (VC15, không đổi sang tài khoản khác); khóa API không giải được → refused not_sent (cấu hình, người sửa rồi gửi lại).
+func (c *CreateCommand) target(ctx context.Context, j queue.Job, id uuid.UUID) (createTarget, error) {
+	var t createTarget
+	err := tenancy.WithTenant(ctx, c.svc.d.DB, *j.TenantID, func(tx pgx.Tx) error {
+		t = createTarget{} // RetryTx có thể chạy lại
+		q := store.New(tx)
+		row, err := q.CreateTarget(ctx, id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("đọc vận đơn của lệnh tạo: %w", err)
+		}
+		t.row = row
+		t.ship = create.Shipment{
+			Creating: row.Status == string(StatusCreating), State: row.CreateState,
+			Current: !row.CreateJobID.Valid || uuid.UUID(row.CreateJobID.Bytes) == j.ID,
+		}
+		ad, ok := c.adapters[row.CarrierKey]
+		if !ok || row.Mode != ModeAPI {
+			t.refused = &commands.Outcome{Status: commands.StatusRejected, Reason: reasonUnavailable}
+			if !ok {
+				t.refused = &commands.Outcome{Status: commands.StatusNotSent, Reason: reasonNoAdapter}
+			}
+			return nil
+		}
+		t.ad = ad
+		t.acc, err = c.svc.ResolveAccount(ctx, tx, row.CarrierAccountID)
+		switch {
+		case errors.Is(err, ErrAccountUnavailable), errors.Is(err, ErrAccountNotFound):
+			t.refused = &commands.Outcome{Status: commands.StatusRejected, Reason: reasonUnavailable}
+			return nil
+		case errors.Is(err, ErrKeysMissing), errors.Is(err, ErrCredentialsUnreadable):
+			t.refused = &commands.Outcome{Status: commands.StatusNotSent, Reason: reasonKeys}
+			return nil
+		case err != nil:
+			return err
+		}
+		if ad.Capabilities().Locations {
+			if t.acc.Locations, err = c.svc.LocationMap(ctx, tx, row.CarrierKey); err != nil {
+				return err
+			}
+		}
+		return nil
+	}, db.TxWorker)
+	return t, err //nolint:wrapcheck // lỗi đã bọc trong thân
+}
+
+// Execute (ngoài transaction): vận đơn còn chờ kết quả của lần gửi này → CreateShipment theo shipments.code; vận đơn
+// "không rõ" (lệnh in_doubt được người chạy lại) → chỉ tra theo mã, không gửi; lệnh của lần gửi cũ hay vận đơn đã có
+// kết quả → rejected, không gọi hãng. Kết quả gửi: thành công → done (mã, phí); chắc chưa gửi (ErrNotSent, 429, 503,
+// thiếu adapter, khóa API) → not_sent (dead, chờ người gửi lại); từ chối, khóa sai, tài khoản không dùng được, hãng
+// chưa hỗ trợ → ghi dấu rejected rồi rejected (OnTerminal hủy vận đơn); lỗi khác, quá giờ → lỗi (in_doubt).
 func (c *CreateCommand) Execute(ctx context.Context, j queue.Job) (commands.Outcome, error) {
-	s, ad, out, ok := c.loadOutcome(ctx, j)
-	if !ok {
-		return out, nil
+	p, perr := parsePayload(j)
+	if perr != nil {
+		return rejectBadPayload()
 	}
-	if s.Status != StatusCreating {
+	t, err := c.target(ctx, j, p.ShipmentID)
+	switch {
+	case errors.Is(err, ErrNotFound):
 		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonStale}, nil
+	case err != nil:
+		return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonReadFailed}, nil //nolint:nilerr // chưa gửi gì
 	}
-	req, err := c.request(ctx, j, s)
+	switch create.ExecuteGate(t.ship) {
+	case create.GateStale:
+		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonStale}, nil
+	case create.GateLookup:
+		return c.lookupOutcome(ctx, t)
+	case create.GateSend:
+	}
+	if t.row.OrderStatus == order.StatusCancelRequested { // đơn đã yêu cầu hủy trước khi gửi: không tạo kiện
+		return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonOrderCancelRequested}, nil
+	}
+	if t.refused != nil {
+		return c.refuse(ctx, j, t, *t.refused, "")
+	}
+	req, err := createRequest(t)
 	if err != nil {
 		return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonReadFailed}, nil //nolint:nilerr // chưa gửi gì
 	}
-	res, err := ad.CreateShipment(ctx, s.account(), req)
-	switch {
-	case errors.Is(err, ErrRejected):
-		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonRejected}, nil
-	case errors.Is(err, ErrNotSent):
-		return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonNotSent}, nil
-	case err != nil:
+	res, err := t.ad.CreateShipment(ctx, t.acc, req)
+	if err == nil {
+		return doneOutcome(res.TrackingCode, res.Fee, res.FeeKnown)
+	}
+	out, authCode, known := classifyCreateError(err)
+	if !known {
 		return commands.Outcome{}, fmt.Errorf("tạo vận đơn ở hãng: %w", err)
 	}
-	b, err := json.Marshal(createResult{TrackingCode: res.TrackingCode, Fee: res.Fee})
+	return c.refuse(ctx, j, t, out, authCode)
+}
+
+func doneOutcome(tracking string, fee int64, feeKnown bool) (commands.Outcome, error) {
+	r := createResult{TrackingCode: tracking}
+	if feeKnown {
+		r.Fee = &fee
+	}
+	b, err := json.Marshal(r)
 	if err != nil {
 		return commands.Outcome{}, fmt.Errorf("mã hóa kết quả tạo vận đơn: %w", err)
 	}
 	return commands.Outcome{Status: commands.StatusDone, Result: b}, nil
 }
 
-// request dựng yêu cầu tạo vận đơn từ đơn (địa chỉ giao chụp lúc đặt).
-func (c *CreateCommand) request(ctx context.Context, j queue.Job, s Shipment) (CreateRequest, error) {
-	var o order.Order
-	if err := tenancy.WithTenant(ctx, c.o.DB, *j.TenantID, func(tx pgx.Tx) error {
-		var err error
-		o, err = order.Get(ctx, tx, s.SellerID, s.OrderID)
-		return err //nolint:wrapcheck // bọc ở dưới
-	}, db.TxWorker); err != nil {
-		return CreateRequest{}, fmt.Errorf("đọc đơn của vận đơn: %w", err)
+// refuse: kết quả chắc chắn không tạo. rejected → ghi dấu create_state rejected (chỉ khi vận đơn còn chờ đúng lệnh
+// này) và MarkAuthFailed khi hãng từ chối khóa, trong một transaction ngắn với hạn riêng; ghi lỗi → not_sent (vẫn chắc
+// chưa tạo: OnTerminal để vận đơn chờ người gửi lại thay vì hủy).
+func (c *CreateCommand) refuse(ctx context.Context, j queue.Job, t createTarget, out commands.Outcome, authCode string,
+) (commands.Outcome, error) {
+	if out.Status != commands.StatusRejected {
+		return out, nil
 	}
+	mctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	err := tenancy.WithTenant(mctx, c.svc.d.DB, *j.TenantID, func(tx pgx.Tx) error {
+		if authCode != "" { // ADR-46 nhóm 8: tài khoản hãng trước vận đơn
+			if err := MarkAuthFailed(mctx, tx, t.row.CarrierAccountID, authCode); err != nil {
+				return err
+			}
+		}
+		if _, err := store.New(tx).MarkCreateRejected(mctx, store.MarkCreateRejectedParams{
+			ID: t.row.ID, JobID: pgtype.UUID{Bytes: j.ID, Valid: true},
+		}); err != nil {
+			return fmt.Errorf("ghi dấu hãng từ chối: %w", err)
+		}
+		return nil
+	}, db.TxWorker)
+	if err != nil {
+		return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonReadFailed}, nil //nolint:nilerr // hãng chắc chưa tạo
+	}
+	return out, nil
+}
+
+// classifyCreateError phân lớp lỗi CreateShipment: known = false là không rõ hãng đã tạo chưa (quá giờ, mất kết nối
+// sau khi gửi, lỗi lạ) → in_doubt. authCode khác rỗng khi hãng từ chối khóa API (MarkAuthFailed).
+func classifyCreateError(err error) (out commands.Outcome, authCode string, known bool) {
+	if errors.Is(err, ErrNotSupported) {
+		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonNotSupported}, "", true
+	}
+	if ce, ok := errors.AsType[*CarrierError](err); ok {
+		code := safeCode(ce.Code)
+		switch ce.Class {
+		case ClassNotSentRetry, ClassRateLimited:
+			return commands.Outcome{Status: commands.StatusNotSent, Reason: code}, "", true
+		case ClassAuth:
+			return commands.Outcome{Status: commands.StatusRejected, Reason: code}, code, true
+		case ClassRejected, ClassPermanent:
+			return commands.Outcome{Status: commands.StatusRejected, Reason: code}, "", true
+		case ClassUnknownOutcome:
+			return commands.Outcome{}, "", false
+		}
+	}
+	switch {
+	case errors.Is(err, ErrNotSent):
+		return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonNotSent}, "", true
+	case errors.Is(err, ErrRejected):
+		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonRejected}, "", true
+	}
+	return commands.Outcome{}, "", false
+}
+
+// createRequest dựng yêu cầu gửi hãng từ vận đơn (bản chụp địa chỉ giao, kiện, dịch vụ, tùy chọn lúc Ship).
+func createRequest(t createTarget) (CreateRequest, error) {
+	var to shipToDoc
+	if len(t.row.ShipTo) > 0 {
+		if err := json.Unmarshal(t.row.ShipTo, &to); err != nil {
+			return CreateRequest{}, fmt.Errorf("đọc địa chỉ giao của vận đơn: %w", err)
+		}
+	}
+	var o optionsDoc
+	if err := json.Unmarshal(t.row.Options, &o); err != nil {
+		return CreateRequest{}, fmt.Errorf("đọc tùy chọn giao của vận đơn: %w", err)
+	}
+	addr := to.address()
 	return CreateRequest{
-		Code: s.Code, CODAmount: s.CODAmount, ReceiverName: o.ShipAddress.Name, ReceiverPhone: o.ShipAddress.Phone,
-		Address: string(o.ShipAddress.Line),
+		Code: t.row.Code, CODAmount: t.row.CodAmount, ReceiverName: addr.Name, ReceiverPhone: addr.Phone,
+		Address: addr.Line, From: t.acc.Pickup, To: addr, Service: t.row.Service, Options: o.options(),
+		Parcel: Parcel{
+			WeightGrams: int(t.row.WeightGrams.Int32), LengthCm: int(t.row.LengthCm.Int32),
+			WidthCm: int(t.row.WidthCm.Int32), HeightCm: int(t.row.HeightCm.Int32), DeclaredValue: t.row.DeclaredValue,
+		},
 	}, nil
 }
 
-// Lookup tra hãng theo mã vận đơn của CRM: có → done, chưa có → not_sent, lỗi → không rõ.
+// lookupOutcome tra hãng theo mã vận đơn cho Execute của vận đơn "không rõ": có → done (kèm mã hãng khi hãng trả);
+// chắc chắn không có → not_sent (dead, chờ người gửi lại); không chắc, lỗi, không tra được → không rõ (in_doubt).
+func (c *CreateCommand) lookupOutcome(ctx context.Context, t createTarget) (commands.Outcome, error) {
+	st, tracking, err := c.lookup(ctx, t)
+	switch {
+	case err != nil:
+		return commands.Outcome{}, err
+	case st == commands.StatusDone && tracking != "":
+		return doneOutcome(tracking, 0, false)
+	case st == commands.StatusDone:
+		return commands.Outcome{Status: commands.StatusDone}, nil
+	case st == commands.StatusNotSent:
+		return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonConfirmed}, nil
+	}
+	return commands.Outcome{Status: commands.StatusUnknown, Reason: reasonInconclusive}, nil
+}
+
+// lookup tra hãng theo mã vận đơn của CRM (LookupByCode): có → done kèm mã hãng; !Found và hãng trả lời chắc chắn →
+// not_sent; Inconclusive, không có adapter, tài khoản không dùng được → unknown; lỗi → unknown kèm lỗi.
+func (c *CreateCommand) lookup(ctx context.Context, t createTarget) (status, tracking string, err error) {
+	if t.refused != nil || t.ad == nil {
+		return commands.StatusUnknown, "", nil
+	}
+	r, err := t.ad.LookupByCode(ctx, t.acc, t.row.Code)
+	switch {
+	case err != nil:
+		return commands.StatusUnknown, "", fmt.Errorf("tra vận đơn ở hãng: %w", err)
+	case r.Inconclusive:
+		return commands.StatusUnknown, "", nil
+	case r.Found:
+		return commands.StatusDone, r.TrackingCode, nil
+	}
+	return commands.StatusNotSent, "", nil
+}
+
+// Lookup (commands.Looker, ResolveInDoubt) tra hãng theo mã vận đơn của CRM, kể cả khi vận đơn đã qua creating (lần
+// tra trạng thái đã thấy kiện: lệnh thành done, không đổi vận đơn). Lệnh của lần gửi cũ → unknown (giữ in_doubt cho
+// người xem).
 func (c *CreateCommand) Lookup(ctx context.Context, j queue.Job) (string, error) {
-	s, ad, err := c.load(ctx, j)
+	p, err := parsePayload(j)
 	if err != nil {
 		return commands.StatusUnknown, err
 	}
-	if ad == nil {
+	t, err := c.target(ctx, j, p.ShipmentID)
+	if err != nil {
+		return commands.StatusUnknown, err
+	}
+	if !t.ship.Current {
 		return commands.StatusUnknown, nil
 	}
-	r, err := ad.LookupByCode(ctx, s.account(), s.Code)
-	if err != nil {
-		return commands.StatusUnknown, fmt.Errorf("tra vận đơn ở hãng: %w", err)
-	}
-	if r.Found {
-		return commands.StatusDone, nil
-	}
-	return commands.StatusNotSent, nil
+	st, _, err := c.lookup(ctx, t)
+	return st, err
 }
 
-// OnDone (trong transaction đổi lệnh sang done): khóa vận đơn (nhóm 8), điền mã hãng, phí, sang awaiting_pickup, phát
-// shipment.status_changed. result nil (done do tra lại, không có mã hãng): ghi lệnh tra trạng thái để điền mã hãng
-// (khóa chống trùng created:<id>). Vận đơn đã có mã hãng → không đổi gì.
+// OnDone (trong transaction đổi lệnh sang done): có mã hãng → AttachTrackingCode (Task M3-11: awaiting_pickup, created,
+// phí; đã có đúng mã → không làm gì; mã khác → anomaly tracking_conflict) rồi đóng việc in_doubt_create. Không có mã
+// (done do tra lại): create_state created (không còn "không tạo", "Gửi lại"), đóng việc in_doubt_create và ghi lệnh
+// tra trạng thái để điền mã hãng (khóa created:<id>).
+// Ý định hủy trong lúc gửi (Task M3-14) chưa có ở bản này: vận đơn đã tạo được hủy bằng đường hủy của M3-14.
 func (c *CreateCommand) OnDone(ctx context.Context, j queue.Job, result json.RawMessage, tx pgx.Tx) error {
 	p, err := parsePayload(j)
 	if err != nil {
 		return err
 	}
-	if result == nil {
-		return enqueueRefresh(ctx, tx, c.o.Queue, *j.TenantID, p.ShipmentID, "created:"+p.ShipmentID.String())
+	q := store.New(tx)
+	if len(result) == 0 || string(result) == "null" {
+		// Khóa đơn rồi vận đơn (ADR-46 nhóm 7 → 8) trước khi đóng việc của vận đơn.
+		_, err := lockForCreate(ctx, tx, q, p.ShipmentID, nil)
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if err := q.MarkCreateFound(ctx, p.ShipmentID); err != nil {
+			return fmt.Errorf("ghi hãng đã có kiện: %w", err)
+		}
+		if err := q.ResolveCreateAnomaly(ctx, store.ResolveCreateAnomalyParams{
+			ShipmentID: p.ShipmentID, Resolution: pgtype.Text{String: "carrier_found", Valid: true},
+		}); err != nil {
+			return fmt.Errorf("đóng việc không rõ đã tạo: %w", err)
+		}
+		return enqueueRefresh(ctx, tx, c.svc.d.Queue, *j.TenantID, p.ShipmentID, "created:"+p.ShipmentID.String())
 	}
 	var r createResult
 	if err := json.Unmarshal(result, &r); err != nil || r.TrackingCode == "" {
 		return fmt.Errorf("lệnh %s: kết quả tạo vận đơn không đọc được: %w", j.ID, queue.ErrPermanent)
 	}
-	q := store.New(tx)
-	cur, err := q.LockShipment(ctx, p.ShipmentID)
-	if err != nil {
-		return fmt.Errorf("khóa vận đơn: %w", err)
-	}
-	if cur.TrackingCode.Valid {
+	res, err := c.svc.AttachTrackingCode(ctx, tx, p.ShipmentID, r.TrackingCode, r.Fee)
+	if errors.Is(err, ErrNotFound) {
 		return nil
 	}
-	next, advanced := Advance(Status(cur.Status), StatusAwaitingPickup)
-	version, err := q.UpdateShipmentProgress(ctx, store.UpdateShipmentProgressParams{
-		Status: string(next), TrackingCode: pgtype.Text{String: r.TrackingCode, Valid: true},
-		Fee: pgtype.Int8{Int64: r.Fee, Valid: true}, ID: cur.ID,
-	})
-	if err != nil {
-		return fmt.Errorf("ghi mã hãng của vận đơn: %w", err)
+	if err != nil || res.Conflict {
+		return err
 	}
-	if !advanced {
-		return nil
+	if err := q.ResolveCreateAnomaly(ctx, store.ResolveCreateAnomalyParams{
+		ShipmentID: p.ShipmentID, Resolution: pgtype.Text{String: "created", Valid: true},
+	}); err != nil {
+		return fmt.Errorf("đóng việc không rõ đã tạo: %w", err)
 	}
-	return c.emitStatus(ctx, tx, *j.TenantID, cur.ID, next, cur.CodAmount, version)
+	return nil
 }
 
 // OnTerminal (queue.TerminalHook, trong transaction đổi lệnh sang trạng thái kết thúc, trước câu đổi platform.jobs):
-//   - in_doubt (hãng có thể đã tạo kiện): vận đơn còn creating được ghi dấu create_in_doubt_at, không đổi gì khác.
-//   - dead hay expired: lần gửi này chắc chắn không tạo kiện (từ chối, hết lượt not_sent, tra lại xác nhận chưa gửi,
-//     quá hạn khi chưa gửi). Vận đơn còn creating và chưa có dấu in_doubt → cancelled, gỡ khỏi vai vận đơn hiện hành
-//     của đơn (order.Writer.DetachShipment, phát order.updated) để tạo lại được, phát shipment.status_changed (D-03).
-//     Có dấu (lệnh từng in_doubt rồi được người chạy lại: kiện của lần gửi trước có thể còn ở hãng) → không đổi gì,
-//     người tra hãng rồi xử lý.
+// khóa đơn (nhóm 7) rồi vận đơn (nhóm 8), quyết theo create.Terminal:
+//   - in_doubt → create_state unknown, needs_review, anomaly in_doubt_create (VC16): không tự gửi lại; tra lại
+//     (ResolveInDoubt) hay nhân viên xử lý (ResolveCreate).
+//   - dead, expired mà chắc chưa tạo (chưa gửi được, tra lại xác nhận chưa có) → create_state not_sent; vận đơn vẫn
+//     creating và gắn đơn, chờ "Gửi lại" (Q-5).
+//   - dead do hãng từ chối (dấu rejected của Execute), hay chắc chưa tạo mà vận đơn có ý định hủy → cancelled
+//     (cancel_kind create_rejected hay ý định hủy), gỡ khỏi đơn (order.Writer.DetachShipment; ý định order_cancel:
+//     OnShipmentCancelConfirmed, đơn cancel_requested thành cancelled, nhả held), phát shipment.status_changed.
 //
-// Giữ hàng của đơn không đổi. Khóa đơn (nhóm 7) rồi vận đơn (nhóm 8) như đường tra trạng thái. Vận đơn không còn
-// creating, không có, hay payload hỏng → không đổi gì.
+// Lệnh của lần gửi cũ, vận đơn đã qua creating, không có, payload hỏng → không đổi gì.
 func (c *CreateCommand) OnTerminal(ctx context.Context, j queue.Job, status string, tx pgx.Tx) error {
 	if status != queue.StatusDead && status != queue.StatusExpired && status != queue.StatusInDoubt {
 		return nil
@@ -287,40 +470,91 @@ func (c *CreateCommand) OnTerminal(ctx context.Context, j queue.Job, status stri
 		return nil //nolint:nilerr // payload hỏng: không có vận đơn để đổi, lệnh vẫn kết thúc
 	}
 	q := store.New(tx)
-	if status == queue.StatusInDoubt {
-		if err := q.MarkCreateInDoubt(ctx, p.ShipmentID); err != nil {
-			return fmt.Errorf("ghi dấu in_doubt của vận đơn: %w", err)
-		}
-		return nil
-	}
-	s, err := Get(ctx, tx, p.ShipmentID)
-	switch {
-	case errors.Is(err, ErrNotFound):
-		return nil
-	case err != nil:
-		return err
-	case s.Status != StatusCreating:
-		return nil
-	}
-	if err := order.Lock(ctx, tx, s.SellerID, s.OrderID); err != nil {
-		return fmt.Errorf("khóa đơn của vận đơn: %w", err)
-	}
-	if _, err := q.LockShipment(ctx, s.ID); err != nil {
-		return fmt.Errorf("khóa vận đơn: %w", err)
-	}
-	version, err := q.CancelCreatingShipment(ctx, s.ID)
-	if errors.Is(err, pgx.ErrNoRows) {
+	row, err := lockForCreate(ctx, tx, q, p.ShipmentID, nil)
+	if errors.Is(err, ErrNotFound) {
 		return nil
 	}
 	if err != nil {
+		return err
+	}
+	s := row.createShipment(j.ID)
+	intent := row.intent(s)
+	switch create.Terminal(s, status, intent) {
+	case create.ActNone:
+		return nil
+	case create.ActUnknown:
+		return c.markUnknown(ctx, tx, q, j, row)
+	case create.ActNotSent:
+		if _, err := q.MarkCreateNotSent(ctx, store.MarkCreateNotSentParams{Bump: 0, ID: row.ID}); err != nil {
+			return fmt.Errorf("ghi chưa gửi: %w", err)
+		}
+		return c.publish(ctx, tx, *j.TenantID, row)
+	case create.ActCancel:
+		return c.cancelEnded(ctx, tx, q, *j.TenantID, row, s, intent)
+	}
+	return nil
+}
+
+func (c *CreateCommand) markUnknown(ctx context.Context, tx pgx.Tx, q *store.Queries, j queue.Job, row lockedCreate) error {
+	if err := q.MarkCreateUnknown(ctx, row.ID); err != nil {
+		return fmt.Errorf("ghi không rõ đã tạo: %w", err)
+	}
+	if !row.CreateJobID.Valid { // vận đơn của M1: lệnh in_doubt này là lệnh của lần gửi hiện tại
+		if err := q.SetShipmentCreateJob(ctx, store.SetShipmentCreateJobParams{
+			JobID: pgtype.UUID{Bytes: j.ID, Valid: true}, ID: row.ID,
+		}); err != nil {
+			return fmt.Errorf("ghi mã lệnh tạo của vận đơn: %w", err)
+		}
+	}
+	if _, err := openAnomaly(ctx, q, row.ID, anomalyInDoubtCreate, map[string]any{
+		"jobId": j.ID.String(), "attempt": row.CreateAttempts,
+	}); err != nil {
+		return err
+	}
+	return c.publish(ctx, tx, *j.TenantID, row)
+}
+
+// cancelEnded hủy vận đơn creating row (đã khóa cùng đơn) khi hãng chắc chưa tạo: cancel_kind theo ý định intent
+// (create.EffectiveIntent), gỡ khỏi đơn (order_cancel: OnShipmentCancelConfirmed; khác: DetachShipment — cả hai đưa
+// đơn cancel_requested thành cancelled, nhả held), phát shipment.status_changed, báo hiệu.
+func (c *CreateCommand) cancelEnded(ctx context.Context, tx pgx.Tx, q *store.Queries, tenant uuid.UUID,
+	row lockedCreate, s create.Shipment, intent string,
+) error {
+	version, err := q.CancelEndedCreate(ctx, store.CancelEndedCreateParams{
+		CancelKind: pgtype.Text{String: create.CancelKind(intent), Valid: true}, CreateState: create.CancelState(s),
+		ID: row.ID,
+	})
+	if err != nil {
 		return fmt.Errorf("hủy vận đơn creating: %w", err)
 	}
-	ow := order.Writer{Events: c.o.Events, Queue: c.o.Queue, Realtime: c.o.Realtime}
-	system := order.Actor{TenantID: *j.TenantID, Type: "system"}
-	if _, err := ow.DetachShipment(ctx, tx, s.SellerID, s.OrderID, s.ID, system, time.Now().UTC()); err != nil {
+	ow := order.Writer{Events: c.svc.d.Events, Queue: c.svc.d.Queue, Realtime: c.svc.d.Bus}
+	system := order.Actor{TenantID: tenant, Type: "system"}
+	now := c.svc.d.Now().UTC()
+	if intent == "order_cancel" {
+		_, err = ow.OnShipmentCancelConfirmed(ctx, tx, row.SellerID, row.OrderID, row.ID, system, now)
+	} else {
+		_, err = ow.DetachShipment(ctx, tx, row.SellerID, row.OrderID, row.ID, system, now)
+	}
+	if err != nil {
 		return fmt.Errorf("gỡ vận đơn khỏi đơn: %w", err)
 	}
-	return c.emitStatus(ctx, tx, *j.TenantID, s.ID, StatusCancelled, s.CODAmount, version)
+	if err := emitStatus(ctx, tx, c.svc.d.Events, c.svc.d.Queue, tenant, row.ID, row.OrderID, StatusCancelled,
+		StatusCreating, row.CodAmount, version); err != nil {
+		return err
+	}
+	return c.publish(ctx, tx, tenant, row)
+}
+
+// publish báo hiệu shipment.changed ở kho của tài khoản hãng của vận đơn.
+func (c *CreateCommand) publish(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, row lockedCreate) error {
+	if c.svc.d.Bus == nil {
+		return nil
+	}
+	wh, err := AccountWarehouse(ctx, tx, row.CarrierAccountID)
+	if err != nil {
+		return err
+	}
+	return c.svc.publishShipment(ctx, tx, tenant, row.ID, wh)
 }
 
 // enqueueRefresh ghi lệnh tra trạng thái của vận đơn id trong tx.
@@ -331,4 +565,9 @@ func enqueueRefresh(ctx context.Context, tx pgx.Tx, jq queue.JobQueue, tenant, i
 		return fmt.Errorf("ghi lệnh tra trạng thái vận đơn: %w", err)
 	}
 	return nil
+}
+
+// rejectBadPayload: payload của lệnh tạo không đọc được → dừng hẳn (rejected), không gọi hãng.
+func rejectBadPayload() (commands.Outcome, error) {
+	return commands.Outcome{Status: commands.StatusRejected, Reason: reasonBadPayload}, nil
 }
