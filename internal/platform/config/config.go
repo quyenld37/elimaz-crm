@@ -124,6 +124,14 @@ type Config struct {
 	// không cần; vai trò nào bắt buộc thì mốc dùng (M3, M4, M7) thêm một dòng yêu cầu trong Load.
 	FieldEncKeys string
 
+	// Valkey (api; kế hoạch M5 Task 184, ADR-39): VALKEY_CACHE_URL, VALKEY_GATE_URL tùy chọn, dạng
+	// valkey://user:pass@host:port/0 (hay valkeys://); rỗng thì đường đó chạy chế độ dự phòng (cmd/crm ghi cảnh báo
+	// một lần). CacheKeySecret (CACHE_KEY_SECRET, ≥ 32 ký tự, bắt buộc khi có một trong hai URL) là khóa HMAC của
+	// cache.SubjectKey. worker, ingest không nối Valkey.
+	ValkeyCacheURL string
+	ValkeyGateURL  string
+	CacheKeySecret logging.Secret
+
 	// Migrate chỉ khác nil khi Role là RoleMigrate: vai trò khác không bao giờ giữ chuỗi kết nối của chủ bảng.
 	Migrate *MigrateConfig
 }
@@ -155,6 +163,8 @@ func (c Config) LogValue() slog.Value {
 		slog.Int("db_conn_budget", c.DBConnBudget),
 		slog.Int("jobs_done_retention_days", c.JobsDoneRetentionDays),
 		slog.Bool("field_enc_keys_set", c.FieldEncKeys != ""),
+		slog.Bool("valkey_cache_configured", c.ValkeyCacheURL != ""),
+		slog.Bool("valkey_gate_configured", c.ValkeyGateURL != ""),
 	)
 }
 
@@ -212,6 +222,7 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		// getProduct chọn bộ kích thước ảnh theo cùng biến với worker (Task M1-44).
 		cfg.ImagePresetVersion = r.integer("IMAGE_PRESET_VERSION", 1, 1, 1000)
 		cfg.FieldEncKeys = r.fieldEncKeys()
+		r.valkey(&cfg)
 	case RoleMigrate:
 		cfg.Migrate = &MigrateConfig{OwnerURL: r.required("DATABASE_OWNER_URL")}
 	case RoleWorker:
@@ -374,15 +385,40 @@ func (r *reader) carrierWebhookSecrets() map[string]logging.Secret {
 	return m
 }
 
+// valkey đọc nhóm Valkey của api (Task 184): URL tùy chọn, kiểm dạng; có URL thì CACHE_KEY_SECRET bắt buộc, ≥ 32 ký
+// tự. Lỗi chỉ nêu tên biến (URL có mật khẩu).
+func (r *reader) valkey(cfg *Config) {
+	cfg.ValkeyCacheURL = r.valkeyURL("VALKEY_CACHE_URL")
+	cfg.ValkeyGateURL = r.valkeyURL("VALKEY_GATE_URL")
+	if r.optional("VALKEY_CACHE_URL") != "" || r.optional("VALKEY_GATE_URL") != "" {
+		cfg.CacheKeySecret = logging.Secret(r.secret("CACHE_KEY_SECRET"))
+	}
+}
+
+// valkeyURL đọc biến tùy chọn; có giá trị thì phải là valkey:// hoặc valkeys:// có người dùng và host.
+func (r *reader) valkeyURL(key string) string {
+	return r.urlVar(key, "valkey://người-dùng:mật-khẩu@host:cổng/0 (hoặc valkeys://)", func(u *url.URL) bool {
+		return (u.Scheme == "valkey" || u.Scheme == "valkeys") && u.Host != "" && u.User.Username() != ""
+	})
+}
+
 // httpURL đọc biến tùy chọn; có giá trị thì phải là URL tuyệt đối http hoặc https có host.
 func (r *reader) httpURL(key string) string {
+	return r.urlVar(key, "URL http(s) tuyệt đối", func(u *url.URL) bool {
+		return (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
+	})
+}
+
+// urlVar đọc biến tùy chọn là URL; có giá trị mà không phân tích được hay ok sai thì ghi lỗi "<key> phải là <want>"
+// (không in giá trị: URL có thể chứa mật khẩu) và trả rỗng.
+func (r *reader) urlVar(key, want string, ok func(*url.URL) bool) string {
 	v := r.optional(key)
 	if v == "" {
 		return ""
 	}
 	u, err := url.Parse(v)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		r.problems = append(r.problems, key+" phải là URL http(s) tuyệt đối")
+	if err != nil || !ok(u) {
+		r.problems = append(r.problems, key+" phải là "+want)
 		return ""
 	}
 	return v

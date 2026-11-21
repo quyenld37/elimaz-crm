@@ -26,10 +26,11 @@ export CRM_IMAGE
 
 COMPOSE := docker compose -p $(COMPOSE_PROJECT) -f docker/compose.dev.yml
 
-# Dịch vụ M1 có profile riêng; `dev` chỉ bật profile nào đã có Dockerfile (Task M1-42, M1-31, M1-45 thêm).
+# Dịch vụ M1 có profile riêng (Valkey của M5, Task 184: profile valkey, luôn bật ở dev); `dev` chỉ bật profile nào đã có Dockerfile (Task M1-42, M1-31, M1-45 thêm).
 DEV_PROFILES := $(if $(wildcard docker/imager/Dockerfile),--profile imager) \
 	$(if $(wildcard tools/fakecarrier/Dockerfile),--profile fakecarrier) \
-	$(if $(wildcard docker/filesync/Dockerfile),--profile filesync)
+	$(if $(wildcard docker/filesync/Dockerfile),--profile filesync) \
+	--profile valkey
 
 .PHONY: db-up db-down db-reset dev probe-test perf-test spike-test test-imager test-imager-compose image app-up app-down image-check verify-drill demo-mot-don
 

@@ -48,7 +48,7 @@ const opHealthDeep = "healthDeep"
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler): câu trả lời nhiều mã là interface
 func (h *handler) HealthDeep(ctx context.Context) (gen.HealthDeepRes, error) {
-	r, err := observability.DeepHealth(ctx, h.d.DB)
+	r, err := observability.DeepHealth(ctx, h.d.DB, observability.Valkey{}) // hai Conn nối ở Task 189 (M5-06)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // DeepHealth đã bọc; lỗi nội bộ đổi sang 500 ở writeHandlerError
 	}

@@ -26,6 +26,7 @@ const (
 	heartbeatPingFor   = 5 * time.Minute
 	backupMaxAge       = 26 * time.Hour
 	fileSyncMaxAge     = 90 * time.Minute
+	valkeyDownFor      = 2 * time.Minute
 	seriesLookback     = 8 * time.Minute
 	minuteGapTolerated = 2 * time.Minute
 )
@@ -191,10 +192,10 @@ func streak(pts []point, now time.Time, ok func(float64) bool) time.Duration {
 type seriesKey struct{ process, name, label string }
 
 // metricRules: luật đọc chỉ số theo phút (spool_files, rt_listening, disk_used_pct, hooks_blocked,
-// heartbeat_ping_failed).
+// heartbeat_ping_failed, valkey_breaker_open).
 func metricRules(ctx context.Context, q *store.Queries, o RuleOptions) ([]alert, error) {
 	rows, err := q.MetricSeries(ctx, store.MetricSeriesParams{
-		Names: []string{"spool_files", "rt_listening", "disk_used_pct", "hooks_blocked", "heartbeat_ping_failed"},
+		Names: []string{"spool_files", "rt_listening", "disk_used_pct", "hooks_blocked", "heartbeat_ping_failed", "valkey_breaker_open"},
 		Since: o.Now.UTC().Truncate(time.Minute).Add(-seriesLookback), Now: o.Now,
 	})
 	if err != nil {
@@ -245,6 +246,14 @@ func seriesRule(k seriesKey, pts []point, now time.Time) (alert, bool) {
 			return alert{
 				"hooks-attack", SeverityNormal,
 				fmt.Sprintf("hooks-attack: %s chặn %d tin webhook sai chữ ký trong phút qua", k.process, int64(n)),
+			}, true
+		}
+	case "valkey_breaker_open":
+		// Cầu dao của một tiến trình Valkey (nhãn cache | gate) mở 2 phút liền (Task 184): đường đó đang chạy dự phòng.
+		if streak(pts, now, func(v float64) bool { return v == 1 }) >= valkeyDownFor {
+			return alert{
+				"valkey-down:" + k.label, SeverityNormal,
+				fmt.Sprintf("valkey-down:%s: %s chạy không có Valkey %s quá 2 phút (chậm hơn, không sai)", k.label, k.process, k.label),
 			}, true
 		}
 	case "heartbeat_ping_failed":

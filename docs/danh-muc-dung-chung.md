@@ -30,6 +30,41 @@ type Parts struct {
 }
 ```
 
+## `internal/platform/cache` (gói `cache`)
+
+Package cache là lớp nối Valkey duy nhất của CRM (ADR-39, kế hoạch M5): kết nối có hạn giờ mỗi lệnh, cầu dao, khóa băm không mang dữ liệu cá nhân.
+
+**Khi nào không dùng:** Không dùng cho bất kỳ quyết định nghiệp vụ nào (còn hàng, đơn đã tạo, mua được, tiền: luôn PostgreSQL; ADR-39) và không gọi trong hàm của RetryTx hay handler transactional (gọi mạng, có thể chạy lại). Module nghiệp vụ không nhập gói này (luật kiến trúc l): đi qua ReadCache, RateLimiter, AdmissionGate. Mọi đường phải chạy khi Do trả ErrUnavailable (Conn nil, Valkey ngừng, cầu dao mở). Không ghép chuỗi tùy ý vào khóa: EntityKey cho mã đối tượng, SubjectKey (HMAC bằng CACHE_KEY_SECRET) cho SĐT, IP, email. Không đặt dữ liệu vào tên thao tác op (nhãn chỉ số), không mở Conn thứ hai cho cùng tiến trình Valkey, không nhập valkey-go ở gói khác.
+
+```go
+func EntityKey(prefix string, tenant uuid.UUID, parts ...string) (string, error)
+func SubjectKey(secret []byte, kind, value string) string
+type Breaker struct {
+}
+func NewBreaker(name string, o BreakerOptions, m *metrics.Registry) *Breaker
+func (b *Breaker) Do(ctx context.Context, fn func(context.Context) error) error
+type BreakerOptions struct {
+	FailThreshold int
+	OpenFor       time.Duration
+	Now           func() time.Time
+}
+type Conn struct {
+}
+func Dial(ctx context.Context, rawURL string, o DialOptions) (*Conn, error)
+func (c *Conn) Close()
+func (c *Conn) Do(ctx context.Context, op string, fn func(ctx context.Context, cl valkey.Client) error) error
+func (c *Conn) Health(ctx context.Context) Health
+func (c *Conn) Ping(ctx context.Context) error
+type DialOptions struct {
+	OpTimeout time.Duration
+	Breaker   BreakerOptions
+	Metrics   *metrics.Registry
+	Name      string
+	Tracing   bool
+}
+type Health string
+```
+
 ## `internal/platform/commands` (gói `commands`)
 
 Package commands là đường ra của CRM: lệnh ra ngoài (gửi tin, trả lời comment, tạo/hủy vận đơn) chạy như một việc mode command của hàng đợi (spec 04 mục 5.3; vùng rủi ro cao).
@@ -144,6 +179,10 @@ type Config struct {
 	JobsDoneRetentionDays int
 
 	FieldEncKeys string
+
+	ValkeyCacheURL string
+	ValkeyGateURL  string
+	CacheKeySecret logging.Secret
 
 	Migrate *MigrateConfig
 }
@@ -655,8 +694,10 @@ type DeepHealthReport struct {
 	LastBackupAgeH      *int64
 
 	LastFileSyncAgeM *int64
+
+	Valkey ValkeyHealth
 }
-func DeepHealth(ctx context.Context, d *db.DB) (DeepHealthReport, error)
+func DeepHealth(ctx context.Context, d *db.DB, vk Valkey) (DeepHealthReport, error)
 type ErrorContext struct {
 	Role      string
 	RequestID string
@@ -718,6 +759,8 @@ type RuleOptions struct {
 }
 type TelegramRetryError struct{ After time.Duration }
 func (e *TelegramRetryError) Error() string
+type Valkey struct{ Cache, Gate *cache.Conn }
+type ValkeyHealth struct{ Cache, Gate cache.Health }
 ```
 
 ## `internal/platform/queue` (gói `queue`)
