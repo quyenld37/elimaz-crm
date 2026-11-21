@@ -11,21 +11,20 @@ import (
 	"github.com/ogen-go/ogen/validate"
 
 	"elimaz.com.vn/crm/internal/modules/cash"
-	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/customer"
-	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/promotion"
 	"elimaz.com.vn/crm/internal/platform/db"
-	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/idempotency"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
-// Mã lỗi trả cho client. Đây là chỗ duy nhất đổi lỗi sang mã HTTP (CLAUDE.md, mục "Lỗi và log").
+// Mã lỗi chung trả cho client: mã của nền tảng (xác thực, quyền, chống trùng, giới hạn) và mã nhiều vùng cùng dùng.
+// Mã chỉ một vùng trả nằm trong errors_<vùng>.go của vùng đó (Task 441). Đổi lỗi sang mã HTTP chỉ ở nhóm tệp
+// errors*.go của gói này (CLAUDE.md, mục "Lỗi và log").
 const (
 	codeAlreadyProcessed = "already_processed"
 	codeBadRequest       = "bad_request"
@@ -47,108 +46,17 @@ const (
 	codeStreamUnavailable      = "stream_unavailable"
 	codeUnauthenticated        = "unauthenticated"
 	codeUnsupportedMedia       = "unsupported_media_type"
-	// Quản lý nhân viên (PQ07, kế hoạch M1 Task M1-26).
-	codeCannotModifySelf  = "cannot_modify_self"
-	codeGrantExceedsActor = "grant_exceeds_actor"
-	codeLastOwner         = "last_owner"
-	codeEmailTaken        = "email_taken"
-	codeVersionConflict   = "version_conflict"
-	codeInvalidInput      = "invalid_input"
-	// Vai trò tự định nghĩa (M1-56).
-	codeOwnerRoleLocked   = "owner_role_locked"
-	codeRoleInUse         = "role_in_use"
-	codeRoleArchived      = "role_archived"
-	codeRoleNameTaken     = "role_name_taken"
-	codeUnknownPermission = "unknown_permission"
-	// Catalog (kế hoạch M1 Task M1-27).
-	codeSKUTaken        = "sku_taken"
-	codeBarcodeTaken    = "barcode_taken"
-	codeDuplicateOption = "duplicate_option"
-	codeCodeTaken       = "code_taken"
-	codeNotForSale      = "not_for_sale"
-	codeInvalidPrice    = "invalid_price"
-	codeInvalidArticle  = "invalid_article"
-	// Phân loại (kế hoạch M1 Task M1-34).
-	codeCategoryCycle   = "category_cycle"
-	codeCategoryTooDeep = "category_too_deep"
-	codeCategoryInUse   = "category_in_use"
-	codeAlreadyExists   = "already_exists"
-
-	// Đơn (kế hoạch M1 Task M1-30).
-	codeOutOfStock        = "out_of_stock"
-	codeVariantNotForSale = "variant_not_for_sale"
-	codeMixedSellers      = "mixed_sellers"
-	codeTotalOverflow     = "total_overflow"
-	codeShipmentExists    = "shipment_exists"
-
-	// Bảng kê COD (kế hoạch M3, Task M3-31).
-	codeStatementDuplicate = "statement_duplicate"
-	codeStatementChanged   = "statement_changed"
-	// Phiếu thu, nghĩa vụ hoàn (kế hoạch M3, Task M3-30).
-	codeCODLockedByShipment = "cod_locked_by_shipment"
+	// Nhiều vùng cùng dùng.
+	codeVersionConflict     = "version_conflict"
+	codeInvalidInput        = "invalid_input"
+	codeCodeTaken           = "code_taken"
+	codeAlreadyExists       = "already_exists"
+	codeInvalidTransition   = "invalid_transition"
+	codeSettingOutOfRange   = "setting_out_of_range"
+	codeQtyMismatch         = "qty_mismatch"
 	codePaymentExceedsTotal = "payment_exceeds_total"
-	codeRefundExceeds       = "refund_exceeds_remaining"
-	// Điều chỉnh sổ COD (kế hoạch M3, Task M3-33).
-	codePreviewStale = "preview_stale"
-
-	// Khách, đơn, mã giảm giá (kế hoạch M2, Task M2-02).
-	codeShipmentAlreadyAttached = "shipment_already_attached"
-	codeOrderLockedByShipment   = "order_locked_by_shipment"
-	codeInvalidTransition       = "invalid_transition"
-	// Tài khoản hãng (M3, Task M3-09).
-	codeCapabilityNotSupported    = "capability_not_supported"
-	codeCarrierAccountUnavailable = "carrier_account_unavailable"
-	codeOrderNotShippable         = "order_not_shippable"
-	codeQuoteStale                = "quote_stale"
-	codeAddressUnmapped           = "address_unmapped"
-	codeCreateInProgress          = "create_in_progress"
-	codeShipmentNotCancellable    = "shipment_not_cancellable"
-	codeTrackingCodeConflict      = "tracking_code_conflict"
-	codeAddressIncomplete         = "address_incomplete"
-	codeNeedsApproval             = "needs_approval"
-	codeDiscountNeedsApproval     = "discount_needs_approval"
-	codeVariantNotFound           = "variant_not_found"
-	codeLineDiscountExceeds       = "line_discount_exceeds"
-	codeOrderDiscountExceeds      = "order_discount_exceeds"
-	codeTrafficSourceInactive     = "traffic_source_inactive"
-	codeReturnQtyExceeds          = "return_qty_exceeds"
-	codeQtyMismatch               = "qty_mismatch"
-	codeReturnNotAllowed          = "return_not_allowed"
-	codeSettingOutOfRange         = "setting_out_of_range"
-	codeInvalidPhone              = "invalid_phone"
-	codeIdentityTaken             = "identity_taken"
-	codeWardNotInProvince         = "ward_not_in_province"
-	codeUnknownAdminUnit          = "unknown_admin_unit"
-	codeQueryTooShort             = "query_too_short"
-	codeMergeSameCustomer         = "merge_same_customer"
-	codeMergeNotLatest            = "merge_not_latest"
-	codeMergeWindowExpired        = "merge_window_expired"
-	codeImportTooLarge            = "import_too_large"
-	codeImportFileInvalid         = "import_file_invalid"
-	codeInvalidTagRule            = "invalid_tag_rule"
-	codeCouponRejected            = "coupon_rejected"
-	codeCouponLockedAfterUse      = "coupon_locked_after_use"
-	codeMaxUsesBelowUsed          = "max_uses_below_used"
-
-	// Kho tệp (kế hoạch M1 Task M1-41).
-	codeFileTooLarge          = "file_too_large"
-	codeFileTypeNotAllowed    = "file_type_not_allowed"
-	codeFilePurposeNotAllowed = "file_purpose_not_allowed"
-	codeUploadMissing         = "upload_missing"
-	codeFileNotReady          = "file_not_ready"
-	codeImportNotReady        = "import_not_ready"
-	codeRestoreExpired        = "restore_expired"
-	codeUnknownPreset         = "unknown_preset"
-
-	// Kho (kế hoạch M1 Task M1-29).
-	codeInsufficientStock  = "insufficient_stock"
-	codeDocumentNotDraft   = "document_not_draft"
-	codeStocktakeOpen      = "stocktake_open"
-	codeStocktakeNotOpen   = "stocktake_not_open"
-	codeSupplierNameTaken  = "supplier_name_taken"
-	codeSupplierArchived   = "supplier_archived"
-	codeSupplierNotForKind = "supplier_not_for_kind"
-	codeStockShort         = "stock_short" // Task 406: lấy hàng, giao bị chặn vì kiểm kho ghi thấp hơn phần giữ
+	codeFileNotReady        = "file_not_ready"
+	codeStockShort          = "stock_short" // Task 406: lấy hàng, giao bị chặn vì kiểm kho ghi thấp hơn phần giữ
 )
 
 // errForbiddenTarget: người gọi có quyền (guard đã cho qua) nhưng không ở đích của yêu cầu (kho của phiếu): 403.
@@ -255,16 +163,40 @@ func writeDomainError(w http.ResponseWriter, r *http.Request, err error) bool {
 		writeErrorBody(w, status, body)
 		return true
 	}
-	for _, mapErr := range []func(error) (int, string, bool){
-		identityError, catalogError, filesError, orderError, customerError, promotionError, inventoryError,
-		queriesError, fulfillmentError, cashError,
-	} {
+	for _, mapErr := range domainErrorMappers() {
 		if status, code, ok := mapErr(err); ok {
 			writeError(w, r, status, code)
 			return true
 		}
 	}
 	return false
+}
+
+// domainErrorMappers: hàm đổi lỗi của từng vùng (errors_<vùng>.go), theo thứ tự kiểm cố định — lỗi khớp nhiều vùng
+// (errForbiddenTarget, ErrStockShort cùng giá trị) lấy kết quả của vùng đứng trước. Vùng mới thêm một hàm vào đây; lỗi
+// mới của vùng đã có chỉ sửa tệp của vùng đó.
+func domainErrorMappers() []func(error) (int, string, bool) {
+	return []func(error) (int, string, bool){
+		identityError, catalogError, filesError, orderError, customerError, promotionError, inventoryError,
+		queriesError, fulfillmentError, cashError,
+	}
+}
+
+// errorMapping: một dòng của bảng đổi lỗi: lỗi khớp err (errors.Is) thì trả status và mã code.
+type errorMapping struct {
+	err    error
+	status int
+	code   string
+}
+
+// matchError trả dòng đầu tiên của table mà err khớp (errors.Is, cả khi đã bọc); thứ tự dòng là thứ tự kiểm.
+func matchError(err error, table []errorMapping) (status int, code string, ok bool) {
+	for _, m := range table {
+		if errors.Is(err, m.err) {
+			return m.status, m.code, true
+		}
+	}
+	return 0, "", false
 }
 
 // detailedError: lỗi M2 có trường chi tiết trong thân (Task M2-02; setting_out_of_range kèm field, Task M2-15).
@@ -324,336 +256,4 @@ func writeAuthError(d Deps, w http.ResponseWriter, r *http.Request, err error) {
 	default:
 		writeHandlerError(d, w, r, err)
 	}
-}
-
-// identityError đổi lỗi nghiệp vụ của quản lý nhân viên (PQ07) và vai trò (M1-56) sang mã HTTP. ErrLocked ở đây là người thao tác vừa bị
-// khóa giữa lúc xác thực và lúc ghi: như bước xác thực, 403 forbidden. ErrStaffNotFound: không có hoặc của tenant
-// khác, không cho biết là có.
-func identityError(err error) (status int, code string, ok bool) {
-	for _, m := range []struct {
-		err    error
-		status int
-		code   string
-	}{
-		{identity.ErrSelfModify, http.StatusForbidden, codeCannotModifySelf},
-		{identity.ErrGrantExceedsActor, http.StatusForbidden, codeGrantExceedsActor},
-		{identity.ErrLocked, http.StatusForbidden, codeForbidden},
-		{identity.ErrLastOwner, http.StatusConflict, codeLastOwner},
-		{identity.ErrEmailTaken, http.StatusConflict, codeEmailTaken},
-		{identity.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
-		{identity.ErrStaffNotFound, http.StatusNotFound, codeNotFound},
-		{identity.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
-		{identity.ErrOwnerRoleLocked, http.StatusConflict, codeOwnerRoleLocked},
-		{identity.ErrRoleInUse, http.StatusConflict, codeRoleInUse},
-		{identity.ErrRoleArchived, http.StatusConflict, codeRoleArchived},
-		{identity.ErrRoleNameTaken, http.StatusConflict, codeRoleNameTaken},
-		{identity.ErrUnknownPermission, http.StatusUnprocessableEntity, codeUnknownPermission},
-		{identity.ErrRoleNotFound, http.StatusNotFound, codeNotFound},
-	} {
-		if errors.Is(err, m.err) {
-			return m.status, m.code, true
-		}
-	}
-	return 0, "", false
-}
-
-// catalogError đổi lỗi nghiệp vụ của catalog sang mã HTTP. ErrNotFound: không có, của người bán hay tenant khác (không
-// cho biết là có).
-func catalogError(err error) (status int, code string, ok bool) {
-	for _, m := range []struct {
-		err    error
-		status int
-		code   string
-	}{
-		{catalog.ErrNotFound, http.StatusNotFound, codeNotFound},
-		{catalog.ErrSKUTaken, http.StatusConflict, codeSKUTaken},
-		{catalog.ErrBarcodeTaken, http.StatusConflict, codeBarcodeTaken},
-		{catalog.ErrDuplicateOption, http.StatusConflict, codeDuplicateOption},
-		{catalog.ErrCodeTaken, http.StatusConflict, codeCodeTaken},
-		{catalog.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
-		{catalog.ErrNotForSale, http.StatusConflict, codeNotForSale},
-		{catalog.ErrInvalidPrice, http.StatusUnprocessableEntity, codeInvalidPrice},
-		{catalog.ErrInvalidArticle, http.StatusUnprocessableEntity, codeInvalidArticle},
-		{catalog.ErrCategoryCycle, http.StatusUnprocessableEntity, codeCategoryCycle},
-		{catalog.ErrCategoryTooDeep, http.StatusUnprocessableEntity, codeCategoryTooDeep},
-		{catalog.ErrCategoryInUse, http.StatusConflict, codeCategoryInUse},
-		{catalog.ErrAlreadyExists, http.StatusConflict, codeAlreadyExists},
-		{catalog.ErrFileNotReady, http.StatusConflict, codeFileNotReady},
-		{catalog.ErrImportNotReady, http.StatusConflict, codeImportNotReady},
-		{catalog.ErrRestoreExpired, http.StatusGone, codeRestoreExpired},
-		{catalog.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
-	} {
-		if errors.Is(err, m.err) {
-			return m.status, m.code, true
-		}
-	}
-	return 0, "", false
-}
-
-// filesError đổi lỗi nghiệp vụ của kho tệp sang mã HTTP. ErrNotFound: không có, của tenant khác hay đã xóa, không cho
-// biết là có (PQ08).
-func filesError(err error) (status int, code string, ok bool) {
-	for _, m := range []struct {
-		err    error
-		status int
-		code   string
-	}{
-		{files.ErrTooLarge, http.StatusUnprocessableEntity, codeFileTooLarge},
-		{files.ErrTypeNotAllowed, http.StatusUnprocessableEntity, codeFileTypeNotAllowed},
-		{files.ErrUnknownPurpose, http.StatusUnprocessableEntity, codeFilePurposeNotAllowed},
-		{files.ErrUploadNotAllowed, http.StatusUnprocessableEntity, codeFilePurposeNotAllowed},
-		{files.ErrInvalidFile, http.StatusBadRequest, codeInvalidInput},
-		{files.ErrUploadMissing, http.StatusConflict, codeUploadMissing},
-		{files.ErrNotFound, http.StatusNotFound, codeNotFound},
-		{files.ErrUnknownPreset, http.StatusUnprocessableEntity, codeUnknownPreset},
-	} {
-		if errors.Is(err, m.err) {
-			return m.status, m.code, true
-		}
-	}
-	return 0, "", false
-}
-
-// inventoryError đổi lỗi nghiệp vụ của kho (và thiếu quyền ở kho của yêu cầu) sang mã HTTP. ErrNotFound: phiếu, nhà
-// cung cấp, kho không có hoặc của tenant khác (không cho biết là có). InsufficientError có thân riêng ở
-// writeHandlerError (kèm variantId, available).
-func inventoryError(err error) (status int, code string, ok bool) {
-	for _, m := range []struct {
-		err    error
-		status int
-		code   string
-	}{
-		{errForbiddenTarget, http.StatusForbidden, codeForbidden},
-		{inventory.ErrInsufficient, http.StatusConflict, codeInsufficientStock},
-		{inventory.ErrStockShort, http.StatusConflict, codeStockShort},
-		{inventory.ErrNotFound, http.StatusNotFound, codeNotFound},
-		{inventory.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
-		{inventory.ErrDocumentNotDraft, http.StatusConflict, codeDocumentNotDraft},
-		{inventory.ErrStocktakeOpen, http.StatusConflict, codeStocktakeOpen},
-		{inventory.ErrStocktakeNotOpen, http.StatusConflict, codeStocktakeNotOpen},
-		{inventory.ErrSupplierNameTaken, http.StatusConflict, codeSupplierNameTaken},
-		{inventory.ErrSupplierArchived, http.StatusUnprocessableEntity, codeSupplierArchived},
-		{inventory.ErrSupplierNotForKind, http.StatusUnprocessableEntity, codeSupplierNotForKind},
-		{inventory.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
-	} {
-		if errors.Is(err, m.err) {
-			return m.status, m.code, true
-		}
-	}
-	return 0, "", false
-}
-
-// orderError đổi lỗi nghiệp vụ của lần tạo, đọc đơn (và khách tạo kèm) sang mã HTTP. OutOfStockError có thân riêng ở
-// writeHandlerError (kèm variantId, available). ErrDuplicateOrder: khóa nghiệp vụ của đơn đã dùng — cùng nghĩa với khóa
-// yêu cầu dùng lại. ErrNotFound: không có, của người bán hay tenant khác (không cho biết là có).
-func orderError(err error) (status int, code string, ok bool) {
-	for _, m := range []struct {
-		err    error
-		status int
-		code   string
-	}{
-		{order.ErrOutOfStock, http.StatusConflict, codeOutOfStock},
-		{order.ErrNotForSale, http.StatusUnprocessableEntity, codeVariantNotForSale},
-		{order.ErrMixedSellers, http.StatusUnprocessableEntity, codeMixedSellers},
-		{order.ErrTotalOverflow, http.StatusUnprocessableEntity, codeTotalOverflow},
-		{order.ErrDuplicateOrder, http.StatusUnprocessableEntity, codeIdempotencyKeyReused},
-		{order.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
-		{order.ErrStockShort, http.StatusConflict, codeStockShort}, // cùng giá trị inventory.ErrStockShort (M3-08)
-		{order.ErrNotFound, http.StatusNotFound, codeNotFound},
-		{customer.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
-		// M1 chưa ánh xạ (trước đây 500); M2 thêm.
-		{order.ErrShipmentAlreadyAttached, http.StatusConflict, codeShipmentAlreadyAttached},
-		// M2 (Task M2-02).
-		{order.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
-		{order.ErrLockedByShipment, http.StatusConflict, codeOrderLockedByShipment},
-		{order.ErrInvalidTransition, http.StatusUnprocessableEntity, codeInvalidTransition},
-		{order.ErrAddressIncomplete, http.StatusUnprocessableEntity, codeAddressIncomplete},
-		{order.ErrNeedsApproval, http.StatusUnprocessableEntity, codeNeedsApproval},
-		{order.ErrDiscountNeedsApproval, http.StatusForbidden, codeDiscountNeedsApproval},
-		{order.ErrVariantNotFound, http.StatusUnprocessableEntity, codeVariantNotFound},
-		{order.ErrLineDiscountExceeds, http.StatusUnprocessableEntity, codeLineDiscountExceeds},
-		{order.ErrOrderDiscountExceeds, http.StatusUnprocessableEntity, codeOrderDiscountExceeds},
-		{order.ErrTrafficSourceInactive, http.StatusUnprocessableEntity, codeTrafficSourceInactive},
-		{order.ErrReturnQtyExceeds, http.StatusUnprocessableEntity, codeReturnQtyExceeds},
-		{order.ErrQtyMismatch, http.StatusUnprocessableEntity, codeQtyMismatch},
-		{order.ErrReturnNotAllowed, http.StatusUnprocessableEntity, codeReturnNotAllowed},
-		{order.ErrSettingOutOfRange, http.StatusUnprocessableEntity, codeSettingOutOfRange},
-		// Task M2-15: tên nguồn đơn trùng (Q-T72-1: mã chung already_exists).
-		{order.ErrTrafficSourceNameTaken, http.StatusConflict, codeAlreadyExists},
-		{order.ErrLabelNotFilterable, http.StatusUnprocessableEntity, codeInvalidInput},
-	} {
-		if errors.Is(err, m.err) {
-			return m.status, m.code, true
-		}
-	}
-	return 0, "", false
-}
-
-// fulfillmentError đổi lỗi nghiệp vụ của vận chuyển (và thiếu quyền ở kho của tài khoản hãng) sang mã HTTP.
-// ErrOrderNotShippable (đơn không có, của người bán khác, chưa ở confirmed), ErrAccountNotFound, ErrNotFound: 404
-// (không cho biết là có).
-func fulfillmentError(err error) (status int, code string, ok bool) {
-	for _, m := range []struct {
-		err    error
-		status int
-		code   string
-	}{
-		{errForbiddenTarget, http.StatusForbidden, codeForbidden},
-		{fulfillment.ErrShipmentExists, http.StatusConflict, codeShipmentExists},
-		{fulfillment.ErrOrderNotShippable, http.StatusConflict, codeOrderNotShippable},
-		{fulfillment.ErrOrderNotFound, http.StatusNotFound, codeNotFound},
-		{fulfillment.ErrAccountNotFound, http.StatusNotFound, codeNotFound},
-		{fulfillment.ErrNotFound, http.StatusNotFound, codeNotFound},
-		// Cài đặt vận chuyển (M3, Task M3-04).
-		{fulfillment.ErrSettingOutOfRange, http.StatusUnprocessableEntity, codeSettingOutOfRange},
-		{fulfillment.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
-		// Tài khoản hãng (M3, Task M3-09; tệp task 100, Quyết định 6: chỉ mã có sẵn trong hợp đồng).
-		{fulfillment.ErrCarrierNotSupported, http.StatusUnprocessableEntity, codeCapabilityNotSupported},
-		{fulfillment.ErrAccountUnavailable, http.StatusConflict, codeCarrierAccountUnavailable},
-		{fulfillment.ErrAccountTransition, http.StatusConflict, codeInvalidTransition},
-		{fulfillment.ErrAccountTaken, http.StatusConflict, codeAlreadyExists},
-		{fulfillment.ErrAccountInvalid, http.StatusBadRequest, codeInvalidInput},
-		{fulfillment.ErrAccountTargetNotFound, http.StatusNotFound, codeNotFound},
-		// Áp kết quả tra, lịch sử vận đơn (M3, Task M3-08).
-		{fulfillment.ErrInvalidPage, http.StatusBadRequest, codeInvalidInput},
-		{fulfillment.ErrInvalidTracking, http.StatusBadRequest, codeInvalidInput},
-		{fulfillment.ErrStockShort, http.StatusConflict, codeStockShort},
-		// Gửi hãng (M3, Task M3-12).
-		{fulfillment.ErrQuoteStale, http.StatusConflict, codeQuoteStale},
-		{fulfillment.ErrAddressUnmapped, http.StatusUnprocessableEntity, codeAddressUnmapped},
-		{fulfillment.ErrCreateInProgress, http.StatusConflict, codeCreateInProgress},
-		{fulfillment.ErrShipInvalid, http.StatusBadRequest, codeInvalidInput},
-		{fulfillment.ErrTrackingCodeConflict, http.StatusConflict, codeTrackingCodeConflict},
-		// Hủy vận đơn, đổi hãng (M3, Task M3-14).
-		{fulfillment.ErrShipmentNotCancellable, http.StatusConflict, codeShipmentNotCancellable},
-		// Giao một phần (M3, Task M3-26; tệp task 117, Quyết định 3: chỉ mã có sẵn trong hợp đồng).
-		{fulfillment.ErrPartialNotAllowed, http.StatusConflict, codeInvalidTransition},
-		{fulfillment.ErrPartialQty, http.StatusUnprocessableEntity, codeQtyMismatch},
-		{fulfillment.ErrPartialCOD, http.StatusUnprocessableEntity, codePaymentExceedsTotal},
-		// Nhập mã tay, cập nhật tay trạng thái vận đơn (M3, Task M3-15).
-		{fulfillment.ErrManualReasonRequired, http.StatusUnprocessableEntity, codeInvalidInput},
-		{fulfillment.ErrManualNotAllowed, http.StatusConflict, codeInvalidTransition},
-		// In nhãn (M3, Task M3-16).
-		{fulfillment.ErrLabelBatchInvalid, http.StatusBadRequest, codeInvalidInput},
-		// Đổi địa chỉ sau khi gửi hãng (M3, Task M3-17; chỉ mã có sẵn trong hợp đồng).
-		{fulfillment.ErrAddressChangeOpen, http.StatusConflict, codeAlreadyExists},
-		{fulfillment.ErrAddressChangeNotAllowed, http.StatusConflict, codeInvalidTransition},
-		// Cần xem (M3, Task M3-20): việc không có / ngoài phạm vi → 404; đã đóng, in_doubt_create → 409.
-		{fulfillment.ErrAnomalyNotFound, http.StatusNotFound, codeNotFound},
-		{fulfillment.ErrAnomalyNotResolvable, http.StatusConflict, codeInvalidTransition},
-	} {
-		if errors.Is(err, m.err) {
-			return m.status, m.code, true
-		}
-	}
-	return 0, "", false
-}
-
-// cashError đổi lỗi nghiệp vụ của tiền, bảng kê COD (M3, Task M3-31) sang mã HTTP, rồi lỗi phiếu thu, nghĩa vụ hoàn
-// (paymentsError). Tài khoản hãng, bảng kê không có hay của tenant khác: 404 (không cho biết là có).
-// DuplicateStatementError có thân riêng ở detailedError.
-func cashError(err error) (status int, code string, ok bool) {
-	for _, m := range []struct {
-		err    error
-		status int
-		code   string
-	}{
-		{cash.ErrCarrierAccountNotFound, http.StatusNotFound, codeNotFound},
-		{cash.ErrStatementNotFound, http.StatusNotFound, codeNotFound},
-		{cash.ErrStatementChanged, http.StatusConflict, codeStatementChanged},
-		{cash.ErrShipmentNotFound, http.StatusNotFound, codeNotFound},
-		{cash.ErrUnknownStatementFormat, http.StatusUnprocessableEntity, codeInvalidInput},
-		{cash.ErrStatementFileNotReady, http.StatusConflict, codeFileNotReady},
-		{cash.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
-		// Điều chỉnh COD (Task M3-33): ErrPreviewStale đứng trước ErrAdjustmentBlocked, ErrAdjustTargetNotFound (lúc ghi
-		// hai lỗi đó bọc thêm ErrPreviewStale).
-		{cash.ErrPreviewStale, http.StatusConflict, codePreviewStale},
-		{cash.ErrAdjustReasonRequired, http.StatusUnprocessableEntity, codeInvalidInput},
-		{cash.ErrAdjustmentInvalid, http.StatusUnprocessableEntity, codeInvalidInput},
-		{cash.ErrAdjustTargetNotFound, http.StatusNotFound, codeNotFound},
-		{cash.ErrAdjustmentBlocked, http.StatusConflict, codeInvalidTransition},
-		{cash.ErrAlreadyReversed, http.StatusConflict, codeInvalidTransition},
-		{cash.ErrReconcileRunNotFound, http.StatusNotFound, codeNotFound},
-	} {
-		if errors.Is(err, m.err) {
-			return m.status, m.code, true
-		}
-	}
-	return paymentsError(err)
-}
-
-// paymentsError đổi lỗi của phiếu thu, nghĩa vụ hoàn (M3, Task M3-30) sang mã HTTP; cashError gọi khi không khớp lỗi
-// bảng kê. Đơn, nghĩa vụ không có hay của tenant khác: 404.
-func paymentsError(err error) (status int, code string, ok bool) {
-	switch {
-	case errors.Is(err, cash.ErrOrderNotFound), errors.Is(err, cash.ErrObligationNotFound):
-		return http.StatusNotFound, codeNotFound, true
-	case errors.Is(err, cash.ErrCODLockedByShipment):
-		return http.StatusConflict, codeCODLockedByShipment, true
-	case errors.Is(err, cash.ErrPaymentNotAllowed), errors.Is(err, cash.ErrObligationClosed):
-		return http.StatusConflict, codeInvalidTransition, true
-	case errors.Is(err, cash.ErrPaymentExceedsTotal):
-		return http.StatusConflict, codePaymentExceedsTotal, true
-	case errors.Is(err, cash.ErrRefundExceedsRemaining):
-		return http.StatusConflict, codeRefundExceeds, true
-	case errors.Is(err, cash.ErrReasonRequired):
-		return http.StatusUnprocessableEntity, codeInvalidInput, true
-	}
-	return 0, "", false
-}
-
-// customerError đổi lỗi nghiệp vụ của khách (M2, Task M2-02) sang mã HTTP. ErrNotFound: không có hoặc của tenant khác
-// (không cho biết là có). IdentityTakenError, MergeNotLatestError có thân riêng ở detailedError.
-func customerError(err error) (status int, code string, ok bool) {
-	for _, m := range []struct {
-		err    error
-		status int
-		code   string
-	}{
-		{customer.ErrNotFound, http.StatusNotFound, codeNotFound},
-		{customer.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
-		{customer.ErrInvalidPhone, http.StatusUnprocessableEntity, codeInvalidPhone},
-		{customer.ErrIdentityTaken, http.StatusConflict, codeIdentityTaken},
-		{customer.ErrWardNotInProvince, http.StatusUnprocessableEntity, codeWardNotInProvince},
-		{customer.ErrUnknownAdminUnit, http.StatusUnprocessableEntity, codeUnknownAdminUnit},
-		{customer.ErrQueryTooShort, http.StatusUnprocessableEntity, codeQueryTooShort},
-		{customer.ErrMergeSameCustomer, http.StatusUnprocessableEntity, codeMergeSameCustomer},
-		{customer.ErrMergeNotLatest, http.StatusConflict, codeMergeNotLatest},
-		{customer.ErrMergeWindowExpired, http.StatusUnprocessableEntity, codeMergeWindowExpired},
-		{customer.ErrImportTooLarge, http.StatusUnprocessableEntity, codeImportTooLarge},
-		{customer.ErrImportFileInvalid, http.StatusUnprocessableEntity, codeImportFileInvalid},
-		{customer.ErrInvalidTagRule, http.StatusUnprocessableEntity, codeInvalidTagRule},
-		// Task M2-12: tên nhãn trùng dùng mã chung already_exists (như Q-T72-1); gỡ nhãn do quy tắc gắn → màn hình đang
-		// cũ, tải lại (version_conflict). Không thêm mã mới vào hợp đồng (tệp task 69, QĐ1, QĐ2).
-		{customer.ErrTagNameTaken, http.StatusConflict, codeAlreadyExists},
-		{customer.ErrTagRuleManaged, http.StatusConflict, codeVersionConflict},
-	} {
-		if errors.Is(err, m.err) {
-			return m.status, m.code, true
-		}
-	}
-	return 0, "", false
-}
-
-// promotionError đổi lỗi nghiệp vụ của mã giảm giá (M2, Task M2-02, M2-14) sang mã HTTP. RejectError có thân riêng (kèm
-// reason) ở detailedError.
-func promotionError(err error) (status int, code string, ok bool) {
-	for _, m := range []struct {
-		err    error
-		status int
-		code   string
-	}{
-		{promotion.ErrCouponRejected, http.StatusUnprocessableEntity, codeCouponRejected},
-		{promotion.ErrCouponLockedAfterUse, http.StatusConflict, codeCouponLockedAfterUse},
-		{promotion.ErrMaxUsesBelowUsed, http.StatusUnprocessableEntity, codeMaxUsesBelowUsed},
-		{promotion.ErrCodeTaken, http.StatusConflict, codeCodeTaken},
-		{promotion.ErrNotFound, http.StatusNotFound, codeNotFound},
-		{promotion.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
-		{promotion.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
-	} {
-		if errors.Is(err, m.err) {
-			return m.status, m.code, true
-		}
-	}
-	return 0, "", false
 }

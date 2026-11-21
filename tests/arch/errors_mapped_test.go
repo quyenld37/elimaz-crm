@@ -53,11 +53,12 @@ func exportedErrVars(f *ast.File) []string {
 	return out
 }
 
-// mappedSentinels trả mọi biểu thức "<module>.ErrX" nhắc trong internal/httpapi/errors.go (bảng ánh xạ, một chỗ).
+// mappedSentinels trả mọi biểu thức "<module>.ErrX" nhắc trong bảng ánh xạ lỗi của lớp HTTP: internal/httpapi/errors.go
+// và các tệp theo vùng internal/httpapi/errors_<vùng>.go (Task 441), không gồm tệp test.
 func mappedSentinels(t *testing.T, root string) map[string]bool {
 	t.Helper()
 	out := map[string]bool{}
-	for _, g := range parseGoFiles(t, root, func(rel string) bool { return rel == "internal/httpapi/errors.go" }) {
+	for _, g := range parseGoFiles(t, root, isErrorMapFile) {
 		ast.Inspect(g.file, func(n ast.Node) bool {
 			if sel, ok := n.(*ast.SelectorExpr); ok {
 				if id, ok := sel.X.(*ast.Ident); ok && strings.HasPrefix(sel.Sel.Name, "Err") {
@@ -68,6 +69,15 @@ func mappedSentinels(t *testing.T, root string) map[string]bool {
 		})
 	}
 	return out
+}
+
+// isErrorMapFile: rel là một tệp bảng ánh xạ lỗi của lớp HTTP (errors.go hoặc errors_<vùng>.go, không phải test).
+func isErrorMapFile(rel string) bool {
+	name, ok := strings.CutPrefix(rel, "internal/httpapi/")
+	if !ok || strings.Contains(name, "/") || strings.HasSuffix(name, "_test.go") {
+		return false
+	}
+	return name == "errors.go" || (strings.HasPrefix(name, "errors_") && strings.HasSuffix(name, ".go"))
 }
 
 // internalSentinels: sentinel cố ý KHÔNG ánh xạ — chỉ xảy ra khi dữ liệu đã lệch (lỗi nội bộ), phải ra 500 qua
@@ -115,6 +125,6 @@ func TestErrorsMappedRealCode(t *testing.T) {
 		t.Fatalf("chỉ thấy %d sentinel trong ba module: quét sai chỗ?", n)
 	}
 	if got := unmappedSentinels(t, root); len(got) != 0 {
-		t.Fatalf("sentinel chưa có dòng trong internal/httpapi/errors.go:\n%s", strings.Join(got, "\n"))
+		t.Fatalf("sentinel chưa có dòng trong internal/httpapi/errors*.go:\n%s", strings.Join(got, "\n"))
 	}
 }

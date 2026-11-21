@@ -65,7 +65,8 @@ Có dần theo kế hoạch; lệnh nào chưa có thì task tương ứng sẽ 
 ## Lỗi và log
 
 - Lỗi nghiệp vụ là sentinel (`var ErrX = errors.New(...)`) hoặc kiểu lỗi đặt trong module sinh ra nó. Bọc một lần bằng `fmt.Errorf("<việc đang làm>: %w", err)`, kiểm bằng `errors.Is`/`errors.As`, không so chuỗi.
-- Đổi lỗi sang mã HTTP ở **một chỗ**: `internal/httpapi/errors.go`. Body lỗi luôn `{"error": "<mã>", "request_id": "<id>"}`, không bao giờ có vết lỗi.
+- Đổi lỗi sang mã HTTP ở **một chỗ**: nhóm tệp `internal/httpapi/errors*.go`. Body lỗi luôn `{"error": "<mã>", "request_id": "<id>"}`, không bao giờ có vết lỗi.
+- Thêm lỗi cho một vùng (Task 441): chỉ sửa `internal/httpapi/errors_<vùng>.go` (dòng `errorMapping` đúng thứ tự kiểm; mã chỉ vùng đó trả khai ở const của tệp đó, mã nhiều vùng dùng ở `errors.go`), thêm mã vào `x-error-codes` của `openapi.yaml` và dòng vào `errors_snapshot_test.go`; vùng mới thêm hàm vào `domainErrorMappers` (errors.go).
 - Log chỉ bằng `log/slog`, ghi **một lần** ở mép (handler HTTP, worker), không vừa log vừa trả lỗi.
 - Không bao giờ để SĐT, địa chỉ, nội dung tin, token vào log, dấu vết, cảnh báo hay audit. Dữ liệu cá nhân dùng các kiểu có `LogValue()` tự che.
 
