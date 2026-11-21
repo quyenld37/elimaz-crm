@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/fulfillment/internal/create"
+	"elimaz.com.vn/crm/internal/modules/fulfillment/internal/manual"
 	"elimaz.com.vn/crm/internal/modules/fulfillment/internal/shipstate"
 	"elimaz.com.vn/crm/internal/modules/fulfillment/internal/store"
 	"elimaz.com.vn/crm/internal/modules/order"
@@ -106,13 +107,15 @@ func (d shipToDoc) address() Address {
 // Lỗi: không có đơn, hay Authorize từ chối → ErrOrderNotFound (hay lỗi của Authorize); đơn đã có vận đơn →
 // ErrShipmentExists; đơn không confirmed hay còn chờ lý do → ErrOrderNotShippable; không có tài khoản →
 // ErrAccountNotFound; tài khoản không dùng được → ErrAccountUnavailable; báo phí cũ → ErrQuoteStale; địa chỉ chưa khớp
-// → ErrAddressUnmapped; mã, phí nhập tay cho tài khoản api → ErrShipInvalid.
+// → ErrAddressUnmapped; mã, phí nhập tay cho tài khoản api, tài khoản tay thiếu mã (self: có mã nhập) →
+// ErrShipInvalid; mã nhập tay đã thuộc vận đơn khác cùng hãng → ErrTrackingCodeConflict.
+//
+// Tài khoản mode manual (Task M3-15, area_manual.go): không cần adapter của hãng, không kiểm mã địa giới, không ghi
+// lệnh gửi hãng; sau khi gắn đơn, vận đơn nhận mã nhân viên dán (self: mã vận đơn nội bộ) qua AttachTrackingCode
+// (awaiting_pickup, create_state manual, phí thật FeeActual).
 func (s *Service) Ship(ctx context.Context, tx pgx.Tx, in ShipInput, a order.Actor) (ShipmentView, error) {
 	if s.d.Events == nil || s.d.Queue == nil {
 		return ShipmentView{}, errNotWired
-	}
-	if in.TrackingCode != "" || in.FeeActual != nil {
-		return ShipmentView{}, fmt.Errorf("%w: mã hãng, phí nhập tay chỉ cho tài khoản nhập tay", ErrShipInvalid)
 	}
 	q := store.New(tx)
 	o, err := s.lockShippable(ctx, tx, q, in)
@@ -123,8 +126,12 @@ func (s *Service) Ship(ctx context.Context, tx pgx.Tx, in ShipInput, a order.Act
 	if err != nil {
 		return ShipmentView{}, err
 	}
+	if err := manualTracking(acc, in); err != nil {
+		return ShipmentView{}, err
+	}
+	isManual := acc.Mode == ModeManual
 	ad, hasAdapter := s.adapter(acc.CarrierKey)
-	if s.d.Carriers != nil && !hasAdapter {
+	if s.d.Carriers != nil && !hasAdapter && !isManual {
 		return ShipmentView{}, fmt.Errorf("hãng %s không có adapter: %w", acc.CarrierKey, ErrAccountUnavailable)
 	}
 	full, err := order.Get(ctx, tx, o.SellerID, o.ID)
@@ -140,12 +147,12 @@ func (s *Service) Ship(ctx context.Context, tx pgx.Tx, in ShipInput, a order.Act
 			return ShipmentView{}, err
 		}
 	}
-	if hasAdapter && ad.Capabilities().Locations {
+	if hasAdapter && !isManual && ad.Capabilities().Locations {
 		if err := s.checkMapped(ctx, tx, acc.CarrierKey, p.to); err != nil {
 			return ShipmentView{}, err
 		}
 	}
-	id, err := insertForShip(ctx, q, s.d.Now(), o, acc, in, p, a.UserID)
+	id, code, err := insertForShip(ctx, q, s.d.Now(), o, acc, in, p, a.UserID)
 	if err != nil {
 		return ShipmentView{}, err
 	}
@@ -157,6 +164,9 @@ func (s *Service) Ship(ctx context.Context, tx pgx.Tx, in ShipInput, a order.Act
 		return ShipmentView{}, fmt.Errorf("gắn vận đơn: %w", ErrOrderNotShippable)
 	case err != nil:
 		return ShipmentView{}, fmt.Errorf("gắn vận đơn vào đơn: %w", err)
+	}
+	if isManual {
+		return s.attachManual(ctx, tx, q, id, code, acc, in)
 	}
 	if err := s.enqueueCreate(ctx, tx, q, a.TenantID, id, 1); err != nil {
 		return ShipmentView{}, err
@@ -194,8 +204,8 @@ func (*Service) lockShippable(ctx context.Context, tx pgx.Tx, q *store.Queries, 
 	return o, nil
 }
 
-// shareAccount đọc tài khoản id FOR SHARE và kiểm dùng được cho đơn o: active, mode api, cùng người bán (ADR-29), cùng
-// kho giữ hàng của đơn (ADR-18).
+// shareAccount đọc tài khoản id FOR SHARE và kiểm dùng được cho đơn o: active, mode api hay manual (Task M3-15), cùng
+// người bán (ADR-29), cùng kho giữ hàng của đơn (ADR-18).
 func shareAccount(ctx context.Context, q *store.Queries, id uuid.UUID, o order.Snapshot) (store.ShareAccountForShipRow, error) {
 	acc, err := q.ShareAccountForShip(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -204,7 +214,8 @@ func shareAccount(ctx context.Context, q *store.Queries, id uuid.UUID, o order.S
 	if err != nil {
 		return acc, fmt.Errorf("đọc tài khoản hãng: %w", err)
 	}
-	if acc.Status != AccountActive || acc.Mode != ModeAPI || acc.SellerID != o.SellerID || acc.WarehouseID != o.WarehouseID {
+	if acc.Status != AccountActive || (acc.Mode != ModeAPI && acc.Mode != ModeManual) || acc.SellerID != o.SellerID ||
+		acc.WarehouseID != o.WarehouseID {
 		return acc, fmt.Errorf("tài khoản hãng %s (%s, %s): %w", id, acc.Status, acc.Mode, ErrAccountUnavailable)
 	}
 	return acc, nil
@@ -281,20 +292,20 @@ func (s *Service) checkMapped(ctx context.Context, tx pgx.Tx, carrierKey string,
 	return nil
 }
 
-// insertForShip chèn vận đơn creating; không dòng nào: đơn đã có vận đơn chưa hủy → ErrShipmentExists, ngược lại mã
-// trùng → sinh lại (tối đa codeAttempts lần).
+// insertForShip chèn vận đơn creating, trả mã và mã vận đơn nội bộ (code); không dòng nào: đơn đã có vận đơn chưa
+// hủy → ErrShipmentExists, ngược lại mã trùng → sinh lại (tối đa codeAttempts lần).
 func insertForShip(ctx context.Context, q *store.Queries, now time.Time, o order.Snapshot,
 	acc store.ShareAccountForShipRow, in ShipInput, p shipPlan, userID uuid.UUID,
-) (uuid.UUID, error) {
+) (id uuid.UUID, code string, err error) {
 	opts, err := json.Marshal(optionsJSON(p.options))
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("mã hóa tùy chọn giao: %w", err)
+		return uuid.Nil, "", fmt.Errorf("mã hóa tùy chọn giao: %w", err)
 	}
 	shipTo, err := json.Marshal(shipToDoc{
 		Name: p.to.Name, Phone: string(p.to.Phone), Line: p.to.Line, ProvinceCode: p.to.ProvinceCode, WardCode: p.to.WardCode,
 	})
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("mã hóa địa chỉ giao: %w", err)
+		return uuid.Nil, "", fmt.Errorf("mã hóa địa chỉ giao: %w", err)
 	}
 	params := store.InsertShipmentForShipParams{
 		SellerID: o.SellerID, OrderID: o.ID, CarrierKey: acc.CarrierKey, CarrierAccountID: acc.ID, CodAmount: o.CODAmount,
@@ -307,25 +318,25 @@ func insertForShip(ctx context.Context, q *store.Queries, now time.Time, o order
 	}
 	for range codeAttempts {
 		if params.ID, err = uuid.NewV7(); err != nil {
-			return uuid.Nil, fmt.Errorf("sinh mã vận đơn: %w", err)
+			return uuid.Nil, "", fmt.Errorf("sinh mã vận đơn: %w", err)
 		}
 		params.Code = NewShipmentCode(now, rand.Reader)
 		_, err := q.InsertShipmentForShip(ctx, params)
 		if err == nil {
-			return params.ID, nil
+			return params.ID, params.Code, nil
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
-			return uuid.Nil, fmt.Errorf("chèn vận đơn: %w", err)
+			return uuid.Nil, "", fmt.Errorf("chèn vận đơn: %w", err)
 		}
 		active, err := q.HasActiveShipment(ctx, o.ID)
 		if err != nil {
-			return uuid.Nil, fmt.Errorf("kiểm vận đơn của đơn: %w", err)
+			return uuid.Nil, "", fmt.Errorf("kiểm vận đơn của đơn: %w", err)
 		}
 		if active {
-			return uuid.Nil, ErrShipmentExists
+			return uuid.Nil, "", ErrShipmentExists
 		}
 	}
-	return uuid.Nil, errCodeExhausted
+	return uuid.Nil, "", errCodeExhausted
 }
 
 func optInt4(v int) pgtype.Int4 {
@@ -398,7 +409,8 @@ func viewOf(r store.OrderShipmentViewsRow) ShipmentView {
 	v := ShipmentView{
 		ID: r.ID, OrderID: r.OrderID, CarrierAccountID: r.CarrierAccountID, Code: r.Code, CarrierKey: r.CarrierKey,
 		AccountName: r.AccountName, Mode: r.Mode, TrackingCode: r.TrackingCode.String, Service: r.Service,
-		Status: r.Status, Label: shipstate.Display(shipstate.Status(r.Status), r.SubStatus, ""), SubStatus: r.SubStatus,
+		Status: r.Status, SubStatus: r.SubStatus,
+		Label:       manual.Label(r.CarrierKey, shipstate.Status(r.Status), shipstate.Display(shipstate.Status(r.Status), r.SubStatus, "")),
 		CreateState: r.CreateState, CancelKind: r.CancelKind.String, CODAmount: r.CodAmount,
 		CODCollectedAmount: int8Ptr(r.CodCollectedAmount), Fee: int8Ptr(r.Fee), FeeActual: int8Ptr(r.FeeActual),
 		PickedUpAt: tsPtr(r.PickedUpAt), DeliveredAt: tsPtr(r.DeliveredAt), LastCarrierEventAt: tsPtr(r.LastCarrierEventAt),

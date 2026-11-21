@@ -9,6 +9,7 @@ package create
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -68,3 +69,17 @@ func CanResend(creating bool, state string) bool { return creating && state == S
 
 // CanResolve cho biết xử lý "không rõ" được không: chỉ khi vận đơn creating và create_state unknown.
 func CanResolve(creating bool, state string) bool { return creating && state == StateUnknown }
+
+// ManualTrackingCode là mã hãng của vận đơn tạo bằng tài khoản nhập tay (Task M3-15): hãng "tự giao" (self) không nhận
+// mã nhập, mã hãng là mã vận đơn nội bộ code; hãng khác bắt buộc mã nhân viên dán given (cắt khoảng trắng hai đầu).
+// ok = false khi đầu vào sai (self có mã nhập, hãng khác thiếu mã).
+func ManualTrackingCode(self bool, code, given string) (string, bool) {
+	given = strings.TrimSpace(given)
+	if self {
+		if given != "" {
+			return "", false
+		}
+		return code, true
+	}
+	return given, given != ""
+}

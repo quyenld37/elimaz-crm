@@ -65,3 +65,27 @@ func TestValidResolution(t *testing.T) {
 		}
 	}
 }
+
+// ManualTrackingCode (Task M3-15): tài khoản tay của hãng thật bắt buộc mã nhân viên dán (cắt khoảng trắng hai đầu);
+// self không nhận mã nhập, CRM dùng mã vận đơn nội bộ.
+func TestManualTrackingCode(t *testing.T) {
+	for _, c := range []struct {
+		name        string
+		self        bool
+		code, given string
+		want        string
+		ok          bool
+	}{
+		{"hãng thật có mã", false, "SH1", "BEST123456", "BEST123456", true},
+		{"hãng thật cắt khoảng trắng", false, "SH1", "  BEST123456 \t", "BEST123456", true},
+		{"hãng thật thiếu mã", false, "SH1", "", "", false},
+		{"hãng thật mã toàn khoảng trắng", false, "SH1", "   ", "", false},
+		{"self dùng mã nội bộ", true, "SH1", "", "SH1", true},
+		{"self không nhận mã nhập", true, "SH1", "X9", "", false},
+	} {
+		got, ok := create.ManualTrackingCode(c.self, c.code, c.given)
+		if got != c.want || ok != c.ok {
+			t.Errorf("%s: (%q, %v), muốn (%q, %v)", c.name, got, ok, c.want, c.ok)
+		}
+	}
+}

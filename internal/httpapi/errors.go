@@ -526,6 +526,9 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		{fulfillment.ErrTrackingCodeConflict, http.StatusConflict, codeTrackingCodeConflict},
 		// Hủy vận đơn, đổi hãng (M3, Task M3-14).
 		{fulfillment.ErrShipmentNotCancellable, http.StatusConflict, codeShipmentNotCancellable},
+		// Nhập mã tay, cập nhật tay trạng thái vận đơn (M3, Task M3-15).
+		{fulfillment.ErrManualReasonRequired, http.StatusUnprocessableEntity, codeInvalidInput},
+		{fulfillment.ErrManualNotAllowed, http.StatusConflict, codeInvalidTransition},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

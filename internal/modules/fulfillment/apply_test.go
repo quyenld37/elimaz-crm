@@ -137,7 +137,8 @@ func (e *applyEnv) exports(vs ...uuid.UUID) int {
 		AND delta < 0 AND variant_id = ANY($1)`, vs)
 }
 
-func (e *applyEnv) statusEvents(id uuid.UUID) int {
+// statusEvents đếm sự kiện shipment.status_changed của vận đơn id.
+func (e *shipEnv) statusEvents(id uuid.UUID) int {
 	e.t.Helper()
 	return e.count(`SELECT count(*) FROM platform.domain_events WHERE topic = 'shipment.status_changed'
 		AND aggregate_type = 'shipment' AND aggregate_id = $1`, id.String())
