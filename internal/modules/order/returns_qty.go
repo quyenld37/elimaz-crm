@@ -77,7 +77,10 @@ type buildLines func(items []store.LockReturnItemsRow) ([]ReceiveQtyLine, error)
 //   - customer_return, exchange (M3-24): tốt → on_hand +; hỏng → on_hand + rồi damaged +; thiếu → không ghi kho. Đơn
 //     gốc giữ trạng thái (version + 1); order.returned khi mọi dòng đơn đã trả đủ (theo số của dòng phiếu, kể cả món
 //     thiếu) qua các phiếu đã nhận, không thì order.partially_returned (payload ReturnReceived: kind, refundAmount).
-//   - Loại khác (partial_delivery: M3-26) → ErrReturnNotAllowed.
+//   - partial_delivery (M3-26, phần khách chưa nhận khi giao một phần): chỉ khi đơn delivered và vận đơn của phiếu là
+//     vận đơn hiện hành (khác → ErrInvalidTransition). Phần kho như carrier_return (nhả in_transit của các dòng phiếu,
+//     hỏng → MoveToDamaged, thiếu → RecordLoss); đơn giữ delivered (version + 1); luôn order.partially_returned
+//     (payload ReturnReceived: kind, refundAmount 0, shipmentId, missingQty; fulfillment giữ vận đơn delivered).
 func (w Writer) ReceiveReturnQty(ctx context.Context, tx pgx.Tx, sellerID, returnID uuid.UUID, version int64,
 	lines []ReceiveQtyLine, a Actor, now time.Time,
 ) (Return, error) {
@@ -176,12 +179,14 @@ func (w Writer) receive(ctx context.Context, tx pgx.Tx, sellerID uuid.UUID, l lo
 	if err != nil {
 		return err
 	}
+	byCarrier := l.r.Kind == ReturnCarrier || l.r.Kind == ReturnPartialDelivery // hàng chưa rời sổ: in_transit
 	switch {
-	case l.r.Kind != ReturnCustomer && l.r.Kind != ReturnExchange && l.r.Kind != ReturnCarrier:
+	case !byCarrier && l.r.Kind != ReturnCustomer && l.r.Kind != ReturnExchange:
 		return fmt.Errorf("%w: phiếu loại %s", ErrReturnNotAllowed, l.r.Kind)
-	case l.r.Kind == ReturnCarrier && l.order.Status != StatusConfirmed:
-		return fmt.Errorf("%w: nhận hàng hoàn của đơn %s", ErrInvalidTransition, l.order.Status)
-	case l.r.Kind == ReturnCarrier && (!l.r.ShipmentID.Valid || l.r.ShipmentID != l.order.CurrentShipmentID):
+	case l.r.Kind == ReturnCarrier && l.order.Status != StatusConfirmed,
+		l.r.Kind == ReturnPartialDelivery && l.order.Status != StatusDelivered:
+		return fmt.Errorf("%w: nhận phiếu %s của đơn %s", ErrInvalidTransition, l.r.Kind, l.order.Status)
+	case byCarrier && (!l.r.ShipmentID.Valid || l.r.ShipmentID != l.order.CurrentShipmentID):
 		return fmt.Errorf("%w: phiếu %s của vận đơn không còn hiện hành", ErrInvalidTransition, l.r.Code)
 	}
 	items, err := l.q.LockReturnItems(ctx, l.r.ID)
@@ -206,7 +211,7 @@ func (w Writer) receive(ctx context.Context, tx pgx.Tx, sellerID uuid.UUID, l lo
 	}
 	a.TenantID = l.order.TenantID
 	who := inventory.Actor{Type: a.kind(), ID: a.UserID}
-	if l.r.Kind == ReturnCarrier {
+	if byCarrier {
 		return w.receiveCarrier(ctx, tx, stock, l, lines, full, who, a, now)
 	}
 	return w.receiveCustomer(ctx, tx, stock, l, lines, full, total, who, a, now)
@@ -247,8 +252,9 @@ func markReceived(ctx context.Context, l lockedReturn, lines []qtyLine, a Actor,
 }
 
 // receiveCarrier nhả giữ hàng in_transit của mọi dòng (kiện hoàn đã về kho), chuyển số hỏng sang ngăn hỏng, ghi số
-// thiếu là thất lạc, rồi đơn confirmed → returned (order.returned, payload ReturnReceived). Mọi dòng số dư của phiếu đã
-// bị khóa ở bước nhả (ADR-46 nhóm 11), nên MoveToDamaged, RecordLoss chỉ chạm dòng đã khóa.
+// thiếu là thất lạc, rồi: phiếu hoàn của hãng → đơn confirmed → returned (order.returned, payload ReturnReceived);
+// phiếu giao một phần → đơn giữ delivered, version + 1, order.partially_returned. Mọi dòng số dư của phiếu đã bị khóa ở
+// bước nhả (ADR-46 nhóm 11), nên MoveToDamaged, RecordLoss chỉ chạm dòng đã khóa.
 func (w Writer) receiveCarrier(ctx context.Context, tx pgx.Tx, stock inventory.Writer, l lockedReturn,
 	lines []qtyLine, full Order, who inventory.Actor, a Actor, now time.Time,
 ) error {
@@ -288,6 +294,9 @@ func (w Writer) receiveCarrier(ctx context.Context, tx pgx.Tx, stock inventory.W
 		if err := stock.RecordLoss(ctx, tx, lost, l.r.ID, reasonCarrierMissing, who); err != nil {
 			return fmt.Errorf("ghi hàng hoàn thiếu: %w", err)
 		}
+	}
+	if l.r.Kind == ReturnPartialDelivery {
+		return w.emitReceived(ctx, tx, l, full, TopicOrderPartiallyReturned, 0, lines, a, now)
 	}
 	cur := lockedOrder(l.order)
 	if err := w.applyTransitionWith(ctx, tx, &cur, state.Returned, "", reasonCarrierReturned, transitionOpt{

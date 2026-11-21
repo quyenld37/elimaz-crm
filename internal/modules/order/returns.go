@@ -139,30 +139,15 @@ func (w Writer) CreateReturn(ctx context.Context, tx pgx.Tx, sellerID, orderID u
 	}
 	now = now.UTC()
 	q := store.New(tx)
-	o, err := lockOrder(ctx, q, sellerID, orderID)
+	b, err := lockForNewReturn(ctx, q, sellerID, orderID)
 	if err != nil {
 		return Return{}, err
 	}
-	if o.Status != StatusDelivered {
-		return Return{}, fmt.Errorf("%w: đơn %s chưa giao", ErrReturnNotAllowed, o.Status)
-	}
-	items, err := q.LockOrderItemsForReturn(ctx, store.LockOrderItemsForReturnParams{SellerID: sellerID, OrderID: orderID})
-	if err != nil {
-		return Return{}, fmt.Errorf("khóa dòng đơn: %w", err)
-	}
-	prior, err := q.ReturnedLinesOfOrder(ctx, orderID)
-	if err != nil {
-		return Return{}, fmt.Errorf("đọc phiếu trả của đơn: %w", err)
-	}
-	lines, total, err := priceReturnLines(items, prior, in.Lines)
+	lines, total, err := priceReturnLines(b.items, b.prior, in.Lines)
 	if err != nil {
 		return Return{}, err
 	}
-	id, err := uuid.NewV7()
-	if err != nil {
-		return Return{}, fmt.Errorf("sinh mã phiếu trả: %w", err)
-	}
-	code, err := nextReturnCode(ctx, tx)
+	id, code, err := newReturnCode(ctx, tx)
 	if err != nil {
 		return Return{}, err
 	}
@@ -180,6 +165,54 @@ func (w Writer) CreateReturn(ctx context.Context, tx pgx.Tx, sellerID, orderID u
 	}); err != nil {
 		return Return{}, fmt.Errorf("ghi phiếu trả: %w", err)
 	}
+	return w.finishNewReturn(ctx, tx, q, b.order, id, lines)
+}
+
+// newReturnBase là đơn đã khóa (delivered) cùng dòng đơn đã khóa và dòng của các phiếu chưa hủy, trước khi tạo phiếu.
+type newReturnBase struct {
+	order store.LockOrderRow
+	items []store.LockOrderItemsForReturnRow
+	prior []store.ReturnedLinesOfOrderRow
+}
+
+// lockForNewReturn khóa đơn orderID rồi dòng đơn, đọc dòng phiếu chưa hủy; đơn không delivered → ErrReturnNotAllowed.
+func lockForNewReturn(ctx context.Context, q *store.Queries, sellerID, orderID uuid.UUID) (newReturnBase, error) {
+	o, err := lockOrder(ctx, q, sellerID, orderID)
+	if err != nil {
+		return newReturnBase{}, err
+	}
+	if o.Status != StatusDelivered {
+		return newReturnBase{}, fmt.Errorf("%w: đơn %s chưa giao", ErrReturnNotAllowed, o.Status)
+	}
+	b := newReturnBase{order: o}
+	if b.items, err = q.LockOrderItemsForReturn(ctx, store.LockOrderItemsForReturnParams{
+		SellerID: sellerID, OrderID: orderID,
+	}); err != nil {
+		return newReturnBase{}, fmt.Errorf("khóa dòng đơn: %w", err)
+	}
+	if b.prior, err = q.ReturnedLinesOfOrder(ctx, orderID); err != nil {
+		return newReturnBase{}, fmt.Errorf("đọc phiếu trả của đơn: %w", err)
+	}
+	return b, nil
+}
+
+// newReturnCode sinh mã (uuid v7) và mã TH… (sequence của M2) cho phiếu mới.
+func newReturnCode(ctx context.Context, tx pgx.Tx) (uuid.UUID, string, error) {
+	id, err := uuid.NewV7()
+	if err != nil {
+		return uuid.Nil, "", fmt.Errorf("sinh mã phiếu trả: %w", err)
+	}
+	code, err := nextReturnCode(ctx, tx)
+	if err != nil {
+		return uuid.Nil, "", err
+	}
+	return id, code, nil
+}
+
+// finishNewReturn ghi dòng của phiếu id vừa chèn, báo hiệu đơn o, đọc lại phiếu.
+func (w Writer) finishNewReturn(ctx context.Context, tx pgx.Tx, q *store.Queries, o store.LockOrderRow, id uuid.UUID,
+	lines []pricedLine,
+) (Return, error) {
 	for _, l := range lines {
 		if err := q.InsertReturnItem(ctx, store.InsertReturnItemParams{
 			ReturnID: id, OrderItemID: l.item, Quantity: l.qty, RefundAmount: l.refund,
@@ -190,7 +223,7 @@ func (w Writer) CreateReturn(ctx context.Context, tx pgx.Tx, sellerID, orderID u
 	if err := w.signal(ctx, tx, o.TenantID, lockedOrder(o)); err != nil {
 		return Return{}, err
 	}
-	return GetReturn(ctx, tx, sellerID, id)
+	return GetReturn(ctx, tx, o.SellerID, id)
 }
 
 // checkReturnInput kiểm phần đầu vào không cần database.
@@ -199,12 +232,19 @@ func checkReturnInput(in CreateReturnInput) error {
 	case in.Kind != ReturnCustomer && in.Kind != ReturnExchange,
 		(in.Kind == ReturnExchange) != (in.Replacement != nil),
 		in.Replacement != nil && in.Replacement.CouponCode != "",
-		len(in.Lines) == 0 || len(in.Lines) > maxReturnLines,
 		!optText(in.Reason, maxReturnReasonRunes):
 		return fmt.Errorf("%w: phiếu trả", ErrInvalidInput)
 	}
-	seen := make(map[uuid.UUID]bool, len(in.Lines))
-	for _, l := range in.Lines {
+	return checkReturnLines(in.Lines)
+}
+
+// checkReturnLines kiểm dòng phiếu trả: 1–100 dòng, mỗi dòng đơn một lần, số 1–10.000.
+func checkReturnLines(lines []ReturnLineInput) error {
+	if len(lines) == 0 || len(lines) > maxReturnLines {
+		return fmt.Errorf("%w: số dòng phiếu trả", ErrInvalidInput)
+	}
+	seen := make(map[uuid.UUID]bool, len(lines))
+	for _, l := range lines {
 		if l.OrderItemID == uuid.Nil || l.Quantity <= 0 || l.Quantity > maxReturnQty || seen[l.OrderItemID] {
 			return fmt.Errorf("%w: dòng phiếu trả", ErrInvalidInput)
 		}
@@ -244,7 +284,9 @@ func priceReturnLines(items []store.LockOrderItemsForReturnRow, prior []store.Re
 				continue
 			}
 			returned += int64(p.Quantity)
-			if p.MissingQty > 0 {
+			// Món thiếu (M3-24) và phần khách chưa nhận khi giao một phần (M3-26, tiền hoàn 0): "đã hoàn" là phần lẽ ra
+			// của các đơn vị đó, để đơn vị cuối không nhận cả tiền của chúng.
+			if p.MissingQty > 0 || p.Kind == ReturnPartialDelivery {
 				refunded += pricing.RefundFor(it.NetAmount, qty, 0, int64(p.Quantity), 0)
 			} else {
 				refunded += p.RefundAmount
@@ -465,6 +507,14 @@ func (w Writer) receiveCustomer(ctx context.Context, tx pgx.Tx, stock inventory.
 	if err != nil {
 		return err
 	}
+	return w.emitReceived(ctx, tx, l, full, topic, total, lines, a, now)
+}
+
+// emitReceived tăng version đơn gốc (trạng thái giữ nguyên) và phát topic (order.partially_returned / order.returned)
+// với payload ReturnReceived của phiếu đã nhận (tiền hoàn total).
+func (w Writer) emitReceived(ctx context.Context, tx pgx.Tx, l lockedReturn, full Order, topic string, total int64,
+	lines []qtyLine, a Actor, now time.Time,
+) error {
 	version, err := l.q.BumpOrderVersion(ctx, store.BumpOrderVersionParams{
 		Now: now, SellerID: full.SellerID, ID: full.ID, Version: l.order.Version,
 	})
@@ -520,12 +570,17 @@ func (w Writer) CloseReturn(ctx context.Context, tx pgx.Tx, sellerID, returnID u
 // CancelReturn hủy phiếu returnID ở version (requested → cancelled; số đã trả của dòng mở lại). Phiếu exchange có đơn
 // thay thế chưa gửi hãng (draft, new, confirmed không vận đơn hiện hành) thì hủy luôn đơn đó bằng Cancel (lý do other:
 // nhả hàng, trả lượt); đơn thay thế đã hủy → chỉ hủy phiếu; đã gửi hãng, đã giao, đã trả → ErrReturnNotAllowed. Phiếu
-// không requested → ErrReturnNotAllowed.
+// không requested → ErrReturnNotAllowed. Phiếu partial_delivery (M3-26) không hủy được → ErrReturnNotAllowed: phần
+// khách chưa nhận (vẫn in_transit) chỉ về kho qua phiếu này, và phiếu đã hủy không còn được tính khi khách trả phần đã
+// nhận (hoàn thừa).
 func (w Writer) CancelReturn(ctx context.Context, tx pgx.Tx, sellerID, returnID uuid.UUID, version int64, a Actor,
 	now time.Time,
 ) (Return, error) {
 	now = now.UTC()
 	return w.changeReturn(ctx, tx, sellerID, returnID, version, ReturnRequested, true, func(l lockedReturn) error {
+		if l.r.Kind == ReturnPartialDelivery {
+			return fmt.Errorf("%w: phiếu giao một phần %s không hủy được", ErrReturnNotAllowed, l.r.Code)
+		}
 		repl := l.replacement
 		cancelReplacement := false
 		if repl != nil {

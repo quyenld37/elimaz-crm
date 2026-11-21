@@ -526,6 +526,10 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		{fulfillment.ErrTrackingCodeConflict, http.StatusConflict, codeTrackingCodeConflict},
 		// Hủy vận đơn, đổi hãng (M3, Task M3-14).
 		{fulfillment.ErrShipmentNotCancellable, http.StatusConflict, codeShipmentNotCancellable},
+		// Giao một phần (M3, Task M3-26; tệp task 117, Quyết định 3: chỉ mã có sẵn trong hợp đồng).
+		{fulfillment.ErrPartialNotAllowed, http.StatusConflict, codeInvalidTransition},
+		{fulfillment.ErrPartialQty, http.StatusUnprocessableEntity, codeQtyMismatch},
+		{fulfillment.ErrPartialCOD, http.StatusUnprocessableEntity, codePaymentExceedsTotal},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

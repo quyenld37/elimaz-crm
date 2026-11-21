@@ -41,3 +41,14 @@ var (
 	// ErrShipmentNotCancellable: đổi hãng khi vận đơn đã đang hủy, đã hủy, hay hàng đã đi (phải chờ hoàn).
 	ErrShipmentNotCancellable = errors.New("fulfillment: vận đơn không hủy được")
 )
+
+// Lỗi của giao một phần (kế hoạch M3, Task M3-26).
+var (
+	// ErrPartialNotAllowed: vận đơn không ghi giao một phần được (không phải vận đơn hiện hành, đã giao, đang hoàn,
+	// đang hủy, chờ thu gom mà hãng chưa báo giao một phần, hay đơn không còn ở trạng thái giao được).
+	ErrPartialNotAllowed = errors.New("fulfillment: vận đơn không ghi giao một phần được")
+	// ErrPartialQty: số giao sai (thiếu, lạ, trùng dòng; số âm, lớn hơn số mua; giao 0 hay giao đủ mọi dòng).
+	ErrPartialQty = errors.New("fulfillment: số lượng giao một phần không hợp lệ")
+	// ErrPartialCOD: tiền hãng đã thu âm hay lớn hơn COD của vận đơn.
+	ErrPartialCOD = errors.New("fulfillment: tiền đã thu vượt COD")
+)
