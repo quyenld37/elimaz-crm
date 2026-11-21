@@ -202,7 +202,7 @@ export function AddressFields({ value, onChange, customer, phoneIsCustomers, onP
   );
 }
 
-function WardField({ value, onChange }: { value: AddressInput; onChange: (a: AddressInput) => void }) {
+export function WardField({ value, onChange }: { value: AddressInput; onChange: (a: AddressInput) => void }) {
   const inputId = useId();
   const listId = useId();
   const [typing, setTyping] = useState<string | null>(null);

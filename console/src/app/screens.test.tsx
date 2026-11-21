@@ -159,8 +159,15 @@ describe("loadScreens kiểm quy ước", () => {
     ["hidden không phải true/false", { screens: [{ ...ok, hidden: "có" }] }, /x\/route\.tsx.*hidden/],
     ["alsoRequires không phải mảng chuỗi", { screens: [{ ...ok, alsoRequires: "catalog.read" }] }, /alsoRequires/],
     ["alsoRequires có chuỗi rỗng", { screens: [{ ...ok, alsoRequires: [""] }] }, /x\/route\.tsx.*alsoRequires/],
+    ["badge không phải phần tử React", { screens: [{ ...ok, badge: 12 }] }, /x\/route\.tsx.*badge/],
   ])("%s → lỗi nêu tên tệp và trường", (_name, mod, msg) => {
     expect(() => loadScreens({ "../screens/x/route.tsx": mod })).toThrow(msg);
+  });
+
+  it("badge là phần tử React thì giữ nguyên trên màn (số đếm trên menu, HV02 M3)", () => {
+    const badge = createElement("span", null, "3");
+    const got = loadScreens({ "../screens/x/route.tsx": { screens: [{ ...ok, badge }] } });
+    expect(got[0]?.badge).toBe(badge);
   });
 
   it("trùng path giữa hai tệp → lỗi nêu path và cả hai tệp", () => {

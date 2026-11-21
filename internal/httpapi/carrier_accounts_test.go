@@ -266,3 +266,32 @@ func TestWarehousePickupAPI(t *testing.T) {
 		t.Errorf("kho lạ: %d", code)
 	}
 }
+
+// getWarehousePickup (Task 132): chưa ghi → chỉ version; sau khi ghi → đủ trường, SĐT đã chuẩn hóa, version mới; không
+// quyền fulfillment.settings.manage → 403; kho lạ → 404.
+func TestWarehousePickupAPI_Get(t *testing.T) {
+	e := newCAEnv(t)
+	path := "/api/v1/inventory/warehouses/" + e.shop.Warehouse.String() + "/pickup"
+	if code, _, _ := e.send(http.MethodGet, path, caReader, ""); code != http.StatusForbidden {
+		t.Fatalf("không quyền: %d", code)
+	}
+	code, b, _ := e.send(http.MethodGet, path, caManager, "")
+	if code != http.StatusOK || b["warehouseId"] != e.shop.Warehouse.String() || b["version"] != float64(1) {
+		t.Fatalf("chưa ghi: %d %v", code, b)
+	}
+	if _, ok := b["line"]; ok {
+		t.Errorf("chưa ghi mà có dòng địa chỉ: %v", b)
+	}
+	put := `{"version":1,"name":"Kho MAIN","phone":"0901 234 567","line":"1 Hàng Bài","provinceCode":"01","wardCode":"00070"}`
+	if code, _, _ := e.send(http.MethodPut, path, caManager, put); code != http.StatusOK {
+		t.Fatalf("ghi: %d", code)
+	}
+	code, b, _ = e.send(http.MethodGet, path, caManager, "")
+	if code != http.StatusOK || b["version"] != float64(2) || b["phone"] != "+84901234567" || b["line"] != "1 Hàng Bài" ||
+		b["name"] != "Kho MAIN" || b["provinceCode"] != "01" || b["wardCode"] != "00070" {
+		t.Fatalf("sau khi ghi: %d %v", code, b)
+	}
+	if code, _, _ := e.send(http.MethodGet, "/api/v1/inventory/warehouses/"+uuid.NewString()+"/pickup", caManager, ""); code != http.StatusNotFound {
+		t.Errorf("kho lạ: %d", code)
+	}
+}

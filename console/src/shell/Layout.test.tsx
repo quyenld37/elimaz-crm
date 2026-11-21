@@ -8,6 +8,7 @@ import type { Grant } from "../api";
 import type { Screen } from "../app/nav";
 import { AppRoutes, TEXT_EMPTY_HOME, TEXT_FORBIDDEN, TEXT_NOT_FOUND } from "../app/router";
 import { Layout } from "./Layout";
+import { NavCount } from "./NavCount";
 
 afterEach(() => {
   cleanup();
@@ -172,5 +173,69 @@ describe("thanh trên và menu trượt (điện thoại)", () => {
     expect(acc.textContent).toBe("L");
     fireEvent.click(acc);
     expect(screen.getByRole("button", { name: "Mở menu" }).getAttribute("aria-expanded")).toBe("true");
+  });
+});
+
+// HV01, HV02 của mockup M3 (docs/mockups/m3/khung.js): nhóm "Vận chuyển", "Tiền" ngay sau "Đơn hàng"; số đếm cạnh mục
+// menu (màn tự khai badge), quá hạn thì nền đỏ; số đọc được bằng trình đọc màn hình.
+describe("nhóm Vận chuyển, Tiền và số đếm trên menu (M3)", () => {
+  const m3: Screen[] = [
+    { path: "/don", label: "Danh sách đơn", group: "Đơn hàng", permission: "order.read", element: <h1>Đơn</h1> },
+    { path: "/khach", label: "Khách hàng", group: "Khách hàng", permission: "customer.read", element: <h1>Khách</h1> },
+    {
+      path: "/cod",
+      label: "Đối soát COD",
+      group: "Tiền",
+      permission: "cash.read",
+      badge: <NavCount n={3} />,
+      element: <h1>COD</h1>,
+    },
+    {
+      path: "/ops/callbacks",
+      label: "Cần gọi lại",
+      group: "Vận chuyển",
+      permission: "fulfillment.read",
+      badge: <NavCount n={12} late={3} />,
+      element: <h1>Gọi lại</h1>,
+    },
+    {
+      path: "/settings/carriers",
+      label: "Kết nối vận chuyển",
+      group: "Vận chuyển",
+      permission: "fulfillment.carrier_accounts.read",
+      badge: <NavCount n={0} />,
+      element: <h1>Kết nối</h1>,
+    },
+  ];
+  const perms = ["order.read", "customer.read", "cash.read", "fulfillment.read", "fulfillment.carrier_accounts.read"];
+
+  it("Vận chuyển rồi Tiền đứng ngay sau Đơn hàng, trước Khách hàng", () => {
+    renderAt(
+      "/don",
+      perms.map((p) => grant(p)),
+      m3,
+    );
+    const groups = within(nav())
+      .getAllByRole("group")
+      .map((g) => g.getAttribute("aria-label"));
+    expect(groups).toEqual(["Đơn hàng", "Vận chuyển", "Tiền", "Khách hàng"]);
+  });
+
+  it("số đếm cạnh tên mục; quá hạn → nền đỏ và câu có số quá hạn; 0 → không hiện số", () => {
+    renderAt(
+      "/don",
+      perms.map((p) => grant(p)),
+      m3,
+    );
+    const call = within(nav()).getByRole("link", { name: /^Cần gọi lại/ });
+    const n = call.querySelector(".nav-n");
+    expect(n?.textContent).toBe("12");
+    expect(n?.classList.contains("is-late")).toBe(true);
+    expect(call.textContent).toContain("12 việc, 3 quá hạn");
+    const cod = within(nav()).getByRole("link", { name: /^Đối soát COD/ });
+    expect(cod.querySelector(".nav-n")?.classList.contains("is-late")).toBe(false);
+    expect(cod.textContent).toContain("3 việc");
+    const acc = within(nav()).getByRole("link", { name: "Kết nối vận chuyển" });
+    expect(acc.querySelector(".nav-n")).toBeNull();
   });
 });

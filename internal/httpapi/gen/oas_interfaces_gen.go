@@ -317,6 +317,10 @@ type GetStocktakeRes interface {
 	getStocktakeRes()
 }
 
+type GetWarehousePickupRes interface {
+	getWarehousePickupRes()
+}
+
 type HealthDeepRes interface {
 	healthDeepRes()
 }

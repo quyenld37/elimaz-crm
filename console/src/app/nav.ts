@@ -5,7 +5,18 @@ import type { ReactNode } from "react";
 import { matchPath } from "react-router";
 import type { Grant } from "../api";
 
-export const NAV_GROUPS = ["Đơn hàng", "Khách hàng", "Khuyến mãi", "Sản phẩm", "Kho", "Hệ thống", "Quản trị"] as const;
+// M3 (HV01 của docs/mockups/m3, chủ shop OK 21/11): "Vận chuyển", "Tiền" ngay sau "Đơn hàng".
+export const NAV_GROUPS = [
+  "Đơn hàng",
+  "Vận chuyển",
+  "Tiền",
+  "Khách hàng",
+  "Khuyến mãi",
+  "Sản phẩm",
+  "Kho",
+  "Hệ thống",
+  "Quản trị",
+] as const;
 export type NavGroup = (typeof NAV_GROUPS)[number];
 
 export interface Screen {
@@ -22,6 +33,8 @@ export interface Screen {
   also?: string[];
   /** Có route nhưng không có mục trên menu (trang con). */
   hidden?: boolean;
+  /** Số đếm cạnh tên mục menu (HV02 của M3): phần tử do màn tự khai, tự lấy số và nghe báo hiệu (thường là NavCount). */
+  badge?: ReactNode;
   element: ReactNode;
 }
 
