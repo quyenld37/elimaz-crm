@@ -14,7 +14,8 @@ import (
 
 // wireM3 giữ đúng điều kiện của M1 (Task M3-04, commit cấu trúc): consumer sổ COD luôn có; hai lệnh vận chuyển, nguồn
 // webhook và handler tín hiệu của hãng giả chỉ khi ngoài production và có FAKECARRIER_URL; vùng returns (M3-23) thêm
-// consumer fulfillment_return_received; vùng statements (M3-32) thêm consumer cash_statements.
+// consumer fulfillment_return_received; vùng statements (M3-32) thêm consumer cash_statements; vùng payments (M3-30)
+// thêm consumer cash_refunds.
 func TestWireM3_KeepsM1Parts(t *testing.T) {
 	t.Parallel()
 	fakeCfg := config.Config{Env: "development", FakeCarrierURL: "http://127.0.0.1:1"}
@@ -60,7 +61,7 @@ func checkM3Parts(t *testing.T, cfg config.Config, commands []string, source boo
 	}
 	slices.Sort(consumers)
 	// cash (M1) và fulfillment_return_received (vùng returns, Task M3-23).
-	if want := []string{"cash", "cash_statements", "fulfillment_return_received"}; !slices.Equal(consumers, want) {
+	if want := []string{"cash", "cash_refunds", "cash_statements", "fulfillment_return_received"}; !slices.Equal(consumers, want) {
 		t.Errorf("consumer = %v, mong %v", consumers, want)
 	}
 	want := 0
@@ -71,8 +72,9 @@ func checkM3Parts(t *testing.T, cfg config.Config, commands []string, source boo
 		(source && (p.Sources[0].Key() != fake.CarrierKey || p.Inbound[0].Source() != fake.CarrierKey)) {
 		t.Errorf("nguồn %d, handler vào %d, mong hãng giả = %v", len(p.Sources), len(p.Inbound), source)
 	}
-	if len(p.Schedules)+len(p.Cleanups) != 0 {
-		t.Errorf("khung chưa có lịch, dọn: %d %d", len(p.Schedules), len(p.Cleanups))
+	// Dọn: một hàm của vùng quotes (báo phí quá 7 ngày, Task M3-13); chưa vùng nào có lịch.
+	if len(p.Schedules) != 0 || len(p.Cleanups) != 1 {
+		t.Errorf("lịch, dọn: %d %d, mong 0 1", len(p.Schedules), len(p.Cleanups))
 	}
 }
 

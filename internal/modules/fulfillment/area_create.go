@@ -219,19 +219,20 @@ type shipPlan struct {
 	cod     int64
 }
 
+// shipPlan dựng dữ liệu gửi: nơi nhận shipTo(o), kiện QuoteParcel (cùng nguồn với báo phí để InputHash khớp) cộng
+// kích thước của in, dịch vụ và tùy chọn mặc định của tài khoản khi in để trống. Cài đặt chỉ đọc khi cần cân mặc định.
 func (*Service) shipPlan(ctx context.Context, tx pgx.Tx, in ShipInput, acc store.ShareAccountForShipRow, o order.Order,
 ) (shipPlan, error) {
-	p := shipPlan{
-		to: Address{
-			Name: o.ShipAddress.Name, Phone: o.ShipAddress.Phone, Line: string(o.ShipAddress.Line),
-			ProvinceCode: o.ShipAddress.ProvinceCode, WardCode: o.ShipAddress.WardCode,
-		},
-		parcel: Parcel{
-			WeightGrams: in.WeightGrams, LengthCm: in.LengthCm, WidthCm: in.WidthCm, HeightCm: in.HeightCm,
-			DeclaredValue: in.DeclaredValue, ItemCount: itemCount(o),
-		},
-		service: in.Service, options: in.Options, cod: o.CODAmount,
+	var st Settings
+	if in.WeightGrams <= 0 {
+		var err error
+		if st, _, err = LoadSettings(ctx, tx); err != nil {
+			return shipPlan{}, err
+		}
 	}
+	parcel := QuoteParcel(o, in.WeightGrams, in.DeclaredValue, st)
+	parcel.LengthCm, parcel.WidthCm, parcel.HeightCm = in.LengthCm, in.WidthCm, in.HeightCm
+	p := shipPlan{to: shipTo(o), parcel: parcel, service: in.Service, options: in.Options, cod: o.CODAmount}
 	if p.service == "" {
 		p.service = acc.DefaultService
 	}
@@ -242,22 +243,7 @@ func (*Service) shipPlan(ctx context.Context, tx pgx.Tx, in ShipInput, acc store
 		}
 		p.options = d.options()
 	}
-	if p.parcel.WeightGrams == 0 {
-		st, _, err := LoadSettings(ctx, tx)
-		if err != nil {
-			return shipPlan{}, err
-		}
-		p.parcel.WeightGrams = st.DefaultWeightGramsPerItem * p.parcel.ItemCount
-	}
 	return p, nil
-}
-
-func itemCount(o order.Order) int {
-	n := 0
-	for _, it := range o.Items {
-		n += int(it.Qty)
-	}
-	return n
 }
 
 // checkQuote: báo phí id phải ok, của đúng đơn và tài khoản, chưa hết valid_until (đồng hồ của Service), input_hash
@@ -313,8 +299,8 @@ func insertForShip(ctx context.Context, q *store.Queries, now time.Time, o order
 	params := store.InsertShipmentForShipParams{
 		SellerID: o.SellerID, OrderID: o.ID, CarrierKey: acc.CarrierKey, CarrierAccountID: acc.ID, CodAmount: o.CODAmount,
 		CreatedBy: pgtype.UUID{Bytes: userID, Valid: userID != uuid.Nil}, Mode: acc.Mode, Service: p.service,
-		WeightGrams: optInt4(p.parcel.WeightGrams), LengthCm: optInt4(in.LengthCm), WidthCm: optInt4(in.WidthCm),
-		HeightCm: optInt4(in.HeightCm), DeclaredValue: in.DeclaredValue, Options: opts, ShipTo: shipTo,
+		WeightGrams: optInt4(p.parcel.WeightGrams), LengthCm: optInt4(p.parcel.LengthCm), WidthCm: optInt4(p.parcel.WidthCm),
+		HeightCm: optInt4(p.parcel.HeightCm), DeclaredValue: p.parcel.DeclaredValue, Options: opts, ShipTo: shipTo,
 	}
 	if in.QuoteID != nil {
 		params.QuoteID = pgtype.UUID{Bytes: *in.QuoteID, Valid: true}

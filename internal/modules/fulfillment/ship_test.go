@@ -28,9 +28,14 @@ func (e *shipEnv) orderActor() order.Actor {
 
 // ship gọi Service.Ship trong tx crm_app.
 func (e *shipEnv) ship(in fulfillment.ShipInput) (fulfillment.ShipmentView, error) {
+	return e.shipVia(e.svc, in)
+}
+
+// shipVia gọi svc.Ship (Service có registry hãng khác e.svc) trong tx crm_app.
+func (e *shipEnv) shipVia(svc *fulfillment.Service, in fulfillment.ShipInput) (fulfillment.ShipmentView, error) {
 	var v fulfillment.ShipmentView
 	err := e.app(func(tx pgx.Tx) (err error) {
-		v, err = e.svc.Ship(e.t.Context(), tx, in, e.orderActor())
+		v, err = svc.Ship(e.t.Context(), tx, in, e.orderActor())
 		return err //nolint:wrapcheck // test
 	})
 	return v, err

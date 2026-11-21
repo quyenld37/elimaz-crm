@@ -84,6 +84,10 @@ const (
 	// Bảng kê COD (kế hoạch M3, Task M3-31).
 	codeStatementDuplicate = "statement_duplicate"
 	codeStatementChanged   = "statement_changed"
+	// Phiếu thu, nghĩa vụ hoàn (kế hoạch M3, Task M3-30).
+	codeCODLockedByShipment = "cod_locked_by_shipment"
+	codePaymentExceedsTotal = "payment_exceeds_total"
+	codeRefundExceeds       = "refund_exceeds_remaining"
 
 	// Khách, đơn, mã giảm giá (kế hoạch M2, Task M2-02).
 	codeShipmentAlreadyAttached = "shipment_already_attached"
@@ -525,8 +529,9 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 	return 0, "", false
 }
 
-// cashError đổi lỗi nghiệp vụ của tiền, bảng kê COD (M3, Task M3-31) sang mã HTTP. Tài khoản hãng, bảng kê không
-// có hay của tenant khác: 404 (không cho biết là có). DuplicateStatementError có thân riêng ở detailedError.
+// cashError đổi lỗi nghiệp vụ của tiền, bảng kê COD (M3, Task M3-31) sang mã HTTP, rồi lỗi phiếu thu, nghĩa vụ hoàn
+// (paymentsError). Tài khoản hãng, bảng kê không có hay của tenant khác: 404 (không cho biết là có).
+// DuplicateStatementError có thân riêng ở detailedError.
 func cashError(err error) (status int, code string, ok bool) {
 	for _, m := range []struct {
 		err    error
@@ -544,6 +549,26 @@ func cashError(err error) (status int, code string, ok bool) {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true
 		}
+	}
+	return paymentsError(err)
+}
+
+// paymentsError đổi lỗi của phiếu thu, nghĩa vụ hoàn (M3, Task M3-30) sang mã HTTP; cashError gọi khi không khớp lỗi
+// bảng kê. Đơn, nghĩa vụ không có hay của tenant khác: 404.
+func paymentsError(err error) (status int, code string, ok bool) {
+	switch {
+	case errors.Is(err, cash.ErrOrderNotFound), errors.Is(err, cash.ErrObligationNotFound):
+		return http.StatusNotFound, codeNotFound, true
+	case errors.Is(err, cash.ErrCODLockedByShipment):
+		return http.StatusConflict, codeCODLockedByShipment, true
+	case errors.Is(err, cash.ErrPaymentNotAllowed), errors.Is(err, cash.ErrObligationClosed):
+		return http.StatusConflict, codeInvalidTransition, true
+	case errors.Is(err, cash.ErrPaymentExceedsTotal):
+		return http.StatusConflict, codePaymentExceedsTotal, true
+	case errors.Is(err, cash.ErrRefundExceedsRemaining):
+		return http.StatusConflict, codeRefundExceeds, true
+	case errors.Is(err, cash.ErrReasonRequired):
+		return http.StatusUnprocessableEntity, codeInvalidInput, true
 	}
 	return 0, "", false
 }
