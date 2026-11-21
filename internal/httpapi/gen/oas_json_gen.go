@@ -5057,10 +5057,17 @@ func (s *CancelShipmentRequest) encodeFields(e *jx.Encoder) {
 		e.FieldStart("reason")
 		e.Str(s.Reason)
 	}
+	{
+		if s.CarrierChecked.Set {
+			e.FieldStart("carrierChecked")
+			s.CarrierChecked.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfCancelShipmentRequest = [1]string{
+var jsonFieldsNameOfCancelShipmentRequest = [2]string{
 	0: "reason",
+	1: "carrierChecked",
 }
 
 // Decode decodes CancelShipmentRequest from json.
@@ -5083,6 +5090,16 @@ func (s *CancelShipmentRequest) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "carrierChecked":
+			if err := func() error {
+				s.CarrierChecked.Reset()
+				if err := s.CarrierChecked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"carrierChecked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)

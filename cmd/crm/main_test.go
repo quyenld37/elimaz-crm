@@ -11,7 +11,7 @@ import (
 // event.cash, nên shipment.status_changed ghi được việc cho cash. Ba module M2 (Task M2-02) được nối; order có lịch hủy
 // đơn nháp quá hạn (Task M2-21) và consumer đơn trùng order_duplicates (Task M2-23); customer có consumer chỉ số khách
 // customer_stats và lịch nhãn đêm customer.tag_rules_nightly (Task M2-25); fulfillment có consumer
-// fulfillment_return_received (Task M3-23).
+// fulfillment_order_cancel (Task M3-14), fulfillment_return_received (Task M3-23).
 func TestNewModulesRegistersCash(t *testing.T) {
 	t.Parallel()
 	m, err := newModules(config.Config{Role: config.RoleWorker}, nil, nil, nil, nil)
@@ -23,7 +23,7 @@ func TestNewModulesRegistersCash(t *testing.T) {
 		kinds = append(kinds, h.Kind().Name)
 	}
 	want := []string{
-		"event.fulfillment_return_received", "event.cash", "event.cash_statements", "event.cash_refunds",
+		"event.fulfillment_order_cancel", "event.fulfillment_return_received", "event.cash", "event.cash_statements", "event.cash_refunds",
 		"event.customer_stats",
 		"event.order_duplicates",
 	}

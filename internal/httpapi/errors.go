@@ -102,6 +102,7 @@ const (
 	codeQuoteStale                = "quote_stale"
 	codeAddressUnmapped           = "address_unmapped"
 	codeCreateInProgress          = "create_in_progress"
+	codeShipmentNotCancellable    = "shipment_not_cancellable"
 	codeTrackingCodeConflict      = "tracking_code_conflict"
 	codeAddressIncomplete         = "address_incomplete"
 	codeNeedsApproval             = "needs_approval"
@@ -523,6 +524,8 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		{fulfillment.ErrCreateInProgress, http.StatusConflict, codeCreateInProgress},
 		{fulfillment.ErrShipInvalid, http.StatusBadRequest, codeInvalidInput},
 		{fulfillment.ErrTrackingCodeConflict, http.StatusConflict, codeTrackingCodeConflict},
+		// Hủy vận đơn, đổi hãng (M3, Task M3-14).
+		{fulfillment.ErrShipmentNotCancellable, http.StatusConflict, codeShipmentNotCancellable},
 	} {
 		if errors.Is(err, m.err) {
 			return m.status, m.code, true

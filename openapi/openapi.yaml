@@ -8415,6 +8415,9 @@ components:
           type: string
           minLength: 1
           maxLength: 1000
+        carrierChecked:
+          type: boolean
+          description: 'Nhân viên đã tra trang hãng và hãng không có vận đơn này: chỉ dùng cho vận đơn đang tạo kẹt ("không rõ" hay lệnh tạo bị bỏ) → hủy với cancelKind staff_after_unknown; không có thì vận đơn đang tạo trả 409 create_in_progress (Task M3-14)'
     SetShipmentManualStatusRequest:
       type: object
       additionalProperties: false

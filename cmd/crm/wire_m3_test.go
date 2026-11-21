@@ -15,7 +15,8 @@ import (
 // wireM3 giữ đúng điều kiện của M1 (Task M3-04, commit cấu trúc): consumer sổ COD luôn có; hai lệnh vận chuyển, nguồn
 // webhook và handler tín hiệu của hãng giả chỉ khi ngoài production và có FAKECARRIER_URL; vùng returns (M3-23) thêm
 // consumer fulfillment_return_received; vùng statements (M3-32) thêm consumer cash_statements; vùng payments (M3-30)
-// thêm consumer cash_refunds.
+// thêm consumer cash_refunds; vùng cancel (M3-14) thêm consumer fulfillment_order_cancel và, khi có hãng, lệnh
+// command.shipment.cancel.
 func TestWireM3_KeepsM1Parts(t *testing.T) {
 	t.Parallel()
 	fakeCfg := config.Config{Env: "development", FakeCarrierURL: "http://127.0.0.1:1"}
@@ -25,7 +26,7 @@ func TestWireM3_KeepsM1Parts(t *testing.T) {
 		commands []string
 		source   bool
 	}{
-		{"hãng giả", fakeCfg, []string{"command.cash.statement_parse", "fulfillment.create_shipment", "fulfillment.refresh_status"}, true},
+		{"hãng giả", fakeCfg, []string{"command.cash.statement_parse", "command.shipment.cancel", "fulfillment.create_shipment", "fulfillment.refresh_status"}, true},
 		{"production", config.Config{Env: "production", FakeCarrierURL: "http://127.0.0.1:1"}, []string{"command.cash.statement_parse"}, false},
 		{"không URL", config.Config{Env: "development"}, []string{"command.cash.statement_parse"}, false},
 	}
@@ -60,8 +61,8 @@ func checkM3Parts(t *testing.T, cfg config.Config, commands []string, source boo
 		consumers = append(consumers, c.Name())
 	}
 	slices.Sort(consumers)
-	// cash (M1) và fulfillment_return_received (vùng returns, Task M3-23).
-	if want := []string{"cash", "cash_refunds", "cash_statements", "fulfillment_return_received"}; !slices.Equal(consumers, want) {
+	// cash (M1), fulfillment_order_cancel (vùng cancel, Task M3-14), fulfillment_return_received (vùng returns, M3-23).
+	if want := []string{"cash", "cash_refunds", "cash_statements", "fulfillment_order_cancel", "fulfillment_return_received"}; !slices.Equal(consumers, want) {
 		t.Errorf("consumer = %v, mong %v", consumers, want)
 	}
 	want := 0

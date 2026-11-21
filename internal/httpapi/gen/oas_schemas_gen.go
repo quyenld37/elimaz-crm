@@ -2113,6 +2113,11 @@ func (s *CancelReason) UnmarshalText(data []byte) error {
 // Ref: #/components/schemas/CancelShipmentRequest
 type CancelShipmentRequest struct {
 	Reason string `json:"reason"`
+	// Nhân viên đã tra trang hãng và hãng không có vận đơn này: chỉ dùng cho vận đơn
+	// đang tạo kẹt ("không rõ" hay lệnh tạo bị bỏ) → hủy với cancelKind
+	// staff_after_unknown; không có thì vận đơn đang tạo trả 409 create_in_progress (Task
+	// M3-14).
+	CarrierChecked OptBool `json:"carrierChecked"`
 }
 
 // GetReason returns the value of Reason.
@@ -2120,9 +2125,19 @@ func (s *CancelShipmentRequest) GetReason() string {
 	return s.Reason
 }
 
+// GetCarrierChecked returns the value of CarrierChecked.
+func (s *CancelShipmentRequest) GetCarrierChecked() OptBool {
+	return s.CarrierChecked
+}
+
 // SetReason sets the value of Reason.
 func (s *CancelShipmentRequest) SetReason(val string) {
 	s.Reason = val
+}
+
+// SetCarrierChecked sets the value of CarrierChecked.
+func (s *CancelShipmentRequest) SetCarrierChecked(val OptBool) {
+	s.CarrierChecked = val
 }
 
 // Tài khoản hãng (AccountView). Không bao giờ có khóa API; chỉ hasCredentials.
