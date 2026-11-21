@@ -99,6 +99,29 @@ không retry test, không skip.
   `time.Now()` của Go. Đo: đồng hồ của database chạy trước máy ~0,17 s → 2 giờ 59 phút 59,8 giây cắt xuống 2 ≠ 3. Cùng
   loại bẫy "một đồng hồ cho mỗi phép so" (Task 400, 440): test nên ghi `finished_at` bằng `time.Now()` của Go. Không
   sửa ở task này (ngoài phạm vi), cần một task riêng của điều phối viên.
+- **Lượt bổ sung 21/11 (TestDeepHealth): gốc ở mã chạy, không sửa test.** Bên ghi thật của mốc sao lưu là
+  `scripts/backup/runs-lib.sh` (`runs_record`, chạy trong container PostgreSQL): `INSERT INTO platform.backup_runs
+  (kind, ok, duration_seconds, detail)` không đưa `finished_at`, nên mốc lấy `DEFAULT now()` (0010_ops.sql) — **đồng hồ
+  PostgreSQL**. Bên đọc `DeepHealth` (`deephealth.go:78`) tính `int64(now.Sub(backup).Hours())` với `now :=
+  time.Now()` — **đồng hồ của tiến trình Go**. Mã chạy trộn hai đồng hồ, nên test đang ghi mốc đúng bằng đồng hồ của bên
+  ghi thật (`now() - interval '3 hours'`); đổi test sang `time.Now()` của Go là che lỗi (khác Task 440, nơi bên ghi thật
+  dùng đồng hồ máy). Cùng dạng ở `walArchivedAge` (`deephealth.go:100`): `pg_stat_archiver.last_archived_time` (đồng hồ
+  PostgreSQL) trừ `time.Now()` của Go. Tác động thật: trên máy chủ Linux container dùng chung đồng hồ nhân với máy nên
+  lệch ~0; trên máy dev (colima) lệch vài phần mười giây tới vài phút (Task 440 gặp 12 phút) → số giờ sao lưu, giây WAL
+  sai khi lệch, test của mốc giờ tròn đỏ. Đề xuất (task riêng, chọn một): (a) tuổi sao lưu và WAL tính trong SQL bằng
+  `now()` của PostgreSQL (`extract(epoch FROM now() - finished_at)`), mỗi mốc so với đồng hồ của bên ghi nó — nhịp sống,
+  lần chép tệp vẫn so với Go như hiện tại; (b) `runs-lib.sh` ghi `finished_at` bằng đồng hồ của máy gọi — không giải
+  được vì script chạy trong container (cùng đồng hồ PostgreSQL), và `last_archived_time` không đổi được. Phương án (a)
+  hợp hơn. Sau khi sửa mã chạy, test giữ nguyên `now() - interval '3 hours'` và `== 3`.
+
+## Dừng để hỏi
+
+- (Lượt bổ sung 21/11) `TestDeepHealth` không sửa: brief của điều phối viên nói "nếu gốc là mã chạy trộn hai đồng hồ thì
+  ghi rõ vào Việc phát hiện thêm và dừng hỏi" — đúng trường hợp này (xem mục trên). Tái hiện lúc làm, không cần chèn
+  lệch giả: `go test -race -count=3 -run '^TestDeepHealth$' ./internal/platform/observability/` → 3/3 `FAIL
+  deephealth_test.go:36: tuổi: …`; đo đồng hồ (psql `clock_timestamp()` kẹp giữa hai mốc `time.time()` của Mac, 3 lần):
+  mốc PostgreSQL lớn hơn cả mốc Mac đo **sau** nó 0,09–0,14 s. Cần OK: mở task sửa `DeepHealth` theo phương án (a)
+  (vùng `internal/platform/observability`, không phải vùng rủi ro cao). Không đổi mã nào ở lượt này.
 
 ## Reviewer
 
