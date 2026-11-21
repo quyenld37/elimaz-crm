@@ -185,11 +185,9 @@ func TestCleanupStaleSkipsSeededTemplateBeingBuilt(t *testing.T) {
 
 	builder := connect(ctx, t, withDB(base, nil, base.Path))
 	defer func() { _ = builder.Close(ctx) }()
-	if _, err := builder.Exec(ctx, "SELECT pg_advisory_lock($1, hashtext($2))", int32(seedLockKey), tpl); err != nil {
-		t.Fatal(err)
-	}
-	// Như TestCleanupStaleDropsOnlyIdleOldDatabases: khóa dọn, khóa dựng mẫu riêng của lần chạy (không chờ khóa chung).
-	locks := privateLocks(t)
+	lockName(ctx, t, builder, tpl)
+	// Như TestCleanupStaleDropsOnlyIdleOldDatabases: khóa dọn riêng của lần chạy (không chờ khóa chung).
+	locks := privateCleanupLock(t)
 	exists := func() bool {
 		var ok bool
 		if err := admin.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)", tpl).Scan(&ok); err != nil {
@@ -201,9 +199,7 @@ func TestCleanupStaleSkipsSeededTemplateBeingBuilt(t *testing.T) {
 	if !exists() {
 		t.Fatal("mẫu bị dọn khi khóa dựng mẫu có dữ liệu của nó đang bị giữ")
 	}
-	if _, err := builder.Exec(ctx, "SELECT pg_advisory_unlock($1, hashtext($2))", int32(seedLockKey), tpl); err != nil {
-		t.Fatal(err)
-	}
+	unlockName(ctx, builder, tpl)
 	cleanupStale(ctx, t, admin, locks, []string{prefix}, "", anyAge)
 	if exists() {
 		t.Fatal("mẫu cũ không ai giữ khóa phải bị dọn")
