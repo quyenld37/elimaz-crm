@@ -20,7 +20,12 @@ trị nhân viên, vai trò, nền tảng là loại `toàn shop`.
   quản lý nhân viên, không xem nhật ký, không vào mục nền tảng.
 - Quyền quản trị (loại `toàn shop`) hiện có: `identity.users.manage`, `identity.roles.manage`, `platform.jobs.manage`,
   `platform.health.read`, `platform.files.manage`, `audit.read`; chính sách toàn shop của M2: `order.settings.manage`,
-  `promotion.manage`; của M3: `fulfillment.carrier_accounts.manage`, `fulfillment.settings.manage`.
+  `promotion.manage`; của M3: `fulfillment.carrier_accounts.manage`, `fulfillment.settings.manage`; của M5:
+  `identity.service_keys.manage`.
+- **Quyền `web.*` chỉ khóa dịch vụ giữ** (Task 189, ADR-18): khóa của website (`ek_…`, header `Authorization`) chỉ mang
+  các quyền `web.*` được cấp lúc tạo (mã: `identity.ServiceKeyPermissions`, không thuộc `identity.Permissions`); không
+  vai trò nhân viên nào nhận được chúng (vai trò tự định nghĩa → `unknown_permission`), và khóa không nhận quyền nào
+  ngoài `web.*` (`permission_not_allowed_for_key`). Route `/api/v1/web/*` chỉ nhận khóa, route của nhân viên không nhận khóa.
 - **Lên đơn giữ hàng theo phạm vi kho** (Task 411, quyết định 19/11 cho phát hiện D-02): `order.create` vẫn là loại
   `none` (vào màn Lên đơn, kiểm mã giảm giá, kiểm đơn trùng như cũ), nhưng lúc tạo đơn (`POST /api/v1/orders`) kho giữ
   hàng của đơn — `warehouseId` gửi lên, bỏ trống là kho chính — phải nằm trong phạm vi của chính quyền `order.create`:
@@ -119,3 +124,12 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `cash.payments.record` | none | M3 | owner, manager, sale, accountant | Ghi phiếu thu, cọc, chuyển khoản trên đơn |
 | `cash.refunds.record` | none | M3 | owner, accountant | Ghi phiếu chi trả khoản hoàn tiền cho khách |
 | `cash.refunds.waive` | none | M3 | owner | Đóng khoản hoàn "không hoàn" kèm lý do (khách đồng ý mất cọc) |
+| `identity.service_keys.manage` | toàn shop | M5 | owner | Tạo, xem, thu hồi khóa dịch vụ của website (khóa hiện một lần) |
+| `web.catalog.read` | none | M5 | | Khóa dịch vụ: đọc sản phẩm, giá, tồn cho website |
+| `web.orders.create` | none | M5 | | Khóa dịch vụ: tạo đơn web |
+| `web.orders.read` | none | M5 | | Khóa dịch vụ: tra đơn kênh web theo mã đơn web |
+| `web.orders.cancel` | none | M5 | | Khóa dịch vụ: khách tự hủy đơn web |
+| `web.requests.write` | none | M5 | | Khóa dịch vụ: gửi yêu cầu về đơn (đổi, trả, góp ý) |
+| `web.coupons.issue` | none | M5 | | Khóa dịch vụ: phát mã giảm giá của website |
+| `web.shipping.quote` | none | M5 | | Khóa dịch vụ: báo phí ship cho giỏ hàng |
+| `web.flash.buy` | none | M5 | | Khóa dịch vụ: bấm mua flash sale |

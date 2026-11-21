@@ -125,6 +125,44 @@ export type ReplaceGrantsRequest = {
     grants: Array<StaffGrant>;
 };
 
+export type ServiceKey = {
+    id: string;
+    name: string;
+    /**
+     * 12 ký tự đầu (không bí mật) để nhận ra khóa; khóa đầy đủ dạng ek_{keyPrefix}_{bí mật}
+     */
+    keyPrefix: string;
+    permissions: Array<string>;
+    /**
+     * Dải IP được dùng khóa; rỗng là mọi IP
+     */
+    allowedCidrs: Array<string>;
+    createdAt: string;
+    revokedAt?: string;
+    /**
+     * Lần dùng gần nhất (ghi tối đa một lần mỗi phút)
+     */
+    lastUsedAt?: string;
+    version: number;
+};
+
+export type CreatedServiceKey = ServiceKey & {
+    /**
+     * Khóa đầy đủ, chỉ có ở câu trả lời tạo khóa; CRM không lưu, không hiện lại
+     */
+    secret: string;
+};
+
+export type CreateServiceKeyRequest = {
+    name: string;
+    permissions: Array<string>;
+    allowedCidrs?: Array<string>;
+};
+
+export type RevokeServiceKeyRequest = {
+    version: number;
+};
+
 export type Role = {
     id: string;
     key: string;
@@ -2900,6 +2938,8 @@ export type JobId = string;
 
 export type FileId = string;
 
+export type ServiceKeyId = string;
+
 export type RoleId = string;
 
 export type StaffId = string;
@@ -3369,6 +3409,95 @@ export type ListPermissionsResponses = {
 };
 
 export type ListPermissionsResponse = ListPermissionsResponses[keyof ListPermissionsResponses];
+
+export type ListServiceKeysData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/identity/service-keys';
+};
+
+export type ListServiceKeysErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListServiceKeysError = ListServiceKeysErrors[keyof ListServiceKeysErrors];
+
+export type ListServiceKeysResponses = {
+    /**
+     * Khóa, cũ trước
+     */
+    200: Array<ServiceKey>;
+};
+
+export type ListServiceKeysResponse = ListServiceKeysResponses[keyof ListServiceKeysResponses];
+
+export type CreateServiceKeyData = {
+    body: CreateServiceKeyRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/identity/service-keys';
+};
+
+export type CreateServiceKeyErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateServiceKeyError = CreateServiceKeyErrors[keyof CreateServiceKeyErrors];
+
+export type CreateServiceKeyResponses = {
+    /**
+     * Khóa vừa tạo kèm bí mật (secret), hiện một lần
+     */
+    201: CreatedServiceKey;
+};
+
+export type CreateServiceKeyResponse = CreateServiceKeyResponses[keyof CreateServiceKeyResponses];
+
+export type RevokeServiceKeyData = {
+    body: RevokeServiceKeyRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/identity/service-keys/{id}/revoke';
+};
+
+export type RevokeServiceKeyErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RevokeServiceKeyError = RevokeServiceKeyErrors[keyof RevokeServiceKeyErrors];
+
+export type RevokeServiceKeyResponses = {
+    /**
+     * Khóa sau khi thu hồi
+     */
+    200: ServiceKey;
+};
+
+export type RevokeServiceKeyResponse = RevokeServiceKeyResponses[keyof RevokeServiceKeyResponses];
 
 export type GetMeData = {
     body?: never;

@@ -169,6 +169,10 @@ type CreateRoleRes interface {
 	createRoleRes()
 }
 
+type CreateServiceKeyRes interface {
+	createServiceKeyRes()
+}
+
 type CreateShipmentRes interface {
 	createShipmentRes()
 }
@@ -449,6 +453,10 @@ type ListRolesToManageRes interface {
 	listRolesToManageRes()
 }
 
+type ListServiceKeysRes interface {
+	listServiceKeysRes()
+}
+
 type ListShipmentAddressChangesRes interface {
 	listShipmentAddressChangesRes()
 }
@@ -607,6 +615,10 @@ type RestoreProductImageRes interface {
 
 type RetryJobRes interface {
 	retryJobRes()
+}
+
+type RevokeServiceKeyRes interface {
+	revokeServiceKeyRes()
 }
 
 type SearchVariantsRes interface {

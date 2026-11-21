@@ -227,6 +227,8 @@ type Config struct {
 	ValkeyGateURL  string
 	CacheKeySecret logging.Secret
 
+	RateLimitsJSON string
+
 	Migrate *MigrateConfig
 }
 func Load(role Role, getenv func(string) string) (Config, error)

@@ -6903,6 +6903,43 @@ func (s *CreateRoleRequest) SetPermissions(val []string) {
 	s.Permissions = val
 }
 
+// Ref: #/components/schemas/CreateServiceKeyRequest
+type CreateServiceKeyRequest struct {
+	Name         string   `json:"name"`
+	Permissions  []string `json:"permissions"`
+	AllowedCidrs []string `json:"allowedCidrs"`
+}
+
+// GetName returns the value of Name.
+func (s *CreateServiceKeyRequest) GetName() string {
+	return s.Name
+}
+
+// GetPermissions returns the value of Permissions.
+func (s *CreateServiceKeyRequest) GetPermissions() []string {
+	return s.Permissions
+}
+
+// GetAllowedCidrs returns the value of AllowedCidrs.
+func (s *CreateServiceKeyRequest) GetAllowedCidrs() []string {
+	return s.AllowedCidrs
+}
+
+// SetName sets the value of Name.
+func (s *CreateServiceKeyRequest) SetName(val string) {
+	s.Name = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *CreateServiceKeyRequest) SetPermissions(val []string) {
+	s.Permissions = val
+}
+
+// SetAllowedCidrs sets the value of AllowedCidrs.
+func (s *CreateServiceKeyRequest) SetAllowedCidrs(val []string) {
+	s.AllowedCidrs = val
+}
+
 // Thân của M1 ({carrierAccountId}) vẫn hợp lệ. M3 (Task M3-12, M3-15) thêm trường tùy
 // chọn; bỏ trống thì dùng mặc định của tài khoản hãng và cài đặt vận
 // chuyển. trackingCode, feeActual chỉ cho tài khoản nhập tay (mode manual; hãng self thì
@@ -7236,6 +7273,128 @@ func (s *CreateUploadRequest) SetContentType(val string) {
 func (s *CreateUploadRequest) SetSizeBytes(val int64) {
 	s.SizeBytes = val
 }
+
+// Merged schema.
+// Ref: #/components/schemas/CreatedServiceKey
+type CreatedServiceKey struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+	// 12 ký tự đầu (không bí mật) để nhận ra khóa; khóa đầy đủ dạng
+	// ek_{keyPrefix}_{bí mật}.
+	KeyPrefix   string   `json:"keyPrefix"`
+	Permissions []string `json:"permissions"`
+	// Dải IP được dùng khóa; rỗng là mọi IP.
+	AllowedCidrs []string    `json:"allowedCidrs"`
+	CreatedAt    time.Time   `json:"createdAt"`
+	RevokedAt    OptDateTime `json:"revokedAt"`
+	// Lần dùng gần nhất (ghi tối đa một lần mỗi phút).
+	LastUsedAt OptDateTime `json:"lastUsedAt"`
+	Version    int         `json:"version"`
+	// Khóa đầy đủ, chỉ có ở câu trả lời tạo khóa; CRM không lưu, không hiện lại.
+	Secret string `json:"secret"`
+}
+
+// GetID returns the value of ID.
+func (s *CreatedServiceKey) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *CreatedServiceKey) GetName() string {
+	return s.Name
+}
+
+// GetKeyPrefix returns the value of KeyPrefix.
+func (s *CreatedServiceKey) GetKeyPrefix() string {
+	return s.KeyPrefix
+}
+
+// GetPermissions returns the value of Permissions.
+func (s *CreatedServiceKey) GetPermissions() []string {
+	return s.Permissions
+}
+
+// GetAllowedCidrs returns the value of AllowedCidrs.
+func (s *CreatedServiceKey) GetAllowedCidrs() []string {
+	return s.AllowedCidrs
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *CreatedServiceKey) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetRevokedAt returns the value of RevokedAt.
+func (s *CreatedServiceKey) GetRevokedAt() OptDateTime {
+	return s.RevokedAt
+}
+
+// GetLastUsedAt returns the value of LastUsedAt.
+func (s *CreatedServiceKey) GetLastUsedAt() OptDateTime {
+	return s.LastUsedAt
+}
+
+// GetVersion returns the value of Version.
+func (s *CreatedServiceKey) GetVersion() int {
+	return s.Version
+}
+
+// GetSecret returns the value of Secret.
+func (s *CreatedServiceKey) GetSecret() string {
+	return s.Secret
+}
+
+// SetID sets the value of ID.
+func (s *CreatedServiceKey) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *CreatedServiceKey) SetName(val string) {
+	s.Name = val
+}
+
+// SetKeyPrefix sets the value of KeyPrefix.
+func (s *CreatedServiceKey) SetKeyPrefix(val string) {
+	s.KeyPrefix = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *CreatedServiceKey) SetPermissions(val []string) {
+	s.Permissions = val
+}
+
+// SetAllowedCidrs sets the value of AllowedCidrs.
+func (s *CreatedServiceKey) SetAllowedCidrs(val []string) {
+	s.AllowedCidrs = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *CreatedServiceKey) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetRevokedAt sets the value of RevokedAt.
+func (s *CreatedServiceKey) SetRevokedAt(val OptDateTime) {
+	s.RevokedAt = val
+}
+
+// SetLastUsedAt sets the value of LastUsedAt.
+func (s *CreatedServiceKey) SetLastUsedAt(val OptDateTime) {
+	s.LastUsedAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CreatedServiceKey) SetVersion(val int) {
+	s.Version = val
+}
+
+// SetSecret sets the value of Secret.
+func (s *CreatedServiceKey) SetSecret(val string) {
+	s.Secret = val
+}
+
+func (*CreatedServiceKey) createServiceKeyRes() {}
 
 // Hồ sơ theo gốc (id là gốc); chỉ số chỉ đúng ở gốc.
 // Ref: #/components/schemas/Customer
@@ -9138,6 +9297,7 @@ func (*ErrorStatusCode) createOrderRes()                 {}
 func (*ErrorStatusCode) createProductRes()               {}
 func (*ErrorStatusCode) createReturnRes()                {}
 func (*ErrorStatusCode) createRoleRes()                  {}
+func (*ErrorStatusCode) createServiceKeyRes()            {}
 func (*ErrorStatusCode) createShipmentRes()              {}
 func (*ErrorStatusCode) createStaffRes()                 {}
 func (*ErrorStatusCode) createStockDocumentRes()         {}
@@ -9207,6 +9367,7 @@ func (*ErrorStatusCode) listRefundObligationsRes()       {}
 func (*ErrorStatusCode) listReturnsRes()                 {}
 func (*ErrorStatusCode) listRolesRes()                   {}
 func (*ErrorStatusCode) listRolesToManageRes()           {}
+func (*ErrorStatusCode) listServiceKeysRes()             {}
 func (*ErrorStatusCode) listShipmentAddressChangesRes()  {}
 func (*ErrorStatusCode) listShipmentEventsRes()          {}
 func (*ErrorStatusCode) listShipmentsForReviewRes()      {}
@@ -9247,6 +9408,7 @@ func (*ErrorStatusCode) resolveShipmentAnomalyRes()      {}
 func (*ErrorStatusCode) resolveShipmentCreateRes()       {}
 func (*ErrorStatusCode) restoreProductImageRes()         {}
 func (*ErrorStatusCode) retryJobRes()                    {}
+func (*ErrorStatusCode) revokeServiceKeyRes()            {}
 func (*ErrorStatusCode) searchVariantsRes()              {}
 func (*ErrorStatusCode) setCarrierAccountStatusRes()     {}
 func (*ErrorStatusCode) setOrderPendingRes()             {}
@@ -10661,6 +10823,10 @@ func (*ListRolesOKApplicationJSON) listRolesRes() {}
 type ListRolesToManageOKApplicationJSON []Role
 
 func (*ListRolesToManageOKApplicationJSON) listRolesToManageRes() {}
+
+type ListServiceKeysOKApplicationJSON []ServiceKey
+
+func (*ListServiceKeysOKApplicationJSON) listServiceKeysRes() {}
 
 type ListStaffOKApplicationJSON []StaffMember
 
@@ -20077,6 +20243,21 @@ func (s *ReturnSummary) SetStatus(val ReturnStatus) {
 	s.Status = val
 }
 
+// Ref: #/components/schemas/RevokeServiceKeyRequest
+type RevokeServiceKeyRequest struct {
+	Version int `json:"version"`
+}
+
+// GetVersion returns the value of Version.
+func (s *RevokeServiceKeyRequest) GetVersion() int {
+	return s.Version
+}
+
+// SetVersion sets the value of Version.
+func (s *RevokeServiceKeyRequest) SetVersion(val int) {
+	s.Version = val
+}
+
 // Ref: #/components/schemas/Role
 type Role struct {
 	ID     uuid.UUID  `json:"id"`
@@ -20449,6 +20630,115 @@ func (s *ScopeWarningScopeType) UnmarshalText(data []byte) error {
 type SearchVariantsOKApplicationJSON []VariantSearchHit
 
 func (*SearchVariantsOKApplicationJSON) searchVariantsRes() {}
+
+// Ref: #/components/schemas/ServiceKey
+type ServiceKey struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+	// 12 ký tự đầu (không bí mật) để nhận ra khóa; khóa đầy đủ dạng
+	// ek_{keyPrefix}_{bí mật}.
+	KeyPrefix   string   `json:"keyPrefix"`
+	Permissions []string `json:"permissions"`
+	// Dải IP được dùng khóa; rỗng là mọi IP.
+	AllowedCidrs []string    `json:"allowedCidrs"`
+	CreatedAt    time.Time   `json:"createdAt"`
+	RevokedAt    OptDateTime `json:"revokedAt"`
+	// Lần dùng gần nhất (ghi tối đa một lần mỗi phút).
+	LastUsedAt OptDateTime `json:"lastUsedAt"`
+	Version    int         `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *ServiceKey) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ServiceKey) GetName() string {
+	return s.Name
+}
+
+// GetKeyPrefix returns the value of KeyPrefix.
+func (s *ServiceKey) GetKeyPrefix() string {
+	return s.KeyPrefix
+}
+
+// GetPermissions returns the value of Permissions.
+func (s *ServiceKey) GetPermissions() []string {
+	return s.Permissions
+}
+
+// GetAllowedCidrs returns the value of AllowedCidrs.
+func (s *ServiceKey) GetAllowedCidrs() []string {
+	return s.AllowedCidrs
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ServiceKey) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetRevokedAt returns the value of RevokedAt.
+func (s *ServiceKey) GetRevokedAt() OptDateTime {
+	return s.RevokedAt
+}
+
+// GetLastUsedAt returns the value of LastUsedAt.
+func (s *ServiceKey) GetLastUsedAt() OptDateTime {
+	return s.LastUsedAt
+}
+
+// GetVersion returns the value of Version.
+func (s *ServiceKey) GetVersion() int {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *ServiceKey) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ServiceKey) SetName(val string) {
+	s.Name = val
+}
+
+// SetKeyPrefix sets the value of KeyPrefix.
+func (s *ServiceKey) SetKeyPrefix(val string) {
+	s.KeyPrefix = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *ServiceKey) SetPermissions(val []string) {
+	s.Permissions = val
+}
+
+// SetAllowedCidrs sets the value of AllowedCidrs.
+func (s *ServiceKey) SetAllowedCidrs(val []string) {
+	s.AllowedCidrs = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ServiceKey) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetRevokedAt sets the value of RevokedAt.
+func (s *ServiceKey) SetRevokedAt(val OptDateTime) {
+	s.RevokedAt = val
+}
+
+// SetLastUsedAt sets the value of LastUsedAt.
+func (s *ServiceKey) SetLastUsedAt(val OptDateTime) {
+	s.LastUsedAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ServiceKey) SetVersion(val int) {
+	s.Version = val
+}
+
+func (*ServiceKey) revokeServiceKeyRes() {}
 
 // Ref: #/components/schemas/SetCarrierAccountStatusRequest
 type SetCarrierAccountStatusRequest struct {

@@ -20,6 +20,9 @@ const (
 	codeRoleArchived      = "role_archived"
 	codeRoleNameTaken     = "role_name_taken"
 	codeUnknownPermission = "unknown_permission"
+	// Khóa dịch vụ (Task 189).
+	codeIPNotAllowed        = "ip_not_allowed"
+	codePermissionNotForKey = "permission_not_allowed_for_key"
 )
 
 // identityError đổi lỗi nghiệp vụ của quản lý nhân viên (PQ07) và vai trò (M1-56) sang mã HTTP. ErrLocked ở đây là người thao tác vừa bị
@@ -41,5 +44,11 @@ func identityError(err error) (status int, code string, ok bool) {
 		{identity.ErrRoleNameTaken, http.StatusConflict, codeRoleNameTaken},
 		{identity.ErrUnknownPermission, http.StatusUnprocessableEntity, codeUnknownPermission},
 		{identity.ErrRoleNotFound, http.StatusNotFound, codeNotFound},
+		// Khóa dịch vụ (Task 189): khóa sai, đã thu hồi → 401 như thiếu khóa (không cho biết khóa có hay không).
+		{identity.ErrInvalidKey, http.StatusUnauthorized, codeUnauthenticated},
+		{identity.ErrRevoked, http.StatusUnauthorized, codeUnauthenticated},
+		{identity.ErrIPNotAllowed, http.StatusForbidden, codeIPNotAllowed},
+		{identity.ErrPermissionNotForKey, http.StatusUnprocessableEntity, codePermissionNotForKey},
+		{identity.ErrServiceKeyNotFound, http.StatusNotFound, codeNotFound},
 	})
 }

@@ -110,6 +110,8 @@ func TestPermissionsList(t *testing.T) {
 		"cash.statements.import": identity.ScopeNone, "cash.statements.confirm": identity.ScopeNone,
 		"cash.adjust": identity.ScopeNone, "cash.payments.record": identity.ScopeNone,
 		"cash.refunds.record": identity.ScopeNone, "cash.refunds.waive": identity.ScopeNone,
+		// M5 (Task 189): quản lý khóa dịch vụ là quản trị.
+		"identity.service_keys.manage": identity.ScopeShop,
 	}
 	seen := map[identity.Permission]bool{}
 	for _, d := range identity.Permissions {

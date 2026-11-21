@@ -25,7 +25,7 @@ func TestDefaultRoles_Content(t *testing.T) {
 		"cash.statements.import", "cash.statements.confirm", "cash.adjust", "cash.refunds.record", "cash.refunds.waive",
 	}
 	for _, p := range all {
-		if p != "identity.users.manage" && p != "identity.roles.manage" && (len(p) < 9 || p[:9] != "platform.") &&
+		if p != "identity.users.manage" && p != "identity.roles.manage" && p != "identity.service_keys.manage" && (len(p) < 9 || p[:9] != "platform.") &&
 			!slices.Contains(cashOnlyOwner, p) {
 			manager = append(manager, p)
 		}

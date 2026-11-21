@@ -298,6 +298,13 @@ type Handler interface {
 	//
 	// POST /api/v1/identity/roles
 	CreateRole(ctx context.Context, req *CreateRoleRequest, params CreateRoleParams) (CreateRoleRes, error)
+	// CreateServiceKey implements createServiceKey operation.
+	//
+	// Gửi lại cùng Idempotency-Key → 409 already_processed (không tạo khóa thứ hai, không
+	// trả lại bí mật). Quyền ngoài web.* → 422 permission_not_allowed_for_key.
+	//
+	// POST /api/v1/identity/service-keys
+	CreateServiceKey(ctx context.Context, req *CreateServiceKeyRequest, params CreateServiceKeyParams) (CreateServiceKeyRes, error)
 	// CreateShipment implements createShipment operation.
 	//
 	// Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa
@@ -761,6 +768,12 @@ type Handler interface {
 	//
 	// GET /api/v1/identity/roles/manage
 	ListRolesToManage(ctx context.Context) (ListRolesToManageRes, error)
+	// ListServiceKeys implements listServiceKeys operation.
+	//
+	// Khóa dịch vụ của website (không bao giờ kèm bí mật hay băm).
+	//
+	// GET /api/v1/identity/service-keys
+	ListServiceKeys(ctx context.Context) (ListServiceKeysRes, error)
 	// ListShipmentAddressChanges implements listShipmentAddressChanges operation.
 	//
 	// Quyền fulfillment.read theo kho của tài khoản hãng của vận đơn; thiếu phạm vi →
@@ -1028,6 +1041,12 @@ type Handler interface {
 	//
 	// POST /api/v1/platform/jobs/{id}/retry
 	RetryJob(ctx context.Context, params RetryJobParams) (RetryJobRes, error)
+	// RevokeServiceKey implements revokeServiceKey operation.
+	//
+	// Thu hồi khóa dịch vụ (yêu cầu kế tiếp dùng khóa nhận 401 trong vài giây).
+	//
+	// POST /api/v1/identity/service-keys/{id}/revoke
+	RevokeServiceKey(ctx context.Context, req *RevokeServiceKeyRequest, params RevokeServiceKeyParams) (RevokeServiceKeyRes, error)
 	// SearchVariants implements searchVariants operation.
 	//
 	// Tìm biến thể của người bán theo barcode (đúng), SKU, mã mẫu (tiền tố), tên

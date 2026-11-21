@@ -24,8 +24,9 @@ const (
 )
 
 // ServiceKeyVerifier kiểm khóa dịch vụ đầy đủ (bearer, dạng "ek_<tiền tố>_<bí mật>") và IP của máy gọi (địa chỉ rỗng
-// khi thiếu hoặc sai dạng), trả "người gọi" mang quyền web.* của khóa. Lỗi: identity.ErrInvalidToken (và sentinel của
-// M5-06) → writeAuthError. Bản thật: M5-06 (identity.NewServiceKeyVerifier).
+// khi thiếu hoặc sai dạng), trả "người gọi" mang quyền web.* của khóa (Kind service, ServiceKeyID). Lỗi:
+// identity.ErrInvalidKey, ErrRevoked (401), ErrIPNotAllowed (403) → writeAuthError. Bản thật: KeyVerifier
+// (NewServiceKeyVerifier, Task 189).
 type ServiceKeyVerifier interface {
 	Verify(ctx context.Context, bearer string, clientIP netip.Addr) (identity.AuthUser, error)
 }

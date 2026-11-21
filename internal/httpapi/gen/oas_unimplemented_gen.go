@@ -429,6 +429,16 @@ func (UnimplementedHandler) CreateRole(ctx context.Context, req *CreateRoleReque
 	return r, ht.ErrNotImplemented
 }
 
+// CreateServiceKey implements createServiceKey operation.
+//
+// Gửi lại cùng Idempotency-Key → 409 already_processed (không tạo khóa thứ hai, không
+// trả lại bí mật). Quyền ngoài web.* → 422 permission_not_allowed_for_key.
+//
+// POST /api/v1/identity/service-keys
+func (UnimplementedHandler) CreateServiceKey(ctx context.Context, req *CreateServiceKeyRequest, params CreateServiceKeyParams) (r CreateServiceKeyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateShipment implements createShipment operation.
 //
 // Quyền fulfillment.ship theo đích kho của tài khoản hãng. Đơn đã có vận đơn chưa
@@ -1105,6 +1115,15 @@ func (UnimplementedHandler) ListRolesToManage(ctx context.Context) (r ListRolesT
 	return r, ht.ErrNotImplemented
 }
 
+// ListServiceKeys implements listServiceKeys operation.
+//
+// Khóa dịch vụ của website (không bao giờ kèm bí mật hay băm).
+//
+// GET /api/v1/identity/service-keys
+func (UnimplementedHandler) ListServiceKeys(ctx context.Context) (r ListServiceKeysRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListShipmentAddressChanges implements listShipmentAddressChanges operation.
 //
 // Quyền fulfillment.read theo kho của tài khoản hãng của vận đơn; thiếu phạm vi →
@@ -1489,6 +1508,15 @@ func (UnimplementedHandler) RestoreProductImage(ctx context.Context, params Rest
 //
 // POST /api/v1/platform/jobs/{id}/retry
 func (UnimplementedHandler) RetryJob(ctx context.Context, params RetryJobParams) (r RetryJobRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// RevokeServiceKey implements revokeServiceKey operation.
+//
+// Thu hồi khóa dịch vụ (yêu cầu kế tiếp dùng khóa nhận 401 trong vài giây).
+//
+// POST /api/v1/identity/service-keys/{id}/revoke
+func (UnimplementedHandler) RevokeServiceKey(ctx context.Context, req *RevokeServiceKeyRequest, params RevokeServiceKeyParams) (r RevokeServiceKeyRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

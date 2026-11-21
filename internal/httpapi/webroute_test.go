@@ -68,8 +68,9 @@ func (f *fakeWebLimit) AllowWebKey(_ context.Context, subject string) (bool, tim
 	return true, 0
 }
 
-func serviceUser(tenant, user uuid.UUID) identity.AuthUser {
-	return identity.AuthUser{TenantID: tenant, UserID: user, Grants: []identity.Grant{
+// serviceUser: người gọi là khóa dịch vụ keyID của tenant (Task 189: UserID rỗng, ServiceKeyID là mã khóa).
+func serviceUser(tenant, keyID uuid.UUID) identity.AuthUser {
+	return identity.AuthUser{TenantID: tenant, Kind: identity.KindService, ServiceKeyID: keyID, Grants: []identity.Grant{
 		{Permission: "catalog.read", Scope: identity.Scope{Type: identity.ScopeAll}},
 	}}
 }
@@ -260,7 +261,7 @@ func TestServiceKeyRateLimit(t *testing.T) {
 	if got := rec.Header().Get("Retry-After"); got != "2" {
 		t.Errorf("Retry-After phải 2 (1,5 s làm tròn lên), có %q", got)
 	}
-	if len(lim.subjects) != 2 || lim.subjects[0] != "svc:"+user.UserID.String() {
+	if len(lim.subjects) != 2 || lim.subjects[0] != "svc:"+user.ServiceKeyID.String() {
 		t.Errorf("chủ thể giới hạn phải svc:<mã>, có %v", lim.subjects)
 	}
 

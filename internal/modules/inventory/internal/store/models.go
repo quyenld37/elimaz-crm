@@ -917,6 +917,22 @@ type IdentityRolePermission struct {
 	Permission string
 }
 
+type IdentityServiceKey struct {
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	Name         string
+	KeyPrefix    string
+	KeyHash      []byte
+	Permissions  []string
+	AllowedCidrs []netip.Prefix
+	CreatedBy    uuid.UUID
+	CreatedAt    time.Time
+	RevokedAt    pgtype.Timestamptz
+	RevokedBy    pgtype.UUID
+	LastUsedAt   pgtype.Timestamptz
+	Version      int32
+}
+
 type IdentityUser struct {
 	ID          uuid.UUID
 	TenantID    uuid.UUID

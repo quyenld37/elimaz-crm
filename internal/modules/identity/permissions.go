@@ -102,6 +102,8 @@ var Permissions = []PermissionDef{ //nolint:gochecknoglobals // danh sách hằn
 	{"cash.payments.record", ScopeNone},
 	{"cash.refunds.record", ScopeNone},
 	{"cash.refunds.waive", ScopeNone},
+	// M5 (kế hoạch M5 Task 189): tạo, xem, thu hồi khóa dịch vụ của website là quản trị: ScopeShop, chỉ Chủ.
+	{"identity.service_keys.manage", ScopeShop},
 }
 
 // Loại phạm vi của một grant (cột user_role_grants.scope_type).
@@ -123,20 +125,32 @@ type Grant struct {
 	Scope      Scope
 }
 
-// AuthUser là nhân viên đã xác thực của một yêu cầu, kèm mọi grant tại thời điểm yêu cầu.
+// Loại người gọi của AuthUser.Kind.
+const (
+	// KindStaff: nhân viên (thẻ Cloudflare Access, LoadUser).
+	KindStaff = "staff"
+	// KindService: khóa dịch vụ của website (CheckServiceKey); UserID rỗng, ServiceKeyID là mã khóa.
+	KindService = "service"
+)
+
+// AuthUser là người gọi đã xác thực của một yêu cầu, kèm mọi grant tại thời điểm yêu cầu. Kind là KindStaff (UserID
+// là nhân viên) hoặc KindService (khóa dịch vụ: UserID rỗng, ServiceKeyID là mã khóa, Grants là quyền web.* của khóa
+// phạm vi all); rỗng ở mã dựng AuthUser bằng tay (test) coi như nhân viên.
 type AuthUser struct {
-	UserID   uuid.UUID
-	TenantID uuid.UUID
-	Email    string
-	Grants   []Grant
+	UserID       uuid.UUID
+	TenantID     uuid.UUID
+	Email        string
+	Grants       []Grant
+	Kind         string
+	ServiceKeyID uuid.UUID
 }
 
-// IsKnown cho biết p có trong Permissions không.
+// IsKnown cho biết p có trong Permissions (quyền nhân viên) hoặc ServiceKeyPermissions (quyền của khóa dịch vụ) không.
 func IsKnown(p Permission) bool {
-	return slices.ContainsFunc(Permissions, func(d PermissionDef) bool { return d.Key == p })
+	return IsServiceKeyPermission(p) || slices.ContainsFunc(Permissions, func(d PermissionDef) bool { return d.Key == p })
 }
 
-// KindOf trả cách kiểm phạm vi của p; quyền lạ coi là ScopeNone (Can từ chối quyền lạ trước khi xét loại).
+// KindOf trả cách kiểm phạm vi của p (quyền của khóa dịch vụ đều ScopeNone); quyền lạ coi là ScopeNone (Can từ chối quyền lạ trước khi xét loại).
 func KindOf(p Permission) ScopeKind {
 	for _, d := range Permissions {
 		if d.Key == p {

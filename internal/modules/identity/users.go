@@ -67,7 +67,7 @@ func LoadUser(ctx context.Context, d *db.DB, email string) (AuthUser, error) {
 			grants = append(grants, Grant{Permission: Permission(r.Permission), Scope: Scope{Type: r.ScopeType, ID: r.ScopeID}})
 		}
 		// Gán trọn ở cuối: fn có thể chạy lại (RetryTx), không cộng dồn.
-		u = AuthUser{UserID: row.ID, TenantID: tenantID, Email: row.Email, Grants: grants}
+		u = AuthUser{UserID: row.ID, TenantID: tenantID, Email: row.Email, Grants: grants, Kind: KindStaff}
 		return nil
 	})
 	if err != nil {

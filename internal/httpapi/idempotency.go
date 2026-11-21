@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/idempotency"
 	"elimaz.com.vn/crm/internal/platform/logging"
@@ -69,7 +70,7 @@ func claimFrom(ctx context.Context) (*claimState, bool) {
 
 // idempotent là middleware chống trùng của route ghi required và no-replay (đặt sau auth, guard, userRateLimit).
 // Thiếu header → 400 idempotency_key_required; sai mẫu → 400 idempotency_key_invalid. Ghi nhận khóa (phạm vi: tenant,
-// "user:<mã nhân viên>", mẫu route; mã băm: method, đường dẫn thật kèm query, thân chuẩn hóa) bằng idempotency.Acquire:
+// idempotencyActor, mẫu route; mã băm: method, đường dẫn thật kèm query, thân chuẩn hóa) bằng idempotency.Acquire:
 // đã xong → phát lại nguyên Status, Body kèm Idempotent-Replayed: true (no-replay: 409 already_processed); lỗi đổi ở
 // writeHandlerError. Khóa mới: đặt Claim vào ctx cho WriteTx. Handler trả lời mà không gọi WriteTx thì khóa được trả
 // lại (Release) để lần gửi lại chạy từ đầu.
@@ -105,7 +106,7 @@ func idempotent(d Deps, rt Route, next http.Handler) http.Handler {
 		if r.URL.RawQuery != "" {
 			target += "?" + r.URL.RawQuery
 		}
-		scope := idempotency.Scope{TenantID: u.TenantID, Actor: "user:" + u.UserID.String(), Route: rt.Pattern}
+		scope := idempotency.Scope{TenantID: u.TenantID, Actor: idempotencyActor(u), Route: rt.Pattern}
 		claim, stored, err := idempotency.Acquire(ctx, d.DB, scope, key, idempotency.RequestHash(r.Method, target, body), time.Now())
 		switch {
 		case err != nil:
@@ -129,6 +130,15 @@ func idempotent(d Deps, rt Route, next http.Handler) http.Handler {
 			writeStored(w, st.result)
 		}
 	})
+}
+
+// idempotencyActor là người gọi trong phạm vi khóa chống trùng: "svc:<ServiceKeyID>" cho khóa dịch vụ (Task 189),
+// "user:<UserID>" cho nhân viên (giữ dạng của M0 để khóa đang chạy không đổi phạm vi).
+func idempotencyActor(u identity.AuthUser) string {
+	if u.Kind == identity.KindService {
+		return "svc:" + u.ServiceKeyID.String()
+	}
+	return "user:" + u.UserID.String()
 }
 
 // storedWriter bỏ mọi thứ handler ghi sau khi WriteTx đã lưu kết quả cuối (st.result), để idempotent ghi đúng kết quả
