@@ -540,3 +540,15 @@ describe("Chi tiết đơn — nội dung", () => {
     });
   });
 });
+
+describe("Chi tiết đơn — chỗ gắn khối Vận chuyển (M3 Task 133)", () => {
+  it("đơn Đã xác nhận: có khối Vận chuyển ở cột phải; đơn Mới: không có", async () => {
+    fake.orders.set(O1, order({ status: "confirmed", label: "confirmed" }));
+    await open();
+    expect(screen.getByRole("region", { name: "Vận chuyển" })).toBeTruthy();
+    cleanup();
+    fake.orders.set(O1, order());
+    await open();
+    expect(screen.queryByRole("region", { name: "Vận chuyển" })).toBeNull();
+  });
+});

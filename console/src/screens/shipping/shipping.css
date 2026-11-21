@@ -1,0 +1,101 @@
+/* Lớp riêng của khối Vận chuyển trên đơn, chép từ mockup đã duyệt docs/mockups/m3/m3.css (.ship, .ship-h, .ship-code,
+   .qt, .qt-r, .unit) và .bar của docs/mockups/m1/m1.css (cùng luật imports.css, chỉ nạp ở màn Nhập). Chỉ dùng biến có
+   sẵn của styles.css: không màu, cỡ chữ, bo góc mới. Không có gì chỉ hiện khi rê chuột. */
+
+.ship {
+  display: grid;
+  gap: var(--space-md);
+}
+.ship-h {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.ship-h > .grow {
+  min-width: 0;
+}
+.ship-code {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--title);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* Bảng so phí: một dòng mỗi tài khoản hãng; dòng lỗi có chữ, không bao giờ hiện 0 ₫ thay cho lỗi */
+.qt {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+}
+.qt-r {
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 2px var(--space-sm);
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+  min-height: var(--tap);
+}
+.qt-r:last-child {
+  border-bottom: 0;
+}
+.qt-r.is-pick {
+  background: var(--surface);
+  box-shadow: inset 2px 0 0 var(--buy);
+}
+.qt-r.is-err,
+.qt-r.is-wait {
+  color: var(--muted);
+}
+.qt-r .sub {
+  grid-column: 2 / -1;
+  font-size: 12px;
+  color: var(--muted);
+}
+.qt-r.is-err .sub {
+  color: var(--buy);
+}
+.qt-r .qt-fee {
+  text-align: right;
+}
+.qt-r input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink);
+  margin: 0;
+}
+
+/* Ô số có đơn vị (cân nặng … gam) */
+.unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.unit .input {
+  width: 96px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.unit span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ink);
+}
