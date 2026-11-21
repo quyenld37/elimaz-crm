@@ -311,3 +311,20 @@ func TestDisplay(t *testing.T) {
 		t.Errorf("Display(lạ) = %q, muốn giữ nguyên mã", got)
 	}
 }
+
+// Vận đơn đã giao một phần (Task M3-26): mọi cạnh đảo "đã giao" (returning, returned_to_shop) không áp, kể cả từ API có
+// xác thực hay nhân viên ghi; mở invalid_edge để người xem. Vận đơn giao đủ vẫn đảo được.
+func TestDecide_PartialNoReversal(t *testing.T) {
+	partial := func(i *ss.Input) { i.Partial = true }
+	for _, src := range []ss.Source{ss.SrcCarrierAPI, ss.SrcStaff} {
+		for _, ev := range []ss.Canonical{ss.CanonReturning, ss.CanonReturnedToShop} {
+			src := func(i *ss.Input) { i.Source = src }
+			check(t, "partial "+string(ev), ss.Decide(in(ss.Delivered, ev, pickedUp, partial, src)),
+				ignored(ss.ReasonInvalidEdge, ss.AnomalyInvalidEdge))
+		}
+	}
+	check(t, "đủ returning", ss.Decide(in(ss.Delivered, ss.CanonReturning, pickedUp)),
+		applied(ss.Returning, ss.EffDeliveryReversed, ss.EffReturning))
+	check(t, "partial delivered trùng", ss.Decide(in(ss.Delivered, ss.CanonDelivered, pickedUp, partial)),
+		ss.Decision{Ignored: ss.ReasonDuplicateState, AdvanceLast: true})
+}
