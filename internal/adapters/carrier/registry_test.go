@@ -53,3 +53,21 @@ func TestRegistryDuplicateFake(t *testing.T) {
 		t.Fatalf("fake và fake_b: %v", err)
 	}
 }
+
+// ManualKeys là danh mục hãng tạo được tài khoản nhập mã tay dù chưa nối API (Task 448): đúng tập khóa khung của All
+// khi không có hãng giả (self, vtp, best, spx), không bao giờ có hãng giả; bản trả về là bản sao (bên gọi sửa không ảnh
+// hưởng lần gọi sau).
+func TestManualKeys(t *testing.T) {
+	got := carrier.ManualKeys()
+	slices.Sort(got)
+	if want := keys(carrier.All(config.Config{Env: "production"})); !slices.Equal(got, want) {
+		t.Fatalf("ManualKeys = %v, muốn đúng khóa khung của All = %v", got, want)
+	}
+	if slices.Contains(got, fake.CarrierKey) {
+		t.Fatalf("ManualKeys có hãng giả: %v", got)
+	}
+	got[0] = "sửa"
+	if slices.Contains(carrier.ManualKeys(), "sửa") {
+		t.Fatal("ManualKeys trả chung một mảng giữa các lần gọi")
+	}
+}

@@ -14,7 +14,8 @@ import (
 // Vùng shipment_sync (kế hoạch M3, Task M3-11): tra lại trạng thái vận đơn.
 
 // SyncShipment (POST /api/v1/shipments/{id}/sync, fulfillment.read ở kho của tài khoản hãng của vận đơn) → 202 {jobId}:
-// ghi một lệnh tra ở hãng; bấm nhiều lần trong một phút trả cùng việc. Vận đơn lạ (hay tenant khác) → 404.
+// ghi một lệnh tra ở hãng; bấm nhiều lần trong một phút trả cùng việc. Vận đơn lạ (hay tenant khác) → 404; vận đơn
+// nhập tay (mode manual) → 422 capability_not_supported, không ghi việc (Task 448).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) SyncShipment(ctx context.Context, params gen.SyncShipmentParams) (gen.SyncShipmentRes, error) {

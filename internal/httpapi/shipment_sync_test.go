@@ -17,7 +17,8 @@ import (
 )
 
 // syncShipment: 5 lần bấm trong một phút (mỗi lần một Idempotency-Key) → 202 cùng jobId, 1 việc tra; không có
-// fulfillment.read ở kho của tài khoản hãng → 403; chỉ order.read → 403; vận đơn lạ → 404; có audit.
+// fulfillment.read ở kho của tài khoản hãng → 403; chỉ order.read → 403; vận đơn lạ → 404; có audit; vận đơn nhập
+// tay → 422 (Task 448).
 func TestSyncShipmentAPI(t *testing.T) {
 	e := newOrderAPIEnv(t)
 	tenant := e.shop.Tenant
@@ -75,5 +76,18 @@ func TestSyncShipmentAPI(t *testing.T) {
 	other := "/api/v1/shipments/" + uuid.NewString() + "/sync"
 	if rec := serveAs(srv, e.keys, http.MethodPost, other, shipAll, "y9", ""); rec.Code != http.StatusNotFound {
 		t.Fatalf("vận đơn lạ = %d, muốn 404", rec.Code)
+	}
+	// Task 448: vận đơn của tài khoản nhập tay (mode manual) không có nguồn tra ở hãng → 422 capability_not_supported,
+	// không thêm việc.
+	e.staff.Exec(t, tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(), "UPDATE fulfillment.carrier_accounts SET mode = 'manual' WHERE id = $1", account)
+		return err //nolint:wrapcheck // test
+	})
+	rec := serveAs(srv, e.keys, http.MethodPost, path, shipAll, "y10", "")
+	if rec.Code != http.StatusUnprocessableEntity || decodeJSON(t, rec)["error"] != "capability_not_supported" {
+		t.Fatalf("vận đơn tay = %d %s, muốn 422 capability_not_supported", rec.Code, rec.Body.String())
+	}
+	if n := e.count(`SELECT count(*) FROM platform.jobs WHERE kind = 'fulfillment.refresh_status'`); n != 1 {
+		t.Fatalf("việc tra sau vận đơn tay = %d, muốn 1", n)
 	}
 }

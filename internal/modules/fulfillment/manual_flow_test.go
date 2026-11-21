@@ -299,7 +299,7 @@ func TestManual_StaffCancelTask(t *testing.T) {
 
 // Task M3-09 để lại (tệp task 100): ở production bộ hãng rỗng nên mọi tài khoản bị từ chối, kể cả tự giao. Tài khoản
 // self mode manual không gọi mạng nên luôn tạo được (active ngay) và gửi được đơn; self mode api, hãng thật chưa có
-// adapter (kể cả mode manual) vẫn ErrCarrierNotSupported.
+// adapter vẫn ErrCarrierNotSupported khi Deps không có danh mục nhập tay (có danh mục: TestManualCatalog_*, Task 448).
 func TestManual_SelfAccountWithoutCarriers(t *testing.T) {
 	e := newShipEnv(t)
 	svc := fulfillment.New(fulfillment.Deps{

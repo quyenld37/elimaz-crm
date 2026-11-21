@@ -25,6 +25,10 @@ type Deps struct {
 	Events *events.Registry
 	// Carriers là bộ adapter hãng (internal/adapters/carrier.All). Rỗng: không lệnh vận chuyển nào được đăng ký.
 	Carriers *Registry
+	// ManualCarriers là danh mục hãng nhập tay (internal/adapters/carrier.ManualKeys): khóa hãng tạo được tài khoản
+	// mode = manual dù không có trong Carriers (adapter API chưa nối; Task 448). Không bật lệnh, nguồn webhook hay gọi
+	// hãng nào. Rỗng: chỉ hãng có adapter và self.
+	ManualCarriers []string
 	// Keys giải, mã khóa API hãng (fieldcrypt); chỉ dùng trong Execute của lệnh.
 	Keys *fieldcrypt.Keyring
 	// Files là kho tệp (nhãn hãng).
