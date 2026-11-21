@@ -279,7 +279,7 @@ func (h *handler) ListStockDocuments(ctx context.Context, params gen.ListStockDo
 			}
 			f.WarehouseIDs = []uuid.UUID{params.WarehouseId.Value}
 		} else {
-			f.AllWarehouses, f.WarehouseIDs = readableWarehouses(u)
+			f.AllWarehouses, f.WarehouseIDs = readableWarehouses(u, permInvRead)
 		}
 		ds, next, err = inventory.ListDocuments(ctx, tx, f)
 		return err //nolint:wrapcheck // inventory đã bọc
@@ -296,9 +296,9 @@ func (h *handler) ListStockDocuments(ctx context.Context, params gen.ListStockDo
 	return page, nil
 }
 
-// readableWarehouses: kho người gọi có inventory.read (grant all → mọi kho; mã đích không phải uuid bị bỏ).
-func readableWarehouses(u identity.AuthUser) (bool, []uuid.UUID) {
-	all, ids := identity.ScopesFor(u, permInvRead)
+// readableWarehouses: kho người gọi có quyền perm (grant all → mọi kho; mã đích không phải uuid bị bỏ).
+func readableWarehouses(u identity.AuthUser, perm identity.Permission) (bool, []uuid.UUID) {
+	all, ids := identity.ScopesFor(u, perm)
 	if all {
 		return true, nil
 	}
