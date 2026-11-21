@@ -41,7 +41,9 @@ import {
 } from "./orderData";
 import { ReturnDialog } from "./ReturnDialog";
 import { ReturnsCard } from "./ReturnsCard";
+import { DeliveryStatsBadge } from "../len-don/DeliveryStatsBadge";
 import { ShippingPanel } from "../shipping/ShippingPanel";
+import { OrderShipmentCards } from "../shipping/Timeline";
 import "../len-don/len-don.css";
 import "./don.css";
 
@@ -510,6 +512,7 @@ function OrderView({ o, refetch }: { o: Order; refetch: () => void }) {
           {(st === "delivered" || (o.returns ?? []).length > 0) && (
             <ReturnsCard order={o} returns={returns} error={returnsError} can={can} />
           )}
+          <OrderShipmentCards order={o} />
           <section className="card">
             <div className="row-between">
               <h2>Lịch sử thao tác</h2>
@@ -587,6 +590,7 @@ function OrderView({ o, refetch }: { o: Order; refetch: () => void }) {
             </div>
             <p className="bold clamp2">{o.customer?.fullName ?? ""}</p>
             <p className="small muted">{o.customer?.code ?? ""}</p>
+            <DeliveryStatsBadge customerId={o.customerId} />
             {stats !== undefined && (
               <>
                 <div className="kpis kh-kpis">

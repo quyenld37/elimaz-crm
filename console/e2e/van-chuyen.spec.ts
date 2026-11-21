@@ -152,6 +152,8 @@ async function shipApi(api: FakeApi, o: Order) {
   );
   await api.on(/\/api\/v1\/orders\/[^/]+\/shipments/, (r) => json(r, 200, { items: [] }));
   await api.on(/\/api\/v1\/shipments\/[^/?]+$/, (r) => json(r, 200, shipment({})));
+  // Dòng thời gian vận đơn ở cột trái (Task 134).
+  await api.on(/\/api\/v1\/shipments\/[^/]+\/events/, (r) => json(r, 200, { items: [] }));
   await api.on(/\/api\/v1\/carrier-accounts/, (r) => json(r, 200, { items: ACCOUNTS }));
   await api.on("**/api/v1/fulfillment-settings", (r) =>
     json(r, 200, {

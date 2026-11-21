@@ -99,3 +99,64 @@
   border-radius: 999px;
   background: var(--ink);
 }
+
+/* Khung COD bốn ngăn (m3.css .cod, .cod-c): đang đi thu / hãng đang giữ / đã về / phí hãng */
+.cod {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+.cod-c {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: 8px 12px;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.cod-c .money {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.cod-c.is-on {
+  border-color: var(--ink);
+}
+.cod-c.is-bad {
+  border-color: var(--buy);
+  background: var(--soft-sale);
+}
+
+/* Mức nhận/hoàn của khách (m3.css .risk) */
+.risk {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+
+/* Dòng thời gian có nguồn (m3.css): chip nguồn; sự kiện bị bỏ qua hiện nhạt, viền đứt, ghi lý do. .tl ở don.css */
+.tl li.is-ign {
+  color: var(--muted);
+}
+.tl li.is-ign > div {
+  border-left: 2px dashed var(--edge);
+  padding-left: 8px;
+}
+.src {
+  display: inline-flex;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--rule);
+  color: var(--label);
+  background: var(--paper);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.src.is-staff {
+  border-color: var(--edge);
+  color: var(--ink);
+}

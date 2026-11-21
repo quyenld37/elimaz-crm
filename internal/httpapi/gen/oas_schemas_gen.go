@@ -428,6 +428,23 @@ func (s *AddressChange) SetResolvedAt(val OptDateTime) {
 func (*AddressChange) requestAddressChangeRes() {}
 func (*AddressChange) resolveAddressChangeRes() {}
 
+// Ref: #/components/schemas/AddressChangeList
+type AddressChangeList struct {
+	Items []AddressChange `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *AddressChangeList) GetItems() []AddressChange {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *AddressChangeList) SetItems(val []AddressChange) {
+	s.Items = val
+}
+
+func (*AddressChangeList) listShipmentAddressChangesRes() {}
+
 type AddressChangeStatus string
 
 const (
@@ -9189,6 +9206,7 @@ func (*ErrorStatusCode) listRefundObligationsRes()       {}
 func (*ErrorStatusCode) listReturnsRes()                 {}
 func (*ErrorStatusCode) listRolesRes()                   {}
 func (*ErrorStatusCode) listRolesToManageRes()           {}
+func (*ErrorStatusCode) listShipmentAddressChangesRes()  {}
 func (*ErrorStatusCode) listShipmentEventsRes()          {}
 func (*ErrorStatusCode) listShipmentsForReviewRes()      {}
 func (*ErrorStatusCode) listShippingQuotesRes()          {}

@@ -2,15 +2,18 @@
 // phí, tài khoản nhập mã tay của kho, mức nhận/hoàn của khách, cài đặt vận chuyển. Báo hiệu chỉ là "X vừa đổi": truy
 // vấn tải lại bằng API. shipping_quote.ready mang entity là đơn; shipment.changed mang entity là vận đơn; gắn, gỡ vận
 // đơn báo order.changed của đơn (đọc lại đơn và danh sách vận đơn của đơn).
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import {
   getCustomerDeliveryStats,
   getFulfillmentSettings,
   getMe,
   getShipment,
+  getShipmentCod,
   listOrderShipments,
   listOrderShippingAccounts,
+  listShipmentAddressChanges,
+  listShipmentEvents,
   listShippingQuotes,
   type Grant,
   type ShipAccount,
@@ -54,6 +57,60 @@ export function useLatestShipment(orderId: string, enabled: boolean) {
     meta: entityMeta(orderId),
     enabled,
     queryFn: () => unwrap(listOrderShipments({ path: { id: orderId }, query: { limit: 1 } })),
+    select: (p) => p.items[0] ?? null,
+  });
+}
+
+/** Các vận đơn của đơn (mới nhất trước, cả đã hủy) cho thẻ "Vận đơn của đơn này"; đọc lại khi đơn đổi. */
+export function useOrderShipments(orderId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKey(ORDER_TOPIC, "shipments", orderId, "all"),
+    meta: entityMeta(orderId),
+    enabled,
+    queryFn: () => unwrap(listOrderShipments({ path: { id: orderId }, query: { limit: SHIPMENT_HISTORY_LIMIT } })),
+  });
+}
+
+/** Số vận đơn đọc một lần cho thẻ "Vận đơn của đơn này" (một đơn hiếm khi quá vài lần đổi hãng). */
+export const SHIPMENT_HISTORY_LIMIT = 20;
+/** Số sự kiện mỗi trang của dòng thời gian vận đơn. */
+export const EVENT_PAGE = 50;
+
+/** Dòng thời gian của vận đơn id (mới nhất trước, theo trang); tải lại khi shipment.changed đúng vận đơn này. */
+export function useShipmentEvents(id: string) {
+  return useInfiniteQuery({
+    queryKey: queryKey(SHIPMENT_TOPIC, "events", id),
+    meta: entityMeta(id),
+    initialPageParam: "",
+    queryFn: ({ pageParam }) =>
+      unwrap(
+        listShipmentEvents({
+          path: { id },
+          query: { limit: EVENT_PAGE, ...(pageParam === "" ? {} : { cursor: pageParam }) },
+        }),
+      ),
+    getNextPageParam: (last) => last.nextCursor,
+  });
+}
+
+/** Khung COD của vận đơn id (cần cash.cod.read; enabled false thì không đọc); tải lại theo shipment.changed. */
+export function useShipmentCod(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKey(SHIPMENT_TOPIC, "cod", id),
+    meta: entityMeta(id),
+    enabled,
+    queryFn: () => unwrap(getShipmentCod({ path: { id } })),
+  });
+}
+
+export const addressChangeKey = (id: string) => queryKey(SHIPMENT_TOPIC, "address-change", id);
+
+/** Yêu cầu đổi địa chỉ đang mở của vận đơn id (null: không có); tải lại theo shipment.changed. */
+export function useOpenAddressChange(id: string) {
+  return useQuery({
+    queryKey: addressChangeKey(id),
+    meta: entityMeta(id),
+    queryFn: () => unwrap(listShipmentAddressChanges({ path: { id } })),
     select: (p) => p.items[0] ?? null,
   });
 }

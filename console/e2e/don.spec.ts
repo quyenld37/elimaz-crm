@@ -371,6 +371,11 @@ async function orderApi(api: FakeApi, list: OrderListItem[] = ROWS) {
     }),
   );
   await api.on("**/api/v1/order-settings", (r) => json(r, 200, SETTINGS));
+  // Thẻ "Vận đơn của đơn này" và mức nhận/hoàn trên thẻ khách (Task 134).
+  await api.on(/\/api\/v1\/orders\/[^/]+\/shipments/, (r) => json(r, 200, { items: [] }));
+  await api.on(/\/api\/v1\/customers\/[^/]+\/delivery-stats/, (r) =>
+    json(r, 200, { delivered: 21, returned: 1, returnRateBp: 455, risk: "watch" }),
+  );
 }
 
 async function shot(page: Page, name: string) {

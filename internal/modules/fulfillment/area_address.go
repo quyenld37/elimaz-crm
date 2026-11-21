@@ -402,3 +402,26 @@ func changeView(l lockedCancel, id uuid.UUID, mode, status string, note pgtype.T
 	}
 	return c
 }
+
+// OpenAddressChanges đọc yêu cầu đổi địa chỉ còn mở (pending, sent, unknown; nhiều nhất một) của vận đơn s, không có
+// địa chỉ (Task 134: màn hình cần id yêu cầu để nhân viên xác nhận sau khi tải lại trang). Chạy trong tx tenant của bên
+// gọi; bên gọi đã đọc s bằng Get và kiểm phạm vi theo kho.
+func OpenAddressChanges(ctx context.Context, tx pgx.Tx, s Shipment) ([]AddressChange, error) {
+	rows, err := store.New(tx).OpenAddressChanges(ctx, s.ID)
+	if err != nil {
+		return nil, fmt.Errorf("đọc yêu cầu đổi địa chỉ đang mở: %w", err)
+	}
+	out := make([]AddressChange, 0, len(rows))
+	for _, r := range rows {
+		c := AddressChange{
+			ID: r.ID, ShipmentID: r.ShipmentID, OrderID: s.OrderID, WarehouseID: s.WarehouseID, Mode: r.Mode,
+			Status: r.Status, Note: r.Note.String, CreatedAt: r.CreatedAt,
+		}
+		if r.ResolvedAt.Valid {
+			t := r.ResolvedAt.Time
+			c.ResolvedAt = &t
+		}
+		out = append(out, c)
+	}
+	return out, nil
+}

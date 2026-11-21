@@ -169,6 +169,52 @@ func (q *Queries) LockAddressChange(ctx context.Context, id uuid.UUID) (LockAddr
 	return i, err
 }
 
+const openAddressChanges = `-- name: OpenAddressChanges :many
+SELECT id, shipment_id, mode, status, note, created_at, resolved_at
+FROM fulfillment.address_change_requests
+WHERE shipment_id = $1 AND status IN ('pending', 'sent', 'unknown')
+ORDER BY created_at DESC, id DESC
+`
+
+type OpenAddressChangesRow struct {
+	ID         uuid.UUID
+	ShipmentID uuid.UUID
+	Mode       string
+	Status     string
+	Note       pgtype.Text
+	CreatedAt  time.Time
+	ResolvedAt pgtype.Timestamptz
+}
+
+// Yêu cầu còn mở của vận đơn (nhiều nhất một: index address_change_requests_open); không đọc địa chỉ (Task 134).
+func (q *Queries) OpenAddressChanges(ctx context.Context, shipmentID uuid.UUID) ([]OpenAddressChangesRow, error) {
+	rows, err := q.db.Query(ctx, openAddressChanges, shipmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []OpenAddressChangesRow{}
+	for rows.Next() {
+		var i OpenAddressChangesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ShipmentID,
+			&i.Mode,
+			&i.Status,
+			&i.Note,
+			&i.CreatedAt,
+			&i.ResolvedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setAddressChangeJob = `-- name: SetAddressChangeJob :exec
 UPDATE fulfillment.address_change_requests
 SET job_id = $1, updated_at = now(), version = version + 1

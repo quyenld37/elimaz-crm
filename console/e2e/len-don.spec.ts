@@ -120,6 +120,10 @@ async function orderApi(api: FakeApi) {
     return json(r, 200, { items: [HA, MY] });
   });
   await api.on(/\/api\/v1\/customers\/[^/?]+$/, (r) => json(r, 200, HA_DETAIL));
+  // Huy hiệu nhận/hoàn của khách đã chọn (Task 134, mockup m3/the-khach.html).
+  await api.on(/\/api\/v1\/customers\/[^/]+\/delivery-stats/, (r) =>
+    json(r, 200, { delivered: 3, returned: 2, returnRateBp: 4000, risk: "high" }),
+  );
   await api.on(/\/api\/v1\/admin-units/, (r) => {
     const parent = param(r, "parent") === "" ? null : param(r, "parent");
     return json(r, 200, {

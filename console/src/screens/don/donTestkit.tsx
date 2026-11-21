@@ -4,6 +4,7 @@ import { render } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { vi } from "vitest";
 import type {
+  DeliveryStats,
   Grant,
   Me,
   Order,
@@ -189,6 +190,8 @@ export interface Fake {
   variantHits: VariantSearchHit[];
   /** Số lần gọi /api/v1/coupon-check (kiểm mã trước khi lưu). */
   couponChecks: number;
+  /** Mức nhận/hoàn của khách (getCustomerDeliveryStats); null → 404 (huy hiệu không hiện). */
+  deliveryStats: DeliveryStats | null;
 }
 
 const json = (b: unknown, status = 200) =>
@@ -215,6 +218,7 @@ export function installFake(): Fake {
     returnWarningDays: 7,
     variantHits: [],
     couponChecks: 0,
+    deliveryStats: null,
   };
   // Yêu cầu ghi: ghi lại khóa, thân; trả câu trả lời xếp sẵn hoặc đối tượng hiện tại.
   const onWrite = async (req: Request, p: string): Promise<Response> => {
@@ -255,6 +259,9 @@ export function installFake(): Fake {
           items: cursor === null ? fake.list : [],
           ...(fake.listNextCursor === undefined || cursor !== null ? {} : { nextCursor: fake.listNextCursor }),
         });
+      }
+      if (/^\/api\/v1\/customers\/[^/]+\/delivery-stats$/.test(p)) {
+        return fake.deliveryStats === null ? json(NOT_FOUND, 404) : json(fake.deliveryStats);
       }
       const tm = /^\/api\/v1\/orders\/([^/]+)\/timeline$/.exec(p);
       if (tm !== null) {

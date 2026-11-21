@@ -118,6 +118,7 @@ const (
 	ListReturnsOperation                 OperationName = "ListReturns"
 	ListRolesOperation                   OperationName = "ListRoles"
 	ListRolesToManageOperation           OperationName = "ListRolesToManage"
+	ListShipmentAddressChangesOperation  OperationName = "ListShipmentAddressChanges"
 	ListShipmentEventsOperation          OperationName = "ListShipmentEvents"
 	ListShipmentsForReviewOperation      OperationName = "ListShipmentsForReview"
 	ListShippingQuotesOperation          OperationName = "ListShippingQuotes"

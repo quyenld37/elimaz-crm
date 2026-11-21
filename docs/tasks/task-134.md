@@ -102,17 +102,18 @@ trường, sửa phần dựng test rồi xanh); phần màn hình viết mã c�
 | Tiêu chí | Test | Lệnh | Kết quả |
 |---|---|---|---|
 | Đường đọc yêu cầu đổi địa chỉ đang mở: rỗng / một yêu cầu / rỗng sau khi đóng; không trả địa chỉ; kho khác 404, chỉ order.read 403, vận đơn lạ 404 | `TestAddressChangeAPI_ListOpen` | `go test -race ./internal/httpapi/ -run TestAddressChangeAPI -count=1` | `ok elimaz.com.vn/crm/internal/httpapi 2.818s` |
-| Thẻ đã gửi: mã hãng, nhãn, "Cập nhật lần cuối lúc 14:20 22/11 (hãng) · CRM hỏi lúc 14:21 · lần hỏi gần nhất lỗi: …", bốn nút, phí, cân nặng, thu hộ; đã lấy hàng → hủy mờ | `ShipmentCard.test.tsx` › "mã hãng, nhãn, cập nhật lần cuối…" | `npx vitest run src/screens/shipping` (sau khi gộp main có Task 449) | `Tests 56 passed (56)` |
+| Thẻ đã gửi: mã hãng, nhãn, "Cập nhật lần cuối lúc 14:20 22/11 (hãng) · CRM hỏi lúc 14:21 · lần hỏi gần nhất lỗi: …", ba nút (Đồng bộ lại, Đổi địa chỉ, Hủy / đổi hãng) và liên kết "In nhãn" tới `/warehouse/pack`, phí, cân nặng, thu hộ; đã lấy hàng → hủy mờ; thiếu `fulfillment.print` → không có In nhãn | `ShipmentCard.test.tsx` › "mã hãng, nhãn, cập nhật lần cuối…", "thiếu fulfillment.print: không có In nhãn" | `npx vitest run src/screens/shipping` (sau khi gộp main có Task 449, sau vòng review 1) | `Tests 58 passed (58)` |
 | VC18 kẹt: "Hãng chưa cập nhật 80 giờ (ngưỡng 72 giờ)" kèm lần hỏi lỗi | "VC18 vận đơn kẹt…" | như trên | qua |
 | Đồng bộ lại: một yêu cầu có Idempotency-Key | "Đồng bộ lại: một yêu cầu có khóa…" | như trên | qua |
 | TD03 đang yêu cầu hủy: "Đang chờ hãng xác nhận hủy — hàng chưa được trả về kho", nút hủy mờ | "TD03 đang yêu cầu hủy…" | như trên | qua |
 | VC11 đổi hãng: lý do bắt buộc, `cancelShipment {reason}`; hủy đơn → `cancelOrder {version, reason: other, note}`; thiếu `order.cancel` → lựa chọn mờ; "Không rõ" → `carrierChecked: true` | 4 ca trong "Hủy / đổi hãng (VC11, TD03, HV12)" | như trên | qua |
+| "Hủy để đổi hãng" khi "Chưa gửi được": hộp chỉ có đổi hãng (không lựa chọn hủy đơn, không ô tick), gửi `cancelShipment {reason}` | "'Chưa gửi được': hộp chỉ có đổi hãng…" | như trên | qua |
 | DH15 đổi địa chỉ: gửi đúng địa chỉ (người nhận, SĐT giữ), hãng không sửa qua API → "Gọi hãng đổi địa chỉ, sau đó bấm "Hãng đã nhận"", "Địa chỉ trên đơn vẫn là địa chỉ cũ tới khi bấm"; tải lại vẫn xác nhận được; yêu cầu API còn chờ không có nút | 3 ca "Đổi địa chỉ sau khi gửi (DH15, HV13)" | như trên | qua |
 | VC14 cập nhật tay: đòi lý do; Thành công gửi `codCollected`, `at` theo giờ VN (16:30 → 09:30Z), `version`; không có "Đã hoàn về kho"; thiếu quyền → mờ | 3 ca "Cập nhật trạng thái tay (VC14, HV16)" | như trên | qua |
 | Khung COD bốn ngăn đúng số (112.450.000 ₫ ở "Hãng đang giữ", viền đậm); thiếu `cash.cod.read` → câu riêng | 2 ca "Khung COD bốn ngăn (HV15)" | như trên | qua |
 | Dòng thời gian 12 sự kiện, nguồn Hãng (API) / Nhân viên / Hệ thống, bỏ qua hiện mờ kèm lý do; còn trang → "2+ sự kiện", "Xem thêm"; vận đơn cũ "Đã hủy (đổi hãng)" | 3 ca "Dòng thời gian vận đơn (HV14)" | như trên | qua |
 | Thẻ khách "Nhận 3 · Hoàn 2 (40%)" + "Hay hoàn"; "Có hoàn"; "Chưa có đơn giao xong" | "Huy hiệu nhận/hoàn của khách (DH03)" | như trên | qua |
-| Tên khách ≥ 60 ký tự trong thẻ khách (clamp2), huy hiệu cùng thẻ | `OrderDetail.test.tsx` › "tên khách 60+ ký tự…" | `npx vitest run src/screens/don src/screens/len-don src/screens/shipping` | `Test Files 15 passed (15)`, `Tests 415 passed (415)` (sau khi gộp main) |
+| Tên khách ≥ 60 ký tự trong thẻ khách (clamp2), huy hiệu cùng thẻ | `OrderDetail.test.tsx` › "tên khách 60+ ký tự…" | `npx vitest run src/screens/don src/screens/len-don src/screens/shipping` | `Test Files 15 passed (15)`, `Tests 417 passed (417)` (sau khi gộp main, sau vòng review 1) |
 | Luật thuần: giờ VN hai chiều, ngày sai → null, giờ kẹt, câu lỗi lạ không lộ chữ thô | `shipmentRules.test.ts` (5 ca) | như trên | qua |
 | Bố cục 1512 và 390 không tràn, không cuộn ngang (tên khách 60 ký tự, 12 sự kiện, 112.450.000 ₫, hộp hủy, đổi địa chỉ, cập nhật tay); ảnh so mockup | `e2e/van-chuyen-sau-gui.spec.ts` (D, E kẹt, E đang hủy, F, G × 2 cỡ) | `cd console && CRM_E2E_PORT=5234 npx playwright test e2e/van-chuyen-sau-gui.spec.ts --project=chromium` | `10 passed (5.2s)`; ảnh `console/test-results/van-chuyen-sau-gui-*-{1512,390}.png` so `docs/mockups/m3/png/don-van-chuyen-{1512,390}.png` trạng thái D: cùng bố cục hai cột, cùng thứ tự (dòng thời gian, vận đơn của đơn ở trái; thẻ vận đơn, COD ở phải), chip nguồn, sự kiện bỏ qua viền đứt; khác: không có dòng mô tả phụ dưới sự kiện và tên người (API không có), nút hủy mờ khi đã lấy hàng (Quyết định 6), không có liên kết "Sổ của vận đơn" (chưa có màn) |
 | Cổng tĩnh (build, vet, lint, gen-check, sqlc-vet, catalog, jscpd, gitleaks, oasdiff, test-guard, console-check) và test gói đổi + phụ thuộc | ci-task | `scripts/agent/ci-task.sh` (sau khi gộp main, toàn bộ đã stage) | `CI-TASK XANH (so với điểm tách nhánh a6131971…)` |
@@ -150,4 +151,13 @@ trường, sửa phần dựng test rồi xanh); phần màn hình viết mã c�
 Commit 1 (cấu trúc, `AddressFields.tsx`): **ĐẠT** vòng 1 — không phát hiện phải sửa; đổi tỉnh vẫn xóa xã, cùng khóa
 truy vấn danh mục tỉnh, cùng nhãn "Tỉnh/thành *", không biến thừa; `WardField` chỉ thêm `export`.
 
-Commit 2 (hành vi): CHƯA REVIEW
+Commit 2 (hành vi): vòng 1 **CẦN SỬA** — bảng bằng chứng ghi "bốn nút" mà test chỉ kiểm ba (thiếu "In nhãn"). Đã sửa:
+thêm kiểm liên kết "In nhãn" (`/warehouse/pack`) và ca thiếu `fulfillment.print`. Kèm hai ghi chú không bắt buộc đã sửa
+vì ảnh hưởng câu hiện cho nhân viên: hộp mở từ "Hủy để đổi hãng" không còn hiện lựa chọn "Hủy đơn" (`replaceOnly`, đúng
+Quyết định 8, có test); khung COD hiện "Đang tải" thay vì câu "không có quyền" khi quyền chưa tải. Ghi chú còn để lại:
+"Vận đơn của đơn này" tải lại theo báo hiệu của đơn; người thiếu `fulfillment.read` thấy hộp lỗi ở thẻ dòng thời gian;
+409 khi hủy đơn chỉ hiện câu lỗi (đơn đọc lại theo báo hiệu).
+
+Commit 2 vòng 2: **ĐẠT** — phát hiện vòng 1 đã sửa (In nhãn có test href và ca thiếu quyền); `replaceOnly` chỉ truyền từ
+"Hủy để đổi hãng"; `CodBox` không gọi API khi quyền chưa tải; không test nào bị xóa, tắt, nới. ci-task chạy lại sau
+sửa: `CI-TASK XANH`.

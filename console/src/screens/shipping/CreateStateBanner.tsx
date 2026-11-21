@@ -1,7 +1,7 @@
 // Kết quả lệnh tạo vận đơn ở hãng (mockup docs/mockups/m3/don-van-chuyen.html trạng thái B "đang gửi", C; HV11; Q-5):
 // pending "Đang gửi hãng…"; unknown "Không rõ hãng đã tạo chưa" với hai nút "Hãng đã tạo" (đòi mã hãng) / "Hãng chưa
 // tạo", không có "Gửi lại"; not_sent "Chưa gửi được" + "Gửi lại" do người bấm (CRM không tự gửi); rejected "Hãng từ
-// chối". Vận đơn đã tạo (created, manual) hiện khối tóm tắt; khối đầy đủ sau khi gửi là Task 134.
+// chối". Vận đơn đã gửi (created, manual) là ShipmentCard (Task 134).
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { resendShipment, resolveShipmentCreate, type Shipment } from "../../api";
@@ -9,7 +9,6 @@ import { unwrap } from "../../app/errors";
 import { useWriteAction } from "../../app/idempotency";
 import { shortTime } from "../../app/time";
 import { reloadOrder } from "../don/orderData";
-import { formatMoney } from "../products/productRules";
 import { shipmentKey } from "./useShipment";
 
 export const TEXT_NO_SHIP_PERM = 'Bạn không có quyền gửi hãng ở kho của đơn này (quyền "Gửi hãng" theo kho)';
@@ -208,39 +207,7 @@ export function RejectedNote({ s, onEdit }: { s: Shipment; onEdit?: (() => void)
   );
 }
 
-/** Khối tóm tắt vận đơn đã tạo ở hãng (mã hãng, nhãn trạng thái); đủ thao tác sau khi gửi là Task 134. */
-function Sent({ s }: { s: Shipment }) {
-  return (
-    <>
-      <div className="ship-h">
-        <div className="grow">
-          <p className="small muted">
-            {s.service === undefined || s.service === "" ? account(s) : `${account(s)} · ${s.service}`}
-          </p>
-          <p className="ship-code">{s.trackingCode ?? s.code}</p>
-          <p className="xs muted num">{`Mã CRM ${s.code}`}</p>
-        </div>
-        <span className="chip chip-dark">{s.label ?? s.status}</span>
-      </div>
-      <dl className="kv">
-        {s.fee !== undefined && (
-          <>
-            <dt>Phí hãng báo</dt>
-            <dd>
-              <span className="money">{formatMoney(s.fee)}</span>
-            </dd>
-          </>
-        )}
-        <dt>Thu hộ</dt>
-        <dd>
-          <span className="money">{formatMoney(s.codAmount)}</span>
-        </dd>
-      </dl>
-    </>
-  );
-}
-
-/** Khối của vận đơn hiện hành s theo trạng thái lệnh tạo. */
+/** Khối của vận đơn hiện hành s đang tạo (creating) theo trạng thái lệnh tạo; vận đơn đã gửi là ShipmentCard. */
 export function CreateStateBanner(props: {
   s: Shipment;
   canShip: boolean;
@@ -277,5 +244,5 @@ export function CreateStateBanner(props: {
         );
     }
   }
-  return <Sent s={s} />;
+  return null;
 }

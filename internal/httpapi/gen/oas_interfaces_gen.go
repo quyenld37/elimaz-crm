@@ -445,6 +445,10 @@ type ListRolesToManageRes interface {
 	listRolesToManageRes()
 }
 
+type ListShipmentAddressChangesRes interface {
+	listShipmentAddressChangesRes()
+}
+
 type ListShipmentEventsRes interface {
 	listShipmentEventsRes()
 }
