@@ -232,7 +232,7 @@ func TestSchemaM3_Views(t *testing.T) {
 		"carrier_accounts_v": "tenant_id, id, seller_id, carrier_key, mode, environment, name, warehouse_id, status, " +
 			"is_default_for_warehouse, show_on_web, web_sort, last_check_at, last_check_result, created_at, updated_at",
 		"shipment_events_v": "tenant_id, id, shipment_id, source, raw_status, canonical, status, sub_status, " +
-			"occurred_at, recorded_at, applied, ignored_reason",
+			"occurred_at, recorded_at, applied, ignored_reason, actor_id",
 		"locations_v": "tenant_id, carrier_key, level, our_code, carrier_code, carrier_name, synced_at",
 	})
 	testkit.CheckViews(t, owner, "inventory", map[string]string{

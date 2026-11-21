@@ -1,4 +1,4 @@
-package order_test
+package queries_test
 
 import (
 	"encoding/json"
@@ -10,9 +10,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
+	"elimaz.com.vn/crm/internal/queries"
 	"elimaz.com.vn/crm/internal/queries/orderview"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -83,32 +83,27 @@ func listExplainFixture(t *testing.T) (app *db.DB, a, seller, cust uuid.UUID) {
 
 // Kế hoạch câu danh sách đơn bằng crm_app trong ngữ cảnh tenant (200.000 đơn): mặc định, lọc trạng thái, lọc nhãn, lọc
 // khách (cả nhóm), đuôi SĐT, SĐT đủ, mã đơn, trang sau → không Seq Scan.
-func TestListPlans(t *testing.T) {
+func TestOrderListPlans(t *testing.T) {
 	app, a, seller, cust := listExplainFixture(t)
-	mid := order.Cursor{CreatedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC), ID: uuid.Max}
+	mid := queries.OrderCursor{CreatedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC), ID: uuid.Max}
 	cases := []struct {
 		name   string
-		f      order.ListFilter
-		q      string
-		cursor order.Cursor
+		f      queries.OrderFilter
+		cursor queries.OrderCursor
 	}{
-		{"mặc định", order.ListFilter{}, "", order.Cursor{}},
-		{"mặc định trang sau", order.ListFilter{}, "", mid},
-		{"lọc trạng thái", order.ListFilter{Statuses: []string{order.StatusNew}}, "", order.Cursor{}},
-		{"lọc nhãn chờ khách", order.ListFilter{Labels: []orderview.LabelKey{orderview.LabelAwaitingCustomer}}, "", order.Cursor{}},
-		{"lọc khách", order.ListFilter{CustomerID: &cust}, "", order.Cursor{}},
-		{"đuôi SĐT", order.ListFilter{}, "5678", order.Cursor{}},
-		{"SĐT đủ", order.ListFilter{}, "0900012345", order.Cursor{}},
-		{"mã đơn", order.ListFilter{}, "DH0000042", order.Cursor{}},
+		{"mặc định", queries.OrderFilter{}, queries.OrderCursor{}},
+		{"mặc định trang sau", queries.OrderFilter{}, mid},
+		{"lọc trạng thái", queries.OrderFilter{Statuses: []string{"new"}}, queries.OrderCursor{}},
+		{"lọc nhãn chờ khách", queries.OrderFilter{Labels: []orderview.LabelKey{orderview.LabelAwaitingCustomer}}, queries.OrderCursor{}},
+		{"lọc khách", queries.OrderFilter{Search: queries.OrderSearch{CustomerRoots: []uuid.UUID{cust}}}, queries.OrderCursor{}},
+		{"đuôi SĐT", queries.OrderFilter{Search: queries.OrderSearch{PhoneTail: "8765"}}, queries.OrderCursor{}},
+		{"SĐT đủ", queries.OrderFilter{Search: queries.OrderSearch{Phone: "+84900012345"}}, queries.OrderCursor{}},
+		{"mã đơn", queries.OrderFilter{Search: queries.OrderSearch{Code: "DH0000042"}}, queries.OrderCursor{}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			c.f.SellerID = seller
-			var roots []uuid.UUID
-			if c.f.CustomerID != nil {
-				roots = []uuid.UUID{*c.f.CustomerID}
-			}
-			sql, args, err := order.ListSQL(c.f, c.q, roots, c.cursor, 50)
+			sql, args, err := queries.OrderListSQL(c.f, c.cursor, 50)
 			if err != nil {
 				t.Fatal(err)
 			}

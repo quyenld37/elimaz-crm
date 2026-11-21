@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,11 +13,13 @@ import (
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/order"
+	"elimaz.com.vn/crm/internal/queries"
 	"elimaz.com.vn/crm/internal/queries/orderview"
 )
 
 // ListOrders (GET /api/v1/orders, order.read): một trang đơn của người bán mặc định, mới nhất trước, keyset (Task
-// M2-24). Con trỏ hỏng → 400 invalid_input; nhãn của vận đơn (chưa có ở M2) → 422 invalid_input; q chỉ chữ số dưới 4
+// M2-24). Phần tìm (q, khách) giải bằng order.ResolveListSearch, câu danh sách ghép view ở queries.OrderList (spec 04
+// mục 3). Con trỏ hỏng → 400 invalid_input; nhãn của vận đơn (chưa có ở M2) → 422 invalid_input; q chỉ chữ số dưới 4
 // số → 422 query_too_short. Không ghi q vào log.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
@@ -26,27 +29,33 @@ func (h *handler) ListOrders(ctx context.Context, params gen.ListOrdersParams) (
 		return nil, errNoAuthUser
 	}
 	f := listOrdersFilter(params)
-	var cursor order.Cursor
+	var cursor queries.OrderCursor
 	if s, ok := params.Cursor.Get(); ok {
 		c, err := order.ParseCursor(s)
 		if err != nil {
 			return nil, fmt.Errorf("danh sách đơn: %w", err)
 		}
-		cursor = c
+		cursor = queries.OrderCursor{CreatedAt: c.CreatedAt, ID: c.ID}
 	}
 	var (
-		rows  []order.OrderRow
-		next  order.Cursor
+		rows  []queries.OrderListRow
+		next  queries.OrderCursor
 		names map[uuid.UUID]string
 	)
 	err := h.readAsDefaultSeller(ctx, u, func(tx pgx.Tx, seller uuid.UUID) error {
-		f.SellerID = seller
-		var err error
-		rows, next, err = order.List(ctx, tx, f, cursor, int(params.Limit.Or(0)))
-		if err != nil {
+		s, err := order.ResolveListSearch(ctx, tx, params.Q.Or(""), optUUID(params.CustomerId))
+		if err != nil || s.Empty {
 			return err //nolint:wrapcheck // lỗi của order đã bọc
 		}
-		names, err = actorNamesOf(ctx, tx, rows, func(r order.OrderRow) *uuid.UUID { return r.CareBy })
+		f.SellerID = seller
+		f.Search = queries.OrderSearch{
+			CustomerRoots: s.CustomerRoots, NameRoots: s.NameRoots, Code: s.Code, Phone: s.Phone, PhoneTail: s.PhoneTail,
+		}
+		rows, next, err = queries.OrderList(ctx, tx, f, cursor, int(params.Limit.Or(0)))
+		if err != nil {
+			return orderListErr(err)
+		}
+		names, err = actorNamesOf(ctx, tx, rows, func(r queries.OrderListRow) *uuid.UUID { return r.CareBy })
 		return err
 	})
 	if err != nil {
@@ -56,7 +65,7 @@ func (h *handler) ListOrders(ctx context.Context, params gen.ListOrdersParams) (
 	for _, r := range rows {
 		item := gen.OrderListItem{
 			ID: r.ID, Code: r.Code, Label: gen.OrderLabel(r.Label), Status: gen.OrderStatus(r.Status),
-			CustomerId: r.CustomerRootID, CustomerName: string(r.CustomerName), ShipPhone: nonEmpty(string(r.ShipPhone)),
+			CustomerId: r.CustomerRootID, CustomerName: r.CustomerName, ShipPhone: nonEmpty(string(r.ShipPhone)),
 			GrandTotal: gen.Money(r.GrandTotal), CodAmount: gen.Money(r.CodAmount), ItemCount: int32(r.ItemCount), //nolint:gosec // tổng số lượng của một đơn
 			Channel: nonEmpty(r.Channel), CreatedAt: r.CreatedAt, DuplicateSuspect: r.DuplicateSuspect,
 		}
@@ -69,18 +78,26 @@ func (h *handler) ListOrders(ctx context.Context, params gen.ListOrdersParams) (
 		}
 		out.Items = append(out.Items, item)
 	}
-	if next != (order.Cursor{}) {
-		out.NextCursor = gen.NewOptString(next.String())
+	if next != (queries.OrderCursor{}) {
+		out.NextCursor = gen.NewOptString(order.Cursor{CreatedAt: next.CreatedAt, ID: next.ID}.String())
 	}
 	return out, nil
 }
 
-// listOrdersFilter dịch tham số của listOrders sang order.ListFilter (chưa có SellerID).
-func listOrdersFilter(p gen.ListOrdersParams) order.ListFilter {
-	f := order.ListFilter{
-		TrafficSourceIDs: p.TrafficSourceId, CareBy: optUUID(p.CareBy), CustomerID: optUUID(p.CustomerId),
-		Q: p.Q.Or(""),
+// orderListErr đổi lỗi bộ lọc của queries.OrderList sang sentinel của order (errors.go ánh xạ sentinel của order).
+func orderListErr(err error) error {
+	switch {
+	case errors.Is(err, queries.ErrLabelNotFilterable):
+		return fmt.Errorf("%w: %w", order.ErrLabelNotFilterable, err)
+	case errors.Is(err, queries.ErrInvalidOrderFilter):
+		return fmt.Errorf("%w: %w", order.ErrInvalidInput, err)
 	}
+	return err
+}
+
+// listOrdersFilter dịch tham số của listOrders sang queries.OrderFilter (chưa có SellerID, Search).
+func listOrdersFilter(p gen.ListOrdersParams) queries.OrderFilter {
+	f := queries.OrderFilter{TrafficSourceIDs: p.TrafficSourceId, CareBy: optUUID(p.CareBy)}
 	for _, l := range p.Label {
 		f.Labels = append(f.Labels, orderview.LabelKey(l))
 	}

@@ -11,3 +11,8 @@ func ProductsSQL(f ProductFilter, inCategory []uuid.UUID) (string, []any, error)
 func BalancesSQL(f BalanceFilter) (string, []any, error) {
 	return balancesSQL(f)
 }
+
+// OrderListSQL cho orders_dynsql_test đọc câu mà OrderList chạy.
+func OrderListSQL(f OrderFilter, c OrderCursor, limit int) (string, []any, error) {
+	return orderListSQL(f, c, limit)
+}
