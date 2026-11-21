@@ -14,7 +14,6 @@ import (
 	"elimaz.com.vn/crm/internal/adapters/carrier/fake"
 	"elimaz.com.vn/crm/internal/adapters/carrier/manual"
 	"elimaz.com.vn/crm/internal/adapters/carrier/spx"
-	"elimaz.com.vn/crm/internal/adapters/carrier/vtp"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/tools/fakecarrier/server"
@@ -45,10 +44,10 @@ func TestContractFake(t *testing.T) {
 	carriertest.Run(t, f)
 }
 
-// Khung bốn hãng (mọi khả năng false) qua contract: chỉ kiểm ErrNotSupported, không cần máy chủ.
+// Khung các hãng chưa có hiện thực (mọi khả năng false; vtp có contract riêng trên vtptest) qua contract: chỉ kiểm ErrNotSupported, không cần máy chủ.
 func TestContractFrames(t *testing.T) {
 	var cfg config.Config
-	for _, a := range []fulfillment.CarrierAdapter{manual.New("self"), vtp.New(cfg), best.New(cfg), spx.New(cfg)} {
+	for _, a := range []fulfillment.CarrierAdapter{manual.New("self"), best.New(cfg), spx.New(cfg)} {
 		t.Run(a.Key(), func(t *testing.T) {
 			if a.Capabilities() != (fulfillment.Capabilities{}) {
 				t.Fatalf("khung %s phải khai mọi khả năng false: %+v", a.Key(), a.Capabilities())

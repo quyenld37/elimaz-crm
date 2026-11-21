@@ -273,6 +273,10 @@ func (s *suite) createOK(t *testing.T) {
 	}
 	st, err := a.GetStatus(ctx(t), acc, tracking)
 	noPhone(t, "GetStatus", st, err)
+	if !s.caps.Track { // hãng không có API đọc trạng thái (trạng thái chỉ về qua webhook): GetStatus như Track
+		unsupported(t, "Track", "GetStatus", err)
+		return
+	}
 	if err != nil || st.RawStatus == "" || st.EventKey == "" {
 		t.Fatalf("GetStatus = %+v %v", st, err)
 	}
@@ -296,6 +300,10 @@ func (s *suite) createAgain(t *testing.T) {
 		t.Fatalf("quá giờ sau khi tạo: lỗi = %v, muốn lỗi không rõ", err)
 	}
 	class(t, "quá giờ sau khi tạo", err, fulfillment.ClassUnknownOutcome)
+	if !s.caps.LookupByRef {
+		s.createAgainNoLookup(t, code)
+		return
+	}
 	res, err := a.CreateShipment(ctx(t), acc, sampleCreate(acc, code))
 	if err != nil || res.TrackingCode == "" {
 		t.Fatalf("tạo lại cùng mã = %+v %v", res, err)
@@ -313,6 +321,25 @@ func (s *suite) createAgain(t *testing.T) {
 	again, err := a.CreateShipment(ctx(t), acc, sampleCreate(acc, code))
 	if err != nil || again.TrackingCode != res.TrackingCode {
 		t.Errorf("tạo lần ba cùng mã = %+v %v, muốn cùng kiện %s (không tạo kiện thứ hai)", again, err, res.TrackingCode)
+	}
+}
+
+// createAgainNoLookup: hãng không tra được theo mã (LookupByRef false) — gửi lại cùng mã sau khi quá giờ không được
+// tạo kiện thứ hai và không được báo "chưa gửi" hay "từ chối" (vận đơn chờ người nhập mã hãng): lỗi lớp không rõ,
+// máy chủ có đúng kiện đó, đúng 2 lần gọi tạo.
+func (s *suite) createAgainNoLookup(t *testing.T, code string) {
+	a, acc, h := s.f.Adapter, s.f.Account, s.f.Server
+	res, err := a.CreateShipment(ctx(t), acc, sampleCreate(acc, code))
+	noPhone(t, "CreateShipment", res, err)
+	if err == nil || errors.Is(err, fulfillment.ErrNotSent) || errors.Is(err, fulfillment.ErrRejected) {
+		t.Fatalf("gửi lại cùng mã khi hãng không tra được = %+v %v, muốn lỗi không rõ", res, err)
+	}
+	class(t, "gửi lại cùng mã khi hãng không tra được", err, fulfillment.ClassUnknownOutcome)
+	if !h.Has(code) {
+		t.Errorf("máy chủ không có kiện %s", code)
+	}
+	if n := h.Calls(OpCreate); n != 2 {
+		t.Errorf("Calls(create) = %d, muốn 2 (quá giờ rồi gửi lại một lần, không tự gửi thêm)", n)
 	}
 }
 

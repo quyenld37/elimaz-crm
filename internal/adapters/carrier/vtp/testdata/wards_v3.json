@@ -1,0 +1,4 @@
+{
+  "_source": "https://partner2.viettelpost.vn/document/new-place-ward — Response của GET /v3/categories/listWardsNew?provinceId=1 (đọc 21/11/2026), chép nguyên.",
+  "reply": {"status": 200, "error": false, "message": "OK", "data": [{"WARDS_ID": 9762, "WARDS_NAME": "XÃ AN THẠNH", "DISTRICT_ID": 563}, {"WARDS_ID": 9763, "WARDS_NAME": "XÃ LONG THÀNH BẮC", "DISTRICT_ID": 564}]}
+}

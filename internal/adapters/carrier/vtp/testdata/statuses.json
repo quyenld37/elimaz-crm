@@ -1,0 +1,26 @@
+{
+  "_source": "https://partner2.viettelpost.vn/document/webhook — Bảng danh sách trạng thái (đọc 18/10/2026 và 21/11/2026); mã -> Canonical theo docs/carriers/vtp.md. 104, 202, 503 để unknown (mâu thuẫn/không rõ, core-e2e/05 I15).",
+  "map": {
+    "101": "cancelled",
+    "102": "awaiting_pickup",
+    "103": "awaiting_pickup",
+    "104": "unknown",
+    "107": "cancelled",
+    "200": "picked_up",
+    "201": "cancelled",
+    "202": "unknown",
+    "300": "in_transit",
+    "400": "in_transit",
+    "500": "out_for_delivery",
+    "501": "delivered",
+    "503": "unknown",
+    "504": "returned_to_shop",
+    "505": "delivery_failed",
+    "506": "delivery_failed",
+    "507": "delivery_failed",
+    "508": "in_transit",
+    "509": "in_transit",
+    "515": "returning",
+    "550": "in_transit"
+  }
+}

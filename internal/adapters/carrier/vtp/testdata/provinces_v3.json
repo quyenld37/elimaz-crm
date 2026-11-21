@@ -1,0 +1,4 @@
+{
+  "_source": "https://partner2.viettelpost.vn/document/new-place-province — Response của GET /v3/categories/listProvinceNew (đọc 21/11/2026), chép nguyên (dòng thứ hai của tài liệu ghi sai tên trường WPROVINCE_NAME).",
+  "reply": {"status": 200, "error": false, "message": "OK", "data": [{"PROVINCE_ID": 5, "PROVINCE_CODE": "ADM1-92", "PROVINCE_NAME": "Thành phố Cần Thơ"}, {"PROVINCE_ID": 37, "PROVINCE_CODE": "ADM1-46", "WPROVINCE_NAME": "Thành phố Huế"}]}
+}
