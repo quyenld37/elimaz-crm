@@ -70,7 +70,8 @@ func wireM3(role config.Role, cfg config.Config, d m3Deps) (m3Parts, error) {
 	}
 	ful := fulfillment.New(fulfillment.Deps{
 		DB: d.DB, Queue: queue.NewQueue(), Bus: d.Bus, Events: d.Events, Carriers: reg, Keys: keys, Metrics: d.Metrics,
-		Files: d.Files, // nhãn hãng (Task M3-16): lệnh tải nhãn ghi tệp, đọc lô ký đường dẫn tải
+		ManualCarriers: carrier.ManualKeys(), // tài khoản nhập mã tay của hãng thật cả khi chưa nối API (Task 448)
+		Files:          d.Files,              // nhãn hãng (Task M3-16): lệnh tải nhãn ghi tệp, đọc lô ký đường dẫn tải
 	})
 	csh := cash.New(cash.Deps{
 		DB: d.DB, Queue: queue.NewQueue(), Bus: d.Bus, Events: d.Events, Carriers: reg, Metrics: d.Metrics, Files: d.Files,

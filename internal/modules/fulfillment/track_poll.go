@@ -50,11 +50,15 @@ func RefreshCommandKind() queue.Kind {
 
 // SyncShipment ghi lệnh tra vận đơn id trong tx của bên gọi (nút "Tra lại", ngữ cảnh tenant a.TenantID); bấm nhiều lần
 // trong một phút (đồng hồ của Service) chỉ ra một việc (DedupeKey manual:<id>:<phút>); trả mã việc. Không có vận đơn
-// (hay tenant khác) → ErrNotFound. Kiểm quyền theo kho do bên gọi làm (Get trả kho).
+// (hay tenant khác) → ErrNotFound; vận đơn nhập tay (mode manual, không có nguồn tra ở hãng) → ErrCarrierNotSupported,
+// không ghi việc (Task 448). Kiểm quyền theo kho do bên gọi làm.
 func (s *Service) SyncShipment(ctx context.Context, tx pgx.Tx, id uuid.UUID, a Actor) (uuid.UUID, error) {
-	sh, err := Get(ctx, tx, id)
+	sh, err := s.ShipmentView(ctx, tx, id)
 	if err != nil {
 		return uuid.Nil, err
+	}
+	if sh.Mode != ModeAPI {
+		return uuid.Nil, fmt.Errorf("tra vận đơn nhập tay %s: %w", sh.ID, ErrCarrierNotSupported)
 	}
 	job, _, err := s.queue().Enqueue(ctx, tx, RefreshCommandKind(), queue.NewJob{
 		TenantID: &a.TenantID, Payload: commandPayload{ShipmentID: sh.ID},

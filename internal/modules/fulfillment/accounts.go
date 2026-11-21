@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -65,7 +66,8 @@ const (
 
 // Lỗi của tài khoản hãng (đổi sang HTTP ở internal/httpapi/errors.go).
 var (
-	// ErrCarrierNotSupported: khóa hãng không có adapter trong Registry, hoặc hãng self với mode api.
+	// ErrCarrierNotSupported: khóa hãng không có adapter trong Registry (mode manual: cũng không có trong danh mục nhập
+	// tay), hãng self với mode api, hay tra ở hãng một vận đơn nhập tay.
 	ErrCarrierNotSupported = errors.New("fulfillment: hãng không được hỗ trợ")
 	// ErrAccountUnavailable: tài khoản không active (worker không tự đổi sang tài khoản khác, VC15).
 	ErrAccountUnavailable = errors.New("fulfillment: tài khoản hãng không dùng được")
@@ -181,7 +183,8 @@ type pickupDoc struct {
 	WardCode     string `json:"ward_code"`
 }
 
-// CreateAccount tạo tài khoản hãng trong tx của bên gọi: kiểm hãng có adapter (self chỉ manual), ghi tuyến webhook
+// CreateAccount tạo tài khoản hãng trong tx của bên gọi: kiểm hãng có adapter (mode manual: hoặc là self, hoặc có trong
+// Deps.ManualCarriers; self chỉ manual), ghi tuyến webhook
 // route_key (32 ký tự từ crypto/rand) qua tenancy.PutRoute trước tiên, mã hóa Credentials (AAD gắn mã dòng), chèn
 // dòng (api: draft; manual: active), báo hiệu. Lỗi: ErrCarrierNotSupported, ErrAccountInvalid, ErrKeysMissing,
 // ErrAccountTaken (trùng mặc định hay mã ở hãng), ErrAccountTargetNotFound (người bán, kho không có). Audit do bên gọi ghi.
@@ -241,10 +244,10 @@ func (s *Service) validateCreate(in AccountInput) error {
 	if in.Mode != ModeAPI && in.Mode != ModeManual {
 		return fmt.Errorf("mode %q: %w", in.Mode, ErrAccountInvalid)
 	}
-	// Tự giao (self, chỉ mode manual) không gọi mạng nên không cần adapter: tạo được cả khi bộ hãng rỗng (production,
-	// Task M3-15).
-	selfManual := in.CarrierKey == SelfCarrierKey && in.Mode == ModeManual
-	if (!s.hasAdapter(in.CarrierKey) && !selfManual) || (in.CarrierKey == SelfCarrierKey && in.Mode != ModeManual) {
+	// Tài khoản manual không gọi mạng nên không cần adapter: tự giao (self, Task M3-15) và hãng trong danh mục nhập tay
+	// (Deps.ManualCarriers, Task 448) tạo được cả khi bộ hãng rỗng (production); mode api vẫn đòi adapter.
+	manualOK := in.Mode == ModeManual && (in.CarrierKey == SelfCarrierKey || slices.Contains(s.d.ManualCarriers, in.CarrierKey))
+	if (!s.hasAdapter(in.CarrierKey) && !manualOK) || (in.CarrierKey == SelfCarrierKey && in.Mode != ModeManual) {
 		return fmt.Errorf("hãng %q, mode %s: %w", in.CarrierKey, in.Mode, ErrCarrierNotSupported)
 	}
 	if in.Mode == ModeManual && len(in.Credentials) > 0 {

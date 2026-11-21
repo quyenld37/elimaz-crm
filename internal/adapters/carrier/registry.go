@@ -30,5 +30,10 @@ func All(cfg config.Config) []fulfillment.CarrierAdapter {
 	return as
 }
 
+// ManualKeys trả danh mục hãng nhập tay (fulfillment.Deps.ManualCarriers): khóa khung của mọi hãng thật trong All (giao
+// tay self, vtp, best, spx; không có hãng giả). Tài khoản mode = manual của các hãng này tạo được dù adapter API chưa nối
+// (production khi tích hợp hãng tạm dừng, CS-21/11-1, Task 448); mỗi lần gọi trả một mảng mới.
+func ManualKeys() []string { return []string{SelfKey, vtp.Key, best.Key, spx.Key} }
+
 // FakeOn cho biết hãng giả được nối: chỉ ngoài production và khi có FAKECARRIER_URL (Q2 của M1).
 func FakeOn(cfg config.Config) bool { return cfg.Env != "production" && cfg.FakeCarrierURL != "" }
