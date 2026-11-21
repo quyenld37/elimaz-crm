@@ -34,7 +34,11 @@ Hai commit (CLAUDE.md "cấu trúc và hành vi ở hai commit khác nhau"):
   - `order.Timeline`: giữ chữ ký; thêm mục `return` (bảng `ord.returns` của chính order). Thêm `order.SortTimeline`
     (lớp HTTP trộn mục của `queries.OrderShippingTimeline` rồi sắp lại cùng một quy tắc).
   - Mới: `queries.OrderShippingTimeline` (mục `shipment`, `payment` từ view của fulfillment, cash),
-    `fulfillment.StatusLabel` (nhãn hiển thị của vận đơn cho lớp HTTP; dùng lại `shipstate.Display` + `manual.Label`).
+    `fulfillment.StatusLabel` (nhãn hiển thị của vận đơn cho lớp HTTP; dùng lại `shipstate.Display` + `manual.Label`;
+    `fulfillment/area_create.go` `viewOf` gọi lại hàm này thay biểu thức cũ, cùng kết quả).
+  - `httpapi.timelineEntry` (`handlers_customer_timeline.go`, 2 chỗ dùng: dòng thời gian khách, đơn) thêm `ActorType`;
+    dòng thời gian khách để rỗng (không gửi `actorType`).
+  - `order.OrderTimelineItem.ActorType` nay có ở mọi mục: edit, note → staff (edit không người làm → system).
 - Gói phụ thuộc ngược (go list): `internal/queries` ← `internal/httpapi`; `internal/queries/orderview` ← `httpapi`,
   `modules/order`, `modules/order/internal/state`; `modules/order` ← `cmd/crm`, `httpapi`, `modules/cash`,
   `modules/cash/internal/refunds`, `modules/fulfillment`, `testkit/codtest`, `testkit/shiptest`; `modules/fulfillment` ← nhiều
@@ -72,6 +76,10 @@ Hai commit (CLAUDE.md "cấu trúc và hành vi ở hai commit khác nhau"):
   - `fulfillment.StatusLabel` bọc đúng biểu thức đang có ở `area_create.go:413` (`manual.Label(…, shipstate.Display(…))`)
     vì lớp HTTP không nhập được gói internal của fulfillment.
   - Sắp xếp dòng thời gian: một hàm `order.SortTimeline` dùng cho cả `Timeline` và lớp HTTP (không viết bản thứ hai).
+  - jscpd (lượt ci-task đầu báo 4 đoạn mới, đã gộp hết): vòng "mỗi nhãn đúng một lần" của test M2 và M3 gộp thành
+    `checkEachLabelOnce` (`list_test.go`); vòng chạy bảng nhãn gộp thành `checkLabelCases` (`label_test.go`); `nonEmpty`
+    của queries thay bằng `maps.DeleteFunc` (không chép `nonEmptyMap` của order); đoạn chép mục queries → order trong test
+    `timeline_m3_test.go` là bản của test (dựng như handler), giữ riêng.
   - jscpd/dupl: kiểu `order.ListSearch` và trường tìm của `queries.OrderFilter` giống nhau bề ngoài nhưng hai gói không
     nhập được nhau (luật (f)); giữ riêng.
 
@@ -124,6 +132,10 @@ Hai commit (CLAUDE.md "cấu trúc và hành vi ở hai commit khác nhau"):
 8. **Mục `return`:** một mục lúc tạo phiếu (người tạo hoặc hệ thống khi trống) và một mục lúc nhận hàng (nếu đã nhận).
 9. **Mục `payment`:** mỗi phiếu thu/chi một mục lúc `received_at`, người làm là nhân viên ghi phiếu; summary có `method`,
    `amount`.
+10. **Dòng duyệt oasdiff** (`openapi/breaking-approved.yaml`, 11 operation có `OrderLabel` trong thân trả về): thêm
+   giá trị enum trả về `sending` là "phá vỡ" với client đọc enum chặt; màn hình (client duy nhất) cập nhật cùng commit.
+   Ghi `approvedOn: 2026-11-21` theo ủy quyền của chủ shop đêm 21/11 (kế hoạch đòi nhãn này). Điều phối viên xóa 11 dòng
+   sau khi gộp (luật của tệp). Phương án khác: không thêm nhãn (trái kế hoạch).
 
 ## Bằng chứng
 
@@ -133,9 +145,23 @@ Hai commit (CLAUDE.md "cấu trúc và hành vi ở hai commit khác nhau"):
 | C1 Kế hoạch câu qua view không Seq Scan trên orders (200.000 đơn) | `TestOrderListPlans` (`internal/queries/orders_dynsql_test.go`) | `go test -race ./internal/queries/...` | `ok elimaz.com.vn/crm/internal/queries 117.080s` |
 | C1 HTTP listOrders giữ mã lỗi M2 (nhãn vận đơn 422, q ngắn 422, con trỏ 400, 403) | `TestOrderRead_List` | `go test -race ./internal/httpapi/ -run TestOrderRead -count=1` | `ok elimaz.com.vn/crm/internal/httpapi 5.327s` |
 | C1 View nối cột cuối, docs/views.md khớp | `TestSchemaViewsAndRules`, `TestSchemaExtendsM1Orders` (order), `TestSchemaM3_*` (fulfillment), `TestViewsDocMatchesDatabase`, `TestM2Contract_ViewsDoc`, `TestSQLUsage*` (arch) | `go test -race ./internal/modules/fulfillment/ -run TestSchemaM3`; `go test ./tests/arch/...` | `ok …/fulfillment 2.917s`; `ok elimaz.com.vn/crm/tests/arch 22.269s` |
+| C2 Lọc `shipmentStatus=shipping` → đúng 2; `codState=holding` → đúng đơn đã giao chưa bảng kê; `carrierKey=fake_b` → đúng 1; collecting, received, none, packingStatus; người bán thứ hai không lẫn | `TestListM3_Filters` (`internal/modules/order/list_m3_dynsql_test.go`) | `go test -race ./internal/modules/order/ -run 'TestTimeline\|TestListM3\|TestList_' -count=1` | `ok elimaz.com.vn/crm/internal/modules/order 5.390s` |
+| C2 Dòng có `shipment` (mã, hãng, mã hãng, trạng thái, kẹt, cần xem) và `cod` ba ngăn; không vận đơn → nil; nhãn dòng từ `orderview.Label` có trục vận đơn | `TestListM3_RowShipmentAndCOD` | như trên | như trên |
+| C2 Mọi nhãn (kể cả nhãn vận đơn, `sending`) lọc được, mỗi đơn đúng một nhãn | `TestListM3_EveryLabelFilterable`, `TestList_LabelMatchesRowLabel`, `TestList_Filters` ("label shipping (M3)" rỗng) | như trên | như trên |
+| C2 Nhãn: packed không vận đơn → Đã đóng gói; creating → sending; awaiting_pickup; delivery_failed; bảng M2 vẫn đúng | `TestLabel_ShipmentAxisM3` (`label_m3_test.go`), `TestLabel_Table`, `TestLabels_OrderAndConstants`, `TestLabel_AlwaysKnownForValidStatus` | `go test -race ./internal/queries/... -count=1` | `ok elimaz.com.vn/crm/internal/queries/orderview 1.846s` |
+| C2 Dòng thời gian D1: mốc theo thời gian, hãng → `actorType` carrier không người làm, nhân viên → staff có người làm, bỏ `duplicate_state`, phiếu thu, phiếu trả, người bán kia không thấy sự kiện vận đơn | `TestTimelineM3_ShipmentPaymentReturn` (`timeline_m3_test.go`) | `go test -race ./internal/modules/order/ -run 'TestTimeline…'` | `ok … 5.390s` |
+| C2 EXPLAIN 200.000 đơn (160.000 có vận đơn) lọc `shipmentStatus`, hãng, COD, nhãn vận đơn → không Seq Scan trên `orders` hay `shipments` | `TestOrderListPlans` (14 ca, kiểm số dữ liệu mẫu) | `go test -race ./internal/queries/... -count=1` | `ok elimaz.com.vn/crm/internal/queries 12.805s` |
+| C2 HTTP: lọc qua tham số, khối `shipment` (nhãn "Đang chuyển"), `cod`, codState lạ → 400; timeline có `actorType` và tên nhân viên | `TestOrderRead_ListTimelineM3`, `TestOrderRead_List`, `TestOrderRead_TimelineNotes` | `go test -race ./internal/httpapi/ -run 'TestOrderRead_ListTimelineM3\|TestOrderRead_List$\|TestOrderRead_TimelineNotes' -count=1` | `ok elimaz.com.vn/crm/internal/httpapi 2.496s` |
+| C2 `OrderShippingTimeline` trên vận đơn thật (shiptest): bỏ duplicate_state, staff có người làm, carrier không, phiếu chi âm, người bán kia/tenant B/đơn trống không thấy | `TestOrderShippingTimeline` (`internal/queries/order_timeline_dynsql_test.go`) | `go test -race ./internal/queries/ -run TestOrderShippingTimeline -count=1` | `ok elimaz.com.vn/crm/internal/queries 2.297s` |
+| C2 Nhãn vận đơn của fulfillment cho lớp HTTP | `TestStatusLabel` | `go test ./internal/modules/fulfillment/ -run TestStatusLabel` | `ok …/fulfillment 0.494s` |
+| C2 Màn hình: 17 nhãn đúng enum, chữ "Đang gửi hãng"; tsc | `labels.test.ts` | `npx vitest run src/screens/don/labels.test.ts`; `npx tsc --noEmit` | `Tests 7 passed (7)`; tsc không lỗi |
+| C2 Cổng tĩnh và toàn bộ test (đổi migration → cả bộ): build, vet, lint, gen-check, sqlc-vet, catalog, jscpd, gitleaks, oasdiff (11 dòng duyệt), test-guard, console-check xanh; 76 gói ok, 1 gói đỏ là `TestDeepHealth` (lỗi có sẵn trên 2818f9e, xem Việc phát hiện thêm) | cả bộ | `ci-task.sh` lượt 3 (lượt 1 đỏ jscpd, oasdiff, thiếu test dynsql — đã sửa; lượt 2 hỏng vì PostgreSQL chung 5600 bị khởi động lại giữa chừng) | `ok …/modules/order 387.043s`, `ok …/queries 31.271s`, `ok …/httpapi 122.399s`, `ok …/fulfillment 256.496s`, `ok …/cash 104.615s`, `ok …/tests/arch 33.805s`; `CI-TASK ĐỎ: test` chỉ do `FAIL …/platform/observability` (`TestDeepHealth`) |
 | C1 Lint | `golangci-lint run` 4 gói | `golangci-lint run ./internal/queries/... ./internal/modules/order/... ./internal/httpapi/... ./tests/arch/...` | `0 issues.` |
 
 ## Test bị xóa hoặc tắt
+
+- Kỳ vọng đổi (không nới, theo kế hoạch), chi tiết ở "Khác kế hoạch": hai ca creating của `TestLabel_Table`, ca nhãn vận đơn
+  của `TestList_Filters`, `TestList_LabelMatchesRowLabel` (bỏ nhánh bỏ qua nhãn vận đơn), `TestOrderRead_List` (422 → 200).
 
 - `internal/modules/order/export_list_test.go` (commit 1): xóa. Tệp chỉ có hàm phụ `ListSQL` (không có `func Test…`) cho
   test kế hoạch câu; thay bằng `queries.OrderListSQL` trong `internal/queries/export_test.go` (câu đã dời sang queries).
@@ -146,18 +172,40 @@ Hai commit (CLAUDE.md "cấu trúc và hành vi ở hai commit khác nhau"):
 - Tệp: câu danh sách ở `internal/queries/orders_dynsql.go` thay cho `order/list_dynsql.go` (Quyết định 1); test lọc M3 vẫn ở
   `internal/modules/order/list_m3_dynsql_test.go` (cần dữ liệu đơn của order); `list_explain_test.go` dời sang `internal/queries/orders_dynsql_test.go`.
 - Dòng thời gian M3 (vận đơn, thu) ở `internal/queries/order_timeline_dynsql.go`; phiếu trả ở `order/timeline.go`.
-- `label_test.go`: hai ca ngoài bảng đổi kỳ vọng sang `sending` (Quyết định 3).
+- `label_test.go`: hai ca ngoài bảng đổi kỳ vọng sang `sending` (Quyết định 3); `TestLabels_OrderAndConstants` 17 nhãn.
+- `list_test.go` (M2): ca "nhãn vận đơn → ErrLabelNotFilterable" đổi thành "nhãn vận đơn lọc được, rỗng" (kế hoạch: nhãn
+  vận đơn nay chạy được); `TestOrderRead_List`: 422 → 200 rỗng, cùng lý do.
+- Commit 1 quên `make gen`: `models.go` sinh của sqlc (9 gói, cột view mới) cập nhật ở commit 2; commit 1 riêng lẻ không qua
+  gen-check, trạng thái cuối nhánh qua.
+- Ngoài danh sách tệp của kế hoạch: `fulfillment/status_label.go` (+ `area_create.go` dùng lại),
+  `httpapi/handlers_customer_timeline.go` (`timelineEntry.ActorType`), `console/src/screens/don/labels.ts` (enum mới bắt buộc),
+  `queries/ord/timeline_m3.sql`.
 
 ## Việc phát hiện thêm
+
+- ci-task lượt 1 (toàn bộ test vì đổi migration) có ba test đỏ ngoài phạm vi: `TestApply_AllOrNothingProperty` (catalog,
+  rapid "flaky test, can not reproduce", chạy lại qua), `TestLabels_RetryThenTerminal` (fulfillment, "chưa có mã hãng",
+  chạy lại 3 lần qua) — chập chờn khi máy tải nặng, thuộc Task 443; `TestDeepHealth` (platform/observability,
+  `LastBackupAgeH`) đỏ cả trên mã gốc 2818f9e (worktree tạm, lượt chạy 21/11) — lỗi có sẵn, không do task này.
+- `openapi/breaking-approved.yaml`: 11 dòng của task này (enum `sending`) phải xóa sau khi gộp vào main (luật đầu tệp).
+- `order.ErrLabelNotFilterable` không còn nơi sinh (mọi nhãn lọc được); ánh xạ ở `internal/httpapi/errors.go:483` để Task
+  441 (tách errors.go) xóa cùng sentinel — task này không được sửa errors.go.
+- `getOrder` (`order.GetDetail`) và đơn trùng vẫn tính nhãn trên ba trục M2 (không đọc trạng thái vận đơn): đơn đang chuyển
+  hiện "Đã xác nhận/Đã đóng gói" ở chi tiết trong khi danh sách hiện "Đang chuyển". Cần task riêng (đọc qua queries).
+- Màn danh sách đơn (console) chưa hiện cột vận đơn, COD và bộ lọc M3 (`LABEL_BAR` vẫn ẩn nhãn vận chuyển): task màn hình.
 
 - `TestOrderRead_EditCancelTimeline` (httpapi) chập chờn một lần ở lượt chạy đầu (mục edit thiếu `lines`,
   `shipAddress`), chạy lại qua: lỗi đã biết (trộn đồng hồ Go và PostgreSQL, Task 436), không do task này.
 
 ## Reviewer
 
-Kết luận: ĐẠT (commit 1, cấu trúc; lần 2)
+Kết luận: ĐẠT (commit 2, hành vi; lần 1) — commit 1 (cấu trúc) ĐẠT ở lần 2
 
 - Commit 1 lần 1: CẦN SỬA — mục "Test bị xóa hoặc tắt" thiếu `export_list_test.go` (test-guard sẽ chặn); ghi chú: tên tệp
   `orders_dynsql_test.go`, thêm `DefaultListLimit`/`MaxListLimit` và `CustomerName string` vào Ảnh hưởng. Đã sửa cả ba.
 - Commit 1 lần 2: ĐẠT — không còn phát hiện; hành vi M2 giữ (422 nhãn vận đơn qua `orderListErr`), migration 0330 chỉ nối
   cột cuối, test lọc/keyset/kế hoạch câu đi đúng đường của handler.
+- Commit 2 lần 1: ĐẠT — không có phát hiện phải sửa. Ghi chú: `order.ErrLabelNotFilterable` và ánh xạ ở `errors.go:483` là
+  mã chết (task này không được sửa errors.go, đã ghi "Việc phát hiện thêm" cho Task 441); nên tham chiếu các kỳ vọng test
+  đổi ở mục "Test bị xóa hoặc tắt" (đã thêm); Quyết định 5 (sự kiện bỏ qua vì lý do khác vẫn hiện) cần chủ shop xác nhận;
+  thứ tự số quyết định (đã sửa).

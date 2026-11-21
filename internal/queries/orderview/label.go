@@ -7,10 +7,10 @@ type Axes struct {
 	Status, PendingReason, PackingStatus, ShipmentStatus string
 }
 
-// LabelKey là khóa của nhãn gộp (16 giá trị, Labels).
+// LabelKey là khóa của nhãn gộp (17 giá trị, Labels: 16 của M2 cộng sending của M3).
 type LabelKey string
 
-// 16 nhãn gộp; chú thích là chữ hiển thị trên màn hình.
+// 17 nhãn gộp; chú thích là chữ hiển thị trên màn hình.
 const (
 	LabelDraft                    LabelKey = "draft"                      // Nháp
 	LabelNew                      LabelKey = "new"                        // Mới
@@ -20,6 +20,7 @@ const (
 	LabelConfirmed                LabelKey = "confirmed"                  // Đã xác nhận
 	LabelPacking                  LabelKey = "packing"                    // Đang đóng gói
 	LabelPacked                   LabelKey = "packed"                     // Đã đóng gói
+	LabelSending                  LabelKey = "sending"                    // Đang gửi hãng (M3, Task M3-28)
 	LabelAwaitingPickup           LabelKey = "awaiting_pickup"            // Chờ thu gom
 	LabelShipping                 LabelKey = "shipping"                   // Đang chuyển
 	LabelDeliveryFailed           LabelKey = "delivery_failed"            // Thất bại
@@ -30,18 +31,18 @@ const (
 	LabelReturned                 LabelKey = "returned"                   // Đã hoàn
 )
 
-// Labels trả đủ 16 nhãn theo thứ tự thanh nhãn của màn danh sách đơn; mỗi lần gọi một slice mới.
+// Labels trả đủ 17 nhãn theo thứ tự thanh nhãn của màn danh sách đơn; mỗi lần gọi một slice mới.
 func Labels() []LabelKey {
 	return []LabelKey{
 		LabelDraft, LabelNew, LabelAwaitingDiscountApproval, LabelAwaitingCustomer, LabelOutOfStock, LabelConfirmed,
-		LabelPacking, LabelPacked, LabelAwaitingPickup, LabelShipping, LabelDeliveryFailed, LabelReturning,
+		LabelPacking, LabelPacked, LabelSending, LabelAwaitingPickup, LabelShipping, LabelDeliveryFailed, LabelReturning,
 		LabelCancelRequested, LabelCancelled, LabelDelivered, LabelReturned,
 	}
 }
 
-// Label trả nhãn gộp của đơn theo bảng của kế hoạch M2, Task M2-08. Tổ hợp ngoài bảng: new với lý do lạ → new;
-// confirmed có vận đơn ở trạng thái ngoài bảng (creating…) → theo trục đóng gói (picking → packing, còn lại confirmed;
-// packed chỉ khi chưa có vận đơn); cancel_requested, cancelled, delivered, returned → theo trạng thái đơn, bỏ qua hai
+// Label trả nhãn gộp của đơn theo bảng của kế hoạch M2, Task M2-08, cộng một dòng của M3 (Task M3-28): confirmed có
+// vận đơn creating → sending. Tổ hợp ngoài bảng: new với lý do lạ → new; confirmed có vận đơn ở trạng thái ngoài bảng
+// (cancelled…) → theo trục đóng gói (picking → packing, còn lại confirmed; packed chỉ khi chưa có vận đơn); cancel_requested, cancelled, delivered, returned → theo trạng thái đơn, bỏ qua hai
 // trục kia. Trạng thái đơn lạ → "" (không thuộc Labels(); dữ liệu sai).
 func Label(a Axes) LabelKey {
 	switch a.Status {
@@ -77,6 +78,8 @@ func newLabel(pendingReason string) LabelKey {
 
 func confirmedLabel(packing, shipment string) LabelKey {
 	switch shipment {
+	case "creating":
+		return LabelSending
 	case "awaiting_pickup":
 		return LabelAwaitingPickup
 	case "shipping":

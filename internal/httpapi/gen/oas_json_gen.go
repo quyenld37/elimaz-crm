@@ -26921,6 +26921,39 @@ func (s *OptTagColor) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes TimelineItemActorType as json.
+func (o OptTimelineItemActorType) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes TimelineItemActorType from json.
+func (o *OptTimelineItemActorType) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptTimelineItemActorType to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptTimelineItemActorType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptTimelineItemActorType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes TimelineItemSummary as json.
 func (o OptTimelineItemSummary) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -28917,6 +28950,8 @@ func (s *OrderLabel) Decode(d *jx.Decoder) error {
 		*s = OrderLabelPacking
 	case OrderLabelPacked:
 		*s = OrderLabelPacked
+	case OrderLabelSending:
+		*s = OrderLabelSending
 	case OrderLabelAwaitingPickup:
 		*s = OrderLabelAwaitingPickup
 	case OrderLabelShipping:
@@ -47210,6 +47245,12 @@ func (s *TimelineItem) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.ActorType.Set {
+			e.FieldStart("actorType")
+			s.ActorType.Encode(e)
+		}
+	}
+	{
 		if s.Summary.Set {
 			e.FieldStart("summary")
 			s.Summary.Encode(e)
@@ -47223,13 +47264,14 @@ func (s *TimelineItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfTimelineItem = [6]string{
+var jsonFieldsNameOfTimelineItem = [7]string{
 	0: "at",
 	1: "kind",
 	2: "refId",
 	3: "actor",
-	4: "summary",
-	5: "note",
+	4: "actorType",
+	5: "summary",
+	6: "note",
 }
 
 // Decode decodes TimelineItem from json.
@@ -47286,6 +47328,16 @@ func (s *TimelineItem) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"actor\"")
+			}
+		case "actorType":
+			if err := func() error {
+				s.ActorType.Reset()
+				if err := s.ActorType.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"actorType\"")
 			}
 		case "summary":
 			if err := func() error {
@@ -47359,6 +47411,52 @@ func (s *TimelineItem) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *TimelineItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes TimelineItemActorType as json.
+func (s TimelineItemActorType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes TimelineItemActorType from json.
+func (s *TimelineItemActorType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode TimelineItemActorType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch TimelineItemActorType(v) {
+	case TimelineItemActorTypeStaff:
+		*s = TimelineItemActorTypeStaff
+	case TimelineItemActorTypeSystem:
+		*s = TimelineItemActorTypeSystem
+	case TimelineItemActorTypeCarrier:
+		*s = TimelineItemActorTypeCarrier
+	case TimelineItemActorTypeCustomer:
+		*s = TimelineItemActorTypeCustomer
+	case TimelineItemActorTypeService:
+		*s = TimelineItemActorTypeService
+	default:
+		*s = TimelineItemActorType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s TimelineItemActorType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *TimelineItemActorType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

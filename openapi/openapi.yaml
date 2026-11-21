@@ -6476,7 +6476,7 @@ components:
       enum: [draft, new, confirmed, cancel_requested, cancelled, delivered, returned]
     OrderLabel:
       type: string
-      description: Nhãn gộp của đơn (internal/queries/orderview, Task M2-08), đúng thứ tự thanh nhãn
+      description: Nhãn gộp của đơn (internal/queries/orderview, Task M2-08; sending từ M3 Task M3-28), đúng thứ tự thanh nhãn
       enum:
         - draft
         - new
@@ -6486,6 +6486,7 @@ components:
         - confirmed
         - packing
         - packed
+        - sending
         - awaiting_pickup
         - shipping
         - delivery_failed
@@ -6592,6 +6593,10 @@ components:
           format: uuid
         actor:
           $ref: "#/components/schemas/Actor"
+        actorType:
+          type: string
+          description: 'Nguồn của mục (I09): staff (nhân viên, có actor), system (hệ thống), carrier (hãng), customer, service. Hiện chỉ dòng thời gian của đơn đặt (M3, Task M3-28)'
+          enum: [staff, system, carrier, customer, service]
         summary:
           type: object
           description: Tóm tắt máy đọc (mã, trạng thái, tên trường đã đổi); không giá trị dữ liệu cá nhân

@@ -42,7 +42,7 @@ func listCodes(t *testing.T, body map[string]any) []string {
 	return out
 }
 
-// listOrders qua HTTP: lọc nhãn, kênh, q (mã), phân trang bằng nextCursor; nhãn vận đơn → 422 invalid_input; q 2 chữ
+// listOrders qua HTTP: lọc nhãn, kênh, q (mã), phân trang bằng nextCursor; nhãn vận đơn lọc được (M3); q 2 chữ
 // số → 422 query_too_short; con trỏ hỏng → 400 invalid_input; không có order.read → 403.
 func TestOrderRead_List(t *testing.T) {
 	e := newOrderReadEnv(t)
@@ -76,7 +76,11 @@ func TestOrderRead_List(t *testing.T) {
 	if got := listCodes(t, decodeJSON(t, rec)); rec.Code != http.StatusOK || len(got) != 1 || got[0] != o1["code"] {
 		t.Errorf("q mã đơn: %d %s", rec.Code, rec.Body.String())
 	}
-	expect(t, "nhãn vận đơn", e.get(orderViewer, "/api/v1/orders?label=shipping"), http.StatusUnprocessableEntity, "invalid_input")
+	// M3 (Task M3-28): nhãn vận đơn lọc được (trước 422); không đơn nào có vận đơn → rỗng.
+	rec = e.get(orderViewer, "/api/v1/orders?label=shipping")
+	if got := listCodes(t, decodeJSON(t, rec)); rec.Code != http.StatusOK || len(got) != 0 {
+		t.Errorf("nhãn vận đơn: %d %s", rec.Code, rec.Body.String())
+	}
 	expect(t, "q 2 chữ số", e.get(orderViewer, "/api/v1/orders?q=56"), http.StatusUnprocessableEntity, "query_too_short")
 	expect(t, "con trỏ hỏng", e.get(orderViewer, "/api/v1/orders?cursor=abc"), http.StatusBadRequest, "invalid_input")
 	expect(t, "không order.read", e.get(readNoPerm, "/api/v1/orders"), http.StatusForbidden, "forbidden")

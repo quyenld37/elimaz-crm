@@ -135,15 +135,17 @@ func (h *handler) writeNote(ctx context.Context, refusal func(error) bool, what 
 	return out.(*gen.Note), nil //nolint:forcetypeassert // fn trên trả *gen.Note
 }
 
-// timelineEntry là một mục dòng thời gian (khách, đơn) trước khi dựng thân API; Note chỉ gửi khi IsNote.
+// timelineEntry là một mục dòng thời gian (khách, đơn) trước khi dựng thân API; Note chỉ gửi khi IsNote; ActorType ""
+// không gửi actorType (dòng thời gian khách).
 type timelineEntry struct {
-	At      time.Time
-	Kind    string
-	RefID   uuid.UUID
-	ActorID *uuid.UUID
-	Summary map[string]string
-	Note    string
-	IsNote  bool
+	At        time.Time
+	Kind      string
+	RefID     uuid.UUID
+	ActorID   *uuid.UUID
+	ActorType string
+	Summary   map[string]string
+	Note      string
+	IsNote    bool
 }
 
 // timelineItemOut dựng TimelineItem của e, tên người làm lấy từ names.
@@ -151,6 +153,9 @@ func timelineItemOut(e timelineEntry, names map[uuid.UUID]string) gen.TimelineIt
 	item := gen.TimelineItem{At: e.At, Kind: e.Kind, RefId: e.RefID}
 	if e.ActorID != nil {
 		item.Actor = gen.NewOptActor(gen.Actor{ID: *e.ActorID, Name: names[*e.ActorID]})
+	}
+	if e.ActorType != "" {
+		item.ActorType = gen.NewOptTimelineItemActorType(gen.TimelineItemActorType(e.ActorType))
 	}
 	if len(e.Summary) > 0 {
 		item.Summary = gen.NewOptTimelineItemSummary(gen.TimelineItemSummary(e.Summary))

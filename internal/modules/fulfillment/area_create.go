@@ -14,8 +14,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/fulfillment/internal/create"
-	"elimaz.com.vn/crm/internal/modules/fulfillment/internal/manual"
-	"elimaz.com.vn/crm/internal/modules/fulfillment/internal/shipstate"
 	"elimaz.com.vn/crm/internal/modules/fulfillment/internal/store"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/commands"
@@ -410,7 +408,7 @@ func viewOf(r store.OrderShipmentViewsRow) ShipmentView {
 		ID: r.ID, OrderID: r.OrderID, CarrierAccountID: r.CarrierAccountID, Code: r.Code, CarrierKey: r.CarrierKey,
 		AccountName: r.AccountName, Mode: r.Mode, TrackingCode: r.TrackingCode.String, Service: r.Service,
 		Status: r.Status, SubStatus: r.SubStatus,
-		Label:       manual.Label(r.CarrierKey, shipstate.Status(r.Status), shipstate.Display(shipstate.Status(r.Status), r.SubStatus, "")),
+		Label:       StatusLabel(r.CarrierKey, r.Status, r.SubStatus),
 		CreateState: r.CreateState, CancelKind: r.CancelKind.String, CODAmount: r.CodAmount,
 		CODCollectedAmount: int8Ptr(r.CodCollectedAmount), Fee: int8Ptr(r.Fee), FeeActual: int8Ptr(r.FeeActual),
 		PickedUpAt: tsPtr(r.PickedUpAt), DeliveredAt: tsPtr(r.DeliveredAt), LastCarrierEventAt: tsPtr(r.LastCarrierEventAt),

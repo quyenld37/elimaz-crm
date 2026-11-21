@@ -11,6 +11,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/queries"
@@ -18,9 +19,10 @@ import (
 )
 
 // ListOrders (GET /api/v1/orders, order.read): một trang đơn của người bán mặc định, mới nhất trước, keyset (Task
-// M2-24). Phần tìm (q, khách) giải bằng order.ResolveListSearch, câu danh sách ghép view ở queries.OrderList (spec 04
-// mục 3). Con trỏ hỏng → 400 invalid_input; nhãn của vận đơn (chưa có ở M2) → 422 invalid_input; q chỉ chữ số dưới 4
-// số → 422 query_too_short. Không ghi q vào log.
+// M2-24; M3 Task M3-28: lọc theo hãng, trạng thái vận đơn, tiền COD, đóng gói; mỗi dòng có vận đơn hiện hành và số dư
+// COD, mọi nhãn lọc được). Phần tìm (q, khách) giải bằng order.ResolveListSearch, câu danh sách ghép view ở
+// queries.OrderList (spec 04 mục 3). Con trỏ hỏng → 400 invalid_input; q chỉ chữ số dưới 4 số → 422 query_too_short.
+// Không ghi q vào log.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) ListOrders(ctx context.Context, params gen.ListOrdersParams) (gen.ListOrdersRes, error) {
@@ -76,6 +78,21 @@ func (h *handler) ListOrders(ctx context.Context, params gen.ListOrdersParams) (
 		if r.CareBy != nil {
 			item.CareBy = gen.NewOptActor(gen.Actor{ID: *r.CareBy, Name: names[*r.CareBy]})
 		}
+		if sh := r.Shipment; sh != nil {
+			sum := gen.OrderShipmentSummary{
+				Code: sh.Code, CarrierKey: sh.CarrierKey, TrackingCode: nonEmpty(sh.TrackingCode),
+				Status: gen.ShipmentStatus(sh.Status), Label: gen.NewOptString(fulfillment.StatusLabel(sh.CarrierKey, sh.Status, sh.SubStatus)),
+				NeedsReview: gen.NewOptBool(sh.NeedsReview),
+			}
+			setOptTime(&sum.StuckSince, sh.StuckSince)
+			item.Shipment = gen.NewOptOrderShipmentSummary(sum)
+		}
+		if c := r.COD; c != nil {
+			item.Cod = gen.NewOptOrderCodSummary(gen.OrderCodSummary{
+				ToCollect: gen.SignedMoney(c.ToCollect), CarrierHolding: gen.SignedMoney(c.CarrierHolding),
+				ShopReceived: gen.SignedMoney(c.ShopReceived),
+			})
+		}
 		out.Items = append(out.Items, item)
 	}
 	if next != (queries.OrderCursor{}) {
@@ -86,10 +103,7 @@ func (h *handler) ListOrders(ctx context.Context, params gen.ListOrdersParams) (
 
 // orderListErr đổi lỗi bộ lọc của queries.OrderList sang sentinel của order (errors.go ánh xạ sentinel của order).
 func orderListErr(err error) error {
-	switch {
-	case errors.Is(err, queries.ErrLabelNotFilterable):
-		return fmt.Errorf("%w: %w", order.ErrLabelNotFilterable, err)
-	case errors.Is(err, queries.ErrInvalidOrderFilter):
+	if errors.Is(err, queries.ErrInvalidOrderFilter) {
 		return fmt.Errorf("%w: %w", order.ErrInvalidInput, err)
 	}
 	return err
@@ -97,7 +111,13 @@ func orderListErr(err error) error {
 
 // listOrdersFilter dịch tham số của listOrders sang queries.OrderFilter (chưa có SellerID, Search).
 func listOrdersFilter(p gen.ListOrdersParams) queries.OrderFilter {
-	f := queries.OrderFilter{TrafficSourceIDs: p.TrafficSourceId, CareBy: optUUID(p.CareBy)}
+	f := queries.OrderFilter{
+		TrafficSourceIDs: p.TrafficSourceId, CareBy: optUUID(p.CareBy), CarrierKey: p.CarrierKey.Or(""),
+		CODState: string(p.CodState.Or("")), PackingStatus: string(p.PackingStatus.Or("")),
+	}
+	for _, s := range p.ShipmentStatus {
+		f.ShipmentStatuses = append(f.ShipmentStatuses, string(s))
+	}
 	for _, l := range p.Label {
 		f.Labels = append(f.Labels, orderview.LabelKey(l))
 	}
@@ -123,7 +143,9 @@ func listOrdersFilter(p gen.ListOrdersParams) queries.OrderFilter {
 }
 
 // GetOrderTimeline (GET /api/v1/orders/{id}/timeline, order.read): lịch sử thao tác của đơn (đổi trạng thái, tên trường
-// đã sửa, ghi chú), mới nhất trước, kèm tên người làm; đơn không có (hay của tenant, người bán khác) → 404.
+// đã sửa, ghi chú, phiếu trả của order.Timeline; sự kiện vận đơn, phiếu thu của queries.OrderShippingTimeline — M3 Task
+// M3-28), mới nhất trước (order.SortTimeline), kèm nguồn (actorType) và tên người làm; đơn không có (hay của tenant,
+// người bán khác) → 404.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) GetOrderTimeline(ctx context.Context, params gen.GetOrderTimelineParams) (gen.GetOrderTimelineRes, error) {
@@ -141,6 +163,16 @@ func (h *handler) GetOrderTimeline(ctx context.Context, params gen.GetOrderTimel
 		if err != nil {
 			return err //nolint:wrapcheck // sentinel của order
 		}
+		ship, err := queries.OrderShippingTimeline(ctx, tx, seller, params.ID)
+		if err != nil {
+			return err //nolint:wrapcheck // lỗi của queries đã bọc
+		}
+		for _, s := range ship {
+			items = append(items, order.OrderTimelineItem{
+				At: s.At, Kind: s.Kind, RefID: s.RefID, ActorID: s.ActorID, ActorType: s.ActorType, Summary: s.Summary,
+			})
+		}
+		order.SortTimeline(items)
 		names, err = actorNamesOf(ctx, tx, items, func(it order.OrderTimelineItem) *uuid.UUID { return it.ActorID })
 		return err
 	})
@@ -150,7 +182,7 @@ func (h *handler) GetOrderTimeline(ctx context.Context, params gen.GetOrderTimel
 	out := &gen.OrderTimeline{Items: make([]gen.TimelineItem, 0, len(items))}
 	for _, it := range items {
 		out.Items = append(out.Items, timelineItemOut(timelineEntry{
-			At: it.At, Kind: it.Kind, RefID: it.RefID, ActorID: it.ActorID, Summary: it.Summary,
+			At: it.At, Kind: it.Kind, RefID: it.RefID, ActorID: it.ActorID, ActorType: it.ActorType, Summary: it.Summary,
 			Note: string(it.Note), IsNote: it.Kind == order.TimelineNote,
 		}, names))
 	}

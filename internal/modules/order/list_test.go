@@ -163,7 +163,8 @@ func newListFixture(e *orderEnv) listFixture {
 }
 
 // Lọc theo nhãn, kênh, nguồn, khách gốc (cả nhóm), người phụ trách, ngày, q (mã, đuôi SĐT, SĐT đủ, tên); nhãn của
-// vận đơn → ErrLabelNotFilterable; người bán khác không thấy đơn (ADR-29).
+// vận đơn lọc được từ M3 (không đơn nào có vận đơn → rỗng; trước là ErrLabelNotFilterable); người bán khác không thấy
+// đơn (ADR-29).
 func TestList_Filters(t *testing.T) {
 	e := newM2Env(t)
 	f := newListFixture(e)
@@ -190,9 +191,7 @@ func TestList_Filters(t *testing.T) {
 	sameIDs(t, "q tên hong nhung", e.mustList(listFilter{Q: "hong nhung"}), o2, o1)
 	sameIDs(t, "q tên không ai", e.mustList(listFilter{Q: "khong ai ten nay"}))
 	sameIDs(t, "q và khách", e.mustList(listFilter{Q: "5678", CustomerID: &f.c.ID}))
-	if _, _, err := e.list(listFilter{Labels: []orderview.LabelKey{orderview.LabelShipping}}, order.Cursor{}, 10); !errors.Is(err, queries.ErrLabelNotFilterable) {
-		t.Errorf("label shipping: %v, muốn ErrLabelNotFilterable", err)
-	}
+	sameIDs(t, "label shipping (M3)", e.mustList(listFilter{Labels: []orderview.LabelKey{orderview.LabelShipping}}))
 	if _, _, err := e.list(listFilter{Q: "56"}, order.Cursor{}, 10); !errors.Is(err, customer.ErrQueryTooShort) {
 		t.Errorf("q 2 chữ số: %v, muốn ErrQueryTooShort", err)
 	}
@@ -249,17 +248,25 @@ func TestList_LabelMatchesRowLabel(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	all := e.mustList(listFilter{})
-	seen := map[uuid.UUID]int{}
-	for _, l := range orderview.Labels() {
+	checkEachLabelOnce(t, e.mustList(listFilter{}), func(l orderview.LabelKey) []queries.OrderListRow {
 		rows, _, err := e.list(listFilter{Labels: []orderview.LabelKey{l}}, order.Cursor{}, 100)
-		if errors.Is(err, queries.ErrLabelNotFilterable) {
-			continue
-		}
 		if err != nil {
 			t.Fatalf("nhãn %s: %v", l, err)
 		}
-		for _, r := range rows {
+		return rows
+	})
+	got := e.mustList(listFilter{Labels: []orderview.LabelKey{orderview.LabelAwaitingCustomer, orderview.LabelCancelled}})
+	sameIDs(t, "hai nhãn", got, c.ID, p.ID)
+	_ = f
+}
+
+// checkEachLabelOnce: với mọi nhãn của orderview.Labels(), byLabel(l) chỉ trả đơn có nhãn l, và mỗi đơn của all có
+// trong đúng một nhãn.
+func checkEachLabelOnce(t *testing.T, all []uuid.UUID, byLabel func(orderview.LabelKey) []queries.OrderListRow) {
+	t.Helper()
+	seen := map[uuid.UUID]int{}
+	for _, l := range orderview.Labels() {
+		for _, r := range byLabel(l) {
 			seen[r.ID]++
 			if r.Label != l {
 				t.Errorf("nhãn %s trả đơn %s nhãn %s", l, r.Code, r.Label)
@@ -271,9 +278,6 @@ func TestList_LabelMatchesRowLabel(t *testing.T) {
 			t.Errorf("đơn %s có trong %d nhãn", id, seen[id])
 		}
 	}
-	got := e.mustList(listFilter{Labels: []orderview.LabelKey{orderview.LabelAwaitingCustomer, orderview.LabelCancelled}})
-	sameIDs(t, "hai nhãn", got, c.ID, p.ID)
-	_ = f
 }
 
 // 250 đơn, limit 100 → ba trang 100/100/50, không trùng, không sót, đúng thứ tự (created_at, id) giảm; chèn 5 đơn mới

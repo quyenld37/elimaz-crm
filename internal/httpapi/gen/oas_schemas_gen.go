@@ -14715,6 +14715,52 @@ func (o OptTagColor) Or(d TagColor) TagColor {
 	return d
 }
 
+// NewOptTimelineItemActorType returns new OptTimelineItemActorType with value set to v.
+func NewOptTimelineItemActorType(v TimelineItemActorType) OptTimelineItemActorType {
+	return OptTimelineItemActorType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptTimelineItemActorType is optional TimelineItemActorType.
+type OptTimelineItemActorType struct {
+	Value TimelineItemActorType
+	Set   bool
+}
+
+// IsSet returns true if OptTimelineItemActorType was set.
+func (o OptTimelineItemActorType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptTimelineItemActorType) Reset() {
+	var v TimelineItemActorType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptTimelineItemActorType) SetTo(v TimelineItemActorType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptTimelineItemActorType) Get() (v TimelineItemActorType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptTimelineItemActorType) Or(d TimelineItemActorType) TimelineItemActorType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptTimelineItemSummary returns new OptTimelineItemSummary with value set to v.
 func NewOptTimelineItemSummary(v TimelineItemSummary) OptTimelineItemSummary {
 	return OptTimelineItemSummary{
@@ -15781,7 +15827,8 @@ func (s *OrderItem) SetAllocatedOrderDiscount(val OptMoney) {
 	s.AllocatedOrderDiscount = val
 }
 
-// Nhãn gộp của đơn (internal/queries/orderview, Task M2-08), đúng thứ tự thanh nhãn.
+// Nhãn gộp của đơn (internal/queries/orderview, Task M2-08; sending từ M3 Task M3-28), đúng
+// thứ tự thanh nhãn.
 // Ref: #/components/schemas/OrderLabel
 type OrderLabel string
 
@@ -15794,6 +15841,7 @@ const (
 	OrderLabelConfirmed                OrderLabel = "confirmed"
 	OrderLabelPacking                  OrderLabel = "packing"
 	OrderLabelPacked                   OrderLabel = "packed"
+	OrderLabelSending                  OrderLabel = "sending"
 	OrderLabelAwaitingPickup           OrderLabel = "awaiting_pickup"
 	OrderLabelShipping                 OrderLabel = "shipping"
 	OrderLabelDeliveryFailed           OrderLabel = "delivery_failed"
@@ -15815,6 +15863,7 @@ func (OrderLabel) AllValues() []OrderLabel {
 		OrderLabelConfirmed,
 		OrderLabelPacking,
 		OrderLabelPacked,
+		OrderLabelSending,
 		OrderLabelAwaitingPickup,
 		OrderLabelShipping,
 		OrderLabelDeliveryFailed,
@@ -15844,6 +15893,8 @@ func (s OrderLabel) MarshalText() ([]byte, error) {
 	case OrderLabelPacking:
 		return []byte(s), nil
 	case OrderLabelPacked:
+		return []byte(s), nil
+	case OrderLabelSending:
 		return []byte(s), nil
 	case OrderLabelAwaitingPickup:
 		return []byte(s), nil
@@ -15892,6 +15943,9 @@ func (s *OrderLabel) UnmarshalText(data []byte) error {
 		return nil
 	case OrderLabelPacked:
 		*s = OrderLabelPacked
+		return nil
+	case OrderLabelSending:
+		*s = OrderLabelSending
 		return nil
 	case OrderLabelAwaitingPickup:
 		*s = OrderLabelAwaitingPickup
@@ -23781,6 +23835,9 @@ type TimelineItem struct {
 	Kind  string    `json:"kind"`
 	RefId uuid.UUID `json:"refId"`
 	Actor OptActor  `json:"actor"`
+	// Nguồn của mục (I09): staff (nhân viên, có actor), system (hệ thống), carrier (hãng),
+	// customer, service. Hiện chỉ dòng thời gian của đơn đặt (M3, Task M3-28).
+	ActorType OptTimelineItemActorType `json:"actorType"`
 	// Tóm tắt máy đọc (mã, trạng thái, tên trường đã đổi); không giá trị dữ
 	// liệu cá nhân.
 	Summary OptTimelineItemSummary `json:"summary"`
@@ -23806,6 +23863,11 @@ func (s *TimelineItem) GetRefId() uuid.UUID {
 // GetActor returns the value of Actor.
 func (s *TimelineItem) GetActor() OptActor {
 	return s.Actor
+}
+
+// GetActorType returns the value of ActorType.
+func (s *TimelineItem) GetActorType() OptTimelineItemActorType {
+	return s.ActorType
 }
 
 // GetSummary returns the value of Summary.
@@ -23838,6 +23900,11 @@ func (s *TimelineItem) SetActor(val OptActor) {
 	s.Actor = val
 }
 
+// SetActorType sets the value of ActorType.
+func (s *TimelineItem) SetActorType(val OptTimelineItemActorType) {
+	s.ActorType = val
+}
+
 // SetSummary sets the value of Summary.
 func (s *TimelineItem) SetSummary(val OptTimelineItemSummary) {
 	s.Summary = val
@@ -23846,6 +23913,70 @@ func (s *TimelineItem) SetSummary(val OptTimelineItemSummary) {
 // SetNote sets the value of Note.
 func (s *TimelineItem) SetNote(val OptString) {
 	s.Note = val
+}
+
+// Nguồn của mục (I09): staff (nhân viên, có actor), system (hệ thống), carrier (hãng),
+// customer, service. Hiện chỉ dòng thời gian của đơn đặt (M3, Task M3-28).
+type TimelineItemActorType string
+
+const (
+	TimelineItemActorTypeStaff    TimelineItemActorType = "staff"
+	TimelineItemActorTypeSystem   TimelineItemActorType = "system"
+	TimelineItemActorTypeCarrier  TimelineItemActorType = "carrier"
+	TimelineItemActorTypeCustomer TimelineItemActorType = "customer"
+	TimelineItemActorTypeService  TimelineItemActorType = "service"
+)
+
+// AllValues returns all TimelineItemActorType values.
+func (TimelineItemActorType) AllValues() []TimelineItemActorType {
+	return []TimelineItemActorType{
+		TimelineItemActorTypeStaff,
+		TimelineItemActorTypeSystem,
+		TimelineItemActorTypeCarrier,
+		TimelineItemActorTypeCustomer,
+		TimelineItemActorTypeService,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s TimelineItemActorType) MarshalText() ([]byte, error) {
+	switch s {
+	case TimelineItemActorTypeStaff:
+		return []byte(s), nil
+	case TimelineItemActorTypeSystem:
+		return []byte(s), nil
+	case TimelineItemActorTypeCarrier:
+		return []byte(s), nil
+	case TimelineItemActorTypeCustomer:
+		return []byte(s), nil
+	case TimelineItemActorTypeService:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *TimelineItemActorType) UnmarshalText(data []byte) error {
+	switch TimelineItemActorType(data) {
+	case TimelineItemActorTypeStaff:
+		*s = TimelineItemActorTypeStaff
+		return nil
+	case TimelineItemActorTypeSystem:
+		*s = TimelineItemActorTypeSystem
+		return nil
+	case TimelineItemActorTypeCarrier:
+		*s = TimelineItemActorTypeCarrier
+		return nil
+	case TimelineItemActorTypeCustomer:
+		*s = TimelineItemActorTypeCustomer
+		return nil
+	case TimelineItemActorTypeService:
+		*s = TimelineItemActorTypeService
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Tóm tắt máy đọc (mã, trạng thái, tên trường đã đổi); không giá trị dữ
