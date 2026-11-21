@@ -693,6 +693,13 @@ type Handler interface {
 	//
 	// GET /api/v1/orders/{id}/shipments
 	ListOrderShipments(ctx context.Context, params ListOrderShipmentsParams) (ListOrderShipmentsRes, error)
+	// ListOrderShippingAccounts implements listOrderShippingAccounts operation.
+	//
+	// Quyền fulfillment.ship ở kho của đơn (thiếu → 403); đơn lạ → 404. Không bao giờ
+	// có khóa API, địa chỉ lấy hàng, cấu hình hay webhookUrl.
+	//
+	// GET /api/v1/orders/{id}/shipping-accounts
+	ListOrderShippingAccounts(ctx context.Context, params ListOrderShippingAccountsParams) (ListOrderShippingAccountsRes, error)
 	// ListOrders implements listOrders operation.
 	//
 	// Danh sách đơn, mới nhất trước, keyset; lọc theo nhãn, trạng thái, nguồn, người

@@ -78,7 +78,8 @@ function manualAccounts() {
   fake.accounts = [
     account(),
     account({ id: A_SELF, carrierKey: "self", name: "Shop tự giao (nội thành)" }),
-    account({ id: A_VTP, carrierKey: "vtp", mode: "api", name: "Viettel Post — Kho chính", hasCredentials: true }),
+    account({ id: A_VTP, carrierKey: "vtp", mode: "api", name: "Viettel Post — Kho chính" }),
+    account({ id: "0195f3b2-0000-7000-8000-00000000ac08", name: "GHN tạm dừng", status: "paused" }),
     account({ id: "0195f3b2-0000-7000-8000-00000000ac09", warehouseId: WH2, name: "GHN kho khác" }),
   ];
 }
@@ -370,12 +371,48 @@ describe("Tài khoản nhập mã tay, tự giao (VC14, HV16)", () => {
     expect(shipWrites()[0]?.body).toEqual({ carrierAccountId: A_SELF });
   });
 
-  it("không có quyền xem kết nối hãng: câu nói rõ tài khoản nhập tay không hiện", async () => {
+  it("vai Bán hàng (gửi hãng ở kho của đơn, không có quyền xem kết nối hãng): thấy tài khoản nhập tay của kho đơn, dán mã được (Task 449)", async () => {
     latestQuotes();
+    manualAccounts();
     fake.grants = grantsAt(WH, "fulfillment.quote", "fulfillment.ship");
     renderPanel(confirmedOrder());
-    await sendButton(/^Gửi hãng · Viettel Post/);
-    expect(within(panel()).getByText(/Tài khoản nhập mã tay chỉ hiện với người được xem kết nối hãng/)).toBeTruthy();
+    const ghn = await within(panel()).findByRole("radio", { name: /GHN — nhập mã tay/ });
+    expect(within(rows()).getByRole("radio", { name: /Shop tự giao/ })).toBeTruthy();
+    expect(within(rows()).queryByRole("radio", { name: /GHN kho khác/ })).toBeNull();
+    expect(within(rows()).queryByRole("radio", { name: /GHN tạm dừng/ })).toBeNull();
+    expect(within(panel()).queryByText(/chỉ hiện với người được xem kết nối hãng/)).toBeNull();
+    expect(fake.accountReads).toEqual([`/api/v1/orders/${O1}/shipping-accounts`]);
+    fireEvent.click(ghn);
+    fireEvent.change(within(panel()).getByLabelText(/Mã vận đơn của GHN/), { target: { value: "GHN77" } });
+    fireEvent.click(await sendButton("Lưu mã vận đơn"));
+    await waitFor(() => {
+      expect(shipWrites()).toHaveLength(1);
+    });
+    expect(shipWrites()[0]?.body).toEqual({ carrierAccountId: A_GHN, trackingCode: "GHN77" });
+  });
+
+  it("không có quyền gửi hãng ở kho của đơn: không đọc tài khoản gửi được, không dòng nhập tay", async () => {
+    latestQuotes();
+    manualAccounts();
+    fake.grants = grantsAt(WH2, ...SENDER);
+    renderPanel(confirmedOrder());
+    expect(await sendButton("Gửi hãng")).toHaveProperty("disabled", true);
+    expect(within(panel()).queryByRole("radio", { name: /GHN — nhập mã tay/ })).toBeNull();
+    expect(fake.accountReads).toEqual([]);
+  });
+
+  it("đọc tài khoản gửi được lỗi: câu lỗi riêng, không coi như kho không có tài khoản", async () => {
+    latestQuotes();
+    manualAccounts();
+    fake.grants = grantsAt(WH, "fulfillment.quote", "fulfillment.ship");
+    const base = vi.mocked(fetch).getMockImplementation();
+    vi.mocked(fetch).mockImplementation(async (req) =>
+      req instanceof Request && req.url.endsWith("/shipping-accounts")
+        ? Response.json({ error: "internal", request_id: "t" }, { status: 500 })
+        : (base?.(req) ?? Response.json({})),
+    );
+    renderPanel(confirmedOrder());
+    expect(await within(panel()).findByText("Chưa đọc được tài khoản nhập mã tay của kho.")).toBeTruthy();
   });
 });
 

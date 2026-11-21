@@ -109,6 +109,7 @@ const (
 	ListOrderDuplicatesOperation         OperationName = "ListOrderDuplicates"
 	ListOrderPaymentsOperation           OperationName = "ListOrderPayments"
 	ListOrderShipmentsOperation          OperationName = "ListOrderShipments"
+	ListOrderShippingAccountsOperation   OperationName = "ListOrderShippingAccounts"
 	ListOrdersOperation                  OperationName = "ListOrders"
 	ListPermissionsOperation             OperationName = "ListPermissions"
 	ListProductsOperation                OperationName = "ListProducts"

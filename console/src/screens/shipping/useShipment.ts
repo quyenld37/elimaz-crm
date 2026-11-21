@@ -9,11 +9,11 @@ import {
   getFulfillmentSettings,
   getMe,
   getShipment,
-  listCarrierAccounts,
   listOrderShipments,
+  listOrderShippingAccounts,
   listShippingQuotes,
-  type CarrierAccount,
   type Grant,
+  type ShipAccount,
 } from "../../api";
 import { unwrap } from "../../app/errors";
 import { queryKey } from "../../app/queryClient";
@@ -72,15 +72,16 @@ export function useQuotes(orderId: string, requestId: string | null, enabled: bo
 }
 
 /**
- * Tài khoản nhập mã tay (mode manual, kể cả tự giao) đang hoạt động ở kho warehouseId. So phí bỏ qua tài khoản này
- * (không gọi hãng) nên phải đọc riêng; cần quyền fulfillment.carrier_accounts.read (enabled false thì không đọc).
+ * Tài khoản nhập mã tay (mode manual, kể cả tự giao) gửi được cho đơn orderId (máy chủ lọc active, cùng kho, cùng
+ * người bán). So phí bỏ qua tài khoản này (không gọi hãng) nên phải đọc riêng; cần quyền fulfillment.ship ở kho của đơn
+ * như gửi hãng (Task 449: vai Bán hàng không có quyền xem kết nối hãng vẫn chọn được), enabled false thì không đọc.
  */
-export function useManualAccounts(warehouseId: string, enabled: boolean) {
+export function useManualAccounts(orderId: string, enabled: boolean) {
   return useQuery({
-    queryKey: queryKey(ACCOUNT_TOPIC, "list", warehouseId, "active"),
+    queryKey: queryKey(ACCOUNT_TOPIC, "for-order", orderId),
     enabled,
-    queryFn: () => unwrap(listCarrierAccounts({ query: { warehouseId, status: "active", limit: 100 } })),
-    select: (p): CarrierAccount[] => p.items.filter((a) => a.mode === "manual" && a.warehouseId === warehouseId),
+    queryFn: () => unwrap(listOrderShippingAccounts({ path: { id: orderId } })),
+    select: (p): ShipAccount[] => p.items.filter((a) => a.mode === "manual"),
   });
 }
 

@@ -2,13 +2,13 @@
 // tài khoản hãng (mỗi dịch vụ một dòng khi hãng trả nhiều dịch vụ). Dòng lỗi, đang hỏi, không dùng được luôn có chữ và
 // không chọn được; không bao giờ hiện "0 ₫" thay cho lỗi (chỉ dòng ok có phí). Tài khoản nhập mã tay, tự giao hiện
 // "Không báo phí" và chọn được.
-import type { CarrierAccount, ShippingQuote } from "../../api";
+import type { ShipAccount, ShippingQuote } from "../../api";
 import { shortTime } from "../../app/time";
 import { formatMoney } from "../products/productRules";
 import { SELF_CARRIER } from "./useShipment";
 
 export type PickRow =
-  { kind: "quote"; key: string; q: ShippingQuote } | { kind: "manual"; key: string; a: CarrierAccount };
+  { kind: "quote"; key: string; q: ShippingQuote } | { kind: "manual"; key: string; a: ShipAccount };
 
 /** Tên hãng trên nút gửi; khóa lạ → tên tài khoản. */
 const CARRIER_NAME: Readonly<Record<string, string>> = {
@@ -39,7 +39,7 @@ const quoteErrorText = (code: string | undefined) =>
 const quoteKey = (q: ShippingQuote) => `${q.carrierAccountId}|${q.service ?? ""}`;
 
 /** Dòng của bảng: kết quả so phí theo thứ tự máy chủ (ok phí tăng dần, đang hỏi, lỗi), rồi tài khoản nhập tay chưa có. */
-export function buildRows(quotes: readonly ShippingQuote[], manual: readonly CarrierAccount[]): PickRow[] {
+export function buildRows(quotes: readonly ShippingQuote[], manual: readonly ShipAccount[]): PickRow[] {
   const seen = new Set(quotes.map((q) => q.carrierAccountId));
   return [
     ...quotes.map((q): PickRow => ({ kind: "quote", key: quoteKey(q), q })),

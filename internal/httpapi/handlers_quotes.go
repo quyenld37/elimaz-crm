@@ -29,6 +29,17 @@ func isQuoteRefusal(err error) bool {
 
 // quoteOrder đọc đơn id theo người bán mặc định và kiểm u có fulfillment.quote ở kho của đơn.
 func quoteOrder(ctx context.Context, tx pgx.Tx, u identity.AuthUser, id uuid.UUID) (order.Order, error) {
+	return orderAt(ctx, tx, u, id, permQuote)
+}
+
+// shipOrder đọc đơn id theo người bán mặc định và kiểm u có fulfillment.ship ở kho của đơn (Task 449).
+func shipOrder(ctx context.Context, tx pgx.Tx, u identity.AuthUser, id uuid.UUID) (order.Order, error) {
+	return orderAt(ctx, tx, u, id, permShip)
+}
+
+// orderAt đọc đơn id theo người bán mặc định (ADR-29; đơn lạ → order.ErrNotFound, 404) và kiểm u có perm ở kho của
+// đơn (errForbiddenTarget, 403).
+func orderAt(ctx context.Context, tx pgx.Tx, u identity.AuthUser, id uuid.UUID, perm identity.Permission) (order.Order, error) {
 	seller, err := catalog.DefaultSeller(ctx, tx)
 	if err != nil {
 		return order.Order{}, err //nolint:wrapcheck // sentinel của catalog
@@ -37,7 +48,7 @@ func quoteOrder(ctx context.Context, tx pgx.Tx, u identity.AuthUser, id uuid.UUI
 	if err != nil {
 		return order.Order{}, err //nolint:wrapcheck // sentinel của order
 	}
-	return o, canAt(u, o.WarehouseID, permQuote)
+	return o, canAt(u, o.WarehouseID, perm)
 }
 
 // RequestShippingQuotes (POST /api/v1/orders/{id}/shipping-quotes, fulfillment.quote ở kho của đơn) → 202 {requestId,
@@ -142,4 +153,35 @@ func shippingQuoteOut(r fulfillment.QuoteRow) gen.ShippingQuote {
 		q.ErrorCode = gen.NewOptString(r.ErrorCode)
 	}
 	return q
+}
+
+// ListOrderShippingAccounts (GET /api/v1/orders/{id}/shipping-accounts, fulfillment.ship ở kho của đơn; Task 449):
+// tài khoản hãng gửi được cho đơn, chỉ id, tên, hãng, chế độ, trạng thái — để người có quyền gửi (vai Bán hàng) chọn
+// tài khoản nhập mã tay mà không cần quyền xem kết nối hãng. Đơn lạ → 404; thiếu quyền ở kho của đơn → 403.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ListOrderShippingAccounts(ctx context.Context, params gen.ListOrderShippingAccountsParams) (gen.ListOrderShippingAccountsRes, error) {
+	s, err := h.fulfillmentService()
+	if err != nil {
+		return nil, err
+	}
+	var items []fulfillment.ShipAccount
+	if err := h.inventoryRead(ctx, func(tx pgx.Tx, u identity.AuthUser) error {
+		o, err := shipOrder(ctx, tx, u, params.ID)
+		if err != nil {
+			return err
+		}
+		items, err = s.ShipAccounts(ctx, tx, o)
+		return err //nolint:wrapcheck // fulfillment đã bọc
+	}); err != nil {
+		return nil, fmt.Errorf("đọc tài khoản hãng của đơn: %w", err)
+	}
+	out := &gen.ShipAccountList{Items: make([]gen.ShipAccount, 0, len(items))}
+	for _, a := range items {
+		out.Items = append(out.Items, gen.ShipAccount{
+			ID: a.ID, Name: a.Name, CarrierKey: a.CarrierKey, Mode: gen.CarrierAccountMode(a.Mode),
+			Status: gen.CarrierAccountStatus(a.Status),
+		})
+	}
+	return out, nil
 }

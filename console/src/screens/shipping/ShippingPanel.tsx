@@ -15,7 +15,6 @@ import {
 } from "../../api";
 import { ApiError, unwrap } from "../../app/errors";
 import { useWriteAction } from "../../app/idempotency";
-import { hasPermission } from "../../app/nav";
 import { shortTime } from "../../app/time";
 import { reloadOrder } from "../don/orderData";
 import { canAt } from "../inventory/stocktakeRules";
@@ -89,7 +88,6 @@ function Compose({
   const wh = o.warehouseId ?? "";
   const canQuote = canAt(grants, "fulfillment.quote", wh);
   const canShip = canAt(grants, "fulfillment.ship", wh);
-  const canAccounts = hasPermission(grants, "fulfillment.carrier_accounts.read");
 
   const [form, setForm] = useState<ParcelForm>(() => initialForm(o));
   const [initialKey] = useState(() => {
@@ -104,7 +102,7 @@ function Compose({
   const [info, setInfo] = useState<string | null>(null);
 
   const quotes = useQuotes(o.id, requestId, loaded && canQuote);
-  const manual = useManualAccounts(wh, loaded && canAccounts && wh !== "");
+  const manual = useManualAccounts(o.id, loaded && canShip);
   const latest = useLatestShipment(o.id, true);
   const stats = useDeliveryStats(o.customerId);
   const settings = useFulfillmentSettings(true);
@@ -278,11 +276,6 @@ function Compose({
       {manual.isError && <div className="box box-err small">Chưa đọc được tài khoản nhập mã tay của kho.</div>}
       {loaded && !canQuote && <p className="hint">Bạn không có quyền so phí ở kho của đơn này.</p>}
       {noApi && <p className="hint">Kho này chưa có tài khoản hãng báo phí được (tài khoản API đang hoạt động).</p>}
-      {loaded && !canAccounts && (
-        <p className="hint">
-          Tài khoản nhập mã tay chỉ hiện với người được xem kết nối hãng (quyền "Xem kết nối hãng").
-        </p>
-      )}
       {priced?.q.validUntil !== undefined && !expired && (
         <p className="hint">{`Báo phí còn hiệu lực tới ${shortTime(priced.q.validUntil)}. Ô lỗi không bao giờ hiện "0 ₫".`}</p>
       )}

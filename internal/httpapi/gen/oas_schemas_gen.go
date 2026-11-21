@@ -9180,6 +9180,7 @@ func (*ErrorStatusCode) listLostFilesRes()               {}
 func (*ErrorStatusCode) listOrderDuplicatesRes()         {}
 func (*ErrorStatusCode) listOrderPaymentsRes()           {}
 func (*ErrorStatusCode) listOrderShipmentsRes()          {}
+func (*ErrorStatusCode) listOrderShippingAccountsRes()   {}
 func (*ErrorStatusCode) listOrdersRes()                  {}
 func (*ErrorStatusCode) listPermissionsRes()             {}
 func (*ErrorStatusCode) listProductsRes()                {}
@@ -20912,6 +20913,86 @@ func (s *SetWarehousePickupRequest) SetProvinceCode(val string) {
 func (s *SetWarehousePickupRequest) SetWardCode(val string) {
 	s.WardCode = val
 }
+
+// Tài khoản hãng dùng được để gửi một đơn (chỉ phần người gửi cần chọn;
+// không khóa, không cấu hình).
+// Ref: #/components/schemas/ShipAccount
+type ShipAccount struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+	// Khóa hãng; self = shop tự giao.
+	CarrierKey string               `json:"carrierKey"`
+	Mode       CarrierAccountMode   `json:"mode"`
+	Status     CarrierAccountStatus `json:"status"`
+}
+
+// GetID returns the value of ID.
+func (s *ShipAccount) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *ShipAccount) GetName() string {
+	return s.Name
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *ShipAccount) GetCarrierKey() string {
+	return s.CarrierKey
+}
+
+// GetMode returns the value of Mode.
+func (s *ShipAccount) GetMode() CarrierAccountMode {
+	return s.Mode
+}
+
+// GetStatus returns the value of Status.
+func (s *ShipAccount) GetStatus() CarrierAccountStatus {
+	return s.Status
+}
+
+// SetID sets the value of ID.
+func (s *ShipAccount) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *ShipAccount) SetName(val string) {
+	s.Name = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *ShipAccount) SetCarrierKey(val string) {
+	s.CarrierKey = val
+}
+
+// SetMode sets the value of Mode.
+func (s *ShipAccount) SetMode(val CarrierAccountMode) {
+	s.Mode = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ShipAccount) SetStatus(val CarrierAccountStatus) {
+	s.Status = val
+}
+
+// Ref: #/components/schemas/ShipAccountList
+type ShipAccountList struct {
+	// Xếp web_sort rồi id.
+	Items []ShipAccount `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *ShipAccountList) GetItems() []ShipAccount {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *ShipAccountList) SetItems(val []ShipAccount) {
+	s.Items = val
+}
+
+func (*ShipAccountList) listOrderShippingAccountsRes() {}
 
 // Ref: #/components/schemas/ShipAddress
 type ShipAddress struct {

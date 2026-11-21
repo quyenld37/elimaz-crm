@@ -3215,6 +3215,23 @@ paths:
                 $ref: "#/components/schemas/ShippingQuoteList"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/orders/{id}/shipping-accounts:
+    get:
+      operationId: listOrderShippingAccounts
+      summary: 'Tài khoản hãng gửi được cho đơn (active, cùng người bán và kho của đơn; api có adapter, nhập tay, tự giao); chỉ id, tên, hãng, chế độ, trạng thái (Task 449)'
+      description: Quyền fulfillment.ship ở kho của đơn (thiếu → 403); đơn lạ → 404. Không bao giờ có khóa API, địa chỉ lấy hàng, cấu hình hay webhookUrl.
+      x-permission: fulfillment.ship
+      parameters:
+        - $ref: "#/components/parameters/OrderID"
+      responses:
+        "200":
+          description: listOrderShippingAccounts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShipAccountList"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/shipments/{id}/events:
     get:
       operationId: listShipmentEvents
@@ -8119,6 +8136,32 @@ components:
             $ref: "#/components/schemas/CarrierAccount"
         nextCursor:
           type: string
+    ShipAccount:
+      type: object
+      description: Tài khoản hãng dùng được để gửi một đơn (chỉ phần người gửi cần chọn; không khóa, không cấu hình)
+      required: [id, name, carrierKey, mode, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        carrierKey:
+          type: string
+          description: Khóa hãng; self = shop tự giao
+        mode:
+          $ref: "#/components/schemas/CarrierAccountMode"
+        status:
+          $ref: "#/components/schemas/CarrierAccountStatus"
+    ShipAccountList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          description: Xếp web_sort rồi id
+          items:
+            $ref: "#/components/schemas/ShipAccount"
     CarrierCredentials:
       type: object
       description: Bộ khóa API của hãng (tên trường theo hãng); chỉ ghi, không bao giờ trả lại
