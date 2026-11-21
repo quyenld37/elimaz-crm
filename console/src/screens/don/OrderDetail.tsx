@@ -41,6 +41,7 @@ import {
 } from "./orderData";
 import { ReturnDialog } from "./ReturnDialog";
 import { ReturnsCard } from "./ReturnsCard";
+import { ShippingPanel } from "../shipping/ShippingPanel";
 import "../len-don/len-don.css";
 import "./don.css";
 
@@ -231,7 +232,8 @@ function OrderView({ o, refetch }: { o: Order; refetch: () => void }) {
       </ActSlot>,
     );
   }
-  if (can("order.update") && scope !== undefined && FORM_SCOPE.some((k) => scope[k])) {
+  const canEdit = can("order.update") && scope !== undefined && FORM_SCOPE.some((k) => scope[k]);
+  if (canEdit) {
     buttons.push(
       <ActSlot key="edit">
         <button
@@ -629,6 +631,16 @@ function OrderView({ o, refetch }: { o: Order; refetch: () => void }) {
               </>
             )}
           </section>
+          <ShippingPanel
+            order={o}
+            {...(canEdit
+              ? {
+                  onEdit: () => {
+                    setDialog("edit");
+                  },
+                }
+              : {})}
+          />
           <section className="card">
             <h2>Phụ trách, nguồn</h2>
             <div className="stack-sm">
