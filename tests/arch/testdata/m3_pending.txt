@@ -3,14 +3,9 @@
 # có dòng). Task M3-48 đòi tệp này không còn dòng nào (TestM3Contract_PendingEmptyAtClose khi bật).
 requestAddressChange
 resolveAddressChange
-setShipmentManualStatus
 listCallbackTasks
 recordCallbackOutcome
 assignCallbackTask
-createLabelBatch
-getLabelBatch
-getPickingList
-setPackingStatus
 previewShipmentCorrection
 applyShipmentCorrection
 listStuckShipments

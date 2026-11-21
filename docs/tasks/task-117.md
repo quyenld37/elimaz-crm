@@ -54,10 +54,11 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m3-van-chuyen.md` (Ta
 5. **Lý do của nhân viên chỉ vào audit** (sau `ScrubText`), không vào `ord.returns.reason` (giới hạn 500 ký tự, hợp đồng cho 1000; tránh cắt chữ hay 400 bất ngờ). Phiếu có `reason` rỗng.
 6. **`CreatePartialReturn` nhận thêm `sellerID`** (như mọi hàm của order.Writer, ADR-29) và là phương thức của `Writer`.
 7. **Không ghi dòng `shipment_events`** cho lần ghi tay (lịch sử hãng chỉ chứa tin của hãng/nhân viên ghi tay trạng thái); vết là audit `fulfillment.shipment.partial_delivery` (dòng giao, tiền thu, mã phiếu, lý do đã che) và `order_status_history` của đơn.
-8. **Giữ cách của Task 97 (chờ chủ shop):** sau một lần giao một phần, nếu hãng sau đó đảo "Thành công" thì `ReverseDelivery` chỉ trả hàng của dòng đã giao đủ; task này không đổi cách đó.
+8. ~~Giữ cách của Task 97 khi hãng đảo "Thành công" sau giao một phần.~~ Thay bằng Quyết định 11 (lượt gộp main).
 9. **Đơn có cọc/trả trước giao một phần:** chưa sinh nghĩa vụ hoàn phần chưa giao (Task 121, chờ chủ shop Q07) — không tự làm; nhận phiếu phát `refundAmount = 0`, consumer hoàn tiền của cash bỏ qua phiếu `partial_delivery` như trước.
 
 10. **Phiếu `partial_delivery` không hủy được** (`CancelReturn` → 422 `return_not_allowed`): phần khách chưa nhận vẫn `in_transit` chỉ về kho qua phiếu này (vận đơn đã delivered, không ghi lại được), và phiếu đã hủy không còn được tính khi khách trả phần đã nhận (hoàn thừa). Hàng thật sự mất thì kho nhận phiếu với số "thiếu" (ghi thất lạc). Phương án khác: cho hủy kèm nhả in_transit — không chọn vì làm sai sổ tồn và tiền hoàn. Đảo ngược được: bỏ nhánh chặn.
+11. **(Lượt gộp main, reviewer lượt 3) Vận đơn đã giao một phần không đảo "đã giao" được nữa**, bất kể nguồn: hãng (API có xác thực) báo returning/returned_to_shop → không áp, mở anomaly `invalid_edge` ("Cần xem"); nhân viên ghi tay returning (đường của Task 106) → 409 `ErrManualNotAllowed`, không đổi gì. Lý do: `ReverseDelivery` đảo cả đơn về confirmed và `OnShipmentReturning` tạo phiếu `carrier_return` cho đủ số mua, trong khi phiếu `partial_delivery` còn requested không nhận được (đơn không còn delivered) mà cũng không hủy được (Quyết định 10) → phiếu treo, phần chưa giao tính hai lần. Chặn ở một chỗ: `shipstate.Decide` (trường `Input.Partial`, đọc `shipments.partial` trong `LockShipmentForApply`). Dùng lại `invalid_edge` / lý do `invalid_edge` có sẵn trong CHECK của migration, không thêm migration. Phương án khác: cho đảo một phần (chỉ dòng đã giao) — là thiết kế mới cần chủ shop chốt; khi chốt thì bỏ nhánh chặn trong `Decide`. Hàng thật sự quay về shop sau giao một phần: kho nhận qua phiếu partial_delivery, phần khách đã nhận đi phiếu trả của khách.
 
 ## Khác kế hoạch
 
@@ -86,3 +87,27 @@ Lượt 2 (agent reviewer trên `git diff --cached`, 20 tệp): **ĐẠT**.
 - Ghi chú không bắt buộc: hai ghi chú của lượt 1 (đã ghi ở trên và ở Việc phát hiện thêm).
 
 Kết luận: ĐẠT
+
+Lượt 3 (commit gộp main, Task 106, 107; agent reviewer trên `git diff --cached`): **CẦN SỬA**.
+
+- Phát hiện phải sửa: vận đơn đã giao một phần vẫn bị đảo delivered → returning qua ghi tay (nguồn staff, Task 106) hay hãng sửa "đã giao" → phiếu partial_delivery treo, phần chưa giao tính hai lần. Đã sửa: Quyết định 11 (`shipstate.Decide`/`edgeAllowed`, `Input.Partial`), ba test mới.
+- Ghi chú: ghi rõ bốn dòng `m3_pending.txt` do Task 107 xóa — đã ghi ở mục Lượt gộp main.
+
+Lượt 4 (agent reviewer trên `git diff --cached`): **ĐẠT**.
+
+- Phát hiện phải sửa: không có. `ReverseDelivery` chỉ chạy qua `EffDeliveryReversed`, chỉ có ở hai cạnh của `fromDelivered`, nên chặn một chỗ trong `Decide` đủ cho mọi nguồn; đường ghi tay lùi transaction khi Applied 0; các câu đổi trạng thái khác (`MarkShipmentDeliveredPartial`, `RequestShipmentCancel`, `MarkShipmentReturned`, `AttachShipmentTracking`) không tới được vận đơn partial đã delivered; `status.go` (M1) không sinh sự kiện đảo.
+- Ghi chú không bắt buộc: biến `src` của closure che biến vòng lặp trong `TestDecide_PartialNoReversal` (đúng, chỉ khó đọc) — giữ.
+
+Kết luận: ĐẠT
+
+## Lượt gộp main (Task 106, 107)
+
+- Xung đột `internal/httpapi/errors.go` (hai bên thêm dòng ánh xạ lỗi): giữ đủ ba dòng của Task 117 (`ErrPartialNotAllowed`, `ErrPartialQty`, `ErrPartialCOD`) và ba dòng của Task 106, 107 (`ErrManualReasonRequired`, `ErrManualNotAllowed`, `ErrLabelBatchInvalid`).
+- Xung đột `tests/arch/testdata/m3_pending.txt`: xóa cả `recordPartialDelivery` (Task 117) và `setShipmentManualStatus` (Task 106).
+- Soát chéo nghiệp vụ: ghi tay trạng thái vận đơn (Task 106, `manual.Canonical`) chỉ tới picked_up, delivery_failed, delivered, returning, cancelled; không tạo `partially_delivered`, nên không đi vòng qua ngoại lệ có quyền của task này.
+- **Reviewer lượt 3 (trên commit gộp): CẦN SỬA** — ghi tay returning (Task 106, nguồn staff) và hãng sửa delivered → returning đi được trên vận đơn đã giao một phần (xem Quyết định 11). Sửa: `shipstate.Decide` chặn cạnh có `EffDeliveryReversed` khi `Input.Partial`; `applyRun.event` truyền `r.sh.Partial`; `queries/fulfillment/shipments.sql` `LockShipmentForApply` đọc thêm `s.partial` (`make gen`). Ảnh hưởng thêm: `shipstate.Input` (thêm trường, mọi chỗ dựng Input cũ giữ false), `store.LockShipmentForApplyRow` (thêm trường), gói phụ thuộc như trước (fulfillment, httpapi, cmd/crm).
+- Test mới (đỏ trước khi sửa: "áp 1 sự kiện đảo, muốn 0", "ghi tay returning sau giao một phần: <nil>"): `TestDecide_PartialNoReversal` (2 nguồn × 2 sự kiện đảo → invalid_edge; giao đủ vẫn đảo; delivered trùng vẫn duplicate_state), `TestPartialDelivery_CarrierReversalRefused`, `TestPartialDelivery_ManualReversalRefused` (vận đơn, đơn, tồn {4,0,0}/{9,0,1}, phiếu partial_delivery requested, 0 phiếu carrier_return). `go test -race ./internal/modules/fulfillment/...` → tất cả `ok`.
+- ci-task sau sửa lượt 3: lần một ĐỎ (`TestLintCleanOnRealCode`: gocognit `Decide` 21 > 20) → tách kiểm cạnh ra `edgeAllowed` (nguồn + không đảo khi partial); lần hai `CI-TASK XANH (so với điểm tách nhánh ba186be)`, 165 giây (gồm `internal/modules/fulfillment` 3 gói, `httpapi`, `cash`, `tests/arch`, `tests/e2e`).
+- Ghi chú reviewer lượt 3: bốn dòng `createLabelBatch`, `getLabelBatch`, `getPickingList`, `setPackingStatus` của `m3_pending.txt` do Task 107 xóa trên main, bản gộp giữ đúng như vậy.
+- `make gen` (lần đầu, trước sửa) không sinh chênh; `go test -race ./tests/arch/... ./internal/httpapi/... ./internal/modules/fulfillment/...` → tất cả `ok`.
+- ci-task sau gộp (lần đầu bị cắt vì giới hạn 10 phút của lệnh nền, chạy lại): `CI-TASK XANH (so với điểm tách nhánh ba186be)`, test toàn bộ vì phần gộp có migration/testkit (401 giây).

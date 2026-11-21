@@ -175,13 +175,7 @@ func (c *QuoteCommand) Execute(ctx context.Context, j queue.Job) (commands.Outco
 }
 
 // outcome là lệnh done kèm o. o chỉ có chuỗi, số, map, thời gian nên Marshal không lỗi; nếu có thì not_sent (hỏi lại).
-func (o quoteOutcome) outcome() commands.Outcome {
-	b, err := json.Marshal(o)
-	if err != nil {
-		return commands.Outcome{Status: commands.StatusNotSent, Reason: reasonBadPayload}
-	}
-	return commands.Outcome{Status: commands.StatusDone, Result: b}
-}
+func (o quoteOutcome) outcome() commands.Outcome { return doneJSON(o) }
 
 // target đọc dòng pending, tài khoản (đã giải mã, kèm bảng mã địa giới khi adapter có Locations), đơn và cài đặt
 // trong một transaction ngắn; lỗi chỉ là lỗi đọc.

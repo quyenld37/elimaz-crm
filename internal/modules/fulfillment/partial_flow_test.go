@@ -6,6 +6,7 @@ import (
 	"errors"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -299,4 +300,63 @@ func TestPartialDelivery_Property(t *testing.T) {
 		e.receiveQty(r, lines...)
 		e.stockAll(map[uuid.UUID][3]int32{vA: {5 - ga - lost[0], 0, 0}, vB: {10 - gb - lost[1], 0, 0}})
 	})
+}
+
+// partialUnchanged: sau khi bị từ chối đảo, D1 giao một phần vẫn y nguyên: vận đơn delivered, partial; đơn delivered;
+// tồn như TD09; phiếu partial_delivery requested; không có phiếu carrier_return.
+func (e *applyEnv) partialUnchanged(o order.Order, sID, vA, vB uuid.UUID) {
+	e.t.Helper()
+	if v := e.view(sID); v.Status != string(fulfillment.StatusDelivered) || !v.Partial {
+		e.t.Fatalf("vận đơn: %s partial=%v", v.Status, v.Partial)
+	}
+	e.orderIs(o.ID, order.StatusDelivered)
+	e.stockAll(map[uuid.UUID][3]int32{vA: {4, 0, 0}, vB: {9, 0, 1}})
+	if r := e.partialReturnOf(o, sID); r.Status != order.ReturnRequested {
+		e.t.Fatalf("phiếu partial_delivery: %s", r.Status)
+	}
+	if n := e.count(`SELECT count(*) FROM ord.returns WHERE order_id = $1 AND kind = 'carrier_return'`, o.ID); n != 0 {
+		e.t.Fatalf("phiếu carrier_return: %d, muốn 0", n)
+	}
+}
+
+// Hãng sửa "đã giao" thành "hoàn" trên vận đơn đã giao một phần → không áp (đảo cả đơn sẽ làm phiếu partial_delivery
+// treo, phần chưa giao tính hai lần), mở invalid_edge "Cần xem".
+func TestPartialDelivery_CarrierReversalRefused(t *testing.T) {
+	e, o, vA, vB, s := newD1Shipment(t)
+	e.apply(s.ID, ev("p", fulfillment.CanonPickedUp, 8, 0))
+	if _, err := e.recordPartial(s.ID, td09Collected, td09Lines(o, vA, vB)...); err != nil {
+		t.Fatal(err)
+	}
+	if r := e.apply(s.ID, ev("r", fulfillment.CanonReturning, 12, 0)); r.Applied != 0 {
+		t.Fatalf("áp %d sự kiện đảo, muốn 0", r.Applied)
+	}
+	if e.anomalyDetail(s.ID, "invalid_edge") == nil {
+		t.Fatal("không mở invalid_edge")
+	}
+	e.partialUnchanged(o, s.ID, vA, vB)
+}
+
+// Nhân viên ghi tay "đang hoàn" lên vận đơn tay đã giao một phần → ErrManualNotAllowed, không đổi gì.
+func TestPartialDelivery_ManualReversalRefused(t *testing.T) {
+	e := newApplyEnv(t)
+	o, vA, vB := e.d1()
+	acc := e.manualAccount("best", "best-tay-partial")
+	sv, err := e.ship(fulfillment.ShipInput{OrderID: o.ID, CarrierAccountID: acc, TrackingCode: trackingCode()})
+	if err != nil {
+		t.Fatalf("tạo vận đơn tay: %v", err)
+	}
+	now := time.Now().UTC()
+	e.mustSetManual(sv.ID, fulfillment.ManualStatusInput{
+		To: fulfillment.StatusShipping, At: now.Add(-2 * time.Hour), Reason: "Đã lấy hàng",
+	})
+	if _, err := e.recordPartial(sv.ID, td09Collected, td09Lines(o, vA, vB)...); err != nil {
+		t.Fatal(err)
+	}
+	_, err = e.setManual(sv.ID, fulfillment.ManualStatusInput{
+		To: fulfillment.StatusReturning, At: now.Add(-time.Hour), Reason: "Khách đổi ý",
+	})
+	if !errors.Is(err, fulfillment.ErrManualNotAllowed) {
+		t.Fatalf("ghi tay returning sau giao một phần: %v, muốn ErrManualNotAllowed", err)
+	}
+	e.partialUnchanged(o, sv.ID, vA, vB)
 }

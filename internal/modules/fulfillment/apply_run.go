@@ -153,7 +153,7 @@ func (r *applyRun) event(ctx context.Context, e CarrierEvent) error {
 	}
 	d := shipstate.Decide(shipstate.Input{
 		Current: shipstate.Status(r.sh.Status), LastEventAt: last, PickedUp: r.sh.PickedUpAt.Valid,
-		IsCurrent: r.isCurrent, Event: e.Canonical, EventAt: e.OccurredAt, Source: r.in.Source,
+		IsCurrent: r.isCurrent, Partial: r.sh.Partial, Event: e.Canonical, EventAt: e.OccurredAt, Source: r.in.Source,
 	})
 	eventID, inserted, err := r.insertEvent(ctx, e, d)
 	if err != nil || !inserted {

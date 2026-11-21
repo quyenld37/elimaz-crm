@@ -14,9 +14,11 @@ type Input struct {
 	PickedUp bool
 	// IsCurrent: là vận đơn hiện hành của đơn (orders.current_shipment_id).
 	IsCurrent bool
-	Event     Canonical
-	EventAt   time.Time
-	Source    Source
+	// Partial: vận đơn đã giao một phần (Task M3-26, shipments.partial); không đảo "đã giao" được nữa.
+	Partial bool
+	Event   Canonical
+	EventAt time.Time
+	Source  Source
 }
 
 // Decision là kết quả của Decide.
@@ -35,7 +37,7 @@ type Decision struct {
 }
 
 // Decide là luật duy nhất của máy trạng thái vận đơn. Thứ tự xét: mã lạ → giao một phần, mất, hỏng → trùng trạng thái
-// → tin cũ (VC09) → không phải vận đơn hiện hành (VC11) → bảng cạnh (graph.go).
+// → tin cũ (VC09) → không phải vận đơn hiện hành (VC11) → bảng cạnh (graph.go) → vận đơn đã giao một phần không đảo.
 func Decide(in Input) Decision {
 	switch in.Event {
 	case CanonPartiallyDelivered: // Q-15: không tự động, đưa vào "Cần xem"
@@ -66,7 +68,7 @@ func Decide(in Input) Decision {
 		}
 		return d
 	}
-	if !hasEdge || (len(e.sources) > 0 && !slices.Contains(e.sources, in.Source)) {
+	if !hasEdge || !edgeAllowed(in, e) {
 		return Decision{Ignored: ReasonInvalidEdge, Anomaly: AnomalyInvalidEdge}
 	}
 	effects := make([]Effect, 0, len(e.effects))
@@ -79,4 +81,13 @@ func Decide(in Input) Decision {
 		effects = nil
 	}
 	return Decision{Apply: true, Next: e.to, Effects: effects, AdvanceLast: true}
+}
+
+// edgeAllowed: cạnh e nhận nguồn của in, và không đảo "đã giao" của vận đơn đã giao một phần (đảo sẽ đưa cả đơn về
+// confirmed trong khi phiếu partial_delivery còn treo, phần chưa giao tính hai lần; bất kể nguồn).
+func edgeAllowed(in Input, e edge) bool {
+	if len(e.sources) > 0 && !slices.Contains(e.sources, in.Source) {
+		return false
+	}
+	return !in.Partial || !slices.Contains(e.effects, EffDeliveryReversed)
 }

@@ -10180,7 +10180,7 @@ func (*LabelBatchCreated) createLabelBatchRes() {}
 // Ref: #/components/schemas/LabelBatchSkipped
 type LabelBatchSkipped struct {
 	ShipmentId uuid.UUID `json:"shipmentId"`
-	// No_carrier_label, no_tracking_code.
+	// No_carrier_label, no_tracking_code, cancelled.
 	Reason string `json:"reason"`
 }
 

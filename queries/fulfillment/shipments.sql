@@ -24,7 +24,7 @@ WHERE id = @id;
 -- name: LockShipmentForApply :one
 -- Khóa vận đơn (chỉ dòng vận đơn, FOR UPDATE OF s) kèm kho của tài khoản hãng (phạm vi báo hiệu).
 SELECT s.id, s.tenant_id, s.order_id, s.seller_id, s.carrier_key, s.tracking_code, s.status, s.cod_amount, s.version,
-       s.last_carrier_event_at, s.picked_up_at, s.cancel_intent, a.warehouse_id
+       s.last_carrier_event_at, s.picked_up_at, s.cancel_intent, s.partial, a.warehouse_id
 FROM fulfillment.shipments s
 JOIN fulfillment.carrier_accounts a ON a.tenant_id = s.tenant_id AND a.id = s.carrier_account_id
 WHERE s.id = @id

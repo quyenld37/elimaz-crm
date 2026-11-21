@@ -241,7 +241,10 @@ func (s *Service) validateCreate(in AccountInput) error {
 	if in.Mode != ModeAPI && in.Mode != ModeManual {
 		return fmt.Errorf("mode %q: %w", in.Mode, ErrAccountInvalid)
 	}
-	if !s.hasAdapter(in.CarrierKey) || (in.CarrierKey == SelfCarrierKey && in.Mode != ModeManual) {
+	// Tự giao (self, chỉ mode manual) không gọi mạng nên không cần adapter: tạo được cả khi bộ hãng rỗng (production,
+	// Task M3-15).
+	selfManual := in.CarrierKey == SelfCarrierKey && in.Mode == ModeManual
+	if (!s.hasAdapter(in.CarrierKey) && !selfManual) || (in.CarrierKey == SelfCarrierKey && in.Mode != ModeManual) {
 		return fmt.Errorf("hãng %q, mode %s: %w", in.CarrierKey, in.Mode, ErrCarrierNotSupported)
 	}
 	if in.Mode == ModeManual && len(in.Credentials) > 0 {
