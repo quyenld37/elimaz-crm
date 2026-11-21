@@ -63,6 +63,23 @@ type DialOptions struct {
 	Tracing   bool
 }
 type Health string
+type ReadCache interface {
+	GetOrLoad(ctx context.Context, tenant uuid.UUID, space Space, id string, ttl time.Duration,
+		load func(context.Context) ([]byte, error)) ([]byte, Source, error)
+
+	Invalidate(ctx context.Context, tenant uuid.UUID, space Space, ids ...string) error
+
+	BumpSpace(ctx context.Context, tenant uuid.UUID, space Space) error
+}
+func NewReadCache(c *Conn, o ReadCacheOptions) ReadCache
+type ReadCacheOptions struct {
+	FallbackConcurrency int
+	MaxValueBytes       int
+	Metrics             *metrics.Registry
+}
+type Source string
+type Space string
+func Spaces() []Space
 ```
 
 ## `internal/platform/commands` (gói `commands`)
@@ -880,6 +897,8 @@ type Bus interface {
 
 	Subscribe(u identity.AuthUser, send func(Frame)) (cancel func())
 
+	SubscribeSystem(topicPrefix string, fn func(Signal)) (cancel func())
+
 	Status() (listening bool, clients int)
 }
 type Entity struct {
@@ -897,6 +916,7 @@ func (h *PGHub) Publish(ctx context.Context, tx pgx.Tx, s Signal) error
 func (h *PGHub) Run(ctx context.Context)
 func (h *PGHub) Status() (listening bool, clients int)
 func (h *PGHub) Subscribe(u identity.AuthUser, send func(Frame)) (cancel func())
+func (h *PGHub) SubscribeSystem(topicPrefix string, fn func(Signal)) (cancel func())
 type PGHubOptions struct {
 	URL     string
 	Metrics *metrics.Registry
@@ -923,6 +943,7 @@ type Signal struct {
 	Requires identity.Permission
 	Scope    *identity.Scope
 	Entity   Entity
+	System   bool
 }
 ```
 
