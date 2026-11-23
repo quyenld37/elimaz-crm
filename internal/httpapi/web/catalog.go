@@ -49,6 +49,7 @@ type Catalog struct {
 	rc   cache.ReadCache
 	view catalog.ImageView
 	log  *slog.Logger
+	now  func() time.Time // nil → time.Now (WithClock)
 }
 
 // NewCatalog dựng Catalog đọc d qua rc; view là FILES_PUBLIC_BASE_URL và IMAGE_PRESET_VERSION (cùng cho ảnh sản phẩm
@@ -58,6 +59,19 @@ func NewCatalog(d *db.DB, rc cache.ReadCache, view catalog.ImageView, log *slog.
 		log = slog.Default()
 	}
 	return &Catalog{db: d, rc: rc, view: view, log: log}
+}
+
+// WithClock đặt đồng hồ cho phần phụ thuộc giờ (trạng thái chiến dịch); nil → time.Now. Trả c.
+func (c *Catalog) WithClock(now func() time.Time) *Catalog {
+	c.now = now
+	return c
+}
+
+func (c *Catalog) clock() time.Time {
+	if c.now != nil {
+		return c.now()
+	}
+	return time.Now()
 }
 
 // Products trả trang mẫu (cursor, limit) hoặc các mẫu theo ids, có ETag (sha256 của thân); If-None-Match khớp → 304.

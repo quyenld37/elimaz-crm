@@ -350,6 +350,13 @@ type Handler interface {
 	//
 	// POST /api/v1/files/uploads
 	CreateUpload(ctx context.Context, req *CreateUploadRequest, params CreateUploadParams) (CreateUploadRes, error)
+	// CreateWebCampaign implements createWebCampaign operation.
+	//
+	// Tạo chiến dịch nháp; phần trăm vượt trần cài đặt (mặc định 50) → 422
+	// percent_too_high (Task 452).
+	//
+	// POST /api/v1/web-campaigns
+	CreateWebCampaign(ctx context.Context, req *WebCampaignInput, params CreateWebCampaignParams) (CreateWebCampaignRes, error)
 	// DeleteCustomerAddress implements deleteCustomerAddress operation.
 	//
 	// Xóa mềm một địa chỉ (Task M2-09).
@@ -363,6 +370,13 @@ type Handler interface {
 	//
 	// DELETE /api/v1/catalog/products/{id}/images/{imageId}
 	DeleteProductImage(ctx context.Context, params DeleteProductImageParams) (DeleteProductImageRes, error)
+	// DeleteWebCampaign implements deleteWebCampaign operation.
+	//
+	// Xóa chiến dịch không đang bật, lý do bắt buộc; banner trỏ chiến dịch tự ẩn
+	// (Task 452).
+	//
+	// POST /api/v1/web-campaigns/{campaignId}/delete
+	DeleteWebCampaign(ctx context.Context, req *DeleteWebCampaignRequest, params DeleteWebCampaignParams) (DeleteWebCampaignRes, error)
 	// GetCatalogImport implements getCatalogImport operation.
 	//
 	// Trạng thái, tóm tắt và lỗi từng dòng của một bản nhập.
@@ -549,6 +563,12 @@ type Handler interface {
 	//
 	// GET /api/v1/inventory/warehouses/{id}/pickup
 	GetWarehousePickup(ctx context.Context, params GetWarehousePickupParams) (GetWarehousePickupRes, error)
+	// GetWebCampaign implements getWebCampaign operation.
+	//
+	// Một chiến dịch kèm đích, bản xem trước đã ghi (Task 452).
+	//
+	// GET /api/v1/web-campaigns/{campaignId}
+	GetWebCampaign(ctx context.Context, params GetWebCampaignParams) (GetWebCampaignRes, error)
 	// HealthDeep implements healthDeep operation.
 	//
 	// Kiểm sâu cho dịch vụ canh ngoài (Bearer HEALTH_TOKEN, Task 20); không có dữ liệu
@@ -611,6 +631,13 @@ type Handler interface {
 	//
 	// GET /api/v1/callback-tasks
 	ListCallbackTasks(ctx context.Context, params ListCallbackTasksParams) (ListCallbackTasksRes, error)
+	// ListCampaignTargets implements listCampaignTargets operation.
+	//
+	// Đích chọn được cho chiến dịch: mẫu (q theo mã, tên không dấu) hay danh mục
+	// (Task 452).
+	//
+	// GET /api/v1/web-campaign-targets
+	ListCampaignTargets(ctx context.Context, params ListCampaignTargetsParams) (ListCampaignTargetsRes, error)
 	// ListCarrierAccounts implements listCarrierAccounts operation.
 	//
 	// Tài khoản hãng vận chuyển của shop; không bao giờ có khóa API, webhookUrl chỉ trả
@@ -853,6 +880,13 @@ type Handler interface {
 	//
 	// GET /api/v1/inventory/warehouses
 	ListWarehouses(ctx context.Context) (ListWarehousesRes, error)
+	// ListWebCampaigns implements listWebCampaigns operation.
+	//
+	// Chiến dịch giảm giá web, mới nhất trước; lọc trạng thái hiển thị, q theo tên
+	// (Task 452).
+	//
+	// GET /api/v1/web-campaigns
+	ListWebCampaigns(ctx context.Context, params ListWebCampaignsParams) (ListWebCampaignsRes, error)
 	// LockStaff implements lockStaff operation.
 	//
 	// Khóa nhân viên (không khóa Chủ còn hoạt động cuối cùng).
@@ -893,6 +927,13 @@ type Handler interface {
 	//
 	// POST /api/v1/shipments/{id}/corrections/preview
 	PreviewShipmentCorrection(ctx context.Context, req *ShipmentCorrectionRequest, params PreviewShipmentCorrectionParams) (PreviewShipmentCorrectionRes, error)
+	// PreviewWebCampaign implements previewWebCampaign operation.
+	//
+	// Xem trước giá của revision hiện tại (số mẫu, số biến thể, tối đa 12 giá
+	// mẫu) và ghi lại để bật (Task 452).
+	//
+	// POST /api/v1/web-campaigns/{campaignId}/preview
+	PreviewWebCampaign(ctx context.Context, req *WebCampaignRevision, params PreviewWebCampaignParams) (PreviewWebCampaignRes, error)
 	// PutCarrierCredentials implements putCarrierCredentials operation.
 	//
 	// Ghi khóa API của tài khoản (chỉ ghi, mã hóa; không bao giờ trả lại), tài khoản
@@ -1047,6 +1088,13 @@ type Handler interface {
 	//
 	// POST /api/v1/identity/service-keys/{id}/revoke
 	RevokeServiceKey(ctx context.Context, req *RevokeServiceKeyRequest, params RevokeServiceKeyParams) (RevokeServiceKeyRes, error)
+	// SaveWebCampaign implements saveWebCampaign operation.
+	//
+	// Lưu nội dung khi revision khớp (409 version_conflict); đang bật → 409 campaign_running,
+	// tạm dừng trước (Task 452).
+	//
+	// PUT /api/v1/web-campaigns/{campaignId}
+	SaveWebCampaign(ctx context.Context, req *SaveWebCampaignRequest, params SaveWebCampaignParams) (SaveWebCampaignRes, error)
 	// SearchVariants implements searchVariants operation.
 	//
 	// Tìm biến thể của người bán theo barcode (đúng), SKU, mã mẫu (tiền tố), tên
@@ -1103,6 +1151,13 @@ type Handler interface {
 	//
 	// PUT /api/v1/inventory/warehouses/{id}/pickup
 	SetWarehousePickup(ctx context.Context, req *SetWarehousePickupRequest, params SetWarehousePickupParams) (SetWarehousePickupRes, error)
+	// SetWebCampaignState implements setWebCampaignState operation.
+	//
+	// Bật hay tạm dừng, lý do bắt buộc; bật cần bản xem trước khớp revision và số
+	// tính lại (422 preview_required) (Task 452).
+	//
+	// POST /api/v1/web-campaigns/{campaignId}/state
+	SetWebCampaignState(ctx context.Context, req *SetWebCampaignStateRequest, params SetWebCampaignStateParams) (SetWebCampaignStateRes, error)
 	// StartCustomerImport implements startCustomerImport operation.
 	//
 	// Nhập khách từ tệp Excel đã tải lên (mục đích customer_import); chạy nền; tệp
@@ -1261,6 +1316,23 @@ type Handler interface {
 	//
 	// GET /api/v1/web/availability
 	WebAvailability(ctx context.Context, params WebAvailabilityParams) (WebAvailabilityRes, error)
+	// WebCampaign implements webCampaign operation.
+	//
+	// Task 452. Trả cả chiến dịch tạm dừng, đã hết (status cho biết); slug là tên
+	// hiện tại để website chuyển hướng liên kết cũ. Bộ đệm 30 s.
+	//
+	// GET /api/v1/web/campaigns/{linkKey}
+	WebCampaign(ctx context.Context, params WebCampaignParams) (WebCampaignRes, error)
+	// WebCampaigns implements webCampaigns operation.
+	//
+	// Task 452 (M5-40, QĐ33). Website tính giá hiển thị theo cùng luật (giá = round(niêm yết
+	// × (100 − %) / 100), áp khi 0 < giá < niêm yết; nhiều chiến dịch → giá thấp
+	// nhất, hòa thì id nhỏ hơn; bảng mẫu testdata/contracts/web-campaign-rounding.json); báo
+	// giá, tạo đơn CRM tính lại. Không có nháp, tạm dừng, đã xóa. Bộ đệm 30 s, làm
+	// mới sớm hơn theo sự kiện promotion.web_campaign.changed.
+	//
+	// GET /api/v1/web/campaigns
+	WebCampaigns(ctx context.Context, params WebCampaignsParams) (WebCampaignsRes, error)
 	// WebCatalogChanges implements webCatalogChanges operation.
 	//
 	// Task 190 (M5-07). Lần sau gửi since = until − 30 s và bỏ mã trùng. hasMore = true (đủ

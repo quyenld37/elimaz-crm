@@ -1703,3 +1703,59 @@ type PromotionCouponsV struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }
+
+type PromotionWebCampaign struct {
+	ID              uuid.UUID
+	TenantID        uuid.UUID
+	SellerID        uuid.UUID
+	Name            string
+	Percent         int32
+	Scope           string
+	AllowCoupon     bool
+	Clearance       bool
+	StartsAt        time.Time
+	EndsAt          time.Time
+	State           string
+	LinkKey         string
+	DeletedAt       pgtype.Timestamptz
+	Revision        int32
+	PreviewRevision *int32
+	PreviewModels   *int32
+	PreviewVariants *int32
+	CreatedBy       uuid.UUID
+	CreatedAt       time.Time
+	UpdatedBy       *uuid.UUID
+	UpdatedAt       time.Time
+}
+
+type PromotionWebCampaignTarget struct {
+	TenantID   uuid.UUID
+	CampaignID uuid.UUID
+	TargetKind string
+	TargetID   uuid.UUID
+}
+
+type PromotionWebCampaignTargetsV struct {
+	TenantID   uuid.UUID
+	CampaignID uuid.UUID
+	TargetKind string
+	TargetID   uuid.UUID
+}
+
+type PromotionWebCampaignsV struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	SellerID    uuid.UUID
+	Name        string
+	Percent     int32
+	Scope       string
+	AllowCoupon bool
+	Clearance   bool
+	StartsAt    time.Time
+	EndsAt      time.Time
+	State       string
+	Status      string
+	LinkKey     string
+	Revision    int32
+	UpdatedAt   time.Time
+}

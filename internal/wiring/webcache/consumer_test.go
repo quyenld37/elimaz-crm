@@ -16,6 +16,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/inventory"
+	"elimaz.com.vn/crm/internal/modules/promotion"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/realtime"
 	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
@@ -41,7 +42,7 @@ func TestConsumer_NameTopics(t *testing.T) {
 	}
 	want := []string{
 		"product.updated", "price.changed", "stock.changed", "flash_sale.opened", "flash_sale.closed",
-		"flash_sale.changed", "order.cancelled", "carrier.web_settings_changed",
+		"flash_sale.changed", "order.cancelled", "carrier.web_settings_changed", "promotion.web_campaign.changed",
 	}
 	if got := c.Topics(); !slices.Equal(got, want) {
 		t.Fatalf("Topics = %v, muốn %v", got, want)
@@ -98,6 +99,12 @@ func TestConsumer_Payloads(t *testing.T) {
 		{
 			"carrier.web_settings_changed", stored(t, tenant, "carrier.web_settings_changed", "carrier_settings", "ghn", nil),
 			[]realtime.Entity{{Type: "carrier_settings", ID: "ghn"}},
+			false,
+		},
+		{
+			"promotion.web_campaign.changed [WB06]", stored(t, tenant, promotion.TopicWebCampaignChanged, "web_campaign", fs,
+				promotion.WebCampaignChanged{CampaignID: p, Revision: 2}),
+			[]realtime.Entity{{Type: "web_campaign", ID: fs}},
 			false,
 		},
 		{"order.cancelled trước M5-19", stored(t, tenant, "order.cancelled", "order", uuid.NewString(), nil), nil, false},

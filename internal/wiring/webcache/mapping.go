@@ -18,6 +18,7 @@ const (
 	EntityFlashSale       = "flash_sale"
 	EntityFlashItem       = "flash_item"
 	EntityCarrierSettings = "carrier_settings"
+	EntityWebCampaign     = "web_campaign"
 )
 
 // action là một việc trên bộ đệm: xóa đúng mã của đối tượng trong space (byID), hoặc làm mới cả space.
@@ -35,6 +36,8 @@ func actionsFor(entityType string) []action {
 		return []action{{cache.SpaceAvailability, true}}
 	case EntityFlashSale, EntityFlashItem:
 		return []action{{cache.SpaceFlash, false}}
+	case EntityWebCampaign:
+		return []action{{cache.SpaceCampaigns, false}}
 	case EntityCarrierSettings:
 		return []action{{cache.SpaceCarriers, false}, {cache.SpaceShipQuote, false}}
 	}

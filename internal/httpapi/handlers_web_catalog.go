@@ -73,3 +73,25 @@ func (h *handler) WebLocations(ctx context.Context, params gen.WebLocationsParam
 	}
 	return h.d.webCatalog.Locations(ctx, u.TenantID, params) //nolint:wrapcheck // như trên
 }
+
+// WebCampaigns (GET /api/v1/web/campaigns, Task 452) → 200 có ETag hoặc 304.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) WebCampaigns(ctx context.Context, params gen.WebCampaignsParams) (gen.WebCampaignsRes, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
+	return h.d.webCatalog.Campaigns(ctx, u.TenantID, params) //nolint:wrapcheck // như trên
+}
+
+// WebCampaign (GET /api/v1/web/campaigns/{linkKey}, Task 452) → 200; nháp, đã xóa → 404.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) WebCampaign(ctx context.Context, params gen.WebCampaignParams) (gen.WebCampaignRes, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
+	return h.d.webCatalog.Campaign(ctx, u.TenantID, params) //nolint:wrapcheck // như trên
+}

@@ -94,7 +94,7 @@ func prepare(d Deps) Deps {
 	if d.webCatalog == nil {
 		d.webCatalog = web.NewCatalog(d.DB, d.ReadCache, catalog.ImageView{
 			BaseURL: d.Config.FilesPublicBaseURL, Preset: d.Config.ImagePresetVersion,
-		}, d.Logger)
+		}, d.Logger).WithClock(d.Now)
 	}
 	return d
 }

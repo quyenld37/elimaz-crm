@@ -201,12 +201,20 @@ type CreateUploadRes interface {
 	createUploadRes()
 }
 
+type CreateWebCampaignRes interface {
+	createWebCampaignRes()
+}
+
 type DeleteCustomerAddressRes interface {
 	deleteCustomerAddressRes()
 }
 
 type DeleteProductImageRes interface {
 	deleteProductImageRes()
+}
+
+type DeleteWebCampaignRes interface {
+	deleteWebCampaignRes()
 }
 
 type GetCatalogImportRes interface {
@@ -325,6 +333,10 @@ type GetWarehousePickupRes interface {
 	getWarehousePickupRes()
 }
 
+type GetWebCampaignRes interface {
+	getWebCampaignRes()
+}
+
 type HealthDeepRes interface {
 	healthDeepRes()
 }
@@ -355,6 +367,10 @@ type ListBalancesRes interface {
 
 type ListCallbackTasksRes interface {
 	listCallbackTasksRes()
+}
+
+type ListCampaignTargetsRes interface {
+	listCampaignTargetsRes()
 }
 
 type ListCarrierAccountsRes interface {
@@ -505,6 +521,10 @@ type ListWarehousesRes interface {
 	listWarehousesRes()
 }
 
+type ListWebCampaignsRes interface {
+	listWebCampaignsRes()
+}
+
 type LockStaffRes interface {
 	lockStaffRes()
 }
@@ -527,6 +547,10 @@ type PreviewCodAdjustmentRes interface {
 
 type PreviewShipmentCorrectionRes interface {
 	previewShipmentCorrectionRes()
+}
+
+type PreviewWebCampaignRes interface {
+	previewWebCampaignRes()
 }
 
 type PutCarrierCredentialsRes interface {
@@ -621,6 +645,10 @@ type RevokeServiceKeyRes interface {
 	revokeServiceKeyRes()
 }
 
+type SaveWebCampaignRes interface {
+	saveWebCampaignRes()
+}
+
 type SearchVariantsRes interface {
 	searchVariantsRes()
 }
@@ -651,6 +679,10 @@ type SetShipmentManualStatusRes interface {
 
 type SetWarehousePickupRes interface {
 	setWarehousePickupRes()
+}
+
+type SetWebCampaignStateRes interface {
+	setWebCampaignStateRes()
 }
 
 type StartCustomerImportRes interface {
@@ -747,6 +779,14 @@ type WaiveRefundObligationRes interface {
 
 type WebAvailabilityRes interface {
 	webAvailabilityRes()
+}
+
+type WebCampaignRes interface {
+	webCampaignRes()
+}
+
+type WebCampaignsRes interface {
+	webCampaignsRes()
 }
 
 type WebCatalogChangesRes interface {

@@ -2985,6 +2985,191 @@ paths:
                 $ref: "#/components/schemas/CouponRedemptionPage"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web-campaigns:
+    get:
+      operationId: listWebCampaigns
+      summary: 'Chiến dịch giảm giá web, mới nhất trước; lọc trạng thái hiển thị, q theo tên (Task 452)'
+      x-permission: promotion.read
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/WebCampaignStatus"
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 120
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listWebCampaigns
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCampaignPage"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createWebCampaign
+      summary: 'Tạo chiến dịch nháp; phần trăm vượt trần cài đặt (mặc định 50) → 422 percent_too_high (Task 452)'
+      x-permission: promotion.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebCampaignInput"
+      responses:
+        "201":
+          description: createWebCampaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCampaign"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web-campaigns/{campaignId}:
+    get:
+      operationId: getWebCampaign
+      summary: 'Một chiến dịch kèm đích, bản xem trước đã ghi (Task 452)'
+      x-permission: promotion.read
+      parameters:
+        - $ref: "#/components/parameters/CampaignID"
+      responses:
+        "200":
+          description: getWebCampaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCampaign"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: saveWebCampaign
+      summary: 'Lưu nội dung khi revision khớp (409 version_conflict); đang bật → 409 campaign_running, tạm dừng trước (Task 452)'
+      x-permission: promotion.manage
+      parameters:
+        - $ref: "#/components/parameters/CampaignID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveWebCampaignRequest"
+      responses:
+        "200":
+          description: saveWebCampaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCampaign"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web-campaigns/{campaignId}/preview:
+    post:
+      operationId: previewWebCampaign
+      summary: 'Xem trước giá của revision hiện tại (số mẫu, số biến thể, tối đa 12 giá mẫu) và ghi lại để bật (Task 452)'
+      x-permission: promotion.manage
+      parameters:
+        - $ref: "#/components/parameters/CampaignID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebCampaignRevision"
+      responses:
+        "200":
+          description: previewWebCampaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCampaignPreview"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web-campaigns/{campaignId}/state:
+    post:
+      operationId: setWebCampaignState
+      summary: 'Bật hay tạm dừng, lý do bắt buộc; bật cần bản xem trước khớp revision và số tính lại (422 preview_required) (Task 452)'
+      x-permission: promotion.manage
+      parameters:
+        - $ref: "#/components/parameters/CampaignID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetWebCampaignStateRequest"
+      responses:
+        "200":
+          description: setWebCampaignState
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCampaign"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web-campaigns/{campaignId}/delete:
+    post:
+      operationId: deleteWebCampaign
+      summary: 'Xóa chiến dịch không đang bật, lý do bắt buộc; banner trỏ chiến dịch tự ẩn (Task 452)'
+      x-permission: promotion.manage
+      parameters:
+        - $ref: "#/components/parameters/CampaignID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteWebCampaignRequest"
+      responses:
+        "200":
+          description: deleteWebCampaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCampaignRevision"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web-campaign-targets:
+    get:
+      operationId: listCampaignTargets
+      summary: 'Đích chọn được cho chiến dịch: mẫu (q theo mã, tên không dấu) hay danh mục (Task 452)'
+      x-permission: promotion.read
+      parameters:
+        - name: kind
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [product, category]
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 120
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listCampaignTargets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignTargetPage"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/coupon-check:
     get:
       operationId: checkCoupon
@@ -4390,6 +4575,60 @@ paths:
           description: If-None-Match khớp ETag hiện tại; thân rỗng
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web/campaigns:
+    get:
+      operationId: webCampaigns
+      summary: Chiến dịch giảm giá đã bật, chưa hết giờ (đang chạy hoặc đã hẹn giờ) kèm đích, liên kết; có ETag
+      description: |
+        Task 452 (M5-40, QĐ33). Website tính giá hiển thị theo cùng luật (giá = round(niêm yết × (100 − %) / 100), áp
+        khi 0 < giá < niêm yết; nhiều chiến dịch → giá thấp nhất, hòa thì id nhỏ hơn; bảng mẫu
+        testdata/contracts/web-campaign-rounding.json); báo giá, tạo đơn CRM tính lại. Không có nháp, tạm dừng, đã
+        xóa. Bộ đệm 30 s, làm mới sớm hơn theo sự kiện promotion.web_campaign.changed.
+      x-auth: service_key
+      x-permission: web.catalog.read
+      parameters:
+        - $ref: "#/components/parameters/IfNoneMatch"
+      responses:
+        "200":
+          description: Chiến dịch theo id
+          headers:
+            ETag:
+              description: sha256 của thân câu trả lời
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCampaignList"
+        "304":
+          description: If-None-Match khớp ETag hiện tại; thân rỗng
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/campaigns/{linkKey}:
+    get:
+      operationId: webCampaign
+      summary: Một chiến dịch theo 8 hex đầu của id (trang /uu-dai); nháp, đã xóa → 404
+      description: |
+        Task 452. Trả cả chiến dịch tạm dừng, đã hết (status cho biết); slug là tên hiện tại để website chuyển hướng
+        liên kết cũ. Bộ đệm 30 s.
+      x-auth: service_key
+      x-permission: web.catalog.read
+      parameters:
+        - name: linkKey
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9A-Fa-f]{8}$"
+      responses:
+        "200":
+          description: Chiến dịch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCampaignPublic"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -4577,6 +4816,13 @@ components:
         format: uuid
     TrafficSourceID:
       name: sourceId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CampaignID:
+      name: campaignId
       in: path
       required: true
       schema:
@@ -4832,6 +5078,10 @@ components:
         - statement_changed
         - statement_duplicate
         - tracking_code_conflict
+        # Chiến dịch giảm giá web (M5, Task 452)
+        - campaign_running
+        - percent_too_high
+        - preview_required
       properties:
         error:
           type: string
@@ -10482,3 +10732,279 @@ components:
           $ref: "#/components/schemas/SignedMoney"
         shopReceived:
           $ref: "#/components/schemas/SignedMoney"
+    WebCampaignScope:
+      type: string
+      enum: [all, products, categories]
+    WebCampaignState:
+      type: string
+      enum: [draft, enabled, paused]
+    WebCampaignStatus:
+      type: string
+      enum: [draft, paused, scheduled, active, ended]
+      description: Trạng thái hiển thị — draft, paused theo state; còn lại theo giờ (endsAt đúng giờ là ended)
+    WebCampaignInput:
+      type: object
+      required: [name, percent, scope, startsAt, endsAt]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        percent:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 99
+        scope:
+          $ref: "#/components/schemas/WebCampaignScope"
+        targetIds:
+          type: array
+          maxItems: 30
+          description: Mã mẫu (products) hay mã danh mục (categories), 1–30 không trùng; all thì rỗng
+          items:
+            type: string
+            format: uuid
+        allowCoupon:
+          type: boolean
+          default: false
+          description: Dòng có chiến dịch này vẫn được dùng mã giảm giá
+        clearance:
+          type: boolean
+          default: false
+          description: Hàng cắt mã — mẫu thuộc chiến dịch đang chạy hiện ở "Siêu ưu đãi"
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+    SaveWebCampaignRequest:
+      type: object
+      required: [revision, campaign]
+      properties:
+        revision:
+          type: integer
+          format: int32
+          minimum: 1
+        campaign:
+          $ref: "#/components/schemas/WebCampaignInput"
+    WebCampaignRevision:
+      type: object
+      required: [revision]
+      properties:
+        revision:
+          type: integer
+          format: int32
+          minimum: 1
+    WebCampaignPreviewCounts:
+      type: object
+      required: [revision, modelCount, variantCount]
+      properties:
+        revision:
+          type: integer
+          format: int32
+          minimum: 1
+        modelCount:
+          type: integer
+          format: int32
+          minimum: 0
+        variantCount:
+          type: integer
+          format: int32
+          minimum: 0
+    WebCampaignPreview:
+      type: object
+      required: [revision, modelCount, variantCount, samples]
+      properties:
+        revision:
+          type: integer
+          format: int32
+        modelCount:
+          type: integer
+          format: int32
+        variantCount:
+          type: integer
+          format: int32
+        samples:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebCampaignSample"
+    WebCampaignSample:
+      type: object
+      required: [productId, variantId, productName, listPrice, salePrice]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        variantId:
+          type: string
+          format: uuid
+        productName:
+          type: string
+        listPrice:
+          $ref: "#/components/schemas/Money"
+        salePrice:
+          $ref: "#/components/schemas/Money"
+    SetWebCampaignStateRequest:
+      type: object
+      required: [revision, state, reason]
+      properties:
+        revision:
+          type: integer
+          format: int32
+          minimum: 1
+        state:
+          type: string
+          enum: [enabled, paused]
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 300
+        preview:
+          $ref: "#/components/schemas/WebCampaignPreviewCounts"
+    DeleteWebCampaignRequest:
+      type: object
+      required: [revision, reason]
+      properties:
+        revision:
+          type: integer
+          format: int32
+          minimum: 1
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 300
+    WebCampaign:
+      type: object
+      required: [id, name, percent, scope, targetIds, allowCoupon, clearance, startsAt, endsAt, state, status, revision,
+                 linkKey, path, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        percent:
+          type: integer
+          format: int32
+        scope:
+          $ref: "#/components/schemas/WebCampaignScope"
+        targetIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        allowCoupon:
+          type: boolean
+        clearance:
+          type: boolean
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        state:
+          $ref: "#/components/schemas/WebCampaignState"
+        status:
+          $ref: "#/components/schemas/WebCampaignStatus"
+        revision:
+          type: integer
+          format: int32
+        linkKey:
+          type: string
+        path:
+          type: string
+          description: Đường dẫn trang chiến dịch trên website, /uu-dai/<tên>-<linkKey>
+        preview:
+          $ref: "#/components/schemas/WebCampaignPreviewCounts"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    WebCampaignPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebCampaign"
+        nextCursor:
+          type: string
+    CampaignTarget:
+      type: object
+      required: [id, code, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          description: Mã mẫu, hay slug của danh mục
+        name:
+          type: string
+    CampaignTargetPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CampaignTarget"
+        nextCursor:
+          type: string
+    WebCampaignPublic:
+      type: object
+      required: [id, sellerId, name, percent, scope, targetIds, allowCoupon, clearance, startsAt, endsAt, status,
+                 revision, slug, linkKey]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sellerId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        percent:
+          type: integer
+          format: int32
+        scope:
+          $ref: "#/components/schemas/WebCampaignScope"
+        targetIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        allowCoupon:
+          type: boolean
+        clearance:
+          type: boolean
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/WebCampaignStatus"
+        revision:
+          type: integer
+          format: int32
+        slug:
+          type: string
+          description: Phần tên của liên kết (bỏ dấu, ≤ 60); rỗng khi tên không còn chữ
+        linkKey:
+          type: string
+          description: 8 hex đầu của id
+    WebCampaignList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebCampaignPublic"

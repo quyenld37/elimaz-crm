@@ -505,6 +505,16 @@ func (UnimplementedHandler) CreateUpload(ctx context.Context, req *CreateUploadR
 	return r, ht.ErrNotImplemented
 }
 
+// CreateWebCampaign implements createWebCampaign operation.
+//
+// Tạo chiến dịch nháp; phần trăm vượt trần cài đặt (mặc định 50) → 422
+// percent_too_high (Task 452).
+//
+// POST /api/v1/web-campaigns
+func (UnimplementedHandler) CreateWebCampaign(ctx context.Context, req *WebCampaignInput, params CreateWebCampaignParams) (r CreateWebCampaignRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // DeleteCustomerAddress implements deleteCustomerAddress operation.
 //
 // Xóa mềm một địa chỉ (Task M2-09).
@@ -521,6 +531,16 @@ func (UnimplementedHandler) DeleteCustomerAddress(ctx context.Context, params De
 //
 // DELETE /api/v1/catalog/products/{id}/images/{imageId}
 func (UnimplementedHandler) DeleteProductImage(ctx context.Context, params DeleteProductImageParams) (r DeleteProductImageRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// DeleteWebCampaign implements deleteWebCampaign operation.
+//
+// Xóa chiến dịch không đang bật, lý do bắt buộc; banner trỏ chiến dịch tự ẩn
+// (Task 452).
+//
+// POST /api/v1/web-campaigns/{campaignId}/delete
+func (UnimplementedHandler) DeleteWebCampaign(ctx context.Context, req *DeleteWebCampaignRequest, params DeleteWebCampaignParams) (r DeleteWebCampaignRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -797,6 +817,15 @@ func (UnimplementedHandler) GetWarehousePickup(ctx context.Context, params GetWa
 	return r, ht.ErrNotImplemented
 }
 
+// GetWebCampaign implements getWebCampaign operation.
+//
+// Một chiến dịch kèm đích, bản xem trước đã ghi (Task 452).
+//
+// GET /api/v1/web-campaigns/{campaignId}
+func (UnimplementedHandler) GetWebCampaign(ctx context.Context, params GetWebCampaignParams) (r GetWebCampaignRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // HealthDeep implements healthDeep operation.
 //
 // Kiểm sâu cho dịch vụ canh ngoài (Bearer HEALTH_TOKEN, Task 20); không có dữ liệu
@@ -883,6 +912,16 @@ func (UnimplementedHandler) ListBalances(ctx context.Context, params ListBalance
 //
 // GET /api/v1/callback-tasks
 func (UnimplementedHandler) ListCallbackTasks(ctx context.Context, params ListCallbackTasksParams) (r ListCallbackTasksRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListCampaignTargets implements listCampaignTargets operation.
+//
+// Đích chọn được cho chiến dịch: mẫu (q theo mã, tên không dấu) hay danh mục
+// (Task 452).
+//
+// GET /api/v1/web-campaign-targets
+func (UnimplementedHandler) ListCampaignTargets(ctx context.Context, params ListCampaignTargetsParams) (r ListCampaignTargetsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1239,6 +1278,16 @@ func (UnimplementedHandler) ListWarehouses(ctx context.Context) (r ListWarehouse
 	return r, ht.ErrNotImplemented
 }
 
+// ListWebCampaigns implements listWebCampaigns operation.
+//
+// Chiến dịch giảm giá web, mới nhất trước; lọc trạng thái hiển thị, q theo tên
+// (Task 452).
+//
+// GET /api/v1/web-campaigns
+func (UnimplementedHandler) ListWebCampaigns(ctx context.Context, params ListWebCampaignsParams) (r ListWebCampaignsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // LockStaff implements lockStaff operation.
 //
 // Khóa nhân viên (không khóa Chủ còn hoạt động cuối cùng).
@@ -1294,6 +1343,16 @@ func (UnimplementedHandler) PreviewCodAdjustment(ctx context.Context, req *CodAd
 //
 // POST /api/v1/shipments/{id}/corrections/preview
 func (UnimplementedHandler) PreviewShipmentCorrection(ctx context.Context, req *ShipmentCorrectionRequest, params PreviewShipmentCorrectionParams) (r PreviewShipmentCorrectionRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// PreviewWebCampaign implements previewWebCampaign operation.
+//
+// Xem trước giá của revision hiện tại (số mẫu, số biến thể, tối đa 12 giá
+// mẫu) và ghi lại để bật (Task 452).
+//
+// POST /api/v1/web-campaigns/{campaignId}/preview
+func (UnimplementedHandler) PreviewWebCampaign(ctx context.Context, req *WebCampaignRevision, params PreviewWebCampaignParams) (r PreviewWebCampaignRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1520,6 +1579,16 @@ func (UnimplementedHandler) RevokeServiceKey(ctx context.Context, req *RevokeSer
 	return r, ht.ErrNotImplemented
 }
 
+// SaveWebCampaign implements saveWebCampaign operation.
+//
+// Lưu nội dung khi revision khớp (409 version_conflict); đang bật → 409 campaign_running,
+// tạm dừng trước (Task 452).
+//
+// PUT /api/v1/web-campaigns/{campaignId}
+func (UnimplementedHandler) SaveWebCampaign(ctx context.Context, req *SaveWebCampaignRequest, params SaveWebCampaignParams) (r SaveWebCampaignRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // SearchVariants implements searchVariants operation.
 //
 // Tìm biến thể của người bán theo barcode (đúng), SKU, mã mẫu (tiền tố), tên
@@ -1597,6 +1666,16 @@ func (UnimplementedHandler) SetShipmentManualStatus(ctx context.Context, req *Se
 //
 // PUT /api/v1/inventory/warehouses/{id}/pickup
 func (UnimplementedHandler) SetWarehousePickup(ctx context.Context, req *SetWarehousePickupRequest, params SetWarehousePickupParams) (r SetWarehousePickupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SetWebCampaignState implements setWebCampaignState operation.
+//
+// Bật hay tạm dừng, lý do bắt buộc; bật cần bản xem trước khớp revision và số
+// tính lại (422 preview_required) (Task 452).
+//
+// POST /api/v1/web-campaigns/{campaignId}/state
+func (UnimplementedHandler) SetWebCampaignState(ctx context.Context, req *SetWebCampaignStateRequest, params SetWebCampaignStateParams) (r SetWebCampaignStateRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1827,6 +1906,29 @@ func (UnimplementedHandler) WaiveRefundObligation(ctx context.Context, req *Waiv
 //
 // GET /api/v1/web/availability
 func (UnimplementedHandler) WebAvailability(ctx context.Context, params WebAvailabilityParams) (r WebAvailabilityRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// WebCampaign implements webCampaign operation.
+//
+// Task 452. Trả cả chiến dịch tạm dừng, đã hết (status cho biết); slug là tên
+// hiện tại để website chuyển hướng liên kết cũ. Bộ đệm 30 s.
+//
+// GET /api/v1/web/campaigns/{linkKey}
+func (UnimplementedHandler) WebCampaign(ctx context.Context, params WebCampaignParams) (r WebCampaignRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// WebCampaigns implements webCampaigns operation.
+//
+// Task 452 (M5-40, QĐ33). Website tính giá hiển thị theo cùng luật (giá = round(niêm yết
+// × (100 − %) / 100), áp khi 0 < giá < niêm yết; nhiều chiến dịch → giá thấp
+// nhất, hòa thì id nhỏ hơn; bảng mẫu testdata/contracts/web-campaign-rounding.json); báo
+// giá, tạo đơn CRM tính lại. Không có nháp, tạm dừng, đã xóa. Bộ đệm 30 s, làm
+// mới sớm hơn theo sự kiện promotion.web_campaign.changed.
+//
+// GET /api/v1/web/campaigns
+func (UnimplementedHandler) WebCampaigns(ctx context.Context, params WebCampaignsParams) (r WebCampaignsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
