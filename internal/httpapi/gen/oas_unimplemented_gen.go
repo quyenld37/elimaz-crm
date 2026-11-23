@@ -1975,6 +1975,23 @@ func (UnimplementedHandler) WebLocations(ctx context.Context, params WebLocation
 	return r, ht.ErrNotImplemented
 }
 
+// WebQuote implements webQuote operation.
+//
+// Task 192 (M5-09). Giá niêm yết đọc PostgreSQL (không qua bộ đệm); biến thể thiếu,
+// ngừng bán, của người bán khác → problem unavailable (không tính vào tổng); có
+// thể bán ở kho mặc định < qty → out_of_stock (không giữ hàng); quotedUnitPrice khác
+// giá CRM → price_changed, changed = true. Chiến dịch web đang chạy CRM tự tìm (QĐ33;
+// luật làm tròn testdata/contracts/web-campaign-rounding.json); dòng thuộc chiến dịch
+// không cho dùng mã không vào nền tính mã (QĐ29). Mã kiểm như lúc tạo đơn trừ
+// lượt mỗi khách (tạo đơn kiểm). fingerprint là sha256 của các dòng theo số CRM,
+// phí, tổng, mã: website gửi lại khi tạo đơn. Tổng vượt 9007199254740991 → 422
+// total_overflow.
+//
+// POST /api/v1/web/quote
+func (UnimplementedHandler) WebQuote(ctx context.Context, req *WebQuoteRequest) (r WebQuoteRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // WebSold30d implements webSold30d operation.
 //
 // Task 191 (M5-08); định nghĩa ở docs/m5/doi-chieu-gia-dinh.md mục 4: cộng số lượng

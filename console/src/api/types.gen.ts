@@ -860,6 +860,97 @@ export type WebTag = {
     name: string;
 };
 
+export type WebQuoteRequest = {
+    lines: Array<WebQuoteLineInput>;
+    /**
+     * Rỗng hay không gửi là không dùng mã; không phân biệt hoa thường
+     */
+    couponCode?: string;
+    /**
+     * SĐT người đặt, chỉ để kiểm mã gắn SĐT (không ghi lại)
+     */
+    customerPhone?: string;
+    /**
+     * Phí giao website đã tính (đồng)
+     */
+    shippingFee: number;
+};
+
+export type WebQuoteLineInput = {
+    /**
+     * Mã biến thể, không trùng trong một yêu cầu
+     */
+    variantId: string;
+    qty: number;
+    /**
+     * Giá niêm yết website đang hiện (chưa trừ chiến dịch)
+     */
+    quotedUnitPrice: number;
+};
+
+export type WebQuote = {
+    lines: Array<WebQuotedLine>;
+    /**
+     * Σ qty × unitPrice của dòng bán được
+     */
+    merchandise: number;
+    campaignDiscount: number;
+    couponDiscount: number;
+    shippingFee: number;
+    /**
+     * merchandise − campaignDiscount − couponDiscount + shippingFee
+     */
+    grandTotal: number;
+    coupon?: WebQuoteCoupon;
+    /**
+     * hex sha256 của báo giá theo số CRM
+     */
+    fingerprint: string;
+    /**
+     * Có dòng bán được mà quotedUnitPrice khác giá CRM
+     */
+    changed: boolean;
+};
+
+export type WebQuotedLine = {
+    variantId: string;
+    qty: number;
+    /**
+     * Giá niêm yết CRM (0 khi unavailable)
+     */
+    unitPrice: number;
+    /**
+     * qty × giảm mỗi đơn vị của chiến dịch
+     */
+    campaignDiscount: number;
+    /**
+     * Phần mã chia về dòng
+     */
+    couponDiscount: number;
+    net: number;
+    campaign?: WebQuoteCampaign;
+    /**
+     * Không có khi dòng ổn; mỗi dòng một vấn đề theo thứ tự ưu tiên của enum
+     */
+    problem?: 'unavailable' | 'out_of_stock' | 'price_changed';
+};
+
+export type WebQuoteCampaign = {
+    id: string;
+    revision: number;
+    percent: number;
+    allowCoupon: boolean;
+};
+
+export type WebQuoteCoupon = {
+    code: string;
+    applied: boolean;
+    /**
+     * Có khi applied = false
+     */
+    reason?: 'not_found' | 'disabled' | 'not_started' | 'expired' | 'channel' | 'seller' | 'bound_other' | 'min_subtotal' | 'exhausted' | 'customer_limit';
+};
+
 export type WebAvailability = {
     items: Array<WebAvailabilityItem>;
     /**
@@ -9649,3 +9740,28 @@ export type WebCampaignResponses = {
 };
 
 export type WebCampaignResponse = WebCampaignResponses[keyof WebCampaignResponses];
+
+export type WebQuoteData = {
+    body: WebQuoteRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/quote';
+};
+
+export type WebQuoteErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebQuoteError = WebQuoteErrors[keyof WebQuoteErrors];
+
+export type WebQuoteResponses = {
+    /**
+     * Báo giá, dòng cùng thứ tự với yêu cầu
+     */
+    200: WebQuote;
+};
+
+export type WebQuoteResponse = WebQuoteResponses[keyof WebQuoteResponses];

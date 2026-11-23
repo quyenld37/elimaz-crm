@@ -155,7 +155,12 @@ func (e *env) serviceKey(perm identity.Permission) string {
 // get gửi GET path với khóa key (rỗng: không gửi) và các cặp header thêm.
 func (e *env) get(key, path string, hdr ...string) *httptest.ResponseRecorder {
 	e.t.Helper()
-	req := httptest.NewRequestWithContext(e.t.Context(), http.MethodGet, path, nil)
+	return e.send(httptest.NewRequestWithContext(e.t.Context(), http.MethodGet, path, nil), key, hdr...)
+}
+
+// send gửi req tới máy chủ thử với khóa key (rỗng: không gửi) và các cặp header thêm.
+func (e *env) send(req *http.Request, key string, hdr ...string) *httptest.ResponseRecorder {
+	e.t.Helper()
 	if key != "" {
 		req.Header.Set("Authorization", "Bearer "+key)
 	}

@@ -4629,6 +4629,36 @@ paths:
                 $ref: "#/components/schemas/WebCampaignPublic"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web/quote:
+    post:
+      operationId: webQuote
+      summary: Báo giá giỏ website theo số của CRM (giá, ngừng bán, còn hàng, chiến dịch web, mã giảm); không ghi gì
+      description: |
+        Task 192 (M5-09). Giá niêm yết đọc PostgreSQL (không qua bộ đệm); biến thể thiếu, ngừng bán, của người bán khác
+        → problem unavailable (không tính vào tổng); có thể bán ở kho mặc định < qty → out_of_stock (không giữ hàng);
+        quotedUnitPrice khác giá CRM → price_changed, changed = true. Chiến dịch web đang chạy CRM tự tìm (QĐ33; luật
+        làm tròn testdata/contracts/web-campaign-rounding.json); dòng thuộc chiến dịch không cho dùng mã không vào nền
+        tính mã (QĐ29). Mã kiểm như lúc tạo đơn trừ lượt mỗi khách (tạo đơn kiểm). fingerprint là sha256 của các dòng
+        theo số CRM, phí, tổng, mã: website gửi lại khi tạo đơn. Tổng vượt 9007199254740991 → 422 total_overflow.
+      x-auth: service_key
+      x-permission: web.orders.create
+      x-idempotency: exempt
+      x-idempotency-reason: "Chỉ tính giá từ thân yêu cầu, không ghi dữ liệu"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebQuoteRequest"
+      responses:
+        "200":
+          description: Báo giá, dòng cùng thứ tự với yêu cầu
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebQuote"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -6596,6 +6626,160 @@ components:
           type: string
         name:
           type: string
+    WebQuoteRequest:
+      type: object
+      additionalProperties: false
+      required: [lines, shippingFee]
+      properties:
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/WebQuoteLineInput"
+        couponCode:
+          type: string
+          maxLength: 64
+          description: Rỗng hay không gửi là không dùng mã; không phân biệt hoa thường
+        customerPhone:
+          type: string
+          maxLength: 32
+          description: SĐT người đặt, chỉ để kiểm mã gắn SĐT (không ghi lại)
+        shippingFee:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+          description: Phí giao website đã tính (đồng)
+    WebQuoteLineInput:
+      type: object
+      additionalProperties: false
+      required: [variantId, qty, quotedUnitPrice]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+          description: Mã biến thể, không trùng trong một yêu cầu
+        qty:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 20
+        quotedUnitPrice:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+          description: Giá niêm yết website đang hiện (chưa trừ chiến dịch)
+    WebQuote:
+      type: object
+      required: [lines, merchandise, campaignDiscount, couponDiscount, shippingFee, grandTotal, fingerprint, changed]
+      properties:
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebQuotedLine"
+        merchandise:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+          description: Σ qty × unitPrice của dòng bán được
+        campaignDiscount:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+        couponDiscount:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+        shippingFee:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+        grandTotal:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+          description: merchandise − campaignDiscount − couponDiscount + shippingFee
+        coupon:
+          $ref: "#/components/schemas/WebQuoteCoupon"
+        fingerprint:
+          type: string
+          description: hex sha256 của báo giá theo số CRM
+        changed:
+          type: boolean
+          description: Có dòng bán được mà quotedUnitPrice khác giá CRM
+    WebQuotedLine:
+      type: object
+      required: [variantId, qty, unitPrice, campaignDiscount, couponDiscount, net]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        qty:
+          type: integer
+          format: int32
+        unitPrice:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+          description: Giá niêm yết CRM (0 khi unavailable)
+        campaignDiscount:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+          description: qty × giảm mỗi đơn vị của chiến dịch
+        couponDiscount:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+          description: Phần mã chia về dòng
+        net:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+        campaign:
+          $ref: "#/components/schemas/WebQuoteCampaign"
+        problem:
+          type: string
+          enum: [unavailable, out_of_stock, price_changed]
+          description: Không có khi dòng ổn; mỗi dòng một vấn đề theo thứ tự ưu tiên của enum
+    WebQuoteCampaign:
+      type: object
+      required: [id, revision, percent, allowCoupon]
+      properties:
+        id:
+          type: string
+          format: uuid
+        revision:
+          type: integer
+          format: int32
+        percent:
+          type: integer
+          format: int32
+        allowCoupon:
+          type: boolean
+    WebQuoteCoupon:
+      type: object
+      required: [code, applied]
+      properties:
+        code:
+          type: string
+        applied:
+          type: boolean
+        reason:
+          type: string
+          enum: [not_found, disabled, not_started, expired, channel, seller, bound_other, min_subtotal, exhausted, customer_limit]
+          description: Có khi applied = false
     WebAvailability:
       type: object
       required: [items, ttlS]

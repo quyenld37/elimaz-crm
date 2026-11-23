@@ -805,6 +805,10 @@ type WebLocationsRes interface {
 	webLocationsRes()
 }
 
+type WebQuoteRes interface {
+	webQuoteRes()
+}
+
 type WebSold30dRes interface {
 	webSold30dRes()
 }

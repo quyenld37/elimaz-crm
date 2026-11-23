@@ -229,6 +229,7 @@ var Routes = []Route{
 	{Method: "GET", Pattern: "GET /api/v1/web/catalog/sold-30d", OperationID: "webSold30d", Permission: "web.catalog.read", Auth: "service_key"},
 	{Method: "GET", Pattern: "GET /api/v1/web/catalog/taxonomy", OperationID: "webCatalogTaxonomy", Permission: "web.catalog.read", Auth: "service_key"},
 	{Method: "GET", Pattern: "GET /api/v1/web/locations", OperationID: "webLocations", Permission: "web.catalog.read", Auth: "service_key"},
+	{Method: "POST", Pattern: "POST /api/v1/web/quote", OperationID: "webQuote", Permission: "web.orders.create", Write: true, IdempotencyMode: "exempt", IdempotencyReason: "Chỉ tính giá từ thân yêu cầu, không ghi dữ liệu", Auth: "service_key"},
 	{Method: "GET", Pattern: "GET /health/deep", OperationID: "healthDeep", Public: true, Auth: "public"},
 	{Method: "GET", Pattern: "GET /health/live", OperationID: "healthLive", Public: true, Auth: "public"},
 	{Method: "GET", Pattern: "GET /health/ready", OperationID: "healthReady", Public: true, Auth: "public"},
