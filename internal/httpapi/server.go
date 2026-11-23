@@ -14,9 +14,12 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
+	"elimaz.com.vn/crm/internal/httpapi/web"
 	"elimaz.com.vn/crm/internal/modules/cash"
+	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
+	"elimaz.com.vn/crm/internal/platform/cache"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/events"
@@ -65,9 +68,13 @@ type Deps struct {
 	// Admission: cổng nhận vào theo tên của x-admission (flash sale, Task 187). Route khai tên không có ở đây → 503
 	// retry_later (đóng, không cho qua).
 	Admission map[string]func(http.Handler) http.Handler
+	// ReadCache là bộ đệm đọc của các route website (Task 190; cmd/crm nối cache.NewReadCache trên Valkey bộ đệm). nil
+	// → bộ đệm không có Valkey: mọi lần đọc tải thẳng PostgreSQL có giới hạn (cache.NewReadCache(nil, …)).
+	ReadCache cache.ReadCache
 
 	limiter        *userLimiter // một bộ đếm chung cho mọi route của nhân viên (prepare)
 	serviceLimiter *userLimiter // bộ đếm dự phòng của khóa dịch vụ khi RateLimiter nil (prepare)
+	webCatalog     *web.Catalog // danh mục cho website (prepare)
 }
 
 // prepare dựng phần dùng chung giữa các route (bộ đếm tần suất) một lần cho mỗi server.
@@ -80,6 +87,14 @@ func prepare(d Deps) Deps {
 	}
 	if d.Events == nil {
 		d.Events = events.NewRegistry()
+	}
+	if d.ReadCache == nil {
+		d.ReadCache = cache.NewReadCache(nil, cache.ReadCacheOptions{Metrics: d.Metrics})
+	}
+	if d.webCatalog == nil {
+		d.webCatalog = web.NewCatalog(d.DB, d.ReadCache, catalog.ImageView{
+			BaseURL: d.Config.FilesPublicBaseURL, Preset: d.Config.ImagePresetVersion,
+		}, d.Logger)
 	}
 	return d
 }

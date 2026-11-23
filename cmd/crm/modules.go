@@ -15,6 +15,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime"
 	"elimaz.com.vn/crm/internal/platform/schedules"
+	"elimaz.com.vn/crm/internal/wiring/webcache"
 )
 
 // modules là phần chạy nền của các module nghiệp vụ, dựng một lần cho mỗi tiến trình: sổ sự kiện (consumer), việc
@@ -49,6 +50,11 @@ func newModules(cfg config.Config, d *db.DB, bus realtime.Bus, reg *metrics.Regi
 		consumers = append(consumers, p.Consumers...)
 		out.Handlers = append(out.Handlers, p.JobHandlers...)
 		out.Schedules = append(out.Schedules, p.Schedules...)
+	}
+	// Bộ đệm đọc của website (Task 190): consumer đổi sự kiện sản phẩm, giá, tồn thành báo hiệu hệ thống cho
+	// Invalidator ở api. Đăng ký ở mọi vai trò vì Emit (api, worker) tạo việc theo sổ; bus nil (test): không có.
+	if bus != nil {
+		consumers = append(consumers, webcache.NewConsumer(bus, nil))
 	}
 	for _, c := range consumers {
 		if err := evs.Register(c); err != nil {

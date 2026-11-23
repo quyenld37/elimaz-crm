@@ -6,7 +6,9 @@ package httpapi
 import (
 	"net/http"
 
+	"elimaz.com.vn/crm/internal/httpapi/web"
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/queries/webcatalog"
 )
 
 // Mã lỗi chỉ vùng catalog trả.
@@ -36,6 +38,7 @@ func catalogError(err error) (status int, code string, ok bool) {
 		{catalog.ErrVersionConflict, http.StatusConflict, codeVersionConflict},
 		{catalog.ErrNotForSale, http.StatusConflict, codeNotForSale},
 		{catalog.ErrInvalidPrice, http.StatusUnprocessableEntity, codeInvalidPrice},
+		{catalog.ErrInvalidWeight, http.StatusUnprocessableEntity, codeInvalidInput},
 		{catalog.ErrInvalidArticle, http.StatusUnprocessableEntity, codeInvalidArticle},
 		{catalog.ErrCategoryCycle, http.StatusUnprocessableEntity, codeCategoryCycle},
 		{catalog.ErrCategoryTooDeep, http.StatusUnprocessableEntity, codeCategoryTooDeep},
@@ -45,5 +48,8 @@ func catalogError(err error) (status int, code string, ok bool) {
 		{catalog.ErrImportNotReady, http.StatusConflict, codeImportNotReady},
 		{catalog.ErrRestoreExpired, http.StatusGone, codeRestoreExpired},
 		{catalog.ErrInvalidInput, http.StatusBadRequest, codeInvalidInput},
+		// Danh mục cho website (Task 190): tham số đọc sai.
+		{web.ErrBadQuery, http.StatusBadRequest, codeBadRequest},
+		{webcatalog.ErrBadLimit, http.StatusBadRequest, codeBadRequest},
 	})
 }

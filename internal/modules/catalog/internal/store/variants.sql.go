@@ -134,7 +134,7 @@ func (q *Queries) InsertVariant(ctx context.Context, arg InsertVariantParams) (I
 }
 
 const listProductVariants = `-- name: ListProductVariants :many
-SELECT id, seller_id, product_id, sku, barcode, color, color_hex, size, price, cost_price, status, version
+SELECT id, seller_id, product_id, sku, barcode, color, color_hex, size, price, cost_price, status, version, weight_grams
 FROM catalog.variants
 WHERE seller_id = $1 AND product_id = $2
 ORDER BY id
@@ -146,18 +146,19 @@ type ListProductVariantsParams struct {
 }
 
 type ListProductVariantsRow struct {
-	ID        uuid.UUID
-	SellerID  uuid.UUID
-	ProductID uuid.UUID
-	Sku       string
-	Barcode   string
-	Color     string
-	ColorHex  pgtype.Text
-	Size      string
-	Price     int64
-	CostPrice *int64
-	Status    string
-	Version   int64
+	ID          uuid.UUID
+	SellerID    uuid.UUID
+	ProductID   uuid.UUID
+	Sku         string
+	Barcode     string
+	Color       string
+	ColorHex    pgtype.Text
+	Size        string
+	Price       int64
+	CostPrice   *int64
+	Status      string
+	Version     int64
+	WeightGrams pgtype.Int4
 }
 
 func (q *Queries) ListProductVariants(ctx context.Context, arg ListProductVariantsParams) ([]ListProductVariantsRow, error) {
@@ -182,6 +183,7 @@ func (q *Queries) ListProductVariants(ctx context.Context, arg ListProductVarian
 			&i.CostPrice,
 			&i.Status,
 			&i.Version,
+			&i.WeightGrams,
 		); err != nil {
 			return nil, err
 		}
@@ -245,7 +247,7 @@ func (q *Queries) ListSaleVariants(ctx context.Context, arg ListSaleVariantsPara
 }
 
 const lockVariant = `-- name: LockVariant :one
-SELECT id, seller_id, product_id, sku, barcode, color, color_hex, size, price, cost_price, status, version
+SELECT id, seller_id, product_id, sku, barcode, color, color_hex, size, price, cost_price, status, version, weight_grams
 FROM catalog.variants
 WHERE seller_id = $1 AND id = $2
 FOR UPDATE
@@ -257,18 +259,19 @@ type LockVariantParams struct {
 }
 
 type LockVariantRow struct {
-	ID        uuid.UUID
-	SellerID  uuid.UUID
-	ProductID uuid.UUID
-	Sku       string
-	Barcode   string
-	Color     string
-	ColorHex  pgtype.Text
-	Size      string
-	Price     int64
-	CostPrice *int64
-	Status    string
-	Version   int64
+	ID          uuid.UUID
+	SellerID    uuid.UUID
+	ProductID   uuid.UUID
+	Sku         string
+	Barcode     string
+	Color       string
+	ColorHex    pgtype.Text
+	Size        string
+	Price       int64
+	CostPrice   *int64
+	Status      string
+	Version     int64
+	WeightGrams pgtype.Int4
 }
 
 func (q *Queries) LockVariant(ctx context.Context, arg LockVariantParams) (LockVariantRow, error) {
@@ -287,6 +290,7 @@ func (q *Queries) LockVariant(ctx context.Context, arg LockVariantParams) (LockV
 		&i.CostPrice,
 		&i.Status,
 		&i.Version,
+		&i.WeightGrams,
 	)
 	return i, err
 }
@@ -294,23 +298,25 @@ func (q *Queries) LockVariant(ctx context.Context, arg LockVariantParams) (LockV
 const updateVariant = `-- name: UpdateVariant :one
 UPDATE catalog.variants
 SET sku = $1, barcode = $2, color = $3, color_hex = $4, size = $5, price = $6,
-    cost_price = $7, status = $8, version = version + 1, updated_at = now()
-WHERE seller_id = $9 AND id = $10 AND version = $11
+    cost_price = $7, status = $8, weight_grams = $9, version = version + 1,
+    updated_at = now()
+WHERE seller_id = $10 AND id = $11 AND version = $12
 RETURNING version
 `
 
 type UpdateVariantParams struct {
-	Sku       string
-	Barcode   string
-	Color     string
-	ColorHex  pgtype.Text
-	Size      string
-	Price     int64
-	CostPrice *int64
-	Status    string
-	SellerID  uuid.UUID
-	ID        uuid.UUID
-	Version   int64
+	Sku         string
+	Barcode     string
+	Color       string
+	ColorHex    pgtype.Text
+	Size        string
+	Price       int64
+	CostPrice   *int64
+	Status      string
+	WeightGrams pgtype.Int4
+	SellerID    uuid.UUID
+	ID          uuid.UUID
+	Version     int64
 }
 
 func (q *Queries) UpdateVariant(ctx context.Context, arg UpdateVariantParams) (int64, error) {
@@ -323,6 +329,7 @@ func (q *Queries) UpdateVariant(ctx context.Context, arg UpdateVariantParams) (i
 		arg.Price,
 		arg.CostPrice,
 		arg.Status,
+		arg.WeightGrams,
 		arg.SellerID,
 		arg.ID,
 		arg.Version,

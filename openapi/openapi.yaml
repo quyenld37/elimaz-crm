@@ -4200,6 +4200,117 @@ paths:
                 $ref: "#/components/schemas/FulfillmentSettings"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web/catalog/products:
+    get:
+      operationId: webCatalogProducts
+      summary: Mẫu cho website theo trang (cursor, limit ≤ 200) hoặc theo danh sách mã (ids ≤ 100); có ETag
+      description: |
+        Task 190 (M5-07). Chỉ mẫu chưa xóa của người bán đang hoạt động; mọi trạng thái (draft, active, discontinued)
+        để website tự ẩn. Mã trong ids không có trong kết quả là mẫu đã xóa, của người bán ngừng hay không có: website
+        gỡ khỏi bản sao. Không có giá nhập. Gửi cả cursor lẫn ids → 400. Bộ đệm 60 s, làm mới theo sự kiện sản phẩm.
+      x-auth: service_key
+      x-permission: web.catalog.read
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 200
+            default: 200
+        - name: ids
+          in: query
+          required: false
+          description: Mã mẫu, phân tách bằng dấu phẩy (tối đa 100)
+          style: form
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 100
+            items:
+              type: string
+              format: uuid
+        - $ref: "#/components/parameters/IfNoneMatch"
+      responses:
+        "200":
+          description: Trang mẫu
+          headers:
+            ETag:
+              description: sha256 của thân câu trả lời
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebProductPage"
+        "304":
+          description: If-None-Match khớp ETag hiện tại; thân rỗng
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/catalog/changes:
+    get:
+      operationId: webCatalogChanges
+      summary: Mã mẫu có mẫu, biến thể hay tồn đổi từ mốc since (≤ 1.000 mã); không đệm
+      description: |
+        Task 190 (M5-07). Lần sau gửi since = until − 30 s và bỏ mã trùng. hasMore = true (đủ limit mã) thì còn thay
+        đổi chưa trả: gọi tiếp với since = until − 30 s; nếu vẫn đủ limit mà until không tiến, website tải lại cả danh
+        mục theo trang.
+      x-auth: service_key
+      x-permission: web.catalog.read
+      parameters:
+        - name: since
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 1000
+            default: 1000
+      responses:
+        "200":
+          description: Mã mẫu đã đổi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCatalogChanges"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/catalog/taxonomy:
+    get:
+      operationId: webCatalogTaxonomy
+      summary: Danh mục đang dùng, thuộc tính và giá trị, nhãn cho website; có ETag
+      description: Task 190 (M5-07). Bộ đệm 300 s.
+      x-auth: service_key
+      x-permission: web.catalog.read
+      parameters:
+        - $ref: "#/components/parameters/IfNoneMatch"
+      responses:
+        "200":
+          description: Phân loại
+          headers:
+            ETag:
+              description: sha256 của thân câu trả lời
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebTaxonomy"
+        "304":
+          description: If-None-Match khớp ETag hiện tại; thân rỗng
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -4470,6 +4581,14 @@ components:
       schema:
         type: string
         maxLength: 512
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: ETag của lần đọc trước (website, Task 190)
+      schema:
+        type: string
+        maxLength: 200
     Limit:
       name: limit
       in: query
@@ -5897,6 +6016,11 @@ components:
           description: Giá nhập; null bỏ giá nhập
         status:
           $ref: "#/components/schemas/VariantStatus"
+        weightGrams:
+          type: integer
+          format: int32
+          nullable: true
+          description: Cân nặng (gam, 1–50.000, ngoài khoảng → 422 invalid_input); null bỏ cân nặng (Task 190, QĐ30)
     Variant:
       type: object
       required: [id, productId, sku, barcode, color, size, price, status, version]
@@ -5926,6 +6050,223 @@ components:
         version:
           type: integer
           format: int64
+        weightGrams:
+          type: integer
+          format: int32
+          description: Cân nặng (gam); vắng mặt là chưa nhập (Task 190, QĐ30)
+    WebProductPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebProduct"
+        nextCursor:
+          type: string
+          description: Gửi lại ở cursor để lấy trang kế; vắng mặt là hết (và khi đọc theo ids)
+    WebProduct:
+      type: object
+      required: [id, sellerId, code, name, shortDescription, articleHtml, status, categoryIds, tags, attributes, images, variants, updatedAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sellerId:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        shortDescription:
+          type: string
+        articleHtml:
+          type: string
+          description: HTML bài viết dựng bằng catalog.ArticleHTML (đã thoát, ảnh theo bộ kích thước hiện hành); rỗng khi lỗi
+        status:
+          $ref: "#/components/schemas/ProductStatus"
+        categoryIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        tags:
+          type: array
+          description: Mã nhãn (tên ở webCatalogTaxonomy)
+          items:
+            type: string
+        attributes:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebAttr"
+        images:
+          type: array
+          description: Ảnh đã xử lý xong theo thứ tự hiện (ảnh đang xử lý chưa có)
+          items:
+            $ref: "#/components/schemas/WebImage"
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebVariant"
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+    WebAttr:
+      type: object
+      required: [name, value, position]
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+        position:
+          type: integer
+          format: int32
+    WebImage:
+      type: object
+      required: [position, variants]
+      properties:
+        position:
+          type: integer
+          format: int32
+        color:
+          type: string
+          description: Màu của biến thể mà ảnh thuộc về; vắng mặt là ảnh chung
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebImageVariant"
+    WebImageVariant:
+      type: object
+      required: [width, format, url]
+      properties:
+        width:
+          type: integer
+          format: int32
+        format:
+          type: string
+        url:
+          type: string
+    WebVariant:
+      type: object
+      required: [id, sku, barcode, color, size, price, status, sellable, available]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        barcode:
+          type: string
+        color:
+          type: string
+        size:
+          type: string
+        price:
+          $ref: "#/components/schemas/Money"
+        status:
+          $ref: "#/components/schemas/VariantStatus"
+        sellable:
+          type: boolean
+          description: Mẫu và biến thể đang bán (false → website ẩn, không đặt được)
+        available:
+          type: boolean
+          description: Còn hàng có thể bán ở kho mặc định (số chính xác ở lúc đặt hàng)
+        weightGrams:
+          type: integer
+          format: int32
+    WebCatalogChanges:
+      type: object
+      required: [productIds, until, hasMore]
+      properties:
+        productIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        until:
+          type: string
+          format: date-time
+        hasMore:
+          type: boolean
+    WebTaxonomy:
+      type: object
+      required: [categories, attributes, tags]
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebCategory"
+        attributes:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebAttribute"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebTag"
+    WebCategory:
+      type: object
+      required: [id, name, slug, depth, position]
+      properties:
+        id:
+          type: string
+          format: uuid
+        parentId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        depth:
+          type: integer
+          format: int32
+        position:
+          type: integer
+          format: int32
+    WebAttribute:
+      type: object
+      required: [id, code, name, position, values]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        position:
+          type: integer
+          format: int32
+        values:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebAttributeValue"
+    WebAttributeValue:
+      type: object
+      required: [id, value, position]
+      properties:
+        id:
+          type: string
+          format: uuid
+        value:
+          type: string
+        position:
+          type: integer
+          format: int32
+    WebTag:
+      type: object
+      required: [code, name]
+      properties:
+        code:
+          type: string
+        name:
+          type: string
     Product:
       type: object
       required: [id, code, name, description, article, articleHtml, status, version, variants, images]

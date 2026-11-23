@@ -17578,3 +17578,277 @@ func (s *Server) handleWaiveRefundObligationRequest(args [1]string, argsEscaped 
 		return
 	}
 }
+
+// handleWebCatalogChangesRequest handles webCatalogChanges operation.
+//
+// Task 190 (M5-07). Lần sau gửi since = until − 30 s và bỏ mã trùng. hasMore = true (đủ
+// limit mã) thì còn thay đổi chưa trả: gọi tiếp với since = until − 30 s; nếu vẫn
+// đủ limit mà until không tiến, website tải lại cả danh mục theo trang.
+//
+// GET /api/v1/web/catalog/changes
+func (s *Server) handleWebCatalogChangesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebCatalogChangesOperation,
+			ID:   "webCatalogChanges",
+		}
+	)
+	params, err := decodeWebCatalogChangesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebCatalogChangesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebCatalogChangesOperation,
+			OperationSummary: "Mã mẫu có mẫu, biến thể hay tồn đổi từ mốc since (≤ 1.000 mã); không đệm",
+			OperationID:      "webCatalogChanges",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "since",
+					In:   "query",
+				}: params.Since,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebCatalogChangesParams
+			Response = WebCatalogChangesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebCatalogChangesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebCatalogChanges(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebCatalogChanges(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebCatalogChangesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebCatalogProductsRequest handles webCatalogProducts operation.
+//
+// Task 190 (M5-07). Chỉ mẫu chưa xóa của người bán đang hoạt động; mọi trạng
+// thái (draft, active, discontinued) để website tự ẩn. Mã trong ids không có trong kết
+// quả là mẫu đã xóa, của người bán ngừng hay không có: website gỡ khỏi bản
+// sao. Không có giá nhập. Gửi cả cursor lẫn ids → 400. Bộ đệm 60 s, làm mới theo
+// sự kiện sản phẩm.
+//
+// GET /api/v1/web/catalog/products
+func (s *Server) handleWebCatalogProductsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebCatalogProductsOperation,
+			ID:   "webCatalogProducts",
+		}
+	)
+	params, err := decodeWebCatalogProductsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebCatalogProductsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebCatalogProductsOperation,
+			OperationSummary: "Mẫu cho website theo trang (cursor, limit ≤ 200) hoặc theo danh sách mã (ids ≤ 100); có ETag",
+			OperationID:      "webCatalogProducts",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+				{
+					Name: "ids",
+					In:   "query",
+				}: params.Ids,
+				{
+					Name: "If-None-Match",
+					In:   "header",
+				}: params.IfNoneMatch,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebCatalogProductsParams
+			Response = WebCatalogProductsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebCatalogProductsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebCatalogProducts(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebCatalogProducts(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebCatalogProductsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebCatalogTaxonomyRequest handles webCatalogTaxonomy operation.
+//
+// Task 190 (M5-07). Bộ đệm 300 s.
+//
+// GET /api/v1/web/catalog/taxonomy
+func (s *Server) handleWebCatalogTaxonomyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebCatalogTaxonomyOperation,
+			ID:   "webCatalogTaxonomy",
+		}
+	)
+	params, err := decodeWebCatalogTaxonomyParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebCatalogTaxonomyRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebCatalogTaxonomyOperation,
+			OperationSummary: "Danh mục đang dùng, thuộc tính và giá trị, nhãn cho website; có ETag",
+			OperationID:      "webCatalogTaxonomy",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "If-None-Match",
+					In:   "header",
+				}: params.IfNoneMatch,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebCatalogTaxonomyParams
+			Response = WebCatalogTaxonomyRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebCatalogTaxonomyParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebCatalogTaxonomy(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebCatalogTaxonomy(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebCatalogTaxonomyResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}

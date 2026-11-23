@@ -16,6 +16,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/promotion"
+	"elimaz.com.vn/crm/internal/platform/cache"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/idempotency"
 	"elimaz.com.vn/crm/internal/platform/logging"
@@ -132,8 +133,9 @@ func writeHandlerError(d Deps, w http.ResponseWriter, r *http.Request, err error
 	case errors.Is(err, idempotency.ErrKeyReused):
 		writeError(w, r, http.StatusUnprocessableEntity, codeIdempotencyKeyReused)
 		return
-	case errors.Is(err, db.ErrRetryLater):
-		// Lỗi tạm hết lượt chạy lại (ADR-46): không lưu, bên gọi gửi lại sau 1 s với cùng khóa.
+	case errors.Is(err, db.ErrRetryLater), errors.Is(err, cache.ErrBusy):
+		// Lỗi tạm hết lượt chạy lại (ADR-46), hay bộ đệm đọc đang dự phòng đã đủ lượt tải (Task 190): không lưu, bên gọi
+		// gửi lại sau 1 s với cùng khóa.
 		w.Header().Set("Retry-After", "1")
 		writeError(w, r, http.StatusServiceUnavailable, codeRetryLater)
 		return

@@ -56,7 +56,7 @@ func (w Writer) AddVariant(ctx context.Context, tx pgx.Tx, sellerID, productID u
 
 // UpdateVariant sửa biến thể id của người bán sellerID khi version còn khớp; version biến thể và version mẫu tăng 1. Khóa mẫu rồi biến thể
 // (ADR-46 nhóm 4). Giá đổi → price.changed (Seq = version mới của biến thể); luôn product.updated. Audit ghi before,
-// after (gồm price). Lỗi: ErrNotFound, ErrVersionConflict, ErrInvalidInput, ErrInvalidPrice, ErrSKUTaken,
+// after (gồm price). Lỗi: ErrNotFound, ErrVersionConflict, ErrInvalidInput, ErrInvalidPrice, ErrInvalidWeight, ErrSKUTaken,
 // ErrBarcodeTaken, ErrDuplicateOption.
 func (w Writer) UpdateVariant(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID, version int64, patch VariantPatch,
 	actor identity.AuthUser,
@@ -94,7 +94,7 @@ func (w Writer) UpdateVariant(ctx context.Context, tx pgx.Tx, sellerID, id uuid.
 	after.Version, err = q.UpdateVariant(ctx, store.UpdateVariantParams{
 		SellerID: sellerID, ID: id, Version: version, Sku: after.SKU, Barcode: after.Barcode, Color: after.Color,
 		ColorHex: optText(after.ColorHex), Size: after.Size, Price: after.Price, CostPrice: after.CostPrice,
-		Status: after.Status,
+		Status: after.Status, WeightGrams: weightParam(after.WeightGrams),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Variant{}, ErrVersionConflict // không xảy ra khi đã giữ khóa dòng
@@ -232,9 +232,30 @@ func variantFromRow(r store.ListProductVariantsRow) Variant {
 	v := Variant{
 		ID: r.ID, SellerID: r.SellerID, ProductID: r.ProductID, SKU: r.Sku, Barcode: r.Barcode, Color: r.Color,
 		ColorHex: r.ColorHex.String, Size: r.Size, Price: r.Price, CostPrice: r.CostPrice, Status: r.Status,
-		Version: r.Version,
+		Version: r.Version, WeightGrams: weightOf(r.WeightGrams),
 	}
 	return v
+}
+
+// Cân nặng biến thể cho phép (gam), khớp CHECK của catalog.variants.weight_grams (migration 0502).
+const (
+	MinWeightGrams = 1
+	MaxWeightGrams = 50000
+)
+
+func weightOf(w pgtype.Int4) *int {
+	if !w.Valid {
+		return nil
+	}
+	n := int(w.Int32)
+	return &n
+}
+
+func weightParam(w *int) pgtype.Int4 {
+	if w == nil {
+		return pgtype.Int4{}
+	}
+	return pgtype.Int4{Int32: int32(*w), Valid: true} //nolint:gosec // G115: đã kiểm trong [MinWeightGrams, MaxWeightGrams]
 }
 
 // normalizeVariant kiểm và chuẩn hóa v: SKU viết hoa, màu hex viết hoa, cắt khoảng trắng màu, size, barcode.
@@ -292,10 +313,21 @@ func applyVariantPatch(cur Variant, p VariantPatch) (Variant, error) {
 	if status != VariantActive && status != VariantDiscontinued {
 		return Variant{}, ErrInvalidInput
 	}
+	weight := cur.WeightGrams
+	switch {
+	case p.ClearWeight:
+		weight = nil
+	case p.WeightGrams != nil:
+		if *p.WeightGrams < MinWeightGrams || *p.WeightGrams > MaxWeightGrams {
+			return Variant{}, ErrInvalidWeight
+		}
+		w := *p.WeightGrams
+		weight = &w
+	}
 	return Variant{
 		ID: cur.ID, SellerID: cur.SellerID, ProductID: cur.ProductID, SKU: nv.SKU, Barcode: nv.Barcode,
 		Color: nv.Color, ColorHex: nv.ColorHex, Size: nv.Size, Price: nv.Price, CostPrice: nv.CostPrice, Status: status,
-		Version: cur.Version,
+		Version: cur.Version, WeightGrams: weight,
 	}, nil
 }
 

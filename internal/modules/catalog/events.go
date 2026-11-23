@@ -98,5 +98,8 @@ func variantAudit(v Variant) map[string]any {
 	if v.CostPrice != nil {
 		m["costPrice"] = *v.CostPrice
 	}
+	if v.WeightGrams != nil {
+		m["weightGrams"] = *v.WeightGrams
+	}
 	return m
 }
