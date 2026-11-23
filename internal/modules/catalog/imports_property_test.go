@@ -30,6 +30,7 @@ func propertyChecks(t *testing.T, n int) {
 // nhiên bị cài lỗi lúc áp (SKU của dòng đó vừa bị mẫu khác lấy) → số mẫu, biến thể trong database hoặc đúng bằng
 // trước (failed), hoặc đúng bằng trước + plan (applied); không có trạng thái nửa chừng.
 func TestApply_AllOrNothingProperty(t *testing.T) {
+	// Không t.Parallel (Task 475): propertyChecks đổi cờ rapid.checks của cả tiến trình (test rapid khác đọc cùng lúc).
 	propertyChecks(t, 100)
 	e := newImportEnv(t)
 	run := 0

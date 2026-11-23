@@ -109,6 +109,7 @@ func (e *payEnv) heldReservations(id uuid.UUID) int64 {
 // 150.000 → paid_amount 150.000, open; chi 60.000 → ErrRefundExceedsRemaining; chi 50.000 → paid, đơn refunded, tổng
 // phiếu 0; chi thêm → ErrObligationClosed.
 func TestRefund_CancelledDepositTI09(t *testing.T) {
+	t.Parallel()
 	e := newPayEnv(t)
 	o, ob := e.cancelledD2()
 	checkCancelOpened(t, e, o, ob)
@@ -183,6 +184,7 @@ func checkPaySequence(t *testing.T, e *payEnv, o order.Order, ob cash.RefundObli
 
 // Hai kế toán chi song song mỗi người 200.000 cho nghĩa vụ 200.000 → đúng một thành công, một phiếu chi.
 func TestPayRefund_Concurrent(t *testing.T) {
+	t.Parallel()
 	e := newPayEnv(t)
 	o, ob := e.cancelledD2()
 	var (
@@ -213,6 +215,7 @@ func TestPayRefund_Concurrent(t *testing.T) {
 // WaiveRefund: lý do rỗng, chỉ khoảng trắng → ErrReasonRequired; có lý do → waived, lý do lưu, đơn giữ tiền đã cọc
 // (khách đồng ý mất cọc); miễn lại, chi sau khi miễn → ErrObligationClosed.
 func TestWaiveRefund(t *testing.T) {
+	t.Parallel()
 	e := newPayEnv(t)
 	o, ob := e.cancelledD2()
 	for _, bad := range []string{"", "   "} {
@@ -241,6 +244,7 @@ func TestWaiveRefund(t *testing.T) {
 // Đơn hủy chưa thu đồng nào → không nghĩa vụ. Phiếu trả loại exchange, carrier_return và đơn tạo thường → không
 // nghĩa vụ (exchange chuyển cho handleExchange, Task M3-25). Payload hỏng → queue.ErrPermanent.
 func TestRefundsConsumer_NoObligation(t *testing.T) {
+	t.Parallel()
 	e := newPayEnv(t)
 	o := e.orderD2()
 	e.mustDeliver(e.orderEvent(o.ID, order.TopicOrderCreated))
@@ -272,6 +276,7 @@ func TestRefundsConsumer_NoObligation(t *testing.T) {
 // 354.098 → order.partially_returned refundAmount 177.049 → một nghĩa vụ customer_return 177.049 gắn phiếu (giao lại →
 // vẫn một). Chi đủ → paid; đơn đã giao giữ nguyên tiền (không refunded, COD không đổi; Quyết định 1).
 func TestRefundsConsumer_CustomerReturn(t *testing.T) {
+	t.Parallel()
 	e := newPayEnv(t)
 	o, r := e.receivedReturn()
 	ev := e.orderEvent(o.ID, order.TopicOrderPartiallyReturned)

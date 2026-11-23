@@ -190,6 +190,7 @@ func (e *importEnv) jobStatus(id uuid.UUID) string {
 // bảng kê theo ngày chuyển; lệnh done; tổng theo kết quả khớp (mọi dòng pending); trang 2 dòng có con trỏ, trang sau
 // còn 1 dòng; lọc matched → không dòng nào.
 func TestImport_ThreeLinesParsed(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	d := e.run("bang-ke.csv", csvType, testdata(t, "elimaz_v1_ba_dong.csv"))
 	st := d.Statement
@@ -231,6 +232,7 @@ func TestImport_ThreeLinesParsed(t *testing.T) {
 // trùng (băm nội dung); tài khoản của người bán khác cùng hãng → vẫn trùng (khóa theo hãng); hai lần nhập song song cùng
 // nội dung → đúng một bảng kê, một lần trùng. Không thêm bảng kê, không thêm lệnh.
 func TestImport_DuplicateRejected(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	body := testdata(t, "elimaz_v1_ba_dong.csv")
 	file := e.upload("bang-ke.csv", csvType, body)
@@ -285,6 +287,7 @@ func TestImport_DuplicateRejected(t *testing.T) {
 
 // Bản .xlsx cùng dữ liệu, ô tiền FK0001 là công thức =600000+30000 có giá trị đã tính 630.000 → lưu 630.000.
 func TestImport_XlsxFormulaUsesCachedValue(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	d := e.run("bang-ke.xlsx", xlsxType, book(t, [][]string{
 		{"ma_van_don", "tien_cod", "phi_van_chuyen", "thuc_nhan"},
@@ -298,6 +301,7 @@ func TestImport_XlsxFormulaUsesCachedValue(t *testing.T) {
 // Lỗi định dạng → parse_failed với parse_error {code, column, line}, không dòng nào, lệnh dead (rejected) không chạy
 // lại: thiếu cột tien_cod; "12,5" ở dòng 17; 50.001 dòng; tệp quá giới hạn đọc (lệnh có MaxBytes nhỏ hơn tệp).
 func TestImport_FormatErrorsFailStatement(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	for _, c := range planFormatCases(t) {
 		t.Run(c.name, func(t *testing.T) {
@@ -328,6 +332,7 @@ func TestImport_FormatErrorsFailStatement(t *testing.T) {
 // Tệp 11 MiB (ghi thẳng lên kho, vượt giới hạn tải lên) → từ chối ngay khi nhập (files.ErrTooLarge) mà không đọc nội
 // dung: cấp phát thêm dưới 1 MiB; không bảng kê nào.
 func TestImport_TooLargeRejectedBeforeRead(t *testing.T) {
+	// Không t.Parallel (Task 475): tiêu chí đo bộ nhớ cấp phát của cả tiến trình (runtime.MemStats); test khác chạy cùng lúc cộng vào.
 	e := newImportEnv(t)
 	var id uuid.UUID
 	var bucket, key string
@@ -403,6 +408,7 @@ func zipBomb(t *testing.T) []byte {
 // Tệp .xlsx nén độc (khoảng 2 MiB nén, 2 GiB giải nén) → parse_failed too_large trong dưới 5 s, bộ nhớ cấp thêm của
 // worker dưới 100 MiB.
 func TestImport_ZipBombFailsFast(t *testing.T) {
+	// Không t.Parallel (Task 475): tiêu chí đo bộ nhớ cấp phát của cả tiến trình (runtime.MemStats) và giờ thật ≤ 5 s; test khác chạy cùng lúc làm đỏ sai.
 	e := newImportEnv(t)
 	bomb := zipBomb(t)
 	if len(bomb) < 1<<20 || len(bomb) > 4<<20 {
@@ -425,6 +431,7 @@ func TestImport_ZipBombFailsFast(t *testing.T) {
 // Dữ liệu cá nhân: tệp có cột ten_nguoi_nhan, so_dien_thoai, dia_chi → không cột nào của bảng kê, dòng bảng kê, lệnh
 // (payload, result, last_error) chứa giá trị đó; log của worker không chứa.
 func TestImport_PersonalDataNotStored(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	const name, phone, addr = "Nguyễn Thị Riêng Tư", "0912345678", "12 Ngõ Kín"
 	body := "ten_nguoi_nhan,ma_van_don,so_dien_thoai,tien_cod,phi_van_chuyen,thuc_nhan,dia_chi\n" +
@@ -460,6 +467,7 @@ func TestImport_PersonalDataNotStored(t *testing.T) {
 // Worker chết giữa lúc ghi lô thứ 2 của tệp 2.500 dòng (lô 1 đã commit, lần chạy trả lỗi → in_doubt): Lookup thấy
 // bảng kê chưa parsed → not_sent → chạy lại → đúng 2.500 dòng, line_count 2.500, không dòng trùng.
 func TestImport_WorkerDiesMidBatchResumes(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	statement.SetAfterBatch(e.parser, func(written int) error {
 		if written == 1000 {
@@ -500,6 +508,7 @@ func TestImport_WorkerDiesMidBatchResumes(t *testing.T) {
 // Lỗi tạm tới hết lượt (kho tệp chưa nối: not_sent mỗi lượt) → dead → OnTerminal: parse_failed read_failed. Lookup:
 // bảng kê chưa đọc → not_sent; đã parsed → done.
 func TestImport_RetriesExhaustedAndLookup(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	st, err := e.importFile(e.upload("a.csv", csvType, testdata(t, "elimaz_v1_ba_dong.csv")), e.shop.Account, "")
 	if err != nil {
@@ -526,6 +535,7 @@ func TestImport_RetriesExhaustedAndLookup(t *testing.T) {
 // Từ chối không ghi gì: tài khoản lạ (hay của tenant khác), định dạng lạ hoặc của hãng khác, tệp chưa tải xong, tệp
 // mục đích khác, tệp không có.
 func TestImport_Refusals(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	body := testdata(t, "elimaz_v1_ba_dong.csv")
 	file := e.upload("a.csv", csvType, body)
@@ -578,6 +588,7 @@ func TestImport_Refusals(t *testing.T) {
 
 // ListStatements: mới nhất trước, trang 1 dòng có con trỏ, lọc theo trạng thái, theo tài khoản.
 func TestListStatements(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	a := e.run("a.csv", csvType, csvLines(1)).Statement
 	b := e.run("b.csv", csvType, testdata(t, "elimaz_v1_thieu_tien_cod.csv")).Statement

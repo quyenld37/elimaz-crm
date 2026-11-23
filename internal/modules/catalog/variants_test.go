@@ -40,6 +40,7 @@ func (e *catalogEnv) setProductStatus(p catalog.Product, status string) catalog.
 }
 
 func TestUpdateVariant_PriceChanged(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	p, err := e.create(dam01(e.seller))
 	if err != nil {
@@ -92,11 +93,9 @@ func TestUpdateVariant_PriceChanged(t *testing.T) {
 }
 
 func TestAddVariant_ProductVersion(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
-	p, err := e.create(dam01(e.seller))
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := e.mustCreate(dam01(e.seller))
 	add := func(version int64, sku string) (catalog.Variant, error) {
 		var out catalog.Variant
 		err := e.app(func(tx pgx.Tx) error {
@@ -121,6 +120,7 @@ func TestAddVariant_ProductVersion(t *testing.T) {
 
 // KH12: mẫu ngừng bán vẫn xem được nhưng không bán được; mẫu nháp không bán được; VariantsForSale lọc trong một câu.
 func TestVariantForSale_Discontinued(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	p, err := e.create(dam01(e.seller))
 	if err != nil {

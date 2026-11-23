@@ -18,10 +18,15 @@ import (
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
-// TestMain đặt số lượt rapid 200 (kế hoạch M3-32: quy luật khớp và chốt bảng kê 200 lượt), trừ khi người chạy đã đặt.
+// statementParallel là số test chạy song song mặc định của gói (Task 475, như order, fulfillment, inventory, httpapi).
+const statementParallel = 6
+
+// TestMain đặt số lượt rapid 200 (kế hoạch M3-32: quy luật khớp và chốt bảng kê 200 lượt) và -parallel thành
+// min(statementParallel, GOMAXPROCS), trừ khi người chạy đã đặt.
 func TestMain(m *testing.M) {
 	flag.Parse()
 	testkit.SetRapidChecks(200)
+	testkit.SetParallel(statementParallel)
 	os.Exit(m.Run())
 }
 
@@ -31,6 +36,7 @@ func TestMain(m *testing.M) {
 // chỉ dòng có vận đơn được ghi; mỗi vận đơn shop_received + carrier_fee ≤ COD đã thu, trừ khi có dòng ghi tiền là
 // amount_mismatch dương — dòng đó có trong "Lệch đối soát" khi vận đơn còn lệch.
 func TestProperty_MatchConfirm(t *testing.T) {
+	t.Parallel()
 	e := newFlowEnv(t)
 	run := 0
 	rapid.Check(t, func(rt *rapid.T) {

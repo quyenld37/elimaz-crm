@@ -169,6 +169,7 @@ func planFormatCases(t testing.TB) []formatCase {
 // hai dạng; bản .xlsx cùng dữ liệu (ô tiền FK0001 là công thức =600000+30000 có giá trị đã tính 630.000) → đọc
 // 630.000, không chạy công thức.
 func TestParse_ElimazThreeLines(t *testing.T) {
+	t.Parallel()
 	want := []statement.Line{
 		{LineNo: 2, TrackingCode: "FK0001", COD: 630000, Fee: 32000, OtherFee: 0, Net: 598000, PaidOn: day("2026-11-05")},
 		{LineNo: 3, TrackingCode: "FK0002", COD: 0, Fee: 25000, OtherFee: 0, Net: -25000, PaidOn: day("2026-11-05")},
@@ -194,6 +195,7 @@ func TestParse_ElimazThreeLines(t *testing.T) {
 // được), tệp 11 MiB, công thức không lưu giá trị, cột trùng, quá 60 cột, ô quá 1.000 ký tự, COD/phí âm, mã vận đơn
 // trống ở dòng có số, ngày sai, không dòng nào, tệp không đọc được, CSV không phải UTF-8.
 func TestParse_FormatErrors(t *testing.T) {
+	t.Parallel()
 	wide := "ma_van_don,tien_cod,phi_van_chuyen,thuc_nhan" + strings.Repeat(",x", 57) + "\nFK1,1,0,1\n"
 	cases := append(planFormatCases(t), []formatCase{
 		{"11 MiB", bytes.Repeat([]byte("x"), 11<<20), statement.ParseError{Code: "too_large"}},
@@ -227,6 +229,7 @@ func TestParse_FormatErrors(t *testing.T) {
 // Định dạng hãng có dòng mở đầu (HeaderRow 3) và tên cột có dấu: dòng trước tiêu đề bị bỏ; cột thực nhận không khai →
 // tính COD − phí − phí khác; dòng trống hoàn toàn bị bỏ; cột ngoài định dạng (tên, SĐT người nhận) không đọc.
 func TestParse_CarrierHeaderRow(t *testing.T) {
+	t.Parallel()
 	f := fulfillment.StatementFormat{
 		Key: "x_v1", CarrierKey: "x", Version: 1, HeaderRow: 3,
 		Columns: map[fulfillment.StatementField][]string{
@@ -263,6 +266,7 @@ func TestParse_CarrierHeaderRow(t *testing.T) {
 
 // ParseAmount: các dạng nhận và từ chối của kế hoạch (Task M3-31).
 func TestParseAmount(t *testing.T) {
+	t.Parallel()
 	ok := map[string]int64{
 		"1.234.567": 1234567, "1,234,567": 1234567, "1234567": 1234567, "1234567.0": 1234567, "\t630.000\t": 630000,
 		"0": 0, "-25.000": -25000, "1,234,567.00": 1234567, "1.234.567,0": 1234567, "9007199254740992": 1 << 53,
@@ -285,6 +289,7 @@ func TestParseAmount(t *testing.T) {
 
 // Quy luật: mọi số |n| ≤ 2^53 viết theo bốn dạng (liền, chấm nghìn, phẩy nghìn, thêm ".0") đọc lại đúng n.
 func TestParseAmount_RoundTrip(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		n := rapid.Int64Range(-(1<<53), 1<<53).Draw(t, "n")
 		sep := rapid.SampledFrom([]string{"", ".", ","}).Draw(t, "sep")

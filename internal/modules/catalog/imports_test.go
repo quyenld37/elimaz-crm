@@ -187,6 +187,7 @@ func (e *importEnv) products() int {
 
 // TestApply_200Models (phần kiểm, KH01): mau-200.xlsx → ready, summary {models 200, create 1000}, plan đủ 200 mẫu.
 func TestApply_200Models(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.validate(fixture(t, "mau-200.xlsx"))
 	if imp.Status != catalog.ImportReady {
@@ -237,6 +238,7 @@ func TestApply_200Models(t *testing.T) {
 
 // loi-tung-dong.xlsx → invalid, đúng 7 lỗi đúng dòng, cột, mã; không có plan; 0 mẫu được tạo.
 func TestImport_SevenRowErrors(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.validate(fixture(t, "loi-tung-dong.xlsx"))
 	if imp.Status != catalog.ImportInvalid || imp.Plan != nil {
@@ -265,6 +267,7 @@ func TestImport_SevenRowErrors(t *testing.T) {
 // Việc treo (1) của Task 38: lỗi ô của xlsx.Read (ô Mô tả quá 2.000 ký tự: đọc thành rỗng, Validate không thấy lỗi)
 // được gộp với lỗi dòng trước khi ghi → invalid, không có plan.
 func TestImport_CellErrorsMerged(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	rows := readRows(t, fixture(t, "mau-200.xlsx"))
 	rows[6].Cells["Mô tả"] = strings.Repeat("ộ", 2001)
@@ -277,6 +280,7 @@ func TestImport_CellErrorsMerged(t *testing.T) {
 
 // Lỗi cấp tệp: không phải xlsx → invalid, một lỗi dòng 0 file_not_xlsx.
 func TestImport_NotXlsx(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.validate(fixture(t, "khong-phai-xlsx.xlsx"))
 	if imp.Status != catalog.ImportInvalid || len(imp.Errors) != 1 || imp.Errors[0].Code != "file_not_xlsx" ||
@@ -288,6 +292,7 @@ func TestImport_NotXlsx(t *testing.T) {
 // Phần kiểm của TestApply_SameFileTwice (KH01): đã có bản nhập applied cùng file_sha256 → duplicate, duplicateOf,
 // không plan.
 func TestApply_SameFileTwice(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	body := fixture(t, "mau-200.xlsx")
 	sum := sha256.Sum256(body)
@@ -308,6 +313,7 @@ func TestApply_SameFileTwice(t *testing.T) {
 // TestApply_SameFileTwice (KH01, đường thật): áp mau-200.xlsx, tải lại đúng tệp đó → duplicate, duplicateOf = lần một,
 // không mẫu, biến thể nào đổi (version, số dòng giữ nguyên); bản nhập thứ hai không áp được.
 func TestApply_SameFileTwiceEndToEnd(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	body := fixture(t, "mau-200.xlsx")
 	first := e.applyNow(e.validate(body))
@@ -403,6 +409,7 @@ func writeRows(t *testing.T, header []string, rows []xlsx.Row) []byte {
 
 // Tệp sửa giá 3 biến thể trên dữ liệu sẵn 200 mẫu, 1.000 biến thể → summary {models 200, update 3, unchanged 997}.
 func TestImport_ThreePriceChanges(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	body := fixture(t, "mau-200.xlsx")
 	rows := readRows(t, body)
@@ -427,6 +434,7 @@ func TestImport_ThreePriceChanges(t *testing.T) {
 // Biến thể mới trùng màu và size với biến thể có sẵn không có trong tệp → invalid option_taken (việc treo (2) của
 // Task 38, đọc từ database thật).
 func TestImport_OptionTakenInDatabase(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	if _, err := e.create(dam01(e.seller)); err != nil {
 		t.Fatal(err)
@@ -458,6 +466,7 @@ func (e *importEnv) expectOneRowError(body []byte, code string) {
 // B-03 (review độc lập M1): barcode gõ tay trùng barcode của biến thể có sẵn mà SKU không có trong tệp → bước kiểm
 // báo invalid_barcode đúng dòng (không để tới lúc áp mới failed với câu "vừa được dùng sau khi kiểm tệp").
 func TestImport_BarcodeTakenInDatabase(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	in := dam01(e.seller)
 	in.Variants[0].Barcode = "8930000000017"
@@ -474,6 +483,7 @@ func TestImport_BarcodeTakenInDatabase(t *testing.T) {
 // Tạo bản nhập: tệp sai mục đích, chưa tải xong → ErrFileNotReady; tệp không có, của tenant khác → ErrNotFound;
 // không ghi dòng nào.
 func TestCreateImport_Refused(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	other := e.staff.Tenant(t, "B")
 	var waiting files.File
@@ -519,6 +529,7 @@ func TestCreateImport_Refused(t *testing.T) {
 
 // Tệp mất trên kho → lệnh dead, bản nhập failed (không kẹt ở validating).
 func TestImport_SourceMissingFails(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	id := e.upload("catalog_import", fixture(t, "mau-200.xlsx"))
 	imp, err := e.createImport(id)
@@ -536,6 +547,7 @@ func TestImport_SourceMissingFails(t *testing.T) {
 
 // Chạy lại lệnh (in_doubt rồi tra lại, hay lease hết) không đổi bản nhập đã kiểm xong; Lookup: đã xong → done.
 func TestImport_RerunKeepsResult(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.validate(fixture(t, "mau-200.xlsx"))
 	v := catalog.NewImportValidator(catalog.ImportValidatorOptions{DB: e.staff.App, Store: e.store})
@@ -558,6 +570,7 @@ func TestImport_RerunKeepsResult(t *testing.T) {
 
 // ImportTemplate → tệp .xlsx đọc lại được bằng xlsx.Read với cột của mẫu Task M1-38, kèm cột thuộc tính đang có.
 func TestImportTemplate(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	var body []byte
 	if err := e.app(func(tx pgx.Tx) error {
@@ -577,6 +590,7 @@ func TestImportTemplate(t *testing.T) {
 // nhiều giá trị) không tạo, không sửa được — tệp nhập không bao giờ chọn đúng được chúng. Dữ liệu cũ (ghi thẳng, trước
 // luật này) cho hai danh mục cùng đường dẫn "Áo > Áo sơ mi": tệp chọn đường dẫn đó → lỗi dòng, không gán bừa một cái.
 func TestClassification_ImportSeparators(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	if _, err := e.createCategory(catalog.CategoryInput{Name: "Váy > Váy xòe"}); !errors.Is(err, catalog.ErrInvalidInput) {
 		t.Errorf("tạo danh mục có '>': mong ErrInvalidInput, có %v", err)

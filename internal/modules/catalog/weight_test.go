@@ -12,6 +12,7 @@ import (
 // Cân nặng của biến thể (Task 190, QĐ30): chưa nhập → nil; đặt 450 → 450, đọc lại thấy 450, sửa phần khác giữ nguyên;
 // 0, -1, 50.001 → ErrInvalidWeight (không đổi gì); 1 và 50.000 nhận; ClearWeight bỏ cân nặng.
 func TestUpdateVariant_Weight(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	in := dam01(e.seller)
 	p, err := e.create(in)

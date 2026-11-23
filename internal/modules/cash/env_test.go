@@ -20,10 +20,15 @@ import (
 	"elimaz.com.vn/crm/internal/testkit/shiptest"
 )
 
-// TestMain đặt số lượt rapid 300 (kế hoạch: quy luật sổ COD 300 lượt), trừ khi người chạy đã đặt.
+// cashParallel là số test chạy song song mặc định của gói (Task 475, như order, fulfillment, inventory, httpapi).
+const cashParallel = 6
+
+// TestMain đặt số lượt rapid 300 (kế hoạch: quy luật sổ COD 300 lượt) và -parallel thành min(cashParallel,
+// GOMAXPROCS), trừ khi người chạy đã đặt.
 func TestMain(m *testing.M) {
 	flag.Parse()
 	testkit.SetRapidChecks(300)
+	testkit.SetParallel(cashParallel)
 	os.Exit(m.Run())
 }
 

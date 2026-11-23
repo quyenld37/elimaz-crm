@@ -137,6 +137,7 @@ func basicHeader() []string {
 
 // Bản nhập không ready (invalid) → ErrImportNotReady, không xếp việc; version cũ → ErrVersionConflict; 0 mẫu.
 func TestApply_Refused(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	bad := e.validate(fixture(t, "loi-tung-dong.xlsx"))
 	if bad.Status != catalog.ImportInvalid {
@@ -170,6 +171,7 @@ func TestApply_Refused(t *testing.T) {
 
 // Tệp sửa giá 3 biến thể trên 200 mẫu có sẵn → áp → đúng 3 price.changed, giá mới đúng, 997 biến thể giữ version.
 func TestApply_ThreePriceChanges(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	rows := readRows(t, fixture(t, "mau-200.xlsx"))
 	e.seedFromFile(rows)
@@ -200,6 +202,7 @@ func TestApply_ThreePriceChanges(t *testing.T) {
 // Giữa lúc kiểm và lúc áp, nhân viên tạo tay SKU của plan cho mẫu khác → áp thành failed, lỗi dòng
 // sku_belongs_to_other_product, 0 thay đổi; việc done (không thử lại).
 func TestApply_SKUTakenMeanwhile(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.validate(oneProduct(t, "AO01", "Áo sơ mi", "250000", "S", "M", "L"))
 	e.mustReady(imp)
@@ -221,6 +224,7 @@ func TestApply_SKUTakenMeanwhile(t *testing.T) {
 // Lỗi ở giữa lúc ghi (barcode gõ tay vừa bị biến thể khác lấy: Recheck không thấy, unique của database báo) → lùi
 // toàn bộ phần đã ghi, failed với lỗi đúng dòng.
 func TestApply_WriteErrorRollsBackEverything(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	var rows []xlsx.Row
 	for i := range 6 {
@@ -246,6 +250,7 @@ func TestApply_WriteErrorRollsBackEverything(t *testing.T) {
 // Hai lần áp song song của hai bản nhập khác nhau cùng chạm SKU AO01-S → không trùng SKU, không deadlock; mỗi lần
 // applied hoặc failed, đúng một applied.
 func TestApply_TwoImportsSameSKUConcurrently(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	a := e.validate(oneProduct(t, "AO01", "Áo sơ mi trắng", "250000", "S", "M"))
 	b := e.validate(oneProduct(t, "AO01", "Áo sơ mi kẻ", "260000", "S", "L"))
@@ -286,6 +291,7 @@ func TestApply_TwoImportsSameSKUConcurrently(t *testing.T) {
 // Mẫu có sẵn: tệp đổi tên, thêm phân loại, đổi size của hai biến thể cho nhau (S ↔ M) và thêm biến thể mới → applied,
 // đúng dữ liệu (đổi chỗ không vướng unique màu+size).
 func TestApply_ExistingProductSwapAndClassify(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	if _, err := e.create(catalog.ProductInput{SellerID: e.seller, Code: "AO01", Name: "Áo cũ", Variants: []catalog.VariantInput{
 		{SKU: "AO01-S", Color: "Đỏ", Size: "S", Price: 1}, {SKU: "AO01-M", Color: "Đỏ", Size: "M", Price: 1},
@@ -310,6 +316,7 @@ func TestApply_ExistingProductSwapAndClassify(t *testing.T) {
 
 // Việc áp hết lượt (dead) → OnTerminal đặt bản nhập applying thành failed (không kẹt applying).
 func TestApply_DeadJobFailsImport(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.validate(oneProduct(t, "AO01", "Áo", "1", "S"))
 	if err := e.apply(imp); err != nil {
@@ -329,6 +336,7 @@ func TestApply_DeadJobFailsImport(t *testing.T) {
 // Việc hết hạn giữa lúc ghi (lỗi hạ tầng, không phải dữ liệu đổi) → Handle trả lỗi để việc chạy lại; bản nhập vẫn
 // applying, không mẫu nào được ghi (không bị coi là lỗi vĩnh viễn rồi failed).
 func TestApply_TimeoutMidWriteRetries(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.validate(fixture(t, "mau-200.xlsx"))
 	if err := e.apply(imp); err != nil {
@@ -352,6 +360,7 @@ func TestApply_TimeoutMidWriteRetries(t *testing.T) {
 // Đổi dây chuyền và tạo vào chỗ vừa trống (reviewer): A S→M đứng trước B M→L; biến thể mới C lấy S (chỗ của A) đứng
 // trước dòng A → applied, đúng màu+size.
 func TestApply_ChainedOptionMoves(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	if _, err := e.create(catalog.ProductInput{SellerID: e.seller, Code: "AO01", Name: "Áo", Variants: []catalog.VariantInput{
 		{SKU: "AO01-A", Color: "Đỏ", Size: "S", Price: 1}, {SKU: "AO01-B", Color: "Đỏ", Size: "M", Price: 1},
@@ -377,6 +386,7 @@ func TestApply_ChainedOptionMoves(t *testing.T) {
 // Quyết định 6: hai bản nhập cùng một tệp đều ready (chưa bản nào áp) → áp cả hai: bản đầu applied, bản sau duplicate
 // (duplicateOf = bản đầu, bỏ plan), không ghi gì thêm.
 func TestApply_SameFileBothReady(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	body := oneProduct(t, "AO01", "Áo", "1", "S", "M")
 	first, second := e.validate(body), e.validate(body)
@@ -399,6 +409,7 @@ func TestApply_SameFileBothReady(t *testing.T) {
 // B-04 (review độc lập M1): việc áp đã ghi xong mà transaction còn mở (tệp lớn: tới 30 s) không giữ khóa bộ đếm
 // barcode — CreateProduct barcode trống với lock_timeout 300 ms vẫn qua; sau khi cả hai commit, mọi barcode khác nhau.
 func TestApply_DoesNotHoldBarcodeCounter(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.validate(oneProduct(t, "AO01", "Áo", "1", "S", "M", "L"))
 	e.mustReady(imp)
@@ -446,6 +457,7 @@ func TestApply_DoesNotHoldBarcodeCounter(t *testing.T) {
 
 // Việc áp xếp trước khi có dải barcode cấp sẵn (payload không có dải) vẫn áp được, barcode tự sinh hợp lệ, khác nhau.
 func TestApply_PayloadWithoutBarcodeRange(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.validate(oneProduct(t, "AO01", "Áo", "1", "S", "M"))
 	e.mustReady(imp)
@@ -508,6 +520,7 @@ func (e *importEnv) applyingBig() (catalog.Import, string) {
 // B-01 (Task 407): lần áp hết ngân sách thời gian giữa lúc ghi ở lượt 1, 2 → Handle trả lỗi chạy lại được (máy bận
 // nhất thời); bản nhập vẫn applying; các mẫu đã ghi trước đó bị lùi hết.
 func TestApply_OverTimeBudgetRetries(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp, before := e.applyingBig()
 	for _, attempt := range []int{1, 2} {
@@ -528,6 +541,7 @@ func TestApply_OverTimeBudgetRetries(t *testing.T) {
 // apply_too_long, tóm tắt 1 lỗi, việc xong (Handle không lỗi: không còn chạy lại tới hàng giờ rồi dead); không mẫu,
 // biến thể nào được ghi (tất cả hoặc không). Tệp nhỏ vẫn áp được bằng worker sau đó (không ảnh hưởng tệp khác).
 func TestApply_OverTimeBudgetFailsWithReason(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp, before := e.applyingBig()
 	if err := e.handleWithClock(3, 20); err != nil {
@@ -555,6 +569,7 @@ func TestApply_OverTimeBudgetFailsWithReason(t *testing.T) {
 // Task 429: việc áp bị hẹn chạy lại sau (như sau một lần hết ngân sách thời gian khi máy bận) → drain vẫn chạy nó tới
 // cuối thay vì dừng khi hết việc đến hạn; bản nhập applied, việc done.
 func TestApply_DrainRunsScheduledRetry(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.validate(oneProduct(t, "AO01", "Áo", "100000", "S", "M"))
 	e.mustReady(imp)

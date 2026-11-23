@@ -168,6 +168,7 @@ func imageIDs(imgs []catalog.Image) []uuid.UUID {
 // TestAttachImage_OrderAndColor (KH02): mẫu 2 màu, gắn 3 ảnh (một ảnh gắn màu "Đỏ") → đúng thứ tự, mỗi ảnh 12 đường
 // dẫn; sắp lại → thứ tự mới; product_images_v có 3 dòng; mỗi lần đổi tăng version mẫu, phát product.updated, audit.
 func TestAttachImage_OrderAndColor(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	p, err := e.create(dam01(e.seller))
 	if err != nil {
@@ -210,6 +211,7 @@ func TestAttachImage_OrderAndColor(t *testing.T) {
 }
 
 func TestReorderImages_Invalid(t *testing.T) {
+	t.Parallel()
 	e, p, a, b := withTwoImages(t)
 	for name, ids := range map[string][]uuid.UUID{
 		"thiếu":    {a.ID},
@@ -238,6 +240,7 @@ func TestReorderImages_Invalid(t *testing.T) {
 // Gắn tệp chưa xử lý xong → ErrFileNotReady; tệp của tenant khác → ErrNotFound; tệp mục đích catalog_import →
 // ErrFileNotReady; màu không có ở biến thể → ErrInvalidInput; mẫu của người bán khác hay không có → ErrNotFound.
 func TestAttachImage_Refused(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	p, err := e.create(dam01(e.seller))
 	if err != nil {
@@ -288,6 +291,7 @@ func TestAttachImage_Refused(t *testing.T) {
 
 // Gắn lại tệp đang hiện → ErrAlreadyExists; gắn lại tệp đã xóa mềm → hồi lại đúng dòng đó ở cuối với màu mới (Q2).
 func TestAttachImage_Again(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	p, err := e.create(dam01(e.seller))
 	if err != nil {
@@ -315,6 +319,7 @@ func TestAttachImage_Again(t *testing.T) {
 // TestImageSoftDeleteRestore (TP06): xóa → còn 2 (cả view); khôi phục → 3, về vị trí cũ; quá 30 ngày → ErrRestoreExpired;
 // 2 dòng audit (xóa, khôi phục); xóa lại ảnh đã xóa, khôi phục ảnh đang hiện → không đổi gì.
 func TestImageSoftDeleteRestore(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	p, err := e.create(dam01(e.seller))
 	if err != nil {
@@ -387,6 +392,7 @@ func prefix(in *catalog.ProductInput) {
 
 // Ảnh lost (TP12): ProductImages vẫn trả ảnh, status lost, không variants.
 func TestProductImages_Lost(t *testing.T) {
+	t.Parallel()
 	e, p, a, _ := withTwoImages(t)
 	f := a.FileID
 	e.must(func(tx pgx.Tx) error {
@@ -401,6 +407,7 @@ func TestProductImages_Lost(t *testing.T) {
 
 // Hai người sắp lại cùng version cùng lúc: đúng một người thành công (khóa dòng mẫu rồi so version).
 func TestReorderImages_Concurrent(t *testing.T) {
+	t.Parallel()
 	e, p, a, b := withTwoImages(t)
 	v := e.version(p.ID)
 	var wg sync.WaitGroup

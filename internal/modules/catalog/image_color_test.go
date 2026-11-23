@@ -19,6 +19,7 @@ func (e *catalogEnv) setColor(productID uuid.UUID, version int64, imageID uuid.U
 // TestSetImageColor (Task 325): đổi màu ảnh đang hiện theo version mẫu; bỏ màu → ảnh chung; màu không thuộc biến thể,
 // version cũ, ảnh đã xóa, ảnh của mẫu khác bị từ chối; mỗi lần đổi version +1, audit catalog.image.color.
 func TestSetImageColor(t *testing.T) {
+	t.Parallel()
 	e, p, a, b := withTwoImages(t)
 	v := e.version(p.ID)
 	if err := e.setColor(p.ID, v, a.ID, ptr(" Đen ")); err != nil {

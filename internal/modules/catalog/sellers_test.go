@@ -22,6 +22,7 @@ func ao01(seller uuid.UUID) catalog.ProductInput {
 // với từng người bán: đọc, sửa mẫu, thêm và sửa biến thể, phân loại, ảnh bằng người bán của mình thì được, bằng người
 // bán kia thì ErrNotFound và mẫu không đổi version.
 func TestTwoSellers_SameSKUAndIsolation(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	sellers := []uuid.UUID{e.seller, e.partner}
 	products := map[uuid.UUID]catalog.Product{}
