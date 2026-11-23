@@ -54568,6 +54568,259 @@ func (s *WebAttributeValue) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *WebAvailability) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *WebAvailability) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("items")
+		e.ArrStart()
+		for _, elem := range s.Items {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("ttlS")
+		e.Int32(s.TtlS)
+	}
+}
+
+var jsonFieldsNameOfWebAvailability = [2]string{
+	0: "items",
+	1: "ttlS",
+}
+
+// Decode decodes WebAvailability from json.
+func (s *WebAvailability) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode WebAvailability to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "items":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Items = make([]WebAvailabilityItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem WebAvailabilityItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Items = append(s.Items, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"items\"")
+			}
+		case "ttlS":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int32()
+				s.TtlS = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ttlS\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode WebAvailability")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfWebAvailability) {
+					name = jsonFieldsNameOfWebAvailability[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *WebAvailability) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *WebAvailability) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *WebAvailabilityItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *WebAvailabilityItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("variantId")
+		json.EncodeUUID(e, s.VariantId)
+	}
+	{
+		e.FieldStart("available")
+		e.Bool(s.Available)
+	}
+	{
+		e.FieldStart("low")
+		e.Bool(s.Low)
+	}
+}
+
+var jsonFieldsNameOfWebAvailabilityItem = [3]string{
+	0: "variantId",
+	1: "available",
+	2: "low",
+}
+
+// Decode decodes WebAvailabilityItem from json.
+func (s *WebAvailabilityItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode WebAvailabilityItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "variantId":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := json.DecodeUUID(d)
+				s.VariantId = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"variantId\"")
+			}
+		case "available":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.Available = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"available\"")
+			}
+		case "low":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Low = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"low\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode WebAvailabilityItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfWebAvailabilityItem) {
+					name = jsonFieldsNameOfWebAvailabilityItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *WebAvailabilityItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *WebAvailabilityItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *WebCatalogChanges) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -55161,6 +55414,112 @@ func (s *WebImageVariant) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *WebLocations) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *WebLocations) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("provinces")
+		e.ArrStart()
+		for _, elem := range s.Provinces {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfWebLocations = [1]string{
+	0: "provinces",
+}
+
+// Decode decodes WebLocations from json.
+func (s *WebLocations) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode WebLocations to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "provinces":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Provinces = make([]WebProvince, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem WebProvince
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Provinces = append(s.Provinces, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"provinces\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode WebLocations")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfWebLocations) {
+					name = jsonFieldsNameOfWebLocations[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *WebLocations) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *WebLocations) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *WebProduct) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -55649,6 +56008,399 @@ func (s *WebProductPage) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *WebProductPage) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *WebProvince) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *WebProvince) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("code")
+		e.Str(s.Code)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("wards")
+		e.ArrStart()
+		for _, elem := range s.Wards {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfWebProvince = [3]string{
+	0: "code",
+	1: "name",
+	2: "wards",
+}
+
+// Decode decodes WebProvince from json.
+func (s *WebProvince) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode WebProvince to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "code":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Code = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"code\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "wards":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.Wards = make([]WebWard, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem WebWard
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Wards = append(s.Wards, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"wards\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode WebProvince")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfWebProvince) {
+					name = jsonFieldsNameOfWebProvince[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *WebProvince) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *WebProvince) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *WebSold30) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *WebSold30) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("items")
+		e.ArrStart()
+		for _, elem := range s.Items {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("asOf")
+		json.EncodeDateTime(e, s.AsOf)
+	}
+}
+
+var jsonFieldsNameOfWebSold30 = [2]string{
+	0: "items",
+	1: "asOf",
+}
+
+// Decode decodes WebSold30 from json.
+func (s *WebSold30) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode WebSold30 to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "items":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Items = make([]WebSoldItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem WebSoldItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Items = append(s.Items, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"items\"")
+			}
+		case "asOf":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.AsOf = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"asOf\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode WebSold30")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfWebSold30) {
+					name = jsonFieldsNameOfWebSold30[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *WebSold30) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *WebSold30) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *WebSoldItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *WebSoldItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("productId")
+		json.EncodeUUID(e, s.ProductId)
+	}
+	{
+		e.FieldStart("variantId")
+		json.EncodeUUID(e, s.VariantId)
+	}
+	{
+		e.FieldStart("sold")
+		e.Int64(s.Sold)
+	}
+}
+
+var jsonFieldsNameOfWebSoldItem = [3]string{
+	0: "productId",
+	1: "variantId",
+	2: "sold",
+}
+
+// Decode decodes WebSoldItem from json.
+func (s *WebSoldItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode WebSoldItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "productId":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := json.DecodeUUID(d)
+				s.ProductId = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"productId\"")
+			}
+		case "variantId":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := json.DecodeUUID(d)
+				s.VariantId = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"variantId\"")
+			}
+		case "sold":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int64()
+				s.Sold = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sold\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode WebSoldItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfWebSoldItem) {
+					name = jsonFieldsNameOfWebSoldItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *WebSoldItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *WebSoldItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -56168,6 +56920,119 @@ func (s *WebVariant) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *WebVariant) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *WebWard) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *WebWard) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("code")
+		e.Str(s.Code)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+}
+
+var jsonFieldsNameOfWebWard = [2]string{
+	0: "code",
+	1: "name",
+}
+
+// Decode decodes WebWard from json.
+func (s *WebWard) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode WebWard to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "code":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Code = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"code\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode WebWard")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfWebWard) {
+					name = jsonFieldsNameOfWebWard[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *WebWard) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *WebWard) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

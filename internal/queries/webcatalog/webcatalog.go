@@ -195,13 +195,9 @@ func assemble(ctx context.Context, tx pgx.Tx, rows []store.ProductPageRow, view 
 
 // attachVariants gắn biến thể kèm còn hàng ở kho DefaultWarehouseCode (tenant chưa có kho đó: không còn hàng).
 func attachVariants(ctx context.Context, q *store.Queries, ids []uuid.UUID, at map[uuid.UUID]int, out []WebProduct) error {
-	whs, err := q.WarehouseByCode(ctx, DefaultWarehouseCode)
+	wh, err := defaultWarehouse(ctx, q)
 	if err != nil {
-		return fmt.Errorf("đọc kho mặc định cho website: %w", err)
-	}
-	wh := uuid.Nil
-	if len(whs) > 0 {
-		wh = whs[0]
+		return err
 	}
 	vs, err := q.VariantsOf(ctx, store.VariantsOfParams{WarehouseID: wh, ProductIds: ids})
 	if err != nil {

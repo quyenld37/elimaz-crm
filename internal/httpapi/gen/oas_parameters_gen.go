@@ -24051,6 +24051,90 @@ func decodeWaiveRefundObligationParams(args [1]string, argsEscaped bool, r *http
 	return params, nil
 }
 
+// WebAvailabilityParams is parameters of webAvailability operation.
+type WebAvailabilityParams struct {
+	// Mã biến thể, phân tách bằng dấu phẩy (1–100).
+	VariantIds []uuid.UUID `json:",omitempty"`
+}
+
+func unpackWebAvailabilityParams(packed middleware.Parameters) (params WebAvailabilityParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "variantIds",
+			In:   "query",
+		}
+		params.VariantIds = packed[key].([]uuid.UUID)
+	}
+	return params
+}
+
+func decodeWebAvailabilityParams(args [0]string, argsEscaped bool, r *http.Request) (params WebAvailabilityParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: variantIds.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "variantIds",
+			Style:   uri.QueryStyleForm,
+			Explode: false,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				params.VariantIds = nil
+				return d.DecodeArray(func(d uri.Decoder) error {
+					var paramsDotVariantIdsVal uuid.UUID
+					if err := func() error {
+						val, err := d.DecodeValue()
+						if err != nil {
+							return err
+						}
+
+						c, err := conv.ToUUID(val)
+						if err != nil {
+							return err
+						}
+
+						paramsDotVariantIdsVal = c
+						return nil
+					}(); err != nil {
+						return err
+					}
+					params.VariantIds = append(params.VariantIds, paramsDotVariantIdsVal)
+					return nil
+				})
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if params.VariantIds == nil {
+					return errors.New("nil is invalid value")
+				}
+				if err := (validate.Array{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    100,
+					MaxLengthSet: true,
+				}).ValidateLength(len(params.VariantIds)); err != nil {
+					return errors.Wrap(err, "array")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "variantIds",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // WebCatalogChangesParams is parameters of webCatalogChanges operation.
 type WebCatalogChangesParams struct {
 	Since time.Time
@@ -24531,6 +24615,96 @@ func unpackWebCatalogTaxonomyParams(packed middleware.Parameters) (params WebCat
 }
 
 func decodeWebCatalogTaxonomyParams(args [0]string, argsEscaped bool, r *http.Request) (params WebCatalogTaxonomyParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: If-None-Match.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "If-None-Match",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotIfNoneMatchVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIfNoneMatchVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.IfNoneMatch.SetTo(paramsDotIfNoneMatchVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.IfNoneMatch.Get(); ok {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:     0,
+							MinLengthSet:  false,
+							MaxLength:     200,
+							MaxLengthSet:  true,
+							Email:         false,
+							Hostname:      false,
+							Regex:         nil,
+							MinNumeric:    0,
+							MinNumericSet: false,
+							MaxNumeric:    0,
+							MaxNumericSet: false,
+						}).Validate(string(value)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "If-None-Match",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// WebLocationsParams is parameters of webLocations operation.
+type WebLocationsParams struct {
+	// ETag của lần đọc trước (website, Task 190).
+	IfNoneMatch OptString `json:",omitempty,omitzero"`
+}
+
+func unpackWebLocationsParams(packed middleware.Parameters) (params WebLocationsParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "If-None-Match",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.IfNoneMatch = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeWebLocationsParams(args [0]string, argsEscaped bool, r *http.Request) (params WebLocationsParams, _ error) {
 	h := uri.NewHeaderDecoder(r.Header)
 	// Decode header: If-None-Match.
 	if err := func() error {

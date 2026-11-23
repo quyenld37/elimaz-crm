@@ -1252,6 +1252,15 @@ type Handler interface {
 	//
 	// POST /api/v1/refund-obligations/{id}/waive
 	WaiveRefundObligation(ctx context.Context, req *WaiveRefundObligationRequest, params WaiveRefundObligationParams) (WaiveRefundObligationRes, error)
+	// WebAvailability implements webAvailability operation.
+	//
+	// Task 191 (M5-08). available = có thể bán > 0; low = có thể bán từ 1 tới 3. Phần đã
+	// giữ cho đơn và cho đợt flash sale không tính. Mã không có trong cửa hàng không có
+	// trong items. Chỉ để hiện; đặt hàng luôn kiểm lại tồn ở CRM. Bộ đệm từng
+	// biến thể 5 s, làm mới sớm hơn theo sự kiện tồn (stock.changed).
+	//
+	// GET /api/v1/web/availability
+	WebAvailability(ctx context.Context, params WebAvailabilityParams) (WebAvailabilityRes, error)
 	// WebCatalogChanges implements webCatalogChanges operation.
 	//
 	// Task 190 (M5-07). Lần sau gửi since = until − 30 s và bỏ mã trùng. hasMore = true (đủ
@@ -1276,6 +1285,22 @@ type Handler interface {
 	//
 	// GET /api/v1/web/catalog/taxonomy
 	WebCatalogTaxonomy(ctx context.Context, params WebCatalogTaxonomyParams) (WebCatalogTaxonomyRes, error)
+	// WebLocations implements webLocations operation.
+	//
+	// Task 191 (M5-08). Danh mục dùng chung của CRM (customer.admin_units), tỉnh theo mã, xã theo
+	// tên. Không có mã địa giới của hãng vận chuyển. Bộ đệm 1 ngày.
+	//
+	// GET /api/v1/web/locations
+	WebLocations(ctx context.Context, params WebLocationsParams) (WebLocationsRes, error)
+	// WebSold30d implements webSold30d operation.
+	//
+	// Task 191 (M5-08); định nghĩa ở docs/m5/doi-chieu-gia-dinh.md mục 4: cộng số lượng
+	// các dòng của đơn tạo trong 30 ngày, mọi kênh, trừ đơn nháp, đã hủy, đã hoàn.
+	// Website tự cộng theo mẫu các biến thể đang hiện. Biến thể không bán được
+	// đơn vị nào không có trong items. Bộ đệm 600 s.
+	//
+	// GET /api/v1/web/catalog/sold-30d
+	WebSold30d(ctx context.Context) (WebSold30dRes, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and

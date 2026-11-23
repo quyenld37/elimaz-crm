@@ -135,16 +135,35 @@ func (c *Catalog) page(ctx context.Context, tenant uuid.UUID, p gen.WebCatalogPr
 	return out, nil
 }
 
-// byIDs đọc từng mã (bỏ trùng, giữ thứ tự gửi) qua SpaceProduct; lần thiếu đầu tiên tải mọi mã còn lại trong một
-// transaction, các lần thiếu sau lấy từ bản vừa tải (một lần đọc PostgreSQL cho mọi mã thiếu của yêu cầu).
+// byIDs đọc từng mã (bỏ trùng, giữ thứ tự gửi) qua SpaceProduct (eachCached).
 func (c *Catalog) byIDs(ctx context.Context, tenant uuid.UUID, ids []uuid.UUID) (gen.WebProductPage, error) {
-	ids = dedupe(ids)
+	raws, err := c.eachCached(ctx, tenant, cache.SpaceProduct, dedupe(ids), productTTL, c.loadProducts)
+	if err != nil {
+		return gen.WebProductPage{}, err
+	}
+	out := gen.WebProductPage{Items: make([]gen.WebProduct, 0, len(raws))}
+	for _, raw := range raws {
+		var wp gen.WebProduct
+		if err := wp.UnmarshalJSON(raw); err != nil {
+			return gen.WebProductPage{}, fmt.Errorf("đọc mẫu trong bộ đệm: %w", err)
+		}
+		out.Items = append(out.Items, wp)
+	}
+	return out, nil
+}
+
+// eachCached đọc từng mã của ids qua khóa <mã> của space (hạn ttl) và trả giá trị của các mã có, theo thứ tự ids. Lần
+// thiếu đầu tiên gọi loadAll một lần cho mọi mã còn lại (một transaction), các lần thiếu sau lấy từ bản vừa tải; mã
+// loadAll không trả được đệm là absent và không có trong kết quả.
+func (c *Catalog) eachCached(ctx context.Context, tenant uuid.UUID, space cache.Space, ids []uuid.UUID, ttl time.Duration,
+	loadAll func(context.Context, uuid.UUID, []uuid.UUID) (map[uuid.UUID][]byte, error),
+) ([][]byte, error) {
 	var loaded map[uuid.UUID][]byte
-	out := gen.WebProductPage{Items: make([]gen.WebProduct, 0, len(ids))}
+	out := make([][]byte, 0, len(ids))
 	for i, id := range ids {
-		raw, _, err := c.rc.GetOrLoad(ctx, tenant, cache.SpaceProduct, id.String(), productTTL, func(ctx context.Context) ([]byte, error) {
+		raw, _, err := c.rc.GetOrLoad(ctx, tenant, space, id.String(), ttl, func(ctx context.Context) ([]byte, error) {
 			if loaded == nil {
-				m, err := c.loadProducts(ctx, tenant, ids[i:])
+				m, err := loadAll(ctx, tenant, ids[i:])
 				if err != nil {
 					return nil, err
 				}
@@ -156,16 +175,11 @@ func (c *Catalog) byIDs(ctx context.Context, tenant uuid.UUID, ids []uuid.UUID) 
 			return []byte(absent), nil
 		})
 		if err != nil {
-			return gen.WebProductPage{}, err //nolint:wrapcheck // như page
+			return nil, err //nolint:wrapcheck // ReadCache đã bọc; ErrBusy giữ nguyên để đổi 503
 		}
-		if string(raw) == absent {
-			continue
+		if string(raw) != absent {
+			out = append(out, raw)
 		}
-		var wp gen.WebProduct
-		if err := wp.UnmarshalJSON(raw); err != nil {
-			return gen.WebProductPage{}, fmt.Errorf("đọc mẫu trong bộ đệm: %w", err)
-		}
-		out.Items = append(out.Items, wp)
 	}
 	return out, nil
 }

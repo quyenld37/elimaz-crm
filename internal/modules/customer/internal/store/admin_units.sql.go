@@ -125,3 +125,37 @@ func (q *Queries) ListAdminWards(ctx context.Context, arg ListAdminWardsParams) 
 	}
 	return items, nil
 }
+
+const listAllAdminWards = `-- name: ListAllAdminWards :many
+SELECT code, parent_code::text AS parent_code, name
+FROM customer.admin_units
+WHERE level = 'ward'
+ORDER BY parent_code, name_search, code
+`
+
+type ListAllAdminWardsRow struct {
+	Code       string
+	ParentCode string
+	Name       string
+}
+
+// Mọi xã của mọi tỉnh (danh mục địa giới cho website, kế hoạch M5 Task 191), theo tỉnh rồi tên.
+func (q *Queries) ListAllAdminWards(ctx context.Context) ([]ListAllAdminWardsRow, error) {
+	rows, err := q.db.Query(ctx, listAllAdminWards)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllAdminWardsRow{}
+	for rows.Next() {
+		var i ListAllAdminWardsRow
+		if err := rows.Scan(&i.Code, &i.ParentCode, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

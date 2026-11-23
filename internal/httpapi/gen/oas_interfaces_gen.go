@@ -745,6 +745,10 @@ type WaiveRefundObligationRes interface {
 	waiveRefundObligationRes()
 }
 
+type WebAvailabilityRes interface {
+	webAvailabilityRes()
+}
+
 type WebCatalogChangesRes interface {
 	webCatalogChangesRes()
 }
@@ -755,4 +759,12 @@ type WebCatalogProductsRes interface {
 
 type WebCatalogTaxonomyRes interface {
 	webCatalogTaxonomyRes()
+}
+
+type WebLocationsRes interface {
+	webLocationsRes()
+}
+
+type WebSold30dRes interface {
+	webSold30dRes()
 }

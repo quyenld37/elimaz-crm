@@ -17579,6 +17579,93 @@ func (s *Server) handleWaiveRefundObligationRequest(args [1]string, argsEscaped 
 	}
 }
 
+// handleWebAvailabilityRequest handles webAvailability operation.
+//
+// Task 191 (M5-08). available = có thể bán > 0; low = có thể bán từ 1 tới 3. Phần đã
+// giữ cho đơn và cho đợt flash sale không tính. Mã không có trong cửa hàng không có
+// trong items. Chỉ để hiện; đặt hàng luôn kiểm lại tồn ở CRM. Bộ đệm từng
+// biến thể 5 s, làm mới sớm hơn theo sự kiện tồn (stock.changed).
+//
+// GET /api/v1/web/availability
+func (s *Server) handleWebAvailabilityRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebAvailabilityOperation,
+			ID:   "webAvailability",
+		}
+	)
+	params, err := decodeWebAvailabilityParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebAvailabilityRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebAvailabilityOperation,
+			OperationSummary: "Còn/hết của tối đa 100 biến thể ở kho mặc định, hạn sống 5 s",
+			OperationID:      "webAvailability",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "variantIds",
+					In:   "query",
+				}: params.VariantIds,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebAvailabilityParams
+			Response = WebAvailabilityRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebAvailabilityParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebAvailability(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebAvailability(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebAvailabilityResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebCatalogChangesRequest handles webCatalogChanges operation.
 //
 // Task 190 (M5-07). Lần sau gửi since = until − 30 s và bỏ mã trùng. hasMore = true (đủ
@@ -17845,6 +17932,159 @@ func (s *Server) handleWebCatalogTaxonomyRequest(args [0]string, argsEscaped boo
 	}
 
 	if err := encodeWebCatalogTaxonomyResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebLocationsRequest handles webLocations operation.
+//
+// Task 191 (M5-08). Danh mục dùng chung của CRM (customer.admin_units), tỉnh theo mã, xã theo
+// tên. Không có mã địa giới của hãng vận chuyển. Bộ đệm 1 ngày.
+//
+// GET /api/v1/web/locations
+func (s *Server) handleWebLocationsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebLocationsOperation,
+			ID:   "webLocations",
+		}
+	)
+	params, err := decodeWebLocationsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebLocationsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebLocationsOperation,
+			OperationSummary: "Địa giới hành chính hai cấp (tỉnh/thành, xã/phường) cho website; có ETag",
+			OperationID:      "webLocations",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "If-None-Match",
+					In:   "header",
+				}: params.IfNoneMatch,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebLocationsParams
+			Response = WebLocationsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebLocationsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebLocations(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebLocations(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebLocationsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebSold30dRequest handles webSold30d operation.
+//
+// Task 191 (M5-08); định nghĩa ở docs/m5/doi-chieu-gia-dinh.md mục 4: cộng số lượng
+// các dòng của đơn tạo trong 30 ngày, mọi kênh, trừ đơn nháp, đã hủy, đã hoàn.
+// Website tự cộng theo mẫu các biến thể đang hiện. Biến thể không bán được
+// đơn vị nào không có trong items. Bộ đệm 600 s.
+//
+// GET /api/v1/web/catalog/sold-30d
+func (s *Server) handleWebSold30dRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response WebSold30dRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebSold30dOperation,
+			OperationSummary: "Số đơn vị đã bán 30 ngày gần nhất theo biến thể (kèm mã mẫu)",
+			OperationID:      "webSold30d",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = WebSold30dRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebSold30d(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebSold30d(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebSold30dResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

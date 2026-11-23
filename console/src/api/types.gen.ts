@@ -860,6 +860,49 @@ export type WebTag = {
     name: string;
 };
 
+export type WebAvailability = {
+    items: Array<WebAvailabilityItem>;
+    /**
+     * Số giây website được dùng lại kết quả này
+     */
+    ttlS: number;
+};
+
+export type WebAvailabilityItem = {
+    variantId: string;
+    available: boolean;
+    low: boolean;
+};
+
+export type WebSold30 = {
+    items: Array<WebSoldItem>;
+    /**
+     * Mốc cuối của cửa sổ 30 ngày
+     */
+    asOf: string;
+};
+
+export type WebSoldItem = {
+    productId: string;
+    variantId: string;
+    sold: number;
+};
+
+export type WebLocations = {
+    provinces: Array<WebProvince>;
+};
+
+export type WebProvince = {
+    code: string;
+    name: string;
+    wards: Array<WebWard>;
+};
+
+export type WebWard = {
+    code: string;
+    name: string;
+};
+
 export type Product = {
     id: string;
     code: string;
@@ -9064,3 +9107,89 @@ export type WebCatalogTaxonomyResponses = {
 };
 
 export type WebCatalogTaxonomyResponse = WebCatalogTaxonomyResponses[keyof WebCatalogTaxonomyResponses];
+
+export type WebAvailabilityData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Mã biến thể, phân tách bằng dấu phẩy (1–100)
+         */
+        variantIds: Array<string>;
+    };
+    url: '/api/v1/web/availability';
+};
+
+export type WebAvailabilityErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebAvailabilityError = WebAvailabilityErrors[keyof WebAvailabilityErrors];
+
+export type WebAvailabilityResponses = {
+    /**
+     * Còn/hết theo mã biến thể tăng dần
+     */
+    200: WebAvailability;
+};
+
+export type WebAvailabilityResponse = WebAvailabilityResponses[keyof WebAvailabilityResponses];
+
+export type WebSold30dData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/catalog/sold-30d';
+};
+
+export type WebSold30dErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebSold30dError = WebSold30dErrors[keyof WebSold30dErrors];
+
+export type WebSold30dResponses = {
+    /**
+     * Số đã bán theo mã biến thể tăng dần
+     */
+    200: WebSold30;
+};
+
+export type WebSold30dResponse = WebSold30dResponses[keyof WebSold30dResponses];
+
+export type WebLocationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * ETag của lần đọc trước (website, Task 190)
+         */
+        'If-None-Match'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/locations';
+};
+
+export type WebLocationsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebLocationsError = WebLocationsErrors[keyof WebLocationsErrors];
+
+export type WebLocationsResponses = {
+    /**
+     * Địa giới
+     */
+    200: WebLocations;
+};
+
+export type WebLocationsResponse = WebLocationsResponses[keyof WebLocationsResponses];

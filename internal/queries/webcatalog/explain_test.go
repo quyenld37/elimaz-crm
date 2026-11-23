@@ -81,7 +81,7 @@ func explainSeed() (testkit.Seed, []uuid.UUID) {
 }
 
 // Kế hoạch của các câu đọc danh mục cho website, bằng crm_app trong ngữ cảnh tenant trên 10.000 mẫu, 50.000 biến thể:
-// không Seq Scan (Task 190, M5-07).
+// không Seq Scan (Task 190, M5-07; còn/hết: Task 191, M5-08).
 func TestPlansHaveNoSeqScan(t *testing.T) {
 	seed, ids := explainSeed()
 	adminURL, _, appURL := testkit.StartPostgresSeeded(t, seed)
@@ -96,19 +96,26 @@ func TestPlansHaveNoSeqScan(t *testing.T) {
 		t.Fatalf("mở pool crm_app: %v", err)
 	}
 	tenant := ids[0]
-	var page []uuid.UUID
+	var page, variants []uuid.UUID
 	if err := tenancy.WithTenant(t.Context(), app, tenant, func(tx pgx.Tx) error {
 		rows, err := tx.Query(t.Context(), `SELECT product_id FROM catalog.products_v ORDER BY product_id LIMIT 200`)
 		if err != nil {
 			return err //nolint:wrapcheck // test
 		}
-		page, err = pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
+		if page, err = pgx.CollectRows(rows, pgx.RowTo[uuid.UUID]); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		rows, err = tx.Query(t.Context(), `SELECT variant_id FROM catalog.variants_v ORDER BY variant_id DESC LIMIT 100`)
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		variants, err = pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
 		return err //nolint:wrapcheck // test
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if len(page) != 200 {
-		t.Fatalf("mong 200 mẫu, có %d", len(page))
+	if len(page) != 200 || len(variants) != 100 {
+		t.Fatalf("mong 200 mẫu, 100 biến thể, có %d, %d", len(page), len(variants))
 	}
 	// Mốc của luồng thay đổi theo mốc lúc dựng mẫu (now() của bộ dữ liệu bị đóng băng): website hỏi lại mỗi 15 s với
 	// since = until − 30 s, cửa sổ thật chỉ vài chục giây; ở đây 3 phút (3 mẫu, 15 biến thể, 15 số dư) và 30 phút.
@@ -128,6 +135,7 @@ func TestPlansHaveNoSeqScan(t *testing.T) {
 		{"thuộc tính của trang", "products.sql.go", "attributeValueIDsOf", []any{page}},
 		{"thay đổi 3 phút", "changes.sql.go", "changes", []any{newest.Add(-3 * time.Minute), 1000}},
 		{"thay đổi 30 phút", "changes.sql.go", "changes", []any{newest.Add(-30 * time.Minute), 1000}},
+		{"còn/hết 100 biến thể", "availability.sql.go", "availabilityOf", []any{ids[5], variants}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

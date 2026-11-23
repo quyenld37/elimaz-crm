@@ -9440,9 +9440,12 @@ func (*ErrorStatusCode) updateTrafficSourceRes()         {}
 func (*ErrorStatusCode) updateVariantRes()               {}
 func (*ErrorStatusCode) verifyFilesRes()                 {}
 func (*ErrorStatusCode) waiveRefundObligationRes()       {}
+func (*ErrorStatusCode) webAvailabilityRes()             {}
 func (*ErrorStatusCode) webCatalogChangesRes()           {}
 func (*ErrorStatusCode) webCatalogProductsRes()          {}
 func (*ErrorStatusCode) webCatalogTaxonomyRes()          {}
+func (*ErrorStatusCode) webLocationsRes()                {}
+func (*ErrorStatusCode) webSold30dRes()                  {}
 
 // Một loại lỗi ứng dụng gộp theo dấu vân tay (Task 20). message đã lọc chuỗi từ
 // 8 chữ số và email.
@@ -26788,6 +26791,72 @@ func (s *WebAttributeValue) SetPosition(val int32) {
 	s.Position = val
 }
 
+// Ref: #/components/schemas/WebAvailability
+type WebAvailability struct {
+	Items []WebAvailabilityItem `json:"items"`
+	// Số giây website được dùng lại kết quả này.
+	TtlS int32 `json:"ttlS"`
+}
+
+// GetItems returns the value of Items.
+func (s *WebAvailability) GetItems() []WebAvailabilityItem {
+	return s.Items
+}
+
+// GetTtlS returns the value of TtlS.
+func (s *WebAvailability) GetTtlS() int32 {
+	return s.TtlS
+}
+
+// SetItems sets the value of Items.
+func (s *WebAvailability) SetItems(val []WebAvailabilityItem) {
+	s.Items = val
+}
+
+// SetTtlS sets the value of TtlS.
+func (s *WebAvailability) SetTtlS(val int32) {
+	s.TtlS = val
+}
+
+func (*WebAvailability) webAvailabilityRes() {}
+
+// Ref: #/components/schemas/WebAvailabilityItem
+type WebAvailabilityItem struct {
+	VariantId uuid.UUID `json:"variantId"`
+	Available bool      `json:"available"`
+	Low       bool      `json:"low"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *WebAvailabilityItem) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetAvailable returns the value of Available.
+func (s *WebAvailabilityItem) GetAvailable() bool {
+	return s.Available
+}
+
+// GetLow returns the value of Low.
+func (s *WebAvailabilityItem) GetLow() bool {
+	return s.Low
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *WebAvailabilityItem) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetAvailable sets the value of Available.
+func (s *WebAvailabilityItem) SetAvailable(val bool) {
+	s.Available = val
+}
+
+// SetLow sets the value of Low.
+func (s *WebAvailabilityItem) SetLow(val bool) {
+	s.Low = val
+}
+
 // Ref: #/components/schemas/WebCatalogChanges
 type WebCatalogChanges struct {
 	ProductIds []uuid.UUID `json:"productIds"`
@@ -26981,6 +27050,54 @@ func (s *WebImageVariant) SetFormat(val string) {
 func (s *WebImageVariant) SetURL(val string) {
 	s.URL = val
 }
+
+// Ref: #/components/schemas/WebLocations
+type WebLocations struct {
+	Provinces []WebProvince `json:"provinces"`
+}
+
+// GetProvinces returns the value of Provinces.
+func (s *WebLocations) GetProvinces() []WebProvince {
+	return s.Provinces
+}
+
+// SetProvinces sets the value of Provinces.
+func (s *WebLocations) SetProvinces(val []WebProvince) {
+	s.Provinces = val
+}
+
+// WebLocationsHeaders wraps WebLocations with response headers.
+type WebLocationsHeaders struct {
+	ETag     OptString
+	Response WebLocations
+}
+
+// GetETag returns the value of ETag.
+func (s *WebLocationsHeaders) GetETag() OptString {
+	return s.ETag
+}
+
+// GetResponse returns the value of Response.
+func (s *WebLocationsHeaders) GetResponse() WebLocations {
+	return s.Response
+}
+
+// SetETag sets the value of ETag.
+func (s *WebLocationsHeaders) SetETag(val OptString) {
+	s.ETag = val
+}
+
+// SetResponse sets the value of Response.
+func (s *WebLocationsHeaders) SetResponse(val WebLocations) {
+	s.Response = val
+}
+
+func (*WebLocationsHeaders) webLocationsRes() {}
+
+// WebLocationsNotModified is response for WebLocations operation.
+type WebLocationsNotModified struct{}
+
+func (*WebLocationsNotModified) webLocationsRes() {}
 
 // Ref: #/components/schemas/WebProduct
 type WebProduct struct {
@@ -27199,6 +27316,109 @@ func (s *WebProductPageHeaders) SetResponse(val WebProductPage) {
 
 func (*WebProductPageHeaders) webCatalogProductsRes() {}
 
+// Ref: #/components/schemas/WebProvince
+type WebProvince struct {
+	Code  string    `json:"code"`
+	Name  string    `json:"name"`
+	Wards []WebWard `json:"wards"`
+}
+
+// GetCode returns the value of Code.
+func (s *WebProvince) GetCode() string {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *WebProvince) GetName() string {
+	return s.Name
+}
+
+// GetWards returns the value of Wards.
+func (s *WebProvince) GetWards() []WebWard {
+	return s.Wards
+}
+
+// SetCode sets the value of Code.
+func (s *WebProvince) SetCode(val string) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *WebProvince) SetName(val string) {
+	s.Name = val
+}
+
+// SetWards sets the value of Wards.
+func (s *WebProvince) SetWards(val []WebWard) {
+	s.Wards = val
+}
+
+// Ref: #/components/schemas/WebSold30
+type WebSold30 struct {
+	Items []WebSoldItem `json:"items"`
+	// Mốc cuối của cửa sổ 30 ngày.
+	AsOf time.Time `json:"asOf"`
+}
+
+// GetItems returns the value of Items.
+func (s *WebSold30) GetItems() []WebSoldItem {
+	return s.Items
+}
+
+// GetAsOf returns the value of AsOf.
+func (s *WebSold30) GetAsOf() time.Time {
+	return s.AsOf
+}
+
+// SetItems sets the value of Items.
+func (s *WebSold30) SetItems(val []WebSoldItem) {
+	s.Items = val
+}
+
+// SetAsOf sets the value of AsOf.
+func (s *WebSold30) SetAsOf(val time.Time) {
+	s.AsOf = val
+}
+
+func (*WebSold30) webSold30dRes() {}
+
+// Ref: #/components/schemas/WebSoldItem
+type WebSoldItem struct {
+	ProductId uuid.UUID `json:"productId"`
+	VariantId uuid.UUID `json:"variantId"`
+	Sold      int64     `json:"sold"`
+}
+
+// GetProductId returns the value of ProductId.
+func (s *WebSoldItem) GetProductId() uuid.UUID {
+	return s.ProductId
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *WebSoldItem) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetSold returns the value of Sold.
+func (s *WebSoldItem) GetSold() int64 {
+	return s.Sold
+}
+
+// SetProductId sets the value of ProductId.
+func (s *WebSoldItem) SetProductId(val uuid.UUID) {
+	s.ProductId = val
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *WebSoldItem) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetSold sets the value of Sold.
+func (s *WebSoldItem) SetSold(val int64) {
+	s.Sold = val
+}
+
 // Ref: #/components/schemas/WebTag
 type WebTag struct {
 	Code string `json:"code"`
@@ -27404,4 +27624,30 @@ func (s *WebVariant) SetAvailable(val bool) {
 // SetWeightGrams sets the value of WeightGrams.
 func (s *WebVariant) SetWeightGrams(val OptInt32) {
 	s.WeightGrams = val
+}
+
+// Ref: #/components/schemas/WebWard
+type WebWard struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+// GetCode returns the value of Code.
+func (s *WebWard) GetCode() string {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *WebWard) GetName() string {
+	return s.Name
+}
+
+// SetCode sets the value of Code.
+func (s *WebWard) SetCode(val string) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *WebWard) SetName(val string) {
+	s.Name = val
 }
