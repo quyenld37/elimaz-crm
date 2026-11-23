@@ -47,4 +47,8 @@ try:
     os.nice(10)
 except OSError:
     pass
+# 23/11 (chủ shop: quạt chạy, máy nóng): chế độ nền của macOS (taskpolicy -b) — lệnh và mọi tiến trình con chỉ chạy
+# trên lõi tiết kiệm điện, nhường lõi hiệu năng cho người dùng. Đo cash + imager -race: 29–31 s → 30–31,5 s (colima 4 lõi).
+if sys.platform == "darwin" and os.path.exists("/usr/sbin/taskpolicy"):
+    cmd = ["/usr/sbin/taskpolicy", "-b", *cmd]
 os.execvp(cmd[0], cmd)

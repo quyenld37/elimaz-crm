@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Cổng kiểm của MỘT task trước khi review (thay make ci trong phiên làm task; chủ shop yêu cầu tăng tốc 18/11).
-# Chạy đủ mọi cổng tĩnh như make ci; test chỉ chạy gói đổi + gói phụ thuộc + cả bộ vùng rủi ro cao nếu chạm;
-# đổi migration hoặc go.mod thì chạy toàn bộ test. So hợp đồng API và test-guard với ĐIỂM TÁCH NHÁNH (không với đầu main
+# Chạy đủ mọi cổng tĩnh như make ci; test chỉ chạy gói đổi + gói phụ thuộc + cả bộ vùng rủi ro cao nếu chạm
+# (-race chỉ gói sửa trực tiếp, Task 473); migration mới chỉ thêm → gói dùng đối tượng nó chạm; migration thu hẹp hay
+# sửa tệp cũ, go.mod, testkit thì chạy toàn bộ test. So hợp đồng API và test-guard với ĐIỂM TÁCH NHÁNH (không với đầu main
 # đang chạy, tránh báo đỏ nhầm). Toàn bộ test vẫn chạy trên main do phiên điều phối sau mỗi đợt gộp.
 set -u
 cd "${CLAUDE_PROJECT_DIR:-$(pwd)}" || exit 1
@@ -34,25 +35,34 @@ if printf '%s\n' "$changed" | grep -q '^console/'; then step console-check make 
 snap_tree() { local idx; idx=$(mktemp); cp "$(git rev-parse --git-path index)" "$idx" 2>/dev/null; GIT_INDEX_FILE=$idx git add -A . >/dev/null 2>&1 && GIT_INDEX_FILE=$idx git write-tree; rm -f "$idx"; }
 stamp="$(git rev-parse --git-dir)/crm-ci-test-xanh"
 now_tree=$(snap_tree)
-tchanged=$changed; tnote=""
+tchanged=$changed; tnote=""; tbase=$base
 if [ -n "$now_tree" ] && [ -f "$stamp" ] && old=$(cat "$stamp") && git cat-file -e "$old^{tree}" 2>/dev/null; then
-  tchanged=$(git diff --name-only "$old" "$now_tree"); tnote=", chỉ phần đổi từ lần test xanh trước"
+  tchanged=$(git diff --name-only "$old" "$now_tree"); tnote=", chỉ phần đổi từ lần test xanh trước"; tbase=$old
 fi
 fail_before=$fail
 if [ -n "$tnote" ] && [ -z "$tchanged" ]; then
   echo "== test: bỏ (không đổi gì từ lần test xanh trước)"
-elif printf '%s\n' "$tchanged" | grep -E -q '^(migrations/|go\.mod$|go\.sum$|internal/testkit/)'; then
-  step "test (toàn bộ: đổi migration/go.mod/testkit$tnote)" make test
+elif printf '%s\n' "$tchanged" | grep -E -q '^(go\.mod$|go\.sum$|internal/testkit/)'; then
+  step "test (toàn bộ: đổi go.mod/testkit$tnote)" make test
 else
-  pkgs=$(printf '%s\n' "$tchanged" | python3 scripts/agent/affected.py); arc=$?
+  # Task 473 (23/11, chủ shop: máy nóng): migration mới chỉ thêm → gói dùng đúng đối tượng nó chạm; migration thu hẹp hay
+  # sửa tệp cũ → affected.py thoát 5 (toàn bộ). Bản so là bản đã test xanh ($tbase). -race chỉ cho gói sửa trực tiếp
+  # ("race"); gói chỉ dùng tới ("plain") chạy test thường. Lưới an toàn: điều phối viên chạy toàn bộ -race trên main
+  # sau mỗi đợt gộp.
+  split=$(printf '%s\n' "$tchanged" | python3 scripts/agent/affected.py --base "$tbase" --split); arc=$?
   if [ "$arc" != 0 ]; then
-    # Không xác định được gói bị ảnh hưởng: chạy toàn bộ thay vì bỏ sót (19/11: lỗi NFD/NFC làm mọi task chỉ chạy tests/arch).
-    step "test (toàn bộ: affected.py thoát $arc)" make test
-  elif [ -n "$pkgs" ]; then
-    # shellcheck disable=SC2086
-    step "test (gói đổi, phụ thuộc, vùng cao$tnote)" go test -race -count=1 $pkgs ./tests/arch/...
+    # Không xác định được gói bị ảnh hưởng (4), hay migration cần toàn bộ (5): chạy toàn bộ thay vì bỏ sót
+    # (19/11: lỗi NFD/NFC làm mọi task chỉ chạy tests/arch).
+    step "test (toàn bộ: affected.py thoát $arc$tnote)" make test
   else
-    step "test kiến trúc" go test -count=1 ./tests/arch/...
+    race=$(printf '%s\n' "$split" | sed -n 's/^race //p')
+    plain=$(printf '%s\n' "$split" | sed -n 's/^plain //p' | grep -v '/tests/arch$')
+    # shellcheck disable=SC2086
+    step "test -race (gói sửa trực tiếp, vùng cao, test kiến trúc$tnote)" go test -race -count=1 $race ./tests/arch/...
+    if [ -n "$plain" ]; then
+      # shellcheck disable=SC2086
+      step "test thường không -race (gói chỉ dùng tới phần đổi$tnote)" go test -count=1 $plain
+    fi
   fi
 fi
 # Test cấu hình quy trình và Makefile (Task 401): affected.py chỉ xét tệp Go nên đổi Makefile không kích test nào.

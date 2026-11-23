@@ -37,11 +37,17 @@ has() { printf '%s\n' "$changed" | grep -E -q "$1"; }
 if [ -f go.mod ] && has '(\.go|go\.mod|go\.sum)$'; then
   if need go "build và test"; then
     run "go build ./..." go build ./...
-    pkgs=$(printf '%s\n' "$changed" | python3 scripts/agent/affected.py)
+    # --split (Task 473): vet, lint trên mọi gói bị ảnh hưởng; -race chỉ gói sửa trực tiếp, gói chỉ dùng tới test thường.
+    # Không --base: migration do ci-task xét (hook chạy mỗi lần báo xong, giữ nhẹ).
+    split=$(printf '%s\n' "$changed" | python3 scripts/agent/affected.py --split)
     if [ $? -eq 3 ]; then
       fail="${fail}== go list lỗi, không tính được gói bị ảnh hưởng ==
 "
-    elif [ -n "$pkgs" ]; then
+    fi
+    race=$(printf '%s\n' "$split" | sed -n 's/^race //p')
+    plain=$(printf '%s\n' "$split" | sed -n 's/^plain //p')
+    pkgs="$race $plain"
+    if [ -n "${pkgs// /}" ]; then
       # shellcheck disable=SC2086
       run "go vet (gói bị ảnh hưởng)" go vet $pkgs
       if [ -f .golangci.yml ] && need golangci-lint "lint"; then
@@ -51,8 +57,14 @@ if [ -f go.mod ] && has '(\.go|go\.mod|go\.sum)$'; then
         # shellcheck disable=SC2086
         run "golangci-lint (gói bị ảnh hưởng)" golangci-lint run $lintdirs
       fi
-      # shellcheck disable=SC2086
-      run "go test -race (gói đổi và gói phụ thuộc)" go test -race -count=1 $pkgs
+      if [ -n "$race" ]; then
+        # shellcheck disable=SC2086
+        run "go test -race (gói sửa trực tiếp, vùng cao)" go test -race -count=1 $race
+      fi
+      if [ -n "$plain" ]; then
+        # shellcheck disable=SC2086
+        run "go test (gói chỉ dùng tới phần đổi, không -race)" go test -count=1 $plain
+      fi
     fi
   fi
 fi
