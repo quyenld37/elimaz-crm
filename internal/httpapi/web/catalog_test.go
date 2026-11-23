@@ -36,13 +36,15 @@ import (
 
 const testBase = "https://img.elimaz.test"
 
-// countingCache bọc một ReadCache: đếm số lần load (đọc PostgreSQL) và ghi nguồn của từng lần GetOrLoad.
+// countingCache bọc một ReadCache: đếm số lần load (đọc PostgreSQL), ghi nguồn của từng lần GetOrLoad và hạn sống
+// gần nhất theo vùng.
 type countingCache struct {
 	cache.ReadCache
 
 	mu      sync.Mutex
 	loads   int
 	sources []cache.Source
+	ttls    map[cache.Space]time.Duration
 }
 
 func (c *countingCache) GetOrLoad(ctx context.Context, tenant uuid.UUID, space cache.Space, id string, ttl time.Duration,
@@ -56,6 +58,10 @@ func (c *countingCache) GetOrLoad(ctx context.Context, tenant uuid.UUID, space c
 	})
 	c.mu.Lock()
 	c.sources = append(c.sources, src)
+	if c.ttls == nil {
+		c.ttls = map[cache.Space]time.Duration{}
+	}
+	c.ttls[space] = ttl
 	c.mu.Unlock()
 	return v, src, err //nolint:wrapcheck // bọc thử
 }
@@ -66,6 +72,13 @@ func (c *countingCache) take() (int, []cache.Source) {
 	n, s := c.loads, c.sources
 	c.loads, c.sources = 0, nil
 	return n, s
+}
+
+// ttl trả hạn sống của lần GetOrLoad gần nhất trong space.
+func (c *countingCache) ttl(space cache.Space) time.Duration {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.ttls[space]
 }
 
 // env: tenant có người bán ELIMAZ, kho MAIN, Chủ; một khóa dịch vụ web.catalog.read và một khóa web.orders.read; máy
@@ -80,6 +93,18 @@ type env struct {
 	otherKey string // web.orders.read
 	rc       *countingCache
 	srv      http.Handler
+}
+
+// valkeyCache chạy Valkey thật cho test và trả kết nối bộ đệm (đóng khi test xong).
+func valkeyCache(t *testing.T) (*testkit.Valkey, *cache.Conn) {
+	t.Helper()
+	vk := testkit.StartValkey(t)
+	conn, err := cache.Dial(t.Context(), vk.URL("crm_cache"), cache.DialOptions{Name: "cache"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(conn.Close)
+	return vk, conn
 }
 
 func quiet() *slog.Logger { return slog.New(slog.DiscardHandler) }
@@ -445,12 +470,7 @@ func TestWebCatalog_ETag(t *testing.T) {
 
 // Valkey thật: lần hai đọc từ bộ đệm (không đọc PostgreSQL); Valkey dừng → vẫn 200 đúng dữ liệu, nguồn db_fallback.
 func TestWebCatalog_CacheAndFallback(t *testing.T) {
-	vk := testkit.StartValkey(t)
-	conn, err := cache.Dial(t.Context(), vk.URL("crm_cache"), cache.DialOptions{Name: "cache"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(conn.Close)
+	vk, conn := valkeyCache(t)
 	e := newEnv(t, conn)
 	p := e.product("C1", "[]")
 	path := "/api/v1/web/catalog/products?ids=" + p.ID.String()

@@ -4311,6 +4311,85 @@ paths:
           description: If-None-Match khớp ETag hiện tại; thân rỗng
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web/availability:
+    get:
+      operationId: webAvailability
+      summary: Còn/hết của tối đa 100 biến thể ở kho mặc định, hạn sống 5 s
+      description: |
+        Task 191 (M5-08). available = có thể bán > 0; low = có thể bán từ 1 tới 3. Phần đã giữ cho đơn và cho đợt flash
+        sale không tính. Mã không có trong cửa hàng không có trong items. Chỉ để hiện; đặt hàng luôn kiểm lại tồn ở CRM.
+        Bộ đệm từng biến thể 5 s, làm mới sớm hơn theo sự kiện tồn (stock.changed).
+      x-auth: service_key
+      x-permission: web.catalog.read
+      parameters:
+        - name: variantIds
+          in: query
+          required: true
+          description: Mã biến thể, phân tách bằng dấu phẩy (1–100)
+          style: form
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 100
+            items:
+              type: string
+              format: uuid
+      responses:
+        "200":
+          description: Còn/hết theo mã biến thể tăng dần
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebAvailability"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/catalog/sold-30d:
+    get:
+      operationId: webSold30d
+      summary: Số đơn vị đã bán 30 ngày gần nhất theo biến thể (kèm mã mẫu)
+      description: |
+        Task 191 (M5-08); định nghĩa ở docs/m5/doi-chieu-gia-dinh.md mục 4: cộng số lượng các dòng của đơn tạo trong 30
+        ngày, mọi kênh, trừ đơn nháp, đã hủy, đã hoàn. Website tự cộng theo mẫu các biến thể đang hiện. Biến thể không
+        bán được đơn vị nào không có trong items. Bộ đệm 600 s.
+      x-auth: service_key
+      x-permission: web.catalog.read
+      responses:
+        "200":
+          description: Số đã bán theo mã biến thể tăng dần
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebSold30"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/locations:
+    get:
+      operationId: webLocations
+      summary: Địa giới hành chính hai cấp (tỉnh/thành, xã/phường) cho website; có ETag
+      description: |
+        Task 191 (M5-08). Danh mục dùng chung của CRM (customer.admin_units), tỉnh theo mã, xã theo tên. Không có mã
+        địa giới của hãng vận chuyển. Bộ đệm 1 ngày.
+      x-auth: service_key
+      x-permission: web.catalog.read
+      parameters:
+        - $ref: "#/components/parameters/IfNoneMatch"
+      responses:
+        "200":
+          description: Địa giới
+          headers:
+            ETag:
+              description: sha256 của thân câu trả lời
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebLocations"
+        "304":
+          description: If-None-Match khớp ETag hiện tại; thân rỗng
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -6260,6 +6339,82 @@ components:
           type: integer
           format: int32
     WebTag:
+      type: object
+      required: [code, name]
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+    WebAvailability:
+      type: object
+      required: [items, ttlS]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebAvailabilityItem"
+        ttlS:
+          type: integer
+          format: int32
+          description: Số giây website được dùng lại kết quả này
+    WebAvailabilityItem:
+      type: object
+      required: [variantId, available, low]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        available:
+          type: boolean
+        low:
+          type: boolean
+    WebSold30:
+      type: object
+      required: [items, asOf]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebSoldItem"
+        asOf:
+          type: string
+          format: date-time
+          description: Mốc cuối của cửa sổ 30 ngày
+    WebSoldItem:
+      type: object
+      required: [productId, variantId, sold]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        variantId:
+          type: string
+          format: uuid
+        sold:
+          type: integer
+          format: int64
+    WebLocations:
+      type: object
+      required: [provinces]
+      properties:
+        provinces:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebProvince"
+    WebProvince:
+      type: object
+      required: [code, name, wards]
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        wards:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebWard"
+    WebWard:
       type: object
       required: [code, name]
       properties:

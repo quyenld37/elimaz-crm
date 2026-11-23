@@ -40,3 +40,36 @@ func (h *handler) WebCatalogTaxonomy(ctx context.Context, params gen.WebCatalogT
 	}
 	return h.d.webCatalog.Taxonomy(ctx, u.TenantID, params) //nolint:wrapcheck // như trên
 }
+
+// WebAvailability (GET /api/v1/web/availability, Task 191) → 200.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) WebAvailability(ctx context.Context, params gen.WebAvailabilityParams) (gen.WebAvailabilityRes, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
+	return h.d.webCatalog.Availability(ctx, u.TenantID, params) //nolint:wrapcheck // như trên
+}
+
+// WebSold30d (GET /api/v1/web/catalog/sold-30d, Task 191) → 200.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) WebSold30d(ctx context.Context) (gen.WebSold30dRes, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
+	return h.d.webCatalog.Sold30(ctx, u.TenantID) //nolint:wrapcheck // như trên
+}
+
+// WebLocations (GET /api/v1/web/locations, Task 191) → 200 có ETag hoặc 304.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) WebLocations(ctx context.Context, params gen.WebLocationsParams) (gen.WebLocationsRes, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
+	return h.d.webCatalog.Locations(ctx, u.TenantID, params) //nolint:wrapcheck // như trên
+}

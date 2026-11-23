@@ -50,6 +50,20 @@ func ListProvinces(ctx context.Context, tx pgx.Tx) ([]AdminUnit, error) {
 	return out, nil
 }
 
+// ListAllWards trả mọi xã/phường của mọi tỉnh, theo mã tỉnh rồi tên (không chặn MaxWardHits: danh mục địa giới đầy đủ
+// cho website, kế hoạch M5 Task 191). Khi nào không dùng: ô chọn xã của màn hình (ListWards có lọc và giới hạn).
+func ListAllWards(ctx context.Context, tx pgx.Tx) ([]AdminUnit, error) {
+	rows, err := store.New(tx).ListAllAdminWards(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("đọc mọi xã: %w", err)
+	}
+	out := make([]AdminUnit, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, AdminUnit{Code: r.Code, Level: AdminWard, ParentCode: r.ParentCode, Name: r.Name})
+	}
+	return out, nil
+}
+
 // ListWards trả xã/phường của tỉnh provinceCode có tên chứa q (q chuẩn hóa bằng NormalizeName: bỏ dấu, không phân
 // biệt hoa thường; q rỗng là mọi xã), theo tên, tối đa limit dòng (limit ngoài 1…MaxWardHits thành MaxWardHits). Mã
 // tỉnh không có trong danh mục cho danh sách rỗng.

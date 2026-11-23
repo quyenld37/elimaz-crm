@@ -124,15 +124,21 @@ func TestListWards(t *testing.T) {
 	}
 }
 
-func TestListWardsLimitCapped(t *testing.T) {
-	t.Parallel()
-	s, inTx := adminEnv(t)
+// seedManyWards thêm 80 xã T020100…T020179 ("Xã số 100"…) vào tỉnh T02 (nhiều hơn MaxWardHits).
+func seedManyWards(t *testing.T, s *testkit.Staff) {
+	t.Helper()
 	if _, err := s.Owner.Pool.Exec(t.Context(), `INSERT INTO customer.admin_units
 		(code, level, parent_code, name, name_search, effective_from, source)
 		SELECT 'T02' || lpad(i::text, 4, '0'), 'ward', 'T02', 'Xã số ' || i, 'xa so ' || i, DATE '2025-07-01', 'test'
 		FROM generate_series(100, 179) AS i`); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestListWardsLimitCapped(t *testing.T) {
+	t.Parallel()
+	s, inTx := adminEnv(t)
+	seedManyWards(t, s)
 	inTx(func(tx pgx.Tx) error {
 		got, err := customer.ListWards(t.Context(), tx, "T02", "xa so", 1000)
 		if err != nil {
@@ -143,6 +149,42 @@ func TestListWardsLimitCapped(t *testing.T) {
 		}
 		return nil
 	})
+}
+
+// ListAllWards (website, Task 191): mọi xã của mọi tỉnh, không chặn MaxWardHits (T02 có 82 xã), theo tỉnh rồi tên.
+func TestListAllWards(t *testing.T) {
+	t.Parallel()
+	s, inTx := adminEnv(t)
+	seedManyWards(t, s)
+	var got []customer.AdminUnit
+	inTx(func(tx pgx.Tx) error {
+		var err error
+		got, err = customer.ListAllWards(t.Context(), tx)
+		return err //nolint:wrapcheck // test
+	})
+	// Chỉ xét mã mẫu T… (danh mục thật, nếu có, không làm test đỏ).
+	var mine []customer.AdminUnit
+	for _, u := range got {
+		if u.Level != customer.AdminWard || u.ParentCode == "" {
+			t.Fatalf("dòng không phải xã: %+v", u)
+		}
+		if strings.HasPrefix(u.Code, "T") {
+			mine = append(mine, u)
+		}
+	}
+	if len(mine) != 85 {
+		t.Fatalf("mong 85 xã mẫu (vượt MaxWardHits), có %d", len(mine))
+	}
+	want := []string{"T01001", "T01002", "T01003", "T02002", "T02001", "T020100"}
+	if head := codes(mine[:6]); !slices.Equal(head, want) || mine[84].Code != "T020179" {
+		t.Fatalf("thứ tự theo tỉnh rồi tên: đầu %v, cuối %s", head, mine[84].Code)
+	}
+	if mine[1] != (customer.AdminUnit{Code: "T01002", Level: customer.AdminWard, ParentCode: "T01", Name: "Phường Đa Kao"}) {
+		t.Fatalf("xã T01002: %+v", mine[1])
+	}
+	if !slices.IsSortedFunc(got, func(a, b customer.AdminUnit) int { return strings.Compare(a.ParentCode, b.ParentCode) }) {
+		t.Fatal("xã phải theo mã tỉnh")
+	}
 }
 
 func TestValidateUnits(t *testing.T) {

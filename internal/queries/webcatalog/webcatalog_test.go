@@ -42,6 +42,7 @@ type env struct {
 	seller, partner  uuid.UUID
 	warehouse        uuid.UUID
 	productsOfSeller map[uuid.UUID][]uuid.UUID
+	n                int // số đơn thử đã chèn (mã đơn)
 }
 
 const seedSQL = `

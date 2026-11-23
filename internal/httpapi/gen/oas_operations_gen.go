@@ -193,7 +193,10 @@ const (
 	UpdateVariantOperation               OperationName = "UpdateVariant"
 	VerifyFilesOperation                 OperationName = "VerifyFiles"
 	WaiveRefundObligationOperation       OperationName = "WaiveRefundObligation"
+	WebAvailabilityOperation             OperationName = "WebAvailability"
 	WebCatalogChangesOperation           OperationName = "WebCatalogChanges"
 	WebCatalogProductsOperation          OperationName = "WebCatalogProducts"
 	WebCatalogTaxonomyOperation          OperationName = "WebCatalogTaxonomy"
+	WebLocationsOperation                OperationName = "WebLocations"
+	WebSold30dOperation                  OperationName = "WebSold30d"
 )

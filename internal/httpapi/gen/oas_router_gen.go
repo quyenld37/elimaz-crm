@@ -334,10 +334,13 @@ var (
 	rn253AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type,Idempotency-Key",
 	}
-	rn261AllowedHeaders = map[string]string{
+	rn263AllowedHeaders = map[string]string{
 		"GET": "If-None-Match",
 	}
-	rn262AllowedHeaders = map[string]string{
+	rn264AllowedHeaders = map[string]string{
+		"GET": "If-None-Match",
+	}
+	rn265AllowedHeaders = map[string]string{
 		"GET": "If-None-Match",
 	}
 )
@@ -5816,9 +5819,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 					}
 
-				case 'w': // Prefix: "web/catalog/"
+				case 'w': // Prefix: "web/"
 
-					if l := len("web/catalog/"); len(elem) >= l && elem[0:l] == "web/catalog/" {
+					if l := len("web/"); len(elem) >= l && elem[0:l] == "web/" {
 						elem = elem[l:]
 					} else {
 						break
@@ -5828,9 +5831,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 					switch elem[0] {
-					case 'c': // Prefix: "changes"
+					case 'a': // Prefix: "availability"
 
-						if l := len("changes"); len(elem) >= l && elem[0:l] == "changes" {
+						if l := len("availability"); len(elem) >= l && elem[0:l] == "availability" {
 							elem = elem[l:]
 						} else {
 							break
@@ -5840,7 +5843,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							// Leaf node.
 							switch r.Method {
 							case "GET":
-								s.handleWebCatalogChangesRequest([0]string{}, elemIsEscaped, w, r)
+								s.handleWebAvailabilityRequest([0]string{}, elemIsEscaped, w, r)
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET",
@@ -5853,34 +5856,123 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							return
 						}
 
-					case 'p': // Prefix: "products"
+					case 'c': // Prefix: "catalog/"
 
-						if l := len("products"); len(elem) >= l && elem[0:l] == "products" {
+						if l := len("catalog/"); len(elem) >= l && elem[0:l] == "catalog/" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
 						if len(elem) == 0 {
-							// Leaf node.
-							switch r.Method {
-							case "GET":
-								s.handleWebCatalogProductsRequest([0]string{}, elemIsEscaped, w, r)
-							default:
-								s.notAllowed(w, r, notAllowedParams{
-									allowedMethods: "GET",
-									allowedHeaders: rn261AllowedHeaders,
-									acceptPost:     "",
-									acceptPatch:    "",
-								})
+							break
+						}
+						switch elem[0] {
+						case 'c': // Prefix: "changes"
+
+							if l := len("changes"); len(elem) >= l && elem[0:l] == "changes" {
+								elem = elem[l:]
+							} else {
+								break
 							}
 
-							return
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "GET":
+									s.handleWebCatalogChangesRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "GET",
+										allowedHeaders: nil,
+										acceptPost:     "",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
+						case 'p': // Prefix: "products"
+
+							if l := len("products"); len(elem) >= l && elem[0:l] == "products" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "GET":
+									s.handleWebCatalogProductsRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "GET",
+										allowedHeaders: rn263AllowedHeaders,
+										acceptPost:     "",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
+						case 's': // Prefix: "sold-30d"
+
+							if l := len("sold-30d"); len(elem) >= l && elem[0:l] == "sold-30d" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "GET":
+									s.handleWebSold30dRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "GET",
+										allowedHeaders: nil,
+										acceptPost:     "",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
+						case 't': // Prefix: "taxonomy"
+
+							if l := len("taxonomy"); len(elem) >= l && elem[0:l] == "taxonomy" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "GET":
+									s.handleWebCatalogTaxonomyRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "GET",
+										allowedHeaders: rn264AllowedHeaders,
+										acceptPost:     "",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
 						}
 
-					case 't': // Prefix: "taxonomy"
+					case 'l': // Prefix: "locations"
 
-						if l := len("taxonomy"); len(elem) >= l && elem[0:l] == "taxonomy" {
+						if l := len("locations"); len(elem) >= l && elem[0:l] == "locations" {
 							elem = elem[l:]
 						} else {
 							break
@@ -5890,11 +5982,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							// Leaf node.
 							switch r.Method {
 							case "GET":
-								s.handleWebCatalogTaxonomyRequest([0]string{}, elemIsEscaped, w, r)
+								s.handleWebLocationsRequest([0]string{}, elemIsEscaped, w, r)
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET",
-									allowedHeaders: rn262AllowedHeaders,
+									allowedHeaders: rn265AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -11505,9 +11597,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 					}
 
-				case 'w': // Prefix: "web/catalog/"
+				case 'w': // Prefix: "web/"
 
-					if l := len("web/catalog/"); len(elem) >= l && elem[0:l] == "web/catalog/" {
+					if l := len("web/"); len(elem) >= l && elem[0:l] == "web/" {
 						elem = elem[l:]
 					} else {
 						break
@@ -11517,9 +11609,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						break
 					}
 					switch elem[0] {
-					case 'c': // Prefix: "changes"
+					case 'a': // Prefix: "availability"
 
-						if l := len("changes"); len(elem) >= l && elem[0:l] == "changes" {
+						if l := len("availability"); len(elem) >= l && elem[0:l] == "availability" {
 							elem = elem[l:]
 						} else {
 							break
@@ -11529,11 +11621,11 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							// Leaf node.
 							switch method {
 							case "GET":
-								r.name = WebCatalogChangesOperation
-								r.summary = "Mã mẫu có mẫu, biến thể hay tồn đổi từ mốc since (≤ 1.000 mã); không đệm"
-								r.operationID = "webCatalogChanges"
+								r.name = WebAvailabilityOperation
+								r.summary = "Còn/hết của tối đa 100 biến thể ở kho mặc định, hạn sống 5 s"
+								r.operationID = "webAvailability"
 								r.operationGroup = ""
-								r.pathPattern = "/api/v1/web/catalog/changes"
+								r.pathPattern = "/api/v1/web/availability"
 								r.args = args
 								r.count = 0
 								return r, true
@@ -11542,34 +11634,123 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							}
 						}
 
-					case 'p': // Prefix: "products"
+					case 'c': // Prefix: "catalog/"
 
-						if l := len("products"); len(elem) >= l && elem[0:l] == "products" {
+						if l := len("catalog/"); len(elem) >= l && elem[0:l] == "catalog/" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
 						if len(elem) == 0 {
-							// Leaf node.
-							switch method {
-							case "GET":
-								r.name = WebCatalogProductsOperation
-								r.summary = "Mẫu cho website theo trang (cursor, limit ≤ 200) hoặc theo danh sách mã (ids ≤ 100); có ETag"
-								r.operationID = "webCatalogProducts"
-								r.operationGroup = ""
-								r.pathPattern = "/api/v1/web/catalog/products"
-								r.args = args
-								r.count = 0
-								return r, true
-							default:
-								return
+							break
+						}
+						switch elem[0] {
+						case 'c': // Prefix: "changes"
+
+							if l := len("changes"); len(elem) >= l && elem[0:l] == "changes" {
+								elem = elem[l:]
+							} else {
+								break
 							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "GET":
+									r.name = WebCatalogChangesOperation
+									r.summary = "Mã mẫu có mẫu, biến thể hay tồn đổi từ mốc since (≤ 1.000 mã); không đệm"
+									r.operationID = "webCatalogChanges"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/web/catalog/changes"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+						case 'p': // Prefix: "products"
+
+							if l := len("products"); len(elem) >= l && elem[0:l] == "products" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "GET":
+									r.name = WebCatalogProductsOperation
+									r.summary = "Mẫu cho website theo trang (cursor, limit ≤ 200) hoặc theo danh sách mã (ids ≤ 100); có ETag"
+									r.operationID = "webCatalogProducts"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/web/catalog/products"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+						case 's': // Prefix: "sold-30d"
+
+							if l := len("sold-30d"); len(elem) >= l && elem[0:l] == "sold-30d" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "GET":
+									r.name = WebSold30dOperation
+									r.summary = "Số đơn vị đã bán 30 ngày gần nhất theo biến thể (kèm mã mẫu)"
+									r.operationID = "webSold30d"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/web/catalog/sold-30d"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+						case 't': // Prefix: "taxonomy"
+
+							if l := len("taxonomy"); len(elem) >= l && elem[0:l] == "taxonomy" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "GET":
+									r.name = WebCatalogTaxonomyOperation
+									r.summary = "Danh mục đang dùng, thuộc tính và giá trị, nhãn cho website; có ETag"
+									r.operationID = "webCatalogTaxonomy"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/web/catalog/taxonomy"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
 						}
 
-					case 't': // Prefix: "taxonomy"
+					case 'l': // Prefix: "locations"
 
-						if l := len("taxonomy"); len(elem) >= l && elem[0:l] == "taxonomy" {
+						if l := len("locations"); len(elem) >= l && elem[0:l] == "locations" {
 							elem = elem[l:]
 						} else {
 							break
@@ -11579,11 +11760,11 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							// Leaf node.
 							switch method {
 							case "GET":
-								r.name = WebCatalogTaxonomyOperation
-								r.summary = "Danh mục đang dùng, thuộc tính và giá trị, nhãn cho website; có ETag"
-								r.operationID = "webCatalogTaxonomy"
+								r.name = WebLocationsOperation
+								r.summary = "Địa giới hành chính hai cấp (tỉnh/thành, xã/phường) cho website; có ETag"
+								r.operationID = "webLocations"
 								r.operationGroup = ""
-								r.pathPattern = "/api/v1/web/catalog/taxonomy"
+								r.pathPattern = "/api/v1/web/locations"
 								r.args = args
 								r.count = 0
 								return r, true
