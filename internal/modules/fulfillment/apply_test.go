@@ -161,6 +161,7 @@ func (e *applyEnv) shipmentIs(id uuid.UUID, st fulfillment.Status) {
 // VC05, VC06, VC08, VC09: lấy hàng → giao xong; gửi lại cùng hành trình hai lần không đổi gì; tin cũ sau thành công
 // chỉ vào lịch sử.
 func TestApply_PickupDeliverDuplicateLate(t *testing.T) {
+	t.Parallel()
 	e, o, vA, vB, s := newD1Shipment(t)
 	before := e.statusEvents(s.ID)
 
@@ -237,6 +238,7 @@ func TestApply_PickupDeliverDuplicateLate(t *testing.T) {
 
 // VC07: hai lần giao thất bại tạo hai việc gọi lại (lần 1, 2; hạn = lúc thất bại + 24 giờ), giao xong đóng cả hai.
 func TestApply_FailedTwiceThenDelivered(t *testing.T) {
+	t.Parallel()
 	e, o, vA, vB, s := newD1Shipment(t)
 	e.apply(s.ID, ev("e1", fulfillment.CanonPickedUp, 8, 0))
 	e.apply(s.ID, ev("e2", fulfillment.CanonDeliveryFailed, 10, 0))
@@ -287,6 +289,7 @@ func TestApply_FailedTwiceThenDelivered(t *testing.T) {
 
 // Thiếu tin lấy hàng: awaiting_pickup nhận thẳng Delivered → held → in_transit → consumed trong một transaction.
 func TestApply_DeliveredWithoutPickup(t *testing.T) {
+	t.Parallel()
 	e, o, vA, vB, s := newD1Shipment(t)
 	r := e.apply(s.ID, ev("d", fulfillment.CanonDelivered, 15, 0))
 	if !slices.Equal(r.Effects, []shipstate.Effect{shipstate.EffPickedUp, shipstate.EffDelivered}) {
@@ -304,6 +307,7 @@ func TestApply_DeliveredWithoutPickup(t *testing.T) {
 
 // Một lô nhiều sự kiện lộn thứ tự: áp theo OccurredAt tăng dần; mỗi bước đổi trạng thái một shipment.status_changed.
 func TestApply_BatchSortedByTime(t *testing.T) {
+	t.Parallel()
 	e, _, vA, vB, s := newD1Shipment(t)
 	before := e.statusEvents(s.ID)
 	r := e.apply(s.ID, ev("c", fulfillment.CanonDelivered, 15, 0), ev("a", fulfillment.CanonPickedUp, 8, 0),
@@ -334,6 +338,7 @@ func TestApply_BatchSortedByTime(t *testing.T) {
 
 // Phí thật và tiền COD hãng báo được ghi; sync_error, stuck_since xóa.
 func TestApply_FeeAndCODCollected(t *testing.T) {
+	t.Parallel()
 	e, _, _, _, s := newD1Shipment(t)
 	if err := e.staff.TryExec(t.Context(), e.tenant, func(tx pgx.Tx) error {
 		_, err := tx.Exec(t.Context(), `UPDATE fulfillment.shipments SET last_sync_error = 'x', stuck_since = now()
@@ -372,6 +377,7 @@ func TestApply_FeeAndCODCollected(t *testing.T) {
 // VC11: V1 hủy để thay (cancel_kind replace), đơn gắn V3; tin Cancelled muộn của V1 chỉ vào lịch sử V1, tin PickedUp
 // của V1 mở anomaly not_current_moved; D1 vẫn gắn V3, tồn không đổi.
 func TestApply_LateEventsOfReplacedShipment(t *testing.T) {
+	t.Parallel()
 	e := newApplyEnv(t)
 	o, vA, vB := e.d1()
 	v1 := e.awaiting(o)
@@ -422,6 +428,7 @@ func TestApply_LateEventsOfReplacedShipment(t *testing.T) {
 
 // Hãng xác nhận hủy khi đơn đang cancel_requested → đơn cancelled, nhả hàng; vận đơn cancelled (order_cancel).
 func TestApply_CancelConfirmedReleasesStock(t *testing.T) {
+	t.Parallel()
 	e, o, vA, vB, s := newD1Shipment(t)
 	e.cancelRequested(o, s.ID)
 	e.apply(s.ID, ev("c", fulfillment.CanonCancelled, 9, 0))
@@ -433,6 +440,7 @@ func TestApply_CancelConfirmedReleasesStock(t *testing.T) {
 
 // Hãng tự hủy (nhân viên không yêu cầu) → cancel_kind carrier_cancelled; đơn confirmed, gỡ vận đơn, giữ hàng.
 func TestApply_CarrierCancelledWithoutRequest(t *testing.T) {
+	t.Parallel()
 	e, o, vA, vB, s := newD1Shipment(t)
 	e.apply(s.ID, ev("c", fulfillment.CanonCancelled, 9, 0))
 	e.cancelKindIs(s.ID, "carrier_cancelled")
@@ -445,6 +453,7 @@ func TestApply_CarrierCancelledWithoutRequest(t *testing.T) {
 // Hãng báo hủy khi hàng đã rời kho (đơn cancel_requested, hàng in_transit) → không nhả hàng, anomaly cancel_conflict,
 // vận đơn vẫn cancelled theo hãng.
 func TestApply_CancelConflictWhenInTransit(t *testing.T) {
+	t.Parallel()
 	e, o, vA, vB, s := newD1Shipment(t)
 	e.cancelRequested(o, s.ID)
 	if err := e.app(func(tx pgx.Tx) error {
@@ -474,6 +483,7 @@ func TestApply_CancelConflictWhenInTransit(t *testing.T) {
 // Task 431: vận đơn awaiting_pickup, đơn đã cancel_requested, hãng báo PickedUp → chỉ EffPickedUp, đơn giữ
 // cancel_requested, hàng in_transit.
 func TestApply_PickedUpWhileOrderCancelRequested(t *testing.T) {
+	t.Parallel()
 	e, o, vA, vB, s := newD1Shipment(t)
 	e.requestOrderCancel(o)
 	r := e.apply(s.ID, ev("p", fulfillment.CanonPickedUp, 8, 0))
@@ -487,6 +497,7 @@ func TestApply_PickedUpWhileOrderCancelRequested(t *testing.T) {
 // Q-T91-2: vận đơn cancel_requested, đơn cancel_requested, hãng báo Returning → đơn về confirmed rồi phiếu hoàn của
 // hãng; vận đơn returning; hàng in_transit.
 func TestApply_ReturningWhileCancelRequested(t *testing.T) {
+	t.Parallel()
 	e, o, vA, vB, s := newD1Shipment(t)
 	e.cancelRequested(o, s.ID)
 	r := e.apply(s.ID, ev("r", fulfillment.CanonReturning, 12, 0))
@@ -500,6 +511,7 @@ func TestApply_ReturningWhileCancelRequested(t *testing.T) {
 // Q-T91-2 (vận đơn chưa nhận yêu cầu hủy): vận đơn awaiting_pickup, đơn cancel_requested, hãng báo Returning → đơn
 // về confirmed rồi phiếu hoàn (Quyết định 7), không lỗi.
 func TestApply_ReturningAwaitingWhileOrderCancelRequested(t *testing.T) {
+	t.Parallel()
 	e, o, _, _, s := newD1Shipment(t)
 	e.requestOrderCancel(o)
 	e.apply(s.ID, ev("r", fulfillment.CanonReturning, 12, 0))
@@ -512,6 +524,7 @@ func TestApply_ReturningAwaitingWhileOrderCancelRequested(t *testing.T) {
 // Đang giao rồi hoàn: phiếu hoàn của hãng, việc gọi lại còn mở đóng với carrier_returning; hãng báo đã hoàn về shop
 // ghi carrier_reported_returned_at, vận đơn vẫn returning.
 func TestApply_ReturningClosesCallbacks(t *testing.T) {
+	t.Parallel()
 	e, o, _, _, s := newD1Shipment(t)
 	e.apply(s.ID, ev("p", fulfillment.CanonPickedUp, 8, 0), ev("f", fulfillment.CanonDeliveryFailed, 10, 0))
 	e.apply(s.ID, ev("r", fulfillment.CanonReturning, 12, 0))
@@ -534,6 +547,7 @@ func TestApply_ReturningClosesCallbacks(t *testing.T) {
 
 // TD10: hãng sửa "đã giao" thành "hoàn" (tra API) → đảo phiếu xuất, đơn về confirmed, phiếu hoàn.
 func TestApply_DeliveryReversed(t *testing.T) {
+	t.Parallel()
 	e, o, vA, vB, s := newD1Shipment(t)
 	e.apply(s.ID, ev("p", fulfillment.CanonPickedUp, 8, 0), ev("d", fulfillment.CanonDelivered, 15, 0))
 	r := e.apply(s.ID, ev("r", fulfillment.CanonReturning, 17, 0))
@@ -545,6 +559,7 @@ func TestApply_DeliveryReversed(t *testing.T) {
 
 // Mã lạ, giao một phần, cạnh sai → không áp, anomaly mở một lần (lần hai cùng loại không thêm), needs_review.
 func TestApply_AnomaliesOpenOnce(t *testing.T) {
+	t.Parallel()
 	e, _, _, _, s := newD1Shipment(t)
 	r := e.apply(s.ID, ev("u1", fulfillment.CanonUnknown, 8, 0), ev("u2", fulfillment.CanonUnknown, 9, 0),
 		ev("pd", fulfillment.CanonPartiallyDelivered, 10, 0))
@@ -570,6 +585,7 @@ func TestApply_AnomaliesOpenOnce(t *testing.T) {
 
 // Tenant B gọi ApplyTracking với vận đơn của tenant A → ErrNotFound, không ghi gì.
 func TestApply_OtherTenantNotFound(t *testing.T) {
+	t.Parallel()
 	e, _, _, _, s := newD1Shipment(t)
 	b := e.staff.Tenant(t, "B")
 	err := tenancy.WithTenant(t.Context(), e.staff.App, b, func(tx pgx.Tx) error {
@@ -586,6 +602,7 @@ func TestApply_OtherTenantNotFound(t *testing.T) {
 
 // Trạng thái con, lý do có SĐT (như thân thô của hãng có receiver_phone) → dòng lưu không chứa SĐT.
 func TestApply_RawHasNoPhone(t *testing.T) {
+	t.Parallel()
 	e, _, _, _, s := newD1Shipment(t)
 	x := ev("f", fulfillment.CanonDeliveryFailed, 10, 0)
 	x.SubStatus = `{"receiver_phone":"0901234567"}`
@@ -607,6 +624,7 @@ func TestApply_RawHasNoPhone(t *testing.T) {
 
 // Khóa sự kiện rỗng → ErrInvalidTracking, không ghi gì.
 func TestApply_InvalidEventKey(t *testing.T) {
+	t.Parallel()
 	e, _, _, _, s := newD1Shipment(t)
 	_, err := e.tryApply(e.input(s.ID, ev("", fulfillment.CanonPickedUp, 8, 0)))
 	if !errors.Is(err, fulfillment.ErrInvalidTracking) {
@@ -616,6 +634,7 @@ func TestApply_InvalidEventKey(t *testing.T) {
 
 // Song song: 10 goroutine cùng áp Delivered (khóa sự kiện khác nhau) → đúng một EffDelivered, không deadlock.
 func TestApply_ConcurrentDelivered(t *testing.T) {
+	t.Parallel()
 	e, _, vA, vB, s := newD1Shipment(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
 	defer cancel()

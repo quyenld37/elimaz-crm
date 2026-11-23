@@ -205,6 +205,7 @@ func (e *accEnv) credentialRow(id uuid.UUID) (enc []byte, kid string) {
 // bản mã không chứa chuỗi khóa, credential_key_id là khóa đầu (k1); ResolveAccount trả đúng khóa đã giải mã và
 // địa chỉ lấy hàng của kho; việc trong platform.jobs (payload, kết quả, lỗi) không có chuỗi khóa.
 func TestAccounts_CreateCheckActive(t *testing.T) {
+	t.Parallel()
 	e := newAccEnv(t)
 	v := e.mustCreate(e.input(fulfillment.ModeAPI, fulfillment.Credentials{"token": liveToken}))
 	if v.Status != fulfillment.AccountDraft || !v.HasCredentials || v.NeedsRewrap || v.Environment != "sandbox" ||
@@ -245,6 +246,7 @@ func TestAccounts_CreateCheckActive(t *testing.T) {
 // Đổi một byte credential_enc bằng chủ bảng → lệnh kiểm dead lý do decrypt_failed, last_error không có khóa; tài
 // khoản giữ nguyên trạng thái.
 func TestAccounts_TamperedCiphertext(t *testing.T) {
+	t.Parallel()
 	e := newAccEnv(t)
 	v := e.mustCreate(e.input(fulfillment.ModeAPI, fulfillment.Credentials{"token": liveToken}))
 	e.ownerExec(`UPDATE fulfillment.carrier_accounts SET credential_enc = set_byte(credential_enc, 20,
@@ -265,6 +267,7 @@ func TestAccounts_TamperedCiphertext(t *testing.T) {
 
 // Chép credential_enc của tài khoản X sang Y (chủ bảng) → giải mã Y thất bại (AAD gắn mã dòng); X vẫn mở được.
 func TestAccounts_CopiedCiphertext(t *testing.T) {
+	t.Parallel()
 	e := newAccEnv(t)
 	x := e.mustCreate(e.input(fulfillment.ModeAPI, fulfillment.Credentials{"token": liveToken}))
 	inY := e.input(fulfillment.ModeAPI, fulfillment.Credentials{"token": "tk-other"})
@@ -284,6 +287,7 @@ func TestAccounts_CopiedCiphertext(t *testing.T) {
 // Xoay khóa: FIELD_ENC_KEYS = "k2:…,k1:…" → tài khoản cũ (k1) vẫn giải mã được, NeedsRewrap = true; PutCredentials →
 // credential_key_id = k2, NeedsRewrap = false, trạng thái checking và có lệnh kiểm.
 func TestAccounts_KeyRotation(t *testing.T) {
+	t.Parallel()
 	e := newAccEnv(t)
 	v := e.mustCreate(e.input(fulfillment.ModeAPI, fulfillment.Credentials{"token": liveToken}))
 	e.useKeys(keySpec("k2", 2) + "," + keySpec("k1", 1))
@@ -320,6 +324,7 @@ func TestAccounts_KeyRotation(t *testing.T) {
 // tự đổi). MarkAuthFailed (lệnh khác báo ErrAuth) trên tài khoản active → auth_failed, cảnh báo; trên tài khoản paused
 // → giữ paused.
 func TestAccounts_AuthRevoked(t *testing.T) {
+	t.Parallel()
 	e := newAccEnv(t)
 	v := e.mustCreate(e.input(fulfillment.ModeAPI, fulfillment.Credentials{"token": liveToken}))
 	inB := e.input(fulfillment.ModeAPI, fulfillment.Credentials{"token": "tk-b"})
@@ -366,6 +371,7 @@ func TestAccounts_AuthRevoked(t *testing.T) {
 // platform.tenant_routes → lỗi quyền. revoked → tuyến vẫn còn, vận đơn cũ vẫn đọc được, ResolveAccount →
 // ErrAccountUnavailable, không bật lại được.
 func TestAccounts_RouteAndRevoked(t *testing.T) {
+	t.Parallel()
 	e := newAccEnv(t)
 	v := e.mustCreate(e.input(fulfillment.ModeAPI, fulfillment.Credentials{"token": liveToken}))
 	rk := strings.TrimPrefix(v.WebhookURL, "/hooks/fake/")
@@ -415,6 +421,7 @@ func TestAccounts_RouteAndRevoked(t *testing.T) {
 // tài khoản mặc định cùng kho cùng hãng → ErrAccountTaken; kho lạ → ErrAccountTargetNotFound; sửa với version cũ →
 // ErrVersionConflict; đổi mã ở hãng → ErrAccountInvalid.
 func TestAccounts_Validation(t *testing.T) {
+	t.Parallel()
 	e := newAccEnv(t)
 	bad := e.input(fulfillment.ModeAPI, nil)
 	bad.CarrierKey = "ghn"
@@ -479,6 +486,7 @@ func TestAccounts_Validation(t *testing.T) {
 
 // ActiveAccounts(ShowOnWeb: true) chỉ trả tài khoản active có cờ; lọc khả năng; Creds qua slog ra [Redacted].
 func TestAccounts_ActiveAccounts(t *testing.T) {
+	t.Parallel()
 	e := newAccEnv(t)
 	web := e.input(fulfillment.ModeAPI, fulfillment.Credentials{"token": liveToken})
 	web.ShowOnWeb, web.Name = true, "Trên web"
@@ -520,6 +528,7 @@ func TestAccounts_ActiveAccounts(t *testing.T) {
 // Nhánh kết quả kiểm (Quyết định 7 của tệp task): hãng từ chối (422) → auth_failed với mã http_422, không cảnh báo;
 // 429 → lệnh hẹn lại (pending), tài khoản giữ draft; 503 chưa gửi → hẹn lại.
 func TestAccounts_CheckOutcomes(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		mode, status, result, job string
 	}{
@@ -549,6 +558,7 @@ func TestAccounts_CheckOutcomes(t *testing.T) {
 // Soát thiết kế 6.4: lệnh kiểm đã đọc khóa cũ, khóa mới được ghi trước khi lệnh xong → kết quả của lệnh cũ bị bỏ
 // (tài khoản giữ checking, chưa có last_check_*); lệnh kiểm mới (theo khóa mới) mới quyết định trạng thái.
 func TestAccounts_StaleCheckIgnored(t *testing.T) {
+	t.Parallel()
 	e := newAccEnv(t)
 	v := e.mustCreate(e.input(fulfillment.ModeAPI, fulfillment.Credentials{"token": liveToken}))
 	if err := e.app(func(tx pgx.Tx) error {
@@ -581,6 +591,7 @@ func TestAccounts_StaleCheckIgnored(t *testing.T) {
 
 // Tài khoản paused: kiểm OK hay 401 chỉ ghi last_check_*, giữ paused, không cảnh báo; ghi khóa mới cũng giữ paused.
 func TestAccounts_PausedStaysPaused(t *testing.T) {
+	t.Parallel()
 	e := newAccEnv(t)
 	v := e.mustCreate(e.input(fulfillment.ModeAPI, fulfillment.Credentials{"token": liveToken}))
 	if _, err := e.setStatus(v.ID, fulfillment.AccountPaused); err != nil {

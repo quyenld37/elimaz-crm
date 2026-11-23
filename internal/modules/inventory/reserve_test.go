@@ -17,6 +17,7 @@ import (
 
 // KH04: available = on_hand − damaged − held − in_transit, ở Availability và ở view.
 func TestAvailability_Formula(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(10)
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
@@ -41,6 +42,7 @@ func TestAvailability_Formula(t *testing.T) {
 
 // Biến thể chưa có dòng số dư: Availability trả số 0 (Q-T28-4), theo variant_id tăng dần, bỏ trùng.
 func TestAvailability_MissingRowIsZero(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	vs := e.variants(2)
 	e.seed(vs[0], 3)
@@ -70,6 +72,7 @@ func TestAvailability_MissingRowIsZero(t *testing.T) {
 }
 
 func TestReserve_HoldsAndRecords(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, testReserveHoldsAndRecords)
 }
 
@@ -133,6 +136,7 @@ func raceReserve(t *testing.T, e *invEnv, v uuid.UUID, n int) (ok int, short []*
 
 // Chiếc cuối: hai transaction song song giữ qty 1 trên available 1 → đúng một được.
 func TestReserve_LastItem(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(1)
 	ok, short := raceReserve(t, e, v, 2)
@@ -150,6 +154,7 @@ func TestReserve_LastItem(t *testing.T) {
 
 // 50 goroutine qty 1 trên available 10 → đúng 10 được.
 func TestReserve_FiftyOnTen(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(10)
 	if ok, short := raceReserve(t, e, v, 50); ok != 10 || len(short) != 40 {
@@ -163,6 +168,7 @@ func TestReserve_FiftyOnTen(t *testing.T) {
 
 // Reserve 2 dòng, dòng B thiếu → lỗi, transaction lùi toàn bộ.
 func TestReserve_PartialShortageRollsBack(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	a, b := e.stock(5), e.stock(1)
 	_, err := e.reserve(sysActor(), e.line(a, 2), e.line(b, 2))
@@ -181,6 +187,7 @@ func TestReserve_PartialShortageRollsBack(t *testing.T) {
 
 // Biến thể chưa có dòng số dư → thiếu, available 0; số lượng ≤ 0, actor lạ → ErrInvalidInput.
 func TestReserve_NoRowAndInvalidInput(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.variants(1)[0]
 	_, err := e.reserve(sysActor(), e.line(v, 1))
@@ -207,6 +214,7 @@ func TestReserve_NoRowAndInvalidInput(t *testing.T) {
 
 // Tenant B không thấy số dư của A; view ngoài ngữ cảnh tenant → 0 dòng.
 func TestTenantIsolation(t *testing.T) {
+	t.Parallel()
 	staff := testkit.OpenStaff(t)
 	a := newInvEnvOn(t, staff, "A")
 	b := newInvEnvOn(t, staff, "B")

@@ -93,6 +93,7 @@ func (e *invEnv) ledgerRows(docType string, doc uuid.UUID, step string) int {
 // consume_partial (một dòng mỗi ngăn); ConsumeByItems của M1 cho phần còn lại → on_hand 8, in_transit 0, consumed.
 // Qty bằng số đang giữ → như ConsumeByItems (bước consume).
 func TestConsumePartial(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	d := e.d1InTransit()
 	if err := e.consumePartial(inventory.PartialLine{OrderItemID: d.lB.OrderItemID, Qty: 1}); err != nil {
@@ -138,6 +139,7 @@ func TestConsumePartial(t *testing.T) {
 
 // Một lệnh nhiều dòng: dòng giao đủ và dòng giao một phần cùng lúc, truyền theo thứ tự ngược với thứ tự khóa.
 func TestConsumePartial_Mixed(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	d := e.d1InTransit()
 	if err := e.consumePartial(
@@ -152,6 +154,7 @@ func TestConsumePartial_Mixed(t *testing.T) {
 
 // Không đủ, gọi lặp, sai trạng thái → ErrStateConflict; đầu vào sai → ErrInvalidInput; cả lệnh không đổi gì.
 func TestConsumePartial_Rejects(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	d := e.d1InTransit()
 	held := e.line(d.vA, 1) // dòng đơn chỉ held
@@ -201,6 +204,7 @@ func TestConsumePartial_Rejects(t *testing.T) {
 
 // Giao một phần lần hai trên cùng dòng giữ hàng (còn đủ số) → ErrStateConflict, không đổi gì.
 func TestConsumePartial_SecondPartialRejected(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(10)
 	l := e.line(v, 3)
@@ -228,6 +232,7 @@ func TestConsumePartial_SecondPartialRejected(t *testing.T) {
 // TD10: hãng sửa "đã giao" → đảo: consumed → in_transit, on_hand +q, in_transit +q, sổ adjust/ref bước
 // reverse_consume; cùng ref lần hai → không đổi gì; thiếu lý do → ErrReasonRequired.
 func TestReverseConsumption(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	d := e.d1InTransit()
 	if err := e.consumeByItems(d.lA.OrderItemID, d.lB.OrderItemID); err != nil {
@@ -284,6 +289,7 @@ func TestReverseConsumption(t *testing.T) {
 
 // Hai dòng đơn cùng biến thể trong một lệnh đảo: sổ gộp theo (biến thể, kho), không trùng khóa unique.
 func TestReverseConsumption_SameVariantTwoItems(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(6)
 	l1, l2 := e.line(v, 1), e.line(v, 2)
@@ -312,6 +318,7 @@ func TestReverseConsumption_SameVariantTwoItems(t *testing.T) {
 
 // Đảo sau khi đã giao một phần: chỉ trả lại phần giao nốt (quantity hiện tại của giữ hàng, Q-T96-6).
 func TestReverseConsumption_AfterPartial(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	d := e.d1InTransit()
 	e.partialThenReverse(d.lB.OrderItemID)
@@ -324,6 +331,7 @@ func TestReverseConsumption_AfterPartial(t *testing.T) {
 // TD04: hàng thất lạc sau khi hãng hoàn (ReleaseInTransitByItems của M2) → on_hand −1, có thể bán −1, sổ adjust/ref
 // bước loss; cùng ref lần hai → không đổi gì; thiếu hàng có thể bán, chưa có số dư → ErrStateConflict.
 func TestRecordLoss(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	d := e.d1InTransit()
 	if err := e.byItems(func(ctx context.Context, tx pgx.Tx, w inventory.Writer, items []uuid.UUID) error {
@@ -394,6 +402,7 @@ func TestRecordLoss(t *testing.T) {
 // ConsumeByItems — mở thẳng transaction (không RetryTx). Sai trạng thái do bên kia đi trước là kết quả hợp lệ; mọi
 // lỗi khác (40P01) → hỏng. Sau đó: pg_stat_database.deadlocks không tăng, số dư khớp sổ và giữ hàng.
 func TestTransitM3_NoDeadlock(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	vA, vB := e.stock(100), e.stock(100)
 	type order struct{ a, b inventory.ReserveLine }

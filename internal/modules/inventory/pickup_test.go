@@ -17,6 +17,7 @@ import (
 // version cũ → ErrVersionConflict, không đổi gì; kho lạ hay của tenant khác → ErrNotFound; tên, dòng địa chỉ rỗng →
 // ErrInvalidInput.
 func TestSetWarehousePickup(t *testing.T) {
+	t.Parallel()
 	staff := testkit.OpenStaff(t)
 	a := newInvEnvOn(t, staff, "A")
 	b := newInvEnvOn(t, staff, "B")

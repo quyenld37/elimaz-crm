@@ -25,10 +25,17 @@ import (
 	"elimaz.com.vn/crm/internal/testkit/shiptest"
 )
 
-// TestMain đặt số lượt rapid 200, trừ khi người chạy đã đặt -rapid.checks hay RAPID_CHECKS.
+// fulfillmentParallel là số test chạy song song mặc định của gói (Task 470, như order ở Task 469): mỗi test có database
+// riêng và tới 9 kết nối PostgreSQL (2 pool × MaxConns 4 + 1 kết nối quản trị lúc tạo database); máy chủ thử dùng
+// chung nhiều phiên có max_connections 300.
+const fulfillmentParallel = 6
+
+// TestMain đặt số lượt rapid 200, trừ khi người chạy đã đặt -rapid.checks hay RAPID_CHECKS; đặt -parallel thành
+// min(fulfillmentParallel, GOMAXPROCS), trừ khi người chạy đã đặt -parallel.
 func TestMain(m *testing.M) {
 	flag.Parse()
 	testkit.SetRapidChecks(200)
+	testkit.SetParallel(fulfillmentParallel)
 	os.Exit(m.Run())
 }
 

@@ -96,6 +96,7 @@ func (e *shipEnv) cancelledWithOrder(id uuid.UUID, o order.Order, v uuid.UUID, k
 // Đơn yêu cầu hủy trước khi lệnh gửi hãng → Execute không gọi hãng (not_sent order_cancel_requested), vận đơn
 // cancelled order_cancel not_sent, đơn cancelled, nhả hàng.
 func TestShip_CancelRequestedBeforeSend(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, v := e.order(1)
 	s := e.mustCreateShipment(o.ID)
@@ -112,12 +113,14 @@ func TestShip_CancelRequestedBeforeSend(t *testing.T) {
 // Khách yêu cầu hủy trong lúc gửi, hãng chắc chưa tạo (fail_before_create → dead) → vận đơn cancelled order_cancel
 // not_sent, đơn cancelled, nhả hàng; gọi hãng đúng 1 lần.
 func TestShip_CancelRequestedNotSent(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	e.cancelDuringSendWith(fake.ModeFailBeforeCreate, "order_cancel", "not_sent")
 }
 
 // Hãng từ chối khi khách yêu cầu hủy trong lúc gửi → vận đơn cancelled create_rejected, DetachShipment hủy đơn, nhả hàng.
 func TestShip_CancelRequestedRejected(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	e.cancelDuringSendWith(fake.ModeReject, "create_rejected", "rejected")
 }
@@ -125,6 +128,7 @@ func TestShip_CancelRequestedRejected(t *testing.T) {
 // "Không rõ" mà nhân viên xác nhận hãng chưa tạo khi đơn cancel_requested → vận đơn cancelled order_cancel, đơn
 // cancelled, nhả hàng, lệnh bỏ (expired), việc in_doubt_create đóng.
 func TestShip_CancelRequestedResolvedNotCreated(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, v := e.order(1)
 	s := e.mustCreateShipment(o.ID)
@@ -142,6 +146,7 @@ func TestShip_CancelRequestedResolvedNotCreated(t *testing.T) {
 
 // Vận đơn đã not_sent rồi đơn mới yêu cầu hủy → "Gửi lại" bị chặn (ErrOrderNotShippable), không gọi hãng lần hai.
 func TestShip_ResendBlockedWhenOrderNotConfirmed(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, s := e.notSentShipment()
 	e.requestCancel(o)
@@ -159,6 +164,7 @@ func TestShip_ResendBlockedWhenOrderNotConfirmed(t *testing.T) {
 // (409; ResolveManually chỉ nhận lệnh in_doubt, dead), transaction lùi: vận đơn giữ unknown, không gắn mã. "Không tạo"
 // vẫn được: Abandon bỏ lệnh pending (expired, không chạy nữa), vận đơn not_sent.
 func TestShip_ResolveWhileRetried(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	s := e.timedOutShipment()
 	e.retryCreate(s.ID)

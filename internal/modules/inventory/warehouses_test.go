@@ -11,6 +11,7 @@ import (
 
 // ListWarehouses: kho của tenant, MAIN đứng đầu rồi theo mã; kho đã đóng vẫn có (kèm trạng thái); tenant khác không thấy.
 func TestListWarehouses(t *testing.T) {
+	t.Parallel()
 	staff := testkit.OpenStaff(t)
 	a := newInvEnvOn(t, staff, "A")
 	newInvEnvOn(t, staff, "B")

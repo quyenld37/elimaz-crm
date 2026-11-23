@@ -14,6 +14,7 @@ import (
 
 // Credentials không lộ qua slog JSON, %v, %+v, %#v, %s, kể cả khi nằm trong Account.
 func TestCredentialsRedacted(t *testing.T) {
+	t.Parallel()
 	const secret = "abc123secret"
 	c := fulfillment.Credentials{"token": secret}
 	var buf bytes.Buffer
@@ -42,6 +43,7 @@ func TestCredentialsRedacted(t *testing.T) {
 // InputHash đổi khi COD đổi 1 đồng, cân nặng đổi 1 g, dịch vụ hay tùy chọn đổi; không đổi khi địa chỉ chỉ khác khoảng
 // trắng, chữ hoa, hay khi tên, SĐT người nhận đổi (không ảnh hưởng phí).
 func TestInputHash(t *testing.T) {
+	t.Parallel()
 	to := fulfillment.Address{Name: "An", Phone: "0912345678", Line: "12 Lý Thường Kiệt", ProvinceCode: "01", WardCode: "00004"}
 	p := fulfillment.Parcel{WeightGrams: 500, LengthCm: 20, WidthCm: 10, HeightCm: 5, DeclaredValue: 300000, ItemCount: 1}
 	o := fulfillment.Options{Inspection: "view", Payer: "shop"}
@@ -85,6 +87,7 @@ func TestInputHash(t *testing.T) {
 
 // StatusFromCanonical: trạng thái chuẩn có trạng thái M1 tương ứng thì ra trạng thái đó; còn lại (M3 Task 7 thêm) → false.
 func TestStatusFromCanonical(t *testing.T) {
+	t.Parallel()
 	cases := map[fulfillment.Canonical]fulfillment.Status{
 		fulfillment.CanonAwaitingPickup:     fulfillment.StatusAwaitingPickup,
 		fulfillment.CanonPickedUp:           fulfillment.StatusShipping,
@@ -111,6 +114,7 @@ func TestStatusFromCanonical(t *testing.T) {
 
 // CarrierError: errors.Is tới lỗi bọc (ErrNotSent, ErrRejected của M1), errors.As lấy được lớp lỗi.
 func TestCarrierErrorUnwrap(t *testing.T) {
+	t.Parallel()
 	err := fmt.Errorf("tạo kiện: %w", &fulfillment.CarrierError{
 		Class: fulfillment.ClassRateLimited, RetryAfter: 7 * time.Second, Err: fulfillment.ErrNotSent,
 	})
@@ -140,6 +144,7 @@ func (w withFormats) StatementFormats() []fulfillment.StatementFormat { return w
 
 // Registry: trùng khóa → lỗi; Get, Keys (sắp xếp); StatementFormats gom từ adapter cài StatementFormatProvider.
 func TestRegistry(t *testing.T) {
+	t.Parallel()
 	if _, err := fulfillment.NewRegistry(keyOnly{key: "a"}, keyOnly{key: "a"}); !errors.Is(err, fulfillment.ErrDuplicateCarrier) {
 		t.Fatalf("trùng khóa: %v", err)
 	}

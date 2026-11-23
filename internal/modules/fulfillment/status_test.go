@@ -17,6 +17,7 @@ func forwardStatuses() []fulfillment.Status {
 
 // Advance chỉ tiến: lùi hoặc bằng → giữ nguyên, không đổi (VC09 bản đầu); trạng thái lạ hay cancelled → không đổi.
 func TestAdvance(t *testing.T) {
+	t.Parallel()
 	for i, cur := range forwardStatuses() {
 		for j, next := range forwardStatuses() {
 			got, ok := fulfillment.Advance(cur, next)
@@ -43,6 +44,7 @@ func TestAdvance(t *testing.T) {
 // Advance gọi shipstate.Decide nhưng giữ đúng luật thứ hạng của M1 (creating 0 < awaiting_pickup 1 < shipping 2 <
 // delivered 4; trạng thái khác không có hạng) trên mọi cặp của chín trạng thái và một mã lạ (Task 98: không đổi hành vi).
 func TestAdvance_SameAsM1Rank(t *testing.T) {
+	t.Parallel()
 	m1Rank := map[fulfillment.Status]int{
 		fulfillment.StatusCreating: 0, fulfillment.StatusAwaitingPickup: 1, fulfillment.StatusShipping: 2,
 		fulfillment.StatusDelivered: 4,
@@ -70,6 +72,7 @@ func TestAdvance_SameAsM1Rank(t *testing.T) {
 
 // Chuỗi tin ngẫu nhiên (lặp, đảo thứ tự) → trạng thái cuối là tin có hạng cao nhất, không bao giờ lùi.
 func TestAdvance_Property(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		msgs := rapid.SliceOf(rapid.SampledFrom(forwardStatuses())).Draw(t, "msgs")
 		cur, best := fulfillment.StatusCreating, 0
@@ -98,6 +101,7 @@ func rank(s fulfillment.Status) int {
 
 // shipping → bước picked_up của đơn, delivered → delivered; trạng thái khác không có bước.
 func TestStatusStep(t *testing.T) {
+	t.Parallel()
 	want := map[fulfillment.Status]order.ShipmentStep{
 		fulfillment.StatusShipping: order.StepPickedUp, fulfillment.StatusDelivered: order.StepDelivered,
 	}

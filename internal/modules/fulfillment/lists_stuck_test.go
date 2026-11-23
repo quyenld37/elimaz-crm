@@ -230,6 +230,7 @@ func (r *stuckRunner) checkAlertOnce(vs []fulfillment.Shipment, now time.Time) {
 // manual 100 giờ → không. Cảnh báo ngày: một tin "awaiting_pickup: 1, shipping: 1" không có mã vận đơn, mã đơn, mã
 // hãng; lượt thứ hai trong ngày không gửi thêm. Sự kiện mới cho V1 → stuck_since rỗng, rời danh sách.
 func TestStuck_ThresholdsAlertAndClear(t *testing.T) {
+	t.Parallel()
 	te := newTrackEnv(t)
 	e := te.shipEnv
 	clock := vnClock()
@@ -301,6 +302,7 @@ func TestStuck_ThresholdsAlertAndClear(t *testing.T) {
 // queue.AbandonJob → expired, Task 408) và vận đơn creating chắc chưa gửi (not_sent, chờ "Gửi lại"); lệnh tạo còn
 // chờ → không. Vận đơn có anomaly stock_short mở → kẹt; đóng anomaly → lượt sau bỏ dấu. Số đếm vào cảnh báo ngày.
 func TestStuck_CreatingAndStockShort(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	clock := vnClock()
 	r := newStuckRunner(e, clock)
@@ -359,6 +361,7 @@ func TestStuck_CreatingAndStockShort(t *testing.T) {
 
 // Trước 08:00 giờ Việt Nam: đánh dấu nhưng không gửi cảnh báo; lượt 08:00 gửi. Không có vận đơn kẹt → không gửi.
 func TestStuck_AlertWindow(t *testing.T) {
+	t.Parallel()
 	te := newTrackEnv(t)
 	e := te.shipEnv
 	clock := vnClock()
@@ -385,6 +388,7 @@ func TestStuck_AlertWindow(t *testing.T) {
 
 // Danh sách đơn kẹt: phân trang theo con trỏ, lâu nhất trước, không lặp; con trỏ hỏng → ErrInvalidPage.
 func TestStuck_ListPages(t *testing.T) {
+	t.Parallel()
 	te := newTrackEnv(t)
 	e := te.shipEnv
 	clock := vnClock()
@@ -421,6 +425,7 @@ func TestStuck_ListPages(t *testing.T) {
 // Câu đơn kẹt (danh sách, đếm, đánh dấu) và câu Cần xem (danh sách, số đếm) với 50.000 vận đơn đã kết thúc và 500
 // vận đơn mở → không Seq Scan.
 func TestStuck_PlanUsesIndexes(t *testing.T) {
+	t.Parallel()
 	te := newTrackEnv(t)
 	e := te.shipEnv
 	_, _, tmpl := te.shipped(1)

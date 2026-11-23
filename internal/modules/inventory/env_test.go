@@ -22,11 +22,18 @@ import (
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
+// invParallel là số test chạy song song mặc định của gói (Task 470, như order ở Task 469): mỗi test có database
+// riêng và tới 9 kết nối PostgreSQL (2 pool × MaxConns 4 + 1 kết nối quản trị lúc tạo database); máy chủ thử dùng
+// chung nhiều phiên có max_connections 300.
+const invParallel = 6
+
 // TestMain đặt số lượt rapid 300 (kế hoạch Task M1-28: TestInventoryInvariants 300 lượt), trừ khi người chạy đã đặt
-// -rapid.checks hay RAPID_CHECKS.
+// -rapid.checks hay RAPID_CHECKS; đặt -parallel thành min(invParallel, GOMAXPROCS), trừ khi người chạy đã đặt
+// -parallel.
 func TestMain(m *testing.M) {
 	flag.Parse()
 	testkit.SetRapidChecks(300)
+	testkit.SetParallel(invParallel)
 	os.Exit(m.Run())
 }
 

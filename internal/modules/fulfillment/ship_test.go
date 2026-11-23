@@ -86,6 +86,7 @@ func (e *shipEnv) openAnomalies(id uuid.UUID, kind string) int {
 // awaiting_pickup, đúng một kiện ở hãng, việc "không rõ" đóng; giữa lúc tra thấy kiện và lúc điền mã, vận đơn created
 // (không "không tạo", không "Gửi lại").
 func TestShip_TimeoutAfterCreate(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	_, s := e.createTimedOut()
 	v := e.view(s.ID)
@@ -131,6 +132,7 @@ func TestShip_TimeoutAfterCreate(t *testing.T) {
 // Q-5: quá giờ mà hãng chưa tạo; tra lại nói "không có" → lệnh dead confirmed_not_sent (không tự gửi lại), vận đơn
 // not_sent; "Gửi lại" → lần gửi 2 (lệnh mới), hãng nhận, awaiting_pickup; gọi tạo đúng 2 lần.
 func TestShip_ConfirmedNotSentThenResend(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	s := e.timedOutShipment()
 	e.carrier.SetMode(fake.ModeOK)
@@ -170,6 +172,7 @@ func TestShip_ConfirmedNotSentThenResend(t *testing.T) {
 // done, việc "không rõ" đóng; xử lý lần hai → ErrCreateInProgress. Vận đơn khác: not_created → not_sent, lệnh expired
 // (bỏ), gửi lại được. Dữ liệu sai (thiếu mã, thiếu lý do) → ErrShipInvalid.
 func TestShip_ResolveCreateByStaff(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	s := e.timedOutShipment()
 	e.carrier.SetLookupInconclusive(true)
@@ -225,6 +228,7 @@ func TestShip_ResolveCreateByStaff(t *testing.T) {
 // Hãng từ chối → vận đơn cancelled create_rejected, đơn không còn vận đơn hiện hành; gửi lại bằng tài khoản khác (cùng
 // người bán, cùng kho) → được, hãng nhận. Mã hãng tới muộn cho vận đơn đã hủy → không gắn, tracking_conflict.
 func TestShip_RejectedThenOtherAccount(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, _ := e.order(1)
 	s := e.mustCreateShipment(o.ID)
@@ -272,6 +276,7 @@ func TestShip_RejectedThenOtherAccount(t *testing.T) {
 // hãng, lệnh dead lý do account_unavailable, vận đơn cancelled create_rejected. Hãng chưa hỗ trợ tạo (Task 94) →
 // rejected not_supported (chắc chưa gửi), không in_doubt.
 func TestShip_AccountUnavailable(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, _ := e.order(1)
 	e.ownerExec("UPDATE fulfillment.carrier_accounts SET status = 'auth_failed' WHERE id = $1", e.account)
@@ -318,6 +323,7 @@ func (*unsupportedCarrier) Key() string { return fake.Key }
 // Báo phí: còn hạn và khớp → gửi được, vận đơn nhớ quote; hết hạn, địa chỉ đổi sau báo phí, của tài khoản khác, không
 // có → ErrQuoteStale, không vận đơn.
 func TestShip_Quote(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, _ := e.order(2)
 	to := fulfillment.Address{Name: "Chị Lan", Line: "12 Lê Lợi, Q1"}
@@ -367,6 +373,7 @@ func (locCarrier) Capabilities() fulfillment.Capabilities {
 
 // Hãng có bảng địa giới mà địa chỉ giao chưa khớp → ErrAddressUnmapped trước khi gọi mạng, không vận đơn.
 func TestShip_AddressUnmapped(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	lc := locCarrier{Carrier: e.carrier}
 	e.svc = fulfillment.New(fulfillment.Deps{
@@ -384,6 +391,7 @@ func TestShip_AddressUnmapped(t *testing.T) {
 // Đơn không confirmed → ErrOrderNotShippable; đơn lạ → ErrOrderNotFound; Authorize từ chối kho của đơn → lỗi của nó,
 // không vận đơn; mã, phí nhập tay cho tài khoản api → ErrShipInvalid; database chặn vận đơn người bán khác tài khoản.
 func TestShip_Refusals(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, _ := e.order(1)
 	errScope := errors.New("không có quyền ở kho")
@@ -420,6 +428,7 @@ func TestShip_Refusals(t *testing.T) {
 // Worker chết sau khi Execute đã gọi hãng (giữ chỗ hết hạn trong lúc chờ trả lời, worker khác quét) → in_doubt, vận
 // đơn unknown; kết quả muộn của lần chạy cũ không được ghi; chạy worker thêm → không gọi tạo lần hai.
 func TestShip_WorkerDiesAfterSend(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, _ := e.order(1)
 	s := e.mustCreateShipment(o.ID)

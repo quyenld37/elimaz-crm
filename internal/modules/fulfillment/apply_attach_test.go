@@ -24,6 +24,7 @@ func (e *applyEnv) anomalies(id any, kind string) int {
 // V5 creating + mã → awaiting_pickup, created, phí, một shipment.created và một shipment.status_changed; gọi lại cùng
 // mã → Already, không thêm sự kiện; mã khác → anomaly tracking_conflict, needs_review, vận đơn giữ mã cũ.
 func TestAttachTrackingCode(t *testing.T) {
+	t.Parallel()
 	e := newApplyEnv(t)
 	o, _, _ := e.d1()
 	v5 := e.mustCreateShipment(o.ID)
@@ -73,6 +74,7 @@ func TestAttachTrackingCode(t *testing.T) {
 
 // Mã đang thuộc V6 cùng hãng → anomaly ở V5, V5 vẫn creating; transaction dùng tiếp được (savepoint).
 func TestAttachTrackingCode_TakenByOther(t *testing.T) {
+	t.Parallel()
 	e := newApplyEnv(t)
 	o5, _, _ := e.d1()
 	o6, _, _ := e.d1()
@@ -102,6 +104,7 @@ func TestAttachTrackingCode_TakenByOther(t *testing.T) {
 
 // Hai goroutine cùng gắn một mã cho một vận đơn → một lần phát shipment.created.
 func TestAttachTrackingCode_Concurrent(t *testing.T) {
+	t.Parallel()
 	e := newApplyEnv(t)
 	o, _, _ := e.d1()
 	s := e.mustCreateShipment(o.ID)

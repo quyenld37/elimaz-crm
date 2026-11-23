@@ -12,15 +12,13 @@ import (
 	"elimaz.com.vn/crm/internal/adapters/carrier"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/platform/config"
-	"elimaz.com.vn/crm/internal/platform/events"
-	"elimaz.com.vn/crm/internal/platform/queue"
-	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
 )
 
 // Task 448: danh mục hãng nhập tay (carrier.ManualKeys) cho tạo tài khoản mode manual của hãng thật chưa nối API, cả
 // khi bộ hãng rỗng (production: không hãng giả); mode api vẫn đòi adapter như cũ; hãng ngoài danh mục (gõ sai, hãng giả
 // ở production) vẫn ErrCarrierNotSupported. Bộ adapter dựng như cmd/crm: production rỗng, dev carrier.All có hãng giả.
 func TestManualCatalog_CreateAccount(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	dev := config.Config{Env: "development", FakeCarrierURL: "http://127.0.0.1:1"}
 	cases := []struct {
@@ -42,10 +40,9 @@ func TestManualCatalog_CreateAccount(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			svc := fulfillment.New(fulfillment.Deps{
-				DB: e.staff.App, Queue: queue.NewQueue(), Events: events.NewRegistry(), Bus: &realtimetest.RecordingBus{},
-				Carriers: c.reg, ManualCarriers: carrier.ManualKeys(),
-			}).Service
+			deps := e.bareDeps()
+			deps.Carriers, deps.ManualCarriers = c.reg, carrier.ManualKeys()
+			svc := fulfillment.New(deps).Service
 			for _, km := range c.ok {
 				expectCreated(t, e, svc, km)
 			}
@@ -67,11 +64,11 @@ func TestManualCatalog_CreateAccount(t *testing.T) {
 // cho nhân viên; ghi tay hãng đã hủy → cancelled; "Tra lại" bị từ chối (ErrCarrierNotSupported) — không lệnh gửi, hủy,
 // tra nào được ghi (platform.jobs mode command vẫn 0).
 func TestManualCatalog_ProductionShipmentFlow(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
-	svc := fulfillment.New(fulfillment.Deps{
-		DB: e.staff.App, Queue: queue.NewQueue(), Events: events.NewRegistry(), Bus: &realtimetest.RecordingBus{},
-		Carriers: mustRegistry(t), ManualCarriers: carrier.ManualKeys(),
-	}).Service
+	deps := e.bareDeps()
+	deps.Carriers, deps.ManualCarriers = mustRegistry(t), carrier.ManualKeys()
+	svc := fulfillment.New(deps).Service
 	e.svc = svc
 	for _, key := range []string{"spx", "vtp", "best"} {
 		t.Run(key, func(t *testing.T) {

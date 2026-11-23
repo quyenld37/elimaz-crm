@@ -29,6 +29,7 @@ type propOp struct {
 // delta trong sổ = số dư; (3) held = tổng giữ hàng held, in_transit = tổng giữ hàng in_transit; (4) available ≥ 0;
 // (5) damaged ≤ on_hand (đường không có kiểm kho).
 func TestInventoryInvariants(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		vs := e.variants(rapid.IntRange(1, 4).Draw(rt, "variants"))

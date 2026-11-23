@@ -22,6 +22,7 @@ import (
 // thật) có ≤ 1 kiện cho các vận đơn của đơn, và kiện đó thuộc vận đơn chưa hủy; vận đơn đã hủy không có kiện; vận đơn
 // có mã hãng thì đúng mã kiện của hãng.
 func TestShip_Property(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	sweeper := queue.NewWorker(e.staff.App, nil, queue.WorkerOptions{
 		WorkerID: "sweeper/" + uuid.NewString(), Commands: commands.NewRunner(e.staff.App, e.cmds),

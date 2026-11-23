@@ -87,6 +87,7 @@ func (e *applyEnv) lastShipmentEvent(id uuid.UUID) (events.StoredEvent, fulfillm
 // (hàng đi đường chưa rời sổ; có thể bán tăng 1), phiếu restocked, D1 vẫn delivered, order.partially_returned (partial_delivery, refundAmount 0,
 // shipmentId); consumer fulfillment_return_received giữ V1 delivered, partial.
 func TestPartialDelivery_TD09(t *testing.T) {
+	t.Parallel()
 	e, o, vA, vB, s := newD1Shipment(t)
 	e.apply(s.ID, ev("p", fulfillment.CanonPickedUp, 8, 0))
 	e.stockAll(map[uuid.UUID][3]int32{vA: {5, 0, 1}, vB: {10, 0, 2}})
@@ -168,6 +169,7 @@ func (e *applyEnv) view(id uuid.UUID) fulfillment.ShipmentView {
 // có partial_reported, hay đã giao → ErrPartialNotAllowed; không có vận đơn → ErrNotFound. Mọi lần từ chối không đổi
 // đơn, tồn, vận đơn, không có phiếu.
 func TestPartialDelivery_Rejects(t *testing.T) {
+	t.Parallel()
 	e, o, vA, vB, s := newD1Shipment(t)
 	a, b := itemOf(o, vA), itemOf(o, vB)
 	if _, err := e.recordPartial(s.ID, 0, td09Lines(o, vA, vB)...); !errors.Is(err, fulfillment.ErrPartialNotAllowed) {
@@ -218,6 +220,7 @@ func TestPartialDelivery_Rejects(t *testing.T) {
 // Hãng báo PartiallyDelivered khi vận đơn còn chờ thu gom → anomaly partial_reported mở, V1 cần xem; sau lệnh → đóng
 // (resolved), needs_review false; giữ hàng held → in_transit rồi giao một phần.
 func TestPartialDelivery_ClosesPartialReported(t *testing.T) {
+	t.Parallel()
 	e, o, vA, vB, s := newD1Shipment(t)
 	e.apply(s.ID, ev("pd", fulfillment.CanonPartiallyDelivered, 9, 0))
 	if e.anomalyDetail(s.ID, "partial_reported") == nil || !e.view(s.ID).NeedsReview {
@@ -242,6 +245,7 @@ func TestPartialDelivery_ClosesPartialReported(t *testing.T) {
 // Giao thất bại (có việc gọi lại mở) rồi khách nhận một phần → việc gọi lại đóng với kết quả delivered; payload có
 // tác động close_callbacks.
 func TestPartialDelivery_FromDeliveryFailed(t *testing.T) {
+	t.Parallel()
 	e, o, vA, vB, s := newD1Shipment(t)
 	e.apply(s.ID, ev("p", fulfillment.CanonPickedUp, 8, 0), ev("f", fulfillment.CanonDeliveryFailed, 10, 0))
 	e.shipmentIs(s.ID, fulfillment.StatusDeliveryFailed)
@@ -263,6 +267,7 @@ func TestPartialDelivery_FromDeliveryFailed(t *testing.T) {
 // in_transit còn đúng phần chưa giao, phiếu có đúng phần chưa giao; kho nhận phần còn lại (tốt, hỏng, thiếu ngẫu
 // nhiên) → in_transit 0, on_hand = ban đầu − giao − thiếu.
 func TestPartialDelivery_Property(t *testing.T) {
+	t.Parallel()
 	base := newApplyEnv(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		e := &applyEnv{shipEnv: &shipEnv{}, svc: base.svc, bus: base.bus}
@@ -322,6 +327,7 @@ func (e *applyEnv) partialUnchanged(o order.Order, sID, vA, vB uuid.UUID) {
 // Hãng sửa "đã giao" thành "hoàn" trên vận đơn đã giao một phần → không áp (đảo cả đơn sẽ làm phiếu partial_delivery
 // treo, phần chưa giao tính hai lần), mở invalid_edge "Cần xem".
 func TestPartialDelivery_CarrierReversalRefused(t *testing.T) {
+	t.Parallel()
 	e, o, vA, vB, s := newD1Shipment(t)
 	e.apply(s.ID, ev("p", fulfillment.CanonPickedUp, 8, 0))
 	if _, err := e.recordPartial(s.ID, td09Collected, td09Lines(o, vA, vB)...); err != nil {
@@ -338,6 +344,7 @@ func TestPartialDelivery_CarrierReversalRefused(t *testing.T) {
 
 // Nhân viên ghi tay "đang hoàn" lên vận đơn tay đã giao một phần → ErrManualNotAllowed, không đổi gì.
 func TestPartialDelivery_ManualReversalRefused(t *testing.T) {
+	t.Parallel()
 	e := newApplyEnv(t)
 	o, vA, vB := e.d1()
 	acc := e.manualAccount("best", "best-tay-partial")

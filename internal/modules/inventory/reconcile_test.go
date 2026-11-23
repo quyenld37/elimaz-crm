@@ -117,6 +117,7 @@ func (e *invEnv) mismatchCount(runID uuid.UUID) int {
 // KH13: dữ liệu sạch → ok; sửa thẳng held (kèm sổ, giả mất dòng giữ hàng) của X → đúng một mục held_vs_reservations
 // của X; sửa thẳng on_hand của Y → đúng một mục ledger_vs_balance của Y; view đếm đúng; tenant khác không thấy.
 func TestReconcile_ReportsExactVariant(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	vs := e.cleanHistory()
 	run := e.reconcile(2) // lô 2 trên 3 dòng số dư: đi qua ranh giới lô
@@ -205,6 +206,7 @@ func hasMismatch(r inventory.Run, m inventory.Mismatch) bool {
 // Sửa thẳng held không kèm sổ → hai mục của cùng biến thể (sổ ngăn held và giữ hàng); in_transit lệch giữ hàng →
 // mục in_transit_vs_reservations.
 func TestReconcile_EachCheck(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	vs := e.cleanHistory()
 	e.owner("UPDATE inventory.stock_balances SET held = held + 1 WHERE variant_id = $1", vs[0])
@@ -247,6 +249,7 @@ func (e *invEnv) fillLargeTenant() {
 // nằm ở TestReconcile_LargeTenantTimeBudget (nhãn perf, make perf-test), không ở đây: thời gian phụ thuộc máy bận hay
 // rảnh; ở đây statement_timeout 10 phút chỉ là chốt chống treo.
 func TestReconcile_LargeTenant(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	e.fillLargeTenant()
 	run := e.reconcileWithin(0, "10min")
@@ -299,6 +302,7 @@ func (e *invEnv) checkMismatchCommand(payload json.RawMessage, tenant uuid.UUID,
 // việc; Tick lúc 19:30 UTC ghi đúng một việc mỗi tenant. Worker chạy việc → mỗi tenant một lần chạy; tenant lệch có
 // đúng một lệnh cảnh báo; lệnh gửi khóa stock-mismatch:<tenant>, văn bản chỉ có số.
 func TestReconcile_NightlySchedule(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	vs := e.cleanHistory()
 	e.owner("UPDATE inventory.stock_balances SET on_hand = on_hand + 1 WHERE variant_id = ANY ($1)", vs[:2])

@@ -66,6 +66,7 @@ func agedIDs(rows []inventory.AgedRow) map[uuid.UUID]inventory.AgedRow {
 // 01/12 (thiếu 1 giây) → không; đúng 20 ngày → có; in_transit đúng 180 ngày → có, 179 ngày → không; dòng consumed,
 // released cũ cũng không. Held = 25 → dòng 20 ngày biến mất.
 func TestAgedReservations_Boundaries(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	now := agedNow()
 	day := 24 * time.Hour
@@ -121,6 +122,7 @@ func TestAgedReservations_Boundaries(t *testing.T) {
 // TestAgedReservations_ReadOnly (KH09 "hệ thống không tự trả hàng", AT53 không tạo việc lặp): chạy 3 lần → số dòng
 // stock_reservations (theo trạng thái), stock_ledger, platform.jobs không đổi.
 func TestAgedReservations_ReadOnly(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	e.agedSeed(inventory.StateHeld, agedNow().Add(-30*24*time.Hour))
 	e.agedSeed(inventory.StateInTransit, agedNow().Add(-200*24*time.Hour))
@@ -149,6 +151,7 @@ func TestAgedReservations_ReadOnly(t *testing.T) {
 // TestAgedReservations_Warehouses: danh sách kho rỗng (không nil) → không dòng nào; chỉ kho W2 → không thấy dòng của
 // kho chính; nil → mọi kho.
 func TestAgedReservations_Warehouses(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	main := e.agedSeed(inventory.StateHeld, agedNow().Add(-30*24*time.Hour))
 	var w2 uuid.UUID
@@ -170,6 +173,7 @@ func TestAgedReservations_Warehouses(t *testing.T) {
 // TestAgedReservations_Pages: cũ nhất trước; trang 2 dòng lần lượt hết 5 dòng (kể cả hai dòng cùng mốc), không lặp,
 // không sót; trang cuối không có con trỏ; con trỏ qua String/Parse vẫn đúng.
 func TestAgedReservations_Pages(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	base := agedNow().Add(-50 * 24 * time.Hour)
 	var seeded []uuid.UUID
@@ -212,6 +216,7 @@ func TestAgedReservations_Pages(t *testing.T) {
 
 // TestAgedReservations_InvalidInput: ngưỡng ≤ 0, trạng thái lạ, con trỏ hỏng → ErrInvalidInput.
 func TestAgedReservations_InvalidInput(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	for _, c := range []struct {
 		name          string

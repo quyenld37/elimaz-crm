@@ -60,6 +60,7 @@ func vc02Carriers() (a, b, c *quoteCarrier) {
 // QuoteNow trực tiếp với A, B, C (hạn 3 s): A, B có kết quả, C timeout sau ≤ 3,5 s. Service không có database (DB
 // nil): một câu SQL nào cũng làm test hỏng, nên QuoteNow chắc chắn không mở transaction.
 func TestQuoteNow_ParallelTimeoutNoDB(t *testing.T) {
+	t.Parallel()
 	a, b, c := vc02Carriers()
 	s := fulfillment.New(fulfillment.Deps{Carriers: mustRegistry(t, a, b, c)}).Service
 	accs := []fulfillment.Account{
@@ -94,6 +95,7 @@ func TestQuoteNow_ParallelTimeoutNoDB(t *testing.T) {
 
 // Hạn lớn hơn 10 s bị kẹp về 10 s; hạn ≤ 0 lấy 10 s (không bao giờ chờ vô hạn).
 func TestQuoteNow_TimeoutClamped(t *testing.T) {
+	t.Parallel()
 	c := &quoteCarrier{key: "qc", hang: time.Minute}
 	s := fulfillment.New(fulfillment.Deps{Carriers: mustRegistry(t, c)}).Service
 	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
@@ -110,6 +112,7 @@ func TestQuoteNow_TimeoutClamped(t *testing.T) {
 // adapter không có (hay không báo phí được) → rejected; địa giới chưa khớp (hãng có Locations) → address_unmapped,
 // không gọi hãng.
 func TestQuoteNow_Classify(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name    string
 		carrier *quoteCarrier
@@ -202,6 +205,7 @@ func (m mapLoc) Carrier(level, our string) (string, bool) {
 // Quy luật của QuoteNow: mỗi tài khoản đúng một FeeQuote theo thứ tự vào; có kết quả xor có mã lỗi; không kết quả nào
 // phí ≤ 0 hay quá 2^53−1.
 func TestQuoteNow_Property(t *testing.T) {
+	t.Parallel()
 	errs := []error{
 		nil, fulfillment.ErrRejected, &fulfillment.CarrierError{Class: fulfillment.ClassAuth},
 		&fulfillment.CarrierError{Class: fulfillment.ClassRateLimited}, context.DeadlineExceeded, errors.New("x"),

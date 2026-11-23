@@ -62,11 +62,13 @@ func (e *shipEnv) insertShip(r shipRow) (uuid.UUID, error) {
 
 // Sau 0300–0302 database theo đủ luật schema (RLS, unique ghép tenant, luật người bán (g)).
 func TestSchemaM3_Rules(t *testing.T) {
+	t.Parallel()
 	testkit.CheckSchemaRulesClean(t, testkit.OpenStaff(t).Owner)
 }
 
 // Một đơn một vận đơn chưa hủy (unique M1 còn); hủy (replace) rồi tạo lại được.
 func TestSchemaM3_OneActiveShipmentPerOrder(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, func(t *testing.T, e *shipEnv) {
 		o, _ := e.order(1)
 		first, err := e.insertShip(shipRow{seller: e.seller, order: o.ID, account: e.account, status: "creating"})
@@ -82,6 +84,7 @@ func TestSchemaM3_OneActiveShipmentPerOrder(t *testing.T) {
 
 // KH14 cho vận đơn: người bán của vận đơn phải là người bán của đơn và của tài khoản hãng.
 func TestSchemaM3_SellerMustMatch(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, func(t *testing.T, e *shipEnv) {
 		o, _ := e.order(1)
 		other := e.shop.Partner
@@ -97,6 +100,7 @@ func TestSchemaM3_SellerMustMatch(t *testing.T) {
 
 // VC13 (ràng buộc): mã hãng duy nhất theo hãng; hai hãng cùng mã được.
 func TestSchemaM3_TrackingUniquePerCarrier(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o1, _ := e.order(1)
 	o2, _ := e.order(1)
@@ -115,6 +119,7 @@ func TestSchemaM3_TrackingUniquePerCarrier(t *testing.T) {
 
 // CHECK trạng thái: đã qua creating thì phải có mã hãng; hủy phải có loại hủy; giá trị lạ, mã sai mẫu bị chặn.
 func TestSchemaM3_StatusChecks(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	cases := []struct {
 		name string
@@ -140,6 +145,7 @@ func TestSchemaM3_StatusChecks(t *testing.T) {
 
 // Đường tạo vận đơn của M1 vẫn chạy sau migration: seller_id lấy từ tài khoản, create_state pending, last_status_at có.
 func TestSchemaM3_CreateForOrderStillWorks(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, func(t *testing.T, e *shipEnv) {
 		o, _ := e.order(1)
 		s := e.mustCreateShipment(o.ID)
@@ -157,6 +163,7 @@ func TestSchemaM3_CreateForOrderStillWorks(t *testing.T) {
 
 // shipment_events vẫn chỉ ghi thêm với crm_app; callback_task_logs mới cũng vậy (cả chủ bảng).
 func TestSchemaM3_AppendOnly(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	_, _, s := e.shipped(1)
 	wantCode(t, "UPDATE shipment_events", e.appExec("UPDATE fulfillment.shipment_events SET raw_status = 'x'"), "42501")
@@ -177,6 +184,7 @@ func TestSchemaM3_AppendOnly(t *testing.T) {
 // Tài khoản hãng: route_key 32 ký tự, duy nhất trong shop; một tài khoản mặc định mỗi (người bán, kho, hãng);
 // trạng thái mới hợp lệ, lạ thì chặn.
 func TestSchemaM3_CarrierAccounts(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	if n := e.count(`SELECT count(*) FROM fulfillment.carrier_accounts WHERE route_key ~ '^[A-Za-z0-9]{32}$'`); n != 2 {
 		t.Fatalf("tài khoản có route_key hợp lệ = %d, muốn 2", n)
@@ -222,6 +230,7 @@ func fulfillmentAccount(e *shipEnv, seller uuid.UUID, ref string) (uuid.UUID, er
 
 // View công bố: đúng cột theo thứ tự (không cột bí mật, dữ liệu cá nhân), security_invoker.
 func TestSchemaM3_Views(t *testing.T) {
+	t.Parallel()
 	owner := testkit.OpenStaff(t).Owner
 	testkit.CheckViews(t, owner, "fulfillment", map[string]string{
 		"shipments_v": "id, order_id, code, carrier_key, carrier_account_id, tracking_code, status, cod_amount, fee, " +
@@ -242,6 +251,7 @@ func TestSchemaM3_Views(t *testing.T) {
 
 // Tenant B (crm_app) không đọc được dòng nào của tenant A qua bốn view của fulfillment; tenant A đọc được.
 func TestSchemaM3_ViewsTenantIsolation(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	_, _, s := e.shipped(1)
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
@@ -277,6 +287,7 @@ func TestSchemaM3_ViewsTenantIsolation(t *testing.T) {
 
 // Khóa ngoại M2 để lại: vận đơn hiện hành của đơn phải là vận đơn có thật (cả crm_app lẫn chủ bảng).
 func TestSchemaM3_CurrentShipmentFK(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, _ := e.order(1)
 	wantCode(t, "crm_app trỏ vận đơn không có", e.appExec(
@@ -294,6 +305,7 @@ func TestSchemaM3_CurrentShipmentFK(t *testing.T) {
 // Task 442: cột province_code của shipments_v là mã tỉnh trong bản chụp địa chỉ mà Ship ghi (shipToDoc, khóa
 // provinceCode); đơn có mã tỉnh 79 → "79", đơn không mã tỉnh (đơn M1) → NULL. Đọc bằng crm_app trong tenant.
 func TestSchemaM3_ShipmentsVProvince(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	withProvince, _ := e.order(1)
 	e.ownerExec(`UPDATE ord.orders SET ship_address = ship_address || '{"provinceCode":"79","wardCode":"26734"}'

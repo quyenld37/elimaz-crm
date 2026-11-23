@@ -62,6 +62,7 @@ func (c *capturingTx) Query(ctx context.Context, sql string, args ...any) (pgx.R
 // TestAgedReservations_Plan (kế hoạch Task M3-22): 100.000 dòng giữ hàng, câu danh sách (mọi kho, theo kho, lọc
 // trạng thái, trang sau) bằng crm_app → kế hoạch không có Seq Scan.
 func TestAgedReservations_Plan(t *testing.T) {
+	t.Parallel()
 	staff := testkit.OpenStaffSeeded(t, agedExplainSeed())
 	tenant := testkit.FixedUUID("inventory-aged-explain/A")
 	var n int

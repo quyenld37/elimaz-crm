@@ -9,6 +9,7 @@ import (
 
 // Webhook cùng eventId gửi 3 lần → 1 lệnh tra trạng thái, 1 dòng shipment_events; đơn và tồn đổi 1 lần (VC08 bản đầu).
 func TestRefresh_SameEventThreeTimes(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, testRefreshSameEventThreeTimes)
 }
 
@@ -45,6 +46,7 @@ func testRefreshSameEventThreeTimes(t *testing.T, e *shipEnv) {
 
 // forge: webhook nói "đã giao" nhưng API của hãng vẫn trả trạng thái thật (created) → vận đơn, đơn, tồn không đổi.
 func TestRefresh_ForgedSignal(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, v, s := e.shipped(2)
 	e.signal(s.TrackingCode, "forged-delivered")
@@ -60,6 +62,7 @@ func TestRefresh_ForgedSignal(t *testing.T) {
 
 // Tin shipping tới sau delivered → không lùi, chỉ thêm dòng sự kiện (VC09 bản đầu).
 func TestRefresh_LateShippingAfterDelivered(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, v, s := e.shipped(1)
 	e.carrier.Advance(s.TrackingCode, fake.RawDelivered)

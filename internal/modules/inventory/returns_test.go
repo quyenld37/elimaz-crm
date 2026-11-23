@@ -19,6 +19,7 @@ func (e *invEnv) ledgerOf(doc uuid.UUID) int {
 // ReleaseInTransitByItems: giữ hàng in_transit → released, in_transit −, on_hand không đổi (hàng hoàn về kho); gọi lần
 // hai hay dòng còn held → ErrStateConflict, không đổi gì.
 func TestReleaseInTransitByItems(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(5)
 	l1, l2 := e.line(v, 2), e.line(v, 1)
@@ -53,6 +54,7 @@ func TestReleaseInTransitByItems(t *testing.T) {
 // ReceiveCustomerReturn: on_hand + q; Damaged thêm damaged + q (có thể bán không đổi); mỗi biến thể một stock.changed,
 // sổ doc_type return, doc_id = mã phiếu; đầu vào sai → ErrInvalidInput, không ghi gì.
 func TestReceiveCustomerReturn(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	good, bad := e.stock(2), e.variants(1)[0] // bad: chưa có dòng số dư
 	doc := uuid.New()
@@ -102,6 +104,7 @@ func TestReceiveCustomerReturn(t *testing.T) {
 
 // MoveToDamaged: damaged + q khi có thể bán ≥ q (sổ doc_type damage); không đủ → ErrInsufficient, không ghi gì.
 func TestMoveToDamaged(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(3)
 	if _, err := e.reserve(sysActor(), e.line(v, 2)); err != nil {

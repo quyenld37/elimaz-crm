@@ -22,6 +22,7 @@ type countSnap struct {
 // và không gì đổi; (2) sau áp dụng on_hand − in_transit = số đếm + thay đổi của on_hand − in_transit xảy ra sau lúc
 // đếm dòng đó; (3) held và trạng thái mọi dòng giữ hàng không đổi qua áp dụng; (4) sổ = số dư, giữ hàng khớp số dư.
 func TestStocktakeInvariants(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		r := &stkRun{

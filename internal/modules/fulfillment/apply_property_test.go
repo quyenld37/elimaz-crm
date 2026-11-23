@@ -58,6 +58,7 @@ func trackJourney(t *rapid.T) []fulfillment.CarrierEvent {
 // của sự kiện mới nhất; đơn, tồn khớp trạng thái đó; xuất kho ≤ 1 lần (đúng 1 khi giao xong); sổ tồn khớp số dư; phiếu
 // hoàn đúng 1 khi kết thúc ở hoàn.
 func TestApply_PropertyShuffledBatches(t *testing.T) {
+	t.Parallel()
 	e := newApplyEnv(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		evs := trackJourney(rt)

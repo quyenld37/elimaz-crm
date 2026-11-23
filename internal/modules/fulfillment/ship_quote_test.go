@@ -35,6 +35,7 @@ func (e *quoteEnv) okQuote(o order.Order, account uuid.UUID) fulfillment.QuoteRo
 }
 
 func TestShip_WithRealQuote(t *testing.T) {
+	t.Parallel()
 	a, b, _ := vc02Carriers()
 	e := newQuoteEnv(t, a, b)
 	o, _ := e.order(2)
@@ -52,6 +53,7 @@ func TestShip_WithRealQuote(t *testing.T) {
 }
 
 func TestShip_RealQuoteStale(t *testing.T) {
+	t.Parallel()
 	a, b, _ := vc02Carriers()
 	e := newQuoteEnv(t, a, b)
 

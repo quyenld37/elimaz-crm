@@ -41,6 +41,7 @@ func metricRows(rows []metrics.Row, name, label string) int64 {
 // Tín hiệu có mã hãng → một lệnh tra {shipmentId, reason: webhook}, khóa sig:<id>:<eventKey>, OrderKey
 // shipment:<id>; vận đơn không đổi (chỉ là tín hiệu). Mã CRM tìm được cả khi mã hãng sai.
 func TestSignal_EnqueuesRefreshOnly(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	_, _, s := e.shipped(1)
 	e.signal(s.TrackingCode, "ev-1")
@@ -69,6 +70,7 @@ func TestSignal_EnqueuesRefreshOnly(t *testing.T) {
 // VC10: tín hiệu đến khi vận đơn chưa có mã hãng → ErrShipmentNotYetKnown (lỗi tạm, không ErrPermanent), không lệnh
 // nào; gắn mã hãng rồi giao lại → một lệnh tra. Vận đơn của tài khoản khác không được tìm thấy (Q-7).
 func TestSignal_ShipmentNotYetKnown(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, _ := e.order(1)
 	s := e.mustCreateShipment(o.ID)
@@ -98,6 +100,7 @@ func TestSignal_ShipmentNotYetKnown(t *testing.T) {
 // Tài khoản revoked → bỏ, carrier_signal_revoked_account +1; route_key lạ hay tài khoản của hãng khác nguồn → bỏ,
 // carrier_signal_unknown_account +1; không lệnh tra nào.
 func TestSignal_AccountDropped(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	_, _, s := e.shipped(1)
 	reg := metrics.NewRegistry()
@@ -131,6 +134,7 @@ func TestSignal_AccountDropped(t *testing.T) {
 // VC13: A1 (fake) và A2 (fake_b) cùng có vận đơn mã hãng X123; tín hiệu vào tuyến của A2 → lệnh tra chỉ cho vận đơn
 // của A2.
 func TestSignal_SameTrackingTwoAccounts(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	var a2 uuid.UUID
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) (err error) {
@@ -154,6 +158,7 @@ func TestSignal_SameTrackingTwoAccounts(t *testing.T) {
 
 // Loại lạ, payload thiếu trường → ErrPermanent.
 func TestSignal_BadPayload(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	for name, sig := range map[string]fulfillment.Signal{
 		"thiếu route": {EventKey: "e", TrackingCode: "T"},
@@ -180,6 +185,7 @@ func (r routeCarrier) CreateShipment(ctx context.Context, a fulfillment.Account,
 // Lệnh tạo vận đơn gửi cho hãng route_key của tài khoản: hãng gửi webhook về /hooks/<hãng>/<route_key> (đường không
 // khóa tuyến không còn nhận).
 func TestCreateShipment_SendsRouteKey(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	var got fulfillment.Account
 	o := fulfillment.CommandOptions{
