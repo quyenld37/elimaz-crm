@@ -42,6 +42,7 @@ func (c apiQuoteCarrier) Quote(context.Context, fulfillment.Account, fulfillment
 // khác → 403 (cả GET); sau worker danh sách 28.000, 41.000 rồi lỗi (không feeTotal); đơn lạ → 404; đơn đã có vận đơn
 // → 409 shipment_exists.
 func TestShippingQuotesAPI(t *testing.T) {
+	t.Parallel()
 	e := newOrderAPIEnv(t)
 	tenant := e.shop.Tenant
 	a := apiQuoteCarrier{key: "qa", results: []fulfillment.QuoteResult{

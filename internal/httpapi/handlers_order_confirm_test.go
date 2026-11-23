@@ -48,6 +48,7 @@ func (e *orderAPIEnv) mustAction(email, key string, id any, action, body string)
 // new → confirm → 200, lịch sử new → confirmed, sự kiện order.confirmed seq = version, audit order.confirm; version cũ
 // → 409 version_conflict; đơn không có → 404.
 func TestOrderConfirm_New(t *testing.T) {
+	t.Parallel()
 	e := newOrderConfirmEnv(t)
 	v := e.variant(e.shop.Seller, 250000, 5)
 	o := e.mustCreate("c-new", m2Body("new", fullAddr, 0, m2Line(v, 1, 0)))
@@ -79,6 +80,7 @@ func TestOrderConfirm_New(t *testing.T) {
 // DH16: đơn chờ duyệt; sale confirm → 422 needs_approval; sale approve-discount → 403; manager approve-discount →
 // confirmed, lịch sử có lý do, audit có discountApprovedBy.
 func TestOrderConfirm_DiscountApproval(t *testing.T) {
+	t.Parallel()
 	e := newOrderConfirmEnv(t)
 	v := e.variant(e.shop.Seller, 1000000, 5)
 	o := e.mustCreate("c-dh16", withFields(m2Body("confirmed", fullAddr, 0, m2Line(v, 1, 0)), `"orderDiscount":100001`))
@@ -109,6 +111,7 @@ func TestOrderConfirm_DiscountApproval(t *testing.T) {
 
 // Chốt nháp: thiếu phường → 422 address_incomplete; nháp khác có địa chỉ đủ → confirmed, draftExpiresAt null.
 func TestOrderConfirm_Draft(t *testing.T) {
+	t.Parallel()
 	e := newOrderConfirmEnv(t)
 	v := e.variant(e.shop.Seller, 250000, 5)
 	noWard := strings.Replace(fullAddr, `,"wardCode":"T01001"`, "", 1)
@@ -128,6 +131,7 @@ func TestOrderConfirm_Draft(t *testing.T) {
 // setOrderPending awaiting_customer → label awaiting_customer; confirm → confirmed; pending trên đơn confirmed → 422
 // invalid_transition; confirm đơn cancelled → 422 invalid_transition.
 func TestOrderConfirm_Pending(t *testing.T) {
+	t.Parallel()
 	e := newOrderConfirmEnv(t)
 	v := e.variant(e.shop.Seller, 250000, 5)
 	o := e.mustCreate("p1", m2Body("new", fullAddr, 0, m2Line(v, 1, 0)))
@@ -156,6 +160,7 @@ func TestOrderConfirm_Pending(t *testing.T) {
 // 50 confirm song song cùng khóa → 1 dòng lịch sử new → confirmed (200 hoặc 409 request_in_progress); hai khóa khác,
 // cùng version → một 200, một 409 version_conflict.
 func TestOrderConfirm_Parallel(t *testing.T) {
+	t.Parallel()
 	e := newOrderConfirmEnv(t)
 	v := e.variant(e.shop.Seller, 250000, 10)
 	o := e.mustCreate("r1", m2Body("new", fullAddr, 0, m2Line(v, 1, 0)))

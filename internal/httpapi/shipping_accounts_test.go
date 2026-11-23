@@ -82,6 +82,7 @@ func shipAccountRows(t *testing.T, e *shipAPIEnv, path, user string) []map[strin
 // không có adapter; mỗi dòng chỉ id, name, carrierKey, mode, status. Bán hàng chỉ ở kho W2 → 403; không có
 // fulfillment.ship → 403; đơn lạ → 404.
 func TestOrderShippingAccountsAPI(t *testing.T) {
+	t.Parallel()
 	e := newShipCancelAPIEnv(t)
 	tenant := e.shop.Tenant
 	ids, w2 := seedShipAccounts(e)

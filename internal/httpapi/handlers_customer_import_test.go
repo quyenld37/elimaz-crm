@@ -111,6 +111,7 @@ func (e *customerImportEnv) upload(tenant uuid.UUID, purpose, contentType string
 // import_too_large (không tạo lần nhập); tệp ảnh, tệp tenant khác → 422 import_file_invalid; createUpload 6 MiB với
 // mục đích customer_import → 422 file_too_large; vai trò sale → 403 ở cả ba route.
 func TestCustomerImportAPI(t *testing.T) {
+	t.Parallel()
 	e := newCustomerImportEnv(t)
 
 	tpl := e.send(http.MethodGet, "/api/v1/customer-imports/template", customerImporter, "")

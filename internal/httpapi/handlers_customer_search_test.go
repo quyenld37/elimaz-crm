@@ -30,6 +30,7 @@ func (e *customerAPIEnv) listItems(t *testing.T, query url.Values) ([]map[string
 // TestCustomerSearchAPI: tìm theo đuôi số, SĐT đủ, mã, tên; chuỗi quá ngắn → 422 query_too_short; danh sách khi không
 // tìm, trang theo con trỏ, lọc nhãn; không có customer.read → 403; log và dấu vết không chứa chuỗi tìm, SĐT, tên.
 func TestCustomerSearchAPI(t *testing.T) {
+	// Không t.Parallel (Task 474): CaptureSpans đổi TracerProvider toàn cục.
 	exp := testkit.CaptureSpans(t)
 	e := newCustomerAPIEnv(t)
 	e.staff.Grant(t, e.tenant, e.staff.User(t, e.tenant, customerNoRead, "active"), []string{"order.read"}, "all", "")

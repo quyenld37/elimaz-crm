@@ -12,6 +12,7 @@ import (
 // PostgreSQL ±5 phút, tạo → sửa → hủy vẫn ra đúng thứ tự mới nhất trước, và mọi mốc (cả mục sửa ghi qua audit) theo
 // đồng hồ của máy chủ ứng dụng, không theo now() của database.
 func TestOrderTimeline_ClockSkew(t *testing.T) {
+	t.Parallel()
 	for _, skew := range []time.Duration{5 * time.Minute, -5 * time.Minute} {
 		t.Run(skew.String(), func(t *testing.T) { checkTimelineClockSkew(t, skew) })
 	}

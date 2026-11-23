@@ -117,6 +117,7 @@ func (e *filesAPIEnv) filesRows() int {
 
 // TP03 phần kích thước, loại, mục đích: 422 trước khi có dòng nào.
 func TestFilesAPI_CreateUploadLimits(t *testing.T) {
+	t.Parallel()
 	e := newFilesAPIEnv(t)
 	cases := []struct {
 		name, body string
@@ -144,6 +145,7 @@ func TestFilesAPI_CreateUploadLimits(t *testing.T) {
 
 // Tạo → PUT bằng putUrl → complete → get; complete trước khi tải 409; tenant B 404 (PQ08).
 func TestFilesAPI_UploadFlow(t *testing.T) {
+	t.Parallel()
 	e := newFilesAPIEnv(t)
 	code, up, body := e.createUpload(filesA, 1000)
 	if code != http.StatusCreated || up.FileID == uuid.Nil || up.PutURL == "" || up.Headers["Content-Type"] != "image/jpeg" {
@@ -188,6 +190,7 @@ func TestFilesAPI_UploadFlow(t *testing.T) {
 
 // Gửi lại createUpload cùng khóa chống trùng: cùng tệp, cùng đường dẫn, không thêm dòng.
 func TestFilesAPI_CreateUploadReplay(t *testing.T) {
+	t.Parallel()
 	e := newFilesAPIEnv(t)
 	before := e.filesRows()
 	body1 := `{"purpose":"product_image","fileName":"b.jpg","contentType":"image/png","sizeBytes":10}`
@@ -208,6 +211,7 @@ func TestFilesAPI_CreateUploadReplay(t *testing.T) {
 
 // Không có files.upload thì cả ba route 403; mã lạ 404.
 func TestFilesAPI_PermissionsAndUnknown(t *testing.T) {
+	t.Parallel()
 	e := newFilesAPIEnv(t)
 	id := uuid.NewString()
 	for _, r := range [][2]string{{http.MethodPost, "/api/v1/files/" + id + "/complete"}, {http.MethodGet, "/api/v1/files/" + id}} {
@@ -223,6 +227,7 @@ func TestFilesAPI_PermissionsAndUnknown(t *testing.T) {
 // L3 của threat model M1 (Task 414): đường dẫn ký sẵn mà createUpload trả cho trình duyệt không lọt vào log hay dấu
 // vết của máy chủ — qua tạo, gửi lại cùng khóa, complete trước và sau khi tải, getFile.
 func TestFilesAPI_SignedURLNotLogged(t *testing.T) {
+	// Không t.Parallel (Task 474): CaptureSpans đổi TracerProvider toàn cục.
 	spans := testkit.CaptureSpans(t)
 	logger, logs := testkit.CaptureLog(t)
 	e := newFilesAPIEnvLog(t, logger)

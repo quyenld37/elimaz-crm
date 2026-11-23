@@ -66,6 +66,7 @@ func (e *m3Env) codShipment(shop *shiptest.Shop, user uuid.UUID, cod int64, step
 // hãng, bút toán bị đảo); vận đơn chưa có sổ → mọi ngăn 0, danh sách rỗng; vận đơn không có → 404; Kho (không có
 // cash.cod.read) → 403.
 func TestShipmentCodAPI(t *testing.T) {
+	t.Parallel()
 	e := newM3Env(t)
 	shop, user := e.newCodShop()
 	s := e.codShipment(shop, user, 630000, []string{"picked_up", "delivered"}, []string{"delivery_reversed", "returning"})

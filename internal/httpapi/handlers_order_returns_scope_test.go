@@ -21,6 +21,7 @@ const (
 // order.create. order.create theo đúng kho chính → 201. Từ chối không lưu theo khóa: được cấp quyền rồi gửi lại cùng
 // khóa → 201.
 func TestReturnAPI_ExchangeWarehouseScope(t *testing.T) {
+	t.Parallel()
 	e := newReturnAPIEnv(t)
 	tenant := e.shop.Tenant
 	w2 := uuid.New() // kho phụ: nhân viên có order.create theo kho này không đổi được hàng của đơn ở kho chính

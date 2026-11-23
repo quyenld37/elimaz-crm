@@ -105,6 +105,7 @@ func post(t *testing.T, h http.Handler, path string, body io.Reader, hdr map[str
 // Route service_key chỉ đọc Authorization: Bearer ek_…; thẻ Access hợp lệ không thay được khóa. Route access chỉ đọc
 // thẻ Access; khóa dịch vụ trong Authorization bị bỏ qua.
 func TestServiceKeyAuthSeparatedFromAccess(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	acc := &fakeAccess{}
 	keys := &fakeKeys{user: serviceUser(uuid.New(), uuid.New())}
@@ -173,6 +174,7 @@ func TestServiceKeyAuthSeparatedFromAccess(t *testing.T) {
 
 // Route service_key ghi không qua kiểm Origin (máy chủ gọi máy chủ); route access ghi vẫn 403 bad_origin như M0.
 func TestOriginOnlyForNonServiceWrites(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	d := unitDeps(&buf)
 	rec := post(t, chain(d, webRoute(modeRequired), okHandler()), "/api/v1/web/_probe", strings.NewReader("{}"), nil)
@@ -184,6 +186,7 @@ func TestOriginOnlyForNonServiceWrites(t *testing.T) {
 
 // Cơ chế chống trùng của M0 vẫn đúng sau các bước mới: exempt không đòi khóa, required đòi.
 func TestServiceKeyIdempotencyModes(t *testing.T) {
+	t.Parallel()
 	d, auth := keyDeps(t)
 	rec := post(t, chain(d, webRoute(modeExempt), okHandler()), "/api/v1/web/_probe", strings.NewReader("{}"), auth)
 	expect(t, "exempt không Idempotency-Key", rec, http.StatusOK, "")
@@ -214,6 +217,7 @@ func readAll(d Deps) http.Handler {
 type onlyReader struct{ io.Reader }
 
 func TestBodyLimitPerRoute(t *testing.T) {
+	t.Parallel()
 	d, auth := keyDeps(t)
 	big := webRoute(modeExempt)
 	big.BodyLimit = 6 << 20
@@ -246,6 +250,7 @@ func TestBodyLimitPerRoute(t *testing.T) {
 // Giới hạn tần suất của khóa dịch vụ: RateLimiter từ chối → 429 có Retry-After (làm tròn lên); chưa nối → bộ đếm
 // trong tiến trình 600 yêu cầu / phút (không bao giờ bỏ giới hạn).
 func TestServiceKeyRateLimit(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	user := serviceUser(uuid.New(), uuid.New())
 	d := unitDeps(&buf)
@@ -284,6 +289,7 @@ func TestServiceKeyRateLimit(t *testing.T) {
 // Cổng nhận vào (x-admission) chạy trước bước chống trùng: cổng từ chối thì không có dòng idempotency_keys; cổng cho
 // qua thì handler thấy khóa đã được nhận (thứ tự admission → idempotency → handler). Tên cổng chưa nối → 503.
 func TestAdmissionBeforeIdempotency(t *testing.T) {
+	t.Parallel()
 	staff := testkit.OpenStaff(t)
 	tenant := staff.Tenant(t, "A")
 	user := staff.User(t, tenant, "svc@elimaz.test", "active")
@@ -347,6 +353,7 @@ func TestAdmissionBeforeIdempotency(t *testing.T) {
 
 // Lỗi của bộ kiểm khóa không nhận ra (database…) đi đường lỗi chung: 500, không lộ khóa vào log.
 func TestServiceKeyVerifierErrorNotLogged(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	d := unitDeps(&buf)
 	d.ServiceKeys = verifierFunc(func(context.Context, string, netip.Addr) (identity.AuthUser, error) {

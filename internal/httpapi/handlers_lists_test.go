@@ -18,6 +18,7 @@ const (
 
 // Danh sách mẫu, tìm biến thể qua HTTP: quyền, cột "Có thể bán" theo kho có phạm vi, con trỏ hỏng, tenant khác.
 func TestListsAPI(t *testing.T) {
+	t.Parallel()
 	e := newInvAPIEnv(t)
 	e.variant(e.w1, 7)
 	e.variant(e.w1, 3)
@@ -120,6 +121,7 @@ func mustOKArray(t *testing.T, name string, rec *httptest.ResponseRecorder) []an
 // Danh sách tồn qua HTTP (Task 334): phạm vi kho, warehouseId bắt buộc, lọc "Thiếu so với phần giữ" sau ca KH07
 // (on_hand 2, held 4: đếm thiếu dưới phần giữ, đơn giữ nguyên), con trỏ hỏng, tenant khác.
 func TestListBalancesAPI(t *testing.T) {
+	t.Parallel()
 	e := newInvAPIEnv(t)
 	short := e.variant(e.w1, 5)
 	e.variant(e.w1, 3)

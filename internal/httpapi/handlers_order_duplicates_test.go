@@ -41,6 +41,7 @@ func (e *orderAPIEnv) detectDuplicates(id any) {
 // → 200 resolution cancelled, đơn kia cancelled, audit; gửi lại cùng khóa → cùng kết quả; khóa khác → 422 invalid_transition; không quyền → 403; cặp không có → 404;
 // con trỏ hỏng → 400.
 func TestOrderAPI_Duplicates(t *testing.T) {
+	t.Parallel()
 	e := newOrderAPIEnv(t)
 	e.m2Prepare()
 	r := e.staff.User(t, e.shop.Tenant, orderDupResolver, "active")

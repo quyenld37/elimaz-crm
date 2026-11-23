@@ -47,6 +47,7 @@ func addrJSON(ward string) string {
 // order.address_change có changed_fields ship_address mà giá trị bị che; resolve lần hai → 409 invalid_transition; yêu
 // cầu lạ → 404.
 func TestAddressChangeAPI_DH15(t *testing.T) {
+	t.Parallel()
 	e := newShipAPIEnv(t)
 	tenant := e.shop.Tenant
 	e.staff.SeedAdminUnits(t)
@@ -122,6 +123,7 @@ func TestAddressChangeAPI_DH15(t *testing.T) {
 
 // Vận đơn đã giao (hàng đã tới khách) → 409 invalid_transition; vận đơn lạ → 404; xã không có trong danh mục → 422.
 func TestAddressChangeAPI_Refusals(t *testing.T) {
+	t.Parallel()
 	e := newShipAPIEnv(t)
 	e.staff.SeedAdminUnits(t)
 	_, id := e.addrShipment("r1")
@@ -146,6 +148,7 @@ func TestAddressChangeAPI_Refusals(t *testing.T) {
 // listShipmentAddressChanges (Task 134): chỉ yêu cầu đang mở (pending, sent, unknown), không có địa chỉ; chưa có → rỗng;
 // sau khi xác nhận → rỗng; fulfillment.read ở kho khác → 404; chỉ order.read → 403; vận đơn lạ → 404.
 func TestAddressChangeAPI_ListOpen(t *testing.T) {
+	t.Parallel()
 	e := newShipAPIEnv(t)
 	e.staff.SeedAdminUnits(t)
 	e.staff.Grant(t, e.shop.Tenant, e.staff.User(t, e.shop.Tenant, shipW2, "active"), []string{"fulfillment.read"},

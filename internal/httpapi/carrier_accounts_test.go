@@ -116,6 +116,7 @@ func (e *caEnv) createBody(extra string) string {
 // read không có webhookUrl; audit tạo có changed_fields chứa credentials, after không có giá trị khóa; log, dấu vết,
 // việc nền, audit của cả luồng không có chuỗi khóa. Không quyền manage → 403.
 func TestCarrierAccountsAPI_VC01(t *testing.T) {
+	// Không t.Parallel (Task 474): CaptureSpans đổi TracerProvider toàn cục.
 	spans := testkit.CaptureSpans(t)
 	e := newCAEnv(t)
 	code, acc, raw := e.send(http.MethodPost, "/api/v1/carrier-accounts", caManager, e.createBody(`,"credentials":{"token":"`+caToken+`"}`))
@@ -174,6 +175,7 @@ func TestCarrierAccountsAPI_VC01(t *testing.T) {
 // chưa có khóa → 409 invalid_transition; hai tài khoản mặc định cùng kho cùng hãng → 409 already_exists; sửa với version
 // cũ → 409 version_conflict; ghi khóa → checking và có lệnh kiểm; revoked → không đổi lại (409).
 func TestCarrierAccountsAPI_Refusals(t *testing.T) {
+	t.Parallel()
 	e := newCAEnv(t)
 	post := func(body string) (int, map[string]any) {
 		code, b, _ := e.send(http.MethodPost, "/api/v1/carrier-accounts", caManager, body)
@@ -235,6 +237,7 @@ func (e *caEnv) lifecycle(id string) {
 // setWarehousePickup: ghi → warehouses_v có địa chỉ mới, version 2, audit chỉ có tên trường; version cũ → 409; SĐT
 // sai → 422 invalid_phone; không quyền fulfillment.settings.manage → 403.
 func TestWarehousePickupAPI(t *testing.T) {
+	t.Parallel()
 	e := newCAEnv(t)
 	path := "/api/v1/inventory/warehouses/" + e.shop.Warehouse.String() + "/pickup"
 	body := func(version int, phone string) string {
@@ -270,6 +273,7 @@ func TestWarehousePickupAPI(t *testing.T) {
 // getWarehousePickup (Task 132): chưa ghi → chỉ version; sau khi ghi → đủ trường, SĐT đã chuẩn hóa, version mới; không
 // quyền fulfillment.settings.manage → 403; kho lạ → 404.
 func TestWarehousePickupAPI_Get(t *testing.T) {
+	t.Parallel()
 	e := newCAEnv(t)
 	path := "/api/v1/inventory/warehouses/" + e.shop.Warehouse.String() + "/pickup"
 	if code, _, _ := e.send(http.MethodGet, path, caReader, ""); code != http.StatusForbidden {

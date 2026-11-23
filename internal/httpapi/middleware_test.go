@@ -70,6 +70,7 @@ func writeRoute() Route {
 }
 
 func TestOriginRejectsWrites(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	h := chain(unitDeps(&buf), writeRoute(), okHandler())
 	cases := []struct {
@@ -108,6 +109,7 @@ func TestOriginRejectsWrites(t *testing.T) {
 }
 
 func TestOriginSkipsReads(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	read := Route{Method: http.MethodGet, Pattern: "GET /api/v1/x", OperationID: "x", Public: true}
 	rec := httptest.NewRecorder()
@@ -118,6 +120,7 @@ func TestOriginSkipsReads(t *testing.T) {
 }
 
 func TestPanicReturns500WithoutTrace(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	read := Route{Method: http.MethodGet, Pattern: "GET /api/v1/boom", OperationID: "boom", Public: true}
 	h := chain(unitDeps(&buf), read, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
@@ -148,6 +151,7 @@ func TestPanicReturns500WithoutTrace(t *testing.T) {
 }
 
 func TestRequestIDGeneratedWhenInvalid(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	read := Route{Method: http.MethodGet, Pattern: "GET /x", OperationID: "x", Public: true}
 	var seen string
@@ -170,6 +174,7 @@ func TestRequestIDGeneratedWhenInvalid(t *testing.T) {
 }
 
 func TestBodyLimit(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	d := unitDeps(&buf)
 	reader := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -211,6 +216,7 @@ func TestBodyLimit(t *testing.T) {
 
 // Qua NewServer: 1 MiB + 1 byte bị từ chối 413 trước cả origin và auth.
 func TestServerBodyTooLarge(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	srv := NewServer(testDeps(t, &buf))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/platform/jobs/0195f3a0-0000-7000-8000-000000000001/retry",
@@ -224,6 +230,7 @@ func TestServerBodyTooLarge(t *testing.T) {
 }
 
 func TestServerRouting(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	srv := NewServer(testDeps(t, &buf))
 	cases := []struct {
@@ -271,6 +278,7 @@ func TestServerRouting(t *testing.T) {
 }
 
 func TestServerRegistersEveryRoute(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	_, n := newMux(testDeps(t, &buf))
 	if n != len(Routes) {
@@ -279,6 +287,7 @@ func TestServerRegistersEveryRoute(t *testing.T) {
 }
 
 func TestHealthReadyDown(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	d := testDeps(t, &buf)
 	d.DB.Pool.Close()

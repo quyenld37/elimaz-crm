@@ -48,6 +48,7 @@ func beat(t *testing.T, d Deps, process, role string, age time.Duration) {
 
 // /health/deep: thiếu hay sai thẻ → 401; worker 200 s tuổi → 503 ok:false; mọi thứ tốt → 200 ok:true.
 func TestHealthDeep(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	d := testDeps(t, &buf)
 	d.Config.HealthToken = testHealthToken
@@ -132,6 +133,7 @@ func errDeps(staff *testkit.Staff, logs *bytes.Buffer) Deps {
 
 // Route thử panic với SĐT trong giá trị: 500 không có vết lỗi, error_events có dòng đã lọc kèm đúng mã yêu cầu.
 func TestPanicRecordsScrubbedError(t *testing.T) {
+	t.Parallel()
 	staff := testkit.OpenStaff(t)
 	logs := &bytes.Buffer{}
 	rt := Route{Method: "GET", Pattern: "GET /test/panic", OperationID: "testPanic", Public: true}
@@ -169,6 +171,7 @@ func TestPanicRecordsScrubbedError(t *testing.T) {
 
 // Lỗi không nhận ra (500) được ghi; lỗi đã biết (404) và client tự đóng kết nối thì không.
 func TestHandlerErrorRecordsOnlyInternal(t *testing.T) {
+	t.Parallel()
 	staff := testkit.OpenStaff(t)
 	d := errDeps(staff, &bytes.Buffer{})
 	serve := func(ctx context.Context, err error) int {
@@ -190,6 +193,7 @@ func TestHandlerErrorRecordsOnlyInternal(t *testing.T) {
 
 // /api/v1/platform/health: không quyền 403; có quyền đủ sáu khóa, errors tối đa 10 dòng kèm firstSeenAt, message.
 func TestPlatformHealth(t *testing.T) {
+	t.Parallel()
 	e := newJobsEnv(t, 0)
 	for i := range 12 {
 		if _, err := e.staff.Owner.Pool.Exec(context.Background(), `INSERT INTO platform.error_events (fingerprint, role,
@@ -229,6 +233,7 @@ func TestPlatformHealth(t *testing.T) {
 
 // /health/deep mang lastFileSyncAgeM (Task M1-45): vắng khi chưa có lần chép; có (phút) khi cả ba bucket đã chép tốt.
 func TestHealthDeepFileSyncAge(t *testing.T) {
+	t.Parallel()
 	adminURL, _, appURL := testkit.StartPostgres(t)
 	var buf bytes.Buffer
 	d := testDeps(t, &buf)

@@ -47,6 +47,7 @@ func (e *shipAPIEnv) manualStatus(user, id, key, body string) (int, map[string]a
 // che SĐT); delivered có codCollected → 200; vận đơn api không việc hủy tay → 409 invalid_transition; trùng mã ở tài
 // khoản tay khác → 409 tracking_code_conflict; vận đơn lạ → 404.
 func TestShipmentManualAPI(t *testing.T) {
+	t.Parallel()
 	e := newShipAPIEnv(t)
 	e.grantManual()
 	a1, a2 := e.manualAccount("best", "best-tay-1"), e.manualAccount("best", "best-tay-2")

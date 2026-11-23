@@ -19,6 +19,7 @@ import (
 // Việt cho từng mã (console/src/app/errors.test.ts), nên mã mới mà quên khai thì test này đỏ trước khi nhân viên thấy
 // mã máy. Hợp đồng được khai trước mã của mốc sau (chiều ngược lại không bắt buộc).
 func TestErrorCodes_DeclaredInContract(t *testing.T) {
+	t.Parallel()
 	declared := contractErrorCodes(t)
 	for _, code := range errorsGoCodes(t) {
 		if !slices.Contains(declared, code) {
@@ -28,6 +29,7 @@ func TestErrorCodes_DeclaredInContract(t *testing.T) {
 }
 
 func TestErrorCodes_ContractListWellFormed(t *testing.T) {
+	t.Parallel()
 	declared := contractErrorCodes(t)
 	if len(declared) == 0 {
 		t.Fatal("x-error-codes rỗng")

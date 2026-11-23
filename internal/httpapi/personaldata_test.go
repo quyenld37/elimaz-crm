@@ -12,6 +12,7 @@ import (
 // Lỗi 500 và panic mang SĐT, địa chỉ, token: log, error_events, câu trả lời và span của yêu cầu không chứa chúng
 // (Task 319).
 func TestInternalErrorPersonalDataNotLeaked(t *testing.T) {
+	// Không t.Parallel (Task 474): CaptureSpans đổi TracerProvider toàn cục.
 	exp := testkit.CaptureSpans(t)
 
 	staff := testkit.OpenStaff(t)

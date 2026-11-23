@@ -65,6 +65,7 @@ func checkPackFields(t *testing.T, row, sh map[string]any, ship uuid.UUID) {
 // viên), các mục cũ có actorType staff. Màn Đóng gói (Task 136): dòng có packingStatus, vận đơn có id, carrierAccountId,
 // mode (chưa in nhãn: không labelPrintedAt); lọc labelPrinted, warehouseId.
 func TestOrderRead_ListTimelineM3(t *testing.T) {
+	t.Parallel()
 	e := newOrderReadEnv(t)
 	v := e.variant(e.shop.Seller, 500000, 10)
 	plain := e.mustCreate("m1", m2Body("confirmed", fullAddr, 0, m2Line(v, 1, 0)))

@@ -21,6 +21,7 @@ import (
 // Task 406: tồn thực không đủ cho giữ hàng (đã bọc %w) → 409 stock_short kèm variantId, available = phần trên kệ; đúng
 // bốn trường, không dữ liệu cá nhân.
 func TestDomainErrors_StockShort(t *testing.T) {
+	t.Parallel()
 	v := uuid.New()
 	err := fmt.Errorf("trừ tồn khi giao xong: %w", &inventory.StockShortError{
 		ReservationID: uuid.New(), VariantID: v, WarehouseID: uuid.New(), Requested: 2, OnShelf: 1,
@@ -69,6 +70,7 @@ func (e *invAPIEnv) holdByOrder(v, wh uuid.UUID, qty int32) (uuid.UUID, string) 
 // Áp dụng phiên đếm thiếu dưới phần giữ qua API: shortages kèm orders — các đơn đang giữ (chưa đi giao) theo thứ tự
 // giữ hàng, mã đơn, số lượng; biến thể không thiếu không có dòng; chỉ mã đơn và số, không thông tin khách.
 func TestStocktakeAPI_ShortageListsOrders(t *testing.T) {
+	t.Parallel()
 	e := newInvAPIEnv(t)
 	v, _, id := e.openW1() // on_hand 5 ở w1
 	o1, c1 := e.holdByOrder(v, e.w1, 2)

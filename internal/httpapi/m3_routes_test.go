@@ -88,6 +88,7 @@ func (e *m3Env) send(method, path, email, body string) (int, map[string]any) {
 // Thiếu quyền vẫn 403 trước handler (guard kiểm quyền trước): user chỉ có fulfillment.read gọi báo phí
 // (fulfillment.quote, Task M3-04). Không phụ thuộc operation đã làm hay chưa.
 func TestM3Routes_Forbidden(t *testing.T) {
+	t.Parallel()
 	e := newM3Env(t)
 	path := "/api/v1/orders/" + uuid.NewString() + "/shipping-quotes"
 	if code, b := e.send(http.MethodPost, path, m3Reader, `{}`); code != http.StatusForbidden || b["error"] != "forbidden" {
@@ -117,6 +118,7 @@ func m3Pending(t *testing.T) map[string]bool {
 // kiểm hợp đồng trước handler (thân rỗng không tới được handler). Trả mã khác (2xx, 404, 409, 422) là đã làm: xóa
 // dòng khỏi danh sách. Không dựa vào một operation cụ thể nào (bẫy Task 427).
 func TestM3Routes_PendingList(t *testing.T) {
+	t.Parallel()
 	e := newM3Env(t)
 	pending := m3Pending(t)
 	param := regexp.MustCompile(`\{[^}]+\}`)
@@ -161,6 +163,7 @@ func fulfillmentSettingsBody(version int64, highRate int, shipping int) string {
 // Cài đặt vận chuyển (Task M3-04): đọc mặc định (version 0); HighRateBP = 0 → 422; lưu hợp lệ → audit có
 // changed_fields; version cũ → 409 version_conflict; Kho đọc được, không sửa được (fulfillment.settings.manage).
 func TestFulfillmentSettingsAPI(t *testing.T) {
+	t.Parallel()
 	e := newM3Env(t)
 	code, got := e.send(http.MethodGet, "/api/v1/fulfillment-settings", m3Warehouse, "")
 	stuck, _ := got["stuckHours"].(map[string]any)
@@ -201,6 +204,7 @@ func TestFulfillmentSettingsAPI(t *testing.T) {
 // Mục đích cod_statement (Task M3-04): Kế toán (vai trò mẫu, có files.upload từ M3) tạo phiên tải bảng kê .xlsx 3 MiB được, 11 MiB → 422 file_too_large;
 // carrier_label không nhận tải lên.
 func TestCodStatementUploadPurpose(t *testing.T) {
+	t.Parallel()
 	e := newM3Env(t)
 	upload := func(purpose, name, ct string, size int) (int, map[string]any) {
 		return e.send(http.MethodPost, "/api/v1/files/uploads", m3Accounter,

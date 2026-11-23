@@ -22,6 +22,7 @@ const (
 // kho MAIN → 404 (Task M3-12: phạm vi theo kho của đơn, không lộ đơn; M1: 403 theo kho tài khoản); chỉ có order.read →
 // getShipment 403; fulfillment.read → 200.
 func TestShipmentAPI(t *testing.T) {
+	t.Parallel()
 	e := newOrderAPIEnv(t)
 	tenant := e.shop.Tenant
 	var account, w2 uuid.UUID

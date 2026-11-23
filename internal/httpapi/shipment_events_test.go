@@ -20,6 +20,7 @@ import (
 // listShipmentEvents: không có fulfillment.read ở kho của tài khoản hãng → 404; có quyền → mới nhất trước, đủ trường,
 // không có khóa raw; phân trang theo con trỏ; vận đơn lạ → 404.
 func TestShipmentEventsAPI(t *testing.T) {
+	t.Parallel()
 	e := newOrderAPIEnv(t)
 	shipmentID := seedShipmentEvents(t, e)
 	path := fmt.Sprintf("/api/v1/shipments/%s/events", shipmentID)

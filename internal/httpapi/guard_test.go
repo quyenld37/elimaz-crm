@@ -12,6 +12,7 @@ import (
 // guard: route đọc có khai quyền vẫn đòi quyền đó; chỉ route Authenticated không quyền mới cho mọi nhân viên đã xác
 // thực (mutation testing Task 23: guard.go, điều kiện authOnly còn sống).
 func TestGuardReadRouteNeedsPermission(t *testing.T) {
+	t.Parallel()
 	ok := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	none := identity.AuthUser{}
 	has := identity.AuthUser{Grants: []identity.Grant{{Permission: "platform.health.read", Scope: identity.Scope{Type: identity.ScopeAll}}}}

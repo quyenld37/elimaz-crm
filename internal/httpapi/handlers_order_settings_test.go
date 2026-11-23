@@ -70,6 +70,7 @@ func (e *orderSettingsEnv) ok(name string, rec *httptest.ResponseRecorder, statu
 }
 
 func TestOrderSettingsAPI(t *testing.T) {
+	t.Parallel()
 	e := newOrderSettingsEnv(t)
 	got := e.ok("sale đọc cài đặt", e.do(http.MethodGet, "/api/v1/order-settings", settingsSale, "", ""), http.StatusOK)
 	if got["draftTtlMinutes"] != float64(1440) || got["duplicateWindowMinutes"] != float64(1440) ||
@@ -106,6 +107,7 @@ func TestOrderSettingsAPI(t *testing.T) {
 }
 
 func TestTrafficSourcesAPI(t *testing.T) {
+	t.Parallel()
 	e := newOrderSettingsEnv(t)
 	list := e.ok("sale đọc nguồn", e.do(http.MethodGet, "/api/v1/traffic-sources", settingsSale, "", ""), http.StatusOK)
 	items, _ := list["items"].([]any)

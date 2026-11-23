@@ -13,6 +13,7 @@ import (
 const returnCanceller = "huy-phieu@elimaz.test"
 
 func TestCancelCarrierReturnAPI(t *testing.T) {
+	t.Parallel()
 	e := newShipAPIEnv(t)
 	tenant := e.shop.Tenant
 	e.grantManual()

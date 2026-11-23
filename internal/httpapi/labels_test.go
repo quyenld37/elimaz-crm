@@ -110,6 +110,7 @@ func (e *labelAPIEnv) packing(orderID string) string {
 // VC04 qua HTTP: in 2 vận đơn → 202 một lô 2 vận đơn (cùng khóa → cùng thân); kho W2 → 404 không ghi lô; không
 // quyền in → 403; 201 mã → 400 (kiểm hợp đồng); worker → lô ready có url; kho W2 đọc lô → 404.
 func TestLabelBatchAPI(t *testing.T) {
+	t.Parallel()
 	e := newLabelAPIEnv(t)
 	v := e.variant(e.shop.Seller, 250000, 10)
 	_, _, s1 := e.shippedOrder("o1", line(v, 1))
@@ -173,6 +174,7 @@ func TestLabelBatchAPI(t *testing.T) {
 // Phiếu nhặt qua HTTP: vB ở 2 đơn (2 + 1) → một dòng qty 3, orderCodes hai mã; JSON không có khóa phone, address;
 // kho W2 → 404; mã lạ → 404.
 func TestPickingListAPI(t *testing.T) {
+	t.Parallel()
 	e := newLabelAPIEnv(t)
 	vA := e.variant(e.shop.Seller, 100000, 10)
 	vB := e.variant(e.shop.Seller, 250000, 10)
@@ -219,6 +221,7 @@ func TestPickingListAPI(t *testing.T) {
 // Đóng gói qua HTTP: packed hai đơn → updated; rồi picking → already_further (chỉ đi tới); in lại sau khi packed →
 // packing_status vẫn packed (AT08); kho W2 → 404, không đơn nào đổi; audit một dòng mỗi đơn đổi.
 func TestPackingAPI(t *testing.T) {
+	t.Parallel()
 	e := newLabelAPIEnv(t)
 	v := e.variant(e.shop.Seller, 250000, 10)
 	o1, _, s1 := e.shippedOrder("o1", line(v, 1))

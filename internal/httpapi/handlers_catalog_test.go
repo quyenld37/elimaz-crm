@@ -85,6 +85,7 @@ func (e *catalogAPIEnv) createDam01() map[string]any {
 }
 
 func TestCatalogAPI_CreateGetUpdate(t *testing.T) {
+	t.Parallel()
 	e := newCatalogAPIEnv(t)
 	p := e.createDam01()
 	id := p["id"].(string)                                                                       //nolint:forcetypeassert // test
@@ -131,6 +132,7 @@ func TestCatalogAPI_CreateGetUpdate(t *testing.T) {
 }
 
 func TestCatalogAPI_VariantErrors(t *testing.T) {
+	t.Parallel()
 	e := newCatalogAPIEnv(t)
 	p := e.createDam01()
 	id := p["id"].(string)                //nolint:forcetypeassert // test
@@ -225,6 +227,7 @@ func (e *catalogAPIEnv) createTags(codes ...string) []string {
 
 // TestCatalogAPI_Classification: cây danh mục, thuộc tính, nhãn và phân loại mẫu qua API (Task M1-34).
 func TestCatalogAPI_Classification(t *testing.T) {
+	t.Parallel()
 	e := newCatalogAPIEnv(t)
 	create := e.createCategory
 	vay := create("Váy", "", "k1")

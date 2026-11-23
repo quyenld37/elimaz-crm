@@ -65,6 +65,7 @@ func agedCodes(t *testing.T, rec *httptest.ResponseRecorder) []string {
 // TestAgedAPI_Scope (KH09, AT53, Task M3-22): toàn shop thấy cả hai kho; chỉ quyền kho W2 → không thấy dòng của kho
 // chính, gửi warehouseId kho chính → 403; không có quyền → 403; ba lần đọc không đổi giữ hàng, sổ, việc.
 func TestAgedAPI_Scope(t *testing.T) {
+	t.Parallel()
 	e := newAgedAPIEnv(t)
 	snapshot := func() string {
 		return fmt.Sprint(e.count(`SELECT count(*) FROM inventory.stock_reservations WHERE state = 'held'`),
@@ -108,6 +109,7 @@ func TestAgedAPI_Scope(t *testing.T) {
 // TestAgedAPI_Settings: cài đặt vận chuyển agedDays.held = 25 → dòng 21 ngày biến khỏi danh sách; trang 1 dòng có
 // nextCursor, trang sau lấy dòng còn lại.
 func TestAgedAPI_Settings(t *testing.T) {
+	t.Parallel()
 	e := newAgedAPIEnv(t)
 	const path = "/api/v1/inventory/aged-reservations"
 	rec := e.get(agedAll, path+"?limit=1")

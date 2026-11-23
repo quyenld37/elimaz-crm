@@ -47,6 +47,7 @@ func (e *shipAPIEnv) returnOf(shipment, kind string) (id string, version int64) 
 // ghi đúng → 200 vận đơn delivered, partial, codCollectedAmount; bấm lại cùng khóa → cùng thân, một phiếu, một audit
 // (lý do đã che SĐT); khóa khác → 409 invalid_transition. Kho nhận phiếu qua receiveReturn → 200 restocked.
 func TestRecordPartialDeliveryAPI(t *testing.T) {
+	t.Parallel()
 	e := newShipAPIEnv(t)
 	tenant := e.shop.Tenant
 	e.staff.Grant(t, tenant, e.staff.User(t, tenant, partialUser, "active"), []string{"fulfillment.correct"}, "all", "")
