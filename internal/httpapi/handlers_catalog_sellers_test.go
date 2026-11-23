@@ -16,6 +16,7 @@ import (
 // bán PARTNER1 cùng shop → 404 ở mọi đường đọc và sửa, không đổi dữ liệu, không có trong danh sách. Mẫu cùng mã AO01
 // của ELIMAZ vẫn tạo được.
 func TestCatalogAPI_PartnerSellerIs404(t *testing.T) {
+	t.Parallel()
 	e := newCatalogAPIEnv(t)
 	_, partner := shoptest.SeedSellers(t, e.staff.Owner, e.tenant)
 	var pid, vid uuid.UUID
@@ -63,6 +64,7 @@ func TestCatalogAPI_PartnerSellerIs404(t *testing.T) {
 // TestCatalogAPI_RetrySameKeyAfterConflict (ghi chú reviewer Task 27): yêu cầu bị từ chối 409 không lưu theo khóa
 // chống trùng; gửi lại cùng khóa với version đúng được xử lý như yêu cầu mới.
 func TestCatalogAPI_RetrySameKeyAfterConflict(t *testing.T) {
+	t.Parallel()
 	e := newCatalogAPIEnv(t)
 	id := e.createDam01()["id"].(string) //nolint:forcetypeassert // test
 	path := "/api/v1/catalog/products/" + id

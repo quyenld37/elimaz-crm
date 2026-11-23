@@ -61,6 +61,14 @@ func newCouponEnv(t *testing.T) *couponEnv {
 	return e
 }
 
+// createSale10 tạo mã SALE10 (sale10Body) bằng couponManager với khóa "c1", trả id.
+func (e *couponEnv) createSale10() string {
+	e.t.Helper()
+	c := e.ok("tạo", e.do(http.MethodPost, "/api/v1/coupons", couponManager, "c1", sale10Body), http.StatusCreated)
+	id, _ := c["id"].(string)
+	return id
+}
+
 func (e *couponEnv) do(method, path, email, key, body string) *httptest.ResponseRecorder {
 	return serveAs(e.srv, e.keys, method, path, email, key, body)
 }
@@ -83,6 +91,7 @@ const sale10Body = `{"code":"SALE10","name":"Giảm 10% tháng 12","discountKind
 	"maxDiscount":50000,"maxUses":2,"validFrom":"2026-12-01T00:00:00+07:00","validTo":"2027-01-01T00:00:00+07:00"}`
 
 func TestCouponAPI_CreateAndCheck(t *testing.T) {
+	t.Parallel()
 	e := newCouponEnv(t)
 	expect(t, "sale tạo mã", e.do(http.MethodPost, "/api/v1/coupons", couponSale, "c0", sale10Body),
 		http.StatusForbidden, "forbidden")
@@ -153,9 +162,9 @@ func TestCouponAPI_CreateAndCheck(t *testing.T) {
 
 // Đọc mã, danh sách mã (promotion.read của sale), mã không có, con trỏ sai.
 func TestCouponAPI_Read(t *testing.T) {
+	t.Parallel()
 	e := newCouponEnv(t)
-	c := e.ok("tạo", e.do(http.MethodPost, "/api/v1/coupons", couponManager, "c1", sale10Body), http.StatusCreated)
-	id, _ := c["id"].(string)
+	id := e.createSale10()
 	read := e.ok("sale đọc mã", e.do(http.MethodGet, "/api/v1/coupons/"+id, couponSale, "", ""), http.StatusOK)
 	if read["code"] != "SALE10" || read["remainingUses"] != float64(2) {
 		t.Fatalf("getCoupon: %v", read)
@@ -171,9 +180,9 @@ func TestCouponAPI_Read(t *testing.T) {
 }
 
 func TestCouponAPI_UpdateAfterUse(t *testing.T) {
+	t.Parallel()
 	e := newCouponEnv(t)
-	c := e.ok("tạo", e.do(http.MethodPost, "/api/v1/coupons", couponManager, "c1", sale10Body), http.StatusCreated)
-	id, _ := c["id"].(string)
+	id := e.createSale10()
 	path := "/api/v1/coupons/" + id
 	expect(t, "sale sửa", e.do(http.MethodPatch, path, couponSale, "u0", `{"version":1,"name":"x"}`),
 		http.StatusForbidden, "forbidden")
@@ -211,6 +220,7 @@ func TestCouponAPI_UpdateAfterUse(t *testing.T) {
 }
 
 func TestCouponAPI_Batch(t *testing.T) {
+	t.Parallel()
 	e := newCouponEnv(t)
 	tpl := `{"name":"Quà","discountKind":"fixed","value":50000,"validFrom":"2026-12-01T00:00:00Z","validTo":"2027-01-01T00:00:00Z"}`
 	expect(t, "sale tạo đợt", e.do(http.MethodPost, "/api/v1/coupon-batches", couponSale, "b0",
@@ -249,9 +259,9 @@ func TestCouponAPI_Batch(t *testing.T) {
 
 // Lượt dùng của mã: mã đơn ghép từ module order, số giảm, trạng thái; không SĐT.
 func TestCouponAPI_Redemptions(t *testing.T) {
+	t.Parallel()
 	e := newCouponEnv(t)
-	c := e.ok("tạo", e.do(http.MethodPost, "/api/v1/coupons", couponManager, "c1", sale10Body), http.StatusCreated)
-	id, _ := c["id"].(string)
+	id := e.createSale10()
 	var o order.Order
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
 		shop := shiptest.NewShop(t, tx, e.tenant)

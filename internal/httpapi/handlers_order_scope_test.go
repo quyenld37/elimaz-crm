@@ -64,6 +64,7 @@ func (e *orderScopeEnv) held(wh uuid.UUID) int {
 // (grant all hoặc warehouse:<kho>); ngoài phạm vi → 403 forbidden, không đơn, không giữ hàng, kể cả khi bỏ trống
 // warehouseId (kho chính) và khi kho không có.
 func TestOrderAPI_WarehouseScope(t *testing.T) {
+	t.Parallel()
 	e := newOrderScopeEnv(t)
 	main := e.shop.Warehouse
 	cases := []struct {
@@ -116,6 +117,7 @@ func TestOrderAPI_WarehouseScope(t *testing.T) {
 // TestOrderAPI_WarehouseScopeNotStored: 403 vì ngoài phạm vi không lưu theo Idempotency-Key — được cấp kho rồi gửi lại
 // cùng khóa thì tạo được đơn.
 func TestOrderAPI_WarehouseScopeNotStored(t *testing.T) {
+	t.Parallel()
 	e := newOrderScopeEnv(t)
 	rec := serveAs(e.srv, e.keys, http.MethodPost, "/api/v1/orders", orderClerkMain, "k1", e.bodyAt(e.w2))
 	expect(t, "ngoài phạm vi", rec, http.StatusForbidden, "forbidden")

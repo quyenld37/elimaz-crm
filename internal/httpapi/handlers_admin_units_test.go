@@ -17,6 +17,7 @@ const (
 
 // listAdminUnits qua HTTP: parent rỗng → tỉnh; có parent → xã của tỉnh đó lọc theo q, tối đa 50; thiếu quyền → 403.
 func TestListAdminUnitsAPI(t *testing.T) {
+	t.Parallel()
 	staff := testkit.OpenStaff(t)
 	keys := cfaccesstest.AccessKeyServer(t)
 	if _, err := staff.Owner.Pool.Exec(t.Context(), `INSERT INTO customer.admin_units

@@ -100,6 +100,7 @@ func webReadRoute(perm string) Route {
 // already_processed, không bí mật, vẫn một khóa, response_body NULL; bí mật không nằm ở cột nào của bốn bảng. Quyền:
 // Quản lý 403; quyền nhân viên cho khóa → 422; tenant B không thấy khóa của A; thu hồi version cũ → 409.
 func TestServiceKeysAPI_CreateListRevoke(t *testing.T) {
+	t.Parallel()
 	e := newKeyAPIEnv(t)
 	body := `{"name":"Website","permissions":["web.catalog.read","web.orders.create"],"allowedCidrs":["10.0.0.0/8"]}`
 	idem := uuid.NewString()
@@ -193,6 +194,7 @@ func (e *keyAPIEnv) keyIDByPrefix(prefix string) string {
 // Đường khóa dịch vụ thật: khóa đúng 200; sai một ký tự, tiền tố lạ 401; quyền không cấp 403; CIDR: IP ngoài 403
 // ip_not_allowed, IP trong 200; thu hồi qua API → yêu cầu kế tiếp 401 trong ≤ 1 s (báo hiệu PostgreSQL thật, đệm 1 giờ).
 func TestServiceKeyRoute_VerifyAndRevoke(t *testing.T) {
+	// Không t.Parallel (Task 474): tiêu chí giờ thật (thu hồi ≤ 1 s), máy bận vì test song song làm đỏ sai.
 	e := newKeyAPIEnv(t)
 	id, full, version := e.mustCreate(`{"name":"Web","permissions":["web.catalog.read"]}`)
 	read := chain(e.d, webReadRoute("web.catalog.read"), okHandler())
@@ -227,6 +229,7 @@ func TestServiceKeyRoute_VerifyAndRevoke(t *testing.T) {
 // Giới hạn theo khóa qua cache.RateLimiter thật (Valkey không nối → bộ đếm trong tiến trình, ngưỡng thử 5/s): yêu cầu
 // 6 → 429 có Retry-After; khóa khác vẫn 200 (chủ thể svc:<ServiceKeyID>).
 func TestServiceKeyRoute_RateLimitPerKey(t *testing.T) {
+	t.Parallel()
 	e := newKeyAPIEnv(t)
 	_, k1, _ := e.mustCreate(`{"name":"Web 1","permissions":["web.catalog.read"]}`)
 	_, k2, _ := e.mustCreate(`{"name":"Web 2","permissions":["web.catalog.read"]}`)
@@ -249,6 +252,7 @@ func TestServiceKeyRoute_RateLimitPerKey(t *testing.T) {
 // Actor của khóa chống trùng là svc:<ServiceKeyID> (nhân viên: user:<UserID>): cùng Idempotency-Key của khóa A, khóa B
 // là hai dòng độc lập, lần gửi lại của cùng khóa phát lại.
 func TestServiceKeyRoute_IdempotencyActor(t *testing.T) {
+	t.Parallel()
 	e := newKeyAPIEnv(t)
 	idA, kA, _ := e.mustCreate(`{"name":"Web A","permissions":["web.orders.create"]}`)
 	idB, kB, _ := e.mustCreate(`{"name":"Web B","permissions":["web.orders.create"]}`)
@@ -288,6 +292,7 @@ func TestServiceKeyRoute_IdempotencyActor(t *testing.T) {
 
 // Lệnh tạo khóa ghi tuyến service_key qua tenancy.PutRoute: Resolve tìm ra đúng tenant.
 func TestServiceKeysAPI_RouteResolves(t *testing.T) {
+	t.Parallel()
 	e := newKeyAPIEnv(t)
 	_, full, _ := e.mustCreate(`{"name":"Web","permissions":["web.catalog.read"]}`)
 	prefix, _ := identity.SplitServiceKey(full)

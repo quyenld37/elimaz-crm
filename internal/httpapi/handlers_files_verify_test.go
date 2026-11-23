@@ -131,6 +131,7 @@ func (e *verifyAPIEnv) imageStatuses(id string) []string {
 // productCode, phân trang theo con trỏ; getProduct 200 với ảnh lost (không variants); tải lại đúng ảnh đã mất → ảnh
 // đó về ready. Quyền: chỉ platform.files.manage; tệp lost của tenant khác không lộ.
 func TestVerify_MarksLost(t *testing.T) {
+	t.Parallel()
 	e := newVerifyAPIEnv(t)
 	bodies := make([][]byte, 5)
 	ids := make([]uuid.UUID, 5)

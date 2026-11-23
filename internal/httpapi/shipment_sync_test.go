@@ -20,6 +20,7 @@ import (
 // fulfillment.read ở kho của tài khoản hãng → 403; chỉ order.read → 403; vận đơn lạ → 404; có audit; vận đơn nhập
 // tay → 422 (Task 448).
 func TestSyncShipmentAPI(t *testing.T) {
+	t.Parallel()
 	e := newOrderAPIEnv(t)
 	tenant := e.shop.Tenant
 	account := seedCarrierAccount(t, e)

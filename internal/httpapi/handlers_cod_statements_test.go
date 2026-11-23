@@ -69,6 +69,7 @@ func importBody(account, file uuid.UUID, format string) string {
 // 403. Sau khi lệnh đọc tệp chạy: GET → parsed, 3 dòng, tổng pending; trang 2 dòng có nextCursor, con trỏ sai → 400;
 // bảng kê lạ → 404; danh sách mới nhất trước.
 func TestCodStatementsAPI(t *testing.T) {
+	t.Parallel()
 	e := newM3Env(t)
 	account := e.shopAccount()
 	file := e.uploadStatement("bang-ke.csv", []byte(statementCSV))
@@ -175,6 +176,7 @@ func checkStatementRead(t *testing.T, e *m3Env, id string) {
 // version → 200 confirmed kèm người chốt, cảnh báo rỗng, audit cash.statement.confirm; chốt lại cùng version → 409.
 // Lệch đối soát có 3 dòng ngoài hệ thống (trang 2 mục có nextCursor); quá hạn rỗng; con trỏ sai → 400.
 func TestCodStatementConfirmAPI(t *testing.T) {
+	t.Parallel()
 	e := newM3Env(t)
 	account := e.shopAccount()
 	code, got := e.send(http.MethodPost, "/api/v1/cod-statements", m3Accounter,

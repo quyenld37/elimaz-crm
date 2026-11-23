@@ -26,6 +26,7 @@ func firstItemID(t *testing.T, o map[string]any) any {
 // khóa thân khác được xử lý lại); thành 5 → 200, version + 1, đơn giá giữ; gửi lại cùng khóa cùng thân → cùng câu trả
 // lời; audit order.update có tên trường, không SĐT, địa chỉ; người chỉ có order.create, order.read → 403.
 func TestOrderEdit_Quantity(t *testing.T) {
+	t.Parallel()
 	e := newOrderConfirmEnv(t)
 	v := e.variant(e.shop.Seller, 250000, 5)
 	o := e.mustCreate("e-dh10", m2Body("confirmed", fullAddr, 0, m2Line(v, 2, 0)))
@@ -62,6 +63,7 @@ func TestOrderEdit_Quantity(t *testing.T) {
 // DH11/AT28 qua API: hai người cùng đọc một version; người A lưu → 200; người B lưu → 409 version_conflict, dữ liệu là
 // của A. Sale tăng giảm cấp đơn của đơn confirmed vượt ngưỡng → 403 discount_needs_approval; manager → 200.
 func TestOrderEdit_ConflictAndApproval(t *testing.T) {
+	t.Parallel()
 	e := newOrderConfirmEnv(t)
 	v := e.variant(e.shop.Seller, 1000000, 5)
 	o := e.mustCreate("e-dh11", m2Body("confirmed", fullAddr, 0, m2Line(v, 1, 0)))

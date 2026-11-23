@@ -52,6 +52,7 @@ func firstItem(o map[string]any) string {
 // return_qty_exceeds; đơn chưa giao → 422 return_not_allowed; bán hàng nhận → 403; kho nhận → 200 restocked (condition
 // sellable), tồn +1; đóng → closed; get, list; phiếu không có → 404; audit không có lý do trả.
 func TestReturnAPI_Flow(t *testing.T) {
+	t.Parallel()
 	e := newReturnAPIEnv(t)
 	v := e.variant(e.shop.Seller, 250000, 3)
 	o := e.deliveredAPIOrder("d1", v)
@@ -124,6 +125,7 @@ func TestReturnAPI_Flow(t *testing.T) {
 // Đổi hàng qua API: 201 phiếu exchange có replacementOrderId; đơn thay thế orderType exchange; hủy phiếu → cancelled,
 // đơn thay thế cancelled.
 func TestReturnAPI_Exchange(t *testing.T) {
+	t.Parallel()
 	e := newReturnAPIEnv(t)
 	v, l := e.variant(e.shop.Seller, 250000, 3), e.variant(e.shop.Seller, 250000, 3)
 	o := e.deliveredAPIOrder("d1", v)
@@ -156,6 +158,7 @@ func TestReturnAPI_Exchange(t *testing.T) {
 // đúng (V1 S1 D1, V2 S1) → 200 restocked, dòng V1 trộn không có condition, V2 sellable, tồn V1 +2 (hỏng 1); cùng khóa
 // → cùng kết quả; khóa khác với version cũ → 409 version_conflict.
 func TestReturnAPI_ReceiveQty(t *testing.T) {
+	t.Parallel()
 	e := newReturnAPIEnv(t)
 	v1, v2 := e.variant(e.shop.Seller, 250000, 3), e.variant(e.shop.Seller, 180000, 3)
 	o := e.mustCreate("q1", m2Body("confirmed", fullAddr, 0, m2Line(v1, 2, 0), m2Line(v2, 1, 0)))

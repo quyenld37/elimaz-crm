@@ -22,6 +22,7 @@ const catalogImporter = "nhap@elimaz.test" // tenant A, có catalog.import
 // getCatalogImport trả {status, summary, errors}; tệp sai mục đích → 409 file_not_ready; tệp của tenant B → 404;
 // chỉ có catalog.manage → 403 ở cả ba operation; getCatalogImportTemplate → tệp .xlsx đọc lại được.
 func TestCatalogAPI_Imports(t *testing.T) {
+	t.Parallel()
 	e := newCatalogAPIEnv(t)
 	e.staff.Grant(t, e.tenant, e.staff.User(t, e.tenant, catalogImporter, "active"), []string{"catalog.import"}, "all", "")
 	var fileID, image, foreign uuid.UUID
@@ -120,6 +121,7 @@ func (e *catalogAPIEnv) readyImport(status string) (uuid.UUID, int64) {
 // applying; version cũ → 409 version_conflict; bản invalid → 409 import_not_ready; bản nhập lạ → 404; chỉ có
 // catalog.manage → 403.
 func TestCatalogAPI_ImportApply(t *testing.T) {
+	t.Parallel()
 	e := newCatalogAPIEnv(t)
 	e.staff.Grant(t, e.tenant, e.staff.User(t, e.tenant, catalogImporter, "active"), []string{"catalog.import"}, "all", "")
 	id, version := e.readyImport("ready")

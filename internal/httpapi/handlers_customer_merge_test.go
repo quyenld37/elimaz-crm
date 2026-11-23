@@ -19,6 +19,7 @@ const customerMerger = "gop-khach@elimaz.test" // customer.read, customer.merge 
 // blockingMergeId; quá 30 ngày → 422 merge_window_expired; hoàn tác lần hai → 409 version_conflict; tenant khác → 404;
 // gợi ý theo SĐT địa chỉ.
 func TestCustomerMergeAPI(t *testing.T) {
+	t.Parallel()
 	e := newCustomerAPIEnv(t)
 	merger := e.staff.User(t, e.tenant, customerMerger, "active")
 	e.staff.Grant(t, e.tenant, merger, []string{"customer.read", "customer.merge"}, "all", "")

@@ -118,6 +118,7 @@ func jobPath(id uuid.UUID, action string) string {
 }
 
 func TestListJobs(t *testing.T) {
+	t.Parallel()
 	e := newJobsEnv(t, 0)
 	dead := e.job(e.tenantA, "command.a", "dead")
 	doubt := e.job(e.tenantA, "command.b", "in_doubt")
@@ -165,6 +166,7 @@ func TestListJobs(t *testing.T) {
 }
 
 func TestRetryJob(t *testing.T) {
+	t.Parallel()
 	e := newJobsEnv(t, 0)
 	id := e.job(e.tenantA, "command.a", "dead")
 	other := e.job(e.tenantB, "command.b", "dead")
@@ -205,6 +207,7 @@ func TestRetryJob(t *testing.T) {
 }
 
 func TestRetryJobStates(t *testing.T) {
+	t.Parallel()
 	e := newJobsEnv(t, 0)
 	for status, want := range map[string]int{
 		"dead": http.StatusOK, "in_doubt": http.StatusOK, "expired": http.StatusOK,
@@ -218,6 +221,7 @@ func TestRetryJobStates(t *testing.T) {
 }
 
 func TestAbandonJob(t *testing.T) {
+	t.Parallel()
 	e := newJobsEnv(t, 0)
 	for status, want := range map[string]int{
 		"dead": http.StatusOK, "in_doubt": http.StatusOK,
@@ -244,6 +248,7 @@ func TestAbandonJob(t *testing.T) {
 // Mẫu đường ghi (Review Focus 4): 50 yêu cầu song song cùng khóa → việc đổi đúng 1 lần, đúng 1 dòng audit; mỗi câu
 // trả lời là 200 cùng thân hoặc 409 request_in_progress.
 func TestRetryJobFiftyParallel(t *testing.T) {
+	t.Parallel()
 	e := newJobsEnv(t, 0)
 	id := e.job(e.tenantA, "command.a", "dead")
 	recs := make([]*httptest.ResponseRecorder, 50)
@@ -282,6 +287,7 @@ func TestRetryJobFiftyParallel(t *testing.T) {
 // ADR-46: dòng jobs bị khóa lâu hơn lock_timeout → 503 retry_later có Retry-After, không lưu kết quả, không còn dòng
 // khóa, không audit; gửi lại cùng khóa sau khi nhả → 200, pending, 1 audit, không phải phát lại.
 func TestRetryJobRetryLaterNotStored(t *testing.T) {
+	t.Parallel()
 	e := newJobsEnv(t, 50*time.Millisecond)
 	id := e.job(e.tenantA, "command.a", "dead")
 	locked, release := make(chan struct{}), make(chan struct{})

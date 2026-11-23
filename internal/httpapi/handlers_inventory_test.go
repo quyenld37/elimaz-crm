@@ -151,6 +151,7 @@ func (e *invAPIEnv) post(id string, version int, email, key string) *httptest.Re
 
 // KH03, C5: nhà cung cấp và phiếu nhập qua API; lỗi trùng tên, sai loại, đã lưu trữ; SĐT không vào log.
 func TestInventoryAPI_SupplierAndImport(t *testing.T) {
+	t.Parallel()
 	e := newInvAPIEnv(t)
 	s := mustOK(t, "createSupplier", e.do(http.MethodPost, "/api/v1/inventory/suppliers", invManager, "s1",
 		`{"name":"Xưởng Hoa","phone":"`+testPhone+`","note":"Lụa"}`), http.StatusCreated)
@@ -225,6 +226,7 @@ func TestInventoryAPI_SupplierAndImport(t *testing.T) {
 
 // KH10 qua API: insufficient_stock 409 kèm variantId, available; số dư không đổi.
 func TestInventoryAPI_InsufficientBody(t *testing.T) {
+	t.Parallel()
 	e := newInvAPIEnv(t)
 	v := e.variant(e.w1, 5)
 	// Giữ 3 cái bằng một đơn nhập tay thật (giữ hàng phải thuộc dòng đơn có thật, khóa ngoại của Task M1-30).
@@ -263,6 +265,7 @@ func TestInventoryAPI_InsufficientBody(t *testing.T) {
 
 // Ghi sổ: 50 lần cùng khóa → áp một lần; hai khóa khác nhau song song → một 200, một 409 document_not_draft.
 func TestInventoryAPI_PostIdempotent(t *testing.T) {
+	t.Parallel()
 	e := newInvAPIEnv(t)
 	v := e.variant(e.w1, 100)
 	id, ver := e.draft(invManager, "export", e.w1, "", fmt.Sprintf(`[{"variantId":%q,"quantity":1}]`, v))
@@ -303,6 +306,7 @@ func TestInventoryAPI_PostIdempotent(t *testing.T) {
 
 // Quyền theo kho: ghi sổ phiếu kho khác → 403; chỉ có quyền soạn → 403 ở post; đọc, liệt kê theo kho được giao.
 func TestInventoryAPI_WarehouseScope(t *testing.T) {
+	t.Parallel()
 	e := newInvAPIEnv(t)
 	v1, v2 := e.variant(e.w1, 10), e.variant(e.w2, 10)
 	d1, ver1 := e.draft(invManager, "export", e.w1, "", fmt.Sprintf(`[{"variantId":%q,"quantity":1}]`, v1))
@@ -351,6 +355,7 @@ func (b *lockedBuffer) text() string {
 // Danh sách kho (Task 51): chỉ kho người gọi có inventory.read; quyền toàn shop thấy mọi kho, MAIN trước; tenant khác
 // không thấy kho của A; không có inventory.read → 403.
 func TestListWarehousesAPI(t *testing.T) {
+	t.Parallel()
 	e := newInvAPIEnv(t)
 	e.staff.Grant(t, e.tenant, e.staff.User(t, e.tenant, listCatalogOnly, "active"), []string{"catalog.read"}, "all", "")
 	names := func(email string) []string {

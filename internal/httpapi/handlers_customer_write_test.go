@@ -82,6 +82,7 @@ func (e *customerAPIEnv) count(q string, args ...any) int {
 // TestCustomerWriteAPI: tạo, đọc, sửa khách, danh tính, địa chỉ qua HTTP; quyền; tenant khác 404 (PQ08); log và dấu
 // vết không có dữ liệu cá nhân.
 func TestCustomerWriteAPI(t *testing.T) {
+	// Không t.Parallel (Task 474): CaptureSpans đổi TracerProvider toàn cục.
 	exp := testkit.CaptureSpans(t)
 	e := newCustomerAPIEnv(t)
 	id, code := e.checkCreate(t)

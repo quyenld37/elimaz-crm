@@ -8,6 +8,7 @@ import (
 // updateVariant nhận weightGrams (Task 190, QĐ30): 0 → 422 invalid_input (không đổi gì); 450 → 450 trong câu trả lời
 // và getProduct; null → bỏ cân nặng (trường vắng mặt).
 func TestCatalogAPI_UpdateVariantWeight(t *testing.T) {
+	t.Parallel()
 	e := newCatalogAPIEnv(t)
 	p := e.createDam01()
 	v := p["variants"].([]any)[0].(map[string]any) //nolint:forcetypeassert // test

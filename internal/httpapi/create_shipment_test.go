@@ -160,6 +160,7 @@ func (e *shipAPIEnv) get(path string) (int, map[string]any) {
 // gom", gọi hãng 1 lần. Cùng Idempotency-Key → cùng thân, một vận đơn; khóa khác → 409 shipment_exists. Danh sách vận
 // đơn của đơn có 1 dòng; đơn lạ → 404.
 func TestCreateShipmentAPI_VC03(t *testing.T) {
+	t.Parallel()
 	e := newShipAPIEnv(t)
 	orderID := e.confirmedOrder("o1")
 	path := "/api/v1/orders/" + orderID + "/shipments"
@@ -213,6 +214,7 @@ func TestCreateShipmentAPI_VC03(t *testing.T) {
 // Hai nhân viên gửi song song: 50 yêu cầu, 2 tài khoản hãng, khóa khác nhau → đúng một vận đơn chưa hủy (một 202), các
 // câu trả lời còn lại 409 shipment_exists.
 func TestCreateShipmentAPI_Parallel(t *testing.T) {
+	t.Parallel()
 	e := newShipAPIEnv(t)
 	orderID := e.confirmedOrder("o1")
 	path := "/api/v1/orders/" + orderID + "/shipments"
@@ -253,6 +255,7 @@ func TestCreateShipmentAPI_Parallel(t *testing.T) {
 // resend 202, gọi hãng lần hai, awaiting_pickup; resolve-create khi không unknown → 409. Tài khoản auth_failed → 409
 // carrier_account_unavailable; người có quyền ở kho khác → resend 403.
 func TestCreateShipmentAPI_ResendResolve(t *testing.T) {
+	t.Parallel()
 	e := newShipAPIEnv(t)
 	tenant := e.shop.Tenant
 	w2 := uuid.New()
@@ -321,6 +324,7 @@ func TestCreateShipmentAPI_ResendResolve(t *testing.T) {
 
 // Đơn chưa confirmed (đã hủy) → 409 order_not_shippable (Task 95 ghi chú: M1 trả 404).
 func TestCreateShipmentAPI_NotShippable(t *testing.T) {
+	t.Parallel()
 	e := newShipAPIEnv(t)
 	o := e.confirmedOrder("o1")
 	e.staff.Exec(t, e.shop.Tenant, func(tx pgx.Tx) error {

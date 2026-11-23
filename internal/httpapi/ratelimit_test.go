@@ -30,6 +30,7 @@ func (c *fakeClock) Add(d time.Duration) {
 // Ngưỡng thử 5 yêu cầu mỗi giây qua route thử: thứ 6 → 429 có retry-after; user khác 200; sau 1 s lại 200;
 // route Stream không bị đếm.
 func TestUserRateLimitHTTP(t *testing.T) {
+	t.Parallel()
 	clk := &fakeClock{now: time.Unix(1_800_000_000, 0)}
 	e := newAuthEnv(t, RateLimit{Max: 5, Window: time.Second, Now: clk.Now})
 	a := e.staff.Tenant(t, "A")
@@ -57,6 +58,7 @@ func TestUserRateLimitHTTP(t *testing.T) {
 
 // Cửa sổ trượt: yêu cầu ra khỏi cửa sổ đúng lúc nó đủ tuổi; retry-after làm tròn lên theo giây.
 func TestUserLimiterSliding(t *testing.T) {
+	t.Parallel()
 	clk := &fakeClock{now: time.Unix(1_800_000_000, 0)}
 	l := newUserLimiter(RateLimit{Max: 3, Window: 60 * time.Second, Now: clk.Now})
 	u := uuid.New()
@@ -85,6 +87,7 @@ func TestUserLimiterSliding(t *testing.T) {
 
 // Mặc định đúng spec: 300 trong 60 s.
 func TestRateLimitDefaults(t *testing.T) {
+	t.Parallel()
 	l := newUserLimiter(RateLimit{})
 	if l.max != 300 || l.window != 60*time.Second {
 		t.Fatalf("mặc định %d/%v, mong 300/60s", l.max, l.window)
@@ -93,6 +96,7 @@ func TestRateLimitDefaults(t *testing.T) {
 
 // Nhiều goroutine cùng một user: không vượt Max (chạy với -race).
 func TestUserLimiterConcurrent(t *testing.T) {
+	t.Parallel()
 	l := newUserLimiter(RateLimit{Max: 50, Window: time.Minute})
 	u := uuid.New()
 	var wg sync.WaitGroup
@@ -115,6 +119,7 @@ func TestUserLimiterConcurrent(t *testing.T) {
 
 // User không còn gọi bị dọn khỏi bộ nhớ.
 func TestUserLimiterSweeps(t *testing.T) {
+	t.Parallel()
 	clk := &fakeClock{now: time.Unix(1_800_000_000, 0)}
 	l := newUserLimiter(RateLimit{Max: 5, Window: time.Second, Now: clk.Now})
 	for range 10 {

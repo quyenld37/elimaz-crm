@@ -65,6 +65,7 @@ func (e *orderAPIEnv) deliver(id uuid.UUID) {
 // chú; version cũ → 409 version_conflict; đơn delivered → 422 invalid_transition; lý do hệ thống (draft_expired) → 400;
 // không quyền order.cancel → 403; đơn không có → 404.
 func TestOrderAPI_Cancel(t *testing.T) {
+	t.Parallel()
 	e, v := newCancelAPIEnv(t, 3)
 	o := e.mustCreate("c1", withFields(m2Body("confirmed", fullAddr, 0, m2Line(v, 2, 0)), `"couponCode":"SALE10"`))
 	expect(t, "version cũ", e.cancelOrder(orderCanceller, "x0", o["id"], 1, "other", ""), http.StatusConflict,
@@ -106,6 +107,7 @@ func TestOrderAPI_Cancel(t *testing.T) {
 // 50 lần hủy song song cùng Idempotency-Key → một lần hủy thật: 1 dòng lịch sử sang cancelled, used_count giảm đúng 1;
 // mọi câu trả lời 200 cùng thân hoặc 409 request_in_progress.
 func TestOrderAPI_CancelSameKey50(t *testing.T) {
+	t.Parallel()
 	e, v := newCancelAPIEnv(t, 100)
 	body := withFields(m2Body("confirmed", fullAddr, 0, m2Line(v, 1, 0)), `"couponCode":"SALE10"`)
 	o := e.mustCreate("c1", body)

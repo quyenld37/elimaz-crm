@@ -95,6 +95,7 @@ func (e *orderAPIEnv) mustCreate(key, body string) map[string]any {
 }
 
 func TestOrderAPI_CreateGet(t *testing.T) {
+	t.Parallel()
 	e := newOrderAPIEnv(t)
 	v := e.variant(e.shop.Seller, 250000, 5)
 	o := e.mustCreate("o1", orderBody(30000, line(v, 2)))
@@ -126,6 +127,7 @@ func TestOrderAPI_CreateGet(t *testing.T) {
 
 // TestOrderAPI_LastUnitRace: hai đơn khác khóa tranh chiếc cuối → một 201, một 409 out_of_stock; một đơn; held 1.
 func TestOrderAPI_LastUnitRace(t *testing.T) {
+	t.Parallel()
 	e := newOrderAPIEnv(t)
 	v := e.variant(e.shop.Seller, 100000, 1)
 	recs := make([]*httptest.ResponseRecorder, 2)
@@ -164,6 +166,7 @@ func TestOrderAPI_LastUnitRace(t *testing.T) {
 // TestOrderAPI_SameKey50: 50 yêu cầu song song cùng Idempotency-Key → một đơn; mọi câu trả lời 201 cùng thân hoặc 409
 // request_in_progress.
 func TestOrderAPI_SameKey50(t *testing.T) {
+	t.Parallel()
 	e := newOrderAPIEnv(t)
 	v := e.variant(e.shop.Seller, 1000, 100)
 	body := orderBody(0, line(v, 1))
@@ -203,6 +206,7 @@ func TestOrderAPI_SameKey50(t *testing.T) {
 }
 
 func TestOrderAPI_Refusals(t *testing.T) {
+	t.Parallel()
 	e := newOrderAPIEnv(t)
 	own := e.variant(e.shop.Seller, 1000, 5)
 	p := e.variant(e.shop.Partner, 1000, 5)
@@ -227,6 +231,7 @@ func TestOrderAPI_Refusals(t *testing.T) {
 
 // TestOrderAPI_Contract: đúng một operation cho POST /api/v1/orders, tên createOrder (Q-X2: M2 không tạo lại).
 func TestOrderAPI_Contract(t *testing.T) {
+	t.Parallel()
 	b, err := os.ReadFile(filepath.Join("..", "..", "openapi", "openapi.yaml"))
 	if err != nil {
 		t.Fatal(err)

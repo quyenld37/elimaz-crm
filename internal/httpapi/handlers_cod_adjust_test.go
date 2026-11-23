@@ -31,6 +31,7 @@ func (e *m3Env) transferOfKind(s uuid.UUID, kind string) uuid.UUID {
 // cash.cod.adjust không mang lý do; token cũ → 409 preview_stale; lý do chỉ khoảng trắng → 422; bút toán của vận đơn
 // khác → 404; expected của vận đơn đang giao → 409 invalid_transition; Kho (không có cash.adjust) → 403.
 func TestCodAdjustAPI(t *testing.T) {
+	t.Parallel()
 	e := newM3Env(t)
 	shop, user := e.newCodShop()
 	s := e.codShipment(shop, user, 630000, []string{"picked_up", "delivered"})
@@ -96,6 +97,7 @@ func TestCodAdjustAPI(t *testing.T) {
 // runId, runAt, phát hiện balance_mismatch có shipmentId và detail chuỗi; runId lạ → 404; con trỏ sai dạng → 400; Kho
 // (không có cash.cod.read) → 403.
 func TestReconcileFindingsAPI(t *testing.T) {
+	t.Parallel()
 	e := newM3Env(t)
 	if code, b := e.send(http.MethodGet, "/api/v1/cod/reconcile-findings", m3Accounter, ""); code != http.StatusOK ||
 		b["runId"] != nil || len(b["items"].([]any)) != 0 { //nolint:forcetypeassert // test

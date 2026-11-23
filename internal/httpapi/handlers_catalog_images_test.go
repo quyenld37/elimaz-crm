@@ -62,6 +62,7 @@ func (e *catalogAPIEnv) attach(id string, version any, file uuid.UUID, key, extr
 
 // Bốn operation ảnh và ảnh trong getProduct, ảnh bìa trong listProducts (KH02, TP06).
 func TestCatalogAPI_Images(t *testing.T) {
+	t.Parallel()
 	e := newCatalogAPIEnv(t)
 	e.useImageServer()
 	p := e.createDam01()
@@ -238,6 +239,7 @@ func (e *catalogAPIEnv) checkLost(id, i2 string, f2 uuid.UUID) {
 // Ảnh trong bài viết (Task M1-44b, R7): createProduct và getProduct trả articleHtml có <picture> với đường dẫn công
 // khai; khối ảnh trỏ tệp chưa xử lý xong → 422 invalid_article.
 func TestCatalogAPI_ArticleImages(t *testing.T) {
+	t.Parallel()
 	e := newCatalogAPIEnv(t)
 	e.useImageServer()
 	body := func(code string, file uuid.UUID) string {

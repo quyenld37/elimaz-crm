@@ -11,6 +11,7 @@ import (
 // jobId; chạy worker → GET /carrier-locations/unmapped?carrier=fake chỉ còn phường đó; quyền read đọc được danh sách
 // nhưng không đồng bộ được (403); thiếu carrier → 400; cursor hỏng → 400; tài khoản lạ → 404.
 func TestCarrierLocationsAPI(t *testing.T) {
+	t.Parallel()
 	e := newCAEnv(t)
 	if _, err := e.staff.Owner.Pool.Exec(t.Context(), `INSERT INTO customer.admin_units
 		(code, level, parent_code, name, name_search, effective_from, source)

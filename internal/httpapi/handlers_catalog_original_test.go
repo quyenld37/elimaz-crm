@@ -36,6 +36,7 @@ func (e *catalogAPIEnv) originalPath(productID, imageID string) string {
 // <mã mẫu>-<vị trí>.<đuôi>; người chỉ có catalog.read → 403; ảnh đã xóa, ảnh của mẫu khác, mẫu của tenant khác → 404.
 // Hết hạn trên kho thật: TestOriginalURL_ExpiresOnStore (gói files).
 func TestOriginalURL_ExpiresAndNeedsPermission(t *testing.T) {
+	t.Parallel()
 	e := newCatalogAPIEnv(t)
 	e.useImageServer()
 	p := e.createDam01()

@@ -42,6 +42,7 @@ func m2Body(intent, addr string, fee int64, items ...string) string {
 // DH01 qua API: 201, confirmed, nhãn confirmed, tổng đúng, giữ hàng; audit không có dữ liệu cá nhân; getOrder trả cùng
 // trường M2.
 func TestOrderAPI_CreateM2Confirmed(t *testing.T) {
+	t.Parallel()
 	e := newOrderAPIEnv(t)
 	e.m2Prepare()
 	v1, v2 := e.variant(e.shop.Seller, 250000, 5), e.variant(e.shop.Seller, 180000, 1)
@@ -75,6 +76,7 @@ func TestOrderAPI_CreateM2Confirmed(t *testing.T) {
 
 // Tương thích M1 (Q30): thân kiểu M1 → 201 confirmed, addressComplete false.
 func TestOrderAPI_M1BodyStillConfirmed(t *testing.T) {
+	t.Parallel()
 	e := newOrderAPIEnv(t)
 	e.m2Prepare()
 	v := e.variant(e.shop.Seller, 1000, 5)
@@ -86,6 +88,7 @@ func TestOrderAPI_M1BodyStillConfirmed(t *testing.T) {
 
 // Ý định và lỗi dữ liệu qua API.
 func TestOrderAPI_CreateM2Refusals(t *testing.T) {
+	t.Parallel()
 	e := newOrderAPIEnv(t)
 	e.m2Prepare()
 	v := e.variant(e.shop.Seller, 250000, 10)
@@ -118,6 +121,7 @@ func TestOrderAPI_CreateM2Refusals(t *testing.T) {
 // DH12 qua API: khách A đặt hộ, SĐT người nhận của mẹ, phoneIsCustomers vắng → ship_phone là số đó, A không có danh
 // tính mới.
 func TestOrderAPI_OrderForSomeoneElse(t *testing.T) {
+	t.Parallel()
 	e := newOrderAPIEnv(t)
 	e.m2Prepare()
 	v := e.variant(e.shop.Seller, 1000, 5)
@@ -139,6 +143,7 @@ func TestOrderAPI_OrderForSomeoneElse(t *testing.T) {
 // DH07/AT06: bản ghi chống trùng hết hạn (đã xóa) mà gửi lại cùng khóa, cùng thân → 200 đơn cũ, vẫn 1 đơn; cùng khóa,
 // khác dòng → 422 idempotency_key_reused.
 func TestOrderAPI_BusinessKeyAfterExpiry(t *testing.T) {
+	t.Parallel()
 	e := newOrderAPIEnv(t)
 	e.m2Prepare()
 	v := e.variant(e.shop.Seller, 250000, 5)
@@ -170,6 +175,7 @@ func TestOrderAPI_BusinessKeyAfterExpiry(t *testing.T) {
 // ADR-46: dòng số dư của V1 bị khóa lâu hơn lock_timeout → 503 retry_later có Retry-After, không còn dòng khóa chống
 // trùng, không đơn; gửi lại cùng khóa sau khi nhả → 201, đúng 1 đơn.
 func TestOrderAPI_CreateRetryLater(t *testing.T) {
+	// Không t.Parallel (Task 474): holdBalanceLock tự nhả khóa sau 2 s giờ thật, dưới tải test đỏ sai.
 	e := newOrderAPIEnvWith(t, 50*time.Millisecond)
 	e.m2Prepare()
 	v := e.variant(e.shop.Seller, 250000, 5)
@@ -247,6 +253,7 @@ func optUses(n int32) *int32 {
 // → 422 coupon_rejected reason exhausted, không đơn mới; hết hạn → reason expired; nhân viên chỉ có order.create giảm
 // tay 100.001/1.000.000 → new, chờ duyệt (nhãn awaiting_discount_approval); quản lý (vai trò mẫu manager) → confirmed.
 func TestOrderAPI_CouponAndDiscountApproval(t *testing.T) {
+	t.Parallel()
 	e := newOrderAPIEnv(t)
 	e.m2Prepare()
 	mgr := "quan-ly-don@elimaz.test"

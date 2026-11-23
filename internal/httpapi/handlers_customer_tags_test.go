@@ -22,14 +22,22 @@ func (e *customerAPIEnv) foreignCustomer() string {
 	return id
 }
 
+// newCustomerTagEnv như newCustomerAPIEnv, thêm nhân viên customerTagManager (customer.read, customer.tags.manage).
+func newCustomerTagEnv(t *testing.T) *customerAPIEnv {
+	t.Helper()
+	e := newCustomerAPIEnv(t)
+	mgr := e.staff.User(t, e.tenant, customerTagManager, "active")
+	e.staff.Grant(t, e.tenant, mgr, []string{"customer.read", "customer.tags.manage"}, "all", "")
+	return e
+}
+
 // TestCustomerTagsAPI (Task M2-12): tạo nhãn 201, tên trùng → 409 already_exists, màu ngoài bảng màu → 400; sửa có
 // version (lệch → 409); sale không tạo nhãn được (403); PUT nhãn hai lần → 200, một dòng, hồ sơ có nhãn staff; nhãn
 // gắn ở hồ sơ con hiện trên gốc; gỡ nhãn rule → 409, dòng còn; gỡ nhãn staff → 200; người chỉ đọc không gắn được;
 // tenant khác 404.
 func TestCustomerTagsAPI(t *testing.T) {
-	e := newCustomerAPIEnv(t)
-	mgr := e.staff.User(t, e.tenant, customerTagManager, "active")
-	e.staff.Grant(t, e.tenant, mgr, []string{"customer.read", "customer.tags.manage"}, "all", "")
+	t.Parallel()
+	e := newCustomerTagEnv(t)
 
 	vip := mustOK(t, "createCustomerTag", e.send(http.MethodPost, "/api/v1/customer-tags", customerTagManager,
 		`{"name":"VIP","color":"red"}`), http.StatusCreated)
@@ -109,6 +117,7 @@ func TestCustomerTagsAPI(t *testing.T) {
 // thời gian hai trang (limit 1, nextCursor) có mục note kèm nội dung và tên người viết; con trỏ hỏng → 400; tenant
 // khác 404; log không có nội dung ghi chú.
 func TestCustomerNotesTimelineAPI(t *testing.T) {
+	t.Parallel()
 	e := newCustomerAPIEnv(t)
 	id := fmt.Sprint(mustOK(t, "createCustomer", e.send(http.MethodPost, "/api/v1/customers", customerWriter,
 		`{"fullName":"Chị Lan"}`), http.StatusCreated)["id"])

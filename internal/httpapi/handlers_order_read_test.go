@@ -45,6 +45,7 @@ func listCodes(t *testing.T, body map[string]any) []string {
 // listOrders qua HTTP: lọc nhãn, kênh, q (mã), phân trang bằng nextCursor; nhãn vận đơn lọc được (M3); q 2 chữ
 // số → 422 query_too_short; con trỏ hỏng → 400 invalid_input; không có order.read → 403.
 func TestOrderRead_List(t *testing.T) {
+	t.Parallel()
 	e := newOrderReadEnv(t)
 	v := e.variant(e.shop.Seller, 1000000, 50)
 	o1 := e.mustCreate("l1", m2Body("confirmed", fullAddr, 0, m2Line(v, 1, 0)))
@@ -89,6 +90,7 @@ func TestOrderRead_List(t *testing.T) {
 // getOrder chi tiết (Task M2-24): khách, người tạo (tên), phạm vi sửa, mảng cảnh báo, phiếu trả; không có order.read →
 // 403.
 func TestOrderRead_Detail(t *testing.T) {
+	t.Parallel()
 	e := newOrderReadEnv(t)
 	v := e.variant(e.shop.Seller, 250000, 5)
 	o := e.mustCreate("d1", m2Body("confirmed", fullAddr, 0, m2Line(v, 1, 0)))
@@ -122,6 +124,7 @@ func TestOrderRead_Detail(t *testing.T) {
 // trước, tên người làm; audit của ghi chú không thành mục sửa và không chép nội dung; ghi chú thân trắng → 400; không
 // order.read → 403; người chỉ xem không ghi chú được (order.update) → 403.
 func TestOrderRead_TimelineNotes(t *testing.T) {
+	t.Parallel()
 	e := newOrderReadEnv(t)
 	v := e.variant(e.shop.Seller, 250000, 5)
 	o := e.mustCreate("t1", m2Body("new", fullAddr, 0, m2Line(v, 1, 0)))
@@ -164,6 +167,7 @@ func TestOrderRead_TimelineNotes(t *testing.T) {
 
 // PQ08: đơn của tenant B → 404 ở getOrder, timeline, ghi chú (không lộ là có); danh sách của A không có đơn của B.
 func TestOrderRead_TenantIsolation(t *testing.T) {
+	t.Parallel()
 	e := newOrderReadEnv(t)
 	vA := e.variant(e.shop.Seller, 250000, 5)
 	oA := e.mustCreate("a1", orderBody(0, line(vA, 1)))
@@ -202,6 +206,7 @@ func TestOrderRead_TenantIsolation(t *testing.T) {
 // → timeline mới nhất trước: hủy (lý do), sửa (lines, shipAddress "changed", tên người sửa), tạo; không địa chỉ, SĐT cũ
 // hay mới trong timeline; getOrder trả cancelReason, cancelNote của lần hủy.
 func TestOrderRead_EditCancelTimeline(t *testing.T) {
+	t.Parallel()
 	e := newOrderReadEnv(t)
 	e.grantCanceller()
 	v := e.variant(e.shop.Seller, 250000, 5)

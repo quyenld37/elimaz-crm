@@ -77,6 +77,7 @@ func (e *shipAPIEnv) shipOrder(orderID, key string) string {
 // fulfillment.cancel → 403; vận đơn đã đi → 409 shipment_not_cancellable; "không rõ" → 409 create_in_progress, có
 // carrierChecked → 200 cancelled staff_after_unknown.
 func TestCancelShipmentAPI(t *testing.T) {
+	t.Parallel()
 	e := newShipCancelAPIEnv(t)
 	id := e.awaitingShipment("a")
 	path := "/api/v1/shipments/" + id + "/cancel"

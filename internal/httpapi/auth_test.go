@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/adapters/cfaccess"
@@ -109,6 +110,7 @@ func expect(t *testing.T, name string, rec *httptest.ResponseRecorder, status in
 }
 
 func TestAuthTokens(t *testing.T) {
+	t.Parallel()
 	e := newAuthEnv(t, RateLimit{})
 	a := e.staff.Tenant(t, "A")
 	uid := e.staff.User(t, a, "lan@elimaz.test", "active")
@@ -149,6 +151,7 @@ func TestAuthTokens(t *testing.T) {
 }
 
 func TestAuthUsersAndGrants(t *testing.T) {
+	t.Parallel()
 	e := newAuthEnv(t, RateLimit{})
 	a := e.staff.Tenant(t, "A")
 	lan := e.staff.User(t, a, "lan@elimaz.test", "active")
@@ -177,6 +180,7 @@ func TestAuthUsersAndGrants(t *testing.T) {
 
 // Deps không có Access (quên nối) → mọi route không công khai 401, không mở cửa.
 func TestAuthWithoutVerifierDenies(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	h := chain(unitDeps(&buf), Route{Method: "GET", Pattern: "GET /api/v1/x", OperationID: "x", Permission: "audit.read"}, okHandler())
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/x", nil)
@@ -188,6 +192,7 @@ func TestAuthWithoutVerifierDenies(t *testing.T) {
 
 // GET /api/v1/me qua NewServer: hợp đồng → handler mỏng → identity.
 func TestGetMe(t *testing.T) {
+	t.Parallel()
 	e := newAuthEnv(t, RateLimit{})
 	a := e.staff.Tenant(t, "A")
 	uid := e.staff.User(t, a, "me@elimaz.test", "active")
@@ -237,12 +242,20 @@ func TestGetMe(t *testing.T) {
 	expect(t, "email không có định tuyến", get("la@elimaz.test"), 403, "forbidden")
 }
 
-// Task 315: nhân viên chỉ có vai trò mẫu Kho gán theo kho A dùng được quyền không theo đích của vai trò (đọc sản phẩm,
-// /me) và quyền theo kho ở đúng kho A; kho B 403. Người không có gán nào: mọi route có quyền 403.
-func TestWarehouseScopedRole(t *testing.T) {
+// newAuthEnvDefaultRoles như newAuthEnv (không giới hạn tần suất), thêm tenant A có đủ vai trò mẫu; trả env và tenant.
+func newAuthEnvDefaultRoles(t *testing.T) (*authEnv, uuid.UUID) {
+	t.Helper()
 	e := newAuthEnv(t, RateLimit{})
 	a := e.staff.Tenant(t, "A")
 	e.staff.Exec(t, a, func(tx pgx.Tx) error { return identity.EnsureDefaultRoles(t.Context(), tx, a) })
+	return e, a
+}
+
+// Task 315: nhân viên chỉ có vai trò mẫu Kho gán theo kho A dùng được quyền không theo đích của vai trò (đọc sản phẩm,
+// /me) và quyền theo kho ở đúng kho A; kho B 403. Người không có gán nào: mọi route có quyền 403.
+func TestWarehouseScopedRole(t *testing.T) {
+	t.Parallel()
+	e, a := newAuthEnvDefaultRoles(t)
 	k := e.staff.User(t, a, "kho@elimaz.test", "active")
 	e.staff.Exec(t, a, func(tx pgx.Tx) error {
 		_, err := tx.Exec(t.Context(), `INSERT INTO identity.user_role_grants (tenant_id, user_id, role_id, scope_type, scope_id)
@@ -271,9 +284,8 @@ func TestWarehouseScopedRole(t *testing.T) {
 // (403), không xem nhật ký (403), vẫn đọc sản phẩm và ghi phiếu kho A (200); /me không liệt kê quyền quản trị không
 // hiệu lực mà trả kèm cảnh báo. Chủ gán toàn shop quản lý được (200), /me không cảnh báo.
 func TestOwnerScopedToWarehouse(t *testing.T) {
-	e := newAuthEnv(t, RateLimit{})
-	a := e.staff.Tenant(t, "A")
-	e.staff.Exec(t, a, func(tx pgx.Tx) error { return identity.EnsureDefaultRoles(t.Context(), tx, a) })
+	t.Parallel()
+	e, a := newAuthEnvDefaultRoles(t)
 	for email, scope := range map[string][2]string{"chukho@elimaz.test": {"warehouse", "kho-a"}, "chu@elimaz.test": {"all", ""}} {
 		uid := e.staff.User(t, a, email, "active")
 		e.staff.Exec(t, a, func(tx pgx.Tx) error {

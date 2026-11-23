@@ -22,6 +22,7 @@ const shipFixer = "sua-van-don@elimaz.test"
 // Đóng in_doubt_create → 409 invalid_transition; đóng missing_items → 200, needsReview về false, có audit (không chép
 // lý do); không có fulfillment.correct → 403; có correct nhưng không thấy kho → 404; thiếu resolution → 400.
 func TestShipmentListsAPI(t *testing.T) {
+	t.Parallel()
 	e, srv, stuck, review, inDoubt, missing := newListsAPI(t)
 	checkStuckAPI(t, e, srv, stuck)
 	checkReviewAPI(t, e, srv)

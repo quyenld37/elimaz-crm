@@ -91,6 +91,7 @@ func (f *keyFixture) revoke(k identity.ServiceKey) {
 // Khóa đúng → người gọi service; sai bí mật, tiền tố lạ, sai dạng → ErrInvalidKey. Báo hiệu mất: thu hồi còn có hiệu
 // lực ở giây thứ 4 (bản đệm), hết ở giây thứ 5 (CacheTTL, đồng hồ giả). Run dừng thì hủy đăng ký báo hiệu.
 func TestServiceKeyVerifier_TTLWithoutSignal(t *testing.T) {
+	t.Parallel()
 	f := newKeyFixture(t)
 	k, full := f.key(nil, "web.catalog.read")
 	clock := newFakeClock()
@@ -128,6 +129,7 @@ func TestServiceKeyVerifier_TTLWithoutSignal(t *testing.T) {
 
 // Báo hiệu thu hồi (hay resync) xóa bản đệm ngay: lần kiểm kế tiếp đọc lại database, kể cả khi đồng hồ chưa trôi.
 func TestServiceKeyVerifier_SignalInvalidates(t *testing.T) {
+	t.Parallel()
 	f := newKeyFixture(t)
 	k, full := f.key(nil, "web.catalog.read")
 	bus := &signalBus{}
@@ -195,6 +197,7 @@ func (b *signalBus) send(s realtime.Signal) {
 // 100 yêu cầu trong một phút → last_used_at ghi đúng một lần (mốc của yêu cầu đầu); sang phút sau → ghi lần hai.
 // Ghi bằng goroutine của Run, không chặn yêu cầu.
 func TestServiceKeyVerifier_LastUsedOncePerMinute(t *testing.T) {
+	t.Parallel()
 	f := newKeyFixture(t)
 	k, full := f.key(nil, "web.catalog.read")
 	clock := newFakeClock()
@@ -255,6 +258,7 @@ func lastUsed(t *testing.T, f *keyFixture, id uuid.UUID) *time.Time {
 
 // Lỗi database của bộ kiểm không mang khóa và không được đệm (lần sau đọc lại).
 func TestServiceKeyVerifier_ErrorNotCached(t *testing.T) {
+	t.Parallel()
 	f := newKeyFixture(t)
 	_, full := f.key(nil, "web.catalog.read")
 	v := NewServiceKeyVerifier(f.staff.App, nil, ServiceKeyOptions{})

@@ -10,9 +10,8 @@ import (
 // lạ → 422; PUT hợp lệ → 200 version 1, GET trả đúng; PUT version cũ hay thiếu version → 409 version_conflict; sale
 // không đặt được (403); nhãn lạ → 404.
 func TestCustomerTagRuleAPI(t *testing.T) {
-	e := newCustomerAPIEnv(t)
-	mgr := e.staff.User(t, e.tenant, customerTagManager, "active")
-	e.staff.Grant(t, e.tenant, mgr, []string{"customer.read", "customer.tags.manage"}, "all", "")
+	t.Parallel()
+	e := newCustomerTagEnv(t)
 	tag := fmt.Sprint(mustOK(t, "createCustomerTag", e.send(http.MethodPost, "/api/v1/customer-tags", customerTagManager,
 		`{"name":"Hay hoàn","color":"red"}`), http.StatusCreated)["id"])
 	path := "/api/v1/customer-tags/" + tag + "/rule"

@@ -111,6 +111,7 @@ func usersPath(id uuid.UUID, action string) string {
 }
 
 func TestStaffAPI_ReplaceGrants(t *testing.T) {
+	t.Parallel()
 	e := newStaffAPIEnv(t)
 	k := e.ids[staffK]
 	v := e.version(k)
@@ -147,6 +148,7 @@ func TestStaffAPI_ReplaceGrants(t *testing.T) {
 // báo "quyền quản trị chỉ hiệu lực khi gán toàn shop"; người được gán không quản lý được nhân viên. Gán toàn shop
 // không cảnh báo.
 func TestStaffAPI_AdminRoleScopedWarning(t *testing.T) {
+	t.Parallel()
 	e := newStaffAPIEnv(t)
 	k := e.ids[staffK]
 	rec := e.do(http.MethodPut, usersPath(k, "grants"), staffA, "w1", grantsBody(e.version(k), "owner@warehouse:w1"))
@@ -205,6 +207,7 @@ func TestStaffAPI_AdminRoleScopedWarning(t *testing.T) {
 }
 
 func TestStaffAPI_ReplaceGrantsIdempotent(t *testing.T) {
+	t.Parallel()
 	e := newStaffAPIEnv(t)
 	k := e.ids[staffK]
 	body := grantsBody(e.version(k), "sale@all")
@@ -231,6 +234,7 @@ func TestStaffAPI_ReplaceGrantsIdempotent(t *testing.T) {
 }
 
 func TestStaffAPI_LockAndCreate(t *testing.T) {
+	t.Parallel()
 	e := newStaffAPIEnv(t)
 	a, b := e.ids[staffA], e.ids[staffB]
 	expect(t, "A khóa A", e.do(http.MethodPost, usersPath(a, "lock"), staffA, "l1", "{}"), http.StatusForbidden, "cannot_modify_self")
@@ -266,6 +270,7 @@ func TestStaffAPI_LockAndCreate(t *testing.T) {
 }
 
 func TestStaffAPI_Permissions(t *testing.T) {
+	t.Parallel()
 	e := newStaffAPIEnv(t)
 	k := e.ids[staffK]
 	// K không có identity.users.manage: mọi operation 403.
@@ -298,6 +303,7 @@ func TestStaffAPI_Permissions(t *testing.T) {
 
 // Mã lỗi của các sentinel identity (một chỗ: errors.go), kể cả last_owner chỉ gặp khi hai Chủ tranh nhau.
 func TestStaffErrorCodes(t *testing.T) {
+	t.Parallel()
 	for err, want := range map[error][2]any{
 		identity.ErrSelfModify:        {http.StatusForbidden, "cannot_modify_self"},
 		identity.ErrGrantExceedsActor: {http.StatusForbidden, "grant_exceeds_actor"},
@@ -370,6 +376,7 @@ func rolePath(id any, action string) string {
 }
 
 func TestRolesAPI_CreateUpdateArchive(t *testing.T) {
+	t.Parallel()
 	e := newStaffAPIEnv(t)
 	e.staff.Grant(t, e.tenant, e.ids[staffM], []string{"identity.roles.manage"}, "all", "")
 
@@ -427,6 +434,7 @@ func TestRolesAPI_CreateUpdateArchive(t *testing.T) {
 
 // 50 lần cùng Idempotency-Key → một vai trò, một dòng audit.
 func TestRolesAPI_CreateIdempotent(t *testing.T) {
+	t.Parallel()
 	e := newStaffAPIEnv(t)
 	body := createRoleBody("Thời vụ Tết", "catalog.read")
 	recs := make([]*httptest.ResponseRecorder, 50)
@@ -455,6 +463,7 @@ func TestRolesAPI_CreateIdempotent(t *testing.T) {
 
 // Danh sách quyền có nhãn; vai trò tự tạo gán cho nhân viên → nhân viên gọi được đúng operation của quyền trong vai trò.
 func TestRolesAPI_PermissionsAndEffect(t *testing.T) {
+	t.Parallel()
 	e := newStaffAPIEnv(t)
 	expect(t, "K đọc danh sách quyền", e.do(http.MethodGet, "/api/v1/identity/permissions", staffK, "", ""), http.StatusForbidden, "forbidden")
 	rec := e.do(http.MethodGet, "/api/v1/identity/permissions", staffA, "", "")

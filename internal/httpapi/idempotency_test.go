@@ -281,6 +281,7 @@ const counterPath = "/api/v1/_probe/counter"
 // Review Focus 4: 50 yêu cầu song song cùng khóa, cùng thân → bộ đếm tăng đúng 1; mỗi câu trả lời là 200 cùng thân
 // hoặc 409 request_in_progress.
 func TestIdempotencyFiftyParallelSameKey(t *testing.T) {
+	t.Parallel()
 	e := newIdemEnv(t)
 	recs := make([]*httptest.ResponseRecorder, 50)
 	var wg sync.WaitGroup
@@ -313,6 +314,7 @@ func TestIdempotencyFiftyParallelSameKey(t *testing.T) {
 }
 
 func TestIdempotencyHeaderRules(t *testing.T) {
+	t.Parallel()
 	e := newIdemEnv(t)
 	for _, c := range []struct {
 		name, key, want string
@@ -338,6 +340,7 @@ func TestIdempotencyHeaderRules(t *testing.T) {
 }
 
 func TestIdempotencySameKeyDifferentBody422(t *testing.T) {
+	t.Parallel()
 	e := newIdemEnv(t)
 	if rec := e.post(counterPath, userA, "k1", `{"mode":"ok"}`); rec.Code != http.StatusOK {
 		t.Fatalf("lần đầu phải 200, có %d", rec.Code)
@@ -352,6 +355,7 @@ func TestIdempotencySameKeyDifferentBody422(t *testing.T) {
 }
 
 func TestIdempotencyReplayAfterOneHour(t *testing.T) {
+	t.Parallel()
 	e := newIdemEnv(t)
 	first := e.post(counterPath, userA, "k1", `{"mode":"ok"}`)
 	if first.Code != http.StatusOK || first.Header().Get("Idempotent-Replayed") != "" {
@@ -385,6 +389,7 @@ func sameReply(t *testing.T, first, again *httptest.ResponseRecorder) {
 // trắng riêng ("raw", lần đầu trả nguyên rawProbe), và handler ghi lỗi sau khi kết quả đã commit ("after": lần đầu
 // cũng là kết quả đã lưu, khớp dữ liệu).
 func TestIdempotencyReplayExactBytes(t *testing.T) {
+	t.Parallel()
 	e := newIdemEnv(t)
 	for _, mode := range []string{"ok", "raw", "after"} {
 		t.Run(mode, func(t *testing.T) {
@@ -409,6 +414,7 @@ func TestIdempotencyReplayExactBytes(t *testing.T) {
 // Review Focus 4: tiến trình chết sau bước ghi nhận khóa (dòng running, locked_until đã qua) → yêu cầu mới cùng khóa
 // chạy được, bộ đếm tăng đúng 1. Dòng running còn hạn → 409.
 func TestIdempotencyDeadProcessReclaimedAfterLock(t *testing.T) {
+	t.Parallel()
 	e := newIdemEnv(t)
 	body := `{"mode":"ok"}`
 	userID := e.users[userA]
@@ -434,6 +440,7 @@ func TestIdempotencyDeadProcessReclaimedAfterLock(t *testing.T) {
 
 // Câu trả lời "thử lại" (final = false) không được lưu: không còn dòng khóa; gửi lại cùng khóa chạy lại từ đầu.
 func TestIdempotencyRetryAnswerNotStored(t *testing.T) {
+	t.Parallel()
 	e := newIdemEnv(t)
 	for i := range 2 {
 		rec := e.post(counterPath, userA, "k1", `{"mode":"retry"}`)
@@ -451,6 +458,7 @@ func TestIdempotencyRetryAnswerNotStored(t *testing.T) {
 
 // Lỗi tạm hết lượt (db.ErrRetryLater) → 503 retry_later kèm Retry-After: 1, không lưu, không còn dòng khóa.
 func TestIdempotencyRetryLaterNotStored(t *testing.T) {
+	t.Parallel()
 	e := newIdemEnv(t)
 	rec := e.post(counterPath, userA, "k1", `{"mode":"busy"}`)
 	if rec.Code != http.StatusServiceUnavailable || errCode(t, rec) != "retry_later" || rec.Header().Get("Retry-After") != "1" {
@@ -463,6 +471,7 @@ func TestIdempotencyRetryLaterNotStored(t *testing.T) {
 
 // Handler lỗi giữa transaction → bộ đếm không đổi, dòng khóa vẫn running (lần sau 409 tới hết 60 s).
 func TestIdempotencyHandlerErrorKeepsRunning(t *testing.T) {
+	t.Parallel()
 	e := newIdemEnv(t)
 	if rec := e.post(counterPath, userA, "k1", `{"mode":"fail"}`); rec.Code != http.StatusInternalServerError {
 		t.Fatalf("lỗi giữa transaction phải 500, có %d", rec.Code)
@@ -480,6 +489,7 @@ func TestIdempotencyHandlerErrorKeepsRunning(t *testing.T) {
 
 // Handler trả lời mà không gọi WriteTx (từ chối trước khi ghi) → dòng khóa được trả lại, gửi lại chạy từ đầu.
 func TestIdempotencyUnusedClaimReleased(t *testing.T) {
+	t.Parallel()
 	e := newIdemEnv(t)
 	for range 2 {
 		if rec := e.post(counterPath, userA, "k1", `{"mode":"reject"}`); rec.Code != http.StatusBadRequest {
@@ -496,6 +506,7 @@ func TestIdempotencyUnusedClaimReleased(t *testing.T) {
 
 // Bị guard từ chối thì không tạo dòng khóa (chống trùng chạy sau auth, guard).
 func TestIdempotencyAfterGuard(t *testing.T) {
+	t.Parallel()
 	e := newIdemEnv(t)
 	if rec := e.post("/api/v1/_probe/forbidden", userA, "k1", `{}`); rec.Code != http.StatusForbidden {
 		t.Fatalf("thiếu quyền phải 403, có %d", rec.Code)
@@ -506,6 +517,7 @@ func TestIdempotencyAfterGuard(t *testing.T) {
 }
 
 func TestIdempotencyTwoUsersIndependent(t *testing.T) {
+	t.Parallel()
 	e := newIdemEnv(t)
 	for _, u := range []string{userA, userB} {
 		rec := e.post(counterPath, u, "same", `{"mode":"ok"}`)
@@ -521,6 +533,7 @@ func TestIdempotencyTwoUsersIndependent(t *testing.T) {
 // no-replay (ADR-47 bổ sung): cùng khóa cùng thân lần hai → 409 already_processed, response_body NULL, bí mật lần một
 // không xuất hiện; khác thân → 422.
 func TestIdempotencyNoReplay(t *testing.T) {
+	t.Parallel()
 	e := newIdemEnv(t)
 	first := e.post("/api/v1/_probe/secret", userA, "k1", `{}`)
 	secret, _ := jsonOf(t, first)["secret"].(string)
@@ -549,6 +562,7 @@ func TestIdempotencyNoReplay(t *testing.T) {
 // exempt (ADR-47): không đọc header, không ghi idempotency_keys, không Claim trong ctx; origin vẫn áp; WriteTx trên
 // route exempt → 500 và ErrNoClaim trong log.
 func TestIdempotencyExempt(t *testing.T) {
+	t.Parallel()
 	e := newIdemEnv(t)
 	const quote = "/api/v1/_probe/quote"
 	if rec := e.post(quote, userA, "", `{"A":1,"B":2}`); rec.Code != http.StatusOK || jsonOf(t, rec)["total"] != float64(3) {

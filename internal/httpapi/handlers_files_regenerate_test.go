@@ -29,6 +29,7 @@ func (e *filesAPIEnv) imageWithoutV1(tenant uuid.UUID, purpose string) uuid.UUID
 // bản đó (không tính tệp đã đủ, tệp không phải ảnh, tệp của tenant khác), có audit; gọi lại → 0; không quyền → 403;
 // bộ kích thước chưa có → 422 unknown_preset; presetVersion 0 → 400.
 func TestFilesAPI_RegenerateImages(t *testing.T) {
+	t.Parallel()
 	e := newFilesAPIEnv(t)
 	e.staff.Grant(t, e.a, e.staff.User(t, e.a, filesManager, "active"), []string{"platform.files.manage"}, "all", "")
 	missing := e.imageWithoutV1(e.a, "product_image")

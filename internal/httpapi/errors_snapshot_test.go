@@ -28,6 +28,7 @@ import (
 // đã bọc một lần bằng %w. Sentinel có mặt ở nhiều bảng (errForbiddenTarget, ErrStockShort cùng giá trị) ghi kết quả
 // của bảng được kiểm trước — tức là cũng chụp thứ tự kiểm giữa các bảng.
 func TestDomainErrorSnapshot(t *testing.T) {
+	t.Parallel()
 	cases := domainErrorSnapshot()
 	if len(cases) < 150 {
 		t.Fatalf("bảng chụp chỉ có %d dòng; đã mất dòng?", len(cases))
@@ -43,6 +44,7 @@ func TestDomainErrorSnapshot(t *testing.T) {
 // catalogError, customerError, … để quyết định lỗi nào là kết quả nghiệp vụ được lưu khi chống trùng), và hàm đó trả
 // đúng dòng của chính nó.
 func TestDomainErrorSnapshot_TableMembership(t *testing.T) {
+	t.Parallel()
 	cases := domainErrorMembership()
 	for _, c := range cases {
 		if _, _, ok := c.mapper(fmt.Errorf("việc thử: %w", c.err)); !ok {
@@ -62,6 +64,7 @@ func TestDomainErrorSnapshot_TableMembership(t *testing.T) {
 // identity → catalog → files → order → customer → promotion → inventory → queries → fulfillment → cash; trong bảng
 // cash, ErrPreviewStale đứng trước ErrAdjustmentBlocked, ErrAdjustTargetNotFound (Task M3-33).
 func TestDomainErrorSnapshot_Order(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		first  error // lỗi của bảng kiểm trước: kết quả phải theo lỗi này

@@ -78,6 +78,7 @@ func (e *m3Env) auditAfter(action, id, key string) (n int, val string) {
 // danh sách phiếu của đơn có phiếu; vượt tổng đơn → 409 payment_exceeds_total; đơn lạ → 404; con trỏ sai → 400; Kho
 // (không có cash.payments.record) → 403; đơn đã gửi hãng → 409 cod_locked_by_shipment.
 func TestPaymentsAPI_Record(t *testing.T) {
+	t.Parallel()
 	e := newM3Env(t)
 	shop, user := e.newCodShop()
 	o := e.payOrder(shop, user)
@@ -126,6 +127,7 @@ func TestPaymentsAPI_Record(t *testing.T) {
 // miễn lý do khoảng trắng → 422 invalid_input, lý do rỗng → 400; có lý do → 200 waived, audit có lý do; chi sau khi
 // miễn → 409 invalid_transition; nghĩa vụ lạ → 404; trạng thái lọc lạ → 400.
 func TestPaymentsAPI_RefundObligations(t *testing.T) {
+	t.Parallel()
 	e := newM3Env(t)
 	shop, user := e.newCodShop()
 	o := e.payOrder(shop, user)

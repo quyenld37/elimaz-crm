@@ -31,6 +31,7 @@ func (e *customerAPIEnv) setStats(id string, delivered, returned int) {
 // của gốc theo ngưỡng của cài đặt fulfillment (mặc định khi chưa lưu); đổi HighRateBP 5000 → watch; hồ sơ con đọc số
 // của gốc; không có customer.read → 403; khách không có hay của tenant khác → 404.
 func TestCustomerDeliveryStatsAPI(t *testing.T) {
+	t.Parallel()
 	e := newCustomerAPIEnv(t)
 	e.staff.Grant(t, e.tenant, e.staff.User(t, e.tenant, deliveryNoRead, "active"), []string{"order.read"}, "all", "")
 	e.staff.Grant(t, e.tenant, e.staff.User(t, e.tenant, deliveryMerger, "active"), []string{"customer.read", "customer.merge"},

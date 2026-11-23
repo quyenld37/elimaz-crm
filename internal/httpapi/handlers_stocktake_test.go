@@ -51,6 +51,7 @@ func version(t *testing.T, m map[string]any) int {
 
 // Luồng đủ qua API: mở, đếm, xem trước, áp dụng (thiếu so với phần giữ → shortages), audit; mở trùng kho → 409.
 func TestStocktakeAPI_Flow(t *testing.T) {
+	t.Parallel()
 	e := newInvAPIEnv(t)
 	v, s, id := e.openW1()
 	if s["status"] != "open" || s["warehouseId"] != e.w1.String() {
@@ -98,6 +99,7 @@ func TestStocktakeAPI_Flow(t *testing.T) {
 
 // Quyền theo kho: người kho w1 không mở, đếm, hủy, đọc ở kho w2.
 func TestStocktakeAPI_WarehouseScope(t *testing.T) {
+	t.Parallel()
 	e := newInvAPIEnv(t)
 	e.grantStocktake()
 	v := e.variant(e.w2, 3)
@@ -121,6 +123,7 @@ func TestStocktakeAPI_WarehouseScope(t *testing.T) {
 
 // Áp dụng hai lần song song với hai khóa khác nhau → một 200, một 409; sổ chỉ có dòng của một lần.
 func TestStocktakeAPI_ApplyTwice(t *testing.T) {
+	t.Parallel()
 	e := newInvAPIEnv(t)
 	v, _, id := e.openW1()
 	mustOK(t, "đếm", e.countStk(stkApply, id, v, `{"counted":3}`, "c1"), http.StatusOK)
