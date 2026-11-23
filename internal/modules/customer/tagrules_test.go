@@ -64,6 +64,7 @@ func cond(field, op string, v int64) customer.TagCondition {
 // source rule; khách C có nhãn cùng tên gắn tay, không đạt → dòng staff còn nguyên; A thêm hai đơn giao xong → tỷ lệ
 // 2500 → nhãn được gỡ. Tắt quy tắc → dòng rule bị gỡ khi áp lại.
 func TestTagRuleReturnRate(t *testing.T) {
+	t.Parallel()
 	e := newStatsEnv(t)
 	tag := e.tag("Hay hoàn")
 	r, err := e.putRule(tag, nil, true, cond(customer.FieldReturnRateBP, customer.OpGte, 3000),
@@ -138,6 +139,7 @@ func TestTagRuleReturnRate(t *testing.T) {
 // Kế hoạch M2-25, ca 5: "Lâu không mua" days_since_last_order gte 90: lịch đêm ở giờ +89 ngày không gắn, +91 ngày gắn
 // (source rule); khách chưa mua đơn nào không được gắn. Lô 1 gốc: việc nối tiếp có trong hàng đợi.
 func TestTagRuleNightly(t *testing.T) {
+	t.Parallel()
 	e := newStatsEnv(t)
 	tag := e.tag("Lâu không mua")
 	if _, err := e.putRule(tag, nil, true, cond(customer.FieldDaysSinceLastOrder, customer.OpGte, 90)); err != nil {
@@ -184,6 +186,7 @@ func TestTagRuleNightly(t *testing.T) {
 // Kế hoạch M2-25, ca 6: trường lạ (phone), phép lạ, không điều kiện, quá 10 điều kiện, giá trị âm → ErrInvalidTagRule;
 // nhãn không có → ErrNotFound; quy tắc chưa có → GetTagRule ErrNotFound.
 func TestTagRuleInvalid(t *testing.T) {
+	t.Parallel()
 	e := newStatsEnv(t)
 	tag := e.tag("VIP")
 	many := make([]customer.TagCondition, 11)

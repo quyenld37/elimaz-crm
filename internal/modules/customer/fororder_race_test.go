@@ -14,6 +14,7 @@ import (
 // 10 yêu cầu tìm-hoặc-tạo song song cùng SĐT mới: đúng 1 khách, 1 danh tính, cả 10 cùng CustomerID; không hồ sơ mồ côi
 // (bên thua lùi savepoint), đúng một sự kiện customer.created.
 func TestFindOrCreateForOrderRace(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	const n = 10
 	got := make([]customer.OrderCustomer, n)
@@ -59,6 +60,7 @@ func TestFindOrCreateForOrderRace(t *testing.T) {
 // Cả hai khóa dòng khách trước danh tính (ADR-46 nhóm 5) nên không deadlock (pg_stat_database.deadlocks không tăng);
 // mỗi vòng đúng một danh tính, kết quả là một trong hai cách hợp lệ.
 func TestFindOrCreateForOrderVsAddIdentityNoDeadlock(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	deadlocks := func() int {
 		return e.staff.Count(t, `SELECT deadlocks::int FROM pg_stat_database WHERE datname = current_database()`)

@@ -61,6 +61,7 @@ func (e *writeEnv) links(tagID uuid.UUID) int {
 // Tạo nhãn: bỏ khoảng trắng hai đầu, tên trùng → ErrTagNameTaken, màu ngoài 10 khóa của database → ErrInvalidInput
 // (không chạm CHECK), tên rỗng/quá 50 → ErrInvalidInput; đủ 10 màu tạo được.
 func TestTagCreate(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	vip := e.mustTag("  VIP ", "red")
 	if vip.Name != "VIP" || vip.Color != "red" || vip.Version != 1 {
@@ -91,6 +92,7 @@ func TestTagCreate(t *testing.T) {
 // màu lạ → ErrInvalidInput, không có → ErrNotFound; ListTags theo tên; tenant khác không thấy; audit
 // customer_tag.update chỉ tên trường.
 func TestTagUpdate(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	vip := e.mustTag("VIP", "red")
 	sale := e.mustTag("Hay đổi", "gray")
@@ -143,6 +145,7 @@ func TestTagUpdate(t *testing.T) {
 // staff của cả nhóm; nhãn rule → ErrTagRuleManaged, dòng còn; gỡ nhãn chưa gắn → không lỗi; nhãn hay khách không có
 // (hay của tenant khác) → ErrNotFound; nguồn lạ → ErrInvalidInput.
 func TestTagLinks(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	vip, auto := e.mustTag("VIP", "red"), e.mustTag("Hay mua", "green")
 	a := e.create(customer.CreateInput{FullName: "A"})
@@ -208,6 +211,7 @@ func TestTagLinks(t *testing.T) {
 
 // Gắn cùng nhãn song song 20 lần → một dòng, không lỗi.
 func TestTagAddConcurrent(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	tag := e.mustTag("VIP", "red")
 	a := e.create(customer.CreateInput{FullName: "A"})

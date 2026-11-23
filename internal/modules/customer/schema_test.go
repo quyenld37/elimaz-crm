@@ -34,6 +34,7 @@ var khCode = regexp.MustCompile(`^KH\d{6,}$`)
 // Mở rộng bảng của M1: khách có sẵn trước 0201 được điền code, name_search; root_id giữ; customer.Create của M1 vẫn
 // chạy sau migrate; customers_v giữ 4 cột đầu cùng kiểu.
 func TestSchemaExtendsM1Customers(t *testing.T) {
+	t.Parallel()
 	_, ownerURL, appURL := testkit.CreateDatabase(t)
 	testkit.MigrateBefore(t, ownerURL, "0201")
 	owner, app := testkit.OpenDB(t, ownerURL), testkit.OpenDB(t, appURL)
@@ -185,6 +186,12 @@ func newSchemaEnv(t *testing.T) *schemaEnv {
 	return e
 }
 
+// inA chạy fn trong transaction của tenant A (database lỗi thì test dừng).
+func (e *schemaEnv) inA(t *testing.T, fn func(tx pgx.Tx) error) {
+	t.Helper()
+	testkit.InTenant(t, e.staff.App, e.a, fn)
+}
+
 func pgCode(err error) string {
 	var pe *pgconn.PgError
 	if errors.As(err, &pe) {
@@ -194,10 +201,11 @@ func pgCode(err error) string {
 }
 
 func TestSchemaRootDefaultAndIdentityUnique(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	ctx := t.Context()
 	// Chèn không có root_id → root_id = id.
-	testkit.InTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
+	e.inA(t, func(tx pgx.Tx) error {
 		var id, root uuid.UUID
 		if err := tx.QueryRow(ctx, `INSERT INTO customer.customers (tenant_id, full_name)
 			VALUES ($1, 'Không gốc') RETURNING id, root_id`, e.a).Scan(&id, &root); err != nil {
@@ -210,7 +218,7 @@ func TestSchemaRootDefaultAndIdentityUnique(t *testing.T) {
 	})
 
 	var other uuid.UUID
-	testkit.InTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
+	e.inA(t, func(tx pgx.Tx) error {
 		var err error
 		other, err = customer.Create(ctx, tx, "Khách khác")
 		return err //nolint:wrapcheck // test
@@ -243,9 +251,10 @@ func TestSchemaRootDefaultAndIdentityUnique(t *testing.T) {
 }
 
 func TestSchemaNotesAppendOnly(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	ctx := t.Context()
-	testkit.InTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
+	e.inA(t, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `INSERT INTO customer.customer_notes (tenant_id, customer_id, body, author_id)
 			VALUES ($1, $2, 'ghi chú', $3)`, e.a, e.custA, uuid.New())
 		return err //nolint:wrapcheck // test
@@ -265,9 +274,10 @@ func TestSchemaNotesAppendOnly(t *testing.T) {
 
 // Mọi bảng mới và mọi view: tenant B không thấy dòng của A; crm_app của A thấy.
 func TestSchemaTenantIsolation(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	ctx := t.Context()
-	testkit.InTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
+	e.inA(t, func(tx pgx.Tx) error {
 		var tag uuid.UUID
 		stmts := []struct {
 			q    string
@@ -334,6 +344,7 @@ func TestSchemaTenantIsolation(t *testing.T) {
 }
 
 func TestSchemaViewsAndRules(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	owner := e.staff.Owner
 	want := map[string]string{
@@ -387,6 +398,7 @@ func TestSchemaViewsAndRules(t *testing.T) {
 
 // Ràng buộc mới của customers: lifecycle, chỉ số không âm; khóa màu nhãn.
 func TestSchemaChecks(t *testing.T) {
+	t.Parallel()
 	e := newSchemaEnv(t)
 	ctx := t.Context()
 	for _, q := range []string{
@@ -403,7 +415,7 @@ func TestSchemaChecks(t *testing.T) {
 		}
 	}
 	for _, l := range []customer.Lifecycle{customer.LifecycleLead, customer.LifecycleCustomer} {
-		testkit.InTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
+		e.inA(t, func(tx pgx.Tx) error {
 			_, err := tx.Exec(ctx, "UPDATE customer.customers SET lifecycle = $2 WHERE id = $1", e.custA, string(l))
 			return err //nolint:wrapcheck // test
 		})
@@ -412,7 +424,7 @@ func TestSchemaChecks(t *testing.T) {
 		customer.IdentityPhone, customer.IdentityFBPSID, customer.IdentityZaloUID, customer.IdentityEmail,
 		customer.IdentityWebAccount,
 	} {
-		testkit.InTenant(t, e.staff.App, e.a, func(tx pgx.Tx) error {
+		e.inA(t, func(tx pgx.Tx) error {
 			_, err := tx.Exec(ctx, `INSERT INTO customer.customer_identities (tenant_id, customer_id, kind, value, source)
 				VALUES ($1, $2, $3, 'v', 'staff')`, e.a, e.custA, string(k))
 			return err //nolint:wrapcheck // test

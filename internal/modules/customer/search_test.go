@@ -58,6 +58,7 @@ func rootsOf(hits []customer.SearchHit) []uuid.UUID {
 
 // Phân loại chuỗi tìm: mã, SĐT đủ, đuôi số, tên không dấu (gõ thiếu, hoa thường, có dấu); ký tự đại diện đã thoát.
 func TestSearchClassifies(t *testing.T) {
+	t.Parallel()
 	f := newSearchFixture(t)
 	a, b, c := f.a.ID, f.b.ID, f.c.ID
 	cases := []struct {
@@ -122,6 +123,7 @@ func sameSet(got, want []uuid.UUID) bool {
 
 // Dòng kết quả mang mã, tên, SĐT và chỉ số của gốc.
 func TestSearchHitFields(t *testing.T) {
+	t.Parallel()
 	f := newSearchFixture(t)
 	hits, err := f.search(f.e.tenant, "345678")
 	if err != nil {
@@ -139,6 +141,7 @@ func TestSearchHitFields(t *testing.T) {
 
 // Chuỗi quá ngắn: dưới 4 chữ số, dưới 2 ký tự sau chuẩn hóa, rỗng → ErrQueryTooShort; lỗi không mang chuỗi tìm.
 func TestSearchTooShort(t *testing.T) {
+	t.Parallel()
 	f := newSearchFixture(t)
 	for _, q := range []string{"12", "123", "+1", "a", "  ", "", "Đ ", "1.2", "%"} {
 		_, err := f.search(f.e.tenant, q)
@@ -153,6 +156,7 @@ func TestSearchTooShort(t *testing.T) {
 
 // Gộp: B đổi gốc về A → "5678" trả một dòng gốc A; tìm theo mã của B cũng trả gốc A; SĐT của cả nhóm hiện ở dòng gốc.
 func TestSearchGroupsByRoot(t *testing.T) {
+	t.Parallel()
 	f := newSearchFixture(t)
 	f.e.inTx(func(tx pgx.Tx) error {
 		_, err := tx.Exec(t.Context(), "UPDATE customer.customers SET root_id = $1 WHERE id = $2", f.a.ID, f.b.ID)
@@ -182,6 +186,7 @@ func TestSearchGroupsByRoot(t *testing.T) {
 
 // Tenant: trong WithTenant(B) không ra khách của A; hàm tên gọi ngoài ngữ cảnh tenant → 0 dòng, không lỗi.
 func TestSearchTenantIsolation(t *testing.T) {
+	t.Parallel()
 	f := newSearchFixture(t)
 	for _, q := range []string{"345678", "0912345678", "nhung", "hong", f.a.Code} {
 		hits, err := f.search(f.e.other, q)
@@ -223,6 +228,7 @@ func TestSearchTenantIsolation(t *testing.T) {
 
 // Hàm tên: chủ crm_search, SECURITY DEFINER, search_path cố định, PUBLIC không gọi được.
 func TestSearchByNameFunctionDefinition(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	var owner, cfg string
 	var secdef, publicExec, appExec bool
@@ -243,6 +249,7 @@ func TestSearchByNameFunctionDefinition(t *testing.T) {
 
 // Kết quả theo lần mua gần nhất của gốc (chưa mua xếp sau), rồi theo id; limit cắt số nhóm.
 func TestSearchOrderAndLimit(t *testing.T) {
+	t.Parallel()
 	f := newSearchFixture(t)
 	recent := f.e.now.Add(-time.Hour)
 	f.e.inTx(func(tx pgx.Tx) error {
@@ -283,6 +290,7 @@ func (f *searchFixture) list(fl customer.ListFilter) ([]customer.SearchHit, *cus
 // Danh sách khi không tìm: khách gốc mới nhất trước, trang theo con trỏ (created_at, id); con trỏ hỏng →
 // ErrInvalidInput; tenant B chỉ thấy khách của mình.
 func TestListCustomers(t *testing.T) {
+	t.Parallel()
 	f := newSearchFixture(t)
 	all, next := f.list(customer.ListFilter{Limit: 10})
 	if !slices.Equal(rootsOf(all), []uuid.UUID{f.c.ID, f.b.ID, f.a.ID}) || next != nil {
@@ -323,6 +331,7 @@ func TestListCustomers(t *testing.T) {
 // Gộp và nhãn: hồ sơ con không hiện ở danh sách; lọc nhãn lấy nhóm có nhãn ở bất kỳ hồ sơ nào trong nhóm (cả ở List
 // và SearchTagged); nhãn không có → rỗng.
 func TestListCustomersMergedAndTagged(t *testing.T) {
+	t.Parallel()
 	f := newSearchFixture(t)
 	var tag uuid.UUID
 	f.e.inTx(func(tx pgx.Tx) error {

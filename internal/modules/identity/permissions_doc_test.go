@@ -61,6 +61,7 @@ func rolesWith(p identity.Permission) []string {
 // docs/quyen.md là bảng quyền chuẩn (kế hoạch M1, A9): tập khóa bằng đúng identity.Permissions, cùng loại phạm vi,
 // và cột "vai trò mẫu nhận" bằng đúng các vai trò của DefaultRoles có quyền đó.
 func TestPermissionsDoc_MatchesCode(t *testing.T) {
+	t.Parallel()
 	doc := readQuyenDoc(t)
 	scopeName := map[identity.ScopeKind]string{
 		identity.ScopeNone: "none", identity.ScopeByTarget: "theo đích", identity.ScopeShop: "toàn shop",

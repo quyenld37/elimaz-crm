@@ -35,9 +35,9 @@ func (e *writeEnv) mustNote(customerID uuid.UUID, body string, at time.Time) cus
 // không có nội dung; rỗng, quá 4000 ký tự → ErrInvalidInput; khách không có → ErrNotFound; UPDATE,
 // DELETE ghi chú (kể cả chủ bảng) → lỗi, nội dung không đổi.
 func TestAddNoteAppendOnly(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
-	a := e.create(customer.CreateInput{FullName: "A"})
-	b := e.create(customer.CreateInput{FullName: "B"})
+	a, b := e.pair("A", "B", "")
 	e.mustMerge(a.ID, b.ID)
 	const secret = "Khách dặn gọi 0909123456 sau 18h"
 	n := e.mustNote(b.ID, "  "+secret+"\n", e.now)

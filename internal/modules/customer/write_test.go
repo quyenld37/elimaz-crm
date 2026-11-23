@@ -16,6 +16,7 @@ import (
 // Tạo khách có SĐT: code KH…, danh tính +84…, name_search bỏ dấu, sự kiện customer.created Seq 1, một dòng audit có
 // changed_fields chứa phone, full_name mà JSON của dòng không chứa SĐT hay tên; một báo hiệu customer.changed.
 func TestCreateCustomerWithPhone(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	c := e.create(customer.CreateInput{FullName: "Nguyễn Thị Hồng Nhung", Phone: "0912345678"})
 	if !khPattern.MatchString(c.Code) || c.RootID != c.ID || c.Version != 1 || c.Lifecycle != "lead" ||
@@ -58,6 +59,7 @@ func TestCreateCustomerWithPhone(t *testing.T) {
 
 // SĐT đã thuộc khách khác (viết khác dạng) → *IdentityTakenError có gốc chủ; không để lại hồ sơ, sự kiện, audit.
 func TestCreateCustomerPhoneTaken(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	first := e.create(customer.CreateInput{FullName: "Chị Hồng", Phone: "0912345678"})
 	before := e.count(`SELECT count(*) FROM customer.customers`)
@@ -91,6 +93,7 @@ func TestCreateCustomerPhoneTaken(t *testing.T) {
 
 // Kiểm đầu vào: tên rỗng, quá dài, ký tự điều khiển; SĐT sai; nguồn lạ; địa chỉ sai tỉnh.
 func TestCreateCustomerInvalid(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	for _, c := range []struct {
 		name string
@@ -121,6 +124,7 @@ func TestCreateCustomerInvalid(t *testing.T) {
 
 // Tạo khách kèm ngày sinh và địa chỉ: địa chỉ mặc định, ngày sinh lưu đúng ngày; Get trả cả hai.
 func TestCreateCustomerWithAddress(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	bd := time.Date(1990, 3, 8, 0, 0, 0, 0, time.UTC)
 	c := e.create(customer.CreateInput{FullName: "Lan", Birthday: &bd, Address: &customer.AddressInput{
@@ -147,6 +151,7 @@ func TestCreateCustomerWithAddress(t *testing.T) {
 // Update: version cũ → ErrVersionConflict; đổi tên đổi name_search, tăng version; xóa ngày sinh; khách không có hay
 // của tenant khác → ErrNotFound.
 func TestUpdateCustomer(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	bd := time.Date(1990, 3, 8, 0, 0, 0, 0, time.UTC)
 	c := e.create(customer.CreateInput{FullName: "Lan", Birthday: &bd})
@@ -190,6 +195,7 @@ func TestUpdateCustomer(t *testing.T) {
 
 // Hai lần sửa song song cùng version: một thành công, một ErrVersionConflict.
 func TestUpdateCustomerConcurrent(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	c := e.create(customer.CreateInput{FullName: "Lan"})
 	errs := make([]error, 2)

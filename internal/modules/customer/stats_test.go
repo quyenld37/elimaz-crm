@@ -67,6 +67,15 @@ func (e *statsEnv) ow() order.Writer {
 	return order.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue(), Realtime: &realtimetest.RecordingBus{}}
 }
 
+// twoDelivered tạo Khách A, Khách B, mỗi khách một đơn đã giao (A 100.000, B 200.000).
+func (e *statsEnv) twoDelivered() (a, b uuid.UUID) {
+	e.t.Helper()
+	a, b = e.newCustomer("Khách A"), e.newCustomer("Khách B")
+	e.delivered(a, 100000)
+	e.delivered(b, 200000)
+	return a, b
+}
+
 func (e *statsEnv) newCustomer(name string) uuid.UUID {
 	e.t.Helper()
 	var id uuid.UUID
@@ -311,6 +320,7 @@ func (e *statsEnv) mergeAndFeed(survivor, merged uuid.UUID) customer.Merge {
 // (kho đã nhận) → 440.000. Gộp B (delivered 300.000) vào A → A 2 giao, 740.000, B về 0; StatsFor(B) là chỉ số của A;
 // hoàn tác → A 440.000, B 300.000. order.delivery_reversed giả → tính lại từ dữ liệu gốc (số bị sửa tay bị ghi đè).
 func TestStatsFromSource(t *testing.T) {
+	t.Parallel()
 	e := newStatsEnv(t)
 	a, b := e.newCustomer("Khách A"), e.newCustomer("Khách B")
 	o1 := e.delivered(a, 250000, 410000)
@@ -361,6 +371,7 @@ func TestStatsFromSource(t *testing.T) {
 // Review độc lập M2, A-03: gộp B (đã mua, customer) vào gốc A còn lead (tạo tay, chưa đơn) → sau khi tính lại chỉ số,
 // gốc A thành customer (nhóm đã có đơn). Khách lead không đơn nào vẫn là lead sau khi tính lại.
 func TestStatsPromotesRootAfterMerge(t *testing.T) {
+	t.Parallel()
 	e := newStatsEnv(t)
 	a, b, c := e.newCustomer("Khách A"), e.newCustomer("Khách B"), e.newCustomer("Khách C")
 	e.delivered(b, 270000)
@@ -387,6 +398,7 @@ func TestStatsPromotesRootAfterMerge(t *testing.T) {
 
 // Consumer: payload hỏng hay khách không có → lỗi vĩnh viễn; chạy lại cùng sự kiện cho cùng kết quả.
 func TestStatsConsumerPayload(t *testing.T) {
+	t.Parallel()
 	e := newStatsEnv(t)
 	c := e.consumer()
 	for name, p := range map[string]string{
@@ -427,10 +439,9 @@ func TestStatsConsumerPayload(t *testing.T) {
 // Song song: 8 lượt giao lại sự kiện đơn của A và B (consumer) chạy cùng lúc với lần gộp B vào A — không deadlock, không
 // lỗi; sau khi giao customer.merged, gốc A có chỉ số của cả nhóm và B về 0.
 func TestStatsConcurrentWithMerge(t *testing.T) {
+	t.Parallel()
 	e := newStatsEnv(t)
-	a, b := e.newCustomer("Khách A"), e.newCustomer("Khách B")
-	e.delivered(a, 100000)
-	e.delivered(b, 200000)
+	a, b := e.twoDelivered()
 	evs := e.pending()
 	c := e.consumer()
 	errs := make(chan error, 64)

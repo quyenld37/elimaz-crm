@@ -65,6 +65,7 @@ func staffWithOrderAudit(t *testing.T) (*testkit.Staff, uuid.UUID) {
 // Tiêu chí: Before/After có SĐT → changed_fields có phone, status; JSON của dòng không chứa 0911222333, 0922333444;
 // after.status = "confirmed"; các cột khác lưu đúng.
 func TestRecordAuditStoresFieldNamesNotPersonalValues(t *testing.T) {
+	t.Parallel()
 	s, a := staffWithOrderAudit(t)
 	var (
 		rowJSON, actorType, actorID, action, entityType, entityID, ip, requestID string
@@ -101,6 +102,7 @@ func TestRecordAuditStoresFieldNamesNotPersonalValues(t *testing.T) {
 
 // Tiêu chí: RecordAudit rồi transaction lỗi → 0 dòng (audit đi cùng transaction của thay đổi).
 func TestRecordAuditRolledBackWithTransaction(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a := s.Tenant(t, "A")
 	err := tenancy.WithTenant(t.Context(), s.App, a, func(tx pgx.Tx) error {
@@ -129,6 +131,7 @@ func execInTenant(t *testing.T, d *db.DB, tenantID uuid.UUID, q string) error {
 // Tiêu chí: UPDATE bằng chủ bảng → lỗi chứa append-only (cả DELETE, TRUNCATE, cả khi RLS lọc hết dòng);
 // bằng crm_app → lỗi quyền.
 func TestAuditLogsAppendOnly(t *testing.T) {
+	t.Parallel()
 	s, a := staffWithOrderAudit(t)
 	stmts := []string{
 		"UPDATE identity.audit_logs SET action = 'x'",
@@ -156,6 +159,7 @@ func TestAuditLogsAppendOnly(t *testing.T) {
 
 // Tiêu chí: tenant B không đọc được dòng của A; không ghi được dòng mang tenant A khi đang ở ngữ cảnh B.
 func TestAuditTenantIsolation(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a := s.Tenant(t, "A")
 	b := s.Tenant(t, "B")
@@ -182,6 +186,7 @@ func TestAuditTenantIsolation(t *testing.T) {
 
 // Đầu vào sai → ErrInvalidAudit, không ghi; chuỗi rỗng của cột tùy chọn lưu NULL; IP dạng ip:port lưu phần ip.
 func TestRecordAuditValidation(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a := s.Tenant(t, "A")
 	bad := map[string]func(*identity.AuditEntry){
@@ -232,6 +237,7 @@ func TestRecordAuditValidation(t *testing.T) {
 
 // Bảng audit có RLS nên phải qua mọi quy tắc schema như bảng nghiệp vụ (không nằm trong danh sách miễn).
 func TestAuditLogsRLSForced(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	var enabled, forced bool
 	if err := s.Owner.Pool.QueryRow(t.Context(),
@@ -249,6 +255,7 @@ func TestAuditLogsRLSForced(t *testing.T) {
 
 // Before nil (tạo mới) → mọi khóa của After; After nil (xóa) → mọi khóa của Before; số bằng nhau theo JSON.
 func TestAuditChangedFieldsEdges(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name          string
 		before, after map[string]any
@@ -328,6 +335,7 @@ func (g *auditGen) top(t *rapid.T, label string) map[string]any {
 // Quy luật (rapid): changed_fields đúng bằng tập khóa có giá trị khác; không giá trị nào dưới khóa nhạy cảm (ở mọi
 // cấp, cả trong slice) lọt vào JSON lưu; giá trị không nhạy cảm ở cấp đầu được giữ nguyên.
 func TestAuditPayloadProperty(t *testing.T) {
+	t.Parallel()
 	keys := []string{"status", "total", "note_id", "phone", "customer_address", "ship_text", "access_token", "BankAccount", "tags"}
 	rapid.Check(t, func(t *rapid.T) {
 		g := &auditGen{keys: keys, secrets: map[string]bool{}}

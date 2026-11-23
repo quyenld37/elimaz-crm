@@ -63,6 +63,12 @@ func (e *writeEnv) count(q string, args ...any) int {
 }
 
 // create tạo khách bằng Writer trong tenant A (đòi thành công).
+// pair tạo hai khách tên nameA (không SĐT) và nameB (SĐT phoneB, rỗng là không có).
+func (e *writeEnv) pair(nameA, nameB, phoneB string) (a, b customer.Customer) {
+	e.t.Helper()
+	return e.create(customer.CreateInput{FullName: nameA}), e.create(customer.CreateInput{FullName: nameB, Phone: phoneB})
+}
+
 func (e *writeEnv) create(in customer.CreateInput) customer.Customer {
 	e.t.Helper()
 	var c customer.Customer
@@ -88,6 +94,7 @@ func (e *writeEnv) get(id uuid.UUID) customer.Profile {
 // Lớp bọc M1 (Q30): customer.Create(ctx, tx, "Lan") trả id; hồ sơ có code KH…, root_id = id, name_search "lan",
 // sự kiện customer.created (Seq 1), audit của người làm system; tên rỗng vẫn ErrInvalidInput như M1.
 func TestCreateM1Wrapper(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	var id uuid.UUID
 	e.inTx(func(tx pgx.Tx) error {

@@ -35,6 +35,7 @@ type mergeModel struct {
 // khác gốc → cả nhóm bị gộp sang gốc giữ lại; hoàn tác lần không phải gần nhất → thành công hoặc merge_not_latest
 // (không đổi gì).
 func TestMergeUndoProperty(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		m := &mergeModel{e: e, rt: rt}

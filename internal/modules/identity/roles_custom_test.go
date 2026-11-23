@@ -77,6 +77,7 @@ func (e *staffEnv) withRolesManager() identity.AuthUser {
 }
 
 func TestCustomRole_CannotExceedActor(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	m := e.withRolesManager()
 
@@ -140,6 +141,7 @@ func TestCustomRole_CannotExceedActor(t *testing.T) {
 }
 
 func TestCustomRole_OwnerLocked(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	a := e.actor(emailA)
 	owner := e.roleByKey("owner")
@@ -153,6 +155,7 @@ func TestCustomRole_OwnerLocked(t *testing.T) {
 
 // Sửa vai trò mẫu warehouse bỏ inventory.stocktake → customized; EnsureDefaultRoles không thêm lại; owner vẫn đủ.
 func TestCustomRole_DefaultRoleCustomized(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	a := e.actor(emailA)
 	w := e.roleByKey("warehouse")
@@ -182,24 +185,12 @@ func TestCustomRole_DefaultRoleCustomized(t *testing.T) {
 	}
 }
 
-func TestCustomRole_ArchiveAndInput(t *testing.T) {
-	e := newStaffEnv(t)
-	a := e.actor(emailA)
-	r, err := e.createRole(a, "Kho phụ", "catalog.read", "inventory.read")
-	if err != nil {
-		t.Fatal(err)
-	}
-	k := e.ids[emailK]
-	if err := e.replace(a, k, g("warehouse", identity.ScopeWarehouse, "w1"), g(r.Key, identity.ScopeWarehouse, "w1")); err != nil {
-		t.Fatal(err)
-	}
-	if got := e.roleByKey(r.Key); got.HolderCount != 1 {
-		t.Fatalf("người giữ = %d, mong 1", got.HolderCount)
-	}
-	wantErr(t, "lưu trữ khi K active còn giữ", e.archiveRole(a, r.ID, r.Version), identity.ErrRoleInUse)
-
-	// Lỗi đầu vào.
-	_, err = e.createRole(a, "x", "foo.bar")
+// checkRoleInputErrors: lỗi đầu vào khi tạo, sửa vai trò r ("Kho phụ", chưa lưu trữ); giữ nguyên tên chính nó (khác
+// hoa thường) thì sửa được.
+func (e *staffEnv) checkRoleInputErrors(a identity.AuthUser, r identity.RoleRow) {
+	t := e.t
+	t.Helper()
+	_, err := e.createRole(a, "x", "foo.bar")
 	wantErr(t, "quyền lạ", err, identity.ErrUnknownPermission)
 	_, err = e.createRole(a, "  kho PHỤ ", "catalog.read")
 	wantErr(t, "trùng tên (hoa thường, khoảng trắng)", err, identity.ErrRoleNameTaken)
@@ -221,6 +212,26 @@ func TestCustomRole_ArchiveAndInput(t *testing.T) {
 	if _, err := e.updateRole(a, r.ID, r.Version, "KHO PHỤ", "catalog.read", "inventory.read"); err != nil {
 		t.Fatalf("đổi hoa thường tên của chính nó: %v", err)
 	}
+}
+
+func TestCustomRole_ArchiveAndInput(t *testing.T) {
+	t.Parallel()
+	e := newStaffEnv(t)
+	a := e.actor(emailA)
+	r, err := e.createRole(a, "Kho phụ", "catalog.read", "inventory.read")
+	if err != nil {
+		t.Fatal(err)
+	}
+	k := e.ids[emailK]
+	if err := e.replace(a, k, g("warehouse", identity.ScopeWarehouse, "w1"), g(r.Key, identity.ScopeWarehouse, "w1")); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.roleByKey(r.Key); got.HolderCount != 1 {
+		t.Fatalf("người giữ = %d, mong 1", got.HolderCount)
+	}
+	wantErr(t, "lưu trữ khi K active còn giữ", e.archiveRole(a, r.ID, r.Version), identity.ErrRoleInUse)
+
+	e.checkRoleInputErrors(a, r)
 
 	// Khóa K: không còn người active giữ → lưu trữ được.
 	if err := e.lock(a, k, true); err != nil {
@@ -256,6 +267,7 @@ func TestCustomRole_ArchiveAndInput(t *testing.T) {
 
 // Vai trò đã lưu trữ không cho quyền: người bị khóa còn giữ nó, được mở lại thì không lấy lại quyền.
 func TestCustomRole_ArchivedGivesNothing(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	a := e.actor(emailA)
 	r, err := e.createRole(a, "Nhật ký", "audit.read")
@@ -279,6 +291,7 @@ func TestCustomRole_ArchivedGivesNothing(t *testing.T) {
 // Song song (50 lượt): lưu trữ vai trò R và gán R cho K cùng lúc → hoặc lưu trữ thành công và gán nhận
 // ErrRoleArchived, hoặc gán thành công và lưu trữ nhận ErrRoleInUse; không deadlock.
 func TestCustomRole_ArchiveVsAssignConcurrent(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	a, b := e.actor(emailA), e.actor(emailB)
 	k := e.ids[emailK]
@@ -321,6 +334,7 @@ func TestCustomRole_ArchiveVsAssignConcurrent(t *testing.T) {
 
 // Hai lần tạo cùng tên cùng lúc (50 lượt): đúng một lần thành công, lần kia ErrRoleNameTaken.
 func TestCustomRole_NameTakenConcurrent(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	a, b := e.actor(emailA), e.actor(emailB)
 	for round := range 50 {
@@ -363,6 +377,7 @@ func (e *staffEnv) deadlocks() int64 {
 
 // Mọi quyền có đúng một dòng với nhãn tiếng Việt, nhóm và loại phạm vi; dòng xếp liền theo nhóm.
 func TestPermissionCatalog_Complete(t *testing.T) {
+	t.Parallel()
 	cat := identity.PermissionCatalog()
 	if len(cat) != len(identity.Permissions) {
 		t.Fatalf("danh mục có %d quyền, mong %d", len(cat), len(identity.Permissions))

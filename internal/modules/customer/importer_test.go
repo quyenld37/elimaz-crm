@@ -168,10 +168,26 @@ func (e *importEnv) run(body []byte) customer.Import {
 	return e.get(imp.ID)
 }
 
+// assertImportRowLacks: dòng customer_imports của lần nhập (cả cột lỗi) không chứa giá trị ô nào trong bads.
+func (e *importEnv) assertImportRowLacks(id uuid.UUID, bads ...string) {
+	e.t.Helper()
+	var raw string
+	e.inTx(func(tx pgx.Tx) error {
+		return tx.QueryRow(e.t.Context(), `SELECT row_to_json(i)::text FROM customer.customer_imports i WHERE id = $1`,
+			id).Scan(&raw)
+	})
+	for _, bad := range bads {
+		if strings.Contains(raw, bad) {
+			e.t.Errorf("dòng lần nhập chứa %q: %s", bad, raw)
+		}
+	}
+}
+
 // Tệp 5 dòng: dòng 3 SĐT sai "77777777", dòng 5 phường không thuộc tỉnh → ok 3, lỗi 2 (row 3, 5), lỗi không chứa giá trị ô;
 // dòng đủ cột có địa chỉ mặc định, ngày sinh, nhãn, ghi chú; ô chữ "=HYPERLINK(...)" lưu nguyên; một audit
 // customer.import, không audit customer.create; nhập lại cùng tệp → ok 0, skipped 3, không thêm khách.
 func TestImport_RowErrorsAndReimport(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	body := book(t, [][]string{
 		{"Nguyễn Văn An", "0912000001", "01/02/1990", "Thành phố Thử Một", "Phường Bến Thử", "12 Lê Lợi", "VIP; Mới ;VIP", "Khách quen"},
@@ -192,17 +208,8 @@ func TestImport_RowErrorsAndReimport(t *testing.T) {
 	if fmt.Sprint(imp.Errors) != fmt.Sprint(want) {
 		t.Errorf("lỗi dòng: %+v", imp.Errors)
 	}
-	var raw string
-	e.inTx(func(tx pgx.Tx) error {
-		return tx.QueryRow(t.Context(), `SELECT row_to_json(i)::text FROM customer.customer_imports i WHERE id = $1`,
-			imp.ID).Scan(&raw)
-	})
 	// SĐT sai dài 8 chữ số, không phải mẩu ngắn như "123": dòng có UUID ngẫu nhiên và mốc giờ, mẩu ngắn trùng ngẫu nhiên.
-	for _, bad := range []string{"77777777", "Bến Thử", "Lê Chi", "Thử Hai", "Hàng Bài"} {
-		if strings.Contains(raw, bad) {
-			t.Errorf("dòng lần nhập chứa %q: %s", bad, raw)
-		}
-	}
+	e.assertImportRowLacks(imp.ID, "77777777", "Bến Thử", "Lê Chi", "Thử Hai", "Hàng Bài")
 	if n := e.count(`SELECT count(*) FROM customer.customers`); n != 3 {
 		t.Errorf("số khách: %d", n)
 	}
@@ -258,6 +265,7 @@ func TestImport_RowErrorsAndReimport(t *testing.T) {
 // Ô trống bắt buộc, ngày sai, địa chỉ thiếu cột, nhãn dài, tên tỉnh lạ, ô công thức thật: mỗi dòng một lỗi đúng cột
 // và mã; SĐT trùng trong cùng tệp → dòng sau skipped; ngày dạng số của Excel đọc đúng.
 func TestImport_RowCodes(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.run(book(t, [][]string{
 		{"", "0912100001"},
@@ -291,6 +299,7 @@ func TestImport_RowCodes(t *testing.T) {
 
 // Việc chết sau lô 1 của tệp 1.200 dòng rồi chạy lại → đúng 1.200 khách, không trùng SĐT, số đếm đúng, một audit.
 func TestImport_ResumeAfterCrash(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.startRows(phoneRows(0, 1200))
 	errCrash := errors.New("tiến trình chết")
@@ -338,6 +347,7 @@ func TestImport_ResumeAfterCrash(t *testing.T) {
 // Lượt chạy hết ngân sách thời gian → not_sent (yield, hẹn 1 s) sau mỗi lô; các lượt sau làm tiếp đúng chỗ: 1.200 dòng
 // xong sau 3 lượt, số đếm đúng, không trùng.
 func TestImport_YieldsAndResumes(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.startRows(phoneRows(0, 1200))
 	customer.SetBudget(e.imp, 0)
@@ -371,6 +381,7 @@ func TestImport_YieldsAndResumes(t *testing.T) {
 // Lệnh hết lượt (dead) → OnTerminal đặt lần nhập chưa xong thành failed với lỗi cả tệp import_failed; lần nhập đã
 // done thì giữ nguyên.
 func TestImport_TerminalMarksFailed(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.startRows(phoneRows(0, 2))
 	e.inTx(func(tx pgx.Tx) error {
@@ -393,6 +404,7 @@ func TestImport_TerminalMarksFailed(t *testing.T) {
 // Tệp 20.001 dòng → ErrImportTooLarge trước khi tạo lần nhập; tệp sai tiêu đề, không phải xlsx → ErrImportFileInvalid;
 // tệp mục đích product_image, tệp của tenant khác → StartImport ErrImportFileInvalid, không ghi gì.
 func TestImport_FileChecks(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	ctx := t.Context()
 	big := e.upload(e.tenant, customer.ImportPurposeKey, book(t, phoneRows(0, 20_001)))
@@ -438,6 +450,7 @@ func TestImport_FileChecks(t *testing.T) {
 
 // Lệnh gặp tệp quá dòng (kiểm lúc bắt đầu bị bỏ qua) → failed với lỗi cả tệp {row 0, import_too_large}, không khách.
 func TestImport_JobFailsOnTooLarge(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.run(book(t, phoneRows(0, 20_001)))
 	if imp.Status != customer.ImportFailed || imp.FinishedAt == nil ||
@@ -451,6 +464,7 @@ func TestImport_JobFailsOnTooLarge(t *testing.T) {
 
 // Mẫu tệp có đúng 8 cột theo thứ tự và đọc lại được bằng xlsx.Read với tiêu đề mẫu (0 dòng).
 func TestImportTemplate(t *testing.T) {
+	t.Parallel()
 	want := []string{
 		"Họ tên*", "SĐT*", "Ngày sinh (dd/mm/yyyy)", "Tỉnh/thành", "Xã/phường", "Số nhà, đường",
 		"Nhãn (cách nhau bằng ;)", "Ghi chú",
@@ -471,6 +485,7 @@ func TestImportTemplate(t *testing.T) {
 // Task 429: lệnh nhập bị hẹn chạy lại sau (như sau một lỗi tạm khi máy bận) → drain vẫn chạy nó tới cuối thay vì dừng
 // khi hết việc đến hạn; lần nhập done.
 func TestImport_DrainRunsScheduledRetry(t *testing.T) {
+	t.Parallel()
 	e := newImportEnv(t)
 	imp := e.startRows([][]string{{"Nguyễn Văn An", "0912000001"}})
 	if _, err := e.staff.Owner.Pool.Exec(t.Context(), `UPDATE platform.jobs SET run_at = now() + interval '1 hour',

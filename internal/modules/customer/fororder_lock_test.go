@@ -17,6 +17,7 @@ import (
 // gắn SĐT, hoặc tìm theo SĐT của X) chạy song song → chờ khóa của lần gộp; sau khi gộp commit: RootID là S, S thành
 // customer, X vẫn lead (không promote hồ sơ đã thành con).
 func TestFindOrCreateForOrder_LocksRootAgainstMerge(t *testing.T) {
+	t.Parallel()
 	for name, input := range map[string]func(x customer.Customer) customer.OrderCustomerInput{
 		"hồ sơ có sẵn, không gắn SĐT": func(x customer.Customer) customer.OrderCustomerInput {
 			return customer.OrderCustomerInput{CustomerID: &x.ID}
@@ -26,6 +27,7 @@ func TestFindOrCreateForOrder_LocksRootAgainstMerge(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			e := newWriteEnv(t)
 			x := e.create(customer.CreateInput{FullName: "Khách X", Phone: "0903000001"})
 			s := e.create(customer.CreateInput{FullName: "Khách S"})

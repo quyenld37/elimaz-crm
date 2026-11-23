@@ -9,6 +9,7 @@ import (
 )
 
 func TestNormalizePhone(t *testing.T) {
+	t.Parallel()
 	ok := []struct{ in, want string }{
 		{"0912 345 678", "+84912345678"},
 		{"84912345678", "+84912345678"},
@@ -37,6 +38,7 @@ func TestNormalizePhone(t *testing.T) {
 }
 
 func TestReverseDigits(t *testing.T) {
+	t.Parallel()
 	cases := []struct{ in, want string }{
 		{"+84912345678", "87654321948"},
 		{"+842838123456", "654321838248"},

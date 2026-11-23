@@ -55,6 +55,7 @@ func codes(us []customer.AdminUnit) []string {
 }
 
 func TestListProvinces(t *testing.T) {
+	t.Parallel()
 	_, inTx := adminEnv(t)
 	var got []customer.AdminUnit
 	inTx(func(tx pgx.Tx) error {
@@ -85,6 +86,7 @@ func TestListProvinces(t *testing.T) {
 }
 
 func TestListWards(t *testing.T) {
+	t.Parallel()
 	_, inTx := adminEnv(t)
 	cases := []struct {
 		name, province, q string
@@ -123,6 +125,7 @@ func TestListWards(t *testing.T) {
 }
 
 func TestListWardsLimitCapped(t *testing.T) {
+	t.Parallel()
 	s, inTx := adminEnv(t)
 	if _, err := s.Owner.Pool.Exec(t.Context(), `INSERT INTO customer.admin_units
 		(code, level, parent_code, name, name_search, effective_from, source)
@@ -143,6 +146,7 @@ func TestListWardsLimitCapped(t *testing.T) {
 }
 
 func TestValidateUnits(t *testing.T) {
+	t.Parallel()
 	_, inTx := adminEnv(t)
 	inTx(func(tx pgx.Tx) error {
 		pair, err := customer.ValidateUnits(t.Context(), tx, "T01", "T01002")
@@ -176,6 +180,7 @@ func TestValidateUnits(t *testing.T) {
 // crm_app chỉ đọc danh mục: ghi, sửa, xóa đều lỗi quyền 42501. Bảng không có tenant_id nên đọc được cả ngoài
 // ngữ cảnh tenant.
 func TestAdminUnitsReadOnlyForApp(t *testing.T) {
+	t.Parallel()
 	s, _ := adminEnv(t)
 	for _, q := range []string{
 		`INSERT INTO customer.admin_units (code, level, parent_code, name, name_search, effective_from, source)
@@ -199,6 +204,7 @@ func TestAdminUnitsReadOnlyForApp(t *testing.T) {
 // Ràng buộc của bảng: cấp chỉ province/ward, tỉnh không có cha, xã phải có cha, cha phải tồn tại; sau migrate mọi xã
 // có cha là một tỉnh có trong bảng (đúng cả khi migration dữ liệu thật đã chạy).
 func TestAdminUnitsConstraints(t *testing.T) {
+	t.Parallel()
 	s, _ := adminEnv(t)
 	for _, c := range []struct{ name, values, code string }{
 		{"cấp lạ", "('T09', 'district', NULL", "23514"},

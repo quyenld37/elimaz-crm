@@ -54,9 +54,9 @@ func kinds(items []customer.TimelineItem) []string {
 // qua A hay qua B như nhau. Hai trang 3 + 3 không trùng, không sót; thêm một ghi chú giữa hai lần đọc thì trang sau
 // không đổi, ghi chú mới chỉ ở đầu trang đầu khi đọc lại.
 func TestTimelineGroupKeyset(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
-	a := e.create(customer.CreateInput{FullName: "A"})
-	b := e.create(customer.CreateInput{FullName: "B"})
+	a, b := e.pair("A", "B", "")
 	h := func(n int) time.Time { return e.now.Add(time.Duration(n) * time.Hour) }
 	o1 := e.insertOrder(a.ID, "", h(-5))
 	o2 := e.insertOrder(b.ID, "", h(-4))
@@ -110,6 +110,7 @@ func TestTimelineGroupKeyset(t *testing.T) {
 // hoàn tác gộp (mục merge_undone lúc hoàn tác, hiện ở cả hai nhóm).
 // Tóm tắt không có dữ liệu cá nhân. Khách tenant khác → ErrNotFound; con trỏ hỏng → ErrInvalidInput.
 func TestTimelineKinds(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	a := e.create(customer.CreateInput{FullName: "Nguyễn Văn A", Phone: "0912000111"})
 	b := e.create(customer.CreateInput{FullName: "B"})
@@ -190,6 +191,7 @@ func noPersonalData(t *testing.T, items []customer.TimelineItem, values ...strin
 
 // Mục cùng lúc: xếp theo kind giảm dần (note trước merge), rồi ref_id giảm dần; trang 1 + 2 nối lại đúng thứ tự đó.
 func TestTimelineTiedAt(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	c := e.create(customer.CreateInput{FullName: "C"})
 	x, y := e.mustNote(c.ID, "x", e.now), e.mustNote(c.ID, "y", e.now)

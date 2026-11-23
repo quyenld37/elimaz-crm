@@ -9,6 +9,7 @@ import (
 // Biên của mức hay hoàn (kế hoạch M3-21): high khi Returned ≥ HighMinReturned và tỷ lệ ≥ HighRateBP; watch khi
 // Returned ≥ WatchMinReturned; ngược lại none. Hint theo mức.
 func TestClassifyReturnRisk(t *testing.T) {
+	t.Parallel()
 	rr := ReturnRisk{WatchMinReturned: 2, HighMinReturned: 3, HighRateBP: 3000}
 	for _, c := range []struct {
 		name                string

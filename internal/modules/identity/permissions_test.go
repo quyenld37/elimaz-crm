@@ -21,6 +21,7 @@ func ptr(s identity.Scope) *identity.Scope { return &s }
 func user(grants ...identity.Grant) identity.AuthUser { return identity.AuthUser{Grants: grants} }
 
 func TestCanTable(t *testing.T) {
+	t.Parallel()
 	p1, p2 := page("p1"), page("p2")
 	cases := []struct {
 		name   string
@@ -59,6 +60,7 @@ func TestCanTable(t *testing.T) {
 }
 
 func TestScopesFor(t *testing.T) {
+	t.Parallel()
 	u := user(
 		identity.Grant{Permission: "conversation.read", Scope: page("p2")},
 		identity.Grant{Permission: "conversation.read", Scope: page("p1")},
@@ -79,6 +81,7 @@ func TestScopesFor(t *testing.T) {
 }
 
 func TestPermissionsList(t *testing.T) {
+	t.Parallel()
 	want := map[identity.Permission]identity.ScopeKind{
 		"realtime.subscribe": identity.ScopeNone, "audit.read": identity.ScopeShop,
 		"platform.jobs.manage": identity.ScopeShop, "platform.health.read": identity.ScopeShop,
@@ -168,6 +171,7 @@ func grantsGen(keys []identity.Permission, scopes *rapid.Generator[identity.Scop
 }
 
 func TestCanProperty(t *testing.T) {
+	t.Parallel()
 	keys := permissionKeys()
 	genScope := scopeGen("p1", "p2", "w1")
 	rapid.Check(t, func(t *rapid.T) {
@@ -214,6 +218,7 @@ func canModel(grants []identity.Grant, p identity.Permission, target *identity.S
 
 // Effective: grant của quyền toàn shop chỉ có hiệu lực ở phạm vi all; quyền khác luôn có hiệu lực.
 func TestEffective(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		g    identity.Grant
 		want bool
@@ -234,6 +239,7 @@ func TestEffective(t *testing.T) {
 // ShopOnlyWarnings: mỗi gán vai trò ở phạm vi hẹp hơn toàn shop mà vai trò có quyền toàn shop → một cảnh báo kèm các
 // quyền đó (đã sắp); gán all, vai trò không có quyền quản trị, vai trò lạ → không cảnh báo.
 func TestShopOnlyWarnings(t *testing.T) {
+	t.Parallel()
 	roles := []identity.RoleRow{
 		{Key: "owner", Permissions: []identity.Permission{"platform.jobs.manage", "catalog.read", "identity.users.manage"}},
 		{Key: "warehouse", Permissions: []identity.Permission{"catalog.read", "inventory.read"}},
@@ -259,6 +265,7 @@ func TestShopOnlyWarnings(t *testing.T) {
 }
 
 func TestCheckMFA(t *testing.T) {
+	t.Parallel()
 	allowed := []string{"mfa", "otp"}
 	cases := []struct {
 		name  string
@@ -290,6 +297,7 @@ func TestCheckMFA(t *testing.T) {
 
 // Quy luật: CheckMFA qua khi và chỉ khi giá trị (chuỗi hoặc mảng) có ít nhất một phần tử nằm trong allowed.
 func TestCheckMFAProperty(t *testing.T) {
+	t.Parallel()
 	vals := []string{"mfa", "otp", "pwd", "hwk", ""}
 	rapid.Check(t, func(t *rapid.T) {
 		allowed := rapid.SliceOfDistinct(rapid.SampledFrom(vals), rapid.ID).Draw(t, "allowed")
@@ -308,6 +316,7 @@ func TestCheckMFAProperty(t *testing.T) {
 // Quyền quản trị (ScopeShop): grant phạm vi hẹp đứng trước không chặn grant phạm vi all đứng sau; grant thiếu mã đích
 // (Type khác all, ID rỗng) không được coi là all (mutation testing Task 23: isAll còn sống).
 func TestCanShopScopeGrantOrderAndEmptyID(t *testing.T) {
+	t.Parallel()
 	wh := identity.Scope{Type: identity.ScopeWarehouse, ID: "w1"}
 	u := identity.AuthUser{Grants: []identity.Grant{
 		{Permission: "platform.health.read", Scope: wh},
@@ -327,6 +336,7 @@ func TestCanShopScopeGrantOrderAndEmptyID(t *testing.T) {
 // Quyền theo kho của M3 (Task M3-04): fulfillment.ship gán theo kho W1 không cho kho W2; ScopesFor trả [W1]; quyền kho
 // M3 mới (in tem) cũng chỉ ở đúng kho được gán.
 func TestCan_M3WarehouseScope(t *testing.T) {
+	t.Parallel()
 	w1 := identity.Scope{Type: identity.ScopeWarehouse, ID: "W1"}
 	w2 := identity.Scope{Type: identity.ScopeWarehouse, ID: "W2"}
 	u := identity.AuthUser{Grants: []identity.Grant{

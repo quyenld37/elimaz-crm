@@ -12,11 +12,18 @@ import (
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
+// newPropEnv: database riêng, chưa có tenant; mỗi lượt rapid tự dựng tenant (newPropRun).
+func newPropEnv(t *testing.T) *staffEnv {
+	t.Helper()
+	return &staffEnv{t: t, s: testkit.OpenStaff(t), ids: map[string]uuid.UUID{}}
+}
+
 // Quy luật (rapid, 200 lượt, PQ07): chuỗi ngẫu nhiên các lần gán, gỡ, khóa, mở của 2–5 nhân viên →
 // (1) luôn còn ít nhất một Chủ hoạt động; (2) mỗi lần thay grant thành công, mọi quyền của mọi grant được thêm hay
 // gỡ đều nằm trong quyền của người gán lúc gán; (3) không ai sửa được chính mình.
 func TestStaffInvariantsProperty(t *testing.T) {
-	e := &staffEnv{t: t, s: testkit.OpenStaff(t), ids: map[string]uuid.UUID{}}
+	t.Parallel()
+	e := newPropEnv(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		run := newPropRun(e, rt)
 		for range rapid.IntRange(1, 12).Draw(rt, "steps") {

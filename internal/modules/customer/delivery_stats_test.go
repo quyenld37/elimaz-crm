@@ -75,6 +75,7 @@ func (e *statsEnv) deliveredWith(c uuid.UUID, price int64) (order.Order, uuid.UU
 // watch, ngưỡng 20% (đúng biên) là high. Khách trả hàng sau khi nhận không đổi returned (Q-13). HighRateBP 5000 → K1
 // watch. Hồ sơ con đọc số của gốc. Không có → ErrNotFound.
 func TestDeliveryStatsFor(t *testing.T) {
+	t.Parallel()
 	e := newStatsEnv(t)
 	k1, k2, k3, k4 := e.newCustomer("Khách K1"), e.newCustomer("Khách K2"), e.newCustomer("Khách K3"),
 		e.newCustomer("Khách K4")
