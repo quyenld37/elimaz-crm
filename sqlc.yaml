@@ -170,6 +170,21 @@ sql:
               type: string
               pointer: true
             nullable: true
+          - column: promotion.web_campaigns.preview_revision
+            go_type:
+              type: int32
+              pointer: true
+            nullable: true
+          - column: promotion.web_campaigns.preview_models
+            go_type:
+              type: int32
+              pointer: true
+            nullable: true
+          - column: promotion.web_campaigns.preview_variants
+            go_type:
+              type: int32
+              pointer: true
+            nullable: true
           - db_type: uuid
             go_type:
               import: github.com/google/uuid

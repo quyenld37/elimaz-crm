@@ -124,6 +124,10 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   statement_changed: "Bảng kê vừa được người khác thay đổi. Tải lại rồi chốt lại",
   statement_duplicate: "Tệp bảng kê này đã được nhập trước đó",
   tracking_code_conflict: "Mã vận đơn của hãng đã dùng cho vận đơn khác",
+  // Chiến dịch giảm giá web (Task 452)
+  campaign_running: "Chiến dịch đang bật. Tạm dừng trước rồi mới sửa hoặc xóa",
+  percent_too_high: "Phần trăm giảm vượt mức tối đa cài đặt của shop (mặc định 50%)",
+  preview_required: "Cần xem trước giá của bản hiện tại (hoặc xem lại vì hàng đã đổi) rồi mới bật",
 };
 
 /** Câu cho từng lý do từ chối mã giảm giá (CouponRejectReason: checkCoupon.reason, thân lỗi coupon_rejected.reason). */

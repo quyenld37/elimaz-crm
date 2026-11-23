@@ -13,6 +13,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order"
+	"elimaz.com.vn/crm/internal/modules/promotion"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/realtime"
@@ -54,6 +55,7 @@ func (c *Consumer) Topics() []string {
 	return []string{
 		catalog.TopicProductUpdated, catalog.TopicPriceChanged, inventory.TopicStockChanged,
 		topicFlashOpened, topicFlashClosed, topicFlashChanged, string(topicOrderCancelled), topicCarrierWebSettings,
+		promotion.TopicWebCampaignChanged,
 	}
 }
 
@@ -114,6 +116,10 @@ func entitiesOf(e events.StoredEvent) ([]realtime.Entity, error) {
 		return []realtime.Entity{{Type: EntityFlashSale, ID: e.AggregateID}}, nil
 	case topicCarrierWebSettings:
 		return []realtime.Entity{{Type: EntityCarrierSettings, ID: e.AggregateID}}, nil
+	case promotion.TopicWebCampaignChanged:
+		// Danh sách, trang chiến dịch của website (SpaceCampaigns, làm mới cả vùng). Mẫu không mang giá chiến dịch
+		// (website tự tính từ danh sách) nên không xóa khóa sản phẩm.
+		return []realtime.Entity{{Type: EntityWebCampaign, ID: e.AggregateID}}, nil
 	}
 	// order.cancelled: chỉ đơn có dòng flash sale tạo báo hiệu flash_item, tra bằng order.FlashItemOf của M5-19; trước
 	// M5-19 bỏ qua. Chủ đề khác: không nghe.

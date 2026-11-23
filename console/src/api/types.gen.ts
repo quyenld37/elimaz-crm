@@ -3079,6 +3079,146 @@ export type OrderCodSummary = {
     shopReceived: SignedMoney;
 };
 
+export type WebCampaignScope = 'all' | 'products' | 'categories';
+
+export type WebCampaignState = 'draft' | 'enabled' | 'paused';
+
+/**
+ * Trạng thái hiển thị — draft, paused theo state; còn lại theo giờ (endsAt đúng giờ là ended)
+ */
+export type WebCampaignStatus = 'draft' | 'paused' | 'scheduled' | 'active' | 'ended';
+
+export type WebCampaignInput = {
+    name: string;
+    percent: number;
+    scope: WebCampaignScope;
+    /**
+     * Mã mẫu (products) hay mã danh mục (categories), 1–30 không trùng; all thì rỗng
+     */
+    targetIds?: Array<string>;
+    /**
+     * Dòng có chiến dịch này vẫn được dùng mã giảm giá
+     */
+    allowCoupon?: boolean;
+    /**
+     * Hàng cắt mã — mẫu thuộc chiến dịch đang chạy hiện ở "Siêu ưu đãi"
+     */
+    clearance?: boolean;
+    startsAt: string;
+    endsAt: string;
+};
+
+export type SaveWebCampaignRequest = {
+    revision: number;
+    campaign: WebCampaignInput;
+};
+
+export type WebCampaignRevision = {
+    revision: number;
+};
+
+export type WebCampaignPreviewCounts = {
+    revision: number;
+    modelCount: number;
+    variantCount: number;
+};
+
+export type WebCampaignPreview = {
+    revision: number;
+    modelCount: number;
+    variantCount: number;
+    samples: Array<WebCampaignSample>;
+};
+
+export type WebCampaignSample = {
+    productId: string;
+    variantId: string;
+    productName: string;
+    listPrice: Money;
+    salePrice: Money;
+};
+
+export type SetWebCampaignStateRequest = {
+    revision: number;
+    state: 'enabled' | 'paused';
+    reason: string;
+    preview?: WebCampaignPreviewCounts;
+};
+
+export type DeleteWebCampaignRequest = {
+    revision: number;
+    reason: string;
+};
+
+export type WebCampaign = {
+    id: string;
+    name: string;
+    percent: number;
+    scope: WebCampaignScope;
+    targetIds: Array<string>;
+    allowCoupon: boolean;
+    clearance: boolean;
+    startsAt: string;
+    endsAt: string;
+    state: WebCampaignState;
+    status: WebCampaignStatus;
+    revision: number;
+    linkKey: string;
+    /**
+     * Đường dẫn trang chiến dịch trên website, /uu-dai/<tên>-<linkKey>
+     */
+    path: string;
+    preview?: WebCampaignPreviewCounts;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type WebCampaignPage = {
+    items: Array<WebCampaign>;
+    nextCursor?: string;
+};
+
+export type CampaignTarget = {
+    id: string;
+    /**
+     * Mã mẫu, hay slug của danh mục
+     */
+    code: string;
+    name: string;
+};
+
+export type CampaignTargetPage = {
+    items: Array<CampaignTarget>;
+    nextCursor?: string;
+};
+
+export type WebCampaignPublic = {
+    id: string;
+    sellerId: string;
+    name: string;
+    percent: number;
+    scope: WebCampaignScope;
+    targetIds: Array<string>;
+    allowCoupon: boolean;
+    clearance: boolean;
+    startsAt: string;
+    endsAt: string;
+    status: WebCampaignStatus;
+    revision: number;
+    /**
+     * Phần tên của liên kết (bỏ dấu, ≤ 60); rỗng khi tên không còn chữ
+     */
+    slug: string;
+    /**
+     * 8 hex đầu của id
+     */
+    linkKey: string;
+};
+
+export type WebCampaignList = {
+    items: Array<WebCampaignPublic>;
+};
+
 export type ProductWritable = {
     id: string;
     code: string;
@@ -3150,6 +3290,8 @@ export type DuplicateOtherOrderId = string;
 export type ReturnId = string;
 
 export type TrafficSourceId = string;
+
+export type CampaignId = string;
 
 export type CouponId = string;
 
@@ -7260,6 +7402,262 @@ export type ListCouponRedemptionsResponses = {
 
 export type ListCouponRedemptionsResponse = ListCouponRedemptionsResponses[keyof ListCouponRedemptionsResponses];
 
+export type ListWebCampaignsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: WebCampaignStatus;
+        q?: string;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/web-campaigns';
+};
+
+export type ListWebCampaignsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListWebCampaignsError = ListWebCampaignsErrors[keyof ListWebCampaignsErrors];
+
+export type ListWebCampaignsResponses = {
+    /**
+     * listWebCampaigns
+     */
+    200: WebCampaignPage;
+};
+
+export type ListWebCampaignsResponse = ListWebCampaignsResponses[keyof ListWebCampaignsResponses];
+
+export type CreateWebCampaignData = {
+    body: WebCampaignInput;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web-campaigns';
+};
+
+export type CreateWebCampaignErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CreateWebCampaignError = CreateWebCampaignErrors[keyof CreateWebCampaignErrors];
+
+export type CreateWebCampaignResponses = {
+    /**
+     * createWebCampaign
+     */
+    201: WebCampaign;
+};
+
+export type CreateWebCampaignResponse = CreateWebCampaignResponses[keyof CreateWebCampaignResponses];
+
+export type GetWebCampaignData = {
+    body?: never;
+    path: {
+        campaignId: string;
+    };
+    query?: never;
+    url: '/api/v1/web-campaigns/{campaignId}';
+};
+
+export type GetWebCampaignErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetWebCampaignError = GetWebCampaignErrors[keyof GetWebCampaignErrors];
+
+export type GetWebCampaignResponses = {
+    /**
+     * getWebCampaign
+     */
+    200: WebCampaign;
+};
+
+export type GetWebCampaignResponse = GetWebCampaignResponses[keyof GetWebCampaignResponses];
+
+export type SaveWebCampaignData = {
+    body: SaveWebCampaignRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        campaignId: string;
+    };
+    query?: never;
+    url: '/api/v1/web-campaigns/{campaignId}';
+};
+
+export type SaveWebCampaignErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SaveWebCampaignError = SaveWebCampaignErrors[keyof SaveWebCampaignErrors];
+
+export type SaveWebCampaignResponses = {
+    /**
+     * saveWebCampaign
+     */
+    200: WebCampaign;
+};
+
+export type SaveWebCampaignResponse = SaveWebCampaignResponses[keyof SaveWebCampaignResponses];
+
+export type PreviewWebCampaignData = {
+    body: WebCampaignRevision;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        campaignId: string;
+    };
+    query?: never;
+    url: '/api/v1/web-campaigns/{campaignId}/preview';
+};
+
+export type PreviewWebCampaignErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type PreviewWebCampaignError = PreviewWebCampaignErrors[keyof PreviewWebCampaignErrors];
+
+export type PreviewWebCampaignResponses = {
+    /**
+     * previewWebCampaign
+     */
+    200: WebCampaignPreview;
+};
+
+export type PreviewWebCampaignResponse = PreviewWebCampaignResponses[keyof PreviewWebCampaignResponses];
+
+export type SetWebCampaignStateData = {
+    body: SetWebCampaignStateRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        campaignId: string;
+    };
+    query?: never;
+    url: '/api/v1/web-campaigns/{campaignId}/state';
+};
+
+export type SetWebCampaignStateErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SetWebCampaignStateError = SetWebCampaignStateErrors[keyof SetWebCampaignStateErrors];
+
+export type SetWebCampaignStateResponses = {
+    /**
+     * setWebCampaignState
+     */
+    200: WebCampaign;
+};
+
+export type SetWebCampaignStateResponse = SetWebCampaignStateResponses[keyof SetWebCampaignStateResponses];
+
+export type DeleteWebCampaignData = {
+    body: DeleteWebCampaignRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        campaignId: string;
+    };
+    query?: never;
+    url: '/api/v1/web-campaigns/{campaignId}/delete';
+};
+
+export type DeleteWebCampaignErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type DeleteWebCampaignError = DeleteWebCampaignErrors[keyof DeleteWebCampaignErrors];
+
+export type DeleteWebCampaignResponses = {
+    /**
+     * deleteWebCampaign
+     */
+    200: WebCampaignRevision;
+};
+
+export type DeleteWebCampaignResponse = DeleteWebCampaignResponses[keyof DeleteWebCampaignResponses];
+
+export type ListCampaignTargetsData = {
+    body?: never;
+    path?: never;
+    query: {
+        kind: 'product' | 'category';
+        q?: string;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/web-campaign-targets';
+};
+
+export type ListCampaignTargetsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListCampaignTargetsError = ListCampaignTargetsErrors[keyof ListCampaignTargetsErrors];
+
+export type ListCampaignTargetsResponses = {
+    /**
+     * listCampaignTargets
+     */
+    200: CampaignTargetPage;
+};
+
+export type ListCampaignTargetsResponse = ListCampaignTargetsResponses[keyof ListCampaignTargetsResponses];
+
 export type CheckCouponData = {
     body?: never;
     path?: never;
@@ -9193,3 +9591,61 @@ export type WebLocationsResponses = {
 };
 
 export type WebLocationsResponse = WebLocationsResponses[keyof WebLocationsResponses];
+
+export type WebCampaignsData = {
+    body?: never;
+    headers?: {
+        /**
+         * ETag của lần đọc trước (website, Task 190)
+         */
+        'If-None-Match'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/campaigns';
+};
+
+export type WebCampaignsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebCampaignsError = WebCampaignsErrors[keyof WebCampaignsErrors];
+
+export type WebCampaignsResponses = {
+    /**
+     * Chiến dịch theo id
+     */
+    200: WebCampaignList;
+};
+
+export type WebCampaignsResponse = WebCampaignsResponses[keyof WebCampaignsResponses];
+
+export type WebCampaignData = {
+    body?: never;
+    path: {
+        linkKey: string;
+    };
+    query?: never;
+    url: '/api/v1/web/campaigns/{linkKey}';
+};
+
+export type WebCampaignErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebCampaignError = WebCampaignErrors[keyof WebCampaignErrors];
+
+export type WebCampaignResponses = {
+    /**
+     * Chiến dịch
+     */
+    200: WebCampaignPublic;
+};
+
+export type WebCampaignResponse = WebCampaignResponses[keyof WebCampaignResponses];

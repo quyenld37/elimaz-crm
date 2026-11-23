@@ -30,13 +30,15 @@ const (
 	SpaceCarriers     Space = "carriers"
 	SpaceShipQuote    Space = "shipquote"
 	SpaceEstimates    Space = "estimates"
+	// SpaceCampaigns: chiến dịch giảm giá web (Task 452), làm mới theo promotion.web_campaign.changed.
+	SpaceCampaigns Space = "campaigns"
 )
 
 // Spaces trả mọi vùng của bộ đệm đọc (resync làm mới tất cả).
 func Spaces() []Space {
 	all := [...]Space{
 		SpaceProduct, SpaceProductsPage, SpaceTaxonomy, SpaceAvailability, SpaceFlash, SpaceLocations,
-		SpaceSold30, SpaceCarriers, SpaceShipQuote, SpaceEstimates,
+		SpaceSold30, SpaceCarriers, SpaceShipQuote, SpaceEstimates, SpaceCampaigns,
 	}
 	return all[:]
 }

@@ -1950,6 +1950,72 @@ func (s *CallbackTaskStatus) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/CampaignTarget
+type CampaignTarget struct {
+	ID uuid.UUID `json:"id"`
+	// Mã mẫu, hay slug của danh mục.
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+// GetID returns the value of ID.
+func (s *CampaignTarget) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCode returns the value of Code.
+func (s *CampaignTarget) GetCode() string {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *CampaignTarget) GetName() string {
+	return s.Name
+}
+
+// SetID sets the value of ID.
+func (s *CampaignTarget) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCode sets the value of Code.
+func (s *CampaignTarget) SetCode(val string) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *CampaignTarget) SetName(val string) {
+	s.Name = val
+}
+
+// Ref: #/components/schemas/CampaignTargetPage
+type CampaignTargetPage struct {
+	Items      []CampaignTarget `json:"items"`
+	NextCursor OptString        `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *CampaignTargetPage) GetItems() []CampaignTarget {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *CampaignTargetPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *CampaignTargetPage) SetItems(val []CampaignTarget) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *CampaignTargetPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*CampaignTargetPage) listCampaignTargetsRes() {}
+
 // Ref: #/components/schemas/CancelOrderRequest
 type CancelOrderRequest struct {
 	Version int64                    `json:"version"`
@@ -8762,6 +8828,32 @@ func (s *DeepHealth) SetLastFileSyncAgeM(val OptInt64) {
 	s.LastFileSyncAgeM = val
 }
 
+// Ref: #/components/schemas/DeleteWebCampaignRequest
+type DeleteWebCampaignRequest struct {
+	Revision int32  `json:"revision"`
+	Reason   string `json:"reason"`
+}
+
+// GetRevision returns the value of Revision.
+func (s *DeleteWebCampaignRequest) GetRevision() int32 {
+	return s.Revision
+}
+
+// GetReason returns the value of Reason.
+func (s *DeleteWebCampaignRequest) GetReason() string {
+	return s.Reason
+}
+
+// SetRevision sets the value of Revision.
+func (s *DeleteWebCampaignRequest) SetRevision(val int32) {
+	s.Revision = val
+}
+
+// SetReason sets the value of Reason.
+func (s *DeleteWebCampaignRequest) SetReason(val string) {
+	s.Reason = val
+}
+
 // Ref: #/components/schemas/DeliveryStats
 type DeliveryStats struct {
 	Delivered int32 `json:"delivered"`
@@ -9305,8 +9397,10 @@ func (*ErrorStatusCode) createSupplierRes()              {}
 func (*ErrorStatusCode) createTagRes()                   {}
 func (*ErrorStatusCode) createTrafficSourceRes()         {}
 func (*ErrorStatusCode) createUploadRes()                {}
+func (*ErrorStatusCode) createWebCampaignRes()           {}
 func (*ErrorStatusCode) deleteCustomerAddressRes()       {}
 func (*ErrorStatusCode) deleteProductImageRes()          {}
+func (*ErrorStatusCode) deleteWebCampaignRes()           {}
 func (*ErrorStatusCode) getCatalogImportRes()            {}
 func (*ErrorStatusCode) getCatalogImportTemplateRes()    {}
 func (*ErrorStatusCode) getCodStatementRes()             {}
@@ -9336,6 +9430,7 @@ func (*ErrorStatusCode) getShipmentRes()                 {}
 func (*ErrorStatusCode) getStockDocumentRes()            {}
 func (*ErrorStatusCode) getStocktakeRes()                {}
 func (*ErrorStatusCode) getWarehousePickupRes()          {}
+func (*ErrorStatusCode) getWebCampaignRes()              {}
 func (*ErrorStatusCode) healthDeepRes()                  {}
 func (*ErrorStatusCode) importCodStatementRes()          {}
 func (*ErrorStatusCode) listAdminUnitsRes()              {}
@@ -9343,6 +9438,7 @@ func (*ErrorStatusCode) listAgedReservationsRes()        {}
 func (*ErrorStatusCode) listAttributesRes()              {}
 func (*ErrorStatusCode) listBalancesRes()                {}
 func (*ErrorStatusCode) listCallbackTasksRes()           {}
+func (*ErrorStatusCode) listCampaignTargetsRes()         {}
 func (*ErrorStatusCode) listCarrierAccountsRes()         {}
 func (*ErrorStatusCode) listCategoriesRes()              {}
 func (*ErrorStatusCode) listCodDiscrepanciesRes()        {}
@@ -9380,12 +9476,14 @@ func (*ErrorStatusCode) listTagsRes()                    {}
 func (*ErrorStatusCode) listTrafficSourcesRes()          {}
 func (*ErrorStatusCode) listUnmappedLocationsRes()       {}
 func (*ErrorStatusCode) listWarehousesRes()              {}
+func (*ErrorStatusCode) listWebCampaignsRes()            {}
 func (*ErrorStatusCode) lockStaffRes()                   {}
 func (*ErrorStatusCode) mergeCustomerRes()               {}
 func (*ErrorStatusCode) payRefundObligationRes()         {}
 func (*ErrorStatusCode) postStockDocumentRes()           {}
 func (*ErrorStatusCode) previewCodAdjustmentRes()        {}
 func (*ErrorStatusCode) previewShipmentCorrectionRes()   {}
+func (*ErrorStatusCode) previewWebCampaignRes()          {}
 func (*ErrorStatusCode) putCarrierCredentialsRes()       {}
 func (*ErrorStatusCode) putCustomerTagRuleRes()          {}
 func (*ErrorStatusCode) receiveReturnRes()               {}
@@ -9409,6 +9507,7 @@ func (*ErrorStatusCode) resolveShipmentCreateRes()       {}
 func (*ErrorStatusCode) restoreProductImageRes()         {}
 func (*ErrorStatusCode) retryJobRes()                    {}
 func (*ErrorStatusCode) revokeServiceKeyRes()            {}
+func (*ErrorStatusCode) saveWebCampaignRes()             {}
 func (*ErrorStatusCode) searchVariantsRes()              {}
 func (*ErrorStatusCode) setCarrierAccountStatusRes()     {}
 func (*ErrorStatusCode) setOrderPendingRes()             {}
@@ -9417,6 +9516,7 @@ func (*ErrorStatusCode) setProductClassificationRes()    {}
 func (*ErrorStatusCode) setProductImageColorRes()        {}
 func (*ErrorStatusCode) setShipmentManualStatusRes()     {}
 func (*ErrorStatusCode) setWarehousePickupRes()          {}
+func (*ErrorStatusCode) setWebCampaignStateRes()         {}
 func (*ErrorStatusCode) startCustomerImportRes()         {}
 func (*ErrorStatusCode) startStocktakeRes()              {}
 func (*ErrorStatusCode) streamRes()                      {}
@@ -9441,6 +9541,8 @@ func (*ErrorStatusCode) updateVariantRes()               {}
 func (*ErrorStatusCode) verifyFilesRes()                 {}
 func (*ErrorStatusCode) waiveRefundObligationRes()       {}
 func (*ErrorStatusCode) webAvailabilityRes()             {}
+func (*ErrorStatusCode) webCampaignRes()                 {}
+func (*ErrorStatusCode) webCampaignsRes()                {}
 func (*ErrorStatusCode) webCatalogChangesRes()           {}
 func (*ErrorStatusCode) webCatalogProductsRes()          {}
 func (*ErrorStatusCode) webCatalogTaxonomyRes()          {}
@@ -10605,6 +10707,47 @@ func (s *ListCallbackTasksStatus) UnmarshalText(data []byte) error {
 		return nil
 	case ListCallbackTasksStatusDone:
 		*s = ListCallbackTasksStatusDone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ListCampaignTargetsKind string
+
+const (
+	ListCampaignTargetsKindProduct  ListCampaignTargetsKind = "product"
+	ListCampaignTargetsKindCategory ListCampaignTargetsKind = "category"
+)
+
+// AllValues returns all ListCampaignTargetsKind values.
+func (ListCampaignTargetsKind) AllValues() []ListCampaignTargetsKind {
+	return []ListCampaignTargetsKind{
+		ListCampaignTargetsKindProduct,
+		ListCampaignTargetsKindCategory,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ListCampaignTargetsKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ListCampaignTargetsKindProduct:
+		return []byte(s), nil
+	case ListCampaignTargetsKindCategory:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ListCampaignTargetsKind) UnmarshalText(data []byte) error {
+	switch ListCampaignTargetsKind(data) {
+	case ListCampaignTargetsKindProduct:
+		*s = ListCampaignTargetsKindProduct
+		return nil
+	case ListCampaignTargetsKindCategory:
+		*s = ListCampaignTargetsKindCategory
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -15245,6 +15388,98 @@ func (o OptVariantStatus) Get() (v VariantStatus, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptVariantStatus) Or(d VariantStatus) VariantStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptWebCampaignPreviewCounts returns new OptWebCampaignPreviewCounts with value set to v.
+func NewOptWebCampaignPreviewCounts(v WebCampaignPreviewCounts) OptWebCampaignPreviewCounts {
+	return OptWebCampaignPreviewCounts{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWebCampaignPreviewCounts is optional WebCampaignPreviewCounts.
+type OptWebCampaignPreviewCounts struct {
+	Value WebCampaignPreviewCounts
+	Set   bool
+}
+
+// IsSet returns true if OptWebCampaignPreviewCounts was set.
+func (o OptWebCampaignPreviewCounts) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWebCampaignPreviewCounts) Reset() {
+	var v WebCampaignPreviewCounts
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWebCampaignPreviewCounts) SetTo(v WebCampaignPreviewCounts) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWebCampaignPreviewCounts) Get() (v WebCampaignPreviewCounts, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWebCampaignPreviewCounts) Or(d WebCampaignPreviewCounts) WebCampaignPreviewCounts {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptWebCampaignStatus returns new OptWebCampaignStatus with value set to v.
+func NewOptWebCampaignStatus(v WebCampaignStatus) OptWebCampaignStatus {
+	return OptWebCampaignStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWebCampaignStatus is optional WebCampaignStatus.
+type OptWebCampaignStatus struct {
+	Value WebCampaignStatus
+	Set   bool
+}
+
+// IsSet returns true if OptWebCampaignStatus was set.
+func (o OptWebCampaignStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWebCampaignStatus) Reset() {
+	var v WebCampaignStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWebCampaignStatus) SetTo(v WebCampaignStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWebCampaignStatus) Get() (v WebCampaignStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWebCampaignStatus) Or(d WebCampaignStatus) WebCampaignStatus {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -20472,6 +20707,32 @@ func (s *RoleStatus) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/SaveWebCampaignRequest
+type SaveWebCampaignRequest struct {
+	Revision int32            `json:"revision"`
+	Campaign WebCampaignInput `json:"campaign"`
+}
+
+// GetRevision returns the value of Revision.
+func (s *SaveWebCampaignRequest) GetRevision() int32 {
+	return s.Revision
+}
+
+// GetCampaign returns the value of Campaign.
+func (s *SaveWebCampaignRequest) GetCampaign() WebCampaignInput {
+	return s.Campaign
+}
+
+// SetRevision sets the value of Revision.
+func (s *SaveWebCampaignRequest) SetRevision(val int32) {
+	s.Revision = val
+}
+
+// SetCampaign sets the value of Campaign.
+func (s *SaveWebCampaignRequest) SetCampaign(val WebCampaignInput) {
+	s.Campaign = val
+}
+
 // Ref: #/components/schemas/Scope
 type Scope struct {
 	Type ScopeType `json:"type"`
@@ -21295,6 +21556,95 @@ func (s *SetWarehousePickupRequest) SetProvinceCode(val string) {
 // SetWardCode sets the value of WardCode.
 func (s *SetWarehousePickupRequest) SetWardCode(val string) {
 	s.WardCode = val
+}
+
+// Ref: #/components/schemas/SetWebCampaignStateRequest
+type SetWebCampaignStateRequest struct {
+	Revision int32                           `json:"revision"`
+	State    SetWebCampaignStateRequestState `json:"state"`
+	Reason   string                          `json:"reason"`
+	Preview  OptWebCampaignPreviewCounts     `json:"preview"`
+}
+
+// GetRevision returns the value of Revision.
+func (s *SetWebCampaignStateRequest) GetRevision() int32 {
+	return s.Revision
+}
+
+// GetState returns the value of State.
+func (s *SetWebCampaignStateRequest) GetState() SetWebCampaignStateRequestState {
+	return s.State
+}
+
+// GetReason returns the value of Reason.
+func (s *SetWebCampaignStateRequest) GetReason() string {
+	return s.Reason
+}
+
+// GetPreview returns the value of Preview.
+func (s *SetWebCampaignStateRequest) GetPreview() OptWebCampaignPreviewCounts {
+	return s.Preview
+}
+
+// SetRevision sets the value of Revision.
+func (s *SetWebCampaignStateRequest) SetRevision(val int32) {
+	s.Revision = val
+}
+
+// SetState sets the value of State.
+func (s *SetWebCampaignStateRequest) SetState(val SetWebCampaignStateRequestState) {
+	s.State = val
+}
+
+// SetReason sets the value of Reason.
+func (s *SetWebCampaignStateRequest) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetPreview sets the value of Preview.
+func (s *SetWebCampaignStateRequest) SetPreview(val OptWebCampaignPreviewCounts) {
+	s.Preview = val
+}
+
+type SetWebCampaignStateRequestState string
+
+const (
+	SetWebCampaignStateRequestStateEnabled SetWebCampaignStateRequestState = "enabled"
+	SetWebCampaignStateRequestStatePaused  SetWebCampaignStateRequestState = "paused"
+)
+
+// AllValues returns all SetWebCampaignStateRequestState values.
+func (SetWebCampaignStateRequestState) AllValues() []SetWebCampaignStateRequestState {
+	return []SetWebCampaignStateRequestState{
+		SetWebCampaignStateRequestStateEnabled,
+		SetWebCampaignStateRequestStatePaused,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SetWebCampaignStateRequestState) MarshalText() ([]byte, error) {
+	switch s {
+	case SetWebCampaignStateRequestStateEnabled:
+		return []byte(s), nil
+	case SetWebCampaignStateRequestStatePaused:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SetWebCampaignStateRequestState) UnmarshalText(data []byte) error {
+	switch SetWebCampaignStateRequestState(data) {
+	case SetWebCampaignStateRequestStateEnabled:
+		*s = SetWebCampaignStateRequestStateEnabled
+		return nil
+	case SetWebCampaignStateRequestStatePaused:
+		*s = SetWebCampaignStateRequestStatePaused
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Tài khoản hãng dùng được để gửi một đơn (chỉ phần người gửi cần chọn;
@@ -26856,6 +27206,862 @@ func (s *WebAvailabilityItem) SetAvailable(val bool) {
 func (s *WebAvailabilityItem) SetLow(val bool) {
 	s.Low = val
 }
+
+// Ref: #/components/schemas/WebCampaign
+type WebCampaign struct {
+	ID          uuid.UUID         `json:"id"`
+	Name        string            `json:"name"`
+	Percent     int32             `json:"percent"`
+	Scope       WebCampaignScope  `json:"scope"`
+	TargetIds   []uuid.UUID       `json:"targetIds"`
+	AllowCoupon bool              `json:"allowCoupon"`
+	Clearance   bool              `json:"clearance"`
+	StartsAt    time.Time         `json:"startsAt"`
+	EndsAt      time.Time         `json:"endsAt"`
+	State       WebCampaignState  `json:"state"`
+	Status      WebCampaignStatus `json:"status"`
+	Revision    int32             `json:"revision"`
+	LinkKey     string            `json:"linkKey"`
+	// Đường dẫn trang chiến dịch trên website, /uu-dai/<tên>-.
+	Path      string                      `json:"path"`
+	Preview   OptWebCampaignPreviewCounts `json:"preview"`
+	CreatedAt time.Time                   `json:"createdAt"`
+	UpdatedAt time.Time                   `json:"updatedAt"`
+}
+
+// GetID returns the value of ID.
+func (s *WebCampaign) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *WebCampaign) GetName() string {
+	return s.Name
+}
+
+// GetPercent returns the value of Percent.
+func (s *WebCampaign) GetPercent() int32 {
+	return s.Percent
+}
+
+// GetScope returns the value of Scope.
+func (s *WebCampaign) GetScope() WebCampaignScope {
+	return s.Scope
+}
+
+// GetTargetIds returns the value of TargetIds.
+func (s *WebCampaign) GetTargetIds() []uuid.UUID {
+	return s.TargetIds
+}
+
+// GetAllowCoupon returns the value of AllowCoupon.
+func (s *WebCampaign) GetAllowCoupon() bool {
+	return s.AllowCoupon
+}
+
+// GetClearance returns the value of Clearance.
+func (s *WebCampaign) GetClearance() bool {
+	return s.Clearance
+}
+
+// GetStartsAt returns the value of StartsAt.
+func (s *WebCampaign) GetStartsAt() time.Time {
+	return s.StartsAt
+}
+
+// GetEndsAt returns the value of EndsAt.
+func (s *WebCampaign) GetEndsAt() time.Time {
+	return s.EndsAt
+}
+
+// GetState returns the value of State.
+func (s *WebCampaign) GetState() WebCampaignState {
+	return s.State
+}
+
+// GetStatus returns the value of Status.
+func (s *WebCampaign) GetStatus() WebCampaignStatus {
+	return s.Status
+}
+
+// GetRevision returns the value of Revision.
+func (s *WebCampaign) GetRevision() int32 {
+	return s.Revision
+}
+
+// GetLinkKey returns the value of LinkKey.
+func (s *WebCampaign) GetLinkKey() string {
+	return s.LinkKey
+}
+
+// GetPath returns the value of Path.
+func (s *WebCampaign) GetPath() string {
+	return s.Path
+}
+
+// GetPreview returns the value of Preview.
+func (s *WebCampaign) GetPreview() OptWebCampaignPreviewCounts {
+	return s.Preview
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *WebCampaign) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *WebCampaign) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetID sets the value of ID.
+func (s *WebCampaign) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *WebCampaign) SetName(val string) {
+	s.Name = val
+}
+
+// SetPercent sets the value of Percent.
+func (s *WebCampaign) SetPercent(val int32) {
+	s.Percent = val
+}
+
+// SetScope sets the value of Scope.
+func (s *WebCampaign) SetScope(val WebCampaignScope) {
+	s.Scope = val
+}
+
+// SetTargetIds sets the value of TargetIds.
+func (s *WebCampaign) SetTargetIds(val []uuid.UUID) {
+	s.TargetIds = val
+}
+
+// SetAllowCoupon sets the value of AllowCoupon.
+func (s *WebCampaign) SetAllowCoupon(val bool) {
+	s.AllowCoupon = val
+}
+
+// SetClearance sets the value of Clearance.
+func (s *WebCampaign) SetClearance(val bool) {
+	s.Clearance = val
+}
+
+// SetStartsAt sets the value of StartsAt.
+func (s *WebCampaign) SetStartsAt(val time.Time) {
+	s.StartsAt = val
+}
+
+// SetEndsAt sets the value of EndsAt.
+func (s *WebCampaign) SetEndsAt(val time.Time) {
+	s.EndsAt = val
+}
+
+// SetState sets the value of State.
+func (s *WebCampaign) SetState(val WebCampaignState) {
+	s.State = val
+}
+
+// SetStatus sets the value of Status.
+func (s *WebCampaign) SetStatus(val WebCampaignStatus) {
+	s.Status = val
+}
+
+// SetRevision sets the value of Revision.
+func (s *WebCampaign) SetRevision(val int32) {
+	s.Revision = val
+}
+
+// SetLinkKey sets the value of LinkKey.
+func (s *WebCampaign) SetLinkKey(val string) {
+	s.LinkKey = val
+}
+
+// SetPath sets the value of Path.
+func (s *WebCampaign) SetPath(val string) {
+	s.Path = val
+}
+
+// SetPreview sets the value of Preview.
+func (s *WebCampaign) SetPreview(val OptWebCampaignPreviewCounts) {
+	s.Preview = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *WebCampaign) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *WebCampaign) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+func (*WebCampaign) createWebCampaignRes()   {}
+func (*WebCampaign) getWebCampaignRes()      {}
+func (*WebCampaign) saveWebCampaignRes()     {}
+func (*WebCampaign) setWebCampaignStateRes() {}
+
+// Ref: #/components/schemas/WebCampaignInput
+type WebCampaignInput struct {
+	Name    string           `json:"name"`
+	Percent int32            `json:"percent"`
+	Scope   WebCampaignScope `json:"scope"`
+	// Mã mẫu (products) hay mã danh mục (categories), 1–30 không trùng; all thì rỗng.
+	TargetIds []uuid.UUID `json:"targetIds"`
+	// Dòng có chiến dịch này vẫn được dùng mã giảm giá.
+	AllowCoupon OptBool `json:"allowCoupon"`
+	// Hàng cắt mã — mẫu thuộc chiến dịch đang chạy hiện ở "Siêu ưu đãi".
+	Clearance OptBool   `json:"clearance"`
+	StartsAt  time.Time `json:"startsAt"`
+	EndsAt    time.Time `json:"endsAt"`
+}
+
+// GetName returns the value of Name.
+func (s *WebCampaignInput) GetName() string {
+	return s.Name
+}
+
+// GetPercent returns the value of Percent.
+func (s *WebCampaignInput) GetPercent() int32 {
+	return s.Percent
+}
+
+// GetScope returns the value of Scope.
+func (s *WebCampaignInput) GetScope() WebCampaignScope {
+	return s.Scope
+}
+
+// GetTargetIds returns the value of TargetIds.
+func (s *WebCampaignInput) GetTargetIds() []uuid.UUID {
+	return s.TargetIds
+}
+
+// GetAllowCoupon returns the value of AllowCoupon.
+func (s *WebCampaignInput) GetAllowCoupon() OptBool {
+	return s.AllowCoupon
+}
+
+// GetClearance returns the value of Clearance.
+func (s *WebCampaignInput) GetClearance() OptBool {
+	return s.Clearance
+}
+
+// GetStartsAt returns the value of StartsAt.
+func (s *WebCampaignInput) GetStartsAt() time.Time {
+	return s.StartsAt
+}
+
+// GetEndsAt returns the value of EndsAt.
+func (s *WebCampaignInput) GetEndsAt() time.Time {
+	return s.EndsAt
+}
+
+// SetName sets the value of Name.
+func (s *WebCampaignInput) SetName(val string) {
+	s.Name = val
+}
+
+// SetPercent sets the value of Percent.
+func (s *WebCampaignInput) SetPercent(val int32) {
+	s.Percent = val
+}
+
+// SetScope sets the value of Scope.
+func (s *WebCampaignInput) SetScope(val WebCampaignScope) {
+	s.Scope = val
+}
+
+// SetTargetIds sets the value of TargetIds.
+func (s *WebCampaignInput) SetTargetIds(val []uuid.UUID) {
+	s.TargetIds = val
+}
+
+// SetAllowCoupon sets the value of AllowCoupon.
+func (s *WebCampaignInput) SetAllowCoupon(val OptBool) {
+	s.AllowCoupon = val
+}
+
+// SetClearance sets the value of Clearance.
+func (s *WebCampaignInput) SetClearance(val OptBool) {
+	s.Clearance = val
+}
+
+// SetStartsAt sets the value of StartsAt.
+func (s *WebCampaignInput) SetStartsAt(val time.Time) {
+	s.StartsAt = val
+}
+
+// SetEndsAt sets the value of EndsAt.
+func (s *WebCampaignInput) SetEndsAt(val time.Time) {
+	s.EndsAt = val
+}
+
+// Ref: #/components/schemas/WebCampaignList
+type WebCampaignList struct {
+	Items []WebCampaignPublic `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *WebCampaignList) GetItems() []WebCampaignPublic {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *WebCampaignList) SetItems(val []WebCampaignPublic) {
+	s.Items = val
+}
+
+// WebCampaignListHeaders wraps WebCampaignList with response headers.
+type WebCampaignListHeaders struct {
+	ETag     OptString
+	Response WebCampaignList
+}
+
+// GetETag returns the value of ETag.
+func (s *WebCampaignListHeaders) GetETag() OptString {
+	return s.ETag
+}
+
+// GetResponse returns the value of Response.
+func (s *WebCampaignListHeaders) GetResponse() WebCampaignList {
+	return s.Response
+}
+
+// SetETag sets the value of ETag.
+func (s *WebCampaignListHeaders) SetETag(val OptString) {
+	s.ETag = val
+}
+
+// SetResponse sets the value of Response.
+func (s *WebCampaignListHeaders) SetResponse(val WebCampaignList) {
+	s.Response = val
+}
+
+func (*WebCampaignListHeaders) webCampaignsRes() {}
+
+// Ref: #/components/schemas/WebCampaignPage
+type WebCampaignPage struct {
+	Items      []WebCampaign `json:"items"`
+	NextCursor OptString     `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *WebCampaignPage) GetItems() []WebCampaign {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *WebCampaignPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *WebCampaignPage) SetItems(val []WebCampaign) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *WebCampaignPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*WebCampaignPage) listWebCampaignsRes() {}
+
+// Ref: #/components/schemas/WebCampaignPreview
+type WebCampaignPreview struct {
+	Revision     int32               `json:"revision"`
+	ModelCount   int32               `json:"modelCount"`
+	VariantCount int32               `json:"variantCount"`
+	Samples      []WebCampaignSample `json:"samples"`
+}
+
+// GetRevision returns the value of Revision.
+func (s *WebCampaignPreview) GetRevision() int32 {
+	return s.Revision
+}
+
+// GetModelCount returns the value of ModelCount.
+func (s *WebCampaignPreview) GetModelCount() int32 {
+	return s.ModelCount
+}
+
+// GetVariantCount returns the value of VariantCount.
+func (s *WebCampaignPreview) GetVariantCount() int32 {
+	return s.VariantCount
+}
+
+// GetSamples returns the value of Samples.
+func (s *WebCampaignPreview) GetSamples() []WebCampaignSample {
+	return s.Samples
+}
+
+// SetRevision sets the value of Revision.
+func (s *WebCampaignPreview) SetRevision(val int32) {
+	s.Revision = val
+}
+
+// SetModelCount sets the value of ModelCount.
+func (s *WebCampaignPreview) SetModelCount(val int32) {
+	s.ModelCount = val
+}
+
+// SetVariantCount sets the value of VariantCount.
+func (s *WebCampaignPreview) SetVariantCount(val int32) {
+	s.VariantCount = val
+}
+
+// SetSamples sets the value of Samples.
+func (s *WebCampaignPreview) SetSamples(val []WebCampaignSample) {
+	s.Samples = val
+}
+
+func (*WebCampaignPreview) previewWebCampaignRes() {}
+
+// Ref: #/components/schemas/WebCampaignPreviewCounts
+type WebCampaignPreviewCounts struct {
+	Revision     int32 `json:"revision"`
+	ModelCount   int32 `json:"modelCount"`
+	VariantCount int32 `json:"variantCount"`
+}
+
+// GetRevision returns the value of Revision.
+func (s *WebCampaignPreviewCounts) GetRevision() int32 {
+	return s.Revision
+}
+
+// GetModelCount returns the value of ModelCount.
+func (s *WebCampaignPreviewCounts) GetModelCount() int32 {
+	return s.ModelCount
+}
+
+// GetVariantCount returns the value of VariantCount.
+func (s *WebCampaignPreviewCounts) GetVariantCount() int32 {
+	return s.VariantCount
+}
+
+// SetRevision sets the value of Revision.
+func (s *WebCampaignPreviewCounts) SetRevision(val int32) {
+	s.Revision = val
+}
+
+// SetModelCount sets the value of ModelCount.
+func (s *WebCampaignPreviewCounts) SetModelCount(val int32) {
+	s.ModelCount = val
+}
+
+// SetVariantCount sets the value of VariantCount.
+func (s *WebCampaignPreviewCounts) SetVariantCount(val int32) {
+	s.VariantCount = val
+}
+
+// Ref: #/components/schemas/WebCampaignPublic
+type WebCampaignPublic struct {
+	ID          uuid.UUID         `json:"id"`
+	SellerId    uuid.UUID         `json:"sellerId"`
+	Name        string            `json:"name"`
+	Percent     int32             `json:"percent"`
+	Scope       WebCampaignScope  `json:"scope"`
+	TargetIds   []uuid.UUID       `json:"targetIds"`
+	AllowCoupon bool              `json:"allowCoupon"`
+	Clearance   bool              `json:"clearance"`
+	StartsAt    time.Time         `json:"startsAt"`
+	EndsAt      time.Time         `json:"endsAt"`
+	Status      WebCampaignStatus `json:"status"`
+	Revision    int32             `json:"revision"`
+	// Phần tên của liên kết (bỏ dấu, ≤ 60); rỗng khi tên không còn chữ.
+	Slug string `json:"slug"`
+	// 8 hex đầu của id.
+	LinkKey string `json:"linkKey"`
+}
+
+// GetID returns the value of ID.
+func (s *WebCampaignPublic) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetSellerId returns the value of SellerId.
+func (s *WebCampaignPublic) GetSellerId() uuid.UUID {
+	return s.SellerId
+}
+
+// GetName returns the value of Name.
+func (s *WebCampaignPublic) GetName() string {
+	return s.Name
+}
+
+// GetPercent returns the value of Percent.
+func (s *WebCampaignPublic) GetPercent() int32 {
+	return s.Percent
+}
+
+// GetScope returns the value of Scope.
+func (s *WebCampaignPublic) GetScope() WebCampaignScope {
+	return s.Scope
+}
+
+// GetTargetIds returns the value of TargetIds.
+func (s *WebCampaignPublic) GetTargetIds() []uuid.UUID {
+	return s.TargetIds
+}
+
+// GetAllowCoupon returns the value of AllowCoupon.
+func (s *WebCampaignPublic) GetAllowCoupon() bool {
+	return s.AllowCoupon
+}
+
+// GetClearance returns the value of Clearance.
+func (s *WebCampaignPublic) GetClearance() bool {
+	return s.Clearance
+}
+
+// GetStartsAt returns the value of StartsAt.
+func (s *WebCampaignPublic) GetStartsAt() time.Time {
+	return s.StartsAt
+}
+
+// GetEndsAt returns the value of EndsAt.
+func (s *WebCampaignPublic) GetEndsAt() time.Time {
+	return s.EndsAt
+}
+
+// GetStatus returns the value of Status.
+func (s *WebCampaignPublic) GetStatus() WebCampaignStatus {
+	return s.Status
+}
+
+// GetRevision returns the value of Revision.
+func (s *WebCampaignPublic) GetRevision() int32 {
+	return s.Revision
+}
+
+// GetSlug returns the value of Slug.
+func (s *WebCampaignPublic) GetSlug() string {
+	return s.Slug
+}
+
+// GetLinkKey returns the value of LinkKey.
+func (s *WebCampaignPublic) GetLinkKey() string {
+	return s.LinkKey
+}
+
+// SetID sets the value of ID.
+func (s *WebCampaignPublic) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetSellerId sets the value of SellerId.
+func (s *WebCampaignPublic) SetSellerId(val uuid.UUID) {
+	s.SellerId = val
+}
+
+// SetName sets the value of Name.
+func (s *WebCampaignPublic) SetName(val string) {
+	s.Name = val
+}
+
+// SetPercent sets the value of Percent.
+func (s *WebCampaignPublic) SetPercent(val int32) {
+	s.Percent = val
+}
+
+// SetScope sets the value of Scope.
+func (s *WebCampaignPublic) SetScope(val WebCampaignScope) {
+	s.Scope = val
+}
+
+// SetTargetIds sets the value of TargetIds.
+func (s *WebCampaignPublic) SetTargetIds(val []uuid.UUID) {
+	s.TargetIds = val
+}
+
+// SetAllowCoupon sets the value of AllowCoupon.
+func (s *WebCampaignPublic) SetAllowCoupon(val bool) {
+	s.AllowCoupon = val
+}
+
+// SetClearance sets the value of Clearance.
+func (s *WebCampaignPublic) SetClearance(val bool) {
+	s.Clearance = val
+}
+
+// SetStartsAt sets the value of StartsAt.
+func (s *WebCampaignPublic) SetStartsAt(val time.Time) {
+	s.StartsAt = val
+}
+
+// SetEndsAt sets the value of EndsAt.
+func (s *WebCampaignPublic) SetEndsAt(val time.Time) {
+	s.EndsAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *WebCampaignPublic) SetStatus(val WebCampaignStatus) {
+	s.Status = val
+}
+
+// SetRevision sets the value of Revision.
+func (s *WebCampaignPublic) SetRevision(val int32) {
+	s.Revision = val
+}
+
+// SetSlug sets the value of Slug.
+func (s *WebCampaignPublic) SetSlug(val string) {
+	s.Slug = val
+}
+
+// SetLinkKey sets the value of LinkKey.
+func (s *WebCampaignPublic) SetLinkKey(val string) {
+	s.LinkKey = val
+}
+
+func (*WebCampaignPublic) webCampaignRes() {}
+
+// Ref: #/components/schemas/WebCampaignRevision
+type WebCampaignRevision struct {
+	Revision int32 `json:"revision"`
+}
+
+// GetRevision returns the value of Revision.
+func (s *WebCampaignRevision) GetRevision() int32 {
+	return s.Revision
+}
+
+// SetRevision sets the value of Revision.
+func (s *WebCampaignRevision) SetRevision(val int32) {
+	s.Revision = val
+}
+
+func (*WebCampaignRevision) deleteWebCampaignRes() {}
+
+// Ref: #/components/schemas/WebCampaignSample
+type WebCampaignSample struct {
+	ProductId   uuid.UUID `json:"productId"`
+	VariantId   uuid.UUID `json:"variantId"`
+	ProductName string    `json:"productName"`
+	ListPrice   Money     `json:"listPrice"`
+	SalePrice   Money     `json:"salePrice"`
+}
+
+// GetProductId returns the value of ProductId.
+func (s *WebCampaignSample) GetProductId() uuid.UUID {
+	return s.ProductId
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *WebCampaignSample) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetProductName returns the value of ProductName.
+func (s *WebCampaignSample) GetProductName() string {
+	return s.ProductName
+}
+
+// GetListPrice returns the value of ListPrice.
+func (s *WebCampaignSample) GetListPrice() Money {
+	return s.ListPrice
+}
+
+// GetSalePrice returns the value of SalePrice.
+func (s *WebCampaignSample) GetSalePrice() Money {
+	return s.SalePrice
+}
+
+// SetProductId sets the value of ProductId.
+func (s *WebCampaignSample) SetProductId(val uuid.UUID) {
+	s.ProductId = val
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *WebCampaignSample) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetProductName sets the value of ProductName.
+func (s *WebCampaignSample) SetProductName(val string) {
+	s.ProductName = val
+}
+
+// SetListPrice sets the value of ListPrice.
+func (s *WebCampaignSample) SetListPrice(val Money) {
+	s.ListPrice = val
+}
+
+// SetSalePrice sets the value of SalePrice.
+func (s *WebCampaignSample) SetSalePrice(val Money) {
+	s.SalePrice = val
+}
+
+// Ref: #/components/schemas/WebCampaignScope
+type WebCampaignScope string
+
+const (
+	WebCampaignScopeAll        WebCampaignScope = "all"
+	WebCampaignScopeProducts   WebCampaignScope = "products"
+	WebCampaignScopeCategories WebCampaignScope = "categories"
+)
+
+// AllValues returns all WebCampaignScope values.
+func (WebCampaignScope) AllValues() []WebCampaignScope {
+	return []WebCampaignScope{
+		WebCampaignScopeAll,
+		WebCampaignScopeProducts,
+		WebCampaignScopeCategories,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WebCampaignScope) MarshalText() ([]byte, error) {
+	switch s {
+	case WebCampaignScopeAll:
+		return []byte(s), nil
+	case WebCampaignScopeProducts:
+		return []byte(s), nil
+	case WebCampaignScopeCategories:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WebCampaignScope) UnmarshalText(data []byte) error {
+	switch WebCampaignScope(data) {
+	case WebCampaignScopeAll:
+		*s = WebCampaignScopeAll
+		return nil
+	case WebCampaignScopeProducts:
+		*s = WebCampaignScopeProducts
+		return nil
+	case WebCampaignScopeCategories:
+		*s = WebCampaignScopeCategories
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/WebCampaignState
+type WebCampaignState string
+
+const (
+	WebCampaignStateDraft   WebCampaignState = "draft"
+	WebCampaignStateEnabled WebCampaignState = "enabled"
+	WebCampaignStatePaused  WebCampaignState = "paused"
+)
+
+// AllValues returns all WebCampaignState values.
+func (WebCampaignState) AllValues() []WebCampaignState {
+	return []WebCampaignState{
+		WebCampaignStateDraft,
+		WebCampaignStateEnabled,
+		WebCampaignStatePaused,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WebCampaignState) MarshalText() ([]byte, error) {
+	switch s {
+	case WebCampaignStateDraft:
+		return []byte(s), nil
+	case WebCampaignStateEnabled:
+		return []byte(s), nil
+	case WebCampaignStatePaused:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WebCampaignState) UnmarshalText(data []byte) error {
+	switch WebCampaignState(data) {
+	case WebCampaignStateDraft:
+		*s = WebCampaignStateDraft
+		return nil
+	case WebCampaignStateEnabled:
+		*s = WebCampaignStateEnabled
+		return nil
+	case WebCampaignStatePaused:
+		*s = WebCampaignStatePaused
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Trạng thái hiển thị — draft, paused theo state; còn lại theo giờ (endsAt đúng giờ
+// là ended).
+// Ref: #/components/schemas/WebCampaignStatus
+type WebCampaignStatus string
+
+const (
+	WebCampaignStatusDraft     WebCampaignStatus = "draft"
+	WebCampaignStatusPaused    WebCampaignStatus = "paused"
+	WebCampaignStatusScheduled WebCampaignStatus = "scheduled"
+	WebCampaignStatusActive    WebCampaignStatus = "active"
+	WebCampaignStatusEnded     WebCampaignStatus = "ended"
+)
+
+// AllValues returns all WebCampaignStatus values.
+func (WebCampaignStatus) AllValues() []WebCampaignStatus {
+	return []WebCampaignStatus{
+		WebCampaignStatusDraft,
+		WebCampaignStatusPaused,
+		WebCampaignStatusScheduled,
+		WebCampaignStatusActive,
+		WebCampaignStatusEnded,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WebCampaignStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case WebCampaignStatusDraft:
+		return []byte(s), nil
+	case WebCampaignStatusPaused:
+		return []byte(s), nil
+	case WebCampaignStatusScheduled:
+		return []byte(s), nil
+	case WebCampaignStatusActive:
+		return []byte(s), nil
+	case WebCampaignStatusEnded:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WebCampaignStatus) UnmarshalText(data []byte) error {
+	switch WebCampaignStatus(data) {
+	case WebCampaignStatusDraft:
+		*s = WebCampaignStatusDraft
+		return nil
+	case WebCampaignStatusPaused:
+		*s = WebCampaignStatusPaused
+		return nil
+	case WebCampaignStatusScheduled:
+		*s = WebCampaignStatusScheduled
+		return nil
+	case WebCampaignStatusActive:
+		*s = WebCampaignStatusActive
+		return nil
+	case WebCampaignStatusEnded:
+		*s = WebCampaignStatusEnded
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// WebCampaignsNotModified is response for WebCampaigns operation.
+type WebCampaignsNotModified struct{}
+
+func (*WebCampaignsNotModified) webCampaignsRes() {}
 
 // Ref: #/components/schemas/WebCatalogChanges
 type WebCatalogChanges struct {

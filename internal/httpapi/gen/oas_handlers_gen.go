@@ -5070,6 +5070,106 @@ func (s *Server) handleCreateUploadRequest(args [0]string, argsEscaped bool, w h
 	}
 }
 
+// handleCreateWebCampaignRequest handles createWebCampaign operation.
+//
+// Tạo chiến dịch nháp; phần trăm vượt trần cài đặt (mặc định 50) → 422
+// percent_too_high (Task 452).
+//
+// POST /api/v1/web-campaigns
+func (s *Server) handleCreateWebCampaignRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CreateWebCampaignOperation,
+			ID:   "createWebCampaign",
+		}
+	)
+	params, err := decodeCreateWebCampaignParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCreateWebCampaignRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response CreateWebCampaignRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CreateWebCampaignOperation,
+			OperationSummary: "Tạo chiến dịch nháp; phần trăm vượt trần cài đặt (mặc định 50) → 422 percent_too_high (Task 452)",
+			OperationID:      "createWebCampaign",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *WebCampaignInput
+			Params   = CreateWebCampaignParams
+			Response = CreateWebCampaignRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCreateWebCampaignParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CreateWebCampaign(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CreateWebCampaign(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCreateWebCampaignResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleDeleteCustomerAddressRequest handles deleteCustomerAddress operation.
 //
 // Xóa mềm một địa chỉ (Task M2-09).
@@ -5247,6 +5347,110 @@ func (s *Server) handleDeleteProductImageRequest(args [2]string, argsEscaped boo
 	}
 
 	if err := encodeDeleteProductImageResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleDeleteWebCampaignRequest handles deleteWebCampaign operation.
+//
+// Xóa chiến dịch không đang bật, lý do bắt buộc; banner trỏ chiến dịch tự ẩn
+// (Task 452).
+//
+// POST /api/v1/web-campaigns/{campaignId}/delete
+func (s *Server) handleDeleteWebCampaignRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: DeleteWebCampaignOperation,
+			ID:   "deleteWebCampaign",
+		}
+	)
+	params, err := decodeDeleteWebCampaignParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeDeleteWebCampaignRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response DeleteWebCampaignRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    DeleteWebCampaignOperation,
+			OperationSummary: "Xóa chiến dịch không đang bật, lý do bắt buộc; banner trỏ chiến dịch tự ẩn (Task 452)",
+			OperationID:      "deleteWebCampaign",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "campaignId",
+					In:   "path",
+				}: params.CampaignId,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *DeleteWebCampaignRequest
+			Params   = DeleteWebCampaignParams
+			Response = DeleteWebCampaignRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackDeleteWebCampaignParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.DeleteWebCampaign(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.DeleteWebCampaign(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeDeleteWebCampaignResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -7613,6 +7817,90 @@ func (s *Server) handleGetWarehousePickupRequest(args [1]string, argsEscaped boo
 	}
 }
 
+// handleGetWebCampaignRequest handles getWebCampaign operation.
+//
+// Một chiến dịch kèm đích, bản xem trước đã ghi (Task 452).
+//
+// GET /api/v1/web-campaigns/{campaignId}
+func (s *Server) handleGetWebCampaignRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetWebCampaignOperation,
+			ID:   "getWebCampaign",
+		}
+	)
+	params, err := decodeGetWebCampaignParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetWebCampaignRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetWebCampaignOperation,
+			OperationSummary: "Một chiến dịch kèm đích, bản xem trước đã ghi (Task 452)",
+			OperationID:      "getWebCampaign",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "campaignId",
+					In:   "path",
+				}: params.CampaignId,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetWebCampaignParams
+			Response = GetWebCampaignRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetWebCampaignParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetWebCampaign(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetWebCampaign(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetWebCampaignResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleHealthDeepRequest handles healthDeep operation.
 //
 // Kiểm sâu cho dịch vụ canh ngoài (Bearer HEALTH_TOKEN, Task 20); không có dữ liệu
@@ -8356,6 +8644,103 @@ func (s *Server) handleListCallbackTasksRequest(args [0]string, argsEscaped bool
 	}
 
 	if err := encodeListCallbackTasksResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleListCampaignTargetsRequest handles listCampaignTargets operation.
+//
+// Đích chọn được cho chiến dịch: mẫu (q theo mã, tên không dấu) hay danh mục
+// (Task 452).
+//
+// GET /api/v1/web-campaign-targets
+func (s *Server) handleListCampaignTargetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListCampaignTargetsOperation,
+			ID:   "listCampaignTargets",
+		}
+	)
+	params, err := decodeListCampaignTargetsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListCampaignTargetsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListCampaignTargetsOperation,
+			OperationSummary: "Đích chọn được cho chiến dịch: mẫu (q theo mã, tên không dấu) hay danh mục (Task 452)",
+			OperationID:      "listCampaignTargets",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "kind",
+					In:   "query",
+				}: params.Kind,
+				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListCampaignTargetsParams
+			Response = ListCampaignTargetsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListCampaignTargetsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListCampaignTargets(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListCampaignTargets(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListCampaignTargetsResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -11582,6 +11967,103 @@ func (s *Server) handleListWarehousesRequest(args [0]string, argsEscaped bool, w
 	}
 }
 
+// handleListWebCampaignsRequest handles listWebCampaigns operation.
+//
+// Chiến dịch giảm giá web, mới nhất trước; lọc trạng thái hiển thị, q theo tên
+// (Task 452).
+//
+// GET /api/v1/web-campaigns
+func (s *Server) handleListWebCampaignsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListWebCampaignsOperation,
+			ID:   "listWebCampaigns",
+		}
+	)
+	params, err := decodeListWebCampaignsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListWebCampaignsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListWebCampaignsOperation,
+			OperationSummary: "Chiến dịch giảm giá web, mới nhất trước; lọc trạng thái hiển thị, q theo tên (Task 452)",
+			OperationID:      "listWebCampaigns",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "status",
+					In:   "query",
+				}: params.Status,
+				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListWebCampaignsParams
+			Response = ListWebCampaignsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListWebCampaignsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListWebCampaigns(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListWebCampaigns(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListWebCampaignsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleLockStaffRequest handles lockStaff operation.
 //
 // Khóa nhân viên (không khóa Chủ còn hoạt động cuối cùng).
@@ -12177,6 +12659,110 @@ func (s *Server) handlePreviewShipmentCorrectionRequest(args [1]string, argsEsca
 	}
 
 	if err := encodePreviewShipmentCorrectionResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handlePreviewWebCampaignRequest handles previewWebCampaign operation.
+//
+// Xem trước giá của revision hiện tại (số mẫu, số biến thể, tối đa 12 giá
+// mẫu) và ghi lại để bật (Task 452).
+//
+// POST /api/v1/web-campaigns/{campaignId}/preview
+func (s *Server) handlePreviewWebCampaignRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: PreviewWebCampaignOperation,
+			ID:   "previewWebCampaign",
+		}
+	)
+	params, err := decodePreviewWebCampaignParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodePreviewWebCampaignRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response PreviewWebCampaignRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    PreviewWebCampaignOperation,
+			OperationSummary: "Xem trước giá của revision hiện tại (số mẫu, số biến thể, tối đa 12 giá mẫu) và ghi lại để bật (Task 452)",
+			OperationID:      "previewWebCampaign",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "campaignId",
+					In:   "path",
+				}: params.CampaignId,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *WebCampaignRevision
+			Params   = PreviewWebCampaignParams
+			Response = PreviewWebCampaignRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackPreviewWebCampaignParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.PreviewWebCampaign(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.PreviewWebCampaign(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodePreviewWebCampaignResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -14511,6 +15097,110 @@ func (s *Server) handleRevokeServiceKeyRequest(args [1]string, argsEscaped bool,
 	}
 }
 
+// handleSaveWebCampaignRequest handles saveWebCampaign operation.
+//
+// Lưu nội dung khi revision khớp (409 version_conflict); đang bật → 409 campaign_running,
+// tạm dừng trước (Task 452).
+//
+// PUT /api/v1/web-campaigns/{campaignId}
+func (s *Server) handleSaveWebCampaignRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SaveWebCampaignOperation,
+			ID:   "saveWebCampaign",
+		}
+	)
+	params, err := decodeSaveWebCampaignParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSaveWebCampaignRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response SaveWebCampaignRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SaveWebCampaignOperation,
+			OperationSummary: "Lưu nội dung khi revision khớp (409 version_conflict); đang bật → 409 campaign_running, tạm dừng trước (Task 452)",
+			OperationID:      "saveWebCampaign",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "campaignId",
+					In:   "path",
+				}: params.CampaignId,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *SaveWebCampaignRequest
+			Params   = SaveWebCampaignParams
+			Response = SaveWebCampaignRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSaveWebCampaignParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SaveWebCampaign(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SaveWebCampaign(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSaveWebCampaignResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleSearchVariantsRequest handles searchVariants operation.
 //
 // Tìm biến thể của người bán theo barcode (đúng), SKU, mã mẫu (tiền tố), tên
@@ -15320,6 +16010,110 @@ func (s *Server) handleSetWarehousePickupRequest(args [1]string, argsEscaped boo
 	}
 
 	if err := encodeSetWarehousePickupResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleSetWebCampaignStateRequest handles setWebCampaignState operation.
+//
+// Bật hay tạm dừng, lý do bắt buộc; bật cần bản xem trước khớp revision và số
+// tính lại (422 preview_required) (Task 452).
+//
+// POST /api/v1/web-campaigns/{campaignId}/state
+func (s *Server) handleSetWebCampaignStateRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SetWebCampaignStateOperation,
+			ID:   "setWebCampaignState",
+		}
+	)
+	params, err := decodeSetWebCampaignStateParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSetWebCampaignStateRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response SetWebCampaignStateRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SetWebCampaignStateOperation,
+			OperationSummary: "Bật hay tạm dừng, lý do bắt buộc; bật cần bản xem trước khớp revision và số tính lại (422 preview_required) (Task 452)",
+			OperationID:      "setWebCampaignState",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "campaignId",
+					In:   "path",
+				}: params.CampaignId,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *SetWebCampaignStateRequest
+			Params   = SetWebCampaignStateParams
+			Response = SetWebCampaignStateRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSetWebCampaignStateParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SetWebCampaignState(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SetWebCampaignState(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSetWebCampaignStateResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -17658,6 +18452,179 @@ func (s *Server) handleWebAvailabilityRequest(args [0]string, argsEscaped bool, 
 	}
 
 	if err := encodeWebAvailabilityResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebCampaignRequest handles webCampaign operation.
+//
+// Task 452. Trả cả chiến dịch tạm dừng, đã hết (status cho biết); slug là tên
+// hiện tại để website chuyển hướng liên kết cũ. Bộ đệm 30 s.
+//
+// GET /api/v1/web/campaigns/{linkKey}
+func (s *Server) handleWebCampaignRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebCampaignOperation,
+			ID:   "webCampaign",
+		}
+	)
+	params, err := decodeWebCampaignParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebCampaignRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebCampaignOperation,
+			OperationSummary: "Một chiến dịch theo 8 hex đầu của id (trang /uu-dai); nháp, đã xóa → 404",
+			OperationID:      "webCampaign",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "linkKey",
+					In:   "path",
+				}: params.LinkKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebCampaignParams
+			Response = WebCampaignRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebCampaignParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebCampaign(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebCampaign(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebCampaignResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebCampaignsRequest handles webCampaigns operation.
+//
+// Task 452 (M5-40, QĐ33). Website tính giá hiển thị theo cùng luật (giá = round(niêm yết
+// × (100 − %) / 100), áp khi 0 < giá < niêm yết; nhiều chiến dịch → giá thấp
+// nhất, hòa thì id nhỏ hơn; bảng mẫu testdata/contracts/web-campaign-rounding.json); báo
+// giá, tạo đơn CRM tính lại. Không có nháp, tạm dừng, đã xóa. Bộ đệm 30 s, làm
+// mới sớm hơn theo sự kiện promotion.web_campaign.changed.
+//
+// GET /api/v1/web/campaigns
+func (s *Server) handleWebCampaignsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebCampaignsOperation,
+			ID:   "webCampaigns",
+		}
+	)
+	params, err := decodeWebCampaignsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebCampaignsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebCampaignsOperation,
+			OperationSummary: "Chiến dịch giảm giá đã bật, chưa hết giờ (đang chạy hoặc đã hẹn giờ) kèm đích, liên kết; có ETag",
+			OperationID:      "webCampaigns",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "If-None-Match",
+					In:   "header",
+				}: params.IfNoneMatch,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebCampaignsParams
+			Response = WebCampaignsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebCampaignsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebCampaigns(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebCampaigns(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebCampaignsResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
