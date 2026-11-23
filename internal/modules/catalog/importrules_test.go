@@ -9,6 +9,7 @@ import (
 // TestImporterRulesMatchCatalog: importer giữ bản sao luật dữ liệu của catalog (không nhập ngược được gói này); bản
 // sao lệch thì tệp Excel được báo "không lỗi" mà lúc ghi (Task M1-47) lại hỏng, hoặc ngược lại.
 func TestImporterRulesMatchCatalog(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		name      string
 		got, want any

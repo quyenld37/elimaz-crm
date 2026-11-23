@@ -121,6 +121,7 @@ func (e *payEnv) paymentsTotal(id uuid.UUID) int64 {
 // D2 cọc 200.000 → cod 430.000, partial, prepaid 200.000, một payment.received; gửi hãng → vận đơn COD 430.000; sau
 // khi gửi hãng ghi thêm chuyển khoản → ErrCODLockedByShipment, không thêm phiếu, đơn không đổi.
 func TestRecordPayment_DepositBeforeShipment(t *testing.T) {
+	t.Parallel()
 	e := newPayEnv(t)
 	o := e.orderD2()
 	p := e.mustRecord(o.ID, cash.MethodDeposit, 200000)
@@ -157,6 +158,7 @@ func TestRecordPayment_DepositBeforeShipment(t *testing.T) {
 
 // Đầu vào sai, vượt tổng đơn, đơn lạ, đơn đã hủy bị từ chối, không ghi phiếu; trả đủ 630.000 → cod 0, paid.
 func TestRecordPayment_Refusals(t *testing.T) {
+	t.Parallel()
 	e := newPayEnv(t)
 	o := e.orderD2()
 	for _, c := range []struct {
@@ -200,6 +202,7 @@ func TestRecordPayment_Refusals(t *testing.T) {
 
 // Phiếu của đơn mới nhất trước, trang theo mã phiếu cuối; đơn lạ → ErrOrderNotFound.
 func TestListOrderPayments(t *testing.T) {
+	t.Parallel()
 	e := newPayEnv(t)
 	o := e.orderD2()
 	a := e.mustRecord(o.ID, cash.MethodDeposit, 100000)

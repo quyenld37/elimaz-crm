@@ -55,6 +55,7 @@ var (
 // Khối image chỉ nhận tệp ready, cùng tenant, mục đích product_image, chưa xóa; ngược lại ErrInvalidArticle (422
 // invalid_article). Sửa bài viết mà giữ khối ảnh cũ có tệp đã mất vẫn lưu được (chỉ tệp mới được kiểm).
 func TestArticleImages_SaveChecksFile(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	b := e.badFiles()
 	bad := map[string]uuid.UUID{
@@ -96,6 +97,7 @@ func TestArticleImages_SaveChecksFile(t *testing.T) {
 // FILES_PUBLIC_BASE_URL/img/<sha>/v1/…; tệp mất → bỏ khối, phần còn lại giữ nguyên từng byte; IMAGE_PRESET_VERSION=2
 // khi chưa có v2 → v1.
 func TestArticleHTML_WithImages(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	f := e.image()
 	head := `{"type":"heading","text":"Chất liệu","level":2}`
@@ -150,6 +152,7 @@ func checkV1URLs(t *testing.T, html string) {
 // D4-5: 3 khối ảnh → một lần files.PublicVariants; không khối ảnh hay bài viết rỗng → 0 lần, cả ArticleHTML lẫn
 // ResolveArticleImages.
 func TestArticleHTML_PublicVariantsCalls(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	three := "[" + imageBlock(e.image(), "a") + "," + imageBlock(e.image(), "") + "," + imageBlock(e.image(), "c") + "]"
 	if html, n, err := e.articleHTML(three, testView()); err != nil || n != 1 || strings.Count(html, "<picture>") != 3 {
@@ -177,6 +180,7 @@ func TestArticleHTML_PublicVariantsCalls(t *testing.T) {
 // Mutation testing (Task 403): sửa bài viết có khối ảnh cũ đứng trước — mọi tệp mới phía sau vẫn được kiểm, kể cả
 // khi giữa chúng có một tệp mới hợp lệ.
 func TestArticleImages_SaveChecksEveryNewFile(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	bad := e.badFiles().processing
 	old := e.image()
@@ -198,6 +202,7 @@ func TestArticleImages_SaveChecksEveryNewFile(t *testing.T) {
 
 // Mutation testing (Task 403): tệp không còn bản công khai → Image = nil (không phải ảnh rỗng).
 func TestResolveArticleImages_MissingFileLeavesNil(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	blocks, err := catalog.DecodeArticle(json.RawMessage("[" + imageBlock(uuid.New(), "") + "]"))
 	if err != nil {

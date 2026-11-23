@@ -45,6 +45,7 @@ func goldenBlocks() []catalog.ArticleBlock {
 }
 
 func TestRenderArticleHTML_Golden(t *testing.T) {
+	t.Parallel()
 	got, err := catalog.RenderArticleHTML(goldenBlocks())
 	if err != nil {
 		t.Fatalf("RenderArticleHTML: %v", err)
@@ -99,6 +100,7 @@ func TestRenderArticleHTML_Golden(t *testing.T) {
 }
 
 func TestRenderArticleHTML_EscapesInjection(t *testing.T) {
+	t.Parallel()
 	attacks := []string{
 		"<script>alert(1)</script>",
 		"<img src=x onerror=alert(1)>",
@@ -270,6 +272,7 @@ func genBlock() *rapid.Generator[catalog.ArticleBlock] {
 // Quy luật (500 lượt, TestMain): khối bất kỳ → hoặc ErrInvalidArticle và chuỗi rỗng, hoặc chỉ thẻ và thuộc tính
 // trong danh sách cho phép; không panic.
 func TestRenderArticleHTML_Property(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		blocks := rapid.SliceOfN(genBlock(), 0, 6).Draw(rt, "blocks")
 		out, err := catalog.RenderArticleHTML(blocks)
@@ -322,6 +325,7 @@ func FuzzRenderArticleHTML(f *testing.F) {
 // Mutation testing (Task 403): chiều rộng biến thể 1 và 10000 là biên hợp lệ; 0, 10001 và URL có khoảng trắng →
 // ErrInvalidArticle.
 func TestRenderArticleHTML_VariantBounds(t *testing.T) {
+	t.Parallel()
 	img := func(w int, url string) []catalog.ArticleBlock {
 		return []catalog.ArticleBlock{{Type: "image", FileID: fileID(), Image: &catalog.ArticleImage{
 			Variants: []catalog.ArticleImageVariant{{Width: w, Format: "jpeg", URL: url}},
@@ -347,6 +351,7 @@ func TestRenderArticleHTML_VariantBounds(t *testing.T) {
 
 // Mutation testing (Task 403): img src là bản JPEG gần 640 nhất, kể cả khi bản đó rộng hơn 640.
 func TestRenderArticleHTML_SrcClosestTo640(t *testing.T) {
+	t.Parallel()
 	var vs []catalog.ArticleImageVariant
 	for _, w := range []int{320, 800} {
 		vs = append(vs, catalog.ArticleImageVariant{Width: w, Format: "jpeg", URL: fmt.Sprintf("https://cdn.elimaz.test/%d.jpeg", w)})

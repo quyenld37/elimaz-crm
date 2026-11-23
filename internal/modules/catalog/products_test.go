@@ -24,11 +24,15 @@ import (
 	"elimaz.com.vn/crm/internal/testkit/shoptest"
 )
 
+// catalogParallel là số test chạy song song mặc định của gói (Task 475, như order, fulfillment, inventory, httpapi).
+const catalogParallel = 6
+
 // TestMain nâng số lượt rapid lên 500 (kế hoạch Task M1-27: thuộc tính của bộ dựng HTML 500 lượt), trừ khi người chạy
-// đã đặt -rapid.checks hay RAPID_CHECKS.
+// đã đặt -rapid.checks hay RAPID_CHECKS; đặt -parallel thành min(catalogParallel, GOMAXPROCS) trừ khi đã đặt.
 func TestMain(m *testing.M) {
 	flag.Parse()
 	testkit.SetRapidChecks(500)
+	testkit.SetParallel(catalogParallel)
 	os.Exit(m.Run())
 }
 
@@ -86,6 +90,16 @@ func (e *catalogEnv) create(in catalog.ProductInput) (catalog.Product, error) {
 	return p, err
 }
 
+// mustCreate tạo mẫu in, dừng test nếu lỗi (Task 475: gom đoạn đầu test mà jscpd báo trùng sau khi thêm t.Parallel).
+func (e *catalogEnv) mustCreate(in catalog.ProductInput) catalog.Product {
+	e.t.Helper()
+	p, err := e.create(in)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return p
+}
+
 func (e *catalogEnv) get(id uuid.UUID) (catalog.Product, error) {
 	var p catalog.Product
 	err := e.app(func(tx pgx.Tx) error {
@@ -118,6 +132,7 @@ func dam01(seller uuid.UUID) catalog.ProductInput {
 }
 
 func TestCreateProduct_SixVariants(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	p, err := e.create(dam01(e.seller))
 	if err != nil {
@@ -154,11 +169,9 @@ func TestCreateProduct_SixVariants(t *testing.T) {
 }
 
 func TestCreateProduct_DuplicateSKU(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
-	p, err := e.create(dam01(e.seller))
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := e.mustCreate(dam01(e.seller))
 	add := func(v catalog.VariantInput) error {
 		return e.app(func(tx pgx.Tx) error {
 			cur, err := catalog.GetProduct(t.Context(), tx, e.seller, p.ID)
@@ -202,6 +215,7 @@ func TestCreateProduct_DuplicateSKU(t *testing.T) {
 }
 
 func TestCreateProduct_GeneratedBarcodes(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	in := dam01(e.seller)
 	in.Variants = in.Variants[:3]
@@ -247,6 +261,7 @@ func TestCreateProduct_GeneratedBarcodes(t *testing.T) {
 }
 
 func TestCreateProduct_InvalidPrice(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	for _, price := range []int64{-1, 9007199254740992} {
 		in := dam01(e.seller)
@@ -287,6 +302,7 @@ func TestCreateProduct_InvalidPrice(t *testing.T) {
 }
 
 func TestUpdateProduct_Version(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	p, err := e.create(dam01(e.seller))
 	if err != nil {
@@ -352,6 +368,7 @@ func (e *catalogEnv) writerUpdateMissing() (catalog.Product, error) {
 }
 
 func TestArticle_RejectsUnknownBlock(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	in := dam01(e.seller)
 	in.Article = json.RawMessage(`[
@@ -386,6 +403,7 @@ func TestArticle_RejectsUnknownBlock(t *testing.T) {
 // B-02 (review độc lập M1): bài viết lưu được (≤ 200 KB ở dạng JSON gọn) phải đọc lại, sửa được dù PostgreSQL trả jsonb
 // dạng văn bản có dấu cách sau mỗi ':' và ',' (dài hơn bản đã lưu).
 func TestArticle_NearLimitReadsBack(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	items := `"` + strings.Repeat("x", 16) + `"`
 	block := `{"type":"list","items":[` + repeatJSON(items, 50) + `]}`
@@ -432,6 +450,7 @@ func repeatJSON(s string, n int) string {
 
 // PQ08: tenant B không đọc được mẫu của A; view catalog.variants_v ngoài ngữ cảnh tenant → 0 dòng.
 func TestCatalog_TenantIsolation(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	p, err := e.create(dam01(e.seller))
 	if err != nil {

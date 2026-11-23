@@ -78,6 +78,7 @@ func (e *catalogEnv) setClassification(id uuid.UUID, version int64, c catalog.Cl
 }
 
 func TestCategory_TreeDepthAndCycle(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	vay := e.mustCategory("Váy", nil)
 	dai := e.mustCategory("Váy dài", &vay.ID)
@@ -134,6 +135,7 @@ func TestCategory_TreeDepthAndCycle(t *testing.T) {
 }
 
 func TestCategory_Duplicates(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	vay := e.mustCategory("Váy", nil)
 	e.mustCategory("Váy dài", &vay.ID)
@@ -172,6 +174,7 @@ func TestCategory_Duplicates(t *testing.T) {
 }
 
 func TestCategory_Archive(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	vay := e.mustCategory("Váy", nil)
 	dai := e.mustCategory("Váy dài", &vay.ID)
@@ -254,6 +257,7 @@ func (e *catalogEnv) nhanhAttributes() []catalog.Attribute {
 }
 
 func TestAttributes_NhanhCounts(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	attrs := e.nhanhAttributes()
 	if attrs[0].Code != "thuoc-tinh-0" {
@@ -341,6 +345,7 @@ func (e *catalogEnv) attributeValues(n int) []uuid.UUID {
 }
 
 func TestSetClassification_ReplaceAll(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	p, err := e.create(dam01(e.seller))
 	if err != nil {
@@ -407,6 +412,7 @@ func TestSetClassification_ReplaceAll(t *testing.T) {
 }
 
 func TestSetClassification_Errors(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	p, err := e.create(dam01(e.seller))
 	if err != nil {
@@ -449,6 +455,7 @@ func (e *catalogEnv) actorOf(tenant uuid.UUID) identity.AuthUser {
 }
 
 func TestSetClassification_OtherTenantValue(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	p, err := e.create(dam01(e.seller))
 	if err != nil {
@@ -499,6 +506,7 @@ func TestSetClassification_OtherTenantValue(t *testing.T) {
 // Hai người đổi cha chéo nhau cùng lúc (A dưới B, B dưới A): đúng một người được, người kia ErrCategoryCycle; cây
 // không bao giờ có vòng.
 func TestCategory_ConcurrentCrossMove(t *testing.T) {
+	t.Parallel()
 	e := newCatalogEnv(t)
 	for range 10 {
 		a := e.mustCategory("A"+uuid.NewString()[:6], nil)
