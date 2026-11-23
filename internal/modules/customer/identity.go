@@ -47,7 +47,8 @@ type IdentityInput struct {
 }
 
 // AddIdentity thêm danh tính cho hồ sơ customerID (khóa dòng khách trước). Giá trị chuẩn hóa: SĐT về +84… (sai →
-// ErrInvalidPhone), email chữ thường. Đã thuộc một hồ sơ (kể cả chính nhóm này) → *IdentityTakenError kèm gốc của chủ.
+// ErrInvalidPhone), email chữ thường; zalo_uid, web_account không có khoảng trắng; web_account chỉ với nguồn web (đơn
+// website, Task 193). Đã thuộc một hồ sơ (kể cả chính nhóm này) → *IdentityTakenError kèm gốc của chủ.
 // Không bao giờ gộp. Ghi audit customer.identity.add (chỉ loại), báo hiệu customer.changed.
 func (w Writer) AddIdentity(ctx context.Context, tx pgx.Tx, customerID uuid.UUID, in IdentityInput, a Actor) (Identity, error) {
 	if err := w.check(); err != nil {
@@ -61,7 +62,7 @@ func (w Writer) AddIdentity(ctx context.Context, tx pgx.Tx, customerID uuid.UUID
 	if source == "" {
 		source = SourceStaff
 	}
-	if !validSource(source) {
+	if !validSource(source) || (in.Kind == IdentityWebAccount && source != SourceWeb) {
 		return Identity{}, ErrInvalidInput
 	}
 	cust, err := lockOwner(ctx, tx, customerID)
@@ -191,7 +192,7 @@ func normalizeIdentity(kind IdentityKind, raw string) (string, error) {
 			return "", ErrInvalidInput
 		}
 		return v, nil
-	case IdentityZaloUID:
+	case IdentityZaloUID, IdentityWebAccount:
 		v, err := validText(raw, maxIdentityRunes)
 		if err != nil || strings.ContainsAny(v, " \t") {
 			return "", ErrInvalidInput

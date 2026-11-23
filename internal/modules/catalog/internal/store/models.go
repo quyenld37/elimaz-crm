@@ -1194,6 +1194,9 @@ type OrdOrder struct {
 	CancelledAt        pgtype.Timestamptz
 	DuplicateSuspect   bool
 	ReplacedReturnID   *uuid.UUID
+	PriceReview        bool
+	WebQuote           []byte
+	SubmittedVia       pgtype.Text
 }
 
 type OrdOrderDuplicateLink struct {
@@ -1223,6 +1226,11 @@ type OrdOrderItem struct {
 	NetAmount              int64
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
+	WebCampaignID          *uuid.UUID
+	WebCampaignRevision    pgtype.Int4
+	WebCampaignPercent     pgtype.Int4
+	WebCampaignDiscount    pgtype.Int8
+	FlashSaleItemID        *uuid.UUID
 }
 
 type OrdOrderItemsV struct {

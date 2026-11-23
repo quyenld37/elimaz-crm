@@ -62,6 +62,9 @@ trước (sự kiện vận đơn đổi đơn và tồn) khóa dòng nhóm trư
 - Hai đường chính đã khớp bảng: lượt mua flash sale của ADR-40 khóa `flash_sale_claims` (10) → `flash_sale_units`
   bằng `SKIP LOCKED` (11) → tạo đơn (dòng mới) → `idempotency_keys` (13); tạo đơn bán thường tạo đơn (dòng mới) →
   `coupons` (10) → `stock_balances` (11) → `idempotency_keys` (13).
+- Đơn web (Task 193, `order.Writer.CreateFromWeb`): báo giá lại không khóa → đường tạo đơn bán thường trong một
+  savepoint (khách (5) → đơn mới (7) → `coupons` (10) → `stock_balances` (11)) → ghi cột web lên đơn, dòng vừa chèn →
+  danh tính `web_account` (khóa lại dòng khách đã giữ ở nhóm 5, không chờ mới) → `idempotency_keys` (13).
 - **Bảng mới** được xếp vào bảng này trong cùng commit với migration tạo ra nó. Review của task có migration kiểm việc
   này.
 

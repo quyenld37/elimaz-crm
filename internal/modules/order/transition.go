@@ -34,6 +34,15 @@ func (a Actor) kind() string {
 	return a.Type
 }
 
+// stockKind là loại tác nhân ghi vào sổ kho: như kind, trừ khóa dịch vụ (website, ActorService) ghi là system vì sổ
+// kho của M0 chỉ nhận staff, system, carrier, customer (mã tác nhân vẫn là mã khóa).
+func (a Actor) stockKind() string {
+	if a.Type == ActorService {
+		return inventory.ActorSystem
+	}
+	return a.kind()
+}
+
 // id là mã người làm cho cột uuid có thể rỗng.
 func (a Actor) id() pgtype.UUID {
 	return pgtype.UUID{Bytes: a.UserID, Valid: a.UserID != uuid.Nil}
