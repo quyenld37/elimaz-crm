@@ -162,7 +162,7 @@ func (d *drill) drain() {
 		if err != nil {
 			d.t.Fatalf("RunOnce: %v", err)
 		}
-		if n == 0 {
+		if n == 0 && testkit.MakeDueSoon(d.t, d.staff.Owner) == 0 { // bù đồng hồ PostgreSQL lùi (testkit.DrainDue)
 			return
 		}
 	}
