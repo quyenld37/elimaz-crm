@@ -10,7 +10,6 @@ import (
 	"pgregory.net/rapid"
 
 	"elimaz.com.vn/crm/internal/modules/identity"
-	"elimaz.com.vn/crm/internal/testkit"
 )
 
 // Quy luật (rapid, 200 lượt; Task M1-56 nối bộ của Task M1-26): xen kẽ ngẫu nhiên gán, gỡ, khóa, mở, tạo vai trò,
@@ -18,7 +17,8 @@ import (
 // grant được thêm hay gỡ nằm trong quyền của người gán lúc gán, và mọi quyền được thêm vào hay gỡ khỏi vai trò nằm
 // trong quyền phạm vi all của người sửa lúc sửa; (3) vai trò owner luôn đủ mọi quyền.
 func TestRoleInvariantsProperty(t *testing.T) {
-	e := &staffEnv{t: t, s: testkit.OpenStaff(t), ids: map[string]uuid.UUID{}}
+	t.Parallel()
+	e := newPropEnv(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		run := newPropRun(e, rt)
 		// "hr" được thêm quyền quản lý vai trò để có người sửa vai trò không phải Chủ.

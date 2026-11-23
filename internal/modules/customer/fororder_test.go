@@ -37,9 +37,9 @@ func (e *writeEnv) identities(id uuid.UUID) int {
 // Các ca của 05 mục 1 (DH12, DH13): SĐT người nhận chỉ thành danh tính khi nhân viên đánh dấu; SĐT của nhóm khác
 // không bao giờ gắn hay gộp, chỉ báo PhoneConflictWith.
 func TestFindOrCreateForOrder(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
-	a := e.create(customer.CreateInput{FullName: "Khách A"})
-	b := e.create(customer.CreateInput{FullName: "Khách B", Phone: "0987654321"})
+	a, b := e.pair("Khách A", "Khách B", "0987654321")
 	f := &forOrderFixture{e: e, a: a, b: b}
 	f.customers = func() int { return e.count(`SELECT count(*) FROM customer.customers`) }
 	f.start = f.customers()

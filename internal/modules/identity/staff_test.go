@@ -140,6 +140,7 @@ func wantErr(t *testing.T, name string, err, want error) {
 }
 
 func TestReplaceGrants_ExceedsActor(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	// M (Quản lý) được cấp tạm identity.users.manage phạm vi all cho các ca dưới.
 	e.s.Grant(t, e.tenant, e.ids[emailM], []string{"identity.users.manage"}, identity.ScopeAll, "")
@@ -167,6 +168,7 @@ func TestReplaceGrants_ExceedsActor(t *testing.T) {
 }
 
 func TestReplaceGrants_SelfModify(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	a := e.actor(emailA)
 	wantErr(t, "A sửa grant của A", e.replace(a, e.ids[emailA], g("owner", identity.ScopeAll, ""), g("sale", identity.ScopeAll, "")), identity.ErrSelfModify)
@@ -175,6 +177,7 @@ func TestReplaceGrants_SelfModify(t *testing.T) {
 }
 
 func TestReplaceGrants_VersionAndInput(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	a := e.actor(emailA)
 	k := e.ids[emailK]
@@ -208,6 +211,7 @@ func TestReplaceGrants_VersionAndInput(t *testing.T) {
 }
 
 func TestLock_LastOwner(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	a := e.actor(emailA)
 	b := e.actor(emailB)
@@ -237,6 +241,7 @@ func TestLock_LastOwner(t *testing.T) {
 // Hai Chủ cùng lúc khóa nhau, hoặc cùng lúc gỡ owner của nhau (50 lượt mỗi loại): không lượt nào còn 0 Chủ hoạt
 // động; đúng một bên thành công, bên kia ErrLastOwner.
 func TestLock_LastOwnerConcurrent(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	ida, idb := e.ids[emailA], e.ids[emailB]
 	reset := func() {
@@ -295,6 +300,7 @@ func (e *staffEnv) grantRoleIfMissing(id uuid.UUID) {
 }
 
 func TestCreateStaff(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	a := e.actor(emailA)
 	other := e.s.Tenant(t, "B")
@@ -339,6 +345,7 @@ func TestCreateStaff(t *testing.T) {
 }
 
 func TestAddStaffRoute(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	other := e.s.Tenant(t, "B")
 	ctx := t.Context()
@@ -367,6 +374,7 @@ func TestAddStaffRoute(t *testing.T) {
 }
 
 func TestUsersView(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	ctx := t.Context()
 	var cols []string
@@ -401,6 +409,7 @@ func TestUsersView(t *testing.T) {
 }
 
 func TestListStaff(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	var rows []identity.StaffRow
 	if err := e.app(func(tx pgx.Tx) error {
@@ -427,6 +436,7 @@ func TestListStaff(t *testing.T) {
 // khóa dòng đọc quyền mới và từ chối, dù vai trò được gán vẫn nằm trong quyền còn lại của người đó (mutation testing
 // Task 23: staff.go afterChecks `!Can(...) || !canTouch(...)` còn sống).
 func TestReplaceGrants_ActorLostManageMeanwhile(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	e.s.Grant(t, e.tenant, e.ids[emailM], []string{"identity.users.manage"}, identity.ScopeAll, "")
 	m := e.actor(emailM) // còn identity.users.manage

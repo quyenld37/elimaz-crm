@@ -38,6 +38,7 @@ func defaults(p customer.Profile) []uuid.UUID {
 // AddAddress: địa chỉ đầu tiên thành mặc định; thêm địa chỉ mặc định thứ hai → địa chỉ cũ hết mặc định; xã không
 // thuộc tỉnh → ErrWardNotInProvince; mã lạ → ErrUnknownAdminUnit; SĐT sai → ErrInvalidPhone.
 func TestAddAddress(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	c := e.create(customer.CreateInput{FullName: "Lan"})
 	first, err := e.addAddress(c.ID, addrIn("T01001"), false)
@@ -85,6 +86,7 @@ func TestAddAddress(t *testing.T) {
 
 // Hai lần thêm địa chỉ mặc định song song cho cùng khách: cả hai thành công (khóa dòng khách), đúng một mặc định.
 func TestAddAddressConcurrentDefault(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	c := e.create(customer.CreateInput{FullName: "Lan"})
 	errs := make([]error, 4)
@@ -106,6 +108,7 @@ func TestAddAddressConcurrentDefault(t *testing.T) {
 // UpdateAddress, DeleteAddress: version cũ → ErrVersionConflict; đặt mặc định đổi mặc định cũ; xóa mềm ẩn địa chỉ;
 // địa chỉ của nhóm khác → ErrNotFound.
 func TestUpdateDeleteAddress(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	c := e.create(customer.CreateInput{FullName: "Lan"})
 	other := e.create(customer.CreateInput{FullName: "Khác"})

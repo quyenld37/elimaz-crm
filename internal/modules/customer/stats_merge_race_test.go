@@ -53,10 +53,9 @@ func (r afterScanRow) Scan(dest ...any) error {
 // B bị gộp vào A và commit trước khi consumer đọc nhóm của B → nhóm rỗng → locked[0] panic. Đúng: đọc lại gốc (A) và
 // tính lại cả nhóm A gồm B.
 func TestStatsRootMergedBetweenReads(t *testing.T) {
+	t.Parallel()
 	e := newStatsEnv(t)
-	a, b := e.newCustomer("Khách A"), e.newCustomer("Khách B")
-	e.delivered(a, 100000)
-	e.delivered(b, 200000)
+	a, b := e.twoDelivered()
 	e.feed(false)
 	merge := func() {
 		if err := tenancy.WithTenant(t.Context(), e.staff.App, e.tenant, func(tx pgx.Tx) error {

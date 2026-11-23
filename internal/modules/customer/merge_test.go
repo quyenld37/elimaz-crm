@@ -64,6 +64,13 @@ func (e *writeEnv) people(names ...string) []uuid.UUID {
 	return out
 }
 
+// abc tạo ba khách A, B, C (không SĐT), mã tăng dần.
+func (e *writeEnv) abc() (a, b, c uuid.UUID) {
+	e.t.Helper()
+	ids := e.people("A", "B", "C")
+	return ids[0], ids[1], ids[2]
+}
+
 // roots đọc root_id của mọi hồ sơ trong tenant A.
 func (e *writeEnv) roots() map[uuid.UUID]uuid.UUID {
 	e.t.Helper()
@@ -146,6 +153,7 @@ func sortedIDs(ids ...uuid.UUID) []uuid.UUID {
 // chỉ của B; dòng gộp moved_ids = [B], sự kiện customer.merged, audit, báo hiệu hai gốc. Hoàn tác → B về gốc B, sự kiện
 // customer.merge_undone (Seq 2), undone_at, undone_by; hoàn tác lần hai → version_conflict.
 func TestMergeDH14(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	a := e.create(customer.CreateInput{FullName: "Chị A", Phone: "0911000001"})
 	b := e.create(customer.CreateInput{FullName: "Chị B", Phone: "0911000002"})
@@ -240,9 +248,9 @@ func (e *writeEnv) expectCounts(t *testing.T, checks map[string][]any) {
 
 // Chuỗi: C đã gộp vào B; gộp B vào A (qua mã của hồ sơ con C) → moved_ids = [B, C] theo mã; hoàn tác → B và C về gốc B.
 func TestMergeChain(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
-	ids := e.people("A", "B", "C")
-	a, b, c := ids[0], ids[1], ids[2]
+	a, b, c := e.abc()
 	e.mustMerge(b, c)
 	m := e.mustMerge(a, c)
 	if m.MergedID != b || !slices.Equal(m.MovedIDs, sortedIDs(b, c)) {
@@ -262,6 +270,7 @@ func TestMergeChain(t *testing.T) {
 // Gộp đè: B vào A, rồi A vào D; hoàn tác B→A → merge_not_latest, BlockingMergeID = lần A→D, không đổi gì; hoàn tác A→D
 // rồi B→A → được. Lần gộp độc lập vào cùng gốc (C vào A) không chặn hoàn tác B→A.
 func TestUndoMergeNotLatest(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	ids := e.people("A", "B", "D", "C")
 	a, b, d, c := ids[0], ids[1], ids[2], ids[3]
@@ -295,6 +304,7 @@ func TestUndoMergeNotLatest(t *testing.T) {
 
 // Hạn hoàn tác: 30 ngày 1 giây → merge_window_expired, không đổi gì; đúng 30 ngày → được.
 func TestUndoMergeWindow(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	ids := e.people("A", "B", "C")
 	m := e.mustMerge(ids[0], ids[1])
@@ -313,9 +323,9 @@ func TestUndoMergeWindow(t *testing.T) {
 // Gộp A vào A, B (đã thuộc A) vào A, A vào B (cùng gốc) → merge_same_customer; matchedBy lạ → invalid_input; khách không
 // có hay của tenant khác → not_found; hoàn tác, đọc lần gộp không có → not_found.
 func TestMergeErrors(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
-	ids := e.people("A", "B", "C")
-	a, b, c := ids[0], ids[1], ids[2]
+	a, b, c := e.abc()
 	if _, err := e.merge(a, a); !errors.Is(err, customer.ErrMergeSameCustomer) {
 		t.Fatalf("A vào A: %v", err)
 	}
@@ -345,6 +355,7 @@ func TestMergeErrors(t *testing.T) {
 // Đồng thời: gộp B→A và A→B cùng lúc, 100 vòng → mỗi vòng đúng một bên thành công, bên kia merge_same_customer; không
 // vòng; không deadlock.
 func TestMergeConcurrentOpposite(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	before := e.deadlocks()
 	for i := range 100 {
@@ -383,6 +394,7 @@ func TestMergeConcurrentOpposite(t *testing.T) {
 // Gộp nhóm (thành viên có mã nhỏ hơn gốc) song song với tìm-hoặc-tạo theo mã thành viên (lockPair khóa thành viên rồi
 // gốc theo mã tăng dần), 20 vòng: không deadlock, gốc luôn hợp lệ.
 func TestMergeVsForOrderNoDeadlock(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	before := e.deadlocks()
 	for i := range 20 {

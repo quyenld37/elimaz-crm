@@ -15,6 +15,7 @@ import (
 )
 
 func TestLoadUserGrants(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a := s.Tenant(t, "A")
 	uid := s.User(t, a, "Lan@Elimaz.test", "active")
@@ -45,6 +46,7 @@ func TestLoadUserGrants(t *testing.T) {
 }
 
 func TestLoadUserErrors(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a := s.Tenant(t, "A")
 	uid := s.User(t, a, "khoa@elimaz.test", "locked")
@@ -77,6 +79,7 @@ func TestLoadUserErrors(t *testing.T) {
 
 // User của tenant B có cùng email với tenant A không lẫn: định tuyến quyết định tenant, grant chỉ của tenant đó.
 func TestLoadUserTenantIsolation(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a, b := s.Tenant(t, "A"), s.Tenant(t, "B")
 	ua := s.User(t, a, "a@elimaz.test", "active")
@@ -94,6 +97,7 @@ func TestLoadUserTenantIsolation(t *testing.T) {
 }
 
 func TestGrantScopeCheck(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a := s.Tenant(t, "A")
 	uid := s.User(t, a, "x@elimaz.test", "active")
@@ -129,6 +133,7 @@ func TestGrantScopeCheck(t *testing.T) {
 // role_permissions. Mọi ghi khác vào bảng identity (đổi email, xóa user, đổi khóa hay tenant của vai trò, xóa vai trò,
 // sửa dòng quyền) vẫn bị từ chối; RLS chặn ghi vai trò cho tenant khác.
 func TestAppRolePrivilegesAndRLS(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a := s.Tenant(t, "A")
 	s.User(t, a, "r@elimaz.test", "active")
@@ -181,6 +186,7 @@ func TestAppRolePrivilegesAndRLS(t *testing.T) {
 }
 
 func TestSchemaRulesStillClean(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	got, err := tenancy.CheckSchemaRules(t.Context(), s.Owner.Pool, platformTables())
 	if err != nil {
@@ -193,6 +199,7 @@ func TestSchemaRulesStillClean(t *testing.T) {
 
 // SeedOwner chạy lại được: lần hai không thêm dòng, user có mọi quyền với phạm vi all.
 func TestSeedOwner(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a := s.Tenant(t, "ELIMAZ")
 	for range 2 {

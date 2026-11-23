@@ -18,6 +18,7 @@ import (
 // ListEntityAudit (Task M2-24, Task 425): dòng của đúng thực thể, mới nhất trước; ListedFields là mảng chuỗi after.fields (rỗng khi
 // không có, khi không phải mảng); không mang giá trị before/after; thực thể khác, tenant khác không lẫn vào.
 func TestListEntityAudit(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a, b := s.Tenant(t, "A"), s.Tenant(t, "B")
 	edit := orderEntry(a)
@@ -86,6 +87,7 @@ func assertNoAuditValues(t *testing.T, got []identity.AuditRecord, phones ...str
 
 // Task 425: thực thể có hơn 500 dòng audit → trả đúng 500 dòng mới nhất: dòng ghi sau cùng đứng đầu, dòng cũ nhất bị bỏ.
 func TestListEntityAudit_KeepsNewest500(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a := s.Tenant(t, "A")
 	first := orderEntry(a)
@@ -125,6 +127,7 @@ func TestListEntityAudit_KeepsNewest500(t *testing.T) {
 // Task 436: At khác zero là mốc của dòng (mốc của bên gọi lệch now() của transaction ±5 phút vẫn lưu đúng mốc đó, thứ
 // tự đọc theo mốc đó); At zero → now() của transaction. Một đồng hồ: mọi mốc tính từ now() đã đọc của transaction.
 func TestRecordAudit_At(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a := s.Tenant(t, "A")
 	ahead, behind, def := orderEntry(a), orderEntry(a), orderEntry(a)

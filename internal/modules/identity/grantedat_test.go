@@ -12,6 +12,7 @@ import (
 // GrantedAt (Task 411): grant của p ở phạm vi all hoặc đúng đích, bất kể loại phạm vi của p (order.create loại none
 // vẫn kiểm theo kho giữ hàng); quyền lạ, grant theo đích khác, grant quyền khác → sai.
 func TestGrantedAtTable(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		u      identity.AuthUser
@@ -44,6 +45,7 @@ func TestGrantedAtTable(t *testing.T) {
 // Quy luật: GrantedAt đúng ⇔ có grant hiệu lực của p ở all hoặc đúng đích; GrantedAt đúng thì Can(p, đích) đúng
 // (GrantedAt không bao giờ rộng hơn Can).
 func TestGrantedAtProperty(t *testing.T) {
+	t.Parallel()
 	keys := permissionKeys()
 	scopes := scopeGen("p1", "w1", "w2")
 	rapid.Check(t, func(t *rapid.T) {

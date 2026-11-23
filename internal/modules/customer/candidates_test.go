@@ -43,6 +43,7 @@ func candidateRoots(cs []customer.Candidate) []uuid.UUID {
 // Gợi ý: địa chỉ của A có SĐT 0987654321 là danh tính của B → MergeCandidates(A) có B (mã, tên, chỉ số của gốc B),
 // MatchedPhones chứa SĐT đó; sau khi gộp thì không còn. SĐT danh tính của chính nhóm A không gợi ý A.
 func TestMergeCandidatesByAddressPhone(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	a := e.create(customer.CreateInput{FullName: "Chị A", Phone: "0911222333"})
 	b := e.create(customer.CreateInput{FullName: "Chị B", Phone: "0987654321"})
@@ -77,6 +78,7 @@ func TestMergeCandidatesByAddressPhone(t *testing.T) {
 // không tính; khách khớp hai SĐT có MatchedPhones đủ hai (theo thứ tự); SĐT danh tính của hồ sơ con thuộc nhóm (gộp
 // rồi) khớp nhau thì gom về một gốc.
 func TestMergeCandidatesByRecentOrders(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	a := e.create(customer.CreateInput{FullName: "A"})
 	a2 := e.create(customer.CreateInput{FullName: "A2"})

@@ -8,6 +8,7 @@ import (
 )
 
 func TestNormalizeName(t *testing.T) {
+	t.Parallel()
 	cases := []struct{ in, want string }{
 		{"Nguyễn Thị Hồng Nhung", "nguyen thi hong nhung"},
 		{"ĐẶNG  Văn   Ơn", "dang van on"},

@@ -110,6 +110,7 @@ func explainFixture(t *testing.T) (*db.DB, uuid.UUID) {
 // index value_reversed; tên qua hàm dùng GIN trigram, đọc bằng auto_explain); LIKE thẳng trên bảng có RLS là Seq Scan
 // (lý do phải đi qua hàm).
 func TestSearchPlans(t *testing.T) {
+	t.Parallel()
 	app, a := explainFixture(t)
 	tag := uuid.New()
 	roots := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}

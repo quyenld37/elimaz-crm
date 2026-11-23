@@ -11,6 +11,7 @@ import (
 )
 
 func TestPersonalDataLogsRedacted(t *testing.T) {
+	t.Parallel()
 	p, err := customer.NormalizePhone("0912 345 678")
 	if err != nil {
 		t.Fatal(err)
@@ -43,6 +44,7 @@ func TestPersonalDataLogsRedacted(t *testing.T) {
 }
 
 func TestPersonalDataLogValue(t *testing.T) {
+	t.Parallel()
 	for _, v := range []slog.LogValuer{customer.Name("Lan"), customer.Birthday(time.Now())} {
 		if got := v.LogValue().String(); got != "[Redacted]" {
 			t.Errorf("LogValue() = %q, mong [Redacted]", got)

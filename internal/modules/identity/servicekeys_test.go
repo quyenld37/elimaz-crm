@@ -33,6 +33,7 @@ func seq(b byte, n int) []byte {
 }
 
 func TestGenerateServiceKey_Format(t *testing.T) {
+	t.Parallel()
 	full, prefix, hash, err := identity.GenerateServiceKey(bytes.NewReader(seq(1, 40)))
 	if err != nil {
 		t.Fatal(err)
@@ -55,6 +56,7 @@ func TestGenerateServiceKey_Format(t *testing.T) {
 // ServiceKeyPermissions chứa đúng tám quyền của mốc này (mốc sau thêm được, không đếm cứng tổng, D4-3); mọi quyền là
 // quyền đã biết, loại none, không nằm trong bộ quyền nhân viên, không vai trò mẫu nào nhận.
 func TestServiceKeyPermissions(t *testing.T) {
+	t.Parallel()
 	for _, p := range []identity.Permission{
 		"web.catalog.read", "web.orders.create", "web.orders.read", "web.orders.cancel", "web.requests.write",
 		"web.coupons.issue", "web.shipping.quote", "web.flash.buy",
@@ -83,6 +85,7 @@ func TestServiceKeyPermissions(t *testing.T) {
 
 // Vai trò tự định nghĩa không nhận quyền web.* (chỉ khóa dịch vụ giữ được).
 func TestCustomRole_RejectsServiceKeyPermission(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	if _, err := e.createRole(e.actor(emailA), "Web", "web.catalog.read"); !errors.Is(err, identity.ErrUnknownPermission) {
 		t.Fatalf("mong ErrUnknownPermission, có %v", err)
@@ -91,6 +94,7 @@ func TestCustomRole_RejectsServiceKeyPermission(t *testing.T) {
 
 // Owner đã customized vẫn nhận identity.service_keys.manage khi đồng bộ; vai trò mẫu khác đã sửa thì không.
 func TestSyncDefaultRoles_ServiceKeysManage(t *testing.T) {
+	t.Parallel()
 	e := newStaffEnv(t)
 	e.s.Exec(t, e.tenant, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(t.Context(), `DELETE FROM identity.role_permissions WHERE permission = 'identity.service_keys.manage'`); err != nil {
@@ -152,6 +156,7 @@ func webInput(actor identity.AuthUser, perms ...identity.Permission) identity.Cr
 // crm_app không chèn thẳng được bảng tuyến; tạo khóa ghi đúng một tuyến service_key qua tenancy.PutRoute; tenant B ghi
 // cùng tiền tố → ErrRouteTaken; tiền tố trùng ở lần sinh đầu → khóa nhận tiền tố thứ hai; trùng cả hai lần → lỗi.
 func TestCreateServiceKey_Routes(t *testing.T) {
+	t.Parallel()
 	e := newKeyEnv(t)
 	_, err := e.s.App.Pool.Exec(t.Context(),
 		`INSERT INTO platform.tenant_routes (kind, external_key, tenant_id) VALUES ('service_key', 'x', $1)`, e.tenant)
@@ -206,6 +211,7 @@ func TestCreateServiceKey_Routes(t *testing.T) {
 
 // Khóa sai dạng không tách được tiền tố (không chạm database).
 func TestSplitServiceKey(t *testing.T) {
+	t.Parallel()
 	full, prefix, _, err := identity.GenerateServiceKey(bytes.NewReader(seq(1, 40)))
 	if err != nil {
 		t.Fatal(err)
@@ -220,6 +226,7 @@ func TestSplitServiceKey(t *testing.T) {
 // Kiểm đầu vào: quyền ngoài tám quyền khóa → ErrPermissionNotForKey; tên, quyền rỗng → ErrInvalidInput. Quyền và
 // CIDR được chuẩn hóa (sắp, bỏ trùng, che bit host).
 func TestCreateServiceKey_Validation(t *testing.T) {
+	t.Parallel()
 	e := newKeyEnv(t)
 	a := e.actor(emailA)
 	for name, c := range map[string]struct {
@@ -253,6 +260,7 @@ func TestCreateServiceKey_Validation(t *testing.T) {
 // Khóa đúng → AuthUser{Kind: service} có đúng quyền đã cấp, phạm vi all; sai một ký tự bí mật, tiền tố lạ, sai dạng →
 // ErrInvalidKey; đã thu hồi → ErrRevoked; CIDR: IP ngoài, IP thiếu → ErrIPNotAllowed, IP trong → được.
 func TestCheckServiceKey(t *testing.T) {
+	t.Parallel()
 	e := newKeyEnv(t)
 	a := e.actor(emailA)
 	k, full, err := e.create(e.tenant, identity.CreateServiceKeyInput{
@@ -354,6 +362,7 @@ func (e *keyEnv) list(tenant uuid.UUID) []identity.ServiceKey {
 // Thu hồi: version cũ → ErrVersionConflict; đã thu hồi → ErrVersionConflict; mã lạ hay của tenant khác →
 // ErrServiceKeyNotFound; thu hồi ghi audit staff, revoked_by; danh sách chỉ tenant mình, không băm.
 func TestRevokeAndListServiceKeys(t *testing.T) {
+	t.Parallel()
 	e := newKeyEnv(t)
 	a := e.actor(emailA)
 	k, _, err := e.create(e.tenant, webInput(a, "web.catalog.read"), bytes.NewReader(seq(1, 40)))
@@ -408,6 +417,7 @@ func TestRevokeAndListServiceKeys(t *testing.T) {
 
 // TouchServiceKeys chỉ đẩy last_used_at tiến lên (hai tiến trình ghi lệch thứ tự không lùi mốc).
 func TestTouchServiceKeys(t *testing.T) {
+	t.Parallel()
 	e := newKeyEnv(t)
 	k, _, err := e.create(e.tenant, webInput(e.actor(emailA), "web.catalog.read"), bytes.NewReader(seq(1, 40)))
 	if err != nil {

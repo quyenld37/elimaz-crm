@@ -29,9 +29,9 @@ func (e *writeEnv) removeIdentity(tenant, id, identityID uuid.UUID) error {
 // AddIdentity: SĐT chuẩn hóa về +84…, email chữ thường; đã thuộc hồ sơ khác → *IdentityTakenError (không gộp); loại
 // nhân viên không được thêm, giá trị sai, khách không có hay của tenant khác → lỗi tương ứng.
 func TestAddIdentity(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
-	a := e.create(customer.CreateInput{FullName: "Khách A"})
-	b := e.create(customer.CreateInput{FullName: "Khách B", Phone: "0987654321"})
+	a, b := e.pair("Khách A", "Khách B", "0987654321")
 
 	phone, err := e.addIdentity(e.tenant, a.ID, customer.IdentityInput{Kind: customer.IdentityPhone, Value: "84 912.345.678"})
 	if err != nil || phone.Value != "+84912345678" || phone.Kind != customer.IdentityPhone || phone.Source != "staff" ||
@@ -82,6 +82,7 @@ func TestAddIdentity(t *testing.T) {
 // RemoveIdentity: gỡ được danh tính của hồ sơ trong nhóm; fb_psid → ErrInvalidInput; danh tính của nhóm khác, không
 // có → ErrNotFound.
 func TestRemoveIdentity(t *testing.T) {
+	t.Parallel()
 	e := newWriteEnv(t)
 	a := e.create(customer.CreateInput{FullName: "Khách A", Phone: "0912345678"})
 	b := e.create(customer.CreateInput{FullName: "Khách B", Phone: "0987654321"})

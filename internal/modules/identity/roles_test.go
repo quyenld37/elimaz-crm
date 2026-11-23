@@ -15,6 +15,7 @@ import (
 // Năm vai trò mẫu đúng kế hoạch Task M1-26: owner đủ mọi quyền; manager mọi quyền trừ identity.users.manage,
 // identity.roles.manage, platform.*; ba vai trò còn lại đúng danh sách.
 func TestDefaultRoles_Content(t *testing.T) {
+	t.Parallel()
 	all := make([]identity.Permission, 0, len(identity.Permissions))
 	for _, d := range identity.Permissions {
 		all = append(all, d.Key)
@@ -116,6 +117,7 @@ func countRoleRows(t *testing.T, s *testkit.Staff, a uuid.UUID) (roles, perms in
 
 // EnsureDefaultRoles chạy hai lần không đổi gì (số dòng roles, role_permissions giữ nguyên).
 func TestEnsureDefaultRoles_Idempotent(t *testing.T) {
+	t.Parallel()
 	s, a := rolesTenant(t)
 	r1, p1 := countRoleRows(t, s, a)
 	wantPerms := 0
@@ -138,6 +140,7 @@ func TestEnsureDefaultRoles_Idempotent(t *testing.T) {
 
 // Chủ shop đã sửa vai trò sale (bỏ order.create) và owner (bỏ audit.read): sale giữ nguyên, owner được thêm lại.
 func TestEnsureDefaultRoles_CustomizedKept(t *testing.T) {
+	t.Parallel()
 	s, a := rolesTenant(t)
 	s.Exec(t, a, func(tx pgx.Tx) error {
 		for _, q := range []string{
@@ -167,6 +170,7 @@ func TestEnsureDefaultRoles_CustomizedKept(t *testing.T) {
 // bằng cách xóa dòng role_permissions như database có trước khi quyền đó được thêm vào mã) vào vai trò mẫu chưa sửa;
 // vai trò mẫu đã sửa (customized) và vai trò tự định nghĩa không đổi; chạy lần hai không đổi thêm.
 func TestSyncDefaultRoles(t *testing.T) {
+	t.Parallel()
 	s, a := rolesTenant(t)
 	b := s.Tenant(t, "B") // shop mới, chưa có vai trò nào
 	s.Exec(t, a, func(tx pgx.Tx) error {
@@ -253,6 +257,7 @@ func execAll(t *testing.T, s *testkit.Staff, a uuid.UUID, qs ...string) {
 // Tenant mới (Task M2-01): 5 vai trò mẫu của M1; sale không có quyền gộp khách, duyệt giảm giá, nhận hàng trả;
 // warehouse nhận hàng trả; manager duyệt giảm giá và đủ 15 quyền M2; owner đủ 15 quyền M2.
 func TestEnsureDefaultRoles_M2(t *testing.T) {
+	t.Parallel()
 	s, a := rolesTenant(t)
 	r := rolesByKey(t, s, a)
 	if len(r) != 5 {
@@ -277,6 +282,7 @@ func TestEnsureDefaultRoles_M2(t *testing.T) {
 
 // Chỉ thêm, không bớt: quyền mẫu bị xóa tay khỏi sale chưa sửa được thêm lại; quyền ngoài mẫu thêm tay vẫn còn.
 func TestEnsureDefaultRoles_M2AddOnly(t *testing.T) {
+	t.Parallel()
 	s, a := rolesTenant(t)
 	_, p1 := countRoleRows(t, s, a)
 	ensureRoles(t, s, a)
@@ -302,6 +308,7 @@ func TestEnsureDefaultRoles_M2AddOnly(t *testing.T) {
 // SyncDefaultRoles: owner (kể cả đã customized) nhận đủ 15 quyền và chủ shop dùng được ngay (LoadUser → Can); sale
 // chưa sửa nhận đúng phần M2 của mình; warehouse đã customized và vai trò tự định nghĩa không nhận quyền M2 nào.
 func TestSyncDefaultRoles_M2(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a := s.Tenant(t, "A")
 	const email = "chu-m2@elimaz.test"
@@ -364,6 +371,7 @@ func m3Permissions() []identity.Permission {
 // Tenant mới (Task M3-04): Kho có fulfillment.print, không có cash.adjust; sale vẫn có fulfillment.ship của M1; owner
 // đủ 18 quyền M3; manager không có quyền sổ COD chỉ dành cho Chủ, Kế toán.
 func TestEnsureDefaultRoles_M3(t *testing.T) {
+	t.Parallel()
 	s, a := rolesTenant(t)
 	r := rolesByKey(t, s, a)
 	if !slices.Contains(r["warehouse"].Permissions, "fulfillment.print") || slices.Contains(r["warehouse"].Permissions, "cash.adjust") {
@@ -390,6 +398,7 @@ func TestEnsureDefaultRoles_M3(t *testing.T) {
 // Thay migration 0305 (Q-T91-5): tenant có trước M3 (xóa mọi quyền M3) chạy SyncDefaultRoles: owner (đã customized)
 // đủ 18 quyền và dùng được ngay; warehouse chưa sửa nhận phần M3 của mình; accountant đã customized không nhận gì.
 func TestSyncDefaultRoles_M3(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a := s.Tenant(t, "A")
 	const email = "chu-m3@elimaz.test"
