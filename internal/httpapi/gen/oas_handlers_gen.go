@@ -18992,6 +18992,98 @@ func (s *Server) handleWebLocationsRequest(args [0]string, argsEscaped bool, w h
 	}
 }
 
+// handleWebQuoteRequest handles webQuote operation.
+//
+// Task 192 (M5-09). Giá niêm yết đọc PostgreSQL (không qua bộ đệm); biến thể thiếu,
+// ngừng bán, của người bán khác → problem unavailable (không tính vào tổng); có
+// thể bán ở kho mặc định < qty → out_of_stock (không giữ hàng); quotedUnitPrice khác
+// giá CRM → price_changed, changed = true. Chiến dịch web đang chạy CRM tự tìm (QĐ33;
+// luật làm tròn testdata/contracts/web-campaign-rounding.json); dòng thuộc chiến dịch
+// không cho dùng mã không vào nền tính mã (QĐ29). Mã kiểm như lúc tạo đơn trừ
+// lượt mỗi khách (tạo đơn kiểm). fingerprint là sha256 của các dòng theo số CRM,
+// phí, tổng, mã: website gửi lại khi tạo đơn. Tổng vượt 9007199254740991 → 422
+// total_overflow.
+//
+// POST /api/v1/web/quote
+func (s *Server) handleWebQuoteRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebQuoteOperation,
+			ID:   "webQuote",
+		}
+	)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeWebQuoteRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response WebQuoteRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebQuoteOperation,
+			OperationSummary: "Báo giá giỏ website theo số của CRM (giá, ngừng bán, còn hàng, chiến dịch web, mã giảm); không ghi gì",
+			OperationID:      "webQuote",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *WebQuoteRequest
+			Params   = struct{}
+			Response = WebQuoteRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebQuote(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebQuote(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebQuoteResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebSold30dRequest handles webSold30d operation.
 //
 // Task 191 (M5-08); định nghĩa ở docs/m5/doi-chieu-gia-dinh.md mục 4: cộng số lượng

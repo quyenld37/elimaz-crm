@@ -208,5 +208,6 @@ const (
 	WebCatalogProductsOperation          OperationName = "WebCatalogProducts"
 	WebCatalogTaxonomyOperation          OperationName = "WebCatalogTaxonomy"
 	WebLocationsOperation                OperationName = "WebLocations"
+	WebQuoteOperation                    OperationName = "WebQuote"
 	WebSold30dOperation                  OperationName = "WebSold30d"
 )

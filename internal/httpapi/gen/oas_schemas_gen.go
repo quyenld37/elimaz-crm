@@ -9547,6 +9547,7 @@ func (*ErrorStatusCode) webCatalogChangesRes()           {}
 func (*ErrorStatusCode) webCatalogProductsRes()          {}
 func (*ErrorStatusCode) webCatalogTaxonomyRes()          {}
 func (*ErrorStatusCode) webLocationsRes()                {}
+func (*ErrorStatusCode) webQuoteRes()                    {}
 func (*ErrorStatusCode) webSold30dRes()                  {}
 
 // Một loại lỗi ứng dụng gộp theo dấu vân tay (Task 20). message đã lọc chuỗi từ
@@ -15480,6 +15481,190 @@ func (o OptWebCampaignStatus) Get() (v WebCampaignStatus, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptWebCampaignStatus) Or(d WebCampaignStatus) WebCampaignStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptWebQuoteCampaign returns new OptWebQuoteCampaign with value set to v.
+func NewOptWebQuoteCampaign(v WebQuoteCampaign) OptWebQuoteCampaign {
+	return OptWebQuoteCampaign{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWebQuoteCampaign is optional WebQuoteCampaign.
+type OptWebQuoteCampaign struct {
+	Value WebQuoteCampaign
+	Set   bool
+}
+
+// IsSet returns true if OptWebQuoteCampaign was set.
+func (o OptWebQuoteCampaign) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWebQuoteCampaign) Reset() {
+	var v WebQuoteCampaign
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWebQuoteCampaign) SetTo(v WebQuoteCampaign) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWebQuoteCampaign) Get() (v WebQuoteCampaign, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWebQuoteCampaign) Or(d WebQuoteCampaign) WebQuoteCampaign {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptWebQuoteCoupon returns new OptWebQuoteCoupon with value set to v.
+func NewOptWebQuoteCoupon(v WebQuoteCoupon) OptWebQuoteCoupon {
+	return OptWebQuoteCoupon{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWebQuoteCoupon is optional WebQuoteCoupon.
+type OptWebQuoteCoupon struct {
+	Value WebQuoteCoupon
+	Set   bool
+}
+
+// IsSet returns true if OptWebQuoteCoupon was set.
+func (o OptWebQuoteCoupon) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWebQuoteCoupon) Reset() {
+	var v WebQuoteCoupon
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWebQuoteCoupon) SetTo(v WebQuoteCoupon) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWebQuoteCoupon) Get() (v WebQuoteCoupon, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWebQuoteCoupon) Or(d WebQuoteCoupon) WebQuoteCoupon {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptWebQuoteCouponReason returns new OptWebQuoteCouponReason with value set to v.
+func NewOptWebQuoteCouponReason(v WebQuoteCouponReason) OptWebQuoteCouponReason {
+	return OptWebQuoteCouponReason{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWebQuoteCouponReason is optional WebQuoteCouponReason.
+type OptWebQuoteCouponReason struct {
+	Value WebQuoteCouponReason
+	Set   bool
+}
+
+// IsSet returns true if OptWebQuoteCouponReason was set.
+func (o OptWebQuoteCouponReason) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWebQuoteCouponReason) Reset() {
+	var v WebQuoteCouponReason
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWebQuoteCouponReason) SetTo(v WebQuoteCouponReason) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWebQuoteCouponReason) Get() (v WebQuoteCouponReason, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWebQuoteCouponReason) Or(d WebQuoteCouponReason) WebQuoteCouponReason {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptWebQuotedLineProblem returns new OptWebQuotedLineProblem with value set to v.
+func NewOptWebQuotedLineProblem(v WebQuotedLineProblem) OptWebQuotedLineProblem {
+	return OptWebQuotedLineProblem{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWebQuotedLineProblem is optional WebQuotedLineProblem.
+type OptWebQuotedLineProblem struct {
+	Value WebQuotedLineProblem
+	Set   bool
+}
+
+// IsSet returns true if OptWebQuotedLineProblem was set.
+func (o OptWebQuotedLineProblem) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWebQuotedLineProblem) Reset() {
+	var v WebQuotedLineProblem
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWebQuotedLineProblem) SetTo(v WebQuotedLineProblem) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWebQuotedLineProblem) Get() (v WebQuotedLineProblem, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWebQuotedLineProblem) Or(d WebQuotedLineProblem) WebQuotedLineProblem {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -28557,6 +28742,534 @@ func (s *WebProvince) SetName(val string) {
 // SetWards sets the value of Wards.
 func (s *WebProvince) SetWards(val []WebWard) {
 	s.Wards = val
+}
+
+// Ref: #/components/schemas/WebQuote
+type WebQuote struct {
+	Lines []WebQuotedLine `json:"lines"`
+	// Σ qty × unitPrice của dòng bán được.
+	Merchandise      int64 `json:"merchandise"`
+	CampaignDiscount int64 `json:"campaignDiscount"`
+	CouponDiscount   int64 `json:"couponDiscount"`
+	ShippingFee      int64 `json:"shippingFee"`
+	// Merchandise − campaignDiscount − couponDiscount + shippingFee.
+	GrandTotal int64             `json:"grandTotal"`
+	Coupon     OptWebQuoteCoupon `json:"coupon"`
+	// Hex sha256 của báo giá theo số CRM.
+	Fingerprint string `json:"fingerprint"`
+	// Có dòng bán được mà quotedUnitPrice khác giá CRM.
+	Changed bool `json:"changed"`
+}
+
+// GetLines returns the value of Lines.
+func (s *WebQuote) GetLines() []WebQuotedLine {
+	return s.Lines
+}
+
+// GetMerchandise returns the value of Merchandise.
+func (s *WebQuote) GetMerchandise() int64 {
+	return s.Merchandise
+}
+
+// GetCampaignDiscount returns the value of CampaignDiscount.
+func (s *WebQuote) GetCampaignDiscount() int64 {
+	return s.CampaignDiscount
+}
+
+// GetCouponDiscount returns the value of CouponDiscount.
+func (s *WebQuote) GetCouponDiscount() int64 {
+	return s.CouponDiscount
+}
+
+// GetShippingFee returns the value of ShippingFee.
+func (s *WebQuote) GetShippingFee() int64 {
+	return s.ShippingFee
+}
+
+// GetGrandTotal returns the value of GrandTotal.
+func (s *WebQuote) GetGrandTotal() int64 {
+	return s.GrandTotal
+}
+
+// GetCoupon returns the value of Coupon.
+func (s *WebQuote) GetCoupon() OptWebQuoteCoupon {
+	return s.Coupon
+}
+
+// GetFingerprint returns the value of Fingerprint.
+func (s *WebQuote) GetFingerprint() string {
+	return s.Fingerprint
+}
+
+// GetChanged returns the value of Changed.
+func (s *WebQuote) GetChanged() bool {
+	return s.Changed
+}
+
+// SetLines sets the value of Lines.
+func (s *WebQuote) SetLines(val []WebQuotedLine) {
+	s.Lines = val
+}
+
+// SetMerchandise sets the value of Merchandise.
+func (s *WebQuote) SetMerchandise(val int64) {
+	s.Merchandise = val
+}
+
+// SetCampaignDiscount sets the value of CampaignDiscount.
+func (s *WebQuote) SetCampaignDiscount(val int64) {
+	s.CampaignDiscount = val
+}
+
+// SetCouponDiscount sets the value of CouponDiscount.
+func (s *WebQuote) SetCouponDiscount(val int64) {
+	s.CouponDiscount = val
+}
+
+// SetShippingFee sets the value of ShippingFee.
+func (s *WebQuote) SetShippingFee(val int64) {
+	s.ShippingFee = val
+}
+
+// SetGrandTotal sets the value of GrandTotal.
+func (s *WebQuote) SetGrandTotal(val int64) {
+	s.GrandTotal = val
+}
+
+// SetCoupon sets the value of Coupon.
+func (s *WebQuote) SetCoupon(val OptWebQuoteCoupon) {
+	s.Coupon = val
+}
+
+// SetFingerprint sets the value of Fingerprint.
+func (s *WebQuote) SetFingerprint(val string) {
+	s.Fingerprint = val
+}
+
+// SetChanged sets the value of Changed.
+func (s *WebQuote) SetChanged(val bool) {
+	s.Changed = val
+}
+
+func (*WebQuote) webQuoteRes() {}
+
+// Ref: #/components/schemas/WebQuoteCampaign
+type WebQuoteCampaign struct {
+	ID          uuid.UUID `json:"id"`
+	Revision    int32     `json:"revision"`
+	Percent     int32     `json:"percent"`
+	AllowCoupon bool      `json:"allowCoupon"`
+}
+
+// GetID returns the value of ID.
+func (s *WebQuoteCampaign) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetRevision returns the value of Revision.
+func (s *WebQuoteCampaign) GetRevision() int32 {
+	return s.Revision
+}
+
+// GetPercent returns the value of Percent.
+func (s *WebQuoteCampaign) GetPercent() int32 {
+	return s.Percent
+}
+
+// GetAllowCoupon returns the value of AllowCoupon.
+func (s *WebQuoteCampaign) GetAllowCoupon() bool {
+	return s.AllowCoupon
+}
+
+// SetID sets the value of ID.
+func (s *WebQuoteCampaign) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetRevision sets the value of Revision.
+func (s *WebQuoteCampaign) SetRevision(val int32) {
+	s.Revision = val
+}
+
+// SetPercent sets the value of Percent.
+func (s *WebQuoteCampaign) SetPercent(val int32) {
+	s.Percent = val
+}
+
+// SetAllowCoupon sets the value of AllowCoupon.
+func (s *WebQuoteCampaign) SetAllowCoupon(val bool) {
+	s.AllowCoupon = val
+}
+
+// Ref: #/components/schemas/WebQuoteCoupon
+type WebQuoteCoupon struct {
+	Code    string `json:"code"`
+	Applied bool   `json:"applied"`
+	// Có khi applied = false.
+	Reason OptWebQuoteCouponReason `json:"reason"`
+}
+
+// GetCode returns the value of Code.
+func (s *WebQuoteCoupon) GetCode() string {
+	return s.Code
+}
+
+// GetApplied returns the value of Applied.
+func (s *WebQuoteCoupon) GetApplied() bool {
+	return s.Applied
+}
+
+// GetReason returns the value of Reason.
+func (s *WebQuoteCoupon) GetReason() OptWebQuoteCouponReason {
+	return s.Reason
+}
+
+// SetCode sets the value of Code.
+func (s *WebQuoteCoupon) SetCode(val string) {
+	s.Code = val
+}
+
+// SetApplied sets the value of Applied.
+func (s *WebQuoteCoupon) SetApplied(val bool) {
+	s.Applied = val
+}
+
+// SetReason sets the value of Reason.
+func (s *WebQuoteCoupon) SetReason(val OptWebQuoteCouponReason) {
+	s.Reason = val
+}
+
+// Có khi applied = false.
+type WebQuoteCouponReason string
+
+const (
+	WebQuoteCouponReasonNotFound      WebQuoteCouponReason = "not_found"
+	WebQuoteCouponReasonDisabled      WebQuoteCouponReason = "disabled"
+	WebQuoteCouponReasonNotStarted    WebQuoteCouponReason = "not_started"
+	WebQuoteCouponReasonExpired       WebQuoteCouponReason = "expired"
+	WebQuoteCouponReasonChannel       WebQuoteCouponReason = "channel"
+	WebQuoteCouponReasonSeller        WebQuoteCouponReason = "seller"
+	WebQuoteCouponReasonBoundOther    WebQuoteCouponReason = "bound_other"
+	WebQuoteCouponReasonMinSubtotal   WebQuoteCouponReason = "min_subtotal"
+	WebQuoteCouponReasonExhausted     WebQuoteCouponReason = "exhausted"
+	WebQuoteCouponReasonCustomerLimit WebQuoteCouponReason = "customer_limit"
+)
+
+// AllValues returns all WebQuoteCouponReason values.
+func (WebQuoteCouponReason) AllValues() []WebQuoteCouponReason {
+	return []WebQuoteCouponReason{
+		WebQuoteCouponReasonNotFound,
+		WebQuoteCouponReasonDisabled,
+		WebQuoteCouponReasonNotStarted,
+		WebQuoteCouponReasonExpired,
+		WebQuoteCouponReasonChannel,
+		WebQuoteCouponReasonSeller,
+		WebQuoteCouponReasonBoundOther,
+		WebQuoteCouponReasonMinSubtotal,
+		WebQuoteCouponReasonExhausted,
+		WebQuoteCouponReasonCustomerLimit,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WebQuoteCouponReason) MarshalText() ([]byte, error) {
+	switch s {
+	case WebQuoteCouponReasonNotFound:
+		return []byte(s), nil
+	case WebQuoteCouponReasonDisabled:
+		return []byte(s), nil
+	case WebQuoteCouponReasonNotStarted:
+		return []byte(s), nil
+	case WebQuoteCouponReasonExpired:
+		return []byte(s), nil
+	case WebQuoteCouponReasonChannel:
+		return []byte(s), nil
+	case WebQuoteCouponReasonSeller:
+		return []byte(s), nil
+	case WebQuoteCouponReasonBoundOther:
+		return []byte(s), nil
+	case WebQuoteCouponReasonMinSubtotal:
+		return []byte(s), nil
+	case WebQuoteCouponReasonExhausted:
+		return []byte(s), nil
+	case WebQuoteCouponReasonCustomerLimit:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WebQuoteCouponReason) UnmarshalText(data []byte) error {
+	switch WebQuoteCouponReason(data) {
+	case WebQuoteCouponReasonNotFound:
+		*s = WebQuoteCouponReasonNotFound
+		return nil
+	case WebQuoteCouponReasonDisabled:
+		*s = WebQuoteCouponReasonDisabled
+		return nil
+	case WebQuoteCouponReasonNotStarted:
+		*s = WebQuoteCouponReasonNotStarted
+		return nil
+	case WebQuoteCouponReasonExpired:
+		*s = WebQuoteCouponReasonExpired
+		return nil
+	case WebQuoteCouponReasonChannel:
+		*s = WebQuoteCouponReasonChannel
+		return nil
+	case WebQuoteCouponReasonSeller:
+		*s = WebQuoteCouponReasonSeller
+		return nil
+	case WebQuoteCouponReasonBoundOther:
+		*s = WebQuoteCouponReasonBoundOther
+		return nil
+	case WebQuoteCouponReasonMinSubtotal:
+		*s = WebQuoteCouponReasonMinSubtotal
+		return nil
+	case WebQuoteCouponReasonExhausted:
+		*s = WebQuoteCouponReasonExhausted
+		return nil
+	case WebQuoteCouponReasonCustomerLimit:
+		*s = WebQuoteCouponReasonCustomerLimit
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/WebQuoteLineInput
+type WebQuoteLineInput struct {
+	// Mã biến thể, không trùng trong một yêu cầu.
+	VariantId uuid.UUID `json:"variantId"`
+	Qty       int32     `json:"qty"`
+	// Giá niêm yết website đang hiện (chưa trừ chiến dịch).
+	QuotedUnitPrice int64 `json:"quotedUnitPrice"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *WebQuoteLineInput) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetQty returns the value of Qty.
+func (s *WebQuoteLineInput) GetQty() int32 {
+	return s.Qty
+}
+
+// GetQuotedUnitPrice returns the value of QuotedUnitPrice.
+func (s *WebQuoteLineInput) GetQuotedUnitPrice() int64 {
+	return s.QuotedUnitPrice
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *WebQuoteLineInput) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetQty sets the value of Qty.
+func (s *WebQuoteLineInput) SetQty(val int32) {
+	s.Qty = val
+}
+
+// SetQuotedUnitPrice sets the value of QuotedUnitPrice.
+func (s *WebQuoteLineInput) SetQuotedUnitPrice(val int64) {
+	s.QuotedUnitPrice = val
+}
+
+// Ref: #/components/schemas/WebQuoteRequest
+type WebQuoteRequest struct {
+	Lines []WebQuoteLineInput `json:"lines"`
+	// Rỗng hay không gửi là không dùng mã; không phân biệt hoa thường.
+	CouponCode OptString `json:"couponCode"`
+	// SĐT người đặt, chỉ để kiểm mã gắn SĐT (không ghi lại).
+	CustomerPhone OptString `json:"customerPhone"`
+	// Phí giao website đã tính (đồng).
+	ShippingFee int64 `json:"shippingFee"`
+}
+
+// GetLines returns the value of Lines.
+func (s *WebQuoteRequest) GetLines() []WebQuoteLineInput {
+	return s.Lines
+}
+
+// GetCouponCode returns the value of CouponCode.
+func (s *WebQuoteRequest) GetCouponCode() OptString {
+	return s.CouponCode
+}
+
+// GetCustomerPhone returns the value of CustomerPhone.
+func (s *WebQuoteRequest) GetCustomerPhone() OptString {
+	return s.CustomerPhone
+}
+
+// GetShippingFee returns the value of ShippingFee.
+func (s *WebQuoteRequest) GetShippingFee() int64 {
+	return s.ShippingFee
+}
+
+// SetLines sets the value of Lines.
+func (s *WebQuoteRequest) SetLines(val []WebQuoteLineInput) {
+	s.Lines = val
+}
+
+// SetCouponCode sets the value of CouponCode.
+func (s *WebQuoteRequest) SetCouponCode(val OptString) {
+	s.CouponCode = val
+}
+
+// SetCustomerPhone sets the value of CustomerPhone.
+func (s *WebQuoteRequest) SetCustomerPhone(val OptString) {
+	s.CustomerPhone = val
+}
+
+// SetShippingFee sets the value of ShippingFee.
+func (s *WebQuoteRequest) SetShippingFee(val int64) {
+	s.ShippingFee = val
+}
+
+// Ref: #/components/schemas/WebQuotedLine
+type WebQuotedLine struct {
+	VariantId uuid.UUID `json:"variantId"`
+	Qty       int32     `json:"qty"`
+	// Giá niêm yết CRM (0 khi unavailable).
+	UnitPrice int64 `json:"unitPrice"`
+	// Qty × giảm mỗi đơn vị của chiến dịch.
+	CampaignDiscount int64 `json:"campaignDiscount"`
+	// Phần mã chia về dòng.
+	CouponDiscount int64               `json:"couponDiscount"`
+	Net            int64               `json:"net"`
+	Campaign       OptWebQuoteCampaign `json:"campaign"`
+	// Không có khi dòng ổn; mỗi dòng một vấn đề theo thứ tự ưu tiên của enum.
+	Problem OptWebQuotedLineProblem `json:"problem"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *WebQuotedLine) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetQty returns the value of Qty.
+func (s *WebQuotedLine) GetQty() int32 {
+	return s.Qty
+}
+
+// GetUnitPrice returns the value of UnitPrice.
+func (s *WebQuotedLine) GetUnitPrice() int64 {
+	return s.UnitPrice
+}
+
+// GetCampaignDiscount returns the value of CampaignDiscount.
+func (s *WebQuotedLine) GetCampaignDiscount() int64 {
+	return s.CampaignDiscount
+}
+
+// GetCouponDiscount returns the value of CouponDiscount.
+func (s *WebQuotedLine) GetCouponDiscount() int64 {
+	return s.CouponDiscount
+}
+
+// GetNet returns the value of Net.
+func (s *WebQuotedLine) GetNet() int64 {
+	return s.Net
+}
+
+// GetCampaign returns the value of Campaign.
+func (s *WebQuotedLine) GetCampaign() OptWebQuoteCampaign {
+	return s.Campaign
+}
+
+// GetProblem returns the value of Problem.
+func (s *WebQuotedLine) GetProblem() OptWebQuotedLineProblem {
+	return s.Problem
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *WebQuotedLine) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetQty sets the value of Qty.
+func (s *WebQuotedLine) SetQty(val int32) {
+	s.Qty = val
+}
+
+// SetUnitPrice sets the value of UnitPrice.
+func (s *WebQuotedLine) SetUnitPrice(val int64) {
+	s.UnitPrice = val
+}
+
+// SetCampaignDiscount sets the value of CampaignDiscount.
+func (s *WebQuotedLine) SetCampaignDiscount(val int64) {
+	s.CampaignDiscount = val
+}
+
+// SetCouponDiscount sets the value of CouponDiscount.
+func (s *WebQuotedLine) SetCouponDiscount(val int64) {
+	s.CouponDiscount = val
+}
+
+// SetNet sets the value of Net.
+func (s *WebQuotedLine) SetNet(val int64) {
+	s.Net = val
+}
+
+// SetCampaign sets the value of Campaign.
+func (s *WebQuotedLine) SetCampaign(val OptWebQuoteCampaign) {
+	s.Campaign = val
+}
+
+// SetProblem sets the value of Problem.
+func (s *WebQuotedLine) SetProblem(val OptWebQuotedLineProblem) {
+	s.Problem = val
+}
+
+// Không có khi dòng ổn; mỗi dòng một vấn đề theo thứ tự ưu tiên của enum.
+type WebQuotedLineProblem string
+
+const (
+	WebQuotedLineProblemUnavailable  WebQuotedLineProblem = "unavailable"
+	WebQuotedLineProblemOutOfStock   WebQuotedLineProblem = "out_of_stock"
+	WebQuotedLineProblemPriceChanged WebQuotedLineProblem = "price_changed"
+)
+
+// AllValues returns all WebQuotedLineProblem values.
+func (WebQuotedLineProblem) AllValues() []WebQuotedLineProblem {
+	return []WebQuotedLineProblem{
+		WebQuotedLineProblemUnavailable,
+		WebQuotedLineProblemOutOfStock,
+		WebQuotedLineProblemPriceChanged,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WebQuotedLineProblem) MarshalText() ([]byte, error) {
+	switch s {
+	case WebQuotedLineProblemUnavailable:
+		return []byte(s), nil
+	case WebQuotedLineProblemOutOfStock:
+		return []byte(s), nil
+	case WebQuotedLineProblemPriceChanged:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WebQuotedLineProblem) UnmarshalText(data []byte) error {
+	switch WebQuotedLineProblem(data) {
+	case WebQuotedLineProblemUnavailable:
+		*s = WebQuotedLineProblemUnavailable
+		return nil
+	case WebQuotedLineProblemOutOfStock:
+		*s = WebQuotedLineProblemOutOfStock
+		return nil
+	case WebQuotedLineProblemPriceChanged:
+		*s = WebQuotedLineProblemPriceChanged
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/WebSold30

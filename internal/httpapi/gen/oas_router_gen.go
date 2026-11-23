@@ -361,6 +361,9 @@ var (
 	rn279AllowedHeaders = map[string]string{
 		"GET": "If-None-Match",
 	}
+	rn280AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
 )
 
 func (s *Server) cutPrefix(path string) (string, bool) {
@@ -6297,6 +6300,31 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										allowedMethods: "GET",
 										allowedHeaders: rn279AllowedHeaders,
 										acceptPost:     "",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
+						case 'q': // Prefix: "quote"
+
+							if l := len("quote"); len(elem) >= l && elem[0:l] == "quote" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleWebQuoteRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "POST",
+										allowedHeaders: rn280AllowedHeaders,
+										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
 								}
@@ -12369,6 +12397,31 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									r.operationID = "webLocations"
 									r.operationGroup = ""
 									r.pathPattern = "/api/v1/web/locations"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+						case 'q': // Prefix: "quote"
+
+							if l := len("quote"); len(elem) >= l && elem[0:l] == "quote" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = WebQuoteOperation
+									r.summary = "Báo giá giỏ website theo số của CRM (giá, ngừng bán, còn hàng, chiến dịch web, mã giảm); không ghi gì"
+									r.operationID = "webQuote"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/web/quote"
 									r.args = args
 									r.count = 0
 									return r, true

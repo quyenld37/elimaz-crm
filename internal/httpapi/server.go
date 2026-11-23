@@ -75,6 +75,7 @@ type Deps struct {
 	limiter        *userLimiter // một bộ đếm chung cho mọi route của nhân viên (prepare)
 	serviceLimiter *userLimiter // bộ đếm dự phòng của khóa dịch vụ khi RateLimiter nil (prepare)
 	webCatalog     *web.Catalog // danh mục cho website (prepare)
+	webOrders      *web.Orders  // báo giá, đơn của website (prepare)
 }
 
 // prepare dựng phần dùng chung giữa các route (bộ đếm tần suất) một lần cho mỗi server.
@@ -95,6 +96,9 @@ func prepare(d Deps) Deps {
 		d.webCatalog = web.NewCatalog(d.DB, d.ReadCache, catalog.ImageView{
 			BaseURL: d.Config.FilesPublicBaseURL, Preset: d.Config.ImagePresetVersion,
 		}, d.Logger).WithClock(d.Now)
+	}
+	if d.webOrders == nil {
+		d.webOrders = web.NewOrders(d.DB, d.Now)
 	}
 	return d
 }
