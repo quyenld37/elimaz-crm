@@ -228,7 +228,7 @@ func (w Writer) cancelAll(ctx context.Context, tx pgx.Tx, plans []cancelPlan, re
 		}
 	}
 	if len(held) > 0 {
-		if err := stock.ReleaseHeldByItems(ctx, tx, held, release, inventory.Actor{Type: a.kind(), ID: a.UserID}); err != nil {
+		if err := stock.ReleaseHeldByItems(ctx, tx, held, release, inventory.Actor{Type: a.stockKind(), ID: a.UserID}); err != nil {
 			return fmt.Errorf("nhả giữ hàng của đơn hủy: %w", err)
 		}
 	}

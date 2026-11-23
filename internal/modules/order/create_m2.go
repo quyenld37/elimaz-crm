@@ -120,6 +120,19 @@ type CreateResult struct {
 //
 // Audit do bên gọi ghi bằng Order.AuditFields (order không nhập identity). Không giữ trạng thái giữa các lần chạy lại.
 func (w Writer) Create(ctx context.Context, tx pgx.Tx, in CreateInput, a Actor, now time.Time) (CreateResult, error) {
+	return w.create(ctx, tx, in, nil, a, now)
+}
+
+// webPricing là phần riêng của đơn web (CreateFromWeb) khi tạo đơn; nil ở mọi đơn khác. Giảm dòng của đơn web là giảm
+// chiến dịch CRM tự tính (QĐ33), không phải giảm tay: không xét ngưỡng duyệt giảm tay. noCoupon là các biến thể thuộc
+// chiến dịch cấm mã (QĐ29): không vào nền mã, không nhận phần chia mã (couponBases, như QuoteWeb).
+type webPricing struct {
+	noCoupon map[uuid.UUID]bool
+}
+
+// create là thân của Create; web khác nil cho đơn web (CreateInput của đơn web không có giảm tay cấp đơn).
+func (w Writer) create(ctx context.Context, tx pgx.Tx, in CreateInput, web *webPricing, a Actor, now time.Time,
+) (CreateResult, error) {
 	stock, err := w.stock()
 	if err != nil {
 		return CreateResult{}, err
@@ -129,6 +142,10 @@ func (w Writer) Create(ctx context.Context, tx pgx.Tx, in CreateInput, a Actor, 
 	if err != nil {
 		return CreateResult{}, err
 	}
+	if web != nil && in.OrderDiscount != 0 {
+		return CreateResult{}, fmt.Errorf("%w: đơn web không có giảm cấp đơn", ErrInvalidInput)
+	}
+	p.web = web
 	if err := p.resolveDefaults(ctx, tx); err != nil {
 		return CreateResult{}, err
 	}
@@ -157,7 +174,7 @@ func (w Writer) Create(ctx context.Context, tx pgx.Tx, in CreateInput, a Actor, 
 			return CreateResult{}, err
 		}
 	}
-	if _, err := stock.Reserve(ctx, tx, reserve, inventory.Actor{Type: a.kind(), ID: a.UserID}); err != nil {
+	if _, err := stock.Reserve(ctx, tx, reserve, inventory.Actor{Type: a.stockKind(), ID: a.UserID}); err != nil {
 		if ie, ok := errors.AsType[*inventory.InsufficientError](err); ok {
 			return CreateResult{}, &OutOfStockError{VariantID: ie.VariantID, Available: ie.Available}
 		}
@@ -183,6 +200,7 @@ type prepared struct {
 	status         string
 	channel, oType string
 	unitsComplete  bool
+	web            *webPricing
 }
 
 // prepare kiểm phần đầu vào không cần database.
@@ -427,13 +445,17 @@ func (p prepared) draft(ctx context.Context, tx pgx.Tx, a Actor, now time.Time) 
 	}
 	// Cài đặt chỉ cần cho đơn nháp (hạn) và đơn có giảm tay (ngưỡng duyệt; tỷ lệ 0 không bao giờ vượt ngưỡng ≥ 0): đơn
 	// kiểu M1 không đòi tenant đã có dòng cài đặt.
+	// Đơn web: giảm dòng là giảm chiến dịch (webPricing), không xét ngưỡng.
 	var s Settings
-	if p.status == StatusDraft || pricing.ManualDiscountBP(totals) > 0 {
+	if p.status == StatusDraft || (p.web == nil && pricing.ManualDiscountBP(totals) > 0) {
 		if s, err = LoadSettings(ctx, tx); err != nil {
 			return drafted{}, err
 		}
 	}
-	d := drafted{lines: lines, pricing: in, totals: totals, approval: decideApproval(p.status, totals, s, a, now)}
+	d := drafted{lines: lines, pricing: in, totals: totals, approval: approval{status: p.status}}
+	if p.web == nil {
+		d.approval = decideApproval(p.status, totals, s, a, now)
+	}
 	// version = số sự kiện của lần tạo (created seq 1, confirmed seq 2): version luôn bằng seq của sự kiện cuối.
 	d.version = 1
 	if d.approval.status == StatusConfirmed {

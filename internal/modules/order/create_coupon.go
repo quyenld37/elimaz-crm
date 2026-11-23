@@ -23,7 +23,8 @@ var errCouponTotalsMoved = errors.New("order: không ghi được tổng tiền 
 // nhóm 11): promotion.Writer.Redeem với tạm tính sau giảm dòng và giảm tay cấp đơn, SĐT là danh tính SĐT của khách
 // nếu đầu vào có, không thì SĐT người nhận; bị từ chối → lỗi bọc *promotion.RejectError. Phần giảm khác 0: tính lại
 // bằng pricing.Compute với CouponDiscount, ghi tổng đơn (cod_amount = grand_total) và phần chia về dòng itemIDs (thứ
-// tự nhập). Chỉ sửa dòng của chính đơn vừa chèn.
+// tự nhập). Chỉ sửa dòng của chính đơn vừa chèn. Đơn web (p.web): nền và phần chia về dòng theo couponBases như
+// QuoteWeb.
 func (w Writer) applyCoupon(ctx context.Context, tx pgx.Tx, p prepared, d drafted, cust customer.OrderCustomer,
 	orderID uuid.UUID, itemIDs []uuid.UUID, a Actor, now time.Time,
 ) error {
@@ -32,10 +33,15 @@ func (w Writer) applyCoupon(ctx context.Context, tx pgx.Tx, p prepared, d drafte
 	if phone == "" && p.addr != nil {
 		phone = p.addr.Phone
 	}
+	base := t.Subtotal - t.LineDiscountTotal - t.OrderDiscount
+	var webBases []int64
+	if p.web != nil { // đơn web: nền như QuoteWeb (bỏ dòng chiến dịch cấm mã); không có giảm cấp đơn
+		webBases, base = couponBases(t.Lines, func(i int) bool { return !p.web.noCoupon[d.lines[i].variant.ID] })
+	}
 	r, err := promotion.Writer{Events: w.Events, Queue: w.Queue}.Redeem(ctx, tx, p.coupon,
 		promotion.OrderRef{TenantID: a.TenantID, ID: orderID, Version: d.version},
 		promotion.EvalInput{
-			Base: t.Subtotal - t.LineDiscountTotal - t.OrderDiscount, Channel: p.channel, CustomerID: cust.CustomerID,
+			Base: base, Channel: p.channel, CustomerID: cust.CustomerID,
 			CustomerRootID: cust.RootID, Phone: phone, SellerID: p.seller, Now: now,
 		})
 	if err != nil {
@@ -66,6 +72,11 @@ func (w Writer) applyCoupon(ctx context.Context, tx pgx.Tx, p prepared, d drafte
 	}
 	for i, l := range t.Lines {
 		alloc.Allocated[i], alloc.Net[i] = l.Allocated, l.Net
+	}
+	if webBases != nil { // mã chỉ chia về dòng được áp (OrderDiscount = 0 nên phần chia chỉ là mã)
+		for i, x := range pricing.Allocate(webBases, r.Discount) {
+			alloc.Allocated[i], alloc.Net[i] = x, t.Lines[i].Base-x
+		}
 	}
 	n, err = q.SetOrderItemAllocation(ctx, alloc)
 	if err != nil {

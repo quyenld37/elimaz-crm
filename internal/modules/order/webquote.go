@@ -266,14 +266,10 @@ func webCampaigns(ctx context.Context, tx pgx.Tx, seller uuid.UUID, lines []WebL
 func applyWebCoupon(ctx context.Context, tx pgx.Tx, q *WebQuote, t pricing.Totals, code string, phone *logging.Phone,
 	seller uuid.UUID, now time.Time,
 ) error {
-	bases := make([]int64, len(t.Lines))
-	var base int64
-	for i, lt := range t.Lines {
-		if c := q.Lines[lt.Key].Campaign; c == nil || c.AllowCoupon {
-			bases[i] = lt.Base
-			base += lt.Base // Σ Base ≤ Subtotal ≤ MaxMoney (Compute đã kiểm)
-		}
-	}
+	bases, base := couponBases(t.Lines, func(i int) bool {
+		c := q.Lines[t.Lines[i].Key].Campaign
+		return c == nil || c.AllowCoupon
+	})
 	in := promotion.EvalInput{Base: base, Channel: ChannelWeb, SellerID: seller, Now: now}
 	if phone != nil {
 		in.Phone = *phone
@@ -291,6 +287,21 @@ func applyWebCoupon(ctx context.Context, tx pgx.Tx, q *WebQuote, t pricing.Total
 		q.Lines[t.Lines[i].Key].CouponDiscount = a
 	}
 	return nil
+}
+
+// couponBases là nền mã của từng dòng tính tiền lines (Base khi eligible(i), không thì 0: dòng thuộc chiến dịch web cấm
+// mã, QĐ29) và tổng nền. Một chỗ cho báo giá web và tạo đơn web: mã tính trên tổng nền, chia về dòng bằng
+// pricing.Allocate(bases, giảm mã).
+func couponBases(lines []pricing.LineTotals, eligible func(i int) bool) ([]int64, int64) {
+	bases := make([]int64, len(lines))
+	var base int64
+	for i, lt := range lines {
+		if eligible(i) {
+			bases[i] = lt.Base
+			base += lt.Base // Σ Base ≤ Subtotal ≤ MaxMoney (Compute đã kiểm)
+		}
+	}
+	return bases, base
 }
 
 // fingerprintLine là một dòng trong JSON của dấu vân tay (tên trường ngắn, thứ tự cố định).

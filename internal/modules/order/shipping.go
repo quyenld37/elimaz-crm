@@ -78,7 +78,7 @@ func (w Writer) ReverseDelivery(ctx context.Context, tx pgx.Tx, sellerID, orderI
 	if err != nil {
 		return false, fmt.Errorf("đọc dòng đơn: %w", err)
 	}
-	if err := stock.ReverseConsumption(ctx, tx, items, ref, reason, inventory.Actor{Type: a.kind(), ID: a.UserID}); err != nil {
+	if err := stock.ReverseConsumption(ctx, tx, items, ref, reason, inventory.Actor{Type: a.stockKind(), ID: a.UserID}); err != nil {
 		return false, fmt.Errorf("đảo phiếu xuất: %w", err)
 	}
 	cur := lockedOrder(o)

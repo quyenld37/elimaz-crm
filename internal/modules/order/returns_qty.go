@@ -210,7 +210,7 @@ func (w Writer) receive(ctx context.Context, tx pgx.Tx, sellerID uuid.UUID, l lo
 		return err
 	}
 	a.TenantID = l.order.TenantID
-	who := inventory.Actor{Type: a.kind(), ID: a.UserID}
+	who := inventory.Actor{Type: a.stockKind(), ID: a.UserID}
 	if byCarrier {
 		return w.receiveCarrier(ctx, tx, stock, l, lines, full, who, a, now)
 	}

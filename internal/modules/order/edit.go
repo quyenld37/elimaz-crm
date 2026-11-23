@@ -679,7 +679,7 @@ func (e *editRun) applyStock(ctx context.Context) error {
 		}
 	}
 	slices.SortFunc(cs, func(x, y stockChange) int { return bytes.Compare(x.variant[:], y.variant[:]) })
-	a := inventory.Actor{Type: e.a.kind(), ID: e.a.UserID}
+	a := inventory.Actor{Type: e.a.stockKind(), ID: e.a.UserID}
 	step := "edit_v" + strconv.FormatInt(e.version, 10)
 	for _, c := range cs {
 		var err error
