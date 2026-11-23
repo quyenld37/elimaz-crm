@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -164,32 +166,115 @@ func TestGeneratesWebRoutes(t *testing.T) {
 	}
 }
 
-// Hợp đồng thật của M0: mọi route ghi là required, không route nào exempt hay no-replay.
+// Hợp đồng thật: mọi route ghi theo đúng luật openapi 3 và 6 (writeRouteProblems). Không có danh sách ngoại lệ cố định:
+// exempt (Task 192, webQuote) hay no-replay (Task 189, createServiceKey) hợp lệ khi có lý do và đúng luật.
 func TestRealContractWritesRequired(t *testing.T) {
 	code, stderr, out := runGen(t, filepath.Join("..", "..", "openapi", "openapi.yaml"))
 	if code != 0 {
 		t.Fatalf("openapi.yaml thật phải sinh được: %d\n%s", code, stderr)
 	}
-	writes := 0
+	writes, required := 0, 0
 	for line := range strings.Lines(out) {
 		if !strings.Contains(line, "Write: true") {
 			continue
 		}
 		writes++
-		// Ngoại lệ duy nhất (Task 189, luật openapi 3): createServiceKey trả bí mật một lần, no-replay kèm lý do.
-		if strings.Contains(line, `OperationID: "createServiceKey"`) {
-			if !strings.HasSuffix(strings.TrimSpace(line), `Write: true, IdempotencyMode: "no-replay", IdempotencyReason: "Trả bí mật của khóa đúng một lần", Auth: "access"},`) {
-				t.Errorf("createServiceKey phải no-replay kèm lý do: %s", line)
-			}
-			continue
+		for _, p := range writeRouteProblems(line) {
+			t.Errorf("%s: %s", p, strings.TrimSpace(line))
 		}
-		if !strings.HasSuffix(strings.TrimSpace(line), `Write: true, IdempotencyMode: "required", Auth: "access"},`) {
-			t.Errorf("route ghi của M0 phải required, không lý do: %s", line)
+		if strings.Contains(line, `IdempotencyMode: "`+modeRequired+`"`) {
+			required++
 		}
 	}
-	if writes == 0 {
-		t.Fatal("hợp đồng M0 phải có route ghi")
+	if writes == 0 || required == 0 {
+		t.Fatalf("hợp đồng thật phải có route ghi required: %d route ghi, %d required", writes, required)
 	}
+}
+
+// Bộ kiểm của TestRealContractWritesRequired không luôn qua: dòng đúng luật qua, mỗi dòng sai luật bị bắt đúng lý do.
+func TestWriteRouteProblems(t *testing.T) {
+	const pre = `{Method: "POST", Pattern: "POST /api/v1/things", OperationID: "op", Permission: "things.write", Write: true, `
+	const webPre = `{Method: "POST", Pattern: "POST /api/v1/web/x", OperationID: "op", Permission: "web.x", Write: true, `
+	ok := []string{
+		pre + `IdempotencyMode: "required", Auth: "access"},`,
+		pre + `IdempotencyMode: "no-replay", IdempotencyReason: "Trả bí mật một lần", Auth: "access"},`,
+		webPre + `IdempotencyMode: "exempt", IdempotencyReason: "Chỉ tính giá, có \"ngoặc\"", Auth: "service_key"},`,
+		webPre + `IdempotencyMode: "required", Auth: "service_key", Admission: "flash", BodyLimit: 6291456},`,
+	}
+	for _, line := range ok {
+		if p := writeRouteProblems(line); len(p) != 0 {
+			t.Errorf("dòng đúng luật bị chặn %v: %s", p, line)
+		}
+	}
+	bad := []struct{ line, want string }{
+		{pre + `IdempotencyMode: "exempt", Auth: "access"},`, "lý do"},
+		{pre + `IdempotencyMode: "exempt", IdempotencyReason: "  ", Auth: "access"},`, "lý do"},
+		{pre + `IdempotencyMode: "no-replay", Auth: "access"},`, "lý do"},
+		{pre + `IdempotencyMode: "required", IdempotencyReason: "thừa", Auth: "access"},`, "required"},
+		{pre + `IdempotencyMode: "safe", IdempotencyReason: "lạ", Auth: "access"},`, "chế độ"},
+		{pre + `Auth: "access"},`, "chế độ"},
+		{pre + `IdempotencyMode: "required", Auth: "staff"},`, "Auth"},
+		{pre + `IdempotencyMode: "required", Auth: "public"},`, "Auth"},
+		{pre + `IdempotencyMode: "required"},`, "Auth"},
+		{pre + `IdempotencyMode: "required", Auth: "service_key"},`, "service_key"},
+		{webPre + `IdempotencyMode: "required", Auth: "access"},`, "service_key"},
+		{`{Method: "PUT", Pattern: "PUT /api/v1/things", OperationID: "op", Permission: "things.write", Write: true, ` +
+			`IdempotencyMode: "exempt", IdempotencyReason: "x", Auth: "access"},`, "POST"},
+		{`{Method: "DELETE", Pattern: "DELETE /api/v1/things", OperationID: "op", Permission: "things.write", ` +
+			`Write: true, IdempotencyMode: "no-replay", IdempotencyReason: "x", Auth: "access"},`, "POST"},
+		{`{Method: "POST", Write: true, IdempotencyMode: "required", Auth: "access"},`, "OperationID"},
+	}
+	for _, c := range bad {
+		p := strings.Join(writeRouteProblems(c.line), "; ")
+		if !strings.Contains(p, c.want) {
+			t.Errorf("dòng sai luật phải bị chặn với %q, có %q: %s", c.want, p, c.line)
+		}
+	}
+}
+
+// routeField bắt một trường `Tên: giá trị` của một dòng Route đã sinh (giá trị là chuỗi Go có ngoặc kép, số hay bool).
+var routeField = regexp.MustCompile(`(\w+): ("(?:[^"\\]|\\.)*"|\w+)`)
+
+// writeRouteProblems kiểm một dòng route ghi đã sinh theo luật openapi 3 và 6: chế độ chống trùng thuộc {required,
+// exempt, no-replay}; required không có lý do; exempt, no-replay có lý do không rỗng và chỉ cho POST; Auth của route
+// ghi là access hoặc service_key; service_key đúng khi và chỉ khi path /api/v1/web/*. Trả các vi phạm, rỗng là đạt.
+func writeRouteProblems(line string) []string {
+	f := map[string]string{}
+	for _, m := range routeField.FindAllStringSubmatch(line, -1) {
+		v := m[2]
+		if s, err := strconv.Unquote(v); err == nil {
+			v = s
+		}
+		f[m[1]] = v
+	}
+	var problems []string
+	if f["OperationID"] == "" || f["Pattern"] == "" || f["Method"] == "" {
+		problems = append(problems, "dòng route thiếu Method, Pattern hay OperationID")
+	}
+	reason, hasReason := f["IdempotencyReason"]
+	switch mode := f["IdempotencyMode"]; mode {
+	case modeRequired:
+		if hasReason {
+			problems = append(problems, "route required không được có IdempotencyReason")
+		}
+	case modeExempt, modeNoReplay:
+		if strings.TrimSpace(reason) == "" {
+			problems = append(problems, "route "+mode+" cần lý do (IdempotencyReason) không rỗng")
+		}
+		if f["Method"] != "POST" {
+			problems = append(problems, "route "+mode+" chỉ cho POST, có "+f["Method"])
+		}
+	default:
+		problems = append(problems, "chế độ chống trùng lạ "+strconv.Quote(mode))
+	}
+	onWeb := strings.Contains(f["Pattern"], " "+webPathPrefix)
+	switch auth := f["Auth"]; {
+	case auth != authAccess && auth != authServiceKey:
+		problems = append(problems, "Auth của route ghi phải access hoặc service_key, có "+strconv.Quote(auth))
+	case onWeb != (auth == authServiceKey):
+		problems = append(problems, "Auth service_key đúng khi và chỉ khi path "+webPathPrefix+"*, có "+auth)
+	}
+	return problems
 }
 
 // Hợp đồng thật sinh không lỗi và khớp tệp đã commit (chạy lại không đổi tệp).
