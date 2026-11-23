@@ -1817,3 +1817,36 @@ func (UnimplementedHandler) VerifyFiles(ctx context.Context, params VerifyFilesP
 func (UnimplementedHandler) WaiveRefundObligation(ctx context.Context, req *WaiveRefundObligationRequest, params WaiveRefundObligationParams) (r WaiveRefundObligationRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
+
+// WebCatalogChanges implements webCatalogChanges operation.
+//
+// Task 190 (M5-07). Lần sau gửi since = until − 30 s và bỏ mã trùng. hasMore = true (đủ
+// limit mã) thì còn thay đổi chưa trả: gọi tiếp với since = until − 30 s; nếu vẫn
+// đủ limit mà until không tiến, website tải lại cả danh mục theo trang.
+//
+// GET /api/v1/web/catalog/changes
+func (UnimplementedHandler) WebCatalogChanges(ctx context.Context, params WebCatalogChangesParams) (r WebCatalogChangesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// WebCatalogProducts implements webCatalogProducts operation.
+//
+// Task 190 (M5-07). Chỉ mẫu chưa xóa của người bán đang hoạt động; mọi trạng
+// thái (draft, active, discontinued) để website tự ẩn. Mã trong ids không có trong kết
+// quả là mẫu đã xóa, của người bán ngừng hay không có: website gỡ khỏi bản
+// sao. Không có giá nhập. Gửi cả cursor lẫn ids → 400. Bộ đệm 60 s, làm mới theo
+// sự kiện sản phẩm.
+//
+// GET /api/v1/web/catalog/products
+func (UnimplementedHandler) WebCatalogProducts(ctx context.Context, params WebCatalogProductsParams) (r WebCatalogProductsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// WebCatalogTaxonomy implements webCatalogTaxonomy operation.
+//
+// Task 190 (M5-07). Bộ đệm 300 s.
+//
+// GET /api/v1/web/catalog/taxonomy
+func (UnimplementedHandler) WebCatalogTaxonomy(ctx context.Context, params WebCatalogTaxonomyParams) (r WebCatalogTaxonomyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}

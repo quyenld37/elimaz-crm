@@ -1252,6 +1252,30 @@ type Handler interface {
 	//
 	// POST /api/v1/refund-obligations/{id}/waive
 	WaiveRefundObligation(ctx context.Context, req *WaiveRefundObligationRequest, params WaiveRefundObligationParams) (WaiveRefundObligationRes, error)
+	// WebCatalogChanges implements webCatalogChanges operation.
+	//
+	// Task 190 (M5-07). Lần sau gửi since = until − 30 s và bỏ mã trùng. hasMore = true (đủ
+	// limit mã) thì còn thay đổi chưa trả: gọi tiếp với since = until − 30 s; nếu vẫn
+	// đủ limit mà until không tiến, website tải lại cả danh mục theo trang.
+	//
+	// GET /api/v1/web/catalog/changes
+	WebCatalogChanges(ctx context.Context, params WebCatalogChangesParams) (WebCatalogChangesRes, error)
+	// WebCatalogProducts implements webCatalogProducts operation.
+	//
+	// Task 190 (M5-07). Chỉ mẫu chưa xóa của người bán đang hoạt động; mọi trạng
+	// thái (draft, active, discontinued) để website tự ẩn. Mã trong ids không có trong kết
+	// quả là mẫu đã xóa, của người bán ngừng hay không có: website gỡ khỏi bản
+	// sao. Không có giá nhập. Gửi cả cursor lẫn ids → 400. Bộ đệm 60 s, làm mới theo
+	// sự kiện sản phẩm.
+	//
+	// GET /api/v1/web/catalog/products
+	WebCatalogProducts(ctx context.Context, params WebCatalogProductsParams) (WebCatalogProductsRes, error)
+	// WebCatalogTaxonomy implements webCatalogTaxonomy operation.
+	//
+	// Task 190 (M5-07). Bộ đệm 300 s.
+	//
+	// GET /api/v1/web/catalog/taxonomy
+	WebCatalogTaxonomy(ctx context.Context, params WebCatalogTaxonomyParams) (WebCatalogTaxonomyRes, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and

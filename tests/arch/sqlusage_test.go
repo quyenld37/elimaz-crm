@@ -159,6 +159,15 @@ func moduleOfSchema(schema string) string {
 // view _v đã công bố.
 const queriesPkg = "queries"
 
+// webcatalogPkg: tên "module" của queries/webcatalog (danh mục cho website, kế hoạch M5 Task 190): không có schema
+// riêng, chỉ được nhắc view _v đã công bố của webcatalogSchemas (không bảng gốc, không schema platform).
+const webcatalogPkg = "webcatalog"
+
+// webcatalogSchemas: schema mà queries/webcatalog được nhắc view _v.
+func webcatalogSchemas() []string {
+	return []string{"catalog", "inventory", "promotion", "ord", "fulfillment"}
+}
+
 // viewReadExceptions: ngoại lệ "chỉ đọc view, không nhập Go" (kế hoạch M2, Q19, Task M2-02): module ở khóa được nhắc
 // đúng các view trong danh sách dù không được gọi module chủ. Lý do ghi ở cột "Mốc đọc" của dòng docs/views.md.
 func viewReadExceptions() map[string][]string {
@@ -176,6 +185,9 @@ func viewReadExceptions() map[string][]string {
 // docs/views.md.
 func checkRef(module, ident string, views map[string][]string) string {
 	schema, name, _ := strings.Cut(ident, ".")
+	if module == webcatalogPkg {
+		return checkWebcatalogRef(ident, schema, name, views)
+	}
 	if schema == "pg_catalog" || schema == "information_schema" || (module != queriesPkg && schema == schemaOfModule(module)) {
 		return ""
 	}
@@ -196,6 +208,17 @@ func checkRef(module, ident string, views map[string][]string) string {
 	}
 	if dst := moduleOfSchema(schema); !slices.Contains(moduleCalls()[module], dst) {
 		return "module " + module + " không được gọi " + dst + " (cột \"Được gọi\" của 04 mục 3; " + ident + ")"
+	}
+	return ""
+}
+
+// checkWebcatalogRef: queries/webcatalog chỉ nhắc view _v đã công bố của webcatalogSchemas.
+func checkWebcatalogRef(ident, schema, name string, views map[string][]string) string {
+	if !slices.Contains(webcatalogSchemas(), schema) || !strings.HasSuffix(name, "_v") {
+		return "queries/webcatalog chỉ được nhắc view _v của " + strings.Join(webcatalogSchemas(), ", ") + " (" + ident + ")"
+	}
+	if _, ok := views[ident]; !ok {
+		return "view " + ident + " chưa công bố trong docs/views.md"
 	}
 	return ""
 }
@@ -320,6 +343,9 @@ func TestSQLUsageViewRules(t *testing.T) {
 		"queries/customer/m2_table.sql":      1, // ord.orders
 		"queries/customer/m2_other_view.sql": 1, // ord.traffic_sources_v không thuộc ngoại lệ
 		"queries/promotion/m2_view.sql":      1, // promotion không có ngoại lệ
+		// Kế hoạch M5 (Task 190): queries/webcatalog chỉ nhắc view _v đã công bố của năm schema.
+		"queries/webcatalog/ok.sql":  0,
+		"queries/webcatalog/bad.sql": 3, // catalog.variants, platform.file_variants_v, catalog.secret_v
 	}
 	for file, n := range want {
 		var lines []string
@@ -335,6 +361,7 @@ func TestSQLUsageViewRules(t *testing.T) {
 	for _, must := range []string{
 		"table.sql:", "catalog.variants)", "unlisted.sql:", "docs/views.md", "not_called.sql:", "không được gọi inventory",
 		"list_dynsql.go:", "platform.file_variants", "catalog.products",
+		"queries/webcatalog chỉ được nhắc view _v", "webcatalog/bad.sql: view catalog.secret_v chưa công bố",
 	} {
 		if !slices.ContainsFunc(got, func(f string) bool { return strings.Contains(f, must) }) {
 			t.Errorf("không dòng nào chứa %q: %q", must, got)

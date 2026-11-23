@@ -476,12 +476,17 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 			return err
 		}
 		defer web.stop() // sau khi máy chủ HTTP tắt: ghi nốt last_used_at, đóng Valkey
+		wc, err := newWebCache(ctx, cfg, d, hub, reg, logger)
+		if err != nil {
+			return err
+		}
+		defer wc.stop() // sau khi máy chủ HTTP tắt: dừng bộ xóa khóa, đóng Valkey bộ đệm
 		handler = httpapi.NewServer(httpapi.Deps{
 			Config: cfg, DB: d, Logger: logger, Access: access, Files: store,
 			Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop}, Events: mods.Events, Metrics: reg,
 			Cash:        mods.M3.Cash.Service,
 			Fulfillment: mods.M3.Fulfillment.Service,
-			ServiceKeys: web.keys, RateLimiter: web.limiter,
+			ServiceKeys: web.keys, RateLimiter: web.limiter, ReadCache: wc.rc,
 		})
 	} else {
 		h, err := ingestHandler(cfg, d, reg, logger)

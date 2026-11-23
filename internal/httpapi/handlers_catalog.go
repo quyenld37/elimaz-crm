@@ -146,6 +146,13 @@ func (h *handler) UpdateVariant(ctx context.Context, req *gen.UpdateVariantReque
 		s := string(req.Status.Value)
 		patch.Status = &s
 	}
+	switch {
+	case req.WeightGrams.Set && req.WeightGrams.Null:
+		patch.ClearWeight = true
+	case req.WeightGrams.Set:
+		g := int(req.WeightGrams.Value)
+		patch.WeightGrams = &g
+	}
 	out, err := h.catalogWriteAsDefaultSeller(ctx, http.StatusOK, func(tx pgx.Tx, w catalog.Writer, u identity.AuthUser, seller uuid.UUID) (any, error) {
 		v, err := w.UpdateVariant(ctx, tx, seller, params.ID, req.Version, patch, u)
 		if err != nil {
@@ -264,6 +271,9 @@ func variantOut(v catalog.Variant) *gen.Variant {
 	}
 	if v.CostPrice != nil {
 		out.CostPrice = gen.NewOptMoney(gen.Money(*v.CostPrice))
+	}
+	if v.WeightGrams != nil {
+		out.WeightGrams = gen.NewOptInt32(int32(*v.WeightGrams)) //nolint:gosec // G115: ≤ 50.000 (CHECK)
 	}
 	return out
 }

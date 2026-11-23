@@ -9,7 +9,7 @@ VALUES (@tenant_id, @seller_id, @product_id, @sku, @barcode, @color, sqlc.narg(c
 RETURNING id, status, version;
 
 -- name: ListProductVariants :many
-SELECT id, seller_id, product_id, sku, barcode, color, color_hex, size, price, cost_price, status, version
+SELECT id, seller_id, product_id, sku, barcode, color, color_hex, size, price, cost_price, status, version, weight_grams
 FROM catalog.variants
 WHERE seller_id = @seller_id AND product_id = @product_id
 ORDER BY id;
@@ -19,7 +19,7 @@ ORDER BY id;
 SELECT product_id FROM catalog.variants WHERE seller_id = @seller_id AND id = @id;
 
 -- name: LockVariant :one
-SELECT id, seller_id, product_id, sku, barcode, color, color_hex, size, price, cost_price, status, version
+SELECT id, seller_id, product_id, sku, barcode, color, color_hex, size, price, cost_price, status, version, weight_grams
 FROM catalog.variants
 WHERE seller_id = @seller_id AND id = @id
 FOR UPDATE;
@@ -27,7 +27,8 @@ FOR UPDATE;
 -- name: UpdateVariant :one
 UPDATE catalog.variants
 SET sku = @sku, barcode = @barcode, color = @color, color_hex = sqlc.narg(color_hex), size = @size, price = @price,
-    cost_price = sqlc.narg(cost_price), status = @status, version = version + 1, updated_at = now()
+    cost_price = sqlc.narg(cost_price), status = @status, weight_grams = sqlc.narg(weight_grams), version = version + 1,
+    updated_at = now()
 WHERE seller_id = @seller_id AND id = @id AND version = @version
 RETURNING version;
 

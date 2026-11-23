@@ -744,3 +744,15 @@ type VerifyFilesRes interface {
 type WaiveRefundObligationRes interface {
 	waiveRefundObligationRes()
 }
+
+type WebCatalogChangesRes interface {
+	webCatalogChangesRes()
+}
+
+type WebCatalogProductsRes interface {
+	webCatalogProductsRes()
+}
+
+type WebCatalogTaxonomyRes interface {
+	webCatalogTaxonomyRes()
+}

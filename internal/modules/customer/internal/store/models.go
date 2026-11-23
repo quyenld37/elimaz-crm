@@ -337,6 +337,7 @@ type CatalogProductsV struct {
 	CategoryID  pgtype.UUID
 	DeletedAt   pgtype.Timestamptz
 	UpdatedAt   time.Time
+	Version     int64
 }
 
 type CatalogSeller struct {
@@ -374,21 +375,22 @@ type CatalogTagsV struct {
 }
 
 type CatalogVariant struct {
-	ID        uuid.UUID
-	TenantID  uuid.UUID
-	SellerID  uuid.UUID
-	ProductID uuid.UUID
-	Sku       string
-	Barcode   string
-	Color     string
-	ColorHex  pgtype.Text
-	Size      string
-	Price     int64
-	CostPrice pgtype.Int8
-	Status    string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Version   int64
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	SellerID    uuid.UUID
+	ProductID   uuid.UUID
+	Sku         string
+	Barcode     string
+	Color       string
+	ColorHex    pgtype.Text
+	Size        string
+	Price       int64
+	CostPrice   pgtype.Int8
+	Status      string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Version     int64
+	WeightGrams pgtype.Int4
 }
 
 type CatalogVariantsV struct {
@@ -408,6 +410,7 @@ type CatalogVariantsV struct {
 	ProductStatus string
 	Sellable      pgtype.Bool
 	UpdatedAt     time.Time
+	WeightGrams   pgtype.Int4
 }
 
 type CustomerAdminUnit struct {

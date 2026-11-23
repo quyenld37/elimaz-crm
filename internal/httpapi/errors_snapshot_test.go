@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"elimaz.com.vn/crm/internal/httpapi/web"
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/customer"
@@ -17,6 +18,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/promotion"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/queries"
+	"elimaz.com.vn/crm/internal/queries/webcatalog"
 )
 
 // Task 441: bảng ánh xạ lỗi tách theo vùng (errors_<vùng>.go). Hai bảng dưới đây chụp hành vi của errors.go TRƯỚC khi
@@ -139,6 +141,9 @@ func domainErrorSnapshot() []snapshotCase {
 		{"catalog.ErrVersionConflict", catalog.ErrVersionConflict, http.StatusConflict, "version_conflict"},
 		{"catalog.ErrNotForSale", catalog.ErrNotForSale, http.StatusConflict, "not_for_sale"},
 		{"catalog.ErrInvalidPrice", catalog.ErrInvalidPrice, http.StatusUnprocessableEntity, "invalid_price"},
+		{"catalog.ErrInvalidWeight", catalog.ErrInvalidWeight, http.StatusUnprocessableEntity, "invalid_input"},
+		{"web.ErrBadQuery", web.ErrBadQuery, http.StatusBadRequest, "bad_request"},
+		{"webcatalog.ErrBadLimit", webcatalog.ErrBadLimit, http.StatusBadRequest, "bad_request"},
 		{"catalog.ErrInvalidArticle", catalog.ErrInvalidArticle, http.StatusUnprocessableEntity, "invalid_article"},
 		{"catalog.ErrCategoryCycle", catalog.ErrCategoryCycle, http.StatusUnprocessableEntity, "category_cycle"},
 		{"catalog.ErrCategoryTooDeep", catalog.ErrCategoryTooDeep, http.StatusUnprocessableEntity, "category_too_deep"},

@@ -80,12 +80,14 @@ type ProductPatch struct {
 }
 
 // VariantPatch là phần sửa của biến thể; trường nil giữ nguyên. ColorHex "" bỏ màu hex; ClearCostPrice bỏ giá nhập
-// (thắng CostPrice).
+// (thắng CostPrice). WeightGrams: cân nặng (gam, 1–50.000; QĐ30 của M5); ClearWeight bỏ cân nặng (thắng WeightGrams).
 type VariantPatch struct {
 	SKU, Barcode, Color, ColorHex, Size *string
 	Price, CostPrice                    *int64
 	ClearCostPrice                      bool
 	Status                              *string
+	WeightGrams                         *int
+	ClearWeight                         bool
 }
 
 // Product là một mẫu kèm biến thể (theo thứ tự tạo).
@@ -106,6 +108,8 @@ type Variant struct {
 	CostPrice                           *int64
 	Status                              string
 	Version                             int64
+	// WeightGrams: cân nặng (gam) cho báo phí ship của website; nil là chưa nhập.
+	WeightGrams *int
 }
 
 // SaleVariant là biến thể bán được cho dòng đơn: Name = "<tên mẫu> - <màu> / <size>".

@@ -722,6 +722,10 @@ export type UpdateVariantRequest = {
      */
     costPrice?: number | null;
     status?: VariantStatus;
+    /**
+     * Cân nặng (gam, 1–50.000, ngoài khoảng → 422 invalid_input); null bỏ cân nặng (Task 190, QĐ30)
+     */
+    weightGrams?: number | null;
 };
 
 export type Variant = {
@@ -736,6 +740,124 @@ export type Variant = {
     costPrice?: Money;
     status: VariantStatus;
     version: number;
+    /**
+     * Cân nặng (gam); vắng mặt là chưa nhập (Task 190, QĐ30)
+     */
+    weightGrams?: number;
+};
+
+export type WebProductPage = {
+    items: Array<WebProduct>;
+    /**
+     * Gửi lại ở cursor để lấy trang kế; vắng mặt là hết (và khi đọc theo ids)
+     */
+    nextCursor?: string;
+};
+
+export type WebProduct = {
+    id: string;
+    sellerId: string;
+    code: string;
+    name: string;
+    shortDescription: string;
+    /**
+     * HTML bài viết dựng bằng catalog.ArticleHTML (đã thoát, ảnh theo bộ kích thước hiện hành); rỗng khi lỗi
+     */
+    articleHtml: string;
+    status: ProductStatus;
+    categoryIds: Array<string>;
+    /**
+     * Mã nhãn (tên ở webCatalogTaxonomy)
+     */
+    tags: Array<string>;
+    attributes: Array<WebAttr>;
+    /**
+     * Ảnh đã xử lý xong theo thứ tự hiện (ảnh đang xử lý chưa có)
+     */
+    images: Array<WebImage>;
+    variants: Array<WebVariant>;
+    updatedAt: string;
+    version: number;
+};
+
+export type WebAttr = {
+    name: string;
+    value: string;
+    position: number;
+};
+
+export type WebImage = {
+    position: number;
+    /**
+     * Màu của biến thể mà ảnh thuộc về; vắng mặt là ảnh chung
+     */
+    color?: string;
+    variants: Array<WebImageVariant>;
+};
+
+export type WebImageVariant = {
+    width: number;
+    format: string;
+    url: string;
+};
+
+export type WebVariant = {
+    id: string;
+    sku: string;
+    barcode: string;
+    color: string;
+    size: string;
+    price: Money;
+    status: VariantStatus;
+    /**
+     * Mẫu và biến thể đang bán (false → website ẩn, không đặt được)
+     */
+    sellable: boolean;
+    /**
+     * Còn hàng có thể bán ở kho mặc định (số chính xác ở lúc đặt hàng)
+     */
+    available: boolean;
+    weightGrams?: number;
+};
+
+export type WebCatalogChanges = {
+    productIds: Array<string>;
+    until: string;
+    hasMore: boolean;
+};
+
+export type WebTaxonomy = {
+    categories: Array<WebCategory>;
+    attributes: Array<WebAttribute>;
+    tags: Array<WebTag>;
+};
+
+export type WebCategory = {
+    id: string;
+    parentId?: string;
+    name: string;
+    slug: string;
+    depth: number;
+    position: number;
+};
+
+export type WebAttribute = {
+    id: string;
+    code: string;
+    name: string;
+    position: number;
+    values: Array<WebAttributeValue>;
+};
+
+export type WebAttributeValue = {
+    id: string;
+    value: string;
+    position: number;
+};
+
+export type WebTag = {
+    code: string;
+    name: string;
 };
 
 export type Product = {
@@ -3010,6 +3132,11 @@ export type CodStatementId = string;
  * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
  */
 export type Cursor = string;
+
+/**
+ * ETag của lần đọc trước (website, Task 190)
+ */
+export type IfNoneMatch = string;
 
 export type Limit = number;
 
@@ -8837,3 +8964,103 @@ export type UpdateFulfillmentSettingsResponses = {
 };
 
 export type UpdateFulfillmentSettingsResponse = UpdateFulfillmentSettingsResponses[keyof UpdateFulfillmentSettingsResponses];
+
+export type WebCatalogProductsData = {
+    body?: never;
+    headers?: {
+        /**
+         * ETag của lần đọc trước (website, Task 190)
+         */
+        'If-None-Match'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+        /**
+         * Mã mẫu, phân tách bằng dấu phẩy (tối đa 100)
+         */
+        ids?: Array<string>;
+    };
+    url: '/api/v1/web/catalog/products';
+};
+
+export type WebCatalogProductsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebCatalogProductsError = WebCatalogProductsErrors[keyof WebCatalogProductsErrors];
+
+export type WebCatalogProductsResponses = {
+    /**
+     * Trang mẫu
+     */
+    200: WebProductPage;
+};
+
+export type WebCatalogProductsResponse = WebCatalogProductsResponses[keyof WebCatalogProductsResponses];
+
+export type WebCatalogChangesData = {
+    body?: never;
+    path?: never;
+    query: {
+        since: string;
+        limit?: number;
+    };
+    url: '/api/v1/web/catalog/changes';
+};
+
+export type WebCatalogChangesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebCatalogChangesError = WebCatalogChangesErrors[keyof WebCatalogChangesErrors];
+
+export type WebCatalogChangesResponses = {
+    /**
+     * Mã mẫu đã đổi
+     */
+    200: WebCatalogChanges;
+};
+
+export type WebCatalogChangesResponse = WebCatalogChangesResponses[keyof WebCatalogChangesResponses];
+
+export type WebCatalogTaxonomyData = {
+    body?: never;
+    headers?: {
+        /**
+         * ETag của lần đọc trước (website, Task 190)
+         */
+        'If-None-Match'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/catalog/taxonomy';
+};
+
+export type WebCatalogTaxonomyErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebCatalogTaxonomyError = WebCatalogTaxonomyErrors[keyof WebCatalogTaxonomyErrors];
+
+export type WebCatalogTaxonomyResponses = {
+    /**
+     * Phân loại
+     */
+    200: WebTaxonomy;
+};
+
+export type WebCatalogTaxonomyResponse = WebCatalogTaxonomyResponses[keyof WebCatalogTaxonomyResponses];
