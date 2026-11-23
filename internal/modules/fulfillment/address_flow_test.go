@@ -143,6 +143,7 @@ func expectOrderAudit(t *testing.T, recs []fulfillment.AuditRecord, orderID uuid
 // có địa chỉ; worker → hãng nhận địa chỉ mới (SĐT đã chuẩn hóa) một lần → confirmed, địa chỉ đơn và ship_to mới, một
 // order.updated, audit ship_address (người làm system); yêu cầu thứ hai sau khi xong được nhận.
 func TestAddress_DH15CarrierAccepts(t *testing.T) {
+	t.Parallel()
 	e, log := newAddressEnv(t, fake.UpdateModeDone)
 	o, _, s := e.shipped(1)
 	c := e.mustRequestAddress(s.ID)
@@ -185,6 +186,7 @@ func TestAddress_DH15CarrierAccepts(t *testing.T) {
 // Hãng không sửa địa chỉ qua API → manual pending, không lệnh, không gọi hãng; địa chỉ đơn chỉ đổi khi nhân viên xác
 // nhận confirmed (kèm audit để bên gọi ghi); xác nhận lần hai → ErrAddressChangeNotAllowed.
 func TestAddress_ManualResolve(t *testing.T) {
+	t.Parallel()
 	e, log := newAddressEnv(t, "")
 	o, _, s := e.shipped(1)
 	c := e.mustRequestAddress(s.ID)
@@ -227,6 +229,7 @@ func TestAddress_ManualResolve(t *testing.T) {
 
 // Nhân viên báo hãng không nhận (manual rejected) → rejected, địa chỉ cũ, không audit đơn.
 func TestAddress_ManualRejected(t *testing.T) {
+	t.Parallel()
 	e, _ := newAddressEnv(t, "")
 	o, _, s := e.shipped(1)
 	c := e.mustRequestAddress(s.ID)
@@ -240,6 +243,7 @@ func TestAddress_ManualRejected(t *testing.T) {
 // Hãng từ chối (UpdateRejected) → rejected, địa chỉ cũ, không audit; hãng chắc chưa nhận (not_sent, không tự gửi lại)
 // → lệnh dead → rejected. Sau đó tạo được yêu cầu mới.
 func TestAddress_CarrierRejects(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{fake.UpdateModeRejected, fake.UpdateModeNotSent} {
 		t.Run(mode, func(t *testing.T) {
 			e, log := newAddressEnv(t, mode)
@@ -263,6 +267,7 @@ func TestAddress_CarrierRejects(t *testing.T) {
 // Hãng nhận yêu cầu nhưng chưa trả lời chắc (UpdatePending) → sent, địa chỉ cũ; tra lại không biết được → nhân viên
 // xác nhận confirmed (lệnh done đã bị dọn khỏi platform.jobs) → địa chỉ mới.
 func TestAddress_PendingThenStaff(t *testing.T) {
+	t.Parallel()
 	e, _ := newAddressEnv(t, fake.UpdateModePending)
 	o, _, s := e.shipped(1)
 	c := e.mustRequestAddress(s.ID)
@@ -285,6 +290,7 @@ func TestAddress_PendingThenStaff(t *testing.T) {
 // Hãng nhận rồi quá giờ → lệnh in_doubt → unknown; tra lại (Looker) không biết → vẫn unknown, không gọi hãng lần hai;
 // nhân viên xác nhận rejected → rejected, lệnh bị bỏ (expired), địa chỉ cũ.
 func TestAddress_InDoubtThenStaff(t *testing.T) {
+	t.Parallel()
 	e, _ := newAddressEnv(t, fake.UpdateModeTimeoutAfterSend)
 	o, _, s := e.shipped(1)
 	c := e.mustRequestAddress(s.ID)
@@ -310,6 +316,7 @@ func TestAddress_InDoubtThenStaff(t *testing.T) {
 
 // Một yêu cầu mở mỗi vận đơn: thứ hai → ErrAddressChangeOpen; hai yêu cầu song song → đúng một được nhận.
 func TestAddress_OneOpen(t *testing.T) {
+	t.Parallel()
 	e, _ := newAddressEnv(t, "")
 	_, _, s := e.shipped(1)
 	e.mustRequestAddress(s.ID)
@@ -345,6 +352,7 @@ func TestAddress_OneOpen(t *testing.T) {
 // xã → order.ErrAddressIncomplete; xã không có trong danh mục → lỗi, không yêu cầu; Authorize từ chối → lỗi của nó;
 // vận đơn lạ → ErrNotFound.
 func TestAddress_Refusals(t *testing.T) {
+	t.Parallel()
 	e, _ := newAddressEnv(t, "")
 	_, _, s := e.shipped(1)
 	e.carrier.Advance(s.TrackingCode, fake.RawDelivered)
@@ -389,6 +397,7 @@ func TestAddress_Refusals(t *testing.T) {
 
 // Hãng có bảng địa giới mà địa chỉ mới chưa khớp carrier_locations → ErrAddressUnmapped, không yêu cầu.
 func TestAddress_Unmapped(t *testing.T) {
+	t.Parallel()
 	e, _ := newAddressEnv(t, fake.UpdateModeDone)
 	_, _, s := e.shipped(1)
 	e.svc = fulfillment.New(fulfillment.Deps{
@@ -405,6 +414,7 @@ func TestAddress_Unmapped(t *testing.T) {
 
 // Lệnh sửa địa chỉ: không tự gửi lại khi chắc chưa gửi; Module.AddressCommand đòi hàm audit, không có hãng → nil.
 func TestUpdateAddressCommand_Policy(t *testing.T) {
+	t.Parallel()
 	e, log := newAddressEnv(t, fake.UpdateModeDone)
 	if c := fulfillment.NewUpdateAddressCommand(e.svc, log.record); c.AutoRetryNotSent() || c.Kind().Name != "command.shipment.update_address" {
 		t.Fatalf("lệnh = %v %s", c.AutoRetryNotSent(), c.Kind().Name)

@@ -126,6 +126,7 @@ func (e *shipEnv) syncNow(id uuid.UUID) {
 // TD03: vận đơn chờ thu gom, khách hủy đơn → đơn cancel_requested, hàng vẫn giữ; hãng xác nhận hủy → đơn cancelled,
 // nhả hàng, vận đơn cancelled order_cancel; gọi hãng hủy 1 lần.
 func TestCancel_TD03OrderCancelConfirmed(t *testing.T) {
+	t.Parallel()
 	e := newCancelEnv(t)
 	o, v, s := e.shipped(1)
 	e.cancelOrder(o)
@@ -147,6 +148,7 @@ func TestCancel_TD03OrderCancelConfirmed(t *testing.T) {
 // VC11: đổi hãng → hãng xác nhận → đơn confirmed không vận đơn, hàng vẫn giữ; gửi lại bằng tài khoản B → V2 chờ thu
 // gom; tin muộn Cancelled, PickedUp của V1 → đơn vẫn gắn V2, tồn không đổi, not_current_moved cho tin PickedUp.
 func TestCancel_VC11Replace(t *testing.T) {
+	t.Parallel()
 	e := newCancelEnv(t)
 	o, v, s := e.shipped(1)
 	if got, err := e.cancelShipment(s.ID, false); err != nil || got.Status != "cancel_requested" {
@@ -194,6 +196,7 @@ func TestCancel_VC11Replace(t *testing.T) {
 
 // VC12: hãng trả "đã lấy hàng, không hủy được" → đơn về confirmed, vận đơn shipping, hàng in_transit (không trả sổ).
 func TestCancel_VC12RejectedPickedUp(t *testing.T) {
+	t.Parallel()
 	e := newCancelEnv(t)
 	o, v, s := e.shipped(1)
 	e.carrier.Advance(s.TrackingCode, fake.RawPickedUp)
@@ -207,6 +210,7 @@ func TestCancel_VC12RejectedPickedUp(t *testing.T) {
 // Hãng trả "đang xử lý" (CancelPending) → vận đơn giữ cancel_requested, không "Cần xem" giả khi lần tra thấy vẫn chờ
 // thu gom; tra bù thấy Cancelled → như TD03; thấy PickedUp → như VC12.
 func TestCancel_PendingThenTrack(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		name, raw, shipStatus, orderStatus string
 		stock                              [3]int32
@@ -241,6 +245,7 @@ func TestCancel_PendingThenTrack(t *testing.T) {
 
 // Hàng đã đi (shipping): đổi hãng → ErrShipmentNotCancellable; hủy đơn → cancel_conflict, không gọi hãng.
 func TestCancel_AfterPickup(t *testing.T) {
+	t.Parallel()
 	e := newCancelEnv(t)
 	o, v, s := e.shipped(1)
 	e.carrier.Advance(s.TrackingCode, fake.RawPickedUp)
@@ -267,6 +272,7 @@ func TestCancel_AfterPickup(t *testing.T) {
 // "Không rõ" (unknown): đổi hãng → ErrCreateInProgress; nhân viên đã tra hãng (carrierChecked) → cancelled
 // staff_after_unknown, lệnh tạo bỏ, việc in_doubt_create đóng, đơn confirmed không vận đơn, hàng vẫn giữ.
 func TestCancel_UnknownCreate(t *testing.T) {
+	t.Parallel()
 	e := newCancelEnv(t)
 	ord, v := e.order(1)
 	s := e.mustCreateShipment(ord.ID)
@@ -291,6 +297,7 @@ func TestCancel_UnknownCreate(t *testing.T) {
 // mã hãng, lệnh hủy được ghi ngay; hãng xác nhận → đơn cancelled, nhả hàng. Hai thứ tự: sự kiện tới trước khi lệnh tạo
 // xong (vận đơn ghi ý định), hay sau (vận đơn đã cancel_requested, không ghi lệnh thứ hai).
 func TestCancel_DuringCreate(t *testing.T) {
+	t.Parallel()
 	for _, early := range []bool{true, false} {
 		t.Run(map[bool]string{true: "sự kiện trước", false: "sự kiện sau"}[early], func(t *testing.T) {
 			e := newCancelEnv(t)
@@ -334,6 +341,7 @@ func (e *shipEnv) cancelInCreate(orderID uuid.UUID, deliver bool) {
 
 // Vận đơn đã not_sent rồi khách mới hủy đơn → vận đơn cancelled ngay, đơn cancelled, không gọi hãng hủy.
 func TestCancel_NotSentThenOrderCancel(t *testing.T) {
+	t.Parallel()
 	e := newCancelEnv(t)
 	o, s := e.notSentShipment()
 	e.cancelOrder(o)
@@ -349,6 +357,7 @@ func TestCancel_NotSentThenOrderCancel(t *testing.T) {
 
 // Sự kiện order.cancel_requested giao lại hai lần → một lệnh hủy, một lần gọi hãng.
 func TestCancel_EventRedelivered(t *testing.T) {
+	t.Parallel()
 	e := newCancelEnv(t)
 	o, _, s := e.shipped(1)
 	e.cancelOrder(o)
@@ -370,6 +379,7 @@ func TestCancel_EventRedelivered(t *testing.T) {
 // Lệnh hủy quá giờ sau khi gửi, CancelIdempotent = false → in_doubt, in_doubt_cancel, chạy worker 3 lần không gọi lại;
 // tra lại thấy Cancelled → done (đóng in_doubt_cancel), lệnh tra áp → đơn cancelled.
 func TestCancel_InDoubtThenLookup(t *testing.T) {
+	t.Parallel()
 	e := newCancelEnv(t)
 	o, v, s := e.shipped(1)
 	e.carrier.SetCancelMode(fake.CancelModeTimeoutAfterSend)
@@ -400,6 +410,7 @@ func TestCancel_InDoubtThenLookup(t *testing.T) {
 // Hãng không hủy qua API → cancel_requested, việc manual_cancel, không lệnh; lệnh hủy chắc chưa gửi (dead) → việc
 // manual_cancel; bấm đổi hãng lần hai → ErrShipmentNotCancellable.
 func TestCancel_ManualAndDead(t *testing.T) {
+	t.Parallel()
 	e := newCancelEnv(t)
 	_, _, s := e.shipped(1)
 	e.carrier.SetCancelSupported(false)
@@ -429,6 +440,7 @@ func TestCancel_ManualAndDead(t *testing.T) {
 
 // AutoRetryNotSent của lệnh hủy: chỉ true khi mọi hãng hủy qua API khai CancelIdempotent (Q-24).
 func TestCancelCommand_AutoRetry(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	if fulfillment.NewCancelCommand(e.svc).AutoRetryNotSent() {
 		t.Fatal("mặc định phải không tự thử lại")

@@ -62,6 +62,7 @@ func (e *shipEnv) expectCancelled(s fulfillment.Shipment, attachedVersion int64,
 // vẫn giữ cho đơn; tạo lại vận đơn cho cùng đơn được, lần sau hãng nhận → awaiting_pickup. Chạy lại lệnh dead cũ (người
 // bấm) không gọi hãng: vận đơn không còn creating.
 func TestShipment_CreateRejectedCancels(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, testShipmentCreateRejectedCancels)
 }
 
@@ -105,6 +106,7 @@ func testShipmentCreateRejectedCancels(t *testing.T, e *shipEnv) {
 // Lệnh tạo không còn hết hạn khi chờ (Task M3-12; M1: 10 phút → vận đơn cancelled). Lệnh cũ còn expires_at mà quá
 // hạn (expired, chưa gửi) → vận đơn creating, create_state not_sent, vẫn gắn đơn, tồn giữ; hãng không được gọi.
 func TestShipment_CreateExpiredWaits(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, v := e.order(1)
 	before := e.stock(v)
@@ -187,6 +189,7 @@ func (e *shipEnv) stillAttached(s fulfillment.Shipment) {
 // lần hai (Task M3-12, M1: gửi lại rồi dead giữ vận đơn): thấy kiện → done, vận đơn có mã hãng; hãng vẫn 1 kiện, 1 lần
 // gọi tạo.
 func TestShipment_InDoubtRetryLooksUpFirst(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, s := e.createTimedOut()
 	if _, st := e.createJob(s.ID); st != queue.StatusInDoubt || !e.inDoubtMarked(s.ID) || e.createState(s.ID) != "unknown" {
@@ -214,6 +217,7 @@ func TestShipment_InDoubtRetryLooksUpFirst(t *testing.T) {
 // (pending) gọi dead hai lần → not_sent, vẫn gắn (Task M3-12; M1 hủy); có dấu hãng từ chối (rejected) gọi dead hai lần
 // → hủy một lần, một sự kiện, đơn gỡ vận đơn; in_doubt → dấu, unknown, rồi expired → not_sent (đã xác nhận chưa có).
 func TestShipment_CreateTerminalHookDirect(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	hook, ok := e.cmds[0].(queue.TerminalHook)
 	if !ok {

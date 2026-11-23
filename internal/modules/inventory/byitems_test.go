@@ -66,6 +66,7 @@ func (s snapshot) equal(o snapshot) bool {
 // TestByItems_SameAsCore: ba hàm theo order_item_id cho cùng số dư, sổ, trạng thái như bản theo mã giữ hàng; gọi
 // lại lần hai → ErrStateConflict.
 func TestByItems_SameAsCore(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	type path struct {
 		release, transit, consume func(ctx context.Context, tx pgx.Tx, w inventory.Writer, items, ids []uuid.UUID) error
@@ -136,6 +137,7 @@ func TestByItems_SameAsCore(t *testing.T) {
 
 // TestReservationStatesByItems: đếm dòng giữ hàng của các dòng đơn theo trạng thái; dòng đơn lạ, rỗng → map rỗng.
 func TestReservationStatesByItems(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(10)
 	l1, l2, l3 := e.line(v, 1), e.line(v, 2), e.line(v, 3)
@@ -189,6 +191,7 @@ func (e *invEnv) reservationQty(id uuid.UUID) int {
 // edit_v2, một stock.changed; thành 1 → held 1, có thể bán 4, sổ −4; cùng số → không ghi gì; bước sai mẫu hay trùng
 // bước lõi, số ≤ 0, tác nhân lạ → ErrInvalidInput; dòng đơn không có giữ held (lạ, đã nhả) → ErrStateConflict.
 func TestResizeHeld(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(5)
 	l := e.line(v, 2)
@@ -269,6 +272,7 @@ func TestResizeHeld(t *testing.T) {
 // kẽ giữ, đổi số lượng giữ, nhả, đi giao, nhập kho → mọi cột ≥ 0; sổ = số dư từng ngăn; held = tổng giữ held;
 // available ≥ 0 (checkInvariants của property_test.go).
 func TestResizeHeldInvariants(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	var stepSeq atomic.Int64
 	rapid.Check(t, func(rt *rapid.T) {

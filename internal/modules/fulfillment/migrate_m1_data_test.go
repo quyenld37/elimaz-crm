@@ -30,6 +30,7 @@ type m1Seeded struct {
 // Dữ liệu M1 (tài khoản fake active và disabled không có khóa; vận đơn creating chưa có mã hãng, delivered có mã,
 // cancelled; mã sinh bằng NewShipmentCode; vận đơn hiện hành của đơn) chạy 0300–0302 không lỗi và được điền đúng.
 func TestMigrateM1Data(t *testing.T) {
+	t.Parallel()
 	_, ownerURL, appURL := testkit.CreateDatabase(t)
 	testkit.MigrateBefore(t, ownerURL, "0300")
 	owner, app := testkit.OpenDB(t, ownerURL), testkit.OpenDB(t, appURL)

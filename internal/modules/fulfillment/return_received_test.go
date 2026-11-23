@@ -137,6 +137,7 @@ func (e *applyEnv) anomalyDetail(id uuid.UUID, kind string) map[string]any {
 // shipment.status_changed; chạy lại consumer không đổi gì. order.returned mang kind, shipmentId; consumer chỉ số khách
 // của M2 đếm returned_count.
 func TestReturnReceived_TD02(t *testing.T) {
+	t.Parallel()
 	e, o, vA, vB, s := newD1Shipment(t)
 	r := e.returnedReturning(o, s, vA, vB)
 	iA, iB := itemOfOrder(t, o, vA), itemOfOrder(t, o, vB)
@@ -177,12 +178,22 @@ func TestReturnReceived_TD02(t *testing.T) {
 	}
 }
 
+// receivedTD04 dựng TD04/AT12: vận đơn D1 (vA, vB) đã hoàn, phiếu nhận lại vA 1 lành và vB theo vB (OrderItemID tự điền).
+func receivedTD04(t *testing.T, vB order.ReceiveQtyLine) (
+	*applyEnv, order.Order, uuid.UUID, uuid.UUID, fulfillment.Shipment,
+) {
+	t.Helper()
+	e, o, a, b, s := newD1Shipment(t)
+	r := e.returnedReturning(o, s, a, b)
+	vB.OrderItemID = itemOfOrder(t, o, b)
+	e.receiveQty(r, order.ReceiveQtyLine{OrderItemID: itemOfOrder(t, o, a), Sellable: 1}, vB)
+	return e, o, a, b, s
+}
+
 // TD04/AT12 ca a: vB S1 D1 M0 → vB on_hand 10, damaged 1 (có thể bán 9); không bất thường; V1 returned.
 func TestReturnReceived_TD04Damaged(t *testing.T) {
-	e, o, vA, vB, s := newD1Shipment(t)
-	r := e.returnedReturning(o, s, vA, vB)
-	e.receiveQty(r, order.ReceiveQtyLine{OrderItemID: itemOfOrder(t, o, vA), Sellable: 1},
-		order.ReceiveQtyLine{OrderItemID: itemOfOrder(t, o, vB), Sellable: 1, Damaged: 1})
+	t.Parallel()
+	e, o, vA, vB, s := receivedTD04(t, order.ReceiveQtyLine{Sellable: 1, Damaged: 1})
 	e.stockAll(map[uuid.UUID][3]int32{vA: {5, 0, 0}, vB: {10, 0, 0}})
 	if d := e.damagedOf(vB); d != 1 {
 		t.Errorf("vB damaged = %d", d)
@@ -197,10 +208,8 @@ func TestReturnReceived_TD04Damaged(t *testing.T) {
 // TD04/AT12 ca b: vB S0 D1 M1 → vB on_hand 9 (bước loss 1), damaged 1 (có thể bán 8); V1 returned và bất thường
 // missing_items với detail.missingQty = 1.
 func TestReturnReceived_TD04Missing(t *testing.T) {
-	e, o, vA, vB, s := newD1Shipment(t)
-	r := e.returnedReturning(o, s, vA, vB)
-	e.receiveQty(r, order.ReceiveQtyLine{OrderItemID: itemOfOrder(t, o, vA), Sellable: 1},
-		order.ReceiveQtyLine{OrderItemID: itemOfOrder(t, o, vB), Damaged: 1, Missing: 1})
+	t.Parallel()
+	e, o, vA, vB, s := receivedTD04(t, order.ReceiveQtyLine{Damaged: 1, Missing: 1})
 	e.stockAll(map[uuid.UUID][3]int32{vA: {5, 0, 0}, vB: {9, 0, 0}})
 	if d := e.damagedOf(vB); d != 1 {
 		t.Errorf("vB damaged = %d", d)
@@ -223,6 +232,7 @@ func TestReturnReceived_TD04Missing(t *testing.T) {
 // returning (còn awaiting_pickup) → không đổi trạng thái, mở "Cần xem" invalid_edge với lý do return_without_returning.
 // Payload hỏng → lỗi vĩnh viễn.
 func TestReturnReceived_Guards(t *testing.T) {
+	t.Parallel()
 	e, o, _, _, s := newD1Shipment(t)
 	c := e.returnConsumer()
 	payload := func(kind string, shipment *uuid.UUID) json.RawMessage {

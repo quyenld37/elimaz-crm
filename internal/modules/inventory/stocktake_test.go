@@ -123,6 +123,7 @@ func (e *invEnv) inTransit(onHand, q int32) (uuid.UUID, uuid.UUID) {
 
 // TestStocktake_InTransitNotAdjusted (KH05): on_hand 10, in_transit 3, đếm 7 → không chỉnh.
 func TestStocktake_InTransitNotAdjusted(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v, _ := e.inTransit(10, 3)
 	s := e.mustStart()
@@ -146,6 +147,7 @@ func TestStocktake_InTransitNotAdjusted(t *testing.T) {
 
 // Đếm lúc on_hand 10, in_transit 3 (đếm 7) → 3 cái giao xong → áp dụng: on_hand 7, không chỉnh (bản cũ ra 4).
 func TestStocktake_DeliveredAfterCount(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v, res := e.inTransit(10, 3)
 	s := e.mustStart()
@@ -167,6 +169,7 @@ func TestStocktake_DeliveredAfterCount(t *testing.T) {
 // TestStocktake_ShortageKeepsHolds (KH07): on_hand 5, held 4 (2 + 2), đếm 2 → on_hand 2, held giữ nguyên, giữ hàng vẫn
 // held, Shortages có available −2, một lệnh inventory.shortage_alert.
 func TestStocktake_ShortageKeepsHolds(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(5)
 	ids, err := e.reserve(sysActor(), e.line(v, 2), e.line(v, 2))
@@ -206,6 +209,7 @@ func TestStocktake_ShortageKeepsHolds(t *testing.T) {
 
 // Đếm thừa: on_hand 5, đếm 6 → on_hand 6, sổ stocktake +1; không thiếu → không có lệnh cảnh báo.
 func TestStocktake_Overcount(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(5)
 	s := e.mustStart()
@@ -228,6 +232,7 @@ func TestStocktake_Overcount(t *testing.T) {
 
 // Biến thể chưa có dòng số dư: đếm 3 → expected 0, áp dụng → on_hand 3.
 func TestStocktake_NewBalanceRow(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.variants(1)[0]
 	s := e.mustStart()
@@ -242,6 +247,7 @@ func TestStocktake_NewBalanceRow(t *testing.T) {
 
 // Hàng bị xuất sau lúc đếm, áp dụng sẽ làm phần trên kệ âm → cả phiên không áp, *InsufficientError, không ghi gì.
 func TestStocktake_ApplyWouldGoNegative(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(5)
 	s := e.mustStart()
@@ -262,6 +268,7 @@ func TestStocktake_ApplyWouldGoNegative(t *testing.T) {
 
 // Áp dụng hai lần song song cùng version → một thành công, một ErrStocktakeNotOpen; sổ chỉ có dòng của một lần.
 func TestStocktake_ApplyTwiceConcurrent(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(5)
 	s := e.mustStart()
@@ -294,6 +301,7 @@ func TestStocktake_ApplyTwiceConcurrent(t *testing.T) {
 }
 
 func TestStocktake_Cancel(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(5)
 	s := e.mustStart()
@@ -327,6 +335,7 @@ func TestStocktake_Cancel(t *testing.T) {
 }
 
 func TestStocktake_OneOpenPerWarehouse(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	s := e.mustStart()
 	if !strings.HasPrefix(s.Code, "KK-") || s.Status != inventory.StocktakeOpen || s.WarehouseID != e.warehouse {
@@ -339,6 +348,7 @@ func TestStocktake_OneOpenPerWarehouse(t *testing.T) {
 
 // Kho đã đóng không mở được phiên; kho của tenant khác → ErrNotFound.
 func TestStocktake_WarehouseChecks(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	other := newInvEnvOn(t, e.staff, "B")
 	err := e.app(func(tx pgx.Tx) error {
@@ -358,6 +368,7 @@ func TestStocktake_WarehouseChecks(t *testing.T) {
 }
 
 func TestRecordCount_Rules(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(5)
 	s := e.mustStart()
@@ -410,6 +421,7 @@ func (f *fakeNotifier) Notify(_ context.Context, key, severity, text string) err
 // Lệnh cảnh báo: khóa stock-shortage:<id>, mức normal, văn bản chỉ có mã phiếu và số mã hàng (không tên mẫu, SĐT);
 // Notify lỗi → not_sent (tự gửi lại).
 func TestShortageAlertCommand(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(5)
 	if _, err := e.reserve(sysActor(), e.line(v, 4)); err != nil {

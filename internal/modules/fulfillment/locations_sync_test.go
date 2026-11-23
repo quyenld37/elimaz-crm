@@ -246,6 +246,7 @@ func (e *locEnv) checkSynced() {
 // Đồng bộ → 3 tỉnh khớp, 11 phường khớp, 1 chưa khớp ở danh sách chưa khớp; LocationMap của phường chưa khớp → false.
 // Chạy lại → không thêm dòng, synced_at mới (kế hoạch M3, Task M3-18, bước 1).
 func TestLocations_SyncAndRerun(t *testing.T) {
+	t.Parallel()
 	e := newLocEnv(t)
 	e.sync()
 	e.drain()
@@ -277,6 +278,7 @@ func TestLocations_SyncAndRerun(t *testing.T) {
 // Hạn 25 s: mỗi lần gọi phường tốn 10 s (đồng hồ giả) → việc đầu dừng sau hai tỉnh, ghi việc kế tiếp có cursor; tổng cuối
 // như ca đầu.
 func TestLocations_CursorContinues(t *testing.T) {
+	t.Parallel()
 	e := newLocEnv(t)
 	e.ad.set(10*time.Second, nil)
 	e.sync()
@@ -310,6 +312,7 @@ func TestLocations_CursorContinues(t *testing.T) {
 // Lỗi của hãng khi đọc tỉnh: 401 → dead lý do auth, tài khoản auth_failed; 429 → chờ theo Retry-After rồi chạy lại xong;
 // lỗi mạng → thử lại xong; không hỗ trợ → dead. Không lần nào ghi dòng địa giới khi lỗi.
 func TestLocations_CarrierErrors(t *testing.T) {
+	t.Parallel()
 	t.Run("auth", func(t *testing.T) {
 		e := newLocEnv(t)
 		e.ad.set(0, &fulfillment.CarrierError{Class: fulfillment.ClassAuth, Code: "token_revoked"})
@@ -364,6 +367,7 @@ func TestLocations_CarrierErrors(t *testing.T) {
 // hãng không đọc được địa giới (self) → không ghi lệnh. Danh sách chưa khớp: thiếu hãng, cấp lạ, cursor hỏng → ErrInvalidPage;
 // phân trang theo (cấp, mã) không sót không lặp.
 func TestLocations_Refusals(t *testing.T) {
+	t.Parallel()
 	e := newLocEnv(t)
 	tryStart := func(id uuid.UUID) error {
 		return e.app(func(tx pgx.Tx) error {

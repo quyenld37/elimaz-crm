@@ -13,6 +13,7 @@ import (
 
 // Tenant chưa có dòng cài đặt: LoadSettings trả đúng mặc định của kế hoạch (Task M3-04), version 0.
 func TestLoadSettings_Defaults(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a := s.Tenant(t, "A")
 	var got fulfillment.Settings
@@ -54,6 +55,7 @@ func TestLoadSettings_Defaults(t *testing.T) {
 
 // Validate: mọi số > 0, HighRateBP 1–10.000, đủ và chỉ đúng 5 trạng thái ở hai bảng; lỗi nêu tên trường.
 func TestSettings_Validate(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, field string
 		edit        func(*fulfillment.Settings)
@@ -103,6 +105,7 @@ func TestSettings_Validate(t *testing.T) {
 
 // SaveSettings: ngoài khoảng → không ghi; version 0 chèn; version cũ → ErrVersionConflict; đọc lại đúng giá trị mới.
 func TestSaveSettings(t *testing.T) {
+	t.Parallel()
 	s := testkit.OpenStaff(t)
 	a := s.Tenant(t, "A")
 	actor := fulfillment.Actor{TenantID: a, UserID: s.User(t, a, "ql@elimaz.test", "active")}

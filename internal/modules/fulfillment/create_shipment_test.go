@@ -19,6 +19,7 @@ import (
 //
 // Chạy với từng người bán (KH14): đơn của người bán nào đi bằng tài khoản hãng của người bán đó.
 func TestShipment_HappyPath(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, testShipmentHappyPath)
 }
 
@@ -78,6 +79,7 @@ func testShipmentHappyPath(t *testing.T, e *shipEnv) {
 // timeout_after_create: hãng đã tạo kiện nhưng trả lời quá giờ → lệnh in_doubt, không gửi lại; ResolveInDoubt tra theo
 // mã → done; hãng vẫn 1 kiện; vận đơn được điền mã hãng qua lần tra trạng thái sau đó.
 func TestShipment_TimeoutAfterCreate(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	_, s := e.createTimedOut()
 	if n := e.count("SELECT count(*) FROM platform.jobs WHERE kind = 'fulfillment.create_shipment' AND status = 'in_doubt'"); n != 1 {
@@ -104,6 +106,7 @@ func TestShipment_TimeoutAfterCreate(t *testing.T) {
 // fail_before_create: chắc chắn chưa tạo → not_sent; Q-5 (Task M3-12, AutoRetryNotSent = false, M1 tự gửi lại): lệnh
 // dead, không hẹn chạy lại, vận đơn creating với create_state not_sent, vẫn gắn đơn; hãng không có kiện, gọi đúng 1 lần.
 func TestShipment_FailBeforeCreate(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	_, s := e.notSentShipment()
 	if _, st := e.createJob(s.ID); st != "dead" {
@@ -120,6 +123,7 @@ func TestShipment_FailBeforeCreate(t *testing.T) {
 
 // Vận đơn thứ hai cho cùng đơn khi vận đơn đầu chưa hủy → ErrShipmentExists, không thêm dòng, không thêm lệnh.
 func TestShipment_SecondForSameOrder(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, _ := e.order(1)
 	e.mustCreateShipment(o.ID)
@@ -137,6 +141,7 @@ func TestShipment_SecondForSameOrder(t *testing.T) {
 // Unique một phần (tenant_id, order_id) WHERE status <> 'cancelled' là chốt của database: chèn thẳng vận đơn thứ hai
 // bằng crm_app → lỗi; mã sai mẫu → lỗi CHECK.
 func TestShipment_DatabaseGuards(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, _ := e.order(1)
 	s := e.mustCreateShipment(o.ID)
@@ -165,6 +170,7 @@ func TestShipment_DatabaseGuards(t *testing.T) {
 // Vận đơn của đơn người bán này bằng tài khoản hãng của người bán kia (ADR-29) → ErrAccountUnavailable (Task M3-12:
 // 409 carrier_account_unavailable; M1 là ErrOrderNotShippable); đơn không đổi, không có vận đơn, không có lệnh.
 func TestShipment_AccountOfOtherSeller(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, func(_ *testing.T, e *shipEnv) {
 		o, _ := e.order(1)
 		other := e.shop.Account
@@ -197,6 +203,7 @@ func (e *shipEnv) expectRefused(o order.Order, account uuid.UUID, want error) {
 // ErrOrderNotShippable); đơn, tồn không
 // đổi, không có vận đơn (hãng lấy ở kho này mà tồn trừ ở kho kia là sai sổ cả hai kho, ADR-18).
 func TestShipment_AccountOfOtherWarehouse(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	o, v := e.order(1)
 	var other uuid.UUID

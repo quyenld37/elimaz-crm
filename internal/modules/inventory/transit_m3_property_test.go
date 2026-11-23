@@ -50,6 +50,7 @@ type transitRun struct {
 // lặp → mọi số dư ≥ 0, sổ theo ngăn = số dư, giữ hàng held/in_transit = số dư (checkInvariants); mỗi đơn vị hàng chỉ
 // bị trừ on_hand một lần trừ khi có đảo (checkOnceOut).
 func TestTransitM3Invariants(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	rapid.Check(t, func(rt *rapid.T) {
 		vs := e.variants(rapid.IntRange(1, 3).Draw(rt, "variants"))

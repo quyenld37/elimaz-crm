@@ -84,6 +84,7 @@ func (e *shipEnv) review(m *fulfillment.Module, f fulfillment.ReviewFilter) fulf
 // (open, in_progress, open quá hạn), 1 quá hạn, 1 không rõ; việc done/closed và anomaly đã đóng không đếm. Kho ngoài
 // phạm vi → rỗng, 0.
 func TestReview_ListCountsAndInDoubt(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	m := newListsModule(e, func() time.Time { return now })
@@ -146,6 +147,7 @@ func TestReview_ListCountsAndInDoubt(t *testing.T) {
 // đóng lần hai → ErrAnomalyNotResolvable; không có / tenant khác → ErrAnomalyNotFound; Authorize từ chối → lỗi của nó,
 // không đổi gì.
 func TestReview_Resolve(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	now := time.Now().UTC()
 	m := newListsModule(e, func() time.Time { return now })
@@ -206,6 +208,7 @@ func TestReview_Resolve(t *testing.T) {
 
 // Hai người đóng cùng anomaly cùng lúc → đúng một thành công, người kia ErrAnomalyNotResolvable.
 func TestReview_ResolveConcurrent(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	m := newListsModule(e, time.Now)
 	_, _, s := e.shipped(1)
@@ -229,6 +232,7 @@ func TestReview_ResolveConcurrent(t *testing.T) {
 
 // Cần xem phân trang theo con trỏ (cũ nhất trước), counts như nhau mọi trang; con trỏ hỏng → ErrInvalidPage.
 func TestReview_Pages(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	m := newListsModule(e, time.Now)
 	var want []uuid.UUID

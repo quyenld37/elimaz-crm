@@ -3,8 +3,6 @@ package order_test
 import (
 	"flag"
 	"os"
-	"runtime"
-	"strconv"
 	"testing"
 
 	"github.com/google/uuid"
@@ -32,11 +30,7 @@ const orderParallel = 6
 func TestMain(m *testing.M) {
 	flag.Parse()
 	testkit.SetRapidChecks(200)
-	explicit := false
-	flag.Visit(func(f *flag.Flag) { explicit = explicit || f.Name == "test.parallel" })
-	if !explicit {
-		_ = flag.Set("test.parallel", strconv.Itoa(min(orderParallel, runtime.GOMAXPROCS(0))))
-	}
+	testkit.SetParallel(orderParallel)
 	os.Exit(m.Run())
 }
 

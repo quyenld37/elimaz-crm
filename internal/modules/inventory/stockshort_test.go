@@ -39,6 +39,7 @@ func (e *invEnv) shortAfterStocktake() (uuid.UUID, []uuid.UUID, []inventory.Rese
 // mã giữ hàng, cần 2, trên kệ 0), giữ hàng vẫn held, số dư và sổ không đổi; đếm lại được (không lỗi CHECK của
 // expected_on_shelf); nhập thêm 2 thì đơn 2 lấy hàng, giao xong; cuối cùng mọi ngăn về 0 và sổ = số dư.
 func TestStockShort_PickupBlockedAfterStocktake(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v, ids, _, _ := e.shortAfterStocktake()
 	if err := e.startTransit(ids[:1], sysActor()); err != nil {
@@ -98,6 +99,7 @@ func TestStockShort_PickupBlockedAfterStocktake(t *testing.T) {
 // Áp dụng phiên thiếu trả, cho từng biến thể thiếu, người bán của biến thể và mọi dòng giữ hàng held (theo mã giữ hàng
 // tăng dần) kèm dòng đơn, số lượng — để nhân viên xử lý; dòng đã đi giao không vào danh sách.
 func TestStockShort_ApplyListsHeldOrders(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, func(t *testing.T, e *invEnv) {
 		v := e.stock(6)
 		lines := []inventory.ReserveLine{e.line(v, 2), e.line(v, 1), e.line(v, 3)}
@@ -142,6 +144,7 @@ func TestStockShort_ApplyListsHeldOrders(t *testing.T) {
 // Hai đơn cùng lấy phần cuối trên kệ song song (on_hand 2, giữ 2 + 2 sau kiểm kho): đúng một qua, một ErrStockShort;
 // không lỗi khác, số dư khớp.
 func TestStockShort_ConcurrentPickup(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v, ids, _, _ := e.shortAfterStocktake()
 	errs := make([]error, len(ids))
@@ -173,6 +176,7 @@ func TestStockShort_ConcurrentPickup(t *testing.T) {
 // Lớp chặn thứ hai ở bước giao: số dư đã lệch sẵn (on_hand 1 < in_transit 2, dựng bằng chủ bảng như dữ liệu cũ) →
 // Consume trả ErrStockShort (trên kệ = on_hand 1), không lỗi CHECK, giữ hàng vẫn in_transit, số dư không đổi.
 func TestStockShort_ConsumeGuard(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v, res := e.inTransit(2, 2)
 	ids := []uuid.UUID{res}
@@ -198,6 +202,7 @@ func TestStockShort_ConsumeGuard(t *testing.T) {
 // vào): on_hand 3, giữ 2 đã đi giao, hỏng 1, đếm 0 → on_hand 2, damaged 1, in_transit 2; xuất hàng lỗi 1 →
 // InsufficientError (có thể xuất 0), số dư không đổi; đơn vẫn giao xong.
 func TestStockShort_DamageExportKeepsInTransit(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v, res := e.inTransit(3, 2)
 	ids := []uuid.UUID{res}

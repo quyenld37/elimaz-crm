@@ -131,6 +131,7 @@ func splitCols(cols string) []string {
 // VC05: hãng đổi V1 sang PickedUp; V1 last_synced_at cũ 3 giờ → lượt tra bù ghi một việc tra, chạy → V1 shipping, tồn
 // in_transit, last_synced_at = giờ chạy (đồng hồ của Service).
 func TestPoll_PickedUp(t *testing.T) {
+	t.Parallel()
 	e := newTrackEnv(t)
 	_, v, s := e.shipped(2)
 	e.push(s.TrackingCode, fake.RawPickedUp)
@@ -158,6 +159,7 @@ func TestPoll_PickedUp(t *testing.T) {
 // cùng kỳ → 0 việc mới; vận đơn delivered 8 ngày trước, vận đơn đã đồng bộ gần đây không được chọn. Gauge
 // shipments_unsynced_over_threshold của tenant = 450.
 func TestPoll_BudgetPerAccount(t *testing.T) {
+	t.Parallel()
 	e := newTrackEnv(t)
 	_, _, tmpl := e.shipped(1)
 	old := e.clock.Now().Add(-3 * time.Hour)
@@ -208,6 +210,7 @@ func TestPoll_BudgetPerAccount(t *testing.T) {
 
 // Tài khoản không active hay mode manual → lịch không chọn.
 func TestPoll_SkipsUnavailableAccounts(t *testing.T) {
+	t.Parallel()
 	e := newTrackEnv(t)
 	_, _, s := e.shipped(1)
 	e.setSynced(s.ID, e.clock.Now().Add(-5*time.Hour))

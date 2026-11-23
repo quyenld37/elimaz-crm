@@ -30,6 +30,7 @@ const (
 // SplitSignals: mỗi tín hiệu → carrier.signal định tuyến carrier_account:<routeKey>, chống trùng routeKey:eventKey
 // (hãng không cho khóa: sha256 của thân + chỉ số), OrderKey shipment:<mã CRM hoặc mã hãng>; thiếu cả hai mã → invalid.
 func TestSplitSignals(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"any":"body"}`)
 	sum := sha256.Sum256(raw)
 	h := hex.EncodeToString(sum[:])
@@ -76,6 +77,7 @@ func TestSplitSignals(t *testing.T) {
 
 // Gói không có routeKey (đường /hooks/<hãng> cũ) → ErrNoRouteKey; thân hãng không đọc được → lỗi.
 func TestSplitSignals_Errors(t *testing.T) {
+	t.Parallel()
 	ok := splitCarrier{sigs: []fulfillment.WebhookSignal{{EventKey: "e1", TrackingCode: "FK1"}}}
 	if _, err := fulfillment.SplitSignals(ok, []byte(`{}`), ""); !errors.Is(err, fulfillment.ErrNoRouteKey) {
 		t.Fatalf("không routeKey = %v, muốn ErrNoRouteKey", err)

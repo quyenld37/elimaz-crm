@@ -186,6 +186,7 @@ func (e *labelEnv) content(batchID uuid.UUID) []byte {
 // no_carrier_label; sau worker hai lô ready, có URL, tệp bắt đầu bằng %PDF- và có đủ mã; vận đơn có tệp nhãn và
 // label_printed_at; hãng được gọi một lần mỗi lô.
 func TestLabels_BatchPerAccount(t *testing.T) {
+	t.Parallel()
 	e := newLabelEnv(t, true)
 	a := e.shippedN(3)
 	_, sb := e.shippedOf(e.shop.Partner)
@@ -263,6 +264,7 @@ func batchOf(t *testing.T, out fulfillment.LabelBatchCreated, account uuid.UUID)
 // AT08: in lại cùng 3 vận đơn (đơn đã packed) → lô mới, trạng thái vận đơn, version, packing_status không đổi (đã
 // packed vẫn packed).
 func TestLabels_ReprintKeepsState(t *testing.T) {
+	t.Parallel()
 	e := newLabelEnv(t, true)
 	var ids, orders []uuid.UUID
 	for range 3 {
@@ -306,6 +308,7 @@ func TestLabels_ReprintKeepsState(t *testing.T) {
 // Hãng trả thân không phải PDF → lô failed invalid_pdf; 21 MB → too_large; hãng từ chối → carrier_rejected. Vận đơn
 // không được gắn nhãn, không có tệp trên kho.
 func TestLabels_BadFiles(t *testing.T) {
+	t.Parallel()
 	e := newLabelEnv(t, true)
 	big := append([]byte("%PDF-1.7\n"), make([]byte, 21<<20)...)
 	for _, c := range []struct {
@@ -337,6 +340,7 @@ func TestLabels_BadFiles(t *testing.T) {
 
 // Hãng quá tải (429) → lệnh chưa gửi, lô vẫn pending; hết lượt (dead) → OnTerminal failed timeout.
 func TestLabels_RetryThenTerminal(t *testing.T) {
+	t.Parallel()
 	e := newLabelEnv(t, true)
 	_, s := e.shippedOf(e.shop.Seller)
 	e.lc.set(nil, &fulfillment.CarrierError{Class: fulfillment.ClassRateLimited, Code: "429"})
@@ -417,6 +421,7 @@ func indexOf(log []string, parts ...string) int {
 // OnDone khóa shipments theo id tăng dần (một câu FOR UPDATE) trước khi ghi platform.files và label_batches (ADR-46
 // nhóm 8 rồi 12b); label_printed_at có giá trị.
 func TestLabels_OnDoneLockOrder(t *testing.T) {
+	t.Parallel()
 	e := newLabelEnv(t, true)
 	ids := e.shippedN(2)
 	out := e.mustCreate(ids...)
@@ -453,6 +458,7 @@ func TestLabels_OnDoneLockOrder(t *testing.T) {
 // Hai lô chung ba vận đơn, thứ tự mảng ngược nhau, OnDone chạy song song nhiều vòng: không deadlock (mỗi tx chạy đúng
 // một lần, không lỗi), cả hai lô ready.
 func TestLabels_ConcurrentBatchesNoDeadlock(t *testing.T) {
+	t.Parallel()
 	e := newLabelEnv(t, true)
 	ids := e.shippedN(3)
 	rev := slices.Clone(ids)
@@ -520,6 +526,7 @@ func (e *labelEnv) insertBatch(ids []uuid.UUID) uuid.UUID {
 
 // Hãng không in nhiều vận đơn một lần (Q-18) → mỗi vận đơn một lô, mỗi lô một lần gọi một mã.
 func TestLabels_SinglePerShipmentWhenNoBatch(t *testing.T) {
+	t.Parallel()
 	e := newLabelEnv(t, false)
 	ids := e.shippedN(2)
 	out := e.mustCreate(ids...)
@@ -537,6 +544,7 @@ func TestLabels_SinglePerShipmentWhenNoBatch(t *testing.T) {
 // Phạm vi: một vận đơn ngoài phạm vi (Authorize từ chối kho) → cả lô ErrNotFound, không ghi lô hay việc nào; mã lạ →
 // ErrNotFound; 0 hay 201 mã → ErrLabelBatchInvalid; đọc lô ngoài phạm vi → ErrNotFound.
 func TestLabels_ScopeAndInput(t *testing.T) {
+	t.Parallel()
 	e := newLabelEnv(t, true)
 	_, s := e.shippedOf(e.shop.Seller)
 	deny := func(uuid.UUID) error { return fulfillment.ErrNotFound }
@@ -575,6 +583,7 @@ func TestLabels_ScopeAndInput(t *testing.T) {
 
 // Lệnh tải nhãn chỉ được đăng ký khi module có database, kho tệp và adapter hãng (wire_m3 nối Files, Task M3-16).
 func TestLabels_CommandWiring(t *testing.T) {
+	t.Parallel()
 	e := newLabelEnv(t, true)
 	has := func(d fulfillment.Deps) bool {
 		m := fulfillment.New(d)

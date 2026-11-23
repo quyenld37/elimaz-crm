@@ -33,6 +33,7 @@ func (e *invEnv) consume(ids []uuid.UUID, a inventory.Actor) error {
 
 // Release hai lần → lần hai ErrStateConflict, held chỉ giảm một lần; lý do được lưu.
 func TestRelease_Twice(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(5)
 	ids, err := e.reserve(sysActor(), e.line(v, 3))
@@ -73,6 +74,7 @@ func TestRelease_Twice(t *testing.T) {
 
 // StartTransit rồi Consume → held 0, in_transit 0, on_hand giảm đúng qty; Consume dòng đang held → ErrStateConflict.
 func TestTransitThenConsume(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, testTransitThenConsume)
 }
 
@@ -125,6 +127,7 @@ func testTransitThenConsume(t *testing.T, e *invEnv) {
 
 // Một lần gọi có mã không tồn tại (hoặc của tenant khác) → ErrStateConflict, không đổi gì.
 func TestCore_UnknownIDAndMixed(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(5)
 	ids, err := e.reserve(sysActor(), e.line(v, 1), e.line(v, 1))
@@ -164,6 +167,7 @@ func TestCore_UnknownIDAndMixed(t *testing.T) {
 
 // Dòng sổ do hệ thống ghi có actor_id NULL; do nhân viên ghi có đúng uuid người đó.
 func TestLedger_Actor(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(5)
 	staff := inventory.Actor{Type: "staff", ID: uuid.New()}
@@ -196,6 +200,7 @@ func pgCode(err error) string {
 
 // Sổ chỉ ghi thêm: trùng (doc, bucket, step) → unique; UPDATE bằng crm_app → lỗi quyền; bằng chủ bảng → append-only.
 func TestLedger_AppendOnly(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(5)
 	ids, err := e.reserve(sysActor(), e.line(v, 1))
@@ -240,6 +245,7 @@ func TestLedger_AppendOnly(t *testing.T) {
 
 // DefaultWarehouse trả kho MAIN; tenant chưa có kho → ErrNoWarehouse. EnsureDefaultWarehouse chạy lại được.
 func TestDefaultWarehouse(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	var got uuid.UUID
 	if err := e.app(func(tx pgx.Tx) error {
@@ -274,6 +280,7 @@ func TestDefaultWarehouse(t *testing.T) {
 // (trạng thái mặc định held) — số dư, trạng thái chỉ đổi qua câu UPDATE có điều kiện và sổ. Chèn on_hand ≠ 0 hay giữ
 // hàng consumed bằng crm_app → lỗi quyền 42501; đường chèn thật của mã (EnsureBalance, InsertReservation) vẫn chạy.
 func TestBalances_InsertOnlyKeyColumns(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.variants(1)[0]
 	for name, q := range map[string]string{

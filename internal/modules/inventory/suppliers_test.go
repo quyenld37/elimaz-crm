@@ -53,6 +53,7 @@ func ptr[T any](v T) *T { return &v }
 
 // C5, Q33: danh bạ nhà cung cấp — trùng tên, chỉ phiếu nhập, đã lưu trữ, phiếu cũ vẫn đọc ra tên, SĐT được che.
 func TestSupplier_OnImportOnly(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	s, err := e.createSupplier(inventory.SupplierInput{Name: "  Xưởng Hoa ", Phone: "0911 222 333", Note: "Lụa"})
 	if err != nil {
@@ -106,6 +107,7 @@ func TestSupplier_OnImportOnly(t *testing.T) {
 
 // Danh sách (tìm bỏ dấu, lọc lưu trữ), đổi tên trùng, SĐT che trong log, tenant khác không thấy.
 func TestSupplier_ListAndRedact(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	s, err := e.createSupplier(inventory.SupplierInput{Name: "Xưởng Hoa", Phone: "0911222333"})
 	if err != nil {

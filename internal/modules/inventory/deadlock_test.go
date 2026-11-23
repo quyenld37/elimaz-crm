@@ -75,6 +75,7 @@ func both(f, g func() error) error {
 // không deadlock. Transaction mở thẳng trên pool (không qua RetryTx) để lỗi 40P01 không bị chạy lại che mất; mỗi
 // transaction giữ khóa thêm một chút trước khi commit để hai bên chắc chắn chồng nhau.
 func TestReserve_NoDeadlockOnCrossOrder(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	a, b := e.stock(1000), e.stock(1000)
 	before := e.deadlocks()
@@ -99,6 +100,7 @@ func TestReserve_NoDeadlockOnCrossOrder(t *testing.T) {
 
 // Nhả và đi giao chéo thứ tự: hai transaction cùng chạm hai dòng số dư theo hai danh sách ngược nhau.
 func TestCore_NoDeadlockOnCrossOrder(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	a, b := e.stock(1000), e.stock(1000)
 	for round := range 50 {

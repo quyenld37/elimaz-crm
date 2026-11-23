@@ -130,6 +130,7 @@ func (e *trackEnv) push(tracking, raw string) {
 // VC17: hãng (API) nói InTransit; webhook nói Delivered → sau mọi việc V1 shipping, đơn confirmed (trạng thái lấy
 // từ API, webhook chỉ là tín hiệu tra lại); last_synced_at = giờ tra.
 func TestTrack_WebhookOnlySignals(t *testing.T) {
+	t.Parallel()
 	e := newTrackEnv(t)
 	o, v, s := e.shipped(2)
 	e.push(s.TrackingCode, fake.RawInTransit)
@@ -155,6 +156,7 @@ func TestTrack_WebhookOnlySignals(t *testing.T) {
 // VC18: máy chủ hãng treo 30 s → lệnh not_sent, chờ lượt sau (pending, chưa tới giờ); last_sync_error = timeout;
 // last_synced_at trong fulfillment.shipments_v giữ giờ cũ.
 func TestTrack_CarrierHangs(t *testing.T) {
+	t.Parallel()
 	e := newTrackEnv(t)
 	_, _, s := e.shipped(1)
 	old := e.clock.Now().Add(-2 * time.Hour)
@@ -179,6 +181,7 @@ func TestTrack_CarrierHangs(t *testing.T) {
 
 // Hãng trả 429 Retry-After: 7 → việc pending, run_at cách 7 s (±1 s), không đổi vận đơn; last_sync_error rate_limited.
 func TestTrack_RateLimited(t *testing.T) {
+	t.Parallel()
 	e := newTrackEnv(t)
 	_, _, s := e.shipped(1)
 	e.srv.SetMode("track", "rate_limited")
@@ -197,6 +200,7 @@ func TestTrack_RateLimited(t *testing.T) {
 // Hãng từ chối khóa (401) → việc dead (rejected), tài khoản auth_failed, có lệnh cảnh báo carrier-auth;
 // last_sync_error auth.
 func TestTrack_AuthRevoked(t *testing.T) {
+	t.Parallel()
 	e := newTrackEnv(t)
 	_, _, s := e.shipped(1)
 	e.srv.SetMode("track", "auth_revoked")
@@ -220,6 +224,7 @@ func TestTrack_AuthRevoked(t *testing.T) {
 // Tài khoản không active → việc dead lý do account_unavailable, không gọi hãng; vận đơn đã kết thúc (giao 8 ngày
 // trước, đã hủy) → việc done, không gọi hãng, không đổi gì.
 func TestTrack_SkipsWithoutCalling(t *testing.T) {
+	t.Parallel()
 	e := newTrackEnv(t)
 	_, _, s := e.shipped(1)
 	_, _, s2 := e.shipped(1)
@@ -249,6 +254,7 @@ func TestTrack_SkipsWithoutCalling(t *testing.T) {
 // mã hãng, shipping; lệnh tạo sau đó tra lại thấy đã tạo (done) → không đổi gì thêm; việc "không rõ đã tạo" mở lúc
 // in_doubt (Task M3-12, VC16) được đóng, không còn anomaly mở.
 func TestTrack_InDoubtCreateFoundByCode(t *testing.T) {
+	t.Parallel()
 	e := newTrackEnv(t)
 	o, v := e.order(1)
 	e.srv.SetMode("create", "timeout_after_create")
@@ -294,6 +300,7 @@ func TestTrack_InDoubtCreateFoundByCode(t *testing.T) {
 
 // Bấm "Tra lại" 5 lần trong một phút → 1 việc (cùng mã); phút sau → việc mới.
 func TestTrack_ManualSyncOncePerMinute(t *testing.T) {
+	t.Parallel()
 	e := newTrackEnv(t)
 	_, _, s := e.shipped(1)
 	first := e.sync(s.ID)
@@ -322,6 +329,7 @@ func TestTrack_ManualSyncOncePerMinute(t *testing.T) {
 // (không thử lại vô ích), vận đơn giữ awaiting_pickup, last_sync_error stock_short, một anomaly stock_short mở; cảnh
 // báo stock-short:<tenant> một lần trong ngày (lần tra sau cùng ngày không thêm).
 func TestTrack_StockShort(t *testing.T) {
+	t.Parallel()
 	e := newTrackEnv(t)
 	_, v, s := e.shipped(2)
 	e.ownerExec(`UPDATE inventory.stock_balances SET on_hand = 1 WHERE variant_id = $1`, v)
@@ -356,6 +364,7 @@ func TestTrack_StockShort(t *testing.T) {
 // Kết quả lệnh tra (platform.jobs.result) chỉ có mã hãng, trạng thái, khóa sự kiện, giờ, số tiền: không SĐT, tên,
 // địa chỉ của đơn.
 func TestTrack_ResultHasNoPersonalData(t *testing.T) {
+	t.Parallel()
 	e := newTrackEnv(t)
 	_, _, s := e.shipped(1)
 	e.srv.Push(s.TrackingCode, fulfillment.CarrierEvent{

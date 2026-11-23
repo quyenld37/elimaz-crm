@@ -104,6 +104,7 @@ func statusOf(rows []fulfillment.QuoteRow, account uuid.UUID) (string, string) {
 // C error timeout; danh sách 28.000, 31.500, 41.000 rồi C; không phí 0; ok có valid_until = now + 30 phút và
 // input_hash = InputHash(đầu vào, dịch vụ); mỗi lần ghi một báo hiệu shipping_quote.ready ở kho của đơn.
 func TestQuotes_VC02(t *testing.T) {
+	t.Parallel()
 	a, b, c := vc02Carriers()
 	e := newQuoteEnv(t, a, b, c)
 	o, _ := e.order(2)
@@ -212,6 +213,7 @@ func (e *quoteEnv) checkReady(o order.Order, n int) {
 
 // Tài khoản B tạm dừng giữa lúc yêu cầu và lúc chạy → dòng B unavailable, không gọi hãng B.
 func TestQuotes_AccountPausedMidway(t *testing.T) {
+	t.Parallel()
 	a, b, _ := vc02Carriers()
 	e := newQuoteEnv(t, a, b)
 	o, _ := e.order(1)
@@ -235,6 +237,7 @@ func TestQuotes_AccountPausedMidway(t *testing.T) {
 
 // Hãng có Locations mà địa chỉ đơn chưa khớp carrier_locations → error address_unmapped, không gọi hãng.
 func TestQuotes_AddressUnmapped(t *testing.T) {
+	t.Parallel()
 	d := &quoteCarrier{key: "qd", locations: true, results: []fulfillment.QuoteResult{{Service: "S", Total: 20000}}}
 	e := newQuoteEnv(t, d)
 	o, _ := e.order(1)
@@ -252,6 +255,7 @@ func TestQuotes_AddressUnmapped(t *testing.T) {
 // Hãng từ chối khóa → error auth và tài khoản sang auth_failed; 429 Retry-After quá 20 s → error rate_limited ngay;
 // 429 Retry-After 5 s → lệnh chờ (dòng còn pending).
 func TestQuotes_AuthAndRateLimit(t *testing.T) {
+	t.Parallel()
 	auth := &quoteCarrier{key: "qauth", err: &fulfillment.CarrierError{Class: fulfillment.ClassAuth, Code: "bad_token"}}
 	slow := &quoteCarrier{key: "qslow", err: &fulfillment.CarrierError{Class: fulfillment.ClassRateLimited, RetryAfter: time.Minute}}
 	wait := &quoteCarrier{key: "qwait", err: &fulfillment.CarrierError{Class: fulfillment.ClassRateLimited, RetryAfter: 5 * time.Second}}
@@ -279,6 +283,7 @@ func TestQuotes_AuthAndRateLimit(t *testing.T) {
 
 // Lệnh dead hay expired khi dòng còn pending → error timeout; in_doubt không đổi gì (lệnh chạy lại).
 func TestQuotes_OnTerminal(t *testing.T) {
+	t.Parallel()
 	a, _, _ := vc02Carriers()
 	e := newQuoteEnv(t, a)
 	o, _ := e.order(1)
@@ -314,6 +319,7 @@ func TestQuotes_OnTerminal(t *testing.T) {
 // Từ chối: đơn đã có vận đơn → ErrShipmentExists; tài khoản của người bán khác → ErrAccountNotFound; tài khoản không
 // báo phí được (hãng không có adapter) → ErrAccountUnavailable; không lỗi nào ghi dòng hay lệnh.
 func TestQuotes_RequestRefusals(t *testing.T) {
+	t.Parallel()
 	a, _, _ := vc02Carriers()
 	e := newQuoteEnv(t, a)
 	o, _ := e.order(1)
@@ -345,6 +351,7 @@ func TestQuotes_RequestRefusals(t *testing.T) {
 
 // Dọn: báo phí tạo trước now − 7 ngày bị xóa (crm_app có quyền DELETE, 0320), mới hơn giữ.
 func TestQuotes_Cleanup(t *testing.T) {
+	t.Parallel()
 	a, _, _ := vc02Carriers()
 	e := newQuoteEnv(t, a)
 	o, _ := e.order(1)

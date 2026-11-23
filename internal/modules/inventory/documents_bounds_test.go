@@ -14,6 +14,7 @@ import (
 
 // Phiếu đúng MaxDocumentLines dòng được; thêm một dòng → ErrInvalidInput.
 func TestReplaceLines_MaxLines(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	vs := e.variants(inventory.MaxDocumentLines + 1)
 	lines := make([]inventory.DocumentLine, len(vs))
@@ -35,6 +36,7 @@ func TestReplaceLines_MaxLines(t *testing.T) {
 
 // limit ngoài 1…200 → ErrInvalidInput; 1 và 200 được. Đúng limit phiếu → không có trang sau.
 func TestListDocuments_LimitBounds(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(10)
 	for range 2 {
@@ -68,6 +70,7 @@ func TestListDocuments_LimitBounds(t *testing.T) {
 
 // Writer thiếu Events hoặc thiếu Queue → ghi sổ phiếu lỗi, tồn không đổi (đổi tồn không bao giờ thiếu sự kiện).
 func TestPostDocument_WriterNotWired(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(10)
 	full := e.writer()

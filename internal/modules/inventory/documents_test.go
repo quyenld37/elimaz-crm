@@ -88,6 +88,7 @@ func wantInsufficient(t *testing.T, err error, v uuid.UUID, available int32) {
 
 // KH03: phiếu nhập tăng on_hand và ghi đúng một dòng sổ; phiếu còn nháp thì số dư không đổi.
 func TestPostImport_IncreasesOnHandAndLedger(t *testing.T) {
+	t.Parallel()
 	eachSeller(t, testPostImport)
 }
 
@@ -145,6 +146,7 @@ func testPostImport(t *testing.T, e *invEnv) {
 
 // KH10: xuất tay không ăn vào phần đã giữ cho đơn.
 func TestPostExport_CannotEatHeld(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(5)
 	if _, err := e.reserve(sysActor(), e.line(v, 3)); err != nil {
@@ -173,6 +175,7 @@ func TestPostExport_CannotEatHeld(t *testing.T) {
 
 // KH08: hàng lỗi giảm có thể bán; xuất hàng lỗi giảm cả lỗi và tồn.
 func TestPostDamage_ReducesAvailable(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(10)
 	if _, err := e.post(e.newDoc(inventory.DocumentInput{Kind: inventory.KindDamage}, line(v, 2)), staffActor()); err != nil {
@@ -195,6 +198,7 @@ func TestPostDamage_ReducesAvailable(t *testing.T) {
 
 // Phiếu 3 dòng, dòng giữa (theo thứ tự khóa) thiếu → không dòng nào được ghi.
 func TestPost_AllOrNothing(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	vs := e.variants(3)
 	slices.SortFunc(vs, func(a, b uuid.UUID) int {
@@ -220,6 +224,7 @@ func TestPost_AllOrNothing(t *testing.T) {
 
 // Điều chỉnh: âm không quá có thể bán; dương cộng tồn (kể cả biến thể chưa có số dư).
 func TestPostAdjust(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(4)
 	if _, err := e.reserve(sysActor(), e.line(v, 1)); err != nil {
@@ -244,6 +249,7 @@ func TestPostAdjust(t *testing.T) {
 
 // Luật dòng: chỉ phiếu nháp, đúng version, số lượng theo loại, không trùng biến thể, biến thể có thật.
 func TestReplaceLines_Rules(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.variants(1)[0]
 	d, err := e.createDoc(inventory.DocumentInput{Kind: inventory.KindExport})
@@ -289,6 +295,7 @@ func TestReplaceLines_Rules(t *testing.T) {
 
 // Hủy chỉ phiếu nháp; phiếu đã hủy không ghi sổ được; tenant khác không thấy phiếu.
 func TestCancelDocument(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(3)
 	d := e.newDoc(inventory.DocumentInput{Kind: inventory.KindExport}, line(v, 1))
@@ -327,6 +334,7 @@ func TestCancelDocument(t *testing.T) {
 
 // Hai transaction ghi sổ cùng phiếu song song → đúng một thành công, một ErrDocumentNotDraft; sổ chỉ một lần.
 func TestPost_ConcurrentOnce(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(10)
 	d := e.newDoc(inventory.DocumentInput{Kind: inventory.KindExport}, line(v, 4))
@@ -358,6 +366,7 @@ func TestPost_ConcurrentOnce(t *testing.T) {
 
 // ListDocuments lọc theo kho, trạng thái, loại; phân trang theo id giảm dần.
 func TestListDocuments(t *testing.T) {
+	t.Parallel()
 	e := newInvEnv(t)
 	v := e.stock(10)
 	var ids []uuid.UUID

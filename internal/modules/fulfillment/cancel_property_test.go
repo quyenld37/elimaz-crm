@@ -18,6 +18,7 @@ import (
 // rõ, chưa gửi), hãng lấy hàng, hãng tự hủy, tra lại, tin muộn của vận đơn cũ → không bao giờ: hàng được nhả khi hãng
 // còn giữ kiện chưa hủy; đơn có hai vận đơn chưa hủy; hàng đã in_transit bị nhả.
 func TestCancel_Property(t *testing.T) {
+	t.Parallel()
 	e := newCancelEnv(t)
 	ops := []string{
 		"ship", "order_cancel", "replace", "cancel_mode", "create_mode", "pickup", "carrier_cancel", "run",

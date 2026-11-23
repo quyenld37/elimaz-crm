@@ -58,6 +58,7 @@ func (e *shipEnv) commandJobs() int {
 // hãng; ghi tay shipping rồi delivered (COD thu đủ) → đơn delivered, xuất kho đúng một lần, status_changed như vận đơn
 // API (có codCollected), lịch sử ghi nguồn staff và người làm; lý do che SĐT.
 func TestManual_VC14(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	acc := e.manualAccount("best", "best-tay-1")
 	o, v := e.order(2)
@@ -127,6 +128,7 @@ func TestManual_VC14(t *testing.T) {
 // Tự giao: mã hãng là mã vận đơn nội bộ, nhãn "Tự giao"; nhập mã cho self → ErrShipInvalid; tài khoản tay của hãng
 // thật thiếu mã → ErrShipInvalid; tài khoản api có mã nhập tay → ErrShipInvalid. Lỗi không để lại vận đơn.
 func TestManual_SelfAndInputs(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	self := e.manualAccount("self", "tu-giao")
 	best := e.manualAccount("best", "best-tay-1")
@@ -165,6 +167,7 @@ func TestManual_SelfAndInputs(t *testing.T) {
 // Trùng mã Best ở tài khoản tay khác cùng hãng → ErrTrackingCodeConflict, đơn thứ hai không có vận đơn nào, không để lại
 // việc cần xem.
 func TestManual_TrackingConflict(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	a1, a2 := e.manualAccount("best", "best-tay-1"), e.manualAccount("best", "best-tay-2")
 	o1, _ := e.order(1)
@@ -197,6 +200,7 @@ func TestManual_TrackingConflict(t *testing.T) {
 // hơn sự kiện đã ghi, trùng trạng thái → ErrManualNotAllowed mà không để lại lịch sử hay việc cần xem; giờ ở tương lai,
 // COD âm hay COD khi không giao xong → ErrShipInvalid; không có vận đơn → ErrNotFound.
 func TestManual_Refusals(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	acc := e.manualAccount("best", "best-tay-1")
 	o, _ := e.order(1)
@@ -261,6 +265,7 @@ func TestManual_Refusals(t *testing.T) {
 // "hãng đã hủy" → cancelled, đơn về confirmed (đổi hãng), giữ hàng, việc đóng; vận đơn khác ghi "hãng không cho hủy"
 // (shipping) → đơn confirmed, hàng in_transit, việc đóng; delivered khi đang có việc → ErrManualNotAllowed.
 func TestManual_StaffCancelTask(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
 	e.carrier.SetCancelSupported(false)
 	now := time.Now().UTC()
@@ -297,14 +302,21 @@ func TestManual_StaffCancelTask(t *testing.T) {
 	e.stockIs(v2, [3]int32{5, 0, 1})
 }
 
+// bareDeps là Deps của module chỉ có database, hàng đợi, sổ sự kiện, bus ghi lại; không bộ hãng, không danh mục nhập
+// tay (như production lúc bộ hãng rỗng). Test thêm trường mình cần.
+func (e *shipEnv) bareDeps() fulfillment.Deps {
+	return fulfillment.Deps{
+		DB: e.staff.App, Queue: queue.NewQueue(), Events: events.NewRegistry(), Bus: &realtimetest.RecordingBus{},
+	}
+}
+
 // Task M3-09 để lại (tệp task 100): ở production bộ hãng rỗng nên mọi tài khoản bị từ chối, kể cả tự giao. Tài khoản
 // self mode manual không gọi mạng nên luôn tạo được (active ngay) và gửi được đơn; self mode api, hãng thật chưa có
 // adapter vẫn ErrCarrierNotSupported khi Deps không có danh mục nhập tay (có danh mục: TestManualCatalog_*, Task 448).
 func TestManual_SelfAccountWithoutCarriers(t *testing.T) {
+	t.Parallel()
 	e := newShipEnv(t)
-	svc := fulfillment.New(fulfillment.Deps{
-		DB: e.staff.App, Queue: queue.NewQueue(), Events: events.NewRegistry(), Bus: &realtimetest.RecordingBus{},
-	}).Service
+	svc := fulfillment.New(e.bareDeps()).Service
 	seller := e.seller
 	in := func(key, mode string) fulfillment.AccountInput {
 		return fulfillment.AccountInput{SellerID: &seller, CarrierKey: key, Mode: mode, Name: "Tự giao", WarehouseID: e.shop.Warehouse}

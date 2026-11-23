@@ -17,6 +17,7 @@ var codePattern = regexp.MustCompile(`^E[0-9]{6}[0-9A-Z]{6}$`)
 // NewShipmentCode với rnd cố định: E + yyMMdd giờ Việt Nam + 6 ký tự base32 Crockford viết hoa; 23:30 UTC là ngày hôm
 // sau ở Việt Nam.
 func TestNewShipmentCode_Fixed(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 11, 18, 23, 30, 0, 0, time.UTC)
 	got := fulfillment.NewShipmentCode(now, bytes.NewReader(make([]byte, 16)))
 	if got != "E261119000000" {
@@ -33,6 +34,7 @@ func TestNewShipmentCode_Fixed(t *testing.T) {
 
 // Mọi giờ, mọi chuỗi ngẫu nhiên → mã khớp ^E[0-9]{6}[0-9A-Z]{6}$, không có I, L, O, U (Crockford).
 func TestNewShipmentCode_Property(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		sec := rapid.Int64Range(0, 4102444800).Draw(t, "sec")
 		seed := rapid.SliceOfN(rapid.Byte(), 8, 8).Draw(t, "seed")
