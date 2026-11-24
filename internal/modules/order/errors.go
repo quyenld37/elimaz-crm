@@ -92,6 +92,8 @@ var (
 	ErrRequestNotFound = errors.New("order: không có yêu cầu")
 	// ErrRequestLimit: đơn đã có MaxRequestsPerOrder24 yêu cầu trong 24 giờ.
 	ErrRequestLimit = errors.New("order: quá nhiều yêu cầu cho một đơn")
+	// ErrCannotCancel: khách không hủy được đơn web ở trạng thái này (đã giao, đã hoàn, đã hủy; Task 196).
+	ErrCannotCancel = errors.New("order: đơn web không hủy được")
 )
 
 // OutOfStockError là chi tiết của ErrOutOfStock: dòng đầu tiên (theo thứ tự khóa) không đủ hàng.

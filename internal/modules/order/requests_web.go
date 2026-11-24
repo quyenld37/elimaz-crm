@@ -28,7 +28,7 @@ type requestOrder struct {
 // của bên gọi; a là khóa dịch vụ của website. Thứ tự: kiểm đầu vào không database (loại, lý do, lời nhắn 5–1000 ký tự,
 // dòng, quá 5 ảnh → ErrTooManyFiles, đổi/trả có dòng DEFECT, WRONG_ITEM mà không ảnh → ErrPhotoRequired) → khóa đơn
 // (không có → ErrNotFound) → quá MaxRequestsPerOrder24 yêu cầu trong 24 giờ → ErrRequestLimit → theo loại: hủy chỉ khi
-// đơn new, confirmed (khác → ErrRequestNotAllowed) và chưa có yêu cầu hủy đang mở (→ ErrDuplicateOpen); đổi, trả chỉ
+// đơn new, confirmed, cancel_requested (khác → ErrRequestNotAllowed) và chưa có yêu cầu hủy đang mở (→ ErrDuplicateOpen); đổi, trả chỉ
 // khi đơn delivered (khác → ErrRequestNotAllowed) trong ExchangeWindowDays ngày từ lần giao (quá → ErrWindowClosed),
 // mỗi biến thể có trong đơn và số ≤ số đã mua trừ số đang nằm trong yêu cầu đổi, trả chưa bị từ chối hay rút
 // (→ ErrQtyExceeded) → ảnh: tệp của tenant, mục đích order_request_photo, chưa xóa, chưa gắn yêu cầu khác (khác →
@@ -214,8 +214,8 @@ func checkOrderForRequest(ctx context.Context, tx pgx.Tx, q *store.Queries, o re
 	now time.Time,
 ) error {
 	switch in.Kind {
-	case RequestCancel:
-		if o.status != StatusNew && o.status != StatusConfirmed {
+	case RequestCancel: // cancel_requested: nhân viên đã yêu cầu hãng hủy, khách vẫn gửi được (Task 196, Q4)
+		if o.status != StatusNew && o.status != StatusConfirmed && o.status != StatusCancelRequested {
 			return ErrRequestNotAllowed
 		}
 		open, err := q.OpenCancelRequestExists(ctx, o.id)
@@ -257,38 +257,49 @@ func checkExchangeWindow(ctx context.Context, tx pgx.Tx, q *store.Queries, order
 
 // checkExchangeQty: mỗi dòng ≤ số đã mua − số đang nằm trong yêu cầu đổi, trả chưa bị từ chối hay rút.
 func checkExchangeQty(ctx context.Context, q *store.Queries, sellerID, orderID uuid.UUID, lines []RequestLine) error {
-	items, err := q.OrderItemQuantities(ctx, store.OrderItemQuantitiesParams{SellerID: sellerID, OrderID: orderID})
+	remaining, err := exchangeRemaining(ctx, q, sellerID, orderID)
 	if err != nil {
-		return fmt.Errorf("đọc dòng đơn: %w", err)
-	}
-	bought := map[uuid.UUID]int{}
-	for _, it := range items {
-		bought[it.VariantID] = int(it.Quantity)
-	}
-	held, err := q.HeldRequestLines(ctx, orderID)
-	if err != nil {
-		return fmt.Errorf("đọc yêu cầu đổi đang mở: %w", err)
-	}
-	used := map[uuid.UUID]int{}
-	for _, raw := range held {
-		var ls []RequestLine
-		if err := json.Unmarshal(raw, &ls); err != nil {
-			return fmt.Errorf("đọc dòng yêu cầu đang mở: %w", err)
-		}
-		for _, l := range ls {
-			used[l.VariantID] += l.Qty
-		}
+		return err
 	}
 	for _, l := range lines {
-		b, ok := bought[l.VariantID]
+		r, ok := remaining[l.VariantID]
 		if !ok {
 			return fmt.Errorf("%w: biến thể không có trong đơn", ErrInvalidInput)
 		}
-		if l.Qty > b-used[l.VariantID] {
+		if l.Qty > r {
 			return ErrQtyExceeded
 		}
 	}
 	return nil
+}
+
+// exchangeRemaining trả số còn đổi, trả được của từng biến thể trong đơn orderID: số đã mua − số đang nằm trong yêu
+// cầu đổi, trả chưa bị từ chối hay rút (có thể âm nếu dữ liệu cũ lệch). Biến thể không có trong đơn không có khóa.
+func exchangeRemaining(ctx context.Context, q *store.Queries, sellerID, orderID uuid.UUID) (map[uuid.UUID]int, error) {
+	items, err := q.OrderItemQuantities(ctx, store.OrderItemQuantitiesParams{SellerID: sellerID, OrderID: orderID})
+	if err != nil {
+		return nil, fmt.Errorf("đọc dòng đơn: %w", err)
+	}
+	remaining := map[uuid.UUID]int{}
+	for _, it := range items {
+		remaining[it.VariantID] = int(it.Quantity)
+	}
+	held, err := q.HeldRequestLines(ctx, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("đọc yêu cầu đổi đang mở: %w", err)
+	}
+	for _, raw := range held {
+		var ls []RequestLine
+		if err := json.Unmarshal(raw, &ls); err != nil {
+			return nil, fmt.Errorf("đọc dòng yêu cầu đang mở: %w", err)
+		}
+		for _, l := range ls {
+			if _, ok := remaining[l.VariantID]; ok {
+				remaining[l.VariantID] -= l.Qty
+			}
+		}
+	}
+	return remaining, nil
 }
 
 // checkRequestFiles: mỗi tệp thuộc tenant, đúng mục đích, chưa xóa, chưa gắn yêu cầu nào, không bị imager từ chối.

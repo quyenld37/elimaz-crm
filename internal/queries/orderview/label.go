@@ -97,3 +97,14 @@ func confirmedLabel(packing, shipment string) LabelKey {
 	}
 	return LabelConfirmed
 }
+
+// CustomerLabel là nhãn gộp cho khách (website, Task 196): Label, trừ bốn nhãn chỉ nội bộ (nháp, chờ duyệt giảm, chờ
+// khách, hết hàng) gộp về new để khách không thấy quy trình nội bộ.
+func CustomerLabel(a Axes) LabelKey {
+	switch l := Label(a); l {
+	case LabelDraft, LabelAwaitingDiscountApproval, LabelAwaitingCustomer, LabelOutOfStock:
+		return LabelNew
+	default:
+		return l
+	}
+}

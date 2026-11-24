@@ -361,31 +361,34 @@ var (
 	rn281AllowedHeaders = map[string]string{
 		"GET": "If-None-Match",
 	}
-	rn290AllowedHeaders = map[string]string{
+	rn292AllowedHeaders = map[string]string{
 		"GET": "If-None-Match",
 	}
-	rn291AllowedHeaders = map[string]string{
+	rn293AllowedHeaders = map[string]string{
 		"GET": "If-None-Match",
 	}
-	rn300AllowedHeaders = map[string]string{
+	rn303AllowedHeaders = map[string]string{
+		"POST": "Content-Type,Idempotency-Key",
+	}
+	rn297AllowedHeaders = map[string]string{
+		"GET": "If-None-Match",
+	}
+	rn294AllowedHeaders = map[string]string{
+		"POST": "Content-Type,Idempotency-Key",
+	}
+	rn284AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
 	rn295AllowedHeaders = map[string]string{
-		"GET": "If-None-Match",
-	}
-	rn292AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn293AllowedHeaders = map[string]string{
-		"POST": "Content-Type,Idempotency-Key",
-	}
-	rn286AllowedHeaders = map[string]string{
+	rn288AllowedHeaders = map[string]string{
 		"POST": "Idempotency-Key",
 	}
-	rn298AllowedHeaders = map[string]string{
+	rn301AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
-	rn296AllowedHeaders = map[string]string{
+	rn299AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 )
@@ -6415,7 +6418,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "GET",
-												allowedHeaders: rn290AllowedHeaders,
+												allowedHeaders: rn292AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "",
 											})
@@ -6465,7 +6468,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "GET",
-												allowedHeaders: rn291AllowedHeaders,
+												allowedHeaders: rn293AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "",
 											})
@@ -6494,7 +6497,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn300AllowedHeaders,
+										allowedHeaders: rn303AllowedHeaders,
 										acceptPost:     "image/*",
 										acceptPatch:    "",
 									})
@@ -6544,7 +6547,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET",
-										allowedHeaders: rn295AllowedHeaders,
+										allowedHeaders: rn297AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -6568,7 +6571,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn292AllowedHeaders,
+										allowedHeaders: rn294AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -6585,6 +6588,37 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									break
 								}
 
+								if len(elem) == 0 {
+									break
+								}
+								switch elem[0] {
+								case 'c': // Prefix: "changes"
+									origElem := elem
+									if l := len("changes"); len(elem) >= l && elem[0:l] == "changes" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "GET":
+											s.handleWebOrderChangesRequest([0]string{}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, notAllowedParams{
+												allowedMethods: "GET",
+												allowedHeaders: nil,
+												acceptPost:     "",
+												acceptPatch:    "",
+											})
+										}
+
+										return
+									}
+
+									elem = origElem
+								}
 								// Param: "externalRef"
 								// Match until "/"
 								idx := strings.IndexByte(elem, '/')
@@ -6595,58 +6629,90 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								elem = elem[idx:]
 
 								if len(elem) == 0 {
-									break
+									switch r.Method {
+									case "GET":
+										s.handleWebGetOrderRequest([1]string{
+											args[0],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, notAllowedParams{
+											allowedMethods: "GET",
+											allowedHeaders: nil,
+											acceptPost:     "",
+											acceptPatch:    "",
+										})
+									}
+
+									return
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/requests"
+								case '/': // Prefix: "/"
 
-									if l := len("/requests"); len(elem) >= l && elem[0:l] == "/requests" {
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										switch r.Method {
-										case "GET":
-											s.handleWebListRequestsRequest([1]string{
-												args[0],
-											}, elemIsEscaped, w, r)
-										case "POST":
-											s.handleWebCreateRequestRequest([1]string{
-												args[0],
-											}, elemIsEscaped, w, r)
-										default:
-											s.notAllowed(w, r, notAllowedParams{
-												allowedMethods: "GET,POST",
-												allowedHeaders: rn293AllowedHeaders,
-												acceptPost:     "application/json",
-												acceptPatch:    "",
-											})
-										}
-
-										return
+										break
 									}
 									switch elem[0] {
-									case '/': // Prefix: "/"
+									case 'c': // Prefix: "cancel"
 
-										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										if l := len("cancel"); len(elem) >= l && elem[0:l] == "cancel" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
-										// Param: "ref"
-										// Match until "/"
-										idx := strings.IndexByte(elem, '/')
-										if idx < 0 {
-											idx = len(elem)
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleWebCancelOrderRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: rn284AllowedHeaders,
+													acceptPost:     "application/json",
+													acceptPatch:    "",
+												})
+											}
+
+											return
 										}
-										args[1] = elem[:idx]
-										elem = elem[idx:]
+
+									case 'r': // Prefix: "requests"
+
+										if l := len("requests"); len(elem) >= l && elem[0:l] == "requests" {
+											elem = elem[l:]
+										} else {
+											break
+										}
 
 										if len(elem) == 0 {
-											break
+											switch r.Method {
+											case "GET":
+												s.handleWebListRequestsRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											case "POST":
+												s.handleWebCreateRequestRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "GET,POST",
+													allowedHeaders: rn295AllowedHeaders,
+													acceptPost:     "application/json",
+													acceptPatch:    "",
+												})
+											}
+
+											return
 										}
 										switch elem[0] {
 										case '/': // Prefix: "/"
@@ -6657,64 +6723,87 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												break
 											}
 
+											// Param: "ref"
+											// Match until "/"
+											idx := strings.IndexByte(elem, '/')
+											if idx < 0 {
+												idx = len(elem)
+											}
+											args[1] = elem[:idx]
+											elem = elem[idx:]
+
 											if len(elem) == 0 {
 												break
 											}
 											switch elem[0] {
-											case 'c': // Prefix: "cancel"
+											case '/': // Prefix: "/"
 
-												if l := len("cancel"); len(elem) >= l && elem[0:l] == "cancel" {
+												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 													elem = elem[l:]
 												} else {
 													break
 												}
 
 												if len(elem) == 0 {
-													// Leaf node.
-													switch r.Method {
-													case "POST":
-														s.handleWebCancelRequestRequest([2]string{
-															args[0],
-															args[1],
-														}, elemIsEscaped, w, r)
-													default:
-														s.notAllowed(w, r, notAllowedParams{
-															allowedMethods: "POST",
-															allowedHeaders: rn286AllowedHeaders,
-															acceptPost:     "",
-															acceptPatch:    "",
-														})
-													}
-
-													return
-												}
-
-											case 'm': // Prefix: "messages"
-
-												if l := len("messages"); len(elem) >= l && elem[0:l] == "messages" {
-													elem = elem[l:]
-												} else {
 													break
 												}
+												switch elem[0] {
+												case 'c': // Prefix: "cancel"
 
-												if len(elem) == 0 {
-													// Leaf node.
-													switch r.Method {
-													case "POST":
-														s.handleWebReplyRequestRequest([2]string{
-															args[0],
-															args[1],
-														}, elemIsEscaped, w, r)
-													default:
-														s.notAllowed(w, r, notAllowedParams{
-															allowedMethods: "POST",
-															allowedHeaders: rn298AllowedHeaders,
-															acceptPost:     "application/json",
-															acceptPatch:    "",
-														})
+													if l := len("cancel"); len(elem) >= l && elem[0:l] == "cancel" {
+														elem = elem[l:]
+													} else {
+														break
 													}
 
-													return
+													if len(elem) == 0 {
+														// Leaf node.
+														switch r.Method {
+														case "POST":
+															s.handleWebCancelRequestRequest([2]string{
+																args[0],
+																args[1],
+															}, elemIsEscaped, w, r)
+														default:
+															s.notAllowed(w, r, notAllowedParams{
+																allowedMethods: "POST",
+																allowedHeaders: rn288AllowedHeaders,
+																acceptPost:     "",
+																acceptPatch:    "",
+															})
+														}
+
+														return
+													}
+
+												case 'm': // Prefix: "messages"
+
+													if l := len("messages"); len(elem) >= l && elem[0:l] == "messages" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch r.Method {
+														case "POST":
+															s.handleWebReplyRequestRequest([2]string{
+																args[0],
+																args[1],
+															}, elemIsEscaped, w, r)
+														default:
+															s.notAllowed(w, r, notAllowedParams{
+																allowedMethods: "POST",
+																allowedHeaders: rn301AllowedHeaders,
+																acceptPost:     "application/json",
+																acceptPatch:    "",
+															})
+														}
+
+														return
+													}
+
 												}
 
 											}
@@ -6743,7 +6832,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn296AllowedHeaders,
+										allowedHeaders: rn299AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -13080,6 +13169,37 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									break
 								}
 
+								if len(elem) == 0 {
+									break
+								}
+								switch elem[0] {
+								case 'c': // Prefix: "changes"
+									origElem := elem
+									if l := len("changes"); len(elem) >= l && elem[0:l] == "changes" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "GET":
+											r.name = WebOrderChangesOperation
+											r.summary = "Đơn web đổi trạng thái (đơn hay vận đơn hiện hành) sau một mốc, keyset (changedAt, id) tăng dần (Task 196)"
+											r.operationID = "webOrderChanges"
+											r.operationGroup = ""
+											r.pathPattern = "/api/v1/web/orders/changes"
+											r.args = args
+											r.count = 0
+											return r, true
+										default:
+											return
+										}
+									}
+
+									elem = origElem
+								}
 								// Param: "externalRef"
 								// Match until "/"
 								idx := strings.IndexByte(elem, '/')
@@ -13090,61 +13210,89 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								elem = elem[idx:]
 
 								if len(elem) == 0 {
-									break
+									switch method {
+									case "GET":
+										r.name = WebGetOrderOperation
+										r.summary = "Khách tra đơn web của mình theo externalRef (Task 196); không có địa chỉ, SĐT, tên, ghi chú nội bộ"
+										r.operationID = "webGetOrder"
+										r.operationGroup = ""
+										r.pathPattern = "/api/v1/web/orders/{externalRef}"
+										r.args = args
+										r.count = 1
+										return r, true
+									default:
+										return
+									}
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/requests"
+								case '/': // Prefix: "/"
 
-									if l := len("/requests"); len(elem) >= l && elem[0:l] == "/requests" {
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										switch method {
-										case "GET":
-											r.name = WebListRequestsOperation
-											r.summary = "Yêu cầu về đơn của một đơn web (mới trước), kèm tin nhân viên gửi khách; không có ghi chú nội bộ (Task 195)"
-											r.operationID = "webListRequests"
-											r.operationGroup = ""
-											r.pathPattern = "/api/v1/web/orders/{externalRef}/requests"
-											r.args = args
-											r.count = 1
-											return r, true
-										case "POST":
-											r.name = WebCreateRequestOperation
-											r.summary = "Khách gửi yêu cầu hủy, đổi, trả hay câu hỏi cho đơn web (Task 195)"
-											r.operationID = "webCreateRequest"
-											r.operationGroup = ""
-											r.pathPattern = "/api/v1/web/orders/{externalRef}/requests"
-											r.args = args
-											r.count = 1
-											return r, true
-										default:
-											return
-										}
+										break
 									}
 									switch elem[0] {
-									case '/': // Prefix: "/"
+									case 'c': // Prefix: "cancel"
 
-										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										if l := len("cancel"); len(elem) >= l && elem[0:l] == "cancel" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
-										// Param: "ref"
-										// Match until "/"
-										idx := strings.IndexByte(elem, '/')
-										if idx < 0 {
-											idx = len(elem)
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = WebCancelOrderOperation
+												r.summary = "Khách hủy đơn web — hủy ngay khi chưa gửi hãng, không thì tạo yêu cầu hủy cho nhân viên (Task 196, QĐ18)"
+												r.operationID = "webCancelOrder"
+												r.operationGroup = ""
+												r.pathPattern = "/api/v1/web/orders/{externalRef}/cancel"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
 										}
-										args[1] = elem[:idx]
-										elem = elem[idx:]
+
+									case 'r': // Prefix: "requests"
+
+										if l := len("requests"); len(elem) >= l && elem[0:l] == "requests" {
+											elem = elem[l:]
+										} else {
+											break
+										}
 
 										if len(elem) == 0 {
-											break
+											switch method {
+											case "GET":
+												r.name = WebListRequestsOperation
+												r.summary = "Yêu cầu về đơn của một đơn web (mới trước), kèm tin nhân viên gửi khách; không có ghi chú nội bộ (Task 195)"
+												r.operationID = "webListRequests"
+												r.operationGroup = ""
+												r.pathPattern = "/api/v1/web/orders/{externalRef}/requests"
+												r.args = args
+												r.count = 1
+												return r, true
+											case "POST":
+												r.name = WebCreateRequestOperation
+												r.summary = "Khách gửi yêu cầu hủy, đổi, trả hay câu hỏi cho đơn web (Task 195)"
+												r.operationID = "webCreateRequest"
+												r.operationGroup = ""
+												r.pathPattern = "/api/v1/web/orders/{externalRef}/requests"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
 										}
 										switch elem[0] {
 										case '/': // Prefix: "/"
@@ -13155,58 +13303,81 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												break
 											}
 
+											// Param: "ref"
+											// Match until "/"
+											idx := strings.IndexByte(elem, '/')
+											if idx < 0 {
+												idx = len(elem)
+											}
+											args[1] = elem[:idx]
+											elem = elem[idx:]
+
 											if len(elem) == 0 {
 												break
 											}
 											switch elem[0] {
-											case 'c': // Prefix: "cancel"
+											case '/': // Prefix: "/"
 
-												if l := len("cancel"); len(elem) >= l && elem[0:l] == "cancel" {
+												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 													elem = elem[l:]
 												} else {
 													break
 												}
 
 												if len(elem) == 0 {
-													// Leaf node.
-													switch method {
-													case "POST":
-														r.name = WebCancelRequestOperation
-														r.summary = "Khách rút yêu cầu khi nhân viên chưa nhận (received → cancelled; đã rút → 200 như cũ) (Task 195)"
-														r.operationID = "webCancelRequest"
-														r.operationGroup = ""
-														r.pathPattern = "/api/v1/web/orders/{externalRef}/requests/{ref}/cancel"
-														r.args = args
-														r.count = 2
-														return r, true
-													default:
-														return
-													}
-												}
-
-											case 'm': // Prefix: "messages"
-
-												if l := len("messages"); len(elem) >= l && elem[0:l] == "messages" {
-													elem = elem[l:]
-												} else {
 													break
 												}
+												switch elem[0] {
+												case 'c': // Prefix: "cancel"
 
-												if len(elem) == 0 {
-													// Leaf node.
-													switch method {
-													case "POST":
-														r.name = WebReplyRequestOperation
-														r.summary = "Khách trả lời khi nhân viên cần thêm thông tin (needs_info → in_review) (Task 195)"
-														r.operationID = "webReplyRequest"
-														r.operationGroup = ""
-														r.pathPattern = "/api/v1/web/orders/{externalRef}/requests/{ref}/messages"
-														r.args = args
-														r.count = 2
-														return r, true
-													default:
-														return
+													if l := len("cancel"); len(elem) >= l && elem[0:l] == "cancel" {
+														elem = elem[l:]
+													} else {
+														break
 													}
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch method {
+														case "POST":
+															r.name = WebCancelRequestOperation
+															r.summary = "Khách rút yêu cầu khi nhân viên chưa nhận (received → cancelled; đã rút → 200 như cũ) (Task 195)"
+															r.operationID = "webCancelRequest"
+															r.operationGroup = ""
+															r.pathPattern = "/api/v1/web/orders/{externalRef}/requests/{ref}/cancel"
+															r.args = args
+															r.count = 2
+															return r, true
+														default:
+															return
+														}
+													}
+
+												case 'm': // Prefix: "messages"
+
+													if l := len("messages"); len(elem) >= l && elem[0:l] == "messages" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch method {
+														case "POST":
+															r.name = WebReplyRequestOperation
+															r.summary = "Khách trả lời khi nhân viên cần thêm thông tin (needs_info → in_review) (Task 195)"
+															r.operationID = "webReplyRequest"
+															r.operationGroup = ""
+															r.pathPattern = "/api/v1/web/orders/{externalRef}/requests/{ref}/messages"
+															r.args = args
+															r.count = 2
+															return r, true
+														default:
+															return
+														}
+													}
+
 												}
 
 											}

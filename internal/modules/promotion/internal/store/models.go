@@ -1378,6 +1378,7 @@ type OrdOrdersV struct {
 	DuplicateSuspect   bool
 	Version            int64
 	ShipPhoneReversed  string
+	UpdatedAt          time.Time
 }
 
 type OrdReturn struct {
