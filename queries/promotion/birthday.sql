@@ -82,8 +82,8 @@ ORDER BY customer_id;
 
 -- name: BirthdayGiftsSince :many
 -- Quà từ năm from_year kèm trạng thái mã.
-SELECT g.customer_id, g.gift_year, c.code::text AS code, c.value, c.min_subtotal, c.valid_from, c.valid_to, c.given_at,
-       c.used_count, g.created_at
+SELECT g.customer_id, g.gift_year, g.coupon_id, c.code::text AS code, c.value, c.min_subtotal, c.valid_from, c.valid_to,
+       c.given_at, c.used_count, g.created_at
 FROM promotion.birthday_gifts AS g
 JOIN promotion.coupons AS c ON c.tenant_id = g.tenant_id AND c.id = g.coupon_id
 WHERE g.gift_year >= @from_year

@@ -78,7 +78,7 @@ type PreviewCounts struct {
 // PreviewSample là một biến thể mẫu trong bản xem trước.
 type PreviewSample struct {
 	ProductID, VariantID uuid.UUID
-	ProductName          string
+	ProductName, SKU     string
 	ListPrice, SalePrice int64
 }
 
@@ -113,10 +113,12 @@ type CampaignChange struct {
 	After  *WebCampaign
 }
 
-// CampaignTarget là một đích chọn được (mẫu: mã mẫu; danh mục: slug).
+// CampaignTarget là một đích chọn được (mẫu: mã mẫu; danh mục: slug). ModelCount chỉ có ở danh mục: số mẫu đang bán,
+// chưa xóa của người bán trong danh mục.
 type CampaignTarget struct {
 	ID         uuid.UUID
 	Code, Name string
+	ModelCount *int
 }
 
 // VariantRef là một biến thể cần giá chiến dịch: mẫu, danh mục của mẫu và giá niêm yết bên gọi đang dùng.
@@ -473,8 +475,8 @@ func computePreview(ctx context.Context, q *store.Queries, c WebCampaign) (Previ
 		out.Variants++
 		if len(out.Samples) < previewSampleMax {
 			out.Samples = append(out.Samples, PreviewSample{
-				ProductID: r.ProductID, VariantID: r.VariantID, ProductName: r.ProductName, ListPrice: r.Price,
-				SalePrice: sale,
+				ProductID: r.ProductID, VariantID: r.VariantID, ProductName: r.ProductName, SKU: r.Sku,
+				ListPrice: r.Price, SalePrice: sale,
 			})
 		}
 	}
@@ -570,10 +572,10 @@ func ListCampaignTargets(ctx context.Context, tx pgx.Tx, seller uuid.UUID, kind,
 			return nil, nil, fmt.Errorf("đọc mẫu chọn làm đích: %w", err)
 		}
 		for _, r := range rows {
-			out = append(out, CampaignTarget(r))
+			out = append(out, CampaignTarget{ID: r.ID, Code: r.Code, Name: r.Name})
 		}
 	case "category":
-		p := store.TargetCategoriesParams{After: after, RowLimit: int32(limit + 1)} //nolint:gosec // G115: ≤ 101
+		p := store.TargetCategoriesParams{SellerID: seller, After: after, RowLimit: int32(limit + 1)} //nolint:gosec // G115: ≤ 101
 		if q != "" {
 			p.Q.String, p.Q.Valid = q, true
 		}
@@ -582,7 +584,7 @@ func ListCampaignTargets(ctx context.Context, tx pgx.Tx, seller uuid.UUID, kind,
 			return nil, nil, fmt.Errorf("đọc danh mục chọn làm đích: %w", err)
 		}
 		for _, r := range rows {
-			out = append(out, CampaignTarget(r))
+			out = append(out, categoryTarget(r.ID, r.Code, r.Name, r.ModelCount))
 		}
 	default:
 		return nil, nil, fmt.Errorf("loại đích: %w", ErrInvalidInput)
@@ -595,6 +597,48 @@ func ListCampaignTargets(ctx context.Context, tx pgx.Tx, seller uuid.UUID, kind,
 		out = []CampaignTarget{}
 	}
 	return out, nil, nil
+}
+
+// CampaignTargetsByIDs trả tên, mã (và số mẫu của danh mục) của các đích ids của chiến dịch phạm vi scope, theo thứ tự
+// ids (màn sửa chiến dịch, Task 487). Đích không còn (mẫu đã xóa, danh mục đã bỏ) không có trong kết quả; all → rỗng.
+func CampaignTargetsByIDs(ctx context.Context, tx pgx.Tx, seller uuid.UUID, scope string, ids []uuid.UUID) (
+	[]CampaignTarget, error,
+) {
+	found := make(map[uuid.UUID]CampaignTarget, len(ids))
+	st := store.New(tx)
+	switch {
+	case len(ids) == 0 || scope == ScopeAll:
+	case scope == ScopeProducts:
+		rows, err := st.TargetProductsByIDs(ctx, store.TargetProductsByIDsParams{SellerID: seller, Ids: ids})
+		if err != nil {
+			return nil, fmt.Errorf("đọc mẫu đích của chiến dịch: %w", err)
+		}
+		for _, r := range rows {
+			found[r.ID] = CampaignTarget{ID: r.ID, Code: r.Code, Name: r.Name}
+		}
+	case scope == ScopeCategories:
+		rows, err := st.TargetCategoriesByIDs(ctx, store.TargetCategoriesByIDsParams{SellerID: seller, Ids: ids})
+		if err != nil {
+			return nil, fmt.Errorf("đọc danh mục đích của chiến dịch: %w", err)
+		}
+		for _, r := range rows {
+			found[r.ID] = categoryTarget(r.ID, r.Code, r.Name, r.ModelCount)
+		}
+	default:
+		return nil, fmt.Errorf("phạm vi chiến dịch: %w", ErrInvalidInput)
+	}
+	out := make([]CampaignTarget, 0, len(found))
+	for _, id := range ids {
+		if t, ok := found[id]; ok {
+			out = append(out, t)
+		}
+	}
+	return out, nil
+}
+
+func categoryTarget(id uuid.UUID, code, name string, models int32) CampaignTarget {
+	n := int(models)
+	return CampaignTarget{ID: id, Code: code, Name: name, ModelCount: &n}
 }
 
 // WebCampaigns trả chiến dịch đã bật, chưa xóa, chưa hết giờ ở now của mọi người bán (đang chạy hay đã hẹn giờ) kèm

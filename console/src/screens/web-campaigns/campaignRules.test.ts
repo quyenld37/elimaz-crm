@@ -5,15 +5,19 @@ import type { WebCampaign } from "../../api";
 import {
   NAME_MAX,
   TARGET_MAX,
+  bannerWarning,
   campaignLink,
   draftOf,
   emptyDraft,
   linkText,
+  percentHint,
+  percentTooHighText,
   periodText,
   rowActions,
   rowSub,
   sameAsSaved,
   statusChip,
+  targetSub,
   toInput,
   validateDraft,
   type CampaignDraft,
@@ -38,6 +42,7 @@ function campaign(p: Partial<WebCampaign> = {}): WebCampaign {
     revision: 3,
     linkKey: "0193a7c2",
     path: "/uu-dai/xa-hang-thu-dong-0193a7c2",
+    url: "https://shop.example.vn/uu-dai/xa-hang-thu-dong-0193a7c2",
     createdAt: "2026-11-10T00:00:00Z",
     updatedAt: "2026-11-10T00:00:00Z",
     ...p,
@@ -76,9 +81,29 @@ describe("hiển thị", () => {
     expect(periodText(campaign())).toBe("00:00 15/11 → 23:59 25/11");
   });
 
-  it("liên kết chép: tên miền website + path; chữ báo bỏ https://", () => {
-    expect(campaignLink(campaign())).toBe("https://elimaz.com.vn/uu-dai/xa-hang-thu-dong-0193a7c2");
-    expect(linkText(campaign())).toBe("elimaz.com.vn/uu-dai/xa-hang-thu-dong-0193a7c2");
+  it("liên kết chép: url máy chủ ghép (tên miền theo cấu hình); chữ báo bỏ https://", () => {
+    expect(campaignLink(campaign())).toBe("https://shop.example.vn/uu-dai/xa-hang-thu-dong-0193a7c2");
+    expect(linkText(campaign())).toBe("shop.example.vn/uu-dai/xa-hang-thu-dong-0193a7c2");
+  });
+
+  it("đích: danh mục kèm số mẫu (cả 0), mẫu chỉ mã", () => {
+    expect(targetSub({ id: T1, code: "DM-DAM-CS", name: "Đầm công sở", modelCount: 64 })).toBe("DM-DAM-CS · 64 mẫu");
+    expect(targetSub({ id: T1, code: "DM-RONG", name: "Rỗng", modelCount: 0 })).toBe("DM-RONG · 0 mẫu");
+    expect(targetSub({ id: T2, code: "DS2201", name: "Đầm suông" })).toBe("DS2201");
+  });
+
+  it("trần của shop: có số thì nêu số, chưa đọc được thì câu chung", () => {
+    expect(percentHint(50)).toBe("% · 1–99, trần của shop 50%");
+    expect(percentHint(undefined)).toBe("% · 1–99, vượt trần của shop thì bị từ chối");
+    expect(percentTooHighText(60, 50)).toBe("Chiến dịch giảm 60%, vượt trần của shop (50%).");
+    expect(percentTooHighText("60")).toBe("Chiến dịch giảm 60%, vượt trần của shop.");
+  });
+
+  it("cảnh báo banner khi xóa: số mấy, không banner nào, chưa biết", () => {
+    expect(bannerWarning([3])).toBe("Banner trang chủ số 3 đang dùng chiến dịch này");
+    expect(bannerWarning([1, 4])).toBe("Banner trang chủ số 1, 4 đang dùng chiến dịch này");
+    expect(bannerWarning([])).toBe("Không banner trang chủ nào đang dùng chiến dịch này");
+    expect(bannerWarning(undefined)).toBe("Banner trang chủ nào đang dùng chiến dịch này");
   });
 });
 

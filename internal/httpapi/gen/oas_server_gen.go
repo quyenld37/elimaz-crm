@@ -619,6 +619,13 @@ type Handler interface {
 	//
 	// GET /api/v1/web-campaigns/{campaignId}
 	GetWebCampaign(ctx context.Context, params GetWebCampaignParams) (GetWebCampaignRes, error)
+	// GetWebCampaignSettings implements getWebCampaignSettings operation.
+	//
+	// Cài đặt chiến dịch giảm giá web: trần phần trăm của shop (promotion.web_campaigns,
+	// mặc định 50; Task 487).
+	//
+	// GET /api/v1/web-campaign-settings
+	GetWebCampaignSettings(ctx context.Context) (GetWebCampaignSettingsRes, error)
 	// GetWebCarrierSettings implements getWebCarrierSettings operation.
 	//
 	// Hãng nào hiện trên website và theo thứ tự nào là showOnWeb, webSort của tài khoản

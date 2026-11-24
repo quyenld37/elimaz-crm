@@ -29,6 +29,38 @@ describe("Đợt mã", () => {
     expect(await screen.findByText("Chưa có đợt mã nào")).toBeTruthy();
   });
 
+  it("danh sách đợt: cột Đã tặng, Đã dùng, Hết hạn theo số máy chủ; đợt cũ chưa có số → 0", async () => {
+    fake.batches = [batch(26, { quantity: 11, givenCount: 11, usedCount: 5, expiredCount: 6 }), batch(20)];
+    renderAt(`${PATH}?tab=dot-ma`);
+    const r = await screen.findByRole("row", { name: /Sinh nhật 26\/11\/2026/ });
+    const cell = (row: HTMLElement, label: string) => row.querySelector(`td[data-label="${label}"]`)?.textContent;
+    expect([cell(r, "Mã"), cell(r, "Đã tặng"), cell(r, "Đã dùng"), cell(r, "Hết hạn")]).toEqual(["11", "11", "5", "6"]);
+    const old = screen.getByRole("row", { name: /Sinh nhật 20\/11\/2026/ });
+    expect([cell(old, "Đã tặng"), cell(old, "Đã dùng"), cell(old, "Hết hạn")]).toEqual(["0", "0", "0"]);
+    expect(screen.getByRole("columnheader", { name: "Đã tặng" })).toBeTruthy();
+  });
+
+  it("chi tiết đợt: SĐT gắn mã đã che, mã đã dùng ghi mã đơn mở được đơn; mã không gắn số → —", async () => {
+    fake.batches = [batch(1, { quantity: 2 })];
+    fake.codes = [
+      code(1, {
+        usedCount: 1,
+        boundPhoneMasked: "0905 *** 781",
+        usedOrderCode: "DH0001288",
+        usedOrderId: "0195f3b2-0000-7000-8000-0000000f0001",
+      }),
+      code(2, { bound: false }),
+    ];
+    renderAt(`${PATH}?tab=dot-ma&dot=${batch(1).id}`);
+    const used = await screen.findByRole("row", { name: /SNB001/ });
+    expect(within(used).getByText("0905 *** 781")).toBeTruthy();
+    const link = within(used).getByRole("link", { name: "DH0001288" });
+    expect(link.getAttribute("href")).toBe("/don/0195f3b2-0000-7000-8000-0000000f0001");
+    const free = screen.getByRole("row", { name: /SNB002/ });
+    expect(free.querySelector('td[data-label="Gắn với số"]')?.textContent).toBe("—");
+    expect(screen.getByRole("columnheader", { name: "Gắn với số" })).toBeTruthy();
+  });
+
   it("chi tiết đợt: số đã tặng/dùng/hết hạn và 30 mã ba trạng thái", async () => {
     const b = batch(1, { quantity: 30, givenCount: 20, usedCount: 10, expiredCount: 0 });
     fake.batches = [b];

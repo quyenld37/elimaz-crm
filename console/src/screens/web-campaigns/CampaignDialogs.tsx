@@ -15,8 +15,16 @@ import { ApiError, unwrap } from "../../app/errors";
 import { useWriteAction } from "../../app/idempotency";
 import { formatMoney } from "../products/productRules";
 import { Dialog } from "../staff/staffData";
-import { headers, reloadCampaigns } from "./campaignData";
-import { REASON_MAX, TEXT_RAISE_CAP, percentTooHighText, periodText, runeCount, scopeText } from "./campaignRules";
+import { headers, reloadCampaigns, useCampaign, useMaxPercent } from "./campaignData";
+import {
+  REASON_MAX,
+  TEXT_RAISE_CAP,
+  bannerWarning,
+  percentTooHighText,
+  periodText,
+  runeCount,
+  scopeText,
+} from "./campaignRules";
 
 export type StateMode = "enable" | "pause" | "pauseEdit";
 
@@ -26,6 +34,8 @@ const GO: Readonly<Record<StateMode, string>> = {
   pause: "Tạm dừng",
   pauseEdit: "Tạm dừng và sửa",
 };
+
+const BANNER_HIDE = ' sẽ tự ẩn ("Chưa chọn chiến dịch, hoặc chiến dịch đã bị xóa").';
 
 const isCode = (e: unknown, code: string) => e instanceof ApiError && e.code === code;
 const reasonOk = (r: string) => {
@@ -126,6 +136,7 @@ export function StateDialog(o: {
   };
   // Kích hoạt: xem trước lại trên danh mục hiện tại ngay khi mở (mockup C). run ổn định (useCallback); giữ qua ref
   // để effect chỉ chạy lại khi đổi chiến dịch, revision.
+  const maxPercent = useMaxPercent();
   const previewRef = useRef(preview);
   useEffect(() => {
     previewRef.current = preview;
@@ -207,7 +218,7 @@ export function StateDialog(o: {
           )}
           {tooHigh && (
             <div className="box box-err stack-sm">
-              <b>{percentTooHighText(c.percent)}</b>
+              <b>{percentTooHighText(c.percent, maxPercent)}</b>
               <p>{TEXT_RAISE_CAP}</p>
             </div>
           )}
@@ -236,10 +247,14 @@ interface DeleteBody {
   reason: string;
 }
 
-/** Hộp Xóa chiến dịch (không đang bật): lý do bắt buộc; banner trỏ chiến dịch tự ẩn (tệp task 458, Quyết định 5). */
+/**
+ * Hộp Xóa chiến dịch (không đang bật): lý do bắt buộc; banner trỏ chiến dịch tự ẩn (tệp task 458, Quyết định 5). Số thứ
+ * tự banner đang trỏ chiến dịch đọc từ getWebCampaign (bannerPositions, Task 487); đang đọc hay đọc lỗi thì câu chung.
+ */
 export function DeleteDialog(o: { campaign: WebCampaign; onDone: () => void; onClose: () => void }) {
   const { campaign: c } = o;
   const qc = useQueryClient();
+  const positions = useCampaign(c.id).data?.bannerPositions;
   const [reason, setReason] = useState("");
   const del = useWriteAction((key: string, b: DeleteBody) =>
     unwrap(
@@ -275,8 +290,8 @@ export function DeleteDialog(o: { campaign: WebCampaign; onDone: () => void; onC
     >
       <p>Chiến dịch biến mất khỏi danh sách. Đơn đã đặt vẫn giữ giá lúc đặt; nhật ký thao tác vẫn lưu.</p>
       <div className="box box-soft">
-        <b>Banner trang chủ nào đang dùng chiến dịch này</b> sẽ tự ẩn (&quot;Chưa chọn chiến dịch, hoặc chiến dịch đã bị
-        xóa&quot;).
+        <b>{bannerWarning(positions)}</b>
+        {positions?.length === 0 ? "." : `${positions === undefined ? "" : " và"}${BANNER_HIDE}`}
       </div>
       <ReasonField value={reason} onChange={setReason} />
       {del.message !== null && <div className="box box-err">{del.message}</div>}

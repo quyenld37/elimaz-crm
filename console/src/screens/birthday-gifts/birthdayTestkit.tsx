@@ -122,6 +122,9 @@ export interface Fake extends WriteQueue {
   batches: CouponBatch[];
   batchCalls: URLSearchParams[];
   codes: Coupon[];
+  /** Số "Sắp gửi · 7 ngày tới" và quà của năm máy chủ trả ở listBirthdayCustomers. */
+  upcomingWeek: number;
+  yearGifts: { year: number; issued: number; used: number };
   /** Mọi GET của promotion trả 403 (vai trò mất quyền promotion.read). */
   forbidden: boolean;
 }
@@ -136,7 +139,14 @@ function customersReply(fake: Fake, q: URLSearchParams): Response {
   const shown = inMonth.filter((c) => state === "all" || c.state === state);
   const stateCounts = Object.fromEntries(STATES.map((s) => [s, inMonth.filter((c) => c.state === s).length]));
   const monthCounts = Array.from({ length: 12 }, (_, i) => byQ.filter((c) => c.month === i + 1).length);
-  return reply({ ...page(shown, q), total: shown.length, stateCounts, monthCounts });
+  return reply({
+    ...page(shown, q),
+    total: shown.length,
+    stateCounts,
+    monthCounts,
+    upcomingWeek: fake.upcomingWeek,
+    yearGifts: fake.yearGifts,
+  });
 }
 
 function read(fake: Fake, p: string, q: URLSearchParams): Response {
@@ -201,6 +211,8 @@ export function installFake(): Fake {
     batches: [],
     batchCalls: [],
     codes: [],
+    upcomingWeek: 0,
+    yearGifts: { year: 2026, issued: 0, used: 0 },
     forbidden: false,
     ...emptyWrites(),
   };

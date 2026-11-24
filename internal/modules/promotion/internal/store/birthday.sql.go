@@ -95,8 +95,8 @@ func (q *Queries) BirthdayCandidates(ctx context.Context, months []int32) ([]Bir
 }
 
 const birthdayGiftsSince = `-- name: BirthdayGiftsSince :many
-SELECT g.customer_id, g.gift_year, c.code::text AS code, c.value, c.min_subtotal, c.valid_from, c.valid_to, c.given_at,
-       c.used_count, g.created_at
+SELECT g.customer_id, g.gift_year, g.coupon_id, c.code::text AS code, c.value, c.min_subtotal, c.valid_from, c.valid_to,
+       c.given_at, c.used_count, g.created_at
 FROM promotion.birthday_gifts AS g
 JOIN promotion.coupons AS c ON c.tenant_id = g.tenant_id AND c.id = g.coupon_id
 WHERE g.gift_year >= $1
@@ -106,6 +106,7 @@ ORDER BY g.customer_id, g.gift_year
 type BirthdayGiftsSinceRow struct {
 	CustomerID  uuid.UUID
 	GiftYear    int32
+	CouponID    uuid.UUID
 	Code        string
 	Value       int64
 	MinSubtotal int64
@@ -129,6 +130,7 @@ func (q *Queries) BirthdayGiftsSince(ctx context.Context, fromYear int32) ([]Bir
 		if err := rows.Scan(
 			&i.CustomerID,
 			&i.GiftYear,
+			&i.CouponID,
 			&i.Code,
 			&i.Value,
 			&i.MinSubtotal,

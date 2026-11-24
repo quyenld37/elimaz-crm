@@ -4937,12 +4937,18 @@ func (s *BirthdayCustomer) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.UsedOrderCode.Set {
+			e.FieldStart("usedOrderCode")
+			s.UsedOrderCode.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("savedAt")
 		json.EncodeDateTime(e, s.SavedAt)
 	}
 }
 
-var jsonFieldsNameOfBirthdayCustomer = [13]string{
+var jsonFieldsNameOfBirthdayCustomer = [14]string{
 	0:  "customerId",
 	1:  "fullName",
 	2:  "phone",
@@ -4955,7 +4961,8 @@ var jsonFieldsNameOfBirthdayCustomer = [13]string{
 	9:  "birthdayIn",
 	10: "sendOn",
 	11: "code",
-	12: "savedAt",
+	12: "usedOrderCode",
+	13: "savedAt",
 }
 
 // Decode decodes BirthdayCustomer from json.
@@ -5105,8 +5112,18 @@ func (s *BirthdayCustomer) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"code\"")
 			}
+		case "usedOrderCode":
+			if err := func() error {
+				s.UsedOrderCode.Reset()
+				if err := s.UsedOrderCode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"usedOrderCode\"")
+			}
 		case "savedAt":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.SavedAt = v
@@ -5128,7 +5145,7 @@ func (s *BirthdayCustomer) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11110111,
-		0b00010111,
+		0b00100111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -5192,6 +5209,14 @@ func (s *BirthdayCustomerPage) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("upcomingWeek")
+		e.Int32(s.UpcomingWeek)
+	}
+	{
+		e.FieldStart("yearGifts")
+		s.YearGifts.Encode(e)
+	}
+	{
 		if s.NextCursor.Set {
 			e.FieldStart("nextCursor")
 			s.NextCursor.Encode(e)
@@ -5215,12 +5240,14 @@ func (s *BirthdayCustomerPage) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfBirthdayCustomerPage = [5]string{
+var jsonFieldsNameOfBirthdayCustomerPage = [7]string{
 	0: "items",
-	1: "nextCursor",
-	2: "total",
-	3: "stateCounts",
-	4: "monthCounts",
+	1: "upcomingWeek",
+	2: "yearGifts",
+	3: "nextCursor",
+	4: "total",
+	5: "stateCounts",
+	6: "monthCounts",
 }
 
 // Decode decodes BirthdayCustomerPage from json.
@@ -5250,6 +5277,28 @@ func (s *BirthdayCustomerPage) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"items\"")
 			}
+		case "upcomingWeek":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int32()
+				s.UpcomingWeek = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"upcomingWeek\"")
+			}
+		case "yearGifts":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.YearGifts.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"yearGifts\"")
+			}
 		case "nextCursor":
 			if err := func() error {
 				s.NextCursor.Reset()
@@ -5261,7 +5310,7 @@ func (s *BirthdayCustomerPage) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"nextCursor\"")
 			}
 		case "total":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int32()
 				s.Total = int32(v)
@@ -5273,7 +5322,7 @@ func (s *BirthdayCustomerPage) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"total\"")
 			}
 		case "stateCounts":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.StateCounts.Decode(d); err != nil {
 					return err
@@ -5283,7 +5332,7 @@ func (s *BirthdayCustomerPage) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"stateCounts\"")
 			}
 		case "monthCounts":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.MonthCounts = make([]int32, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -5312,7 +5361,7 @@ func (s *BirthdayCustomerPage) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011101,
+		0b01110111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -7050,6 +7099,136 @@ func (s *BirthdayStateCounts) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *BirthdayYearGifts) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BirthdayYearGifts) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("year")
+		e.Int32(s.Year)
+	}
+	{
+		e.FieldStart("issued")
+		e.Int32(s.Issued)
+	}
+	{
+		e.FieldStart("used")
+		e.Int32(s.Used)
+	}
+}
+
+var jsonFieldsNameOfBirthdayYearGifts = [3]string{
+	0: "year",
+	1: "issued",
+	2: "used",
+}
+
+// Decode decodes BirthdayYearGifts from json.
+func (s *BirthdayYearGifts) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BirthdayYearGifts to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "year":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int32()
+				s.Year = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"year\"")
+			}
+		case "issued":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int32()
+				s.Issued = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"issued\"")
+			}
+		case "used":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int32()
+				s.Used = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"used\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BirthdayYearGifts")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfBirthdayYearGifts) {
+					name = jsonFieldsNameOfBirthdayYearGifts[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BirthdayYearGifts) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BirthdayYearGifts) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *CallbackTask) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -7639,12 +7818,19 @@ func (s *CampaignTarget) encodeFields(e *jx.Encoder) {
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
+	{
+		if s.ModelCount.Set {
+			e.FieldStart("modelCount")
+			s.ModelCount.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfCampaignTarget = [3]string{
+var jsonFieldsNameOfCampaignTarget = [4]string{
 	0: "id",
 	1: "code",
 	2: "name",
+	3: "modelCount",
 }
 
 // Decode decodes CampaignTarget from json.
@@ -7691,6 +7877,16 @@ func (s *CampaignTarget) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "modelCount":
+			if err := func() error {
+				s.ModelCount.Reset()
+				if err := s.ModelCount.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"modelCount\"")
 			}
 		default:
 			return d.Skip()
@@ -13881,6 +14077,24 @@ func (s *Coupon) encodeFields(e *jx.Encoder) {
 		e.Bool(s.Bound)
 	}
 	{
+		if s.BoundPhoneMasked.Set {
+			e.FieldStart("boundPhoneMasked")
+			s.BoundPhoneMasked.Encode(e)
+		}
+	}
+	{
+		if s.UsedOrderCode.Set {
+			e.FieldStart("usedOrderCode")
+			s.UsedOrderCode.Encode(e)
+		}
+	}
+	{
+		if s.UsedOrderId.Set {
+			e.FieldStart("usedOrderId")
+			s.UsedOrderId.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("createdAt")
 		json.EncodeDateTime(e, s.CreatedAt)
 	}
@@ -13890,7 +14104,7 @@ func (s *Coupon) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCoupon = [21]string{
+var jsonFieldsNameOfCoupon = [24]string{
 	0:  "givenAt",
 	1:  "id",
 	2:  "code",
@@ -13910,8 +14124,11 @@ var jsonFieldsNameOfCoupon = [21]string{
 	16: "validTo",
 	17: "status",
 	18: "bound",
-	19: "createdAt",
-	20: "version",
+	19: "boundPhoneMasked",
+	20: "usedOrderCode",
+	21: "usedOrderId",
+	22: "createdAt",
+	23: "version",
 }
 
 // Decode decodes Coupon from json.
@@ -14141,8 +14358,38 @@ func (s *Coupon) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"bound\"")
 			}
+		case "boundPhoneMasked":
+			if err := func() error {
+				s.BoundPhoneMasked.Reset()
+				if err := s.BoundPhoneMasked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"boundPhoneMasked\"")
+			}
+		case "usedOrderCode":
+			if err := func() error {
+				s.UsedOrderCode.Reset()
+				if err := s.UsedOrderCode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"usedOrderCode\"")
+			}
+		case "usedOrderId":
+			if err := func() error {
+				s.UsedOrderId.Reset()
+				if err := s.UsedOrderId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"usedOrderId\"")
+			}
 		case "createdAt":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 6
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CreatedAt = v
@@ -14154,7 +14401,7 @@ func (s *Coupon) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"createdAt\"")
 			}
 		case "version":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int64()
 				s.Version = int64(v)
@@ -14177,7 +14424,7 @@ func (s *Coupon) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b01110110,
 		0b11001011,
-		0b00011111,
+		0b11000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -68666,6 +68913,30 @@ func (s *WebCampaign) encodeFields(e *jx.Encoder) {
 		e.Str(s.Path)
 	}
 	{
+		e.FieldStart("url")
+		e.Str(s.URL)
+	}
+	{
+		if s.Targets != nil {
+			e.FieldStart("targets")
+			e.ArrStart()
+			for _, elem := range s.Targets {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		if s.BannerPositions != nil {
+			e.FieldStart("bannerPositions")
+			e.ArrStart()
+			for _, elem := range s.BannerPositions {
+				e.Int32(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		if s.Preview.Set {
 			e.FieldStart("preview")
 			s.Preview.Encode(e)
@@ -68681,7 +68952,7 @@ func (s *WebCampaign) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfWebCampaign = [17]string{
+var jsonFieldsNameOfWebCampaign = [20]string{
 	0:  "id",
 	1:  "name",
 	2:  "percent",
@@ -68696,9 +68967,12 @@ var jsonFieldsNameOfWebCampaign = [17]string{
 	11: "revision",
 	12: "linkKey",
 	13: "path",
-	14: "preview",
-	15: "createdAt",
-	16: "updatedAt",
+	14: "url",
+	15: "targets",
+	16: "bannerPositions",
+	17: "preview",
+	18: "createdAt",
+	19: "updatedAt",
 }
 
 // Decode decodes WebCampaign from json.
@@ -68880,6 +69154,54 @@ func (s *WebCampaign) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"path\"")
 			}
+		case "url":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				v, err := d.Str()
+				s.URL = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"url\"")
+			}
+		case "targets":
+			if err := func() error {
+				s.Targets = make([]CampaignTarget, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CampaignTarget
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Targets = append(s.Targets, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"targets\"")
+			}
+		case "bannerPositions":
+			if err := func() error {
+				s.BannerPositions = make([]int32, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int32
+					v, err := d.Int32()
+					elem = int32(v)
+					if err != nil {
+						return err
+					}
+					s.BannerPositions = append(s.BannerPositions, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bannerPositions\"")
+			}
 		case "preview":
 			if err := func() error {
 				s.Preview.Reset()
@@ -68891,7 +69213,7 @@ func (s *WebCampaign) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"preview\"")
 			}
 		case "createdAt":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CreatedAt = v
@@ -68903,7 +69225,7 @@ func (s *WebCampaign) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"createdAt\"")
 			}
 		case "updatedAt":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.UpdatedAt = v
@@ -68925,8 +69247,8 @@ func (s *WebCampaign) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [3]uint8{
 		0b11111111,
-		0b10111111,
-		0b00000001,
+		0b01111111,
+		0b00001100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -70159,6 +70481,10 @@ func (s *WebCampaignSample) encodeFields(e *jx.Encoder) {
 		e.Str(s.ProductName)
 	}
 	{
+		e.FieldStart("sku")
+		e.Str(s.Sku)
+	}
+	{
 		e.FieldStart("listPrice")
 		s.ListPrice.Encode(e)
 	}
@@ -70168,12 +70494,13 @@ func (s *WebCampaignSample) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfWebCampaignSample = [5]string{
+var jsonFieldsNameOfWebCampaignSample = [6]string{
 	0: "productId",
 	1: "variantId",
 	2: "productName",
-	3: "listPrice",
-	4: "salePrice",
+	3: "sku",
+	4: "listPrice",
+	5: "salePrice",
 }
 
 // Decode decodes WebCampaignSample from json.
@@ -70221,8 +70548,20 @@ func (s *WebCampaignSample) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"productName\"")
 			}
-		case "listPrice":
+		case "sku":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Sku = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sku\"")
+			}
+		case "listPrice":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.ListPrice.Decode(d); err != nil {
 					return err
@@ -70232,7 +70571,7 @@ func (s *WebCampaignSample) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"listPrice\"")
 			}
 		case "salePrice":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.SalePrice.Decode(d); err != nil {
 					return err
@@ -70251,7 +70590,7 @@ func (s *WebCampaignSample) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -70335,6 +70674,102 @@ func (s WebCampaignScope) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *WebCampaignScope) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *WebCampaignSettings) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *WebCampaignSettings) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("maxPercent")
+		e.Int32(s.MaxPercent)
+	}
+}
+
+var jsonFieldsNameOfWebCampaignSettings = [1]string{
+	0: "maxPercent",
+}
+
+// Decode decodes WebCampaignSettings from json.
+func (s *WebCampaignSettings) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode WebCampaignSettings to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "maxPercent":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int32()
+				s.MaxPercent = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"maxPercent\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode WebCampaignSettings")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfWebCampaignSettings) {
+					name = jsonFieldsNameOfWebCampaignSettings[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *WebCampaignSettings) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *WebCampaignSettings) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

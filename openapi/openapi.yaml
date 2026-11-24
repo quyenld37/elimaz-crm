@@ -3329,6 +3329,20 @@ paths:
                 $ref: "#/components/schemas/CampaignTargetPage"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web-campaign-settings:
+    get:
+      operationId: getWebCampaignSettings
+      summary: 'Cài đặt chiến dịch giảm giá web: trần phần trăm của shop (promotion.web_campaigns, mặc định 50; Task 487)'
+      x-permission: promotion.read
+      responses:
+        "200":
+          description: getWebCampaignSettings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCampaignSettings"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/web-carrier-settings:
     get:
       operationId: getWebCarrierSettings
@@ -11781,7 +11795,17 @@ components:
           $ref: "#/components/schemas/CouponStatus"
         bound:
           type: boolean
-          description: Mã gắn với một khách hoặc một SĐT (không trả SĐT)
+          description: Mã gắn với một khách hoặc một SĐT (không trả SĐT đầy đủ)
+        boundPhoneMasked:
+          type: string
+          description: SĐT gắn mã, dạng che giữa "0905 *** 781" (Task 487)
+        usedOrderCode:
+          type: string
+          description: Mã đơn của lượt dùng còn hiệu lực mới nhất (Task 487)
+        usedOrderId:
+          type: string
+          format: uuid
+          description: Đơn của lượt dùng còn hiệu lực mới nhất, đi cùng usedOrderCode (Task 487)
         createdAt:
           type: string
           format: date-time
@@ -11980,15 +12004,15 @@ components:
         givenCount:
           type: integer
           format: int32
-          description: Số mã website đã trao cho khách (chỉ getCouponBatch)
+          description: Số mã website đã trao cho khách (getCouponBatch, listCouponBatches)
         usedCount:
           type: integer
           format: int32
-          description: Số mã đã dùng (chỉ getCouponBatch)
+          description: Số mã đã dùng (getCouponBatch, listCouponBatches)
         expiredCount:
           type: integer
           format: int32
-          description: Số mã hết hạn mà chưa dùng (chỉ getCouponBatch)
+          description: Số mã hết hạn mà chưa dùng (getCouponBatch, listCouponBatches)
     CouponBatchPurpose:
       type: string
       enum: [manual, birthday, imported]
@@ -14047,7 +14071,7 @@ components:
             $ref: "#/components/schemas/WebCampaignSample"
     WebCampaignSample:
       type: object
-      required: [productId, variantId, productName, listPrice, salePrice]
+      required: [productId, variantId, productName, sku, listPrice, salePrice]
       properties:
         productId:
           type: string
@@ -14057,6 +14081,9 @@ components:
           format: uuid
         productName:
           type: string
+        sku:
+          type: string
+          description: Mã hàng của biến thể (Task 487)
         listPrice:
           $ref: "#/components/schemas/Money"
         salePrice:
@@ -14093,7 +14120,7 @@ components:
     WebCampaign:
       type: object
       required: [id, name, percent, scope, targetIds, allowCoupon, clearance, startsAt, endsAt, state, status, revision,
-                 linkKey, path, createdAt, updatedAt]
+                 linkKey, path, url, createdAt, updatedAt]
       properties:
         id:
           type: string
@@ -14132,6 +14159,24 @@ components:
         path:
           type: string
           description: Đường dẫn trang chiến dịch trên website, /uu-dai/<tên>-<linkKey>
+        url:
+          type: string
+          description: Liên kết đầy đủ = gốc website (cấu hình WEBSITE_ORIGIN) + path (Task 487)
+        targets:
+          type: array
+          description: >-
+            Chỉ getWebCampaign (Task 487): tên, mã của đích theo thứ tự targetIds, danh mục kèm modelCount; đích không
+            còn (mẫu đã xóa, danh mục đã bỏ) không có ở đây
+          items:
+            $ref: "#/components/schemas/CampaignTarget"
+        bannerPositions:
+          type: array
+          description: >-
+            Chỉ getWebCampaign (Task 487): số thứ tự (từ 1) của banner trang chủ đang trỏ chiến dịch (banner chiến dịch
+            hay banner ảnh liên kết tới chiến dịch); xóa chiến dịch thì các banner này tự ẩn
+          items:
+            type: integer
+            format: int32
         preview:
           $ref: "#/components/schemas/WebCampaignPreviewCounts"
         createdAt:
@@ -14162,6 +14207,20 @@ components:
           description: Mã mẫu, hay slug của danh mục
         name:
           type: string
+        modelCount:
+          type: integer
+          format: int32
+          description: Chỉ danh mục — số mẫu đang bán, chưa xóa trong danh mục (Task 487)
+    WebCampaignSettings:
+      type: object
+      required: [maxPercent]
+      properties:
+        maxPercent:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 99
+          description: Trần phần trăm giảm của shop; bật hay lưu chiến dịch vượt trần → percent_too_high
     CampaignTargetPage:
       type: object
       required: [items]
@@ -14422,6 +14481,9 @@ components:
         code:
           type: string
           description: Mã quà hiện tại (còn hạn hay hết hạn chưa quá 30 ngày)
+        usedOrderCode:
+          type: string
+          description: Mã đơn đã dùng mã quà (trạng thái used; Task 487)
         savedAt:
           type: string
           format: date-time
@@ -14455,12 +14517,20 @@ components:
           format: int32
     BirthdayCustomerPage:
       type: object
-      required: [items, total, stateCounts, monthCounts]
+      required: [items, total, stateCounts, monthCounts, upcomingWeek, yearGifts]
       properties:
         items:
           type: array
           items:
             $ref: "#/components/schemas/BirthdayCustomer"
+        upcomingWeek:
+          type: integer
+          format: int32
+          description: >-
+            Sắp gửi · 7 ngày tới (Task 487): khách chờ ngày gửi, đã có đơn giao thành công, ngày gửi trong 7 ngày tới;
+            lọc tháng, tìm như stateCounts
+        yearGifts:
+          $ref: "#/components/schemas/BirthdayYearGifts"
         nextCursor:
           type: string
         total:
@@ -14475,6 +14545,22 @@ components:
           items:
             type: integer
             format: int32
+    BirthdayYearGifts:
+      type: object
+      required: [year, issued, used]
+      description: Quà của năm sinh nhật hiện tại (giờ Việt Nam), không theo bộ lọc (Task 487)
+      properties:
+        year:
+          type: integer
+          format: int32
+        issued:
+          type: integer
+          format: int32
+          description: Số mã quà đã tạo cho sinh nhật năm này
+        used:
+          type: integer
+          format: int32
+          description: Số mã quà năm này đã dùng
     BirthdayExportRequest:
       type: object
       additionalProperties: false

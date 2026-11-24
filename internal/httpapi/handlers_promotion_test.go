@@ -19,6 +19,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/promotion"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/testkit"
 	"elimaz.com.vn/crm/internal/testkit/shiptest"
@@ -257,11 +258,10 @@ func TestCouponAPI_Batch(t *testing.T) {
 		http.StatusNotFound, "not_found")
 }
 
-// Lượt dùng của mã: mã đơn ghép từ module order, số giảm, trạng thái; không SĐT.
-func TestCouponAPI_Redemptions(t *testing.T) {
-	t.Parallel()
-	e := newCouponEnv(t)
-	id := e.createSale10()
+// redeemOnNewOrder tạo một đơn 400.000 đ của một shop mới rồi dùng mã code cho đơn đó (kênh channel, SĐT phone, lúc now).
+func (e *couponEnv) redeemOnNewOrder(code, channel string, phone logging.Phone, now time.Time) order.Order {
+	t := e.t
+	t.Helper()
 	var o order.Order
 	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
 		shop := shiptest.NewShop(t, tx, e.tenant)
@@ -270,13 +270,22 @@ func TestCouponAPI_Redemptions(t *testing.T) {
 		if o, err = shop.Order(t.Context(), tx, shop.Seller, uuid.Nil, 0, order.ItemInput{VariantID: v, Qty: 1}); err != nil {
 			return err //nolint:wrapcheck // test
 		}
-		_, err = promotion.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue()}.Redeem(t.Context(), tx, "SALE10",
+		_, err = promotion.Writer{Events: events.NewRegistry(), Queue: queue.NewQueue()}.Redeem(t.Context(), tx, code,
 			promotion.OrderRef{TenantID: e.tenant, ID: o.ID, Version: o.Version}, promotion.EvalInput{
-				Base: 400000, Channel: "manual", CustomerID: o.CustomerID, CustomerRootID: o.CustomerID, SellerID: shop.Seller,
-				Now: vnTime(2026, 12, 15, 10),
+				Base: 400000, Channel: channel, CustomerID: o.CustomerID, CustomerRootID: o.CustomerID, Phone: phone,
+				SellerID: shop.Seller, Now: now,
 			})
 		return err //nolint:wrapcheck // test
 	})
+	return o
+}
+
+// Lượt dùng của mã: mã đơn ghép từ module order, số giảm, trạng thái; không SĐT.
+func TestCouponAPI_Redemptions(t *testing.T) {
+	t.Parallel()
+	e := newCouponEnv(t)
+	id := e.createSale10()
+	o := e.redeemOnNewOrder("SALE10", "manual", "", vnTime(2026, 12, 15, 10))
 	orderID, orderCode := o.ID, o.Code
 	page := e.ok("lượt dùng", e.do(http.MethodGet, "/api/v1/coupons/"+id+"/redemptions", couponSale, "", ""), http.StatusOK)
 	items, _ := page["items"].([]any)

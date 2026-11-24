@@ -897,6 +897,16 @@ func (UnimplementedHandler) GetWebCampaign(ctx context.Context, params GetWebCam
 	return r, ht.ErrNotImplemented
 }
 
+// GetWebCampaignSettings implements getWebCampaignSettings operation.
+//
+// Cài đặt chiến dịch giảm giá web: trần phần trăm của shop (promotion.web_campaigns,
+// mặc định 50; Task 487).
+//
+// GET /api/v1/web-campaign-settings
+func (UnimplementedHandler) GetWebCampaignSettings(ctx context.Context) (r GetWebCampaignSettingsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetWebCarrierSettings implements getWebCarrierSettings operation.
 //
 // Hãng nào hiện trên website và theo thứ tự nào là showOnWeb, webSort của tài khoản

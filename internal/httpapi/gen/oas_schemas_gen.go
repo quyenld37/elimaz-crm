@@ -1884,8 +1884,10 @@ type BirthdayCustomer struct {
 	// Ngày phát mã (0:00 giờ Việt Nam) của sinh nhật đang xét.
 	SendOn time.Time `json:"sendOn"`
 	// Mã quà hiện tại (còn hạn hay hết hạn chưa quá 30 ngày).
-	Code    OptString `json:"code"`
-	SavedAt time.Time `json:"savedAt"`
+	Code OptString `json:"code"`
+	// Mã đơn đã dùng mã quà (trạng thái used; Task 487).
+	UsedOrderCode OptString `json:"usedOrderCode"`
+	SavedAt       time.Time `json:"savedAt"`
 }
 
 // GetCustomerId returns the value of CustomerId.
@@ -1946,6 +1948,11 @@ func (s *BirthdayCustomer) GetSendOn() time.Time {
 // GetCode returns the value of Code.
 func (s *BirthdayCustomer) GetCode() OptString {
 	return s.Code
+}
+
+// GetUsedOrderCode returns the value of UsedOrderCode.
+func (s *BirthdayCustomer) GetUsedOrderCode() OptString {
+	return s.UsedOrderCode
 }
 
 // GetSavedAt returns the value of SavedAt.
@@ -2013,6 +2020,11 @@ func (s *BirthdayCustomer) SetCode(val OptString) {
 	s.Code = val
 }
 
+// SetUsedOrderCode sets the value of UsedOrderCode.
+func (s *BirthdayCustomer) SetUsedOrderCode(val OptString) {
+	s.UsedOrderCode = val
+}
+
 // SetSavedAt sets the value of SavedAt.
 func (s *BirthdayCustomer) SetSavedAt(val time.Time) {
 	s.SavedAt = val
@@ -2020,16 +2032,30 @@ func (s *BirthdayCustomer) SetSavedAt(val time.Time) {
 
 // Ref: #/components/schemas/BirthdayCustomerPage
 type BirthdayCustomerPage struct {
-	Items       []BirthdayCustomer  `json:"items"`
-	NextCursor  OptString           `json:"nextCursor"`
-	Total       int32               `json:"total"`
-	StateCounts BirthdayStateCounts `json:"stateCounts"`
-	MonthCounts []int32             `json:"monthCounts"`
+	Items []BirthdayCustomer `json:"items"`
+	// Sắp gửi · 7 ngày tới (Task 487): khách chờ ngày gửi, đã có đơn giao thành công,
+	// ngày gửi trong 7 ngày tới; lọc tháng, tìm như stateCounts.
+	UpcomingWeek int32               `json:"upcomingWeek"`
+	YearGifts    BirthdayYearGifts   `json:"yearGifts"`
+	NextCursor   OptString           `json:"nextCursor"`
+	Total        int32               `json:"total"`
+	StateCounts  BirthdayStateCounts `json:"stateCounts"`
+	MonthCounts  []int32             `json:"monthCounts"`
 }
 
 // GetItems returns the value of Items.
 func (s *BirthdayCustomerPage) GetItems() []BirthdayCustomer {
 	return s.Items
+}
+
+// GetUpcomingWeek returns the value of UpcomingWeek.
+func (s *BirthdayCustomerPage) GetUpcomingWeek() int32 {
+	return s.UpcomingWeek
+}
+
+// GetYearGifts returns the value of YearGifts.
+func (s *BirthdayCustomerPage) GetYearGifts() BirthdayYearGifts {
+	return s.YearGifts
 }
 
 // GetNextCursor returns the value of NextCursor.
@@ -2055,6 +2081,16 @@ func (s *BirthdayCustomerPage) GetMonthCounts() []int32 {
 // SetItems sets the value of Items.
 func (s *BirthdayCustomerPage) SetItems(val []BirthdayCustomer) {
 	s.Items = val
+}
+
+// SetUpcomingWeek sets the value of UpcomingWeek.
+func (s *BirthdayCustomerPage) SetUpcomingWeek(val int32) {
+	s.UpcomingWeek = val
+}
+
+// SetYearGifts sets the value of YearGifts.
+func (s *BirthdayCustomerPage) SetYearGifts(val BirthdayYearGifts) {
+	s.YearGifts = val
 }
 
 // SetNextCursor sets the value of NextCursor.
@@ -2894,6 +2930,46 @@ func (s *BirthdayStateCounts) SetStopped(val int32) {
 	s.Stopped = val
 }
 
+// Quà của năm sinh nhật hiện tại (giờ Việt Nam), không theo bộ lọc (Task 487).
+// Ref: #/components/schemas/BirthdayYearGifts
+type BirthdayYearGifts struct {
+	Year int32 `json:"year"`
+	// Số mã quà đã tạo cho sinh nhật năm này.
+	Issued int32 `json:"issued"`
+	// Số mã quà năm này đã dùng.
+	Used int32 `json:"used"`
+}
+
+// GetYear returns the value of Year.
+func (s *BirthdayYearGifts) GetYear() int32 {
+	return s.Year
+}
+
+// GetIssued returns the value of Issued.
+func (s *BirthdayYearGifts) GetIssued() int32 {
+	return s.Issued
+}
+
+// GetUsed returns the value of Used.
+func (s *BirthdayYearGifts) GetUsed() int32 {
+	return s.Used
+}
+
+// SetYear sets the value of Year.
+func (s *BirthdayYearGifts) SetYear(val int32) {
+	s.Year = val
+}
+
+// SetIssued sets the value of Issued.
+func (s *BirthdayYearGifts) SetIssued(val int32) {
+	s.Issued = val
+}
+
+// SetUsed sets the value of Used.
+func (s *BirthdayYearGifts) SetUsed(val int32) {
+	s.Used = val
+}
+
 // Ref: #/components/schemas/CallbackTask
 type CallbackTask struct {
 	ID           uuid.UUID          `json:"id"`
@@ -3202,6 +3278,8 @@ type CampaignTarget struct {
 	// Mã mẫu, hay slug của danh mục.
 	Code string `json:"code"`
 	Name string `json:"name"`
+	// Chỉ danh mục — số mẫu đang bán, chưa xóa trong danh mục (Task 487).
+	ModelCount OptInt32 `json:"modelCount"`
 }
 
 // GetID returns the value of ID.
@@ -3219,6 +3297,11 @@ func (s *CampaignTarget) GetName() string {
 	return s.Name
 }
 
+// GetModelCount returns the value of ModelCount.
+func (s *CampaignTarget) GetModelCount() OptInt32 {
+	return s.ModelCount
+}
+
 // SetID sets the value of ID.
 func (s *CampaignTarget) SetID(val uuid.UUID) {
 	s.ID = val
@@ -3232,6 +3315,11 @@ func (s *CampaignTarget) SetCode(val string) {
 // SetName sets the value of Name.
 func (s *CampaignTarget) SetName(val string) {
 	s.Name = val
+}
+
+// SetModelCount sets the value of ModelCount.
+func (s *CampaignTarget) SetModelCount(val OptInt32) {
+	s.ModelCount = val
 }
 
 // Ref: #/components/schemas/CampaignTargetPage
@@ -6161,10 +6249,16 @@ type Coupon struct {
 	ValidFrom        time.Time    `json:"validFrom"`
 	ValidTo          time.Time    `json:"validTo"`
 	Status           CouponStatus `json:"status"`
-	// Mã gắn với một khách hoặc một SĐT (không trả SĐT).
-	Bound     bool      `json:"bound"`
-	CreatedAt time.Time `json:"createdAt"`
-	Version   int64     `json:"version"`
+	// Mã gắn với một khách hoặc một SĐT (không trả SĐT đầy đủ).
+	Bound bool `json:"bound"`
+	// SĐT gắn mã, dạng che giữa "0905 *** 781" (Task 487).
+	BoundPhoneMasked OptString `json:"boundPhoneMasked"`
+	// Mã đơn của lượt dùng còn hiệu lực mới nhất (Task 487).
+	UsedOrderCode OptString `json:"usedOrderCode"`
+	// Đơn của lượt dùng còn hiệu lực mới nhất, đi cùng usedOrderCode (Task 487).
+	UsedOrderId OptUUID   `json:"usedOrderId"`
+	CreatedAt   time.Time `json:"createdAt"`
+	Version     int64     `json:"version"`
 }
 
 // GetGivenAt returns the value of GivenAt.
@@ -6260,6 +6354,21 @@ func (s *Coupon) GetStatus() CouponStatus {
 // GetBound returns the value of Bound.
 func (s *Coupon) GetBound() bool {
 	return s.Bound
+}
+
+// GetBoundPhoneMasked returns the value of BoundPhoneMasked.
+func (s *Coupon) GetBoundPhoneMasked() OptString {
+	return s.BoundPhoneMasked
+}
+
+// GetUsedOrderCode returns the value of UsedOrderCode.
+func (s *Coupon) GetUsedOrderCode() OptString {
+	return s.UsedOrderCode
+}
+
+// GetUsedOrderId returns the value of UsedOrderId.
+func (s *Coupon) GetUsedOrderId() OptUUID {
+	return s.UsedOrderId
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -6367,6 +6476,21 @@ func (s *Coupon) SetBound(val bool) {
 	s.Bound = val
 }
 
+// SetBoundPhoneMasked sets the value of BoundPhoneMasked.
+func (s *Coupon) SetBoundPhoneMasked(val OptString) {
+	s.BoundPhoneMasked = val
+}
+
+// SetUsedOrderCode sets the value of UsedOrderCode.
+func (s *Coupon) SetUsedOrderCode(val OptString) {
+	s.UsedOrderCode = val
+}
+
+// SetUsedOrderId sets the value of UsedOrderId.
+func (s *Coupon) SetUsedOrderId(val OptUUID) {
+	s.UsedOrderId = val
+}
+
 // SetCreatedAt sets the value of CreatedAt.
 func (s *Coupon) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
@@ -6390,11 +6514,11 @@ type CouponBatch struct {
 	Template  CouponTemplate        `json:"template"`
 	CreatedAt time.Time             `json:"createdAt"`
 	Purpose   OptCouponBatchPurpose `json:"purpose"`
-	// Số mã website đã trao cho khách (chỉ getCouponBatch).
+	// Số mã website đã trao cho khách (getCouponBatch, listCouponBatches).
 	GivenCount OptInt32 `json:"givenCount"`
-	// Số mã đã dùng (chỉ getCouponBatch).
+	// Số mã đã dùng (getCouponBatch, listCouponBatches).
 	UsedCount OptInt32 `json:"usedCount"`
-	// Số mã hết hạn mà chưa dùng (chỉ getCouponBatch).
+	// Số mã hết hạn mà chưa dùng (getCouponBatch, listCouponBatches).
 	ExpiredCount OptInt32 `json:"expiredCount"`
 }
 
@@ -10846,6 +10970,7 @@ func (*ErrorStatusCode) getStockDocumentRes()            {}
 func (*ErrorStatusCode) getStocktakeRes()                {}
 func (*ErrorStatusCode) getWarehousePickupRes()          {}
 func (*ErrorStatusCode) getWebCampaignRes()              {}
+func (*ErrorStatusCode) getWebCampaignSettingsRes()      {}
 func (*ErrorStatusCode) getWebCarrierSettingsRes()       {}
 func (*ErrorStatusCode) getWebIntakeRes()                {}
 func (*ErrorStatusCode) healthDeepRes()                  {}
@@ -34070,10 +34195,19 @@ type WebCampaign struct {
 	Revision    int32             `json:"revision"`
 	LinkKey     string            `json:"linkKey"`
 	// Đường dẫn trang chiến dịch trên website, /uu-dai/<tên>-.
-	Path      string                      `json:"path"`
-	Preview   OptWebCampaignPreviewCounts `json:"preview"`
-	CreatedAt time.Time                   `json:"createdAt"`
-	UpdatedAt time.Time                   `json:"updatedAt"`
+	Path string `json:"path"`
+	// Liên kết đầy đủ = gốc website (cấu hình WEBSITE_ORIGIN) + path (Task 487).
+	URL string `json:"url"`
+	// Chỉ getWebCampaign (Task 487): tên, mã của đích theo thứ tự targetIds, danh mục kèm
+	// modelCount; đích không còn (mẫu đã xóa, danh mục đã bỏ) không có ở đây.
+	Targets []CampaignTarget `json:"targets"`
+	// Chỉ getWebCampaign (Task 487): số thứ tự (từ 1) của banner trang chủ đang trỏ
+	// chiến dịch (banner chiến dịch hay banner ảnh liên kết tới chiến dịch); xóa
+	// chiến dịch thì các banner này tự ẩn.
+	BannerPositions []int32                     `json:"bannerPositions"`
+	Preview         OptWebCampaignPreviewCounts `json:"preview"`
+	CreatedAt       time.Time                   `json:"createdAt"`
+	UpdatedAt       time.Time                   `json:"updatedAt"`
 }
 
 // GetID returns the value of ID.
@@ -34144,6 +34278,21 @@ func (s *WebCampaign) GetLinkKey() string {
 // GetPath returns the value of Path.
 func (s *WebCampaign) GetPath() string {
 	return s.Path
+}
+
+// GetURL returns the value of URL.
+func (s *WebCampaign) GetURL() string {
+	return s.URL
+}
+
+// GetTargets returns the value of Targets.
+func (s *WebCampaign) GetTargets() []CampaignTarget {
+	return s.Targets
+}
+
+// GetBannerPositions returns the value of BannerPositions.
+func (s *WebCampaign) GetBannerPositions() []int32 {
+	return s.BannerPositions
 }
 
 // GetPreview returns the value of Preview.
@@ -34229,6 +34378,21 @@ func (s *WebCampaign) SetLinkKey(val string) {
 // SetPath sets the value of Path.
 func (s *WebCampaign) SetPath(val string) {
 	s.Path = val
+}
+
+// SetURL sets the value of URL.
+func (s *WebCampaign) SetURL(val string) {
+	s.URL = val
+}
+
+// SetTargets sets the value of Targets.
+func (s *WebCampaign) SetTargets(val []CampaignTarget) {
+	s.Targets = val
+}
+
+// SetBannerPositions sets the value of BannerPositions.
+func (s *WebCampaign) SetBannerPositions(val []int32) {
+	s.BannerPositions = val
 }
 
 // SetPreview sets the value of Preview.
@@ -34688,8 +34852,10 @@ type WebCampaignSample struct {
 	ProductId   uuid.UUID `json:"productId"`
 	VariantId   uuid.UUID `json:"variantId"`
 	ProductName string    `json:"productName"`
-	ListPrice   Money     `json:"listPrice"`
-	SalePrice   Money     `json:"salePrice"`
+	// Mã hàng của biến thể (Task 487).
+	Sku       string `json:"sku"`
+	ListPrice Money  `json:"listPrice"`
+	SalePrice Money  `json:"salePrice"`
 }
 
 // GetProductId returns the value of ProductId.
@@ -34705,6 +34871,11 @@ func (s *WebCampaignSample) GetVariantId() uuid.UUID {
 // GetProductName returns the value of ProductName.
 func (s *WebCampaignSample) GetProductName() string {
 	return s.ProductName
+}
+
+// GetSku returns the value of Sku.
+func (s *WebCampaignSample) GetSku() string {
+	return s.Sku
 }
 
 // GetListPrice returns the value of ListPrice.
@@ -34730,6 +34901,11 @@ func (s *WebCampaignSample) SetVariantId(val uuid.UUID) {
 // SetProductName sets the value of ProductName.
 func (s *WebCampaignSample) SetProductName(val string) {
 	s.ProductName = val
+}
+
+// SetSku sets the value of Sku.
+func (s *WebCampaignSample) SetSku(val string) {
+	s.Sku = val
 }
 
 // SetListPrice sets the value of ListPrice.
@@ -34790,6 +34966,25 @@ func (s *WebCampaignScope) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+// Ref: #/components/schemas/WebCampaignSettings
+type WebCampaignSettings struct {
+	// Trần phần trăm giảm của shop; bật hay lưu chiến dịch vượt trần →
+	// percent_too_high.
+	MaxPercent int32 `json:"maxPercent"`
+}
+
+// GetMaxPercent returns the value of MaxPercent.
+func (s *WebCampaignSettings) GetMaxPercent() int32 {
+	return s.MaxPercent
+}
+
+// SetMaxPercent sets the value of MaxPercent.
+func (s *WebCampaignSettings) SetMaxPercent(val int32) {
+	s.MaxPercent = val
+}
+
+func (*WebCampaignSettings) getWebCampaignSettingsRes() {}
 
 // Ref: #/components/schemas/WebCampaignState
 type WebCampaignState string

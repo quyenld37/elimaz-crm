@@ -89,3 +89,10 @@ LIMIT sqlc.arg(row_limit)::int;
 -- name: CustomerRoot :one
 -- Hồ sơ gốc của khách (sau gộp), đọc qua view customer.customers_v.
 SELECT root_id FROM customer.customers_v WHERE id = @id;
+
+-- name: CouponUsedOrders :many
+-- Đơn của lượt dùng còn hiệu lực mới nhất của mỗi mã trong coupon_ids (Task 487: "Đã dùng · <mã đơn>").
+SELECT DISTINCT ON (coupon_id) coupon_id, order_id
+FROM promotion.coupon_redemptions
+WHERE coupon_id = ANY(sqlc.arg(coupon_ids)::uuid[]) AND status = 'active'
+ORDER BY coupon_id, id DESC;

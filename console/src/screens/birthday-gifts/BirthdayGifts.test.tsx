@@ -46,7 +46,9 @@ afterEach(() => {
 const row = (name: string | RegExp) => screen.findByRole("row", { name });
 
 describe("Đầu trang", () => {
-  it("lượt chạy cuối, cài đặt đang bật, bốn số tổng", async () => {
+  it("lượt chạy cuối, cài đặt đang bật, bốn số tổng như mockup", async () => {
+    fake.upcomingWeek = 12;
+    fake.yearGifts = { year: 2026, issued: 1112, used: 38 };
     renderAt(PATH);
     const info = await screen.findByTestId("bg-run");
     expect(within(info).getByText("Đang bật")).toBeTruthy();
@@ -56,8 +58,16 @@ describe("Đầu trang", () => {
     await waitFor(() => {
       expect(within(kpis).getByTestId("kpi-todo").textContent).toContain("4");
     });
-    expect(within(kpis).getByTestId("kpi-due").textContent).toContain("1");
-    expect(within(kpis).getByTestId("kpi-used").textContent).toContain("1");
+    const week = within(kpis).getByTestId("kpi-week");
+    expect(within(week).getByText("Sắp gửi · 7 ngày tới")).toBeTruthy();
+    await waitFor(() => {
+      expect(within(week).getByText("12")).toBeTruthy();
+    });
+    expect(within(week).getByText("khách đủ điều kiện")).toBeTruthy();
+    const used = within(kpis).getByTestId("kpi-used");
+    expect(within(used).getByText("Mã đã dùng · năm 2026")).toBeTruthy();
+    expect(within(used).getByText("38 / 1.112")).toBeTruthy();
+    expect(within(used).getByText("mã đã tặng")).toBeTruthy();
     expect(within(kpis).getByTestId("kpi-saved").textContent).toContain("3");
     expect(within(kpis).getByTestId("kpi-saved").textContent).toContain("1 khách đã hủy nhận");
     expect(screen.getByRole("tab", { name: "Cần nhắn (4)" }).getAttribute("aria-selected")).toBe("true");
@@ -82,6 +92,16 @@ describe("Đầu trang", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Tất cả khách" }));
     const r = await row(/Khách 1/);
     expect(within(r).getByText("Đến hạn · quà đang tắt")).toBeTruthy();
+    expect(within(screen.getByTestId("kpi-week")).getByText("quà đang tắt, chưa tạo mã")).toBeTruthy();
+  });
+
+  it("năm chưa có quà, không ai sắp gửi: số 0 (tập rỗng), không ô trống", async () => {
+    renderAt(PATH);
+    const used = await screen.findByTestId("kpi-used");
+    await waitFor(() => {
+      expect(within(used).getByText("0 / 0")).toBeTruthy();
+    });
+    expect(within(screen.getByTestId("kpi-week")).getByText("0")).toBeTruthy();
   });
 
   it("Tạo mã ngay: gửi có khóa chống trùng, báo số mã; lượt khác đang chạy → 409 hiện hộp", async () => {

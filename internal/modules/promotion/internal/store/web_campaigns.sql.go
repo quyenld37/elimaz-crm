@@ -14,7 +14,7 @@ import (
 )
 
 const coveredVariants = `-- name: CoveredVariants :many
-SELECT v.product_id, v.product_name, v.variant_id, v.price
+SELECT v.product_id, v.product_name, v.variant_id, v.sku, v.price
 FROM catalog.variants_v AS v
 JOIN catalog.products_v AS p ON p.product_id = v.product_id AND p.seller_id = v.seller_id
 WHERE v.seller_id = $1 AND v.sellable AND p.deleted_at IS NULL
@@ -35,6 +35,7 @@ type CoveredVariantsRow struct {
 	ProductID   uuid.UUID
 	ProductName string
 	VariantID   uuid.UUID
+	Sku         string
 	Price       int64
 }
 
@@ -58,6 +59,7 @@ func (q *Queries) CoveredVariants(ctx context.Context, arg CoveredVariantsParams
 			&i.ProductID,
 			&i.ProductName,
 			&i.VariantID,
+			&i.Sku,
 			&i.Price,
 		); err != nil {
 			return nil, err
@@ -531,28 +533,39 @@ func (q *Queries) SoftDeleteWebCampaign(ctx context.Context, arg SoftDeleteWebCa
 }
 
 const targetCategories = `-- name: TargetCategories :many
-SELECT category_id AS id, slug AS code, name
-FROM catalog.categories_v
-WHERE ($1::text IS NULL OR name ILIKE '%' || $1::text || '%' OR slug ILIKE '%' || $1::text || '%')
-  AND ($2::uuid IS NULL OR category_id > $2::uuid)
-ORDER BY category_id
-LIMIT $3
+SELECT c.category_id AS id, c.slug AS code, c.name,
+       (SELECT count(*) FROM catalog.products_v AS p
+        WHERE p.seller_id = $1 AND p.category_id = c.category_id AND p.deleted_at IS NULL
+          AND p.status = 'active')::int AS model_count
+FROM catalog.categories_v AS c
+WHERE ($2::text IS NULL OR c.name ILIKE '%' || $2::text || '%' OR c.slug ILIKE '%' || $2::text || '%')
+  AND ($3::uuid IS NULL OR c.category_id > $3::uuid)
+ORDER BY c.category_id
+LIMIT $4
 `
 
 type TargetCategoriesParams struct {
+	SellerID uuid.UUID
 	Q        pgtype.Text
 	After    *uuid.UUID
 	RowLimit int32
 }
 
 type TargetCategoriesRow struct {
-	ID   uuid.UUID
-	Code string
-	Name string
+	ID         uuid.UUID
+	Code       string
+	Name       string
+	ModelCount int32
 }
 
+// model_count: số mẫu đang bán, chưa xóa của người bán trong danh mục (Task 487, "64 mẫu" của mockup).
 func (q *Queries) TargetCategories(ctx context.Context, arg TargetCategoriesParams) ([]TargetCategoriesRow, error) {
-	rows, err := q.db.Query(ctx, targetCategories, arg.Q, arg.After, arg.RowLimit)
+	rows, err := q.db.Query(ctx, targetCategories,
+		arg.SellerID,
+		arg.Q,
+		arg.After,
+		arg.RowLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -560,7 +573,59 @@ func (q *Queries) TargetCategories(ctx context.Context, arg TargetCategoriesPara
 	items := []TargetCategoriesRow{}
 	for rows.Next() {
 		var i TargetCategoriesRow
-		if err := rows.Scan(&i.ID, &i.Code, &i.Name); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.ModelCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const targetCategoriesByIDs = `-- name: TargetCategoriesByIDs :many
+SELECT c.category_id AS id, c.slug AS code, c.name,
+       (SELECT count(*) FROM catalog.products_v AS p
+        WHERE p.seller_id = $1 AND p.category_id = c.category_id AND p.deleted_at IS NULL
+          AND p.status = 'active')::int AS model_count
+FROM catalog.categories_v AS c
+WHERE c.category_id = ANY($2::uuid[])
+`
+
+type TargetCategoriesByIDsParams struct {
+	SellerID uuid.UUID
+	Ids      []uuid.UUID
+}
+
+type TargetCategoriesByIDsRow struct {
+	ID         uuid.UUID
+	Code       string
+	Name       string
+	ModelCount int32
+}
+
+// Đích loại danh mục của một chiến dịch (Task 487) kèm số mẫu như TargetCategories.
+func (q *Queries) TargetCategoriesByIDs(ctx context.Context, arg TargetCategoriesByIDsParams) ([]TargetCategoriesByIDsRow, error) {
+	rows, err := q.db.Query(ctx, targetCategoriesByIDs, arg.SellerID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []TargetCategoriesByIDsRow{}
+	for rows.Next() {
+		var i TargetCategoriesByIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.ModelCount,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -612,6 +677,44 @@ func (q *Queries) TargetProducts(ctx context.Context, arg TargetProductsParams) 
 	items := []TargetProductsRow{}
 	for rows.Next() {
 		var i TargetProductsRow
+		if err := rows.Scan(&i.ID, &i.Code, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const targetProductsByIDs = `-- name: TargetProductsByIDs :many
+SELECT product_id AS id, code, name
+FROM catalog.products_v
+WHERE seller_id = $1 AND deleted_at IS NULL AND product_id = ANY($2::uuid[])
+`
+
+type TargetProductsByIDsParams struct {
+	SellerID uuid.UUID
+	Ids      []uuid.UUID
+}
+
+type TargetProductsByIDsRow struct {
+	ID   uuid.UUID
+	Code string
+	Name string
+}
+
+// Đích loại mẫu của một chiến dịch (Task 487): mẫu chưa xóa của người bán trong ids.
+func (q *Queries) TargetProductsByIDs(ctx context.Context, arg TargetProductsByIDsParams) ([]TargetProductsByIDsRow, error) {
+	rows, err := q.db.Query(ctx, targetProductsByIDs, arg.SellerID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []TargetProductsByIDsRow{}
+	for rows.Next() {
+		var i TargetProductsByIDsRow
 		if err := rows.Scan(&i.ID, &i.Code, &i.Name); err != nil {
 			return nil, err
 		}

@@ -197,6 +197,8 @@ type Config struct {
 	ConsoleOrigins   []string
 	HealthToken      string
 
+	WebsiteOrigin string
+
 	S3Endpoint        string
 	S3Region          string
 	S3AccessKeyID     string

@@ -1,4 +1,5 @@
-// Form chiến dịch giảm giá /khuyen-mai/chien-dich/moi và /khuyen-mai/chien-dich/:id (kế hoạch M5 Task 458; mockup
+// Form chiến dịch giảm giá /khuyen-mai/chien-dich/moi và /khuyen-mai/chien-dich/:id (kế hoạch M5 Task 458, dữ liệu
+// theo mockup Task 487: tên đích, số mẫu, trần, SKU từ máy chủ; mockup
 // docs/mockups/m5/web-campaigns.html trạng thái B, D). Tên, phần trăm, phạm vi và chọn đích (≤ 30), giờ Việt Nam, dùng
 // kèm mã, hàng cắt mã; xem trước giá (API chỉ xem trước bản đã lưu: form đã sửa thì lưu trước, tệp task Quyết định 4).
 // Gửi revision đã đọc; 409 version_conflict giữ nguyên form và mời mở bản mới ở tab khác. Chiến dịch đang bật không
@@ -23,13 +24,14 @@ import { SEARCH_DELAY_MS, useDebounced } from "../inventory/Balances";
 import { formatMoney } from "../products/productRules";
 import { StateDialog, usePreview } from "./CampaignDialogs";
 import {
-  CAMPAIGN_TOPIC,
   campaignKey,
   headers,
+  pickedTargets,
   reloadCampaigns,
-  resolveTargets,
+  storeCampaign,
   targetKind,
   useCampaign,
+  useMaxPercent,
   usePerms,
 } from "./campaignData";
 import {
@@ -41,15 +43,18 @@ import {
   TEXT_READ_ONLY,
   draftOf,
   emptyDraft,
+  percentHint,
   percentTooHighText,
   sameAsSaved,
   statusChip,
+  targetSub,
   toInput,
   validateDraft,
   type CampaignDraft,
   type PickedTarget,
 } from "./campaignRules";
 import "../don/don.css";
+import "../len-don/len-don.css";
 import "./web-campaigns.css";
 
 /** Số đích mỗi lần tìm (Limit 1–100). */
@@ -121,7 +126,7 @@ function TargetPicker(o: {
                   }}
                 />
                 <span>
-                  <b>{t.name}</b> · <span className="small muted">{t.code}</span>
+                  <b>{t.name}</b> · <span className="small muted">{targetSub(t)}</span>
                 </span>
               </label>
             );
@@ -196,7 +201,10 @@ function PreviewCard(o: { preview: WebCampaignPreview | null; base: WebCampaign 
               {p.samples.map((s) => (
                 <tr key={s.variantId}>
                   <td className="lead">
-                    <span className="clamp2">{s.productName}</span>
+                    <div className="sp">
+                      <span className="nm clamp2">{s.productName}</span>
+                      <span className="code">{s.sku}</span>
+                    </div>
                   </td>
                   <td data-label="Giá gốc" className="r">
                     <span className="money">{formatMoney(s.listPrice)}</span>
@@ -248,6 +256,7 @@ function EditorForm(o: { base: WebCampaign | null; targets: PickedTarget[]; auto
     ),
   );
   const previewAction = usePreview();
+  const maxPercent = useMaxPercent();
 
   const canManage = perms.can("promotion.manage");
   const running = base?.state === "enabled";
@@ -267,7 +276,7 @@ function EditorForm(o: { base: WebCampaign | null; targets: PickedTarget[]; auto
   };
 
   const after = (c: WebCampaign) => {
-    qc.setQueryData(campaignKey(c.id), c);
+    storeCampaign(qc, c);
     reloadCampaigns(qc);
   };
 
@@ -433,7 +442,8 @@ function EditorForm(o: { base: WebCampaign | null; targets: PickedTarget[]; auto
               <Field
                 label="Phần trăm giảm *"
                 error={
-                  errors.percent ?? (tooHigh ? `${percentTooHighText(draft.percent)} ${TEXT_RAISE_CAP}` : undefined)
+                  errors.percent ??
+                  (tooHigh ? `${percentTooHighText(draft.percent, maxPercent)} ${TEXT_RAISE_CAP}` : undefined)
                 }
               >
                 {(id) => (
@@ -448,7 +458,7 @@ function EditorForm(o: { base: WebCampaign | null; targets: PickedTarget[]; auto
                         edit({ percent: e.target.value });
                       }}
                     />
-                    <span>% · 1–99, vượt trần của shop thì bị từ chối</span>
+                    <span>{percentHint(maxPercent)}</span>
                   </span>
                 )}
               </Field>
@@ -577,17 +587,10 @@ function wantsPreview(state: unknown): boolean {
 function ExistingEditor({ id }: { id: string }) {
   const location = useLocation();
   const c = useCampaign(id);
-  // Khóa không kèm revision: đọc lại (báo hiệu) giữ dữ liệu cũ trong lúc tải, form không bị gỡ.
-  const targets = useQuery({
-    queryKey: queryKey(CAMPAIGN_TOPIC, "targets", id),
-    enabled: c.data !== undefined,
-    queryFn: () => (c.data === undefined ? Promise.resolve([]) : resolveTargets(c.data.scope, c.data.targetIds)),
-  });
   if (c.isError) return <div className="box box-err">{errorMessage(c.error)}</div>;
-  if (targets.isError) return <div className="box box-err">{errorMessage(targets.error)}</div>;
-  if (c.data === undefined || targets.data === undefined) return <p className="muted">Đang tải…</p>;
+  if (c.data === undefined) return <p className="muted">Đang tải…</p>;
   // EditorForm dựng form một lần từ bản đọc đầu tiên; đọc lại sau đó không ghi đè chữ đang gõ.
-  return <EditorForm base={c.data} targets={targets.data} autoPreview={wantsPreview(location.state)} />;
+  return <EditorForm base={c.data} targets={pickedTargets(c.data)} autoPreview={wantsPreview(location.state)} />;
 }
 
 export function CampaignEditor() {

@@ -151,7 +151,11 @@ func (h *handler) ListBirthdayCustomers(ctx context.Context, params gen.ListBirt
 		if err != nil {
 			return err //nolint:wrapcheck // sentinel của promotion
 		}
-		out = birthdayPageOut(p)
+		orders, err := birthdayOrderCodes(ctx, tx, p.Items)
+		if err != nil {
+			return err
+		}
+		out = birthdayPageOut(p, orders)
 		return nil
 	}); err != nil {
 		return nil, fmt.Errorf("đọc khách sinh nhật: %w", err)
@@ -176,7 +180,11 @@ func (h *handler) ExportBirthdayCustomers(ctx context.Context, req *gen.Birthday
 			if err != nil {
 				return nil, err //nolint:wrapcheck // sentinel của promotion
 			}
-			text, err := birthdayCSV(p.Items)
+			orders, err := birthdayOrderCodes(ctx, tx, p.Items)
+			if err != nil {
+				return nil, err
+			}
+			text, err := birthdayCSV(p.Items, orders)
 			if err != nil {
 				return nil, err
 			}
@@ -197,22 +205,33 @@ func (h *handler) ExportBirthdayCustomers(ctx context.Context, req *gen.Birthday
 
 func vnZone() *time.Location { return time.FixedZone("ICT", 7*3600) }
 
-// birthdayCSV: một dòng tiêu đề, mỗi khách một dòng; ngày theo giờ Việt Nam.
-func birthdayCSV(items []promotion.BirthdayCustomer) (string, error) {
+// birthdayOrderCodes trả mã đơn đã dùng mã quà của các khách trạng thái used trong items, theo mã quà (Task 487).
+func birthdayOrderCodes(ctx context.Context, tx pgx.Tx, items []promotion.BirthdayCustomer) (map[uuid.UUID]usedOrder, error) {
+	ids := make([]uuid.UUID, 0, len(items))
+	for _, c := range items {
+		if c.State == promotion.BirthdayStateUsed && c.CouponID != uuid.Nil {
+			ids = append(ids, c.CouponID)
+		}
+	}
+	return couponOrderCodes(ctx, tx, ids)
+}
+
+// birthdayCSV: một dòng tiêu đề, mỗi khách một dòng; ngày theo giờ Việt Nam; orders: mã đơn đã dùng theo mã quà.
+func birthdayCSV(items []promotion.BirthdayCustomer, orders map[uuid.UUID]usedOrder) (string, error) {
 	var buf bytes.Buffer
 	buf.WriteString(csvBOM)
 	w := csv.NewWriter(&buf)
 	w.UseCRLF = true
 	rows := [][]string{{
 		"Tên", "SĐT", "Email", "Ngày sinh", "Trạng thái", "Ngày phát", "Mã quà", "Zalo", "Email",
-		"Đăng ký lúc",
+		"Đăng ký lúc", "Đơn đã dùng",
 	}}
 	yes := map[bool]string{true: "có", false: "không"}
 	for _, c := range items {
 		rows = append(rows, []string{
 			csvSafe(string(c.FullName)), string(c.Phone), csvSafe(string(c.Email)),
 			strconv.Itoa(c.Day) + "/" + strconv.Itoa(c.Month), c.State, c.SendOn.In(vnZone()).Format("02/01/2006"), c.Code,
-			yes[c.Zalo], yes[c.Mail], c.SavedAt.In(vnZone()).Format("02/01/2006 15:04"),
+			yes[c.Zalo], yes[c.Mail], c.SavedAt.In(vnZone()).Format("02/01/2006 15:04"), orders[c.CouponID].Code,
 		})
 	}
 	if err := w.WriteAll(rows); err != nil {
@@ -283,9 +302,13 @@ func birthdayGiftOut(g promotion.BirthdayGift) gen.BirthdayGift {
 	return out
 }
 
-func birthdayPageOut(p promotion.BirthdayCustomerPage) *gen.BirthdayCustomerPage {
+func birthdayPageOut(p promotion.BirthdayCustomerPage, orders map[uuid.UUID]usedOrder) *gen.BirthdayCustomerPage {
 	out := &gen.BirthdayCustomerPage{
 		Items: make([]gen.BirthdayCustomer, 0, len(p.Items)), Total: int32(p.Total), //nolint:gosec // G115
+		UpcomingWeek: int32(p.UpcomingWeek), //nolint:gosec // G115
+		YearGifts: gen.BirthdayYearGifts{
+			Year: int32(p.Year), Issued: int32(p.YearIssued), Used: int32(p.YearUsed), //nolint:gosec // G115
+		},
 		MonthCounts: make([]int32, 0, len(p.MonthCounts)),
 		StateCounts: gen.BirthdayStateCounts{
 			Manual: int32(p.StateCounts[promotion.BirthdayStateManual]), Due: int32(p.StateCounts[promotion.BirthdayStateDue]), //nolint:gosec // G115
@@ -311,6 +334,9 @@ func birthdayPageOut(p promotion.BirthdayCustomerPage) *gen.BirthdayCustomerPage
 		}
 		if c.Code != "" {
 			it.Code = gen.NewOptString(c.Code)
+		}
+		if o, ok := orders[c.CouponID]; ok && c.State == promotion.BirthdayStateUsed {
+			it.UsedOrderCode = gen.NewOptString(o.Code)
 		}
 		out.Items = append(out.Items, it)
 	}

@@ -97,6 +97,7 @@ const (
 	GetStocktakeOperation                OperationName = "GetStocktake"
 	GetWarehousePickupOperation          OperationName = "GetWarehousePickup"
 	GetWebCampaignOperation              OperationName = "GetWebCampaign"
+	GetWebCampaignSettingsOperation      OperationName = "GetWebCampaignSettings"
 	GetWebCarrierSettingsOperation       OperationName = "GetWebCarrierSettings"
 	GetWebIntakeOperation                OperationName = "GetWebIntake"
 	HealthDeepOperation                  OperationName = "HealthDeep"

@@ -73,6 +73,9 @@ type Config struct {
 	AccessMFAValues  []string
 	ConsoleOrigins   []string
 	HealthToken      string
+	// WebsiteOrigin (api; WEBSITE_ORIGIN, tùy chọn, mặc định DefaultWebsiteOrigin; Task 487) là gốc của website khách,
+	// không "/" cuối: màn hình nhân viên ghép liên kết đầy đủ (chiến dịch /uu-dai/…) từ đây thay vì ghi cứng.
+	WebsiteOrigin string
 
 	// Kho tệp (api, worker; kế hoạch M1, Global Constraints "Biến môi trường mới"). Từ Task M1-41 bắt buộc với hai vai
 	// trò này: S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, FILES_PUBLIC_BASE_URL.
@@ -221,6 +224,7 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		cfg.AccessMFAValues = r.list("ACCESS_MFA_VALUES")
 		cfg.ConsoleOrigins = r.list("CONSOLE_ORIGINS")
 		cfg.HealthToken = r.secret("HEALTH_TOKEN")
+		cfg.WebsiteOrigin = r.websiteOrigin()
 		r.files(&cfg)
 		// getProduct chọn bộ kích thước ảnh theo cùng biến với worker (Task M1-44).
 		cfg.ImagePresetVersion = r.integer("IMAGE_PRESET_VERSION", 1, 1, 1000)
@@ -404,6 +408,22 @@ func (r *reader) valkeyURL(key string) string {
 	return r.urlVar(key, "valkey://người-dùng:mật-khẩu@host:cổng/0 (hoặc valkeys://)", func(u *url.URL) bool {
 		return (u.Scheme == "valkey" || u.Scheme == "valkeys") && u.Host != "" && u.User.Username() != ""
 	})
+}
+
+// DefaultWebsiteOrigin là tên miền website của shop (spec README) khi WEBSITE_ORIGIN vắng.
+const DefaultWebsiteOrigin = "https://elimaz.com.vn"
+
+// websiteOrigin đọc WEBSITE_ORIGIN: gốc http(s) (không đường dẫn, query) và bỏ "/" cuối; vắng → DefaultWebsiteOrigin.
+func (r *reader) websiteOrigin() string {
+	v := strings.TrimSuffix(r.urlVar("WEBSITE_ORIGIN", "gốc http(s) không đường dẫn, vd https://elimaz.com.vn",
+		func(u *url.URL) bool {
+			return (u.Scheme == "http" || u.Scheme == "https") && u.Host != "" && (u.Path == "" || u.Path == "/") &&
+				u.RawQuery == "" && u.Fragment == "" && u.User == nil
+		}), "/")
+	if v == "" && r.optional("WEBSITE_ORIGIN") == "" {
+		return DefaultWebsiteOrigin
+	}
+	return v
 }
 
 // httpURL đọc biến tùy chọn; có giá trị thì phải là URL tuyệt đối http hoặc https có host.

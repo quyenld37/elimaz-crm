@@ -509,3 +509,35 @@ func CustomerRoot(ctx context.Context, tx pgx.Tx, id uuid.UUID) (uuid.UUID, erro
 	}
 	return root, nil
 }
+
+// UsedOrders trả, cho mỗi mã trong couponIDs có lượt dùng còn hiệu lực, đơn của lượt mới nhất (Task 487: "Đã dùng ·
+// <mã đơn>"; mã đơn do lớp HTTP ghép bằng order.Codes). Mã chưa dùng không có trong map.
+func UsedOrders(ctx context.Context, tx pgx.Tx, couponIDs []uuid.UUID) (map[uuid.UUID]uuid.UUID, error) {
+	out := make(map[uuid.UUID]uuid.UUID, len(couponIDs))
+	if len(couponIDs) == 0 {
+		return out, nil
+	}
+	rows, err := store.New(tx).CouponUsedOrders(ctx, couponIDs)
+	if err != nil {
+		return nil, fmt.Errorf("đọc đơn đã dùng mã: %w", err)
+	}
+	for _, r := range rows {
+		out[r.CouponID] = r.OrderID
+	}
+	return out, nil
+}
+
+// MaskedBoundPhone là SĐT gắn mã dạng trong nước che giữa ("0905 *** 781", như màn hình); rỗng khi mã không gắn SĐT.
+func (c Coupon) MaskedBoundPhone() string {
+	if c.BoundPhone == "" {
+		return ""
+	}
+	d := string(c.BoundPhone)
+	if rest, ok := strings.CutPrefix(d, "+84"); ok {
+		d = "0" + rest
+	}
+	if len(d) < 7 {
+		return "***"
+	}
+	return d[:4] + " *** " + d[len(d)-3:]
+}

@@ -440,9 +440,26 @@ type BatchStats struct {
 
 // GetBatchStats đếm mã của đợt id lúc now (đợt không có → số 0; bên gọi đọc đợt bằng GetBatch trước).
 func GetBatchStats(ctx context.Context, tx pgx.Tx, id uuid.UUID, now time.Time) (BatchStats, error) {
-	r, err := store.New(tx).BatchStats(ctx, store.BatchStatsParams{Now: now, BatchID: &id})
+	m, err := ListBatchStats(ctx, tx, []uuid.UUID{id}, now)
 	if err != nil {
-		return BatchStats{}, fmt.Errorf("đếm mã của đợt: %w", err)
+		return BatchStats{}, err
 	}
-	return BatchStats{Given: int(r.Given), Used: int(r.Used), Expired: int(r.Expired)}, nil
+	return m[id], nil
+}
+
+// ListBatchStats đếm mã của các đợt ids lúc now trong một câu (danh sách đợt, Task 487). Đợt không có mã hay không có
+// thì không có trong map (bên gọi đọc số 0).
+func ListBatchStats(ctx context.Context, tx pgx.Tx, ids []uuid.UUID, now time.Time) (map[uuid.UUID]BatchStats, error) {
+	out := make(map[uuid.UUID]BatchStats, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := store.New(tx).BatchStatsMany(ctx, store.BatchStatsManyParams{Now: now, BatchIds: ids})
+	if err != nil {
+		return nil, fmt.Errorf("đếm mã của đợt: %w", err)
+	}
+	for _, r := range rows {
+		out[r.BatchID] = BatchStats{Given: int(r.Given), Used: int(r.Used), Expired: int(r.Expired)}
+	}
+	return out, nil
 }

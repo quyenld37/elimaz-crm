@@ -144,7 +144,11 @@ type BirthdayCustomer struct {
 	BirthdayIn int
 	SendOn     time.Time
 	Code       string
-	SavedAt    time.Time
+	// CouponID là mã (id) của quà hiện tại; uuid.Nil khi Code rỗng.
+	CouponID uuid.UUID
+	SavedAt  time.Time
+	// delivered: khách đã có đơn giao thành công (đủ điều kiện nhận quà).
+	delivered bool
 }
 
 // BirthdayCustomerQuery lọc danh sách: State rỗng hay "all" = mọi trạng thái, Month 0 = mọi tháng, Q tìm tên (bỏ dấu)
@@ -160,13 +164,23 @@ type BirthdayCustomerQuery struct {
 
 // BirthdayCustomerPage là một trang: khách, con trỏ trang sau (nil: hết), số khách mỗi trạng thái (đã lọc tháng, tìm)
 // và mỗi tháng (đã lọc trạng thái, tìm; chỉ số 0 = tháng 1), tổng số khách khớp mọi bộ lọc.
+// UpcomingWeek (lọc như StateCounts): khách chờ ngày gửi, đã có đơn giao thành công, ngày gửi trong 7 ngày tới (sau hôm
+// nay, tới hôm nay + 7). Year (năm hiện tại, giờ Việt Nam), YearIssued, YearUsed: số quà của năm sinh nhật Year đã
+// phát và đã dùng, không theo bộ lọc (Task 487).
 type BirthdayCustomerPage struct {
-	Items       []BirthdayCustomer
-	Next        *string
-	StateCounts map[string]int
-	MonthCounts [12]int
-	Total       int
+	Items        []BirthdayCustomer
+	Next         *string
+	StateCounts  map[string]int
+	MonthCounts  [12]int
+	Total        int
+	UpcomingWeek int
+	Year         int
+	YearIssued   int
+	YearUsed     int
 }
+
+// upcomingDays là cửa sổ "Sắp gửi · 7 ngày tới".
+const upcomingDays = 7
 
 // ListBirthdayCustomers trả mọi khách đã để lại sinh nhật với trạng thái quà lúc now (luật của admin website), ưu tiên
 // theo BirthdayStates rồi gần sinh nhật nhất. Trạng thái, tháng, con trỏ sai → ErrInvalidInput.
@@ -175,24 +189,29 @@ func ListBirthdayCustomers(ctx context.Context, tx pgx.Tx, q BirthdayCustomerQue
 	if err != nil {
 		return BirthdayCustomerPage{}, err
 	}
-	all, err := birthdayCustomers(ctx, tx, now)
+	all, year, err := birthdayCustomers(ctx, tx, now)
 	if err != nil {
 		return BirthdayCustomerPage{}, err
 	}
 	text, digits := customer.NormalizeName(strings.TrimSpace(q.Q)), onlyDigits(q.Q)
-	page := BirthdayCustomerPage{StateCounts: map[string]int{}}
+	page := BirthdayCustomerPage{
+		StateCounts: map[string]int{}, Year: year.year, YearIssued: year.issued, YearUsed: year.used,
+	}
+	weekEnd := civilOf(now) + upcomingDays
 	for _, st := range BirthdayStates() {
 		page.StateCounts[st] = 0
 	}
 	var shown []BirthdayCustomer
 	for _, c := range all {
-		if text != "" && !strings.Contains(customer.NormalizeName(string(c.FullName)), text) &&
-			(len(digits) < minPhoneDigits || !phoneHas(c.Phone, digits)) {
+		if !matchesText(c, text, digits) {
 			continue
 		}
 		inMonth, inState := q.Month == 0 || c.Month == q.Month, q.State == "" || c.State == q.State
 		if inMonth {
 			page.StateCounts[c.State]++
+			if c.State == BirthdayStateWaiting && c.delivered && civilOf(c.SendOn) <= weekEnd {
+				page.UpcomingWeek++
+			}
 		}
 		if inState {
 			page.MonthCounts[c.Month-1]++
@@ -201,10 +220,16 @@ func ListBirthdayCustomers(ctx context.Context, tx pgx.Tx, q BirthdayCustomerQue
 			shown = append(shown, c)
 		}
 	}
+	setPageItems(&page, shown, q, offset)
+	return page, nil
+}
+
+// setPageItems đặt Total, Items (mọi dòng khi q.All, không thì một trang từ offset) và con trỏ trang sau.
+func setPageItems(page *BirthdayCustomerPage, shown []BirthdayCustomer, q BirthdayCustomerQuery, offset int) {
 	page.Total = len(shown)
 	if q.All {
 		page.Items = shown
-		return page, nil
+		return
 	}
 	start := min(offset, len(shown))
 	end := min(start+q.Limit, len(shown))
@@ -213,7 +238,12 @@ func ListBirthdayCustomers(ctx context.Context, tx pgx.Tx, q BirthdayCustomerQue
 		next := strconv.Itoa(end)
 		page.Next = &next
 	}
-	return page, nil
+}
+
+// matchesText: chuỗi tìm rỗng, hay tên (bỏ dấu) chứa text, hay SĐT chứa digits (đủ minPhoneDigits số).
+func matchesText(c BirthdayCustomer, text, digits string) bool {
+	return text == "" || strings.Contains(customer.NormalizeName(string(c.FullName)), text) ||
+		(len(digits) >= minPhoneDigits && phoneHas(c.Phone, digits))
 }
 
 // checkCustomerQuery chuẩn hóa q (all → rỗng, Limit) và trả vị trí bắt đầu từ con trỏ.
@@ -260,36 +290,48 @@ func onlyDigits(s string) string {
 	}, s)
 }
 
-// birthdayCustomers tính trạng thái của mọi hồ sơ lúc now, đã sắp.
-func birthdayCustomers(ctx context.Context, tx pgx.Tx, now time.Time) ([]BirthdayCustomer, error) {
+// yearGifts là số quà của năm sinh nhật year đã phát, đã dùng.
+type yearGifts struct {
+	year, issued, used int
+}
+
+// birthdayCustomers tính trạng thái của mọi hồ sơ lúc now, đã sắp, và số quà của năm hiện tại.
+func birthdayCustomers(ctx context.Context, tx pgx.Tx, now time.Time) ([]BirthdayCustomer, yearGifts, error) {
 	s, err := GetBirthdaySettings(ctx, tx)
 	if err != nil {
-		return nil, err
+		return nil, yearGifts{}, err
 	}
 	q := store.New(tx)
 	today := civilOf(now)
 	y, _, _ := today.date()
 	profiles, err := q.BirthdayProfiles(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("đọc hồ sơ sinh nhật: %w", err)
+		return nil, yearGifts{}, fmt.Errorf("đọc hồ sơ sinh nhật: %w", err)
 	}
 	giftRows, err := q.BirthdayGiftsSince(ctx, int32(y-1)) //nolint:gosec // G115: năm
 	if err != nil {
-		return nil, fmt.Errorf("đọc quà sinh nhật: %w", err)
+		return nil, yearGifts{}, fmt.Errorf("đọc quà sinh nhật: %w", err)
 	}
+	stats := yearGifts{year: y}
 	gifts := make(map[uuid.UUID]map[int]store.BirthdayGiftsSinceRow, len(giftRows))
 	for _, g := range giftRows {
 		if gifts[g.CustomerID] == nil {
 			gifts[g.CustomerID] = map[int]store.BirthdayGiftsSinceRow{}
 		}
 		gifts[g.CustomerID][int(g.GiftYear)] = g
+		if int(g.GiftYear) == y {
+			stats.issued++
+			if g.UsedCount > 0 {
+				stats.used++
+			}
+		}
 	}
 	out := make([]BirthdayCustomer, 0, len(profiles))
 	for _, p := range profiles {
 		c := BirthdayCustomer{
 			CustomerID: p.CustomerID, FullName: customer.Name(p.FullName), Phone: logging.Phone(p.Phone),
 			Email: logging.Secret(p.Email), Day: int(p.Day), Month: int(p.Month), Zalo: p.ConsentZalo,
-			Mail: p.ConsentMail && p.Email != "", SavedAt: p.CreatedAt,
+			Mail: p.ConsentMail && p.Email != "", SavedAt: p.CreatedAt, delivered: p.Delivered,
 		}
 		bday, sendOn := customerState(&c, gifts[p.CustomerID], p.Delivered, civilOf(p.CreatedAt), today, y, s)
 		if p.StoppedAt.Valid {
@@ -303,7 +345,7 @@ func birthdayCustomers(ctx context.Context, tx pgx.Tx, now time.Time) ([]Birthda
 		return cmp.Or(cmp.Compare(slices.Index(order, a.State), slices.Index(order, b.State)),
 			cmp.Compare(max(a.BirthdayIn, -a.BirthdayIn), max(b.BirthdayIn, -b.BirthdayIn)), strings.Compare(a.CustomerID.String(), b.CustomerID.String()))
 	})
-	return out, nil
+	return out, stats, nil
 }
 
 // customerState đặt c.State, c.Code theo quà gần nhất (còn hiệu lực hay hết hạn chưa quá 30 ngày) hoặc lần phát kế
@@ -320,7 +362,7 @@ func customerState(c *BirthdayCustomer, gifts map[int]store.BirthdayGiftsSinceRo
 		if today > last+expiredShownDays {
 			break
 		}
-		c.Code = g.Code
+		c.Code, c.CouponID = g.Code, g.CouponID
 		switch {
 		case g.UsedCount > 0:
 			c.State = BirthdayStateUsed

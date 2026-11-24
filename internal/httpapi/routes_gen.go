@@ -236,6 +236,7 @@ var Routes = []Route{
 	{Method: "GET", Pattern: "GET /api/v1/traffic-sources", OperationID: "listTrafficSources", Permission: "order.read", Auth: "access"},
 	{Method: "POST", Pattern: "POST /api/v1/traffic-sources", OperationID: "createTrafficSource", Permission: "order.settings.manage", Write: true, IdempotencyMode: "required", Auth: "access"},
 	{Method: "PATCH", Pattern: "PATCH /api/v1/traffic-sources/{sourceId}", OperationID: "updateTrafficSource", Permission: "order.settings.manage", Write: true, IdempotencyMode: "required", Auth: "access"},
+	{Method: "GET", Pattern: "GET /api/v1/web-campaign-settings", OperationID: "getWebCampaignSettings", Permission: "promotion.read", Auth: "access"},
 	{Method: "GET", Pattern: "GET /api/v1/web-campaign-targets", OperationID: "listCampaignTargets", Permission: "promotion.read", Auth: "access"},
 	{Method: "GET", Pattern: "GET /api/v1/web-campaigns", OperationID: "listWebCampaigns", Permission: "promotion.read", Auth: "access"},
 	{Method: "POST", Pattern: "POST /api/v1/web-campaigns", OperationID: "createWebCampaign", Permission: "promotion.manage", Write: true, IdempotencyMode: "required", Auth: "access"},

@@ -10,7 +10,15 @@ let fake: Fake;
 beforeEach(() => {
   fake = installAt();
   fake.customers = STATES.map((s, i) =>
-    customer(i, s, s === "used" || s === "given" ? { code: `SNX${String(i)}`, mail: true } : {}),
+    customer(
+      i,
+      s,
+      s === "used"
+        ? { code: `SNX${String(i)}`, mail: true, usedOrderCode: "DH0001288" }
+        : s === "given"
+          ? { code: `SNX${String(i)}`, mail: true }
+          : {},
+    ),
   );
 });
 afterEach(() => {
@@ -33,7 +41,7 @@ describe("Tất cả khách", () => {
       [2, "Chờ đơn giao thành công"],
       [3, "Đã gửi mã"],
       [4, "Chờ ngày gửi"],
-      [5, "Đã dùng"],
+      [5, "Đã dùng · DH0001288"],
       [6, "Hết hạn, chưa dùng"],
       [7, "Đã hủy nhận"],
     ] as const) {
