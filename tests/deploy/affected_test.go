@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -296,4 +297,105 @@ func TestAffected_UnmatchedGoDirExits4(t *testing.T) {
 	if _, code := affected(t, affectedRun{files: []string{"tests/probe/seaweedfs_test.go"}, args: []string{"--split"}}); code != 4 {
 		t.Fatalf("muốn thoát 4, có %d", code)
 	}
+}
+
+// Task 478 (24/11): tệp dữ liệu (không phải .go, hay trong testdata/) chọn test đọc nó. Lỗ đã gặp: Task 192 đổi
+// openapi/openapi.yaml, test của tools/routegen đọc tệp đó bằng đường dẫn (không qua import Go) nên không được chọn,
+// main đỏ. Tên tệp giả "zz478…" không có thật: affected.py không đòi tệp đổi còn tồn tại (tệp bị xóa cũng là đổi).
+// Đường dẫn tệp thật viết tách làm hai chuỗi (dataPath): luật (b) quét chuỗi của mọi _test.go, viết liền thì đổi
+// openapi.yaml, tài liệu… sẽ kéo cả gói này vào mọi lần chạy.
+
+// dataPath nối các mẩu thành đường dẫn tệp dữ liệu mà không để nguyên đường dẫn trong một chuỗi Go.
+func dataPath(parts ...string) string { return strings.Join(parts, "") }
+
+// affectedSplit chạy affected.py --split với các tệp đổi, đòi thoát 0, trả dòng ra và bảng gói → race|plain.
+func affectedSplit(t *testing.T, files ...string) (lines []string, m map[string]string) {
+	t.Helper()
+	lines, code := affected(t, affectedRun{files: files, args: []string{"--split"}})
+	if code != 0 {
+		t.Fatalf("thoát %d: %v", code, lines)
+	}
+	return lines, mark(t, lines)
+}
+
+// wantNoRace: tệp dữ liệu không gây race — không gói nào được chạy -race.
+func wantNoRace(t *testing.T, m map[string]string) {
+	t.Helper()
+	for p, k := range m {
+		if k == "race" {
+			t.Errorf("%s: chỉ tệp dữ liệu đổi, không được chạy -race", p)
+		}
+	}
+}
+
+// (b) Test đọc tệp theo đường dẫn: chuỗi "openapi.yaml" trong test của tools/routegen → gói đó chạy (thường).
+// Có và không --split.
+func TestAffected_DataFileSelectsTestsReadingIt(t *testing.T) {
+	t.Parallel()
+	spec := dataPath("openapi/openapi", ".yaml")
+	_, m := affectedSplit(t, spec)
+	wantKinds(t, m, map[string]string{"tools/routegen": "plain"})
+	wantNoRace(t, m)
+	plain, code := affected(t, affectedRun{files: []string{spec}})
+	if code != 0 || !slices.Contains(plain, mod+"tools/routegen") {
+		t.Fatalf("không --split: muốn có tools/routegen, có %v (thoát %d)", plain, code)
+	}
+}
+
+// (b) Chỉ trùng tên không đủ: chuỗi "testdata/ts/index.ts" trong test của tools/catalog không trỏ tới
+// console/src/api/index.ts (phần đường dẫn đi kèm phải khớp đuôi đường dẫn tệp đổi). Chuỗi có phần đường dẫn khớp
+// đuôi thì được chọn: "../../../docs/quyen.md" trong test của identity (tài liệu ngoài gói chỉ theo luật này).
+func TestAffected_DataFileNameMatchNeedsPathSuffix(t *testing.T) {
+	t.Parallel()
+	lines, m := affectedSplit(t, dataPath("console/src/api/index", ".ts"))
+	if _, ok := m["tools/catalog"]; ok {
+		t.Errorf("tools/catalog chỉ đọc tệp testdata của chính nó, không được chạy khi đổi console: %v", lines)
+	}
+	lines, m = affectedSplit(t, dataPath("docs/quyen", ".md"))
+	wantKinds(t, m, map[string]string{"internal/modules/identity": "plain"})
+	if _, ok := m["internal/httpapi"]; ok {
+		t.Errorf("luật (b) chỉ chạy test của gói chứa tệp test, không lan lên gói nhập identity: %v", lines)
+	}
+	wantNoRace(t, m)
+}
+
+// (a) Tệp trong testdata/ của gói: chỉ test của gói đó, không lan lên gói nhập nó (httpapi nhập catalog).
+// Tệp testdata mà mã chạy nhúng (go:embed testdata của carriertest; kể cả thư mục con mới): như mã, lan lên vtptest.
+func TestAffected_TestdataOnlyOwnTestsUnlessEmbedded(t *testing.T) {
+	t.Parallel()
+	lines, m := affectedSplit(t, "internal/modules/catalog/testdata/zz478.json")
+	wantKinds(t, m, map[string]string{"internal/modules/catalog": "plain"})
+	if _, ok := m["internal/httpapi"]; ok {
+		t.Errorf("testdata chỉ test của catalog dùng, không được lan lên httpapi: %v", lines)
+	}
+	wantNoRace(t, m)
+	_, m = affectedSplit(t, "internal/adapters/carrier/carriertest/testdata/zz478moi/a.json")
+	wantKinds(t, m, map[string]string{
+		"internal/adapters/carrier/carriertest": "plain", "internal/adapters/carrier/vtp/vtptest": "plain",
+	})
+	wantNoRace(t, m)
+}
+
+// (a) Tệp dữ liệu ngay trong thư mục gói (go:embed, tệp gói đọc lúc chạy): như mã của gói, lan lên gói nhập nó.
+// Tài liệu .md ngoài thư mục gói: không chọn gói nào.
+func TestAffected_DataFileInPackageDirSpreads(t *testing.T) {
+	t.Parallel()
+	_, m := affectedSplit(t, "internal/modules/catalog/zz478.tmpl")
+	wantKinds(t, m, map[string]string{"internal/modules/catalog": "plain", "internal/httpapi": "plain"})
+	wantNoRace(t, m)
+	lines, code := affected(t, affectedRun{files: []string{dataPath("docs/zz478", ".md")}, args: []string{"--split"}})
+	if code != 0 || len(lines) != 0 {
+		t.Fatalf("tài liệu ngoài gói: muốn thoát 0, không gói nào; có %d, %v", code, lines)
+	}
+}
+
+// (c) Tệp dữ liệu trong vùng rủi ro cao: vẫn chạy cả vùng nhưng test thường; thêm tệp .go viết tay trong vùng → -race.
+func TestAffected_DataFileInHighRiskIsPlainUnlessCodeChanges(t *testing.T) {
+	t.Parallel()
+	data := "internal/modules/order/testdata/zz478.json"
+	_, m := affectedSplit(t, data)
+	wantKinds(t, m, map[string]string{"internal/modules/order": "plain", "internal/modules/order/internal/state": "plain"})
+	wantNoRace(t, m)
+	_, m = affectedSplit(t, data, "internal/modules/order/create_m2.go")
+	wantKinds(t, m, map[string]string{"internal/modules/order": "race", "internal/modules/order/internal/state": "race"})
 }
