@@ -1,0 +1,19 @@
+/* Lớp riêng của màn Nhật ký thao tác, chép từ khối <style> của mockup đã duyệt docs/mockups/m5/audit.html. Chỉ biến có
+   sẵn của styles.css: không màu, cỡ chữ, bo góc mới. */
+
+@media (min-width: 760px) {
+  .au td:first-child {
+    width: 120px;
+  }
+}
+.au .who {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  justify-items: start;
+}
+@media (max-width: 759px) {
+  .au .who {
+    justify-items: end;
+  }
+}

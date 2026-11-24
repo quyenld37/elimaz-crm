@@ -12,7 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { Grant } from "../api";
 import { Layout } from "../shell/Layout";
 import { loadScreens, type ScreenRoute } from "./loadScreens";
-import { NAV_GROUPS, allowedScreens, canSee, type Screen } from "./nav";
+import { NAV_GROUPS, allowedScreens, canSee, navSections, type Screen } from "./nav";
 import { AppRoutes } from "./router";
 import { SCREENS } from "./screens";
 
@@ -90,6 +90,20 @@ describe("quy ước trên mọi src/screens/*/route.tsx", () => {
       "Hệ thống",
       "Quản trị",
     ]);
+  });
+
+  it("nhóm Website, Quản trị xếp mục đúng mục 'Xếp module' của kế hoạch M5 (HV01; Task 462)", () => {
+    // Thứ tự mục do kế hoạch chốt (không phải danh sách màn): các màn tự khai order trong route.tsx của mình.
+    const all: Grant[] = SCREENS.flatMap((s) => [s.permission, ...(s.alsoRequires ?? [])]).map((permission) => ({
+      permission,
+      scope: { type: "all", id: "" },
+    }));
+    const labels = (g: string) =>
+      navSections(SCREENS, all)
+        .find((x) => x.group === g)
+        ?.items.map((s) => s.label);
+    expect(labels("Website")).toEqual(["Banner trang chủ", "Bộ phối", "Hãng trên web", "Nhận đơn web", "Khóa dịch vụ"]);
+    expect(labels("Quản trị")?.at(-1)).toBe("Nhật ký thao tác");
   });
 
   it("SCREENS xếp theo nhóm menu (NAV_GROUPS) rồi order", () => {
