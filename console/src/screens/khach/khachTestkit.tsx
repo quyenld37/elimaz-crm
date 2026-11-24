@@ -6,12 +6,13 @@ import type {
   CustomerListItem,
   CustomerTag,
   CustomerTagRule,
+  Feedback,
   Grant,
   MergeCandidate,
   Me,
   TimelineItem,
 } from "../../api";
-import { NOT_FOUND, bodyOf, renderScreens, reply, type Write } from "../../app/screenTestkit";
+import { NOT_FOUND, bodyOf, page, renderScreens, reply, type Write } from "../../app/screenTestkit";
 import { screens } from "./route";
 
 /** Hộp thoại trong jsdom: dùng chung bản của màn Đơn. */
@@ -130,6 +131,11 @@ export interface Fake {
   tags: CustomerTag[];
   rules: Map<string, CustomerTagRule>;
   imports: CustomerImport[];
+  /** Góp ý: GET /api/v1/feedback trả theo trang limit (con trỏ là vị trí), lọc customerId. */
+  feedback: Feedback[];
+  feedbackCalls: URLSearchParams[];
+  /** Lỗi trả cho mọi lần đọc góp ý (ví dụ 403). */
+  feedbackError: { status: number; body: unknown } | null;
   writes: Write[];
   /** Đường đọc trả 500 internal (ca lỗi API). */
   failReads: RegExp[];
@@ -158,6 +164,15 @@ function readRoutes(fake: Fake): [RegExp, Handler][] {
     [/^\/api\/v1\/customers\/[^/]+\/merge-candidates$/, () => reply({ items: fake.candidates })],
     [/^\/api\/v1\/customers\/([^/]+)$/, (m) => found(fake.customers.get(m[1] ?? ""))],
     [/^\/api\/v1\/customer-tags$/, () => reply({ items: fake.tags })],
+    [
+      /^\/api\/v1\/feedback$/,
+      (_m, q) => {
+        fake.feedbackCalls.push(q);
+        if (fake.feedbackError !== null) return reply(fake.feedbackError.body, fake.feedbackError.status);
+        const cust = q.get("customerId");
+        return reply(page(cust === null ? fake.feedback : fake.feedback.filter((f) => f.customerId === cust), q));
+      },
+    ],
     [/^\/api\/v1\/customer-tags\/([^/]+)\/rule$/, (m) => found(fake.rules.get(m[1] ?? ""))],
     [
       /^\/api\/v1\/customer-imports\/[^/]+$/,
@@ -208,6 +223,9 @@ export function installFake(): Fake {
     tags: [TAG_QUEN, TAG_HOAN, TAG_SI],
     rules: new Map(),
     imports: [],
+    feedback: [],
+    feedbackCalls: [],
+    feedbackError: null,
     writes: [],
     replies: [],
     failReads: [],

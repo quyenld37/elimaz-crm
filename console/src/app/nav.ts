@@ -73,7 +73,12 @@ export function currentScreen(screens: readonly Screen[], pathname: string): Scr
   return screens.find((s) => matchPath(s.path, pathname) !== null);
 }
 
-/** Mục menu đang sáng: khớp path hoặc một trong also. */
-export function isCurrent(s: Screen, pathname: string): boolean {
-  return [s.path, ...(s.also ?? [])].some((p) => matchPath(p, pathname) !== null);
+/**
+ * Mục menu đang sáng: khớp path, hoặc khớp một trong also khi không mục nào khác của menu (items) có path khớp đúng
+ * đường (ví dụ "/khach/gop-y" là mục riêng dù khớp also "/khach/:id" của mục "Khách hàng", Task 461).
+ */
+export function isCurrent(s: Screen, pathname: string, items: readonly Screen[] = []): boolean {
+  const at = (p: string) => matchPath(p, pathname) !== null;
+  if (at(s.path)) return true;
+  return (s.also ?? []).some(at) && !items.some((o) => o !== s && at(o.path));
 }

@@ -17,6 +17,8 @@ export function Counted(p: {
   placeholder?: string;
   hint?: string;
   area?: boolean;
+  /** Khóa ô (ví dụ khi đang lưu). */
+  disabled?: boolean;
   onChange: (v: string) => void;
 }) {
   const common = {
@@ -25,6 +27,7 @@ export function Counted(p: {
     value: p.value,
     maxLength: p.max,
     placeholder: p.placeholder,
+    disabled: p.disabled,
     onChange: (e: { target: { value: string } }) => {
       p.onChange(e.target.value);
     },
