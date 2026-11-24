@@ -287,6 +287,14 @@ func TestMakeCI_RunsEveryGate(t *testing.T) {
 	}
 }
 
+// make lint chờ lượt khi phiên khác giữ khóa $TMPDIR/golangci-lint.lock thay vì đỏ "parallel golangci-lint is running"
+// (Task 481; Task 480 gặp 24/11), như tests/arch/lint_test.go.
+func TestMakeLint_WaitsForOtherRunner(t *testing.T) {
+	if out := makeDry(t, "lint"); !strings.Contains(out, "golangci-lint run ./... --allow-serial-runners") {
+		t.Errorf("make lint phải chạy golangci-lint với --allow-serial-runners, có:\n%s", out)
+	}
+}
+
 // HIGH_RISK_DIRS của hook (scripts/agent/lib.sh): nguồn duy nhất của danh sách vùng rủi ro cao.
 func highRiskDirs(t *testing.T) []string {
 	t.Helper()

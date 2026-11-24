@@ -188,15 +188,21 @@ func TestAffected_CommentOnlyMigration(t *testing.T) {
 // testkit, tenancy) — ngoài chính tests/deploy (xem pkgsExceptSelf).
 func wantOnlyAlwaysRun(t *testing.T, name, sql string) {
 	t.Helper()
+	got := pkgsExceptSelf(t, affectedMigration(t, name, sql))
+	if strings.Join(got, ",") != "internal/platform/db,internal/platform/tenancy,internal/testkit,migrations" {
+		t.Fatalf("muốn chỉ các gói luôn chạy, có %v", got)
+	}
+}
+
+// affectedMigration: chạy affected.py --split với đúng một migration giả name (so với cây rỗng), đòi thoát 0, trả các dòng.
+func affectedMigration(t *testing.T, name, sql string) []string {
+	t.Helper()
 	dir, f := withMigration(t, name, sql)
 	lines, code := affected(t, affectedRun{files: []string{f}, args: []string{"--base", emptyTree, "--split"}, migDir: dir})
 	if code != 0 {
 		t.Fatalf("thoát %d", code)
 	}
-	got := pkgsExceptSelf(t, lines)
-	if strings.Join(got, ",") != "internal/platform/db,internal/platform/tenancy,internal/testkit,migrations" {
-		t.Fatalf("muốn chỉ các gói luôn chạy, có %v", got)
-	}
+	return lines
 }
 
 // Câu sửa bảng đã có kéo theo người dùng bảng đó; khóa ngoại mới kéo cả bảng cha (xóa ở bảng cha có thể bị chặn);
@@ -288,12 +294,81 @@ func TestAffected_SplitRaceOnlyForHandEditedPackages(t *testing.T) {
 	}
 }
 
-// Thư mục có tệp Go đổi mà không khớp gói nào (chỉ có tệp nhãn build riêng) → thoát 4, bên gọi chạy toàn bộ.
+// Thư mục có tệp Go đổi mà không khớp gói nào vì lý do khác nhãn build (ở đây: thư mục ẩn ".…" mà go list ./... bỏ qua)
+// → thoát 4, bên gọi chạy toàn bộ. Thư mục tạm tạo ở gốc module, xóa khi test xong; thư mục ẩn nên go list ./...,
+// git ls-files của các test song song và walkGoFiles của tests/arch (bỏ thư mục ẩn) không thấy nó.
 func TestAffected_UnmatchedGoDirExits4(t *testing.T) {
 	t.Parallel()
-	if _, code := affected(t, affectedRun{files: []string{"tests/probe/seaweedfs_test.go"}, args: []string{"--split"}}); code != 4 {
+	dir, err := os.MkdirTemp("../..", ".zz481")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	if err := os.WriteFile(filepath.Join(dir, "x.go"), []byte("package x\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, code := affected(t, affectedRun{files: []string{filepath.Base(dir) + "/x.go"}, args: []string{"--split"}}); code != 4 {
 		t.Fatalf("muốn thoát 4, có %d", code)
 	}
+}
+
+// Task 481 (24/11): thư mục mà mọi tệp Go mang nhãn build riêng (tests/drills: drill, tests/probe: probe) không thuộc
+// bản dựng thường — không gói nào nhập nó, make test không chạy nó — nên đổi tệp ở đó không chọn gói nào và không thoát
+// 4 (trước: ci-task chạy toàn bộ test vô ích). Thư mục lẫn tệp có nhãn và không nhãn (internal/imager) vẫn là gói thường.
+func TestAffected_BuildTaggedOnlyDirSelectsNothing(t *testing.T) {
+	t.Parallel()
+	for _, f := range []string{"tests/drills/drill_test.go", "tests/probe/seaweedfs_test.go", "tests/drills/zz481_moi_test.go"} {
+		lines, code := affected(t, affectedRun{files: []string{f}, args: []string{"--split"}})
+		if code != 0 || len(lines) != 0 {
+			t.Errorf("%s: muốn thoát 0, không gói nào; có %d %v", f, code, lines)
+		}
+	}
+	lines, code := affected(t, affectedRun{files: []string{"tests/drills/drill_test.go", "internal/imager/kill_perf_test.go"}, args: []string{"--split"}})
+	if code != 0 {
+		t.Fatalf("thoát %d", code)
+	}
+	if m := mark(t, lines); len(m) != 1 || m["internal/imager"] != "race" {
+		t.Fatalf("muốn đúng internal/imager (race), có %v", m)
+	}
+}
+
+// Task 481 (24/11): CREATE CONSTRAINT TRIGGER … ON s.t là câu nhận ra được (loại trigger: mọi đối tượng trong câu bị
+// chạm). Lỗ đã gặp: migration 0119 (cash COD) làm affected.py thoát 5, ci-task chạy toàn bộ test.
+func TestAffected_ConstraintTriggerIsNarrow(t *testing.T) {
+	t.Parallel()
+	lines, code := affected(t, affectedRun{files: []string{"migrations/0119_cash_cod.sql"}, args: []string{"--base", emptyTree, "--split"}})
+	if code != 0 {
+		t.Fatalf("0119 có CONSTRAINT TRIGGER trên bảng mới phải được thu hẹp, thoát %d", code)
+	}
+	wantKinds(t, mark(t, lines), map[string]string{"internal/modules/cash": "plain"})
+	wantOnlyAlwaysRun(t, "9007_zz481.sql", `CREATE SCHEMA zz481;
+CREATE TABLE zz481.transfers (id uuid PRIMARY KEY);
+CREATE TABLE zz481.lines (transfer_id uuid NOT NULL);
+CREATE FUNCTION zz481.balanced() RETURNS trigger LANGUAGE plpgsql AS $fn$
+BEGIN
+    RETURN NULL;
+END
+$fn$;
+CREATE CONSTRAINT TRIGGER transfers_balanced
+    AFTER INSERT OR UPDATE ON zz481.transfers
+    FROM zz481.lines
+    DEFERRABLE INITIALLY DEFERRED
+    FOR EACH ROW EXECUTE FUNCTION zz481.balanced();`)
+}
+
+// CONSTRAINT TRIGGER mới trên bảng đã có (catalog.tags): người ghi bảng đó chạy lại trigger → được chọn, như trigger thường.
+func TestAffected_ConstraintTriggerOnExistingTableTouchesUsers(t *testing.T) {
+	t.Parallel()
+	lines := affectedMigration(t, "9008_zz481.sql", `CREATE FUNCTION catalog.zz481_check() RETURNS trigger LANGUAGE plpgsql AS $fn$
+BEGIN
+    RETURN NULL;
+END
+$fn$;
+CREATE CONSTRAINT TRIGGER tags_zz481
+    AFTER INSERT ON catalog.tags
+    DEFERRABLE INITIALLY DEFERRED
+    FOR EACH ROW EXECUTE FUNCTION catalog.zz481_check();`)
+	wantKinds(t, mark(t, lines), map[string]string{"internal/modules/catalog": "plain"})
 }
 
 // Task 478 (24/11): tệp dữ liệu (không phải .go, hay trong testdata/) chọn test đọc nó. Lỗ đã gặp: Task 192 đổi

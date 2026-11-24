@@ -144,8 +144,9 @@ build: ## Dựng mọi gói, tệp chạy không cgo
 vet:
 	go vet ./...
 
+# --allow-serial-runners (Task 481): phiên khác đang giữ khóa $$TMPDIR/golangci-lint.lock thì chờ lượt, không đỏ.
 lint: ## golangci-lint theo .golangci.yml
-	golangci-lint run ./...
+	golangci-lint run ./... --allow-serial-runners
 
 test: ## Mọi test, có -race, với PostgreSQL dev (make db-up trước)
 	go test -race -count=1 ./...
