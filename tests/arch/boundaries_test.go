@@ -28,6 +28,7 @@ func moduleCalls() map[string][]string {
 		"fulfillment":  {"order"},
 		"cash":         {"order", "fulfillment"},
 		"promotion":    {"catalog", "customer", "inventory"},
+		"content":      {"catalog", "promotion"}, // M5 Task 453: chỉ đọc view, không nhập order
 		"channel":      {"identity"},
 		"conversation": {"channel", "customer"},
 		"affiliate":    nil, // chỉ nghe sự kiện order.*

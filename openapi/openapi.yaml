@@ -3274,6 +3274,68 @@ paths:
                 $ref: "#/components/schemas/WebIntake"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/content/banners:
+    get:
+      operationId: getBanners
+      summary: 'Danh sách banner trang chủ theo thứ tự hiện, kèm revision, trạng thái hiện/ẩn (lý do), ảnh, chiến dịch, danh mục, mẫu được nhắc (Task 453)'
+      x-permission: content.read
+      responses:
+        "200":
+          description: getBanners
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeBannerList"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: saveBanners
+      summary: 'Thay cả danh sách banner khi revision khớp (409 version_conflict); luật sai → 422 với mã riêng (Task 453)'
+      description: |
+        Tối đa 8 banner (422 too_many_banners). Trường không thuộc loại bị bỏ (như admin cũ). Ảnh là mã tệp tải lên bằng
+        createUpload mục đích web_banner (JPEG, PNG, WebP ≤ 8 MiB, rộng ≥ 600 px); ảnh bị từ chối → 422 file_rejected,
+        không có, đã xóa, sai mục đích → 422 banner_image_invalid; ảnh đang xử lý vẫn lưu được (banner ẩn tới khi xong).
+        Ghim ≤ 3 mẫu đang bán thuộc nguồn của banner (chiến dịch, danh mục và danh mục con).
+      x-permission: content.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveBannersRequest"
+      responses:
+        "200":
+          description: saveBanners
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeBannerList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/content/banners/preview:
+    post:
+      operationId: previewBanners
+      summary: 'Xem trước: danh sách gửi lên (chưa lưu) hiện hay ẩn lúc này, lý do ẩn; cùng luật kiểm như saveBanners (Task 453)'
+      x-permission: content.read
+      x-idempotency: exempt
+      x-idempotency-reason: "Chỉ tính hiện/ẩn từ thân yêu cầu, không ghi dữ liệu"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreviewBannersRequest"
+      responses:
+        "200":
+          description: previewBanners
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BannerPreview"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/birthday-settings:
     get:
       operationId: getBirthdaySettings
@@ -5021,6 +5083,33 @@ paths:
                 $ref: "#/components/schemas/WebCampaignPublic"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web/content/banners:
+    get:
+      operationId: webHomeBanners
+      summary: Banner trang chủ đang hiện (bật, trong giờ, nguồn có mẫu, ảnh đã xử lý) theo thứ tự, kèm đường dẫn ảnh; có ETag
+      description: |
+        Task 453 (M5-41). Website tự lấy mẫu, giá cho banner từ API danh mục, chiến dịch (như resolveBanners cũ).
+        Bộ đệm 60 s, làm mới sớm hơn theo sự kiện content.banners.changed, promotion.web_campaign.changed.
+      x-auth: service_key
+      x-permission: web.catalog.read
+      parameters:
+        - $ref: "#/components/parameters/IfNoneMatch"
+      responses:
+        "200":
+          description: Banner đang hiện
+          headers:
+            ETag:
+              description: sha256 của thân câu trả lời
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebHomeBannerList"
+        "304":
+          description: If-None-Match khớp ETag hiện tại; thân rỗng
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/web/quote:
     post:
       operationId: webQuote
@@ -6067,6 +6156,16 @@ components:
         - another_run_in_progress
         - invalid_gift_settings
         - last_web_carrier
+        # Banner trang chủ (M5, Task 453); ảnh bị từ chối dùng file_rejected
+        - too_many_banners
+        - invalid_banner
+        - banner_campaign_required
+        - banner_category_required
+        - banner_image_required
+        - banner_window_invalid
+        - too_many_pins
+        - pin_not_in_source
+        - banner_image_invalid
       properties:
         error:
           type: string
@@ -7751,6 +7850,309 @@ components:
           additionalProperties:
             type: string
             maxLength: 200
+    HomeBannerKind:
+      type: string
+      enum: [campaign, trending, new, category, image]
+    HomeBannerTheme:
+      type: string
+      enum: [auto, red, black, light]
+    HomeBannerLinkKind:
+      type: string
+      enum: [campaign, category, product, offers]
+    HomeBannerHidden:
+      type: string
+      description: Lý do banner không hiện (đúng tên của website cũ)
+      enum: [disabled, scheduled, expired, campaign-missing, campaign-not-running, category-missing, no-products, image-missing, product-missing]
+    HomeBanner:
+      type: object
+      description: |
+        Một banner trang chủ (Task 453). Chữ rỗng = website tự điền. Chỉ campaign có campaignId; chỉ category có
+        categoryId; ảnh (imageDesktop, imageMobile, alt, linkKind, linkId) chỉ ở loại image, loại image không có chữ,
+        màu, ghim. Giới hạn (kiểm ở máy chủ, 422): kicker 40, title 60, cta 30, alt 120 ký tự; ghim ≤ 3.
+      required: [id, enabled, kind]
+      properties:
+        id:
+          type: string
+          format: uuid
+        enabled:
+          type: boolean
+        kind:
+          $ref: "#/components/schemas/HomeBannerKind"
+        campaignId:
+          type: string
+          format: uuid
+        categoryId:
+          type: string
+          format: uuid
+        kicker:
+          type: string
+          maxLength: 500
+        title:
+          type: string
+          maxLength: 500
+        cta:
+          type: string
+          maxLength: 500
+        theme:
+          $ref: "#/components/schemas/HomeBannerTheme"
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        productIds:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            format: uuid
+        imageDesktop:
+          type: string
+          format: uuid
+          description: Mã tệp ảnh máy tính (mục đích web_banner, khuyên 2368×600, chữ trong vùng giữa rộng 1800)
+        imageMobile:
+          type: string
+          format: uuid
+          description: Mã tệp ảnh điện thoại tùy chọn (khuyên 1080×640, vùng giữa rộng 900)
+        alt:
+          type: string
+          maxLength: 500
+        linkKind:
+          $ref: "#/components/schemas/HomeBannerLinkKind"
+        linkId:
+          type: string
+          format: uuid
+    HomeBannerStatus:
+      type: object
+      required: [id, shown]
+      properties:
+        id:
+          type: string
+          format: uuid
+        shown:
+          type: boolean
+        reason:
+          $ref: "#/components/schemas/HomeBannerHidden"
+    HomeBannerImage:
+      type: object
+      required: [fileId, status, deleted]
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          description: Trạng thái tệp (awaiting_upload, uploaded, processing, ready, rejected, lost); không có tệp → missing
+        deleted:
+          type: boolean
+        desktop:
+          type: string
+          description: Đường dẫn WebP rộng 2400 (có khi ready)
+        desktopSmall:
+          type: string
+          description: Đường dẫn WebP rộng 1200 (có khi ready)
+    HomeBannerCampaign:
+      type: object
+      required: [id, name, percent, scope, state, startsAt, endsAt, targetIds, running]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        percent:
+          type: integer
+          format: int32
+        scope:
+          type: string
+          enum: [all, products, categories]
+        state:
+          type: string
+          enum: [draft, enabled, paused]
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        targetIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        running:
+          type: boolean
+    HomeBannerCategory:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        parentId:
+          type: string
+          format: uuid
+        name:
+          type: string
+    HomeBannerProduct:
+      type: object
+      required: [id, code, name, showable]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        categoryId:
+          type: string
+          format: uuid
+        showable:
+          type: boolean
+          description: Có biến thể bán được giá > 0 và có ảnh đã xử lý (mới lên được banner)
+    HomeBannerList:
+      type: object
+      description: |
+        Danh sách banner (Task 453). campaigns là mọi chiến dịch web chưa xóa; categories là danh mục đang dùng; products
+        chỉ gồm mẫu đang bán mà danh sách nhắc (ghim, đích). Chọn mẫu để ghim dùng tìm sản phẩm của danh mục.
+      required: [revision, banners, statuses, images, campaigns, categories, products]
+      properties:
+        revision:
+          type: integer
+          format: int32
+          minimum: 0
+        updatedBy:
+          type: string
+          format: uuid
+        updatedAt:
+          type: string
+          format: date-time
+        banners:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomeBanner"
+        statuses:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomeBannerStatus"
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomeBannerImage"
+        campaigns:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomeBannerCampaign"
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomeBannerCategory"
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomeBannerProduct"
+    SaveBannersRequest:
+      type: object
+      required: [revision, banners]
+      properties:
+        revision:
+          type: integer
+          format: int32
+          minimum: 0
+        banners:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/HomeBanner"
+    PreviewBannersRequest:
+      type: object
+      required: [banners]
+      properties:
+        banners:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/HomeBanner"
+    BannerPreview:
+      type: object
+      required: [statuses]
+      properties:
+        statuses:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomeBannerStatus"
+    WebHomeBannerPicture:
+      type: object
+      required: [desktop, desktopSmall, mobile, alt]
+      properties:
+        desktop:
+          type: string
+          description: WebP rộng 2400 của ảnh máy tính
+        desktopSmall:
+          type: string
+          description: WebP rộng 1200 của ảnh máy tính
+        mobile:
+          type: string
+          description: WebP rộng 1200 của ảnh điện thoại (không có thì của ảnh máy tính)
+        alt:
+          type: string
+    WebHomeBannerLink:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          $ref: "#/components/schemas/HomeBannerLinkKind"
+        id:
+          type: string
+          format: uuid
+    WebHomeBanner:
+      type: object
+      required: [id, kind, kicker, title, cta, theme, productIds]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/HomeBannerKind"
+        campaignId:
+          type: string
+          format: uuid
+        categoryId:
+          type: string
+          format: uuid
+        kicker:
+          type: string
+        title:
+          type: string
+        cta:
+          type: string
+        theme:
+          $ref: "#/components/schemas/HomeBannerTheme"
+        productIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        picture:
+          $ref: "#/components/schemas/WebHomeBannerPicture"
+        link:
+          $ref: "#/components/schemas/WebHomeBannerLink"
+    WebHomeBannerList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebHomeBanner"
     WebIntake:
       type: object
       required: [paused, version]

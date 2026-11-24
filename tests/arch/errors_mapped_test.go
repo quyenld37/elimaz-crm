@@ -10,8 +10,8 @@ import (
 )
 
 // mappedModules: module mà mọi sentinel xuất ra (var Err… của gói gốc) phải có dòng trong bảng ánh xạ lỗi của lớp
-// HTTP (kế hoạch M2, Task M2-02: customer, order, promotion).
-func mappedModules() []string { return []string{"customer", "order", "promotion"} }
+// HTTP (kế hoạch M2, Task M2-02: customer, order, promotion; M5 Task 453: content).
+func mappedModules() []string { return []string{"customer", "order", "promotion", "content"} }
 
 // declaredSentinels trả "<module>.ErrX" của mọi biến cấp gói tên Err… xuất ra, trong tệp không phải test của gói gốc
 // internal/modules/<module> (không quét gói con: lỗi của gói con được bọc thành sentinel của gói gốc).

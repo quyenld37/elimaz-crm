@@ -520,6 +520,10 @@ type Purpose struct {
 	Upload bool
 
 	Private bool
+
+	Preset int
+
+	MinWidth int
 }
 func M1Purposes() []Purpose
 func PurposeOf(key string) (Purpose, bool)
@@ -573,8 +577,9 @@ type UploadInput struct {
 	SizeBytes   int64
 }
 type VariantSpec struct {
-	Width  int
-	Format string
+	Width   int
+	Format  string
+	Quality int
 }
 func Preset(version int) ([]VariantSpec, bool)
 type VariantURL struct {

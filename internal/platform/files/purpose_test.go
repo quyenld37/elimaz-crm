@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"elimaz.com.vn/crm/internal/modules/cash"
+	"elimaz.com.vn/crm/internal/modules/content"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/order"
@@ -32,10 +33,10 @@ func pgCode(err error) string {
 }
 
 // allPurposes là mọi mục đích có dòng trong bảng sau migration (M1, M2 customer_import, M3 carrier_label và
-// cod_statement) cùng extra.
+// cod_statement, M5 order_request_photo và web_banner) cùng extra.
 func allPurposes(extra ...files.Purpose) []files.Purpose {
 	ps := append(files.M1Purposes(), customer.ImportPurpose(), fulfillment.LabelPurpose(), cash.StatementPurpose(),
-		order.RequestPhotoPurpose())
+		order.RequestPhotoPurpose(), content.BannerPurpose())
 	return append(ps, extra...)
 }
 

@@ -18,9 +18,9 @@ import (
 	"elimaz.com.vn/crm/internal/platform/internal/store"
 )
 
-// Image tạo tệp mục đích purpose của tenantID ở trạng thái ready kèm 12 biến thể của bộ kích thước v1 (khóa
-// img/<sha>/v1/… trên public; mục đích có Private trong sổ mục đích → priv/<tenant>/<id>/v1/… trên private) và trả mã
-// tệp. tx là crm_app hay chủ bảng trong tenancy.WithTenant của tenantID. Lỗi làm test dừng.
+// Image tạo tệp mục đích purpose của tenantID ở trạng thái ready kèm biến thể của bộ kích thước v1 (12 biến thể, khóa
+// img/<sha>/v1/… trên public; mục đích có bộ riêng như web_banner → bộ đó, Task 453; mục đích có Private trong sổ
+// mục đích → priv/<tenant>/<id>/v1/… trên private) và trả mã tệp. tx là crm_app hay chủ bảng trong tenancy.WithTenant của tenantID. Lỗi làm test dừng.
 func Image(t testing.TB, tx pgx.Tx, tenantID uuid.UUID, purpose string) uuid.UUID {
 	t.Helper()
 	id := Uploaded(t, tx, tenantID, purpose)
@@ -31,22 +31,28 @@ func Image(t testing.TB, tx pgx.Tx, tenantID uuid.UUID, purpose string) uuid.UUI
 	}
 	sum := make([]byte, 32)
 	_, _ = rand.Read(sum)
+	p, _ := files.PurposeOf(purpose)
+	preset := 1
+	if p.Preset != 0 {
+		preset = p.Preset
+	}
 	if _, err := q.SetFileReady(t.Context(), store.SetFileReadyParams{
 		DetectedType: pgtype.Text{String: "image/jpeg", Valid: true}, Width: pgtype.Int4{Int32: 2000, Valid: true},
-		Height: pgtype.Int4{Int32: 3000, Valid: true}, ContentSha256: sum, PresetVersion: pgtype.Int4{Int32: 1, Valid: true},
-		Bucket: row.Bucket, Key: row.Key, ID: id,
+		Height: pgtype.Int4{Int32: 3000, Valid: true}, ContentSha256: sum,
+		PresetVersion: pgtype.Int4{Int32: int32(preset), Valid: true},
+		Bucket:        row.Bucket, Key: row.Key, ID: id,
 	}); err != nil {
 		t.Fatalf("filestest: đặt ready: %v", err)
 	}
-	p, _ := files.PurposeOf(purpose)
-	specs, _ := files.Preset(1)
+	specs, _ := files.Preset(preset)
 	for _, s := range specs {
-		b, key := files.BucketPublic, files.VariantKey(hex.EncodeToString(sum), 1, s.Width, s.Format)
+		b, key := files.BucketPublic, files.VariantKey(hex.EncodeToString(sum), preset, s.Width, s.Format)
 		if p.Private {
-			b, key = files.BucketPrivate, files.PrivateVariantKey(tenantID, id, 1, s.Width, s.Format)
+			b, key = files.BucketPrivate, files.PrivateVariantKey(tenantID, id, preset, s.Width, s.Format)
 		}
 		if err := q.InsertFileVariant(t.Context(), store.InsertFileVariantParams{
-			TenantID: tenantID, FileID: id, PresetVersion: 1, Width: int32(s.Width), Format: s.Format, //nolint:gosec // cỡ nhỏ
+			TenantID: tenantID, FileID: id, PresetVersion: int32(preset), Width: int32(s.Width), //nolint:gosec // cỡ nhỏ
+			Format: s.Format,
 			Bucket: string(b), Key: key, SizeBytes: 1000,
 		}); err != nil {
 			t.Fatalf("filestest: ghi biến thể: %v", err)

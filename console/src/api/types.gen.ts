@@ -963,6 +963,172 @@ export type WebOrderRequest = {
     };
 };
 
+export type HomeBannerKind = 'campaign' | 'trending' | 'new' | 'category' | 'image';
+
+export type HomeBannerTheme = 'auto' | 'red' | 'black' | 'light';
+
+export type HomeBannerLinkKind = 'campaign' | 'category' | 'product' | 'offers';
+
+/**
+ * Lý do banner không hiện (đúng tên của website cũ)
+ */
+export type HomeBannerHidden = 'disabled' | 'scheduled' | 'expired' | 'campaign-missing' | 'campaign-not-running' | 'category-missing' | 'no-products' | 'image-missing' | 'product-missing';
+
+/**
+ * Một banner trang chủ (Task 453). Chữ rỗng = website tự điền. Chỉ campaign có campaignId; chỉ category có
+ * categoryId; ảnh (imageDesktop, imageMobile, alt, linkKind, linkId) chỉ ở loại image, loại image không có chữ,
+ * màu, ghim. Giới hạn (kiểm ở máy chủ, 422): kicker 40, title 60, cta 30, alt 120 ký tự; ghim ≤ 3.
+ *
+ */
+export type HomeBanner = {
+    id: string;
+    enabled: boolean;
+    kind: HomeBannerKind;
+    campaignId?: string;
+    categoryId?: string;
+    kicker?: string;
+    title?: string;
+    cta?: string;
+    theme?: HomeBannerTheme;
+    startsAt?: string;
+    endsAt?: string;
+    productIds?: Array<string>;
+    /**
+     * Mã tệp ảnh máy tính (mục đích web_banner, khuyên 2368×600, chữ trong vùng giữa rộng 1800)
+     */
+    imageDesktop?: string;
+    /**
+     * Mã tệp ảnh điện thoại tùy chọn (khuyên 1080×640, vùng giữa rộng 900)
+     */
+    imageMobile?: string;
+    alt?: string;
+    linkKind?: HomeBannerLinkKind;
+    linkId?: string;
+};
+
+export type HomeBannerStatus = {
+    id: string;
+    shown: boolean;
+    reason?: HomeBannerHidden;
+};
+
+export type HomeBannerImage = {
+    fileId: string;
+    /**
+     * Trạng thái tệp (awaiting_upload, uploaded, processing, ready, rejected, lost); không có tệp → missing
+     */
+    status: string;
+    deleted: boolean;
+    /**
+     * Đường dẫn WebP rộng 2400 (có khi ready)
+     */
+    desktop?: string;
+    /**
+     * Đường dẫn WebP rộng 1200 (có khi ready)
+     */
+    desktopSmall?: string;
+};
+
+export type HomeBannerCampaign = {
+    id: string;
+    name: string;
+    percent: number;
+    scope: 'all' | 'products' | 'categories';
+    state: 'draft' | 'enabled' | 'paused';
+    startsAt: string;
+    endsAt: string;
+    targetIds: Array<string>;
+    running: boolean;
+};
+
+export type HomeBannerCategory = {
+    id: string;
+    parentId?: string;
+    name: string;
+};
+
+export type HomeBannerProduct = {
+    id: string;
+    code: string;
+    name: string;
+    categoryId?: string;
+    /**
+     * Có biến thể bán được giá > 0 và có ảnh đã xử lý (mới lên được banner)
+     */
+    showable: boolean;
+};
+
+/**
+ * Danh sách banner (Task 453). campaigns là mọi chiến dịch web chưa xóa; categories là danh mục đang dùng; products
+ * chỉ gồm mẫu đang bán mà danh sách nhắc (ghim, đích). Chọn mẫu để ghim dùng tìm sản phẩm của danh mục.
+ *
+ */
+export type HomeBannerList = {
+    revision: number;
+    updatedBy?: string;
+    updatedAt?: string;
+    banners: Array<HomeBanner>;
+    statuses: Array<HomeBannerStatus>;
+    images: Array<HomeBannerImage>;
+    campaigns: Array<HomeBannerCampaign>;
+    categories: Array<HomeBannerCategory>;
+    products: Array<HomeBannerProduct>;
+};
+
+export type SaveBannersRequest = {
+    revision: number;
+    banners: Array<HomeBanner>;
+};
+
+export type PreviewBannersRequest = {
+    banners: Array<HomeBanner>;
+};
+
+export type BannerPreview = {
+    statuses: Array<HomeBannerStatus>;
+};
+
+export type WebHomeBannerPicture = {
+    /**
+     * WebP rộng 2400 của ảnh máy tính
+     */
+    desktop: string;
+    /**
+     * WebP rộng 1200 của ảnh máy tính
+     */
+    desktopSmall: string;
+    /**
+     * WebP rộng 1200 của ảnh điện thoại (không có thì của ảnh máy tính)
+     */
+    mobile: string;
+    alt: string;
+};
+
+export type WebHomeBannerLink = {
+    kind: HomeBannerLinkKind;
+    id?: string;
+};
+
+export type WebHomeBanner = {
+    id: string;
+    kind: HomeBannerKind;
+    campaignId?: string;
+    categoryId?: string;
+    kicker: string;
+    title: string;
+    cta: string;
+    theme: HomeBannerTheme;
+    productIds: Array<string>;
+    startsAt?: string;
+    endsAt?: string;
+    picture?: WebHomeBannerPicture;
+    link?: WebHomeBannerLink;
+};
+
+export type WebHomeBannerList = {
+    items: Array<WebHomeBanner>;
+};
+
 export type WebIntake = {
     paused: boolean;
     /**
@@ -8667,6 +8833,87 @@ export type SetWebIntakeResponses = {
 
 export type SetWebIntakeResponse = SetWebIntakeResponses[keyof SetWebIntakeResponses];
 
+export type GetBannersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/content/banners';
+};
+
+export type GetBannersErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetBannersError = GetBannersErrors[keyof GetBannersErrors];
+
+export type GetBannersResponses = {
+    /**
+     * getBanners
+     */
+    200: HomeBannerList;
+};
+
+export type GetBannersResponse = GetBannersResponses[keyof GetBannersResponses];
+
+export type SaveBannersData = {
+    body: SaveBannersRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/content/banners';
+};
+
+export type SaveBannersErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SaveBannersError = SaveBannersErrors[keyof SaveBannersErrors];
+
+export type SaveBannersResponses = {
+    /**
+     * saveBanners
+     */
+    200: HomeBannerList;
+};
+
+export type SaveBannersResponse = SaveBannersResponses[keyof SaveBannersResponses];
+
+export type PreviewBannersData = {
+    body: PreviewBannersRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/content/banners/preview';
+};
+
+export type PreviewBannersErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type PreviewBannersError = PreviewBannersErrors[keyof PreviewBannersErrors];
+
+export type PreviewBannersResponses = {
+    /**
+     * previewBanners
+     */
+    200: BannerPreview;
+};
+
+export type PreviewBannersResponse = PreviewBannersResponses[keyof PreviewBannersResponses];
+
 export type GetBirthdaySettingsData = {
     body?: never;
     path?: never;
@@ -10992,6 +11239,37 @@ export type WebCampaignResponses = {
 };
 
 export type WebCampaignResponse = WebCampaignResponses[keyof WebCampaignResponses];
+
+export type WebHomeBannersData = {
+    body?: never;
+    headers?: {
+        /**
+         * ETag của lần đọc trước (website, Task 190)
+         */
+        'If-None-Match'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/content/banners';
+};
+
+export type WebHomeBannersErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebHomeBannersError = WebHomeBannersErrors[keyof WebHomeBannersErrors];
+
+export type WebHomeBannersResponses = {
+    /**
+     * Banner đang hiện
+     */
+    200: WebHomeBannerList;
+};
+
+export type WebHomeBannersResponse = WebHomeBannersResponses[keyof WebHomeBannersResponses];
 
 export type WebQuoteData = {
     body: WebQuoteRequest;

@@ -413,6 +413,35 @@ type CatalogVariantsV struct {
 	WeightGrams   pgtype.Int4
 }
 
+type ContentHomeBanner struct {
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	Position     int32
+	Enabled      bool
+	Kind         string
+	CampaignID   *uuid.UUID
+	CategoryID   *uuid.UUID
+	Kicker       string
+	Title        string
+	Cta          string
+	Theme        string
+	StartsAt     pgtype.Timestamptz
+	EndsAt       pgtype.Timestamptz
+	ProductIds   []uuid.UUID
+	ImageDesktop *uuid.UUID
+	ImageMobile  *uuid.UUID
+	Alt          string
+	LinkKind     pgtype.Text
+	LinkID       *uuid.UUID
+}
+
+type ContentHomeBannerSet struct {
+	TenantID  uuid.UUID
+	Revision  int32
+	UpdatedBy *uuid.UUID
+	UpdatedAt pgtype.Timestamptz
+}
+
 type CustomerAdminUnit struct {
 	Code          string
 	Level         string

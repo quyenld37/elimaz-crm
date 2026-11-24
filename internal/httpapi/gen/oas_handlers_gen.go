@@ -5560,6 +5560,72 @@ func (s *Server) handleExportBirthdayCustomersRequest(args [0]string, argsEscape
 	}
 }
 
+// handleGetBannersRequest handles getBanners operation.
+//
+// Danh sách banner trang chủ theo thứ tự hiện, kèm revision, trạng thái hiện/ẩn (lý
+// do), ảnh, chiến dịch, danh mục, mẫu được nhắc (Task 453).
+//
+// GET /api/v1/content/banners
+func (s *Server) handleGetBannersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response GetBannersRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetBannersOperation,
+			OperationSummary: "Danh sách banner trang chủ theo thứ tự hiện, kèm revision, trạng thái hiện/ẩn (lý do), ảnh, chiến dịch, danh mục, mẫu được nhắc (Task 453)",
+			OperationID:      "getBanners",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = GetBannersRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetBanners(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetBanners(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetBannersResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetBirthdaySettingsRequest handles getBirthdaySettings operation.
 //
 // Cài đặt quà sinh nhật của shop kèm lượt phát gần nhất; chưa lưu → mặc
@@ -13331,6 +13397,91 @@ func (s *Server) handlePostStockDocumentRequest(args [1]string, argsEscaped bool
 	}
 }
 
+// handlePreviewBannersRequest handles previewBanners operation.
+//
+// Xem trước: danh sách gửi lên (chưa lưu) hiện hay ẩn lúc này, lý do ẩn; cùng
+// luật kiểm như saveBanners (Task 453).
+//
+// POST /api/v1/content/banners/preview
+func (s *Server) handlePreviewBannersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: PreviewBannersOperation,
+			ID:   "previewBanners",
+		}
+	)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodePreviewBannersRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response PreviewBannersRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    PreviewBannersOperation,
+			OperationSummary: "Xem trước: danh sách gửi lên (chưa lưu) hiện hay ẩn lúc này, lý do ẩn; cùng luật kiểm như saveBanners (Task 453)",
+			OperationID:      "previewBanners",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *PreviewBannersRequest
+			Params   = struct{}
+			Response = PreviewBannersRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.PreviewBanners(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.PreviewBanners(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodePreviewBannersResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handlePreviewCodAdjustmentRequest handles previewCodAdjustment operation.
 //
 // Xem trước điều chỉnh COD (không đổi dữ liệu): số dư trước, sau, cảnh báo,
@@ -16147,6 +16298,110 @@ func (s *Server) handleRunBirthdayGiftsRequest(args [0]string, argsEscaped bool,
 	}
 
 	if err := encodeRunBirthdayGiftsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleSaveBannersRequest handles saveBanners operation.
+//
+// Tối đa 8 banner (422 too_many_banners). Trường không thuộc loại bị bỏ (như admin
+// cũ). Ảnh là mã tệp tải lên bằng createUpload mục đích web_banner (JPEG, PNG, WebP
+// ≤ 8 MiB, rộng ≥ 600 px); ảnh bị từ chối → 422 file_rejected, không có, đã xóa,
+// sai mục đích → 422 banner_image_invalid; ảnh đang xử lý vẫn lưu được (banner ẩn
+// tới khi xong). Ghim ≤ 3 mẫu đang bán thuộc nguồn của banner (chiến dịch, danh
+// mục và danh mục con).
+//
+// PUT /api/v1/content/banners
+func (s *Server) handleSaveBannersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SaveBannersOperation,
+			ID:   "saveBanners",
+		}
+	)
+	params, err := decodeSaveBannersParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSaveBannersRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response SaveBannersRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SaveBannersOperation,
+			OperationSummary: "Thay cả danh sách banner khi revision khớp (409 version_conflict); luật sai → 422 với mã riêng (Task 453)",
+			OperationID:      "saveBanners",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *SaveBannersRequest
+			Params   = SaveBannersParams
+			Response = SaveBannersRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSaveBannersParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SaveBanners(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SaveBanners(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSaveBannersResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -21234,6 +21489,92 @@ func (s *Server) handleWebGetOrderRequest(args [1]string, argsEscaped bool, w ht
 	}
 
 	if err := encodeWebGetOrderResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebHomeBannersRequest handles webHomeBanners operation.
+//
+// Task 453 (M5-41). Website tự lấy mẫu, giá cho banner từ API danh mục, chiến dịch
+// (như resolveBanners cũ). Bộ đệm 60 s, làm mới sớm hơn theo sự kiện
+// content.banners.changed, promotion.web_campaign.changed.
+//
+// GET /api/v1/web/content/banners
+func (s *Server) handleWebHomeBannersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebHomeBannersOperation,
+			ID:   "webHomeBanners",
+		}
+	)
+	params, err := decodeWebHomeBannersParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebHomeBannersRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebHomeBannersOperation,
+			OperationSummary: "Banner trang chủ đang hiện (bật, trong giờ, nguồn có mẫu, ảnh đã xử lý) theo thứ tự, kèm đường dẫn ảnh; có ETag",
+			OperationID:      "webHomeBanners",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "If-None-Match",
+					In:   "header",
+				}: params.IfNoneMatch,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebHomeBannersParams
+			Response = WebHomeBannersRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebHomeBannersParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebHomeBanners(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebHomeBanners(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebHomeBannersResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

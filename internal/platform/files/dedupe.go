@@ -25,7 +25,7 @@ func (p *Processor) findDuplicate(ctx context.Context, jb job, sumHex string) (u
 	err = tenancy.WithTenant(ctx, p.o.DB, jb.tenant, func(tx pgx.Tx) error {
 		var err error
 		id, err = store.New(tx).FindReadyDuplicate(ctx, store.FindReadyDuplicateParams{
-			TenantID: jb.tenant, ContentSha256: sum, Purpose: jb.purpose.Key, PresetVersion: int4(p.o.PresetVersion),
+			TenantID: jb.tenant, ContentSha256: sum, Purpose: jb.purpose.Key, PresetVersion: int4(jb.purpose.presetFor(p.o.PresetVersion)),
 			ID: jb.fileID,
 		})
 		return err //nolint:wrapcheck // xử lý ở dưới

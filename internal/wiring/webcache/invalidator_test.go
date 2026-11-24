@@ -148,8 +148,9 @@ func TestInvalidator_Mapping(t *testing.T) {
 		{inv(tn, "flash_sale", "f1"), []call{{"bump", tn, cache.SpaceFlash, ""}}},
 		{inv(tn, "flash_item", "i1"), []call{{"bump", tn, cache.SpaceFlash, ""}}},
 		{inv(tn, "carrier_settings", "ghn"), []call{{"bump", tn, cache.SpaceCarriers, ""}, {"bump", tn, cache.SpaceShipQuote, ""}}},
-		{inv(tn, "web_campaign", "c1"), []call{{"bump", tn, cache.SpaceCampaigns, ""}}},
+		{inv(tn, "web_campaign", "c1"), []call{{"bump", tn, cache.SpaceCampaigns, ""}, {"bump", tn, cache.SpaceBanners, ""}}},
 		{inv(tn, "web_intake", tn.String()), []call{{"bump", tn, cache.SpaceWebIntake, ""}}},
+		{inv(tn, "home_banners", tn.String()), []call{{"bump", tn, cache.SpaceBanners, ""}}},
 	}
 	for _, c := range cases {
 		bus.push(inv(tn, "loai_la", "x")) // loại chưa biết: bỏ qua, không gọi gì
@@ -205,8 +206,9 @@ func waitFullResync(t *testing.T, rc *fakeRC, tenants ...uuid.UUID) {
 func TestInvalidator_SystemResync(t *testing.T) {
 	e := newEnv(t)
 	t1, t2 := e.staff.Tenant(t, "A"), e.staff.Tenant(t, "B")
-	if len(cache.Spaces()) != 12 {
-		t.Fatalf("có %d space, kế hoạch có 12 (Task 452 thêm campaigns, Task 456 thêm web_intake)", len(cache.Spaces()))
+	if len(cache.Spaces()) != 13 {
+		t.Fatalf("có %d space, kế hoạch có 13 (Task 452 thêm campaigns, Task 456 thêm web_intake, Task 453 thêm banners)",
+			len(cache.Spaces()))
 	}
 	bus, rc := &pushBus{}, newFakeRC()
 	v := webcache.NewInvalidator(bus, rc, e.staff.App, quiet())

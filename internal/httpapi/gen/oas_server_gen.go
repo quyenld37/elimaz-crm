@@ -385,6 +385,13 @@ type Handler interface {
 	//
 	// POST /api/v1/birthday-customers/export
 	ExportBirthdayCustomers(ctx context.Context, req *BirthdayExportRequest, params ExportBirthdayCustomersParams) (ExportBirthdayCustomersRes, error)
+	// GetBanners implements getBanners operation.
+	//
+	// Danh sách banner trang chủ theo thứ tự hiện, kèm revision, trạng thái hiện/ẩn (lý
+	// do), ảnh, chiến dịch, danh mục, mẫu được nhắc (Task 453).
+	//
+	// GET /api/v1/content/banners
+	GetBanners(ctx context.Context) (GetBannersRes, error)
 	// GetBirthdaySettings implements getBirthdaySettings operation.
 	//
 	// Cài đặt quà sinh nhật của shop kèm lượt phát gần nhất; chưa lưu → mặc
@@ -988,6 +995,13 @@ type Handler interface {
 	//
 	// POST /api/v1/inventory/documents/{id}/post
 	PostStockDocument(ctx context.Context, req *StockDocumentVersion, params PostStockDocumentParams) (PostStockDocumentRes, error)
+	// PreviewBanners implements previewBanners operation.
+	//
+	// Xem trước: danh sách gửi lên (chưa lưu) hiện hay ẩn lúc này, lý do ẩn; cùng
+	// luật kiểm như saveBanners (Task 453).
+	//
+	// POST /api/v1/content/banners/preview
+	PreviewBanners(ctx context.Context, req *PreviewBannersRequest) (PreviewBannersRes, error)
 	// PreviewCodAdjustment implements previewCodAdjustment operation.
 	//
 	// Xem trước điều chỉnh COD (không đổi dữ liệu): số dư trước, sau, cảnh báo,
@@ -1178,6 +1192,17 @@ type Handler interface {
 	//
 	// POST /api/v1/birthday-runs
 	RunBirthdayGifts(ctx context.Context, params RunBirthdayGiftsParams) (RunBirthdayGiftsRes, error)
+	// SaveBanners implements saveBanners operation.
+	//
+	// Tối đa 8 banner (422 too_many_banners). Trường không thuộc loại bị bỏ (như admin
+	// cũ). Ảnh là mã tệp tải lên bằng createUpload mục đích web_banner (JPEG, PNG, WebP
+	// ≤ 8 MiB, rộng ≥ 600 px); ảnh bị từ chối → 422 file_rejected, không có, đã xóa,
+	// sai mục đích → 422 banner_image_invalid; ảnh đang xử lý vẫn lưu được (banner ẩn
+	// tới khi xong). Ghim ≤ 3 mẫu đang bán thuộc nguồn của banner (chiến dịch, danh
+	// mục và danh mục con).
+	//
+	// PUT /api/v1/content/banners
+	SaveBanners(ctx context.Context, req *SaveBannersRequest, params SaveBannersParams) (SaveBannersRes, error)
 	// SaveBirthdaySettings implements saveBirthdaySettings operation.
 	//
 	// Giới hạn: amount 10.000–1.000.000 bước 1.000; minOrder 0–100.000.000; daysBefore 0–30;
@@ -1574,6 +1599,14 @@ type Handler interface {
 	//
 	// GET /api/v1/web/orders/{externalRef}
 	WebGetOrder(ctx context.Context, params WebGetOrderParams) (WebGetOrderRes, error)
+	// WebHomeBanners implements webHomeBanners operation.
+	//
+	// Task 453 (M5-41). Website tự lấy mẫu, giá cho banner từ API danh mục, chiến dịch
+	// (như resolveBanners cũ). Bộ đệm 60 s, làm mới sớm hơn theo sự kiện
+	// content.banners.changed, promotion.web_campaign.changed.
+	//
+	// GET /api/v1/web/content/banners
+	WebHomeBanners(ctx context.Context, params WebHomeBannersParams) (WebHomeBannersRes, error)
 	// WebImportCoupons implements webImportCoupons operation.
 	//
 	// Mỗi mã dùng một lần, chỉ kênh web, lô loại imported theo batchName (trống → "Mã

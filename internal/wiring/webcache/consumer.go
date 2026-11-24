@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/content"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order"
@@ -54,7 +55,7 @@ func (c *Consumer) Topics() []string {
 	return []string{
 		catalog.TopicProductUpdated, catalog.TopicPriceChanged, inventory.TopicStockChanged,
 		topicFlashOpened, topicFlashClosed, topicFlashChanged, string(topicOrderCancelled), fulfillment.TopicWebCarrierSettingsChanged,
-		promotion.TopicWebCampaignChanged, order.TopicWebIntakeChanged,
+		promotion.TopicWebCampaignChanged, order.TopicWebIntakeChanged, content.TopicBannersChanged,
 	}
 }
 
@@ -122,6 +123,9 @@ func entitiesOf(e events.StoredEvent) ([]realtime.Entity, error) {
 	case order.TopicWebIntakeChanged:
 		// Trạng thái nhận đơn web của shop (SpaceWebIntake, một khóa mỗi tenant: làm mới cả vùng).
 		return []realtime.Entity{{Type: EntityWebIntake, ID: e.AggregateID}}, nil
+	case content.TopicBannersChanged:
+		// Banner trang chủ của shop (SpaceBanners, một khóa mỗi tenant: làm mới cả vùng; Task 453).
+		return []realtime.Entity{{Type: EntityHomeBanners, ID: e.AggregateID}}, nil
 	}
 	// order.cancelled: chỉ đơn có dòng flash sale tạo báo hiệu flash_item, tra bằng order.FlashItemOf của M5-19; trước
 	// M5-19 bỏ qua. Chủ đề khác: không nghe.
