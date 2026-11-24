@@ -132,15 +132,10 @@ func (h *handler) bannerList(ctx context.Context, tx pgx.Tx, set content.BannerS
 	out := &gen.HomeBannerList{
 		Revision: int32(set.Revision), //nolint:gosec // G115: revision int4
 		Banners:  make([]gen.HomeBanner, 0, len(set.Banners)), Statuses: statusesOut(content.Statuses(set.Banners, ref, now)),
-		Images: []gen.HomeBannerImage{}, Campaigns: []gen.HomeBannerCampaign{}, Categories: []gen.HomeBannerCategory{},
+		Images: []gen.HomeBannerImage{}, Campaigns: []gen.HomeBannerCampaign{},
 		Products: []gen.HomeBannerProduct{},
 	}
-	if set.UpdatedBy != nil {
-		out.UpdatedBy = gen.NewOptUUID(*set.UpdatedBy)
-	}
-	if set.UpdatedAt != nil {
-		out.UpdatedAt = gen.NewOptDateTime(*set.UpdatedAt)
-	}
+	out.UpdatedBy, out.UpdatedAt = stampOut(set.UpdatedBy, set.UpdatedAt)
 	for _, b := range set.Banners {
 		out.Banners = append(out.Banners, bannerOut(b))
 		for _, id := range []uuid.UUID{b.ImageDesktop, b.ImageMobile} {
@@ -156,13 +151,7 @@ func (h *handler) bannerList(ctx context.Context, tx pgx.Tx, set content.BannerS
 			TargetIds: append([]uuid.UUID{}, c.TargetIDs...), Running: c.Running(now),
 		})
 	}
-	for _, c := range sortedValues(ref.Categories, func(a, b content.CategoryRef) bool { return a.Name < b.Name }) {
-		g := gen.HomeBannerCategory{ID: c.ID, Name: c.Name}
-		if c.ParentID != uuid.Nil {
-			g.ParentId = gen.NewOptUUID(c.ParentID)
-		}
-		out.Categories = append(out.Categories, g)
-	}
+	out.Categories = categoriesOut(ref.Categories)
 	for _, p := range sortedValues(ref.Products, func(a, b content.ProductRef) bool { return a.Code < b.Code }) {
 		g := gen.HomeBannerProduct{ID: p.ID, Code: p.Code, Name: p.Name, Showable: p.Showable}
 		if p.CategoryID != uuid.Nil {
@@ -246,6 +235,32 @@ func bannerOut(b content.Banner) gen.HomeBanner {
 		g.EndsAt = gen.NewOptDateTime(*b.EndsAt)
 	}
 	return g
+}
+
+// stampOut: người và lúc lưu danh sách lần cuối (chưa lưu: không có).
+func stampOut(by *uuid.UUID, at *time.Time) (gen.OptUUID, gen.OptDateTime) {
+	var u gen.OptUUID
+	var d gen.OptDateTime
+	if by != nil {
+		u = gen.NewOptUUID(*by)
+	}
+	if at != nil {
+		d = gen.NewOptDateTime(*at)
+	}
+	return u, d
+}
+
+// categoriesOut: danh mục đang dùng theo tên (banner, bộ phối).
+func categoriesOut(cats map[uuid.UUID]content.CategoryRef) []gen.HomeBannerCategory {
+	out := make([]gen.HomeBannerCategory, 0, len(cats))
+	for _, c := range sortedValues(cats, func(a, b content.CategoryRef) bool { return a.Name < b.Name }) {
+		g := gen.HomeBannerCategory{ID: c.ID, Name: c.Name}
+		if c.ParentID != uuid.Nil {
+			g.ParentId = gen.NewOptUUID(c.ParentID)
+		}
+		out = append(out, g)
+	}
+	return out
 }
 
 // sortedValues trả giá trị của m sắp theo less (bằng nhau: theo khóa) để câu trả lời ổn định.

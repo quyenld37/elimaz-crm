@@ -117,31 +117,8 @@ func BestCampaign(cands []WebCampaign, list int64) (Applied, bool) {
 	return best, found
 }
 
-// CampaignSlug là phần tên của liên kết: bỏ dấu, chữ thường, mỗi chuỗi ký tự ngoài [a-z0-9] thành một "-", bỏ "-" ở
-// hai đầu, cắt 60 ký tự (cắt sau khi bỏ "-", như slugify của website). Bỏ dấu bằng textnorm.Fold (bảng tiếng Việt):
-// chữ Latin có dấu ngoài tiếng Việt (ñ, ç…) thành "-" thay vì chữ gốc như NFD của website; chỉ làm liên kết khác
-// tên, mã ở cuối vẫn tìm đúng chiến dịch (trang chuyển hướng về tên hiện tại).
-func CampaignSlug(name string) string {
-	var b strings.Builder
-	dash := false
-	for _, r := range textnorm.Fold(name) {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-			b.WriteRune(r)
-			dash = false
-			continue
-		}
-		if !dash {
-			b.WriteByte('-')
-			dash = true
-		}
-	}
-	s := strings.TrimPrefix(b.String(), "-")
-	s = strings.TrimSuffix(s, "-")
-	if len(s) > slugMax {
-		s = s[:slugMax]
-	}
-	return s
-}
+// CampaignSlug là phần tên của liên kết chiến dịch: textnorm.Slug(name, 60), đúng slugify(name, 60) của website.
+func CampaignSlug(name string) string { return textnorm.Slug(name, slugMax) }
 
 // CampaignLinkKey là 8 hex đầu của id (chữ thường): phần tìm chiến dịch của liên kết.
 func CampaignLinkKey(id uuid.UUID) string {

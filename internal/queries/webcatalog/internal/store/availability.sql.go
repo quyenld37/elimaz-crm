@@ -55,3 +55,38 @@ func (q *Queries) AvailabilityOf(ctx context.Context, arg AvailabilityOfParams) 
 	}
 	return items, nil
 }
+
+const inStockProducts = `-- name: InStockProducts :many
+SELECT DISTINCT v.product_id
+FROM catalog.variants_v AS v
+JOIN inventory.stock_available_v AS sa ON sa.variant_id = v.variant_id AND sa.warehouse_id = $1::uuid
+WHERE v.product_id = ANY($2::uuid[]) AND v.sellable AND sa.available > 0
+ORDER BY v.product_id
+`
+
+type InStockProductsParams struct {
+	WarehouseID uuid.UUID
+	ProductIds  []uuid.UUID
+}
+
+// Mẫu trong product_ids có ít nhất một biến thể bán được còn có thể bán (> 0) ở kho warehouse_id (Task 454: bộ phối
+// "hết hàng" khi một món không còn cỡ nào). Mã lạ, mẫu không còn hàng → không có dòng.
+func (q *Queries) InStockProducts(ctx context.Context, arg InStockProductsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, inStockProducts, arg.WarehouseID, arg.ProductIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var product_id uuid.UUID
+		if err := rows.Scan(&product_id); err != nil {
+			return nil, err
+		}
+		items = append(items, product_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

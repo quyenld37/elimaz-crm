@@ -285,6 +285,10 @@ type GetLabelBatchRes interface {
 	getLabelBatchRes()
 }
 
+type GetLooksRes interface {
+	getLooksRes()
+}
+
 type GetMeRes interface {
 	getMeRes()
 }
@@ -593,6 +597,10 @@ type PreviewCodAdjustmentRes interface {
 	previewCodAdjustmentRes()
 }
 
+type PreviewLooksRes interface {
+	previewLooksRes()
+}
+
 type PreviewShipmentCorrectionRes interface {
 	previewShipmentCorrectionRes()
 }
@@ -707,6 +715,10 @@ type SaveBannersRes interface {
 
 type SaveBirthdaySettingsRes interface {
 	saveBirthdaySettingsRes()
+}
+
+type SaveLooksRes interface {
+	saveLooksRes()
 }
 
 type SaveWebCampaignRes interface {
@@ -917,6 +929,10 @@ type WebHomeBannersRes interface {
 	webHomeBannersRes()
 }
 
+type WebHomeLooksRes interface {
+	webHomeLooksRes()
+}
+
 type WebImportCouponsRes interface {
 	webImportCouponsRes()
 }
@@ -931,6 +947,10 @@ type WebListRequestsRes interface {
 
 type WebLocationsRes interface {
 	webLocationsRes()
+}
+
+type WebLookRes interface {
+	webLookRes()
 }
 
 type WebMarkCouponGivenRes interface {

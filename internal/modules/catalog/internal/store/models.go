@@ -442,6 +442,40 @@ type ContentHomeBannerSet struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+type ContentLook struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	Position      int32
+	OnHome        bool
+	Name          string
+	Title         string
+	Headline      string
+	Story         string
+	PhotoFileID   uuid.UUID
+	CategoryIds   []uuid.UUID
+	ModelHeightCm pgtype.Int4
+	ModelSize     string
+	StartsAt      pgtype.Timestamptz
+	EndsAt        pgtype.Timestamptz
+}
+
+type ContentLookItem struct {
+	TenantID  uuid.UUID
+	LookID    uuid.UUID
+	ProductID uuid.UUID
+	Color     string
+	XPct      pgtype.Numeric
+	YPct      pgtype.Numeric
+	Position  int32
+}
+
+type ContentLookSet struct {
+	TenantID  uuid.UUID
+	Revision  int32
+	UpdatedBy *uuid.UUID
+	UpdatedAt pgtype.Timestamptz
+}
+
 type CustomerAdminUnit struct {
 	Code          string
 	Level         string

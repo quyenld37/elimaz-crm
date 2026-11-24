@@ -199,3 +199,40 @@ func TestSold30(t *testing.T) {
 		return nil
 	})
 }
+
+// InStock (Task 454): mẫu có một biến thể bán được còn hàng ở kho MAIN → có; tồn 0, đã xuất hết, biến thể ngừng bán
+// còn hàng, mã lạ → không; mã trùng một lần, theo mã tăng dần; rỗng → rỗng.
+func TestInStock(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ps := e.productsOfSeller[e.seller]
+	if len(ps) < 4 {
+		t.Fatalf("dữ liệu mẫu có %d mẫu của người bán, cần 4", len(ps))
+	}
+	stocked, empty, soldOut, stopped := ps[0], ps[1], ps[2], ps[3]
+	e.stock(e.variantsOf(stocked)[1], 1)
+	so := e.variantsOf(soldOut)[0]
+	e.stock(so, 3)
+	e.export(so, 3)
+	st := e.variantsOf(stopped)[0]
+	e.stock(st, 5)
+	e.exec("UPDATE catalog.variants SET status = 'discontinued' WHERE id = $1", st)
+
+	var got []uuid.UUID
+	e.read(func(tx pgx.Tx) error {
+		var err error
+		got, err = webcatalog.InStock(t.Context(), tx, []uuid.UUID{empty, stocked, uuid.New(), soldOut, stopped, stocked})
+		return err //nolint:wrapcheck // test
+	})
+	if !slices.Equal(got, []uuid.UUID{stocked}) {
+		t.Fatalf("InStock = %v, muốn chỉ %s", got, stocked)
+	}
+	e.read(func(tx pgx.Tx) error {
+		var err error
+		got, err = webcatalog.InStock(t.Context(), tx, nil)
+		return err //nolint:wrapcheck // test
+	})
+	if got == nil || len(got) != 0 {
+		t.Fatalf("InStock rỗng = %#v, muốn mảng rỗng", got)
+	}
+}

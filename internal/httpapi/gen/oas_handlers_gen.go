@@ -6835,6 +6835,72 @@ func (s *Server) handleGetLabelBatchRequest(args [1]string, argsEscaped bool, w 
 	}
 }
 
+// handleGetLooksRequest handles getLooks operation.
+//
+// Danh sách bộ phối theo thứ tự, kèm revision, trạng thái hiện/ẩn (lý do, món gây
+// ra, tiêu đề tự động, link), mẫu, ảnh của các món, danh mục (Task 454).
+//
+// GET /api/v1/content/looks
+func (s *Server) handleGetLooksRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response GetLooksRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetLooksOperation,
+			OperationSummary: "Danh sách bộ phối theo thứ tự, kèm revision, trạng thái hiện/ẩn (lý do, món gây ra, tiêu đề tự động, link), mẫu, ảnh của các món, danh mục (Task 454)",
+			OperationID:      "getLooks",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = GetLooksRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetLooks(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetLooks(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetLooksResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetMeRequest handles getMe operation.
 //
 // Chỉ cần đăng nhập và tài khoản không bị khóa (Task 315); nhân viên chưa có grant
@@ -13582,6 +13648,91 @@ func (s *Server) handlePreviewCodAdjustmentRequest(args [0]string, argsEscaped b
 	}
 }
 
+// handlePreviewLooksRequest handles previewLooks operation.
+//
+// Xem trước: danh sách bộ phối gửi lên (chưa lưu) hiện hay ẩn lúc này, lý do ẩn;
+// cùng luật kiểm như saveLooks (Task 454).
+//
+// POST /api/v1/content/looks/preview
+func (s *Server) handlePreviewLooksRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: PreviewLooksOperation,
+			ID:   "previewLooks",
+		}
+	)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodePreviewLooksRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response PreviewLooksRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    PreviewLooksOperation,
+			OperationSummary: "Xem trước: danh sách bộ phối gửi lên (chưa lưu) hiện hay ẩn lúc này, lý do ẩn; cùng luật kiểm như saveLooks (Task 454)",
+			OperationID:      "previewLooks",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *PreviewLooksRequest
+			Params   = struct{}
+			Response = PreviewLooksRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.PreviewLooks(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.PreviewLooks(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodePreviewLooksResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handlePreviewShipmentCorrectionRequest handles previewShipmentCorrection operation.
 //
 // Xem trước việc đảo Thành công của vận đơn (không đổi dữ liệu); trả token
@@ -16502,6 +16653,112 @@ func (s *Server) handleSaveBirthdaySettingsRequest(args [0]string, argsEscaped b
 	}
 
 	if err := encodeSaveBirthdaySettingsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleSaveLooksRequest handles saveLooks operation.
+//
+// Tối đa 500 bộ (422 too_many_looks), tối đa 6 bộ trên trang chủ (422
+// too_many_home_looks, kiểm sau khi khóa danh sách); mỗi bộ 1–3 món khác nhau
+// (look_items_invalid), chấm x, y trong 0–100 % (look_dot_invalid, làm tròn 2 chữ số), ảnh
+// là một ảnh sản phẩm của các món (look_photo_invalid; bộ đã lưu không đổi ảnh
+// và món thì không kiểm lại), giờ kết thúc sau giờ bắt đầu (look_window_invalid);
+// tên 1–28, tiêu đề 60, dòng dẫn 90, câu chuyện 220, màu 60, cỡ 6 ký tự, chiều
+// cao 130–200, ≤ 6 danh mục, mã và link key khác nhau (invalid_look). Món không cần đang
+// bán (bộ ẩn).
+//
+// PUT /api/v1/content/looks
+func (s *Server) handleSaveLooksRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SaveLooksOperation,
+			ID:   "saveLooks",
+		}
+	)
+	params, err := decodeSaveLooksParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSaveLooksRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response SaveLooksRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SaveLooksOperation,
+			OperationSummary: "Thay cả danh sách bộ phối khi revision khớp (409 version_conflict); luật sai → 422 với mã riêng (Task 454)",
+			OperationID:      "saveLooks",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *SaveLooksRequest
+			Params   = SaveLooksParams
+			Response = SaveLooksRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSaveLooksParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SaveLooks(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SaveLooks(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSaveLooksResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -21583,6 +21840,98 @@ func (s *Server) handleWebHomeBannersRequest(args [0]string, argsEscaped bool, w
 	}
 }
 
+// handleWebHomeLooksRequest handles webHomeLooks operation.
+//
+// Task 454 (M5-42). Bộ đã dựng sẵn phần không phụ thuộc giá (tiêu đề, dòng
+// người mẫu, ảnh, danh mục cho "Bán chạy cho dịp này", link); giá, cỡ, màu còn
+// hàng website tự lấy từ API danh mục. hidden (chỉ khi home=true): bộ đang bật trang
+// chủ mà bị ẩn vì product-missing, sold-out, photo-missing — website báo Telegram như
+// watch.ts cũ. Bộ đệm 60 s, làm mới sớm hơn theo sự kiện content.looks.changed.
+//
+// GET /api/v1/web/content/looks
+func (s *Server) handleWebHomeLooksRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebHomeLooksOperation,
+			ID:   "webHomeLooks",
+		}
+	)
+	params, err := decodeWebHomeLooksParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebHomeLooksRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebHomeLooksOperation,
+			OperationSummary: "Bộ phối cho website — home=true các bộ hiện trên trang chủ (≤ 6, theo vị trí) và các bộ trang chủ đang bị ẩn; home=false mọi bộ mở được bằng link; có ETag",
+			OperationID:      "webHomeLooks",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "home",
+					In:   "query",
+				}: params.Home,
+				{
+					Name: "If-None-Match",
+					In:   "header",
+				}: params.IfNoneMatch,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebHomeLooksParams
+			Response = WebHomeLooksRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebHomeLooksParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebHomeLooks(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebHomeLooks(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebHomeLooksResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebImportCouponsRequest handles webImportCoupons operation.
 //
 // Mỗi mã dùng một lần, chỉ kênh web, lô loại imported theo batchName (trống → "Mã
@@ -21914,6 +22263,91 @@ func (s *Server) handleWebLocationsRequest(args [0]string, argsEscaped bool, w h
 	}
 
 	if err := encodeWebLocationsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebLookRequest handles webLook operation.
+//
+// Task 454. slug là tên hiện tại để website chuyển hướng liên kết cũ. Đọc từ
+// bộ đệm của webHomeLooks home=false (60 s).
+//
+// GET /api/v1/web/content/looks/{linkKey}
+func (s *Server) handleWebLookRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebLookOperation,
+			ID:   "webLook",
+		}
+	)
+	params, err := decodeWebLookParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebLookRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebLookOperation,
+			OperationSummary: "Một bộ phối theo 8 hex đầu của id (trang /bo-phoi), kể cả bộ không lên trang chủ; đã xóa hay đang ẩn → 404",
+			OperationID:      "webLook",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "linkKey",
+					In:   "path",
+				}: params.LinkKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebLookParams
+			Response = WebLookRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebLookParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebLook(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebLook(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebLookResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

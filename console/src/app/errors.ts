@@ -153,6 +153,14 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   too_many_pins: "Mỗi banner ghim tối đa 3 sản phẩm",
   pin_not_in_source: "Sản phẩm ghim phải đang bán và thuộc chiến dịch hoặc danh mục của banner",
   banner_image_invalid: "Ảnh banner không còn hoặc không phải ảnh tải lên cho banner. Tải ảnh lại",
+  too_many_looks: "Tối đa 500 bộ phối",
+  too_many_home_looks: "Tối đa 6 bộ phối trên trang chủ. Tắt bớt một bộ trước khi bật bộ khác",
+  invalid_look:
+    "Bộ phối chưa đúng: cần tên (tối đa 28 ký tự), chữ không quá dài, chiều cao người mẫu 130–200 cm, tối đa 6 danh mục",
+  look_items_invalid: "Mỗi bộ phối có 1 đến 3 sản phẩm khác nhau",
+  look_dot_invalid: "Chấm sản phẩm phải nằm trong ảnh",
+  look_photo_invalid: "Ảnh người mẫu phải là một ảnh của sản phẩm trong bộ. Chọn lại ảnh",
+  look_window_invalid: "Thời gian kết thúc phải sau thời gian bắt đầu",
   // Yêu cầu về đơn hàng (Task 195)
   window_closed: "Đơn đã quá hạn đổi, trả hàng",
   qty_exceeded: "Số lượng yêu cầu vượt số còn đổi được của đơn",

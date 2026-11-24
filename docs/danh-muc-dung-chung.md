@@ -1109,6 +1109,7 @@ Package textnorm chuẩn hóa chữ tiếng Việt cho cột tìm kiếm (kế h
 
 ```go
 func Fold(s string) string
+func Slug(s string, maxLen int) string
 ```
 
 ## `internal/platform/urlerr` (gói `urlerr`)
