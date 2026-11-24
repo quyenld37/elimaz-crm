@@ -33,8 +33,9 @@ need() {  # need <công cụ> <vì sao>
 }
 has() { printf '%s\n' "$changed" | grep -E -q "$1"; }
 
-# Phần Go: chỉ khi có go.mod và có tệp Go hay go.mod/go.sum đổi.
-if [ -f go.mod ] && has '(\.go|go\.mod|go\.sum)$'; then
+# Phần Go: khi có go.mod và có tệp Go, go.mod/go.sum đổi — hay tệp dữ liệu mà test đọc (Task 478: openapi.yaml, testdata,
+# tệp go:embed, tài liệu test đọc theo đường dẫn; affected.py tự chọn gói). Tệp task (docs/tasks/) đổi mỗi lượt: bỏ qua.
+if [ -f go.mod ] && { has '(\.go|go\.mod|go\.sum)$' || printf '%s\n' "$changed" | grep -v '^docs/tasks/' | grep -q .; }; then
   if need go "build và test"; then
     run "go build ./..." go build ./...
     # --split (Task 473): vet, lint trên mọi gói bị ảnh hưởng; -race chỉ gói sửa trực tiếp, gói chỉ dùng tới test thường.
