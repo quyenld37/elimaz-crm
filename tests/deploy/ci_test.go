@@ -277,7 +277,7 @@ func makeDry(t *testing.T, args ...string) string {
 func TestMakeCI_RunsEveryGate(t *testing.T) {
 	out := makeDry(t, "ci")
 	for _, want := range []string{
-		"go build", "go vet ./...", "golangci-lint run ./...", "sqlc generate", "git diff --exit-code",
+		"go build", "go vet ./...", "go vet -tags drill,probe", "golangci-lint run ./...", "sqlc generate", "git diff --exit-code",
 		"TestSqlcVet", "go test -race -count=1 ./...", "govulncheck ./...", "tools/apicheck", "tools/catalog",
 		"jscpd", "test-guard.sh main", "gitleaks git", "gitleaks dir", "npx tsc --noEmit", "npx vitest run",
 	} {

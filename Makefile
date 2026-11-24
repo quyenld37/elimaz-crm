@@ -141,8 +141,12 @@ sqlc-vet: ## sqlc vet (luật sqlc/db-prepare) trên database thử đã migrate
 build: ## Dựng mọi gói, tệp chạy không cgo
 	CGO_ENABLED=0 go build -trimpath ./...
 
-vet:
+# Dòng hai (Task 483): thư mục chỉ có tệp mang nhãn build riêng bị go vet ./... bỏ trắng; vet (biên dịch cả tệp test)
+# với đúng nhãn. CHỈ vet, không chạy test: drill làm hỏng thật (docker kill, xóa volume). Thư mục mới loại này phải thêm
+# vào đây (tests/deploy TestMakeVet_CompilesTagOnlyDirs tự dò và đòi).
+vet: ## go vet mọi gói, cộng tests/drills (nhãn drill) và tests/probe (nhãn probe)
 	go vet ./...
+	go vet -tags drill,probe ./tests/drills/... ./tests/probe/...
 
 # --allow-serial-runners (Task 481): phiên khác đang giữ khóa $$TMPDIR/golangci-lint.lock thì chờ lượt, không đỏ.
 lint: ## golangci-lint theo .golangci.yml
