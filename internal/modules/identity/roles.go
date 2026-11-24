@@ -509,6 +509,7 @@ func permissionLabels() map[Permission][3]string {
 		"order.return.receive":       {groupOrder, "Nhận hàng trả về kho", ""},
 		"order.duplicates.resolve":   {groupOrder, "Xử lý đơn trùng", ""},
 		"order.settings.manage":      {groupOrder, "Cài đặt đơn, nguồn đơn", ""},
+		"order.web_intake.manage":    {groupOrder, "Tạm dừng, mở lại nhận đơn web", ""},
 		"customer.read":              {groupCustomer, "Xem khách hàng", ""},
 		"customer.write":             {groupCustomer, "Tạo, sửa hồ sơ khách", ""},
 		"customer.merge":             {groupCustomer, "Gộp khách, hoàn tác gộp", ""},

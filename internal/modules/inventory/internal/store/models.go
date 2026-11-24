@@ -1422,6 +1422,15 @@ type OrdTrafficSourcesV struct {
 	Position         int32
 }
 
+type OrdWebIntake struct {
+	TenantID  uuid.UUID
+	Paused    bool
+	Reason    pgtype.Text
+	ChangedBy pgtype.UUID
+	ChangedAt pgtype.Timestamptz
+	Version   int32
+}
+
 type PlatformAlertEvent struct {
 	ID       uuid.UUID
 	Key      string

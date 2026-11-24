@@ -963,6 +963,37 @@ export type WebOrderRequest = {
     };
 };
 
+export type WebIntake = {
+    paused: boolean;
+    /**
+     * Lý do tạm dừng (có khi đã nhập); mở lại không lý do thì không có
+     */
+    reason?: string;
+    /**
+     * Nhân viên đổi lần cuối; chưa ai đổi thì không có
+     */
+    changedBy?: string;
+    /**
+     * Tên hiển thị của changedBy
+     */
+    changedByName?: string;
+    changedAt?: string;
+    version: number;
+};
+
+export type SetWebIntakeRequest = {
+    paused: boolean;
+    /**
+     * Bắt buộc (sau khi cắt khoảng trắng) khi paused = true
+     */
+    reason?: string;
+    version: number;
+};
+
+export type WebIntakeStatus = {
+    paused: boolean;
+};
+
 export type WebOrderCreated = {
     orderId: string;
     code: string;
@@ -7811,6 +7842,62 @@ export type ListCampaignTargetsResponses = {
 
 export type ListCampaignTargetsResponse = ListCampaignTargetsResponses[keyof ListCampaignTargetsResponses];
 
+export type GetWebIntakeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/web-intake';
+};
+
+export type GetWebIntakeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetWebIntakeError = GetWebIntakeErrors[keyof GetWebIntakeErrors];
+
+export type GetWebIntakeResponses = {
+    /**
+     * getWebIntake
+     */
+    200: WebIntake;
+};
+
+export type GetWebIntakeResponse = GetWebIntakeResponses[keyof GetWebIntakeResponses];
+
+export type SetWebIntakeData = {
+    body: SetWebIntakeRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web-intake';
+};
+
+export type SetWebIntakeErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SetWebIntakeError = SetWebIntakeErrors[keyof SetWebIntakeErrors];
+
+export type SetWebIntakeResponses = {
+    /**
+     * setWebIntake
+     */
+    200: WebIntake;
+};
+
+export type SetWebIntakeResponse = SetWebIntakeResponses[keyof SetWebIntakeResponses];
+
 export type CheckCouponData = {
     body?: never;
     path?: never;
@@ -9862,3 +9949,28 @@ export type WebCreateOrderResponses = {
 };
 
 export type WebCreateOrderResponse = WebCreateOrderResponses[keyof WebCreateOrderResponses];
+
+export type WebIntakeStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/intake';
+};
+
+export type WebIntakeStatusErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebIntakeStatusError = WebIntakeStatusErrors[keyof WebIntakeStatusErrors];
+
+export type WebIntakeStatusResponses = {
+    /**
+     * Trạng thái nhận đơn web
+     */
+    200: WebIntakeStatus;
+};
+
+export type WebIntakeStatusResponse = WebIntakeStatusResponses[keyof WebIntakeStatusResponses];

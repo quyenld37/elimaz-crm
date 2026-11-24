@@ -104,6 +104,8 @@ var Permissions = []PermissionDef{ //nolint:gochecknoglobals // danh sách hằn
 	{"cash.refunds.waive", ScopeNone},
 	// M5 (kế hoạch M5 Task 189): tạo, xem, thu hồi khóa dịch vụ của website là quản trị: ScopeShop, chỉ Chủ.
 	{"identity.service_keys.manage", ScopeShop},
+	// M5 (Task 456): tạm dừng, mở lại nhận đơn web là chính sách toàn shop: ScopeShop (đọc dùng order.read).
+	{"order.web_intake.manage", ScopeShop},
 }
 
 // Loại phạm vi của một grant (cột user_role_grants.scope_type).

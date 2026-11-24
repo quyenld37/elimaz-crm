@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -33,7 +34,8 @@ func (h *handler) WebQuote(ctx context.Context, req *gen.WebQuoteRequest) (gen.W
 // hóa SĐT (sai → 422 invalid_phone) → giới hạn đơn theo SĐT (quá → 429 too_fast, không lưu) → WriteTx: tạo đơn
 // (web.Orders.Create, savepoint) và audit order.create của khóa dịch vụ cùng tx. Kết quả cuối được lưu theo khóa: 201
 // (cả khi đơn của cùng externalRef đã có), từ chối dứt khoát webOrderRefusal (422 quote_changed, item_unavailable,
-// coupon_invalid, mixed_sellers; 409 out_of_stock). Lỗi đầu vào khác (isOrderRefusal) trả lời nhưng không lưu; 503
+// coupon_invalid, mixed_sellers; 409 out_of_stock). Lỗi đầu vào khác (isOrderRefusal) và 503 web_orders_paused (shop
+// tạm dừng nhận đơn web, Task 456: mở lại rồi gửi lại cùng khóa thì xử lý lại) trả lời nhưng không lưu; 503
 // retry_later không lưu (WriteTx).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
@@ -64,7 +66,7 @@ func (h *handler) WebCreateOrder(ctx context.Context, req *gen.WebOrderRequest, 
 			err = auditWebOrder(ctx, tx, u, res.OrderID)
 		}
 		switch {
-		case isOrderRefusal(err):
+		case isOrderRefusal(err), errors.Is(err, order.ErrWebIntakePaused):
 			refused = err
 			return 0, nil, false, nil
 		case err != nil:

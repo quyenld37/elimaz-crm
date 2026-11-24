@@ -109,7 +109,8 @@ const maxWebNoteRunes = 2000
 // CreateFromWeb tạo đơn website in trong tx của bên gọi (một transaction; lỗi nào bên gọi cũng lùi cả). Người bán là
 // catalog.DefaultSeller, nguồn là nguồn có key web (SourceByKey), kênh web, ý định new, actor a là khóa dịch vụ. Thứ tự:
 //
-//  1. Đã có đơn web của ExternalRef → trả đơn đó (Replayed), không ghi gì.
+//  1. Đã có đơn web của ExternalRef → trả đơn đó (Replayed), không ghi gì. Chưa có mà shop đang tạm dừng nhận đơn web
+//     (GetWebIntake, đọc không khóa) và đơn gửi thẳng (sync) → ErrWebIntakePaused; queued vẫn nhận (Task 456).
 //  2. QuoteWeb trong tx: dòng không bán được → *ItemUnavailableError (của người bán khác → ErrMixedSellers).
 //  3. Mã không áp được: sync → *CouponInvalidError; queued → bỏ mã, price_review. Giá dòng hay tổng CRM khác số website
 //     đã báo: sync → *QuoteChangedError; queued → tạo theo số CRM, price_review, lưu báo giá web vào web_quote (QĐ15).
@@ -136,6 +137,9 @@ func (w Writer) CreateFromWeb(ctx context.Context, tx pgx.Tx, in WebOrderInput, 
 	}
 	if res, found, err := webOrderByRef(ctx, tx, seller, in.ExternalRef); found || err != nil {
 		return res, err
+	}
+	if err := checkWebIntake(ctx, tx, in.SubmittedVia); err != nil {
+		return WebOrderResult{}, err
 	}
 	src, err := SourceByKey(ctx, tx, SourceKeyWeb)
 	if err != nil {

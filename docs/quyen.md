@@ -21,7 +21,7 @@ trị nhân viên, vai trò, nền tảng là loại `toàn shop`.
 - Quyền quản trị (loại `toàn shop`) hiện có: `identity.users.manage`, `identity.roles.manage`, `platform.jobs.manage`,
   `platform.health.read`, `platform.files.manage`, `audit.read`; chính sách toàn shop của M2: `order.settings.manage`,
   `promotion.manage`; của M3: `fulfillment.carrier_accounts.manage`, `fulfillment.settings.manage`; của M5:
-  `identity.service_keys.manage`.
+  `identity.service_keys.manage`, `order.web_intake.manage`.
 - **Quyền `web.*` chỉ khóa dịch vụ giữ** (Task 189, ADR-18): khóa của website (`ek_…`, header `Authorization`) chỉ mang
   các quyền `web.*` được cấp lúc tạo (mã: `identity.ServiceKeyPermissions`, không thuộc `identity.Permissions`); không
   vai trò nhân viên nào nhận được chúng (vai trò tự định nghĩa → `unknown_permission`), và khóa không nhận quyền nào
@@ -125,6 +125,7 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `cash.refunds.record` | none | M3 | owner, accountant | Ghi phiếu chi trả khoản hoàn tiền cho khách |
 | `cash.refunds.waive` | none | M3 | owner | Đóng khoản hoàn "không hoàn" kèm lý do (khách đồng ý mất cọc) |
 | `identity.service_keys.manage` | toàn shop | M5 | owner | Tạo, xem, thu hồi khóa dịch vụ của website (khóa hiện một lần) |
+| `order.web_intake.manage` | toàn shop | M5 | owner, manager | Tạm dừng (kèm lý do), mở lại nhận đơn web; xem trạng thái dùng `order.read` |
 | `web.catalog.read` | none | M5 | | Khóa dịch vụ: đọc sản phẩm, giá, tồn cho website |
 | `web.orders.create` | none | M5 | | Khóa dịch vụ: tạo đơn web |
 | `web.orders.read` | none | M5 | | Khóa dịch vụ: tra đơn kênh web theo mã đơn web |

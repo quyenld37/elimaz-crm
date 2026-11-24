@@ -7901,6 +7901,72 @@ func (s *Server) handleGetWebCampaignRequest(args [1]string, argsEscaped bool, w
 	}
 }
 
+// handleGetWebIntakeRequest handles getWebIntake operation.
+//
+// Trạng thái nhận đơn web của shop: tạm dừng hay không, lý do, ai đổi, lúc nào
+// (Task 456).
+//
+// GET /api/v1/web-intake
+func (s *Server) handleGetWebIntakeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response GetWebIntakeRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetWebIntakeOperation,
+			OperationSummary: "Trạng thái nhận đơn web của shop: tạm dừng hay không, lý do, ai đổi, lúc nào (Task 456)",
+			OperationID:      "getWebIntake",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = GetWebIntakeRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetWebIntake(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetWebIntake(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetWebIntakeResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleHealthDeepRequest handles healthDeep operation.
 //
 // Kiểm sâu cho dịch vụ canh ngoài (Bearer HEALTH_TOKEN, Task 20); không có dữ liệu
@@ -16122,6 +16188,108 @@ func (s *Server) handleSetWebCampaignStateRequest(args [1]string, argsEscaped bo
 	}
 }
 
+// handleSetWebIntakeRequest handles setWebIntake operation.
+//
+// Tạm dừng chỉ chặn đơn website gửi thẳng (submittedVia = sync) bắt đầu sau khi
+// lệnh này commit: webCreateOrder trả 503 web_orders_paused. Đơn từ hàng đợi của
+// website (queued) và đơn đã có của cùng externalRef vẫn nhận. Mở lại không cần
+// lý do (gửi rỗng thì xóa lý do cũ).
+//
+// PUT /api/v1/web-intake
+func (s *Server) handleSetWebIntakeRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SetWebIntakeOperation,
+			ID:   "setWebIntake",
+		}
+	)
+	params, err := decodeSetWebIntakeParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSetWebIntakeRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response SetWebIntakeRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SetWebIntakeOperation,
+			OperationSummary: "Tạm dừng (lý do 1–300 ký tự bắt buộc, thiếu → 422 invalid_input) hay mở lại nhận đơn web khi version khớp (409 version_conflict) (Task 456)",
+			OperationID:      "setWebIntake",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *SetWebIntakeRequest
+			Params   = SetWebIntakeParams
+			Response = SetWebIntakeRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSetWebIntakeParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SetWebIntake(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SetWebIntake(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSetWebIntakeResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleStartCustomerImportRequest handles startCustomerImport operation.
 //
 // Nhập khách từ tệp Excel đã tải lên (mục đích customer_import); chạy nền; tệp
@@ -18917,7 +19085,10 @@ func (s *Server) handleWebCatalogTaxonomyRequest(args [0]string, argsEscaped boo
 // 201; 422 quote_changed (kèm quote: báo giá CRM hiện tại; chỉ khi submittedVia = sync),
 // item_unavailable (kèm variantIds), coupon_invalid (kèm reason; chỉ khi sync), mixed_sellers; 409
 // out_of_stock (kèm variantId, available). queued: giá hay mã lệch vẫn tạo theo số CRM,
-// priceReview = true. Tạm bận → 503 retry_later kèm Retry-After, không lưu.
+// priceReview = true. Tạm bận → 503 retry_later kèm Retry-After, không lưu. Shop đang tạm
+// dừng nhận đơn web (Task 456) và đơn gửi thẳng (sync) chưa có → 503
+// web_orders_paused, không Retry-After, không lưu (mở lại rồi gửi lại cùng khóa thì
+// xử lý lại); queued vẫn nhận.
 //
 // POST /api/v1/web/orders
 func (s *Server) handleWebCreateOrderRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19006,6 +19177,73 @@ func (s *Server) handleWebCreateOrderRequest(args [0]string, argsEscaped bool, w
 	}
 
 	if err := encodeWebCreateOrderResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebIntakeStatusRequest handles webIntakeStatus operation.
+//
+// Task 456 (M5-44). Website hiện "ELIMAZ đang tạm dừng nhận đơn trên website…" khi
+// paused. Bộ đệm 5 s, làm mới sớm hơn theo sự kiện order.web_intake.changed. Chỉ
+// để hiện; tạo đơn luôn kiểm lại ở CRM (503 web_orders_paused).
+//
+// GET /api/v1/web/intake
+func (s *Server) handleWebIntakeStatusRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response WebIntakeStatusRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebIntakeStatusOperation,
+			OperationSummary: "Shop có đang tạm dừng nhận đơn web không (không lý do, người, giờ); hạn sống 5 s",
+			OperationID:      "webIntakeStatus",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = WebIntakeStatusRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebIntakeStatus(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebIntakeStatus(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebIntakeStatusResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

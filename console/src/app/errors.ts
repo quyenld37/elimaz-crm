@@ -133,6 +133,8 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   item_unavailable: "Có sản phẩm đã ngừng bán trên website",
   quote_changed: "Giá hoặc tổng tiền đã đổi. Xem lại giỏ hàng rồi đặt lại",
   too_fast: "Khách đặt quá nhiều đơn trong thời gian ngắn. Thử lại sau ít phút",
+  // Tạm dừng nhận đơn web (Task 456)
+  web_orders_paused: "ELIMAZ đang tạm dừng nhận đơn trên website. Mở lại ở màn Nhận đơn web",
 };
 
 /** Câu cho từng lý do từ chối mã giảm giá (CouponRejectReason: checkCoupon.reason, thân lỗi coupon_rejected.reason). */

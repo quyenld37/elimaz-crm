@@ -18,7 +18,18 @@ const (
 	codeItemUnavailable = "item_unavailable"
 	codeCouponInvalid   = "coupon_invalid"
 	codeTooFast         = "too_fast"
+	codeWebOrdersPaused = "web_orders_paused"
 )
+
+// webError đổi lỗi nghiệp vụ của vùng đơn website (không có thân chi tiết) sang mã HTTP (Task 456): shop đang tạm dừng
+// nhận đơn web → 503 web_orders_paused (không Retry-After: thời gian mở lại không biết trước); tạm dừng không lý do →
+// 422 invalid_input.
+func webError(err error) (status int, code string, ok bool) {
+	return matchError(err, []errorMapping{
+		{order.ErrWebIntakePaused, http.StatusServiceUnavailable, codeWebOrdersPaused},
+		{order.ErrReasonRequired, http.StatusUnprocessableEntity, codeInvalidInput},
+	})
+}
 
 // tooFastError: SĐT người đặt đã quá ngưỡng đơn web (Deps.WebOrderLimiter); retryAfter là thời gian chờ.
 type tooFastError struct {

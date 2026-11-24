@@ -95,3 +95,14 @@ func (h *handler) WebCampaign(ctx context.Context, params gen.WebCampaignParams)
 	}
 	return h.d.webCatalog.Campaign(ctx, u.TenantID, params) //nolint:wrapcheck // như trên
 }
+
+// WebIntakeStatus (GET /api/v1/web/intake, Task 456) → 200 {paused}.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) WebIntakeStatus(ctx context.Context) (gen.WebIntakeStatusRes, error) {
+	u, ok := authUser(ctx)
+	if !ok {
+		return nil, errNoAuthUser
+	}
+	return h.d.webCatalog.IntakeStatus(ctx, u.TenantID) //nolint:wrapcheck // như trên
+}

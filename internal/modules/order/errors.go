@@ -61,6 +61,13 @@ var (
 	ErrSettingOutOfRange = errors.New("order: cài đặt ngoài khoảng cho phép")
 	// ErrTrafficSourceNameTaken: đã có nguồn đơn cùng tên trong shop (Task M2-15).
 	ErrTrafficSourceNameTaken = errors.New("order: đã có nguồn đơn cùng tên")
+
+	// Sentinel của M5 (Task 456).
+
+	// ErrReasonRequired: tạm dừng nhận đơn web mà không có lý do.
+	ErrReasonRequired = errors.New("order: thiếu lý do")
+	// ErrWebIntakePaused: shop đang tạm dừng nhận đơn web, đơn website gửi thẳng (sync) bị từ chối.
+	ErrWebIntakePaused = errors.New("order: đang tạm dừng nhận đơn web")
 )
 
 // OutOfStockError là chi tiết của ErrOutOfStock: dòng đầu tiên (theo thứ tự khóa) không đủ hàng.

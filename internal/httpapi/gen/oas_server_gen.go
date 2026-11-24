@@ -569,6 +569,13 @@ type Handler interface {
 	//
 	// GET /api/v1/web-campaigns/{campaignId}
 	GetWebCampaign(ctx context.Context, params GetWebCampaignParams) (GetWebCampaignRes, error)
+	// GetWebIntake implements getWebIntake operation.
+	//
+	// Trạng thái nhận đơn web của shop: tạm dừng hay không, lý do, ai đổi, lúc nào
+	// (Task 456).
+	//
+	// GET /api/v1/web-intake
+	GetWebIntake(ctx context.Context) (GetWebIntakeRes, error)
 	// HealthDeep implements healthDeep operation.
 	//
 	// Kiểm sâu cho dịch vụ canh ngoài (Bearer HEALTH_TOKEN, Task 20); không có dữ liệu
@@ -1158,6 +1165,15 @@ type Handler interface {
 	//
 	// POST /api/v1/web-campaigns/{campaignId}/state
 	SetWebCampaignState(ctx context.Context, req *SetWebCampaignStateRequest, params SetWebCampaignStateParams) (SetWebCampaignStateRes, error)
+	// SetWebIntake implements setWebIntake operation.
+	//
+	// Tạm dừng chỉ chặn đơn website gửi thẳng (submittedVia = sync) bắt đầu sau khi
+	// lệnh này commit: webCreateOrder trả 503 web_orders_paused. Đơn từ hàng đợi của
+	// website (queued) và đơn đã có của cùng externalRef vẫn nhận. Mở lại không cần
+	// lý do (gửi rỗng thì xóa lý do cũ).
+	//
+	// PUT /api/v1/web-intake
+	SetWebIntake(ctx context.Context, req *SetWebIntakeRequest, params SetWebIntakeParams) (SetWebIntakeRes, error)
 	// StartCustomerImport implements startCustomerImport operation.
 	//
 	// Nhập khách từ tệp Excel đã tải lên (mục đích customer_import); chạy nền; tệp
@@ -1367,10 +1383,21 @@ type Handler interface {
 	// 201; 422 quote_changed (kèm quote: báo giá CRM hiện tại; chỉ khi submittedVia = sync),
 	// item_unavailable (kèm variantIds), coupon_invalid (kèm reason; chỉ khi sync), mixed_sellers; 409
 	// out_of_stock (kèm variantId, available). queued: giá hay mã lệch vẫn tạo theo số CRM,
-	// priceReview = true. Tạm bận → 503 retry_later kèm Retry-After, không lưu.
+	// priceReview = true. Tạm bận → 503 retry_later kèm Retry-After, không lưu. Shop đang tạm
+	// dừng nhận đơn web (Task 456) và đơn gửi thẳng (sync) chưa có → 503
+	// web_orders_paused, không Retry-After, không lưu (mở lại rồi gửi lại cùng khóa thì
+	// xử lý lại); queued vẫn nhận.
 	//
 	// POST /api/v1/web/orders
 	WebCreateOrder(ctx context.Context, req *WebOrderRequest, params WebCreateOrderParams) (WebCreateOrderRes, error)
+	// WebIntakeStatus implements webIntakeStatus operation.
+	//
+	// Task 456 (M5-44). Website hiện "ELIMAZ đang tạm dừng nhận đơn trên website…" khi
+	// paused. Bộ đệm 5 s, làm mới sớm hơn theo sự kiện order.web_intake.changed. Chỉ
+	// để hiện; tạo đơn luôn kiểm lại ở CRM (503 web_orders_paused).
+	//
+	// GET /api/v1/web/intake
+	WebIntakeStatus(ctx context.Context) (WebIntakeStatusRes, error)
 	// WebLocations implements webLocations operation.
 	//
 	// Task 191 (M5-08). Danh mục dùng chung của CRM (customer.admin_units), tỉnh theo mã, xã theo
