@@ -9594,6 +9594,7 @@ func (*ErrorStatusCode) getStockDocumentRes()            {}
 func (*ErrorStatusCode) getStocktakeRes()                {}
 func (*ErrorStatusCode) getWarehousePickupRes()          {}
 func (*ErrorStatusCode) getWebCampaignRes()              {}
+func (*ErrorStatusCode) getWebCarrierSettingsRes()       {}
 func (*ErrorStatusCode) getWebIntakeRes()                {}
 func (*ErrorStatusCode) healthDeepRes()                  {}
 func (*ErrorStatusCode) importCodStatementRes()          {}
@@ -9675,6 +9676,7 @@ func (*ErrorStatusCode) restoreProductImageRes()         {}
 func (*ErrorStatusCode) retryJobRes()                    {}
 func (*ErrorStatusCode) revokeServiceKeyRes()            {}
 func (*ErrorStatusCode) saveWebCampaignRes()             {}
+func (*ErrorStatusCode) saveWebCarrierSettingsRes()      {}
 func (*ErrorStatusCode) searchVariantsRes()              {}
 func (*ErrorStatusCode) setCarrierAccountStatusRes()     {}
 func (*ErrorStatusCode) setOrderPendingRes()             {}
@@ -9720,6 +9722,7 @@ func (*ErrorStatusCode) webCatalogTaxonomyRes()          {}
 func (*ErrorStatusCode) webCreateBirthdayBatchRes()      {}
 func (*ErrorStatusCode) webCreateOrderRes()              {}
 func (*ErrorStatusCode) webCreateRequestRes()            {}
+func (*ErrorStatusCode) webDeliveryEstimatesRes()        {}
 func (*ErrorStatusCode) webGetOrderRes()                 {}
 func (*ErrorStatusCode) webImportCouponsRes()            {}
 func (*ErrorStatusCode) webIntakeStatusRes()             {}
@@ -9729,6 +9732,8 @@ func (*ErrorStatusCode) webMarkCouponGivenRes()          {}
 func (*ErrorStatusCode) webOrderChangesRes()             {}
 func (*ErrorStatusCode) webQuoteRes()                    {}
 func (*ErrorStatusCode) webReplyRequestRes()             {}
+func (*ErrorStatusCode) webShippingCarriersRes()         {}
+func (*ErrorStatusCode) webShippingQuoteRes()            {}
 func (*ErrorStatusCode) webSold30dRes()                  {}
 func (*ErrorStatusCode) webUploadRequestFileRes()        {}
 
@@ -22656,6 +22661,43 @@ func (s *SaveWebCampaignRequest) SetCampaign(val WebCampaignInput) {
 	s.Campaign = val
 }
 
+// Ref: #/components/schemas/SaveWebCarrierSettingsRequest
+type SaveWebCarrierSettingsRequest struct {
+	PreferredAccountId OptUUID  `json:"preferredAccountId"`
+	FallbackFee        OptMoney `json:"fallbackFee"`
+	Version            int32    `json:"version"`
+}
+
+// GetPreferredAccountId returns the value of PreferredAccountId.
+func (s *SaveWebCarrierSettingsRequest) GetPreferredAccountId() OptUUID {
+	return s.PreferredAccountId
+}
+
+// GetFallbackFee returns the value of FallbackFee.
+func (s *SaveWebCarrierSettingsRequest) GetFallbackFee() OptMoney {
+	return s.FallbackFee
+}
+
+// GetVersion returns the value of Version.
+func (s *SaveWebCarrierSettingsRequest) GetVersion() int32 {
+	return s.Version
+}
+
+// SetPreferredAccountId sets the value of PreferredAccountId.
+func (s *SaveWebCarrierSettingsRequest) SetPreferredAccountId(val OptUUID) {
+	s.PreferredAccountId = val
+}
+
+// SetFallbackFee sets the value of FallbackFee.
+func (s *SaveWebCarrierSettingsRequest) SetFallbackFee(val OptMoney) {
+	s.FallbackFee = val
+}
+
+// SetVersion sets the value of Version.
+func (s *SaveWebCarrierSettingsRequest) SetVersion(val int32) {
+	s.Version = val
+}
+
 // Ref: #/components/schemas/Scope
 type Scope struct {
 	Type ScopeType `json:"type"`
@@ -30214,6 +30256,141 @@ func (s *WebCancelOutcome) SetRequestRef(val OptString) {
 
 func (*WebCancelOutcome) webCancelOrderRes() {}
 
+// Ref: #/components/schemas/WebCarrierSettings
+type WebCarrierSettings struct {
+	// Tài khoản ưu tiên; không có = rẻ nhất đứng đầu.
+	PreferredAccountId OptUUID          `json:"preferredAccountId"`
+	FallbackFee        OptMoney         `json:"fallbackFee"`
+	Version            int32            `json:"version"`
+	Carriers           []WebCarrierStat `json:"carriers"`
+}
+
+// GetPreferredAccountId returns the value of PreferredAccountId.
+func (s *WebCarrierSettings) GetPreferredAccountId() OptUUID {
+	return s.PreferredAccountId
+}
+
+// GetFallbackFee returns the value of FallbackFee.
+func (s *WebCarrierSettings) GetFallbackFee() OptMoney {
+	return s.FallbackFee
+}
+
+// GetVersion returns the value of Version.
+func (s *WebCarrierSettings) GetVersion() int32 {
+	return s.Version
+}
+
+// GetCarriers returns the value of Carriers.
+func (s *WebCarrierSettings) GetCarriers() []WebCarrierStat {
+	return s.Carriers
+}
+
+// SetPreferredAccountId sets the value of PreferredAccountId.
+func (s *WebCarrierSettings) SetPreferredAccountId(val OptUUID) {
+	s.PreferredAccountId = val
+}
+
+// SetFallbackFee sets the value of FallbackFee.
+func (s *WebCarrierSettings) SetFallbackFee(val OptMoney) {
+	s.FallbackFee = val
+}
+
+// SetVersion sets the value of Version.
+func (s *WebCarrierSettings) SetVersion(val int32) {
+	s.Version = val
+}
+
+// SetCarriers sets the value of Carriers.
+func (s *WebCarrierSettings) SetCarriers(val []WebCarrierStat) {
+	s.Carriers = val
+}
+
+func (*WebCarrierSettings) getWebCarrierSettingsRes()  {}
+func (*WebCarrierSettings) saveWebCarrierSettingsRes() {}
+
+// Ref: #/components/schemas/WebCarrierStat
+type WebCarrierStat struct {
+	AccountId  uuid.UUID `json:"accountId"`
+	CarrierKey string    `json:"carrierKey"`
+	Name       string    `json:"name"`
+	// Trạng thái tài khoản; chỉ active mới hiện trên website.
+	Status    string `json:"status"`
+	WebSort   int32  `json:"webSort"`
+	Preferred bool   `json:"preferred"`
+	// Vận đơn chưa hủy tạo trong 30 ngày (mọi kênh).
+	Shipments30d int32 `json:"shipments30d"`
+}
+
+// GetAccountId returns the value of AccountId.
+func (s *WebCarrierStat) GetAccountId() uuid.UUID {
+	return s.AccountId
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *WebCarrierStat) GetCarrierKey() string {
+	return s.CarrierKey
+}
+
+// GetName returns the value of Name.
+func (s *WebCarrierStat) GetName() string {
+	return s.Name
+}
+
+// GetStatus returns the value of Status.
+func (s *WebCarrierStat) GetStatus() string {
+	return s.Status
+}
+
+// GetWebSort returns the value of WebSort.
+func (s *WebCarrierStat) GetWebSort() int32 {
+	return s.WebSort
+}
+
+// GetPreferred returns the value of Preferred.
+func (s *WebCarrierStat) GetPreferred() bool {
+	return s.Preferred
+}
+
+// GetShipments30d returns the value of Shipments30d.
+func (s *WebCarrierStat) GetShipments30d() int32 {
+	return s.Shipments30d
+}
+
+// SetAccountId sets the value of AccountId.
+func (s *WebCarrierStat) SetAccountId(val uuid.UUID) {
+	s.AccountId = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *WebCarrierStat) SetCarrierKey(val string) {
+	s.CarrierKey = val
+}
+
+// SetName sets the value of Name.
+func (s *WebCarrierStat) SetName(val string) {
+	s.Name = val
+}
+
+// SetStatus sets the value of Status.
+func (s *WebCarrierStat) SetStatus(val string) {
+	s.Status = val
+}
+
+// SetWebSort sets the value of WebSort.
+func (s *WebCarrierStat) SetWebSort(val int32) {
+	s.WebSort = val
+}
+
+// SetPreferred sets the value of Preferred.
+func (s *WebCarrierStat) SetPreferred(val bool) {
+	s.Preferred = val
+}
+
+// SetShipments30d sets the value of Shipments30d.
+func (s *WebCarrierStat) SetShipments30d(val int32) {
+	s.Shipments30d = val
+}
+
 // Ref: #/components/schemas/WebCatalogChanges
 type WebCatalogChanges struct {
 	ProductIds []uuid.UUID `json:"productIds"`
@@ -30896,6 +31073,49 @@ func (s *WebCustomerRequestMessageFrom) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+// Ref: #/components/schemas/WebDeliveryEstimate
+type WebDeliveryEstimate struct {
+	ProvinceCode string  `json:"provinceCode"`
+	Days         float64 `json:"days"`
+}
+
+// GetProvinceCode returns the value of ProvinceCode.
+func (s *WebDeliveryEstimate) GetProvinceCode() string {
+	return s.ProvinceCode
+}
+
+// GetDays returns the value of Days.
+func (s *WebDeliveryEstimate) GetDays() float64 {
+	return s.Days
+}
+
+// SetProvinceCode sets the value of ProvinceCode.
+func (s *WebDeliveryEstimate) SetProvinceCode(val string) {
+	s.ProvinceCode = val
+}
+
+// SetDays sets the value of Days.
+func (s *WebDeliveryEstimate) SetDays(val float64) {
+	s.Days = val
+}
+
+// Ref: #/components/schemas/WebDeliveryEstimates
+type WebDeliveryEstimates struct {
+	Provinces []WebDeliveryEstimate `json:"provinces"`
+}
+
+// GetProvinces returns the value of Provinces.
+func (s *WebDeliveryEstimates) GetProvinces() []WebDeliveryEstimate {
+	return s.Provinces
+}
+
+// SetProvinces sets the value of Provinces.
+func (s *WebDeliveryEstimates) SetProvinces(val []WebDeliveryEstimate) {
+	s.Provinces = val
+}
+
+func (*WebDeliveryEstimates) webDeliveryEstimatesRes() {}
 
 // Ref: #/components/schemas/WebImage
 type WebImage struct {
@@ -32777,6 +32997,232 @@ func (s *WebRequestRef) SetStatus(val OrderRequestStatus) {
 func (*WebRequestRef) webCancelRequestRes() {}
 func (*WebRequestRef) webCreateRequestRes() {}
 func (*WebRequestRef) webReplyRequestRes()  {}
+
+// Ref: #/components/schemas/WebShipOption
+type WebShipOption struct {
+	// Không có khi estimated.
+	AccountId   OptUUID   `json:"accountId"`
+	CarrierKey  OptString `json:"carrierKey"`
+	CarrierName OptString `json:"carrierName"`
+	Service     OptString `json:"service"`
+	Fee         int64     `json:"fee"`
+	Preferred   bool      `json:"preferred"`
+	// Phí dự phòng của shop (không hãng nào báo phí được).
+	Estimated bool `json:"estimated"`
+}
+
+// GetAccountId returns the value of AccountId.
+func (s *WebShipOption) GetAccountId() OptUUID {
+	return s.AccountId
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *WebShipOption) GetCarrierKey() OptString {
+	return s.CarrierKey
+}
+
+// GetCarrierName returns the value of CarrierName.
+func (s *WebShipOption) GetCarrierName() OptString {
+	return s.CarrierName
+}
+
+// GetService returns the value of Service.
+func (s *WebShipOption) GetService() OptString {
+	return s.Service
+}
+
+// GetFee returns the value of Fee.
+func (s *WebShipOption) GetFee() int64 {
+	return s.Fee
+}
+
+// GetPreferred returns the value of Preferred.
+func (s *WebShipOption) GetPreferred() bool {
+	return s.Preferred
+}
+
+// GetEstimated returns the value of Estimated.
+func (s *WebShipOption) GetEstimated() bool {
+	return s.Estimated
+}
+
+// SetAccountId sets the value of AccountId.
+func (s *WebShipOption) SetAccountId(val OptUUID) {
+	s.AccountId = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *WebShipOption) SetCarrierKey(val OptString) {
+	s.CarrierKey = val
+}
+
+// SetCarrierName sets the value of CarrierName.
+func (s *WebShipOption) SetCarrierName(val OptString) {
+	s.CarrierName = val
+}
+
+// SetService sets the value of Service.
+func (s *WebShipOption) SetService(val OptString) {
+	s.Service = val
+}
+
+// SetFee sets the value of Fee.
+func (s *WebShipOption) SetFee(val int64) {
+	s.Fee = val
+}
+
+// SetPreferred sets the value of Preferred.
+func (s *WebShipOption) SetPreferred(val bool) {
+	s.Preferred = val
+}
+
+// SetEstimated sets the value of Estimated.
+func (s *WebShipOption) SetEstimated(val bool) {
+	s.Estimated = val
+}
+
+// Ref: #/components/schemas/WebShippingCarrier
+type WebShippingCarrier struct {
+	AccountId  uuid.UUID `json:"accountId"`
+	CarrierKey string    `json:"carrierKey"`
+	Name       string    `json:"name"`
+	Preferred  bool      `json:"preferred"`
+}
+
+// GetAccountId returns the value of AccountId.
+func (s *WebShippingCarrier) GetAccountId() uuid.UUID {
+	return s.AccountId
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *WebShippingCarrier) GetCarrierKey() string {
+	return s.CarrierKey
+}
+
+// GetName returns the value of Name.
+func (s *WebShippingCarrier) GetName() string {
+	return s.Name
+}
+
+// GetPreferred returns the value of Preferred.
+func (s *WebShippingCarrier) GetPreferred() bool {
+	return s.Preferred
+}
+
+// SetAccountId sets the value of AccountId.
+func (s *WebShippingCarrier) SetAccountId(val uuid.UUID) {
+	s.AccountId = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *WebShippingCarrier) SetCarrierKey(val string) {
+	s.CarrierKey = val
+}
+
+// SetName sets the value of Name.
+func (s *WebShippingCarrier) SetName(val string) {
+	s.Name = val
+}
+
+// SetPreferred sets the value of Preferred.
+func (s *WebShippingCarrier) SetPreferred(val bool) {
+	s.Preferred = val
+}
+
+// Ref: #/components/schemas/WebShippingCarriers
+type WebShippingCarriers struct {
+	Carriers []WebShippingCarrier `json:"carriers"`
+}
+
+// GetCarriers returns the value of Carriers.
+func (s *WebShippingCarriers) GetCarriers() []WebShippingCarrier {
+	return s.Carriers
+}
+
+// SetCarriers sets the value of Carriers.
+func (s *WebShippingCarriers) SetCarriers(val []WebShippingCarrier) {
+	s.Carriers = val
+}
+
+func (*WebShippingCarriers) webShippingCarriersRes() {}
+
+// Ref: #/components/schemas/WebShippingQuote
+type WebShippingQuote struct {
+	Options []WebShipOption `json:"options"`
+}
+
+// GetOptions returns the value of Options.
+func (s *WebShippingQuote) GetOptions() []WebShipOption {
+	return s.Options
+}
+
+// SetOptions sets the value of Options.
+func (s *WebShippingQuote) SetOptions(val []WebShipOption) {
+	s.Options = val
+}
+
+func (*WebShippingQuote) webShippingQuoteRes() {}
+
+// Ref: #/components/schemas/WebShippingQuoteRequest
+type WebShippingQuoteRequest struct {
+	// Mã tỉnh của CRM (danh mục webLocations).
+	ProvinceCode string `json:"provinceCode"`
+	// Mã xã/phường của CRM.
+	WardCode    string `json:"wardCode"`
+	WeightGrams int32  `json:"weightGrams"`
+	Value       int64  `json:"value"`
+	Cod         int64  `json:"cod"`
+}
+
+// GetProvinceCode returns the value of ProvinceCode.
+func (s *WebShippingQuoteRequest) GetProvinceCode() string {
+	return s.ProvinceCode
+}
+
+// GetWardCode returns the value of WardCode.
+func (s *WebShippingQuoteRequest) GetWardCode() string {
+	return s.WardCode
+}
+
+// GetWeightGrams returns the value of WeightGrams.
+func (s *WebShippingQuoteRequest) GetWeightGrams() int32 {
+	return s.WeightGrams
+}
+
+// GetValue returns the value of Value.
+func (s *WebShippingQuoteRequest) GetValue() int64 {
+	return s.Value
+}
+
+// GetCod returns the value of Cod.
+func (s *WebShippingQuoteRequest) GetCod() int64 {
+	return s.Cod
+}
+
+// SetProvinceCode sets the value of ProvinceCode.
+func (s *WebShippingQuoteRequest) SetProvinceCode(val string) {
+	s.ProvinceCode = val
+}
+
+// SetWardCode sets the value of WardCode.
+func (s *WebShippingQuoteRequest) SetWardCode(val string) {
+	s.WardCode = val
+}
+
+// SetWeightGrams sets the value of WeightGrams.
+func (s *WebShippingQuoteRequest) SetWeightGrams(val int32) {
+	s.WeightGrams = val
+}
+
+// SetValue sets the value of Value.
+func (s *WebShippingQuoteRequest) SetValue(val int64) {
+	s.Value = val
+}
+
+// SetCod sets the value of Cod.
+func (s *WebShippingQuoteRequest) SetCod(val int64) {
+	s.Cod = val
+}
 
 // Ref: #/components/schemas/WebSold30
 type WebSold30 struct {

@@ -3191,6 +3191,50 @@ paths:
                 $ref: "#/components/schemas/CampaignTargetPage"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web-carrier-settings:
+    get:
+      operationId: getWebCarrierSettings
+      summary: 'Hãng giao hàng trên website: tài khoản ưu tiên, phí dự phòng, các hãng đang bật showOnWeb kèm số vận đơn 30 ngày (Task 198)'
+      description: |
+        Hãng nào hiện trên website và theo thứ tự nào là showOnWeb, webSort của tài khoản hãng (updateCarrierAccount).
+        Chưa lưu lần nào → không ưu tiên, không phí dự phòng, version 1. carriers gồm mọi tài khoản bật showOnWeb trừ
+        revoked (tài khoản không active không hiện trên website); shipments30d đếm vận đơn chưa hủy tạo trong 30 ngày.
+      x-permission: fulfillment.carrier_accounts.read
+      responses:
+        "200":
+          description: getWebCarrierSettings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCarrierSettings"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: saveWebCarrierSettings
+      summary: 'Lưu tài khoản ưu tiên và phí dự phòng của website khi version khớp (409 version_conflict) (Task 198)'
+      description: |
+        Gửi cả bộ: thiếu preferredAccountId = không ưu tiên (rẻ nhất đứng đầu); thiếu fallbackFee = không phí dự phòng.
+        Tài khoản ưu tiên phải active và đang hiện trên website, không thì 422 carrier_not_on_web. Phí dự phòng
+        (0–500.000 đồng; ngoài khoảng → 422 setting_out_of_range) là phí website hiện khi không hãng nào báo phí được
+        (tài khoản nhập tay, hãng lỗi hay quá 3 s); không có thì website nhận 503 retry_later.
+      x-permission: fulfillment.carrier_accounts.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveWebCarrierSettingsRequest"
+      responses:
+        "200":
+          description: saveWebCarrierSettings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCarrierSettings"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/web-intake:
     get:
       operationId: getWebIntake
@@ -3439,6 +3483,9 @@ paths:
     patch:
       operationId: updateCarrierAccount
       summary: 'Sửa tài khoản hãng khi version còn khớp (sai → 409 version_conflict) (Task M3-09)'
+      description: |
+        Task 198 (luật Task 450): tắt showOnWeb của tài khoản active cuối cùng đang hiện trên website → 422
+        last_web_carrier, không đổi gì; tắt tài khoản đang là ưu tiên trên web thì bỏ ưu tiên cùng lần ghi.
       x-permission: fulfillment.carrier_accounts.manage
       parameters:
         - $ref: "#/components/parameters/CarrierAccountID"
@@ -4949,6 +4996,72 @@ paths:
           $ref: "#/components/responses/RetryLater"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web/shipping/carriers:
+    get:
+      operationId: webShippingCarriers
+      summary: Hãng giao hàng hiện trên website (ưu tiên đứng đầu, còn lại theo thứ tự shop đặt); hạn sống 60 s
+      description: |
+        Task 198 (M5-15). Chỉ mã tài khoản, khóa hãng, tên. Bộ đệm 60 s (đổi showOnWeb ở CRM tới website trong ≤ 60 s);
+        lưu cài đặt hãng trên web làm mới sớm hơn (sự kiện carrier.web_settings_changed).
+      x-auth: service_key
+      x-permission: web.shipping.quote
+      responses:
+        "200":
+          description: Hãng trên website
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebShippingCarriers"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/shipping/quote:
+    post:
+      operationId: webShippingQuote
+      summary: Báo phí giao hàng cho giỏ website theo tỉnh, phường, khối lượng, giá trị; không ghi gì
+      description: |
+        Task 198 (M5-15). CRM gọi các hãng hiện trên web song song, ngoài transaction, hạn 3 s mỗi hãng; hãng lỗi hay quá
+        hạn bị bỏ. Một lựa chọn mỗi dịch vụ, ưu tiên trước rồi rẻ trước. Không hãng nào báo được (ví dụ tài khoản nhập
+        tay khi tích hợp hãng đang tạm dừng): có phí dự phòng → một lựa chọn estimated = true (không hãng); không có →
+        503 retry_later. Bộ đệm 10 phút theo (tỉnh, phường, khối lượng làm tròn lên 250 g, giá trị và COD làm tròn lên
+        500.000, version cài đặt): phí báo là phí của mức đã làm tròn. Không tên, SĐT, địa chỉ chi tiết.
+      x-auth: service_key
+      x-permission: web.shipping.quote
+      x-idempotency: exempt
+      x-idempotency-reason: "Chỉ báo phí từ thân yêu cầu, không ghi dữ liệu"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebShippingQuoteRequest"
+      responses:
+        "200":
+          description: Các lựa chọn giao hàng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebShippingQuote"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/shipping/estimates:
+    get:
+      operationId: webDeliveryEstimates
+      summary: Số ngày giao dự kiến theo tỉnh (trung vị 60 ngày, tỉnh đủ 20 vận đơn); hạn sống 1 giờ
+      description: |
+        Task 198 (M5-15). Trung vị số ngày từ lúc hãng lấy hàng tới lúc giao của vận đơn giao trong 60 ngày, theo mã
+        tỉnh của địa chỉ giao, làm tròn 0,1 ngày; tỉnh có ít hơn 20 vận đơn không có trong danh sách (website tự hiện
+        câu chung).
+      x-auth: service_key
+      x-permission: web.shipping.quote
+      responses:
+        "200":
+          description: Ước thời gian giao
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebDeliveryEstimates"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/web/intake:
     get:
       operationId: webIntakeStatus
@@ -5693,6 +5806,9 @@ components:
         - request_not_allowed
         # Khách hủy đơn web (M5, Task 196)
         - cannot_cancel
+        # Hãng giao hàng trên website (M5, Task 198)
+        - carrier_not_on_web
+        - last_web_carrier
       properties:
         error:
           type: string
@@ -7400,6 +7516,60 @@ components:
           type: integer
           format: int32
           minimum: 1
+    WebCarrierSettings:
+      type: object
+      required: [version, carriers]
+      properties:
+        preferredAccountId:
+          type: string
+          format: uuid
+          description: Tài khoản ưu tiên; không có = rẻ nhất đứng đầu
+        fallbackFee:
+          $ref: "#/components/schemas/Money"
+        version:
+          type: integer
+          format: int32
+          minimum: 1
+        carriers:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebCarrierStat"
+    WebCarrierStat:
+      type: object
+      required: [accountId, carrierKey, name, status, webSort, preferred, shipments30d]
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        carrierKey:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          description: Trạng thái tài khoản; chỉ active mới hiện trên website
+        webSort:
+          type: integer
+          format: int32
+        preferred:
+          type: boolean
+        shipments30d:
+          type: integer
+          format: int32
+          description: Vận đơn chưa hủy tạo trong 30 ngày (mọi kênh)
+    SaveWebCarrierSettingsRequest:
+      type: object
+      required: [version]
+      properties:
+        preferredAccountId:
+          type: string
+          format: uuid
+        fallbackFee:
+          $ref: "#/components/schemas/Money"
+        version:
+          type: integer
+          format: int32
+          minimum: 1
     SetWebIntakeRequest:
       type: object
       required: [paused, version]
@@ -7783,6 +7953,102 @@ components:
         exchangeWindowDays:
           type: integer
           format: int32
+    WebShippingCarriers:
+      type: object
+      required: [carriers]
+      properties:
+        carriers:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebShippingCarrier"
+    WebShippingCarrier:
+      type: object
+      required: [accountId, carrierKey, name, preferred]
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        carrierKey:
+          type: string
+        name:
+          type: string
+        preferred:
+          type: boolean
+    WebShippingQuoteRequest:
+      type: object
+      required: [provinceCode, wardCode, weightGrams, value, cod]
+      properties:
+        provinceCode:
+          type: string
+          pattern: '^[0-9A-Za-z]{1,10}$'
+          description: Mã tỉnh của CRM (danh mục webLocations)
+        wardCode:
+          type: string
+          pattern: '^[0-9A-Za-z]{1,10}$'
+          description: Mã xã/phường của CRM
+        weightGrams:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100000
+        value:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 1000000000
+        cod:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 1000000000
+    WebShippingQuote:
+      type: object
+      required: [options]
+      properties:
+        options:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/WebShipOption"
+    WebShipOption:
+      type: object
+      required: [fee, preferred, estimated]
+      properties:
+        accountId:
+          type: string
+          format: uuid
+          description: Không có khi estimated
+        carrierKey:
+          type: string
+        carrierName:
+          type: string
+        service:
+          type: string
+        fee:
+          type: integer
+          format: int64
+        preferred:
+          type: boolean
+        estimated:
+          type: boolean
+          description: Phí dự phòng của shop (không hãng nào báo phí được)
+    WebDeliveryEstimates:
+      type: object
+      required: [provinces]
+      properties:
+        provinces:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebDeliveryEstimate"
+    WebDeliveryEstimate:
+      type: object
+      required: [provinceCode, days]
+      properties:
+        provinceCode:
+          type: string
+        days:
+          type: number
+          format: double
     WebIntakeStatus:
       type: object
       required: [paused]

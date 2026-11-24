@@ -77,10 +77,11 @@ type Deps struct {
 	// bộ đếm trong tiến trình với FallbackMax của cache.DefaultLimits().WebOrderCustomer, secret HMAC ngẫu nhiên.
 	WebOrderLimiter WebOrderLimiter
 
-	limiter        *userLimiter // một bộ đếm chung cho mọi route của nhân viên (prepare)
-	serviceLimiter *userLimiter // bộ đếm dự phòng của khóa dịch vụ khi RateLimiter nil (prepare)
-	webCatalog     *web.Catalog // danh mục cho website (prepare)
-	webOrders      *web.Orders  // báo giá, đơn của website (prepare)
+	limiter        *userLimiter  // một bộ đếm chung cho mọi route của nhân viên (prepare)
+	serviceLimiter *userLimiter  // bộ đếm dự phòng của khóa dịch vụ khi RateLimiter nil (prepare)
+	webCatalog     *web.Catalog  // danh mục cho website (prepare)
+	webOrders      *web.Orders   // báo giá, đơn của website (prepare)
+	webShipping    *web.Shipping // hãng, báo phí, ước thời gian giao của website (prepare; nil khi Fulfillment nil)
 }
 
 // prepare dựng phần dùng chung giữa các route (bộ đếm tần suất) một lần cho mỗi server.
@@ -104,6 +105,9 @@ func prepare(d Deps) Deps {
 	}
 	if d.webOrders == nil {
 		d.webOrders = web.NewOrders(d.DB, order.Writer{Events: d.Events, Queue: queue.NewQueue(), Realtime: d.Realtime}, d.Now)
+	}
+	if d.webShipping == nil && d.Fulfillment != nil {
+		d.webShipping = web.NewShipping(d.DB, d.ReadCache, d.Fulfillment, d.Now)
 	}
 	if d.WebOrderLimiter == nil {
 		d.WebOrderLimiter = NewWebOrderLimiter(cache.NewRateLimiter(nil, d.Now, d.Metrics), cache.DefaultLimits().WebOrderCustomer, nil)

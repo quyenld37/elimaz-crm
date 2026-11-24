@@ -981,6 +981,38 @@ export type WebIntake = {
     version: number;
 };
 
+export type WebCarrierSettings = {
+    /**
+     * Tài khoản ưu tiên; không có = rẻ nhất đứng đầu
+     */
+    preferredAccountId?: string;
+    fallbackFee?: Money;
+    version: number;
+    carriers: Array<WebCarrierStat>;
+};
+
+export type WebCarrierStat = {
+    accountId: string;
+    carrierKey: string;
+    name: string;
+    /**
+     * Trạng thái tài khoản; chỉ active mới hiện trên website
+     */
+    status: string;
+    webSort: number;
+    preferred: boolean;
+    /**
+     * Vận đơn chưa hủy tạo trong 30 ngày (mọi kênh)
+     */
+    shipments30d: number;
+};
+
+export type SaveWebCarrierSettingsRequest = {
+    preferredAccountId?: string;
+    fallbackFee?: Money;
+    version: number;
+};
+
 export type SetWebIntakeRequest = {
     paused: boolean;
     /**
@@ -1194,6 +1226,60 @@ export type WebCustomerRequest = {
 export type WebCustomerRequestList = {
     items: Array<WebCustomerRequest>;
     exchangeWindowDays: number;
+};
+
+export type WebShippingCarriers = {
+    carriers: Array<WebShippingCarrier>;
+};
+
+export type WebShippingCarrier = {
+    accountId: string;
+    carrierKey: string;
+    name: string;
+    preferred: boolean;
+};
+
+export type WebShippingQuoteRequest = {
+    /**
+     * Mã tỉnh của CRM (danh mục webLocations)
+     */
+    provinceCode: string;
+    /**
+     * Mã xã/phường của CRM
+     */
+    wardCode: string;
+    weightGrams: number;
+    value: number;
+    cod: number;
+};
+
+export type WebShippingQuote = {
+    options: Array<WebShipOption>;
+};
+
+export type WebShipOption = {
+    /**
+     * Không có khi estimated
+     */
+    accountId?: string;
+    carrierKey?: string;
+    carrierName?: string;
+    service?: string;
+    fee: number;
+    preferred: boolean;
+    /**
+     * Phí dự phòng của shop (không hãng nào báo phí được)
+     */
+    estimated: boolean;
+};
+
+export type WebDeliveryEstimates = {
+    provinces: Array<WebDeliveryEstimate>;
+};
+
+export type WebDeliveryEstimate = {
+    provinceCode: string;
+    days: number;
 };
 
 export type WebIntakeStatus = {
@@ -8259,6 +8345,62 @@ export type ListCampaignTargetsResponses = {
 
 export type ListCampaignTargetsResponse = ListCampaignTargetsResponses[keyof ListCampaignTargetsResponses];
 
+export type GetWebCarrierSettingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/web-carrier-settings';
+};
+
+export type GetWebCarrierSettingsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetWebCarrierSettingsError = GetWebCarrierSettingsErrors[keyof GetWebCarrierSettingsErrors];
+
+export type GetWebCarrierSettingsResponses = {
+    /**
+     * getWebCarrierSettings
+     */
+    200: WebCarrierSettings;
+};
+
+export type GetWebCarrierSettingsResponse = GetWebCarrierSettingsResponses[keyof GetWebCarrierSettingsResponses];
+
+export type SaveWebCarrierSettingsData = {
+    body: SaveWebCarrierSettingsRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web-carrier-settings';
+};
+
+export type SaveWebCarrierSettingsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SaveWebCarrierSettingsError = SaveWebCarrierSettingsErrors[keyof SaveWebCarrierSettingsErrors];
+
+export type SaveWebCarrierSettingsResponses = {
+    /**
+     * saveWebCarrierSettings
+     */
+    200: WebCarrierSettings;
+};
+
+export type SaveWebCarrierSettingsResponse = SaveWebCarrierSettingsResponses[keyof SaveWebCarrierSettingsResponses];
+
 export type GetWebIntakeData = {
     body?: never;
     path?: never;
@@ -10600,6 +10742,81 @@ export type WebCreateOrderResponses = {
 };
 
 export type WebCreateOrderResponse = WebCreateOrderResponses[keyof WebCreateOrderResponses];
+
+export type WebShippingCarriersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/shipping/carriers';
+};
+
+export type WebShippingCarriersErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebShippingCarriersError = WebShippingCarriersErrors[keyof WebShippingCarriersErrors];
+
+export type WebShippingCarriersResponses = {
+    /**
+     * Hãng trên website
+     */
+    200: WebShippingCarriers;
+};
+
+export type WebShippingCarriersResponse = WebShippingCarriersResponses[keyof WebShippingCarriersResponses];
+
+export type WebShippingQuoteData = {
+    body: WebShippingQuoteRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/shipping/quote';
+};
+
+export type WebShippingQuoteErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebShippingQuoteError = WebShippingQuoteErrors[keyof WebShippingQuoteErrors];
+
+export type WebShippingQuoteResponses = {
+    /**
+     * Các lựa chọn giao hàng
+     */
+    200: WebShippingQuote;
+};
+
+export type WebShippingQuoteResponse = WebShippingQuoteResponses[keyof WebShippingQuoteResponses];
+
+export type WebDeliveryEstimatesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/shipping/estimates';
+};
+
+export type WebDeliveryEstimatesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebDeliveryEstimatesError = WebDeliveryEstimatesErrors[keyof WebDeliveryEstimatesErrors];
+
+export type WebDeliveryEstimatesResponses = {
+    /**
+     * Ước thời gian giao
+     */
+    200: WebDeliveryEstimates;
+};
+
+export type WebDeliveryEstimatesResponse = WebDeliveryEstimatesResponses[keyof WebDeliveryEstimatesResponses];
 
 export type WebIntakeStatusData = {
     body?: never;
