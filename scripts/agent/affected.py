@@ -7,7 +7,7 @@ Tùy chọn (Task 473, 23/11, chủ shop: máy nóng, "chỉ test các case ản
   --base REV   bật xét migration: REV là bản đã test xanh để so (điểm tách nhánh, dấu xanh). Migration MỚI chỉ thêm
                (bảng, cột, index, view, quyền…) → test các gói dùng tới đúng đối tượng schema.tên nó chạm, nối qua
                view, hàm, trigger, policy của mọi migration; migration sửa, xóa tệp cũ, pha "-- contract:", lệnh thu hẹp
-               (DROP, RENAME, TRUNCATE, DELETE, ALTER COLUMN, SET NOT NULL, OWNER TO, DO $$…), quyền cả schema cũ, câu
+               (DROP, RENAME, câu TRUNCATE/DELETE, ALTER COLUMN, SET NOT NULL, OWNER TO, DO $$…), quyền cả schema cũ, câu
                không nhận ra, đối tượng không ghi schema → thoát 5 (bên gọi chạy toàn bộ). Không có --base: bỏ qua .sql.
   --split      mỗi dòng "race <gói>" (gói có mã viết tay hay test bị sửa trực tiếp, vùng rủi ro cao bị mã viết tay
                chạm: go test -race) hoặc "plain <gói>" (gói chỉ dùng tới phần đổi: go test thường, nhẹ hơn nhiều lần).
@@ -45,10 +45,24 @@ def need_full(reason):
 MIG_RE = re.compile(r"^migrations/\d{4}_[^/]+\.sql$")
 # Lệnh thu hẹp hay khó đoán phạm vi: giữ luật cũ (toàn bộ test). "DO $$" viết riêng: sau "$" không có ranh giới từ.
 NARROW_RE = re.compile(
-    r"\b(DROP|RENAME|TRUNCATE|DELETE\s+FROM|ALTER\s+COLUMN|SET\s+NOT\s+NULL|CREATE\s+EXTENSION|CREATE\s+ROLE"
+    r"\b(DROP|RENAME|ALTER\s+COLUMN|SET\s+NOT\s+NULL|CREATE\s+EXTENSION|CREATE\s+ROLE"
     r"|ALTER\s+ROLE|ALTER\s+DEFAULT\s+PRIVILEGES|ALTER\s+SCHEMA|SET\s+SCHEMA|OWNER\s+TO|ALTER\s+POLICY"
     r"|ALTER\s+TYPE|ALTER\s+FUNCTION|ALTER\s+VIEW|CALL|COPY)\b|\bDO\s+(?:LANGUAGE\s+\w+\s+)?\$",
     re.I)
+# Xóa dữ liệu (Task 479, 24/11): TRUNCATE, DELETE chỉ là lệnh khi đứng đầu một câu; chữ TRUNCATE trong danh sách sự
+# kiện của trigger chỉ-ghi-thêm (BEFORE UPDATE OR DELETE OR TRUNCATE ON …) hay trong GRANT/REVOKE không xóa gì. Xét
+# từng câu, câu CREATE FUNCTION đã bỏ thân "AS $tag$…$tag$" (FUNC_BODY_RE): TRUNCATE/DELETE ở đầu câu hay ngay sau một
+# ";" còn sót trong câu (chuỗi nháy đơn chứa "$$" làm statements() gộp nhiều câu), hay "DELETE FROM" ở bất kỳ đâu
+# ngoài thân hàm (dạng lồng không nhận ra) → toàn bộ. Trong thân hàm mới, DELETE FROM/TRUNCATE là việc lúc chạy như
+# INSERT/UPDATE: tên bảng ngay sau phải ghi rõ schema (BODY_DEL_RE), không thì (EXECUTE 'DELETE FROM ' || t, tên
+# không schema) → toàn bộ.
+DEL_STMT_RE = re.compile(r"(?:^|;)\s*(TRUNCATE|DELETE)\b", re.I)
+FUNC_BODY_RE = re.compile(r"\bAS\s+(\$\w*\$).*?\1", re.S | re.I)
+DEL_ANY_RE = re.compile(r"\bDELETE\s+FROM\b", re.I)
+BODY_DEL_RE = re.compile(r"\bDELETE\s+FROM\s+(?:ONLY\s+)?(\S+)", re.I)
+# TRUNCATE nhận một danh sách bảng (a, b CASCADE): mọi tên tới hết câu đều phải có schema.
+BODY_TRUNC_RE = re.compile(r"\bTRUNCATE\s+([^;]*)", re.I)
+TRUNC_WORDS_RE = re.compile(r"\b(?:TABLE|ONLY|CASCADE|RESTRICT|(?:RESTART|CONTINUE)\s+IDENTITY)\b|\*", re.I)
 # Câu nhận ra được: lệnh (nhóm "kind") và đối tượng chính (nhóm "obj"). Phải khớp NGAY ĐẦU câu, không thì một câu lạ
 # (CREATE RULE … DO INSERT INTO s.t) bị nhận nhầm theo mẩu bên trong.
 _NAME = r"([A-Za-z_][\w\".]*)"
@@ -128,6 +142,26 @@ def migration_scope(files):
             need_full(f"migration {name} có lệnh '{hit.group(0).strip()}'")
         for w in WRITE_RE.finditer(sql):          # cả trong thân hàm, trigger
             qualified(w.group(1), name)
+        bodies = []
+        for st in statements(sql):
+            # Chỉ "AS $tag$…$tag$" của câu CREATE FUNCTION là thân hàm thật; ở chỗ khác, "$$" có thể nằm trong chuỗi
+            # nháy đơn và làm statements() nuốt các câu phía sau (COMMENT … 'a $$'; TRUNCATE …; COMMENT … 'b $$') → xét
+            # nguyên văn, ";" còn trong câu là ranh giới câu.
+            if re.match(r"(?is)\s*CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\b", st):
+                bodies += [b.group(0) for b in FUNC_BODY_RE.finditer(st)]
+                st = FUNC_BODY_RE.sub(" ", st)
+            hit = DEL_ANY_RE.search(st) or DEL_STMT_RE.search(st)
+            if hit:
+                need_full(f"migration {name} có lệnh '{hit.group(hit.lastindex or 0)}'")
+        for body in bodies:
+            for d in BODY_DEL_RE.finditer(body):
+                qualified(d.group(1).rstrip(";)"), name)
+            for d in BODY_TRUNC_RE.finditer(body):
+                for item in TRUNC_WORDS_RE.sub(" ", d.group(1)).split(","):
+                    tok = item.split()
+                    if len(tok) != 1:      # 'TRUNCATE bị chặn', thiếu ';' trước END…: không chắc là tên bảng nào
+                        need_full(f"migration {name}: không rõ bảng của TRUNCATE trong thân hàm '{item.strip()[:40]}'")
+                    qualified(tok[0].rstrip(")"), name)
         new_schemas = set()
         for st in statements(sql):
             if re.match(r"(?is)\s*(SET|RESET|SELECT\s+set_config|COMMENT\s+ON)\b", st):

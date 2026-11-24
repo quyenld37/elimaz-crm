@@ -246,10 +246,7 @@ func TestAffected_NarrowingOrUnsureMigrationRunsAll(t *testing.T) {
 		{"gọi hàm không rõ đối tượng", "SELECT platform.rebuild_everything();"},
 		{"tạo lại schema đã có", "CREATE SCHEMA catalog;"},
 	} {
-		dir, f := withMigration(t, "9003_x.sql", tc.sql)
-		if lines, code := affected(t, affectedRun{files: []string{f}, args: []string{"--base", emptyTree, "--split"}, migDir: dir}); code != 5 {
-			t.Errorf("%s: muốn thoát 5 (toàn bộ), có %d %v", tc.name, code, lines)
-		}
+		wantRunsAll(t, tc.name, "9003_x.sql", tc.sql)
 	}
 }
 
@@ -398,4 +395,82 @@ func TestAffected_DataFileInHighRiskIsPlainUnlessCodeChanges(t *testing.T) {
 	wantNoRace(t, m)
 	_, m = affectedSplit(t, data, "internal/modules/order/create_m2.go")
 	wantKinds(t, m, map[string]string{"internal/modules/order": "race", "internal/modules/order/internal/state": "race"})
+}
+
+// Task 479 (24/11): TRUNCATE, DELETE chỉ tính là lệnh thu hẹp khi đứng đầu một câu (ngoài thân hàm). Lỗ đã gặp:
+// 0504 (Task 195) chỉ thêm bảng và trigger chỉ-ghi-thêm "BEFORE UPDATE OR DELETE OR TRUNCATE ON <bảng mới>", chữ
+// TRUNCATE trong danh sách sự kiện làm ci-task chạy toàn bộ test (~15 phút) thay vì phần ord.
+
+// Migration thật có trigger chỉ-ghi-thêm (sự kiện TRUNCATE) và REVOKE … TRUNCATE: được thu hẹp; 0504 chọn gói order.
+func TestAffected_AppendOnlyTriggerMigrationsAreNarrow(t *testing.T) {
+	t.Parallel()
+	for _, f := range []string{"migrations/0004_audit.sql", "migrations/0115_inventory.sql", "migrations/0504_order_requests.sql"} {
+		lines, code := affected(t, affectedRun{files: []string{f}, args: []string{"--base", emptyTree, "--split"}})
+		if code != 0 {
+			t.Errorf("%s: trigger chặn TRUNCATE trên bảng mới phải được thu hẹp, thoát %d", f, code)
+			continue
+		}
+		if f == "migrations/0504_order_requests.sql" {
+			wantKinds(t, mark(t, lines), map[string]string{"internal/modules/order": "plain"})
+		}
+	}
+}
+
+// Bảng mới + hàm chỉ-ghi-thêm + trigger BEFORE UPDATE OR DELETE OR TRUNCATE + REVOKE … DELETE, TRUNCATE; hàm mới có
+// DELETE FROM, TRUNCATE trên bảng ghi rõ schema trong thân (việc lúc chạy, như INSERT): chỉ các gói luôn chạy.
+func TestAffected_TruncateInTriggerOrBodyIsNarrow(t *testing.T) {
+	t.Parallel()
+	wantOnlyAlwaysRun(t, "9005_zz479.sql", `CREATE SCHEMA zz479;
+CREATE TABLE zz479.msgs (id uuid PRIMARY KEY);
+CREATE TABLE zz479.tmp (id uuid PRIMARY KEY);
+CREATE FUNCTION zz479.msgs_append_only() RETURNS trigger LANGUAGE plpgsql AS $fn$
+BEGIN
+    RAISE EXCEPTION 'msgs is append-only (% bị chặn)', TG_OP;
+END
+$fn$;
+CREATE TRIGGER msgs_append_only
+    BEFORE UPDATE OR DELETE OR TRUNCATE ON zz479.msgs
+    FOR EACH STATEMENT EXECUTE FUNCTION zz479.msgs_append_only();
+REVOKE UPDATE, DELETE, TRUNCATE ON zz479.msgs FROM crm_app;
+CREATE FUNCTION zz479.clean() RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+    DELETE FROM zz479.tmp WHERE id IS NULL;
+    TRUNCATE TABLE ONLY zz479.tmp, zz479.msgs RESTART IDENTITY CASCADE;
+END
+$$;`)
+}
+
+// Xóa dữ liệu thật: câu TRUNCATE/DELETE (cả sau câu khác, chữ thường, giữa hai chuỗi có "$$" — kể cả DEFAULT, thân
+// hàm nháy đơn — làm việc tách câu gộp nhiều câu), DELETE lồng ngoài thân hàm, xóa động hay bảng không schema trong
+// thân hàm → toàn bộ test (thoát 5).
+func TestAffected_DeleteOrTruncateStatementRunsAll(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ name, sql string }{
+		{"TRUNCATE", "TRUNCATE ord.x;"},
+		{"DELETE FROM … WHERE", "DELETE FROM ord.x WHERE id IS NULL;"},
+		{"truncate sau câu khác", "CREATE TABLE catalog.zz479 (id int);\ntruncate table catalog.tags;"},
+		{"DELETE sau thân hàm", "CREATE FUNCTION catalog.f479() RETURNS void LANGUAGE sql AS $$ SELECT 1 $$;\nDELETE FROM catalog.tags;"},
+		{"DELETE lồng trong WITH", "WITH d AS (DELETE FROM catalog.tags RETURNING id) SELECT count(*) FROM d;"},
+		{"INSERT … DELETE lồng", "INSERT INTO catalog.tags (id) SELECT id FROM (DELETE FROM catalog.tags RETURNING id) d;"},
+		{"xóa động trong thân hàm", "CREATE FUNCTION catalog.f479(t text) RETURNS void LANGUAGE plpgsql AS $$ BEGIN EXECUTE 'DELETE FROM ' || t; END $$;"},
+		{"xóa bảng không schema trong thân hàm", "CREATE FUNCTION catalog.f479() RETURNS void LANGUAGE plpgsql AS $$ BEGIN DELETE FROM tags; END $$;"},
+		{"TRUNCATE bảng không schema trong thân hàm", "CREATE FUNCTION catalog.f479() RETURNS void LANGUAGE plpgsql AS $$ BEGIN TRUNCATE tags; END $$;"},
+		{"TRUNCATE danh sách có bảng không schema", "CREATE FUNCTION catalog.f479() RETURNS void LANGUAGE plpgsql AS $$ BEGIN TRUNCATE catalog.tags, tags CASCADE; END $$;"},
+		{"$$ trong chuỗi nháy đơn bọc câu DELETE", "COMMENT ON TABLE catalog.tags IS 'a $$';\nDELETE FROM catalog.tags;\nCOMMENT ON TABLE catalog.products IS 'b $$';"},
+		{"$$ trong chuỗi nháy đơn bọc câu TRUNCATE", "COMMENT ON TABLE catalog.tags IS 'a $$';\nTRUNCATE catalog.tags;\nCOMMENT ON TABLE catalog.products IS 'b $$';"},
+		{"$$ trong DEFAULT bọc câu TRUNCATE", "CREATE TABLE catalog.z479 (n text DEFAULT 'a $$');\nTRUNCATE catalog.tags;\nCREATE TABLE catalog.w479 (n text DEFAULT 'b $$');"},
+		{"$$ trong thân hàm nháy đơn bọc câu TRUNCATE", "CREATE FUNCTION catalog.f479() RETURNS text LANGUAGE sql AS 'SELECT ''a $$''';\nTRUNCATE catalog.tags;\nCOMMENT ON TABLE catalog.products IS 'b $$';"},
+		{"chữ TRUNCATE trong thông báo của thân hàm", "CREATE FUNCTION catalog.f479() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'cấm TRUNCATE bảng này'; END $$;"},
+	} {
+		wantRunsAll(t, tc.name, "9006_x.sql", tc.sql)
+	}
+}
+
+// wantRunsAll: migration giả name (nội dung sql) phải làm affected.py thoát 5 (chạy toàn bộ test).
+func wantRunsAll(t *testing.T, caseName, name, sql string) {
+	t.Helper()
+	dir, f := withMigration(t, name, sql)
+	if lines, code := affected(t, affectedRun{files: []string{f}, args: []string{"--base", emptyTree, "--split"}, migDir: dir}); code != 5 {
+		t.Errorf("%s: muốn thoát 5 (toàn bộ), có %d %v", caseName, code, lines)
+	}
 }
