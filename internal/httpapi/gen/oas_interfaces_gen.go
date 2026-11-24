@@ -401,6 +401,10 @@ type ListCodStatementsRes interface {
 	listCodStatementsRes()
 }
 
+type ListCouponBatchesRes interface {
+	listCouponBatchesRes()
+}
+
 type ListCouponRedemptionsRes interface {
 	listCouponRedemptionsRes()
 }
@@ -833,6 +837,10 @@ type WebCatalogTaxonomyRes interface {
 	webCatalogTaxonomyRes()
 }
 
+type WebCreateBirthdayBatchRes interface {
+	webCreateBirthdayBatchRes()
+}
+
 type WebCreateOrderRes interface {
 	webCreateOrderRes()
 }
@@ -845,6 +853,10 @@ type WebGetOrderRes interface {
 	webGetOrderRes()
 }
 
+type WebImportCouponsRes interface {
+	webImportCouponsRes()
+}
+
 type WebIntakeStatusRes interface {
 	webIntakeStatusRes()
 }
@@ -855,6 +867,10 @@ type WebListRequestsRes interface {
 
 type WebLocationsRes interface {
 	webLocationsRes()
+}
+
+type WebMarkCouponGivenRes interface {
+	webMarkCouponGivenRes()
 }
 
 type WebOrderChangesRes interface {

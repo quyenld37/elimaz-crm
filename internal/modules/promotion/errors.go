@@ -27,6 +27,8 @@ var (
 	ErrVersionConflict = errors.New("promotion: version đã đổi")
 	// ErrInvalidInput: điều khoản, mã, đợt mã hay khách gắn mã không hợp lệ.
 	ErrInvalidInput = errors.New("promotion: đầu vào không hợp lệ")
+	// ErrBatchConflict: website xin lô (purpose, tên) đã có với số lượng, điều khoản hay SĐT khác (Task 197).
+	ErrBatchConflict = errors.New("promotion: đã có lô cùng tên với điều khoản khác")
 )
 
 // Reason là lý do mã bị từ chối (CouponRejectReason của hợp đồng API).

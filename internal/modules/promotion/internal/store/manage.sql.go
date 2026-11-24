@@ -16,7 +16,7 @@ import (
 const couponByID = `-- name: CouponByID :one
 SELECT id, code::text AS code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, seller_id,
        bound_customer_id, bound_phone, max_uses, used_count, per_customer_limit, release_on_cancel, valid_from,
-       valid_to, status, created_by, created_at, updated_at, version
+       valid_to, status, created_by, created_at, updated_at, version, given_at
 FROM promotion.coupons
 WHERE id = $1
 `
@@ -45,6 +45,7 @@ type CouponByIDRow struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Version          int64
+	GivenAt          pgtype.Timestamptz
 }
 
 func (q *Queries) CouponByID(ctx context.Context, id uuid.UUID) (CouponByIDRow, error) {
@@ -74,6 +75,7 @@ func (q *Queries) CouponByID(ctx context.Context, id uuid.UUID) (CouponByIDRow, 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.GivenAt,
 	)
 	return i, err
 }
@@ -91,7 +93,7 @@ func (q *Queries) CustomerRoot(ctx context.Context, id uuid.UUID) (uuid.UUID, er
 }
 
 const getBatch = `-- name: GetBatch :one
-SELECT id, name, code_prefix, quantity, template, created_by, created_at
+SELECT id, name, code_prefix, quantity, template, created_by, created_at, purpose
 FROM promotion.coupon_batches
 WHERE id = $1
 `
@@ -104,6 +106,7 @@ type GetBatchRow struct {
 	Template   []byte
 	CreatedBy  uuid.UUID
 	CreatedAt  time.Time
+	Purpose    string
 }
 
 func (q *Queries) GetBatch(ctx context.Context, id uuid.UUID) (GetBatchRow, error) {
@@ -117,6 +120,7 @@ func (q *Queries) GetBatch(ctx context.Context, id uuid.UUID) (GetBatchRow, erro
 		&i.Template,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.Purpose,
 	)
 	return i, err
 }
@@ -137,7 +141,7 @@ const insertBatch = `-- name: InsertBatch :one
 INSERT INTO promotion.coupon_batches (tenant_id, name, code_prefix, quantity, template, created_by)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3, $4,
         $5)
-RETURNING id, name, code_prefix, quantity, template, created_by, created_at
+RETURNING id, name, code_prefix, quantity, template, created_by, created_at, purpose
 `
 
 type InsertBatchParams struct {
@@ -156,6 +160,7 @@ type InsertBatchRow struct {
 	Template   []byte
 	CreatedBy  uuid.UUID
 	CreatedAt  time.Time
+	Purpose    string
 }
 
 func (q *Queries) InsertBatch(ctx context.Context, arg InsertBatchParams) (InsertBatchRow, error) {
@@ -175,6 +180,7 @@ func (q *Queries) InsertBatch(ctx context.Context, arg InsertBatchParams) (Inser
 		&i.Template,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.Purpose,
 	)
 	return i, err
 }
@@ -191,7 +197,7 @@ VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1::text::cite
 ON CONFLICT (tenant_id, code) DO NOTHING
 RETURNING id, code::text AS code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, seller_id,
           bound_customer_id, bound_phone, max_uses, used_count, per_customer_limit, release_on_cancel, valid_from,
-          valid_to, status, created_by, created_at, updated_at, version
+          valid_to, status, created_by, created_at, updated_at, version, given_at
 `
 
 type InsertCouponParams struct {
@@ -236,6 +242,7 @@ type InsertCouponRow struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Version          int64
+	GivenAt          pgtype.Timestamptz
 }
 
 // Quản lý mã giảm giá và đợt mã (kế hoạch M2, Task M2-14). Mọi câu chạy trong tx tenant của bên gọi (RLS lọc theo
@@ -283,6 +290,7 @@ func (q *Queries) InsertCoupon(ctx context.Context, arg InsertCouponParams) (Ins
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.GivenAt,
 	)
 	return i, err
 }
@@ -354,7 +362,7 @@ func (q *Queries) InsertCouponsBulk(ctx context.Context, arg InsertCouponsBulkPa
 const listCoupons = `-- name: ListCoupons :many
 SELECT id, code::text AS code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, seller_id,
        bound_customer_id, bound_phone, max_uses, used_count, per_customer_limit, release_on_cancel, valid_from,
-       valid_to, status, created_by, created_at, updated_at, version
+       valid_to, status, created_by, created_at, updated_at, version, given_at
 FROM promotion.coupons
 WHERE ($1::uuid IS NULL OR id < $1::uuid)
   AND ($2::text IS NULL OR status = $2::text)
@@ -398,6 +406,7 @@ type ListCouponsRow struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Version          int64
+	GivenAt          pgtype.Timestamptz
 }
 
 // Mới nhất trước (id uuidv7 giảm dần), sau con trỏ after; q tìm trong mã hoặc tên, không phân biệt hoa thường, không
@@ -441,6 +450,7 @@ func (q *Queries) ListCoupons(ctx context.Context, arg ListCouponsParams) ([]Lis
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.GivenAt,
 		); err != nil {
 			return nil, err
 		}
@@ -513,7 +523,7 @@ SET name = $1, discount_kind = $2, value = $3, max_discount = $4,
 WHERE id = $13 AND version = $14
 RETURNING id, code::text AS code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, seller_id,
           bound_customer_id, bound_phone, max_uses, used_count, per_customer_limit, release_on_cancel, valid_from,
-          valid_to, status, created_by, created_at, updated_at, version
+          valid_to, status, created_by, created_at, updated_at, version, given_at
 `
 
 type UpdateCouponParams struct {
@@ -557,6 +567,7 @@ type UpdateCouponRow struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Version          int64
+	GivenAt          pgtype.Timestamptz
 }
 
 // Sửa điều khoản khi version khớp (bên gọi đã khóa dòng mã và so version); 0 dòng → version đã đổi.
@@ -602,6 +613,7 @@ func (q *Queries) UpdateCoupon(ctx context.Context, arg UpdateCouponParams) (Upd
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.GivenAt,
 	)
 	return i, err
 }

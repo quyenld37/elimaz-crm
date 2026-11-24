@@ -1707,6 +1707,8 @@ type PromotionCoupon struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Version          int64
+	GivenAt          *time.Time
+	Origin           string
 }
 
 type PromotionCouponBatch struct {
@@ -1718,6 +1720,7 @@ type PromotionCouponBatch struct {
 	Template   []byte
 	CreatedBy  uuid.UUID
 	CreatedAt  time.Time
+	Purpose    string
 }
 
 type PromotionCouponCustomerUse struct {

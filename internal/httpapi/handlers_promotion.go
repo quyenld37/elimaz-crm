@@ -129,17 +129,9 @@ func (h *handler) UpdateCoupon(ctx context.Context, req *gen.UpdateCouponRequest
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) CreateCouponBatch(ctx context.Context, req *gen.CreateCouponBatchRequest, _ gen.CreateCouponBatchParams) (gen.CreateCouponBatchRes, error) {
-	t := req.Template
 	in := promotion.BatchInput{
-		Name: req.Name, Prefix: req.Prefix.Value, Quantity: int(req.Quantity),
-		Template: promotion.CouponTemplate{
-			Name: t.Name, DiscountKind: string(t.DiscountKind), Value: t.Value, MaxDiscount: optMoney(t.MaxDiscount),
-			MinSubtotal: int64(t.MinSubtotal.Value), Channels: channelsIn(t.Channels),
-			PerCustomerLimit: optPtr[int32](t.PerCustomerLimit), ValidFrom: t.ValidFrom, ValidTo: t.ValidTo,
-		},
-	}
-	for _, p := range req.BoundPhones {
-		in.BoundPhones = append(in.BoundPhones, string(p))
+		Name: req.Name, Prefix: req.Prefix.Value, Quantity: int(req.Quantity), Template: templateIn(req.Template),
+		BoundPhones: phonesIn(req.BoundPhones),
 	}
 	out, err := h.promotionWrite(ctx, http.StatusCreated, func(tx pgx.Tx, w promotion.Writer, u identity.AuthUser) (any, error) {
 		b, err := w.CreateBatch(ctx, tx, promotionActor(u), in)
@@ -147,10 +139,7 @@ func (h *handler) CreateCouponBatch(ctx context.Context, req *gen.CreateCouponBa
 			return nil, err //nolint:wrapcheck // sentinel của promotion
 		}
 		return batchOut(b), h.audit(ctx, tx, u, "promotion.coupon_batch.create", "promotion.coupon_batch", b.ID, nil,
-			map[string]any{
-				"name": b.Name, "prefix": b.Prefix, "quantity": b.Quantity, "boundPhones": len(in.BoundPhones),
-				"discountKind": b.Template.DiscountKind, "value": b.Template.Value,
-			})
+			batchAuditFields(b, len(in.BoundPhones)))
 	})
 	if err != nil {
 		return nil, err
@@ -158,18 +147,54 @@ func (h *handler) CreateCouponBatch(ctx context.Context, req *gen.CreateCouponBa
 	return out.(*gen.CouponBatch), nil //nolint:forcetypeassert // fn trên trả *gen.CouponBatch
 }
 
-// GetCouponBatch (GET /api/v1/coupon-batches/{batchId}, promotion.read).
+// GetCouponBatch (GET /api/v1/coupon-batches/{batchId}, promotion.read): đợt mã kèm số mã đã trao, đã dùng, hết hạn
+// chưa dùng tính lúc này (Task 197).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) GetCouponBatch(ctx context.Context, params gen.GetCouponBatchParams) (gen.GetCouponBatchRes, error) {
 	var b promotion.Batch
+	var st promotion.BatchStats
 	if err := h.catalogRead(ctx, func(tx pgx.Tx) (err error) {
-		b, err = promotion.GetBatch(ctx, tx, params.BatchId)
-		return err //nolint:wrapcheck // sentinel của promotion
+		if b, err = promotion.GetBatch(ctx, tx, params.BatchId); err != nil {
+			return err //nolint:wrapcheck // sentinel của promotion
+		}
+		st, err = promotion.GetBatchStats(ctx, tx, b.ID, h.now())
+		return err //nolint:wrapcheck // promotion đã bọc
 	}); err != nil {
 		return nil, fmt.Errorf("đọc đợt mã: %w", err)
 	}
-	return batchOut(b), nil
+	out := batchOut(b)
+	out.GivenCount = gen.NewOptInt32(int32(st.Given))     //nolint:gosec // G115: ≤ 100.000 mã mỗi đợt
+	out.UsedCount = gen.NewOptInt32(int32(st.Used))       //nolint:gosec // G115: ≤ 100.000 mã mỗi đợt
+	out.ExpiredCount = gen.NewOptInt32(int32(st.Expired)) //nolint:gosec // G115: ≤ 100.000 mã mỗi đợt
+	return out, nil
+}
+
+// ListCouponBatches (GET /api/v1/coupon-batches, promotion.read): đợt mã mới nhất trước, lọc loại (Task 197).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ListCouponBatches(ctx context.Context, params gen.ListCouponBatchesParams) (gen.ListCouponBatchesRes, error) {
+	after, err := couponCursor(params.Cursor)
+	if err != nil {
+		return nil, err
+	}
+	var bs []promotion.Batch
+	var next *uuid.UUID
+	if err := h.catalogRead(ctx, func(tx pgx.Tx) (err error) {
+		bs, next, err = promotion.ListBatches(ctx, tx, string(params.Purpose.Value), after,
+			int(params.Limit.Or(defaultDocLimit)))
+		return err //nolint:wrapcheck // promotion đã bọc
+	}); err != nil {
+		return nil, fmt.Errorf("đọc danh sách đợt mã: %w", err)
+	}
+	page := &gen.CouponBatchPage{Items: make([]gen.CouponBatch, 0, len(bs))}
+	for _, b := range bs {
+		page.Items = append(page.Items, *batchOut(b))
+	}
+	if next != nil {
+		page.NextCursor = gen.NewOptString(next.String())
+	}
+	return page, nil
 }
 
 // ListCouponRedemptions (GET /api/v1/coupons/{couponId}/redemptions, promotion.read): mã đơn (order.Codes với người
@@ -319,6 +344,31 @@ func optPtr[T any](v interface{ Get() (T, bool) }) *T {
 	return nil
 }
 
+// templateIn đổi điều khoản đợt mã của hợp đồng API sang promotion.CouponTemplate.
+func templateIn(t gen.CouponTemplate) promotion.CouponTemplate {
+	return promotion.CouponTemplate{
+		Name: t.Name, DiscountKind: string(t.DiscountKind), Value: t.Value, MaxDiscount: optMoney(t.MaxDiscount),
+		MinSubtotal: int64(t.MinSubtotal.Value), Channels: channelsIn(t.Channels),
+		PerCustomerLimit: optPtr[int32](t.PerCustomerLimit), ValidFrom: t.ValidFrom, ValidTo: t.ValidTo,
+	}
+}
+
+func phonesIn(ps []gen.PhoneInput) []string {
+	out := make([]string, len(ps))
+	for i, p := range ps {
+		out[i] = string(p)
+	}
+	return out
+}
+
+// batchAuditFields là phần after của audit tạo đợt mã: không có SĐT (chỉ số SĐT gắn mã).
+func batchAuditFields(b promotion.Batch, phones int) map[string]any {
+	return map[string]any{
+		"name": b.Name, "prefix": b.Prefix, "purpose": b.Purpose, "quantity": b.Quantity, "boundPhones": phones,
+		"discountKind": b.Template.DiscountKind, "value": b.Template.Value,
+	}
+}
+
 func couponOut(c promotion.Coupon) *gen.Coupon {
 	out := &gen.Coupon{
 		ID: c.ID, Code: c.Code, Name: c.Name, DiscountKind: gen.DiscountKind(c.DiscountKind), Value: c.Value,
@@ -328,6 +378,9 @@ func couponOut(c promotion.Coupon) *gen.Coupon {
 	}
 	if c.BatchID != uuid.Nil {
 		out.BatchId = gen.NewOptUUID(c.BatchID)
+	}
+	if c.GivenAt != nil {
+		out.GivenAt = gen.NewOptDateTime(*c.GivenAt)
 	}
 	if c.MaxDiscount != nil {
 		out.MaxDiscount = gen.NewOptMoney(gen.Money(*c.MaxDiscount))
@@ -362,6 +415,6 @@ func batchOut(b promotion.Batch) *gen.CouponBatch {
 	}
 	return &gen.CouponBatch{
 		ID: b.ID, Name: b.Name, Prefix: b.Prefix, Quantity: int32(b.Quantity), //nolint:gosec // ≤ 100.000
-		Template: tpl, CreatedAt: b.CreatedAt,
+		Template: tpl, CreatedAt: b.CreatedAt, Purpose: gen.NewOptCouponBatchPurpose(gen.CouponBatchPurpose(b.Purpose)),
 	}
 }

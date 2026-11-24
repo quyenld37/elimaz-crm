@@ -405,7 +405,7 @@ type Handler interface {
 	GetCoupon(ctx context.Context, params GetCouponParams) (GetCouponRes, error)
 	// GetCouponBatch implements getCouponBatch operation.
 	//
-	// Một đợt mã (Task M2-14).
+	// Một đợt mã kèm số mã đã trao, đã dùng, hết hạn chưa dùng (Task M2-14, Task 197).
 	//
 	// GET /api/v1/coupon-batches/{batchId}
 	GetCouponBatch(ctx context.Context, params GetCouponBatchParams) (GetCouponBatchRes, error)
@@ -686,6 +686,12 @@ type Handler interface {
 	//
 	// GET /api/v1/cod-statements
 	ListCodStatements(ctx context.Context, params ListCodStatementsParams) (ListCodStatementsRes, error)
+	// ListCouponBatches implements listCouponBatches operation.
+	//
+	// Đợt mã, mới nhất trước; lọc theo loại (manual, birthday, imported) (Task 197).
+	//
+	// GET /api/v1/coupon-batches
+	ListCouponBatches(ctx context.Context, params ListCouponBatchesParams) (ListCouponBatchesRes, error)
 	// ListCouponRedemptions implements listCouponRedemptions operation.
 	//
 	// Lượt dùng của một mã: mã đơn, số giảm, trạng thái; không SĐT (Task M2-14).
@@ -1425,6 +1431,16 @@ type Handler interface {
 	//
 	// GET /api/v1/web/catalog/taxonomy
 	WebCatalogTaxonomy(ctx context.Context, params WebCatalogTaxonomyParams) (WebCatalogTaxonomyRes, error)
+	// WebCreateBirthdayBatch implements webCreateBirthdayBatch operation.
+	//
+	// Lô theo tên: chưa có → tạo quantity mã dùng một lần (bộ sinh mã của CRM), created
+	// true; đã có cùng số lượng, điều khoản và SĐT → trả lô cũ, created false; đã
+	// có mà khác → 422 batch_conflict. Có boundPhones (đúng quantity SĐT khác nhau) → mỗi
+	// mã gắn một SĐT, codes theo đúng thứ tự boundPhones; không có → codes theo thứ tự
+	// chữ.
+	//
+	// POST /api/v1/web/birthday-batches
+	WebCreateBirthdayBatch(ctx context.Context, req *WebBirthdayBatchRequest, params WebCreateBirthdayBatchParams) (WebCreateBirthdayBatchRes, error)
 	// WebCreateOrder implements webCreateOrder operation.
 	//
 	// Task 194 (M5-11). Quy ước của website: Idempotency-Key = externalRef. Một đơn cho mỗi
@@ -1464,6 +1480,15 @@ type Handler interface {
 	//
 	// GET /api/v1/web/orders/{externalRef}
 	WebGetOrder(ctx context.Context, params WebGetOrderParams) (WebGetOrderRes, error)
+	// WebImportCoupons implements webImportCoupons operation.
+	//
+	// Mỗi mã dùng một lần, chỉ kênh web, lô loại imported theo batchName (trống → "Mã
+	// nhập từ website"). percent: value là phần trăm nguyên 1–100 của website (CRM lưu
+	// phần vạn). used true → mã đã dùng hết. Mã trùng trong cùng lần nhập hay điều
+	// khoản sai → 400 invalid_input, không nhập mã nào.
+	//
+	// POST /api/v1/web/coupons/import
+	WebImportCoupons(ctx context.Context, req *WebCouponImportRequest, params WebImportCouponsParams) (WebImportCouponsRes, error)
 	// WebIntakeStatus implements webIntakeStatus operation.
 	//
 	// Task 456 (M5-44). Website hiện "ELIMAZ đang tạm dừng nhận đơn trên website…" khi
@@ -1486,6 +1511,12 @@ type Handler interface {
 	//
 	// GET /api/v1/web/locations
 	WebLocations(ctx context.Context, params WebLocationsParams) (WebLocationsRes, error)
+	// WebMarkCouponGiven implements webMarkCouponGiven operation.
+	//
+	// Chỉ mã của lô website (birthday, imported); mã khác hay không có → 404 not_found.
+	//
+	// POST /api/v1/web/coupons/{code}/given
+	WebMarkCouponGiven(ctx context.Context, params WebMarkCouponGivenParams) (WebMarkCouponGivenRes, error)
 	// WebOrderChanges implements webOrderChanges operation.
 	//
 	// ChangedAt là lúc muộn hơn của lần đổi đơn và lần đổi trạng thái vận đơn

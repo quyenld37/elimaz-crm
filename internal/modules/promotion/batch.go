@@ -54,6 +54,7 @@ type Batch struct {
 	Template  CouponTemplate
 	CreatedBy uuid.UUID
 	CreatedAt time.Time
+	Purpose   string // PurposeManual, PurposeBirthday, PurposeImported (Task 197)
 }
 
 // templateJSON là cột template của coupon_batches: khóa đúng tên cột của coupons (Q-X2).
@@ -233,6 +234,6 @@ func batchFrom(r store.GetBatchRow) (Batch, error) {
 	}
 	return Batch{
 		ID: r.ID, Name: r.Name, Prefix: r.CodePrefix, Quantity: int(r.Quantity), Template: CouponTemplate(t),
-		CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt,
+		CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt, Purpose: r.Purpose,
 	}, nil
 }

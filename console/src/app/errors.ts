@@ -128,6 +128,8 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   campaign_running: "Chiến dịch đang bật. Tạm dừng trước rồi mới sửa hoặc xóa",
   percent_too_high: "Phần trăm giảm vượt mức tối đa cài đặt của shop (mặc định 50%)",
   preview_required: "Cần xem trước giá của bản hiện tại (hoặc xem lại vì hàng đã đổi) rồi mới bật",
+  // Đợt mã của website (Task 197; chỉ website nhận, màn hình nhân viên không gọi route này)
+  batch_conflict: "Đã có lô mã cùng tên với điều khoản khác",
   // Đơn web (Task 194; chỉ website nhận, màn hình nhân viên không gọi route này)
   coupon_invalid: "Mã giảm giá không dùng được cho đơn này",
   item_unavailable: "Có sản phẩm đã ngừng bán trên website",
