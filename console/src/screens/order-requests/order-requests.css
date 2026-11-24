@@ -1,0 +1,131 @@
+/* Lớp riêng của màn Yêu cầu về đơn hàng, chép từ mockup đã duyệt: docs/mockups/m5/m5.css (dòng tin hai phía), khối
+   <style> của order-requests.html, .imgs/.img-tile/.img-ph/.img-b của docs/mockups/m1/m1.css (products.css có bản
+   riêng gắn với kéo thả ảnh sản phẩm). Thanh nhãn, .kv, .tl nạp từ ../don/don.css. Chỉ biến có sẵn của styles.css:
+   không màu, cỡ chữ, bo góc mới. Không có gì chỉ hiện khi rê chuột. */
+
+@media (min-width: 760px) {
+  .rq td:first-child {
+    width: 150px;
+  }
+}
+.rq .who {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Dòng tin hai phía: tin khách, tin nhân viên khách thấy, ghi chú nội bộ (viền đứt) */
+.msgs {
+  display: grid;
+  gap: var(--space-sm);
+}
+.msg {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: 8px 12px;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.msg.is-cust {
+  background: var(--surface);
+  border-color: var(--surface);
+  margin-right: 48px;
+}
+.msg.is-staff {
+  margin-left: 48px;
+}
+.msg.is-int {
+  margin-left: 48px;
+  border-style: dashed;
+  border-color: var(--edge);
+}
+.msg .body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.msg-h {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.msg-h .grow {
+  font-weight: 600;
+  min-width: 0;
+}
+@media (max-width: 759px) {
+  .msg.is-cust {
+    margin-right: 16px;
+  }
+  .msg.is-staff,
+  .msg.is-int {
+    margin-left: 16px;
+  }
+}
+
+/* Ảnh khách gửi: ô ảnh không nhúng ảnh (link ký có hạn mở ở tab mới) */
+.rq-imgs {
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+.rq-imgs .img-tile {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  overflow: hidden;
+  display: grid;
+  min-width: 0;
+}
+.rq-imgs .img-ph {
+  aspect-ratio: 4 / 5;
+  background: linear-gradient(160deg, var(--tint), var(--surface));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-sm);
+  font-size: 13px;
+  color: var(--label);
+}
+.rq-imgs .img-ph.is-proc {
+  background: var(--surface);
+}
+.rq-imgs .img-ph.is-bad {
+  background: var(--soft-sale);
+  color: var(--buy);
+}
+.rq-imgs .img-ph.is-lost {
+  background: var(--surface);
+  border-bottom: 1px dashed var(--edge);
+}
+.rq-imgs .img-b {
+  padding: var(--space-sm);
+  display: grid;
+  gap: var(--space-sm);
+}
+@media (max-width: 759px) {
+  .rq-imgs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-sm);
+  }
+}
+
+/* Dòng hàng: tên và mã biến thể */
+.rq-sp {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.rq-ship {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: var(--space-md);
+  margin: 0;
+  min-width: 0;
+}
+.rq-ship legend {
+  padding: 0 4px;
+}

@@ -40,31 +40,31 @@ Theo luật "Behaviour changes need own OK" và bảng "Việc cần chủ shop 
 
 | # | Màn | Hành vi đề xuất | Admin hiện tại | Chủ shop OK |
 |---|---|---|---|---|
-| HV01 | Menu | Mọi mục của admin vào menu CRM: nhóm mới "Website" (Banner trang chủ, Bộ phối, Hãng trên web, Nhận đơn web, Khóa dịch vụ) giữa Khuyến mãi và Sản phẩm; "Yêu cầu về đơn hàng" ở Đơn hàng; "Góp ý" ở Khách hàng; "Chiến dịch giảm giá", "Quà sinh nhật" ở Khuyến mãi; "Nhật ký thao tác" ở Quản trị. | Admin riêng, menu: Tổng quan · Cửa hàng · Cần xử lý · Hệ thống. | chưa |
-| HV02 | Menu | Không có màn Tổng quan (QĐ37): số yêu cầu đang mở là số đếm cạnh mục "Yêu cầu về đơn hàng"; trạng thái nhận đơn ở màn Nhận đơn web; hoạt động gần đây ở Nhật ký thao tác. Không có "Đơn cần kiểm tra", "Kết nối Nhanh". | Tổng quan có 2 ô số, trạng thái website, 5 dòng hoạt động. | chưa |
-| HV03 | Yêu cầu | Danh sách là bảng có thanh lọc trạng thái kèm số đếm và lọc loại; mở một yêu cầu là trang chi tiết riêng. | Danh sách thẻ gập/mở, lọc "Đang mở" bằng ô chọn. | chưa |
-| HV04 | Yêu cầu | Tin nhân viên chọn "Khách thấy" hoặc "Ghi chú nội bộ" (khách không thấy). | Mọi tin nhân viên khách đều thấy. | chưa |
-| HV05 | Yêu cầu | Chi tiết hiện món khách muốn đổi, biến thể muốn đổi sang kèm số còn, và ảnh khách gửi (mở bằng link có hạn 10 phút; ảnh đang xử lý, bị từ chối hiện riêng); lý do hiện bằng chữ. | Không hiện ảnh; lý do hiện mã thô ("SIZE"). | chưa |
-| HV06 | Yêu cầu | Thêm loại "Trả hàng" (M5-12) bên cạnh Đổi hàng, Hủy đơn, Hỏi về đơn. | Ba loại: đổi, hủy, hỏi. | chưa |
-| HV07 | Yêu cầu | Yêu cầu hủy đơn đã gửi hãng có nút "Mở đơn để hủy vận đơn": hủy, đổi hãng, tạo đơn đổi làm ngay trong CRM, rồi quay lại Hoàn tất. | "Hủy đơn, tạo đơn đổi và hoàn tiền vẫn thực hiện trên Nhanh." | chưa |
-| HV08 | Yêu cầu | Cần bổ sung, Từ chối, Hoàn tất mở hộp thoại riêng (Cần bổ sung bắt buộc lời nhắn; Từ chối, Hoàn tất hỏi xác nhận vì không mở lại được). | Một form; chỉ Hoàn tất, Từ chối hỏi xác nhận. | chưa |
-| HV09 | Hãng trên web | Chọn hãng hiện trên website ở CRM, trên tài khoản hãng của màn Kết nối vận chuyển (một nơi lưu); bật/tắt và thứ tự lưu ngay từng tài khoản; chọn sẵn và phí dự phòng có nút Lưu riêng. | Một danh sách 3 hãng Nhanh, một nút Lưu, không đổi thứ tự. | chưa |
-| HV10 | Hãng trên web | Có thứ tự hãng khách thấy (↑ ↓); tài khoản tạm ngừng hoặc cần cấp quyền lại không bật được, có câu lý do. | Không có thứ tự; danh sách lấy từ đơn Nhanh 30 ngày. | chưa |
-| HV11 | Hãng trên web | Thêm "Phí dự phòng" (mặc định tắt): khi mọi hãng không báo được phí, khách thấy phí này ghi "ước tính". | Không có. | chưa |
-| HV12 | Hãng trên web | Số "vận đơn trong 30 ngày" mỗi tài khoản đếm vận đơn trong CRM (không còn đếm đơn Nhanh). | "n đơn trong Nhanh 30 ngày qua" mỗi hãng. | chưa |
-| HV13 | Khóa dịch vụ | Màn mới: Chủ tạo khóa cho website (chọn quyền, IP); khóa hiện một lần, chép ngay; thu hồi có xác nhận, có hiệu lực trong vài giây. | Không có (admin dùng tài khoản đăng nhập). | chưa |
-| HV14 | Quà sinh nhật | Quà sinh nhật ở CRM, bốn tab: Cần nhắn, Tất cả khách, Cài đặt quà, thêm tab "Đợt mã" (mã theo ngày, đã tặng, đã dùng kèm đơn, hết hạn); mã tạo trong CRM. | Ba tab; mã tạo trong Nhanh. | chưa |
-| HV15 | Quà sinh nhật | Cài đặt có ô "Lưu ngày sinh trước ít nhất (0–120 ngày)"; không hiện trạng thái kết nối Zalo OA, email (website giữ kết nối, tự gửi). | Có khối "Kênh gửi tự động" Zalo OA / Email. | chưa |
-| HV16 | Chiến dịch | Kích hoạt, tạm dừng, sửa khi đang chạy, xóa là hộp thoại trên danh sách; danh sách tải theo "Xem thêm" (giữ chọn 10/20/50 dòng). | Màn đổi sang khung kích hoạt riêng; phân trang số. | chưa |
-| HV17 | Chiến dịch | Vượt trần phần trăm báo "vượt trần của shop (50%), nhờ Chủ nâng trần". | Câu lỗi nói biến PROMO_CAMPAIGN_MAX_PERCENT trên máy chủ. | chưa |
-| HV18 | Banner | Ảnh banner tải lên kho tệp của CRM: có trạng thái "Đang xử lý ảnh", ảnh có thể bị từ chối sau xử lý (rộng dưới 600 px); đang xử lý thì nút Lưu khóa kèm lý do. | Website xử lý ảnh ngay khi tải, lỗi báo ngay. | chưa |
-| HV19 | Banner, Bộ phối | Người khác vừa lưu: hộp "Giữ bản đang sửa / Tải bản mới", không mất bản đang sửa. | Báo "Chọn Bỏ thay đổi để tải bản mới rồi sửa lại". | chưa |
-| HV20 | Bộ phối | Thêm ô "Câu mở đầu" (≤ 90) và "Câu chuyện" (≤ 220) mà website đã hỗ trợ. | Admin chưa có hai ô này. | chưa |
-| HV21 | Bộ phối | Ảnh người mẫu chọn từ ảnh sản phẩm trong CRM. | Ảnh lấy từ URL ảnh Nhanh. | chưa |
-| HV22 | Góp ý | Mức hài lòng hiện bằng chữ ("2/5 · Không hài lòng"); góp ý có SĐT trùng khách thì gắn hồ sơ, có liên kết sang hồ sơ và khối "Góp ý" trong hồ sơ khách; lọc trạng thái bằng thanh nhãn có số. | Mặt cười; không gắn khách. | chưa |
-| HV23 | Nhận đơn web | Tạm dừng/mở lại nhận đơn là màn riêng "Nhận đơn web" (nhóm Website), tách khỏi hãng giao hàng. | Chung trang "Vận hành website" với hãng giao hàng. | chưa |
-| HV24 | Nhật ký | Chỉ hiện tên trường đổi, không hiện nội dung (lý do, tên, mức giảm); người làm có thể là nhân viên, khóa dịch vụ của website, hệ thống; lọc người và khoảng ngày, không có ô tìm chữ; xem thêm theo con trỏ. | Hiện "Lý do: …", tên chiến dịch, mức giảm; ô tìm; phân trang số. | chưa |
-| HV25 | Nhật ký | Nhật ký cũ của admin không chuyển vào CRM (QĐ38), chỉ giữ bản xuất CSV. | — | chưa |
+| HV01 | Menu | Mọi mục của admin vào menu CRM: nhóm mới "Website" (Banner trang chủ, Bộ phối, Hãng trên web, Nhận đơn web, Khóa dịch vụ) giữa Khuyến mãi và Sản phẩm; "Yêu cầu về đơn hàng" ở Đơn hàng; "Góp ý" ở Khách hàng; "Chiến dịch giảm giá", "Quà sinh nhật" ở Khuyến mãi; "Nhật ký thao tác" ở Quản trị. | Admin riêng, menu: Tổng quan · Cửa hàng · Cần xử lý · Hệ thống. | OK chủ shop 21/11 (chat) |
+| HV02 | Menu | Không có màn Tổng quan (QĐ37): số yêu cầu đang mở là số đếm cạnh mục "Yêu cầu về đơn hàng"; trạng thái nhận đơn ở màn Nhận đơn web; hoạt động gần đây ở Nhật ký thao tác. Không có "Đơn cần kiểm tra", "Kết nối Nhanh". | Tổng quan có 2 ô số, trạng thái website, 5 dòng hoạt động. | OK chủ shop 21/11 (chat) |
+| HV03 | Yêu cầu | Danh sách là bảng có thanh lọc trạng thái kèm số đếm và lọc loại; mở một yêu cầu là trang chi tiết riêng. | Danh sách thẻ gập/mở, lọc "Đang mở" bằng ô chọn. | OK chủ shop 21/11 (chat) |
+| HV04 | Yêu cầu | Tin nhân viên chọn "Khách thấy" hoặc "Ghi chú nội bộ" (khách không thấy). | Mọi tin nhân viên khách đều thấy. | OK chủ shop 21/11 (chat) |
+| HV05 | Yêu cầu | Chi tiết hiện món khách muốn đổi, biến thể muốn đổi sang kèm số còn, và ảnh khách gửi (mở bằng link có hạn 10 phút; ảnh đang xử lý, bị từ chối hiện riêng); lý do hiện bằng chữ. | Không hiện ảnh; lý do hiện mã thô ("SIZE"). | OK chủ shop 21/11 (chat) |
+| HV06 | Yêu cầu | Thêm loại "Trả hàng" (M5-12) bên cạnh Đổi hàng, Hủy đơn, Hỏi về đơn. | Ba loại: đổi, hủy, hỏi. | OK chủ shop 21/11 (chat) |
+| HV07 | Yêu cầu | Yêu cầu hủy đơn đã gửi hãng có nút "Mở đơn để hủy vận đơn": hủy, đổi hãng, tạo đơn đổi làm ngay trong CRM, rồi quay lại Hoàn tất. | "Hủy đơn, tạo đơn đổi và hoàn tiền vẫn thực hiện trên Nhanh." | OK chủ shop 21/11 (chat) |
+| HV08 | Yêu cầu | Cần bổ sung, Từ chối, Hoàn tất mở hộp thoại riêng (Cần bổ sung bắt buộc lời nhắn; Từ chối, Hoàn tất hỏi xác nhận vì không mở lại được). | Một form; chỉ Hoàn tất, Từ chối hỏi xác nhận. | OK chủ shop 21/11 (chat) |
+| HV09 | Hãng trên web | Chọn hãng hiện trên website ở CRM, trên tài khoản hãng của màn Kết nối vận chuyển (một nơi lưu); bật/tắt và thứ tự lưu ngay từng tài khoản; chọn sẵn và phí dự phòng có nút Lưu riêng. | Một danh sách 3 hãng Nhanh, một nút Lưu, không đổi thứ tự. | OK chủ shop 21/11 (chat) |
+| HV10 | Hãng trên web | Có thứ tự hãng khách thấy (↑ ↓); tài khoản tạm ngừng hoặc cần cấp quyền lại không bật được, có câu lý do. | Không có thứ tự; danh sách lấy từ đơn Nhanh 30 ngày. | OK chủ shop 21/11 (chat) |
+| HV11 | Hãng trên web | Thêm "Phí dự phòng" (mặc định tắt): khi mọi hãng không báo được phí, khách thấy phí này ghi "ước tính". | Không có. | OK chủ shop 21/11 (chat) |
+| HV12 | Hãng trên web | Số "vận đơn trong 30 ngày" mỗi tài khoản đếm vận đơn trong CRM (không còn đếm đơn Nhanh). | "n đơn trong Nhanh 30 ngày qua" mỗi hãng. | OK chủ shop 21/11 (chat) |
+| HV13 | Khóa dịch vụ | Màn mới: Chủ tạo khóa cho website (chọn quyền, IP); khóa hiện một lần, chép ngay; thu hồi có xác nhận, có hiệu lực trong vài giây. | Không có (admin dùng tài khoản đăng nhập). | OK chủ shop 21/11 (chat) |
+| HV14 | Quà sinh nhật | Quà sinh nhật ở CRM, bốn tab: Cần nhắn, Tất cả khách, Cài đặt quà, thêm tab "Đợt mã" (mã theo ngày, đã tặng, đã dùng kèm đơn, hết hạn); mã tạo trong CRM. | Ba tab; mã tạo trong Nhanh. | OK chủ shop 21/11 (chat) |
+| HV15 | Quà sinh nhật | Cài đặt có ô "Lưu ngày sinh trước ít nhất (0–120 ngày)"; không hiện trạng thái kết nối Zalo OA, email (website giữ kết nối, tự gửi). | Có khối "Kênh gửi tự động" Zalo OA / Email. | OK chủ shop 21/11 (chat) |
+| HV16 | Chiến dịch | Kích hoạt, tạm dừng, sửa khi đang chạy, xóa là hộp thoại trên danh sách; danh sách tải theo "Xem thêm" (giữ chọn 10/20/50 dòng). | Màn đổi sang khung kích hoạt riêng; phân trang số. | OK chủ shop 21/11 (chat) |
+| HV17 | Chiến dịch | Vượt trần phần trăm báo "vượt trần của shop (50%), nhờ Chủ nâng trần". | Câu lỗi nói biến PROMO_CAMPAIGN_MAX_PERCENT trên máy chủ. | OK chủ shop 21/11 (chat) |
+| HV18 | Banner | Ảnh banner tải lên kho tệp của CRM: có trạng thái "Đang xử lý ảnh", ảnh có thể bị từ chối sau xử lý (rộng dưới 600 px); đang xử lý thì nút Lưu khóa kèm lý do. | Website xử lý ảnh ngay khi tải, lỗi báo ngay. | OK chủ shop 21/11 (chat) |
+| HV19 | Banner, Bộ phối | Người khác vừa lưu: hộp "Giữ bản đang sửa / Tải bản mới", không mất bản đang sửa. | Báo "Chọn Bỏ thay đổi để tải bản mới rồi sửa lại". | OK chủ shop 21/11 (chat) |
+| HV20 | Bộ phối | Thêm ô "Câu mở đầu" (≤ 90) và "Câu chuyện" (≤ 220) mà website đã hỗ trợ. | Admin chưa có hai ô này. | OK chủ shop 21/11 (chat) |
+| HV21 | Bộ phối | Ảnh người mẫu chọn từ ảnh sản phẩm trong CRM. | Ảnh lấy từ URL ảnh Nhanh. | OK chủ shop 21/11 (chat) |
+| HV22 | Góp ý | Mức hài lòng hiện bằng chữ ("2/5 · Không hài lòng"); góp ý có SĐT trùng khách thì gắn hồ sơ, có liên kết sang hồ sơ và khối "Góp ý" trong hồ sơ khách; lọc trạng thái bằng thanh nhãn có số. | Mặt cười; không gắn khách. | OK chủ shop 21/11 (chat) |
+| HV23 | Nhận đơn web | Tạm dừng/mở lại nhận đơn là màn riêng "Nhận đơn web" (nhóm Website), tách khỏi hãng giao hàng. | Chung trang "Vận hành website" với hãng giao hàng. | OK chủ shop 21/11 (chat) |
+| HV24 | Nhật ký | Chỉ hiện tên trường đổi, không hiện nội dung (lý do, tên, mức giảm); người làm có thể là nhân viên, khóa dịch vụ của website, hệ thống; lọc người và khoảng ngày, không có ô tìm chữ; xem thêm theo con trỏ. | Hiện "Lý do: …", tên chiến dịch, mức giảm; ô tìm; phân trang số. | OK chủ shop 21/11 (chat) |
+| HV25 | Nhật ký | Nhật ký cũ của admin không chuyển vào CRM (QĐ38), chỉ giữ bản xuất CSV. | — | OK chủ shop 21/11 (chat) |
 
 ## Kết luận duyệt (Điểm dừng B, Q-X8)
 

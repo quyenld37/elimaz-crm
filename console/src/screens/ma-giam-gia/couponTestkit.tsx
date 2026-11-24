@@ -1,7 +1,16 @@
 // API giả (fetch) và cách dựng cho test vitest của màn Mã giảm giá. Chỉ test nhập tệp này. Trả đúng kiểu của client sinh.
-import { vi } from "vitest";
-import type { Coupon, CouponBatch, CouponRedemption, Grant, Me } from "../../api";
-import { NOT_FOUND, bodyOf, renderScreens, reply, type Write } from "../../app/screenTestkit";
+import type { Coupon, CouponBatch, CouponRedemption, Grant } from "../../api";
+import {
+  NOT_FOUND,
+  ORDER_PAGE,
+  emptyWrites,
+  meReply,
+  page,
+  renderScreens,
+  reply,
+  stubApi,
+  type WriteQueue,
+} from "../../app/screenTestkit";
 import { screens } from "./route";
 
 export { stubDialog } from "../don/donTestkit";
@@ -66,7 +75,7 @@ export const redemption = (p: Partial<CouponRedemption> = {}): CouponRedemption 
 export const grantsOf = (...perms: string[]): Grant[] =>
   ["promotion.read", ...perms].map((permission) => ({ permission, scope: { type: "all", id: "" } }));
 
-export interface Fake {
+export interface Fake extends WriteQueue {
   grants: Grant[];
   coupons: Coupon[];
   listCalls: URLSearchParams[];
@@ -74,23 +83,15 @@ export interface Fake {
   /** Mã của đợt (listCoupons?batchId=…), trả theo trang `limit`. */
   batchCodes: string[];
   redemptions: CouponRedemption[];
-  writes: Write[];
-  replies: { status: number; body: unknown }[];
-  /** Có thì yêu cầu ghi chờ lời hứa này rồi mới trả (xem trạng thái "đang gửi"). */
-  hold: Promise<void> | null;
 }
 
 function batchPage(fake: Fake, q: URLSearchParams): Response {
-  const limit = Number(q.get("limit") ?? "50");
-  const from = Number(q.get("cursor") ?? "0");
-  const codes = fake.batchCodes.slice(from, from + limit);
-  const items = codes.map((code, i) => coupon({ id: `b-${String(from + i)}`, code, batchId: BATCH, usedCount: 0 }));
-  const next = from + limit < fake.batchCodes.length ? { nextCursor: String(from + limit) } : {};
-  return reply({ items, ...next });
+  const items = fake.batchCodes.map((code, i) => coupon({ id: `b-${String(i)}`, code, batchId: BATCH, usedCount: 0 }));
+  return reply(page(items, q));
 }
 
 function read(fake: Fake, p: string, q: URLSearchParams): Response {
-  if (p === "/api/v1/me") return reply({ userId: "me", email: "a@elimaz.vn", grants: fake.grants } satisfies Me);
+  if (p === "/api/v1/me") return meReply(fake.grants);
   if (p === "/api/v1/coupons") {
     fake.listCalls.push(q);
     if (q.get("batchId") !== null && fake.batchCodes.length > 0) return batchPage(fake, q);
@@ -134,24 +135,9 @@ export function installFake(): Fake {
     batches: new Map(),
     batchCodes: [],
     redemptions: [],
-    writes: [],
-    replies: [],
-    hold: null,
+    ...emptyWrites(),
   };
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (req: Request) => {
-      const url = new URL(req.url);
-      if (req.method === "GET") return read(fake, url.pathname, url.searchParams);
-      const body = await bodyOf(req);
-      fake.writes.push({ method: req.method, path: url.pathname, key: req.headers.get("Idempotency-Key"), body });
-      if (fake.hold !== null) await fake.hold;
-      const queued = fake.replies.shift();
-      return queued === undefined ? writeReply(fake, url.pathname, body) : reply(queued.body, queued.status);
-    }),
-  );
-  return fake;
+  return stubApi(fake, read, writeReply);
 }
 
-export const renderAt = (path: string) =>
-  renderScreens(screens, path, [{ path: "/don/:id", element: <p>Trang đơn</p> }]);
+export const renderAt = (path: string) => renderScreens(screens, path, ORDER_PAGE);
