@@ -491,6 +491,7 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 			Cash:        mods.M3.Cash.Service,
 			Fulfillment: mods.M3.Fulfillment.Service,
 			ServiceKeys: web.keys, RateLimiter: web.limiter, ReadCache: wc.rc, WebOrderLimiter: web.orderLimiter,
+			CouponGuard: web.couponGuard,
 		})
 	} else {
 		h, err := ingestHandler(cfg, d, reg, logger)

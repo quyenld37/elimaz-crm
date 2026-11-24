@@ -5367,6 +5367,9 @@ paths:
         làm tròn testdata/contracts/web-campaign-rounding.json); dòng thuộc chiến dịch không cho dùng mã không vào nền
         tính mã (QĐ29). Mã kiểm như lúc tạo đơn trừ lượt mỗi khách (tạo đơn kiểm). fingerprint là sha256 của các dòng
         theo số CRM, phí, tổng, mã: website gửi lại khi tạo đơn. Tổng vượt 9007199254740991 → 422 total_overflow.
+        Có couponCode (Task 482): SĐT (customerPhone) đã quá 10 lần nhập mã sai hay IP (clientIp; không gửi → khóa dịch
+        vụ) quá 30 lần trong 15 phút → 429 coupon_attempts_exceeded kèm Retry-After, kể cả mã đúng, tới hết cửa sổ;
+        mã sai (not_found, bound_other) được đếm. Báo giá không mã không bị chặn.
       x-auth: service_key
       x-permission: web.orders.create
       x-idempotency: exempt
@@ -5593,6 +5596,9 @@ paths:
         available). queued: giá hay mã lệch vẫn tạo theo số CRM, priceReview = true. Tạm bận → 503 retry_later kèm
         Retry-After, không lưu. Shop đang tạm dừng nhận đơn web (Task 456) và đơn gửi thẳng (sync) chưa có → 503
         web_orders_paused, không Retry-After, không lưu (mở lại rồi gửi lại cùng khóa thì xử lý lại); queued vẫn nhận.
+        Có couponCode mà SĐT người đặt hay IP (clientIp; không gửi → khóa dịch vụ) đã quá ngưỡng nhập mã sai (Task
+        482, như webQuote) → 429 coupon_attempts_exceeded kèm Retry-After, không lưu; 422 coupon_invalid not_found,
+        bound_other được đếm là một lần sai.
       x-auth: service_key
       x-permission: web.orders.create
       parameters:
@@ -6409,6 +6415,8 @@ components:
         - item_unavailable
         - quote_changed
         - too_fast
+        # Giới hạn nhập mã sai (M5, Task 482)
+        - coupon_attempts_exceeded
         # Tạm dừng nhận đơn web (M5, Task 456)
         - web_orders_paused
         # Đợt mã của website (M5, Task 197)
@@ -7986,6 +7994,12 @@ components:
           type: string
           maxLength: 64
           description: Rỗng hay không gửi là không dùng mã; không phân biệt hoa thường
+        clientIp:
+          type: string
+          format: ip
+          description: |
+            IP của khách (website chuyển từ cf-connecting-ip), chỉ để giới hạn số lần nhập mã sai theo IP (Task 482; IPv6
+            đếm theo /64; không lưu, không log). Không gửi → lần sai đếm chung theo khóa dịch vụ.
         customerPhone:
           type: string
           maxLength: 32
@@ -8097,6 +8111,12 @@ components:
           type: string
           maxLength: 64
           description: Rỗng hay không gửi là không dùng mã
+        clientIp:
+          type: string
+          format: ip
+          description: |
+            IP của khách (website chuyển từ cf-connecting-ip), chỉ để giới hạn số lần nhập mã sai theo IP (Task 482; IPv6
+            đếm theo /64; không lưu, không log). Không gửi → lần sai đếm chung theo khóa dịch vụ.
         shippingFee:
           type: integer
           format: int64

@@ -47,6 +47,7 @@ func newOrderEnv(t *testing.T, mod func(*httpapi.Deps)) *orderEnv {
 // webOrder là một đơn website sẽ gửi: giỏ lines (quoteLine), mã, SĐT, và báo giá đã hiện cho khách (total, fp).
 type webOrder struct {
 	ref, phone, coupon, via string
+	ip                      string // clientIp; rỗng: không gửi
 	lines                   []string
 	total                   int64
 	fp                      string
@@ -65,11 +66,15 @@ func (o *orderEnv) order(phone, coupon string, lines ...string) webOrder {
 }
 
 func (w webOrder) body() string {
-	return fmt.Sprintf(`{"externalRef":%q,"customer":{"phone":%q,"name":"Chị Mai"},`+
+	ip := ""
+	if w.ip != "" {
+		ip = fmt.Sprintf(`"clientIp":%q,`, w.ip)
+	}
+	return fmt.Sprintf(`{%s"externalRef":%q,"customer":{"phone":%q,"name":"Chị Mai"},`+
 		`"shipAddress":{"name":"Chị Mai","phone":%q,"line":"12 Lê Lợi","provinceCode":"T01","wardCode":"T01001"},`+
 		`"lines":[%s],"couponCode":%q,"shippingFee":30000,"quoted":{"fingerprint":%q,"grandTotal":%d},`+
 		`"submittedVia":%q,"note":"Giao giờ hành chính"}`,
-		w.ref, w.phone, w.phone, strings.Join(w.lines, ","), w.coupon, w.fp, w.total, w.via)
+		ip, w.ref, w.phone, w.phone, strings.Join(w.lines, ","), w.coupon, w.fp, w.total, w.via)
 }
 
 // place gửi đơn w với Idempotency-Key key qua máy chủ thử (trong tiến trình).

@@ -1617,7 +1617,10 @@ type Handler interface {
 	// priceReview = true. Tạm bận → 503 retry_later kèm Retry-After, không lưu. Shop đang tạm
 	// dừng nhận đơn web (Task 456) và đơn gửi thẳng (sync) chưa có → 503
 	// web_orders_paused, không Retry-After, không lưu (mở lại rồi gửi lại cùng khóa thì
-	// xử lý lại); queued vẫn nhận.
+	// xử lý lại); queued vẫn nhận. Có couponCode mà SĐT người đặt hay IP (clientIp;
+	// không gửi → khóa dịch vụ) đã quá ngưỡng nhập mã sai (Task 482, như webQuote) →
+	// 429 coupon_attempts_exceeded kèm Retry-After, không lưu; 422 coupon_invalid not_found,
+	// bound_other được đếm là một lần sai.
 	//
 	// POST /api/v1/web/orders
 	WebCreateOrder(ctx context.Context, req *WebOrderRequest, params WebCreateOrderParams) (WebCreateOrderRes, error)
@@ -1734,7 +1737,10 @@ type Handler interface {
 	// không cho dùng mã không vào nền tính mã (QĐ29). Mã kiểm như lúc tạo đơn trừ
 	// lượt mỗi khách (tạo đơn kiểm). fingerprint là sha256 của các dòng theo số CRM,
 	// phí, tổng, mã: website gửi lại khi tạo đơn. Tổng vượt 9007199254740991 → 422
-	// total_overflow.
+	// total_overflow. Có couponCode (Task 482): SĐT (customerPhone) đã quá 10 lần nhập mã sai
+	// hay IP (clientIp; không gửi → khóa dịch vụ) quá 30 lần trong 15 phút → 429
+	// coupon_attempts_exceeded kèm Retry-After, kể cả mã đúng, tới hết cửa sổ; mã sai
+	// (not_found, bound_other) được đếm. Báo giá không mã không bị chặn.
 	//
 	// POST /api/v1/web/quote
 	WebQuote(ctx context.Context, req *WebQuoteRequest) (WebQuoteRes, error)

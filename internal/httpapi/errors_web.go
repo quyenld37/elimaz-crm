@@ -19,7 +19,9 @@ const (
 	codeItemUnavailable = "item_unavailable"
 	codeCouponInvalid   = "coupon_invalid"
 	codeTooFast         = "too_fast"
-	codeWebOrdersPaused = "web_orders_paused"
+	// Quá ngưỡng nhập mã giảm giá sai (Task 482).
+	codeCouponAttemptsExceeded = "coupon_attempts_exceeded"
+	codeWebOrdersPaused        = "web_orders_paused"
 	// Yêu cầu về đơn hàng (Task 195).
 	codeWindowClosed      = "window_closed"
 	codeQtyExceeded       = "qty_exceeded"
@@ -57,12 +59,19 @@ func webError(err error) (status int, code string, ok bool) {
 	})
 }
 
-// tooFastError: SĐT người đặt đã quá ngưỡng đơn web (Deps.WebOrderLimiter); retryAfter là thời gian chờ.
+// tooFastError: SĐT người đặt đã quá ngưỡng đơn web (Deps.WebOrderLimiter; code rỗng → too_fast), hoặc khách đã quá
+// ngưỡng nhập mã sai (Deps.CouponGuard; code coupon_attempts_exceeded, Task 482); retryAfter là thời gian chờ.
 type tooFastError struct {
 	retryAfter time.Duration
+	code       string
 }
 
-func (e *tooFastError) Error() string { return "httpapi: quá nhiều đơn web của một khách" }
+func (e *tooFastError) Error() string {
+	if e.code == codeCouponAttemptsExceeded {
+		return "httpapi: quá nhiều lần nhập mã giảm giá sai"
+	}
+	return "httpapi: quá nhiều đơn web của một khách"
+}
 
 // webOrderDetail đổi ba kiểu lỗi chi tiết của order.CreateFromWeb sang thân lỗi (chỉ số tiền, mã biến thể, lý do —
 // không dữ liệu cá nhân): báo giá đổi (kèm báo giá CRM), món không bán được (kèm variantIds), mã không dùng được (kèm
@@ -105,13 +114,18 @@ func webOrderRefusal(err error) (errorBody, int, bool) {
 	return errorBody{}, 0, false
 }
 
-// writeTooFast ghi 429 too_fast kèm Retry-After khi err là tooFastError (không lưu theo khóa).
+// writeTooFast ghi 429 too_fast (hay mã riêng của tooFastError) kèm Retry-After khi err là tooFastError (không lưu theo
+// khóa).
 func writeTooFast(w http.ResponseWriter, r *http.Request, err error) bool {
 	e, ok := errors.AsType[*tooFastError](err)
 	if !ok {
 		return false
 	}
+	code := e.code
+	if code == "" {
+		code = codeTooFast
+	}
 	w.Header().Set("Retry-After", retryAfterSeconds(e.retryAfter))
-	writeError(w, r, http.StatusTooManyRequests, codeTooFast)
+	writeError(w, r, http.StatusTooManyRequests, code)
 	return true
 }

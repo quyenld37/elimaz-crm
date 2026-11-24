@@ -55,7 +55,7 @@ yêu cầu về đơn (dữ liệu cá nhân); ảnh khách gửi (riêng tư); 
 | R | Website chối đã gửi đơn, đã tạo yêu cầu, đã phát mã | Audit với người làm `service` + `ServiceKeyID` + `request_id` trong cùng transaction | 10, 12, 14 | `TestCreateFromWeb_AuditServiceActor` (10) | 1 |
 | D | Website (hay khóa bị lộ) dội yêu cầu | Giới hạn 1.200 yêu cầu/phút mỗi khóa, 20 đơn web/phút mỗi khách (QĐ23); `x-body-limit` mặc định 1 MiB; báo giá và báo phí là `POST` `exempt` không ghi gì | 03, 05, 09 | `TestRateLimit_ServiceKeyPerMinute` (03), `TestBodyLimit_413` (05) | 1 |
 | E | Thu hồi khóa mà khóa vẫn dùng được lâu | Báo hiệu thu hồi ≤ 1 s, đệm trong tiến trình tối đa 5 s | 06 | `TestServiceKey_RevokeWithin5s` (06) | 1 |
-| I | Mã quà sinh nhật bị dò | Mã sinh bằng `promotion.NewCode` (8 ký tự ngẫu nhiên từ bảng 32 chữ, `crypto/rand`, ≈ 1,1 × 10^12 khả năng); `Check` sai mã → `not_found` chung; giới hạn tần suất theo khách và IP | 14, 03 | `TestWebCoupon_GuessRateLimited` (14) | 1 |
+| I | Mã quà sinh nhật bị dò | Mã sinh bằng `promotion.NewCode` (8 ký tự ngẫu nhiên từ bảng 32 chữ, `crypto/rand`, ≈ 1,1 × 10^12 khả năng); `Check` sai mã → `not_found` chung; giới hạn tần suất theo khách và IP | 14, 03 | `TestWebCoupon_GuessRateLimited`, `TestWebCoupon_GuessRateLimitedOnCreate`, `TestCouponGuard_*` (Task 482: đếm lần sai theo SĐT 10, IP 30 / 15 phút; quá → 429 `coupon_attempts_exceeded`) | 1 |
 
 ## (B2) Trình duyệt khách → website → lượt mua flash sale — đợt 2
 

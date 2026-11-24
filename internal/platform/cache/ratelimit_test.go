@@ -351,3 +351,62 @@ func scanRL(t *testing.T, admin *cache.Conn) []string {
 		}
 	}
 }
+
+// peekAllowed gọi Peek n lần, đòi mỗi lần đều được.
+func peekAllowed(t *testing.T, rl cache.RateLimiter, l cache.Limit, subject string, n int) {
+	t.Helper()
+	for i := range n {
+		if d := rl.Peek(t.Context(), l, subject); !d.Allowed {
+			t.Fatalf("Peek lần %d: %+v, muốn được", i+1, d)
+		}
+	}
+}
+
+// Peek không tính lượt (Task 482): Max 3, cửa sổ 10 s, ở giây 3. Peek trước và giữa các lượt Allow luôn được (lượt
+// Allow thứ 3 vẫn được nên Peek không đếm); sau lượt thứ 3 Peek từ chối, RetryAfter 7 s, rồi Allow thứ 4 bị từ chối;
+// sang cửa sổ mới Peek được lại. Valkey ngừng: Peek đọc bộ đếm dự phòng (Degraded), FallbackMax 2. Limit sai: từ chối.
+func TestRateLimiter_PeekDoesNotCount(t *testing.T) {
+	vk := testkit.StartValkey(t)
+	clk := &fakeClock{t: windowBase().Add(3 * time.Second)}
+	rl := cache.NewRateLimiter(dialGate(t, vk.URL("crm_gate"), nil, 0), clk.now, nil)
+	l := cache.Limit{Name: "peek", Max: 3, Window: 10 * time.Second, FallbackMax: 2}
+	if d := rl.Peek(t.Context(), l, "svc:a"); !d.Allowed || d.Degraded {
+		t.Fatalf("Peek chủ thể mới: %+v", d)
+	}
+	for i := range 3 {
+		peekAllowed(t, rl, l, "svc:a", 4)
+		if d := rl.Allow(t.Context(), l, "svc:a"); !d.Allowed {
+			t.Fatalf("Allow lượt %d: %+v, muốn được (Peek không được tính)", i+1, d)
+		}
+	}
+	if d := rl.Peek(t.Context(), l, "svc:a"); d.Allowed || d.Degraded || d.RetryAfter != 7*time.Second {
+		t.Fatalf("Peek sau 3 lượt: %+v, muốn từ chối, RetryAfter 7 s", d)
+	}
+	if d := rl.Allow(t.Context(), l, "svc:a"); d.Allowed {
+		t.Fatalf("Allow lượt 4: %+v, muốn từ chối", d)
+	}
+	if d := rl.Peek(t.Context(), l, "svc:b"); !d.Allowed {
+		t.Fatalf("Peek chủ thể khác: %+v", d)
+	}
+	clk.add(10 * time.Second)
+	if d := rl.Peek(t.Context(), l, "svc:a"); !d.Allowed {
+		t.Fatalf("Peek cửa sổ mới: %+v", d)
+	}
+
+	vk.Stop(t)
+	if d := rl.Peek(t.Context(), l, "svc:a"); !d.Allowed || !d.Degraded {
+		t.Fatalf("Peek khi Valkey ngừng, chưa lượt dự phòng: %+v", d)
+	}
+	if ok, _ := allowN(t, rl, l, "svc:a", 2); ok != 2 {
+		t.Fatalf("dự phòng: %d lượt được, muốn 2", ok)
+	}
+	if d := rl.Peek(t.Context(), l, "svc:a"); d.Allowed || !d.Degraded || d.RetryAfter != 7*time.Second {
+		t.Fatalf("Peek dự phòng sau FallbackMax lượt: %+v, muốn từ chối, Degraded, RetryAfter 7 s", d)
+	}
+	if d := rl.Peek(t.Context(), cache.Limit{Name: "x", Max: 1}, "svc:a"); d.Allowed || d.RetryAfter != time.Second {
+		t.Fatalf("Peek Limit sai: %+v, muốn từ chối, RetryAfter 1 s", d)
+	}
+	if d := rl.Peek(t.Context(), l, "có dấu"); d.Allowed {
+		t.Fatalf("Peek chủ thể sai: %+v", d)
+	}
+}

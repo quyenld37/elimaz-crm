@@ -77,6 +77,10 @@ type Limits struct {
 	FlashIP Limit
 
 	WebOrderCustomer Limit
+
+	CouponGuessCustomer Limit
+
+	CouponGuessIP Limit
 }
 func DefaultLimits() Limits
 func ParseLimits(raw string) (Limits, error)
@@ -87,6 +91,8 @@ type RateDecision struct {
 }
 type RateLimiter interface {
 	Allow(ctx context.Context, l Limit, subjectKey string) RateDecision
+
+	Peek(ctx context.Context, l Limit, subjectKey string) RateDecision
 }
 func NewRateLimiter(c *Conn, now func() time.Time, m *metrics.Registry) RateLimiter
 type ReadCache interface {

@@ -4,6 +4,7 @@ package gen
 
 import (
 	"io"
+	"net/netip"
 	"time"
 
 	"github.com/go-faster/errors"
@@ -16789,6 +16790,52 @@ func (o OptHomeBannerTheme) Get() (v HomeBannerTheme, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptHomeBannerTheme) Or(d HomeBannerTheme) HomeBannerTheme {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptIP returns new OptIP with value set to v.
+func NewOptIP(v netip.Addr) OptIP {
+	return OptIP{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptIP is optional netip.Addr.
+type OptIP struct {
+	Value netip.Addr
+	Set   bool
+}
+
+// IsSet returns true if OptIP was set.
+func (o OptIP) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptIP) Reset() {
+	var v netip.Addr
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptIP) SetTo(v netip.Addr) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptIP) Get() (v netip.Addr, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptIP) Or(d netip.Addr) netip.Addr {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -36607,6 +36654,10 @@ type WebOrderRequest struct {
 	Lines       []WebQuoteLineInput     `json:"lines"`
 	// Rỗng hay không gửi là không dùng mã.
 	CouponCode OptString `json:"couponCode"`
+	// IP của khách (website chuyển từ cf-connecting-ip), chỉ để giới hạn số lần nhập
+	// mã sai theo IP (Task 482; IPv6 đếm theo /64; không lưu, không log). Không gửi → lần
+	// sai đếm chung theo khóa dịch vụ.
+	ClientIp OptIP `json:"clientIp"`
 	// Phí giao website đã tính (đồng).
 	ShippingFee int64 `json:"shippingFee"`
 	// Báo giá website đã hiện cho khách (webQuote); chỉ để so và lưu.
@@ -36643,6 +36694,11 @@ func (s *WebOrderRequest) GetLines() []WebQuoteLineInput {
 // GetCouponCode returns the value of CouponCode.
 func (s *WebOrderRequest) GetCouponCode() OptString {
 	return s.CouponCode
+}
+
+// GetClientIp returns the value of ClientIp.
+func (s *WebOrderRequest) GetClientIp() OptIP {
+	return s.ClientIp
 }
 
 // GetShippingFee returns the value of ShippingFee.
@@ -36693,6 +36749,11 @@ func (s *WebOrderRequest) SetLines(val []WebQuoteLineInput) {
 // SetCouponCode sets the value of CouponCode.
 func (s *WebOrderRequest) SetCouponCode(val OptString) {
 	s.CouponCode = val
+}
+
+// SetClientIp sets the value of ClientIp.
+func (s *WebOrderRequest) SetClientIp(val OptIP) {
+	s.ClientIp = val
 }
 
 // SetShippingFee sets the value of ShippingFee.
@@ -37677,6 +37738,10 @@ type WebQuoteRequest struct {
 	Lines []WebQuoteLineInput `json:"lines"`
 	// Rỗng hay không gửi là không dùng mã; không phân biệt hoa thường.
 	CouponCode OptString `json:"couponCode"`
+	// IP của khách (website chuyển từ cf-connecting-ip), chỉ để giới hạn số lần nhập
+	// mã sai theo IP (Task 482; IPv6 đếm theo /64; không lưu, không log). Không gửi → lần
+	// sai đếm chung theo khóa dịch vụ.
+	ClientIp OptIP `json:"clientIp"`
 	// SĐT người đặt, chỉ để kiểm mã gắn SĐT (không ghi lại).
 	CustomerPhone OptString `json:"customerPhone"`
 	// Phí giao website đã tính (đồng).
@@ -37691,6 +37756,11 @@ func (s *WebQuoteRequest) GetLines() []WebQuoteLineInput {
 // GetCouponCode returns the value of CouponCode.
 func (s *WebQuoteRequest) GetCouponCode() OptString {
 	return s.CouponCode
+}
+
+// GetClientIp returns the value of ClientIp.
+func (s *WebQuoteRequest) GetClientIp() OptIP {
+	return s.ClientIp
 }
 
 // GetCustomerPhone returns the value of CustomerPhone.
@@ -37711,6 +37781,11 @@ func (s *WebQuoteRequest) SetLines(val []WebQuoteLineInput) {
 // SetCouponCode sets the value of CouponCode.
 func (s *WebQuoteRequest) SetCouponCode(val OptString) {
 	s.CouponCode = val
+}
+
+// SetClientIp sets the value of ClientIp.
+func (s *WebQuoteRequest) SetClientIp(val OptIP) {
+	s.ClientIp = val
 }
 
 // SetCustomerPhone sets the value of CustomerPhone.

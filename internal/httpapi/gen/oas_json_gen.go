@@ -33826,6 +33826,41 @@ func (s *OptHomeBannerTheme) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes netip.Addr as json.
+func (o OptIP) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	json.EncodeIP(e, o.Value)
+}
+
+// Decode decodes netip.Addr from json.
+func (o *OptIP) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptIP to nil")
+	}
+	o.Set = true
+	v, err := json.DecodeIP(d)
+	if err != nil {
+		return err
+	}
+	o.Value = v
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptIP) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptIP) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes int32 as json.
 func (o OptInt32) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -75329,6 +75364,12 @@ func (s *WebOrderRequest) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.ClientIp.Set {
+			e.FieldStart("clientIp")
+			s.ClientIp.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("shippingFee")
 		e.Int64(s.ShippingFee)
 	}
@@ -75354,17 +75395,18 @@ func (s *WebOrderRequest) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfWebOrderRequest = [10]string{
-	0: "externalRef",
-	1: "customer",
-	2: "shipAddress",
-	3: "lines",
-	4: "couponCode",
-	5: "shippingFee",
-	6: "quoted",
-	7: "submittedVia",
-	8: "note",
-	9: "referralRef",
+var jsonFieldsNameOfWebOrderRequest = [11]string{
+	0:  "externalRef",
+	1:  "customer",
+	2:  "shipAddress",
+	3:  "lines",
+	4:  "couponCode",
+	5:  "clientIp",
+	6:  "shippingFee",
+	7:  "quoted",
+	8:  "submittedVia",
+	9:  "note",
+	10: "referralRef",
 }
 
 // Decode decodes WebOrderRequest from json.
@@ -75436,8 +75478,18 @@ func (s *WebOrderRequest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"couponCode\"")
 			}
+		case "clientIp":
+			if err := func() error {
+				s.ClientIp.Reset()
+				if err := s.ClientIp.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"clientIp\"")
+			}
 		case "shippingFee":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int64()
 				s.ShippingFee = int64(v)
@@ -75449,7 +75501,7 @@ func (s *WebOrderRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"shippingFee\"")
 			}
 		case "quoted":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Quoted.Decode(d); err != nil {
 					return err
@@ -75459,7 +75511,7 @@ func (s *WebOrderRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"quoted\"")
 			}
 		case "submittedVia":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.SubmittedVia.Decode(d); err != nil {
 					return err
@@ -75498,8 +75550,8 @@ func (s *WebOrderRequest) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11101111,
-		0b00000000,
+		0b11001111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -77770,6 +77822,12 @@ func (s *WebQuoteRequest) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.ClientIp.Set {
+			e.FieldStart("clientIp")
+			s.ClientIp.Encode(e)
+		}
+	}
+	{
 		if s.CustomerPhone.Set {
 			e.FieldStart("customerPhone")
 			s.CustomerPhone.Encode(e)
@@ -77781,11 +77839,12 @@ func (s *WebQuoteRequest) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfWebQuoteRequest = [4]string{
+var jsonFieldsNameOfWebQuoteRequest = [5]string{
 	0: "lines",
 	1: "couponCode",
-	2: "customerPhone",
-	3: "shippingFee",
+	2: "clientIp",
+	3: "customerPhone",
+	4: "shippingFee",
 }
 
 // Decode decodes WebQuoteRequest from json.
@@ -77825,6 +77884,16 @@ func (s *WebQuoteRequest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"couponCode\"")
 			}
+		case "clientIp":
+			if err := func() error {
+				s.ClientIp.Reset()
+				if err := s.ClientIp.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"clientIp\"")
+			}
 		case "customerPhone":
 			if err := func() error {
 				s.CustomerPhone.Reset()
@@ -77836,7 +77905,7 @@ func (s *WebQuoteRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"customerPhone\"")
 			}
 		case "shippingFee":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int64()
 				s.ShippingFee = int64(v)
@@ -77857,7 +77926,7 @@ func (s *WebQuoteRequest) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
