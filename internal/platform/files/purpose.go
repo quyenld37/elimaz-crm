@@ -43,6 +43,28 @@ type Purpose struct {
 	Upload bool
 	// Private (R10): ảnh riêng tư của khách, chỉ file.process_private xử lý; đòi Bucket = BucketPrivate, Image = true.
 	Private bool
+	// Preset (Task 453): bộ kích thước riêng của mục đích (≥ purposePresetBase, ví dụ PresetBannerV1); 0 = bộ chung
+	// IMAGE_PRESET_VERSION như mọi mục đích có sẵn. Tạo lại kích thước bộ chung bỏ qua tệp của mục đích có bộ riêng.
+	Preset int
+	// MinWidth > 0 (Task 453): ảnh hẹp hơn bị rejected too_small (imager kiểm trước khi giải mã, files kiểm lại kết
+	// quả); 0 = không kiểm.
+	MinWidth int
+}
+
+// presetFor là bộ kích thước mà ảnh của mục đích p dùng khi bộ chung là general.
+func (p Purpose) presetFor(general int) int {
+	if p.Preset != 0 {
+		return p.Preset
+	}
+	return general
+}
+
+// acceptsPreset: bộ v là bộ của mục đích p (bộ riêng đúng p.Preset; mục đích không có bộ riêng chỉ nhận bộ chung).
+func (p Purpose) acceptsPreset(v int) bool {
+	if p.Preset != 0 {
+		return v == p.Preset
+	}
+	return v < purposePresetBase
 }
 
 func (p Purpose) mode() string {
@@ -66,13 +88,18 @@ func (p Purpose) validate() error {
 		return fmt.Errorf("%s: MaxBytes phải > 0", p.Key)
 	case p.Private && (p.Bucket != BucketPrivate || !p.Image):
 		return fmt.Errorf("%s: chế độ private đòi bucket private và Image", p.Key)
+	case p.Preset != 0 && (p.Preset < purposePresetBase || !p.Image || p.Private):
+		return fmt.Errorf("%s: bộ kích thước riêng phải ≥ %d, cho ảnh công khai", p.Key, purposePresetBase)
+	case p.MinWidth < 0 || (p.MinWidth > 0 && !p.Image):
+		return fmt.Errorf("%s: MinWidth phải ≥ 0, chỉ cho ảnh", p.Key)
 	}
 	return nil
 }
 
 func samePurpose(a, b Purpose) bool {
 	return a.Key == b.Key && a.Bucket == b.Bucket && slices.Equal(a.AllowedTypes, b.AllowedTypes) &&
-		a.MaxBytes == b.MaxBytes && a.Image == b.Image && a.Upload == b.Upload && a.Private == b.Private
+		a.MaxBytes == b.MaxBytes && a.Image == b.Image && a.Upload == b.Upload && a.Private == b.Private &&
+		a.Preset == b.Preset && a.MinWidth == b.MinWidth
 }
 
 // Registry là sổ mục đích tệp. Dùng sổ mặc định qua RegisterPurpose, PurposeOf; NewRegistry chỉ để test so một tập

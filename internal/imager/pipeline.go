@@ -33,11 +33,13 @@ const (
 	ReasonTypeNotAllowed = "type_not_allowed"
 	ReasonTooLarge       = "too_large"
 	ReasonTooManyPixels  = "too_many_pixels"
-	ReasonDecodeFailed   = "decode_failed"
-	ReasonTimeout        = "timeout"
-	ReasonUploadFailed   = "upload_failed"
-	ReasonSourceFailed   = "source_failed"
-	ReasonInternal       = "internal"
+	// ReasonTooSmall: ảnh hẹp hơn Request.MinWidth (Task 453: banner rộng ≥ 600 px).
+	ReasonTooSmall     = "too_small"
+	ReasonDecodeFailed = "decode_failed"
+	ReasonTimeout      = "timeout"
+	ReasonUploadFailed = "upload_failed"
+	ReasonSourceFailed = "source_failed"
+	ReasonInternal     = "internal"
 )
 
 // Giới hạn của một yêu cầu (kiểm ở Validate).
@@ -59,11 +61,13 @@ type Output struct {
 
 // Request là việc worker giao (ADR-45). SourceURL là đường dẫn GET ký sẵn của ảnh thô.
 type Request struct {
-	SourceURL string   `json:"sourceUrl"`
-	MaxBytes  int64    `json:"maxBytes"`
-	MaxPixels int64    `json:"maxPixels"`
-	Allowed   []string `json:"allowed"`
-	Outputs   []Output `json:"outputs"`
+	SourceURL string `json:"sourceUrl"`
+	MaxBytes  int64  `json:"maxBytes"`
+	MaxPixels int64  `json:"maxPixels"`
+	// MinWidth > 0: ảnh hẹp hơn bị từ chối too_small trước khi giải mã (Task 453); 0 = không kiểm (yêu cầu cũ).
+	MinWidth int      `json:"minWidth,omitempty"`
+	Allowed  []string `json:"allowed"`
+	Outputs  []Output `json:"outputs"`
 }
 
 // OutputResult là một biến thể đã ghi. Width, Format là kích thước và định dạng đã xin (khóa của biến thể);
@@ -113,6 +117,8 @@ func (r Request) Validate() error {
 		return fmt.Errorf("%w: sourceUrl", ErrBadRequest)
 	case r.MaxBytes <= 0 || r.MaxPixels <= 0:
 		return fmt.Errorf("%w: maxBytes, maxPixels", ErrBadRequest)
+	case r.MinWidth < 0 || r.MinWidth > maxWidth:
+		return fmt.Errorf("%w: minWidth", ErrBadRequest)
 	case len(r.Allowed) == 0:
 		return fmt.Errorf("%w: allowed", ErrBadRequest)
 	case len(r.Outputs) == 0 || len(r.Outputs) > maxOutputs:
@@ -279,7 +285,7 @@ func (p *pipeline) sniff(context.Context) string {
 }
 
 // (3) kích thước và bộ đọc libvips bằng một lần vipsheader (chỉ đọc phần đầu tệp); bộ đọc phải khớp loại đã nhận;
-// vượt MaxPixels thì dừng trước khi giải mã.
+// vượt MaxPixels hay hẹp hơn MinWidth thì dừng trước khi giải mã.
 func (p *pipeline) header(ctx context.Context) string {
 	line, err := p.run1(ctx, p.lim.VipsHeaderBin, []string{p.src})
 	if err != nil {
@@ -295,6 +301,9 @@ func (p *pipeline) header(ctx context.Context) string {
 	p.res.Width, p.res.Height = w, h
 	if int64(w)*int64(h) > p.req.MaxPixels {
 		return ReasonTooManyPixels
+	}
+	if w < p.req.MinWidth {
+		return ReasonTooSmall
 	}
 	return ""
 }

@@ -1646,6 +1646,23 @@ func (s *BalancePage) SetNextCursor(val OptString) {
 
 func (*BalancePage) listBalancesRes() {}
 
+// Ref: #/components/schemas/BannerPreview
+type BannerPreview struct {
+	Statuses []HomeBannerStatus `json:"statuses"`
+}
+
+// GetStatuses returns the value of Statuses.
+func (s *BannerPreview) GetStatuses() []HomeBannerStatus {
+	return s.Statuses
+}
+
+// SetStatuses sets the value of Statuses.
+func (s *BannerPreview) SetStatuses(val []HomeBannerStatus) {
+	s.Statuses = val
+}
+
+func (*BannerPreview) previewBannersRes() {}
+
 type Barcode string
 
 // Ref: #/components/schemas/BirthdayCustomer
@@ -10590,6 +10607,7 @@ func (*ErrorStatusCode) deleteCustomerAddressRes()       {}
 func (*ErrorStatusCode) deleteProductImageRes()          {}
 func (*ErrorStatusCode) deleteWebCampaignRes()           {}
 func (*ErrorStatusCode) exportBirthdayCustomersRes()     {}
+func (*ErrorStatusCode) getBannersRes()                  {}
 func (*ErrorStatusCode) getBirthdaySettingsRes()         {}
 func (*ErrorStatusCode) getCatalogImportRes()            {}
 func (*ErrorStatusCode) getCatalogImportTemplateRes()    {}
@@ -10679,6 +10697,7 @@ func (*ErrorStatusCode) markBirthdayMessagedRes()        {}
 func (*ErrorStatusCode) mergeCustomerRes()               {}
 func (*ErrorStatusCode) payRefundObligationRes()         {}
 func (*ErrorStatusCode) postStockDocumentRes()           {}
+func (*ErrorStatusCode) previewBannersRes()              {}
 func (*ErrorStatusCode) previewCodAdjustmentRes()        {}
 func (*ErrorStatusCode) previewShipmentCorrectionRes()   {}
 func (*ErrorStatusCode) previewWebCampaignRes()          {}
@@ -10707,6 +10726,7 @@ func (*ErrorStatusCode) restoreProductImageRes()         {}
 func (*ErrorStatusCode) retryJobRes()                    {}
 func (*ErrorStatusCode) revokeServiceKeyRes()            {}
 func (*ErrorStatusCode) runBirthdayGiftsRes()            {}
+func (*ErrorStatusCode) saveBannersRes()                 {}
 func (*ErrorStatusCode) saveBirthdaySettingsRes()        {}
 func (*ErrorStatusCode) saveWebCampaignRes()             {}
 func (*ErrorStatusCode) saveWebCarrierSettingsRes()      {}
@@ -10759,6 +10779,7 @@ func (*ErrorStatusCode) webCreateOrderRes()              {}
 func (*ErrorStatusCode) webCreateRequestRes()            {}
 func (*ErrorStatusCode) webDeliveryEstimatesRes()        {}
 func (*ErrorStatusCode) webGetOrderRes()                 {}
+func (*ErrorStatusCode) webHomeBannersRes()              {}
 func (*ErrorStatusCode) webImportCouponsRes()            {}
 func (*ErrorStatusCode) webIntakeStatusRes()             {}
 func (*ErrorStatusCode) webListRequestsRes()             {}
@@ -11425,6 +11446,976 @@ func (s *HealthStatusStatus) UnmarshalText(data []byte) error {
 		return nil
 	case HealthStatusStatusUnavailable:
 		*s = HealthStatusStatusUnavailable
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Một banner trang chủ (Task 453). Chữ rỗng = website tự điền. Chỉ campaign có
+// campaignId; chỉ category có categoryId; ảnh (imageDesktop, imageMobile, alt, linkKind, linkId)
+// chỉ ở loại image, loại image không có chữ, màu, ghim. Giới hạn (kiểm ở máy
+// chủ, 422): kicker 40, title 60, cta 30, alt 120 ký tự; ghim ≤ 3.
+// Ref: #/components/schemas/HomeBanner
+type HomeBanner struct {
+	ID         uuid.UUID          `json:"id"`
+	Enabled    bool               `json:"enabled"`
+	Kind       HomeBannerKind     `json:"kind"`
+	CampaignId OptUUID            `json:"campaignId"`
+	CategoryId OptUUID            `json:"categoryId"`
+	Kicker     OptString          `json:"kicker"`
+	Title      OptString          `json:"title"`
+	Cta        OptString          `json:"cta"`
+	Theme      OptHomeBannerTheme `json:"theme"`
+	StartsAt   OptDateTime        `json:"startsAt"`
+	EndsAt     OptDateTime        `json:"endsAt"`
+	ProductIds []uuid.UUID        `json:"productIds"`
+	// Mã tệp ảnh máy tính (mục đích web_banner, khuyên 2368×600, chữ trong vùng giữa
+	// rộng 1800).
+	ImageDesktop OptUUID `json:"imageDesktop"`
+	// Mã tệp ảnh điện thoại tùy chọn (khuyên 1080×640, vùng giữa rộng 900).
+	ImageMobile OptUUID               `json:"imageMobile"`
+	Alt         OptString             `json:"alt"`
+	LinkKind    OptHomeBannerLinkKind `json:"linkKind"`
+	LinkId      OptUUID               `json:"linkId"`
+}
+
+// GetID returns the value of ID.
+func (s *HomeBanner) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *HomeBanner) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetKind returns the value of Kind.
+func (s *HomeBanner) GetKind() HomeBannerKind {
+	return s.Kind
+}
+
+// GetCampaignId returns the value of CampaignId.
+func (s *HomeBanner) GetCampaignId() OptUUID {
+	return s.CampaignId
+}
+
+// GetCategoryId returns the value of CategoryId.
+func (s *HomeBanner) GetCategoryId() OptUUID {
+	return s.CategoryId
+}
+
+// GetKicker returns the value of Kicker.
+func (s *HomeBanner) GetKicker() OptString {
+	return s.Kicker
+}
+
+// GetTitle returns the value of Title.
+func (s *HomeBanner) GetTitle() OptString {
+	return s.Title
+}
+
+// GetCta returns the value of Cta.
+func (s *HomeBanner) GetCta() OptString {
+	return s.Cta
+}
+
+// GetTheme returns the value of Theme.
+func (s *HomeBanner) GetTheme() OptHomeBannerTheme {
+	return s.Theme
+}
+
+// GetStartsAt returns the value of StartsAt.
+func (s *HomeBanner) GetStartsAt() OptDateTime {
+	return s.StartsAt
+}
+
+// GetEndsAt returns the value of EndsAt.
+func (s *HomeBanner) GetEndsAt() OptDateTime {
+	return s.EndsAt
+}
+
+// GetProductIds returns the value of ProductIds.
+func (s *HomeBanner) GetProductIds() []uuid.UUID {
+	return s.ProductIds
+}
+
+// GetImageDesktop returns the value of ImageDesktop.
+func (s *HomeBanner) GetImageDesktop() OptUUID {
+	return s.ImageDesktop
+}
+
+// GetImageMobile returns the value of ImageMobile.
+func (s *HomeBanner) GetImageMobile() OptUUID {
+	return s.ImageMobile
+}
+
+// GetAlt returns the value of Alt.
+func (s *HomeBanner) GetAlt() OptString {
+	return s.Alt
+}
+
+// GetLinkKind returns the value of LinkKind.
+func (s *HomeBanner) GetLinkKind() OptHomeBannerLinkKind {
+	return s.LinkKind
+}
+
+// GetLinkId returns the value of LinkId.
+func (s *HomeBanner) GetLinkId() OptUUID {
+	return s.LinkId
+}
+
+// SetID sets the value of ID.
+func (s *HomeBanner) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *HomeBanner) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetKind sets the value of Kind.
+func (s *HomeBanner) SetKind(val HomeBannerKind) {
+	s.Kind = val
+}
+
+// SetCampaignId sets the value of CampaignId.
+func (s *HomeBanner) SetCampaignId(val OptUUID) {
+	s.CampaignId = val
+}
+
+// SetCategoryId sets the value of CategoryId.
+func (s *HomeBanner) SetCategoryId(val OptUUID) {
+	s.CategoryId = val
+}
+
+// SetKicker sets the value of Kicker.
+func (s *HomeBanner) SetKicker(val OptString) {
+	s.Kicker = val
+}
+
+// SetTitle sets the value of Title.
+func (s *HomeBanner) SetTitle(val OptString) {
+	s.Title = val
+}
+
+// SetCta sets the value of Cta.
+func (s *HomeBanner) SetCta(val OptString) {
+	s.Cta = val
+}
+
+// SetTheme sets the value of Theme.
+func (s *HomeBanner) SetTheme(val OptHomeBannerTheme) {
+	s.Theme = val
+}
+
+// SetStartsAt sets the value of StartsAt.
+func (s *HomeBanner) SetStartsAt(val OptDateTime) {
+	s.StartsAt = val
+}
+
+// SetEndsAt sets the value of EndsAt.
+func (s *HomeBanner) SetEndsAt(val OptDateTime) {
+	s.EndsAt = val
+}
+
+// SetProductIds sets the value of ProductIds.
+func (s *HomeBanner) SetProductIds(val []uuid.UUID) {
+	s.ProductIds = val
+}
+
+// SetImageDesktop sets the value of ImageDesktop.
+func (s *HomeBanner) SetImageDesktop(val OptUUID) {
+	s.ImageDesktop = val
+}
+
+// SetImageMobile sets the value of ImageMobile.
+func (s *HomeBanner) SetImageMobile(val OptUUID) {
+	s.ImageMobile = val
+}
+
+// SetAlt sets the value of Alt.
+func (s *HomeBanner) SetAlt(val OptString) {
+	s.Alt = val
+}
+
+// SetLinkKind sets the value of LinkKind.
+func (s *HomeBanner) SetLinkKind(val OptHomeBannerLinkKind) {
+	s.LinkKind = val
+}
+
+// SetLinkId sets the value of LinkId.
+func (s *HomeBanner) SetLinkId(val OptUUID) {
+	s.LinkId = val
+}
+
+// Ref: #/components/schemas/HomeBannerCampaign
+type HomeBannerCampaign struct {
+	ID        uuid.UUID               `json:"id"`
+	Name      string                  `json:"name"`
+	Percent   int32                   `json:"percent"`
+	Scope     HomeBannerCampaignScope `json:"scope"`
+	State     HomeBannerCampaignState `json:"state"`
+	StartsAt  time.Time               `json:"startsAt"`
+	EndsAt    time.Time               `json:"endsAt"`
+	TargetIds []uuid.UUID             `json:"targetIds"`
+	Running   bool                    `json:"running"`
+}
+
+// GetID returns the value of ID.
+func (s *HomeBannerCampaign) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *HomeBannerCampaign) GetName() string {
+	return s.Name
+}
+
+// GetPercent returns the value of Percent.
+func (s *HomeBannerCampaign) GetPercent() int32 {
+	return s.Percent
+}
+
+// GetScope returns the value of Scope.
+func (s *HomeBannerCampaign) GetScope() HomeBannerCampaignScope {
+	return s.Scope
+}
+
+// GetState returns the value of State.
+func (s *HomeBannerCampaign) GetState() HomeBannerCampaignState {
+	return s.State
+}
+
+// GetStartsAt returns the value of StartsAt.
+func (s *HomeBannerCampaign) GetStartsAt() time.Time {
+	return s.StartsAt
+}
+
+// GetEndsAt returns the value of EndsAt.
+func (s *HomeBannerCampaign) GetEndsAt() time.Time {
+	return s.EndsAt
+}
+
+// GetTargetIds returns the value of TargetIds.
+func (s *HomeBannerCampaign) GetTargetIds() []uuid.UUID {
+	return s.TargetIds
+}
+
+// GetRunning returns the value of Running.
+func (s *HomeBannerCampaign) GetRunning() bool {
+	return s.Running
+}
+
+// SetID sets the value of ID.
+func (s *HomeBannerCampaign) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *HomeBannerCampaign) SetName(val string) {
+	s.Name = val
+}
+
+// SetPercent sets the value of Percent.
+func (s *HomeBannerCampaign) SetPercent(val int32) {
+	s.Percent = val
+}
+
+// SetScope sets the value of Scope.
+func (s *HomeBannerCampaign) SetScope(val HomeBannerCampaignScope) {
+	s.Scope = val
+}
+
+// SetState sets the value of State.
+func (s *HomeBannerCampaign) SetState(val HomeBannerCampaignState) {
+	s.State = val
+}
+
+// SetStartsAt sets the value of StartsAt.
+func (s *HomeBannerCampaign) SetStartsAt(val time.Time) {
+	s.StartsAt = val
+}
+
+// SetEndsAt sets the value of EndsAt.
+func (s *HomeBannerCampaign) SetEndsAt(val time.Time) {
+	s.EndsAt = val
+}
+
+// SetTargetIds sets the value of TargetIds.
+func (s *HomeBannerCampaign) SetTargetIds(val []uuid.UUID) {
+	s.TargetIds = val
+}
+
+// SetRunning sets the value of Running.
+func (s *HomeBannerCampaign) SetRunning(val bool) {
+	s.Running = val
+}
+
+type HomeBannerCampaignScope string
+
+const (
+	HomeBannerCampaignScopeAll        HomeBannerCampaignScope = "all"
+	HomeBannerCampaignScopeProducts   HomeBannerCampaignScope = "products"
+	HomeBannerCampaignScopeCategories HomeBannerCampaignScope = "categories"
+)
+
+// AllValues returns all HomeBannerCampaignScope values.
+func (HomeBannerCampaignScope) AllValues() []HomeBannerCampaignScope {
+	return []HomeBannerCampaignScope{
+		HomeBannerCampaignScopeAll,
+		HomeBannerCampaignScopeProducts,
+		HomeBannerCampaignScopeCategories,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HomeBannerCampaignScope) MarshalText() ([]byte, error) {
+	switch s {
+	case HomeBannerCampaignScopeAll:
+		return []byte(s), nil
+	case HomeBannerCampaignScopeProducts:
+		return []byte(s), nil
+	case HomeBannerCampaignScopeCategories:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HomeBannerCampaignScope) UnmarshalText(data []byte) error {
+	switch HomeBannerCampaignScope(data) {
+	case HomeBannerCampaignScopeAll:
+		*s = HomeBannerCampaignScopeAll
+		return nil
+	case HomeBannerCampaignScopeProducts:
+		*s = HomeBannerCampaignScopeProducts
+		return nil
+	case HomeBannerCampaignScopeCategories:
+		*s = HomeBannerCampaignScopeCategories
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type HomeBannerCampaignState string
+
+const (
+	HomeBannerCampaignStateDraft   HomeBannerCampaignState = "draft"
+	HomeBannerCampaignStateEnabled HomeBannerCampaignState = "enabled"
+	HomeBannerCampaignStatePaused  HomeBannerCampaignState = "paused"
+)
+
+// AllValues returns all HomeBannerCampaignState values.
+func (HomeBannerCampaignState) AllValues() []HomeBannerCampaignState {
+	return []HomeBannerCampaignState{
+		HomeBannerCampaignStateDraft,
+		HomeBannerCampaignStateEnabled,
+		HomeBannerCampaignStatePaused,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HomeBannerCampaignState) MarshalText() ([]byte, error) {
+	switch s {
+	case HomeBannerCampaignStateDraft:
+		return []byte(s), nil
+	case HomeBannerCampaignStateEnabled:
+		return []byte(s), nil
+	case HomeBannerCampaignStatePaused:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HomeBannerCampaignState) UnmarshalText(data []byte) error {
+	switch HomeBannerCampaignState(data) {
+	case HomeBannerCampaignStateDraft:
+		*s = HomeBannerCampaignStateDraft
+		return nil
+	case HomeBannerCampaignStateEnabled:
+		*s = HomeBannerCampaignStateEnabled
+		return nil
+	case HomeBannerCampaignStatePaused:
+		*s = HomeBannerCampaignStatePaused
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/HomeBannerCategory
+type HomeBannerCategory struct {
+	ID       uuid.UUID `json:"id"`
+	ParentId OptUUID   `json:"parentId"`
+	Name     string    `json:"name"`
+}
+
+// GetID returns the value of ID.
+func (s *HomeBannerCategory) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetParentId returns the value of ParentId.
+func (s *HomeBannerCategory) GetParentId() OptUUID {
+	return s.ParentId
+}
+
+// GetName returns the value of Name.
+func (s *HomeBannerCategory) GetName() string {
+	return s.Name
+}
+
+// SetID sets the value of ID.
+func (s *HomeBannerCategory) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetParentId sets the value of ParentId.
+func (s *HomeBannerCategory) SetParentId(val OptUUID) {
+	s.ParentId = val
+}
+
+// SetName sets the value of Name.
+func (s *HomeBannerCategory) SetName(val string) {
+	s.Name = val
+}
+
+// Lý do banner không hiện (đúng tên của website cũ).
+// Ref: #/components/schemas/HomeBannerHidden
+type HomeBannerHidden string
+
+const (
+	HomeBannerHiddenDisabled           HomeBannerHidden = "disabled"
+	HomeBannerHiddenScheduled          HomeBannerHidden = "scheduled"
+	HomeBannerHiddenExpired            HomeBannerHidden = "expired"
+	HomeBannerHiddenCampaignMissing    HomeBannerHidden = "campaign-missing"
+	HomeBannerHiddenCampaignNotRunning HomeBannerHidden = "campaign-not-running"
+	HomeBannerHiddenCategoryMissing    HomeBannerHidden = "category-missing"
+	HomeBannerHiddenNoProducts         HomeBannerHidden = "no-products"
+	HomeBannerHiddenImageMissing       HomeBannerHidden = "image-missing"
+	HomeBannerHiddenProductMissing     HomeBannerHidden = "product-missing"
+)
+
+// AllValues returns all HomeBannerHidden values.
+func (HomeBannerHidden) AllValues() []HomeBannerHidden {
+	return []HomeBannerHidden{
+		HomeBannerHiddenDisabled,
+		HomeBannerHiddenScheduled,
+		HomeBannerHiddenExpired,
+		HomeBannerHiddenCampaignMissing,
+		HomeBannerHiddenCampaignNotRunning,
+		HomeBannerHiddenCategoryMissing,
+		HomeBannerHiddenNoProducts,
+		HomeBannerHiddenImageMissing,
+		HomeBannerHiddenProductMissing,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HomeBannerHidden) MarshalText() ([]byte, error) {
+	switch s {
+	case HomeBannerHiddenDisabled:
+		return []byte(s), nil
+	case HomeBannerHiddenScheduled:
+		return []byte(s), nil
+	case HomeBannerHiddenExpired:
+		return []byte(s), nil
+	case HomeBannerHiddenCampaignMissing:
+		return []byte(s), nil
+	case HomeBannerHiddenCampaignNotRunning:
+		return []byte(s), nil
+	case HomeBannerHiddenCategoryMissing:
+		return []byte(s), nil
+	case HomeBannerHiddenNoProducts:
+		return []byte(s), nil
+	case HomeBannerHiddenImageMissing:
+		return []byte(s), nil
+	case HomeBannerHiddenProductMissing:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HomeBannerHidden) UnmarshalText(data []byte) error {
+	switch HomeBannerHidden(data) {
+	case HomeBannerHiddenDisabled:
+		*s = HomeBannerHiddenDisabled
+		return nil
+	case HomeBannerHiddenScheduled:
+		*s = HomeBannerHiddenScheduled
+		return nil
+	case HomeBannerHiddenExpired:
+		*s = HomeBannerHiddenExpired
+		return nil
+	case HomeBannerHiddenCampaignMissing:
+		*s = HomeBannerHiddenCampaignMissing
+		return nil
+	case HomeBannerHiddenCampaignNotRunning:
+		*s = HomeBannerHiddenCampaignNotRunning
+		return nil
+	case HomeBannerHiddenCategoryMissing:
+		*s = HomeBannerHiddenCategoryMissing
+		return nil
+	case HomeBannerHiddenNoProducts:
+		*s = HomeBannerHiddenNoProducts
+		return nil
+	case HomeBannerHiddenImageMissing:
+		*s = HomeBannerHiddenImageMissing
+		return nil
+	case HomeBannerHiddenProductMissing:
+		*s = HomeBannerHiddenProductMissing
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/HomeBannerImage
+type HomeBannerImage struct {
+	FileId uuid.UUID `json:"fileId"`
+	// Trạng thái tệp (awaiting_upload, uploaded, processing, ready, rejected, lost); không có tệp
+	// → missing.
+	Status  string `json:"status"`
+	Deleted bool   `json:"deleted"`
+	// Đường dẫn WebP rộng 2400 (có khi ready).
+	Desktop OptString `json:"desktop"`
+	// Đường dẫn WebP rộng 1200 (có khi ready).
+	DesktopSmall OptString `json:"desktopSmall"`
+}
+
+// GetFileId returns the value of FileId.
+func (s *HomeBannerImage) GetFileId() uuid.UUID {
+	return s.FileId
+}
+
+// GetStatus returns the value of Status.
+func (s *HomeBannerImage) GetStatus() string {
+	return s.Status
+}
+
+// GetDeleted returns the value of Deleted.
+func (s *HomeBannerImage) GetDeleted() bool {
+	return s.Deleted
+}
+
+// GetDesktop returns the value of Desktop.
+func (s *HomeBannerImage) GetDesktop() OptString {
+	return s.Desktop
+}
+
+// GetDesktopSmall returns the value of DesktopSmall.
+func (s *HomeBannerImage) GetDesktopSmall() OptString {
+	return s.DesktopSmall
+}
+
+// SetFileId sets the value of FileId.
+func (s *HomeBannerImage) SetFileId(val uuid.UUID) {
+	s.FileId = val
+}
+
+// SetStatus sets the value of Status.
+func (s *HomeBannerImage) SetStatus(val string) {
+	s.Status = val
+}
+
+// SetDeleted sets the value of Deleted.
+func (s *HomeBannerImage) SetDeleted(val bool) {
+	s.Deleted = val
+}
+
+// SetDesktop sets the value of Desktop.
+func (s *HomeBannerImage) SetDesktop(val OptString) {
+	s.Desktop = val
+}
+
+// SetDesktopSmall sets the value of DesktopSmall.
+func (s *HomeBannerImage) SetDesktopSmall(val OptString) {
+	s.DesktopSmall = val
+}
+
+// Ref: #/components/schemas/HomeBannerKind
+type HomeBannerKind string
+
+const (
+	HomeBannerKindCampaign HomeBannerKind = "campaign"
+	HomeBannerKindTrending HomeBannerKind = "trending"
+	HomeBannerKindNew      HomeBannerKind = "new"
+	HomeBannerKindCategory HomeBannerKind = "category"
+	HomeBannerKindImage    HomeBannerKind = "image"
+)
+
+// AllValues returns all HomeBannerKind values.
+func (HomeBannerKind) AllValues() []HomeBannerKind {
+	return []HomeBannerKind{
+		HomeBannerKindCampaign,
+		HomeBannerKindTrending,
+		HomeBannerKindNew,
+		HomeBannerKindCategory,
+		HomeBannerKindImage,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HomeBannerKind) MarshalText() ([]byte, error) {
+	switch s {
+	case HomeBannerKindCampaign:
+		return []byte(s), nil
+	case HomeBannerKindTrending:
+		return []byte(s), nil
+	case HomeBannerKindNew:
+		return []byte(s), nil
+	case HomeBannerKindCategory:
+		return []byte(s), nil
+	case HomeBannerKindImage:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HomeBannerKind) UnmarshalText(data []byte) error {
+	switch HomeBannerKind(data) {
+	case HomeBannerKindCampaign:
+		*s = HomeBannerKindCampaign
+		return nil
+	case HomeBannerKindTrending:
+		*s = HomeBannerKindTrending
+		return nil
+	case HomeBannerKindNew:
+		*s = HomeBannerKindNew
+		return nil
+	case HomeBannerKindCategory:
+		*s = HomeBannerKindCategory
+		return nil
+	case HomeBannerKindImage:
+		*s = HomeBannerKindImage
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/HomeBannerLinkKind
+type HomeBannerLinkKind string
+
+const (
+	HomeBannerLinkKindCampaign HomeBannerLinkKind = "campaign"
+	HomeBannerLinkKindCategory HomeBannerLinkKind = "category"
+	HomeBannerLinkKindProduct  HomeBannerLinkKind = "product"
+	HomeBannerLinkKindOffers   HomeBannerLinkKind = "offers"
+)
+
+// AllValues returns all HomeBannerLinkKind values.
+func (HomeBannerLinkKind) AllValues() []HomeBannerLinkKind {
+	return []HomeBannerLinkKind{
+		HomeBannerLinkKindCampaign,
+		HomeBannerLinkKindCategory,
+		HomeBannerLinkKindProduct,
+		HomeBannerLinkKindOffers,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HomeBannerLinkKind) MarshalText() ([]byte, error) {
+	switch s {
+	case HomeBannerLinkKindCampaign:
+		return []byte(s), nil
+	case HomeBannerLinkKindCategory:
+		return []byte(s), nil
+	case HomeBannerLinkKindProduct:
+		return []byte(s), nil
+	case HomeBannerLinkKindOffers:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HomeBannerLinkKind) UnmarshalText(data []byte) error {
+	switch HomeBannerLinkKind(data) {
+	case HomeBannerLinkKindCampaign:
+		*s = HomeBannerLinkKindCampaign
+		return nil
+	case HomeBannerLinkKindCategory:
+		*s = HomeBannerLinkKindCategory
+		return nil
+	case HomeBannerLinkKindProduct:
+		*s = HomeBannerLinkKindProduct
+		return nil
+	case HomeBannerLinkKindOffers:
+		*s = HomeBannerLinkKindOffers
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Danh sách banner (Task 453). campaigns là mọi chiến dịch web chưa xóa; categories là danh
+// mục đang dùng; products chỉ gồm mẫu đang bán mà danh sách nhắc (ghim, đích).
+// Chọn mẫu để ghim dùng tìm sản phẩm của danh mục.
+// Ref: #/components/schemas/HomeBannerList
+type HomeBannerList struct {
+	Revision   int32                `json:"revision"`
+	UpdatedBy  OptUUID              `json:"updatedBy"`
+	UpdatedAt  OptDateTime          `json:"updatedAt"`
+	Banners    []HomeBanner         `json:"banners"`
+	Statuses   []HomeBannerStatus   `json:"statuses"`
+	Images     []HomeBannerImage    `json:"images"`
+	Campaigns  []HomeBannerCampaign `json:"campaigns"`
+	Categories []HomeBannerCategory `json:"categories"`
+	Products   []HomeBannerProduct  `json:"products"`
+}
+
+// GetRevision returns the value of Revision.
+func (s *HomeBannerList) GetRevision() int32 {
+	return s.Revision
+}
+
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *HomeBannerList) GetUpdatedBy() OptUUID {
+	return s.UpdatedBy
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *HomeBannerList) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// GetBanners returns the value of Banners.
+func (s *HomeBannerList) GetBanners() []HomeBanner {
+	return s.Banners
+}
+
+// GetStatuses returns the value of Statuses.
+func (s *HomeBannerList) GetStatuses() []HomeBannerStatus {
+	return s.Statuses
+}
+
+// GetImages returns the value of Images.
+func (s *HomeBannerList) GetImages() []HomeBannerImage {
+	return s.Images
+}
+
+// GetCampaigns returns the value of Campaigns.
+func (s *HomeBannerList) GetCampaigns() []HomeBannerCampaign {
+	return s.Campaigns
+}
+
+// GetCategories returns the value of Categories.
+func (s *HomeBannerList) GetCategories() []HomeBannerCategory {
+	return s.Categories
+}
+
+// GetProducts returns the value of Products.
+func (s *HomeBannerList) GetProducts() []HomeBannerProduct {
+	return s.Products
+}
+
+// SetRevision sets the value of Revision.
+func (s *HomeBannerList) SetRevision(val int32) {
+	s.Revision = val
+}
+
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *HomeBannerList) SetUpdatedBy(val OptUUID) {
+	s.UpdatedBy = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *HomeBannerList) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetBanners sets the value of Banners.
+func (s *HomeBannerList) SetBanners(val []HomeBanner) {
+	s.Banners = val
+}
+
+// SetStatuses sets the value of Statuses.
+func (s *HomeBannerList) SetStatuses(val []HomeBannerStatus) {
+	s.Statuses = val
+}
+
+// SetImages sets the value of Images.
+func (s *HomeBannerList) SetImages(val []HomeBannerImage) {
+	s.Images = val
+}
+
+// SetCampaigns sets the value of Campaigns.
+func (s *HomeBannerList) SetCampaigns(val []HomeBannerCampaign) {
+	s.Campaigns = val
+}
+
+// SetCategories sets the value of Categories.
+func (s *HomeBannerList) SetCategories(val []HomeBannerCategory) {
+	s.Categories = val
+}
+
+// SetProducts sets the value of Products.
+func (s *HomeBannerList) SetProducts(val []HomeBannerProduct) {
+	s.Products = val
+}
+
+func (*HomeBannerList) getBannersRes()  {}
+func (*HomeBannerList) saveBannersRes() {}
+
+// Ref: #/components/schemas/HomeBannerProduct
+type HomeBannerProduct struct {
+	ID         uuid.UUID `json:"id"`
+	Code       string    `json:"code"`
+	Name       string    `json:"name"`
+	CategoryId OptUUID   `json:"categoryId"`
+	// Có biến thể bán được giá > 0 và có ảnh đã xử lý (mới lên được banner).
+	Showable bool `json:"showable"`
+}
+
+// GetID returns the value of ID.
+func (s *HomeBannerProduct) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCode returns the value of Code.
+func (s *HomeBannerProduct) GetCode() string {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *HomeBannerProduct) GetName() string {
+	return s.Name
+}
+
+// GetCategoryId returns the value of CategoryId.
+func (s *HomeBannerProduct) GetCategoryId() OptUUID {
+	return s.CategoryId
+}
+
+// GetShowable returns the value of Showable.
+func (s *HomeBannerProduct) GetShowable() bool {
+	return s.Showable
+}
+
+// SetID sets the value of ID.
+func (s *HomeBannerProduct) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCode sets the value of Code.
+func (s *HomeBannerProduct) SetCode(val string) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *HomeBannerProduct) SetName(val string) {
+	s.Name = val
+}
+
+// SetCategoryId sets the value of CategoryId.
+func (s *HomeBannerProduct) SetCategoryId(val OptUUID) {
+	s.CategoryId = val
+}
+
+// SetShowable sets the value of Showable.
+func (s *HomeBannerProduct) SetShowable(val bool) {
+	s.Showable = val
+}
+
+// Ref: #/components/schemas/HomeBannerStatus
+type HomeBannerStatus struct {
+	ID     uuid.UUID           `json:"id"`
+	Shown  bool                `json:"shown"`
+	Reason OptHomeBannerHidden `json:"reason"`
+}
+
+// GetID returns the value of ID.
+func (s *HomeBannerStatus) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetShown returns the value of Shown.
+func (s *HomeBannerStatus) GetShown() bool {
+	return s.Shown
+}
+
+// GetReason returns the value of Reason.
+func (s *HomeBannerStatus) GetReason() OptHomeBannerHidden {
+	return s.Reason
+}
+
+// SetID sets the value of ID.
+func (s *HomeBannerStatus) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetShown sets the value of Shown.
+func (s *HomeBannerStatus) SetShown(val bool) {
+	s.Shown = val
+}
+
+// SetReason sets the value of Reason.
+func (s *HomeBannerStatus) SetReason(val OptHomeBannerHidden) {
+	s.Reason = val
+}
+
+// Ref: #/components/schemas/HomeBannerTheme
+type HomeBannerTheme string
+
+const (
+	HomeBannerThemeAuto  HomeBannerTheme = "auto"
+	HomeBannerThemeRed   HomeBannerTheme = "red"
+	HomeBannerThemeBlack HomeBannerTheme = "black"
+	HomeBannerThemeLight HomeBannerTheme = "light"
+)
+
+// AllValues returns all HomeBannerTheme values.
+func (HomeBannerTheme) AllValues() []HomeBannerTheme {
+	return []HomeBannerTheme{
+		HomeBannerThemeAuto,
+		HomeBannerThemeRed,
+		HomeBannerThemeBlack,
+		HomeBannerThemeLight,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HomeBannerTheme) MarshalText() ([]byte, error) {
+	switch s {
+	case HomeBannerThemeAuto:
+		return []byte(s), nil
+	case HomeBannerThemeRed:
+		return []byte(s), nil
+	case HomeBannerThemeBlack:
+		return []byte(s), nil
+	case HomeBannerThemeLight:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HomeBannerTheme) UnmarshalText(data []byte) error {
+	switch HomeBannerTheme(data) {
+	case HomeBannerThemeAuto:
+		*s = HomeBannerThemeAuto
+		return nil
+	case HomeBannerThemeRed:
+		*s = HomeBannerThemeRed
+		return nil
+	case HomeBannerThemeBlack:
+		*s = HomeBannerThemeBlack
+		return nil
+	case HomeBannerThemeLight:
+		*s = HomeBannerThemeLight
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -14390,6 +15381,144 @@ func (o OptHealthStatusChecks) Or(d HealthStatusChecks) HealthStatusChecks {
 	return d
 }
 
+// NewOptHomeBannerHidden returns new OptHomeBannerHidden with value set to v.
+func NewOptHomeBannerHidden(v HomeBannerHidden) OptHomeBannerHidden {
+	return OptHomeBannerHidden{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHomeBannerHidden is optional HomeBannerHidden.
+type OptHomeBannerHidden struct {
+	Value HomeBannerHidden
+	Set   bool
+}
+
+// IsSet returns true if OptHomeBannerHidden was set.
+func (o OptHomeBannerHidden) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHomeBannerHidden) Reset() {
+	var v HomeBannerHidden
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHomeBannerHidden) SetTo(v HomeBannerHidden) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHomeBannerHidden) Get() (v HomeBannerHidden, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHomeBannerHidden) Or(d HomeBannerHidden) HomeBannerHidden {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHomeBannerLinkKind returns new OptHomeBannerLinkKind with value set to v.
+func NewOptHomeBannerLinkKind(v HomeBannerLinkKind) OptHomeBannerLinkKind {
+	return OptHomeBannerLinkKind{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHomeBannerLinkKind is optional HomeBannerLinkKind.
+type OptHomeBannerLinkKind struct {
+	Value HomeBannerLinkKind
+	Set   bool
+}
+
+// IsSet returns true if OptHomeBannerLinkKind was set.
+func (o OptHomeBannerLinkKind) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHomeBannerLinkKind) Reset() {
+	var v HomeBannerLinkKind
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHomeBannerLinkKind) SetTo(v HomeBannerLinkKind) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHomeBannerLinkKind) Get() (v HomeBannerLinkKind, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHomeBannerLinkKind) Or(d HomeBannerLinkKind) HomeBannerLinkKind {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHomeBannerTheme returns new OptHomeBannerTheme with value set to v.
+func NewOptHomeBannerTheme(v HomeBannerTheme) OptHomeBannerTheme {
+	return OptHomeBannerTheme{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHomeBannerTheme is optional HomeBannerTheme.
+type OptHomeBannerTheme struct {
+	Value HomeBannerTheme
+	Set   bool
+}
+
+// IsSet returns true if OptHomeBannerTheme was set.
+func (o OptHomeBannerTheme) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHomeBannerTheme) Reset() {
+	var v HomeBannerTheme
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHomeBannerTheme) SetTo(v HomeBannerTheme) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHomeBannerTheme) Get() (v HomeBannerTheme, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHomeBannerTheme) Or(d HomeBannerTheme) HomeBannerTheme {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptInt32 returns new OptInt32 with value set to v.
 func NewOptInt32(v int32) OptInt32 {
 	return OptInt32{
@@ -17164,6 +18293,98 @@ func (o OptWebCancelOrderBody) Get() (v WebCancelOrderBody, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptWebCancelOrderBody) Or(d WebCancelOrderBody) WebCancelOrderBody {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptWebHomeBannerLink returns new OptWebHomeBannerLink with value set to v.
+func NewOptWebHomeBannerLink(v WebHomeBannerLink) OptWebHomeBannerLink {
+	return OptWebHomeBannerLink{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWebHomeBannerLink is optional WebHomeBannerLink.
+type OptWebHomeBannerLink struct {
+	Value WebHomeBannerLink
+	Set   bool
+}
+
+// IsSet returns true if OptWebHomeBannerLink was set.
+func (o OptWebHomeBannerLink) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWebHomeBannerLink) Reset() {
+	var v WebHomeBannerLink
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWebHomeBannerLink) SetTo(v WebHomeBannerLink) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWebHomeBannerLink) Get() (v WebHomeBannerLink, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWebHomeBannerLink) Or(d WebHomeBannerLink) WebHomeBannerLink {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptWebHomeBannerPicture returns new OptWebHomeBannerPicture with value set to v.
+func NewOptWebHomeBannerPicture(v WebHomeBannerPicture) OptWebHomeBannerPicture {
+	return OptWebHomeBannerPicture{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWebHomeBannerPicture is optional WebHomeBannerPicture.
+type OptWebHomeBannerPicture struct {
+	Value WebHomeBannerPicture
+	Set   bool
+}
+
+// IsSet returns true if OptWebHomeBannerPicture was set.
+func (o OptWebHomeBannerPicture) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWebHomeBannerPicture) Reset() {
+	var v WebHomeBannerPicture
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWebHomeBannerPicture) SetTo(v WebHomeBannerPicture) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWebHomeBannerPicture) Get() (v WebHomeBannerPicture, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWebHomeBannerPicture) Or(d WebHomeBannerPicture) WebHomeBannerPicture {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -21019,6 +22240,21 @@ func (*PlatformHealth) getPlatformHealthRes() {}
 
 type Position int32
 
+// Ref: #/components/schemas/PreviewBannersRequest
+type PreviewBannersRequest struct {
+	Banners []HomeBanner `json:"banners"`
+}
+
+// GetBanners returns the value of Banners.
+func (s *PreviewBannersRequest) GetBanners() []HomeBanner {
+	return s.Banners
+}
+
+// SetBanners sets the value of Banners.
+func (s *PreviewBannersRequest) SetBanners(val []HomeBanner) {
+	s.Banners = val
+}
+
 // Ref: #/components/schemas/ProcessHealth
 type ProcessHealth struct {
 	Role              string `json:"role"`
@@ -23763,6 +24999,32 @@ func (s *RoleStatus) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Ref: #/components/schemas/SaveBannersRequest
+type SaveBannersRequest struct {
+	Revision int32        `json:"revision"`
+	Banners  []HomeBanner `json:"banners"`
+}
+
+// GetRevision returns the value of Revision.
+func (s *SaveBannersRequest) GetRevision() int32 {
+	return s.Revision
+}
+
+// GetBanners returns the value of Banners.
+func (s *SaveBannersRequest) GetBanners() []HomeBanner {
+	return s.Banners
+}
+
+// SetRevision sets the value of Revision.
+func (s *SaveBannersRequest) SetRevision(val int32) {
+	s.Revision = val
+}
+
+// SetBanners sets the value of Banners.
+func (s *SaveBannersRequest) SetBanners(val []HomeBanner) {
+	s.Banners = val
 }
 
 // Merged schema.
@@ -32681,6 +33943,278 @@ func (s *WebDeliveryEstimates) SetProvinces(val []WebDeliveryEstimate) {
 }
 
 func (*WebDeliveryEstimates) webDeliveryEstimatesRes() {}
+
+// Ref: #/components/schemas/WebHomeBanner
+type WebHomeBanner struct {
+	ID         uuid.UUID               `json:"id"`
+	Kind       HomeBannerKind          `json:"kind"`
+	CampaignId OptUUID                 `json:"campaignId"`
+	CategoryId OptUUID                 `json:"categoryId"`
+	Kicker     string                  `json:"kicker"`
+	Title      string                  `json:"title"`
+	Cta        string                  `json:"cta"`
+	Theme      HomeBannerTheme         `json:"theme"`
+	ProductIds []uuid.UUID             `json:"productIds"`
+	StartsAt   OptDateTime             `json:"startsAt"`
+	EndsAt     OptDateTime             `json:"endsAt"`
+	Picture    OptWebHomeBannerPicture `json:"picture"`
+	Link       OptWebHomeBannerLink    `json:"link"`
+}
+
+// GetID returns the value of ID.
+func (s *WebHomeBanner) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *WebHomeBanner) GetKind() HomeBannerKind {
+	return s.Kind
+}
+
+// GetCampaignId returns the value of CampaignId.
+func (s *WebHomeBanner) GetCampaignId() OptUUID {
+	return s.CampaignId
+}
+
+// GetCategoryId returns the value of CategoryId.
+func (s *WebHomeBanner) GetCategoryId() OptUUID {
+	return s.CategoryId
+}
+
+// GetKicker returns the value of Kicker.
+func (s *WebHomeBanner) GetKicker() string {
+	return s.Kicker
+}
+
+// GetTitle returns the value of Title.
+func (s *WebHomeBanner) GetTitle() string {
+	return s.Title
+}
+
+// GetCta returns the value of Cta.
+func (s *WebHomeBanner) GetCta() string {
+	return s.Cta
+}
+
+// GetTheme returns the value of Theme.
+func (s *WebHomeBanner) GetTheme() HomeBannerTheme {
+	return s.Theme
+}
+
+// GetProductIds returns the value of ProductIds.
+func (s *WebHomeBanner) GetProductIds() []uuid.UUID {
+	return s.ProductIds
+}
+
+// GetStartsAt returns the value of StartsAt.
+func (s *WebHomeBanner) GetStartsAt() OptDateTime {
+	return s.StartsAt
+}
+
+// GetEndsAt returns the value of EndsAt.
+func (s *WebHomeBanner) GetEndsAt() OptDateTime {
+	return s.EndsAt
+}
+
+// GetPicture returns the value of Picture.
+func (s *WebHomeBanner) GetPicture() OptWebHomeBannerPicture {
+	return s.Picture
+}
+
+// GetLink returns the value of Link.
+func (s *WebHomeBanner) GetLink() OptWebHomeBannerLink {
+	return s.Link
+}
+
+// SetID sets the value of ID.
+func (s *WebHomeBanner) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *WebHomeBanner) SetKind(val HomeBannerKind) {
+	s.Kind = val
+}
+
+// SetCampaignId sets the value of CampaignId.
+func (s *WebHomeBanner) SetCampaignId(val OptUUID) {
+	s.CampaignId = val
+}
+
+// SetCategoryId sets the value of CategoryId.
+func (s *WebHomeBanner) SetCategoryId(val OptUUID) {
+	s.CategoryId = val
+}
+
+// SetKicker sets the value of Kicker.
+func (s *WebHomeBanner) SetKicker(val string) {
+	s.Kicker = val
+}
+
+// SetTitle sets the value of Title.
+func (s *WebHomeBanner) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetCta sets the value of Cta.
+func (s *WebHomeBanner) SetCta(val string) {
+	s.Cta = val
+}
+
+// SetTheme sets the value of Theme.
+func (s *WebHomeBanner) SetTheme(val HomeBannerTheme) {
+	s.Theme = val
+}
+
+// SetProductIds sets the value of ProductIds.
+func (s *WebHomeBanner) SetProductIds(val []uuid.UUID) {
+	s.ProductIds = val
+}
+
+// SetStartsAt sets the value of StartsAt.
+func (s *WebHomeBanner) SetStartsAt(val OptDateTime) {
+	s.StartsAt = val
+}
+
+// SetEndsAt sets the value of EndsAt.
+func (s *WebHomeBanner) SetEndsAt(val OptDateTime) {
+	s.EndsAt = val
+}
+
+// SetPicture sets the value of Picture.
+func (s *WebHomeBanner) SetPicture(val OptWebHomeBannerPicture) {
+	s.Picture = val
+}
+
+// SetLink sets the value of Link.
+func (s *WebHomeBanner) SetLink(val OptWebHomeBannerLink) {
+	s.Link = val
+}
+
+// Ref: #/components/schemas/WebHomeBannerLink
+type WebHomeBannerLink struct {
+	Kind HomeBannerLinkKind `json:"kind"`
+	ID   OptUUID            `json:"id"`
+}
+
+// GetKind returns the value of Kind.
+func (s *WebHomeBannerLink) GetKind() HomeBannerLinkKind {
+	return s.Kind
+}
+
+// GetID returns the value of ID.
+func (s *WebHomeBannerLink) GetID() OptUUID {
+	return s.ID
+}
+
+// SetKind sets the value of Kind.
+func (s *WebHomeBannerLink) SetKind(val HomeBannerLinkKind) {
+	s.Kind = val
+}
+
+// SetID sets the value of ID.
+func (s *WebHomeBannerLink) SetID(val OptUUID) {
+	s.ID = val
+}
+
+// Ref: #/components/schemas/WebHomeBannerList
+type WebHomeBannerList struct {
+	Items []WebHomeBanner `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *WebHomeBannerList) GetItems() []WebHomeBanner {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *WebHomeBannerList) SetItems(val []WebHomeBanner) {
+	s.Items = val
+}
+
+// WebHomeBannerListHeaders wraps WebHomeBannerList with response headers.
+type WebHomeBannerListHeaders struct {
+	ETag     OptString
+	Response WebHomeBannerList
+}
+
+// GetETag returns the value of ETag.
+func (s *WebHomeBannerListHeaders) GetETag() OptString {
+	return s.ETag
+}
+
+// GetResponse returns the value of Response.
+func (s *WebHomeBannerListHeaders) GetResponse() WebHomeBannerList {
+	return s.Response
+}
+
+// SetETag sets the value of ETag.
+func (s *WebHomeBannerListHeaders) SetETag(val OptString) {
+	s.ETag = val
+}
+
+// SetResponse sets the value of Response.
+func (s *WebHomeBannerListHeaders) SetResponse(val WebHomeBannerList) {
+	s.Response = val
+}
+
+func (*WebHomeBannerListHeaders) webHomeBannersRes() {}
+
+// Ref: #/components/schemas/WebHomeBannerPicture
+type WebHomeBannerPicture struct {
+	// WebP rộng 2400 của ảnh máy tính.
+	Desktop string `json:"desktop"`
+	// WebP rộng 1200 của ảnh máy tính.
+	DesktopSmall string `json:"desktopSmall"`
+	// WebP rộng 1200 của ảnh điện thoại (không có thì của ảnh máy tính).
+	Mobile string `json:"mobile"`
+	Alt    string `json:"alt"`
+}
+
+// GetDesktop returns the value of Desktop.
+func (s *WebHomeBannerPicture) GetDesktop() string {
+	return s.Desktop
+}
+
+// GetDesktopSmall returns the value of DesktopSmall.
+func (s *WebHomeBannerPicture) GetDesktopSmall() string {
+	return s.DesktopSmall
+}
+
+// GetMobile returns the value of Mobile.
+func (s *WebHomeBannerPicture) GetMobile() string {
+	return s.Mobile
+}
+
+// GetAlt returns the value of Alt.
+func (s *WebHomeBannerPicture) GetAlt() string {
+	return s.Alt
+}
+
+// SetDesktop sets the value of Desktop.
+func (s *WebHomeBannerPicture) SetDesktop(val string) {
+	s.Desktop = val
+}
+
+// SetDesktopSmall sets the value of DesktopSmall.
+func (s *WebHomeBannerPicture) SetDesktopSmall(val string) {
+	s.DesktopSmall = val
+}
+
+// SetMobile sets the value of Mobile.
+func (s *WebHomeBannerPicture) SetMobile(val string) {
+	s.Mobile = val
+}
+
+// SetAlt sets the value of Alt.
+func (s *WebHomeBannerPicture) SetAlt(val string) {
+	s.Alt = val
+}
+
+// WebHomeBannersNotModified is response for WebHomeBanners operation.
+type WebHomeBannersNotModified struct{}
+
+func (*WebHomeBannersNotModified) webHomeBannersRes() {}
 
 // Ref: #/components/schemas/WebImage
 type WebImage struct {

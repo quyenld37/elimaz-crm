@@ -112,6 +112,9 @@ var Permissions = []PermissionDef{ //nolint:gochecknoglobals // danh sách hằn
 	// M5 (Task 468): cài đặt quà sinh nhật, Tạo mã ngay, Đã nhắn, xuất danh sách là chính sách toàn shop (đọc dùng
 	// promotion.read).
 	{"promotion.birthday.manage", ScopeShop},
+	// M5 (Task 453): nội dung trang chủ website (banner; bộ phối ở Task 454) là chính sách toàn shop.
+	{"content.read", ScopeShop},
+	{"content.manage", ScopeShop},
 }
 
 // Loại phạm vi của một grant (cột user_role_grants.scope_type).

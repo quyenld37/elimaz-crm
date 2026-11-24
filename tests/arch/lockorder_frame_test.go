@@ -121,10 +121,10 @@ func isSubsequence(want, got []string) bool {
 	return i == len(want)
 }
 
-// Mỗi mã nhóm đúng một dòng, theo thứ tự số rồi chữ (… 12 < 12a < 12b < 12c < 13).
+// Mỗi mã nhóm đúng một dòng, theo thứ tự số rồi chữ (… 12 < 12a < 12b < 12c < 12d < 13; 12d content, Task 453).
 func TestLockOrderGroupCodes(t *testing.T) {
 	codes, _ := lockGroups(t)
-	want := []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "12a", "12b", "12c", "13"}
+	want := []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "12a", "12b", "12c", "12d", "13"}
 	if !slices.Equal(codes, want) {
 		t.Fatalf("mã nhóm trong ADR-46 = %v, muốn đúng một lần mỗi mã theo thứ tự %v", codes, want)
 	}

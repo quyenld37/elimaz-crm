@@ -555,6 +555,16 @@ func (UnimplementedHandler) ExportBirthdayCustomers(ctx context.Context, req *Bi
 	return r, ht.ErrNotImplemented
 }
 
+// GetBanners implements getBanners operation.
+//
+// Danh sách banner trang chủ theo thứ tự hiện, kèm revision, trạng thái hiện/ẩn (lý
+// do), ảnh, chiến dịch, danh mục, mẫu được nhắc (Task 453).
+//
+// GET /api/v1/content/banners
+func (UnimplementedHandler) GetBanners(ctx context.Context) (r GetBannersRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetBirthdaySettings implements getBirthdaySettings operation.
 //
 // Cài đặt quà sinh nhật của shop kèm lượt phát gần nhất; chưa lưu → mặc
@@ -1431,6 +1441,16 @@ func (UnimplementedHandler) PostStockDocument(ctx context.Context, req *StockDoc
 	return r, ht.ErrNotImplemented
 }
 
+// PreviewBanners implements previewBanners operation.
+//
+// Xem trước: danh sách gửi lên (chưa lưu) hiện hay ẩn lúc này, lý do ẩn; cùng
+// luật kiểm như saveBanners (Task 453).
+//
+// POST /api/v1/content/banners/preview
+func (UnimplementedHandler) PreviewBanners(ctx context.Context, req *PreviewBannersRequest) (r PreviewBannersRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // PreviewCodAdjustment implements previewCodAdjustment operation.
 //
 // Xem trước điều chỉnh COD (không đổi dữ liệu): số dư trước, sau, cảnh báo,
@@ -1702,6 +1722,20 @@ func (UnimplementedHandler) RevokeServiceKey(ctx context.Context, req *RevokeSer
 //
 // POST /api/v1/birthday-runs
 func (UnimplementedHandler) RunBirthdayGifts(ctx context.Context, params RunBirthdayGiftsParams) (r RunBirthdayGiftsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SaveBanners implements saveBanners operation.
+//
+// Tối đa 8 banner (422 too_many_banners). Trường không thuộc loại bị bỏ (như admin
+// cũ). Ảnh là mã tệp tải lên bằng createUpload mục đích web_banner (JPEG, PNG, WebP
+// ≤ 8 MiB, rộng ≥ 600 px); ảnh bị từ chối → 422 file_rejected, không có, đã xóa,
+// sai mục đích → 422 banner_image_invalid; ảnh đang xử lý vẫn lưu được (banner ẩn
+// tới khi xong). Ghim ≤ 3 mẫu đang bán thuộc nguồn của banner (chiến dịch, danh
+// mục và danh mục con).
+//
+// PUT /api/v1/content/banners
+func (UnimplementedHandler) SaveBanners(ctx context.Context, req *SaveBannersRequest, params SaveBannersParams) (r SaveBannersRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2254,6 +2288,17 @@ func (UnimplementedHandler) WebDeliveryEstimates(ctx context.Context) (r WebDeli
 //
 // GET /api/v1/web/orders/{externalRef}
 func (UnimplementedHandler) WebGetOrder(ctx context.Context, params WebGetOrderParams) (r WebGetOrderRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// WebHomeBanners implements webHomeBanners operation.
+//
+// Task 453 (M5-41). Website tự lấy mẫu, giá cho banner từ API danh mục, chiến dịch
+// (như resolveBanners cũ). Bộ đệm 60 s, làm mới sớm hơn theo sự kiện
+// content.banners.changed, promotion.web_campaign.changed.
+//
+// GET /api/v1/web/content/banners
+func (UnimplementedHandler) WebHomeBanners(ctx context.Context, params WebHomeBannersParams) (r WebHomeBannersRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

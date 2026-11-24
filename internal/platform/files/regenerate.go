@@ -145,7 +145,8 @@ func (r *Regenerator) Execute(ctx context.Context, j queue.Job) (commands.Outcom
 		return rejected(reasonPurposePrivate), nil
 	case !purpose.Image:
 		return rejected(reasonNotImagePurpose), nil
-	case jb.row.DeletedAt.Valid || jb.row.Status != StatusReady || have:
+	case jb.row.DeletedAt.Valid || jb.row.Status != StatusReady || have || !purpose.acceptsPreset(pl.Preset):
+		// Bộ không phải của mục đích (Task 453: banner có bộ riêng, không nhận bộ chung, và ngược lại): bỏ qua.
 		return commands.Outcome{Status: commands.StatusDone, Result: json.RawMessage(`{"skipped":"not_needed"}`)}, nil
 	case len(jb.row.ContentSha256) != 32:
 		return rejected(reasonNotProcessable), nil

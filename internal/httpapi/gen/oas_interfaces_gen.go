@@ -221,6 +221,10 @@ type ExportBirthdayCustomersRes interface {
 	exportBirthdayCustomersRes()
 }
 
+type GetBannersRes interface {
+	getBannersRes()
+}
+
 type GetBirthdaySettingsRes interface {
 	getBirthdaySettingsRes()
 }
@@ -581,6 +585,10 @@ type PostStockDocumentRes interface {
 	postStockDocumentRes()
 }
 
+type PreviewBannersRes interface {
+	previewBannersRes()
+}
+
 type PreviewCodAdjustmentRes interface {
 	previewCodAdjustmentRes()
 }
@@ -691,6 +699,10 @@ type RevokeServiceKeyRes interface {
 
 type RunBirthdayGiftsRes interface {
 	runBirthdayGiftsRes()
+}
+
+type SaveBannersRes interface {
+	saveBannersRes()
 }
 
 type SaveBirthdaySettingsRes interface {
@@ -899,6 +911,10 @@ type WebDeliveryEstimatesRes interface {
 
 type WebGetOrderRes interface {
 	webGetOrderRes()
+}
+
+type WebHomeBannersRes interface {
+	webHomeBannersRes()
 }
 
 type WebImportCouponsRes interface {

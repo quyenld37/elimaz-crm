@@ -142,13 +142,24 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   carrier_not_on_web: "Hãng này chưa bật hiện trên website hoặc đang tạm dừng. Bật hãng trước rồi mới chọn ưu tiên",
   last_web_carrier: "Phải còn ít nhất một hãng hiện trên website. Bật hãng khác trước rồi mới tắt hãng này",
   web_orders_paused: "ELIMAZ đang tạm dừng nhận đơn trên website. Mở lại ở màn Nhận đơn web",
+  // Banner trang chủ (Task 453)
+  too_many_banners: "Tối đa 8 banner trên trang chủ",
+  invalid_banner:
+    "Banner chưa đúng: chữ quá dài (nhỏ 40, tiêu đề 60, nút 30, mô tả ảnh 120 ký tự), loại hoặc màu lạ, hoặc ghim trùng",
+  banner_campaign_required: "Banner giảm giá cần chọn chiến dịch",
+  banner_category_required: "Banner danh mục cần chọn danh mục",
+  banner_image_required: "Banner ảnh cần ảnh cho máy tính, mô tả ảnh và nơi đến khi bấm",
+  banner_window_invalid: "Thời gian kết thúc phải sau thời gian bắt đầu",
+  too_many_pins: "Mỗi banner ghim tối đa 3 sản phẩm",
+  pin_not_in_source: "Sản phẩm ghim phải đang bán và thuộc chiến dịch hoặc danh mục của banner",
+  banner_image_invalid: "Ảnh banner không còn hoặc không phải ảnh tải lên cho banner. Tải ảnh lại",
   // Yêu cầu về đơn hàng (Task 195)
   window_closed: "Đơn đã quá hạn đổi, trả hàng",
   qty_exceeded: "Số lượng yêu cầu vượt số còn đổi được của đơn",
   photo_required: "Yêu cầu đổi vì hàng lỗi hay giao nhầm cần kèm ảnh",
   too_many_files: "Mỗi yêu cầu kèm tối đa 5 ảnh",
   duplicate_open: "Đơn đã có một yêu cầu hủy đang xử lý",
-  file_rejected: "Ảnh kèm không phải ảnh hợp lệ",
+  file_rejected: "Ảnh không dùng được: không phải ảnh hợp lệ, quá lớn, hoặc quá nhỏ (ảnh banner cần rộng từ 600 px)",
   file_not_found: "Không dùng được ảnh kèm (không có hoặc đã gắn yêu cầu khác)",
   request_not_allowed: "Đơn hay yêu cầu không ở trạng thái cho việc này",
   // Khách hủy đơn web (Task 196)

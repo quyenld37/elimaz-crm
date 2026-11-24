@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/content"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/promotion"
@@ -44,7 +45,7 @@ func TestConsumer_NameTopics(t *testing.T) {
 	want := []string{
 		"product.updated", "price.changed", "stock.changed", "flash_sale.opened", "flash_sale.closed",
 		"flash_sale.changed", "order.cancelled", "carrier.web_settings_changed", "promotion.web_campaign.changed",
-		"order.web_intake.changed",
+		"order.web_intake.changed", "content.banners.changed",
 	}
 	if got := c.Topics(); !slices.Equal(got, want) {
 		t.Fatalf("Topics = %v, muốn %v", got, want)
@@ -54,19 +55,29 @@ func TestConsumer_NameTopics(t *testing.T) {
 	}
 }
 
+type payloadCase struct {
+	name   string
+	e      events.StoredEvent
+	want   []realtime.Entity
+	badLog bool
+}
+
 // Từng chủ đề → các báo hiệu hệ thống (A4, payload của M1 bản 2); payload sai → ghi log, không báo hiệu, không lỗi.
 func TestConsumer_Payloads(t *testing.T) {
 	tenant := uuid.New()
+	for _, c := range payloadCases(t, tenant) {
+		t.Run(c.name, func(t *testing.T) { checkHandle(t, tenant, c.e, c.want, c.badLog) })
+	}
+}
+
+// payloadCases: các ca của TestConsumer_Payloads (sự kiện đã lưu của tenant → báo hiệu mong đợi).
+func payloadCases(t *testing.T, tenant uuid.UUID) []payloadCase {
+	t.Helper()
 	p, v1, v2 := uuid.New(), uuid.New(), uuid.New()
 	prod := realtime.Entity{Type: "product", ID: p.String()}
 	ent := func(typ string, id uuid.UUID) realtime.Entity { return realtime.Entity{Type: typ, ID: id.String()} }
 	fs := uuid.NewString()
-	cases := []struct {
-		name   string
-		e      events.StoredEvent
-		want   []realtime.Entity
-		badLog bool
-	}{
+	return []payloadCase{
 		{"product.updated", stored(t, tenant, catalog.TopicProductUpdated, "product", p.String(),
 			catalog.ProductUpdated{ProductID: p, Version: 3}), []realtime.Entity{prod}, false},
 		{
@@ -115,6 +126,8 @@ func TestConsumer_Payloads(t *testing.T) {
 			[]realtime.Entity{{Type: "web_intake", ID: tenant.String()}},
 			false,
 		},
+		{"content.banners.changed [KM04]", stored(t, tenant, content.TopicBannersChanged, "home_banners", tenant.String(),
+			content.BannersChanged{Revision: 3}), []realtime.Entity{ent("home_banners", tenant)}, false},
 		{"order.cancelled trước M5-19", stored(t, tenant, "order.cancelled", "order", uuid.NewString(), nil), nil, false},
 		{"chủ đề lạ", stored(t, tenant, "x.y", "x", "1", nil), nil, false},
 		{"price.changed thiếu variantIds", stored(t, tenant, catalog.TopicPriceChanged, "variant", v1.String(),
@@ -131,9 +144,6 @@ func TestConsumer_Payloads(t *testing.T) {
 			map[string]any{"version": 1}), nil, true},
 		{"product.updated không phải JSON đối tượng", stored(t, tenant, catalog.TopicProductUpdated, "product", "x",
 			[]int{1}), nil, true},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) { checkHandle(t, tenant, c.e, c.want, c.badLog) })
 	}
 }
 

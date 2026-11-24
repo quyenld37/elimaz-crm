@@ -176,6 +176,8 @@ func goodResult(ctx context.Context, req imager.Request, src string) imager.Resu
 		res.Outputs[0].Format = "gif"
 	case oddPrefix + "b0":
 		res.Outputs[0].Bytes = 0
+	case smallSource:
+		res.Width, res.Height = 500, 300 // imager cũ không biết MinWidth (Task 453)
 	}
 	return res
 }

@@ -792,3 +792,44 @@ func TestImager_Measure(t *testing.T) {
 	}
 	t.Logf("vips --version × 13 qua prlimit: %d ms", time.Since(start).Milliseconds())
 }
+
+// Task 453: ảnh hẹp hơn MinWidth bị từ chối too_small sau khi đọc kích thước, trước khi giải mã; đúng MinWidth thì nhận;
+// MinWidth 0 (yêu cầu cũ) không kiểm.
+func TestImager_MinWidth(t *testing.T) {
+	cases := []struct {
+		name            string
+		width, minWidth int
+		want            string
+		wantVips        int
+	}{
+		{"hẹp hơn", 599, 600, imager.ReasonTooSmall, 0},
+		{"đúng ngưỡng", 600, 600, "", 1},
+		{"không kiểm", 100, 0, "", 1},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			st := newStore(t)
+			rec := &recorder{next: &fakeRunner{width: c.width, height: 300, loader: "jpegload"}}
+			req := request(st.addSource(t, "n", readImage(t, "photo-gps.jpg")),
+				[]imager.Output{{Width: 1200, Format: "webp", Quality: 82, PutURL: st.srv.URL + "/put/1200.webp"}})
+			req.MinWidth = c.minWidth
+			res := imager.Process(t.Context(), rec, imager.NewHTTPClient(5*time.Second), req, limits(t))
+			switch {
+			case c.want != "" && (res.Status != imager.StatusRejected || res.Reason != c.want):
+				t.Fatalf("kết quả %+v, cần từ chối %s", res, c.want)
+			case c.want == "" && res.Status != imager.StatusOK:
+				t.Fatalf("kết quả %+v, cần ok", res)
+			case rec.count("vips") != c.wantVips:
+				t.Fatalf("vips gọi %d lần, cần %d", rec.count("vips"), c.wantVips)
+			case res.Width != c.width:
+				t.Fatalf("rộng khai %d, cần %d", res.Width, c.width)
+			}
+		})
+	}
+	if err := (imager.Request{
+		SourceURL: "http://x/s", MaxBytes: 1, MaxPixels: 1, Allowed: []string{"image/jpeg"},
+		MinWidth: -1, Outputs: []imager.Output{{Width: 1, Format: "jpeg", PutURL: "http://x/p"}},
+	}).Validate(); err == nil {
+		t.Fatal("MinWidth âm phải là yêu cầu sai")
+	}
+}

@@ -57,7 +57,8 @@ const (
 	codeQtyMismatch         = "qty_mismatch"
 	codePaymentExceedsTotal = "payment_exceeds_total"
 	codeFileNotReady        = "file_not_ready"
-	codeStockShort          = "stock_short" // Task 406: lấy hàng, giao bị chặn vì kiểm kho ghi thấp hơn phần giữ
+	codeFileRejected        = "file_rejected" // ảnh bị kho tệp từ chối: yêu cầu về đơn (Task 195), banner (Task 453)
+	codeStockShort          = "stock_short"   // Task 406: lấy hàng, giao bị chặn vì kiểm kho ghi thấp hơn phần giữ
 )
 
 // errForbiddenTarget: người gọi có quyền (guard đã cho qua) nhưng không ở đích của yêu cầu (kho của phiếu): 403.
@@ -186,7 +187,7 @@ func writeDomainError(w http.ResponseWriter, r *http.Request, err error) bool {
 func domainErrorMappers() []func(error) (int, string, bool) {
 	return []func(error) (int, string, bool){
 		identityError, catalogError, filesError, orderError, customerError, promotionError, inventoryError,
-		queriesError, fulfillmentError, cashError, webError,
+		queriesError, fulfillmentError, cashError, webError, contentError,
 	}
 }
 

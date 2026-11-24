@@ -10,6 +10,7 @@ import (
 	"elimaz.com.vn/crm/internal/httpapi/web"
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/content"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
@@ -167,6 +168,18 @@ func domainErrorSnapshot() []snapshotCase {
 		{"order.ErrRequestNotFound", order.ErrRequestNotFound, http.StatusNotFound, "not_found"},
 		{"order.ErrRequestLimit", order.ErrRequestLimit, http.StatusTooManyRequests, "too_fast"},
 		{"order.ErrCannotCancel", order.ErrCannotCancel, http.StatusUnprocessableEntity, "cannot_cancel"},
+		// Banner trang chủ (Task 453).
+		{"content.ErrRevisionConflict", content.ErrRevisionConflict, http.StatusConflict, "version_conflict"},
+		{"content.ErrTooManyBanners", content.ErrTooManyBanners, http.StatusUnprocessableEntity, "too_many_banners"},
+		{"content.ErrInvalidBanner", content.ErrInvalidBanner, http.StatusUnprocessableEntity, "invalid_banner"},
+		{"content.ErrCampaignRequired", content.ErrCampaignRequired, http.StatusUnprocessableEntity, "banner_campaign_required"},
+		{"content.ErrCategoryRequired", content.ErrCategoryRequired, http.StatusUnprocessableEntity, "banner_category_required"},
+		{"content.ErrImageRequired", content.ErrImageRequired, http.StatusUnprocessableEntity, "banner_image_required"},
+		{"content.ErrWindowInvalid", content.ErrWindowInvalid, http.StatusUnprocessableEntity, "banner_window_invalid"},
+		{"content.ErrTooManyPins", content.ErrTooManyPins, http.StatusUnprocessableEntity, "too_many_pins"},
+		{"content.ErrPinNotInSource", content.ErrPinNotInSource, http.StatusUnprocessableEntity, "pin_not_in_source"},
+		{"content.ErrFileRejected", content.ErrFileRejected, http.StatusUnprocessableEntity, "file_rejected"},
+		{"content.ErrImageInvalid", content.ErrImageInvalid, http.StatusUnprocessableEntity, "banner_image_invalid"},
 		{"weborders.ErrBadLimit", weborders.ErrBadLimit, http.StatusBadRequest, "bad_request"},
 		{"weborders.ErrNotFound", weborders.ErrNotFound, http.StatusNotFound, "not_found"},
 		{"webcatalog.ErrBadLimit", webcatalog.ErrBadLimit, http.StatusBadRequest, "bad_request"},

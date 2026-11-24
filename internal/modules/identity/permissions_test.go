@@ -121,6 +121,9 @@ func TestPermissionsList(t *testing.T) {
 		"order.requests.read": identity.ScopeNone, "order.requests.manage": identity.ScopeNone,
 		// M5 (Task 468): quà sinh nhật.
 		"promotion.birthday.manage": identity.ScopeShop,
+		// M5 (Task 453): banner trang chủ.
+		"content.read":   identity.ScopeShop,
+		"content.manage": identity.ScopeShop,
 	}
 	seen := map[identity.Permission]bool{}
 	for _, d := range identity.Permissions {

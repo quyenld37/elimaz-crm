@@ -26,7 +26,6 @@ const (
 	codePhotoRequired     = "photo_required"
 	codeTooManyFiles      = "too_many_files"
 	codeDuplicateOpen     = "duplicate_open"
-	codeFileRejected      = "file_rejected"
 	codeFileNotFound      = "file_not_found"
 	codeRequestNotAllowed = "request_not_allowed"
 	// Khách hủy đơn web (Task 196).

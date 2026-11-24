@@ -377,25 +377,27 @@ type layout struct {
 	specs    []VariantSpec
 	keys     []string
 	manifest string
+	version  int // bộ kích thước (bộ riêng của mục đích, không thì IMAGE_PRESET_VERSION)
 }
 
 func (p *Processor) layoutOf(jb job, sum string) (layout, error) {
-	specs, ok := Preset(p.o.PresetVersion)
+	version := jb.purpose.presetFor(p.o.PresetVersion)
+	specs, ok := Preset(version)
 	if !ok {
-		return layout{}, fmt.Errorf("bộ kích thước v%d chưa có", p.o.PresetVersion)
+		return layout{}, fmt.Errorf("bộ kích thước v%d chưa có", version)
 	}
-	l := layout{bucket: BucketPublic, specs: specs}
+	l := layout{bucket: BucketPublic, specs: specs, version: version}
 	for _, s := range specs {
 		if p.private {
-			l.keys = append(l.keys, PrivateVariantKey(jb.tenant, jb.fileID, p.o.PresetVersion, s.Width, s.Format))
+			l.keys = append(l.keys, PrivateVariantKey(jb.tenant, jb.fileID, version, s.Width, s.Format))
 		} else {
-			l.keys = append(l.keys, VariantKey(sum, p.o.PresetVersion, s.Width, s.Format))
+			l.keys = append(l.keys, VariantKey(sum, version, s.Width, s.Format))
 		}
 	}
-	dir := "img/" + sum + "/v" + strconv.Itoa(p.o.PresetVersion) + "/"
+	dir := "img/" + sum + "/v" + strconv.Itoa(version) + "/"
 	if p.private {
 		l.bucket = BucketPrivate
-		dir = ServerKey(jb.tenant, jb.fileID) + "/v" + strconv.Itoa(p.o.PresetVersion) + "/"
+		dir = ServerKey(jb.tenant, jb.fileID) + "/v" + strconv.Itoa(version) + "/"
 	}
 	l.manifest = dir + manifestName
 	return l, nil
@@ -455,7 +457,8 @@ func (p *Processor) makeVariants(ctx context.Context, jb job, sum string, srcB B
 		return notSent("sign", 0), nil
 	}
 	res, out, ok := p.callImager(ctx, imager.Request{
-		SourceURL: src, MaxBytes: jb.purpose.MaxBytes, MaxPixels: MaxPixels, Allowed: jb.purpose.AllowedTypes, Outputs: outs,
+		SourceURL: src, MaxBytes: jb.purpose.MaxBytes, MaxPixels: MaxPixels, MinWidth: jb.purpose.MinWidth,
+		Allowed: jb.purpose.AllowedTypes, Outputs: outs,
 	})
 	if !ok {
 		return out, nil
@@ -463,9 +466,13 @@ func (p *Processor) makeVariants(ctx context.Context, jb job, sum string, srcB B
 	if res.Status != imager.StatusOK {
 		return p.reject(ctx, jb, res.Reason)
 	}
-	m, ok := assemble(res, l, sum, p.o.PresetVersion, have, asked)
+	m, ok := assemble(res, l, sum, l.version, have, asked)
 	if !ok {
 		return notSent(imager.ReasonInternal, 0), nil
+	}
+	if reason := contentReason(m, jb.purpose); reason != "" {
+		// Imager cũ không biết MinWidth (Task 453): kết quả vẫn phải đúng luật của mục đích.
+		return p.reject(ctx, jb, reason)
 	}
 	return p.finishVariants(ctx, jb, l, m)
 }
@@ -519,7 +526,7 @@ func (p *Processor) output(ctx context.Context, b Bucket, key string, s VariantS
 	if err != nil {
 		return imager.Output{}, fmt.Errorf("ký biến thể: %w", err)
 	}
-	return imager.Output{Width: s.Width, Format: s.Format, PutURL: put.URL, Headers: put.Headers}, nil
+	return imager.Output{Width: s.Width, Format: s.Format, Quality: s.Quality, PutURL: put.URL, Headers: put.Headers}, nil
 }
 
 // callImager gọi imager; ok = false thì out là not_sent (lỗi tạm: bận, quá giờ, lỗi HTTP, lý do tạm của imager).
@@ -569,7 +576,7 @@ func transient(reason string) bool {
 func contentReject(reason string) bool {
 	switch reason {
 	case imager.ReasonNotImage, imager.ReasonTypeNotAllowed, imager.ReasonTooLarge, imager.ReasonTooManyPixels,
-		imager.ReasonDecodeFailed:
+		imager.ReasonDecodeFailed, imager.ReasonTooSmall:
 		return true
 	}
 	return false
@@ -607,7 +614,7 @@ func (p *Processor) readManifest(ctx context.Context, l layout, sum string) (pro
 	}
 	defer func() { _ = rc.Close() }()
 	var m processResult
-	if err := json.NewDecoder(rc).Decode(&m); err != nil || m.SHA256 != sum || m.Preset != p.o.PresetVersion ||
+	if err := json.NewDecoder(rc).Decode(&m); err != nil || m.SHA256 != sum || m.Preset != l.version ||
 		m.Width <= 0 || m.Height <= 0 || len(m.Variants) != len(l.keys) {
 		return processResult{}, false
 	}
@@ -627,6 +634,8 @@ func contentReason(m processResult, purpose Purpose) string {
 		return imager.ReasonTypeNotAllowed
 	case int64(m.Width)*int64(m.Height) > MaxPixels:
 		return imager.ReasonTooManyPixels
+	case m.Width < purpose.MinWidth:
+		return imager.ReasonTooSmall
 	}
 	return ""
 }
