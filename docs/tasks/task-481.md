@@ -37,6 +37,7 @@ Trả lời từng mục 5.1–5.12 (khớp kiến trúc) và 6.1–6.13 (đúng
 | (3) thư mục không khớp vì lý do khác vẫn thoát 4 | `TestAffected_UnmatchedGoDirExits4` (đổi ca: thư mục tạm ẩn `.zz481…` thay cho tests/probe) | như trên | chưa vá và vá đều `PASS` (vá: `--- PASS: TestAffected_UnmatchedGoDirExits4 (5.07s)`) |
 | Patch áp được lên nhánh và xanh sau khi áp | (cả bộ TestAffected_, TestMake*) | `git apply --check <patch>` trong worktree; bản sao tạm = commit nhánh + patch: `go test -count=1 -run '^(TestAffected_\|TestMake)' ./tests/deploy/` | `apply-check OK`; `ok elimaz.com.vn/crm/tests/deploy 33.611s` |
 | Cổng kiểm của task | ci-task | `scripts/agent/ci-task.sh` | `ok elimaz.com.vn/crm/tests/arch 29.010s`; `ok elimaz.com.vn/crm/tests/deploy 38.976s` (-race), `47.174s` (test deploy); `CI-TASK XANH (so với điểm tách nhánh b4dd070…)`; lần 2 sau sửa review (thư mục ẩn): `ok elimaz.com.vn/crm/tests/arch 60.391s`, `ok elimaz.com.vn/crm/tests/deploy 52.745s`, `CI-TASK XANH`; patch dựng lại: `apply-check OK`, bản sao + patch `ok … tests/deploy 33.639s` |
+| Lượt 2: 3 test mới commit sau script (`33b6318`); jscpd báo lặp giữa `wantOnlyAlwaysRun` và test mới → tách helper `affectedMigration` (hai chỗ dùng) | 20 `TestAffected_*` | `make jscpd`; `go test -count=1 -run '^TestAffected_' ./tests/deploy/`; `scripts/agent/ci-task.sh` | `Found 0 clones.`; `ok elimaz.com.vn/crm/tests/deploy 27.443s`; ci-task: `ok … tests/arch 27.324s`, `ok … tests/deploy 52.302s` (-race), `37.528s` (test deploy), `CI-TASK XANH (so với điểm tách nhánh b4dd070…)`; `git log HEAD..main` rỗng (gộp main không có gì mới) |
 | Không hỏng ca cũ của affected.py | 16 test `TestAffected_*` có sẵn | bản vá: `go test -count=1 -v -run '^TestAffected_' ./tests/deploy/` | 20/20 `--- PASS`, `ok elimaz.com.vn/crm/tests/deploy 29.457s` |
 
 ## Test bị xóa hoặc tắt
@@ -50,6 +51,7 @@ Trả lời từng mục 5.1–5.12 (khớp kiến trúc) và 6.1–6.13 (đúng
 ## Quyết định thay chủ shop
 
 - Việc 3, chọn "không chọn gói nào" cho thư mục chỉ có tệp nhãn build, thay vì `go list -tags` rồi chạy test với nhãn: test nhãn `drill` làm hỏng thật (docker kill, xóa volume), `probe` cần SeaweedFS riêng — không được chạy tự động trong ci-task; còn chạy `go test` không nhãn trên gói đó thì lỗi "build constraints exclude all Go files". Toàn bộ test (`make test`) cũng không chạy chúng, nên thoát 4 → toàn bộ chỉ tốn ~15 phút mà không kiểm thêm gì. Đảo ngược dễ: bỏ khối "tagged" trong affected.py.
+- Cập nhật lượt 2 (24/11): điều phối viên đã áp phần script của bản vá ở commit `33b6318` trên nhánh này; ba test mới vào commit sau đó (lượt này), nên main không lúc nào có test đỏ. Ghi chú gốc dưới đây giữ để đối chiếu.
 - Bản vá affected.py ở `/private/tmp/claude-501/-Users-luongducquyen-Documents-Th-i-trang/3f611c4b-a555-41c3-82e1-b84aa5a61f94/scratchpad/task-481/affected.py.patch` (hook không cho phiên task sửa `scripts/agent/`; bản đầy đủ của tệp: `…/task-481/affected.py`). Ba test mới cho việc 2, 3 (`TestAffected_BuildTaggedOnlyDirSelectsNothing`, `TestAffected_ConstraintTriggerIsNarrow`, `TestAffected_ConstraintTriggerOnExistingTableTouchesUsers`) đỏ trên affected.py chưa vá, nên **đi cùng patch đó** (patch sửa cả `scripts/agent/affected.py` và `tests/deploy/affected_test.go`, so với commit của nhánh này) thay vì commit trên nhánh: commit chúng trước sẽ làm hook Stop, ci-task của phiên này và main (sau gộp, trước khi áp patch) đỏ. Điều phối viên áp patch bằng `git apply` sau khi gộp nhánh → script và test vào cùng một commit. Phương án khác: commit test trên nhánh, main đỏ tới khi áp patch (loại vì làm đỏ main và mọi task gộp main trong khoảng đó).
 
 ## Việc phát hiện thêm
@@ -58,7 +60,9 @@ Trả lời từng mục 5.1–5.12 (khớp kiến trúc) và 6.1–6.13 (đúng
 
 ## Reviewer
 
-Kết luận: ĐẠT (lần 2, agent reviewer, 24/11; review cả phần đã stage và patch affected.py)
+Kết luận: ĐẠT (lượt 2, agent reviewer, 24/11: 3 test mới + helper `affectedMigration` + tệp task; affected.py đã vào ở `33b6318`). Không phát hiện phải sửa. Ghi chú không bắt buộc (không làm): số dòng `affected_test.go:367` trong trích dẫn cũ là trước khi tách helper; mục Tái dùng chưa nêu tên `affectedMigration` (đã nêu ở dòng bằng chứng lượt 2).
+
+Lần trước (review bản vá): ĐẠT (lần 2, agent reviewer, 24/11; review cả phần đã stage và patch affected.py)
 
 - Lần 1: ĐẠT, không phát hiện phải sửa. Ghi chú: thư mục tạm `_zz481…` của `TestAffected_UnmatchedGoDirExits4` có thể bị `walkGoFiles` (tests/arch) đọc phải khi `go test ./...` chạy song song trên main → đã sửa sang thư mục ẩn `.zz481…`, dựng lại patch (`git apply --check` OK), ci-task lần 2 xanh.
 - Lần 2: ĐẠT, không phát hiện phải sửa. Đã kiểm: chuỗi `golangci-lint run ./...` còn nguyên; `stop-check.sh` gọi golangci-lint trực tiếp, không qua `make lint` (không ảnh hưởng); khối `tagged` chỉ lọc bớt `unmatched`, `go list` lỗi → vẫn thoát 4; thư mục ẩn không bị tests/arch, `go list ./...`, `buildTags` (manual_suites_test.go, test không song song) thấy; gốc của hunk test trong patch là bản đã stage.
