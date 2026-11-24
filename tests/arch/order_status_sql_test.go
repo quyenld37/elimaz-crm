@@ -57,6 +57,7 @@ func orderStatusUpdates(t *testing.T, dir string) []string {
 
 // TestOrderStatusSQL_OnlyInTransition: không tệp .sql nào ngoài queries/ord/transition.sql gán status của ord.orders.
 func TestOrderStatusSQL_OnlyInTransition(t *testing.T) {
+	t.Parallel()
 	if bad := orderStatusUpdates(t, filepath.Join(repoRoot(t), "queries")); len(bad) != 0 {
 		t.Errorf("đổi trạng thái đơn ngoài %s: %v (dùng order.applyTransition)", transitionSQL, bad)
 	}

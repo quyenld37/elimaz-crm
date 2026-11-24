@@ -29,6 +29,7 @@ func TestSQLModeReportsSample(t *testing.T) {
 }
 
 func TestSQLModeProductCode(t *testing.T) {
+	t.Parallel()
 	if got := findSimpleProtocol(t, repoRoot(t), false); len(got) != 0 {
 		t.Fatalf("cấm simple protocol của pgx:\n%s", strings.Join(got, "\n"))
 	}

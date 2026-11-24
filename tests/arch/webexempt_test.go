@@ -139,6 +139,7 @@ func TestWebExemptSample(t *testing.T) {
 }
 
 func TestWebExemptRealCode(t *testing.T) {
+	t.Parallel()
 	if got := webExemptWrites(t, filepath.Join(repoRoot(t), "internal", "httpapi"), httpapi.Routes); len(got) != 0 {
 		t.Fatalf("route exempt của website ghi dữ liệu:\n%s", strings.Join(got, "\n"))
 	}

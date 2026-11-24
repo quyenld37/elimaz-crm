@@ -332,6 +332,7 @@ func TestSQLUsageReportsSample(t *testing.T) {
 }
 
 func TestSQLUsageProductCode(t *testing.T) {
+	t.Parallel()
 	if got := findSQLUsage(t, repoRoot(t), false); len(got) != 0 {
 		t.Fatalf("SQL sai luật schema:\n%s", strings.Join(got, "\n"))
 	}

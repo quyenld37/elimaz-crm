@@ -135,6 +135,7 @@ func TestMoneyFieldsSample(t *testing.T) {
 }
 
 func TestMoneyFieldsContract(t *testing.T) {
+	t.Parallel()
 	if got := moneyFieldProblems(t, filepath.Join(repoRoot(t), "openapi", "openapi.yaml")); len(got) != 0 {
 		t.Fatalf("trường tiền sai kiểu trong openapi.yaml:\n%s", strings.Join(got, "\n"))
 	}

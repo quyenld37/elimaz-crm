@@ -271,6 +271,7 @@ func checkBoundaries(t *testing.T, dir string) []string {
 }
 
 func TestBoundariesTestdata(t *testing.T) {
+	t.Parallel()
 	got := checkBoundaries(t, filepath.Join("testdata", "boundaries"))
 	want := []string{
 		"cmd/imager nhập elimaz.com.vn/crm/internal/platform/config: (g)",
@@ -363,6 +364,7 @@ func TestBoundariesNotCalledModule(t *testing.T) {
 // Module mẫu của M3 (Task M3-04): fulfillment nhập cash (a), adapter hãng nhập order (j), module nhập adapter (k) —
 // đúng ba vi phạm; gói hợp lệ (adapter nhập fulfillment, cash nhập fulfillment) không báo.
 func TestBoundariesTestdataM3(t *testing.T) {
+	t.Parallel()
 	got := checkBoundaries(t, filepath.Join("testdata", "boundaries_m3"))
 	want := []string{
 		"internal/adapters/carrier/bad nhập elimaz.com.vn/crm/internal/modules/order: (j)",
@@ -431,6 +433,7 @@ func TestBoundariesWiringRule(t *testing.T) {
 }
 
 func TestBoundariesRealCode(t *testing.T) {
+	t.Parallel()
 	if got := checkBoundaries(t, repoRoot(t)); len(got) > 0 {
 		t.Fatalf("mã thật vi phạm ranh giới:\n%s", strings.Join(got, "\n"))
 	}

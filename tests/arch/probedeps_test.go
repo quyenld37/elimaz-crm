@@ -10,6 +10,7 @@ import (
 // external-probe chạy ngoài VPS và chỉ dùng thư viện chuẩn (README của nó); trong module chỉ được nhập các gói nền tảng
 // cũng chỉ dùng thư viện chuẩn trong danh sách dưới.
 func TestExternalProbeStdlibOnly(t *testing.T) {
+	t.Parallel()
 	allowed := map[string]bool{
 		modPrefix + "scripts/external-probe":   true,
 		modPrefix + "internal/platform/urlerr": true,

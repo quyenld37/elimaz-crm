@@ -29,6 +29,7 @@ func testkitModuleDeps(pkgs []listedPackage) (deps []string, found bool) {
 // mọi gói test dùng testkit biên dịch kèm module đó và đổi một tệp của module buộc cổng kiểm chạy lại gần cả bộ.
 // Phần cần module đặt ở gói con (testkit/shoptest, realtime/realtimetest, <module>test).
 func TestTestkitNoModules(t *testing.T) {
+	t.Parallel()
 	deps, found := testkitModuleDeps(goListPackages(t, repoRoot(t)))
 	if !found {
 		t.Fatalf("go list không có gói %s", testkitPkg)

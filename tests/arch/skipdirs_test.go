@@ -24,7 +24,7 @@ func Bad() { fmt.Println(os.Getenv("X")) }
 // lạc ở console/node_modules, node_modules lồng, .worktrees.
 func strayTree(t *testing.T) string {
 	t.Helper()
-	root, dir := repoRoot(t), t.TempDir()
+	root := repoRoot(t)
 	files := map[string]string{
 		"clean/clean.go":                      "// Package clean là gói sạch mẫu.\npackage clean\n\n// One trả 1.\nfunc One() int { return 1 }\n",
 		"console/node_modules/x/bad.go":       strayGo,
@@ -39,21 +39,13 @@ func strayTree(t *testing.T) string {
 		}
 		files[src] = string(b)
 	}
-	for rel, body := range files {
-		p := filepath.Join(dir, filepath.FromSlash(rel))
-		if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	return dir
+	return writeTree(t, files)
 }
 
 // `./...` của go list (test ranh giới) và golangci-lint (TestLintCleanOnRealCode) không nhận gói trong
 // console/node_modules và .worktrees: go.mod có chỉ thị ignore.
 func TestPackagePatternSkipsStrayDirs(t *testing.T) {
+	t.Parallel()
 	dir := strayTree(t)
 	var paths []string
 	for _, p := range goListPackages(t, dir) {

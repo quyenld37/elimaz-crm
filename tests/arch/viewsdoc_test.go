@@ -212,6 +212,7 @@ func TestViewsDocParses(t *testing.T) {
 // Mọi view _v trong database đã migrate có dòng đúng cột trong docs/views.md; ca thử: view lạ, view sai cột, index
 // miễn luật (g) không có trong tài liệu đều bị báo.
 func TestViewsDocMatchesDatabase(t *testing.T) {
+	t.Parallel()
 	_, owner, _ := testkit.StartPostgres(t)
 	conn := ownerConn(t, owner)
 	doc := readViewsDoc(t, repoRoot(t))

@@ -1,6 +1,7 @@
 package arch
 
 import (
+	"bytes"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -11,6 +12,16 @@ import (
 
 // writeCustomers bắt câu ghi bảng hồ sơ khách (UPDATE, INSERT INTO, DELETE FROM customer.customers), kể cả xuống dòng.
 var writeCustomers = regexp.MustCompile(`(?is)\b(update|insert\s+into|delete\s+from)\s+customer\.customers\b`)
+
+// customerPrefilter là một đoạn của "customer.customers" mà mọi chỗ writeCustomers khớp đều chứa sau bytes.ToLower:
+// chữ của nó chỉ có dạng hoa/thường ASCII (TestCustomerWritePrefilterNeverMissesRegexp kiểm), khác s (ſ) và k (K).
+const customerPrefilter = "tomer.c"
+
+// mayWriteCustomers: lọc rẻ trước writeCustomers (Task 480: regexp chạy trên mọi tệp dưới -race mất ~13 giây). Trả false
+// thì chắc chắn writeCustomers không khớp.
+func mayWriteCustomers(b []byte) bool {
+	return bytes.Contains(bytes.ToLower(b), []byte(customerPrefilter))
+}
 
 // findCustomerWriters trả các tệp (.go không phải test, .sql trong queries/) có câu ghi customer.customers mà nằm ngoài
 // module customer (internal/modules/customer/**, queries/customer/**). Migration không quét (chủ schema tạo bảng).
@@ -46,6 +57,7 @@ func findCustomerWriters(t *testing.T, root string) []string {
 // TestCustomerWriter_OnlyCustomerModule (kế hoạch M3-21, B14, C3): số nhận/hoàn chỉ consumer customer_stats của M2
 // ghi; không module nào khác (kể cả M3) có câu ghi customer.customers, và delivery_stats.go của M3 không ghi gì.
 func TestCustomerWriter_OnlyCustomerModule(t *testing.T) {
+	t.Parallel()
 	if got := findCustomerWriters(t, repoRoot(t)); len(got) != 0 {
 		t.Errorf("câu ghi customer.customers ngoài module customer (hay trong delivery_stats.go): %v", got)
 	}
@@ -71,7 +83,7 @@ func customerWriteOutside(path, rel string) (bool, error) {
 	if err != nil {
 		return false, err //nolint:wrapcheck // test
 	}
-	if !writeCustomers.Match(b) {
+	if !mayWriteCustomers(b) || !writeCustomers.Match(b) {
 		return false, nil
 	}
 	if rel == "internal/modules/customer/delivery_stats.go" {
