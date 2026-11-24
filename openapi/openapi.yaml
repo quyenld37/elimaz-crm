@@ -3209,6 +3209,117 @@ paths:
                 $ref: "#/components/schemas/WebIntake"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/order-requests:
+    get:
+      operationId: listOrderRequests
+      summary: 'Yêu cầu về đơn hàng của khách (hủy, đổi, trả, câu hỏi), mới trước; lọc trạng thái, loại, q (Task 195)'
+      description: |
+        q: mã yêu cầu (YC-…), mã đơn (DH…), SĐT người nhận (đủ hay đuôi từ 4 chữ số) hoặc tên khách (không dấu). Báo
+        hiệu order_request.changed (người có order.requests.read) khi có yêu cầu mới hay vừa đổi.
+      x-permission: order.requests.read
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/OrderRequestStatus"
+        - name: kind
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/OrderRequestKind"
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listOrderRequests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderRequestPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/order-requests/{id}:
+    get:
+      operationId: getOrderRequest
+      summary: 'Một yêu cầu về đơn: dòng, lời nhắn, mọi tin (cả ghi chú nội bộ), ảnh kèm (link ký 10 phút) (Task 195)'
+      description: |
+        Ảnh: ready → url ký có hạn 10 phút tới biến thể JPEG lớn nhất trên bucket riêng tư (đã bỏ EXIF); đang xử lý →
+        status processing, không url; imager từ chối (không phải ảnh) → status rejected, không url.
+      x-permission: order.requests.read
+      parameters:
+        - $ref: "#/components/parameters/OrderRequestID"
+      responses:
+        "200":
+          description: getOrderRequest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderRequest"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/order-requests/{id}/messages:
+    post:
+      operationId: replyOrderRequest
+      summary: 'Nhân viên trả lời khách (visibleToCustomer) hay ghi chú nội bộ, 5–1000 ký tự; không đổi version (Task 195)'
+      description: |
+        Tin hiện cho khách khi yêu cầu đã đóng (resolved, rejected, cancelled) → 422 invalid_transition; ghi chú nội bộ
+        luôn được.
+      x-permission: order.requests.manage
+      parameters:
+        - $ref: "#/components/parameters/OrderRequestID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplyOrderRequestRequest"
+      responses:
+        "201":
+          description: Tin đã ghi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderRequestMessage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/order-requests/{id}/status:
+    post:
+      operationId: setOrderRequestStatus
+      summary: 'Đổi trạng thái yêu cầu theo sơ đồ khi version khớp (409 version_conflict) (Task 195)'
+      description: |
+        Sơ đồ: received → in_review | needs_info | confirmed | resolved | rejected; in_review → needs_info | confirmed |
+        resolved | rejected; needs_info → in_review | rejected; confirmed (chỉ exchange) → items_received | rejected;
+        items_received → resolved | rejected; cạnh khác → 422 invalid_transition. needs_info cần message (5–1000 ký tự,
+        hiện cho khách); confirmed cần shipBack (địa chỉ 10–300, mã gói 3–40, ngày hạn không trước hôm nay giờ Việt Nam,
+        lưu 23:59:59 giờ Việt Nam); rejected cần outcome.reason 1–500 (thiếu → 422 invalid_input); resolved có
+        outcome.trackingCode ≤ 60 tùy chọn.
+      x-permission: order.requests.manage
+      parameters:
+        - $ref: "#/components/parameters/OrderRequestID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetOrderRequestStatusRequest"
+      responses:
+        "200":
+          description: Yêu cầu sau khi đổi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderRequest"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/coupon-check:
     get:
       operationId: checkCoupon
@@ -4751,6 +4862,138 @@ paths:
                 $ref: "#/components/schemas/WebIntakeStatus"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web/files:
+    post:
+      operationId: webUploadRequestFile
+      summary: Website gửi một ảnh khách kèm yêu cầu về đơn (JPEG, PNG, WebP ≤ 6 MiB); CRM giữ riêng tư (Task 195, R10)
+      description: |
+        Thân là nguyên byte ảnh, Content-Type là loại ảnh. CRM không tự kiểm nội dung: ảnh thô vào crm-tmp (tự xóa sau
+        24 giờ), lệnh file.process_private của M1 kiểm bằng imager và ghi biến thể vào bucket riêng tư. Loại ngoài
+        JPEG, PNG, WebP → 422 file_type_not_allowed; lớn hơn 6 MiB → 413 body_too_large; Content-Type không phải ảnh →
+        415. Tệp không phải ảnh hợp lệ thành rejected sau khi xử lý: webCreateRequest kèm tệp đó → 422 file_rejected.
+        Kho tệp lỗi → 503 retry_later, không lưu.
+      x-auth: service_key
+      x-permission: web.requests.write
+      x-body-limit: 6291456
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          image/*:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Ảnh đã nhận
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebRequestFile"
+        "503":
+          $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/orders/{externalRef}/requests:
+    get:
+      operationId: webListRequests
+      summary: Yêu cầu về đơn của một đơn web (mới trước), kèm tin nhân viên gửi khách; không có ghi chú nội bộ (Task 195)
+      x-auth: service_key
+      x-permission: web.orders.read
+      parameters:
+        - $ref: "#/components/parameters/ExternalRef"
+      responses:
+        "200":
+          description: webListRequests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCustomerRequestList"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: webCreateRequest
+      summary: Khách gửi yêu cầu hủy, đổi, trả hay câu hỏi cho đơn web (Task 195)
+      description: |
+        Đổi, trả: đơn đã giao trong exchangeWindowDays ngày (mặc định 7; quá → 422 window_closed, chưa giao → 422
+        request_not_allowed), số ≤ số đã mua trừ số đang trong yêu cầu đổi khác (→ 422 qty_exceeded), dòng DEFECT,
+        WRONG_ITEM cần ít nhất một ảnh (→ 422 photo_required). Hủy: đơn new, confirmed, mỗi đơn một yêu cầu hủy đang mở
+        (→ 422 duplicate_open). Ảnh: tối đa 5 (→ 422 too_many_files), mã từ webUploadRequestFile chưa gắn yêu cầu khác
+        (→ 422 file_not_found), imager từ chối (→ 422 file_rejected). Quá 5 yêu cầu một đơn trong 24 giờ → 429
+        too_fast. Từ chối không lưu theo khóa.
+      x-auth: service_key
+      x-permission: web.requests.write
+      parameters:
+        - $ref: "#/components/parameters/ExternalRef"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebCreateRequestBody"
+      responses:
+        "201":
+          description: Yêu cầu đã nhận
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebRequestRef"
+        "503":
+          $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/orders/{externalRef}/requests/{ref}/messages:
+    post:
+      operationId: webReplyRequest
+      summary: Khách trả lời khi nhân viên cần thêm thông tin (needs_info → in_review) (Task 195)
+      description: Yêu cầu không ở needs_info → 422 request_not_allowed.
+      x-auth: service_key
+      x-permission: web.requests.write
+      parameters:
+        - $ref: "#/components/parameters/ExternalRef"
+        - $ref: "#/components/parameters/RequestRef"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebReplyRequestBody"
+      responses:
+        "200":
+          description: Yêu cầu sau khi trả lời
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebRequestRef"
+        "503":
+          $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/orders/{externalRef}/requests/{ref}/cancel:
+    post:
+      operationId: webCancelRequest
+      summary: Khách rút yêu cầu khi nhân viên chưa nhận (received → cancelled; đã rút → 200 như cũ) (Task 195)
+      description: Yêu cầu nhân viên đã bắt đầu xử lý → 422 request_not_allowed.
+      x-auth: service_key
+      x-permission: web.requests.write
+      parameters:
+        - $ref: "#/components/parameters/ExternalRef"
+        - $ref: "#/components/parameters/RequestRef"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Yêu cầu sau khi rút
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebRequestRef"
+        "503":
+          $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -5020,6 +5263,31 @@ components:
       schema:
         type: string
         format: uuid
+    OrderRequestID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ExternalRef:
+      name: externalRef
+      in: path
+      required: true
+      description: Mã đơn của website (externalRef lúc tạo đơn web)
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 120
+    RequestRef:
+      name: ref
+      in: path
+      required: true
+      description: Mã yêu cầu YC-…
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 20
     Cursor:
       name: cursor
       in: query
@@ -5211,6 +5479,15 @@ components:
         - too_fast
         # Tạm dừng nhận đơn web (M5, Task 456)
         - web_orders_paused
+        # Yêu cầu về đơn hàng (M5, Task 195)
+        - window_closed
+        - qty_exceeded
+        - photo_required
+        - too_many_files
+        - duplicate_open
+        - file_rejected
+        - file_not_found
+        - request_not_allowed
       properties:
         error:
           type: string
@@ -6932,6 +7209,375 @@ components:
           type: integer
           format: int32
           minimum: 1
+    OrderRequestKind:
+      type: string
+      enum: [cancel, exchange, return, question]
+    OrderRequestStatus:
+      type: string
+      enum: [received, in_review, needs_info, confirmed, items_received, resolved, rejected, cancelled]
+    OrderRequestReason:
+      type: string
+      description: 'Mã lý do: hủy CHANGED_MIND, DUPLICATE, ADDRESS_CHANGE, OTHER; đổi, trả SIZE, QUALITY, WRONG_ITEM, OTHER; câu hỏi một trong hai nhóm'
+      pattern: '^[A-Z][A-Z_]{1,29}$'
+    OrderRequestLineReason:
+      type: string
+      enum: [TOO_SMALL, TOO_LARGE, FIT, COLOR, NOT_AS_PICTURED, DEFECT, WRONG_ITEM, OTHER]
+    OrderRequestShipBack:
+      type: object
+      required: [address, packageCode, deadline]
+      properties:
+        address:
+          type: string
+        packageCode:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+          description: 23:59:59 giờ Việt Nam của ngày hạn
+    OrderRequestOutcome:
+      type: object
+      properties:
+        trackingCode:
+          type: string
+          maxLength: 60
+        reason:
+          type: string
+          maxLength: 500
+    OrderRequestLine:
+      type: object
+      required: [variantId, qty, reason]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        qty:
+          type: integer
+          format: int32
+        reason:
+          type: string
+        wantVariantId:
+          type: string
+          format: uuid
+        note:
+          type: string
+        sku:
+          type: string
+          description: Mã biến thể chụp lúc đặt (chỉ ở màn nhân viên)
+        name:
+          type: string
+          description: Tên chụp lúc đặt (chỉ ở màn nhân viên)
+    OrderRequestMessage:
+      type: object
+      required: [id, authorType, body, visibleToCustomer, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        authorType:
+          type: string
+          enum: [customer, staff, system]
+        authorId:
+          type: string
+          description: Mã nhân viên (staff)
+        authorName:
+          type: string
+          description: Tên nhân viên (nhân viên không còn → không có)
+        body:
+          type: string
+        visibleToCustomer:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    OrderRequestFile:
+      type: object
+      required: [fileId, status]
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [processing, ready, rejected, missing]
+          description: missing — tệp đã bị dọn, hết hạn hay mất trên kho
+        url:
+          type: string
+          description: Link ký có hạn 10 phút (chỉ khi ready)
+    OrderRequestSummary:
+      type: object
+      required: [id, ref, orderId, orderCode, kind, status, reasonCode, createdAt, updatedAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ref:
+          type: string
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+        kind:
+          $ref: "#/components/schemas/OrderRequestKind"
+        status:
+          $ref: "#/components/schemas/OrderRequestStatus"
+        reasonCode:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int32
+    OrderRequestPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderRequestSummary"
+        nextCursor:
+          type: string
+          description: Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+    OrderRequest:
+      type: object
+      required: [id, ref, orderId, orderCode, kind, status, reasonCode, conditionConfirmed, lines, messages, files,
+        createdAt, updatedAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ref:
+          type: string
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+        kind:
+          $ref: "#/components/schemas/OrderRequestKind"
+        status:
+          $ref: "#/components/schemas/OrderRequestStatus"
+        reasonCode:
+          type: string
+        customerNote:
+          type: string
+          description: Lời nhắn của khách lúc gửi (hiện dạng văn bản thuần)
+        conditionConfirmed:
+          type: boolean
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderRequestLine"
+        shipBack:
+          $ref: "#/components/schemas/OrderRequestShipBack"
+        outcome:
+          $ref: "#/components/schemas/OrderRequestOutcome"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderRequestMessage"
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderRequestFile"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+        resolvedBy:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          format: int32
+    ReplyOrderRequestRequest:
+      type: object
+      required: [body, visibleToCustomer]
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: 5–1000 ký tự sau khi cắt khoảng trắng
+        visibleToCustomer:
+          type: boolean
+    SetOrderRequestStatusRequest:
+      type: object
+      required: [status, version]
+      properties:
+        status:
+          $ref: "#/components/schemas/OrderRequestStatus"
+        version:
+          type: integer
+          format: int32
+          minimum: 1
+        message:
+          type: string
+          maxLength: 4000
+          description: Tin hiện cho khách (5–1000 ký tự); bắt buộc khi needs_info
+        shipBack:
+          type: object
+          required: [address, packageCode, deadline]
+          properties:
+            address:
+              type: string
+              maxLength: 1000
+            packageCode:
+              type: string
+              maxLength: 200
+            deadline:
+              type: string
+              format: date
+        outcome:
+          $ref: "#/components/schemas/OrderRequestOutcomeInput"
+    OrderRequestOutcomeInput:
+      type: object
+      properties:
+        trackingCode:
+          type: string
+          maxLength: 200
+        reason:
+          type: string
+          maxLength: 2000
+    WebRequestFile:
+      type: object
+      required: [fileId]
+      properties:
+        fileId:
+          type: string
+          format: uuid
+    WebRequestRef:
+      type: object
+      required: [ref, status]
+      properties:
+        ref:
+          type: string
+        status:
+          $ref: "#/components/schemas/OrderRequestStatus"
+    WebRequestLineInput:
+      type: object
+      required: [variantId, qty, reason]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        qty:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 20
+        reason:
+          $ref: "#/components/schemas/OrderRequestLineReason"
+        wantVariantId:
+          type: string
+          format: uuid
+        note:
+          type: string
+          maxLength: 1000
+    WebCreateRequestBody:
+      type: object
+      required: [kind, reason, message]
+      properties:
+        kind:
+          $ref: "#/components/schemas/OrderRequestKind"
+        reason:
+          $ref: "#/components/schemas/OrderRequestReason"
+        message:
+          type: string
+          maxLength: 4000
+          description: Lời nhắn của khách, 5–1000 ký tự sau khi cắt khoảng trắng
+        lines:
+          type: array
+          maxItems: 30
+          items:
+            $ref: "#/components/schemas/WebRequestLineInput"
+        fileIds:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            format: uuid
+        conditionConfirmed:
+          type: boolean
+          description: Khách xác nhận hàng còn tem, nhãn, chưa dùng (bắt buộc với đổi, trả)
+    WebReplyRequestBody:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          maxLength: 4000
+    WebCustomerRequestMessage:
+      type: object
+      required: [id, from, body, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        from:
+          type: string
+          enum: [customer, staff]
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    WebCustomerRequest:
+      type: object
+      required: [ref, kind, reason, message, status, lines, fileCount, messages, createdAt, updatedAt]
+      properties:
+        ref:
+          type: string
+        kind:
+          $ref: "#/components/schemas/OrderRequestKind"
+        reason:
+          type: string
+        message:
+          type: string
+        status:
+          $ref: "#/components/schemas/OrderRequestStatus"
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderRequestLine"
+        fileCount:
+          type: integer
+          format: int32
+        shipBack:
+          $ref: "#/components/schemas/OrderRequestShipBack"
+        outcome:
+          $ref: "#/components/schemas/OrderRequestOutcome"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebCustomerRequestMessage"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    WebCustomerRequestList:
+      type: object
+      required: [items, exchangeWindowDays]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebCustomerRequest"
+        exchangeWindowDays:
+          type: integer
+          format: int32
     WebIntakeStatus:
       type: object
       required: [paused]

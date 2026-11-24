@@ -40,6 +40,8 @@ func TestDefaultRoles_Content(t *testing.T) {
 			"customer.read", "customer.write", "order.update", "order.confirm", "order.cancel", "order.return", "promotion.read",
 			// M3 (Task M3-04).
 			"fulfillment.quote", "fulfillment.cancel", "fulfillment.callbacks.work", "cash.payments.record",
+			// M5 (Task 195).
+			"order.requests.read", "order.requests.manage",
 		},
 		"warehouse": {
 			"catalog.read", "inventory.read", "inventory.documents.create", "inventory.stocktake", "fulfillment.read",

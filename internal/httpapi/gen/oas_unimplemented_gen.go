@@ -694,6 +694,17 @@ func (UnimplementedHandler) GetOrder(ctx context.Context, params GetOrderParams)
 	return r, ht.ErrNotImplemented
 }
 
+// GetOrderRequest implements getOrderRequest operation.
+//
+// Ảnh: ready → url ký có hạn 10 phút tới biến thể JPEG lớn nhất trên bucket riêng
+// tư (đã bỏ EXIF); đang xử lý → status processing, không url; imager từ chối (không
+// phải ảnh) → status rejected, không url.
+//
+// GET /api/v1/order-requests/{id}
+func (UnimplementedHandler) GetOrderRequest(ctx context.Context, params GetOrderRequestParams) (r GetOrderRequestRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetOrderSettings implements getOrderSettings operation.
 //
 // Cài đặt đơn của shop (Task M2-15).
@@ -1064,6 +1075,17 @@ func (UnimplementedHandler) ListOrderDuplicates(ctx context.Context, params List
 //
 // GET /api/v1/orders/{id}/payments
 func (UnimplementedHandler) ListOrderPayments(ctx context.Context, params ListOrderPaymentsParams) (r ListOrderPaymentsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListOrderRequests implements listOrderRequests operation.
+//
+// Q: mã yêu cầu (YC-…), mã đơn (DH…), SĐT người nhận (đủ hay đuôi từ 4 chữ
+// số) hoặc tên khách (không dấu). Báo hiệu order_request.changed (người có
+// order.requests.read) khi có yêu cầu mới hay vừa đổi.
+//
+// GET /api/v1/order-requests
+func (UnimplementedHandler) ListOrderRequests(ctx context.Context, params ListOrderRequestsParams) (r ListOrderRequestsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1490,6 +1512,16 @@ func (UnimplementedHandler) ReplaceStockDocumentLines(ctx context.Context, req *
 	return r, ht.ErrNotImplemented
 }
 
+// ReplyOrderRequest implements replyOrderRequest operation.
+//
+// Tin hiện cho khách khi yêu cầu đã đóng (resolved, rejected, cancelled) → 422
+// invalid_transition; ghi chú nội bộ luôn được.
+//
+// POST /api/v1/order-requests/{id}/messages
+func (UnimplementedHandler) ReplyOrderRequest(ctx context.Context, req *ReplyOrderRequestRequest, params ReplyOrderRequestParams) (r ReplyOrderRequestRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // RequestAddressChange implements requestAddressChange operation.
 //
 // Yêu cầu đổi địa chỉ giao sau khi đã gửi hãng (một yêu cầu mở mỗi vận
@@ -1625,6 +1657,21 @@ func (UnimplementedHandler) SetCarrierAccountStatus(ctx context.Context, req *Se
 //
 // POST /api/v1/orders/{id}/pending
 func (UnimplementedHandler) SetOrderPending(ctx context.Context, req *SetOrderPendingRequest, params SetOrderPendingParams) (r SetOrderPendingRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SetOrderRequestStatus implements setOrderRequestStatus operation.
+//
+// Sơ đồ: received → in_review | needs_info | confirmed | resolved | rejected; in_review →
+// needs_info | confirmed | resolved | rejected; needs_info → in_review | rejected; confirmed (chỉ
+// exchange) → items_received | rejected; items_received → resolved | rejected; cạnh khác →
+// 422 invalid_transition. needs_info cần message (5–1000 ký tự, hiện cho khách); confirmed
+// cần shipBack (địa chỉ 10–300, mã gói 3–40, ngày hạn không trước hôm nay giờ
+// Việt Nam, lưu 23:59:59 giờ Việt Nam); rejected cần outcome.reason 1–500 (thiếu → 422
+// invalid_input); resolved có outcome.trackingCode ≤ 60 tùy chọn.
+//
+// POST /api/v1/order-requests/{id}/status
+func (UnimplementedHandler) SetOrderRequestStatus(ctx context.Context, req *SetOrderRequestStatusRequest, params SetOrderRequestStatusParams) (r SetOrderRequestStatusRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1954,6 +2001,15 @@ func (UnimplementedHandler) WebCampaigns(ctx context.Context, params WebCampaign
 	return r, ht.ErrNotImplemented
 }
 
+// WebCancelRequest implements webCancelRequest operation.
+//
+// Yêu cầu nhân viên đã bắt đầu xử lý → 422 request_not_allowed.
+//
+// POST /api/v1/web/orders/{externalRef}/requests/{ref}/cancel
+func (UnimplementedHandler) WebCancelRequest(ctx context.Context, params WebCancelRequestParams) (r WebCancelRequestRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // WebCatalogChanges implements webCatalogChanges operation.
 //
 // Task 190 (M5-07). Lần sau gửi since = until − 30 s và bỏ mã trùng. hasMore = true (đủ
@@ -2007,6 +2063,22 @@ func (UnimplementedHandler) WebCreateOrder(ctx context.Context, req *WebOrderReq
 	return r, ht.ErrNotImplemented
 }
 
+// WebCreateRequest implements webCreateRequest operation.
+//
+// Đổi, trả: đơn đã giao trong exchangeWindowDays ngày (mặc định 7; quá → 422
+// window_closed, chưa giao → 422 request_not_allowed), số ≤ số đã mua trừ số đang
+// trong yêu cầu đổi khác (→ 422 qty_exceeded), dòng DEFECT, WRONG_ITEM cần ít nhất
+// một ảnh (→ 422 photo_required). Hủy: đơn new, confirmed, mỗi đơn một yêu cầu
+// hủy đang mở (→ 422 duplicate_open). Ảnh: tối đa 5 (→ 422 too_many_files), mã từ
+// webUploadRequestFile chưa gắn yêu cầu khác (→ 422 file_not_found), imager từ chối (→
+// 422 file_rejected). Quá 5 yêu cầu một đơn trong 24 giờ → 429 too_fast. Từ chối
+// không lưu theo khóa.
+//
+// POST /api/v1/web/orders/{externalRef}/requests
+func (UnimplementedHandler) WebCreateRequest(ctx context.Context, req *WebCreateRequestBody, params WebCreateRequestParams) (r WebCreateRequestRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // WebIntakeStatus implements webIntakeStatus operation.
 //
 // Task 456 (M5-44). Website hiện "ELIMAZ đang tạm dừng nhận đơn trên website…" khi
@@ -2015,6 +2087,16 @@ func (UnimplementedHandler) WebCreateOrder(ctx context.Context, req *WebOrderReq
 //
 // GET /api/v1/web/intake
 func (UnimplementedHandler) WebIntakeStatus(ctx context.Context) (r WebIntakeStatusRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// WebListRequests implements webListRequests operation.
+//
+// Yêu cầu về đơn của một đơn web (mới trước), kèm tin nhân viên gửi khách;
+// không có ghi chú nội bộ (Task 195).
+//
+// GET /api/v1/web/orders/{externalRef}/requests
+func (UnimplementedHandler) WebListRequests(ctx context.Context, params WebListRequestsParams) (r WebListRequestsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2045,6 +2127,15 @@ func (UnimplementedHandler) WebQuote(ctx context.Context, req *WebQuoteRequest) 
 	return r, ht.ErrNotImplemented
 }
 
+// WebReplyRequest implements webReplyRequest operation.
+//
+// Yêu cầu không ở needs_info → 422 request_not_allowed.
+//
+// POST /api/v1/web/orders/{externalRef}/requests/{ref}/messages
+func (UnimplementedHandler) WebReplyRequest(ctx context.Context, req *WebReplyRequestBody, params WebReplyRequestParams) (r WebReplyRequestRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // WebSold30d implements webSold30d operation.
 //
 // Task 191 (M5-08); định nghĩa ở docs/m5/doi-chieu-gia-dinh.md mục 4: cộng số lượng
@@ -2054,5 +2145,19 @@ func (UnimplementedHandler) WebQuote(ctx context.Context, req *WebQuoteRequest) 
 //
 // GET /api/v1/web/catalog/sold-30d
 func (UnimplementedHandler) WebSold30d(ctx context.Context) (r WebSold30dRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// WebUploadRequestFile implements webUploadRequestFile operation.
+//
+// Thân là nguyên byte ảnh, Content-Type là loại ảnh. CRM không tự kiểm nội dung:
+// ảnh thô vào crm-tmp (tự xóa sau 24 giờ), lệnh file.process_private của M1 kiểm bằng
+// imager và ghi biến thể vào bucket riêng tư. Loại ngoài JPEG, PNG, WebP → 422
+// file_type_not_allowed; lớn hơn 6 MiB → 413 body_too_large; Content-Type không phải ảnh →
+// 415. Tệp không phải ảnh hợp lệ thành rejected sau khi xử lý: webCreateRequest kèm
+// tệp đó → 422 file_rejected. Kho tệp lỗi → 503 retry_later, không lưu.
+//
+// POST /api/v1/web/files
+func (UnimplementedHandler) WebUploadRequestFile(ctx context.Context, req *WebUploadRequestFileReqWithContentType, params WebUploadRequestFileParams) (r WebUploadRequestFileRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

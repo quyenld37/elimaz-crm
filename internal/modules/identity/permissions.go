@@ -106,6 +106,9 @@ var Permissions = []PermissionDef{ //nolint:gochecknoglobals // danh sách hằn
 	{"identity.service_keys.manage", ScopeShop},
 	// M5 (Task 456): tạm dừng, mở lại nhận đơn web là chính sách toàn shop: ScopeShop (đọc dùng order.read).
 	{"order.web_intake.manage", ScopeShop},
+	// M5 (Task 195): yêu cầu về đơn hàng của khách (xem; trả lời, đổi trạng thái) là việc hằng ngày của bán hàng.
+	{"order.requests.read", ScopeNone},
+	{"order.requests.manage", ScopeNone},
 }
 
 // Loại phạm vi của một grant (cột user_role_grants.scope_type).

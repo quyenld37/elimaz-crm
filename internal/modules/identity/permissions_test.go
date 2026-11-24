@@ -117,6 +117,8 @@ func TestPermissionsList(t *testing.T) {
 		"identity.service_keys.manage": identity.ScopeShop,
 		// M5 (Task 456): tạm dừng nhận đơn web là chính sách toàn shop.
 		"order.web_intake.manage": identity.ScopeShop,
+		// M5 (Task 195): yêu cầu về đơn hàng.
+		"order.requests.read": identity.ScopeNone, "order.requests.manage": identity.ScopeNone,
 	}
 	seen := map[identity.Permission]bool{}
 	for _, d := range identity.Permissions {

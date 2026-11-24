@@ -30,6 +30,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
+	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
@@ -169,6 +170,7 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	customer.RegisterFilePurposes()
 	fulfillment.RegisterFilePurposes() // carrier_label (M3, Task M3-04, 0306)
 	cash.RegisterFilePurposes()        // cod_statement (M3, Task M3-04, 0306)
+	order.RegisterFilePurposes()       // order_request_photo (M5, Task 195, 0504)
 	if cfg.Role == config.RoleAPI || cfg.Role == config.RoleWorker {
 		if err := files.CheckPurposes(ctx, d); err != nil {
 			return fmt.Errorf("kiểm mục đích tệp: %w", err)

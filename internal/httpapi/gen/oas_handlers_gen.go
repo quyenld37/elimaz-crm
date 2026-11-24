@@ -6753,6 +6753,92 @@ func (s *Server) handleGetOrderRequest(args [1]string, argsEscaped bool, w http.
 	}
 }
 
+// handleGetOrderRequestRequest handles getOrderRequest operation.
+//
+// Ảnh: ready → url ký có hạn 10 phút tới biến thể JPEG lớn nhất trên bucket riêng
+// tư (đã bỏ EXIF); đang xử lý → status processing, không url; imager từ chối (không
+// phải ảnh) → status rejected, không url.
+//
+// GET /api/v1/order-requests/{id}
+func (s *Server) handleGetOrderRequestRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: GetOrderRequestOperation,
+			ID:   "getOrderRequest",
+		}
+	)
+	params, err := decodeGetOrderRequestParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response GetOrderRequestRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetOrderRequestOperation,
+			OperationSummary: "Một yêu cầu về đơn: dòng, lời nhắn, mọi tin (cả ghi chú nội bộ), ảnh kèm (link ký 10 phút) (Task 195)",
+			OperationID:      "getOrderRequest",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = GetOrderRequestParams
+			Response = GetOrderRequestRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackGetOrderRequestParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetOrderRequest(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetOrderRequest(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetOrderRequestResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetOrderSettingsRequest handles getOrderSettings operation.
 //
 // Cài đặt đơn của shop (Task M2-15).
@@ -10039,6 +10125,108 @@ func (s *Server) handleListOrderPaymentsRequest(args [1]string, argsEscaped bool
 	}
 
 	if err := encodeListOrderPaymentsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleListOrderRequestsRequest handles listOrderRequests operation.
+//
+// Q: mã yêu cầu (YC-…), mã đơn (DH…), SĐT người nhận (đủ hay đuôi từ 4 chữ
+// số) hoặc tên khách (không dấu). Báo hiệu order_request.changed (người có
+// order.requests.read) khi có yêu cầu mới hay vừa đổi.
+//
+// GET /api/v1/order-requests
+func (s *Server) handleListOrderRequestsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListOrderRequestsOperation,
+			ID:   "listOrderRequests",
+		}
+	)
+	params, err := decodeListOrderRequestsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListOrderRequestsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListOrderRequestsOperation,
+			OperationSummary: "Yêu cầu về đơn hàng của khách (hủy, đổi, trả, câu hỏi), mới trước; lọc trạng thái, loại, q (Task 195)",
+			OperationID:      "listOrderRequests",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "status",
+					In:   "query",
+				}: params.Status,
+				{
+					Name: "kind",
+					In:   "query",
+				}: params.Kind,
+				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListOrderRequestsParams
+			Response = ListOrderRequestsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListOrderRequestsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListOrderRequests(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListOrderRequests(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListOrderRequestsResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -14161,6 +14349,110 @@ func (s *Server) handleReplaceStockDocumentLinesRequest(args [1]string, argsEsca
 	}
 }
 
+// handleReplyOrderRequestRequest handles replyOrderRequest operation.
+//
+// Tin hiện cho khách khi yêu cầu đã đóng (resolved, rejected, cancelled) → 422
+// invalid_transition; ghi chú nội bộ luôn được.
+//
+// POST /api/v1/order-requests/{id}/messages
+func (s *Server) handleReplyOrderRequestRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ReplyOrderRequestOperation,
+			ID:   "replyOrderRequest",
+		}
+	)
+	params, err := decodeReplyOrderRequestParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeReplyOrderRequestRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response ReplyOrderRequestRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ReplyOrderRequestOperation,
+			OperationSummary: "Nhân viên trả lời khách (visibleToCustomer) hay ghi chú nội bộ, 5–1000 ký tự; không đổi version (Task 195)",
+			OperationID:      "replyOrderRequest",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ReplyOrderRequestRequest
+			Params   = ReplyOrderRequestParams
+			Response = ReplyOrderRequestRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackReplyOrderRequestParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ReplyOrderRequest(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ReplyOrderRequest(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeReplyOrderRequestResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleRequestAddressChangeRequest handles requestAddressChange operation.
 //
 // Yêu cầu đổi địa chỉ giao sau khi đã gửi hãng (một yêu cầu mở mỗi vận
@@ -15555,6 +15847,115 @@ func (s *Server) handleSetOrderPendingRequest(args [1]string, argsEscaped bool, 
 	}
 
 	if err := encodeSetOrderPendingResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleSetOrderRequestStatusRequest handles setOrderRequestStatus operation.
+//
+// Sơ đồ: received → in_review | needs_info | confirmed | resolved | rejected; in_review →
+// needs_info | confirmed | resolved | rejected; needs_info → in_review | rejected; confirmed (chỉ
+// exchange) → items_received | rejected; items_received → resolved | rejected; cạnh khác →
+// 422 invalid_transition. needs_info cần message (5–1000 ký tự, hiện cho khách); confirmed
+// cần shipBack (địa chỉ 10–300, mã gói 3–40, ngày hạn không trước hôm nay giờ
+// Việt Nam, lưu 23:59:59 giờ Việt Nam); rejected cần outcome.reason 1–500 (thiếu → 422
+// invalid_input); resolved có outcome.trackingCode ≤ 60 tùy chọn.
+//
+// POST /api/v1/order-requests/{id}/status
+func (s *Server) handleSetOrderRequestStatusRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SetOrderRequestStatusOperation,
+			ID:   "setOrderRequestStatus",
+		}
+	)
+	params, err := decodeSetOrderRequestStatusParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSetOrderRequestStatusRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response SetOrderRequestStatusRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SetOrderRequestStatusOperation,
+			OperationSummary: "Đổi trạng thái yêu cầu theo sơ đồ khi version khớp (409 version_conflict) (Task 195)",
+			OperationID:      "setOrderRequestStatus",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *SetOrderRequestStatusRequest
+			Params   = SetOrderRequestStatusParams
+			Response = SetOrderRequestStatusRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSetOrderRequestStatusParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SetOrderRequestStatus(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SetOrderRequestStatus(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSetOrderRequestStatusResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -18801,6 +19202,98 @@ func (s *Server) handleWebCampaignsRequest(args [0]string, argsEscaped bool, w h
 	}
 }
 
+// handleWebCancelRequestRequest handles webCancelRequest operation.
+//
+// Yêu cầu nhân viên đã bắt đầu xử lý → 422 request_not_allowed.
+//
+// POST /api/v1/web/orders/{externalRef}/requests/{ref}/cancel
+func (s *Server) handleWebCancelRequestRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebCancelRequestOperation,
+			ID:   "webCancelRequest",
+		}
+	)
+	params, err := decodeWebCancelRequestParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebCancelRequestRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebCancelRequestOperation,
+			OperationSummary: "Khách rút yêu cầu khi nhân viên chưa nhận (received → cancelled; đã rút → 200 như cũ) (Task 195)",
+			OperationID:      "webCancelRequest",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "externalRef",
+					In:   "path",
+				}: params.ExternalRef,
+				{
+					Name: "ref",
+					In:   "path",
+				}: params.Ref,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebCancelRequestParams
+			Response = WebCancelRequestRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebCancelRequestParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebCancelRequest(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebCancelRequest(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebCancelRequestResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebCatalogChangesRequest handles webCatalogChanges operation.
 //
 // Task 190 (M5-07). Lần sau gửi since = until − 30 s và bỏ mã trùng. hasMore = true (đủ
@@ -19185,6 +19678,116 @@ func (s *Server) handleWebCreateOrderRequest(args [0]string, argsEscaped bool, w
 	}
 }
 
+// handleWebCreateRequestRequest handles webCreateRequest operation.
+//
+// Đổi, trả: đơn đã giao trong exchangeWindowDays ngày (mặc định 7; quá → 422
+// window_closed, chưa giao → 422 request_not_allowed), số ≤ số đã mua trừ số đang
+// trong yêu cầu đổi khác (→ 422 qty_exceeded), dòng DEFECT, WRONG_ITEM cần ít nhất
+// một ảnh (→ 422 photo_required). Hủy: đơn new, confirmed, mỗi đơn một yêu cầu
+// hủy đang mở (→ 422 duplicate_open). Ảnh: tối đa 5 (→ 422 too_many_files), mã từ
+// webUploadRequestFile chưa gắn yêu cầu khác (→ 422 file_not_found), imager từ chối (→
+// 422 file_rejected). Quá 5 yêu cầu một đơn trong 24 giờ → 429 too_fast. Từ chối
+// không lưu theo khóa.
+//
+// POST /api/v1/web/orders/{externalRef}/requests
+func (s *Server) handleWebCreateRequestRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebCreateRequestOperation,
+			ID:   "webCreateRequest",
+		}
+	)
+	params, err := decodeWebCreateRequestParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeWebCreateRequestRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response WebCreateRequestRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebCreateRequestOperation,
+			OperationSummary: "Khách gửi yêu cầu hủy, đổi, trả hay câu hỏi cho đơn web (Task 195)",
+			OperationID:      "webCreateRequest",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "externalRef",
+					In:   "path",
+				}: params.ExternalRef,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *WebCreateRequestBody
+			Params   = WebCreateRequestParams
+			Response = WebCreateRequestRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebCreateRequestParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebCreateRequest(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebCreateRequest(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebCreateRequestResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebIntakeStatusRequest handles webIntakeStatus operation.
 //
 // Task 456 (M5-44). Website hiện "ELIMAZ đang tạm dừng nhận đơn trên website…" khi
@@ -19244,6 +19847,91 @@ func (s *Server) handleWebIntakeStatusRequest(args [0]string, argsEscaped bool, 
 	}
 
 	if err := encodeWebIntakeStatusResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebListRequestsRequest handles webListRequests operation.
+//
+// Yêu cầu về đơn của một đơn web (mới trước), kèm tin nhân viên gửi khách;
+// không có ghi chú nội bộ (Task 195).
+//
+// GET /api/v1/web/orders/{externalRef}/requests
+func (s *Server) handleWebListRequestsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebListRequestsOperation,
+			ID:   "webListRequests",
+		}
+	)
+	params, err := decodeWebListRequestsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebListRequestsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebListRequestsOperation,
+			OperationSummary: "Yêu cầu về đơn của một đơn web (mới trước), kèm tin nhân viên gửi khách; không có ghi chú nội bộ (Task 195)",
+			OperationID:      "webListRequests",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "externalRef",
+					In:   "path",
+				}: params.ExternalRef,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebListRequestsParams
+			Response = WebListRequestsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebListRequestsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebListRequests(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebListRequests(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebListRequestsResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -19429,6 +20117,113 @@ func (s *Server) handleWebQuoteRequest(args [0]string, argsEscaped bool, w http.
 	}
 }
 
+// handleWebReplyRequestRequest handles webReplyRequest operation.
+//
+// Yêu cầu không ở needs_info → 422 request_not_allowed.
+//
+// POST /api/v1/web/orders/{externalRef}/requests/{ref}/messages
+func (s *Server) handleWebReplyRequestRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebReplyRequestOperation,
+			ID:   "webReplyRequest",
+		}
+	)
+	params, err := decodeWebReplyRequestParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeWebReplyRequestRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response WebReplyRequestRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebReplyRequestOperation,
+			OperationSummary: "Khách trả lời khi nhân viên cần thêm thông tin (needs_info → in_review) (Task 195)",
+			OperationID:      "webReplyRequest",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "externalRef",
+					In:   "path",
+				}: params.ExternalRef,
+				{
+					Name: "ref",
+					In:   "path",
+				}: params.Ref,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *WebReplyRequestBody
+			Params   = WebReplyRequestParams
+			Response = WebReplyRequestRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebReplyRequestParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebReplyRequest(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebReplyRequest(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebReplyRequestResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebSold30dRequest handles webSold30d operation.
 //
 // Task 191 (M5-08); định nghĩa ở docs/m5/doi-chieu-gia-dinh.md mục 4: cộng số lượng
@@ -19489,6 +20284,110 @@ func (s *Server) handleWebSold30dRequest(args [0]string, argsEscaped bool, w htt
 	}
 
 	if err := encodeWebSold30dResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebUploadRequestFileRequest handles webUploadRequestFile operation.
+//
+// Thân là nguyên byte ảnh, Content-Type là loại ảnh. CRM không tự kiểm nội dung:
+// ảnh thô vào crm-tmp (tự xóa sau 24 giờ), lệnh file.process_private của M1 kiểm bằng
+// imager và ghi biến thể vào bucket riêng tư. Loại ngoài JPEG, PNG, WebP → 422
+// file_type_not_allowed; lớn hơn 6 MiB → 413 body_too_large; Content-Type không phải ảnh →
+// 415. Tệp không phải ảnh hợp lệ thành rejected sau khi xử lý: webCreateRequest kèm
+// tệp đó → 422 file_rejected. Kho tệp lỗi → 503 retry_later, không lưu.
+//
+// POST /api/v1/web/files
+func (s *Server) handleWebUploadRequestFileRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebUploadRequestFileOperation,
+			ID:   "webUploadRequestFile",
+		}
+	)
+	params, err := decodeWebUploadRequestFileParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeWebUploadRequestFileRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response WebUploadRequestFileRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebUploadRequestFileOperation,
+			OperationSummary: "Website gửi một ảnh khách kèm yêu cầu về đơn (JPEG, PNG, WebP ≤ 6 MiB); CRM giữ riêng tư (Task 195, R10)",
+			OperationID:      "webUploadRequestFile",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *WebUploadRequestFileReqWithContentType
+			Params   = WebUploadRequestFileParams
+			Response = WebUploadRequestFileRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebUploadRequestFileParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebUploadRequestFile(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebUploadRequestFile(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebUploadRequestFileResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

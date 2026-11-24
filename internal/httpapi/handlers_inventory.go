@@ -340,11 +340,16 @@ func isInventoryRefusal(err error) bool {
 func (h *handler) audit(ctx context.Context, tx pgx.Tx, u identity.AuthUser, action, entityType string, id uuid.UUID,
 	before, after map[string]any,
 ) error {
-	if err := identity.RecordAudit(ctx, tx, identity.AuditEntry{
+	return recordAudit(ctx, tx, identity.AuditEntry{
 		TenantID: u.TenantID, ActorType: "staff", ActorID: u.UserID.String(), Action: action,
 		EntityType: entityType, EntityID: id.String(), Before: before, After: after, RequestID: RequestID(ctx),
-	}); err != nil {
-		return fmt.Errorf("ghi audit %s: %w", action, err)
+	})
+}
+
+// recordAudit ghi dòng audit e trong tx (h.audit của nhân viên, auditService của khóa dịch vụ).
+func recordAudit(ctx context.Context, tx pgx.Tx, e identity.AuditEntry) error {
+	if err := identity.RecordAudit(ctx, tx, e); err != nil {
+		return fmt.Errorf("ghi audit %s: %w", e.Action, err)
 	}
 	return nil
 }

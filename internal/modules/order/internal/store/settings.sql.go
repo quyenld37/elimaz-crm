@@ -26,7 +26,8 @@ func (q *Queries) EnsureOrderSettings(ctx context.Context, tenantID uuid.UUID) e
 }
 
 const getOrderSettings = `-- name: GetOrderSettings :one
-SELECT draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version
+SELECT draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version,
+       exchange_window_days
 FROM ord.order_settings
 `
 
@@ -36,6 +37,7 @@ type GetOrderSettingsRow struct {
 	DiscountApprovalThresholdBp int32
 	ReturnWarningDays           int32
 	Version                     int64
+	ExchangeWindowDays          int32
 }
 
 func (q *Queries) GetOrderSettings(ctx context.Context) (GetOrderSettingsRow, error) {
@@ -47,6 +49,7 @@ func (q *Queries) GetOrderSettings(ctx context.Context) (GetOrderSettingsRow, er
 		&i.DiscountApprovalThresholdBp,
 		&i.ReturnWarningDays,
 		&i.Version,
+		&i.ExchangeWindowDays,
 	)
 	return i, err
 }
@@ -76,7 +79,8 @@ func (q *Queries) InsertTrafficSourceIfMissing(ctx context.Context, arg InsertTr
 }
 
 const lockOrderSettings = `-- name: LockOrderSettings :one
-SELECT draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version
+SELECT draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version,
+       exchange_window_days
 FROM ord.order_settings
 FOR UPDATE
 `
@@ -87,6 +91,7 @@ type LockOrderSettingsRow struct {
 	DiscountApprovalThresholdBp int32
 	ReturnWarningDays           int32
 	Version                     int64
+	ExchangeWindowDays          int32
 }
 
 // Khóa dòng cài đặt của tenant (nhóm 7 ADR-46, bảng cuối) trước khi so version (order.Writer.UpdateSettings).
@@ -99,6 +104,7 @@ func (q *Queries) LockOrderSettings(ctx context.Context) (LockOrderSettingsRow, 
 		&i.DiscountApprovalThresholdBp,
 		&i.ReturnWarningDays,
 		&i.Version,
+		&i.ExchangeWindowDays,
 	)
 	return i, err
 }
@@ -126,7 +132,8 @@ SET draft_ttl_minutes              = $1::int,
     updated_at                     = now(),
     updated_by                     = $5::uuid
 WHERE version = $6::bigint
-RETURNING draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version
+RETURNING draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version,
+          exchange_window_days
 `
 
 type UpdateOrderSettingsParams struct {
@@ -144,6 +151,7 @@ type UpdateOrderSettingsRow struct {
 	DiscountApprovalThresholdBp int32
 	ReturnWarningDays           int32
 	Version                     int64
+	ExchangeWindowDays          int32
 }
 
 func (q *Queries) UpdateOrderSettings(ctx context.Context, arg UpdateOrderSettingsParams) (UpdateOrderSettingsRow, error) {
@@ -162,6 +170,7 @@ func (q *Queries) UpdateOrderSettings(ctx context.Context, arg UpdateOrderSettin
 		&i.DiscountApprovalThresholdBp,
 		&i.ReturnWarningDays,
 		&i.Version,
+		&i.ExchangeWindowDays,
 	)
 	return i, err
 }
