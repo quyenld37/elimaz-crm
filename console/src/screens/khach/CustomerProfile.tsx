@@ -26,6 +26,7 @@ import { percentText } from "./customerRules";
 import { NameField } from "./CreateCustomerDialog";
 import { CustomerTimeline, NotesPanel } from "./NotesPanel";
 import { TagsEditor } from "./TagsEditor";
+import { CustomerFeedback } from "../feedback/CustomerFeedback";
 import "../don/don.css";
 import "./khach.css";
 
@@ -492,6 +493,7 @@ export function CustomerProfile() {
           <Contacts c={c} canWrite={canWrite} />
           <Addresses c={c} />
           <Members c={c} />
+          {perms.can("customer.feedback.read") && <CustomerFeedback customerId={c.rootId} />}
         </div>
       </div>
       {editing && (

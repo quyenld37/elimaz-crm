@@ -93,6 +93,42 @@ describe("menu trái", () => {
     expect(screen.getByRole("heading", { name: "Màn sửa" })).toBeTruthy();
   });
 
+  it("mục có path khớp đúng đường thắng mục chỉ khớp qua also (/khach/gop-y và also /khach/:id, Task 461)", () => {
+    const list: Screen[] = [
+      {
+        path: "/khach",
+        also: ["/khach/:id"],
+        label: "Khách hàng",
+        group: "Khách hàng",
+        permission: "customer.read",
+        element: <h1>Màn khách</h1>,
+      },
+      {
+        path: "/khach/:id",
+        label: "Hồ sơ khách",
+        group: "Khách hàng",
+        permission: "customer.read",
+        hidden: true,
+        element: <h1>Màn hồ sơ</h1>,
+      },
+      {
+        path: "/khach/gop-y",
+        label: "Góp ý",
+        group: "Khách hàng",
+        permission: "customer.read",
+        element: <h1>Màn góp ý</h1>,
+      },
+    ];
+    const view = renderAt("/khach/gop-y", [grant("customer.read")], list);
+    expect(within(nav()).getByRole("link", { name: "Góp ý" }).getAttribute("aria-current")).toBe("page");
+    expect(within(nav()).getByRole("link", { name: "Khách hàng" }).getAttribute("aria-current")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Màn góp ý" })).toBeTruthy();
+    view.unmount();
+    renderAt("/khach/abc", [grant("customer.read")], list);
+    expect(within(nav()).getByRole("link", { name: "Khách hàng" }).getAttribute("aria-current")).toBe("page");
+    expect(within(nav()).getByRole("link", { name: "Góp ý" }).getAttribute("aria-current")).toBeNull();
+  });
+
   it("trang chủ chuyển tới màn đầu tiên có quyền", () => {
     renderAt("/", [grant("inventory.read", { type: "warehouse", id: "w1" })]);
     expect(screen.getByRole("heading", { name: "Màn tồn" })).toBeTruthy();

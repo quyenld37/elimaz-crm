@@ -22,6 +22,7 @@ export function Layout({ screens, grants, email, banner, children }: LayoutProps
   const menuBtn = useRef<HTMLButtonElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const sections = navSections(screens, grants);
+  const menuItems = sections.flatMap((s) => s.items);
   const title = currentScreen(screens, pathname)?.label ?? "";
   const initial = email.charAt(0).toUpperCase();
 
@@ -59,7 +60,7 @@ export function Layout({ screens, grants, email, banner, children }: LayoutProps
                   key={item.path}
                   className="nav-a"
                   to={item.path}
-                  aria-current={isCurrent(item, pathname) ? "page" : undefined}
+                  aria-current={isCurrent(item, pathname, menuItems) ? "page" : undefined}
                   onClick={() => {
                     close(false);
                   }}
