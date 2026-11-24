@@ -18,10 +18,10 @@ import {
 } from "../../api";
 import { ApiError, errorMessage, unwrap } from "../../app/errors";
 import { useWriteAction } from "../../app/idempotency";
-import { Dialog } from "../staff/staffData";
 import { moveTo, rejectText } from "../products/imageRules";
 import { useUploads, type UploadItem, type UploadOptions } from "../products/useUpload";
 import { BannerForm } from "./BannerForm";
+import { ConflictDialog, SaveBar, useReload } from "./listEditor";
 import { fileProblem } from "./BannerImage";
 import { BannerPreview, savedImageUrl } from "./BannerPreview";
 import { bannersKey, headers, useBannerPreview, useBanners, usePerms } from "./bannerData";
@@ -107,12 +107,27 @@ function Editor({ server, uploadOptions }: { server: HomeBannerList; uploadOptio
   const [selected, setSelected] = useState<string | null>(server.banners[0]?.id ?? null);
   const [newKind, setNewKind] = useState<HomeBannerKind>("campaign");
   const [conflict, setConflict] = useState(false);
-  const [reloading, setReloading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [names, setNames] = useState<ReadonlyMap<string, string>>(new Map());
   const [slots, setSlots] = useState<Readonly<Record<string, { key: string; name: string }>>>({});
   const [problems, setProblems] = useState<Readonly<Record<string, string>>>({});
   const [dragFrom, setDragFrom] = useState<number | null>(null);
+
+  const resetTo = (l: HomeBannerList) => {
+    setBase(l);
+    setDraft(l.banners);
+    setSlots({});
+    setProblems({});
+  };
+  const { reloading, reload } = useReload(
+    bannersKey,
+    () => unwrap(getBanners()),
+    (fresh) => {
+      resetTo(fresh);
+      save.reset();
+      setConflict(false);
+    },
+  );
 
   const dirty = !sameBanners(draft, base.banners);
   const saving = save.pending;
@@ -168,13 +183,6 @@ function Editor({ server, uploadOptions }: { server: HomeBannerList; uploadOptio
   const update = (b: HomeBanner) => {
     edit(draft.map((x) => (x.id === b.id ? b : x)));
   };
-  const resetTo = (l: HomeBannerList) => {
-    setBase(l);
-    setDraft(l.banners);
-    setSlots({});
-    setProblems({});
-  };
-
   const add = () => {
     if (draft.length >= MAX_BANNERS) return;
     const b = newBanner(newKind, crypto.randomUUID());
@@ -191,20 +199,6 @@ function Editor({ server, uploadOptions }: { server: HomeBannerList; uploadOptio
       resetTo(r.data);
       setSaved(true);
     } else if (isConflict(r.error)) setConflict(true);
-  };
-
-  const reload = async () => {
-    setReloading(true);
-    try {
-      const fresh = await qc.query({ queryKey: bannersKey, staleTime: 0, queryFn: () => unwrap(getBanners()) });
-      resetTo(fresh);
-      save.reset();
-      setConflict(false);
-    } catch {
-      // Đọc lỗi: giữ hộp để bấm lại.
-    } finally {
-      setReloading(false);
-    }
   };
 
   const pick = (b: HomeBanner, slot: Slot, f: File) => {
@@ -412,43 +406,23 @@ function Editor({ server, uploadOptions }: { server: HomeBannerList; uploadOptio
         )}
       </div>
 
-      {(dirty || saving) && (
-        <div className="savebar is-sticky">
-          <span className="small grow">
-            {saving ? "Đang lưu…" : "Có thay đổi chưa lưu"}
-            {blocked !== null && (
-              <>
-                {" · "}
-                <span className="muted">{blocked}</span>
-              </>
-            )}
-          </span>
-          <button
-            type="button"
-            className="btn btn-quiet"
-            disabled={locked}
-            onClick={() => {
-              // Về bản mới nhất đã đọc (báo hiệu có thể đã mang bản người khác vừa lưu), không về gốc cũ.
-              resetTo(server);
-              save.reset();
-            }}
-          >
-            Bỏ thay đổi
-          </button>
-          <button
-            type="button"
-            className="btn btn-dark"
-            disabled={locked || blocked !== null}
-            onClick={() => {
-              void onSave();
-            }}
-          >
-            {saving ? "Đang lưu…" : "Lưu banner"}
-          </button>
-        </div>
-      )}
-      {saveError !== null && <div className="box box-err">{saveError}</div>}
-      {saved && !dirty && <p className="box box-ok">Đã lưu danh sách banner.</p>}
+      <SaveBar
+        visible={dirty || saving}
+        error={saveError}
+        done={saved && !dirty ? "Đã lưu danh sách banner." : null}
+        saving={saving}
+        locked={locked}
+        blocked={blocked}
+        saveLabel="Lưu banner"
+        onDiscard={() => {
+          // Về bản mới nhất đã đọc (báo hiệu có thể đã mang bản người khác vừa lưu), không về gốc cũ.
+          resetTo(server);
+          save.reset();
+        }}
+        onSave={() => {
+          void onSave();
+        }}
+      />
 
       <BannerPreview
         banners={draft}
@@ -458,42 +432,17 @@ function Editor({ server, uploadOptions }: { server: HomeBannerList; uploadOptio
       />
 
       {conflict && (
-        <Dialog
+        <ConflictDialog
           title="Banner vừa được người khác lưu"
-          onClose={() => {
+          subject="danh sách banner"
+          reloading={reloading}
+          onKeep={() => {
             setConflict(false);
           }}
-          footer={
-            <>
-              <button
-                type="button"
-                className="btn btn-quiet"
-                onClick={() => {
-                  setConflict(false);
-                }}
-              >
-                Giữ bản đang sửa
-              </button>
-              <button
-                type="button"
-                className="btn btn-dark"
-                disabled={reloading}
-                onClick={() => {
-                  void reload();
-                }}
-              >
-                Tải bản mới
-              </button>
-            </>
-          }
-        >
-          <p>
-            Người khác vừa lưu danh sách banner. Bản bạn đang sửa <b>vẫn còn</b> trên màn hình, chưa lưu.
-          </p>
-          <p className="small muted">
-            Tải bản mới sẽ bỏ thay đổi của bạn. Giữ bản đang sửa để chép lại nội dung trước.
-          </p>
-        </Dialog>
+          onReload={() => {
+            void reload();
+          }}
+        />
       )}
     </>
   );
