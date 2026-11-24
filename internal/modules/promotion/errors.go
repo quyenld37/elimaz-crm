@@ -29,6 +29,10 @@ var (
 	ErrInvalidInput = errors.New("promotion: đầu vào không hợp lệ")
 	// ErrBatchConflict: website xin lô (purpose, tên) đã có với số lượng, điều khoản hay SĐT khác (Task 197).
 	ErrBatchConflict = errors.New("promotion: đã có lô cùng tên với điều khoản khác")
+	// ErrRunInProgress: một lượt phát quà sinh nhật khác của shop đang chạy (Task 468).
+	ErrRunInProgress = errors.New("promotion: lượt phát quà sinh nhật khác đang chạy")
+	// ErrInvalidGiftSettings: cài đặt quà sinh nhật ngoài giới hạn (mệnh giá, đơn tối thiểu, số ngày; Task 468).
+	ErrInvalidGiftSettings = errors.New("promotion: cài đặt quà sinh nhật không hợp lệ")
 )
 
 // Reason là lý do mã bị từ chối (CouponRejectReason của hợp đồng API).

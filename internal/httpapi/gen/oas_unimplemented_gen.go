@@ -544,6 +544,27 @@ func (UnimplementedHandler) DeleteWebCampaign(ctx context.Context, req *DeleteWe
 	return r, ht.ErrNotImplemented
 }
 
+// ExportBirthdayCustomers implements exportBirthdayCustomers operation.
+//
+// Thân trả JSON {filename, rows, csv}: csv là UTF-8 có BOM (Excel mở đúng dấu), màn hình
+// tải bằng Blob. Thân chứa SĐT nên không lưu theo khóa chống trùng (no-replay): gọi
+// lại cùng khóa → 409 already_processed.
+//
+// POST /api/v1/birthday-customers/export
+func (UnimplementedHandler) ExportBirthdayCustomers(ctx context.Context, req *BirthdayExportRequest, params ExportBirthdayCustomersParams) (r ExportBirthdayCustomersRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetBirthdaySettings implements getBirthdaySettings operation.
+//
+// Cài đặt quà sinh nhật của shop kèm lượt phát gần nhất; chưa lưu → mặc
+// định (tắt), version 1 (Task 468).
+//
+// GET /api/v1/birthday-settings
+func (UnimplementedHandler) GetBirthdaySettings(ctx context.Context) (r GetBirthdaySettingsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetCatalogImport implements getCatalogImport operation.
 //
 // Trạng thái, tóm tắt và lỗi từng dòng của một bản nhập.
@@ -936,6 +957,26 @@ func (UnimplementedHandler) ListAttributes(ctx context.Context) (r ListAttribute
 //
 // GET /api/v1/inventory/balances
 func (UnimplementedHandler) ListBalances(ctx context.Context, params ListBalancesParams) (r ListBalancesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListBirthdayCustomers implements listBirthdayCustomers operation.
+//
+// Q: tên (không dấu) hay ≥ 3 chữ số SĐT. stateCounts tính với bộ lọc tháng và q;
+// monthCounts (12 số, tháng 1 trước) tính với bộ lọc trạng thái và q.
+//
+// GET /api/v1/birthday-customers
+func (UnimplementedHandler) ListBirthdayCustomers(ctx context.Context, params ListBirthdayCustomersParams) (r ListBirthdayCustomersRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListBirthdayTodo implements listBirthdayTodo operation.
+//
+// Tab "Cần nhắn": quà sinh nhật chưa trao (chưa nhắn tay, website chưa gửi), còn hạn,
+// sinh nhật gần nhất trước (Task 468).
+//
+// GET /api/v1/birthday-gifts/todo
+func (UnimplementedHandler) ListBirthdayTodo(ctx context.Context, params ListBirthdayTodoParams) (r ListBirthdayTodoRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1351,6 +1392,16 @@ func (UnimplementedHandler) LockStaff(ctx context.Context, params LockStaffParam
 	return r, ht.ErrNotImplemented
 }
 
+// MarkBirthdayMessaged implements markBirthdayMessaged operation.
+//
+// "Đã nhắn" một hay nhiều mã quà sinh nhật: ghi lúc trao; mã đã trao hay không phải
+// quà sinh nhật bỏ qua (Task 468).
+//
+// POST /api/v1/birthday-gifts/messaged
+func (UnimplementedHandler) MarkBirthdayMessaged(ctx context.Context, req *BirthdayMessagedRequest, params MarkBirthdayMessagedParams) (r MarkBirthdayMessagedRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // MergeCustomer implements mergeCustomer operation.
 //
 // Gộp nhóm của mergedId vào nhóm của khách id (Task M2-11); đã cùng gốc → 422
@@ -1640,6 +1691,27 @@ func (UnimplementedHandler) RetryJob(ctx context.Context, params RetryJobParams)
 //
 // POST /api/v1/identity/service-keys/{id}/revoke
 func (UnimplementedHandler) RevokeServiceKey(ctx context.Context, req *RevokeServiceKeyRequest, params RevokeServiceKeyParams) (r RevokeServiceKeyRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// RunBirthdayGifts implements runBirthdayGifts operation.
+//
+// Phát mã cho mọi khách đến hạn như lịch mỗi giờ (lịch chỉ chạy 9:00–21:00
+// giờ Việt Nam; nút này chạy bất kỳ lúc nào). Cài đặt tắt → lượt ghi lại
+// với given 0. Audit promotion.birthday.run.
+//
+// POST /api/v1/birthday-runs
+func (UnimplementedHandler) RunBirthdayGifts(ctx context.Context, params RunBirthdayGiftsParams) (r RunBirthdayGiftsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SaveBirthdaySettings implements saveBirthdaySettings operation.
+//
+// Giới hạn: amount 10.000–1.000.000 bước 1.000; minOrder 0–100.000.000; daysBefore 0–30;
+// validDays 1–60; minLeadDays 0–120. Audit promotion.birthday.settings.
+//
+// PUT /api/v1/birthday-settings
+func (UnimplementedHandler) SaveBirthdaySettings(ctx context.Context, req *SaveBirthdaySettingsRequest, params SaveBirthdaySettingsParams) (r SaveBirthdaySettingsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2015,6 +2087,25 @@ func (UnimplementedHandler) WebAvailability(ctx context.Context, params WebAvail
 	return r, ht.ErrNotImplemented
 }
 
+// WebBirthdayOutbox implements webBirthdayOutbox operation.
+//
+// Quà chưa trao, chưa dùng, còn hạn, cũ nhất trước. Website gửi tin (link dừng dùng
+// stopToken) rồi gọi webMarkCouponGiven; mã đã trao rời danh sách (QĐ40).
+//
+// GET /api/v1/web/birthdays/outbox
+func (UnimplementedHandler) WebBirthdayOutbox(ctx context.Context, params WebBirthdayOutboxParams) (r WebBirthdayOutboxRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// WebBirthdayStop implements webBirthdayStop operation.
+//
+// Mã dừng lạ → 404 not_found.
+//
+// POST /api/v1/web/birthdays/stop
+func (UnimplementedHandler) WebBirthdayStop(ctx context.Context, req *WebBirthdayStopRequest, params WebBirthdayStopParams) (r WebBirthdayStopRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // WebCampaign implements webCampaign operation.
 //
 // Task 452. Trả cả chiến dịch tạm dừng, đã hết (status cho biết); slug là tên
@@ -2246,6 +2337,17 @@ func (UnimplementedHandler) WebOrderChanges(ctx context.Context, params WebOrder
 //
 // POST /api/v1/web/quote
 func (UnimplementedHandler) WebQuote(ctx context.Context, req *WebQuoteRequest) (r WebQuoteRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// WebRegisterBirthday implements webRegisterBirthday operation.
+//
+// Tìm khách theo SĐT (chưa có → tạo khách mới có SĐT này). Khách đã có hồ sơ
+// sinh nhật → không đổi gì, created false kèm ngày đã lưu. mail true cần email. Ngày
+// không có trong tháng, email sai → 400 invalid_input; SĐT sai → 422 invalid_phone.
+//
+// POST /api/v1/web/birthdays
+func (UnimplementedHandler) WebRegisterBirthday(ctx context.Context, req *WebBirthdayRequest, params WebRegisterBirthdayParams) (r WebRegisterBirthdayRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

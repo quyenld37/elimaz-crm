@@ -377,6 +377,21 @@ type Handler interface {
 	//
 	// POST /api/v1/web-campaigns/{campaignId}/delete
 	DeleteWebCampaign(ctx context.Context, req *DeleteWebCampaignRequest, params DeleteWebCampaignParams) (DeleteWebCampaignRes, error)
+	// ExportBirthdayCustomers implements exportBirthdayCustomers operation.
+	//
+	// Thân trả JSON {filename, rows, csv}: csv là UTF-8 có BOM (Excel mở đúng dấu), màn hình
+	// tải bằng Blob. Thân chứa SĐT nên không lưu theo khóa chống trùng (no-replay): gọi
+	// lại cùng khóa → 409 already_processed.
+	//
+	// POST /api/v1/birthday-customers/export
+	ExportBirthdayCustomers(ctx context.Context, req *BirthdayExportRequest, params ExportBirthdayCustomersParams) (ExportBirthdayCustomersRes, error)
+	// GetBirthdaySettings implements getBirthdaySettings operation.
+	//
+	// Cài đặt quà sinh nhật của shop kèm lượt phát gần nhất; chưa lưu → mặc
+	// định (tắt), version 1 (Task 468).
+	//
+	// GET /api/v1/birthday-settings
+	GetBirthdaySettings(ctx context.Context) (GetBirthdaySettingsRes, error)
 	// GetCatalogImport implements getCatalogImport operation.
 	//
 	// Trạng thái, tóm tắt và lỗi từng dòng của một bản nhập.
@@ -649,6 +664,20 @@ type Handler interface {
 	//
 	// GET /api/v1/inventory/balances
 	ListBalances(ctx context.Context, params ListBalancesParams) (ListBalancesRes, error)
+	// ListBirthdayCustomers implements listBirthdayCustomers operation.
+	//
+	// Q: tên (không dấu) hay ≥ 3 chữ số SĐT. stateCounts tính với bộ lọc tháng và q;
+	// monthCounts (12 số, tháng 1 trước) tính với bộ lọc trạng thái và q.
+	//
+	// GET /api/v1/birthday-customers
+	ListBirthdayCustomers(ctx context.Context, params ListBirthdayCustomersParams) (ListBirthdayCustomersRes, error)
+	// ListBirthdayTodo implements listBirthdayTodo operation.
+	//
+	// Tab "Cần nhắn": quà sinh nhật chưa trao (chưa nhắn tay, website chưa gửi), còn hạn,
+	// sinh nhật gần nhất trước (Task 468).
+	//
+	// GET /api/v1/birthday-gifts/todo
+	ListBirthdayTodo(ctx context.Context, params ListBirthdayTodoParams) (ListBirthdayTodoRes, error)
 	// ListCallbackTasks implements listCallbackTasks operation.
 	//
 	// Đơn giao thất bại cần gọi lại: quá hạn trước, rồi hạn gần nhất (Task
@@ -932,6 +961,13 @@ type Handler interface {
 	//
 	// POST /api/v1/identity/users/{id}/lock
 	LockStaff(ctx context.Context, params LockStaffParams) (LockStaffRes, error)
+	// MarkBirthdayMessaged implements markBirthdayMessaged operation.
+	//
+	// "Đã nhắn" một hay nhiều mã quà sinh nhật: ghi lúc trao; mã đã trao hay không phải
+	// quà sinh nhật bỏ qua (Task 468).
+	//
+	// POST /api/v1/birthday-gifts/messaged
+	MarkBirthdayMessaged(ctx context.Context, req *BirthdayMessagedRequest, params MarkBirthdayMessagedParams) (MarkBirthdayMessagedRes, error)
 	// MergeCustomer implements mergeCustomer operation.
 	//
 	// Gộp nhóm của mergedId vào nhóm của khách id (Task M2-11); đã cùng gốc → 422
@@ -1134,6 +1170,21 @@ type Handler interface {
 	//
 	// POST /api/v1/identity/service-keys/{id}/revoke
 	RevokeServiceKey(ctx context.Context, req *RevokeServiceKeyRequest, params RevokeServiceKeyParams) (RevokeServiceKeyRes, error)
+	// RunBirthdayGifts implements runBirthdayGifts operation.
+	//
+	// Phát mã cho mọi khách đến hạn như lịch mỗi giờ (lịch chỉ chạy 9:00–21:00
+	// giờ Việt Nam; nút này chạy bất kỳ lúc nào). Cài đặt tắt → lượt ghi lại
+	// với given 0. Audit promotion.birthday.run.
+	//
+	// POST /api/v1/birthday-runs
+	RunBirthdayGifts(ctx context.Context, params RunBirthdayGiftsParams) (RunBirthdayGiftsRes, error)
+	// SaveBirthdaySettings implements saveBirthdaySettings operation.
+	//
+	// Giới hạn: amount 10.000–1.000.000 bước 1.000; minOrder 0–100.000.000; daysBefore 0–30;
+	// validDays 1–60; minLeadDays 0–120. Audit promotion.birthday.settings.
+	//
+	// PUT /api/v1/birthday-settings
+	SaveBirthdaySettings(ctx context.Context, req *SaveBirthdaySettingsRequest, params SaveBirthdaySettingsParams) (SaveBirthdaySettingsRes, error)
 	// SaveWebCampaign implements saveWebCampaign operation.
 	//
 	// Lưu nội dung khi revision khớp (409 version_conflict); đang bật → 409 campaign_running,
@@ -1395,6 +1446,19 @@ type Handler interface {
 	//
 	// GET /api/v1/web/availability
 	WebAvailability(ctx context.Context, params WebAvailabilityParams) (WebAvailabilityRes, error)
+	// WebBirthdayOutbox implements webBirthdayOutbox operation.
+	//
+	// Quà chưa trao, chưa dùng, còn hạn, cũ nhất trước. Website gửi tin (link dừng dùng
+	// stopToken) rồi gọi webMarkCouponGiven; mã đã trao rời danh sách (QĐ40).
+	//
+	// GET /api/v1/web/birthdays/outbox
+	WebBirthdayOutbox(ctx context.Context, params WebBirthdayOutboxParams) (WebBirthdayOutboxRes, error)
+	// WebBirthdayStop implements webBirthdayStop operation.
+	//
+	// Mã dừng lạ → 404 not_found.
+	//
+	// POST /api/v1/web/birthdays/stop
+	WebBirthdayStop(ctx context.Context, req *WebBirthdayStopRequest, params WebBirthdayStopParams) (WebBirthdayStopRes, error)
 	// WebCampaign implements webCampaign operation.
 	//
 	// Task 452. Trả cả chiến dịch tạm dừng, đã hết (status cho biết); slug là tên
@@ -1572,6 +1636,14 @@ type Handler interface {
 	//
 	// POST /api/v1/web/quote
 	WebQuote(ctx context.Context, req *WebQuoteRequest) (WebQuoteRes, error)
+	// WebRegisterBirthday implements webRegisterBirthday operation.
+	//
+	// Tìm khách theo SĐT (chưa có → tạo khách mới có SĐT này). Khách đã có hồ sơ
+	// sinh nhật → không đổi gì, created false kèm ngày đã lưu. mail true cần email. Ngày
+	// không có trong tháng, email sai → 400 invalid_input; SĐT sai → 422 invalid_phone.
+	//
+	// POST /api/v1/web/birthdays
+	WebRegisterBirthday(ctx context.Context, req *WebBirthdayRequest, params WebRegisterBirthdayParams) (WebRegisterBirthdayRes, error)
 	// WebReplyRequest implements webReplyRequest operation.
 	//
 	// Yêu cầu không ở needs_info → 422 request_not_allowed.

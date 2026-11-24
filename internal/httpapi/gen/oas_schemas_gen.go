@@ -1648,6 +1648,1032 @@ func (*BalancePage) listBalancesRes() {}
 
 type Barcode string
 
+// Ref: #/components/schemas/BirthdayCustomer
+type BirthdayCustomer struct {
+	CustomerId uuid.UUID             `json:"customerId"`
+	FullName   string                `json:"fullName"`
+	Phone      string                `json:"phone"`
+	Email      OptString             `json:"email"`
+	Day        int32                 `json:"day"`
+	Month      int32                 `json:"month"`
+	Zalo       bool                  `json:"zalo"`
+	Mail       bool                  `json:"mail"`
+	State      BirthdayCustomerState `json:"state"`
+	// Số ngày tới sinh nhật đang xét (âm — đã qua).
+	BirthdayIn int32 `json:"birthdayIn"`
+	// Ngày phát mã (0:00 giờ Việt Nam) của sinh nhật đang xét.
+	SendOn time.Time `json:"sendOn"`
+	// Mã quà hiện tại (còn hạn hay hết hạn chưa quá 30 ngày).
+	Code    OptString `json:"code"`
+	SavedAt time.Time `json:"savedAt"`
+}
+
+// GetCustomerId returns the value of CustomerId.
+func (s *BirthdayCustomer) GetCustomerId() uuid.UUID {
+	return s.CustomerId
+}
+
+// GetFullName returns the value of FullName.
+func (s *BirthdayCustomer) GetFullName() string {
+	return s.FullName
+}
+
+// GetPhone returns the value of Phone.
+func (s *BirthdayCustomer) GetPhone() string {
+	return s.Phone
+}
+
+// GetEmail returns the value of Email.
+func (s *BirthdayCustomer) GetEmail() OptString {
+	return s.Email
+}
+
+// GetDay returns the value of Day.
+func (s *BirthdayCustomer) GetDay() int32 {
+	return s.Day
+}
+
+// GetMonth returns the value of Month.
+func (s *BirthdayCustomer) GetMonth() int32 {
+	return s.Month
+}
+
+// GetZalo returns the value of Zalo.
+func (s *BirthdayCustomer) GetZalo() bool {
+	return s.Zalo
+}
+
+// GetMail returns the value of Mail.
+func (s *BirthdayCustomer) GetMail() bool {
+	return s.Mail
+}
+
+// GetState returns the value of State.
+func (s *BirthdayCustomer) GetState() BirthdayCustomerState {
+	return s.State
+}
+
+// GetBirthdayIn returns the value of BirthdayIn.
+func (s *BirthdayCustomer) GetBirthdayIn() int32 {
+	return s.BirthdayIn
+}
+
+// GetSendOn returns the value of SendOn.
+func (s *BirthdayCustomer) GetSendOn() time.Time {
+	return s.SendOn
+}
+
+// GetCode returns the value of Code.
+func (s *BirthdayCustomer) GetCode() OptString {
+	return s.Code
+}
+
+// GetSavedAt returns the value of SavedAt.
+func (s *BirthdayCustomer) GetSavedAt() time.Time {
+	return s.SavedAt
+}
+
+// SetCustomerId sets the value of CustomerId.
+func (s *BirthdayCustomer) SetCustomerId(val uuid.UUID) {
+	s.CustomerId = val
+}
+
+// SetFullName sets the value of FullName.
+func (s *BirthdayCustomer) SetFullName(val string) {
+	s.FullName = val
+}
+
+// SetPhone sets the value of Phone.
+func (s *BirthdayCustomer) SetPhone(val string) {
+	s.Phone = val
+}
+
+// SetEmail sets the value of Email.
+func (s *BirthdayCustomer) SetEmail(val OptString) {
+	s.Email = val
+}
+
+// SetDay sets the value of Day.
+func (s *BirthdayCustomer) SetDay(val int32) {
+	s.Day = val
+}
+
+// SetMonth sets the value of Month.
+func (s *BirthdayCustomer) SetMonth(val int32) {
+	s.Month = val
+}
+
+// SetZalo sets the value of Zalo.
+func (s *BirthdayCustomer) SetZalo(val bool) {
+	s.Zalo = val
+}
+
+// SetMail sets the value of Mail.
+func (s *BirthdayCustomer) SetMail(val bool) {
+	s.Mail = val
+}
+
+// SetState sets the value of State.
+func (s *BirthdayCustomer) SetState(val BirthdayCustomerState) {
+	s.State = val
+}
+
+// SetBirthdayIn sets the value of BirthdayIn.
+func (s *BirthdayCustomer) SetBirthdayIn(val int32) {
+	s.BirthdayIn = val
+}
+
+// SetSendOn sets the value of SendOn.
+func (s *BirthdayCustomer) SetSendOn(val time.Time) {
+	s.SendOn = val
+}
+
+// SetCode sets the value of Code.
+func (s *BirthdayCustomer) SetCode(val OptString) {
+	s.Code = val
+}
+
+// SetSavedAt sets the value of SavedAt.
+func (s *BirthdayCustomer) SetSavedAt(val time.Time) {
+	s.SavedAt = val
+}
+
+// Ref: #/components/schemas/BirthdayCustomerPage
+type BirthdayCustomerPage struct {
+	Items       []BirthdayCustomer  `json:"items"`
+	NextCursor  OptString           `json:"nextCursor"`
+	Total       int32               `json:"total"`
+	StateCounts BirthdayStateCounts `json:"stateCounts"`
+	MonthCounts []int32             `json:"monthCounts"`
+}
+
+// GetItems returns the value of Items.
+func (s *BirthdayCustomerPage) GetItems() []BirthdayCustomer {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *BirthdayCustomerPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// GetTotal returns the value of Total.
+func (s *BirthdayCustomerPage) GetTotal() int32 {
+	return s.Total
+}
+
+// GetStateCounts returns the value of StateCounts.
+func (s *BirthdayCustomerPage) GetStateCounts() BirthdayStateCounts {
+	return s.StateCounts
+}
+
+// GetMonthCounts returns the value of MonthCounts.
+func (s *BirthdayCustomerPage) GetMonthCounts() []int32 {
+	return s.MonthCounts
+}
+
+// SetItems sets the value of Items.
+func (s *BirthdayCustomerPage) SetItems(val []BirthdayCustomer) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *BirthdayCustomerPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+// SetTotal sets the value of Total.
+func (s *BirthdayCustomerPage) SetTotal(val int32) {
+	s.Total = val
+}
+
+// SetStateCounts sets the value of StateCounts.
+func (s *BirthdayCustomerPage) SetStateCounts(val BirthdayStateCounts) {
+	s.StateCounts = val
+}
+
+// SetMonthCounts sets the value of MonthCounts.
+func (s *BirthdayCustomerPage) SetMonthCounts(val []int32) {
+	s.MonthCounts = val
+}
+
+func (*BirthdayCustomerPage) listBirthdayCustomersRes() {}
+
+// Ref: #/components/schemas/BirthdayCustomerState
+type BirthdayCustomerState string
+
+const (
+	BirthdayCustomerStateManual      BirthdayCustomerState = "manual"
+	BirthdayCustomerStateDue         BirthdayCustomerState = "due"
+	BirthdayCustomerStateUnconfirmed BirthdayCustomerState = "unconfirmed"
+	BirthdayCustomerStateGiven       BirthdayCustomerState = "given"
+	BirthdayCustomerStateWaiting     BirthdayCustomerState = "waiting"
+	BirthdayCustomerStateUsed        BirthdayCustomerState = "used"
+	BirthdayCustomerStateExpired     BirthdayCustomerState = "expired"
+	BirthdayCustomerStateStopped     BirthdayCustomerState = "stopped"
+)
+
+// AllValues returns all BirthdayCustomerState values.
+func (BirthdayCustomerState) AllValues() []BirthdayCustomerState {
+	return []BirthdayCustomerState{
+		BirthdayCustomerStateManual,
+		BirthdayCustomerStateDue,
+		BirthdayCustomerStateUnconfirmed,
+		BirthdayCustomerStateGiven,
+		BirthdayCustomerStateWaiting,
+		BirthdayCustomerStateUsed,
+		BirthdayCustomerStateExpired,
+		BirthdayCustomerStateStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BirthdayCustomerState) MarshalText() ([]byte, error) {
+	switch s {
+	case BirthdayCustomerStateManual:
+		return []byte(s), nil
+	case BirthdayCustomerStateDue:
+		return []byte(s), nil
+	case BirthdayCustomerStateUnconfirmed:
+		return []byte(s), nil
+	case BirthdayCustomerStateGiven:
+		return []byte(s), nil
+	case BirthdayCustomerStateWaiting:
+		return []byte(s), nil
+	case BirthdayCustomerStateUsed:
+		return []byte(s), nil
+	case BirthdayCustomerStateExpired:
+		return []byte(s), nil
+	case BirthdayCustomerStateStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BirthdayCustomerState) UnmarshalText(data []byte) error {
+	switch BirthdayCustomerState(data) {
+	case BirthdayCustomerStateManual:
+		*s = BirthdayCustomerStateManual
+		return nil
+	case BirthdayCustomerStateDue:
+		*s = BirthdayCustomerStateDue
+		return nil
+	case BirthdayCustomerStateUnconfirmed:
+		*s = BirthdayCustomerStateUnconfirmed
+		return nil
+	case BirthdayCustomerStateGiven:
+		*s = BirthdayCustomerStateGiven
+		return nil
+	case BirthdayCustomerStateWaiting:
+		*s = BirthdayCustomerStateWaiting
+		return nil
+	case BirthdayCustomerStateUsed:
+		*s = BirthdayCustomerStateUsed
+		return nil
+	case BirthdayCustomerStateExpired:
+		*s = BirthdayCustomerStateExpired
+		return nil
+	case BirthdayCustomerStateStopped:
+		*s = BirthdayCustomerStateStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/BirthdayCustomerStateFilter
+type BirthdayCustomerStateFilter string
+
+const (
+	BirthdayCustomerStateFilterAll         BirthdayCustomerStateFilter = "all"
+	BirthdayCustomerStateFilterManual      BirthdayCustomerStateFilter = "manual"
+	BirthdayCustomerStateFilterDue         BirthdayCustomerStateFilter = "due"
+	BirthdayCustomerStateFilterUnconfirmed BirthdayCustomerStateFilter = "unconfirmed"
+	BirthdayCustomerStateFilterGiven       BirthdayCustomerStateFilter = "given"
+	BirthdayCustomerStateFilterWaiting     BirthdayCustomerStateFilter = "waiting"
+	BirthdayCustomerStateFilterUsed        BirthdayCustomerStateFilter = "used"
+	BirthdayCustomerStateFilterExpired     BirthdayCustomerStateFilter = "expired"
+	BirthdayCustomerStateFilterStopped     BirthdayCustomerStateFilter = "stopped"
+)
+
+// AllValues returns all BirthdayCustomerStateFilter values.
+func (BirthdayCustomerStateFilter) AllValues() []BirthdayCustomerStateFilter {
+	return []BirthdayCustomerStateFilter{
+		BirthdayCustomerStateFilterAll,
+		BirthdayCustomerStateFilterManual,
+		BirthdayCustomerStateFilterDue,
+		BirthdayCustomerStateFilterUnconfirmed,
+		BirthdayCustomerStateFilterGiven,
+		BirthdayCustomerStateFilterWaiting,
+		BirthdayCustomerStateFilterUsed,
+		BirthdayCustomerStateFilterExpired,
+		BirthdayCustomerStateFilterStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BirthdayCustomerStateFilter) MarshalText() ([]byte, error) {
+	switch s {
+	case BirthdayCustomerStateFilterAll:
+		return []byte(s), nil
+	case BirthdayCustomerStateFilterManual:
+		return []byte(s), nil
+	case BirthdayCustomerStateFilterDue:
+		return []byte(s), nil
+	case BirthdayCustomerStateFilterUnconfirmed:
+		return []byte(s), nil
+	case BirthdayCustomerStateFilterGiven:
+		return []byte(s), nil
+	case BirthdayCustomerStateFilterWaiting:
+		return []byte(s), nil
+	case BirthdayCustomerStateFilterUsed:
+		return []byte(s), nil
+	case BirthdayCustomerStateFilterExpired:
+		return []byte(s), nil
+	case BirthdayCustomerStateFilterStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BirthdayCustomerStateFilter) UnmarshalText(data []byte) error {
+	switch BirthdayCustomerStateFilter(data) {
+	case BirthdayCustomerStateFilterAll:
+		*s = BirthdayCustomerStateFilterAll
+		return nil
+	case BirthdayCustomerStateFilterManual:
+		*s = BirthdayCustomerStateFilterManual
+		return nil
+	case BirthdayCustomerStateFilterDue:
+		*s = BirthdayCustomerStateFilterDue
+		return nil
+	case BirthdayCustomerStateFilterUnconfirmed:
+		*s = BirthdayCustomerStateFilterUnconfirmed
+		return nil
+	case BirthdayCustomerStateFilterGiven:
+		*s = BirthdayCustomerStateFilterGiven
+		return nil
+	case BirthdayCustomerStateFilterWaiting:
+		*s = BirthdayCustomerStateFilterWaiting
+		return nil
+	case BirthdayCustomerStateFilterUsed:
+		*s = BirthdayCustomerStateFilterUsed
+		return nil
+	case BirthdayCustomerStateFilterExpired:
+		*s = BirthdayCustomerStateFilterExpired
+		return nil
+	case BirthdayCustomerStateFilterStopped:
+		*s = BirthdayCustomerStateFilterStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/BirthdayExport
+type BirthdayExport struct {
+	Filename string `json:"filename"`
+	Rows     int32  `json:"rows"`
+	Csv      string `json:"csv"`
+}
+
+// GetFilename returns the value of Filename.
+func (s *BirthdayExport) GetFilename() string {
+	return s.Filename
+}
+
+// GetRows returns the value of Rows.
+func (s *BirthdayExport) GetRows() int32 {
+	return s.Rows
+}
+
+// GetCsv returns the value of Csv.
+func (s *BirthdayExport) GetCsv() string {
+	return s.Csv
+}
+
+// SetFilename sets the value of Filename.
+func (s *BirthdayExport) SetFilename(val string) {
+	s.Filename = val
+}
+
+// SetRows sets the value of Rows.
+func (s *BirthdayExport) SetRows(val int32) {
+	s.Rows = val
+}
+
+// SetCsv sets the value of Csv.
+func (s *BirthdayExport) SetCsv(val string) {
+	s.Csv = val
+}
+
+func (*BirthdayExport) exportBirthdayCustomersRes() {}
+
+// Ref: #/components/schemas/BirthdayExportRequest
+type BirthdayExportRequest struct {
+	State OptBirthdayCustomerStateFilter `json:"state"`
+	Month OptInt32                       `json:"month"`
+	Q     OptString                      `json:"q"`
+}
+
+// GetState returns the value of State.
+func (s *BirthdayExportRequest) GetState() OptBirthdayCustomerStateFilter {
+	return s.State
+}
+
+// GetMonth returns the value of Month.
+func (s *BirthdayExportRequest) GetMonth() OptInt32 {
+	return s.Month
+}
+
+// GetQ returns the value of Q.
+func (s *BirthdayExportRequest) GetQ() OptString {
+	return s.Q
+}
+
+// SetState sets the value of State.
+func (s *BirthdayExportRequest) SetState(val OptBirthdayCustomerStateFilter) {
+	s.State = val
+}
+
+// SetMonth sets the value of Month.
+func (s *BirthdayExportRequest) SetMonth(val OptInt32) {
+	s.Month = val
+}
+
+// SetQ sets the value of Q.
+func (s *BirthdayExportRequest) SetQ(val OptString) {
+	s.Q = val
+}
+
+// Ref: #/components/schemas/BirthdayGift
+type BirthdayGift struct {
+	CustomerId uuid.UUID `json:"customerId"`
+	Code       string    `json:"code"`
+	FullName   string    `json:"fullName"`
+	// SĐT đã đăng ký, dạng +84….
+	Phone string    `json:"phone"`
+	Email OptString `json:"email"`
+	Day   int32     `json:"day"`
+	Month int32     `json:"month"`
+	// Khách đồng ý nhận qua Zalo.
+	Zalo bool `json:"zalo"`
+	// Khách đồng ý nhận qua email (và có email).
+	Mail      bool      `json:"mail"`
+	Amount    int64     `json:"amount"`
+	MinOrder  int64     `json:"minOrder"`
+	ValidFrom time.Time `json:"validFrom"`
+	// Hết hạn lúc này (0:00 giờ Việt Nam sau ngày dùng cuối).
+	ValidTo time.Time `json:"validTo"`
+	// Số ngày tới sinh nhật của năm quà (âm — đã qua).
+	BirthdayIn int32 `json:"birthdayIn"`
+}
+
+// GetCustomerId returns the value of CustomerId.
+func (s *BirthdayGift) GetCustomerId() uuid.UUID {
+	return s.CustomerId
+}
+
+// GetCode returns the value of Code.
+func (s *BirthdayGift) GetCode() string {
+	return s.Code
+}
+
+// GetFullName returns the value of FullName.
+func (s *BirthdayGift) GetFullName() string {
+	return s.FullName
+}
+
+// GetPhone returns the value of Phone.
+func (s *BirthdayGift) GetPhone() string {
+	return s.Phone
+}
+
+// GetEmail returns the value of Email.
+func (s *BirthdayGift) GetEmail() OptString {
+	return s.Email
+}
+
+// GetDay returns the value of Day.
+func (s *BirthdayGift) GetDay() int32 {
+	return s.Day
+}
+
+// GetMonth returns the value of Month.
+func (s *BirthdayGift) GetMonth() int32 {
+	return s.Month
+}
+
+// GetZalo returns the value of Zalo.
+func (s *BirthdayGift) GetZalo() bool {
+	return s.Zalo
+}
+
+// GetMail returns the value of Mail.
+func (s *BirthdayGift) GetMail() bool {
+	return s.Mail
+}
+
+// GetAmount returns the value of Amount.
+func (s *BirthdayGift) GetAmount() int64 {
+	return s.Amount
+}
+
+// GetMinOrder returns the value of MinOrder.
+func (s *BirthdayGift) GetMinOrder() int64 {
+	return s.MinOrder
+}
+
+// GetValidFrom returns the value of ValidFrom.
+func (s *BirthdayGift) GetValidFrom() time.Time {
+	return s.ValidFrom
+}
+
+// GetValidTo returns the value of ValidTo.
+func (s *BirthdayGift) GetValidTo() time.Time {
+	return s.ValidTo
+}
+
+// GetBirthdayIn returns the value of BirthdayIn.
+func (s *BirthdayGift) GetBirthdayIn() int32 {
+	return s.BirthdayIn
+}
+
+// SetCustomerId sets the value of CustomerId.
+func (s *BirthdayGift) SetCustomerId(val uuid.UUID) {
+	s.CustomerId = val
+}
+
+// SetCode sets the value of Code.
+func (s *BirthdayGift) SetCode(val string) {
+	s.Code = val
+}
+
+// SetFullName sets the value of FullName.
+func (s *BirthdayGift) SetFullName(val string) {
+	s.FullName = val
+}
+
+// SetPhone sets the value of Phone.
+func (s *BirthdayGift) SetPhone(val string) {
+	s.Phone = val
+}
+
+// SetEmail sets the value of Email.
+func (s *BirthdayGift) SetEmail(val OptString) {
+	s.Email = val
+}
+
+// SetDay sets the value of Day.
+func (s *BirthdayGift) SetDay(val int32) {
+	s.Day = val
+}
+
+// SetMonth sets the value of Month.
+func (s *BirthdayGift) SetMonth(val int32) {
+	s.Month = val
+}
+
+// SetZalo sets the value of Zalo.
+func (s *BirthdayGift) SetZalo(val bool) {
+	s.Zalo = val
+}
+
+// SetMail sets the value of Mail.
+func (s *BirthdayGift) SetMail(val bool) {
+	s.Mail = val
+}
+
+// SetAmount sets the value of Amount.
+func (s *BirthdayGift) SetAmount(val int64) {
+	s.Amount = val
+}
+
+// SetMinOrder sets the value of MinOrder.
+func (s *BirthdayGift) SetMinOrder(val int64) {
+	s.MinOrder = val
+}
+
+// SetValidFrom sets the value of ValidFrom.
+func (s *BirthdayGift) SetValidFrom(val time.Time) {
+	s.ValidFrom = val
+}
+
+// SetValidTo sets the value of ValidTo.
+func (s *BirthdayGift) SetValidTo(val time.Time) {
+	s.ValidTo = val
+}
+
+// SetBirthdayIn sets the value of BirthdayIn.
+func (s *BirthdayGift) SetBirthdayIn(val int32) {
+	s.BirthdayIn = val
+}
+
+// Ref: #/components/schemas/BirthdayGiftList
+type BirthdayGiftList struct {
+	Items []BirthdayGift `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *BirthdayGiftList) GetItems() []BirthdayGift {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *BirthdayGiftList) SetItems(val []BirthdayGift) {
+	s.Items = val
+}
+
+func (*BirthdayGiftList) listBirthdayTodoRes() {}
+
+// Ref: #/components/schemas/BirthdayMessagedRequest
+type BirthdayMessagedRequest struct {
+	Codes []string `json:"codes"`
+}
+
+// GetCodes returns the value of Codes.
+func (s *BirthdayMessagedRequest) GetCodes() []string {
+	return s.Codes
+}
+
+// SetCodes sets the value of Codes.
+func (s *BirthdayMessagedRequest) SetCodes(val []string) {
+	s.Codes = val
+}
+
+// Ref: #/components/schemas/BirthdayMessagedResult
+type BirthdayMessagedResult struct {
+	// Mã vừa ghi "đã nhắn" (mã đã trao trước đó không có ở đây).
+	Marked []string `json:"marked"`
+}
+
+// GetMarked returns the value of Marked.
+func (s *BirthdayMessagedResult) GetMarked() []string {
+	return s.Marked
+}
+
+// SetMarked sets the value of Marked.
+func (s *BirthdayMessagedResult) SetMarked(val []string) {
+	s.Marked = val
+}
+
+func (*BirthdayMessagedResult) markBirthdayMessagedRes() {}
+
+// Ref: #/components/schemas/BirthdayRun
+type BirthdayRun struct {
+	ID         uuid.UUID          `json:"id"`
+	Trigger    BirthdayRunTrigger `json:"trigger"`
+	StartedBy  OptUUID            `json:"startedBy"`
+	StartedAt  time.Time          `json:"startedAt"`
+	FinishedAt OptDateTime        `json:"finishedAt"`
+	Given      int32              `json:"given"`
+	// Số khách chưa phát được ở lượt này (thử lại ở lượt sau).
+	Failed int32 `json:"failed"`
+}
+
+// GetID returns the value of ID.
+func (s *BirthdayRun) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *BirthdayRun) GetTrigger() BirthdayRunTrigger {
+	return s.Trigger
+}
+
+// GetStartedBy returns the value of StartedBy.
+func (s *BirthdayRun) GetStartedBy() OptUUID {
+	return s.StartedBy
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *BirthdayRun) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *BirthdayRun) GetFinishedAt() OptDateTime {
+	return s.FinishedAt
+}
+
+// GetGiven returns the value of Given.
+func (s *BirthdayRun) GetGiven() int32 {
+	return s.Given
+}
+
+// GetFailed returns the value of Failed.
+func (s *BirthdayRun) GetFailed() int32 {
+	return s.Failed
+}
+
+// SetID sets the value of ID.
+func (s *BirthdayRun) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *BirthdayRun) SetTrigger(val BirthdayRunTrigger) {
+	s.Trigger = val
+}
+
+// SetStartedBy sets the value of StartedBy.
+func (s *BirthdayRun) SetStartedBy(val OptUUID) {
+	s.StartedBy = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *BirthdayRun) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *BirthdayRun) SetFinishedAt(val OptDateTime) {
+	s.FinishedAt = val
+}
+
+// SetGiven sets the value of Given.
+func (s *BirthdayRun) SetGiven(val int32) {
+	s.Given = val
+}
+
+// SetFailed sets the value of Failed.
+func (s *BirthdayRun) SetFailed(val int32) {
+	s.Failed = val
+}
+
+func (*BirthdayRun) runBirthdayGiftsRes() {}
+
+type BirthdayRunTrigger string
+
+const (
+	BirthdayRunTriggerSchedule BirthdayRunTrigger = "schedule"
+	BirthdayRunTriggerManual   BirthdayRunTrigger = "manual"
+)
+
+// AllValues returns all BirthdayRunTrigger values.
+func (BirthdayRunTrigger) AllValues() []BirthdayRunTrigger {
+	return []BirthdayRunTrigger{
+		BirthdayRunTriggerSchedule,
+		BirthdayRunTriggerManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BirthdayRunTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case BirthdayRunTriggerSchedule:
+		return []byte(s), nil
+	case BirthdayRunTriggerManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BirthdayRunTrigger) UnmarshalText(data []byte) error {
+	switch BirthdayRunTrigger(data) {
+	case BirthdayRunTriggerSchedule:
+		*s = BirthdayRunTriggerSchedule
+		return nil
+	case BirthdayRunTriggerManual:
+		*s = BirthdayRunTriggerManual
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Merged schema.
+// Ref: #/components/schemas/BirthdaySettings
+type BirthdaySettings struct {
+	Enabled bool `json:"enabled"`
+	// Mệnh giá (đồng), 10.000–1.000.000, bước 1.000.
+	Amount int64 `json:"amount"`
+	// Đơn tối thiểu (đồng), 0 = mọi đơn.
+	MinOrder int64 `json:"minOrder"`
+	// Phát mã trước sinh nhật bao nhiêu ngày (0–30).
+	DaysBefore int32 `json:"daysBefore"`
+	// Số ngày dùng được, tính từ ngày phát (1–60).
+	ValidDays int32 `json:"validDays"`
+	// Đăng ký trước sinh nhật tối thiểu bao nhiêu ngày mới nhận quà năm đó (0–120).
+	MinLeadDays   int32          `json:"minLeadDays"`
+	Version       int32          `json:"version"`
+	UpdatedBy     OptUUID        `json:"updatedBy"`
+	UpdatedByName OptString      `json:"updatedByName"`
+	UpdatedAt     OptDateTime    `json:"updatedAt"`
+	LastRun       OptBirthdayRun `json:"lastRun"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *BirthdaySettings) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetAmount returns the value of Amount.
+func (s *BirthdaySettings) GetAmount() int64 {
+	return s.Amount
+}
+
+// GetMinOrder returns the value of MinOrder.
+func (s *BirthdaySettings) GetMinOrder() int64 {
+	return s.MinOrder
+}
+
+// GetDaysBefore returns the value of DaysBefore.
+func (s *BirthdaySettings) GetDaysBefore() int32 {
+	return s.DaysBefore
+}
+
+// GetValidDays returns the value of ValidDays.
+func (s *BirthdaySettings) GetValidDays() int32 {
+	return s.ValidDays
+}
+
+// GetMinLeadDays returns the value of MinLeadDays.
+func (s *BirthdaySettings) GetMinLeadDays() int32 {
+	return s.MinLeadDays
+}
+
+// GetVersion returns the value of Version.
+func (s *BirthdaySettings) GetVersion() int32 {
+	return s.Version
+}
+
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *BirthdaySettings) GetUpdatedBy() OptUUID {
+	return s.UpdatedBy
+}
+
+// GetUpdatedByName returns the value of UpdatedByName.
+func (s *BirthdaySettings) GetUpdatedByName() OptString {
+	return s.UpdatedByName
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *BirthdaySettings) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// GetLastRun returns the value of LastRun.
+func (s *BirthdaySettings) GetLastRun() OptBirthdayRun {
+	return s.LastRun
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *BirthdaySettings) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetAmount sets the value of Amount.
+func (s *BirthdaySettings) SetAmount(val int64) {
+	s.Amount = val
+}
+
+// SetMinOrder sets the value of MinOrder.
+func (s *BirthdaySettings) SetMinOrder(val int64) {
+	s.MinOrder = val
+}
+
+// SetDaysBefore sets the value of DaysBefore.
+func (s *BirthdaySettings) SetDaysBefore(val int32) {
+	s.DaysBefore = val
+}
+
+// SetValidDays sets the value of ValidDays.
+func (s *BirthdaySettings) SetValidDays(val int32) {
+	s.ValidDays = val
+}
+
+// SetMinLeadDays sets the value of MinLeadDays.
+func (s *BirthdaySettings) SetMinLeadDays(val int32) {
+	s.MinLeadDays = val
+}
+
+// SetVersion sets the value of Version.
+func (s *BirthdaySettings) SetVersion(val int32) {
+	s.Version = val
+}
+
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *BirthdaySettings) SetUpdatedBy(val OptUUID) {
+	s.UpdatedBy = val
+}
+
+// SetUpdatedByName sets the value of UpdatedByName.
+func (s *BirthdaySettings) SetUpdatedByName(val OptString) {
+	s.UpdatedByName = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *BirthdaySettings) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetLastRun sets the value of LastRun.
+func (s *BirthdaySettings) SetLastRun(val OptBirthdayRun) {
+	s.LastRun = val
+}
+
+func (*BirthdaySettings) getBirthdaySettingsRes()  {}
+func (*BirthdaySettings) saveBirthdaySettingsRes() {}
+
+// Ref: #/components/schemas/BirthdayStateCounts
+type BirthdayStateCounts struct {
+	Manual      int32 `json:"manual"`
+	Due         int32 `json:"due"`
+	Unconfirmed int32 `json:"unconfirmed"`
+	Given       int32 `json:"given"`
+	Waiting     int32 `json:"waiting"`
+	Used        int32 `json:"used"`
+	Expired     int32 `json:"expired"`
+	Stopped     int32 `json:"stopped"`
+}
+
+// GetManual returns the value of Manual.
+func (s *BirthdayStateCounts) GetManual() int32 {
+	return s.Manual
+}
+
+// GetDue returns the value of Due.
+func (s *BirthdayStateCounts) GetDue() int32 {
+	return s.Due
+}
+
+// GetUnconfirmed returns the value of Unconfirmed.
+func (s *BirthdayStateCounts) GetUnconfirmed() int32 {
+	return s.Unconfirmed
+}
+
+// GetGiven returns the value of Given.
+func (s *BirthdayStateCounts) GetGiven() int32 {
+	return s.Given
+}
+
+// GetWaiting returns the value of Waiting.
+func (s *BirthdayStateCounts) GetWaiting() int32 {
+	return s.Waiting
+}
+
+// GetUsed returns the value of Used.
+func (s *BirthdayStateCounts) GetUsed() int32 {
+	return s.Used
+}
+
+// GetExpired returns the value of Expired.
+func (s *BirthdayStateCounts) GetExpired() int32 {
+	return s.Expired
+}
+
+// GetStopped returns the value of Stopped.
+func (s *BirthdayStateCounts) GetStopped() int32 {
+	return s.Stopped
+}
+
+// SetManual sets the value of Manual.
+func (s *BirthdayStateCounts) SetManual(val int32) {
+	s.Manual = val
+}
+
+// SetDue sets the value of Due.
+func (s *BirthdayStateCounts) SetDue(val int32) {
+	s.Due = val
+}
+
+// SetUnconfirmed sets the value of Unconfirmed.
+func (s *BirthdayStateCounts) SetUnconfirmed(val int32) {
+	s.Unconfirmed = val
+}
+
+// SetGiven sets the value of Given.
+func (s *BirthdayStateCounts) SetGiven(val int32) {
+	s.Given = val
+}
+
+// SetWaiting sets the value of Waiting.
+func (s *BirthdayStateCounts) SetWaiting(val int32) {
+	s.Waiting = val
+}
+
+// SetUsed sets the value of Used.
+func (s *BirthdayStateCounts) SetUsed(val int32) {
+	s.Used = val
+}
+
+// SetExpired sets the value of Expired.
+func (s *BirthdayStateCounts) SetExpired(val int32) {
+	s.Expired = val
+}
+
+// SetStopped sets the value of Stopped.
+func (s *BirthdayStateCounts) SetStopped(val int32) {
+	s.Stopped = val
+}
+
 // Ref: #/components/schemas/CallbackTask
 type CallbackTask struct {
 	ID           uuid.UUID          `json:"id"`
@@ -9563,6 +10589,8 @@ func (*ErrorStatusCode) createWebCampaignRes()           {}
 func (*ErrorStatusCode) deleteCustomerAddressRes()       {}
 func (*ErrorStatusCode) deleteProductImageRes()          {}
 func (*ErrorStatusCode) deleteWebCampaignRes()           {}
+func (*ErrorStatusCode) exportBirthdayCustomersRes()     {}
+func (*ErrorStatusCode) getBirthdaySettingsRes()         {}
 func (*ErrorStatusCode) getCatalogImportRes()            {}
 func (*ErrorStatusCode) getCatalogImportTemplateRes()    {}
 func (*ErrorStatusCode) getCodStatementRes()             {}
@@ -9602,6 +10630,8 @@ func (*ErrorStatusCode) listAdminUnitsRes()              {}
 func (*ErrorStatusCode) listAgedReservationsRes()        {}
 func (*ErrorStatusCode) listAttributesRes()              {}
 func (*ErrorStatusCode) listBalancesRes()                {}
+func (*ErrorStatusCode) listBirthdayCustomersRes()       {}
+func (*ErrorStatusCode) listBirthdayTodoRes()            {}
 func (*ErrorStatusCode) listCallbackTasksRes()           {}
 func (*ErrorStatusCode) listCampaignTargetsRes()         {}
 func (*ErrorStatusCode) listCarrierAccountsRes()         {}
@@ -9645,6 +10675,7 @@ func (*ErrorStatusCode) listUnmappedLocationsRes()       {}
 func (*ErrorStatusCode) listWarehousesRes()              {}
 func (*ErrorStatusCode) listWebCampaignsRes()            {}
 func (*ErrorStatusCode) lockStaffRes()                   {}
+func (*ErrorStatusCode) markBirthdayMessagedRes()        {}
 func (*ErrorStatusCode) mergeCustomerRes()               {}
 func (*ErrorStatusCode) payRefundObligationRes()         {}
 func (*ErrorStatusCode) postStockDocumentRes()           {}
@@ -9675,6 +10706,8 @@ func (*ErrorStatusCode) resolveShipmentCreateRes()       {}
 func (*ErrorStatusCode) restoreProductImageRes()         {}
 func (*ErrorStatusCode) retryJobRes()                    {}
 func (*ErrorStatusCode) revokeServiceKeyRes()            {}
+func (*ErrorStatusCode) runBirthdayGiftsRes()            {}
+func (*ErrorStatusCode) saveBirthdaySettingsRes()        {}
 func (*ErrorStatusCode) saveWebCampaignRes()             {}
 func (*ErrorStatusCode) saveWebCarrierSettingsRes()      {}
 func (*ErrorStatusCode) searchVariantsRes()              {}
@@ -9712,6 +10745,8 @@ func (*ErrorStatusCode) updateVariantRes()               {}
 func (*ErrorStatusCode) verifyFilesRes()                 {}
 func (*ErrorStatusCode) waiveRefundObligationRes()       {}
 func (*ErrorStatusCode) webAvailabilityRes()             {}
+func (*ErrorStatusCode) webBirthdayOutboxRes()           {}
+func (*ErrorStatusCode) webBirthdayStopRes()             {}
 func (*ErrorStatusCode) webCampaignRes()                 {}
 func (*ErrorStatusCode) webCampaignsRes()                {}
 func (*ErrorStatusCode) webCancelOrderRes()              {}
@@ -9731,6 +10766,7 @@ func (*ErrorStatusCode) webLocationsRes()                {}
 func (*ErrorStatusCode) webMarkCouponGivenRes()          {}
 func (*ErrorStatusCode) webOrderChangesRes()             {}
 func (*ErrorStatusCode) webQuoteRes()                    {}
+func (*ErrorStatusCode) webRegisterBirthdayRes()         {}
 func (*ErrorStatusCode) webReplyRequestRes()             {}
 func (*ErrorStatusCode) webShippingCarriersRes()         {}
 func (*ErrorStatusCode) webShippingQuoteRes()            {}
@@ -11784,6 +12820,98 @@ func (o OptBarcode) Get() (v Barcode, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBarcode) Or(d Barcode) Barcode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBirthdayCustomerStateFilter returns new OptBirthdayCustomerStateFilter with value set to v.
+func NewOptBirthdayCustomerStateFilter(v BirthdayCustomerStateFilter) OptBirthdayCustomerStateFilter {
+	return OptBirthdayCustomerStateFilter{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBirthdayCustomerStateFilter is optional BirthdayCustomerStateFilter.
+type OptBirthdayCustomerStateFilter struct {
+	Value BirthdayCustomerStateFilter
+	Set   bool
+}
+
+// IsSet returns true if OptBirthdayCustomerStateFilter was set.
+func (o OptBirthdayCustomerStateFilter) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBirthdayCustomerStateFilter) Reset() {
+	var v BirthdayCustomerStateFilter
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBirthdayCustomerStateFilter) SetTo(v BirthdayCustomerStateFilter) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBirthdayCustomerStateFilter) Get() (v BirthdayCustomerStateFilter, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBirthdayCustomerStateFilter) Or(d BirthdayCustomerStateFilter) BirthdayCustomerStateFilter {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBirthdayRun returns new OptBirthdayRun with value set to v.
+func NewOptBirthdayRun(v BirthdayRun) OptBirthdayRun {
+	return OptBirthdayRun{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBirthdayRun is optional BirthdayRun.
+type OptBirthdayRun struct {
+	Value BirthdayRun
+	Set   bool
+}
+
+// IsSet returns true if OptBirthdayRun was set.
+func (o OptBirthdayRun) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBirthdayRun) Reset() {
+	var v BirthdayRun
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBirthdayRun) SetTo(v BirthdayRun) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBirthdayRun) Get() (v BirthdayRun, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBirthdayRun) Or(d BirthdayRun) BirthdayRun {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -21940,6 +23068,7 @@ func (s *RetryLaterHeaders) SetResponse(val Error) {
 	s.Response = val
 }
 
+func (*RetryLaterHeaders) webBirthdayStopRes()        {}
 func (*RetryLaterHeaders) webCancelOrderRes()         {}
 func (*RetryLaterHeaders) webCancelRequestRes()       {}
 func (*RetryLaterHeaders) webCreateBirthdayBatchRes() {}
@@ -21947,6 +23076,7 @@ func (*RetryLaterHeaders) webCreateOrderRes()         {}
 func (*RetryLaterHeaders) webCreateRequestRes()       {}
 func (*RetryLaterHeaders) webImportCouponsRes()       {}
 func (*RetryLaterHeaders) webMarkCouponGivenRes()     {}
+func (*RetryLaterHeaders) webRegisterBirthdayRes()    {}
 func (*RetryLaterHeaders) webReplyRequestRes()        {}
 func (*RetryLaterHeaders) webUploadRequestFileRes()   {}
 
@@ -22633,6 +23763,93 @@ func (s *RoleStatus) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Merged schema.
+// Ref: #/components/schemas/SaveBirthdaySettingsRequest
+type SaveBirthdaySettingsRequest struct {
+	Enabled bool `json:"enabled"`
+	// Mệnh giá (đồng), 10.000–1.000.000, bước 1.000.
+	Amount int64 `json:"amount"`
+	// Đơn tối thiểu (đồng), 0 = mọi đơn.
+	MinOrder int64 `json:"minOrder"`
+	// Phát mã trước sinh nhật bao nhiêu ngày (0–30).
+	DaysBefore int32 `json:"daysBefore"`
+	// Số ngày dùng được, tính từ ngày phát (1–60).
+	ValidDays int32 `json:"validDays"`
+	// Đăng ký trước sinh nhật tối thiểu bao nhiêu ngày mới nhận quà năm đó (0–120).
+	MinLeadDays int32 `json:"minLeadDays"`
+	Version     int32 `json:"version"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *SaveBirthdaySettingsRequest) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetAmount returns the value of Amount.
+func (s *SaveBirthdaySettingsRequest) GetAmount() int64 {
+	return s.Amount
+}
+
+// GetMinOrder returns the value of MinOrder.
+func (s *SaveBirthdaySettingsRequest) GetMinOrder() int64 {
+	return s.MinOrder
+}
+
+// GetDaysBefore returns the value of DaysBefore.
+func (s *SaveBirthdaySettingsRequest) GetDaysBefore() int32 {
+	return s.DaysBefore
+}
+
+// GetValidDays returns the value of ValidDays.
+func (s *SaveBirthdaySettingsRequest) GetValidDays() int32 {
+	return s.ValidDays
+}
+
+// GetMinLeadDays returns the value of MinLeadDays.
+func (s *SaveBirthdaySettingsRequest) GetMinLeadDays() int32 {
+	return s.MinLeadDays
+}
+
+// GetVersion returns the value of Version.
+func (s *SaveBirthdaySettingsRequest) GetVersion() int32 {
+	return s.Version
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *SaveBirthdaySettingsRequest) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetAmount sets the value of Amount.
+func (s *SaveBirthdaySettingsRequest) SetAmount(val int64) {
+	s.Amount = val
+}
+
+// SetMinOrder sets the value of MinOrder.
+func (s *SaveBirthdaySettingsRequest) SetMinOrder(val int64) {
+	s.MinOrder = val
+}
+
+// SetDaysBefore sets the value of DaysBefore.
+func (s *SaveBirthdaySettingsRequest) SetDaysBefore(val int32) {
+	s.DaysBefore = val
+}
+
+// SetValidDays sets the value of ValidDays.
+func (s *SaveBirthdaySettingsRequest) SetValidDays(val int32) {
+	s.ValidDays = val
+}
+
+// SetMinLeadDays sets the value of MinLeadDays.
+func (s *SaveBirthdaySettingsRequest) SetMinLeadDays(val int32) {
+	s.MinLeadDays = val
+}
+
+// SetVersion sets the value of Version.
+func (s *SaveBirthdaySettingsRequest) SetVersion(val int32) {
+	s.Version = val
 }
 
 // Ref: #/components/schemas/SaveWebCampaignRequest
@@ -29354,6 +30571,354 @@ func (s *WebBirthdayBatchRequest) SetTemplate(val CouponTemplate) {
 func (s *WebBirthdayBatchRequest) SetBoundPhones(val []PhoneInput) {
 	s.BoundPhones = val
 }
+
+// Ref: #/components/schemas/WebBirthdayOutbox
+type WebBirthdayOutbox struct {
+	Items []WebBirthdayOutboxItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *WebBirthdayOutbox) GetItems() []WebBirthdayOutboxItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *WebBirthdayOutbox) SetItems(val []WebBirthdayOutboxItem) {
+	s.Items = val
+}
+
+func (*WebBirthdayOutbox) webBirthdayOutboxRes() {}
+
+// Merged schema.
+// Ref: #/components/schemas/WebBirthdayOutboxItem
+type WebBirthdayOutboxItem struct {
+	CustomerId uuid.UUID `json:"customerId"`
+	Code       string    `json:"code"`
+	FullName   string    `json:"fullName"`
+	// SĐT đã đăng ký, dạng +84….
+	Phone string    `json:"phone"`
+	Email OptString `json:"email"`
+	Day   int32     `json:"day"`
+	Month int32     `json:"month"`
+	// Khách đồng ý nhận qua Zalo.
+	Zalo bool `json:"zalo"`
+	// Khách đồng ý nhận qua email (và có email).
+	Mail      bool      `json:"mail"`
+	Amount    int64     `json:"amount"`
+	MinOrder  int64     `json:"minOrder"`
+	ValidFrom time.Time `json:"validFrom"`
+	// Hết hạn lúc này (0:00 giờ Việt Nam sau ngày dùng cuối).
+	ValidTo time.Time `json:"validTo"`
+	// Số ngày tới sinh nhật của năm quà (âm — đã qua).
+	BirthdayIn int32 `json:"birthdayIn"`
+	// Mã dừng nhận tin cho link trong tin (webBirthdayStop).
+	StopToken string `json:"stopToken"`
+}
+
+// GetCustomerId returns the value of CustomerId.
+func (s *WebBirthdayOutboxItem) GetCustomerId() uuid.UUID {
+	return s.CustomerId
+}
+
+// GetCode returns the value of Code.
+func (s *WebBirthdayOutboxItem) GetCode() string {
+	return s.Code
+}
+
+// GetFullName returns the value of FullName.
+func (s *WebBirthdayOutboxItem) GetFullName() string {
+	return s.FullName
+}
+
+// GetPhone returns the value of Phone.
+func (s *WebBirthdayOutboxItem) GetPhone() string {
+	return s.Phone
+}
+
+// GetEmail returns the value of Email.
+func (s *WebBirthdayOutboxItem) GetEmail() OptString {
+	return s.Email
+}
+
+// GetDay returns the value of Day.
+func (s *WebBirthdayOutboxItem) GetDay() int32 {
+	return s.Day
+}
+
+// GetMonth returns the value of Month.
+func (s *WebBirthdayOutboxItem) GetMonth() int32 {
+	return s.Month
+}
+
+// GetZalo returns the value of Zalo.
+func (s *WebBirthdayOutboxItem) GetZalo() bool {
+	return s.Zalo
+}
+
+// GetMail returns the value of Mail.
+func (s *WebBirthdayOutboxItem) GetMail() bool {
+	return s.Mail
+}
+
+// GetAmount returns the value of Amount.
+func (s *WebBirthdayOutboxItem) GetAmount() int64 {
+	return s.Amount
+}
+
+// GetMinOrder returns the value of MinOrder.
+func (s *WebBirthdayOutboxItem) GetMinOrder() int64 {
+	return s.MinOrder
+}
+
+// GetValidFrom returns the value of ValidFrom.
+func (s *WebBirthdayOutboxItem) GetValidFrom() time.Time {
+	return s.ValidFrom
+}
+
+// GetValidTo returns the value of ValidTo.
+func (s *WebBirthdayOutboxItem) GetValidTo() time.Time {
+	return s.ValidTo
+}
+
+// GetBirthdayIn returns the value of BirthdayIn.
+func (s *WebBirthdayOutboxItem) GetBirthdayIn() int32 {
+	return s.BirthdayIn
+}
+
+// GetStopToken returns the value of StopToken.
+func (s *WebBirthdayOutboxItem) GetStopToken() string {
+	return s.StopToken
+}
+
+// SetCustomerId sets the value of CustomerId.
+func (s *WebBirthdayOutboxItem) SetCustomerId(val uuid.UUID) {
+	s.CustomerId = val
+}
+
+// SetCode sets the value of Code.
+func (s *WebBirthdayOutboxItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetFullName sets the value of FullName.
+func (s *WebBirthdayOutboxItem) SetFullName(val string) {
+	s.FullName = val
+}
+
+// SetPhone sets the value of Phone.
+func (s *WebBirthdayOutboxItem) SetPhone(val string) {
+	s.Phone = val
+}
+
+// SetEmail sets the value of Email.
+func (s *WebBirthdayOutboxItem) SetEmail(val OptString) {
+	s.Email = val
+}
+
+// SetDay sets the value of Day.
+func (s *WebBirthdayOutboxItem) SetDay(val int32) {
+	s.Day = val
+}
+
+// SetMonth sets the value of Month.
+func (s *WebBirthdayOutboxItem) SetMonth(val int32) {
+	s.Month = val
+}
+
+// SetZalo sets the value of Zalo.
+func (s *WebBirthdayOutboxItem) SetZalo(val bool) {
+	s.Zalo = val
+}
+
+// SetMail sets the value of Mail.
+func (s *WebBirthdayOutboxItem) SetMail(val bool) {
+	s.Mail = val
+}
+
+// SetAmount sets the value of Amount.
+func (s *WebBirthdayOutboxItem) SetAmount(val int64) {
+	s.Amount = val
+}
+
+// SetMinOrder sets the value of MinOrder.
+func (s *WebBirthdayOutboxItem) SetMinOrder(val int64) {
+	s.MinOrder = val
+}
+
+// SetValidFrom sets the value of ValidFrom.
+func (s *WebBirthdayOutboxItem) SetValidFrom(val time.Time) {
+	s.ValidFrom = val
+}
+
+// SetValidTo sets the value of ValidTo.
+func (s *WebBirthdayOutboxItem) SetValidTo(val time.Time) {
+	s.ValidTo = val
+}
+
+// SetBirthdayIn sets the value of BirthdayIn.
+func (s *WebBirthdayOutboxItem) SetBirthdayIn(val int32) {
+	s.BirthdayIn = val
+}
+
+// SetStopToken sets the value of StopToken.
+func (s *WebBirthdayOutboxItem) SetStopToken(val string) {
+	s.StopToken = val
+}
+
+// Ref: #/components/schemas/WebBirthdayRequest
+type WebBirthdayRequest struct {
+	Phone PhoneInput `json:"phone"`
+	// Tên người nhận của đơn (chỉ dùng khi phải tạo khách mới).
+	FullName string    `json:"fullName"`
+	Day      int32     `json:"day"`
+	Month    int32     `json:"month"`
+	Zalo     bool      `json:"zalo"`
+	Mail     bool      `json:"mail"`
+	Email    OptString `json:"email"`
+}
+
+// GetPhone returns the value of Phone.
+func (s *WebBirthdayRequest) GetPhone() PhoneInput {
+	return s.Phone
+}
+
+// GetFullName returns the value of FullName.
+func (s *WebBirthdayRequest) GetFullName() string {
+	return s.FullName
+}
+
+// GetDay returns the value of Day.
+func (s *WebBirthdayRequest) GetDay() int32 {
+	return s.Day
+}
+
+// GetMonth returns the value of Month.
+func (s *WebBirthdayRequest) GetMonth() int32 {
+	return s.Month
+}
+
+// GetZalo returns the value of Zalo.
+func (s *WebBirthdayRequest) GetZalo() bool {
+	return s.Zalo
+}
+
+// GetMail returns the value of Mail.
+func (s *WebBirthdayRequest) GetMail() bool {
+	return s.Mail
+}
+
+// GetEmail returns the value of Email.
+func (s *WebBirthdayRequest) GetEmail() OptString {
+	return s.Email
+}
+
+// SetPhone sets the value of Phone.
+func (s *WebBirthdayRequest) SetPhone(val PhoneInput) {
+	s.Phone = val
+}
+
+// SetFullName sets the value of FullName.
+func (s *WebBirthdayRequest) SetFullName(val string) {
+	s.FullName = val
+}
+
+// SetDay sets the value of Day.
+func (s *WebBirthdayRequest) SetDay(val int32) {
+	s.Day = val
+}
+
+// SetMonth sets the value of Month.
+func (s *WebBirthdayRequest) SetMonth(val int32) {
+	s.Month = val
+}
+
+// SetZalo sets the value of Zalo.
+func (s *WebBirthdayRequest) SetZalo(val bool) {
+	s.Zalo = val
+}
+
+// SetMail sets the value of Mail.
+func (s *WebBirthdayRequest) SetMail(val bool) {
+	s.Mail = val
+}
+
+// SetEmail sets the value of Email.
+func (s *WebBirthdayRequest) SetEmail(val OptString) {
+	s.Email = val
+}
+
+// Ref: #/components/schemas/WebBirthdayResult
+type WebBirthdayResult struct {
+	// True — hồ sơ vừa lưu ở lần gọi này; false — khách đã đăng ký trước đó
+	// (ngày đã lưu giữ nguyên).
+	Created bool  `json:"created"`
+	Day     int32 `json:"day"`
+	Month   int32 `json:"month"`
+}
+
+// GetCreated returns the value of Created.
+func (s *WebBirthdayResult) GetCreated() bool {
+	return s.Created
+}
+
+// GetDay returns the value of Day.
+func (s *WebBirthdayResult) GetDay() int32 {
+	return s.Day
+}
+
+// GetMonth returns the value of Month.
+func (s *WebBirthdayResult) GetMonth() int32 {
+	return s.Month
+}
+
+// SetCreated sets the value of Created.
+func (s *WebBirthdayResult) SetCreated(val bool) {
+	s.Created = val
+}
+
+// SetDay sets the value of Day.
+func (s *WebBirthdayResult) SetDay(val int32) {
+	s.Day = val
+}
+
+// SetMonth sets the value of Month.
+func (s *WebBirthdayResult) SetMonth(val int32) {
+	s.Month = val
+}
+
+func (*WebBirthdayResult) webRegisterBirthdayRes() {}
+
+// Ref: #/components/schemas/WebBirthdayStopRequest
+type WebBirthdayStopRequest struct {
+	Token string `json:"token"`
+}
+
+// GetToken returns the value of Token.
+func (s *WebBirthdayStopRequest) GetToken() string {
+	return s.Token
+}
+
+// SetToken sets the value of Token.
+func (s *WebBirthdayStopRequest) SetToken(val string) {
+	s.Token = val
+}
+
+// Ref: #/components/schemas/WebBirthdayStopResult
+type WebBirthdayStopResult struct {
+	StoppedAt time.Time `json:"stoppedAt"`
+}
+
+// GetStoppedAt returns the value of StoppedAt.
+func (s *WebBirthdayStopResult) GetStoppedAt() time.Time {
+	return s.StoppedAt
+}
+
+// SetStoppedAt sets the value of StoppedAt.
+func (s *WebBirthdayStopResult) SetStoppedAt(val time.Time) {
+	s.StoppedAt = val
+}
+
+func (*WebBirthdayStopResult) webBirthdayStopRes() {}
 
 // Ref: #/components/schemas/WebCampaign
 type WebCampaign struct {

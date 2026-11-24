@@ -58,6 +58,7 @@ var ServiceKeyPermissions = []Permission{ //nolint:gochecknoglobals // danh sác
 	"web.orders.cancel",
 	"web.requests.write",
 	"web.coupons.issue",
+	"web.birthdays.write",
 	"web.shipping.quote",
 	"web.flash.buy",
 }

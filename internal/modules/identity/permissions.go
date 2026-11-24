@@ -109,6 +109,9 @@ var Permissions = []PermissionDef{ //nolint:gochecknoglobals // danh sách hằn
 	// M5 (Task 195): yêu cầu về đơn hàng của khách (xem; trả lời, đổi trạng thái) là việc hằng ngày của bán hàng.
 	{"order.requests.read", ScopeNone},
 	{"order.requests.manage", ScopeNone},
+	// M5 (Task 468): cài đặt quà sinh nhật, Tạo mã ngay, Đã nhắn, xuất danh sách là chính sách toàn shop (đọc dùng
+	// promotion.read).
+	{"promotion.birthday.manage", ScopeShop},
 }
 
 // Loại phạm vi của một grant (cột user_role_grants.scope_type).

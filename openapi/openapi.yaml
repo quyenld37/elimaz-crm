@@ -3274,6 +3274,180 @@ paths:
                 $ref: "#/components/schemas/WebIntake"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/birthday-settings:
+    get:
+      operationId: getBirthdaySettings
+      summary: 'Cài đặt quà sinh nhật của shop kèm lượt phát gần nhất; chưa lưu → mặc định (tắt), version 1 (Task 468)'
+      x-permission: promotion.read
+      responses:
+        "200":
+          description: getBirthdaySettings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BirthdaySettings"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: saveBirthdaySettings
+      summary: 'Lưu cài đặt quà sinh nhật khi version khớp (409 version_conflict); ngoài giới hạn → 422 invalid_gift_settings (Task 468)'
+      description: |
+        Giới hạn: amount 10.000–1.000.000 bước 1.000; minOrder 0–100.000.000; daysBefore 0–30; validDays 1–60;
+        minLeadDays 0–120. Audit promotion.birthday.settings.
+      x-permission: promotion.birthday.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveBirthdaySettingsRequest"
+      responses:
+        "200":
+          description: saveBirthdaySettings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BirthdaySettings"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/birthday-runs:
+    post:
+      operationId: runBirthdayGifts
+      summary: '"Tạo mã ngay": chạy một lượt phát quà sinh nhật (lượt khác đang chạy → 409 another_run_in_progress) (Task 468)'
+      description: |
+        Phát mã cho mọi khách đến hạn như lịch mỗi giờ (lịch chỉ chạy 9:00–21:00 giờ Việt Nam; nút này chạy bất kỳ lúc
+        nào). Cài đặt tắt → lượt ghi lại với given 0. Audit promotion.birthday.run.
+      x-permission: promotion.birthday.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: runBirthdayGifts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BirthdayRun"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/birthday-gifts/todo:
+    get:
+      operationId: listBirthdayTodo
+      summary: 'Tab "Cần nhắn": quà sinh nhật chưa trao (chưa nhắn tay, website chưa gửi), còn hạn, sinh nhật gần nhất trước (Task 468)'
+      x-permission: promotion.read
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 500
+      responses:
+        "200":
+          description: listBirthdayTodo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BirthdayGiftList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/birthday-gifts/messaged:
+    post:
+      operationId: markBirthdayMessaged
+      summary: '"Đã nhắn" một hay nhiều mã quà sinh nhật: ghi lúc trao; mã đã trao hay không phải quà sinh nhật bỏ qua (Task 468)'
+      x-permission: promotion.birthday.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BirthdayMessagedRequest"
+      responses:
+        "200":
+          description: markBirthdayMessaged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BirthdayMessagedResult"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/birthday-customers:
+    get:
+      operationId: listBirthdayCustomers
+      summary: 'Tab "Tất cả khách": khách đã để lại sinh nhật với 8 trạng thái quà, lọc trạng thái, tháng, tìm; đếm theo trạng thái, tháng (Task 468)'
+      description: |
+        q: tên (không dấu) hay ≥ 3 chữ số SĐT. stateCounts tính với bộ lọc tháng và q; monthCounts (12 số, tháng 1 trước)
+        tính với bộ lọc trạng thái và q.
+      x-permission: promotion.read
+      parameters:
+        - name: state
+          in: query
+          schema:
+            $ref: "#/components/schemas/BirthdayCustomerStateFilter"
+        - name: month
+          in: query
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 12
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            maxLength: 20
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: listBirthdayCustomers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BirthdayCustomerPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/birthday-customers/export:
+    post:
+      operationId: exportBirthdayCustomers
+      summary: 'Xuất CSV khách sinh nhật theo bộ lọc (mọi dòng); ghi nhật ký promotion.birthday.export có số dòng (Task 468)'
+      description: |
+        Thân trả JSON {filename, rows, csv}: csv là UTF-8 có BOM (Excel mở đúng dấu), màn hình tải bằng Blob. Thân chứa
+        SĐT nên không lưu theo khóa chống trùng (no-replay): gọi lại cùng khóa → 409 already_processed.
+      x-permission: promotion.birthday.manage
+      x-idempotency: no-replay
+      x-idempotency-reason: "Tệp xuất chứa SĐT, không lưu theo khóa; mỗi lần xuất ghi nhật ký riêng"
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BirthdayExportRequest"
+      responses:
+        "200":
+          description: exportBirthdayCustomers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BirthdayExport"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/order-requests:
     get:
       operationId: listOrderRequests
@@ -4932,6 +5106,87 @@ paths:
           $ref: "#/components/responses/RetryLater"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web/birthdays:
+    post:
+      operationId: webRegisterBirthday
+      summary: Website gửi form ngày sinh nhật của khách; đăng ký lần đầu thắng (Task 468)
+      description: |
+        Tìm khách theo SĐT (chưa có → tạo khách mới có SĐT này). Khách đã có hồ sơ sinh nhật → không đổi gì, created
+        false kèm ngày đã lưu. mail true cần email. Ngày không có trong tháng, email sai → 400 invalid_input; SĐT sai →
+        422 invalid_phone.
+      x-auth: service_key
+      x-permission: web.birthdays.write
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebBirthdayRequest"
+      responses:
+        "200":
+          description: Hồ sơ sinh nhật (mới hay đã có)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebBirthdayResult"
+        "503":
+          $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/birthdays/stop:
+    post:
+      operationId: webBirthdayStop
+      summary: Khách bấm link dừng nhận tin sinh nhật; gọi lại giữ lúc dừng đầu tiên (Task 468)
+      description: Mã dừng lạ → 404 not_found.
+      x-auth: service_key
+      x-permission: web.birthdays.write
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebBirthdayStopRequest"
+      responses:
+        "200":
+          description: Lúc dừng
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebBirthdayStopResult"
+        "503":
+          $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/birthdays/outbox:
+    get:
+      operationId: webBirthdayOutbox
+      summary: Quà sinh nhật website cần gửi tự động (Zalo, email) — chỉ khách đồng ý kênh đó, chưa dừng nhận tin (Task 468)
+      description: |
+        Quà chưa trao, chưa dùng, còn hạn, cũ nhất trước. Website gửi tin (link dừng dùng stopToken) rồi gọi
+        webMarkCouponGiven; mã đã trao rời danh sách (QĐ40).
+      x-auth: service_key
+      x-permission: web.coupons.issue
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 500
+      responses:
+        "200":
+          description: Quà cần gửi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebBirthdayOutbox"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/web/coupons/import:
     post:
       operationId: webImportCoupons
@@ -5808,6 +6063,9 @@ components:
         - cannot_cancel
         # Hãng giao hàng trên website (M5, Task 198)
         - carrier_not_on_web
+        # Quà sinh nhật (M5, Task 468)
+        - another_run_in_progress
+        - invalid_gift_settings
         - last_web_carrier
       properties:
         error:
@@ -12828,3 +13086,354 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/WebCampaignPublic"
+    BirthdaySettingsFields:
+      type: object
+      required: [enabled, amount, minOrder, daysBefore, validDays, minLeadDays]
+      properties:
+        enabled:
+          type: boolean
+        amount:
+          type: integer
+          format: int64
+          description: Mệnh giá (đồng), 10.000–1.000.000, bước 1.000
+        minOrder:
+          type: integer
+          format: int64
+          description: Đơn tối thiểu (đồng), 0 = mọi đơn
+        daysBefore:
+          type: integer
+          format: int32
+          description: Phát mã trước sinh nhật bao nhiêu ngày (0–30)
+        validDays:
+          type: integer
+          format: int32
+          description: Số ngày dùng được, tính từ ngày phát (1–60)
+        minLeadDays:
+          type: integer
+          format: int32
+          description: Đăng ký trước sinh nhật tối thiểu bao nhiêu ngày mới nhận quà năm đó (0–120)
+    BirthdaySettings:
+      allOf:
+        - $ref: "#/components/schemas/BirthdaySettingsFields"
+        - type: object
+          required: [version]
+          properties:
+            version:
+              type: integer
+              format: int32
+              minimum: 1
+            updatedBy:
+              type: string
+              format: uuid
+            updatedByName:
+              type: string
+            updatedAt:
+              type: string
+              format: date-time
+            lastRun:
+              $ref: "#/components/schemas/BirthdayRun"
+    SaveBirthdaySettingsRequest:
+      allOf:
+        - $ref: "#/components/schemas/BirthdaySettingsFields"
+        - type: object
+          required: [version]
+          properties:
+            version:
+              type: integer
+              format: int32
+              minimum: 1
+    BirthdayRun:
+      type: object
+      required: [id, trigger, startedAt, given, failed]
+      properties:
+        id:
+          type: string
+          format: uuid
+        trigger:
+          type: string
+          enum: [schedule, manual]
+        startedBy:
+          type: string
+          format: uuid
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        given:
+          type: integer
+          format: int32
+        failed:
+          type: integer
+          format: int32
+          description: Số khách chưa phát được ở lượt này (thử lại ở lượt sau)
+    BirthdayGift:
+      type: object
+      required: [customerId, code, fullName, phone, day, month, zalo, mail, amount, minOrder, validFrom, validTo, birthdayIn]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        code:
+          type: string
+        fullName:
+          type: string
+        phone:
+          type: string
+          description: SĐT đã đăng ký, dạng +84…
+        email:
+          type: string
+        day:
+          type: integer
+          format: int32
+        month:
+          type: integer
+          format: int32
+        zalo:
+          type: boolean
+          description: Khách đồng ý nhận qua Zalo
+        mail:
+          type: boolean
+          description: Khách đồng ý nhận qua email (và có email)
+        amount:
+          type: integer
+          format: int64
+        minOrder:
+          type: integer
+          format: int64
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+          description: Hết hạn lúc này (0:00 giờ Việt Nam sau ngày dùng cuối)
+        birthdayIn:
+          type: integer
+          format: int32
+          description: Số ngày tới sinh nhật của năm quà (âm — đã qua)
+    BirthdayGiftList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BirthdayGift"
+    BirthdayMessagedRequest:
+      type: object
+      additionalProperties: false
+      required: [codes]
+      properties:
+        codes:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: string
+            pattern: "^[A-Za-z0-9-]{3,32}$"
+    BirthdayMessagedResult:
+      type: object
+      required: [marked]
+      properties:
+        marked:
+          type: array
+          description: Mã vừa ghi "đã nhắn" (mã đã trao trước đó không có ở đây)
+          items:
+            type: string
+    BirthdayCustomerState:
+      type: string
+      enum: [manual, due, unconfirmed, given, waiting, used, expired, stopped]
+    BirthdayCustomerStateFilter:
+      type: string
+      enum: [all, manual, due, unconfirmed, given, waiting, used, expired, stopped]
+    BirthdayCustomer:
+      type: object
+      required: [customerId, fullName, phone, day, month, zalo, mail, state, birthdayIn, sendOn, savedAt]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        day:
+          type: integer
+          format: int32
+        month:
+          type: integer
+          format: int32
+        zalo:
+          type: boolean
+        mail:
+          type: boolean
+        state:
+          $ref: "#/components/schemas/BirthdayCustomerState"
+        birthdayIn:
+          type: integer
+          format: int32
+          description: Số ngày tới sinh nhật đang xét (âm — đã qua)
+        sendOn:
+          type: string
+          format: date-time
+          description: Ngày phát mã (0:00 giờ Việt Nam) của sinh nhật đang xét
+        code:
+          type: string
+          description: Mã quà hiện tại (còn hạn hay hết hạn chưa quá 30 ngày)
+        savedAt:
+          type: string
+          format: date-time
+    BirthdayStateCounts:
+      type: object
+      required: [manual, due, unconfirmed, given, waiting, used, expired, stopped]
+      properties:
+        manual:
+          type: integer
+          format: int32
+        due:
+          type: integer
+          format: int32
+        unconfirmed:
+          type: integer
+          format: int32
+        given:
+          type: integer
+          format: int32
+        waiting:
+          type: integer
+          format: int32
+        used:
+          type: integer
+          format: int32
+        expired:
+          type: integer
+          format: int32
+        stopped:
+          type: integer
+          format: int32
+    BirthdayCustomerPage:
+      type: object
+      required: [items, total, stateCounts, monthCounts]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BirthdayCustomer"
+        nextCursor:
+          type: string
+        total:
+          type: integer
+          format: int32
+        stateCounts:
+          $ref: "#/components/schemas/BirthdayStateCounts"
+        monthCounts:
+          type: array
+          minItems: 12
+          maxItems: 12
+          items:
+            type: integer
+            format: int32
+    BirthdayExportRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        state:
+          $ref: "#/components/schemas/BirthdayCustomerStateFilter"
+        month:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 12
+        q:
+          type: string
+          maxLength: 100
+    BirthdayExport:
+      type: object
+      required: [filename, rows, csv]
+      properties:
+        filename:
+          type: string
+        rows:
+          type: integer
+          format: int32
+        csv:
+          type: string
+    WebBirthdayRequest:
+      type: object
+      additionalProperties: false
+      required: [phone, fullName, day, month, zalo, mail]
+      properties:
+        phone:
+          $ref: "#/components/schemas/PhoneInput"
+        fullName:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Tên người nhận của đơn (chỉ dùng khi phải tạo khách mới)
+        day:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 31
+        month:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 12
+        zalo:
+          type: boolean
+        mail:
+          type: boolean
+        email:
+          type: string
+          maxLength: 200
+    WebBirthdayResult:
+      type: object
+      required: [created, day, month]
+      properties:
+        created:
+          type: boolean
+          description: true — hồ sơ vừa lưu ở lần gọi này; false — khách đã đăng ký trước đó (ngày đã lưu giữ nguyên)
+        day:
+          type: integer
+          format: int32
+        month:
+          type: integer
+          format: int32
+    WebBirthdayStopRequest:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 100
+    WebBirthdayStopResult:
+      type: object
+      required: [stoppedAt]
+      properties:
+        stoppedAt:
+          type: string
+          format: date-time
+    WebBirthdayOutboxItem:
+      allOf:
+        - $ref: "#/components/schemas/BirthdayGift"
+        - type: object
+          required: [stopToken]
+          properties:
+            stopToken:
+              type: string
+              description: Mã dừng nhận tin cho link trong tin (webBirthdayStop)
+    WebBirthdayOutbox:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebBirthdayOutboxItem"

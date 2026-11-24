@@ -217,6 +217,14 @@ type DeleteWebCampaignRes interface {
 	deleteWebCampaignRes()
 }
 
+type ExportBirthdayCustomersRes interface {
+	exportBirthdayCustomersRes()
+}
+
+type GetBirthdaySettingsRes interface {
+	getBirthdaySettingsRes()
+}
+
 type GetCatalogImportRes interface {
 	getCatalogImportRes()
 }
@@ -375,6 +383,14 @@ type ListAttributesRes interface {
 
 type ListBalancesRes interface {
 	listBalancesRes()
+}
+
+type ListBirthdayCustomersRes interface {
+	listBirthdayCustomersRes()
+}
+
+type ListBirthdayTodoRes interface {
+	listBirthdayTodoRes()
 }
 
 type ListCallbackTasksRes interface {
@@ -549,6 +565,10 @@ type LockStaffRes interface {
 	lockStaffRes()
 }
 
+type MarkBirthdayMessagedRes interface {
+	markBirthdayMessagedRes()
+}
+
 type MergeCustomerRes interface {
 	mergeCustomerRes()
 }
@@ -667,6 +687,14 @@ type RetryJobRes interface {
 
 type RevokeServiceKeyRes interface {
 	revokeServiceKeyRes()
+}
+
+type RunBirthdayGiftsRes interface {
+	runBirthdayGiftsRes()
+}
+
+type SaveBirthdaySettingsRes interface {
+	saveBirthdaySettingsRes()
 }
 
 type SaveWebCampaignRes interface {
@@ -817,6 +845,14 @@ type WebAvailabilityRes interface {
 	webAvailabilityRes()
 }
 
+type WebBirthdayOutboxRes interface {
+	webBirthdayOutboxRes()
+}
+
+type WebBirthdayStopRes interface {
+	webBirthdayStopRes()
+}
+
 type WebCampaignRes interface {
 	webCampaignRes()
 }
@@ -891,6 +927,10 @@ type WebOrderChangesRes interface {
 
 type WebQuoteRes interface {
 	webQuoteRes()
+}
+
+type WebRegisterBirthdayRes interface {
+	webRegisterBirthdayRes()
 }
 
 type WebReplyRequestRes interface {
