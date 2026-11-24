@@ -2,8 +2,6 @@
 // sửa trên màn (onChange); lưu là lưu cả danh sách (BannerEditor). Chữ để trống = website tự điền.
 import type { ReactNode } from "react";
 import type { HomeBanner, HomeBannerKind, HomeBannerLinkKind, HomeBannerList } from "../../api";
-import { isoToVnLocal, vnLocalToIso } from "../ma-giam-gia/couponRules";
-import { runeCount } from "../web-campaigns/campaignRules";
 import { BannerImage, type BannerImageProps } from "./BannerImage";
 import {
   ALT_MAX,
@@ -19,6 +17,7 @@ import {
   campaignWindow,
   type Slot,
 } from "./bannerRules";
+import { Counted, Step, VnTimeInput } from "./listEditor";
 import { ProductPicker, campaignFilter } from "./ProductPicker";
 
 const LINK_TEXT: Readonly<Record<HomeBannerLinkKind, string>> = {
@@ -50,48 +49,6 @@ export interface BannerFormProps {
   image: (slot: Slot) => Omit<BannerImageProps, "slot" | "disabled">;
 }
 
-function Counted({
-  label,
-  value,
-  max,
-  placeholder,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  max: number;
-  placeholder?: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <label className="field">
-      <span>{label}</span>
-      <input
-        className="input"
-        aria-label={label}
-        value={value}
-        maxLength={max}
-        placeholder={placeholder}
-        onChange={(e) => {
-          onChange(e.target.value);
-        }}
-      />
-      <span className="hint num">
-        {runeCount(value)} / {max}
-      </span>
-    </label>
-  );
-}
-
-function Step({ label, children }: { label: ReactNode; children: ReactNode }) {
-  return (
-    <div className="step">
-      <p className="label">{label}</p>
-      {children}
-    </div>
-  );
-}
-
 function Window({
   b,
   set,
@@ -102,18 +59,13 @@ function Window({
   campaign: { startsAt: string; endsAt: string } | undefined;
 }) {
   const time = (label: string, v: string | undefined, key: "startsAt" | "endsAt") => (
-    <label className="field">
-      <span>{label}</span>
-      <input
-        className="input num"
-        type="datetime-local"
-        value={v === undefined ? "" : isoToVnLocal(v)}
-        onChange={(e) => {
-          const iso = vnLocalToIso(e.target.value);
-          set({ [key]: iso ?? undefined });
-        }}
-      />
-    </label>
+    <VnTimeInput
+      label={label}
+      value={v}
+      onChange={(iso) => {
+        set({ [key]: iso });
+      }}
+    />
   );
   return (
     <>
