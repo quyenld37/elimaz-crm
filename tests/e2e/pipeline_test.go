@@ -24,6 +24,7 @@ const pipelineBudget = 2000 * time.Millisecond
 // pg_notify → api đẩy SSE changed selftest.pong đúng eventId dưới 2.000 ms; 10 lần, in thời gian lớn nhất. Các span
 // nhận webhook (ingest), tách gói và xử lý sự kiện (worker) và pg_notify có cùng một TraceID.
 func TestPipelineUnderTwoSecondsOneTrace(t *testing.T) {
+	// Không t.Parallel (Task 484): newStack đặt tracer provider của cả tiến trình (telemetry.Setup).
 	s := newStack(t, stackOptions{})
 	c := s.openSSE()
 	var worst time.Duration
@@ -123,6 +124,7 @@ func missingInTrace(spans []sdktrace.ReadOnlySpan, id trace.TraceID, want []stri
 // Nối ở tệp chạy thật (việc treo của Task 15): ingest và worker là tiến trình riêng; ping qua ingest → việc
 // inbound.selftest done (không dead "no handler"); lệnh command.selftest (CRM_ENV khác production) → done.
 func TestBinaryWorkerHandlesSelftest(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	_, ownerURL, appURL := testkit.StartPostgres(t)
 	owner := openPool(t, ownerURL, false)

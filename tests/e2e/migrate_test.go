@@ -19,6 +19,7 @@ import (
 
 // CRM_ROLE=migrate chạy db.Migrate bằng chuỗi chủ bảng rồi thoát 0; lần hai không áp dụng gì và vẫn thoát 0.
 func TestMigrateRoleAppliesThenExits(t *testing.T) {
+	t.Parallel()
 	_, owner, app := testkit.CreateDatabase(t)
 	runMigrate := migrateRunner(t, owner, app)
 	if out := runMigrate(); !strings.Contains(out, "0001_platform.sql") {
@@ -56,15 +57,14 @@ func migrateRunner(t *testing.T, owner, app string) func() string {
 
 // Vai trò migrate chạy một lần rồi thoát nên không có healthcheck.
 func TestMigrateRoleHasNoHealthcheck(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
-	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, bin, "healthcheck")
-	cmd.Env = []string{"CRM_ROLE=migrate", "CRM_ENV=test", "DATABASE_URL=postgres://x@127.0.0.1:1/x", "DATABASE_OWNER_URL=postgres://x@127.0.0.1:1/x", "OTEL_ENABLED=false"}
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err == nil || !strings.Contains(stderr.String(), "migrate") {
-		t.Fatalf("healthcheck của migrate phải khác 0 và nêu migrate: %v %s", err, stderr.String())
+	stderr, err := runForStderr(t, bin, []string{
+		"CRM_ROLE=migrate", "CRM_ENV=test", "DATABASE_URL=postgres://x@127.0.0.1:1/x",
+		"DATABASE_OWNER_URL=postgres://x@127.0.0.1:1/x", "OTEL_ENABLED=false",
+	}, "healthcheck")
+	if err == nil || !strings.Contains(stderr, "migrate") {
+		t.Fatalf("healthcheck của migrate phải khác 0 và nêu migrate: %v %s", err, stderr)
 	}
 }
 
@@ -72,6 +72,7 @@ func TestMigrateRoleHasNoHealthcheck(t *testing.T) {
 // vai trò mẫu; quyền mới (giả lập bằng cách xóa dòng role_permissions) vào vai trò mẫu chưa sửa; vai trò đã sửa không
 // đổi; lần chạy sau không đổi thêm.
 func TestMigrateSyncsDefaultRoles(t *testing.T) {
+	t.Parallel()
 	_, ownerURL, app := testkit.CreateDatabase(t)
 	runMigrate := migrateRunner(t, ownerURL, app)
 	runMigrate()

@@ -15,6 +15,7 @@ import (
 // Vai trò worker của tệp chạy thật chạy hàng đợi (Task 11): một việc chưa có handler được ghi khi worker đang chạy
 // → worker nhận (NOTIFY) và đặt dead "no handler"; SIGTERM → thoát mã 0 (Stop tắt êm).
 func TestWorkerRoleRunsQueue(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	_, ownerURL, appURL := testkit.StartPostgres(t)
 	cmd, done, stdout, stderr := startRole(t, bin, roleEnv("worker", appURL, 0))
@@ -54,6 +55,7 @@ func TestWorkerRoleRunsQueue(t *testing.T) {
 // (Task 12, nối ở lượt 2 Task 14) vào platform.schedules và tạo việc; worker có handler nên việc dọn và việc tra lại
 // thành done (không dead "no handler"); việc done và bản nhận webhook quá 30 ngày bị xóa.
 func TestWorkerRoleRunsSchedules(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	_, ownerURL, appURL := testkit.StartPostgres(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)

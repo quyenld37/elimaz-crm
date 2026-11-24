@@ -21,6 +21,7 @@ import (
 // → in_doubt, bên ngoài vẫn chỉ nhận 1 lần. Tra lại (Lookup nói done) → done, vẫn 1 lần; worker một tỉnh lại muộn
 // không ghi đè.
 func TestWorkerCrashDoesNotSendTwice(t *testing.T) {
+	t.Parallel()
 	staff := testkit.OpenStaff(t)
 	tenant := staff.Tenant(t, "A")
 	ext := &testkit.FakeExternal{Mode: testkit.FakeHangAfterSend}

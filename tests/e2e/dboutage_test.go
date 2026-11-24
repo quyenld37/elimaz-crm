@@ -12,6 +12,7 @@ import (
 // đều 200, 3 tệp tạm, 0 dòng bản nhận. Tắt lỗi → trong 10 s: 0 tệp, 3 dòng, màn hình nhận đủ 3 selftest.pong, mỗi
 // eventId đúng 1 lần.
 func TestDatabaseOutageKeepsWebhooks(t *testing.T) {
+	// Không t.Parallel (Task 484): newStack đặt tracer provider của cả tiến trình (telemetry.Setup).
 	var proxy *switchProxy
 	s := newStack(t, stackOptions{ingestURL: func(appURL string) string {
 		p, u := startSwitchProxy(t, appURL)

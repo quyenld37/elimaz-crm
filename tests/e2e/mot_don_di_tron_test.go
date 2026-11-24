@@ -39,6 +39,7 @@ const stepBudget = 5 * time.Second
 // với người bán mặc định nên: danh sách chỉ có mẫu của ELIMAZ, đọc mẫu PARTNER1 → 404, lên đơn với biến thể PARTNER1
 // → 422 mixed_sellers, tồn của PARTNER1 không đổi suốt luồng.
 func TestMotDonDiTron(t *testing.T) {
+	// Không t.Parallel (Task 484): newStack đặt tracer provider của cả tiến trình (telemetry.Setup).
 	r := newOrderRun(t)
 	s := r.s
 	took := map[string]time.Duration{}
@@ -121,6 +122,7 @@ func TestMotDonDiTron(t *testing.T) {
 
 // Tiêu chí "Xong" số 4: tồn 1, hai đơn song song (khóa khác nhau) → một 201, một 409 out_of_stock; tồn không âm.
 func TestMotDonDiTron_HaiDonSongSongTon1(t *testing.T) {
+	// Không t.Parallel (Task 484): newStack đặt tracer provider của cả tiến trình (telemetry.Setup).
 	r := newOrderRun(t)
 	v := r.productWithStock("E2E02", 1)
 	var (
@@ -161,6 +163,7 @@ func TestMotDonDiTron_HaiDonSongSongTon1(t *testing.T) {
 // Kịch bản chạy thử scripts/demo/mot-don-di-tron.sh (bash, curl, jq) chạy được với api và hãng giả của stack: in đủ
 // các bước, kết thúc ở "delivered".
 func TestMotDonDiTron_Script(t *testing.T) {
+	// Không t.Parallel (Task 484): newStack đặt tracer provider của cả tiến trình (telemetry.Setup).
 	r := newOrderRun(t)
 	s := r.s
 	out, err := exec.CommandContext(t.Context(), "go", "env", "GOMOD").Output()

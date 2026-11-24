@@ -20,6 +20,7 @@ import (
 // `crm seed-dev <email>` (CRM_ROLE=migrate): tenant ELIMAZ, vai trò owner mọi quyền phạm vi all, user theo email,
 // định tuyến staff_email, tài khoản hãng giả fake-1 và tuyến của nó. Chạy hai lần không lỗi, không thêm dòng; crm_app nạp được user với đủ quyền.
 func TestSeedDev(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	_, owner, app := testkit.StartPostgres(t)
 	env := []string{

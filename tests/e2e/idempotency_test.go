@@ -25,6 +25,7 @@ import (
 // /api/v1/platform/jobs/{id}/retry cùng Idempotency-Key 50 lần song song → đúng 1 dòng audit, việc về pending một
 // lần, mỗi câu trả lời là 200 cùng thân hoặc 409.
 func TestRetryFiftyParallelOneResult(t *testing.T) {
+	// Không t.Parallel (Task 484): newStack đặt tracer provider của cả tiến trình (telemetry.Setup).
 	s := newStack(t, stackOptions{})
 	s.ext.SetMode(testkit.FakeReject)
 	ctx := t.Context()
