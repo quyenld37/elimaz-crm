@@ -702,6 +702,27 @@ type CustomerCustomersV struct {
 	Version        int64
 }
 
+type CustomerFeedback struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	Topic      string
+	Mood       pgtype.Int4
+	Body       string
+	Name       pgtype.Text
+	Contact    pgtype.Text
+	OrderRef   pgtype.Text
+	Page       pgtype.Text
+	Device     pgtype.Text
+	ClientHash pgtype.Text
+	CustomerID pgtype.UUID
+	State      string
+	Note       pgtype.Text
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	UpdatedBy  pgtype.UUID
+	Version    int32
+}
+
 type FulfillmentAddressChangeRequest struct {
 	ID          uuid.UUID
 	TenantID    uuid.UUID

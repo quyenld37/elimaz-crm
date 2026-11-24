@@ -115,6 +115,9 @@ var Permissions = []PermissionDef{ //nolint:gochecknoglobals // danh sách hằn
 	// M5 (Task 453): nội dung trang chủ website (banner; bộ phối ở Task 454) là chính sách toàn shop.
 	{"content.read", ScopeShop},
 	{"content.manage", ScopeShop},
+	// M5 (Task 455): góp ý của khách (xem; đổi trạng thái, ghi chú nội bộ) là việc của chủ, quản lý cho cả shop.
+	{"customer.feedback.read", ScopeShop},
+	{"customer.feedback.manage", ScopeShop},
 }
 
 // Loại phạm vi của một grant (cột user_role_grants.scope_type).

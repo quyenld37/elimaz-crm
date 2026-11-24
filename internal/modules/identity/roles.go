@@ -519,6 +519,8 @@ func permissionLabels() map[Permission][3]string {
 		"customer.merge":             {groupCustomer, "Gộp khách, hoàn tác gộp", ""},
 		"customer.import":            {groupCustomer, "Nhập khách từ Excel", ""},
 		"customer.tags.manage":       {groupCustomer, "Quản lý nhãn khách", ""},
+		"customer.feedback.read":     {groupCustomer, "Xem góp ý của khách", ""},
+		"customer.feedback.manage":   {groupCustomer, "Đổi trạng thái, ghi chú góp ý của khách", ""},
 		"promotion.read":             {groupPromo, "Xem mã giảm giá", ""},
 		"promotion.manage":           {groupPromo, "Tạo, sửa mã giảm giá và đợt mã", ""},
 		"promotion.birthday.manage":  {groupPromo, "Cài đặt quà sinh nhật, tạo mã ngay, đánh dấu đã nhắn, xuất danh sách", ""},

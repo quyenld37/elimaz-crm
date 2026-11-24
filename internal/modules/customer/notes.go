@@ -3,9 +3,7 @@ package customer
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -60,11 +58,4 @@ func (w Writer) AddNote(ctx context.Context, tx pgx.Tx, customerID uuid.UUID, bo
 	return Note{ID: r.ID, CustomerID: r.CustomerID, AuthorID: r.AuthorID, Body: NoteBody(r.Body), CreatedAt: r.CreatedAt}, nil
 }
 
-func validNote(s string) (string, error) {
-	v := strings.TrimSpace(s)
-	bad := func(r rune) bool { return r != '\n' && r != '\t' && r != '\r' && isControl(r) }
-	if n := utf8.RuneCountInString(v); n == 0 || n > maxNoteRunes || !utf8.ValidString(v) || strings.ContainsFunc(v, bad) {
-		return "", ErrInvalidInput
-	}
-	return v, nil
-}
+func validNote(s string) (string, error) { return validMultiline(s, maxNoteRunes) }

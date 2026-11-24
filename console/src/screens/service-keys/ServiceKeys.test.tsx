@@ -42,7 +42,7 @@ describe("danh sách (trạng thái A)", () => {
     expect(within(t).getAllByRole("row")).toHaveLength(5);
     const main = rowOf("Website ELIMAZ — bản chính");
     expect(main.textContent).toContain("ek_aaaabbbb0001_…");
-    expect(main.textContent).toContain("9 quyền website");
+    expect(main.textContent).toContain("10 quyền website");
     expect(main.textContent).toContain("Mọi địa chỉ");
     expect(main.textContent).toContain("08:14 · 21/11");
     expect(main.textContent).toContain("Tạo 14/11/2026");
@@ -82,13 +82,13 @@ describe("danh sách (trạng thái A)", () => {
 });
 
 describe("tạo khóa (trạng thái B, C)", () => {
-  it("mặc định tích 8 quyền (trừ Mua flash sale); gửi tên, quyền, IP; hộp hiện khóa một lần, Chép; đóng là mất", async () => {
+  it("mặc định tích 9 quyền (trừ Mua flash sale); gửi tên, quyền, IP; hộp hiện khóa một lần, Chép; đóng là mất", async () => {
     const writeText = vi.fn(() => Promise.resolve());
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     const d = await openCreate();
     const boxes = within(d).getAllByRole<HTMLInputElement>("checkbox");
-    expect(boxes).toHaveLength(9);
-    expect(boxes.filter((b) => b.checked)).toHaveLength(8);
+    expect(boxes).toHaveLength(10);
+    expect(boxes.filter((b) => b.checked)).toHaveLength(9);
     expect(within(d).getByRole<HTMLInputElement>("checkbox", { name: /Mua flash sale/ }).checked).toBe(false);
     fireEvent.change(within(d).getByRole("textbox", { name: "Tên khóa" }), {
       target: { value: "  Website ELIMAZ — bản mới  " },
@@ -110,6 +110,7 @@ describe("tạo khóa (trạng thái B, C)", () => {
         "web.requests.write",
         "web.coupons.issue",
         "web.birthdays.write",
+        "web.feedback.write",
         "web.shipping.quote",
       ],
       allowedCidrs: ["13.140.64.56/32", "10.0.0.0/8"],

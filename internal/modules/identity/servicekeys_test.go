@@ -59,7 +59,7 @@ func TestServiceKeyPermissions(t *testing.T) {
 	t.Parallel()
 	for _, p := range []identity.Permission{
 		"web.catalog.read", "web.orders.create", "web.orders.read", "web.orders.cancel", "web.requests.write",
-		"web.coupons.issue", "web.birthdays.write", "web.shipping.quote", "web.flash.buy",
+		"web.coupons.issue", "web.birthdays.write", "web.feedback.write", "web.shipping.quote", "web.flash.buy",
 	} {
 		if !slices.Contains(identity.ServiceKeyPermissions, p) || !identity.IsServiceKeyPermission(p) {
 			t.Errorf("thiếu quyền khóa %s", p)

@@ -10422,6 +10422,108 @@ func (s *Server) handleListCustomersRequest(args [0]string, argsEscaped bool, w 
 	}
 }
 
+// handleListFeedbackRequest handles listFeedback operation.
+//
+// CustomerId là gốc hay hồ sơ con: trả mọi góp ý gắn với nhóm của khách đó
+// (khách đã gộp vẫn thấy). Khách không có → 404 not_found; con trỏ hỏng → 400
+// invalid_input. Có nội dung, liên lạc của khách: không ghi log.
+//
+// GET /api/v1/feedback
+func (s *Server) handleListFeedbackRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListFeedbackOperation,
+			ID:   "listFeedback",
+		}
+	)
+	params, err := decodeListFeedbackParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListFeedbackRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListFeedbackOperation,
+			OperationSummary: "Góp ý của khách, mới nhất trước; lọc trạng thái, chủ đề, khách (Task 455)",
+			OperationID:      "listFeedback",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "state",
+					In:   "query",
+				}: params.State,
+				{
+					Name: "topic",
+					In:   "query",
+				}: params.Topic,
+				{
+					Name: "customerId",
+					In:   "query",
+				}: params.CustomerId,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListFeedbackParams
+			Response = ListFeedbackRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListFeedbackParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListFeedback(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListFeedback(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListFeedbackResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleListJobsRequest handles listJobs operation.
 //
 // Việc nền cần người xử lý của tenant người gọi (không có payload).
@@ -19350,6 +19452,110 @@ func (s *Server) handleUpdateCustomerTagRequest(args [1]string, argsEscaped bool
 	}
 }
 
+// handleUpdateFeedbackRequest handles updateFeedback operation.
+//
+// Chỉ gửi trường đổi; note rỗng là xóa ghi chú. Không trường nào → 400
+// invalid_input; version cũ → 409 version_conflict; không có → 404 not_found.
+//
+// PATCH /api/v1/feedback/{id}
+func (s *Server) handleUpdateFeedbackRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: UpdateFeedbackOperation,
+			ID:   "updateFeedback",
+		}
+	)
+	params, err := decodeUpdateFeedbackParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeUpdateFeedbackRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response UpdateFeedbackRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    UpdateFeedbackOperation,
+			OperationSummary: "Đổi trạng thái, ghi chú nội bộ của góp ý khi version còn khớp (Task 455)",
+			OperationID:      "updateFeedback",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *UpdateFeedbackRequest
+			Params   = UpdateFeedbackParams
+			Response = UpdateFeedbackRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackUpdateFeedbackParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.UpdateFeedback(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.UpdateFeedback(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeUpdateFeedbackResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleUpdateFulfillmentSettingsRequest handles updateFulfillmentSettings operation.
 //
 // Ghi cài đặt vận chuyển khi version còn khớp (sai → 409 version_conflict); số ngoài
@@ -23058,6 +23264,108 @@ func (s *Server) handleWebSold30dRequest(args [0]string, argsEscaped bool, w htt
 	}
 
 	if err := encodeWebSold30dResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebSubmitFeedbackRequest handles webSubmitFeedback operation.
+//
+// Idempotency-Key do website sinh khi khách mở form: gửi lại cùng khóa trả cùng mã, một
+// dòng. contact là SĐT của khách có sẵn → gắn hồ sơ giữ SĐT đó (đọc trả
+// gốc hiện tại); không khớp → không gắn, không tạo khách. Trường sai → 400
+// invalid_input.
+//
+// POST /api/v1/web/feedback
+func (s *Server) handleWebSubmitFeedbackRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebSubmitFeedbackOperation,
+			ID:   "webSubmitFeedback",
+		}
+	)
+	params, err := decodeWebSubmitFeedbackParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeWebSubmitFeedbackRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response WebSubmitFeedbackRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebSubmitFeedbackOperation,
+			OperationSummary: "Website gửi góp ý của khách (form /gop-y) (Task 455)",
+			OperationID:      "webSubmitFeedback",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *WebFeedbackRequest
+			Params   = WebSubmitFeedbackParams
+			Response = WebSubmitFeedbackRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebSubmitFeedbackParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebSubmitFeedback(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebSubmitFeedback(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebSubmitFeedbackResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

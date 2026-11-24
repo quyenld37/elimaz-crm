@@ -4,14 +4,14 @@ import { KEY_PERMISSIONS, parseCidrs, permChips, validateCreate } from "./servic
 import { ALL_WEB } from "./serviceKeysTestkit";
 
 describe("quyền của khóa", () => {
-  it("đủ chín quyền web.* của identity.ServiceKeyPermissions (docs/quyen.md), đúng thứ tự", () => {
+  it("đủ mười quyền web.* của identity.ServiceKeyPermissions (docs/quyen.md), đúng thứ tự", () => {
     expect(KEY_PERMISSIONS.map((p) => p.key)).toEqual(ALL_WEB);
     expect(KEY_PERMISSIONS.filter((p) => !p.byDefault).map((p) => p.key)).toEqual(["web.flash.buy"]);
   });
 
   it("chip: ít quyền → tên từng quyền; nhiều → số quyền; quyền lạ hiện nguyên mã", () => {
     expect(permChips(["web.catalog.read", "web.orders.create"])).toEqual(["Đọc danh mục", "Tạo đơn web"]);
-    expect(permChips(ALL_WEB)).toEqual(["9 quyền website"]);
+    expect(permChips(ALL_WEB)).toEqual(["10 quyền website"]);
     expect(permChips(["web.catalog.read", "web.x.y"])).toEqual(["Đọc danh mục", "web.x.y"]);
   });
 });

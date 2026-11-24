@@ -10664,6 +10664,7 @@ func (*ErrorStatusCode) listCouponsRes()                 {}
 func (*ErrorStatusCode) listCustomerMergeCandidatesRes() {}
 func (*ErrorStatusCode) listCustomerTagsRes()            {}
 func (*ErrorStatusCode) listCustomersRes()               {}
+func (*ErrorStatusCode) listFeedbackRes()                {}
 func (*ErrorStatusCode) listJobsRes()                    {}
 func (*ErrorStatusCode) listLostFilesRes()               {}
 func (*ErrorStatusCode) listOrderDuplicatesRes()         {}
@@ -10757,6 +10758,7 @@ func (*ErrorStatusCode) updateCouponRes()                {}
 func (*ErrorStatusCode) updateCustomerAddressRes()       {}
 func (*ErrorStatusCode) updateCustomerRes()              {}
 func (*ErrorStatusCode) updateCustomerTagRes()           {}
+func (*ErrorStatusCode) updateFeedbackRes()              {}
 func (*ErrorStatusCode) updateFulfillmentSettingsRes()   {}
 func (*ErrorStatusCode) updateOrderRes()                 {}
 func (*ErrorStatusCode) updateOrderSettingsRes()         {}
@@ -10797,6 +10799,7 @@ func (*ErrorStatusCode) webReplyRequestRes()             {}
 func (*ErrorStatusCode) webShippingCarriersRes()         {}
 func (*ErrorStatusCode) webShippingQuoteRes()            {}
 func (*ErrorStatusCode) webSold30dRes()                  {}
+func (*ErrorStatusCode) webSubmitFeedbackRes()           {}
 func (*ErrorStatusCode) webUploadRequestFileRes()        {}
 
 // Một loại lỗi ứng dụng gộp theo dấu vân tay (Task 20). message đã lọc chuỗi từ
@@ -10880,6 +10883,341 @@ func (s *ErrorSummary) SetFirstSeenAt(val time.Time) {
 // SetLastSeenAt sets the value of LastSeenAt.
 func (s *ErrorSummary) SetLastSeenAt(val time.Time) {
 	s.LastSeenAt = val
+}
+
+// Ref: #/components/schemas/Feedback
+type Feedback struct {
+	ID       uuid.UUID     `json:"id"`
+	Topic    FeedbackTopic `json:"topic"`
+	Mood     OptInt32      `json:"mood"`
+	Body     string        `json:"body"`
+	Name     OptString     `json:"name"`
+	Contact  OptString     `json:"contact"`
+	OrderRef OptString     `json:"orderRef"`
+	Page     OptString     `json:"page"`
+	Device   OptString     `json:"device"`
+	State    FeedbackState `json:"state"`
+	Note     OptString     `json:"note"`
+	// Gốc hiện tại của khách được gắn lúc gửi.
+	CustomerId   OptUUID   `json:"customerId"`
+	CustomerName OptString `json:"customerName"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+	// Tên nhân viên sửa gần nhất.
+	UpdatedByName OptString `json:"updatedByName"`
+	Version       int32     `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *Feedback) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetTopic returns the value of Topic.
+func (s *Feedback) GetTopic() FeedbackTopic {
+	return s.Topic
+}
+
+// GetMood returns the value of Mood.
+func (s *Feedback) GetMood() OptInt32 {
+	return s.Mood
+}
+
+// GetBody returns the value of Body.
+func (s *Feedback) GetBody() string {
+	return s.Body
+}
+
+// GetName returns the value of Name.
+func (s *Feedback) GetName() OptString {
+	return s.Name
+}
+
+// GetContact returns the value of Contact.
+func (s *Feedback) GetContact() OptString {
+	return s.Contact
+}
+
+// GetOrderRef returns the value of OrderRef.
+func (s *Feedback) GetOrderRef() OptString {
+	return s.OrderRef
+}
+
+// GetPage returns the value of Page.
+func (s *Feedback) GetPage() OptString {
+	return s.Page
+}
+
+// GetDevice returns the value of Device.
+func (s *Feedback) GetDevice() OptString {
+	return s.Device
+}
+
+// GetState returns the value of State.
+func (s *Feedback) GetState() FeedbackState {
+	return s.State
+}
+
+// GetNote returns the value of Note.
+func (s *Feedback) GetNote() OptString {
+	return s.Note
+}
+
+// GetCustomerId returns the value of CustomerId.
+func (s *Feedback) GetCustomerId() OptUUID {
+	return s.CustomerId
+}
+
+// GetCustomerName returns the value of CustomerName.
+func (s *Feedback) GetCustomerName() OptString {
+	return s.CustomerName
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *Feedback) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *Feedback) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// GetUpdatedByName returns the value of UpdatedByName.
+func (s *Feedback) GetUpdatedByName() OptString {
+	return s.UpdatedByName
+}
+
+// GetVersion returns the value of Version.
+func (s *Feedback) GetVersion() int32 {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *Feedback) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetTopic sets the value of Topic.
+func (s *Feedback) SetTopic(val FeedbackTopic) {
+	s.Topic = val
+}
+
+// SetMood sets the value of Mood.
+func (s *Feedback) SetMood(val OptInt32) {
+	s.Mood = val
+}
+
+// SetBody sets the value of Body.
+func (s *Feedback) SetBody(val string) {
+	s.Body = val
+}
+
+// SetName sets the value of Name.
+func (s *Feedback) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetContact sets the value of Contact.
+func (s *Feedback) SetContact(val OptString) {
+	s.Contact = val
+}
+
+// SetOrderRef sets the value of OrderRef.
+func (s *Feedback) SetOrderRef(val OptString) {
+	s.OrderRef = val
+}
+
+// SetPage sets the value of Page.
+func (s *Feedback) SetPage(val OptString) {
+	s.Page = val
+}
+
+// SetDevice sets the value of Device.
+func (s *Feedback) SetDevice(val OptString) {
+	s.Device = val
+}
+
+// SetState sets the value of State.
+func (s *Feedback) SetState(val FeedbackState) {
+	s.State = val
+}
+
+// SetNote sets the value of Note.
+func (s *Feedback) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetCustomerId sets the value of CustomerId.
+func (s *Feedback) SetCustomerId(val OptUUID) {
+	s.CustomerId = val
+}
+
+// SetCustomerName sets the value of CustomerName.
+func (s *Feedback) SetCustomerName(val OptString) {
+	s.CustomerName = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *Feedback) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *Feedback) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// SetUpdatedByName sets the value of UpdatedByName.
+func (s *Feedback) SetUpdatedByName(val OptString) {
+	s.UpdatedByName = val
+}
+
+// SetVersion sets the value of Version.
+func (s *Feedback) SetVersion(val int32) {
+	s.Version = val
+}
+
+func (*Feedback) updateFeedbackRes() {}
+
+// Ref: #/components/schemas/FeedbackPage
+type FeedbackPage struct {
+	Items      []Feedback `json:"items"`
+	NextCursor OptString  `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *FeedbackPage) GetItems() []Feedback {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *FeedbackPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *FeedbackPage) SetItems(val []Feedback) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *FeedbackPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*FeedbackPage) listFeedbackRes() {}
+
+// Ref: #/components/schemas/FeedbackState
+type FeedbackState string
+
+const (
+	FeedbackStateNew      FeedbackState = "new"
+	FeedbackStateSeen     FeedbackState = "seen"
+	FeedbackStateAnswered FeedbackState = "answered"
+)
+
+// AllValues returns all FeedbackState values.
+func (FeedbackState) AllValues() []FeedbackState {
+	return []FeedbackState{
+		FeedbackStateNew,
+		FeedbackStateSeen,
+		FeedbackStateAnswered,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedbackState) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedbackStateNew:
+		return []byte(s), nil
+	case FeedbackStateSeen:
+		return []byte(s), nil
+	case FeedbackStateAnswered:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedbackState) UnmarshalText(data []byte) error {
+	switch FeedbackState(data) {
+	case FeedbackStateNew:
+		*s = FeedbackStateNew
+		return nil
+	case FeedbackStateSeen:
+		*s = FeedbackStateSeen
+		return nil
+	case FeedbackStateAnswered:
+		*s = FeedbackStateAnswered
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/FeedbackTopic
+type FeedbackTopic string
+
+const (
+	FeedbackTopicProduct  FeedbackTopic = "product"
+	FeedbackTopicDelivery FeedbackTopic = "delivery"
+	FeedbackTopicWebsite  FeedbackTopic = "website"
+	FeedbackTopicService  FeedbackTopic = "service"
+	FeedbackTopicOther    FeedbackTopic = "other"
+)
+
+// AllValues returns all FeedbackTopic values.
+func (FeedbackTopic) AllValues() []FeedbackTopic {
+	return []FeedbackTopic{
+		FeedbackTopicProduct,
+		FeedbackTopicDelivery,
+		FeedbackTopicWebsite,
+		FeedbackTopicService,
+		FeedbackTopicOther,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedbackTopic) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedbackTopicProduct:
+		return []byte(s), nil
+	case FeedbackTopicDelivery:
+		return []byte(s), nil
+	case FeedbackTopicWebsite:
+		return []byte(s), nil
+	case FeedbackTopicService:
+		return []byte(s), nil
+	case FeedbackTopicOther:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedbackTopic) UnmarshalText(data []byte) error {
+	switch FeedbackTopic(data) {
+	case FeedbackTopicProduct:
+		*s = FeedbackTopicProduct
+		return nil
+	case FeedbackTopicDelivery:
+		*s = FeedbackTopicDelivery
+		return nil
+	case FeedbackTopicWebsite:
+		*s = FeedbackTopicWebsite
+		return nil
+	case FeedbackTopicService:
+		*s = FeedbackTopicService
+		return nil
+	case FeedbackTopicOther:
+		*s = FeedbackTopicOther
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/FileInfo
@@ -15972,6 +16310,98 @@ func (o OptErrorField) Get() (v ErrorField, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptErrorField) Or(d ErrorField) ErrorField {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFeedbackState returns new OptFeedbackState with value set to v.
+func NewOptFeedbackState(v FeedbackState) OptFeedbackState {
+	return OptFeedbackState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFeedbackState is optional FeedbackState.
+type OptFeedbackState struct {
+	Value FeedbackState
+	Set   bool
+}
+
+// IsSet returns true if OptFeedbackState was set.
+func (o OptFeedbackState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFeedbackState) Reset() {
+	var v FeedbackState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFeedbackState) SetTo(v FeedbackState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFeedbackState) Get() (v FeedbackState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFeedbackState) Or(d FeedbackState) FeedbackState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFeedbackTopic returns new OptFeedbackTopic with value set to v.
+func NewOptFeedbackTopic(v FeedbackTopic) OptFeedbackTopic {
+	return OptFeedbackTopic{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFeedbackTopic is optional FeedbackTopic.
+type OptFeedbackTopic struct {
+	Value FeedbackTopic
+	Set   bool
+}
+
+// IsSet returns true if OptFeedbackTopic was set.
+func (o OptFeedbackTopic) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFeedbackTopic) Reset() {
+	var v FeedbackTopic
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFeedbackTopic) SetTo(v FeedbackTopic) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFeedbackTopic) Get() (v FeedbackTopic, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFeedbackTopic) Or(d FeedbackTopic) FeedbackTopic {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -25018,6 +25448,7 @@ func (*RetryLaterHeaders) webImportCouponsRes()       {}
 func (*RetryLaterHeaders) webMarkCouponGivenRes()     {}
 func (*RetryLaterHeaders) webRegisterBirthdayRes()    {}
 func (*RetryLaterHeaders) webReplyRequestRes()        {}
+func (*RetryLaterHeaders) webSubmitFeedbackRes()      {}
 func (*RetryLaterHeaders) webUploadRequestFileRes()   {}
 
 // Ref: #/components/schemas/Return
@@ -31041,6 +31472,44 @@ func (s *UpdateCustomerTagRequest) SetColor(val OptTagColor) {
 	s.Color = val
 }
 
+// Ref: #/components/schemas/UpdateFeedbackRequest
+type UpdateFeedbackRequest struct {
+	Version int32            `json:"version"`
+	State   OptFeedbackState `json:"state"`
+	// Rỗng là xóa ghi chú.
+	Note OptString `json:"note"`
+}
+
+// GetVersion returns the value of Version.
+func (s *UpdateFeedbackRequest) GetVersion() int32 {
+	return s.Version
+}
+
+// GetState returns the value of State.
+func (s *UpdateFeedbackRequest) GetState() OptFeedbackState {
+	return s.State
+}
+
+// GetNote returns the value of Note.
+func (s *UpdateFeedbackRequest) GetNote() OptString {
+	return s.Note
+}
+
+// SetVersion sets the value of Version.
+func (s *UpdateFeedbackRequest) SetVersion(val int32) {
+	s.Version = val
+}
+
+// SetState sets the value of State.
+func (s *UpdateFeedbackRequest) SetState(val OptFeedbackState) {
+	s.State = val
+}
+
+// SetNote sets the value of Note.
+func (s *UpdateFeedbackRequest) SetNote(val OptString) {
+	s.Note = val
+}
+
 // Ghi cả bộ; mọi số > 0, highRateBp 1–10.000 (kiểm ở máy chủ, sai → 422).
 // Ref: #/components/schemas/UpdateFulfillmentSettingsRequest
 type UpdateFulfillmentSettingsRequest struct {
@@ -34673,6 +35142,128 @@ func (s *WebDeliveryEstimates) SetProvinces(val []WebDeliveryEstimate) {
 }
 
 func (*WebDeliveryEstimates) webDeliveryEstimatesRes() {}
+
+// Ref: #/components/schemas/WebFeedbackRequest
+type WebFeedbackRequest struct {
+	Topic FeedbackTopic `json:"topic"`
+	Mood  OptInt32      `json:"mood"`
+	Body  string        `json:"body"`
+	Name  OptString     `json:"name"`
+	// SĐT hay email khách để lại.
+	Contact  OptString `json:"contact"`
+	OrderRef OptString `json:"orderRef"`
+	Page     OptString `json:"page"`
+	Device   OptString `json:"device"`
+	// Băm địa chỉ của khách do website tính.
+	ClientHash OptString `json:"clientHash"`
+}
+
+// GetTopic returns the value of Topic.
+func (s *WebFeedbackRequest) GetTopic() FeedbackTopic {
+	return s.Topic
+}
+
+// GetMood returns the value of Mood.
+func (s *WebFeedbackRequest) GetMood() OptInt32 {
+	return s.Mood
+}
+
+// GetBody returns the value of Body.
+func (s *WebFeedbackRequest) GetBody() string {
+	return s.Body
+}
+
+// GetName returns the value of Name.
+func (s *WebFeedbackRequest) GetName() OptString {
+	return s.Name
+}
+
+// GetContact returns the value of Contact.
+func (s *WebFeedbackRequest) GetContact() OptString {
+	return s.Contact
+}
+
+// GetOrderRef returns the value of OrderRef.
+func (s *WebFeedbackRequest) GetOrderRef() OptString {
+	return s.OrderRef
+}
+
+// GetPage returns the value of Page.
+func (s *WebFeedbackRequest) GetPage() OptString {
+	return s.Page
+}
+
+// GetDevice returns the value of Device.
+func (s *WebFeedbackRequest) GetDevice() OptString {
+	return s.Device
+}
+
+// GetClientHash returns the value of ClientHash.
+func (s *WebFeedbackRequest) GetClientHash() OptString {
+	return s.ClientHash
+}
+
+// SetTopic sets the value of Topic.
+func (s *WebFeedbackRequest) SetTopic(val FeedbackTopic) {
+	s.Topic = val
+}
+
+// SetMood sets the value of Mood.
+func (s *WebFeedbackRequest) SetMood(val OptInt32) {
+	s.Mood = val
+}
+
+// SetBody sets the value of Body.
+func (s *WebFeedbackRequest) SetBody(val string) {
+	s.Body = val
+}
+
+// SetName sets the value of Name.
+func (s *WebFeedbackRequest) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetContact sets the value of Contact.
+func (s *WebFeedbackRequest) SetContact(val OptString) {
+	s.Contact = val
+}
+
+// SetOrderRef sets the value of OrderRef.
+func (s *WebFeedbackRequest) SetOrderRef(val OptString) {
+	s.OrderRef = val
+}
+
+// SetPage sets the value of Page.
+func (s *WebFeedbackRequest) SetPage(val OptString) {
+	s.Page = val
+}
+
+// SetDevice sets the value of Device.
+func (s *WebFeedbackRequest) SetDevice(val OptString) {
+	s.Device = val
+}
+
+// SetClientHash sets the value of ClientHash.
+func (s *WebFeedbackRequest) SetClientHash(val OptString) {
+	s.ClientHash = val
+}
+
+// Ref: #/components/schemas/WebFeedbackResult
+type WebFeedbackResult struct {
+	ID uuid.UUID `json:"id"`
+}
+
+// GetID returns the value of ID.
+func (s *WebFeedbackResult) GetID() uuid.UUID {
+	return s.ID
+}
+
+// SetID sets the value of ID.
+func (s *WebFeedbackResult) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+func (*WebFeedbackResult) webSubmitFeedbackRes() {}
 
 // Ref: #/components/schemas/WebHomeBanner
 type WebHomeBanner struct {

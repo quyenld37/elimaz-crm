@@ -4376,6 +4376,72 @@ export type BirthdayExport = {
     csv: string;
 };
 
+export type FeedbackState = 'new' | 'seen' | 'answered';
+
+export type FeedbackTopic = 'product' | 'delivery' | 'website' | 'service' | 'other';
+
+export type WebFeedbackRequest = {
+    topic: FeedbackTopic;
+    mood?: number;
+    body: string;
+    name?: string;
+    /**
+     * SĐT hay email khách để lại
+     */
+    contact?: string;
+    orderRef?: string;
+    page?: string;
+    device?: string;
+    /**
+     * Băm địa chỉ của khách do website tính
+     */
+    clientHash?: string;
+};
+
+export type WebFeedbackResult = {
+    id: string;
+};
+
+export type Feedback = {
+    id: string;
+    topic: FeedbackTopic;
+    mood?: number;
+    body: string;
+    name?: string;
+    contact?: string;
+    orderRef?: string;
+    page?: string;
+    device?: string;
+    state: FeedbackState;
+    note?: string;
+    /**
+     * Gốc hiện tại của khách được gắn lúc gửi
+     */
+    customerId?: string;
+    customerName?: string;
+    createdAt: string;
+    updatedAt: string;
+    /**
+     * Tên nhân viên sửa gần nhất
+     */
+    updatedByName?: string;
+    version: number;
+};
+
+export type FeedbackPage = {
+    items: Array<Feedback>;
+    nextCursor?: string;
+};
+
+export type UpdateFeedbackRequest = {
+    version: number;
+    state?: FeedbackState;
+    /**
+     * Rỗng là xóa ghi chú
+     */
+    note?: string;
+};
+
 export type WebBirthdayRequest = {
     phone: PhoneInput;
     /**
@@ -7469,6 +7535,73 @@ export type AddCustomerNoteResponses = {
 };
 
 export type AddCustomerNoteResponse = AddCustomerNoteResponses[keyof AddCustomerNoteResponses];
+
+export type ListFeedbackData = {
+    body?: never;
+    path?: never;
+    query?: {
+        state?: FeedbackState;
+        topic?: FeedbackTopic;
+        customerId?: string;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/feedback';
+};
+
+export type ListFeedbackErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListFeedbackError = ListFeedbackErrors[keyof ListFeedbackErrors];
+
+export type ListFeedbackResponses = {
+    /**
+     * Một trang góp ý
+     */
+    200: FeedbackPage;
+};
+
+export type ListFeedbackResponse = ListFeedbackResponses[keyof ListFeedbackResponses];
+
+export type UpdateFeedbackData = {
+    body: UpdateFeedbackRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/feedback/{id}';
+};
+
+export type UpdateFeedbackErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type UpdateFeedbackError = UpdateFeedbackErrors[keyof UpdateFeedbackErrors];
+
+export type UpdateFeedbackResponses = {
+    /**
+     * Góp ý sau khi sửa
+     */
+    200: Feedback;
+};
+
+export type UpdateFeedbackResponse = UpdateFeedbackResponses[keyof UpdateFeedbackResponses];
 
 export type ListCustomerTagsData = {
     body?: never;
@@ -11757,6 +11890,41 @@ export type WebBirthdayStopResponses = {
 };
 
 export type WebBirthdayStopResponse = WebBirthdayStopResponses[keyof WebBirthdayStopResponses];
+
+export type WebSubmitFeedbackData = {
+    body: WebFeedbackRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/feedback';
+};
+
+export type WebSubmitFeedbackErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebSubmitFeedbackError = WebSubmitFeedbackErrors[keyof WebSubmitFeedbackErrors];
+
+export type WebSubmitFeedbackResponses = {
+    /**
+     * Đã lưu góp ý
+     */
+    201: WebFeedbackResult;
+};
+
+export type WebSubmitFeedbackResponse = WebSubmitFeedbackResponses[keyof WebSubmitFeedbackResponses];
 
 export type WebBirthdayOutboxData = {
     body?: never;

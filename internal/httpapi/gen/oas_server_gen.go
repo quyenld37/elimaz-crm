@@ -777,6 +777,14 @@ type Handler interface {
 	//
 	// GET /api/v1/customers
 	ListCustomers(ctx context.Context, params ListCustomersParams) (ListCustomersRes, error)
+	// ListFeedback implements listFeedback operation.
+	//
+	// CustomerId là gốc hay hồ sơ con: trả mọi góp ý gắn với nhóm của khách đó
+	// (khách đã gộp vẫn thấy). Khách không có → 404 not_found; con trỏ hỏng → 400
+	// invalid_input. Có nội dung, liên lạc của khách: không ghi log.
+	//
+	// GET /api/v1/feedback
+	ListFeedback(ctx context.Context, params ListFeedbackParams) (ListFeedbackRes, error)
 	// ListJobs implements listJobs operation.
 	//
 	// Việc nền cần người xử lý của tenant người gọi (không có payload).
@@ -1423,6 +1431,13 @@ type Handler interface {
 	//
 	// PATCH /api/v1/customer-tags/{tagId}
 	UpdateCustomerTag(ctx context.Context, req *UpdateCustomerTagRequest, params UpdateCustomerTagParams) (UpdateCustomerTagRes, error)
+	// UpdateFeedback implements updateFeedback operation.
+	//
+	// Chỉ gửi trường đổi; note rỗng là xóa ghi chú. Không trường nào → 400
+	// invalid_input; version cũ → 409 version_conflict; không có → 404 not_found.
+	//
+	// PATCH /api/v1/feedback/{id}
+	UpdateFeedback(ctx context.Context, req *UpdateFeedbackRequest, params UpdateFeedbackParams) (UpdateFeedbackRes, error)
 	// UpdateFulfillmentSettings implements updateFulfillmentSettings operation.
 	//
 	// Ghi cài đặt vận chuyển khi version còn khớp (sai → 409 version_conflict); số ngoài
@@ -1756,6 +1771,15 @@ type Handler interface {
 	//
 	// GET /api/v1/web/catalog/sold-30d
 	WebSold30d(ctx context.Context) (WebSold30dRes, error)
+	// WebSubmitFeedback implements webSubmitFeedback operation.
+	//
+	// Idempotency-Key do website sinh khi khách mở form: gửi lại cùng khóa trả cùng mã, một
+	// dòng. contact là SĐT của khách có sẵn → gắn hồ sơ giữ SĐT đó (đọc trả
+	// gốc hiện tại); không khớp → không gắn, không tạo khách. Trường sai → 400
+	// invalid_input.
+	//
+	// POST /api/v1/web/feedback
+	WebSubmitFeedback(ctx context.Context, req *WebFeedbackRequest, params WebSubmitFeedbackParams) (WebSubmitFeedbackRes, error)
 	// WebUploadRequestFile implements webUploadRequestFile operation.
 	//
 	// Thân là nguyên byte ảnh, Content-Type là loại ảnh. CRM không tự kiểm nội dung:
