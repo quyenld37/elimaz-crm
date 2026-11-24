@@ -47,8 +47,9 @@ try:
     os.nice(10)
 except OSError:
     pass
-# 23/11 (chủ shop: quạt chạy, máy nóng): chế độ nền của macOS (taskpolicy -b) — lệnh và mọi tiến trình con chỉ chạy
-# trên lõi tiết kiệm điện, nhường lõi hiệu năng cho người dùng. Đo cash + imager -race: 29–31 s → 30–31,5 s (colima 4 lõi).
+# Ưu tiên thấp của macOS: lớp QoS "utility" (taskpolicy -c utility) — nhường máy cho người dùng mà không hãm đọc ghi
+# đĩa. 24/11 đo: chế độ nền (-b, dùng từ 23/11) hãm cả I/O, dịch lại mã chậm 10 lần (go build -a: -b 102 s, utility
+# 11 s, nice 9 s) — bước build của ci-task Task 468 mất 352 s thay vì 20–44 s.
 if sys.platform == "darwin" and os.path.exists("/usr/sbin/taskpolicy"):
-    cmd = ["/usr/sbin/taskpolicy", "-b", *cmd]
+    cmd = ["/usr/sbin/taskpolicy", "-c", "utility", *cmd]
 os.execvp(cmd[0], cmd)
