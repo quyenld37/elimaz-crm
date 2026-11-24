@@ -10623,6 +10623,7 @@ func (*ErrorStatusCode) getCustomerTimelineRes()         {}
 func (*ErrorStatusCode) getFileRes()                     {}
 func (*ErrorStatusCode) getFulfillmentSettingsRes()      {}
 func (*ErrorStatusCode) getLabelBatchRes()               {}
+func (*ErrorStatusCode) getLooksRes()                    {}
 func (*ErrorStatusCode) getMeRes()                       {}
 func (*ErrorStatusCode) getOrderRequestRes()             {}
 func (*ErrorStatusCode) getOrderRes()                    {}
@@ -10699,6 +10700,7 @@ func (*ErrorStatusCode) payRefundObligationRes()         {}
 func (*ErrorStatusCode) postStockDocumentRes()           {}
 func (*ErrorStatusCode) previewBannersRes()              {}
 func (*ErrorStatusCode) previewCodAdjustmentRes()        {}
+func (*ErrorStatusCode) previewLooksRes()                {}
 func (*ErrorStatusCode) previewShipmentCorrectionRes()   {}
 func (*ErrorStatusCode) previewWebCampaignRes()          {}
 func (*ErrorStatusCode) putCarrierCredentialsRes()       {}
@@ -10728,6 +10730,7 @@ func (*ErrorStatusCode) revokeServiceKeyRes()            {}
 func (*ErrorStatusCode) runBirthdayGiftsRes()            {}
 func (*ErrorStatusCode) saveBannersRes()                 {}
 func (*ErrorStatusCode) saveBirthdaySettingsRes()        {}
+func (*ErrorStatusCode) saveLooksRes()                   {}
 func (*ErrorStatusCode) saveWebCampaignRes()             {}
 func (*ErrorStatusCode) saveWebCarrierSettingsRes()      {}
 func (*ErrorStatusCode) searchVariantsRes()              {}
@@ -10780,10 +10783,12 @@ func (*ErrorStatusCode) webCreateRequestRes()            {}
 func (*ErrorStatusCode) webDeliveryEstimatesRes()        {}
 func (*ErrorStatusCode) webGetOrderRes()                 {}
 func (*ErrorStatusCode) webHomeBannersRes()              {}
+func (*ErrorStatusCode) webHomeLooksRes()                {}
 func (*ErrorStatusCode) webImportCouponsRes()            {}
 func (*ErrorStatusCode) webIntakeStatusRes()             {}
 func (*ErrorStatusCode) webListRequestsRes()             {}
 func (*ErrorStatusCode) webLocationsRes()                {}
+func (*ErrorStatusCode) webLookRes()                     {}
 func (*ErrorStatusCode) webMarkCouponGivenRes()          {}
 func (*ErrorStatusCode) webOrderChangesRes()             {}
 func (*ErrorStatusCode) webQuoteRes()                    {}
@@ -13248,6 +13253,644 @@ func (s *ListUnmappedLocationsLevel) UnmarshalText(data []byte) error {
 type ListWarehousesOKApplicationJSON []Warehouse
 
 func (*ListWarehousesOKApplicationJSON) listWarehousesRes() {}
+
+// Một bộ phối (Task 454). onHome: hiện trên trang chủ (≤ 6); bộ nào cũng mở
+// được bằng link. title rỗng = tên các món; headline, story rỗng = không hiện.
+// photoFileId là mã tệp của một ảnh sản phẩm của các món. Giới hạn (kiểm ở
+// máy chủ, 422): tên 1–28, title 60, headline 90, story 220, modelSize 6 ký tự, modelHeightCm
+// 130–200, ≤ 6 categoryIds, 1–3 món.
+// Ref: #/components/schemas/Look
+type Look struct {
+	ID            uuid.UUID   `json:"id"`
+	OnHome        bool        `json:"onHome"`
+	Name          string      `json:"name"`
+	Title         OptString   `json:"title"`
+	Headline      OptString   `json:"headline"`
+	Story         OptString   `json:"story"`
+	PhotoFileId   uuid.UUID   `json:"photoFileId"`
+	CategoryIds   []uuid.UUID `json:"categoryIds"`
+	ModelHeightCm OptInt32    `json:"modelHeightCm"`
+	ModelSize     OptString   `json:"modelSize"`
+	StartsAt      OptDateTime `json:"startsAt"`
+	EndsAt        OptDateTime `json:"endsAt"`
+	Items         []LookItem  `json:"items"`
+}
+
+// GetID returns the value of ID.
+func (s *Look) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetOnHome returns the value of OnHome.
+func (s *Look) GetOnHome() bool {
+	return s.OnHome
+}
+
+// GetName returns the value of Name.
+func (s *Look) GetName() string {
+	return s.Name
+}
+
+// GetTitle returns the value of Title.
+func (s *Look) GetTitle() OptString {
+	return s.Title
+}
+
+// GetHeadline returns the value of Headline.
+func (s *Look) GetHeadline() OptString {
+	return s.Headline
+}
+
+// GetStory returns the value of Story.
+func (s *Look) GetStory() OptString {
+	return s.Story
+}
+
+// GetPhotoFileId returns the value of PhotoFileId.
+func (s *Look) GetPhotoFileId() uuid.UUID {
+	return s.PhotoFileId
+}
+
+// GetCategoryIds returns the value of CategoryIds.
+func (s *Look) GetCategoryIds() []uuid.UUID {
+	return s.CategoryIds
+}
+
+// GetModelHeightCm returns the value of ModelHeightCm.
+func (s *Look) GetModelHeightCm() OptInt32 {
+	return s.ModelHeightCm
+}
+
+// GetModelSize returns the value of ModelSize.
+func (s *Look) GetModelSize() OptString {
+	return s.ModelSize
+}
+
+// GetStartsAt returns the value of StartsAt.
+func (s *Look) GetStartsAt() OptDateTime {
+	return s.StartsAt
+}
+
+// GetEndsAt returns the value of EndsAt.
+func (s *Look) GetEndsAt() OptDateTime {
+	return s.EndsAt
+}
+
+// GetItems returns the value of Items.
+func (s *Look) GetItems() []LookItem {
+	return s.Items
+}
+
+// SetID sets the value of ID.
+func (s *Look) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetOnHome sets the value of OnHome.
+func (s *Look) SetOnHome(val bool) {
+	s.OnHome = val
+}
+
+// SetName sets the value of Name.
+func (s *Look) SetName(val string) {
+	s.Name = val
+}
+
+// SetTitle sets the value of Title.
+func (s *Look) SetTitle(val OptString) {
+	s.Title = val
+}
+
+// SetHeadline sets the value of Headline.
+func (s *Look) SetHeadline(val OptString) {
+	s.Headline = val
+}
+
+// SetStory sets the value of Story.
+func (s *Look) SetStory(val OptString) {
+	s.Story = val
+}
+
+// SetPhotoFileId sets the value of PhotoFileId.
+func (s *Look) SetPhotoFileId(val uuid.UUID) {
+	s.PhotoFileId = val
+}
+
+// SetCategoryIds sets the value of CategoryIds.
+func (s *Look) SetCategoryIds(val []uuid.UUID) {
+	s.CategoryIds = val
+}
+
+// SetModelHeightCm sets the value of ModelHeightCm.
+func (s *Look) SetModelHeightCm(val OptInt32) {
+	s.ModelHeightCm = val
+}
+
+// SetModelSize sets the value of ModelSize.
+func (s *Look) SetModelSize(val OptString) {
+	s.ModelSize = val
+}
+
+// SetStartsAt sets the value of StartsAt.
+func (s *Look) SetStartsAt(val OptDateTime) {
+	s.StartsAt = val
+}
+
+// SetEndsAt sets the value of EndsAt.
+func (s *Look) SetEndsAt(val OptDateTime) {
+	s.EndsAt = val
+}
+
+// SetItems sets the value of Items.
+func (s *Look) SetItems(val []LookItem) {
+	s.Items = val
+}
+
+// Lý do bộ phối không hiện (đúng tên của website cũ).
+// Ref: #/components/schemas/LookHidden
+type LookHidden string
+
+const (
+	LookHiddenDisabled       LookHidden = "disabled"
+	LookHiddenScheduled      LookHidden = "scheduled"
+	LookHiddenExpired        LookHidden = "expired"
+	LookHiddenProductMissing LookHidden = "product-missing"
+	LookHiddenSoldOut        LookHidden = "sold-out"
+	LookHiddenPhotoMissing   LookHidden = "photo-missing"
+)
+
+// AllValues returns all LookHidden values.
+func (LookHidden) AllValues() []LookHidden {
+	return []LookHidden{
+		LookHiddenDisabled,
+		LookHiddenScheduled,
+		LookHiddenExpired,
+		LookHiddenProductMissing,
+		LookHiddenSoldOut,
+		LookHiddenPhotoMissing,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LookHidden) MarshalText() ([]byte, error) {
+	switch s {
+	case LookHiddenDisabled:
+		return []byte(s), nil
+	case LookHiddenScheduled:
+		return []byte(s), nil
+	case LookHiddenExpired:
+		return []byte(s), nil
+	case LookHiddenProductMissing:
+		return []byte(s), nil
+	case LookHiddenSoldOut:
+		return []byte(s), nil
+	case LookHiddenPhotoMissing:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LookHidden) UnmarshalText(data []byte) error {
+	switch LookHidden(data) {
+	case LookHiddenDisabled:
+		*s = LookHiddenDisabled
+		return nil
+	case LookHiddenScheduled:
+		*s = LookHiddenScheduled
+		return nil
+	case LookHiddenExpired:
+		*s = LookHiddenExpired
+		return nil
+	case LookHiddenProductMissing:
+		*s = LookHiddenProductMissing
+		return nil
+	case LookHiddenSoldOut:
+		*s = LookHiddenSoldOut
+		return nil
+	case LookHiddenPhotoMissing:
+		*s = LookHiddenPhotoMissing
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/LookItem
+type LookItem struct {
+	ProductId uuid.UUID `json:"productId"`
+	// Màu đang mặc trong ảnh; rỗng = màu đầu tiên còn hàng (website tự chọn).
+	Color OptString `json:"color"`
+	// Chấm trên ảnh, % chiều rộng (0–100, làm tròn 2 chữ số).
+	X float64 `json:"x"`
+	// Chấm trên ảnh, % chiều cao (0–100).
+	Y float64 `json:"y"`
+}
+
+// GetProductId returns the value of ProductId.
+func (s *LookItem) GetProductId() uuid.UUID {
+	return s.ProductId
+}
+
+// GetColor returns the value of Color.
+func (s *LookItem) GetColor() OptString {
+	return s.Color
+}
+
+// GetX returns the value of X.
+func (s *LookItem) GetX() float64 {
+	return s.X
+}
+
+// GetY returns the value of Y.
+func (s *LookItem) GetY() float64 {
+	return s.Y
+}
+
+// SetProductId sets the value of ProductId.
+func (s *LookItem) SetProductId(val uuid.UUID) {
+	s.ProductId = val
+}
+
+// SetColor sets the value of Color.
+func (s *LookItem) SetColor(val OptString) {
+	s.Color = val
+}
+
+// SetX sets the value of X.
+func (s *LookItem) SetX(val float64) {
+	s.X = val
+}
+
+// SetY sets the value of Y.
+func (s *LookItem) SetY(val float64) {
+	s.Y = val
+}
+
+// Danh sách bộ phối (Task 454). products chỉ gồm mẫu chưa xóa mà danh sách nhắc;
+// photos là ảnh đang hiện của các mẫu đó (chọn ảnh người mẫu); categories là
+// danh mục đang dùng.
+// Ref: #/components/schemas/LookList
+type LookList struct {
+	Revision   int32                `json:"revision"`
+	UpdatedBy  OptUUID              `json:"updatedBy"`
+	UpdatedAt  OptDateTime          `json:"updatedAt"`
+	Looks      []Look               `json:"looks"`
+	Statuses   []LookStatus         `json:"statuses"`
+	Products   []LookProductRef     `json:"products"`
+	Photos     []LookPhoto          `json:"photos"`
+	Categories []HomeBannerCategory `json:"categories"`
+}
+
+// GetRevision returns the value of Revision.
+func (s *LookList) GetRevision() int32 {
+	return s.Revision
+}
+
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *LookList) GetUpdatedBy() OptUUID {
+	return s.UpdatedBy
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *LookList) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// GetLooks returns the value of Looks.
+func (s *LookList) GetLooks() []Look {
+	return s.Looks
+}
+
+// GetStatuses returns the value of Statuses.
+func (s *LookList) GetStatuses() []LookStatus {
+	return s.Statuses
+}
+
+// GetProducts returns the value of Products.
+func (s *LookList) GetProducts() []LookProductRef {
+	return s.Products
+}
+
+// GetPhotos returns the value of Photos.
+func (s *LookList) GetPhotos() []LookPhoto {
+	return s.Photos
+}
+
+// GetCategories returns the value of Categories.
+func (s *LookList) GetCategories() []HomeBannerCategory {
+	return s.Categories
+}
+
+// SetRevision sets the value of Revision.
+func (s *LookList) SetRevision(val int32) {
+	s.Revision = val
+}
+
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *LookList) SetUpdatedBy(val OptUUID) {
+	s.UpdatedBy = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *LookList) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetLooks sets the value of Looks.
+func (s *LookList) SetLooks(val []Look) {
+	s.Looks = val
+}
+
+// SetStatuses sets the value of Statuses.
+func (s *LookList) SetStatuses(val []LookStatus) {
+	s.Statuses = val
+}
+
+// SetProducts sets the value of Products.
+func (s *LookList) SetProducts(val []LookProductRef) {
+	s.Products = val
+}
+
+// SetPhotos sets the value of Photos.
+func (s *LookList) SetPhotos(val []LookPhoto) {
+	s.Photos = val
+}
+
+// SetCategories sets the value of Categories.
+func (s *LookList) SetCategories(val []HomeBannerCategory) {
+	s.Categories = val
+}
+
+func (*LookList) getLooksRes()  {}
+func (*LookList) saveLooksRes() {}
+
+// Ref: #/components/schemas/LookPhoto
+type LookPhoto struct {
+	ProductId uuid.UUID         `json:"productId"`
+	FileId    uuid.UUID         `json:"fileId"`
+	Color     OptString         `json:"color"`
+	Position  int32             `json:"position"`
+	Ready     bool              `json:"ready"`
+	Variants  []WebImageVariant `json:"variants"`
+}
+
+// GetProductId returns the value of ProductId.
+func (s *LookPhoto) GetProductId() uuid.UUID {
+	return s.ProductId
+}
+
+// GetFileId returns the value of FileId.
+func (s *LookPhoto) GetFileId() uuid.UUID {
+	return s.FileId
+}
+
+// GetColor returns the value of Color.
+func (s *LookPhoto) GetColor() OptString {
+	return s.Color
+}
+
+// GetPosition returns the value of Position.
+func (s *LookPhoto) GetPosition() int32 {
+	return s.Position
+}
+
+// GetReady returns the value of Ready.
+func (s *LookPhoto) GetReady() bool {
+	return s.Ready
+}
+
+// GetVariants returns the value of Variants.
+func (s *LookPhoto) GetVariants() []WebImageVariant {
+	return s.Variants
+}
+
+// SetProductId sets the value of ProductId.
+func (s *LookPhoto) SetProductId(val uuid.UUID) {
+	s.ProductId = val
+}
+
+// SetFileId sets the value of FileId.
+func (s *LookPhoto) SetFileId(val uuid.UUID) {
+	s.FileId = val
+}
+
+// SetColor sets the value of Color.
+func (s *LookPhoto) SetColor(val OptString) {
+	s.Color = val
+}
+
+// SetPosition sets the value of Position.
+func (s *LookPhoto) SetPosition(val int32) {
+	s.Position = val
+}
+
+// SetReady sets the value of Ready.
+func (s *LookPhoto) SetReady(val bool) {
+	s.Ready = val
+}
+
+// SetVariants sets the value of Variants.
+func (s *LookPhoto) SetVariants(val []WebImageVariant) {
+	s.Variants = val
+}
+
+// Ref: #/components/schemas/LookPreview
+type LookPreview struct {
+	Statuses []LookStatus     `json:"statuses"`
+	Products []LookProductRef `json:"products"`
+	Photos   []LookPhoto      `json:"photos"`
+}
+
+// GetStatuses returns the value of Statuses.
+func (s *LookPreview) GetStatuses() []LookStatus {
+	return s.Statuses
+}
+
+// GetProducts returns the value of Products.
+func (s *LookPreview) GetProducts() []LookProductRef {
+	return s.Products
+}
+
+// GetPhotos returns the value of Photos.
+func (s *LookPreview) GetPhotos() []LookPhoto {
+	return s.Photos
+}
+
+// SetStatuses sets the value of Statuses.
+func (s *LookPreview) SetStatuses(val []LookStatus) {
+	s.Statuses = val
+}
+
+// SetProducts sets the value of Products.
+func (s *LookPreview) SetProducts(val []LookProductRef) {
+	s.Products = val
+}
+
+// SetPhotos sets the value of Photos.
+func (s *LookPreview) SetPhotos(val []LookPhoto) {
+	s.Photos = val
+}
+
+func (*LookPreview) previewLooksRes() {}
+
+// Ref: #/components/schemas/LookProductRef
+type LookProductRef struct {
+	ID         uuid.UUID `json:"id"`
+	Code       string    `json:"code"`
+	Name       string    `json:"name"`
+	CategoryId OptUUID   `json:"categoryId"`
+	// Đang bán (active, người bán hoạt động, có biến thể bán được giá > 0).
+	OnSale bool `json:"onSale"`
+	// Có biến thể bán được còn hàng ở kho mặc định.
+	InStock bool `json:"inStock"`
+}
+
+// GetID returns the value of ID.
+func (s *LookProductRef) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetCode returns the value of Code.
+func (s *LookProductRef) GetCode() string {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *LookProductRef) GetName() string {
+	return s.Name
+}
+
+// GetCategoryId returns the value of CategoryId.
+func (s *LookProductRef) GetCategoryId() OptUUID {
+	return s.CategoryId
+}
+
+// GetOnSale returns the value of OnSale.
+func (s *LookProductRef) GetOnSale() bool {
+	return s.OnSale
+}
+
+// GetInStock returns the value of InStock.
+func (s *LookProductRef) GetInStock() bool {
+	return s.InStock
+}
+
+// SetID sets the value of ID.
+func (s *LookProductRef) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetCode sets the value of Code.
+func (s *LookProductRef) SetCode(val string) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *LookProductRef) SetName(val string) {
+	s.Name = val
+}
+
+// SetCategoryId sets the value of CategoryId.
+func (s *LookProductRef) SetCategoryId(val OptUUID) {
+	s.CategoryId = val
+}
+
+// SetOnSale sets the value of OnSale.
+func (s *LookProductRef) SetOnSale(val bool) {
+	s.OnSale = val
+}
+
+// SetInStock sets the value of InStock.
+func (s *LookProductRef) SetInStock(val bool) {
+	s.InStock = val
+}
+
+// Ref: #/components/schemas/LookStatus
+type LookStatus struct {
+	ID uuid.UUID `json:"id"`
+	// Hiện trên trang chủ lúc này.
+	Shown  bool          `json:"shown"`
+	Reason OptLookHidden `json:"reason"`
+	// Món gây ra product-missing, sold-out.
+	ProductId OptUUID `json:"productId"`
+	// Tiêu đề khi ô tiêu đề trống (tên các món).
+	AutoTitle string `json:"autoTitle"`
+	LinkKey   string `json:"linkKey"`
+	// Đường dẫn trang bộ trên website, /bo-phoi/<tên>-.
+	Path string `json:"path"`
+}
+
+// GetID returns the value of ID.
+func (s *LookStatus) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetShown returns the value of Shown.
+func (s *LookStatus) GetShown() bool {
+	return s.Shown
+}
+
+// GetReason returns the value of Reason.
+func (s *LookStatus) GetReason() OptLookHidden {
+	return s.Reason
+}
+
+// GetProductId returns the value of ProductId.
+func (s *LookStatus) GetProductId() OptUUID {
+	return s.ProductId
+}
+
+// GetAutoTitle returns the value of AutoTitle.
+func (s *LookStatus) GetAutoTitle() string {
+	return s.AutoTitle
+}
+
+// GetLinkKey returns the value of LinkKey.
+func (s *LookStatus) GetLinkKey() string {
+	return s.LinkKey
+}
+
+// GetPath returns the value of Path.
+func (s *LookStatus) GetPath() string {
+	return s.Path
+}
+
+// SetID sets the value of ID.
+func (s *LookStatus) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetShown sets the value of Shown.
+func (s *LookStatus) SetShown(val bool) {
+	s.Shown = val
+}
+
+// SetReason sets the value of Reason.
+func (s *LookStatus) SetReason(val OptLookHidden) {
+	s.Reason = val
+}
+
+// SetProductId sets the value of ProductId.
+func (s *LookStatus) SetProductId(val OptUUID) {
+	s.ProductId = val
+}
+
+// SetAutoTitle sets the value of AutoTitle.
+func (s *LookStatus) SetAutoTitle(val string) {
+	s.AutoTitle = val
+}
+
+// SetLinkKey sets the value of LinkKey.
+func (s *LookStatus) SetLinkKey(val string) {
+	s.LinkKey = val
+}
+
+// SetPath sets the value of Path.
+func (s *LookStatus) SetPath(val string) {
+	s.Path = val
+}
 
 // Ref: #/components/schemas/LostFile
 type LostFile struct {
@@ -15973,6 +16616,52 @@ func (o OptListUnmappedLocationsLevel) Get() (v ListUnmappedLocationsLevel, ok b
 
 // Or returns value if set, or given parameter if does not.
 func (o OptListUnmappedLocationsLevel) Or(d ListUnmappedLocationsLevel) ListUnmappedLocationsLevel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptLookHidden returns new OptLookHidden with value set to v.
+func NewOptLookHidden(v LookHidden) OptLookHidden {
+	return OptLookHidden{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptLookHidden is optional LookHidden.
+type OptLookHidden struct {
+	Value LookHidden
+	Set   bool
+}
+
+// IsSet returns true if OptLookHidden was set.
+func (o OptLookHidden) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptLookHidden) Reset() {
+	var v LookHidden
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptLookHidden) SetTo(v LookHidden) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptLookHidden) Get() (v LookHidden, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptLookHidden) Or(d LookHidden) LookHidden {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -22255,6 +22944,21 @@ func (s *PreviewBannersRequest) SetBanners(val []HomeBanner) {
 	s.Banners = val
 }
 
+// Ref: #/components/schemas/PreviewLooksRequest
+type PreviewLooksRequest struct {
+	Looks []Look `json:"looks"`
+}
+
+// GetLooks returns the value of Looks.
+func (s *PreviewLooksRequest) GetLooks() []Look {
+	return s.Looks
+}
+
+// SetLooks sets the value of Looks.
+func (s *PreviewLooksRequest) SetLooks(val []Look) {
+	s.Looks = val
+}
+
 // Ref: #/components/schemas/ProcessHealth
 type ProcessHealth struct {
 	Role              string `json:"role"`
@@ -25112,6 +25816,32 @@ func (s *SaveBirthdaySettingsRequest) SetMinLeadDays(val int32) {
 // SetVersion sets the value of Version.
 func (s *SaveBirthdaySettingsRequest) SetVersion(val int32) {
 	s.Version = val
+}
+
+// Ref: #/components/schemas/SaveLooksRequest
+type SaveLooksRequest struct {
+	Revision int32  `json:"revision"`
+	Looks    []Look `json:"looks"`
+}
+
+// GetRevision returns the value of Revision.
+func (s *SaveLooksRequest) GetRevision() int32 {
+	return s.Revision
+}
+
+// GetLooks returns the value of Looks.
+func (s *SaveLooksRequest) GetLooks() []Look {
+	return s.Looks
+}
+
+// SetRevision sets the value of Revision.
+func (s *SaveLooksRequest) SetRevision(val int32) {
+	s.Revision = val
+}
+
+// SetLooks sets the value of Looks.
+func (s *SaveLooksRequest) SetLooks(val []Look) {
+	s.Looks = val
 }
 
 // Ref: #/components/schemas/SaveWebCampaignRequest
@@ -34216,6 +34946,11 @@ type WebHomeBannersNotModified struct{}
 
 func (*WebHomeBannersNotModified) webHomeBannersRes() {}
 
+// WebHomeLooksNotModified is response for WebHomeLooks operation.
+type WebHomeLooksNotModified struct{}
+
+func (*WebHomeLooksNotModified) webHomeLooksRes() {}
+
 // Ref: #/components/schemas/WebImage
 type WebImage struct {
 	Position int32 `json:"position"`
@@ -34431,6 +35166,369 @@ func (*WebLocationsHeaders) webLocationsRes() {}
 type WebLocationsNotModified struct{}
 
 func (*WebLocationsNotModified) webLocationsRes() {}
+
+// Ref: #/components/schemas/WebLook
+type WebLook struct {
+	ID      uuid.UUID `json:"id"`
+	LinkKey string    `json:"linkKey"`
+	// Phần tên của link (/bo-phoi/-, slug rỗng thì chỉ có linkKey).
+	Slug string `json:"slug"`
+	Name string `json:"name"`
+	// Tiêu đề, trống thì tên các món.
+	Title    string    `json:"title"`
+	Headline OptString `json:"headline"`
+	Story    OptString `json:"story"`
+	// Dòng người mẫu ("Mẫu 1m62 · size S").
+	Model OptString     `json:"model"`
+	Photo WebLookPhoto  `json:"photo"`
+	Items []WebLookItem `json:"items"`
+	// Danh mục cho "Bán chạy cho dịp này" (chọn, trống thì danh mục của các món).
+	CategoryIds []uuid.UUID `json:"categoryIds"`
+	OnHome      bool        `json:"onHome"`
+	StartsAt    OptDateTime `json:"startsAt"`
+	EndsAt      OptDateTime `json:"endsAt"`
+}
+
+// GetID returns the value of ID.
+func (s *WebLook) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetLinkKey returns the value of LinkKey.
+func (s *WebLook) GetLinkKey() string {
+	return s.LinkKey
+}
+
+// GetSlug returns the value of Slug.
+func (s *WebLook) GetSlug() string {
+	return s.Slug
+}
+
+// GetName returns the value of Name.
+func (s *WebLook) GetName() string {
+	return s.Name
+}
+
+// GetTitle returns the value of Title.
+func (s *WebLook) GetTitle() string {
+	return s.Title
+}
+
+// GetHeadline returns the value of Headline.
+func (s *WebLook) GetHeadline() OptString {
+	return s.Headline
+}
+
+// GetStory returns the value of Story.
+func (s *WebLook) GetStory() OptString {
+	return s.Story
+}
+
+// GetModel returns the value of Model.
+func (s *WebLook) GetModel() OptString {
+	return s.Model
+}
+
+// GetPhoto returns the value of Photo.
+func (s *WebLook) GetPhoto() WebLookPhoto {
+	return s.Photo
+}
+
+// GetItems returns the value of Items.
+func (s *WebLook) GetItems() []WebLookItem {
+	return s.Items
+}
+
+// GetCategoryIds returns the value of CategoryIds.
+func (s *WebLook) GetCategoryIds() []uuid.UUID {
+	return s.CategoryIds
+}
+
+// GetOnHome returns the value of OnHome.
+func (s *WebLook) GetOnHome() bool {
+	return s.OnHome
+}
+
+// GetStartsAt returns the value of StartsAt.
+func (s *WebLook) GetStartsAt() OptDateTime {
+	return s.StartsAt
+}
+
+// GetEndsAt returns the value of EndsAt.
+func (s *WebLook) GetEndsAt() OptDateTime {
+	return s.EndsAt
+}
+
+// SetID sets the value of ID.
+func (s *WebLook) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetLinkKey sets the value of LinkKey.
+func (s *WebLook) SetLinkKey(val string) {
+	s.LinkKey = val
+}
+
+// SetSlug sets the value of Slug.
+func (s *WebLook) SetSlug(val string) {
+	s.Slug = val
+}
+
+// SetName sets the value of Name.
+func (s *WebLook) SetName(val string) {
+	s.Name = val
+}
+
+// SetTitle sets the value of Title.
+func (s *WebLook) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetHeadline sets the value of Headline.
+func (s *WebLook) SetHeadline(val OptString) {
+	s.Headline = val
+}
+
+// SetStory sets the value of Story.
+func (s *WebLook) SetStory(val OptString) {
+	s.Story = val
+}
+
+// SetModel sets the value of Model.
+func (s *WebLook) SetModel(val OptString) {
+	s.Model = val
+}
+
+// SetPhoto sets the value of Photo.
+func (s *WebLook) SetPhoto(val WebLookPhoto) {
+	s.Photo = val
+}
+
+// SetItems sets the value of Items.
+func (s *WebLook) SetItems(val []WebLookItem) {
+	s.Items = val
+}
+
+// SetCategoryIds sets the value of CategoryIds.
+func (s *WebLook) SetCategoryIds(val []uuid.UUID) {
+	s.CategoryIds = val
+}
+
+// SetOnHome sets the value of OnHome.
+func (s *WebLook) SetOnHome(val bool) {
+	s.OnHome = val
+}
+
+// SetStartsAt sets the value of StartsAt.
+func (s *WebLook) SetStartsAt(val OptDateTime) {
+	s.StartsAt = val
+}
+
+// SetEndsAt sets the value of EndsAt.
+func (s *WebLook) SetEndsAt(val OptDateTime) {
+	s.EndsAt = val
+}
+
+func (*WebLook) webLookRes() {}
+
+// Ref: #/components/schemas/WebLookHidden
+type WebLookHidden struct {
+	ID          uuid.UUID  `json:"id"`
+	Name        string     `json:"name"`
+	Reason      LookHidden `json:"reason"`
+	ProductId   OptUUID    `json:"productId"`
+	ProductName OptString  `json:"productName"`
+}
+
+// GetID returns the value of ID.
+func (s *WebLookHidden) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *WebLookHidden) GetName() string {
+	return s.Name
+}
+
+// GetReason returns the value of Reason.
+func (s *WebLookHidden) GetReason() LookHidden {
+	return s.Reason
+}
+
+// GetProductId returns the value of ProductId.
+func (s *WebLookHidden) GetProductId() OptUUID {
+	return s.ProductId
+}
+
+// GetProductName returns the value of ProductName.
+func (s *WebLookHidden) GetProductName() OptString {
+	return s.ProductName
+}
+
+// SetID sets the value of ID.
+func (s *WebLookHidden) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *WebLookHidden) SetName(val string) {
+	s.Name = val
+}
+
+// SetReason sets the value of Reason.
+func (s *WebLookHidden) SetReason(val LookHidden) {
+	s.Reason = val
+}
+
+// SetProductId sets the value of ProductId.
+func (s *WebLookHidden) SetProductId(val OptUUID) {
+	s.ProductId = val
+}
+
+// SetProductName sets the value of ProductName.
+func (s *WebLookHidden) SetProductName(val OptString) {
+	s.ProductName = val
+}
+
+// Ref: #/components/schemas/WebLookItem
+type WebLookItem struct {
+	ProductId uuid.UUID `json:"productId"`
+	Color     string    `json:"color"`
+	X         float64   `json:"x"`
+	Y         float64   `json:"y"`
+}
+
+// GetProductId returns the value of ProductId.
+func (s *WebLookItem) GetProductId() uuid.UUID {
+	return s.ProductId
+}
+
+// GetColor returns the value of Color.
+func (s *WebLookItem) GetColor() string {
+	return s.Color
+}
+
+// GetX returns the value of X.
+func (s *WebLookItem) GetX() float64 {
+	return s.X
+}
+
+// GetY returns the value of Y.
+func (s *WebLookItem) GetY() float64 {
+	return s.Y
+}
+
+// SetProductId sets the value of ProductId.
+func (s *WebLookItem) SetProductId(val uuid.UUID) {
+	s.ProductId = val
+}
+
+// SetColor sets the value of Color.
+func (s *WebLookItem) SetColor(val string) {
+	s.Color = val
+}
+
+// SetX sets the value of X.
+func (s *WebLookItem) SetX(val float64) {
+	s.X = val
+}
+
+// SetY sets the value of Y.
+func (s *WebLookItem) SetY(val float64) {
+	s.Y = val
+}
+
+// Ref: #/components/schemas/WebLookList
+type WebLookList struct {
+	Items  []WebLook       `json:"items"`
+	Hidden []WebLookHidden `json:"hidden"`
+}
+
+// GetItems returns the value of Items.
+func (s *WebLookList) GetItems() []WebLook {
+	return s.Items
+}
+
+// GetHidden returns the value of Hidden.
+func (s *WebLookList) GetHidden() []WebLookHidden {
+	return s.Hidden
+}
+
+// SetItems sets the value of Items.
+func (s *WebLookList) SetItems(val []WebLook) {
+	s.Items = val
+}
+
+// SetHidden sets the value of Hidden.
+func (s *WebLookList) SetHidden(val []WebLookHidden) {
+	s.Hidden = val
+}
+
+// WebLookListHeaders wraps WebLookList with response headers.
+type WebLookListHeaders struct {
+	ETag     OptString
+	Response WebLookList
+}
+
+// GetETag returns the value of ETag.
+func (s *WebLookListHeaders) GetETag() OptString {
+	return s.ETag
+}
+
+// GetResponse returns the value of Response.
+func (s *WebLookListHeaders) GetResponse() WebLookList {
+	return s.Response
+}
+
+// SetETag sets the value of ETag.
+func (s *WebLookListHeaders) SetETag(val OptString) {
+	s.ETag = val
+}
+
+// SetResponse sets the value of Response.
+func (s *WebLookListHeaders) SetResponse(val WebLookList) {
+	s.Response = val
+}
+
+func (*WebLookListHeaders) webHomeLooksRes() {}
+
+// Ref: #/components/schemas/WebLookPhoto
+type WebLookPhoto struct {
+	FileId uuid.UUID `json:"fileId"`
+	// <tên dịp>: <tiêu đề>.
+	Alt      string            `json:"alt"`
+	Variants []WebImageVariant `json:"variants"`
+}
+
+// GetFileId returns the value of FileId.
+func (s *WebLookPhoto) GetFileId() uuid.UUID {
+	return s.FileId
+}
+
+// GetAlt returns the value of Alt.
+func (s *WebLookPhoto) GetAlt() string {
+	return s.Alt
+}
+
+// GetVariants returns the value of Variants.
+func (s *WebLookPhoto) GetVariants() []WebImageVariant {
+	return s.Variants
+}
+
+// SetFileId sets the value of FileId.
+func (s *WebLookPhoto) SetFileId(val uuid.UUID) {
+	s.FileId = val
+}
+
+// SetAlt sets the value of Alt.
+func (s *WebLookPhoto) SetAlt(val string) {
+	s.Alt = val
+}
+
+// SetVariants sets the value of Variants.
+func (s *WebLookPhoto) SetVariants(val []WebImageVariant) {
+	s.Variants = val
+}
 
 // Ref: #/components/schemas/WebOrderChange
 type WebOrderChange struct {

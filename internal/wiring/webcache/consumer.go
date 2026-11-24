@@ -56,6 +56,7 @@ func (c *Consumer) Topics() []string {
 		catalog.TopicProductUpdated, catalog.TopicPriceChanged, inventory.TopicStockChanged,
 		topicFlashOpened, topicFlashClosed, topicFlashChanged, string(topicOrderCancelled), fulfillment.TopicWebCarrierSettingsChanged,
 		promotion.TopicWebCampaignChanged, order.TopicWebIntakeChanged, content.TopicBannersChanged,
+		content.TopicLooksChanged,
 	}
 }
 
@@ -126,6 +127,9 @@ func entitiesOf(e events.StoredEvent) ([]realtime.Entity, error) {
 	case content.TopicBannersChanged:
 		// Banner trang chủ của shop (SpaceBanners, một khóa mỗi tenant: làm mới cả vùng; Task 453).
 		return []realtime.Entity{{Type: EntityHomeBanners, ID: e.AggregateID}}, nil
+	case content.TopicLooksChanged:
+		// Bộ phối của shop (SpaceLooks, hai khóa mỗi tenant: làm mới cả vùng; Task 454).
+		return []realtime.Entity{{Type: EntityHomeLooks, ID: e.AggregateID}}, nil
 	}
 	// order.cancelled: chỉ đơn có dòng flash sale tạo báo hiệu flash_item, tra bằng order.FlashItemOf của M5-19; trước
 	// M5-19 bỏ qua. Chủ đề khác: không nghe.

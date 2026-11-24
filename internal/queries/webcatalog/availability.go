@@ -69,6 +69,25 @@ func Availability(ctx context.Context, tx pgx.Tx, variantIDs []uuid.UUID) ([]Web
 	return out, nil
 }
 
+// InStock trả mã các mẫu trong productIDs có ít nhất một biến thể bán được còn có thể bán ở kho DefaultWarehouseCode
+// (bộ phối "hết hàng", Task 454), theo mã tăng dần; không giới hạn số mã (bên gọi đã chặn: ≤ 3 món × 500 bộ). Tenant
+// chưa có kho mặc định: không mẫu nào còn hàng.
+func InStock(ctx context.Context, tx pgx.Tx, productIDs []uuid.UUID) ([]uuid.UUID, error) {
+	if len(productIDs) == 0 {
+		return []uuid.UUID{}, nil
+	}
+	q := store.New(tx)
+	wh, err := defaultWarehouse(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	ids, err := q.InStockProducts(ctx, store.InStockProductsParams{WarehouseID: wh, ProductIds: productIDs})
+	if err != nil {
+		return nil, fmt.Errorf("đọc mẫu còn hàng cho website: %w", err)
+	}
+	return ids, nil
+}
+
 // Sold30 trả số đơn vị đã bán theo biến thể (kèm mã mẫu) của đơn tạo trong [now − SoldWindow, now), mọi kênh, trừ
 // đơn nháp, đã hủy, đã hoàn; theo mã biến thể. Biến thể không bán được đơn vị nào thì không có dòng.
 func Sold30(ctx context.Context, tx pgx.Tx, now time.Time) ([]WebSold, error) {

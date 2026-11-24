@@ -11,3 +11,12 @@ SELECT v.variant_id,
 FROM catalog.variants_v AS v
 WHERE v.variant_id = ANY(@variant_ids::uuid[])
 ORDER BY v.variant_id;
+
+-- name: InStockProducts :many
+-- Mẫu trong product_ids có ít nhất một biến thể bán được còn có thể bán (> 0) ở kho warehouse_id (Task 454: bộ phối
+-- "hết hàng" khi một món không còn cỡ nào). Mã lạ, mẫu không còn hàng → không có dòng.
+SELECT DISTINCT v.product_id
+FROM catalog.variants_v AS v
+JOIN inventory.stock_available_v AS sa ON sa.variant_id = v.variant_id AND sa.warehouse_id = @warehouse_id::uuid
+WHERE v.product_id = ANY(@product_ids::uuid[]) AND v.sellable AND sa.available > 0
+ORDER BY v.product_id;

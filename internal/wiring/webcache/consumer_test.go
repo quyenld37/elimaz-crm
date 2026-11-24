@@ -45,7 +45,7 @@ func TestConsumer_NameTopics(t *testing.T) {
 	want := []string{
 		"product.updated", "price.changed", "stock.changed", "flash_sale.opened", "flash_sale.closed",
 		"flash_sale.changed", "order.cancelled", "carrier.web_settings_changed", "promotion.web_campaign.changed",
-		"order.web_intake.changed", "content.banners.changed",
+		"order.web_intake.changed", "content.banners.changed", "content.looks.changed",
 	}
 	if got := c.Topics(); !slices.Equal(got, want) {
 		t.Fatalf("Topics = %v, muốn %v", got, want)
@@ -128,6 +128,8 @@ func payloadCases(t *testing.T, tenant uuid.UUID) []payloadCase {
 		},
 		{"content.banners.changed [KM04]", stored(t, tenant, content.TopicBannersChanged, "home_banners", tenant.String(),
 			content.BannersChanged{Revision: 3}), []realtime.Entity{ent("home_banners", tenant)}, false},
+		{"content.looks.changed [KM04]", stored(t, tenant, content.TopicLooksChanged, "home_looks", tenant.String(),
+			content.LooksChanged{Revision: 2}), []realtime.Entity{ent("home_looks", tenant)}, false},
 		{"order.cancelled trước M5-19", stored(t, tenant, "order.cancelled", "order", uuid.NewString(), nil), nil, false},
 		{"chủ đề lạ", stored(t, tenant, "x.y", "x", "1", nil), nil, false},
 		{"price.changed thiếu variantIds", stored(t, tenant, catalog.TopicPriceChanged, "variant", v1.String(),

@@ -26,4 +26,23 @@ var (
 	ErrFileRejected = errors.New("content: ảnh banner bị từ chối")
 	// ErrImageInvalid: ảnh banner không có, đã xóa hay không phải ảnh tải lên cho banner.
 	ErrImageInvalid = errors.New("content: ảnh banner không dùng được")
+
+	// Lỗi của bộ phối (Task 454). Lỗi kiểm một bộ bọc kèm số thứ tự "bộ phối <n>: …".
+
+	// ErrTooManyLooks: quá MaxLooks bộ.
+	ErrTooManyLooks = errors.New("content: quá số bộ phối tối đa")
+	// ErrTooManyHomeLooks: quá MaxHomeLooks bộ bật trên trang chủ.
+	ErrTooManyHomeLooks = errors.New("content: quá số bộ phối trên trang chủ")
+	// ErrInvalidLook: bộ sai dạng (mã rỗng hay trùng, link key trùng, tên rỗng, chữ quá dài, chiều cao, danh mục).
+	ErrInvalidLook = errors.New("content: bộ phối không hợp lệ")
+	// ErrLookItems: bộ có 0 hay quá MaxLookItems món, hoặc món trùng, món không mã.
+	ErrLookItems = errors.New("content: bộ phối phải có 1–3 món khác nhau")
+	// ErrLookDot: chấm của một món nằm ngoài ảnh (x, y ngoài 0–100 %).
+	ErrLookDot = errors.New("content: chấm sản phẩm nằm ngoài ảnh")
+	// ErrLookPhoto: chưa chọn ảnh, hoặc ảnh không phải ảnh của một món trong bộ.
+	ErrLookPhoto = errors.New("content: ảnh bộ phối không phải ảnh của món trong bộ")
+	// ErrLookWindow: giờ kết thúc không sau giờ bắt đầu.
+	ErrLookWindow = errors.New("content: giờ kết thúc bộ phối phải sau giờ bắt đầu")
+	// ErrLookNotFound: không có bộ phối mở được theo link key (chưa có, đã xóa, đang ẩn).
+	ErrLookNotFound = errors.New("content: không có bộ phối")
 )

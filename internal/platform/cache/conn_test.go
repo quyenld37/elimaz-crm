@@ -78,7 +78,10 @@ func TestConn_PingSetGet(t *testing.T) {
 	}
 }
 
-// CLIENT PAUSE 1000 ALL: lệnh treo ở máy chủ, Do trả lỗi theo hạn 50 ms (dưới 80 ms), là lỗi ngừng.
+// CLIENT PAUSE 1000 ALL: lệnh treo ở máy chủ, Do trả lỗi theo hạn riêng của lệnh (OpTimeout), là lỗi ngừng. Không lấy
+// ngưỡng giờ thật làm tiêu chí (Task 400, 454): ctx cha không có hạn, nên DeadlineExceeded chỉ có thể đến từ hạn riêng
+// của Do; không có hạn đó thì SET chờ hết lúc tạm dừng rồi thành công (err nil). Hạn mà Do đặt cho fn đo bằng một đồng
+// hồ (deadline − lúc fn chạy ≤ OpTimeout mặc định 50 ms).
 func TestConn_OpTimeout(t *testing.T) {
 	vk := testkit.StartValkey(t)
 	reg := metrics.NewRegistry()
@@ -92,10 +95,23 @@ func TestConn_OpTimeout(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("CLIENT PAUSE: %v", err)
 	}
-	start := time.Now()
-	err := set(t.Context(), c, "c:x", "1")
-	if took := time.Since(start); err == nil || took >= 80*time.Millisecond {
-		t.Fatalf("SET khi máy chủ tạm dừng: lỗi %v sau %s; muốn lỗi dưới 80 ms", err, took)
+	if _, ok := t.Context().Deadline(); ok {
+		t.Fatal("ctx của test có hạn: không phân biệt được hạn riêng của Do")
+	}
+	var left time.Duration
+	err := c.Do(t.Context(), "set", func(ctx context.Context, cl valkey.Client) error {
+		dl, ok := ctx.Deadline()
+		if !ok {
+			return errors.New("ctx của lệnh không có hạn")
+		}
+		left = time.Until(dl)
+		return cl.Do(ctx, cl.B().Set().Key("c:x").Value("1").Build()).Error()
+	})
+	if err == nil {
+		t.Fatal("SET khi máy chủ tạm dừng thành công: Do không đặt hạn riêng cho lệnh")
+	}
+	if left > 50*time.Millisecond {
+		t.Fatalf("hạn của lệnh còn %s lúc fn chạy, muốn ≤ 50 ms (OpTimeout mặc định; máy bận có thể đã hết hạn, ≤ 0)", left)
 	}
 	if !errors.Is(err, cache.ErrUnavailable) || !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("lỗi hạn giờ phải là ErrUnavailable và DeadlineExceeded: %v", err)

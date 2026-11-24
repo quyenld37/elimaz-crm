@@ -1129,6 +1129,185 @@ export type WebHomeBannerList = {
     items: Array<WebHomeBanner>;
 };
 
+/**
+ * Lý do bộ phối không hiện (đúng tên của website cũ)
+ */
+export type LookHidden = 'disabled' | 'scheduled' | 'expired' | 'product-missing' | 'sold-out' | 'photo-missing';
+
+export type LookItem = {
+    productId: string;
+    /**
+     * Màu đang mặc trong ảnh; rỗng = màu đầu tiên còn hàng (website tự chọn)
+     */
+    color?: string;
+    /**
+     * Chấm trên ảnh, % chiều rộng (0–100, làm tròn 2 chữ số)
+     */
+    x: number;
+    /**
+     * Chấm trên ảnh, % chiều cao (0–100)
+     */
+    y: number;
+};
+
+/**
+ * Một bộ phối (Task 454). onHome: hiện trên trang chủ (≤ 6); bộ nào cũng mở được bằng link. title rỗng = tên các
+ * món; headline, story rỗng = không hiện. photoFileId là mã tệp của một ảnh sản phẩm của các món. Giới hạn (kiểm ở
+ * máy chủ, 422): tên 1–28, title 60, headline 90, story 220, modelSize 6 ký tự, modelHeightCm 130–200, ≤ 6
+ * categoryIds, 1–3 món.
+ *
+ */
+export type Look = {
+    id: string;
+    onHome: boolean;
+    name: string;
+    title?: string;
+    headline?: string;
+    story?: string;
+    photoFileId: string;
+    categoryIds?: Array<string>;
+    modelHeightCm?: number;
+    modelSize?: string;
+    startsAt?: string;
+    endsAt?: string;
+    items: Array<LookItem>;
+};
+
+export type LookStatus = {
+    id: string;
+    /**
+     * Hiện trên trang chủ lúc này
+     */
+    shown: boolean;
+    reason?: LookHidden;
+    /**
+     * Món gây ra product-missing, sold-out
+     */
+    productId?: string;
+    /**
+     * Tiêu đề khi ô tiêu đề trống (tên các món)
+     */
+    autoTitle: string;
+    linkKey: string;
+    /**
+     * Đường dẫn trang bộ trên website, /bo-phoi/<tên>-<linkKey>
+     */
+    path: string;
+};
+
+export type LookProductRef = {
+    id: string;
+    code: string;
+    name: string;
+    categoryId?: string;
+    /**
+     * Đang bán (active, người bán hoạt động, có biến thể bán được giá > 0)
+     */
+    onSale: boolean;
+    /**
+     * Có biến thể bán được còn hàng ở kho mặc định
+     */
+    inStock: boolean;
+};
+
+export type LookPhoto = {
+    productId: string;
+    fileId: string;
+    color?: string;
+    position: number;
+    ready: boolean;
+    variants: Array<WebImageVariant>;
+};
+
+/**
+ * Danh sách bộ phối (Task 454). products chỉ gồm mẫu chưa xóa mà danh sách nhắc; photos là ảnh đang hiện của các
+ * mẫu đó (chọn ảnh người mẫu); categories là danh mục đang dùng.
+ *
+ */
+export type LookList = {
+    revision: number;
+    updatedBy?: string;
+    updatedAt?: string;
+    looks: Array<Look>;
+    statuses: Array<LookStatus>;
+    products: Array<LookProductRef>;
+    photos: Array<LookPhoto>;
+    categories: Array<HomeBannerCategory>;
+};
+
+export type SaveLooksRequest = {
+    revision: number;
+    looks: Array<Look>;
+};
+
+export type PreviewLooksRequest = {
+    looks: Array<Look>;
+};
+
+export type LookPreview = {
+    statuses: Array<LookStatus>;
+    products: Array<LookProductRef>;
+    photos: Array<LookPhoto>;
+};
+
+export type WebLookPhoto = {
+    fileId: string;
+    /**
+     * <tên dịp>: <tiêu đề>
+     */
+    alt: string;
+    variants: Array<WebImageVariant>;
+};
+
+export type WebLookItem = {
+    productId: string;
+    color: string;
+    x: number;
+    y: number;
+};
+
+export type WebLook = {
+    id: string;
+    linkKey: string;
+    /**
+     * Phần tên của link (/bo-phoi/<slug>-<linkKey>, slug rỗng thì chỉ có linkKey)
+     */
+    slug: string;
+    name: string;
+    /**
+     * Tiêu đề, trống thì tên các món
+     */
+    title: string;
+    headline?: string;
+    story?: string;
+    /**
+     * Dòng người mẫu ("Mẫu 1m62 · size S")
+     */
+    model?: string;
+    photo: WebLookPhoto;
+    items: Array<WebLookItem>;
+    /**
+     * Danh mục cho "Bán chạy cho dịp này" (chọn, trống thì danh mục của các món)
+     */
+    categoryIds: Array<string>;
+    onHome: boolean;
+    startsAt?: string;
+    endsAt?: string;
+};
+
+export type WebLookHidden = {
+    id: string;
+    name: string;
+    reason: LookHidden;
+    productId?: string;
+    productName?: string;
+};
+
+export type WebLookList = {
+    items: Array<WebLook>;
+    hidden: Array<WebLookHidden>;
+};
+
 export type WebIntake = {
     paused: boolean;
     /**
@@ -8914,6 +9093,87 @@ export type PreviewBannersResponses = {
 
 export type PreviewBannersResponse = PreviewBannersResponses[keyof PreviewBannersResponses];
 
+export type GetLooksData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/content/looks';
+};
+
+export type GetLooksErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetLooksError = GetLooksErrors[keyof GetLooksErrors];
+
+export type GetLooksResponses = {
+    /**
+     * getLooks
+     */
+    200: LookList;
+};
+
+export type GetLooksResponse = GetLooksResponses[keyof GetLooksResponses];
+
+export type SaveLooksData = {
+    body: SaveLooksRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/content/looks';
+};
+
+export type SaveLooksErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SaveLooksError = SaveLooksErrors[keyof SaveLooksErrors];
+
+export type SaveLooksResponses = {
+    /**
+     * saveLooks
+     */
+    200: LookList;
+};
+
+export type SaveLooksResponse = SaveLooksResponses[keyof SaveLooksResponses];
+
+export type PreviewLooksData = {
+    body: PreviewLooksRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/content/looks/preview';
+};
+
+export type PreviewLooksErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type PreviewLooksError = PreviewLooksErrors[keyof PreviewLooksErrors];
+
+export type PreviewLooksResponses = {
+    /**
+     * previewLooks
+     */
+    200: LookPreview;
+};
+
+export type PreviewLooksResponse = PreviewLooksResponses[keyof PreviewLooksResponses];
+
 export type GetBirthdaySettingsData = {
     body?: never;
     path?: never;
@@ -11270,6 +11530,66 @@ export type WebHomeBannersResponses = {
 };
 
 export type WebHomeBannersResponse = WebHomeBannersResponses[keyof WebHomeBannersResponses];
+
+export type WebHomeLooksData = {
+    body?: never;
+    headers?: {
+        /**
+         * ETag của lần đọc trước (website, Task 190)
+         */
+        'If-None-Match'?: string;
+    };
+    path?: never;
+    query: {
+        home: boolean;
+    };
+    url: '/api/v1/web/content/looks';
+};
+
+export type WebHomeLooksErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebHomeLooksError = WebHomeLooksErrors[keyof WebHomeLooksErrors];
+
+export type WebHomeLooksResponses = {
+    /**
+     * Bộ phối đang hiện
+     */
+    200: WebLookList;
+};
+
+export type WebHomeLooksResponse = WebHomeLooksResponses[keyof WebHomeLooksResponses];
+
+export type WebLookData = {
+    body?: never;
+    path: {
+        linkKey: string;
+    };
+    query?: never;
+    url: '/api/v1/web/content/looks/{linkKey}';
+};
+
+export type WebLookErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebLookError = WebLookErrors[keyof WebLookErrors];
+
+export type WebLookResponses = {
+    /**
+     * Bộ phối
+     */
+    200: WebLook;
+};
+
+export type WebLookResponse = WebLookResponses[keyof WebLookResponses];
 
 export type WebQuoteData = {
     body: WebQuoteRequest;

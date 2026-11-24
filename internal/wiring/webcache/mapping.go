@@ -21,6 +21,7 @@ const (
 	EntityWebCampaign     = "web_campaign"
 	EntityWebIntake       = "web_intake"
 	EntityHomeBanners     = "home_banners"
+	EntityHomeLooks       = "home_looks"
 )
 
 // action là một việc trên bộ đệm: xóa đúng mã của đối tượng trong space (byID), hoặc làm mới cả space.
@@ -43,6 +44,8 @@ func actionsFor(entityType string) []action {
 		return []action{{cache.SpaceCampaigns, false}, {cache.SpaceBanners, false}}
 	case EntityHomeBanners:
 		return []action{{cache.SpaceBanners, false}}
+	case EntityHomeLooks:
+		return []action{{cache.SpaceLooks, false}}
 	case EntityWebIntake:
 		return []action{{cache.SpaceWebIntake, false}}
 	case EntityCarrierSettings:

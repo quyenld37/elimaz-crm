@@ -487,6 +487,13 @@ type Handler interface {
 	//
 	// GET /api/v1/label-batches/{id}
 	GetLabelBatch(ctx context.Context, params GetLabelBatchParams) (GetLabelBatchRes, error)
+	// GetLooks implements getLooks operation.
+	//
+	// Danh sách bộ phối theo thứ tự, kèm revision, trạng thái hiện/ẩn (lý do, món gây
+	// ra, tiêu đề tự động, link), mẫu, ảnh của các món, danh mục (Task 454).
+	//
+	// GET /api/v1/content/looks
+	GetLooks(ctx context.Context) (GetLooksRes, error)
 	// GetMe implements getMe operation.
 	//
 	// Chỉ cần đăng nhập và tài khoản không bị khóa (Task 315); nhân viên chưa có grant
@@ -1009,6 +1016,13 @@ type Handler interface {
 	//
 	// POST /api/v1/cod/adjustments/preview
 	PreviewCodAdjustment(ctx context.Context, req *CodAdjustmentRequest, params PreviewCodAdjustmentParams) (PreviewCodAdjustmentRes, error)
+	// PreviewLooks implements previewLooks operation.
+	//
+	// Xem trước: danh sách bộ phối gửi lên (chưa lưu) hiện hay ẩn lúc này, lý do ẩn;
+	// cùng luật kiểm như saveLooks (Task 454).
+	//
+	// POST /api/v1/content/looks/preview
+	PreviewLooks(ctx context.Context, req *PreviewLooksRequest) (PreviewLooksRes, error)
 	// PreviewShipmentCorrection implements previewShipmentCorrection operation.
 	//
 	// Xem trước việc đảo Thành công của vận đơn (không đổi dữ liệu); trả token
@@ -1210,6 +1224,19 @@ type Handler interface {
 	//
 	// PUT /api/v1/birthday-settings
 	SaveBirthdaySettings(ctx context.Context, req *SaveBirthdaySettingsRequest, params SaveBirthdaySettingsParams) (SaveBirthdaySettingsRes, error)
+	// SaveLooks implements saveLooks operation.
+	//
+	// Tối đa 500 bộ (422 too_many_looks), tối đa 6 bộ trên trang chủ (422
+	// too_many_home_looks, kiểm sau khi khóa danh sách); mỗi bộ 1–3 món khác nhau
+	// (look_items_invalid), chấm x, y trong 0–100 % (look_dot_invalid, làm tròn 2 chữ số), ảnh
+	// là một ảnh sản phẩm của các món (look_photo_invalid; bộ đã lưu không đổi ảnh
+	// và món thì không kiểm lại), giờ kết thúc sau giờ bắt đầu (look_window_invalid);
+	// tên 1–28, tiêu đề 60, dòng dẫn 90, câu chuyện 220, màu 60, cỡ 6 ký tự, chiều
+	// cao 130–200, ≤ 6 danh mục, mã và link key khác nhau (invalid_look). Món không cần đang
+	// bán (bộ ẩn).
+	//
+	// PUT /api/v1/content/looks
+	SaveLooks(ctx context.Context, req *SaveLooksRequest, params SaveLooksParams) (SaveLooksRes, error)
 	// SaveWebCampaign implements saveWebCampaign operation.
 	//
 	// Lưu nội dung khi revision khớp (409 version_conflict); đang bật → 409 campaign_running,
@@ -1607,6 +1634,16 @@ type Handler interface {
 	//
 	// GET /api/v1/web/content/banners
 	WebHomeBanners(ctx context.Context, params WebHomeBannersParams) (WebHomeBannersRes, error)
+	// WebHomeLooks implements webHomeLooks operation.
+	//
+	// Task 454 (M5-42). Bộ đã dựng sẵn phần không phụ thuộc giá (tiêu đề, dòng
+	// người mẫu, ảnh, danh mục cho "Bán chạy cho dịp này", link); giá, cỡ, màu còn
+	// hàng website tự lấy từ API danh mục. hidden (chỉ khi home=true): bộ đang bật trang
+	// chủ mà bị ẩn vì product-missing, sold-out, photo-missing — website báo Telegram như
+	// watch.ts cũ. Bộ đệm 60 s, làm mới sớm hơn theo sự kiện content.looks.changed.
+	//
+	// GET /api/v1/web/content/looks
+	WebHomeLooks(ctx context.Context, params WebHomeLooksParams) (WebHomeLooksRes, error)
 	// WebImportCoupons implements webImportCoupons operation.
 	//
 	// Mỗi mã dùng một lần, chỉ kênh web, lô loại imported theo batchName (trống → "Mã
@@ -1638,6 +1675,13 @@ type Handler interface {
 	//
 	// GET /api/v1/web/locations
 	WebLocations(ctx context.Context, params WebLocationsParams) (WebLocationsRes, error)
+	// WebLook implements webLook operation.
+	//
+	// Task 454. slug là tên hiện tại để website chuyển hướng liên kết cũ. Đọc từ
+	// bộ đệm của webHomeLooks home=false (60 s).
+	//
+	// GET /api/v1/web/content/looks/{linkKey}
+	WebLook(ctx context.Context, params WebLookParams) (WebLookRes, error)
 	// WebMarkCouponGiven implements webMarkCouponGiven operation.
 	//
 	// Chỉ mã của lô website (birthday, imported); mã khác hay không có → 404 not_found.
