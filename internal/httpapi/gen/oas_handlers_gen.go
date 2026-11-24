@@ -9165,6 +9165,73 @@ func (s *Server) handleListAttributesRequest(args [0]string, argsEscaped bool, w
 	}
 }
 
+// handleListAuditActorsRequest handles listAuditActors operation.
+//
+// Nhân viên (mọi trạng thái, kể cả đã khóa) và khóa dịch vụ (kể cả đã thu
+// hồi) của shop, xếp theo tên; id là mã gửi lại ở tham số actorId của
+// listAuditLogs. Chỉ tên, không email. Hệ thống không có trong danh sách (không có mã).
+//
+// GET /api/v1/identity/audit-actors
+func (s *Server) handleListAuditActorsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response ListAuditActorsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListAuditActorsOperation,
+			OperationSummary: "Người làm cho ô lọc của nhật ký thao tác — mọi nhân viên và khóa dịch vụ của shop (Task 488)",
+			OperationID:      "listAuditActors",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = ListAuditActorsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListAuditActors(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListAuditActors(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListAuditActorsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleListAuditLogsRequest handles listAuditLogs operation.
 //
 // Lọc theo hành động, người làm (mã nhân viên hay mã khóa dịch vụ), loại thực
@@ -15465,6 +15532,110 @@ func (s *Server) handleReorderProductImagesRequest(args [1]string, argsEscaped b
 	}
 
 	if err := encodeReorderProductImagesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleReorderWebCarriersRequest handles reorderWebCarriers operation.
+//
+// AccountIds là mọi tài khoản đang hiện trên web (showOnWeb, trừ revoked) theo thứ tự
+// mới; webSort thành 1, 2, 3… Tập khác tập đang hiện (có người vừa bật/ẩn) hay
+// version lệch → 409 version_conflict, không đổi gì; mã trùng → 400 bad_request
+// (uniqueItems). version của cài đặt tăng 1 (người, giờ lưu cuối là người đổi
+// thứ tự); audit fulfillment.web_carrier_order.update; sự kiện carrier.web_settings_changed
+// làm mới bộ đệm website.
+//
+// PUT /api/v1/web-carrier-settings/order
+func (s *Server) handleReorderWebCarriersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ReorderWebCarriersOperation,
+			ID:   "reorderWebCarriers",
+		}
+	)
+	params, err := decodeReorderWebCarriersParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeReorderWebCarriersRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response ReorderWebCarriersRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ReorderWebCarriersOperation,
+			OperationSummary: "Đổi thứ tự hãng trên website cả danh sách trong một lần ghi khi version khớp (409 version_conflict) (Task 488)",
+			OperationID:      "reorderWebCarriers",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ReorderWebCarriersRequest
+			Params   = ReorderWebCarriersParams
+			Response = ReorderWebCarriersRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackReorderWebCarriersParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ReorderWebCarriers(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ReorderWebCarriers(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeReorderWebCarriersResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

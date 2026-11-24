@@ -28,6 +28,8 @@ import {
   looksKey,
   photoOpts,
   productKey,
+  refColors,
+  skipText,
   useLookPreview,
   useLooks,
   useProductDetails,
@@ -152,6 +154,7 @@ function Editor({ server }: { server: LookListData }) {
     ...names,
   ]);
   const photos = photoOpts([base.photos, server.photos, preview.data?.photos ?? []], details.values());
+  const colors = refColors([base.products, server.products, preview.data?.products ?? []]);
   const thumbs = new Map(
     photos.flatMap((p): [string, string][] => (p.thumb === undefined ? [] : [[p.fileId, p.thumb]])),
   );
@@ -208,7 +211,11 @@ function Editor({ server }: { server: LookListData }) {
       qc.setQueryData(looksKey, r.data);
       resetTo(r.data);
       setSaved(true);
-    } else if (isConflict(r.error)) setConflict(true);
+    } else if (isConflict(r.error)) {
+      setConflict(true);
+      // Đọc bản mới (không thay bản đang sửa: đang có thay đổi) để hộp nêu ai lưu, lúc nào.
+      void qc.invalidateQueries({ queryKey: looksKey });
+    }
   };
 
   const copy = (id: string) => {
@@ -267,6 +274,7 @@ function Editor({ server }: { server: LookListData }) {
                 names={allNames}
                 photos={photos}
                 details={details}
+                colors={colors}
                 categories={base.categories}
                 autoTitle={statuses.get(current.id)?.autoTitle}
                 disabled={locked}
@@ -296,6 +304,7 @@ function Editor({ server }: { server: LookListData }) {
                 look={current}
                 n={idx + 1}
                 status={statuses.get(current.id)}
+                skip={dirty ? skipText(current, preview.data) : undefined}
                 names={allNames}
                 photo={photos.find((p) => p.fileId === current.photoFileId)?.large}
                 error={preview.error === null ? null : errorMessage(preview.error)}
@@ -371,13 +380,13 @@ function Editor({ server }: { server: LookListData }) {
         <ConflictDialog
           title="Bộ phối vừa được người khác lưu"
           subject="danh sách bộ phối"
+          server={server}
+          base={base}
           reloading={reloading}
           onKeep={() => {
             setConflict(false);
           }}
-          onReload={() => {
-            void reload();
-          }}
+          onReload={reload}
         />
       )}
     </>

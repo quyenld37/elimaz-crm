@@ -4,7 +4,7 @@ import type { Look, LookList, LookPhoto, LookPreview, LookProductRef, Product, P
 import { emptyWrites, meReply, page, renderScreens, reply, stubApi, type WriteQueue } from "../../app/screenTestkit";
 import { grantsOf } from "../web-banners/bannerTestkit";
 import { LookEditor } from "./LookEditor";
-import { foldText } from "./lookRules";
+import { foldText, lookProblem } from "./lookRules";
 
 export { stubDialog } from "../don/donTestkit";
 
@@ -60,6 +60,7 @@ export const ref = (id: string): LookProductRef => ({
   categoryId: CAT1,
   onSale: true,
   inStock: true,
+  colors: item(id).colors.map((name) => ({ name })),
 });
 const lookPhotos = (id: string): LookPhoto[] =>
   item(id).photos.map((p, i) => ({
@@ -193,6 +194,8 @@ function write(fake: Fake, p: string, body: Record<string, unknown>): Response {
   }
   if (p === "/api/v1/content/looks/preview") {
     fake.previews.push(body);
+    // Như ogen: photoFileId là uuid bắt buộc, chuỗi rỗng → 400 cho cả yêu cầu.
+    if (looksOf(body).some((l) => l.photoFileId === "")) return reply({ error: "bad_request", request_id: "t" }, 400);
     return reply(fake.previewReply(looksOf(body)));
   }
   return reply({ error: "not_found", request_id: "t" }, 404);
@@ -204,9 +207,18 @@ export function installFake(l: LookList = list([look(1)])): Fake {
     list: l,
     saveErrors: [],
     previews: [],
+    // Như máy chủ (Task 488): bộ chưa đủ (luật lookProblem của màn) bị bỏ, ghi ở skipped; bộ còn lại có trạng thái.
     previewReply: (looks) => {
       const ids = productIds(looks);
-      return { statuses: statusesOf(looks), products: ids.map(ref), photos: ids.flatMap(lookPhotos) };
+      const ok = looks.filter((l) => lookProblem(l) === null);
+      return {
+        statuses: statusesOf(ok),
+        products: ids.map(ref),
+        photos: ids.flatMap(lookPhotos),
+        skipped: looks
+          .filter((l) => lookProblem(l) !== null)
+          .map((l) => ({ id: l.id, reason: "look_items_invalid" as const })),
+      };
     },
     ...emptyWrites(),
   };

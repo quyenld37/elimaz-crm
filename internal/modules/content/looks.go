@@ -168,7 +168,10 @@ func writeLooks(ctx context.Context, q *store.Queries, tenant uuid.UUID, ls []Lo
 // không cần (lưu).
 func LoadLookRefData(ctx context.Context, tx pgx.Tx, ls []Look, inStock []uuid.UUID, view catalog.ImageView) (LookRefData, error) {
 	q := store.New(tx)
-	ref := LookRefData{Products: map[uuid.UUID]LookProduct{}, Images: []LookImage{}, Categories: map[uuid.UUID]CategoryRef{}}
+	ref := LookRefData{
+		Products: map[uuid.UUID]LookProduct{}, Images: []LookImage{}, Categories: map[uuid.UUID]CategoryRef{},
+		Colors: map[uuid.UUID][]LookColor{},
+	}
 	cats, err := q.ActiveCategories(ctx)
 	if err != nil {
 		return LookRefData{}, fmt.Errorf("đọc danh mục cho bộ phối: %w", err)
@@ -193,6 +196,13 @@ func LoadLookRefData(ctx context.Context, tx pgx.Tx, ls []Look, inStock []uuid.U
 			ID: r.ProductID, Code: r.Code, Name: r.Name, CategoryID: val(r.CategoryID), OnSale: r.OnSale,
 			InStock: stocked[r.ProductID],
 		}
+	}
+	colors, err := q.LookProductColors(ctx, ids)
+	if err != nil {
+		return LookRefData{}, fmt.Errorf("đọc màu mẫu cho bộ phối: %w", err)
+	}
+	for _, c := range colors {
+		ref.Colors[c.ProductID] = append(ref.Colors[c.ProductID], LookColor{Name: c.Color, Hex: c.ColorHex})
 	}
 	imgs, err := q.LookProductImages(ctx, ids)
 	if err != nil {

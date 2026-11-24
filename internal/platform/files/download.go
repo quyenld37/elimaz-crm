@@ -15,9 +15,12 @@ import (
 )
 
 // FileStatus là trạng thái công khai của một tệp cho module khác (kiểm trước khi gắn tệp vào bản ghi của mình).
+// Width, Height: cỡ ảnh gốc đo khi xử lý (0 khi chưa xử lý xong hay không phải ảnh); RejectReason: lý do từ chối khi
+// rejected (mã của imager, ví dụ not_image, too_small), rỗng ở trạng thái khác.
 type FileStatus struct {
-	Purpose, Status string
-	Deleted         bool
+	Purpose, Status, RejectReason string
+	Width, Height                 int
+	Deleted                       bool
 }
 
 // getFile đọc dòng tệp trong tx (RLS: tenant khác như không có).
@@ -38,7 +41,10 @@ func Status(ctx context.Context, tx pgx.Tx, fileID uuid.UUID) (FileStatus, error
 	if err != nil {
 		return FileStatus{}, err
 	}
-	return FileStatus{Purpose: row.Purpose, Status: row.Status, Deleted: row.DeletedAt.Valid}, nil
+	return FileStatus{
+		Purpose: row.Purpose, Status: row.Status, Deleted: row.DeletedAt.Valid, RejectReason: row.RejectReason.String,
+		Width: int(row.Width.Int32), Height: int(row.Height.Int32),
+	}, nil
 }
 
 // MarkDeleted đặt deleted_at (và người xóa; uuid.Nil là hệ thống), không xóa trên kho (việc dọn Q16 chạy bằng danh

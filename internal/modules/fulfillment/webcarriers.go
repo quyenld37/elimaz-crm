@@ -56,11 +56,15 @@ var (
 )
 
 // WebCarrierSettings là cài đặt kênh web: tài khoản ưu tiên (nil: không ưu tiên, rẻ nhất đứng đầu), phí dự phòng
-// (nil: không có), Version để sửa có kiểm phiên bản (chưa lưu lần nào: 1).
+// (nil: không có), Version để sửa có kiểm phiên bản (chưa lưu lần nào: 1). UpdatedBy, UpdatedAt: nhân viên và lúc lưu
+// lần cuối (chọn sẵn, phí dự phòng, thứ tự; Task 488), nil khi chưa lưu lần nào; SaveWebCarrierSettings bỏ qua hai
+// trường này ở đầu vào.
 type WebCarrierSettings struct {
 	PreferredAccountID *uuid.UUID
 	FallbackFee        *int64
 	Version            int
+	UpdatedBy          *uuid.UUID
+	UpdatedAt          *time.Time
 }
 
 // AuditFields là giá trị đưa vào audit.
@@ -95,7 +99,7 @@ func GetWebCarrierSettings(ctx context.Context, tx pgx.Tx) (WebCarrierSettings, 
 	if err != nil {
 		return WebCarrierSettings{}, fmt.Errorf("đọc cài đặt hãng trên web: %w", err)
 	}
-	return webSettingsOf(r.PreferredAccountID, r.FallbackFee, r.Version), nil
+	return webSettingsOf(r.PreferredAccountID, r.FallbackFee, r.Version, r.UpdatedBy, r.UpdatedAt), nil
 }
 
 // SaveWebCarrierSettings ghi cả bộ in (in.Version là version đang sửa) trong tx của bên gọi: phí dự phòng ngoài
@@ -143,7 +147,7 @@ func (*Service) lockWebSettings(ctx context.Context, q *store.Queries, tenantID 
 	if err != nil {
 		return WebCarrierSettings{}, fmt.Errorf("khóa cài đặt hãng trên web: %w", err)
 	}
-	return webSettingsOf(r.PreferredAccountID, r.FallbackFee, r.Version), nil
+	return webSettingsOf(r.PreferredAccountID, r.FallbackFee, r.Version, r.UpdatedBy, r.UpdatedAt), nil
 }
 
 // writeWebSettings ghi dòng đã khóa (version + 1), phát sự kiện, báo hiệu; trả cài đặt mới.
@@ -161,7 +165,7 @@ func (s *Service) writeWebSettings(ctx context.Context, tx pgx.Tx, q *store.Quer
 	if err != nil {
 		return WebCarrierSettings{}, fmt.Errorf("ghi cài đặt hãng trên web: %w", err)
 	}
-	after := webSettingsOf(r.PreferredAccountID, r.FallbackFee, r.Version)
+	after := webSettingsOf(r.PreferredAccountID, r.FallbackFee, r.Version, r.UpdatedBy, r.UpdatedAt)
 	if s.d.Events == nil {
 		return WebCarrierSettings{}, errors.New("fulfillment: chưa nối sổ sự kiện (Deps.Events)")
 	}
@@ -207,8 +211,77 @@ func (s *Service) webCarrierHidden(ctx context.Context, tx pgx.Tx, q *store.Quer
 	return err
 }
 
-func webSettingsOf(preferred pgtype.UUID, fee pgtype.Int8, version int32) WebCarrierSettings {
+// WebCarrierOrderChange là thứ tự tài khoản hiện trên web trước và sau một lần đổi thứ tự, kèm cài đặt sau khi ghi
+// (bên gọi ghi audit, trả màn hình).
+type WebCarrierOrderChange struct {
+	Before, After []uuid.UUID
+	Settings      WebCarrierSettings
+}
+
+// AuditFields là giá trị đưa vào audit (thứ tự sau, version mới).
+func (c WebCarrierOrderChange) AuditFields(order []uuid.UUID) map[string]any {
+	ids := make([]string, len(order))
+	for i, id := range order {
+		ids[i] = id.String()
+	}
+	return map[string]any{"accountIds": ids, "version": c.Settings.Version}
+}
+
+// ReorderWebCarriers đổi thứ tự trên web của cả danh sách trong tx của bên gọi (Task 488): khóa mọi tài khoản đang
+// hiện trên web (trừ revoked) theo mã tăng dần rồi khóa dòng cài đặt (nhóm 8 ADR-46); ids phải đúng tập đang hiện
+// (khác: có người vừa bật/ẩn; ids trùng cũng là khác tập) và version phải khớp, không thì ErrVersionConflict.
+// web_sort thành 1, 2…; chỉ tài khoản đổi số mới ghi; cài đặt version + 1 (người, giờ lưu cuối), sự kiện, báo hiệu
+// như SaveWebCarrierSettings. Audit do bên gọi ghi. Chạy lại được trong db.RetryTx.
+func (s *Service) ReorderWebCarriers(ctx context.Context, tx pgx.Tx, ids []uuid.UUID, version int, a Actor,
+) (WebCarrierOrderChange, error) {
+	want := make(map[uuid.UUID]bool, len(ids))
+	for _, id := range ids {
+		want[id] = true
+	}
+	q := store.New(tx)
+	rows, err := q.LockWebCarriersForOrder(ctx)
+	if err != nil {
+		return WebCarrierOrderChange{}, fmt.Errorf("khóa tài khoản hãng trên web: %w", err)
+	}
+	cur, err := s.lockWebSettings(ctx, q, a.TenantID)
+	if err != nil {
+		return WebCarrierOrderChange{}, err
+	}
+	if cur.Version != version || len(rows) != len(ids) {
+		return WebCarrierOrderChange{}, ErrVersionConflict
+	}
+	for _, r := range rows {
+		if !want[r.ID] {
+			return WebCarrierOrderChange{}, ErrVersionConflict
+		}
+	}
+	slices.SortFunc(rows, func(x, y store.LockWebCarriersForOrderRow) int {
+		return cmp.Or(cmp.Compare(x.WebSort, y.WebSort), slices.Compare(x.ID[:], y.ID[:]))
+	})
+	before := make([]uuid.UUID, len(rows))
+	for i, r := range rows {
+		before[i] = r.ID
+	}
+	for i, id := range ids {
+		if _, err := q.SetWebSort(ctx, store.SetWebSortParams{ID: id, WebSort: int32(i + 1)}); err != nil {
+			return WebCarrierOrderChange{}, fmt.Errorf("ghi thứ tự hãng trên web: %w", err)
+		}
+	}
+	after, err := s.writeWebSettings(ctx, tx, q, cur.PreferredAccountID, cur.FallbackFee, a)
+	if err != nil {
+		return WebCarrierOrderChange{}, err
+	}
+	return WebCarrierOrderChange{Before: before, After: slices.Clone(ids), Settings: after}, nil
+}
+
+// webSettingsOf dựng cài đặt từ dòng bảng; updated_at chỉ có nghĩa khi đã có người lưu (dòng mặc định chèn lúc
+// khóa lần đầu có updated_by NULL).
+func webSettingsOf(preferred pgtype.UUID, fee pgtype.Int8, version int32, by pgtype.UUID, at time.Time) WebCarrierSettings {
 	s := WebCarrierSettings{Version: int(version)}
+	if by.Valid {
+		u, t := uuid.UUID(by.Bytes), at
+		s.UpdatedBy, s.UpdatedAt = &u, &t
+	}
 	if preferred.Valid {
 		id := uuid.UUID(preferred.Bytes)
 		s.PreferredAccountID = &id
@@ -259,16 +332,17 @@ func preferredFirst(a, b bool) int {
 	return 1
 }
 
-// WebCarrierStat là một tài khoản hiện trên web cho màn quản lý: trạng thái, thứ tự, số vận đơn chưa hủy 30 ngày.
+// WebCarrierStat là một tài khoản cho màn quản lý hãng trên web: trạng thái, có hiện trên web không, thứ tự, số vận
+// đơn chưa hủy 30 ngày.
 type WebCarrierStat struct {
 	AccountID                uuid.UUID
 	CarrierKey, Name, Status string
 	WebSort, Shipments30d    int
-	Preferred                bool
+	Preferred, ShowOnWeb     bool
 }
 
-// WebCarrierStats trả mọi tài khoản bật show_on_web (trừ revoked; kể cả tạm dừng, để màn hình báo) theo web_sort, kèm
-// số vận đơn chưa hủy tạo trong 30 ngày tới now (mọi kênh bán).
+// WebCarrierStats trả mọi tài khoản trừ revoked (đang hiện trên web hay không, Task 488; kể cả tạm dừng, để màn hình
+// báo) theo web_sort, kèm số vận đơn chưa hủy tạo trong 30 ngày tới now (mọi kênh bán). Bên gọi tách theo ShowOnWeb.
 func WebCarrierStats(ctx context.Context, tx pgx.Tx, set WebCarrierSettings, now time.Time) ([]WebCarrierStat, error) {
 	rows, err := store.New(tx).WebCarrierStats(ctx, now.UTC().Add(-statsWindow))
 	if err != nil {
@@ -279,6 +353,7 @@ func WebCarrierStats(ctx context.Context, tx pgx.Tx, set WebCarrierSettings, now
 		out = append(out, WebCarrierStat{
 			AccountID: r.ID, CarrierKey: r.CarrierKey, Name: r.Name, Status: r.Status, WebSort: int(r.WebSort),
 			Shipments30d: int(r.Shipments30d), Preferred: set.PreferredAccountID != nil && *set.PreferredAccountID == r.ID,
+			ShowOnWeb: r.ShowOnWeb,
 		})
 	}
 	return out, nil

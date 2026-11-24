@@ -211,14 +211,7 @@ func TestListAuditLogs_ActorNamesNoValues(t *testing.T) {
 	t.Parallel()
 	e := newKeyEnv(t)
 	staffID := e.ids[emailA]
-	var key identity.ServiceKey
-	if err := tenancy.WithTenant(t.Context(), e.s.App, e.tenant, func(tx pgx.Tx) error {
-		var err error
-		key, _, err = identity.CreateServiceKey(t.Context(), tx, webInput(e.actor(emailA), "web.catalog.read"))
-		return err //nolint:wrapcheck // test
-	}); err != nil {
-		t.Fatal(err)
-	}
+	key := e.mustWebKey("Website")
 	pii := map[string]any{"phone": "0911222333", "address": "12 Hàng Bạc", "status": "new"}
 	entries := []identity.AuditEntry{
 		{
@@ -232,13 +225,10 @@ func TestListAuditLogs_ActorNamesNoValues(t *testing.T) {
 		{ActorType: "customer", ActorID: uuid.NewString(), Action: "t.customer", After: pii},
 		{ActorType: "service", ActorID: staffID.String(), Action: "t.service-is-staff-id"},
 	}
-	for i, en := range entries {
-		en.TenantID, en.EntityType, en.EntityID, en.IP = e.tenant, "t", "t-1", "203.0.113.9"
-		en.At = auditBase().Add(time.Duration(i) * time.Minute)
-		if err := record(t, e.s, en); err != nil {
-			t.Fatal(err)
-		}
+	for i := range entries {
+		entries[i].EntityType, entries[i].EntityID, entries[i].IP = "t", "t-1", "203.0.113.9"
 	}
+	e.recordMinutely(entries)
 	got, _ := mustListAudit(t, e.s, e.tenant, identity.AuditFilter{EntityType: "t"})
 	byAction := map[string]identity.AuditLog{}
 	for _, r := range got {

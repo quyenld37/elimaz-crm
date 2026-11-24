@@ -114,6 +114,23 @@ paths:
                 $ref: "#/components/schemas/AuditLogPage"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/identity/audit-actors:
+    get:
+      operationId: listAuditActors
+      summary: Người làm cho ô lọc của nhật ký thao tác — mọi nhân viên và khóa dịch vụ của shop (Task 488)
+      description: |
+        Nhân viên (mọi trạng thái, kể cả đã khóa) và khóa dịch vụ (kể cả đã thu hồi) của shop, xếp theo tên; id là mã gửi
+        lại ở tham số actorId của listAuditLogs. Chỉ tên, không email. Hệ thống không có trong danh sách (không có mã).
+      x-permission: audit.read
+      responses:
+        "200":
+          description: Người làm
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditActorList"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/identity/users:
     get:
       operationId: listStaff
@@ -3381,6 +3398,33 @@ paths:
       responses:
         "200":
           description: saveWebCarrierSettings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCarrierSettings"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web-carrier-settings/order:
+    put:
+      operationId: reorderWebCarriers
+      summary: 'Đổi thứ tự hãng trên website cả danh sách trong một lần ghi khi version khớp (409 version_conflict) (Task 488)'
+      description: |
+        accountIds là mọi tài khoản đang hiện trên web (showOnWeb, trừ revoked) theo thứ tự mới; webSort thành 1, 2, 3…
+        Tập khác tập đang hiện (có người vừa bật/ẩn) hay version lệch → 409 version_conflict, không đổi gì; mã trùng →
+        400 bad_request (uniqueItems). version của cài đặt tăng 1 (người, giờ lưu cuối là người đổi thứ tự); audit
+        fulfillment.web_carrier_order.update; sự kiện carrier.web_settings_changed làm mới bộ đệm website.
+      x-permission: fulfillment.carrier_accounts.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderWebCarriersRequest"
+      responses:
+        "200":
+          description: reorderWebCarriers
           content:
             application/json:
               schema:
@@ -8307,6 +8351,17 @@ components:
         desktopSmall:
           type: string
           description: Đường dẫn WebP rộng 1200 (có khi ready)
+        width:
+          type: integer
+          format: int32
+          description: Rộng ảnh gốc (px), có khi ready (Task 488)
+        height:
+          type: integer
+          format: int32
+          description: Cao ảnh gốc (px), có khi ready (Task 488)
+        rejectReason:
+          type: string
+          description: Lý do từ chối khi rejected (not_image, too_small, …) (Task 488)
     HomeBannerCampaign:
       type: object
       required: [id, name, percent, scope, state, startsAt, endsAt, targetIds, running]
@@ -8384,6 +8439,9 @@ components:
         updatedAt:
           type: string
           format: date-time
+        updatedByName:
+          type: string
+          description: Tên nhân viên lưu lần cuối (Task 488); vắng khi chưa lưu hay nhân viên không còn
         banners:
           type: array
           items:
@@ -8627,6 +8685,31 @@ components:
         inStock:
           type: boolean
           description: Có biến thể bán được còn hàng ở kho mặc định
+        colors:
+          type: array
+          description: Màu của các biến thể đang bán được (bỏ trùng, theo thứ tự biến thể) — ô màu của món (Task 488)
+          items:
+            $ref: "#/components/schemas/LookColor"
+    LookColor:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        hex:
+          type: string
+          description: Mã màu "#rrggbb" nếu có
+    LookSkip:
+      type: object
+      description: Bộ chưa đủ để xem trước (Task 488); lý do là mã lỗi lưu sẽ trả cho bộ đó
+      required: [id, reason]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          enum: [invalid_look, look_items_invalid, look_dot_invalid, look_photo_invalid, look_window_invalid]
     LookPhoto:
       type: object
       required: [productId, fileId, position, ready, variants]
@@ -8665,6 +8748,9 @@ components:
         updatedAt:
           type: string
           format: date-time
+        updatedByName:
+          type: string
+          description: Tên nhân viên lưu lần cuối (Task 488); vắng khi chưa lưu hay nhân viên không còn
         looks:
           type: array
           items:
@@ -8709,8 +8795,15 @@ components:
             $ref: "#/components/schemas/Look"
     LookPreview:
       type: object
-      required: [statuses, products, photos]
+      description: |
+        statuses chỉ gồm bộ đủ thông tin (theo thứ tự gửi); bộ chưa đủ nằm ở skipped kèm lý do (Task 488), không làm cả
+        danh sách 422. Lỗi của cả danh sách (quá số bộ, quá 6 bộ trang chủ, mã trùng) vẫn 422.
+      required: [statuses, products, photos, skipped]
       properties:
+        skipped:
+          type: array
+          items:
+            $ref: "#/components/schemas/LookSkip"
         statuses:
           type: array
           items:
@@ -8849,7 +8942,7 @@ components:
           minimum: 1
     WebCarrierSettings:
       type: object
-      required: [version, carriers]
+      required: [version, carriers, hiddenCarriers]
       properties:
         preferredAccountId:
           type: string
@@ -8861,8 +8954,24 @@ components:
           type: integer
           format: int32
           minimum: 1
+        updatedBy:
+          type: string
+          format: uuid
+          description: Nhân viên lưu lần cuối (chọn sẵn, phí dự phòng, thứ tự); vắng khi chưa lưu (Task 488)
+        updatedByName:
+          type: string
+          description: Tên của updatedBy; vắng khi nhân viên không còn
+        updatedAt:
+          type: string
+          format: date-time
+          description: Lúc lưu lần cuối; vắng khi chưa lưu
         carriers:
           type: array
+          items:
+            $ref: "#/components/schemas/WebCarrierStat"
+        hiddenCarriers:
+          type: array
+          description: Tài khoản chưa hiện trên web (trừ revoked) kèm số vận đơn 30 ngày, xếp theo tên (Task 488)
           items:
             $ref: "#/components/schemas/WebCarrierStat"
     WebCarrierStat:
@@ -8901,6 +9010,22 @@ components:
           type: integer
           format: int32
           minimum: 1
+    ReorderWebCarriersRequest:
+      type: object
+      required: [version, accountIds]
+      properties:
+        version:
+          type: integer
+          format: int32
+          minimum: 1
+        accountIds:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
     SetWebIntakeRequest:
       type: object
       required: [paused, version]
@@ -14728,6 +14853,11 @@ components:
           type: string
         entityId:
           type: string
+        entityName:
+          type: string
+          description: |
+            Tên hay mã dễ đọc của thực thể (Task 488): mã yêu cầu (YC…), mã phiếu kho, tên tài khoản hãng, tên khóa dịch
+            vụ. Vắng với loại khác, thực thể toàn shop, hay khi không còn tìm thấy.
         changedFields:
           type: array
           description: Tên các trường đổi (chỉ tên, không giá trị)
@@ -14736,6 +14866,29 @@ components:
         createdAt:
           type: string
           format: date-time
+    AuditActor:
+      type: object
+      required: [actorType, id, name, active]
+      properties:
+        actorType:
+          type: string
+          enum: [staff, service]
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        active:
+          type: boolean
+          description: Nhân viên chưa khóa, khóa dịch vụ chưa thu hồi
+    AuditActorList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditActor"
     AuditLogPage:
       type: object
       required: [items]

@@ -148,7 +148,7 @@ export function installFake(): Fake {
     },
     pickup: { warehouseId: WH, version: 1 },
     unmapped: [],
-    webSettings: { version: 1, carriers: [] },
+    webSettings: { version: 1, carriers: [], hiddenCarriers: [] },
     replies: [],
     writes: [],
     hold: null,

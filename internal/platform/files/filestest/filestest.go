@@ -95,12 +95,19 @@ func MarkLost(t testing.TB, tx pgx.Tx, fileID uuid.UUID) {
 func Rejected(t testing.TB, tx pgx.Tx, tenantID uuid.UUID, purpose string) uuid.UUID {
 	t.Helper()
 	id := Uploaded(t, tx, tenantID, purpose)
+	MarkRejected(t, tx, id, "not_image")
+	return id
+}
+
+// MarkRejected đặt tệp fileID đang chờ xử lý (uploaded, processing) thành rejected với lý do reason, như imager từ chối
+// sau khi tệp đã được gắn vào bản ghi (Task 488).
+func MarkRejected(t testing.TB, tx pgx.Tx, fileID uuid.UUID, reason string) {
+	t.Helper()
 	q := store.New(tx)
-	if _, err := q.LockFile(t.Context(), id); err != nil {
+	if _, err := q.LockFile(t.Context(), fileID); err != nil {
 		t.Fatalf("filestest: khóa tệp: %v", err)
 	}
-	if n, err := q.SetFileRejected(t.Context(), store.SetFileRejectedParams{ID: id, RejectReason: pgtype.Text{String: "not_image", Valid: true}}); err != nil || n != 1 {
+	if n, err := q.SetFileRejected(t.Context(), store.SetFileRejectedParams{ID: fileID, RejectReason: pgtype.Text{String: reason, Valid: true}}); err != nil || n != 1 {
 		t.Fatalf("filestest: đặt rejected: %d dòng, %v", n, err)
 	}
-	return id
 }

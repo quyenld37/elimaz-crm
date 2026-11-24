@@ -267,6 +267,42 @@ func (q *Queries) LockLookSet(ctx context.Context) (int32, error) {
 	return revision, err
 }
 
+const lookProductColors = `-- name: LookProductColors :many
+SELECT v.product_id, v.color, coalesce(max(v.color_hex), '')::text AS color_hex
+FROM catalog.variants_v AS v
+WHERE v.product_id = ANY($1::uuid[]) AND v.sellable AND v.price > 0
+GROUP BY v.product_id, v.color
+ORDER BY v.product_id, min(v.sku), v.color
+`
+
+type LookProductColorsRow struct {
+	ProductID uuid.UUID
+	Color     string
+	ColorHex  string
+}
+
+// Màu của các mẫu cho ô màu của món (Task 488): màu của biến thể bán được giá > 0, bỏ trùng, theo SKU nhỏ nhất của
+// màu; mã màu lấy một giá trị khác rỗng nếu có.
+func (q *Queries) LookProductColors(ctx context.Context, ids []uuid.UUID) ([]LookProductColorsRow, error) {
+	rows, err := q.db.Query(ctx, lookProductColors, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LookProductColorsRow{}
+	for rows.Next() {
+		var i LookProductColorsRow
+		if err := rows.Scan(&i.ProductID, &i.Color, &i.ColorHex); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lookProductImages = `-- name: LookProductImages :many
 SELECT i.product_id, i.file_id, i.color, i.position
 FROM catalog.product_images_v AS i

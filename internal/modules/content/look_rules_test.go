@@ -316,3 +316,50 @@ func TestLookLinks_MatchWebsite(t *testing.T) {
 		}
 	}
 }
+
+// Task 488: xem trước bỏ bộ chưa đủ kèm lỗi lưu sẽ trả, giữ thứ tự các bộ đủ; lỗi của cả danh sách vẫn trả lỗi.
+func TestPreviewLooks_SkipsIncomplete(t *testing.T) {
+	t.Parallel()
+	r := newLookRefs()
+	good1, good2 := r.look(), r.look()
+	noName, noItems, noPhoto, badDot := r.look(), r.look(), r.look(), r.look()
+	noName.Name = ""
+	noItems.Items = nil
+	noPhoto.PhotoFileID = uuid.Nil
+	badDot.Items[0].X = 120
+	ok, skipped, err := content.PreviewLooks([]content.Look{noName, good1, noItems, noPhoto, good2, badDot}, r.ref, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ok) != 2 || ok[0].ID != good1.ID || ok[1].ID != good2.ID {
+		t.Errorf("bộ đủ: %+v", ok)
+	}
+	want := []struct {
+		id  uuid.UUID
+		err error
+	}{
+		{noName.ID, content.ErrInvalidLook},
+		{noItems.ID, content.ErrLookItems},
+		{noPhoto.ID, content.ErrLookPhoto},
+		{badDot.ID, content.ErrLookDot},
+	}
+	if len(skipped) != len(want) {
+		t.Fatalf("bỏ qua: %+v", skipped)
+	}
+	for i, w := range want {
+		if skipped[i].ID != w.id || !errors.Is(skipped[i].Err, w.err) {
+			t.Errorf("bỏ qua %d: %+v, muốn %v", i, skipped[i], w.err)
+		}
+	}
+	if _, _, err := content.PreviewLooks(r.many(7, 7), r.ref, nil); !errors.Is(err, content.ErrTooManyHomeLooks) {
+		t.Errorf("7 bộ trang chủ: %v", err)
+	}
+	dup := r.look()
+	if _, _, err := content.PreviewLooks([]content.Look{dup, dup}, r.ref, nil); !errors.Is(err, content.ErrInvalidLook) {
+		t.Errorf("mã trùng: %v", err)
+	}
+	ok, skipped, err = content.PreviewLooks(nil, r.ref, nil)
+	if err != nil || len(ok) != 0 || skipped == nil || len(skipped) != 0 {
+		t.Errorf("rỗng: %v %v %v", ok, skipped, err)
+	}
+}

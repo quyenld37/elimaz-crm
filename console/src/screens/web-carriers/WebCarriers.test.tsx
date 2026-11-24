@@ -52,12 +52,13 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
   fake = installFake();
   fake.accounts = mockupAccounts();
-  const [vtp, best] = fake.accounts;
-  if (vtp === undefined || best === undefined) throw new Error("thiếu tài khoản");
+  const [vtp, best, spx] = fake.accounts;
+  if (vtp === undefined || best === undefined || spx === undefined) throw new Error("thiếu tài khoản");
   fake.webSettings = {
     version: 5,
     preferredAccountId: best.id,
     carriers: [stat(vtp, 412), stat(best, 37, true)],
+    hiddenCarriers: [stat(spx, 9)],
   };
 });
 afterEach(() => {
@@ -242,20 +243,57 @@ describe("bật, ẩn, đổi thứ tự (lưu ngay từng tài khoản)", () =>
     expect(await screen.findByText(/Phải còn ít nhất một hãng hiện trên website/)).toBeTruthy();
   });
 
-  it("↓ ở VTP → ghi webSort 2 cho VTP, 1 cho Best; hai khóa khác nhau của cùng thao tác", async () => {
+  it("↓ ở VTP → một lệnh PUT thứ tự cả danh sách (Best, VTP) kèm version cài đặt, có khóa chống trùng", async () => {
     open();
     await card();
     fireEvent.click(await screen.findByRole("button", { name: `Đưa ${VTP} xuống` }));
     await waitFor(() => {
+      expect(fake.writes).toHaveLength(1);
+    });
+    expect(fake.writes[0]).toMatchObject({
+      method: "PUT",
+      path: "/api/v1/web-carrier-settings/order",
+      body: { version: 5, accountIds: [accId(2), accId(1)] },
+    });
+    expect(fake.writes[0]?.key).toBeTruthy();
+  });
+
+  it("hãng chưa hiện cũng có số vận đơn 30 ngày (Task 488)", async () => {
+    open();
+    await listed(await card());
+    expect(item(SPX).textContent).toContain("9 vận đơn trong 30 ngày");
+  });
+
+  it("đổi thứ tự 409 → hộp người khác vừa đổi nêu người, giờ lưu của bản tải lại", async () => {
+    fake.replies.push({ status: 409, body: { error: "version_conflict", request_id: "t" } });
+    open();
+    await card();
+    fake.webSettings = {
+      ...fake.webSettings,
+      version: 6,
+      updatedByName: "Trần Minh Thư",
+      updatedAt: "2026-11-21T04:20:00Z",
+    };
+    fireEvent.click(await screen.findByRole("button", { name: `Đưa ${VTP} xuống` }));
+    expect(await screen.findByText("Người khác vừa đổi phần này.")).toBeTruthy();
+    expect(await screen.findByText(/Đã tải lại \(Trần Minh Thư, 11:20 21\/11\)\. Xem lại rồi chọn lại\./)).toBeTruthy();
+  });
+
+  it("đổi thứ tự xong rồi lưu bản nháp chọn sẵn (đọc ở version 5) → gửi version mới của chính mình, không tự 409", async () => {
+    const { c } = await pickVtp();
+    fake.replies.push({ status: 200, body: { ...fake.webSettings, version: 6 } });
+    fireEvent.click(screen.getByRole("button", { name: `Đưa ${VTP} xuống` }));
+    await waitFor(() => {
+      expect(fake.writes).toHaveLength(1);
+    });
+    await waitFor(() => {
+      expect(within(c).getByRole<HTMLButtonElement>("button", { name: "Lưu" }).disabled).toBe(false);
+    });
+    fireEvent.click(within(c).getByRole("button", { name: "Lưu" }));
+    await waitFor(() => {
       expect(fake.writes).toHaveLength(2);
     });
-    expect(fake.writes.map((w) => [w.path, w.body])).toEqual([
-      [`/api/v1/carrier-accounts/${accId(2)}`, { version: 6, webSort: 1 }],
-      [`/api/v1/carrier-accounts/${accId(1)}`, { version: 4, webSort: 2 }],
-    ]);
-    const [k1, k2] = fake.writes.map((w) => w.key ?? "");
-    expect(k1).not.toBe(k2);
-    expect(k1?.replace(/-0$/, "")).toBe(k2?.replace(/-1$/, ""));
+    expect(fake.writes[1]?.body).toEqual({ version: 6, preferredAccountId: accId(1) });
   });
 
   it("đang lưu → mọi ô bật/tắt, nút thứ tự và nút Lưu khóa; dòng đang lưu ghi Đang lưu…", async () => {
@@ -381,7 +419,7 @@ describe("trạng thái C: chỉ xem, không tài khoản hoạt động, lỗi 
 
   it("không tài khoản nào hoạt động, không hãng hiện → câu chưa có hãng để khách chọn", async () => {
     fake.accounts = [account(4, { name: BEST_HN, status: "paused" })];
-    fake.webSettings = { version: 1, carriers: [] };
+    fake.webSettings = { version: 1, carriers: [], hiddenCarriers: [] };
     open();
     const c = await card();
     expect(await within(c).findByText("Chưa có tài khoản hãng nào hoạt động")).toBeTruthy();

@@ -55,10 +55,13 @@ type AuditFilter struct {
 // AuditLog là một dòng nhật ký thao tác cho màn Nhật ký: người làm (ActorType một trong staff, system, carrier,
 // customer, service; ActorID rỗng khi không có), ActorName (tên nhân viên hay tên khóa dịch vụ; rỗng với loại khác hay
 // khi không tìm thấy), hành động, thực thể, tên các trường đổi (không nil). Không mang giá trị before/after, IP.
+// EntityName (Task 488) là tên khóa dịch vụ khi thực thể là khóa dịch vụ của identity (kể cả đã thu hồi); rỗng với loại
+// khác — tên thực thể của module khác do bên gọi đọc qua public API của module đó.
 type AuditLog struct {
 	ID                            uuid.UUID
 	ActorType, ActorID, ActorName string
 	Action, EntityType, EntityID  string
+	EntityName                    string
 	ChangedFields                 []string
 	CreatedAt                     time.Time
 }
@@ -96,6 +99,10 @@ func ListAuditLogs(ctx context.Context, tx pgx.Tx, f AuditFilter) ([]AuditLog, *
 	if err != nil {
 		return nil, nil, err
 	}
+	keyNames, err := auditKeyNames(ctx, q, rows)
+	if err != nil {
+		return nil, nil, err
+	}
 	out := make([]AuditLog, 0, len(rows))
 	for _, r := range rows {
 		changed := r.ChangedFields
@@ -107,6 +114,9 @@ func ListAuditLogs(ctx context.Context, tx pgx.Tx, f AuditFilter) ([]AuditLog, *
 			Action: r.Action, EntityType: r.EntityType, EntityID: r.EntityID, ChangedFields: changed,
 			CreatedAt: r.CreatedAt,
 		})
+		if r.EntityType == auditServiceKey {
+			out[len(out)-1].EntityName = keyNames[actorKey("service", r.EntityID)]
+		}
 	}
 	return out, next, nil
 }
@@ -127,16 +137,58 @@ func auditActorNames(ctx context.Context, q *store.Queries, rows []store.ListAud
 			p.KeyIds = append(p.KeyIds, id)
 		}
 	}
+	return namesByKey(ctx, q, p, "đọc tên người làm của nhật ký")
+}
+
+// auditKeyNames đọc tên khóa dịch vụ là thực thể của rows (Task 488, cùng câu AuditActorNames); khóa của map là
+// actorKey "service/<mã>".
+func auditKeyNames(ctx context.Context, q *store.Queries, rows []store.ListAuditLogsRow) (map[string]string, error) {
+	p := store.AuditActorNamesParams{StaffIds: []uuid.UUID{}, KeyIds: []uuid.UUID{}}
+	for _, r := range rows {
+		if id, err := uuid.Parse(r.EntityID); err == nil && r.EntityType == auditServiceKey {
+			p.KeyIds = append(p.KeyIds, id)
+		}
+	}
+	return namesByKey(ctx, q, p, "đọc tên khóa dịch vụ của nhật ký")
+}
+
+// namesByKey chạy AuditActorNames cho p (rỗng thì không chạy); khóa của map là actorKey; what là việc đang làm (bọc lỗi).
+func namesByKey(ctx context.Context, q *store.Queries, p store.AuditActorNamesParams, what string) (map[string]string, error) {
 	out := map[string]string{}
 	if len(p.StaffIds)+len(p.KeyIds) == 0 {
 		return out, nil
 	}
 	named, err := q.AuditActorNames(ctx, p)
 	if err != nil {
-		return nil, fmt.Errorf("đọc tên người làm của nhật ký: %w", err)
+		return nil, fmt.Errorf("%s: %w", what, err)
 	}
 	for _, n := range named {
 		out[actorKey(n.Kind, n.ID.String())] = n.Name
+	}
+	return out, nil
+}
+
+// AuditActor là một người làm cho ô lọc của màn nhật ký: ActorType "staff" hay "service", mã (gửi lại ở
+// AuditFilter.ActorID), tên, Active (nhân viên chưa khóa, khóa chưa thu hồi).
+type AuditActor struct {
+	ActorType string
+	ID        uuid.UUID
+	Name      string
+	Active    bool
+}
+
+// ListAuditActors trả mọi nhân viên (kể cả đã khóa) và khóa dịch vụ (kể cả đã thu hồi) của tenant của tx, xếp theo tên
+// (Task 488). Chỉ tên, không email. Chạy trong tenancy.WithTenant.
+//
+// Khi nào không dùng: danh sách nhân viên để quản lý (ListStaff: có email, quyền).
+func ListAuditActors(ctx context.Context, tx pgx.Tx) ([]AuditActor, error) {
+	rows, err := store.New(tx).AuditActors(ctx)
+	out := make([]AuditActor, len(rows))
+	for i := range rows {
+		out[i] = AuditActor(rows[i])
+	}
+	if err != nil {
+		return nil, fmt.Errorf("đọc người làm của nhật ký: %w", err)
 	}
 	return out, nil
 }

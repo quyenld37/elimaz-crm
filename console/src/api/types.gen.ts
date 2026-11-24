@@ -1039,6 +1039,18 @@ export type HomeBannerImage = {
      * Đường dẫn WebP rộng 1200 (có khi ready)
      */
     desktopSmall?: string;
+    /**
+     * Rộng ảnh gốc (px), có khi ready (Task 488)
+     */
+    width?: number;
+    /**
+     * Cao ảnh gốc (px), có khi ready (Task 488)
+     */
+    height?: number;
+    /**
+     * Lý do từ chối khi rejected (not_image, too_small, …) (Task 488)
+     */
+    rejectReason?: string;
 };
 
 export type HomeBannerCampaign = {
@@ -1079,6 +1091,10 @@ export type HomeBannerList = {
     revision: number;
     updatedBy?: string;
     updatedAt?: string;
+    /**
+     * Tên nhân viên lưu lần cuối (Task 488); vắng khi chưa lưu hay nhân viên không còn
+     */
+    updatedByName?: string;
     banners: Array<HomeBanner>;
     statuses: Array<HomeBannerStatus>;
     images: Array<HomeBannerImage>;
@@ -1220,6 +1236,26 @@ export type LookProductRef = {
      * Có biến thể bán được còn hàng ở kho mặc định
      */
     inStock: boolean;
+    /**
+     * Màu của các biến thể đang bán được (bỏ trùng, theo thứ tự biến thể) — ô màu của món (Task 488)
+     */
+    colors?: Array<LookColor>;
+};
+
+export type LookColor = {
+    name: string;
+    /**
+     * Mã màu "#rrggbb" nếu có
+     */
+    hex?: string;
+};
+
+/**
+ * Bộ chưa đủ để xem trước (Task 488); lý do là mã lỗi lưu sẽ trả cho bộ đó
+ */
+export type LookSkip = {
+    id: string;
+    reason: 'invalid_look' | 'look_items_invalid' | 'look_dot_invalid' | 'look_photo_invalid' | 'look_window_invalid';
 };
 
 export type LookPhoto = {
@@ -1240,6 +1276,10 @@ export type LookList = {
     revision: number;
     updatedBy?: string;
     updatedAt?: string;
+    /**
+     * Tên nhân viên lưu lần cuối (Task 488); vắng khi chưa lưu hay nhân viên không còn
+     */
+    updatedByName?: string;
     looks: Array<Look>;
     statuses: Array<LookStatus>;
     products: Array<LookProductRef>;
@@ -1256,7 +1296,13 @@ export type PreviewLooksRequest = {
     looks: Array<Look>;
 };
 
+/**
+ * statuses chỉ gồm bộ đủ thông tin (theo thứ tự gửi); bộ chưa đủ nằm ở skipped kèm lý do (Task 488), không làm cả
+ * danh sách 422. Lỗi của cả danh sách (quá số bộ, quá 6 bộ trang chủ, mã trùng) vẫn 422.
+ *
+ */
 export type LookPreview = {
+    skipped: Array<LookSkip>;
     statuses: Array<LookStatus>;
     products: Array<LookProductRef>;
     photos: Array<LookPhoto>;
@@ -1345,7 +1391,23 @@ export type WebCarrierSettings = {
     preferredAccountId?: string;
     fallbackFee?: Money;
     version: number;
+    /**
+     * Nhân viên lưu lần cuối (chọn sẵn, phí dự phòng, thứ tự); vắng khi chưa lưu (Task 488)
+     */
+    updatedBy?: string;
+    /**
+     * Tên của updatedBy; vắng khi nhân viên không còn
+     */
+    updatedByName?: string;
+    /**
+     * Lúc lưu lần cuối; vắng khi chưa lưu
+     */
+    updatedAt?: string;
     carriers: Array<WebCarrierStat>;
+    /**
+     * Tài khoản chưa hiện trên web (trừ revoked) kèm số vận đơn 30 ngày, xếp theo tên (Task 488)
+     */
+    hiddenCarriers: Array<WebCarrierStat>;
 };
 
 export type WebCarrierStat = {
@@ -1368,6 +1430,11 @@ export type SaveWebCarrierSettingsRequest = {
     preferredAccountId?: string;
     fallbackFee?: Money;
     version: number;
+};
+
+export type ReorderWebCarriersRequest = {
+    version: number;
+    accountIds: Array<string>;
 };
 
 export type SetWebIntakeRequest = {
@@ -4603,10 +4670,30 @@ export type AuditLog = {
     entityType: string;
     entityId?: string;
     /**
+     * Tên hay mã dễ đọc của thực thể (Task 488): mã yêu cầu (YC…), mã phiếu kho, tên tài khoản hãng, tên khóa dịch
+     * vụ. Vắng với loại khác, thực thể toàn shop, hay khi không còn tìm thấy.
+     *
+     */
+    entityName?: string;
+    /**
      * Tên các trường đổi (chỉ tên, không giá trị)
      */
     changedFields: Array<string>;
     createdAt: string;
+};
+
+export type AuditActor = {
+    actorType: 'staff' | 'service';
+    id: string;
+    name: string;
+    /**
+     * Nhân viên chưa khóa, khóa dịch vụ chưa thu hồi
+     */
+    active: boolean;
+};
+
+export type AuditActorList = {
+    items: Array<AuditActor>;
 };
 
 export type AuditLogPage = {
@@ -4895,6 +4982,31 @@ export type ListAuditLogsResponses = {
 };
 
 export type ListAuditLogsResponse = ListAuditLogsResponses[keyof ListAuditLogsResponses];
+
+export type ListAuditActorsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/identity/audit-actors';
+};
+
+export type ListAuditActorsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListAuditActorsError = ListAuditActorsErrors[keyof ListAuditActorsErrors];
+
+export type ListAuditActorsResponses = {
+    /**
+     * Người làm
+     */
+    200: AuditActorList;
+};
+
+export type ListAuditActorsResponse = ListAuditActorsResponses[keyof ListAuditActorsResponses];
 
 export type ListStaffData = {
     body?: never;
@@ -9363,6 +9475,37 @@ export type SaveWebCarrierSettingsResponses = {
 };
 
 export type SaveWebCarrierSettingsResponse = SaveWebCarrierSettingsResponses[keyof SaveWebCarrierSettingsResponses];
+
+export type ReorderWebCarriersData = {
+    body: ReorderWebCarriersRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web-carrier-settings/order';
+};
+
+export type ReorderWebCarriersErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ReorderWebCarriersError = ReorderWebCarriersErrors[keyof ReorderWebCarriersErrors];
+
+export type ReorderWebCarriersResponses = {
+    /**
+     * reorderWebCarriers
+     */
+    200: WebCarrierSettings;
+};
+
+export type ReorderWebCarriersResponse = ReorderWebCarriersResponses[keyof ReorderWebCarriersResponses];
 
 export type GetWebIntakeData = {
     body?: never;

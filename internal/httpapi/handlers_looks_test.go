@@ -99,8 +99,10 @@ func TestLooksAPI_SaveRulesAndRead(t *testing.T) {
 	if len(preview.Statuses) != 1 || preview.Statuses[0].Reason != "disabled" || len(preview.Photos) != 1 {
 		t.Fatalf("xem trước: %+v", preview)
 	}
-	expect(t, "xem trước luật sai", e.do(http.MethodPost, looksPath+"/preview", couponManager, "",
-		fmt.Sprintf(`{"looks":[%s]}`, lookJSON(id, true, e.photoA, ""))), http.StatusUnprocessableEntity, "look_items_invalid")
+	// Bộ chưa đủ không làm 422 cả lần xem trước (Task 488, TestLooksAPI_MockupFields); lỗi cả danh sách vẫn 422.
+	expect(t, "xem trước luật cả danh sách", e.do(http.MethodPost, looksPath+"/preview", couponManager, "",
+		fmt.Sprintf(`{"looks":[%s,%s]}`, lookJSON(id, true, e.photoA, "", e.pA), lookJSON(id, true, e.photoA, "", e.pB))),
+		http.StatusUnprocessableEntity, "invalid_look")
 	if again := decodeLooks(t, "đọc lại", e.do(http.MethodGet, looksPath, couponManager, "", "")); again.Revision != 1 {
 		t.Fatalf("xem trước đã ghi: revision %d", again.Revision)
 	}
@@ -258,4 +260,61 @@ func TestLooksAPI_OtherTenant(t *testing.T) {
 	if a := decodeLooks(t, "A đọc", e.do(http.MethodGet, looksPath, couponManager, "", "")); a.Revision != 1 || len(a.Looks) != 1 {
 		t.Fatalf("A bị đổi: %+v", a)
 	}
+}
+
+// Task 488 (mockup HV14–HV16): tên người lưu cuối; màu bán được của từng mẫu; xem trước bỏ bộ chưa đủ kèm mã lỗi, vẫn
+// tính trạng thái các bộ đủ.
+func TestLooksAPI_MockupFields(t *testing.T) {
+	t.Parallel()
+	e := newLookEnv(t)
+	id := uuid.New()
+	s := e.ok("lưu", e.do(http.MethodPut, looksPath, couponManager, "m1", looksBody(0, lookJSON(id, true, e.photoA, "", e.pA))),
+		http.StatusOK)
+	if s["updatedByName"] != couponManager {
+		t.Fatalf("tên người lưu: %v", s["updatedByName"])
+	}
+	if c := lookColors(s, e.pA); len(c) != 1 || c[0].(map[string]any)["name"] != "Đỏ" { //nolint:forcetypeassert // test
+		t.Fatalf("màu: %v", c)
+	}
+	half, noPhoto := uuid.New(), uuid.New()
+	p := e.ok("xem trước", e.do(http.MethodPost, looksPath+"/preview", couponManager, "", fmt.Sprintf(`{"looks":[%s,%s,%s]}`,
+		lookJSON(half, true, e.photoA, ""), lookJSON(id, false, e.photoA, "", e.pA),
+		lookJSON(noPhoto, false, uuid.Nil, "", e.pB))), http.StatusOK)
+	st, _ := p["statuses"].([]any)
+	if len(st) != 1 || st[0].(map[string]any)["id"] != id.String() || st[0].(map[string]any)["reason"] != "disabled" { //nolint:forcetypeassert // test
+		t.Fatalf("trạng thái: %v", st)
+	}
+	sk, _ := p["skipped"].([]any)
+	want := map[string]string{half.String(): "look_items_invalid", noPhoto.String(): "look_photo_invalid"}
+	if len(sk) != 2 {
+		t.Fatalf("bỏ qua: %v", sk)
+	}
+	for _, x := range sk {
+		m, _ := x.(map[string]any)
+		id, _ := m["id"].(string)
+		if want[id] != m["reason"] {
+			t.Errorf("bỏ qua %v", m)
+		}
+	}
+	if c := lookColors(p, e.pB); len(c) != 1 {
+		t.Errorf("xem trước: màu của món thứ hai %v", c)
+	}
+	// Hợp đồng: photoFileId là uuid bắt buộc — chuỗi rỗng (bộ chưa chọn ảnh) làm cả yêu cầu 400, nên màn không gửi bộ
+	// chưa có ảnh (lookData.useLookPreview).
+	empty := strings.Replace(lookJSON(noPhoto, false, uuid.Nil, "", e.pB), uuid.Nil.String(), "", 1)
+	expect(t, "ảnh rỗng", e.do(http.MethodPost, looksPath+"/preview", couponManager, "", `{"looks":[`+empty+`]}`),
+		http.StatusBadRequest, "bad_request")
+}
+
+// lookColors: màu của mẫu product trong products của câu trả lời.
+func lookColors(m map[string]any, product uuid.UUID) []any {
+	ps, _ := m["products"].([]any)
+	for _, x := range ps {
+		p, _ := x.(map[string]any)
+		if p["id"] == product.String() {
+			c, _ := p["colors"].([]any)
+			return c
+		}
+	}
+	return nil
 }

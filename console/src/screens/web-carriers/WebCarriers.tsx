@@ -1,21 +1,26 @@
 // Thẻ "Hãng trên website" ở cuối màn Kết nối vận chuyển (kế hoạch M5 Task 208, M5-25; mockup
 // docs/mockups/m5/web-carriers.html trạng thái A, B, C; HV09–HV12). Bật hiện và thứ tự là cờ showOnWeb, webSort của
-// từng tài khoản hãng (updateCarrierAccount của M3, lưu ngay từng tài khoản); hãng chọn sẵn và phí dự phòng có nút Lưu
-// riêng (saveWebCarrierSettings của Task 198, giữ version). Số vận đơn 30 ngày lấy từ getWebCarrierSettings. Mục menu
-// "Hãng trên web" (nhóm Website) mở chính màn Kết nối vận chuyển và cuộn tới thẻ này (focus).
+// từng tài khoản hãng: bật/ẩn lưu ngay từng tài khoản (updateCarrierAccount của M3), đổi thứ tự lưu cả danh sách một
+// lần (reorderWebCarriers, Task 488, giữ version cài đặt); hãng chọn sẵn và phí dự phòng có nút Lưu riêng
+// (saveWebCarrierSettings của Task 198, giữ version). Số vận đơn 30 ngày (cả hãng chưa hiện) và người, giờ lưu cuối
+// lấy từ getWebCarrierSettings. Mục menu "Hãng trên web" (nhóm Website) mở chính màn Kết nối vận chuyển và cuộn tới
+// thẻ này (focus).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useRef, useState } from "react";
 import {
   getWebCarrierSettings,
+  reorderWebCarriers,
   saveWebCarrierSettings,
   updateCarrierAccount,
   type CarrierAccount,
+  type ReorderWebCarriersRequest,
   type SaveWebCarrierSettingsRequest,
   type WebCarrierSettings,
 } from "../../api";
 import { ApiError, errorMessage, unwrap } from "../../app/errors";
 import { useWriteAction, type WriteAction } from "../../app/idempotency";
 import { queryKey } from "../../app/queryClient";
+import { shortTime } from "../../app/time";
 import { accountsKey } from "../carriers/carrierData";
 import { CARRIER_ACCOUNT_TOPIC, carrierName } from "../carriers/carrierRules";
 import { formatMoney } from "../products/productRules";
@@ -23,10 +28,12 @@ import {
   blockReason,
   formOf,
   isLastActive,
+  moveOrder,
   nextWebSort,
   readiness,
-  reorder,
   sameForm,
+  savedBy,
+  shipmentCounts,
   toRequest,
   validateForm,
   webRows,
@@ -37,12 +44,26 @@ import "./web-carriers.css";
 /** Cài đặt hãng trên web: chủ đề của tài khoản hãng, nên báo hiệu tài khoản đổi (bật, ẩn, đổi thứ tự) tải lại số. */
 export const WEB_SETTINGS_KEY = queryKey(CARRIER_ACCOUNT_TOPIC, "web-settings");
 
-/** Một lệnh ghi cờ hiện trên web / thứ tự của một tài khoản (thân PATCH kèm version đã đọc). */
+/** Một lệnh ghi cờ hiện trên web của một tài khoản (thân PATCH kèm version đã đọc). */
 interface AccountWrite {
   id: string;
   version: number;
-  showOnWeb?: boolean;
+  showOnWeb: boolean;
   webSort?: number;
+}
+
+/**
+ * Hộp 409: settingsVersion là version cài đặt đã gửi khi lỗi đến từ thứ tự hay chọn sẵn/phí (khi đó hộp nêu người, giờ
+ * lưu cuối của bản tải lại); null khi lỗi đến từ một tài khoản (bật/ẩn), không có người lưu để nêu.
+ */
+interface Conflict {
+  settingsVersion: number | null;
+}
+
+/** Version cài đặt chính người này vừa tăng (đổi thứ tự): bản nháp chọn sẵn/phí dựa trên from thì gửi to. */
+interface OwnBump {
+  from: number;
+  to: number;
 }
 
 const isConflict = (e: unknown) => e instanceof ApiError && e.status === 409 && e.code === "version_conflict";
@@ -180,6 +201,7 @@ function SettingsForm({
   data,
   choices,
   busy,
+  bump,
   save,
   onSaved,
   onConflict,
@@ -187,9 +209,10 @@ function SettingsForm({
   data: WebCarrierSettings;
   choices: readonly CarrierAccount[];
   busy: boolean;
+  bump: OwnBump | null;
   save: WriteAction<SaveWebCarrierSettingsRequest, WebCarrierSettings>;
   onSaved: () => void;
-  onConflict: () => void;
+  onConflict: (sent: number) => void;
 }) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const base = formOf(data);
@@ -205,14 +228,17 @@ function SettingsForm({
     setDraft({ form: { ...f, ...p }, version: draft?.version ?? data.version });
   };
   const submit = async () => {
-    const r = await save.run(toRequest(f, draft?.version ?? data.version));
+    // Bản nháp dựa trên version mà chính người này vừa tăng khi đổi thứ tự → gửi version mới (không tự báo 409 cho mình).
+    const read = draft?.version ?? data.version;
+    const sent = bump !== null && bump.from === read ? bump.to : read;
+    const r = await save.run(toRequest(f, sent));
     if (r.ok) {
       setDraft(null);
       onSaved();
     } else if (isConflict(r.error)) {
       setDraft(null);
       save.reset();
-      onConflict();
+      onConflict(sent);
     }
   };
   const disabled = busy;
@@ -357,18 +383,18 @@ export function WebCarriers({
   const ref = useRef<HTMLElement>(null);
   const settings = useQuery({ queryKey: WEB_SETTINGS_KEY, queryFn: () => unwrap(getWebCarrierSettings()) });
   const [notice, setNotice] = useState<Notice>(null);
-  const [conflict, setConflict] = useState(false);
+  const [conflict, setConflict] = useState<Conflict | null>(null);
+  const [bump, setBump] = useState<OwnBump | null>(null);
   const [savingIds, setSavingIds] = useState<readonly string[]>([]);
   const save = useWriteAction((key: string, body: SaveWebCarrierSettingsRequest) =>
     unwrap(saveWebCarrierSettings({ body, headers: { "Idempotency-Key": key } })),
   );
-  const patch = useWriteAction(async (key: string, body: { items: AccountWrite[] }) => {
-    // Nhiều tài khoản (đổi thứ tự): mỗi tài khoản một khóa con của cùng thao tác; gửi lại thao tác dùng lại đúng khóa.
-    for (const [i, { id, ...fields }] of body.items.entries()) {
-      const k = body.items.length === 1 ? key : `${key}-${String(i)}`;
-      await unwrap(updateCarrierAccount({ path: { id }, body: fields, headers: { "Idempotency-Key": k } }));
-    }
-  });
+  const patch = useWriteAction(async (key: string, { id, ...fields }: AccountWrite) =>
+    unwrap(updateCarrierAccount({ path: { id }, body: fields, headers: { "Idempotency-Key": key } })),
+  );
+  const order = useWriteAction((key: string, body: ReorderWebCarriersRequest) =>
+    unwrap(reorderWebCarriers({ body, headers: { "Idempotency-Key": key } })),
+  );
 
   useEffect(() => {
     if (focus) ref.current?.scrollIntoView({ block: "start" });
@@ -381,22 +407,41 @@ export function WebCarriers({
 
   const { shown, hidden } = webRows(accounts);
   const data = settings.data;
-  const counts = new Map((data?.carriers ?? []).map((c) => [c.accountId, c.shipments30d]));
+  const counts = shipmentCounts(data);
   const choices = shown.filter((a) => a.status === "active");
   // Một lần ghi bất kỳ của thẻ (bật/ẩn, thứ tự, lưu chọn sẵn và phí) đang chạy → khóa mọi thao tác ghi khác.
-  const busy = patch.pending || save.pending;
+  const busy = patch.pending || save.pending || order.pending;
 
-  const write = async (items: AccountWrite[], after?: () => void) => {
+  const write = async (w: AccountWrite, after?: () => void) => {
     setNotice(null);
-    setConflict(false);
-    setSavingIds(items.map((w) => w.id));
-    const r = await patch.run({ items });
+    setConflict(null);
+    order.reset();
+    setSavingIds([w.id]);
+    const r = await patch.run(w);
     setSavingIds([]);
     reload();
     if (r.ok) after?.();
     else if (isConflict(r.error)) {
       patch.reset();
-      setConflict(true);
+      setConflict({ settingsVersion: null });
+    }
+  };
+
+  // Đổi thứ tự: cả danh sách đang hiện một lần ghi, kèm version cài đặt đang thấy (Task 488).
+  const move = async (index: number, dir: -1 | 1) => {
+    const ids = moveOrder(shown, index, dir);
+    if (ids.length === 0 || data === undefined) return;
+    setNotice(null);
+    setConflict(null);
+    patch.reset();
+    setSavingIds(ids);
+    const r = await order.run({ version: data.version, accountIds: ids });
+    setSavingIds([]);
+    reload();
+    if (r.ok) setBump({ from: data.version, to: r.data.version });
+    else if (isConflict(r.error)) {
+      order.reset();
+      setConflict({ settingsVersion: data.version });
     }
   };
 
@@ -406,11 +451,11 @@ export function WebCarriers({
       return;
     }
     if (on) {
-      void write([{ id: a.id, version: a.version, showOnWeb: true, webSort: nextWebSort(shown) }]);
+      void write({ id: a.id, version: a.version, showOnWeb: true, webSort: nextWebSort(shown) });
       return;
     }
     const wasPreferred = data?.preferredAccountId === a.id;
-    void write([{ id: a.id, version: a.version, showOnWeb: false }], () => {
+    void write({ id: a.id, version: a.version, showOnWeb: false }, () => {
       if (wasPreferred) setNotice({ kind: "unpreferred", name: a.name });
     });
   };
@@ -448,16 +493,24 @@ export function WebCarriers({
       {data !== undefined && !noActive && (
         <>
           <Readiness carrier={ready.carrier} fallback={ready.fallback} />
-          {conflict && (
+          {conflict !== null && (
             <div className="box box-err stack-sm" role="alert">
               <b>Người khác vừa đổi phần này.</b>
-              <p>Đã tải lại. Xem lại rồi chọn lại.</p>
+              <p>
+                {conflict.settingsVersion === null
+                  ? "Đã tải lại."
+                  : `Đã tải lại${(() => {
+                      const by = savedBy(data, conflict.settingsVersion, shortTime);
+                      return by === null ? "" : ` (${by})`;
+                    })()}.`}{" "}
+                Xem lại rồi chọn lại.
+              </p>
               <div>
                 <button
                   type="button"
                   className="btn btn-line"
                   onClick={() => {
-                    setConflict(false);
+                    setConflict(null);
                   }}
                 >
                   Đã hiểu
@@ -465,9 +518,9 @@ export function WebCarriers({
               </div>
             </div>
           )}
-          {patch.message !== null && (
+          {(patch.message ?? order.message) !== null && (
             <div className="box box-err" role="alert">
-              {patch.message}
+              {patch.message ?? order.message}
             </div>
           )}
           <div className="olist">
@@ -488,8 +541,7 @@ export function WebCarriers({
                   last={i === shown.length - 1}
                   onToggle={onToggle}
                   onMove={(dir) => {
-                    const items = reorder(shown, i, dir);
-                    if (items.length > 0) void write(items);
+                    void move(i, dir);
                   }}
                 />
               );
@@ -510,10 +562,11 @@ export function WebCarriers({
               data={data}
               choices={choices}
               busy={busy}
+              bump={bump}
               save={save}
               onSaved={reload}
-              onConflict={() => {
-                setConflict(true);
+              onConflict={(sent) => {
+                setConflict({ settingsVersion: sent });
                 reload();
               }}
             />

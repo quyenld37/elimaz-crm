@@ -56,6 +56,49 @@ func (q *Queries) AuditActorNames(ctx context.Context, arg AuditActorNamesParams
 	return items, nil
 }
 
+const auditActors = `-- name: AuditActors :many
+SELECT 'staff'::text AS actor_type, u.id, u.display_name AS name, (u.status = 'active') AS active
+FROM identity.users AS u
+UNION ALL
+SELECT 'service'::text AS actor_type, k.id, k.name, (k.revoked_at IS NULL) AS active
+FROM identity.service_keys AS k
+ORDER BY name, id
+`
+
+type AuditActorsRow struct {
+	ActorType string
+	ID        uuid.UUID
+	Name      string
+	Active    bool
+}
+
+// Người làm cho ô lọc của màn nhật ký (Task 488): mọi nhân viên (kể cả đã khóa) và mọi khóa dịch vụ (kể cả đã thu hồi)
+// của tenant, chỉ tên; active là nhân viên chưa khóa, khóa chưa thu hồi. Xếp theo tên rồi mã.
+func (q *Queries) AuditActors(ctx context.Context) ([]AuditActorsRow, error) {
+	rows, err := q.db.Query(ctx, auditActors)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AuditActorsRow{}
+	for rows.Next() {
+		var i AuditActorsRow
+		if err := rows.Scan(
+			&i.ActorType,
+			&i.ID,
+			&i.Name,
+			&i.Active,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAuditLogs = `-- name: ListAuditLogs :many
 
 SELECT id, actor_type, COALESCE(actor_id, '')::text AS actor_id, action, entity_type,
