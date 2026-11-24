@@ -92,7 +92,7 @@ function Row(o: { c: WebCampaign; canManage: boolean; onAction: (a: RowAction, c
 }
 
 /** Ô chọn của thanh lọc: options là [giá trị, chữ]. */
-function Pick(o: { label: string; value: string; options: [string, string][]; onPick: (v: string) => void }) {
+export function Pick(o: { label: string; value: string; options: [string, string][]; onPick: (v: string) => void }) {
   return (
     <div className="select-wrap">
       <select
