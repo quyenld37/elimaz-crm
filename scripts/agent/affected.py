@@ -12,6 +12,9 @@ Tùy chọn (Task 473, 23/11, chủ shop: máy nóng, "chỉ test các case ản
   --split      mỗi dòng "race <gói>" (gói có mã viết tay hay test bị sửa trực tiếp, vùng rủi ro cao bị mã viết tay
                chạm: go test -race) hoặc "plain <gói>" (gói chỉ dùng tới phần đổi: go test thường, nhẹ hơn nhiều lần).
                Lưới an toàn: toàn bộ test có -race vẫn chạy trên main sau mỗi đợt gộp (main-full-test của điều phối).
+Tệp dữ liệu (không phải .go, hay nằm trong testdata/; Task 478): tệp trong thư mục gói → như mã của gói (lan); tệp
+testdata → chỉ test của gói (trừ khi mã chạy nhúng nó); tên tệp nằm trong chuỗi của một _test.go → test của gói đó.
+Luôn "plain" trừ khi mã viết tay của gói cũng đổi. Xem khối "Tệp dữ liệu" bên dưới.
 Biến AFFECTED_MIGRATIONS_DIR (chỉ cho test): đọc migration từ thư mục khác thay cho <gốc>/migrations.
 Mã thoát: 0 được; 3 go list lỗi; 4 thư mục Go không khớp gói; 5 cần chạy toàn bộ test."""
 import json, os, re, subprocess, sys, unicodedata
@@ -239,8 +242,20 @@ if base is not None and migs:
     # nhắc tên bảng nào, nên bảng mới quên enable_tenant_rls chỉ lộ ở đó.
     mig_test_dirs |= {"migrations", "internal/platform/db", "internal/testkit", "internal/platform/tenancy"}
 
-go_dirs = {os.path.dirname(p) or "." for p in changed if p.endswith(".go") or p.endswith("go.mod") or p.endswith("go.sum")}
-if not go_dirs and not mig_code_dirs and not mig_test_dirs:
+
+# ---- Tệp dữ liệu (Task 478, 24/11) ----
+# Lỗ đã gặp: Task 192 đổi openapi/openapi.yaml; test của tools/routegen đọc tệp đó bằng đường dẫn, không qua import Go,
+# nên không gói nào được chọn và main đỏ. Tệp dữ liệu là mọi tệp không phải .go (cùng mọi tệp trong testdata/), trừ
+# go.mod/go.sum, migrations/ (luật riêng ở trên), module riêng (spikes/) và bản sao worktree.
+def is_data(p):
+    if os.path.basename(p) in ("go.mod", "go.sum") or p.startswith(("migrations/", "spikes/", ".worktrees/")):
+        return False
+    return "testdata" in p.split("/") or not p.endswith(".go")
+
+
+data_files = [p for p in changed if is_data(p)]
+go_dirs = {os.path.dirname(p) or "." for p in changed if (p.endswith(".go") or p.endswith("go.mod") or p.endswith("go.sum")) and not is_data(p)}
+if not go_dirs and not mig_code_dirs and not mig_test_dirs and not data_files:
     sys.exit(0)
 high_risk = os.environ.get("HIGH_RISK_DIRS", "").split()
 
@@ -295,17 +310,92 @@ hand_dirs = {os.path.dirname(p) or "." for p in changed if p.endswith(".go") and
 direct = {by_dir[d] for d in hand_dirs if d in by_dir}
 if any(p in ("go.mod", "go.sum") for p in changed):
     direct = set(targets)                            # đổi phụ thuộc: mọi gói chạy -race
+
+# Tệp dữ liệu (Task 478):
+# (a) Tệp trong thư mục một gói (go:embed, tệp gói đọc lúc chạy; thư mục con không phải gói thì lấy gói gần nhất phía
+#     trên, không tính gốc repo) → coi như mã của gói đổi, lan lên gói nhập nó. Tệp trong <gói>/testdata/ → chỉ test
+#     của gói đó, trừ khi mã chạy nhúng nó (EmbedFiles của go list, vd carriertest nhúng testdata: tính cả thư mục
+#     nhúng để bắt tệp mới, tệp xóa) → như mã. Tài liệu .md ngoài thư mục gói: không theo (a), chỉ theo (b).
+# (b) Tên tệp (basename) nằm trong một chuỗi Go của tệp _test.go → test của gói chứa tệp test đó (không lan): test đọc
+#     tệp theo đường dẫn, vd filepath.Join("..", "..", "openapi", "openapi.yaml") của tools/routegen.
+# (c) Tệp dữ liệu không gây race: gói thêm theo (a), (b) xếp "plain" (không vào direct), trừ khi mã viết tay của gói đổi.
+# Không bắt: test dựng tên tệp lúc chạy (nối chuỗi, glob theo đuôi) — lưới an toàn vẫn là toàn bộ test trên main.
+def owner_dir(f):
+    d = os.path.dirname(f)
+    while d and d not in by_dir:
+        d = os.path.dirname(d)
+    return d or None
+
+
+data_code, data_test, data_names = set(), set(), {}     # data_names: tên tệp → các đường dẫn (tách theo "/")
+if data_files:
+    embed_code = {}     # tệp, thư mục con mà mã chạy của gói nhúng → các gói
+    for p in pkgs:
+        pdir = os.path.relpath(nfc(p["Dir"]), root)
+        for e in p.get("EmbedFiles", []):
+            f = os.path.normpath(os.path.join(pdir, nfc(e)))
+            while len(f) > len(pdir) and f.startswith(pdir + "/"):
+                embed_code.setdefault(f, set()).add(p["ImportPath"])
+                f = os.path.dirname(f)
+    for f in data_files:
+        hit, d = set(), f          # tệp hay một thư mục chứa nó (kể cả thư mục con mới tạo) được mã chạy nhúng
+        while d and not hit:
+            hit = embed_code.get(d, set()); d = os.path.dirname(d)
+        parts = f.split("/")
+        if hit:
+            data_code |= hit
+        elif "testdata" in parts:
+            td = owner_dir("/".join(parts[:parts.index("testdata") + 1]))   # gói gần nhất chứa thư mục testdata
+            if td:
+                data_test.add(by_dir[td])
+        elif not f.endswith(".md") or owner_dir(f):   # tài liệu .md ngoài thư mục gói: không như mã gói nào
+            od = owner_dir(f)
+            if od:
+                data_code.add(by_dir[od])
+        # (b) áp cho mọi tệp dữ liệu, cả tài liệu (test đọc docs/quyen.md, docs/ca-chay-tay.md theo đường dẫn).
+        data_names.setdefault(os.path.basename(f), []).append(parts)
+    if data_names:
+        # Tên tệp kèm phần đường dẫn đứng trước nó trong chuỗi ("docker/compose.dev.yml", "testdata/ts/index.ts"): phần
+        # đó (bỏ ".", "..") phải là đuôi đường dẫn của tệp đổi, không thì chỉ trùng tên (testdata/ts/index.ts của
+        # tools/catalog không phải console/src/api/index.ts).
+        name_re = re.compile(r"(?<![\w./-])((?:[\w.-]*/)*)(" + "|".join(re.escape(n) for n in sorted(data_names)) + r")(?![\w.-])")
+        # Quét token từ trái sang: chú thích, rune ('"') bị nuốt nguyên khối, chỉ giữ chuỗi "…" và `…`.
+        tok_re = re.compile(r'"(?:[^"\\\n]|\\.)*"|`[^`]*`|//[^\n]*|/\*.*?\*/|\'(?:[^\'\\\n]|\\.)*\'', re.S)
+
+        def refers(s):
+            for m in name_re.finditer(s):
+                comps = [c for c in m.group(1).split("/") if c not in ("", ".", "..")] + [m.group(2)]
+                if any(p[-len(comps):] == comps for p in data_names[m.group(2)]):
+                    return True
+            return False
+        tests_ = subprocess.run(["git", "ls-files", "-z", "--", "*_test.go"], capture_output=True, text=True, cwd=root).stdout
+        for f in filter(None, (nfc(x) for x in tests_.split("\0"))):
+            if f.startswith((".worktrees/", "spikes/", "console/")) or os.path.dirname(f) not in by_dir:
+                continue
+            try:
+                body = open(os.path.join(root, f), encoding="utf-8").read()
+            except OSError:
+                continue
+            if any(s[0] in "\"`" and refers(s) for s in tok_re.findall(body)):
+                data_test.add(by_dir[os.path.dirname(f)])
+test_only |= data_test
 reached = spread(targets)                    # gói có mã chạy bị ảnh hưởng (lan tiếp được)
+reached |= spread(data_code)
 reached |= spread({by_dir[d] for d in mig_code_dirs if d in by_dir})
 targets = set(reached) | test_only | {by_dir[d] for d in mig_test_dirs if d in by_dir}
 for cur in reached:             # test của gói nhập gói bị ảnh hưởng: chạy lại, không lan tiếp
     targets |= test_importers.get(cur, set())
 for hr in high_risk:
-    if any(p == hr or p.startswith(hr.rstrip("/") + "/") for p in changed if not MIG_RE.match(p) and not GEN_RE.search(p)):
+    hits = [p for p in changed if (p == hr or p.startswith(hr.rstrip("/") + "/")) and not MIG_RE.match(p) and not GEN_RE.search(p)]
+    if hits:
+        # Chỉ tệp dữ liệu chạm vùng (Task 478): vẫn chạy cả bộ của vùng nhưng test thường, không -race.
+        hand = any(not is_data(p) for p in hits)
         hb = hr if os.path.isdir(os.path.join(root, hr)) else os.path.dirname(hr)
         for dd, ip in by_dir.items():
             if dd == hb or dd.startswith(hb + "/"):
-                targets.add(ip); direct.add(ip)
+                targets.add(ip)
+                if hand:
+                    direct.add(ip)
 # Chặn hỏng âm thầm: thư mục có tệp .go đổi (còn tồn tại) mà không khớp gói nào -> thoát 4, ci-task chạy toàn bộ test.
 unmatched = [d for d in go_dirs if d != "." and d not in by_dir and os.path.isdir(os.path.join(root, d))
              and any(f.endswith(".go") for f in os.listdir(os.path.join(root, d)))
