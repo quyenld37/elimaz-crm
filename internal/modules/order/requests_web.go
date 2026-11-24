@@ -257,38 +257,49 @@ func checkExchangeWindow(ctx context.Context, tx pgx.Tx, q *store.Queries, order
 
 // checkExchangeQty: mỗi dòng ≤ số đã mua − số đang nằm trong yêu cầu đổi, trả chưa bị từ chối hay rút.
 func checkExchangeQty(ctx context.Context, q *store.Queries, sellerID, orderID uuid.UUID, lines []RequestLine) error {
-	items, err := q.OrderItemQuantities(ctx, store.OrderItemQuantitiesParams{SellerID: sellerID, OrderID: orderID})
+	remaining, err := exchangeRemaining(ctx, q, sellerID, orderID)
 	if err != nil {
-		return fmt.Errorf("đọc dòng đơn: %w", err)
-	}
-	bought := map[uuid.UUID]int{}
-	for _, it := range items {
-		bought[it.VariantID] = int(it.Quantity)
-	}
-	held, err := q.HeldRequestLines(ctx, orderID)
-	if err != nil {
-		return fmt.Errorf("đọc yêu cầu đổi đang mở: %w", err)
-	}
-	used := map[uuid.UUID]int{}
-	for _, raw := range held {
-		var ls []RequestLine
-		if err := json.Unmarshal(raw, &ls); err != nil {
-			return fmt.Errorf("đọc dòng yêu cầu đang mở: %w", err)
-		}
-		for _, l := range ls {
-			used[l.VariantID] += l.Qty
-		}
+		return err
 	}
 	for _, l := range lines {
-		b, ok := bought[l.VariantID]
+		r, ok := remaining[l.VariantID]
 		if !ok {
 			return fmt.Errorf("%w: biến thể không có trong đơn", ErrInvalidInput)
 		}
-		if l.Qty > b-used[l.VariantID] {
+		if l.Qty > r {
 			return ErrQtyExceeded
 		}
 	}
 	return nil
+}
+
+// exchangeRemaining trả số còn đổi, trả được của từng biến thể trong đơn orderID: số đã mua − số đang nằm trong yêu
+// cầu đổi, trả chưa bị từ chối hay rút (có thể âm nếu dữ liệu cũ lệch). Biến thể không có trong đơn không có khóa.
+func exchangeRemaining(ctx context.Context, q *store.Queries, sellerID, orderID uuid.UUID) (map[uuid.UUID]int, error) {
+	items, err := q.OrderItemQuantities(ctx, store.OrderItemQuantitiesParams{SellerID: sellerID, OrderID: orderID})
+	if err != nil {
+		return nil, fmt.Errorf("đọc dòng đơn: %w", err)
+	}
+	remaining := map[uuid.UUID]int{}
+	for _, it := range items {
+		remaining[it.VariantID] = int(it.Quantity)
+	}
+	held, err := q.HeldRequestLines(ctx, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("đọc yêu cầu đổi đang mở: %w", err)
+	}
+	for _, raw := range held {
+		var ls []RequestLine
+		if err := json.Unmarshal(raw, &ls); err != nil {
+			return nil, fmt.Errorf("đọc dòng yêu cầu đang mở: %w", err)
+		}
+		for _, l := range ls {
+			if _, ok := remaining[l.VariantID]; ok {
+				remaining[l.VariantID] -= l.Qty
+			}
+		}
+	}
+	return remaining, nil
 }
 
 // checkRequestFiles: mỗi tệp thuộc tenant, đúng mục đích, chưa xóa, chưa gắn yêu cầu nào, không bị imager từ chối.
