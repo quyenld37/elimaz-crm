@@ -1,0 +1,85 @@
+/* Lớp riêng của màn Khóa dịch vụ, chép từ mockup đã duyệt (docs/mockups/m5/service-keys.html khối <style>, m5.css
+   .once, m3.css .copy, m1.css .perm). Chỉ dùng biến có sẵn: không màu, cỡ chữ, bo góc mới. */
+@media (min-width: 760px) {
+  .service-keys .sk td:first-child {
+    width: 26%;
+  }
+  .service-keys .sk .c-act {
+    width: 1%;
+    white-space: nowrap;
+  }
+}
+.service-keys .sk-name {
+  gap: 2px;
+}
+.service-keys .perms {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+@media (min-width: 760px) {
+  .service-keys .perms {
+    justify-content: flex-start;
+  }
+}
+.service-keys .sk-note {
+  margin-top: 8px;
+}
+.service-keys .code,
+.sk-dlg .code {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.service-keys .box {
+  margin-bottom: var(--space-md);
+}
+.sk-dlg {
+  max-width: 640px;
+}
+.sk-dlg .perm-d {
+  display: grid;
+  gap: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.sk-dlg .perm {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px var(--space-sm);
+  align-items: start;
+  padding: 10px 0;
+  border-top: 1px solid var(--rule);
+  min-height: var(--tap);
+  cursor: pointer;
+}
+.sk-dlg .perm input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--ink);
+}
+.sk-dlg .once {
+  border: 1px solid var(--ink);
+  border-radius: var(--r-box);
+  padding: var(--space-md);
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.sk-dlg .copy {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.sk-dlg .copy .input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 13px;
+}
+.sk-dlg .ok-text {
+  color: var(--success);
+}

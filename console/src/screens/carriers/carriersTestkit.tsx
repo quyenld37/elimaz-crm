@@ -10,6 +10,7 @@ import type {
   UnmappedLocation,
   Warehouse,
   WarehousePickup,
+  WebCarrierSettings,
 } from "../../api";
 import { NOT_FOUND, bodyOf, renderScreens, reply, type Write } from "../../app/screenTestkit";
 import { DEFAULT_SETTINGS } from "./carrierRules";
@@ -91,10 +92,14 @@ export interface Fake {
   settings: FulfillmentSettings;
   pickup: WarehousePickup;
   unmapped: UnmappedLocation[];
+  /** Cài đặt hãng trên website (Task 198/208); carriers[] máy chủ dựng từ tài khoản showOnWeb. */
+  webSettings: WebCarrierSettings;
   /** Câu trả lời xếp sẵn cho các lệnh ghi kế tiếp (lần lượt); hết thì thân mặc định theo đường (writeReply). */
   replies: { status: number; body: unknown }[];
   /** Lệnh ghi đã nhận, theo thứ tự. */
   writes: Write[];
+  /** Có thì lệnh ghi chờ lời hứa này rồi mới trả (xem trạng thái "đang lưu"). */
+  hold: Promise<void> | null;
 }
 
 const PROVINCES: AdminUnit[] = [
@@ -117,6 +122,7 @@ function readRoutes(fake: Fake, path: string, q: URLSearchParams): unknown {
     return { items: fake.accounts };
   }
   if (path === "/api/v1/fulfillment-settings") return fake.settings;
+  if (path === "/api/v1/web-carrier-settings") return fake.webSettings;
   if (/^\/api\/v1\/inventory\/warehouses\/[^/]+\/pickup$/.test(path)) return fake.pickup;
   if (path === "/api/v1/carrier-locations/unmapped") return { items: fake.unmapped };
   if (path === "/api/v1/admin-units") return { items: q.get("parent") === null ? PROVINCES : [] };
@@ -142,8 +148,10 @@ export function installFake(): Fake {
     },
     pickup: { warehouseId: WH, version: 1 },
     unmapped: [],
+    webSettings: { version: 1, carriers: [] },
     replies: [],
     writes: [],
+    hold: null,
   };
   const handle = async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
@@ -157,6 +165,7 @@ export function installFake(): Fake {
       key: req.headers.get("Idempotency-Key"),
       body: await bodyOf(req),
     });
+    if (fake.hold !== null) await fake.hold;
     const next = fake.replies.shift();
     return next === undefined ? writeReply(url.pathname) : reply(next.body, next.status);
   };

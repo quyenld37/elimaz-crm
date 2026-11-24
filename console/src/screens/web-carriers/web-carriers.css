@@ -1,0 +1,80 @@
+/* Lớp riêng của thẻ Hãng trên website (cuối màn Kết nối vận chuyển), chép từ mockup đã duyệt
+   (docs/mockups/m5/web-carriers.html khối <style>, m5.css .ord .sw, m2.css .olist .oitem .radios). Chỉ dùng biến có
+   sẵn: không màu, cỡ chữ, bo góc mới. */
+.webcar {
+  margin-top: var(--space-lg);
+}
+.webcar .olist {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  margin-top: var(--space-md);
+}
+.webcar .oitem {
+  display: flex;
+  gap: 8px 16px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+  flex-wrap: wrap;
+}
+.webcar .oitem:last-child {
+  border-bottom: 0;
+}
+.webcar .oitem.is-off {
+  background: var(--surface);
+  color: var(--muted);
+}
+.webcar .oitem .grow {
+  min-width: 200px;
+}
+.webcar .ord {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--edge);
+  font-size: 12px;
+  font-weight: 700;
+  flex: none;
+}
+.webcar .sw {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--tap);
+  cursor: pointer;
+  font-weight: 600;
+}
+.webcar .sw input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink);
+  margin: 0;
+  flex: none;
+}
+.webcar .sw.is-off {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.webcar fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.webcar .radios {
+  display: grid;
+  gap: 0;
+}
+.webcar .radios .check {
+  padding: 4px 0;
+}
+.webcar .box {
+  margin-top: var(--space-md);
+}
+.webcar .wc-form {
+  margin-top: var(--space-lg);
+}
