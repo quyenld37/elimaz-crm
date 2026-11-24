@@ -18907,6 +18907,113 @@ func (s *Server) handleWebCatalogTaxonomyRequest(args [0]string, argsEscaped boo
 	}
 }
 
+// handleWebCreateOrderRequest handles webCreateOrder operation.
+//
+// Task 194 (M5-11). Quy ước của website: Idempotency-Key = externalRef. Một đơn cho mỗi
+// externalRef (khóa nghiệp vụ): gửi lại với khóa khác cùng externalRef → 201 cùng
+// orderId. SĐT người đặt chuẩn hóa về +84… (sai → 422 invalid_phone); quá ngưỡng
+// đơn của một SĐT (web_order_customer, QĐ23) → 429 too_fast kèm Retry-After, không lưu.
+// Lưu theo khóa (gửi lại cùng khóa trả nguyên câu trả lời, Idempotent-Replayed: true):
+// 201; 422 quote_changed (kèm quote: báo giá CRM hiện tại; chỉ khi submittedVia = sync),
+// item_unavailable (kèm variantIds), coupon_invalid (kèm reason; chỉ khi sync), mixed_sellers; 409
+// out_of_stock (kèm variantId, available). queued: giá hay mã lệch vẫn tạo theo số CRM,
+// priceReview = true. Tạm bận → 503 retry_later kèm Retry-After, không lưu.
+//
+// POST /api/v1/web/orders
+func (s *Server) handleWebCreateOrderRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebCreateOrderOperation,
+			ID:   "webCreateOrder",
+		}
+	)
+	params, err := decodeWebCreateOrderParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeWebCreateOrderRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response WebCreateOrderRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebCreateOrderOperation,
+			OperationSummary: "Tạo đơn từ website (CRM tính lại giá, chiến dịch, mã; giữ hàng); kết quả và từ chối dứt khoát được lưu theo khóa",
+			OperationID:      "webCreateOrder",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *WebOrderRequest
+			Params   = WebCreateOrderParams
+			Response = WebCreateOrderRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebCreateOrderParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebCreateOrder(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebCreateOrder(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebCreateOrderResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebLocationsRequest handles webLocations operation.
 //
 // Task 191 (M5-08). Danh mục dùng chung của CRM (customer.admin_units), tỉnh theo mã, xã theo

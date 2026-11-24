@@ -9172,7 +9172,11 @@ type Error struct {
 	Field OptErrorField `json:"field"`
 	// Chỉ có ở statement_duplicate — bảng kê COD đã nhập trước với cùng tệp (Task
 	// M3-31).
-	StatementId OptUUID `json:"statementId"`
+	StatementId OptUUID     `json:"statementId"`
+	Quote       OptWebQuote `json:"quote"`
+	// Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự
+	// gửi (Task 194).
+	VariantIds []uuid.UUID `json:"variantIds"`
 }
 
 // GetError returns the value of Error.
@@ -9220,6 +9224,16 @@ func (s *Error) GetStatementId() OptUUID {
 	return s.StatementId
 }
 
+// GetQuote returns the value of Quote.
+func (s *Error) GetQuote() OptWebQuote {
+	return s.Quote
+}
+
+// GetVariantIds returns the value of VariantIds.
+func (s *Error) GetVariantIds() []uuid.UUID {
+	return s.VariantIds
+}
+
 // SetError sets the value of Error.
 func (s *Error) SetError(val string) {
 	s.Error = val
@@ -9263,6 +9277,16 @@ func (s *Error) SetField(val OptErrorField) {
 // SetStatementId sets the value of StatementId.
 func (s *Error) SetStatementId(val OptUUID) {
 	s.StatementId = val
+}
+
+// SetQuote sets the value of Quote.
+func (s *Error) SetQuote(val OptWebQuote) {
+	s.Quote = val
+}
+
+// SetVariantIds sets the value of VariantIds.
+func (s *Error) SetVariantIds(val []uuid.UUID) {
+	s.VariantIds = val
 }
 
 // Chỉ có ở setting_out_of_range — tên trường cài đặt đơn ngoài khoảng (Task M2-15).
@@ -9546,6 +9570,7 @@ func (*ErrorStatusCode) webCampaignsRes()                {}
 func (*ErrorStatusCode) webCatalogChangesRes()           {}
 func (*ErrorStatusCode) webCatalogProductsRes()          {}
 func (*ErrorStatusCode) webCatalogTaxonomyRes()          {}
+func (*ErrorStatusCode) webCreateOrderRes()              {}
 func (*ErrorStatusCode) webLocationsRes()                {}
 func (*ErrorStatusCode) webQuoteRes()                    {}
 func (*ErrorStatusCode) webSold30dRes()                  {}
@@ -15487,6 +15512,98 @@ func (o OptWebCampaignStatus) Or(d WebCampaignStatus) WebCampaignStatus {
 	return d
 }
 
+// NewOptWebOrderRequestReferralRef returns new OptWebOrderRequestReferralRef with value set to v.
+func NewOptWebOrderRequestReferralRef(v WebOrderRequestReferralRef) OptWebOrderRequestReferralRef {
+	return OptWebOrderRequestReferralRef{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWebOrderRequestReferralRef is optional WebOrderRequestReferralRef.
+type OptWebOrderRequestReferralRef struct {
+	Value WebOrderRequestReferralRef
+	Set   bool
+}
+
+// IsSet returns true if OptWebOrderRequestReferralRef was set.
+func (o OptWebOrderRequestReferralRef) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWebOrderRequestReferralRef) Reset() {
+	var v WebOrderRequestReferralRef
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWebOrderRequestReferralRef) SetTo(v WebOrderRequestReferralRef) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWebOrderRequestReferralRef) Get() (v WebOrderRequestReferralRef, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWebOrderRequestReferralRef) Or(d WebOrderRequestReferralRef) WebOrderRequestReferralRef {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptWebQuote returns new OptWebQuote with value set to v.
+func NewOptWebQuote(v WebQuote) OptWebQuote {
+	return OptWebQuote{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWebQuote is optional WebQuote.
+type OptWebQuote struct {
+	Value WebQuote
+	Set   bool
+}
+
+// IsSet returns true if OptWebQuote was set.
+func (o OptWebQuote) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWebQuote) Reset() {
+	var v WebQuote
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWebQuote) SetTo(v WebQuote) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWebQuote) Get() (v WebQuote, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWebQuote) Or(d WebQuote) WebQuote {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptWebQuoteCampaign returns new OptWebQuoteCampaign with value set to v.
 func NewOptWebQuoteCampaign(v WebQuoteCampaign) OptWebQuoteCampaign {
 	return OptWebQuoteCampaign{
@@ -20206,6 +20323,34 @@ func (s *ResolveShipmentCreateRequestResult) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+// RetryLaterHeaders wraps Error with response headers.
+type RetryLaterHeaders struct {
+	RetryAfter OptInt32
+	Response   Error
+}
+
+// GetRetryAfter returns the value of RetryAfter.
+func (s *RetryLaterHeaders) GetRetryAfter() OptInt32 {
+	return s.RetryAfter
+}
+
+// GetResponse returns the value of Response.
+func (s *RetryLaterHeaders) GetResponse() Error {
+	return s.Response
+}
+
+// SetRetryAfter sets the value of RetryAfter.
+func (s *RetryLaterHeaders) SetRetryAfter(val OptInt32) {
+	s.RetryAfter = val
+}
+
+// SetResponse sets the value of Response.
+func (s *RetryLaterHeaders) SetResponse(val Error) {
+	s.Response = val
+}
+
+func (*RetryLaterHeaders) webCreateOrderRes() {}
 
 // Ref: #/components/schemas/Return
 type Return struct {
@@ -28489,6 +28634,308 @@ func (*WebLocationsHeaders) webLocationsRes() {}
 type WebLocationsNotModified struct{}
 
 func (*WebLocationsNotModified) webLocationsRes() {}
+
+// Ref: #/components/schemas/WebOrderCreated
+type WebOrderCreated struct {
+	OrderId    uuid.UUID   `json:"orderId"`
+	Code       string      `json:"code"`
+	Status     OrderStatus `json:"status"`
+	GrandTotal int64       `json:"grandTotal"`
+	// Đơn cần nhân viên kiểm giá (gửi từ hàng đợi mà giá hay mã đã lệch).
+	PriceReview bool `json:"priceReview"`
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *WebOrderCreated) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetCode returns the value of Code.
+func (s *WebOrderCreated) GetCode() string {
+	return s.Code
+}
+
+// GetStatus returns the value of Status.
+func (s *WebOrderCreated) GetStatus() OrderStatus {
+	return s.Status
+}
+
+// GetGrandTotal returns the value of GrandTotal.
+func (s *WebOrderCreated) GetGrandTotal() int64 {
+	return s.GrandTotal
+}
+
+// GetPriceReview returns the value of PriceReview.
+func (s *WebOrderCreated) GetPriceReview() bool {
+	return s.PriceReview
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *WebOrderCreated) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetCode sets the value of Code.
+func (s *WebOrderCreated) SetCode(val string) {
+	s.Code = val
+}
+
+// SetStatus sets the value of Status.
+func (s *WebOrderCreated) SetStatus(val OrderStatus) {
+	s.Status = val
+}
+
+// SetGrandTotal sets the value of GrandTotal.
+func (s *WebOrderCreated) SetGrandTotal(val int64) {
+	s.GrandTotal = val
+}
+
+// SetPriceReview sets the value of PriceReview.
+func (s *WebOrderCreated) SetPriceReview(val bool) {
+	s.PriceReview = val
+}
+
+func (*WebOrderCreated) webCreateOrderRes() {}
+
+// Ref: #/components/schemas/WebOrderRequest
+type WebOrderRequest struct {
+	// Mã đơn của website (khóa nghiệp vụ, một đơn cho mỗi mã).
+	ExternalRef string                  `json:"externalRef"`
+	Customer    WebOrderRequestCustomer `json:"customer"`
+	ShipAddress ShipAddress             `json:"shipAddress"`
+	Lines       []WebQuoteLineInput     `json:"lines"`
+	// Rỗng hay không gửi là không dùng mã.
+	CouponCode OptString `json:"couponCode"`
+	// Phí giao website đã tính (đồng).
+	ShippingFee int64 `json:"shippingFee"`
+	// Báo giá website đã hiện cho khách (webQuote); chỉ để so và lưu.
+	Quoted WebOrderRequestQuoted `json:"quoted"`
+	// Sync — khách đang trên trang; queued — hàng đợi cục bộ gửi lại sau khi CRM từng
+	// ngừng (QĐ15).
+	SubmittedVia WebOrderRequestSubmittedVia `json:"submittedVia"`
+	// Ghi chú của khách (thành ghi chú nội bộ của đơn).
+	Note OptString `json:"note"`
+	// Dấu giới thiệu (affiliate, P2); chỉ chuỗi.
+	ReferralRef OptWebOrderRequestReferralRef `json:"referralRef"`
+}
+
+// GetExternalRef returns the value of ExternalRef.
+func (s *WebOrderRequest) GetExternalRef() string {
+	return s.ExternalRef
+}
+
+// GetCustomer returns the value of Customer.
+func (s *WebOrderRequest) GetCustomer() WebOrderRequestCustomer {
+	return s.Customer
+}
+
+// GetShipAddress returns the value of ShipAddress.
+func (s *WebOrderRequest) GetShipAddress() ShipAddress {
+	return s.ShipAddress
+}
+
+// GetLines returns the value of Lines.
+func (s *WebOrderRequest) GetLines() []WebQuoteLineInput {
+	return s.Lines
+}
+
+// GetCouponCode returns the value of CouponCode.
+func (s *WebOrderRequest) GetCouponCode() OptString {
+	return s.CouponCode
+}
+
+// GetShippingFee returns the value of ShippingFee.
+func (s *WebOrderRequest) GetShippingFee() int64 {
+	return s.ShippingFee
+}
+
+// GetQuoted returns the value of Quoted.
+func (s *WebOrderRequest) GetQuoted() WebOrderRequestQuoted {
+	return s.Quoted
+}
+
+// GetSubmittedVia returns the value of SubmittedVia.
+func (s *WebOrderRequest) GetSubmittedVia() WebOrderRequestSubmittedVia {
+	return s.SubmittedVia
+}
+
+// GetNote returns the value of Note.
+func (s *WebOrderRequest) GetNote() OptString {
+	return s.Note
+}
+
+// GetReferralRef returns the value of ReferralRef.
+func (s *WebOrderRequest) GetReferralRef() OptWebOrderRequestReferralRef {
+	return s.ReferralRef
+}
+
+// SetExternalRef sets the value of ExternalRef.
+func (s *WebOrderRequest) SetExternalRef(val string) {
+	s.ExternalRef = val
+}
+
+// SetCustomer sets the value of Customer.
+func (s *WebOrderRequest) SetCustomer(val WebOrderRequestCustomer) {
+	s.Customer = val
+}
+
+// SetShipAddress sets the value of ShipAddress.
+func (s *WebOrderRequest) SetShipAddress(val ShipAddress) {
+	s.ShipAddress = val
+}
+
+// SetLines sets the value of Lines.
+func (s *WebOrderRequest) SetLines(val []WebQuoteLineInput) {
+	s.Lines = val
+}
+
+// SetCouponCode sets the value of CouponCode.
+func (s *WebOrderRequest) SetCouponCode(val OptString) {
+	s.CouponCode = val
+}
+
+// SetShippingFee sets the value of ShippingFee.
+func (s *WebOrderRequest) SetShippingFee(val int64) {
+	s.ShippingFee = val
+}
+
+// SetQuoted sets the value of Quoted.
+func (s *WebOrderRequest) SetQuoted(val WebOrderRequestQuoted) {
+	s.Quoted = val
+}
+
+// SetSubmittedVia sets the value of SubmittedVia.
+func (s *WebOrderRequest) SetSubmittedVia(val WebOrderRequestSubmittedVia) {
+	s.SubmittedVia = val
+}
+
+// SetNote sets the value of Note.
+func (s *WebOrderRequest) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetReferralRef sets the value of ReferralRef.
+func (s *WebOrderRequest) SetReferralRef(val OptWebOrderRequestReferralRef) {
+	s.ReferralRef = val
+}
+
+type WebOrderRequestCustomer struct {
+	Phone PhoneInput `json:"phone"`
+	Name  string     `json:"name"`
+	// Mã tài khoản khách trên website; không gửi là khách vãng lai.
+	WebAccountId OptString `json:"webAccountId"`
+}
+
+// GetPhone returns the value of Phone.
+func (s *WebOrderRequestCustomer) GetPhone() PhoneInput {
+	return s.Phone
+}
+
+// GetName returns the value of Name.
+func (s *WebOrderRequestCustomer) GetName() string {
+	return s.Name
+}
+
+// GetWebAccountId returns the value of WebAccountId.
+func (s *WebOrderRequestCustomer) GetWebAccountId() OptString {
+	return s.WebAccountId
+}
+
+// SetPhone sets the value of Phone.
+func (s *WebOrderRequestCustomer) SetPhone(val PhoneInput) {
+	s.Phone = val
+}
+
+// SetName sets the value of Name.
+func (s *WebOrderRequestCustomer) SetName(val string) {
+	s.Name = val
+}
+
+// SetWebAccountId sets the value of WebAccountId.
+func (s *WebOrderRequestCustomer) SetWebAccountId(val OptString) {
+	s.WebAccountId = val
+}
+
+// Báo giá website đã hiện cho khách (webQuote); chỉ để so và lưu.
+type WebOrderRequestQuoted struct {
+	Fingerprint string `json:"fingerprint"`
+	GrandTotal  int64  `json:"grandTotal"`
+}
+
+// GetFingerprint returns the value of Fingerprint.
+func (s *WebOrderRequestQuoted) GetFingerprint() string {
+	return s.Fingerprint
+}
+
+// GetGrandTotal returns the value of GrandTotal.
+func (s *WebOrderRequestQuoted) GetGrandTotal() int64 {
+	return s.GrandTotal
+}
+
+// SetFingerprint sets the value of Fingerprint.
+func (s *WebOrderRequestQuoted) SetFingerprint(val string) {
+	s.Fingerprint = val
+}
+
+// SetGrandTotal sets the value of GrandTotal.
+func (s *WebOrderRequestQuoted) SetGrandTotal(val int64) {
+	s.GrandTotal = val
+}
+
+// Dấu giới thiệu (affiliate, P2); chỉ chuỗi.
+type WebOrderRequestReferralRef map[string]string
+
+func (s *WebOrderRequestReferralRef) init() WebOrderRequestReferralRef {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// Sync — khách đang trên trang; queued — hàng đợi cục bộ gửi lại sau khi CRM từng
+// ngừng (QĐ15).
+type WebOrderRequestSubmittedVia string
+
+const (
+	WebOrderRequestSubmittedViaSync   WebOrderRequestSubmittedVia = "sync"
+	WebOrderRequestSubmittedViaQueued WebOrderRequestSubmittedVia = "queued"
+)
+
+// AllValues returns all WebOrderRequestSubmittedVia values.
+func (WebOrderRequestSubmittedVia) AllValues() []WebOrderRequestSubmittedVia {
+	return []WebOrderRequestSubmittedVia{
+		WebOrderRequestSubmittedViaSync,
+		WebOrderRequestSubmittedViaQueued,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WebOrderRequestSubmittedVia) MarshalText() ([]byte, error) {
+	switch s {
+	case WebOrderRequestSubmittedViaSync:
+		return []byte(s), nil
+	case WebOrderRequestSubmittedViaQueued:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WebOrderRequestSubmittedVia) UnmarshalText(data []byte) error {
+	switch WebOrderRequestSubmittedVia(data) {
+	case WebOrderRequestSubmittedViaSync:
+		*s = WebOrderRequestSubmittedViaSync
+		return nil
+	case WebOrderRequestSubmittedViaQueued:
+		*s = WebOrderRequestSubmittedViaQueued
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 // Ref: #/components/schemas/WebProduct
 type WebProduct struct {

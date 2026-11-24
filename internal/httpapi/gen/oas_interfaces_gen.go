@@ -801,6 +801,10 @@ type WebCatalogTaxonomyRes interface {
 	webCatalogTaxonomyRes()
 }
 
+type WebCreateOrderRes interface {
+	webCreateOrderRes()
+}
+
 type WebLocationsRes interface {
 	webLocationsRes()
 }

@@ -19,6 +19,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
+	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/cache"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/db"
@@ -26,6 +27,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/observability"
+	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime"
 )
 
@@ -71,6 +73,9 @@ type Deps struct {
 	// ReadCache là bộ đệm đọc của các route website (Task 190; cmd/crm nối cache.NewReadCache trên Valkey bộ đệm). nil
 	// → bộ đệm không có Valkey: mọi lần đọc tải thẳng PostgreSQL có giới hạn (cache.NewReadCache(nil, …)).
 	ReadCache cache.ReadCache
+	// WebOrderLimiter giới hạn số đơn web của mỗi SĐT (Task 194; cmd/crm nối NewWebOrderLimiter trên Valkey gate). nil →
+	// bộ đếm trong tiến trình với FallbackMax của cache.DefaultLimits().WebOrderCustomer, secret HMAC ngẫu nhiên.
+	WebOrderLimiter WebOrderLimiter
 
 	limiter        *userLimiter // một bộ đếm chung cho mọi route của nhân viên (prepare)
 	serviceLimiter *userLimiter // bộ đếm dự phòng của khóa dịch vụ khi RateLimiter nil (prepare)
@@ -98,7 +103,10 @@ func prepare(d Deps) Deps {
 		}, d.Logger).WithClock(d.Now)
 	}
 	if d.webOrders == nil {
-		d.webOrders = web.NewOrders(d.DB, d.Now)
+		d.webOrders = web.NewOrders(d.DB, order.Writer{Events: d.Events, Queue: queue.NewQueue(), Realtime: d.Realtime}, d.Now)
+	}
+	if d.WebOrderLimiter == nil {
+		d.WebOrderLimiter = NewWebOrderLimiter(cache.NewRateLimiter(nil, d.Now, d.Metrics), cache.DefaultLimits().WebOrderCustomer, nil)
 	}
 	return d
 }

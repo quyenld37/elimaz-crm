@@ -486,7 +486,7 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 			Realtime: hub, SSE: realtime.SSEOptions{Stop: streamStop}, Events: mods.Events, Metrics: reg,
 			Cash:        mods.M3.Cash.Service,
 			Fulfillment: mods.M3.Fulfillment.Service,
-			ServiceKeys: web.keys, RateLimiter: web.limiter, ReadCache: wc.rc,
+			ServiceKeys: web.keys, RateLimiter: web.limiter, ReadCache: wc.rc, WebOrderLimiter: web.orderLimiter,
 		})
 	} else {
 		h, err := ingestHandler(cfg, d, reg, logger)

@@ -35,6 +35,11 @@ export type Error = {
      * Chỉ có ở statement_duplicate — bảng kê COD đã nhập trước với cùng tệp (Task M3-31)
      */
     statementId?: string;
+    quote?: WebQuote;
+    /**
+     * Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự gửi (Task 194)
+     */
+    variantIds?: Array<string>;
 };
 
 export type HealthStatus = {
@@ -910,6 +915,63 @@ export type WebQuote = {
      * Có dòng bán được mà quotedUnitPrice khác giá CRM
      */
     changed: boolean;
+};
+
+export type WebOrderRequest = {
+    /**
+     * Mã đơn của website (khóa nghiệp vụ, một đơn cho mỗi mã)
+     */
+    externalRef: string;
+    customer: {
+        phone: PhoneInput;
+        name: string;
+        /**
+         * Mã tài khoản khách trên website; không gửi là khách vãng lai
+         */
+        webAccountId?: string;
+    };
+    shipAddress: ShipAddress;
+    lines: Array<WebQuoteLineInput>;
+    /**
+     * Rỗng hay không gửi là không dùng mã
+     */
+    couponCode?: string;
+    /**
+     * Phí giao website đã tính (đồng)
+     */
+    shippingFee: number;
+    /**
+     * Báo giá website đã hiện cho khách (webQuote); chỉ để so và lưu
+     */
+    quoted: {
+        fingerprint: string;
+        grandTotal: number;
+    };
+    /**
+     * sync — khách đang trên trang; queued — hàng đợi cục bộ gửi lại sau khi CRM từng ngừng (QĐ15)
+     */
+    submittedVia: 'sync' | 'queued';
+    /**
+     * Ghi chú của khách (thành ghi chú nội bộ của đơn)
+     */
+    note?: string;
+    /**
+     * Dấu giới thiệu (affiliate, P2); chỉ chuỗi
+     */
+    referralRef?: {
+        [key: string]: string;
+    };
+};
+
+export type WebOrderCreated = {
+    orderId: string;
+    code: string;
+    status: OrderStatus;
+    grandTotal: number;
+    /**
+     * Đơn cần nhân viên kiểm giá (gửi từ hàng đợi mà giá hay mã đã lệch)
+     */
+    priceReview: boolean;
 };
 
 export type WebQuotedLine = {
@@ -9765,3 +9827,38 @@ export type WebQuoteResponses = {
 };
 
 export type WebQuoteResponse = WebQuoteResponses[keyof WebQuoteResponses];
+
+export type WebCreateOrderData = {
+    body: WebOrderRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/orders';
+};
+
+export type WebCreateOrderErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebCreateOrderError = WebCreateOrderErrors[keyof WebCreateOrderErrors];
+
+export type WebCreateOrderResponses = {
+    /**
+     * Đơn đã tạo, hoặc đơn đã có của cùng externalRef
+     */
+    201: WebOrderCreated;
+};
+
+export type WebCreateOrderResponse = WebCreateOrderResponses[keyof WebCreateOrderResponses];
