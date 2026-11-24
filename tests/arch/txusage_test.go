@@ -27,6 +27,7 @@ func TestTxUsageReportsSample(t *testing.T) {
 }
 
 func TestTxUsageProductCode(t *testing.T) {
+	t.Parallel()
 	if got := findTxOpeners(t, repoRoot(t), false); len(got) != 0 {
 		t.Fatalf("mở transaction ngoài db.RetryTx (ADR-46):\n%s", strings.Join(got, "\n"))
 	}

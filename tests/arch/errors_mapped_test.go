@@ -120,6 +120,7 @@ func TestErrorsMappedSample(t *testing.T) {
 }
 
 func TestErrorsMappedRealCode(t *testing.T) {
+	t.Parallel()
 	root := repoRoot(t)
 	if n := len(declaredSentinels(t, root)); n < 30 {
 		t.Fatalf("chỉ thấy %d sentinel trong ba module: quét sai chỗ?", n)

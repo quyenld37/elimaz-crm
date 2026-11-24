@@ -60,6 +60,7 @@ func TestDynSQLReportsSample(t *testing.T) {
 }
 
 func TestDynSQLProductCode(t *testing.T) {
+	t.Parallel()
 	if got := findDynSQL(t, repoRoot(t), false); len(got) != 0 {
 		t.Fatalf("SQL ngoài sqlc và *_dynsql.go:\n%s", strings.Join(got, "\n"))
 	}

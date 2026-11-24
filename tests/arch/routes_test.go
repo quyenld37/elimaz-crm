@@ -48,6 +48,7 @@ func TestRoutesPublicSetAndPermissions(t *testing.T) {
 
 // Mọi route trong bảng đều được NewServer phục vụ (không ra 404 của ServeMux); đường ngoài bảng ra 404.
 func TestRoutesAllServed(t *testing.T) {
+	t.Parallel()
 	var logs bytes.Buffer
 	srv := httpapi.NewServer(httpapi.Deps{
 		Config: config.Config{ConsoleOrigins: []string{"https://crm.elimaz.test"}},

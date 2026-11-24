@@ -212,6 +212,7 @@ func TestSellerFilterReportsSample(t *testing.T) {
 }
 
 func TestSellerFilterProductCode(t *testing.T) {
+	t.Parallel()
 	got, used := findSellerFilter(t, repoRoot(t), false)
 	if len(got) != 0 {
 		t.Fatalf("câu đọc sản phẩm, đơn thiếu điều kiện người bán (ADR-29):\n%s", strings.Join(got, "\n"))

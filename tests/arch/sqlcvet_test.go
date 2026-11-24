@@ -26,6 +26,7 @@ func sqlcVet(t *testing.T, ownerURL string, args ...string) (string, error) {
 
 // `make sqlc-vet` chạy test này: câu thật trong queries/ phải qua; câu mẫu sai tên cột phải đỏ.
 func TestSqlcVet(t *testing.T) {
+	t.Parallel()
 	_, owner, _ := testkit.StartPostgres(t)
 	if out, err := sqlcVet(t, owner); err != nil {
 		t.Fatalf("sqlc vet trên queries/ phải xanh: %v\n%s", err, out)

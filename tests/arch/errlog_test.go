@@ -69,6 +69,7 @@ func TestRawErrorLogReportsSample(t *testing.T) {
 }
 
 func TestRawErrorLogProductCode(t *testing.T) {
+	t.Parallel()
 	if got := findRawErrorLogs(t, repoRoot(t), false); len(got) != 0 {
 		t.Fatalf("nội dung lỗi thô vào log (dùng logging.Err hoặc logging.ErrorText):\n%s", strings.Join(got, "\n"))
 	}

@@ -6,11 +6,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -88,6 +86,7 @@ func golangciLint(t *testing.T, root string, args ...string) ([]lintIssue, strin
 
 // Mỗi mẫu sai cài sẵn trong testdata/lint phải bị đúng linter báo.
 func TestLintCatchesPlantedMistakes(t *testing.T) {
+	t.Parallel()
 	root := repoRoot(t)
 	issues, stderr := golangciLint(t, root, "./tests/arch/testdata/lint/")
 	want := []struct {
@@ -115,6 +114,7 @@ func TestLintCatchesPlantedMistakes(t *testing.T) {
 
 // Mã thật phải sạch lint.
 func TestLintCleanOnRealCode(t *testing.T) {
+	t.Parallel()
 	issues, stderr := golangciLint(t, repoRoot(t), "./...")
 	for _, is := range issues {
 		t.Errorf("%s:%d %s: %s", is.Pos.Filename, is.Pos.Line, is.FromLinter, is.Text)
@@ -200,32 +200,20 @@ func TestErrorStringCompareDetector(t *testing.T) {
 
 // Mã chạy thật (không tính tệp test, testdata, spikes) không so lỗi bằng chuỗi.
 func TestNoErrorStringCompareInRealCode(t *testing.T) {
-	root := repoRoot(t)
-	fset := token.NewFileSet()
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		name := d.Name()
-		if d.IsDir() {
-			if path != root && (strings.HasPrefix(name, ".") || name == "testdata" || name == "spikes" || name == "node_modules") {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-			return nil
-		}
-		f, err := parser.ParseFile(fset, path, nil, 0)
-		if err != nil {
-			return fmt.Errorf("đọc %s: %w", path, err)
-		}
-		for _, pos := range errStringCompares(fset, f) {
+	t.Parallel()
+	for _, g := range parseGoFiles(t, repoRoot(t), isProductGoFile) {
+		for _, pos := range errStringCompares(g.fset, g.file) {
 			t.Errorf("so lỗi bằng chuỗi (dùng errors.Is/errors.As): %s", pos)
 		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
+}
+
+// isProductGoFile: tệp .go của mã chạy thật — không phải _test.go, không nằm trong thư mục testdata hay spikes ở bất kỳ
+// tầng nào (thư mục ẩn, node_modules đã bỏ ở skipDir).
+func isProductGoFile(rel string) bool {
+	if strings.HasSuffix(rel, "_test.go") {
+		return false
+	}
+	dirs := strings.Split(rel, "/")
+	return !slices.Contains(dirs[:len(dirs)-1], "testdata") && !slices.Contains(dirs[:len(dirs)-1], "spikes")
 }
