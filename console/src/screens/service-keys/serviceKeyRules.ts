@@ -29,7 +29,7 @@ export const KEY_PERMISSIONS: readonly KeyPermission[] = [
   { key: "web.orders.cancel", label: "Khách hủy đơn web", byDefault: true },
   {
     key: "web.requests.write",
-    label: "Gửi yêu cầu về đơn hàng, góp ý",
+    label: "Gửi yêu cầu về đơn hàng",
     hint: "Kèm ảnh khách tải lên",
     byDefault: true,
   },
@@ -40,6 +40,7 @@ export const KEY_PERMISSIONS: readonly KeyPermission[] = [
     byDefault: true,
   },
   { key: "web.birthdays.write", label: "Đăng ký sinh nhật", byDefault: true },
+  { key: "web.feedback.write", label: "Gửi góp ý của khách", byDefault: true },
   { key: "web.shipping.quote", label: "Báo phí giao hàng", byDefault: true },
   { key: "web.flash.buy", label: "Mua flash sale", hint: "Chỉ dùng khi bật flash sale (đợt 2)", byDefault: false },
 ];

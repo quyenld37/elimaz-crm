@@ -453,6 +453,10 @@ type ListCustomersRes interface {
 	listCustomersRes()
 }
 
+type ListFeedbackRes interface {
+	listFeedbackRes()
+}
+
 type ListJobsRes interface {
 	listJobsRes()
 }
@@ -825,6 +829,10 @@ type UpdateCustomerTagRes interface {
 	updateCustomerTagRes()
 }
 
+type UpdateFeedbackRes interface {
+	updateFeedbackRes()
+}
+
 type UpdateFulfillmentSettingsRes interface {
 	updateFulfillmentSettingsRes()
 }
@@ -983,6 +991,10 @@ type WebShippingQuoteRes interface {
 
 type WebSold30dRes interface {
 	webSold30dRes()
+}
+
+type WebSubmitFeedbackRes interface {
+	webSubmitFeedbackRes()
 }
 
 type WebUploadRequestFileRes interface {

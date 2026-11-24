@@ -2206,6 +2206,73 @@ paths:
                 $ref: "#/components/schemas/Note"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/feedback:
+    get:
+      operationId: listFeedback
+      summary: Góp ý của khách, mới nhất trước; lọc trạng thái, chủ đề, khách (Task 455)
+      description: |
+        customerId là gốc hay hồ sơ con: trả mọi góp ý gắn với nhóm của khách đó (khách đã gộp vẫn thấy). Khách không có
+        → 404 not_found; con trỏ hỏng → 400 invalid_input. Có nội dung, liên lạc của khách: không ghi log.
+      x-permission: customer.feedback.read
+      parameters:
+        - name: state
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/FeedbackState"
+        - name: topic
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/FeedbackTopic"
+        - name: customerId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Một trang góp ý
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedbackPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/feedback/{id}:
+    patch:
+      operationId: updateFeedback
+      summary: Đổi trạng thái, ghi chú nội bộ của góp ý khi version còn khớp (Task 455)
+      description: |
+        Chỉ gửi trường đổi; note rỗng là xóa ghi chú. Không trường nào → 400 invalid_input; version cũ → 409
+        version_conflict; không có → 404 not_found.
+      x-permission: customer.feedback.manage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFeedbackRequest"
+      responses:
+        "200":
+          description: Góp ý sau khi sửa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feedback"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/customer-tags:
     get:
       operationId: listCustomerTags
@@ -5368,6 +5435,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WebBirthdayStopResult"
+        "503":
+          $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/feedback:
+    post:
+      operationId: webSubmitFeedback
+      summary: Website gửi góp ý của khách (form /gop-y) (Task 455)
+      description: |
+        Idempotency-Key do website sinh khi khách mở form: gửi lại cùng khóa trả cùng mã, một dòng. contact là SĐT của
+        khách có sẵn → gắn hồ sơ giữ SĐT đó (đọc trả gốc hiện tại); không khớp → không gắn, không tạo khách. Trường sai → 400 invalid_input.
+      x-auth: service_key
+      x-permission: web.feedback.write
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebFeedbackRequest"
+      responses:
+        "201":
+          description: Đã lưu góp ý
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebFeedbackResult"
         "503":
           $ref: "#/components/responses/RetryLater"
         default:
@@ -14210,6 +14305,127 @@ components:
           format: int32
         csv:
           type: string
+    # --- Góp ý của khách (Task 455) ---
+    FeedbackState:
+      type: string
+      enum: [new, seen, answered]
+    FeedbackTopic:
+      type: string
+      enum: [product, delivery, website, service, other]
+    WebFeedbackRequest:
+      type: object
+      additionalProperties: false
+      required: [topic, body]
+      properties:
+        topic:
+          $ref: "#/components/schemas/FeedbackTopic"
+        mood:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 5
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        name:
+          type: string
+          maxLength: 80
+        contact:
+          type: string
+          maxLength: 120
+          description: SĐT hay email khách để lại
+        orderRef:
+          type: string
+          maxLength: 60
+        page:
+          type: string
+          maxLength: 300
+        device:
+          type: string
+          maxLength: 120
+        clientHash:
+          type: string
+          maxLength: 128
+          description: Băm địa chỉ của khách do website tính
+    WebFeedbackResult:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+    Feedback:
+      type: object
+      required: [id, topic, body, state, createdAt, updatedAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        topic:
+          $ref: "#/components/schemas/FeedbackTopic"
+        mood:
+          type: integer
+          format: int32
+        body:
+          type: string
+        name:
+          type: string
+        contact:
+          type: string
+        orderRef:
+          type: string
+        page:
+          type: string
+        device:
+          type: string
+        state:
+          $ref: "#/components/schemas/FeedbackState"
+        note:
+          type: string
+        customerId:
+          type: string
+          format: uuid
+          description: Gốc hiện tại của khách được gắn lúc gửi
+        customerName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        updatedByName:
+          type: string
+          description: Tên nhân viên sửa gần nhất
+        version:
+          type: integer
+          format: int32
+    FeedbackPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Feedback"
+        nextCursor:
+          type: string
+    UpdateFeedbackRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int32
+          minimum: 1
+        state:
+          $ref: "#/components/schemas/FeedbackState"
+        note:
+          type: string
+          maxLength: 1000
+          description: Rỗng là xóa ghi chú
     WebBirthdayRequest:
       type: object
       additionalProperties: false

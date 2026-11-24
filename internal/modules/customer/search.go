@@ -232,6 +232,23 @@ func ParseListCursor(s string) (ListCursor, error) {
 	return c, nil
 }
 
+// params trả hai tham số keyset (created_at, id) của câu SQL; c nil (trang đầu) → hai giá trị NULL.
+func (c *ListCursor) params() (pgtype.Timestamptz, pgtype.UUID) {
+	if c == nil {
+		return pgtype.Timestamptz{}, pgtype.UUID{}
+	}
+	return pgtype.Timestamptz{Time: c.CreatedAt, Valid: true}, pgtype.UUID{Bytes: c.ID, Valid: true}
+}
+
+// pageOf cắt rows (đọc limit + 1 dòng) còn limit dòng và trả con trỏ sau dòng cuối khi còn trang sau (nil khi hết).
+func pageOf[T any](rows []T, limit int, key func(T) ListCursor) ([]T, *ListCursor) {
+	if len(rows) <= limit {
+		return rows, nil
+	}
+	next := key(rows[limit-1])
+	return rows[:limit], &next
+}
+
 // ListFilter là bộ lọc của List. TagID: chỉ nhóm có nhãn đó ở bất kỳ hồ sơ nào. After: trang sau. Limit ≤ 0: 50; tối
 // đa MaxListLimit.
 type ListFilter struct {
@@ -247,20 +264,14 @@ const defaultListLimit = 50
 func List(ctx context.Context, tx pgx.Tx, f ListFilter) ([]SearchHit, *ListCursor, error) {
 	limit := clampLimit(f.Limit, defaultListLimit)
 	p := store.ListRootsParams{TagID: db.NullUUID(f.TagID), Lim: int32(limit + 1)} //nolint:gosec // đã chặn ở clampLimit
-	if f.After != nil {
-		p.AfterCreated = pgtype.Timestamptz{Time: f.After.CreatedAt, Valid: true}
-		p.AfterID = pgtype.UUID{Bytes: f.After.ID, Valid: true}
-	}
+	p.AfterCreated, p.AfterID = f.After.params()
 	rows, err := store.New(tx).ListRoots(ctx, p)
 	if err != nil {
 		return nil, nil, fmt.Errorf("đọc danh sách khách: %w", err)
 	}
-	var next *ListCursor
-	if len(rows) > limit {
-		last := rows[limit-1]
-		next = &ListCursor{CreatedAt: last.CreatedAt, ID: last.ID}
-		rows = rows[:limit]
-	}
+	rows, next := pageOf(rows, limit, func(r store.ListRootsRow) ListCursor {
+		return ListCursor{CreatedAt: r.CreatedAt, ID: r.ID}
+	})
 	hits := make([]SearchHit, 0, len(rows))
 	for _, r := range rows {
 		hits = append(hits, hitOf(r.ID, r.Code, r.FullName, r.OrderCount, r.DeliveredCount, r.ReturnedCount, r.TotalSpent,

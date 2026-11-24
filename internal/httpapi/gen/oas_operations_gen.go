@@ -120,6 +120,7 @@ const (
 	ListCustomerMergeCandidatesOperation OperationName = "ListCustomerMergeCandidates"
 	ListCustomerTagsOperation            OperationName = "ListCustomerTags"
 	ListCustomersOperation               OperationName = "ListCustomers"
+	ListFeedbackOperation                OperationName = "ListFeedback"
 	ListJobsOperation                    OperationName = "ListJobs"
 	ListLostFilesOperation               OperationName = "ListLostFiles"
 	ListOrderDuplicatesOperation         OperationName = "ListOrderDuplicates"
@@ -213,6 +214,7 @@ const (
 	UpdateCustomerOperation              OperationName = "UpdateCustomer"
 	UpdateCustomerAddressOperation       OperationName = "UpdateCustomerAddress"
 	UpdateCustomerTagOperation           OperationName = "UpdateCustomerTag"
+	UpdateFeedbackOperation              OperationName = "UpdateFeedback"
 	UpdateFulfillmentSettingsOperation   OperationName = "UpdateFulfillmentSettings"
 	UpdateOrderOperation                 OperationName = "UpdateOrder"
 	UpdateOrderSettingsOperation         OperationName = "UpdateOrderSettings"
@@ -253,5 +255,6 @@ const (
 	WebShippingCarriersOperation         OperationName = "WebShippingCarriers"
 	WebShippingQuoteOperation            OperationName = "WebShippingQuote"
 	WebSold30dOperation                  OperationName = "WebSold30d"
+	WebSubmitFeedbackOperation           OperationName = "WebSubmitFeedback"
 	WebUploadRequestFileOperation        OperationName = "WebUploadRequestFile"
 )

@@ -33,11 +33,12 @@ export const ALL_WEB = [
   "web.requests.write",
   "web.coupons.issue",
   "web.birthdays.write",
+  "web.feedback.write",
   "web.shipping.quote",
   "web.flash.buy",
 ];
 
-/** Khóa "Website ELIMAZ — bản chính" đang dùng, đủ chín quyền, mọi IP. */
+/** Khóa "Website ELIMAZ — bản chính" đang dùng, đủ mười quyền, mọi IP. */
 const MAIN_KEY: ServiceKey = {
   id: K1,
   name: "Website ELIMAZ — bản chính",
