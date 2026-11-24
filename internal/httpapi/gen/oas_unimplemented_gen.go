@@ -584,7 +584,7 @@ func (UnimplementedHandler) GetCoupon(ctx context.Context, params GetCouponParam
 
 // GetCouponBatch implements getCouponBatch operation.
 //
-// Một đợt mã (Task M2-14).
+// Một đợt mã kèm số mã đã trao, đã dùng, hết hạn chưa dùng (Task M2-14, Task 197).
 //
 // GET /api/v1/coupon-batches/{batchId}
 func (UnimplementedHandler) GetCouponBatch(ctx context.Context, params GetCouponBatchParams) (r GetCouponBatchRes, _ error) {
@@ -991,6 +991,15 @@ func (UnimplementedHandler) ListCodOverdue(ctx context.Context, params ListCodOv
 //
 // GET /api/v1/cod-statements
 func (UnimplementedHandler) ListCodStatements(ctx context.Context, params ListCodStatementsParams) (r ListCodStatementsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListCouponBatches implements listCouponBatches operation.
+//
+// Đợt mã, mới nhất trước; lọc theo loại (manual, birthday, imported) (Task 197).
+//
+// GET /api/v1/coupon-batches
+func (UnimplementedHandler) ListCouponBatches(ctx context.Context, params ListCouponBatchesParams) (r ListCouponBatchesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2057,6 +2066,19 @@ func (UnimplementedHandler) WebCatalogTaxonomy(ctx context.Context, params WebCa
 	return r, ht.ErrNotImplemented
 }
 
+// WebCreateBirthdayBatch implements webCreateBirthdayBatch operation.
+//
+// Lô theo tên: chưa có → tạo quantity mã dùng một lần (bộ sinh mã của CRM), created
+// true; đã có cùng số lượng, điều khoản và SĐT → trả lô cũ, created false; đã
+// có mà khác → 422 batch_conflict. Có boundPhones (đúng quantity SĐT khác nhau) → mỗi
+// mã gắn một SĐT, codes theo đúng thứ tự boundPhones; không có → codes theo thứ tự
+// chữ.
+//
+// POST /api/v1/web/birthday-batches
+func (UnimplementedHandler) WebCreateBirthdayBatch(ctx context.Context, req *WebBirthdayBatchRequest, params WebCreateBirthdayBatchParams) (r WebCreateBirthdayBatchRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // WebCreateOrder implements webCreateOrder operation.
 //
 // Task 194 (M5-11). Quy ước của website: Idempotency-Key = externalRef. Một đơn cho mỗi
@@ -2105,6 +2127,18 @@ func (UnimplementedHandler) WebGetOrder(ctx context.Context, params WebGetOrderP
 	return r, ht.ErrNotImplemented
 }
 
+// WebImportCoupons implements webImportCoupons operation.
+//
+// Mỗi mã dùng một lần, chỉ kênh web, lô loại imported theo batchName (trống → "Mã
+// nhập từ website"). percent: value là phần trăm nguyên 1–100 của website (CRM lưu
+// phần vạn). used true → mã đã dùng hết. Mã trùng trong cùng lần nhập hay điều
+// khoản sai → 400 invalid_input, không nhập mã nào.
+//
+// POST /api/v1/web/coupons/import
+func (UnimplementedHandler) WebImportCoupons(ctx context.Context, req *WebCouponImportRequest, params WebImportCouponsParams) (r WebImportCouponsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // WebIntakeStatus implements webIntakeStatus operation.
 //
 // Task 456 (M5-44). Website hiện "ELIMAZ đang tạm dừng nhận đơn trên website…" khi
@@ -2133,6 +2167,15 @@ func (UnimplementedHandler) WebListRequests(ctx context.Context, params WebListR
 //
 // GET /api/v1/web/locations
 func (UnimplementedHandler) WebLocations(ctx context.Context, params WebLocationsParams) (r WebLocationsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// WebMarkCouponGiven implements webMarkCouponGiven operation.
+//
+// Chỉ mã của lô website (birthday, imported); mã khác hay không có → 404 not_found.
+//
+// POST /api/v1/web/coupons/{code}/given
+func (UnimplementedHandler) WebMarkCouponGiven(ctx context.Context, params WebMarkCouponGivenParams) (r WebMarkCouponGivenRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

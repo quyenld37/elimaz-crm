@@ -12,7 +12,7 @@ VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, sqlc.arg(code)
 ON CONFLICT (tenant_id, code) DO NOTHING
 RETURNING id, code::text AS code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, seller_id,
           bound_customer_id, bound_phone, max_uses, used_count, per_customer_limit, release_on_cancel, valid_from,
-          valid_to, status, created_by, created_at, updated_at, version;
+          valid_to, status, created_by, created_at, updated_at, version, given_at;
 
 -- name: InsertCouponsBulk :many
 -- Một lô mã của đợt (tối đa 1.000 dòng mỗi câu); phones[i] rỗng = mã không gắn SĐT. Trả các mã đã chèn (mã trùng bị
@@ -31,17 +31,17 @@ RETURNING code::text AS code;
 INSERT INTO promotion.coupon_batches (tenant_id, name, code_prefix, quantity, template, created_by)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, @name, @code_prefix, @quantity, @template,
         @created_by)
-RETURNING id, name, code_prefix, quantity, template, created_by, created_at;
+RETURNING id, name, code_prefix, quantity, template, created_by, created_at, purpose;
 
 -- name: GetBatch :one
-SELECT id, name, code_prefix, quantity, template, created_by, created_at
+SELECT id, name, code_prefix, quantity, template, created_by, created_at, purpose
 FROM promotion.coupon_batches
 WHERE id = @id;
 
 -- name: CouponByID :one
 SELECT id, code::text AS code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, seller_id,
        bound_customer_id, bound_phone, max_uses, used_count, per_customer_limit, release_on_cancel, valid_from,
-       valid_to, status, created_by, created_at, updated_at, version
+       valid_to, status, created_by, created_at, updated_at, version, given_at
 FROM promotion.coupons
 WHERE id = @id;
 
@@ -59,14 +59,14 @@ SET name = @name, discount_kind = @discount_kind, value = @value, max_discount =
 WHERE id = @id AND version = @version
 RETURNING id, code::text AS code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, seller_id,
           bound_customer_id, bound_phone, max_uses, used_count, per_customer_limit, release_on_cancel, valid_from,
-          valid_to, status, created_by, created_at, updated_at, version;
+          valid_to, status, created_by, created_at, updated_at, version, given_at;
 
 -- name: ListCoupons :many
 -- Mới nhất trước (id uuidv7 giảm dần), sau con trỏ after; q tìm trong mã hoặc tên, không phân biệt hoa thường, không
 -- phải mẫu LIKE.
 SELECT id, code::text AS code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, seller_id,
        bound_customer_id, bound_phone, max_uses, used_count, per_customer_limit, release_on_cancel, valid_from,
-       valid_to, status, created_by, created_at, updated_at, version
+       valid_to, status, created_by, created_at, updated_at, version, given_at
 FROM promotion.coupons
 WHERE (sqlc.narg(after)::uuid IS NULL OR id < sqlc.narg(after)::uuid)
   AND (sqlc.narg(status)::text IS NULL OR status = sqlc.narg(status)::text)

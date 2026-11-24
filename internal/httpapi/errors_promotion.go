@@ -17,6 +17,7 @@ const (
 	codePreviewRequired      = "preview_required"
 	codePercentTooHigh       = "percent_too_high"
 	codeCampaignRunning      = "campaign_running"
+	codeBatchConflict        = "batch_conflict"
 )
 
 // promotionError đổi lỗi nghiệp vụ của mã giảm giá (M2, Task M2-02, M2-14) và chiến dịch giảm giá web (M5, Task 452)
@@ -34,5 +35,6 @@ func promotionError(err error) (status int, code string, ok bool) {
 		{promotion.ErrPreviewRequired, http.StatusUnprocessableEntity, codePreviewRequired},
 		{promotion.ErrPercentTooHigh, http.StatusUnprocessableEntity, codePercentTooHigh},
 		{promotion.ErrCampaignRunning, http.StatusConflict, codeCampaignRunning},
+		{promotion.ErrBatchConflict, http.StatusUnprocessableEntity, codeBatchConflict},
 	})
 }

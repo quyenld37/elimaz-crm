@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const couponByCode = `-- name: CouponByCode :one
 
 SELECT id, code::text AS code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, seller_id,
        bound_customer_id, bound_phone, max_uses, used_count, per_customer_limit, release_on_cancel, valid_from,
-       valid_to, status, created_by, created_at, updated_at, version
+       valid_to, status, created_by, created_at, updated_at, version, given_at
 FROM promotion.coupons
 WHERE code = $1::text::citext
 `
@@ -45,6 +46,7 @@ type CouponByCodeRow struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Version          int64
+	GivenAt          pgtype.Timestamptz
 }
 
 // Mã giảm giá (kế hoạch M2, Task M2-06). Mọi câu chạy trong tx tenant của bên gọi (RLS lọc theo tenant).
@@ -76,6 +78,7 @@ func (q *Queries) CouponByCode(ctx context.Context, code string) (CouponByCodeRo
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.GivenAt,
 	)
 	return i, err
 }
@@ -83,7 +86,7 @@ func (q *Queries) CouponByCode(ctx context.Context, code string) (CouponByCodeRo
 const couponByCodeForUpdate = `-- name: CouponByCodeForUpdate :one
 SELECT id, code::text AS code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, seller_id,
        bound_customer_id, bound_phone, max_uses, used_count, per_customer_limit, release_on_cancel, valid_from,
-       valid_to, status, created_by, created_at, updated_at, version
+       valid_to, status, created_by, created_at, updated_at, version, given_at
 FROM promotion.coupons
 WHERE code = $1::text::citext
 FOR UPDATE
@@ -113,6 +116,7 @@ type CouponByCodeForUpdateRow struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Version          int64
+	GivenAt          pgtype.Timestamptz
 }
 
 // Dùng mã (Redeem): khóa dòng mã trước mọi bảng lượt (ADR-46 nhóm 10).
@@ -143,6 +147,7 @@ func (q *Queries) CouponByCodeForUpdate(ctx context.Context, code string) (Coupo
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.GivenAt,
 	)
 	return i, err
 }
@@ -150,7 +155,7 @@ func (q *Queries) CouponByCodeForUpdate(ctx context.Context, code string) (Coupo
 const couponByIDForUpdate = `-- name: CouponByIDForUpdate :one
 SELECT id, code::text AS code, batch_id, name, discount_kind, value, max_discount, min_subtotal, channels, seller_id,
        bound_customer_id, bound_phone, max_uses, used_count, per_customer_limit, release_on_cancel, valid_from,
-       valid_to, status, created_by, created_at, updated_at, version
+       valid_to, status, created_by, created_at, updated_at, version, given_at
 FROM promotion.coupons
 WHERE id = $1
 FOR UPDATE
@@ -180,6 +185,7 @@ type CouponByIDForUpdateRow struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Version          int64
+	GivenAt          pgtype.Timestamptz
 }
 
 // Trả lượt, tính lại (Release, Detach, Reprice): khóa dòng mã trước mọi bảng lượt (ADR-46 nhóm 10).
@@ -210,6 +216,7 @@ func (q *Queries) CouponByIDForUpdate(ctx context.Context, id uuid.UUID) (Coupon
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.GivenAt,
 	)
 	return i, err
 }

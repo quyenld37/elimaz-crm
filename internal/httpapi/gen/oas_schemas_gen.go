@@ -4894,6 +4894,8 @@ type ColorHex string
 
 // Ref: #/components/schemas/Coupon
 type Coupon struct {
+	// Lúc website trao mã cho khách (Task 197).
+	GivenAt      OptDateTime  `json:"givenAt"`
 	ID           uuid.UUID    `json:"id"`
 	Code         string       `json:"code"`
 	BatchId      OptUUID      `json:"batchId"`
@@ -4917,6 +4919,11 @@ type Coupon struct {
 	Bound     bool      `json:"bound"`
 	CreatedAt time.Time `json:"createdAt"`
 	Version   int64     `json:"version"`
+}
+
+// GetGivenAt returns the value of GivenAt.
+func (s *Coupon) GetGivenAt() OptDateTime {
+	return s.GivenAt
 }
 
 // GetID returns the value of ID.
@@ -5017,6 +5024,11 @@ func (s *Coupon) GetCreatedAt() time.Time {
 // GetVersion returns the value of Version.
 func (s *Coupon) GetVersion() int64 {
 	return s.Version
+}
+
+// SetGivenAt sets the value of GivenAt.
+func (s *Coupon) SetGivenAt(val OptDateTime) {
+	s.GivenAt = val
 }
 
 // SetID sets the value of ID.
@@ -5125,12 +5137,19 @@ func (*Coupon) updateCouponRes() {}
 
 // Ref: #/components/schemas/CouponBatch
 type CouponBatch struct {
-	ID        uuid.UUID      `json:"id"`
-	Name      string         `json:"name"`
-	Prefix    string         `json:"prefix"`
-	Quantity  int32          `json:"quantity"`
-	Template  CouponTemplate `json:"template"`
-	CreatedAt time.Time      `json:"createdAt"`
+	ID        uuid.UUID             `json:"id"`
+	Name      string                `json:"name"`
+	Prefix    string                `json:"prefix"`
+	Quantity  int32                 `json:"quantity"`
+	Template  CouponTemplate        `json:"template"`
+	CreatedAt time.Time             `json:"createdAt"`
+	Purpose   OptCouponBatchPurpose `json:"purpose"`
+	// Số mã website đã trao cho khách (chỉ getCouponBatch).
+	GivenCount OptInt32 `json:"givenCount"`
+	// Số mã đã dùng (chỉ getCouponBatch).
+	UsedCount OptInt32 `json:"usedCount"`
+	// Số mã hết hạn mà chưa dùng (chỉ getCouponBatch).
+	ExpiredCount OptInt32 `json:"expiredCount"`
 }
 
 // GetID returns the value of ID.
@@ -5163,6 +5182,26 @@ func (s *CouponBatch) GetCreatedAt() time.Time {
 	return s.CreatedAt
 }
 
+// GetPurpose returns the value of Purpose.
+func (s *CouponBatch) GetPurpose() OptCouponBatchPurpose {
+	return s.Purpose
+}
+
+// GetGivenCount returns the value of GivenCount.
+func (s *CouponBatch) GetGivenCount() OptInt32 {
+	return s.GivenCount
+}
+
+// GetUsedCount returns the value of UsedCount.
+func (s *CouponBatch) GetUsedCount() OptInt32 {
+	return s.UsedCount
+}
+
+// GetExpiredCount returns the value of ExpiredCount.
+func (s *CouponBatch) GetExpiredCount() OptInt32 {
+	return s.ExpiredCount
+}
+
 // SetID sets the value of ID.
 func (s *CouponBatch) SetID(val uuid.UUID) {
 	s.ID = val
@@ -5193,8 +5232,107 @@ func (s *CouponBatch) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
 }
 
+// SetPurpose sets the value of Purpose.
+func (s *CouponBatch) SetPurpose(val OptCouponBatchPurpose) {
+	s.Purpose = val
+}
+
+// SetGivenCount sets the value of GivenCount.
+func (s *CouponBatch) SetGivenCount(val OptInt32) {
+	s.GivenCount = val
+}
+
+// SetUsedCount sets the value of UsedCount.
+func (s *CouponBatch) SetUsedCount(val OptInt32) {
+	s.UsedCount = val
+}
+
+// SetExpiredCount sets the value of ExpiredCount.
+func (s *CouponBatch) SetExpiredCount(val OptInt32) {
+	s.ExpiredCount = val
+}
+
 func (*CouponBatch) createCouponBatchRes() {}
 func (*CouponBatch) getCouponBatchRes()    {}
+
+// Ref: #/components/schemas/CouponBatchPage
+type CouponBatchPage struct {
+	Items      []CouponBatch `json:"items"`
+	NextCursor OptString     `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *CouponBatchPage) GetItems() []CouponBatch {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *CouponBatchPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *CouponBatchPage) SetItems(val []CouponBatch) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *CouponBatchPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*CouponBatchPage) listCouponBatchesRes() {}
+
+// Manual — nhân viên tạo; birthday — quà sinh nhật website xin phát; imported — mã
+// nhập từ website.
+// Ref: #/components/schemas/CouponBatchPurpose
+type CouponBatchPurpose string
+
+const (
+	CouponBatchPurposeManual   CouponBatchPurpose = "manual"
+	CouponBatchPurposeBirthday CouponBatchPurpose = "birthday"
+	CouponBatchPurposeImported CouponBatchPurpose = "imported"
+)
+
+// AllValues returns all CouponBatchPurpose values.
+func (CouponBatchPurpose) AllValues() []CouponBatchPurpose {
+	return []CouponBatchPurpose{
+		CouponBatchPurposeManual,
+		CouponBatchPurposeBirthday,
+		CouponBatchPurposeImported,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CouponBatchPurpose) MarshalText() ([]byte, error) {
+	switch s {
+	case CouponBatchPurposeManual:
+		return []byte(s), nil
+	case CouponBatchPurposeBirthday:
+		return []byte(s), nil
+	case CouponBatchPurposeImported:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CouponBatchPurpose) UnmarshalText(data []byte) error {
+	switch CouponBatchPurpose(data) {
+	case CouponBatchPurposeManual:
+		*s = CouponBatchPurposeManual
+		return nil
+	case CouponBatchPurposeBirthday:
+		*s = CouponBatchPurposeBirthday
+		return nil
+	case CouponBatchPurposeImported:
+		*s = CouponBatchPurposeImported
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 // Ref: #/components/schemas/CouponCheck
 type CouponCheck struct {
@@ -9470,6 +9608,7 @@ func (*ErrorStatusCode) listCategoriesRes()              {}
 func (*ErrorStatusCode) listCodDiscrepanciesRes()        {}
 func (*ErrorStatusCode) listCodOverdueRes()              {}
 func (*ErrorStatusCode) listCodStatementsRes()           {}
+func (*ErrorStatusCode) listCouponBatchesRes()           {}
 func (*ErrorStatusCode) listCouponRedemptionsRes()       {}
 func (*ErrorStatusCode) listCouponsRes()                 {}
 func (*ErrorStatusCode) listCustomerMergeCandidatesRes() {}
@@ -9578,12 +9717,15 @@ func (*ErrorStatusCode) webCancelRequestRes()            {}
 func (*ErrorStatusCode) webCatalogChangesRes()           {}
 func (*ErrorStatusCode) webCatalogProductsRes()          {}
 func (*ErrorStatusCode) webCatalogTaxonomyRes()          {}
+func (*ErrorStatusCode) webCreateBirthdayBatchRes()      {}
 func (*ErrorStatusCode) webCreateOrderRes()              {}
 func (*ErrorStatusCode) webCreateRequestRes()            {}
 func (*ErrorStatusCode) webGetOrderRes()                 {}
+func (*ErrorStatusCode) webImportCouponsRes()            {}
 func (*ErrorStatusCode) webIntakeStatusRes()             {}
 func (*ErrorStatusCode) webListRequestsRes()             {}
 func (*ErrorStatusCode) webLocationsRes()                {}
+func (*ErrorStatusCode) webMarkCouponGivenRes()          {}
 func (*ErrorStatusCode) webOrderChangesRes()             {}
 func (*ErrorStatusCode) webQuoteRes()                    {}
 func (*ErrorStatusCode) webReplyRequestRes()             {}
@@ -12327,6 +12469,52 @@ func (o OptColorHex) Get() (v ColorHex, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptColorHex) Or(d ColorHex) ColorHex {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCouponBatchPurpose returns new OptCouponBatchPurpose with value set to v.
+func NewOptCouponBatchPurpose(v CouponBatchPurpose) OptCouponBatchPurpose {
+	return OptCouponBatchPurpose{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCouponBatchPurpose is optional CouponBatchPurpose.
+type OptCouponBatchPurpose struct {
+	Value CouponBatchPurpose
+	Set   bool
+}
+
+// IsSet returns true if OptCouponBatchPurpose was set.
+func (o OptCouponBatchPurpose) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCouponBatchPurpose) Reset() {
+	var v CouponBatchPurpose
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCouponBatchPurpose) SetTo(v CouponBatchPurpose) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCouponBatchPurpose) Get() (v CouponBatchPurpose, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCouponBatchPurpose) Or(d CouponBatchPurpose) CouponBatchPurpose {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -21747,12 +21935,15 @@ func (s *RetryLaterHeaders) SetResponse(val Error) {
 	s.Response = val
 }
 
-func (*RetryLaterHeaders) webCancelOrderRes()       {}
-func (*RetryLaterHeaders) webCancelRequestRes()     {}
-func (*RetryLaterHeaders) webCreateOrderRes()       {}
-func (*RetryLaterHeaders) webCreateRequestRes()     {}
-func (*RetryLaterHeaders) webReplyRequestRes()      {}
-func (*RetryLaterHeaders) webUploadRequestFileRes() {}
+func (*RetryLaterHeaders) webCancelOrderRes()         {}
+func (*RetryLaterHeaders) webCancelRequestRes()       {}
+func (*RetryLaterHeaders) webCreateBirthdayBatchRes() {}
+func (*RetryLaterHeaders) webCreateOrderRes()         {}
+func (*RetryLaterHeaders) webCreateRequestRes()       {}
+func (*RetryLaterHeaders) webImportCouponsRes()       {}
+func (*RetryLaterHeaders) webMarkCouponGivenRes()     {}
+func (*RetryLaterHeaders) webReplyRequestRes()        {}
+func (*RetryLaterHeaders) webUploadRequestFileRes()   {}
 
 // Ref: #/components/schemas/Return
 type Return struct {
@@ -29073,6 +29264,55 @@ func (s *WebAvailabilityItem) SetLow(val bool) {
 	s.Low = val
 }
 
+// Ref: #/components/schemas/WebBirthdayBatchRequest
+type WebBirthdayBatchRequest struct {
+	// Tên lô; cùng tên là cùng lô.
+	Name        string         `json:"name"`
+	Quantity    int32          `json:"quantity"`
+	Template    CouponTemplate `json:"template"`
+	BoundPhones []PhoneInput   `json:"boundPhones"`
+}
+
+// GetName returns the value of Name.
+func (s *WebBirthdayBatchRequest) GetName() string {
+	return s.Name
+}
+
+// GetQuantity returns the value of Quantity.
+func (s *WebBirthdayBatchRequest) GetQuantity() int32 {
+	return s.Quantity
+}
+
+// GetTemplate returns the value of Template.
+func (s *WebBirthdayBatchRequest) GetTemplate() CouponTemplate {
+	return s.Template
+}
+
+// GetBoundPhones returns the value of BoundPhones.
+func (s *WebBirthdayBatchRequest) GetBoundPhones() []PhoneInput {
+	return s.BoundPhones
+}
+
+// SetName sets the value of Name.
+func (s *WebBirthdayBatchRequest) SetName(val string) {
+	s.Name = val
+}
+
+// SetQuantity sets the value of Quantity.
+func (s *WebBirthdayBatchRequest) SetQuantity(val int32) {
+	s.Quantity = val
+}
+
+// SetTemplate sets the value of Template.
+func (s *WebBirthdayBatchRequest) SetTemplate(val CouponTemplate) {
+	s.Template = val
+}
+
+// SetBoundPhones sets the value of BoundPhones.
+func (s *WebBirthdayBatchRequest) SetBoundPhones(val []PhoneInput) {
+	s.BoundPhones = val
+}
+
 // Ref: #/components/schemas/WebCampaign
 type WebCampaign struct {
 	ID          uuid.UUID         `json:"id"`
@@ -30091,6 +30331,245 @@ func (s *WebCategory) SetDepth(val int32) {
 // SetPosition sets the value of Position.
 func (s *WebCategory) SetPosition(val int32) {
 	s.Position = val
+}
+
+// Ref: #/components/schemas/WebCouponBatchCodes
+type WebCouponBatchCodes struct {
+	BatchId uuid.UUID `json:"batchId"`
+	// True — lô vừa tạo ở lần gọi này.
+	Created bool     `json:"created"`
+	Codes   []string `json:"codes"`
+}
+
+// GetBatchId returns the value of BatchId.
+func (s *WebCouponBatchCodes) GetBatchId() uuid.UUID {
+	return s.BatchId
+}
+
+// GetCreated returns the value of Created.
+func (s *WebCouponBatchCodes) GetCreated() bool {
+	return s.Created
+}
+
+// GetCodes returns the value of Codes.
+func (s *WebCouponBatchCodes) GetCodes() []string {
+	return s.Codes
+}
+
+// SetBatchId sets the value of BatchId.
+func (s *WebCouponBatchCodes) SetBatchId(val uuid.UUID) {
+	s.BatchId = val
+}
+
+// SetCreated sets the value of Created.
+func (s *WebCouponBatchCodes) SetCreated(val bool) {
+	s.Created = val
+}
+
+// SetCodes sets the value of Codes.
+func (s *WebCouponBatchCodes) SetCodes(val []string) {
+	s.Codes = val
+}
+
+func (*WebCouponBatchCodes) webCreateBirthdayBatchRes() {}
+
+// Ref: #/components/schemas/WebCouponGiven
+type WebCouponGiven struct {
+	Code    string    `json:"code"`
+	GivenAt time.Time `json:"givenAt"`
+}
+
+// GetCode returns the value of Code.
+func (s *WebCouponGiven) GetCode() string {
+	return s.Code
+}
+
+// GetGivenAt returns the value of GivenAt.
+func (s *WebCouponGiven) GetGivenAt() time.Time {
+	return s.GivenAt
+}
+
+// SetCode sets the value of Code.
+func (s *WebCouponGiven) SetCode(val string) {
+	s.Code = val
+}
+
+// SetGivenAt sets the value of GivenAt.
+func (s *WebCouponGiven) SetGivenAt(val time.Time) {
+	s.GivenAt = val
+}
+
+func (*WebCouponGiven) webMarkCouponGivenRes() {}
+
+// Ref: #/components/schemas/WebCouponImportItem
+type WebCouponImportItem struct {
+	Code         string       `json:"code"`
+	DiscountKind DiscountKind `json:"discountKind"`
+	// Percent — phần trăm nguyên 1–100; fixed — số đồng.
+	Value       int64       `json:"value"`
+	MaxDiscount OptMoney    `json:"maxDiscount"`
+	MinSubtotal OptMoney    `json:"minSubtotal"`
+	ValidFrom   time.Time   `json:"validFrom"`
+	ValidTo     time.Time   `json:"validTo"`
+	GivenAt     OptDateTime `json:"givenAt"`
+	Used        OptBool     `json:"used"`
+	BatchName   OptString   `json:"batchName"`
+}
+
+// GetCode returns the value of Code.
+func (s *WebCouponImportItem) GetCode() string {
+	return s.Code
+}
+
+// GetDiscountKind returns the value of DiscountKind.
+func (s *WebCouponImportItem) GetDiscountKind() DiscountKind {
+	return s.DiscountKind
+}
+
+// GetValue returns the value of Value.
+func (s *WebCouponImportItem) GetValue() int64 {
+	return s.Value
+}
+
+// GetMaxDiscount returns the value of MaxDiscount.
+func (s *WebCouponImportItem) GetMaxDiscount() OptMoney {
+	return s.MaxDiscount
+}
+
+// GetMinSubtotal returns the value of MinSubtotal.
+func (s *WebCouponImportItem) GetMinSubtotal() OptMoney {
+	return s.MinSubtotal
+}
+
+// GetValidFrom returns the value of ValidFrom.
+func (s *WebCouponImportItem) GetValidFrom() time.Time {
+	return s.ValidFrom
+}
+
+// GetValidTo returns the value of ValidTo.
+func (s *WebCouponImportItem) GetValidTo() time.Time {
+	return s.ValidTo
+}
+
+// GetGivenAt returns the value of GivenAt.
+func (s *WebCouponImportItem) GetGivenAt() OptDateTime {
+	return s.GivenAt
+}
+
+// GetUsed returns the value of Used.
+func (s *WebCouponImportItem) GetUsed() OptBool {
+	return s.Used
+}
+
+// GetBatchName returns the value of BatchName.
+func (s *WebCouponImportItem) GetBatchName() OptString {
+	return s.BatchName
+}
+
+// SetCode sets the value of Code.
+func (s *WebCouponImportItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetDiscountKind sets the value of DiscountKind.
+func (s *WebCouponImportItem) SetDiscountKind(val DiscountKind) {
+	s.DiscountKind = val
+}
+
+// SetValue sets the value of Value.
+func (s *WebCouponImportItem) SetValue(val int64) {
+	s.Value = val
+}
+
+// SetMaxDiscount sets the value of MaxDiscount.
+func (s *WebCouponImportItem) SetMaxDiscount(val OptMoney) {
+	s.MaxDiscount = val
+}
+
+// SetMinSubtotal sets the value of MinSubtotal.
+func (s *WebCouponImportItem) SetMinSubtotal(val OptMoney) {
+	s.MinSubtotal = val
+}
+
+// SetValidFrom sets the value of ValidFrom.
+func (s *WebCouponImportItem) SetValidFrom(val time.Time) {
+	s.ValidFrom = val
+}
+
+// SetValidTo sets the value of ValidTo.
+func (s *WebCouponImportItem) SetValidTo(val time.Time) {
+	s.ValidTo = val
+}
+
+// SetGivenAt sets the value of GivenAt.
+func (s *WebCouponImportItem) SetGivenAt(val OptDateTime) {
+	s.GivenAt = val
+}
+
+// SetUsed sets the value of Used.
+func (s *WebCouponImportItem) SetUsed(val OptBool) {
+	s.Used = val
+}
+
+// SetBatchName sets the value of BatchName.
+func (s *WebCouponImportItem) SetBatchName(val OptString) {
+	s.BatchName = val
+}
+
+// Ref: #/components/schemas/WebCouponImportReport
+type WebCouponImportReport struct {
+	Inserted int32 `json:"inserted"`
+	// Mã đã có cùng điều khoản (nhập lại).
+	Skipped int32 `json:"skipped"`
+	// Mã đã có trong CRM với điều khoản khác (không đổi).
+	Conflicts []string `json:"conflicts"`
+}
+
+// GetInserted returns the value of Inserted.
+func (s *WebCouponImportReport) GetInserted() int32 {
+	return s.Inserted
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *WebCouponImportReport) GetSkipped() int32 {
+	return s.Skipped
+}
+
+// GetConflicts returns the value of Conflicts.
+func (s *WebCouponImportReport) GetConflicts() []string {
+	return s.Conflicts
+}
+
+// SetInserted sets the value of Inserted.
+func (s *WebCouponImportReport) SetInserted(val int32) {
+	s.Inserted = val
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *WebCouponImportReport) SetSkipped(val int32) {
+	s.Skipped = val
+}
+
+// SetConflicts sets the value of Conflicts.
+func (s *WebCouponImportReport) SetConflicts(val []string) {
+	s.Conflicts = val
+}
+
+func (*WebCouponImportReport) webImportCouponsRes() {}
+
+// Ref: #/components/schemas/WebCouponImportRequest
+type WebCouponImportRequest struct {
+	Items []WebCouponImportItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *WebCouponImportRequest) GetItems() []WebCouponImportItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *WebCouponImportRequest) SetItems(val []WebCouponImportItem) {
+	s.Items = val
 }
 
 // Ref: #/components/schemas/WebCreateRequestBody

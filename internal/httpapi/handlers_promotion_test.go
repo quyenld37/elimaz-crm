@@ -290,3 +290,77 @@ func TestCouponAPI_Redemptions(t *testing.T) {
 	expect(t, "mã không có", e.do(http.MethodGet, "/api/v1/coupons/"+uuid.NewString()+"/redemptions", couponSale, "", ""),
 		http.StatusNotFound, "not_found")
 }
+
+// getCouponBatch (M2) trả thêm loại lô và số đếm (Task 197): lô sinh nhật 10 mã, website đã trao cả 10, 3 mã đã dùng →
+// givenCount 10, usedCount 3, expiredCount 0; listCoupons?batchId có givenAt; listCouponBatches?purpose=birthday chỉ
+// trả lô sinh nhật (lô manual của nhân viên không vào), không purpose → cả hai, mới nhất trước; purpose lạ → 400;
+// người không có promotion.read → 403 ở cả hai.
+func TestCouponAPI_BatchStatsAndList(t *testing.T) {
+	t.Parallel()
+	e := newCouponEnv(t)
+	tpl := `{"name":"Quà","discountKind":"fixed","value":50000,"validFrom":"2026-12-01T00:00:00Z","validTo":"2027-01-01T00:00:00Z"}`
+	m := e.ok("đợt tay", e.do(http.MethodPost, "/api/v1/coupon-batches", couponManager, "b1",
+		`{"name":"Tay","quantity":1,"template":`+tpl+`}`), http.StatusCreated)
+	if m["purpose"] != "manual" {
+		t.Fatalf("createCouponBatch purpose: %v", m)
+	}
+	var bid uuid.UUID
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		b, cs, _, err := promotion.Writer{}.EnsureWebBatch(t.Context(), tx, promotion.WebBatchInput{
+			Name: "SN 12/2026", Purpose: promotion.PurposeBirthday, Quantity: 10,
+			Template: promotion.CouponTemplate{
+				Name: "Quà", DiscountKind: promotion.KindFixed, Value: 50000,
+				ValidFrom: vnTime(2026, 12, 1, 0), ValidTo: vnTime(2027, 1, 1, 0),
+			},
+		}, promotion.Actor{TenantID: e.tenant, UserID: uuid.New()})
+		bid = b.ID
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		_, err = tx.Exec(t.Context(), `UPDATE promotion.coupons SET given_at = $2,
+			used_count = CASE WHEN code = ANY($3) THEN 1 ELSE 0 END WHERE batch_id = $1`,
+			b.ID, e.now.Add(-time.Hour), cs[:3])
+		return err //nolint:wrapcheck // test
+	})
+	got := e.ok("đọc đợt", e.do(http.MethodGet, "/api/v1/coupon-batches/"+bid.String(), couponSale, "", ""), http.StatusOK)
+	if got["purpose"] != "birthday" || got["givenCount"] != float64(10) || got["usedCount"] != float64(3) ||
+		got["expiredCount"] != float64(0) || got["quantity"] != float64(10) {
+		t.Fatalf("getCouponBatch: %v", got)
+	}
+	page := e.ok("mã của đợt", e.do(http.MethodGet, "/api/v1/coupons?batchId="+bid.String(), couponSale, "", ""), http.StatusOK)
+	items, _ := page["items"].([]any)
+	if len(items) != 10 {
+		t.Fatalf("mã của đợt: %v", page)
+	}
+	for _, it := range items {
+		c, _ := it.(map[string]any)
+		s, _ := c["givenAt"].(string)
+		if at, err := time.Parse(time.RFC3339, s); err != nil || !at.Equal(e.now.Add(-time.Hour)) {
+			t.Fatalf("givenAt: %v", c)
+		}
+	}
+	ids := func(q string) []any {
+		p := e.ok("listCouponBatches "+q, e.do(http.MethodGet, "/api/v1/coupon-batches"+q, couponSale, "", ""), http.StatusOK)
+		out := []any{}
+		its, _ := p["items"].([]any)
+		for _, it := range its {
+			b, _ := it.(map[string]any)
+			out = append(out, b["id"])
+		}
+		return out
+	}
+	if got := ids("?purpose=birthday"); len(got) != 1 || got[0] != bid.String() {
+		t.Fatalf("purpose=birthday: %v", got)
+	}
+	if got := ids(""); len(got) != 2 || got[0] != bid.String() || got[1] != m["id"] {
+		t.Fatalf("mọi loại: %v", got)
+	}
+	expect(t, "purpose lạ", e.do(http.MethodGet, "/api/v1/coupon-batches?purpose=vip", couponSale, "", ""),
+		http.StatusBadRequest, "")
+	u := e.staff.User(t, e.tenant, "kho-ma@elimaz.test", "active")
+	e.staff.Grant(t, e.tenant, u, []string{"order.read"}, "all", "")
+	expect(t, "không promotion.read", e.do(http.MethodGet, "/api/v1/coupon-batches", "kho-ma@elimaz.test", "", ""),
+		http.StatusForbidden, "forbidden")
+	expect(t, "không promotion.read đọc đợt", e.do(http.MethodGet, "/api/v1/coupon-batches/"+bid.String(),
+		"kho-ma@elimaz.test", "", ""), http.StatusForbidden, "forbidden")
+}

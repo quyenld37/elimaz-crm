@@ -44,6 +44,7 @@ type Coupon struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	Version          int64
+	GivenAt          *time.Time // lúc website trao mã cho khách (Task 197); nil: chưa trao hay mã của nhân viên
 }
 
 // couponFrom đổi một dòng sqlc sang Coupon (ba câu đọc mã trả cùng cột nên cùng kiểu dòng sau khi đổi).
@@ -57,6 +58,9 @@ func couponFrom(r store.CouponByCodeRow) Coupon {
 	}
 	if r.BatchID != nil {
 		c.BatchID = *r.BatchID
+	}
+	if r.GivenAt.Valid {
+		c.GivenAt = &r.GivenAt.Time
 	}
 	if r.SellerID != nil {
 		c.SellerID = *r.SellerID

@@ -2930,6 +2930,27 @@ paths:
         default:
           $ref: "#/components/responses/Error"
   /api/v1/coupon-batches:
+    get:
+      operationId: listCouponBatches
+      summary: 'Đợt mã, mới nhất trước; lọc theo loại (manual, birthday, imported) (Task 197)'
+      x-permission: promotion.read
+      parameters:
+        - name: purpose
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/CouponBatchPurpose"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listCouponBatches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CouponBatchPage"
+        default:
+          $ref: "#/components/responses/Error"
     post:
       operationId: createCouponBatch
       summary: 'Tạo đợt mã: quantity mã dùng một lần, hoặc mỗi SĐT trong boundPhones một mã gắn SĐT đó (Task M2-14)'
@@ -2954,7 +2975,7 @@ paths:
   /api/v1/coupon-batches/{batchId}:
     get:
       operationId: getCouponBatch
-      summary: 'Một đợt mã (Task M2-14)'
+      summary: 'Một đợt mã kèm số mã đã trao, đã dùng, hết hạn chưa dùng (Task M2-14, Task 197)'
       x-permission: promotion.read
       parameters:
         - $ref: "#/components/parameters/CouponBatchID"
@@ -4809,6 +4830,90 @@ paths:
                 $ref: "#/components/schemas/WebQuote"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web/birthday-batches:
+    post:
+      operationId: webCreateBirthdayBatch
+      summary: Website xin phát lô mã quà sinh nhật; cùng tên, cùng điều khoản → lô cũ (Task 197)
+      description: |
+        Lô theo tên: chưa có → tạo quantity mã dùng một lần (bộ sinh mã của CRM), created true; đã có cùng số lượng,
+        điều khoản và SĐT → trả lô cũ, created false; đã có mà khác → 422 batch_conflict. Có boundPhones (đúng quantity
+        SĐT khác nhau) → mỗi mã gắn một SĐT, codes theo đúng thứ tự boundPhones; không có → codes theo thứ tự chữ.
+      x-auth: service_key
+      x-permission: web.coupons.issue
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebBirthdayBatchRequest"
+      responses:
+        "200":
+          description: Lô mã (mới hay đã có)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCouponBatchCodes"
+        "503":
+          $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/coupons/{code}/given:
+    post:
+      operationId: webMarkCouponGiven
+      summary: Website báo đã trao mã cho khách; gọi lại giữ lúc trao đầu tiên (Task 197)
+      description: Chỉ mã của lô website (birthday, imported); mã khác hay không có → 404 not_found.
+      x-auth: service_key
+      x-permission: web.coupons.issue
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9-]{3,32}$"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Mã và lúc trao đầu tiên
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCouponGiven"
+        "503":
+          $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/coupons/import:
+    post:
+      operationId: webImportCoupons
+      summary: Nhập mã còn hạn của website (tối đa 500 mỗi lần); mã đã có cùng điều khoản bỏ qua, khác điều khoản báo xung đột (Task 197)
+      description: |
+        Mỗi mã dùng một lần, chỉ kênh web, lô loại imported theo batchName (trống → "Mã nhập từ website"). percent:
+        value là phần trăm nguyên 1–100 của website (CRM lưu phần vạn). used true → mã đã dùng hết. Mã trùng trong
+        cùng lần nhập hay điều khoản sai → 400 invalid_input, không nhập mã nào.
+      x-auth: service_key
+      x-permission: web.coupons.issue
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebCouponImportRequest"
+      responses:
+        "200":
+          description: Kết quả nhập
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebCouponImportReport"
+        "503":
+          $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/web/orders:
     post:
       operationId: webCreateOrder
@@ -5575,6 +5680,8 @@ components:
         - too_fast
         # Tạm dừng nhận đơn web (M5, Task 456)
         - web_orders_paused
+        # Đợt mã của website (M5, Task 197)
+        - batch_conflict
         # Yêu cầu về đơn hàng (M5, Task 195)
         - window_closed
         - qty_exceeded
@@ -9957,6 +10064,10 @@ components:
       type: object
       required: [id, code, name, discountKind, value, minSubtotal, channels, usedCount, releaseOnCancel, validFrom, validTo, status, bound, createdAt, version]
       properties:
+        givenAt:
+          type: string
+          format: date-time
+          description: Lúc website trao mã cho khách (Task 197)
         id:
           type: string
           format: uuid
@@ -10202,6 +10313,140 @@ components:
         createdAt:
           type: string
           format: date-time
+        purpose:
+          $ref: "#/components/schemas/CouponBatchPurpose"
+        givenCount:
+          type: integer
+          format: int32
+          description: Số mã website đã trao cho khách (chỉ getCouponBatch)
+        usedCount:
+          type: integer
+          format: int32
+          description: Số mã đã dùng (chỉ getCouponBatch)
+        expiredCount:
+          type: integer
+          format: int32
+          description: Số mã hết hạn mà chưa dùng (chỉ getCouponBatch)
+    CouponBatchPurpose:
+      type: string
+      enum: [manual, birthday, imported]
+      description: manual — nhân viên tạo; birthday — quà sinh nhật website xin phát; imported — mã nhập từ website
+    CouponBatchPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CouponBatch"
+        nextCursor:
+          type: string
+    WebBirthdayBatchRequest:
+      type: object
+      additionalProperties: false
+      required: [name, quantity, template]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Tên lô; cùng tên là cùng lô
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 5000
+        template:
+          $ref: "#/components/schemas/CouponTemplate"
+        boundPhones:
+          type: array
+          maxItems: 5000
+          items:
+            $ref: "#/components/schemas/PhoneInput"
+    WebCouponBatchCodes:
+      type: object
+      required: [batchId, created, codes]
+      properties:
+        batchId:
+          type: string
+          format: uuid
+        created:
+          type: boolean
+          description: true — lô vừa tạo ở lần gọi này
+        codes:
+          type: array
+          items:
+            type: string
+    WebCouponGiven:
+      type: object
+      required: [code, givenAt]
+      properties:
+        code:
+          type: string
+        givenAt:
+          type: string
+          format: date-time
+    WebCouponImportRequest:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/WebCouponImportItem"
+    WebCouponImportItem:
+      type: object
+      additionalProperties: false
+      required: [code, discountKind, value, validFrom, validTo]
+      properties:
+        code:
+          type: string
+          pattern: "^[A-Za-z0-9-]{3,32}$"
+        discountKind:
+          $ref: "#/components/schemas/DiscountKind"
+        value:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 9007199254740991
+          description: percent — phần trăm nguyên 1–100; fixed — số đồng
+        maxDiscount:
+          $ref: "#/components/schemas/Money"
+        minSubtotal:
+          $ref: "#/components/schemas/Money"
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+        givenAt:
+          type: string
+          format: date-time
+        used:
+          type: boolean
+        batchName:
+          type: string
+          maxLength: 120
+    WebCouponImportReport:
+      type: object
+      required: [inserted, skipped, conflicts]
+      properties:
+        inserted:
+          type: integer
+          format: int32
+        skipped:
+          type: integer
+          format: int32
+          description: Mã đã có cùng điều khoản (nhập lại)
+        conflicts:
+          type: array
+          items:
+            type: string
+          description: Mã đã có trong CRM với điều khoản khác (không đổi)
     CouponRedemption:
       type: object
       required: [id, orderId, orderCode, discount, status, createdAt]

@@ -5792,7 +5792,7 @@ func (s *Server) handleGetCouponRequest(args [1]string, argsEscaped bool, w http
 
 // handleGetCouponBatchRequest handles getCouponBatch operation.
 //
-// Một đợt mã (Task M2-14).
+// Một đợt mã kèm số mã đã trao, đã dùng, hết hạn chưa dùng (Task M2-14, Task 197).
 //
 // GET /api/v1/coupon-batches/{batchId}
 func (s *Server) handleGetCouponBatchRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5825,7 +5825,7 @@ func (s *Server) handleGetCouponBatchRequest(args [1]string, argsEscaped bool, w
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    GetCouponBatchOperation,
-			OperationSummary: "Một đợt mã (Task M2-14)",
+			OperationSummary: "Một đợt mã kèm số mã đã trao, đã dùng, hết hạn chưa dùng (Task M2-14, Task 197)",
 			OperationID:      "getCouponBatch",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -9329,6 +9329,98 @@ func (s *Server) handleListCodStatementsRequest(args [0]string, argsEscaped bool
 	}
 
 	if err := encodeListCodStatementsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleListCouponBatchesRequest handles listCouponBatches operation.
+//
+// Đợt mã, mới nhất trước; lọc theo loại (manual, birthday, imported) (Task 197).
+//
+// GET /api/v1/coupon-batches
+func (s *Server) handleListCouponBatchesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListCouponBatchesOperation,
+			ID:   "listCouponBatches",
+		}
+	)
+	params, err := decodeListCouponBatchesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListCouponBatchesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListCouponBatchesOperation,
+			OperationSummary: "Đợt mã, mới nhất trước; lọc theo loại (manual, birthday, imported) (Task 197)",
+			OperationID:      "listCouponBatches",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "purpose",
+					In:   "query",
+				}: params.Purpose,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListCouponBatchesParams
+			Response = ListCouponBatchesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListCouponBatchesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListCouponBatches(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListCouponBatches(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListCouponBatchesResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -19676,6 +19768,109 @@ func (s *Server) handleWebCatalogTaxonomyRequest(args [0]string, argsEscaped boo
 	}
 }
 
+// handleWebCreateBirthdayBatchRequest handles webCreateBirthdayBatch operation.
+//
+// Lô theo tên: chưa có → tạo quantity mã dùng một lần (bộ sinh mã của CRM), created
+// true; đã có cùng số lượng, điều khoản và SĐT → trả lô cũ, created false; đã
+// có mà khác → 422 batch_conflict. Có boundPhones (đúng quantity SĐT khác nhau) → mỗi
+// mã gắn một SĐT, codes theo đúng thứ tự boundPhones; không có → codes theo thứ tự
+// chữ.
+//
+// POST /api/v1/web/birthday-batches
+func (s *Server) handleWebCreateBirthdayBatchRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebCreateBirthdayBatchOperation,
+			ID:   "webCreateBirthdayBatch",
+		}
+	)
+	params, err := decodeWebCreateBirthdayBatchParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeWebCreateBirthdayBatchRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response WebCreateBirthdayBatchRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebCreateBirthdayBatchOperation,
+			OperationSummary: "Website xin phát lô mã quà sinh nhật; cùng tên, cùng điều khoản → lô cũ (Task 197)",
+			OperationID:      "webCreateBirthdayBatch",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *WebBirthdayBatchRequest
+			Params   = WebCreateBirthdayBatchParams
+			Response = WebCreateBirthdayBatchRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebCreateBirthdayBatchParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebCreateBirthdayBatch(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebCreateBirthdayBatch(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebCreateBirthdayBatchResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebCreateOrderRequest handles webCreateOrder operation.
 //
 // Task 194 (M5-11). Quy ước của website: Idempotency-Key = externalRef. Một đơn cho mỗi
@@ -19983,6 +20178,108 @@ func (s *Server) handleWebGetOrderRequest(args [1]string, argsEscaped bool, w ht
 	}
 }
 
+// handleWebImportCouponsRequest handles webImportCoupons operation.
+//
+// Mỗi mã dùng một lần, chỉ kênh web, lô loại imported theo batchName (trống → "Mã
+// nhập từ website"). percent: value là phần trăm nguyên 1–100 của website (CRM lưu
+// phần vạn). used true → mã đã dùng hết. Mã trùng trong cùng lần nhập hay điều
+// khoản sai → 400 invalid_input, không nhập mã nào.
+//
+// POST /api/v1/web/coupons/import
+func (s *Server) handleWebImportCouponsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebImportCouponsOperation,
+			ID:   "webImportCoupons",
+		}
+	)
+	params, err := decodeWebImportCouponsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeWebImportCouponsRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response WebImportCouponsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebImportCouponsOperation,
+			OperationSummary: "Nhập mã còn hạn của website (tối đa 500 mỗi lần); mã đã có cùng điều khoản bỏ qua, khác điều khoản báo xung đột (Task 197)",
+			OperationID:      "webImportCoupons",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *WebCouponImportRequest
+			Params   = WebImportCouponsParams
+			Response = WebImportCouponsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebImportCouponsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebImportCoupons(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebImportCoupons(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebImportCouponsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebIntakeStatusRequest handles webIntakeStatus operation.
 //
 // Task 456 (M5-44). Website hiện "ELIMAZ đang tạm dừng nhận đơn trên website…" khi
@@ -20212,6 +20509,94 @@ func (s *Server) handleWebLocationsRequest(args [0]string, argsEscaped bool, w h
 	}
 
 	if err := encodeWebLocationsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebMarkCouponGivenRequest handles webMarkCouponGiven operation.
+//
+// Chỉ mã của lô website (birthday, imported); mã khác hay không có → 404 not_found.
+//
+// POST /api/v1/web/coupons/{code}/given
+func (s *Server) handleWebMarkCouponGivenRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebMarkCouponGivenOperation,
+			ID:   "webMarkCouponGiven",
+		}
+	)
+	params, err := decodeWebMarkCouponGivenParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebMarkCouponGivenRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebMarkCouponGivenOperation,
+			OperationSummary: "Website báo đã trao mã cho khách; gọi lại giữ lúc trao đầu tiên (Task 197)",
+			OperationID:      "webMarkCouponGiven",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "code",
+					In:   "path",
+				}: params.Code,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebMarkCouponGivenParams
+			Response = WebMarkCouponGivenRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebMarkCouponGivenParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebMarkCouponGiven(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebMarkCouponGiven(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebMarkCouponGivenResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

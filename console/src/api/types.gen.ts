@@ -2454,6 +2454,10 @@ export type CouponStatus = 'active' | 'disabled';
 export type DiscountKind = 'percent' | 'fixed';
 
 export type Coupon = {
+    /**
+     * Lúc website trao mã cho khách (Task 197)
+     */
+    givenAt?: string;
     id: string;
     code: string;
     batchId?: string;
@@ -2562,6 +2566,85 @@ export type CouponBatch = {
     quantity: number;
     template: CouponTemplate;
     createdAt: string;
+    purpose?: CouponBatchPurpose;
+    /**
+     * Số mã website đã trao cho khách (chỉ getCouponBatch)
+     */
+    givenCount?: number;
+    /**
+     * Số mã đã dùng (chỉ getCouponBatch)
+     */
+    usedCount?: number;
+    /**
+     * Số mã hết hạn mà chưa dùng (chỉ getCouponBatch)
+     */
+    expiredCount?: number;
+};
+
+/**
+ * manual — nhân viên tạo; birthday — quà sinh nhật website xin phát; imported — mã nhập từ website
+ */
+export type CouponBatchPurpose = 'manual' | 'birthday' | 'imported';
+
+export type CouponBatchPage = {
+    items: Array<CouponBatch>;
+    nextCursor?: string;
+};
+
+export type WebBirthdayBatchRequest = {
+    /**
+     * Tên lô; cùng tên là cùng lô
+     */
+    name: string;
+    quantity: number;
+    template: CouponTemplate;
+    boundPhones?: Array<PhoneInput>;
+};
+
+export type WebCouponBatchCodes = {
+    batchId: string;
+    /**
+     * true — lô vừa tạo ở lần gọi này
+     */
+    created: boolean;
+    codes: Array<string>;
+};
+
+export type WebCouponGiven = {
+    code: string;
+    givenAt: string;
+};
+
+export type WebCouponImportRequest = {
+    items: Array<WebCouponImportItem>;
+};
+
+export type WebCouponImportItem = {
+    code: string;
+    discountKind: DiscountKind;
+    /**
+     * percent — phần trăm nguyên 1–100; fixed — số đồng
+     */
+    value: number;
+    maxDiscount?: Money;
+    minSubtotal?: Money;
+    validFrom: string;
+    validTo: string;
+    givenAt?: string;
+    used?: boolean;
+    batchName?: string;
+};
+
+export type WebCouponImportReport = {
+    inserted: number;
+    /**
+     * Mã đã có cùng điều khoản (nhập lại)
+     */
+    skipped: number;
+    /**
+     * Mã đã có trong CRM với điều khoản khác (không đổi)
+     */
+    conflicts: Array<string>;
 };
 
 export type CouponRedemption = {
@@ -7797,6 +7880,38 @@ export type UpdateCouponResponses = {
 
 export type UpdateCouponResponse = UpdateCouponResponses[keyof UpdateCouponResponses];
 
+export type ListCouponBatchesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        purpose?: CouponBatchPurpose;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/coupon-batches';
+};
+
+export type ListCouponBatchesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListCouponBatchesError = ListCouponBatchesErrors[keyof ListCouponBatchesErrors];
+
+export type ListCouponBatchesResponses = {
+    /**
+     * listCouponBatches
+     */
+    200: CouponBatchPage;
+};
+
+export type ListCouponBatchesResponse = ListCouponBatchesResponses[keyof ListCouponBatchesResponses];
+
 export type CreateCouponBatchData = {
     body: CreateCouponBatchRequest;
     headers: {
@@ -10343,6 +10458,113 @@ export type WebQuoteResponses = {
 };
 
 export type WebQuoteResponse = WebQuoteResponses[keyof WebQuoteResponses];
+
+export type WebCreateBirthdayBatchData = {
+    body: WebBirthdayBatchRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/birthday-batches';
+};
+
+export type WebCreateBirthdayBatchErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebCreateBirthdayBatchError = WebCreateBirthdayBatchErrors[keyof WebCreateBirthdayBatchErrors];
+
+export type WebCreateBirthdayBatchResponses = {
+    /**
+     * Lô mã (mới hay đã có)
+     */
+    200: WebCouponBatchCodes;
+};
+
+export type WebCreateBirthdayBatchResponse = WebCreateBirthdayBatchResponses[keyof WebCreateBirthdayBatchResponses];
+
+export type WebMarkCouponGivenData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        code: string;
+    };
+    query?: never;
+    url: '/api/v1/web/coupons/{code}/given';
+};
+
+export type WebMarkCouponGivenErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebMarkCouponGivenError = WebMarkCouponGivenErrors[keyof WebMarkCouponGivenErrors];
+
+export type WebMarkCouponGivenResponses = {
+    /**
+     * Mã và lúc trao đầu tiên
+     */
+    200: WebCouponGiven;
+};
+
+export type WebMarkCouponGivenResponse = WebMarkCouponGivenResponses[keyof WebMarkCouponGivenResponses];
+
+export type WebImportCouponsData = {
+    body: WebCouponImportRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/coupons/import';
+};
+
+export type WebImportCouponsErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebImportCouponsError = WebImportCouponsErrors[keyof WebImportCouponsErrors];
+
+export type WebImportCouponsResponses = {
+    /**
+     * Kết quả nhập
+     */
+    200: WebCouponImportReport;
+};
+
+export type WebImportCouponsResponse = WebImportCouponsResponses[keyof WebImportCouponsResponses];
 
 export type WebCreateOrderData = {
     body: WebOrderRequest;
