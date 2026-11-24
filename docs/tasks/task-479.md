@@ -38,6 +38,9 @@ Thư mục bản vá (ngoài git): `/private/tmp/claude-501/-Users-luongducquyen
 | 0504 cụ thể | đo tay | `echo migrations/0504_order_requests.sql \| affected.py --base <cây rỗng> --split` | cũ: thoát 5 (toàn bộ, -race); mới: thoát 0, 70/108 gói, tất cả `plain` (rộng vì 0504 còn `ALTER TABLE ord.order_settings ADD COLUMN` — bảng đã có, gói order được nhiều gói nhập) |
 | Cổng kiểm của task trên worktree (chỉ tệp task đã stage, test và script ở bản vá) | ci-task | `scripts/agent/ci-task.sh` | `CI-TASK XANH (so với điểm tách nhánh ee6c84e…)`; jscpd `Found 0 clones`, gitleaks `no leaks found`, `ok elimaz.com.vn/crm/tests/arch 123.899s` |
 | Sau review lượt 1 và 2, phần sửa chỉ ở bản vá ngoài git (worktree không đổi mã) nên không chạy lại ci-task; kiểm lại trên bản sao bằng các lệnh hàng dưới | — | — | — |
+| Lượt áp test (24/11): `affected.py` trên nhánh (a14fc8f, điều phối viên áp) và `tests/deploy/affected_test.go` khớp từng byte với bản ở thư mục bản vá | — | `diff -q <bản vá>/affected.py scripts/agent/affected.py`; `diff -q <bản vá>/affected_test.go tests/deploy/affected_test.go` | `py-same`, `test-same` |
+| Lượt áp test: sau `git merge main` (48e3e2d, chỉ đổi `ci-task.sh`), cả bộ affected trên worktree | `TestAffected_*` (gồm 3 hàm mới) | `go test -count=1 -run 'TestAffected_' ./tests/deploy/`; `go vet ./tests/deploy/`; `golangci-lint run ./tests/deploy/...`; `make jscpd` | `ok elimaz.com.vn/crm/tests/deploy 28.028s`; `vet-ok`; `0 issues.`; `Found 0 clones.` |
+| Lượt áp test: cổng kiểm của task | ci-task | `scripts/agent/ci-task.sh` | `ok elimaz.com.vn/crm/tests/deploy 36.566s` (-race), `ok elimaz.com.vn/crm/tests/arch 112.539s`, test deploy `ok … 31.353s`, gitleaks `no leaks found`; `CI-TASK XANH (so với điểm tách nhánh f2a3ba6…)` |
 | Vet, lint, -race, trùng mã, cú pháp Python | cả gói `tests/deploy` | `go vet ./tests/deploy/`; `golangci-lint run ./tests/deploy/...`; `go test -race -count=1 ./tests/deploy/...`; `make jscpd`; `python3 -m py_compile affected.py` (bản sao) | (bản vá cuối) `0 issues.`; `ok … 30.834s`; `Found 0 clones`; `py-ok`; `go vet ./tests/deploy/` `vet-ok` |
 
 ## Test bị xóa hoặc tắt
@@ -46,8 +49,9 @@ Thư mục bản vá (ngoài git): `/private/tmp/claude-501/-Users-luongducquyen
 
 ## Khác kế hoạch
 
-- Hook không cho phiên task sửa hay `git add` `scripts/agent/`. Như Task 478: bản vá `affected.py` và test mới nằm ở thư mục bản vá phía trên (ngoài git), đã chạy trên bản sao tạm. Test mới KHÔNG commit lượt này (trên nhánh còn affected.py cũ, ca mới đỏ → ci-task/hook đỏ). Lượt này chỉ commit tệp task.
+- Hook không cho phiên task sửa hay `git add` `scripts/agent/`. Như Task 478: bản vá `affected.py` và test mới nằm ở thư mục bản vá phía trên (ngoài git), đã chạy trên bản sao tạm. Lượt đầu chỉ commit tệp task (trên nhánh còn affected.py cũ, ca mới đỏ); test được commit ở lượt áp test bên dưới.
 - **Việc của điều phối viên:** (1) từ gốc repo `git apply …/task-479/affected-479.patch` (chỉ đổi `scripts/agent/affected.py`) và commit; (2) mở lại phiên task 479 để áp `affected_test-479.patch` (hoặc chép `affected_test.go`) vào `tests/deploy/affected_test.go`, chạy `go test -count=1 -run TestAffected ./tests/deploy/`, review và commit.
+- **Lượt áp test (24/11):** điều phối viên đã áp `affected-479.patch` (commit a14fc8f). Phiên này chỉ commit `tests/deploy/affected_test.go` (bản `affected_test-479.patch`) và tệp task, sau một lần `git merge main`.
 - `UPDATE … SET` không nằm trong `NARROW_RE` cũ (câu UPDATE đã được STMT_RE nhận, chạm bảng đó): không cần đổi.
 
 ## Quyết định thay chủ shop
@@ -68,5 +72,7 @@ Lượt 1: **ĐẠT** (không phát hiện phải sửa). Ghi chú không bắt 
 Lượt 2: **CẦN SỬA** — cùng cơ chế với (1) nhưng cho TRUNCATE: `COMMENT … 'a $$'; TRUNCATE catalog.tags; COMMENT … 'b $$';` (và biến thể `DEFAULT 'a $$'`) → `statements()` gộp ba câu, câu gộp không bắt đầu bằng TRUNCATE → thoát 0. Ghi chú thêm: hàm có thân nháy đơn chứa `$$` rồi TRUNCATE cũng lọt qua `BODY_RE`. Đã sửa: `DEL_STMT_RE` = `(?:^|;)\s*(TRUNCATE|DELETE)\b` tìm trong cả câu (dấu `;` còn trong câu gộp); thân hàm chỉ là `AS $tag$…$tag$` của câu CREATE FUNCTION (`FUNC_BODY_RE`). Thêm 3 ca test. Ghi chú không sửa: thân `LANGUAGE sql AS 'TRUNCATE x'` (nháy đơn, không schema) nay không bị bắt — hàm không chạy lúc migrate, chỉ lệch luật "phải ghi schema"; `strip_sql` cắt `--` trong chuỗi (có từ trước).
 
 Lượt 3: **ĐẠT** (không phát hiện phải sửa). Ba ca lọt của lượt 2 đã chặn; reviewer thử thêm các kiểu lệch cặp `$$` (DEFAULT tham số hàm, `COMMENT … 'b AS $$'`, `BEGIN ATOMIC`) đều thoát 5. Ghi chú không bắt buộc: còn một đường gần như không gặp (thân hàm nháy đơn chứa đúng chữ `AS $$`, rồi TRUNCATE có schema, rồi chuỗi có `$$`) — không sửa, lưới an toàn là toàn bộ test -race trên main; ca TRUNCATE/DELETE đứng một mình không chứng minh riêng nhánh đầu câu (ba ca `$$` chứng minh nhánh `;`); hai dòng chữ dùng tên cũ `BODY_RE` — đã sửa.
+
+Lượt 4 (lượt áp test, 24/11, phần stage: `tests/deploy/affected_test.go` + tệp task, sau merge main 48e3e2d): **ĐẠT** (không phát hiện phải sửa). Test khớp `affected.py` ở a14fc8f; 15 ca, 17 hàm `TestAffected_` khớp bảng bằng chứng; dời `TestAffected_NarrowingOrUnsureMigrationRunsAll` sang `wantRunsAll` giữ nguyên hành vi. Ghi chú không bắt buộc: `wantRunsAll` chỉ kiểm mã thoát (lý do đối chiếu bằng `reasons.sh`, như lượt 1, 3); câu cũ "Test mới KHÔNG commit lượt này" ở Khác kế hoạch — đã sửa lời.
 
 Kết luận: ĐẠT
