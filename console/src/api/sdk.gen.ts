@@ -2118,6 +2118,9 @@ export const webLook = <ThrowOnError extends boolean = false>(options: Options<W
  * làm tròn testdata/contracts/web-campaign-rounding.json); dòng thuộc chiến dịch không cho dùng mã không vào nền
  * tính mã (QĐ29). Mã kiểm như lúc tạo đơn trừ lượt mỗi khách (tạo đơn kiểm). fingerprint là sha256 của các dòng
  * theo số CRM, phí, tổng, mã: website gửi lại khi tạo đơn. Tổng vượt 9007199254740991 → 422 total_overflow.
+ * Có couponCode (Task 482): SĐT (customerPhone) đã quá 10 lần nhập mã sai hay IP (clientIp; không gửi → khóa dịch
+ * vụ) quá 30 lần trong 15 phút → 429 coupon_attempts_exceeded kèm Retry-After, kể cả mã đúng, tới hết cửa sổ;
+ * mã sai (not_found, bound_other) được đếm. Báo giá không mã không bị chặn.
  *
  */
 export const webQuote = <ThrowOnError extends boolean = false>(options: Options<WebQuoteData, ThrowOnError>): RequestResult<WebQuoteResponses, WebQuoteErrors, ThrowOnError> => (options.client ?? client).post<WebQuoteResponses, WebQuoteErrors, ThrowOnError>({
@@ -2238,6 +2241,9 @@ export const webImportCoupons = <ThrowOnError extends boolean = false>(options: 
  * available). queued: giá hay mã lệch vẫn tạo theo số CRM, priceReview = true. Tạm bận → 503 retry_later kèm
  * Retry-After, không lưu. Shop đang tạm dừng nhận đơn web (Task 456) và đơn gửi thẳng (sync) chưa có → 503
  * web_orders_paused, không Retry-After, không lưu (mở lại rồi gửi lại cùng khóa thì xử lý lại); queued vẫn nhận.
+ * Có couponCode mà SĐT người đặt hay IP (clientIp; không gửi → khóa dịch vụ) đã quá ngưỡng nhập mã sai (Task
+ * 482, như webQuote) → 429 coupon_attempts_exceeded kèm Retry-After, không lưu; 422 coupon_invalid not_found,
+ * bound_other được đếm là một lần sai.
  *
  */
 export const webCreateOrder = <ThrowOnError extends boolean = false>(options: Options<WebCreateOrderData, ThrowOnError>): RequestResult<WebCreateOrderResponses, WebCreateOrderErrors, ThrowOnError> => (options.client ?? client).post<WebCreateOrderResponses, WebCreateOrderErrors, ThrowOnError>({

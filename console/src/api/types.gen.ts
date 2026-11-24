@@ -872,6 +872,12 @@ export type WebQuoteRequest = {
      */
     couponCode?: string;
     /**
+     * IP của khách (website chuyển từ cf-connecting-ip), chỉ để giới hạn số lần nhập mã sai theo IP (Task 482; IPv6
+     * đếm theo /64; không lưu, không log). Không gửi → lần sai đếm chung theo khóa dịch vụ.
+     *
+     */
+    clientIp?: string;
+    /**
      * SĐT người đặt, chỉ để kiểm mã gắn SĐT (không ghi lại)
      */
     customerPhone?: string;
@@ -936,6 +942,12 @@ export type WebOrderRequest = {
      * Rỗng hay không gửi là không dùng mã
      */
     couponCode?: string;
+    /**
+     * IP của khách (website chuyển từ cf-connecting-ip), chỉ để giới hạn số lần nhập mã sai theo IP (Task 482; IPv6
+     * đếm theo /64; không lưu, không log). Không gửi → lần sai đếm chung theo khóa dịch vụ.
+     *
+     */
+    clientIp?: string;
     /**
      * Phí giao website đã tính (đồng)
      */

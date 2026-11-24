@@ -135,6 +135,7 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   item_unavailable: "Có sản phẩm đã ngừng bán trên website",
   quote_changed: "Giá hoặc tổng tiền đã đổi. Xem lại giỏ hàng rồi đặt lại",
   too_fast: "Khách đặt quá nhiều đơn trong thời gian ngắn. Thử lại sau ít phút",
+  coupon_attempts_exceeded: "Khách nhập sai mã giảm giá quá nhiều lần. Thử lại sau ít phút hoặc đặt không dùng mã",
   // Tạm dừng nhận đơn web (Task 456)
   another_run_in_progress: "Một lượt phát quà sinh nhật khác đang chạy. Chờ vài phút rồi xem lượt chạy cuối",
   invalid_gift_settings:

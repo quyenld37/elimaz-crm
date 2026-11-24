@@ -41,6 +41,10 @@ type RateLimiter interface {
 	// Allow tính một lượt của subjectKey (^[A-Za-z0-9_:-]{1,160}$) với l. Limit hay chủ thể sai: từ chối, RetryAfter
 	// 1 s, không chạm Valkey (lỗi lập trình, đóng thay vì mở).
 	Allow(ctx context.Context, l Limit, subjectKey string) RateDecision
+	// Peek trả quyết định mà lượt Allow tiếp theo sẽ nhận, không tính lượt nào (Task 482: chỉ đếm lần đoán mã sai
+	// nhưng chặn mọi lần dùng mã khi đã quá ngưỡng). Valkey lỗi → đọc bộ đếm dự phòng, Degraded. Limit hay chủ thể sai:
+	// từ chối như Allow.
+	Peek(ctx context.Context, l Limit, subjectKey string) RateDecision
 }
 
 // Hằng của RateLimiter.
@@ -94,6 +98,15 @@ func (l Limit) valid() bool {
 }
 
 func (r *rateLimiter) Allow(ctx context.Context, l Limit, subjectKey string) RateDecision {
+	return r.decide(ctx, l, subjectKey, true)
+}
+
+func (r *rateLimiter) Peek(ctx context.Context, l Limit, subjectKey string) RateDecision {
+	return r.decide(ctx, l, subjectKey, false)
+}
+
+// decide là phần chung của Allow (count: tính một lượt) và Peek (chỉ đọc bộ đếm).
+func (r *rateLimiter) decide(ctx context.Context, l Limit, subjectKey string, count bool) RateDecision {
 	if !l.valid() || !subjectPart.MatchString(subjectKey) {
 		r.inc("ratelimit_denied", invalidLabel)
 		return RateDecision{RetryAfter: minRetryAfter}
@@ -105,13 +118,21 @@ func (r *rateLimiter) Allow(ctx context.Context, l Limit, subjectKey string) Rat
 	untilEnd := time.Duration(startMs+winMs-now.UnixMilli()) * time.Millisecond
 
 	d := RateDecision{}
-	if n, err := r.incr(ctx, key, untilEnd+keySlack); err == nil {
+	var n int64
+	var err error
+	if count {
+		n, err = r.incr(ctx, key, untilEnd+keySlack)
+	} else {
+		n, err = r.get(ctx, key)
+		n++ // lượt tiếp theo sẽ là n+1
+	}
+	if err == nil {
 		d.Allowed = n <= int64(l.Max)
 	} else {
 		r.inc("ratelimit_degraded", l.Name)
 		d.Degraded = true
 		var fbEnd int64
-		d.Allowed, fbEnd = r.fb.allow(l.Name+"\x00"+subjectKey, startMs, winMs, l.FallbackMax)
+		d.Allowed, fbEnd = r.fb.allow(l.Name+"\x00"+subjectKey, startMs, winMs, l.FallbackMax, count)
 		untilEnd = time.Duration(fbEnd-now.UnixMilli()) * time.Millisecond
 	}
 	if !d.Allowed {
@@ -119,6 +140,21 @@ func (r *rateLimiter) Allow(ctx context.Context, l Limit, subjectKey string) Rat
 		d.RetryAfter = max(untilEnd, minRetryAfter)
 	}
 	return d
+}
+
+// get đọc số đếm của key (chưa có → 0) qua Do; lỗi → bên gọi đi đường dự phòng.
+func (r *rateLimiter) get(ctx context.Context, key string) (int64, error) {
+	var n int64
+	err := r.c.Do(ctx, "ratelimit.get", func(ctx context.Context, cl valkey.Client) error {
+		v, e := cl.Do(ctx, cl.B().Get().Key(key).Build()).AsInt64()
+		if valkey.IsValkeyNil(e) {
+			n = 0
+			return nil
+		}
+		n = v
+		return e //nolint:wrapcheck // Do phân loại lỗi thật của valkey-go
+	})
+	return n, err
 }
 
 // incr chạy incrScript qua Do (hạn 50 ms, cầu dao); mọi lỗi (ngừng hay lỗi lệnh) làm bên gọi đi đường dự phòng.
@@ -168,12 +204,20 @@ func newFallbackCounter(capacity int) *fallbackCounter {
 	return &fallbackCounter{capacity: capacity, items: map[string]*list.Element{}, order: list.New()}
 }
 
-// allow tính một lượt của key trong cửa sổ [startMs, startMs+winMs); trả có được không và mốc hết cửa sổ đang đếm.
-// Cửa sổ mới hơn cửa sổ đang giữ thì đếm lại từ 0; cũ hơn (đồng hồ lùi) thì đếm vào cửa sổ đang giữ.
-func (f *fallbackCounter) allow(key string, startMs, winMs int64, maxN int) (allowed bool, endMs int64) {
+// allow tính một lượt của key trong cửa sổ [startMs, startMs+winMs) (count false: chỉ xem, không tính, không thêm
+// khóa); trả có được không và mốc hết cửa sổ đang đếm. Cửa sổ mới hơn cửa sổ đang giữ thì đếm lại từ 0; cũ hơn (đồng
+// hồ lùi) thì đếm vào cửa sổ đang giữ.
+func (f *fallbackCounter) allow(key string, startMs, winMs int64, maxN int, count bool) (allowed bool, endMs int64) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	el, ok := f.items[key]
+	if !count {
+		if !ok || startMs > el.Value.(*fbEntry).startMs { //nolint:forcetypeassert // danh sách chỉ chứa *fbEntry
+			return true, startMs + winMs
+		}
+		e := el.Value.(*fbEntry) //nolint:forcetypeassert // danh sách chỉ chứa *fbEntry
+		return e.count < maxN, e.endMs
+	}
 	if !ok {
 		if f.order.Len() >= f.capacity {
 			oldest := f.order.Front()

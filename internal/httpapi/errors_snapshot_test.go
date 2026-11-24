@@ -153,6 +153,7 @@ func domainErrorSnapshot() []snapshotCase {
 		{"order.ItemUnavailableError", &order.ItemUnavailableError{}, http.StatusUnprocessableEntity, "item_unavailable"},
 		{"order.CouponInvalidError", &order.CouponInvalidError{Reason: "exhausted"}, http.StatusUnprocessableEntity, "coupon_invalid"},
 		{"tooFastError", &tooFastError{}, http.StatusTooManyRequests, "too_fast"},
+		{"tooFastError coupon", &tooFastError{code: codeCouponAttemptsExceeded}, http.StatusTooManyRequests, "coupon_attempts_exceeded"},
 		// Tạm dừng nhận đơn web (Task 456).
 		{"order.ErrWebIntakePaused", order.ErrWebIntakePaused, http.StatusServiceUnavailable, "web_orders_paused"},
 		{"order.ErrReasonRequired", order.ErrReasonRequired, http.StatusUnprocessableEntity, "invalid_input"},

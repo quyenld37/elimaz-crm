@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/netip"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -12,6 +14,7 @@ import (
 	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/httpapi/web"
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/queries/weborders"
@@ -20,7 +23,8 @@ import (
 // Đơn hàng của website (kế hoạch M5; x-auth: service_key): handler mỏng, mọi việc ở web.Orders.
 
 // WebQuote (POST /api/v1/web/quote, web.orders.create, x-idempotency: exempt) → 200 báo giá theo số CRM; không ghi
-// gì (tests/arch webexempt quét thân hàm).
+// PostgreSQL (tests/arch webexempt quét thân hàm). Có mã (Task 482): SĐT hay IP đã quá ngưỡng nhập mã sai → 429
+// coupon_attempts_exceeded trước khi báo giá; mã not_found, bound_other được đếm là một lần sai.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) WebQuote(ctx context.Context, req *gen.WebQuoteRequest) (gen.WebQuoteRes, error) {
@@ -28,11 +32,34 @@ func (h *handler) WebQuote(ctx context.Context, req *gen.WebQuoteRequest) (gen.W
 	if !ok {
 		return nil, errNoAuthUser
 	}
-	return h.d.webOrders.Quote(ctx, u.TenantID, req) //nolint:wrapcheck // lỗi của order, đổi mã ở errors_order.go
+	if strings.TrimSpace(req.CouponCode.Or("")) == "" {
+		return h.d.webOrders.Quote(ctx, u.TenantID, req) //nolint:wrapcheck // lỗi của order, đổi mã ở errors_order.go
+	}
+	ph, _ := customer.NormalizePhone(req.CustomerPhone.Or("")) // sai hay thiếu: chỉ đếm theo IP
+	s := CouponSubject{Phone: ph, IP: req.ClientIp.Or(netip.Addr{}), ServiceKeyID: u.ServiceKeyID}
+	if err := h.couponAllowed(ctx, s); err != nil {
+		return nil, err
+	}
+	q, err := h.d.webOrders.Quote(ctx, u.TenantID, req)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // lỗi của order, đổi mã ở errors_order.go
+	}
+	c, _ := q.Coupon.Get()
+	h.d.CouponGuard.Record(ctx, s, !c.Applied && couponGuessFailed(string(c.Reason.Or(""))))
+	return q, nil
+}
+
+// couponAllowed: s chưa quá ngưỡng nhập mã sai (Deps.CouponGuard); quá → tooFastError coupon_attempts_exceeded.
+func (h *handler) couponAllowed(ctx context.Context, s CouponSubject) error {
+	if blocked, wait := h.d.CouponGuard.Blocked(ctx, s); blocked {
+		return &tooFastError{retryAfter: wait, code: codeCouponAttemptsExceeded}
+	}
+	return nil
 }
 
 // WebCreateOrder (POST /api/v1/web/orders, web.orders.create, Idempotency-Key bắt buộc; Task 194): đọc thân, chuẩn
-// hóa SĐT (sai → 422 invalid_phone) → giới hạn đơn theo SĐT (quá → 429 too_fast, không lưu) → WriteTx: tạo đơn
+// hóa SĐT (sai → 422 invalid_phone) → có mã: SĐT hay IP quá ngưỡng nhập mã sai (Task 482) → 429
+// coupon_attempts_exceeded, không lưu → giới hạn đơn theo SĐT (quá → 429 too_fast, không lưu) → WriteTx: tạo đơn
 // (web.Orders.Create, savepoint) và audit order.create của khóa dịch vụ cùng tx. Kết quả cuối được lưu theo khóa: 201
 // (cả khi đơn của cùng externalRef đã có), từ chối dứt khoát webOrderRefusal (422 quote_changed, item_unavailable,
 // coupon_invalid, mixed_sellers; 409 out_of_stock). Lỗi đầu vào khác (isOrderRefusal) và 503 web_orders_paused (shop
@@ -48,6 +75,13 @@ func (h *handler) WebCreateOrder(ctx context.Context, req *gen.WebOrderRequest, 
 	in, err := web.OrderInput(req)
 	if err != nil {
 		return nil, fmt.Errorf("đọc đơn web: %w", err)
+	}
+	guarded := strings.TrimSpace(in.CouponCode) != ""
+	s := CouponSubject{Phone: in.Customer.Phone, IP: req.ClientIp.Or(netip.Addr{}), ServiceKeyID: u.ServiceKeyID}
+	if guarded {
+		if err := h.couponAllowed(ctx, s); err != nil {
+			return nil, err
+		}
 	}
 	if allowed, wait := h.d.WebOrderLimiter.AllowWebOrder(ctx, in.Customer.Phone); !allowed {
 		return nil, &tooFastError{retryAfter: wait}
@@ -79,6 +113,10 @@ func (h *handler) WebCreateOrder(ctx context.Context, req *gen.WebOrderRequest, 
 		}
 		return http.StatusCreated, out, true, nil
 	})
+	if guarded { // sau transaction (không gọi Valkey trong RetryTx)
+		ci, isCoupon := errors.AsType[*order.CouponInvalidError](refused)
+		h.d.CouponGuard.Record(ctx, s, isCoupon && couponGuessFailed(ci.Reason))
+	}
 	switch {
 	case err != nil:
 		return nil, err

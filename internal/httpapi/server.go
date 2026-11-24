@@ -76,6 +76,9 @@ type Deps struct {
 	// WebOrderLimiter giới hạn số đơn web của mỗi SĐT (Task 194; cmd/crm nối NewWebOrderLimiter trên Valkey gate). nil →
 	// bộ đếm trong tiến trình với FallbackMax của cache.DefaultLimits().WebOrderCustomer, secret HMAC ngẫu nhiên.
 	WebOrderLimiter WebOrderLimiter
+	// CouponGuard giới hạn số lần nhập mã giảm giá sai ở báo giá, tạo đơn web (Task 482; cmd/crm nối NewCouponGuard
+	// trên Valkey gate). nil → bộ đếm trong tiến trình với FallbackMax của cache.DefaultLimits(), secret ngẫu nhiên.
+	CouponGuard *CouponGuard
 
 	limiter        *userLimiter  // một bộ đếm chung cho mọi route của nhân viên (prepare)
 	serviceLimiter *userLimiter  // bộ đếm dự phòng của khóa dịch vụ khi RateLimiter nil (prepare)
@@ -111,6 +114,10 @@ func prepare(d Deps) Deps {
 	}
 	if d.WebOrderLimiter == nil {
 		d.WebOrderLimiter = NewWebOrderLimiter(cache.NewRateLimiter(nil, d.Now, d.Metrics), cache.DefaultLimits().WebOrderCustomer, nil)
+	}
+	if d.CouponGuard == nil {
+		ls := cache.DefaultLimits()
+		d.CouponGuard = NewCouponGuard(cache.NewRateLimiter(nil, d.Now, d.Metrics), ls.CouponGuessCustomer, ls.CouponGuessIP, nil)
 	}
 	return d
 }
