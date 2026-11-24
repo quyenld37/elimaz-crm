@@ -29,6 +29,14 @@ step oasdiff make oasdiff OASDIFF_BASE=-base-ref="$base"
 step test-guard scripts/agent/test-guard.sh "$base"
 if printf '%s\n' "$changed" | grep -E -q '^(go\.mod|go\.sum)$'; then step vuln make vuln; fi
 if printf '%s\n' "$changed" | grep -q '^console/'; then step console-check make console-check; fi
+# Dừng sớm (24/11, chủ shop: "tăng tốc độ xử lý các task và vẫn đảm bảo chất lượng"). Đo Task 195: hai lần cổng tĩnh đỏ
+# (jscpd, lọc người bán) ở phút ~5 nhưng phiên vẫn chờ thêm ~10 phút test rồi mới sửa. Cổng tĩnh đỏ thì bản này chắc
+# chắn phải sửa và chạy lại ci-task, nên test của bản này vô ích: bỏ test, báo ngay mọi cổng đỏ. Không bỏ sót gì: lần
+# chạy sau (sau khi sửa) vẫn chạy đủ cổng tĩnh và test; dấu xanh chỉ ghi khi test xanh. CI_TASK_FULL=1 để chạy test luôn.
+if [ -n "$fail" ] && [ "${CI_TASK_FULL:-0}" != 1 ]; then
+  echo "== test: bỏ lần này (cổng tĩnh đỏ:$fail) — sửa các cổng đỏ rồi chạy lại ci-task, test chạy ở lần đó"
+  echo "CI-TASK ĐỎ:$fail"; exit 1
+fi
 # Lần chạy lại chỉ test phần đổi từ lần test xanh trước (20/11, chủ shop: "chỉ test những case ảnh hưởng"). Gói không
 # bị phần đổi chạm (trực tiếp hay qua phụ thuộc) có mã và test y hệt bản đã xanh nên kết quả không đổi. Dấu xanh là
 # mã cây (git write-tree) của bản đã test, lưu riêng cho từng worktree; merge-task.sh cũng đọc dấu này.
