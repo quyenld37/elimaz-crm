@@ -65,7 +65,8 @@ else
     fi
   fi
 fi
-# Test cấu hình quy trình và Makefile (Task 401): affected.py chỉ xét tệp Go nên đổi Makefile không kích test nào.
+# Test cấu hình quy trình và Makefile (Task 401): giữ bước riêng này dù từ Task 478 affected.py đã chọn test đọc tệp dữ
+# liệu theo đường dẫn — test deploy đọc nhiều tệp qua glob, tên dựng lúc chạy, affected.py không bắt hết.
 if printf '%s\n' "$tchanged" | grep -E -q '^(Makefile|tools/versions\.mk|scripts/|\.github/|\.githooks/|docker/)'; then
   step "test deploy (đổi Makefile/scripts/docker)" go test -count=1 ./tests/deploy/...
 fi
