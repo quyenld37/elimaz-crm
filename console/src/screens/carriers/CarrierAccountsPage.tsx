@@ -8,6 +8,7 @@ import { Link } from "react-router";
 import type { CarrierAccount } from "../../api";
 import { errorMessage } from "../../app/errors";
 import { usePerms } from "../don/orderData";
+import { WebCarriers } from "../web-carriers/WebCarriers";
 import { AddAccountDialog } from "./CarrierAccountForm";
 import { CredentialsDialog } from "./CredentialsDialog";
 import { useAccounts, usePendingChecks, useWarehouses } from "./carrierData";
@@ -112,7 +113,8 @@ function AccountRow({
   );
 }
 
-export function CarrierAccountsPage() {
+/** focusWeb: mở từ mục menu "Hãng trên web" (nhóm Website, Task 208) → cuộn tới thẻ Hãng trên website. */
+export function CarrierAccountsPage({ focusWeb = false }: { focusWeb?: boolean }) {
   const perms = usePerms();
   const manage = perms.can(PERM_MANAGE);
   const accounts = useAccounts();
@@ -268,6 +270,7 @@ export function CarrierAccountsPage() {
             khoản "Đang hoạt động" được báo phí và gửi đơn mới. Tài khoản lỗi không bao giờ tự được thay bằng tài khoản
             khác.
           </p>
+          <WebCarriers accounts={all} manage={manage} focus={focusWeb} />
         </>
       )}
       {adding && (

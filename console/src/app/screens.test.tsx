@@ -77,6 +77,21 @@ describe("quy ước trên mọi src/screens/*/route.tsx", () => {
     expect(conventionProblems(ROUTE_FILES, PERMISSIONS)).toEqual([]);
   });
 
+  it("NAV_GROUPS đúng mục 'Xếp module' của kế hoạch M5: nhóm Website giữa Khuyến mãi và Sản phẩm (Task 208)", () => {
+    expect(NAV_GROUPS).toEqual([
+      "Đơn hàng",
+      "Vận chuyển",
+      "Tiền",
+      "Khách hàng",
+      "Khuyến mãi",
+      "Website",
+      "Sản phẩm",
+      "Kho",
+      "Hệ thống",
+      "Quản trị",
+    ]);
+  });
+
   it("SCREENS xếp theo nhóm menu (NAV_GROUPS) rồi order", () => {
     const rank = (g: string) => NAV_GROUPS.findIndex((x) => x === g);
     const ranks = SCREENS.map((s) => rank(s.group));

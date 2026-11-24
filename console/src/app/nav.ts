@@ -12,6 +12,9 @@ export const NAV_GROUPS = [
   "Tiền",
   "Khách hàng",
   "Khuyến mãi",
+  // M5 (mục "Xếp module" của kế hoạch M5, HV01 của docs/mockups/m5): nhóm "Website" tạo ở Task 208 (M5-25, Khóa dịch
+  // vụ, Hãng trên web). Task 462 (Nhận đơn web) và các màn Website khác dùng lại nhóm này, không thêm lần hai.
+  "Website",
   "Sản phẩm",
   "Kho",
   "Hệ thống",
