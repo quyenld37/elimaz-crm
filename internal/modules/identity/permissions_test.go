@@ -115,6 +115,8 @@ func TestPermissionsList(t *testing.T) {
 		"cash.refunds.record": identity.ScopeNone, "cash.refunds.waive": identity.ScopeNone,
 		// M5 (Task 189): quản lý khóa dịch vụ là quản trị.
 		"identity.service_keys.manage": identity.ScopeShop,
+		// M5 (Task 456): tạm dừng nhận đơn web là chính sách toàn shop.
+		"order.web_intake.manage": identity.ScopeShop,
 	}
 	seen := map[identity.Permission]bool{}
 	for _, d := range identity.Permissions {

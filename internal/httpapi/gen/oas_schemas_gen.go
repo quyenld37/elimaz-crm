@@ -9455,6 +9455,7 @@ func (*ErrorStatusCode) getStockDocumentRes()            {}
 func (*ErrorStatusCode) getStocktakeRes()                {}
 func (*ErrorStatusCode) getWarehousePickupRes()          {}
 func (*ErrorStatusCode) getWebCampaignRes()              {}
+func (*ErrorStatusCode) getWebIntakeRes()                {}
 func (*ErrorStatusCode) healthDeepRes()                  {}
 func (*ErrorStatusCode) importCodStatementRes()          {}
 func (*ErrorStatusCode) listAdminUnitsRes()              {}
@@ -9541,6 +9542,7 @@ func (*ErrorStatusCode) setProductImageColorRes()        {}
 func (*ErrorStatusCode) setShipmentManualStatusRes()     {}
 func (*ErrorStatusCode) setWarehousePickupRes()          {}
 func (*ErrorStatusCode) setWebCampaignStateRes()         {}
+func (*ErrorStatusCode) setWebIntakeRes()                {}
 func (*ErrorStatusCode) startCustomerImportRes()         {}
 func (*ErrorStatusCode) startStocktakeRes()              {}
 func (*ErrorStatusCode) streamRes()                      {}
@@ -9571,6 +9573,7 @@ func (*ErrorStatusCode) webCatalogChangesRes()           {}
 func (*ErrorStatusCode) webCatalogProductsRes()          {}
 func (*ErrorStatusCode) webCatalogTaxonomyRes()          {}
 func (*ErrorStatusCode) webCreateOrderRes()              {}
+func (*ErrorStatusCode) webIntakeStatusRes()             {}
 func (*ErrorStatusCode) webLocationsRes()                {}
 func (*ErrorStatusCode) webQuoteRes()                    {}
 func (*ErrorStatusCode) webSold30dRes()                  {}
@@ -21977,6 +21980,44 @@ func (s *SetWebCampaignStateRequestState) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/SetWebIntakeRequest
+type SetWebIntakeRequest struct {
+	Paused bool `json:"paused"`
+	// Bắt buộc (sau khi cắt khoảng trắng) khi paused = true.
+	Reason  OptString `json:"reason"`
+	Version int32     `json:"version"`
+}
+
+// GetPaused returns the value of Paused.
+func (s *SetWebIntakeRequest) GetPaused() bool {
+	return s.Paused
+}
+
+// GetReason returns the value of Reason.
+func (s *SetWebIntakeRequest) GetReason() OptString {
+	return s.Reason
+}
+
+// GetVersion returns the value of Version.
+func (s *SetWebIntakeRequest) GetVersion() int32 {
+	return s.Version
+}
+
+// SetPaused sets the value of Paused.
+func (s *SetWebIntakeRequest) SetPaused(val bool) {
+	s.Paused = val
+}
+
+// SetReason sets the value of Reason.
+func (s *SetWebIntakeRequest) SetReason(val OptString) {
+	s.Reason = val
+}
+
+// SetVersion sets the value of Version.
+func (s *SetWebIntakeRequest) SetVersion(val int32) {
+	s.Version = val
+}
+
 // Tài khoản hãng dùng được để gửi một đơn (chỉ phần người gửi cần chọn;
 // không khóa, không cấu hình).
 // Ref: #/components/schemas/ShipAccount
@@ -28586,6 +28627,99 @@ func (s *WebImageVariant) SetFormat(val string) {
 func (s *WebImageVariant) SetURL(val string) {
 	s.URL = val
 }
+
+// Ref: #/components/schemas/WebIntake
+type WebIntake struct {
+	Paused bool `json:"paused"`
+	// Lý do tạm dừng (có khi đã nhập); mở lại không lý do thì không có.
+	Reason OptString `json:"reason"`
+	// Nhân viên đổi lần cuối; chưa ai đổi thì không có.
+	ChangedBy OptUUID `json:"changedBy"`
+	// Tên hiển thị của changedBy.
+	ChangedByName OptString   `json:"changedByName"`
+	ChangedAt     OptDateTime `json:"changedAt"`
+	Version       int32       `json:"version"`
+}
+
+// GetPaused returns the value of Paused.
+func (s *WebIntake) GetPaused() bool {
+	return s.Paused
+}
+
+// GetReason returns the value of Reason.
+func (s *WebIntake) GetReason() OptString {
+	return s.Reason
+}
+
+// GetChangedBy returns the value of ChangedBy.
+func (s *WebIntake) GetChangedBy() OptUUID {
+	return s.ChangedBy
+}
+
+// GetChangedByName returns the value of ChangedByName.
+func (s *WebIntake) GetChangedByName() OptString {
+	return s.ChangedByName
+}
+
+// GetChangedAt returns the value of ChangedAt.
+func (s *WebIntake) GetChangedAt() OptDateTime {
+	return s.ChangedAt
+}
+
+// GetVersion returns the value of Version.
+func (s *WebIntake) GetVersion() int32 {
+	return s.Version
+}
+
+// SetPaused sets the value of Paused.
+func (s *WebIntake) SetPaused(val bool) {
+	s.Paused = val
+}
+
+// SetReason sets the value of Reason.
+func (s *WebIntake) SetReason(val OptString) {
+	s.Reason = val
+}
+
+// SetChangedBy sets the value of ChangedBy.
+func (s *WebIntake) SetChangedBy(val OptUUID) {
+	s.ChangedBy = val
+}
+
+// SetChangedByName sets the value of ChangedByName.
+func (s *WebIntake) SetChangedByName(val OptString) {
+	s.ChangedByName = val
+}
+
+// SetChangedAt sets the value of ChangedAt.
+func (s *WebIntake) SetChangedAt(val OptDateTime) {
+	s.ChangedAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *WebIntake) SetVersion(val int32) {
+	s.Version = val
+}
+
+func (*WebIntake) getWebIntakeRes() {}
+func (*WebIntake) setWebIntakeRes() {}
+
+// Ref: #/components/schemas/WebIntakeStatus
+type WebIntakeStatus struct {
+	Paused bool `json:"paused"`
+}
+
+// GetPaused returns the value of Paused.
+func (s *WebIntakeStatus) GetPaused() bool {
+	return s.Paused
+}
+
+// SetPaused sets the value of Paused.
+func (s *WebIntakeStatus) SetPaused(val bool) {
+	s.Paused = val
+}
+
+func (*WebIntakeStatus) webIntakeStatusRes() {}
 
 // Ref: #/components/schemas/WebLocations
 type WebLocations struct {

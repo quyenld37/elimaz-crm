@@ -3170,6 +3170,45 @@ paths:
                 $ref: "#/components/schemas/CampaignTargetPage"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web-intake:
+    get:
+      operationId: getWebIntake
+      summary: 'Trạng thái nhận đơn web của shop: tạm dừng hay không, lý do, ai đổi, lúc nào (Task 456)'
+      x-permission: order.read
+      responses:
+        "200":
+          description: getWebIntake
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebIntake"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: setWebIntake
+      summary: 'Tạm dừng (lý do 1–300 ký tự bắt buộc, thiếu → 422 invalid_input) hay mở lại nhận đơn web khi version khớp (409 version_conflict) (Task 456)'
+      description: |
+        Tạm dừng chỉ chặn đơn website gửi thẳng (submittedVia = sync) bắt đầu sau khi lệnh này commit: webCreateOrder
+        trả 503 web_orders_paused. Đơn từ hàng đợi của website (queued) và đơn đã có của cùng externalRef vẫn nhận.
+        Mở lại không cần lý do (gửi rỗng thì xóa lý do cũ).
+      x-permission: order.web_intake.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetWebIntakeRequest"
+      responses:
+        "200":
+          description: setWebIntake
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebIntake"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/coupon-check:
     get:
       operationId: checkCoupon
@@ -4671,7 +4710,8 @@ paths:
         quote_changed (kèm quote: báo giá CRM hiện tại; chỉ khi submittedVia = sync), item_unavailable (kèm
         variantIds), coupon_invalid (kèm reason; chỉ khi sync), mixed_sellers; 409 out_of_stock (kèm variantId,
         available). queued: giá hay mã lệch vẫn tạo theo số CRM, priceReview = true. Tạm bận → 503 retry_later kèm
-        Retry-After, không lưu.
+        Retry-After, không lưu. Shop đang tạm dừng nhận đơn web (Task 456) và đơn gửi thẳng (sync) chưa có → 503
+        web_orders_paused, không Retry-After, không lưu (mở lại rồi gửi lại cùng khóa thì xử lý lại); queued vẫn nhận.
       x-auth: service_key
       x-permission: web.orders.create
       parameters:
@@ -4691,6 +4731,24 @@ paths:
                 $ref: "#/components/schemas/WebOrderCreated"
         "503":
           $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/intake:
+    get:
+      operationId: webIntakeStatus
+      summary: Shop có đang tạm dừng nhận đơn web không (không lý do, người, giờ); hạn sống 5 s
+      description: |
+        Task 456 (M5-44). Website hiện "ELIMAZ đang tạm dừng nhận đơn trên website…" khi paused. Bộ đệm 5 s, làm mới
+        sớm hơn theo sự kiện order.web_intake.changed. Chỉ để hiện; tạo đơn luôn kiểm lại ở CRM (503 web_orders_paused).
+      x-auth: service_key
+      x-permission: web.catalog.read
+      responses:
+        "200":
+          description: Trạng thái nhận đơn web
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebIntakeStatus"
         default:
           $ref: "#/components/responses/Error"
 components:
@@ -5151,6 +5209,8 @@ components:
         - item_unavailable
         - quote_changed
         - too_fast
+        # Tạm dừng nhận đơn web (M5, Task 456)
+        - web_orders_paused
       properties:
         error:
           type: string
@@ -6835,6 +6895,49 @@ components:
           additionalProperties:
             type: string
             maxLength: 200
+    WebIntake:
+      type: object
+      required: [paused, version]
+      properties:
+        paused:
+          type: boolean
+        reason:
+          type: string
+          description: Lý do tạm dừng (có khi đã nhập); mở lại không lý do thì không có
+        changedBy:
+          type: string
+          format: uuid
+          description: Nhân viên đổi lần cuối; chưa ai đổi thì không có
+        changedByName:
+          type: string
+          description: Tên hiển thị của changedBy
+        changedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int32
+          minimum: 1
+    SetWebIntakeRequest:
+      type: object
+      required: [paused, version]
+      properties:
+        paused:
+          type: boolean
+        reason:
+          type: string
+          maxLength: 300
+          description: Bắt buộc (sau khi cắt khoảng trắng) khi paused = true
+        version:
+          type: integer
+          format: int32
+          minimum: 1
+    WebIntakeStatus:
+      type: object
+      required: [paused]
+      properties:
+        paused:
+          type: boolean
     WebOrderCreated:
       type: object
       required: [orderId, code, status, grandTotal, priceReview]

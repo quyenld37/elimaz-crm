@@ -337,6 +337,10 @@ type GetWebCampaignRes interface {
 	getWebCampaignRes()
 }
 
+type GetWebIntakeRes interface {
+	getWebIntakeRes()
+}
+
 type HealthDeepRes interface {
 	healthDeepRes()
 }
@@ -685,6 +689,10 @@ type SetWebCampaignStateRes interface {
 	setWebCampaignStateRes()
 }
 
+type SetWebIntakeRes interface {
+	setWebIntakeRes()
+}
+
 type StartCustomerImportRes interface {
 	startCustomerImportRes()
 }
@@ -803,6 +811,10 @@ type WebCatalogTaxonomyRes interface {
 
 type WebCreateOrderRes interface {
 	webCreateOrderRes()
+}
+
+type WebIntakeStatusRes interface {
+	webIntakeStatusRes()
 }
 
 type WebLocationsRes interface {
