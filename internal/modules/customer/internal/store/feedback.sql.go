@@ -13,6 +13,38 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countFeedback = `-- name: CountFeedback :many
+SELECT state, count(*)::int AS n
+FROM customer.feedback
+GROUP BY state
+`
+
+type CountFeedbackRow struct {
+	State string
+	N     int32
+}
+
+// Số góp ý theo trạng thái của tenant (Task 486; index feedback_state_created).
+func (q *Queries) CountFeedback(ctx context.Context) ([]CountFeedbackRow, error) {
+	rows, err := q.db.Query(ctx, countFeedback)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountFeedbackRow{}
+	for rows.Next() {
+		var i CountFeedbackRow
+		if err := rows.Scan(&i.State, &i.N); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const feedbackExists = `-- name: FeedbackExists :one
 SELECT EXISTS (SELECT 1 FROM customer.feedback WHERE id = $1)
 `
@@ -76,7 +108,7 @@ func (q *Queries) InsertFeedback(ctx context.Context, arg InsertFeedbackParams) 
 
 const listFeedback = `-- name: ListFeedback :many
 SELECT f.id, f.topic, f.mood, f.body, f.name, f.contact, f.order_ref, f.page, f.device, f.state, f.note, f.created_at,
-       f.updated_at, f.updated_by, f.version, r.id AS root_id, r.full_name AS root_name
+       f.updated_at, f.updated_by, f.version, r.id AS root_id, r.full_name AS root_name, r.code AS root_code
 FROM customer.feedback AS f
 LEFT JOIN customer.customers AS c ON c.tenant_id = f.tenant_id AND c.id = f.customer_id
 LEFT JOIN customer.customers AS r ON r.tenant_id = c.tenant_id AND r.id = c.root_id
@@ -119,10 +151,11 @@ type ListFeedbackRow struct {
 	Version   int32
 	RootID    pgtype.UUID
 	RootName  pgtype.Text
+	RootCode  pgtype.Text
 }
 
 // Mới nhất trước, trang theo (created_at, id) giảm dần. root_id: chỉ góp ý gắn với một hồ sơ trong nhóm của gốc đó (khách
-// đã gộp vẫn thấy góp ý gắn lúc trước). id: chỉ một góp ý (đọc lại sau khi sửa). Kèm gốc hiện tại và tên của gốc.
+// đã gộp vẫn thấy góp ý gắn lúc trước). id: chỉ một góp ý (đọc lại sau khi sửa). Kèm gốc hiện tại, tên và mã KH của gốc.
 func (q *Queries) ListFeedback(ctx context.Context, arg ListFeedbackParams) ([]ListFeedbackRow, error) {
 	rows, err := q.db.Query(ctx, listFeedback,
 		arg.ID,
@@ -158,6 +191,7 @@ func (q *Queries) ListFeedback(ctx context.Context, arg ListFeedbackParams) ([]L
 			&i.Version,
 			&i.RootID,
 			&i.RootName,
+			&i.RootCode,
 		); err != nil {
 			return nil, err
 		}

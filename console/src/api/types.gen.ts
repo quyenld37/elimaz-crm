@@ -1418,6 +1418,54 @@ export type OrderRequestLine = {
      * Tên chụp lúc đặt (chỉ ở màn nhân viên)
      */
     name?: string;
+    want?: OrderRequestWant;
+};
+
+/**
+ * Biến thể khách muốn đổi sang, theo danh mục hiện tại (chỉ ở màn nhân viên; Task 486)
+ */
+export type OrderRequestWant = {
+    sku: string;
+    productName: string;
+    color: string;
+    size: string;
+    /**
+     * Số còn bán được ở kho của đơn (không có khi không đọc được kho)
+     */
+    available?: number;
+    warehouseName?: string;
+};
+
+/**
+ * Một lần đổi trạng thái của yêu cầu (Task 486)
+ */
+export type OrderRequestEvent = {
+    fromStatus: OrderRequestStatus;
+    toStatus: OrderRequestStatus;
+    /**
+     * customer: khách làm trên website (trả lời khi cần bổ sung, rút yêu cầu)
+     */
+    actorType: 'staff' | 'customer' | 'system';
+    /**
+     * Tên nhân viên (staff; nhân viên không còn → không có)
+     */
+    actorName?: string;
+    at: string;
+};
+
+export type OrderRequestCounts = {
+    /**
+     * Đủ 8 trạng thái theo thứ tự sơ đồ, kể cả số 0
+     */
+    statuses: Array<{
+        status: OrderRequestStatus;
+        count: number;
+    }>;
+    /**
+     * Số yêu cầu chưa đóng (received, in_review, needs_info, confirmed, items_received)
+     */
+    open: number;
+    total: number;
 };
 
 export type OrderRequestMessage = {
@@ -1456,6 +1504,18 @@ export type OrderRequestSummary = {
     kind: OrderRequestKind;
     status: OrderRequestStatus;
     reasonCode: string;
+    /**
+     * Tên gốc hiện tại của khách của đơn (Task 486)
+     */
+    customerName?: string;
+    /**
+     * Số ảnh khách gửi kèm (Task 486)
+     */
+    photoCount: number;
+    /**
+     * Hạn khách gửi hàng về khi đã xác nhận đổi (Task 486)
+     */
+    shipBackDeadline?: string;
     createdAt: string;
     updatedAt: string;
     version: number;
@@ -1487,6 +1547,10 @@ export type OrderRequest = {
     outcome?: OrderRequestOutcome;
     messages: Array<OrderRequestMessage>;
     files: Array<OrderRequestFile>;
+    /**
+     * Các lần đổi trạng thái, cũ trước (Task 486)
+     */
+    history?: Array<OrderRequestEvent>;
     createdAt: string;
     updatedAt: string;
     resolvedAt?: string;
@@ -4410,6 +4474,17 @@ export type WebFeedbackRequest = {
     clientHash?: string;
 };
 
+export type FeedbackCounts = {
+    /**
+     * Đủ 3 trạng thái (new, seen, answered), kể cả số 0
+     */
+    states: Array<{
+        state: FeedbackState;
+        count: number;
+    }>;
+    total: number;
+};
+
 export type WebFeedbackResult = {
     id: string;
 };
@@ -4431,6 +4506,10 @@ export type Feedback = {
      */
     customerId?: string;
     customerName?: string;
+    /**
+     * Mã KH của gốc hiện tại (Task 486)
+     */
+    customerCode?: string;
     createdAt: string;
     updatedAt: string;
     /**
@@ -7653,6 +7732,31 @@ export type ListFeedbackResponses = {
 
 export type ListFeedbackResponse = ListFeedbackResponses[keyof ListFeedbackResponses];
 
+export type CountFeedbackData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/feedback/counts';
+};
+
+export type CountFeedbackErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CountFeedbackError = CountFeedbackErrors[keyof CountFeedbackErrors];
+
+export type CountFeedbackResponses = {
+    /**
+     * Số góp ý
+     */
+    200: FeedbackCounts;
+};
+
+export type CountFeedbackResponse = CountFeedbackResponses[keyof CountFeedbackResponses];
+
 export type UpdateFeedbackData = {
     body: UpdateFeedbackRequest;
     headers: {
@@ -9602,6 +9706,10 @@ export type ListOrderRequestsData = {
     path?: never;
     query?: {
         status?: OrderRequestStatus;
+        /**
+         * Một trong các trạng thái (nhãn "Đang mở" của màn, Task 486); gửi cùng status → 400 invalid_input
+         */
+        statuses?: Array<OrderRequestStatus>;
         kind?: OrderRequestKind;
         q?: string;
         /**
@@ -9630,6 +9738,31 @@ export type ListOrderRequestsResponses = {
 };
 
 export type ListOrderRequestsResponse = ListOrderRequestsResponses[keyof ListOrderRequestsResponses];
+
+export type CountOrderRequestsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/order-requests/counts';
+};
+
+export type CountOrderRequestsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type CountOrderRequestsError = CountOrderRequestsErrors[keyof CountOrderRequestsErrors];
+
+export type CountOrderRequestsResponses = {
+    /**
+     * countOrderRequests
+     */
+    200: OrderRequestCounts;
+};
+
+export type CountOrderRequestsResponse = CountOrderRequestsResponses[keyof CountOrderRequestsResponses];
 
 export type GetOrderRequestData = {
     body?: never;

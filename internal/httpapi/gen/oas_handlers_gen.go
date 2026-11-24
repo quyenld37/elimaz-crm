@@ -2863,6 +2863,137 @@ func (s *Server) handleConfirmOrderRequest(args [1]string, argsEscaped bool, w h
 	}
 }
 
+// handleCountFeedbackRequest handles countFeedback operation.
+//
+// Số góp ý theo trạng thái (đủ 3 trạng thái) và tổng, cho thanh lọc của màn Góp
+// ý (Task 486).
+//
+// GET /api/v1/feedback/counts
+func (s *Server) handleCountFeedbackRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response CountFeedbackRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CountFeedbackOperation,
+			OperationSummary: "Số góp ý theo trạng thái (đủ 3 trạng thái) và tổng, cho thanh lọc của màn Góp ý (Task 486)",
+			OperationID:      "countFeedback",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = CountFeedbackRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CountFeedback(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CountFeedback(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCountFeedbackResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleCountOrderRequestsRequest handles countOrderRequests operation.
+//
+// Đếm mọi yêu cầu của shop, không theo bộ lọc loại hay ô tìm.
+//
+// GET /api/v1/order-requests/counts
+func (s *Server) handleCountOrderRequestsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response CountOrderRequestsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CountOrderRequestsOperation,
+			OperationSummary: "Số yêu cầu về đơn theo trạng thái (đủ 8 trạng thái), số đang mở, tổng; cho thanh lọc và số cạnh menu (Task 486)",
+			OperationID:      "countOrderRequests",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = CountOrderRequestsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CountOrderRequests(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CountOrderRequests(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeCountOrderRequestsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleCreateAttributeRequest handles createAttribute operation.
 //
 // Tạo thuộc tính (mã chữ thường, không trùng).
@@ -11039,6 +11170,10 @@ func (s *Server) handleListOrderRequestsRequest(args [0]string, argsEscaped bool
 					Name: "status",
 					In:   "query",
 				}: params.Status,
+				{
+					Name: "statuses",
+					In:   "query",
+				}: params.Statuses,
 				{
 					Name: "kind",
 					In:   "query",

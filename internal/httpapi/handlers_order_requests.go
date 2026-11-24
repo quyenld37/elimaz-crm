@@ -32,6 +32,9 @@ func (h *handler) ListOrderRequests(ctx context.Context, params gen.ListOrderReq
 		Status: string(params.Status.Or("")), Kind: string(params.Kind.Or("")), Q: params.Q.Or(""),
 		Limit: int(params.Limit.Or(0)),
 	}
+	for _, s := range params.Statuses {
+		f.Statuses = append(f.Statuses, string(s))
+	}
 	if c, ok := params.Cursor.Get(); ok {
 		cur, err := order.ParseCursor(c)
 		if err != nil {
@@ -51,11 +54,16 @@ func (h *handler) ListOrderRequests(ctx context.Context, params gen.ListOrderReq
 		}
 		page.Items = page.Items[:0]
 		for _, r := range rows {
-			page.Items = append(page.Items, gen.OrderRequestSummary{
+			item := gen.OrderRequestSummary{
 				ID: r.ID, Ref: r.Ref, OrderId: r.OrderID, OrderCode: r.OrderCode, Kind: gen.OrderRequestKind(r.Kind),
 				Status: gen.OrderRequestStatus(r.Status), ReasonCode: r.ReasonCode, CreatedAt: r.CreatedAt,
 				UpdatedAt: r.UpdatedAt, Version: int32(r.Version), //nolint:gosec // G115: version int4 của bảng
-			})
+				CustomerName: nonEmpty(r.CustomerName), PhotoCount: int32(r.PhotoCount), //nolint:gosec // G115: ≤ 5
+			}
+			if r.ShipBackDeadline != nil {
+				item.ShipBackDeadline = gen.NewOptDateTime(*r.ShipBackDeadline)
+			}
+			page.Items = append(page.Items, item)
 		}
 		page.NextCursor = gen.OptString{}
 		if next != nil {
@@ -66,6 +74,31 @@ func (h *handler) ListOrderRequests(ctx context.Context, params gen.ListOrderReq
 		return nil, fmt.Errorf("đọc danh sách yêu cầu về đơn: %w", err)
 	}
 	return page, nil
+}
+
+// CountOrderRequests (GET /api/v1/order-requests/counts, order.requests.read): số yêu cầu theo trạng thái (đủ 8, thứ tự
+// sơ đồ), số đang mở, tổng — thanh lọc và số cạnh menu của màn (Task 486).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) CountOrderRequests(ctx context.Context) (gen.CountOrderRequestsRes, error) {
+	var c order.RequestCounts
+	if err := h.catalogRead(ctx, func(tx pgx.Tx) error {
+		var err error
+		c, err = order.CountRequests(ctx, tx)
+		return err //nolint:wrapcheck // order đã bọc
+	}); err != nil {
+		return nil, fmt.Errorf("đếm yêu cầu về đơn: %w", err)
+	}
+	out := &gen.OrderRequestCounts{
+		Open: int32(c.Open), Total: int32(c.Total), //nolint:gosec // G115: số dòng một tenant
+		Statuses: make([]gen.OrderRequestCountsStatusesItem, 0, len(c.ByStatus)),
+	}
+	for _, s := range order.RequestStatuses() {
+		out.Statuses = append(out.Statuses, gen.OrderRequestCountsStatusesItem{
+			Status: gen.OrderRequestStatus(s), Count: int32(c.ByStatus[s]), //nolint:gosec // G115: số dòng một tenant
+		})
+	}
+	return out, nil
 }
 
 // GetOrderRequest (GET /api/v1/order-requests/{id}, order.requests.read): ảnh kèm link ký 10 phút (files.DownloadURL
@@ -219,12 +252,28 @@ func (h *handler) orderRequestOut(ctx context.Context, tx pgx.Tx, d order.Reques
 			staff = append(staff, id)
 		}
 	}
+	for _, ev := range d.History {
+		if id, err := uuid.Parse(ev.ActorID); err == nil && ev.ActorType == order.AuthorStaff {
+			staff = append(staff, id)
+		}
+	}
 	names, err := staffNames(ctx, tx, staff)
 	if err != nil {
 		return nil, err
 	}
 	for _, m := range d.Messages {
 		out.Messages = append(out.Messages, *messageOut(m, names))
+	}
+	out.History = make([]gen.OrderRequestEvent, 0, len(d.History))
+	for _, ev := range d.History {
+		g := gen.OrderRequestEvent{
+			FromStatus: gen.OrderRequestStatus(ev.From), ToStatus: gen.OrderRequestStatus(ev.To),
+			ActorType: gen.OrderRequestEventActorType(ev.ActorType), At: ev.At,
+		}
+		if id, err := uuid.Parse(ev.ActorID); err == nil && ev.ActorType == order.AuthorStaff && names[id] != "" {
+			g.ActorName = gen.NewOptString(names[id])
+		}
+		out.History = append(out.History, g)
 	}
 	for _, f := range d.FileIDs {
 		item, err := h.requestFileOut(ctx, tx, f)
@@ -286,6 +335,15 @@ func requestLinesOut(lines []order.RequestLineDetail, withSnapshot bool) []gen.O
 		}
 		if withSnapshot {
 			g.Sku, g.Name = gen.NewOptString(l.SKU), gen.NewOptString(l.Name)
+			if w := l.Want; w != nil {
+				want := gen.OrderRequestWant{
+					Sku: w.SKU, ProductName: w.ProductName, Color: w.Color, Size: w.Size, WarehouseName: nonEmpty(w.WarehouseName),
+				}
+				if w.Available != nil {
+					want.Available = gen.NewOptInt32(int32(*w.Available)) //nolint:gosec // G115: số tồn int4
+				}
+				g.Want = gen.NewOptOrderRequestWant(want)
+			}
 		}
 		out = append(out, g)
 	}

@@ -10783,6 +10783,8 @@ func (*ErrorStatusCode) closeReturnRes()                 {}
 func (*ErrorStatusCode) completeUploadRes()              {}
 func (*ErrorStatusCode) confirmCodStatementRes()         {}
 func (*ErrorStatusCode) confirmOrderRes()                {}
+func (*ErrorStatusCode) countFeedbackRes()               {}
+func (*ErrorStatusCode) countOrderRequestsRes()          {}
 func (*ErrorStatusCode) createAttributeRes()             {}
 func (*ErrorStatusCode) createCarrierAccountRes()        {}
 func (*ErrorStatusCode) createCatalogImportRes()         {}
@@ -11105,6 +11107,8 @@ type Feedback struct {
 	// Gốc hiện tại của khách được gắn lúc gửi.
 	CustomerId   OptUUID   `json:"customerId"`
 	CustomerName OptString `json:"customerName"`
+	// Mã KH của gốc hiện tại (Task 486).
+	CustomerCode OptString `json:"customerCode"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 	// Tên nhân viên sửa gần nhất.
@@ -11175,6 +11179,11 @@ func (s *Feedback) GetCustomerId() OptUUID {
 // GetCustomerName returns the value of CustomerName.
 func (s *Feedback) GetCustomerName() OptString {
 	return s.CustomerName
+}
+
+// GetCustomerCode returns the value of CustomerCode.
+func (s *Feedback) GetCustomerCode() OptString {
+	return s.CustomerCode
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -11262,6 +11271,11 @@ func (s *Feedback) SetCustomerName(val OptString) {
 	s.CustomerName = val
 }
 
+// SetCustomerCode sets the value of CustomerCode.
+func (s *Feedback) SetCustomerCode(val OptString) {
+	s.CustomerCode = val
+}
+
 // SetCreatedAt sets the value of CreatedAt.
 func (s *Feedback) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
@@ -11283,6 +11297,60 @@ func (s *Feedback) SetVersion(val int32) {
 }
 
 func (*Feedback) updateFeedbackRes() {}
+
+// Ref: #/components/schemas/FeedbackCounts
+type FeedbackCounts struct {
+	// Đủ 3 trạng thái (new, seen, answered), kể cả số 0.
+	States []FeedbackCountsStatesItem `json:"states"`
+	Total  int32                      `json:"total"`
+}
+
+// GetStates returns the value of States.
+func (s *FeedbackCounts) GetStates() []FeedbackCountsStatesItem {
+	return s.States
+}
+
+// GetTotal returns the value of Total.
+func (s *FeedbackCounts) GetTotal() int32 {
+	return s.Total
+}
+
+// SetStates sets the value of States.
+func (s *FeedbackCounts) SetStates(val []FeedbackCountsStatesItem) {
+	s.States = val
+}
+
+// SetTotal sets the value of Total.
+func (s *FeedbackCounts) SetTotal(val int32) {
+	s.Total = val
+}
+
+func (*FeedbackCounts) countFeedbackRes() {}
+
+type FeedbackCountsStatesItem struct {
+	State FeedbackState `json:"state"`
+	Count int32         `json:"count"`
+}
+
+// GetState returns the value of State.
+func (s *FeedbackCountsStatesItem) GetState() FeedbackState {
+	return s.State
+}
+
+// GetCount returns the value of Count.
+func (s *FeedbackCountsStatesItem) GetCount() int32 {
+	return s.Count
+}
+
+// SetState sets the value of State.
+func (s *FeedbackCountsStatesItem) SetState(val FeedbackState) {
+	s.State = val
+}
+
+// SetCount sets the value of Count.
+func (s *FeedbackCountsStatesItem) SetCount(val int32) {
+	s.Count = val
+}
 
 // Ref: #/components/schemas/FeedbackPage
 type FeedbackPage struct {
@@ -18288,6 +18356,52 @@ func (o OptOrderRequestStatus) Or(d OrderRequestStatus) OrderRequestStatus {
 	return d
 }
 
+// NewOptOrderRequestWant returns new OptOrderRequestWant with value set to v.
+func NewOptOrderRequestWant(v OrderRequestWant) OptOrderRequestWant {
+	return OptOrderRequestWant{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptOrderRequestWant is optional OrderRequestWant.
+type OptOrderRequestWant struct {
+	Value OrderRequestWant
+	Set   bool
+}
+
+// IsSet returns true if OptOrderRequestWant was set.
+func (o OptOrderRequestWant) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptOrderRequestWant) Reset() {
+	var v OrderRequestWant
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptOrderRequestWant) SetTo(v OrderRequestWant) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptOrderRequestWant) Get() (v OrderRequestWant, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptOrderRequestWant) Or(d OrderRequestWant) OrderRequestWant {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptOrderShipmentSummary returns new OptOrderShipmentSummary with value set to v.
 func NewOptOrderShipmentSummary(v OrderShipmentSummary) OptOrderShipmentSummary {
 	return OptOrderShipmentSummary{
@@ -21627,11 +21741,13 @@ type OrderRequest struct {
 	Outcome            OptOrderRequestOutcome  `json:"outcome"`
 	Messages           []OrderRequestMessage   `json:"messages"`
 	Files              []OrderRequestFile      `json:"files"`
-	CreatedAt          time.Time               `json:"createdAt"`
-	UpdatedAt          time.Time               `json:"updatedAt"`
-	ResolvedAt         OptDateTime             `json:"resolvedAt"`
-	ResolvedBy         OptUUID                 `json:"resolvedBy"`
-	Version            int32                   `json:"version"`
+	// Các lần đổi trạng thái, cũ trước (Task 486).
+	History    []OrderRequestEvent `json:"history"`
+	CreatedAt  time.Time           `json:"createdAt"`
+	UpdatedAt  time.Time           `json:"updatedAt"`
+	ResolvedAt OptDateTime         `json:"resolvedAt"`
+	ResolvedBy OptUUID             `json:"resolvedBy"`
+	Version    int32               `json:"version"`
 }
 
 // GetID returns the value of ID.
@@ -21702,6 +21818,11 @@ func (s *OrderRequest) GetMessages() []OrderRequestMessage {
 // GetFiles returns the value of Files.
 func (s *OrderRequest) GetFiles() []OrderRequestFile {
 	return s.Files
+}
+
+// GetHistory returns the value of History.
+func (s *OrderRequest) GetHistory() []OrderRequestEvent {
+	return s.History
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -21799,6 +21920,11 @@ func (s *OrderRequest) SetFiles(val []OrderRequestFile) {
 	s.Files = val
 }
 
+// SetHistory sets the value of History.
+func (s *OrderRequest) SetHistory(val []OrderRequestEvent) {
+	s.History = val
+}
+
 // SetCreatedAt sets the value of CreatedAt.
 func (s *OrderRequest) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
@@ -21826,6 +21952,183 @@ func (s *OrderRequest) SetVersion(val int32) {
 
 func (*OrderRequest) getOrderRequestRes()       {}
 func (*OrderRequest) setOrderRequestStatusRes() {}
+
+// Ref: #/components/schemas/OrderRequestCounts
+type OrderRequestCounts struct {
+	// Đủ 8 trạng thái theo thứ tự sơ đồ, kể cả số 0.
+	Statuses []OrderRequestCountsStatusesItem `json:"statuses"`
+	// Số yêu cầu chưa đóng (received, in_review, needs_info, confirmed, items_received).
+	Open  int32 `json:"open"`
+	Total int32 `json:"total"`
+}
+
+// GetStatuses returns the value of Statuses.
+func (s *OrderRequestCounts) GetStatuses() []OrderRequestCountsStatusesItem {
+	return s.Statuses
+}
+
+// GetOpen returns the value of Open.
+func (s *OrderRequestCounts) GetOpen() int32 {
+	return s.Open
+}
+
+// GetTotal returns the value of Total.
+func (s *OrderRequestCounts) GetTotal() int32 {
+	return s.Total
+}
+
+// SetStatuses sets the value of Statuses.
+func (s *OrderRequestCounts) SetStatuses(val []OrderRequestCountsStatusesItem) {
+	s.Statuses = val
+}
+
+// SetOpen sets the value of Open.
+func (s *OrderRequestCounts) SetOpen(val int32) {
+	s.Open = val
+}
+
+// SetTotal sets the value of Total.
+func (s *OrderRequestCounts) SetTotal(val int32) {
+	s.Total = val
+}
+
+func (*OrderRequestCounts) countOrderRequestsRes() {}
+
+type OrderRequestCountsStatusesItem struct {
+	Status OrderRequestStatus `json:"status"`
+	Count  int32              `json:"count"`
+}
+
+// GetStatus returns the value of Status.
+func (s *OrderRequestCountsStatusesItem) GetStatus() OrderRequestStatus {
+	return s.Status
+}
+
+// GetCount returns the value of Count.
+func (s *OrderRequestCountsStatusesItem) GetCount() int32 {
+	return s.Count
+}
+
+// SetStatus sets the value of Status.
+func (s *OrderRequestCountsStatusesItem) SetStatus(val OrderRequestStatus) {
+	s.Status = val
+}
+
+// SetCount sets the value of Count.
+func (s *OrderRequestCountsStatusesItem) SetCount(val int32) {
+	s.Count = val
+}
+
+// Một lần đổi trạng thái của yêu cầu (Task 486).
+// Ref: #/components/schemas/OrderRequestEvent
+type OrderRequestEvent struct {
+	FromStatus OrderRequestStatus `json:"fromStatus"`
+	ToStatus   OrderRequestStatus `json:"toStatus"`
+	// Customer: khách làm trên website (trả lời khi cần bổ sung, rút yêu cầu).
+	ActorType OrderRequestEventActorType `json:"actorType"`
+	// Tên nhân viên (staff; nhân viên không còn → không có).
+	ActorName OptString `json:"actorName"`
+	At        time.Time `json:"at"`
+}
+
+// GetFromStatus returns the value of FromStatus.
+func (s *OrderRequestEvent) GetFromStatus() OrderRequestStatus {
+	return s.FromStatus
+}
+
+// GetToStatus returns the value of ToStatus.
+func (s *OrderRequestEvent) GetToStatus() OrderRequestStatus {
+	return s.ToStatus
+}
+
+// GetActorType returns the value of ActorType.
+func (s *OrderRequestEvent) GetActorType() OrderRequestEventActorType {
+	return s.ActorType
+}
+
+// GetActorName returns the value of ActorName.
+func (s *OrderRequestEvent) GetActorName() OptString {
+	return s.ActorName
+}
+
+// GetAt returns the value of At.
+func (s *OrderRequestEvent) GetAt() time.Time {
+	return s.At
+}
+
+// SetFromStatus sets the value of FromStatus.
+func (s *OrderRequestEvent) SetFromStatus(val OrderRequestStatus) {
+	s.FromStatus = val
+}
+
+// SetToStatus sets the value of ToStatus.
+func (s *OrderRequestEvent) SetToStatus(val OrderRequestStatus) {
+	s.ToStatus = val
+}
+
+// SetActorType sets the value of ActorType.
+func (s *OrderRequestEvent) SetActorType(val OrderRequestEventActorType) {
+	s.ActorType = val
+}
+
+// SetActorName sets the value of ActorName.
+func (s *OrderRequestEvent) SetActorName(val OptString) {
+	s.ActorName = val
+}
+
+// SetAt sets the value of At.
+func (s *OrderRequestEvent) SetAt(val time.Time) {
+	s.At = val
+}
+
+// Customer: khách làm trên website (trả lời khi cần bổ sung, rút yêu cầu).
+type OrderRequestEventActorType string
+
+const (
+	OrderRequestEventActorTypeStaff    OrderRequestEventActorType = "staff"
+	OrderRequestEventActorTypeCustomer OrderRequestEventActorType = "customer"
+	OrderRequestEventActorTypeSystem   OrderRequestEventActorType = "system"
+)
+
+// AllValues returns all OrderRequestEventActorType values.
+func (OrderRequestEventActorType) AllValues() []OrderRequestEventActorType {
+	return []OrderRequestEventActorType{
+		OrderRequestEventActorTypeStaff,
+		OrderRequestEventActorTypeCustomer,
+		OrderRequestEventActorTypeSystem,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s OrderRequestEventActorType) MarshalText() ([]byte, error) {
+	switch s {
+	case OrderRequestEventActorTypeStaff:
+		return []byte(s), nil
+	case OrderRequestEventActorTypeCustomer:
+		return []byte(s), nil
+	case OrderRequestEventActorTypeSystem:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *OrderRequestEventActorType) UnmarshalText(data []byte) error {
+	switch OrderRequestEventActorType(data) {
+	case OrderRequestEventActorTypeStaff:
+		*s = OrderRequestEventActorTypeStaff
+		return nil
+	case OrderRequestEventActorTypeCustomer:
+		*s = OrderRequestEventActorTypeCustomer
+		return nil
+	case OrderRequestEventActorTypeSystem:
+		*s = OrderRequestEventActorTypeSystem
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 // Ref: #/components/schemas/OrderRequestFile
 type OrderRequestFile struct {
@@ -21988,7 +22291,8 @@ type OrderRequestLine struct {
 	// Mã biến thể chụp lúc đặt (chỉ ở màn nhân viên).
 	Sku OptString `json:"sku"`
 	// Tên chụp lúc đặt (chỉ ở màn nhân viên).
-	Name OptString `json:"name"`
+	Name OptString           `json:"name"`
+	Want OptOrderRequestWant `json:"want"`
 }
 
 // GetVariantId returns the value of VariantId.
@@ -22026,6 +22330,11 @@ func (s *OrderRequestLine) GetName() OptString {
 	return s.Name
 }
 
+// GetWant returns the value of Want.
+func (s *OrderRequestLine) GetWant() OptOrderRequestWant {
+	return s.Want
+}
+
 // SetVariantId sets the value of VariantId.
 func (s *OrderRequestLine) SetVariantId(val uuid.UUID) {
 	s.VariantId = val
@@ -22059,6 +22368,11 @@ func (s *OrderRequestLine) SetSku(val OptString) {
 // SetName sets the value of Name.
 func (s *OrderRequestLine) SetName(val OptString) {
 	s.Name = val
+}
+
+// SetWant sets the value of Want.
+func (s *OrderRequestLine) SetWant(val OptOrderRequestWant) {
+	s.Want = val
 }
 
 // Ref: #/components/schemas/OrderRequestLineReason
@@ -22492,9 +22806,15 @@ type OrderRequestSummary struct {
 	Kind       OrderRequestKind   `json:"kind"`
 	Status     OrderRequestStatus `json:"status"`
 	ReasonCode string             `json:"reasonCode"`
-	CreatedAt  time.Time          `json:"createdAt"`
-	UpdatedAt  time.Time          `json:"updatedAt"`
-	Version    int32              `json:"version"`
+	// Tên gốc hiện tại của khách của đơn (Task 486).
+	CustomerName OptString `json:"customerName"`
+	// Số ảnh khách gửi kèm (Task 486).
+	PhotoCount int32 `json:"photoCount"`
+	// Hạn khách gửi hàng về khi đã xác nhận đổi (Task 486).
+	ShipBackDeadline OptDateTime `json:"shipBackDeadline"`
+	CreatedAt        time.Time   `json:"createdAt"`
+	UpdatedAt        time.Time   `json:"updatedAt"`
+	Version          int32       `json:"version"`
 }
 
 // GetID returns the value of ID.
@@ -22530,6 +22850,21 @@ func (s *OrderRequestSummary) GetStatus() OrderRequestStatus {
 // GetReasonCode returns the value of ReasonCode.
 func (s *OrderRequestSummary) GetReasonCode() string {
 	return s.ReasonCode
+}
+
+// GetCustomerName returns the value of CustomerName.
+func (s *OrderRequestSummary) GetCustomerName() OptString {
+	return s.CustomerName
+}
+
+// GetPhotoCount returns the value of PhotoCount.
+func (s *OrderRequestSummary) GetPhotoCount() int32 {
+	return s.PhotoCount
+}
+
+// GetShipBackDeadline returns the value of ShipBackDeadline.
+func (s *OrderRequestSummary) GetShipBackDeadline() OptDateTime {
+	return s.ShipBackDeadline
 }
 
 // GetCreatedAt returns the value of CreatedAt.
@@ -22582,6 +22917,21 @@ func (s *OrderRequestSummary) SetReasonCode(val string) {
 	s.ReasonCode = val
 }
 
+// SetCustomerName sets the value of CustomerName.
+func (s *OrderRequestSummary) SetCustomerName(val OptString) {
+	s.CustomerName = val
+}
+
+// SetPhotoCount sets the value of PhotoCount.
+func (s *OrderRequestSummary) SetPhotoCount(val int32) {
+	s.PhotoCount = val
+}
+
+// SetShipBackDeadline sets the value of ShipBackDeadline.
+func (s *OrderRequestSummary) SetShipBackDeadline(val OptDateTime) {
+	s.ShipBackDeadline = val
+}
+
 // SetCreatedAt sets the value of CreatedAt.
 func (s *OrderRequestSummary) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
@@ -22595,6 +22945,79 @@ func (s *OrderRequestSummary) SetUpdatedAt(val time.Time) {
 // SetVersion sets the value of Version.
 func (s *OrderRequestSummary) SetVersion(val int32) {
 	s.Version = val
+}
+
+// Biến thể khách muốn đổi sang, theo danh mục hiện tại (chỉ ở màn nhân viên;
+// Task 486).
+// Ref: #/components/schemas/OrderRequestWant
+type OrderRequestWant struct {
+	Sku         string `json:"sku"`
+	ProductName string `json:"productName"`
+	Color       string `json:"color"`
+	Size        string `json:"size"`
+	// Số còn bán được ở kho của đơn (không có khi không đọc được kho).
+	Available     OptInt32  `json:"available"`
+	WarehouseName OptString `json:"warehouseName"`
+}
+
+// GetSku returns the value of Sku.
+func (s *OrderRequestWant) GetSku() string {
+	return s.Sku
+}
+
+// GetProductName returns the value of ProductName.
+func (s *OrderRequestWant) GetProductName() string {
+	return s.ProductName
+}
+
+// GetColor returns the value of Color.
+func (s *OrderRequestWant) GetColor() string {
+	return s.Color
+}
+
+// GetSize returns the value of Size.
+func (s *OrderRequestWant) GetSize() string {
+	return s.Size
+}
+
+// GetAvailable returns the value of Available.
+func (s *OrderRequestWant) GetAvailable() OptInt32 {
+	return s.Available
+}
+
+// GetWarehouseName returns the value of WarehouseName.
+func (s *OrderRequestWant) GetWarehouseName() OptString {
+	return s.WarehouseName
+}
+
+// SetSku sets the value of Sku.
+func (s *OrderRequestWant) SetSku(val string) {
+	s.Sku = val
+}
+
+// SetProductName sets the value of ProductName.
+func (s *OrderRequestWant) SetProductName(val string) {
+	s.ProductName = val
+}
+
+// SetColor sets the value of Color.
+func (s *OrderRequestWant) SetColor(val string) {
+	s.Color = val
+}
+
+// SetSize sets the value of Size.
+func (s *OrderRequestWant) SetSize(val string) {
+	s.Size = val
+}
+
+// SetAvailable sets the value of Available.
+func (s *OrderRequestWant) SetAvailable(val OptInt32) {
+	s.Available = val
+}
+
+// SetWarehouseName sets the value of WarehouseName.
+func (s *OrderRequestWant) SetWarehouseName(val OptString) {
+	s.WarehouseName = val
 }
 
 // Ref: #/components/schemas/OrderSettings

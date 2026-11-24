@@ -1,17 +1,25 @@
 // Màn Góp ý /khach/gop-y (kế hoạch M5 Task 461, M5-49; mockup docs/mockups/m5/feedback.html trạng thái A, C; HV22).
 // Máy chủ trả mới nhất trước, lọc một trạng thái, một chủ đề, một khách (?khach=<mã khách>, từ khối Góp ý của hồ sơ).
-// API không trả số đếm theo trạng thái, mã KH, lý do không gắn hồ sơ: màn không vẽ các số, chữ đó (tệp task, Quyết
-// định 2, 3). Nội dung khách gõ hiện bằng chữ thuần (React tự thoát), không ghi log trình duyệt.
-import { useInfiniteQuery } from "@tanstack/react-query";
+// Số trên nhãn đếm cả shop (countFeedback, Task 486); liên kết hồ sơ ghi mã KH. API không trả lý do không gắn hồ sơ:
+// màn không vẽ chữ đó (Task 461 Quyết định 3). Nội dung khách gõ hiện bằng chữ thuần (React tự thoát), không ghi log.
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Fragment, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { listFeedback, type Feedback, type FeedbackPage, type FeedbackState, type FeedbackTopic } from "../../api";
+import {
+  countFeedback,
+  listFeedback,
+  type Feedback,
+  type FeedbackPage,
+  type FeedbackState,
+  type FeedbackTopic,
+} from "../../api";
 import { ApiError, errorMessage, unwrap } from "../../app/errors";
 import { shortTime } from "../../app/time";
+import { CountLabel } from "../don/CountLabel";
 import { MoreBar } from "../ma-giam-gia/MoreBar";
 import { usePerms } from "../don/orderData";
 import { FeedbackPanel } from "./FeedbackPanel";
-import { PAGE, listKey } from "./feedbackData";
+import { PAGE, countsKey, listKey } from "./feedbackData";
 import { STATES, STATE_CHIP, STATE_TEXT, TOPICS, TOPIC_TEXT, asTopic, moodText } from "./feedbackRules";
 import "../don/don.css";
 import "./feedback.css";
@@ -23,7 +31,7 @@ const isForbidden = (e: unknown) => e instanceof ApiError && e.status === 403;
 function Sender({ f, canCustomer }: { f: Feedback; canCustomer: boolean }) {
   const who = [f.name, f.contact].filter((x) => x !== undefined && x !== "").join(" · ");
   if (who === "" && f.customerId === undefined) return <span className="muted">Không để lại</span>;
-  const profile = `Hồ sơ ${f.customerName ?? "khách"}`;
+  const profile = `Hồ sơ ${f.customerCode ?? f.customerName ?? "khách"}`;
   return (
     <div className="who">
       {who !== "" && <span className="clamp2 wrap-any">{who}</span>}
@@ -62,6 +70,7 @@ export function FeedbackList() {
       unwrap(listFeedback({ query: { ...query, ...(pageParam === "" ? {} : { cursor: pageParam }) } })),
   });
   const rows = list.data?.pages.flatMap((p) => p.items) ?? [];
+  const counts = useQuery({ queryKey: countsKey, queryFn: () => unwrap(countFeedback()) });
   const filtered = state !== "" || topic !== "" || customerId !== "";
   const canManage = perms.can("customer.feedback.manage");
   const canCustomer = perms.can("customer.read");
@@ -74,19 +83,22 @@ export function FeedbackList() {
     setTopic("");
     clearCustomer();
   };
-  const label = (value: FeedbackState | "", name: string) => (
-    <button
-      key={name}
-      type="button"
-      className={value === "new" ? "lbl is-attn" : "lbl"}
-      aria-pressed={state === value}
-      onClick={() => {
-        setState(value);
-      }}
-    >
-      {name}
-    </button>
-  );
+  const label = (value: FeedbackState | "", name: string) => {
+    const c = counts.data;
+    const n = c === undefined ? undefined : value === "" ? c.total : c.states.find((x) => x.state === value)?.count;
+    return (
+      <CountLabel
+        key={name}
+        text={name}
+        n={n}
+        pressed={state === value}
+        attention={value === "new"}
+        onSelect={() => {
+          setState(value);
+        }}
+      />
+    );
+  };
 
   return (
     <div>

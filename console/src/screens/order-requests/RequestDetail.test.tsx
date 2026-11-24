@@ -57,7 +57,11 @@ describe("Nội dung yêu cầu", () => {
     expect(screen.getByText("Chật, nhỏ")).toBeTruthy();
     expect(screen.getByText("Lỗi sản phẩm")).toBeTruthy();
     expect(screen.getByText("Bung đường may ở vai")).toBeTruthy();
-    expect(screen.getByText("Biến thể khác (xem ở trang đơn)")).toBeTruthy();
+    // Muốn đổi sang: màu / cỡ, mã, số còn ở kho của đơn; dòng thứ hai đổi cùng biến thể.
+    expect(screen.getByText("Đen / L")).toBeTruthy();
+    expect(screen.getByText("DS2201-DEN-L")).toBeTruthy();
+    expect(screen.getByText("còn 4 ở Kho chính")).toBeTruthy();
+    expect(screen.getByText("Cùng biến thể")).toBeTruthy();
     const staff = msgOf("Chào chị, ELIMAZ đã nhận yêu cầu.");
     expect(staff.className).toContain("is-staff");
     expect(within(staff).getByText("Khách thấy")).toBeTruthy();
@@ -348,6 +352,60 @@ describe("Đổi trạng thái", () => {
     fake.replies.push({ status: 422, body: { error: "invalid_transition", request_id: "t" } });
     save();
     expect(await screen.findByText(/Tải lại để xem trạng thái mới/)).toBeTruthy();
+  });
+});
+
+describe("Lịch sử và biến thể muốn đổi (Task 486)", () => {
+  it("Lịch sử mới nhất trước: đổi trạng thái (nhân viên, khách qua website), tin, lúc khách gửi kèm số ảnh", async () => {
+    fake.details.set(
+      RQ1,
+      request({
+        status: "in_review",
+        history: [
+          {
+            fromStatus: "received",
+            toStatus: "needs_info",
+            actorType: "staff",
+            actorName: "Lê Hồng Nhung",
+            at: "2026-11-21T03:55:00Z",
+          },
+          { fromStatus: "needs_info", toStatus: "in_review", actorType: "customer", at: "2026-11-21T04:10:00Z" },
+        ],
+      }),
+    );
+    await open();
+    const card = screen.getByRole("heading", { name: "Lịch sử" }).closest("section");
+    if (!(card instanceof HTMLElement)) throw new Error("không thấy thẻ Lịch sử");
+    const items = within(card)
+      .getAllByRole("listitem")
+      .map((li) => li.textContent);
+    expect(items).toEqual([
+      '11:10 21/11Chuyển sang "Đang kiểm tra"Khách · website',
+      '10:55 21/11Chuyển sang "Cần bổ sung"Lê Hồng Nhung',
+      "10:52 21/11Ghi chú nội bộTrần Minh Thư",
+      "10:50 21/11Trả lời kháchLê Hồng Nhung",
+      "10:42 21/11Khách gửi yêu cầuWebsite · 3 ảnh",
+    ]);
+    // Không chép nội dung tin vào lịch sử.
+    expect(within(card).queryByText(/ELIMAZ đã nhận/)).toBeNull();
+  });
+
+  it("biến thể muốn đổi đã hết ở kho: chữ đỏ; không còn trong danh mục: câu riêng", async () => {
+    const r = request();
+    const [l1, l2] = r.lines;
+    if (l1?.want === undefined || l2 === undefined) throw new Error("dữ liệu mẫu");
+    fake.details.set(
+      RQ1,
+      request({
+        lines: [
+          { ...l1, want: { ...l1.want, available: 0 } },
+          { ...l2, variantId: "v3", wantVariantId: "v4" },
+        ],
+      }),
+    );
+    await open();
+    expect(screen.getByText("hết ở Kho chính").className).toContain("err-text");
+    expect(screen.getByText("Biến thể khác (không còn trong danh mục)")).toBeTruthy();
   });
 });
 

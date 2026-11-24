@@ -34,6 +34,8 @@ const (
 	CompleteUploadOperation              OperationName = "CompleteUpload"
 	ConfirmCodStatementOperation         OperationName = "ConfirmCodStatement"
 	ConfirmOrderOperation                OperationName = "ConfirmOrder"
+	CountFeedbackOperation               OperationName = "CountFeedback"
+	CountOrderRequestsOperation          OperationName = "CountOrderRequests"
 	CreateAttributeOperation             OperationName = "CreateAttribute"
 	CreateCarrierAccountOperation        OperationName = "CreateCarrierAccount"
 	CreateCatalogImportOperation         OperationName = "CreateCatalogImport"

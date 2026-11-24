@@ -35,6 +35,19 @@
 .lbl.is-attn {
   border-color: var(--buy);
 }
+/* Số trên nhãn lọc (Task 486, màn Yêu cầu về đơn, Góp ý; chép .lbl .n của docs/mockups/m2/m2.css, m3.css) */
+.lbl .n {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.lbl.is-attn .n {
+  color: var(--buy);
+  font-weight: 700;
+}
+.lbl[aria-pressed="true"] .n {
+  color: var(--paper);
+}
 
 /* Dòng của danh sách */
 .o-code {

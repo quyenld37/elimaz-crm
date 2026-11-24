@@ -1409,6 +1409,17 @@ type OrdOrderRequest struct {
 	Version            int32
 }
 
+type OrdOrderRequestEvent struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	RequestID  uuid.UUID
+	FromStatus string
+	ToStatus   string
+	ActorType  string
+	ActorID    pgtype.Text
+	CreatedAt  time.Time
+}
+
 type OrdOrderRequestFile struct {
 	TenantID  uuid.UUID
 	RequestID uuid.UUID

@@ -14218,8 +14218,11 @@ func decodeListOrderPaymentsParams(args [1]string, argsEscaped bool, r *http.Req
 // ListOrderRequestsParams is parameters of listOrderRequests operation.
 type ListOrderRequestsParams struct {
 	Status OptOrderRequestStatus `json:",omitempty,omitzero"`
-	Kind   OptOrderRequestKind   `json:",omitempty,omitzero"`
-	Q      OptString             `json:",omitempty,omitzero"`
+	// Một trong các trạng thái (nhãn "Đang mở" của màn, Task 486); gửi cùng status → 400
+	// invalid_input.
+	Statuses []OrderRequestStatus `json:",omitempty"`
+	Kind     OptOrderRequestKind  `json:",omitempty,omitzero"`
+	Q        OptString            `json:",omitempty,omitzero"`
 	// Chuỗi mờ nextCursor của trang trước; gửi lại nguyên.
 	Cursor OptString `json:",omitempty,omitzero"`
 	Limit  OptInt32  `json:",omitempty,omitzero"`
@@ -14233,6 +14236,15 @@ func unpackListOrderRequestsParams(packed middleware.Parameters) (params ListOrd
 		}
 		if v, ok := packed[key]; ok {
 			params.Status = v.(OptOrderRequestStatus)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "statuses",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Statuses = v.([]OrderRequestStatus)
 		}
 	}
 	{
@@ -14328,6 +14340,83 @@ func decodeListOrderRequestsParams(args [0]string, argsEscaped bool, r *http.Req
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "status",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: statuses.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "statuses",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				params.Statuses = nil
+				return d.DecodeArray(func(d uri.Decoder) error {
+					var paramsDotStatusesVal OrderRequestStatus
+					if err := func() error {
+						val, err := d.DecodeValue()
+						if err != nil {
+							return err
+						}
+
+						c, err := conv.ToString(val)
+						if err != nil {
+							return err
+						}
+
+						paramsDotStatusesVal = OrderRequestStatus(c)
+						return nil
+					}(); err != nil {
+						return err
+					}
+					params.Statuses = append(params.Statuses, paramsDotStatusesVal)
+					return nil
+				})
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if params.Statuses == nil {
+					return nil // optional
+				}
+				if err := (validate.Array{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    8,
+					MaxLengthSet: true,
+				}).ValidateLength(len(params.Statuses)); err != nil {
+					return errors.Wrap(err, "array")
+				}
+				var failures []validate.FieldError
+				for i, elem := range params.Statuses {
+					if err := func() error {
+						if err := elem.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						failures = append(failures, validate.FieldError{
+							Name:  fmt.Sprintf("[%d]", i),
+							Error: err,
+						})
+					}
+				}
+				if len(failures) > 0 {
+					return &validate.Error{Fields: failures}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "statuses",
 			In:   "query",
 			Err:  err,
 		}

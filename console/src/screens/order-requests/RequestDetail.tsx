@@ -1,7 +1,6 @@
 // Chi tiết Yêu cầu về đơn hàng /don/yeu-cau/:id (kế hoạch M5 Task 207, M5-24; mockup docs/mockups/m5/order-requests.html
-// trạng thái B–F; HV04, HV05, HV07, HV08). Đơn và khách đọc thêm từ getOrder khi người xem có order.read. API chỉ trả
-// mã biến thể muốn đổi sang (không tên, không số còn), không có sự kiện lịch sử: màn không vẽ các phần đó (tệp task,
-// Quyết định 1). Ảnh mở bằng link ký có hạn 10 phút ở tab mới, không nhúng.
+// trạng thái B–F; HV04, HV05, HV07, HV08). Đơn và khách đọc thêm từ getOrder khi người xem có order.read. Biến thể muốn
+// đổi sang kèm số còn ở kho của đơn, thẻ Lịch sử (Task 486). Ảnh mở bằng link ký có hạn 10 phút ở tab mới, không nhúng.
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import type { Order, OrderRequest } from "../../api";
@@ -18,6 +17,7 @@ import {
   safeImageUrl,
   statusChip,
 } from "./requestRules";
+import { History } from "./History";
 import { StatusPanel } from "./StatusPanel";
 import { Thread } from "./Thread";
 import "../don/don.css";
@@ -97,8 +97,20 @@ function Lines({ r }: { r: OrderRequest }) {
                   <td data-label="Muốn đổi sang">
                     {l.wantVariantId === undefined || l.wantVariantId === l.variantId ? (
                       <span className="muted">Cùng biến thể</span>
+                    ) : l.want === undefined ? (
+                      <span>Biến thể khác (không còn trong danh mục)</span>
                     ) : (
-                      <span>Biến thể khác (xem ở trang đơn)</span>
+                      <div className="rq-sp">
+                        <span className="wrap-any">{`${l.want.color} / ${l.want.size}`}</span>
+                        <span className="small muted num">{l.want.sku}</span>
+                        {l.want.available !== undefined && l.want.warehouseName !== undefined && (
+                          <span className={l.want.available > 0 ? "small" : "small err-text"}>
+                            {l.want.available > 0
+                              ? `còn ${String(l.want.available)} ở ${l.want.warehouseName}`
+                              : `hết ở ${l.want.warehouseName}`}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </td>
                 )}
@@ -255,6 +267,7 @@ function Body({ r, perms }: { r: OrderRequest; perms: ReturnType<typeof usePerms
               </p>
             </section>
           )}
+          <History r={r} />
         </aside>
       </div>
     </div>

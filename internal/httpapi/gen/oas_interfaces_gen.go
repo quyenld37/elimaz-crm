@@ -113,6 +113,14 @@ type ConfirmOrderRes interface {
 	confirmOrderRes()
 }
 
+type CountFeedbackRes interface {
+	countFeedbackRes()
+}
+
+type CountOrderRequestsRes interface {
+	countOrderRequestsRes()
+}
+
 type CreateAttributeRes interface {
 	createAttributeRes()
 }

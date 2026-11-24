@@ -42,6 +42,15 @@ export const STATUSES: readonly OrderRequestStatus[] = [
   "cancelled",
 ];
 
+/** Trạng thái chưa đóng: nhãn "Đang mở" và số cạnh mục menu (order.OpenRequestStatuses). */
+export const OPEN_STATUSES: readonly OrderRequestStatus[] = [
+  "received",
+  "in_review",
+  "needs_info",
+  "confirmed",
+  "items_received",
+];
+
 /** Lớp chip theo trạng thái (mockup A): mới tiếp nhận đỏ, đang làm viền, hoàn tất xanh, còn lại xám. */
 export function statusChip(s: OrderRequestStatus): string {
   if (s === "received") return "chip chip-err";
