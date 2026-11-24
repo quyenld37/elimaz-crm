@@ -173,7 +173,7 @@ func isOrderRequestRefusal(err error) bool {
 		order.ErrInvalidInput, order.ErrInvalidTransition, order.ErrVersionConflict, order.ErrReasonRequired,
 		order.ErrNotFound, order.ErrRequestNotFound, order.ErrWindowClosed, order.ErrQtyExceeded,
 		order.ErrPhotoRequired, order.ErrTooManyFiles, order.ErrDuplicateOpen, order.ErrFileRejected,
-		order.ErrFileNotFound, order.ErrRequestNotAllowed, order.ErrRequestLimit,
+		order.ErrFileNotFound, order.ErrRequestNotAllowed, order.ErrRequestLimit, order.ErrCannotCancel,
 	} {
 		if errors.Is(err, e) {
 			return true

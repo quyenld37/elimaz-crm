@@ -813,6 +813,10 @@ type WebCampaignsRes interface {
 	webCampaignsRes()
 }
 
+type WebCancelOrderRes interface {
+	webCancelOrderRes()
+}
+
 type WebCancelRequestRes interface {
 	webCancelRequestRes()
 }
@@ -837,6 +841,10 @@ type WebCreateRequestRes interface {
 	webCreateRequestRes()
 }
 
+type WebGetOrderRes interface {
+	webGetOrderRes()
+}
+
 type WebIntakeStatusRes interface {
 	webIntakeStatusRes()
 }
@@ -847,6 +855,10 @@ type WebListRequestsRes interface {
 
 type WebLocationsRes interface {
 	webLocationsRes()
+}
+
+type WebOrderChangesRes interface {
+	webOrderChangesRes()
 }
 
 type WebQuoteRes interface {

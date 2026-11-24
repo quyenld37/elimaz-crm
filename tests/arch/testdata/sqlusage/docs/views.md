@@ -9,3 +9,4 @@
 | `platform.file_variants_v` | `file_id, key` | 44 | M5 |
 | `ord.orders_v` | `id, customer_id` | 30 | M2 |
 | `ord.traffic_sources_v` | `id, name` | 62 | M4 |
+| `fulfillment.shipments_v` | `id, order_id` | 31 | M5 |

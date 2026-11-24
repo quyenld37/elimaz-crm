@@ -19202,6 +19202,114 @@ func (s *Server) handleWebCampaignsRequest(args [0]string, argsEscaped bool, w h
 	}
 }
 
+// handleWebCancelOrderRequest handles webCancelOrder operation.
+//
+// Khóa dòng đơn trước (cùng khóa với Gửi hãng), nên tranh với Gửi hãng chỉ một
+// bên thắng. Đơn new, confirmed chưa có vận đơn hiện hành → hủy (nhả hàng, trả
+// lượt mã), 200 {cancelled: true}. Đã có vận đơn hay đang yêu cầu hãng hủy → yêu
+// cầu hủy (đã có yêu cầu hủy đang mở thì trả lại mã đó), 200 {cancelled: false,
+// requestRef}. Đơn đã giao, đã hoàn, đã hủy → 422 cannot_cancel. Lời nhắn tối đa
+// 500 ký tự. Kết quả 200 lưu theo khóa; từ chối không lưu.
+//
+// POST /api/v1/web/orders/{externalRef}/cancel
+func (s *Server) handleWebCancelOrderRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebCancelOrderOperation,
+			ID:   "webCancelOrder",
+		}
+	)
+	params, err := decodeWebCancelOrderParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeWebCancelOrderRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response WebCancelOrderRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebCancelOrderOperation,
+			OperationSummary: "Khách hủy đơn web — hủy ngay khi chưa gửi hãng, không thì tạo yêu cầu hủy cho nhân viên (Task 196, QĐ18)",
+			OperationID:      "webCancelOrder",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "externalRef",
+					In:   "path",
+				}: params.ExternalRef,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = OptWebCancelOrderBody
+			Params   = WebCancelOrderParams
+			Response = WebCancelOrderRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebCancelOrderParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebCancelOrder(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebCancelOrder(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebCancelOrderResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebCancelRequestRequest handles webCancelRequest operation.
 //
 // Yêu cầu nhân viên đã bắt đầu xử lý → 422 request_not_allowed.
@@ -19683,11 +19791,11 @@ func (s *Server) handleWebCreateOrderRequest(args [0]string, argsEscaped bool, w
 // Đổi, trả: đơn đã giao trong exchangeWindowDays ngày (mặc định 7; quá → 422
 // window_closed, chưa giao → 422 request_not_allowed), số ≤ số đã mua trừ số đang
 // trong yêu cầu đổi khác (→ 422 qty_exceeded), dòng DEFECT, WRONG_ITEM cần ít nhất
-// một ảnh (→ 422 photo_required). Hủy: đơn new, confirmed, mỗi đơn một yêu cầu
-// hủy đang mở (→ 422 duplicate_open). Ảnh: tối đa 5 (→ 422 too_many_files), mã từ
-// webUploadRequestFile chưa gắn yêu cầu khác (→ 422 file_not_found), imager từ chối (→
-// 422 file_rejected). Quá 5 yêu cầu một đơn trong 24 giờ → 429 too_fast. Từ chối
-// không lưu theo khóa.
+// một ảnh (→ 422 photo_required). Hủy: đơn new, confirmed, cancel_requested, mỗi đơn
+// một yêu cầu hủy đang mở (→ 422 duplicate_open). Ảnh: tối đa 5 (→ 422
+// too_many_files), mã từ webUploadRequestFile chưa gắn yêu cầu khác (→ 422
+// file_not_found), imager từ chối (→ 422 file_rejected). Quá 5 yêu cầu một đơn trong 24
+// giờ → 429 too_fast. Từ chối không lưu theo khóa.
 //
 // POST /api/v1/web/orders/{externalRef}/requests
 func (s *Server) handleWebCreateRequestRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19780,6 +19888,93 @@ func (s *Server) handleWebCreateRequestRequest(args [1]string, argsEscaped bool,
 	}
 
 	if err := encodeWebCreateRequestResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebGetOrderRequest handles webGetOrder operation.
+//
+// Chỉ đơn kênh web; đơn nhập tay, đơn của shop khác → 404 not_found. displayStatus là
+// nhãn gộp (OrderLabel) đã bỏ các nhãn chỉ nội bộ (nháp, chờ duyệt giảm, chờ
+// khách, hết hàng → new). deliveredAt, exchangeUntil, lines[].exchangeableQty cho nút "Yêu
+// cầu đổi hàng" (exchangeableQty = 0 khi đơn chưa giao hay đã quá hạn).
+//
+// GET /api/v1/web/orders/{externalRef}
+func (s *Server) handleWebGetOrderRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebGetOrderOperation,
+			ID:   "webGetOrder",
+		}
+	)
+	params, err := decodeWebGetOrderParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebGetOrderRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebGetOrderOperation,
+			OperationSummary: "Khách tra đơn web của mình theo externalRef (Task 196); không có địa chỉ, SĐT, tên, ghi chú nội bộ",
+			OperationID:      "webGetOrder",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "externalRef",
+					In:   "path",
+				}: params.ExternalRef,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebGetOrderParams
+			Response = WebGetOrderRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebGetOrderParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebGetOrder(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebGetOrder(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebGetOrderResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -20017,6 +20212,103 @@ func (s *Server) handleWebLocationsRequest(args [0]string, argsEscaped bool, w h
 	}
 
 	if err := encodeWebLocationsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebOrderChangesRequest handles webOrderChanges operation.
+//
+// ChangedAt là lúc muộn hơn của lần đổi đơn và lần đổi trạng thái vận đơn
+// hiện hành. Trả đơn có (changedAt, id) > (since, afterId) — afterId bỏ trống là lấy
+// cả đơn đúng mốc since. hasMore = true thì gọi tiếp ngay với nextSince, nextAfterId;
+// hết thì lần sau gọi với nextSince lùi 30 s (đơn ghi chậm) — đơn có thể lặp
+// lại, website ghi đè theo externalRef. since sai định dạng, limit ngoài 1–500 → 400
+// bad_request.
+//
+// GET /api/v1/web/orders/changes
+func (s *Server) handleWebOrderChangesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebOrderChangesOperation,
+			ID:   "webOrderChanges",
+		}
+	)
+	params, err := decodeWebOrderChangesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebOrderChangesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebOrderChangesOperation,
+			OperationSummary: "Đơn web đổi trạng thái (đơn hay vận đơn hiện hành) sau một mốc, keyset (changedAt, id) tăng dần (Task 196)",
+			OperationID:      "webOrderChanges",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "since",
+					In:   "query",
+				}: params.Since,
+				{
+					Name: "afterId",
+					In:   "query",
+				}: params.AfterId,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebOrderChangesParams
+			Response = WebOrderChangesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebOrderChangesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebOrderChanges(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebOrderChanges(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebOrderChangesResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

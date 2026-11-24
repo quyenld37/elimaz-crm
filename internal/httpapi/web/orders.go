@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
@@ -12,6 +14,8 @@ import (
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/logging"
+	"elimaz.com.vn/crm/internal/queries/orderview"
+	"elimaz.com.vn/crm/internal/queries/weborders"
 )
 
 // OrderInput dịch thân POST /api/v1/web/orders sang order.WebOrderInput; SĐT người đặt chuẩn hóa về +84… (sai →
@@ -73,4 +77,65 @@ func QuoteJSON(q order.WebQuote) (json.RawMessage, error) {
 		return nil, fmt.Errorf("mã hóa báo giá: %w", err)
 	}
 	return b, nil
+}
+
+// OrderViewOut ghép phần đơn (order.GetWebOrder) với vận đơn hiện hành sh (nil: chưa có; weborders.ShipmentOf) thành
+// WebOrderView của hợp đồng; displayStatus = orderview.CustomerLabel của ba trục cùng trạng thái vận đơn.
+func OrderViewOut(v order.WebOrderView, sh *weborders.Shipment) *gen.WebOrderView {
+	axes := orderview.Axes{Status: v.Status, PendingReason: v.PendingReason, PackingStatus: v.PackingStatus}
+	out := &gen.WebOrderView{
+		ExternalRef: v.ExternalRef, Code: v.Code, Status: gen.OrderStatus(v.Status),
+		Lines:       make([]gen.WebOrderLine, 0, len(v.Lines)),
+		Merchandise: gen.Money(v.Merchandise), Discount: gen.Money(v.Discount), ShippingFee: gen.Money(v.ShippingFee),
+		GrandTotal: gen.Money(v.GrandTotal), CreatedAt: v.CreatedAt, DeliveredAt: optTime(v.DeliveredAt),
+		ExchangeUntil: optTime(v.ExchangeUntil), Cancellable: v.Cancellable, PriceReview: v.PriceReview,
+	}
+	if sh != nil {
+		axes.ShipmentStatus = sh.Status
+		s := gen.WebOrderShipment{
+			Status: sh.Status, CarrierKey: sh.CarrierKey, CarrierName: sh.CarrierName,
+			PickedUpAt: optTime(sh.PickedUpAt), DeliveredAt: optTime(sh.DeliveredAt),
+		}
+		if sh.TrackingCode != "" {
+			s.TrackingCode = gen.NewOptString(sh.TrackingCode)
+		}
+		out.Shipment = gen.NewOptWebOrderShipment(s)
+	}
+	out.DisplayStatus = gen.OrderLabel(orderview.CustomerLabel(axes))
+	for _, l := range v.Lines {
+		out.Lines = append(out.Lines, gen.WebOrderLine{
+			VariantId: l.VariantID, Sku: l.SKU, Name: l.Name, Qty: int32(l.Qty), //nolint:gosec // số lượng dòng đơn nhỏ
+			UnitPrice: gen.Money(l.UnitPrice), Net: gen.Money(l.Net),
+			ExchangeableQty: int32(l.ExchangeableQty), //nolint:gosec // ≤ Qty
+		})
+	}
+	return out
+}
+
+// ChangesOut đổi một trang của weborders.Changes sang WebOrderChanges của hợp đồng.
+func ChangesOut(p weborders.Page) *gen.WebOrderChanges {
+	out := &gen.WebOrderChanges{
+		Items: make([]gen.WebOrderChange, 0, len(p.Items)), NextSince: p.Next.Since, HasMore: p.HasMore,
+	}
+	if p.Next.AfterID != uuid.Nil {
+		out.NextAfterId = gen.NewOptUUID(p.Next.AfterID)
+	}
+	for _, c := range p.Items {
+		it := gen.WebOrderChange{
+			ID: c.ID, ExternalRef: c.ExternalRef, Status: gen.OrderStatus(c.Status),
+			DisplayStatus: gen.OrderLabel(c.DisplayStatus), DeliveredAt: optTime(c.DeliveredAt), ChangedAt: c.ChangedAt,
+		}
+		if c.ShipmentStatus != "" {
+			it.ShipmentStatus = gen.NewOptString(c.ShipmentStatus)
+		}
+		out.Items = append(out.Items, it)
+	}
+	return out
+}
+
+func optTime(t *time.Time) gen.OptDateTime {
+	if t == nil {
+		return gen.OptDateTime{}
+	}
+	return gen.NewOptDateTime(*t)
 }

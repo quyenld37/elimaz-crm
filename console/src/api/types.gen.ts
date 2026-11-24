@@ -1200,6 +1200,90 @@ export type WebIntakeStatus = {
     paused: boolean;
 };
 
+/**
+ * Đơn web cho khách (Task 196, QĐ25) — không địa chỉ, SĐT, tên, ghi chú nội bộ, tên nhân viên
+ */
+export type WebOrderView = {
+    externalRef: string;
+    code: string;
+    status: OrderStatus;
+    displayStatus: OrderLabel;
+    shipment?: WebOrderShipment;
+    lines: Array<WebOrderLine>;
+    merchandise: Money;
+    discount: Money;
+    shippingFee: Money;
+    grandTotal: Money;
+    createdAt: string;
+    /**
+     * Lần cuối đơn chuyển sang delivered
+     */
+    deliveredAt?: string;
+    /**
+     * Hạn gửi yêu cầu đổi, trả (deliveredAt + exchangeWindowDays ngày)
+     */
+    exchangeUntil?: string;
+    /**
+     * Đơn new, confirmed — nút hủy của khách
+     */
+    cancellable: boolean;
+    priceReview: boolean;
+};
+
+export type WebOrderLine = {
+    variantId: string;
+    sku: string;
+    name: string;
+    qty: number;
+    unitPrice: Money;
+    net: Money;
+    exchangeableQty: number;
+};
+
+export type WebOrderShipment = {
+    /**
+     * Trạng thái vận đơn hiện hành (creating, awaiting_pickup, shipping, delivery_failed, delivered, returning, returned, cancel_requested, cancelled)
+     */
+    status: string;
+    carrierKey: string;
+    carrierName: string;
+    trackingCode?: string;
+    pickedUpAt?: string;
+    deliveredAt?: string;
+};
+
+export type WebOrderChanges = {
+    items: Array<WebOrderChange>;
+    nextSince: string;
+    nextAfterId?: string;
+    hasMore: boolean;
+};
+
+export type WebOrderChange = {
+    id: string;
+    externalRef: string;
+    status: OrderStatus;
+    displayStatus: OrderLabel;
+    shipmentStatus?: string;
+    deliveredAt?: string;
+    changedAt: string;
+};
+
+export type WebCancelOrderBody = {
+    /**
+     * Lời nhắn của khách (tùy chọn)
+     */
+    note?: string;
+};
+
+export type WebCancelOutcome = {
+    cancelled: boolean;
+    /**
+     * Mã yêu cầu hủy khi đơn đã gửi hãng (cancelled = false)
+     */
+    requestRef?: string;
+};
+
 export type WebOrderCreated = {
     orderId: string;
     code: string;
@@ -10354,6 +10438,105 @@ export type WebUploadRequestFileResponses = {
 };
 
 export type WebUploadRequestFileResponse = WebUploadRequestFileResponses[keyof WebUploadRequestFileResponses];
+
+export type WebOrderChangesData = {
+    body?: never;
+    path?: never;
+    query: {
+        since: string;
+        afterId?: string;
+        limit?: number;
+    };
+    url: '/api/v1/web/orders/changes';
+};
+
+export type WebOrderChangesErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebOrderChangesError = WebOrderChangesErrors[keyof WebOrderChangesErrors];
+
+export type WebOrderChangesResponses = {
+    /**
+     * webOrderChanges
+     */
+    200: WebOrderChanges;
+};
+
+export type WebOrderChangesResponse = WebOrderChangesResponses[keyof WebOrderChangesResponses];
+
+export type WebGetOrderData = {
+    body?: never;
+    path: {
+        /**
+         * Mã đơn của website (externalRef lúc tạo đơn web)
+         */
+        externalRef: string;
+    };
+    query?: never;
+    url: '/api/v1/web/orders/{externalRef}';
+};
+
+export type WebGetOrderErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebGetOrderError = WebGetOrderErrors[keyof WebGetOrderErrors];
+
+export type WebGetOrderResponses = {
+    /**
+     * webGetOrder
+     */
+    200: WebOrderView;
+};
+
+export type WebGetOrderResponse = WebGetOrderResponses[keyof WebGetOrderResponses];
+
+export type WebCancelOrderData = {
+    body?: WebCancelOrderBody;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Mã đơn của website (externalRef lúc tạo đơn web)
+         */
+        externalRef: string;
+    };
+    query?: never;
+    url: '/api/v1/web/orders/{externalRef}/cancel';
+};
+
+export type WebCancelOrderErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebCancelOrderError = WebCancelOrderErrors[keyof WebCancelOrderErrors];
+
+export type WebCancelOrderResponses = {
+    /**
+     * Kết quả hủy
+     */
+    200: WebCancelOutcome;
+};
+
+export type WebCancelOrderResponse = WebCancelOrderResponses[keyof WebCancelOrderResponses];
 
 export type WebListRequestsData = {
     body?: never;

@@ -216,12 +216,12 @@ func webRequestOut(d order.RequestDetail) gen.WebCustomerRequest {
 	return r
 }
 
-// webRequestWrite chạy fn (người bán mặc định của đơn web, order.Writer có báo hiệu) trong refusableWrite: từ chối của
-// yêu cầu về đơn trả lời, không lưu theo khóa.
+// webRequestWrite chạy fn (người bán mặc định của đơn web, order.Writer đủ sự kiện, hàng đợi, báo hiệu — khách hủy
+// đơn cần nhả hàng) trong refusableWrite: từ chối của yêu cầu về đơn, khách hủy đơn trả lời, không lưu theo khóa.
 func (h *handler) webRequestWrite(ctx context.Context, status int, what string,
 	fn func(tx pgx.Tx, u identity.AuthUser, seller uuid.UUID, w order.Writer) (any, error),
 ) (any, error) {
-	w := order.Writer{Realtime: h.d.Realtime}
+	w := h.orderWriter()
 	return h.refusableWrite(ctx, status, isOrderRequestRefusal, what, func(tx pgx.Tx, u identity.AuthUser) (any, error) {
 		seller, err := catalog.DefaultSeller(ctx, tx)
 		if err != nil {

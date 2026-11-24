@@ -10,6 +10,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/httpapi/web"
 	"elimaz.com.vn/crm/internal/modules/order"
+	"elimaz.com.vn/crm/internal/queries/weborders"
 )
 
 // Mã lỗi chỉ vùng đơn website trả.
@@ -28,12 +29,15 @@ const (
 	codeFileRejected      = "file_rejected"
 	codeFileNotFound      = "file_not_found"
 	codeRequestNotAllowed = "request_not_allowed"
+	// Khách hủy đơn web (Task 196).
+	codeCannotCancel = "cannot_cancel"
 )
 
 // webError đổi lỗi nghiệp vụ của vùng đơn website (không có thân chi tiết) sang mã HTTP (Task 456): shop đang tạm dừng
 // nhận đơn web → 503 web_orders_paused (không Retry-After: thời gian mở lại không biết trước); tạm dừng không lý do →
 // 422 invalid_input. Yêu cầu về đơn hàng (Task 195): luật của yêu cầu → 422 với mã riêng; quá 5 yêu cầu một đơn trong
-// 24 giờ → 429 too_fast (không Retry-After); yêu cầu không có → 404.
+// 24 giờ → 429 too_fast (không Retry-After); yêu cầu không có → 404. Khách hủy đơn đã giao, đã hoàn, đã hủy (Task 196)
+// → 422 cannot_cancel; limit của luồng thay đổi sai → 400 bad_request (ogen đã chặn theo hợp đồng).
 func webError(err error) (status int, code string, ok bool) {
 	return matchError(err, []errorMapping{
 		{order.ErrWebIntakePaused, http.StatusServiceUnavailable, codeWebOrdersPaused},
@@ -48,6 +52,9 @@ func webError(err error) (status int, code string, ok bool) {
 		{order.ErrRequestNotAllowed, http.StatusUnprocessableEntity, codeRequestNotAllowed},
 		{order.ErrRequestNotFound, http.StatusNotFound, codeNotFound},
 		{order.ErrRequestLimit, http.StatusTooManyRequests, codeTooFast},
+		{order.ErrCannotCancel, http.StatusUnprocessableEntity, codeCannotCancel},
+		{weborders.ErrBadLimit, http.StatusBadRequest, codeBadRequest},
+		{weborders.ErrNotFound, http.StatusNotFound, codeNotFound},
 	})
 }
 

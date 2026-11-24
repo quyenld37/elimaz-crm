@@ -263,12 +263,13 @@ func checkPositionsAndTotals(t *testing.T, owner *db.DB, tenant uuid.UUID, s m1S
 	}
 }
 
-// checkOrdersViewAndSeq: orders_v giữ 11 cột của M1 ở vị trí 1–11 cùng tên, kiểu, tổng 38 cột (M3 Task 119 nối
-// ship_phone_reversed); order_code_seq không bị đặt lại; dòng tạo đơn M1 (from_status NULL) đọc qua view là ”.
+// checkOrdersViewAndSeq: orders_v giữ 11 cột của M1 ở vị trí 1–11 cùng tên, kiểu, tổng 39 cột (M3 Task 119 nối
+// ship_phone_reversed, M5 Task 196 nối updated_at); order_code_seq không bị đặt lại; dòng tạo đơn M1 (from_status NULL)
+// đọc qua view là ”.
 func checkOrdersViewAndSeq(t *testing.T, owner *db.DB, tenant uuid.UUID, s m1Seeded, before []testkit.Column) {
 	t.Helper()
 	after := testkit.Columns(t, owner, "ord", "orders_v")
-	if len(before) != 11 || len(after) != 38 {
+	if len(before) != 11 || len(after) != 39 {
 		t.Fatalf("orders_v trước %d cột, sau %d cột", len(before), len(after))
 	}
 	for i := range before {
@@ -718,7 +719,7 @@ func TestSchemaViewsAndRules(t *testing.T) {
 			"traffic_source_id, conversation_id, external_ref, order_type, warehouse_id, ship_phone, address_complete, " +
 			"subtotal, line_discount_total, order_discount, coupon_discount, discount_total, shipping_fee_charged, " +
 			"prepaid_total, created_by, care_by, confirmed_at, cancelled_at, cancel_reason, draft_expires_at, " +
-			"duplicate_suspect, version, ship_phone_reversed",
+			"duplicate_suspect, version, ship_phone_reversed, updated_at",
 		"order_items_v": "id, tenant_id, seller_id, order_id, variant_id, position, sku_snapshot, name_snapshot, " +
 			"quantity, unit_price, line_discount, allocated_order_discount, net_amount",
 		"order_status_history_v": "id, tenant_id, order_id, from_status, to_status, from_pending, to_pending, " +

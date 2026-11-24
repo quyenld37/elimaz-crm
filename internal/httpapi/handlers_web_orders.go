@@ -14,6 +14,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/order"
+	"elimaz.com.vn/crm/internal/queries/weborders"
 )
 
 // Đơn hàng của website (kế hoạch M5; x-auth: service_key): handler mỏng, mọi việc ở web.Orders.
@@ -106,4 +107,104 @@ func auditWebOrder(ctx context.Context, tx pgx.Tx, u identity.AuthUser, id uuid.
 		return fmt.Errorf("ghi audit order.create: %w", err)
 	}
 	return nil
+}
+
+// WebGetOrder (GET /api/v1/web/orders/{externalRef}, web.orders.read; Task 196): khách tra đơn web của mình; đơn tay,
+// đơn của shop khác → 404. Không có địa chỉ, SĐT, tên, ghi chú nội bộ (QĐ25).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) WebGetOrder(ctx context.Context, params gen.WebGetOrderParams) (gen.WebGetOrderRes, error) {
+	var out *gen.WebOrderView
+	if err := h.catalogRead(ctx, func(tx pgx.Tx) error {
+		seller, err := catalog.DefaultSeller(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("người bán của đơn web: %w", err)
+		}
+		v, err := order.GetWebOrder(ctx, tx, seller, params.ExternalRef, h.now().UTC())
+		if err != nil {
+			return err //nolint:wrapcheck // sentinel của order
+		}
+		var sh *weborders.Shipment
+		if v.CurrentShipmentID != nil {
+			s, err := weborders.ShipmentOf(ctx, tx, seller, *v.CurrentShipmentID)
+			if err != nil {
+				return err //nolint:wrapcheck // weborders đã bọc
+			}
+			sh = &s
+		}
+		out = web.OrderViewOut(v, sh)
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("tra đơn web: %w", err)
+	}
+	return out, nil
+}
+
+// WebOrderChanges (GET /api/v1/web/orders/changes, web.orders.read; Task 196): đơn web đổi sau con trỏ (since,
+// afterId), mặc định 100 dòng.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) WebOrderChanges(ctx context.Context, params gen.WebOrderChangesParams) (gen.WebOrderChangesRes, error) {
+	var out *gen.WebOrderChanges
+	if err := h.catalogRead(ctx, func(tx pgx.Tx) error {
+		seller, err := catalog.DefaultSeller(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("người bán của đơn web: %w", err)
+		}
+		p, err := weborders.Changes(ctx, tx, seller, weborders.Cursor{
+			Since: params.Since, AfterID: params.AfterId.Or(uuid.Nil),
+		}, int(params.Limit.Or(webChangesDefaultLimit)))
+		if err != nil {
+			return err //nolint:wrapcheck // sentinel của weborders
+		}
+		out = web.ChangesOut(p)
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("đọc đơn web đã đổi: %w", err)
+	}
+	return out, nil
+}
+
+// webChangesDefaultLimit là số dòng mặc định của webOrderChanges (hợp đồng: default 100).
+const webChangesDefaultLimit = 100
+
+// WebCancelOrder (POST /api/v1/web/orders/{externalRef}/cancel, web.orders.cancel, Idempotency-Key; Task 196, QĐ18):
+// order.Writer.CancelFromWeb trong webRequestWrite. Hủy ngay → audit order.cancel (trước, sau; lý do, có lời nhắn hay
+// không — không nội dung); vừa tạo yêu cầu hủy → audit order.request.create. 200 lưu theo khóa; từ chối (422
+// cannot_cancel, 404, 429 too_fast…) trả lời, không lưu.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) WebCancelOrder(ctx context.Context, req gen.OptWebCancelOrderBody, params gen.WebCancelOrderParams,
+) (gen.WebCancelOrderRes, error) {
+	note := ""
+	if b, ok := req.Get(); ok {
+		note = b.Note.Or("")
+	}
+	out, err := h.webRequestWrite(ctx, http.StatusOK, "khách hủy đơn web",
+		func(tx pgx.Tx, u identity.AuthUser, seller uuid.UUID, w order.Writer) (any, error) {
+			res, err := w.CancelFromWeb(ctx, tx, seller, params.ExternalRef, note, webActor(u), h.now().UTC())
+			if err != nil {
+				return nil, err //nolint:wrapcheck // sentinel của order
+			}
+			body := &gen.WebCancelOutcome{Cancelled: res.Cancelled}
+			switch {
+			case res.Cancelled:
+				after := res.After.AuditFields()
+				after["cancelReason"], after["hasNote"] = order.CancelCustomerChangedMind, note != ""
+				return body, auditService(ctx, tx, u, "order.cancel", "order", res.After.ID, res.Before.AuditFields(), after)
+			case res.Request != nil:
+				body.RequestRef = gen.NewOptString(res.RequestRef)
+				after := res.Request.AuditFields()
+				if note != "" {
+					after["changed_fields"] = []string{"customer_note"}
+				}
+				return body, auditService(ctx, tx, u, "order.request.create", "order_request", res.Request.ID, nil, after)
+			}
+			body.RequestRef = gen.NewOptString(res.RequestRef)
+			return body, nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	return out.(*gen.WebCancelOutcome), nil //nolint:forcetypeassert // fn trên trả *gen.WebCancelOutcome
 }

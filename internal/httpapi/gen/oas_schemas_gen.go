@@ -9573,15 +9573,18 @@ func (*ErrorStatusCode) waiveRefundObligationRes()       {}
 func (*ErrorStatusCode) webAvailabilityRes()             {}
 func (*ErrorStatusCode) webCampaignRes()                 {}
 func (*ErrorStatusCode) webCampaignsRes()                {}
+func (*ErrorStatusCode) webCancelOrderRes()              {}
 func (*ErrorStatusCode) webCancelRequestRes()            {}
 func (*ErrorStatusCode) webCatalogChangesRes()           {}
 func (*ErrorStatusCode) webCatalogProductsRes()          {}
 func (*ErrorStatusCode) webCatalogTaxonomyRes()          {}
 func (*ErrorStatusCode) webCreateOrderRes()              {}
 func (*ErrorStatusCode) webCreateRequestRes()            {}
+func (*ErrorStatusCode) webGetOrderRes()                 {}
 func (*ErrorStatusCode) webIntakeStatusRes()             {}
 func (*ErrorStatusCode) webListRequestsRes()             {}
 func (*ErrorStatusCode) webLocationsRes()                {}
+func (*ErrorStatusCode) webOrderChangesRes()             {}
 func (*ErrorStatusCode) webQuoteRes()                    {}
 func (*ErrorStatusCode) webReplyRequestRes()             {}
 func (*ErrorStatusCode) webSold30dRes()                  {}
@@ -15800,6 +15803,52 @@ func (o OptWebCampaignStatus) Or(d WebCampaignStatus) WebCampaignStatus {
 	return d
 }
 
+// NewOptWebCancelOrderBody returns new OptWebCancelOrderBody with value set to v.
+func NewOptWebCancelOrderBody(v WebCancelOrderBody) OptWebCancelOrderBody {
+	return OptWebCancelOrderBody{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWebCancelOrderBody is optional WebCancelOrderBody.
+type OptWebCancelOrderBody struct {
+	Value WebCancelOrderBody
+	Set   bool
+}
+
+// IsSet returns true if OptWebCancelOrderBody was set.
+func (o OptWebCancelOrderBody) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWebCancelOrderBody) Reset() {
+	var v WebCancelOrderBody
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWebCancelOrderBody) SetTo(v WebCancelOrderBody) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWebCancelOrderBody) Get() (v WebCancelOrderBody, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWebCancelOrderBody) Or(d WebCancelOrderBody) WebCancelOrderBody {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptWebOrderRequestReferralRef returns new OptWebOrderRequestReferralRef with value set to v.
 func NewOptWebOrderRequestReferralRef(v WebOrderRequestReferralRef) OptWebOrderRequestReferralRef {
 	return OptWebOrderRequestReferralRef{
@@ -15840,6 +15889,52 @@ func (o OptWebOrderRequestReferralRef) Get() (v WebOrderRequestReferralRef, ok b
 
 // Or returns value if set, or given parameter if does not.
 func (o OptWebOrderRequestReferralRef) Or(d WebOrderRequestReferralRef) WebOrderRequestReferralRef {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptWebOrderShipment returns new OptWebOrderShipment with value set to v.
+func NewOptWebOrderShipment(v WebOrderShipment) OptWebOrderShipment {
+	return OptWebOrderShipment{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWebOrderShipment is optional WebOrderShipment.
+type OptWebOrderShipment struct {
+	Value WebOrderShipment
+	Set   bool
+}
+
+// IsSet returns true if OptWebOrderShipment was set.
+func (o OptWebOrderShipment) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWebOrderShipment) Reset() {
+	var v WebOrderShipment
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWebOrderShipment) SetTo(v WebOrderShipment) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWebOrderShipment) Get() (v WebOrderShipment, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWebOrderShipment) Or(d WebOrderShipment) WebOrderShipment {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -21652,6 +21747,7 @@ func (s *RetryLaterHeaders) SetResponse(val Error) {
 	s.Response = val
 }
 
+func (*RetryLaterHeaders) webCancelOrderRes()       {}
 func (*RetryLaterHeaders) webCancelRequestRes()     {}
 func (*RetryLaterHeaders) webCreateOrderRes()       {}
 func (*RetryLaterHeaders) webCreateRequestRes()     {}
@@ -29833,6 +29929,51 @@ type WebCampaignsNotModified struct{}
 
 func (*WebCampaignsNotModified) webCampaignsRes() {}
 
+// Ref: #/components/schemas/WebCancelOrderBody
+type WebCancelOrderBody struct {
+	// Lời nhắn của khách (tùy chọn).
+	Note OptString `json:"note"`
+}
+
+// GetNote returns the value of Note.
+func (s *WebCancelOrderBody) GetNote() OptString {
+	return s.Note
+}
+
+// SetNote sets the value of Note.
+func (s *WebCancelOrderBody) SetNote(val OptString) {
+	s.Note = val
+}
+
+// Ref: #/components/schemas/WebCancelOutcome
+type WebCancelOutcome struct {
+	Cancelled bool `json:"cancelled"`
+	// Mã yêu cầu hủy khi đơn đã gửi hãng (cancelled = false).
+	RequestRef OptString `json:"requestRef"`
+}
+
+// GetCancelled returns the value of Cancelled.
+func (s *WebCancelOutcome) GetCancelled() bool {
+	return s.Cancelled
+}
+
+// GetRequestRef returns the value of RequestRef.
+func (s *WebCancelOutcome) GetRequestRef() OptString {
+	return s.RequestRef
+}
+
+// SetCancelled sets the value of Cancelled.
+func (s *WebCancelOutcome) SetCancelled(val bool) {
+	s.Cancelled = val
+}
+
+// SetRequestRef sets the value of RequestRef.
+func (s *WebCancelOutcome) SetRequestRef(val OptString) {
+	s.RequestRef = val
+}
+
+func (*WebCancelOutcome) webCancelOrderRes() {}
+
 // Ref: #/components/schemas/WebCatalogChanges
 type WebCatalogChanges struct {
 	ProductIds []uuid.UUID `json:"productIds"`
@@ -30493,6 +30634,137 @@ type WebLocationsNotModified struct{}
 
 func (*WebLocationsNotModified) webLocationsRes() {}
 
+// Ref: #/components/schemas/WebOrderChange
+type WebOrderChange struct {
+	ID             uuid.UUID   `json:"id"`
+	ExternalRef    string      `json:"externalRef"`
+	Status         OrderStatus `json:"status"`
+	DisplayStatus  OrderLabel  `json:"displayStatus"`
+	ShipmentStatus OptString   `json:"shipmentStatus"`
+	DeliveredAt    OptDateTime `json:"deliveredAt"`
+	ChangedAt      time.Time   `json:"changedAt"`
+}
+
+// GetID returns the value of ID.
+func (s *WebOrderChange) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetExternalRef returns the value of ExternalRef.
+func (s *WebOrderChange) GetExternalRef() string {
+	return s.ExternalRef
+}
+
+// GetStatus returns the value of Status.
+func (s *WebOrderChange) GetStatus() OrderStatus {
+	return s.Status
+}
+
+// GetDisplayStatus returns the value of DisplayStatus.
+func (s *WebOrderChange) GetDisplayStatus() OrderLabel {
+	return s.DisplayStatus
+}
+
+// GetShipmentStatus returns the value of ShipmentStatus.
+func (s *WebOrderChange) GetShipmentStatus() OptString {
+	return s.ShipmentStatus
+}
+
+// GetDeliveredAt returns the value of DeliveredAt.
+func (s *WebOrderChange) GetDeliveredAt() OptDateTime {
+	return s.DeliveredAt
+}
+
+// GetChangedAt returns the value of ChangedAt.
+func (s *WebOrderChange) GetChangedAt() time.Time {
+	return s.ChangedAt
+}
+
+// SetID sets the value of ID.
+func (s *WebOrderChange) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetExternalRef sets the value of ExternalRef.
+func (s *WebOrderChange) SetExternalRef(val string) {
+	s.ExternalRef = val
+}
+
+// SetStatus sets the value of Status.
+func (s *WebOrderChange) SetStatus(val OrderStatus) {
+	s.Status = val
+}
+
+// SetDisplayStatus sets the value of DisplayStatus.
+func (s *WebOrderChange) SetDisplayStatus(val OrderLabel) {
+	s.DisplayStatus = val
+}
+
+// SetShipmentStatus sets the value of ShipmentStatus.
+func (s *WebOrderChange) SetShipmentStatus(val OptString) {
+	s.ShipmentStatus = val
+}
+
+// SetDeliveredAt sets the value of DeliveredAt.
+func (s *WebOrderChange) SetDeliveredAt(val OptDateTime) {
+	s.DeliveredAt = val
+}
+
+// SetChangedAt sets the value of ChangedAt.
+func (s *WebOrderChange) SetChangedAt(val time.Time) {
+	s.ChangedAt = val
+}
+
+// Ref: #/components/schemas/WebOrderChanges
+type WebOrderChanges struct {
+	Items       []WebOrderChange `json:"items"`
+	NextSince   time.Time        `json:"nextSince"`
+	NextAfterId OptUUID          `json:"nextAfterId"`
+	HasMore     bool             `json:"hasMore"`
+}
+
+// GetItems returns the value of Items.
+func (s *WebOrderChanges) GetItems() []WebOrderChange {
+	return s.Items
+}
+
+// GetNextSince returns the value of NextSince.
+func (s *WebOrderChanges) GetNextSince() time.Time {
+	return s.NextSince
+}
+
+// GetNextAfterId returns the value of NextAfterId.
+func (s *WebOrderChanges) GetNextAfterId() OptUUID {
+	return s.NextAfterId
+}
+
+// GetHasMore returns the value of HasMore.
+func (s *WebOrderChanges) GetHasMore() bool {
+	return s.HasMore
+}
+
+// SetItems sets the value of Items.
+func (s *WebOrderChanges) SetItems(val []WebOrderChange) {
+	s.Items = val
+}
+
+// SetNextSince sets the value of NextSince.
+func (s *WebOrderChanges) SetNextSince(val time.Time) {
+	s.NextSince = val
+}
+
+// SetNextAfterId sets the value of NextAfterId.
+func (s *WebOrderChanges) SetNextAfterId(val OptUUID) {
+	s.NextAfterId = val
+}
+
+// SetHasMore sets the value of HasMore.
+func (s *WebOrderChanges) SetHasMore(val bool) {
+	s.HasMore = val
+}
+
+func (*WebOrderChanges) webOrderChangesRes() {}
+
 // Ref: #/components/schemas/WebOrderCreated
 type WebOrderCreated struct {
 	OrderId    uuid.UUID   `json:"orderId"`
@@ -30554,6 +30826,87 @@ func (s *WebOrderCreated) SetPriceReview(val bool) {
 }
 
 func (*WebOrderCreated) webCreateOrderRes() {}
+
+// Ref: #/components/schemas/WebOrderLine
+type WebOrderLine struct {
+	VariantId       uuid.UUID `json:"variantId"`
+	Sku             string    `json:"sku"`
+	Name            string    `json:"name"`
+	Qty             int32     `json:"qty"`
+	UnitPrice       Money     `json:"unitPrice"`
+	Net             Money     `json:"net"`
+	ExchangeableQty int32     `json:"exchangeableQty"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *WebOrderLine) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetSku returns the value of Sku.
+func (s *WebOrderLine) GetSku() string {
+	return s.Sku
+}
+
+// GetName returns the value of Name.
+func (s *WebOrderLine) GetName() string {
+	return s.Name
+}
+
+// GetQty returns the value of Qty.
+func (s *WebOrderLine) GetQty() int32 {
+	return s.Qty
+}
+
+// GetUnitPrice returns the value of UnitPrice.
+func (s *WebOrderLine) GetUnitPrice() Money {
+	return s.UnitPrice
+}
+
+// GetNet returns the value of Net.
+func (s *WebOrderLine) GetNet() Money {
+	return s.Net
+}
+
+// GetExchangeableQty returns the value of ExchangeableQty.
+func (s *WebOrderLine) GetExchangeableQty() int32 {
+	return s.ExchangeableQty
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *WebOrderLine) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetSku sets the value of Sku.
+func (s *WebOrderLine) SetSku(val string) {
+	s.Sku = val
+}
+
+// SetName sets the value of Name.
+func (s *WebOrderLine) SetName(val string) {
+	s.Name = val
+}
+
+// SetQty sets the value of Qty.
+func (s *WebOrderLine) SetQty(val int32) {
+	s.Qty = val
+}
+
+// SetUnitPrice sets the value of UnitPrice.
+func (s *WebOrderLine) SetUnitPrice(val Money) {
+	s.UnitPrice = val
+}
+
+// SetNet sets the value of Net.
+func (s *WebOrderLine) SetNet(val Money) {
+	s.Net = val
+}
+
+// SetExchangeableQty sets the value of ExchangeableQty.
+func (s *WebOrderLine) SetExchangeableQty(val int32) {
+	s.ExchangeableQty = val
+}
 
 // Ref: #/components/schemas/WebOrderRequest
 type WebOrderRequest struct {
@@ -30794,6 +31147,254 @@ func (s *WebOrderRequestSubmittedVia) UnmarshalText(data []byte) error {
 		return errors.Errorf("invalid value: %q", data)
 	}
 }
+
+// Ref: #/components/schemas/WebOrderShipment
+type WebOrderShipment struct {
+	// Trạng thái vận đơn hiện hành (creating, awaiting_pickup, shipping, delivery_failed,
+	// delivered, returning, returned, cancel_requested, cancelled).
+	Status       string      `json:"status"`
+	CarrierKey   string      `json:"carrierKey"`
+	CarrierName  string      `json:"carrierName"`
+	TrackingCode OptString   `json:"trackingCode"`
+	PickedUpAt   OptDateTime `json:"pickedUpAt"`
+	DeliveredAt  OptDateTime `json:"deliveredAt"`
+}
+
+// GetStatus returns the value of Status.
+func (s *WebOrderShipment) GetStatus() string {
+	return s.Status
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *WebOrderShipment) GetCarrierKey() string {
+	return s.CarrierKey
+}
+
+// GetCarrierName returns the value of CarrierName.
+func (s *WebOrderShipment) GetCarrierName() string {
+	return s.CarrierName
+}
+
+// GetTrackingCode returns the value of TrackingCode.
+func (s *WebOrderShipment) GetTrackingCode() OptString {
+	return s.TrackingCode
+}
+
+// GetPickedUpAt returns the value of PickedUpAt.
+func (s *WebOrderShipment) GetPickedUpAt() OptDateTime {
+	return s.PickedUpAt
+}
+
+// GetDeliveredAt returns the value of DeliveredAt.
+func (s *WebOrderShipment) GetDeliveredAt() OptDateTime {
+	return s.DeliveredAt
+}
+
+// SetStatus sets the value of Status.
+func (s *WebOrderShipment) SetStatus(val string) {
+	s.Status = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *WebOrderShipment) SetCarrierKey(val string) {
+	s.CarrierKey = val
+}
+
+// SetCarrierName sets the value of CarrierName.
+func (s *WebOrderShipment) SetCarrierName(val string) {
+	s.CarrierName = val
+}
+
+// SetTrackingCode sets the value of TrackingCode.
+func (s *WebOrderShipment) SetTrackingCode(val OptString) {
+	s.TrackingCode = val
+}
+
+// SetPickedUpAt sets the value of PickedUpAt.
+func (s *WebOrderShipment) SetPickedUpAt(val OptDateTime) {
+	s.PickedUpAt = val
+}
+
+// SetDeliveredAt sets the value of DeliveredAt.
+func (s *WebOrderShipment) SetDeliveredAt(val OptDateTime) {
+	s.DeliveredAt = val
+}
+
+// Đơn web cho khách (Task 196, QĐ25) — không địa chỉ, SĐT, tên, ghi chú nội bộ,
+// tên nhân viên.
+// Ref: #/components/schemas/WebOrderView
+type WebOrderView struct {
+	ExternalRef   string              `json:"externalRef"`
+	Code          string              `json:"code"`
+	Status        OrderStatus         `json:"status"`
+	DisplayStatus OrderLabel          `json:"displayStatus"`
+	Shipment      OptWebOrderShipment `json:"shipment"`
+	Lines         []WebOrderLine      `json:"lines"`
+	Merchandise   Money               `json:"merchandise"`
+	Discount      Money               `json:"discount"`
+	ShippingFee   Money               `json:"shippingFee"`
+	GrandTotal    Money               `json:"grandTotal"`
+	CreatedAt     time.Time           `json:"createdAt"`
+	// Lần cuối đơn chuyển sang delivered.
+	DeliveredAt OptDateTime `json:"deliveredAt"`
+	// Hạn gửi yêu cầu đổi, trả (deliveredAt + exchangeWindowDays ngày).
+	ExchangeUntil OptDateTime `json:"exchangeUntil"`
+	// Đơn new, confirmed — nút hủy của khách.
+	Cancellable bool `json:"cancellable"`
+	PriceReview bool `json:"priceReview"`
+}
+
+// GetExternalRef returns the value of ExternalRef.
+func (s *WebOrderView) GetExternalRef() string {
+	return s.ExternalRef
+}
+
+// GetCode returns the value of Code.
+func (s *WebOrderView) GetCode() string {
+	return s.Code
+}
+
+// GetStatus returns the value of Status.
+func (s *WebOrderView) GetStatus() OrderStatus {
+	return s.Status
+}
+
+// GetDisplayStatus returns the value of DisplayStatus.
+func (s *WebOrderView) GetDisplayStatus() OrderLabel {
+	return s.DisplayStatus
+}
+
+// GetShipment returns the value of Shipment.
+func (s *WebOrderView) GetShipment() OptWebOrderShipment {
+	return s.Shipment
+}
+
+// GetLines returns the value of Lines.
+func (s *WebOrderView) GetLines() []WebOrderLine {
+	return s.Lines
+}
+
+// GetMerchandise returns the value of Merchandise.
+func (s *WebOrderView) GetMerchandise() Money {
+	return s.Merchandise
+}
+
+// GetDiscount returns the value of Discount.
+func (s *WebOrderView) GetDiscount() Money {
+	return s.Discount
+}
+
+// GetShippingFee returns the value of ShippingFee.
+func (s *WebOrderView) GetShippingFee() Money {
+	return s.ShippingFee
+}
+
+// GetGrandTotal returns the value of GrandTotal.
+func (s *WebOrderView) GetGrandTotal() Money {
+	return s.GrandTotal
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *WebOrderView) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetDeliveredAt returns the value of DeliveredAt.
+func (s *WebOrderView) GetDeliveredAt() OptDateTime {
+	return s.DeliveredAt
+}
+
+// GetExchangeUntil returns the value of ExchangeUntil.
+func (s *WebOrderView) GetExchangeUntil() OptDateTime {
+	return s.ExchangeUntil
+}
+
+// GetCancellable returns the value of Cancellable.
+func (s *WebOrderView) GetCancellable() bool {
+	return s.Cancellable
+}
+
+// GetPriceReview returns the value of PriceReview.
+func (s *WebOrderView) GetPriceReview() bool {
+	return s.PriceReview
+}
+
+// SetExternalRef sets the value of ExternalRef.
+func (s *WebOrderView) SetExternalRef(val string) {
+	s.ExternalRef = val
+}
+
+// SetCode sets the value of Code.
+func (s *WebOrderView) SetCode(val string) {
+	s.Code = val
+}
+
+// SetStatus sets the value of Status.
+func (s *WebOrderView) SetStatus(val OrderStatus) {
+	s.Status = val
+}
+
+// SetDisplayStatus sets the value of DisplayStatus.
+func (s *WebOrderView) SetDisplayStatus(val OrderLabel) {
+	s.DisplayStatus = val
+}
+
+// SetShipment sets the value of Shipment.
+func (s *WebOrderView) SetShipment(val OptWebOrderShipment) {
+	s.Shipment = val
+}
+
+// SetLines sets the value of Lines.
+func (s *WebOrderView) SetLines(val []WebOrderLine) {
+	s.Lines = val
+}
+
+// SetMerchandise sets the value of Merchandise.
+func (s *WebOrderView) SetMerchandise(val Money) {
+	s.Merchandise = val
+}
+
+// SetDiscount sets the value of Discount.
+func (s *WebOrderView) SetDiscount(val Money) {
+	s.Discount = val
+}
+
+// SetShippingFee sets the value of ShippingFee.
+func (s *WebOrderView) SetShippingFee(val Money) {
+	s.ShippingFee = val
+}
+
+// SetGrandTotal sets the value of GrandTotal.
+func (s *WebOrderView) SetGrandTotal(val Money) {
+	s.GrandTotal = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *WebOrderView) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetDeliveredAt sets the value of DeliveredAt.
+func (s *WebOrderView) SetDeliveredAt(val OptDateTime) {
+	s.DeliveredAt = val
+}
+
+// SetExchangeUntil sets the value of ExchangeUntil.
+func (s *WebOrderView) SetExchangeUntil(val OptDateTime) {
+	s.ExchangeUntil = val
+}
+
+// SetCancellable sets the value of Cancellable.
+func (s *WebOrderView) SetCancellable(val bool) {
+	s.Cancellable = val
+}
+
+// SetPriceReview sets the value of PriceReview.
+func (s *WebOrderView) SetPriceReview(val bool) {
+	s.PriceReview = val
+}
+
+func (*WebOrderView) webGetOrderRes() {}
 
 // Ref: #/components/schemas/WebProduct
 type WebProduct struct {

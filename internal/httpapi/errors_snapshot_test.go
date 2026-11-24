@@ -19,6 +19,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/queries"
 	"elimaz.com.vn/crm/internal/queries/webcatalog"
+	"elimaz.com.vn/crm/internal/queries/weborders"
 )
 
 // Task 441: bảng ánh xạ lỗi tách theo vùng (errors_<vùng>.go). Hai bảng dưới đây chụp hành vi của errors.go TRƯỚC khi
@@ -165,6 +166,9 @@ func domainErrorSnapshot() []snapshotCase {
 		{"order.ErrRequestNotAllowed", order.ErrRequestNotAllowed, http.StatusUnprocessableEntity, "request_not_allowed"},
 		{"order.ErrRequestNotFound", order.ErrRequestNotFound, http.StatusNotFound, "not_found"},
 		{"order.ErrRequestLimit", order.ErrRequestLimit, http.StatusTooManyRequests, "too_fast"},
+		{"order.ErrCannotCancel", order.ErrCannotCancel, http.StatusUnprocessableEntity, "cannot_cancel"},
+		{"weborders.ErrBadLimit", weborders.ErrBadLimit, http.StatusBadRequest, "bad_request"},
+		{"weborders.ErrNotFound", weborders.ErrNotFound, http.StatusNotFound, "not_found"},
 		{"webcatalog.ErrBadLimit", webcatalog.ErrBadLimit, http.StatusBadRequest, "bad_request"},
 		{"catalog.ErrInvalidArticle", catalog.ErrInvalidArticle, http.StatusUnprocessableEntity, "invalid_article"},
 		{"catalog.ErrCategoryCycle", catalog.ErrCategoryCycle, http.StatusUnprocessableEntity, "category_cycle"},

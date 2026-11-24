@@ -144,6 +144,8 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   file_rejected: "Ảnh kèm không phải ảnh hợp lệ",
   file_not_found: "Không dùng được ảnh kèm (không có hoặc đã gắn yêu cầu khác)",
   request_not_allowed: "Đơn hay yêu cầu không ở trạng thái cho việc này",
+  // Khách hủy đơn web (Task 196)
+  cannot_cancel: "Đơn đã giao, đã hoàn hay đã hủy nên khách không hủy được",
 };
 
 /** Câu cho từng lý do từ chối mã giảm giá (CouponRejectReason: checkCoupon.reason, thân lỗi coupon_rejected.reason). */

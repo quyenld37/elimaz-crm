@@ -1384,6 +1384,17 @@ type Handler interface {
 	//
 	// GET /api/v1/web/campaigns
 	WebCampaigns(ctx context.Context, params WebCampaignsParams) (WebCampaignsRes, error)
+	// WebCancelOrder implements webCancelOrder operation.
+	//
+	// Khóa dòng đơn trước (cùng khóa với Gửi hãng), nên tranh với Gửi hãng chỉ một
+	// bên thắng. Đơn new, confirmed chưa có vận đơn hiện hành → hủy (nhả hàng, trả
+	// lượt mã), 200 {cancelled: true}. Đã có vận đơn hay đang yêu cầu hãng hủy → yêu
+	// cầu hủy (đã có yêu cầu hủy đang mở thì trả lại mã đó), 200 {cancelled: false,
+	// requestRef}. Đơn đã giao, đã hoàn, đã hủy → 422 cannot_cancel. Lời nhắn tối đa
+	// 500 ký tự. Kết quả 200 lưu theo khóa; từ chối không lưu.
+	//
+	// POST /api/v1/web/orders/{externalRef}/cancel
+	WebCancelOrder(ctx context.Context, req OptWebCancelOrderBody, params WebCancelOrderParams) (WebCancelOrderRes, error)
 	// WebCancelRequest implements webCancelRequest operation.
 	//
 	// Yêu cầu nhân viên đã bắt đầu xử lý → 422 request_not_allowed.
@@ -1436,14 +1447,23 @@ type Handler interface {
 	// Đổi, trả: đơn đã giao trong exchangeWindowDays ngày (mặc định 7; quá → 422
 	// window_closed, chưa giao → 422 request_not_allowed), số ≤ số đã mua trừ số đang
 	// trong yêu cầu đổi khác (→ 422 qty_exceeded), dòng DEFECT, WRONG_ITEM cần ít nhất
-	// một ảnh (→ 422 photo_required). Hủy: đơn new, confirmed, mỗi đơn một yêu cầu
-	// hủy đang mở (→ 422 duplicate_open). Ảnh: tối đa 5 (→ 422 too_many_files), mã từ
-	// webUploadRequestFile chưa gắn yêu cầu khác (→ 422 file_not_found), imager từ chối (→
-	// 422 file_rejected). Quá 5 yêu cầu một đơn trong 24 giờ → 429 too_fast. Từ chối
-	// không lưu theo khóa.
+	// một ảnh (→ 422 photo_required). Hủy: đơn new, confirmed, cancel_requested, mỗi đơn
+	// một yêu cầu hủy đang mở (→ 422 duplicate_open). Ảnh: tối đa 5 (→ 422
+	// too_many_files), mã từ webUploadRequestFile chưa gắn yêu cầu khác (→ 422
+	// file_not_found), imager từ chối (→ 422 file_rejected). Quá 5 yêu cầu một đơn trong 24
+	// giờ → 429 too_fast. Từ chối không lưu theo khóa.
 	//
 	// POST /api/v1/web/orders/{externalRef}/requests
 	WebCreateRequest(ctx context.Context, req *WebCreateRequestBody, params WebCreateRequestParams) (WebCreateRequestRes, error)
+	// WebGetOrder implements webGetOrder operation.
+	//
+	// Chỉ đơn kênh web; đơn nhập tay, đơn của shop khác → 404 not_found. displayStatus là
+	// nhãn gộp (OrderLabel) đã bỏ các nhãn chỉ nội bộ (nháp, chờ duyệt giảm, chờ
+	// khách, hết hàng → new). deliveredAt, exchangeUntil, lines[].exchangeableQty cho nút "Yêu
+	// cầu đổi hàng" (exchangeableQty = 0 khi đơn chưa giao hay đã quá hạn).
+	//
+	// GET /api/v1/web/orders/{externalRef}
+	WebGetOrder(ctx context.Context, params WebGetOrderParams) (WebGetOrderRes, error)
 	// WebIntakeStatus implements webIntakeStatus operation.
 	//
 	// Task 456 (M5-44). Website hiện "ELIMAZ đang tạm dừng nhận đơn trên website…" khi
@@ -1466,6 +1486,17 @@ type Handler interface {
 	//
 	// GET /api/v1/web/locations
 	WebLocations(ctx context.Context, params WebLocationsParams) (WebLocationsRes, error)
+	// WebOrderChanges implements webOrderChanges operation.
+	//
+	// ChangedAt là lúc muộn hơn của lần đổi đơn và lần đổi trạng thái vận đơn
+	// hiện hành. Trả đơn có (changedAt, id) > (since, afterId) — afterId bỏ trống là lấy
+	// cả đơn đúng mốc since. hasMore = true thì gọi tiếp ngay với nextSince, nextAfterId;
+	// hết thì lần sau gọi với nextSince lùi 30 s (đơn ghi chậm) — đơn có thể lặp
+	// lại, website ghi đè theo externalRef. since sai định dạng, limit ngoài 1–500 → 400
+	// bad_request.
+	//
+	// GET /api/v1/web/orders/changes
+	WebOrderChanges(ctx context.Context, params WebOrderChangesParams) (WebOrderChangesRes, error)
 	// WebQuote implements webQuote operation.
 	//
 	// Task 192 (M5-09). Giá niêm yết đọc PostgreSQL (không qua bộ đệm); biến thể thiếu,
