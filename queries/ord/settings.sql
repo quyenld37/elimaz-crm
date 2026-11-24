@@ -18,12 +18,14 @@ FROM ord.traffic_sources
 WHERE key = @key::text;
 
 -- name: GetOrderSettings :one
-SELECT draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version
+SELECT draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version,
+       exchange_window_days
 FROM ord.order_settings;
 
 -- name: LockOrderSettings :one
 -- Khóa dòng cài đặt của tenant (nhóm 7 ADR-46, bảng cuối) trước khi so version (order.Writer.UpdateSettings).
-SELECT draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version
+SELECT draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version,
+       exchange_window_days
 FROM ord.order_settings
 FOR UPDATE;
 
@@ -37,4 +39,5 @@ SET draft_ttl_minutes              = @draft_ttl_minutes::int,
     updated_at                     = now(),
     updated_by                     = @updated_by::uuid
 WHERE version = @version::bigint
-RETURNING draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version;
+RETURNING draft_ttl_minutes, duplicate_window_minutes, discount_approval_threshold_bp, return_warning_days, version,
+          exchange_window_days;

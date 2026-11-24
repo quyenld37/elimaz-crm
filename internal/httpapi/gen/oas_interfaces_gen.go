@@ -277,6 +277,10 @@ type GetMeRes interface {
 	getMeRes()
 }
 
+type GetOrderRequestRes interface {
+	getOrderRequestRes()
+}
+
 type GetOrderRes interface {
 	getOrderRes()
 }
@@ -431,6 +435,10 @@ type ListOrderDuplicatesRes interface {
 
 type ListOrderPaymentsRes interface {
 	listOrderPaymentsRes()
+}
+
+type ListOrderRequestsRes interface {
+	listOrderRequestsRes()
 }
 
 type ListOrderShipmentsRes interface {
@@ -609,6 +617,10 @@ type ReplaceStockDocumentLinesRes interface {
 	replaceStockDocumentLinesRes()
 }
 
+type ReplyOrderRequestRes interface {
+	replyOrderRequestRes()
+}
+
 type RequestAddressChangeRes interface {
 	requestAddressChangeRes()
 }
@@ -663,6 +675,10 @@ type SetCarrierAccountStatusRes interface {
 
 type SetOrderPendingRes interface {
 	setOrderPendingRes()
+}
+
+type SetOrderRequestStatusRes interface {
+	setOrderRequestStatusRes()
 }
 
 type SetPackingStatusRes interface {
@@ -797,6 +813,10 @@ type WebCampaignsRes interface {
 	webCampaignsRes()
 }
 
+type WebCancelRequestRes interface {
+	webCancelRequestRes()
+}
+
 type WebCatalogChangesRes interface {
 	webCatalogChangesRes()
 }
@@ -813,8 +833,16 @@ type WebCreateOrderRes interface {
 	webCreateOrderRes()
 }
 
+type WebCreateRequestRes interface {
+	webCreateRequestRes()
+}
+
 type WebIntakeStatusRes interface {
 	webIntakeStatusRes()
+}
+
+type WebListRequestsRes interface {
+	webListRequestsRes()
 }
 
 type WebLocationsRes interface {
@@ -825,6 +853,14 @@ type WebQuoteRes interface {
 	webQuoteRes()
 }
 
+type WebReplyRequestRes interface {
+	webReplyRequestRes()
+}
+
 type WebSold30dRes interface {
 	webSold30dRes()
+}
+
+type WebUploadRequestFileRes interface {
+	webUploadRequestFileRes()
 }

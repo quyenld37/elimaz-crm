@@ -19,15 +19,35 @@ const (
 	codeCouponInvalid   = "coupon_invalid"
 	codeTooFast         = "too_fast"
 	codeWebOrdersPaused = "web_orders_paused"
+	// Yêu cầu về đơn hàng (Task 195).
+	codeWindowClosed      = "window_closed"
+	codeQtyExceeded       = "qty_exceeded"
+	codePhotoRequired     = "photo_required"
+	codeTooManyFiles      = "too_many_files"
+	codeDuplicateOpen     = "duplicate_open"
+	codeFileRejected      = "file_rejected"
+	codeFileNotFound      = "file_not_found"
+	codeRequestNotAllowed = "request_not_allowed"
 )
 
 // webError đổi lỗi nghiệp vụ của vùng đơn website (không có thân chi tiết) sang mã HTTP (Task 456): shop đang tạm dừng
 // nhận đơn web → 503 web_orders_paused (không Retry-After: thời gian mở lại không biết trước); tạm dừng không lý do →
-// 422 invalid_input.
+// 422 invalid_input. Yêu cầu về đơn hàng (Task 195): luật của yêu cầu → 422 với mã riêng; quá 5 yêu cầu một đơn trong
+// 24 giờ → 429 too_fast (không Retry-After); yêu cầu không có → 404.
 func webError(err error) (status int, code string, ok bool) {
 	return matchError(err, []errorMapping{
 		{order.ErrWebIntakePaused, http.StatusServiceUnavailable, codeWebOrdersPaused},
 		{order.ErrReasonRequired, http.StatusUnprocessableEntity, codeInvalidInput},
+		{order.ErrWindowClosed, http.StatusUnprocessableEntity, codeWindowClosed},
+		{order.ErrQtyExceeded, http.StatusUnprocessableEntity, codeQtyExceeded},
+		{order.ErrPhotoRequired, http.StatusUnprocessableEntity, codePhotoRequired},
+		{order.ErrTooManyFiles, http.StatusUnprocessableEntity, codeTooManyFiles},
+		{order.ErrDuplicateOpen, http.StatusUnprocessableEntity, codeDuplicateOpen},
+		{order.ErrFileRejected, http.StatusUnprocessableEntity, codeFileRejected},
+		{order.ErrFileNotFound, http.StatusUnprocessableEntity, codeFileNotFound},
+		{order.ErrRequestNotAllowed, http.StatusUnprocessableEntity, codeRequestNotAllowed},
+		{order.ErrRequestNotFound, http.StatusNotFound, codeNotFound},
+		{order.ErrRequestLimit, http.StatusTooManyRequests, codeTooFast},
 	})
 }
 

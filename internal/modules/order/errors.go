@@ -68,6 +68,30 @@ var (
 	ErrReasonRequired = errors.New("order: thiếu lý do")
 	// ErrWebIntakePaused: shop đang tạm dừng nhận đơn web, đơn website gửi thẳng (sync) bị từ chối.
 	ErrWebIntakePaused = errors.New("order: đang tạm dừng nhận đơn web")
+
+	// Sentinel của yêu cầu về đơn hàng (Task 195, M5-12).
+
+	// ErrWindowClosed: yêu cầu đổi, trả sau hạn đổi (Settings.ExchangeWindowDays ngày từ lần giao).
+	ErrWindowClosed = errors.New("order: quá hạn đổi, trả")
+	// ErrQtyExceeded: số đổi, trả vượt số đã mua trừ số đang nằm trong yêu cầu khác.
+	ErrQtyExceeded = errors.New("order: số lượng yêu cầu vượt số còn đổi được")
+	// ErrPhotoRequired: đổi, trả vì hàng lỗi hay giao nhầm mà không kèm ảnh.
+	ErrPhotoRequired = errors.New("order: cần ảnh kèm yêu cầu")
+	// ErrTooManyFiles: quá MaxRequestFiles ảnh.
+	ErrTooManyFiles = errors.New("order: quá nhiều ảnh kèm yêu cầu")
+	// ErrDuplicateOpen: đơn đã có yêu cầu hủy đang mở.
+	ErrDuplicateOpen = errors.New("order: đã có yêu cầu hủy đang mở")
+	// ErrFileRejected: ảnh kèm không phải ảnh hợp lệ (imager của M1 đã từ chối, R10).
+	ErrFileRejected = errors.New("order: ảnh kèm bị từ chối")
+	// ErrFileNotFound: ảnh kèm không có, của tenant khác, sai mục đích, đã xóa hay đã gắn yêu cầu khác.
+	ErrFileNotFound = errors.New("order: không dùng được ảnh kèm")
+	// ErrRequestNotAllowed: đơn hay yêu cầu không ở trạng thái cho việc này (hủy đơn đã giao, đổi đơn chưa giao, khách
+	// rút yêu cầu nhân viên đã nhận, khách trả lời khi không được hỏi).
+	ErrRequestNotAllowed = errors.New("order: không gửi được yêu cầu này")
+	// ErrRequestNotFound: không có yêu cầu (kể cả của tenant khác, đơn khác).
+	ErrRequestNotFound = errors.New("order: không có yêu cầu")
+	// ErrRequestLimit: đơn đã có MaxRequestsPerOrder24 yêu cầu trong 24 giờ.
+	ErrRequestLimit = errors.New("order: quá nhiều yêu cầu cho một đơn")
 )
 
 // OutOfStockError là chi tiết của ErrOutOfStock: dòng đầu tiên (theo thứ tự khóa) không đủ hàng.

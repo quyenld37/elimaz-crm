@@ -126,6 +126,8 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `cash.refunds.waive` | none | M3 | owner | Đóng khoản hoàn "không hoàn" kèm lý do (khách đồng ý mất cọc) |
 | `identity.service_keys.manage` | toàn shop | M5 | owner | Tạo, xem, thu hồi khóa dịch vụ của website (khóa hiện một lần) |
 | `order.web_intake.manage` | toàn shop | M5 | owner, manager | Tạm dừng (kèm lý do), mở lại nhận đơn web; xem trạng thái dùng `order.read` |
+| `order.requests.read` | none | M5 | owner, manager, sale | Xem yêu cầu về đơn của khách (hủy, đổi, trả, câu hỏi), ảnh kèm (link có hạn); nhận báo hiệu yêu cầu mới |
+| `order.requests.manage` | none | M5 | owner, manager, sale | Trả lời khách, ghi chú nội bộ, đổi trạng thái yêu cầu về đơn |
 | `web.catalog.read` | none | M5 | | Khóa dịch vụ: đọc sản phẩm, giá, tồn cho website |
 | `web.orders.create` | none | M5 | | Khóa dịch vụ: tạo đơn web |
 | `web.orders.read` | none | M5 | | Khóa dịch vụ: tra đơn kênh web theo mã đơn web |

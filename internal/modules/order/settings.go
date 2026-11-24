@@ -18,7 +18,10 @@ type Settings struct {
 	DraftTTL, DuplicateWindow   time.Duration
 	DiscountApprovalThresholdBP int
 	ReturnWarningDays           int
-	Version                     int64
+	// ExchangeWindowDays (Task 195): số ngày khách được gửi yêu cầu đổi, trả tính từ lần giao (1–60, mặc định 7). Chỉ
+	// đọc: chưa có trên API cài đặt đơn (đổi bằng SQL, như biến môi trường của website hiện tại).
+	ExchangeWindowDays int
+	Version            int64
 }
 
 // SettingsPatch là phần sửa cài đặt đơn: trường nil giữ nguyên. Thời gian tính bằng phút như hợp đồng API.
@@ -128,6 +131,7 @@ func settingsOf(r store.LockOrderSettingsRow) Settings {
 		DuplicateWindow:             time.Duration(r.DuplicateWindowMinutes) * time.Minute,
 		DiscountApprovalThresholdBP: int(r.DiscountApprovalThresholdBp),
 		ReturnWarningDays:           int(r.ReturnWarningDays),
+		ExchangeWindowDays:          int(r.ExchangeWindowDays),
 		Version:                     r.Version,
 	}
 }

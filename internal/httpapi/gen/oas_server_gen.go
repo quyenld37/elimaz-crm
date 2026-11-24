@@ -479,6 +479,14 @@ type Handler interface {
 	//
 	// GET /api/v1/orders/{id}
 	GetOrder(ctx context.Context, params GetOrderParams) (GetOrderRes, error)
+	// GetOrderRequest implements getOrderRequest operation.
+	//
+	// Ảnh: ready → url ký có hạn 10 phút tới biến thể JPEG lớn nhất trên bucket riêng
+	// tư (đã bỏ EXIF); đang xử lý → status processing, không url; imager từ chối (không
+	// phải ảnh) → status rejected, không url.
+	//
+	// GET /api/v1/order-requests/{id}
+	GetOrderRequest(ctx context.Context, params GetOrderRequestParams) (GetOrderRequestRes, error)
 	// GetOrderSettings implements getOrderSettings operation.
 	//
 	// Cài đặt đơn của shop (Task M2-15).
@@ -735,6 +743,14 @@ type Handler interface {
 	//
 	// GET /api/v1/orders/{id}/payments
 	ListOrderPayments(ctx context.Context, params ListOrderPaymentsParams) (ListOrderPaymentsRes, error)
+	// ListOrderRequests implements listOrderRequests operation.
+	//
+	// Q: mã yêu cầu (YC-…), mã đơn (DH…), SĐT người nhận (đủ hay đuôi từ 4 chữ
+	// số) hoặc tên khách (không dấu). Báo hiệu order_request.changed (người có
+	// order.requests.read) khi có yêu cầu mới hay vừa đổi.
+	//
+	// GET /api/v1/order-requests
+	ListOrderRequests(ctx context.Context, params ListOrderRequestsParams) (ListOrderRequestsRes, error)
 	// ListOrderShipments implements listOrderShipments operation.
 	//
 	// Mọi vận đơn của đơn (cả đã hủy), mới nhất trước (Task M3-12).
@@ -1026,6 +1042,13 @@ type Handler interface {
 	//
 	// PUT /api/v1/inventory/documents/{id}/lines
 	ReplaceStockDocumentLines(ctx context.Context, req *ReplaceStockDocumentLinesRequest, params ReplaceStockDocumentLinesParams) (ReplaceStockDocumentLinesRes, error)
+	// ReplyOrderRequest implements replyOrderRequest operation.
+	//
+	// Tin hiện cho khách khi yêu cầu đã đóng (resolved, rejected, cancelled) → 422
+	// invalid_transition; ghi chú nội bộ luôn được.
+	//
+	// POST /api/v1/order-requests/{id}/messages
+	ReplyOrderRequest(ctx context.Context, req *ReplyOrderRequestRequest, params ReplyOrderRequestParams) (ReplyOrderRequestRes, error)
 	// RequestAddressChange implements requestAddressChange operation.
 	//
 	// Yêu cầu đổi địa chỉ giao sau khi đã gửi hãng (một yêu cầu mở mỗi vận
@@ -1122,6 +1145,18 @@ type Handler interface {
 	//
 	// POST /api/v1/orders/{id}/pending
 	SetOrderPending(ctx context.Context, req *SetOrderPendingRequest, params SetOrderPendingParams) (SetOrderPendingRes, error)
+	// SetOrderRequestStatus implements setOrderRequestStatus operation.
+	//
+	// Sơ đồ: received → in_review | needs_info | confirmed | resolved | rejected; in_review →
+	// needs_info | confirmed | resolved | rejected; needs_info → in_review | rejected; confirmed (chỉ
+	// exchange) → items_received | rejected; items_received → resolved | rejected; cạnh khác →
+	// 422 invalid_transition. needs_info cần message (5–1000 ký tự, hiện cho khách); confirmed
+	// cần shipBack (địa chỉ 10–300, mã gói 3–40, ngày hạn không trước hôm nay giờ
+	// Việt Nam, lưu 23:59:59 giờ Việt Nam); rejected cần outcome.reason 1–500 (thiếu → 422
+	// invalid_input); resolved có outcome.trackingCode ≤ 60 tùy chọn.
+	//
+	// POST /api/v1/order-requests/{id}/status
+	SetOrderRequestStatus(ctx context.Context, req *SetOrderRequestStatusRequest, params SetOrderRequestStatusParams) (SetOrderRequestStatusRes, error)
 	// SetPackingStatus implements setPackingStatus operation.
 	//
 	// Đánh dấu đang nhặt hoặc đã đóng gói cho nhiều đơn (chỉ đi tới); kết quả
@@ -1349,6 +1384,12 @@ type Handler interface {
 	//
 	// GET /api/v1/web/campaigns
 	WebCampaigns(ctx context.Context, params WebCampaignsParams) (WebCampaignsRes, error)
+	// WebCancelRequest implements webCancelRequest operation.
+	//
+	// Yêu cầu nhân viên đã bắt đầu xử lý → 422 request_not_allowed.
+	//
+	// POST /api/v1/web/orders/{externalRef}/requests/{ref}/cancel
+	WebCancelRequest(ctx context.Context, params WebCancelRequestParams) (WebCancelRequestRes, error)
 	// WebCatalogChanges implements webCatalogChanges operation.
 	//
 	// Task 190 (M5-07). Lần sau gửi since = until − 30 s và bỏ mã trùng. hasMore = true (đủ
@@ -1390,6 +1431,19 @@ type Handler interface {
 	//
 	// POST /api/v1/web/orders
 	WebCreateOrder(ctx context.Context, req *WebOrderRequest, params WebCreateOrderParams) (WebCreateOrderRes, error)
+	// WebCreateRequest implements webCreateRequest operation.
+	//
+	// Đổi, trả: đơn đã giao trong exchangeWindowDays ngày (mặc định 7; quá → 422
+	// window_closed, chưa giao → 422 request_not_allowed), số ≤ số đã mua trừ số đang
+	// trong yêu cầu đổi khác (→ 422 qty_exceeded), dòng DEFECT, WRONG_ITEM cần ít nhất
+	// một ảnh (→ 422 photo_required). Hủy: đơn new, confirmed, mỗi đơn một yêu cầu
+	// hủy đang mở (→ 422 duplicate_open). Ảnh: tối đa 5 (→ 422 too_many_files), mã từ
+	// webUploadRequestFile chưa gắn yêu cầu khác (→ 422 file_not_found), imager từ chối (→
+	// 422 file_rejected). Quá 5 yêu cầu một đơn trong 24 giờ → 429 too_fast. Từ chối
+	// không lưu theo khóa.
+	//
+	// POST /api/v1/web/orders/{externalRef}/requests
+	WebCreateRequest(ctx context.Context, req *WebCreateRequestBody, params WebCreateRequestParams) (WebCreateRequestRes, error)
 	// WebIntakeStatus implements webIntakeStatus operation.
 	//
 	// Task 456 (M5-44). Website hiện "ELIMAZ đang tạm dừng nhận đơn trên website…" khi
@@ -1398,6 +1452,13 @@ type Handler interface {
 	//
 	// GET /api/v1/web/intake
 	WebIntakeStatus(ctx context.Context) (WebIntakeStatusRes, error)
+	// WebListRequests implements webListRequests operation.
+	//
+	// Yêu cầu về đơn của một đơn web (mới trước), kèm tin nhân viên gửi khách;
+	// không có ghi chú nội bộ (Task 195).
+	//
+	// GET /api/v1/web/orders/{externalRef}/requests
+	WebListRequests(ctx context.Context, params WebListRequestsParams) (WebListRequestsRes, error)
 	// WebLocations implements webLocations operation.
 	//
 	// Task 191 (M5-08). Danh mục dùng chung của CRM (customer.admin_units), tỉnh theo mã, xã theo
@@ -1419,6 +1480,12 @@ type Handler interface {
 	//
 	// POST /api/v1/web/quote
 	WebQuote(ctx context.Context, req *WebQuoteRequest) (WebQuoteRes, error)
+	// WebReplyRequest implements webReplyRequest operation.
+	//
+	// Yêu cầu không ở needs_info → 422 request_not_allowed.
+	//
+	// POST /api/v1/web/orders/{externalRef}/requests/{ref}/messages
+	WebReplyRequest(ctx context.Context, req *WebReplyRequestBody, params WebReplyRequestParams) (WebReplyRequestRes, error)
 	// WebSold30d implements webSold30d operation.
 	//
 	// Task 191 (M5-08); định nghĩa ở docs/m5/doi-chieu-gia-dinh.md mục 4: cộng số lượng
@@ -1428,6 +1495,17 @@ type Handler interface {
 	//
 	// GET /api/v1/web/catalog/sold-30d
 	WebSold30d(ctx context.Context) (WebSold30dRes, error)
+	// WebUploadRequestFile implements webUploadRequestFile operation.
+	//
+	// Thân là nguyên byte ảnh, Content-Type là loại ảnh. CRM không tự kiểm nội dung:
+	// ảnh thô vào crm-tmp (tự xóa sau 24 giờ), lệnh file.process_private của M1 kiểm bằng
+	// imager và ghi biến thể vào bucket riêng tư. Loại ngoài JPEG, PNG, WebP → 422
+	// file_type_not_allowed; lớn hơn 6 MiB → 413 body_too_large; Content-Type không phải ảnh →
+	// 415. Tệp không phải ảnh hợp lệ thành rejected sau khi xử lý: webCreateRequest kèm
+	// tệp đó → 422 file_rejected. Kho tệp lỗi → 503 retry_later, không lưu.
+	//
+	// POST /api/v1/web/files
+	WebUploadRequestFile(ctx context.Context, req *WebUploadRequestFileReqWithContentType, params WebUploadRequestFileParams) (WebUploadRequestFileRes, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and

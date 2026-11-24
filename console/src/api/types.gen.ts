@@ -990,6 +990,212 @@ export type SetWebIntakeRequest = {
     version: number;
 };
 
+export type OrderRequestKind = 'cancel' | 'exchange' | 'return' | 'question';
+
+export type OrderRequestStatus = 'received' | 'in_review' | 'needs_info' | 'confirmed' | 'items_received' | 'resolved' | 'rejected' | 'cancelled';
+
+/**
+ * Mã lý do: hủy CHANGED_MIND, DUPLICATE, ADDRESS_CHANGE, OTHER; đổi, trả SIZE, QUALITY, WRONG_ITEM, OTHER; câu hỏi một trong hai nhóm
+ */
+export type OrderRequestReason = string;
+
+export type OrderRequestLineReason = 'TOO_SMALL' | 'TOO_LARGE' | 'FIT' | 'COLOR' | 'NOT_AS_PICTURED' | 'DEFECT' | 'WRONG_ITEM' | 'OTHER';
+
+export type OrderRequestShipBack = {
+    address: string;
+    packageCode: string;
+    /**
+     * 23:59:59 giờ Việt Nam của ngày hạn
+     */
+    deadline: string;
+};
+
+export type OrderRequestOutcome = {
+    trackingCode?: string;
+    reason?: string;
+};
+
+export type OrderRequestLine = {
+    variantId: string;
+    qty: number;
+    reason: string;
+    wantVariantId?: string;
+    note?: string;
+    /**
+     * Mã biến thể chụp lúc đặt (chỉ ở màn nhân viên)
+     */
+    sku?: string;
+    /**
+     * Tên chụp lúc đặt (chỉ ở màn nhân viên)
+     */
+    name?: string;
+};
+
+export type OrderRequestMessage = {
+    id: string;
+    authorType: 'customer' | 'staff' | 'system';
+    /**
+     * Mã nhân viên (staff)
+     */
+    authorId?: string;
+    /**
+     * Tên nhân viên (nhân viên không còn → không có)
+     */
+    authorName?: string;
+    body: string;
+    visibleToCustomer: boolean;
+    createdAt: string;
+};
+
+export type OrderRequestFile = {
+    fileId: string;
+    /**
+     * missing — tệp đã bị dọn, hết hạn hay mất trên kho
+     */
+    status: 'processing' | 'ready' | 'rejected' | 'missing';
+    /**
+     * Link ký có hạn 10 phút (chỉ khi ready)
+     */
+    url?: string;
+};
+
+export type OrderRequestSummary = {
+    id: string;
+    ref: string;
+    orderId: string;
+    orderCode: string;
+    kind: OrderRequestKind;
+    status: OrderRequestStatus;
+    reasonCode: string;
+    createdAt: string;
+    updatedAt: string;
+    version: number;
+};
+
+export type OrderRequestPage = {
+    items: Array<OrderRequestSummary>;
+    /**
+     * Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+     */
+    nextCursor?: string;
+};
+
+export type OrderRequest = {
+    id: string;
+    ref: string;
+    orderId: string;
+    orderCode: string;
+    kind: OrderRequestKind;
+    status: OrderRequestStatus;
+    reasonCode: string;
+    /**
+     * Lời nhắn của khách lúc gửi (hiện dạng văn bản thuần)
+     */
+    customerNote?: string;
+    conditionConfirmed: boolean;
+    lines: Array<OrderRequestLine>;
+    shipBack?: OrderRequestShipBack;
+    outcome?: OrderRequestOutcome;
+    messages: Array<OrderRequestMessage>;
+    files: Array<OrderRequestFile>;
+    createdAt: string;
+    updatedAt: string;
+    resolvedAt?: string;
+    resolvedBy?: string;
+    version: number;
+};
+
+export type ReplyOrderRequestRequest = {
+    /**
+     * 5–1000 ký tự sau khi cắt khoảng trắng
+     */
+    body: string;
+    visibleToCustomer: boolean;
+};
+
+export type SetOrderRequestStatusRequest = {
+    status: OrderRequestStatus;
+    version: number;
+    /**
+     * Tin hiện cho khách (5–1000 ký tự); bắt buộc khi needs_info
+     */
+    message?: string;
+    shipBack?: {
+        address: string;
+        packageCode: string;
+        deadline: string;
+    };
+    outcome?: OrderRequestOutcomeInput;
+};
+
+export type OrderRequestOutcomeInput = {
+    trackingCode?: string;
+    reason?: string;
+};
+
+export type WebRequestFile = {
+    fileId: string;
+};
+
+export type WebRequestRef = {
+    ref: string;
+    status: OrderRequestStatus;
+};
+
+export type WebRequestLineInput = {
+    variantId: string;
+    qty: number;
+    reason: OrderRequestLineReason;
+    wantVariantId?: string;
+    note?: string;
+};
+
+export type WebCreateRequestBody = {
+    kind: OrderRequestKind;
+    reason: OrderRequestReason;
+    /**
+     * Lời nhắn của khách, 5–1000 ký tự sau khi cắt khoảng trắng
+     */
+    message: string;
+    lines?: Array<WebRequestLineInput>;
+    fileIds?: Array<string>;
+    /**
+     * Khách xác nhận hàng còn tem, nhãn, chưa dùng (bắt buộc với đổi, trả)
+     */
+    conditionConfirmed?: boolean;
+};
+
+export type WebReplyRequestBody = {
+    message: string;
+};
+
+export type WebCustomerRequestMessage = {
+    id: string;
+    from: 'customer' | 'staff';
+    body: string;
+    createdAt: string;
+};
+
+export type WebCustomerRequest = {
+    ref: string;
+    kind: OrderRequestKind;
+    reason: string;
+    message: string;
+    status: OrderRequestStatus;
+    lines: Array<OrderRequestLine>;
+    fileCount: number;
+    shipBack?: OrderRequestShipBack;
+    outcome?: OrderRequestOutcome;
+    messages: Array<WebCustomerRequestMessage>;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type WebCustomerRequestList = {
+    items: Array<WebCustomerRequest>;
+    exchangeWindowDays: number;
+};
+
 export type WebIntakeStatus = {
     paused: boolean;
 };
@@ -3496,6 +3702,18 @@ export type ShipmentAnomalyId = string;
 export type RefundObligationId = string;
 
 export type CodStatementId = string;
+
+export type OrderRequestId = string;
+
+/**
+ * Mã đơn của website (externalRef lúc tạo đơn web)
+ */
+export type ExternalRef = string;
+
+/**
+ * Mã yêu cầu YC-…
+ */
+export type RequestRef = string;
 
 /**
  * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
@@ -7898,6 +8116,133 @@ export type SetWebIntakeResponses = {
 
 export type SetWebIntakeResponse = SetWebIntakeResponses[keyof SetWebIntakeResponses];
 
+export type ListOrderRequestsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: OrderRequestStatus;
+        kind?: OrderRequestKind;
+        q?: string;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/order-requests';
+};
+
+export type ListOrderRequestsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListOrderRequestsError = ListOrderRequestsErrors[keyof ListOrderRequestsErrors];
+
+export type ListOrderRequestsResponses = {
+    /**
+     * listOrderRequests
+     */
+    200: OrderRequestPage;
+};
+
+export type ListOrderRequestsResponse = ListOrderRequestsResponses[keyof ListOrderRequestsResponses];
+
+export type GetOrderRequestData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/order-requests/{id}';
+};
+
+export type GetOrderRequestErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetOrderRequestError = GetOrderRequestErrors[keyof GetOrderRequestErrors];
+
+export type GetOrderRequestResponses = {
+    /**
+     * getOrderRequest
+     */
+    200: OrderRequest;
+};
+
+export type GetOrderRequestResponse = GetOrderRequestResponses[keyof GetOrderRequestResponses];
+
+export type ReplyOrderRequestData = {
+    body: ReplyOrderRequestRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/order-requests/{id}/messages';
+};
+
+export type ReplyOrderRequestErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ReplyOrderRequestError = ReplyOrderRequestErrors[keyof ReplyOrderRequestErrors];
+
+export type ReplyOrderRequestResponses = {
+    /**
+     * Tin đã ghi
+     */
+    201: OrderRequestMessage;
+};
+
+export type ReplyOrderRequestResponse = ReplyOrderRequestResponses[keyof ReplyOrderRequestResponses];
+
+export type SetOrderRequestStatusData = {
+    body: SetOrderRequestStatusRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/order-requests/{id}/status';
+};
+
+export type SetOrderRequestStatusErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SetOrderRequestStatusError = SetOrderRequestStatusErrors[keyof SetOrderRequestStatusErrors];
+
+export type SetOrderRequestStatusResponses = {
+    /**
+     * Yêu cầu sau khi đổi
+     */
+    200: OrderRequest;
+};
+
+export type SetOrderRequestStatusResponse = SetOrderRequestStatusResponses[keyof SetOrderRequestStatusResponses];
+
 export type CheckCouponData = {
     body?: never;
     path?: never;
@@ -9974,3 +10319,196 @@ export type WebIntakeStatusResponses = {
 };
 
 export type WebIntakeStatusResponse = WebIntakeStatusResponses[keyof WebIntakeStatusResponses];
+
+export type WebUploadRequestFileData = {
+    body: Blob | File;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/files';
+};
+
+export type WebUploadRequestFileErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebUploadRequestFileError = WebUploadRequestFileErrors[keyof WebUploadRequestFileErrors];
+
+export type WebUploadRequestFileResponses = {
+    /**
+     * Ảnh đã nhận
+     */
+    201: WebRequestFile;
+};
+
+export type WebUploadRequestFileResponse = WebUploadRequestFileResponses[keyof WebUploadRequestFileResponses];
+
+export type WebListRequestsData = {
+    body?: never;
+    path: {
+        /**
+         * Mã đơn của website (externalRef lúc tạo đơn web)
+         */
+        externalRef: string;
+    };
+    query?: never;
+    url: '/api/v1/web/orders/{externalRef}/requests';
+};
+
+export type WebListRequestsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebListRequestsError = WebListRequestsErrors[keyof WebListRequestsErrors];
+
+export type WebListRequestsResponses = {
+    /**
+     * webListRequests
+     */
+    200: WebCustomerRequestList;
+};
+
+export type WebListRequestsResponse = WebListRequestsResponses[keyof WebListRequestsResponses];
+
+export type WebCreateRequestData = {
+    body: WebCreateRequestBody;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Mã đơn của website (externalRef lúc tạo đơn web)
+         */
+        externalRef: string;
+    };
+    query?: never;
+    url: '/api/v1/web/orders/{externalRef}/requests';
+};
+
+export type WebCreateRequestErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebCreateRequestError = WebCreateRequestErrors[keyof WebCreateRequestErrors];
+
+export type WebCreateRequestResponses = {
+    /**
+     * Yêu cầu đã nhận
+     */
+    201: WebRequestRef;
+};
+
+export type WebCreateRequestResponse = WebCreateRequestResponses[keyof WebCreateRequestResponses];
+
+export type WebReplyRequestData = {
+    body: WebReplyRequestBody;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Mã đơn của website (externalRef lúc tạo đơn web)
+         */
+        externalRef: string;
+        /**
+         * Mã yêu cầu YC-…
+         */
+        ref: string;
+    };
+    query?: never;
+    url: '/api/v1/web/orders/{externalRef}/requests/{ref}/messages';
+};
+
+export type WebReplyRequestErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebReplyRequestError = WebReplyRequestErrors[keyof WebReplyRequestErrors];
+
+export type WebReplyRequestResponses = {
+    /**
+     * Yêu cầu sau khi trả lời
+     */
+    200: WebRequestRef;
+};
+
+export type WebReplyRequestResponse = WebReplyRequestResponses[keyof WebReplyRequestResponses];
+
+export type WebCancelRequestData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        /**
+         * Mã đơn của website (externalRef lúc tạo đơn web)
+         */
+        externalRef: string;
+        /**
+         * Mã yêu cầu YC-…
+         */
+        ref: string;
+    };
+    query?: never;
+    url: '/api/v1/web/orders/{externalRef}/requests/{ref}/cancel';
+};
+
+export type WebCancelRequestErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebCancelRequestError = WebCancelRequestErrors[keyof WebCancelRequestErrors];
+
+export type WebCancelRequestResponses = {
+    /**
+     * Yêu cầu sau khi rút
+     */
+    200: WebRequestRef;
+};
+
+export type WebCancelRequestResponse = WebCancelRequestResponses[keyof WebCancelRequestResponses];

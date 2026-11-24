@@ -9440,6 +9440,7 @@ func (*ErrorStatusCode) getFileRes()                     {}
 func (*ErrorStatusCode) getFulfillmentSettingsRes()      {}
 func (*ErrorStatusCode) getLabelBatchRes()               {}
 func (*ErrorStatusCode) getMeRes()                       {}
+func (*ErrorStatusCode) getOrderRequestRes()             {}
 func (*ErrorStatusCode) getOrderRes()                    {}
 func (*ErrorStatusCode) getOrderSettingsRes()            {}
 func (*ErrorStatusCode) getOrderTimelineRes()            {}
@@ -9478,6 +9479,7 @@ func (*ErrorStatusCode) listJobsRes()                    {}
 func (*ErrorStatusCode) listLostFilesRes()               {}
 func (*ErrorStatusCode) listOrderDuplicatesRes()         {}
 func (*ErrorStatusCode) listOrderPaymentsRes()           {}
+func (*ErrorStatusCode) listOrderRequestsRes()           {}
 func (*ErrorStatusCode) listOrderShipmentsRes()          {}
 func (*ErrorStatusCode) listOrderShippingAccountsRes()   {}
 func (*ErrorStatusCode) listOrdersRes()                  {}
@@ -9522,6 +9524,7 @@ func (*ErrorStatusCode) removeCustomerTagRes()           {}
 func (*ErrorStatusCode) reorderProductImagesRes()        {}
 func (*ErrorStatusCode) replaceStaffGrantsRes()          {}
 func (*ErrorStatusCode) replaceStockDocumentLinesRes()   {}
+func (*ErrorStatusCode) replyOrderRequestRes()           {}
 func (*ErrorStatusCode) requestAddressChangeRes()        {}
 func (*ErrorStatusCode) requestShippingQuotesRes()       {}
 func (*ErrorStatusCode) resendShipmentRes()              {}
@@ -9536,6 +9539,7 @@ func (*ErrorStatusCode) saveWebCampaignRes()             {}
 func (*ErrorStatusCode) searchVariantsRes()              {}
 func (*ErrorStatusCode) setCarrierAccountStatusRes()     {}
 func (*ErrorStatusCode) setOrderPendingRes()             {}
+func (*ErrorStatusCode) setOrderRequestStatusRes()       {}
 func (*ErrorStatusCode) setPackingStatusRes()            {}
 func (*ErrorStatusCode) setProductClassificationRes()    {}
 func (*ErrorStatusCode) setProductImageColorRes()        {}
@@ -9569,14 +9573,19 @@ func (*ErrorStatusCode) waiveRefundObligationRes()       {}
 func (*ErrorStatusCode) webAvailabilityRes()             {}
 func (*ErrorStatusCode) webCampaignRes()                 {}
 func (*ErrorStatusCode) webCampaignsRes()                {}
+func (*ErrorStatusCode) webCancelRequestRes()            {}
 func (*ErrorStatusCode) webCatalogChangesRes()           {}
 func (*ErrorStatusCode) webCatalogProductsRes()          {}
 func (*ErrorStatusCode) webCatalogTaxonomyRes()          {}
 func (*ErrorStatusCode) webCreateOrderRes()              {}
+func (*ErrorStatusCode) webCreateRequestRes()            {}
 func (*ErrorStatusCode) webIntakeStatusRes()             {}
+func (*ErrorStatusCode) webListRequestsRes()             {}
 func (*ErrorStatusCode) webLocationsRes()                {}
 func (*ErrorStatusCode) webQuoteRes()                    {}
+func (*ErrorStatusCode) webReplyRequestRes()             {}
 func (*ErrorStatusCode) webSold30dRes()                  {}
+func (*ErrorStatusCode) webUploadRequestFileRes()        {}
 
 // Một loại lỗi ứng dụng gộp theo dấu vân tay (Task 20). message đã lọc chuỗi từ
 // 8 chữ số và email.
@@ -14227,6 +14236,236 @@ func (o OptOrderPaymentStatus) Or(d OrderPaymentStatus) OrderPaymentStatus {
 	return d
 }
 
+// NewOptOrderRequestKind returns new OptOrderRequestKind with value set to v.
+func NewOptOrderRequestKind(v OrderRequestKind) OptOrderRequestKind {
+	return OptOrderRequestKind{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptOrderRequestKind is optional OrderRequestKind.
+type OptOrderRequestKind struct {
+	Value OrderRequestKind
+	Set   bool
+}
+
+// IsSet returns true if OptOrderRequestKind was set.
+func (o OptOrderRequestKind) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptOrderRequestKind) Reset() {
+	var v OrderRequestKind
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptOrderRequestKind) SetTo(v OrderRequestKind) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptOrderRequestKind) Get() (v OrderRequestKind, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptOrderRequestKind) Or(d OrderRequestKind) OrderRequestKind {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptOrderRequestOutcome returns new OptOrderRequestOutcome with value set to v.
+func NewOptOrderRequestOutcome(v OrderRequestOutcome) OptOrderRequestOutcome {
+	return OptOrderRequestOutcome{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptOrderRequestOutcome is optional OrderRequestOutcome.
+type OptOrderRequestOutcome struct {
+	Value OrderRequestOutcome
+	Set   bool
+}
+
+// IsSet returns true if OptOrderRequestOutcome was set.
+func (o OptOrderRequestOutcome) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptOrderRequestOutcome) Reset() {
+	var v OrderRequestOutcome
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptOrderRequestOutcome) SetTo(v OrderRequestOutcome) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptOrderRequestOutcome) Get() (v OrderRequestOutcome, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptOrderRequestOutcome) Or(d OrderRequestOutcome) OrderRequestOutcome {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptOrderRequestOutcomeInput returns new OptOrderRequestOutcomeInput with value set to v.
+func NewOptOrderRequestOutcomeInput(v OrderRequestOutcomeInput) OptOrderRequestOutcomeInput {
+	return OptOrderRequestOutcomeInput{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptOrderRequestOutcomeInput is optional OrderRequestOutcomeInput.
+type OptOrderRequestOutcomeInput struct {
+	Value OrderRequestOutcomeInput
+	Set   bool
+}
+
+// IsSet returns true if OptOrderRequestOutcomeInput was set.
+func (o OptOrderRequestOutcomeInput) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptOrderRequestOutcomeInput) Reset() {
+	var v OrderRequestOutcomeInput
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptOrderRequestOutcomeInput) SetTo(v OrderRequestOutcomeInput) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptOrderRequestOutcomeInput) Get() (v OrderRequestOutcomeInput, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptOrderRequestOutcomeInput) Or(d OrderRequestOutcomeInput) OrderRequestOutcomeInput {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptOrderRequestShipBack returns new OptOrderRequestShipBack with value set to v.
+func NewOptOrderRequestShipBack(v OrderRequestShipBack) OptOrderRequestShipBack {
+	return OptOrderRequestShipBack{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptOrderRequestShipBack is optional OrderRequestShipBack.
+type OptOrderRequestShipBack struct {
+	Value OrderRequestShipBack
+	Set   bool
+}
+
+// IsSet returns true if OptOrderRequestShipBack was set.
+func (o OptOrderRequestShipBack) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptOrderRequestShipBack) Reset() {
+	var v OrderRequestShipBack
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptOrderRequestShipBack) SetTo(v OrderRequestShipBack) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptOrderRequestShipBack) Get() (v OrderRequestShipBack, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptOrderRequestShipBack) Or(d OrderRequestShipBack) OrderRequestShipBack {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptOrderRequestStatus returns new OptOrderRequestStatus with value set to v.
+func NewOptOrderRequestStatus(v OrderRequestStatus) OptOrderRequestStatus {
+	return OptOrderRequestStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptOrderRequestStatus is optional OrderRequestStatus.
+type OptOrderRequestStatus struct {
+	Value OrderRequestStatus
+	Set   bool
+}
+
+// IsSet returns true if OptOrderRequestStatus was set.
+func (o OptOrderRequestStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptOrderRequestStatus) Reset() {
+	var v OrderRequestStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptOrderRequestStatus) SetTo(v OrderRequestStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptOrderRequestStatus) Get() (v OrderRequestStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptOrderRequestStatus) Or(d OrderRequestStatus) OrderRequestStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptOrderShipmentSummary returns new OptOrderShipmentSummary with value set to v.
 func NewOptOrderShipmentSummary(v OrderShipmentSummary) OptOrderShipmentSummary {
 	return OptOrderShipmentSummary{
@@ -14727,6 +14966,52 @@ func (o OptSetOrderPendingRequestReason) Get() (v SetOrderPendingRequestReason, 
 
 // Or returns value if set, or given parameter if does not.
 func (o OptSetOrderPendingRequestReason) Or(d SetOrderPendingRequestReason) SetOrderPendingRequestReason {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSetOrderRequestStatusRequestShipBack returns new OptSetOrderRequestStatusRequestShipBack with value set to v.
+func NewOptSetOrderRequestStatusRequestShipBack(v SetOrderRequestStatusRequestShipBack) OptSetOrderRequestStatusRequestShipBack {
+	return OptSetOrderRequestStatusRequestShipBack{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSetOrderRequestStatusRequestShipBack is optional SetOrderRequestStatusRequestShipBack.
+type OptSetOrderRequestStatusRequestShipBack struct {
+	Value SetOrderRequestStatusRequestShipBack
+	Set   bool
+}
+
+// IsSet returns true if OptSetOrderRequestStatusRequestShipBack was set.
+func (o OptSetOrderRequestStatusRequestShipBack) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSetOrderRequestStatusRequestShipBack) Reset() {
+	var v SetOrderRequestStatusRequestShipBack
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSetOrderRequestStatusRequestShipBack) SetTo(v SetOrderRequestStatusRequestShipBack) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSetOrderRequestStatusRequestShipBack) Get() (v SetOrderRequestStatusRequestShipBack, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSetOrderRequestStatusRequestShipBack) Or(d SetOrderRequestStatusRequestShipBack) SetOrderRequestStatusRequestShipBack {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -17317,6 +17602,993 @@ func (s *OrderPaymentStatus) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Ref: #/components/schemas/OrderRequest
+type OrderRequest struct {
+	ID         uuid.UUID          `json:"id"`
+	Ref        string             `json:"ref"`
+	OrderId    uuid.UUID          `json:"orderId"`
+	OrderCode  string             `json:"orderCode"`
+	Kind       OrderRequestKind   `json:"kind"`
+	Status     OrderRequestStatus `json:"status"`
+	ReasonCode string             `json:"reasonCode"`
+	// Lời nhắn của khách lúc gửi (hiện dạng văn bản thuần).
+	CustomerNote       OptString               `json:"customerNote"`
+	ConditionConfirmed bool                    `json:"conditionConfirmed"`
+	Lines              []OrderRequestLine      `json:"lines"`
+	ShipBack           OptOrderRequestShipBack `json:"shipBack"`
+	Outcome            OptOrderRequestOutcome  `json:"outcome"`
+	Messages           []OrderRequestMessage   `json:"messages"`
+	Files              []OrderRequestFile      `json:"files"`
+	CreatedAt          time.Time               `json:"createdAt"`
+	UpdatedAt          time.Time               `json:"updatedAt"`
+	ResolvedAt         OptDateTime             `json:"resolvedAt"`
+	ResolvedBy         OptUUID                 `json:"resolvedBy"`
+	Version            int32                   `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *OrderRequest) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetRef returns the value of Ref.
+func (s *OrderRequest) GetRef() string {
+	return s.Ref
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *OrderRequest) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetOrderCode returns the value of OrderCode.
+func (s *OrderRequest) GetOrderCode() string {
+	return s.OrderCode
+}
+
+// GetKind returns the value of Kind.
+func (s *OrderRequest) GetKind() OrderRequestKind {
+	return s.Kind
+}
+
+// GetStatus returns the value of Status.
+func (s *OrderRequest) GetStatus() OrderRequestStatus {
+	return s.Status
+}
+
+// GetReasonCode returns the value of ReasonCode.
+func (s *OrderRequest) GetReasonCode() string {
+	return s.ReasonCode
+}
+
+// GetCustomerNote returns the value of CustomerNote.
+func (s *OrderRequest) GetCustomerNote() OptString {
+	return s.CustomerNote
+}
+
+// GetConditionConfirmed returns the value of ConditionConfirmed.
+func (s *OrderRequest) GetConditionConfirmed() bool {
+	return s.ConditionConfirmed
+}
+
+// GetLines returns the value of Lines.
+func (s *OrderRequest) GetLines() []OrderRequestLine {
+	return s.Lines
+}
+
+// GetShipBack returns the value of ShipBack.
+func (s *OrderRequest) GetShipBack() OptOrderRequestShipBack {
+	return s.ShipBack
+}
+
+// GetOutcome returns the value of Outcome.
+func (s *OrderRequest) GetOutcome() OptOrderRequestOutcome {
+	return s.Outcome
+}
+
+// GetMessages returns the value of Messages.
+func (s *OrderRequest) GetMessages() []OrderRequestMessage {
+	return s.Messages
+}
+
+// GetFiles returns the value of Files.
+func (s *OrderRequest) GetFiles() []OrderRequestFile {
+	return s.Files
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *OrderRequest) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *OrderRequest) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// GetResolvedAt returns the value of ResolvedAt.
+func (s *OrderRequest) GetResolvedAt() OptDateTime {
+	return s.ResolvedAt
+}
+
+// GetResolvedBy returns the value of ResolvedBy.
+func (s *OrderRequest) GetResolvedBy() OptUUID {
+	return s.ResolvedBy
+}
+
+// GetVersion returns the value of Version.
+func (s *OrderRequest) GetVersion() int32 {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *OrderRequest) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetRef sets the value of Ref.
+func (s *OrderRequest) SetRef(val string) {
+	s.Ref = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *OrderRequest) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetOrderCode sets the value of OrderCode.
+func (s *OrderRequest) SetOrderCode(val string) {
+	s.OrderCode = val
+}
+
+// SetKind sets the value of Kind.
+func (s *OrderRequest) SetKind(val OrderRequestKind) {
+	s.Kind = val
+}
+
+// SetStatus sets the value of Status.
+func (s *OrderRequest) SetStatus(val OrderRequestStatus) {
+	s.Status = val
+}
+
+// SetReasonCode sets the value of ReasonCode.
+func (s *OrderRequest) SetReasonCode(val string) {
+	s.ReasonCode = val
+}
+
+// SetCustomerNote sets the value of CustomerNote.
+func (s *OrderRequest) SetCustomerNote(val OptString) {
+	s.CustomerNote = val
+}
+
+// SetConditionConfirmed sets the value of ConditionConfirmed.
+func (s *OrderRequest) SetConditionConfirmed(val bool) {
+	s.ConditionConfirmed = val
+}
+
+// SetLines sets the value of Lines.
+func (s *OrderRequest) SetLines(val []OrderRequestLine) {
+	s.Lines = val
+}
+
+// SetShipBack sets the value of ShipBack.
+func (s *OrderRequest) SetShipBack(val OptOrderRequestShipBack) {
+	s.ShipBack = val
+}
+
+// SetOutcome sets the value of Outcome.
+func (s *OrderRequest) SetOutcome(val OptOrderRequestOutcome) {
+	s.Outcome = val
+}
+
+// SetMessages sets the value of Messages.
+func (s *OrderRequest) SetMessages(val []OrderRequestMessage) {
+	s.Messages = val
+}
+
+// SetFiles sets the value of Files.
+func (s *OrderRequest) SetFiles(val []OrderRequestFile) {
+	s.Files = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *OrderRequest) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *OrderRequest) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// SetResolvedAt sets the value of ResolvedAt.
+func (s *OrderRequest) SetResolvedAt(val OptDateTime) {
+	s.ResolvedAt = val
+}
+
+// SetResolvedBy sets the value of ResolvedBy.
+func (s *OrderRequest) SetResolvedBy(val OptUUID) {
+	s.ResolvedBy = val
+}
+
+// SetVersion sets the value of Version.
+func (s *OrderRequest) SetVersion(val int32) {
+	s.Version = val
+}
+
+func (*OrderRequest) getOrderRequestRes()       {}
+func (*OrderRequest) setOrderRequestStatusRes() {}
+
+// Ref: #/components/schemas/OrderRequestFile
+type OrderRequestFile struct {
+	FileId uuid.UUID `json:"fileId"`
+	// Missing — tệp đã bị dọn, hết hạn hay mất trên kho.
+	Status OrderRequestFileStatus `json:"status"`
+	// Link ký có hạn 10 phút (chỉ khi ready).
+	URL OptString `json:"url"`
+}
+
+// GetFileId returns the value of FileId.
+func (s *OrderRequestFile) GetFileId() uuid.UUID {
+	return s.FileId
+}
+
+// GetStatus returns the value of Status.
+func (s *OrderRequestFile) GetStatus() OrderRequestFileStatus {
+	return s.Status
+}
+
+// GetURL returns the value of URL.
+func (s *OrderRequestFile) GetURL() OptString {
+	return s.URL
+}
+
+// SetFileId sets the value of FileId.
+func (s *OrderRequestFile) SetFileId(val uuid.UUID) {
+	s.FileId = val
+}
+
+// SetStatus sets the value of Status.
+func (s *OrderRequestFile) SetStatus(val OrderRequestFileStatus) {
+	s.Status = val
+}
+
+// SetURL sets the value of URL.
+func (s *OrderRequestFile) SetURL(val OptString) {
+	s.URL = val
+}
+
+// Missing — tệp đã bị dọn, hết hạn hay mất trên kho.
+type OrderRequestFileStatus string
+
+const (
+	OrderRequestFileStatusProcessing OrderRequestFileStatus = "processing"
+	OrderRequestFileStatusReady      OrderRequestFileStatus = "ready"
+	OrderRequestFileStatusRejected   OrderRequestFileStatus = "rejected"
+	OrderRequestFileStatusMissing    OrderRequestFileStatus = "missing"
+)
+
+// AllValues returns all OrderRequestFileStatus values.
+func (OrderRequestFileStatus) AllValues() []OrderRequestFileStatus {
+	return []OrderRequestFileStatus{
+		OrderRequestFileStatusProcessing,
+		OrderRequestFileStatusReady,
+		OrderRequestFileStatusRejected,
+		OrderRequestFileStatusMissing,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s OrderRequestFileStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case OrderRequestFileStatusProcessing:
+		return []byte(s), nil
+	case OrderRequestFileStatusReady:
+		return []byte(s), nil
+	case OrderRequestFileStatusRejected:
+		return []byte(s), nil
+	case OrderRequestFileStatusMissing:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *OrderRequestFileStatus) UnmarshalText(data []byte) error {
+	switch OrderRequestFileStatus(data) {
+	case OrderRequestFileStatusProcessing:
+		*s = OrderRequestFileStatusProcessing
+		return nil
+	case OrderRequestFileStatusReady:
+		*s = OrderRequestFileStatusReady
+		return nil
+	case OrderRequestFileStatusRejected:
+		*s = OrderRequestFileStatusRejected
+		return nil
+	case OrderRequestFileStatusMissing:
+		*s = OrderRequestFileStatusMissing
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/OrderRequestKind
+type OrderRequestKind string
+
+const (
+	OrderRequestKindCancel   OrderRequestKind = "cancel"
+	OrderRequestKindExchange OrderRequestKind = "exchange"
+	OrderRequestKindReturn   OrderRequestKind = "return"
+	OrderRequestKindQuestion OrderRequestKind = "question"
+)
+
+// AllValues returns all OrderRequestKind values.
+func (OrderRequestKind) AllValues() []OrderRequestKind {
+	return []OrderRequestKind{
+		OrderRequestKindCancel,
+		OrderRequestKindExchange,
+		OrderRequestKindReturn,
+		OrderRequestKindQuestion,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s OrderRequestKind) MarshalText() ([]byte, error) {
+	switch s {
+	case OrderRequestKindCancel:
+		return []byte(s), nil
+	case OrderRequestKindExchange:
+		return []byte(s), nil
+	case OrderRequestKindReturn:
+		return []byte(s), nil
+	case OrderRequestKindQuestion:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *OrderRequestKind) UnmarshalText(data []byte) error {
+	switch OrderRequestKind(data) {
+	case OrderRequestKindCancel:
+		*s = OrderRequestKindCancel
+		return nil
+	case OrderRequestKindExchange:
+		*s = OrderRequestKindExchange
+		return nil
+	case OrderRequestKindReturn:
+		*s = OrderRequestKindReturn
+		return nil
+	case OrderRequestKindQuestion:
+		*s = OrderRequestKindQuestion
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/OrderRequestLine
+type OrderRequestLine struct {
+	VariantId     uuid.UUID `json:"variantId"`
+	Qty           int32     `json:"qty"`
+	Reason        string    `json:"reason"`
+	WantVariantId OptUUID   `json:"wantVariantId"`
+	Note          OptString `json:"note"`
+	// Mã biến thể chụp lúc đặt (chỉ ở màn nhân viên).
+	Sku OptString `json:"sku"`
+	// Tên chụp lúc đặt (chỉ ở màn nhân viên).
+	Name OptString `json:"name"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *OrderRequestLine) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetQty returns the value of Qty.
+func (s *OrderRequestLine) GetQty() int32 {
+	return s.Qty
+}
+
+// GetReason returns the value of Reason.
+func (s *OrderRequestLine) GetReason() string {
+	return s.Reason
+}
+
+// GetWantVariantId returns the value of WantVariantId.
+func (s *OrderRequestLine) GetWantVariantId() OptUUID {
+	return s.WantVariantId
+}
+
+// GetNote returns the value of Note.
+func (s *OrderRequestLine) GetNote() OptString {
+	return s.Note
+}
+
+// GetSku returns the value of Sku.
+func (s *OrderRequestLine) GetSku() OptString {
+	return s.Sku
+}
+
+// GetName returns the value of Name.
+func (s *OrderRequestLine) GetName() OptString {
+	return s.Name
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *OrderRequestLine) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetQty sets the value of Qty.
+func (s *OrderRequestLine) SetQty(val int32) {
+	s.Qty = val
+}
+
+// SetReason sets the value of Reason.
+func (s *OrderRequestLine) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetWantVariantId sets the value of WantVariantId.
+func (s *OrderRequestLine) SetWantVariantId(val OptUUID) {
+	s.WantVariantId = val
+}
+
+// SetNote sets the value of Note.
+func (s *OrderRequestLine) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSku sets the value of Sku.
+func (s *OrderRequestLine) SetSku(val OptString) {
+	s.Sku = val
+}
+
+// SetName sets the value of Name.
+func (s *OrderRequestLine) SetName(val OptString) {
+	s.Name = val
+}
+
+// Ref: #/components/schemas/OrderRequestLineReason
+type OrderRequestLineReason string
+
+const (
+	OrderRequestLineReasonTOOSMALL      OrderRequestLineReason = "TOO_SMALL"
+	OrderRequestLineReasonTOOLARGE      OrderRequestLineReason = "TOO_LARGE"
+	OrderRequestLineReasonFIT           OrderRequestLineReason = "FIT"
+	OrderRequestLineReasonCOLOR         OrderRequestLineReason = "COLOR"
+	OrderRequestLineReasonNOTASPICTURED OrderRequestLineReason = "NOT_AS_PICTURED"
+	OrderRequestLineReasonDEFECT        OrderRequestLineReason = "DEFECT"
+	OrderRequestLineReasonWRONGITEM     OrderRequestLineReason = "WRONG_ITEM"
+	OrderRequestLineReasonOTHER         OrderRequestLineReason = "OTHER"
+)
+
+// AllValues returns all OrderRequestLineReason values.
+func (OrderRequestLineReason) AllValues() []OrderRequestLineReason {
+	return []OrderRequestLineReason{
+		OrderRequestLineReasonTOOSMALL,
+		OrderRequestLineReasonTOOLARGE,
+		OrderRequestLineReasonFIT,
+		OrderRequestLineReasonCOLOR,
+		OrderRequestLineReasonNOTASPICTURED,
+		OrderRequestLineReasonDEFECT,
+		OrderRequestLineReasonWRONGITEM,
+		OrderRequestLineReasonOTHER,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s OrderRequestLineReason) MarshalText() ([]byte, error) {
+	switch s {
+	case OrderRequestLineReasonTOOSMALL:
+		return []byte(s), nil
+	case OrderRequestLineReasonTOOLARGE:
+		return []byte(s), nil
+	case OrderRequestLineReasonFIT:
+		return []byte(s), nil
+	case OrderRequestLineReasonCOLOR:
+		return []byte(s), nil
+	case OrderRequestLineReasonNOTASPICTURED:
+		return []byte(s), nil
+	case OrderRequestLineReasonDEFECT:
+		return []byte(s), nil
+	case OrderRequestLineReasonWRONGITEM:
+		return []byte(s), nil
+	case OrderRequestLineReasonOTHER:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *OrderRequestLineReason) UnmarshalText(data []byte) error {
+	switch OrderRequestLineReason(data) {
+	case OrderRequestLineReasonTOOSMALL:
+		*s = OrderRequestLineReasonTOOSMALL
+		return nil
+	case OrderRequestLineReasonTOOLARGE:
+		*s = OrderRequestLineReasonTOOLARGE
+		return nil
+	case OrderRequestLineReasonFIT:
+		*s = OrderRequestLineReasonFIT
+		return nil
+	case OrderRequestLineReasonCOLOR:
+		*s = OrderRequestLineReasonCOLOR
+		return nil
+	case OrderRequestLineReasonNOTASPICTURED:
+		*s = OrderRequestLineReasonNOTASPICTURED
+		return nil
+	case OrderRequestLineReasonDEFECT:
+		*s = OrderRequestLineReasonDEFECT
+		return nil
+	case OrderRequestLineReasonWRONGITEM:
+		*s = OrderRequestLineReasonWRONGITEM
+		return nil
+	case OrderRequestLineReasonOTHER:
+		*s = OrderRequestLineReasonOTHER
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/OrderRequestMessage
+type OrderRequestMessage struct {
+	ID         uuid.UUID                     `json:"id"`
+	AuthorType OrderRequestMessageAuthorType `json:"authorType"`
+	// Mã nhân viên (staff).
+	AuthorId OptString `json:"authorId"`
+	// Tên nhân viên (nhân viên không còn → không có).
+	AuthorName        OptString `json:"authorName"`
+	Body              string    `json:"body"`
+	VisibleToCustomer bool      `json:"visibleToCustomer"`
+	CreatedAt         time.Time `json:"createdAt"`
+}
+
+// GetID returns the value of ID.
+func (s *OrderRequestMessage) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetAuthorType returns the value of AuthorType.
+func (s *OrderRequestMessage) GetAuthorType() OrderRequestMessageAuthorType {
+	return s.AuthorType
+}
+
+// GetAuthorId returns the value of AuthorId.
+func (s *OrderRequestMessage) GetAuthorId() OptString {
+	return s.AuthorId
+}
+
+// GetAuthorName returns the value of AuthorName.
+func (s *OrderRequestMessage) GetAuthorName() OptString {
+	return s.AuthorName
+}
+
+// GetBody returns the value of Body.
+func (s *OrderRequestMessage) GetBody() string {
+	return s.Body
+}
+
+// GetVisibleToCustomer returns the value of VisibleToCustomer.
+func (s *OrderRequestMessage) GetVisibleToCustomer() bool {
+	return s.VisibleToCustomer
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *OrderRequestMessage) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetID sets the value of ID.
+func (s *OrderRequestMessage) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetAuthorType sets the value of AuthorType.
+func (s *OrderRequestMessage) SetAuthorType(val OrderRequestMessageAuthorType) {
+	s.AuthorType = val
+}
+
+// SetAuthorId sets the value of AuthorId.
+func (s *OrderRequestMessage) SetAuthorId(val OptString) {
+	s.AuthorId = val
+}
+
+// SetAuthorName sets the value of AuthorName.
+func (s *OrderRequestMessage) SetAuthorName(val OptString) {
+	s.AuthorName = val
+}
+
+// SetBody sets the value of Body.
+func (s *OrderRequestMessage) SetBody(val string) {
+	s.Body = val
+}
+
+// SetVisibleToCustomer sets the value of VisibleToCustomer.
+func (s *OrderRequestMessage) SetVisibleToCustomer(val bool) {
+	s.VisibleToCustomer = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *OrderRequestMessage) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+func (*OrderRequestMessage) replyOrderRequestRes() {}
+
+type OrderRequestMessageAuthorType string
+
+const (
+	OrderRequestMessageAuthorTypeCustomer OrderRequestMessageAuthorType = "customer"
+	OrderRequestMessageAuthorTypeStaff    OrderRequestMessageAuthorType = "staff"
+	OrderRequestMessageAuthorTypeSystem   OrderRequestMessageAuthorType = "system"
+)
+
+// AllValues returns all OrderRequestMessageAuthorType values.
+func (OrderRequestMessageAuthorType) AllValues() []OrderRequestMessageAuthorType {
+	return []OrderRequestMessageAuthorType{
+		OrderRequestMessageAuthorTypeCustomer,
+		OrderRequestMessageAuthorTypeStaff,
+		OrderRequestMessageAuthorTypeSystem,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s OrderRequestMessageAuthorType) MarshalText() ([]byte, error) {
+	switch s {
+	case OrderRequestMessageAuthorTypeCustomer:
+		return []byte(s), nil
+	case OrderRequestMessageAuthorTypeStaff:
+		return []byte(s), nil
+	case OrderRequestMessageAuthorTypeSystem:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *OrderRequestMessageAuthorType) UnmarshalText(data []byte) error {
+	switch OrderRequestMessageAuthorType(data) {
+	case OrderRequestMessageAuthorTypeCustomer:
+		*s = OrderRequestMessageAuthorTypeCustomer
+		return nil
+	case OrderRequestMessageAuthorTypeStaff:
+		*s = OrderRequestMessageAuthorTypeStaff
+		return nil
+	case OrderRequestMessageAuthorTypeSystem:
+		*s = OrderRequestMessageAuthorTypeSystem
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/OrderRequestOutcome
+type OrderRequestOutcome struct {
+	TrackingCode OptString `json:"trackingCode"`
+	Reason       OptString `json:"reason"`
+}
+
+// GetTrackingCode returns the value of TrackingCode.
+func (s *OrderRequestOutcome) GetTrackingCode() OptString {
+	return s.TrackingCode
+}
+
+// GetReason returns the value of Reason.
+func (s *OrderRequestOutcome) GetReason() OptString {
+	return s.Reason
+}
+
+// SetTrackingCode sets the value of TrackingCode.
+func (s *OrderRequestOutcome) SetTrackingCode(val OptString) {
+	s.TrackingCode = val
+}
+
+// SetReason sets the value of Reason.
+func (s *OrderRequestOutcome) SetReason(val OptString) {
+	s.Reason = val
+}
+
+// Ref: #/components/schemas/OrderRequestOutcomeInput
+type OrderRequestOutcomeInput struct {
+	TrackingCode OptString `json:"trackingCode"`
+	Reason       OptString `json:"reason"`
+}
+
+// GetTrackingCode returns the value of TrackingCode.
+func (s *OrderRequestOutcomeInput) GetTrackingCode() OptString {
+	return s.TrackingCode
+}
+
+// GetReason returns the value of Reason.
+func (s *OrderRequestOutcomeInput) GetReason() OptString {
+	return s.Reason
+}
+
+// SetTrackingCode sets the value of TrackingCode.
+func (s *OrderRequestOutcomeInput) SetTrackingCode(val OptString) {
+	s.TrackingCode = val
+}
+
+// SetReason sets the value of Reason.
+func (s *OrderRequestOutcomeInput) SetReason(val OptString) {
+	s.Reason = val
+}
+
+// Ref: #/components/schemas/OrderRequestPage
+type OrderRequestPage struct {
+	Items []OrderRequestSummary `json:"items"`
+	// Có khi còn trang sau; gửi lại nguyên ở tham số cursor.
+	NextCursor OptString `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *OrderRequestPage) GetItems() []OrderRequestSummary {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *OrderRequestPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *OrderRequestPage) SetItems(val []OrderRequestSummary) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *OrderRequestPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*OrderRequestPage) listOrderRequestsRes() {}
+
+type OrderRequestReason string
+
+// Ref: #/components/schemas/OrderRequestShipBack
+type OrderRequestShipBack struct {
+	Address     string `json:"address"`
+	PackageCode string `json:"packageCode"`
+	// 23:59:59 giờ Việt Nam của ngày hạn.
+	Deadline time.Time `json:"deadline"`
+}
+
+// GetAddress returns the value of Address.
+func (s *OrderRequestShipBack) GetAddress() string {
+	return s.Address
+}
+
+// GetPackageCode returns the value of PackageCode.
+func (s *OrderRequestShipBack) GetPackageCode() string {
+	return s.PackageCode
+}
+
+// GetDeadline returns the value of Deadline.
+func (s *OrderRequestShipBack) GetDeadline() time.Time {
+	return s.Deadline
+}
+
+// SetAddress sets the value of Address.
+func (s *OrderRequestShipBack) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetPackageCode sets the value of PackageCode.
+func (s *OrderRequestShipBack) SetPackageCode(val string) {
+	s.PackageCode = val
+}
+
+// SetDeadline sets the value of Deadline.
+func (s *OrderRequestShipBack) SetDeadline(val time.Time) {
+	s.Deadline = val
+}
+
+// Ref: #/components/schemas/OrderRequestStatus
+type OrderRequestStatus string
+
+const (
+	OrderRequestStatusReceived      OrderRequestStatus = "received"
+	OrderRequestStatusInReview      OrderRequestStatus = "in_review"
+	OrderRequestStatusNeedsInfo     OrderRequestStatus = "needs_info"
+	OrderRequestStatusConfirmed     OrderRequestStatus = "confirmed"
+	OrderRequestStatusItemsReceived OrderRequestStatus = "items_received"
+	OrderRequestStatusResolved      OrderRequestStatus = "resolved"
+	OrderRequestStatusRejected      OrderRequestStatus = "rejected"
+	OrderRequestStatusCancelled     OrderRequestStatus = "cancelled"
+)
+
+// AllValues returns all OrderRequestStatus values.
+func (OrderRequestStatus) AllValues() []OrderRequestStatus {
+	return []OrderRequestStatus{
+		OrderRequestStatusReceived,
+		OrderRequestStatusInReview,
+		OrderRequestStatusNeedsInfo,
+		OrderRequestStatusConfirmed,
+		OrderRequestStatusItemsReceived,
+		OrderRequestStatusResolved,
+		OrderRequestStatusRejected,
+		OrderRequestStatusCancelled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s OrderRequestStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case OrderRequestStatusReceived:
+		return []byte(s), nil
+	case OrderRequestStatusInReview:
+		return []byte(s), nil
+	case OrderRequestStatusNeedsInfo:
+		return []byte(s), nil
+	case OrderRequestStatusConfirmed:
+		return []byte(s), nil
+	case OrderRequestStatusItemsReceived:
+		return []byte(s), nil
+	case OrderRequestStatusResolved:
+		return []byte(s), nil
+	case OrderRequestStatusRejected:
+		return []byte(s), nil
+	case OrderRequestStatusCancelled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *OrderRequestStatus) UnmarshalText(data []byte) error {
+	switch OrderRequestStatus(data) {
+	case OrderRequestStatusReceived:
+		*s = OrderRequestStatusReceived
+		return nil
+	case OrderRequestStatusInReview:
+		*s = OrderRequestStatusInReview
+		return nil
+	case OrderRequestStatusNeedsInfo:
+		*s = OrderRequestStatusNeedsInfo
+		return nil
+	case OrderRequestStatusConfirmed:
+		*s = OrderRequestStatusConfirmed
+		return nil
+	case OrderRequestStatusItemsReceived:
+		*s = OrderRequestStatusItemsReceived
+		return nil
+	case OrderRequestStatusResolved:
+		*s = OrderRequestStatusResolved
+		return nil
+	case OrderRequestStatusRejected:
+		*s = OrderRequestStatusRejected
+		return nil
+	case OrderRequestStatusCancelled:
+		*s = OrderRequestStatusCancelled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/OrderRequestSummary
+type OrderRequestSummary struct {
+	ID         uuid.UUID          `json:"id"`
+	Ref        string             `json:"ref"`
+	OrderId    uuid.UUID          `json:"orderId"`
+	OrderCode  string             `json:"orderCode"`
+	Kind       OrderRequestKind   `json:"kind"`
+	Status     OrderRequestStatus `json:"status"`
+	ReasonCode string             `json:"reasonCode"`
+	CreatedAt  time.Time          `json:"createdAt"`
+	UpdatedAt  time.Time          `json:"updatedAt"`
+	Version    int32              `json:"version"`
+}
+
+// GetID returns the value of ID.
+func (s *OrderRequestSummary) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetRef returns the value of Ref.
+func (s *OrderRequestSummary) GetRef() string {
+	return s.Ref
+}
+
+// GetOrderId returns the value of OrderId.
+func (s *OrderRequestSummary) GetOrderId() uuid.UUID {
+	return s.OrderId
+}
+
+// GetOrderCode returns the value of OrderCode.
+func (s *OrderRequestSummary) GetOrderCode() string {
+	return s.OrderCode
+}
+
+// GetKind returns the value of Kind.
+func (s *OrderRequestSummary) GetKind() OrderRequestKind {
+	return s.Kind
+}
+
+// GetStatus returns the value of Status.
+func (s *OrderRequestSummary) GetStatus() OrderRequestStatus {
+	return s.Status
+}
+
+// GetReasonCode returns the value of ReasonCode.
+func (s *OrderRequestSummary) GetReasonCode() string {
+	return s.ReasonCode
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *OrderRequestSummary) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *OrderRequestSummary) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// GetVersion returns the value of Version.
+func (s *OrderRequestSummary) GetVersion() int32 {
+	return s.Version
+}
+
+// SetID sets the value of ID.
+func (s *OrderRequestSummary) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetRef sets the value of Ref.
+func (s *OrderRequestSummary) SetRef(val string) {
+	s.Ref = val
+}
+
+// SetOrderId sets the value of OrderId.
+func (s *OrderRequestSummary) SetOrderId(val uuid.UUID) {
+	s.OrderId = val
+}
+
+// SetOrderCode sets the value of OrderCode.
+func (s *OrderRequestSummary) SetOrderCode(val string) {
+	s.OrderCode = val
+}
+
+// SetKind sets the value of Kind.
+func (s *OrderRequestSummary) SetKind(val OrderRequestKind) {
+	s.Kind = val
+}
+
+// SetStatus sets the value of Status.
+func (s *OrderRequestSummary) SetStatus(val OrderRequestStatus) {
+	s.Status = val
+}
+
+// SetReasonCode sets the value of ReasonCode.
+func (s *OrderRequestSummary) SetReasonCode(val string) {
+	s.ReasonCode = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *OrderRequestSummary) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *OrderRequestSummary) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *OrderRequestSummary) SetVersion(val int32) {
+	s.Version = val
 }
 
 // Ref: #/components/schemas/OrderSettings
@@ -20013,6 +21285,33 @@ func (s *ReplaceStockDocumentLinesRequest) SetLines(val []StockDocumentLine) {
 	s.Lines = val
 }
 
+// Ref: #/components/schemas/ReplyOrderRequestRequest
+type ReplyOrderRequestRequest struct {
+	// 5–1000 ký tự sau khi cắt khoảng trắng.
+	Body              string `json:"body"`
+	VisibleToCustomer bool   `json:"visibleToCustomer"`
+}
+
+// GetBody returns the value of Body.
+func (s *ReplyOrderRequestRequest) GetBody() string {
+	return s.Body
+}
+
+// GetVisibleToCustomer returns the value of VisibleToCustomer.
+func (s *ReplyOrderRequestRequest) GetVisibleToCustomer() bool {
+	return s.VisibleToCustomer
+}
+
+// SetBody sets the value of Body.
+func (s *ReplyOrderRequestRequest) SetBody(val string) {
+	s.Body = val
+}
+
+// SetVisibleToCustomer sets the value of VisibleToCustomer.
+func (s *ReplyOrderRequestRequest) SetVisibleToCustomer(val bool) {
+	s.VisibleToCustomer = val
+}
+
 // Ref: #/components/schemas/RequestAddressChangeRequest
 type RequestAddressChangeRequest struct {
 	Address AddressInput `json:"address"`
@@ -20353,7 +21652,11 @@ func (s *RetryLaterHeaders) SetResponse(val Error) {
 	s.Response = val
 }
 
-func (*RetryLaterHeaders) webCreateOrderRes() {}
+func (*RetryLaterHeaders) webCancelRequestRes()     {}
+func (*RetryLaterHeaders) webCreateOrderRes()       {}
+func (*RetryLaterHeaders) webCreateRequestRes()     {}
+func (*RetryLaterHeaders) webReplyRequestRes()      {}
+func (*RetryLaterHeaders) webUploadRequestFileRes() {}
 
 // Ref: #/components/schemas/Return
 type Return struct {
@@ -21600,6 +22903,102 @@ func (s *SetOrderPendingRequestReason) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Ref: #/components/schemas/SetOrderRequestStatusRequest
+type SetOrderRequestStatusRequest struct {
+	Status  OrderRequestStatus `json:"status"`
+	Version int32              `json:"version"`
+	// Tin hiện cho khách (5–1000 ký tự); bắt buộc khi needs_info.
+	Message  OptString                               `json:"message"`
+	ShipBack OptSetOrderRequestStatusRequestShipBack `json:"shipBack"`
+	Outcome  OptOrderRequestOutcomeInput             `json:"outcome"`
+}
+
+// GetStatus returns the value of Status.
+func (s *SetOrderRequestStatusRequest) GetStatus() OrderRequestStatus {
+	return s.Status
+}
+
+// GetVersion returns the value of Version.
+func (s *SetOrderRequestStatusRequest) GetVersion() int32 {
+	return s.Version
+}
+
+// GetMessage returns the value of Message.
+func (s *SetOrderRequestStatusRequest) GetMessage() OptString {
+	return s.Message
+}
+
+// GetShipBack returns the value of ShipBack.
+func (s *SetOrderRequestStatusRequest) GetShipBack() OptSetOrderRequestStatusRequestShipBack {
+	return s.ShipBack
+}
+
+// GetOutcome returns the value of Outcome.
+func (s *SetOrderRequestStatusRequest) GetOutcome() OptOrderRequestOutcomeInput {
+	return s.Outcome
+}
+
+// SetStatus sets the value of Status.
+func (s *SetOrderRequestStatusRequest) SetStatus(val OrderRequestStatus) {
+	s.Status = val
+}
+
+// SetVersion sets the value of Version.
+func (s *SetOrderRequestStatusRequest) SetVersion(val int32) {
+	s.Version = val
+}
+
+// SetMessage sets the value of Message.
+func (s *SetOrderRequestStatusRequest) SetMessage(val OptString) {
+	s.Message = val
+}
+
+// SetShipBack sets the value of ShipBack.
+func (s *SetOrderRequestStatusRequest) SetShipBack(val OptSetOrderRequestStatusRequestShipBack) {
+	s.ShipBack = val
+}
+
+// SetOutcome sets the value of Outcome.
+func (s *SetOrderRequestStatusRequest) SetOutcome(val OptOrderRequestOutcomeInput) {
+	s.Outcome = val
+}
+
+type SetOrderRequestStatusRequestShipBack struct {
+	Address     string    `json:"address"`
+	PackageCode string    `json:"packageCode"`
+	Deadline    time.Time `json:"deadline"`
+}
+
+// GetAddress returns the value of Address.
+func (s *SetOrderRequestStatusRequestShipBack) GetAddress() string {
+	return s.Address
+}
+
+// GetPackageCode returns the value of PackageCode.
+func (s *SetOrderRequestStatusRequestShipBack) GetPackageCode() string {
+	return s.PackageCode
+}
+
+// GetDeadline returns the value of Deadline.
+func (s *SetOrderRequestStatusRequestShipBack) GetDeadline() time.Time {
+	return s.Deadline
+}
+
+// SetAddress sets the value of Address.
+func (s *SetOrderRequestStatusRequestShipBack) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetPackageCode sets the value of PackageCode.
+func (s *SetOrderRequestStatusRequestShipBack) SetPackageCode(val string) {
+	s.PackageCode = val
+}
+
+// SetDeadline sets the value of Deadline.
+func (s *SetOrderRequestStatusRequestShipBack) SetDeadline(val time.Time) {
+	s.Deadline = val
 }
 
 // Ref: #/components/schemas/SetPackingStatusRequest
@@ -28553,6 +29952,331 @@ func (s *WebCategory) SetPosition(val int32) {
 	s.Position = val
 }
 
+// Ref: #/components/schemas/WebCreateRequestBody
+type WebCreateRequestBody struct {
+	Kind   OrderRequestKind   `json:"kind"`
+	Reason OrderRequestReason `json:"reason"`
+	// Lời nhắn của khách, 5–1000 ký tự sau khi cắt khoảng trắng.
+	Message string                `json:"message"`
+	Lines   []WebRequestLineInput `json:"lines"`
+	FileIds []uuid.UUID           `json:"fileIds"`
+	// Khách xác nhận hàng còn tem, nhãn, chưa dùng (bắt buộc với đổi, trả).
+	ConditionConfirmed OptBool `json:"conditionConfirmed"`
+}
+
+// GetKind returns the value of Kind.
+func (s *WebCreateRequestBody) GetKind() OrderRequestKind {
+	return s.Kind
+}
+
+// GetReason returns the value of Reason.
+func (s *WebCreateRequestBody) GetReason() OrderRequestReason {
+	return s.Reason
+}
+
+// GetMessage returns the value of Message.
+func (s *WebCreateRequestBody) GetMessage() string {
+	return s.Message
+}
+
+// GetLines returns the value of Lines.
+func (s *WebCreateRequestBody) GetLines() []WebRequestLineInput {
+	return s.Lines
+}
+
+// GetFileIds returns the value of FileIds.
+func (s *WebCreateRequestBody) GetFileIds() []uuid.UUID {
+	return s.FileIds
+}
+
+// GetConditionConfirmed returns the value of ConditionConfirmed.
+func (s *WebCreateRequestBody) GetConditionConfirmed() OptBool {
+	return s.ConditionConfirmed
+}
+
+// SetKind sets the value of Kind.
+func (s *WebCreateRequestBody) SetKind(val OrderRequestKind) {
+	s.Kind = val
+}
+
+// SetReason sets the value of Reason.
+func (s *WebCreateRequestBody) SetReason(val OrderRequestReason) {
+	s.Reason = val
+}
+
+// SetMessage sets the value of Message.
+func (s *WebCreateRequestBody) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetLines sets the value of Lines.
+func (s *WebCreateRequestBody) SetLines(val []WebRequestLineInput) {
+	s.Lines = val
+}
+
+// SetFileIds sets the value of FileIds.
+func (s *WebCreateRequestBody) SetFileIds(val []uuid.UUID) {
+	s.FileIds = val
+}
+
+// SetConditionConfirmed sets the value of ConditionConfirmed.
+func (s *WebCreateRequestBody) SetConditionConfirmed(val OptBool) {
+	s.ConditionConfirmed = val
+}
+
+// Ref: #/components/schemas/WebCustomerRequest
+type WebCustomerRequest struct {
+	Ref       string                      `json:"ref"`
+	Kind      OrderRequestKind            `json:"kind"`
+	Reason    string                      `json:"reason"`
+	Message   string                      `json:"message"`
+	Status    OrderRequestStatus          `json:"status"`
+	Lines     []OrderRequestLine          `json:"lines"`
+	FileCount int32                       `json:"fileCount"`
+	ShipBack  OptOrderRequestShipBack     `json:"shipBack"`
+	Outcome   OptOrderRequestOutcome      `json:"outcome"`
+	Messages  []WebCustomerRequestMessage `json:"messages"`
+	CreatedAt time.Time                   `json:"createdAt"`
+	UpdatedAt time.Time                   `json:"updatedAt"`
+}
+
+// GetRef returns the value of Ref.
+func (s *WebCustomerRequest) GetRef() string {
+	return s.Ref
+}
+
+// GetKind returns the value of Kind.
+func (s *WebCustomerRequest) GetKind() OrderRequestKind {
+	return s.Kind
+}
+
+// GetReason returns the value of Reason.
+func (s *WebCustomerRequest) GetReason() string {
+	return s.Reason
+}
+
+// GetMessage returns the value of Message.
+func (s *WebCustomerRequest) GetMessage() string {
+	return s.Message
+}
+
+// GetStatus returns the value of Status.
+func (s *WebCustomerRequest) GetStatus() OrderRequestStatus {
+	return s.Status
+}
+
+// GetLines returns the value of Lines.
+func (s *WebCustomerRequest) GetLines() []OrderRequestLine {
+	return s.Lines
+}
+
+// GetFileCount returns the value of FileCount.
+func (s *WebCustomerRequest) GetFileCount() int32 {
+	return s.FileCount
+}
+
+// GetShipBack returns the value of ShipBack.
+func (s *WebCustomerRequest) GetShipBack() OptOrderRequestShipBack {
+	return s.ShipBack
+}
+
+// GetOutcome returns the value of Outcome.
+func (s *WebCustomerRequest) GetOutcome() OptOrderRequestOutcome {
+	return s.Outcome
+}
+
+// GetMessages returns the value of Messages.
+func (s *WebCustomerRequest) GetMessages() []WebCustomerRequestMessage {
+	return s.Messages
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *WebCustomerRequest) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *WebCustomerRequest) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetRef sets the value of Ref.
+func (s *WebCustomerRequest) SetRef(val string) {
+	s.Ref = val
+}
+
+// SetKind sets the value of Kind.
+func (s *WebCustomerRequest) SetKind(val OrderRequestKind) {
+	s.Kind = val
+}
+
+// SetReason sets the value of Reason.
+func (s *WebCustomerRequest) SetReason(val string) {
+	s.Reason = val
+}
+
+// SetMessage sets the value of Message.
+func (s *WebCustomerRequest) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetStatus sets the value of Status.
+func (s *WebCustomerRequest) SetStatus(val OrderRequestStatus) {
+	s.Status = val
+}
+
+// SetLines sets the value of Lines.
+func (s *WebCustomerRequest) SetLines(val []OrderRequestLine) {
+	s.Lines = val
+}
+
+// SetFileCount sets the value of FileCount.
+func (s *WebCustomerRequest) SetFileCount(val int32) {
+	s.FileCount = val
+}
+
+// SetShipBack sets the value of ShipBack.
+func (s *WebCustomerRequest) SetShipBack(val OptOrderRequestShipBack) {
+	s.ShipBack = val
+}
+
+// SetOutcome sets the value of Outcome.
+func (s *WebCustomerRequest) SetOutcome(val OptOrderRequestOutcome) {
+	s.Outcome = val
+}
+
+// SetMessages sets the value of Messages.
+func (s *WebCustomerRequest) SetMessages(val []WebCustomerRequestMessage) {
+	s.Messages = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *WebCustomerRequest) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *WebCustomerRequest) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// Ref: #/components/schemas/WebCustomerRequestList
+type WebCustomerRequestList struct {
+	Items              []WebCustomerRequest `json:"items"`
+	ExchangeWindowDays int32                `json:"exchangeWindowDays"`
+}
+
+// GetItems returns the value of Items.
+func (s *WebCustomerRequestList) GetItems() []WebCustomerRequest {
+	return s.Items
+}
+
+// GetExchangeWindowDays returns the value of ExchangeWindowDays.
+func (s *WebCustomerRequestList) GetExchangeWindowDays() int32 {
+	return s.ExchangeWindowDays
+}
+
+// SetItems sets the value of Items.
+func (s *WebCustomerRequestList) SetItems(val []WebCustomerRequest) {
+	s.Items = val
+}
+
+// SetExchangeWindowDays sets the value of ExchangeWindowDays.
+func (s *WebCustomerRequestList) SetExchangeWindowDays(val int32) {
+	s.ExchangeWindowDays = val
+}
+
+func (*WebCustomerRequestList) webListRequestsRes() {}
+
+// Ref: #/components/schemas/WebCustomerRequestMessage
+type WebCustomerRequestMessage struct {
+	ID        uuid.UUID                     `json:"id"`
+	From      WebCustomerRequestMessageFrom `json:"from"`
+	Body      string                        `json:"body"`
+	CreatedAt time.Time                     `json:"createdAt"`
+}
+
+// GetID returns the value of ID.
+func (s *WebCustomerRequestMessage) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetFrom returns the value of From.
+func (s *WebCustomerRequestMessage) GetFrom() WebCustomerRequestMessageFrom {
+	return s.From
+}
+
+// GetBody returns the value of Body.
+func (s *WebCustomerRequestMessage) GetBody() string {
+	return s.Body
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *WebCustomerRequestMessage) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetID sets the value of ID.
+func (s *WebCustomerRequestMessage) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetFrom sets the value of From.
+func (s *WebCustomerRequestMessage) SetFrom(val WebCustomerRequestMessageFrom) {
+	s.From = val
+}
+
+// SetBody sets the value of Body.
+func (s *WebCustomerRequestMessage) SetBody(val string) {
+	s.Body = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *WebCustomerRequestMessage) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+type WebCustomerRequestMessageFrom string
+
+const (
+	WebCustomerRequestMessageFromCustomer WebCustomerRequestMessageFrom = "customer"
+	WebCustomerRequestMessageFromStaff    WebCustomerRequestMessageFrom = "staff"
+)
+
+// AllValues returns all WebCustomerRequestMessageFrom values.
+func (WebCustomerRequestMessageFrom) AllValues() []WebCustomerRequestMessageFrom {
+	return []WebCustomerRequestMessageFrom{
+		WebCustomerRequestMessageFromCustomer,
+		WebCustomerRequestMessageFromStaff,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WebCustomerRequestMessageFrom) MarshalText() ([]byte, error) {
+	switch s {
+	case WebCustomerRequestMessageFromCustomer:
+		return []byte(s), nil
+	case WebCustomerRequestMessageFromStaff:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WebCustomerRequestMessageFrom) UnmarshalText(data []byte) error {
+	switch WebCustomerRequestMessageFrom(data) {
+	case WebCustomerRequestMessageFromCustomer:
+		*s = WebCustomerRequestMessageFromCustomer
+		return nil
+	case WebCustomerRequestMessageFromStaff:
+		*s = WebCustomerRequestMessageFromStaff
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/WebImage
 type WebImage struct {
 	Position int32 `json:"position"`
@@ -29853,6 +31577,127 @@ func (s *WebQuotedLineProblem) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/WebReplyRequestBody
+type WebReplyRequestBody struct {
+	Message string `json:"message"`
+}
+
+// GetMessage returns the value of Message.
+func (s *WebReplyRequestBody) GetMessage() string {
+	return s.Message
+}
+
+// SetMessage sets the value of Message.
+func (s *WebReplyRequestBody) SetMessage(val string) {
+	s.Message = val
+}
+
+// Ref: #/components/schemas/WebRequestFile
+type WebRequestFile struct {
+	FileId uuid.UUID `json:"fileId"`
+}
+
+// GetFileId returns the value of FileId.
+func (s *WebRequestFile) GetFileId() uuid.UUID {
+	return s.FileId
+}
+
+// SetFileId sets the value of FileId.
+func (s *WebRequestFile) SetFileId(val uuid.UUID) {
+	s.FileId = val
+}
+
+func (*WebRequestFile) webUploadRequestFileRes() {}
+
+// Ref: #/components/schemas/WebRequestLineInput
+type WebRequestLineInput struct {
+	VariantId     uuid.UUID              `json:"variantId"`
+	Qty           int32                  `json:"qty"`
+	Reason        OrderRequestLineReason `json:"reason"`
+	WantVariantId OptUUID                `json:"wantVariantId"`
+	Note          OptString              `json:"note"`
+}
+
+// GetVariantId returns the value of VariantId.
+func (s *WebRequestLineInput) GetVariantId() uuid.UUID {
+	return s.VariantId
+}
+
+// GetQty returns the value of Qty.
+func (s *WebRequestLineInput) GetQty() int32 {
+	return s.Qty
+}
+
+// GetReason returns the value of Reason.
+func (s *WebRequestLineInput) GetReason() OrderRequestLineReason {
+	return s.Reason
+}
+
+// GetWantVariantId returns the value of WantVariantId.
+func (s *WebRequestLineInput) GetWantVariantId() OptUUID {
+	return s.WantVariantId
+}
+
+// GetNote returns the value of Note.
+func (s *WebRequestLineInput) GetNote() OptString {
+	return s.Note
+}
+
+// SetVariantId sets the value of VariantId.
+func (s *WebRequestLineInput) SetVariantId(val uuid.UUID) {
+	s.VariantId = val
+}
+
+// SetQty sets the value of Qty.
+func (s *WebRequestLineInput) SetQty(val int32) {
+	s.Qty = val
+}
+
+// SetReason sets the value of Reason.
+func (s *WebRequestLineInput) SetReason(val OrderRequestLineReason) {
+	s.Reason = val
+}
+
+// SetWantVariantId sets the value of WantVariantId.
+func (s *WebRequestLineInput) SetWantVariantId(val OptUUID) {
+	s.WantVariantId = val
+}
+
+// SetNote sets the value of Note.
+func (s *WebRequestLineInput) SetNote(val OptString) {
+	s.Note = val
+}
+
+// Ref: #/components/schemas/WebRequestRef
+type WebRequestRef struct {
+	Ref    string             `json:"ref"`
+	Status OrderRequestStatus `json:"status"`
+}
+
+// GetRef returns the value of Ref.
+func (s *WebRequestRef) GetRef() string {
+	return s.Ref
+}
+
+// GetStatus returns the value of Status.
+func (s *WebRequestRef) GetStatus() OrderRequestStatus {
+	return s.Status
+}
+
+// SetRef sets the value of Ref.
+func (s *WebRequestRef) SetRef(val string) {
+	s.Ref = val
+}
+
+// SetStatus sets the value of Status.
+func (s *WebRequestRef) SetStatus(val OrderRequestStatus) {
+	s.Status = val
+}
+
+func (*WebRequestRef) webCancelRequestRes() {}
+func (*WebRequestRef) webCreateRequestRes() {}
+func (*WebRequestRef) webReplyRequestRes()  {}
+
 // Ref: #/components/schemas/WebSold30
 type WebSold30 struct {
 	Items []WebSoldItem `json:"items"`
@@ -30009,6 +31854,46 @@ func (s *WebTaxonomyHeaders) SetResponse(val WebTaxonomy) {
 }
 
 func (*WebTaxonomyHeaders) webCatalogTaxonomyRes() {}
+
+type WebUploadRequestFileReq struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s WebUploadRequestFileReq) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+// WebUploadRequestFileReqWithContentType wraps WebUploadRequestFileReq with Content-Type.
+type WebUploadRequestFileReqWithContentType struct {
+	ContentType string
+	Content     WebUploadRequestFileReq
+}
+
+// GetContentType returns the value of ContentType.
+func (s *WebUploadRequestFileReqWithContentType) GetContentType() string {
+	return s.ContentType
+}
+
+// GetContent returns the value of Content.
+func (s *WebUploadRequestFileReqWithContentType) GetContent() WebUploadRequestFileReq {
+	return s.Content
+}
+
+// SetContentType sets the value of ContentType.
+func (s *WebUploadRequestFileReqWithContentType) SetContentType(val string) {
+	s.ContentType = val
+}
+
+// SetContent sets the value of Content.
+func (s *WebUploadRequestFileReqWithContentType) SetContent(val WebUploadRequestFileReq) {
+	s.Content = val
+}
 
 // Ref: #/components/schemas/WebVariant
 type WebVariant struct {

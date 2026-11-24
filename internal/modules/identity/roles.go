@@ -57,6 +57,8 @@ func defaultRoles() []RoleDef {
 			"promotion.read",
 			// M3 (Task M3-04).
 			"fulfillment.quote", "fulfillment.cancel", "fulfillment.callbacks.work", "cash.payments.record",
+			// M5 (Task 195).
+			"order.requests.read", "order.requests.manage",
 		}},
 		{Key: "warehouse", Name: "Kho", Permissions: []Permission{
 			"catalog.read", "inventory.read", "inventory.documents.create", "inventory.stocktake", "fulfillment.read",
@@ -510,6 +512,8 @@ func permissionLabels() map[Permission][3]string {
 		"order.duplicates.resolve":   {groupOrder, "Xử lý đơn trùng", ""},
 		"order.settings.manage":      {groupOrder, "Cài đặt đơn, nguồn đơn", ""},
 		"order.web_intake.manage":    {groupOrder, "Tạm dừng, mở lại nhận đơn web", ""},
+		"order.requests.read":        {groupOrder, "Xem yêu cầu về đơn của khách", ""},
+		"order.requests.manage":      {groupOrder, "Trả lời, xử lý yêu cầu về đơn", ""},
 		"customer.read":              {groupCustomer, "Xem khách hàng", ""},
 		"customer.write":             {groupCustomer, "Tạo, sửa hồ sơ khách", ""},
 		"customer.merge":             {groupCustomer, "Gộp khách, hoàn tác gộp", ""},

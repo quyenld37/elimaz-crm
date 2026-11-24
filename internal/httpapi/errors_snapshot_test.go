@@ -154,6 +154,17 @@ func domainErrorSnapshot() []snapshotCase {
 		// Tạm dừng nhận đơn web (Task 456).
 		{"order.ErrWebIntakePaused", order.ErrWebIntakePaused, http.StatusServiceUnavailable, "web_orders_paused"},
 		{"order.ErrReasonRequired", order.ErrReasonRequired, http.StatusUnprocessableEntity, "invalid_input"},
+		// Yêu cầu về đơn hàng (Task 195).
+		{"order.ErrWindowClosed", order.ErrWindowClosed, http.StatusUnprocessableEntity, "window_closed"},
+		{"order.ErrQtyExceeded", order.ErrQtyExceeded, http.StatusUnprocessableEntity, "qty_exceeded"},
+		{"order.ErrPhotoRequired", order.ErrPhotoRequired, http.StatusUnprocessableEntity, "photo_required"},
+		{"order.ErrTooManyFiles", order.ErrTooManyFiles, http.StatusUnprocessableEntity, "too_many_files"},
+		{"order.ErrDuplicateOpen", order.ErrDuplicateOpen, http.StatusUnprocessableEntity, "duplicate_open"},
+		{"order.ErrFileRejected", order.ErrFileRejected, http.StatusUnprocessableEntity, "file_rejected"},
+		{"order.ErrFileNotFound", order.ErrFileNotFound, http.StatusUnprocessableEntity, "file_not_found"},
+		{"order.ErrRequestNotAllowed", order.ErrRequestNotAllowed, http.StatusUnprocessableEntity, "request_not_allowed"},
+		{"order.ErrRequestNotFound", order.ErrRequestNotFound, http.StatusNotFound, "not_found"},
+		{"order.ErrRequestLimit", order.ErrRequestLimit, http.StatusTooManyRequests, "too_fast"},
 		{"webcatalog.ErrBadLimit", webcatalog.ErrBadLimit, http.StatusBadRequest, "bad_request"},
 		{"catalog.ErrInvalidArticle", catalog.ErrInvalidArticle, http.StatusUnprocessableEntity, "invalid_article"},
 		{"catalog.ErrCategoryCycle", catalog.ErrCategoryCycle, http.StatusUnprocessableEntity, "category_cycle"},

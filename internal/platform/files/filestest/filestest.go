@@ -83,3 +83,18 @@ func MarkLost(t testing.TB, tx pgx.Tx, fileID uuid.UUID) {
 		t.Fatalf("filestest: đánh dấu mất %s: %d dòng, %v", fileID, n, err)
 	}
 }
+
+// Rejected tạo tệp mục đích purpose của tenantID đã tải lên rồi bị từ chối khi xử lý (status rejected, lý do
+// not_image), như sau khi imager của M1 thấy tệp không phải ảnh hợp lệ (R10), và trả mã tệp.
+func Rejected(t testing.TB, tx pgx.Tx, tenantID uuid.UUID, purpose string) uuid.UUID {
+	t.Helper()
+	id := Uploaded(t, tx, tenantID, purpose)
+	q := store.New(tx)
+	if _, err := q.LockFile(t.Context(), id); err != nil {
+		t.Fatalf("filestest: khóa tệp: %v", err)
+	}
+	if n, err := q.SetFileRejected(t.Context(), store.SetFileRejectedParams{ID: id, RejectReason: pgtype.Text{String: "not_image", Valid: true}}); err != nil || n != 1 {
+		t.Fatalf("filestest: đặt rejected: %d dòng, %v", n, err)
+	}
+	return id
+}

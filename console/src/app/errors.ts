@@ -135,6 +135,15 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   too_fast: "Khách đặt quá nhiều đơn trong thời gian ngắn. Thử lại sau ít phút",
   // Tạm dừng nhận đơn web (Task 456)
   web_orders_paused: "ELIMAZ đang tạm dừng nhận đơn trên website. Mở lại ở màn Nhận đơn web",
+  // Yêu cầu về đơn hàng (Task 195)
+  window_closed: "Đơn đã quá hạn đổi, trả hàng",
+  qty_exceeded: "Số lượng yêu cầu vượt số còn đổi được của đơn",
+  photo_required: "Yêu cầu đổi vì hàng lỗi hay giao nhầm cần kèm ảnh",
+  too_many_files: "Mỗi yêu cầu kèm tối đa 5 ảnh",
+  duplicate_open: "Đơn đã có một yêu cầu hủy đang xử lý",
+  file_rejected: "Ảnh kèm không phải ảnh hợp lệ",
+  file_not_found: "Không dùng được ảnh kèm (không có hoặc đã gắn yêu cầu khác)",
+  request_not_allowed: "Đơn hay yêu cầu không ở trạng thái cho việc này",
 };
 
 /** Câu cho từng lý do từ chối mã giảm giá (CouponRejectReason: checkCoupon.reason, thân lỗi coupon_rejected.reason). */

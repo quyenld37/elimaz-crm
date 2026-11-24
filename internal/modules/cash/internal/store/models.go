@@ -1258,6 +1258,45 @@ type OrdOrderNote struct {
 	CreatedAt time.Time
 }
 
+type OrdOrderRequest struct {
+	ID                 uuid.UUID
+	TenantID           uuid.UUID
+	OrderID            uuid.UUID
+	Ref                string
+	Kind               string
+	Status             string
+	ReasonCode         string
+	Lines              []byte
+	Source             string
+	CustomerNote       pgtype.Text
+	ConditionConfirmed bool
+	ShipBack           []byte
+	Outcome            []byte
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	ResolvedAt         pgtype.Timestamptz
+	ResolvedBy         pgtype.UUID
+	Version            int32
+}
+
+type OrdOrderRequestFile struct {
+	TenantID  uuid.UUID
+	RequestID uuid.UUID
+	FileID    uuid.UUID
+	Position  int32
+}
+
+type OrdOrderRequestMessage struct {
+	ID                uuid.UUID
+	TenantID          uuid.UUID
+	RequestID         uuid.UUID
+	AuthorType        string
+	AuthorID          pgtype.Text
+	Body              string
+	VisibleToCustomer bool
+	CreatedAt         time.Time
+}
+
 type OrdOrderSetting struct {
 	TenantID                    uuid.UUID
 	DraftTtlMinutes             int32
@@ -1267,6 +1306,7 @@ type OrdOrderSetting struct {
 	Version                     int64
 	UpdatedAt                   time.Time
 	UpdatedBy                   pgtype.UUID
+	ExchangeWindowDays          int32
 }
 
 type OrdOrderStatusHistory struct {

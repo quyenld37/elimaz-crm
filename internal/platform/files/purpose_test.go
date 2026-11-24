@@ -12,6 +12,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
+	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/files/filestest"
 )
@@ -33,7 +34,8 @@ func pgCode(err error) string {
 // allPurposes là mọi mục đích có dòng trong bảng sau migration (M1, M2 customer_import, M3 carrier_label và
 // cod_statement) cùng extra.
 func allPurposes(extra ...files.Purpose) []files.Purpose {
-	ps := append(files.M1Purposes(), customer.ImportPurpose(), fulfillment.LabelPurpose(), cash.StatementPurpose())
+	ps := append(files.M1Purposes(), customer.ImportPurpose(), fulfillment.LabelPurpose(), cash.StatementPurpose(),
+		order.RequestPhotoPurpose())
 	return append(ps, extra...)
 }
 
@@ -42,7 +44,8 @@ func TestPurposes_GoMatchesTable(t *testing.T) {
 	e := newEnv(t)
 	ctx := t.Context()
 	// Mục đích của mốc sau (dòng INSERT trong migration của mốc đó + RegisterPurpose ở module): M2 customer_import
-	// (Task M2-13, 0208); M3 carrier_label, cod_statement (Task M3-04, 0306).
+	// (Task M2-13, 0208); M3 carrier_label, cod_statement (Task M3-04, 0306); M5 order_request_photo (Task 195, 0504,
+	// chế độ private).
 	m1 := files.NewRegistry(allPurposes()...)
 	if err := m1.Check(ctx, e.staff.App); err != nil {
 		t.Fatalf("mục đích M1, M2, M3 phải khớp bảng sau migration: %v", err)
