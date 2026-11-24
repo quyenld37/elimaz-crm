@@ -430,6 +430,42 @@ type CustomerAdminUnitsV struct {
 	Name       string
 }
 
+type CustomerBirthdayProfile struct {
+	TenantID        uuid.UUID
+	CustomerID      uuid.UUID
+	Phone           string
+	Day             int32
+	Month           int32
+	ConsentZalo     bool
+	ConsentMail     bool
+	Email           pgtype.Text
+	StopToken       string
+	StoppedAt       pgtype.Timestamptz
+	LegacyDelivered bool
+	Source          string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type CustomerBirthdayProfilesV struct {
+	TenantID        uuid.UUID
+	CustomerID      uuid.UUID
+	RootID          uuid.UUID
+	FullName        string
+	Phone           string
+	Email           pgtype.Text
+	Day             int32
+	Month           int32
+	ConsentZalo     bool
+	ConsentMail     bool
+	StopToken       string
+	StoppedAt       pgtype.Timestamptz
+	LegacyDelivered bool
+	Source          string
+	CreatedAt       time.Time
+	DeliveredCount  int32
+}
+
 type CustomerCustomer struct {
 	ID             uuid.UUID
 	TenantID       uuid.UUID
@@ -1690,6 +1726,39 @@ type PlatformWebhookDelivery struct {
 	ReceivedAt time.Time
 	RouteKey   pgtype.Text
 	BodyKind   string
+}
+
+type PromotionBirthdayGift struct {
+	TenantID   uuid.UUID
+	CustomerID uuid.UUID
+	GiftYear   int32
+	CouponID   uuid.UUID
+	RunID      uuid.UUID
+	CreatedAt  time.Time
+}
+
+type PromotionBirthdayRun struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	Trigger    string
+	StartedBy  pgtype.UUID
+	StartedAt  time.Time
+	FinishedAt pgtype.Timestamptz
+	Given      int32
+	Failed     int32
+}
+
+type PromotionBirthdaySetting struct {
+	TenantID    uuid.UUID
+	Enabled     bool
+	Amount      int64
+	MinOrder    int64
+	DaysBefore  int32
+	ValidDays   int32
+	MinLeadDays int32
+	Version     int32
+	UpdatedBy   pgtype.UUID
+	UpdatedAt   pgtype.Timestamptz
 }
 
 type PromotionCoupon struct {

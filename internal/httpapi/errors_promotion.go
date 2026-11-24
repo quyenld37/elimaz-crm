@@ -18,9 +18,11 @@ const (
 	codePercentTooHigh       = "percent_too_high"
 	codeCampaignRunning      = "campaign_running"
 	codeBatchConflict        = "batch_conflict"
+	codeRunInProgress        = "another_run_in_progress"
+	codeInvalidGiftSettings  = "invalid_gift_settings"
 )
 
-// promotionError đổi lỗi nghiệp vụ của mã giảm giá (M2, Task M2-02, M2-14) và chiến dịch giảm giá web (M5, Task 452)
+// promotionError đổi lỗi nghiệp vụ của mã giảm giá (M2, Task M2-02, M2-14) và chiến dịch giảm giá web (M5, Task 452), quà sinh nhật (Task 468)
 // sang mã HTTP. RejectError có thân riêng (kèm
 // reason) ở detailedError.
 func promotionError(err error) (status int, code string, ok bool) {
@@ -36,5 +38,7 @@ func promotionError(err error) (status int, code string, ok bool) {
 		{promotion.ErrPercentTooHigh, http.StatusUnprocessableEntity, codePercentTooHigh},
 		{promotion.ErrCampaignRunning, http.StatusConflict, codeCampaignRunning},
 		{promotion.ErrBatchConflict, http.StatusUnprocessableEntity, codeBatchConflict},
+		{promotion.ErrRunInProgress, http.StatusConflict, codeRunInProgress},
+		{promotion.ErrInvalidGiftSettings, http.StatusUnprocessableEntity, codeInvalidGiftSettings},
 	})
 }

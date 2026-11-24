@@ -136,6 +136,9 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   quote_changed: "Giá hoặc tổng tiền đã đổi. Xem lại giỏ hàng rồi đặt lại",
   too_fast: "Khách đặt quá nhiều đơn trong thời gian ngắn. Thử lại sau ít phút",
   // Tạm dừng nhận đơn web (Task 456)
+  another_run_in_progress: "Một lượt phát quà sinh nhật khác đang chạy. Chờ vài phút rồi xem lượt chạy cuối",
+  invalid_gift_settings:
+    "Cài đặt quà chưa đúng: mệnh giá 10.000–1.000.000 (bước 1.000), đơn tối thiểu tới 100.000.000, phát trước 0–30 ngày, hạn 1–60 ngày, đăng ký trước 0–120 ngày",
   carrier_not_on_web: "Hãng này chưa bật hiện trên website hoặc đang tạm dừng. Bật hãng trước rồi mới chọn ưu tiên",
   last_web_carrier: "Phải còn ít nhất một hãng hiện trên website. Bật hãng khác trước rồi mới tắt hãng này",
   web_orders_paused: "ELIMAZ đang tạm dừng nhận đơn trên website. Mở lại ở màn Nhận đơn web",

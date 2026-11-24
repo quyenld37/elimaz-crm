@@ -5459,6 +5459,173 @@ func (s *Server) handleDeleteWebCampaignRequest(args [1]string, argsEscaped bool
 	}
 }
 
+// handleExportBirthdayCustomersRequest handles exportBirthdayCustomers operation.
+//
+// Thân trả JSON {filename, rows, csv}: csv là UTF-8 có BOM (Excel mở đúng dấu), màn hình
+// tải bằng Blob. Thân chứa SĐT nên không lưu theo khóa chống trùng (no-replay): gọi
+// lại cùng khóa → 409 already_processed.
+//
+// POST /api/v1/birthday-customers/export
+func (s *Server) handleExportBirthdayCustomersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ExportBirthdayCustomersOperation,
+			ID:   "exportBirthdayCustomers",
+		}
+	)
+	params, err := decodeExportBirthdayCustomersParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeExportBirthdayCustomersRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response ExportBirthdayCustomersRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ExportBirthdayCustomersOperation,
+			OperationSummary: "Xuất CSV khách sinh nhật theo bộ lọc (mọi dòng); ghi nhật ký promotion.birthday.export có số dòng (Task 468)",
+			OperationID:      "exportBirthdayCustomers",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *BirthdayExportRequest
+			Params   = ExportBirthdayCustomersParams
+			Response = ExportBirthdayCustomersRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackExportBirthdayCustomersParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ExportBirthdayCustomers(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ExportBirthdayCustomers(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeExportBirthdayCustomersResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleGetBirthdaySettingsRequest handles getBirthdaySettings operation.
+//
+// Cài đặt quà sinh nhật của shop kèm lượt phát gần nhất; chưa lưu → mặc
+// định (tắt), version 1 (Task 468).
+//
+// GET /api/v1/birthday-settings
+func (s *Server) handleGetBirthdaySettingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response GetBirthdaySettingsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetBirthdaySettingsOperation,
+			OperationSummary: "Cài đặt quà sinh nhật của shop kèm lượt phát gần nhất; chưa lưu → mặc định (tắt), version 1 (Task 468)",
+			OperationID:      "getBirthdaySettings",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = GetBirthdaySettingsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetBirthdaySettings(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetBirthdaySettings(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetBirthdaySettingsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetCatalogImportRequest handles getCatalogImport operation.
 //
 // Trạng thái, tóm tắt và lỗi từng dòng của một bản nhập.
@@ -8764,6 +8931,192 @@ func (s *Server) handleListBalancesRequest(args [0]string, argsEscaped bool, w h
 	}
 
 	if err := encodeListBalancesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleListBirthdayCustomersRequest handles listBirthdayCustomers operation.
+//
+// Q: tên (không dấu) hay ≥ 3 chữ số SĐT. stateCounts tính với bộ lọc tháng và q;
+// monthCounts (12 số, tháng 1 trước) tính với bộ lọc trạng thái và q.
+//
+// GET /api/v1/birthday-customers
+func (s *Server) handleListBirthdayCustomersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListBirthdayCustomersOperation,
+			ID:   "listBirthdayCustomers",
+		}
+	)
+	params, err := decodeListBirthdayCustomersParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListBirthdayCustomersRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListBirthdayCustomersOperation,
+			OperationSummary: "Tab \"Tất cả khách\": khách đã để lại sinh nhật với 8 trạng thái quà, lọc trạng thái, tháng, tìm; đếm theo trạng thái, tháng (Task 468)",
+			OperationID:      "listBirthdayCustomers",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "state",
+					In:   "query",
+				}: params.State,
+				{
+					Name: "month",
+					In:   "query",
+				}: params.Month,
+				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListBirthdayCustomersParams
+			Response = ListBirthdayCustomersRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListBirthdayCustomersParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListBirthdayCustomers(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListBirthdayCustomers(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListBirthdayCustomersResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleListBirthdayTodoRequest handles listBirthdayTodo operation.
+//
+// Tab "Cần nhắn": quà sinh nhật chưa trao (chưa nhắn tay, website chưa gửi), còn hạn,
+// sinh nhật gần nhất trước (Task 468).
+//
+// GET /api/v1/birthday-gifts/todo
+func (s *Server) handleListBirthdayTodoRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListBirthdayTodoOperation,
+			ID:   "listBirthdayTodo",
+		}
+	)
+	params, err := decodeListBirthdayTodoParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListBirthdayTodoRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListBirthdayTodoOperation,
+			OperationSummary: "Tab \"Cần nhắn\": quà sinh nhật chưa trao (chưa nhắn tay, website chưa gửi), còn hạn, sinh nhật gần nhất trước (Task 468)",
+			OperationID:      "listBirthdayTodo",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListBirthdayTodoParams
+			Response = ListBirthdayTodoRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListBirthdayTodoParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListBirthdayTodo(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListBirthdayTodo(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListBirthdayTodoResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -12567,6 +12920,106 @@ func (s *Server) handleLockStaffRequest(args [1]string, argsEscaped bool, w http
 	}
 }
 
+// handleMarkBirthdayMessagedRequest handles markBirthdayMessaged operation.
+//
+// "Đã nhắn" một hay nhiều mã quà sinh nhật: ghi lúc trao; mã đã trao hay không phải
+// quà sinh nhật bỏ qua (Task 468).
+//
+// POST /api/v1/birthday-gifts/messaged
+func (s *Server) handleMarkBirthdayMessagedRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: MarkBirthdayMessagedOperation,
+			ID:   "markBirthdayMessaged",
+		}
+	)
+	params, err := decodeMarkBirthdayMessagedParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeMarkBirthdayMessagedRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response MarkBirthdayMessagedRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    MarkBirthdayMessagedOperation,
+			OperationSummary: "\"Đã nhắn\" một hay nhiều mã quà sinh nhật: ghi lúc trao; mã đã trao hay không phải quà sinh nhật bỏ qua (Task 468)",
+			OperationID:      "markBirthdayMessaged",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *BirthdayMessagedRequest
+			Params   = MarkBirthdayMessagedParams
+			Response = MarkBirthdayMessagedRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackMarkBirthdayMessagedParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.MarkBirthdayMessaged(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.MarkBirthdayMessaged(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeMarkBirthdayMessagedResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleMergeCustomerRequest handles mergeCustomer operation.
 //
 // Gộp nhóm của mergedId vào nhóm của khách id (Task M2-11); đã cùng gốc → 422
@@ -15608,6 +16061,192 @@ func (s *Server) handleRevokeServiceKeyRequest(args [1]string, argsEscaped bool,
 	}
 
 	if err := encodeRevokeServiceKeyResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleRunBirthdayGiftsRequest handles runBirthdayGifts operation.
+//
+// Phát mã cho mọi khách đến hạn như lịch mỗi giờ (lịch chỉ chạy 9:00–21:00
+// giờ Việt Nam; nút này chạy bất kỳ lúc nào). Cài đặt tắt → lượt ghi lại
+// với given 0. Audit promotion.birthday.run.
+//
+// POST /api/v1/birthday-runs
+func (s *Server) handleRunBirthdayGiftsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: RunBirthdayGiftsOperation,
+			ID:   "runBirthdayGifts",
+		}
+	)
+	params, err := decodeRunBirthdayGiftsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response RunBirthdayGiftsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    RunBirthdayGiftsOperation,
+			OperationSummary: "\"Tạo mã ngay\": chạy một lượt phát quà sinh nhật (lượt khác đang chạy → 409 another_run_in_progress) (Task 468)",
+			OperationID:      "runBirthdayGifts",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = RunBirthdayGiftsParams
+			Response = RunBirthdayGiftsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackRunBirthdayGiftsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.RunBirthdayGifts(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.RunBirthdayGifts(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeRunBirthdayGiftsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleSaveBirthdaySettingsRequest handles saveBirthdaySettings operation.
+//
+// Giới hạn: amount 10.000–1.000.000 bước 1.000; minOrder 0–100.000.000; daysBefore 0–30;
+// validDays 1–60; minLeadDays 0–120. Audit promotion.birthday.settings.
+//
+// PUT /api/v1/birthday-settings
+func (s *Server) handleSaveBirthdaySettingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SaveBirthdaySettingsOperation,
+			ID:   "saveBirthdaySettings",
+		}
+	)
+	params, err := decodeSaveBirthdaySettingsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSaveBirthdaySettingsRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response SaveBirthdaySettingsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SaveBirthdaySettingsOperation,
+			OperationSummary: "Lưu cài đặt quà sinh nhật khi version khớp (409 version_conflict); ngoài giới hạn → 422 invalid_gift_settings (Task 468)",
+			OperationID:      "saveBirthdaySettings",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *SaveBirthdaySettingsRequest
+			Params   = SaveBirthdaySettingsParams
+			Response = SaveBirthdaySettingsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSaveBirthdaySettingsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SaveBirthdaySettings(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SaveBirthdaySettings(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSaveBirthdaySettingsResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -19295,6 +19934,190 @@ func (s *Server) handleWebAvailabilityRequest(args [0]string, argsEscaped bool, 
 	}
 }
 
+// handleWebBirthdayOutboxRequest handles webBirthdayOutbox operation.
+//
+// Quà chưa trao, chưa dùng, còn hạn, cũ nhất trước. Website gửi tin (link dừng dùng
+// stopToken) rồi gọi webMarkCouponGiven; mã đã trao rời danh sách (QĐ40).
+//
+// GET /api/v1/web/birthdays/outbox
+func (s *Server) handleWebBirthdayOutboxRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebBirthdayOutboxOperation,
+			ID:   "webBirthdayOutbox",
+		}
+	)
+	params, err := decodeWebBirthdayOutboxParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebBirthdayOutboxRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebBirthdayOutboxOperation,
+			OperationSummary: "Quà sinh nhật website cần gửi tự động (Zalo, email) — chỉ khách đồng ý kênh đó, chưa dừng nhận tin (Task 468)",
+			OperationID:      "webBirthdayOutbox",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "limit",
+					In:   "query",
+				}: params.Limit,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebBirthdayOutboxParams
+			Response = WebBirthdayOutboxRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebBirthdayOutboxParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebBirthdayOutbox(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebBirthdayOutbox(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebBirthdayOutboxResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebBirthdayStopRequest handles webBirthdayStop operation.
+//
+// Mã dừng lạ → 404 not_found.
+//
+// POST /api/v1/web/birthdays/stop
+func (s *Server) handleWebBirthdayStopRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebBirthdayStopOperation,
+			ID:   "webBirthdayStop",
+		}
+	)
+	params, err := decodeWebBirthdayStopParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeWebBirthdayStopRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response WebBirthdayStopRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebBirthdayStopOperation,
+			OperationSummary: "Khách bấm link dừng nhận tin sinh nhật; gọi lại giữ lúc dừng đầu tiên (Task 468)",
+			OperationID:      "webBirthdayStop",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *WebBirthdayStopRequest
+			Params   = WebBirthdayStopParams
+			Response = WebBirthdayStopRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebBirthdayStopParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebBirthdayStop(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebBirthdayStop(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebBirthdayStopResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebCampaignRequest handles webCampaign operation.
 //
 // Task 452. Trả cả chiến dịch tạm dừng, đã hết (status cho biết); slug là tên
@@ -21027,6 +21850,107 @@ func (s *Server) handleWebQuoteRequest(args [0]string, argsEscaped bool, w http.
 	}
 
 	if err := encodeWebQuoteResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebRegisterBirthdayRequest handles webRegisterBirthday operation.
+//
+// Tìm khách theo SĐT (chưa có → tạo khách mới có SĐT này). Khách đã có hồ sơ
+// sinh nhật → không đổi gì, created false kèm ngày đã lưu. mail true cần email. Ngày
+// không có trong tháng, email sai → 400 invalid_input; SĐT sai → 422 invalid_phone.
+//
+// POST /api/v1/web/birthdays
+func (s *Server) handleWebRegisterBirthdayRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebRegisterBirthdayOperation,
+			ID:   "webRegisterBirthday",
+		}
+	)
+	params, err := decodeWebRegisterBirthdayParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeWebRegisterBirthdayRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response WebRegisterBirthdayRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebRegisterBirthdayOperation,
+			OperationSummary: "Website gửi form ngày sinh nhật của khách; đăng ký lần đầu thắng (Task 468)",
+			OperationID:      "webRegisterBirthday",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *WebBirthdayRequest
+			Params   = WebRegisterBirthdayParams
+			Response = WebRegisterBirthdayRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebRegisterBirthdayParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebRegisterBirthday(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebRegisterBirthday(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebRegisterBirthdayResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

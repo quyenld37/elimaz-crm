@@ -3862,6 +3862,216 @@ export type WebCampaignList = {
     items: Array<WebCampaignPublic>;
 };
 
+export type BirthdaySettingsFields = {
+    enabled: boolean;
+    /**
+     * Mệnh giá (đồng), 10.000–1.000.000, bước 1.000
+     */
+    amount: number;
+    /**
+     * Đơn tối thiểu (đồng), 0 = mọi đơn
+     */
+    minOrder: number;
+    /**
+     * Phát mã trước sinh nhật bao nhiêu ngày (0–30)
+     */
+    daysBefore: number;
+    /**
+     * Số ngày dùng được, tính từ ngày phát (1–60)
+     */
+    validDays: number;
+    /**
+     * Đăng ký trước sinh nhật tối thiểu bao nhiêu ngày mới nhận quà năm đó (0–120)
+     */
+    minLeadDays: number;
+};
+
+export type BirthdaySettings = BirthdaySettingsFields & {
+    version: number;
+    updatedBy?: string;
+    updatedByName?: string;
+    updatedAt?: string;
+    lastRun?: BirthdayRun;
+};
+
+export type SaveBirthdaySettingsRequest = BirthdaySettingsFields & {
+    version: number;
+};
+
+export type BirthdayRun = {
+    id: string;
+    trigger: 'schedule' | 'manual';
+    startedBy?: string;
+    startedAt: string;
+    finishedAt?: string;
+    given: number;
+    /**
+     * Số khách chưa phát được ở lượt này (thử lại ở lượt sau)
+     */
+    failed: number;
+};
+
+export type BirthdayGift = {
+    customerId: string;
+    code: string;
+    fullName: string;
+    /**
+     * SĐT đã đăng ký, dạng +84…
+     */
+    phone: string;
+    email?: string;
+    day: number;
+    month: number;
+    /**
+     * Khách đồng ý nhận qua Zalo
+     */
+    zalo: boolean;
+    /**
+     * Khách đồng ý nhận qua email (và có email)
+     */
+    mail: boolean;
+    amount: number;
+    minOrder: number;
+    validFrom: string;
+    /**
+     * Hết hạn lúc này (0:00 giờ Việt Nam sau ngày dùng cuối)
+     */
+    validTo: string;
+    /**
+     * Số ngày tới sinh nhật của năm quà (âm — đã qua)
+     */
+    birthdayIn: number;
+};
+
+export type BirthdayGiftList = {
+    items: Array<BirthdayGift>;
+};
+
+export type BirthdayMessagedRequest = {
+    codes: Array<string>;
+};
+
+export type BirthdayMessagedResult = {
+    /**
+     * Mã vừa ghi "đã nhắn" (mã đã trao trước đó không có ở đây)
+     */
+    marked: Array<string>;
+};
+
+export type BirthdayCustomerState = 'manual' | 'due' | 'unconfirmed' | 'given' | 'waiting' | 'used' | 'expired' | 'stopped';
+
+export type BirthdayCustomerStateFilter = 'all' | 'manual' | 'due' | 'unconfirmed' | 'given' | 'waiting' | 'used' | 'expired' | 'stopped';
+
+export type BirthdayCustomer = {
+    customerId: string;
+    fullName: string;
+    phone: string;
+    email?: string;
+    day: number;
+    month: number;
+    zalo: boolean;
+    mail: boolean;
+    state: BirthdayCustomerState;
+    /**
+     * Số ngày tới sinh nhật đang xét (âm — đã qua)
+     */
+    birthdayIn: number;
+    /**
+     * Ngày phát mã (0:00 giờ Việt Nam) của sinh nhật đang xét
+     */
+    sendOn: string;
+    /**
+     * Mã quà hiện tại (còn hạn hay hết hạn chưa quá 30 ngày)
+     */
+    code?: string;
+    savedAt: string;
+};
+
+export type BirthdayStateCounts = {
+    manual: number;
+    due: number;
+    unconfirmed: number;
+    given: number;
+    waiting: number;
+    used: number;
+    expired: number;
+    stopped: number;
+};
+
+export type BirthdayCustomerPage = {
+    items: Array<BirthdayCustomer>;
+    nextCursor?: string;
+    total: number;
+    stateCounts: BirthdayStateCounts;
+    monthCounts: [
+        number,
+        number,
+        number,
+        number,
+        number,
+        number,
+        number,
+        number,
+        number,
+        number,
+        number,
+        number
+    ];
+};
+
+export type BirthdayExportRequest = {
+    state?: BirthdayCustomerStateFilter;
+    month?: number;
+    q?: string;
+};
+
+export type BirthdayExport = {
+    filename: string;
+    rows: number;
+    csv: string;
+};
+
+export type WebBirthdayRequest = {
+    phone: PhoneInput;
+    /**
+     * Tên người nhận của đơn (chỉ dùng khi phải tạo khách mới)
+     */
+    fullName: string;
+    day: number;
+    month: number;
+    zalo: boolean;
+    mail: boolean;
+    email?: string;
+};
+
+export type WebBirthdayResult = {
+    /**
+     * true — hồ sơ vừa lưu ở lần gọi này; false — khách đã đăng ký trước đó (ngày đã lưu giữ nguyên)
+     */
+    created: boolean;
+    day: number;
+    month: number;
+};
+
+export type WebBirthdayStopRequest = {
+    token: string;
+};
+
+export type WebBirthdayStopResult = {
+    stoppedAt: string;
+};
+
+export type WebBirthdayOutboxItem = BirthdayGift & {
+    /**
+     * Mã dừng nhận tin cho link trong tin (webBirthdayStop)
+     */
+    stopToken: string;
+};
+
+export type WebBirthdayOutbox = {
+    items: Array<WebBirthdayOutboxItem>;
+};
+
 export type ProductWritable = {
     id: string;
     code: string;
@@ -8457,6 +8667,213 @@ export type SetWebIntakeResponses = {
 
 export type SetWebIntakeResponse = SetWebIntakeResponses[keyof SetWebIntakeResponses];
 
+export type GetBirthdaySettingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/birthday-settings';
+};
+
+export type GetBirthdaySettingsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetBirthdaySettingsError = GetBirthdaySettingsErrors[keyof GetBirthdaySettingsErrors];
+
+export type GetBirthdaySettingsResponses = {
+    /**
+     * getBirthdaySettings
+     */
+    200: BirthdaySettings;
+};
+
+export type GetBirthdaySettingsResponse = GetBirthdaySettingsResponses[keyof GetBirthdaySettingsResponses];
+
+export type SaveBirthdaySettingsData = {
+    body: SaveBirthdaySettingsRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/birthday-settings';
+};
+
+export type SaveBirthdaySettingsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type SaveBirthdaySettingsError = SaveBirthdaySettingsErrors[keyof SaveBirthdaySettingsErrors];
+
+export type SaveBirthdaySettingsResponses = {
+    /**
+     * saveBirthdaySettings
+     */
+    200: BirthdaySettings;
+};
+
+export type SaveBirthdaySettingsResponse = SaveBirthdaySettingsResponses[keyof SaveBirthdaySettingsResponses];
+
+export type RunBirthdayGiftsData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/birthday-runs';
+};
+
+export type RunBirthdayGiftsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type RunBirthdayGiftsError = RunBirthdayGiftsErrors[keyof RunBirthdayGiftsErrors];
+
+export type RunBirthdayGiftsResponses = {
+    /**
+     * runBirthdayGifts
+     */
+    200: BirthdayRun;
+};
+
+export type RunBirthdayGiftsResponse = RunBirthdayGiftsResponses[keyof RunBirthdayGiftsResponses];
+
+export type ListBirthdayTodoData = {
+    body?: never;
+    path?: never;
+    query?: {
+        limit?: number;
+    };
+    url: '/api/v1/birthday-gifts/todo';
+};
+
+export type ListBirthdayTodoErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListBirthdayTodoError = ListBirthdayTodoErrors[keyof ListBirthdayTodoErrors];
+
+export type ListBirthdayTodoResponses = {
+    /**
+     * listBirthdayTodo
+     */
+    200: BirthdayGiftList;
+};
+
+export type ListBirthdayTodoResponse = ListBirthdayTodoResponses[keyof ListBirthdayTodoResponses];
+
+export type MarkBirthdayMessagedData = {
+    body: BirthdayMessagedRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/birthday-gifts/messaged';
+};
+
+export type MarkBirthdayMessagedErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type MarkBirthdayMessagedError = MarkBirthdayMessagedErrors[keyof MarkBirthdayMessagedErrors];
+
+export type MarkBirthdayMessagedResponses = {
+    /**
+     * markBirthdayMessaged
+     */
+    200: BirthdayMessagedResult;
+};
+
+export type MarkBirthdayMessagedResponse = MarkBirthdayMessagedResponses[keyof MarkBirthdayMessagedResponses];
+
+export type ListBirthdayCustomersData = {
+    body?: never;
+    path?: never;
+    query?: {
+        state?: BirthdayCustomerStateFilter;
+        month?: number;
+        q?: string;
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/birthday-customers';
+};
+
+export type ListBirthdayCustomersErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListBirthdayCustomersError = ListBirthdayCustomersErrors[keyof ListBirthdayCustomersErrors];
+
+export type ListBirthdayCustomersResponses = {
+    /**
+     * listBirthdayCustomers
+     */
+    200: BirthdayCustomerPage;
+};
+
+export type ListBirthdayCustomersResponse = ListBirthdayCustomersResponses[keyof ListBirthdayCustomersResponses];
+
+export type ExportBirthdayCustomersData = {
+    body: BirthdayExportRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/birthday-customers/export';
+};
+
+export type ExportBirthdayCustomersErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ExportBirthdayCustomersError = ExportBirthdayCustomersErrors[keyof ExportBirthdayCustomersErrors];
+
+export type ExportBirthdayCustomersResponses = {
+    /**
+     * exportBirthdayCustomers
+     */
+    200: BirthdayExport;
+};
+
+export type ExportBirthdayCustomersResponse = ExportBirthdayCustomersResponses[keyof ExportBirthdayCustomersResponses];
+
 export type ListOrderRequestsData = {
     body?: never;
     path?: never;
@@ -10672,6 +11089,103 @@ export type WebMarkCouponGivenResponses = {
 };
 
 export type WebMarkCouponGivenResponse = WebMarkCouponGivenResponses[keyof WebMarkCouponGivenResponses];
+
+export type WebRegisterBirthdayData = {
+    body: WebBirthdayRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/birthdays';
+};
+
+export type WebRegisterBirthdayErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebRegisterBirthdayError = WebRegisterBirthdayErrors[keyof WebRegisterBirthdayErrors];
+
+export type WebRegisterBirthdayResponses = {
+    /**
+     * Hồ sơ sinh nhật (mới hay đã có)
+     */
+    200: WebBirthdayResult;
+};
+
+export type WebRegisterBirthdayResponse = WebRegisterBirthdayResponses[keyof WebRegisterBirthdayResponses];
+
+export type WebBirthdayStopData = {
+    body: WebBirthdayStopRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/birthdays/stop';
+};
+
+export type WebBirthdayStopErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebBirthdayStopError = WebBirthdayStopErrors[keyof WebBirthdayStopErrors];
+
+export type WebBirthdayStopResponses = {
+    /**
+     * Lúc dừng
+     */
+    200: WebBirthdayStopResult;
+};
+
+export type WebBirthdayStopResponse = WebBirthdayStopResponses[keyof WebBirthdayStopResponses];
+
+export type WebBirthdayOutboxData = {
+    body?: never;
+    path?: never;
+    query?: {
+        limit?: number;
+    };
+    url: '/api/v1/web/birthdays/outbox';
+};
+
+export type WebBirthdayOutboxErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebBirthdayOutboxError = WebBirthdayOutboxErrors[keyof WebBirthdayOutboxErrors];
+
+export type WebBirthdayOutboxResponses = {
+    /**
+     * Quà cần gửi
+     */
+    200: WebBirthdayOutbox;
+};
+
+export type WebBirthdayOutboxResponse = WebBirthdayOutboxResponses[keyof WebBirthdayOutboxResponses];
 
 export type WebImportCouponsData = {
     body: WebCouponImportRequest;

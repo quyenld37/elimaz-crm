@@ -298,6 +298,8 @@ func domainErrorSnapshot() []snapshotCase {
 		{"promotion.ErrPercentTooHigh", promotion.ErrPercentTooHigh, http.StatusUnprocessableEntity, "percent_too_high"},
 		{"promotion.ErrCampaignRunning", promotion.ErrCampaignRunning, http.StatusConflict, "campaign_running"},
 		{"promotion.ErrBatchConflict", promotion.ErrBatchConflict, http.StatusUnprocessableEntity, "batch_conflict"},
+		{"promotion.ErrRunInProgress", promotion.ErrRunInProgress, http.StatusConflict, "another_run_in_progress"},
+		{"promotion.ErrInvalidGiftSettings", promotion.ErrInvalidGiftSettings, http.StatusUnprocessableEntity, "invalid_gift_settings"},
 		{"promotion.ErrInvalidInput", promotion.ErrInvalidInput, http.StatusBadRequest, "invalid_input"},
 		{"cash.ErrOrderNotFound", cash.ErrOrderNotFound, http.StatusNotFound, "not_found"},
 		{"cash.ErrObligationNotFound", cash.ErrObligationNotFound, http.StatusNotFound, "not_found"},

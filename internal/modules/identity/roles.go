@@ -521,6 +521,7 @@ func permissionLabels() map[Permission][3]string {
 		"customer.tags.manage":       {groupCustomer, "Quản lý nhãn khách", ""},
 		"promotion.read":             {groupPromo, "Xem mã giảm giá", ""},
 		"promotion.manage":           {groupPromo, "Tạo, sửa mã giảm giá và đợt mã", ""},
+		"promotion.birthday.manage":  {groupPromo, "Cài đặt quà sinh nhật, tạo mã ngay, đánh dấu đã nhắn, xuất danh sách", ""},
 		"fulfillment.read":           {groupShipping, "Xem vận đơn", ScopeWarehouse},
 		"fulfillment.ship":           {groupShipping, "Tạo vận đơn, giao hàng", ScopeWarehouse},
 		// M3 (Task M3-04).

@@ -128,11 +128,13 @@ Task M1-56 (Q35), quyền `identity.roles.manage`; màn "Vai trò" của bàn đ
 | `order.web_intake.manage` | toàn shop | M5 | owner, manager | Tạm dừng (kèm lý do), mở lại nhận đơn web; xem trạng thái dùng `order.read` |
 | `order.requests.read` | none | M5 | owner, manager, sale | Xem yêu cầu về đơn của khách (hủy, đổi, trả, câu hỏi), ảnh kèm (link có hạn); nhận báo hiệu yêu cầu mới |
 | `order.requests.manage` | none | M5 | owner, manager, sale | Trả lời khách, ghi chú nội bộ, đổi trạng thái yêu cầu về đơn |
+| `promotion.birthday.manage` | toàn shop | M5 | owner, manager | Cài đặt quà sinh nhật, Tạo mã ngay, đánh dấu Đã nhắn, xuất danh sách khách sinh nhật (xem dùng `promotion.read`) |
 | `web.catalog.read` | none | M5 | | Khóa dịch vụ: đọc sản phẩm, giá, tồn cho website |
 | `web.orders.create` | none | M5 | | Khóa dịch vụ: tạo đơn web |
 | `web.orders.read` | none | M5 | | Khóa dịch vụ: tra đơn kênh web theo mã đơn web |
 | `web.orders.cancel` | none | M5 | | Khóa dịch vụ: khách tự hủy đơn web |
 | `web.requests.write` | none | M5 | | Khóa dịch vụ: gửi yêu cầu về đơn (đổi, trả, góp ý) |
-| `web.coupons.issue` | none | M5 | | Khóa dịch vụ: phát mã giảm giá của website |
+| `web.coupons.issue` | none | M5 | | Khóa dịch vụ: phát mã giảm giá của website; đọc quà sinh nhật cần gửi (outbox) |
+| `web.birthdays.write` | none | M5 | | Khóa dịch vụ: gửi đăng ký sinh nhật, dừng nhận tin sinh nhật của khách |
 | `web.shipping.quote` | none | M5 | | Khóa dịch vụ: báo phí ship cho giỏ hàng |
 | `web.flash.buy` | none | M5 | | Khóa dịch vụ: bấm mua flash sale |
