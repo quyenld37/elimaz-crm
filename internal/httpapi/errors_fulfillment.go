@@ -20,6 +20,8 @@ const (
 	codeCreateInProgress          = "create_in_progress"
 	codeShipmentNotCancellable    = "shipment_not_cancellable"
 	codeTrackingCodeConflict      = "tracking_code_conflict"
+	codeCarrierNotOnWeb           = "carrier_not_on_web"
+	codeLastWebCarrier            = "last_web_carrier"
 )
 
 // fulfillmentError đổi lỗi nghiệp vụ của vận chuyển (và thiếu quyền ở kho của tài khoản hãng) sang mã HTTP.
@@ -70,5 +72,9 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		// Cần xem (M3, Task M3-20): việc không có / ngoài phạm vi → 404; đã đóng, in_doubt_create → 409.
 		{fulfillment.ErrAnomalyNotFound, http.StatusNotFound, codeNotFound},
 		{fulfillment.ErrAnomalyNotResolvable, http.StatusConflict, codeInvalidTransition},
+		// Hãng giao hàng trên website (M5, Task 198): không hãng nào báo phí được, không phí dự phòng → 503 retry_later.
+		{fulfillment.ErrCarrierNotOnWeb, http.StatusUnprocessableEntity, codeCarrierNotOnWeb},
+		{fulfillment.ErrLastWebCarrier, http.StatusUnprocessableEntity, codeLastWebCarrier},
+		{fulfillment.ErrNoQuote, http.StatusServiceUnavailable, codeRetryLater},
 	})
 }

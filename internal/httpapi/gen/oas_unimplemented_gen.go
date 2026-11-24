@@ -837,6 +837,19 @@ func (UnimplementedHandler) GetWebCampaign(ctx context.Context, params GetWebCam
 	return r, ht.ErrNotImplemented
 }
 
+// GetWebCarrierSettings implements getWebCarrierSettings operation.
+//
+// Hãng nào hiện trên website và theo thứ tự nào là showOnWeb, webSort của tài khoản
+// hãng (updateCarrierAccount). Chưa lưu lần nào → không ưu tiên, không phí dự phòng,
+// version 1. carriers gồm mọi tài khoản bật showOnWeb trừ revoked (tài khoản không
+// active không hiện trên website); shipments30d đếm vận đơn chưa hủy tạo trong 30
+// ngày.
+//
+// GET /api/v1/web-carrier-settings
+func (UnimplementedHandler) GetWebCarrierSettings(ctx context.Context) (r GetWebCarrierSettingsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetWebIntake implements getWebIntake operation.
 //
 // Trạng thái nhận đơn web của shop: tạm dừng hay không, lý do, ai đổi, lúc nào
@@ -1640,6 +1653,19 @@ func (UnimplementedHandler) SaveWebCampaign(ctx context.Context, req *SaveWebCam
 	return r, ht.ErrNotImplemented
 }
 
+// SaveWebCarrierSettings implements saveWebCarrierSettings operation.
+//
+// Gửi cả bộ: thiếu preferredAccountId = không ưu tiên (rẻ nhất đứng đầu); thiếu
+// fallbackFee = không phí dự phòng. Tài khoản ưu tiên phải active và đang hiện trên
+// website, không thì 422 carrier_not_on_web. Phí dự phòng (0–500.000 đồng; ngoài khoảng
+// → 422 setting_out_of_range) là phí website hiện khi không hãng nào báo phí được (tài
+// khoản nhập tay, hãng lỗi hay quá 3 s); không có thì website nhận 503 retry_later.
+//
+// PUT /api/v1/web-carrier-settings
+func (UnimplementedHandler) SaveWebCarrierSettings(ctx context.Context, req *SaveWebCarrierSettingsRequest, params SaveWebCarrierSettingsParams) (r SaveWebCarrierSettingsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // SearchVariants implements searchVariants operation.
 //
 // Tìm biến thể của người bán theo barcode (đúng), SKU, mã mẫu (tiền tố), tên
@@ -1825,7 +1851,9 @@ func (UnimplementedHandler) UnlockStaff(ctx context.Context, params UnlockStaffP
 
 // UpdateCarrierAccount implements updateCarrierAccount operation.
 //
-// Sửa tài khoản hãng khi version còn khớp (sai → 409 version_conflict) (Task M3-09).
+// Task 198 (luật Task 450): tắt showOnWeb của tài khoản active cuối cùng đang hiện
+// trên website → 422 last_web_carrier, không đổi gì; tắt tài khoản đang là ưu tiên
+// trên web thì bỏ ưu tiên cùng lần ghi.
 //
 // PATCH /api/v1/carrier-accounts/{id}
 func (UnimplementedHandler) UpdateCarrierAccount(ctx context.Context, req *UpdateCarrierAccountRequest, params UpdateCarrierAccountParams) (r UpdateCarrierAccountRes, _ error) {
@@ -2115,6 +2143,17 @@ func (UnimplementedHandler) WebCreateRequest(ctx context.Context, req *WebCreate
 	return r, ht.ErrNotImplemented
 }
 
+// WebDeliveryEstimates implements webDeliveryEstimates operation.
+//
+// Task 198 (M5-15). Trung vị số ngày từ lúc hãng lấy hàng tới lúc giao của vận
+// đơn giao trong 60 ngày, theo mã tỉnh của địa chỉ giao, làm tròn 0,1 ngày; tỉnh có
+// ít hơn 20 vận đơn không có trong danh sách (website tự hiện câu chung).
+//
+// GET /api/v1/web/shipping/estimates
+func (UnimplementedHandler) WebDeliveryEstimates(ctx context.Context) (r WebDeliveryEstimatesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // WebGetOrder implements webGetOrder operation.
 //
 // Chỉ đơn kênh web; đơn nhập tay, đơn của shop khác → 404 not_found. displayStatus là
@@ -2216,6 +2255,32 @@ func (UnimplementedHandler) WebQuote(ctx context.Context, req *WebQuoteRequest) 
 //
 // POST /api/v1/web/orders/{externalRef}/requests/{ref}/messages
 func (UnimplementedHandler) WebReplyRequest(ctx context.Context, req *WebReplyRequestBody, params WebReplyRequestParams) (r WebReplyRequestRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// WebShippingCarriers implements webShippingCarriers operation.
+//
+// Task 198 (M5-15). Chỉ mã tài khoản, khóa hãng, tên. Bộ đệm 60 s (đổi showOnWeb ở
+// CRM tới website trong ≤ 60 s); lưu cài đặt hãng trên web làm mới sớm hơn (sự
+// kiện carrier.web_settings_changed).
+//
+// GET /api/v1/web/shipping/carriers
+func (UnimplementedHandler) WebShippingCarriers(ctx context.Context) (r WebShippingCarriersRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// WebShippingQuote implements webShippingQuote operation.
+//
+// Task 198 (M5-15). CRM gọi các hãng hiện trên web song song, ngoài transaction, hạn 3 s
+// mỗi hãng; hãng lỗi hay quá hạn bị bỏ. Một lựa chọn mỗi dịch vụ, ưu tiên
+// trước rồi rẻ trước. Không hãng nào báo được (ví dụ tài khoản nhập tay khi
+// tích hợp hãng đang tạm dừng): có phí dự phòng → một lựa chọn estimated = true
+// (không hãng); không có → 503 retry_later. Bộ đệm 10 phút theo (tỉnh, phường, khối
+// lượng làm tròn lên 250 g, giá trị và COD làm tròn lên 500.000, version cài đặt):
+// phí báo là phí của mức đã làm tròn. Không tên, SĐT, địa chỉ chi tiết.
+//
+// POST /api/v1/web/shipping/quote
+func (UnimplementedHandler) WebShippingQuote(ctx context.Context, req *WebShippingQuoteRequest) (r WebShippingQuoteRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

@@ -708,6 +708,16 @@ type FulfillmentCarrierLocation struct {
 	UpdatedAt   time.Time
 }
 
+type FulfillmentChannelCarrierSetting struct {
+	TenantID           uuid.UUID
+	Channel            string
+	PreferredAccountID pgtype.UUID
+	FallbackFee        pgtype.Int8
+	Version            int32
+	UpdatedBy          pgtype.UUID
+	UpdatedAt          time.Time
+}
+
 type FulfillmentLabelBatch struct {
 	ID               uuid.UUID
 	TenantID         uuid.UUID

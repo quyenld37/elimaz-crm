@@ -7987,6 +7987,75 @@ func (s *Server) handleGetWebCampaignRequest(args [1]string, argsEscaped bool, w
 	}
 }
 
+// handleGetWebCarrierSettingsRequest handles getWebCarrierSettings operation.
+//
+// Hãng nào hiện trên website và theo thứ tự nào là showOnWeb, webSort của tài khoản
+// hãng (updateCarrierAccount). Chưa lưu lần nào → không ưu tiên, không phí dự phòng,
+// version 1. carriers gồm mọi tài khoản bật showOnWeb trừ revoked (tài khoản không
+// active không hiện trên website); shipments30d đếm vận đơn chưa hủy tạo trong 30
+// ngày.
+//
+// GET /api/v1/web-carrier-settings
+func (s *Server) handleGetWebCarrierSettingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response GetWebCarrierSettingsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetWebCarrierSettingsOperation,
+			OperationSummary: "Hãng giao hàng trên website: tài khoản ưu tiên, phí dự phòng, các hãng đang bật showOnWeb kèm số vận đơn 30 ngày (Task 198)",
+			OperationID:      "getWebCarrierSettings",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = GetWebCarrierSettingsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetWebCarrierSettings(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetWebCarrierSettings(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetWebCarrierSettingsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetWebIntakeRequest handles getWebIntake operation.
 //
 // Trạng thái nhận đơn web của shop: tạm dừng hay không, lý do, ai đổi, lúc nào
@@ -15651,6 +15720,109 @@ func (s *Server) handleSaveWebCampaignRequest(args [1]string, argsEscaped bool, 
 	}
 }
 
+// handleSaveWebCarrierSettingsRequest handles saveWebCarrierSettings operation.
+//
+// Gửi cả bộ: thiếu preferredAccountId = không ưu tiên (rẻ nhất đứng đầu); thiếu
+// fallbackFee = không phí dự phòng. Tài khoản ưu tiên phải active và đang hiện trên
+// website, không thì 422 carrier_not_on_web. Phí dự phòng (0–500.000 đồng; ngoài khoảng
+// → 422 setting_out_of_range) là phí website hiện khi không hãng nào báo phí được (tài
+// khoản nhập tay, hãng lỗi hay quá 3 s); không có thì website nhận 503 retry_later.
+//
+// PUT /api/v1/web-carrier-settings
+func (s *Server) handleSaveWebCarrierSettingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: SaveWebCarrierSettingsOperation,
+			ID:   "saveWebCarrierSettings",
+		}
+	)
+	params, err := decodeSaveWebCarrierSettingsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeSaveWebCarrierSettingsRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response SaveWebCarrierSettingsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    SaveWebCarrierSettingsOperation,
+			OperationSummary: "Lưu tài khoản ưu tiên và phí dự phòng của website khi version khớp (409 version_conflict) (Task 198)",
+			OperationID:      "saveWebCarrierSettings",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *SaveWebCarrierSettingsRequest
+			Params   = SaveWebCarrierSettingsParams
+			Response = SaveWebCarrierSettingsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackSaveWebCarrierSettingsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.SaveWebCarrierSettings(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.SaveWebCarrierSettings(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeSaveWebCarrierSettingsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleSearchVariantsRequest handles searchVariants operation.
 //
 // Tìm biến thể của người bán theo barcode (đúng), SKU, mã mẫu (tiền tố), tên
@@ -17403,7 +17575,9 @@ func (s *Server) handleUnlockStaffRequest(args [1]string, argsEscaped bool, w ht
 
 // handleUpdateCarrierAccountRequest handles updateCarrierAccount operation.
 //
-// Sửa tài khoản hãng khi version còn khớp (sai → 409 version_conflict) (Task M3-09).
+// Task 198 (luật Task 450): tắt showOnWeb của tài khoản active cuối cùng đang hiện
+// trên website → 422 last_web_carrier, không đổi gì; tắt tài khoản đang là ưu tiên
+// trên web thì bỏ ưu tiên cùng lần ghi.
 //
 // PATCH /api/v1/carrier-accounts/{id}
 func (s *Server) handleUpdateCarrierAccountRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -20091,6 +20265,73 @@ func (s *Server) handleWebCreateRequestRequest(args [1]string, argsEscaped bool,
 	}
 }
 
+// handleWebDeliveryEstimatesRequest handles webDeliveryEstimates operation.
+//
+// Task 198 (M5-15). Trung vị số ngày từ lúc hãng lấy hàng tới lúc giao của vận
+// đơn giao trong 60 ngày, theo mã tỉnh của địa chỉ giao, làm tròn 0,1 ngày; tỉnh có
+// ít hơn 20 vận đơn không có trong danh sách (website tự hiện câu chung).
+//
+// GET /api/v1/web/shipping/estimates
+func (s *Server) handleWebDeliveryEstimatesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response WebDeliveryEstimatesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebDeliveryEstimatesOperation,
+			OperationSummary: "Số ngày giao dự kiến theo tỉnh (trung vị 60 ngày, tỉnh đủ 20 vận đơn); hạn sống 1 giờ",
+			OperationID:      "webDeliveryEstimates",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = WebDeliveryEstimatesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebDeliveryEstimates(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebDeliveryEstimates(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebDeliveryEstimatesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebGetOrderRequest handles webGetOrder operation.
 //
 // Chỉ đơn kênh web; đơn nhập tay, đơn của shop khác → 404 not_found. displayStatus là
@@ -20893,6 +21134,163 @@ func (s *Server) handleWebReplyRequestRequest(args [2]string, argsEscaped bool, 
 	}
 
 	if err := encodeWebReplyRequestResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebShippingCarriersRequest handles webShippingCarriers operation.
+//
+// Task 198 (M5-15). Chỉ mã tài khoản, khóa hãng, tên. Bộ đệm 60 s (đổi showOnWeb ở
+// CRM tới website trong ≤ 60 s); lưu cài đặt hãng trên web làm mới sớm hơn (sự
+// kiện carrier.web_settings_changed).
+//
+// GET /api/v1/web/shipping/carriers
+func (s *Server) handleWebShippingCarriersRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response WebShippingCarriersRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebShippingCarriersOperation,
+			OperationSummary: "Hãng giao hàng hiện trên website (ưu tiên đứng đầu, còn lại theo thứ tự shop đặt); hạn sống 60 s",
+			OperationID:      "webShippingCarriers",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = WebShippingCarriersRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebShippingCarriers(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebShippingCarriers(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebShippingCarriersResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleWebShippingQuoteRequest handles webShippingQuote operation.
+//
+// Task 198 (M5-15). CRM gọi các hãng hiện trên web song song, ngoài transaction, hạn 3 s
+// mỗi hãng; hãng lỗi hay quá hạn bị bỏ. Một lựa chọn mỗi dịch vụ, ưu tiên
+// trước rồi rẻ trước. Không hãng nào báo được (ví dụ tài khoản nhập tay khi
+// tích hợp hãng đang tạm dừng): có phí dự phòng → một lựa chọn estimated = true
+// (không hãng); không có → 503 retry_later. Bộ đệm 10 phút theo (tỉnh, phường, khối
+// lượng làm tròn lên 250 g, giá trị và COD làm tròn lên 500.000, version cài đặt):
+// phí báo là phí của mức đã làm tròn. Không tên, SĐT, địa chỉ chi tiết.
+//
+// POST /api/v1/web/shipping/quote
+func (s *Server) handleWebShippingQuoteRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebShippingQuoteOperation,
+			ID:   "webShippingQuote",
+		}
+	)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeWebShippingQuoteRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response WebShippingQuoteRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebShippingQuoteOperation,
+			OperationSummary: "Báo phí giao hàng cho giỏ website theo tỉnh, phường, khối lượng, giá trị; không ghi gì",
+			OperationID:      "webShippingQuote",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *WebShippingQuoteRequest
+			Params   = struct{}
+			Response = WebShippingQuoteRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebShippingQuote(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebShippingQuote(ctx, request)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebShippingQuoteResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

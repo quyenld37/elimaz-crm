@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/modules/promotion"
@@ -19,15 +20,13 @@ import (
 	"elimaz.com.vn/crm/internal/platform/realtime"
 )
 
-// Chủ đề chưa có hằng xuất ở module sở hữu (flash sale ở M5-17, cài đặt hãng trên web ở M5-15); task tạo sự kiện thì
-// thay bằng hằng của module.
+// Chủ đề chưa có hằng xuất ở module sở hữu (flash sale ở M5-17); task tạo sự kiện thì thay bằng hằng của module.
 const (
-	topicFlashOpened        = "flash_sale.opened"
-	topicFlashClosed        = "flash_sale.closed"
-	topicFlashChanged       = "flash_sale.changed"
-	topicCarrierWebSettings = "carrier.web_settings_changed"
-	topicOrderCancelled     = "order." + order.StatusCancelled
-	consumerName            = "webcache"
+	topicFlashOpened    = "flash_sale.opened"
+	topicFlashClosed    = "flash_sale.closed"
+	topicFlashChanged   = "flash_sale.changed"
+	topicOrderCancelled = "order." + order.StatusCancelled
+	consumerName        = "webcache"
 )
 
 // errBadPayload: payload của sự kiện thiếu mã cần cho bộ đệm (ghi log, không báo hiệu).
@@ -54,7 +53,7 @@ func (c *Consumer) Name() string { return consumerName }
 func (c *Consumer) Topics() []string {
 	return []string{
 		catalog.TopicProductUpdated, catalog.TopicPriceChanged, inventory.TopicStockChanged,
-		topicFlashOpened, topicFlashClosed, topicFlashChanged, string(topicOrderCancelled), topicCarrierWebSettings,
+		topicFlashOpened, topicFlashClosed, topicFlashChanged, string(topicOrderCancelled), fulfillment.TopicWebCarrierSettingsChanged,
 		promotion.TopicWebCampaignChanged, order.TopicWebIntakeChanged,
 	}
 }
@@ -114,7 +113,7 @@ func entitiesOf(e events.StoredEvent) ([]realtime.Entity, error) {
 		return variants(p.VariantIDs)
 	case topicFlashOpened, topicFlashClosed, topicFlashChanged:
 		return []realtime.Entity{{Type: EntityFlashSale, ID: e.AggregateID}}, nil
-	case topicCarrierWebSettings:
+	case fulfillment.TopicWebCarrierSettingsChanged:
 		return []realtime.Entity{{Type: EntityCarrierSettings, ID: e.AggregateID}}, nil
 	case promotion.TopicWebCampaignChanged:
 		// Danh sách, trang chiến dịch của website (SpaceCampaigns, làm mới cả vùng). Mẫu không mang giá chiến dịch

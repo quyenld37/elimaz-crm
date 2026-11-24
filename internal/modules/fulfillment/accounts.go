@@ -282,7 +282,8 @@ func (s *Service) hasAdapter(key string) bool {
 
 // UpdateAccount sửa tài khoản id khi version còn khớp (khóa dòng rồi so). Lỗi: ErrAccountNotFound, ErrVersionConflict,
 // ErrAccountTransition (đã revoked), ErrAccountInvalid (đổi mã ở hãng, môi trường lạ), ErrAccountTaken,
-// ErrAccountTargetNotFound (kho mới không có).
+// ErrAccountTargetNotFound (kho mới không có), ErrLastWebCarrier (tắt show_on_web của tài khoản active cuối cùng hiện
+// trên web). Tắt show_on_web của tài khoản đang là ưu tiên trên web thì bỏ ưu tiên cùng transaction (webCarrierHidden).
 func (s *Service) UpdateAccount(ctx context.Context, tx pgx.Tx, id uuid.UUID, p AccountPatch, version int64, a Actor,
 ) (AccountView, error) {
 	q := store.New(tx)
@@ -310,6 +311,11 @@ func (s *Service) UpdateAccount(ctx context.Context, tx pgx.Tx, id uuid.UUID, p 
 	if p.DefaultOptions != nil {
 		if next.DefaultOptions, err = json.Marshal(optionsJSON(*p.DefaultOptions)); err != nil {
 			return AccountView{}, fmt.Errorf("mã hóa tùy chọn mặc định: %w", err)
+		}
+	}
+	if r.ShowOnWeb && !next.ShowOnWeb { // luật hãng trên web (Task 198, bổ sung Task 450)
+		if err := s.webCarrierHidden(ctx, tx, q, id, r.Status == AccountActive, a); err != nil {
+			return AccountView{}, err
 		}
 	}
 	if _, err := q.UpdateAccount(ctx, next); err != nil {

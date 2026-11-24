@@ -341,6 +341,10 @@ type GetWebCampaignRes interface {
 	getWebCampaignRes()
 }
 
+type GetWebCarrierSettingsRes interface {
+	getWebCarrierSettingsRes()
+}
+
 type GetWebIntakeRes interface {
 	getWebIntakeRes()
 }
@@ -669,6 +673,10 @@ type SaveWebCampaignRes interface {
 	saveWebCampaignRes()
 }
 
+type SaveWebCarrierSettingsRes interface {
+	saveWebCarrierSettingsRes()
+}
+
 type SearchVariantsRes interface {
 	searchVariantsRes()
 }
@@ -849,6 +857,10 @@ type WebCreateRequestRes interface {
 	webCreateRequestRes()
 }
 
+type WebDeliveryEstimatesRes interface {
+	webDeliveryEstimatesRes()
+}
+
 type WebGetOrderRes interface {
 	webGetOrderRes()
 }
@@ -883,6 +895,14 @@ type WebQuoteRes interface {
 
 type WebReplyRequestRes interface {
 	webReplyRequestRes()
+}
+
+type WebShippingCarriersRes interface {
+	webShippingCarriersRes()
+}
+
+type WebShippingQuoteRes interface {
+	webShippingQuoteRes()
 }
 
 type WebSold30dRes interface {

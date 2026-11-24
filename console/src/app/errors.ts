@@ -136,6 +136,8 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   quote_changed: "Giá hoặc tổng tiền đã đổi. Xem lại giỏ hàng rồi đặt lại",
   too_fast: "Khách đặt quá nhiều đơn trong thời gian ngắn. Thử lại sau ít phút",
   // Tạm dừng nhận đơn web (Task 456)
+  carrier_not_on_web: "Hãng này chưa bật hiện trên website hoặc đang tạm dừng. Bật hãng trước rồi mới chọn ưu tiên",
+  last_web_carrier: "Phải còn ít nhất một hãng hiện trên website. Bật hãng khác trước rồi mới tắt hãng này",
   web_orders_paused: "ELIMAZ đang tạm dừng nhận đơn trên website. Mở lại ở màn Nhận đơn web",
   // Yêu cầu về đơn hàng (Task 195)
   window_closed: "Đơn đã quá hạn đổi, trả hàng",
