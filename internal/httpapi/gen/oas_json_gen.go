@@ -72340,12 +72340,17 @@ func (s *WebCatalogChanges) encodeFields(e *jx.Encoder) {
 		e.FieldStart("hasMore")
 		e.Bool(s.HasMore)
 	}
+	{
+		e.FieldStart("serverTime")
+		json.EncodeDateTime(e, s.ServerTime)
+	}
 }
 
-var jsonFieldsNameOfWebCatalogChanges = [3]string{
+var jsonFieldsNameOfWebCatalogChanges = [4]string{
 	0: "productIds",
 	1: "until",
 	2: "hasMore",
+	3: "serverTime",
 }
 
 // Decode decodes WebCatalogChanges from json.
@@ -72401,6 +72406,18 @@ func (s *WebCatalogChanges) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"hasMore\"")
 			}
+		case "serverTime":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.ServerTime = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"serverTime\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -72411,7 +72428,7 @@ func (s *WebCatalogChanges) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -78910,12 +78927,18 @@ func (s *WebProduct) encodeFields(e *jx.Encoder) {
 		json.EncodeDateTime(e, s.UpdatedAt)
 	}
 	{
+		if s.CreatedAt.Set {
+			e.FieldStart("createdAt")
+			s.CreatedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
 		e.FieldStart("version")
 		e.Int64(s.Version)
 	}
 }
 
-var jsonFieldsNameOfWebProduct = [14]string{
+var jsonFieldsNameOfWebProduct = [15]string{
 	0:  "id",
 	1:  "sellerId",
 	2:  "code",
@@ -78929,7 +78952,8 @@ var jsonFieldsNameOfWebProduct = [14]string{
 	10: "images",
 	11: "variants",
 	12: "updatedAt",
-	13: "version",
+	13: "createdAt",
+	14: "version",
 }
 
 // Decode decodes WebProduct from json.
@@ -79129,8 +79153,18 @@ func (s *WebProduct) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"updatedAt\"")
 			}
+		case "createdAt":
+			if err := func() error {
+				s.CreatedAt.Reset()
+				if err := s.CreatedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"createdAt\"")
+			}
 		case "version":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int64()
 				s.Version = int64(v)
@@ -79152,7 +79186,7 @@ func (s *WebProduct) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00111111,
+		0b01011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

@@ -35693,6 +35693,11 @@ type WebCatalogChanges struct {
 	ProductIds []uuid.UUID `json:"productIds"`
 	Until      time.Time   `json:"until"`
 	HasMore    bool        `json:"hasMore"`
+	// Giờ của máy chủ CRM lúc đọc (now() của PostgreSQL, cùng đồng hồ với until), có
+	// ở mọi câu trả lời (Task 489). Website dùng để biết độ cũ của bản sao và làm
+	// mốc cho bản sao đầu (since = serverTime − 30 s, lấy trước khi tải cả danh mục),
+	// không dùng đồng hồ của máy website.
+	ServerTime time.Time `json:"serverTime"`
 }
 
 // GetProductIds returns the value of ProductIds.
@@ -35710,6 +35715,11 @@ func (s *WebCatalogChanges) GetHasMore() bool {
 	return s.HasMore
 }
 
+// GetServerTime returns the value of ServerTime.
+func (s *WebCatalogChanges) GetServerTime() time.Time {
+	return s.ServerTime
+}
+
 // SetProductIds sets the value of ProductIds.
 func (s *WebCatalogChanges) SetProductIds(val []uuid.UUID) {
 	s.ProductIds = val
@@ -35723,6 +35733,11 @@ func (s *WebCatalogChanges) SetUntil(val time.Time) {
 // SetHasMore sets the value of HasMore.
 func (s *WebCatalogChanges) SetHasMore(val bool) {
 	s.HasMore = val
+}
+
+// SetServerTime sets the value of ServerTime.
+func (s *WebCatalogChanges) SetServerTime(val time.Time) {
+	s.ServerTime = val
 }
 
 func (*WebCatalogChanges) webCatalogChangesRes() {}
@@ -38187,7 +38202,10 @@ type WebProduct struct {
 	Images    []WebImage   `json:"images"`
 	Variants  []WebVariant `json:"variants"`
 	UpdatedAt time.Time    `json:"updatedAt"`
-	Version   int64        `json:"version"`
+	// Ngày tạo mẫu (Task 489; sắp xếp "Mới nhất"). CRM luôn gửi; chỉ có thể vắng
+	// trong ≤ 60 s sau khi nâng cấp (bản đệm cũ).
+	CreatedAt OptDateTime `json:"createdAt"`
+	Version   int64       `json:"version"`
 }
 
 // GetID returns the value of ID.
@@ -38253,6 +38271,11 @@ func (s *WebProduct) GetVariants() []WebVariant {
 // GetUpdatedAt returns the value of UpdatedAt.
 func (s *WebProduct) GetUpdatedAt() time.Time {
 	return s.UpdatedAt
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *WebProduct) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
 }
 
 // GetVersion returns the value of Version.
@@ -38323,6 +38346,11 @@ func (s *WebProduct) SetVariants(val []WebVariant) {
 // SetUpdatedAt sets the value of UpdatedAt.
 func (s *WebProduct) SetUpdatedAt(val time.Time) {
 	s.UpdatedAt = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *WebProduct) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
 }
 
 // SetVersion sets the value of Version.

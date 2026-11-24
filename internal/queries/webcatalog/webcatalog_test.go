@@ -190,6 +190,69 @@ func TestProductsByID(t *testing.T) {
 	})
 }
 
+// createdAt: ngày tạo của mẫu (cột created_at), giữ nguyên khi sửa mẫu (updated_at đổi), theo UTC; cùng giá trị ở
+// Products và ProductsByID; mẫu khác có createdAt khác 0.
+func TestProducts_CreatedAt(t *testing.T) {
+	e := newEnv(t)
+	all := e.all()
+	old := time.Date(2024, 3, 9, 1, 2, 3, 456000000, time.FixedZone("ICT", 7*3600))
+	e.exec("UPDATE catalog.products SET created_at = $2 WHERE id = $1", all[5], old)
+	e.exec("UPDATE catalog.products SET name = 'Đổi tên', updated_at = now() WHERE id = $1", all[5])
+	var byID []webcatalog.WebProduct
+	e.read(func(tx pgx.Tx) error {
+		var err error
+		byID, err = webcatalog.ProductsByID(t.Context(), tx, []uuid.UUID{all[5], all[6]}, view())
+		return err //nolint:wrapcheck // test
+	})
+	if len(byID) != 2 {
+		t.Fatalf("mong 2 mẫu, có %d", len(byID))
+	}
+	checkCreatedAt(t, "ProductsByID", byID, all[5], old)
+	checkCreatedAt(t, "Products", e.allProducts(), all[5], old)
+}
+
+// checkCreatedAt: mẫu id có createdAt = want (UTC), sau updatedAt; mọi mẫu khác có createdAt khác 0, theo UTC.
+func checkCreatedAt(t *testing.T, from string, ps []webcatalog.WebProduct, id uuid.UUID, want time.Time) {
+	t.Helper()
+	found := false
+	for _, p := range ps {
+		switch {
+		case p.ID == id:
+			found = true
+			if !p.CreatedAt.Equal(want) || p.CreatedAt.Location() != time.UTC || !p.UpdatedAt.After(p.CreatedAt) {
+				t.Errorf("%s: createdAt %v (mong %v UTC), updatedAt %v", from, p.CreatedAt, want.UTC(), p.UpdatedAt)
+			}
+		case p.CreatedAt.IsZero() || p.CreatedAt.Location() != time.UTC:
+			t.Errorf("%s: mẫu %s createdAt %v", from, p.Code, p.CreatedAt)
+		}
+	}
+	if !found {
+		t.Errorf("%s: không thấy mẫu đã đặt ngày tạo", from)
+	}
+}
+
+// allProducts đọc mọi trang MaxPage của Products.
+func (e *env) allProducts() []webcatalog.WebProduct {
+	e.t.Helper()
+	var out []webcatalog.WebProduct
+	for after := uuid.Nil; ; {
+		var (
+			ps   []webcatalog.WebProduct
+			next uuid.UUID
+		)
+		e.read(func(tx pgx.Tx) error {
+			var err error
+			ps, next, err = webcatalog.Products(e.t.Context(), tx, after, webcatalog.MaxPage, view())
+			return err //nolint:wrapcheck // test
+		})
+		out = append(out, ps...)
+		if next == uuid.Nil {
+			return out
+		}
+		after = next
+	}
+}
+
 // ADR-29: người bán thứ hai suspended → 50 mẫu của họ không có trong Products, ProductsByID; active lại → có.
 func TestProducts_SellerSuspended(t *testing.T) {
 	e := newEnv(t)
@@ -266,17 +329,24 @@ func (e *env) dbNow() time.Time {
 
 func (e *env) changes(since time.Time, limit int) ([]uuid.UUID, time.Time, bool) {
 	e.t.Helper()
+	ids, until, more, _ := e.changesAt(since, limit)
+	return ids, until, more
+}
+
+// changesAt như changes, kèm serverTime.
+func (e *env) changesAt(since time.Time, limit int) ([]uuid.UUID, time.Time, bool, time.Time) {
+	e.t.Helper()
 	var (
-		ids   []uuid.UUID
-		until time.Time
-		more  bool
+		ids          []uuid.UUID
+		until, srvAt time.Time
+		more         bool
 	)
 	e.read(func(tx pgx.Tx) error {
 		var err error
-		ids, until, more, err = webcatalog.Changes(e.t.Context(), tx, since, limit)
+		ids, until, more, srvAt, err = webcatalog.Changes(e.t.Context(), tx, since, limit)
 		return err //nolint:wrapcheck // test
 	})
-	return ids, until, more
+	return ids, until, more, srvAt
 }
 
 // Đổi giá biến thể v1 lúc T → Changes(T − 30 s) có đúng mẫu của v1; nhập kho cho v2 → thêm mẫu của v2; sửa mẫu →
@@ -300,16 +370,24 @@ func TestChanges(t *testing.T) {
 	if !slices.Equal(ids, []uuid.UUID{all[10], all[20], all[30]}) || more {
 		t.Fatalf("sau nhập kho v2, sửa mẫu: %v (more %v)", ids, more)
 	}
-	ids, until2, more := e.changes(t0.Add(-30*time.Second), 2)
+	ids, until2, more, srv2 := e.changesAt(t0.Add(-30*time.Second), 2)
 	if len(ids) != 2 || !more || !until2.Before(until) {
 		t.Fatalf("limit 2: %v, until %v, more %v", ids, until2, more)
+	}
+	// serverTime: now() của lần đọc, có cả khi more (until là mốc của mã cuối, sớm hơn).
+	if srv2.Before(until) || srv2.Location() != time.UTC {
+		t.Errorf("limit 2: serverTime %v phải ≥ until đầy đủ %v, theo UTC", srv2, until)
+	}
+	// Chưa đủ limit: serverTime = until = now() của lần đọc.
+	if _, u, m, srv := e.changesAt(t0.Add(-30*time.Second), 1000); m || !srv.Equal(u) || srv.Before(t0) {
+		t.Errorf("chưa đủ limit: serverTime %v, until %v, more %v", srv, u, m)
 	}
 	if ids, _, _ := e.changes(until.Add(time.Second), 1000); len(ids) != 0 {
 		t.Errorf("sau mốc until: mong rỗng, có %v", ids)
 	}
 	for _, bad := range []int{0, webcatalog.MaxChanges + 1} {
 		e.read(func(tx pgx.Tx) error {
-			if _, _, _, err := webcatalog.Changes(t.Context(), tx, t0, bad); !errors.Is(err, webcatalog.ErrBadLimit) {
+			if _, _, _, _, err := webcatalog.Changes(t.Context(), tx, t0, bad); !errors.Is(err, webcatalog.ErrBadLimit) {
 				t.Errorf("limit %d: mong ErrBadLimit, có %v", bad, err)
 			}
 			return nil

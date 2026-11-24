@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/httpapi"
+	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
@@ -315,8 +316,24 @@ func TestWebCatalogProducts_Shape(t *testing.T) {
 		t.Fatalf("articleHtml sai:\n%s\nmong:\n%s", html, want)
 	}
 	checkArticleURLs(t, html)
+	checkCreatedAt(t, e, p.ID, it)
 	checkImagesAndVariants(t, it)
 	checkNoForbiddenKeys(t, rec.Body.Bytes())
+}
+
+// checkCreatedAt: createdAt là created_at của mẫu (RFC 3339; ogen ghi date-time theo giây như updatedAt, nên so với
+// created_at cắt giây).
+func checkCreatedAt(t *testing.T, e *env, id uuid.UUID, it map[string]any) {
+	t.Helper()
+	var want time.Time
+	e.app(func(tx pgx.Tx) error {
+		return tx.QueryRow(t.Context(), "SELECT created_at FROM catalog.products_v WHERE product_id = $1", id).Scan(&want)
+	})
+	cs, _ := it["createdAt"].(string)
+	got, err := time.Parse(time.RFC3339Nano, cs)
+	if err != nil || !got.Equal(want.Truncate(time.Second)) {
+		t.Errorf("createdAt %q (%v), mong %v", cs, err, want)
+	}
 }
 
 // checkImagesAndVariants: 2 ảnh ở vị trí 1, 3, mỗi ảnh 12 biến thể; 3 biến thể, cái thứ ba ngừng bán.
@@ -512,7 +529,8 @@ func TestWebCatalog_CacheAndFallback(t *testing.T) {
 	}
 }
 
-// Luồng thay đổi qua HTTP: mẫu vừa tạo có trong changes, until dạng RFC 3339, hasMore false.
+// Luồng thay đổi qua HTTP: mẫu vừa tạo có trong changes, until và serverTime dạng RFC 3339 (bằng nhau khi hasMore
+// false, cùng now() của PostgreSQL), hasMore false.
 func TestWebCatalogChanges(t *testing.T) {
 	e := newEnv(t, nil)
 	p := e.product("H1", "[]")
@@ -521,6 +539,7 @@ func TestWebCatalogChanges(t *testing.T) {
 		ProductIDs []string `json:"productIds"`
 		Until      string   `json:"until"`
 		HasMore    bool     `json:"hasMore"`
+		ServerTime string   `json:"serverTime"`
 	}
 	if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &out) != nil {
 		t.Fatalf("%d %s", rec.Code, rec.Body.String())
@@ -528,7 +547,40 @@ func TestWebCatalogChanges(t *testing.T) {
 	if !slices.Equal(out.ProductIDs, []string{p.ID.String()}) || out.HasMore {
 		t.Fatalf("changes: %+v", out)
 	}
-	if _, err := time.Parse(time.RFC3339Nano, out.Until); err != nil {
+	until, err := time.Parse(time.RFC3339Nano, out.Until)
+	if err != nil {
 		t.Fatalf("until %q: %v", out.Until, err)
+	}
+	srv, err := time.Parse(time.RFC3339Nano, out.ServerTime)
+	if err != nil || !srv.Equal(until) {
+		t.Fatalf("serverTime %q (%v), mong bằng until %v", out.ServerTime, err, until)
+	}
+}
+
+// Bản đệm Valkey viết trước Task 489 (≤ 60 s) không có createdAt: vẫn giải mã được (createdAt tùy chọn), trả lại không
+// có trường; bản mới có createdAt.
+func TestWebProduct_CacheWithoutCreatedAt(t *testing.T) {
+	t.Parallel()
+	g := gen.WebProduct{
+		ID: uuid.New(), SellerId: uuid.New(), Code: "A1", Name: "Áo", Status: gen.ProductStatusActive,
+		CategoryIds: []uuid.UUID{}, Tags: []string{}, Attributes: []gen.WebAttr{}, Images: []gen.WebImage{},
+		Variants: []gen.WebVariant{}, UpdatedAt: time.Now(), CreatedAt: gen.NewOptDateTime(time.Now()), Version: 1,
+	}
+	raw, err := g.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil || m["createdAt"] == nil {
+		t.Fatalf("bản mới phải có createdAt: %s (%v)", raw, err)
+	}
+	delete(m, "createdAt")
+	old, _ := json.Marshal(m)
+	var back gen.WebProduct
+	if err := back.UnmarshalJSON(old); err != nil {
+		t.Fatalf("bản đệm cũ không có createdAt phải giải mã được: %v", err)
+	}
+	if back.CreatedAt.Set {
+		t.Errorf("bản đệm cũ: createdAt phải vắng")
 	}
 }

@@ -21697,7 +21697,9 @@ func (s *Server) handleWebCancelRequestRequest(args [2]string, argsEscaped bool,
 //
 // Task 190 (M5-07). Lần sau gửi since = until − 30 s và bỏ mã trùng. hasMore = true (đủ
 // limit mã) thì còn thay đổi chưa trả: gọi tiếp với since = until − 30 s; nếu vẫn
-// đủ limit mà until không tiến, website tải lại cả danh mục theo trang.
+// đủ limit mà until không tiến, website tải lại cả danh mục theo trang. serverTime
+// (Task 489) là giờ máy chủ lúc đọc: bản sao đầu gọi changes lấy serverTime
+// trước khi tải cả danh mục, rồi đồng bộ từ since = serverTime − 30 s.
 //
 // GET /api/v1/web/catalog/changes
 func (s *Server) handleWebCatalogChangesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

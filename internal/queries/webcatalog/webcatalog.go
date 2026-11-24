@@ -83,28 +83,31 @@ func ProductsByID(ctx context.Context, tx pgx.Tx, ids []uuid.UUID, view ImageVie
 // Changes trả mã các mẫu có mẫu, biến thể hay số dư tồn đổi từ since (gồm cả mốc since), tối đa limit (1–MaxChanges),
 // xếp theo mốc đổi rồi mã. Gồm cả mẫu đã xóa, của người bán ngừng (website gỡ khi ProductsByID không trả). until: khi
 // trang đủ limit là mốc đổi lớn nhất đã trả (more = true); khi chưa đủ là now() của transaction đọc (đã xem hết tới
-// đó). Bên gọi gửi lần sau since = until − 30 s và bỏ mã trùng (bù transaction ghi commit trễ hơn mốc của nó).
-func Changes(ctx context.Context, tx pgx.Tx, since time.Time, limit int) (ids []uuid.UUID, until time.Time, more bool, err error) {
+// đó). serverTime luôn là now() của transaction đọc (giờ máy chủ, cùng đồng hồ với until; bằng until khi more false).
+// Bên gọi gửi lần sau since = until − 30 s và bỏ mã trùng (bù transaction ghi commit trễ hơn mốc của nó).
+func Changes(ctx context.Context, tx pgx.Tx, since time.Time, limit int) (
+	ids []uuid.UUID, until time.Time, more bool, serverTime time.Time, err error,
+) {
 	if limit < 1 || limit > MaxChanges {
-		return nil, time.Time{}, false, ErrBadLimit
+		return nil, time.Time{}, false, time.Time{}, ErrBadLimit
 	}
 	q := store.New(tx)
 	rows, err := q.Changes(ctx, store.ChangesParams{Since: since, Lim: int32(limit)})
 	if err != nil {
-		return nil, time.Time{}, false, fmt.Errorf("đọc thay đổi danh mục cho website: %w", err)
+		return nil, time.Time{}, false, time.Time{}, fmt.Errorf("đọc thay đổi danh mục cho website: %w", err)
+	}
+	now, err := q.Now(ctx)
+	if err != nil {
+		return nil, time.Time{}, false, time.Time{}, fmt.Errorf("đọc mốc thay đổi: %w", err)
 	}
 	ids = make([]uuid.UUID, len(rows))
 	for i, r := range rows {
 		ids[i] = r.ProductID
 	}
 	if len(rows) == limit {
-		return ids, rows[len(rows)-1].ChangedAt.UTC(), true, nil
+		return ids, rows[len(rows)-1].ChangedAt.UTC(), true, now.UTC(), nil
 	}
-	now, err := q.Now(ctx)
-	if err != nil {
-		return nil, time.Time{}, false, fmt.Errorf("đọc mốc thay đổi: %w", err)
-	}
-	return ids, now.UTC(), false, nil
+	return ids, now.UTC(), false, now.UTC(), nil
 }
 
 // Taxonomy trả danh mục đang dùng, thuộc tính kèm giá trị, nhãn (theo vị trí rồi tên).
@@ -174,7 +177,7 @@ func assemble(ctx context.Context, tx pgx.Tx, rows []store.ProductPageRow, view 
 			ID: r.ProductID, SellerID: r.SellerID, Code: r.Code, Name: r.Name, ShortDescription: r.Description,
 			Article: r.Article, Status: r.Status, CategoryIDs: []uuid.UUID{}, Tags: []string{},
 			Attributes: []WebAttr{}, Images: []WebImage{}, Variants: []WebVariant{}, UpdatedAt: r.UpdatedAt.UTC(),
-			Version: r.Version,
+			CreatedAt: r.CreatedAt.UTC(), Version: r.Version,
 		}
 		if r.CategoryID.Valid {
 			out[i].CategoryIDs = append(out[i].CategoryIDs, uuid.UUID(r.CategoryID.Bytes))

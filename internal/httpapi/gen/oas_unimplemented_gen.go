@@ -2314,7 +2314,9 @@ func (UnimplementedHandler) WebCancelRequest(ctx context.Context, params WebCanc
 //
 // Task 190 (M5-07). Lần sau gửi since = until − 30 s và bỏ mã trùng. hasMore = true (đủ
 // limit mã) thì còn thay đổi chưa trả: gọi tiếp với since = until − 30 s; nếu vẫn
-// đủ limit mà until không tiến, website tải lại cả danh mục theo trang.
+// đủ limit mà until không tiến, website tải lại cả danh mục theo trang. serverTime
+// (Task 489) là giờ máy chủ lúc đọc: bản sao đầu gọi changes lấy serverTime
+// trước khi tải cả danh mục, rồi đồng bộ từ since = serverTime − 30 s.
 //
 // GET /api/v1/web/catalog/changes
 func (UnimplementedHandler) WebCatalogChanges(ctx context.Context, params WebCatalogChangesParams) (r WebCatalogChangesRes, _ error) {

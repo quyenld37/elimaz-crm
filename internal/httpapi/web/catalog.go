@@ -236,7 +236,8 @@ func (c *Catalog) product(ctx context.Context, tx pgx.Tx, wp webcatalog.WebProdu
 		ID: wp.ID, SellerId: wp.SellerID, Code: wp.Code, Name: wp.Name, ShortDescription: wp.ShortDescription,
 		ArticleHtml: html, Status: gen.ProductStatus(wp.Status), CategoryIds: wp.CategoryIDs, Tags: wp.Tags,
 		Attributes: make([]gen.WebAttr, 0, len(wp.Attributes)), Images: make([]gen.WebImage, 0, len(wp.Images)),
-		Variants: make([]gen.WebVariant, 0, len(wp.Variants)), UpdatedAt: wp.UpdatedAt, Version: wp.Version,
+		Variants: make([]gen.WebVariant, 0, len(wp.Variants)), UpdatedAt: wp.UpdatedAt,
+		CreatedAt: gen.NewOptDateTime(wp.CreatedAt), Version: wp.Version,
 	}
 	for _, a := range wp.Attributes {
 		g.Attributes = append(g.Attributes, gen.WebAttr{Name: a.Name, Value: a.Value, Position: int32(a.Position)}) //nolint:gosec // G115: vị trí nhỏ
@@ -271,11 +272,11 @@ func (c *Catalog) Changes(ctx context.Context, tenant uuid.UUID, p gen.WebCatalo
 	limit := int(p.Limit.Or(webcatalog.MaxChanges))
 	var out gen.WebCatalogChanges
 	err := tenancy.WithTenant(ctx, c.db, tenant, func(tx pgx.Tx) error {
-		ids, until, more, err := webcatalog.Changes(ctx, tx, p.Since, limit)
+		ids, until, more, serverTime, err := webcatalog.Changes(ctx, tx, p.Since, limit)
 		if err != nil {
 			return err //nolint:wrapcheck // webcatalog đã bọc
 		}
-		out = gen.WebCatalogChanges{ProductIds: ids, Until: until, HasMore: more}
+		out = gen.WebCatalogChanges{ProductIds: ids, Until: until, HasMore: more, ServerTime: serverTime}
 		return nil
 	}, db.TxAPI)
 	if err != nil {

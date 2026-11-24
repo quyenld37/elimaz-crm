@@ -2060,7 +2060,8 @@ export const webCatalogProducts = <ThrowOnError extends boolean = false>(options
  *
  * Task 190 (M5-07). Lần sau gửi since = until − 30 s và bỏ mã trùng. hasMore = true (đủ limit mã) thì còn thay
  * đổi chưa trả: gọi tiếp với since = until − 30 s; nếu vẫn đủ limit mà until không tiến, website tải lại cả danh
- * mục theo trang.
+ * mục theo trang. serverTime (Task 489) là giờ máy chủ lúc đọc: bản sao đầu gọi changes lấy serverTime trước khi
+ * tải cả danh mục, rồi đồng bộ từ since = serverTime − 30 s.
  *
  */
 export const webCatalogChanges = <ThrowOnError extends boolean = false>(options: Options<WebCatalogChangesData, ThrowOnError>): RequestResult<WebCatalogChangesResponses, WebCatalogChangesErrors, ThrowOnError> => (options.client ?? client).get<WebCatalogChangesResponses, WebCatalogChangesErrors, ThrowOnError>({ url: '/api/v1/web/catalog/changes', ...options });
