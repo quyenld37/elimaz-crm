@@ -3,6 +3,7 @@
 // đếm, bước của form, ô giờ Việt Nam. Hai màn đổi cùng nhau khi mockup HV19 đổi.
 import { useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
+import { shortTime } from "../../app/time";
 import { isoToVnLocal, vnLocalToIso } from "../ma-giam-gia/couponRules";
 import { runeCount } from "../web-campaigns/campaignRules";
 import { Dialog } from "../staff/staffData";
@@ -126,12 +127,28 @@ export function SaveBar(p: {
  * Hộp 409 (HV19): người khác vừa lưu; "Giữ bản đang sửa" đóng hộp, giữ bản (lần lưu sau vẫn 409), "Tải bản mới" bỏ bản
  * sửa và nạp bản máy chủ. subject là tên danh sách trong câu ("danh sách banner").
  */
+/**
+ * Câu "<tên> lưu lúc <giờ>." của hộp 409 (mockup HV19, Task 488): chỉ khi bản mới nhất đã đọc (server) khác bản đang
+ * sửa dựa vào (base) và có giờ lưu; không có tên thì chỉ giờ.
+ */
+export function savedByText(
+  server: { revision: number; updatedAt?: string; updatedByName?: string },
+  base: { revision: number },
+): string | null {
+  if (server.revision === base.revision || server.updatedAt === undefined) return null;
+  const at = shortTime(server.updatedAt);
+  return server.updatedByName === undefined ? `Bản mới lưu lúc ${at}.` : `${server.updatedByName} lưu lúc ${at}.`;
+}
+
 export function ConflictDialog(p: {
   title: string;
   subject: string;
+  /** Bản mới nhất đã đọc và bản đang sửa dựa vào: khác nhau thì hộp nêu ai lưu, lúc nào (savedByText). */
+  server: { revision: number; updatedAt?: string; updatedByName?: string };
+  base: { revision: number };
   reloading: boolean;
   onKeep: () => void;
-  onReload: () => void;
+  onReload: () => unknown;
 }) {
   return (
     <Dialog
@@ -142,14 +159,22 @@ export function ConflictDialog(p: {
           <button type="button" className="btn btn-quiet" onClick={p.onKeep}>
             Giữ bản đang sửa
           </button>
-          <button type="button" className="btn btn-dark" disabled={p.reloading} onClick={p.onReload}>
+          <button
+            type="button"
+            className="btn btn-dark"
+            disabled={p.reloading}
+            onClick={() => {
+              void p.onReload();
+            }}
+          >
             Tải bản mới
           </button>
         </>
       }
     >
       <p>
-        Người khác vừa lưu {p.subject}. Bản bạn đang sửa <b>vẫn còn</b> trên màn hình, chưa lưu.
+        {savedByText(p.server, p.base) ?? `Người khác vừa lưu ${p.subject}.`} Bản bạn đang sửa <b>vẫn còn</b> trên màn
+        hình, chưa lưu.
       </p>
       <p className="small muted">Tải bản mới sẽ bỏ thay đổi của bạn. Giữ bản đang sửa để chép lại nội dung trước.</p>
     </Dialog>

@@ -9,6 +9,7 @@ import { HIDDEN_TEXT } from "./bannerRules";
 import {
   B,
   CAT1,
+  F_DESK,
   F_MOB,
   F_NEW,
   P1,
@@ -267,6 +268,33 @@ describe("Ảnh (HV18, trạng thái A, C)", () => {
     expect(screen.getByText("Ảnh điện thoại của banner 2 đang xử lý, chờ xong mới lưu được.")).toBeTruthy();
   });
 
+  it("ảnh đã lưu: cỡ gốc từ danh sách (không cần quyền tải ảnh); bị từ chối → lý do máy chủ trả (Task 488)", async () => {
+    fake.grants = grantsOf("content.manage", "catalog.read");
+    const l = list([imageBanner(1)]);
+    l.images = l.images.map((i) =>
+      i.fileId === F_DESK
+        ? { ...i, width: 2368, height: 600 }
+        : { ...i, status: "rejected", rejectReason: "too_small", desktop: undefined, desktopSmall: undefined },
+    );
+    await open(l);
+    expect(await screen.findByText(/2368 × 600 · đúng tỉ lệ/)).toBeTruthy();
+    expect(screen.getByText("Ảnh quá nhỏ: cần rộng ít nhất 600 px. Xuất lại ảnh rồi tải lên")).toBeTruthy();
+    expect(fake.writes.some((w) => w.path.startsWith("/api/v1/files/"))).toBe(false);
+  });
+
+  it("ảnh đã lưu đang xử lý: báo hiệu tệp đổi (files.file) → đọc lại danh sách, ảnh sẵn sàng, Lưu mở (Task 488)", async () => {
+    const l = list([promo(1), imageBanner(2)]);
+    l.images = l.images.map((i) => (i.fileId === F_MOB ? { ...i, status: "processing" } : i));
+    const { qc } = await open(l);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Bật banner 1" }));
+    expect(button("Lưu banner")).toHaveProperty("disabled", true);
+    fake.list = { ...l, images: l.images.map((i) => ({ ...i, status: "ready" })) };
+    await qc.invalidateQueries({ queryKey: ["files.file"] });
+    await waitFor(() => {
+      expect(button("Lưu banner")).toHaveProperty("disabled", false);
+    });
+  });
+
   it("tải ảnh: đang xử lý → Lưu khóa; xong → Sẵn sàng, cảnh báo lệch tỉ lệ, Lưu gửi mã tệp mới", async () => {
     fake.fileStatus = "processing";
     await open(list([imageBanner(1, { imageDesktop: undefined, imageMobile: undefined })]));
@@ -340,6 +368,21 @@ describe("Lưu (trạng thái E)", () => {
       expect(rows()).toHaveLength(3);
     });
     expect(screen.queryByRole("button", { name: "Lưu banner" })).toBeNull();
+  });
+
+  it("409 → hộp nêu ai lưu, lúc nào (đọc lại bản máy chủ; Task 488)", async () => {
+    await open(list([promo(1)]));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Bật banner 1" }));
+    fake.saveErrors.push({ status: 409, body: { error: "version_conflict", request_id: "t" } });
+    fake.list = list([promo(1), promo(9)], {
+      revision: 5,
+      updatedByName: "Trần Minh Thư",
+      updatedAt: "2026-11-21T04:42:00Z",
+    });
+    fireEvent.click(button("Lưu banner"));
+    const dlg = await screen.findByRole("dialog", { name: "Banner vừa được người khác lưu" });
+    expect(await within(dlg).findByText(/Trần Minh Thư lưu lúc 11:42 21\/11\./)).toBeTruthy();
+    expect(rows()).toHaveLength(1);
   });
 
   it("đang lưu: khóa bật/tắt, lên/xuống, thêm, sửa, bỏ thay đổi, kéo thả", async () => {

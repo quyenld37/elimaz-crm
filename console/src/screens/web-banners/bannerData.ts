@@ -1,6 +1,6 @@
 // Dữ liệu của màn Banner trang chủ: danh sách (chủ đề realtime content.banners, máy chủ báo hiệu mỗi lần lưu; Task
 // 453), xem trước danh sách đang sửa (previewBanners, 350 ms sau khi ngừng sửa), kích thước ảnh (getFile), tìm mẫu.
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getBanners, getFile, listProducts, previewBanners, type HomeBanner, type HomeBannerStatus } from "../../api";
 import { useMemo } from "react";
 import { unwrap } from "../../app/errors";
@@ -42,6 +42,25 @@ export function useBannerPreview(banners: readonly HomeBanner[], dirty: boolean)
   });
   const statuses: readonly HomeBannerStatus[] | undefined = dirty ? q.data : undefined;
   return { statuses, error: dirty ? q.error : null };
+}
+
+/**
+ * Ảnh đã lưu của danh sách đang chờ xử lý (Task 488): truy vấn theo chủ đề files.file nên mỗi báo hiệu tệp đổi trạng
+ * thái đọc lại danh sách banner và cập nhật bộ nhớ đệm của nó (ảnh hiện sẵn sàng, cỡ, hay lý do từ chối mà không phải
+ * tải lại trang). enabled = có ảnh đang chờ và có quyền files.upload (máy chủ chỉ báo hiệu tệp cho quyền này).
+ */
+export function useBannerFileWatch(pending: readonly string[], enabled: boolean) {
+  const qc = useQueryClient();
+  useQuery({
+    queryKey: queryKey(TOPICS.file, "banners", pending),
+    enabled: enabled && pending.length > 0,
+    staleTime: Infinity,
+    queryFn: async () => {
+      const fresh = await unwrap(getBanners());
+      qc.setQueryData(bannersKey, fresh);
+      return fresh.revision;
+    },
+  });
 }
 
 /** Thông tin tệp (kích thước, biến thể) của ảnh đã xử lý xong; enabled = có quyền files.upload và ảnh sẵn sàng. */

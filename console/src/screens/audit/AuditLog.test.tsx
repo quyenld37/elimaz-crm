@@ -35,6 +35,7 @@ describe("Nhật ký thao tác", () => {
         action: "order.request.create",
         entityType: "order_request",
         entityId: "0195f3b2-0000-7000-8000-00000000aa01",
+        entityName: "YC-0000144",
         changedFields: [],
         createdAt: "2026-11-21T03:42:00Z",
       }),
@@ -74,7 +75,9 @@ describe("Nhật ký thao tác", () => {
     expect(within(r2).getByText("Khóa dịch vụ")).toBeTruthy();
     expect(within(r2).getByText("Tạo yêu cầu về đơn hàng")).toBeTruthy();
     expect(within(r2).getByText("Yêu cầu")).toBeTruthy();
-    expect(within(r2).getByText("0195f3b2-0000-7000-8000-00000000aa01").className).toContain("wrap-any");
+    // Có tên dễ đọc (Task 488) → hiện tên thay mã.
+    expect(within(r2).getByText("YC-0000144").className).toContain("wrap-any");
+    expect(r2.textContent).not.toContain("00000000aa01");
     expect(within(r2).getByText("—")).toBeTruthy();
 
     expect(within(r3).getAllByText("Hệ thống")).toHaveLength(2);
@@ -105,7 +108,7 @@ describe("Nhật ký thao tác", () => {
     expect(fake.listCalls.map((q) => q.get("cursor"))).toEqual([null, "50", "100"]);
   });
 
-  it("lọc thao tác gửi đúng mã; lọc người lấy từ người đã hiện, gửi actorId", async () => {
+  it("lọc thao tác gửi đúng mã; lọc người lấy từ listAuditActors (cả người chưa có dòng, đã khóa), gửi actorId", async () => {
     fake.rows = [
       log(),
       log({
@@ -135,8 +138,10 @@ describe("Nhật ký thao tác", () => {
     });
 
     const who = screen.getByRole("combobox", { name: "Người làm" });
-    expect(within(who).getByRole("option", { name: "Nguyễn Thị Lan" })).toBeTruthy();
-    expect(within(who).getByRole("option", { name: "Khóa: Website ELIMAZ" })).toBeTruthy();
+    expect(await within(who).findByRole("option", { name: "Nguyễn Thị Lan" })).toBeTruthy();
+    expect(await within(who).findByRole("option", { name: "Khóa: Website ELIMAZ" })).toBeTruthy();
+    // Người chưa có dòng nào trong trang đã tải vẫn có trong ô; đã khóa ghi rõ.
+    expect(within(who).getByRole("option", { name: "Trần Văn Cũ (đã khóa)" })).toBeTruthy();
     fireEvent.change(who, { target: { value: LAN } });
     await waitFor(() => {
       expect(lastCall().get("actorId")).toBe(LAN);
@@ -147,6 +152,18 @@ describe("Nhật ký thao tác", () => {
     // Người đang chọn vẫn còn trong ô dù danh sách chỉ còn dòng của người đó; người khác cũng còn để đổi.
     expect(within(who).getByRole("option", { name: "Khóa: Website ELIMAZ" })).toBeTruthy();
     expect(who).toHaveProperty("value", LAN);
+  });
+
+  it("chưa tải được người làm → ô chỉ còn 'Mọi người', nhật ký vẫn hiện", async () => {
+    fake.actorsError = { status: 500, body: { error: "internal", request_id: "x" } };
+    renderAt();
+    await screen.findByRole("table");
+    const who = screen.getByRole("combobox", { name: "Người làm" });
+    expect(
+      within(who)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["Mọi người"]);
   });
 
   it("khoảng ngày → from, to theo giờ VN (lấy trọn ngày cuối); ngày đầu sau ngày cuối → câu lỗi, không gọi API", async () => {

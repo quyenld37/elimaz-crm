@@ -1418,6 +1418,113 @@ func (s *AttributeValue) SetPosition(val Position) {
 
 func (*AttributeValue) addAttributeValueRes() {}
 
+// Ref: #/components/schemas/AuditActor
+type AuditActor struct {
+	ActorType AuditActorActorType `json:"actorType"`
+	ID        uuid.UUID           `json:"id"`
+	Name      string              `json:"name"`
+	// Nhân viên chưa khóa, khóa dịch vụ chưa thu hồi.
+	Active bool `json:"active"`
+}
+
+// GetActorType returns the value of ActorType.
+func (s *AuditActor) GetActorType() AuditActorActorType {
+	return s.ActorType
+}
+
+// GetID returns the value of ID.
+func (s *AuditActor) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *AuditActor) GetName() string {
+	return s.Name
+}
+
+// GetActive returns the value of Active.
+func (s *AuditActor) GetActive() bool {
+	return s.Active
+}
+
+// SetActorType sets the value of ActorType.
+func (s *AuditActor) SetActorType(val AuditActorActorType) {
+	s.ActorType = val
+}
+
+// SetID sets the value of ID.
+func (s *AuditActor) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *AuditActor) SetName(val string) {
+	s.Name = val
+}
+
+// SetActive sets the value of Active.
+func (s *AuditActor) SetActive(val bool) {
+	s.Active = val
+}
+
+type AuditActorActorType string
+
+const (
+	AuditActorActorTypeStaff   AuditActorActorType = "staff"
+	AuditActorActorTypeService AuditActorActorType = "service"
+)
+
+// AllValues returns all AuditActorActorType values.
+func (AuditActorActorType) AllValues() []AuditActorActorType {
+	return []AuditActorActorType{
+		AuditActorActorTypeStaff,
+		AuditActorActorTypeService,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AuditActorActorType) MarshalText() ([]byte, error) {
+	switch s {
+	case AuditActorActorTypeStaff:
+		return []byte(s), nil
+	case AuditActorActorTypeService:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AuditActorActorType) UnmarshalText(data []byte) error {
+	switch AuditActorActorType(data) {
+	case AuditActorActorTypeStaff:
+		*s = AuditActorActorTypeStaff
+		return nil
+	case AuditActorActorTypeService:
+		*s = AuditActorActorTypeService
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/AuditActorList
+type AuditActorList struct {
+	Items []AuditActor `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *AuditActorList) GetItems() []AuditActor {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *AuditActorList) SetItems(val []AuditActor) {
+	s.Items = val
+}
+
+func (*AuditActorList) listAuditActorsRes() {}
+
 // Một dòng nhật ký thao tác (Task 457). Không có giá trị trước/sau, IP.
 // Ref: #/components/schemas/AuditLog
 type AuditLog struct {
@@ -1432,6 +1539,10 @@ type AuditLog struct {
 	Action     string    `json:"action"`
 	EntityType string    `json:"entityType"`
 	EntityId   OptString `json:"entityId"`
+	// Tên hay mã dễ đọc của thực thể (Task 488): mã yêu cầu (YC…), mã phiếu kho,
+	// tên tài khoản hãng, tên khóa dịch vụ. Vắng với loại khác, thực thể toàn shop,
+	// hay khi không còn tìm thấy.
+	EntityName OptString `json:"entityName"`
 	// Tên các trường đổi (chỉ tên, không giá trị).
 	ChangedFields []string  `json:"changedFields"`
 	CreatedAt     time.Time `json:"createdAt"`
@@ -1470,6 +1581,11 @@ func (s *AuditLog) GetEntityType() string {
 // GetEntityId returns the value of EntityId.
 func (s *AuditLog) GetEntityId() OptString {
 	return s.EntityId
+}
+
+// GetEntityName returns the value of EntityName.
+func (s *AuditLog) GetEntityName() OptString {
+	return s.EntityName
 }
 
 // GetChangedFields returns the value of ChangedFields.
@@ -1515,6 +1631,11 @@ func (s *AuditLog) SetEntityType(val string) {
 // SetEntityId sets the value of EntityId.
 func (s *AuditLog) SetEntityId(val OptString) {
 	s.EntityId = val
+}
+
+// SetEntityName sets the value of EntityName.
+func (s *AuditLog) SetEntityName(val OptString) {
+	s.EntityName = val
 }
 
 // SetChangedFields sets the value of ChangedFields.
@@ -10853,6 +10974,7 @@ func (*ErrorStatusCode) importCodStatementRes()          {}
 func (*ErrorStatusCode) listAdminUnitsRes()              {}
 func (*ErrorStatusCode) listAgedReservationsRes()        {}
 func (*ErrorStatusCode) listAttributesRes()              {}
+func (*ErrorStatusCode) listAuditActorsRes()             {}
 func (*ErrorStatusCode) listAuditLogsRes()               {}
 func (*ErrorStatusCode) listBalancesRes()                {}
 func (*ErrorStatusCode) listBirthdayCustomersRes()       {}
@@ -10921,6 +11043,7 @@ func (*ErrorStatusCode) regenerateImagesRes()            {}
 func (*ErrorStatusCode) removeCustomerIdentityRes()      {}
 func (*ErrorStatusCode) removeCustomerTagRes()           {}
 func (*ErrorStatusCode) reorderProductImagesRes()        {}
+func (*ErrorStatusCode) reorderWebCarriersRes()          {}
 func (*ErrorStatusCode) replaceStaffGrantsRes()          {}
 func (*ErrorStatusCode) replaceStockDocumentLinesRes()   {}
 func (*ErrorStatusCode) replyOrderRequestRes()           {}
@@ -12604,6 +12727,12 @@ type HomeBannerImage struct {
 	Desktop OptString `json:"desktop"`
 	// Đường dẫn WebP rộng 1200 (có khi ready).
 	DesktopSmall OptString `json:"desktopSmall"`
+	// Rộng ảnh gốc (px), có khi ready (Task 488).
+	Width OptInt32 `json:"width"`
+	// Cao ảnh gốc (px), có khi ready (Task 488).
+	Height OptInt32 `json:"height"`
+	// Lý do từ chối khi rejected (not_image, too_small, …) (Task 488).
+	RejectReason OptString `json:"rejectReason"`
 }
 
 // GetFileId returns the value of FileId.
@@ -12631,6 +12760,21 @@ func (s *HomeBannerImage) GetDesktopSmall() OptString {
 	return s.DesktopSmall
 }
 
+// GetWidth returns the value of Width.
+func (s *HomeBannerImage) GetWidth() OptInt32 {
+	return s.Width
+}
+
+// GetHeight returns the value of Height.
+func (s *HomeBannerImage) GetHeight() OptInt32 {
+	return s.Height
+}
+
+// GetRejectReason returns the value of RejectReason.
+func (s *HomeBannerImage) GetRejectReason() OptString {
+	return s.RejectReason
+}
+
 // SetFileId sets the value of FileId.
 func (s *HomeBannerImage) SetFileId(val uuid.UUID) {
 	s.FileId = val
@@ -12654,6 +12798,21 @@ func (s *HomeBannerImage) SetDesktop(val OptString) {
 // SetDesktopSmall sets the value of DesktopSmall.
 func (s *HomeBannerImage) SetDesktopSmall(val OptString) {
 	s.DesktopSmall = val
+}
+
+// SetWidth sets the value of Width.
+func (s *HomeBannerImage) SetWidth(val OptInt32) {
+	s.Width = val
+}
+
+// SetHeight sets the value of Height.
+func (s *HomeBannerImage) SetHeight(val OptInt32) {
+	s.Height = val
+}
+
+// SetRejectReason sets the value of RejectReason.
+func (s *HomeBannerImage) SetRejectReason(val OptString) {
+	s.RejectReason = val
 }
 
 // Ref: #/components/schemas/HomeBannerKind
@@ -12780,15 +12939,17 @@ func (s *HomeBannerLinkKind) UnmarshalText(data []byte) error {
 // Chọn mẫu để ghim dùng tìm sản phẩm của danh mục.
 // Ref: #/components/schemas/HomeBannerList
 type HomeBannerList struct {
-	Revision   int32                `json:"revision"`
-	UpdatedBy  OptUUID              `json:"updatedBy"`
-	UpdatedAt  OptDateTime          `json:"updatedAt"`
-	Banners    []HomeBanner         `json:"banners"`
-	Statuses   []HomeBannerStatus   `json:"statuses"`
-	Images     []HomeBannerImage    `json:"images"`
-	Campaigns  []HomeBannerCampaign `json:"campaigns"`
-	Categories []HomeBannerCategory `json:"categories"`
-	Products   []HomeBannerProduct  `json:"products"`
+	Revision  int32       `json:"revision"`
+	UpdatedBy OptUUID     `json:"updatedBy"`
+	UpdatedAt OptDateTime `json:"updatedAt"`
+	// Tên nhân viên lưu lần cuối (Task 488); vắng khi chưa lưu hay nhân viên không còn.
+	UpdatedByName OptString            `json:"updatedByName"`
+	Banners       []HomeBanner         `json:"banners"`
+	Statuses      []HomeBannerStatus   `json:"statuses"`
+	Images        []HomeBannerImage    `json:"images"`
+	Campaigns     []HomeBannerCampaign `json:"campaigns"`
+	Categories    []HomeBannerCategory `json:"categories"`
+	Products      []HomeBannerProduct  `json:"products"`
 }
 
 // GetRevision returns the value of Revision.
@@ -12804,6 +12965,11 @@ func (s *HomeBannerList) GetUpdatedBy() OptUUID {
 // GetUpdatedAt returns the value of UpdatedAt.
 func (s *HomeBannerList) GetUpdatedAt() OptDateTime {
 	return s.UpdatedAt
+}
+
+// GetUpdatedByName returns the value of UpdatedByName.
+func (s *HomeBannerList) GetUpdatedByName() OptString {
+	return s.UpdatedByName
 }
 
 // GetBanners returns the value of Banners.
@@ -12849,6 +13015,11 @@ func (s *HomeBannerList) SetUpdatedBy(val OptUUID) {
 // SetUpdatedAt sets the value of UpdatedAt.
 func (s *HomeBannerList) SetUpdatedAt(val OptDateTime) {
 	s.UpdatedAt = val
+}
+
+// SetUpdatedByName sets the value of UpdatedByName.
+func (s *HomeBannerList) SetUpdatedByName(val OptString) {
+	s.UpdatedByName = val
 }
 
 // SetBanners sets the value of Banners.
@@ -14016,6 +14187,33 @@ func (s *Look) SetItems(val []LookItem) {
 	s.Items = val
 }
 
+// Ref: #/components/schemas/LookColor
+type LookColor struct {
+	Name string `json:"name"`
+	// Mã màu "#rrggbb" nếu có.
+	Hex OptString `json:"hex"`
+}
+
+// GetName returns the value of Name.
+func (s *LookColor) GetName() string {
+	return s.Name
+}
+
+// GetHex returns the value of Hex.
+func (s *LookColor) GetHex() OptString {
+	return s.Hex
+}
+
+// SetName sets the value of Name.
+func (s *LookColor) SetName(val string) {
+	s.Name = val
+}
+
+// SetHex sets the value of Hex.
+func (s *LookColor) SetHex(val OptString) {
+	s.Hex = val
+}
+
 // Lý do bộ phối không hiện (đúng tên của website cũ).
 // Ref: #/components/schemas/LookHidden
 type LookHidden string
@@ -14143,14 +14341,16 @@ func (s *LookItem) SetY(val float64) {
 // danh mục đang dùng.
 // Ref: #/components/schemas/LookList
 type LookList struct {
-	Revision   int32                `json:"revision"`
-	UpdatedBy  OptUUID              `json:"updatedBy"`
-	UpdatedAt  OptDateTime          `json:"updatedAt"`
-	Looks      []Look               `json:"looks"`
-	Statuses   []LookStatus         `json:"statuses"`
-	Products   []LookProductRef     `json:"products"`
-	Photos     []LookPhoto          `json:"photos"`
-	Categories []HomeBannerCategory `json:"categories"`
+	Revision  int32       `json:"revision"`
+	UpdatedBy OptUUID     `json:"updatedBy"`
+	UpdatedAt OptDateTime `json:"updatedAt"`
+	// Tên nhân viên lưu lần cuối (Task 488); vắng khi chưa lưu hay nhân viên không còn.
+	UpdatedByName OptString            `json:"updatedByName"`
+	Looks         []Look               `json:"looks"`
+	Statuses      []LookStatus         `json:"statuses"`
+	Products      []LookProductRef     `json:"products"`
+	Photos        []LookPhoto          `json:"photos"`
+	Categories    []HomeBannerCategory `json:"categories"`
 }
 
 // GetRevision returns the value of Revision.
@@ -14166,6 +14366,11 @@ func (s *LookList) GetUpdatedBy() OptUUID {
 // GetUpdatedAt returns the value of UpdatedAt.
 func (s *LookList) GetUpdatedAt() OptDateTime {
 	return s.UpdatedAt
+}
+
+// GetUpdatedByName returns the value of UpdatedByName.
+func (s *LookList) GetUpdatedByName() OptString {
+	return s.UpdatedByName
 }
 
 // GetLooks returns the value of Looks.
@@ -14206,6 +14411,11 @@ func (s *LookList) SetUpdatedBy(val OptUUID) {
 // SetUpdatedAt sets the value of UpdatedAt.
 func (s *LookList) SetUpdatedAt(val OptDateTime) {
 	s.UpdatedAt = val
+}
+
+// SetUpdatedByName sets the value of UpdatedByName.
+func (s *LookList) SetUpdatedByName(val OptString) {
+	s.UpdatedByName = val
 }
 
 // SetLooks sets the value of Looks.
@@ -14306,11 +14516,20 @@ func (s *LookPhoto) SetVariants(val []WebImageVariant) {
 	s.Variants = val
 }
 
+// Statuses chỉ gồm bộ đủ thông tin (theo thứ tự gửi); bộ chưa đủ nằm ở
+// skipped kèm lý do (Task 488), không làm cả danh sách 422. Lỗi của cả danh sách (quá
+// số bộ, quá 6 bộ trang chủ, mã trùng) vẫn 422.
 // Ref: #/components/schemas/LookPreview
 type LookPreview struct {
+	Skipped  []LookSkip       `json:"skipped"`
 	Statuses []LookStatus     `json:"statuses"`
 	Products []LookProductRef `json:"products"`
 	Photos   []LookPhoto      `json:"photos"`
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *LookPreview) GetSkipped() []LookSkip {
+	return s.Skipped
 }
 
 // GetStatuses returns the value of Statuses.
@@ -14326,6 +14545,11 @@ func (s *LookPreview) GetProducts() []LookProductRef {
 // GetPhotos returns the value of Photos.
 func (s *LookPreview) GetPhotos() []LookPhoto {
 	return s.Photos
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *LookPreview) SetSkipped(val []LookSkip) {
+	s.Skipped = val
 }
 
 // SetStatuses sets the value of Statuses.
@@ -14355,6 +14579,9 @@ type LookProductRef struct {
 	OnSale bool `json:"onSale"`
 	// Có biến thể bán được còn hàng ở kho mặc định.
 	InStock bool `json:"inStock"`
+	// Màu của các biến thể đang bán được (bỏ trùng, theo thứ tự biến thể) — ô
+	// màu của món (Task 488).
+	Colors []LookColor `json:"colors"`
 }
 
 // GetID returns the value of ID.
@@ -14387,6 +14614,11 @@ func (s *LookProductRef) GetInStock() bool {
 	return s.InStock
 }
 
+// GetColors returns the value of Colors.
+func (s *LookProductRef) GetColors() []LookColor {
+	return s.Colors
+}
+
 // SetID sets the value of ID.
 func (s *LookProductRef) SetID(val uuid.UUID) {
 	s.ID = val
@@ -14415,6 +14647,100 @@ func (s *LookProductRef) SetOnSale(val bool) {
 // SetInStock sets the value of InStock.
 func (s *LookProductRef) SetInStock(val bool) {
 	s.InStock = val
+}
+
+// SetColors sets the value of Colors.
+func (s *LookProductRef) SetColors(val []LookColor) {
+	s.Colors = val
+}
+
+// Bộ chưa đủ để xem trước (Task 488); lý do là mã lỗi lưu sẽ trả cho bộ đó.
+// Ref: #/components/schemas/LookSkip
+type LookSkip struct {
+	ID     uuid.UUID      `json:"id"`
+	Reason LookSkipReason `json:"reason"`
+}
+
+// GetID returns the value of ID.
+func (s *LookSkip) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetReason returns the value of Reason.
+func (s *LookSkip) GetReason() LookSkipReason {
+	return s.Reason
+}
+
+// SetID sets the value of ID.
+func (s *LookSkip) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetReason sets the value of Reason.
+func (s *LookSkip) SetReason(val LookSkipReason) {
+	s.Reason = val
+}
+
+type LookSkipReason string
+
+const (
+	LookSkipReasonInvalidLook       LookSkipReason = "invalid_look"
+	LookSkipReasonLookItemsInvalid  LookSkipReason = "look_items_invalid"
+	LookSkipReasonLookDotInvalid    LookSkipReason = "look_dot_invalid"
+	LookSkipReasonLookPhotoInvalid  LookSkipReason = "look_photo_invalid"
+	LookSkipReasonLookWindowInvalid LookSkipReason = "look_window_invalid"
+)
+
+// AllValues returns all LookSkipReason values.
+func (LookSkipReason) AllValues() []LookSkipReason {
+	return []LookSkipReason{
+		LookSkipReasonInvalidLook,
+		LookSkipReasonLookItemsInvalid,
+		LookSkipReasonLookDotInvalid,
+		LookSkipReasonLookPhotoInvalid,
+		LookSkipReasonLookWindowInvalid,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LookSkipReason) MarshalText() ([]byte, error) {
+	switch s {
+	case LookSkipReasonInvalidLook:
+		return []byte(s), nil
+	case LookSkipReasonLookItemsInvalid:
+		return []byte(s), nil
+	case LookSkipReasonLookDotInvalid:
+		return []byte(s), nil
+	case LookSkipReasonLookPhotoInvalid:
+		return []byte(s), nil
+	case LookSkipReasonLookWindowInvalid:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LookSkipReason) UnmarshalText(data []byte) error {
+	switch LookSkipReason(data) {
+	case LookSkipReasonInvalidLook:
+		*s = LookSkipReasonInvalidLook
+		return nil
+	case LookSkipReasonLookItemsInvalid:
+		*s = LookSkipReasonLookItemsInvalid
+		return nil
+	case LookSkipReasonLookDotInvalid:
+		*s = LookSkipReasonLookDotInvalid
+		return nil
+	case LookSkipReasonLookPhotoInvalid:
+		*s = LookSkipReasonLookPhotoInvalid
+		return nil
+	case LookSkipReasonLookWindowInvalid:
+		*s = LookSkipReasonLookWindowInvalid
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/LookStatus
@@ -25692,6 +26018,32 @@ func (s *ReorderProductImagesRequest) SetImageIds(val []uuid.UUID) {
 	s.ImageIds = val
 }
 
+// Ref: #/components/schemas/ReorderWebCarriersRequest
+type ReorderWebCarriersRequest struct {
+	Version    int32       `json:"version"`
+	AccountIds []uuid.UUID `json:"accountIds"`
+}
+
+// GetVersion returns the value of Version.
+func (s *ReorderWebCarriersRequest) GetVersion() int32 {
+	return s.Version
+}
+
+// GetAccountIds returns the value of AccountIds.
+func (s *ReorderWebCarriersRequest) GetAccountIds() []uuid.UUID {
+	return s.AccountIds
+}
+
+// SetVersion sets the value of Version.
+func (s *ReorderWebCarriersRequest) SetVersion(val int32) {
+	s.Version = val
+}
+
+// SetAccountIds sets the value of AccountIds.
+func (s *ReorderWebCarriersRequest) SetAccountIds(val []uuid.UUID) {
+	s.AccountIds = val
+}
+
 // Ref: #/components/schemas/ReplaceGrantsRequest
 type ReplaceGrantsRequest struct {
 	Version int64        `json:"version"`
@@ -34958,10 +35310,20 @@ func (*WebCancelOutcome) webCancelOrderRes() {}
 // Ref: #/components/schemas/WebCarrierSettings
 type WebCarrierSettings struct {
 	// Tài khoản ưu tiên; không có = rẻ nhất đứng đầu.
-	PreferredAccountId OptUUID          `json:"preferredAccountId"`
-	FallbackFee        OptMoney         `json:"fallbackFee"`
-	Version            int32            `json:"version"`
-	Carriers           []WebCarrierStat `json:"carriers"`
+	PreferredAccountId OptUUID  `json:"preferredAccountId"`
+	FallbackFee        OptMoney `json:"fallbackFee"`
+	Version            int32    `json:"version"`
+	// Nhân viên lưu lần cuối (chọn sẵn, phí dự phòng, thứ tự); vắng khi chưa lưu
+	// (Task 488).
+	UpdatedBy OptUUID `json:"updatedBy"`
+	// Tên của updatedBy; vắng khi nhân viên không còn.
+	UpdatedByName OptString `json:"updatedByName"`
+	// Lúc lưu lần cuối; vắng khi chưa lưu.
+	UpdatedAt OptDateTime      `json:"updatedAt"`
+	Carriers  []WebCarrierStat `json:"carriers"`
+	// Tài khoản chưa hiện trên web (trừ revoked) kèm số vận đơn 30 ngày, xếp theo tên
+	// (Task 488).
+	HiddenCarriers []WebCarrierStat `json:"hiddenCarriers"`
 }
 
 // GetPreferredAccountId returns the value of PreferredAccountId.
@@ -34979,9 +35341,29 @@ func (s *WebCarrierSettings) GetVersion() int32 {
 	return s.Version
 }
 
+// GetUpdatedBy returns the value of UpdatedBy.
+func (s *WebCarrierSettings) GetUpdatedBy() OptUUID {
+	return s.UpdatedBy
+}
+
+// GetUpdatedByName returns the value of UpdatedByName.
+func (s *WebCarrierSettings) GetUpdatedByName() OptString {
+	return s.UpdatedByName
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *WebCarrierSettings) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
 // GetCarriers returns the value of Carriers.
 func (s *WebCarrierSettings) GetCarriers() []WebCarrierStat {
 	return s.Carriers
+}
+
+// GetHiddenCarriers returns the value of HiddenCarriers.
+func (s *WebCarrierSettings) GetHiddenCarriers() []WebCarrierStat {
+	return s.HiddenCarriers
 }
 
 // SetPreferredAccountId sets the value of PreferredAccountId.
@@ -34999,12 +35381,33 @@ func (s *WebCarrierSettings) SetVersion(val int32) {
 	s.Version = val
 }
 
+// SetUpdatedBy sets the value of UpdatedBy.
+func (s *WebCarrierSettings) SetUpdatedBy(val OptUUID) {
+	s.UpdatedBy = val
+}
+
+// SetUpdatedByName sets the value of UpdatedByName.
+func (s *WebCarrierSettings) SetUpdatedByName(val OptString) {
+	s.UpdatedByName = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *WebCarrierSettings) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
 // SetCarriers sets the value of Carriers.
 func (s *WebCarrierSettings) SetCarriers(val []WebCarrierStat) {
 	s.Carriers = val
 }
 
+// SetHiddenCarriers sets the value of HiddenCarriers.
+func (s *WebCarrierSettings) SetHiddenCarriers(val []WebCarrierStat) {
+	s.HiddenCarriers = val
+}
+
 func (*WebCarrierSettings) getWebCarrierSettingsRes()  {}
+func (*WebCarrierSettings) reorderWebCarriersRes()     {}
 func (*WebCarrierSettings) saveWebCarrierSettingsRes() {}
 
 // Ref: #/components/schemas/WebCarrierStat

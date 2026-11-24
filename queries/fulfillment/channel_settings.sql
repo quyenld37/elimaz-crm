@@ -3,7 +3,7 @@
 
 -- name: GetWebCarrierSettings :one
 -- Cài đặt kênh web, không khóa (đường đọc, báo phí cho web).
-SELECT preferred_account_id, fallback_fee, version
+SELECT preferred_account_id, fallback_fee, version, updated_by, updated_at
 FROM fulfillment.channel_carrier_settings
 WHERE channel = 'web';
 
@@ -15,7 +15,7 @@ ON CONFLICT (tenant_id, channel) DO NOTHING;
 
 -- name: LockWebCarrierSettings :one
 -- Khóa dòng kênh web (bảng cuối nhóm 8) trước khi so version hay bỏ ưu tiên.
-SELECT preferred_account_id, fallback_fee, version
+SELECT preferred_account_id, fallback_fee, version, updated_by, updated_at
 FROM fulfillment.channel_carrier_settings
 WHERE channel = 'web'
 FOR UPDATE;
@@ -29,7 +29,7 @@ SET preferred_account_id = sqlc.narg(preferred_account_id)::uuid,
     updated_at           = now(),
     version              = version + 1
 WHERE channel = 'web'
-RETURNING preferred_account_id, fallback_fee, version;
+RETURNING preferred_account_id, fallback_fee, version, updated_by, updated_at;
 
 -- name: LockWebAccount :one
 -- Khóa tài khoản hãng (đầu nhóm 8) được chọn làm ưu tiên để kiểm active và show_on_web trước khi khóa cài đặt.
@@ -53,14 +53,14 @@ WHERE status = 'active' AND show_on_web
 ORDER BY web_sort, id;
 
 -- name: WebCarrierStats :many
--- Mọi tài khoản hiện trên web (mọi trạng thái trừ revoked) kèm số vận đơn chưa hủy tạo từ @since (màn hãng trên web,
--- M5-25). Xếp web_sort rồi id.
-SELECT a.id, a.carrier_key, a.name, a.status, a.web_sort,
+-- Mọi tài khoản trừ revoked, đang hiện trên web hay không (Task 488), kèm số vận đơn chưa hủy tạo từ @since (màn hãng
+-- trên web, M5-25). Xếp web_sort rồi id.
+SELECT a.id, a.carrier_key, a.name, a.status, a.web_sort, a.show_on_web,
        (SELECT count(*)::int
         FROM fulfillment.shipments s
         WHERE s.carrier_account_id = a.id AND s.status <> 'cancelled' AND s.created_at >= @since::timestamptz) AS shipments_30d
 FROM fulfillment.carrier_accounts a
-WHERE a.show_on_web AND a.status <> 'revoked'
+WHERE a.status <> 'revoked'
 ORDER BY a.web_sort, a.id;
 
 -- name: DeliveryMedianDays :many
@@ -77,3 +77,18 @@ WHERE delivered_at >= @since::timestamptz
 GROUP BY 1
 HAVING count(*) >= @min_count::int
 ORDER BY 1;
+
+-- name: LockWebCarriersForOrder :many
+-- Khóa mọi tài khoản đang hiện trên web (trừ revoked) theo mã tăng dần (đầu nhóm 8 ADR-46) trước khi đổi thứ tự cả
+-- danh sách (Task 488); bên gọi khóa dòng cài đặt sau.
+SELECT id, web_sort
+FROM fulfillment.carrier_accounts
+WHERE show_on_web AND status <> 'revoked'
+ORDER BY id
+FOR UPDATE;
+
+-- name: SetWebSort :execrows
+-- Ghi thứ tự trên web của tài khoản đã khóa (LockWebCarriersForOrder); không đổi số thì không ghi (version giữ nguyên).
+UPDATE fulfillment.carrier_accounts
+SET web_sort = @web_sort, version = version + 1, updated_at = now()
+WHERE id = @id AND web_sort <> @web_sort;

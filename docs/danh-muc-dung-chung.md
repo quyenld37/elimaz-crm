@@ -403,8 +403,9 @@ type File struct {
 func ApplyUpload(ctx context.Context, tx pgx.Tx, q queue.JobQueue, c UploadCheck) (File, error)
 func CompleteUpload(ctx context.Context, d *db.DB, fs FileStore, q queue.JobQueue, tenantID, fileID uuid.UUID) (File, error)
 type FileStatus struct {
-	Purpose, Status string
-	Deleted         bool
+	Purpose, Status, RejectReason string
+	Width, Height                 int
+	Deleted                       bool
 }
 func Status(ctx context.Context, tx pgx.Tx, fileID uuid.UUID) (FileStatus, error)
 type FileStore interface {

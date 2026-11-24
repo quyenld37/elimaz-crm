@@ -24,6 +24,8 @@ export interface LookFormProps {
   names: ReadonlyMap<string, string>;
   photos: readonly PhotoOpt[];
   details: ReadonlyMap<string, Product>;
+  /** Màu theo mẫu từ danh sách (refColors); không có thì lấy từ chi tiết mẫu. */
+  colors: ReadonlyMap<string, readonly string[]>;
   categories: readonly HomeBannerCategory[];
   autoTitle: string | undefined;
   disabled: boolean;
@@ -48,7 +50,7 @@ function Pieces(p: LookFormProps & { set: (x: Partial<Look>) => void }) {
     <Step label={`2. Sản phẩm trong ảnh (1–${String(MAX_ITEMS)})`}>
       {look.items.map((it, k) => {
         const name = p.names.get(it.productId) ?? "Sản phẩm";
-        const colors = colorsOf(p.details.get(it.productId));
+        const colors = p.colors.get(it.productId) ?? colorsOf(p.details.get(it.productId));
         const color = it.color ?? "";
         const options = color === "" || colors.includes(color) ? colors : [color, ...colors];
         return (

@@ -1,5 +1,5 @@
 // Một ô ảnh của banner ảnh (mockup trạng thái A, C; HV18): chọn hay kéo ảnh vào, đang tải, đang xử lý, sẵn sàng (kích
-// thước, cảnh báo lệch tỉ lệ > 2 %), bị từ chối (lý do). Tải lên do màn gọi (onPick); ô chỉ kiểm loại và cỡ tệp trước.
+// thước — từ danh sách banner, không thì getFile —, cảnh báo lệch tỉ lệ > 2 %), bị từ chối (lý do máy chủ trả). Tải lên do màn gọi (onPick); ô chỉ kiểm loại và cỡ tệp trước.
 import { useId, type DragEvent } from "react";
 import { BANNER_ACCEPT, BANNER_MAX_BYTES, FRAME, ratioWarning, type ImageState, type Slot } from "./bannerRules";
 import { useFileInfo } from "./bannerData";
@@ -19,6 +19,8 @@ export interface BannerImageProps {
   slot: Slot;
   fileId: string | undefined;
   state: ImageState | null;
+  /** Cỡ ảnh gốc máy chủ trả trong danh sách banner (Task 488); vắng → đọc getFile khi có quyền tải ảnh. */
+  size?: { w: number; h: number };
   /** Tên tệp vừa chọn (chỉ để hiện). */
   name?: string;
   /** Lỗi trước khi tải (loại, cỡ tệp). */
@@ -34,6 +36,7 @@ export function BannerImage({
   slot,
   fileId,
   state,
+  size,
   name,
   problem,
   canUpload,
@@ -44,9 +47,9 @@ export function BannerImage({
   const inputId = useId();
   const f = FRAME[slot];
   const ready = state?.phase === "ready";
-  const info = useFileInfo(fileId, ready && canUpload);
-  const w = info.data?.width;
-  const h = info.data?.height;
+  const info = useFileInfo(fileId, ready && canUpload && size === undefined);
+  const w = size?.w ?? info.data?.width;
+  const h = size?.h ?? info.data?.height;
   const warn = w !== undefined && h !== undefined ? ratioWarning(w, h, slot) : null;
   const what = SLOT_TEXT[slot];
   const pick = (files: FileList | null) => {

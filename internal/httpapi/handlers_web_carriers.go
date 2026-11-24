@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -79,7 +81,36 @@ func isWebCarrierRefusal(err error) bool {
 		errors.Is(err, fulfillment.ErrSettingOutOfRange)
 }
 
-// webCarrierSettingsOut là cài đặt của hợp đồng nhân viên, kèm các tài khoản bật showOnWeb và số vận đơn 30 ngày.
+// ReorderWebCarriers (PUT /api/v1/web-carrier-settings/order, Task 488): đổi thứ tự cả danh sách hãng trên web khi
+// version khớp và tập tài khoản đúng tập đang hiện (không thì 409); audit fulfillment.web_carrier_order.update.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) ReorderWebCarriers(ctx context.Context, req *gen.ReorderWebCarriersRequest, _ gen.ReorderWebCarriersParams) (gen.ReorderWebCarriersRes, error) {
+	s, err := h.fulfillmentService()
+	if err != nil {
+		return nil, err
+	}
+	out, err := h.refusableWrite(ctx, http.StatusOK, isWebCarrierRefusal, "đổi thứ tự hãng trên web",
+		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
+			ch, err := s.ReorderWebCarriers(ctx, tx, req.AccountIds, int(req.Version), fulfillment.Actor{TenantID: u.TenantID, UserID: u.UserID})
+			if err != nil {
+				return nil, err //nolint:wrapcheck // sentinel của fulfillment
+			}
+			out, err := webCarrierSettingsOut(ctx, tx, ch.Settings, h)
+			if err != nil {
+				return nil, err
+			}
+			return out, h.audit(ctx, tx, u, "fulfillment.web_carrier_order.update", "fulfillment.web_carrier_settings",
+				u.TenantID, ch.AuditFields(ch.Before), ch.AuditFields(ch.After))
+		})
+	if err != nil {
+		return nil, err
+	}
+	return out.(*gen.WebCarrierSettings), nil //nolint:forcetypeassert // fn trên trả *gen.WebCarrierSettings
+}
+
+// webCarrierSettingsOut là cài đặt của hợp đồng nhân viên: người, giờ lưu cuối (kèm tên), tài khoản hiện trên web và
+// tài khoản chưa hiện (trừ revoked, xếp theo tên; Task 488), mỗi tài khoản kèm số vận đơn 30 ngày.
 func webCarrierSettingsOut(ctx context.Context, tx pgx.Tx, set fulfillment.WebCarrierSettings, h *handler,
 ) (*gen.WebCarrierSettings, error) {
 	stats, err := fulfillment.WebCarrierStats(ctx, tx, set, h.now())
@@ -88,7 +119,10 @@ func webCarrierSettingsOut(ctx context.Context, tx pgx.Tx, set fulfillment.WebCa
 	}
 	out := &gen.WebCarrierSettings{
 		Version:  int32(set.Version), //nolint:gosec // G115: version int4 của bảng
-		Carriers: make([]gen.WebCarrierStat, len(stats)),
+		Carriers: []gen.WebCarrierStat{}, HiddenCarriers: []gen.WebCarrierStat{},
+	}
+	if err := stampInto(ctx, tx, set.UpdatedBy, set.UpdatedAt, &out.UpdatedBy, &out.UpdatedByName, &out.UpdatedAt); err != nil {
+		return nil, err
 	}
 	if set.PreferredAccountID != nil {
 		out.PreferredAccountId = gen.NewOptUUID(*set.PreferredAccountID)
@@ -96,12 +130,18 @@ func webCarrierSettingsOut(ctx context.Context, tx pgx.Tx, set fulfillment.WebCa
 	if set.FallbackFee != nil {
 		out.FallbackFee = gen.NewOptMoney(gen.Money(*set.FallbackFee))
 	}
-	for i, c := range stats {
-		out.Carriers[i] = gen.WebCarrierStat{
+	for _, c := range stats {
+		g := gen.WebCarrierStat{
 			AccountId: c.AccountID, CarrierKey: c.CarrierKey, Name: c.Name, Status: c.Status,
 			WebSort: int32(c.WebSort), Preferred: c.Preferred, Shipments30d: int32(c.Shipments30d), //nolint:gosec // G115: web_sort ≤ 1000, số đếm int4
 		}
+		if c.ShowOnWeb {
+			out.Carriers = append(out.Carriers, g)
+		} else {
+			out.HiddenCarriers = append(out.HiddenCarriers, g)
+		}
 	}
+	slices.SortStableFunc(out.HiddenCarriers, func(a, b gen.WebCarrierStat) int { return strings.Compare(a.Name, b.Name) })
 	return out, nil
 }
 

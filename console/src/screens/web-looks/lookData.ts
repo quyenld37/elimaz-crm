@@ -1,6 +1,7 @@
 // Dữ liệu của màn Bộ phối: danh sách (chủ đề realtime content.looks, máy chủ báo hiệu mỗi lần lưu; Task 454), xem trước
-// danh sách đang sửa (previewLooks, 350 ms sau khi ngừng sửa, chỉ gửi bộ đã đủ thông tin), chi tiết mẫu của các món
-// (getProduct: màu và ảnh của món vừa chọn, catalog.read).
+// danh sách đang sửa (previewLooks, 350 ms sau khi ngừng sửa, gửi cả danh sách; máy chủ bỏ bộ chưa đủ kèm lý do, Task
+// 488), màu của món (colors của mẫu trong getLooks/previewLooks), chi tiết mẫu (getProduct: ảnh và màu mặc định của món
+// vừa chọn, catalog.read).
 import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import {
@@ -11,10 +12,11 @@ import {
   type Look,
   type LookPhoto,
   type LookPreview,
+  type LookProductRef,
   type Product,
   type WebImageVariant,
 } from "../../api";
-import { unwrap } from "../../app/errors";
+import { ERROR_MESSAGES, unwrap } from "../../app/errors";
 import { TOPICS, queryKey } from "../../app/queryClient";
 import { useDebounced } from "../inventory/Balances";
 import { PREVIEW_DELAY_MS } from "../web-banners/bannerData";
@@ -31,12 +33,14 @@ export function useLooks() {
 }
 
 /**
- * Hiện/ẩn, tiêu đề tự động, đường dẫn, mẫu và ảnh của danh sách đang sửa: chỉ gọi khi có thay đổi chưa lưu và chỉ gửi
- * bộ đã đủ thông tin (bộ đang điền dở làm máy chủ trả 422 cho cả danh sách). Trả undefined khi chưa có kết quả.
+ * Hiện/ẩn, tiêu đề tự động, đường dẫn, mẫu và ảnh của danh sách đang sửa: chỉ gọi khi có thay đổi chưa lưu. Gửi mọi bộ
+ * đã chọn ảnh (máy chủ bỏ bộ đang điền dở, trả lý do ở skipped — Task 488; lỗi của cả danh sách như quá 6 bộ trang chủ
+ * vẫn 422). Bộ chưa chọn ảnh không gửi: hợp đồng đòi photoFileId là uuid, chuỗi rỗng làm cả yêu cầu 400 — lý do của bộ
+ * đó do màn tự nêu (lookProblem). Trả undefined khi chưa có kết quả.
  */
 export function useLookPreview(looks: readonly Look[], dirty: boolean) {
   // Trễ theo chuỗi JSON; chỉ gửi khi bộ trễ đã bắt kịp bản đang sửa (giống useBannerPreview).
-  const req = useMemo(() => toRequest(looks.filter((l) => lookProblem(l) === null)), [looks]);
+  const req = useMemo(() => toRequest(looks.filter((l) => l.photoFileId !== "")), [looks]);
   const json = JSON.stringify(req);
   const body = useDebounced(json, PREVIEW_DELAY_MS);
   const q = useQuery({
@@ -93,6 +97,22 @@ export function photoOpts(lists: readonly (readonly LookPhoto[])[], details: Ite
   return out;
 }
 
+/**
+ * Màu bán được theo mẫu từ danh sách (getLooks, previewLooks: colors của LookProductRef, Task 488), không cần quyền
+ * catalog.read; danh sách sau đè danh sách trước.
+ */
+export function refColors(lists: readonly (readonly LookProductRef[])[]): ReadonlyMap<string, readonly string[]> {
+  const out = new Map<string, readonly string[]>();
+  for (const ps of lists)
+    for (const p of ps)
+      if (p.colors !== undefined)
+        out.set(
+          p.id,
+          p.colors.map((c) => c.name),
+        );
+  return out;
+}
+
 /** Màu của mẫu theo thứ tự biến thể, không trùng. */
 export const colorsOf = (p: Product | undefined): string[] => [
   ...new Set((p?.variants ?? []).map((v) => v.color).filter((c) => c !== "")),
@@ -102,4 +122,14 @@ export const colorsOf = (p: Product | undefined): string[] => [
 export function defaultColor(p: Product): string {
   const colors = colorsOf(p);
   return colors.find((c) => p.images.some((im) => im.color === c)) ?? colors[0] ?? "";
+}
+
+/**
+ * Câu "chưa đủ để lên trang chủ" của bộ l khi đang sửa: bộ chưa chọn ảnh (không gửi xem trước) → lý do màn tự tính;
+ * bộ máy chủ bỏ qua → câu của mã lỗi máy chủ trả; còn lại → undefined.
+ */
+export function skipText(l: Look, preview: LookPreview | undefined): string | undefined {
+  if (l.photoFileId === "") return lookProblem(l) ?? undefined;
+  const k = preview?.skipped.find((x) => x.id === l.id);
+  return k === undefined ? undefined : (ERROR_MESSAGES[k.reason] ?? k.reason);
 }

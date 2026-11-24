@@ -105,12 +105,19 @@ type LookImage struct {
 	Variants          []catalog.ImageVariant
 }
 
+// LookColor là một màu của mẫu cho ô màu của món (Task 488): tên như của biến thể, mã "#RRGGBB" (rỗng khi không có).
+type LookColor struct {
+	Name, Hex string
+}
+
 // LookRefData là dữ liệu module khác mà luật bộ phối cần (LoadLookRefData). Products chỉ gồm mẫu chưa xóa mà danh sách
-// nhắc (mã không có = đã xóa hay của tenant khác); Images là ảnh của các mẫu đó; Categories là danh mục đang dùng.
+// nhắc (mã không có = đã xóa hay của tenant khác); Images là ảnh của các mẫu đó; Categories là danh mục đang dùng;
+// Colors là màu bán được của từng mẫu (chỉ để màn hình chọn màu, luật không dùng).
 type LookRefData struct {
 	Products   map[uuid.UUID]LookProduct
 	Images     []LookImage
 	Categories map[uuid.UUID]CategoryRef
+	Colors     map[uuid.UUID][]LookColor
 }
 
 // PhotoOf trả ảnh người mẫu của l nếu nó là ảnh đang hiện của một món của l.
@@ -190,6 +197,47 @@ func round2(v float64) float64 { return math.Round(v*100) / 100 }
 // không đổi ảnh và món thì không kiểm lại ảnh (ảnh sản phẩm bị xóa sau đó chỉ làm bộ ẩn photo-missing, không chặn lưu
 // cả danh sách). Món không cần đang bán (bộ ẩn product-missing). Lỗi đầu tiên được trả, bọc "bộ phối <n>".
 func ValidateLooks(ls []Look, ref LookRefData, prev []Look) error {
+	if err := validateLookList(ls); err != nil {
+		return err
+	}
+	old := lookIndex(prev)
+	for i, l := range ls {
+		if err := validateLook(l, ref, old); err != nil {
+			return fmt.Errorf("bộ phối %d: %w", i+1, err)
+		}
+	}
+	return nil
+}
+
+// LookSkip là một bộ bị bỏ khi xem trước vì chưa đủ để lưu; Err là sentinel lưu sẽ trả cho bộ đó (ErrInvalidLook,
+// ErrLookItems, ErrLookDot, ErrLookPhoto, ErrLookWindow).
+type LookSkip struct {
+	ID  uuid.UUID
+	Err error
+}
+
+// PreviewLooks tách danh sách đã chuẩn hóa để xem trước (Task 488): lỗi của cả danh sách (quá MaxLooks, quá MaxHomeLooks
+// bộ trang chủ, mã rỗng/trùng/trùng link) vẫn trả lỗi như ValidateLooks; bộ nào chưa đủ (luật từng bộ của ValidateLooks)
+// thì bị bỏ, ghi vào skipped kèm lỗi, các bộ còn lại trả theo thứ tự trong ok. Một bộ đang điền dở không làm hỏng cả
+// lần xem trước.
+func PreviewLooks(ls []Look, ref LookRefData, prev []Look) (ok []Look, skipped []LookSkip, err error) {
+	if err := validateLookList(ls); err != nil {
+		return nil, nil, err
+	}
+	old := lookIndex(prev)
+	ok, skipped = make([]Look, 0, len(ls)), []LookSkip{}
+	for _, l := range ls {
+		if err := validateLook(l, ref, old); err != nil {
+			skipped = append(skipped, LookSkip{ID: l.ID, Err: err})
+			continue
+		}
+		ok = append(ok, l)
+	}
+	return ok, skipped, nil
+}
+
+// validateLookList kiểm luật của cả danh sách: số bộ, số bộ trang chủ, mã và link key khác nhau, không rỗng.
+func validateLookList(ls []Look) error {
 	if len(ls) > MaxLooks {
 		return fmt.Errorf("%d bộ phối: %w", len(ls), ErrTooManyLooks)
 	}
@@ -202,21 +250,22 @@ func ValidateLooks(ls []Look, ref LookRefData, prev []Look) error {
 	if home > MaxHomeLooks {
 		return fmt.Errorf("%d bộ trên trang chủ: %w", home, ErrTooManyHomeLooks)
 	}
-	old := make(map[uuid.UUID]Look, len(prev))
-	for _, p := range prev {
-		old[p.ID] = p
-	}
 	ids, keys := map[uuid.UUID]bool{}, map[string]bool{}
 	for i, l := range ls {
 		if l.ID == uuid.Nil || ids[l.ID] || keys[LookLinkKey(l.ID)] {
 			return fmt.Errorf("bộ phối %d: mã rỗng, trùng hay trùng link: %w", i+1, ErrInvalidLook)
 		}
 		ids[l.ID], keys[LookLinkKey(l.ID)] = true, true
-		if err := validateLook(l, ref, old); err != nil {
-			return fmt.Errorf("bộ phối %d: %w", i+1, err)
-		}
 	}
 	return nil
+}
+
+func lookIndex(ls []Look) map[uuid.UUID]Look {
+	out := make(map[uuid.UUID]Look, len(ls))
+	for _, l := range ls {
+		out[l.ID] = l
+	}
+	return out
 }
 
 func validateLook(l Look, ref LookRefData, old map[uuid.UUID]Look) error {

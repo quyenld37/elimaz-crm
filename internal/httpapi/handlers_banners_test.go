@@ -219,3 +219,50 @@ func sameKeyBodies(t *testing.T, n int, send func() *httptest.ResponseRecorder) 
 	wg.Wait()
 	return bodies
 }
+
+// Task 488 (mockup HV19, HV20): tên người lưu cuối; ảnh đã xử lý có rộng, cao; ảnh đang chờ không có; ảnh bị từ chối
+// sau khi lưu có lý do.
+func TestBannersAPI_MockupFields(t *testing.T) {
+	t.Parallel()
+	e := newBannerEnv(t)
+	var pending uuid.UUID
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		pending = filestest.Uploaded(t, tx, e.tenant, content.BannerPurposeKey)
+		return nil
+	})
+	body := saveBody(0, imageBannerJSON(uuid.New(), e.img, fmt.Sprintf(`,"imageMobile":%q`, pending)))
+	s := e.ok("lưu", e.do(http.MethodPut, bannersPath, couponManager, "m1", body), http.StatusOK)
+	if s["updatedByName"] != couponManager {
+		t.Fatalf("tên người lưu: %v", s["updatedByName"])
+	}
+	img := bannerImages(s)
+	if r := img[e.img.String()]; r["width"] != float64(2000) || r["height"] != float64(3000) || r["rejectReason"] != nil {
+		t.Fatalf("ảnh đã xử lý: %v", r)
+	}
+	if r := img[pending.String()]; r["status"] != "uploaded" || r["width"] != nil || r["rejectReason"] != nil {
+		t.Fatalf("ảnh đang chờ: %v", r)
+	}
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		filestest.MarkRejected(t, tx, pending, "too_small")
+		return nil
+	})
+	g := e.ok("đọc", e.do(http.MethodGet, bannersPath, couponManager, "", ""), http.StatusOK)
+	if r := bannerImages(g)[pending.String()]; r["status"] != "rejected" || r["rejectReason"] != "too_small" || r["width"] != nil {
+		t.Fatalf("ảnh bị từ chối: %v", r)
+	}
+	if g["updatedByName"] != couponManager {
+		t.Fatalf("đọc: tên người lưu %v", g["updatedByName"])
+	}
+}
+
+// bannerImages: ảnh của câu trả lời theo mã tệp.
+func bannerImages(m map[string]any) map[string]map[string]any {
+	out := map[string]map[string]any{}
+	imgs, _ := m["images"].([]any)
+	for _, x := range imgs {
+		im, _ := x.(map[string]any)
+		id, _ := im["fileId"].(string)
+		out[id] = im
+	}
+	return out
+}

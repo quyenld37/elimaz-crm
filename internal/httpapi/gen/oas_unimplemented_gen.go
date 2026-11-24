@@ -987,6 +987,17 @@ func (UnimplementedHandler) ListAttributes(ctx context.Context) (r ListAttribute
 	return r, ht.ErrNotImplemented
 }
 
+// ListAuditActors implements listAuditActors operation.
+//
+// Nhân viên (mọi trạng thái, kể cả đã khóa) và khóa dịch vụ (kể cả đã thu
+// hồi) của shop, xếp theo tên; id là mã gửi lại ở tham số actorId của
+// listAuditLogs. Chỉ tên, không email. Hệ thống không có trong danh sách (không có mã).
+//
+// GET /api/v1/identity/audit-actors
+func (UnimplementedHandler) ListAuditActors(ctx context.Context) (r ListAuditActorsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListAuditLogs implements listAuditLogs operation.
 //
 // Lọc theo hành động, người làm (mã nhân viên hay mã khóa dịch vụ), loại thực
@@ -1646,6 +1657,20 @@ func (UnimplementedHandler) RemoveCustomerTag(ctx context.Context, params Remove
 //
 // PUT /api/v1/catalog/products/{id}/images/order
 func (UnimplementedHandler) ReorderProductImages(ctx context.Context, req *ReorderProductImagesRequest, params ReorderProductImagesParams) (r ReorderProductImagesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ReorderWebCarriers implements reorderWebCarriers operation.
+//
+// AccountIds là mọi tài khoản đang hiện trên web (showOnWeb, trừ revoked) theo thứ tự
+// mới; webSort thành 1, 2, 3… Tập khác tập đang hiện (có người vừa bật/ẩn) hay
+// version lệch → 409 version_conflict, không đổi gì; mã trùng → 400 bad_request
+// (uniqueItems). version của cài đặt tăng 1 (người, giờ lưu cuối là người đổi
+// thứ tự); audit fulfillment.web_carrier_order.update; sự kiện carrier.web_settings_changed
+// làm mới bộ đệm website.
+//
+// PUT /api/v1/web-carrier-settings/order
+func (UnimplementedHandler) ReorderWebCarriers(ctx context.Context, req *ReorderWebCarriersRequest, params ReorderWebCarriersParams) (r ReorderWebCarriersRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

@@ -46,27 +46,38 @@ export function nextWebSort(shown: readonly CarrierAccount[]): number {
   return Math.min(MAX_WEB_SORT, Math.max(0, ...shown.map((a) => a.webSort)) + 1);
 }
 
-export interface SortWrite {
-  id: string;
-  version: number;
-  webSort: number;
-}
-
 /**
- * Đổi chỗ dòng index với dòng kề (dir −1 lên, +1 xuống) rồi đánh số lại 1, 2, 3…; chỉ trả tài khoản có webSort đổi
- * (thứ tự cũ có số trùng hay nhảy cách vẫn ra thứ tự khách thấy đúng). Ra ngoài danh sách → [].
+ * Thứ tự mới của cả danh sách đang hiện sau khi đổi chỗ dòng index với dòng kề (dir −1 lên, +1 xuống): mã tài khoản
+ * theo thứ tự khách sẽ thấy, gửi một lần bằng reorderWebCarriers (Task 488; máy chủ đánh số lại 1, 2, 3…). Ra ngoài
+ * danh sách → [].
  */
-export function reorder(shown: readonly CarrierAccount[], index: number, dir: -1 | 1): SortWrite[] {
+export function moveOrder(shown: readonly CarrierAccount[], index: number, dir: -1 | 1): string[] {
   const j = index + dir;
   if (index < 0 || index >= shown.length || j < 0 || j >= shown.length) return [];
-  const next = [...shown];
+  const next = shown.map((a) => a.id);
   const [moved] = next.splice(index, 1);
   if (moved === undefined) return [];
   next.splice(j, 0, moved);
-  return next
-    .map((a, i) => ({ id: a.id, version: a.version, webSort: i + 1, old: a.webSort }))
-    .filter((w) => w.webSort !== w.old)
-    .map(({ id, version, webSort }) => ({ id, version, webSort }));
+  return next;
+}
+
+/** Số vận đơn 30 ngày theo mã tài khoản, cả hãng đang hiện và chưa hiện (Task 488). */
+export function shipmentCounts(s: WebCarrierSettings | undefined): Map<string, number> {
+  return new Map([...(s?.carriers ?? []), ...(s?.hiddenCarriers ?? [])].map((c) => [c.accountId, c.shipments30d]));
+}
+
+/**
+ * Câu "ai lưu lúc nào" của hộp 409 (mockup trạng thái C): chỉ khi lỗi đến từ cài đặt hay thứ tự (stamp của cài đặt
+ * mới có nghĩa) và bản đã tải lại mới hơn bản gửi đi; không có tên hay giờ → null.
+ */
+export function savedBy(
+  s: WebCarrierSettings | undefined,
+  sentVersion: number,
+  time: (iso: string) => string,
+): string | null {
+  if (s === undefined || s.version <= sentVersion || s.updatedAt === undefined) return null;
+  const at = time(s.updatedAt);
+  return s.updatedByName === undefined ? `lần lưu cuối lúc ${at}` : `${s.updatedByName}, ${at}`;
 }
 
 // ---------------------------------------------------------------- Hãng chọn sẵn, phí dự phòng

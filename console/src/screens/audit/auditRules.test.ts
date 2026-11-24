@@ -1,6 +1,15 @@
 // Luật hiện của màn Nhật ký thao tác: nhãn, người làm, trường đổi, khoảng ngày VN → [from, to) (Task 462).
 import { describe, expect, it } from "vitest";
-import { ACTION_OPTIONS, ACTION_TEXT, actionText, actorText, dayRange, entityText, fieldsText } from "./auditRules";
+import {
+  ACTION_OPTIONS,
+  ACTION_TEXT,
+  actionText,
+  actorOptionText,
+  actorText,
+  dayRange,
+  entityText,
+  fieldsText,
+} from "./auditRules";
 
 describe("nhãn", () => {
   it("mã có nhãn → nhãn; mã lạ → nguyên mã", () => {
@@ -16,6 +25,22 @@ describe("nhãn", () => {
     expect(entityText({ entityType: "order.web_intake", entityId: "t1" })).toEqual({ label: "Nhận đơn web" });
     expect(entityText({ entityType: "order_request", entityId: "r1" })).toEqual({ label: "Yêu cầu", id: "r1" });
     expect(entityText({ entityType: "la", entityId: undefined })).toEqual({ label: "la" });
+    // Task 488: có tên → tên thay mã; bộ phối là thực thể toàn shop.
+    expect(entityText({ entityType: "order_request", entityId: "r1", entityName: "YC-1" })).toEqual({
+      label: "Yêu cầu",
+      id: "YC-1",
+    });
+    expect(entityText({ entityType: "content.looks", entityId: "shop" })).toEqual({ label: "Bộ phối" });
+    expect(entityText({ entityType: "order.web_intake", entityId: "t1", entityName: "x" })).toEqual({
+      label: "Nhận đơn web",
+    });
+  });
+
+  it("ô lọc người làm: nhân viên theo tên, khóa kèm 'Khóa:', đã khóa / thu hồi ghi rõ", () => {
+    expect(actorOptionText({ actorType: "staff", name: "Lan", active: true })).toBe("Lan");
+    expect(actorOptionText({ actorType: "staff", name: "Lan", active: false })).toBe("Lan (đã khóa)");
+    expect(actorOptionText({ actorType: "service", name: "Web", active: true })).toBe("Khóa: Web");
+    expect(actorOptionText({ actorType: "service", name: "Web", active: false })).toBe("Khóa: Web (đã thu hồi)");
   });
 
   it("người làm: hệ thống luôn 'Hệ thống'; thiếu tên → mã; thiếu cả hai → 'Không rõ'", () => {

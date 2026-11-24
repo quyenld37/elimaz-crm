@@ -42,8 +42,8 @@ func (h *handler) GetLooks(ctx context.Context) (gen.GetLooksRes, error) {
 	return out, nil
 }
 
-// PreviewLooks (POST /api/v1/content/looks/preview): kiểm như lưu (so với danh sách đang lưu) rồi tính hiện/ẩn lúc
-// này, kèm mẫu và ảnh của các món; không ghi gì.
+// PreviewLooks (POST /api/v1/content/looks/preview): kiểm luật cả danh sách như lưu (422), bỏ các bộ chưa đủ kèm mã
+// lỗi lưu sẽ trả (Task 488), rồi tính hiện/ẩn lúc này của các bộ còn lại, kèm mẫu, màu và ảnh của các món; không ghi gì.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) PreviewLooks(ctx context.Context, req *gen.PreviewLooksRequest) (gen.PreviewLooksRes, error) {
@@ -63,12 +63,13 @@ func (h *handler) PreviewLooks(ctx context.Context, req *gen.PreviewLooksRequest
 		if err != nil {
 			return err //nolint:wrapcheck // web, content đã bọc
 		}
-		if err := content.ValidateLooks(ls, ref, saved.Looks); err != nil {
+		ok, skipped, err := content.PreviewLooks(ls, ref, saved.Looks)
+		if err != nil {
 			return err //nolint:wrapcheck // sentinel của content
 		}
 		out = &gen.LookPreview{
-			Statuses: lookStatusesOut(ls, content.LookStatuses(ls, ref, now)), Products: lookProductsOut(ref),
-			Photos: lookPhotosOut(ref),
+			Statuses: lookStatusesOut(ok, content.LookStatuses(ok, ref, now)), Products: lookProductsOut(ref),
+			Photos: lookPhotosOut(ref), Skipped: lookSkipsOut(skipped),
 		}
 		return nil
 	}, db.TxAPI)
@@ -139,7 +140,9 @@ func (h *handler) lookList(ctx context.Context, tx pgx.Tx, set content.LookSet) 
 		Looks:    make([]gen.Look, 0, len(set.Looks)), Statuses: lookStatusesOut(set.Looks, content.LookStatuses(set.Looks, ref, h.now())),
 		Products: lookProductsOut(ref), Photos: lookPhotosOut(ref), Categories: categoriesOut(ref.Categories),
 	}
-	out.UpdatedBy, out.UpdatedAt = stampOut(set.UpdatedBy, set.UpdatedAt)
+	if err := stampInto(ctx, tx, set.UpdatedBy, set.UpdatedAt, &out.UpdatedBy, &out.UpdatedByName, &out.UpdatedAt); err != nil {
+		return nil, err
+	}
 	for _, l := range set.Looks {
 		out.Looks = append(out.Looks, lookOut(l))
 	}
@@ -168,11 +171,31 @@ func lookStatusesOut(ls []content.Look, ss []content.LookStatus) []gen.LookStatu
 func lookProductsOut(ref content.LookRefData) []gen.LookProductRef {
 	out := make([]gen.LookProductRef, 0, len(ref.Products))
 	for _, p := range sortedValues(ref.Products, func(a, b content.LookProduct) bool { return a.Code < b.Code }) {
-		g := gen.LookProductRef{ID: p.ID, Code: p.Code, Name: p.Name, OnSale: p.OnSale, InStock: p.InStock}
+		g := gen.LookProductRef{
+			ID: p.ID, Code: p.Code, Name: p.Name, OnSale: p.OnSale, InStock: p.InStock,
+			Colors: make([]gen.LookColor, 0, len(ref.Colors[p.ID])),
+		}
+		for _, c := range ref.Colors[p.ID] {
+			lc := gen.LookColor{Name: c.Name}
+			if c.Hex != "" {
+				lc.Hex = gen.NewOptString(c.Hex)
+			}
+			g.Colors = append(g.Colors, lc)
+		}
 		if p.CategoryID != uuid.Nil {
 			g.CategoryId = gen.NewOptUUID(p.CategoryID)
 		}
 		out = append(out, g)
+	}
+	return out
+}
+
+// lookSkipsOut: bộ bị bỏ khi xem trước kèm mã lỗi (bảng đổi lỗi của content, cùng mã lưu sẽ trả).
+func lookSkipsOut(ss []content.LookSkip) []gen.LookSkip {
+	out := make([]gen.LookSkip, 0, len(ss))
+	for _, s := range ss {
+		_, code, _ := contentError(s.Err)
+		out = append(out, gen.LookSkip{ID: s.ID, Reason: gen.LookSkipReason(code)})
 	}
 	return out
 }

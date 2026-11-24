@@ -339,8 +339,24 @@ describe("Sửa một bộ (trạng thái B)", () => {
 });
 
 describe("Xem trước (trạng thái C)", () => {
-  it("sửa → previewLooks chỉ gửi bộ đủ thông tin; trạng thái trả về hiện ở danh sách; đổi thiết bị", async () => {
+  it("bộ đã có ảnh mà máy chủ bỏ qua (skipped) → xem trước nêu câu của mã lỗi; bộ khác vẫn có trạng thái (Task 488)", async () => {
     fake.previewReply = (looks) => ({
+      skipped: looks.filter((l) => l.id === L(2)).map((l) => ({ id: l.id, reason: "look_dot_invalid" as const })),
+      statuses: [],
+      products: [],
+      photos: [],
+    });
+    await open(list([look(1), look(2)]));
+    fireEvent.click(within(rows()[1] ?? document.body).getByRole("button", { name: /Bộ 2/ }));
+    fireEvent.click(homeBox(1));
+    const pv = screen.getByRole("region", { name: "Xem trước" });
+    expect(await within(pv).findByText("Chấm sản phẩm phải nằm trong ảnh.")).toBeTruthy();
+    expect(looksOf(fake.previews.at(-1) ?? {}).map((l) => l.id)).toEqual([L(1), L(2)]);
+  });
+
+  it("sửa → previewLooks gửi mọi bộ đã có ảnh (không gửi bộ chưa có ảnh: hợp đồng 400); lý do bộ chưa đủ ở xem trước; trạng thái hiện ở danh sách; đổi thiết bị", async () => {
+    fake.previewReply = (looks) => ({
+      skipped: [],
       statuses: looks.map((l) => ({
         id: l.id,
         shown: false,
@@ -359,9 +375,12 @@ describe("Xem trước (trạng thái C)", () => {
     await waitFor(() => {
       expect(rows()[0]?.textContent).toContain("Đang ẩn: một món đã ngừng bán (Áo sơ mi lụa tay bồng)");
     });
-    expect(fake.previews.at(-1)).toMatchObject({ looks: [{ id: L(1) }] });
-    expect(looksOf(fake.previews.at(-1) ?? {})).toHaveLength(1);
+    // Bộ mới chưa có ảnh: không gửi (máy chủ thật trả 400 cho cả yêu cầu); xem trước nêu lý do màn tự tính.
+    expect(looksOf(fake.previews.at(-1) ?? {}).map((l) => l.id)).toEqual([L(1)]);
     expect(rows()[1]?.textContent).toContain("Chưa đủ để hiện");
+    const pvNew = screen.getByRole("region", { name: "Xem trước" });
+    expect(within(pvNew).getByText("Bộ này chưa đủ để lên trang chủ:")).toBeTruthy();
+    expect(within(pvNew).getByText("chưa có tên dịp.")).toBeTruthy();
     fireEvent.click(within(rows()[0] ?? document.body).getByRole("button", { name: /Bộ 1/ }));
     const pv = screen.getByRole("region", { name: "Xem trước" });
     expect(within(pv).getByText("Bộ phối này đang ẩn:")).toBeTruthy();
@@ -405,6 +424,19 @@ describe("Lưu (trạng thái D)", () => {
     expect(screen.queryByText("Có thay đổi chưa lưu")).toBeNull();
   });
 
+  it("409 → hộp nêu ai lưu, lúc nào (bản máy chủ đọc lại sau 409; Task 488)", async () => {
+    await open(list([look(1)]));
+    fireEvent.click(homeBox(1));
+    fake.list = list([look(1), look(9)], {
+      revision: 5,
+      updatedByName: "Trần Minh Thư",
+      updatedAt: "2026-11-21T04:42:00Z",
+    });
+    const dlg = await saveConflict();
+    expect(await within(dlg).findByText(/Trần Minh Thư lưu lúc 11:42 21\/11\./)).toBeTruthy();
+    expect(rows()).toHaveLength(1);
+  });
+
   it("người khác lưu trong lúc đang sửa: giữ bản sửa; Bỏ thay đổi nạp bản mới nhất", async () => {
     const { qc } = await open(list([look(1)]));
     fireEvent.click(homeBox(1));
@@ -444,6 +476,17 @@ describe("Lưu (trạng thái D)", () => {
     expect(dot1.style.top).toBe("45%");
     release();
     await screen.findByText("Đã lưu bộ phối.");
+  });
+
+  it("màu của món lấy từ danh sách (colors), không cần quyền catalog.read (Task 488)", async () => {
+    fake.grants = grantsOf("content.manage");
+    await open(list([look(1)]));
+    const sel = screen.getByLabelText("Màu trong ảnh của Áo sơ mi lụa tay bồng");
+    expect([...sel.querySelectorAll("option")].map((o) => o.textContent)).toEqual([
+      "Tự chọn màu còn hàng",
+      "Trắng",
+      "Đen",
+    ]);
   });
 
   it("chỉ content.read → câu chỉ xem, ô và nút sửa khóa, vẫn chép liên kết", async () => {

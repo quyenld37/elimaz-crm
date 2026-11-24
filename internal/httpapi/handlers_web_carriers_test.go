@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -110,5 +111,55 @@ func TestWebCarrierSettingsAPI(t *testing.T) {
 	}
 	if code, got, raw := patch(a); code != http.StatusUnprocessableEntity || got["error"] != "last_web_carrier" {
 		t.Fatalf("tắt hãng cuối: %d %s, muốn 422 last_web_carrier", code, raw)
+	}
+}
+
+// Task 488: đọc trả hiddenCarriers (tài khoản chưa hiện, trừ revoked) và người, giờ lưu (chưa lưu: không có); đổi thứ tự
+// cả danh sách: người đọc → 403; đúng tập, đúng version → 200 thứ tự mới, version + 1, có tên người lưu, một audit;
+// version cũ, thiếu tài khoản, kèm tài khoản ẩn → 409 version_conflict; mã trùng → 400 bad_request (uniqueItems).
+func TestReorderWebCarriersAPI(t *testing.T) {
+	t.Parallel()
+	e, a, b, hidden := newWebCarrierEnv(t)
+	_, got, raw := e.send(http.MethodGet, webCarrierPath, caReader, "")
+	hid, _ := got["hiddenCarriers"].([]any)
+	if len(hid) != 1 || hid[0].(map[string]any)["accountId"] != hidden.String() || //nolint:forcetypeassert // test
+		got["updatedBy"] != nil || got["updatedAt"] != nil || got["updatedByName"] != nil {
+		t.Fatalf("đọc mặc định: %s", raw)
+	}
+	path := webCarrierPath + "/order"
+	body := func(v int, ids ...uuid.UUID) string {
+		parts := make([]string, len(ids))
+		for i, id := range ids {
+			parts[i] = fmt.Sprintf("%q", id)
+		}
+		return fmt.Sprintf(`{"version":%d,"accountIds":[%s]}`, v, strings.Join(parts, ","))
+	}
+	if code, _, _ := e.send(http.MethodPut, path, caReader, body(1, b, a)); code != http.StatusForbidden {
+		t.Fatalf("người đọc đổi thứ tự: %d, muốn 403", code)
+	}
+	code, got, raw := e.send(http.MethodPut, path, caManager, body(1, b, a))
+	cars, _ := got["carriers"].([]any)
+	if code != http.StatusOK || got["version"] != float64(2) || len(cars) != 2 ||
+		cars[0].(map[string]any)["accountId"] != b.String() || cars[1].(map[string]any)["accountId"] != a.String() || //nolint:forcetypeassert // test
+		got["updatedByName"] == nil || got["updatedByName"] == "" || got["updatedAt"] == nil {
+		t.Fatalf("đổi thứ tự: %d %s", code, raw)
+	}
+	if n := e.count(`SELECT count(*) FROM identity.audit_logs WHERE action = 'fulfillment.web_carrier_order.update'
+		AND after->'accountIds'->>0 = $1`, b.String()); n != 1 {
+		t.Fatalf("audit: %d dòng, muốn 1", n)
+	}
+	for _, c := range []struct {
+		name, body string
+		status     int
+		code       string
+	}{
+		{"version cũ", body(1, a, b), http.StatusConflict, "version_conflict"},
+		{"thiếu tài khoản", body(2, a), http.StatusConflict, "version_conflict"},
+		{"kèm tài khoản ẩn", body(2, a, b, hidden), http.StatusConflict, "version_conflict"},
+		{"mã trùng", body(2, a, a), http.StatusBadRequest, "bad_request"},
+	} {
+		if code, got, raw := e.send(http.MethodPut, path, caManager, c.body); code != c.status || got["error"] != c.code {
+			t.Errorf("%s: %d %s, muốn %d %s", c.name, code, raw, c.status, c.code)
+		}
 	}
 }

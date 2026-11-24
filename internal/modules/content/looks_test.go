@@ -3,6 +3,7 @@ package content_test
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -345,5 +346,51 @@ func TestLooks_OtherTenant(t *testing.T) {
 	}
 	if a := e.looks(); len(a.Looks) != 1 || a.Revision != 1 {
 		t.Fatalf("tenant A bị đổi: %+v", a)
+	}
+}
+
+// Task 488: màu của mẫu cho ô màu của món — màu của biến thể đang bán được (giá > 0), bỏ trùng, theo SKU nhỏ nhất của
+// màu; biến thể giá 0 hay ngừng bán không góp màu; mẫu không có biến thể bán được → không có màu.
+func TestLoadLookRefData_Colors(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	p, photo := e.piece(uuid.Nil) // SKU-n, màu Đỏ
+	bare, _ := e.piece(uuid.Nil)
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		for _, v := range []struct {
+			sku, color, hex string
+			price           int64
+			status          string
+		}{
+			{"A1-KEM-S", "Kem", "#F5F0E1", 250000, "active"},
+			{"A1-KEM-M", "Kem", "#F5F0E1", 250000, "active"},
+			{"A0-DEN-S", "Đen", "", 250000, "active"},
+			{"A2-XAM-S", "Xám", "", 0, "active"},
+			{"A3-XANH-S", "Xanh", "", 250000, "discontinued"},
+		} {
+			id := catalogtest.VariantWithSKU(t, tx, e.tenant, e.seller, p, v.sku, v.price)
+			if _, err := tx.Exec(t.Context(), `UPDATE catalog.variants SET color = $1, color_hex = NULLIF($2, ''), status = $3
+				WHERE id = $4`, v.color, v.hex, v.status, id); err != nil {
+				return err //nolint:wrapcheck // test
+			}
+		}
+		_, err := tx.Exec(t.Context(), `UPDATE catalog.variants SET price = 0 WHERE product_id = $1`, bare)
+		return err //nolint:wrapcheck // test
+	})
+	var ref content.LookRefData
+	if err := e.app(func(tx pgx.Tx) error {
+		var err error
+		ref, err = content.LoadLookRefData(t.Context(), tx, []content.Look{simpleLook(true, photo, p, bare)}, nil,
+			catalog.ImageView{BaseURL: "https://img.test", Preset: 1})
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		t.Fatal(err)
+	}
+	want := []content.LookColor{{Name: "Đen"}, {Name: "Kem", Hex: "#F5F0E1"}, {Name: "Đỏ"}}
+	if got := ref.Colors[p]; !slices.Equal(got, want) {
+		t.Errorf("màu: %+v, muốn %+v", got, want)
+	}
+	if got := ref.Colors[bare]; len(got) != 0 {
+		t.Errorf("mẫu không bán được: %+v", got)
 	}
 }

@@ -1,38 +1,21 @@
 // Màn Nhật ký thao tác /nhat-ky-thao-tac (kế hoạch M5 Task 462, M5-50; mockup docs/mockups/m5/audit.html trạng thái
 // A, B; HV24, HV25). Máy chủ (listAuditLogs, Task 457) trả mới nhất trước, 50 dòng mỗi trang, chỉ tên trường đổi (không
-// giá trị, không IP). Lọc một hành động, một người làm, khoảng ngày VN. API không có danh sách người làm cho quyền
-// audit.read: ô "Người làm" gồm những người đã hiện trong các trang đã tải (tệp task, Quyết định thay chủ shop). Còn
-// nextCursor thì ghi "còn nữa", không coi là hết.
-import { useInfiniteQuery } from "@tanstack/react-query";
+// giá trị, không IP). Lọc một hành động, một người làm, khoảng ngày VN. Ô "Người làm" lấy mọi nhân viên và khóa dịch
+// vụ của shop từ listAuditActors (Task 488); chưa tải được thì chỉ còn "Mọi người". Còn nextCursor thì ghi "còn nữa",
+// không coi là hết.
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { listAuditLogs, type AuditLog, type AuditLogPage } from "../../api";
+import { listAuditActors, listAuditLogs, type AuditLog, type AuditLogPage } from "../../api";
 import { ApiError, errorMessage, unwrap } from "../../app/errors";
 import { queryKey } from "../../app/queryClient";
 import { shortTime } from "../../app/time";
 import { MoreBar } from "../ma-giam-gia/MoreBar";
-import { ACTION_OPTIONS, actionText, actorText, dayRange, entityText, fieldsText } from "./auditRules";
+import { ACTION_OPTIONS, actionText, actorOptionText, actorText, dayRange, entityText, fieldsText } from "./auditRules";
 import "./audit.css";
 
 export const TEXT_NO_PERMISSION = "Bạn không có quyền xem nhật ký thao tác.";
 
 const isForbidden = (e: unknown) => e instanceof ApiError && e.status === 403;
-
-/** Nhãn của một người làm trong ô lọc: nhân viên theo tên, loại khác kèm loại ("Khóa: Website ELIMAZ"). */
-function actorOption(r: AuditLog): string {
-  const a = actorText(r);
-  if (r.actorType === "staff") return a.name;
-  if (r.actorType === "service") return `Khóa: ${a.name}`;
-  return `${a.kind}: ${a.name}`;
-}
-
-/** Thêm người làm (có mã) của rows vào known; trả đúng known khi không có ai mới (không vẽ lại vô hạn). */
-function mergeActors(known: ReadonlyMap<string, string>, rows: readonly AuditLog[]): ReadonlyMap<string, string> {
-  const fresh = rows.filter((r) => r.actorId !== undefined && r.actorId !== "" && !known.has(r.actorId));
-  if (fresh.length === 0) return known;
-  const next = new Map(known);
-  for (const r of fresh) if (r.actorId !== undefined) next.set(r.actorId, actorOption(r));
-  return next;
-}
 
 function Row({ r }: { r: AuditLog }) {
   const who = actorText(r);
@@ -71,7 +54,10 @@ export function AuditLogScreen() {
   const [actorId, setActorId] = useState("");
   const [fromDay, setFromDay] = useState("");
   const [toDay, setToDay] = useState("");
-  const [actors, setActors] = useState<ReadonlyMap<string, string>>(new Map());
+  const actors = useQuery({
+    queryKey: queryKey("identity.audit_logs", "actors"),
+    queryFn: () => unwrap(listAuditActors()),
+  });
   const range = dayRange(fromDay, toDay);
   const rangeError = "error" in range ? range.error : null;
   const query = {
@@ -90,13 +76,6 @@ export function AuditLogScreen() {
   });
   const rows = list.data?.pages.flatMap((p) => p.items) ?? [];
   const filtered = action !== "" || actorId !== "" || fromDay !== "" || toDay !== "";
-  // Gom người làm khi có trang mới (đổi state lúc vẽ theo dữ liệu trước, không dùng effect).
-  const pages = list.data?.pages;
-  const [seen, setSeen] = useState(pages);
-  if (pages !== seen) {
-    setSeen(pages);
-    setActors((known) => mergeActors(known, pages?.flatMap((p) => p.items) ?? []));
-  }
 
   const date = (label: string, value: string, set: (v: string) => void) => (
     <label className="field">
@@ -221,9 +200,9 @@ export function AuditLogScreen() {
             }}
           >
             <option value="">Mọi người</option>
-            {[...actors].map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
+            {(actors.data?.items ?? []).map((a) => (
+              <option key={a.id} value={a.id}>
+                {actorOptionText(a)}
               </option>
             ))}
           </select>

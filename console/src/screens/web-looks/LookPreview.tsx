@@ -9,6 +9,8 @@ interface Props {
   look: Look | undefined;
   n: number;
   status: LookStatus | undefined;
+  /** Bộ đang chọn chưa đủ để xem trước (Task 488): câu lý do (skipText); undefined khi đủ. */
+  skip: string | undefined;
   names: ReadonlyMap<string, string>;
   photo: string | undefined;
   error: string | null;
@@ -50,7 +52,7 @@ function Card({ look, names, photo }: { look: Look; names: Props["names"]; photo
   );
 }
 
-export function LookPreview({ look, n, status, names, photo, error }: Props) {
+export function LookPreview({ look, n, status, skip, names, photo, error }: Props) {
   const [phone, setPhone] = useState(false);
   const reason = status?.shown === false ? status.reason : undefined;
   return (
@@ -81,6 +83,11 @@ export function LookPreview({ look, n, status, names, photo, error }: Props) {
         </div>
       </div>
       {error !== null && <div className="box box-err">{error}</div>}
+      {skip !== undefined && (
+        <div className="box box-soft">
+          <b>Bộ này chưa đủ để lên trang chủ:</b> <span>{skip}.</span> Các bộ khác vẫn xem trước được.
+        </div>
+      )}
       {reason !== undefined && (
         <div className="box box-soft">
           <b>Bộ phối này đang ẩn:</b>{" "}

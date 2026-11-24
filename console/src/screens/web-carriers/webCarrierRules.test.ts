@@ -7,7 +7,9 @@ import {
   isLastActive,
   nextWebSort,
   readiness,
-  reorder,
+  moveOrder,
+  savedBy,
+  shipmentCounts,
   sameForm,
   toRequest,
   validateForm,
@@ -50,32 +52,54 @@ describe("isLastActive", () => {
   });
 });
 
-describe("nextWebSort, reorder", () => {
+describe("nextWebSort, moveOrder", () => {
   it("bật thêm: đứng cuối; rỗng → 1; không quá 1000", () => {
     expect(nextWebSort([])).toBe(1);
     expect(nextWebSort([account(1, { webSort: 4 }), account(2, { webSort: 2 })])).toBe(5);
     expect(nextWebSort([account(1, { webSort: 1000 })])).toBe(1000);
   });
 
-  it("đổi chỗ hai dòng kề: chỉ ghi tài khoản có số đổi, kèm version đã đọc", () => {
-    const shown = [account(1, { webSort: 1 }), account(2, { webSort: 2, version: 7 }), account(3, { webSort: 3 })];
-    expect(reorder(shown, 1, -1)).toEqual([
-      { id: shown[1]?.id, version: 7, webSort: 1 },
-      { id: shown[0]?.id, version: 3, webSort: 2 },
-    ]);
-    expect(reorder(shown, 2, 1)).toEqual([]);
-    expect(reorder(shown, 0, -1)).toEqual([]);
+  it("đổi chỗ hai dòng kề: trả cả danh sách theo thứ tự mới; ra ngoài danh sách → []", () => {
+    const shown = [account(1, { webSort: 1 }), account(2, { webSort: 2 }), account(3, { webSort: 3 })];
+    expect(moveOrder(shown, 1, -1)).toEqual([shown[1]?.id, shown[0]?.id, shown[2]?.id]);
+    expect(moveOrder(shown, 0, 1)).toEqual([shown[1]?.id, shown[0]?.id, shown[2]?.id]);
+    expect(moveOrder(shown, 2, 1)).toEqual([]);
+    expect(moveOrder(shown, 0, -1)).toEqual([]);
+    expect(moveOrder([], 0, 1)).toEqual([]);
   });
+});
 
-  it("số cũ trùng nhau (cùng 0) → đánh số lại cả danh sách", () => {
-    const shown = [account(1), account(2), account(3)];
-    expect(reorder(shown, 0, 1).map((w) => w.webSort)).toEqual([1, 2, 3]);
-    expect(reorder(shown, 0, 1).map((w) => w.id)).toEqual([shown[1]?.id, shown[0]?.id, shown[2]?.id]);
+describe("số vận đơn, người lưu (Task 488)", () => {
+  const st = (id: string, n: number) => ({
+    accountId: id,
+    carrierKey: "vtp",
+    name: id,
+    status: "active",
+    webSort: 1,
+    preferred: false,
+    shipments30d: n,
+  });
+  it("số vận đơn gồm cả hãng chưa hiện", () => {
+    const m = shipmentCounts({ version: 1, carriers: [st("a", 3)], hiddenCarriers: [st("b", 7)] });
+    expect([...m]).toEqual([
+      ["a", 3],
+      ["b", 7],
+    ]);
+    expect(shipmentCounts(undefined).size).toBe(0);
+  });
+  it("người, giờ lưu chỉ khi bản tải lại mới hơn bản gửi; thiếu tên → chỉ giờ; thiếu giờ → null", () => {
+    const t = (iso: string) => `T(${iso})`;
+    const s = { version: 6, carriers: [], hiddenCarriers: [], updatedAt: "x", updatedByName: "Thư" };
+    expect(savedBy(s, 5, t)).toBe("Thư, T(x)");
+    expect(savedBy(s, 6, t)).toBeNull();
+    expect(savedBy({ ...s, updatedByName: undefined }, 5, t)).toBe("lần lưu cuối lúc T(x)");
+    expect(savedBy({ ...s, updatedAt: undefined }, 5, t)).toBeNull();
+    expect(savedBy(undefined, 5, t)).toBeNull();
   });
 });
 
 describe("form chọn sẵn, phí dự phòng", () => {
-  const S = { version: 4, carriers: [] };
+  const S = { version: 4, carriers: [], hiddenCarriers: [] };
 
   it("đọc cài đặt: chưa có → rẻ nhất, tắt phí dự phòng; có → điền số", () => {
     expect(formOf(S)).toEqual({ preferred: "", useFallback: false, fee: "" });

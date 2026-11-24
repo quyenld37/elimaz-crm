@@ -135,7 +135,9 @@ func (h *handler) bannerList(ctx context.Context, tx pgx.Tx, set content.BannerS
 		Images: []gen.HomeBannerImage{}, Campaigns: []gen.HomeBannerCampaign{},
 		Products: []gen.HomeBannerProduct{},
 	}
-	out.UpdatedBy, out.UpdatedAt = stampOut(set.UpdatedBy, set.UpdatedAt)
+	if err := stampInto(ctx, tx, set.UpdatedBy, set.UpdatedAt, &out.UpdatedBy, &out.UpdatedByName, &out.UpdatedAt); err != nil {
+		return nil, err
+	}
 	for _, b := range set.Banners {
 		out.Banners = append(out.Banners, bannerOut(b))
 		for _, id := range []uuid.UUID{b.ImageDesktop, b.ImageMobile} {
@@ -162,10 +164,17 @@ func (h *handler) bannerList(ctx context.Context, tx pgx.Tx, set content.BannerS
 	return out, nil
 }
 
+// imageOut: trạng thái, cỡ gốc (khi ready), lý do từ chối (khi rejected) và đường dẫn của một ảnh banner.
 func imageOut(id uuid.UUID, st map[uuid.UUID]files.FileStatus, pics map[uuid.UUID]content.Picture) gen.HomeBannerImage {
 	img := gen.HomeBannerImage{FileId: id, Status: "missing"}
 	if s, ok := st[id]; ok {
 		img.Status, img.Deleted = s.Status, s.Deleted
+		if s.Status == files.StatusReady && s.Width > 0 && s.Height > 0 {
+			img.Width, img.Height = gen.NewOptInt32(int32(s.Width)), gen.NewOptInt32(int32(s.Height)) //nolint:gosec // G115: cỡ ảnh int4
+		}
+		if s.Status == files.StatusRejected && s.RejectReason != "" {
+			img.RejectReason = gen.NewOptString(s.RejectReason)
+		}
 	}
 	if p, ok := pics[id]; ok {
 		img.Desktop, img.DesktopSmall = gen.NewOptString(p.Large), gen.NewOptString(p.Small)
@@ -237,17 +246,27 @@ func bannerOut(b content.Banner) gen.HomeBanner {
 	return g
 }
 
-// stampOut: người và lúc lưu danh sách lần cuối (chưa lưu: không có).
-func stampOut(by *uuid.UUID, at *time.Time) (gen.OptUUID, gen.OptDateTime) {
-	var u gen.OptUUID
-	var d gen.OptDateTime
-	if by != nil {
-		u = gen.NewOptUUID(*by)
-	}
+// stampInto ghi người và lúc lưu lần cuối (chưa lưu: không có) vào ba trường của câu trả lời, kèm tên nhân viên
+// (staffNames; không còn → không có tên) để hộp 409 nêu được ai lưu, lúc nào (Task 488).
+func stampInto(ctx context.Context, tx pgx.Tx, by *uuid.UUID, at *time.Time,
+	outBy *gen.OptUUID, outName *gen.OptString, outAt *gen.OptDateTime,
+) error {
+	*outBy, *outName, *outAt = gen.OptUUID{}, gen.OptString{}, gen.OptDateTime{}
 	if at != nil {
-		d = gen.NewOptDateTime(*at)
+		*outAt = gen.NewOptDateTime(*at)
 	}
-	return u, d
+	if by == nil {
+		return nil
+	}
+	*outBy = gen.NewOptUUID(*by)
+	names, err := staffNames(ctx, tx, []uuid.UUID{*by})
+	if err != nil {
+		return err
+	}
+	if n := names[*by]; n != "" {
+		*outName = gen.NewOptString(n)
+	}
+	return nil
 }
 
 // categoriesOut: danh mục đang dùng theo tên (banner, bộ phối).

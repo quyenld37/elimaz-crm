@@ -30,3 +30,13 @@ UNION ALL
 SELECT 'service'::text AS kind, k.id, k.name
 FROM identity.service_keys AS k
 WHERE k.id = ANY(@key_ids::uuid[]);
+
+-- name: AuditActors :many
+-- Người làm cho ô lọc của màn nhật ký (Task 488): mọi nhân viên (kể cả đã khóa) và mọi khóa dịch vụ (kể cả đã thu hồi)
+-- của tenant, chỉ tên; active là nhân viên chưa khóa, khóa chưa thu hồi. Xếp theo tên rồi mã.
+SELECT 'staff'::text AS actor_type, u.id, u.display_name AS name, (u.status = 'active') AS active
+FROM identity.users AS u
+UNION ALL
+SELECT 'service'::text AS actor_type, k.id, k.name, (k.revoked_at IS NULL) AS active
+FROM identity.service_keys AS k
+ORDER BY name, id;

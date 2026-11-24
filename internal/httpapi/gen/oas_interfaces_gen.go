@@ -397,6 +397,10 @@ type ListAttributesRes interface {
 	listAttributesRes()
 }
 
+type ListAuditActorsRes interface {
+	listAuditActorsRes()
+}
+
 type ListAuditLogsRes interface {
 	listAuditLogsRes()
 }
@@ -667,6 +671,10 @@ type RemoveCustomerTagRes interface {
 
 type ReorderProductImagesRes interface {
 	reorderProductImagesRes()
+}
+
+type ReorderWebCarriersRes interface {
+	reorderWebCarriersRes()
 }
 
 type ReplaceStaffGrantsRes interface {

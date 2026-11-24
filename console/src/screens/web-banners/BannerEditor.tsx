@@ -24,7 +24,7 @@ import { BannerForm } from "./BannerForm";
 import { ConflictDialog, SaveBar, useReload } from "./listEditor";
 import { fileProblem } from "./BannerImage";
 import { BannerPreview, savedImageUrl } from "./BannerPreview";
-import { bannersKey, headers, useBannerPreview, useBanners, usePerms } from "./bannerData";
+import { bannersKey, headers, useBannerFileWatch, useBannerPreview, useBanners, usePerms } from "./bannerData";
 import {
   KINDS,
   KIND_TEXT,
@@ -169,10 +169,22 @@ function Editor({ server, uploadOptions }: { server: HomeBannerList; uploadOptio
     const img = images.find((x) => x.fileId === fileId);
     if (img === undefined || img.deleted || img.status === "lost") return { phase: "missing" };
     if (img.status === "ready") return { phase: "ready" };
-    if (img.status === "rejected") return { phase: "rejected", message: rejectText(undefined) };
+    if (img.status === "rejected") return { phase: "rejected", message: rejectText(img.rejectReason) };
     return { phase: "processing" };
   };
   const blocked = blockReason(draft, slotState);
+  // Ảnh đã lưu còn đang xử lý: báo hiệu tệp đổi trạng thái thì đọc lại danh sách (Task 488).
+  useBannerFileWatch(
+    server.images
+      .filter((x) => !x.deleted && (x.status === "uploaded" || x.status === "processing"))
+      .map((x) => x.fileId),
+    canUpload,
+  );
+  /** Cỡ ảnh gốc máy chủ đã đo (ảnh sẵn sàng của danh sách); ảnh vừa tải chưa có trong danh sách → undefined. */
+  const sizeOf = (fileId: string | undefined) => {
+    const img = images.find((x) => x.fileId === fileId);
+    return img?.width === undefined || img.height === undefined ? undefined : { w: img.width, h: img.height };
+  };
 
   const edit = (next: HomeBanner[]) => {
     if (locked) return;
@@ -198,7 +210,11 @@ function Editor({ server, uploadOptions }: { server: HomeBannerList; uploadOptio
       qc.setQueryData(bannersKey, r.data);
       resetTo(r.data);
       setSaved(true);
-    } else if (isConflict(r.error)) setConflict(true);
+    } else if (isConflict(r.error)) {
+      setConflict(true);
+      // Đọc bản mới (không thay bản đang sửa) để hộp nêu ai lưu, lúc nào.
+      void qc.invalidateQueries({ queryKey: bannersKey });
+    }
   };
 
   const pick = (b: HomeBanner, slot: Slot, f: File) => {
@@ -388,9 +404,12 @@ function Editor({ server, uploadOptions }: { server: HomeBannerList; uploadOptio
             image={(slot) => {
               const k = slotKey(current.id, slot);
               const name = slots[k]?.name;
+              const fileId = slot === "desktop" ? current.imageDesktop : current.imageMobile;
+              const size = sizeOf(fileId);
               return {
-                fileId: slot === "desktop" ? current.imageDesktop : current.imageMobile,
+                fileId,
                 state: slotState(current, slot),
+                ...(size === undefined ? {} : { size }),
                 ...(name === undefined ? {} : { name }),
                 problem: problems[k] ?? null,
                 canUpload,
@@ -435,13 +454,13 @@ function Editor({ server, uploadOptions }: { server: HomeBannerList; uploadOptio
         <ConflictDialog
           title="Banner vừa được người khác lưu"
           subject="danh sách banner"
+          server={server}
+          base={base}
           reloading={reloading}
           onKeep={() => {
             setConflict(false);
           }}
-          onReload={() => {
-            void reload();
-          }}
+          onReload={reload}
         />
       )}
     </>

@@ -1,7 +1,7 @@
 // Luật hiện của màn Nhật ký thao tác (kế hoạch M5 Task 462; mockup docs/mockups/m5/audit.html; HV24): nhãn tiếng Việt
 // của mã hành động, loại thực thể, loại người làm, tên trường đổi mà máy chủ ghi (mã lấy từ các chỗ gọi audit trong
 // internal/); mã chưa có nhãn hiện nguyên mã. Khoảng ngày VN → mốc giờ [from, to) của listAuditLogs.
-import type { AuditLog } from "../../api";
+import type { AuditActor, AuditLog } from "../../api";
 
 /** Nhãn của mã hành động; cũng là danh sách của ô lọc "Thao tác" (API lọc đúng một mã). */
 export const ACTION_TEXT: Readonly<Record<string, string>> = {
@@ -39,6 +39,7 @@ export const ACTION_TEXT: Readonly<Record<string, string>> = {
   "fulfillment.address_change.resolve": "Xử lý đổi địa chỉ",
   "fulfillment.anomaly.resolve": "Xử lý bất thường vận đơn",
   "fulfillment.web_carrier_settings.update": "Sửa hãng trên web",
+  "fulfillment.web_carrier_order.update": "Đổi thứ tự hãng trên web",
   "cash.payment.record": "Ghi nhận thanh toán",
   "cash.refund.pay": "Hoàn tiền",
   "cash.refund.waive": "Bỏ khoản hoàn",
@@ -75,9 +76,11 @@ export const ACTION_TEXT: Readonly<Record<string, string>> = {
   "catalog.variant.update": "Sửa biến thể",
   "catalog.import.apply": "Nhập sản phẩm từ tệp",
   "inventory.document.create": "Tạo phiếu kho",
+  "inventory.document.lines": "Sửa dòng phiếu kho",
   "inventory.document.post": "Ghi sổ phiếu kho",
   "inventory.document.cancel": "Hủy phiếu kho",
   "inventory.stocktake.start": "Bắt đầu kiểm kho",
+  "inventory.stocktake.count": "Đếm hàng kiểm kho",
   "inventory.stocktake.apply": "Áp kết quả kiểm kho",
   "inventory.stocktake.cancel": "Hủy kiểm kho",
   "inventory.supplier.create": "Tạo nhà cung cấp",
@@ -148,15 +151,30 @@ const SHOP_WIDE = new Set([
   "order.web_intake",
   "order.settings",
   "content.home_banners",
+  "content.looks",
   "fulfillment.web_carrier_settings",
   "promotion.birthday_settings",
 ]);
 
-/** Cột "Mục": nhãn loại thực thể và mã (vắng với thực thể toàn shop hay khi không có). */
-export function entityText(r: Pick<AuditLog, "entityType" | "entityId">): { label: string; id?: string } {
+/**
+ * Cột "Mục": nhãn loại thực thể và tên dễ đọc máy chủ trả (mã YC…, mã phiếu, tên tài khoản hãng, tên khóa; Task 488),
+ * không có tên thì mã thực thể (vắng với thực thể toàn shop hay khi không có).
+ */
+export function entityText(r: Pick<AuditLog, "entityType" | "entityId" | "entityName">): {
+  label: string;
+  id?: string;
+} {
   const label = ENTITY_TEXT[r.entityType] ?? r.entityType;
-  if (SHOP_WIDE.has(r.entityType) || r.entityId === undefined || r.entityId === "") return { label };
+  if (SHOP_WIDE.has(r.entityType)) return { label };
+  if (r.entityName !== undefined && r.entityName !== "") return { label, id: r.entityName };
+  if (r.entityId === undefined || r.entityId === "") return { label };
   return { label, id: r.entityId };
+}
+
+/** Nhãn một người làm của ô lọc (listAuditActors): nhân viên theo tên, khóa kèm "Khóa:"; đã khóa / thu hồi ghi rõ. */
+export function actorOptionText(a: Pick<AuditActor, "actorType" | "name" | "active">): string {
+  if (a.actorType === "staff") return a.active ? a.name : `${a.name} (đã khóa)`;
+  return a.active ? `Khóa: ${a.name}` : `Khóa: ${a.name} (đã thu hồi)`;
 }
 
 const ACTOR_TYPE_TEXT: Readonly<Record<AuditLog["actorType"], string>> = {

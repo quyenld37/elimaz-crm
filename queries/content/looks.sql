@@ -70,3 +70,12 @@ SELECT i.product_id, i.file_id, i.color, i.position
 FROM catalog.product_images_v AS i
 WHERE i.product_id = ANY(@product_ids::uuid[])
 ORDER BY i.product_id, i.position, i.image_id;
+
+-- name: LookProductColors :many
+-- Màu của các mẫu cho ô màu của món (Task 488): màu của biến thể bán được giá > 0, bỏ trùng, theo SKU nhỏ nhất của
+-- màu; mã màu lấy một giá trị khác rỗng nếu có.
+SELECT v.product_id, v.color, coalesce(max(v.color_hex), '')::text AS color_hex
+FROM catalog.variants_v AS v
+WHERE v.product_id = ANY(@ids::uuid[]) AND v.sellable AND v.price > 0
+GROUP BY v.product_id, v.color
+ORDER BY v.product_id, min(v.sku), v.color;

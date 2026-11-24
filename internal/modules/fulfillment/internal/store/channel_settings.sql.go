@@ -73,7 +73,7 @@ func (q *Queries) EnsureWebCarrierSettings(ctx context.Context, tenantID uuid.UU
 
 const getWebCarrierSettings = `-- name: GetWebCarrierSettings :one
 
-SELECT preferred_account_id, fallback_fee, version
+SELECT preferred_account_id, fallback_fee, version, updated_by, updated_at
 FROM fulfillment.channel_carrier_settings
 WHERE channel = 'web'
 `
@@ -82,6 +82,8 @@ type GetWebCarrierSettingsRow struct {
 	PreferredAccountID pgtype.UUID
 	FallbackFee        pgtype.Int8
 	Version            int32
+	UpdatedBy          pgtype.UUID
+	UpdatedAt          time.Time
 }
 
 // Hãng giao hàng trên website (kế hoạch M5, Task 198). Một dòng mỗi (tenant, kênh 'web'); chạy trong
@@ -90,7 +92,13 @@ type GetWebCarrierSettingsRow struct {
 func (q *Queries) GetWebCarrierSettings(ctx context.Context) (GetWebCarrierSettingsRow, error) {
 	row := q.db.QueryRow(ctx, getWebCarrierSettings)
 	var i GetWebCarrierSettingsRow
-	err := row.Scan(&i.PreferredAccountID, &i.FallbackFee, &i.Version)
+	err := row.Scan(
+		&i.PreferredAccountID,
+		&i.FallbackFee,
+		&i.Version,
+		&i.UpdatedBy,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
@@ -115,7 +123,7 @@ func (q *Queries) LockWebAccount(ctx context.Context, id uuid.UUID) (LockWebAcco
 }
 
 const lockWebCarrierSettings = `-- name: LockWebCarrierSettings :one
-SELECT preferred_account_id, fallback_fee, version
+SELECT preferred_account_id, fallback_fee, version, updated_by, updated_at
 FROM fulfillment.channel_carrier_settings
 WHERE channel = 'web'
 FOR UPDATE
@@ -125,14 +133,57 @@ type LockWebCarrierSettingsRow struct {
 	PreferredAccountID pgtype.UUID
 	FallbackFee        pgtype.Int8
 	Version            int32
+	UpdatedBy          pgtype.UUID
+	UpdatedAt          time.Time
 }
 
 // Khóa dòng kênh web (bảng cuối nhóm 8) trước khi so version hay bỏ ưu tiên.
 func (q *Queries) LockWebCarrierSettings(ctx context.Context) (LockWebCarrierSettingsRow, error) {
 	row := q.db.QueryRow(ctx, lockWebCarrierSettings)
 	var i LockWebCarrierSettingsRow
-	err := row.Scan(&i.PreferredAccountID, &i.FallbackFee, &i.Version)
+	err := row.Scan(
+		&i.PreferredAccountID,
+		&i.FallbackFee,
+		&i.Version,
+		&i.UpdatedBy,
+		&i.UpdatedAt,
+	)
 	return i, err
+}
+
+const lockWebCarriersForOrder = `-- name: LockWebCarriersForOrder :many
+SELECT id, web_sort
+FROM fulfillment.carrier_accounts
+WHERE show_on_web AND status <> 'revoked'
+ORDER BY id
+FOR UPDATE
+`
+
+type LockWebCarriersForOrderRow struct {
+	ID      uuid.UUID
+	WebSort int32
+}
+
+// Khóa mọi tài khoản đang hiện trên web (trừ revoked) theo mã tăng dần (đầu nhóm 8 ADR-46) trước khi đổi thứ tự cả
+// danh sách (Task 488); bên gọi khóa dòng cài đặt sau.
+func (q *Queries) LockWebCarriersForOrder(ctx context.Context) ([]LockWebCarriersForOrderRow, error) {
+	rows, err := q.db.Query(ctx, lockWebCarriersForOrder)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LockWebCarriersForOrderRow{}
+	for rows.Next() {
+		var i LockWebCarriersForOrderRow
+		if err := rows.Scan(&i.ID, &i.WebSort); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const otherWebCarriers = `-- name: OtherWebCarriers :one
@@ -150,6 +201,26 @@ func (q *Queries) OtherWebCarriers(ctx context.Context, id uuid.UUID) (int32, er
 	return n, err
 }
 
+const setWebSort = `-- name: SetWebSort :execrows
+UPDATE fulfillment.carrier_accounts
+SET web_sort = $1, version = version + 1, updated_at = now()
+WHERE id = $2 AND web_sort <> $1
+`
+
+type SetWebSortParams struct {
+	WebSort int32
+	ID      uuid.UUID
+}
+
+// Ghi thứ tự trên web của tài khoản đã khóa (LockWebCarriersForOrder); không đổi số thì không ghi (version giữ nguyên).
+func (q *Queries) SetWebSort(ctx context.Context, arg SetWebSortParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setWebSort, arg.WebSort, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateWebCarrierSettings = `-- name: UpdateWebCarrierSettings :one
 UPDATE fulfillment.channel_carrier_settings
 SET preferred_account_id = $1::uuid,
@@ -158,7 +229,7 @@ SET preferred_account_id = $1::uuid,
     updated_at           = now(),
     version              = version + 1
 WHERE channel = 'web'
-RETURNING preferred_account_id, fallback_fee, version
+RETURNING preferred_account_id, fallback_fee, version, updated_by, updated_at
 `
 
 type UpdateWebCarrierSettingsParams struct {
@@ -171,13 +242,21 @@ type UpdateWebCarrierSettingsRow struct {
 	PreferredAccountID pgtype.UUID
 	FallbackFee        pgtype.Int8
 	Version            int32
+	UpdatedBy          pgtype.UUID
+	UpdatedAt          time.Time
 }
 
 // Bên gọi đã khóa dòng (LockWebCarrierSettings) và so version.
 func (q *Queries) UpdateWebCarrierSettings(ctx context.Context, arg UpdateWebCarrierSettingsParams) (UpdateWebCarrierSettingsRow, error) {
 	row := q.db.QueryRow(ctx, updateWebCarrierSettings, arg.PreferredAccountID, arg.FallbackFee, arg.UpdatedBy)
 	var i UpdateWebCarrierSettingsRow
-	err := row.Scan(&i.PreferredAccountID, &i.FallbackFee, &i.Version)
+	err := row.Scan(
+		&i.PreferredAccountID,
+		&i.FallbackFee,
+		&i.Version,
+		&i.UpdatedBy,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
@@ -216,12 +295,12 @@ func (q *Queries) WebCarrierAccounts(ctx context.Context) ([]WebCarrierAccountsR
 }
 
 const webCarrierStats = `-- name: WebCarrierStats :many
-SELECT a.id, a.carrier_key, a.name, a.status, a.web_sort,
+SELECT a.id, a.carrier_key, a.name, a.status, a.web_sort, a.show_on_web,
        (SELECT count(*)::int
         FROM fulfillment.shipments s
         WHERE s.carrier_account_id = a.id AND s.status <> 'cancelled' AND s.created_at >= $1::timestamptz) AS shipments_30d
 FROM fulfillment.carrier_accounts a
-WHERE a.show_on_web AND a.status <> 'revoked'
+WHERE a.status <> 'revoked'
 ORDER BY a.web_sort, a.id
 `
 
@@ -231,11 +310,12 @@ type WebCarrierStatsRow struct {
 	Name         string
 	Status       string
 	WebSort      int32
+	ShowOnWeb    bool
 	Shipments30d int32
 }
 
-// Mọi tài khoản hiện trên web (mọi trạng thái trừ revoked) kèm số vận đơn chưa hủy tạo từ @since (màn hãng trên web,
-// M5-25). Xếp web_sort rồi id.
+// Mọi tài khoản trừ revoked, đang hiện trên web hay không (Task 488), kèm số vận đơn chưa hủy tạo từ @since (màn hãng
+// trên web, M5-25). Xếp web_sort rồi id.
 func (q *Queries) WebCarrierStats(ctx context.Context, since time.Time) ([]WebCarrierStatsRow, error) {
 	rows, err := q.db.Query(ctx, webCarrierStats, since)
 	if err != nil {
@@ -251,6 +331,7 @@ func (q *Queries) WebCarrierStats(ctx context.Context, since time.Time) ([]WebCa
 			&i.Name,
 			&i.Status,
 			&i.WebSort,
+			&i.ShowOnWeb,
 			&i.Shipments30d,
 		); err != nil {
 			return nil, err
