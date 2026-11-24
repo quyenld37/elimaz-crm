@@ -1,7 +1,9 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
 	"math"
 	"net/http"
 	"strconv"
@@ -12,6 +14,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/cache"
+	"elimaz.com.vn/crm/internal/platform/logging"
 )
 
 // Giới hạn mặc định của mỗi nhân viên (spec 04 mục 11, ADR-30): 300 yêu cầu trong 60 s trượt.
@@ -43,6 +46,37 @@ type webKeyLimiter struct {
 
 func (w webKeyLimiter) AllowWebKey(ctx context.Context, subject string) (bool, time.Duration) {
 	d := w.rl.Allow(ctx, w.l, subject)
+	return d.Allowed, d.RetryAfter
+}
+
+// WebOrderLimiter giới hạn số đơn web của mỗi khách (Task 194, QĐ23 web_order_customer) theo SĐT đã chuẩn hóa; trả có
+// được phép không và thời gian chờ khi không. Bản thật: NewWebOrderLimiter.
+type WebOrderLimiter interface {
+	AllowWebOrder(ctx context.Context, phone logging.Phone) (allowed bool, retryAfter time.Duration)
+}
+
+// NewWebOrderLimiter nối cache.RateLimiter vào WebOrderLimiter với giới hạn l; chủ thể là cache.SubjectKey(secret,
+// "phone", SĐT) — khóa Valkey không mang SĐT (QĐ22). cmd/crm: cache.Limits.WebOrderCustomer, CACHE_KEY_SECRET. secret
+// rỗng (không Valkey, không CACHE_KEY_SECRET) → 32 byte ngẫu nhiên của tiến trình (chỉ bộ đếm trong tiến trình thấy).
+func NewWebOrderLimiter(rl cache.RateLimiter, l cache.Limit, secret []byte) WebOrderLimiter { //nolint:ireturn // trả interface phía dùng (Deps.WebOrderLimiter)
+	if len(secret) == 0 {
+		secret = make([]byte, randomSecretLen)
+		_, _ = rand.Read(secret) // crypto/rand.Read không trả lỗi (Go ≥ 1.24)
+	}
+	return webOrderLimiter{rl: rl, l: l, secret: bytes.Clone(secret)}
+}
+
+// randomSecretLen: số byte secret HMAC ngẫu nhiên khi không có CACHE_KEY_SECRET.
+const randomSecretLen = 32
+
+type webOrderLimiter struct {
+	rl     cache.RateLimiter
+	l      cache.Limit
+	secret []byte
+}
+
+func (w webOrderLimiter) AllowWebOrder(ctx context.Context, phone logging.Phone) (bool, time.Duration) {
+	d := w.rl.Allow(ctx, w.l, cache.SubjectKey(w.secret, "phone", string(phone)))
 	return d.Allowed, d.RetryAfter
 }
 

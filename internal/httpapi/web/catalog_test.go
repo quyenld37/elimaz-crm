@@ -128,13 +128,22 @@ func newEnv(t *testing.T, conn *cache.Conn) *env {
 	e.owner = u
 	e.key, e.otherKey = e.serviceKey("web.catalog.read"), e.serviceKey("web.orders.read")
 	e.rc = &countingCache{ReadCache: cache.NewReadCache(conn, cache.ReadCacheOptions{})}
-	e.srv = httpapi.NewServer(httpapi.Deps{
+	e.serve(nil)
+	return e
+}
+
+// serve dựng lại máy chủ thử; mod (nếu có) sửa Deps trước khi dựng (đồng hồ khóa, bộ giới hạn của test).
+func (e *env) serve(mod func(*httpapi.Deps)) {
+	d := httpapi.Deps{
 		Config: config.Config{FilesPublicBaseURL: testBase, ImagePresetVersion: 1},
 		DB:     e.staff.App, Logger: quiet(),
 		ServiceKeys: httpapi.NewServiceKeyVerifier(e.staff.App, nil, httpapi.ServiceKeyOptions{Logger: quiet()}),
 		ReadCache:   e.rc,
-	})
-	return e
+	}
+	if mod != nil {
+		mod(&d)
+	}
+	e.srv = httpapi.NewServer(d)
 }
 
 func (e *env) serviceKey(perm identity.Permission) string {

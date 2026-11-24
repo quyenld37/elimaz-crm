@@ -19,12 +19,13 @@ import (
 // PostgreSQL, không qua bộ đệm.
 type Orders struct {
 	db  *db.DB
+	w   order.Writer
 	now func() time.Time
 }
 
-// NewOrders trả Orders trên d; now nil → time.Now.
-func NewOrders(d *db.DB, now func() time.Time) *Orders {
-	return &Orders{db: d, now: now}
+// NewOrders trả Orders trên d, tạo đơn bằng w; now nil → time.Now.
+func NewOrders(d *db.DB, w order.Writer, now func() time.Time) *Orders {
+	return &Orders{db: d, w: w, now: now}
 }
 
 func (o *Orders) clock() time.Time {

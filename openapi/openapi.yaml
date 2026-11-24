@@ -4659,6 +4659,40 @@ paths:
                 $ref: "#/components/schemas/WebQuote"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web/orders:
+    post:
+      operationId: webCreateOrder
+      summary: Tạo đơn từ website (CRM tính lại giá, chiến dịch, mã; giữ hàng); kết quả và từ chối dứt khoát được lưu theo khóa
+      description: |
+        Task 194 (M5-11). Quy ước của website: Idempotency-Key = externalRef. Một đơn cho mỗi externalRef (khóa nghiệp
+        vụ): gửi lại với khóa khác cùng externalRef → 201 cùng orderId. SĐT người đặt chuẩn hóa về +84… (sai → 422
+        invalid_phone); quá ngưỡng đơn của một SĐT (web_order_customer, QĐ23) → 429 too_fast kèm Retry-After, không
+        lưu. Lưu theo khóa (gửi lại cùng khóa trả nguyên câu trả lời, Idempotent-Replayed: true): 201; 422
+        quote_changed (kèm quote: báo giá CRM hiện tại; chỉ khi submittedVia = sync), item_unavailable (kèm
+        variantIds), coupon_invalid (kèm reason; chỉ khi sync), mixed_sellers; 409 out_of_stock (kèm variantId,
+        available). queued: giá hay mã lệch vẫn tạo theo số CRM, priceReview = true. Tạm bận → 503 retry_later kèm
+        Retry-After, không lưu.
+      x-auth: service_key
+      x-permission: web.orders.create
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebOrderRequest"
+      responses:
+        "201":
+          description: Đơn đã tạo, hoặc đơn đã có của cùng externalRef
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebOrderCreated"
+        "503":
+          $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -5112,6 +5146,11 @@ components:
         - campaign_running
         - percent_too_high
         - preview_required
+        # Đơn web (M5, Task 194)
+        - coupon_invalid
+        - item_unavailable
+        - quote_changed
+        - too_fast
       properties:
         error:
           type: string
@@ -5144,6 +5183,15 @@ components:
           type: string
           format: uuid
           description: Chỉ có ở statement_duplicate — bảng kê COD đã nhập trước với cùng tệp (Task M3-31)
+        quote:
+          # Chỉ có ở quote_changed — báo giá CRM hiện tại của đơn web (Task 194)
+          $ref: "#/components/schemas/WebQuote"
+        variantIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự gửi (Task 194)
     HealthStatus:
       type: object
       required: [status]
@@ -6714,6 +6762,98 @@ components:
         changed:
           type: boolean
           description: Có dòng bán được mà quotedUnitPrice khác giá CRM
+    WebOrderRequest:
+      type: object
+      additionalProperties: false
+      required: [externalRef, customer, shipAddress, lines, shippingFee, quoted, submittedVia]
+      properties:
+        externalRef:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Mã đơn của website (khóa nghiệp vụ, một đơn cho mỗi mã)
+        customer:
+          type: object
+          additionalProperties: false
+          required: [phone, name]
+          properties:
+            phone:
+              $ref: "#/components/schemas/PhoneInput"
+            name:
+              type: string
+              minLength: 1
+              maxLength: 120
+            webAccountId:
+              type: string
+              minLength: 1
+              maxLength: 64
+              description: Mã tài khoản khách trên website; không gửi là khách vãng lai
+        shipAddress:
+          $ref: "#/components/schemas/ShipAddress"
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/WebQuoteLineInput"
+        couponCode:
+          type: string
+          maxLength: 64
+          description: Rỗng hay không gửi là không dùng mã
+        shippingFee:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+          description: Phí giao website đã tính (đồng)
+        quoted:
+          type: object
+          additionalProperties: false
+          required: [fingerprint, grandTotal]
+          description: Báo giá website đã hiện cho khách (webQuote); chỉ để so và lưu
+          properties:
+            fingerprint:
+              type: string
+              maxLength: 64
+            grandTotal:
+              type: integer
+              format: int64
+              minimum: 0
+              maximum: 9007199254740991
+        submittedVia:
+          type: string
+          enum: [sync, queued]
+          description: sync — khách đang trên trang; queued — hàng đợi cục bộ gửi lại sau khi CRM từng ngừng (QĐ15)
+        note:
+          type: string
+          maxLength: 2000
+          description: Ghi chú của khách (thành ghi chú nội bộ của đơn)
+        referralRef:
+          type: object
+          maxProperties: 20
+          description: Dấu giới thiệu (affiliate, P2); chỉ chuỗi
+          additionalProperties:
+            type: string
+            maxLength: 200
+    WebOrderCreated:
+      type: object
+      required: [orderId, code, status, grandTotal, priceReview]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        code:
+          type: string
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        grandTotal:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+        priceReview:
+          type: boolean
+          description: Đơn cần nhân viên kiểm giá (gửi từ hàng đợi mà giá hay mã đã lệch)
     WebQuotedLine:
       type: object
       required: [variantId, qty, unitPrice, campaignDiscount, couponDiscount, net]

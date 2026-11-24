@@ -358,10 +358,13 @@ var (
 	rn278AllowedHeaders = map[string]string{
 		"GET": "If-None-Match",
 	}
-	rn279AllowedHeaders = map[string]string{
+	rn280AllowedHeaders = map[string]string{
 		"GET": "If-None-Match",
 	}
-	rn280AllowedHeaders = map[string]string{
+	rn279AllowedHeaders = map[string]string{
+		"POST": "Content-Type,Idempotency-Key",
+	}
+	rn281AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 )
@@ -6298,8 +6301,33 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET",
-										allowedHeaders: rn279AllowedHeaders,
+										allowedHeaders: rn280AllowedHeaders,
 										acceptPost:     "",
+										acceptPatch:    "",
+									})
+								}
+
+								return
+							}
+
+						case 'o': // Prefix: "orders"
+
+							if l := len("orders"); len(elem) >= l && elem[0:l] == "orders" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleWebCreateOrderRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, notAllowedParams{
+										allowedMethods: "POST",
+										allowedHeaders: rn279AllowedHeaders,
+										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
 								}
@@ -6323,7 +6351,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn280AllowedHeaders,
+										allowedHeaders: rn281AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -12397,6 +12425,31 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									r.operationID = "webLocations"
 									r.operationGroup = ""
 									r.pathPattern = "/api/v1/web/locations"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
+							}
+
+						case 'o': // Prefix: "orders"
+
+							if l := len("orders"); len(elem) >= l && elem[0:l] == "orders" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = WebCreateOrderOperation
+									r.summary = "Tạo đơn từ website (CRM tính lại giá, chiến dịch, mã; giữ hàng); kết quả và từ chối dứt khoát được lưu theo khóa"
+									r.operationID = "webCreateOrder"
+									r.operationGroup = ""
+									r.pathPattern = "/api/v1/web/orders"
 									r.args = args
 									r.count = 0
 									return r, true

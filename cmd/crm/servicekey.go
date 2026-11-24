@@ -36,11 +36,13 @@ var (
 )
 
 // webKeys là phần của đường khóa dịch vụ mà vai trò api nối vào httpapi.Deps: bộ kiểm khóa (goroutine ghi
-// last_used_at có chủ) và giới hạn tần suất theo khóa trên Valkey gate. stop dừng goroutine, chờ nó xong, đóng Valkey.
+// last_used_at có chủ), giới hạn tần suất theo khóa và giới hạn đơn web theo SĐT (Task 194) trên Valkey gate. stop
+// dừng goroutine, chờ nó xong, đóng Valkey.
 type webKeys struct {
-	keys    *httpapi.KeyVerifier
-	limiter httpapi.WebRateLimiter
-	stop    func()
+	keys         *httpapi.KeyVerifier
+	limiter      httpapi.WebRateLimiter
+	orderLimiter httpapi.WebOrderLimiter
+	stop         func()
 }
 
 // newWebKeys đọc RATE_LIMITS_JSON (cache.ParseLimits; sai → không khởi động), quay số Valkey gate (URL trống → Conn nil,
@@ -67,9 +69,11 @@ func newWebKeys(ctx context.Context, cfg config.Config, d *db.DB, hub *realtime.
 	rctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	done := make(chan struct{})
 	go func() { v.Run(rctx); close(done) }()
+	rl := cache.NewRateLimiter(gate, nil, reg)
 	return webKeys{
-		keys:    v,
-		limiter: httpapi.NewWebKeyLimiter(cache.NewRateLimiter(gate, nil, reg), limits.WebKey),
+		keys:         v,
+		limiter:      httpapi.NewWebKeyLimiter(rl, limits.WebKey),
+		orderLimiter: httpapi.NewWebOrderLimiter(rl, limits.WebOrderCustomer, []byte(cfg.CacheKeySecret)),
 		stop: func() {
 			cancel()
 			<-done

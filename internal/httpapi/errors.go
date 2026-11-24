@@ -79,6 +79,9 @@ type errorBody struct {
 	Field *string `json:"field,omitempty"`
 	// Chỉ có ở statement_duplicate (Task M3-31): bảng kê COD đã nhập trước với cùng tệp.
 	StatementID *string `json:"statementId,omitempty"`
+	// Chỉ có ở quote_changed (Task 194): báo giá CRM hiện tại (WebQuote); item_unavailable: biến thể không bán được.
+	Quote      json.RawMessage `json:"quote,omitempty"`
+	VariantIDs []string        `json:"variantIds,omitempty"`
 }
 
 // writeError ghi lỗi theo dạng duy nhất {"error": "<mã>", "request_id": "<id>"}; không bao giờ có vết lỗi.
@@ -154,6 +157,9 @@ func writeHandlerError(d Deps, w http.ResponseWriter, r *http.Request, err error
 // writeDomainError ghi lỗi nghiệp vụ của các module: thiếu hàng có thân chi tiết (variantId, available), rồi bảng đổi
 // lỗi của từng module. Trả false khi err không phải lỗi nghiệp vụ nào.
 func writeDomainError(w http.ResponseWriter, r *http.Request, err error) bool {
+	if writeTooFast(w, r, err) {
+		return true
+	}
 	if code, vid, avail, ok := stockShortage(err); ok {
 		writeErrorBody(w, http.StatusConflict, errorBody{
 			Error: code, RequestID: RequestID(r.Context()), VariantID: &vid, Available: &avail,
@@ -218,6 +224,9 @@ func detailedError(err error) (errorBody, int, bool) {
 	if e, ok := errors.AsType[*cash.DuplicateStatementError](err); ok {
 		id := e.StatementID.String()
 		return errorBody{Error: codeStatementDuplicate, StatementID: &id}, http.StatusConflict, true
+	}
+	if body, status, ok := webOrderDetail(err); ok {
+		return body, status, true
 	}
 	if e, ok := errors.AsType[*order.SettingOutOfRangeError](err); ok {
 		field := string(e.Field)

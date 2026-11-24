@@ -128,6 +128,11 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   campaign_running: "Chiến dịch đang bật. Tạm dừng trước rồi mới sửa hoặc xóa",
   percent_too_high: "Phần trăm giảm vượt mức tối đa cài đặt của shop (mặc định 50%)",
   preview_required: "Cần xem trước giá của bản hiện tại (hoặc xem lại vì hàng đã đổi) rồi mới bật",
+  // Đơn web (Task 194; chỉ website nhận, màn hình nhân viên không gọi route này)
+  coupon_invalid: "Mã giảm giá không dùng được cho đơn này",
+  item_unavailable: "Có sản phẩm đã ngừng bán trên website",
+  quote_changed: "Giá hoặc tổng tiền đã đổi. Xem lại giỏ hàng rồi đặt lại",
+  too_fast: "Khách đặt quá nhiều đơn trong thời gian ngắn. Thử lại sau ít phút",
 };
 
 /** Câu cho từng lý do từ chối mã giảm giá (CouponRejectReason: checkCoupon.reason, thân lỗi coupon_rejected.reason). */

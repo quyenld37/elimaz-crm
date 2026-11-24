@@ -1965,6 +1965,23 @@ func (UnimplementedHandler) WebCatalogTaxonomy(ctx context.Context, params WebCa
 	return r, ht.ErrNotImplemented
 }
 
+// WebCreateOrder implements webCreateOrder operation.
+//
+// Task 194 (M5-11). Quy ước của website: Idempotency-Key = externalRef. Một đơn cho mỗi
+// externalRef (khóa nghiệp vụ): gửi lại với khóa khác cùng externalRef → 201 cùng
+// orderId. SĐT người đặt chuẩn hóa về +84… (sai → 422 invalid_phone); quá ngưỡng
+// đơn của một SĐT (web_order_customer, QĐ23) → 429 too_fast kèm Retry-After, không lưu.
+// Lưu theo khóa (gửi lại cùng khóa trả nguyên câu trả lời, Idempotent-Replayed: true):
+// 201; 422 quote_changed (kèm quote: báo giá CRM hiện tại; chỉ khi submittedVia = sync),
+// item_unavailable (kèm variantIds), coupon_invalid (kèm reason; chỉ khi sync), mixed_sellers; 409
+// out_of_stock (kèm variantId, available). queued: giá hay mã lệch vẫn tạo theo số CRM,
+// priceReview = true. Tạm bận → 503 retry_later kèm Retry-After, không lưu.
+//
+// POST /api/v1/web/orders
+func (UnimplementedHandler) WebCreateOrder(ctx context.Context, req *WebOrderRequest, params WebCreateOrderParams) (r WebCreateOrderRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // WebLocations implements webLocations operation.
 //
 // Task 191 (M5-08). Danh mục dùng chung của CRM (customer.admin_units), tỉnh theo mã, xã theo
