@@ -288,10 +288,20 @@ func TestAffected_SplitRaceOnlyForHandEditedPackages(t *testing.T) {
 	}
 }
 
-// Thư mục có tệp Go đổi mà không khớp gói nào (chỉ có tệp nhãn build riêng) → thoát 4, bên gọi chạy toàn bộ.
+// Thư mục có tệp Go đổi mà không khớp gói nào vì lý do khác nhãn build (ở đây: thư mục ẩn ".…" mà go list ./... bỏ qua)
+// → thoát 4, bên gọi chạy toàn bộ. Thư mục tạm tạo ở gốc module, xóa khi test xong; thư mục ẩn nên go list ./...,
+// git ls-files của các test song song và walkGoFiles của tests/arch (bỏ thư mục ẩn) không thấy nó.
 func TestAffected_UnmatchedGoDirExits4(t *testing.T) {
 	t.Parallel()
-	if _, code := affected(t, affectedRun{files: []string{"tests/probe/seaweedfs_test.go"}, args: []string{"--split"}}); code != 4 {
+	dir, err := os.MkdirTemp("../..", ".zz481")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	if err := os.WriteFile(filepath.Join(dir, "x.go"), []byte("package x\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, code := affected(t, affectedRun{files: []string{filepath.Base(dir) + "/x.go"}, args: []string{"--split"}}); code != 4 {
 		t.Fatalf("muốn thoát 4, có %d", code)
 	}
 }
