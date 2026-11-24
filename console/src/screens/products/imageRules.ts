@@ -20,6 +20,8 @@ const REJECT: Readonly<Record<string, string>> = {
   too_many_pixels: "Ảnh quá lớn (trên 40 triệu điểm ảnh)",
   decode_failed: "Ảnh hỏng, không mở được",
   size_mismatch: TEXT_UPLOAD_INCOMPLETE,
+  // Chỉ mục đích có rộng tối thiểu (ảnh banner, web_banner ≥ 600 px; Task 453) gặp lý do này.
+  too_small: "Ảnh quá nhỏ: cần rộng ít nhất 600 px. Xuất lại ảnh rồi tải lên",
 };
 
 /** Câu hiện trên dòng tải lên khi máy chủ từ chối ảnh (rejectReason); lý do khác hay thiếu → câu xử lý không xong. */

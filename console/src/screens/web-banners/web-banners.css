@@ -1,0 +1,275 @@
+/* Lớp riêng của màn Banner trang chủ, chép từ mockup đã duyệt (docs/mockups/m5/web-banners.html khối <style>, m5.css
+   .pv-frame .bn-pv .ord .why-hide .ed .sw .oitem.is-pick, m2.css .olist .oitem .inline-f, m1.css .img-ph .drop). Chỉ
+   dùng biến có sẵn: không màu, cỡ chữ, bo góc mới. Gắn tiền tố .wbn để không đụng màn khác. */
+.wbn .ed {
+  display: grid;
+  grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+  margin-bottom: var(--space-lg);
+}
+@media (max-width: 1199px) {
+  .wbn .ed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.wbn .olist {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.wbn .oitem {
+  display: flex;
+  gap: 8px 12px;
+  align-items: flex-start;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+  flex-wrap: wrap;
+}
+.wbn .oitem:last-child {
+  border-bottom: 0;
+}
+.wbn .oitem.is-pick {
+  background: var(--surface);
+  box-shadow: inset 2px 0 0 var(--buy);
+}
+.wbn .oitem.is-off {
+  color: var(--muted);
+}
+.wbn .oitem .grow {
+  min-width: 150px;
+  flex: 1 1 150px;
+}
+.wbn .wbn-pick {
+  border: 0;
+  background: none;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  min-height: var(--tap);
+  overflow-wrap: anywhere;
+}
+.wbn .ord {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--edge);
+  font-size: 12px;
+  font-weight: 700;
+  flex: none;
+}
+.wbn .why-hide {
+  font-size: 12px;
+  color: var(--buy);
+}
+.wbn .sw {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--tap);
+  cursor: pointer;
+  font-weight: 600;
+}
+.wbn .sw input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink);
+  margin: 0;
+  flex: none;
+}
+.wbn .sw.is-off {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.wbn .inline-f {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.wbn .wbn-form {
+  border: 1px solid var(--rule);
+  margin: 0;
+  min-width: 0;
+}
+.wbn .step {
+  border-top: 1px solid var(--rule);
+  padding-top: 16px;
+  display: grid;
+  gap: 8px;
+}
+.wbn .wbn-radios {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.wbn .pins {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.wbn .pins .tag {
+  min-height: var(--tap);
+}
+.wbn .pins .tag button {
+  border: 0;
+  background: none;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--ink);
+  padding: 0;
+}
+.wbn .wbn-res {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+.wbn .wbn-res .btn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+.wbn .img-row {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+@media (max-width: 759px) {
+  .wbn .img-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.wbn .img-ph {
+  aspect-ratio: 2368 / 600;
+  background: linear-gradient(160deg, var(--tint), var(--surface));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4px;
+  font-size: 13px;
+  color: var(--label);
+  overflow-wrap: anywhere;
+}
+.wbn .img-ph.is-phone {
+  aspect-ratio: 1080 / 640;
+}
+.wbn .img-ph.is-proc {
+  background: var(--surface);
+}
+.wbn .img-ph.is-bad {
+  background: var(--soft-sale);
+  color: var(--buy);
+}
+.wbn .drop {
+  border: 1px dashed var(--edge);
+  border-radius: var(--r-box);
+  padding: var(--space-lg);
+  text-align: center;
+  display: grid;
+  gap: var(--space-sm);
+  justify-items: center;
+  background: var(--paper);
+}
+.wbn .pv-frame {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: var(--space-sm);
+  background: var(--surface);
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.wbn .bn-pv {
+  position: relative;
+  border-radius: var(--r);
+  overflow: hidden;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 0 14%;
+  background: linear-gradient(120deg, var(--tint), var(--surface));
+  color: var(--title);
+  min-width: 0;
+}
+.wbn .bn-pv.is-desk {
+  aspect-ratio: 2368 / 600;
+}
+.wbn .bn-pv.is-phone {
+  aspect-ratio: 1080 / 640;
+  max-width: 360px;
+  width: 100%;
+  padding: 0 10%;
+}
+.wbn .bn-pv.is-red {
+  background: var(--buy);
+  color: var(--paper);
+}
+.wbn .bn-pv.is-black {
+  background: var(--ink);
+  color: var(--paper);
+}
+.wbn .bn-pv.is-light {
+  background: var(--surface);
+}
+.wbn .bn-pv.is-hidden {
+  background: var(--paper);
+  border: 1px dashed var(--edge);
+  color: var(--muted);
+}
+.wbn .bn-pv.is-img {
+  padding: 0;
+}
+.wbn .bn-pv.is-img img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.wbn .bn-pv .k {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.wbn .bn-pv .t {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.wbn .bn-pv .t .line {
+  display: block;
+}
+.wbn .bn-pv .safe {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 12%;
+  right: 12%;
+  border-left: 1px dashed var(--edge);
+  border-right: 1px dashed var(--edge);
+}
+.wbn .bn-pv.is-phone .safe {
+  left: 8%;
+  right: 8%;
+}
+@media (max-width: 759px) {
+  .wbn .bn-pv .t {
+    font-size: 14px;
+  }
+}

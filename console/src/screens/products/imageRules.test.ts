@@ -11,6 +11,7 @@ describe("rejectText — câu theo lý do máy chủ từ chối ảnh", () => {
     ["too_many_pixels", "Ảnh quá lớn (trên 40 triệu điểm ảnh)"],
     ["decode_failed", "Ảnh hỏng, không mở được"],
     ["size_mismatch", "Tải lên chưa trọn, chọn lại ảnh"],
+    ["too_small", "Ảnh quá nhỏ: cần rộng ít nhất 600 px. Xuất lại ảnh rồi tải lên"],
     ["processing_failed", "Xử lý ảnh không xong, chọn lại ảnh"],
     ["timeout", "Xử lý ảnh không xong, chọn lại ảnh"],
     ["upload_failed", "Xử lý ảnh không xong, chọn lại ảnh"],

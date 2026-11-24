@@ -138,6 +138,20 @@ describe("useUploads", () => {
     expect(sleep).toHaveBeenCalledWith(2000, expect.anything());
   });
 
+  it("tùy chọn purpose (ảnh banner, Task 459) gửi đúng mục đích; add trả mã dòng của từng tệp", async () => {
+    fakeServer({ "b.jpg": ["ready"] });
+    const { result } = setup({ put: putOk, sleep: instant, purpose: "web_banner" });
+    let keys: string[] = [];
+    act(() => {
+      keys = result.current.add([jpg("b.jpg")]);
+    });
+    expect(keys).toEqual(result.current.items.map((i) => i.key));
+    await waitFor(() => {
+      expect(result.current.items[0]?.phase).toBe("ready");
+    });
+    expect(vi.mocked(api.createUpload).mock.calls[0]?.[0].body.purpose).toBe("web_banner");
+  });
+
   it("máy chủ không nhận loại, cỡ tệp → báo ngay, không PUT", async () => {
     vi.mocked(api.createUpload).mockImplementation(() => fail(400, "file_too_large"));
     const put = vi.fn<PutFile>(() => Promise.resolve());
