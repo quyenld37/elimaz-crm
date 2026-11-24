@@ -19,6 +19,7 @@ import (
 // TestIngestServesHooks chạy vai trò ingest thật: POST /hooks/selftest có chữ ký đúng → 200 và một việc tách gói;
 // route của api không có trên ingest; /health của ingest trả số tệp tạm.
 func TestIngestServesHooks(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	_, _, dbURL := testkit.StartPostgres(t)
 	port := freePort(t)
@@ -60,6 +61,7 @@ func call(t *testing.T, req *http.Request) (int, string) {
 // Hãng giả chỉ có ngoài production (Task M1-31, threat model (6) E): CRM_ENV=test có FAKECARRIER_URL → POST
 // /hooks/fake/<route_key> chữ ký sai 401 (nguồn có đăng ký, Task M3-10); CRM_ENV=production → 404 (không có nguồn).
 func TestIngestFakeCarrierOnlyOutsideProduction(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	_, _, dbURL := testkit.StartPostgres(t)
 	for _, c := range []struct {

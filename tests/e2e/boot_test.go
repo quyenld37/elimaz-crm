@@ -32,22 +32,60 @@ func buildBinary(t *testing.T) string {
 	return buildPackage(t, "./cmd/crm")
 }
 
-// buildPackage dựng gói main pkg (đường dẫn so với gốc module) vào thư mục tạm của test; trả đường dẫn tệp chạy.
+// builds giữ tệp chạy đã dựng của tiến trình test (Task 484): mỗi gói main dựng một lần (trước đó mỗi test liên kết lại
+// cmd/crm, 10–29 s một lần), test dùng chung tệp chạy chỉ đọc. dir do TestMain tạo và xóa.
+var builds = struct { //nolint:gochecknoglobals // bộ nhớ đệm tệp chạy của tiến trình test, có khóa
+	mu  sync.Mutex
+	dir string
+	pkg map[string]*builtPackage
+}{pkg: map[string]*builtPackage{}}
+
+type builtPackage struct {
+	once sync.Once
+	bin  string
+	err  error
+}
+
+// buildPackage dựng gói main pkg (đường dẫn so với gốc module) một lần cho cả tiến trình test; trả đường dẫn tệp chạy.
+// Lần dựng lỗi thì mọi test cần gói đó đều dừng với cùng lỗi.
 func buildPackage(t *testing.T, pkg string) string {
 	t.Helper()
-	out, err := exec.CommandContext(t.Context(), "go", "env", "GOMOD").Output()
+	builds.mu.Lock()
+	b, ok := builds.pkg[pkg]
+	if !ok {
+		b = &builtPackage{}
+		builds.pkg[pkg] = b
+	}
+	dir := builds.dir
+	builds.mu.Unlock()
+	b.once.Do(func() { b.bin, b.err = goBuild(pkg, dir) })
+	if b.err != nil {
+		t.Fatal(b.err)
+	}
+	return b.bin
+}
+
+// goBuild chạy go build cho pkg ở gốc module, ghi tệp chạy vào thư mục con riêng của dir (tên tệp là tên gói).
+func goBuild(pkg, dir string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "go", "env", "GOMOD").Output()
 	if err != nil {
-		t.Fatal(err)
+		return "", fmt.Errorf("go env GOMOD: %w", err)
 	}
 	root := filepath.Dir(strings.TrimSpace(string(out)))
-	bin := filepath.Join(t.TempDir(), filepath.Base(pkg))
-	cmd := exec.CommandContext(t.Context(), "go", "build", "-trimpath", "-o", bin, pkg)
+	sub, err := os.MkdirTemp(dir, "bin-")
+	if err != nil {
+		return "", fmt.Errorf("thư mục tệp chạy: %w", err)
+	}
+	bin := filepath.Join(sub, filepath.Base(pkg))
+	cmd := exec.CommandContext(ctx, "go", "build", "-trimpath", "-o", bin, pkg)
 	cmd.Dir = root
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if b, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("go build: %v\n%s", err, b)
+		return "", fmt.Errorf("go build %s: %w\n%s", pkg, err, b)
 	}
-	return bin
+	return bin, nil
 }
 
 func databaseURL(t *testing.T) string {
@@ -151,6 +189,7 @@ func waitHealthcheck(ctx context.Context, bin string, env []string) error {
 }
 
 func TestBootEachRoleThenGracefulStop(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	_, _, dbURL := testkit.StartPostgres(t) // đã migrate: cả ba vai trò ghi chỉ số và nhịp sống
 	for _, role := range []string{"ingest", "api", "worker"} {
@@ -163,7 +202,9 @@ func TestBootEachRoleThenGracefulStop(t *testing.T) {
 func bootAndStop(t *testing.T, bin, dbURL, role string) {
 	t.Helper()
 	port := freePort(t)
-	cmd, done, stdout, stderr := startRole(t, bin, roleEnv(role, dbURL, port))
+	// Thư mục tệp tạm riêng (Task 484): mỗi tiến trình ingest một thư mục (webhooks.Spool), test chạy song song.
+	env := append(roleEnv(role, dbURL, port), "SPOOL_DIR="+t.TempDir()) // biến sau cùng thắng
+	cmd, done, stdout, stderr := startRole(t, bin, env)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
@@ -226,6 +267,7 @@ func assertJSONLines(t *testing.T, out string) {
 }
 
 func TestBootMissingVariableFails(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	env := roleEnv("api", databaseURL(t), freePort(t))
 	var kept []string
@@ -234,39 +276,42 @@ func TestBootMissingVariableFails(t *testing.T) {
 			kept = append(kept, kv)
 		}
 	}
-	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, bin)
-	cmd.Env = kept
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	err := cmd.Run()
+	stderr, err := runForStderr(t, bin, kept)
 	var exitErr *exec.ExitError
 	if !errors.As(err, &exitErr) || exitErr.ExitCode() == 0 {
 		t.Fatalf("thiếu ACCESS_AUD phải thoát mã khác 0, nhận %v", err)
 	}
-	if !strings.Contains(stderr.String(), "ACCESS_AUD") {
-		t.Fatalf("stderr phải nêu ACCESS_AUD: %s", stderr.String())
+	if !strings.Contains(stderr, "ACCESS_AUD") {
+		t.Fatalf("stderr phải nêu ACCESS_AUD: %s", stderr)
 	}
 }
 
-func TestBootUnknownRoleFails(t *testing.T) {
-	bin := buildBinary(t)
+// runForStderr chạy bin với env và tham số args, tối đa 10 s; trả stderr và lỗi của lần chạy.
+func runForStderr(t *testing.T, bin string, env []string, args ...string) (string, error) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, bin)
-	cmd.Env = []string{"CRM_ROLE=web"}
+	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd.Env = env
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	err := cmd.Run()
+	return stderr.String(), err
+}
+
+func TestBootUnknownRoleFails(t *testing.T) {
+	t.Parallel()
+	bin := buildBinary(t)
+	stderr, err := runForStderr(t, bin, []string{"CRM_ROLE=web"})
 	var exitErr *exec.ExitError
-	if !errors.As(err, &exitErr) || exitErr.ExitCode() == 0 || !strings.Contains(stderr.String(), "CRM_ROLE") {
-		t.Fatalf("CRM_ROLE lạ phải thoát khác 0 và nêu CRM_ROLE: %v %s", err, stderr.String())
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() == 0 || !strings.Contains(stderr, "CRM_ROLE") {
+		t.Fatalf("CRM_ROLE lạ phải thoát khác 0 và nêu CRM_ROLE: %v %s", err, stderr)
 	}
 }
 
 // crm healthcheck (dùng trong image không có shell): 0 khi tiến trình cùng cấu hình đang sống, khác 0 khi không.
 func TestHealthcheckCommand(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	// Database đã migrate: từ Task M1-41 api kiểm sổ mục đích tệp với platform.file_purposes lúc khởi động.
 	_, _, dbURL := testkit.StartPostgres(t)
@@ -327,6 +372,7 @@ func TestHealthcheckCommand(t *testing.T) {
 
 // Máy chủ HTTP lỗi sớm (cổng đã bị chiếm) → tiến trình thoát khác 0 ngay, không treo vì vòng ghi chỉ số còn chạy.
 func TestBootPortTakenExitsWithError(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	_, _, dbURL := testkit.StartPostgres(t)
 	l, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", ":0")
@@ -358,6 +404,7 @@ func TestBootPortTakenExitsWithError(t *testing.T) {
 // Task M1-41: api và worker kiểm sổ mục đích tệp trong Go khớp platform.file_purposes lúc khởi động; lệch (dòng
 // thêm bằng migration mà quên RegisterPurpose) thì thoát lỗi nêu khóa, không phục vụ.
 func TestBootPurposeMismatchFails(t *testing.T) {
+	t.Parallel()
 	bin := buildBinary(t)
 	_, ownerURL, dbURL := testkit.StartPostgres(t)
 	owner, err := pgx.Connect(t.Context(), ownerURL)
