@@ -42,8 +42,12 @@ func TestAddIdentity(t *testing.T) {
 	if err != nil || mail.Value != "lan@example.vn" {
 		t.Fatalf("thêm email: %+v %v", mail, err)
 	}
+	web, err := e.addIdentity(e.tenant, a.ID, customer.IdentityInput{Kind: customer.IdentityWebAccount, Value: "acc-lan", Source: customer.SourceWeb})
+	if err != nil || web.Value != "acc-lan" || web.Source != customer.SourceWeb {
+		t.Fatalf("thêm web_account: %+v %v", web, err)
+	}
 	if n := e.count(`SELECT count(*) FROM identity.audit_logs WHERE action = 'customer.identity.add' AND entity_id = $1
-		AND after::text NOT LIKE '%example%' AND after::text NOT LIKE '%912345678%'`, a.ID.String()); n != 2 {
+		AND after::text NOT LIKE '%example%' AND after::text NOT LIKE '%912345678%' AND after::text NOT LIKE '%acc-lan%'`, a.ID.String()); n != 3 {
 		t.Errorf("audit thêm danh tính: %d", n)
 	}
 
@@ -52,8 +56,8 @@ func TestAddIdentity(t *testing.T) {
 	if !errors.As(err, &taken) || taken.OwnerRootID != b.RootID {
 		t.Fatalf("SĐT của B: %v", err)
 	}
-	if n := e.count(`SELECT count(*) FROM customer.customer_identities WHERE customer_id = $1`, a.ID); n != 2 {
-		t.Errorf("A có %d danh tính, muốn 2", n)
+	if n := e.count(`SELECT count(*) FROM customer.customer_identities WHERE customer_id = $1`, a.ID); n != 3 {
+		t.Errorf("A có %d danh tính, muốn 3", n)
 	}
 	if n := e.count(`SELECT count(*) FROM customer.customer_merges`); n != 0 {
 		t.Errorf("không bao giờ tự gộp: %d lần gộp", n)
@@ -69,6 +73,8 @@ func TestAddIdentity(t *testing.T) {
 		{"fb_psid", e.tenant, a.ID, customer.IdentityInput{Kind: customer.IdentityFBPSID, Value: "123"}, customer.ErrInvalidInput},
 		{"email sai", e.tenant, a.ID, customer.IdentityInput{Kind: customer.IdentityEmail, Value: "khong-phai-email"}, customer.ErrInvalidInput},
 		{"SĐT sai", e.tenant, a.ID, customer.IdentityInput{Kind: customer.IdentityPhone, Value: "0123"}, customer.ErrInvalidPhone},
+		{"web_account nguồn nhân viên", e.tenant, a.ID, customer.IdentityInput{Kind: customer.IdentityWebAccount, Value: "acc-1"}, customer.ErrInvalidInput},
+		{"web_account có khoảng trắng", e.tenant, a.ID, customer.IdentityInput{Kind: customer.IdentityWebAccount, Value: "a b", Source: customer.SourceWeb}, customer.ErrInvalidInput},
 		{"zalo có khoảng trắng", e.tenant, a.ID, customer.IdentityInput{Kind: customer.IdentityZaloUID, Value: "a b"}, customer.ErrInvalidInput},
 		{"khách không có", e.tenant, uuid.New(), customer.IdentityInput{Kind: customer.IdentityZaloUID, Value: "z1"}, customer.ErrNotFound},
 		{"tenant khác", e.other, a.ID, customer.IdentityInput{Kind: customer.IdentityZaloUID, Value: "z1"}, customer.ErrNotFound},

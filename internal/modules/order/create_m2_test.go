@@ -445,18 +445,23 @@ func TestCreate_NoPersonalDataInEventsAndJobs(t *testing.T) {
 	in.Customer = customer.OrderCustomerInput{FullName: "Chị Lan", Phone: shipPhone, PhoneIsCustomers: true}
 	e.mustCreateM2(in)
 	e.mustCreate(e.input(0, item(v, 1)))
-	for _, q := range []string{
+	e.assertNoPII(nil, "0901234567", "901234567", "Chị Lan", "Lê Lợi")
+}
+
+// assertNoPII kiểm sự kiện, việc, audit (và các câu extra, mỗi câu trả một chuỗi) không chứa chuỗi nào trong pii.
+func (e *orderEnv) assertNoPII(extra []string, pii ...string) {
+	e.t.Helper()
+	qs := append([]string{
 		`SELECT coalesce(string_agg(payload::text, ' '), '') FROM platform.domain_events`,
 		`SELECT coalesce(string_agg(payload::text, ' '), '') FROM platform.jobs`,
 		`SELECT coalesce(string_agg(coalesce(before::text, '') || coalesce(after::text, ''), ' '), '') FROM identity.audit_logs`,
-	} {
+	}, extra...)
+	for _, q := range qs {
 		var s string
-		e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
-			return tx.QueryRow(t.Context(), q).Scan(&s)
-		})
-		for _, pii := range []string{"0901234567", "901234567", "Chị Lan", "Lê Lợi"} {
-			if strings.Contains(s, pii) {
-				t.Errorf("%s chứa %q", q, pii)
+		e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error { return tx.QueryRow(e.t.Context(), q).Scan(&s) })
+		for _, x := range pii {
+			if strings.Contains(s, x) {
+				e.t.Errorf("%s chứa %q", q, x)
 			}
 		}
 	}

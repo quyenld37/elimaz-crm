@@ -186,7 +186,7 @@ func (w Writer) beginShipmentStep(ctx context.Context, tx pgx.Tx, sellerID, orde
 	if !d.held && states[inventory.StateInTransit] == 0 {
 		return d, false, fmt.Errorf("%w: đơn %s không còn giữ hàng held, in_transit", ErrStatusConflict, o.Status)
 	}
-	d.who = inventory.Actor{Type: a.kind(), ID: a.UserID}
+	d.who = inventory.Actor{Type: a.stockKind(), ID: a.UserID}
 	if d.held {
 		if err := d.stock.StartTransitByItems(ctx, tx, d.items, d.who); err != nil {
 			return d, false, fmt.Errorf("chuyển giữ hàng sang đang giao: %w", err)
