@@ -451,3 +451,50 @@ func TestReplaceGrants_ActorLostManageMeanwhile(t *testing.T) {
 		t.Fatalf("grant của K bị đổi: %v, mong %v", got, before)
 	}
 }
+
+// StaffHas: quyền none của vai trò mẫu (sale có fulfillment.callbacks.work), Kho (phạm vi kho) không có quyền đó, bị
+// khóa → false, không có nhân viên → false, vai trò đã lưu trữ không tính; chạy trong tx của crm_app.
+func TestStaffHas(t *testing.T) {
+	t.Parallel()
+	e := newStaffEnv(t)
+	sale := e.user(e.tenant, "sale@elimaz.test", "sale", identity.ScopeAll, "")
+	locked := e.user(e.tenant, "khoa@elimaz.test", "sale", identity.ScopeAll, "")
+	e.s.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(), `UPDATE identity.users SET status = 'locked' WHERE id = $1`, locked)
+		return err //nolint:wrapcheck // test
+	})
+	const p = identity.Permission("fulfillment.callbacks.work")
+	has := func(id uuid.UUID) bool {
+		t.Helper()
+		var ok bool
+		if err := tenancy.WithTenant(t.Context(), e.s.App, e.tenant, func(tx pgx.Tx) (err error) {
+			ok, err = identity.StaffHas(t.Context(), tx, id, p)
+			return err //nolint:wrapcheck // test
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return ok
+	}
+	for _, c := range []struct {
+		name string
+		id   uuid.UUID
+		want bool
+	}{
+		{"sale", sale, true},
+		{"chủ", e.ids[emailA], true},
+		{"kho", e.ids[emailK], false},
+		{"bị khóa", locked, false},
+		{"không có", uuid.New(), false},
+	} {
+		if got := has(c.id); got != c.want {
+			t.Fatalf("%s: StaffHas = %v, muốn %v", c.name, got, c.want)
+		}
+	}
+	e.s.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(), `UPDATE identity.roles SET status = 'archived' WHERE key = 'sale'`)
+		return err //nolint:wrapcheck // test
+	})
+	if has(sale) {
+		t.Fatal("vai trò đã lưu trữ vẫn cho quyền")
+	}
+}

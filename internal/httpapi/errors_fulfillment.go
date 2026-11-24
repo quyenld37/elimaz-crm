@@ -72,6 +72,10 @@ func fulfillmentError(err error) (status int, code string, ok bool) {
 		// Cần xem (M3, Task M3-20): việc không có / ngoài phạm vi → 404; đã đóng, in_doubt_create → 409.
 		{fulfillment.ErrAnomalyNotFound, http.StatusNotFound, codeNotFound},
 		{fulfillment.ErrAnomalyNotResolvable, http.StatusConflict, codeInvalidTransition},
+		// Việc gọi lại (M3, Task M3-19; tệp task 110, Quyết định 4: chỉ mã có sẵn trong hợp đồng).
+		{fulfillment.ErrCallbackNotFound, http.StatusNotFound, codeNotFound},
+		{fulfillment.ErrCallbackClosed, http.StatusConflict, codeInvalidTransition},
+		{fulfillment.ErrCallbackAssignee, http.StatusUnprocessableEntity, codeInvalidInput},
 		// Hãng giao hàng trên website (M5, Task 198): không hãng nào báo phí được, không phí dự phòng → 503 retry_later.
 		{fulfillment.ErrCarrierNotOnWeb, http.StatusUnprocessableEntity, codeCarrierNotOnWeb},
 		{fulfillment.ErrLastWebCarrier, http.StatusUnprocessableEntity, codeLastWebCarrier},

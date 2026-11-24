@@ -16,7 +16,8 @@ import (
 // webhook và handler tín hiệu của hãng giả chỉ khi ngoài production và có FAKECARRIER_URL; vùng returns (M3-23) thêm
 // consumer fulfillment_return_received; vùng statements (M3-32) thêm consumer cash_statements; vùng payments (M3-30)
 // thêm consumer cash_refunds; vùng cancel (M3-14) thêm consumer fulfillment_order_cancel và, khi có hãng, lệnh
-// command.shipment.cancel; vùng address (M3-17), khi có hãng, lệnh command.shipment.update_address.
+// command.shipment.cancel; vùng address (M3-17), khi có hãng, lệnh command.shipment.update_address; vùng callbacks
+// (M3-19), khi có hãng, lệnh command.shipment.redeliver.
 func TestWireM3_KeepsM1Parts(t *testing.T) {
 	t.Parallel()
 	fakeCfg := config.Config{Env: "development", FakeCarrierURL: "http://127.0.0.1:1"}
@@ -26,7 +27,7 @@ func TestWireM3_KeepsM1Parts(t *testing.T) {
 		commands []string
 		source   bool
 	}{
-		{"hãng giả", fakeCfg, []string{"command.cash.statement_parse", "command.shipment.cancel", "command.shipment.update_address", "fulfillment.create_shipment", "fulfillment.refresh_status"}, true},
+		{"hãng giả", fakeCfg, []string{"command.cash.statement_parse", "command.shipment.cancel", "command.shipment.redeliver", "command.shipment.update_address", "fulfillment.create_shipment", "fulfillment.refresh_status"}, true},
 		{"production", config.Config{Env: "production", FakeCarrierURL: "http://127.0.0.1:1"}, []string{"command.cash.statement_parse"}, false},
 		{"không URL", config.Config{Env: "development"}, []string{"command.cash.statement_parse"}, false},
 	}
