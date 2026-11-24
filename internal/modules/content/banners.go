@@ -125,7 +125,8 @@ func (w Writer) SaveBanners(ctx context.Context, tx pgx.Tx, list []Banner, revis
 		return BannerChange{}, fmt.Errorf("tăng revision banner: %w", err)
 	}
 	after := BannerSet{Revision: int(head.Revision), Banners: bs, UpdatedBy: head.UpdatedBy, UpdatedAt: head.UpdatedAt}
-	if err := w.bannersChanged(ctx, tx, a.TenantID, after.Revision); err != nil {
+	if err := w.listChanged(ctx, tx, a.TenantID, after.Revision, aggregateBanners, TopicBannersChanged, bannersSignalTopic,
+		BannersChanged{Revision: after.Revision}); err != nil {
 		return BannerChange{}, err
 	}
 	return BannerChange{Before: before, After: after}, nil
@@ -145,22 +146,23 @@ func insertParams(tenant uuid.UUID, pos int, b Banner) store.InsertBannerParams 
 	}
 }
 
-// bannersChanged phát TopicBannersChanged (Seq = revision mới) và báo hiệu cho màn hình nhân viên (content.read).
-func (w Writer) bannersChanged(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, revision int) error {
+// listChanged phát sự kiện topic của danh sách (aggregate, mã = tenant, Seq = revision mới, payload chỉ có revision) và
+// báo hiệu signal cho màn hình nhân viên (content.read) — dùng chung cho banner và bộ phối.
+func (w Writer) listChanged(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, revision int, aggregate, topic, signal string, payload any) error {
 	if _, _, err := w.Events.Emit(ctx, tx, w.Queue, events.Event{
-		TenantID: tenant, AggregateType: aggregateBanners, AggregateID: tenant.String(), Seq: int64(revision),
-		Topic: TopicBannersChanged, Payload: BannersChanged{Revision: revision},
+		TenantID: tenant, AggregateType: aggregate, AggregateID: tenant.String(), Seq: int64(revision),
+		Topic: topic, Payload: payload,
 	}); err != nil {
-		return fmt.Errorf("phát %s: %w", TopicBannersChanged, err)
+		return fmt.Errorf("phát %s: %w", topic, err)
 	}
 	if w.Realtime == nil {
 		return nil
 	}
 	if err := w.Realtime.Publish(ctx, tx, realtime.Signal{
-		TenantID: tenant, Topic: bannersSignalTopic, Requires: permRead,
-		Entity: realtime.Entity{Type: aggregateBanners, ID: tenant.String()},
+		TenantID: tenant, Topic: signal, Requires: permRead,
+		Entity: realtime.Entity{Type: aggregate, ID: tenant.String()},
 	}); err != nil {
-		return fmt.Errorf("báo hiệu banner: %w", err)
+		return fmt.Errorf("báo hiệu %s: %w", signal, err)
 	}
 	return nil
 }
