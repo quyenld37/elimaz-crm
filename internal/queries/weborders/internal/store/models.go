@@ -338,6 +338,7 @@ type CatalogProductsV struct {
 	DeletedAt   *time.Time
 	UpdatedAt   time.Time
 	Version     int64
+	CreatedAt   time.Time
 }
 
 type CatalogSeller struct {

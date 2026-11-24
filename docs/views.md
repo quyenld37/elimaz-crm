@@ -20,7 +20,7 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 |---|---|---|---|
 | `identity.users_v` (B2-11: bảng của M0, M1 công bố vì Task 26 đã `ALTER` `identity`; không có `email`) | `id, display_name, status` | 26 | M6, M7 |
 | `catalog.sellers_v` | `seller_id, code, name, kind, status` | 27 | M2–M7 |
-| `catalog.products_v` (M5 Task 190 nối `version` vào cuối) | `product_id, seller_id, code, name, name_search, description, article, status, category_id, deleted_at, updated_at, version` | 27, 190 | M2, M5–M7 (`internal/queries/webcatalog`: danh mục cho website; `order` `ProductCategories`: danh mục của mẫu cho báo giá web, Task 192) |
+| `catalog.products_v` (M5 Task 190 nối `version`, Task 489 nối `created_at` vào cuối) | `product_id, seller_id, code, name, name_search, description, article, status, category_id, deleted_at, updated_at, version, created_at` | 27, 190, 489 | M2, M5–M7 (`internal/queries/webcatalog`: danh mục cho website; `order` `ProductCategories`: danh mục của mẫu cho báo giá web, Task 192) |
 | `catalog.variants_v` (M5 Task 190 nối `weight_grams` vào cuối, QĐ30) | `variant_id, seller_id, product_id, sku, barcode, product_code, product_name, color, color_hex, size, price, cost_price, variant_status, product_status, sellable, updated_at, weight_grams` | 27, 190 | M2–M7 |
 | `catalog.categories_v` | `category_id, parent_id, name, slug, depth, position, status` | 34 | M5–M7 |
 | `catalog.attributes_v` | `attribute_id, code, name, position` | 34 | M5–M7 |

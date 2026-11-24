@@ -34,6 +34,7 @@ type WebProduct struct {
 	Images           []WebImage
 	Variants         []WebVariant
 	UpdatedAt        time.Time
+	CreatedAt        time.Time // ngày tạo mẫu (UTC), cho "Mới nhất" của website
 	Version          int64
 }
 

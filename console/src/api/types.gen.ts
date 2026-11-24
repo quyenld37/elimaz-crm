@@ -782,6 +782,10 @@ export type WebProduct = {
     images: Array<WebImage>;
     variants: Array<WebVariant>;
     updatedAt: string;
+    /**
+     * Ngày tạo mẫu (Task 489; sắp xếp "Mới nhất"). CRM luôn gửi; chỉ có thể vắng trong ≤ 60 s sau khi nâng cấp (bản đệm cũ)
+     */
+    createdAt?: string;
     version: number;
 };
 
@@ -829,6 +833,10 @@ export type WebCatalogChanges = {
     productIds: Array<string>;
     until: string;
     hasMore: boolean;
+    /**
+     * Giờ của máy chủ CRM lúc đọc (now() của PostgreSQL, cùng đồng hồ với until), có ở mọi câu trả lời (Task 489). Website dùng để biết độ cũ của bản sao và làm mốc cho bản sao đầu (since = serverTime − 30 s, lấy trước khi tải cả danh mục), không dùng đồng hồ của máy website
+     */
+    serverTime: string;
 };
 
 export type WebTaxonomy = {

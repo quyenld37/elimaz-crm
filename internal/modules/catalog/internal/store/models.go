@@ -338,6 +338,7 @@ type CatalogProductsV struct {
 	DeletedAt   pgtype.Timestamptz
 	UpdatedAt   time.Time
 	Version     int64
+	CreatedAt   time.Time
 }
 
 type CatalogSeller struct {
