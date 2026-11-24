@@ -88,31 +88,52 @@ func (q *Queries) BatchCodes(ctx context.Context, batchID *uuid.UUID) ([]BatchCo
 	return items, nil
 }
 
-const batchStats = `-- name: BatchStats :one
-SELECT count(*) FILTER (WHERE given_at IS NOT NULL)::int AS given,
+const batchStatsMany = `-- name: BatchStatsMany :many
+SELECT batch_id::uuid AS batch_id,
+       count(*) FILTER (WHERE given_at IS NOT NULL)::int AS given,
        count(*) FILTER (WHERE used_count > 0)::int AS used,
        count(*) FILTER (WHERE used_count = 0 AND valid_to <= $1)::int AS expired
 FROM promotion.coupons
-WHERE batch_id = $2
+WHERE batch_id = ANY($2::uuid[])
+GROUP BY batch_id
 `
 
-type BatchStatsParams struct {
-	Now     time.Time
-	BatchID *uuid.UUID
+type BatchStatsManyParams struct {
+	Now      time.Time
+	BatchIds []uuid.UUID
 }
 
-type BatchStatsRow struct {
+type BatchStatsManyRow struct {
+	BatchID uuid.UUID
 	Given   int32
 	Used    int32
 	Expired int32
 }
 
-// Số mã đã trao, đã dùng, hết hạn chưa dùng (valid_to ≤ now) của một lô.
-func (q *Queries) BatchStats(ctx context.Context, arg BatchStatsParams) (BatchStatsRow, error) {
-	row := q.db.QueryRow(ctx, batchStats, arg.Now, arg.BatchID)
-	var i BatchStatsRow
-	err := row.Scan(&i.Given, &i.Used, &i.Expired)
-	return i, err
+// Số mã đã trao, đã dùng, hết hạn chưa dùng (valid_to ≤ now) của mỗi lô trong batch_ids (lô không có mã: không dòng).
+func (q *Queries) BatchStatsMany(ctx context.Context, arg BatchStatsManyParams) ([]BatchStatsManyRow, error) {
+	rows, err := q.db.Query(ctx, batchStatsMany, arg.Now, arg.BatchIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []BatchStatsManyRow{}
+	for rows.Next() {
+		var i BatchStatsManyRow
+		if err := rows.Scan(
+			&i.BatchID,
+			&i.Given,
+			&i.Used,
+			&i.Expired,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const couponTermsByCodes = `-- name: CouponTermsByCodes :many

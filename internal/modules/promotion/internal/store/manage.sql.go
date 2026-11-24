@@ -80,6 +80,39 @@ func (q *Queries) CouponByID(ctx context.Context, id uuid.UUID) (CouponByIDRow, 
 	return i, err
 }
 
+const couponUsedOrders = `-- name: CouponUsedOrders :many
+SELECT DISTINCT ON (coupon_id) coupon_id, order_id
+FROM promotion.coupon_redemptions
+WHERE coupon_id = ANY($1::uuid[]) AND status = 'active'
+ORDER BY coupon_id, id DESC
+`
+
+type CouponUsedOrdersRow struct {
+	CouponID uuid.UUID
+	OrderID  uuid.UUID
+}
+
+// Đơn của lượt dùng còn hiệu lực mới nhất của mỗi mã trong coupon_ids (Task 487: "Đã dùng · <mã đơn>").
+func (q *Queries) CouponUsedOrders(ctx context.Context, couponIds []uuid.UUID) ([]CouponUsedOrdersRow, error) {
+	rows, err := q.db.Query(ctx, couponUsedOrders, couponIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CouponUsedOrdersRow{}
+	for rows.Next() {
+		var i CouponUsedOrdersRow
+		if err := rows.Scan(&i.CouponID, &i.OrderID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const customerRoot = `-- name: CustomerRoot :one
 SELECT root_id FROM customer.customers_v WHERE id = $1
 `

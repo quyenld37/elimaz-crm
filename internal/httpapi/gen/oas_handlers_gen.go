@@ -8417,6 +8417,72 @@ func (s *Server) handleGetWebCampaignRequest(args [1]string, argsEscaped bool, w
 	}
 }
 
+// handleGetWebCampaignSettingsRequest handles getWebCampaignSettings operation.
+//
+// Cài đặt chiến dịch giảm giá web: trần phần trăm của shop (promotion.web_campaigns,
+// mặc định 50; Task 487).
+//
+// GET /api/v1/web-campaign-settings
+func (s *Server) handleGetWebCampaignSettingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response GetWebCampaignSettingsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    GetWebCampaignSettingsOperation,
+			OperationSummary: "Cài đặt chiến dịch giảm giá web: trần phần trăm của shop (promotion.web_campaigns, mặc định 50; Task 487)",
+			OperationID:      "getWebCampaignSettings",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = GetWebCampaignSettingsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.GetWebCampaignSettings(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.GetWebCampaignSettings(ctx)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeGetWebCampaignSettingsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleGetWebCarrierSettingsRequest handles getWebCarrierSettings operation.
 //
 // Hãng nào hiện trên website và theo thứ tự nào là showOnWeb, webSort của tài khoản

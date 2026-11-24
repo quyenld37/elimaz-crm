@@ -106,7 +106,7 @@ WHERE link_key = @link_key AND deleted_at IS NULL;
 -- name: CoveredVariants :many
 -- Biến thể đang bán của người bán thuộc phạm vi (all; mẫu trong product_ids; danh mục của mẫu trong category_ids),
 -- theo mẫu rồi biến thể. Xem trước, bật chiến dịch đếm trên tập này.
-SELECT v.product_id, v.product_name, v.variant_id, v.price
+SELECT v.product_id, v.product_name, v.variant_id, v.sku, v.price
 FROM catalog.variants_v AS v
 JOIN catalog.products_v AS p ON p.product_id = v.product_id AND p.seller_id = v.seller_id
 WHERE v.seller_id = @seller_id AND v.sellable AND p.deleted_at IS NULL
@@ -138,9 +138,28 @@ ORDER BY product_id
 LIMIT @row_limit;
 
 -- name: TargetCategories :many
-SELECT category_id AS id, slug AS code, name
-FROM catalog.categories_v
-WHERE (sqlc.narg(q)::text IS NULL OR name ILIKE '%' || sqlc.narg(q)::text || '%' OR slug ILIKE '%' || sqlc.narg(q)::text || '%')
-  AND (sqlc.narg(after)::uuid IS NULL OR category_id > sqlc.narg(after)::uuid)
-ORDER BY category_id
+-- model_count: số mẫu đang bán, chưa xóa của người bán trong danh mục (Task 487, "64 mẫu" của mockup).
+SELECT c.category_id AS id, c.slug AS code, c.name,
+       (SELECT count(*) FROM catalog.products_v AS p
+        WHERE p.seller_id = @seller_id AND p.category_id = c.category_id AND p.deleted_at IS NULL
+          AND p.status = 'active')::int AS model_count
+FROM catalog.categories_v AS c
+WHERE (sqlc.narg(q)::text IS NULL OR c.name ILIKE '%' || sqlc.narg(q)::text || '%' OR c.slug ILIKE '%' || sqlc.narg(q)::text || '%')
+  AND (sqlc.narg(after)::uuid IS NULL OR c.category_id > sqlc.narg(after)::uuid)
+ORDER BY c.category_id
 LIMIT @row_limit;
+
+-- name: TargetProductsByIDs :many
+-- Đích loại mẫu của một chiến dịch (Task 487): mẫu chưa xóa của người bán trong ids.
+SELECT product_id AS id, code, name
+FROM catalog.products_v
+WHERE seller_id = @seller_id AND deleted_at IS NULL AND product_id = ANY(sqlc.arg(ids)::uuid[]);
+
+-- name: TargetCategoriesByIDs :many
+-- Đích loại danh mục của một chiến dịch (Task 487) kèm số mẫu như TargetCategories.
+SELECT c.category_id AS id, c.slug AS code, c.name,
+       (SELECT count(*) FROM catalog.products_v AS p
+        WHERE p.seller_id = @seller_id AND p.category_id = c.category_id AND p.deleted_at IS NULL
+          AND p.status = 'active')::int AS model_count
+FROM catalog.categories_v AS c
+WHERE c.category_id = ANY(sqlc.arg(ids)::uuid[]);

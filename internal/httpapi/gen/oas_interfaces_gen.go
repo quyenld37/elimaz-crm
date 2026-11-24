@@ -365,6 +365,10 @@ type GetWebCampaignRes interface {
 	getWebCampaignRes()
 }
 
+type GetWebCampaignSettingsRes interface {
+	getWebCampaignSettingsRes()
+}
+
 type GetWebCarrierSettingsRes interface {
 	getWebCarrierSettingsRes()
 }

@@ -2989,9 +2989,21 @@ export type Coupon = {
     validTo: string;
     status: CouponStatus;
     /**
-     * Mã gắn với một khách hoặc một SĐT (không trả SĐT)
+     * Mã gắn với một khách hoặc một SĐT (không trả SĐT đầy đủ)
      */
     bound: boolean;
+    /**
+     * SĐT gắn mã, dạng che giữa "0905 *** 781" (Task 487)
+     */
+    boundPhoneMasked?: string;
+    /**
+     * Mã đơn của lượt dùng còn hiệu lực mới nhất (Task 487)
+     */
+    usedOrderCode?: string;
+    /**
+     * Đơn của lượt dùng còn hiệu lực mới nhất, đi cùng usedOrderCode (Task 487)
+     */
+    usedOrderId?: string;
     createdAt: string;
     version: number;
 };
@@ -3075,15 +3087,15 @@ export type CouponBatch = {
     createdAt: string;
     purpose?: CouponBatchPurpose;
     /**
-     * Số mã website đã trao cho khách (chỉ getCouponBatch)
+     * Số mã website đã trao cho khách (getCouponBatch, listCouponBatches)
      */
     givenCount?: number;
     /**
-     * Số mã đã dùng (chỉ getCouponBatch)
+     * Số mã đã dùng (getCouponBatch, listCouponBatches)
      */
     usedCount?: number;
     /**
-     * Số mã hết hạn mà chưa dùng (chỉ getCouponBatch)
+     * Số mã hết hạn mà chưa dùng (getCouponBatch, listCouponBatches)
      */
     expiredCount?: number;
 };
@@ -4198,6 +4210,10 @@ export type WebCampaignSample = {
     productId: string;
     variantId: string;
     productName: string;
+    /**
+     * Mã hàng của biến thể (Task 487)
+     */
+    sku: string;
     listPrice: Money;
     salePrice: Money;
 };
@@ -4232,6 +4248,18 @@ export type WebCampaign = {
      * Đường dẫn trang chiến dịch trên website, /uu-dai/<tên>-<linkKey>
      */
     path: string;
+    /**
+     * Liên kết đầy đủ = gốc website (cấu hình WEBSITE_ORIGIN) + path (Task 487)
+     */
+    url: string;
+    /**
+     * Chỉ getWebCampaign (Task 487): tên, mã của đích theo thứ tự targetIds, danh mục kèm modelCount; đích không còn (mẫu đã xóa, danh mục đã bỏ) không có ở đây
+     */
+    targets?: Array<CampaignTarget>;
+    /**
+     * Chỉ getWebCampaign (Task 487): số thứ tự (từ 1) của banner trang chủ đang trỏ chiến dịch (banner chiến dịch hay banner ảnh liên kết tới chiến dịch); xóa chiến dịch thì các banner này tự ẩn
+     */
+    bannerPositions?: Array<number>;
     preview?: WebCampaignPreviewCounts;
     createdAt: string;
     updatedAt: string;
@@ -4249,6 +4277,17 @@ export type CampaignTarget = {
      */
     code: string;
     name: string;
+    /**
+     * Chỉ danh mục — số mẫu đang bán, chưa xóa trong danh mục (Task 487)
+     */
+    modelCount?: number;
+};
+
+export type WebCampaignSettings = {
+    /**
+     * Trần phần trăm giảm của shop; bật hay lưu chiến dịch vượt trần → percent_too_high
+     */
+    maxPercent: number;
 };
 
 export type CampaignTargetPage = {
@@ -4405,6 +4444,10 @@ export type BirthdayCustomer = {
      * Mã quà hiện tại (còn hạn hay hết hạn chưa quá 30 ngày)
      */
     code?: string;
+    /**
+     * Mã đơn đã dùng mã quà (trạng thái used; Task 487)
+     */
+    usedOrderCode?: string;
     savedAt: string;
 };
 
@@ -4421,6 +4464,11 @@ export type BirthdayStateCounts = {
 
 export type BirthdayCustomerPage = {
     items: Array<BirthdayCustomer>;
+    /**
+     * Sắp gửi · 7 ngày tới (Task 487): khách chờ ngày gửi, đã có đơn giao thành công, ngày gửi trong 7 ngày tới; lọc tháng, tìm như stateCounts
+     */
+    upcomingWeek: number;
+    yearGifts: BirthdayYearGifts;
     nextCursor?: string;
     total: number;
     stateCounts: BirthdayStateCounts;
@@ -4438,6 +4486,21 @@ export type BirthdayCustomerPage = {
         number,
         number
     ];
+};
+
+/**
+ * Quà của năm sinh nhật hiện tại (giờ Việt Nam), không theo bộ lọc (Task 487)
+ */
+export type BirthdayYearGifts = {
+    year: number;
+    /**
+     * Số mã quà đã tạo cho sinh nhật năm này
+     */
+    issued: number;
+    /**
+     * Số mã quà năm này đã dùng
+     */
+    used: number;
 };
 
 export type BirthdayExportRequest = {
@@ -9219,6 +9282,31 @@ export type ListCampaignTargetsResponses = {
 };
 
 export type ListCampaignTargetsResponse = ListCampaignTargetsResponses[keyof ListCampaignTargetsResponses];
+
+export type GetWebCampaignSettingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/web-campaign-settings';
+};
+
+export type GetWebCampaignSettingsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type GetWebCampaignSettingsError = GetWebCampaignSettingsErrors[keyof GetWebCampaignSettingsErrors];
+
+export type GetWebCampaignSettingsResponses = {
+    /**
+     * getWebCampaignSettings
+     */
+    200: WebCampaignSettings;
+};
+
+export type GetWebCampaignSettingsResponse = GetWebCampaignSettingsResponses[keyof GetWebCampaignSettingsResponses];
 
 export type GetWebCarrierSettingsData = {
     body?: never;

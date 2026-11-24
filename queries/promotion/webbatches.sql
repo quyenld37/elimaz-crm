@@ -86,10 +86,12 @@ WHERE (sqlc.narg(purpose)::text IS NULL OR purpose = sqlc.narg(purpose)::text)
 ORDER BY id DESC
 LIMIT sqlc.arg(row_limit)::int;
 
--- name: BatchStats :one
--- Số mã đã trao, đã dùng, hết hạn chưa dùng (valid_to ≤ now) của một lô.
-SELECT count(*) FILTER (WHERE given_at IS NOT NULL)::int AS given,
+-- name: BatchStatsMany :many
+-- Số mã đã trao, đã dùng, hết hạn chưa dùng (valid_to ≤ now) của mỗi lô trong batch_ids (lô không có mã: không dòng).
+SELECT batch_id::uuid AS batch_id,
+       count(*) FILTER (WHERE given_at IS NOT NULL)::int AS given,
        count(*) FILTER (WHERE used_count > 0)::int AS used,
        count(*) FILTER (WHERE used_count = 0 AND valid_to <= @now)::int AS expired
 FROM promotion.coupons
-WHERE batch_id = @batch_id;
+WHERE batch_id = ANY(sqlc.arg(batch_ids)::uuid[])
+GROUP BY batch_id;

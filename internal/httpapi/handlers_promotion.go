@@ -35,15 +35,30 @@ func (h *handler) ListCoupons(ctx context.Context, params gen.ListCouponsParams)
 	f.After = after
 	var cs []promotion.Coupon
 	var next *uuid.UUID
+	var orders map[uuid.UUID]usedOrder
 	if err := h.catalogRead(ctx, func(tx pgx.Tx) (err error) {
-		cs, next, err = promotion.ListCoupons(ctx, tx, f)
-		return err //nolint:wrapcheck // promotion đã bọc
+		if cs, next, err = promotion.ListCoupons(ctx, tx, f); err != nil {
+			return err //nolint:wrapcheck // promotion đã bọc
+		}
+		used := make([]uuid.UUID, 0, len(cs))
+		for _, c := range cs {
+			if c.UsedCount > 0 {
+				used = append(used, c.ID)
+			}
+		}
+		orders, err = couponOrderCodes(ctx, tx, used)
+		return err
 	}); err != nil {
 		return nil, fmt.Errorf("đọc danh sách mã giảm giá: %w", err)
 	}
 	page := &gen.CouponPage{Items: make([]gen.Coupon, 0, len(cs))}
 	for _, c := range cs {
-		page.Items = append(page.Items, *couponOut(c))
+		it := couponOut(c)
+		if o, ok := orders[c.ID]; ok {
+			it.UsedOrderCode = gen.NewOptString(o.Code)
+			it.UsedOrderId = gen.NewOptUUID(o.ID)
+		}
+		page.Items = append(page.Items, *it)
 	}
 	if next != nil {
 		page.NextCursor = gen.NewOptString(next.String())
@@ -163,10 +178,51 @@ func (h *handler) GetCouponBatch(ctx context.Context, params gen.GetCouponBatchP
 	}); err != nil {
 		return nil, fmt.Errorf("đọc đợt mã: %w", err)
 	}
-	out := batchOut(b)
+	return batchStatsOut(batchOut(b), st), nil
+}
+
+// batchStatsOut gắn số mã đã trao, đã dùng, hết hạn chưa dùng vào đợt out.
+func batchStatsOut(out *gen.CouponBatch, st promotion.BatchStats) *gen.CouponBatch {
 	out.GivenCount = gen.NewOptInt32(int32(st.Given))     //nolint:gosec // G115: ≤ 100.000 mã mỗi đợt
 	out.UsedCount = gen.NewOptInt32(int32(st.Used))       //nolint:gosec // G115: ≤ 100.000 mã mỗi đợt
 	out.ExpiredCount = gen.NewOptInt32(int32(st.Expired)) //nolint:gosec // G115: ≤ 100.000 mã mỗi đợt
+	return out
+}
+
+// usedOrder là đơn của lượt dùng một mã: id (liên kết tới màn đơn) và mã đơn.
+type usedOrder struct {
+	ID   uuid.UUID
+	Code string
+}
+
+// couponOrderCodes trả đơn của lượt dùng còn hiệu lực mới nhất của mỗi mã trong couponIDs (promotion.UsedOrders rồi
+// order.Codes với người bán mặc định, như ListCouponRedemptions; đơn của người bán khác → không có). Task 487.
+func couponOrderCodes(ctx context.Context, tx pgx.Tx, couponIDs []uuid.UUID) (map[uuid.UUID]usedOrder, error) {
+	out := map[uuid.UUID]usedOrder{}
+	if len(couponIDs) == 0 {
+		return out, nil
+	}
+	orders, err := promotion.UsedOrders(ctx, tx, couponIDs)
+	if err != nil || len(orders) == 0 {
+		return out, err //nolint:wrapcheck // promotion đã bọc
+	}
+	seller, err := catalog.DefaultSeller(ctx, tx)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // sentinel của catalog
+	}
+	ids := make([]uuid.UUID, 0, len(orders))
+	for _, o := range orders {
+		ids = append(ids, o)
+	}
+	codes, err := order.Codes(ctx, tx, seller, ids)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // order đã bọc
+	}
+	for c, o := range orders {
+		if code := codes[o]; code != "" {
+			out[c] = usedOrder{ID: o, Code: code}
+		}
+	}
 	return out, nil
 }
 
@@ -180,16 +236,24 @@ func (h *handler) ListCouponBatches(ctx context.Context, params gen.ListCouponBa
 	}
 	var bs []promotion.Batch
 	var next *uuid.UUID
+	var stats map[uuid.UUID]promotion.BatchStats
 	if err := h.catalogRead(ctx, func(tx pgx.Tx) (err error) {
-		bs, next, err = promotion.ListBatches(ctx, tx, string(params.Purpose.Value), after,
-			int(params.Limit.Or(defaultDocLimit)))
+		if bs, next, err = promotion.ListBatches(ctx, tx, string(params.Purpose.Value), after,
+			int(params.Limit.Or(defaultDocLimit))); err != nil {
+			return err //nolint:wrapcheck // promotion đã bọc
+		}
+		ids := make([]uuid.UUID, 0, len(bs))
+		for _, b := range bs {
+			ids = append(ids, b.ID)
+		}
+		stats, err = promotion.ListBatchStats(ctx, tx, ids, h.now())
 		return err //nolint:wrapcheck // promotion đã bọc
 	}); err != nil {
 		return nil, fmt.Errorf("đọc danh sách đợt mã: %w", err)
 	}
 	page := &gen.CouponBatchPage{Items: make([]gen.CouponBatch, 0, len(bs))}
 	for _, b := range bs {
-		page.Items = append(page.Items, *batchOut(b))
+		page.Items = append(page.Items, *batchStatsOut(batchOut(b), stats[b.ID]))
 	}
 	if next != nil {
 		page.NextCursor = gen.NewOptString(next.String())
@@ -378,6 +442,9 @@ func couponOut(c promotion.Coupon) *gen.Coupon {
 	}
 	if c.BatchID != uuid.Nil {
 		out.BatchId = gen.NewOptUUID(c.BatchID)
+	}
+	if m := c.MaskedBoundPhone(); m != "" {
+		out.BoundPhoneMasked = gen.NewOptString(m)
 	}
 	if c.GivenAt != nil {
 		out.GivenAt = gen.NewOptDateTime(*c.GivenAt)

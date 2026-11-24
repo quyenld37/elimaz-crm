@@ -26,9 +26,12 @@ export const CAT3 = "0195f3b2-0000-7000-8000-0000000c0003";
 export const LONG_NAME =
   "Siêu sale cuối năm cho dân văn phòng: đầm công sở, áo sơ mi lụa, chân váy bút chì, quần âu ống suông và áo khoác dạ giảm";
 
-/** Chiến dịch "Xả hàng thu đông" đang áp dụng (50%, 2 sản phẩm, hàng cắt mã); sửa bằng p. */
+/** Gốc website trong url máy chủ trả (cấu hình WEBSITE_ORIGIN). */
+export const ORIGIN = "https://shop.example.vn";
+
+/** Chiến dịch "Xả hàng thu đông" đang áp dụng (50%, 2 sản phẩm, hàng cắt mã); sửa bằng p; url = ORIGIN + path. */
 export function campaign(p: Partial<WebCampaign> = {}): WebCampaign {
-  return {
+  const c: Omit<WebCampaign, "url"> & { url?: string } = {
     id: C1,
     name: "Xả hàng thu đông",
     percent: 50,
@@ -47,6 +50,7 @@ export function campaign(p: Partial<WebCampaign> = {}): WebCampaign {
     updatedAt: "2026-11-10T00:00:00Z",
     ...p,
   };
+  return { ...c, url: p.url ?? ORIGIN + c.path };
 }
 
 /** Chiến dịch tạm dừng "Tri ân khách quen tháng 11" (15%, 2 danh mục). */
@@ -65,9 +69,9 @@ export const paused = (p: Partial<WebCampaign> = {}) =>
   });
 
 export const TARGETS: CampaignTarget[] = [
-  { id: CAT1, code: "dam-cong-so", name: "Đầm công sở" },
-  { id: CAT2, code: "ao-dai-cach-tan", name: "Áo dài cách tân" },
-  { id: CAT3, code: "dam-du-tiec", name: "Đầm dự tiệc" },
+  { id: CAT1, code: "dam-cong-so", name: "Đầm công sở", modelCount: 64 },
+  { id: CAT2, code: "ao-dai-cach-tan", name: "Áo dài cách tân", modelCount: 0 },
+  { id: CAT3, code: "dam-du-tiec", name: "Đầm dự tiệc", modelCount: 21 },
 ];
 
 export const preview = (revision: number, p: Partial<WebCampaignPreview> = {}): WebCampaignPreview => ({
@@ -79,6 +83,7 @@ export const preview = (revision: number, p: Partial<WebCampaignPreview> = {}): 
       productId: "0195f3b2-0000-7000-8000-0000000a0001",
       variantId: "0195f3b2-0000-7000-8000-0000000b0001",
       productName: "Chân váy bút chì",
+      sku: "CV0420-DEN-M",
       listPrice: 420_000,
       salePrice: 357_000,
     },
@@ -95,6 +100,11 @@ export interface Fake extends WriteQueue {
   listCalls: URLSearchParams[];
   targets: CampaignTarget[];
   targetCalls: URLSearchParams[];
+  /** Trần phần trăm getWebCampaignSettings trả; null → 500. */
+  maxPercent: number | null;
+  /** Số thứ tự banner đang trỏ chiến dịch, theo id (getWebCampaign). */
+  banners: Record<string, number[]>;
+  detailCalls: string[];
 }
 
 function read(fake: Fake, p: string, q: URLSearchParams): Response {
@@ -114,9 +124,18 @@ function read(fake: Fake, p: string, q: URLSearchParams): Response {
       ),
     );
   }
+  if (p === "/api/v1/web-campaign-settings") {
+    return fake.maxPercent === null
+      ? reply({ error: "internal", request_id: "t" }, 500)
+      : reply({ maxPercent: fake.maxPercent });
+  }
   const one = /^\/api\/v1\/web-campaigns\/([^/]+)$/.exec(p);
   const c = fake.rows.find((r) => r.id === one?.[1]);
-  return c === undefined ? reply(NOT_FOUND, 404) : reply(c);
+  if (c === undefined) return reply(NOT_FOUND, 404);
+  fake.detailCalls.push(c.id);
+  // Như máy chủ: tên đích theo thứ tự targetIds, đích không còn bị bỏ; banner đang trỏ chiến dịch.
+  const targets = c.targetIds.flatMap((id) => fake.targets.filter((t) => t.id === id));
+  return reply({ ...c, targets, bannerPositions: fake.banners[c.id] ?? [] });
 }
 
 const isText = (x: unknown): x is string => typeof x === "string";
@@ -163,6 +182,9 @@ export function installFake(): Fake {
     listCalls: [],
     targets: TARGETS,
     targetCalls: [],
+    maxPercent: 50,
+    banners: {},
+    detailCalls: [],
     ...emptyWrites(),
   };
   return stubApi(fake, read, write);

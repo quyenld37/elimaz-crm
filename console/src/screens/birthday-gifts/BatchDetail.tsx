@@ -1,8 +1,10 @@
 // Chi tiết một đợt mã quà sinh nhật (kế hoạch M5 Task 209, mockup trạng thái D): mức giảm, số đã tặng, đã dùng, hết
 // hạn chưa dùng (getCouponBatch), từng mã với trạng thái và hạn dùng (listCoupons?batchId, tải thêm). Mã hiện đầy đủ
-// cho người có promotion.read (A9). API không trả SĐT gắn với mã, nên không có cột "Gắn với số" của mockup.
+// cho người có promotion.read (A9). Cột "Gắn với số" là SĐT đã che của máy chủ; mã đã dùng ghi mã đơn, mở được đơn
+// (Task 487).
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router";
 import { listCoupons, type CouponPage } from "../../api";
 import { unwrap } from "../../app/errors";
 import { useBatch } from "../ma-giam-gia/couponData";
@@ -50,6 +52,7 @@ export function BatchDetail({ id }: { id: string }) {
               <thead>
                 <tr>
                   <th>Mã</th>
+                  <th>Gắn với số</th>
                   <th>Trạng thái</th>
                   <th>Hạn dùng</th>
                 </tr>
@@ -62,8 +65,21 @@ export function BatchDetail({ id }: { id: string }) {
                       <td className="lead">
                         <span className="code">{c.code}</span>
                       </td>
+                      <td data-label="Gắn với số" className="num">
+                        {c.boundPhoneMasked ?? <span className="muted">—</span>}
+                      </td>
                       <td data-label="Trạng thái">
-                        <span className={st.className}>{st.label}</span>
+                        <span className={st.className}>
+                          {st.label}
+                          {c.usedOrderId !== undefined && c.usedOrderCode !== undefined && (
+                            <>
+                              {" · "}
+                              <Link className="cell-a" to={`/don/${c.usedOrderId}`}>
+                                {c.usedOrderCode}
+                              </Link>
+                            </>
+                          )}
+                        </span>
                       </td>
                       <td data-label="Hạn dùng" className="num">
                         {lastDay(c.validTo)}

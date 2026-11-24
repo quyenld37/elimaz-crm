@@ -120,6 +120,20 @@ describe("Tạo chiến dịch", () => {
     expect(screen.getByRole("checkbox", { name: /Danh mục 30 ·/ })).toHaveProperty("disabled", false);
   });
 
+  it("danh sách chọn danh mục hiện mã kèm số mẫu (cả 0); ô phần trăm nêu trần của shop", async () => {
+    await openNew();
+    expect(await screen.findByText("dam-cong-so · 64 mẫu")).toBeTruthy();
+    expect(screen.getByText("ao-dai-cach-tan · 0 mẫu")).toBeTruthy();
+    expect(await screen.findByText("% · 1–99, trần của shop 50%")).toBeTruthy();
+  });
+
+  it("đọc trần lỗi → gợi ý chung, form vẫn dùng được", async () => {
+    fake.maxPercent = null;
+    await openNew();
+    expect(await screen.findByText("% · 1–99, vượt trần của shop thì bị từ chối")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Lưu bản nháp" })).toHaveProperty("disabled", false);
+  });
+
   it("tìm đích gửi q theo kind=category", async () => {
     await openNew();
     type(screen.getByLabelText("Tìm trong toàn bộ danh mục"), "đầm");
@@ -135,7 +149,7 @@ describe("Tạo chiến dịch", () => {
 });
 
 describe("Sửa chiến dịch", () => {
-  it("mở chiến dịch tạm dừng: điền form, tên đích lấy từ danh sách đích", async () => {
+  it("mở chiến dịch tạm dừng: điền form, tên đích lấy từ targets của getWebCampaign (không đọc trang đích)", async () => {
     renderAt(`/khuyen-mai/chien-dich/${C2}`);
     expect(await screen.findByDisplayValue("Tri ân khách quen tháng 11")).toBeTruthy();
     expect(field("Phần trăm giảm *")).toHaveProperty("value", "15");
@@ -143,6 +157,8 @@ describe("Sửa chiến dịch", () => {
     expect(await screen.findByRole("button", { name: "Bỏ Đầm công sở" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Bỏ Áo dài cách tân" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Lưu" })).toBeTruthy();
+    // Danh sách đích chỉ đọc cho ô tìm (trang 50), không đọc trang 100 để dò tên đích.
+    expect(fake.targetCalls.every((q) => q.get("limit") === "50")).toBe(true);
   });
 
   it("đích không còn trong danh sách → hiện mục không còn kèm đuôi mã", async () => {
@@ -212,6 +228,7 @@ describe("Sửa chiến dịch", () => {
     const sample = screen.getByRole("row", { name: /Chân váy bút chì/ });
     expect(within(sample).getByText("420.000 ₫")).toBeTruthy();
     expect(within(sample).getByText("357.000 ₫")).toBeTruthy();
+    expect(within(sample).getByText("CV0420-DEN-M")).toBeTruthy();
   });
 
   it("Xem trước giá khi chưa sửa: chỉ xem trước revision đang có", async () => {

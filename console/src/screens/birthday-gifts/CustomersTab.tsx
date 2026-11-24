@@ -46,7 +46,9 @@ function Row({ c, enabled, now }: { c: BirthdayCustomer; enabled: boolean; now: 
         {c.code === undefined ? <span className="muted">—</span> : <span className="code">{c.code}</span>}
       </td>
       <td data-label="Trạng thái">
-        <span className={chip.className}>{chip.label}</span>
+        <span className={chip.className}>
+          {c.usedOrderCode === undefined ? chip.label : `${chip.label} · ${c.usedOrderCode}`}
+        </span>
       </td>
     </tr>
   );

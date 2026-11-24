@@ -1,5 +1,6 @@
 // Tab "Đợt mã" của màn Quà sinh nhật (kế hoạch M5 Task 209, mockup trạng thái D; WB05): đợt mã quà sinh nhật mới nhất
-// trước (listCouponBatches?purpose=birthday; "Mã chuyển từ website cũ" là purpose=imported), tải thêm theo con trỏ;
+// trước (listCouponBatches?purpose=birthday; "Mã chuyển từ website cũ" là purpose=imported) với số đã tặng, đã dùng,
+// hết hạn của từng đợt (Task 487), tải thêm theo con trỏ;
 // "Mở" hiện chi tiết đợt bên dưới. Chỉ xem: phát mã do lượt phát của CRM làm.
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -29,6 +30,15 @@ function Row({ b, onOpen }: { b: CouponBatch; onOpen: () => void }) {
       </td>
       <td data-label="Mã" className="r num">
         {b.quantity}
+      </td>
+      <td data-label="Đã tặng" className="r num">
+        {b.givenCount ?? 0}
+      </td>
+      <td data-label="Đã dùng" className="r num">
+        {b.usedCount ?? 0}
+      </td>
+      <td data-label="Hết hạn" className="r num">
+        {b.expiredCount ?? 0}
       </td>
       <td className="c-act">
         {b.quantity > 0 ? (
@@ -74,6 +84,9 @@ export function BatchList(o: { open: string; onOpen: (id: string) => void }) {
               <tr>
                 <th>Đợt</th>
                 <th className="r">Mã</th>
+                <th className="r">Đã tặng</th>
+                <th className="r">Đã dùng</th>
+                <th className="r">Hết hạn</th>
                 <th className="c-act">Thao tác</th>
               </tr>
             </thead>

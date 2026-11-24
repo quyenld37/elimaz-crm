@@ -6,8 +6,8 @@ import { shortTime } from "../../app/time";
 import { isoToVnLocal, vnLocalToIso } from "../ma-giam-gia/couponRules";
 
 /**
- * Tên miền website: API chỉ trả `path` (/uu-dai/<tên>-<linkKey>). Tệp task 458, Quyết định 1: tên miền theo spec
- * README; đổi ở đây khi website đổi tên miền.
+ * Tên miền website cho màn chưa có liên kết đầy đủ từ máy chủ (bộ phối, quà sinh nhật). Chiến dịch dùng `url` của API
+ * (cấu hình WEBSITE_ORIGIN của máy chủ, Task 487).
  */
 export const WEBSITE_ORIGIN = "https://elimaz.com.vn";
 export const NAME_MAX = 120;
@@ -57,8 +57,8 @@ export function rowSub(c: WebCampaign): string {
 /** "00:00 15/11 → 23:59 25/11" theo giờ Việt Nam. */
 export const periodText = (c: WebCampaign): string => `${shortTime(c.startsAt)} → ${shortTime(c.endsAt)}`;
 
-/** Liên kết đầy đủ để chép. */
-export const campaignLink = (c: WebCampaign): string => WEBSITE_ORIGIN + c.path;
+/** Liên kết đầy đủ để chép: máy chủ ghép gốc website theo cấu hình (Task 487). */
+export const campaignLink = (c: WebCampaign): string => c.url;
 /** Liên kết hiện trong câu báo (bỏ https://). */
 export const linkText = (c: WebCampaign): string => campaignLink(c).replace(/^https?:\/\//, "");
 
@@ -77,7 +77,13 @@ export interface PickedTarget {
   id: string;
   code: string;
   name: string;
+  /** Chỉ danh mục: số mẫu đang bán (Task 487). */
+  modelCount?: number;
 }
+
+/** Dòng phụ của một đích: "DM-DAM-CS · 64 mẫu" (danh mục), "DS2201" (mẫu). */
+export const targetSub = (t: PickedTarget): string =>
+  t.modelCount === undefined ? t.code : `${t.code} · ${String(t.modelCount)} mẫu`;
 
 /** Đích có trong chiến dịch mà danh sách đích không còn (mẫu đã xóa, danh mục đã bỏ). */
 export const missingTarget = (id: string): PickedTarget => ({
@@ -190,9 +196,20 @@ export function sameAsSaved(d: CampaignDraft, c: WebCampaign): boolean {
   );
 }
 
-/** Câu vượt trần (HV17): API không trả số trần (tệp task 458, Quyết định 2). */
-export const percentTooHighText = (percent: number | string): string =>
-  `Chiến dịch giảm ${String(percent)}%, vượt trần của shop.`;
+/** Câu vượt trần (HV17): "… vượt trần của shop (50%)."; chưa đọc được trần thì bỏ số. */
+export const percentTooHighText = (percent: number | string, cap?: number): string =>
+  `Chiến dịch giảm ${String(percent)}%, vượt trần của shop${cap === undefined ? "" : ` (${String(cap)}%)`}.`;
+
+/** Gợi ý ô phần trăm: "% · 1–99, trần của shop 50%". */
+export const percentHint = (cap?: number): string =>
+  cap === undefined ? "% · 1–99, vượt trần của shop thì bị từ chối" : `% · 1–99, trần của shop ${String(cap)}%`;
+
+/** Câu cảnh báo khi xóa: banner trang chủ số mấy đang dùng chiến dịch (Task 487). */
+export function bannerWarning(positions: readonly number[] | undefined): string {
+  if (positions === undefined) return "Banner trang chủ nào đang dùng chiến dịch này";
+  if (positions.length === 0) return "Không banner trang chủ nào đang dùng chiến dịch này";
+  return `Banner trang chủ số ${positions.map(String).join(", ")} đang dùng chiến dịch này`;
+}
 export const TEXT_RAISE_CAP = "Giảm sâu hơn để xả hàng thì nhờ Chủ nâng trần trước; chiến dịch vẫn ở trạng thái cũ.";
 export const TEXT_READ_ONLY =
   'Bạn chỉ có quyền xem khuyến mãi (thiếu quyền "Quản lý khuyến mãi"). "Chép liên kết" vẫn dùng được.';

@@ -10,7 +10,7 @@ import { errorMessage, unwrap } from "../../app/errors";
 import { queryKey } from "../../app/queryClient";
 import { SEARCH_DELAY_MS, useDebounced } from "../inventory/Balances";
 import { MoreBar } from "../ma-giam-gia/MoreBar";
-import { CAMPAIGN_TOPIC, campaignKey, reloadCampaigns, usePerms } from "./campaignData";
+import { CAMPAIGN_TOPIC, reloadCampaigns, storeCampaign, usePerms } from "./campaignData";
 import { DeleteDialog, StateDialog, type StateMode } from "./CampaignDialogs";
 import {
   DEFAULT_PAGE_SIZE,
@@ -260,7 +260,7 @@ export function CampaignList() {
           onDone={(c) => {
             const edit = open.kind === "pauseEdit";
             setOpen(null);
-            qc.setQueryData(campaignKey(c.id), c);
+            storeCampaign(qc, c);
             reloadCampaigns(qc);
             if (edit) void navigate(`/khuyen-mai/chien-dich/${c.id}`);
           }}

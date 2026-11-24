@@ -1,6 +1,6 @@
 // Màn Quà sinh nhật /khuyen-mai/qua-sinh-nhat (kế hoạch M5 Task 209 / M5-26, bốn tab theo Task 450; API Task 468;
-// mockup docs/mockups/m5/birthday-gifts.html). Đầu trang: cài đặt đang dùng và lượt chạy cuối, bốn số tổng, "Tạo mã
-// ngay". Tab giữ trên địa chỉ (?tab=), đợt đang mở (?dot=). Chỉ vẽ hành vi API có; quyền ghi promotion.birthday.manage.
+// mockup docs/mockups/m5/birthday-gifts.html). Đầu trang: cài đặt đang dùng và lượt chạy cuối, bốn số tổng như mockup
+// (Cần nhắn, Sắp gửi · 7 ngày tới, Mã đã dùng · năm, Khách đã lưu; số của máy chủ, Task 487), "Tạo mã ngay". Tab giữ trên địa chỉ (?tab=), đợt đang mở (?dot=). Chỉ vẽ hành vi API có; quyền ghi promotion.birthday.manage.
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
@@ -83,6 +83,7 @@ function Kpis({ enabled }: { enabled: boolean }) {
   const todo = useTodo();
   const totals = useTotals();
   const c = totals.data?.stateCounts;
+  const year = totals.data?.yearGifts;
   const n = (v: number | undefined) => (v === undefined ? (totals.isError ? "—" : "…") : NUM.format(v));
   const todoCount = todo.data?.items.length;
   const saved = c === undefined ? undefined : STATES.reduce((sum, s) => sum + c[s], 0);
@@ -102,12 +103,17 @@ function Kpis({ enabled }: { enabled: boolean }) {
         bad={todoCount !== undefined && todoCount > 0}
       />
       <Kpi
-        id="kpi-due"
-        label="Đến hạn, chờ tạo mã"
-        value={n(c?.due)}
-        note={enabled ? "lượt chạy sau tạo mã" : "quà đang tắt, chưa tạo mã"}
+        id="kpi-week"
+        label="Sắp gửi · 7 ngày tới"
+        value={n(totals.data?.upcomingWeek)}
+        note={enabled ? "khách đủ điều kiện" : "quà đang tắt, chưa tạo mã"}
       />
-      <Kpi id="kpi-used" label="Đã dùng" value={n(c?.used)} note="khách đã dùng quà gần nhất" />
+      <Kpi
+        id="kpi-used"
+        label={year === undefined ? "Mã đã dùng · năm nay" : `Mã đã dùng · năm ${String(year.year)}`}
+        value={year === undefined ? n(undefined) : `${NUM.format(year.used)} / ${NUM.format(year.issued)}`}
+        note="mã đã tặng"
+      />
       <Kpi
         id="kpi-saved"
         label="Khách đã lưu sinh nhật"

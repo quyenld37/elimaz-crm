@@ -366,3 +366,25 @@ func checkBadFieldKeys(t *testing.T, role config.Role, m map[string]string) {
 		}
 	}
 }
+
+// WEBSITE_ORIGIN (api, Task 487): vắng → DefaultWebsiteOrigin; có thì phải là gốc http(s) không đường dẫn (bỏ "/"
+// cuối); sai → lỗi nêu tên biến. Vai trò khác không giữ.
+func TestLoadWebsiteOrigin(t *testing.T) {
+	cfg, err := config.Load(config.RoleAPI, env(apiEnv()))
+	if err != nil || cfg.WebsiteOrigin != config.DefaultWebsiteOrigin || config.DefaultWebsiteOrigin != "https://elimaz.com.vn" {
+		t.Fatalf("mặc định: %q, %v", cfg.WebsiteOrigin, err)
+	}
+	cfg, err = config.Load(config.RoleAPI, env(with(apiEnv(), "WEBSITE_ORIGIN", "https://staging.elimaz.com.vn/")))
+	if err != nil || cfg.WebsiteOrigin != "https://staging.elimaz.com.vn" {
+		t.Fatalf("đặt: %q, %v", cfg.WebsiteOrigin, err)
+	}
+	for _, v := range []string{"elimaz.com.vn", "ftp://elimaz.com.vn", "https://elimaz.com.vn/uu-dai", "https://"} {
+		_, err := config.Load(config.RoleAPI, env(with(apiEnv(), "WEBSITE_ORIGIN", v)))
+		if err == nil || !strings.Contains(err.Error(), "WEBSITE_ORIGIN") {
+			t.Errorf("WEBSITE_ORIGIN=%s phải lỗi nêu tên biến, nhận %v", v, err)
+		}
+	}
+	if cfg, err := config.Load(config.RoleWorker, env(workerEnv())); err != nil || cfg.WebsiteOrigin != "" {
+		t.Fatalf("worker không giữ: %q, %v", cfg.WebsiteOrigin, err)
+	}
+}

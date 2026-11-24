@@ -12,8 +12,10 @@ import (
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/content"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/promotion"
+	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
@@ -44,7 +46,7 @@ func (h *handler) ListWebCampaigns(ctx context.Context, params gen.ListWebCampai
 	}
 	page := &gen.WebCampaignPage{Items: make([]gen.WebCampaign, 0, len(cs))}
 	for _, c := range cs {
-		page.Items = append(page.Items, *campaignOut(c, f.Now))
+		page.Items = append(page.Items, *h.campaignOut(c, f.Now))
 	}
 	if next != nil {
 		page.NextCursor = gen.NewOptString(next.String())
@@ -57,13 +59,62 @@ func (h *handler) ListWebCampaigns(ctx context.Context, params gen.ListWebCampai
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) GetWebCampaign(ctx context.Context, params gen.GetWebCampaignParams) (gen.GetWebCampaignRes, error) {
 	var c promotion.WebCampaign
+	var targets []promotion.CampaignTarget
+	var banners content.BannerSet
 	if err := h.campaignRead(ctx, func(tx pgx.Tx, seller uuid.UUID) (err error) {
-		c, err = promotion.GetWebCampaign(ctx, tx, seller, params.CampaignId)
-		return err //nolint:wrapcheck // sentinel của promotion
+		if c, err = promotion.GetWebCampaign(ctx, tx, seller, params.CampaignId); err != nil {
+			return err //nolint:wrapcheck // sentinel của promotion
+		}
+		if targets, err = promotion.CampaignTargetsByIDs(ctx, tx, seller, c.Scope, c.TargetIDs); err != nil {
+			return err //nolint:wrapcheck // promotion đã bọc
+		}
+		banners, err = content.GetBanners(ctx, tx)
+		return err //nolint:wrapcheck // content đã bọc
 	}); err != nil {
 		return nil, fmt.Errorf("đọc chiến dịch: %w", err)
 	}
-	return campaignOut(c, h.now()), nil
+	out := h.campaignOut(c, h.now())
+	out.Targets = make([]gen.CampaignTarget, 0, len(targets))
+	for _, t := range targets {
+		out.Targets = append(out.Targets, campaignTargetOut(t))
+	}
+	out.BannerPositions = campaignBannerPositions(banners, c.ID)
+	return out, nil
+}
+
+// GetWebCampaignSettings (GET /api/v1/web-campaign-settings): trần phần trăm của shop (Task 487).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) GetWebCampaignSettings(ctx context.Context) (gen.GetWebCampaignSettingsRes, error) {
+	var maxPercent int
+	if err := h.campaignRead(ctx, func(tx pgx.Tx, _ uuid.UUID) (err error) {
+		maxPercent, err = promotion.MaxPercent(ctx, tx)
+		return err //nolint:wrapcheck // promotion đã bọc
+	}); err != nil {
+		return nil, fmt.Errorf("đọc cài đặt chiến dịch: %w", err)
+	}
+	return &gen.WebCampaignSettings{MaxPercent: int32(maxPercent)}, nil //nolint:gosec // G115: 1–99
+}
+
+// campaignBannerPositions là số thứ tự (từ 1) của banner trang chủ trỏ chiến dịch id: banner chiến dịch, hay banner ảnh
+// liên kết tới chiến dịch (bật hay tắt đều tính: xóa chiến dịch thì banner đó không còn đích).
+func campaignBannerPositions(s content.BannerSet, id uuid.UUID) []int32 {
+	out := []int32{}
+	for i, b := range s.Banners {
+		if (b.Kind == content.KindCampaign && b.CampaignID == id) ||
+			(b.Kind == content.KindImage && b.LinkKind == content.LinkCampaign && b.LinkID == id) {
+			out = append(out, int32(i+1))
+		}
+	}
+	return out
+}
+
+func campaignTargetOut(t promotion.CampaignTarget) gen.CampaignTarget {
+	out := gen.CampaignTarget{ID: t.ID, Code: t.Code, Name: t.Name}
+	if t.ModelCount != nil {
+		out.ModelCount = gen.NewOptInt32(int32(*t.ModelCount)) //nolint:gosec // G115: số mẫu của shop
+	}
+	return out
 }
 
 // ListCampaignTargets (GET /api/v1/web-campaign-targets).
@@ -85,7 +136,7 @@ func (h *handler) ListCampaignTargets(ctx context.Context, params gen.ListCampai
 	}
 	page := &gen.CampaignTargetPage{Items: make([]gen.CampaignTarget, 0, len(ts))}
 	for _, t := range ts {
-		page.Items = append(page.Items, gen.CampaignTarget{ID: t.ID, Code: t.Code, Name: t.Name})
+		page.Items = append(page.Items, campaignTargetOut(t))
 	}
 	if next != nil {
 		page.NextCursor = gen.NewOptString(next.String())
@@ -103,7 +154,7 @@ func (h *handler) CreateWebCampaign(ctx context.Context, req *gen.WebCampaignInp
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của promotion
 		}
-		return campaignOut(c, h.now()), h.audit(ctx, tx, u, "promotion.web_campaign.create", "promotion.web_campaign",
+		return h.campaignOut(c, h.now()), h.audit(ctx, tx, u, "promotion.web_campaign.create", "promotion.web_campaign",
 			c.ID, nil, c.AuditFields())
 	})
 	if err != nil {
@@ -122,7 +173,7 @@ func (h *handler) SaveWebCampaign(ctx context.Context, req *gen.SaveWebCampaignR
 		if err != nil {
 			return nil, err //nolint:wrapcheck // sentinel của promotion
 		}
-		return campaignOut(*ch.After, h.now()), h.audit(ctx, tx, u, "promotion.web_campaign.save",
+		return h.campaignOut(*ch.After, h.now()), h.audit(ctx, tx, u, "promotion.web_campaign.save",
 			"promotion.web_campaign", ch.After.ID, ch.Before.AuditFields(), ch.After.AuditFields())
 	})
 	if err != nil {
@@ -147,7 +198,7 @@ func (h *handler) PreviewWebCampaign(ctx context.Context, req *gen.WebCampaignRe
 		}
 		for _, s := range p.Samples {
 			g.Samples = append(g.Samples, gen.WebCampaignSample{
-				ProductId: s.ProductID, VariantId: s.VariantID, ProductName: s.ProductName,
+				ProductId: s.ProductID, VariantId: s.VariantID, ProductName: s.ProductName, Sku: s.SKU,
 				ListPrice: gen.Money(s.ListPrice), SalePrice: gen.Money(s.SalePrice),
 			})
 		}
@@ -176,7 +227,7 @@ func (h *handler) SetWebCampaignState(ctx context.Context, req *gen.SetWebCampai
 		}
 		after := ch.After.AuditFields()
 		after["reason"] = reason
-		return campaignOut(*ch.After, h.now()), h.audit(ctx, tx, u, "promotion.web_campaign.state",
+		return h.campaignOut(*ch.After, h.now()), h.audit(ctx, tx, u, "promotion.web_campaign.state",
 			"promotion.web_campaign", ch.After.ID, ch.Before.AuditFields(), after)
 	})
 	if err != nil {
@@ -235,14 +286,16 @@ func campaignIn(r *gen.WebCampaignInput) promotion.WebCampaignInput {
 	}
 }
 
-// campaignOut là chiến dịch của hợp đồng nhân viên; status tính ở now (đồng hồ của máy chủ, Deps.Now).
-func campaignOut(c promotion.WebCampaign, now time.Time) *gen.WebCampaign {
+// campaignOut là chiến dịch của hợp đồng nhân viên; status tính ở now (đồng hồ của máy chủ, Deps.Now); url = gốc
+// website (cấu hình WEBSITE_ORIGIN) + path.
+func (h *handler) campaignOut(c promotion.WebCampaign, now time.Time) *gen.WebCampaign {
+	path := promotion.CampaignPath(c.ID, c.Name)
 	out := &gen.WebCampaign{
 		ID: c.ID, Name: c.Name, Percent: int32(c.Percent), Scope: gen.WebCampaignScope(c.Scope), //nolint:gosec // G115: 1–99
 		TargetIds: c.TargetIDs, AllowCoupon: c.AllowCoupon, Clearance: c.Clearance, StartsAt: c.StartsAt,
 		EndsAt: c.EndsAt, State: gen.WebCampaignState(c.State),
 		Status:   gen.WebCampaignStatus(promotion.CampaignStatus(c, now)),
-		Revision: int32(c.Revision), LinkKey: c.LinkKey, Path: promotion.CampaignPath(c.ID, c.Name), //nolint:gosec // G115: revision int4
+		Revision: int32(c.Revision), LinkKey: c.LinkKey, Path: path, URL: h.websiteOrigin() + path, //nolint:gosec // G115: revision int4
 		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
 	if p := c.Preview; p != nil {
@@ -251,4 +304,12 @@ func campaignOut(c promotion.WebCampaign, now time.Time) *gen.WebCampaign {
 		})
 	}
 	return out
+}
+
+// websiteOrigin là gốc website khách của cấu hình (rỗng khi Deps không qua config.Load, như test: tên miền mặc định).
+func (h *handler) websiteOrigin() string {
+	if o := h.d.Config.WebsiteOrigin; o != "" {
+		return o
+	}
+	return config.DefaultWebsiteOrigin
 }

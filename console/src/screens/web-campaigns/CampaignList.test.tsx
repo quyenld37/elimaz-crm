@@ -126,13 +126,13 @@ describe("Danh sách", () => {
     expect(screen.getByText("12 chiến dịch")).toBeTruthy();
   });
 
-  it("chép liên kết: đúng https://elimaz.com.vn/uu-dai/<tên>-<khóa>, báo đã chép", async () => {
+  it("chép liên kết: đúng url máy chủ trả (<gốc website>/uu-dai/<tên>-<khóa>), báo đã chép", async () => {
     const writeText = vi.fn(() => Promise.resolve());
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     renderAt("/khuyen-mai/chien-dich");
     fireEvent.click(within(await row(/Xả hàng thu đông/)).getByRole("button", { name: "Chép liên kết" }));
-    expect(writeText).toHaveBeenCalledWith("https://elimaz.com.vn/uu-dai/xa-hang-thu-dong-0193a7c2");
-    expect(await screen.findByText("Đã chép liên kết: elimaz.com.vn/uu-dai/xa-hang-thu-dong-0193a7c2")).toBeTruthy();
+    expect(writeText).toHaveBeenCalledWith("https://shop.example.vn/uu-dai/xa-hang-thu-dong-0193a7c2");
+    expect(await screen.findByText("Đã chép liên kết: shop.example.vn/uu-dai/xa-hang-thu-dong-0193a7c2")).toBeTruthy();
   });
 
   it("không có promotion.manage: không nút Tạo, Sửa, Kích hoạt, Tạm dừng, Xóa; vẫn chép liên kết; có câu lý do", async () => {
@@ -232,13 +232,17 @@ describe("Kích hoạt", () => {
     expect(fake.writes.map((w) => w.path.split("/").at(-1))).toEqual(["preview", "state", "preview"]);
   });
 
-  it("422 percent_too_high → câu vượt trần nêu phần trăm, nhờ Chủ nâng trần", async () => {
+  it.each([
+    [12, "Chiến dịch giảm 15%, vượt trần của shop (12%)."],
+    [null, "Chiến dịch giảm 15%, vượt trần của shop."],
+  ])("422 percent_too_high (trần đọc được: %s) → câu vượt trần, nhờ Chủ nâng trần", async (cap, text) => {
+    fake.maxPercent = cap;
     const dlg = await openEnable();
     await within(dlg).findByText("142 mẫu · 610 biến thể");
     type(within(dlg).getByLabelText("Lý do *"), "Mở bán");
     fake.replies.push({ status: 422, body: { error: "percent_too_high", request_id: "t" } });
     fireEvent.click(within(dlg).getByRole("button", { name: "Kích hoạt" }));
-    expect(await within(dlg).findByText("Chiến dịch giảm 15%, vượt trần của shop.")).toBeTruthy();
+    expect(await within(dlg).findByText(text)).toBeTruthy();
     expect(within(dlg).getByText(/nhờ Chủ nâng trần trước; chiến dịch vẫn ở trạng thái cũ/)).toBeTruthy();
   });
 
@@ -294,13 +298,18 @@ describe("Tạm dừng, sửa khi đang chạy, xóa", () => {
     fireEvent.click(within(dlg).getByRole("button", { name: "Tạm dừng và sửa" }));
     expect(await screen.findByRole("heading", { name: "Sửa chiến dịch", level: 1 })).toBeTruthy();
     expect(fake.writes[0]?.body).toMatchObject({ state: "paused", reason: "Thêm 4 mẫu áo khoác" });
+    // Bản trả về của lệnh đổi trạng thái không có tên đích: form đọc lại chiến dịch, không hiện "Mục không còn".
+    expect(await screen.findByRole("button", { name: "Bỏ Đầm công sở" })).toBeTruthy();
+    expect(screen.queryByText(/Mục không còn/)).toBeNull();
   });
 
-  it("xóa: cảnh báo banner, lý do bắt buộc, gửi revision và lý do", async () => {
+  it("xóa: cảnh báo banner số mấy, lý do bắt buộc, gửi revision và lý do", async () => {
+    fake.banners[C2] = [3];
     renderAt("/khuyen-mai/chien-dich");
     fireEvent.click(within(await row(/Tri ân khách quen/)).getByRole("button", { name: "Xóa" }));
     const dlg = screen.getByRole("dialog", { name: 'Xóa chiến dịch "Tri ân khách quen tháng 11"?' });
-    expect(within(dlg).getByText(/đang dùng chiến dịch này/)).toBeTruthy();
+    expect(await within(dlg).findByText("Banner trang chủ số 3 đang dùng chiến dịch này")).toBeTruthy();
+    expect(within(dlg).getByText(/và sẽ tự ẩn/)).toBeTruthy();
     const go = within(dlg).getByRole("button", { name: "Xóa chiến dịch" });
     expect(go).toHaveProperty("disabled", true);
     type(within(dlg).getByLabelText("Lý do *"), "Gộp vào Black Friday");
@@ -312,6 +321,14 @@ describe("Tạm dừng, sửa khi đang chạy, xóa", () => {
       path: `/api/v1/web-campaigns/${C2}/delete`,
       body: { revision: 5, reason: "Gộp vào Black Friday" },
     });
+  });
+
+  it("xóa khi không banner nào trỏ chiến dịch: nói rõ, không câu tự ẩn", async () => {
+    renderAt("/khuyen-mai/chien-dich");
+    fireEvent.click(within(await row(/Tri ân khách quen/)).getByRole("button", { name: "Xóa" }));
+    const dlg = screen.getByRole("dialog");
+    expect(await within(dlg).findByText("Không banner trang chủ nào đang dùng chiến dịch này")).toBeTruthy();
+    expect(within(dlg).queryByText(/tự ẩn/)).toBeNull();
   });
 
   it("xóa chiến dịch vừa bị bật ở nơi khác → 409 campaign_running hiện câu, hộp vẫn mở", async () => {
