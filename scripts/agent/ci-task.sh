@@ -29,6 +29,9 @@ step oasdiff make oasdiff OASDIFF_BASE=-base-ref="$base"
 step test-guard scripts/agent/test-guard.sh "$base"
 if printf '%s\n' "$changed" | grep -E -q '^(go\.mod|go\.sum)$'; then step vuln make vuln; fi
 if printf '%s\n' "$changed" | grep -q '^console/'; then step console-check make console-check; fi
+# Test kiến trúc (luật module, SQL, khóa…) là kiểm tĩnh trên mã nguồn: chạy cùng nhóm cổng tĩnh để dừng sớm (24/11, đo Task 197:
+# ci-task lần 2 đỏ ở tests/arch sau ~10 phút; từ Task 480 gói này còn ~25–35 s).
+step "test kiến trúc" go test -race -count=1 ./tests/arch/...
 # Dừng sớm (24/11, chủ shop: "tăng tốc độ xử lý các task và vẫn đảm bảo chất lượng"). Đo Task 195: hai lần cổng tĩnh đỏ
 # (jscpd, lọc người bán) ở phút ~5 nhưng phiên vẫn chờ thêm ~10 phút test rồi mới sửa. Cổng tĩnh đỏ thì bản này chắc
 # chắn phải sửa và chạy lại ci-task, nên test của bản này vô ích: bỏ test, báo ngay mọi cổng đỏ. Không bỏ sót gì: lần
@@ -66,7 +69,11 @@ else
     race=$(printf '%s\n' "$split" | sed -n 's/^race //p')
     plain=$(printf '%s\n' "$split" | sed -n 's/^plain //p' | grep -v '/tests/arch$')
     # shellcheck disable=SC2086
-    step "test -race (gói sửa trực tiếp, vùng cao, test kiến trúc$tnote)" go test -race -count=1 $race ./tests/arch/...
+    race=$(printf '%s\n' "$race" | grep -v '/tests/arch$')
+    if [ -n "$race" ]; then
+      # shellcheck disable=SC2086
+      step "test -race (gói sửa trực tiếp, vùng cao$tnote)" go test -race -count=1 $race
+    fi
     if [ -n "$plain" ]; then
       # shellcheck disable=SC2086
       step "test thường không -race (gói chỉ dùng tới phần đổi$tnote)" go test -count=1 $plain
