@@ -135,7 +135,7 @@ func (r *applyRun) openCallback(ctx context.Context, eventID uuid.UUID, e Carrie
 	if err != nil {
 		return fmt.Errorf("ghi việc gọi lại: %w", err)
 	}
-	return r.publishCallback(ctx, id)
+	return r.s.publishCallback(ctx, r.tx, r.sh.TenantID, id)
 }
 
 // closeCallbacks đóng mọi việc gọi lại còn mở của vận đơn với kết quả outcome.
@@ -147,22 +147,24 @@ func (r *applyRun) closeCallbacks(ctx context.Context, outcome string) error {
 		return fmt.Errorf("đóng việc gọi lại: %w", err)
 	}
 	for _, id := range ids {
-		if err := r.publishCallback(ctx, id); err != nil {
+		if err := r.s.publishCallback(ctx, r.tx, r.sh.TenantID, id); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// publishCallback báo hiệu callback_task.changed (fulfillment.callbacks.work); Bus nil → bỏ qua.
-func (r *applyRun) publishCallback(ctx context.Context, id uuid.UUID) error {
-	if r.s.d.Bus == nil {
+// publishCallback báo hiệu callback_task.changed (fulfillment.callbacks.work) cho việc gọi lại id của tenant trong tx
+// của bên gọi; Bus nil → bỏ qua.
+func (s *Service) publishCallback(ctx context.Context, tx pgx.Tx, tenantID, id uuid.UUID) error {
+	if s.d.Bus == nil {
 		return nil
 	}
-	if err := r.s.d.Bus.Publish(ctx, r.tx, realtime.Signal{
-		TenantID: r.sh.TenantID, Topic: signalCallbackChanged, Requires: permCallbacksWork,
+	sig := realtime.Signal{
+		TenantID: tenantID, Topic: signalCallbackChanged, Requires: permCallbacksWork,
 		Entity: realtime.Entity{Type: "callback_task", ID: id.String()},
-	}); err != nil {
+	}
+	if err := s.d.Bus.Publish(ctx, tx, sig); err != nil {
 		return fmt.Errorf("báo hiệu %s: %w", signalCallbackChanged, err)
 	}
 	return nil
