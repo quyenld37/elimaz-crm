@@ -1,6 +1,6 @@
 // API giả (fetch) và cách dựng cho test vitest của màn Yêu cầu về đơn hàng. Chỉ test nhập tệp này. Trả đúng kiểu của
 // client sinh (OrderRequest, OrderRequestSummary của Task 195; Order của M2).
-import type { Grant, Order, OrderRequest, OrderRequestSummary } from "../../api";
+import type { Grant, Order, OrderRequest, OrderRequestStatus, OrderRequestSummary } from "../../api";
 import {
   NOT_FOUND,
   ORDER_PAGE,
@@ -13,6 +13,7 @@ import {
   type WriteQueue,
 } from "../../app/screenTestkit";
 import { order } from "../don/donTestkit";
+import { STATUSES, isClosed } from "./requestRules";
 import { screens } from "./route";
 
 export { stubDialog } from "../don/donTestkit";
@@ -27,10 +28,25 @@ export const LONG_NAME = "NguyễnThịThuHàShopThờiTrangCôngSởXuấtKhẩ
 /** Một dòng danh sách: YC0000148 đổi hàng, đã tiếp nhận (lấy từ request()); sửa bằng p. */
 export function summary(p: Partial<OrderRequestSummary> = {}): OrderRequestSummary {
   const { id, ref, orderId, orderCode, kind, status, reasonCode, createdAt, version } = request();
-  return { id, ref, orderId, orderCode, kind, status, reasonCode, createdAt, updatedAt: createdAt, version, ...p };
+  return {
+    id,
+    ref,
+    orderId,
+    orderCode,
+    kind,
+    status,
+    reasonCode,
+    customerName: "Trần Thị Thu Hà",
+    photoCount: 3,
+    createdAt,
+    updatedAt: createdAt,
+    version,
+    ...p,
+  };
 }
 
-/** Chi tiết YC0000148: 2 dòng (một dòng muốn đổi biến thể khác), lời nhắn có <script>, 3 ảnh, 2 tin nhân viên. */
+/** Chi tiết YC0000148: 2 dòng (một dòng muốn đổi Đen / L còn 4 ở Kho chính), lời nhắn có <script>, 3 ảnh, 2 tin nhân
+ * viên, chưa đổi trạng thái lần nào. */
 export function request(p: Partial<OrderRequest> = {}): OrderRequest {
   return {
     id: RQ1,
@@ -50,6 +66,14 @@ export function request(p: Partial<OrderRequest> = {}): OrderRequest {
         wantVariantId: VAR2,
         sku: "DS2201-DEN-M",
         name: "Đầm suông cổ vuông",
+        want: {
+          sku: "DS2201-DEN-L",
+          productName: "Đầm suông cổ vuông",
+          color: "Đen",
+          size: "L",
+          available: 4,
+          warehouseName: "Kho chính",
+        },
       },
       {
         variantId: VAR2,
@@ -83,6 +107,7 @@ export function request(p: Partial<OrderRequest> = {}): OrderRequest {
       { fileId: "f2", status: "processing" },
       { fileId: "f3", status: "rejected" },
     ],
+    history: [],
     createdAt: "2026-11-21T03:42:00Z",
     updatedAt: "2026-11-21T03:52:00Z",
     version: 1,
@@ -104,20 +129,42 @@ export interface Fake extends WriteQueue {
   order: Order;
   /** Lỗi trả cho mọi lần đọc danh sách (ví dụ 403). */
   listError: { status: number; body: unknown } | null;
+  /** Số lần đọc countOrderRequests; lỗi trả cho mọi lần đọc số (null: đếm từ rows). */
+  countReads: number;
+  countError: { status: number; body: unknown } | null;
+}
+
+/** Số theo trạng thái như máy chủ (countOrderRequests): đếm rows, đủ 8 trạng thái. */
+function counts(fake: Fake): Response {
+  fake.countReads++;
+  if (fake.countError !== null) return reply(fake.countError.body, fake.countError.status);
+  const n = (s: OrderRequestStatus) => fake.rows.filter((r) => r.status === s).length;
+  return reply({
+    statuses: STATUSES.map((status) => ({ status, count: n(status) })),
+    open: fake.rows.filter((r) => !isClosed(r.status)).length,
+    total: fake.rows.length,
+  });
 }
 
 function listPage(fake: Fake, q: URLSearchParams): Response {
   fake.listCalls.push(q);
   if (fake.listError !== null) return reply(fake.listError.body, fake.listError.status);
   const status = q.get("status");
+  const statuses = q.getAll("statuses");
   const kind = q.get("kind");
-  const all = fake.rows.filter((r) => (status === null || r.status === status) && (kind === null || r.kind === kind));
+  const all = fake.rows.filter(
+    (r) =>
+      (status === null || r.status === status) &&
+      (statuses.length === 0 || statuses.includes(r.status)) &&
+      (kind === null || r.kind === kind),
+  );
   return reply(page(all, q));
 }
 
 function read(fake: Fake, p: string, q: URLSearchParams): Response {
   if (p === "/api/v1/me") return meReply(fake.grants);
   if (p === "/api/v1/order-requests") return listPage(fake, q);
+  if (p === "/api/v1/order-requests/counts") return counts(fake);
   const one = /^\/api\/v1\/order-requests\/([^/]+)$/.exec(p);
   if (one !== null) {
     const r = fake.details.get(one[1] ?? "");
@@ -160,6 +207,8 @@ export function installFake(): Fake {
     details: new Map([[RQ1, request()]]),
     order: order({ id: ORD, code: "DH0001312", grandTotal: 1_270_000 }),
     listError: null,
+    countReads: 0,
+    countError: null,
     ...emptyWrites(),
   };
   return stubApi(fake, read, writeReply);

@@ -197,6 +197,19 @@ type Handler interface {
 	//
 	// POST /api/v1/orders/{id}/confirm
 	ConfirmOrder(ctx context.Context, req *VersionRequest, params ConfirmOrderParams) (ConfirmOrderRes, error)
+	// CountFeedback implements countFeedback operation.
+	//
+	// Số góp ý theo trạng thái (đủ 3 trạng thái) và tổng, cho thanh lọc của màn Góp
+	// ý (Task 486).
+	//
+	// GET /api/v1/feedback/counts
+	CountFeedback(ctx context.Context) (CountFeedbackRes, error)
+	// CountOrderRequests implements countOrderRequests operation.
+	//
+	// Đếm mọi yêu cầu của shop, không theo bộ lọc loại hay ô tìm.
+	//
+	// GET /api/v1/order-requests/counts
+	CountOrderRequests(ctx context.Context) (CountOrderRequestsRes, error)
 	// CreateAttribute implements createAttribute operation.
 	//
 	// Tạo thuộc tính (mã chữ thường, không trùng).

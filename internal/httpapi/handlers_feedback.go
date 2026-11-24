@@ -93,12 +93,35 @@ func (h *handler) UpdateFeedback(ctx context.Context, req *gen.UpdateFeedbackReq
 }
 
 // feedbackOut đổi góp ý sang kiểu API; names: tên nhân viên theo mã (staffNames).
+// CountFeedback (GET /api/v1/feedback/counts, customer.feedback.read): số góp ý theo trạng thái (đủ 3) và tổng, cho
+// thanh lọc của màn Góp ý (Task 486).
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) CountFeedback(ctx context.Context) (gen.CountFeedbackRes, error) {
+	var c customer.FeedbackCounts
+	if err := h.catalogRead(ctx, func(tx pgx.Tx) error {
+		var err error
+		c, err = customer.CountFeedback(ctx, tx)
+		return err //nolint:wrapcheck // customer đã bọc
+	}); err != nil {
+		return nil, fmt.Errorf("đếm góp ý: %w", err)
+	}
+	out := &gen.FeedbackCounts{Total: int32(c.Total)} //nolint:gosec // G115: số dòng một tenant
+	for _, s := range []string{customer.FeedbackNew, customer.FeedbackSeen, customer.FeedbackAnswered} {
+		out.States = append(out.States, gen.FeedbackCountsStatesItem{
+			State: gen.FeedbackState(s), Count: int32(c.ByState[s]), //nolint:gosec // G115: số dòng một tenant
+		})
+	}
+	return out, nil
+}
+
 func feedbackOut(f customer.Feedback, names map[uuid.UUID]string) gen.Feedback {
 	out := gen.Feedback{
 		ID: f.ID, Topic: gen.FeedbackTopic(f.Topic), Body: string(f.Body), Name: nonEmpty(string(f.Name)),
 		Contact: nonEmpty(string(f.Contact)), OrderRef: nonEmpty(f.OrderRef), Page: nonEmpty(f.Page),
 		Device: nonEmpty(f.Device), State: gen.FeedbackState(f.State), Note: nonEmpty(string(f.Note)),
-		CustomerName: nonEmpty(string(f.CustomerName)), CreatedAt: f.CreatedAt, UpdatedAt: f.UpdatedAt,
+		CustomerName: nonEmpty(string(f.CustomerName)), CustomerCode: nonEmpty(f.CustomerCode),
+		CreatedAt: f.CreatedAt, UpdatedAt: f.UpdatedAt,
 		Version: int32(f.Version), //nolint:gosec // G115: version nhỏ
 	}
 	if f.Mood != nil {

@@ -1,31 +1,55 @@
-// Danh sách Yêu cầu về đơn hàng /don/yeu-cau (kế hoạch M5 Task 207, M5-24; mockup docs/mockups/m5/order-requests.html
-// trạng thái A, F; HV03). Máy chủ trả mới nhất trước, lọc một trạng thái, một loại, q (mã yêu cầu, mã đơn, SĐT, tên khách
-// không dấu). API chưa trả tên khách, số ảnh, số đếm theo trạng thái: màn không vẽ các cột, số đó (tệp task, Quyết định
-// 1). Báo hiệu order_request.changed tải lại danh sách (yêu cầu mới tự hiện).
+// Danh sách Yêu cầu về đơn hàng /don/yeu-cau (kế hoạch M5 Task 207, M5-24; Task 486; mockup
+// docs/mockups/m5/order-requests.html trạng thái A, F; HV03). Máy chủ trả mới nhất trước, lọc trạng thái (một, hay nhãn
+// "Đang mở" = các trạng thái chưa đóng — mặc định), một loại, q (mã yêu cầu, mã đơn, SĐT, tên khách không dấu). Số trên
+// nhãn đếm cả shop (countOrderRequests), không theo loại, ô tìm. Báo hiệu order_request.changed tải lại danh sách và
+// số (yêu cầu mới tự hiện).
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
-import { listOrderRequests, type OrderRequestKind, type OrderRequestPage, type OrderRequestStatus } from "../../api";
+import {
+  listOrderRequests,
+  type OrderRequestKind,
+  type OrderRequestPage,
+  type OrderRequestStatus,
+  type OrderRequestSummary,
+} from "../../api";
 import { errorMessage, unwrap } from "../../app/errors";
 import { queryKey } from "../../app/queryClient";
-import { shortTime } from "../../app/time";
+import { shortTime, VN_TIME_ZONE } from "../../app/time";
+import { CountLabel } from "../don/CountLabel";
 import { SEARCH_DELAY_MS, useDebounced } from "../inventory/Balances";
 import { MoreBar } from "../ma-giam-gia/MoreBar";
-import { PAGE, REQUEST_TOPIC, usePerms } from "./requestData";
-import { KINDS, KIND_TEXT, STATUSES, STATUS_TEXT, isClosed, reasonText, statusChip } from "./requestRules";
+import { PAGE, REQUEST_TOPIC, usePerms, useRequestCounts } from "./requestData";
+import { KINDS, KIND_TEXT, OPEN_STATUSES, STATUSES, STATUS_TEXT, isClosed, statusChip } from "./requestRules";
 import "../don/don.css";
 import "./order-requests.css";
 
 const asKind = (v: string): OrderRequestKind | "" => KINDS.find((k) => k === v) ?? "";
 
+/** Bộ lọc trạng thái của thanh nhãn: "open" là nhãn "Đang mở", "" là "Tất cả". */
+type StatusFilter = OrderRequestStatus | "open" | "";
+
+const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", timeZone: VN_TIME_ZONE });
+
+/** Chữ trạng thái của dòng; đã xác nhận đổi kèm hạn gửi hàng về (mockup A: "Đã xác nhận đổi · gửi trước 25/11"). */
+function statusLine(r: OrderRequestSummary): string {
+  const text = STATUS_TEXT[r.status];
+  if (r.status !== "confirmed" || r.shipBackDeadline === undefined) return text;
+  return `${text} · gửi trước ${dayMonth.format(new Date(r.shipBackDeadline))}`;
+}
+
+/** Số ảnh: đổi, trả hiện số (cả 0); hủy, hỏi không gửi ảnh → "—". */
+const photos = (r: OrderRequestSummary): string =>
+  r.kind === "exchange" || r.kind === "return" ? String(r.photoCount) : "—";
+
 export function RequestList() {
   const perms = usePerms();
-  const [status, setStatus] = useState<OrderRequestStatus | "">("");
+  const [status, setStatus] = useState<StatusFilter>("open");
   const [kind, setKind] = useState<OrderRequestKind | "">("");
   const [text, setText] = useState("");
   const q = useDebounced(text.trim(), SEARCH_DELAY_MS);
   const query = {
-    ...(status === "" ? {} : { status }),
+    ...(status === "open" ? { statuses: [...OPEN_STATUSES] } : status === "" ? {} : { status }),
     ...(kind === "" ? {} : { kind }),
     ...(q === "" ? {} : { q }),
     limit: PAGE,
@@ -39,22 +63,33 @@ export function RequestList() {
       unwrap(listOrderRequests({ query: { ...query, ...(pageParam === "" ? {} : { cursor: pageParam }) } })),
   });
   const rows = list.data?.pages.flatMap((p) => p.items) ?? [];
-  const filtered = status !== "" || kind !== "" || q !== "";
+  const counts = useRequestCounts();
+  const filtered = (status !== "" && status !== "open") || kind !== "" || q !== "";
   const canOrder = perms.can("order.read");
 
-  const label = (value: OrderRequestStatus | "", name: string) => (
-    <button
-      key={name}
-      type="button"
-      className="lbl"
-      aria-pressed={status === value}
-      onClick={() => {
-        setStatus(value);
-      }}
-    >
-      {name}
-    </button>
-  );
+  const label = (value: StatusFilter, name: string) => {
+    const c = counts.data;
+    const n =
+      c === undefined
+        ? undefined
+        : value === "open"
+          ? c.open
+          : value === ""
+            ? c.total
+            : c.statuses.find((x) => x.status === value)?.count;
+    return (
+      <CountLabel
+        key={name}
+        text={name}
+        n={n}
+        pressed={status === value}
+        attention={value === "open"}
+        onSelect={() => {
+          setStatus(value);
+        }}
+      />
+    );
+  };
   const showAll = () => {
     setStatus("");
     setKind("");
@@ -68,13 +103,14 @@ export function RequestList() {
           <h1>Yêu cầu về đơn hàng</h1>
           <p className="sub">
             Khách gửi từ trang đơn hàng trên website: đổi hàng, trả hàng, hủy đơn, hỏi về đơn. Yêu cầu mới tự hiện
-            (không cần tải lại).
+            (không cần tải lại); số cạnh mục menu là số yêu cầu đang mở.
           </p>
         </div>
       </div>
 
       <div className="scroll-x">
         <div className="lblbar" role="group" aria-label="Lọc theo trạng thái">
+          {label("open", "Đang mở")}
           {STATUSES.map((s) => label(s, STATUS_TEXT[s]))}
           {label("", "Tất cả")}
         </div>
@@ -129,9 +165,15 @@ export function RequestList() {
         <p className="muted">Đang tải danh sách yêu cầu…</p>
       ) : rows.length === 0 ? (
         <div className="empty">
-          <h2>{filtered ? "Không có yêu cầu nào khớp" : "Chưa có yêu cầu nào"}</h2>
+          <h2>
+            {filtered
+              ? "Không có yêu cầu nào khớp"
+              : status === "open"
+                ? "Không có yêu cầu đang mở"
+                : "Chưa có yêu cầu nào"}
+          </h2>
           <p className="muted">Yêu cầu mới từ website sẽ tự hiện ở đây.</p>
-          {filtered && (
+          {(filtered || status === "open") && (
             <button type="button" className="btn btn-quiet" onClick={showAll}>
               Xem tất cả yêu cầu
             </button>
@@ -143,7 +185,7 @@ export function RequestList() {
             <table className="tbl rq">
               <thead>
                 <tr>
-                  {["Yêu cầu", "Đơn", "Lý do", "Trạng thái", "Cập nhật"].map((h) => (
+                  {["Yêu cầu", "Đơn", "Khách", "Trạng thái", "Ảnh", "Cập nhật"].map((h) => (
                     <th key={h}>{h}</th>
                   ))}
                 </tr>
@@ -168,11 +210,14 @@ export function RequestList() {
                         <span className="num">{r.orderCode}</span>
                       )}
                     </td>
-                    <td data-label="Lý do">
-                      <span className="clamp2 wrap-any">{reasonText(r.reasonCode)}</span>
+                    <td data-label="Khách">
+                      <span className="clamp2 wrap-any">{r.customerName ?? "—"}</span>
                     </td>
                     <td data-label="Trạng thái">
-                      <span className={statusChip(r.status)}>{STATUS_TEXT[r.status]}</span>
+                      <span className={statusChip(r.status)}>{statusLine(r)}</span>
+                    </td>
+                    <td data-label="Ảnh" className="num">
+                      {photos(r)}
                     </td>
                     <td data-label="Cập nhật">
                       <span className="small num">{shortTime(r.updatedAt)}</span>

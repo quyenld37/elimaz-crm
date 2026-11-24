@@ -13,13 +13,16 @@ export const PAGE = 50;
 export const PROFILE_PAGE = 5;
 
 export const listKey = (q: object) => queryKey(FEEDBACK_KEY, "list", q);
+/** Số góp ý theo trạng thái (thanh nhãn của màn Góp ý, Task 486). */
+export const countsKey = queryKey(FEEDBACK_KEY, "counts");
 /** Khối Góp ý của hồ sơ khách (một trang thường, không phải InfiniteData như listKey). */
 export const customerKey = (customerId: string) => queryKey(FEEDBACK_KEY, "customer", customerId);
 export const headers = (key: string) => ({ "Idempotency-Key": key });
 
-/** Thay góp ý vừa sửa trong mọi danh sách đã tải (không tải lại cả danh sách); khối hồ sơ đọc lại. */
+/** Thay góp ý vừa sửa trong mọi danh sách đã tải (không tải lại cả danh sách); khối hồ sơ, số theo trạng thái đọc lại. */
 export function putFeedback(qc: QueryClient, f: Feedback) {
   void qc.invalidateQueries({ queryKey: queryKey(FEEDBACK_KEY, "customer") });
+  void qc.invalidateQueries({ queryKey: countsKey });
   qc.setQueriesData<InfiniteData<FeedbackPage>>({ queryKey: queryKey(FEEDBACK_KEY, "list") }, (d) =>
     d === undefined
       ? d

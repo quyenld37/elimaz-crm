@@ -40,6 +40,39 @@ func (q *Queries) AttachedFiles(ctx context.Context, ids []uuid.UUID) ([]uuid.UU
 	return items, nil
 }
 
+const countOrderRequests = `-- name: CountOrderRequests :many
+SELECT status, count(*)::int AS n
+FROM ord.order_requests
+GROUP BY status
+`
+
+type CountOrderRequestsRow struct {
+	Status string
+	N      int32
+}
+
+// Số yêu cầu theo trạng thái của tenant (Task 486; index order_requests_status). Chỉ đọc bảng yêu cầu: yêu cầu chỉ có
+// trên đơn web của người bán mặc định (tạo qua LockWebOrderForRequest).
+func (q *Queries) CountOrderRequests(ctx context.Context) ([]CountOrderRequestsRow, error) {
+	rows, err := q.db.Query(ctx, countOrderRequests)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountOrderRequestsRow{}
+	for rows.Next() {
+		var i CountOrderRequestsRow
+		if err := rows.Scan(&i.Status, &i.N); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countRecentOrderRequests = `-- name: CountRecentOrderRequests :one
 SELECT count(*)::int
 FROM ord.order_requests
@@ -61,7 +94,7 @@ func (q *Queries) CountRecentOrderRequests(ctx context.Context, arg CountRecentO
 const getOrderRequest = `-- name: GetOrderRequest :one
 SELECT r.id, r.order_id, r.ref, r.kind, r.status, r.reason_code, r.lines, r.source, r.customer_note,
        r.condition_confirmed, r.ship_back, r.outcome, r.created_at, r.updated_at, r.resolved_at, r.resolved_by,
-       r.version, o.code AS order_code, o.external_ref AS order_external_ref
+       r.version, o.code AS order_code, o.external_ref AS order_external_ref, o.warehouse_id AS order_warehouse_id
 FROM ord.order_requests AS r
 JOIN ord.orders AS o ON o.tenant_id = r.tenant_id AND o.id = r.order_id
 WHERE r.id = $1 AND o.seller_id = $2
@@ -92,6 +125,7 @@ type GetOrderRequestRow struct {
 	Version            int32
 	OrderCode          string
 	OrderExternalRef   pgtype.Text
+	OrderWarehouseID   uuid.UUID
 }
 
 func (q *Queries) GetOrderRequest(ctx context.Context, arg GetOrderRequestParams) (GetOrderRequestRow, error) {
@@ -117,6 +151,7 @@ func (q *Queries) GetOrderRequest(ctx context.Context, arg GetOrderRequestParams
 		&i.Version,
 		&i.OrderCode,
 		&i.OrderExternalRef,
+		&i.OrderWarehouseID,
 	)
 	return i, err
 }
@@ -188,6 +223,35 @@ func (q *Queries) InsertOrderRequest(ctx context.Context, arg InsertOrderRequest
 	return id, err
 }
 
+const insertOrderRequestEvent = `-- name: InsertOrderRequestEvent :exec
+INSERT INTO ord.order_request_events (tenant_id, request_id, from_status, to_status, actor_type, actor_id, created_at)
+VALUES ($1, $2, $3, $4, $5, $6::text, $7)
+`
+
+type InsertOrderRequestEventParams struct {
+	TenantID   uuid.UUID
+	RequestID  uuid.UUID
+	FromStatus string
+	ToStatus   string
+	ActorType  string
+	ActorID    pgtype.Text
+	Now        time.Time
+}
+
+// Một dòng lịch sử (chỉ ghi thêm) khi yêu cầu đổi trạng thái (Task 486).
+func (q *Queries) InsertOrderRequestEvent(ctx context.Context, arg InsertOrderRequestEventParams) error {
+	_, err := q.db.Exec(ctx, insertOrderRequestEvent,
+		arg.TenantID,
+		arg.RequestID,
+		arg.FromStatus,
+		arg.ToStatus,
+		arg.ActorType,
+		arg.ActorID,
+		arg.Now,
+	)
+	return err
+}
+
 const insertOrderRequestFile = `-- name: InsertOrderRequestFile :execrows
 INSERT INTO ord.order_request_files (tenant_id, request_id, file_id, position)
 VALUES ($1, $2, $3, $4)
@@ -250,6 +314,47 @@ func (q *Queries) InsertOrderRequestMessage(ctx context.Context, arg InsertOrder
 	var i InsertOrderRequestMessageRow
 	err := row.Scan(&i.ID, &i.CreatedAt)
 	return i, err
+}
+
+const listOrderRequestEvents = `-- name: ListOrderRequestEvents :many
+SELECT from_status, to_status, actor_type, actor_id, created_at
+FROM ord.order_request_events
+WHERE request_id = $1
+ORDER BY created_at, id
+`
+
+type ListOrderRequestEventsRow struct {
+	FromStatus string
+	ToStatus   string
+	ActorType  string
+	ActorID    pgtype.Text
+	CreatedAt  time.Time
+}
+
+func (q *Queries) ListOrderRequestEvents(ctx context.Context, requestID uuid.UUID) ([]ListOrderRequestEventsRow, error) {
+	rows, err := q.db.Query(ctx, listOrderRequestEvents, requestID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOrderRequestEventsRow{}
+	for rows.Next() {
+		var i ListOrderRequestEventsRow
+		if err := rows.Scan(
+			&i.FromStatus,
+			&i.ToStatus,
+			&i.ActorType,
+			&i.ActorID,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listOrderRequestFiles = `-- name: ListOrderRequestFiles :many
@@ -323,12 +428,15 @@ func (q *Queries) ListOrderRequestMessages(ctx context.Context, requestID uuid.U
 }
 
 const listOrderRequests = `-- name: ListOrderRequests :many
-SELECT r.id, r.order_id, r.ref, r.kind, r.status, r.reason_code, r.created_at, r.updated_at, r.version,
-       o.code AS order_code
+SELECT r.id, r.order_id, r.ref, r.kind, r.status, r.reason_code, r.created_at, r.updated_at, r.version, r.ship_back,
+       o.code AS order_code, rt.full_name AS customer_name,
+       (SELECT count(*) FROM ord.order_request_files AS f WHERE f.request_id = r.id)::int AS photo_count
 FROM ord.order_requests AS r
 JOIN ord.orders AS o ON o.tenant_id = r.tenant_id AND o.id = r.order_id
+LEFT JOIN customer.customers_v AS cu ON cu.tenant_id = o.tenant_id AND cu.id = o.customer_id
+LEFT JOIN customer.customers_v AS rt ON rt.tenant_id = cu.tenant_id AND rt.id = cu.root_id
 WHERE o.seller_id = $1
-  AND ($2::text IS NULL OR r.status = $2::text)
+  AND ($2::text[] IS NULL OR r.status = ANY ($2::text[]))
   AND ($3::text IS NULL OR r.kind = $3::text)
   AND ($4::text IS NULL OR r.ref = $4::text)
   AND ($5::text IS NULL OR o.code = $5::text)
@@ -344,7 +452,7 @@ LIMIT $11::int
 
 type ListOrderRequestsParams struct {
 	SellerID      uuid.UUID
-	Status        pgtype.Text
+	Statuses      []string
 	Kind          pgtype.Text
 	Ref           pgtype.Text
 	OrderCode     pgtype.Text
@@ -357,24 +465,28 @@ type ListOrderRequestsParams struct {
 }
 
 type ListOrderRequestsRow struct {
-	ID         uuid.UUID
-	OrderID    uuid.UUID
-	Ref        string
-	Kind       string
-	Status     string
-	ReasonCode string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
-	Version    int32
-	OrderCode  string
+	ID           uuid.UUID
+	OrderID      uuid.UUID
+	Ref          string
+	Kind         string
+	Status       string
+	ReasonCode   string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	Version      int32
+	ShipBack     []byte
+	OrderCode    string
+	CustomerName pgtype.Text
+	PhotoCount   int32
 }
 
-// Danh sách cho nhân viên, mới trước (keyset created_at, id). Bộ lọc NULL: không lọc. customer_roots: đơn của khách
-// thuộc các nhóm gốc đó (tìm theo tên, không dấu, qua customer.Search).
+// Danh sách cho nhân viên, mới trước (keyset created_at, id). Bộ lọc NULL: không lọc; statuses: một trong các trạng
+// thái. customer_roots: đơn của khách thuộc các nhóm gốc đó (tìm theo tên, không dấu, qua customer.Search). Kèm tên gốc
+// hiện tại của khách (Task 486), số ảnh, hướng dẫn gửi trả (hạn gửi).
 func (q *Queries) ListOrderRequests(ctx context.Context, arg ListOrderRequestsParams) ([]ListOrderRequestsRow, error) {
 	rows, err := q.db.Query(ctx, listOrderRequests,
 		arg.SellerID,
-		arg.Status,
+		arg.Statuses,
 		arg.Kind,
 		arg.Ref,
 		arg.OrderCode,
@@ -402,7 +514,10 @@ func (q *Queries) ListOrderRequests(ctx context.Context, arg ListOrderRequestsPa
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.ShipBack,
 			&i.OrderCode,
+			&i.CustomerName,
+			&i.PhotoCount,
 		); err != nil {
 			return nil, err
 		}
@@ -631,6 +746,62 @@ func (q *Queries) OrderItemQuantities(ctx context.Context, arg OrderItemQuantiti
 			&i.Quantity,
 			&i.Sku,
 			&i.Name,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const requestWantVariants = `-- name: RequestWantVariants :many
+SELECT v.variant_id, v.sku, v.product_name, v.color, v.size, coalesce(s.available, 0)::int AS available,
+       w.name AS warehouse_name
+FROM catalog.variants_v AS v
+LEFT JOIN inventory.warehouses_v AS w ON w.warehouse_id = $1::uuid
+LEFT JOIN inventory.stock_available_v AS s
+       ON s.variant_id = v.variant_id AND s.warehouse_id = w.warehouse_id AND s.seller_id = v.seller_id
+WHERE v.seller_id = $2 AND v.variant_id = ANY ($3::uuid[])
+`
+
+type RequestWantVariantsParams struct {
+	WarehouseID uuid.UUID
+	SellerID    uuid.UUID
+	Ids         []uuid.UUID
+}
+
+type RequestWantVariantsRow struct {
+	VariantID     uuid.UUID
+	Sku           string
+	ProductName   string
+	Color         string
+	Size          string
+	Available     int32
+	WarehouseName pgtype.Text
+}
+
+// Biến thể khách muốn đổi sang (Task 486): mã, tên mẫu, màu, cỡ; số còn bán được ở kho warehouse_id của đơn (chưa có
+// dòng tồn → 0) và tên kho (NULL khi không đọc được kho: khi đó bỏ số còn).
+func (q *Queries) RequestWantVariants(ctx context.Context, arg RequestWantVariantsParams) ([]RequestWantVariantsRow, error) {
+	rows, err := q.db.Query(ctx, requestWantVariants, arg.WarehouseID, arg.SellerID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RequestWantVariantsRow{}
+	for rows.Next() {
+		var i RequestWantVariantsRow
+		if err := rows.Scan(
+			&i.VariantID,
+			&i.Sku,
+			&i.ProductName,
+			&i.Color,
+			&i.Size,
+			&i.Available,
+			&i.WarehouseName,
 		); err != nil {
 			return nil, err
 		}

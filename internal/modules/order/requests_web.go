@@ -377,7 +377,7 @@ func (w Writer) CustomerReplyRequest(ctx context.Context, tx pgx.Tx, sellerID uu
 	}
 	return w.moveRequest(ctx, q, tx, a.TenantID, Request{
 		ID: r.ID, OrderID: r.OrderID, Ref: r.Ref, Kind: r.Kind, Status: r.Status, Version: int(r.Version),
-	}, RequestInReview, store.UpdateOrderRequestStatusParams{}, now)
+	}, RequestInReview, store.UpdateOrderRequestStatusParams{}, AuthorCustomer, a.UserID.String(), now)
 }
 
 // CustomerCancelRequest cho khách rút yêu cầu ref khi nhân viên chưa bắt đầu (received → cancelled). Đã cancelled → trả
@@ -401,13 +401,13 @@ func (w Writer) CustomerCancelRequest(ctx context.Context, tx pgx.Tx, sellerID u
 	now = now.UTC()
 	return w.moveRequest(ctx, q, tx, a.TenantID, cur, RequestCancelled, store.UpdateOrderRequestStatusParams{
 		ResolvedAt: pgtype.Timestamptz{Time: now, Valid: true},
-	}, now)
+	}, AuthorCustomer, a.UserID.String(), now)
 }
 
-// moveRequest ghi trạng thái to (p mang ship_back, outcome, resolved_*) cho yêu cầu cur đã khóa, version + 1, báo
-// hiệu.
+// moveRequest ghi trạng thái to (p mang ship_back, outcome, resolved_*) cho yêu cầu cur đã khóa, version + 1, một dòng
+// lịch sử (người làm actorType AuthorStaff/AuthorCustomer, mã actorID), báo hiệu.
 func (w Writer) moveRequest(ctx context.Context, q *store.Queries, tx pgx.Tx, tenant uuid.UUID, cur Request, to string,
-	p store.UpdateOrderRequestStatusParams, now time.Time,
+	p store.UpdateOrderRequestStatusParams, actorType, actorID string, now time.Time,
 ) (RequestChange, error) {
 	p.Status, p.Now, p.ID, p.Version = to, now, cur.ID, int32(cur.Version) //nolint:gosec // version int4 của bảng
 	v, err := q.UpdateOrderRequestStatus(ctx, p)
@@ -416,6 +416,12 @@ func (w Writer) moveRequest(ctx context.Context, q *store.Queries, tx pgx.Tx, te
 	}
 	if err != nil {
 		return RequestChange{}, fmt.Errorf("đổi trạng thái yêu cầu: %w", err)
+	}
+	if err := q.InsertOrderRequestEvent(ctx, store.InsertOrderRequestEventParams{
+		TenantID: tenant, RequestID: cur.ID, FromStatus: cur.Status, ToStatus: to, ActorType: actorType,
+		ActorID: pgtype.Text{String: actorID, Valid: actorID != ""}, Now: now,
+	}); err != nil {
+		return RequestChange{}, fmt.Errorf("ghi lịch sử yêu cầu: %w", err)
 	}
 	after := cur
 	after.Status, after.Version = to, int(v)
@@ -442,7 +448,7 @@ func ListWebRequests(ctx context.Context, tx pgx.Tx, sellerID uuid.UUID, externa
 	}
 	out := make([]RequestDetail, 0, len(ids))
 	for _, id := range ids {
-		d, err := GetRequest(ctx, tx, sellerID, id)
+		d, err := getRequest(ctx, tx, sellerID, id, false)
 		if err != nil {
 			return nil, err
 		}

@@ -58,7 +58,8 @@ type FeedbackInput struct {
 	OrderRef, Page, Device, ClientHash string
 }
 
-// Feedback là một góp ý đã lưu. CustomerID, CustomerName: gốc hiện tại của khách được gắn lúc gửi (nil: không gắn).
+// Feedback là một góp ý đã lưu. CustomerID, CustomerName, CustomerCode: gốc hiện tại của khách được gắn lúc gửi (nil,
+// rỗng: không gắn).
 type Feedback struct {
 	ID                     uuid.UUID
 	Topic                  string
@@ -71,6 +72,7 @@ type Feedback struct {
 	Note                   NoteBody
 	CustomerID             *uuid.UUID
 	CustomerName           Name
+	CustomerCode           string
 	CreatedAt, UpdatedAt   time.Time
 	UpdatedBy              *uuid.UUID
 	Version                int
@@ -262,6 +264,26 @@ func ListFeedback(ctx context.Context, tx pgx.Tx, f FeedbackFilter) ([]Feedback,
 	return out, next, nil
 }
 
+// FeedbackCounts là số góp ý của tenant theo trạng thái (đủ ba trạng thái, kể cả 0) và tổng.
+type FeedbackCounts struct {
+	ByState map[string]int
+	Total   int
+}
+
+// CountFeedback đếm góp ý của tenant đang chạy theo trạng thái (thanh lọc của màn Góp ý).
+func CountFeedback(ctx context.Context, tx pgx.Tx) (FeedbackCounts, error) {
+	rows, err := store.New(tx).CountFeedback(ctx)
+	if err != nil {
+		return FeedbackCounts{}, fmt.Errorf("đếm góp ý: %w", err)
+	}
+	c := FeedbackCounts{ByState: map[string]int{FeedbackNew: 0, FeedbackSeen: 0, FeedbackAnswered: 0}}
+	for _, r := range rows {
+		c.ByState[r.State] = int(r.N)
+		c.Total += int(r.N)
+	}
+	return c, nil
+}
+
 func feedbackOf(r store.ListFeedbackRow) Feedback {
 	f := Feedback{
 		ID: r.ID, Topic: r.Topic, Body: NoteBody(r.Body), Name: Name(r.Name.String), Contact: logging.Secret(r.Contact.String),
@@ -275,7 +297,7 @@ func feedbackOf(r store.ListFeedbackRow) Feedback {
 	}
 	if r.RootID.Valid {
 		id := uuid.UUID(r.RootID.Bytes)
-		f.CustomerID = &id
+		f.CustomerID, f.CustomerCode = &id, r.RootCode.String
 	}
 	if r.UpdatedBy.Valid {
 		id := uuid.UUID(r.UpdatedBy.Bytes)

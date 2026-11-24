@@ -286,6 +286,25 @@ func (UnimplementedHandler) ConfirmOrder(ctx context.Context, req *VersionReques
 	return r, ht.ErrNotImplemented
 }
 
+// CountFeedback implements countFeedback operation.
+//
+// Số góp ý theo trạng thái (đủ 3 trạng thái) và tổng, cho thanh lọc của màn Góp
+// ý (Task 486).
+//
+// GET /api/v1/feedback/counts
+func (UnimplementedHandler) CountFeedback(ctx context.Context) (r CountFeedbackRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// CountOrderRequests implements countOrderRequests operation.
+//
+// Đếm mọi yêu cầu của shop, không theo bộ lọc loại hay ô tìm.
+//
+// GET /api/v1/order-requests/counts
+func (UnimplementedHandler) CountOrderRequests(ctx context.Context) (r CountOrderRequestsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateAttribute implements createAttribute operation.
 //
 // Tạo thuộc tính (mã chữ thường, không trùng).

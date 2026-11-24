@@ -2,7 +2,7 @@
 // có yêu cầu mới hay vừa đổi, chỉ mang mã yêu cầu; Task 195). Danh sách tải lại theo mọi báo hiệu của chủ đề; chi tiết
 // chỉ tải lại khi báo hiệu đúng yêu cầu đang xem.
 import { useQuery, type QueryClient } from "@tanstack/react-query";
-import { getOrder, getOrderRequest } from "../../api";
+import { countOrderRequests, getOrder, getOrderRequest } from "../../api";
 import { unwrap } from "../../app/errors";
 import { queryKey } from "../../app/queryClient";
 import { entityMeta, orderKey } from "../don/orderData";
@@ -32,6 +32,14 @@ export function useRequestOrder(orderId: string | undefined, enabled: boolean) {
     meta: entityMeta(orderId ?? ""),
     enabled: enabled && orderId !== undefined,
     queryFn: () => unwrap(getOrder({ path: { id: orderId ?? "" } })),
+  });
+}
+
+/** Số yêu cầu theo trạng thái của cả shop (thanh nhãn, số cạnh menu); tải lại theo báo hiệu order_request.changed. */
+export function useRequestCounts() {
+  return useQuery({
+    queryKey: queryKey(REQUEST_TOPIC, "counts"),
+    queryFn: () => unwrap(countOrderRequests()),
   });
 }
 

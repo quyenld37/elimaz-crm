@@ -85,7 +85,7 @@ ON CONFLICT DO NOTHING;
 -- name: GetOrderRequest :one
 SELECT r.id, r.order_id, r.ref, r.kind, r.status, r.reason_code, r.lines, r.source, r.customer_note,
        r.condition_confirmed, r.ship_back, r.outcome, r.created_at, r.updated_at, r.resolved_at, r.resolved_by,
-       r.version, o.code AS order_code, o.external_ref AS order_external_ref
+       r.version, o.code AS order_code, o.external_ref AS order_external_ref, o.warehouse_id AS order_warehouse_id
 FROM ord.order_requests AS r
 JOIN ord.orders AS o ON o.tenant_id = r.tenant_id AND o.id = r.order_id
 WHERE r.id = @id AND o.seller_id = @seller_id;
@@ -141,14 +141,18 @@ WHERE order_id = @order_id
 ORDER BY created_at DESC, id DESC;
 
 -- name: ListOrderRequests :many
--- Danh sách cho nhân viên, mới trước (keyset created_at, id). Bộ lọc NULL: không lọc. customer_roots: đơn của khách
--- thuộc các nhóm gốc đó (tìm theo tên, không dấu, qua customer.Search).
-SELECT r.id, r.order_id, r.ref, r.kind, r.status, r.reason_code, r.created_at, r.updated_at, r.version,
-       o.code AS order_code
+-- Danh sách cho nhân viên, mới trước (keyset created_at, id). Bộ lọc NULL: không lọc; statuses: một trong các trạng
+-- thái. customer_roots: đơn của khách thuộc các nhóm gốc đó (tìm theo tên, không dấu, qua customer.Search). Kèm tên gốc
+-- hiện tại của khách (Task 486), số ảnh, hướng dẫn gửi trả (hạn gửi).
+SELECT r.id, r.order_id, r.ref, r.kind, r.status, r.reason_code, r.created_at, r.updated_at, r.version, r.ship_back,
+       o.code AS order_code, rt.full_name AS customer_name,
+       (SELECT count(*) FROM ord.order_request_files AS f WHERE f.request_id = r.id)::int AS photo_count
 FROM ord.order_requests AS r
 JOIN ord.orders AS o ON o.tenant_id = r.tenant_id AND o.id = r.order_id
+LEFT JOIN customer.customers_v AS cu ON cu.tenant_id = o.tenant_id AND cu.id = o.customer_id
+LEFT JOIN customer.customers_v AS rt ON rt.tenant_id = cu.tenant_id AND rt.id = cu.root_id
 WHERE o.seller_id = @seller_id
-  AND (sqlc.narg(status)::text IS NULL OR r.status = sqlc.narg(status)::text)
+  AND (sqlc.narg(statuses)::text[] IS NULL OR r.status = ANY (sqlc.narg(statuses)::text[]))
   AND (sqlc.narg(kind)::text IS NULL OR r.kind = sqlc.narg(kind)::text)
   AND (sqlc.narg(ref)::text IS NULL OR r.ref = sqlc.narg(ref)::text)
   AND (sqlc.narg(order_code)::text IS NULL OR o.code = sqlc.narg(order_code)::text)
@@ -160,3 +164,32 @@ WHERE o.seller_id = @seller_id
        OR (r.created_at, r.id) < (sqlc.narg(after_at)::timestamptz, sqlc.narg(after_id)::uuid))
 ORDER BY r.created_at DESC, r.id DESC
 LIMIT @lim::int;
+
+-- name: CountOrderRequests :many
+-- Số yêu cầu theo trạng thái của tenant (Task 486; index order_requests_status). Chỉ đọc bảng yêu cầu: yêu cầu chỉ có
+-- trên đơn web của người bán mặc định (tạo qua LockWebOrderForRequest).
+SELECT status, count(*)::int AS n
+FROM ord.order_requests
+GROUP BY status;
+
+-- name: RequestWantVariants :many
+-- Biến thể khách muốn đổi sang (Task 486): mã, tên mẫu, màu, cỡ; số còn bán được ở kho warehouse_id của đơn (chưa có
+-- dòng tồn → 0) và tên kho (NULL khi không đọc được kho: khi đó bỏ số còn).
+SELECT v.variant_id, v.sku, v.product_name, v.color, v.size, coalesce(s.available, 0)::int AS available,
+       w.name AS warehouse_name
+FROM catalog.variants_v AS v
+LEFT JOIN inventory.warehouses_v AS w ON w.warehouse_id = @warehouse_id::uuid
+LEFT JOIN inventory.stock_available_v AS s
+       ON s.variant_id = v.variant_id AND s.warehouse_id = w.warehouse_id AND s.seller_id = v.seller_id
+WHERE v.seller_id = @seller_id AND v.variant_id = ANY (@ids::uuid[]);
+
+-- name: InsertOrderRequestEvent :exec
+-- Một dòng lịch sử (chỉ ghi thêm) khi yêu cầu đổi trạng thái (Task 486).
+INSERT INTO ord.order_request_events (tenant_id, request_id, from_status, to_status, actor_type, actor_id, created_at)
+VALUES (@tenant_id, @request_id, @from_status, @to_status, @actor_type, sqlc.narg(actor_id)::text, @now);
+
+-- name: ListOrderRequestEvents :many
+SELECT from_status, to_status, actor_type, actor_id, created_at
+FROM ord.order_request_events
+WHERE request_id = @request_id
+ORDER BY created_at, id;

@@ -92,7 +92,7 @@ describe("Danh sách góp ý", () => {
     expect(within(r1).getByText("Giao hàng")).toBeTruthy();
     expect(within(r1).getByText("2/5 · Không hài lòng")).toBeTruthy();
     expect(within(r1).getByText("Trần Thị Thu Hà · 0912 345 678")).toBeTruthy();
-    expect(within(r1).getByRole("link", { name: "Hồ sơ Trần Thị Thu Hà" }).getAttribute("href")).toBe(`/khach/${CUST}`);
+    expect(within(r1).getByRole("link", { name: "Hồ sơ KH000231" }).getAttribute("href")).toBe(`/khach/${CUST}`);
     expect(within(r1).getByText("Mới")).toBeTruthy();
 
     // <script> hiện nguyên chữ, không thành phần tử.
@@ -125,7 +125,7 @@ describe("Danh sách góp ý", () => {
     fake.grants = grantsOf("customer.feedback.manage");
     renderAt("/khach/gop-y");
     const r1 = await row("Shipper giao trễ");
-    expect(within(r1).getByText("Hồ sơ Trần Thị Thu Hà")).toBeTruthy();
+    expect(within(r1).getByText("Hồ sơ KH000231")).toBeTruthy();
     expect(within(r1).queryByRole("link")).toBeNull();
   });
 
@@ -133,8 +133,8 @@ describe("Danh sách góp ý", () => {
     renderAt("/khach/gop-y");
     await row("Shipper giao trễ");
     expect(fake.listCalls[0]?.get("state")).toBeNull();
-    expect(screen.getByRole("button", { name: "Tất cả" }).getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(screen.getByRole("button", { name: "Đã xem" }));
+    expect(screen.getByRole("button", { name: /^Tất cả/ }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: /^Đã xem/ }));
     await waitFor(() => {
       expect(fake.listCalls.at(-1)?.get("state")).toBe("seen");
     });
@@ -335,5 +335,20 @@ describe("Dòng mở", () => {
     await written(1);
     for (const s of spies) expect(s).not.toHaveBeenCalled();
     expect(store).not.toHaveBeenCalled();
+  });
+});
+
+describe("Số trên thanh nhãn (Task 486)", () => {
+  it("mỗi nhãn có số góp ý của cả shop; đổi trạng thái một góp ý thì số đọc lại", async () => {
+    renderAt("/khach/gop-y");
+    for (const name of ["Mới 2", "Đã xem 1", "Đã phản hồi 2", "Tất cả 5"]) {
+      expect(await screen.findByRole("button", { name })).toBeTruthy();
+    }
+    const d = await openRow("Shipper giao trễ");
+    fireEvent.click(within(d).getByRole("button", { name: "Đã phản hồi khách" }));
+    await written(1);
+    expect(await screen.findByRole("button", { name: "Đã phản hồi 3" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Mới 1" })).toBeTruthy();
+    expect(fake.countReads).toBe(2);
   });
 });

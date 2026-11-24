@@ -3,6 +3,7 @@ package customer_test
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -17,19 +18,26 @@ import (
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
-// storeSQL trả câu SQL sqlc đã sinh cho truy vấn name (đúng câu ứng dụng chạy) từ mã sinh của store.
+// storeSQL trả câu SQL sqlc đã sinh cho truy vấn name (đúng câu ứng dụng chạy) từ mã sinh của store (mọi tệp
+// internal/store/*.sql.go; Task 486 thêm feedback.sql.go).
 func storeSQL(t *testing.T, name string) string {
 	t.Helper()
-	src, err := os.ReadFile("internal/store/search.sql.go")
+	paths, err := filepath.Glob("internal/store/*.sql.go")
 	if err != nil {
 		t.Fatal(err)
 	}
 	re := regexp.MustCompile("(?s)const " + regexp.QuoteMeta(name) + " = `(.*?)`")
-	m := re.FindSubmatch(src)
-	if m == nil {
-		t.Fatalf("không thấy câu %s trong store", name)
+	for _, p := range paths {
+		src, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if m := re.FindSubmatch(src); m != nil {
+			return string(m[1])
+		}
 	}
-	return string(m[1])
+	t.Fatalf("không thấy câu %s trong store", name)
+	return ""
 }
 
 // explainSeed: 100.000 khách và 130.000 danh tính SĐT trong tenant A (sinh bằng generate_series), 2.000 khách trong

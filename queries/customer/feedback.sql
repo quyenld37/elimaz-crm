@@ -27,9 +27,9 @@ SELECT EXISTS (SELECT 1 FROM customer.feedback WHERE id = @id);
 
 -- name: ListFeedback :many
 -- Mới nhất trước, trang theo (created_at, id) giảm dần. root_id: chỉ góp ý gắn với một hồ sơ trong nhóm của gốc đó (khách
--- đã gộp vẫn thấy góp ý gắn lúc trước). id: chỉ một góp ý (đọc lại sau khi sửa). Kèm gốc hiện tại và tên của gốc.
+-- đã gộp vẫn thấy góp ý gắn lúc trước). id: chỉ một góp ý (đọc lại sau khi sửa). Kèm gốc hiện tại, tên và mã KH của gốc.
 SELECT f.id, f.topic, f.mood, f.body, f.name, f.contact, f.order_ref, f.page, f.device, f.state, f.note, f.created_at,
-       f.updated_at, f.updated_by, f.version, r.id AS root_id, r.full_name AS root_name
+       f.updated_at, f.updated_by, f.version, r.id AS root_id, r.full_name AS root_name, r.code AS root_code
 FROM customer.feedback AS f
 LEFT JOIN customer.customers AS c ON c.tenant_id = f.tenant_id AND c.id = f.customer_id
 LEFT JOIN customer.customers AS r ON r.tenant_id = c.tenant_id AND r.id = c.root_id
@@ -42,3 +42,9 @@ WHERE (sqlc.narg(id)::uuid IS NULL OR f.id = sqlc.narg(id)::uuid)
        OR (f.created_at, f.id) < (sqlc.narg(after_created)::timestamptz, sqlc.narg(after_id)::uuid))
 ORDER BY f.created_at DESC, f.id DESC
 LIMIT @lim::int;
+
+-- name: CountFeedback :many
+-- Số góp ý theo trạng thái của tenant (Task 486; index feedback_state_created).
+SELECT state, count(*)::int AS n
+FROM customer.feedback
+GROUP BY state;

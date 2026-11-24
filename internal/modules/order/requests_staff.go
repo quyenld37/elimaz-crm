@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -21,12 +22,72 @@ var vnZone = time.FixedZone("ICT", 7*3600) //nolint:gochecknoglobals // hằng m
 // requestRefPattern: q của danh sách là mã yêu cầu.
 const requestRefPrefix = "YC-"
 
-// RequestFilter là bộ lọc danh sách yêu cầu cho nhân viên: trạng thái, loại (rỗng: mọi), q (mã yêu cầu YC-…, mã đơn
-// DH…, SĐT người nhận hay đuôi, tên khách không dấu), con trỏ trang sau, số dòng (1–100, 0 → 50).
+// RequestFilter là bộ lọc danh sách yêu cầu cho nhân viên: trạng thái (Status một trạng thái hoặc Statuses một trong
+// nhiều trạng thái, không cả hai; rỗng: mọi), loại (rỗng: mọi), q (mã yêu cầu YC-…, mã đơn DH…, SĐT người nhận hay
+// đuôi, tên khách không dấu), con trỏ trang sau, số dòng (1–100, 0 → 50).
 type RequestFilter struct {
 	Status, Kind, Q string
+	Statuses        []string
 	After           *Cursor
 	Limit           int
+}
+
+// OpenRequestStatuses là các trạng thái "đang mở" (chưa đóng) theo thứ tự sơ đồ: nhãn "Đang mở" của màn, số cạnh menu.
+func OpenRequestStatuses() []string {
+	return []string{RequestReceived, RequestInReview, RequestNeedsInfo, RequestConfirmed, RequestItemsReceived}
+}
+
+// RequestStatuses là mọi trạng thái của yêu cầu (đang mở rồi đã đóng).
+func RequestStatuses() []string {
+	return append(OpenRequestStatuses(), RequestResolved, RequestRejected, RequestCancelled)
+}
+
+// RequestCounts là số yêu cầu của tenant theo trạng thái (đủ mọi trạng thái, kể cả 0), số đang mở và tổng.
+type RequestCounts struct {
+	ByStatus    map[string]int
+	Open, Total int
+}
+
+// CountRequests đếm yêu cầu của tenant đang chạy theo trạng thái (index order_requests_status). Chỉ đọc bảng yêu cầu
+// (như ReplyRequest): yêu cầu chỉ có trên đơn web của người bán mặc định nên không nhận sellerID.
+func CountRequests(ctx context.Context, tx pgx.Tx) (RequestCounts, error) {
+	rows, err := store.New(tx).CountOrderRequests(ctx)
+	if err != nil {
+		return RequestCounts{}, fmt.Errorf("đếm yêu cầu về đơn: %w", err)
+	}
+	c := RequestCounts{ByStatus: map[string]int{}}
+	for _, s := range RequestStatuses() {
+		c.ByStatus[s] = 0
+	}
+	for _, r := range rows {
+		c.ByStatus[r.Status] = int(r.N)
+		c.Total += int(r.N)
+		if !requestClosed(r.Status) {
+			c.Open += int(r.N)
+		}
+	}
+	return c, nil
+}
+
+// requestStatusFilter dựng bộ lọc trạng thái của danh sách: Status hay Statuses (không cả hai), mọi giá trị phải là
+// trạng thái có thật; rỗng → nil (không lọc).
+func requestStatusFilter(f RequestFilter) ([]string, error) {
+	statuses := f.Statuses
+	if f.Status != "" {
+		if len(statuses) > 0 {
+			return nil, fmt.Errorf("%w: status và statuses", ErrInvalidInput)
+		}
+		statuses = []string{f.Status}
+	}
+	for _, s := range statuses {
+		if !slices.Contains(RequestStatuses(), s) {
+			return nil, fmt.Errorf("%w: trạng thái", ErrInvalidInput)
+		}
+	}
+	if len(statuses) == 0 {
+		return nil, nil
+	}
+	return statuses, nil
 }
 
 // ListRequests trả một trang yêu cầu trên đơn của người bán sellerID (ADR-29), mới trước, và con trỏ trang sau (nil:
@@ -39,13 +100,11 @@ func ListRequests(ctx context.Context, tx pgx.Tx, sellerID uuid.UUID, f RequestF
 	case limit < 1 || limit > MaxRequestListLimit:
 		return nil, nil, fmt.Errorf("%w: limit", ErrInvalidInput)
 	}
-	p := store.ListOrderRequestsParams{SellerID: sellerID, Lim: int32(limit + 1)}
-	if f.Status != "" {
-		if _, ok := requestTransitions[f.Status]; !ok && !requestClosed(f.Status) {
-			return nil, nil, fmt.Errorf("%w: trạng thái", ErrInvalidInput)
-		}
-		p.Status = pgtype.Text{String: f.Status, Valid: true}
+	statuses, err := requestStatusFilter(f)
+	if err != nil {
+		return nil, nil, err
 	}
+	p := store.ListOrderRequestsParams{SellerID: sellerID, Statuses: statuses, Lim: int32(limit + 1)}
 	if f.Kind != "" {
 		switch f.Kind {
 		case RequestCancel, RequestExchange, RequestReturn, RequestQuestion:
@@ -82,12 +141,22 @@ func ListRequests(ctx context.Context, tx pgx.Tx, sellerID uuid.UUID, f RequestF
 	}
 	out := make([]RequestSummary, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, RequestSummary{
+		var sb *ShipBack
+		if err := decodeRequestJSON(r.ShipBack, &sb); err != nil {
+			return nil, nil, err
+		}
+		s := RequestSummary{
 			Request: Request{
 				ID: r.ID, OrderID: r.OrderID, Ref: r.Ref, Kind: r.Kind, Status: r.Status, Version: int(r.Version),
 			},
 			OrderCode: r.OrderCode, ReasonCode: r.ReasonCode, CreatedAt: r.CreatedAt.UTC(), UpdatedAt: r.UpdatedAt.UTC(),
-		})
+			CustomerName: r.CustomerName.String, PhotoCount: int(r.PhotoCount),
+		}
+		if sb != nil {
+			d := sb.Deadline.UTC()
+			s.ShipBackDeadline = &d
+		}
+		out = append(out, s)
 	}
 	return out, next, nil
 }
@@ -183,7 +252,7 @@ func (w Writer) SetRequestStatus(ctx context.Context, tx pgx.Tx, id uuid.UUID, c
 			return RequestChange{}, err
 		}
 	}
-	return w.moveRequest(ctx, q, tx, a.TenantID, cur, ch.Status, p, now)
+	return w.moveRequest(ctx, q, tx, a.TenantID, cur, ch.Status, p, AuthorStaff, a.UserID.String(), now)
 }
 
 // statusParams kiểm phần không cần database của ch và dựng ship_back, outcome; trả tin kèm đã cắt.

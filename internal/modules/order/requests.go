@@ -146,10 +146,28 @@ type Outcome struct {
 	Reason       string `json:"reason,omitempty"`
 }
 
-// RequestLineDetail là dòng kèm mã, tên chụp lúc đặt của biến thể trong đơn.
+// RequestLineDetail là dòng kèm mã, tên chụp lúc đặt của biến thể trong đơn, và biến thể muốn đổi sang (chỉ màn nhân
+// viên; nil: không có, không còn trong danh mục, hay đọc cho website).
 type RequestLineDetail struct {
 	RequestLine
 	SKU, Name string
+	Want      *WantVariant
+}
+
+// WantVariant là biến thể khách muốn đổi sang: mã, tên mẫu, màu, cỡ hiện tại trong danh mục; số còn bán được ở kho của
+// đơn và tên kho (nil/rỗng khi không đọc được kho).
+type WantVariant struct {
+	SKU, ProductName, Color, Size string
+	Available                     *int
+	WarehouseName                 string
+}
+
+// RequestEvent là một lần đổi trạng thái của yêu cầu: từ, sang, người làm (AuthorStaff: mã nhân viên; AuthorCustomer:
+// mã khóa dịch vụ của website), lúc.
+type RequestEvent struct {
+	From, To           string
+	ActorType, ActorID string
+	At                 time.Time
 }
 
 // RequestMessage là một tin của yêu cầu. AuthorID: mã nhân viên (staff) hay mã khóa dịch vụ (customer, qua website).
@@ -176,13 +194,17 @@ type RequestDetail struct {
 	ResolvedBy                                               *uuid.UUID
 	Messages                                                 []RequestMessage
 	FileIDs                                                  []uuid.UUID
+	History                                                  []RequestEvent
 }
 
-// RequestSummary là một dòng của danh sách cho nhân viên.
+// RequestSummary là một dòng của danh sách cho nhân viên: kèm tên gốc hiện tại của khách (rỗng: đơn không có khách),
+// số ảnh, hạn gửi trả (nil: chưa xác nhận đổi).
 type RequestSummary struct {
 	Request
-	OrderCode, ReasonCode string
-	CreatedAt, UpdatedAt  time.Time
+	OrderCode, ReasonCode, CustomerName string
+	CreatedAt, UpdatedAt                time.Time
+	PhotoCount                          int
+	ShipBackDeadline                    *time.Time
 }
 
 // RequestChange là yêu cầu trước và sau một lần đổi (bên gọi ghi audit; order không nhập identity).
@@ -224,9 +246,14 @@ func (w Writer) publishRequest(ctx context.Context, tx pgx.Tx, tenant, id uuid.U
 }
 
 // GetRequest đọc yêu cầu id trên đơn của người bán sellerID (ADR-29; yêu cầu chỉ có trên đơn web của người bán mặc
-// định) của tenant đang chạy, không khóa, kèm tin, dòng, tệp. Không có (kể cả tenant, người bán khác) →
-// ErrRequestNotFound.
+// định) của tenant đang chạy, không khóa, kèm tin, dòng (cả biến thể muốn đổi sang), tệp, lịch sử trạng thái. Không có
+// (kể cả tenant, người bán khác) → ErrRequestNotFound.
 func GetRequest(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID) (RequestDetail, error) {
+	return getRequest(ctx, tx, sellerID, id, true)
+}
+
+// getRequest như GetRequest; staff false (website): không đọc biến thể muốn đổi sang, lịch sử.
+func getRequest(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID, staff bool) (RequestDetail, error) {
 	q := store.New(tx)
 	r, err := q.GetOrderRequest(ctx, store.GetOrderRequestParams{ID: id, SellerID: sellerID})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -266,7 +293,63 @@ func GetRequest(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID) (Request
 	if d.FileIDs, err = q.ListOrderRequestFiles(ctx, r.ID); err != nil {
 		return RequestDetail{}, fmt.Errorf("đọc ảnh của yêu cầu: %w", err)
 	}
+	if !staff {
+		return d, nil
+	}
+	if err := wantVariants(ctx, q, sellerID, r.OrderWarehouseID, d.Lines); err != nil {
+		return RequestDetail{}, err
+	}
+	if d.History, err = requestHistory(ctx, q, r.ID); err != nil {
+		return RequestDetail{}, err
+	}
 	return d, nil
+}
+
+// wantVariants điền Want cho các dòng có biến thể muốn đổi sang (đọc catalog, inventory qua view).
+func wantVariants(ctx context.Context, q *store.Queries, sellerID, warehouseID uuid.UUID, lines []RequestLineDetail) error {
+	var ids []uuid.UUID
+	for _, l := range lines {
+		if l.WantVariantID != nil {
+			ids = append(ids, *l.WantVariantID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	rows, err := q.RequestWantVariants(ctx, store.RequestWantVariantsParams{
+		WarehouseID: warehouseID, SellerID: sellerID, Ids: ids,
+	})
+	if err != nil {
+		return fmt.Errorf("đọc biến thể muốn đổi sang: %w", err)
+	}
+	for i := range lines {
+		for _, r := range rows {
+			if lines[i].WantVariantID == nil || *lines[i].WantVariantID != r.VariantID {
+				continue
+			}
+			w := &WantVariant{SKU: r.Sku, ProductName: r.ProductName, Color: r.Color, Size: r.Size}
+			if r.WarehouseName.Valid {
+				n := int(r.Available)
+				w.Available, w.WarehouseName = &n, r.WarehouseName.String
+			}
+			lines[i].Want = w
+		}
+	}
+	return nil
+}
+
+func requestHistory(ctx context.Context, q *store.Queries, id uuid.UUID) ([]RequestEvent, error) {
+	rows, err := q.ListOrderRequestEvents(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("đọc lịch sử yêu cầu: %w", err)
+	}
+	out := make([]RequestEvent, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, RequestEvent{
+			From: r.FromStatus, To: r.ToStatus, ActorType: r.ActorType, ActorID: r.ActorID.String, At: r.CreatedAt.UTC(),
+		})
+	}
+	return out, nil
 }
 
 // decodeRequestJSON đọc cột jsonb (NULL → giữ nil) vào *dst.

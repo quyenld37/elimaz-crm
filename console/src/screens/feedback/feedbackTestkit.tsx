@@ -34,6 +34,7 @@ export function feedback(p: Partial<Feedback> = {}): Feedback {
     note: "Đã báo Viettel Post.",
     customerId: CUST,
     customerName: "Trần Thị Thu Hà",
+    customerCode: "KH000231",
     createdAt: "2026-11-21T03:12:00Z",
     updatedAt: "2026-11-21T03:12:00Z",
     version: 1,
@@ -51,6 +52,17 @@ export interface Fake extends WriteQueue {
   listCalls: URLSearchParams[];
   /** Lỗi trả cho mọi lần đọc danh sách (ví dụ 403). */
   listError: { status: number; body: unknown } | null;
+  /** Số lần đọc countFeedback (đếm từ rows như máy chủ). */
+  countReads: number;
+}
+
+function counts(fake: Fake): Response {
+  fake.countReads++;
+  const states = (["new", "seen", "answered"] as const).map((state) => ({
+    state,
+    count: fake.rows.filter((r) => r.state === state).length,
+  }));
+  return reply({ states, total: fake.rows.length });
 }
 
 /** Tham số lọc của listFeedback và trường của góp ý nó so. */
@@ -62,6 +74,7 @@ const FILTERS: readonly [string, (r: Feedback) => string | undefined][] = [
 
 function read(fake: Fake, p: string, q: URLSearchParams): Response {
   if (p === "/api/v1/me") return meReply(fake.grants);
+  if (p === "/api/v1/feedback/counts") return counts(fake);
   if (p !== "/api/v1/feedback") return reply(NOT_FOUND, 404);
   fake.listCalls.push(q);
   if (fake.listError !== null) return reply(fake.listError.body, fake.listError.status);
@@ -94,6 +107,7 @@ export function installFake(): Fake {
     rows: [feedback()],
     listCalls: [],
     listError: null,
+    countReads: 0,
     ...emptyWrites(),
   };
   return stubApi(fake, read, writeReply);

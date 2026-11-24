@@ -1,8 +1,10 @@
 // Màn Yêu cầu về đơn hàng: danh sách, chi tiết (tự đăng ký, quy ước src/app/loadScreens.ts). Kế hoạch M5 Task 207
-// (M5-24); mockup docs/mockups/m5/order-requests.html, menu nhóm "Đơn hàng" có sẵn (HV01 của docs/mockups/m5).
+// (M5-24); mockup docs/mockups/m5/order-requests.html, menu nhóm "Đơn hàng" có sẵn (HV01 của docs/mockups/m5); số yêu
+// cầu đang mở cạnh mục menu (HV02, Task 486).
 import type { ScreenRoute } from "../../app/loadScreens";
 import { RequestDetail } from "./RequestDetail";
 import { RequestList } from "./RequestList";
+import { RequestNavCount } from "./RequestNavCount";
 
 export const screens: readonly ScreenRoute[] = [
   // Mọi API đọc của màn cần order.requests.read; trả lời, đổi trạng thái theo order.requests.manage (nút tự ẩn).
@@ -13,6 +15,7 @@ export const screens: readonly ScreenRoute[] = [
     permission: "order.requests.read",
     also: ["/don/yeu-cau/:id"],
     order: 35,
+    badge: <RequestNavCount />,
     element: <RequestList />,
   },
   {

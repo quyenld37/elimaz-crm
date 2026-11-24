@@ -2299,6 +2299,20 @@ paths:
                 $ref: "#/components/schemas/FeedbackPage"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/feedback/counts:
+    get:
+      operationId: countFeedback
+      summary: Số góp ý theo trạng thái (đủ 3 trạng thái) và tổng, cho thanh lọc của màn Góp ý (Task 486)
+      x-permission: customer.feedback.read
+      responses:
+        "200":
+          description: Số góp ý
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedbackCounts"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/feedback/{id}:
     patch:
       operationId: updateFeedback
@@ -3711,6 +3725,15 @@ paths:
           required: false
           schema:
             $ref: "#/components/schemas/OrderRequestStatus"
+        - name: statuses
+          in: query
+          required: false
+          description: 'Một trong các trạng thái (nhãn "Đang mở" của màn, Task 486); gửi cùng status → 400 invalid_input'
+          schema:
+            type: array
+            maxItems: 8
+            items:
+              $ref: "#/components/schemas/OrderRequestStatus"
         - name: kind
           in: query
           required: false
@@ -3731,6 +3754,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OrderRequestPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/order-requests/counts:
+    get:
+      operationId: countOrderRequests
+      summary: 'Số yêu cầu về đơn theo trạng thái (đủ 8 trạng thái), số đang mở, tổng; cho thanh lọc và số cạnh menu (Task 486)'
+      description: |
+        Đếm mọi yêu cầu của shop, không theo bộ lọc loại hay ô tìm.
+      x-permission: order.requests.read
+      responses:
+        "200":
+          description: countOrderRequests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderRequestCounts"
         default:
           $ref: "#/components/responses/Error"
   /api/v1/order-requests/{id}:
@@ -8919,6 +8958,69 @@ components:
         name:
           type: string
           description: Tên chụp lúc đặt (chỉ ở màn nhân viên)
+        want:
+          $ref: "#/components/schemas/OrderRequestWant"
+    OrderRequestWant:
+      type: object
+      description: 'Biến thể khách muốn đổi sang, theo danh mục hiện tại (chỉ ở màn nhân viên; Task 486)'
+      required: [sku, productName, color, size]
+      properties:
+        sku:
+          type: string
+        productName:
+          type: string
+        color:
+          type: string
+        size:
+          type: string
+        available:
+          type: integer
+          format: int32
+          description: Số còn bán được ở kho của đơn (không có khi không đọc được kho)
+        warehouseName:
+          type: string
+    OrderRequestEvent:
+      type: object
+      description: 'Một lần đổi trạng thái của yêu cầu (Task 486)'
+      required: [fromStatus, toStatus, actorType, at]
+      properties:
+        fromStatus:
+          $ref: "#/components/schemas/OrderRequestStatus"
+        toStatus:
+          $ref: "#/components/schemas/OrderRequestStatus"
+        actorType:
+          type: string
+          enum: [staff, customer, system]
+          description: 'customer: khách làm trên website (trả lời khi cần bổ sung, rút yêu cầu)'
+        actorName:
+          type: string
+          description: Tên nhân viên (staff; nhân viên không còn → không có)
+        at:
+          type: string
+          format: date-time
+    OrderRequestCounts:
+      type: object
+      required: [statuses, open, total]
+      properties:
+        statuses:
+          type: array
+          description: Đủ 8 trạng thái theo thứ tự sơ đồ, kể cả số 0
+          items:
+            type: object
+            required: [status, count]
+            properties:
+              status:
+                $ref: "#/components/schemas/OrderRequestStatus"
+              count:
+                type: integer
+                format: int32
+        open:
+          type: integer
+          format: int32
+          description: Số yêu cầu chưa đóng (received, in_review, needs_info, confirmed, items_received)
+        total:
+          type: integer
+          format: int32
     OrderRequestMessage:
       type: object
       required: [id, authorType, body, visibleToCustomer, createdAt]
@@ -8958,7 +9060,7 @@ components:
           description: Link ký có hạn 10 phút (chỉ khi ready)
     OrderRequestSummary:
       type: object
-      required: [id, ref, orderId, orderCode, kind, status, reasonCode, createdAt, updatedAt, version]
+      required: [id, ref, orderId, orderCode, kind, status, reasonCode, photoCount, createdAt, updatedAt, version]
       properties:
         id:
           type: string
@@ -8976,6 +9078,17 @@ components:
           $ref: "#/components/schemas/OrderRequestStatus"
         reasonCode:
           type: string
+        customerName:
+          type: string
+          description: Tên gốc hiện tại của khách của đơn (Task 486)
+        photoCount:
+          type: integer
+          format: int32
+          description: Số ảnh khách gửi kèm (Task 486)
+        shipBackDeadline:
+          type: string
+          format: date-time
+          description: Hạn khách gửi hàng về khi đã xác nhận đổi (Task 486)
         createdAt:
           type: string
           format: date-time
@@ -9038,6 +9151,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OrderRequestFile"
+        history:
+          type: array
+          description: Các lần đổi trạng thái, cũ trước (Task 486)
+          items:
+            $ref: "#/components/schemas/OrderRequestEvent"
         createdAt:
           type: string
           format: date-time
@@ -14425,6 +14543,25 @@ components:
           type: string
           maxLength: 128
           description: Băm địa chỉ của khách do website tính
+    FeedbackCounts:
+      type: object
+      required: [states, total]
+      properties:
+        states:
+          type: array
+          description: Đủ 3 trạng thái (new, seen, answered), kể cả số 0
+          items:
+            type: object
+            required: [state, count]
+            properties:
+              state:
+                $ref: "#/components/schemas/FeedbackState"
+              count:
+                type: integer
+                format: int32
+        total:
+          type: integer
+          format: int32
     WebFeedbackResult:
       type: object
       required: [id]
@@ -14466,6 +14603,9 @@ components:
           description: Gốc hiện tại của khách được gắn lúc gửi
         customerName:
           type: string
+        customerCode:
+          type: string
+          description: Mã KH của gốc hiện tại (Task 486)
         createdAt:
           type: string
           format: date-time
