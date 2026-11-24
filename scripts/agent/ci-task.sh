@@ -51,10 +51,15 @@ if [ -n "$now_tree" ] && [ -f "$stamp" ] && old=$(cat "$stamp") && git cat-file 
   tchanged=$(git diff --name-only "$old" "$now_tree"); tnote=", chỉ phần đổi từ lần test xanh trước"; tbase=$old
 fi
 fail_before=$fail
+# Chủ shop 24/11: "chạy e2e chưa cần … chạy e2e sau này khi hoàn thành hết toàn bộ các task". tests/e2e vẫn được biên
+# dịch và vet (make build/vet, go vet ./... gồm tệp test) nhưng không chạy ở ci-task; CI_TASK_E2E=1 để chạy lại.
+noe2e() { if [ "${CI_TASK_E2E:-0}" = 1 ]; then cat; else grep -v '/tests/e2e$'; fi; }
+alltests() { go list ./... | noe2e; }
 if [ -n "$tnote" ] && [ -z "$tchanged" ]; then
   echo "== test: bỏ (không đổi gì từ lần test xanh trước)"
 elif printf '%s\n' "$tchanged" | grep -E -q '^(go\.mod$|go\.sum$|internal/testkit/)'; then
-  step "test (toàn bộ: đổi go.mod/testkit$tnote)" make test
+  # shellcheck disable=SC2046
+  step "test (toàn bộ trừ e2e: đổi go.mod/testkit$tnote)" go test -race -count=1 $(alltests)
 else
   # Task 473 (23/11, chủ shop: máy nóng): migration mới chỉ thêm → gói dùng đúng đối tượng nó chạm; migration thu hẹp hay
   # sửa tệp cũ → affected.py thoát 5 (toàn bộ). Bản so là bản đã test xanh ($tbase). -race chỉ cho gói sửa trực tiếp
@@ -64,10 +69,11 @@ else
   if [ "$arc" != 0 ]; then
     # Không xác định được gói bị ảnh hưởng (4), hay migration cần toàn bộ (5): chạy toàn bộ thay vì bỏ sót
     # (19/11: lỗi NFD/NFC làm mọi task chỉ chạy tests/arch).
-    step "test (toàn bộ: affected.py thoát $arc$tnote)" make test
+    # shellcheck disable=SC2046
+    step "test (toàn bộ trừ e2e: affected.py thoát $arc$tnote)" go test -race -count=1 $(alltests)
   else
-    race=$(printf '%s\n' "$split" | sed -n 's/^race //p')
-    plain=$(printf '%s\n' "$split" | sed -n 's/^plain //p' | grep -v '/tests/arch$')
+    race=$(printf '%s\n' "$split" | sed -n 's/^race //p' | noe2e)
+    plain=$(printf '%s\n' "$split" | sed -n 's/^plain //p' | grep -v '/tests/arch$' | noe2e)
     # shellcheck disable=SC2086
     race=$(printf '%s\n' "$race" | grep -v '/tests/arch$')
     if [ -n "$race" ]; then

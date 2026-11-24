@@ -45,8 +45,9 @@ if [ -f go.mod ] && { has '(\.go|go\.mod|go\.sum)$' || printf '%s\n' "$changed" 
       fail="${fail}== go list lỗi, không tính được gói bị ảnh hưởng ==
 "
     fi
-    race=$(printf '%s\n' "$split" | sed -n 's/^race //p')
-    plain=$(printf '%s\n' "$split" | sed -n 's/^plain //p')
+    # Chủ shop 24/11: tests/e2e chưa chạy cho tới khi xong toàn bộ task (vẫn biên dịch, vet, lint).
+    race=$(printf '%s\n' "$split" | sed -n 's/^race //p' | grep -v '/tests/e2e$')
+    plain=$(printf '%s\n' "$split" | sed -n 's/^plain //p' | grep -v '/tests/e2e$')
     pkgs="$race $plain"
     if [ -n "${pkgs// /}" ]; then
       # shellcheck disable=SC2086
