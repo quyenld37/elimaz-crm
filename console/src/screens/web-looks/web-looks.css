@@ -1,0 +1,278 @@
+/* Lớp riêng của màn Bộ phối, chép từ mockup đã duyệt (docs/mockups/m5/web-looks.html khối <style>, m5.css .lk-photo
+   .lk-dot .lk-thumbs .lk-thumb .ed .oitem.is-pick .ord .why-hide .pv-frame, m2.css .olist .oitem, m1.css .toast .tag).
+   Chỉ dùng biến có sẵn: không màu, cỡ chữ, bo góc mới. Gắn tiền tố .wlk để không đụng màn khác. */
+.wlk .ed {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+  margin-bottom: var(--space-lg);
+}
+@media (max-width: 1199px) {
+  .wlk .ed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.wlk .bl,
+.wlk .lf,
+.wlk .stack {
+  min-width: 0;
+}
+.wlk .olist {
+  display: grid;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.wlk .oitem {
+  display: flex;
+  gap: 8px 12px;
+  align-items: flex-start;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+  flex-wrap: wrap;
+}
+.wlk .oitem:last-child {
+  border-bottom: 0;
+}
+.wlk .oitem.is-pick {
+  background: var(--surface);
+  box-shadow: inset 2px 0 0 var(--buy);
+}
+.wlk .oitem.is-off {
+  color: var(--muted);
+}
+.wlk .oitem .grow {
+  min-width: 150px;
+  flex: 1 1 150px;
+}
+.wlk .oitem .thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.wlk .wlk-pick {
+  border: 0;
+  background: none;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  min-height: var(--tap);
+  overflow-wrap: anywhere;
+}
+.wlk .ord {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--edge);
+  font-size: 12px;
+  font-weight: 700;
+  flex: none;
+}
+.wlk .why-hide {
+  font-size: 12px;
+  color: var(--buy);
+}
+.wlk .sw {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--tap);
+  cursor: pointer;
+  font-weight: 600;
+}
+.wlk .sw input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink);
+  margin: 0;
+  flex: none;
+}
+.wlk .sw.is-off {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.wlk .fs {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-md);
+}
+.wlk .step {
+  border-top: 1px solid var(--rule);
+  padding-top: 16px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.wlk .chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.wlk .chips .tag button {
+  border: 0;
+  background: none;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--ink);
+  padding: 0;
+}
+.wlk .piece {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 180px) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+@media (max-width: 759px) {
+  .wlk .piece {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .wlk .piece .select-wrap {
+    grid-column: 2 / -1;
+  }
+}
+.wlk .wbn-res {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+.wlk .wbn-res .btn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+.wlk .lk-photo {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  max-width: 320px;
+  width: 100%;
+  border-radius: var(--r-box);
+  background: linear-gradient(160deg, var(--tint), var(--surface));
+  overflow: hidden;
+}
+.wlk .lk-photo.is-stage {
+  touch-action: none;
+  user-select: none;
+}
+.wlk .lk-photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.wlk .lk-photo .lk-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px;
+}
+.wlk .lk-dot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 50%;
+  border: 2px solid var(--paper);
+  background: var(--ink);
+  color: var(--paper);
+  font: 700 14px/1 var(--font-body);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: grab;
+}
+.wlk .lk-dot.is-pick {
+  background: var(--buy);
+}
+.wlk .lk-thumbs {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.wlk .lk-thumb {
+  width: 64px;
+  aspect-ratio: 4 / 5;
+  border-radius: var(--r);
+  border: 1px solid var(--rule);
+  background: linear-gradient(160deg, var(--tint), var(--surface));
+  padding: 0;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--label);
+  overflow: hidden;
+}
+.wlk .lk-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.wlk .lk-thumb[aria-pressed="true"] {
+  border: 2px solid var(--ink);
+}
+.wlk .pv-frame {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-box);
+  padding: var(--space-sm);
+  background: var(--surface);
+  min-width: 0;
+}
+.wlk .lk-card {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.wlk .pv-frame.is-phone {
+  max-width: 360px;
+}
+.wlk .pv-frame.is-phone .lk-card {
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (max-width: 759px) {
+  .wlk .lk-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.wlk .lk-items {
+  margin: 0;
+  padding-left: 20px;
+}
+.wlk .toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: var(--r-box);
+  padding: 8px 8px 8px var(--space-md);
+  max-width: 520px;
+  box-shadow: var(--shadow);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+  overflow-wrap: anywhere;
+}
+.wlk .toast .grow {
+  min-width: 160px;
+}
