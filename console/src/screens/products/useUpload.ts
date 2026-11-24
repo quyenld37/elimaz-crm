@@ -48,8 +48,8 @@ export type UploadPatch = Partial<Omit<UploadItem, "key" | "name">>;
 
 export interface Uploads {
   readonly items: readonly UploadItem[];
-  /** Bắt đầu tải các tệp (theo thứ tự chọn). replaces: tệp thay một ảnh mất. */
-  add: (files: readonly File[], replaces?: Replace) => void;
+  /** Bắt đầu tải các tệp (theo thứ tự chọn), trả mã dòng của từng tệp. replaces: tệp thay một ảnh mất. */
+  add: (files: readonly File[], replaces?: Replace) => string[];
   /** Bỏ một dòng (ảnh lỗi, hay đã gắn xong). */
   dismiss: (key: string) => void;
   /** Đổi trạng thái một dòng (ImageManager: attaching, failed, ready để gắn lại). */
@@ -70,6 +70,8 @@ export interface UploadOptions {
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
   /** Đồng hồ ms. Mặc định Date.now. */
   now?: () => number;
+  /** Mục đích tệp gửi createUpload. Mặc định ảnh sản phẩm (product_image); màn Banner dùng web_banner (Task 459). */
+  purpose?: string;
 }
 
 const POLL_MS = 2000;
@@ -222,7 +224,7 @@ export function useUploads(opts: UploadOptions = {}): Uploads {
   const uploadOne = useCallback(
     async (key: string, file: File, signal: AbortSignal) => {
       const c = await create.run({
-        purpose: IMAGE_PURPOSE,
+        purpose: optsRef.current.purpose ?? IMAGE_PURPOSE,
         fileName: file.name,
         contentType: file.type === "" ? "application/octet-stream" : file.type,
         sizeBytes: file.size,
@@ -282,6 +284,7 @@ export function useUploads(opts: UploadOptions = {}): Uploads {
         if (file !== undefined) queue.current.push({ key: it.key, file });
       });
       void pump();
+      return fresh.map((it) => it.key);
     },
     [pump],
   );
