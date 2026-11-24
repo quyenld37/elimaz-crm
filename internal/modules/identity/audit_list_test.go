@@ -59,9 +59,9 @@ func TestListEntityAudit(t *testing.T) {
 	assertNoAuditValues(t, got, "0911000111", "0911222333", "0922333444", "0933000333")
 }
 
-// assertNoAuditValues: bản JSON của các dòng không có trường giá trị before/after và không chứa SĐT đầy đủ nào đã gài
-// (Task 451: tìm mẩu 4 chữ số từng bắt nhầm chữ số trong UUID của dòng).
-func assertNoAuditValues(t *testing.T, got []identity.AuditRecord, phones ...string) {
+// assertNoAuditValues: bản JSON của các dòng (AuditRecord, AuditLog) không có trường giá trị before/after, ip và không
+// chứa giá trị đầy đủ nào đã gài (Task 451: tìm mẩu 4 chữ số từng bắt nhầm chữ số trong UUID của dòng; Task 457 dùng lại).
+func assertNoAuditValues[T any](t *testing.T, got []T, phones ...string) {
 	t.Helper()
 	raw, err := json.Marshal(got)
 	if err != nil {
@@ -73,14 +73,14 @@ func assertNoAuditValues(t *testing.T, got []identity.AuditRecord, phones ...str
 	}
 	for _, r := range rows {
 		for k := range r {
-			if l := strings.ToLower(k); strings.Contains(l, "before") || strings.Contains(l, "after") {
-				t.Errorf("AuditRecord có trường giá trị %q: %s", k, raw)
+			if l := strings.ToLower(k); strings.Contains(l, "before") || strings.Contains(l, "after") || l == "ip" {
+				t.Errorf("dòng audit có trường giá trị %q: %s", k, raw)
 			}
 		}
 	}
 	for _, p := range phones {
 		if strings.Contains(string(raw), p) {
-			t.Errorf("AuditRecord mang SĐT %s của before/after: %s", p, raw)
+			t.Errorf("dòng audit mang giá trị %s của before/after: %s", p, raw)
 		}
 	}
 }

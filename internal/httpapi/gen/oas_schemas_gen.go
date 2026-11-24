@@ -1417,6 +1417,208 @@ func (s *AttributeValue) SetPosition(val Position) {
 
 func (*AttributeValue) addAttributeValueRes() {}
 
+// Một dòng nhật ký thao tác (Task 457). Không có giá trị trước/sau, IP.
+// Ref: #/components/schemas/AuditLog
+type AuditLog struct {
+	ID uuid.UUID `json:"id"`
+	// Staff (nhân viên), service (khóa dịch vụ của website), system (hệ thống), carrier
+	// (hãng), customer (khách).
+	ActorType AuditLogActorType `json:"actorType"`
+	// Mã người làm (mã nhân viên, mã khóa dịch vụ…); vắng khi không có (hệ thống).
+	ActorId OptString `json:"actorId"`
+	// Tên nhân viên hay tên khóa dịch vụ; vắng với loại khác hoặc khi không tìm thấy.
+	ActorName  OptString `json:"actorName"`
+	Action     string    `json:"action"`
+	EntityType string    `json:"entityType"`
+	EntityId   OptString `json:"entityId"`
+	// Tên các trường đổi (chỉ tên, không giá trị).
+	ChangedFields []string  `json:"changedFields"`
+	CreatedAt     time.Time `json:"createdAt"`
+}
+
+// GetID returns the value of ID.
+func (s *AuditLog) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetActorType returns the value of ActorType.
+func (s *AuditLog) GetActorType() AuditLogActorType {
+	return s.ActorType
+}
+
+// GetActorId returns the value of ActorId.
+func (s *AuditLog) GetActorId() OptString {
+	return s.ActorId
+}
+
+// GetActorName returns the value of ActorName.
+func (s *AuditLog) GetActorName() OptString {
+	return s.ActorName
+}
+
+// GetAction returns the value of Action.
+func (s *AuditLog) GetAction() string {
+	return s.Action
+}
+
+// GetEntityType returns the value of EntityType.
+func (s *AuditLog) GetEntityType() string {
+	return s.EntityType
+}
+
+// GetEntityId returns the value of EntityId.
+func (s *AuditLog) GetEntityId() OptString {
+	return s.EntityId
+}
+
+// GetChangedFields returns the value of ChangedFields.
+func (s *AuditLog) GetChangedFields() []string {
+	return s.ChangedFields
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *AuditLog) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// SetID sets the value of ID.
+func (s *AuditLog) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetActorType sets the value of ActorType.
+func (s *AuditLog) SetActorType(val AuditLogActorType) {
+	s.ActorType = val
+}
+
+// SetActorId sets the value of ActorId.
+func (s *AuditLog) SetActorId(val OptString) {
+	s.ActorId = val
+}
+
+// SetActorName sets the value of ActorName.
+func (s *AuditLog) SetActorName(val OptString) {
+	s.ActorName = val
+}
+
+// SetAction sets the value of Action.
+func (s *AuditLog) SetAction(val string) {
+	s.Action = val
+}
+
+// SetEntityType sets the value of EntityType.
+func (s *AuditLog) SetEntityType(val string) {
+	s.EntityType = val
+}
+
+// SetEntityId sets the value of EntityId.
+func (s *AuditLog) SetEntityId(val OptString) {
+	s.EntityId = val
+}
+
+// SetChangedFields sets the value of ChangedFields.
+func (s *AuditLog) SetChangedFields(val []string) {
+	s.ChangedFields = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *AuditLog) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// Staff (nhân viên), service (khóa dịch vụ của website), system (hệ thống), carrier
+// (hãng), customer (khách).
+type AuditLogActorType string
+
+const (
+	AuditLogActorTypeStaff    AuditLogActorType = "staff"
+	AuditLogActorTypeSystem   AuditLogActorType = "system"
+	AuditLogActorTypeCarrier  AuditLogActorType = "carrier"
+	AuditLogActorTypeCustomer AuditLogActorType = "customer"
+	AuditLogActorTypeService  AuditLogActorType = "service"
+)
+
+// AllValues returns all AuditLogActorType values.
+func (AuditLogActorType) AllValues() []AuditLogActorType {
+	return []AuditLogActorType{
+		AuditLogActorTypeStaff,
+		AuditLogActorTypeSystem,
+		AuditLogActorTypeCarrier,
+		AuditLogActorTypeCustomer,
+		AuditLogActorTypeService,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AuditLogActorType) MarshalText() ([]byte, error) {
+	switch s {
+	case AuditLogActorTypeStaff:
+		return []byte(s), nil
+	case AuditLogActorTypeSystem:
+		return []byte(s), nil
+	case AuditLogActorTypeCarrier:
+		return []byte(s), nil
+	case AuditLogActorTypeCustomer:
+		return []byte(s), nil
+	case AuditLogActorTypeService:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AuditLogActorType) UnmarshalText(data []byte) error {
+	switch AuditLogActorType(data) {
+	case AuditLogActorTypeStaff:
+		*s = AuditLogActorTypeStaff
+		return nil
+	case AuditLogActorTypeSystem:
+		*s = AuditLogActorTypeSystem
+		return nil
+	case AuditLogActorTypeCarrier:
+		*s = AuditLogActorTypeCarrier
+		return nil
+	case AuditLogActorTypeCustomer:
+		*s = AuditLogActorTypeCustomer
+		return nil
+	case AuditLogActorTypeService:
+		*s = AuditLogActorTypeService
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/AuditLogPage
+type AuditLogPage struct {
+	Items []AuditLog `json:"items"`
+	// Có khi còn trang sau; gửi lại nguyên ở tham số cursor.
+	NextCursor OptString `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *AuditLogPage) GetItems() []AuditLog {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *AuditLogPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *AuditLogPage) SetItems(val []AuditLog) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *AuditLogPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*AuditLogPage) listAuditLogsRes() {}
+
 // Ref: #/components/schemas/BackupHealth
 type BackupHealth struct {
 	LastBaseAgeH  OptInt64 `json:"lastBaseAgeH"`
@@ -10648,6 +10850,7 @@ func (*ErrorStatusCode) importCodStatementRes()          {}
 func (*ErrorStatusCode) listAdminUnitsRes()              {}
 func (*ErrorStatusCode) listAgedReservationsRes()        {}
 func (*ErrorStatusCode) listAttributesRes()              {}
+func (*ErrorStatusCode) listAuditLogsRes()               {}
 func (*ErrorStatusCode) listBalancesRes()                {}
 func (*ErrorStatusCode) listBirthdayCustomersRes()       {}
 func (*ErrorStatusCode) listBirthdayTodoRes()            {}
