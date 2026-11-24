@@ -127,3 +127,31 @@ func TestCreateM1Wrapper(t *testing.T) {
 		t.Fatalf("tên rỗng: %v", err)
 	}
 }
+
+// Brief trả hồ sơ gốc (tên, mã) cả khi id là hồ sơ con; mã lạ → ErrNotFound.
+func TestBrief(t *testing.T) {
+	t.Parallel()
+	e := newWriteEnv(t)
+	root, child := e.pair("Chị Lan", "Lan cũ", "")
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(), "UPDATE customer.customers SET root_id = $1 WHERE id = $2", root.ID, child.ID)
+		return err //nolint:wrapcheck // test
+	})
+	brief := func(id uuid.UUID) (customer.Customer, error) {
+		var c customer.Customer
+		err := e.try(e.tenant, func(tx pgx.Tx) (err error) {
+			c, err = customer.Brief(t.Context(), tx, id)
+			return err //nolint:wrapcheck // test
+		})
+		return c, err
+	}
+	for _, id := range []uuid.UUID{root.ID, child.ID} {
+		c, err := brief(id)
+		if err != nil || c.ID != root.ID || string(c.FullName) != "Chị Lan" || c.Code != root.Code {
+			t.Fatalf("Brief(%s) = %+v, %v", id, c, err)
+		}
+	}
+	if _, err := brief(uuid.New()); !errors.Is(err, customer.ErrNotFound) {
+		t.Fatalf("mã lạ = %v", err)
+	}
+}

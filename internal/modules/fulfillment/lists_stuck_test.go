@@ -441,56 +441,68 @@ func TestStuck_PlanUsesIndexes(t *testing.T) {
 		te.clone(tmpl, p, 6250, st, &old, &old)
 	}
 	te.clone(tmpl, 9, 500, "shipping", &old, nil)
+	e.ownerBulkExec(
+		`UPDATE fulfillment.shipments SET stuck_since = now() WHERE code LIKE 'E9%' AND code < 'E900000000050'`,
+		// Việc Cần xem đã đóng của vận đơn đã kết thúc (bảng không rỗng như khi chạy thật), vài việc mở của vận đơn mở.
+		`INSERT INTO fulfillment.shipment_anomalies (tenant_id, shipment_id, kind, status, resolved_at)
+			SELECT tenant_id, id, 'missing_items', 'resolved', now() FROM fulfillment.shipments WHERE code LIKE 'E1%'`,
+		`INSERT INTO fulfillment.shipment_anomalies (tenant_id, shipment_id, kind)
+			SELECT tenant_id, id, 'stock_short' FROM fulfillment.shipments WHERE code LIKE 'E9%' AND code < 'E900000000020'`,
+		// Việc gọi lại đã xong của vận đơn đã kết thúc, vài việc mở của vận đơn mở.
+		`INSERT INTO fulfillment.callback_tasks (tenant_id, shipment_id, order_id, attempt_no, failed_at, due_at, status)
+			SELECT tenant_id, id, order_id, 1, now(), now(), 'done' FROM fulfillment.shipments WHERE code LIKE 'E2%'`,
+		`INSERT INTO fulfillment.callback_tasks (tenant_id, shipment_id, order_id, attempt_no, failed_at, due_at)
+			SELECT tenant_id, id, order_id, 1, now(), now() FROM fulfillment.shipments WHERE code LIKE 'E9%' AND code < 'E900000000010'`,
+	)
+	e.ownerBulkExec(`ANALYZE fulfillment.callback_tasks, fulfillment.shipments, fulfillment.shipment_anomalies`)
+	hours, err := json.Marshal(fulfillment.DefaultSettings().StuckHours)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.requireNoSeqScan("lists",
+		explainCase{"listStuckShipments", []any{nil, nil, true, []uuid.UUID{}, nil, nil, int32(51)}},
+		explainCase{"countStuckByStatus", nil},
+		explainCase{"listOpenAnomalies", []any{true, []uuid.UUID{}, nil, nil, int32(51)}},
+		explainCase{"reviewCounts", []any{true, []uuid.UUID{}, time.Now(), []string{"in_doubt_create", "in_doubt_cancel"}}},
+		explainCase{"syncStuckShipments", []any{time.Now(), hours, []uuid.UUID{}}}, // chạy thật: để cuối
+	)
+}
+
+// ownerBulkExec chạy lần lượt các câu qs trong một ownerBulk (dữ liệu thử lớn); ANALYZE gọi riêng sau khi đã commit.
+func (e *shipEnv) ownerBulkExec(qs ...string) {
+	e.t.Helper()
 	e.ownerBulk(func(tx pgx.Tx) error {
-		for _, q := range []string{
-			`UPDATE fulfillment.shipments SET stuck_since = now() WHERE code LIKE 'E9%' AND code < 'E900000000050'`,
-			// Việc Cần xem đã đóng của vận đơn đã kết thúc (bảng không rỗng như khi chạy thật), vài việc mở của vận đơn mở.
-			`INSERT INTO fulfillment.shipment_anomalies (tenant_id, shipment_id, kind, status, resolved_at)
-				SELECT tenant_id, id, 'missing_items', 'resolved', now() FROM fulfillment.shipments WHERE code LIKE 'E1%'`,
-			`INSERT INTO fulfillment.shipment_anomalies (tenant_id, shipment_id, kind)
-				SELECT tenant_id, id, 'stock_short' FROM fulfillment.shipments WHERE code LIKE 'E9%' AND code < 'E900000000020'`,
-			// Việc gọi lại đã xong của vận đơn đã kết thúc, vài việc mở của vận đơn mở.
-			`INSERT INTO fulfillment.callback_tasks (tenant_id, shipment_id, order_id, attempt_no, failed_at, due_at, status)
-				SELECT tenant_id, id, order_id, 1, now(), now(), 'done' FROM fulfillment.shipments WHERE code LIKE 'E2%'`,
-			`INSERT INTO fulfillment.callback_tasks (tenant_id, shipment_id, order_id, attempt_no, failed_at, due_at)
-				SELECT tenant_id, id, order_id, 1, now(), now() FROM fulfillment.shipments WHERE code LIKE 'E9%' AND code < 'E900000000010'`,
-		} {
-			if _, err := tx.Exec(t.Context(), q); err != nil {
+		for _, q := range qs {
+			if _, err := tx.Exec(e.t.Context(), q); err != nil {
 				return err //nolint:wrapcheck // test
 			}
 		}
 		return nil
 	})
-	e.ownerBulk(func(tx pgx.Tx) error { // thống kê sau khi dữ liệu đã commit
-		_, err := tx.Exec(t.Context(), `ANALYZE fulfillment.callback_tasks, fulfillment.shipments, fulfillment.shipment_anomalies`)
-		return err //nolint:wrapcheck // test
-	})
-	hours, err := json.Marshal(fulfillment.DefaultSettings().StuckHours)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, c := range []struct {
-		name string
-		args []any
-	}{
-		{"listStuckShipments", []any{nil, nil, true, []uuid.UUID{}, nil, nil, int32(51)}},
-		{"countStuckByStatus", nil},
-		{"listOpenAnomalies", []any{true, []uuid.UUID{}, nil, nil, int32(51)}},
-		{"reviewCounts", []any{true, []uuid.UUID{}, time.Now(), []string{"in_doubt_create", "in_doubt_cancel"}}},
-		{"syncStuckShipments", []any{time.Now(), hours, []uuid.UUID{}}}, // chạy thật: để cuối
-	} {
-		nodes, err := testkit.ExplainAsApp(t.Context(), e.staff.App, e.tenant, storeSQL(t, c.name), c.args...)
+}
+
+// explainCase là một câu sqlc (tên hằng) và tham số để EXPLAIN.
+type explainCase struct {
+	name string
+	args []any
+}
+
+// requireNoSeqScan EXPLAIN (bằng crm_app, tenant A) từng câu của internal/store/<file>.sql.go, đỏ khi có Seq Scan.
+func (e *shipEnv) requireNoSeqScan(file string, cases ...explainCase) {
+	e.t.Helper()
+	for _, c := range cases {
+		nodes, err := testkit.ExplainAsApp(e.t.Context(), e.staff.App, e.tenant, storeSQLIn(e.t, file, c.name), c.args...)
 		if err != nil {
-			t.Fatalf("%s: %v", c.name, err)
+			e.t.Fatalf("%s: %v", c.name, err)
 		}
-		testkit.RequireNoSeqScan(t, nodes)
+		testkit.RequireNoSeqScan(e.t, nodes)
 	}
 }
 
-// storeSQL đọc hằng câu SQL name do sqlc sinh trong internal/store/lists.sql.go (chuỗi thô giữa hai dấu `).
-func storeSQL(t *testing.T, name string) string {
+// storeSQLIn đọc hằng câu SQL name do sqlc sinh trong internal/store/<file>.sql.go (chuỗi thô giữa hai dấu `).
+func storeSQLIn(t *testing.T, file, name string) string {
 	t.Helper()
-	src, err := os.ReadFile("internal/store/lists.sql.go")
+	src, err := os.ReadFile("internal/store/" + file + ".sql.go")
 	if err != nil {
 		t.Fatal(err)
 	}

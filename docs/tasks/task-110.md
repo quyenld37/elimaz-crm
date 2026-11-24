@@ -5,13 +5,15 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m3-van-chuyen.md` (Ta
 ## Ảnh hưởng
 
 - Ký hiệu Go xuất ra ngoài sẽ đổi (LSP findReferences): không đổi ký hiệu đã có; chỉ thêm. `fulfillment` thêm:
-  `CallbackFilter`, `CallbackTask`, `CallbackPage`, `CallbackOutcomeInput`, `(*Service).ListCallbacks`,
+  `CallbackFilter`, `CallbackTask`, `CallbackPage`, `CallbackOutcomeInput`, `CallbackOutcomeResult`,
+  `CallbackAssignment`, hằng `Callback{Open,InProgress,Done,Closed}`, `Outcome{Redeliver,RedeliverNewAddress,
+  CustomerCancel,NoAnswer,Reschedule}`, `(*Service).ListCallbacks`,
   `(*Service).RecordCallbackOutcome`, `(*Service).AssignCallback`, `RedeliverKind`, `RedeliverCommand`,
   `NewRedeliverCommand`, sentinel `ErrCallbackNotFound`, `ErrCallbackClosed`, `ErrCallbackAssignee`.
   `identity` thêm `StaffHas(ctx, tx, userID, p) (bool, error)`; `customer` thêm `Brief(ctx, tx, id) (Customer, error)`
   (hồ sơ gốc không kèm danh tính, địa chỉ); cả hai mới, chỉ dùng ở `internal/httpapi/handlers_callbacks.go`.
   `fulfillment` không gọi `customer` (test kiến trúc `boundaries`), nên tên khách và số nhận/hoàn ghép ở httpapi. Commit cấu trúc: phương thức chưa xuất `(*applyRun).publishCallback`
-  (3 chỗ gọi trong `apply_effects.go`) chuyển thành `(*Service).publishCallback(ctx, tx, tenantID, id)`; chỉ gói gốc.
+  (2 chỗ gọi trong `apply_effects.go`, commit 1) chuyển thành `(*Service).publishCallback(ctx, tx, tenantID, id)`; chỉ gói gốc.
   `(*Module).callbacksHandlers` (gọi từ `module.go` `CommandHandlers`) trả lệnh giao lại khi có adapter hãng.
 - Gói phụ thuộc ngược (go list): `fulfillment` ← cmd/crm, internal/adapters/carrier/{,best,carriertest,fake,manual,spx,vtp,vtp/vtptest},
   internal/httpapi, internal/httpapi/web, internal/modules/cash (+ internal/formats, internal/statement),
@@ -23,7 +25,8 @@ Kế hoạch: `../../docs/superpowers/plans/2026-11-18-crm-m3-van-chuyen.md` (Ta
 - Chỗ dùng trên màn hình: chưa có (màn "Cần gọi lại" là Task 135; console chỉ có client sinh sẵn).
 - Câu sqlc, bảng, pha migration: không migration. Câu mới trong `queries/fulfillment/callbacks.sql`:
   `ListCallbackTasks`, `CountOpenCallbacks` (đếm có trần 1.000), `CallbackTaskShipment`, `LockCallbackTask`,
-  `SetCallbackOutcome`, `InsertCallbackLog`, `AssignCallbackTask`, `CallbackLogTarget` (lệnh giao lại). Bảng
+  `SetCallbackOutcome`, `InsertCallbackLog`, `AssignCallbackTask`, `CallbackTaskView` (đọc lại một việc cho câu trả lời),
+  `RedeliverTarget` (lệnh giao lại). Bảng
   `fulfillment.callback_tasks` (khóa dòng, sửa), `fulfillment.callback_task_logs` (chỉ chèn), đọc `fulfillment.shipments`,
   `ord.orders_v` (cột `customer_id`). Chỉ mục `callback_tasks_status_due` (0300) đã có. Test: `lists_stuck_test.go`
   tách helper dùng chung `ownerBulkExec`, `requireNoSeqScan`, `storeSQLIn` (jscpd).
@@ -160,3 +163,10 @@ Commit 1/2 (cấu trúc, `apply_effects.go`): Kết luận: ĐẠT. Không có p
 bằng chứng chạy qua `publishCallback` với Bus thật nhưng không khẳng định nội dung báo hiệu (commit 2 thêm kiểm
 `callback_task.changed` ở `TestCallbacks_CustomerCancel` cho đường của Service); "3 chỗ gọi" thực là 2 chỗ gọi + 1 định
 nghĩa.
+
+Commit 2/2 (hành vi): Kết luận: ĐẠT. Không có phát hiện phải sửa. Đã kiểm thứ tự khóa ADR-46 7→8, version, RetryTx,
+dữ liệu cá nhân (ghi chú che SĐT, payload chỉ `logId`, audit không ghi chú), quyền (`fulfillment.ship` cho địa chỉ mới,
+`StaffHas` đọc lại trong tx), in_doubt của lệnh giao lại. Ghi chú không bắt buộc: mục Ảnh hưởng sai tên
+`CallbackLogTarget` và thiếu `CallbackTaskView`, `CallbackOutcomeResult`, `CallbackAssignment`, hằng — đã sửa tài liệu;
+`TestCallbacksAPI_Assign` kiểm tên người được giao còn lỏng (giữ, không ảnh hưởng tính đúng); enricher đọc từng khách
+(≤ 100/trang); lệnh giao lại không gọi `MarkAuthFailed` khi hãng báo lỗi xác thực (vẫn rejected + cảnh báo chung).

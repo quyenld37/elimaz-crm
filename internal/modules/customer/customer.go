@@ -98,6 +98,16 @@ func GroupMembers(ctx context.Context, tx pgx.Tx, rootID uuid.UUID) ([]uuid.UUID
 	return ids, nil
 }
 
+// Brief trả hồ sơ gốc của id (id là gốc hay hồ sơ con): tên, mã, chỉ số của gốc; không đọc danh tính, địa chỉ, nhãn
+// (dùng cho dòng danh sách của module khác, ví dụ việc gọi lại). Không có (hay của tenant khác) → ErrNotFound.
+func Brief(ctx context.Context, tx pgx.Tx, id uuid.UUID) (Customer, error) {
+	root, err := RootOf(ctx, tx, id)
+	if err != nil {
+		return Customer{}, err
+	}
+	return getOne(ctx, tx, root)
+}
+
 // Get trả hồ sơ theo gốc của id (id là gốc hay hồ sơ con): hồ sơ gốc, chỉ số của gốc, mọi hồ sơ con, danh tính và
 // địa chỉ của cả nhóm. Không có (hay của tenant khác) → ErrNotFound.
 func Get(ctx context.Context, tx pgx.Tx, id uuid.UUID) (Profile, error) {

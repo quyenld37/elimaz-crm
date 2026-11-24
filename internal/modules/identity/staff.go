@@ -472,3 +472,24 @@ func nonNil[T any](g []T) []T {
 	}
 	return g
 }
+
+// StaffHas cho biết userID là nhân viên đang hoạt động của tenant trong tx và có quyền p trên phạm vi bất kỳ (đọc lại
+// grant trong tx, vai trò đã lưu trữ không tính; kiểm như Can không đích). Không có nhân viên, bị khóa → false, nil.
+func StaffHas(ctx context.Context, tx pgx.Tx, userID uuid.UUID, p Permission) (bool, error) {
+	q := store.New(tx)
+	u, err := q.GetStaffUser(ctx, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("đọc nhân viên: %w", err)
+	}
+	if u.Status != statusActive {
+		return false, nil
+	}
+	fresh, err := freshGrants(ctx, q, AuthUser{UserID: userID})
+	if err != nil {
+		return false, err
+	}
+	return Can(fresh, p, nil), nil
+}
