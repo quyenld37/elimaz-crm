@@ -1,0 +1,113 @@
+/* Lớp riêng của màn Quà sinh nhật, theo mockup đã duyệt docs/mockups/m5/birthday-gifts.html (khối <style>: .code,
+   .who, cột thao tác) và docs/mockups/m3/m3.css (.selbar, .c-chk, .set-g, .unit, .tabs). Lớp đã có dùng lại: .kpis,
+   .kpi, .note-box, .scroll-x, .toast (../don/don.css), .tbl, .check, .box, .chip, .empty, .cols, .savebar, .field
+   (styles.css). Chỉ biến có sẵn: không màu, cỡ chữ, bo góc mới. Không có gì chỉ hiện khi rê chuột. */
+
+.bg .bg-gap,
+.bg .bg-run,
+.bg .bg-kpis {
+  margin-bottom: var(--space-md);
+}
+.bg .bg-panel {
+  margin-top: var(--space-md);
+}
+.bg .bg-batch {
+  margin-top: var(--space-lg);
+}
+.bg .bg-pre {
+  white-space: pre-wrap;
+}
+.bg .linkbtn {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.bg .code {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 13px;
+}
+.bg .who {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.bg .tabs {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  border-bottom: 1px solid var(--rule);
+}
+.bg .tab {
+  min-height: var(--field);
+  padding: 0 var(--space-md);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font: 600 14px/1 var(--font-body);
+  color: var(--muted);
+  cursor: pointer;
+}
+.bg .tab[aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--buy);
+}
+.bg .selbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: var(--r-box);
+  padding: 8px 8px 8px var(--space-md);
+}
+.bg .selbar .btn {
+  border-color: var(--paper);
+  background: var(--ink);
+  color: var(--paper);
+}
+.bg .selbar .btn-dark {
+  background: var(--paper);
+  color: var(--ink);
+}
+.bg .c-chk {
+  width: 48px;
+}
+.bg .c-chk .check {
+  min-width: var(--tap);
+  justify-content: center;
+}
+.bg .set-g {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-md);
+  align-items: start;
+}
+.bg .unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bg .unit .input {
+  width: 120px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.bg .unit span {
+  color: var(--muted);
+  font-size: 13px;
+}
+@media (min-width: 760px) {
+  .bg .bd .c-act {
+    width: 1%;
+    white-space: nowrap;
+  }
+  .bg .bd td.who-c {
+    width: 30%;
+  }
+}

@@ -518,6 +518,15 @@ func (e *env) checkBirthdayFilters(waiting uuid.UUID) {
 	if p := e.customers(promotion.BirthdayCustomerQuery{Q: "000006", Limit: 50}); len(p.Items) != 1 || p.Items[0].CustomerID != waiting {
 		t.Errorf("tìm SĐT: %+v", p.Items)
 	}
+	// Task 209: nhân viên gõ số dạng trong nước (0 đầu, có cách) hay +84 đều ra khách lưu +84912000006.
+	for _, q := range []string{"0912000006", "0912 000 006", "0912.000.006", "+84912000006", "84912000006"} {
+		if p := e.customers(promotion.BirthdayCustomerQuery{Q: q, Limit: 50}); len(p.Items) != 1 || p.Items[0].CustomerID != waiting {
+			t.Errorf("tìm SĐT %q: %+v", q, p.Items)
+		}
+	}
+	if p := e.customers(promotion.BirthdayCustomerQuery{Q: "0812000006", Limit: 50}); len(p.Items) != 0 {
+		t.Errorf("số khác đầu 08: %+v", p.Items)
+	}
 	if p := e.customers(promotion.BirthdayCustomerQuery{Q: "khach 008", Limit: 50}); len(p.Items) != 1 {
 		t.Errorf("tìm tên bỏ dấu: %+v", p.Items)
 	}

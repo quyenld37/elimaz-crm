@@ -187,7 +187,7 @@ func ListBirthdayCustomers(ctx context.Context, tx pgx.Tx, q BirthdayCustomerQue
 	var shown []BirthdayCustomer
 	for _, c := range all {
 		if text != "" && !strings.Contains(customer.NormalizeName(string(c.FullName)), text) &&
-			(len(digits) < minPhoneDigits || !strings.Contains(string(c.Phone), digits)) {
+			(len(digits) < minPhoneDigits || !phoneHas(c.Phone, digits)) {
 			continue
 		}
 		inMonth, inState := q.Month == 0 || c.Month == q.Month, q.State == "" || c.State == q.State
@@ -238,6 +238,17 @@ func checkCustomerQuery(q *BirthdayCustomerQuery) (int, error) {
 		return 0, fmt.Errorf("con trỏ danh sách sinh nhật: %w", ErrInvalidInput)
 	}
 	return n, nil
+}
+
+// phoneHas: digits nằm trong số đã lưu (+84…) hay trong dạng trong nước của nó (0…), để nhân viên gõ "0912…" cũng ra
+// khách (Task 209).
+func phoneHas(p logging.Phone, digits string) bool {
+	raw := string(p)
+	if strings.Contains(raw, digits) {
+		return true
+	}
+	rest, ok := strings.CutPrefix(raw, "+84")
+	return ok && strings.Contains("0"+rest, digits)
 }
 
 func onlyDigits(s string) string {
