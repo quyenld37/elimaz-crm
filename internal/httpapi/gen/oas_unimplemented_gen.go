@@ -968,6 +968,19 @@ func (UnimplementedHandler) ListAttributes(ctx context.Context) (r ListAttribute
 	return r, ht.ErrNotImplemented
 }
 
+// ListAuditLogs implements listAuditLogs operation.
+//
+// Lọc theo hành động, người làm (mã nhân viên hay mã khóa dịch vụ), loại thực
+// thể, thực thể (cần entityType), khoảng giờ [from, to). Trả người làm (loại, mã,
+// tên nhân viên hay tên khóa dịch vụ), hành động, thực thể, tên các trường
+// đổi; không bao giờ trả giá trị trước/sau hay IP. Con trỏ hỏng, entityId thiếu
+// entityType, from không trước to → 400 invalid_input.
+//
+// GET /api/v1/identity/audit-logs
+func (UnimplementedHandler) ListAuditLogs(ctx context.Context, params ListAuditLogsParams) (r ListAuditLogsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ListBalances implements listBalances operation.
 //
 // Cần inventory.read ở đúng kho warehouseId, không có → 403. Chỉ biến thể đã có

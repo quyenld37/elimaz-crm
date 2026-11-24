@@ -8968,6 +8968,118 @@ func (s *Server) handleListAttributesRequest(args [0]string, argsEscaped bool, w
 	}
 }
 
+// handleListAuditLogsRequest handles listAuditLogs operation.
+//
+// Lọc theo hành động, người làm (mã nhân viên hay mã khóa dịch vụ), loại thực
+// thể, thực thể (cần entityType), khoảng giờ [from, to). Trả người làm (loại, mã,
+// tên nhân viên hay tên khóa dịch vụ), hành động, thực thể, tên các trường
+// đổi; không bao giờ trả giá trị trước/sau hay IP. Con trỏ hỏng, entityId thiếu
+// entityType, from không trước to → 400 invalid_input.
+//
+// GET /api/v1/identity/audit-logs
+func (s *Server) handleListAuditLogsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ListAuditLogsOperation,
+			ID:   "listAuditLogs",
+		}
+	)
+	params, err := decodeListAuditLogsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response ListAuditLogsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ListAuditLogsOperation,
+			OperationSummary: "Nhật ký thao tác của shop, mới nhất trước, 50 dòng mỗi trang (Task 457)",
+			OperationID:      "listAuditLogs",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "action",
+					In:   "query",
+				}: params.Action,
+				{
+					Name: "actorId",
+					In:   "query",
+				}: params.ActorId,
+				{
+					Name: "entityType",
+					In:   "query",
+				}: params.EntityType,
+				{
+					Name: "entityId",
+					In:   "query",
+				}: params.EntityId,
+				{
+					Name: "from",
+					In:   "query",
+				}: params.From,
+				{
+					Name: "to",
+					In:   "query",
+				}: params.To,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ListAuditLogsParams
+			Response = ListAuditLogsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackListAuditLogsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ListAuditLogs(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ListAuditLogs(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeListAuditLogsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleListBalancesRequest handles listBalances operation.
 //
 // Cần inventory.read ở đúng kho warehouseId, không có → 403. Chỉ biến thể đã có

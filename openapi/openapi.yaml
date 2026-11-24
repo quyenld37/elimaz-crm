@@ -57,6 +57,63 @@ paths:
                 $ref: "#/components/schemas/DeepHealth"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/identity/audit-logs:
+    get:
+      operationId: listAuditLogs
+      summary: Nhật ký thao tác của shop, mới nhất trước, 50 dòng mỗi trang (Task 457)
+      description: |
+        Lọc theo hành động, người làm (mã nhân viên hay mã khóa dịch vụ), loại thực thể, thực thể (cần entityType), khoảng
+        giờ [from, to). Trả người làm (loại, mã, tên nhân viên hay tên khóa dịch vụ), hành động, thực thể, tên các trường
+        đổi; không bao giờ trả giá trị trước/sau hay IP. Con trỏ hỏng, entityId thiếu entityType, from không trước to →
+        400 invalid_input.
+      x-permission: audit.read
+      parameters:
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+        - name: actorId
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+        - name: entityType
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+        - name: entityId
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Một trang nhật ký thao tác
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLogPage"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/identity/users:
     get:
       operationId: listStaff
@@ -14401,6 +14458,49 @@ components:
         version:
           type: integer
           format: int32
+    AuditLog:
+      type: object
+      description: Một dòng nhật ký thao tác (Task 457). Không có giá trị trước/sau, IP.
+      required: [id, actorType, action, entityType, changedFields, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        actorType:
+          type: string
+          description: 'staff (nhân viên), service (khóa dịch vụ của website), system (hệ thống), carrier (hãng), customer (khách)'
+          enum: [staff, system, carrier, customer, service]
+        actorId:
+          type: string
+          description: Mã người làm (mã nhân viên, mã khóa dịch vụ…); vắng khi không có (hệ thống)
+        actorName:
+          type: string
+          description: Tên nhân viên hay tên khóa dịch vụ; vắng với loại khác hoặc khi không tìm thấy
+        action:
+          type: string
+        entityType:
+          type: string
+        entityId:
+          type: string
+        changedFields:
+          type: array
+          description: Tên các trường đổi (chỉ tên, không giá trị)
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+    AuditLogPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLog"
+        nextCursor:
+          type: string
+          description: Có khi còn trang sau; gửi lại nguyên ở tham số cursor
     FeedbackPage:
       type: object
       required: [items]

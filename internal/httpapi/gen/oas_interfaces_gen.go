@@ -389,6 +389,10 @@ type ListAttributesRes interface {
 	listAttributesRes()
 }
 
+type ListAuditLogsRes interface {
+	listAuditLogsRes()
+}
+
 type ListBalancesRes interface {
 	listBalancesRes()
 }

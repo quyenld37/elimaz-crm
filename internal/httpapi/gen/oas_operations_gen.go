@@ -104,6 +104,7 @@ const (
 	ListAdminUnitsOperation              OperationName = "ListAdminUnits"
 	ListAgedReservationsOperation        OperationName = "ListAgedReservations"
 	ListAttributesOperation              OperationName = "ListAttributes"
+	ListAuditLogsOperation               OperationName = "ListAuditLogs"
 	ListBalancesOperation                OperationName = "ListBalances"
 	ListBirthdayCustomersOperation       OperationName = "ListBirthdayCustomers"
 	ListBirthdayTodoOperation            OperationName = "ListBirthdayTodo"

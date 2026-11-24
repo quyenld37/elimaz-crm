@@ -133,6 +133,7 @@ var Routes = []Route{
 	{Method: "POST", Pattern: "POST /api/v1/files/{id}/complete", OperationID: "completeUpload", Permission: "files.upload", Write: true, IdempotencyMode: "required", Auth: "access"},
 	{Method: "GET", Pattern: "GET /api/v1/fulfillment-settings", OperationID: "getFulfillmentSettings", Permission: "fulfillment.read", Auth: "access"},
 	{Method: "PUT", Pattern: "PUT /api/v1/fulfillment-settings", OperationID: "updateFulfillmentSettings", Permission: "fulfillment.settings.manage", Write: true, IdempotencyMode: "required", Auth: "access"},
+	{Method: "GET", Pattern: "GET /api/v1/identity/audit-logs", OperationID: "listAuditLogs", Permission: "audit.read", Auth: "access"},
 	{Method: "GET", Pattern: "GET /api/v1/identity/permissions", OperationID: "listPermissions", Permission: "identity.roles.manage", Auth: "access"},
 	{Method: "GET", Pattern: "GET /api/v1/identity/roles", OperationID: "listRoles", Permission: "identity.users.manage", Auth: "access"},
 	{Method: "POST", Pattern: "POST /api/v1/identity/roles", OperationID: "createRole", Permission: "identity.roles.manage", Write: true, IdempotencyMode: "required", Auth: "access"},

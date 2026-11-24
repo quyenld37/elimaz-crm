@@ -4428,6 +4428,41 @@ export type Feedback = {
     version: number;
 };
 
+/**
+ * Một dòng nhật ký thao tác (Task 457). Không có giá trị trước/sau, IP.
+ */
+export type AuditLog = {
+    id: string;
+    /**
+     * staff (nhân viên), service (khóa dịch vụ của website), system (hệ thống), carrier (hãng), customer (khách)
+     */
+    actorType: 'staff' | 'system' | 'carrier' | 'customer' | 'service';
+    /**
+     * Mã người làm (mã nhân viên, mã khóa dịch vụ…); vắng khi không có (hệ thống)
+     */
+    actorId?: string;
+    /**
+     * Tên nhân viên hay tên khóa dịch vụ; vắng với loại khác hoặc khi không tìm thấy
+     */
+    actorName?: string;
+    action: string;
+    entityType: string;
+    entityId?: string;
+    /**
+     * Tên các trường đổi (chỉ tên, không giá trị)
+     */
+    changedFields: Array<string>;
+    createdAt: string;
+};
+
+export type AuditLogPage = {
+    items: Array<AuditLog>;
+    /**
+     * Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+     */
+    nextCursor?: string;
+};
+
 export type FeedbackPage = {
     items: Array<Feedback>;
     nextCursor?: string;
@@ -4670,6 +4705,42 @@ export type HealthDeepResponses = {
 };
 
 export type HealthDeepResponse = HealthDeepResponses[keyof HealthDeepResponses];
+
+export type ListAuditLogsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        action?: string;
+        actorId?: string;
+        entityType?: string;
+        entityId?: string;
+        from?: string;
+        to?: string;
+        /**
+         * Chuỗi mờ nextCursor của trang trước; gửi lại nguyên
+         */
+        cursor?: string;
+    };
+    url: '/api/v1/identity/audit-logs';
+};
+
+export type ListAuditLogsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type ListAuditLogsError = ListAuditLogsErrors[keyof ListAuditLogsErrors];
+
+export type ListAuditLogsResponses = {
+    /**
+     * Một trang nhật ký thao tác
+     */
+    200: AuditLogPage;
+};
+
+export type ListAuditLogsResponse = ListAuditLogsResponses[keyof ListAuditLogsResponses];
 
 export type ListStaffData = {
     body?: never;
