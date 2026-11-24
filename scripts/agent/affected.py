@@ -71,7 +71,9 @@ STMT_RE = re.compile(
     r"(?P<create>CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|(?:MATERIALIZED\s+)?VIEW|FUNCTION|TYPE|SEQUENCE)(?:\s+IF\s+NOT\s+EXISTS)?)"
     r"|(?P<alter>ALTER\s+TABLE(?:\s+IF\s+EXISTS)?(?:\s+ONLY)?)"
     r"|(?P<index>CREATE\s+(?:UNIQUE\s+)?INDEX(?:\s+CONCURRENTLY)?(?:\s+IF\s+NOT\s+EXISTS)?(?:\s+\w+)?\s+ON(?:\s+ONLY)?)"
-    r"|(?P<trigger>CREATE\s+(?:OR\s+REPLACE\s+)?TRIGGER\s+\w+\s+(?:BEFORE|AFTER|INSTEAD\s+OF)\s+[\w\s,]+?\s+ON)"
+    # CONSTRAINT TRIGGER (Task 481): cùng loại trigger — bảng sau ON là đối tượng, mọi tên trong câu (cả FROM bảng_khác,
+    # hàm) tính là bị chạm như trigger thường.
+    r"|(?P<trigger>CREATE\s+(?:OR\s+REPLACE\s+)?(?:CONSTRAINT\s+)?TRIGGER\s+\w+\s+(?:BEFORE|AFTER|INSTEAD\s+OF)\s+[\w\s,]+?\s+ON)"
     r"|(?P<policy>CREATE\s+POLICY\s+\w+\s+ON)"
     r"|(?P<grant>(?:GRANT|REVOKE)\s+[\w\s(),]+?\s+ON(?:\s+TABLE|\s+FUNCTION|\s+SEQUENCE|\s+SCHEMA)?)"
     r"|(?P<insert>INSERT\s+INTO)"
@@ -434,6 +436,26 @@ for hr in high_risk:
 unmatched = [d for d in go_dirs if d != "." and d not in by_dir and os.path.isdir(os.path.join(root, d))
              and any(f.endswith(".go") for f in os.listdir(os.path.join(root, d)))
              and not d.startswith(("console", "spikes")) and "testdata" not in d.split("/")]
+# Thư mục chỉ có tệp mang nhãn build riêng (Task 481, 24/11: tests/drills "drill", tests/probe "probe"): go list ./...
+# bỏ qua nó vì bản dựng thường loại mọi tệp. Không gói nào của bản dựng thường nhập hay biên dịch nó, make test cũng
+# không chạy nó, nên toàn bộ test không kiểm thêm được gì: không chọn gói nào (trước: thoát 4 → toàn bộ test vô ích).
+# Chỉ nhận đúng lỗi "build constraints exclude all Go files" và không còn tệp Go nào được dựng; lý do khác vẫn thoát 4.
+if unmatched:
+    tl = subprocess.run(["go", "list", "-e", "-json"] + ["./" + d for d in sorted(unmatched)], capture_output=True, text=True, cwd=root)
+    tagged = set()
+    if tl.returncode == 0:
+        s, i = tl.stdout, 0
+        while i < len(s):
+            while i < len(s) and s[i].isspace(): i += 1
+            if i >= len(s): break
+            p, i = dec.raw_decode(s, i)
+            built = p.get("GoFiles", []) + p.get("CgoFiles", []) + p.get("TestGoFiles", []) + p.get("XTestGoFiles", [])
+            if ("build constraints exclude all Go files" in (p.get("Error") or {}).get("Err", "")
+                    and p.get("IgnoredGoFiles") and not built):
+                tagged.add(os.path.relpath(nfc(p["Dir"]), root))
+    for d in sorted(tagged):
+        sys.stderr.write(f"affected.py: {d} chỉ có tệp nhãn build riêng (ngoài bản dựng thường): không chọn gói nào\n")
+    unmatched = [d for d in unmatched if d not in tagged]
 if unmatched:
     sys.stderr.write("affected.py: không khớp gói cho " + ", ".join(sorted(unmatched)) + "\n")
     sys.exit(4)
