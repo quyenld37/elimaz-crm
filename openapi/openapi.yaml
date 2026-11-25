@@ -5468,6 +5468,9 @@ paths:
         Có couponCode (Task 482): SĐT (customerPhone) đã quá 10 lần nhập mã sai hay IP (clientIp; không gửi → khóa dịch
         vụ) quá 30 lần trong 15 phút → 429 coupon_attempts_exceeded kèm Retry-After, kể cả mã đúng, tới hết cửa sổ;
         mã sai (not_found, bound_other) được đếm. Báo giá không mã không bị chặn.
+        shippingChoice (Task 490, tùy chọn): CRM kiểm hãng còn hiện trên web và phí khớp báo phí (hay phí dự phòng)
+        của đúng thân quote; sai → 422 shipping_carrier_unavailable / shipping_fee_mismatch; chưa kiểm được (hãng lỗi,
+        bận) → 503 retry_later. Có shippingChoice thì fingerprint gồm cả lựa chọn.
       x-auth: service_key
       x-permission: web.orders.create
       x-idempotency: exempt
@@ -5696,7 +5699,10 @@ paths:
         web_orders_paused, không Retry-After, không lưu (mở lại rồi gửi lại cùng khóa thì xử lý lại); queued vẫn nhận.
         Có couponCode mà SĐT người đặt hay IP (clientIp; không gửi → khóa dịch vụ) đã quá ngưỡng nhập mã sai (Task
         482, như webQuote) → 429 coupon_attempts_exceeded kèm Retry-After, không lưu; 422 coupon_invalid not_found,
-        bound_other được đếm là một lần sai.
+        bound_other được đếm là một lần sai. shippingChoice (Task 490, tùy chọn): kiểm như webQuote, thêm mã tỉnh,
+        phường của quote phải trùng shipAddress; sync sai → 422 shipping_carrier_unavailable / shipping_fee_mismatch
+        (lưu theo khóa), chưa kiểm được → 503 retry_later (không lưu); queued vẫn tạo, priceReview = true. Đơn đã có
+        của cùng externalRef trả 201 trước mọi kiểm lựa chọn. Lựa chọn lưu trên đơn (Order.webShipping).
       x-auth: service_key
       x-permission: web.orders.create
       parameters:
@@ -6530,6 +6536,9 @@ components:
         - request_not_allowed
         # Khách hủy đơn web (M5, Task 196)
         - cannot_cancel
+        # Hãng/dịch vụ khách chọn trên website (M5, Task 490)
+        - shipping_carrier_unavailable
+        - shipping_fee_mismatch
         # Hãng giao hàng trên website (M5, Task 198)
         - carrier_not_on_web
         # Quà sinh nhật (M5, Task 468)
@@ -7435,6 +7444,8 @@ components:
           format: uuid
         externalRef:
           type: string
+        webShipping:
+          $ref: "#/components/schemas/OrderWebShipping"
         carrierNote:
           type: string
         careBy:
@@ -8121,6 +8132,8 @@ components:
           minimum: 0
           maximum: 9007199254740991
           description: Phí giao website đã tính (đồng)
+        shippingChoice:
+          $ref: "#/components/schemas/WebShippingChoice"
     WebQuoteLineInput:
       type: object
       additionalProperties: false
@@ -8234,6 +8247,8 @@ components:
           minimum: 0
           maximum: 9007199254740991
           description: Phí giao website đã tính (đồng)
+        shippingChoice:
+          $ref: "#/components/schemas/WebShippingChoice"
         quoted:
           type: object
           additionalProperties: false
@@ -9523,6 +9538,55 @@ components:
           type: string
         preferred:
           type: boolean
+    WebShippingChoice:
+      type: object
+      additionalProperties: false
+      required: [fee, quote]
+      description: |
+        Task 490. Lựa chọn giao hàng khách chọn trong kết quả webShippingQuote. Không gửi: như trước (CRM không kiểm,
+        đơn không mang hãng). accountId, service của lựa chọn; không accountId = phí dự phòng của shop (lựa chọn
+        estimated). fee là phí của lựa chọn đó (trước miễn phí ship của website); shippingFee của yêu cầu được nhỏ hơn
+        (miễn phí ship), không được lớn hơn. quote là đúng thân đã gửi webShippingQuote (CRM đọc lại cùng báo phí).
+      properties:
+        accountId:
+          type: string
+          format: uuid
+          description: Mã tài khoản hãng (webShippingCarriers); không gửi = phí dự phòng
+        service:
+          type: string
+          maxLength: 100
+          description: Dịch vụ của lựa chọn; không gửi = dịch vụ nào của tài khoản có đúng phí
+        fee:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+        quote:
+          $ref: "#/components/schemas/WebShippingQuoteRequest"
+    OrderWebShipping:
+      type: object
+      required: [fee, estimated]
+      description: |
+        Task 490. Hãng/dịch vụ khách chọn trên website lúc đặt (chỉ để nhân viên gửi đúng hãng; CRM không tự gửi).
+        estimated = phí dự phòng của shop (không hãng). problem có khi đơn từ hàng đợi (queued) mà lựa chọn không còn
+        khớp lúc CRM nhận (đơn có priceReview).
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        carrierKey:
+          type: string
+        carrierName:
+          type: string
+        service:
+          type: string
+        fee:
+          $ref: "#/components/schemas/Money"
+        estimated:
+          type: boolean
+        problem:
+          type: string
+          enum: [carrier_unavailable, fee_mismatch, unverified]
     WebShippingQuoteRequest:
       type: object
       required: [provinceCode, wardCode, weightGrams, value, cod]

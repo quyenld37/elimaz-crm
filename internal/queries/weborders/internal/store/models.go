@@ -1328,6 +1328,7 @@ type OrdOrder struct {
 	PriceReview        bool
 	WebQuote           []byte
 	SubmittedVia       pgtype.Text
+	WebShipping        []byte
 }
 
 type OrdOrderDuplicateLink struct {

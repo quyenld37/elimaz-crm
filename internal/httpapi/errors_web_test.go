@@ -59,7 +59,14 @@ func TestWebOrderErrors(t *testing.T) {
 	if b, status, ok := webOrderRefusal(order.ErrMixedSellers); !ok || status != http.StatusUnprocessableEntity || b.Error != "mixed_sellers" {
 		t.Errorf("mixed_sellers: %v %d %+v", ok, status, b)
 	}
-	for _, err := range []error{order.ErrInvalidInput, order.ErrTotalOverflow, nil} {
+	for err, code := range map[error]string{
+		order.ErrShipCarrierUnavailable: "shipping_carrier_unavailable", order.ErrShipFeeMismatch: "shipping_fee_mismatch",
+	} {
+		if b, status, ok := webOrderRefusal(fmt.Errorf("đơn web: %w", err)); !ok || status != http.StatusUnprocessableEntity || b.Error != code {
+			t.Errorf("%v: %v %d %+v", err, ok, status, b)
+		}
+	}
+	for _, err := range []error{order.ErrInvalidInput, order.ErrTotalOverflow, order.ErrShipUnverified, nil} {
 		if _, _, ok := webOrderRefusal(err); ok {
 			t.Errorf("%v không phải từ chối được lưu", err)
 		}

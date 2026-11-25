@@ -32,15 +32,19 @@ func (h *handler) WebQuote(ctx context.Context, req *gen.WebQuoteRequest) (gen.W
 	if !ok {
 		return nil, errNoAuthUser
 	}
+	ship, err := h.shipChoice(ctx, req.ShippingChoice, nil)
+	if err != nil {
+		return nil, err
+	}
 	if strings.TrimSpace(req.CouponCode.Or("")) == "" {
-		return h.d.webOrders.Quote(ctx, u.TenantID, req) //nolint:wrapcheck // lỗi của order, đổi mã ở errors_order.go
+		return h.d.webOrders.Quote(ctx, u.TenantID, req, ship) //nolint:wrapcheck // lỗi của order, đổi mã ở errors_order.go
 	}
 	ph, _ := customer.NormalizePhone(req.CustomerPhone.Or("")) // sai hay thiếu: chỉ đếm theo IP
 	s := CouponSubject{Phone: ph, IP: req.ClientIp.Or(netip.Addr{}), ServiceKeyID: u.ServiceKeyID}
 	if err := h.couponAllowed(ctx, s); err != nil {
 		return nil, err
 	}
-	q, err := h.d.webOrders.Quote(ctx, u.TenantID, req)
+	q, err := h.d.webOrders.Quote(ctx, u.TenantID, req, ship)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // lỗi của order, đổi mã ở errors_order.go
 	}
@@ -64,7 +68,9 @@ func (h *handler) couponAllowed(ctx context.Context, s CouponSubject) error {
 // (cả khi đơn của cùng externalRef đã có), từ chối dứt khoát webOrderRefusal (422 quote_changed, item_unavailable,
 // coupon_invalid, mixed_sellers; 409 out_of_stock). Lỗi đầu vào khác (isOrderRefusal) và 503 web_orders_paused (shop
 // tạm dừng nhận đơn web, Task 456: mở lại rồi gửi lại cùng khóa thì xử lý lại) trả lời nhưng không lưu; 503
-// retry_later không lưu (WriteTx).
+// retry_later không lưu (WriteTx). Có shippingChoice (Task 490): đối chiếu trước WriteTx (shipChoice, ngoài
+// transaction); CreateFromWeb xét kết quả sau khi tìm đơn theo externalRef — sync sai → 422 lưu theo khóa, chưa kiểm
+// được → 503 retry_later không lưu; queued → priceReview.
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) WebCreateOrder(ctx context.Context, req *gen.WebOrderRequest, _ gen.WebCreateOrderParams) (gen.WebCreateOrderRes, error) {
@@ -86,6 +92,9 @@ func (h *handler) WebCreateOrder(ctx context.Context, req *gen.WebOrderRequest, 
 	if allowed, wait := h.d.WebOrderLimiter.AllowWebOrder(ctx, in.Customer.Phone); !allowed {
 		return nil, &tooFastError{retryAfter: wait}
 	}
+	if in.Shipping, err = h.shipChoice(ctx, req.ShippingChoice, &in.ShipAddress); err != nil {
+		return nil, err
+	}
 	a := order.Actor{TenantID: u.TenantID, UserID: u.ServiceKeyID, Type: order.ActorService}
 	var out *gen.WebOrderCreated
 	var refused error
@@ -101,7 +110,7 @@ func (h *handler) WebCreateOrder(ctx context.Context, req *gen.WebOrderRequest, 
 			err = auditWebOrder(ctx, tx, u, res.OrderID)
 		}
 		switch {
-		case isOrderRefusal(err), errors.Is(err, order.ErrWebIntakePaused):
+		case isOrderRefusal(err), errors.Is(err, order.ErrWebIntakePaused), errors.Is(err, order.ErrShipUnverified):
 			refused = err
 			return 0, nil, false, nil
 		case err != nil:
@@ -125,6 +134,21 @@ func (h *handler) WebCreateOrder(ctx context.Context, req *gen.WebOrderRequest, 
 		return nil, fmt.Errorf("tạo đơn web: %w", refused)
 	}
 	return out, nil
+}
+
+// shipChoice đối chiếu lựa chọn giao hàng c của website (Task 490; web.Shipping.CheckChoice, ngoài transaction) với
+// địa chỉ giao addr (nil ở báo giá); không gửi → nil (như trước Task 490).
+func (h *handler) shipChoice(ctx context.Context, c gen.OptWebShippingChoice, addr *order.ShipAddress,
+) (*order.WebShipChoice, error) {
+	v, ok := c.Get()
+	if !ok {
+		return nil, nil
+	}
+	sh, u, err := h.webShipping(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return sh.CheckChoice(ctx, u.TenantID, &v, addr) //nolint:wrapcheck // web đã bọc; lỗi database đổi mã ở errors.go
 }
 
 // auditWebOrder ghi audit order.create của đơn web id (người làm: khóa dịch vụ) trong tx; order không nhập identity

@@ -22088,7 +22088,12 @@ func (s *Server) handleWebCreateBirthdayBatchRequest(args [0]string, argsEscaped
 // xử lý lại); queued vẫn nhận. Có couponCode mà SĐT người đặt hay IP (clientIp;
 // không gửi → khóa dịch vụ) đã quá ngưỡng nhập mã sai (Task 482, như webQuote) →
 // 429 coupon_attempts_exceeded kèm Retry-After, không lưu; 422 coupon_invalid not_found,
-// bound_other được đếm là một lần sai.
+// bound_other được đếm là một lần sai. shippingChoice (Task 490, tùy chọn): kiểm như
+// webQuote, thêm mã tỉnh, phường của quote phải trùng shipAddress; sync sai → 422
+// shipping_carrier_unavailable / shipping_fee_mismatch (lưu theo khóa), chưa kiểm được →
+// 503 retry_later (không lưu); queued vẫn tạo, priceReview = true. Đơn đã có của cùng
+// externalRef trả 201 trước mọi kiểm lựa chọn. Lựa chọn lưu trên đơn
+// (Order.webShipping).
 //
 // POST /api/v1/web/orders
 func (s *Server) handleWebCreateOrderRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -23249,7 +23254,11 @@ func (s *Server) handleWebOrderChangesRequest(args [0]string, argsEscaped bool, 
 // total_overflow. Có couponCode (Task 482): SĐT (customerPhone) đã quá 10 lần nhập mã sai
 // hay IP (clientIp; không gửi → khóa dịch vụ) quá 30 lần trong 15 phút → 429
 // coupon_attempts_exceeded kèm Retry-After, kể cả mã đúng, tới hết cửa sổ; mã sai
-// (not_found, bound_other) được đếm. Báo giá không mã không bị chặn.
+// (not_found, bound_other) được đếm. Báo giá không mã không bị chặn. shippingChoice
+// (Task 490, tùy chọn): CRM kiểm hãng còn hiện trên web và phí khớp báo phí (hay phí
+// dự phòng) của đúng thân quote; sai → 422 shipping_carrier_unavailable /
+// shipping_fee_mismatch; chưa kiểm được (hãng lỗi, bận) → 503 retry_later. Có
+// shippingChoice thì fingerprint gồm cả lựa chọn.
 //
 // POST /api/v1/web/quote
 func (s *Server) handleWebQuoteRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

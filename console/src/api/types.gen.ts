@@ -509,6 +509,7 @@ export type Order = {
     channel?: string;
     trafficSourceId?: string;
     externalRef?: string;
+    webShipping?: OrderWebShipping;
     carrierNote?: string;
     careBy?: Actor;
     createdBy?: Actor;
@@ -893,6 +894,7 @@ export type WebQuoteRequest = {
      * Phí giao website đã tính (đồng)
      */
     shippingFee: number;
+    shippingChoice?: WebShippingChoice;
 };
 
 export type WebQuoteLineInput = {
@@ -960,6 +962,7 @@ export type WebOrderRequest = {
      * Phí giao website đã tính (đồng)
      */
     shippingFee: number;
+    shippingChoice?: WebShippingChoice;
     /**
      * Báo giá website đã hiện cho khách (webQuote); chỉ để so và lưu
      */
@@ -1733,6 +1736,42 @@ export type WebShippingCarrier = {
     carrierKey: string;
     name: string;
     preferred: boolean;
+};
+
+/**
+ * Task 490. Lựa chọn giao hàng khách chọn trong kết quả webShippingQuote. Không gửi: như trước (CRM không kiểm,
+ * đơn không mang hãng). accountId, service của lựa chọn; không accountId = phí dự phòng của shop (lựa chọn
+ * estimated). fee là phí của lựa chọn đó (trước miễn phí ship của website); shippingFee của yêu cầu được nhỏ hơn
+ * (miễn phí ship), không được lớn hơn. quote là đúng thân đã gửi webShippingQuote (CRM đọc lại cùng báo phí).
+ *
+ */
+export type WebShippingChoice = {
+    /**
+     * Mã tài khoản hãng (webShippingCarriers); không gửi = phí dự phòng
+     */
+    accountId?: string;
+    /**
+     * Dịch vụ của lựa chọn; không gửi = dịch vụ nào của tài khoản có đúng phí
+     */
+    service?: string;
+    fee: number;
+    quote: WebShippingQuoteRequest;
+};
+
+/**
+ * Task 490. Hãng/dịch vụ khách chọn trên website lúc đặt (chỉ để nhân viên gửi đúng hãng; CRM không tự gửi).
+ * estimated = phí dự phòng của shop (không hãng). problem có khi đơn từ hàng đợi (queued) mà lựa chọn không còn
+ * khớp lúc CRM nhận (đơn có priceReview).
+ *
+ */
+export type OrderWebShipping = {
+    accountId?: string;
+    carrierKey?: string;
+    carrierName?: string;
+    service?: string;
+    fee: Money;
+    estimated: boolean;
+    problem?: 'carrier_unavailable' | 'fee_mismatch' | 'unverified';
 };
 
 export type WebShippingQuoteRequest = {

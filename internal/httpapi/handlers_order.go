@@ -271,6 +271,9 @@ func orderOut(o order.Order) *gen.Order {
 	if o.ExternalRef != nil {
 		out.ExternalRef = gen.NewOptString(*o.ExternalRef)
 	}
+	if c := o.WebShipping; c != nil {
+		out.WebShipping = gen.NewOptOrderWebShipping(webShippingOut(*c))
+	}
 	for _, it := range o.Items {
 		out.Items = append(out.Items, gen.OrderItem{
 			ID: it.ID, Position: it.Position, VariantId: it.VariantID, Sku: it.SKU, Name: it.Name, Qty: it.Qty,
@@ -280,6 +283,19 @@ func orderOut(o order.Order) *gen.Order {
 		})
 	}
 	return out
+}
+
+// webShippingOut là hãng/dịch vụ khách chọn trên website (Task 490) theo hợp đồng.
+func webShippingOut(c order.WebShipChoice) gen.OrderWebShipping {
+	g := gen.OrderWebShipping{
+		CarrierKey: nonEmpty(c.CarrierKey), CarrierName: nonEmpty(c.CarrierName), Service: nonEmpty(c.Service),
+		Fee: gen.Money(c.Fee), Estimated: c.Estimated(),
+	}
+	setOpt(&g.AccountId, c.AccountID)
+	if c.Problem != "" {
+		g.Problem = gen.NewOptOrderWebShippingProblem(gen.OrderWebShippingProblem(c.Problem))
+	}
+	return g
 }
 
 func nonEmpty(s string) gen.OptString {

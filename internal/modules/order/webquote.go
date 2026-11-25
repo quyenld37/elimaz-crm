@@ -46,11 +46,13 @@ type WebLine struct {
 
 // WebQuoteInput là giỏ website cần báo giá. CouponCode rỗng: không dùng mã (cắt khoảng trắng hai đầu, không phân biệt
 // hoa thường). CustomerPhone (nil: chưa có) chỉ để kiểm mã gắn SĐT. ShippingFee là phí giao website đã tính.
+// Shipping (nil: website không gửi) là lựa chọn giao hàng khách chọn, đã được lớp HTTP đối chiếu (Task 490).
 type WebQuoteInput struct {
 	Lines         []WebLine
 	CouponCode    string
 	CustomerPhone *logging.Phone
 	ShippingFee   int64
+	Shipping      *WebShipChoice
 }
 
 // LineCampaign là chiến dịch web CRM áp cho dòng (promotion.ActiveForVariants).
@@ -98,11 +100,16 @@ type WebQuote struct {
 // promotion.ActiveForVariants, mã từ promotion.Check (kênh web; nền = Σ (tiền dòng − giảm chiến dịch) của dòng bán được
 // không thuộc chiến dịch cấm mã, QĐ29; mã chia về các dòng đó bằng pricing.Allocate). Lượt mỗi khách của mã không kiểm
 // (báo giá chưa biết hồ sơ khách; tạo đơn kiểm). Đầu vào sai → ErrInvalidInput; tổng vượt 2^53 − 1 → ErrTotalOverflow.
+// Lựa chọn giao hàng có vấn đề, hay ShippingFee lớn hơn phí của lựa chọn → ErrShipCarrierUnavailable,
+// ErrShipFeeMismatch, ErrShipUnverified (Task 490); có lựa chọn thì dấu vân tay gồm cả lựa chọn.
 // Kết quả có thể khác lúc tạo đơn; tạo đơn tính lại trong transaction của nó.
 func QuoteWeb(ctx context.Context, tx pgx.Tx, in WebQuoteInput, now time.Time) (WebQuote, error) {
 	code, err := validateWebQuote(in)
 	if err != nil {
 		return WebQuote{}, err
+	}
+	if err := shipError(shipProblem(in.Shipping, in.ShippingFee)); err != nil {
+		return WebQuote{}, fmt.Errorf("báo giá web: %w", err)
 	}
 	seller, err := catalog.DefaultSeller(ctx, tx)
 	if err != nil {
@@ -142,7 +149,7 @@ func QuoteWeb(ctx context.Context, tx pgx.Tx, in WebQuoteInput, now time.Time) (
 		l.Net = lt.Base - l.CouponDiscount
 	}
 	q.Merchandise, q.CampaignDiscount, q.GrandTotal = t.Subtotal, t.LineDiscountTotal, t.GrandTotal
-	if q.Fingerprint, err = webQuoteFingerprint(q, code); err != nil {
+	if q.Fingerprint, err = webQuoteFingerprint(q, code, in.Shipping); err != nil {
 		return WebQuote{}, err
 	}
 	return q, nil
@@ -196,7 +203,7 @@ func validateWebQuote(in WebQuoteInput) (string, error) {
 			return "", fmt.Errorf("%w: số lượng hay đơn giá ngoài giới hạn", ErrInvalidInput)
 		}
 	}
-	if in.ShippingFee < 0 || in.ShippingFee > pricing.MaxMoney {
+	if in.ShippingFee < 0 || in.ShippingFee > pricing.MaxMoney || !validShipChoice(in.Shipping) {
 		return "", fmt.Errorf("%w: phí giao ngoài giới hạn", ErrInvalidInput)
 	}
 	code := strings.TrimSpace(in.CouponCode)
@@ -316,9 +323,16 @@ type fingerprintLine struct {
 	R int        `json:"r"`
 }
 
+// fingerprintShip là lựa chọn giao hàng trong dấu vân tay (tài khoản, dịch vụ, phí).
+type fingerprintShip struct {
+	A *uuid.UUID `json:"a"`
+	S string     `json:"s"`
+	F int64      `json:"f"`
+}
+
 // webQuoteFingerprint là hex sha256 của JSON chuẩn (struct, thứ tự trường cố định) gồm các dòng theo số CRM, phí,
-// tổng, mã (chữ hoa) và kết quả mã.
-func webQuoteFingerprint(q WebQuote, code string) (string, error) {
+// tổng, mã (chữ hoa), kết quả mã và lựa chọn giao hàng ship (nil: không có khóa "ship", dấu như trước Task 490).
+func webQuoteFingerprint(q WebQuote, code string, ship *WebShipChoice) (string, error) {
 	lines := make([]fingerprintLine, len(q.Lines))
 	for i, l := range q.Lines {
 		lines[i] = fingerprintLine{V: l.VariantID, Q: l.Qty, U: l.UnitPrice, C: l.CampaignDiscount, K: l.CouponDiscount, P: l.Problem}
@@ -327,13 +341,18 @@ func webQuoteFingerprint(q WebQuote, code string) (string, error) {
 		}
 	}
 	applied := q.Coupon != nil && q.Coupon.Applied
+	var fs *fingerprintShip
+	if ship != nil {
+		fs = &fingerprintShip{A: ship.AccountID, S: ship.Service, F: ship.Fee}
+	}
 	b, err := json.Marshal(struct {
 		Lines   []fingerprintLine `json:"lines"`
 		Fee     int64             `json:"fee"`
 		Total   int64             `json:"total"`
 		Code    string            `json:"code"`
 		Applied bool              `json:"applied"`
-	}{lines, q.ShippingFee, q.GrandTotal, strings.ToUpper(code), applied})
+		Ship    *fingerprintShip  `json:"ship,omitempty"`
+	}{lines, q.ShippingFee, q.GrandTotal, strings.ToUpper(code), applied, fs})
 	if err != nil {
 		return "", fmt.Errorf("mã hóa dấu vân tay báo giá: %w", err)
 	}
