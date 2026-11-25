@@ -32,7 +32,6 @@ removeConversationTag
 addConversationNote
 getPresence
 setPresence
-createReminder
 listMessageRevisions
 resendMessage
 discardMessage
@@ -48,12 +47,6 @@ updateReplyTemplate
 deleteReplyTemplate
 renderReplyTemplate
 listFollowUps
-listMyReminders
-completeReminder
-cancelReminder
-listCustomerCalls
-createCallLog
-listCustomerConversations
 listLiveSessions
 endLiveSessionManually
 listLiveComments
