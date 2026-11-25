@@ -187,7 +187,7 @@ func writeDomainError(w http.ResponseWriter, r *http.Request, err error) bool {
 func domainErrorMappers() []func(error) (int, string, bool) {
 	return []func(error) (int, string, bool){
 		identityError, catalogError, filesError, orderError, customerError, promotionError, inventoryError,
-		queriesError, fulfillmentError, cashError, webError, contentError,
+		queriesError, fulfillmentError, cashError, webError, contentError, channelError,
 	}
 }
 

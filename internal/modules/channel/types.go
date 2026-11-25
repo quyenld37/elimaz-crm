@@ -23,6 +23,13 @@ type ChannelAccount struct {
 	HumanAgentEnabled         bool
 	BlockedUntil              *time.Time
 	Version                   int32
+	// StatusReason là lý do của trạng thái degraded, disconnected (rỗng khi active).
+	StatusReason string
+	// TokenKind: page_user, system_user, rỗng khi chưa có token.
+	TokenKind        string
+	SubscribedFields []string
+	// TokenCheckedAt, LastWebhookAt, LastFeedAt: mốc kiểm token, mốc webhook gần nhất (mọi loại, feed) — Task 150 dùng.
+	TokenCheckedAt, LastWebhookAt, LastFeedAt *time.Time
 }
 
 // Credentials là token của tài khoản kênh, chỉ giải mã ngay trước khi gọi kênh; kiểu Secret tự che khi ghi log.

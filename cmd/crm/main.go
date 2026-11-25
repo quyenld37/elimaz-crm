@@ -27,6 +27,7 @@ import (
 	"elimaz.com.vn/crm/internal/imager"
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/modules/content"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
@@ -401,6 +402,8 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 		cash.NewReconcileAlertCommand(alerter),
 		// Cảnh báo đơn kẹt mỗi ngày (Task M3-20): lệnh do lịch fulfillment.stuck ghi.
 		fulfillment.NewStuckAlertCommand(d, alerter, logger),
+		// Cảnh báo Page bắt đầu gửi thật (kế hoạch M4, Task 145): lệnh do channel.Writer.SetSendMode ghi.
+		channel.NewSendModeAlertCommand(alerter, logger),
 	}, nil
 }
 

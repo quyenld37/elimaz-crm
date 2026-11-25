@@ -54,6 +54,7 @@ Viết trước ở Task M1-25 (kế hoạch M1, Q37; A16, A17, B11). Một modu
 | `fulfillment.carrier_accounts_v` (không `credential_enc`, `credential_key_id`, `route_key`, `external_account_ref`) | `tenant_id, id, seller_id, carrier_key, mode, environment, name, warehouse_id, status, is_default_for_warehouse, show_on_web, web_sort, last_check_at, last_check_result, created_at, updated_at` | 92 | M3 (cash: khóa hãng của bảng kê, Task 122), M5–M7 |
 | `fulfillment.shipment_events_v` (không `raw`, `event_key`) | `tenant_id, id, shipment_id, source, raw_status, canonical, status, sub_status, occurred_at, recorded_at, applied, ignored_reason, actor_id` | 92, 119 | M3 (`internal/queries`: dòng thời gian đơn), M6, M7 |
 | `fulfillment.locations_v` | `tenant_id, carrier_key, level, our_code, carrier_code, carrier_name, synced_at` | 92 | M5 |
+| `channel.channel_accounts_v` (không `credential_enc`, `credential_kid`) | `id, tenant_id, seller_id, channel, external_id, name, token_kind, status, status_reason, send_mode, human_agent_enabled, subscribed_fields, token_checked_at, last_webhook_at, last_feed_at, blocked_until, version, created_at, updated_at` | 145 | M4 (`conversation`), M6, M7 (Q-X2) |
 | `cash.cod_balances_v` (tối thiểu; M3 mở rộng) | `shipment_id, account, balance` | 32 | M3 trở đi |
 | `cash.shipment_cod_v` (số dư từng ngăn theo vận đơn, dạng ngang; vận đơn chưa có dòng sổ thì không có dòng) | `tenant_id, shipment_id, to_collect, carrier_holding, shop_received, carrier_fee, sales_clearing` | 93 | M3 trở đi |
 | `cash.cod_transfers_v` (không `idempotency_key`, `actor_id`) | `tenant_id, id, shipment_id, kind, statement_line_id, reverses_transfer_id, reason, actor_type, occurred_at` | 93 | M3, M6, M7 |
@@ -140,3 +141,4 @@ dưới; `viewsdoc_test` đòi hai tập bằng nhau.
 | `fulfillment.shipments_active_order` | một đơn một vận đơn chưa hủy (B1); đơn đã thuộc đúng một người bán | 31, 92 |
 | `promotion.coupons_code_key` | khách gõ mã ở một ô chung của shop: mã duy nhất trên cả shop, kể cả mã của người bán (05 mục 2) | 63 |
 | `promotion.web_campaigns_link_key` | liên kết `/uu-dai/<tên>-<link_key>` của website là đường dẫn chung của cả shop | 452 |
+| `channel.channel_accounts_external_key` | một Page (kênh, mã Page) chỉ nối một lần trong shop, thuộc đúng một người bán | 145 |
