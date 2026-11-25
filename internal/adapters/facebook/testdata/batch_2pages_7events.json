@@ -1,0 +1,15 @@
+{"object":"page","entry":[
+ {"id":"104000000000001","time":1763632820500,"messaging":[
+  {"sender":{"id":"7000000000000011"},"recipient":{"id":"104000000000001"},"timestamp":1763632820100,"message":{"mid":"m_batch_0001","text":"Còn hàng không shop"}},
+  {"sender":{"id":"104000000000001"},"recipient":{"id":"7000000000000011"},"timestamp":1763632820200,"message":{"mid":"m_batch_0002","is_echo":true,"app_id":1626301872631379,"metadata":"0193a4b2-7c00-7000-8000-000000000002","text":"Dạ còn ạ"}},
+  {"sender":{"id":"7000000000000011"},"recipient":{"id":"104000000000001"},"timestamp":1763632820300,"read":{"watermark":1763632820250}}
+ ],"changes":[
+  {"field":"feed","value":{"from":{"id":"7000000000000022","name":"Khách Thử Hai"},"message":"Chốt","post_id":"104000000000001_900000000000001","comment_id":"900000000000001_800000000000003","created_time":1763632820,"item":"comment","parent_id":"104000000000001_900000000000001","verb":"add"}}
+ ]},
+ {"id":"104000000000002","time":1763632821500,"messaging":[
+  {"sender":{"id":"7000000000000022"},"recipient":{"id":"104000000000002"},"timestamp":1763632821100,"message":{"mid":"m_batch_0003","text":"Ship Hà Nội bao lâu?"}},
+  {"sender":{"id":"7000000000000022"},"recipient":{"id":"104000000000002"},"timestamp":1763632821200,"delivery":{"mids":["m_batch_0009"],"watermark":1763632821150}}
+ ],"changes":[
+  {"field":"live_videos","value":{"id":"500000000000002","status":"live_stopped"}}
+ ]}
+]}
