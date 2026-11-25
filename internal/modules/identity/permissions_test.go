@@ -126,6 +126,10 @@ func TestPermissionsList(t *testing.T) {
 		// M5 (Task 453): banner trang chủ.
 		"content.read":   identity.ScopeShop,
 		"content.manage": identity.ScopeShop,
+		// M4 (Task 143): hội thoại, Live theo Page; kết nối kênh toàn shop.
+		"channel.manage": identity.ScopeShop, "conversation.reply": identity.ScopeByTarget,
+		"conversation.assign": identity.ScopeByTarget, "conversation.settings": identity.ScopeByTarget,
+		"live.operate": identity.ScopeByTarget,
 	}
 	seen := map[identity.Permission]bool{}
 	for _, d := range identity.Permissions {

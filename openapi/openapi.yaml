@@ -6036,6 +6036,1320 @@ paths:
           $ref: "#/components/responses/RetryLater"
         default:
           $ref: "#/components/responses/Error"
+  # --- M4: hộp chat Facebook, màn Live (kế hoạch M4, Task 143 = M4-03). Operation chưa làm trả 501 not_implemented
+  # sau auth và guard; task ghi ở mỗi summary hiện thực. Đối tượng thuộc Page không có quyền xem → 404 not_found.
+  /api/v1/channels:
+    get:
+      operationId: listChannelAccounts
+      summary: 'Tài khoản kênh (Page) người gọi được xem theo phạm vi conversation.read; không bao giờ có token (Task 145)'
+      x-permission: conversation.read
+      responses:
+        "200":
+          description: listChannelAccounts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelAccountList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/channels/{id}/send-mode:
+    put:
+      operationId: setChannelSendMode
+      summary: 'Đổi chế độ gửi của Page (read_only = chỉ xem, enabled = gửi thật); kiểm version, ghi nhật ký (Task 145)'
+      x-permission: channel.manage
+      parameters:
+        - $ref: "#/components/parameters/ChannelID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetChannelSendModeRequest"
+      responses:
+        "200":
+          description: setChannelSendMode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelAccount"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/channels/{id}/human-agent:
+    put:
+      operationId: setChannelHumanAgent
+      summary: 'Bật, tắt trả lời "nhân viên" (thẻ HUMAN_AGENT) khi Meta đã cấp tính năng (Q19, Task 145)'
+      x-permission: channel.manage
+      parameters:
+        - $ref: "#/components/parameters/ChannelID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetChannelHumanAgentRequest"
+      responses:
+        "200":
+          description: setChannelHumanAgent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelAccount"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/channels/facebook/oauth/start:
+    post:
+      operationId: startFacebookOAuth
+      summary: 'Bắt đầu đăng nhập Facebook for Business (mở trong cùng tab); trả địa chỉ đăng nhập có state hạn 15 phút (Task 149)'
+      x-permission: channel.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: startFacebookOAuth
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FacebookOAuthStart"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/channels/facebook/oauth/exchange:
+    post:
+      operationId: exchangeFacebookOAuth
+      summary: 'Đổi mã đăng nhập lấy danh sách Page người dùng quản trị; state sai, hết hạn, đã dùng → 400 oauth_state_invalid (Task 149)'
+      x-permission: channel.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExchangeFacebookOAuthRequest"
+      responses:
+        "200":
+          description: exchangeFacebookOAuth
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FacebookOAuthPages"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/channels/facebook/pages:
+    post:
+      operationId: connectFacebookPage
+      summary: 'Kết nối một Page (từ phiên đăng nhập hoặc mã system user); Page mới luôn ở chế độ chỉ xem (Q22, Task 149)'
+      description: |
+        Đúng một trong sessionId (phiên đăng nhập của exchangeFacebookOAuth) và systemUserToken (mã system user, chỉ sống
+        trong bộ nhớ của yêu cầu, không lưu, không ghi log); thiếu hoặc có cả hai → 422 invalid_input. Page thiếu quyền
+        MESSAGING, MODERATE → 422 page_not_accessible; Page đã nối với shop khác → 409 page_connected_elsewhere.
+      x-permission: channel.manage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectFacebookPageRequest"
+      responses:
+        "200":
+          description: connectFacebookPage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelAccount"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/channels/{id}/disconnect:
+    post:
+      operationId: disconnectChannel
+      summary: 'Ngắt kết nối Page: hủy đăng ký webhook, xóa token sau khi hủy xong; tin cũ giữ nguyên (Task 149)'
+      x-permission: channel.manage
+      parameters:
+        - $ref: "#/components/parameters/ChannelID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: disconnectChannel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelAccount"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/channels/{id}/health-check:
+    post:
+      operationId: runChannelHealthCheck
+      summary: 'Kiểm ngay token, quyền, đăng ký webhook của Page (ghi lệnh kiểm; kết quả về qua báo hiệu channel.status) (Task 150)'
+      x-permission: channel.manage
+      parameters:
+        - $ref: "#/components/parameters/ChannelID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: runChannelHealthCheck
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelAccount"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/channels/{id}/page-settings:
+    get:
+      operationId: getPageSettings
+      summary: 'Cài đặt hộp chat của Page: xoay vòng, nguồn đơn, khung giờ live, đọc comment định kỳ, tuổi tối đa sự kiện tự động (Task 160)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/ChannelID"
+      responses:
+        "200":
+          description: getPageSettings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageSettings"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: updatePageSettings
+      summary: 'Lưu cài đặt hộp chat của Page; kiểm version, khung giờ live không chồng nhau, nguồn đơn còn bật (Task 160)'
+      x-permission: conversation.settings
+      parameters:
+        - $ref: "#/components/parameters/ChannelID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePageSettingsRequest"
+      responses:
+        "200":
+          description: updatePageSettings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageSettings"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/channels/{id}/assignable-users:
+    get:
+      operationId: listAssignableUsers
+      summary: 'Nhân viên đang hoạt động có conversation.read trên Page (danh sách "Giao cho…") (Task 160)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/ChannelID"
+      responses:
+        "200":
+          description: listAssignableUsers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssignableUserList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/channels/{id}/automation-rules:
+    get:
+      operationId: listAutomationRules
+      summary: 'Bốn quy tắc tự động của Page (loại chưa cấu hình trả mặc định, enabled = false) (Task 165)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/ChannelID"
+      responses:
+        "200":
+          description: listAutomationRules
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRuleList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/channels/{id}/automation-rules/{kind}:
+    put:
+      operationId: updateAutomationRule
+      summary: 'Bật, tắt, sửa một quy tắc tự động của Page; config.kind phải trùng kind trên đường dẫn; kiểm version (Task 165)'
+      x-permission: conversation.settings
+      parameters:
+        - $ref: "#/components/parameters/ChannelID"
+        - $ref: "#/components/parameters/AutomationRuleKindPath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAutomationRuleRequest"
+      responses:
+        "200":
+          description: updateAutomationRule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRule"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/channels/{id}/live-sessions:
+    post:
+      operationId: startLiveSessionManually
+      summary: 'Theo dõi live bằng tay theo mã video hay đường dẫn video (Q5, Task 170)'
+      x-permission: live.operate
+      parameters:
+        - $ref: "#/components/parameters/ChannelID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartLiveSessionRequest"
+      responses:
+        "201":
+          description: startLiveSessionManually
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveSession"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations:
+    get:
+      operationId: listConversations
+      summary: 'Hội thoại trên các Page được xem, mới nhất trước; lọc Page, trạng thái, nhãn, người phụ trách, loại, chưa đọc, tìm khách (Task 159)'
+      x-permission: conversation.read
+      parameters:
+        - name: pageId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ConversationStatus"
+        - name: tagId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: assignee
+          in: query
+          required: false
+          description: me, none, hoặc mã nhân viên (uuid)
+          schema:
+            type: string
+            maxLength: 36
+        - name: kind
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ConversationKind"
+        - name: unread
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: q
+          in: query
+          required: false
+          description: Mã khách, SĐT, đuôi SĐT từ 4 số, tên từ 2 ký tự (customer.Search của M2; ngắn hơn → 422 query_too_short)
+          schema:
+            type: string
+            maxLength: 100
+        - name: updatedSince
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listConversations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/counts:
+    get:
+      operationId: countConversations
+      summary: 'Số hội thoại chưa đọc, đang mở theo Page; của tôi; chưa ai nhận (Task 159)'
+      x-permission: conversation.read
+      responses:
+        "200":
+          description: countConversations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationCounts"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}:
+    get:
+      operationId: getConversation
+      summary: 'Chi tiết hội thoại: Page, người phụ trách, nhãn, chính sách gửi hiện tại, cờ chặn và không liên hệ (Task 159)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+      responses:
+        "200":
+          description: getConversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationDetail"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}/customer-card:
+    get:
+      operationId: getConversationCustomerCard
+      summary: 'Thẻ khách cạnh khung chat: chỉ số của M2, đơn gần đây của cả nhóm, đơn nháp đang mở (Task 159)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+      responses:
+        "200":
+          description: getConversationCustomerCard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationCustomerCard"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}/order-context:
+    get:
+      operationId: getConversationOrderContext
+      summary: 'Bối cảnh lên đơn từ hội thoại: Page, khách, người bán, nguồn đơn tự điền (Task 159)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+      responses:
+        "200":
+          description: getConversationOrderContext
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationOrderContext"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}/messages:
+    get:
+      operationId: listMessages
+      summary: 'Tin của hội thoại theo thứ tự thời gian; đính kèm chỉ có mã tệp và trạng thái (Task 159)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+        - name: before
+          in: query
+          required: false
+          description: Chuỗi mờ của tin cũ nhất đang có (lấy trang trước)
+          schema:
+            type: string
+            maxLength: 512
+        - name: after
+          in: query
+          required: false
+          description: Chuỗi mờ của tin mới nhất đang có (lấy tin mới)
+          schema:
+            type: string
+            maxLength: 512
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listMessages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagePage"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: sendMessage
+      summary: 'Gửi tin cho khách (chữ hoặc một ảnh); Page chỉ xem → 409 channel_read_only; ngoài chính sách → 409 send_not_allowed (Task 156)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+      responses:
+        "201":
+          description: sendMessage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}/read:
+    post:
+      operationId: markConversationRead
+      summary: 'Đánh dấu đã đọc tới một tin (hộp thư dùng chung; không gửi "đã xem" cho khách, Q10) (Task 159)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkConversationReadRequest"
+      responses:
+        "204":
+          description: markConversationRead
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}/status:
+    post:
+      operationId: setConversationStatus
+      summary: 'Đổi trạng thái hội thoại (mở, chờ, xong, spam); kiểm version (Task 159)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetConversationStatusRequest"
+      responses:
+        "200":
+          description: setConversationStatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationDetail"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}/attachments/{fileId}/url:
+    get:
+      operationId: getAttachmentUrl
+      summary: 'Đường dẫn có hạn 5 phút tới tệp đính kèm của một tin trong hội thoại (Task 155)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+        - $ref: "#/components/parameters/AttachmentFileID"
+      responses:
+        "200":
+          description: getAttachmentUrl
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttachmentUrl"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}/comment-replies:
+    post:
+      operationId: replyToComment
+      summary: 'Trả lời công khai một comment của khách (Task 158)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplyToCommentRequest"
+      responses:
+        "201":
+          description: replyToComment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}/private-replies:
+    post:
+      operationId: sendPrivateReply
+      summary: 'Nhắn riêng người comment (một lần mỗi comment; lần hai → 409 private_reply_used) (Task 158)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendPrivateReplyRequest"
+      responses:
+        "201":
+          description: sendPrivateReply
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}/claim:
+    post:
+      operationId: claimConversation
+      summary: 'Nhận hội thoại về mình; người khác đang nhận → 409 already_assigned (Task 160)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: claimConversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationDetail"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}/assign:
+    post:
+      operationId: assignConversation
+      summary: 'Giao hội thoại cho nhân viên có quyền trên Page, hoặc bỏ giao (userId null); kiểm version (Task 160)'
+      x-permission: conversation.assign
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignConversationRequest"
+      responses:
+        "200":
+          description: assignConversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationDetail"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}/assignments:
+    get:
+      operationId: listConversationAssignments
+      summary: 'Lịch sử giao, nhận hội thoại (Task 160)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+      responses:
+        "200":
+          description: listConversationAssignments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationAssignmentList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}/tags/{tagId}:
+    put:
+      operationId: addConversationTag
+      summary: 'Gắn nhãn cho hội thoại (gắn lại không lỗi) (Task 160)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+        - $ref: "#/components/parameters/ConversationTagIDPath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204":
+          description: addConversationTag
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: removeConversationTag
+      summary: 'Gỡ nhãn khỏi hội thoại (gỡ nhãn không có không lỗi) (Task 160)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+        - $ref: "#/components/parameters/ConversationTagIDPath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204":
+          description: removeConversationTag
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}/notes:
+    post:
+      operationId: addConversationNote
+      summary: 'Ghi chú nội bộ trong hội thoại (không bao giờ gửi ra ngoài) (Task 161)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddConversationNoteRequest"
+      responses:
+        "201":
+          description: addConversationNote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}/presence:
+    get:
+      operationId: getPresence
+      summary: 'Ai khác đang xem, đang gõ, đang lên đơn trong hội thoại (Task 163)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+      responses:
+        "200":
+          description: getPresence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PresenceList"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: setPresence
+      summary: 'Nhịp tim "đang xem/gõ/lên đơn" (hạn 30 giây; khóa chống trùng mới mỗi lần, Q9) (Task 163)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPresenceRequest"
+      responses:
+        "204":
+          description: setPresence
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversations/{id}/reminders:
+    post:
+      operationId: createReminder
+      summary: 'Nhắc việc trên hội thoại "nhắc tôi lúc…" (giao cho người khác cần conversation.assign) (Task 169)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/ConversationID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReminderRequest"
+      responses:
+        "201":
+          description: createReminder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reminder"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/messages/{id}/revisions:
+    get:
+      operationId: listMessageRevisions
+      summary: 'Lịch sử sửa, ẩn, xóa của một comment (Task 154)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/MessageID"
+      responses:
+        "200":
+          description: listMessageRevisions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageRevisionList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/messages/{id}/resend:
+    post:
+      operationId: resendMessage
+      summary: 'Gửi lại tin "không rõ đã gửi" hay "chưa gửi được" (mayDuplicate khi tin cũ không rõ) (Task 157)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/MessageID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201":
+          description: resendMessage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResendMessageResult"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/messages/{id}/discard:
+    post:
+      operationId: discardMessage
+      summary: 'Bỏ tin "không rõ đã gửi" hay "chưa gửi được" (Task 157)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/MessageID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: discardMessage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/messages/{id}/hide:
+    post:
+      operationId: hideComment
+      summary: 'Ẩn comment của khách trên Page (vẫn hiện trong CRM) (Task 158)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/MessageID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: hideComment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/messages/{id}/unhide:
+    post:
+      operationId: unhideComment
+      summary: 'Hiện lại comment đã ẩn (Task 158)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/MessageID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: unhideComment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversation-tags:
+    get:
+      operationId: listConversationTags
+      summary: 'Nhãn hội thoại dùng chung cả shop (Q7) (Task 160)'
+      x-permission: conversation.read
+      responses:
+        "200":
+          description: listConversationTags
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationTagList"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createConversationTag
+      summary: 'Tạo nhãn hội thoại; tên trùng → 409 already_exists (Task 160)'
+      x-permission: conversation.settings
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConversationTagRequest"
+      responses:
+        "201":
+          description: createConversationTag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationTag"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/conversation-tags/{id}:
+    patch:
+      operationId: updateConversationTag
+      summary: 'Sửa tên, màu, thứ tự nhãn hội thoại; kiểm version (Task 160)'
+      x-permission: conversation.settings
+      parameters:
+        - $ref: "#/components/parameters/ConversationTagID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateConversationTagRequest"
+      responses:
+        "200":
+          description: updateConversationTag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationTag"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteConversationTag
+      summary: 'Xóa mềm nhãn hội thoại (Task 160)'
+      x-permission: conversation.settings
+      parameters:
+        - $ref: "#/components/parameters/ConversationTagID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204":
+          description: deleteConversationTag
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reply-templates:
+    get:
+      operationId: listReplyTemplates
+      summary: 'Mẫu trả lời khớp tiền tố phím tắt hay tiêu đề: mẫu chung và mẫu của Page (menu "/") (Task 161)'
+      x-permission: conversation.read
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 64
+        - name: pageId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: listReplyTemplates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReplyTemplateList"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createReplyTemplate
+      summary: 'Tạo mẫu trả lời (chung hay riêng một Page); phím tắt trùng → 409 already_exists (Task 161)'
+      x-permission: conversation.settings
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReplyTemplateRequest"
+      responses:
+        "201":
+          description: createReplyTemplate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReplyTemplate"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reply-templates/{id}:
+    patch:
+      operationId: updateReplyTemplate
+      summary: 'Sửa mẫu trả lời; kiểm version (Task 161)'
+      x-permission: conversation.settings
+      parameters:
+        - $ref: "#/components/parameters/ReplyTemplateID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateReplyTemplateRequest"
+      responses:
+        "200":
+          description: updateReplyTemplate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReplyTemplate"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteReplyTemplate
+      summary: 'Xóa mềm mẫu trả lời (Task 161)'
+      x-permission: conversation.settings
+      parameters:
+        - $ref: "#/components/parameters/ReplyTemplateID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204":
+          description: deleteReplyTemplate
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reply-templates/{id}/render:
+    post:
+      operationId: renderReplyTemplate
+      summary: 'Điền biến của mẫu cho một hội thoại (thiếu giá trị → 422 template_variable_missing) (Task 161)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/ReplyTemplateID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RenderReplyTemplateRequest"
+      responses:
+        "200":
+          description: renderReplyTemplate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RenderedReplyTemplate"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/follow-ups:
+    get:
+      operationId: listFollowUps
+      summary: 'Hội thoại cần nhắn lại: nhân viên nói sau cùng, khách im quá afterHours, cửa sổ 24 giờ còn ít nhất 5 phút (Task 168)'
+      x-permission: conversation.read
+      parameters:
+        - name: pageId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: afterHours
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 23
+            default: 3
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listFollowUps
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FollowUpList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/me/reminders:
+    get:
+      operationId: listMyReminders
+      summary: 'Nhắc việc của chính người gọi (Task 169)'
+      x-permission: conversation.read
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, fired]
+      responses:
+        "200":
+          description: listMyReminders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReminderList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reminders/{id}/done:
+    post:
+      operationId: completeReminder
+      summary: 'Đánh dấu nhắc việc đã xong (cập nhật có điều kiện) (Task 169)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/ReminderID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: completeReminder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reminder"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/reminders/{id}/cancel:
+    post:
+      operationId: cancelReminder
+      summary: 'Hủy nhắc việc (cập nhật có điều kiện) (Task 169)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/ReminderID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: cancelReminder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reminder"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customers/{id}/calls:
+    get:
+      operationId: listCustomerCalls
+      summary: 'Cuộc gọi của cả nhóm khách (mọi hồ sơ đã gộp), chỉ cuộc gọi gắn Page được xem (Task 169)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listCustomerCalls
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallLogPage"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createCallLog
+      summary: 'Ghi kết quả cuộc gọi khách; "hẹn gọi lại" tự tạo nhắc việc (Q14, Task 169)'
+      x-permission: conversation.reply
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCallLogRequest"
+      responses:
+        "201":
+          description: createCallLog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallLog"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customers/{id}/conversations:
+    get:
+      operationId: listCustomerConversations
+      summary: 'Hội thoại của cả nhóm khách trên các Page được xem (Task 169)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: listCustomerConversations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/customers/{id}/do-not-contact:
+    put:
+      operationId: setCustomerDoNotContact
+      summary: 'Bật, tắt cờ "không liên hệ" của khách: chặn mọi tin tự động (Q13, Task 152)'
+      x-permission: customer.write
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetCustomerDoNotContactRequest"
+      responses:
+        "204":
+          description: setCustomerDoNotContact
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/live-sessions:
+    get:
+      operationId: listLiveSessions
+      summary: 'Phiên live trên các Page được xem (Task 170)'
+      x-permission: conversation.read
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/LiveSessionStatus"
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: listLiveSessions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveSessionList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/live-sessions/{id}/end:
+    post:
+      operationId: endLiveSessionManually
+      summary: 'Kết thúc theo dõi một phiên live bằng tay (Task 170)'
+      x-permission: live.operate
+      parameters:
+        - $ref: "#/components/parameters/LiveSessionID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: endLiveSessionManually
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveSession"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/live-sessions/{id}/comments:
+    get:
+      operationId: listLiveComments
+      summary: 'Comment của phiên live theo thời gian; lọc có SĐT, chưa xử lý (Task 172)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/LiveSessionID"
+        - name: after
+          in: query
+          required: false
+          description: Chuỗi mờ "sentAt,id" của comment cuối đã có (lùi 30 giây, màn hình bỏ trùng theo messageId)
+          schema:
+            type: string
+            maxLength: 512
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 500
+            default: 200
+        - name: phoneOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: unhandledOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: listLiveComments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveCommentPage"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/live-sessions/{id}/pending-drafts:
+    get:
+      operationId: listPendingDrafts
+      summary: 'Đơn nháp "đã chốt, thiếu địa chỉ" của phiên live (Task 173)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/LiveSessionID"
+      responses:
+        "200":
+          description: listPendingDrafts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PendingDraftList"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/live-sessions/{id}/pending-drafts/remind:
+    post:
+      operationId: remindPendingDrafts
+      summary: 'Nhắc một chạm khách còn đơn nháp gửi địa chỉ; mỗi đơn một kết quả (Task 173)'
+      x-permission: live.operate
+      parameters:
+        - $ref: "#/components/parameters/LiveSessionID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemindPendingDraftsRequest"
+      responses:
+        "200":
+          description: remindPendingDrafts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemindPendingDraftsResult"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/live-comments/{id}/context:
+    get:
+      operationId: getLiveCommentContext
+      summary: 'Bối cảnh chốt một comment live: khách rút gọn, đơn nháp đang mở, SĐT tách từ comment, người bán của Page (Task 172)'
+      x-permission: conversation.read
+      parameters:
+        - $ref: "#/components/parameters/LiveCommentID"
+      responses:
+        "200":
+          description: getLiveCommentContext
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveCommentContext"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/live-comments/{id}/claim:
+    post:
+      operationId: claimLiveComment
+      summary: 'Chốt comment live: đơn nháp có giữ hàng (hay thêm vào nháp đang có), xin địa chỉ; một comment một đơn (Task 172)'
+      description: |
+        Cần thêm order.create (mode new) hay order.update (mode add_to_draft) toàn shop. Comment đã chốt → 409
+        comment_claimed (claimedBy, orderId, orderCode); khách đã có nháp của phiên → 409 open_draft_exists (drafts);
+        hết hàng → 409 out_of_stock (variantIds, available), không tạo gì; người bán khác Page → 422 seller_mismatch.
+      x-permission: live.operate
+      parameters:
+        - $ref: "#/components/parameters/LiveCommentID"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimLiveCommentRequest"
+      responses:
+        "201":
+          description: claimLiveComment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimLiveCommentResult"
+        default:
+          $ref: "#/components/responses/Error"
 components:
   parameters:
     IdempotencyKey:
@@ -6356,6 +7670,85 @@ components:
         minimum: 1
         maximum: 100
         default: 50
+    # M4 (Task 143): tham số đường dẫn đầu tiên luôn tên id (B21).
+    ChannelID:
+      name: id
+      in: path
+      required: true
+      description: Mã tài khoản kênh (channel_accounts.id), không phải Page ID của Meta
+      schema:
+        type: string
+        format: uuid
+    ConversationID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    MessageID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ConversationTagID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ConversationTagIDPath:
+      name: tagId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ReplyTemplateID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ReminderID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    LiveSessionID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    LiveCommentID:
+      name: id
+      in: path
+      required: true
+      description: Mã tin (messages.id) của comment live
+      schema:
+        type: string
+        format: uuid
+    AttachmentFileID:
+      name: fileId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AutomationRuleKindPath:
+      name: kind
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/AutomationRuleKind"
   responses:
     Error:
       description: Lỗi; không bao giờ có vết lỗi
@@ -6563,6 +7956,21 @@ components:
         - look_dot_invalid
         - look_photo_invalid
         - look_window_invalid
+        # Hộp chat, Live (M4, Task 143; mã do task hiện thực trả, khai trước theo kế hoạch)
+        - already_assigned
+        - assignee_not_allowed
+        - attachment_not_ready
+        - attachment_rejected
+        - channel_read_only
+        - comment_claimed
+        - oauth_state_invalid
+        - open_draft_exists
+        - page_connected_elsewhere
+        - page_not_accessible
+        - private_reply_used
+        - seller_mismatch
+        - send_not_allowed
+        - template_variable_missing
       properties:
         error:
           type: string
@@ -6604,6 +8012,34 @@ components:
             type: string
             format: uuid
           description: Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự gửi (Task 194)
+        denyReason:
+          # Chỉ có ở send_not_allowed — lý do chính sách gửi của kênh không cho gửi (M4, Task 156)
+          $ref: "#/components/schemas/SendDenyReason"
+        until:
+          type: string
+          format: date-time
+          description: Chỉ có ở send_not_allowed — lúc cửa sổ gửi đóng (M4)
+        claimedBy:
+          type: string
+          description: Chỉ có ở comment_claimed — tên hiển thị của nhân viên đã chốt comment (M4, Task 172)
+        orderId:
+          type: string
+          format: uuid
+          description: Chỉ có ở comment_claimed — đơn nháp của comment (M4, Task 172)
+        orderCode:
+          type: string
+          description: Chỉ có ở comment_claimed — mã đơn nháp của comment (M4, Task 172)
+        drafts:
+          type: array
+          description: Chỉ có ở open_draft_exists — đơn nháp khách đang có trong phiên live (M4, Task 172)
+          items:
+            $ref: "#/components/schemas/LiveDraftRef"
+        name:
+          type: string
+          description: Chỉ có ở template_variable_missing — tên biến thiếu giá trị (M4, Task 161)
+        assignee:
+          # Chỉ có ở already_assigned — người đang phụ trách hội thoại (M4, Task 160)
+          $ref: "#/components/schemas/Actor"
     HealthStatus:
       type: object
       required: [status]
@@ -10858,7 +12294,7 @@ components:
         kind:
           type: string
           description: >-
-            Chuỗi mở, không phải enum (M4 thêm conversation, C7). Khách: order_created, order_status, note, merge,
+            Chuỗi mở, không phải enum (M4 thêm conversation, call; C7, Task 169). Khách: order_created, order_status, note, merge,
             merge_undone, tag. Đơn: status, edit, note; M3 thêm shipment, payment, return.
         refId:
           type: string
@@ -15078,3 +16514,1560 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/WebBirthdayOutboxItem"
+    # --- M4: hộp chat, Live (Task 143). Nội dung tin, comment, tên khách là dữ liệu cá nhân: không ghi log. Không
+    # trường nào mang token Page.
+    ChannelAccountStatus:
+      type: string
+      enum: [active, degraded, disconnected]
+    ChannelSendMode:
+      type: string
+      description: read_only = chỉ xem (mặc định khi kết nối, mọi thao tác ra ngoài bị từ chối), enabled = gửi thật
+      enum: [read_only, enabled]
+    ChannelAccount:
+      type: object
+      required: [id, channel, externalId, name, status, sendMode, humanAgentEnabled, subscribedFields, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        channel:
+          type: string
+          description: Khóa adapter của kênh (facebook)
+        externalId:
+          type: string
+          description: Mã Page trên Meta (công khai)
+        name:
+          type: string
+        status:
+          $ref: "#/components/schemas/ChannelAccountStatus"
+        statusReason:
+          type: string
+        sendMode:
+          $ref: "#/components/schemas/ChannelSendMode"
+        humanAgentEnabled:
+          type: boolean
+        subscribedFields:
+          type: array
+          items:
+            type: string
+        tokenCheckedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int32
+    ChannelAccountList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChannelAccount"
+    SetChannelSendModeRequest:
+      type: object
+      required: [mode, expectedVersion]
+      properties:
+        mode:
+          $ref: "#/components/schemas/ChannelSendMode"
+        expectedVersion:
+          type: integer
+          format: int32
+          minimum: 1
+    SetChannelHumanAgentRequest:
+      type: object
+      required: [enabled, expectedVersion]
+      properties:
+        enabled:
+          type: boolean
+        expectedVersion:
+          type: integer
+          format: int32
+          minimum: 1
+    FacebookOAuthStart:
+      type: object
+      required: [authorizeUrl]
+      properties:
+        authorizeUrl:
+          type: string
+          format: uri
+    ExchangeFacebookOAuthRequest:
+      type: object
+      required: [code, state]
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        state:
+          type: string
+          minLength: 1
+          maxLength: 256
+    FacebookPageOption:
+      type: object
+      required: [pageId, name, canMessage, canModerate]
+      properties:
+        pageId:
+          type: string
+        name:
+          type: string
+        canMessage:
+          type: boolean
+        canModerate:
+          type: boolean
+    FacebookOAuthPages:
+      type: object
+      required: [sessionId, pages]
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        pages:
+          type: array
+          items:
+            $ref: "#/components/schemas/FacebookPageOption"
+    ConnectFacebookPageRequest:
+      type: object
+      required: [pageId]
+      description: Đúng một trong sessionId, systemUserToken (handler kiểm; sai → 422 invalid_input)
+      properties:
+        pageId:
+          type: string
+          pattern: "^[0-9]{1,32}$"
+        sessionId:
+          type: string
+          format: uuid
+        systemUserToken:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 1
+          maxLength: 1024
+    SendDenyReason:
+      type: string
+      description: Lý do chính sách gửi của kênh không cho gửi (SendPolicy của adapter, 04 mục 4)
+      enum: [window_closed, private_reply_used, private_reply_expired, blocked_by_user, no_permission, read_only, comment_removed]
+    SendMode:
+      type: string
+      enum: [standard, human_agent, private_reply, comment_reply, utility_template]
+    SendPolicy:
+      type: object
+      required: [allowed]
+      properties:
+        allowed:
+          type: boolean
+        mode:
+          $ref: "#/components/schemas/SendMode"
+        until:
+          type: string
+          format: date-time
+          description: Hết hạn cửa sổ gửi hiện tại
+        remaining:
+          type: integer
+          format: int32
+        reason:
+          $ref: "#/components/schemas/SendDenyReason"
+    ConversationKind:
+      type: string
+      enum: [inbox, comment]
+    ConversationStatus:
+      type: string
+      enum: [open, pending, done, spam]
+    ChatCustomerRef:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+    ChatPostRef:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        snippet:
+          type: string
+    ConversationSummary:
+      type: object
+      required: [id, pageId, kind, status, customer, tags, unreadCount, lastMessageAt, hasOpenDraft, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        pageId:
+          type: string
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/ConversationKind"
+        status:
+          $ref: "#/components/schemas/ConversationStatus"
+        customer:
+          $ref: "#/components/schemas/ChatCustomerRef"
+        assignee:
+          $ref: "#/components/schemas/Actor"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConversationTag"
+        unreadCount:
+          type: integer
+          format: int32
+        lastMessageAt:
+          type: string
+          format: date-time
+        lastSnippet:
+          type: string
+        post:
+          $ref: "#/components/schemas/ChatPostRef"
+        hasOpenDraft:
+          type: boolean
+        version:
+          type: integer
+          format: int32
+    ConversationPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConversationSummary"
+        nextCursor:
+          type: string
+    ConversationPageCount:
+      type: object
+      required: [pageId, unread, open]
+      properties:
+        pageId:
+          type: string
+          format: uuid
+        unread:
+          type: integer
+          format: int32
+        open:
+          type: integer
+          format: int32
+    ConversationCounts:
+      type: object
+      required: [byPage, mine, unassigned]
+      properties:
+        byPage:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConversationPageCount"
+        mine:
+          type: integer
+          format: int32
+        unassigned:
+          type: integer
+          format: int32
+    ConversationDetail:
+      type: object
+      required: [conversation, page, sendPolicy, humanAgentAvailable, blockedByUser, doNotContact]
+      properties:
+        conversation:
+          $ref: "#/components/schemas/ConversationSummary"
+        page:
+          $ref: "#/components/schemas/ChannelAccount"
+        sendPolicy:
+          $ref: "#/components/schemas/SendPolicy"
+        humanAgentAvailable:
+          type: boolean
+        blockedByUser:
+          type: boolean
+        doNotContact:
+          type: boolean
+    ChatOrderRef:
+      type: object
+      required: [id, code, status, grandTotal, createdAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        status:
+          type: string
+        grandTotal:
+          $ref: "#/components/schemas/Money"
+        createdAt:
+          type: string
+          format: date-time
+        draftExpiresAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+    ChatCustomerCardInfo:
+      type: object
+      required: [id, rootId, name, nameSource, doNotContact, orderCount, deliveredCount, returnedCount, returnRateBp, totalSpent]
+      properties:
+        id:
+          type: string
+          format: uuid
+        rootId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        nameSource:
+          type: string
+          description: Nguồn tên (tạm từ kênh hay nhân viên đã sửa, Q26)
+        doNotContact:
+          type: boolean
+        phones:
+          type: array
+          description: Chỉ có khi người gọi có customer.read
+          items:
+            type: string
+        orderCount:
+          type: integer
+          format: int32
+        deliveredCount:
+          type: integer
+          format: int32
+        returnedCount:
+          type: integer
+          format: int32
+        returnRateBp:
+          type: integer
+          format: int32
+          description: Nguyên Stats.ReturnRateBP của M2 (không tính lại)
+        totalSpent:
+          $ref: "#/components/schemas/Money"
+        lastOrderAt:
+          type: string
+          format: date-time
+    ConversationCustomerCard:
+      type: object
+      required: [customer, recentOrders, openDrafts]
+      properties:
+        customer:
+          $ref: "#/components/schemas/ChatCustomerCardInfo"
+        recentOrders:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatOrderRef"
+        openDrafts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatOrderRef"
+        mergeSuggestionCustomerId:
+          type: string
+          format: uuid
+    ConversationOrderContext:
+      type: object
+      required: [channelAccountId, conversationId, sellerId]
+      properties:
+        channelAccountId:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        sellerId:
+          type: string
+          format: uuid
+        trafficSourceId:
+          type: string
+          format: uuid
+          nullable: true
+    MessageDirection:
+      type: string
+      enum: [in, out]
+    MessageKind:
+      type: string
+      enum: [message, comment, private_reply, note, system]
+    MessageOrigin:
+      type: string
+      enum: [customer, staff, automation, page_external, own_echo_unmatched, history, system]
+    MessageSendStatus:
+      type: string
+      enum: [queued, sent, failed, checking, in_doubt, expired, discarded]
+    QuickReply:
+      type: object
+      required: [title, payload]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 20
+        payload:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    ChatAttachment:
+      type: object
+      required: [type, status]
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          description: image, video, audio, file, sticker, fallback
+        status:
+          type: string
+          description: Trạng thái tệp ở CRM (đường dẫn lấy bằng getAttachmentUrl)
+        name:
+          type: string
+    ChatPrivateReplyRef:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          description: none hoặc send_status của tin riêng
+        messageId:
+          type: string
+          format: uuid
+    ChatMessage:
+      type: object
+      required: [id, conversationId, direction, kind, origin, attachments, isHidden, removed, editedCount, sentAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        direction:
+          $ref: "#/components/schemas/MessageDirection"
+        kind:
+          $ref: "#/components/schemas/MessageKind"
+        origin:
+          $ref: "#/components/schemas/MessageOrigin"
+        body:
+          type: string
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatAttachment"
+        quickReplies:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuickReply"
+        sender:
+          $ref: "#/components/schemas/Actor"
+        senderName:
+          type: string
+        sendStatus:
+          $ref: "#/components/schemas/MessageSendStatus"
+        failReason:
+          type: string
+        isHidden:
+          type: boolean
+        removed:
+          type: boolean
+        editedCount:
+          type: integer
+          format: int32
+        privateReply:
+          $ref: "#/components/schemas/ChatPrivateReplyRef"
+        parentMessageId:
+          type: string
+          format: uuid
+        sentAt:
+          type: string
+          format: date-time
+        deliveredAt:
+          type: string
+          format: date-time
+        readAt:
+          type: string
+          format: date-time
+    MessagePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+        olderCursor:
+          type: string
+        newerCursor:
+          type: string
+    SendMessageRequest:
+      type: object
+      description: Đúng một trong text, attachmentFileId (ảnh mục đích chat_outgoing đã sẵn sàng)
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        attachmentFileId:
+          type: string
+          format: uuid
+        humanAgent:
+          type: boolean
+    MarkConversationReadRequest:
+      type: object
+      required: [upToMessageId]
+      properties:
+        upToMessageId:
+          type: string
+          format: uuid
+    SetConversationStatusRequest:
+      type: object
+      required: [status, expectedVersion]
+      properties:
+        status:
+          $ref: "#/components/schemas/ConversationStatus"
+        expectedVersion:
+          type: integer
+          format: int32
+          minimum: 1
+    AttachmentUrl:
+      type: object
+      required: [url, expiresAt]
+      properties:
+        url:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+    ReplyToCommentRequest:
+      type: object
+      required: [commentMessageId, text]
+      properties:
+        commentMessageId:
+          type: string
+          format: uuid
+        text:
+          type: string
+          minLength: 1
+          maxLength: 8000
+    SendPrivateReplyRequest:
+      type: object
+      required: [commentMessageId, text]
+      properties:
+        commentMessageId:
+          type: string
+          format: uuid
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    AssignConversationRequest:
+      type: object
+      required: [userId, expectedVersion]
+      properties:
+        userId:
+          type: string
+          format: uuid
+          nullable: true
+          description: null = bỏ giao
+        expectedVersion:
+          type: integer
+          format: int32
+          minimum: 1
+    ConversationAssignment:
+      type: object
+      required: [id, reason, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        from:
+          $ref: "#/components/schemas/Actor"
+        to:
+          $ref: "#/components/schemas/Actor"
+        actor:
+          $ref: "#/components/schemas/Actor"
+        reason:
+          type: string
+          enum: [self, manager, round_robin, unassign]
+        createdAt:
+          type: string
+          format: date-time
+    ConversationAssignmentList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConversationAssignment"
+    ConversationTag:
+      type: object
+      required: [id, name, color, sort, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        color:
+          type: string
+          description: Tên token màu của hệ thiết kế
+        sort:
+          type: integer
+          format: int32
+        version:
+          type: integer
+          format: int32
+    ConversationTagList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConversationTag"
+    CreateConversationTagRequest:
+      type: object
+      required: [name, color]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 40
+        color:
+          type: string
+          minLength: 1
+          maxLength: 40
+        sort:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000
+    UpdateConversationTagRequest:
+      type: object
+      required: [expectedVersion]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 40
+        color:
+          type: string
+          minLength: 1
+          maxLength: 40
+        sort:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000
+        expectedVersion:
+          type: integer
+          format: int32
+          minimum: 1
+    LiveSlot:
+      type: object
+      required: [from, to, trafficSourceId]
+      properties:
+        from:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        to:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        trafficSourceId:
+          type: string
+          format: uuid
+    CommentPollMode:
+      type: string
+      enum: [auto, "on", "off"]
+    PageSettings:
+      type: object
+      required: [channelAccountId, roundRobinEnabled, roundRobinUserIds, liveSlots, commentPollMode, automationMaxAgeMinutes, version]
+      properties:
+        channelAccountId:
+          type: string
+          format: uuid
+        roundRobinEnabled:
+          type: boolean
+        roundRobinUserIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        askAddressTemplateId:
+          type: string
+          format: uuid
+        inboxTrafficSourceId:
+          type: string
+          format: uuid
+        commentTrafficSourceId:
+          type: string
+          format: uuid
+        liveSlots:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveSlot"
+        commentPollMode:
+          $ref: "#/components/schemas/CommentPollMode"
+        automationMaxAgeMinutes:
+          type: integer
+          format: int32
+        version:
+          type: integer
+          format: int32
+    UpdatePageSettingsRequest:
+      type: object
+      required: [roundRobinEnabled, roundRobinUserIds, liveSlots, commentPollMode, automationMaxAgeMinutes, expectedVersion]
+      properties:
+        roundRobinEnabled:
+          type: boolean
+        roundRobinUserIds:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            format: uuid
+        askAddressTemplateId:
+          type: string
+          format: uuid
+          nullable: true
+        inboxTrafficSourceId:
+          type: string
+          format: uuid
+          nullable: true
+        commentTrafficSourceId:
+          type: string
+          format: uuid
+          nullable: true
+        liveSlots:
+          type: array
+          maxItems: 12
+          items:
+            $ref: "#/components/schemas/LiveSlot"
+        commentPollMode:
+          $ref: "#/components/schemas/CommentPollMode"
+        automationMaxAgeMinutes:
+          type: integer
+          format: int32
+          minimum: 5
+          maximum: 120
+        expectedVersion:
+          type: integer
+          format: int32
+          minimum: 0
+          description: version đang đọc (0 khi Page chưa có dòng cài đặt)
+    AssignableUser:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    AssignableUserList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssignableUser"
+    AddConversationNoteRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 4000
+    ReplyTemplate:
+      type: object
+      required: [id, shortcut, title, body, quickReplies, version, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        pageId:
+          type: string
+          format: uuid
+          description: Không có = mẫu dùng chung mọi Page
+        shortcut:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        attachmentFileId:
+          type: string
+          format: uuid
+        quickReplies:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuickReply"
+        version:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+    ReplyTemplateList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReplyTemplate"
+    CreateReplyTemplateRequest:
+      type: object
+      required: [shortcut, title, body]
+      properties:
+        pageId:
+          type: string
+          format: uuid
+        shortcut:
+          type: string
+          pattern: "^[a-z0-9_-]{1,32}$"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        attachmentFileId:
+          type: string
+          format: uuid
+        quickReplies:
+          type: array
+          maxItems: 13
+          items:
+            $ref: "#/components/schemas/QuickReply"
+    UpdateReplyTemplateRequest:
+      type: object
+      required: [expectedVersion]
+      properties:
+        pageId:
+          type: string
+          format: uuid
+          nullable: true
+        shortcut:
+          type: string
+          pattern: "^[a-z0-9_-]{1,32}$"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        attachmentFileId:
+          type: string
+          format: uuid
+          nullable: true
+        quickReplies:
+          type: array
+          maxItems: 13
+          items:
+            $ref: "#/components/schemas/QuickReply"
+        expectedVersion:
+          type: integer
+          format: int32
+          minimum: 1
+    RenderReplyTemplateRequest:
+      type: object
+      required: [conversationId]
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+    RenderedReplyTemplate:
+      type: object
+      required: [text, quickReplies]
+      properties:
+        text:
+          type: string
+        attachmentFileId:
+          type: string
+          format: uuid
+        quickReplies:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuickReply"
+    PresenceState:
+      type: string
+      enum: [viewing, typing, drafting_order]
+    SetPresenceRequest:
+      type: object
+      required: [state]
+      properties:
+        state:
+          $ref: "#/components/schemas/PresenceState"
+    PresenceEntry:
+      type: object
+      required: [userId, displayName, state]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        state:
+          $ref: "#/components/schemas/PresenceState"
+    PresenceList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PresenceEntry"
+    AutomationRuleKind:
+      type: string
+      enum: [auto_hide, auto_reply_comment, greeting, follow_up]
+    AutoHideConfig:
+      type: object
+      required: [kind, mode, exceptPostIds]
+      properties:
+        kind:
+          type: string
+          enum: [auto_hide]
+        mode:
+          type: string
+          enum: ["off", phone_only, all]
+        exceptPostIds:
+          type: array
+          maxItems: 200
+          items:
+            type: string
+            maxLength: 64
+    AutoReplyPrivateMessage:
+      type: object
+      properties:
+        templateId:
+          type: string
+          format: uuid
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    AutoReplyCommentConfig:
+      type: object
+      required: [kind, replies, postIds, exceptPostIds, includeLive, perUserPerPostHours]
+      properties:
+        kind:
+          type: string
+          enum: [auto_reply_comment]
+        replies:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+            maxLength: 500
+        privateMessage:
+          $ref: "#/components/schemas/AutoReplyPrivateMessage"
+        postIds:
+          type: array
+          maxItems: 200
+          description: Rỗng = mọi bài
+          items:
+            type: string
+            maxLength: 64
+        exceptPostIds:
+          type: array
+          maxItems: 200
+          items:
+            type: string
+            maxLength: 64
+        includeLive:
+          type: boolean
+        perUserPerPostHours:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 72
+    GreetingConfig:
+      type: object
+      required: [kind, text, quickReplies]
+      properties:
+        kind:
+          type: string
+          enum: [greeting]
+        text:
+          type: string
+          minLength: 1
+          maxLength: 640
+        quickReplies:
+          type: array
+          maxItems: 13
+          items:
+            $ref: "#/components/schemas/QuickReply"
+    FollowUpConfig:
+      type: object
+      required: [kind, afterHours, templateId]
+      properties:
+        kind:
+          type: string
+          enum: [follow_up]
+        afterHours:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 23
+        templateId:
+          type: string
+          format: uuid
+    AutomationRuleConfig:
+      oneOf:
+        - $ref: "#/components/schemas/AutoHideConfig"
+        - $ref: "#/components/schemas/AutoReplyCommentConfig"
+        - $ref: "#/components/schemas/GreetingConfig"
+        - $ref: "#/components/schemas/FollowUpConfig"
+      discriminator:
+        propertyName: kind
+        mapping:
+          auto_hide: "#/components/schemas/AutoHideConfig"
+          auto_reply_comment: "#/components/schemas/AutoReplyCommentConfig"
+          greeting: "#/components/schemas/GreetingConfig"
+          follow_up: "#/components/schemas/FollowUpConfig"
+    AutomationRule:
+      type: object
+      required: [kind, enabled, config, version]
+      properties:
+        kind:
+          $ref: "#/components/schemas/AutomationRuleKind"
+        enabled:
+          type: boolean
+        config:
+          $ref: "#/components/schemas/AutomationRuleConfig"
+        version:
+          type: integer
+          format: int32
+          description: 0 khi Page chưa có dòng cấu hình cho loại này (trả mặc định)
+        updatedAt:
+          type: string
+          format: date-time
+    AutomationRuleList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AutomationRule"
+    UpdateAutomationRuleRequest:
+      type: object
+      required: [enabled, config, expectedVersion]
+      properties:
+        enabled:
+          type: boolean
+        config:
+          $ref: "#/components/schemas/AutomationRuleConfig"
+        expectedVersion:
+          type: integer
+          format: int32
+          minimum: 0
+    FollowUpItem:
+      type: object
+      required: [conversationId, pageId, customer, lastStaffMessageAt, windowEndsAt]
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+        pageId:
+          type: string
+          format: uuid
+        customer:
+          $ref: "#/components/schemas/ChatCustomerRef"
+        lastStaffMessageAt:
+          type: string
+          format: date-time
+        windowEndsAt:
+          type: string
+          format: date-time
+    FollowUpList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FollowUpItem"
+    ReminderStatus:
+      type: string
+      enum: [pending, fired, done, cancelled]
+    Reminder:
+      type: object
+      required: [id, conversationId, userId, remindAt, status, source, version, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        remindAt:
+          type: string
+          format: date-time
+        note:
+          type: string
+        status:
+          $ref: "#/components/schemas/ReminderStatus"
+        source:
+          type: string
+          enum: [manual, call_callback]
+        firedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+    ReminderList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Reminder"
+    CreateReminderRequest:
+      type: object
+      required: [remindAt]
+      properties:
+        remindAt:
+          type: string
+          format: date-time
+          description: Trong tương lai, tối đa 90 ngày
+        note:
+          type: string
+          maxLength: 500
+        userId:
+          type: string
+          format: uuid
+          description: Giao cho người khác (cần conversation.assign); không có = chính người gọi
+    CallOutcome:
+      type: string
+      enum: [closed, no_answer, callback, wrong_number, declined, other]
+    CallLog:
+      type: object
+      required: [id, customerId, outcome, createdBy, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        outcome:
+          $ref: "#/components/schemas/CallOutcome"
+        note:
+          type: string
+        callbackAt:
+          type: string
+          format: date-time
+        createdBy:
+          $ref: "#/components/schemas/Actor"
+        createdAt:
+          type: string
+          format: date-time
+    CallLogPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CallLog"
+        nextCursor:
+          type: string
+    CreateCallLogRequest:
+      type: object
+      required: [outcome]
+      description: callbackAt bắt buộc khi và chỉ khi outcome = callback
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        outcome:
+          $ref: "#/components/schemas/CallOutcome"
+        note:
+          type: string
+          maxLength: 1000
+        callbackAt:
+          type: string
+          format: date-time
+    SetCustomerDoNotContactRequest:
+      type: object
+      required: ["on"]
+      properties:
+        "on":
+          type: boolean
+    LiveSessionStatus:
+      type: string
+      enum: [live, ended]
+    LiveSession:
+      type: object
+      required: [id, pageId, liveVideoId, status, startedAt, detectedBy, receivedCount, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        pageId:
+          type: string
+          format: uuid
+        liveVideoId:
+          type: string
+        videoId:
+          type: string
+        title:
+          type: string
+        status:
+          $ref: "#/components/schemas/LiveSessionStatus"
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+        detectedBy:
+          type: string
+          enum: [webhook, poll, manual]
+        receivedCount:
+          type: integer
+          format: int32
+        metaCommentCount:
+          type: integer
+          format: int32
+        activeSource:
+          type: string
+          description: Nguồn comment đang đọc (sse, poll)
+        lastCommentAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int32
+    LiveSessionList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveSession"
+    StartLiveSessionRequest:
+      type: object
+      required: [videoIdOrUrl]
+      properties:
+        videoIdOrUrl:
+          type: string
+          minLength: 1
+          maxLength: 500
+    LiveCommentClaimRef:
+      type: object
+      required: [by, orderId, orderCode]
+      properties:
+        by:
+          $ref: "#/components/schemas/Actor"
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+    LiveComment:
+      type: object
+      required: [messageId, conversationId, customer, text, sentAt, hasPhone, isHidden, privateReply, customerHasOpenDraft]
+      properties:
+        messageId:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        customer:
+          $ref: "#/components/schemas/ChatCustomerRef"
+        text:
+          type: string
+        sentAt:
+          type: string
+          format: date-time
+        hasPhone:
+          type: boolean
+        isHidden:
+          type: boolean
+        claim:
+          $ref: "#/components/schemas/LiveCommentClaimRef"
+        privateReply:
+          $ref: "#/components/schemas/ChatPrivateReplyRef"
+        customerHasOpenDraft:
+          type: boolean
+    LiveCommentPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveComment"
+        nextCursor:
+          type: string
+    LiveDraftItem:
+      type: object
+      required: [variantId, name, quantity]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+    LiveDraftRef:
+      type: object
+      required: [orderId, code, items, grandTotal, version]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        code:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveDraftItem"
+        grandTotal:
+          $ref: "#/components/schemas/Money"
+        version:
+          type: integer
+          format: int64
+        expiresAt:
+          type: string
+          format: date-time
+    LiveCommentContext:
+      type: object
+      required: [customer, openDrafts, phones, sellerId]
+      properties:
+        customer:
+          $ref: "#/components/schemas/ChatCustomerCardInfo"
+        openDrafts:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveDraftRef"
+        phones:
+          type: array
+          description: SĐT tách từ comment (dạng 0xxxxxxxxx)
+          items:
+            type: string
+        sellerId:
+          type: string
+          format: uuid
+    ClaimLiveCommentItem:
+      type: object
+      required: [variantId, qty]
+      properties:
+        variantId:
+          type: string
+          format: uuid
+        qty:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 20
+    ClaimLiveCommentRequest:
+      type: object
+      required: [items, mode]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/ClaimLiveCommentItem"
+        mode:
+          type: string
+          enum: [new, add_to_draft]
+        orderId:
+          type: string
+          format: uuid
+          description: Bắt buộc khi mode = add_to_draft
+        expectedVersion:
+          type: integer
+          format: int64
+          minimum: 1
+          description: version của đơn nháp khi mode = add_to_draft
+        forceNew:
+          type: boolean
+          default: false
+        askAddress:
+          type: boolean
+          default: true
+        templateId:
+          type: string
+          format: uuid
+    AskAddressResult:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [queued, skipped_policy, not_requested]
+        reason:
+          type: string
+    ClaimLiveCommentResult:
+      type: object
+      required: [orderId, orderCode, claim, ask]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+        claim:
+          $ref: "#/components/schemas/LiveCommentClaimRef"
+        ask:
+          $ref: "#/components/schemas/AskAddressResult"
+    RemindAllowed:
+      type: object
+      required: [allowed]
+      properties:
+        allowed:
+          type: boolean
+        reason:
+          type: string
+    PendingDraft:
+      type: object
+      required: [orderId, orderCode, customer, items, grandTotal, claimedBy, claimedAt, ask, customerRepliedAfterAsk, canRemind]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+        customer:
+          $ref: "#/components/schemas/ChatCustomerRef"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveDraftItem"
+        grandTotal:
+          $ref: "#/components/schemas/Money"
+        expiresAt:
+          type: string
+          format: date-time
+        claimedBy:
+          $ref: "#/components/schemas/Actor"
+        claimedAt:
+          type: string
+          format: date-time
+        ask:
+          $ref: "#/components/schemas/AskAddressResult"
+        customerRepliedAfterAsk:
+          type: boolean
+        canRemind:
+          $ref: "#/components/schemas/RemindAllowed"
+    PendingDraftList:
+      type: object
+      required: [items, expiredCount, confirmedCount]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PendingDraft"
+        expiredCount:
+          type: integer
+          format: int32
+        confirmedCount:
+          type: integer
+          format: int32
+    RemindPendingDraftsRequest:
+      type: object
+      required: [templateId]
+      properties:
+        orderIds:
+          type: array
+          maxItems: 500
+          description: Rỗng hoặc không có = mọi đơn còn nháp của phiên
+          items:
+            type: string
+            format: uuid
+        templateId:
+          type: string
+          format: uuid
+    RemindOutcome:
+      type: object
+      required: [orderId, outcome]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        outcome:
+          type: string
+          enum: [queued, skipped]
+        reason:
+          type: string
+    RemindPendingDraftsResult:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/RemindOutcome"
+    MessageRevision:
+      type: object
+      required: [isHidden, removed, source, recordedAt]
+      properties:
+        body:
+          type: string
+        isHidden:
+          type: boolean
+        removed:
+          type: boolean
+        source:
+          type: string
+          enum: [customer, staff, page_external, automation]
+        recordedAt:
+          type: string
+          format: date-time
+    MessageRevisionList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessageRevision"
+    ResendMessageResult:
+      type: object
+      required: [message, mayDuplicate]
+      properties:
+        message:
+          $ref: "#/components/schemas/ChatMessage"
+        mayDuplicate:
+          type: boolean
+          description: 'true khi tin cũ "không rõ đã gửi" (khách có thể nhận hai lần)'

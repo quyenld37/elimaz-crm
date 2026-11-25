@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"strconv"
 	"sync"
 	"syscall"
@@ -213,10 +214,10 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 // newInbound dựng việc tách gói webhook và handler sự kiện vào của worker. Worker chỉ tách gói (Split), không kiểm
 // chữ ký (ingest đã kiểm), nên các nguồn dựng không cần bí mật. selftest.Inbound phát báo hiệu selftest.pong qua bus
 // (pg_notify trong transaction của việc); nguồn và handler vào của M3 (gồm hãng giả của M1 khi carrier.FakeOn) đến từ
-// wireM3, cùng danh sách nguồn với ingest.
-func newInbound(reg *metrics.Registry, bus selftest.Publisher, m3 m3Parts) ([]queue.Handler, error) {
-	sources := append([]webhooks.Source{selftest.NewSource("")}, m3.Sources...)
-	handlers := append([]webhooks.InboundHandler{selftest.NewInbound(bus)}, m3.Inbound...)
+// wireM3, của M4 (adapter kênh nhắn tin) từ wireM4, cùng danh sách nguồn với ingest.
+func newInbound(reg *metrics.Registry, bus selftest.Publisher, m3 m3Parts, m4 m4Parts) ([]queue.Handler, error) {
+	sources := append(append([]webhooks.Source{selftest.NewSource("")}, m3.Sources...), m4.Sources...)
+	handlers := append(append([]webhooks.InboundHandler{selftest.NewInbound(bus)}, m3.Inbound...), m4.Inbound...)
 	split, err := webhooks.NewSplitHandler(webhooks.SplitOptions{Sources: sources, Metrics: reg})
 	if err != nil {
 		return nil, fmt.Errorf("dựng việc tách gói: %w", err)
@@ -235,7 +236,7 @@ func newInbound(reg *metrics.Registry, bus selftest.Publisher, m3 m3Parts) ([]qu
 // gửi gì thật, chỉ khi CRM_ENV khác production) và lệnh của M3 (m3.Commands, gồm hai lệnh vận chuyển của M1
 // fulfillment.create_shipment, fulfillment.refresh_status với hãng giả khi carrier.FakeOn; Task M1-31, M3-04).
 func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtime.Bus, evs *events.Registry,
-	m3 m3Parts, logger *slog.Logger,
+	m3 m3Parts, m4 m4Parts, logger *slog.Logger,
 ) ([]commands.Handler, error) {
 	fs, err := files.NewS3Store(s3Config(cfg))
 	if err != nil {
@@ -271,7 +272,7 @@ func newCommands(cfg config.Config, d *db.DB, reg *metrics.Registry, bus realtim
 	if cfg.Env != "production" {
 		hs = append(hs, selftest.NewCommand(selftest.Loopback{}))
 	}
-	return append(hs, m3.Commands...), nil
+	return append(append(hs, m3.Commands...), m4.Commands...), nil
 }
 
 // runWorker chạy hàng đợi (queue.Worker) với handler của sự kiện nội bộ và dọn dữ liệu, lệnh ra ngoài (Runner, kèm
@@ -299,12 +300,12 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	for _, fn := range mods.M3.Cleanups {
 		cleanup.RegisterTenantCleanup(fn)
 	}
-	for _, s := range append(mods.Schedules, mods.M3.Schedules...) {
+	for _, s := range slices.Concat(mods.Schedules, mods.M3.Schedules, mods.M4.Schedules) {
 		if err := plan.Define(s); err != nil {
 			return fmt.Errorf("định nghĩa lịch %s: %w", s.Name, err)
 		}
 	}
-	cmds, err := newCommands(cfg, d, reg, hub, mods.Events, mods.M3, logger)
+	cmds, err := newCommands(cfg, d, reg, hub, mods.Events, mods.M3, mods.M4, logger)
 	if err != nil {
 		return err
 	}
@@ -324,7 +325,7 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	}); err != nil {
 		return fmt.Errorf("định nghĩa lịch đối chiếu tồn: %w", err)
 	}
-	inbound, err := newInbound(reg, hub, mods.M3)
+	inbound, err := newInbound(reg, hub, mods.M3, mods.M4)
 	if err != nil {
 		return err
 	}
@@ -333,6 +334,7 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 		// Áp bản nhập Excel (Task M1-47b): ghi mẫu, biến thể bằng Writer của catalog (sự kiện qua cùng sổ, báo hiệu).
 		catalog.NewImportApplier(catalog.Writer{Events: mods.Events, Queue: queue.NewQueue(), Realtime: hub})),
 		mods.Handlers...)
+	handlers = append(handlers, mods.M4.Jobs...)
 	w := queue.NewWorker(d, handlers, queue.WorkerOptions{
 		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
 		Metrics:  reg, Logger: logger, Role: string(cfg.Role),
@@ -348,6 +350,7 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	wg.Go(func() { flusher.Run(fctx) })
 	ticker := schedules.NewTicker(d, queue.NewQueue(), plan, schedules.TickerOptions{Logger: logger})
 	wg.Go(func() { ticker.Run(ctx) })
+	startBackground(ctx, &wg, mods.M4.Background, logger)
 	<-ctx.Done()
 	if err := w.Stop(workerStopGrace); err != nil {
 		logger.Warn("tắt hàng đợi", logging.Err(err))
@@ -355,6 +358,18 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	cancel()
 	wg.Wait()
 	return nil
+}
+
+// startBackground chạy các luồng nền của module (M4: đọc comment live, Task 170) trong wg tới khi ctx bị hủy; lỗi (trừ
+// hủy) ghi log một lần ở đây.
+func startBackground(ctx context.Context, wg *sync.WaitGroup, runs []func(context.Context) error, logger *slog.Logger) {
+	for _, run := range runs {
+		wg.Go(func() {
+			if err := run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+				logger.Error("luồng nền dừng", logging.Err(err))
+			}
+		})
+	}
 }
 
 // alertSchedules định nghĩa hai lịch của cảnh báo (Task 19): platform.alerts mỗi 60 s (CheckRules) và platform.digest
@@ -552,14 +567,18 @@ func ingestHandler(cfg config.Config, d *db.DB, reg *metrics.Registry, logger *s
 	return mux, nil
 }
 
-// ingestSources là các nguồn webhook của ingest: selftest và nguồn của M3 từ wireM3 (/hooks/<hãng>/<route_key> của hãng
+// ingestSources là các nguồn webhook của ingest: selftest, nguồn của M4 (adapter kênh nhắn tin, wireM4) và nguồn của M3 từ wireM3 (/hooks/<hãng>/<route_key> của hãng
 // có webhook, kèm bí mật; hãng giả chỉ khi carrier.FakeOn: production không bao giờ có /hooks/fake).
 func ingestSources(cfg config.Config) ([]webhooks.Source, error) {
 	m3, err := wireM3(config.RoleIngest, cfg, m3Deps{})
 	if err != nil {
 		return nil, err
 	}
-	return append([]webhooks.Source{selftest.NewSource(cfg.SelftestWebhookSecret)}, m3.Sources...), nil
+	m4, err := wireM4(cfg, m4Deps{})
+	if err != nil {
+		return nil, err
+	}
+	return slices.Concat([]webhooks.Source{selftest.NewSource(cfg.SelftestWebhookSecret)}, m3.Sources, m4.Sources), nil
 }
 
 // healthcheck: ingest và api gọi /health/live của chính nó; worker đòi nhịp sống của chính nó

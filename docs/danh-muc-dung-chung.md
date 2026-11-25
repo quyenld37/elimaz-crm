@@ -237,10 +237,34 @@ type Config struct {
 
 	RateLimitsJSON string
 
+	Meta MetaConfig
+
+	ConversationRetentionMonths int
+
 	Migrate *MigrateConfig
 }
 func Load(role Role, getenv func(string) string) (Config, error)
 func (c Config) LogValue() slog.Value
+type MetaConfig struct {
+	Enabled bool
+
+	GraphVersion        string
+	GraphVersionExpires time.Time
+
+	GraphBaseURL     string
+	StreamingBaseURL string
+
+	AppID     string
+	AppSecret logging.Secret
+
+	LoginConfigID    string
+	OAuthRedirectURL string
+
+	VerifyToken        logging.Secret
+	HooksPublicBaseURL string
+
+	AttachmentHosts []string
+}
 type MigrateConfig struct {
 	OwnerURL string
 }

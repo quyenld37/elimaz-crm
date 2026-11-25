@@ -138,6 +138,12 @@ type Config struct {
 	// cache.ParseLimits (sai → không khởi động). Rỗng: cache.DefaultLimits.
 	RateLimitsJSON string
 
+	// Meta là cấu hình kênh Facebook (M4, Task 143): ingest, api, worker; rỗng với migrate.
+	Meta MetaConfig
+	// ConversationRetentionMonths (worker; CONVERSATION_RETENTION_MONTHS, mặc định 24, trong [6, 60]; Q17 của M4): hội
+	// thoại không có tin mới quá bấy nhiêu tháng thì việc dọn hằng đêm xóa.
+	ConversationRetentionMonths int
+
 	// Migrate chỉ khác nil khi Role là RoleMigrate: vai trò khác không bao giờ giữ chuỗi kết nối của chủ bảng.
 	Migrate *MigrateConfig
 }
@@ -145,6 +151,34 @@ type Config struct {
 // MigrateConfig là phần cấu hình chỉ vai trò migrate có.
 type MigrateConfig struct {
 	OwnerURL string
+}
+
+// MetaConfig là cấu hình kênh Facebook (kế hoạch M4, Task 143). Enabled khi vai trò có ít nhất một biến Meta riêng của
+// vai trò đó (api: META_APP_ID, META_APP_SECRET, META_LOGIN_CONFIG_ID, META_OAUTH_REDIRECT_URL; worker: META_APP_ID,
+// META_APP_SECRET; ingest: META_APP_SECRET, META_VERIFY_TOKEN, HOOKS_PUBLIC_BASE_URL); khi đó mọi biến đó (và
+// FIELD_ENC_KEYS ở api, worker) bắt buộc. Không bật: vai trò chạy như trước M4, không nối adapter Facebook (tệp task
+// 143, Quyết định 2). Phiên bản, địa chỉ Graph có mặc định ở mọi vai trò trừ migrate.
+type MetaConfig struct {
+	Enabled bool
+	// GraphVersion (META_GRAPH_VERSION, mặc định v26.0, dạng vNN.N; Q6) và GraphVersionExpires
+	// (META_GRAPH_VERSION_EXPIRES, YYYY-MM-DD, mặc định 2028-07-29): hạn của phiên bản ghim, để nhắc trước 6 tháng.
+	GraphVersion        string
+	GraphVersionExpires time.Time
+	// GraphBaseURL (META_GRAPH_BASE_URL), StreamingBaseURL (META_STREAMING_BASE_URL): gốc Graph API và luồng comment
+	// live; test, máy chủ Meta giả đặt địa chỉ khác.
+	GraphBaseURL     string
+	StreamingBaseURL string
+	// api, worker.
+	AppID     string
+	AppSecret logging.Secret // META_APP_SECRET: đúng 32 ký tự hex (chữ ký webhook, appsecret_proof)
+	// api: đăng nhập Facebook for Business mở trong tab; OAuthRedirectURL cùng gốc với một CONSOLE_ORIGINS.
+	LoginConfigID    string
+	OAuthRedirectURL string
+	// ingest: mã xác minh webhook (≥ 32 ký tự) và gốc công khai của /hooks (khai với Meta).
+	VerifyToken        logging.Secret
+	HooksPublicBaseURL string
+	// worker (META_ATTACHMENT_HOSTS, phân cách dấu phẩy): máy chủ được tải tệp đính kèm của khách (và tên miền con).
+	AttachmentHosts []string
 }
 
 // LogValue chỉ in các trường không bí mật, để Config ghi vào log được.
@@ -171,6 +205,8 @@ func (c Config) LogValue() slog.Value {
 		slog.Bool("field_enc_keys_set", c.FieldEncKeys != ""),
 		slog.Bool("valkey_cache_configured", c.ValkeyCacheURL != ""),
 		slog.Bool("valkey_gate_configured", c.ValkeyGateURL != ""),
+		slog.Bool("meta_enabled", c.Meta.Enabled),
+		slog.String("meta_graph_version", c.Meta.GraphVersion),
 	)
 }
 
@@ -253,6 +289,9 @@ func Load(role Role, getenv func(string) string) (Config, error) {
 		}
 		r.fakeCarrier(&cfg)
 		cfg.FieldEncKeys = r.fieldEncKeys()
+	}
+	if role != RoleMigrate {
+		r.m4(&cfg)
 	}
 
 	if len(r.problems) > 0 {
