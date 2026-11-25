@@ -43,11 +43,13 @@ type PostInfo struct {
 	CreatedTime                  time.Time
 }
 
-// DownloadInfo là thông tin tệp tải từ kênh.
+// DownloadInfo là thông tin tệp tải từ kênh: ContentType nhận dạng bằng nội dung (không tin header), SHA256 là hex
+// của nội dung.
 type DownloadInfo struct {
 	ContentType string
 	Size        int64
 	FileName    string
+	SHA256      string
 }
 
 // LiveVideo là một phiên phát trực tiếp kênh báo đang chạy.
