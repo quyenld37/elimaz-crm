@@ -197,3 +197,39 @@ Lượt 2: ĐẠT — điểm lượt 1 sửa đúng (`notify.go` đặt `RetryA
 buộc: `platform.put_tenant_route` chỉ nhận `carrier_account`, `fb_page`, `service_key` (đã ghi ở Việc phát hiện thêm).
 
 Kết luận: ĐẠT
+
+## Lượt sửa gộp m4
+
+Gộp `m4` (2d15492: Task 146, Task 151) vào `task-145` (7d6152e), `git merge --no-commit`, không rebase.
+
+- **Xung đột:** `docs/views.md` và `tests/arch/viewsdoc_test.go` — Task 145 thêm `channel.channel_accounts_v`, Task 151
+  thêm `conversation.conversations_v`, `conversation.tags_v` cùng chỗ trong bảng view và cùng dòng đếm số view.
+- **Cách giải:** giữ đủ cả 3 dòng view (và dòng ràng buộc `channel.channel_accounts_external_key` của 145); đếm trong
+  `TestViewsDocParses` thành 45 (44 của m4 + 1 của 145), chú thích liệt kê cả Task 145 và Task 151, thông báo lỗi
+  "3 mới của M4".
+- **Mã sinh:** `sqlc.yaml` gộp tự động (khối `channel` của 145 nối sau các khối của m4). `make gen` sinh thêm bảng
+  `conversation.*` vào `channel/internal/store/models.go` và bảng `channel.*` vào `conversation/internal/store/models.go`
+  (sqlc đọc mọi migration); đã stage hai tệp sinh này. Không có số migration trùng.
+- **Tên trùng:** không có; `go build ./...` qua ngay.
+
+| Kiểm | Lệnh | Kết quả |
+|---|---|---|
+| Build | `go build ./...` | qua |
+| Vet | `go vet` channel, conversation, adapters/facebook, testkit/fakegraph, tools/fakegraph, tests/arch | qua |
+| Test gói chạm | `go test -race -count=1` channel/..., conversation/..., adapters/facebook/..., testkit/fakegraph/..., tools/fakegraph/... | tất cả `ok` |
+| Gói nhập channel/conversation | `go test -count=1` adapters/fake, httpapi/..., cmd/crm | tất cả `ok` |
+| Kiến trúc (gồm TestViewsDoc*) | `go test -count=1 ./tests/arch/` | `ok … 68.195s` |
+| Lint | `golangci-lint run` các thư mục trên | `0 issues.` |
+
+### Việc phát hiện thêm (lượt gộp)
+
+- Khóa ngoại `conversation.* (tenant_id, channel_account_id) → channel.channel_accounts` (0402, task-151 Quyết định 1)
+  chờ Task 145 được gộp: nay không còn bị chặn; cần một migration riêng chỉ thêm ràng buộc, không làm trong lượt gộp.
+
+### Reviewer lượt gộp
+
+ĐẠT — không mất phần nào của hai bên; 45 dòng view khớp số đếm; `sqlc.yaml` đủ khối `conversation` và `channel`;
+14 tệp `store/models.go` là mã sinh đúng override từng khối; không số migration trùng; `go vet` qua. Ghi chú không bắt
+buộc: khóa ngoại conversation → channel (đã ghi ở trên).
+
+Kết luận: ĐẠT
