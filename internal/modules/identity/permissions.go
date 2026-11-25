@@ -37,8 +37,8 @@ type PermissionDef struct {
 	Scope ScopeKind
 }
 
-// Permissions là mọi quyền của CRM: M0 (kế hoạch M0 Task 7), M1 (kế hoạch M1 Task M1-26), M2 (Task M2-01) và M3
-// (Task M3-04). Bảng chuẩn kèm việc
+// Permissions là mọi quyền của CRM: M0 (kế hoạch M0 Task 7), M1 (kế hoạch M1 Task M1-26), M2 (Task M2-01), M3
+// (Task M3-04), M4 (Task 143) và M5. Bảng chuẩn kèm việc
 // của từng quyền: docs/quyen.md (test giữ hai bên khớp). Mốc sau chỉ thêm quyền, không đổi loại phạm vi của quyền
 // đã có (ngoại lệ đã duyệt: Task 315 lượt 2 chuyển sáu quyền quản trị sang ScopeShop). Quyền mới ghi chính sách
 // toàn shop hay quản trị là ScopeShop. Route khai quyền ngoài danh sách này thì tests/arch đỏ.
@@ -118,6 +118,13 @@ var Permissions = []PermissionDef{ //nolint:gochecknoglobals // danh sách hằn
 	// M5 (Task 455): góp ý của khách (xem; đổi trạng thái, ghi chú nội bộ) là việc của chủ, quản lý cho cả shop.
 	{"customer.feedback.read", ScopeShop},
 	{"customer.feedback.manage", ScopeShop},
+	// M4 (kế hoạch M4 Task 143): hội thoại, Live theo đích Page (phạm vi page:<channel_accounts.id>, như
+	// conversation.read của M0); kết nối kênh, chế độ gửi là chính sách toàn shop: ScopeShop (luật Task 315).
+	{"channel.manage", ScopeShop},
+	{"conversation.reply", ScopeByTarget},
+	{"conversation.assign", ScopeByTarget},
+	{"conversation.settings", ScopeByTarget},
+	{"live.operate", ScopeByTarget},
 }
 
 // Loại phạm vi của một grant (cột user_role_grants.scope_type).

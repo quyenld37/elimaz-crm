@@ -23,16 +23,7 @@ func TestLockOrder_M3TablesListed(t *testing.T) {
 	if err != nil || len(files) == 0 {
 		t.Fatalf("không thấy migration 03*: %v", err)
 	}
-	var tables []string
-	for _, f := range files {
-		b, err := os.ReadFile(f)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, m := range createTableRe.FindAllStringSubmatch(string(b), -1) {
-			tables = append(tables, m[1])
-		}
-	}
+	tables := createdTables(t, files)
 	if len(tables) < 14 {
 		t.Fatalf("mong ít nhất 14 bảng M3 (0300, 0303, 0304), có %v", tables)
 	}

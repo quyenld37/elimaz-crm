@@ -20,6 +20,18 @@ type Handler interface {
 	//
 	// POST /api/v1/catalog/attributes/{id}/values
 	AddAttributeValue(ctx context.Context, req *AddAttributeValueRequest, params AddAttributeValueParams) (AddAttributeValueRes, error)
+	// AddConversationNote implements addConversationNote operation.
+	//
+	// Ghi chú nội bộ trong hội thoại (không bao giờ gửi ra ngoài) (Task 161).
+	//
+	// POST /api/v1/conversations/{id}/notes
+	AddConversationNote(ctx context.Context, req *AddConversationNoteRequest, params AddConversationNoteParams) (AddConversationNoteRes, error)
+	// AddConversationTag implements addConversationTag operation.
+	//
+	// Gắn nhãn cho hội thoại (gắn lại không lỗi) (Task 160).
+	//
+	// PUT /api/v1/conversations/{id}/tags/{tagId}
+	AddConversationTag(ctx context.Context, params AddConversationTagParams) (AddConversationTagRes, error)
 	// AddCustomerAddress implements addCustomerAddress operation.
 	//
 	// Thêm địa chỉ giao cho khách; mã tỉnh, xã kiểm theo danh mục (Task M2-09).
@@ -108,6 +120,13 @@ type Handler interface {
 	//
 	// POST /api/v1/callback-tasks/{id}/assign
 	AssignCallbackTask(ctx context.Context, req *AssignCallbackTaskRequest, params AssignCallbackTaskParams) (AssignCallbackTaskRes, error)
+	// AssignConversation implements assignConversation operation.
+	//
+	// Giao hội thoại cho nhân viên có quyền trên Page, hoặc bỏ giao (userId null); kiểm
+	// version (Task 160).
+	//
+	// POST /api/v1/conversations/{id}/assign
+	AssignConversation(ctx context.Context, req *AssignConversationRequest, params AssignConversationParams) (AssignConversationRes, error)
 	// AttachProductImage implements attachProductImage operation.
 	//
 	// Color (không bắt buộc) là một màu đang có của biến thể trong mẫu. Tệp chưa
@@ -124,6 +143,12 @@ type Handler interface {
 	//
 	// POST /api/v1/orders/{id}/cancel
 	CancelOrder(ctx context.Context, req *CancelOrderRequest, params CancelOrderParams) (CancelOrderRes, error)
+	// CancelReminder implements cancelReminder operation.
+	//
+	// Hủy nhắc việc (cập nhật có điều kiện) (Task 169).
+	//
+	// POST /api/v1/reminders/{id}/cancel
+	CancelReminder(ctx context.Context, params CancelReminderParams) (CancelReminderRes, error)
 	// CancelReturn implements cancelReturn operation.
 	//
 	// Hủy phiếu trả chưa nhận (phiếu đổi: hủy luôn đơn thay thế chưa gửi hãng)
@@ -170,12 +195,33 @@ type Handler interface {
 	//
 	// GET /api/v1/order-duplicate-check
 	CheckOrderDuplicates(ctx context.Context, params CheckOrderDuplicatesParams) (CheckOrderDuplicatesRes, error)
+	// ClaimConversation implements claimConversation operation.
+	//
+	// Nhận hội thoại về mình; người khác đang nhận → 409 already_assigned (Task 160).
+	//
+	// POST /api/v1/conversations/{id}/claim
+	ClaimConversation(ctx context.Context, params ClaimConversationParams) (ClaimConversationRes, error)
+	// ClaimLiveComment implements claimLiveComment operation.
+	//
+	// Cần thêm order.create (mode new) hay order.update (mode add_to_draft) toàn shop. Comment đã
+	// chốt → 409 comment_claimed (claimedBy, orderId, orderCode); khách đã có nháp của phiên
+	// → 409 open_draft_exists (drafts); hết hàng → 409 out_of_stock (variantIds, available), không
+	// tạo gì; người bán khác Page → 422 seller_mismatch.
+	//
+	// POST /api/v1/live-comments/{id}/claim
+	ClaimLiveComment(ctx context.Context, req *ClaimLiveCommentRequest, params ClaimLiveCommentParams) (ClaimLiveCommentRes, error)
 	// CloseReturn implements closeReturn operation.
 	//
 	// Đóng phiếu trả đã nhập kho (Task M2-22).
 	//
 	// POST /api/v1/returns/{returnId}/close
 	CloseReturn(ctx context.Context, req *VersionRequest, params CloseReturnParams) (CloseReturnRes, error)
+	// CompleteReminder implements completeReminder operation.
+	//
+	// Đánh dấu nhắc việc đã xong (cập nhật có điều kiện) (Task 169).
+	//
+	// POST /api/v1/reminders/{id}/done
+	CompleteReminder(ctx context.Context, params CompleteReminderParams) (CompleteReminderRes, error)
 	// CompleteUpload implements completeUpload operation.
 	//
 	// Báo đã tải xong; máy chủ kiểm kho rồi chuyển tệp sang uploaded (ảnh thì xếp
@@ -197,6 +243,21 @@ type Handler interface {
 	//
 	// POST /api/v1/orders/{id}/confirm
 	ConfirmOrder(ctx context.Context, req *VersionRequest, params ConfirmOrderParams) (ConfirmOrderRes, error)
+	// ConnectFacebookPage implements connectFacebookPage operation.
+	//
+	// Đúng một trong sessionId (phiên đăng nhập của exchangeFacebookOAuth) và systemUserToken
+	// (mã system user, chỉ sống trong bộ nhớ của yêu cầu, không lưu, không ghi log);
+	// thiếu hoặc có cả hai → 422 invalid_input. Page thiếu quyền MESSAGING, MODERATE → 422
+	// page_not_accessible; Page đã nối với shop khác → 409 page_connected_elsewhere.
+	//
+	// POST /api/v1/channels/facebook/pages
+	ConnectFacebookPage(ctx context.Context, req *ConnectFacebookPageRequest, params ConnectFacebookPageParams) (ConnectFacebookPageRes, error)
+	// CountConversations implements countConversations operation.
+	//
+	// Số hội thoại chưa đọc, đang mở theo Page; của tôi; chưa ai nhận (Task 159).
+	//
+	// GET /api/v1/conversations/counts
+	CountConversations(ctx context.Context) (CountConversationsRes, error)
 	// CountFeedback implements countFeedback operation.
 	//
 	// Số góp ý theo trạng thái (đủ 3 trạng thái) và tổng, cho thanh lọc của màn Góp
@@ -216,6 +277,12 @@ type Handler interface {
 	//
 	// POST /api/v1/catalog/attributes
 	CreateAttribute(ctx context.Context, req *CreateAttributeRequest, params CreateAttributeParams) (CreateAttributeRes, error)
+	// CreateCallLog implements createCallLog operation.
+	//
+	// Ghi kết quả cuộc gọi khách; "hẹn gọi lại" tự tạo nhắc việc (Q14, Task 169).
+	//
+	// POST /api/v1/customers/{id}/calls
+	CreateCallLog(ctx context.Context, req *CreateCallLogRequest, params CreateCallLogParams) (CreateCallLogRes, error)
 	// CreateCarrierAccount implements createCarrierAccount operation.
 	//
 	// Tạo tài khoản hãng (api: draft, manual: active); hãng không có adapter → 422
@@ -245,6 +312,12 @@ type Handler interface {
 	//
 	// POST /api/v1/cod/adjustments
 	CreateCodAdjustment(ctx context.Context, req *CreateCodAdjustmentRequest, params CreateCodAdjustmentParams) (CreateCodAdjustmentRes, error)
+	// CreateConversationTag implements createConversationTag operation.
+	//
+	// Tạo nhãn hội thoại; tên trùng → 409 already_exists (Task 160).
+	//
+	// POST /api/v1/conversation-tags
+	CreateConversationTag(ctx context.Context, req *CreateConversationTagRequest, params CreateConversationTagParams) (CreateConversationTagRes, error)
 	// CreateCoupon implements createCoupon operation.
 	//
 	// Tạo mã giảm giá (để trống code thì sinh mã); trùng → 409 code_taken (Task M2-14).
@@ -297,6 +370,20 @@ type Handler interface {
 	//
 	// POST /api/v1/catalog/products
 	CreateProduct(ctx context.Context, req *CreateProductRequest, params CreateProductParams) (CreateProductRes, error)
+	// CreateReminder implements createReminder operation.
+	//
+	// Nhắc việc trên hội thoại "nhắc tôi lúc…" (giao cho người khác cần
+	// conversation.assign) (Task 169).
+	//
+	// POST /api/v1/conversations/{id}/reminders
+	CreateReminder(ctx context.Context, req *CreateReminderRequest, params CreateReminderParams) (CreateReminderRes, error)
+	// CreateReplyTemplate implements createReplyTemplate operation.
+	//
+	// Tạo mẫu trả lời (chung hay riêng một Page); phím tắt trùng → 409 already_exists
+	// (Task 161).
+	//
+	// POST /api/v1/reply-templates
+	CreateReplyTemplate(ctx context.Context, req *CreateReplyTemplateRequest, params CreateReplyTemplateParams) (CreateReplyTemplateRes, error)
 	// CreateReturn implements createReturn operation.
 	//
 	// Tạo phiếu trả theo dòng (khách trả) hoặc đổi hàng (kèm đơn thay thế) cho đơn
@@ -370,6 +457,12 @@ type Handler interface {
 	//
 	// POST /api/v1/web-campaigns
 	CreateWebCampaign(ctx context.Context, req *WebCampaignInput, params CreateWebCampaignParams) (CreateWebCampaignRes, error)
+	// DeleteConversationTag implements deleteConversationTag operation.
+	//
+	// Xóa mềm nhãn hội thoại (Task 160).
+	//
+	// DELETE /api/v1/conversation-tags/{id}
+	DeleteConversationTag(ctx context.Context, params DeleteConversationTagParams) (DeleteConversationTagRes, error)
 	// DeleteCustomerAddress implements deleteCustomerAddress operation.
 	//
 	// Xóa mềm một địa chỉ (Task M2-09).
@@ -383,6 +476,12 @@ type Handler interface {
 	//
 	// DELETE /api/v1/catalog/products/{id}/images/{imageId}
 	DeleteProductImage(ctx context.Context, params DeleteProductImageParams) (DeleteProductImageRes, error)
+	// DeleteReplyTemplate implements deleteReplyTemplate operation.
+	//
+	// Xóa mềm mẫu trả lời (Task 161).
+	//
+	// DELETE /api/v1/reply-templates/{id}
+	DeleteReplyTemplate(ctx context.Context, params DeleteReplyTemplateParams) (DeleteReplyTemplateRes, error)
 	// DeleteWebCampaign implements deleteWebCampaign operation.
 	//
 	// Xóa chiến dịch không đang bật, lý do bắt buộc; banner trỏ chiến dịch tự ẩn
@@ -390,6 +489,32 @@ type Handler interface {
 	//
 	// POST /api/v1/web-campaigns/{campaignId}/delete
 	DeleteWebCampaign(ctx context.Context, req *DeleteWebCampaignRequest, params DeleteWebCampaignParams) (DeleteWebCampaignRes, error)
+	// DiscardMessage implements discardMessage operation.
+	//
+	// Bỏ tin "không rõ đã gửi" hay "chưa gửi được" (Task 157).
+	//
+	// POST /api/v1/messages/{id}/discard
+	DiscardMessage(ctx context.Context, params DiscardMessageParams) (DiscardMessageRes, error)
+	// DisconnectChannel implements disconnectChannel operation.
+	//
+	// Ngắt kết nối Page: hủy đăng ký webhook, xóa token sau khi hủy xong; tin cũ giữ
+	// nguyên (Task 149).
+	//
+	// POST /api/v1/channels/{id}/disconnect
+	DisconnectChannel(ctx context.Context, params DisconnectChannelParams) (DisconnectChannelRes, error)
+	// EndLiveSessionManually implements endLiveSessionManually operation.
+	//
+	// Kết thúc theo dõi một phiên live bằng tay (Task 170).
+	//
+	// POST /api/v1/live-sessions/{id}/end
+	EndLiveSessionManually(ctx context.Context, params EndLiveSessionManuallyParams) (EndLiveSessionManuallyRes, error)
+	// ExchangeFacebookOAuth implements exchangeFacebookOAuth operation.
+	//
+	// Đổi mã đăng nhập lấy danh sách Page người dùng quản trị; state sai, hết hạn,
+	// đã dùng → 400 oauth_state_invalid (Task 149).
+	//
+	// POST /api/v1/channels/facebook/oauth/exchange
+	ExchangeFacebookOAuth(ctx context.Context, req *ExchangeFacebookOAuthRequest, params ExchangeFacebookOAuthParams) (ExchangeFacebookOAuthRes, error)
 	// ExportBirthdayCustomers implements exportBirthdayCustomers operation.
 	//
 	// Thân trả JSON {filename, rows, csv}: csv là UTF-8 có BOM (Excel mở đúng dấu), màn hình
@@ -398,6 +523,13 @@ type Handler interface {
 	//
 	// POST /api/v1/birthday-customers/export
 	ExportBirthdayCustomers(ctx context.Context, req *BirthdayExportRequest, params ExportBirthdayCustomersParams) (ExportBirthdayCustomersRes, error)
+	// GetAttachmentUrl implements getAttachmentUrl operation.
+	//
+	// Đường dẫn có hạn 5 phút tới tệp đính kèm của một tin trong hội thoại (Task
+	// 155).
+	//
+	// GET /api/v1/conversations/{id}/attachments/{fileId}/url
+	GetAttachmentUrl(ctx context.Context, params GetAttachmentUrlParams) (GetAttachmentUrlRes, error)
 	// GetBanners implements getBanners operation.
 	//
 	// Danh sách banner trang chủ theo thứ tự hiện, kèm revision, trạng thái hiện/ẩn (lý
@@ -432,6 +564,27 @@ type Handler interface {
 	//
 	// GET /api/v1/cod-statements/{id}
 	GetCodStatement(ctx context.Context, params GetCodStatementParams) (GetCodStatementRes, error)
+	// GetConversation implements getConversation operation.
+	//
+	// Chi tiết hội thoại: Page, người phụ trách, nhãn, chính sách gửi hiện tại, cờ
+	// chặn và không liên hệ (Task 159).
+	//
+	// GET /api/v1/conversations/{id}
+	GetConversation(ctx context.Context, params GetConversationParams) (GetConversationRes, error)
+	// GetConversationCustomerCard implements getConversationCustomerCard operation.
+	//
+	// Thẻ khách cạnh khung chat: chỉ số của M2, đơn gần đây của cả nhóm, đơn nháp
+	// đang mở (Task 159).
+	//
+	// GET /api/v1/conversations/{id}/customer-card
+	GetConversationCustomerCard(ctx context.Context, params GetConversationCustomerCardParams) (GetConversationCustomerCardRes, error)
+	// GetConversationOrderContext implements getConversationOrderContext operation.
+	//
+	// Bối cảnh lên đơn từ hội thoại: Page, khách, người bán, nguồn đơn tự điền
+	// (Task 159).
+	//
+	// GET /api/v1/conversations/{id}/order-context
+	GetConversationOrderContext(ctx context.Context, params GetConversationOrderContextParams) (GetConversationOrderContextRes, error)
 	// GetCoupon implements getCoupon operation.
 	//
 	// Một mã kèm số lượt đã dùng, còn lại (Task M2-14).
@@ -500,6 +653,13 @@ type Handler interface {
 	//
 	// GET /api/v1/label-batches/{id}
 	GetLabelBatch(ctx context.Context, params GetLabelBatchParams) (GetLabelBatchRes, error)
+	// GetLiveCommentContext implements getLiveCommentContext operation.
+	//
+	// Bối cảnh chốt một comment live: khách rút gọn, đơn nháp đang mở, SĐT tách từ
+	// comment, người bán của Page (Task 172).
+	//
+	// GET /api/v1/live-comments/{id}/context
+	GetLiveCommentContext(ctx context.Context, params GetLiveCommentContextParams) (GetLiveCommentContextRes, error)
 	// GetLooks implements getLooks operation.
 	//
 	// Danh sách bộ phối theo thứ tự, kèm revision, trạng thái hiện/ẩn (lý do, món gây
@@ -549,6 +709,13 @@ type Handler interface {
 	//
 	// GET /api/v1/catalog/products/{id}/images/{imageId}/original
 	GetOriginalImageURL(ctx context.Context, params GetOriginalImageURLParams) (GetOriginalImageURLRes, error)
+	// GetPageSettings implements getPageSettings operation.
+	//
+	// Cài đặt hộp chat của Page: xoay vòng, nguồn đơn, khung giờ live, đọc comment
+	// định kỳ, tuổi tối đa sự kiện tự động (Task 160).
+	//
+	// GET /api/v1/channels/{id}/page-settings
+	GetPageSettings(ctx context.Context, params GetPageSettingsParams) (GetPageSettingsRes, error)
 	// GetPickingList implements getPickingList operation.
 	//
 	// Phiếu nhặt hàng gộp theo SKU cho các vận đơn đã chọn; không địa chỉ, không
@@ -562,6 +729,12 @@ type Handler interface {
 	//
 	// GET /api/v1/platform/health
 	GetPlatformHealth(ctx context.Context) (GetPlatformHealthRes, error)
+	// GetPresence implements getPresence operation.
+	//
+	// Ai khác đang xem, đang gõ, đang lên đơn trong hội thoại (Task 163).
+	//
+	// GET /api/v1/conversations/{id}/presence
+	GetPresence(ctx context.Context, params GetPresenceParams) (GetPresenceRes, error)
 	// GetProduct implements getProduct operation.
 	//
 	// Một mẫu kèm biến thể, bài viết dạng khối và HTML bài viết dựng sẵn (cả
@@ -662,6 +835,12 @@ type Handler interface {
 	//
 	// GET /health/ready
 	HealthReady(ctx context.Context) (HealthReadyRes, error)
+	// HideComment implements hideComment operation.
+	//
+	// Ẩn comment của khách trên Page (vẫn hiện trong CRM) (Task 158).
+	//
+	// POST /api/v1/messages/{id}/hide
+	HideComment(ctx context.Context, params HideCommentParams) (HideCommentRes, error)
 	// ImportCodStatement implements importCodStatement operation.
 	//
 	// Nhập bảng kê COD từ tệp đã tải lên (mục đích cod_statement); tệp đã nhập →
@@ -683,6 +862,13 @@ type Handler interface {
 	//
 	// GET /api/v1/inventory/aged-reservations
 	ListAgedReservations(ctx context.Context, params ListAgedReservationsParams) (ListAgedReservationsRes, error)
+	// ListAssignableUsers implements listAssignableUsers operation.
+	//
+	// Nhân viên đang hoạt động có conversation.read trên Page (danh sách "Giao cho…") (Task
+	// 160).
+	//
+	// GET /api/v1/channels/{id}/assignable-users
+	ListAssignableUsers(ctx context.Context, params ListAssignableUsersParams) (ListAssignableUsersRes, error)
 	// ListAttributes implements listAttributes operation.
 	//
 	// Mọi thuộc tính của shop kèm giá trị, theo vị trí.
@@ -707,6 +893,13 @@ type Handler interface {
 	//
 	// GET /api/v1/identity/audit-logs
 	ListAuditLogs(ctx context.Context, params ListAuditLogsParams) (ListAuditLogsRes, error)
+	// ListAutomationRules implements listAutomationRules operation.
+	//
+	// Bốn quy tắc tự động của Page (loại chưa cấu hình trả mặc định, enabled =
+	// false) (Task 165).
+	//
+	// GET /api/v1/channels/{id}/automation-rules
+	ListAutomationRules(ctx context.Context, params ListAutomationRulesParams) (ListAutomationRulesRes, error)
 	// ListBalances implements listBalances operation.
 	//
 	// Cần inventory.read ở đúng kho warehouseId, không có → 403. Chỉ biến thể đã có
@@ -758,6 +951,13 @@ type Handler interface {
 	//
 	// GET /api/v1/catalog/categories
 	ListCategories(ctx context.Context) (ListCategoriesRes, error)
+	// ListChannelAccounts implements listChannelAccounts operation.
+	//
+	// Tài khoản kênh (Page) người gọi được xem theo phạm vi conversation.read; không bao
+	// giờ có token (Task 145).
+	//
+	// GET /api/v1/channels
+	ListChannelAccounts(ctx context.Context) (ListChannelAccountsRes, error)
 	// ListCodDiscrepancies implements listCodDiscrepancies operation.
 	//
 	// Lệch đối soát: dòng lệch tiền, trùng, ngoài hệ thống; phần thiếu còn mở;
@@ -777,6 +977,25 @@ type Handler interface {
 	//
 	// GET /api/v1/cod-statements
 	ListCodStatements(ctx context.Context, params ListCodStatementsParams) (ListCodStatementsRes, error)
+	// ListConversationAssignments implements listConversationAssignments operation.
+	//
+	// Lịch sử giao, nhận hội thoại (Task 160).
+	//
+	// GET /api/v1/conversations/{id}/assignments
+	ListConversationAssignments(ctx context.Context, params ListConversationAssignmentsParams) (ListConversationAssignmentsRes, error)
+	// ListConversationTags implements listConversationTags operation.
+	//
+	// Nhãn hội thoại dùng chung cả shop (Q7) (Task 160).
+	//
+	// GET /api/v1/conversation-tags
+	ListConversationTags(ctx context.Context) (ListConversationTagsRes, error)
+	// ListConversations implements listConversations operation.
+	//
+	// Hội thoại trên các Page được xem, mới nhất trước; lọc Page, trạng thái, nhãn,
+	// người phụ trách, loại, chưa đọc, tìm khách (Task 159).
+	//
+	// GET /api/v1/conversations
+	ListConversations(ctx context.Context, params ListConversationsParams) (ListConversationsRes, error)
 	// ListCouponBatches implements listCouponBatches operation.
 	//
 	// Đợt mã, mới nhất trước; lọc theo loại (manual, birthday, imported) (Task 197).
@@ -795,6 +1014,19 @@ type Handler interface {
 	//
 	// GET /api/v1/coupons
 	ListCoupons(ctx context.Context, params ListCouponsParams) (ListCouponsRes, error)
+	// ListCustomerCalls implements listCustomerCalls operation.
+	//
+	// Cuộc gọi của cả nhóm khách (mọi hồ sơ đã gộp), chỉ cuộc gọi gắn Page
+	// được xem (Task 169).
+	//
+	// GET /api/v1/customers/{id}/calls
+	ListCustomerCalls(ctx context.Context, params ListCustomerCallsParams) (ListCustomerCallsRes, error)
+	// ListCustomerConversations implements listCustomerConversations operation.
+	//
+	// Hội thoại của cả nhóm khách trên các Page được xem (Task 169).
+	//
+	// GET /api/v1/customers/{id}/conversations
+	ListCustomerConversations(ctx context.Context, params ListCustomerConversationsParams) (ListCustomerConversationsRes, error)
 	// ListCustomerMergeCandidates implements listCustomerMergeCandidates operation.
 	//
 	// Gợi ý "có thể là cùng một khách" theo SĐT trùng; không bao giờ tự gộp (Task
@@ -823,12 +1055,31 @@ type Handler interface {
 	//
 	// GET /api/v1/feedback
 	ListFeedback(ctx context.Context, params ListFeedbackParams) (ListFeedbackRes, error)
+	// ListFollowUps implements listFollowUps operation.
+	//
+	// Hội thoại cần nhắn lại: nhân viên nói sau cùng, khách im quá afterHours, cửa sổ
+	// 24 giờ còn ít nhất 5 phút (Task 168).
+	//
+	// GET /api/v1/follow-ups
+	ListFollowUps(ctx context.Context, params ListFollowUpsParams) (ListFollowUpsRes, error)
 	// ListJobs implements listJobs operation.
 	//
 	// Việc nền cần người xử lý của tenant người gọi (không có payload).
 	//
 	// GET /api/v1/platform/jobs
 	ListJobs(ctx context.Context, params ListJobsParams) (ListJobsRes, error)
+	// ListLiveComments implements listLiveComments operation.
+	//
+	// Comment của phiên live theo thời gian; lọc có SĐT, chưa xử lý (Task 172).
+	//
+	// GET /api/v1/live-sessions/{id}/comments
+	ListLiveComments(ctx context.Context, params ListLiveCommentsParams) (ListLiveCommentsRes, error)
+	// ListLiveSessions implements listLiveSessions operation.
+	//
+	// Phiên live trên các Page được xem (Task 170).
+	//
+	// GET /api/v1/live-sessions
+	ListLiveSessions(ctx context.Context, params ListLiveSessionsParams) (ListLiveSessionsRes, error)
 	// ListLostFiles implements listLostFiles operation.
 	//
 	// Tệp có trong CRM nhưng kho tệp không còn (status lost), mất gần nhất trước; trang
@@ -836,6 +1087,25 @@ type Handler interface {
 	//
 	// GET /api/v1/platform/files/lost
 	ListLostFiles(ctx context.Context, params ListLostFilesParams) (ListLostFilesRes, error)
+	// ListMessageRevisions implements listMessageRevisions operation.
+	//
+	// Lịch sử sửa, ẩn, xóa của một comment (Task 154).
+	//
+	// GET /api/v1/messages/{id}/revisions
+	ListMessageRevisions(ctx context.Context, params ListMessageRevisionsParams) (ListMessageRevisionsRes, error)
+	// ListMessages implements listMessages operation.
+	//
+	// Tin của hội thoại theo thứ tự thời gian; đính kèm chỉ có mã tệp và trạng
+	// thái (Task 159).
+	//
+	// GET /api/v1/conversations/{id}/messages
+	ListMessages(ctx context.Context, params ListMessagesParams) (ListMessagesRes, error)
+	// ListMyReminders implements listMyReminders operation.
+	//
+	// Nhắc việc của chính người gọi (Task 169).
+	//
+	// GET /api/v1/me/reminders
+	ListMyReminders(ctx context.Context, params ListMyRemindersParams) (ListMyRemindersRes, error)
 	// ListOrderDuplicates implements listOrderDuplicates operation.
 	//
 	// Cặp đơn nghi trùng chưa xử lý, mới nhất trước (Task M2-23).
@@ -876,6 +1146,12 @@ type Handler interface {
 	//
 	// GET /api/v1/orders
 	ListOrders(ctx context.Context, params ListOrdersParams) (ListOrdersRes, error)
+	// ListPendingDrafts implements listPendingDrafts operation.
+	//
+	// Đơn nháp "đã chốt, thiếu địa chỉ" của phiên live (Task 173).
+	//
+	// GET /api/v1/live-sessions/{id}/pending-drafts
+	ListPendingDrafts(ctx context.Context, params ListPendingDraftsParams) (ListPendingDraftsRes, error)
 	// ListPermissions implements listPermissions operation.
 	//
 	// Mọi quyền của CRM kèm nhóm, nhãn tiếng Việt và loại phạm vi (để soạn vai
@@ -904,6 +1180,13 @@ type Handler interface {
 	//
 	// GET /api/v1/refund-obligations
 	ListRefundObligations(ctx context.Context, params ListRefundObligationsParams) (ListRefundObligationsRes, error)
+	// ListReplyTemplates implements listReplyTemplates operation.
+	//
+	// Mẫu trả lời khớp tiền tố phím tắt hay tiêu đề: mẫu chung và mẫu của Page
+	// (menu "/") (Task 161).
+	//
+	// GET /api/v1/reply-templates
+	ListReplyTemplates(ctx context.Context, params ListReplyTemplatesParams) (ListReplyTemplatesRes, error)
 	// ListReturns implements listReturns operation.
 	//
 	// Phiếu trả, mới nhất trước (Task M2-22).
@@ -1028,6 +1311,13 @@ type Handler interface {
 	//
 	// POST /api/v1/birthday-gifts/messaged
 	MarkBirthdayMessaged(ctx context.Context, req *BirthdayMessagedRequest, params MarkBirthdayMessagedParams) (MarkBirthdayMessagedRes, error)
+	// MarkConversationRead implements markConversationRead operation.
+	//
+	// Đánh dấu đã đọc tới một tin (hộp thư dùng chung; không gửi "đã xem" cho
+	// khách, Q10) (Task 159).
+	//
+	// POST /api/v1/conversations/{id}/read
+	MarkConversationRead(ctx context.Context, req *MarkConversationReadRequest, params MarkConversationReadParams) (MarkConversationReadRes, error)
 	// MergeCustomer implements mergeCustomer operation.
 	//
 	// Gộp nhóm của mergedId vào nhóm của khách id (Task M2-11); đã cùng gốc → 422
@@ -1136,6 +1426,19 @@ type Handler interface {
 	//
 	// POST /api/v1/platform/files/regenerate
 	RegenerateImages(ctx context.Context, req *RegenerateImagesRequest, params RegenerateImagesParams) (RegenerateImagesRes, error)
+	// RemindPendingDrafts implements remindPendingDrafts operation.
+	//
+	// Nhắc một chạm khách còn đơn nháp gửi địa chỉ; mỗi đơn một kết quả (Task
+	// 173).
+	//
+	// POST /api/v1/live-sessions/{id}/pending-drafts/remind
+	RemindPendingDrafts(ctx context.Context, req *RemindPendingDraftsRequest, params RemindPendingDraftsParams) (RemindPendingDraftsRes, error)
+	// RemoveConversationTag implements removeConversationTag operation.
+	//
+	// Gỡ nhãn khỏi hội thoại (gỡ nhãn không có không lỗi) (Task 160).
+	//
+	// DELETE /api/v1/conversations/{id}/tags/{tagId}
+	RemoveConversationTag(ctx context.Context, params RemoveConversationTagParams) (RemoveConversationTagRes, error)
 	// RemoveCustomerIdentity implements removeCustomerIdentity operation.
 	//
 	// Gỡ một danh tính của khách (không gỡ fb_psid: M4 quản) (Task M2-09).
@@ -1148,6 +1451,13 @@ type Handler interface {
 	//
 	// DELETE /api/v1/customers/{id}/tags/{tagId}
 	RemoveCustomerTag(ctx context.Context, params RemoveCustomerTagParams) (RemoveCustomerTagRes, error)
+	// RenderReplyTemplate implements renderReplyTemplate operation.
+	//
+	// Điền biến của mẫu cho một hội thoại (thiếu giá trị → 422
+	// template_variable_missing) (Task 161).
+	//
+	// POST /api/v1/reply-templates/{id}/render
+	RenderReplyTemplate(ctx context.Context, req *RenderReplyTemplateRequest, params RenderReplyTemplateParams) (RenderReplyTemplateRes, error)
 	// ReorderProductImages implements reorderProductImages operation.
 	//
 	// Đặt thứ tự ảnh đang hiện của mẫu (đúng đủ mã ảnh đang hiện) khi version
@@ -1186,6 +1496,12 @@ type Handler interface {
 	//
 	// POST /api/v1/order-requests/{id}/messages
 	ReplyOrderRequest(ctx context.Context, req *ReplyOrderRequestRequest, params ReplyOrderRequestParams) (ReplyOrderRequestRes, error)
+	// ReplyToComment implements replyToComment operation.
+	//
+	// Trả lời công khai một comment của khách (Task 158).
+	//
+	// POST /api/v1/conversations/{id}/comment-replies
+	ReplyToComment(ctx context.Context, req *ReplyToCommentRequest, params ReplyToCommentParams) (ReplyToCommentRes, error)
 	// RequestAddressChange implements requestAddressChange operation.
 	//
 	// Yêu cầu đổi địa chỉ giao sau khi đã gửi hãng (một yêu cầu mở mỗi vận
@@ -1200,6 +1516,13 @@ type Handler interface {
 	//
 	// POST /api/v1/orders/{id}/shipping-quotes
 	RequestShippingQuotes(ctx context.Context, req *RequestShippingQuotesRequest, params RequestShippingQuotesParams) (RequestShippingQuotesRes, error)
+	// ResendMessage implements resendMessage operation.
+	//
+	// Gửi lại tin "không rõ đã gửi" hay "chưa gửi được" (mayDuplicate khi tin cũ không
+	// rõ) (Task 157).
+	//
+	// POST /api/v1/messages/{id}/resend
+	ResendMessage(ctx context.Context, params ResendMessageParams) (ResendMessageRes, error)
 	// ResendShipment implements resendShipment operation.
 	//
 	// Gửi lại hãng vận đơn creating có create_state not_sent; trạng thái khác → 409
@@ -1263,6 +1586,13 @@ type Handler interface {
 	//
 	// POST /api/v1/birthday-runs
 	RunBirthdayGifts(ctx context.Context, params RunBirthdayGiftsParams) (RunBirthdayGiftsRes, error)
+	// RunChannelHealthCheck implements runChannelHealthCheck operation.
+	//
+	// Kiểm ngay token, quyền, đăng ký webhook của Page (ghi lệnh kiểm; kết quả về qua
+	// báo hiệu channel.status) (Task 150).
+	//
+	// POST /api/v1/channels/{id}/health-check
+	RunChannelHealthCheck(ctx context.Context, params RunChannelHealthCheckParams) (RunChannelHealthCheckRes, error)
 	// SaveBanners implements saveBanners operation.
 	//
 	// Tối đa 8 banner (422 too_many_banners). Trường không thuộc loại bị bỏ (như admin
@@ -1318,6 +1648,20 @@ type Handler interface {
 	//
 	// GET /api/v1/catalog/variants/search
 	SearchVariants(ctx context.Context, params SearchVariantsParams) (SearchVariantsRes, error)
+	// SendMessage implements sendMessage operation.
+	//
+	// Gửi tin cho khách (chữ hoặc một ảnh); Page chỉ xem → 409 channel_read_only; ngoài
+	// chính sách → 409 send_not_allowed (Task 156).
+	//
+	// POST /api/v1/conversations/{id}/messages
+	SendMessage(ctx context.Context, req *SendMessageRequest, params SendMessageParams) (SendMessageRes, error)
+	// SendPrivateReply implements sendPrivateReply operation.
+	//
+	// Nhắn riêng người comment (một lần mỗi comment; lần hai → 409 private_reply_used)
+	// (Task 158).
+	//
+	// POST /api/v1/conversations/{id}/private-replies
+	SendPrivateReply(ctx context.Context, req *SendPrivateReplyRequest, params SendPrivateReplyParams) (SendPrivateReplyRes, error)
 	// SetCarrierAccountStatus implements setCarrierAccountStatus operation.
 	//
 	// Đổi trạng thái tài khoản: active (manual hoặc đã có khóa), paused, revoked (Task
@@ -1325,6 +1669,32 @@ type Handler interface {
 	//
 	// POST /api/v1/carrier-accounts/{id}/status
 	SetCarrierAccountStatus(ctx context.Context, req *SetCarrierAccountStatusRequest, params SetCarrierAccountStatusParams) (SetCarrierAccountStatusRes, error)
+	// SetChannelHumanAgent implements setChannelHumanAgent operation.
+	//
+	// Bật, tắt trả lời "nhân viên" (thẻ HUMAN_AGENT) khi Meta đã cấp tính năng (Q19,
+	// Task 145).
+	//
+	// PUT /api/v1/channels/{id}/human-agent
+	SetChannelHumanAgent(ctx context.Context, req *SetChannelHumanAgentRequest, params SetChannelHumanAgentParams) (SetChannelHumanAgentRes, error)
+	// SetChannelSendMode implements setChannelSendMode operation.
+	//
+	// Đổi chế độ gửi của Page (read_only = chỉ xem, enabled = gửi thật); kiểm version,
+	// ghi nhật ký (Task 145).
+	//
+	// PUT /api/v1/channels/{id}/send-mode
+	SetChannelSendMode(ctx context.Context, req *SetChannelSendModeRequest, params SetChannelSendModeParams) (SetChannelSendModeRes, error)
+	// SetConversationStatus implements setConversationStatus operation.
+	//
+	// Đổi trạng thái hội thoại (mở, chờ, xong, spam); kiểm version (Task 159).
+	//
+	// POST /api/v1/conversations/{id}/status
+	SetConversationStatus(ctx context.Context, req *SetConversationStatusRequest, params SetConversationStatusParams) (SetConversationStatusRes, error)
+	// SetCustomerDoNotContact implements setCustomerDoNotContact operation.
+	//
+	// Bật, tắt cờ "không liên hệ" của khách: chặn mọi tin tự động (Q13, Task 152).
+	//
+	// PUT /api/v1/customers/{id}/do-not-contact
+	SetCustomerDoNotContact(ctx context.Context, req *SetCustomerDoNotContactRequest, params SetCustomerDoNotContactParams) (SetCustomerDoNotContactRes, error)
 	// SetOrderPending implements setOrderPending operation.
 	//
 	// Đặt hoặc bỏ lý do chờ của đơn mới (chờ khách, hết hàng) (Task M2-19).
@@ -1350,6 +1720,13 @@ type Handler interface {
 	//
 	// POST /api/v1/orders/packing
 	SetPackingStatus(ctx context.Context, req *SetPackingStatusRequest, params SetPackingStatusParams) (SetPackingStatusRes, error)
+	// SetPresence implements setPresence operation.
+	//
+	// Nhịp tim "đang xem/gõ/lên đơn" (hạn 30 giây; khóa chống trùng mới mỗi lần, Q9)
+	// (Task 163).
+	//
+	// POST /api/v1/conversations/{id}/presence
+	SetPresence(ctx context.Context, req *SetPresenceRequest, params SetPresenceParams) (SetPresenceRes, error)
 	// SetProductClassification implements setProductClassification operation.
 	//
 	// Thay toàn bộ danh mục, giá trị thuộc tính, nhãn của mẫu khi version của mẫu còn
@@ -1402,6 +1779,19 @@ type Handler interface {
 	//
 	// POST /api/v1/customer-imports
 	StartCustomerImport(ctx context.Context, req *StartCustomerImportRequest, params StartCustomerImportParams) (StartCustomerImportRes, error)
+	// StartFacebookOAuth implements startFacebookOAuth operation.
+	//
+	// Bắt đầu đăng nhập Facebook for Business (mở trong cùng tab); trả địa chỉ đăng
+	// nhập có state hạn 15 phút (Task 149).
+	//
+	// POST /api/v1/channels/facebook/oauth/start
+	StartFacebookOAuth(ctx context.Context, params StartFacebookOAuthParams) (StartFacebookOAuthRes, error)
+	// StartLiveSessionManually implements startLiveSessionManually operation.
+	//
+	// Theo dõi live bằng tay theo mã video hay đường dẫn video (Q5, Task 170).
+	//
+	// POST /api/v1/channels/{id}/live-sessions
+	StartLiveSessionManually(ctx context.Context, req *StartLiveSessionRequest, params StartLiveSessionManuallyParams) (StartLiveSessionManuallyRes, error)
 	// StartStocktake implements startStocktake operation.
 	//
 	// Mở phiên kiểm kho ở một kho (một phiên mở mỗi kho; kho đã đóng →
@@ -1434,12 +1824,25 @@ type Handler interface {
 	//
 	// POST /api/v1/customer-merges/{mergeId}/undo
 	UndoCustomerMerge(ctx context.Context, params UndoCustomerMergeParams) (UndoCustomerMergeRes, error)
+	// UnhideComment implements unhideComment operation.
+	//
+	// Hiện lại comment đã ẩn (Task 158).
+	//
+	// POST /api/v1/messages/{id}/unhide
+	UnhideComment(ctx context.Context, params UnhideCommentParams) (UnhideCommentRes, error)
 	// UnlockStaff implements unlockStaff operation.
 	//
 	// Mở khóa nhân viên.
 	//
 	// POST /api/v1/identity/users/{id}/unlock
 	UnlockStaff(ctx context.Context, params UnlockStaffParams) (UnlockStaffRes, error)
+	// UpdateAutomationRule implements updateAutomationRule operation.
+	//
+	// Bật, tắt, sửa một quy tắc tự động của Page; config.kind phải trùng kind trên
+	// đường dẫn; kiểm version (Task 165).
+	//
+	// PUT /api/v1/channels/{id}/automation-rules/{kind}
+	UpdateAutomationRule(ctx context.Context, req *UpdateAutomationRuleRequest, params UpdateAutomationRuleParams) (UpdateAutomationRuleRes, error)
 	// UpdateCarrierAccount implements updateCarrierAccount operation.
 	//
 	// Task 198 (luật Task 450): tắt showOnWeb của tài khoản active cuối cùng đang hiện
@@ -1455,6 +1858,12 @@ type Handler interface {
 	//
 	// PATCH /api/v1/catalog/categories/{id}
 	UpdateCategory(ctx context.Context, req *UpdateCategoryRequest, params UpdateCategoryParams) (UpdateCategoryRes, error)
+	// UpdateConversationTag implements updateConversationTag operation.
+	//
+	// Sửa tên, màu, thứ tự nhãn hội thoại; kiểm version (Task 160).
+	//
+	// PATCH /api/v1/conversation-tags/{id}
+	UpdateConversationTag(ctx context.Context, req *UpdateConversationTagRequest, params UpdateConversationTagParams) (UpdateConversationTagRes, error)
 	// UpdateCoupon implements updateCoupon operation.
 	//
 	// Sửa mã khi version còn khớp; mã đã dùng chỉ đổi tên, hạn cuối, số lượt
@@ -1508,12 +1917,25 @@ type Handler interface {
 	//
 	// PATCH /api/v1/order-settings
 	UpdateOrderSettings(ctx context.Context, req *UpdateOrderSettingsRequest, params UpdateOrderSettingsParams) (UpdateOrderSettingsRes, error)
+	// UpdatePageSettings implements updatePageSettings operation.
+	//
+	// Lưu cài đặt hộp chat của Page; kiểm version, khung giờ live không chồng nhau,
+	// nguồn đơn còn bật (Task 160).
+	//
+	// PUT /api/v1/channels/{id}/page-settings
+	UpdatePageSettings(ctx context.Context, req *UpdatePageSettingsRequest, params UpdatePageSettingsParams) (UpdatePageSettingsRes, error)
 	// UpdateProduct implements updateProduct operation.
 	//
 	// Sửa tên, mô tả, bài viết, trạng thái của mẫu khi version còn khớp.
 	//
 	// PATCH /api/v1/catalog/products/{id}
 	UpdateProduct(ctx context.Context, req *UpdateProductRequest, params UpdateProductParams) (UpdateProductRes, error)
+	// UpdateReplyTemplate implements updateReplyTemplate operation.
+	//
+	// Sửa mẫu trả lời; kiểm version (Task 161).
+	//
+	// PATCH /api/v1/reply-templates/{id}
+	UpdateReplyTemplate(ctx context.Context, req *UpdateReplyTemplateRequest, params UpdateReplyTemplateParams) (UpdateReplyTemplateRes, error)
 	// UpdateRole implements updateRole operation.
 	//
 	// Sửa tên và quyền của vai trò (không sửa được vai trò Chủ; quyền thêm hay gỡ

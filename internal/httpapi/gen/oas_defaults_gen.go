@@ -3,6 +3,18 @@
 package gen
 
 // setDefaults set default value of fields.
+func (s *ClaimLiveCommentRequest) setDefaults() {
+	{
+		val := bool(false)
+		s.ForceNew.SetTo(val)
+	}
+	{
+		val := bool(true)
+		s.AskAddress.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *WebCampaignInput) setDefaults() {
 	{
 		val := bool(false)

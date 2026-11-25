@@ -1,0 +1,49 @@
+// Package deps giữ phụ thuộc và kiểu kết quả chung của các phần trong module conversation (inbound, send, automation,
+// live…): gói gốc conversation nhập các phần, nên kiểu dùng chung phải ở gói riêng để các phần nhập được mà không vòng.
+package deps
+
+import (
+	"context"
+	"time"
+
+	"elimaz.com.vn/crm/internal/modules/channel"
+	"elimaz.com.vn/crm/internal/platform/commands"
+	"elimaz.com.vn/crm/internal/platform/config"
+	"elimaz.com.vn/crm/internal/platform/db"
+	"elimaz.com.vn/crm/internal/platform/events"
+	"elimaz.com.vn/crm/internal/platform/fieldcrypt"
+	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/metrics"
+	"elimaz.com.vn/crm/internal/platform/observability"
+	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/realtime"
+	"elimaz.com.vn/crm/internal/platform/schedules"
+	"elimaz.com.vn/crm/internal/platform/webhooks"
+)
+
+// Deps là phụ thuộc phần chạy nền của conversation (kế hoạch M4, Task 143), dựng một lần ở cmd/crm.
+type Deps struct {
+	DB    *db.DB
+	Queue queue.JobQueue
+	Bus   realtime.Bus
+	// Events là sổ sự kiện nội bộ (conversation.assigned, Q8).
+	Events   *events.Registry
+	Registry *channel.Registry
+	// Keys giải mã token Page (nil khi kênh Facebook chưa bật).
+	Keys    *fieldcrypt.Keyring
+	Files   files.FileStore
+	Alerter observability.Alerter
+	Metrics *metrics.Registry
+	// Now là đồng hồ (nil → time.Now).
+	Now    func() time.Time
+	Config config.Config
+}
+
+// Parts là phần chạy nền một phần của conversation khai; phần tử nil được bỏ khi gom.
+type Parts struct {
+	Inbound    []webhooks.InboundHandler
+	Commands   []commands.Handler
+	Jobs       []queue.Handler
+	Schedules  []schedules.Schedule
+	Background []func(context.Context) error
+}

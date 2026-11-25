@@ -9,6 +9,14 @@ type AddAttributeValueRes interface {
 	addAttributeValueRes()
 }
 
+type AddConversationNoteRes interface {
+	addConversationNoteRes()
+}
+
+type AddConversationTagRes interface {
+	addConversationTagRes()
+}
+
 type AddCustomerAddressRes interface {
 	addCustomerAddressRes()
 }
@@ -61,12 +69,20 @@ type AssignCallbackTaskRes interface {
 	assignCallbackTaskRes()
 }
 
+type AssignConversationRes interface {
+	assignConversationRes()
+}
+
 type AttachProductImageRes interface {
 	attachProductImageRes()
 }
 
 type CancelOrderRes interface {
 	cancelOrderRes()
+}
+
+type CancelReminderRes interface {
+	cancelReminderRes()
 }
 
 type CancelReturnRes interface {
@@ -97,8 +113,20 @@ type CheckOrderDuplicatesRes interface {
 	checkOrderDuplicatesRes()
 }
 
+type ClaimConversationRes interface {
+	claimConversationRes()
+}
+
+type ClaimLiveCommentRes interface {
+	claimLiveCommentRes()
+}
+
 type CloseReturnRes interface {
 	closeReturnRes()
+}
+
+type CompleteReminderRes interface {
+	completeReminderRes()
 }
 
 type CompleteUploadRes interface {
@@ -113,6 +141,14 @@ type ConfirmOrderRes interface {
 	confirmOrderRes()
 }
 
+type ConnectFacebookPageRes interface {
+	connectFacebookPageRes()
+}
+
+type CountConversationsRes interface {
+	countConversationsRes()
+}
+
 type CountFeedbackRes interface {
 	countFeedbackRes()
 }
@@ -123,6 +159,10 @@ type CountOrderRequestsRes interface {
 
 type CreateAttributeRes interface {
 	createAttributeRes()
+}
+
+type CreateCallLogRes interface {
+	createCallLogRes()
 }
 
 type CreateCarrierAccountRes interface {
@@ -139,6 +179,10 @@ type CreateCategoryRes interface {
 
 type CreateCodAdjustmentRes interface {
 	createCodAdjustmentRes()
+}
+
+type CreateConversationTagRes interface {
+	createConversationTagRes()
 }
 
 type CreateCouponBatchRes interface {
@@ -167,6 +211,14 @@ type CreateOrderRes interface {
 
 type CreateProductRes interface {
 	createProductRes()
+}
+
+type CreateReminderRes interface {
+	createReminderRes()
+}
+
+type CreateReplyTemplateRes interface {
+	createReplyTemplateRes()
 }
 
 type CreateReturnRes interface {
@@ -213,6 +265,10 @@ type CreateWebCampaignRes interface {
 	createWebCampaignRes()
 }
 
+type DeleteConversationTagRes interface {
+	deleteConversationTagRes()
+}
+
 type DeleteCustomerAddressRes interface {
 	deleteCustomerAddressRes()
 }
@@ -221,12 +277,36 @@ type DeleteProductImageRes interface {
 	deleteProductImageRes()
 }
 
+type DeleteReplyTemplateRes interface {
+	deleteReplyTemplateRes()
+}
+
 type DeleteWebCampaignRes interface {
 	deleteWebCampaignRes()
 }
 
+type DiscardMessageRes interface {
+	discardMessageRes()
+}
+
+type DisconnectChannelRes interface {
+	disconnectChannelRes()
+}
+
+type EndLiveSessionManuallyRes interface {
+	endLiveSessionManuallyRes()
+}
+
+type ExchangeFacebookOAuthRes interface {
+	exchangeFacebookOAuthRes()
+}
+
 type ExportBirthdayCustomersRes interface {
 	exportBirthdayCustomersRes()
+}
+
+type GetAttachmentUrlRes interface {
+	getAttachmentUrlRes()
 }
 
 type GetBannersRes interface {
@@ -247,6 +327,18 @@ type GetCatalogImportTemplateRes interface {
 
 type GetCodStatementRes interface {
 	getCodStatementRes()
+}
+
+type GetConversationCustomerCardRes interface {
+	getConversationCustomerCardRes()
+}
+
+type GetConversationOrderContextRes interface {
+	getConversationOrderContextRes()
+}
+
+type GetConversationRes interface {
+	getConversationRes()
 }
 
 type GetCouponBatchRes interface {
@@ -293,6 +385,10 @@ type GetLabelBatchRes interface {
 	getLabelBatchRes()
 }
 
+type GetLiveCommentContextRes interface {
+	getLiveCommentContextRes()
+}
+
 type GetLooksRes interface {
 	getLooksRes()
 }
@@ -321,12 +417,20 @@ type GetOriginalImageURLRes interface {
 	getOriginalImageURLRes()
 }
 
+type GetPageSettingsRes interface {
+	getPageSettingsRes()
+}
+
 type GetPickingListRes interface {
 	getPickingListRes()
 }
 
 type GetPlatformHealthRes interface {
 	getPlatformHealthRes()
+}
+
+type GetPresenceRes interface {
+	getPresenceRes()
 }
 
 type GetProductClassificationRes interface {
@@ -385,6 +489,10 @@ type HealthReadyRes interface {
 	healthReadyRes()
 }
 
+type HideCommentRes interface {
+	hideCommentRes()
+}
+
 type ImportCodStatementRes interface {
 	importCodStatementRes()
 }
@@ -397,6 +505,10 @@ type ListAgedReservationsRes interface {
 	listAgedReservationsRes()
 }
 
+type ListAssignableUsersRes interface {
+	listAssignableUsersRes()
+}
+
 type ListAttributesRes interface {
 	listAttributesRes()
 }
@@ -407,6 +519,10 @@ type ListAuditActorsRes interface {
 
 type ListAuditLogsRes interface {
 	listAuditLogsRes()
+}
+
+type ListAutomationRulesRes interface {
+	listAutomationRulesRes()
 }
 
 type ListBalancesRes interface {
@@ -437,6 +553,10 @@ type ListCategoriesRes interface {
 	listCategoriesRes()
 }
 
+type ListChannelAccountsRes interface {
+	listChannelAccountsRes()
+}
+
 type ListCodDiscrepanciesRes interface {
 	listCodDiscrepanciesRes()
 }
@@ -449,6 +569,18 @@ type ListCodStatementsRes interface {
 	listCodStatementsRes()
 }
 
+type ListConversationAssignmentsRes interface {
+	listConversationAssignmentsRes()
+}
+
+type ListConversationTagsRes interface {
+	listConversationTagsRes()
+}
+
+type ListConversationsRes interface {
+	listConversationsRes()
+}
+
 type ListCouponBatchesRes interface {
 	listCouponBatchesRes()
 }
@@ -459,6 +591,14 @@ type ListCouponRedemptionsRes interface {
 
 type ListCouponsRes interface {
 	listCouponsRes()
+}
+
+type ListCustomerCallsRes interface {
+	listCustomerCallsRes()
+}
+
+type ListCustomerConversationsRes interface {
+	listCustomerConversationsRes()
 }
 
 type ListCustomerMergeCandidatesRes interface {
@@ -477,12 +617,36 @@ type ListFeedbackRes interface {
 	listFeedbackRes()
 }
 
+type ListFollowUpsRes interface {
+	listFollowUpsRes()
+}
+
 type ListJobsRes interface {
 	listJobsRes()
 }
 
+type ListLiveCommentsRes interface {
+	listLiveCommentsRes()
+}
+
+type ListLiveSessionsRes interface {
+	listLiveSessionsRes()
+}
+
 type ListLostFilesRes interface {
 	listLostFilesRes()
+}
+
+type ListMessageRevisionsRes interface {
+	listMessageRevisionsRes()
+}
+
+type ListMessagesRes interface {
+	listMessagesRes()
+}
+
+type ListMyRemindersRes interface {
+	listMyRemindersRes()
 }
 
 type ListOrderDuplicatesRes interface {
@@ -509,6 +673,10 @@ type ListOrdersRes interface {
 	listOrdersRes()
 }
 
+type ListPendingDraftsRes interface {
+	listPendingDraftsRes()
+}
+
 type ListPermissionsRes interface {
 	listPermissionsRes()
 }
@@ -523,6 +691,10 @@ type ListReconcileFindingsRes interface {
 
 type ListRefundObligationsRes interface {
 	listRefundObligationsRes()
+}
+
+type ListReplyTemplatesRes interface {
+	listReplyTemplatesRes()
 }
 
 type ListReturnsRes interface {
@@ -601,6 +773,10 @@ type MarkBirthdayMessagedRes interface {
 	markBirthdayMessagedRes()
 }
 
+type MarkConversationReadRes interface {
+	markConversationReadRes()
+}
+
 type MergeCustomerRes interface {
 	mergeCustomerRes()
 }
@@ -665,12 +841,24 @@ type RegenerateImagesRes interface {
 	regenerateImagesRes()
 }
 
+type RemindPendingDraftsRes interface {
+	remindPendingDraftsRes()
+}
+
+type RemoveConversationTagRes interface {
+	removeConversationTagRes()
+}
+
 type RemoveCustomerIdentityRes interface {
 	removeCustomerIdentityRes()
 }
 
 type RemoveCustomerTagRes interface {
 	removeCustomerTagRes()
+}
+
+type RenderReplyTemplateRes interface {
+	renderReplyTemplateRes()
 }
 
 type ReorderProductImagesRes interface {
@@ -693,12 +881,20 @@ type ReplyOrderRequestRes interface {
 	replyOrderRequestRes()
 }
 
+type ReplyToCommentRes interface {
+	replyToCommentRes()
+}
+
 type RequestAddressChangeRes interface {
 	requestAddressChangeRes()
 }
 
 type RequestShippingQuotesRes interface {
 	requestShippingQuotesRes()
+}
+
+type ResendMessageRes interface {
+	resendMessageRes()
 }
 
 type ResendShipmentRes interface {
@@ -737,6 +933,10 @@ type RunBirthdayGiftsRes interface {
 	runBirthdayGiftsRes()
 }
 
+type RunChannelHealthCheckRes interface {
+	runChannelHealthCheckRes()
+}
+
 type SaveBannersRes interface {
 	saveBannersRes()
 }
@@ -761,8 +961,32 @@ type SearchVariantsRes interface {
 	searchVariantsRes()
 }
 
+type SendMessageRes interface {
+	sendMessageRes()
+}
+
+type SendPrivateReplyRes interface {
+	sendPrivateReplyRes()
+}
+
 type SetCarrierAccountStatusRes interface {
 	setCarrierAccountStatusRes()
+}
+
+type SetChannelHumanAgentRes interface {
+	setChannelHumanAgentRes()
+}
+
+type SetChannelSendModeRes interface {
+	setChannelSendModeRes()
+}
+
+type SetConversationStatusRes interface {
+	setConversationStatusRes()
+}
+
+type SetCustomerDoNotContactRes interface {
+	setCustomerDoNotContactRes()
 }
 
 type SetOrderPendingRes interface {
@@ -775,6 +999,10 @@ type SetOrderRequestStatusRes interface {
 
 type SetPackingStatusRes interface {
 	setPackingStatusRes()
+}
+
+type SetPresenceRes interface {
+	setPresenceRes()
 }
 
 type SetProductClassificationRes interface {
@@ -805,6 +1033,14 @@ type StartCustomerImportRes interface {
 	startCustomerImportRes()
 }
 
+type StartFacebookOAuthRes interface {
+	startFacebookOAuthRes()
+}
+
+type StartLiveSessionManuallyRes interface {
+	startLiveSessionManuallyRes()
+}
+
 type StartStocktakeRes interface {
 	startStocktakeRes()
 }
@@ -825,8 +1061,16 @@ type UndoCustomerMergeRes interface {
 	undoCustomerMergeRes()
 }
 
+type UnhideCommentRes interface {
+	unhideCommentRes()
+}
+
 type UnlockStaffRes interface {
 	unlockStaffRes()
+}
+
+type UpdateAutomationRuleRes interface {
+	updateAutomationRuleRes()
 }
 
 type UpdateCarrierAccountRes interface {
@@ -835,6 +1079,10 @@ type UpdateCarrierAccountRes interface {
 
 type UpdateCategoryRes interface {
 	updateCategoryRes()
+}
+
+type UpdateConversationTagRes interface {
+	updateConversationTagRes()
 }
 
 type UpdateCouponRes interface {
@@ -869,8 +1117,16 @@ type UpdateOrderSettingsRes interface {
 	updateOrderSettingsRes()
 }
 
+type UpdatePageSettingsRes interface {
+	updatePageSettingsRes()
+}
+
 type UpdateProductRes interface {
 	updateProductRes()
+}
+
+type UpdateReplyTemplateRes interface {
+	updateReplyTemplateRes()
 }
 
 type UpdateRoleRes interface {
