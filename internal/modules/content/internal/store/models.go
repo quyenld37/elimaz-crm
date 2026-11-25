@@ -477,6 +477,152 @@ type ContentLookSet struct {
 	UpdatedAt *time.Time
 }
 
+type ConversationConversation struct {
+	ID                    uuid.UUID
+	TenantID              uuid.UUID
+	ChannelAccountID      uuid.UUID
+	CustomerID            uuid.UUID
+	Kind                  string
+	ExternalThreadRef     string
+	PostID                *uuid.UUID
+	Status                string
+	AssigneeID            *uuid.UUID
+	AvatarFileID          *uuid.UUID
+	LastMessageAt         time.Time
+	LastCustomerMessageAt *time.Time
+	LastStaffMessageAt    *time.Time
+	UnreadCount           int32
+	LastSnippet           pgtype.Text
+	BlockedByUser         bool
+	Version               int32
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+}
+
+type ConversationConversationAssignment struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	ConversationID uuid.UUID
+	FromUserID     *uuid.UUID
+	ToUserID       *uuid.UUID
+	ActorID        *uuid.UUID
+	Reason         string
+	CreatedAt      time.Time
+}
+
+type ConversationConversationTagLink struct {
+	TenantID       uuid.UUID
+	ConversationID uuid.UUID
+	TagID          uuid.UUID
+	CreatedBy      *uuid.UUID
+	CreatedAt      time.Time
+}
+
+type ConversationConversationsV struct {
+	TenantID              uuid.UUID
+	ID                    uuid.UUID
+	ChannelAccountID      uuid.UUID
+	CustomerID            uuid.UUID
+	Kind                  string
+	Status                string
+	AssigneeID            *uuid.UUID
+	PostID                *uuid.UUID
+	LastMessageAt         time.Time
+	LastCustomerMessageAt *time.Time
+	CreatedAt             time.Time
+}
+
+type ConversationMessage struct {
+	ID                uuid.UUID
+	TenantID          uuid.UUID
+	ConversationID    uuid.UUID
+	ChannelAccountID  uuid.UUID
+	ExternalID        pgtype.Text
+	ClientRef         *uuid.UUID
+	Direction         string
+	Kind              string
+	Origin            string
+	ParentExternalID  pgtype.Text
+	PostID            *uuid.UUID
+	Body              pgtype.Text
+	Attachments       []byte
+	QuickReplies      []byte
+	QuickReplyPayload pgtype.Text
+	SenderStaffID     *uuid.UUID
+	SenderName        pgtype.Text
+	SendStatus        pgtype.Text
+	FailReason        pgtype.Text
+	CommandJobID      *uuid.UUID
+	SendCheckingSince *time.Time
+	IsHidden          bool
+	RemovedAt         *time.Time
+	EditedAt          *time.Time
+	IsLive            bool
+	DeliveredAt       *time.Time
+	ReadAt            *time.Time
+	Reactions         []byte
+	SentAt            time.Time
+	CreatedAt         time.Time
+}
+
+type ConversationMessageRevision struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	MessageID  uuid.UUID
+	Body       pgtype.Text
+	IsHidden   pgtype.Bool
+	Removed    pgtype.Bool
+	Source     string
+	RecordedAt time.Time
+}
+
+type ConversationPageSetting struct {
+	TenantID                uuid.UUID
+	ChannelAccountID        uuid.UUID
+	RoundRobinEnabled       bool
+	RoundRobinUserIds       []uuid.UUID
+	RoundRobinLastUserID    *uuid.UUID
+	AskAddressTemplateID    *uuid.UUID
+	InboxTrafficSourceID    *uuid.UUID
+	CommentTrafficSourceID  *uuid.UUID
+	LiveSlots               []byte
+	CommentPollMode         string
+	AutomationMaxAgeMinutes int32
+	Version                 int32
+	UpdatedAt               time.Time
+}
+
+type ConversationPost struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	ChannelAccountID uuid.UUID
+	ExternalID       string
+	Kind             string
+	Permalink        pgtype.Text
+	Snippet          pgtype.Text
+	CreatedTime      *time.Time
+	FetchedAt        *time.Time
+}
+
+type ConversationTag struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Name      string
+	Color     string
+	Sort      int32
+	DeletedAt *time.Time
+	Version   int32
+	CreatedAt time.Time
+}
+
+type ConversationTagsV struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	Name     string
+	Color    string
+	Sort     int32
+}
+
 type CustomerAdminUnit struct {
 	Code          string
 	Level         string
