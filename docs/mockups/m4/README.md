@@ -1,12 +1,14 @@
-# Mockup M4 phần hộp chat (Task M4-01, số toàn cục 141)
+# Mockup M4: hộp chat (Task M4-01, số toàn cục 141), Live và cài đặt (Task M4-02, số toàn cục 142)
 
-Đề xuất cho ba phần của Hộp chat ở mốc M4: danh sách hội thoại (Inbox), hội thoại, khung bên phải. Mở `index.html` để xem ảnh ba cỡ của mọi màn, bảng ca kiểm và bảng hành vi. Màn Live, Đã chốt thiếu địa chỉ, Kết nối Page, Cài đặt hộp chat là của Task M4-02 (sẽ thêm vào thư mục này).
+Đề xuất cho các màn của Hộp chat ở mốc M4: danh sách hội thoại (Inbox), hội thoại, khung bên phải (Task 141); Live, Đã chốt thiếu địa chỉ, Kênh kết nối, Cài đặt hộp chat (Task 142). Mở `index.html` để xem ảnh ba cỡ của mọi màn, bảng ca kiểm và bảng hành vi.
+
+Kênh kết nối và Cài đặt vẽ trung lập với kênh (yêu cầu của chủ shop 25/11): sau này thêm Zalo OA (OA ID 266922216953909495) rồi TikTok vào cùng hộp chat. M4 chỉ làm Facebook; dòng Zalo OA, TikTok chỉ nằm trong khung viền đứt "Mockup: trạng thái sau này".
 
 - Hệ thiết kế: dùng nguyên `../m1/m1.css` (đã duyệt ở M1, console dùng đúng token đó; gốc `apps/storefront-giftstatus/DESIGN.md`) và `../m2/m2.css` (thành phần M2). `m4.css` chỉ thêm thành phần mới (ba cột hộp chat, dòng hội thoại, bong bóng tin, ô gõ, băng báo, thẻ bài viết) bằng biến có sẵn: không màu, cỡ chữ, bo góc mới.
 - Khung: `khung.js` (nhóm "Hộp chat" đứng đầu menu, mục M2, M1 trỏ sang `../m2/`, `../m1/`).
 - Ảnh: `png/<màn>-1512.png` (1512 × 767, laptop của chủ shop), `-390.png` (390 × 844), `-360.png` (360 × 800, dòng hội thoại và bong bóng dễ tràn). Chụp cả trang.
 - Tự soát và chụp lại: `PW_DIR=<thư mục node_modules/playwright> node docs/mockups/m4/soat.mjs` (Playwright có sẵn trong bộ đệm npx của máy, không thêm vào repo). Kiểm như M2 (không cuộn ngang, không tràn, không chữ bị cắt thiếu dấu …, mục chạm ≥ 44 px dưới 1000 px và ≥ 32 px từ 1000 px, chỉ token có sẵn, ô chọn đúng, không gì chỉ hiện khi rê chuột, tiền `690.000 ₫`, đủ khung kế hoạch đòi) và thêm: bong bóng, dòng hội thoại không tràn khung; ảnh không cao quá 360 px.
-- Dữ liệu là dữ liệu giả (tên, SĐT, địa chỉ). Khung viền đứt "Mockup:" là ghi chú, không phải giao diện. Dữ liệu cứng theo kế hoạch: tên khách 60 ký tự không dấu cách, comment 2.000 ký tự, 0 / 1 / 200 hội thoại, 0 / 9 / 120 chưa đọc, 0 / 14 nhãn, ảnh dọc 1080 × 4320, tên tệp dài.
+- Dữ liệu là dữ liệu giả (tên, SĐT, địa chỉ), trừ tên Page ELIMAZ, Page ID 256660660862565 và OA ID Zalo do chủ shop đưa (mã công khai, không phải bí mật). Khung viền đứt "Mockup:" là ghi chú, không phải giao diện. Dữ liệu cứng theo kế hoạch: tên khách 60 ký tự không dấu cách, comment 2.000 ký tự, 0 / 1 / 200 hội thoại, 0 / 9 / 120 chưa đọc, 0 / 14 nhãn, ảnh dọc 1080 × 4320, tên tệp dài; Task 142: 600 comment trong 2 phút, 50 đơn nháp, 0 đơn nháp.
 
 ## Màn → ca kiểm → trạng thái đã vẽ
 
@@ -15,6 +17,10 @@
 | (1) Hộp chat (Inbox) | `/inbox` | CH01, CH02, CH06, CH07, CH08, CH16 | A danh sách đủ loại (tin mới nhảy lên đầu, comment kèm tên bài, tên 60 ký tự, 120 và 9 chưa đọc, 14 nhãn, người lạ lần đầu, 200 hội thoại, cột Page, bộ lọc) · B mất kết nối đang nối lại, lọc "Của tôi" + chưa đọc còn 1 hội thoại không nhãn, tìm "5678" · C 0 hội thoại, 0 chưa đọc, Page chỉ xem, Page mất kết nối · D khách chưa trả lời, gửi mẫu một chạm | `inbox.html` |
 | (2) Hội thoại | `/inbox/:conversationId` | CH01–CH14, CH18, CH19 | A tin nhắn đủ loại (lịch sử trước CRM, hệ thống, tin chào tự động, nhân viên, ngoài CRM, ghi chú nội bộ, ảnh dọc cao, tệp tên dài, đang gửi ảnh), "An đang xem", ô gõ còn giờ · B sáu trạng thái gửi, "An đang trả lời" · C comment (nút "Nhận" khi chưa ai nhận, thẻ bài, trả lời công khai, nhắn riêng khóa sau một tin và khi quá 7 ngày, tự trả lời một lần, bị ẩn, khách sửa, khách xóa, 2.000 ký tự) · D ô gõ hết 24 giờ, Human Agent, Page chỉ xem, menu "/" | `hoi-thoai.html` |
 | (3) Khung bên phải | cột phải của `/inbox/:conversationId` | DH03, LV04, CH06, CH07, CH08, CH15, CH17 | A khách cũ (số đơn, tỷ lệ nhận/hoàn, tổng chi, 5 đơn gần đây, có thể cùng một khách, một hồ sơ cho tin và comment), nhãn, người phụ trách, nhắc việc, nút gọi · B khách mới chưa có đơn (tên 60 ký tự), đơn nháp từ Live, hoàn tất đơn cạnh chat, gợi ý gắn nhãn "Đã lên đơn" · C chỉ có quyền lên đơn theo Page (Task 411), khách không liên hệ, kết quả cuộc gọi, giao cho | `khung-ben-phai.html` |
+| (4) Live | `/live` (đề xuất, Task M4-37) | LV01, LV02, LV03, LV07, LV08, LV09, LV10 | A đang live: chọn phiên (đang live, đã kết thúc, thêm tay), số liệu phiên, 600 comment danh sách ảo, "37 comment mới", lọc có SĐT / chưa xử lý, dòng đã lên đơn / đã nhắn riêng / có đơn nháp, khung chốt (thẻ khách, tìm sản phẩm có "có thể bán", số lượng, "Tạo đơn nháp và xin địa chỉ") · B kết quả chốt, "An đang lên đơn", hết hàng, khách đã có đơn nháp, chưa có quyền · C hỏi định kỳ, khởi động lại lấy bù, phiên kết thúc khớp / lệch số comment · D chưa có phiên, thêm phiên bằng link | `live.html` |
+| (5) Đã chốt, thiếu địa chỉ | `/live/thieu-dia-chi` (đề xuất, Task M4-37) | LV04, LV05, LV06 | A 50 đơn nháp, trạng thái xin địa chỉ (đã nhắn riêng, gửi trong hộp thư, chưa xin được kèm lý do), khách đã trả lời, Nhắc / Nhắc tất cả, mở hội thoại, nháp quá hạn đã hủy · B kết quả Nhắc tất cả · C 0 đơn nháp | `thieu-dia-chi.html` |
+| (6) Kênh kết nối | `/settings/channels` (Task M4-38) | HT15 | A tài khoản kênh (biểu tượng, tên, Page ID, tính năng kênh, trạng thái, chế độ, lần kiểm, webhook, chỉ xem, Human Agent, kiểm tra, ngắt), Page mất quyền; khung "sau này" Zalo OA, TikTok · B chọn Page sau Facebook, Page thiếu quyền, nối nơi khác, Page mới chỉ xem · C xác nhận tắt chỉ xem, mã system user, ngắt kết nối, kết quả kiểm tra | `ket-noi-page.html` |
+| (7) Cài đặt hộp chat | `/settings/inbox` (đề xuất, Task M4-38) | CH11, CH12, CH16 | A theo tài khoản kênh: tự ẩn (ba chế độ, ngoại lệ bài), tự trả lời comment (≤ 5 câu, tin riêng, giới hạn mỗi người, live), tin chào (≤ 13 nút, 20 ký tự), nhắn lại, xoay vòng, Live (mẫu, khung giờ → nguồn đơn, hạn nháp ở M2), nguồn đơn, đọc định kỳ, tuổi sự kiện; ghi chú ẩn khối theo tính năng kênh · B có người vừa sửa, 21 ký tự, 13 nút, 5 câu, chỉ xem · C nhãn, mẫu trả lời, bảng biến, biến lạ | `cai-dat.html` |
 
 ## Ca kiểm của spec → khung hình
 
@@ -30,17 +36,27 @@
 | CH08 | Người lạ lần đầu: tự tạo hồ sơ khách tiềm năng | Inbox A (chip "Khách tiềm năng mới"); Hội thoại A (tin hệ thống); Khung bên phải B |
 | CH09 | Quá 24 giờ: ô gõ khóa, ghi lý do và hạn | Hội thoại D (hết 24 giờ) |
 | CH10 | Hai người cùng mở: "An đang xem"/"An đang trả lời" | Hội thoại A, B |
-| CH11 | Tự ẩn comment có SĐT: ẩn trên Page, vẫn hiện trong CRM | Hội thoại C |
-| CH12 | Tự trả lời comment, tin chào: mỗi comment một tin tự động | Hội thoại A (tin chào), C (tự trả lời + tự nhắn riêng) |
+| CH11 | Tự ẩn comment có SĐT: ẩn trên Page, vẫn hiện trong CRM | Hội thoại C; Cài đặt A (Tự ẩn comment); Live A (chip "Đã ẩn trên Page") |
+| CH12 | Tự trả lời comment, tin chào: mỗi comment một tin tự động | Hội thoại A (tin chào), C (tự trả lời + tự nhắn riêng); Cài đặt A (Tự trả lời comment, Tin chào), B (giới hạn) |
 | CH13 | Khách sửa/xóa comment: CRM cập nhật, giữ lịch sử | Hội thoại C |
 | CH14 | Nhân viên trả lời bằng ứng dụng Meta: tin vẫn hiện | Hội thoại A ("Gửi từ ứng dụng Meta (ngoài CRM)") |
 | CH15 | Vừa nhắn vừa comment: một hồ sơ khách | Khung bên phải A (dòng "Một hồ sơ gắn với tài khoản Facebook này qua cả tin nhắn và comment") |
-| CH16 | Khách chưa trả lời: gửi mẫu một chạm; tự gửi một bước nếu bật | Inbox D (cài đặt tự gửi ở Task M4-02) |
+| CH16 | Khách chưa trả lời: gửi mẫu một chạm; tự gửi một bước nếu bật | Inbox D; Cài đặt A (Nhắn lại khách chưa trả lời) |
 | CH17 | Ghi kết quả cuộc gọi vào hồ sơ và hội thoại | Khung bên phải A (nút), C (hộp kết quả) |
 | CH18 | Mạng rớt khi gửi: "không rõ đã gửi chưa", không tự gửi lại | Hội thoại B |
 | CH19 | Quá 3 phút chưa đi: "chưa gửi được", gửi lại hoặc bỏ | Hội thoại B |
-| LV04 | Khách gửi địa chỉ: hoàn tất đơn cạnh chat, đơn "Đã xác nhận" | Khung bên phải B |
+| LV01 | Ca live bắt đầu: CRM tự nhận phiên, mở luồng comment | Live A (phiên "CRM tự nhận lúc 20:00:04") |
+| LV02 | Vài trăm comment mỗi phút: màn mượt, đủ số | Live A (600 comment, danh sách ảo, "37 comment mới"), C (số trên Facebook) |
+| LV03 | Bấm comment chốt: đơn nháp, giữ hàng, nhắn riêng xin địa chỉ | Live A (khung chốt), B (kết quả chốt) |
+| LV04 | Khách gửi địa chỉ: hoàn tất đơn cạnh chat, đơn "Đã xác nhận" | Khung bên phải B; Thiếu địa chỉ A ("Mở hội thoại để hoàn tất") |
+| LV05 | Hết ca: danh sách đã chốt thiếu địa chỉ, nhắc một chạm | Thiếu địa chỉ A, B |
+| LV06 | Nháp quá hạn: hủy, trả hàng, ghi lý do | Thiếu địa chỉ A (hộp "3 đơn nháp quá hạn đã tự hủy") |
+| LV07 | Hai nhân viên cùng bấm: một đơn, người sau thấy "An đang lên đơn" | Live A (dòng "Đã lên đơn … · Trần Minh An"), B |
+| LV08 | Chốt món hết hàng: báo ngay, không tạo nháp | Live A (gợi ý "Hết hàng (còn 0)"), B |
+| LV09 | Một khách chốt nhiều lần: gợi ý đơn nháp đang có | Live A (chip "Khách đã có đơn nháp"), B |
+| LV10 | Máy xử lý khởi động lại giữa ca: luồng mở lại, lấy bù | Live C |
 | DH03 | Khung khách cạnh chat: lịch sử mua, tỷ lệ nhận và hoàn | Khung bên phải A |
+| HT15 | Page mất quyền: cảnh báo, kết nối lại, tin không mất | Kênh kết nối A (dòng ELIMAZ Sale "Mất quyền", nút "Kết nối lại") |
 
 ## Thay đổi hành vi so với công cụ cũ (cần chủ shop OK từng dòng)
 
@@ -79,11 +95,36 @@ Theo luật "Behaviour changes need own OK": mỗi dòng cần chủ shop OK ri�
 | HV29 | Khung bên phải | Khách "không liên hệ": hộp đỏ ở thẻ khách; CRM không gửi tin tự động; nhân viên vẫn nhắn, gọi được; có nút "Bỏ cờ không liên hệ" (cần quyền sửa khách). | — | chưa |
 | HV30 | Khung bên phải | Ghi kết quả cuộc gọi là hộp thoại 6 lựa chọn; "Hẹn gọi lại" bắt nhập giờ và tự tạo nhắc việc cho người gọi. | Chưa khảo sát. | chưa |
 | HV31 | Khung bên phải | "Giao cho…" là hộp chọn nhân viên đang làm việc có quyền xem hội thoại ở Page đó, kèm số hội thoại đang phụ trách; người không có quyền giao chỉ thấy "Nhận". | Chưa khảo sát. | chưa |
+| HV32 | Kênh kết nối | Màn "Kênh kết nối" trung lập với kênh (thay "Kết nối Page"): mỗi dòng có biểu tượng chữ của kênh, tên tài khoản, mã tài khoản, cột tính năng kênh hỗ trợ (tin nhắn, comment, Live…); chừa chỗ Zalo OA, TikTok trong khung "sau này". M4 chỉ Facebook. | Chưa có màn (Vpage). | chưa |
+| HV33 | Cài đặt | Cài đặt theo tài khoản kênh: khối mà kênh không hỗ trợ bị ẩn hẳn theo Features của adapter (ví dụ Zalo OA không có Tự ẩn, Tự trả lời comment, Live), không hiện mờ. | — | chưa |
+| HV34 | Kênh kết nối | Page mới kết nối luôn ở chế độ chỉ xem (CRM không gửi gì, kể cả tin tự động); tắt chỉ xem phải xác nhận "Bật gửi thật cho Page {tên}? Khách sẽ nhận tin từ CRM." | — | chưa |
+| HV35 | Kênh kết nối | "Kết nối Page Facebook" mở Facebook trong cùng tab; quay về hiện hộp chọn Page; Page thiếu quyền hiện mờ kèm lý do; mã system user là cách thứ hai (ô mật khẩu, không lưu). | — | chưa |
+| HV36 | Kênh kết nối | Page mất quyền: chip đỏ và hộp đỏ ngay trên dòng Page, nút "Kết nối lại" là nút chính; ghi rõ tin vẫn được nhận. | — | chưa |
+| HV37 | Kênh kết nối | Human Agent là công tắc riêng, tắt mặc định, luôn kèm câu "Chỉ bật khi Meta đã cấp". | — | chưa |
+| HV38 | Kênh kết nối | Ngắt kết nối hỏi lại; hội thoại, tin đã nhận vẫn giữ. | — | chưa |
+| HV39 | Live | Bố cục hai cột: comment bên trái, khung chốt 400 px bên phải; dưới 1200 px khung chốt xuống dưới danh sách. | Chốt Live trên công cụ cũ: chưa khảo sát. | chưa |
+| HV40 | Live | Danh sách comment ảo; đang xem phía trên thì không tự cuộn, nút "↓ n comment mới" đưa xuống cuối. | Chưa khảo sát. | chưa |
+| HV41 | Live | Dòng comment hiện chip "Có SĐT", "Đã ẩn trên Page", "Đã lên đơn DH… · người", "Đã nhắn riêng · người", "Khách đã có đơn nháp DH…"; dòng đã xử lý chữ nhạt. | — | chưa |
+| HV42 | Live | Chốt một nút "Tạo đơn nháp và xin địa chỉ"; ô "Nhắn riêng xin địa chỉ" bật sẵn; chip "Dùng số này" cho SĐT trong comment. | — | chưa |
+| HV43 | Live | Hết hàng: báo "Hết hàng (còn N)" ngay ở gợi ý và khi bấm; không tạo đơn, không giữ một phần món nào. | — | chưa |
+| HV44 | Live | Khách đã có đơn nháp trong phiên: "Thêm vào đơn DH…" là nút chính, "Tạo đơn mới" là nút phụ. | — | chưa |
+| HV45 | Live | Hai người cùng bấm một comment: người sau thấy "{tên} đang lên đơn cho comment này" và nút "Mở đơn". | — | chưa |
+| HV46 | Live | Đọc comment bằng hỏi định kỳ: băng trên đầu danh sách; máy khởi động lại: băng "Đang mở lại luồng comment…" và dòng "Đã lấy bù n comment". | — | chưa |
+| HV47 | Live | Phiên đã kết thúc hiện số comment nhận được và số trên Facebook; lệch thì hộp đỏ. | — | chưa |
+| HV48 | Live | Thêm phiên bằng link video khi CRM chưa tự nhận (nút phụ cạnh danh sách phiên). | — | chưa |
+| HV49 | Thiếu địa chỉ | Bảng xếp hết hạn gần nhất trước; "Nhắc tất cả" bỏ qua dòng không gửi được và nói lý do từng dòng; nhắc lại trong 60 phút bị khóa kèm "Đã nhắc lúc …". | Nhân viên nhắn tay từng khách; chưa khảo sát. | chưa |
+| HV50 | Thiếu địa chỉ | Khách đã trả lời: nút chính "Mở hội thoại để hoàn tất" (hoàn tất ở khung bên phải). | — | chưa |
+| HV51 | Thiếu địa chỉ | Nháp quá hạn tự hủy: hộp báo số đơn đã hủy và liên kết xem đơn. | — | chưa |
+| HV52 | Cài đặt | Mỗi khối cài đặt có nút Lưu riêng (không một nút Lưu chung cho cả trang); có người vừa sửa thì "Có người vừa sửa, tải lại trang". | — | chưa |
+| HV53 | Cài đặt | Tự trả lời comment mặc định không áp cho live; nhắn lại tự động và xoay vòng tắt mặc định. | — | chưa |
+| HV54 | Cài đặt | Bỏ qua tự động cho sự kiện cũ hơn 15 phút (mặc định đề xuất, sửa được). | — | chưa |
+| HV55 | Cài đặt | Nhãn chọn màu từ bốn sắc có sẵn; tên trùng báo tại ô. Mẫu trả lời có bảng biến ngay dưới ô nội dung; biến lạ báo tại ô. | Vpage có 14 nhãn, mẫu trả lời. | chưa |
 
 ## Kết luận duyệt (Điểm dừng B, Q-X8)
 
 | Màn | Kết luận | Người chốt | Ngày |
 |---|---|---|---|
 | (1)–(3) | Chờ điều phối viên duyệt | — | — |
+| (4)–(7) | Chờ điều phối viên duyệt | — | — |
 
-Điều phối viên ghi kết luận từng màn và từng dòng hành vi ở bảng trên (chốt / sửa gì). Không bắt đầu Task M4-34–36 cho màn chưa chốt.
+Điều phối viên ghi kết luận từng màn và từng dòng hành vi ở bảng trên (chốt / sửa gì). Không bắt đầu Task M4-34–38 cho màn chưa chốt.

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M4 — Kênh kết nối</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="m4.css">
+</head>
+<body data-page="ket-noi-page" data-title="Kênh kết nối">
+<div class="app"><main class="main">
+
+<div class="page-h">
+	<div><p class="crumb"><a href="inbox.html">Hộp chat</a> / Kênh kết nối</p><h1>Kênh kết nối</h1><p class="sub">Mỗi dòng là một tài khoản của một kênh nhắn tin, đổ tin vào Hộp chat. Hiện có Facebook Page.</p></div>
+	<div class="row">
+		<button class="btn btn-dark" data-ca="nut-ket-noi">Kết nối Page Facebook</button>
+		<button class="btn btn-quiet" data-ca="system-user">Kết nối bằng mã system user</button>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="kenh-trung-lap ds-page ht15"><p class="xs">TRẠNG THÁI A</p><h2>Danh sách tài khoản kênh: Page ELIMAZ đang gửi thật; Page ELIMAZ Sale mất quyền (cần quản trị kết nối lại, tin vẫn nhận); cột tính năng kênh hỗ trợ</h2></section>
+
+<div class="card" style="padding:0" data-ca="kenh-trung-lap ds-page">
+	<div class="chrow">
+		<span class="ch-ic" aria-hidden="true">FB</span>
+		<div class="stack-sm">
+			<div class="row" style="gap:6px"><b class="ellip">ELIMAZ</b><span class="chip chip-ok" data-ca="trang-thai">Đang hoạt động</span><span class="chip chip-dark" data-ca="che-do">Đang gửi thật</span></div>
+			<span class="small muted num">Facebook Page · Page ID 256660660862565</span>
+			<div class="feats" data-ca="tinh-nang-kenh" aria-label="Tính năng kênh hỗ trợ"><span class="chip chip-line">✓ Tin nhắn</span><span class="chip chip-line">✓ Comment</span><span class="chip chip-line">✓ Live</span><span class="chip chip-line">✓ Nhắn riêng comment</span><span class="chip chip-line">✓ Ẩn comment</span><span class="chip chip-line">✓ Nút trả lời nhanh</span></div>
+			<dl class="kv"><dt>Lần kiểm gần nhất</dt><dd data-ca="lan-kiem">20:00 hôm nay · mã truy cập còn hiệu lực · đủ quyền</dd><dt>Webhook</dt><dd data-ca="truong-webhook">Đã đăng ký 11/11 trường (tin nhắn, đã nhận, đã xem, comment, live…)</dd><dt>Tin gần nhất</dt><dd>20:14 hôm nay</dd><dt>Kết nối bởi</dt><dd>Nguyễn Thị Lan · đăng nhập Facebook · 12/11</dd></dl>
+		</div>
+		<div class="stack-sm c-end" style="justify-items:start">
+			<button class="toggle" aria-pressed="false" data-ca="cong-tac-chi-xem">Chỉ xem: tắt</button>
+			<div class="act" data-ca="human-agent"><button class="toggle" aria-pressed="false">Human Agent: tắt</button><span class="reason">Chỉ bật khi Meta đã cấp. Bật: trả lời được tới 7 ngày sau tin cuối của khách.</span></div>
+			<div class="row"><button class="btn btn-quiet" data-ca="kiem-tra">Kiểm tra kết nối</button><button class="btn btn-quiet btn-danger" data-ca="ngat-ket-noi">Ngắt kết nối</button></div>
+		</div>
+	</div>
+	<div class="chrow" data-ca="mat-quyen ht15">
+		<span class="ch-ic" aria-hidden="true">FB</span>
+		<div class="stack-sm">
+			<div class="row" style="gap:6px"><b class="ellip">ELIMAZ Sale</b><span class="chip chip-err">Mất quyền</span><span class="chip">Chỉ xem</span></div>
+			<span class="small muted num">Facebook Page · Page ID (mã giả) 100000000000002</span>
+			<div class="feats"><span class="chip chip-line">✓ Tin nhắn</span><span class="chip chip-line">✓ Comment</span><span class="chip chip-line">✓ Live</span><span class="chip chip-line">✓ Nhắn riêng comment</span><span class="chip chip-line">✓ Ẩn comment</span><span class="chip chip-line">✓ Nút trả lời nhanh</span></div>
+			<div class="box box-err small"><b>Page mất quyền từ 18:00 hôm nay.</b> Mã truy cập không còn hiệu lực (quản trị Page đổi mật khẩu hoặc gỡ quyền app). CRM vẫn nhận và lưu tin, comment mới nhưng không gửi được. Quản lý đã được báo. Cần một quản trị của Page kết nối lại.</div>
+			<dl class="kv"><dt>Lần kiểm gần nhất</dt><dd>20:00 hôm nay · mã truy cập hỏng</dd><dt>Webhook</dt><dd>Đã đăng ký 11/11 trường</dd></dl>
+		</div>
+		<div class="stack-sm c-end" style="justify-items:start">
+			<button class="btn btn-dark">Kết nối lại</button>
+			<button class="toggle" aria-pressed="true">Chỉ xem: bật</button>
+			<div class="row"><button class="btn btn-quiet">Kiểm tra kết nối</button><button class="btn btn-quiet btn-danger">Ngắt kết nối</button></div>
+		</div>
+	</div>
+</div>
+
+<div class="future" data-ca="sau-nay" style="margin-top:16px">
+	<p class="mk"><b>Mockup: trạng thái sau này, không thuộc M4.</b> Chỉ để thấy chỗ đặt khi chủ shop thêm Zalo OA, rồi TikTok, vào cùng Hộp chat. Mỗi kênh là một adapter tự khai báo tính năng (Features: tin nhắn, comment, Live, nhắn riêng, ẩn comment, nút trả lời nhanh); cột tính năng ở đây và các mục ở Cài đặt hộp chat hiện theo đúng khai báo đó. M4 chỉ làm Facebook: nút kết nối Zalo OA, TikTok chưa có.</p>
+	<div class="chrow" data-ca="zalo-oa">
+		<span class="ch-ic" aria-hidden="true">Zalo</span>
+		<div class="stack-sm">
+			<div class="row" style="gap:6px"><b class="ellip">ELIMAZ</b><span class="chip">Chưa kết nối</span></div>
+			<span class="small muted num">Zalo Official Account · OA ID 266922216953909495</span>
+			<div class="feats"><span class="chip chip-line">✓ Tin nhắn</span><span class="chip feat-no">Không có comment</span><span class="chip feat-no">Không có Live</span></div>
+		</div>
+		<div class="act c-end"><button class="btn btn-quiet" disabled>Kết nối Zalo OA</button><span class="reason">Sau M4, cần adapter Zalo.</span></div>
+	</div>
+	<div class="chrow" data-ca="tiktok">
+		<span class="ch-ic" aria-hidden="true">TT</span>
+		<div class="stack-sm">
+			<div class="row" style="gap:6px"><b class="ellip">TikTok</b><span class="chip">Chưa kết nối</span></div>
+			<span class="small muted">Tài khoản TikTok · tính năng chưa khảo sát</span>
+		</div>
+		<div class="act c-end"><button class="btn btn-quiet" disabled>Kết nối TikTok</button><span class="reason">Sau Zalo OA.</span></div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="chon-page page-moi-chi-xem page-thieu-quyen page-noi-noi-khac"><p class="xs">TRẠNG THÁI B</p><h2>Quay về từ Facebook: chọn Page; Page thiếu quyền; Page đang nối với CRM khác; Page mới luôn ở chế độ chỉ xem</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="Chọn Page" data-ca="chon-page">
+		<div class="dlg-h"><h2>Chọn Page để kết nối</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p class="small muted">Facebook cho CRM thấy 3 Page bạn quản trị. Chọn một Page.</p>
+			<div class="radios">
+				<label class="check"><input type="radio" name="pg" checked> ELIMAZ · đủ quyền nhắn tin và kiểm duyệt</label>
+				<label class="check is-off" data-ca="page-thieu-quyen"><input type="radio" name="pg" disabled> ELIMAZ Outlet · thiếu quyền kiểm duyệt comment</label>
+				<label class="check"><input type="radio" name="pg"> Shop Thử Nghiệm</label>
+			</div>
+			<div class="box box-soft small" data-ca="page-moi-chi-xem"><b>Page mới kết nối ở chế độ chỉ xem.</b> CRM nhận tin và comment nhưng không gửi gì ra Facebook (kể cả tin tự động) cho tới khi bạn tắt chỉ xem.</div>
+			<p class="hint">Danh sách này hết hạn sau 30 phút; quá hạn thì bấm "Kết nối Page Facebook" lại.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark">Kết nối ELIMAZ</button></div>
+	</div>
+	<div class="card" data-ca="page-noi-noi-khac page-thieu-quyen">
+		<h3>Lỗi khi kết nối</h3>
+		<div class="stack-sm" style="margin-top:8px">
+			<div class="box box-err small"><b>Page "Shop Thử Nghiệm" đang nối với một CRM khác.</b> Một Page chỉ nối với một shop. Gỡ ở CRM kia trước rồi thử lại.</div>
+			<div class="box box-err small"><b>Chưa đủ quyền trên Page "ELIMAZ Outlet".</b> Tài khoản Facebook của bạn cần quyền nhắn tin và kiểm duyệt comment trên Page này.</div>
+			<div class="box box-err small"><b>Phiên kết nối đã hết hạn hoặc đã dùng.</b> Bấm "Kết nối Page Facebook" để làm lại.</div>
+			<p class="xs muted">Facebook mở trong cùng tab rồi quay về đây; mã từ Facebook bị xóa khỏi thanh địa chỉ ngay.</p>
+		</div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" data-ca="hoi-lai-tat-chi-xem system-user ngat-ket-noi kiem-tra"><p class="xs">TRẠNG THÁI C</p><h2>Tắt chỉ xem phải xác nhận; kết nối bằng mã system user; ngắt kết nối; kết quả kiểm tra kết nối</h2></section>
+
+<div class="dlgs">
+	<div class="dlg" role="dialog" aria-label="Bật gửi thật" data-ca="hoi-lai-tat-chi-xem">
+		<div class="dlg-h"><h2>Bật gửi thật cho Page ELIMAZ?</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p>Khách sẽ nhận tin từ CRM.</p>
+			<p class="small muted">Quy tắc tự động đang bật (tự ẩn, tự trả lời comment, tin chào) chạy với tin và comment mới từ lúc này, không chạy lại cho tin cũ.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark">Bật gửi thật</button></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Kết nối bằng mã system user" data-ca="system-user">
+		<div class="dlg-h"><h2>Kết nối bằng mã system user</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<label class="field"><span>Mã truy cập system user *</span><input class="input" type="password" value="xxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off"></label>
+			<label class="field"><span>Page ID *</span><input class="input num" value="256660660862565" inputmode="numeric"></label>
+			<p class="hint">Dùng khi shop quản lý Page bằng Business Manager. Mã chỉ dùng một lần để lấy mã của Page, CRM không lưu; ô tự xóa ngay sau khi gửi.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark">Kết nối</button></div>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Ngắt kết nối" data-ca="ngat-ket-noi">
+		<div class="dlg-h"><h2>Ngắt kết nối Page ELIMAZ?</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<p class="small">CRM hủy đăng ký nhận tin với Facebook rồi xóa mã truy cập của Page. Hội thoại, tin và comment đã nhận vẫn giữ. Kết nối lại bất cứ lúc nào.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-danger">Ngắt kết nối</button></div>
+	</div>
+	<div class="card" data-ca="kiem-tra">
+		<h3>Kiểm tra kết nối</h3>
+		<div class="stack-sm" style="margin-top:8px">
+			<div class="box box-ok small"><b class="ok-text">ELIMAZ ổn · 20:31</b><br>Mã truy cập còn hiệu lực, đủ quyền, 11/11 trường webhook.</div>
+			<div class="box box-soft small"><b>ELIMAZ · 20:31: thiếu 2 trường webhook</b> (message_edits, live_videos). CRM đã tự đăng ký lại; kiểm lại sau 1 phút.</div>
+			<p class="xs muted">Nút khóa và hiện "Đang kiểm tra…" trong lúc chờ. CRM tự kiểm mỗi giờ.</p>
+		</div>
+	</div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>

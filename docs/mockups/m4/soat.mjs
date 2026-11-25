@@ -1,4 +1,4 @@
-// Tự soát và chụp ảnh mockup M4 phần hộp chat (Task M4-01, số toàn cục 141). Chép từ docs/mockups/m2/soat.mjs (Task 83),
+// Tự soát và chụp ảnh mockup M4 (Task M4-01, 141: hộp chat; Task M4-02, 142: Live, thiếu địa chỉ, kênh kết nối, cài đặt). Chép từ docs/mockups/m2/soat.mjs (Task 83),
 // soát thêm m4.css và thêm kiểm (9) bong bóng, dòng hội thoại không tràn khung; (10) ảnh dọc rất cao bị giới hạn chiều cao.
 // Không phải mã của CRM: chỉ đọc các trang HTML trong thư mục này.
 // Chạy: PW_DIR=<thư mục node_modules/playwright> node docs/mockups/m4/soat.mjs [--no-shot] [tên-trang ...]
@@ -23,6 +23,11 @@ const PAGES = {
 	"inbox": [1512, 390, 360],
 	"hoi-thoai": [1512, 390, 360],
 	"khung-ben-phai": [1512, 390, 360],
+	// Task M4-02 (142): Live, Đã chốt thiếu địa chỉ, Kênh kết nối, Cài đặt hộp chat.
+	"live": [1512, 390, 360],
+	"thieu-dia-chi": [1512, 390, 360],
+	"ket-noi-page": [1512, 390, 360],
+	"cai-dat": [1512, 390, 360],
 	// Trang so sánh chụp sau cùng vì nó nhúng ảnh của các trang trên.
 	"index": [1512, 390],
 };
@@ -41,6 +46,24 @@ const CASES = {
 	"khung-ben-phai": ["dh03", "lv04", "ch06", "ch07", "ch08", "ch15", "ch17", "khach-moi", "khach-cu", "don-gan-day",
 		"khong-lien-he", "cung-khach", "don-nhap-live", "len-don", "len-don-khong-quyen", "goi-y-nhan", "nhan", "phu-trach",
 		"nhac-viec", "goi-dien", "ket-qua-goi", "ten-60"],
+	// Task M4-02: tiêu chí LV01–LV10, CH11, CH12, CH16, HT15 và phần Interfaces của bốn màn; dữ liệu cứng 600 comment
+	// trong 2 phút, tên 60 ký tự, 50 đơn nháp, 0 đơn nháp.
+	"live": ["lv01", "lv02", "lv03", "lv07", "lv08", "lv09", "lv10", "chon-phien", "phien-dang-live", "phien-ket-thuc",
+		"tieu-de", "gio-bat-dau", "so-comment", "so-comment-fb", "ds-ao", "600-comment", "comment-moi", "dong-co-sdt",
+		"tt-da-len-don", "tt-da-nhan-rieng", "tt-co-don-nhap", "loc-sdt", "loc-chua-xu-ly", "khung-chot", "the-khach",
+		"tim-sp", "so-luong", "ton", "nut-chot", "het-hang", "dang-len-don", "don-nhap-dang-co", "hoi-dinh-ky", "ten-60",
+		"chua-co-phien", "them-phien-tay", "ket-qua-chot", "khong-quyen-live"],
+	"thieu-dia-chi": ["lv04", "lv05", "lv06", "bang-nhap", "50-don-nhap", "0-don-nhap", "tt-xin-da-nhan-rieng",
+		"tt-xin-hop-thu", "tt-xin-chua-duoc", "khach-da-tra-loi", "nut-nhac", "nhac-tat-ca", "ket-qua-nhac", "mo-hoi-thoai",
+		"het-han", "ten-60"],
+	"ket-noi-page": ["ht15", "kenh-trung-lap", "ds-page", "tinh-nang-kenh", "trang-thai", "che-do", "lan-kiem",
+		"truong-webhook", "nut-ket-noi", "system-user", "kiem-tra", "ngat-ket-noi", "cong-tac-chi-xem", "hoi-lai-tat-chi-xem",
+		"human-agent", "page-moi-chi-xem", "chon-page", "page-thieu-quyen", "page-noi-noi-khac", "mat-quyen", "sau-nay",
+		"zalo-oa", "tiktok"],
+	"cai-dat": ["ch11", "ch12", "ch16", "chon-tai-khoan", "an-theo-tinh-nang", "tu-an", "ngoai-le-bai", "tu-tra-loi",
+		"5-cau", "tin-rieng-kem", "gioi-han-moi-nguoi", "ap-cho-live", "tin-chao", "13-nut", "20-ky-tu", "nhan-lai",
+		"xoay-vong", "live-cai-dat", "khung-gio", "han-nhap-m2", "nguon-don", "doc-dinh-ky", "tuoi-su-kien", "nhan",
+		"mau-tra-loi", "bien-mau", "loi-bien", "xung-dot", "khong-quyen-sua"],
 	"index": [],
 };
 const HEIGHT = { 1512: 767, 390: 844, 360: 800 };
