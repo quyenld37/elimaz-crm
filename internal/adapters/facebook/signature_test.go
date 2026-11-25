@@ -16,12 +16,12 @@ import (
 )
 
 const (
-	testAppSecret   = "0123456789abcdef0123456789abcdef"
-	testVerifyToken = "verify-token-thu-0123456789abcdef0123"
+	webhookAppSecret = "0123456789abcdef0123456789abcdef"
+	testVerifyToken  = "verify-token-thu-0123456789abcdef0123"
 )
 
 func newAdapter() *facebook.Channel {
-	return facebook.New(logging.Secret(testAppSecret), logging.Secret(testVerifyToken))
+	return facebook.New(logging.Secret(webhookAppSecret), logging.Secret(testVerifyToken))
 }
 
 // sign trả header X-Hub-Signature-256 của raw ký bằng secret như Meta.
@@ -69,7 +69,7 @@ func TestChallenge(t *testing.T) {
 		}
 	}
 	// Vai trò không có verify token (worker): mọi bước GET đều sai, kể cả token rỗng gửi lên.
-	empty := facebook.New(logging.Secret(testAppSecret), "")
+	empty := facebook.New(logging.Secret(webhookAppSecret), "")
 	if _, ok := empty.Challenge(q("subscribe", "", "1")); ok {
 		t.Error("verify token rỗng không được khớp token rỗng")
 	}
@@ -80,24 +80,24 @@ func TestVerifySignature(t *testing.T) {
 	t.Parallel()
 	a := newAdapter()
 	raw := fixture(t, "message_text.json")
-	if !a.VerifySignature(raw, sign(raw, testAppSecret)) {
+	if !a.VerifySignature(raw, sign(raw, webhookAppSecret)) {
 		t.Fatal("chữ ký đúng phải đạt")
 	}
 	// Đổi một byte bất kỳ của thân → sai (contract (4)).
 	for _, i := range []int{0, len(raw) / 2, len(raw) - 1} {
 		bad := append([]byte(nil), raw...)
 		bad[i] ^= 0x01
-		if a.VerifySignature(bad, sign(raw, testAppSecret)) {
+		if a.VerifySignature(bad, sign(raw, webhookAppSecret)) {
 			t.Errorf("đổi byte %d vẫn đạt", i)
 		}
 	}
 	if a.VerifySignature(raw, http.Header{}) {
 		t.Error("thiếu header phải sai")
 	}
-	if a.VerifySignature(raw, sign(raw, testAppSecret+"0")) {
+	if a.VerifySignature(raw, sign(raw, webhookAppSecret+"0")) {
 		t.Error("ký bằng secret khác phải sai")
 	}
-	m := hmac.New(sha1.New, []byte(testAppSecret))
+	m := hmac.New(sha1.New, []byte(webhookAppSecret))
 	m.Write(raw)
 	sha1Only := http.Header{}
 	sha1Only.Set("X-Hub-Signature", "sha1="+hex.EncodeToString(m.Sum(nil)))

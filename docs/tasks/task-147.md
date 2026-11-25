@@ -145,3 +145,16 @@ Kết luận: ĐẠT (lần 2).
   `{1,40}` → `{1,30}` trong tệp task.
 - Lần 2: ĐẠT, không còn phát hiện. Giờ của messaging và khóa chống trùng không đổi. Ghi chú không bắt buộc:
   `split_fuzz_test.go` chấp nhận nhãn tới 40 ký tự, rộng hơn mã (30); để nguyên.
+
+## Lượt sửa gộp m4
+
+- **Xung đột:** `git merge --no-commit m4` tự gộp không xung đột tệp, nhưng vet/build test gói `facebook_test` đỏ: `signature_test.go:19:2: testAppSecret redeclared` — Task 146 (`client_test.go:23`) và Task 147 cùng khai hằng `testAppSecret` (cùng giá trị) trong gói test `facebook_test`.
+- **Sửa:** đổi tên phía 147 thành `webhookAppSecret` ở `signature_test.go`, `source_test.go`, `ingest_e2e_test.go` (mọi chỗ dùng); `client_test.go` của 146 giữ nguyên. Không đổi mã sản phẩm.
+- **Đối chiếu `New` của 147 với mã 146:** 146 có `Options` + `NewClient(Options) *Client` (Graph client, đường ra); 147 có `New(appSecret, verifyToken logging.Secret) *Channel` (đường vào webhook). Khác tên hàm, khác kiểu, biên dịch cùng nhau đúng; giữ nguyên thiết kế, Task 148 hợp nhất.
+- **Bằng chứng:**
+  - `go build ./...` → không lỗi.
+  - `go vet ./internal/adapters/facebook/... ./internal/modules/channel/... ./internal/modules/conversation/... ./cmd/crm/...` → không lỗi.
+  - `go test -race -count=1 ./internal/adapters/facebook/... ./internal/modules/channel/... ./internal/modules/conversation/... ./internal/testkit/fakegraph/... ./cmd/crm/...` → `ok facebook 11.5s`, `ok channel`, `ok conversation`, `ok conversation/internal/access`, `ok testkit/fakegraph`, `ok cmd/crm`.
+  - `go test -count=1 ./tests/arch/` → `ok 82.6s`.
+  - `golangci-lint run ./internal/adapters/facebook/...` → `0 issues.`
+- **Reviewer (lượt sửa gộp):** ĐẠT, không phát hiện phải sửa. Đã kiểm: đổi tên đủ mọi chỗ (chỉ `client_test.go` của 146 còn `testAppSecret`); index so với m4 chỉ còn tệp của 147, so với HEAD chỉ khác 3 tệp test và tệp task — không bên nào mất phần; `New`/`NewClient` cùng tồn tại đúng. Ghi chú không bắt buộc: hai hằng secret trùng giá trị, Task 148 có thể gộp.

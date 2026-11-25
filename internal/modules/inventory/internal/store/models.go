@@ -477,6 +477,152 @@ type ContentLookSet struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+type ConversationConversation struct {
+	ID                    uuid.UUID
+	TenantID              uuid.UUID
+	ChannelAccountID      uuid.UUID
+	CustomerID            uuid.UUID
+	Kind                  string
+	ExternalThreadRef     string
+	PostID                pgtype.UUID
+	Status                string
+	AssigneeID            pgtype.UUID
+	AvatarFileID          pgtype.UUID
+	LastMessageAt         time.Time
+	LastCustomerMessageAt pgtype.Timestamptz
+	LastStaffMessageAt    pgtype.Timestamptz
+	UnreadCount           int32
+	LastSnippet           pgtype.Text
+	BlockedByUser         bool
+	Version               int32
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+}
+
+type ConversationConversationAssignment struct {
+	ID             uuid.UUID
+	TenantID       uuid.UUID
+	ConversationID uuid.UUID
+	FromUserID     pgtype.UUID
+	ToUserID       pgtype.UUID
+	ActorID        pgtype.UUID
+	Reason         string
+	CreatedAt      time.Time
+}
+
+type ConversationConversationTagLink struct {
+	TenantID       uuid.UUID
+	ConversationID uuid.UUID
+	TagID          uuid.UUID
+	CreatedBy      pgtype.UUID
+	CreatedAt      time.Time
+}
+
+type ConversationConversationsV struct {
+	TenantID              uuid.UUID
+	ID                    uuid.UUID
+	ChannelAccountID      uuid.UUID
+	CustomerID            uuid.UUID
+	Kind                  string
+	Status                string
+	AssigneeID            pgtype.UUID
+	PostID                pgtype.UUID
+	LastMessageAt         time.Time
+	LastCustomerMessageAt pgtype.Timestamptz
+	CreatedAt             time.Time
+}
+
+type ConversationMessage struct {
+	ID                uuid.UUID
+	TenantID          uuid.UUID
+	ConversationID    uuid.UUID
+	ChannelAccountID  uuid.UUID
+	ExternalID        pgtype.Text
+	ClientRef         pgtype.UUID
+	Direction         string
+	Kind              string
+	Origin            string
+	ParentExternalID  pgtype.Text
+	PostID            pgtype.UUID
+	Body              pgtype.Text
+	Attachments       []byte
+	QuickReplies      []byte
+	QuickReplyPayload pgtype.Text
+	SenderStaffID     pgtype.UUID
+	SenderName        pgtype.Text
+	SendStatus        pgtype.Text
+	FailReason        pgtype.Text
+	CommandJobID      pgtype.UUID
+	SendCheckingSince pgtype.Timestamptz
+	IsHidden          bool
+	RemovedAt         pgtype.Timestamptz
+	EditedAt          pgtype.Timestamptz
+	IsLive            bool
+	DeliveredAt       pgtype.Timestamptz
+	ReadAt            pgtype.Timestamptz
+	Reactions         []byte
+	SentAt            time.Time
+	CreatedAt         time.Time
+}
+
+type ConversationMessageRevision struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	MessageID  uuid.UUID
+	Body       pgtype.Text
+	IsHidden   pgtype.Bool
+	Removed    pgtype.Bool
+	Source     string
+	RecordedAt time.Time
+}
+
+type ConversationPageSetting struct {
+	TenantID                uuid.UUID
+	ChannelAccountID        uuid.UUID
+	RoundRobinEnabled       bool
+	RoundRobinUserIds       []uuid.UUID
+	RoundRobinLastUserID    pgtype.UUID
+	AskAddressTemplateID    pgtype.UUID
+	InboxTrafficSourceID    pgtype.UUID
+	CommentTrafficSourceID  pgtype.UUID
+	LiveSlots               []byte
+	CommentPollMode         string
+	AutomationMaxAgeMinutes int32
+	Version                 int32
+	UpdatedAt               time.Time
+}
+
+type ConversationPost struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	ChannelAccountID uuid.UUID
+	ExternalID       string
+	Kind             string
+	Permalink        pgtype.Text
+	Snippet          pgtype.Text
+	CreatedTime      pgtype.Timestamptz
+	FetchedAt        pgtype.Timestamptz
+}
+
+type ConversationTag struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Name      string
+	Color     string
+	Sort      int32
+	DeletedAt pgtype.Timestamptz
+	Version   int32
+	CreatedAt time.Time
+}
+
+type ConversationTagsV struct {
+	TenantID uuid.UUID
+	ID       uuid.UUID
+	Name     string
+	Color    string
+	Sort     int32
+}
+
 type CustomerAdminUnit struct {
 	Code          string
 	Level         string

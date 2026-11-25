@@ -145,7 +145,7 @@ func TestIngestE2E(t *testing.T) {
 	if n := e.staff.Count(t, "SELECT count(*) FROM platform.webhook_deliveries"); n != 0 {
 		t.Errorf("không chữ ký mà lưu %d bản nhận", n)
 	}
-	if s := e.post(t, raw, sign(raw, testAppSecret)); s != http.StatusOK {
+	if s := e.post(t, raw, sign(raw, webhookAppSecret)); s != http.StatusOK {
 		t.Fatalf("có chữ ký: %d, mong 200", s)
 	}
 	if d, j := e.staff.Count(t, "SELECT count(*) FROM platform.webhook_deliveries WHERE source = 'facebook'"),
@@ -173,7 +173,7 @@ func TestIngestE2E(t *testing.T) {
 	}
 
 	// Meta giao lại cùng gói (không nhận được 200 lần trước): lưu thêm bản nhận, không thêm việc vào.
-	if s := e.post(t, raw, sign(raw, testAppSecret)); s != http.StatusOK {
+	if s := e.post(t, raw, sign(raw, webhookAppSecret)); s != http.StatusOK {
 		t.Fatalf("giao lại: %d", s)
 	}
 	testkit.DrainDue(t, e.staff.Owner, e.worker)
@@ -187,7 +187,7 @@ func TestIngestE2E(t *testing.T) {
 	// Page chưa kết nối (không có tuyến): không việc vào, đếm inbound_unrouted.
 	e.reg.Drain()
 	other := []byte(strings.ReplaceAll(string(fixture(t, "message_text.json")), page1, "104000000000999"))
-	if s := e.post(t, other, sign(other, testAppSecret)); s != http.StatusOK {
+	if s := e.post(t, other, sign(other, webhookAppSecret)); s != http.StatusOK {
 		t.Fatalf("Page lạ: %d", s)
 	}
 	testkit.DrainDue(t, e.staff.Owner, e.worker)
@@ -204,7 +204,7 @@ func TestIngestE2E_Skipped(t *testing.T) {
 	t.Parallel()
 	e := newFBEnv(t)
 	raw := fixture(t, "feed_status.json")
-	if s := e.post(t, raw, sign(raw, testAppSecret)); s != http.StatusOK {
+	if s := e.post(t, raw, sign(raw, webhookAppSecret)); s != http.StatusOK {
 		t.Fatalf("POST: %d", s)
 	}
 	testkit.DrainDue(t, e.staff.Owner, e.worker)

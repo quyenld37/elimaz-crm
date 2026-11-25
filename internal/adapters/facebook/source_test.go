@@ -13,14 +13,14 @@ import (
 func TestSource(t *testing.T) {
 	t.Parallel()
 	on := config.Config{Meta: config.MetaConfig{
-		Enabled: true, AppSecret: logging.Secret(testAppSecret), VerifyToken: logging.Secret(testVerifyToken),
+		Enabled: true, AppSecret: logging.Secret(webhookAppSecret), VerifyToken: logging.Secret(testVerifyToken),
 	}}
 	s := facebook.Source(on)
 	if s == nil || s.Key() != facebook.Key || s.Key() != "facebook" {
 		t.Fatalf("Meta bật: nguồn = %v", s)
 	}
 	raw := fixture(t, "message_text.json")
-	if !s.VerifySignature(raw, sign(raw, testAppSecret)) {
+	if !s.VerifySignature(raw, sign(raw, webhookAppSecret)) {
 		t.Error("nguồn từ cấu hình phải kiểm bằng META_APP_SECRET")
 	}
 	if ans, ok := s.Challenge(map[string][]string{
@@ -29,7 +29,7 @@ func TestSource(t *testing.T) {
 		t.Error("nguồn từ cấu hình phải xác minh bằng META_VERIFY_TOKEN")
 	}
 	for name, cfg := range map[string]config.Config{
-		"Meta tắt":     {Meta: config.MetaConfig{AppSecret: logging.Secret(testAppSecret)}},
+		"Meta tắt":     {Meta: config.MetaConfig{AppSecret: logging.Secret(webhookAppSecret)}},
 		"thiếu secret": {Meta: config.MetaConfig{Enabled: true}},
 	} {
 		if s := facebook.Source(cfg); s != nil {
@@ -39,7 +39,7 @@ func TestSource(t *testing.T) {
 	if facebook.Adapter(on) != nil {
 		t.Error("Adapter vẫn nil tới Task 148")
 	}
-	if f := facebook.New(logging.Secret(testAppSecret), "").Features(); !f.Comments || !f.LiveComments || !f.PrivateReply ||
+	if f := facebook.New(logging.Secret(webhookAppSecret), "").Features(); !f.Comments || !f.LiveComments || !f.PrivateReply ||
 		!f.HideComment || !f.QuickReplies || !f.HumanAgent {
 		t.Errorf("Features = %+v", f)
 	}
