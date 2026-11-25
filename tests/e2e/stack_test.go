@@ -136,16 +136,7 @@ func newStack(t *testing.T, o stackOptions) *stack {
 		hook := fake.NewClient(o.fakeCarrierURL, secret32, nil)
 		ingestSources = append(ingestSources, carrier.WebhookSource(hook, secret32))
 	}
-	in, err := webhooks.NewIngest(webhooks.IngestOptions{
-		DB: ingestDB, Sources: ingestSources, Spool: s.spool,
-		Lockout: webhooks.NewLockout(webhooks.LockoutOptions{}), Metrics: reg, Logger: logger,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	mux := http.NewServeMux()
-	in.Register(mux)
-	s.ingest = httptest.NewServer(mux)
+	s.ingest = ingestServer(t, webhooks.IngestOptions{DB: ingestDB, Sources: ingestSources, Spool: s.spool, Metrics: reg, Logger: logger})
 	drainEvery := o.drainEvery
 	if drainEvery <= 0 {
 		drainEvery = 100 * time.Millisecond
@@ -284,15 +275,35 @@ func postPingTo(t *testing.T, base string, eventIDs ...string) int {
 	if err != nil {
 		t.Fatal(err)
 	}
+	return postSigned(t, base+"/hooks/selftest", "X-Selftest-Signature", body)
+}
+
+// postSigned POST body tới url với header ký HMAC-SHA256 "sha256=<hex>" bằng secret32; trả mã HTTP.
+func postSigned(t *testing.T, url, header string, body []byte) int {
+	t.Helper()
 	m := hmac.New(sha256.New, []byte(secret32))
 	m.Write(body)
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, base+"/hooks/selftest", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Header.Set("X-Selftest-Signature", "sha256="+hex.EncodeToString(m.Sum(nil)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(header, "sha256="+hex.EncodeToString(m.Sum(nil)))
 	status, _, _ := testkit.Do(t, req)
 	return status
+}
+
+// ingestServer dựng vai trò ingest (o với Lockout mặc định) sau một httptest.Server; bên gọi đóng.
+func ingestServer(t *testing.T, o webhooks.IngestOptions) *httptest.Server {
+	t.Helper()
+	o.Lockout = webhooks.NewLockout(webhooks.LockoutOptions{})
+	in, err := webhooks.NewIngest(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	in.Register(mux)
+	return httptest.NewServer(mux)
 }
 
 // openSSE mở luồng SSE bằng thẻ chủ shop và đòi khung đầu là resync.
@@ -313,6 +324,12 @@ type pong struct {
 
 // nextPong chờ khung changed topic selftest.pong kế tiếp (bỏ qua ping, resync) trong timeout; trả eventId.
 func nextPong(c *testkit.SSEClient, timeout time.Duration) (string, error) {
+	return nextChanged(c, timeout, selftest.PongTopic, selftest.Key)
+}
+
+// nextChanged chờ khung changed kế tiếp có chủ đề topic và loại thực thể entity (bỏ qua khung khác) trong timeout;
+// trả mã thực thể.
+func nextChanged(c *testkit.SSEClient, timeout time.Duration, topic, entity string) (string, error) {
 	deadline := time.Now().Add(timeout)
 	for {
 		left := time.Until(deadline)
@@ -330,7 +347,7 @@ func nextPong(c *testkit.SSEClient, timeout time.Duration) (string, error) {
 		if err := json.Unmarshal(data, &p); err != nil {
 			return "", fmt.Errorf("đọc khung %s: %w", data, err)
 		}
-		if p.Topic == selftest.PongTopic && p.Entity.Type == selftest.Key {
+		if p.Topic == topic && p.Entity.Type == entity {
 			return p.Entity.ID, nil
 		}
 	}

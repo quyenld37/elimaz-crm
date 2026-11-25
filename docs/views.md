@@ -78,6 +78,7 @@ phép lệch nhau. Module chủ của bảng bị trỏ không đổi khóa (c�
 | `ord.orders (tenant_id, current_shipment_id) → fulfillment.shipments (tenant_id, id)` (`orders_current_shipment_fk`; M2 Task 05 để lại cho M3) | vận đơn hiện hành của đơn là vận đơn có thật; đường tạo chèn vận đơn trước rồi gắn | 92 |
 | `fulfillment.shipments (tenant_id, label_file_id)`, `fulfillment.label_batches (tenant_id, file_id) → platform.files (tenant_id, id)` | tem in là tệp có thật | 92 |
 | `cash.cod_statements (tenant_id, carrier_account_id) → fulfillment.carrier_accounts (tenant_id, id)` | bảng kê COD thuộc một tài khoản hãng có thật | 93 |
+| `conversation.page_settings`, `conversation.posts`, `conversation.conversations`, `conversation.messages (tenant_id, channel_account_id) → channel.channel_accounts (tenant_id, id)` (migration 0412) | hội thoại, tin, bài, cài đặt luôn thuộc một Page có thật của shop | 153 |
 | `cash.payments`, `cash.refund_obligations (tenant_id, order_id) → ord.orders (tenant_id, id)`; `cash.refund_obligations (tenant_id, return_id) → ord.returns (tenant_id, id)` | phiếu thu, nghĩa vụ hoàn thuộc đơn (và phiếu trả) có thật | 93 |
 
 ## Hàm tìm công bố
