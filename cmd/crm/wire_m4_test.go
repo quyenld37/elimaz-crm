@@ -7,7 +7,8 @@ import (
 )
 
 // wireM4 (Task 143): khung chưa có adapter nào hiện thực, nên ở mọi môi trường bộ adapter rỗng, không nguồn webhook,
-// lệnh, lịch, luồng nền; ingest vẫn dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
+// lệnh, luồng nền; lịch và việc nền chỉ có conversation.presence_cleanup (Task 163); ingest vẫn dựng được (m4Deps
+// rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
 func TestWireM4_Frame(t *testing.T) {
 	t.Parallel()
 	for _, cfg := range []config.Config{
@@ -17,8 +18,11 @@ func TestWireM4_Frame(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%+v: %v", cfg.Env, err)
 		}
-		if len(p.Channels.Keys()) != 0 || len(p.Sources)+len(p.Inbound)+len(p.Commands)+len(p.Jobs)+len(p.Schedules)+len(p.Background) != 0 {
+		if len(p.Channels.Keys()) != 0 || len(p.Sources)+len(p.Inbound)+len(p.Commands)+len(p.Background) != 0 {
 			t.Errorf("%s: khung M4 chưa được có phần nào: %+v", cfg.Env, p)
+		}
+		if len(p.Schedules) != 1 || p.Schedules[0].Name != "conversation.presence_cleanup" || len(p.Jobs) != 1 {
+			t.Errorf("%s: lịch %+v, việc nền %d", cfg.Env, p.Schedules, len(p.Jobs))
 		}
 	}
 	if _, err := wireM4(config.Config{FieldEncKeys: "sai"}, m4Deps{}); err == nil {

@@ -11,6 +11,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/cash"
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/content"
+	"elimaz.com.vn/crm/internal/modules/conversation"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
@@ -194,6 +195,7 @@ func domainErrorSnapshot() []snapshotCase {
 		{"content.ErrLookPhoto", content.ErrLookPhoto, http.StatusUnprocessableEntity, "look_photo_invalid"},
 		{"content.ErrLookWindow", content.ErrLookWindow, http.StatusUnprocessableEntity, "look_window_invalid"},
 		{"content.ErrLookNotFound", content.ErrLookNotFound, http.StatusNotFound, "not_found"},
+		{"conversation.ErrNotFound", conversation.ErrNotFound, http.StatusNotFound, "not_found"},
 		{"weborders.ErrBadLimit", weborders.ErrBadLimit, http.StatusBadRequest, "bad_request"},
 		{"weborders.ErrNotFound", weborders.ErrNotFound, http.StatusNotFound, "not_found"},
 		{"webcatalog.ErrBadLimit", webcatalog.ErrBadLimit, http.StatusBadRequest, "bad_request"},

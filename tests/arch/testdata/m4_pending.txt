@@ -33,8 +33,6 @@ listConversationAssignments
 addConversationTag
 removeConversationTag
 addConversationNote
-getPresence
-setPresence
 createReminder
 listMessageRevisions
 resendMessage
