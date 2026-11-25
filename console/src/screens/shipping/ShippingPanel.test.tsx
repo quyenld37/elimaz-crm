@@ -538,3 +538,54 @@ describe("Khi nào khối hiện", () => {
     expect(screen.queryByRole("region", { name: "Vận chuyển" })).toBeNull();
   });
 });
+
+describe("Hãng khách chọn trên website (Task 490)", () => {
+  it("khách chọn Best (đắt hơn): dòng Khách chọn có hãng, dịch vụ, phí; chọn sẵn Best thay vì rẻ nhất; không tự gửi", async () => {
+    latestQuotes();
+    renderPanel(
+      confirmedOrder({
+        channel: "web",
+        webShipping: {
+          accountId: A_BEST,
+          carrierKey: "best",
+          carrierName: "Best Express",
+          service: "STD",
+          fee: 35_500,
+          estimated: false,
+        },
+      }),
+    );
+    await sendButton("Gửi hãng · Best Express · 35.500 ₫");
+    expect(within(panel()).getByText("Khách chọn: Best Express · STD · 35.500 ₫")).toBeTruthy();
+    expect(within(rows()).getByRole("radio", { name: /Best Express — Kho chính/ })).toHaveProperty("checked", true);
+    expect(shipWrites()).toHaveLength(0);
+  });
+
+  it("hãng khách chọn không có trong bảng so phí: vẫn hiện dòng Khách chọn, chọn sẵn rẻ nhất như cũ", async () => {
+    latestQuotes();
+    renderPanel(
+      confirmedOrder({
+        webShipping: { accountId: A_GHN, carrierKey: "ghn", carrierName: "GHN", fee: 29_000, estimated: false },
+      }),
+    );
+    await sendButton("Gửi hãng · Viettel Post · 32.000 ₫");
+    expect(within(panel()).getByText("Khách chọn: GHN · 29.000 ₫")).toBeTruthy();
+  });
+
+  it("phí dự phòng, đơn từ hàng đợi không còn khớp: câu riêng, nhắc kiểm lại", async () => {
+    latestQuotes();
+    renderPanel(confirmedOrder({ webShipping: { fee: 35_000, estimated: true, problem: "fee_mismatch" } }));
+    await sendButton("Gửi hãng · Viettel Post · 32.000 ₫");
+    expect(
+      within(panel()).getByText("Khách chọn: phí giao dự phòng của shop (không chọn hãng) · 35.000 ₫"),
+    ).toBeTruthy();
+    expect(within(panel()).getByText(/Lựa chọn không còn khớp lúc CRM nhận đơn/)).toBeTruthy();
+  });
+
+  it("đơn không có lựa chọn của khách: không có dòng Khách chọn", async () => {
+    latestQuotes();
+    renderPanel(confirmedOrder());
+    await sendButton("Gửi hãng · Viettel Post · 32.000 ₫");
+    expect(within(panel()).queryByText(/Khách chọn/)).toBeNull();
+  });
+});

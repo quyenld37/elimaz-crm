@@ -4,7 +4,8 @@
 // quá hạn hay đổi cân nặng, tùy chọn sau khi so phí thì nút gửi thành "Báo phí lại"; 409 quote_stale tự báo phí lại và
 // giữ tài khoản đã chọn. Tài khoản nhập mã tay dán mã khi gửi; tự giao chỉ một nút. Có vận đơn: đang tạo → kết quả
 // lệnh tạo (CreateStateBanner, kèm "Hủy để đổi hãng" khi lệnh tạo đã kết thúc); đã gửi → ShipmentCard (Task 134). Nút
-// theo quyền ở kho của đơn; máy chủ vẫn kiểm.
+// theo quyền ở kho của đơn; máy chủ vẫn kiểm. Đơn web có hãng khách chọn (Task 490): dòng "Khách chọn: …" và chọn sẵn
+// tài khoản đó trong bảng so phí (không có trong bảng thì rẻ nhất như cũ); không tự gửi hãng.
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
@@ -12,6 +13,7 @@ import {
   requestShippingQuotes,
   type CreateShipmentRequest,
   type Order,
+  type OrderWebShipping,
   type Shipment,
 } from "../../api";
 import { ApiError, unwrap } from "../../app/errors";
@@ -55,6 +57,25 @@ const TEXT_PARAMS_CHANGED =
 const TEXT_EXPIRED = "Giá đã cũ. Báo phí lại trước khi gửi; tài khoản đang chọn được giữ.";
 
 const percent = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
+
+/** Khóa dòng bảng so phí của hãng khách chọn (QuoteTable: "tài khoản|dịch vụ"); phí dự phòng, không có → null. */
+const customerPick = (c: OrderWebShipping | undefined) =>
+  c?.accountId === undefined ? null : `${c.accountId}|${c.service ?? ""}`;
+
+/** Dòng "Khách chọn: …" của đơn web (Task 490). */
+function CustomerChoice({ c }: { c: OrderWebShipping }) {
+  const what = c.estimated
+    ? "phí giao dự phòng của shop (không chọn hãng)"
+    : [carrierName(c.carrierKey ?? "", c.carrierName ?? c.carrierKey ?? ""), c.service].filter(Boolean).join(" · ");
+  return (
+    <div className="box box-info small">
+      <div>{`Khách chọn: ${what} · ${formatMoney(c.fee)}`}</div>
+      {c.problem !== undefined && (
+        <div>Lựa chọn không còn khớp lúc CRM nhận đơn (đơn cần kiểm giá): gọi khách trước khi gửi hãng.</div>
+      )}
+    </div>
+  );
+}
 
 function Head({ chip }: { chip: string }) {
   return (
@@ -101,7 +122,7 @@ function Compose({
   const [requestId, setRequestId] = useState<string | null>(null);
   const [quotedKey, setQuotedKey] = useState<string | null>(null);
   const [noApi, setNoApi] = useState(false);
-  const [picked, setPicked] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(() => customerPick(o.webShipping));
   const [info, setInfo] = useState<string | null>(null);
 
   const quotes = useQuotes(o.id, requestId, loaded && canQuote);
@@ -244,6 +265,7 @@ function Compose({
     <>
       <Head chip="Chưa gửi hãng" />
       {rejected !== null && <RejectedNote s={rejected} onEdit={onEdit} />}
+      {o.webShipping !== undefined && <CustomerChoice c={o.webShipping} />}
       {canQuote && (
         <div className="row-between">
           <h3>So phí</h3>

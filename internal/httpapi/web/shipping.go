@@ -3,6 +3,7 @@ package web
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"slices"
@@ -15,6 +16,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/httpapi/gen"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
+	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/cache"
 	"elimaz.com.vn/crm/internal/platform/db"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
@@ -166,4 +168,73 @@ func (s *Shipping) Estimates(ctx context.Context, tenant uuid.UUID) (*gen.WebDel
 		return nil, fmt.Errorf("đọc ước thời gian giao trong bộ đệm: %w", err)
 	}
 	return &out, nil
+}
+
+// CheckChoice đối chiếu lựa chọn giao hàng c website gửi kèm báo giá hay đơn (Task 490), NGOÀI transaction (có thể gọi
+// hãng khi bộ đệm báo phí hết hạn), và trả lựa chọn kèm vấn đề cho order (order áp luật gửi thẳng/hàng đợi):
+//   - không accountId (phí dự phòng): shop không còn phí dự phòng → carrier_unavailable; khác phí dự phòng đang lưu →
+//     fee_mismatch;
+//   - tài khoản không active hay không hiện trên web (đọc PostgreSQL, không qua bộ đệm) → carrier_unavailable;
+//   - addr (địa chỉ giao của đơn; nil ở báo giá) khác mã tỉnh, phường của c.Quote → fee_mismatch;
+//   - báo phí của đúng thân c.Quote (Quote: bộ đệm 10 phút như webShippingQuote) không có lựa chọn cùng tài khoản,
+//     dịch vụ (không gửi: dịch vụ nào cũng được) và phí → fee_mismatch; không báo được (ErrNoQuote, cache.ErrBusy) →
+//     unverified.
+//
+// Lỗi khác (database) trả nguyên.
+func (s *Shipping) CheckChoice(ctx context.Context, tenant uuid.UUID, c *gen.WebShippingChoice, addr *order.ShipAddress,
+) (*order.WebShipChoice, error) {
+	out := &order.WebShipChoice{Fee: c.Fee, Service: c.Service.Or("")}
+	acc, hasAcc := c.AccountId.Get()
+	var (
+		set  fulfillment.WebCarrierSettings
+		cars []fulfillment.WebCarrier
+	)
+	if err := tenancy.WithTenant(ctx, s.db, tenant, func(tx pgx.Tx) error {
+		var err error
+		if set, err = fulfillment.GetWebCarrierSettings(ctx, tx); err != nil {
+			return err //nolint:wrapcheck // fulfillment đã bọc
+		}
+		cars, err = s.svc.WebCarriers(ctx, tx)
+		return err //nolint:wrapcheck // như trên
+	}, db.TxAPI); err != nil {
+		return nil, fmt.Errorf("kiểm hãng khách chọn: %w", err)
+	}
+	if !hasAcc {
+		switch {
+		case set.FallbackFee == nil:
+			out.Problem = order.ShipProblemCarrierUnavailable
+		case *set.FallbackFee != c.Fee:
+			out.Problem = order.ShipProblemFeeMismatch
+		}
+		return out, nil
+	}
+	out.AccountID = &acc
+	i := slices.IndexFunc(cars, func(w fulfillment.WebCarrier) bool { return w.AccountID == acc })
+	if i < 0 {
+		out.Problem = order.ShipProblemCarrierUnavailable
+		return out, nil
+	}
+	out.CarrierKey, out.CarrierName = cars[i].CarrierKey, cars[i].Name
+	if addr != nil && (addr.ProvinceCode != c.Quote.ProvinceCode || addr.WardCode != c.Quote.WardCode) {
+		out.Problem = order.ShipProblemFeeMismatch
+		return out, nil
+	}
+	q, err := s.Quote(ctx, tenant, &c.Quote)
+	switch {
+	case errors.Is(err, fulfillment.ErrNoQuote), errors.Is(err, cache.ErrBusy):
+		out.Problem = order.ShipProblemUnverified
+		return out, nil
+	case err != nil:
+		return nil, err
+	}
+	for _, o := range q.Options {
+		id, ok := o.AccountId.Get()
+		svc := o.Service.Or("")
+		if ok && id == acc && o.Fee == c.Fee && (out.Service == "" || svc == out.Service) {
+			out.Service = svc
+			return out, nil
+		}
+	}
+	out.Problem = order.ShipProblemFeeMismatch
+	return out, nil
 }

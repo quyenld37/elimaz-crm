@@ -18899,6 +18899,98 @@ func (o OptOrderShipmentSummary) Or(d OrderShipmentSummary) OrderShipmentSummary
 	return d
 }
 
+// NewOptOrderWebShipping returns new OptOrderWebShipping with value set to v.
+func NewOptOrderWebShipping(v OrderWebShipping) OptOrderWebShipping {
+	return OptOrderWebShipping{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptOrderWebShipping is optional OrderWebShipping.
+type OptOrderWebShipping struct {
+	Value OrderWebShipping
+	Set   bool
+}
+
+// IsSet returns true if OptOrderWebShipping was set.
+func (o OptOrderWebShipping) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptOrderWebShipping) Reset() {
+	var v OrderWebShipping
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptOrderWebShipping) SetTo(v OrderWebShipping) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptOrderWebShipping) Get() (v OrderWebShipping, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptOrderWebShipping) Or(d OrderWebShipping) OrderWebShipping {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptOrderWebShippingProblem returns new OptOrderWebShippingProblem with value set to v.
+func NewOptOrderWebShippingProblem(v OrderWebShippingProblem) OptOrderWebShippingProblem {
+	return OptOrderWebShippingProblem{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptOrderWebShippingProblem is optional OrderWebShippingProblem.
+type OptOrderWebShippingProblem struct {
+	Value OrderWebShippingProblem
+	Set   bool
+}
+
+// IsSet returns true if OptOrderWebShippingProblem was set.
+func (o OptOrderWebShippingProblem) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptOrderWebShippingProblem) Reset() {
+	var v OrderWebShippingProblem
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptOrderWebShippingProblem) SetTo(v OrderWebShippingProblem) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptOrderWebShippingProblem) Get() (v OrderWebShippingProblem, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptOrderWebShippingProblem) Or(d OrderWebShippingProblem) OrderWebShippingProblem {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptPendingReason returns new OptPendingReason with value set to v.
 func NewOptPendingReason(v PendingReason) OptPendingReason {
 	return OptPendingReason{
@@ -20647,6 +20739,52 @@ func (o OptWebQuotedLineProblem) Or(d WebQuotedLineProblem) WebQuotedLineProblem
 	return d
 }
 
+// NewOptWebShippingChoice returns new OptWebShippingChoice with value set to v.
+func NewOptWebShippingChoice(v WebShippingChoice) OptWebShippingChoice {
+	return OptWebShippingChoice{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptWebShippingChoice is optional WebShippingChoice.
+type OptWebShippingChoice struct {
+	Value WebShippingChoice
+	Set   bool
+}
+
+// IsSet returns true if OptWebShippingChoice was set.
+func (o OptWebShippingChoice) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptWebShippingChoice) Reset() {
+	var v WebShippingChoice
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptWebShippingChoice) SetTo(v WebShippingChoice) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptWebShippingChoice) Get() (v WebShippingChoice, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptWebShippingChoice) Or(d WebShippingChoice) WebShippingChoice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 type OptionText string
 
 // Ref: #/components/schemas/Order
@@ -20672,6 +20810,7 @@ type Order struct {
 	Channel           OptString             `json:"channel"`
 	TrafficSourceId   OptUUID               `json:"trafficSourceId"`
 	ExternalRef       OptString             `json:"externalRef"`
+	WebShipping       OptOrderWebShipping   `json:"webShipping"`
 	CarrierNote       OptString             `json:"carrierNote"`
 	CareBy            OptActor              `json:"careBy"`
 	CreatedBy         OptActor              `json:"createdBy"`
@@ -20799,6 +20938,11 @@ func (s *Order) GetTrafficSourceId() OptUUID {
 // GetExternalRef returns the value of ExternalRef.
 func (s *Order) GetExternalRef() OptString {
 	return s.ExternalRef
+}
+
+// GetWebShipping returns the value of WebShipping.
+func (s *Order) GetWebShipping() OptOrderWebShipping {
+	return s.WebShipping
 }
 
 // GetCarrierNote returns the value of CarrierNote.
@@ -21014,6 +21158,11 @@ func (s *Order) SetTrafficSourceId(val OptUUID) {
 // SetExternalRef sets the value of ExternalRef.
 func (s *Order) SetExternalRef(val OptString) {
 	s.ExternalRef = val
+}
+
+// SetWebShipping sets the value of WebShipping.
+func (s *Order) SetWebShipping(val OptOrderWebShipping) {
+	s.WebShipping = val
 }
 
 // SetCarrierNote sets the value of CarrierNote.
@@ -23779,6 +23928,139 @@ func (s *OrderWarning) SetCode(val string) {
 // SetRefId sets the value of RefId.
 func (s *OrderWarning) SetRefId(val OptUUID) {
 	s.RefId = val
+}
+
+// Task 490. Hãng/dịch vụ khách chọn trên website lúc đặt (chỉ để nhân viên gửi
+// đúng hãng; CRM không tự gửi). estimated = phí dự phòng của shop (không hãng).
+// problem có khi đơn từ hàng đợi (queued) mà lựa chọn không còn khớp lúc CRM nhận
+// (đơn có priceReview).
+// Ref: #/components/schemas/OrderWebShipping
+type OrderWebShipping struct {
+	AccountId   OptUUID                    `json:"accountId"`
+	CarrierKey  OptString                  `json:"carrierKey"`
+	CarrierName OptString                  `json:"carrierName"`
+	Service     OptString                  `json:"service"`
+	Fee         Money                      `json:"fee"`
+	Estimated   bool                       `json:"estimated"`
+	Problem     OptOrderWebShippingProblem `json:"problem"`
+}
+
+// GetAccountId returns the value of AccountId.
+func (s *OrderWebShipping) GetAccountId() OptUUID {
+	return s.AccountId
+}
+
+// GetCarrierKey returns the value of CarrierKey.
+func (s *OrderWebShipping) GetCarrierKey() OptString {
+	return s.CarrierKey
+}
+
+// GetCarrierName returns the value of CarrierName.
+func (s *OrderWebShipping) GetCarrierName() OptString {
+	return s.CarrierName
+}
+
+// GetService returns the value of Service.
+func (s *OrderWebShipping) GetService() OptString {
+	return s.Service
+}
+
+// GetFee returns the value of Fee.
+func (s *OrderWebShipping) GetFee() Money {
+	return s.Fee
+}
+
+// GetEstimated returns the value of Estimated.
+func (s *OrderWebShipping) GetEstimated() bool {
+	return s.Estimated
+}
+
+// GetProblem returns the value of Problem.
+func (s *OrderWebShipping) GetProblem() OptOrderWebShippingProblem {
+	return s.Problem
+}
+
+// SetAccountId sets the value of AccountId.
+func (s *OrderWebShipping) SetAccountId(val OptUUID) {
+	s.AccountId = val
+}
+
+// SetCarrierKey sets the value of CarrierKey.
+func (s *OrderWebShipping) SetCarrierKey(val OptString) {
+	s.CarrierKey = val
+}
+
+// SetCarrierName sets the value of CarrierName.
+func (s *OrderWebShipping) SetCarrierName(val OptString) {
+	s.CarrierName = val
+}
+
+// SetService sets the value of Service.
+func (s *OrderWebShipping) SetService(val OptString) {
+	s.Service = val
+}
+
+// SetFee sets the value of Fee.
+func (s *OrderWebShipping) SetFee(val Money) {
+	s.Fee = val
+}
+
+// SetEstimated sets the value of Estimated.
+func (s *OrderWebShipping) SetEstimated(val bool) {
+	s.Estimated = val
+}
+
+// SetProblem sets the value of Problem.
+func (s *OrderWebShipping) SetProblem(val OptOrderWebShippingProblem) {
+	s.Problem = val
+}
+
+type OrderWebShippingProblem string
+
+const (
+	OrderWebShippingProblemCarrierUnavailable OrderWebShippingProblem = "carrier_unavailable"
+	OrderWebShippingProblemFeeMismatch        OrderWebShippingProblem = "fee_mismatch"
+	OrderWebShippingProblemUnverified         OrderWebShippingProblem = "unverified"
+)
+
+// AllValues returns all OrderWebShippingProblem values.
+func (OrderWebShippingProblem) AllValues() []OrderWebShippingProblem {
+	return []OrderWebShippingProblem{
+		OrderWebShippingProblemCarrierUnavailable,
+		OrderWebShippingProblemFeeMismatch,
+		OrderWebShippingProblemUnverified,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s OrderWebShippingProblem) MarshalText() ([]byte, error) {
+	switch s {
+	case OrderWebShippingProblemCarrierUnavailable:
+		return []byte(s), nil
+	case OrderWebShippingProblemFeeMismatch:
+		return []byte(s), nil
+	case OrderWebShippingProblemUnverified:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *OrderWebShippingProblem) UnmarshalText(data []byte) error {
+	switch OrderWebShippingProblem(data) {
+	case OrderWebShippingProblemCarrierUnavailable:
+		*s = OrderWebShippingProblemCarrierUnavailable
+		return nil
+	case OrderWebShippingProblemFeeMismatch:
+		*s = OrderWebShippingProblemFeeMismatch
+		return nil
+	case OrderWebShippingProblemUnverified:
+		*s = OrderWebShippingProblemUnverified
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/PackingResult
@@ -37695,7 +37977,8 @@ type WebOrderRequest struct {
 	// sai đếm chung theo khóa dịch vụ.
 	ClientIp OptIP `json:"clientIp"`
 	// Phí giao website đã tính (đồng).
-	ShippingFee int64 `json:"shippingFee"`
+	ShippingFee    int64                `json:"shippingFee"`
+	ShippingChoice OptWebShippingChoice `json:"shippingChoice"`
 	// Báo giá website đã hiện cho khách (webQuote); chỉ để so và lưu.
 	Quoted WebOrderRequestQuoted `json:"quoted"`
 	// Sync — khách đang trên trang; queued — hàng đợi cục bộ gửi lại sau khi CRM từng
@@ -37740,6 +38023,11 @@ func (s *WebOrderRequest) GetClientIp() OptIP {
 // GetShippingFee returns the value of ShippingFee.
 func (s *WebOrderRequest) GetShippingFee() int64 {
 	return s.ShippingFee
+}
+
+// GetShippingChoice returns the value of ShippingChoice.
+func (s *WebOrderRequest) GetShippingChoice() OptWebShippingChoice {
+	return s.ShippingChoice
 }
 
 // GetQuoted returns the value of Quoted.
@@ -37795,6 +38083,11 @@ func (s *WebOrderRequest) SetClientIp(val OptIP) {
 // SetShippingFee sets the value of ShippingFee.
 func (s *WebOrderRequest) SetShippingFee(val int64) {
 	s.ShippingFee = val
+}
+
+// SetShippingChoice sets the value of ShippingChoice.
+func (s *WebOrderRequest) SetShippingChoice(val OptWebShippingChoice) {
+	s.ShippingChoice = val
 }
 
 // SetQuoted sets the value of Quoted.
@@ -38794,7 +39087,8 @@ type WebQuoteRequest struct {
 	// SĐT người đặt, chỉ để kiểm mã gắn SĐT (không ghi lại).
 	CustomerPhone OptString `json:"customerPhone"`
 	// Phí giao website đã tính (đồng).
-	ShippingFee int64 `json:"shippingFee"`
+	ShippingFee    int64                `json:"shippingFee"`
+	ShippingChoice OptWebShippingChoice `json:"shippingChoice"`
 }
 
 // GetLines returns the value of Lines.
@@ -38822,6 +39116,11 @@ func (s *WebQuoteRequest) GetShippingFee() int64 {
 	return s.ShippingFee
 }
 
+// GetShippingChoice returns the value of ShippingChoice.
+func (s *WebQuoteRequest) GetShippingChoice() OptWebShippingChoice {
+	return s.ShippingChoice
+}
+
 // SetLines sets the value of Lines.
 func (s *WebQuoteRequest) SetLines(val []WebQuoteLineInput) {
 	s.Lines = val
@@ -38845,6 +39144,11 @@ func (s *WebQuoteRequest) SetCustomerPhone(val OptString) {
 // SetShippingFee sets the value of ShippingFee.
 func (s *WebQuoteRequest) SetShippingFee(val int64) {
 	s.ShippingFee = val
+}
+
+// SetShippingChoice sets the value of ShippingChoice.
+func (s *WebQuoteRequest) SetShippingChoice(val OptWebShippingChoice) {
+	s.ShippingChoice = val
 }
 
 // Ref: #/components/schemas/WebQuotedLine
@@ -39260,6 +39564,62 @@ func (s *WebShippingCarriers) SetCarriers(val []WebShippingCarrier) {
 }
 
 func (*WebShippingCarriers) webShippingCarriersRes() {}
+
+// Task 490. Lựa chọn giao hàng khách chọn trong kết quả webShippingQuote. Không gửi:
+// như trước (CRM không kiểm, đơn không mang hãng). accountId, service của lựa chọn;
+// không accountId = phí dự phòng của shop (lựa chọn estimated). fee là phí của lựa
+// chọn đó (trước miễn phí ship của website); shippingFee của yêu cầu được nhỏ
+// hơn (miễn phí ship), không được lớn hơn. quote là đúng thân đã gửi
+// webShippingQuote (CRM đọc lại cùng báo phí).
+// Ref: #/components/schemas/WebShippingChoice
+type WebShippingChoice struct {
+	// Mã tài khoản hãng (webShippingCarriers); không gửi = phí dự phòng.
+	AccountId OptUUID `json:"accountId"`
+	// Dịch vụ của lựa chọn; không gửi = dịch vụ nào của tài khoản có đúng phí.
+	Service OptString               `json:"service"`
+	Fee     int64                   `json:"fee"`
+	Quote   WebShippingQuoteRequest `json:"quote"`
+}
+
+// GetAccountId returns the value of AccountId.
+func (s *WebShippingChoice) GetAccountId() OptUUID {
+	return s.AccountId
+}
+
+// GetService returns the value of Service.
+func (s *WebShippingChoice) GetService() OptString {
+	return s.Service
+}
+
+// GetFee returns the value of Fee.
+func (s *WebShippingChoice) GetFee() int64 {
+	return s.Fee
+}
+
+// GetQuote returns the value of Quote.
+func (s *WebShippingChoice) GetQuote() WebShippingQuoteRequest {
+	return s.Quote
+}
+
+// SetAccountId sets the value of AccountId.
+func (s *WebShippingChoice) SetAccountId(val OptUUID) {
+	s.AccountId = val
+}
+
+// SetService sets the value of Service.
+func (s *WebShippingChoice) SetService(val OptString) {
+	s.Service = val
+}
+
+// SetFee sets the value of Fee.
+func (s *WebShippingChoice) SetFee(val int64) {
+	s.Fee = val
+}
+
+// SetQuote sets the value of Quote.
+func (s *WebShippingChoice) SetQuote(val WebShippingQuoteRequest) {
+	s.Quote = val
+}
 
 // Ref: #/components/schemas/WebShippingQuote
 type WebShippingQuote struct {

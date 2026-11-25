@@ -35,10 +35,11 @@ func (o *Orders) clock() time.Time {
 	return time.Now().UTC()
 }
 
-// Quote báo giá req trong một transaction chỉ đọc của tenant (order.QuoteWeb); lỗi nghiệp vụ của order giữ nguyên để
-// errors_order.go đổi mã.
-func (o *Orders) Quote(ctx context.Context, tenant uuid.UUID, req *gen.WebQuoteRequest) (*gen.WebQuote, error) {
-	in := order.WebQuoteInput{Lines: make([]order.WebLine, len(req.Lines)), ShippingFee: req.ShippingFee}
+// Quote báo giá req trong một transaction chỉ đọc của tenant (order.QuoteWeb) với lựa chọn giao hàng ship đã đối chiếu
+// (Shipping.CheckChoice; nil: website không gửi); lỗi nghiệp vụ của order giữ nguyên để errors_order.go đổi mã.
+func (o *Orders) Quote(ctx context.Context, tenant uuid.UUID, req *gen.WebQuoteRequest, ship *order.WebShipChoice,
+) (*gen.WebQuote, error) {
+	in := order.WebQuoteInput{Lines: make([]order.WebLine, len(req.Lines)), ShippingFee: req.ShippingFee, Shipping: ship}
 	for i, l := range req.Lines {
 		in.Lines[i] = order.WebLine{VariantID: l.VariantId, Qty: int(l.Qty), QuotedUnitPrice: l.QuotedUnitPrice}
 	}

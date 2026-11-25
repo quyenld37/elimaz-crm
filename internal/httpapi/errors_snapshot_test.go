@@ -156,6 +156,10 @@ func domainErrorSnapshot() []snapshotCase {
 		{"tooFastError coupon", &tooFastError{code: codeCouponAttemptsExceeded}, http.StatusTooManyRequests, "coupon_attempts_exceeded"},
 		// Tạm dừng nhận đơn web (Task 456).
 		{"order.ErrWebIntakePaused", order.ErrWebIntakePaused, http.StatusServiceUnavailable, "web_orders_paused"},
+		// Hãng/dịch vụ khách chọn trên website (Task 490).
+		{"order.ErrShipCarrierUnavailable", order.ErrShipCarrierUnavailable, http.StatusUnprocessableEntity, "shipping_carrier_unavailable"},
+		{"order.ErrShipFeeMismatch", order.ErrShipFeeMismatch, http.StatusUnprocessableEntity, "shipping_fee_mismatch"},
+		{"order.ErrShipUnverified", order.ErrShipUnverified, http.StatusServiceUnavailable, "retry_later"},
 		{"order.ErrReasonRequired", order.ErrReasonRequired, http.StatusUnprocessableEntity, "invalid_input"},
 		// Yêu cầu về đơn hàng (Task 195).
 		{"order.ErrWindowClosed", order.ErrWindowClosed, http.StatusUnprocessableEntity, "window_closed"},

@@ -32,16 +32,24 @@ const (
 	codeRequestNotAllowed = "request_not_allowed"
 	// Khách hủy đơn web (Task 196).
 	codeCannotCancel = "cannot_cancel"
+	// Hãng/dịch vụ khách chọn trên website (Task 490).
+	codeShippingCarrierUnavailable = "shipping_carrier_unavailable"
+	codeShippingFeeMismatch        = "shipping_fee_mismatch"
 )
 
 // webError đổi lỗi nghiệp vụ của vùng đơn website (không có thân chi tiết) sang mã HTTP (Task 456): shop đang tạm dừng
 // nhận đơn web → 503 web_orders_paused (không Retry-After: thời gian mở lại không biết trước); tạm dừng không lý do →
 // 422 invalid_input. Yêu cầu về đơn hàng (Task 195): luật của yêu cầu → 422 với mã riêng; quá 5 yêu cầu một đơn trong
 // 24 giờ → 429 too_fast (không Retry-After); yêu cầu không có → 404. Khách hủy đơn đã giao, đã hoàn, đã hủy (Task 196)
-// → 422 cannot_cancel; limit của luồng thay đổi sai → 400 bad_request (ogen đã chặn theo hợp đồng).
+// → 422 cannot_cancel; limit của luồng thay đổi sai → 400 bad_request (ogen đã chặn theo hợp đồng). Lựa chọn giao
+// hàng của khách (Task 490): hãng không còn trên web → 422 shipping_carrier_unavailable, phí lệch báo phí → 422
+// shipping_fee_mismatch, chưa kiểm được (hãng lỗi, bộ đệm bận) → 503 retry_later.
 func webError(err error) (status int, code string, ok bool) {
 	return matchError(err, []errorMapping{
 		{order.ErrWebIntakePaused, http.StatusServiceUnavailable, codeWebOrdersPaused},
+		{order.ErrShipCarrierUnavailable, http.StatusUnprocessableEntity, codeShippingCarrierUnavailable},
+		{order.ErrShipFeeMismatch, http.StatusUnprocessableEntity, codeShippingFeeMismatch},
+		{order.ErrShipUnverified, http.StatusServiceUnavailable, codeRetryLater},
 		{order.ErrReasonRequired, http.StatusUnprocessableEntity, codeInvalidInput},
 		{order.ErrWindowClosed, http.StatusUnprocessableEntity, codeWindowClosed},
 		{order.ErrQtyExceeded, http.StatusUnprocessableEntity, codeQtyExceeded},
@@ -99,7 +107,9 @@ func webOrderDetail(err error) (errorBody, int, bool) {
 }
 
 // webOrderRefusal: từ chối dứt khoát của tạo đơn web — kết quả cuối, được lưu theo khóa chống trùng (kế hoạch M5-11):
-// ba lỗi của webOrderDetail, 409 out_of_stock (thân của M1: variantId, available), 422 mixed_sellers. Lỗi khác: false.
+// ba lỗi của webOrderDetail, 409 out_of_stock (thân của M1: variantId, available), 422 mixed_sellers, 422
+// shipping_carrier_unavailable, shipping_fee_mismatch (Task 490; như quote_changed). Lỗi khác (kể cả chưa kiểm được
+// lựa chọn, 503): false.
 func webOrderRefusal(err error) (errorBody, int, bool) {
 	if body, status, ok := webOrderDetail(err); ok {
 		return body, status, true
@@ -110,6 +120,12 @@ func webOrderRefusal(err error) (errorBody, int, bool) {
 	}
 	if errors.Is(err, order.ErrMixedSellers) {
 		return errorBody{Error: codeMixedSellers}, http.StatusUnprocessableEntity, true
+	}
+	if errors.Is(err, order.ErrShipCarrierUnavailable) {
+		return errorBody{Error: codeShippingCarrierUnavailable}, http.StatusUnprocessableEntity, true
+	}
+	if errors.Is(err, order.ErrShipFeeMismatch) {
+		return errorBody{Error: codeShippingFeeMismatch}, http.StatusUnprocessableEntity, true
 	}
 	return errorBody{}, 0, false
 }

@@ -125,6 +125,7 @@ type Order struct {
 	LineDiscountTotal, OrderDiscount, CouponDiscount             int64
 	PrepaidTotal                                                 int64
 	CarrierNote                                                  string
+	WebShipping                                                  *WebShipChoice // hãng khách chọn trên website (Task 490); nil: không có
 	CreatedBy, CareBy, ConfirmedBy, DiscountApprovedBy           *uuid.UUID
 	DraftExpiresAt, ConfirmedAt, DiscountApprovedAt, CancelledAt *time.Time
 	UpdatedAt                                                    time.Time
@@ -163,6 +164,15 @@ func Get(ctx context.Context, tx pgx.Tx, sellerID, id uuid.UUID) (Order, error) 
 	o := orderFromBase(r)
 	if err := json.Unmarshal(r.ShipAddress, &o.ShipAddress); err != nil {
 		return Order{}, fmt.Errorf("đọc địa chỉ giao: %w", err)
+	}
+	if o.Channel == ChannelWeb {
+		raw, err := q.OrderWebShipping(ctx, store.OrderWebShippingParams{SellerID: sellerID, ID: id})
+		if err != nil {
+			return Order{}, fmt.Errorf("đọc hãng khách chọn: %w", err)
+		}
+		if o.WebShipping, err = shipChoiceOf(raw); err != nil {
+			return Order{}, err
+		}
 	}
 	items, err := q.ListOrderItems(ctx, store.ListOrderItemsParams{SellerID: sellerID, OrderID: id})
 	if err != nil {

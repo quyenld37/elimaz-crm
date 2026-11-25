@@ -2167,6 +2167,9 @@ export const webLook = <ThrowOnError extends boolean = false>(options: Options<W
  * Có couponCode (Task 482): SĐT (customerPhone) đã quá 10 lần nhập mã sai hay IP (clientIp; không gửi → khóa dịch
  * vụ) quá 30 lần trong 15 phút → 429 coupon_attempts_exceeded kèm Retry-After, kể cả mã đúng, tới hết cửa sổ;
  * mã sai (not_found, bound_other) được đếm. Báo giá không mã không bị chặn.
+ * shippingChoice (Task 490, tùy chọn): CRM kiểm hãng còn hiện trên web và phí khớp báo phí (hay phí dự phòng)
+ * của đúng thân quote; sai → 422 shipping_carrier_unavailable / shipping_fee_mismatch; chưa kiểm được (hãng lỗi,
+ * bận) → 503 retry_later. Có shippingChoice thì fingerprint gồm cả lựa chọn.
  *
  */
 export const webQuote = <ThrowOnError extends boolean = false>(options: Options<WebQuoteData, ThrowOnError>): RequestResult<WebQuoteResponses, WebQuoteErrors, ThrowOnError> => (options.client ?? client).post<WebQuoteResponses, WebQuoteErrors, ThrowOnError>({
@@ -2289,7 +2292,10 @@ export const webImportCoupons = <ThrowOnError extends boolean = false>(options: 
  * web_orders_paused, không Retry-After, không lưu (mở lại rồi gửi lại cùng khóa thì xử lý lại); queued vẫn nhận.
  * Có couponCode mà SĐT người đặt hay IP (clientIp; không gửi → khóa dịch vụ) đã quá ngưỡng nhập mã sai (Task
  * 482, như webQuote) → 429 coupon_attempts_exceeded kèm Retry-After, không lưu; 422 coupon_invalid not_found,
- * bound_other được đếm là một lần sai.
+ * bound_other được đếm là một lần sai. shippingChoice (Task 490, tùy chọn): kiểm như webQuote, thêm mã tỉnh,
+ * phường của quote phải trùng shipAddress; sync sai → 422 shipping_carrier_unavailable / shipping_fee_mismatch
+ * (lưu theo khóa), chưa kiểm được → 503 retry_later (không lưu); queued vẫn tạo, priceReview = true. Đơn đã có
+ * của cùng externalRef trả 201 trước mọi kiểm lựa chọn. Lựa chọn lưu trên đơn (Order.webShipping).
  *
  */
 export const webCreateOrder = <ThrowOnError extends boolean = false>(options: Options<WebCreateOrderData, ThrowOnError>): RequestResult<WebCreateOrderResponses, WebCreateOrderErrors, ThrowOnError> => (options.client ?? client).post<WebCreateOrderResponses, WebCreateOrderErrors, ThrowOnError>({

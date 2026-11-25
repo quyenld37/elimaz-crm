@@ -47,7 +47,8 @@ type WebQuoted struct {
 
 // WebOrderInput là một đơn website gửi (kế hoạch M5, Task 193). ExternalRef là mã đơn của website (khóa nghiệp vụ);
 // Lines, CouponCode, ShippingFee như WebQuoteInput; Note là ghi chú của khách (thành ghi chú nội bộ của đơn);
-// ReferralRef như CreateInput. Giá, giảm chiến dịch, giảm mã luôn do CRM tính lại; số của website chỉ để so.
+// ReferralRef như CreateInput. Giá, giảm chiến dịch, giảm mã luôn do CRM tính lại; số của website chỉ để so. Shipping
+// (nil: website không gửi) là hãng/dịch vụ khách chọn, đã được lớp HTTP đối chiếu (Task 490), lưu lên đơn.
 type WebOrderInput struct {
 	ExternalRef  string
 	Customer     WebCustomer
@@ -59,6 +60,7 @@ type WebOrderInput struct {
 	SubmittedVia string
 	Note         string
 	ReferralRef  json.RawMessage
+	Shipping     *WebShipChoice
 }
 
 // WebOrderResult là đơn web đã tạo, hoặc đơn đã có của cùng ExternalRef (Replayed).
@@ -111,6 +113,8 @@ const maxWebNoteRunes = 2000
 //
 //  1. Đã có đơn web của ExternalRef → trả đơn đó (Replayed), không ghi gì. Chưa có mà shop đang tạm dừng nhận đơn web
 //     (GetWebIntake, đọc không khóa) và đơn gửi thẳng (sync) → ErrWebIntakePaused; queued vẫn nhận (Task 456).
+//     Lựa chọn giao hàng có vấn đề (shipProblem, Task 490): sync → ErrShipCarrierUnavailable, ErrShipFeeMismatch,
+//     ErrShipUnverified; queued → vẫn tạo, price_review, lựa chọn lưu kèm vấn đề.
 //  2. QuoteWeb trong tx: dòng không bán được → *ItemUnavailableError (của người bán khác → ErrMixedSellers).
 //  3. Mã không áp được: sync → *CouponInvalidError; queued → bỏ mã, price_review. Giá dòng hay tổng CRM khác số website
 //     đã báo: sync → *QuoteChangedError; queued → tạo theo số CRM, price_review, lưu báo giá web vào web_quote (QĐ15).
@@ -146,6 +150,12 @@ func (w Writer) CreateFromWeb(ctx context.Context, tx pgx.Tx, in WebOrderInput, 
 		return WebOrderResult{}, err
 	}
 	o := webOrder{w: w, in: in, seller: seller, source: src, a: a, now: now, code: strings.TrimSpace(in.CouponCode)}
+	if o.ship = shipProblem(in.Shipping, in.ShippingFee); o.ship != "" {
+		if in.SubmittedVia == SubmittedSync {
+			return WebOrderResult{}, fmt.Errorf("đơn web: %w", shipError(o.ship))
+		}
+		o.review = true
+	}
 	for {
 		res, retry, err := o.attempt(ctx, tx)
 		if !retry {
@@ -158,7 +168,7 @@ func (w Writer) CreateFromWeb(ctx context.Context, tx pgx.Tx, in WebOrderInput, 
 func validateWebOrder(in WebOrderInput) error {
 	if in.ExternalRef == "" || !optText(in.ExternalRef, maxExternalRefRunes) ||
 		(in.SubmittedVia != SubmittedSync && in.SubmittedVia != SubmittedQueued) ||
-		!money(in.Quoted.GrandTotal) || utf8.RuneCountInString(in.Note) > maxWebNoteRunes {
+		!money(in.Quoted.GrandTotal) || utf8.RuneCountInString(in.Note) > maxWebNoteRunes || !validShipChoice(in.Shipping) {
 		return fmt.Errorf("%w: đơn web", ErrInvalidInput)
 	}
 	return nil
@@ -181,7 +191,7 @@ func webOrderByRef(ctx context.Context, tx pgx.Tx, seller uuid.UUID, ref string)
 }
 
 // webOrder là một lần CreateFromWeb: code là mã đang dùng (bỏ khi queued mà mã không áp được), review là cờ
-// price_review đã biết.
+// price_review đã biết, ship là vấn đề của lựa chọn giao hàng (rỗng: khớp hay không có).
 type webOrder struct {
 	w      Writer
 	in     WebOrderInput
@@ -191,6 +201,7 @@ type webOrder struct {
 	now    time.Time
 	code   string
 	review bool
+	ship   string
 }
 
 // attempt báo giá lại, kiểm lệch và tạo đơn trong một savepoint; retry khi mã bị Redeem từ chối ở đường queued (lần
@@ -258,9 +269,11 @@ func (o *webOrder) afterFailure(ctx context.Context, tx pgx.Tx, err error) (WebO
 // ErrMixedSellers).
 func (o *webOrder) quote(ctx context.Context, tx pgx.Tx) (WebQuote, error) {
 	phone := o.in.Customer.Phone
-	q, err := QuoteWeb(ctx, tx, WebQuoteInput{
-		Lines: o.in.Lines, CouponCode: o.code, CustomerPhone: &phone, ShippingFee: o.in.ShippingFee,
-	}, o.now)
+	in := WebQuoteInput{Lines: o.in.Lines, CouponCode: o.code, CustomerPhone: &phone, ShippingFee: o.in.ShippingFee}
+	if o.ship == "" { // có vấn đề thì đã xử lý ở CreateFromWeb (queued): báo giá không kèm lựa chọn
+		in.Shipping = o.in.Shipping
+	}
+	q, err := QuoteWeb(ctx, tx, in, o.now)
 	if err != nil {
 		return WebQuote{}, err
 	}
@@ -355,7 +368,7 @@ type webQuoteRecordLine struct {
 	QuotedUnitPrice int64     `json:"quotedUnitPrice"`
 }
 
-// writeWebFields ghi price_review, web_quote, submitted_via lên đơn id và chiến dịch lên các dòng của q.
+// writeWebFields ghi price_review, web_quote, submitted_via, web_shipping lên đơn id và chiến dịch lên các dòng của q.
 func (o *webOrder) writeWebFields(ctx context.Context, tx pgx.Tx, id uuid.UUID, q WebQuote) error {
 	var raw []byte
 	if o.review {
@@ -371,10 +384,14 @@ func (o *webOrder) writeWebFields(ctx context.Context, tx pgx.Tx, id uuid.UUID, 
 			return fmt.Errorf("ghi báo giá web: %w", err)
 		}
 	}
+	ship, err := shipChoiceJSON(o.in.Shipping, o.ship)
+	if err != nil {
+		return err
+	}
 	st := store.New(tx)
 	n, err := st.SetOrderWebFields(ctx, store.SetOrderWebFieldsParams{
 		PriceReview: o.review, WebQuote: raw, SubmittedVia: pgtype.Text{String: o.in.SubmittedVia, Valid: true},
-		SellerID: o.seller, ID: id,
+		WebShipping: ship, SellerID: o.seller, ID: id,
 	})
 	if err != nil {
 		return fmt.Errorf("ghi cột web của đơn: %w", err)

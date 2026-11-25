@@ -12,6 +12,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const orderWebShipping = `-- name: OrderWebShipping :one
+SELECT web_shipping FROM ord.orders WHERE seller_id = $1 AND id = $2
+`
+
+type OrderWebShippingParams struct {
+	SellerID uuid.UUID
+	ID       uuid.UUID
+}
+
+// Hãng/dịch vụ khách chọn trên website của đơn web id (Task 490; NULL: không có). order.Get chỉ gọi với đơn kênh web:
+// GetOrderBase không đọc cột này để test dựng lược đồ trước 0530 vẫn đọc được đơn tay.
+func (q *Queries) OrderWebShipping(ctx context.Context, arg OrderWebShippingParams) ([]byte, error) {
+	row := q.db.QueryRow(ctx, orderWebShipping, arg.SellerID, arg.ID)
+	var web_shipping []byte
+	err := row.Scan(&web_shipping)
+	return web_shipping, err
+}
+
 const setOrderItemWebCampaign = `-- name: SetOrderItemWebCampaign :execrows
 UPDATE ord.order_items
 SET web_campaign_id = $1, web_campaign_revision = $2,
@@ -48,14 +66,16 @@ func (q *Queries) SetOrderItemWebCampaign(ctx context.Context, arg SetOrderItemW
 
 const setOrderWebFields = `-- name: SetOrderWebFields :execrows
 UPDATE ord.orders
-SET price_review = $1, web_quote = $2::jsonb, submitted_via = $3
-WHERE seller_id = $4 AND id = $5
+SET price_review = $1, web_quote = $2::jsonb, submitted_via = $3,
+    web_shipping = $4::jsonb
+WHERE seller_id = $5 AND id = $6
 `
 
 type SetOrderWebFieldsParams struct {
 	PriceReview  bool
 	WebQuote     []byte
 	SubmittedVia pgtype.Text
+	WebShipping  []byte
 	SellerID     uuid.UUID
 	ID           uuid.UUID
 }
@@ -66,6 +86,7 @@ func (q *Queries) SetOrderWebFields(ctx context.Context, arg SetOrderWebFieldsPa
 		arg.PriceReview,
 		arg.WebQuote,
 		arg.SubmittedVia,
+		arg.WebShipping,
 		arg.SellerID,
 		arg.ID,
 	)

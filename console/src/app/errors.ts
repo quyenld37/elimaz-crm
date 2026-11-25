@@ -143,6 +143,8 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   carrier_not_on_web: "Hãng này chưa bật hiện trên website hoặc đang tạm dừng. Bật hãng trước rồi mới chọn ưu tiên",
   last_web_carrier: "Phải còn ít nhất một hãng hiện trên website. Bật hãng khác trước rồi mới tắt hãng này",
   web_orders_paused: "ELIMAZ đang tạm dừng nhận đơn trên website. Mở lại ở màn Nhận đơn web",
+  shipping_carrier_unavailable: "Hãng giao khách chọn không còn giao trên website. Khách cần chọn lại cách giao",
+  shipping_fee_mismatch: "Phí giao khách chọn không khớp báo phí hiện tại. Khách cần xem lại phí giao",
   // Banner trang chủ (Task 453)
   too_many_banners: "Tối đa 8 banner trên trang chủ",
   invalid_banner:

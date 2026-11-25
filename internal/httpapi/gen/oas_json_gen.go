@@ -35862,6 +35862,72 @@ func (s *OptOrderShipmentSummary) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes OrderWebShipping as json.
+func (o OptOrderWebShipping) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes OrderWebShipping from json.
+func (o *OptOrderWebShipping) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptOrderWebShipping to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptOrderWebShipping) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptOrderWebShipping) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes OrderWebShippingProblem as json.
+func (o OptOrderWebShippingProblem) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes OrderWebShippingProblem from json.
+func (o *OptOrderWebShippingProblem) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptOrderWebShippingProblem to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptOrderWebShippingProblem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptOrderWebShippingProblem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes PendingReason as json.
 func (o OptPendingReason) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -37025,6 +37091,39 @@ func (s *OptWebQuotedLineProblem) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes WebShippingChoice as json.
+func (o OptWebShippingChoice) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes WebShippingChoice from json.
+func (o *OptWebShippingChoice) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptWebShippingChoice to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptWebShippingChoice) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptWebShippingChoice) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes OptionText as json.
 func (s OptionText) Encode(e *jx.Encoder) {
 	unwrapped := string(s)
@@ -37189,6 +37288,12 @@ func (s *Order) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.WebShipping.Set {
+			e.FieldStart("webShipping")
+			s.WebShipping.Encode(e)
+		}
+	}
+	{
 		if s.CarrierNote.Set {
 			e.FieldStart("carrierNote")
 			s.CarrierNote.Encode(e)
@@ -37326,7 +37431,7 @@ func (s *Order) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfOrder = [43]string{
+var jsonFieldsNameOfOrder = [44]string{
 	0:  "id",
 	1:  "code",
 	2:  "status",
@@ -37348,28 +37453,29 @@ var jsonFieldsNameOfOrder = [43]string{
 	18: "channel",
 	19: "trafficSourceId",
 	20: "externalRef",
-	21: "carrierNote",
-	22: "careBy",
-	23: "createdBy",
-	24: "orderType",
-	25: "packingStatus",
-	26: "paymentStatus",
-	27: "lineDiscountTotal",
-	28: "orderDiscount",
-	29: "couponDiscount",
-	30: "discountTotal",
-	31: "prepaidTotal",
-	32: "couponCode",
-	33: "currentShipmentId",
-	34: "draftExpiresAt",
-	35: "confirmedAt",
-	36: "cancelledAt",
-	37: "cancelReason",
-	38: "cancelNote",
-	39: "duplicateSuspect",
-	40: "editScope",
-	41: "replacedReturnId",
-	42: "returns",
+	21: "webShipping",
+	22: "carrierNote",
+	23: "careBy",
+	24: "createdBy",
+	25: "orderType",
+	26: "packingStatus",
+	27: "paymentStatus",
+	28: "lineDiscountTotal",
+	29: "orderDiscount",
+	30: "couponDiscount",
+	31: "discountTotal",
+	32: "prepaidTotal",
+	33: "couponCode",
+	34: "currentShipmentId",
+	35: "draftExpiresAt",
+	36: "confirmedAt",
+	37: "cancelledAt",
+	38: "cancelReason",
+	39: "cancelNote",
+	40: "duplicateSuspect",
+	41: "editScope",
+	42: "replacedReturnId",
+	43: "returns",
 }
 
 // Decode decodes Order from json.
@@ -37613,6 +37719,16 @@ func (s *Order) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"externalRef\"")
+			}
+		case "webShipping":
+			if err := func() error {
+				s.WebShipping.Reset()
+				if err := s.WebShipping.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"webShipping\"")
 			}
 		case "carrierNote":
 			if err := func() error {
@@ -43156,6 +43272,244 @@ func (s *OrderWarning) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OrderWarning) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *OrderWebShipping) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *OrderWebShipping) encodeFields(e *jx.Encoder) {
+	{
+		if s.AccountId.Set {
+			e.FieldStart("accountId")
+			s.AccountId.Encode(e)
+		}
+	}
+	{
+		if s.CarrierKey.Set {
+			e.FieldStart("carrierKey")
+			s.CarrierKey.Encode(e)
+		}
+	}
+	{
+		if s.CarrierName.Set {
+			e.FieldStart("carrierName")
+			s.CarrierName.Encode(e)
+		}
+	}
+	{
+		if s.Service.Set {
+			e.FieldStart("service")
+			s.Service.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("fee")
+		s.Fee.Encode(e)
+	}
+	{
+		e.FieldStart("estimated")
+		e.Bool(s.Estimated)
+	}
+	{
+		if s.Problem.Set {
+			e.FieldStart("problem")
+			s.Problem.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfOrderWebShipping = [7]string{
+	0: "accountId",
+	1: "carrierKey",
+	2: "carrierName",
+	3: "service",
+	4: "fee",
+	5: "estimated",
+	6: "problem",
+}
+
+// Decode decodes OrderWebShipping from json.
+func (s *OrderWebShipping) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode OrderWebShipping to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "accountId":
+			if err := func() error {
+				s.AccountId.Reset()
+				if err := s.AccountId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accountId\"")
+			}
+		case "carrierKey":
+			if err := func() error {
+				s.CarrierKey.Reset()
+				if err := s.CarrierKey.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"carrierKey\"")
+			}
+		case "carrierName":
+			if err := func() error {
+				s.CarrierName.Reset()
+				if err := s.CarrierName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"carrierName\"")
+			}
+		case "service":
+			if err := func() error {
+				s.Service.Reset()
+				if err := s.Service.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service\"")
+			}
+		case "fee":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Fee.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fee\"")
+			}
+		case "estimated":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Bool()
+				s.Estimated = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"estimated\"")
+			}
+		case "problem":
+			if err := func() error {
+				s.Problem.Reset()
+				if err := s.Problem.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"problem\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode OrderWebShipping")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00110000,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfOrderWebShipping) {
+					name = jsonFieldsNameOfOrderWebShipping[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *OrderWebShipping) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OrderWebShipping) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes OrderWebShippingProblem as json.
+func (s OrderWebShippingProblem) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes OrderWebShippingProblem from json.
+func (s *OrderWebShippingProblem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode OrderWebShippingProblem to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch OrderWebShippingProblem(v) {
+	case OrderWebShippingProblemCarrierUnavailable:
+		*s = OrderWebShippingProblemCarrierUnavailable
+	case OrderWebShippingProblemFeeMismatch:
+		*s = OrderWebShippingProblemFeeMismatch
+	case OrderWebShippingProblemUnverified:
+		*s = OrderWebShippingProblemUnverified
+	default:
+		*s = OrderWebShippingProblem(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OrderWebShippingProblem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OrderWebShippingProblem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -77760,6 +78114,12 @@ func (s *WebOrderRequest) encodeFields(e *jx.Encoder) {
 		e.Int64(s.ShippingFee)
 	}
 	{
+		if s.ShippingChoice.Set {
+			e.FieldStart("shippingChoice")
+			s.ShippingChoice.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("quoted")
 		s.Quoted.Encode(e)
 	}
@@ -77781,7 +78141,7 @@ func (s *WebOrderRequest) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfWebOrderRequest = [11]string{
+var jsonFieldsNameOfWebOrderRequest = [12]string{
 	0:  "externalRef",
 	1:  "customer",
 	2:  "shipAddress",
@@ -77789,10 +78149,11 @@ var jsonFieldsNameOfWebOrderRequest = [11]string{
 	4:  "couponCode",
 	5:  "clientIp",
 	6:  "shippingFee",
-	7:  "quoted",
-	8:  "submittedVia",
-	9:  "note",
-	10: "referralRef",
+	7:  "shippingChoice",
+	8:  "quoted",
+	9:  "submittedVia",
+	10: "note",
+	11: "referralRef",
 }
 
 // Decode decodes WebOrderRequest from json.
@@ -77886,8 +78247,18 @@ func (s *WebOrderRequest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"shippingFee\"")
 			}
+		case "shippingChoice":
+			if err := func() error {
+				s.ShippingChoice.Reset()
+				if err := s.ShippingChoice.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"shippingChoice\"")
+			}
 		case "quoted":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Quoted.Decode(d); err != nil {
 					return err
@@ -77897,7 +78268,7 @@ func (s *WebOrderRequest) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"quoted\"")
 			}
 		case "submittedVia":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.SubmittedVia.Decode(d); err != nil {
 					return err
@@ -77936,8 +78307,8 @@ func (s *WebOrderRequest) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11001111,
-		0b00000001,
+		0b01001111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -80240,14 +80611,21 @@ func (s *WebQuoteRequest) encodeFields(e *jx.Encoder) {
 		e.FieldStart("shippingFee")
 		e.Int64(s.ShippingFee)
 	}
+	{
+		if s.ShippingChoice.Set {
+			e.FieldStart("shippingChoice")
+			s.ShippingChoice.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfWebQuoteRequest = [5]string{
+var jsonFieldsNameOfWebQuoteRequest = [6]string{
 	0: "lines",
 	1: "couponCode",
 	2: "clientIp",
 	3: "customerPhone",
 	4: "shippingFee",
+	5: "shippingChoice",
 }
 
 // Decode decodes WebQuoteRequest from json.
@@ -80318,6 +80696,16 @@ func (s *WebQuoteRequest) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"shippingFee\"")
+			}
+		case "shippingChoice":
+			if err := func() error {
+				s.ShippingChoice.Reset()
+				if err := s.ShippingChoice.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"shippingChoice\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -81544,6 +81932,151 @@ func (s *WebShippingCarriers) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *WebShippingCarriers) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *WebShippingChoice) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *WebShippingChoice) encodeFields(e *jx.Encoder) {
+	{
+		if s.AccountId.Set {
+			e.FieldStart("accountId")
+			s.AccountId.Encode(e)
+		}
+	}
+	{
+		if s.Service.Set {
+			e.FieldStart("service")
+			s.Service.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("fee")
+		e.Int64(s.Fee)
+	}
+	{
+		e.FieldStart("quote")
+		s.Quote.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfWebShippingChoice = [4]string{
+	0: "accountId",
+	1: "service",
+	2: "fee",
+	3: "quote",
+}
+
+// Decode decodes WebShippingChoice from json.
+func (s *WebShippingChoice) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode WebShippingChoice to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "accountId":
+			if err := func() error {
+				s.AccountId.Reset()
+				if err := s.AccountId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accountId\"")
+			}
+		case "service":
+			if err := func() error {
+				s.Service.Reset()
+				if err := s.Service.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service\"")
+			}
+		case "fee":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int64()
+				s.Fee = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fee\"")
+			}
+		case "quote":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Quote.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"quote\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode WebShippingChoice")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001100,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfWebShippingChoice) {
+					name = jsonFieldsNameOfWebShippingChoice[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *WebShippingChoice) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *WebShippingChoice) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
