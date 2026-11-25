@@ -36,7 +36,9 @@ type GraphError struct {
 	Type, TraceID, Message    string
 	Sent                      SentState
 	RetryAfter                time.Duration
-	err                       error
+	// build: lỗi khi dựng yêu cầu (thân không mã hóa được, URL sai) — lỗi của mã, chưa gọi Meta, không thử lại.
+	build bool
+	err   error
 }
 
 func (e *GraphError) Error() string {
@@ -125,7 +127,8 @@ func policyReason(ge *GraphError) (channel.DenyReason, string, bool) {
 
 // Classify xếp lỗi của Graph client vào một lớp của channel. Lỗi mạng trước khi gửi trọn → not_sent_retry; 429 và mã
 // giới hạn → rate_limited; mã token → auth; lỗi chính sách → policy; mã 1, 2 (Meta tạm lỗi), HTTP 5xx không có JSON,
-// lỗi mạng sau khi gửi trọn, lỗi không phải GraphError → unknown (không tự gửi lại); còn lại → permanent.
+// HTTP 408 không có JSON (tầng giữa hết giờ khi yêu cầu có thể đã tới), lỗi mạng sau khi gửi trọn, lỗi không phải
+// GraphError → unknown (không tự gửi lại); lỗi dựng yêu cầu (lỗi của mã, chưa gọi Meta) và còn lại → permanent.
 func Classify(err error) channel.ErrorClass {
 	if err == nil {
 		return ""
@@ -133,6 +136,9 @@ func Classify(err error) channel.ErrorClass {
 	ge, ok := asGraphError(err)
 	if !ok {
 		return channel.ErrorUnknown
+	}
+	if ge.build {
+		return channel.ErrorPermanent
 	}
 	if ge.HTTPStatus == 0 && ge.Code == 0 {
 		if ge.Sent == NotSent {
@@ -150,7 +156,8 @@ func Classify(err error) channel.ErrorClass {
 		return channel.ErrorAuth
 	case ge.Code == 1 || ge.Code == 2:
 		return channel.ErrorUnknown
-	case ge.Code == 0 && (ge.HTTPStatus >= http.StatusInternalServerError || ge.HTTPStatus < http.StatusBadRequest):
+	case ge.Code == 0 && (ge.HTTPStatus >= http.StatusInternalServerError || ge.HTTPStatus < http.StatusBadRequest ||
+		ge.HTTPStatus == http.StatusRequestTimeout):
 		return channel.ErrorUnknown
 	}
 	return channel.ErrorPermanent
@@ -172,6 +179,9 @@ func Reason(err error) (channel.DenyReason, string) {
 	case channel.ErrorUnknown:
 		return "", "Không rõ Facebook đã nhận chưa"
 	case channel.ErrorPermanent:
+		if ge.build {
+			return "", "Không dựng được yêu cầu gửi Facebook"
+		}
 		if ge.Code == 0 {
 			return "", "Facebook từ chối (HTTP " + strconv.Itoa(ge.HTTPStatus) + ")"
 		}

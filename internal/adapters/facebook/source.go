@@ -24,8 +24,8 @@ func (*Channel) Key() string { return Key }
 // hằng; token cấu hình rỗng thì luôn sai) và hub.challenge đúng mẫu → trả hub.challenge.
 func (c *Channel) Challenge(q url.Values) (string, bool) {
 	challenge := q.Get("hub.challenge")
-	if q.Get("hub.mode") != "subscribe" || c.verifyToken == "" || !challengePattern.MatchString(challenge) ||
-		subtle.ConstantTimeCompare([]byte(q.Get("hub.verify_token")), []byte(c.verifyToken)) != 1 {
+	if q.Get("hub.mode") != "subscribe" || c.o.VerifyToken == "" || !challengePattern.MatchString(challenge) ||
+		subtle.ConstantTimeCompare([]byte(q.Get("hub.verify_token")), []byte(c.o.VerifyToken)) != 1 {
 		return "", false
 	}
 	return challenge, true
