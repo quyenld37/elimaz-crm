@@ -219,6 +219,8 @@ type Config struct {
 	FakeCarrierURL           string
 	FakeCarrierWebhookSecret string
 
+	FakeChatWebhookSecret logging.Secret
+
 	CarrierWebhookSecrets map[string]logging.Secret
 
 	BackupExpected    bool

@@ -199,9 +199,10 @@ func TestViewsDocParses(t *testing.T) {
 	// mới của M3 Task 92 (carrier_accounts_v, shipment_events_v, locations_v), 5 view mới của M3 Task 93 (shipment_cod_v,
 	// cod_transfers_v, payments_v, refund_obligations_v, reconcile_runs_v), 1 view mới của M3 Task 109 (admin_units_v),
 	// 2 view mới của M5 Task 452 (web_campaigns_v, web_campaign_targets_v), 1 view mới của M5 Task 468
-	// (birthday_profiles_v), 2 view mới của M4 Task 151 (conversations_v, tags_v).
-	if len(doc.views) != 44 {
-		t.Fatalf("docs/views.md phải có 44 view (20 của M1, 10 mới của M2, 9 mới của M3, 3 mới của M5, 2 mới của M4), có %d",
+	// (birthday_profiles_v), 1 view mới của M4 Task 145 (channel_accounts_v), 2 view mới của M4 Task 151 (conversations_v,
+	// tags_v).
+	if len(doc.views) != 45 {
+		t.Fatalf("docs/views.md phải có 45 view (20 của M1, 10 mới của M2, 9 mới của M3, 3 mới của M5, 3 mới của M4), có %d",
 			len(doc.views))
 	}
 	for _, bad := range []string{"| `catalog.variants` | `a` | 27 | M2 |", "| `catalog.x_v` | a, b | 27 | M2 |"} {

@@ -9,8 +9,11 @@ import (
 // tệp task 143, Quyết định 6).
 const Key = "fakechat"
 
-// Adapter trả adapter kênh giả, hoặc nil (NewRegistry bỏ nil). Khung của Task 143 luôn trả nil; Task 145 trả adapter
-// thật khi cfg.Env khác production (production luôn nil).
-func Adapter(_ config.Config) channel.MessagingAdapter { //nolint:ireturn // Registry nhận interface của kênh
-	return nil
+// Adapter trả kênh giả khi cfg.Env khác production (bí mật webhook FAKECHAT_WEBHOOK_SECRET; rỗng thì mọi webhook bị
+// từ chối), production luôn nil (NewRegistry bỏ nil).
+func Adapter(cfg config.Config) channel.MessagingAdapter { //nolint:ireturn // Registry nhận interface của kênh
+	if cfg.Env == "production" {
+		return nil
+	}
+	return New(string(cfg.FakeChatWebhookSecret))
 }

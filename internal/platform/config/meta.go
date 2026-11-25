@@ -44,6 +44,7 @@ func metaRoleVars(role Role) []string {
 func (r *reader) m4(cfg *Config) {
 	r.graph(&cfg.Meta)
 	r.meta(cfg)
+	r.fakeChat(cfg)
 	switch cfg.Role {
 	case RoleAPI:
 		r.filesOriginApart(*cfg)
@@ -166,4 +167,17 @@ func splitList(s string) []string {
 		}
 	}
 	return out
+}
+
+// fakeChat đọc bí mật webhook của kênh nhắn tin giả (Task 145): cấm ở production; ngoài production tùy chọn, có thì
+// ≥ 32 ký tự.
+func (r *reader) fakeChat(cfg *Config) {
+	const key = "FAKECHAT_WEBHOOK_SECRET"
+	switch {
+	case r.optional(key) == "":
+	case cfg.Env == "production":
+		r.problems = append(r.problems, key+" không được đặt ở production")
+	default:
+		cfg.FakeChatWebhookSecret = logging.Secret(r.secret(key))
+	}
 }
