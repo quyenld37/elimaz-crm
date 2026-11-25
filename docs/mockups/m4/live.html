@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup M4 — Live</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700&family=Playfair+Display:wght@500&display=swap">
+<link rel="stylesheet" href="../m1/m1.css">
+<link rel="stylesheet" href="../m2/m2.css">
+<link rel="stylesheet" href="m4.css">
+</head>
+<body data-page="live" data-title="Live">
+<div class="app"><main class="main is-chat">
+
+<div class="page-h">
+	<div><p class="crumb"><a href="inbox.html">Hộp chat</a> / Live</p><h1>Live</h1><p class="sub">Comment của phiên live hiện ngay khi khách gõ. Bấm một comment để chốt: tạo đơn nháp, giữ hàng và nhắn riêng xin địa chỉ.</p></div>
+	<a class="btn btn-quiet" href="thieu-dia-chi.html">Đã chốt, thiếu địa chỉ (50)</a>
+</div>
+
+<!-- ============ TRẠNG THÁI A ============ -->
+<section class="st" data-ca="lv01 lv02 lv03 chon-phien phien-dang-live ds-ao 600-comment comment-moi khung-chot"><p class="xs">TRẠNG THÁI A</p><h2>Đang live: CRM tự nhận phiên, 600 comment trong 2 phút (danh sách chỉ dựng dòng đang thấy), "37 comment mới" khi đang xem phía trên; bấm comment có SĐT mở khung chốt</h2></section>
+
+<div class="stack">
+	<nav class="sess" aria-label="Phiên live" data-ca="chon-phien">
+		<a class="sess-a" href="#" aria-current="true" data-ca="phien-dang-live lv01"><span class="row" style="gap:6px"><span class="chip chip-err">Đang live</span><b class="ellip">Xả hàng đầm lụa tối thứ Ba</b></span><span class="xs muted">ELIMAZ · từ 20:00 · CRM tự nhận lúc 20:00:04</span></a>
+		<a class="sess-a" href="#" data-ca="phien-ket-thuc"><span class="row" style="gap:6px"><span class="chip">Đã kết thúc</span><b class="ellip">Live ca trưa: áo len</b></span><span class="xs muted">ELIMAZ · 12:15–13:40</span></a>
+		<button class="btn btn-quiet" data-ca="them-phien-tay">+ Thêm phiên bằng link video</button>
+	</nav>
+	<div class="lstats" data-ca="tieu-de gio-bat-dau so-comment"><span>Bắt đầu <b>20:00</b> · đã live <b>2 phút</b></span><span>Nhận được <b>600</b> comment</span><span>Có SĐT <b>41</b></span><span>Đã lên đơn <b>3</b></span><span>Nguồn: <b>luồng trực tiếp</b></span></div>
+
+	<div class="live">
+		<section class="lcpane" aria-label="Comment của phiên" data-ca="ds-ao 600-comment lv02">
+			<div class="pane-h">
+				<button class="toggle" aria-pressed="false" data-ca="loc-sdt">Chỉ comment có SĐT</button>
+				<button class="toggle" aria-pressed="false" data-ca="loc-chua-xu-ly">Chưa xử lý</button>
+				<span class="grow"></span>
+				<span class="small muted num">600 comment</span>
+			</div>
+			<div class="newbar" data-ca="comment-moi"><button class="btn btn-line">↓ 37 comment mới</button></div>
+			<div class="lclist">
+				<p class="lc-gap">… 548 comment phía trên (chỉ dựng dòng đang thấy, cuộn lên để xem)</p>
+				<a class="lc is-done" href="#" data-ca="tt-da-len-don dong-co-sdt"><span class="avatar" aria-hidden="true">H</span><span class="lc-n ellip">Trần Thị Thu Hà</span><span class="lc-t">20:01:12</span><span class="lc-x">chốt đầm be L 2 cái nha shop, sđt 0912 345 678</span><span class="lc-m"><span class="chip">Có SĐT</span><span class="chip">Đã ẩn trên Page</span><span class="chip chip-ok">Đã lên đơn DH0001240 · Trần Minh An</span></span></a>
+				<a class="lc" href="#" data-ca="ten-60"><span class="avatar" aria-hidden="true">N</span><span class="lc-n ellip">NguyễnThịThuHàShopThờiTrangCôngSởXuấtKhẩuHàNộiChiNhánhSố0205</span><span class="lc-t">20:01:20</span><span class="lc-x">mẫu số 3 còn size M không ạ</span><span class="lc-m"></span></a>
+				<a class="lc" href="#" data-ca="tt-co-don-nhap"><span class="avatar" aria-hidden="true">K</span><span class="lc-n ellip">Ngô Kim Khánh</span><span class="lc-t">20:01:31</span><span class="lc-x">lấy thêm 1 áo len kem M nữa nhé</span><span class="lc-m"><span class="chip chip-line">Khách đã có đơn nháp DH0001238</span></span></a>
+				<a class="lc" href="#" aria-current="true"><span class="avatar" aria-hidden="true">A</span><span class="lc-n ellip">Phạm Ngọc Anh</span><span class="lc-t">20:01:44</span><span class="lc-x">chốt đầm be L ạ 0903 222 333</span><span class="lc-m"><span class="chip">Có SĐT</span><span class="chip">Đã ẩn trên Page</span><span class="xs muted">Đang mở khung chốt</span></span></a>
+				<a class="lc is-done" href="#" data-ca="tt-da-nhan-rieng"><span class="avatar" aria-hidden="true">M</span><span class="lc-n ellip">Lê Hà My</span><span class="lc-t">20:01:50</span><span class="lc-x">ib em giá áo len nhé</span><span class="lc-m"><span class="chip chip-line">Đã nhắn riêng · Lê Thu Hằng</span></span></a>
+				<a class="lc" href="#"><span class="avatar" aria-hidden="true">T</span><span class="lc-n ellip">Đỗ Thanh Tâm</span><span class="lc-t">20:01:55</span><span class="lc-x">đẹp quá</span><span class="lc-m"></span></a>
+				<a class="lc" href="#"><span class="avatar" aria-hidden="true">V</span><span class="lc-n ellip">Vũ Thị Vân</span><span class="lc-t">20:01:58</span><span class="lc-x">chốt váy hoa nhí S, 09.8765.4321</span><span class="lc-m"><span class="chip">Có SĐT</span><span class="chip">Đã ẩn trên Page</span></span></a>
+				<a class="lc" href="#"><span class="avatar" aria-hidden="true">B</span><span class="lc-n ellip">Bùi Minh Thư</span><span class="lc-t">20:02:00</span><span class="lc-x">shop ơi có ship Đà Nẵng không</span><span class="lc-m"></span></a>
+			</div>
+			<p class="mk" style="margin:8px 16px 16px"><b>Mockup:</b> danh sách ảo: 600 comment nhưng chỉ khoảng 20 dòng có trong trang. Đang xem phía trên thì danh sách đứng yên, nút "↓ n comment mới" đưa xuống cuối. Comment có SĐT bị tự ẩn trên Page (Cài đặt → Tự ẩn comment) vẫn hiện đủ ở đây.</p>
+		</section>
+
+		<aside class="pane-side" aria-label="Khung chốt" data-ca="khung-chot lv03">
+			<div class="sec">
+				<div class="row-between"><h3>Chốt comment 20:01:44</h3><span class="xs muted">An cũng đang xem</span></div>
+				<div class="box box-info small">"chốt đầm be L ạ 0903 222 333"</div>
+			</div>
+			<div class="sec" data-ca="the-khach">
+				<div class="row" style="flex-wrap:nowrap"><span class="avatar" aria-hidden="true">A</span><div class="grow"><b class="ellip" style="display:block">Phạm Ngọc Anh</b><span class="small muted">KH003120 · 3 đơn · nhận 3/3</span></div><a class="btn btn-quiet" href="khung-ben-phai.html">Hội thoại</a></div>
+				<div class="row"><span class="small muted">SĐT trong comment:</span><button class="btn btn-quiet">Dùng số 0903 222 333</button></div>
+			</div>
+			<div class="sec" data-ca="tim-sp">
+				<label class="field"><span>Sản phẩm (mã, tên, barcode)</span><input class="input" value="DAM0201" aria-label="Tìm sản phẩm"></label>
+				<div class="sugg" role="listbox" aria-label="Gợi ý" data-ca="ton">
+					<div class="sugg-i" role="option" aria-selected="true"><span><mark>DAM0201</mark>-BE-L · Đầm lụa be L</span><span class="money">1.290.000 ₫</span><span class="sub">Có thể bán 5</span></div>
+					<div class="sugg-i" role="option"><span><mark>DAM0201</mark>-BE-M · Đầm lụa be M</span><span class="money">1.290.000 ₫</span><span class="sub"><span class="avail is-low">Hết hàng (còn 0)</span></span></div>
+					<div class="sugg-i" role="option"><span><mark>DAM0201</mark>-BE-S · Đầm lụa be S</span><span class="money">1.290.000 ₫</span><span class="sub"><span class="avail is-low">Còn 1</span></span></div>
+				</div>
+				<p class="hint">Chỉ hàng của người bán của Page ELIMAZ. "Có thể bán" là tồn trừ hàng đang giữ.</p>
+			</div>
+			<div class="sec" data-ca="so-luong">
+				<ul class="olines"><li><span>DAM0201-BE-L · Đầm lụa be L</span><span class="stepper"><button class="ibtn" aria-label="Bớt">−</button><input class="input" value="1" aria-label="Số lượng" inputmode="numeric"><button class="ibtn" aria-label="Thêm">+</button></span></li></ul>
+				<div class="sum"><div class="sum-r is-total"><span>Tạm tính</span><span class="money">1.290.000 ₫</span></div></div>
+				<label class="check"><input type="checkbox" checked> Nhắn riêng xin địa chỉ (mẫu "Xin địa chỉ live")</label>
+				<button class="btn btn-dark btn-wide" data-ca="nut-chot">Tạo đơn nháp và xin địa chỉ</button>
+				<p class="hint">Giữ hàng 24 giờ (hạn đơn nháp ở Cài đặt đơn). Nguồn đơn: Live tối (khung 19:00–23:00). Nút khóa khi đang gửi.</p>
+			</div>
+		</aside>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI B ============ -->
+<section class="st" data-ca="ket-qua-chot lv07 dang-len-don lv08 het-hang lv09 don-nhap-dang-co khong-quyen-live"><p class="xs">TRẠNG THÁI B</p><h2>Kết quả khi bấm chốt: đã tạo đơn nháp; người khác đang lên đơn cho comment này; hết hàng; khách đã có đơn nháp trong phiên; chưa có quyền</h2></section>
+
+<div class="dlgs">
+	<div class="card" style="padding:0" data-ca="ket-qua-chot lv03">
+		<div class="sec">
+			<div class="box box-ok small"><b class="ok-text">Đã tạo đơn nháp DH0001241</b> · Đầm lụa be L × 1 · <span class="money">1.290.000 ₫</span><br>Đang giữ hàng tới 20:02 ngày mai.</div>
+			<p class="small"><b>Xin địa chỉ:</b> đã xếp tin nhắn riêng cho comment, trạng thái hiện ở Đã chốt, thiếu địa chỉ.</p>
+			<div class="box box-info small"><b>Chưa xin được địa chỉ.</b> Page đang ở chế độ chỉ xem, CRM không gửi tin. Đơn nháp vẫn giữ hàng; nhắc lại ở Đã chốt, thiếu địa chỉ sau khi tắt chỉ xem.</div>
+			<p class="xs muted">Dòng comment đổi thành "Đã lên đơn DH0001241 · bạn". Hai câu trên là hai trường hợp khác nhau.</p>
+		</div>
+	</div>
+	<div class="card" style="padding:0" data-ca="dang-len-don lv07">
+		<div class="sec">
+			<div class="box box-info small"><b>Trần Minh An đang lên đơn cho comment này.</b> Chỉ một đơn cho mỗi comment.</div>
+			<div class="row"><a class="btn btn-line" href="../m2/don-chi-tiet.html">Mở đơn DH0001240</a><button class="btn btn-text">Chọn comment khác</button></div>
+			<p class="xs muted">Hai người bấm cùng lúc: máy chủ nhận người đầu, người sau thấy câu này (409). Hàng chỉ giữ một lần.</p>
+		</div>
+	</div>
+	<div class="card" style="padding:0" data-ca="het-hang lv08">
+		<div class="sec">
+			<div class="box box-err small"><b>Hết hàng (còn 0): Đầm lụa be M.</b> Chưa tạo đơn nháp, không giữ món nào.</div>
+			<div class="box box-err small"><b>Hết hàng (còn 1): Đầm lụa be S</b>, bạn chọn 2. Cả đơn chưa tạo; Áo len cổ lọ kem M cũng chưa bị giữ.</div>
+			<div class="row"><button class="btn btn-quiet">Sửa số lượng</button><button class="btn btn-text">Nhắn khách hết hàng</button></div>
+		</div>
+	</div>
+	<div class="card" style="padding:0" data-ca="don-nhap-dang-co lv09">
+		<div class="sec">
+			<div class="box box-soft small"><b>Khách đã có đơn nháp DH0001238 trong phiên này.</b><br>Đầm lụa be L × 2 · <span class="money">2.580.000 ₫</span> · chốt lúc 20:00:40</div>
+			<div class="row"><button class="btn btn-dark">Thêm vào đơn DH0001238</button><button class="btn btn-quiet">Tạo đơn mới</button></div>
+			<p class="xs muted">Thêm vào đơn: cộng Áo len cổ lọ kem M × 1 vào đơn cũ (cùng một lần giao). Có người vừa sửa đơn đó thì báo "Có người vừa sửa, tải lại".</p>
+		</div>
+	</div>
+	<div class="card" style="padding:0" data-ca="khong-quyen-live">
+		<div class="sec">
+			<h3>Chốt comment</h3>
+			<div class="act"><button class="btn btn-dark" disabled>Tạo đơn nháp và xin địa chỉ</button><span class="reason">Chưa có quyền tạo đơn ở kho Kho chính (như HV28).</span></div>
+			<div class="act"><button class="btn btn-quiet" disabled>Thêm vào đơn DH0001238</button><span class="reason">Cần quyền sửa đơn.</span></div>
+			<div class="box box-err small"><b>Sản phẩm không thuộc người bán của Page này.</b> Chọn sản phẩm khác.</div>
+			<p class="xs muted">Người không có quyền Live không thấy mục Live trong menu. Máy chủ vẫn kiểm từng lần chốt.</p>
+		</div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI C ============ -->
+<section class="st" data-ca="lv10 hoi-dinh-ky phien-ket-thuc so-comment-fb"><p class="xs">TRẠNG THÁI C</p><h2>Luồng comment hỏng chuyển sang hỏi định kỳ; máy xử lý khởi động lại giữa ca, luồng tự mở lại và lấy bù; phiên đã kết thúc có số comment trên Facebook để đối chiếu</h2></section>
+
+<div class="stack">
+	<div class="bnr bnr-warn" data-ca="hoi-dinh-ky"><b>Comment đang lấy bằng cách hỏi định kỳ.</b><span class="grow">Luồng trực tiếp của Facebook lỗi 3 lần, CRM hỏi lại mỗi 2 giây nên comment có thể chậm vài giây. Cứ 5 phút CRM thử lại luồng trực tiếp; quản lý đã được báo.</span></div>
+	<div class="card" style="padding:0" data-ca="lv10">
+		<div class="bnr bnr-info" style="border-radius:0"><b>Đang mở lại luồng comment…</b><span class="grow">Máy xử lý vừa khởi động lại lúc 20:14:02. Luồng tự mở lại trong khoảng 15 giây và lấy bù từ comment cuối (20:13:58).</span></div>
+		<div class="lclist">
+			<a class="lc" href="#"><span class="avatar" aria-hidden="true">Q</span><span class="lc-n ellip">Hồ Bảo Quyên</span><span class="lc-t">20:13:58</span><span class="lc-x">chốt áo len kem M</span><span class="lc-m"></span></a>
+			<p class="lc-gap">Đã lấy bù 23 comment trong lúc mở lại (20:14:00–20:14:13), không trùng</p>
+			<a class="lc" href="#"><span class="avatar" aria-hidden="true">L</span><span class="lc-n ellip">Mai Thị Lụa</span><span class="lc-t">20:14:01</span><span class="lc-x">còn đầm be L không shop</span><span class="lc-m"></span></a>
+		</div>
+	</div>
+	<div class="dlgs">
+		<div class="card" data-ca="phien-ket-thuc so-comment-fb">
+			<div class="row-between"><h3>Live ca trưa: áo len</h3><span class="chip">Đã kết thúc 13:40</span></div>
+			<div class="kv" style="margin-top:8px"><dt>Thời gian</dt><dd>12:15–13:40 · ELIMAZ</dd><dt>Nhận được</dt><dd class="num">1.248 comment</dd><dt>Trên Facebook</dt><dd class="num">1.248 comment · <span class="ok-text">khớp</span></dd><dt>Đã lên đơn</dt><dd class="num">27 · thiếu địa chỉ 12</dd></div>
+			<div class="row" style="margin-top:8px"><a class="btn btn-line" href="thieu-dia-chi.html">Xem đã chốt, thiếu địa chỉ (12)</a></div>
+		</div>
+		<div class="card" data-ca="so-comment-fb">
+			<div class="row-between"><h3>Live thử 19/11</h3><span class="chip">Đã kết thúc 21:05</span></div>
+			<div class="kv" style="margin-top:8px"><dt>Nhận được</dt><dd class="num">600 comment</dd><dt>Trên Facebook</dt><dd class="num">605 comment</dd></div>
+			<div class="box box-err small" style="margin-top:8px"><b>Thiếu 5 comment.</b> CRM đã đọc lại cả bài sau khi kết thúc nhưng vẫn lệch; quản lý đã được báo. Comment bị Facebook lọc spam có thể không đọc được.</div>
+		</div>
+	</div>
+</div>
+
+<!-- ============ TRẠNG THÁI D ============ -->
+<section class="st" data-ca="chua-co-phien them-phien-tay"><p class="xs">TRẠNG THÁI D</p><h2>Chưa có phiên live nào hôm nay; thêm phiên bằng link video khi CRM chưa tự nhận</h2></section>
+
+<div class="dlgs">
+	<div class="empty" data-ca="chua-co-phien">
+		<h2>Chưa có phiên live hôm nay</h2>
+		<p class="small muted">Khi Page bắt đầu live, CRM tự nhận trong vòng 30 giây và mở luồng comment. Không cần bấm gì.</p>
+		<button class="btn btn-quiet">+ Thêm phiên bằng link video</button>
+	</div>
+	<div class="dlg" role="dialog" aria-label="Thêm phiên live" data-ca="them-phien-tay">
+		<div class="dlg-h"><h2>Thêm phiên live</h2><button class="ibtn" aria-label="Đóng">×</button></div>
+		<div class="dlg-b">
+			<label class="field"><span>Page</span><span class="select-wrap"><select><option>ELIMAZ</option><option>ELIMAZ Sale</option></select></span></label>
+			<label class="field"><span>Link hoặc mã video *</span><input class="input" value="https://www.facebook.com/elimaz/videos/123456789/"></label>
+			<p class="hint">Dùng khi CRM chưa tự nhận phiên. CRM lấy mã video 123456789 từ link.</p>
+		</div>
+		<div class="dlg-f"><button class="btn btn-quiet">Hủy</button><button class="btn btn-dark">Thêm phiên</button></div>
+	</div>
+</div>
+
+</main></div>
+<script src="khung.js"></script>
+</body>
+</html>
