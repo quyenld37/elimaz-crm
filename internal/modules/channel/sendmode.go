@@ -99,11 +99,8 @@ func (w Writer) change(ctx context.Context, tx pgx.Tx, id uuid.UUID, expectedVer
 	if err != nil {
 		return ChannelAccount{}, err
 	}
-	if err := identity.RecordAudit(ctx, tx, identity.AuditEntry{
-		TenantID: actor.TenantID, ActorType: "staff", ActorID: actor.UserID.String(), Action: c.action,
-		EntityType: EntityAccount, EntityID: id.String(), Before: map[string]any{c.field: before},
-		After: map[string]any{c.field: c.val}, RequestID: w.RequestID,
-	}); err != nil {
+	if err := identity.RecordAudit(ctx, tx, w.auditEntry(actor, c.action, id, map[string]any{c.field: before},
+		map[string]any{c.field: c.val})); err != nil {
 		return ChannelAccount{}, fmt.Errorf("ghi audit %s: %w", c.action, err)
 	}
 	if err := w.signal(ctx, tx, after); err != nil {
@@ -115,6 +112,14 @@ func (w Writer) change(ctx context.Context, tx pgx.Tx, id uuid.UUID, expectedVer
 		}
 	}
 	return after, nil
+}
+
+// auditEntry là dòng audit của nhân viên actor cho tài khoản id (RequestID của w; before, after không bao giờ có token).
+func (w Writer) auditEntry(actor identity.AuthUser, action string, id uuid.UUID, before, after map[string]any) identity.AuditEntry {
+	return identity.AuditEntry{
+		TenantID: actor.TenantID, ActorType: "staff", ActorID: actor.UserID.String(), Action: action,
+		EntityType: EntityAccount, EntityID: id.String(), Before: before, After: after, RequestID: w.RequestID,
+	}
 }
 
 // signal phát channel.status của tài khoản a trong tx (chỉ người có conversation.read trên Page nhận).

@@ -4,12 +4,14 @@ import (
 	"slices"
 	"testing"
 
+	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/platform/config"
 )
 
 // wireM4: kênh nhắn tin giả fakechat (Task 145) có ngoài production, là nguồn webhook duy nhất của M4 lúc này (adapter
-// Facebook chưa hiện thực); production không có kênh nào. Các phần khác (lệnh, lịch, luồng nền) chưa có; ingest vẫn
-// dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
+// Facebook chưa hiện thực); production không có kênh nào. Lệnh: chỉ đăng ký, hủy đăng ký webhook của Page (Task 149);
+// các phần khác (handler vào, việc nền, lịch, luồng nền) chưa có; ingest vẫn dựng được (m4Deps rỗng). FIELD_ENC_KEYS
+// sai dạng → lỗi khởi động.
 func TestWireM4_Frame(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
@@ -30,8 +32,15 @@ func TestWireM4_Frame(t *testing.T) {
 		if len(p.Sources) != len(c.keys) {
 			t.Errorf("%s: %d nguồn webhook, muốn %d", c.cfg.Env, len(p.Sources), len(c.keys))
 		}
-		if len(p.Inbound)+len(p.Commands)+len(p.Jobs)+len(p.Schedules)+len(p.Background) != 0 {
-			t.Errorf("%s: khung M4 chưa được có phần chạy nền: %+v", c.cfg.Env, p)
+		if len(p.Inbound)+len(p.Jobs)+len(p.Schedules)+len(p.Background) != 0 {
+			t.Errorf("%s: khung M4 chưa được có phần chạy nền khác lệnh", c.cfg.Env)
+		}
+		var cmds []string
+		for _, h := range p.Commands {
+			cmds = append(cmds, h.Kind().Name)
+		}
+		if !slices.Equal(cmds, []string{channel.SubscribePageKind, channel.UnsubscribePageKind}) {
+			t.Errorf("%s: lệnh M4 = %v", c.cfg.Env, cmds)
 		}
 	}
 	if _, err := wireM4(config.Config{FieldEncKeys: "sai"}, m4Deps{}); err == nil {

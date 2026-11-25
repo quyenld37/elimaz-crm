@@ -85,3 +85,17 @@ SET last_webhook_at = CASE WHEN coalesce(last_webhook_at < sqlc.arg(cutoff)::tim
 WHERE id = sqlc.arg(id)
   AND (coalesce(last_webhook_at < sqlc.arg(cutoff)::timestamptz, true)
        OR (sqlc.arg(feed)::boolean AND coalesce(last_feed_at < sqlc.arg(cutoff)::timestamptz, true)));
+
+-- name: UpsertAccount :one
+-- Kết nối Page (Task 149): mới → read_only, active (mặc định của bảng); đã có → đổi tên, về active, xóa lý do; giữ
+-- send_mode, seller_id, version. inserted = true khi là dòng mới. Khóa dòng (ADR-46 nhóm 3).
+INSERT INTO channel.channel_accounts (tenant_id, seller_id, channel, external_id, name)
+VALUES (@tenant_id, @seller_id, @channel, @external_id, @name)
+ON CONFLICT (tenant_id, channel, external_id) DO UPDATE
+SET name = EXCLUDED.name, status = 'active', status_reason = NULL, updated_at = now()
+RETURNING id, (xmax = 0) AS inserted;
+
+-- name: SetSubscribedFields :execrows
+UPDATE channel.channel_accounts
+SET subscribed_fields = @subscribed_fields, updated_at = now()
+WHERE id = @id;
