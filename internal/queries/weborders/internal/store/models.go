@@ -550,6 +550,9 @@ type CustomerCustomer struct {
 	LastOrderAt    *time.Time
 	StatsUpdatedAt *time.Time
 	CreatedBy      pgtype.UUID
+	DoNotContact   bool
+	DoNotContactAt *time.Time
+	NameSource     string
 }
 
 type CustomerCustomerAddress struct {
@@ -701,6 +704,8 @@ type CustomerCustomersV struct {
 	LastOrderAt    *time.Time
 	UpdatedAt      time.Time
 	Version        int64
+	DoNotContact   bool
+	NameSource     string
 }
 
 type CustomerFeedback struct {

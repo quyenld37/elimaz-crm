@@ -94,6 +94,13 @@ trước (sự kiện vận đơn đổi đơn và tồn) khóa dòng nhóm trư
   nên không tạo vòng chờ. Sau đó: đọc cài đặt không khóa → chèn `birthday_runs` → mỗi nhóm hạn một savepoint
   (`EnsureWebBatch`: `coupon_batches` → `coupons`, rồi chèn `birthday_gifts`) → cập nhật dòng lượt vừa chèn.
 
+- `customer` tìm-hoặc-tạo theo danh tính kênh (M4 Task 152, 05 mục 1): `customer.Writer.FindOrCreateByIdentity` lấy
+  `pg_advisory_xact_lock` theo (tenant, loại, phạm vi, giá trị) (`queries/customer/channel_identity.sql`
+  `LockChannelIdentity`, khóa `customer.channel_identity:<tenant>:<loại>:<phạm vi>:<giá trị>`) **trước mọi khóa dòng
+  của nhóm 5**; bên gọi (đường tin vào, comment của M4) không giữ dòng nào từ nhóm 5 trở về sau trước khi gọi. Chỉ đường này
+  lấy khóa đó: tin nhắn và comment đầu tiên của cùng một người chạy lần lượt, ra một hồ sơ. Sau đó: đọc chủ danh tính
+  không khóa → (chưa có) tạo khách, danh tính là dòng mới.
+
 ## Luật cho mốc sau (Q-X4, C14)
 
 - Thêm bảng vào nhóm có sẵn: **chèn** tên bảng vào đúng chỗ trong ô, không viết lại cả nhóm; ghi mốc và task ở cột
