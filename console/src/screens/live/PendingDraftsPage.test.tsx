@@ -4,8 +4,7 @@
 // thật; khách đã trả lời → mở hội thoại để hoàn tất; Page chưa chọn mẫu → khóa; 0 đơn → trạng thái rỗng.
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ConversationSummary } from "../../api";
-import { LONG_NAME, PAGE, S_LIVE, TPL, fakeLayout, installLiveFake, pending, renderLive } from "./liveTestkit";
+import { LONG_NAME, S_LIVE, TPL, fakeLayout, installLiveFake, pending, renderLive } from "./liveTestkit";
 
 beforeEach(() => {
   fakeLayout();
@@ -20,19 +19,7 @@ const D2 = pending(2, { ask: { status: "skipped_policy", reason: "Page đang ở
 const D3 = pending(3, { canRemind: { allowed: false, reason: "Đã nhắc lúc 20:40" } });
 const D0 = pending(0, { customerRepliedAfterAsk: true, customer: { id: "k0", name: "Phạm Ngọc Anh" } });
 
-const conv = (p: Partial<ConversationSummary>): ConversationSummary => ({
-  id: "0195f3b2-0000-7000-8000-0000000c0001",
-  pageId: PAGE,
-  kind: "inbox",
-  status: "open",
-  customer: { id: "k0", name: "Phạm Ngọc Anh" },
-  tags: [],
-  unreadCount: 0,
-  lastMessageAt: "2026-11-24T13:09:00Z",
-  hasOpenDraft: true,
-  version: 1,
-  ...p,
-});
+const INBOX = "0195f3b2-0000-7000-8000-0000000c0001";
 
 const remindWrites = (f: ReturnType<typeof installLiveFake>) => f.writes.filter((w) => w.path.endsWith("/remind"));
 
@@ -95,25 +82,18 @@ describe("PendingDraftsPage", () => {
     expect(screen.getByRole("button", { name: `Nhắc ${D1.orderCode}` })).toHaveProperty("disabled", true);
   });
 
-  it("khách đã trả lời → 'Mở hội thoại để hoàn tất' mở hội thoại hộp thư của khách trên Page của phiên", async () => {
-    installLiveFake({
-      drafts: [D0],
-      conversations: [
-        conv({ id: "0195f3b2-0000-7000-8000-0000000c0009", kind: "comment" }),
-        conv({ pageId: "khac" }),
-        conv({}),
-      ],
-    });
+  it("khách đã trả lời → 'Mở hội thoại để hoàn tất' mở hộp thư của khách (inboxConversationId, Task 501)", async () => {
+    installLiveFake({ drafts: [{ ...D0, inboxConversationId: INBOX }] });
     renderLive(`/live/${S_LIVE}/thieu-dia-chi`);
-    fireEvent.click(await screen.findByRole("button", { name: "Mở hội thoại để hoàn tất" }));
-    await screen.findByText("Trang hội thoại 0195f3b2-0000-7000-8000-0000000c0001");
+    fireEvent.click(await screen.findByRole("link", { name: "Mở hội thoại để hoàn tất" }));
+    await screen.findByText(`Trang hội thoại ${INBOX}`);
   });
 
-  it("khách chưa có hội thoại trên Page → báo tại dòng", async () => {
-    installLiveFake({ drafts: [D0], conversations: [conv({ pageId: "khac" })] });
+  it("khách chưa có hộp thư trên Page → mở hội thoại comment của lần chốt (conversationId)", async () => {
+    installLiveFake({ drafts: [D0] });
     renderLive(`/live/${S_LIVE}/thieu-dia-chi`);
-    fireEvent.click(await screen.findByRole("button", { name: "Mở hội thoại để hoàn tất" }));
-    await screen.findByText("Khách chưa có hội thoại trên Page này.");
+    fireEvent.click(await screen.findByRole("link", { name: "Mở hội thoại để hoàn tất" }));
+    await screen.findByText(`Trang hội thoại ${D0.conversationId}`);
   });
 
   it("lọc 'Khách đã trả lời' chỉ còn dòng đã trả lời", async () => {

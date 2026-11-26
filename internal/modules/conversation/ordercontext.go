@@ -11,12 +11,17 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/query"
+	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/order"
 )
 
 // vietnamOffset: giờ Việt Nam (UTC+7, không đổi giờ) của khung giờ live.
 const vietnamOffset = 7 * 3600
+
+// ErrOrderCustomerMismatch là lỗi: đơn lên từ hội thoại cho khách không cùng nhóm hồ sơ với khách của hội thoại (422,
+// Task 501).
+var ErrOrderCustomerMismatch = errors.New("khách của đơn không phải khách của hội thoại")
 
 // OrderContextResult là bối cảnh lên đơn từ một hội thoại (01 mục 2): Page, hội thoại, khách, người bán của Page, nguồn
 // đơn tự điền (nil: không có cài đặt, hay nguồn đã tắt).
@@ -87,4 +92,29 @@ func autoSource(s PageSettings, kind string, liveStart *time.Time) *uuid.UUID {
 		}
 	}
 	return s.CommentTrafficSourceID
+}
+
+// CheckOrderCustomer kiểm khách customerID của đơn sắp lên từ hội thoại c (Task 501): nil (đơn gửi khách mới hay tìm
+// theo SĐT — kết quả có thể là người khác) hay hồ sơ không cùng nhóm (root_id) với khách của hội thoại →
+// ErrOrderCustomerMismatch; hồ sơ không có → customer.ErrNotFound. Đọc gốc không khóa: gộp hồ sơ chạy song song chỉ
+// làm hai hồ sơ cùng nhóm hơn (tệ nhất là từ chối nhầm, bấm lại được); khóa gốc do order.Writer.Create lấy sau đó.
+func CheckOrderCustomer(ctx context.Context, tx pgx.Tx, c OrderContextResult, customerID *uuid.UUID) error {
+	if customerID == nil {
+		return ErrOrderCustomerMismatch
+	}
+	if *customerID == c.CustomerID {
+		return nil
+	}
+	want, err := customer.RootOf(ctx, tx, c.CustomerID)
+	if err != nil {
+		return fmt.Errorf("đọc nhóm khách của hội thoại: %w", err)
+	}
+	got, err := customer.RootOf(ctx, tx, *customerID)
+	if err != nil {
+		return fmt.Errorf("đọc nhóm khách của đơn: %w", err)
+	}
+	if got != want {
+		return ErrOrderCustomerMismatch
+	}
+	return nil
 }

@@ -64,6 +64,11 @@ export interface OrderFormProps {
   conversationId?: string;
   /** Nguồn đơn tự điền từ bối cảnh hội thoại (M4); vẫn đổi được ở ô Nguồn đơn. */
   initialTrafficSourceId?: string;
+  /**
+   * Lên đơn cạnh khung chat (M4, Task 501, HV26): tin khách có địa chỉ. Có thì dưới địa chỉ có nút label, bấm chép
+   * nguyên văn text vào ô "Số nhà, đường" để nhân viên sửa (không tự tách tỉnh, xã).
+   */
+  addressFromMessage?: { label: string; text: string } | undefined;
 }
 
 export interface OrderEdit {
@@ -163,6 +168,7 @@ export function OrderForm({
   edit,
   conversationId,
   initialTrafficSourceId,
+  addressFromMessage,
 }: OrderFormProps) {
   const id = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -585,6 +591,18 @@ export function OrderForm({
             phoneIsCustomers={phoneIsCustomers}
             onPhoneIsCustomers={setPhoneIsCustomers}
           />
+          {addressFromMessage !== undefined && (
+            <button
+              type="button"
+              className="btn btn-quiet"
+              style={{ marginTop: 8 }}
+              onClick={() => {
+                setAddress({ ...address, line: addressFromMessage.text });
+              }}
+            >
+              {addressFromMessage.label}
+            </button>
+          )}
           {!can("address") && <p className="reason">{TEXT_LOCKED}</p>}
         </fieldset>
         <fieldset className="lock" disabled={!can("lines")}>

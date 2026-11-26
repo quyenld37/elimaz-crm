@@ -26,10 +26,10 @@ type Profile struct {
 	PSID, FirstName, LastName, ProfilePic string
 }
 
-// Post là một bài viết của Page.
+// Post là một bài viết của Page (PictureURL: full_picture, rỗng → không trả trường).
 type Post struct {
-	ID, PageID, Message, PermalinkURL string
-	Created                           time.Time
+	ID, PageID, Message, PermalinkURL, PictureURL string
+	Created                                       time.Time
 }
 
 // Comment là một comment trên bài viết (ParentID là mã bài), trả lời comment (ParentID là mã comment) hoặc comment

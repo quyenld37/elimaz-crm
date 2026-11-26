@@ -42,8 +42,9 @@ func migrationUp(t *testing.T, name string) string {
 	return up
 }
 
-// Mục đích tệp của tin vào (R5, R10): sổ Go (InboundFilePurposes) khớp bảng sau 0404 (chat_image chế độ private,
-// chat_attachment, chat_avatar standard, cả ba bucket private); chạy lại 0404 không lỗi, vẫn ba dòng; bảng lệch (đổi
+// Mục đích tệp của tin vào (R5, R10): sổ Go (InboundFilePurposes) khớp bảng sau 0404, 0417 (chat_image chế độ private,
+// chat_attachment, chat_avatar, chat_post_image standard, cả bốn bucket private); chạy lại 0404 không lỗi, vẫn bốn dòng
+// chat_* (ba của 0404, chat_post_image của 0417, Task 501); bảng lệch (đổi
 // mode của chat_image, thiếu dòng chat_attachment) → Check đỏ nêu đúng khóa; khóa lạ → ErrUnknownPurpose, chèn thẳng
 // dòng tệp có khóa lạ → khóa ngoại 23503; chat_image không ghi được bằng Register (ErrPurposeMode, ảnh phải qua imager).
 func TestFilePurposes_MatchTable(t *testing.T) {
@@ -59,6 +60,7 @@ func TestFilePurposes_MatchTable(t *testing.T) {
 		conversation.PurposeChatImage:      {"private", "private"},
 		conversation.PurposeChatAttachment: {"private", "standard"},
 		conversation.PurposeChatAvatar:     {"private", "standard"},
+		conversation.PurposeChatPostImage:  {"private", "standard"},
 	}
 	for k, w := range want {
 		p, ok := files.PurposeOf(k)
@@ -71,7 +73,7 @@ func TestFilePurposes_MatchTable(t *testing.T) {
 			t.Fatalf("chạy lại 0404: %v", err)
 		}
 	}
-	if n := s.Count(t, `SELECT count(*) FROM platform.file_purposes WHERE key LIKE 'chat\_%' AND key <> 'chat_outgoing'`); n != 3 {
+	if n := s.Count(t, `SELECT count(*) FROM platform.file_purposes WHERE key LIKE 'chat\_%' AND key <> 'chat_outgoing'`); n != 4 {
 		t.Fatalf("sau hai lần chạy lại: %d dòng chat_*", n)
 	}
 

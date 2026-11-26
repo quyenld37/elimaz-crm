@@ -1,19 +1,12 @@
 // Màn Đã chốt, thiếu địa chỉ (kế hoạch M4 Task 177; mockup docs/mockups/m4/thieu-dia-chi.html, HV49–HV51 kèm sửa
 // HV49 ở "Kết luận duyệt"). listPendingDrafts của một phiên (Task 173), xếp hết hạn gần nhất trước; "Nhắc" từng dòng và
 // "Nhắc tất cả" (remindPendingDrafts với mẫu xin địa chỉ của Page) hiện kết quả từng đơn kèm lý do máy chủ viết;
-// đơn chưa nhắc được hiện lý do thật (canRemind.reason). Khách đã trả lời → "Mở hội thoại để hoàn tất" (tìm hội thoại
-// của khách trên Page của phiên, tệp task 177 Quyết định 6).
+// đơn chưa nhắc được hiện lý do thật (canRemind.reason). Khách đã trả lời → "Mở hội thoại để hoàn tất" (hộp thư của
+// khách hay hội thoại comment do máy chủ trả, Task 501; thay cách tìm của tệp task 177 Quyết định 6).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import {
-  getMe,
-  getPageSettings,
-  listCustomerConversations,
-  remindPendingDrafts,
-  type PendingDraft,
-  type RemindOutcome,
-} from "../../api";
+import { getMe, getPageSettings, remindPendingDrafts, type PendingDraft, type RemindOutcome } from "../../api";
 import { unwrap } from "../../app/errors";
 import { useWriteAction } from "../../app/idempotency";
 import { hasPermission } from "../../app/nav";
@@ -52,31 +45,17 @@ function expiryText(iso: string | undefined, now: number): { text: string; soon:
   return { text: `${hourMinute(iso)} ${d.slice(8, 10)}/${d.slice(5, 7)}`, soon: false };
 }
 
-function OpenConversation({ d, pageId }: { d: PendingDraft; pageId: string }) {
-  const navigate = useNavigate();
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const open = async () => {
-    setBusy(true);
-    setMsg(null);
-    try {
-      const page = await unwrap(listCustomerConversations({ path: { id: d.customer.id }, query: { limit: 100 } }));
-      const onPage = page.items.filter((c) => c.pageId === pageId);
-      const conv = onPage.find((c) => c.kind === "inbox") ?? onPage[0];
-      if (conv === undefined) setMsg("Khách chưa có hội thoại trên Page này.");
-      else void navigate(`/inbox/${conv.id}`);
-    } catch {
-      setMsg("Chưa mở được hội thoại. Thử lại sau ít giây.");
-    } finally {
-      setBusy(false);
-    }
-  };
+/**
+ * "Mở hội thoại để hoàn tất": hộp thư của khách trên Page của phiên (máy chủ trả inboxConversationId, Task 501 — nơi
+ * khách gửi địa chỉ), chưa có hộp thư → hội thoại comment của lần chốt (conversationId). Khung bên phải hai hội thoại
+ * đều có đơn nháp của khách (đọc theo nhóm khách).
+ */
+function OpenConversation({ d }: { d: PendingDraft }) {
   return (
     <div className="act" style={{ justifyItems: "end" }}>
-      <button type="button" className="btn btn-dark" disabled={busy} onClick={() => void open()}>
+      <Link className="btn btn-dark" to={`/inbox/${d.inboxConversationId ?? d.conversationId}`}>
         Mở hội thoại để hoàn tất
-      </button>
-      {msg !== null && <span className="reason">{msg}</span>}
+      </Link>
     </div>
   );
 }
@@ -311,7 +290,7 @@ export function PendingDraftsPage() {
                     </td>
                     <td className="c-act">
                       {d.customerRepliedAfterAsk ? (
-                        <OpenConversation d={d} pageId={s.pageId} />
+                        <OpenConversation d={d} />
                       ) : (
                         <div className="act" style={{ justifyItems: "end" }}>
                           <button

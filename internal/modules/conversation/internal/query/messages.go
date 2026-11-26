@@ -38,7 +38,8 @@ type PrivateReply struct {
 }
 
 // Message là một tin của hội thoại (Body, SenderName là dữ liệu cá nhân). PrivateReply chỉ có ở comment; ParentID là
-// comment cha (comment trả lời trong luồng).
+// comment cha (comment trả lời trong luồng). HiddenReason (chỉ khi IsHidden, Task 501): HiddenAutoPhone, HiddenAutoAll,
+// HiddenAutomation, HiddenStaff, HiddenPageExternal; rỗng khi không có lịch sử ẩn (ẩn sẵn lúc CRM đọc về).
 type Message struct {
 	ID, ConversationID      uuid.UUID
 	Direction, Kind, Origin string
@@ -50,11 +51,41 @@ type Message struct {
 	SenderName              string
 	SendStatus, FailReason  string
 	IsHidden, Removed       bool
+	HiddenReason            string
 	EditedCount             int32
 	PrivateReply            *PrivateReply
 	ParentID                *uuid.UUID
 	SentAt                  time.Time
 	DeliveredAt, ReadAt     *time.Time
+}
+
+// Lý do ẩn của comment (Message.HiddenReason, Task 501).
+const (
+	HiddenAutoPhone    = "auto_phone"
+	HiddenAutoAll      = "auto_all"
+	HiddenAutomation   = "automation"
+	HiddenStaff        = "staff"
+	HiddenPageExternal = "page_external"
+)
+
+// hiddenReason đổi nguồn, lý do của dòng lịch sử ẩn (message_revisions.source, reason) sang Message.HiddenReason; nguồn
+// rỗng (không có dòng) hay lạ → rỗng.
+func hiddenReason(source, reason string) string {
+	switch source {
+	case "automation":
+		switch reason {
+		case "phone":
+			return HiddenAutoPhone
+		case "all":
+			return HiddenAutoAll
+		}
+		return HiddenAutomation
+	case "staff":
+		return HiddenStaff
+	case "page_external":
+		return HiddenPageExternal
+	}
+	return ""
 }
 
 // MessagePage là một trang tin theo thứ tự thời gian. Older: còn tin cũ hơn (gửi làm before); Newer: mốc tin mới nhất
@@ -182,7 +213,8 @@ func messageOf(r store.ListChatMessagesBeforeRow) (Message, error) {
 		Body: r.Body.String, Attachments: make([]Attachment, 0, len(stored)), SenderID: assign.PtrUUID(r.SenderStaffID),
 		SenderStaffName: r.SenderStaffName, SenderName: r.SenderName.String, SendStatus: r.SendStatus.String,
 		FailReason: r.FailReason.String, IsHidden: r.IsHidden, Removed: r.Removed, EditedCount: r.EditedCount,
-		ParentID: assign.PtrUUID(r.ParentID), SentAt: r.SentAt, DeliveredAt: assign.OptTime(r.DeliveredAt),
+		HiddenReason: hiddenReason(r.HiddenSource, r.HiddenReason),
+		ParentID:     assign.PtrUUID(r.ParentID), SentAt: r.SentAt, DeliveredAt: assign.OptTime(r.DeliveredAt),
 		ReadAt: assign.OptTime(r.ReadAt),
 	}
 	for _, a := range stored {

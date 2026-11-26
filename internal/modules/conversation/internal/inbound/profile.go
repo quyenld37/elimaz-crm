@@ -57,9 +57,13 @@ type profileResult struct {
 	Avatar *storedFile `json:"avatar,omitempty"`
 }
 
-// OnNewCustomer xếp lệnh đọc hồ sơ kênh (tên, ảnh đại diện) cho khách customerID vừa tạo từ tin vào của hội thoại
-// conversationID (tenant tenantID); DedupeKey là mã khách (một lệnh mỗi khách).
+// OnNewCustomer đánh dấu hội thoại conversationID đã tạo khách customerID (created_customer, CH08, Task 501) và xếp
+// lệnh đọc hồ sơ kênh (tên, ảnh đại diện) cho khách vừa tạo từ tin vào của hội thoại (tenant tenantID); DedupeKey là
+// mã khách (một lệnh mỗi khách). Hội thoại đã khóa dòng bởi Upsert…Conversation của bên gọi (nhóm 6).
 func OnNewCustomer(ctx context.Context, tx pgx.Tx, q queue.JobQueue, tenantID, customerID, conversationID uuid.UUID) error {
+	if err := store.New(tx).MarkConversationCreatedCustomer(ctx, conversationID); err != nil {
+		return fmt.Errorf("đánh dấu hội thoại tạo khách: %w", err)
+	}
 	if _, _, err := q.Enqueue(ctx, tx, FetchProfileKind(), queue.NewJob{
 		TenantID: &tenantID, Payload: profilePayload{CustomerID: customerID, ConversationID: conversationID},
 		DedupeKey: customerID.String(),

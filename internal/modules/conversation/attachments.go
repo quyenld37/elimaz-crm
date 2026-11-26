@@ -26,8 +26,9 @@ type AttachmentLink struct {
 }
 
 // AttachmentURL ký đường dẫn hạn 5 phút (trên tên miền của kho tệp, FILES_PUBLIC_BASE_URL) tới tệp fileID của một tin
-// trong hội thoại conversationID: cần conversation.read trên Page của hội thoại; hội thoại không có, không có quyền,
-// tệp không thuộc tin nào của hội thoại, tệp đã xóa, hết hạn → ErrNotFound. Ảnh (mục đích chế độ private, chat_image)
+// trong hội thoại conversationID (hay ảnh bài của hội thoại comment, chat_post_image, mở trong trình duyệt; Task 501):
+// cần conversation.read trên Page của hội thoại; hội thoại không có, không có quyền, tệp không thuộc tin nào của hội
+// thoại, tệp đã xóa, hết hạn → ErrNotFound. Ảnh (mục đích chế độ private, chat_image)
 // → biến thể JPEG lớn nhất trên bucket private, mở trong trình duyệt; tệp khác (chat_attachment) → tải về
 // (Content-Disposition: attachment, tên tep-<8 ký tự>.<đuôi>; đối tượng ghi application/octet-stream, TP04). Chưa xử
 // lý xong → ErrAttachmentNotReady; bị từ chối → ErrAttachmentRejected.
@@ -51,8 +52,8 @@ func AttachmentURL(ctx context.Context, tx pgx.Tx, fs files.FileStore, actor ide
 	if err != nil {
 		return AttachmentLink{}, linkError(err)
 	}
-	name := "" // ảnh: mở trong trình duyệt (biến thể đã mã hóa lại)
-	if p, ok := files.PurposeOf(info.Purpose); !ok || !p.Image {
+	name := "" // ảnh: mở trong trình duyệt (biến thể đã mã hóa lại; ảnh bài của kênh: đã nhận dạng JPEG/PNG/WebP)
+	if p, ok := files.PurposeOf(info.Purpose); !ok || (!p.Image && info.Purpose != PurposeChatPostImage) {
 		name = info.OriginalName
 	}
 	u, err := files.DownloadURL(ctx, tx, fs, fileID, AttachmentURLTTL, name)

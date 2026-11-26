@@ -281,3 +281,25 @@ func TestInboundDoesNotLeakContent(t *testing.T) {
 		}
 	}
 }
+
+// [Task 501, CH08] Hội thoại tạo khách mới đánh dấu created_customer (tin vào hộp thư, comment lần đầu); hội thoại sau
+// của cùng khách (comment trên bài) không đánh dấu.
+func TestInboundMarksConversationThatCreatedCustomer(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.receive("u-1", "mid-1", "Còn hàng không shop?", 0)
+	e.sendComment(commentEv("add", post1, "c-1", "", "u-1", "Lan", "Giá bao nhiêu?", 1))
+	e.sendComment(commentEv("add", post1, "c-2", "", "u-9", "Hoa", "Còn size M?", 2))
+	e.noDeadJobs()
+	box := e.conversation(e.page1, "u-1")
+	cm1, _ := e.commentConv(post1, "u-1")
+	cm2, _ := e.commentConv(post1, "u-9")
+	got := map[uuid.UUID]bool{}
+	for _, id := range []uuid.UUID{box.ID, cm1.ID, cm2.ID} {
+		got[id] = e.staff.CountIn(t, e.tenant, `SELECT count(*) FROM conversation.conversations WHERE id = $1
+			AND created_customer`, id) == 1
+	}
+	if !got[box.ID] || got[cm1.ID] || !got[cm2.ID] {
+		t.Fatalf("created_customer: hộp thư %v, comment cùng khách %v, comment người mới %v", got[box.ID], got[cm1.ID], got[cm2.ID])
+	}
+}

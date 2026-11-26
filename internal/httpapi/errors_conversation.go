@@ -16,15 +16,16 @@ import (
 const (
 	codeAssigneeNotAllowed      = "assignee_not_allowed"
 	codeAlreadyAssigned         = "already_assigned"
-	codeTemplateVariableMissing = "template_variable_missing" // kèm name (detailedError, errors.go)
-	codeChannelReadOnly         = "channel_read_only"         // Page chỉ xem (Task 156, MO03)
-	codeSendNotAllowed          = "send_not_allowed"          // chính sách gửi của kênh không cho (Task 156, CH09)
-	codeAttachmentNotReady      = "attachment_not_ready"      // ảnh gửi kèm, tệp đính kèm chưa xử lý xong (Task 156, 155)
-	codeAttachmentRejected      = "attachment_rejected"       // tệp sai mục đích hay bị kho tệp từ chối (Task 156, 155)
-	codePrivateReplyUsed        = "private_reply_used"        // comment đã được nhắn riêng (Task 158, CH05)
-	codeCommentClaimed          = "comment_claimed"           // comment live đã có đơn (Task 172, LV07), kèm claimedBy…
-	codeOpenDraftExists         = "open_draft_exists"         // khách đã có đơn nháp trong phiên (Task 172, LV09), kèm drafts
-	codeSellerMismatch          = "seller_mismatch"           // hàng không thuộc người bán của Page (Task 172, ADR-29)
+	codeTemplateVariableMissing = "template_variable_missing"      // kèm name (detailedError, errors.go)
+	codeChannelReadOnly         = "channel_read_only"              // Page chỉ xem (Task 156, MO03)
+	codeSendNotAllowed          = "send_not_allowed"               // chính sách gửi của kênh không cho (Task 156, CH09)
+	codeAttachmentNotReady      = "attachment_not_ready"           // ảnh gửi kèm, tệp đính kèm chưa xử lý xong (Task 156, 155)
+	codeAttachmentRejected      = "attachment_rejected"            // tệp sai mục đích hay bị kho tệp từ chối (Task 156, 155)
+	codePrivateReplyUsed        = "private_reply_used"             // comment đã được nhắn riêng (Task 158, CH05)
+	codeCommentClaimed          = "comment_claimed"                // comment live đã có đơn (Task 172, LV07), kèm claimedBy…
+	codeOpenDraftExists         = "open_draft_exists"              // khách đã có đơn nháp trong phiên (Task 172, LV09), kèm drafts
+	codeSellerMismatch          = "seller_mismatch"                // hàng không thuộc người bán của Page (Task 172, ADR-29)
+	codeConvCustomerMismatch    = "conversation_customer_mismatch" // khách của đơn ≠ khách của hội thoại (Task 501)
 )
 
 // conversationError đổi lỗi nghiệp vụ của hộp chat sang mã HTTP. ErrNotFound: không có, hay trên Page người gọi không
@@ -59,6 +60,7 @@ func chatErrorMappings() []errorMapping {
 		{conversation.ErrTemplateInvalid, http.StatusUnprocessableEntity, codeInvalidInput},
 		{conversation.ErrUnknownVariable, http.StatusUnprocessableEntity, codeInvalidInput},
 		{conversation.ErrOrderNotOfCustomer, http.StatusUnprocessableEntity, codeInvalidInput},
+		{conversation.ErrOrderCustomerMismatch, http.StatusUnprocessableEntity, codeConvCustomerMismatch},
 	}
 }
 

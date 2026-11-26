@@ -2,6 +2,8 @@ package inbound
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +18,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/deps"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/store"
 	"elimaz.com.vn/crm/internal/platform/commands"
+	"elimaz.com.vn/crm/internal/platform/files"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/platform/webhooks"
@@ -53,13 +56,15 @@ type fetchPostPayload struct {
 	ExternalID string    `json:"externalId"`
 }
 
-// fetchPostResult là Outcome.Result của lệnh: thông tin bài (Missing: bài không còn trên kênh).
+// fetchPostResult là Outcome.Result của lệnh: thông tin bài (Missing: bài không còn trên kênh), ảnh bài đã ghi lên kho
+// (Image; nil: bài không ảnh hay không tải được).
 type fetchPostResult struct {
-	Kind        string     `json:"kind,omitempty"`
-	Permalink   string     `json:"permalink,omitempty"`
-	Snippet     string     `json:"snippet,omitempty"`
-	CreatedTime *time.Time `json:"createdTime,omitempty"`
-	Missing     bool       `json:"missing,omitempty"`
+	Image       *storedFile `json:"image,omitempty"`
+	Kind        string      `json:"kind,omitempty"`
+	Permalink   string      `json:"permalink,omitempty"`
+	Snippet     string      `json:"snippet,omitempty"`
+	CreatedTime *time.Time  `json:"createdTime,omitempty"`
+	Missing     bool        `json:"missing,omitempty"`
 }
 
 // canFetchPosts cho biết adapter của nguồn source đọc được bài.
@@ -185,7 +190,10 @@ func (c fetchPost) Execute(ctx context.Context, j queue.Job) (commands.Outcome, 
 			return commands.Outcome{Status: commands.StatusUnknown, Reason: string(class)}, nil
 		}
 	}
-	res := fetchPostResult{Kind: info.Kind, Permalink: info.Permalink, Snippet: info.Snippet}
+	res := fetchPostResult{
+		Kind: info.Kind, Permalink: info.Permalink, Snippet: info.Snippet,
+		Image: storeChannelImage(ctx, c.d.Files, *j.TenantID, ad, info.PictureURL, maxPostImageBytes),
+	}
 	if !info.CreatedTime.IsZero() {
 		t := info.CreatedTime.UTC()
 		res.CreatedTime = &t
@@ -202,7 +210,8 @@ func (fetchPost) Lookup(context.Context, queue.Job) (string, error) {
 	return commands.StatusNotSent, nil
 }
 
-// OnDone (trong tx đổi lệnh sang done) ghi thông tin bài: loại, đường dẫn, đoạn trích 120 ký tự, giờ đăng, mốc đọc.
+// OnDone (trong tx đổi lệnh sang done) ghi thông tin bài: loại, đường dẫn, đoạn trích 120 ký tự, giờ đăng, mốc đọc,
+// ảnh bài (savePostImage).
 // Bài không còn → chỉ ghi mốc đọc. Không có kết quả (done do tra lại) → không làm gì.
 func (c fetchPost) OnDone(ctx context.Context, j queue.Job, result json.RawMessage, tx pgx.Tx) error {
 	if len(result) == 0 {
@@ -230,6 +239,36 @@ func (c fetchPost) OnDone(ctx context.Context, j queue.Job, result json.RawMessa
 	}
 	if _, err := store.New(tx).UpsertPost(ctx, params); err != nil {
 		return fmt.Errorf("ghi thông tin bài viết: %w", err)
+	}
+	return c.savePostImage(ctx, tx, j, p, res.Image)
+}
+
+// savePostImage ghi ảnh bài img (đã lên kho trong Execute) cho bài của p khi bài chưa có ảnh: posts.image_file_id rồi
+// dòng tệp chat_post_image (ready; ADR-46: posts nhóm 6 → platform.files 12b, như ảnh đại diện). Không ảnh, bài đã có
+// ảnh → không làm gì (đối tượng thừa trên kho không có dòng tệp, như ảnh đại diện bị bỏ).
+func (c fetchPost) savePostImage(ctx context.Context, tx pgx.Tx, j queue.Job, p fetchPostPayload, img *storedFile) error {
+	if img == nil || img.FileID == nil || j.TenantID == nil {
+		return nil
+	}
+	id := *img.FileID
+	_, err := store.New(tx).SetPostImage(ctx, store.SetPostImageParams{
+		FileID: pgtype.UUID{Bytes: id, Valid: true}, ChannelAccountID: p.AccountID, ExternalID: p.ExternalID,
+	})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return nil
+	case err != nil:
+		return fmt.Errorf("ghi ảnh bài viết: %w", err)
+	}
+	sum, _ := hex.DecodeString(img.SHA256)
+	if len(sum) != sha256.Size {
+		sum = nil
+	}
+	if _, err := files.Register(ctx, tx, files.NewFile{
+		ID: id, Purpose: PurposeChatPostImage, Key: files.ServerKey(*j.TenantID, id), SHA256: sum, Size: img.Size,
+		ContentType: img.ContentType, FileName: fileName("bai", img.SHA256, img.ContentType),
+	}); err != nil {
+		return fmt.Errorf("ghi tệp ảnh bài viết: %w", err)
 	}
 	return nil
 }

@@ -292,6 +292,8 @@ type Tag struct {
 }
 
 // CustomerConversation là một hội thoại trong danh sách hội thoại của khách. HasOpenDraft: có đơn nháp gắn hội thoại.
+// Thẻ bài (hội thoại comment, Task 501): PostPostedAt giờ đăng, PostPermalink đường dẫn, PostImageFileID ảnh bài đã chép
+// về CRM. NewLead: khách tiềm năng mới (CH08: hồ sơ tạo từ chính hội thoại này, không gộp, chưa có đơn nào).
 type CustomerConversation struct {
 	ID, PageID, CustomerID uuid.UUID
 	CustomerName           string
@@ -303,7 +305,10 @@ type CustomerConversation struct {
 	LastSnippet            string
 	PostID                 *uuid.UUID
 	PostSnippet            string
-	HasOpenDraft           bool
+	PostPostedAt           *time.Time
+	PostPermalink          string
+	PostImageFileID        *uuid.UUID
+	HasOpenDraft, NewLead  bool
 	Version                int32
 }
 
@@ -346,8 +351,9 @@ func Conversations(ctx context.Context, tx pgx.Tx, u identity.AuthUser, customer
 			ID: r.ID, PageID: r.ChannelAccountID, CustomerID: r.CustomerID, CustomerName: r.CustomerName, Kind: r.Kind,
 			Status: r.Status, AssigneeID: ptrUUID(r.AssigneeID), Tags: byConv[r.ID], UnreadCount: r.UnreadCount,
 			LastMessageAt: r.LastMessageAt, LastSnippet: r.LastSnippet.String, PostID: ptrUUID(r.PostID),
-			PostSnippet: r.PostSnippet.String, HasOpenDraft: r.HasOpenDraft, Version: r.Version,
+			PostSnippet: r.PostSnippet.String, HasOpenDraft: r.HasOpenDraft, NewLead: r.NewLead, Version: r.Version,
 		})
+		out[len(out)-1].SetPostCard(r.PostCreatedTime, r.PostPermalink, r.PostImageFileID)
 	}
 	return out, next, nil
 }
@@ -363,6 +369,12 @@ func fromRow(r store.ListGroupCallsRow) CallLog {
 
 // ptrUUID đổi cột uuid có thể rỗng sang con trỏ (nil khi NULL).
 func ptrUUID(v pgtype.UUID) *uuid.UUID { return ptrIf(uuid.UUID(v.Bytes), v.Valid) }
+
+// SetPostCard điền thẻ bài của c từ các cột posts (created_time, permalink, image_file_id; NULL → trống).
+func (c *CustomerConversation) SetPostCard(created pgtype.Timestamptz, permalink pgtype.Text, image pgtype.UUID) {
+	c.PostPostedAt = ptrIf(created.Time.UTC(), created.Valid)
+	c.PostPermalink, c.PostImageFileID = permalink.String, ptrUUID(image)
+}
 
 // ptrIf trả &v khi ok, nil khi không.
 func ptrIf[T any](v T, ok bool) *T {

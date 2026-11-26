@@ -146,6 +146,9 @@ func chatHistoryOut(m conversation.ChatMessage) gen.ChatMessage {
 	if m.Body != "" {
 		out.Body = gen.NewOptString(m.Body)
 	}
+	if m.IsHidden && m.HiddenReason != "" {
+		out.HiddenReason = gen.NewOptChatMessageHiddenReason(gen.ChatMessageHiddenReason(m.HiddenReason))
+	}
 	for _, a := range m.Attachments {
 		out.Attachments = append(out.Attachments, historyAttachmentOut(a))
 	}

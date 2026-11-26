@@ -192,8 +192,8 @@ func (c hideCommand) prepare(ctx context.Context, tx pgx.Tx, msgID uuid.UUID, no
 	return hidePrep{acc: acc, adapter: ad, cred: cred, comment: m.ExternalID.String}, "", nil
 }
 
-// OnDone ghi comment đã ẩn (trong tx của Runner, khóa hội thoại rồi tin, ADR-46 nhóm 6): is_hidden, một dòng lịch sử
-// nguồn automation (khi chưa ẩn), báo hiệu hội thoại đổi; lượt chạy → done.
+// OnDone ghi comment đã ẩn (trong tx của Runner, khóa hội thoại rồi tin, ADR-46 nhóm 6): một dòng lịch sử nguồn
+// automation kèm lý do (cả khi đã ẩn sẵn), is_hidden và báo hiệu hội thoại đổi (khi chưa ẩn); lượt chạy → done.
 func (c hideCommand) OnDone(ctx context.Context, j queue.Job, _ json.RawMessage, tx pgx.Tx) error {
 	var p hidePayload
 	if err := json.Unmarshal(j.Payload, &p); err != nil || j.TenantID == nil {
@@ -214,13 +214,16 @@ func (c hideCommand) OnDone(ctx context.Context, j queue.Job, _ json.RawMessage,
 	if err != nil {
 		return fmt.Errorf("khóa comment vừa ẩn: %w", err)
 	}
+	// Dòng lịch sử nguồn automation ghi cả khi comment đã ẩn sẵn (webhook "hide" do chính lệnh này gây ra tới trước
+	// OnDone): lý do ẩn của màn lấy từ dòng này (Task 501). Nội dung giữ nguyên nên không tính là một lần sửa.
+	if err := q.InsertRevisionState(ctx, store.InsertRevisionStateParams{
+		MessageID: row.ID, Body: row.Body, IsHidden: pgtype.Bool{Bool: true, Valid: true},
+		Removed: pgtype.Bool{Bool: row.RemovedAt.Valid, Valid: true}, Source: sourceAutomation,
+		Reason: pgtype.Text{String: p.Reason, Valid: p.Reason != ""},
+	}); err != nil {
+		return fmt.Errorf("ghi lịch sử comment vừa ẩn: %w", err)
+	}
 	if !row.IsHidden {
-		if err := q.InsertRevisionState(ctx, store.InsertRevisionStateParams{
-			MessageID: row.ID, Body: row.Body, IsHidden: pgtype.Bool{Bool: true, Valid: true},
-			Removed: pgtype.Bool{Bool: row.RemovedAt.Valid, Valid: true}, Source: sourceAutomation,
-		}); err != nil {
-			return fmt.Errorf("ghi lịch sử comment vừa ẩn: %w", err)
-		}
 		if err := q.UpdateCommentState(ctx, store.UpdateCommentStateParams{
 			Body: row.Body, EditedAt: row.EditedAt, RemovedAt: row.RemovedAt, IsHidden: true, ID: row.ID,
 		}); err != nil {

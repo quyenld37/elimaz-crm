@@ -38,10 +38,11 @@ type Profile struct {
 	Name, AvatarURL string
 }
 
-// PostInfo là thông tin bài viết chứa comment.
+// PostInfo là thông tin bài viết chứa comment. PictureURL: ảnh bài trên máy chủ của kênh (rỗng: bài không ảnh); tải
+// bằng AttachmentDownloader.
 type PostInfo struct {
-	ID, Kind, Permalink, Snippet string
-	CreatedTime                  time.Time
+	ID, Kind, Permalink, Snippet, PictureURL string
+	CreatedTime                              time.Time
 }
 
 // DownloadInfo là thông tin tệp tải từ kênh: ContentType nhận dạng bằng nội dung (không tin header), SHA256 là hex

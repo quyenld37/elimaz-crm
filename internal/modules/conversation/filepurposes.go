@@ -14,6 +14,8 @@ const (
 	PurposeChatAttachment = inbound.PurposeChatAttachment
 	// PurposeChatAvatar: ảnh đại diện của khách đọc từ hồ sơ kênh (JPEG, PNG, WebP ≤ 2 MiB).
 	PurposeChatAvatar = inbound.PurposeChatAvatar
+	// PurposeChatPostImage: ảnh bài viết của Page đọc khi đọc bài (JPEG, PNG, WebP ≤ 5 MiB; Task 501, 0417).
+	PurposeChatPostImage = inbound.PurposeChatPostImage
 )
 
 // InboundFilePurposes là ba mục đích tệp của tin vào; không ai tải lên qua API (Upload = false).

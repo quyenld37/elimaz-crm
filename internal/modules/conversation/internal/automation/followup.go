@@ -57,11 +57,24 @@ type FollowUpConfig struct {
 	TemplateID uuid.UUID `json:"templateId"`
 }
 
-// FollowUpItem là một hội thoại cần nhắn lại. CustomerName là dữ liệu cá nhân.
+// FollowUpItem là một hội thoại cần nhắn lại. CustomerName là dữ liệu cá nhân. LastStaffSnippet: đoạn đầu
+// staffSnippetRunes ký tự của tin người thật cuối của Page (rỗng: tin không chữ).
 type FollowUpItem struct {
 	ConversationID, PageID, CustomerID uuid.UUID
-	CustomerName                       string
+	CustomerName, LastStaffSnippet     string
 	LastStaffMessageAt, WindowEndsAt   time.Time
+}
+
+// staffSnippetRunes là độ dài đoạn tin nhân viên cuối của danh sách nhắn lại.
+const staffSnippetRunes = 120
+
+// snippetOf cắt s (bỏ khoảng trắng hai đầu) còn tối đa n ký tự (không cắt giữa chữ có dấu).
+func snippetOf(s string, n int) string {
+	r := []rune(strings.TrimSpace(s))
+	if len(r) > n {
+		r = r[:n]
+	}
+	return string(r)
 }
 
 // ListFollowUps trả tối đa limit (≤ 0 → 50, tối đa 100) hội thoại cần nhắn lại lúc now trên các Page u được đọc
@@ -94,6 +107,7 @@ func ListFollowUps(ctx context.Context, tx pgx.Tx, u identity.AuthUser, pageID *
 	for _, r := range rows {
 		out = append(out, FollowUpItem{
 			ConversationID: r.ID, PageID: r.ChannelAccountID, CustomerID: r.CustomerID, CustomerName: r.CustomerName,
+			LastStaffSnippet:   snippetOf(r.StaffMessageBody.String, staffSnippetRunes),
 			LastStaffMessageAt: r.StaffMessageAt.UTC(), WindowEndsAt: r.LastCustomerMessageAt.Time.UTC().Add(windowLength),
 		})
 	}

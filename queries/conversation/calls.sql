@@ -36,11 +36,17 @@ ORDER BY l.created_at DESC, l.id DESC
 LIMIT @lim::int;
 
 -- name: ListGroupConversations :many
--- Hội thoại của nhóm khách trên các Page được xem, mới nhất trước (index conversations_customer).
+-- Hội thoại của nhóm khách trên các Page được xem, mới nhất trước (index conversations_customer); thẻ bài, khách tiềm
+-- năng mới như ConversationRowExtras (Task 501).
 SELECT c.id, c.channel_account_id, c.customer_id, c.kind, c.status, c.assignee_id, c.unread_count, c.last_message_at,
        c.last_snippet, c.post_id, c.version, cu.full_name AS customer_name, p.snippet AS post_snippet,
+       p.created_time AS post_created_time, p.permalink AS post_permalink, p.image_file_id AS post_image_file_id,
        EXISTS (SELECT 1 FROM ord.orders_v AS o
-               WHERE o.conversation_id = c.id AND o.status = 'draft')::boolean AS has_open_draft
+               WHERE o.conversation_id = c.id AND o.status = 'draft')::boolean AS has_open_draft,
+       (c.created_customer
+        AND NOT EXISTS (SELECT 1 FROM customer.customers_v AS g
+                        WHERE g.root_id = cu.root_id AND g.id <> c.customer_id)
+        AND NOT EXISTS (SELECT 1 FROM ord.orders_v AS ao WHERE ao.customer_id = c.customer_id))::boolean AS new_lead
 FROM conversation.conversations AS c
 JOIN customer.customers_v AS cu ON cu.id = c.customer_id
 LEFT JOIN conversation.posts AS p ON p.tenant_id = c.tenant_id AND p.id = c.post_id

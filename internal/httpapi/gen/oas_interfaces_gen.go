@@ -673,6 +673,10 @@ type ListOrdersRes interface {
 	listOrdersRes()
 }
 
+type ListPagePostsRes interface {
+	listPagePostsRes()
+}
+
 type ListPendingDraftsRes interface {
 	listPendingDraftsRes()
 }

@@ -24,6 +24,9 @@ func TestAutoHide_PhoneOnly(t *testing.T) {
 	if hidden, revs := e.hiddenInCRM(withPhone.CommentID); !hidden || revs != 1 {
 		t.Fatalf("CRM: is_hidden = %v, lịch sử automation = %d", hidden, revs)
 	}
+	if got := e.hideReason(withPhone.CommentID); got != "phone" {
+		t.Fatalf("lý do tự ẩn = %q, muốn phone (Task 501)", got)
+	}
 	if out, rows, jobs := e.run(withPhone.CommentID); out != string(automation.OutcomeDone) || rows != 1 || jobs != 1 {
 		t.Fatalf("lượt %q, %d dòng, %d lệnh", out, rows, jobs)
 	}
@@ -49,6 +52,9 @@ func TestAutoHide_AllExceptAndOff(t *testing.T) {
 	e.deliver(b)
 	if !e.hiddenOnPage(a.CommentID) {
 		t.Fatal("all: comment bài A chưa bị ẩn")
+	}
+	if got := e.hideReason(a.CommentID); got != "all" {
+		t.Fatalf("lý do tự ẩn = %q, muốn all (Task 501)", got)
 	}
 	if _, rows, jobs := e.run(b.CommentID); rows != 0 || jobs != 0 || e.hideCalls(b.CommentID) != 0 {
 		t.Fatalf("bài ngoại lệ: %d dòng, %d lệnh", rows, jobs)

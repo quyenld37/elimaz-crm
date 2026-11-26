@@ -114,3 +114,39 @@ func TestLivePendingAPI_CompleteAndRemind(t *testing.T) {
 	expect(t, "phiên lạ", e.send(http.MethodGet, livePendingPath(uuid.New(), ""), liveViewer, ""), http.StatusNotFound, "not_found")
 	expect(t, "thiếu mẫu", e.send(http.MethodPost, livePendingPath(e.session, "/remind"), liveOp, `{}`), http.StatusBadRequest, "")
 }
+
+// [Task 501] Dòng "thiếu địa chỉ" mang conversationId (hội thoại comment của lần chốt) và inboxConversationId (hộp thư
+// của khách trên Page): chưa có hộp thư → không có trường; khách nhắn vào hộp thư → mã hộp thư đó.
+func TestLivePendingAPI_ConversationIDs(t *testing.T) {
+	t.Parallel()
+	e := newLiveClaimAPIEnv(t)
+	v := e.variant(5)
+	cm := e.comment("Lan", "u1", "chốt", time.Now().Add(-time.Minute))
+	mustOK(t, "claimLiveComment", e.send(http.MethodPost, claimPath(cm), liveOp, claimBody(v, 1, `,"askAddress":false`)),
+		http.StatusCreated)
+	var commentConv uuid.UUID
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(t.Context(), `SELECT conversation_id FROM conversation.messages WHERE id = $1`, cm).Scan(&commentConv)
+	})
+	row := func() map[string]any {
+		t.Helper()
+		list := mustOK(t, "listPendingDrafts", e.send(http.MethodGet, livePendingPath(e.session, ""), liveViewer, ""), http.StatusOK)
+		items, _ := list["items"].([]any)
+		if len(items) != 1 {
+			t.Fatalf("danh sách: %v", list)
+		}
+		r, _ := items[0].(map[string]any)
+		return r
+	}
+	if r := row(); r["conversationId"] != commentConv.String() || r["inboxConversationId"] != nil {
+		t.Fatalf("trước khi có hộp thư: %v", r)
+	}
+	e.customerRepliesInInbox(cm, "12 Lê Lợi, phường Bến Thành", time.Now())
+	var inbox uuid.UUID
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(t.Context(), `SELECT id FROM conversation.conversations WHERE kind = 'inbox'`).Scan(&inbox)
+	})
+	if r := row(); r["conversationId"] != commentConv.String() || r["inboxConversationId"] != inbox.String() {
+		t.Fatalf("sau khi có hộp thư: %v", r)
+	}
+}

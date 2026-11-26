@@ -15,8 +15,12 @@ import (
 
 const conversationRowExtras = `-- name: ConversationRowExtras :many
 SELECT c.id, coalesce(cu.full_name, '')::text AS customer_name, coalesce(u.display_name, '')::text AS assignee_name,
-       p.snippet AS post_snippet,
-       EXISTS (SELECT 1 FROM ord.orders_v AS o WHERE o.conversation_id = c.id AND o.status = 'draft')::boolean AS has_open_draft
+       p.snippet AS post_snippet, p.created_time AS post_created_time, p.permalink AS post_permalink, p.image_file_id AS post_image_file_id,
+       EXISTS (SELECT 1 FROM ord.orders_v AS o WHERE o.conversation_id = c.id AND o.status = 'draft')::boolean AS has_open_draft,
+       (c.created_customer
+        AND NOT EXISTS (SELECT 1 FROM customer.customers_v AS g
+                        WHERE g.root_id = cu.root_id AND g.id <> c.customer_id)
+        AND NOT EXISTS (SELECT 1 FROM ord.orders_v AS ao WHERE ao.customer_id = c.customer_id))::boolean AS new_lead
 FROM conversation.conversations AS c
 LEFT JOIN customer.customers_v AS cu ON cu.id = c.customer_id
 LEFT JOIN identity.users_v AS u ON u.id = c.assignee_id
@@ -25,15 +29,21 @@ WHERE c.id = ANY($1::uuid[])
 `
 
 type ConversationRowExtrasRow struct {
-	ID           uuid.UUID
-	CustomerName string
-	AssigneeName string
-	PostSnippet  pgtype.Text
-	HasOpenDraft bool
+	ID              uuid.UUID
+	CustomerName    string
+	AssigneeName    string
+	PostSnippet     pgtype.Text
+	PostCreatedTime pgtype.Timestamptz
+	PostPermalink   pgtype.Text
+	PostImageFileID pgtype.UUID
+	HasOpenDraft    bool
+	NewLead         bool
 }
 
 // Phần hiển thị của các dòng danh sách ids: tên khách của hồ sơ gắn hội thoại (customers_v), tên người phụ trách
-// (users_v), đoạn bài viết, có đơn nháp gắn (ord.orders_v, mọi người bán; index một phần orders_draft_expires).
+// (users_v), đoạn bài viết, có đơn nháp gắn (ord.orders_v, mọi người bán; index một phần orders_draft_expires); thẻ bài
+// (giờ đăng, đường dẫn, ảnh) và khách tiềm năng mới (CH08: hồ sơ tạo từ chính hội thoại, không gộp, chưa có đơn nào —
+// Task 501; index orders_customer).
 func (q *Queries) ConversationRowExtras(ctx context.Context, ids []uuid.UUID) ([]ConversationRowExtrasRow, error) {
 	rows, err := q.db.Query(ctx, conversationRowExtras, ids)
 	if err != nil {
@@ -48,7 +58,11 @@ func (q *Queries) ConversationRowExtras(ctx context.Context, ids []uuid.UUID) ([
 			&i.CustomerName,
 			&i.AssigneeName,
 			&i.PostSnippet,
+			&i.PostCreatedTime,
+			&i.PostPermalink,
+			&i.PostImageFileID,
 			&i.HasOpenDraft,
+			&i.NewLead,
 		); err != nil {
 			return nil, err
 		}
@@ -174,9 +188,24 @@ SELECT m.id, m.conversation_id, m.direction, m.kind, m.origin, m.body, m.attachm
                               FROM conversation.message_revisions AS r WHERE r.message_id = m.id) AS x
         WHERE x.body IS DISTINCT FROM x.after_body)::int AS edited_count,
        pr.id AS private_reply_id, pr.send_status AS private_reply_status, par.id AS parent_id,
-       m.sent_at, m.delivered_at, m.read_at, m.quick_replies
+       m.sent_at, m.delivered_at, m.read_at, m.quick_replies,
+       coalesce(hr.source, '')::text AS hidden_source, coalesce(hr.reason, '')::text AS hidden_reason
 FROM conversation.messages AS m
 LEFT JOIN identity.users_v AS u ON u.id = m.sender_staff_id
+LEFT JOIN LATERAL (
+    SELECT r.source, r.reason
+    FROM conversation.message_revisions AS r
+    WHERE r.message_id = m.id
+      AND r.is_hidden
+      AND r.source <> 'customer'
+      AND NOT EXISTS (SELECT 1
+                      FROM conversation.message_revisions AS un
+                      WHERE un.message_id = m.id
+                        AND un.is_hidden IS FALSE
+                        AND (un.recorded_at, un.id) > (r.recorded_at, r.id))
+    ORDER BY (r.source = 'automation') DESC, r.recorded_at DESC, r.id DESC
+    LIMIT 1
+) AS hr ON m.is_hidden
 LEFT JOIN conversation.messages AS pr
        ON m.kind = 'comment' AND pr.tenant_id = m.tenant_id AND pr.channel_account_id = m.channel_account_id
       AND pr.parent_external_id = m.external_id AND pr.kind = 'private_reply'
@@ -220,6 +249,8 @@ type ListChatMessagesAfterRow struct {
 	DeliveredAt        pgtype.Timestamptz
 	ReadAt             pgtype.Timestamptz
 	QuickReplies       []byte
+	HiddenSource       string
+	HiddenReason       string
 }
 
 // Như ListChatMessagesBefore nhưng sau mốc (sent_at, id), cũ nhất trước (lấy tin mới).
@@ -260,6 +291,8 @@ func (q *Queries) ListChatMessagesAfter(ctx context.Context, arg ListChatMessage
 			&i.DeliveredAt,
 			&i.ReadAt,
 			&i.QuickReplies,
+			&i.HiddenSource,
+			&i.HiddenReason,
 		); err != nil {
 			return nil, err
 		}
@@ -280,9 +313,24 @@ SELECT m.id, m.conversation_id, m.direction, m.kind, m.origin, m.body, m.attachm
                               FROM conversation.message_revisions AS r WHERE r.message_id = m.id) AS x
         WHERE x.body IS DISTINCT FROM x.after_body)::int AS edited_count,
        pr.id AS private_reply_id, pr.send_status AS private_reply_status, par.id AS parent_id,
-       m.sent_at, m.delivered_at, m.read_at, m.quick_replies
+       m.sent_at, m.delivered_at, m.read_at, m.quick_replies,
+       coalesce(hr.source, '')::text AS hidden_source, coalesce(hr.reason, '')::text AS hidden_reason
 FROM conversation.messages AS m
 LEFT JOIN identity.users_v AS u ON u.id = m.sender_staff_id
+LEFT JOIN LATERAL (
+    SELECT r.source, r.reason
+    FROM conversation.message_revisions AS r
+    WHERE r.message_id = m.id
+      AND r.is_hidden
+      AND r.source <> 'customer'
+      AND NOT EXISTS (SELECT 1
+                      FROM conversation.message_revisions AS un
+                      WHERE un.message_id = m.id
+                        AND un.is_hidden IS FALSE
+                        AND (un.recorded_at, un.id) > (r.recorded_at, r.id))
+    ORDER BY (r.source = 'automation') DESC, r.recorded_at DESC, r.id DESC
+    LIMIT 1
+) AS hr ON m.is_hidden
 LEFT JOIN conversation.messages AS pr
        ON m.kind = 'comment' AND pr.tenant_id = m.tenant_id AND pr.channel_account_id = m.channel_account_id
       AND pr.parent_external_id = m.external_id AND pr.kind = 'private_reply'
@@ -326,6 +374,8 @@ type ListChatMessagesBeforeRow struct {
 	DeliveredAt        pgtype.Timestamptz
 	ReadAt             pgtype.Timestamptz
 	QuickReplies       []byte
+	HiddenSource       string
+	HiddenReason       string
 }
 
 // Đọc hộp chat (Task 159; 04 mục 7): tin theo trang, đánh dấu đã đọc, đổi trạng thái, đơn nháp, số đếm.
@@ -334,6 +384,8 @@ type ListChatMessagesBeforeRow struct {
 // (users_v), tin riêng đang sống của comment (index một phần messages_one_live_private_reply), tin cha của comment trả
 // lời (messages_external_key), số lần sửa nội dung (message_revisions_message: mỗi dòng giữ nội dung trước lần đổi; dòng
 // mà nội dung sau nó — dòng kế hay nội dung hiện tại — khác là một lần sửa; dòng ẩn, hiện, xóa giữ nguyên nội dung).
+// Comment đang ẩn: nguồn, lý do của dòng ẩn sau lần hiện cuối (bỏ dòng customer: khách không ẩn được), dòng tự ẩn
+// trước dòng page_external (webhook "hide" do chính lệnh tự ẩn gây ra), rồi mới nhất trước (Task 501).
 func (q *Queries) ListChatMessagesBefore(ctx context.Context, arg ListChatMessagesBeforeParams) ([]ListChatMessagesBeforeRow, error) {
 	rows, err := q.db.Query(ctx, listChatMessagesBefore,
 		arg.ConversationID,
@@ -371,6 +423,8 @@ func (q *Queries) ListChatMessagesBefore(ctx context.Context, arg ListChatMessag
 			&i.DeliveredAt,
 			&i.ReadAt,
 			&i.QuickReplies,
+			&i.HiddenSource,
+			&i.HiddenReason,
 		); err != nil {
 			return nil, err
 		}

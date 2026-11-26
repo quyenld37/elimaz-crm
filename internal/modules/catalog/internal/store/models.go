@@ -624,6 +624,7 @@ type ConversationConversation struct {
 	Version               int32
 	CreatedAt             time.Time
 	UpdatedAt             time.Time
+	CreatedCustomer       bool
 }
 
 type ConversationConversationAssignment struct {
@@ -741,6 +742,7 @@ type ConversationMessageRevision struct {
 	Removed    pgtype.Bool
 	Source     string
 	RecordedAt time.Time
+	Reason     pgtype.Text
 }
 
 type ConversationPageSetting struct {
@@ -769,6 +771,7 @@ type ConversationPost struct {
 	Snippet          pgtype.Text
 	CreatedTime      pgtype.Timestamptz
 	FetchedAt        pgtype.Timestamptz
+	ImageFileID      *uuid.UUID
 }
 
 type ConversationPresence struct {

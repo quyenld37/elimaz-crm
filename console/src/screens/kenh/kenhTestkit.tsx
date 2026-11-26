@@ -5,6 +5,7 @@ import type {
   ConversationTag,
   Grant,
   OrderSettings,
+  PagePost,
   PageSettings,
   ReplyTemplate,
   TrafficSource,
@@ -112,6 +113,8 @@ export interface KenhFake extends WriteQueue {
   templates: ReplyTemplate[];
   sources: TrafficSource[];
   orderSettings: OrderSettings;
+  /** Bài của Page (listPagePosts, Task 501): trang 1 là 2 bài đầu, trang 2 phần còn lại (con trỏ "c2"). */
+  posts: PagePost[];
   /** GET đã nhận (đường + tham số), theo thứ tự. */
   reads: string[];
 }
@@ -149,6 +152,11 @@ export function newFake(): KenhFake {
       returnWarningDays: 7,
       version: 1,
     },
+    posts: [
+      { id: "bp1", externalId: "p_size", kind: "post", snippet: "Bài ghim: bảng size" },
+      { id: "bp2", externalId: "p_game", kind: "post", snippet: "Minigame tháng 11" },
+      { id: "bp3", externalId: "p_cu", kind: "post" },
+    ],
     reads: [],
   };
 }
@@ -163,6 +171,10 @@ export function stubKenh(fake: KenhFake = newFake()): KenhFake {
       if (path === "/api/v1/channels") return reply({ items: f.channels });
       if (path.endsWith("/page-settings")) return reply(f.settings);
       if (path.endsWith("/automation-rules")) return reply({ items: f.rules });
+      if (path.endsWith("/posts"))
+        return q.get("cursor") === "c2"
+          ? reply({ items: f.posts.slice(2) })
+          : reply({ items: f.posts.slice(0, 2), ...(f.posts.length > 2 ? { nextCursor: "c2" } : {}) });
       if (path.endsWith("/assignable-users")) return reply({ items: [{ id: U1, name: "Trần Minh An" }] });
       if (path === "/api/v1/conversation-tags") return reply({ items: f.tags });
       if (path === "/api/v1/reply-templates") return reply({ items: f.templates });

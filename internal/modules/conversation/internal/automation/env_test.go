@@ -221,6 +221,17 @@ func (e *env) run(id string) (outcome string, rows, jobs int) {
 	return outcome, rows, jobs
 }
 
+// hideReason là lý do (cột reason) của dòng lịch sử tự ẩn của comment id ("" khi NULL hay không có dòng).
+func (e *env) hideReason(id string) (reason string) {
+	e.t.Helper()
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(e.t.Context(), `SELECT coalesce(max(r.reason), '') FROM conversation.message_revisions r
+			JOIN conversation.messages m ON m.id = r.message_id WHERE m.external_id = $1 AND r.source = 'automation'`, id).
+			Scan(&reason)
+	})
+	return reason
+}
+
 // hiddenInCRM: cờ is_hidden của comment id và số dòng lịch sử nguồn automation.
 func (e *env) hiddenInCRM(id string) (hidden bool, autoRevisions int) {
 	e.t.Helper()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -164,6 +165,9 @@ func customerConversationOut(c conversation.CustomerConversation, names map[uuid
 		Customer: gen.ChatCustomerRef{ID: c.CustomerID, Name: c.CustomerName}, Tags: make([]gen.ConversationTag, 0, len(c.Tags)),
 		UnreadCount: c.UnreadCount, LastMessageAt: c.LastMessageAt, HasOpenDraft: c.HasOpenDraft, Version: c.Version,
 	}
+	if c.NewLead {
+		out.NewLead = gen.NewOptBool(true)
+	}
 	if c.AssigneeID != nil {
 		out.Assignee = gen.NewOptActor(gen.Actor{ID: *c.AssigneeID, Name: names[*c.AssigneeID]})
 	}
@@ -177,6 +181,15 @@ func customerConversationOut(c conversation.CustomerConversation, names map[uuid
 		post := gen.ChatPostRef{ID: *c.PostID}
 		if c.PostSnippet != "" {
 			post.Snippet = gen.NewOptString(c.PostSnippet)
+		}
+		if c.PostPostedAt != nil {
+			post.PostedAt = gen.NewOptDateTime(*c.PostPostedAt)
+		}
+		if u, err := url.Parse(c.PostPermalink); c.PostPermalink != "" && err == nil {
+			post.Permalink = gen.NewOptURI(*u)
+		}
+		if c.PostImageFileID != nil {
+			post.ImageFileId = gen.NewOptUUID(*c.PostImageFileID)
 		}
 		out.Post = gen.NewOptChatPostRef(post)
 	}

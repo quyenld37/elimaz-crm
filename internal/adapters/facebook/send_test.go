@@ -37,7 +37,8 @@ func newOutEnv(t *testing.T) outEnv {
 	fg.AddProfile(fakegraph.Profile{PSID: testPSID, FirstName: "Lan", LastName: "Nguyễn", ProfilePic: "https://scontent.fbcdn.net/p.jpg"})
 	fg.AddPost(fakegraph.Post{
 		ID: testPostID, PageID: testPageID, Message: "Áo thun mới về", PermalinkURL: "https://www.facebook.com/" + testPostID,
-		Created: time.Date(2026, 11, 19, 8, 0, 0, 0, time.UTC),
+		PictureURL: "https://scontent.fbcdn.net/post.jpg",
+		Created:    time.Date(2026, 11, 19, 8, 0, 0, 0, time.UTC),
 	})
 	fg.AddComment(fakegraph.Comment{
 		ID: testCommentID, ParentID: testPostID, FromID: testPSID, FromName: "Lan", Message: "Chốt 1 áo",

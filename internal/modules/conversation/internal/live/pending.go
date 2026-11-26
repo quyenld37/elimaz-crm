@@ -40,9 +40,12 @@ type CanRemind struct {
 
 // PendingRow là một đơn còn nháp của phiên: đơn, khách, dòng, tổng, hạn nháp, ghi nhận chính (người chốt, lúc chốt,
 // kết quả xin địa chỉ — Reason là lý do bỏ, hay lý do tin xin địa chỉ không tới khách), khách đã nhắn vào hộp thư sau lúc
-// chốt, xét nhắc lúc này.
+// chốt, xét nhắc lúc này. ConversationID là hội thoại comment của ghi nhận chính; InboxConversationID là hộp thư của
+// khách trên Page (send.InboxFor; nil: chưa có) — màn mở hội thoại để hoàn tất (Task 501).
 type PendingRow struct {
 	OrderID                 uuid.UUID
+	ConversationID          uuid.UUID
+	InboxConversationID     *uuid.UUID
 	OrderCode               string
 	CustomerID              uuid.UUID
 	CustomerName            string
@@ -111,7 +114,7 @@ func Pending(ctx context.Context, tx pgx.Tx, reg *channel.Registry, u identity.A
 func pendingRow(ctx context.Context, tx pgx.Tx, reg *channel.Registry, r store.PendingDraftsOfSessionRow, now time.Time,
 ) (PendingRow, error) {
 	p := PendingRow{
-		OrderID: r.OrderID, OrderCode: r.Code, CustomerID: r.CustomerID, CustomerName: r.CustomerName, Items: []DraftItem{},
+		OrderID: r.OrderID, ConversationID: r.ConversationID, OrderCode: r.Code, CustomerID: r.CustomerID, CustomerName: r.CustomerName, Items: []DraftItem{},
 		GrandTotal: r.GrandTotal, ClaimedBy: r.ClaimedBy, ClaimedByName: r.ClaimedByName, ClaimedAt: r.ClaimedAt.UTC(),
 		Ask: Ask{Status: r.AskStatus, Reason: r.AskReason.String}, CustomerRepliedAfterAsk: r.RepliedAfter,
 	}
@@ -122,13 +125,16 @@ func pendingRow(ctx context.Context, tx pgx.Tx, reg *channel.Registry, r store.P
 	if r.AskSendStatus == sendFailed || r.AskSendStatus == sendExpired {
 		p.Ask.Reason = send.FailReasonText(r.AskFailReason)
 	}
-	if why := remindedRecently(r.LastRemindedAt, now); why != "" {
-		p.CanRemind = CanRemind{Reason: why}
-		return p, nil
-	}
 	inbox, err := send.InboxFor(ctx, tx, r.ConversationID)
 	if err != nil {
 		return PendingRow{}, err //nolint:wrapcheck // send đã bọc việc đang làm
+	}
+	if inbox != uuid.Nil {
+		p.InboxConversationID = &inbox
+	}
+	if why := remindedRecently(r.LastRemindedAt, now); why != "" {
+		p.CanRemind = CanRemind{Reason: why}
+		return p, nil
 	}
 	ok, why, err := send.RemindCheck(ctx, tx, reg, r.MessageID, inbox, now)
 	if err != nil {

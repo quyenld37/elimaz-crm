@@ -25,6 +25,8 @@ export interface CustomerCardProps {
   canWriteCustomer: boolean;
   /** Hội thoại của thẻ (tải lại thẻ sau khi đổi cờ); không có thì không tải lại. */
   conversationId?: string;
+  /** Khách tiềm năng mới (CH08, ConversationSummary.newLead, Task 501): chip trước nhãn khách. */
+  newLead?: boolean;
 }
 
 const STATUS_BY_KEY: ReadonlyMap<string, string> = new Map(Object.entries(STATUS_TEXT));
@@ -43,7 +45,7 @@ function Stat({ name, value, bad = false }: { name: string; value: string; bad?:
   );
 }
 
-export function CustomerCard({ card, profile, canWriteCustomer, conversationId }: CustomerCardProps) {
+export function CustomerCard({ card, profile, canWriteCustomer, conversationId, newLead = false }: CustomerCardProps) {
   const qc = useQueryClient();
   const c = card.customer;
   const phone = c.phones?.[0];
@@ -82,8 +84,9 @@ export function CustomerCard({ card, profile, canWriteCustomer, conversationId }
             </Link>
           )}
         </div>
-        {tags.length > 0 && (
+        {(tags.length > 0 || newLead) && (
           <div className="lbs">
+            {newLead && <span className="chip">Khách tiềm năng mới</span>}
             {tags.map((t) => (
               <span key={t.tag.id} className={tagChip(t.tag.color)}>
                 {t.tag.name}

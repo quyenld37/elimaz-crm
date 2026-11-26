@@ -300,3 +300,20 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* Chọn bài của quy tắc tự động (Task 501) */
+.chat-set .post-pick {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.chat-set .post-pick li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  align-items: center;
+}

@@ -211,7 +211,8 @@ func scanRow(r pgx.CollectableRow) (Row, error) {
 	return out, nil
 }
 
-// enrich điền tên khách, người phụ trách, đoạn bài viết, nhãn còn sống và cờ có đơn nháp cho các dòng.
+// enrich điền tên khách, người phụ trách, thẻ bài viết, nhãn còn sống, cờ có đơn nháp và khách tiềm năng mới cho các
+// dòng.
 func enrich(ctx context.Context, tx pgx.Tx, rows []Row) error {
 	if len(rows) == 0 {
 		return nil
@@ -242,8 +243,9 @@ func enrich(ctx context.Context, tx pgx.Tx, rows []Row) error {
 	for i := range rows {
 		r := &rows[i]
 		x := byID[r.ID]
-		r.CustomerName, r.AssigneeName, r.PostSnippet, r.HasOpenDraft = x.CustomerName, x.AssigneeName,
-			x.PostSnippet.String, x.HasOpenDraft
+		r.CustomerName, r.AssigneeName, r.PostSnippet, r.HasOpenDraft, r.NewLead = x.CustomerName, x.AssigneeName,
+			x.PostSnippet.String, x.HasOpenDraft, x.NewLead
+		r.SetPostCard(x.PostCreatedTime, x.PostPermalink, x.PostImageFileID)
 		r.Tags = byConv[r.ID]
 		if r.Tags == nil {
 			r.Tags = []calls.Tag{}

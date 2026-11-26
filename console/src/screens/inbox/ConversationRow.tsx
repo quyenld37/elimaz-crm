@@ -1,5 +1,6 @@
 // Một dòng hội thoại (mockup docs/mockups/m4/inbox.html .cv; HV05): chữ cái đầu, tên (cắt một dòng), giờ, số chưa đọc
-// (99+), đoạn tin cuối; tin nhắn ghi "Page · Tin nhắn", comment có chip "Comment" và tên bài; nhãn tối đa 3 rồi +n;
+// (99+), đoạn tin cuối; tin nhắn ghi "Page · Tin nhắn", comment có chip "Comment" và tên bài; chip "Khách tiềm năng
+// mới" (CH08, newLead, Task 501) trước nhãn; nhãn tối đa 3 rồi +n;
 // cuối dòng trạng thái (khi khác Đang mở) và người phụ trách. Mọi chữ của khách là văn bản thuần (04 mục 13); ảnh đại
 // diện Facebook (máy chủ ngoài) không nạp.
 import { Link } from "react-router";
@@ -39,6 +40,7 @@ export function ConversationRow({
   const cls = ["cv", fresh ? "is-new" : "", row.unreadCount > 0 ? "is-unread" : ""].filter((c) => c !== "").join(" ");
   const tagLine = (
     <>
+      {row.newLead === true && <span className="chip">Khách tiềm năng mới</span>}
       {tags.shown.map((t) => (
         <span key={t.id} className={tagClass(t.color)}>
           {t.name}

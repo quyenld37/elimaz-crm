@@ -45,7 +45,7 @@ func autoHide(ctx context.Context, tx pgx.Tx, d deps.Deps, msgID uuid.UUID, t Tr
 	}
 	t.ExternalRef, t.SubjectRef = "hide:"+t.CommentExternalID, t.ConversationID.String()
 	_, err = Run(ctx, tx, d, rule, t, func(ctx context.Context, tx pgx.Tx) (uuid.UUID, error) {
-		return enqueueHide(ctx, tx, d, t.Account.TenantID, msgID)
+		return enqueueHide(ctx, tx, d, t.Account.TenantID, msgID, c.reason())
 	})
 	return err
 }
@@ -64,15 +64,30 @@ func (c HideConfig) hides(t Trigger) bool {
 	return false
 }
 
-// hidePayload là payload của lệnh ẩn tự động: chỉ mã tin (không nội dung).
-type hidePayload struct {
-	MessageID uuid.UUID `json:"messageId"`
+// Lý do tự ẩn ghi vào dòng lịch sử (message_revisions.reason, Task 501).
+const (
+	hideReasonPhone = "phone"
+	hideReasonAll   = "all"
+)
+
+// reason là lý do tự ẩn theo chế độ của c (gọi khi c.hides đã đúng): all → hideReasonAll, phone_only → hideReasonPhone.
+func (c HideConfig) reason() string {
+	if c.Mode == HideAll {
+		return hideReasonAll
+	}
+	return hideReasonPhone
 }
 
-// enqueueHide ghi lệnh ẩn tự động comment msgID (chống trùng theo tin).
-func enqueueHide(ctx context.Context, tx pgx.Tx, d deps.Deps, tenant, msgID uuid.UUID) (uuid.UUID, error) {
+// hidePayload là payload của lệnh ẩn tự động: mã tin và lý do (không nội dung). Reason rỗng: lệnh ghi trước Task 501.
+type hidePayload struct {
+	MessageID uuid.UUID `json:"messageId"`
+	Reason    string    `json:"reason,omitempty"`
+}
+
+// enqueueHide ghi lệnh ẩn tự động comment msgID vì reason (chống trùng theo tin).
+func enqueueHide(ctx context.Context, tx pgx.Tx, d deps.Deps, tenant, msgID uuid.UUID, reason string) (uuid.UUID, error) {
 	id, _, err := d.Queue.Enqueue(ctx, tx, HideCommandKind(), queue.NewJob{
-		TenantID: &tenant, Payload: hidePayload{MessageID: msgID}, DedupeKey: "auto_hide:" + msgID.String(),
+		TenantID: &tenant, Payload: hidePayload{MessageID: msgID, Reason: reason}, DedupeKey: "auto_hide:" + msgID.String(),
 	})
 	if err != nil {
 		return uuid.Nil, err //nolint:wrapcheck // queue đã bọc

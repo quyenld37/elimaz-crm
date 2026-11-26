@@ -12,6 +12,10 @@ Loại việc (quy trình mục 3): A
   `CustomerConversation` (`PostCreatedTime`, `PostPermalink`, `PostImageFileID`, `NewLead`), `Message.HiddenReason`,
   `PendingRow.ConversationID/InboxConversationID`, `FollowUpItem.LastStaffSnippet`, `PurposeChatPostImage` (thêm trường, mọi chỗ dựng kiểu bằng tên
   trường — không gãy). `channel.PostInfo.PictureURL` (thêm trường; 1 adapter thật `facebook`, `fakegraph` trong test).
+- Hành vi đổi trong hàm có sẵn: `hideCommand.OnDone` ghi dòng lịch sử automation kèm lý do cả khi comment đã ẩn sẵn
+  (Quyết định 3); `pendingRow` gọi `send.InboxFor` cho mọi dòng (trước đây chỉ khi chưa nhắc gần đây) để trả
+  `inboxConversationId` — thêm một câu đọc mỗi dòng, kết quả xét nhắc không đổi; `inbound.OnNewCustomer` đánh dấu
+  `created_customer`; `conversation.AttachmentURL` ký ảnh bài, ảnh bài mở trong trình duyệt.
 - Gói phụ thuộc ngược (go list): `modules/conversation` ← `httpapi`, `cmd/crm`; `modules/channel` ← conversation,
   adapters/facebook, httpapi, cmd/crm, testkit; gói nội bộ chạm: `conversation/internal/{query,live,inbound,automation,
   calls}`, `adapters/facebook`, `testkit/fakegraph`.
@@ -29,7 +33,8 @@ Loại việc (quy trình mục 3): A
   `image_file_id uuid`; `conversation.conversations` + `created_customer boolean NOT NULL DEFAULT false`;
   `conversation.message_revisions` + `reason text` (CHECK phone|all); một dòng `platform.file_purposes`
   (`chat_post_image`). Câu sqlc đổi: `ConversationRowExtras`, `ListChatMessagesBefore/After`, `ListFollowUpCandidates`
-  (thêm cột), `ConversationHasFile` (thêm ảnh bài), `PendingDraftsOfSession` (không đổi), mới `ListPagePosts`,
+  (thêm cột), `ConversationHasFile` (thêm ảnh bài), `GetConversationRow` (chi tiết) và `ListGroupConversations` (hội thoại của khách)
+  thêm cột thẻ bài và `new_lead`, `PendingDraftsOfSession` (không đổi), mới `ListPagePosts`,
   `SetPostImage`, `MarkConversationCreatedCustomer`, `InsertRevisionState` thêm `reason`.
 - Test sẽ chạy: `-run` từng test mới trong `internal/httpapi` (createOrder lệch khách, listPagePosts, trường mới),
   `internal/modules/conversation/...` (query, live, inbound, automation), `internal/adapters/facebook`; console vitest
@@ -125,6 +130,7 @@ Loại việc (quy trình mục 3): A
 | 3b: `PendingDraft.conversationId`, `inboxConversationId` (chưa có hộp thư → không có) | `TestLivePendingAPI_ConversationIDs`, `TestLivePendingAPI_CompleteAndRemind`; vitest `PendingDraftsPage.test.tsx` (mở hộp thư / mở comment) | `go test -count=1 -run '^(TestLivePendingAPI_CompleteAndRemind\|TestLivePendingAPI_ConversationIDs)$' ./internal/httpapi/`; `npx vitest run src/screens/live/` | đỏ trước (`conversationId:00000000-0000…`), sau `ok … 1.235s`; vitest `41 passed` |
 | 3c: lý do ẩn — dòng tự ẩn ghi phone/all; `hiddenReason` đủ 5 giá trị + rỗng, ưu tiên automation hơn page_external, tính sau lần hiện cuối | `TestAutoHide_PhoneOnly`, `TestAutoHide_AllExceptAndOff` (chạy cả 7 test `TestAutoHide_*`), `TestMessages_HiddenReason`, `TestMessages_Flags`; vitest `PostCard.test.tsx` "lý do ẩn comment" | `go test -count=1 -run '^(TestAutoHide_.*)$' ./internal/modules/conversation/internal/automation/`; `go test -count=1 -run '^(TestMessages_HiddenReason\|TestMessages_Flags)$' ./internal/modules/conversation/internal/query/` | đỏ trước (biên dịch: chưa có `HiddenReason`, `hideReason`), sau `ok … 1.655s`, `ok … 0.861s`; vitest `3 passed` |
 | 3d: ảnh bài — adapter đọc `full_picture`; lệnh đọc bài lưu ảnh (bài không ảnh, tệp không phải ảnh, tải lỗi → NULL, không dead); dòng tệp `chat_post_image` ready | `TestFetchProfileAndPost`, `TestFetchPostStoresPicture`, `TestFetchPostMissingAndLookup`, `TestCommentAddCreatesPostConversationMessage`, `TestFetchProfile.*`, `TestFilePurposes_MatchTable` | `go test -count=1 -run '^TestFetchProfileAndPost$' ./internal/adapters/facebook/`; `go test -count=1 -run '^(TestFetchPostStoresPicture\|TestFetchPostMissingAndLookup\|TestCommentAddCreatesPostConversationMessage\|TestFetchProfile.*)$' ./internal/modules/conversation/internal/inbound/`; `go test -count=1 -run '^TestFilePurposes_MatchTable$' ./internal/modules/conversation/` | đỏ trước (`ảnh bài = map[…:<nil> …]`), sau `ok … 0.531s`, `ok … 1.012s`, `ok … 0.858s` |
+| 3d: ảnh bài qua `getAttachmentUrl` — hội thoại comment trên bài, người đọc Page → 200, bucket private, không attachment; cùng tệp qua comment bài khác, hộp thư, người đọc Page khác → 404 (sau reviewer vòng 1) | `TestGetAttachmentURL_PostImage`, `TestGetAttachmentURL` | `go test -count=1 -run '^(TestGetAttachmentURL_PostImage\|TestGetAttachmentURL)$' ./internal/httpapi/` | `ok … 2.003s`; đảo tạm nhánh inline trong `attachments.go` → đỏ (`url …?cd=attachment…`), trả lại → xanh |
 | 3d + việc 4: thẻ bài (giờ đăng, đường dẫn, ảnh) và `newLead` ở danh sách, chi tiết, hội thoại của khách; 5 ca newLead | `TestList_PostCardAndNewLead`, `TestList_Filters`, `TestConversationSummary_PostCardAndNewLead` | `go test -count=1 -run '^(TestList_PostCardAndNewLead\|TestList_Filters)$' ./internal/modules/conversation/internal/query/`; `go test -count=1 -run '^(TestPagePostsAPI\|TestConversationSummary_PostCardAndNewLead)$' ./internal/httpapi/` | đỏ trước (vet: `r.NewLead undefined`), sau `ok … 0.939s`, `ok … 1.316s` |
 | Việc 4: hội thoại tạo khách có `created_customer`, hội thoại sau của cùng khách không | `TestInboundMarksConversationThatCreatedCustomer`, `TestInboundFirstMessageCreatesLeadAndConversation` | `go test -count=1 -run '^(TestInboundMarksConversationThatCreatedCustomer\|TestInboundFirstMessageCreatesLeadAndConversation)$' ./internal/modules/conversation/internal/inbound/` | đỏ trước (`hộp thư false, … người mới false`), sau `ok … 0.805s` |
 | 3e: `listPagePosts` — trang, trường, Page ngoài phạm vi 404, con trỏ sai 400, Page lạ 404; bảng M4 65 operation | `TestPagePostsAPI`, `TestM4Contract_Operations` (tests/arch), `TestM4Contract_*` (httpapi) | cùng lệnh dòng trên; `go test -count=1 -run 'TestM4Contract' ./tests/arch/` và `./internal/httpapi/` | `ok … 1.316s`; `ok … 0.640s`, `ok … 0.998s` |
@@ -134,10 +140,15 @@ Loại việc (quy trình mục 3): A
 | Toàn bộ màn chạm | vitest inbox, live, kenh, len-don, errors; tsc; eslint | `npx vitest run src/screens/inbox src/screens/live src/screens/kenh src/screens/len-don src/app/errors.test.ts`; `npx tsc --noEmit`; `npx eslint <tệp đổi>` | `Test Files 38 passed`, `Tests 564 passed`; tsc, eslint 0 lỗi |
 | Cổng rẻ trước ci | jscpd, golangci-lint, test kiến trúc | `make jscpd`; `golangci-lint run ./internal/modules/conversation/... ./internal/httpapi/ ./internal/adapters/facebook/... ./internal/testkit/fakegraph/... ./internal/modules/channel/... ./tests/arch/`; `go test -count=1 ./tests/arch/` | `Found 0 clones`; `0 issues`; `ok … 81.509s` |
 | Cổng của task (sau gộp m4 ca5dc299) | ci-task (cổng tĩnh + test mọi gói vì đổi testkit) | ci-task.sh của task | `REMOTE-TEST XANH …/runs/45878493769`; `CI-TASK XANH (từ xa trên blacksmith, so với điểm tách nhánh ca5dc299…)` |
+| Cổng của task, lần 2 (sau sửa reviewer vòng 1: test ảnh bài, helper test) | ci-task | ci-task.sh của task | `REMOTE-TEST XANH …/runs/45880633395`; `CI-TASK XANH (từ xa trên blacksmith, so với điểm tách nhánh ca5dc299…)` |
 
 ## Test bị xóa hoặc tắt
 
-(không có)
+- `PendingDraftsPage.test.tsx` — ca "khách đã trả lời → 'Mở hội thoại để hoàn tất' mở hội thoại hộp thư của khách trên
+  Page của phiên" (đọc `listCustomerConversations` rồi lọc) và ca "khách chưa có hội thoại trên Page → báo tại dòng": bỏ
+  vì hành vi tìm hội thoại phía màn bị bỏ (Quyết định 5: máy chủ trả `inboxConversationId`/`conversationId`); thay bằng
+  hai ca "mở hộp thư (inboxConversationId)" và "chưa có hộp thư → mở hội thoại comment (conversationId)". Kèm theo,
+  `liveTestkit.tsx` bỏ trường `conversations` và đường giả `/customers/{id}/conversations` (không còn ai gọi).
 
 ## Khác kế hoạch
 
@@ -146,6 +157,7 @@ Loại việc (quy trình mục 3): A
   `chat_post_image`), `TestM4Contract_Operations` 65 operation, `TestFetchProfileAndPost` đòi thêm `full_picture`,
   `PendingDraftsPage.test.tsx` thay hai ca tìm hội thoại bằng hai ca mở theo mã máy chủ trả, `TestLivePendingAPI_*`
   tách ca mã hội thoại thành test riêng (funlen).
+- `TestGetAttachmentURL` dựng môi trường bằng helper chung `newAttEnv`/`getter` với test mới (jscpd), không đổi assertion.
 - Tách `storeChannelImage` (dùng chung ảnh đại diện và ảnh bài) khỏi `fetchProfile.avatar`; `latestMessagesQuery` dùng
   chung cho dòng tin và gợi ý địa chỉ.
 
@@ -158,9 +170,18 @@ Loại việc (quy trình mục 3): A
 - Bài đã đọc trước Task 501 không có ảnh (lệnh đọc bài chạy một lần mỗi bài): cần một lệnh đọc lại bài cũ nếu muốn ảnh.
 - `listPagePosts` chỉ có bài đã có comment trong CRM; chọn bài chưa có comment (vd bài vừa đăng) cần đọc danh sách bài
   từ Graph (`/{page}/posts`, việc adapter).
+- (Reviewer) Test riêng cho thứ tự "webhook hide tới trước OnDone của lệnh tự ẩn" (lý do vẫn `auto_*`, `editedCount`
+  không tăng); index `conversation.posts (tenant_id, channel_account_id, id)` cho `listPagePosts` khi Page có nhiều bài.
 - Spec Playwright `hoi-thoai.spec.ts`, `inbox.spec.ts` chưa có dữ liệu giả cho trường mới (ảnh bài, newLead, lý do ẩn,
   gợi ý địa chỉ); nên thêm ca khi chạy e2e của mốc.
 
 ## Reviewer
 
-Kết luận: CHƯA REVIEW
+- Commit 1 (fb33c8c0, chỉ cấu trúc: `storeChannelImage`, `latestMessagesQuery`): **ĐẠT**, không có phát hiện phải sửa
+  (reviewer xác nhận thân hàm giống hệt, `fs == nil` giữ nghĩa vì `deps.Files` là interface, khóa/queryFn/meta của
+  truy vấn tin không đổi).
+- Commit 2 (hành vi): vòng 1 **CẦN SỬA**: (1) đường ký ảnh bài qua `getAttachmentUrl` chưa có test máy chủ, (2) mục
+  "Test bị xóa hoặc tắt" chưa ghi tên hai ca bị thay. Đã sửa: thêm `TestGetAttachmentURL_PostImage` (200 + 3 ca 404, đảo
+  tạm mã thấy đỏ), ghi tên ca và lý do. Vòng 2: **ĐẠT**, không còn phát hiện phải sửa. Ghi chú không bắt buộc: chưa có
+  test riêng cho thứ tự "webhook hide tới trước OnDone"; nên có index `(channel_account_id, id)` cho `ListPagePosts` khi
+  số bài lớn (ghi ở Việc phát hiện thêm).

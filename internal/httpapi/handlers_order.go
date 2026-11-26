@@ -103,7 +103,8 @@ func (h *handler) CreateOrder(ctx context.Context, req *gen.CreateOrderRequest, 
 // orderConversationAt gắn đơn sắp tạo vào hội thoại conv (khi có; lên đơn trong khung chat, Task 176, 01 mục 6):
 // conversation.OrderContext kiểm u có conversation.read trên Page của hội thoại (không → conversation.ErrNotFound, 404)
 // và trả Page, người bán của Page. Đơn lưu hội thoại, Page, người bán của Page (ADR-29: hàng người bán khác bị từ chối
-// như M2) và kênh facebook (thay kênh bên gọi gửi).
+// như M2) và kênh facebook (thay kênh bên gọi gửi). Khách của đơn phải cùng nhóm với khách của hội thoại
+// (conversation.CheckOrderCustomer, Task 501; lệch → 422 conversation_customer_mismatch).
 func orderConversationAt(ctx context.Context, tx pgx.Tx, u identity.AuthUser, conv gen.OptUUID, in *order.CreateInput,
 ) error {
 	id, ok := conv.Get()
@@ -113,6 +114,9 @@ func orderConversationAt(ctx context.Context, tx pgx.Tx, u identity.AuthUser, co
 	c, err := conversation.OrderContext(ctx, tx, u, id)
 	if err != nil {
 		return fmt.Errorf("đọc hội thoại của đơn: %w", err)
+	}
+	if err := conversation.CheckOrderCustomer(ctx, tx, c, in.Customer.CustomerID); err != nil {
+		return fmt.Errorf("kiểm khách của đơn từ hội thoại: %w", err)
 	}
 	// M4 chỉ có Page Facebook: đơn từ hội thoại luôn mang kênh facebook (form lên đơn của M2 gửi sẵn manual).
 	in.ConversationID, in.ChannelAccountID, in.SellerID = &c.ConversationID, &c.ChannelAccountID, c.SellerID
@@ -221,7 +225,7 @@ func createOrder(ctx context.Context, tx pgx.Tx, w order.Writer, in order.Create
 // vi của người gọi (errForbiddenTarget, Task 411: được cấp kho rồi gửi lại cùng khóa thì xử lý lại).
 func isOrderRefusal(err error) bool {
 	for _, e := range []error{
-		errForbiddenTarget, conversation.ErrNotFound,
+		errForbiddenTarget, conversation.ErrNotFound, conversation.ErrOrderCustomerMismatch,
 		order.ErrOutOfStock, order.ErrNotForSale, order.ErrMixedSellers, order.ErrTotalOverflow, order.ErrInvalidInput,
 		order.ErrDuplicateOrder, order.ErrVariantNotFound, order.ErrLineDiscountExceeds, order.ErrOrderDiscountExceeds,
 		order.ErrAddressIncomplete, order.ErrTrafficSourceInactive, customer.ErrInvalidInput, customer.ErrNotFound,

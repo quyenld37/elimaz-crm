@@ -8,6 +8,7 @@ import { MemoryRouter } from "react-router";
 import type {
   AssignableUser,
   CallLog,
+  ChatMessage,
   ChatOrderRef,
   ConversationCustomerCard,
   ConversationDetail,
@@ -160,6 +161,8 @@ export interface SideFake extends WriteQueue {
   reminders: Reminder[];
   calls: CallLog[];
   orders: Order[];
+  /** Trang tin mới nhất của hội thoại (gợi ý địa chỉ, Task 501). */
+  messages: ChatMessage[];
   /** Đường của mọi yêu cầu GET đã nhận. */
   reads: string[];
 }
@@ -183,6 +186,7 @@ export function sideFake(p: Partial<SideFake> = {}): SideFake {
     reminders: [],
     calls: [],
     orders: [],
+    messages: [],
     reads: [],
     ...p,
   };
@@ -200,6 +204,8 @@ function readApi(f: SideFake, path: string): Response {
       return reply(f.card);
     case `${base}/order-context`:
       return reply(f.context);
+    case `${base}/messages`:
+      return reply({ items: f.messages, newerCursor: "n" });
     case `/api/v1/customers/${CUST}`:
       return reply(f.profile);
     case `/api/v1/customers/${CUST}/calls`:

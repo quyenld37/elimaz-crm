@@ -150,6 +150,55 @@ describe("hoàn tất đơn nháp từ Live (LV04, HV25)", () => {
     expect(await screen.findByRole("button", { name: 'Gắn nhãn "Đã lên đơn"' })).toBeTruthy();
   });
 
+  it("HV26 (Task 501): tin khách có địa chỉ → OrderForm (lên đơn, hoàn tất nháp) nhận gợi ý 'Lấy địa chỉ từ tin HH:MM'", async () => {
+    const at = new Date(Date.now() - 60_000).toISOString();
+    const hm = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(Date.parse(at));
+    const msg = (body: string, sentAt: string) => ({
+      id: `m-${body}`,
+      conversationId: CONV,
+      direction: "in" as const,
+      kind: "message" as const,
+      origin: "customer" as const,
+      body,
+      attachments: [],
+      isHidden: false,
+      removed: false,
+      editedCount: 0,
+      sentAt,
+    });
+    const open = (messages: ReturnType<typeof msg>[], button: string) => {
+      const f = stubSide(sideFake({ orders: [draftOrder()], messages }));
+      renderSide(
+        <OrderPanel
+          conversationId={CONV}
+          customer={CUSTOMER}
+          drafts={[draftRef]}
+          grants={SALE}
+          pageId={f.detail.page.id}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: button }));
+    };
+    open([msg("12 ngõ 45 Trần Duy Hưng, Cầu Giấy", at), msg("Chị lấy size M", new Date().toISOString())], "Lên đơn");
+    await waitFor(() => {
+      expect(form.props?.addressFromMessage).toEqual({
+        label: `Lấy địa chỉ từ tin ${hm} của khách`,
+        text: "12 ngõ 45 Trần Duy Hưng, Cầu Giấy",
+      });
+    });
+    cleanup();
+    form.props = null;
+    open([msg("Chị lấy size M", at)], "Hoàn tất DH0001238");
+    const p = await props();
+    expect(p.edit?.order.id).toBe(DRAFT);
+    expect(p.addressFromMessage).toBeUndefined();
+  });
+
   it('xác nhận gặp 409 version_conflict → "Có người vừa sửa, tải lại", không tự gửi lại', async () => {
     const { f, p } = await openDraft();
     f.replies.push({ status: 409, body: { error: "version_conflict", request_id: "t" } });

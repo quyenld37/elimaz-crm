@@ -447,6 +447,23 @@ describe("lên đơn cạnh khung chat (M4, Task 176)", () => {
     expect(fake.writes[0]?.body).toMatchObject({ conversationId: CONV, trafficSourceId: S_ZALO });
   });
 
+  it("HV26 (Task 501): addressFromMessage → nút 'Lấy địa chỉ từ tin…' chép nguyên văn vào ô Số nhà, đường (sửa tiếp được)", () => {
+    renderForm({
+      addressFromMessage: { label: "Lấy địa chỉ từ tin 09:14 của khách", text: "12 ngõ 45 Trần Duy Hưng" },
+    });
+    const line = screen.getByRole("textbox", { name: "Số nhà, đường *" });
+    expect((line as HTMLInputElement).value).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: "Lấy địa chỉ từ tin 09:14 của khách" }));
+    expect((line as HTMLInputElement).value).toBe("12 ngõ 45 Trần Duy Hưng");
+    fireEvent.change(line, { target: { value: "12 ngõ 45 Trần Duy Hưng, Trung Hòa" } });
+    expect((line as HTMLInputElement).value).toBe("12 ngõ 45 Trần Duy Hưng, Trung Hòa");
+  });
+
+  it("không có addressFromMessage (màn Lên đơn của M2) → không có nút lấy địa chỉ", () => {
+    renderForm();
+    expect(screen.queryByRole("button", { name: /Lấy địa chỉ từ tin/ })).toBeNull();
+  });
+
   it("không truyền conversationId (màn Lên đơn của M2) → thân không có conversationId", async () => {
     await readyOrder();
     fireEvent.click(confirmBtn());

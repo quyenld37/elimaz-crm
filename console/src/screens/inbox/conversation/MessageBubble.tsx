@@ -12,7 +12,7 @@ import type { ChannelFeatures, ChatMessage } from "../../../api";
 import { shortTime } from "../../../app/time";
 import { AttachmentView } from "./AttachmentView";
 import { CommentActions } from "./CommentActions";
-import { isLong, thousands } from "./conversationRules";
+import { hiddenNote, isLong, thousands } from "./conversationRules";
 import { RevisionsPopover } from "./RevisionsPopover";
 import { SendStatus } from "./SendStatus";
 
@@ -168,7 +168,7 @@ export function MessageBubble({
               <>
                 {" · "}
                 <span className="chip">Đã ẩn trên Page</span>
-                <span>· trên Facebook chỉ người comment và bạn bè họ thấy, CRM vẫn hiện đủ</span>
+                <span>{`· ${hiddenNote(m.hiddenReason)}trên Facebook chỉ người comment và bạn bè họ thấy, CRM vẫn hiện đủ`}</span>
               </>
             )}
             {m.editedCount > 0 && (

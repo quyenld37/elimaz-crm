@@ -222,7 +222,11 @@ func (s *Server) feed(w http.ResponseWriter, pageID string) {
 }
 
 func postJSON(p *Post) map[string]any {
-	return map[string]any{"id": p.ID, "message": p.Message, "permalink_url": p.PermalinkURL, "created_time": p.Created.Format(graphTime)}
+	out := map[string]any{"id": p.ID, "message": p.Message, "permalink_url": p.PermalinkURL, "created_time": p.Created.Format(graphTime)}
+	if p.PictureURL != "" {
+		out["full_picture"] = p.PictureURL
+	}
+	return out
 }
 
 func (s *Server) post(w http.ResponseWriter, id string) {

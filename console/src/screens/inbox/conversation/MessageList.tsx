@@ -9,6 +9,7 @@ import { errorMessage, unwrap } from "../../../app/errors";
 import { useWriteAction } from "../../../app/idempotency";
 import { lastInbound, mergeMessages } from "./conversationRules";
 import { MessageBubble, type BubbleContext } from "./MessageBubble";
+import { PostCard } from "./PostCard";
 import { MESSAGE_PAGE, idem, latestMessagesQuery } from "./messageWrites";
 
 /** Tin cũ hơn đã tải bằng "Xem tin cũ hơn" (trang nối nhau), kèm con trỏ của trang kế. */
@@ -80,17 +81,7 @@ export function MessageList({ ctx, unreadCount, post }: MessageListProps) {
           {errorMessage(older.error)}
         </p>
       )}
-      {post !== undefined && (
-        <div className="post">
-          <span className="thumb" aria-hidden="true">
-            Bài
-          </span>
-          <div className="grow">
-            <b className="ellip">{post.snippet ?? "Bài viết trên Page"}</b>
-            <span className="xs muted">Comment trên bài này</span>
-          </div>
-        </div>
-      )}
+      {post !== undefined && <PostCard conversationId={id} post={post} />}
       {latest.isPending && <p className="muted">Đang tải tin…</p>}
       {latest.isError && (
         <div className="box box-err" role="alert">
