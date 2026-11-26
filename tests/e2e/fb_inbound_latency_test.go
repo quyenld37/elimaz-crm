@@ -1,14 +1,10 @@
 package e2e
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"slices"
-	"sync"
 	"testing"
 	"time"
 
@@ -88,13 +84,7 @@ func newFBLatency(t *testing.T) *fbLatency {
 	}
 	token1, token2 := token("nv1@elimaz.test", page1), token("nv2@elimaz.test", page2)
 
-	logger := slog.New(slog.DiscardHandler)
-	reg := metrics.NewRegistry()
-	evs := events.NewRegistry()
-	runCtx, cancel := context.WithCancel(context.Background())
-	var wg sync.WaitGroup
-	hub := realtime.NewPGHub(realtime.PGHubOptions{URL: appURL, Metrics: reg, Logger: logger})
-	wg.Go(func() { hub.Run(runCtx) })
+	runCtx, logger, reg, evs, hub := startHub(t, appURL)
 	streamStop := make(chan struct{})
 	api := httptest.NewUnstartedServer(httpapi.NewServer(httpapi.Deps{
 		Config: config.Config{ConsoleOrigins: []string{stackOrigin}}, DB: app, Logger: logger, Events: evs,
@@ -116,8 +106,6 @@ func newFBLatency(t *testing.T) *fbLatency {
 		_ = w.Stop(5 * time.Second)
 		ingest.Close()
 		api.Close()
-		cancel()
-		wg.Wait()
 	})
 	waitFor(t, 10*time.Second, "hub LISTEN", func() bool { l, _ := hub.Status(); return l })
 
@@ -171,21 +159,7 @@ func TestFBInboundLatency(t *testing.T) {
 // postFacebookMessage gửi tới ingest ở base một gói Facebook có chữ ký: tin text mid của PSID user tới Page page.
 func postFacebookMessage(t *testing.T, base, page, user, mid string) int {
 	t.Helper()
-	now := time.Now().UnixMilli()
-	body, err := json.Marshal(map[string]any{
-		"object": "page",
-		"entry": []any{map[string]any{
-			"id": page, "time": now,
-			"messaging": []any{map[string]any{
-				"sender": map[string]string{"id": user}, "recipient": map[string]string{"id": page}, "timestamp": now,
-				"message": map[string]string{"mid": mid, "text": "còn hàng không shop"},
-			}},
-		}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return postSigned(t, base+"/hooks/facebook", "X-Hub-Signature-256", body)
+	return postFacebookMessageText(t, base, page, user, mid, "còn hàng không shop")
 }
 
 // nextConversationChanged chờ khung changed conversation.changed kế tiếp trong timeout; trả mã hội thoại.

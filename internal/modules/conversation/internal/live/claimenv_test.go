@@ -195,12 +195,7 @@ func (e *claimEnv) variant(onHand int32) uuid.UUID {
 // available đọc "có thể bán" của biến thể v ở kho MAIN.
 func (e *claimEnv) available(v uuid.UUID) int {
 	e.t.Helper()
-	var n int
-	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
-		return tx.QueryRow(e.t.Context(), `SELECT coalesce(sum(available), 0)::int FROM inventory.stock_available_v
-			WHERE variant_id = $1`, v).Scan(&n)
-	})
-	return n
+	return livetest.Available(e.t, e.staff, e.tenant, v)
 }
 
 // customer tạo khách tên name.
@@ -262,18 +257,7 @@ func (e *claimEnv) drain() {
 
 // privateCalls đếm lần máy Meta giả nhận nhắn riêng comment ext (POST {page}/messages có recipient.comment_id).
 func (e *claimEnv) privateCalls(ext string) int {
-	n := 0
-	for _, c := range e.fg.Calls(claimPageExt + "/messages") {
-		var b struct {
-			Recipient struct {
-				CommentID string `json:"comment_id"`
-			} `json:"recipient"`
-		}
-		if json.Unmarshal(c.Body, &b) == nil && b.Recipient.CommentID == ext {
-			n++
-		}
-	}
-	return n
+	return livetest.PrivateReplies(e.fg, claimPageExt, ext)
 }
 
 // deadlocks đọc số deadlock của database thử.
