@@ -85,6 +85,12 @@ type HistoryFetcher interface {
 	FetchHistory(ctx context.Context, acc ChannelAccount, cred Credentials, userID string, limit int) ([]webhooks.InboundEvent, error)
 }
 
+// CommentPoller (tùy chọn) đọc comment mới hơn since trên các bài gần nhất của Page (đọc comment định kỳ khi webhook
+// feed không về, Q4); khóa chống trùng như webhook. Bên gọi ghi bằng webhooks.EnqueueInbound với via = comment_poll.
+type CommentPoller interface {
+	PollPageComments(ctx context.Context, acc ChannelAccount, cred Credentials, since time.Time) ([]webhooks.InboundEvent, error)
+}
+
 // AttachmentDownloader (tùy chọn) tải tệp đính kèm, chỉ từ máy chủ của kênh, tối đa max byte.
 type AttachmentDownloader interface {
 	Download(ctx context.Context, rawURL string, maxBytes int64) (io.ReadCloser, DownloadInfo, error)

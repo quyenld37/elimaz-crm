@@ -212,6 +212,37 @@ func TestBackfill(t *testing.T) {
 	}
 }
 
+// Đọc comment định kỳ (Q4): đúng một lời gọi feed (không gọi hội thoại), comment sau since thành comment.changed khóa
+// như webhook, comment không sau since bị bỏ; lỗi Graph → trả lỗi.
+func TestPollPageComments(t *testing.T) {
+	t.Parallel()
+	since := time.Date(2026, 11, 20, 9, 0, 0, 0, time.UTC)
+	ts := func(d time.Duration) string { return since.Add(d).Format("2006-01-02T15:04:05-0700") }
+	cg := newCannedGraph(t, map[string]func(map[string][]string) string{
+		testPageID + "/feed": func(map[string][]string) string {
+			return `{"data":[{"id":"` + testPostID + `","comments":{"data":[{"id":"c_new","message":"Chốt","created_time":"` +
+				ts(time.Minute) + `","from":{"id":"7003","name":"Mai"}},{"id":"c_old","message":"cũ","created_time":"` +
+				ts(0) + `","from":{"id":"7004"}}]}}]}`
+		},
+	})
+	evs, err := cg.channel().PollPageComments(t.Context(), outAccount(), outCred(), since)
+	if err != nil {
+		t.Fatalf("PollPageComments: %v", err)
+	}
+	if len(cg.queries(testPageID+"/conversations")) != 0 || len(cg.queries(testPageID+"/feed")) != 1 {
+		t.Errorf("lời gọi: hội thoại %d, feed %d; muốn 0, 1", len(cg.queries(testPageID+"/conversations")), len(cg.queries(testPageID+"/feed")))
+	}
+	if len(evs) != 1 || evs[0].Type != channel.EventCommentChanged || evs[0].DedupeKey != "c:c_new:add:"+textKey("Chốt") ||
+		evs[0].OrderKey != "fbc:"+testPageID+":"+testPostID+":7003" {
+		t.Fatalf("sự kiện = %+v", evs)
+	}
+	e := newOutEnv(t)
+	e.fg.RevokeToken(testToken)
+	if _, err := e.ch.PollPageComments(t.Context(), e.acc, e.cred, since); e.ch.ClassifyError(err) != channel.ErrorAuth {
+		t.Errorf("token thu hồi: %v", err)
+	}
+}
+
 // Backfill gặp lỗi Graph → trả lỗi một lần rồi dừng.
 func TestBackfill_Error(t *testing.T) {
 	t.Parallel()

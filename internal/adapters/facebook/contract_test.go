@@ -21,6 +21,7 @@ var (
 	_ channel.HistoryFetcher       = (*facebook.Channel)(nil)
 	_ channel.AttachmentDownloader = (*facebook.Channel)(nil)
 	_ channel.Connector            = (*facebook.Channel)(nil)
+	_ channel.CommentPoller        = (*facebook.Channel)(nil)
 )
 
 // fbHarness là Harness của channeltest cho adapter Facebook: fixture webhook của Task 147, máy Meta giả cho Send.

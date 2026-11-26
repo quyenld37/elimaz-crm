@@ -12,6 +12,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/adapters/cfaccess/cfaccesstest"
 	"elimaz.com.vn/crm/internal/modules/channel"
+	"elimaz.com.vn/crm/internal/modules/channel/channeltest"
 	"elimaz.com.vn/crm/internal/platform/fieldcrypt"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
@@ -56,6 +57,11 @@ func newChAPIEnv(t *testing.T) *chAPIEnv {
 	})
 	d := testServerDeps(t, e.staff, e.keys, 0)
 	d.Realtime = e.bus
+	reg, err := channel.NewRegistry(channeltest.NewConnectorAdapter("facebook"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.Channels = reg
 	e.srv = NewServer(d)
 	return e
 }
@@ -153,4 +159,67 @@ func TestChannelAPI_SetHumanAgent(t *testing.T) {
 	if n := e.staff.CountIn(t, e.tenant, `SELECT count(*) FROM platform.jobs WHERE kind = $1`, channel.SendModeAlertKind); n != 0 {
 		t.Fatalf("lệnh cảnh báo = %d", n)
 	}
+}
+
+// Danh sách kênh có features theo adapter của kênh (chủ shop 26/11): Page facebook (adapter giả: comment, nhắn riêng, ẩn
+// comment) có đủ 7 cờ, messages luôn đúng; Page của kênh không có adapter ở tiến trình → không có features.
+func TestChannelAPI_ListFeatures(t *testing.T) {
+	t.Parallel()
+	e := newChAPIEnv(t)
+	_, items, body := e.list(chOwner)
+	byID := map[string]map[string]any{}
+	for _, it := range items {
+		m, _ := it.(map[string]any)
+		id, _ := m["id"].(string)
+		byID[id] = m
+	}
+	f, ok := byID[e.pageB.String()]["features"].(map[string]any)
+	want := map[string]any{
+		"messages": true, "comments": true, "liveComments": false, "privateReply": true,
+		"hideComment": true, "quickReplies": false, "humanAgent": false,
+	}
+	if !ok || len(f) != len(want) {
+		t.Fatalf("features Page B = %v: %s", f, body)
+	}
+	for k, v := range want {
+		if f[k] != v {
+			t.Errorf("features[%s] = %v, muốn %v", k, f[k], v)
+		}
+	}
+	if _, has := byID[e.pageA.String()]["features"]; has {
+		t.Errorf("Page kênh không có adapter mà có features: %v", byID[e.pageA.String()])
+	}
+}
+
+// Kiểm ngay (POST /channels/{id}/health-check): thiếu channel.manage → 403; owner → 202 trả tài khoản, đúng một lệnh
+// command.fb.health_check (payload không token); gửi lại cùng khóa → Idempotent-Replayed, không thêm lệnh; khóa mới →
+// thêm một lệnh; Page không có (hay của shop khác) → 404.
+func TestChannelAPI_HealthCheck(t *testing.T) {
+	t.Parallel()
+	e := newChAPIEnv(t)
+	path := "/api/v1/channels/" + e.pageB.String() + "/health-check"
+	expect(t, "sale", serveAs(e.srv, e.keys, http.MethodPost, path, chReaderA, "h0", ""), http.StatusForbidden, "forbidden")
+	rec := serveAs(e.srv, e.keys, http.MethodPost, path, chOwner, "h1", "")
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("owner: %d %s", rec.Code, rec.Body.String())
+	}
+	if got := decodeJSON(t, rec); got["id"] != e.pageB.String() || strings.Contains(rec.Body.String(), "EAAB") {
+		t.Fatalf("kết quả = %v", got)
+	}
+	again := serveAs(e.srv, e.keys, http.MethodPost, path, chOwner, "h1", "")
+	if again.Code != http.StatusAccepted || again.Header().Get("Idempotent-Replayed") != "true" {
+		t.Fatalf("gửi lại: %d %v", again.Code, again.Header())
+	}
+	count := func() int {
+		return e.staff.CountIn(t, e.tenant, `SELECT count(*) FROM platform.jobs WHERE kind = $1 AND payload->>'accountId' = $2
+			AND position('EAAB' IN payload::text) = 0`, channel.HealthCheckKind, e.pageB.String())
+	}
+	if n := count(); n != 1 {
+		t.Fatalf("lệnh kiểm = %d, muốn 1", n)
+	}
+	if rec := serveAs(e.srv, e.keys, http.MethodPost, path, chOwner, "h2", ""); rec.Code != http.StatusAccepted || count() != 2 {
+		t.Fatalf("khóa mới: %d, %d lệnh", rec.Code, count())
+	}
+	expect(t, "Page không có", serveAs(e.srv, e.keys, http.MethodPost, "/api/v1/channels/"+uuid.NewString()+"/health-check",
+		chOwner, "h3", ""), http.StatusNotFound, "not_found")
 }

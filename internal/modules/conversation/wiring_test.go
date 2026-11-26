@@ -8,8 +8,9 @@ import (
 	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
-// Phần chạy nền đã có: lịch conversation.presence_cleanup (Task 163) và conversation.reminders (Task 169), mỗi lịch
-// theo tenant, 60 s, đúng một handler cùng Kind; các phần khác còn rỗng; hàm gom không có phần tử nil.
+// Phần chạy nền đã có: lịch conversation.presence_cleanup (Task 163), conversation.reminders (Task 169) mỗi 60 s và
+// channel.comment_poll (Task 150, đọc comment định kỳ) mỗi 30 s, theo tenant, đúng một handler cùng Kind; các phần khác
+// còn rỗng; hàm gom không có phần tử nil.
 func TestWiring(t *testing.T) {
 	t.Parallel()
 	d := conversation.Deps{}
@@ -17,12 +18,16 @@ func TestWiring(t *testing.T) {
 		t.Errorf("chưa phần nào có handler vào, lệnh, luồng nền; có %d", n)
 	}
 	s, j := conversation.Schedules(d), conversation.JobHandlers(d)
-	want := []string{conversation.PresenceCleanupSchedule, "conversation.reminders"}
+	want := []string{conversation.PresenceCleanupSchedule, "conversation.reminders", "channel.comment_poll"}
 	if len(s) != len(want) || len(j) != len(want) {
 		t.Fatalf("lịch %+v, việc %d", s, len(j))
 	}
 	for i, name := range want {
-		if s[i].Name != name || !s[i].PerTenant || s[i].Every != time.Minute || j[i].Kind().Name != s[i].Kind.Name {
+		every := time.Minute
+		if name == "channel.comment_poll" {
+			every = 30 * time.Second
+		}
+		if s[i].Name != name || !s[i].PerTenant || s[i].Every != every || j[i].Kind().Name != s[i].Kind.Name {
 			t.Errorf("lịch %d = %+v, việc %q; muốn %s", i, s[i], j[i].Kind().Name, name)
 		}
 	}

@@ -455,6 +455,26 @@ func (q *Queries) SetSubscribedFields(ctx context.Context, arg SetSubscribedFiel
 	return result.RowsAffected(), nil
 }
 
+const setTokenChecked = `-- name: SetTokenChecked :execrows
+UPDATE channel.channel_accounts
+SET token_checked_at = $1, updated_at = now()
+WHERE id = $2
+`
+
+type SetTokenCheckedParams struct {
+	CheckedAt *time.Time
+	ID        uuid.UUID
+}
+
+// Mốc kiểm sức khỏe gần nhất (Task 150); không tăng version.
+func (q *Queries) SetTokenChecked(ctx context.Context, arg SetTokenCheckedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setTokenChecked, arg.CheckedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const upsertAccount = `-- name: UpsertAccount :one
 INSERT INTO channel.channel_accounts (tenant_id, seller_id, channel, external_id, name)
 VALUES ($1, $2, $3, $4, $5)

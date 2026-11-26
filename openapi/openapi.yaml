@@ -16556,6 +16556,31 @@ components:
         version:
           type: integer
           format: int32
+        features:
+          $ref: "#/components/schemas/ChannelFeatures"
+    ChannelFeatures:
+      type: object
+      description: 'Tính năng kênh hỗ trợ (theo adapter của kênh; chủ shop 26/11): màn hình ẩn phần kênh không có'
+      required: [messages, comments, liveComments, privateReply, hideComment, quickReplies, humanAgent]
+      properties:
+        messages:
+          type: boolean
+          description: Tin nhắn hộp thư
+        comments:
+          type: boolean
+        liveComments:
+          type: boolean
+        privateReply:
+          type: boolean
+          description: Nhắn riêng người comment
+        hideComment:
+          type: boolean
+        quickReplies:
+          type: boolean
+          description: Nút trả lời nhanh
+        humanAgent:
+          type: boolean
+          description: Thẻ nhân viên (Human Agent)
     ChannelAccountList:
       type: object
       required: [items]

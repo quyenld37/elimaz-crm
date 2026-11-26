@@ -3,11 +3,14 @@ package channeltest
 import (
 	"context"
 	"errors"
+	"iter"
 	"slices"
 	"sync"
+	"time"
 
 	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/platform/logging"
+	"elimaz.com.vn/crm/internal/platform/webhooks"
 )
 
 // Lỗi mẫu của ConnectorAdapter, mỗi lỗi một lớp ClassifyError (test giả lập lỗi của Graph khi kết nối Page).
@@ -26,6 +29,8 @@ const (
 	OpSubscribe   = "subscribe"
 	OpUnsubscribe = "unsubscribe"
 	OpHealth      = "health"
+	OpBackfill    = "backfill"
+	OpCommentPoll = "comment_poll"
 )
 
 // FakePage là một Page token thấy được: Token là token Page Meta trả khi xin bằng token đó.
@@ -38,6 +43,8 @@ type FakePage struct {
 type Call struct {
 	Op, PageID, Token string
 	Fields            []string
+	// Since là mốc đọc của OpBackfill, OpCommentPoll.
+	Since time.Time
 }
 
 // ConnectorAdapter là adapter kênh giả có channel.Connector (đổi mã đăng nhập, liệt kê Page, lấy token Page, đăng ký và
@@ -50,11 +57,13 @@ type ConnectorAdapter struct {
 	key string
 
 	mu         sync.Mutex
-	codes      map[string]string              // mã đăng nhập → token người dùng
-	pages      map[string]map[string]FakePage // token → mã Page → Page
-	revoked    map[string]bool                // token đã thu hồi
-	subscribed map[string][]string            // mã Page → trường đã đăng ký
-	failNext   map[string][]error             // thao tác → lỗi lần gọi tới
+	codes      map[string]string                  // mã đăng nhập → token người dùng
+	pages      map[string]map[string]FakePage     // token → mã Page → Page
+	revoked    map[string]bool                    // token đã thu hồi
+	subscribed map[string][]string                // mã Page → trường đã đăng ký
+	failNext   map[string][]error                 // thao tác → lỗi lần gọi tới
+	backfill   map[string][]webhooks.InboundEvent // mã Page → sự kiện Backfill trả
+	comments   map[string][]webhooks.InboundEvent // mã Page → sự kiện PollPageComments trả
 	calls      []Call
 }
 
@@ -62,7 +71,8 @@ type ConnectorAdapter struct {
 func NewConnectorAdapter(key string) *ConnectorAdapter {
 	return &ConnectorAdapter{
 		key: key, codes: map[string]string{}, pages: map[string]map[string]FakePage{}, revoked: map[string]bool{},
-		subscribed: map[string][]string{}, failNext: map[string][]error{},
+		subscribed: map[string][]string{}, failNext: map[string][]error{}, backfill: map[string][]webhooks.InboundEvent{},
+		comments: map[string][]webhooks.InboundEvent{},
 	}
 }
 
@@ -230,4 +240,55 @@ func (*ConnectorAdapter) ClassifyError(err error) channel.ErrorClass {
 		return channel.ErrorPermanent
 	}
 	return channel.ErrorUnknown
+}
+
+// Features trả tính năng của adapter giả: comment, nhắn riêng, ẩn comment (để danh sách kênh có tính năng).
+func (*ConnectorAdapter) Features() channel.Features {
+	return channel.Features{Comments: true, PrivateReply: true, HideComment: true}
+}
+
+// SetBackfill đặt sự kiện Backfill trả cho Page pageID (mọi lần gọi, không lọc theo since).
+func (a *ConnectorAdapter) SetBackfill(pageID string, evs ...webhooks.InboundEvent) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.backfill[pageID] = slices.Clone(evs)
+}
+
+// SetComments đặt sự kiện PollPageComments trả cho Page pageID.
+func (a *ConnectorAdapter) SetComments(pageID string, evs ...webhooks.InboundEvent) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.comments[pageID] = slices.Clone(evs)
+}
+
+// Backfill trả các sự kiện đã đặt bằng SetBackfill; lỗi hẹn (FailNext OpBackfill) hay token thu hồi → một lỗi sau
+// cùng.
+func (a *ConnectorAdapter) Backfill(_ context.Context, acc channel.ChannelAccount, cred channel.Credentials, since time.Time,
+) iter.Seq2[webhooks.InboundEvent, error] {
+	a.mu.Lock()
+	err := a.begin(Call{Op: OpBackfill, PageID: acc.ExternalID, Token: string(cred.AccessToken), Since: since})
+	evs := slices.Clone(a.backfill[acc.ExternalID])
+	a.mu.Unlock()
+	return func(yield func(webhooks.InboundEvent, error) bool) {
+		if err != nil {
+			yield(webhooks.InboundEvent{}, err)
+			return
+		}
+		for _, e := range evs {
+			if !yield(e, nil) {
+				return
+			}
+		}
+	}
+}
+
+// PollPageComments trả các sự kiện đã đặt bằng SetComments (hiện thực channel.CommentPoller).
+func (a *ConnectorAdapter) PollPageComments(_ context.Context, acc channel.ChannelAccount, cred channel.Credentials, since time.Time,
+) ([]webhooks.InboundEvent, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if err := a.begin(Call{Op: OpCommentPoll, PageID: acc.ExternalID, Token: string(cred.AccessToken), Since: since}); err != nil {
+		return nil, err
+	}
+	return slices.Clone(a.comments[acc.ExternalID]), nil
 }

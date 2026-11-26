@@ -99,3 +99,9 @@ RETURNING id, (xmax = 0) AS inserted;
 UPDATE channel.channel_accounts
 SET subscribed_fields = @subscribed_fields, updated_at = now()
 WHERE id = @id;
+
+-- name: SetTokenChecked :execrows
+-- Mốc kiểm sức khỏe gần nhất (Task 150); không tăng version.
+UPDATE channel.channel_accounts
+SET token_checked_at = @checked_at, updated_at = now()
+WHERE id = @id;

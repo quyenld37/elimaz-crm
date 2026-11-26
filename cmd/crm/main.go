@@ -395,7 +395,7 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 	// đồng bộ vận đơn (tồn thiếu khi áp, Task M3-11): lệnh do lệnh tra fulfillment.refresh_status ghi. Cảnh báo tiền COD
 	// đã về rồi hãng sửa thành hoàn (Task M3-29): lệnh do consumer cash ghi. Cảnh báo lệch sổ COD sau đối chiếu đêm
 	// (Task M3-33): lệnh do lệnh cash.reconcile ghi.
-	return []commands.Handler{
+	return append([]commands.Handler{
 		alerts, digest, inventory.NewShortageAlertCommand(alerter, logger), inventory.NewStockMismatchCommand(alerter, logger),
 		fulfillment.NewAuthAlertCommand(alerter, logger), fulfillment.NewTrackAlertCommand(d, alerter, logger),
 		cash.NewRemittedReturnedAlertCommand(alerter),
@@ -405,7 +405,7 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 		// Cảnh báo Page bắt đầu gửi thật (kế hoạch M4, Task 145): lệnh do channel.Writer.SetSendMode ghi.
 		channel.NewSendModeAlertCommand(alerter, logger),
 		channel.NewSubscribeAlertCommand(alerter, logger),
-	}, nil
+	}, channel.HealthAlertCommands(alerter, logger)...), nil
 }
 
 // diskPaths: đĩa mỗi tiến trình tự đo cho luật disk:<process> (gauge disk_used_pct): "/" của container, thư mục tệp

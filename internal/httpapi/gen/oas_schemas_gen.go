@@ -5733,6 +5733,7 @@ type ChannelAccount struct {
 	SubscribedFields  []string             `json:"subscribedFields"`
 	TokenCheckedAt    OptDateTime          `json:"tokenCheckedAt"`
 	Version           int32                `json:"version"`
+	Features          OptChannelFeatures   `json:"features"`
 }
 
 // GetID returns the value of ID.
@@ -5790,6 +5791,11 @@ func (s *ChannelAccount) GetVersion() int32 {
 	return s.Version
 }
 
+// GetFeatures returns the value of Features.
+func (s *ChannelAccount) GetFeatures() OptChannelFeatures {
+	return s.Features
+}
+
 // SetID sets the value of ID.
 func (s *ChannelAccount) SetID(val uuid.UUID) {
 	s.ID = val
@@ -5843,6 +5849,11 @@ func (s *ChannelAccount) SetTokenCheckedAt(val OptDateTime) {
 // SetVersion sets the value of Version.
 func (s *ChannelAccount) SetVersion(val int32) {
 	s.Version = val
+}
+
+// SetFeatures sets the value of Features.
+func (s *ChannelAccount) SetFeatures(val OptChannelFeatures) {
+	s.Features = val
 }
 
 func (*ChannelAccount) connectFacebookPageRes()   {}
@@ -5915,6 +5926,93 @@ func (s *ChannelAccountStatus) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Tính năng kênh hỗ trợ (theo adapter của kênh; chủ shop 26/11): màn hình ẩn phần
+// kênh không có.
+// Ref: #/components/schemas/ChannelFeatures
+type ChannelFeatures struct {
+	// Tin nhắn hộp thư.
+	Messages     bool `json:"messages"`
+	Comments     bool `json:"comments"`
+	LiveComments bool `json:"liveComments"`
+	// Nhắn riêng người comment.
+	PrivateReply bool `json:"privateReply"`
+	HideComment  bool `json:"hideComment"`
+	// Nút trả lời nhanh.
+	QuickReplies bool `json:"quickReplies"`
+	// Thẻ nhân viên (Human Agent).
+	HumanAgent bool `json:"humanAgent"`
+}
+
+// GetMessages returns the value of Messages.
+func (s *ChannelFeatures) GetMessages() bool {
+	return s.Messages
+}
+
+// GetComments returns the value of Comments.
+func (s *ChannelFeatures) GetComments() bool {
+	return s.Comments
+}
+
+// GetLiveComments returns the value of LiveComments.
+func (s *ChannelFeatures) GetLiveComments() bool {
+	return s.LiveComments
+}
+
+// GetPrivateReply returns the value of PrivateReply.
+func (s *ChannelFeatures) GetPrivateReply() bool {
+	return s.PrivateReply
+}
+
+// GetHideComment returns the value of HideComment.
+func (s *ChannelFeatures) GetHideComment() bool {
+	return s.HideComment
+}
+
+// GetQuickReplies returns the value of QuickReplies.
+func (s *ChannelFeatures) GetQuickReplies() bool {
+	return s.QuickReplies
+}
+
+// GetHumanAgent returns the value of HumanAgent.
+func (s *ChannelFeatures) GetHumanAgent() bool {
+	return s.HumanAgent
+}
+
+// SetMessages sets the value of Messages.
+func (s *ChannelFeatures) SetMessages(val bool) {
+	s.Messages = val
+}
+
+// SetComments sets the value of Comments.
+func (s *ChannelFeatures) SetComments(val bool) {
+	s.Comments = val
+}
+
+// SetLiveComments sets the value of LiveComments.
+func (s *ChannelFeatures) SetLiveComments(val bool) {
+	s.LiveComments = val
+}
+
+// SetPrivateReply sets the value of PrivateReply.
+func (s *ChannelFeatures) SetPrivateReply(val bool) {
+	s.PrivateReply = val
+}
+
+// SetHideComment sets the value of HideComment.
+func (s *ChannelFeatures) SetHideComment(val bool) {
+	s.HideComment = val
+}
+
+// SetQuickReplies sets the value of QuickReplies.
+func (s *ChannelFeatures) SetQuickReplies(val bool) {
+	s.QuickReplies = val
+}
+
+// SetHumanAgent sets the value of HumanAgent.
+func (s *ChannelFeatures) SetHumanAgent(val bool) {
+	s.HumanAgent = val
 }
 
 // Read_only = chỉ xem (mặc định khi kết nối, mọi thao tác ra ngoài bị từ chối),
@@ -20755,6 +20853,52 @@ func (o OptCategorySlug) Get() (v CategorySlug, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptCategorySlug) Or(d CategorySlug) CategorySlug {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptChannelFeatures returns new OptChannelFeatures with value set to v.
+func NewOptChannelFeatures(v ChannelFeatures) OptChannelFeatures {
+	return OptChannelFeatures{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptChannelFeatures is optional ChannelFeatures.
+type OptChannelFeatures struct {
+	Value ChannelFeatures
+	Set   bool
+}
+
+// IsSet returns true if OptChannelFeatures was set.
+func (o OptChannelFeatures) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptChannelFeatures) Reset() {
+	var v ChannelFeatures
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptChannelFeatures) SetTo(v ChannelFeatures) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptChannelFeatures) Get() (v ChannelFeatures, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptChannelFeatures) Or(d ChannelFeatures) ChannelFeatures {
 	if v, ok := o.Get(); ok {
 		return v
 	}

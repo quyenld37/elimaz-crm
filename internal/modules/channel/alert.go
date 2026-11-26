@@ -37,6 +37,8 @@ type alertPayload struct {
 	AccountID uuid.UUID `json:"accountId"`
 	Channel   string    `json:"channel"`
 	Name      string    `json:"name,omitempty"`
+	// Action là hành động chính sách của Meta (cảnh báo meta-policy, đã lọc [a-z_]).
+	Action string `json:"action,omitempty"`
 }
 
 func alertKind(name string) queue.Kind {
@@ -105,4 +107,60 @@ func (s accountAlert) Execute(ctx context.Context, j queue.Job) (commands.Outcom
 		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonBadPayload}, nil
 	}
 	return alertjobs.Notify(ctx, s.a, s.log, s.key+p.AccountID.String(), s.severity, s.text(p)), nil
+}
+
+// HealthAlertCommands trả các lệnh cảnh báo của sức khỏe kênh (Task 150), cmd/crm đăng ký cùng các lệnh cảnh báo khác
+// (dùng chung Alerter): mất quyền channel-auth:<id> (gấp), thiếu trường webhook channel-fields:<id> (thường), im lặng
+// bất thường webhook-silence:<id> (gấp), vi phạm chính sách meta-policy:<id> (gấp), hạn phiên bản Graph graph-version
+// (thường). Văn bản chỉ có tên Page (công khai), kênh, mã tài khoản, hành động chính sách; không token, không nội dung.
+func HealthAlertCommands(a observability.Alerter, logger *slog.Logger) []commands.Handler {
+	ref := func(p alertPayload) string { return fmt.Sprintf("kênh %s, tài khoản %s", p.Channel, p.AccountID) }
+	return []commands.Handler{
+		accountAlert{
+			kind: AuthAlertKind, key: "channel-auth:", severity: severityUrgent, a: a, log: logger,
+			text: func(p alertPayload) string {
+				return fmt.Sprintf("Page %s mất quyền, cần quản trị kết nối lại (%s). Tin vẫn được nhận nhưng chưa gửi được.", p.Name, ref(p))
+			},
+		},
+		accountAlert{
+			kind: FieldsAlertKind, key: "channel-fields:", severity: severityNormal, a: a, log: logger,
+			text: func(p alertPayload) string {
+				return fmt.Sprintf("Page %s thiếu đăng ký nhận tin từ Meta; CRM đã tự đăng ký lại (%s).", p.Name, ref(p))
+			},
+		},
+		accountAlert{
+			kind: SilenceAlertKind, key: "webhook-silence:", severity: severityUrgent, a: a, log: logger,
+			text: func(p alertPayload) string {
+				return fmt.Sprintf("Im lặng bất thường trong giờ bán: Page %s không nhận sự kiện nào từ Meta hơn 30 phút; "+
+					"CRM đã tự đăng ký lại và hỏi bù (%s).", p.Name, ref(p))
+			},
+		},
+		accountAlert{
+			kind: PolicyAlertKind, key: "meta-policy:", severity: severityUrgent, a: a, log: logger,
+			text: func(p alertPayload) string {
+				return fmt.Sprintf("Meta báo vi phạm chính sách trên Page %s (hành động: %s); không xử lý trong 7 ngày có thể bị "+
+					"giới hạn gửi tin, quản trị cần kiểm tra (%s).", p.Name, p.Action, ref(p))
+			},
+		},
+		graphAlert{a: a, log: logger},
+	}
+}
+
+// graphAlert là lệnh cảnh báo hạn phiên bản Graph API (không theo tenant, key graph-version).
+type graphAlert struct {
+	a   observability.Alerter
+	log *slog.Logger
+}
+
+func (graphAlert) Kind() queue.Kind       { return alertKind(GraphVersionAlertKind) }
+func (graphAlert) AutoRetryNotSent() bool { return true }
+
+func (g graphAlert) Execute(ctx context.Context, j queue.Job) (commands.Outcome, error) {
+	var p graphPayload
+	if err := json.Unmarshal(j.Payload, &p); err != nil || p.Version == "" {
+		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonBadPayload}, nil
+	}
+	text := fmt.Sprintf("Phiên bản Graph API %s hết hạn ngày %s (còn %d ngày): nâng META_GRAPH_VERSION và chạy lại "+
+		"contract test của adapter Facebook.", p.Version, p.Expires, p.Days)
+	return alertjobs.Notify(ctx, g.a, g.log, "graph-version", severityNormal, text), nil
 }

@@ -220,6 +220,15 @@ func (c *Channel) Backfill(ctx context.Context, acc channel.ChannelAccount, cred
 	}
 }
 
+// PollPageComments đọc comment sau since trên các bài gần nhất của Page (một lời gọi feed, như phần comment của
+// Backfill) để đọc comment định kỳ khi webhook feed không về (Q4). Bên gọi ghi bằng webhooks.EnqueueInbound với via =
+// comment_poll.
+func (c *Channel) PollPageComments(ctx context.Context, acc channel.ChannelAccount, cred channel.Credentials, since time.Time,
+) ([]webhooks.InboundEvent, error) {
+	b := &backfill{c: c, acc: acc, cred: cred, since: since}
+	return b.feed(ctx)
+}
+
 // backfill là một lần hỏi bù của một Page: giữ mốc lời gọi trước để giãn lời gọi.
 type backfill struct {
 	c     *Channel

@@ -34,6 +34,7 @@ type Deps struct {
 // parts là phần chạy nền một vùng của channel khai (mỗi vùng một tệp khung, task của vùng chỉ sửa tệp đó).
 type parts struct {
 	Commands  []commands.Handler
+	Jobs      []queue.Handler
 	Schedules []schedules.Schedule
 }
 
@@ -45,6 +46,12 @@ func CommandHandlers(d Deps) []commands.Handler {
 	s, h, x := subscribeParts(d), healthParts(d), deletionParts(d)
 	all := background.Collect(s.Commands, h.Commands, x.Commands)
 	return slices.DeleteFunc(all, func(c commands.Handler) bool { return c == nil })
+}
+
+// JobHandlers là việc nền trong database của channel (việc của các lịch).
+func JobHandlers(d Deps) []queue.Handler {
+	s, h, x := subscribeParts(d), healthParts(d), deletionParts(d)
+	return background.Collect(s.Jobs, h.Jobs, x.Jobs)
 }
 
 // Schedules là lịch định kỳ của channel.
