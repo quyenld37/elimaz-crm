@@ -3,7 +3,7 @@
 // của src/screens/carriers; ở đây kiểm bố cục (không cuộn ngang, tên 60 ký tự nằm trong ô, ô nhập trong khung) và chụp
 // test-results/ket-noi-*.png để so với docs/mockups/m3/png/ket-noi-van-chuyen-*.png.
 import type { Page } from "@playwright/test";
-import type { CarrierAccount, FulfillmentSettings } from "../src/api";
+import type { CarrierAccount, FulfillmentSettings, WebCarrierSettings, WebCarrierStat } from "../src/api";
 import { OWNER_GRANTS, expect, json, noHorizontalScroll, test, type FakeApi } from "./fixtures";
 
 const id = (n: number) => `0195f3b2-0000-7000-8000-0000000c${String(n).padStart(4, "0")}`;
@@ -105,6 +105,27 @@ const SETTINGS: FulfillmentSettings = {
   version: 0,
 };
 
+// Cài đặt hãng trên website (khối "Hãng trên website" của danh sách, Task 198/488): carriers[] là các tài khoản
+// showOnWeb của ACCOUNTS theo webSort, hiddenCarriers là phần còn lại (trừ revoked), xếp theo tên như máy chủ dựng.
+const stat = (a: CarrierAccount, shipments30d: number): WebCarrierStat => ({
+  accountId: a.id,
+  carrierKey: a.carrierKey,
+  name: a.name,
+  status: a.status,
+  webSort: a.webSort,
+  preferred: false,
+  shipments30d,
+});
+const WEB_SETTINGS: WebCarrierSettings = {
+  version: 2,
+  carriers: ACCOUNTS.filter((a) => a.showOnWeb && a.status !== "revoked")
+    .sort((a, b) => a.webSort - b.webSort)
+    .map((a, i) => stat(a, 40 - i * 10)),
+  hiddenCarriers: ACCOUNTS.filter((a) => !a.showOnWeb && a.status !== "revoked")
+    .sort((a, b) => a.name.localeCompare(b.name, "vi"))
+    .map((a) => stat(a, 0)),
+};
+
 async function carriersApi(api: FakeApi) {
   await api.live({ grants: GRANTS });
   await api.on("**/api/v1/inventory/warehouses", (r) =>
@@ -144,6 +165,7 @@ async function carriersApi(api: FakeApi) {
     }),
   );
   await api.on("**/api/v1/fulfillment-settings", (r) => json(r, 200, SETTINGS));
+  await api.on("**/api/v1/web-carrier-settings", (r) => json(r, 200, WEB_SETTINGS));
 }
 
 /** Mọi ô nhập, nút nằm trong khung nhìn ngang; tên dài không tràn khỏi ô. */
@@ -172,7 +194,8 @@ for (const vp of [
     test("danh sách 9 tài khoản, hộp thêm: không tràn", async ({ page, api }) => {
       await carriersApi(api);
       await page.goto("/settings/carriers");
-      await expect(page.getByText(LONG)).toBeVisible();
+      // Tên dài có cả ở bảng tài khoản và ở khối "Hãng trên website" (hiddenCarriers): kiểm ở bảng.
+      await expect(page.getByRole("table", { name: "Tài khoản hãng" }).getByText(LONG)).toBeVisible();
       if (vp.width >= 1000) {
         const nav = page.getByRole("navigation", { name: "Menu chính" });
         await expect(nav.getByRole("link", { name: "Kết nối vận chuyển" })).toHaveAttribute("aria-current", "page");

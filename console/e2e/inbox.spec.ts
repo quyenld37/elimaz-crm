@@ -4,7 +4,16 @@
 // một màn (HV02); chụp test-results/inbox-*.png để so với docs/mockups/m4/png/inbox-{1512,390,360}.png.
 // VIẾT SẴN, CHƯA CHẠY (chủ shop 24/11: Playwright chạy khi xong toàn bộ task màn hình M4).
 import type { Page } from "@playwright/test";
-import type { ChannelAccount, ConversationCounts, ConversationSummary, ConversationTag, Grant } from "../src/api";
+import type {
+  ChannelAccount,
+  ChatMessage,
+  ConversationCounts,
+  ConversationCustomerCard,
+  ConversationDetail,
+  ConversationSummary,
+  ConversationTag,
+  Grant,
+} from "../src/api";
 import { OWNER_GRANTS, expect, json, noHorizontalScroll, test } from "./fixtures";
 
 const id = (n: number) => `0195f3b2-0000-7000-8000-0000000e${String(n).padStart(4, "0")}`;
@@ -94,12 +103,74 @@ const ROWS: ConversationSummary[] = [
   ...Array.from({ length: 47 }, (_, i) => row(i + 4)),
 ];
 
+/** Hội thoại của dòng 3 (Lê Hà My, 9 chưa đọc) mở ở ca "mở hội thoại". */
+const OPEN = ROWS[2] ?? row(3);
+const OPEN_DETAIL: ConversationDetail = {
+  conversation: OPEN,
+  page: ACCOUNTS[0] ?? ({} as ChannelAccount),
+  sendPolicy: { allowed: true, mode: "standard", until: new Date(Date.now() + 23 * 3_600_000).toISOString() },
+  humanAgentAvailable: false,
+  blockedByUser: false,
+  doNotContact: false,
+};
+const OPEN_CARD: ConversationCustomerCard = {
+  customer: {
+    id: OPEN.customer.id,
+    rootId: OPEN.customer.id,
+    name: OPEN.customer.name,
+    nameSource: "channel",
+    doNotContact: false,
+    orderCount: 0,
+    deliveredCount: 0,
+    returnedCount: 0,
+    returnRateBp: 0,
+    totalSpent: 0,
+  },
+  recentOrders: [],
+  openDrafts: [],
+};
+const OPEN_MESSAGES: ChatMessage[] = ["Chị ơi đầm lụa be còn size L không ạ?", "Chị lấy 2 cái nhé"].map((body, i) => ({
+  id: id(300 + i),
+  conversationId: OPEN.id,
+  direction: "in",
+  kind: "message",
+  origin: "customer",
+  body,
+  attachments: [],
+  isHidden: false,
+  removed: false,
+  editedCount: 0,
+  sentAt: new Date(Date.now() - (5 - i) * 60_000).toISOString(),
+}));
+
 async function fakeInbox(page: Page, api: { live: (me?: { grants: Grant[] }) => Promise<void> }) {
   await api.live({ grants: GRANTS });
   await page.route(/\/api\/v1\/conversations(\?|$)/, (r) => json(r, 200, { items: ROWS, nextCursor: "50" }));
   await page.route("**/api/v1/conversations/counts", (r) => json(r, 200, COUNTS));
   await page.route("**/api/v1/channels", (r) => json(r, 200, { items: ACCOUNTS }));
   await page.route("**/api/v1/conversation-tags", (r) => json(r, 200, { items: TAGS }));
+  // Hội thoại đang mở (/inbox/:id, khung giữa của Task 175): chi tiết, tin, ai đang xem, đánh dấu đã đọc.
+  await page.route(`**/api/v1/conversations/${OPEN.id}`, (r) => json(r, 200, OPEN_DETAIL));
+  await page.route(`**/api/v1/conversations/${OPEN.id}/messages*`, (r) => json(r, 200, { items: OPEN_MESSAGES }));
+  await page.route(`**/api/v1/conversations/${OPEN.id}/read`, (r) => r.fulfill({ status: 204 }));
+  await page.route(`**/api/v1/conversations/${OPEN.id}/presence`, (r) =>
+    r.request().method() === "GET" ? json(r, 200, { items: [] }) : r.fulfill({ status: 204 }),
+  );
+  // Khung bên phải (Task 176, dưới 1200 px nằm dưới hội thoại): thẻ khách và các phần nạp sau thẻ.
+  await page.route(`**/api/v1/conversations/${OPEN.id}/customer-card`, (r) => json(r, 200, OPEN_CARD));
+  await page.route(`**/api/v1/conversations/${OPEN.id}/order-context`, (r) =>
+    json(r, 200, {
+      channelAccountId: OPEN.pageId,
+      conversationId: OPEN.id,
+      customerId: OPEN.customer.id,
+      sellerId: OPEN.pageId,
+    }),
+  );
+  await page.route(`**/api/v1/customers/${OPEN.customer.id}/calls*`, (r) => json(r, 200, { items: [] }));
+  await page.route(`**/api/v1/channels/${OPEN.pageId}/assignable-users`, (r) =>
+    json(r, 200, { items: [{ id: id(9), name: "Trần Minh An" }] }),
+  );
+  await page.route("**/api/v1/me/reminders*", (r) => json(r, 200, { items: [] }));
 }
 
 /** Mọi dòng hội thoại nằm trong khung danh sách (không tràn ngang). */

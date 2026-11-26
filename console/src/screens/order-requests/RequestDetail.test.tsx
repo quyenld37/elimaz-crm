@@ -438,7 +438,13 @@ describe("Quyền và trạng thái đóng", () => {
     );
     await open();
     expect(screen.getByText(/Yêu cầu đã đóng/)).toBeTruthy();
-    expect(screen.getByText(/Đã quá 7 ngày kể từ ngày nhận\./)).toBeTruthy();
+    // Lý do do nhân viên gõ, có thể là chuỗi dài không dấu cách: khung phải ngắt được giữa chữ (360 px không tràn ngang).
+    expect(
+      screen
+        .getByText(/Đã quá 7 ngày kể từ ngày nhận\./)
+        .closest(".box")
+        ?.classList.contains("wrap-any"),
+    ).toBe(true);
     expect(screen.queryByRole("textbox", { name: "Viết tin" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Trạng thái tiếp theo" })).toBeNull();
   });

@@ -178,7 +178,7 @@ func (f *liveFlow) seedPage() {
 	})
 }
 
-// call gửi yêu cầu tới api của nhân viên (POST, PATCH có Idempotency-Key mới); trả mã và thân JSON.
+// call gửi yêu cầu tới api của nhân viên (POST, PATCH có Origin của màn hình và Idempotency-Key mới); trả mã và thân JSON.
 func (f *liveFlow) call(method, path, body string) (int, map[string]any) {
 	f.t.Helper()
 	req, err := http.NewRequestWithContext(f.t.Context(), method, f.api.URL+path, strings.NewReader(body))
@@ -190,6 +190,7 @@ func (f *liveFlow) call(method, path, body string) (int, map[string]any) {
 	if method != http.MethodGet {
 		f.n++
 		req.Header.Set("Idempotency-Key", fmt.Sprintf("live-e2e-%d-%s", f.n, uuid.NewString()))
+		req.Header.Set("Origin", stackOrigin)
 	}
 	res, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
 	if err != nil {
