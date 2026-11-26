@@ -69,23 +69,35 @@ func refused(a MessagingAdapter, err error) bool {
 	}
 }
 
-// ExchangeCode đổi mã đăng nhập code (kênh key) ra token người dùng và danh sách Page người dùng quản trị. Kênh từ chối
-// (mã sai, hết hạn, token hỏng) → ErrOAuthStateInvalid; lỗi tạm → ErrConnectUnavailable; không có Connector →
-// ErrNoConnector. Gọi mạng: không chạy trong transaction.
-func ExchangeCode(ctx context.Context, reg *Registry, key, code string) (logging.Secret, []PageInfo, error) {
+// OAuthLogin là kết quả một lần đổi mã đăng nhập: token người dùng, các Page người dùng quản trị và mã người dùng app
+// (lưu dạng băm vào phiên để xóa theo yêu cầu của Meta).
+type OAuthLogin struct {
+	Token     logging.Secret
+	Pages     []PageInfo
+	AppUserID string
+}
+
+// ExchangeCode đổi mã đăng nhập code (kênh key) ra token người dùng, mã người dùng app và danh sách Page người dùng quản
+// trị. Kênh từ chối (mã sai, hết hạn, token hỏng) → ErrOAuthStateInvalid; lỗi tạm → ErrConnectUnavailable; không có
+// Connector → ErrNoConnector. Gọi mạng: không chạy trong transaction.
+func ExchangeCode(ctx context.Context, reg *Registry, key, code string) (OAuthLogin, error) {
 	a, c, err := connector(reg, key)
 	if err != nil {
-		return "", nil, err
+		return OAuthLogin{}, err
 	}
 	tok, err := c.ExchangeCode(ctx, code)
 	if err != nil {
-		return "", nil, connectError(a, err, ErrOAuthStateInvalid, "đổi mã đăng nhập")
+		return OAuthLogin{}, connectError(a, err, ErrOAuthStateInvalid, "đổi mã đăng nhập")
+	}
+	uid, err := c.AppUserID(ctx, tok)
+	if err != nil {
+		return OAuthLogin{}, connectError(a, err, ErrOAuthStateInvalid, "đọc mã người dùng")
 	}
 	pages, err := c.ListPages(ctx, tok)
 	if err != nil {
-		return "", nil, connectError(a, err, ErrOAuthStateInvalid, "liệt kê Page")
+		return OAuthLogin{}, connectError(a, err, ErrOAuthStateInvalid, "liệt kê Page")
 	}
-	return tok, pages, nil
+	return OAuthLogin{Token: tok, Pages: pages, AppUserID: uid}, nil
 }
 
 // FetchPageToken lấy token Page pageID bằng token (người dùng hay system user) và kiểm Page có đủ MESSAGING, MODERATE.

@@ -99,9 +99,11 @@ type LiveSource interface {
 	CountComments(ctx context.Context, acc ChannelAccount, cred Credentials, videoID string) (int, error)
 }
 
-// Connector (tùy chọn) kết nối Page: đổi mã đăng nhập, liệt kê Page, lấy token Page, đăng ký và hủy webhook.
+// Connector (tùy chọn) kết nối Page: đổi mã đăng nhập, đọc mã người dùng app của token (callback xóa dữ liệu gửi đúng
+// mã này, Task 179), liệt kê Page, lấy token Page, đăng ký và hủy webhook.
 type Connector interface {
 	ExchangeCode(ctx context.Context, code string) (logging.Secret, error)
+	AppUserID(ctx context.Context, userToken logging.Secret) (string, error)
 	ListPages(ctx context.Context, userToken logging.Secret) ([]PageInfo, error)
 	PageToken(ctx context.Context, token logging.Secret, pageID string) (logging.Secret, PageInfo, error)
 	Subscribe(ctx context.Context, acc ChannelAccount, cred Credentials, fields []string) error

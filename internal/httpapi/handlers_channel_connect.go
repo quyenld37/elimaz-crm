@@ -70,8 +70,8 @@ func (h *handler) StartFacebookOAuth(ctx context.Context, _ gen.StartFacebookOAu
 }
 
 // ExchangeFacebookOAuth (POST /api/v1/channels/facebook/oauth/exchange): kiểm state (cùng người gọi, còn hạn, chưa
-// dùng), đổi mã lấy token người dùng và danh sách Page ngoài transaction, rồi đánh dấu state đã dùng (một lần thắng)
-// và lưu phiên Page (token mã hóa, hạn 30 phút).
+// dùng), đổi mã lấy token người dùng, mã người dùng app và danh sách Page ngoài transaction, rồi đánh dấu state đã
+// dùng (một lần thắng) và lưu phiên Page (token mã hóa, băm mã người dùng app, hạn 30 phút).
 //
 //nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
 func (h *handler) ExchangeFacebookOAuth(ctx context.Context, req *gen.ExchangeFacebookOAuthRequest, _ gen.ExchangeFacebookOAuthParams) (gen.ExchangeFacebookOAuthRes, error) {
@@ -86,18 +86,18 @@ func (h *handler) ExchangeFacebookOAuth(ctx context.Context, req *gen.ExchangeFa
 	}); err != nil {
 		return nil, fmt.Errorf("kiểm phiên đăng nhập Facebook: %w", err)
 	}
-	tok, pages, err := channel.ExchangeCode(ctx, h.d.Channels, facebookKey, req.Code)
+	login, err := channel.ExchangeCode(ctx, h.d.Channels, facebookKey, req.Code)
 	if err != nil {
 		return nil, fmt.Errorf("đổi mã đăng nhập Facebook: %w", err)
 	}
 	out, err := h.refusableWrite(ctx, http.StatusOK, isChannelRefusal, "lưu phiên đăng nhập Facebook",
 		func(tx pgx.Tx, u identity.AuthUser) (any, error) {
-			id, err := channel.SaveOAuthPages(ctx, tx, h.d.ChannelKeys, startID, u.UserID, tok, pages, now)
+			id, err := channel.SaveOAuthPages(ctx, tx, h.d.ChannelKeys, startID, u.UserID, login, now)
 			if err != nil {
 				return nil, err //nolint:wrapcheck // channel đã bọc
 			}
-			body := &gen.FacebookOAuthPages{SessionId: id, Pages: make([]gen.FacebookPageOption, 0, len(pages))}
-			for _, p := range pages {
+			body := &gen.FacebookOAuthPages{SessionId: id, Pages: make([]gen.FacebookPageOption, 0, len(login.Pages))}
+			for _, p := range login.Pages {
 				body.Pages = append(body.Pages, gen.FacebookPageOption{
 					PageId: p.PageID, Name: p.Name, CanMessage: p.CanMessage, CanModerate: p.CanModerate,
 				})

@@ -193,3 +193,16 @@ func truncate(s string, n int) string {
 	}
 	return s
 }
+
+// AlertSentWithin báo cảnh báo key đã được gửi (có dòng platform.alert_events) trong window vừa qua, theo đồng hồ
+// database.
+//
+// Khi nào không dùng: chống lặp ngắn (10 phút thường, 30 phút gấp) Alerter đã tự làm; chỉ dùng cho nhắc việc cần
+// khoảng lặp dài hơn (vd nhắc Data Use Checkup 7 ngày một lần, Task 179).
+func AlertSentWithin(ctx context.Context, d *db.DB, key string, window time.Duration) (bool, error) {
+	recent, err := store.New(d.Pool).AlertSentWithin(ctx, store.AlertSentWithinParams{Key: key, WindowS: window.Seconds()})
+	if err != nil {
+		return false, fmt.Errorf("đọc lần gửi trước của cảnh báo %s: %w", key, err)
+	}
+	return recent, nil
+}

@@ -3,9 +3,11 @@
 -- sách Page, hạn 30 phút). Mọi câu chạy trong tx tenant của bên gọi (RLS).
 
 -- name: InsertOAuthSession :exec
-INSERT INTO channel.oauth_sessions (id, tenant_id, user_id, state_hash, user_token_enc, user_token_kid, pages, expires_at)
+-- fb_user_ref_hash: hex SHA-256 của mã người dùng app (phiên Page, Task 179); NULL ở dòng start.
+INSERT INTO channel.oauth_sessions (id, tenant_id, user_id, state_hash, user_token_enc, user_token_kid, pages, expires_at,
+    fb_user_ref_hash)
 VALUES (@id, current_setting('app.tenant_id')::uuid, @user_id, @state_hash, sqlc.narg('user_token_enc')::bytea,
-    sqlc.narg('user_token_kid')::text, @pages, @expires_at);
+    sqlc.narg('user_token_kid')::text, @pages, @expires_at, sqlc.narg('fb_user_ref_hash')::text);
 
 -- name: GetOAuthStart :one
 -- Dòng start theo băm state (chưa có token người dùng).
@@ -30,3 +32,8 @@ WHERE id = @id AND user_token_enc IS NOT NULL;
 -- name: DeleteExpiredOAuthSessions :execrows
 DELETE FROM channel.oauth_sessions
 WHERE expires_at < @now;
+
+-- name: DeleteOAuthSessionsByUserRef :execrows
+-- Callback xóa dữ liệu của Meta (Task 179): xóa mọi phiên của người dùng app có băm này (tenant của tx).
+DELETE FROM channel.oauth_sessions
+WHERE fb_user_ref_hash = @user_ref_hash::text;

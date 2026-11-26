@@ -59,7 +59,8 @@ func (e *chEnv) savePages(startID, user uuid.UUID, tok string, now time.Time) (u
 	kr := testKeyring(e.t)
 	var id uuid.UUID
 	err := e.in(e.t.Context(), func(tx pgx.Tx) (err error) {
-		id, err = channel.SaveOAuthPages(e.t.Context(), tx, kr, startID, user, logging.Secret(tok), testPages(), now)
+		id, err = channel.SaveOAuthPages(e.t.Context(), tx, kr, startID, user,
+			channel.OAuthLogin{Token: logging.Secret(tok), Pages: testPages(), AppUserID: "app-" + tok}, now)
 		return err //nolint:wrapcheck // test
 	})
 	return id, err
@@ -228,9 +229,12 @@ func TestConnector_Classify(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := t.Context()
-	tok, pages, err := channel.ExchangeCode(ctx, reg, "facebook", "code-1")
-	if err != nil || tok != "EAAB-user-1" || len(pages) != 2 || pages[0].PageID != "1001" || !pages[0].CanModerate || pages[1].CanModerate {
-		t.Fatalf("ExchangeCode = %q %+v %v", tok, pages, err)
+	a.SetAppUserID("EAAB-user-1", "218471")
+	login, err := channel.ExchangeCode(ctx, reg, "facebook", "code-1")
+	pages := login.Pages
+	if err != nil || login.Token != "EAAB-user-1" || login.AppUserID != "218471" || len(pages) != 2 || pages[0].PageID != "1001" ||
+		!pages[0].CanModerate || pages[1].CanModerate {
+		t.Fatalf("ExchangeCode = %+v %v", login, err)
 	}
 	for name, c := range map[string]struct {
 		op   string
@@ -238,20 +242,22 @@ func TestConnector_Classify(t *testing.T) {
 		code string
 		want error
 	}{
-		"mã sai":           {"", nil, "code-x", channel.ErrOAuthStateInvalid},
-		"đổi mã chưa gửi":  {channeltest.OpExchange, channeltest.ErrConnectNotSent, "code-1", channel.ErrConnectUnavailable},
-		"đổi mã không rõ":  {channeltest.OpExchange, channeltest.ErrConnectUnknown, "code-1", channel.ErrConnectUnavailable},
-		"liệt kê lỗi auth": {channeltest.OpListPages, channeltest.ErrConnectAuth, "code-1", channel.ErrOAuthStateInvalid},
-		"liệt kê không rõ": {channeltest.OpListPages, channeltest.ErrConnectUnknown, "code-1", channel.ErrConnectUnavailable},
+		"mã sai":                 {"", nil, "code-x", channel.ErrOAuthStateInvalid},
+		"đổi mã chưa gửi":        {channeltest.OpExchange, channeltest.ErrConnectNotSent, "code-1", channel.ErrConnectUnavailable},
+		"đổi mã không rõ":        {channeltest.OpExchange, channeltest.ErrConnectUnknown, "code-1", channel.ErrConnectUnavailable},
+		"liệt kê lỗi auth":       {channeltest.OpListPages, channeltest.ErrConnectAuth, "code-1", channel.ErrOAuthStateInvalid},
+		"liệt kê không rõ":       {channeltest.OpListPages, channeltest.ErrConnectUnknown, "code-1", channel.ErrConnectUnavailable},
+		"mã người dùng lỗi auth": {channeltest.OpAppUserID, channeltest.ErrConnectAuth, "code-1", channel.ErrOAuthStateInvalid},
+		"mã người dùng chưa gửi": {channeltest.OpAppUserID, channeltest.ErrConnectNotSent, "code-1", channel.ErrConnectUnavailable},
 	} {
 		if c.op != "" {
 			a.FailNext(c.op, c.fail)
 		}
-		if _, _, err := channel.ExchangeCode(ctx, reg, "facebook", c.code); !errors.Is(err, c.want) {
+		if _, err := channel.ExchangeCode(ctx, reg, "facebook", c.code); !errors.Is(err, c.want) {
 			t.Errorf("%s: %v, muốn %v", name, err, c.want)
 		}
 	}
-	if _, _, err := channel.ExchangeCode(ctx, reg, "khac", "code-1"); !errors.Is(err, channel.ErrNoConnector) {
+	if _, err := channel.ExchangeCode(ctx, reg, "khac", "code-1"); !errors.Is(err, channel.ErrNoConnector) {
 		t.Errorf("không có adapter: %v", err)
 	}
 	pt, info, err := channel.FetchPageToken(ctx, reg, "facebook", "EAAB-user-1", "1001")

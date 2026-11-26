@@ -202,6 +202,10 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		spool := &webhooks.Spool{Dir: cfg.SpoolDir}
 		drainer := &webhooks.Drainer{Spool: spool, DB: d, Metrics: reg, Logger: logger}
 		wg.Go(func() { drainer.Run(fctx) })
+		// Tệp tạm của yêu cầu xóa dữ liệu của Meta (Task 179), cùng nhịp.
+		if err := startDataDeletionDrainer(fctx, &wg, cfg, d, logger); err != nil {
+			return err
+		}
 	}
 	var hub *realtime.PGHub
 	if cfg.Role == config.RoleAPI {
@@ -301,7 +305,9 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 	for _, fn := range mods.M3.Cleanups {
 		cleanup.RegisterTenantCleanup(fn)
 	}
-	for _, s := range slices.Concat(mods.Schedules, mods.M3.Schedules, mods.M4.Schedules) {
+	// Lịch platform.data_deletion (Task 179): xóa dữ liệu đăng nhập Facebook theo yêu cầu của Meta, không tenant, 60 s.
+	for _, s := range slices.Concat(mods.Schedules, mods.M3.Schedules, mods.M4.Schedules,
+		[]schedules.Schedule{dataDeletionProcessor().Schedule()}) {
 		if err := plan.Define(s); err != nil {
 			return fmt.Errorf("định nghĩa lịch %s: %w", s.Name, err)
 		}
@@ -335,7 +341,7 @@ func runWorker(ctx context.Context, d *db.DB, reg *metrics.Registry, flusher *me
 		// Áp bản nhập Excel (Task M1-47b): ghi mẫu, biến thể bằng Writer của catalog (sự kiện qua cùng sổ, báo hiệu).
 		catalog.NewImportApplier(catalog.Writer{Events: mods.Events, Queue: queue.NewQueue(), Realtime: hub})),
 		mods.Handlers...)
-	handlers = append(handlers, mods.M4.Jobs...)
+	handlers = append(append(handlers, mods.M4.Jobs...), dataDeletionProcessor())
 	w := queue.NewWorker(d, handlers, queue.WorkerOptions{
 		WorkerID: metrics.ProcessName(cfg.Role) + "/" + uuid.NewString(), // mỗi lần chạy một mã giữ chỗ riêng
 		Metrics:  reg, Logger: logger, Role: string(cfg.Role),
@@ -373,8 +379,8 @@ func startBackground(ctx context.Context, wg *sync.WaitGroup, runs []func(contex
 	}
 }
 
-// alertSchedules định nghĩa hai lịch của cảnh báo (Task 19): platform.alerts mỗi 60 s (CheckRules) và platform.digest
-// (tin tổng kết 08:00 giờ Việt Nam); trả hai lệnh đó cùng hai lệnh cảnh báo của kho (cùng Alerter) để đăng
+// alertSchedules định nghĩa các lịch của cảnh báo: platform.alerts mỗi 60 s (CheckRules, Task 19), platform.digest
+// (tin tổng kết 08:00 giờ Việt Nam) và channel.data_use_checkup (nhắc Data Use Checkup, Task 179); trả hai lệnh đó cùng hai lệnh cảnh báo của kho (cùng Alerter) để đăng
 // ký vào Runner. Gửi Telegram nên là lệnh, không phải handler transactional.
 func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logger *slog.Logger) ([]commands.Handler, error) {
 	alerter := observability.NewTelegramAlerter(d, cfg, nil, logger)
@@ -382,9 +388,12 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 		BackupExpected: cfg.BackupExpected, FileSyncExpected: cfg.FileSyncExpected, DBDiskBudgetBytes: cfg.DBDiskBudgetBytes, ConnBudget: cfg.DBConnBudget,
 	}, logger)
 	digest := alertjobs.NewDigestCommand(d, alerter, logger)
+	// Nhắc Data Use Checkup hằng năm của app Meta (Task 179): lịch hằng ngày, gửi khi còn ≤ 30 ngày, 7 ngày một lần.
+	checkup := channel.NewDataUseCheckupCommand(d, alerter, cfg.Meta.DataUseCheckupDue, nil, logger)
 	for _, s := range []schedules.Schedule{
 		{Name: alertjobs.AlertsSchedule, Every: alertjobs.AlertsEvery, Kind: alerts.Kind()},
 		{Name: alertjobs.DigestSchedule, Every: alertjobs.DigestEvery, Kind: digest.Kind()},
+		{Name: channel.DataUseCheckupSchedule, Every: channel.DataUseCheckupEvery, Kind: checkup.Kind()},
 	} {
 		if err := plan.Define(s); err != nil {
 			return nil, fmt.Errorf("định nghĩa lịch %s: %w", s.Name, err)
@@ -405,6 +414,7 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 		// Cảnh báo Page bắt đầu gửi thật (kế hoạch M4, Task 145): lệnh do channel.Writer.SetSendMode ghi.
 		channel.NewSendModeAlertCommand(alerter, logger),
 		channel.NewSubscribeAlertCommand(alerter, logger),
+		checkup,
 	}, nil
 }
 
@@ -569,6 +579,10 @@ func ingestHandler(cfg config.Config, d *db.DB, reg *metrics.Registry, logger *s
 	mux := http.NewServeMux()
 	observability.NewHealth(d.Pool).Register(mux)
 	in.Register(mux)
+	// Callback xóa dữ liệu của Meta (Task 179): đường cụ thể hơn POST /hooks/{source}/{routeKey} nên thắng.
+	if err := registerDataDeletion(mux, cfg, d, logger); err != nil {
+		return nil, err
+	}
 	return mux, nil
 }
 

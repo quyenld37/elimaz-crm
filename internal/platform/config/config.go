@@ -182,6 +182,9 @@ type MetaConfig struct {
 	HooksPublicBaseURL string
 	// worker (META_ATTACHMENT_HOSTS, phân cách dấu phẩy): máy chủ được tải tệp đính kèm của khách (và tên miền con).
 	AttachmentHosts []string
+	// worker (META_DATA_USE_CHECKUP_DUE, YYYY-MM-DD, tùy chọn; Task 179): hạn Data Use Checkup hằng năm của app Meta;
+	// còn ≤ 30 ngày thì lịch channel.data_use_checkup nhắc. Zero: chưa đặt, không nhắc.
+	DataUseCheckupDue time.Time
 }
 
 // LogValue chỉ in các trường không bí mật, để Config ghi vào log được.

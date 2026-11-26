@@ -21,6 +21,7 @@ var (
 // Tên thao tác của ConnectorAdapter (Call.Op, FailNext).
 const (
 	OpExchange    = "exchange"
+	OpAppUserID   = "app_user_id"
 	OpListPages   = "list_pages"
 	OpPageToken   = "page_token"
 	OpSubscribe   = "subscribe"
@@ -51,6 +52,7 @@ type ConnectorAdapter struct {
 
 	mu         sync.Mutex
 	codes      map[string]string              // mã đăng nhập → token người dùng
+	appUsers   map[string]string              // token người dùng → mã người dùng app
 	pages      map[string]map[string]FakePage // token → mã Page → Page
 	revoked    map[string]bool                // token đã thu hồi
 	subscribed map[string][]string            // mã Page → trường đã đăng ký
@@ -61,7 +63,7 @@ type ConnectorAdapter struct {
 // NewConnectorAdapter dựng adapter giả khóa key (thường "facebook").
 func NewConnectorAdapter(key string) *ConnectorAdapter {
 	return &ConnectorAdapter{
-		key: key, codes: map[string]string{}, pages: map[string]map[string]FakePage{}, revoked: map[string]bool{},
+		key: key, codes: map[string]string{}, appUsers: map[string]string{}, pages: map[string]map[string]FakePage{}, revoked: map[string]bool{},
 		subscribed: map[string][]string{}, failNext: map[string][]error{},
 	}
 }
@@ -74,6 +76,13 @@ func (a *ConnectorAdapter) AddCode(code, userToken string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.codes[code] = userToken
+}
+
+// SetAppUserID đặt mã người dùng app của token người dùng (mặc định "app-" + token).
+func (a *ConnectorAdapter) SetAppUserID(userToken, id string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.appUsers[userToken] = id
 }
 
 // AddPages cho token (người dùng hay system user) thấy các Page ps.
@@ -141,6 +150,19 @@ func (a *ConnectorAdapter) ExchangeCode(_ context.Context, code string) (logging
 		return "", ErrConnectPermanent
 	}
 	return logging.Secret(tok), nil
+}
+
+// AppUserID trả mã người dùng app của token (SetAppUserID, mặc định "app-" + token).
+func (a *ConnectorAdapter) AppUserID(_ context.Context, userToken logging.Secret) (string, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if err := a.begin(Call{Op: OpAppUserID, Token: string(userToken)}); err != nil {
+		return "", err
+	}
+	if id, ok := a.appUsers[string(userToken)]; ok {
+		return id, nil
+	}
+	return "app-" + string(userToken), nil
 }
 
 // ListPages trả Page token người dùng thấy, theo mã Page.

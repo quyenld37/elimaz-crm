@@ -50,8 +50,22 @@ func (r *reader) m4(cfg *Config) {
 		r.filesOriginApart(*cfg)
 	case RoleWorker:
 		cfg.ConversationRetentionMonths = r.integer("CONVERSATION_RETENTION_MONTHS", 24, 6, 60)
+		cfg.Meta.DataUseCheckupDue = r.date("META_DATA_USE_CHECKUP_DUE")
 	case RoleIngest, RoleMigrate:
 	}
+}
+
+// date đọc ngày YYYY-MM-DD tùy chọn (UTC, 00:00); vắng → zero; sai dạng → lỗi nêu tên biến.
+func (r *reader) date(key string) time.Time {
+	v := r.optional(key)
+	if v == "" {
+		return time.Time{}
+	}
+	d, err := time.Parse(time.DateOnly, v)
+	if err != nil {
+		r.problems = append(r.problems, key+" phải là ngày YYYY-MM-DD")
+	}
+	return d
 }
 
 // graph đọc phiên bản, hạn phiên bản, địa chỉ Graph API (có mặc định, không phụ thuộc Enabled).
