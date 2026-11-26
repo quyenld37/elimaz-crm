@@ -81,15 +81,18 @@ func ClaimLiveComment(ctx context.Context, tx pgx.Tx, env SendEnv, w order.Write
 	commentID uuid.UUID, in LiveClaimInput, now time.Time,
 ) (LiveClaimResult, error) {
 	return live.Claim(ctx, tx, live.ClaimEnv{ //nolint:wrapcheck // sentinel của phần
-		Send: env, Orders: w, Actor: a, Defaults: liveDefaults,
-		Render: func(ctx context.Context, tx pgx.Tx, templateID, conversationID, orderID uuid.UUID, actor *identity.AuthUser,
-		) (string, error) {
-			r, err := templates.Render(ctx, tx, templateID, templates.RenderInput{
-				ConversationID: conversationID, OrderID: &orderID, Actor: actor,
-			})
-			return r.Text, err //nolint:wrapcheck // sentinel của mẫu
-		},
+		Send: env, Orders: w, Actor: a, Defaults: liveDefaults, Render: renderForOrder,
 	}, u, commentID, in, now)
+}
+
+// renderForOrder điền mẫu templateID cho hội thoại conversationID với đơn orderID, người gửi actor (nil: tên Page)
+// (tin xin địa chỉ, tin nhắc).
+func renderForOrder(ctx context.Context, tx pgx.Tx, templateID, conversationID, orderID uuid.UUID, actor *identity.AuthUser,
+) (string, error) {
+	r, err := templates.Render(ctx, tx, templateID, templates.RenderInput{
+		ConversationID: conversationID, OrderID: &orderID, Actor: actor,
+	})
+	return r.Text, err //nolint:wrapcheck // sentinel của mẫu
 }
 
 // liveDefaults đọc cài đặt Page accountID cho lần chốt: nguồn đơn của comment trên bài live bắt đầu lúc liveStart (còn
