@@ -77,8 +77,9 @@ describe("quy ước trên mọi src/screens/*/route.tsx", () => {
     expect(conventionProblems(ROUTE_FILES, PERMISSIONS)).toEqual([]);
   });
 
-  it("NAV_GROUPS đúng mục 'Xếp module' của kế hoạch M5: nhóm Website giữa Khuyến mãi và Sản phẩm (Task 208)", () => {
+  it("NAV_GROUPS đúng mục 'Xếp module' của kế hoạch M5: nhóm Website giữa Khuyến mãi và Sản phẩm (Task 208); M4: Hộp chat đầu tiên", () => {
     expect(NAV_GROUPS).toEqual([
+      "Hộp chat",
       "Đơn hàng",
       "Vận chuyển",
       "Tiền",

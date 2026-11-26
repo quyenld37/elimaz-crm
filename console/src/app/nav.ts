@@ -7,6 +7,9 @@ import type { Grant } from "../api";
 
 // M3 (HV01 của docs/mockups/m3, chủ shop OK 21/11): "Vận chuyển", "Tiền" ngay sau "Đơn hàng".
 export const NAV_GROUPS = [
+  // M4 (khung docs/mockups/m4/khung.js, HV01 của M4): nhóm "Hộp chat" đứng đầu menu. Task 177 thêm cho mục Live; Task 174
+  // (khung điều hướng M4) dùng cùng dòng này.
+  "Hộp chat",
   "Đơn hàng",
   "Vận chuyển",
   "Tiền",
