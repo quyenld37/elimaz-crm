@@ -91,17 +91,37 @@ ORDER BY g.customer_id, g.gift_year;
 
 -- name: PendingBirthdayGifts :many
 -- Quà chưa trao (chưa nhắn tay, website chưa gửi), chưa dùng, còn hạn lúc now, của khách chưa dừng nhận tin.
--- only_consent: chỉ khách đồng ý Zalo hay email (outbox của website).
+-- outbox (của website): chỉ khách đồng ý Zalo hay email, bỏ quà đang chờ thử lại (retry_at > now) hay đã hết lượt tự
+-- gửi (send_failures ≥ max_failures), sau con trỏ (after_created, after_code) nếu có; thứ tự (lúc phát, mã) (Task 491).
 SELECT g.customer_id, g.gift_year, c.code::text AS code, c.value, c.min_subtotal, c.valid_from, c.valid_to,
        p.full_name, p.phone, coalesce(p.email, '')::text AS email, p.day, p.month, p.consent_zalo,
-       (p.consent_mail AND p.email IS NOT NULL)::bool AS consent_mail, p.stop_token, g.created_at
+       (p.consent_mail AND p.email IS NOT NULL)::bool AS consent_mail, p.stop_token, g.created_at, g.send_failures
 FROM promotion.birthday_gifts AS g
 JOIN promotion.coupons AS c ON c.tenant_id = g.tenant_id AND c.id = g.coupon_id
 JOIN customer.birthday_profiles_v AS p ON p.tenant_id = g.tenant_id AND p.customer_id = g.customer_id
 WHERE c.given_at IS NULL AND c.used_count = 0 AND c.valid_to > @now AND p.stopped_at IS NULL
-  AND (NOT sqlc.arg(only_consent)::bool OR p.consent_zalo OR (p.consent_mail AND p.email IS NOT NULL))
+  AND (NOT sqlc.arg(outbox)::bool OR (
+        (p.consent_zalo OR (p.consent_mail AND p.email IS NOT NULL))
+        AND g.send_failures < sqlc.arg(max_failures)::int AND (g.retry_at IS NULL OR g.retry_at <= @now)))
+  AND (sqlc.narg(after_created)::timestamptz IS NULL
+       OR (g.created_at, c.code) > (sqlc.narg(after_created)::timestamptz, sqlc.narg(after_code)::text::citext))
 ORDER BY g.created_at, c.code
 LIMIT sqlc.arg(row_limit)::int;
+
+-- name: LockBirthdayGiftByCode :one
+-- Quà sinh nhật theo mã, khóa dòng mã (ADR-46 nhóm 10: coupons trước birthday_gifts) trước khi ghi lỗi gửi.
+SELECT c.id, c.code::text AS code, c.given_at, c.used_count, g.send_failures, g.retry_at
+FROM promotion.coupons AS c
+JOIN promotion.birthday_gifts AS g ON g.tenant_id = c.tenant_id AND g.coupon_id = c.id
+WHERE c.code = sqlc.arg(code)::text::citext
+FOR UPDATE OF c;
+
+-- name: MarkBirthdayGiftFailed :one
+-- Ghi một lần website gửi lỗi: tăng số lỗi, đặt lúc thử lại (NULL khi hết lượt).
+UPDATE promotion.birthday_gifts
+SET send_failures = send_failures + 1, retry_at = sqlc.narg(retry_at)::timestamptz
+WHERE coupon_id = @coupon_id
+RETURNING send_failures, retry_at;
 
 -- name: LockBirthdayCoupons :many
 -- Mã quà sinh nhật theo chữ, khóa theo id tăng dần (ADR-46 nhóm 10) trước khi ghi lúc trao.

@@ -254,6 +254,8 @@ var Routes = []Route{
 	{Method: "GET", Pattern: "GET /api/v1/web/availability", OperationID: "webAvailability", Permission: "web.catalog.read", Auth: "service_key"},
 	{Method: "POST", Pattern: "POST /api/v1/web/birthday-batches", OperationID: "webCreateBirthdayBatch", Permission: "web.coupons.issue", Write: true, IdempotencyMode: "required", Auth: "service_key"},
 	{Method: "POST", Pattern: "POST /api/v1/web/birthdays", OperationID: "webRegisterBirthday", Permission: "web.birthdays.write", Write: true, IdempotencyMode: "required", Auth: "service_key"},
+	{Method: "POST", Pattern: "POST /api/v1/web/birthdays/gifts/{code}/failed", OperationID: "webBirthdayGiftFailed", Permission: "web.coupons.issue", Write: true, IdempotencyMode: "required", Auth: "service_key"},
+	{Method: "POST", Pattern: "POST /api/v1/web/birthdays/import", OperationID: "webImportBirthdays", Permission: "web.birthdays.write", Write: true, IdempotencyMode: "required", Auth: "service_key"},
 	{Method: "GET", Pattern: "GET /api/v1/web/birthdays/outbox", OperationID: "webBirthdayOutbox", Permission: "web.coupons.issue", Auth: "service_key"},
 	{Method: "POST", Pattern: "POST /api/v1/web/birthdays/stop", OperationID: "webBirthdayStop", Permission: "web.birthdays.write", Write: true, IdempotencyMode: "required", Auth: "service_key"},
 	{Method: "GET", Pattern: "GET /api/v1/web/campaigns", OperationID: "webCampaigns", Permission: "web.catalog.read", Auth: "service_key"},

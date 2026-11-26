@@ -2245,10 +2245,26 @@ func (UnimplementedHandler) WebAvailability(ctx context.Context, params WebAvail
 	return r, ht.ErrNotImplemented
 }
 
+// WebBirthdayGiftFailed implements webBirthdayGiftFailed operation.
+//
+// Mỗi lần gọi (khóa chống trùng khác nhau) tính một lần lỗi. Lỗi lần 1, 2 →
+// quà rời outbox 6 giờ (retryAt) rồi quay lại; lỗi lần 3 → không vào outbox nữa
+// (không retryAt), vẫn ở "Cần nhắn" cho nhân viên. Quà đã trao hay đã dùng → không
+// đổi gì (given true). Mã không phải quà sinh nhật hay không có → 404 not_found.
+//
+// POST /api/v1/web/birthdays/gifts/{code}/failed
+func (UnimplementedHandler) WebBirthdayGiftFailed(ctx context.Context, params WebBirthdayGiftFailedParams) (r WebBirthdayGiftFailedRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // WebBirthdayOutbox implements webBirthdayOutbox operation.
 //
 // Quà chưa trao, chưa dùng, còn hạn, cũ nhất trước. Website gửi tin (link dừng dùng
-// stopToken) rồi gọi webMarkCouponGiven; mã đã trao rời danh sách (QĐ40).
+// stopToken) rồi gọi webMarkCouponGiven; mã đã trao rời danh sách (QĐ40). Task 491: phân
+// trang theo con trỏ (còn trang sau thì có nextCursor, gửi lại nguyên ở cursor; con trỏ
+// sai → 400 invalid_input). Quà website báo gửi lỗi (webBirthdayGiftFailed) rời danh sách
+// tới retryAt; lỗi lần thứ 3 thì không vào danh sách nữa (nhân viên nhắn tay ở
+// "Cần nhắn"), nên quà lỗi không chặn quà mới.
 //
 // GET /api/v1/web/birthdays/outbox
 func (UnimplementedHandler) WebBirthdayOutbox(ctx context.Context, params WebBirthdayOutboxParams) (r WebBirthdayOutboxRes, _ error) {
@@ -2449,12 +2465,31 @@ func (UnimplementedHandler) WebHomeLooks(ctx context.Context, params WebHomeLook
 	return r, ht.ErrNotImplemented
 }
 
+// WebImportBirthdays implements webImportBirthdays operation.
+//
+// Mỗi mục: tìm khách theo SĐT (chưa có → tạo khách mới, tên trống → "Khách
+// website"); khách chưa có hồ sơ → hồ sơ nguồn import giữ stopToken (link dừng cũ
+// vẫn dùng được với webBirthdayStop), savedAt, stoppedAt, legacyDelivered (inserted). Khách
+// đã có hồ sơ cùng mã dừng → skipped. Khách đã có hồ sơ với mã khác (đăng ký
+// lần đầu thắng) hay mã dừng đã thuộc khách khác → vị trí mục (từ 0) trong
+// conflicts, không đổi hồ sơ; riêng stoppedAt của website vẫn dừng hồ sơ của khách
+// đó. stopped: số hồ sơ đang dừng do lần nhập này. SĐT, mã dừng trùng trong lần
+// nhập, ngày sai, mail mà không email → 400 invalid_input; SĐT sai → 422 invalid_phone;
+// không nhập mục nào.
+//
+// POST /api/v1/web/birthdays/import
+func (UnimplementedHandler) WebImportBirthdays(ctx context.Context, req *WebBirthdayImportRequest, params WebImportBirthdaysParams) (r WebImportBirthdaysRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // WebImportCoupons implements webImportCoupons operation.
 //
 // Mỗi mã dùng một lần, chỉ kênh web, lô loại imported theo batchName (trống → "Mã
 // nhập từ website"). percent: value là phần trăm nguyên 1–100 của website (CRM lưu
 // phần vạn). used true → mã đã dùng hết. Mã trùng trong cùng lần nhập hay điều
-// khoản sai → 400 invalid_input, không nhập mã nào.
+// khoản sai → 400 invalid_input, không nhập mã nào. boundPhone (Task 491, tùy chọn): mã
+// chỉ dùng cho đơn của SĐT đó (mã sinh nhật); là một phần điều khoản khi nhập
+// lại (khác → conflicts); SĐT sai → 422 invalid_phone.
 //
 // POST /api/v1/web/coupons/import
 func (UnimplementedHandler) WebImportCoupons(ctx context.Context, req *WebCouponImportRequest, params WebImportCouponsParams) (r WebImportCouponsRes, _ error) {

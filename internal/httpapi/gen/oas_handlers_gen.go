@@ -21136,10 +21136,105 @@ func (s *Server) handleWebAvailabilityRequest(args [0]string, argsEscaped bool, 
 	}
 }
 
+// handleWebBirthdayGiftFailedRequest handles webBirthdayGiftFailed operation.
+//
+// Mỗi lần gọi (khóa chống trùng khác nhau) tính một lần lỗi. Lỗi lần 1, 2 →
+// quà rời outbox 6 giờ (retryAt) rồi quay lại; lỗi lần 3 → không vào outbox nữa
+// (không retryAt), vẫn ở "Cần nhắn" cho nhân viên. Quà đã trao hay đã dùng → không
+// đổi gì (given true). Mã không phải quà sinh nhật hay không có → 404 not_found.
+//
+// POST /api/v1/web/birthdays/gifts/{code}/failed
+func (s *Server) handleWebBirthdayGiftFailedRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebBirthdayGiftFailedOperation,
+			ID:   "webBirthdayGiftFailed",
+		}
+	)
+	params, err := decodeWebBirthdayGiftFailedParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebBirthdayGiftFailedRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebBirthdayGiftFailedOperation,
+			OperationSummary: "Website báo quà sinh nhật trong outbox gửi lỗi (không kênh nào tới khách) (Task 491)",
+			OperationID:      "webBirthdayGiftFailed",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "code",
+					In:   "path",
+				}: params.Code,
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebBirthdayGiftFailedParams
+			Response = WebBirthdayGiftFailedRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebBirthdayGiftFailedParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebBirthdayGiftFailed(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebBirthdayGiftFailed(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebBirthdayGiftFailedResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebBirthdayOutboxRequest handles webBirthdayOutbox operation.
 //
 // Quà chưa trao, chưa dùng, còn hạn, cũ nhất trước. Website gửi tin (link dừng dùng
-// stopToken) rồi gọi webMarkCouponGiven; mã đã trao rời danh sách (QĐ40).
+// stopToken) rồi gọi webMarkCouponGiven; mã đã trao rời danh sách (QĐ40). Task 491: phân
+// trang theo con trỏ (còn trang sau thì có nextCursor, gửi lại nguyên ở cursor; con trỏ
+// sai → 400 invalid_input). Quà website báo gửi lỗi (webBirthdayGiftFailed) rời danh sách
+// tới retryAt; lỗi lần thứ 3 thì không vào danh sách nữa (nhân viên nhắn tay ở
+// "Cần nhắn"), nên quà lỗi không chặn quà mới.
 //
 // GET /api/v1/web/birthdays/outbox
 func (s *Server) handleWebBirthdayOutboxRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -21181,6 +21276,10 @@ func (s *Server) handleWebBirthdayOutboxRequest(args [0]string, argsEscaped bool
 					Name: "limit",
 					In:   "query",
 				}: params.Limit,
+				{
+					Name: "cursor",
+					In:   "query",
+				}: params.Cursor,
 			},
 			Raw: r,
 		}
@@ -22632,12 +22731,121 @@ func (s *Server) handleWebHomeLooksRequest(args [0]string, argsEscaped bool, w h
 	}
 }
 
+// handleWebImportBirthdaysRequest handles webImportBirthdays operation.
+//
+// Mỗi mục: tìm khách theo SĐT (chưa có → tạo khách mới, tên trống → "Khách
+// website"); khách chưa có hồ sơ → hồ sơ nguồn import giữ stopToken (link dừng cũ
+// vẫn dùng được với webBirthdayStop), savedAt, stoppedAt, legacyDelivered (inserted). Khách
+// đã có hồ sơ cùng mã dừng → skipped. Khách đã có hồ sơ với mã khác (đăng ký
+// lần đầu thắng) hay mã dừng đã thuộc khách khác → vị trí mục (từ 0) trong
+// conflicts, không đổi hồ sơ; riêng stoppedAt của website vẫn dừng hồ sơ của khách
+// đó. stopped: số hồ sơ đang dừng do lần nhập này. SĐT, mã dừng trùng trong lần
+// nhập, ngày sai, mail mà không email → 400 invalid_input; SĐT sai → 422 invalid_phone;
+// không nhập mục nào.
+//
+// POST /api/v1/web/birthdays/import
+func (s *Server) handleWebImportBirthdaysRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebImportBirthdaysOperation,
+			ID:   "webImportBirthdays",
+		}
+	)
+	params, err := decodeWebImportBirthdaysParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeWebImportBirthdaysRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response WebImportBirthdaysRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebImportBirthdaysOperation,
+			OperationSummary: "Nhập hồ sơ sinh nhật cũ của website giữ nguyên mã dừng nhận tin (tối đa 500 mỗi lần) (Task 491)",
+			OperationID:      "webImportBirthdays",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "Idempotency-Key",
+					In:   "header",
+				}: params.IdempotencyKey,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *WebBirthdayImportRequest
+			Params   = WebImportBirthdaysParams
+			Response = WebImportBirthdaysRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebImportBirthdaysParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebImportBirthdays(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebImportBirthdays(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebImportBirthdaysResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebImportCouponsRequest handles webImportCoupons operation.
 //
 // Mỗi mã dùng một lần, chỉ kênh web, lô loại imported theo batchName (trống → "Mã
 // nhập từ website"). percent: value là phần trăm nguyên 1–100 của website (CRM lưu
 // phần vạn). used true → mã đã dùng hết. Mã trùng trong cùng lần nhập hay điều
-// khoản sai → 400 invalid_input, không nhập mã nào.
+// khoản sai → 400 invalid_input, không nhập mã nào. boundPhone (Task 491, tùy chọn): mã
+// chỉ dùng cho đơn của SĐT đó (mã sinh nhật); là một phần điều khoản khi nhập
+// lại (khác → conflicts); SĐT sai → 422 invalid_phone.
 //
 // POST /api/v1/web/coupons/import
 func (s *Server) handleWebImportCouponsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

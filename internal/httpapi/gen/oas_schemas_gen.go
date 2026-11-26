@@ -11224,6 +11224,7 @@ func (*ErrorStatusCode) updateVariantRes()               {}
 func (*ErrorStatusCode) verifyFilesRes()                 {}
 func (*ErrorStatusCode) waiveRefundObligationRes()       {}
 func (*ErrorStatusCode) webAvailabilityRes()             {}
+func (*ErrorStatusCode) webBirthdayGiftFailedRes()       {}
 func (*ErrorStatusCode) webBirthdayOutboxRes()           {}
 func (*ErrorStatusCode) webBirthdayStopRes()             {}
 func (*ErrorStatusCode) webCampaignRes()                 {}
@@ -11240,6 +11241,7 @@ func (*ErrorStatusCode) webDeliveryEstimatesRes()        {}
 func (*ErrorStatusCode) webGetOrderRes()                 {}
 func (*ErrorStatusCode) webHomeBannersRes()              {}
 func (*ErrorStatusCode) webHomeLooksRes()                {}
+func (*ErrorStatusCode) webImportBirthdaysRes()          {}
 func (*ErrorStatusCode) webImportCouponsRes()            {}
 func (*ErrorStatusCode) webIntakeStatusRes()             {}
 func (*ErrorStatusCode) webListRequestsRes()             {}
@@ -26870,12 +26872,14 @@ func (s *RetryLaterHeaders) SetResponse(val Error) {
 	s.Response = val
 }
 
+func (*RetryLaterHeaders) webBirthdayGiftFailedRes()  {}
 func (*RetryLaterHeaders) webBirthdayStopRes()        {}
 func (*RetryLaterHeaders) webCancelOrderRes()         {}
 func (*RetryLaterHeaders) webCancelRequestRes()       {}
 func (*RetryLaterHeaders) webCreateBirthdayBatchRes() {}
 func (*RetryLaterHeaders) webCreateOrderRes()         {}
 func (*RetryLaterHeaders) webCreateRequestRes()       {}
+func (*RetryLaterHeaders) webImportBirthdaysRes()     {}
 func (*RetryLaterHeaders) webImportCouponsRes()       {}
 func (*RetryLaterHeaders) webMarkCouponGivenRes()     {}
 func (*RetryLaterHeaders) webRegisterBirthdayRes()    {}
@@ -34465,9 +34469,263 @@ func (s *WebBirthdayBatchRequest) SetBoundPhones(val []PhoneInput) {
 	s.BoundPhones = val
 }
 
+// Ref: #/components/schemas/WebBirthdayGiftFailure
+type WebBirthdayGiftFailure struct {
+	Code string `json:"code"`
+	// Số lần website đã báo lỗi.
+	Failures int32 `json:"failures"`
+	// Lúc quà quay lại outbox; không có khi hết lượt tự gửi hay quà đã trao.
+	RetryAt OptDateTime `json:"retryAt"`
+	// Quà đã trao hay đã dùng (lần gọi này không đổi gì).
+	Given bool `json:"given"`
+}
+
+// GetCode returns the value of Code.
+func (s *WebBirthdayGiftFailure) GetCode() string {
+	return s.Code
+}
+
+// GetFailures returns the value of Failures.
+func (s *WebBirthdayGiftFailure) GetFailures() int32 {
+	return s.Failures
+}
+
+// GetRetryAt returns the value of RetryAt.
+func (s *WebBirthdayGiftFailure) GetRetryAt() OptDateTime {
+	return s.RetryAt
+}
+
+// GetGiven returns the value of Given.
+func (s *WebBirthdayGiftFailure) GetGiven() bool {
+	return s.Given
+}
+
+// SetCode sets the value of Code.
+func (s *WebBirthdayGiftFailure) SetCode(val string) {
+	s.Code = val
+}
+
+// SetFailures sets the value of Failures.
+func (s *WebBirthdayGiftFailure) SetFailures(val int32) {
+	s.Failures = val
+}
+
+// SetRetryAt sets the value of RetryAt.
+func (s *WebBirthdayGiftFailure) SetRetryAt(val OptDateTime) {
+	s.RetryAt = val
+}
+
+// SetGiven sets the value of Given.
+func (s *WebBirthdayGiftFailure) SetGiven(val bool) {
+	s.Given = val
+}
+
+func (*WebBirthdayGiftFailure) webBirthdayGiftFailedRes() {}
+
+// Ref: #/components/schemas/WebBirthdayImportItem
+type WebBirthdayImportItem struct {
+	Phone PhoneInput `json:"phone"`
+	// Tên khách (chỉ dùng khi phải tạo khách mới; trống → "Khách website").
+	FullName OptString `json:"fullName"`
+	Day      int32     `json:"day"`
+	Month    int32     `json:"month"`
+	Zalo     bool      `json:"zalo"`
+	Mail     bool      `json:"mail"`
+	Email    OptString `json:"email"`
+	// Mã dừng nhận tin của website (giữ nguyên).
+	StopToken string `json:"stopToken"`
+	// Lúc khách đăng ký trên website (luật đăng ký trước tối thiểu).
+	SavedAt time.Time `json:"savedAt"`
+	// Lúc khách đã dừng nhận tin trên website.
+	StoppedAt OptDateTime `json:"stoppedAt"`
+	// Khách đã có đơn web giao thành công trên website cũ.
+	LegacyDelivered OptBool `json:"legacyDelivered"`
+}
+
+// GetPhone returns the value of Phone.
+func (s *WebBirthdayImportItem) GetPhone() PhoneInput {
+	return s.Phone
+}
+
+// GetFullName returns the value of FullName.
+func (s *WebBirthdayImportItem) GetFullName() OptString {
+	return s.FullName
+}
+
+// GetDay returns the value of Day.
+func (s *WebBirthdayImportItem) GetDay() int32 {
+	return s.Day
+}
+
+// GetMonth returns the value of Month.
+func (s *WebBirthdayImportItem) GetMonth() int32 {
+	return s.Month
+}
+
+// GetZalo returns the value of Zalo.
+func (s *WebBirthdayImportItem) GetZalo() bool {
+	return s.Zalo
+}
+
+// GetMail returns the value of Mail.
+func (s *WebBirthdayImportItem) GetMail() bool {
+	return s.Mail
+}
+
+// GetEmail returns the value of Email.
+func (s *WebBirthdayImportItem) GetEmail() OptString {
+	return s.Email
+}
+
+// GetStopToken returns the value of StopToken.
+func (s *WebBirthdayImportItem) GetStopToken() string {
+	return s.StopToken
+}
+
+// GetSavedAt returns the value of SavedAt.
+func (s *WebBirthdayImportItem) GetSavedAt() time.Time {
+	return s.SavedAt
+}
+
+// GetStoppedAt returns the value of StoppedAt.
+func (s *WebBirthdayImportItem) GetStoppedAt() OptDateTime {
+	return s.StoppedAt
+}
+
+// GetLegacyDelivered returns the value of LegacyDelivered.
+func (s *WebBirthdayImportItem) GetLegacyDelivered() OptBool {
+	return s.LegacyDelivered
+}
+
+// SetPhone sets the value of Phone.
+func (s *WebBirthdayImportItem) SetPhone(val PhoneInput) {
+	s.Phone = val
+}
+
+// SetFullName sets the value of FullName.
+func (s *WebBirthdayImportItem) SetFullName(val OptString) {
+	s.FullName = val
+}
+
+// SetDay sets the value of Day.
+func (s *WebBirthdayImportItem) SetDay(val int32) {
+	s.Day = val
+}
+
+// SetMonth sets the value of Month.
+func (s *WebBirthdayImportItem) SetMonth(val int32) {
+	s.Month = val
+}
+
+// SetZalo sets the value of Zalo.
+func (s *WebBirthdayImportItem) SetZalo(val bool) {
+	s.Zalo = val
+}
+
+// SetMail sets the value of Mail.
+func (s *WebBirthdayImportItem) SetMail(val bool) {
+	s.Mail = val
+}
+
+// SetEmail sets the value of Email.
+func (s *WebBirthdayImportItem) SetEmail(val OptString) {
+	s.Email = val
+}
+
+// SetStopToken sets the value of StopToken.
+func (s *WebBirthdayImportItem) SetStopToken(val string) {
+	s.StopToken = val
+}
+
+// SetSavedAt sets the value of SavedAt.
+func (s *WebBirthdayImportItem) SetSavedAt(val time.Time) {
+	s.SavedAt = val
+}
+
+// SetStoppedAt sets the value of StoppedAt.
+func (s *WebBirthdayImportItem) SetStoppedAt(val OptDateTime) {
+	s.StoppedAt = val
+}
+
+// SetLegacyDelivered sets the value of LegacyDelivered.
+func (s *WebBirthdayImportItem) SetLegacyDelivered(val OptBool) {
+	s.LegacyDelivered = val
+}
+
+// Ref: #/components/schemas/WebBirthdayImportReport
+type WebBirthdayImportReport struct {
+	Inserted int32 `json:"inserted"`
+	// Hồ sơ đã có cùng mã dừng (nhập lại).
+	Skipped int32 `json:"skipped"`
+	// Hồ sơ đang dừng nhận tin do lần nhập này.
+	Stopped int32 `json:"stopped"`
+	// Vị trí mục (từ 0) không giữ được mã dừng (khách đã có hồ sơ khác mã, hay
+	// mã thuộc khách khác).
+	Conflicts []int32 `json:"conflicts"`
+}
+
+// GetInserted returns the value of Inserted.
+func (s *WebBirthdayImportReport) GetInserted() int32 {
+	return s.Inserted
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *WebBirthdayImportReport) GetSkipped() int32 {
+	return s.Skipped
+}
+
+// GetStopped returns the value of Stopped.
+func (s *WebBirthdayImportReport) GetStopped() int32 {
+	return s.Stopped
+}
+
+// GetConflicts returns the value of Conflicts.
+func (s *WebBirthdayImportReport) GetConflicts() []int32 {
+	return s.Conflicts
+}
+
+// SetInserted sets the value of Inserted.
+func (s *WebBirthdayImportReport) SetInserted(val int32) {
+	s.Inserted = val
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *WebBirthdayImportReport) SetSkipped(val int32) {
+	s.Skipped = val
+}
+
+// SetStopped sets the value of Stopped.
+func (s *WebBirthdayImportReport) SetStopped(val int32) {
+	s.Stopped = val
+}
+
+// SetConflicts sets the value of Conflicts.
+func (s *WebBirthdayImportReport) SetConflicts(val []int32) {
+	s.Conflicts = val
+}
+
+func (*WebBirthdayImportReport) webImportBirthdaysRes() {}
+
+// Ref: #/components/schemas/WebBirthdayImportRequest
+type WebBirthdayImportRequest struct {
+	Items []WebBirthdayImportItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *WebBirthdayImportRequest) GetItems() []WebBirthdayImportItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *WebBirthdayImportRequest) SetItems(val []WebBirthdayImportItem) {
+	s.Items = val
+}
+
 // Ref: #/components/schemas/WebBirthdayOutbox
 type WebBirthdayOutbox struct {
 	Items []WebBirthdayOutboxItem `json:"items"`
+	// Có khi còn trang sau; gửi lại nguyên ở tham số cursor.
+	NextCursor OptString `json:"nextCursor"`
 }
 
 // GetItems returns the value of Items.
@@ -34475,9 +34733,19 @@ func (s *WebBirthdayOutbox) GetItems() []WebBirthdayOutboxItem {
 	return s.Items
 }
 
+// GetNextCursor returns the value of NextCursor.
+func (s *WebBirthdayOutbox) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
 // SetItems sets the value of Items.
 func (s *WebBirthdayOutbox) SetItems(val []WebBirthdayOutboxItem) {
 	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *WebBirthdayOutbox) SetNextCursor(val OptString) {
+	s.NextCursor = val
 }
 
 func (*WebBirthdayOutbox) webBirthdayOutboxRes() {}
@@ -36177,14 +36445,15 @@ type WebCouponImportItem struct {
 	Code         string       `json:"code"`
 	DiscountKind DiscountKind `json:"discountKind"`
 	// Percent — phần trăm nguyên 1–100; fixed — số đồng.
-	Value       int64       `json:"value"`
-	MaxDiscount OptMoney    `json:"maxDiscount"`
-	MinSubtotal OptMoney    `json:"minSubtotal"`
-	ValidFrom   time.Time   `json:"validFrom"`
-	ValidTo     time.Time   `json:"validTo"`
-	GivenAt     OptDateTime `json:"givenAt"`
-	Used        OptBool     `json:"used"`
-	BatchName   OptString   `json:"batchName"`
+	Value       int64         `json:"value"`
+	MaxDiscount OptMoney      `json:"maxDiscount"`
+	MinSubtotal OptMoney      `json:"minSubtotal"`
+	ValidFrom   time.Time     `json:"validFrom"`
+	ValidTo     time.Time     `json:"validTo"`
+	GivenAt     OptDateTime   `json:"givenAt"`
+	Used        OptBool       `json:"used"`
+	BatchName   OptString     `json:"batchName"`
+	BoundPhone  OptPhoneInput `json:"boundPhone"`
 }
 
 // GetCode returns the value of Code.
@@ -36237,6 +36506,11 @@ func (s *WebCouponImportItem) GetBatchName() OptString {
 	return s.BatchName
 }
 
+// GetBoundPhone returns the value of BoundPhone.
+func (s *WebCouponImportItem) GetBoundPhone() OptPhoneInput {
+	return s.BoundPhone
+}
+
 // SetCode sets the value of Code.
 func (s *WebCouponImportItem) SetCode(val string) {
 	s.Code = val
@@ -36285,6 +36559,11 @@ func (s *WebCouponImportItem) SetUsed(val OptBool) {
 // SetBatchName sets the value of BatchName.
 func (s *WebCouponImportItem) SetBatchName(val OptString) {
 	s.BatchName = val
+}
+
+// SetBoundPhone sets the value of BoundPhone.
+func (s *WebCouponImportItem) SetBoundPhone(val OptPhoneInput) {
+	s.BoundPhone = val
 }
 
 // Ref: #/components/schemas/WebCouponImportReport

@@ -132,19 +132,7 @@ func TestWebBirthday_RegisterOutboxStop(t *testing.T) {
 		}
 		return err //nolint:wrapcheck // test
 	})
-	b.app(func(tx pgx.Tx) error {
-		s := promotion.DefaultBirthdaySettings()
-		s.Enabled = true
-		if _, _, err := (promotion.Writer{}).SaveBirthdaySettings(t.Context(), tx, s, 1, promotion.Actor{UserID: b.owner.UserID}, b.now); err != nil {
-			return err //nolint:wrapcheck // test
-		}
-		run, err := promotion.Writer{}.RunBirthdayGifts(t.Context(), tx, promotion.BirthdayTriggerManual,
-			promotion.Actor{UserID: b.owner.UserID}, b.now)
-		if err == nil && run.Given != 3 {
-			t.Errorf("lượt phát: %+v", run)
-		}
-		return err //nolint:wrapcheck // test
-	})
+	b.runGifts(3)
 
 	out := decodeOK[outboxBody](t, "outbox", b.get(b.issueKey, webBdOutboxPath))
 	if len(out.Items) != 2 {
@@ -172,6 +160,25 @@ func TestWebBirthday_RegisterOutboxStop(t *testing.T) {
 		t.Errorf("outbox sau khi dừng: %+v", out)
 	}
 	b.checkNoPII(zalo)
+}
+
+// runGifts bật quà (cài đặt mặc định) và chạy một lượt phát của nhân viên lúc b.now; đòi đúng want quà.
+func (b *bdWeb) runGifts(want int) {
+	t := b.t
+	t.Helper()
+	b.app(func(tx pgx.Tx) error {
+		s := promotion.DefaultBirthdaySettings()
+		s.Enabled = true
+		if _, _, err := (promotion.Writer{}).SaveBirthdaySettings(t.Context(), tx, s, 1, promotion.Actor{UserID: b.owner.UserID}, b.now); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		run, err := promotion.Writer{}.RunBirthdayGifts(t.Context(), tx, promotion.BirthdayTriggerManual,
+			promotion.Actor{UserID: b.owner.UserID}, b.now)
+		if err == nil && run.Given != want {
+			t.Errorf("lượt phát: %+v", run)
+		}
+		return err //nolint:wrapcheck // test
+	})
 }
 
 // checkRegisterRefusals: khóa thiếu quyền → 403; 30/2, nhận email không có email → 400; SĐT sai → 422.

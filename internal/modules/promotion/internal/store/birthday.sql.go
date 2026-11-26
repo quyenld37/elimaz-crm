@@ -418,6 +418,38 @@ func (q *Queries) LockBirthdayCoupons(ctx context.Context, codes []string) ([]uu
 	return items, nil
 }
 
+const lockBirthdayGiftByCode = `-- name: LockBirthdayGiftByCode :one
+SELECT c.id, c.code::text AS code, c.given_at, c.used_count, g.send_failures, g.retry_at
+FROM promotion.coupons AS c
+JOIN promotion.birthday_gifts AS g ON g.tenant_id = c.tenant_id AND g.coupon_id = c.id
+WHERE c.code = $1::text::citext
+FOR UPDATE OF c
+`
+
+type LockBirthdayGiftByCodeRow struct {
+	ID           uuid.UUID
+	Code         string
+	GivenAt      pgtype.Timestamptz
+	UsedCount    int32
+	SendFailures int32
+	RetryAt      pgtype.Timestamptz
+}
+
+// Quà sinh nhật theo mã, khóa dòng mã (ADR-46 nhóm 10: coupons trước birthday_gifts) trước khi ghi lỗi gửi.
+func (q *Queries) LockBirthdayGiftByCode(ctx context.Context, code string) (LockBirthdayGiftByCodeRow, error) {
+	row := q.db.QueryRow(ctx, lockBirthdayGiftByCode, code)
+	var i LockBirthdayGiftByCodeRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.GivenAt,
+		&i.UsedCount,
+		&i.SendFailures,
+		&i.RetryAt,
+	)
+	return i, err
+}
+
 const lockBirthdaySettings = `-- name: LockBirthdaySettings :one
 SELECT enabled, amount, min_order, days_before, valid_days, min_lead_days, version, updated_by, updated_at
 FROM promotion.birthday_settings
@@ -486,48 +518,89 @@ func (q *Queries) MarkBirthdayCouponsGiven(ctx context.Context, arg MarkBirthday
 	return items, nil
 }
 
+const markBirthdayGiftFailed = `-- name: MarkBirthdayGiftFailed :one
+UPDATE promotion.birthday_gifts
+SET send_failures = send_failures + 1, retry_at = $1::timestamptz
+WHERE coupon_id = $2
+RETURNING send_failures, retry_at
+`
+
+type MarkBirthdayGiftFailedParams struct {
+	RetryAt  pgtype.Timestamptz
+	CouponID uuid.UUID
+}
+
+type MarkBirthdayGiftFailedRow struct {
+	SendFailures int32
+	RetryAt      pgtype.Timestamptz
+}
+
+// Ghi một lần website gửi lỗi: tăng số lỗi, đặt lúc thử lại (NULL khi hết lượt).
+func (q *Queries) MarkBirthdayGiftFailed(ctx context.Context, arg MarkBirthdayGiftFailedParams) (MarkBirthdayGiftFailedRow, error) {
+	row := q.db.QueryRow(ctx, markBirthdayGiftFailed, arg.RetryAt, arg.CouponID)
+	var i MarkBirthdayGiftFailedRow
+	err := row.Scan(&i.SendFailures, &i.RetryAt)
+	return i, err
+}
+
 const pendingBirthdayGifts = `-- name: PendingBirthdayGifts :many
 SELECT g.customer_id, g.gift_year, c.code::text AS code, c.value, c.min_subtotal, c.valid_from, c.valid_to,
        p.full_name, p.phone, coalesce(p.email, '')::text AS email, p.day, p.month, p.consent_zalo,
-       (p.consent_mail AND p.email IS NOT NULL)::bool AS consent_mail, p.stop_token, g.created_at
+       (p.consent_mail AND p.email IS NOT NULL)::bool AS consent_mail, p.stop_token, g.created_at, g.send_failures
 FROM promotion.birthday_gifts AS g
 JOIN promotion.coupons AS c ON c.tenant_id = g.tenant_id AND c.id = g.coupon_id
 JOIN customer.birthday_profiles_v AS p ON p.tenant_id = g.tenant_id AND p.customer_id = g.customer_id
 WHERE c.given_at IS NULL AND c.used_count = 0 AND c.valid_to > $1 AND p.stopped_at IS NULL
-  AND (NOT $2::bool OR p.consent_zalo OR (p.consent_mail AND p.email IS NOT NULL))
+  AND (NOT $2::bool OR (
+        (p.consent_zalo OR (p.consent_mail AND p.email IS NOT NULL))
+        AND g.send_failures < $3::int AND (g.retry_at IS NULL OR g.retry_at <= $1)))
+  AND ($4::timestamptz IS NULL
+       OR (g.created_at, c.code) > ($4::timestamptz, $5::text::citext))
 ORDER BY g.created_at, c.code
-LIMIT $3::int
+LIMIT $6::int
 `
 
 type PendingBirthdayGiftsParams struct {
-	Now         time.Time
-	OnlyConsent bool
-	RowLimit    int32
+	Now          time.Time
+	Outbox       bool
+	MaxFailures  int32
+	AfterCreated pgtype.Timestamptz
+	AfterCode    pgtype.Text
+	RowLimit     int32
 }
 
 type PendingBirthdayGiftsRow struct {
-	CustomerID  uuid.UUID
-	GiftYear    int32
-	Code        string
-	Value       int64
-	MinSubtotal int64
-	ValidFrom   time.Time
-	ValidTo     time.Time
-	FullName    string
-	Phone       string
-	Email       string
-	Day         int32
-	Month       int32
-	ConsentZalo bool
-	ConsentMail bool
-	StopToken   string
-	CreatedAt   time.Time
+	CustomerID   uuid.UUID
+	GiftYear     int32
+	Code         string
+	Value        int64
+	MinSubtotal  int64
+	ValidFrom    time.Time
+	ValidTo      time.Time
+	FullName     string
+	Phone        string
+	Email        string
+	Day          int32
+	Month        int32
+	ConsentZalo  bool
+	ConsentMail  bool
+	StopToken    string
+	CreatedAt    time.Time
+	SendFailures int32
 }
 
 // Quà chưa trao (chưa nhắn tay, website chưa gửi), chưa dùng, còn hạn lúc now, của khách chưa dừng nhận tin.
-// only_consent: chỉ khách đồng ý Zalo hay email (outbox của website).
+// outbox (của website): chỉ khách đồng ý Zalo hay email, bỏ quà đang chờ thử lại (retry_at > now) hay đã hết lượt tự
+// gửi (send_failures ≥ max_failures), sau con trỏ (after_created, after_code) nếu có; thứ tự (lúc phát, mã) (Task 491).
 func (q *Queries) PendingBirthdayGifts(ctx context.Context, arg PendingBirthdayGiftsParams) ([]PendingBirthdayGiftsRow, error) {
-	rows, err := q.db.Query(ctx, pendingBirthdayGifts, arg.Now, arg.OnlyConsent, arg.RowLimit)
+	rows, err := q.db.Query(ctx, pendingBirthdayGifts,
+		arg.Now,
+		arg.Outbox,
+		arg.MaxFailures,
+		arg.AfterCreated,
+		arg.AfterCode,
+		arg.RowLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -552,6 +625,7 @@ func (q *Queries) PendingBirthdayGifts(ctx context.Context, arg PendingBirthdayG
 			&i.ConsentMail,
 			&i.StopToken,
 			&i.CreatedAt,
+			&i.SendFailures,
 		); err != nil {
 			return nil, err
 		}

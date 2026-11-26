@@ -1826,12 +1826,14 @@ type PlatformWebhookDelivery struct {
 }
 
 type PromotionBirthdayGift struct {
-	TenantID   uuid.UUID
-	CustomerID uuid.UUID
-	GiftYear   int32
-	CouponID   uuid.UUID
-	RunID      uuid.UUID
-	CreatedAt  time.Time
+	TenantID     uuid.UUID
+	CustomerID   uuid.UUID
+	GiftYear     int32
+	CouponID     uuid.UUID
+	RunID        uuid.UUID
+	CreatedAt    time.Time
+	SendFailures int32
+	RetryAt      pgtype.Timestamptz
 }
 
 type PromotionBirthdayRun struct {

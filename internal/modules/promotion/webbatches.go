@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/promotion/internal/store"
 	"elimaz.com.vn/crm/internal/platform/db"
 )
@@ -204,7 +205,8 @@ func MarkGiven(ctx context.Context, tx pgx.Tx, code string, at time.Time) (Given
 }
 
 // ImportItem là một mã còn hạn của website. DiscountKind percent: Value là phần trăm nguyên 1–100 (lưu phần vạn,
-// ×100); fixed: số đồng. MaxDiscount 0 = không trần. BatchName rỗng → "Mã nhập từ website".
+// ×100); fixed: số đồng. MaxDiscount 0 = không trần. BatchName rỗng → "Mã nhập từ website". BoundPhone khác rỗng: mã
+// chỉ dùng cho đơn của SĐT đó (mã sinh nhật, Task 491; dữ liệu cá nhân).
 type ImportItem struct {
 	Code, DiscountKind              string
 	Value, MaxDiscount, MinSubtotal int64
@@ -212,6 +214,7 @@ type ImportItem struct {
 	GivenAt                         *time.Time
 	Used                            bool
 	BatchName                       string
+	BoundPhone                      string
 }
 
 // ImportReport là kết quả một lần nhập: số mã chèn mới, số mã đã có cùng điều khoản (nhập lại), mã đã có với điều
@@ -225,13 +228,15 @@ type ImportReport struct {
 type importRow struct {
 	ImportItem
 
-	value int64 // phần vạn (percent) hay số đồng
+	value int64  // phần vạn (percent) hay số đồng
+	phone string // SĐT gắn mã đã chuẩn hóa (+84…; rỗng: không gắn)
 }
 
 // ImportCoupons nhập 1–500 mã của website trong tx của bên gọi: mỗi mã một lượt (Used → đã dùng hết), kênh web, origin
 // web_import, lô loại imported theo BatchName. Lô ghi trước rồi khóa theo id tăng dần, mã ghi sau (ADR-46 nhóm 10);
-// mã đã có → so điều khoản (Skipped hay Conflicts), không đổi mã có sẵn. Mã sai mẫu, trùng trong lần nhập (không phân
-// biệt hoa thường), điều khoản sai, số mục ngoài 1–500 → ErrInvalidInput, không nhập mã nào.
+// mã đã có → so điều khoản kể cả SĐT gắn mã (Skipped hay Conflicts), không đổi mã có sẵn. Mã sai mẫu, trùng trong lần
+// nhập (không phân biệt hoa thường), điều khoản sai, số mục ngoài 1–500 → ErrInvalidInput; SĐT gắn mã sai →
+// customer.ErrInvalidPhone; không nhập mã nào.
 func ImportCoupons(ctx context.Context, tx pgx.Tx, items []ImportItem, a Actor) (ImportReport, error) {
 	rows, names, err := importRows(items)
 	if err != nil {
@@ -256,7 +261,7 @@ func ImportCoupons(ctx context.Context, tx pgx.Tx, items []ImportItem, a Actor) 
 		p.Vals, p.MaxDiscounts = append(p.Vals, r.value), append(p.MaxDiscounts, r.MaxDiscount)
 		p.MinSubtotals, p.Used = append(p.MinSubtotals, r.MinSubtotal), append(p.Used, used)
 		p.ValidFroms, p.ValidTos = append(p.ValidFroms, r.ValidFrom), append(p.ValidTos, r.ValidTo)
-		p.GivenAts = append(p.GivenAts, given)
+		p.GivenAts, p.BoundPhones = append(p.GivenAts, given), append(p.BoundPhones, r.phone)
 	}
 	inserted, err := q.InsertImportedCoupons(ctx, p)
 	if err != nil {
@@ -300,6 +305,10 @@ func importRows(items []ImportItem) ([]importRow, []string, error) {
 		if r.DiscountKind == KindPercent {
 			r.value = r.Value * (percentScale / maxImportPercent)
 		}
+		var err error
+		if r.phone, err = importPhone(r.BoundPhone); err != nil {
+			return nil, nil, err
+		}
 		one := int32(1)
 		if err := validateTerms(Coupon{
 			Name: r.BatchName, DiscountKind: r.DiscountKind, Value: r.value, MaxDiscount: r.maxDiscount(),
@@ -315,6 +324,18 @@ func importRows(items []ImportItem) ([]importRow, []string, error) {
 		rows = append(rows, r)
 	}
 	return rows, names, nil
+}
+
+// importPhone chuẩn hóa SĐT gắn mã nhập (rỗng: không gắn).
+func importPhone(raw string) (string, error) {
+	if raw == "" {
+		return "", nil
+	}
+	p, err := customer.NormalizePhone(raw)
+	if err != nil {
+		return "", fmt.Errorf("SĐT gắn mã nhập: %w", err)
+	}
+	return string(p), nil
 }
 
 func (r importRow) maxDiscount() *int64 {
@@ -398,7 +419,8 @@ func importReport(ctx context.Context, q *store.Queries, rows []importRow, inser
 		}
 		h, ok := terms[key]
 		if ok && h.DiscountKind == r.DiscountKind && h.Value == r.value && h.MaxDiscount == r.MaxDiscount &&
-			h.MinSubtotal == r.MinSubtotal && h.ValidFrom.Equal(r.ValidFrom) && h.ValidTo.Equal(r.ValidTo) {
+			h.MinSubtotal == r.MinSubtotal && h.ValidFrom.Equal(r.ValidFrom) && h.ValidTo.Equal(r.ValidTo) &&
+			h.BoundPhone == r.phone {
 			rep.Skipped++
 			continue
 		}

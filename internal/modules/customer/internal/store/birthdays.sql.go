@@ -13,6 +13,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const birthdayProfileToken = `-- name: BirthdayProfileToken :one
+SELECT stop_token, stopped_at
+FROM customer.birthday_profiles
+WHERE customer_id = $1
+`
+
+type BirthdayProfileTokenRow struct {
+	StopToken string
+	StoppedAt pgtype.Timestamptz
+}
+
+// Mã dừng và lúc dừng của hồ sơ của khách (phân loại mục nhập không chèn được).
+func (q *Queries) BirthdayProfileToken(ctx context.Context, customerID uuid.UUID) (BirthdayProfileTokenRow, error) {
+	row := q.db.QueryRow(ctx, birthdayProfileToken, customerID)
+	var i BirthdayProfileTokenRow
+	err := row.Scan(&i.StopToken, &i.StoppedAt)
+	return i, err
+}
+
 const birthdayStoppedAt = `-- name: BirthdayStoppedAt :one
 SELECT customer_id, stopped_at
 FROM customer.birthday_profiles
@@ -65,6 +84,71 @@ func (q *Queries) GetBirthdayProfile(ctx context.Context, customerID uuid.UUID) 
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const importBirthdayProfile = `-- name: ImportBirthdayProfile :many
+INSERT INTO customer.birthday_profiles (tenant_id, customer_id, phone, day, month, consent_zalo, consent_mail, email,
+                                        stop_token, stopped_at, legacy_delivered, source, created_at, updated_at)
+VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3, $4, $5,
+        $6, $7::text, $8, $9::timestamptz, $10,
+        'import', $11, $12)
+ON CONFLICT DO NOTHING
+RETURNING tenant_id, customer_id
+`
+
+type ImportBirthdayProfileParams struct {
+	CustomerID      uuid.UUID
+	Phone           string
+	Day             int32
+	Month           int32
+	ConsentZalo     bool
+	ConsentMail     bool
+	Email           pgtype.Text
+	StopToken       string
+	StoppedAt       pgtype.Timestamptz
+	LegacyDelivered bool
+	SavedAt         time.Time
+	Now             time.Time
+}
+
+type ImportBirthdayProfileRow struct {
+	TenantID   uuid.UUID
+	CustomerID uuid.UUID
+}
+
+// Hồ sơ sinh nhật cũ của website (Task 491): giữ mã dừng, lúc đăng ký, lúc dừng, cờ đơn cũ. Khách đã có hồ sơ hay mã
+// dừng đã thuộc hồ sơ khác → không chèn (0 dòng), bên gọi đọc lại để phân loại.
+func (q *Queries) ImportBirthdayProfile(ctx context.Context, arg ImportBirthdayProfileParams) ([]ImportBirthdayProfileRow, error) {
+	rows, err := q.db.Query(ctx, importBirthdayProfile,
+		arg.CustomerID,
+		arg.Phone,
+		arg.Day,
+		arg.Month,
+		arg.ConsentZalo,
+		arg.ConsentMail,
+		arg.Email,
+		arg.StopToken,
+		arg.StoppedAt,
+		arg.LegacyDelivered,
+		arg.SavedAt,
+		arg.Now,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ImportBirthdayProfileRow{}
+	for rows.Next() {
+		var i ImportBirthdayProfileRow
+		if err := rows.Scan(&i.TenantID, &i.CustomerID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const insertBirthdayProfile = `-- name: InsertBirthdayProfile :many
@@ -178,6 +262,45 @@ func (q *Queries) StopBirthdayProfile(ctx context.Context, arg StopBirthdayProfi
 	for rows.Next() {
 		var i StopBirthdayProfileRow
 		if err := rows.Scan(&i.TenantID, &i.CustomerID, &i.StoppedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stopBirthdayProfileOf = `-- name: StopBirthdayProfileOf :many
+UPDATE customer.birthday_profiles
+SET stopped_at = $1, updated_at = $2
+WHERE customer_id = $3 AND stopped_at IS NULL
+RETURNING tenant_id, customer_id
+`
+
+type StopBirthdayProfileOfParams struct {
+	At         pgtype.Timestamptz
+	Now        time.Time
+	CustomerID uuid.UUID
+}
+
+type StopBirthdayProfileOfRow struct {
+	TenantID   uuid.UUID
+	CustomerID uuid.UUID
+}
+
+// Dừng nhận tin hồ sơ của khách lúc at (website ghi khách đã dừng); đã dừng → 0 dòng.
+func (q *Queries) StopBirthdayProfileOf(ctx context.Context, arg StopBirthdayProfileOfParams) ([]StopBirthdayProfileOfRow, error) {
+	rows, err := q.db.Query(ctx, stopBirthdayProfileOf, arg.At, arg.Now, arg.CustomerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []StopBirthdayProfileOfRow{}
+	for rows.Next() {
+		var i StopBirthdayProfileOfRow
+		if err := rows.Scan(&i.TenantID, &i.CustomerID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
