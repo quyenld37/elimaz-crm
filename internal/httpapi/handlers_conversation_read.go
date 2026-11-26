@@ -200,6 +200,19 @@ func (h *handler) GetConversationCustomerCard(ctx context.Context, params gen.Ge
 	}); err != nil {
 		return nil, fmt.Errorf("đọc thẻ khách: %w", err)
 	}
+	info := cardInfoOut(c)
+	out := &gen.ConversationCustomerCard{
+		Customer: info, RecentOrders: chatOrdersOut(c.RecentOrders),
+		OpenDrafts: chatOrdersOut(c.OpenDrafts),
+	}
+	if c.MergeSuggestion != nil {
+		out.MergeSuggestionCustomerId = gen.NewOptUUID(*c.MergeSuggestion)
+	}
+	return out, nil
+}
+
+// cardInfoOut là thẻ khách rút gọn của hội thoại (khung chat, bối cảnh chốt comment live).
+func cardInfoOut(c conversation.Card) gen.ChatCustomerCardInfo {
 	st := c.Customer.Stats
 	info := gen.ChatCustomerCardInfo{
 		ID: c.Customer.ID, RootId: c.Customer.RootID, Name: string(c.Customer.FullName), NameSource: c.NameSource,
@@ -216,14 +229,7 @@ func (h *handler) GetConversationCustomerCard(ctx context.Context, params gen.Ge
 			info.Phones = append(info.Phones, string(p))
 		}
 	}
-	out := &gen.ConversationCustomerCard{
-		Customer: info, RecentOrders: chatOrdersOut(c.RecentOrders),
-		OpenDrafts: chatOrdersOut(c.OpenDrafts),
-	}
-	if c.MergeSuggestion != nil {
-		out.MergeSuggestionCustomerId = gen.NewOptUUID(*c.MergeSuggestion)
-	}
-	return out, nil
+	return info
 }
 
 func chatOrdersOut(orders []conversation.CardOrder) []gen.ChatOrderRef {

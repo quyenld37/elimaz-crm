@@ -37,7 +37,7 @@ export type Error = {
     statementId?: string;
     quote?: WebQuote;
     /**
-     * Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự gửi (Task 194)
+     * Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự gửi (Task 194); ở out_of_stock — đúng một phần tử, biến thể của variantId (chốt comment live đọc mảng, Task 172)
      */
     variantIds?: Array<string>;
     denyReason?: SendDenyReason;

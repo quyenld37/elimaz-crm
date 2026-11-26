@@ -13,6 +13,21 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deleteClaimsOfMessages = `-- name: DeleteClaimsOfMessages :execrows
+DELETE FROM conversation.live_comment_claims
+WHERE message_id = ANY($1::uuid[]) OR ask_message_id = ANY($1::uuid[])
+`
+
+// Ghi nhận chốt từ comment live (Task 172) của các tin @ids (comment đã chốt hay tin xin địa chỉ): xóa trước tin vì khóa
+// ngoại không ON DELETE; đơn nháp giữ nguyên.
+func (q *Queries) DeleteClaimsOfMessages(ctx context.Context, ids []uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteClaimsOfMessages, ids)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteEmptyConversations = `-- name: DeleteEmptyConversations :many
 WITH gone AS (
     SELECT c.id

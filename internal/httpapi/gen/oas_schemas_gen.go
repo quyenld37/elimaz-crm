@@ -13916,7 +13916,8 @@ type Error struct {
 	StatementId OptUUID     `json:"statementId"`
 	Quote       OptWebQuote `json:"quote"`
 	// Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự
-	// gửi (Task 194).
+	// gửi (Task 194); ở out_of_stock — đúng một phần tử, biến thể của variantId
+	// (chốt comment live đọc mảng, Task 172).
 	VariantIds []uuid.UUID       `json:"variantIds"`
 	DenyReason OptSendDenyReason `json:"denyReason"`
 	// Chỉ có ở send_not_allowed — lúc cửa sổ gửi đóng (M4).

@@ -90,6 +90,12 @@ type errorBody struct {
 	// Chỉ có ở send_not_allowed (M4, Task 156): lý do chính sách gửi của kênh và hạn cửa sổ.
 	DenyReason *string    `json:"denyReason,omitempty"`
 	Until      *time.Time `json:"until,omitempty"`
+	// Chỉ có ở comment_claimed (M4, Task 172): tên hiển thị người đã chốt, đơn nháp và mã đơn của comment.
+	ClaimedBy *string `json:"claimedBy,omitempty"`
+	OrderID   *string `json:"orderId,omitempty"`
+	OrderCode *string `json:"orderCode,omitempty"`
+	// Chỉ có ở open_draft_exists (M4, Task 172): đơn nháp khách đang có trong phiên live (LiveDraftRef).
+	Drafts []liveDraftBody `json:"drafts,omitempty"`
 }
 
 // writeError ghi lỗi theo dạng duy nhất {"error": "<mã>", "request_id": "<id>"}; không bao giờ có vết lỗi.
@@ -169,9 +175,11 @@ func writeDomainError(w http.ResponseWriter, r *http.Request, err error) bool {
 		return true
 	}
 	if code, vid, avail, ok := stockShortage(err); ok {
-		writeErrorBody(w, http.StatusConflict, errorBody{
-			Error: code, RequestID: RequestID(r.Context()), VariantID: &vid, Available: &avail,
-		})
+		body := errorBody{Error: code, RequestID: RequestID(r.Context()), VariantID: &vid, Available: &avail}
+		if code == codeOutOfStock {
+			body.VariantIDs = []string{vid} // chốt comment live đọc mảng (Task 172); một biến thể mỗi lỗi
+		}
+		writeErrorBody(w, http.StatusConflict, body)
 		return true
 	}
 	if body, status, ok := detailedError(err); ok {

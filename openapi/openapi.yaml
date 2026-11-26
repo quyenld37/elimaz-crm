@@ -8011,7 +8011,7 @@ components:
           items:
             type: string
             format: uuid
-          description: Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự gửi (Task 194)
+          description: Chỉ có ở item_unavailable — biến thể không bán được trên web, theo thứ tự gửi (Task 194); ở out_of_stock — đúng một phần tử, biến thể của variantId (chốt comment live đọc mảng, Task 172)
         denyReason:
           # Chỉ có ở send_not_allowed — lý do chính sách gửi của kênh không cho gửi (M4, Task 156)
           $ref: "#/components/schemas/SendDenyReason"

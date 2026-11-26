@@ -30,6 +30,12 @@ LIMIT @max_rows;
 DELETE FROM conversation.message_revisions
 WHERE message_id = ANY(@ids::uuid[]);
 
+-- name: DeleteClaimsOfMessages :execrows
+-- Ghi nhận chốt từ comment live (Task 172) của các tin @ids (comment đã chốt hay tin xin địa chỉ): xóa trước tin vì khóa
+-- ngoại không ON DELETE; đơn nháp giữ nguyên.
+DELETE FROM conversation.live_comment_claims
+WHERE message_id = ANY(@ids::uuid[]) OR ask_message_id = ANY(@ids::uuid[]);
+
 -- name: DeleteExpiredMessages :many
 -- Xóa các tin @ids còn trước @cutoff; trả danh sách đính kèm của từng tin đã xóa (tìm tệp cần đánh dấu xóa).
 DELETE FROM conversation.messages

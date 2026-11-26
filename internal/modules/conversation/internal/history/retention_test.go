@@ -116,6 +116,48 @@ func TestRetention_Avatars(t *testing.T) {
 	}
 }
 
+// Ghi nhận chốt từ comment live (Task 172, khóa ngoại tới tin không ON DELETE): comment đã chốt và tin xin địa chỉ
+// quá hạn bị xóa cùng ghi nhận (không lỗi 23503, việc dọn không đứng); ghi nhận của comment còn hạn giữ nguyên.
+func TestRetention_LiveClaims(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.d.Now = now
+	staffUser := e.staff.User(t, e.tenant, "live@elimaz.test", "active")
+	var session uuid.UUID
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(t.Context(), `INSERT INTO conversation.live_sessions (tenant_id, channel_account_id,
+			live_video_id, status, started_at, ended_at, detected_by)
+			VALUES (current_setting('app.tenant_id')::uuid, $1, 'lv-retention', 'ended', $2, $2, 'manual')
+			RETURNING id`, e.page, months(26).Add(-time.Hour)).Scan(&session)
+	})
+	c := e.thread("claims", months(1))
+	oldComment := e.message(c, "claim-old", months(26))
+	oldAsk := e.message(c, "ask-old", months(26).Add(time.Minute))
+	newComment := e.message(c, "claim-new", months(1))
+	claim := func(msg uuid.UUID, ask *uuid.UUID) {
+		status := "not_requested"
+		if ask != nil {
+			status = "queued"
+		}
+		e.exec(`INSERT INTO conversation.live_comment_claims (tenant_id, message_id, live_session_id, conversation_id,
+			order_id, claimed_by, ask_message_id, ask_status)
+			VALUES (current_setting('app.tenant_id')::uuid, $1, $2, $3, $4, $5, $6, $7)`,
+			msg, session, c, uuid.New(), staffUser, ask, status)
+	}
+	claim(oldComment, &oldAsk)
+	claim(newComment, nil)
+
+	if res := e.runRetention(e.retention(5000)); res.Messages != 2 {
+		t.Fatalf("%+v, mong xóa 2 tin (comment đã chốt, tin xin địa chỉ)", res)
+	}
+	if n := e.count(`SELECT count(*) FROM conversation.live_comment_claims WHERE message_id = $1`, oldComment); n != 0 {
+		t.Errorf("còn %d ghi nhận chốt của comment đã xóa", n)
+	}
+	if n := e.count(`SELECT count(*) FROM conversation.live_comment_claims WHERE message_id = $1`, newComment); n != 1 {
+		t.Errorf("ghi nhận chốt của comment còn hạn: %d, mong 1", n)
+	}
+}
+
 func checkConversations(t *testing.T, e *env, keep, gone, reminded uuid.UUID) {
 	t.Helper()
 	if n := e.count(`SELECT count(*) FROM conversation.conversations WHERE id = ANY($1)`, []uuid.UUID{keep, reminded}); n != 2 {

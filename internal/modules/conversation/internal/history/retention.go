@@ -166,14 +166,17 @@ func (h retentionHandler) sweep(ctx context.Context, tx pgx.Tx, now time.Time) (
 	return res, nil
 }
 
-// deleteMessages xóa lịch sử sửa rồi các tin ids (còn trước cutoff); trả mã tệp đính kèm của các tin đã xóa và số tin
-// đã xóa.
+// deleteMessages xóa lịch sử sửa, ghi nhận chốt từ comment live (Task 172) rồi các tin ids (còn trước cutoff); trả
+// mã tệp đính kèm của các tin đã xóa và số tin đã xóa.
 func deleteMessages(ctx context.Context, q *store.Queries, ids []uuid.UUID, cutoff time.Time) ([]uuid.UUID, int, error) {
 	if len(ids) == 0 {
 		return nil, 0, nil
 	}
 	if _, err := q.DeleteRevisionsOfMessages(ctx, ids); err != nil {
 		return nil, 0, fmt.Errorf("xóa lịch sử sửa của tin quá hạn: %w", err)
+	}
+	if _, err := q.DeleteClaimsOfMessages(ctx, ids); err != nil {
+		return nil, 0, fmt.Errorf("xóa ghi nhận chốt của tin quá hạn: %w", err)
 	}
 	atts, err := q.DeleteExpiredMessages(ctx, store.DeleteExpiredMessagesParams{Ids: ids, Cutoff: cutoff})
 	if err != nil {

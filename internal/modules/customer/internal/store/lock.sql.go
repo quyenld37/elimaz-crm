@@ -16,7 +16,7 @@ const lockCustomerRow = `-- name: LockCustomerRow :one
 SELECT tenant_id, root_id, do_not_contact
 FROM customer.customers
 WHERE id = $1
-FOR UPDATE
+FOR NO KEY UPDATE
 `
 
 type LockCustomerRowRow struct {
@@ -27,7 +27,10 @@ type LockCustomerRowRow struct {
 
 // Khóa hồ sơ đại diện (kế hoạch M4, Task 152). Chạy trong tenancy.WithTenant. ADR-46 nhóm 5: dòng customer.customers
 // là đầu nhóm; đường M4 khóa khách trước hội thoại (C11).
-// Khóa dòng id; bên gọi kiểm root_id = id (vẫn là gốc) và đọc lại gốc của hồ sơ con dưới khóa.
+// Khóa dòng id; bên gọi kiểm root_id = id (vẫn là gốc) và đọc lại gốc của hồ sơ con dưới khóa. FOR NO KEY UPDATE (Task
+// 172): vẫn chặn khóa này song song, gộp khách, lockOwner (FOR UPDATE) và UPDATE cột thường, nhưng không chặn FOR KEY
+// SHARE của câu kiểm khóa ngoại — đường tin vào khóa hội thoại rồi sửa lại chính dòng đó thì PostgreSQL kiểm lại
+// customer_id (FOR KEY SHARE dòng khách); FOR UPDATE ở đây làm hai đường chờ nhau (deadlock C11).
 func (q *Queries) LockCustomerRow(ctx context.Context, id uuid.UUID) (LockCustomerRowRow, error) {
 	row := q.db.QueryRow(ctx, lockCustomerRow, id)
 	var i LockCustomerRowRow

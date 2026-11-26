@@ -659,6 +659,21 @@ type ConversationConversationsV struct {
 	CreatedAt             time.Time
 }
 
+type ConversationLiveCommentClaim struct {
+	TenantID       uuid.UUID
+	MessageID      uuid.UUID
+	LiveSessionID  uuid.UUID
+	ConversationID uuid.UUID
+	OrderID        uuid.UUID
+	ClaimedBy      uuid.UUID
+	ClaimedAt      time.Time
+	AskMessageID   *uuid.UUID
+	AskStatus      string
+	AskReason      pgtype.Text
+	RemindCount    int32
+	LastRemindedAt *time.Time
+}
+
 type ConversationLiveSession struct {
 	ID               uuid.UUID
 	TenantID         uuid.UUID
