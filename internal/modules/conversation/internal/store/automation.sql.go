@@ -27,6 +27,40 @@ func (q *Queries) ConversationCustomer(ctx context.Context, id uuid.UUID) (uuid.
 	return customer_id, err
 }
 
+const countRecentAutomationRuns = `-- name: CountRecentAutomationRuns :one
+SELECT count(*)::int
+FROM conversation.automation_runs
+WHERE rule_id = $1
+  AND subject_ref = $2::text
+  AND starts_with(external_ref, $3::text)
+  AND external_ref <> $4::text
+  AND outcome IN ('enqueued', 'done')
+  AND created_at > now() - make_interval(hours => $5::int)
+`
+
+type CountRecentAutomationRunsParams struct {
+	RuleID      uuid.UUID
+	SubjectRef  string
+	Prefix      string
+	ExternalRef string
+	Hours       int32
+}
+
+// Số lượt enqueued|done khác external_ref của cùng quy tắc, cùng subject_ref, external_ref cùng tiền tố prefix, ghi
+// trong hours giờ gần nhất (đồng hồ database; giới hạn mỗi người mỗi bài của auto_reply_comment, Task 166).
+func (q *Queries) CountRecentAutomationRuns(ctx context.Context, arg CountRecentAutomationRunsParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countRecentAutomationRuns,
+		arg.RuleID,
+		arg.SubjectRef,
+		arg.Prefix,
+		arg.ExternalRef,
+		arg.Hours,
+	)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const finishAutomationRun = `-- name: FinishAutomationRun :execrows
 UPDATE conversation.automation_runs
 SET outcome = $1
@@ -141,6 +175,43 @@ func (q *Queries) GetCommentForHide(ctx context.Context, id uuid.UUID) (GetComme
 		&i.RemovedAt,
 		&i.Direction,
 	)
+	return i, err
+}
+
+const greetingEligible = `-- name: GreetingEligible :one
+SELECT (NOT EXISTS (SELECT 1
+                    FROM conversation.messages AS m
+                    WHERE m.conversation_id = c.id
+                      AND m.id <> $1
+                      AND m.kind <> 'system')
+        AND NOT EXISTS (SELECT 1
+                        FROM conversation.conversations AS o
+                        WHERE o.customer_id = c.customer_id
+                          AND o.channel_account_id = c.channel_account_id
+                          AND o.kind = 'inbox'
+                          AND o.id <> c.id))::boolean AS eligible,
+       c.customer_id
+FROM conversation.conversations AS c
+WHERE c.id = $2
+  AND c.kind = 'inbox'
+`
+
+type GreetingEligibleParams struct {
+	MessageID uuid.UUID
+	ID        uuid.UUID
+}
+
+type GreetingEligibleRow struct {
+	Eligible   bool
+	CustomerID uuid.UUID
+}
+
+// Tin chào (Task 167, Q11): hội thoại hộp thư id là lần đầu khách nhắn Page khi ngoài tin vừa nhận message_id hội thoại
+// chỉ có tin hệ thống (đến từ quảng cáo) và khách không có hội thoại hộp thư nào khác với Page này. Kèm mã khách.
+func (q *Queries) GreetingEligible(ctx context.Context, arg GreetingEligibleParams) (GreetingEligibleRow, error) {
+	row := q.db.QueryRow(ctx, greetingEligible, arg.MessageID, arg.ID)
+	var i GreetingEligibleRow
+	err := row.Scan(&i.Eligible, &i.CustomerID)
 	return i, err
 }
 

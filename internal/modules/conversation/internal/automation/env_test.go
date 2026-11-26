@@ -17,6 +17,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/automation"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/deps"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/inbound"
+	"elimaz.com.vn/crm/internal/modules/conversation/internal/send"
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/events"
@@ -77,18 +78,27 @@ func newEnv(t *testing.T) *env {
 	return e
 }
 
-// newWorker dựng một worker của handler vào facebook kèm lệnh của inbound (đọc bài) và automation (ẩn tự động).
+// newWorker dựng một worker của handler vào facebook kèm lệnh của inbound (đọc bài), send (lệnh của nhân viên) và
+// automation (ẩn tự động, tự trả lời, tự nhắn riêng, việc chuẩn bị tin riêng tự động).
 func (e *env) newWorker(id string) *queue.Worker {
+	hs := e.inboundHandlers()
+	cmds := slices.Concat(inbound.Parts(e.d).Commands, send.Parts(e.d).Commands, automation.Parts(e.d).Commands)
+	hs = append(hs, automation.Parts(e.d).Jobs...)
+	return queue.NewWorker(e.staff.App, hs, queue.WorkerOptions{
+		WorkerID: id, Logger: slog.New(slog.DiscardHandler), Concurrency: 4,
+		Commands: commands.NewRunner(e.staff.App, cmds),
+	})
+}
+
+// inboundHandlers là handler việc của đường vào facebook (handler vào thật của conversation).
+func (e *env) inboundHandlers() []queue.Handler {
+	e.t.Helper()
 	fb, _ := e.d.Registry.Get(facebook.Key)
 	hs, err := webhooks.InboundJobHandlers([]webhooks.Source{fb}, []webhooks.InboundHandler{inbound.NewHandler(e.d, facebook.Key)})
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	cmds := slices.Concat(inbound.Parts(e.d).Commands, automation.Parts(e.d).Commands)
-	return queue.NewWorker(e.staff.App, hs, queue.WorkerOptions{
-		WorkerID: id, Logger: slog.New(slog.DiscardHandler), Concurrency: 4,
-		Commands: commands.NewRunner(e.staff.App, cmds),
-	})
+	return hs
 }
 
 // setRule lưu quy tắc auto_hide của Page với chế độ mode, bài ngoại lệ except, bật/tắt enabled (đọc version hiện tại).
@@ -101,12 +111,31 @@ func (e *env) setRule(enabled bool, mode string, except ...string) {
 	if err != nil {
 		e.t.Fatal(err)
 	}
+	if err := e.storeRule(automation.KindAutoHide, enabled, cfg); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+// storeRule lưu quy tắc loại kind của Page với cấu hình cfg (đọc version hiện tại); trả lỗi của SaveRule.
+func (e *env) storeRule(kind string, enabled bool, cfg []byte) error {
+	e.t.Helper()
+	var saveErr error
 	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
-		cur, err := automation.LoadRule(e.t.Context(), tx, e.page, automation.KindAutoHide)
+		cur, err := automation.LoadRule(e.t.Context(), tx, e.page, kind)
 		if err != nil {
 			return err //nolint:wrapcheck // test
 		}
-		_, _, err = automation.SaveRule(e.t.Context(), tx, e.page, automation.KindAutoHide, enabled, cfg, cur.Version, e.user)
+		_, _, saveErr = automation.SaveRule(e.t.Context(), tx, e.page, kind, enabled, cfg, cur.Version, e.user)
+		return nil
+	})
+	return saveErr //nolint:wrapcheck // test
+}
+
+// setSendMode đổi chế độ gửi của Page (enabled, read_only).
+func (e *env) setSendMode(mode string) {
+	e.t.Helper()
+	e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(e.t.Context(), `UPDATE channel.channel_accounts SET send_mode = $1`, mode)
 		return err //nolint:wrapcheck // test
 	})
 }

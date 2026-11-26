@@ -149,6 +149,9 @@ func chatHistoryOut(m conversation.ChatMessage) gen.ChatMessage {
 	for _, a := range m.Attachments {
 		out.Attachments = append(out.Attachments, historyAttachmentOut(a))
 	}
+	if len(m.QuickReplies) > 0 {
+		out.QuickReplies = quickRepliesOut(m.QuickReplies)
+	}
 	if m.SenderID != nil {
 		out.Sender = gen.NewOptActor(gen.Actor{ID: *m.SenderID, Name: m.SenderStaffName})
 	}

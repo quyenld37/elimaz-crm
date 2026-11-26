@@ -117,12 +117,24 @@ func ListRules(ctx context.Context, tx pgx.Tx, pageID uuid.UUID) ([]Rule, error)
 
 // SaveRule lưu quy tắc loại kind của Page pageID (bên gọi đã kiểm quyền, Page có thật) khi expectedVersion khớp (0:
 // chưa có dòng). config phải là JSON có "kind" = kind; auto_hide kiểm thêm chế độ và số bài ngoại lệ (các loại khác
-// đã được hợp đồng kiểm lược đồ). Trả bản trước (mặc định khi chưa có) và bản sau.
+// đã được hợp đồng kiểm lược đồ; greeting kiểm thêm giới hạn chữ và nút; auto_reply_comment kiểm thêm giới hạn và mẫu
+// của tin riêng; follow_up kiểm afterHours và, khi bật, mẫu dùng được cho Page). Trả bản trước (mặc định khi chưa có)
+// và bản sau.
 func SaveRule(ctx context.Context, tx pgx.Tx, pageID uuid.UUID, kind string, enabled bool, config json.RawMessage,
 	expectedVersion int32, by uuid.UUID,
 ) (before, after Rule, err error) {
 	if err := validConfig(kind, config); err != nil {
 		return Rule{}, Rule{}, err
+	}
+	if kind == KindAutoReplyComment {
+		if err := validReplyConfig(ctx, tx, pageID, config); err != nil {
+			return Rule{}, Rule{}, err
+		}
+	}
+	if kind == KindFollowUp {
+		if err := checkFollowUp(ctx, tx, pageID, enabled, config); err != nil {
+			return Rule{}, Rule{}, err
+		}
 	}
 	q := store.New(tx)
 	before = defaultRule(pageID, kind)
@@ -160,7 +172,15 @@ func validConfig(kind string, config json.RawMessage) error {
 	if err := json.Unmarshal(config, &head); err != nil || head.Kind != kind {
 		return ErrInvalidRule
 	}
-	if kind != KindAutoHide {
+	switch kind {
+	case KindGreeting:
+		var g GreetingConfig
+		if err := json.Unmarshal(config, &g); err != nil || !g.valid() {
+			return ErrInvalidRule
+		}
+		return nil
+	case KindAutoHide:
+	default:
 		return nil
 	}
 	var c HideConfig

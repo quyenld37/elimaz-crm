@@ -19,8 +19,9 @@ import (
 // (Task 171), thêm command.fb.fetch_post (Task 154), command.fb.live_detect và lịch live.detect (Task 170), một luồng
 // nền đọc comment live (Task 171), command.fb.fetch_history (Task 164, đọc được lịch sử) khi có adapter Facebook.
 // Phần chạy nền luôn có lịch conversation.send_reveal mỗi 15 s (Task 157), conversation.presence_cleanup (Task 163),
-// conversation.reminders (Task 169) mỗi 60 s, channel.comment_poll (Task 150, đọc comment định kỳ) mỗi 30 s và
-// conversation.retention (Task 164, dọn theo hạn giữ) mỗi giờ, theo tenant, đúng một handler cùng Kind.
+// conversation.reminders (Task 169) mỗi 60 s, conversation.follow_up (Task 168) mỗi 300 s, channel.comment_poll
+// (Task 150, đọc comment định kỳ) mỗi 30 s và conversation.retention (Task 164, dọn theo hạn giữ) mỗi giờ, theo
+// tenant, đúng một handler cùng Kind.
 func TestWiring(t *testing.T) {
 	t.Parallel()
 	d := conversation.Deps{}
@@ -68,11 +69,21 @@ func TestWiring(t *testing.T) {
 
 // checkCommands: lệnh của conversation theo thứ tự đăng ký: command.fb.fetch_attachment, command.fb.fetch_profile
 // (luôn có, Task 155), command.fb.fetch_post (khi có adapter Facebook), command.fb.send_message hạn 3 phút, ba lệnh
-// comment của Task 158 (luôn có), command.fb.auto_hide_comment (luôn có, Task 165), command.fb.live_detect (khi có
-// adapter Facebook, Task 170), command.fb.live_reconcile (luôn có, Task 171), command.fb.fetch_history (khi có adapter
-// Facebook, Task 164).
-// autoHideKind là lệnh ẩn comment của quy tắc auto_hide (Task 165).
-const autoHideKind = "command.fb.auto_hide_comment"
+// comment của Task 158 (luôn có), command.fb.auto_hide_comment (luôn có, Task 165), command.fb.auto_send hạn 5 phút
+// (luôn có, Task 167, 168), command.fb.auto_reply_comment, command.fb.auto_private_reply (luôn có, Task 166),
+// command.fb.live_detect (khi có adapter Facebook, Task 170), command.fb.live_reconcile (luôn có, Task 171),
+// command.fb.fetch_history (khi có adapter Facebook, Task 164).
+// autoHideKind là lệnh ẩn comment của quy tắc auto_hide (Task 165); autoReplyKind, autoPrivateKind là lệnh tự trả lời
+// comment, tự nhắn riêng (Task 166); prepareAutoPrivateKind là việc chuẩn bị tin riêng tự động (không có lịch).
+const (
+	autoHideKind           = "command.fb.auto_hide_comment"
+	autoReplyKind          = "command.fb.auto_reply_comment"
+	autoPrivateKind        = "command.fb.auto_private_reply"
+	prepareAutoPrivateKind = "task.conversation.auto_private_reply"
+)
+
+// autoSendKind là lệnh gửi tin tự động (tin chào Task 167, nhắn lại Task 168).
+const autoSendKind = conversation.AutoSendKind
 
 func checkCommands(t *testing.T, d conversation.Deps) {
 	t.Helper()
@@ -80,7 +91,7 @@ func checkCommands(t *testing.T, d conversation.Deps) {
 	reads := []string{"command.fb.fetch_attachment", "command.fb.fetch_profile"}
 	sends := []string{
 		conversation.SendMessageKind, conversation.ReplyCommentKind, conversation.PrivateReplyKind,
-		conversation.HideCommentKind, autoHideKind,
+		conversation.HideCommentKind, autoHideKind, autoSendKind, autoReplyKind, autoPrivateKind,
 	}
 	want := append(append(slices.Clone(reads), sends...), "command.fb.live_reconcile")
 	if fb {
@@ -93,8 +104,12 @@ func checkCommands(t *testing.T, d conversation.Deps) {
 		if exp, ok := map[string]time.Duration{
 			conversation.SendMessageKind: 3 * time.Minute, conversation.ReplyCommentKind: 5 * time.Minute,
 			conversation.PrivateReplyKind: 5 * time.Minute, conversation.HideCommentKind: time.Hour,
+			autoReplyKind: 5 * time.Minute, autoPrivateKind: 5 * time.Minute,
 		}[h.Kind().Name]; ok && h.Kind().Policy.ExpiresAfter != exp {
 			t.Errorf("lệnh %s hạn %v, mong %v", h.Kind().Name, h.Kind().Policy.ExpiresAfter, exp)
+		}
+		if h.Kind().Name == autoSendKind && (h.Kind().Policy.ExpiresAfter != 5*time.Minute || h.Kind().Policy.Timeout != 30*time.Second) {
+			t.Errorf("lệnh %s: %+v, mong hạn 5 phút, 30 giây mỗi lần", autoSendKind, h.Kind().Policy)
 		}
 	}
 	if !slices.Equal(got, want) {
@@ -104,10 +119,15 @@ func checkCommands(t *testing.T, d conversation.Deps) {
 
 func checkReminders(t *testing.T, d conversation.Deps) {
 	t.Helper()
-	s, j := conversation.Schedules(d), conversation.JobHandlers(d)
+	s, all := conversation.Schedules(d), conversation.JobHandlers(d)
+	// Việc không có lịch: chuẩn bị tin riêng tự động (Task 166), đúng một handler.
+	j := slices.DeleteFunc(slices.Clone(all), func(h queue.Handler) bool { return h.Kind().Name == prepareAutoPrivateKind })
+	if len(all)-len(j) != 1 {
+		t.Errorf("việc chuẩn bị tin riêng tự động: %d handler, mong 1", len(all)-len(j))
+	}
 	want := []string{
-		conversation.SendRevealSchedule, conversation.PresenceCleanupSchedule, "conversation.reminders", "channel.comment_poll",
-		conversation.RetentionSchedule,
+		conversation.SendRevealSchedule, conversation.FollowUpSchedule, conversation.PresenceCleanupSchedule,
+		"conversation.reminders", "channel.comment_poll", conversation.RetentionSchedule,
 	}
 	if len(s) != len(want) || len(j) != len(want) {
 		t.Fatalf("lịch %+v, việc %d", s, len(j))
@@ -121,6 +141,8 @@ func checkReminders(t *testing.T, d conversation.Deps) {
 			every = 15 * time.Second
 		case conversation.RetentionSchedule:
 			every = time.Hour
+		case conversation.FollowUpSchedule:
+			every = 300 * time.Second
 		}
 		if s[i].Name != name || !s[i].PerTenant || s[i].Every != every || j[i].Kind().Name != s[i].Kind.Name {
 			t.Errorf("lịch %d = %+v, việc %q; muốn %s", i, s[i], j[i].Kind().Name, name)

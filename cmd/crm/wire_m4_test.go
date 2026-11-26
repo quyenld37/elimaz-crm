@@ -7,13 +7,14 @@ import (
 	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/modules/conversation"
 	"elimaz.com.vn/crm/internal/platform/config"
+	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
 // wireM4: kênh nhắn tin giả fakechat (Task 145) có ngoài production; kênh Facebook khi Meta bật và có app secret (Task
 // 148, nối ở Task 153); production không cấu hình Meta thì không có kênh nào. Mỗi nguồn có đúng một handler vào của
 // conversation (Task 153); lệnh: đăng ký, hủy đăng ký webhook của Page (Task 149), kiểm sức khỏe, hỏi bù, đọc
 // comment (Task 150), tải tệp đính kèm, đọc hồ sơ khách (Task 155), đọc bài khi có kênh Facebook (Task 154), gửi tin
-// (Task 156), trả lời, nhắn riêng, ẩn comment (Task 158), tự ẩn (Task 165), nhận biết và đối chiếu live (Task 170,
+// (Task 156), trả lời, nhắn riêng, ẩn comment (Task 158), tự ẩn (Task 165), tự trả lời comment và tự nhắn riêng (Task 166), tin chào (Task 167), nhận biết và đối chiếu live (Task 170,
 // 171), lịch sử tin (Task 164) — wantM4Commands; một luồng nền đọc comment live khi có kênh Facebook (Task 171); lịch
 // xem checkM4Schedules, mỗi lịch một handler cùng Kind; ingest vẫn dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
 func TestWireM4_Frame(t *testing.T) {
@@ -69,7 +70,9 @@ func wantM4Commands(facebook bool) []string {
 	}
 	want = append(want, conversation.SendMessageKind, // Task 156: gửi tin, mọi cấu hình
 		conversation.ReplyCommentKind, conversation.PrivateReplyKind, conversation.HideCommentKind, // Task 158
-		"command.fb.auto_hide_comment") // Task 165: tự ẩn comment, mọi cấu hình
+		"command.fb.auto_hide_comment",                                   // Task 165: tự ẩn comment, mọi cấu hình
+		conversation.AutoSendKind,                                        // Task 167, 168: gửi tin tự động (tin chào, nhắn lại)
+		"command.fb.auto_reply_comment", "command.fb.auto_private_reply") // Task 166: tự trả lời comment, tự nhắn riêng
 	if facebook {
 		want = append(want, "command.fb.live_detect") // Task 170: nhận biết live bằng hỏi định kỳ
 	}
@@ -106,7 +109,7 @@ func checkM4Schedules(t *testing.T, env string, facebook bool, p m4Parts) {
 	t.Helper()
 	want := []string{
 		channel.HealthSchedule, channel.SilenceSchedule, channel.BackfillSchedule, channel.GraphVersionSchedule,
-		conversation.SendRevealSchedule,
+		conversation.SendRevealSchedule, conversation.FollowUpSchedule,
 	}
 	if facebook {
 		want = append(want, "live.detect")
@@ -117,8 +120,15 @@ func checkM4Schedules(t *testing.T, env string, facebook bool, p m4Parts) {
 	if facebook {
 		jobs--
 	}
-	if len(p.Schedules) != len(want) || len(p.Jobs) != jobs {
-		t.Errorf("%s: lịch, việc nền của M4: %+v, %d handler", env, p.Schedules, len(p.Jobs))
+	// Việc không có lịch: chuẩn bị tin riêng tự động (Task 166), đúng một handler, không tính vào cặp lịch–việc.
+	scheduled := slices.DeleteFunc(slices.Clone(p.Jobs), func(h queue.Handler) bool {
+		return h.Kind().Name == "task.conversation.auto_private_reply"
+	})
+	if len(p.Jobs)-len(scheduled) != 1 {
+		t.Errorf("%s: việc chuẩn bị tin riêng tự động: %d handler, muốn 1", env, len(p.Jobs)-len(scheduled))
+	}
+	if len(p.Schedules) != len(want) || len(scheduled) != jobs {
+		t.Errorf("%s: lịch, việc nền của M4: %+v, %d handler", env, p.Schedules, len(scheduled))
 		return
 	}
 	j := 0
@@ -135,8 +145,8 @@ func checkM4Schedules(t *testing.T, env string, facebook bool, p m4Parts) {
 			}
 			continue
 		}
-		if p.Jobs[j].Kind().Name != s.Kind.Name {
-			t.Errorf("%s: lịch %d = %+v, việc %q; muốn %s", env, i, s, p.Jobs[j].Kind().Name, name)
+		if scheduled[j].Kind().Name != s.Kind.Name {
+			t.Errorf("%s: lịch %d = %+v, việc %q; muốn %s", env, i, s, scheduled[j].Kind().Name, name)
 		}
 		j++
 	}

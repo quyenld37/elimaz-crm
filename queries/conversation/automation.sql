@@ -59,6 +59,18 @@ UPDATE conversation.automation_runs
 SET outcome = @outcome
 WHERE command_job_id = @command_job_id;
 
+-- name: CountRecentAutomationRuns :one
+-- Số lượt enqueued|done khác external_ref của cùng quy tắc, cùng subject_ref, external_ref cùng tiền tố prefix, ghi
+-- trong hours giờ gần nhất (đồng hồ database; giới hạn mỗi người mỗi bài của auto_reply_comment, Task 166).
+SELECT count(*)::int
+FROM conversation.automation_runs
+WHERE rule_id = @rule_id
+  AND subject_ref = @subject_ref::text
+  AND starts_with(external_ref, @prefix::text)
+  AND external_ref <> @external_ref::text
+  AND outcome IN ('enqueued', 'done')
+  AND created_at > now() - make_interval(hours => @hours::int);
+
 -- name: GetAutomationRunByJob :one
 -- Lượt chạy của lệnh job_id (đọc kết quả, test).
 SELECT id, rule_id, external_ref, outcome
@@ -77,3 +89,22 @@ WHERE id = @id
 SELECT customer_id
 FROM conversation.conversations
 WHERE id = @id;
+
+-- name: GreetingEligible :one
+-- Tin chào (Task 167, Q11): hội thoại hộp thư id là lần đầu khách nhắn Page khi ngoài tin vừa nhận message_id hội thoại
+-- chỉ có tin hệ thống (đến từ quảng cáo) và khách không có hội thoại hộp thư nào khác với Page này. Kèm mã khách.
+SELECT (NOT EXISTS (SELECT 1
+                    FROM conversation.messages AS m
+                    WHERE m.conversation_id = c.id
+                      AND m.id <> @message_id
+                      AND m.kind <> 'system')
+        AND NOT EXISTS (SELECT 1
+                        FROM conversation.conversations AS o
+                        WHERE o.customer_id = c.customer_id
+                          AND o.channel_account_id = c.channel_account_id
+                          AND o.kind = 'inbox'
+                          AND o.id <> c.id))::boolean AS eligible,
+       c.customer_id
+FROM conversation.conversations AS c
+WHERE c.id = @id
+  AND c.kind = 'inbox';

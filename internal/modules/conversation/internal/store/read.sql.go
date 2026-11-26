@@ -174,7 +174,7 @@ SELECT m.id, m.conversation_id, m.direction, m.kind, m.origin, m.body, m.attachm
                               FROM conversation.message_revisions AS r WHERE r.message_id = m.id) AS x
         WHERE x.body IS DISTINCT FROM x.after_body)::int AS edited_count,
        pr.id AS private_reply_id, pr.send_status AS private_reply_status, par.id AS parent_id,
-       m.sent_at, m.delivered_at, m.read_at
+       m.sent_at, m.delivered_at, m.read_at, m.quick_replies
 FROM conversation.messages AS m
 LEFT JOIN identity.users_v AS u ON u.id = m.sender_staff_id
 LEFT JOIN conversation.messages AS pr
@@ -219,6 +219,7 @@ type ListChatMessagesAfterRow struct {
 	SentAt             time.Time
 	DeliveredAt        pgtype.Timestamptz
 	ReadAt             pgtype.Timestamptz
+	QuickReplies       []byte
 }
 
 // Như ListChatMessagesBefore nhưng sau mốc (sent_at, id), cũ nhất trước (lấy tin mới).
@@ -258,6 +259,7 @@ func (q *Queries) ListChatMessagesAfter(ctx context.Context, arg ListChatMessage
 			&i.SentAt,
 			&i.DeliveredAt,
 			&i.ReadAt,
+			&i.QuickReplies,
 		); err != nil {
 			return nil, err
 		}
@@ -278,7 +280,7 @@ SELECT m.id, m.conversation_id, m.direction, m.kind, m.origin, m.body, m.attachm
                               FROM conversation.message_revisions AS r WHERE r.message_id = m.id) AS x
         WHERE x.body IS DISTINCT FROM x.after_body)::int AS edited_count,
        pr.id AS private_reply_id, pr.send_status AS private_reply_status, par.id AS parent_id,
-       m.sent_at, m.delivered_at, m.read_at
+       m.sent_at, m.delivered_at, m.read_at, m.quick_replies
 FROM conversation.messages AS m
 LEFT JOIN identity.users_v AS u ON u.id = m.sender_staff_id
 LEFT JOIN conversation.messages AS pr
@@ -323,6 +325,7 @@ type ListChatMessagesBeforeRow struct {
 	SentAt             time.Time
 	DeliveredAt        pgtype.Timestamptz
 	ReadAt             pgtype.Timestamptz
+	QuickReplies       []byte
 }
 
 // Đọc hộp chat (Task 159; 04 mục 7): tin theo trang, đánh dấu đã đọc, đổi trạng thái, đơn nháp, số đếm.
@@ -367,6 +370,7 @@ func (q *Queries) ListChatMessagesBefore(ctx context.Context, arg ListChatMessag
 			&i.SentAt,
 			&i.DeliveredAt,
 			&i.ReadAt,
+			&i.QuickReplies,
 		); err != nil {
 			return nil, err
 		}

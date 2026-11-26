@@ -1,6 +1,7 @@
 package send
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -133,9 +134,10 @@ func (c sendCommand) lookupFor(ctx context.Context, tx pgx.Tx, accID uuid.UUID) 
 	return prepared{acc: acc, adapter: ad, cred: cred}, true, nil
 }
 
-// actionRow là tin nhân viên cần chèn cho một lần trả lời comment (trong hội thoại comment) hay nhắn riêng (trong hội
-// thoại hộp thư).
+// actionRow là tin nhân viên (origin rỗng = staff) hay tin tự động (origin automation, Task 166) cần chèn cho một lần
+// trả lời comment (trong hội thoại comment) hay nhắn riêng (trong hội thoại hộp thư).
 type actionRow struct {
+	origin   string
 	conv     uuid.UUID
 	acc      channel.ChannelAccount
 	kind     string
@@ -153,8 +155,10 @@ func insertAction(ctx context.Context, tx pgx.Tx, u identity.AuthUser, r actionR
 	if err != nil {
 		return Message{}, fmt.Errorf("tạo client_ref: %w", err)
 	}
+	origin := cmp.Or(r.origin, originStaff)
 	ins := store.InsertOutgoingActionParams{
 		ConversationID: r.conv, ChannelAccountID: r.acc.ID, ClientRef: pgtype.UUID{Bytes: ref, Valid: true}, Kind: r.kind,
+		Origin:           origin,
 		ParentExternalID: r.parent.ExternalID, Body: pgtype.Text{String: r.text, Valid: true},
 		SenderStaffID: pgtype.UUID{Bytes: u.UserID, Valid: u.UserID != uuid.Nil}, SentAt: now,
 	}
@@ -170,7 +174,7 @@ func insertAction(ctx context.Context, tx pgx.Tx, u identity.AuthUser, r actionR
 	}
 	parent := r.parent.ID
 	return Message{
-		ID: id, ConversationID: r.conv, ClientRef: ref, SenderStaffID: u.UserID, Kind: r.kind, ParentMessageID: &parent,
+		ID: id, ConversationID: r.conv, ClientRef: ref, SenderStaffID: u.UserID, Origin: origin, Kind: r.kind, ParentMessageID: &parent,
 		Body: r.text, Attachments: []Attachment{}, SendStatus: statusQueued, SentAt: now,
 	}, nil
 }

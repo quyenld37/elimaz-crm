@@ -61,11 +61,12 @@ LIMIT 1;
 
 -- name: InsertOutgoingAction :one
 -- Câu trả lời comment (kind comment, trong hội thoại comment, kèm bài) hay tin riêng (kind private_reply, trong hội
--- thoại hộp thư) của nhân viên, chờ lệnh (queued); parent_external_id là mã comment được trả lời.
+-- thoại hộp thư) của nhân viên (origin staff) hay của quy tắc tự động (origin automation, Task 166), chờ lệnh
+-- (queued); parent_external_id là mã comment được trả lời.
 INSERT INTO conversation.messages (tenant_id, conversation_id, channel_account_id, client_ref, direction, kind, origin,
                                    parent_external_id, post_id, body, sender_staff_id, send_status, sent_at)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, @conversation_id, @channel_account_id, @client_ref,
-        'out', @kind, 'staff', @parent_external_id, sqlc.narg(post_id)::uuid, @body, @sender_staff_id, 'queued',
+        'out', @kind, @origin, @parent_external_id, sqlc.narg(post_id)::uuid, @body, @sender_staff_id, 'queued',
         @sent_at)
 RETURNING id;
 
@@ -132,3 +133,9 @@ FROM conversation.message_revisions
 WHERE message_id = @message_id
   AND source = 'customer'
   AND body IS NOT NULL;
+
+-- name: GetMessageCommandJob :one
+-- Lệnh vừa gắn vào tin id (tin tự động, Task 166: mã lệnh ghi vào lượt quy tắc).
+SELECT command_job_id::uuid
+FROM conversation.messages
+WHERE id = @id;

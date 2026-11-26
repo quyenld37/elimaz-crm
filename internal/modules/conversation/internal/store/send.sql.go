@@ -13,6 +13,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const bumpConversationAutomated = `-- name: BumpConversationAutomated :exec
+UPDATE conversation.conversations
+SET last_message_at = GREATEST(last_message_at, $1),
+    last_snippet    = CASE WHEN $1 >= last_message_at THEN $2::text ELSE last_snippet END,
+    updated_at      = now()
+WHERE id = $3
+`
+
+type BumpConversationAutomatedParams struct {
+	At      time.Time
+	Snippet pgtype.Text
+	ID      uuid.UUID
+}
+
+// Tin tự động vừa chèn: mốc tin cuối, đoạn trích; không đổi mốc tin nhân viên (tin tự động không phải nhân viên trả
+// lời: hội thoại vẫn là khách chờ nhân viên), chưa đọc, trạng thái.
+func (q *Queries) BumpConversationAutomated(ctx context.Context, arg BumpConversationAutomatedParams) error {
+	_, err := q.db.Exec(ctx, bumpConversationAutomated, arg.At, arg.Snippet, arg.ID)
+	return err
+}
+
 const deleteUnmatchedEcho = `-- name: DeleteUnmatchedEcho :many
 DELETE FROM conversation.messages
 WHERE channel_account_id = $1
@@ -91,7 +112,8 @@ func (q *Queries) GetConversationForSend(ctx context.Context, id uuid.UUID) (Get
 }
 
 const getOutgoingMessage = `-- name: GetOutgoingMessage :one
-SELECT id, conversation_id, channel_account_id, client_ref, origin, body, attachments, send_status, fail_reason, sent_at
+SELECT id, conversation_id, channel_account_id, client_ref, origin, body, attachments, quick_replies, send_status,
+       fail_reason, sent_at
 FROM conversation.messages
 WHERE id = $1
 `
@@ -104,6 +126,7 @@ type GetOutgoingMessageRow struct {
 	Origin           string
 	Body             pgtype.Text
 	Attachments      []byte
+	QuickReplies     []byte
 	SendStatus       pgtype.Text
 	FailReason       pgtype.Text
 	SentAt           time.Time
@@ -121,6 +144,7 @@ func (q *Queries) GetOutgoingMessage(ctx context.Context, id uuid.UUID) (GetOutg
 		&i.Origin,
 		&i.Body,
 		&i.Attachments,
+		&i.QuickReplies,
 		&i.SendStatus,
 		&i.FailReason,
 		&i.SentAt,
@@ -159,6 +183,39 @@ func (q *Queries) GetSendLookup(ctx context.Context, id uuid.UUID) (bool, error)
 	var confirmed bool
 	err := row.Scan(&confirmed)
 	return confirmed, err
+}
+
+const insertAutomatedMessage = `-- name: InsertAutomatedMessage :one
+INSERT INTO conversation.messages (tenant_id, conversation_id, channel_account_id, client_ref, direction, kind, origin,
+                                   body, attachments, quick_replies, send_status, sent_at)
+VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3,
+        'out', 'message', 'automation', $4::text, '[]', $5::jsonb, 'queued', $6)
+RETURNING id
+`
+
+type InsertAutomatedMessageParams struct {
+	ConversationID   uuid.UUID
+	ChannelAccountID uuid.UUID
+	ClientRef        pgtype.UUID
+	Body             string
+	QuickReplies     []byte
+	SentAt           time.Time
+}
+
+// Tin do quy tắc tự động gửi (tin chào Task 167, nhắn lại Task 168), chờ lệnh command.fb.auto_send (queued); không có
+// người gửi; quick_replies NULL khi không có nút.
+func (q *Queries) InsertAutomatedMessage(ctx context.Context, arg InsertAutomatedMessageParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertAutomatedMessage,
+		arg.ConversationID,
+		arg.ChannelAccountID,
+		arg.ClientRef,
+		arg.Body,
+		arg.QuickReplies,
+		arg.SentAt,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const insertOutgoingMessage = `-- name: InsertOutgoingMessage :one
