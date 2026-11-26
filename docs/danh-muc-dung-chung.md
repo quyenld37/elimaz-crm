@@ -1389,6 +1389,7 @@ export { watchApiLive } from "../shell/apiHealth"; // Canh API bằng /health/li
 export type { ApiLiveOptions } from "../shell/apiHealth";
 export { Banner, TEXT_API_DOWN, TEXT_RECONNECTING, TEXT_SESSION_EXPIRED } from "../shell/Banner"; // Băng báo của khung theo câu chữ spec 04 mục 6.
 export type { BannerProps } from "../shell/Banner";
+export { RealtimeStateContext, useRealtimeState } from "../shell/realtimeState"; // Trạng thái lớp realtime của tab cho màn cần nói riêng về nó (băng có nút "Tải lại ngay" của Inbox).
 export { TEXT_BUSY, useWriteAction } from "../app/idempotency"; // Gửi yêu cầu ghi với khóa chống trùng; tự gửi lại cùng khóa khi máy chủ bận (503 retry_later, 409 request_in_progress, mạng).
 export type { WriteAction, WriteActionOptions, WriteResult } from "../app/idempotency";
 export { ApiError, ERROR_MESSAGES, NetworkError, TEXT_NETWORK, TEXT_UNKNOWN_ERROR, errorMessage, unwrap } from "../app/errors"; // Lỗi API: đổi kết quả client sinh thành dữ liệu hoặc ApiError/NetworkError; câu tiếng Việt cho mọi mã lỗi của hợp đồng.

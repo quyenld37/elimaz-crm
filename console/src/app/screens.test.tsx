@@ -77,8 +77,9 @@ describe("quy ước trên mọi src/screens/*/route.tsx", () => {
     expect(conventionProblems(ROUTE_FILES, PERMISSIONS)).toEqual([]);
   });
 
-  it("NAV_GROUPS đúng mục 'Xếp module' của kế hoạch M5: nhóm Website giữa Khuyến mãi và Sản phẩm (Task 208)", () => {
+  it("NAV_GROUPS: Hộp chat đứng đầu (M4 HV01, Task 174); Website giữa Khuyến mãi và Sản phẩm (M5, Task 208)", () => {
     expect(NAV_GROUPS).toEqual([
+      "Hộp chat",
       "Đơn hàng",
       "Vận chuyển",
       "Tiền",
@@ -104,6 +105,15 @@ describe("quy ước trên mọi src/screens/*/route.tsx", () => {
         ?.items.map((s) => s.label);
     expect(labels("Website")).toEqual(["Banner trang chủ", "Bộ phối", "Hãng trên web", "Nhận đơn web", "Khóa dịch vụ"]);
     expect(labels("Quản trị")?.at(-1)).toBe("Nhật ký thao tác");
+    // M4 (HV01 của docs/mockups/m4, khung.js): nhóm "Hộp chat" đứng đầu menu, mục theo mockup (Task 174).
+    expect(navSections(SCREENS, all)[0]?.group).toBe("Hộp chat");
+    expect(labels("Hộp chat")).toEqual([
+      "Hộp chat",
+      "Live",
+      "Đã chốt, thiếu địa chỉ",
+      "Kênh kết nối",
+      "Cài đặt hộp chat",
+    ]);
   });
 
   it("SCREENS xếp theo nhóm menu (NAV_GROUPS) rồi order", () => {

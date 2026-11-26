@@ -7,6 +7,8 @@ import type { Grant } from "../api";
 
 // M3 (HV01 của docs/mockups/m3, chủ shop OK 21/11): "Vận chuyển", "Tiền" ngay sau "Đơn hàng".
 export const NAV_GROUPS = [
+  // M4 (HV01 của docs/mockups/m4, khung.js; Task 174): nhóm "Hộp chat" đứng đầu, trước Đơn hàng.
+  "Hộp chat",
   "Đơn hàng",
   "Vận chuyển",
   "Tiền",
