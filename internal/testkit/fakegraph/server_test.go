@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -310,5 +311,17 @@ func TestServer_EmitWebhookSigned(t *testing.T) {
 	m.Write(payload)
 	if gotSig != "sha256="+hex.EncodeToString(m.Sum(nil)) || !bytes.Equal(gotBody, payload) {
 		t.Fatalf("chữ ký %q thân %q", gotSig, gotBody)
+	}
+}
+
+// Đọc một Page bằng token người dùng quản trị (đường "mã system user" của CRM, FetchPageToken) trả token Page và vai
+// trò tasks như me/accounts; thiếu tasks thì CRM coi Page không đủ quyền nhắn, kiểm duyệt (Task 180).
+func TestServer_PageTokenWithTasks(t *testing.T) {
+	t.Parallel()
+	fg := newServer(t)
+	r := call(t, fg, http.MethodGet, pageID, userToken, url.Values{"fields": {"access_token,name,tasks"}}, nil)
+	tasks, _ := r.Body["tasks"].([]any)
+	if r.Body["access_token"] != pageToken || !slices.Contains(tasks, any("MESSAGING")) || !slices.Contains(tasks, any("MODERATE")) {
+		t.Fatalf("Page đọc bằng token người dùng: %+v", r)
 	}
 }
