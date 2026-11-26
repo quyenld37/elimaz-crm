@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"elimaz.com.vn/crm/internal/modules/conversation/internal/query"
 	"elimaz.com.vn/crm/internal/platform/tenancy"
 	"elimaz.com.vn/crm/internal/testkit"
 )
@@ -100,8 +101,29 @@ func explainSeed(a, b, pageA1, pageA2, pageB uuid.UUID) testkit.Seed {
 				c.msgs, c.convs),
 		)
 	}
+	// Task 159: 20 nhãn của tenant A, mỗi hội thoại thứ 13 mang một nhãn (≈ 15.000 dòng gắn, mỗi nhãn ≈ 770).
+	q = append(q,
+		fmt.Sprintf("SELECT set_config('app.tenant_id', '%s', false)", a),
+		`INSERT INTO conversation.tags (tenant_id, name, color)
+			SELECT current_setting('app.tenant_id')::uuid, 'nhãn ' || g, 'green' FROM generate_series(1, 20) AS g`,
+		`INSERT INTO conversation.conversation_tag_links (tenant_id, conversation_id, tag_id)
+			SELECT cv.tenant_id, cv.id, tg.ids[1 + cv.rn % 20]
+			FROM (SELECT tenant_id, id, row_number() OVER (ORDER BY id) AS rn FROM conversation.conversations) AS cv,
+			     (SELECT array_agg(id ORDER BY id) AS ids FROM conversation.tags) AS tg
+			WHERE cv.rn % 13 = 0`,
+	)
 	return testkit.Seed{Name: "conversation-core-plan", SQL: append(q,
-		"ANALYZE conversation.posts", "ANALYZE conversation.conversations", "ANALYZE conversation.messages")}
+		"ANALYZE conversation.posts", "ANALYZE conversation.conversations", "ANALYZE conversation.messages",
+		"ANALYZE conversation.tags", "ANALYZE conversation.conversation_tag_links")}
+}
+
+// planStaff mở database có dữ liệu mẫu của explainSeed; trả tenant A và hai Page của A.
+func planStaff(t *testing.T) (staff *testkit.Staff, a, pageA1, pageA2 uuid.UUID) {
+	t.Helper()
+	a, b := testkit.FixedUUID("conversation-core-plan/A"), testkit.FixedUUID("conversation-core-plan/B")
+	pageA1, pageA2 = testkit.FixedUUID("conversation-core-plan/pageA1"), testkit.FixedUUID("conversation-core-plan/pageA2")
+	pageB := testkit.FixedUUID("conversation-core-plan/pageB")
+	return testkit.OpenStaffSeeded(t, explainSeed(a, b, pageA1, pageA2, pageB)), a, pageA1, pageA2
 }
 
 // [Task 151, 04 mục 7] Bốn truy vấn lõi bằng crm_app trên tenant A (200.000 hội thoại trên 2 Page, 500.000 tin):
@@ -109,10 +131,7 @@ func explainSeed(a, b, pageA1, pageA2, pageB uuid.UUID) testkit.Seed {
 // Scan, và mỗi câu trả đúng số dòng mong đợi (không rỗng do RLS).
 func TestCoreQueries_Plan(t *testing.T) {
 	t.Parallel()
-	a, b := testkit.FixedUUID("conversation-core-plan/A"), testkit.FixedUUID("conversation-core-plan/B")
-	pageA1, pageA2 := testkit.FixedUUID("conversation-core-plan/pageA1"), testkit.FixedUUID("conversation-core-plan/pageA2")
-	pageB := testkit.FixedUUID("conversation-core-plan/pageB")
-	staff := testkit.OpenStaffSeeded(t, explainSeed(a, b, pageA1, pageA2, pageB))
+	staff, a, pageA1, _ := planStaff(t)
 	ctx := t.Context()
 	var conv, assignee, post uuid.UUID
 	staff.Exec(t, a, func(tx pgx.Tx) error {
@@ -149,6 +168,53 @@ func TestCoreQueries_Plan(t *testing.T) {
 		}
 		if n == 0 {
 			t.Errorf("%s: 0 dòng, mong có dữ liệu", c.name)
+		}
+	}
+}
+
+// [Task 159, 04 mục 7] Câu danh sách hội thoại (query.BuildListSQL) bằng crm_app trên tenant A (200.000 hội thoại): theo
+// Page + trạng thái, theo người phụ trách (mọi Page), theo người phụ trách + trạng thái, theo nhãn, mọi Page không lọc
+// → không Seq Scan và trả đủ một trang.
+func TestListQueries_Plan(t *testing.T) {
+	t.Parallel()
+	staff, a, pageA1, pageA2 := planStaff(t)
+	ctx := t.Context()
+	var assignee, tag uuid.UUID
+	staff.Exec(t, a, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT
+			(SELECT assignee_id FROM conversation.conversations WHERE external_thread_ref = 'thread-1001'),
+			(SELECT tag_id FROM conversation.conversation_tag_links LIMIT 1)`).Scan(&assignee, &tag)
+	})
+	page := func(f query.Filter) query.ListParams {
+		f.Limit = 50
+		return query.ListParams{Filter: f, Pages: []uuid.UUID{pageA1, pageA2}}
+	}
+	for _, c := range []struct {
+		name string
+		p    query.ListParams
+	}{
+		{"Page + trạng thái", query.ListParams{Filter: query.Filter{Status: "open", Limit: 50}, Pages: []uuid.UUID{pageA1}}},
+		{"người phụ trách, mọi Page", query.ListParams{Filter: query.Filter{
+			Assignee: query.Assignee{UserID: &assignee}, Limit: 50,
+		}, AllPages: true}},
+		{"người phụ trách + trạng thái, hai Page", page(query.Filter{Status: "open", Assignee: query.Assignee{UserID: &assignee}})},
+		{"nhãn, hai Page", page(query.Filter{TagID: &tag})},
+		{"mọi Page, không lọc", query.ListParams{Filter: query.Filter{Limit: 50}, AllPages: true}},
+	} {
+		sql, args := query.BuildListSQL(c.p)
+		plan, err := testkit.ExplainAsApp(ctx, staff.App, a, sql, args...)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		t.Run(c.name, func(t *testing.T) { testkit.RequireNoSeqScan(t, plan) })
+		var n int
+		if err := tenancy.WithTenant(ctx, staff.App, a, func(tx pgx.Tx) error {
+			return tx.QueryRow(ctx, "SELECT count(*) FROM ("+sql+") AS q", args...).Scan(&n)
+		}); err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if n != 51 {
+			t.Errorf("%s: %d dòng, muốn 51 (một trang + 1)", c.name, n)
 		}
 	}
 }

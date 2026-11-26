@@ -52,6 +52,8 @@ func conversationError(err error) (status int, code string, ok bool) {
 		{conversation.ErrChannelReadOnly, http.StatusConflict, codeChannelReadOnly},
 		{conversation.ErrAttachmentNotReady, http.StatusUnprocessableEntity, codeAttachmentNotReady},
 		{conversation.ErrAttachmentRejected, http.StatusUnprocessableEntity, codeAttachmentRejected},
+		// Đọc hộp chat, đổi trạng thái (Task 159): trạng thái lạ → 422 invalid_input.
+		{conversation.ErrInvalidStatus, http.StatusUnprocessableEntity, codeInvalidInput},
 	})
 }
 

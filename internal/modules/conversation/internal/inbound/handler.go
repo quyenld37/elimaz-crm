@@ -139,7 +139,7 @@ func (h *handler) thread(ctx context.Context, tx pgx.Tx, acc channel.ChannelAcco
 		}
 	}
 	if row.Inserted {
-		if err := onNewConversation(ctx, tx, row.ID); err != nil {
+		if err := h.onNewConversation(ctx, tx, row.ID); err != nil {
 			return uuid.Nil, false, err
 		}
 	}
