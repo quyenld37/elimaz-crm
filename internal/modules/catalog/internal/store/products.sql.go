@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const bumpProductVersion = `-- name: BumpProductVersion :one
@@ -95,8 +96,9 @@ func (q *Queries) GetProductCategory(ctx context.Context, arg GetProductCategory
 
 const insertProduct = `-- name: InsertProduct :one
 
-INSERT INTO catalog.products (id, tenant_id, seller_id, code, name, name_search, description, article, status)
-VALUES (coalesce(nullif($1::uuid, '00000000-0000-0000-0000-000000000000'), uuidv7()), $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO catalog.products (id, tenant_id, seller_id, code, name, name_search, description, article, status, created_at)
+VALUES (coalesce(nullif($1::uuid, '00000000-0000-0000-0000-000000000000'), uuidv7()), $2, $3, $4, $5, $6, $7, $8, $9,
+        coalesce($10::timestamptz, now()))
 RETURNING id, version
 `
 
@@ -110,6 +112,7 @@ type InsertProductParams struct {
 	Description string
 	Article     []byte
 	Status      string
+	CreatedAt   pgtype.Timestamptz
 }
 
 type InsertProductRow struct {
@@ -119,7 +122,8 @@ type InsertProductRow struct {
 
 // Mẫu sản phẩm (kế hoạch M1, Task M1-27). Chạy trong tenancy.WithTenant. Mọi câu đọc, khóa, sửa có seller_id (ADR-29;
 // tests/arch/sellerfilter_test.go, Task M1-37).
-// id rỗng (uuid.Nil) → uuidv7() như mặc định của cột (id đặt trước: lệnh seed-web-fixture, Task 218).
+// id rỗng (uuid.Nil) → uuidv7() như mặc định của cột (id đặt trước: lệnh seed-web-fixture, Task 218); created_at NULL
+// → now() như mặc định của cột (đặt trước: seed-web-fixture, Task 511).
 func (q *Queries) InsertProduct(ctx context.Context, arg InsertProductParams) (InsertProductRow, error) {
 	row := q.db.QueryRow(ctx, insertProduct,
 		arg.ID,
@@ -131,6 +135,7 @@ func (q *Queries) InsertProduct(ctx context.Context, arg InsertProductParams) (I
 		arg.Description,
 		arg.Article,
 		arg.Status,
+		arg.CreatedAt,
 	)
 	var i InsertProductRow
 	err := row.Scan(&i.ID, &i.Version)

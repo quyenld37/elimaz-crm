@@ -398,8 +398,16 @@ CRM_ROLE=migrate go run ./cmd/crm seed-web-fixture --file /tmp/elimaz-fixture.js
   có khác tên (`customer: mã đơn vị hành chính đã có…`), dữ liệu cùng id đã khác ở chỗ không sửa được (mã mẫu) → dùng
   database mới.
 - Bộ đệm địa giới của web giữ 1 ngày: seed trước khi bật `api`, hoặc xóa khóa địa giới ở `valkey-cache` của máy e2e.
-- Chưa làm (tệp task 218): ảnh sản phẩm (cần kho tệp và worker xử lý ảnh), hãng giao hàng hiện trên web (bật trên màn
-  "Hãng trên website" sau `seed-dev`), giữ thứ tự biến thể của fixture (web xếp theo id).
+- Ngày tạo của mẫu mới = 2026-01-01 00:00 UTC + `position` giây (sắp xếp «Mới nhất» theo tệp; Task 511). Mẫu đã có
+  từ lần seed trước giữ ngày tạo cũ (catalog không sửa ngày tạo): cần đúng thứ tự thì dùng database mới.
+- Hãng giao hàng trên web cho checkout e2e (Task 511): thêm `--web-carrier "Hãng giao hàng A"` (tùy chọn
+  `--web-carrier-fee 30000`, mặc định 30000, 0–500000). Lệnh bật tài khoản hãng giả `web-e2e` (adapter `fake`) ở kho
+  MAIN đúng tên, hiện trên web, là ưu tiên, phí dự phòng = phí; ghi mã địa giới thử của tệp cho hãng giả (mã hãng =
+  mã CRM). In thêm `sửa carrier_account 1, carrier_location 4, web_carrier_settings 1` lần đầu; chạy lại 0. Để báo
+  phí đúng 30.000 kèm tên hãng: chạy `tools/fakecarrier` với `FAKECARRIER_QUOTE_FEE=30000` và đặt `FAKECARRIER_URL`
+  cho `api` (và `worker`); hãng giả không chạy thì web chỉ có phí ước tính 30.000 không tên hãng.
+- Chưa làm (tệp task 218, 511): ảnh sản phẩm (cần kho tệp và worker xử lý ảnh); giữ thứ tự biến thể của fixture (CRM
+  chưa có thứ tự biến thể do nhân viên đặt; web và màn hình nhân viên cùng xếp theo thứ tự tạo).
 
 ## Đọc cảnh báo và việc phải làm (Task 19, Task 20)
 

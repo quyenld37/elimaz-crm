@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -66,8 +67,11 @@ type VariantInput struct {
 }
 
 // ProductInput là một mẫu khi tạo. Status rỗng → draft. Article rỗng → bài viết rỗng. ID: như VariantInput.ID.
+// CreatedAt rỗng → giờ của transaction (mặc định cột); chỉ lệnh seed-web-fixture đặt (Task 511, ngày tạo theo thứ
+// tự tệp cho sắp xếp «Mới nhất»); đường HTTP, importer không đặt.
 type ProductInput struct {
 	ID                      uuid.UUID
+	CreatedAt               time.Time
 	SellerID                uuid.UUID
 	Code, Name, Description string
 	Article                 json.RawMessage

@@ -28,7 +28,8 @@ const defaultHang = 30 * time.Second
 const retryAfterSeconds = "7"
 
 // Options là cấu hình của máy chủ: kho trạng thái (nil → chỉ trong bộ nhớ), bí mật Bearer và chữ ký webhook, URL nhận
-// webhook (rỗng: không gửi), thời gian giữ yêu cầu ở chế độ timeout_after_create, client gửi webhook, logger.
+// webhook (rỗng: không gửi), thời gian giữ yêu cầu ở chế độ timeout_after_create, client gửi webhook, logger, phí báo
+// cố định (0: theo công thức cân nặng, tiền; > 0: một dịch vụ std đúng số này, cho e2e website, Task 511).
 type Options struct {
 	Store      *Store
 	Secret     string
@@ -36,6 +37,7 @@ type Options struct {
 	Hang       time.Duration
 	HTTPClient *http.Client
 	Logger     *slog.Logger
+	QuoteFee   int64
 }
 
 // Server là bộ xử lý HTTP của hãng giả.
