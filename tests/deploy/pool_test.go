@@ -21,6 +21,24 @@ import (
 // song"): scripts/ci/pool.py chọn chỗ trống theo thứ tự nhanh nhất blacksmith (4 chỗ) → mac (1, chung khóa với
 // run-in-slot.py) → github (3) → vps (1, chỉ ≤ 15 gói và không ALL); giữ chỗ bằng flock; sổ phút theo tháng; bể lỗi hạ
 // tầng (mã 3) tạm hỏng 30 phút; CRM_CI_RUNNER ép bể.
+// Task 495 (Chung-CI3, chủ shop 26/11: "máy t sử dụng để xử lý các task, còn chạy test thì dùng trong bể"): thứ tự mới
+// blacksmith (4) → ubicloud (3, hết ở 1.100 phút tính ×1) → github (3) → vps (1); mac 0 chỗ trong lượt chọn bình thường,
+// chỉ là dự phòng cuối (--local-only, hay mọi bể từ xa đều bị loại) và khi đó in "== DỰ PHÒNG CUỐI: chạy trên máy Mac".
+
+const lastResort = "== DỰ PHÒNG CUỐI: chạy trên máy Mac (lý do: "
+
+// remotePools: các bể từ xa và số chỗ mặc định.
+func remotePools() map[string]int {
+	return map[string]int{"blacksmith": 4, "ubicloud": 3, "github": 3, "vps": 1}
+}
+
+// downAllRemote đánh dấu mọi bể từ xa tạm hỏng một giờ.
+func (p poolEnv) downAllRemote(t *testing.T) {
+	t.Helper()
+	for pool := range remotePools() {
+		p.markDown(t, pool, time.Now().Add(time.Hour))
+	}
+}
 
 type poolEnv struct {
 	dir, slotLock string
@@ -170,8 +188,8 @@ func TestPool_FastestFreeFirst(t *testing.T) {
 		hold       func()
 	}{
 		{"trống hết: blacksmith", "blacksmith", func() {}},
-		{"blacksmith đủ 4 chỗ: mac", "mac", func() { p.holdAll(t, "blacksmith", 4) }},
-		{"mac bận (lượt run-in-slot): github", "github", func() { hold(t, p.slotLock) }},
+		{"blacksmith đủ 4 chỗ: ubicloud (không phải mac)", "ubicloud", func() { p.holdAll(t, "blacksmith", 4) }},
+		{"ubicloud đủ 3 chỗ: github", "github", func() { p.holdAll(t, "ubicloud", 3) }},
 		{"github đủ 3 chỗ, 3 gói: vps", "vps", func() { p.holdAll(t, "github", 3) }},
 	}
 	for _, s := range steps {
@@ -183,13 +201,9 @@ func TestPool_FastestFreeFirst(t *testing.T) {
 		if got := gotRunner(t, out); got != s.want {
 			t.Errorf("%s: chọn %q, muốn %q:\n%s", s.name, got, s.want, out)
 		}
-	}
-	// Lệnh con trên mac giữ lượt máy (run-in-slot lồng bên trong không chờ lại); mọi lệnh con biết đang ở trong bể.
-	q := newPoolEnv(t)
-	q.holdAll(t, "blacksmith", 4)
-	out, _ := q.run(t, nil, append([]string{"run", "--count", "3"}, echoRunner()...)...)
-	if !strings.Contains(out, "RUNNER=mac HELD=1 POOL=1") {
-		t.Errorf("mac phải đặt CRM_TEST_SLOT_HELD=1 và CRM_CI_POOL_HELD=1:\n%s", out)
+		if strings.Contains(out, lastResort) {
+			t.Errorf("%s: còn bể từ xa thì không phải dự phòng cuối:\n%s", s.name, out)
+		}
 	}
 }
 
@@ -197,7 +211,7 @@ func TestPool_FastestFreeFirst(t *testing.T) {
 func TestPool_WaitsForFirstFreeSlot(t *testing.T) {
 	p := newPoolEnv(t)
 	p.holdAll(t, "blacksmith", 4)
-	hold(t, p.slotLock)
+	p.holdAll(t, "ubicloud", 3)
 	gh := p.holdAll(t, "github", 3)
 	cmd := p.poolCmd(t, nil, append([]string{"run", "--all"}, echoRunner()...)...)
 	buf := startBg(t, cmd)
@@ -213,12 +227,16 @@ func TestPool_WaitsForFirstFreeSlot(t *testing.T) {
 	if !strings.Contains(out, "== chờ lượt test của máy") {
 		t.Errorf("phải báo đang chờ (dòng điều phối viên dò):\n%s", out)
 	}
+	if strings.Contains(out, lastResort) {
+		t.Errorf("bể từ xa chỉ đầy (không hỏng): chờ, không rơi về mac:\n%s", out)
+	}
 }
 
 // vps (3 lõi, toàn bộ 40 phút) chỉ nhận tập gói ≤ 15 và không ALL; không bể nào nhận được thì mã 3.
 func TestPool_VPSOnlySmallSets(t *testing.T) {
 	p := newPoolEnv(t)
 	p.markDown(t, "blacksmith", time.Now().Add(time.Hour))
+	p.markDown(t, "ubicloud", time.Now().Add(time.Hour))
 	p.markDown(t, "github", time.Now().Add(time.Hour))
 	cases := []struct {
 		args []string
@@ -268,6 +286,15 @@ func TestPool_ForcedRunner(t *testing.T) {
 	if err := cmd.Wait(); err != nil || gotRunner(t, buf.String()) != "github" {
 		t.Errorf("%v\n%s", err, buf.String())
 	}
+	// mac mặc định 0 chỗ trong lượt chọn, nhưng ép mac (người gõ) vẫn chạy ở mac, không phải dòng dự phòng cuối.
+	out, code = p.run(t, []string{"CRM_CI_RUNNER=mac"}, append([]string{"run", "--count", "1"}, echoRunner()...)...)
+	if code != 0 || gotRunner(t, out) != "mac" || strings.Contains(out, lastResort) {
+		t.Errorf("ép mac: chạy mac, không in dự phòng cuối: %d\n%s", code, out)
+	}
+	out, _ = p.run(t, []string{"CRM_CI_RUNNER=ubicloud"}, append([]string{"run", "--all"}, echoRunner()...)...)
+	if gotRunner(t, out) != "ubicloud" {
+		t.Errorf("ép ubicloud:\n%s", out)
+	}
 	if out, code := p.run(t, []string{"CRM_CI_RUNNER=azure"}, append([]string{"run"}, echoRunner()...)...); code != 2 {
 		t.Errorf("bể không có: mã 2, có %d:\n%s", code, out)
 	}
@@ -278,12 +305,14 @@ func TestPool_ForcedRunner(t *testing.T) {
 	}
 }
 
-// Sổ phút theo tháng (UTC): blacksmith tính ×2 (4 vCPU), hết khi ≥ 2.700; github ≥ 1.600; tháng trước không tính.
+// Sổ phút theo tháng (UTC): blacksmith tính ×2 (4 vCPU), hết khi ≥ 2.700; ubicloud ×1, hết khi ≥ 1.100 (chủ shop không
+// muốn trả tiền: cutoff 1 USD ở console không chặn cứng); github ≥ 1.600; tháng trước không tính.
 func TestPool_MonthlyMinutesBudget(t *testing.T) {
 	month := time.Now().UTC().Format("2006-01")
 	last := time.Now().UTC().AddDate(0, -1, 0).Format("2006-01")
 	p := newPoolEnv(t)
-	p.ledger(t, last+"\tblacksmith\t1\t5000\t10000\tx", month+"\tblacksmith\t2\t1349\t2698\tx")
+	p.ledger(t, last+"\tblacksmith\t1\t5000\t10000\tx", month+"\tblacksmith\t2\t1349\t2698\tx",
+		last+"\tubicloud\t3\t5000\t5000\tx", month+"\tubicloud\t4\t1099\t1099\tx")
 	out, _ := p.run(t, nil, append([]string{"run", "--count", "2"}, echoRunner()...)...)
 	if gotRunner(t, out) != "blacksmith" {
 		t.Errorf("2.698 phút tháng này (tháng trước không tính): còn blacksmith:\n%s", out)
@@ -297,22 +326,38 @@ func TestPool_MonthlyMinutesBudget(t *testing.T) {
 		t.Errorf("sổ phải ghi tháng, bể, run, phút máy, phút tính (×2):\n%s", b)
 	}
 	out, _ = p.run(t, nil, append([]string{"run", "--count", "2"}, echoRunner()...)...)
-	if gotRunner(t, out) != "mac" {
-		t.Errorf("blacksmith đã 2.700 phút: bỏ qua, chọn mac:\n%s", out)
+	if gotRunner(t, out) != "ubicloud" {
+		t.Errorf("blacksmith đã 2.700 phút: bỏ qua; ubicloud 1.099 < 1.100 (tháng trước không tính): ubicloud:\n%s", out)
 	}
-	hold(t, p.slotLock)
+	// ubicloud: 1 phút máy = 1 phút tính → 1.100: hết.
+	if out, code := p.run(t, nil, "record", "--runner", "ubicloud", "--run", "80", "--minutes", "1"); code != 0 {
+		t.Fatalf("record ubicloud: %d\n%s", code, out)
+	}
+	b, _ = os.ReadFile(filepath.Join(p.dir, "crm-runner-minutes.tsv"))
+	if !strings.Contains(string(b), month+"\tubicloud\t80\t1\t1\t") {
+		t.Errorf("ubicloud tính ×1:\n%s", b)
+	}
+	out, _ = p.run(t, nil, append([]string{"run", "--count", "2"}, echoRunner()...)...)
+	if gotRunner(t, out) != "github" || !strings.Contains(out, "bỏ bể ubicloud: hết phút tháng này (1100 ≥ 1100)") {
+		t.Errorf("ubicloud đã 1.100 phút: bỏ qua (báo lý do), chọn github (không phải mac):\n%s", out)
+	}
 	if _, code := p.run(t, nil, "record", "--runner", "github", "--run", "78", "--minutes", "1600"); code != 0 {
 		t.Fatal("record github")
 	}
 	out, _ = p.run(t, nil, append([]string{"run", "--count", "2"}, echoRunner()...)...)
 	if gotRunner(t, out) != "vps" {
-		t.Errorf("blacksmith, github hết phút, mac bận: vps:\n%s", out)
+		t.Errorf("blacksmith, ubicloud, github hết phút: vps:\n%s", out)
+	}
+	// ALL (vps không nhận) mà mọi bể khác hết phút: dự phòng cuối trên mac, nói rõ lý do.
+	out, _ = p.run(t, nil, append([]string{"run", "--all"}, echoRunner()...)...)
+	if gotRunner(t, out) != "mac" || !strings.Contains(out, lastResort) || !strings.Contains(out, "ubicloud: hết phút") {
+		t.Errorf("mọi bể từ xa bị loại: mac dự phòng cuối, có lý do:\n%s", out)
 	}
 	if out, code := p.run(t, nil, "record", "--runner", "vps", "--run", "79", "--minutes", "40"); code != 0 {
 		t.Fatalf("record vps: %s", out)
 	}
 	out, _ = p.run(t, nil, "status")
-	for _, want := range []string{"blacksmith", "2700", "github", "1600", "vps", "mac"} {
+	for _, want := range []string{"blacksmith", "2700", "ubicloud", "1100/1100", "github", "1600", "vps", "mac", "dự phòng cuối"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("status thiếu %q:\n%s", want, out)
 		}
@@ -325,8 +370,8 @@ func TestPool_InfraErrorMarksDownAndMovesOn(t *testing.T) {
 	p := newPoolEnv(t)
 	child := []string{"--", "sh", "-c", `echo "RUNNER=$CRM_CI_RUNNER"; [ "$CRM_CI_RUNNER" = blacksmith ] && exit 3; exit 0`}
 	out, code := p.run(t, nil, append([]string{"run", "--count", "1"}, child...)...)
-	if code != 0 || !strings.Contains(out, "RUNNER=blacksmith") || !strings.Contains(out, "RUNNER=mac") {
-		t.Fatalf("blacksmith lỗi hạ tầng → chuyển mac: %d\n%s", code, out)
+	if code != 0 || !strings.Contains(out, "RUNNER=blacksmith") || !strings.Contains(out, "RUNNER=ubicloud") {
+		t.Fatalf("blacksmith lỗi hạ tầng → chuyển ubicloud: %d\n%s", code, out)
 	}
 	b, err := os.ReadFile(filepath.Join(p.dir, "crm-runner-blacksmith.down"))
 	if err != nil {
@@ -337,7 +382,7 @@ func TestPool_InfraErrorMarksDownAndMovesOn(t *testing.T) {
 		t.Errorf("tạm hỏng 30 phút, có %s", d)
 	}
 	out, _ = p.run(t, nil, append([]string{"run", "--count", "1"}, echoRunner()...)...)
-	if gotRunner(t, out) != "mac" {
+	if gotRunner(t, out) != "ubicloud" {
 		t.Errorf("blacksmith đang tạm hỏng: bỏ qua:\n%s", out)
 	}
 	p.markDown(t, "blacksmith", time.Now().Add(-time.Minute))
@@ -359,8 +404,20 @@ func TestPool_InfraErrorMarksDownAndMovesOn(t *testing.T) {
 	q := newPoolEnv(t)
 	all3 := []string{"--", "sh", "-c", `echo "RUNNER=$CRM_CI_RUNNER"; exit 3`}
 	out, code = q.run(t, nil, append([]string{"run", "--no-mac", "--count", "1"}, all3...)...)
-	if code != 3 || strings.Count(out, "RUNNER=") != 3 {
-		t.Errorf("blacksmith, github, vps đều mã 3: thử mỗi bể một lần rồi trả 3: %d\n%s", code, out)
+	if code != 3 || strings.Count(out, "RUNNER=") != 4 {
+		t.Errorf("blacksmith, ubicloud, github, vps đều mã 3: thử mỗi bể một lần rồi trả 3: %d\n%s", code, out)
+	}
+	// Không --no-mac: mọi bể từ xa lỗi hạ tầng → dự phòng cuối trên mac đúng một lần, rồi trả mã của mac.
+	z := newPoolEnv(t)
+	remote3 := []string{"--", "sh", "-c", `echo "RUNNER=$CRM_CI_RUNNER"; [ "$CRM_CI_RUNNER" = mac ] && exit 0; exit 3`}
+	out, code = z.run(t, nil, append([]string{"run", "--count", "1"}, remote3...)...)
+	if code != 0 || strings.Count(out, "RUNNER=") != 5 || !strings.Contains(out, "RUNNER=mac") ||
+		!strings.Contains(out, lastResort) || !strings.Contains(out, "vừa lỗi hạ tầng") {
+		t.Errorf("bốn bể từ xa mã 3 → mac dự phòng cuối (in lý do): %d\n%s", code, out)
+	}
+	out, code = z.run(t, nil, append([]string{"run", "--count", "1"}, all3...)...)
+	if code != 3 || strings.Count(out, "RUNNER=") != 1 || !strings.Contains(out, "RUNNER=mac") {
+		t.Errorf("mac dự phòng cũng mã 3: trả 3, không lặp (bể từ xa đang tạm hỏng): %d\n%s", code, out)
 	}
 }
 
@@ -388,7 +445,8 @@ func TestPool_ConcurrentNeverExceedsSlots(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = f.Close() }()
-	limit := map[string]int{"blacksmith": 4, "mac": 1, "github": 3, "vps": 0}
+	// mac 0: bể từ xa chỉ đầy (không hỏng) thì chờ, không bao giờ chạy test ở máy dev.
+	limit := map[string]int{"blacksmith": 4, "ubicloud": 3, "mac": 0, "github": 3, "vps": 0}
 	cur, peak, n := map[string]int{}, map[string]int{}, 0
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
@@ -428,10 +486,10 @@ func TestPool_SlotFreedWhenProcessDies(t *testing.T) {
 	for !strings.Contains(buf.String(), "RUNNER=blacksmith") && time.Now().Before(deadline) {
 		time.Sleep(50 * time.Millisecond)
 	}
-	// Khi lệnh con còn chạy, chỗ 4 vẫn bị giữ: lượt mới sang mac.
+	// Khi lệnh con còn chạy, chỗ 4 vẫn bị giữ: lượt mới sang ubicloud.
 	out, _ := p.run(t, nil, append([]string{"run", "--count", "1"}, echoRunner()...)...)
-	if gotRunner(t, out) != "mac" {
-		t.Errorf("chỗ thứ 4 đang giữ: phải sang mac:\n%s\n%s", out, buf.String())
+	if gotRunner(t, out) != "ubicloud" {
+		t.Errorf("chỗ thứ 4 đang giữ: phải sang ubicloud:\n%s\n%s", out, buf.String())
 	}
 	_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	_ = cmd.Wait()
@@ -518,7 +576,7 @@ func TestMergeTest_RunsMergedCommitThroughPool(t *testing.T) {
 	if err := os.WriteFile(pk, []byte("./...\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	for _, p := range []string{"blacksmith", "github"} {
+	for _, p := range []string{"blacksmith", "ubicloud", "github"} {
 		down := fmt.Sprintf("%d thử\n", time.Now().Add(time.Hour).Unix())
 		if err := os.WriteFile(filepath.Join(r.pool, "crm-runner-"+p+".down"), []byte(down), 0o600); err != nil {
 			t.Fatal(err)
@@ -537,12 +595,69 @@ func TestPool_SlotsOverride(t *testing.T) {
 	p := newPoolEnv(t)
 	hold(t, p.lockPath("blacksmith", 1))
 	out, _ := p.run(t, []string{"CRM_CI_POOL_SLOTS=blacksmith=1"}, append([]string{"run", "--count", "1"}, echoRunner()...)...)
-	if gotRunner(t, out) != "mac" {
-		t.Errorf("blacksmith còn 1 chỗ (đang giữ): sang mac:\n%s", out)
+	if gotRunner(t, out) != "ubicloud" {
+		t.Errorf("blacksmith còn 1 chỗ (đang giữ): sang ubicloud:\n%s", out)
 	}
-	out, _ = p.run(t, []string{"CRM_CI_POOL_SLOTS=blacksmith=0, mac=0"}, append([]string{"run", "--count", "1"}, echoRunner()...)...)
+	out, _ = p.run(t, []string{"CRM_CI_POOL_SLOTS=blacksmith=0, ubicloud=0"}, append([]string{"run", "--count", "1"}, echoRunner()...)...)
 	if gotRunner(t, out) != "github" {
-		t.Errorf("tắt blacksmith và mac: github:\n%s", out)
+		t.Errorf("tắt blacksmith và ubicloud: github:\n%s", out)
+	}
+	// mac=1: mac vào lượt chọn bình thường, sau mọi bể từ xa (không phải dự phòng cuối, không in dòng đó).
+	q := newPoolEnv(t)
+	for pool, n := range remotePools() {
+		q.holdAll(t, pool, n)
+	}
+	out, code := q.run(t, []string{"CRM_CI_POOL_SLOTS=mac=1"}, append([]string{"run", "--count", "1"}, echoRunner()...)...)
+	if code != 0 || gotRunner(t, out) != "mac" || strings.Contains(out, lastResort) {
+		t.Errorf("mac=1, mọi bể từ xa đầy: chạy mac như bể thường: %d\n%s", code, out)
+	}
+	// Mặc định (mac 0 chỗ): cùng cảnh đó thì chờ bể từ xa, không chạy ở mac.
+	cmd := q.poolCmd(t, nil, append([]string{"run", "--count", "1"}, echoRunner()...)...)
+	buf := startBg(t, cmd)
+	time.Sleep(500 * time.Millisecond)
+	if strings.Contains(buf.String(), "RUNNER=") {
+		t.Errorf("mac mặc định 0 chỗ: bể từ xa đầy thì chờ, không chạy mac:\n%s", buf.String())
+	}
+	_ = cmd.Process.Kill()
+	_ = cmd.Wait()
+}
+
+// Mac chỉ là dự phòng cuối: mọi bể từ xa bị loại (tạm hỏng, hết phút, không nhận lượt) hay --local-only thì chạy mac và
+// in đúng dòng "== DỰ PHÒNG CUỐI: chạy trên máy Mac (lý do: …)" để điều phối viên báo chủ shop; không có mac (--no-mac,
+// mac=0) thì mã 3, không chạy gì.
+func TestPool_MacLastResortOnly(t *testing.T) {
+	p := newPoolEnv(t)
+	p.downAllRemote(t)
+	out, code := p.run(t, nil, append([]string{"run", "--count", "3"}, echoRunner()...)...)
+	if code != 0 || !strings.Contains(out, "RUNNER=mac HELD=1 POOL=1") || !strings.Contains(out, lastResort) ||
+		!strings.Contains(out, "blacksmith: tạm hỏng") || !strings.Contains(out, "ubicloud: tạm hỏng") {
+		t.Errorf("mọi bể từ xa tạm hỏng: mac dự phòng cuối (giữ lượt máy), in lý do: %d\n%s", code, out)
+	}
+	if out, code := p.run(t, nil, append([]string{"run", "--no-mac", "--count", "3"}, echoRunner()...)...); code != 3 ||
+		strings.Contains(out, "RUNNER=") || strings.Contains(out, lastResort) {
+		t.Errorf("--no-mac và mọi bể từ xa hỏng: mã 3, không chạy: %d\n%s", code, out)
+	}
+	if out, code := p.run(t, []string{"CRM_CI_POOL_SLOTS=mac=0"}, append([]string{"run", "--count", "3"}, echoRunner()...)...); code != 3 ||
+		strings.Contains(out, "RUNNER=") {
+		t.Errorf("mac=0 tắt hẳn cả dự phòng: mã 3: %d\n%s", code, out)
+	}
+	// --local-only (không chạy được từ xa) vẫn chạy được trên mac, in dòng dự phòng cuối.
+	q := newPoolEnv(t)
+	out, code = q.run(t, nil, append([]string{"run", "--local-only", "--all"}, echoRunner()...)...)
+	if code != 0 || gotRunner(t, out) != "mac" || !strings.Contains(out, lastResort+"không chạy được từ xa") {
+		t.Errorf("--local-only: mac, dòng dự phòng cuối: %d\n%s", code, out)
+	}
+	// Mac dự phòng đang bận (lượt run-in-slot của phiên khác): chờ chỗ mac, rồi chạy.
+	rel := hold(t, p.slotLock)
+	cmd := p.poolCmd(t, nil, append([]string{"run", "--count", "1"}, echoRunner()...)...)
+	buf := startBg(t, cmd)
+	time.Sleep(500 * time.Millisecond)
+	if strings.Contains(buf.String(), "RUNNER=") {
+		t.Errorf("mac đang bận: phải chờ:\n%s", buf.String())
+	}
+	rel()
+	if err := cmd.Wait(); err != nil || gotRunner(t, buf.String()) != "mac" {
+		t.Errorf("%v\n%s", err, buf.String())
 	}
 }
 
@@ -552,8 +667,8 @@ func TestPool_SlotAlreadyHeldRunsOnMac(t *testing.T) {
 	p := newPoolEnv(t)
 	hold(t, p.slotLock)
 	out, code := p.run(t, []string{"CRM_TEST_SLOT_HELD=1"}, append([]string{"run", "--local-only"}, echoRunner()...)...)
-	if code != 0 || !strings.Contains(out, "RUNNER=mac HELD=1 POOL=1") {
-		t.Errorf("đã giữ lượt máy: chạy ngay ở mac: %d\n%s", code, out)
+	if code != 0 || !strings.Contains(out, "RUNNER=mac HELD=1 POOL=1") || !strings.Contains(out, lastResort) {
+		t.Errorf("đã giữ lượt máy: chạy ngay ở mac (dự phòng cuối, in dòng): %d\n%s", code, out)
 	}
 }
 

@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Test bản đã gộp của điều phối viên qua bộ điều phối máy (Task 494): cổng tĩnh + test trên chỗ trống nhanh nhất
-# (scripts/ci/pool.py: blacksmith → mac → github → vps), không xếp hàng một lượt test của máy dev.
+# (scripts/ci/pool.py: blacksmith → ubicloud → github → vps; máy dev chỉ là dự phòng cuối, Task 495), không xếp hàng một
+# lượt test của máy dev.
 #
 # Dùng: merge-test.sh [bản] [base] [tệp gói] [tệp gói -race]
 #   bản      commit hay tree cần test (mặc định HEAD). Tree: cha là HEAD.
 #   base     ref để so (oasdiff, test-guard, gen-check); mặc định cha thứ nhất của commit gộp (nhánh gốc trước khi gộp),
 #            với tree là HEAD.
 #   tệp gói  như remote-test.sh: ALL (mặc định: mọi gói trừ tests/e2e) hoặc tệp mỗi dòng một gói; -race mặc định ALL.
-# Máy dev (bể mac) chỉ nhận khi bản cần test chính là HEAD của thư mục này và thư mục sạch (test chạy trên tệp thật).
+# Máy dev (bể mac, dự phòng cuối) chỉ nhận khi bản cần test chính là HEAD của thư mục này và thư mục sạch (test chạy
+# trên tệp thật).
 # In "MERGE-TEST XANH (<bể>) …" (thoát 0) hoặc "MERGE-TEST ĐỎ (<bể>) …" (thoát 1); 2 sai tham số; 3 không máy nào chạy được.
 # Biến: như pool.py (CRM_CI_RUNNER ép bể…) và remote-test.sh (CRM_CI_STATIC=false bỏ cổng tĩnh, cả ở máy dev);
 # CRM_CI_LABEL mặc định merge-<tên thư mục>.

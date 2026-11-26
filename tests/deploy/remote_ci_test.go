@@ -783,18 +783,19 @@ func TestCITaskPatch_Applies(t *testing.T) {
 // Input runner chọn máy cho cả static, plan, test: blacksmith (4 vCPU), github (ubuntu-24.04), vps (runner tự cài
 // elimaz-vps). vps có sẵn dịch vụ test trên 127.0.0.1 (PostgreSQL 5600, S3 20600/21600, OTLP 4600): không dựng compose,
 // không khôi phục cache (Go cache, công cụ giữ lại trên máy). Số phần: blacksmith ≤ 2 (một máy đã 6,5 phút toàn bộ),
-// vps 1 (một job một lúc), github ≤ 6.
+// vps 1 (một job một lúc), github ≤ 6. Task 495: ubicloud (ubicloud-standard-2, 2 vCPU, dựng dịch vụ như github), ≤ 4
+// phần (1.100 phút/tháng: ít job hơn github để bớt phút dựng mỗi job).
 func TestRemoteWorkflow_RunnerInput(t *testing.T) {
 	w := readWorkflowFile(t, remoteWorkflow)
 	d, _ := w.On["workflow_dispatch"].(map[string]any)
 	inputs, _ := d["inputs"].(map[string]any)
 	in, _ := inputs["runner"].(map[string]any)
-	if in["default"] != "github" || in["type"] != "choice" || fmt.Sprint(in["options"]) != "[github blacksmith vps]" {
-		t.Errorf("input runner: choice github|blacksmith|vps, mặc định github; đang là %v", in)
+	if in["default"] != "github" || in["type"] != "choice" || fmt.Sprint(in["options"]) != "[github blacksmith ubicloud vps]" {
+		t.Errorf("input runner: choice github|blacksmith|ubicloud|vps, mặc định github; đang là %v", in)
 	}
 	for _, name := range []string{"static", "plan", "test"} {
 		ro := fmt.Sprint(needJob(t, w, name).RunsOn)
-		for _, want := range []string{"inputs.runner", "blacksmith-4vcpu-ubuntu-2404", `"self-hosted","elimaz-vps"`, "ubuntu-24.04"} {
+		for _, want := range []string{"inputs.runner", "blacksmith-4vcpu-ubuntu-2404", "inputs.runner == 'ubicloud' && '\"ubicloud-standard-2\"'", `"self-hosted","elimaz-vps"`, "ubuntu-24.04"} {
 			if !strings.Contains(ro, want) {
 				t.Errorf("job %s: runs-on thiếu %q: %s", name, want, ro)
 			}
@@ -839,7 +840,7 @@ func checkMaxParts(t *testing.T, plan job) {
 			mp = v
 		}
 	}
-	for _, want := range []string{"inputs.runner == 'blacksmith' && '2'", "inputs.runner == 'vps' && '1'", "'6'"} {
+	for _, want := range []string{"inputs.runner == 'blacksmith' && '2'", "inputs.runner == 'ubicloud' && '4'", "inputs.runner == 'vps' && '1'", "'6'"} {
 		if !strings.Contains(mp, want) {
 			t.Errorf("MAX_PARTS thiếu %q: %q", want, mp)
 		}
@@ -873,7 +874,7 @@ func TestInstallTools_StampSkipsReinstall(t *testing.T) {
 }
 
 // remote-test.sh gửi đúng máy (CRM_CI_RUNNER; mặc định github; mac không phải máy từ xa → mã 2) và ghi sổ phút của
-// bộ điều phối (blacksmith ×2).
+// bộ điều phối (blacksmith ×2, ubicloud ×1).
 func TestRemoteTest_RunnerAndLedger(t *testing.T) {
 	r := newRemoteEnv(t)
 	base := git(t, r.dir, "rev-parse", "HEAD")
@@ -887,6 +888,15 @@ func TestRemoteTest_RunnerAndLedger(t *testing.T) {
 	led, _ := os.ReadFile(filepath.Join(r.pool, "crm-runner-minutes.tsv"))
 	if !strings.Contains(string(led), "\tblacksmith\t42\t5\t10\t") {
 		t.Errorf("sổ phút phải có run 42 blacksmith 5 phút máy, 10 phút tính (4m30s làm tròn lên, ×2):\n%s", led)
+	}
+	if out, code := r.run(t, []string{"CRM_CI_RUNNER=ubicloud"}, "HEAD", base, "ALL"); code != 0 {
+		t.Fatalf("ubicloud: %d\n%s", code, out)
+	}
+	if log, _ := os.ReadFile(r.log); !strings.Contains(string(log), "runner=ubicloud") {
+		t.Errorf("phải gửi runner=ubicloud:\n%s", log)
+	}
+	if led, _ := os.ReadFile(filepath.Join(r.pool, "crm-runner-minutes.tsv")); !strings.Contains(string(led), "\tubicloud\t42\t5\t5\t") {
+		t.Errorf("sổ phút phải có run 42 ubicloud 5 phút máy, 5 phút tính (×1):\n%s", led)
 	}
 	if out, code := r.run(t, nil, "HEAD", base, "ALL"); code != 0 {
 		t.Fatalf("%d\n%s", code, out)

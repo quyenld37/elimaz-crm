@@ -5,6 +5,8 @@
 # Task 494: input runner chọn máy (scripts/ci/pool.py chọn bể trống): blacksmith (4 vCPU, tối đa 2 phần), github
 # (ubuntu-24.04, tối đa 6 phần), vps (runner tự cài elimaz-vps, một job một lúc, 1 phần; dịch vụ test chạy sẵn trên
 # 127.0.0.1 nên không dựng compose; Go cache và công cụ giữ trên máy nên không khôi phục cache của GitHub).
+# Task 495: ubicloud (ubicloud-standard-2, 2 vCPU, ảnh máy như ubuntu-24.04 của GitHub; dựng dịch vụ bằng compose và
+# khôi phục cache như github; tối đa 4 phần vì chỉ 1.100 phút/tháng — mỗi job tốn ~2 phút dựng).
 name: test-remote
 
 on:
@@ -40,11 +42,11 @@ on:
         default: ""
         type: string
       runner:
-        description: "máy chạy: github (ubuntu-24.04), blacksmith (4 vCPU), vps (self-hosted elimaz-vps)"
+        description: "máy chạy: github (ubuntu-24.04), blacksmith (4 vCPU), ubicloud (ubicloud-standard-2), vps (self-hosted elimaz-vps)"
         required: false
         default: github
         type: choice
-        options: [github, blacksmith, vps]
+        options: [github, blacksmith, ubicloud, vps]
 
 permissions:
   contents: read
@@ -67,7 +69,7 @@ env:
 jobs:
   static:
     if: github.event_name == 'workflow_dispatch' && inputs.static == 'true'
-    runs-on: ${{ fromJSON(inputs.runner == 'vps' && '["self-hosted","elimaz-vps"]' || inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || '"ubuntu-24.04"') }}
+    runs-on: ${{ fromJSON(inputs.runner == 'vps' && '["self-hosted","elimaz-vps"]' || inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || inputs.runner == 'ubicloud' && '"ubicloud-standard-2"' || '"ubuntu-24.04"') }}
     timeout-minutes: 40
     env:
       BASE: ${{ inputs.base }}
@@ -117,7 +119,7 @@ jobs:
 
   plan:
     if: github.event_name == 'workflow_dispatch' && inputs.packages != ''
-    runs-on: ${{ fromJSON(inputs.runner == 'vps' && '["self-hosted","elimaz-vps"]' || inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || '"ubuntu-24.04"') }}
+    runs-on: ${{ fromJSON(inputs.runner == 'vps' && '["self-hosted","elimaz-vps"]' || inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || inputs.runner == 'ubicloud' && '"ubicloud-standard-2"' || '"ubuntu-24.04"') }}
     timeout-minutes: 10
     outputs:
       matrix: ${{ steps.split.outputs.matrix }}
@@ -128,10 +130,10 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - name: Chia gói thành phần cân bằng (scripts/ci/test-times.txt; tối đa 2 blacksmith, 1 vps, 6 github)
+      - name: Chia gói thành phần cân bằng (scripts/ci/test-times.txt; tối đa 2 blacksmith, 4 ubicloud, 1 vps, 6 github)
         id: split
         env:
-          MAX_PARTS: ${{ inputs.runner == 'blacksmith' && '2' || inputs.runner == 'vps' && '1' || '6' }}
+          MAX_PARTS: ${{ inputs.runner == 'blacksmith' && '2' || inputs.runner == 'ubicloud' && '4' || inputs.runner == 'vps' && '1' || '6' }}
           PACKAGES: ${{ inputs.packages }}
           RACE: ${{ inputs.race_packages }}
           STATIC: ${{ inputs.static }}
@@ -151,7 +153,7 @@ jobs:
   test:
     needs: plan
     if: needs.plan.outputs.count != '0'
-    runs-on: ${{ fromJSON(inputs.runner == 'vps' && '["self-hosted","elimaz-vps"]' || inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || '"ubuntu-24.04"') }}
+    runs-on: ${{ fromJSON(inputs.runner == 'vps' && '["self-hosted","elimaz-vps"]' || inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || inputs.runner == 'ubicloud' && '"ubicloud-standard-2"' || '"ubuntu-24.04"') }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
