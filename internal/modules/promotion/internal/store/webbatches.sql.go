@@ -138,7 +138,7 @@ func (q *Queries) BatchStatsMany(ctx context.Context, arg BatchStatsManyParams) 
 
 const couponTermsByCodes = `-- name: CouponTermsByCodes :many
 SELECT code::text AS code, discount_kind, value, coalesce(max_discount, 0)::bigint AS max_discount, min_subtotal,
-       valid_from, valid_to
+       valid_from, valid_to, coalesce(bound_phone, '')::text AS bound_phone
 FROM promotion.coupons
 WHERE code = ANY($1::text[]::citext[])
 `
@@ -151,9 +151,10 @@ type CouponTermsByCodesRow struct {
 	MinSubtotal  int64
 	ValidFrom    time.Time
 	ValidTo      time.Time
+	BoundPhone   string
 }
 
-// Điều khoản của các mã có sẵn (so với mã nhập trùng).
+// Điều khoản của các mã có sẵn (so với mã nhập trùng), kể cả SĐT gắn mã (rỗng: không gắn).
 func (q *Queries) CouponTermsByCodes(ctx context.Context, codes []string) ([]CouponTermsByCodesRow, error) {
 	rows, err := q.db.Query(ctx, couponTermsByCodes, codes)
 	if err != nil {
@@ -171,6 +172,7 @@ func (q *Queries) CouponTermsByCodes(ctx context.Context, codes []string) ([]Cou
 			&i.MinSubtotal,
 			&i.ValidFrom,
 			&i.ValidTo,
+			&i.BoundPhone,
 		); err != nil {
 			return nil, err
 		}
@@ -208,13 +210,15 @@ func (q *Queries) InsertImportBatch(ctx context.Context, arg InsertImportBatchPa
 
 const insertImportedCoupons = `-- name: InsertImportedCoupons :many
 INSERT INTO promotion.coupons (tenant_id, code, batch_id, name, discount_kind, value, max_discount, min_subtotal,
-                               channels, max_uses, used_count, valid_from, valid_to, given_at, origin, created_by)
+                               channels, max_uses, used_count, valid_from, valid_to, given_at, origin, created_by,
+                               bound_phone)
 SELECT NULLIF(current_setting('app.tenant_id', true), '')::uuid, ($1::text[])[i]::citext,
        ($2::uuid[])[i], ($3::text[])[i], ($4::text[])[i],
        ($5::bigint[])[i], NULLIF(($6::bigint[])[i], 0),
        ($7::bigint[])[i], $8::text[], 1, ($9::int[])[i],
        ($10::timestamptz[])[i], ($11::timestamptz[])[i],
-       NULLIF(($12::text[])[i], '')::timestamptz, 'web_import', $13::uuid
+       NULLIF(($12::text[])[i], '')::timestamptz, 'web_import', $13::uuid,
+       NULLIF(($14::text[])[i], '')
 FROM generate_series(1, cardinality($1::text[])) AS i
 ON CONFLICT (tenant_id, code) DO NOTHING
 RETURNING code::text AS code
@@ -234,10 +238,12 @@ type InsertImportedCouponsParams struct {
 	ValidTos      []time.Time
 	GivenAts      []string
 	CreatedBy     uuid.UUID
+	BoundPhones   []string
 }
 
 // Mã nhập từ website: mỗi mã dùng một lần (max_uses 1), used[i] 1 = đã dùng trên website; max_discounts[i] 0 = không
-// trần; given_ats[i] rỗng = chưa trao. Mã đã có → bỏ qua (bên gọi so điều khoản). Trả các mã đã chèn.
+// trần; given_ats[i] rỗng = chưa trao; bound_phones[i] rỗng = không gắn SĐT (Task 491). Mã đã có → bỏ qua (bên gọi so
+// điều khoản). Trả các mã đã chèn.
 func (q *Queries) InsertImportedCoupons(ctx context.Context, arg InsertImportedCouponsParams) ([]string, error) {
 	rows, err := q.db.Query(ctx, insertImportedCoupons,
 		arg.Codes,
@@ -253,6 +259,7 @@ func (q *Queries) InsertImportedCoupons(ctx context.Context, arg InsertImportedC
 		arg.ValidTos,
 		arg.GivenAts,
 		arg.CreatedBy,
+		arg.BoundPhones,
 	)
 	if err != nil {
 		return nil, err

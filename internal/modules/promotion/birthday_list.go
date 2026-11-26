@@ -3,6 +3,7 @@ package promotion
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -63,18 +64,75 @@ type BirthdayGift struct {
 	ValidFrom, ValidTo time.Time
 	CreatedAt          time.Time
 	BirthdayIn         int // số ngày tới sinh nhật của năm quà (âm: đã qua)
+	SendFailures       int // số lần website báo gửi lỗi (Task 491)
 }
 
-// BirthdayOutbox trả tối đa limit (1–500, ngoài → 100) quà chưa trao, còn hạn lúc now, của khách chưa dừng và đồng ý
-// Zalo hay email, cũ nhất trước: website gửi tin rồi báo MarkGiven (QĐ40).
-func BirthdayOutbox(ctx context.Context, tx pgx.Tx, now time.Time, limit int) ([]BirthdayGift, error) {
-	return pendingGifts(ctx, tx, now, limit, true)
+// Quà website gửi lỗi (Task 491): lỗi lần 1, 2 → quà rời outbox giftRetryDelay; lần thứ maxGiftSendFailures → không tự
+// gửi nữa (vẫn ở "Cần nhắn").
+const (
+	maxGiftSendFailures = 3
+	giftRetryDelay      = 6 * time.Hour
+	defaultOutboxPage   = 100
+)
+
+// OutboxQuery là một trang outbox: Limit 1–500 (ngoài → 100), Cursor là con trỏ trang sau (rỗng: trang đầu).
+type OutboxQuery struct {
+	Limit  int
+	Cursor string
 }
 
-// ListBirthdayTodo trả tối đa limit quà chưa trao (tab "Cần nhắn": kể cả khách không đồng ý kênh nào), còn hạn lúc
-// now, của khách chưa dừng, sinh nhật gần nhất trước.
+// OutboxPage là một trang outbox và con trỏ trang sau (rỗng: hết).
+type OutboxPage struct {
+	Items []BirthdayGift
+	Next  string
+}
+
+// BirthdayOutbox trả một trang quà chưa trao, còn hạn lúc now, của khách chưa dừng và đồng ý Zalo hay email, cũ nhất
+// trước (lúc phát, mã): website gửi tin rồi báo MarkGiven (QĐ40). Quà đang chờ thử lại sau lỗi hay đã hết lượt tự gửi
+// (MarkBirthdaySendFailed) không vào outbox. Con trỏ sai → ErrInvalidInput.
+func BirthdayOutbox(ctx context.Context, tx pgx.Tx, now time.Time, q OutboxQuery) (OutboxPage, error) {
+	limit := q.Limit
+	if limit < 1 || limit > maxPendingGifts {
+		limit = defaultOutboxPage
+	}
+	p := store.PendingBirthdayGiftsParams{Now: now, Outbox: true, MaxFailures: maxGiftSendFailures, RowLimit: int32(limit + 1)}
+	if q.Cursor != "" {
+		at, code, err := parseOutboxCursor(q.Cursor)
+		if err != nil {
+			return OutboxPage{}, err
+		}
+		p.AfterCreated, p.AfterCode = pgtype.Timestamptz{Time: at, Valid: true}, pgtype.Text{String: code, Valid: true}
+	}
+	gs, err := pendingGifts(ctx, tx, now, p)
+	if err != nil {
+		return OutboxPage{}, err
+	}
+	page := OutboxPage{Items: gs}
+	if len(gs) > limit {
+		page.Items = gs[:limit]
+		last := page.Items[limit-1]
+		page.Next = strconv.FormatInt(last.CreatedAt.UnixMicro(), 10) + "." + last.Code
+	}
+	return page, nil
+}
+
+// parseOutboxCursor đọc con trỏ "<lúc phát, micro giây Unix>.<mã>".
+func parseOutboxCursor(c string) (time.Time, string, error) {
+	micros, code, ok := strings.Cut(c, ".")
+	n, err := strconv.ParseInt(micros, 10, 64)
+	if !ok || err != nil || !codePattern.MatchString(code) {
+		return time.Time{}, "", fmt.Errorf("con trỏ outbox sinh nhật: %w", ErrInvalidInput)
+	}
+	return time.UnixMicro(n).UTC(), code, nil
+}
+
+// ListBirthdayTodo trả tối đa limit quà chưa trao (tab "Cần nhắn": kể cả khách không đồng ý kênh nào và quà website gửi
+// lỗi), còn hạn lúc now, của khách chưa dừng, sinh nhật gần nhất trước.
 func ListBirthdayTodo(ctx context.Context, tx pgx.Tx, now time.Time, limit int) ([]BirthdayGift, error) {
-	gs, err := pendingGifts(ctx, tx, now, limit, false)
+	if limit < 1 || limit > maxPendingGifts {
+		limit = defaultOutboxPage
+	}
+	gs, err := pendingGifts(ctx, tx, now, store.PendingBirthdayGiftsParams{Now: now, RowLimit: int32(limit)})
 	if err != nil {
 		return nil, err
 	}
@@ -82,13 +140,8 @@ func ListBirthdayTodo(ctx context.Context, tx pgx.Tx, now time.Time, limit int) 
 	return gs, nil
 }
 
-func pendingGifts(ctx context.Context, tx pgx.Tx, now time.Time, limit int, onlyConsent bool) ([]BirthdayGift, error) {
-	if limit < 1 || limit > maxPendingGifts {
-		limit = 100
-	}
-	rows, err := store.New(tx).PendingBirthdayGifts(ctx, store.PendingBirthdayGiftsParams{
-		Now: now, OnlyConsent: onlyConsent, RowLimit: int32(limit),
-	})
+func pendingGifts(ctx context.Context, tx pgx.Tx, now time.Time, p store.PendingBirthdayGiftsParams) ([]BirthdayGift, error) {
+	rows, err := store.New(tx).PendingBirthdayGifts(ctx, p)
 	if err != nil {
 		return nil, fmt.Errorf("đọc quà sinh nhật chưa trao: %w", err)
 	}
@@ -100,8 +153,55 @@ func pendingGifts(ctx context.Context, tx pgx.Tx, now time.Time, limit int, only
 			Phone: logging.Phone(r.Phone), Email: logging.Secret(r.Email), Day: int(r.Day), Month: int(r.Month),
 			Zalo: r.ConsentZalo, Mail: r.ConsentMail, StopToken: logging.Secret(r.StopToken), Amount: r.Value,
 			MinOrder: r.MinSubtotal, ValidFrom: r.ValidFrom, ValidTo: r.ValidTo, CreatedAt: r.CreatedAt,
-			BirthdayIn: int(birthdayIn(int(r.GiftYear), int(r.Day), int(r.Month)) - today),
+			BirthdayIn:   int(birthdayIn(int(r.GiftYear), int(r.Day), int(r.Month)) - today),
+			SendFailures: int(r.SendFailures),
 		})
+	}
+	return out, nil
+}
+
+// GiftSendFailure là trạng thái lỗi gửi của một quà: số lần lỗi, lúc quay lại outbox (nil: hết lượt tự gửi hay đã
+// trao), Given khi quà đã trao hay đã dùng (lần báo này không đổi gì).
+type GiftSendFailure struct {
+	CouponID uuid.UUID
+	Code     string
+	Failures int
+	RetryAt  *time.Time
+	Given    bool
+}
+
+// MarkBirthdaySendFailed ghi một lần website gửi quà code lỗi lúc now (không kênh nào tới khách): lỗi lần 1, 2 → quà
+// rời outbox tới now + 6 giờ; lần 3 → không vào outbox nữa. Quà đã trao hay đã dùng → không đổi gì. Khóa mã trước quà
+// (ADR-46 nhóm 10). Mã không phải quà sinh nhật hay không có → ErrNotFound.
+func MarkBirthdaySendFailed(ctx context.Context, tx pgx.Tx, code string, now time.Time) (GiftSendFailure, error) {
+	q := store.New(tx)
+	g, err := q.LockBirthdayGiftByCode(ctx, code)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return GiftSendFailure{}, fmt.Errorf("quà sinh nhật %s: %w", code, ErrNotFound)
+	case err != nil:
+		return GiftSendFailure{}, fmt.Errorf("khóa quà sinh nhật: %w", err)
+	}
+	out := GiftSendFailure{CouponID: g.ID, Code: g.Code, Failures: int(g.SendFailures)}
+	if g.GivenAt.Valid || g.UsedCount > 0 {
+		out.Given = true
+		return out, nil
+	}
+	if out.Failures >= maxGiftSendFailures {
+		return out, nil
+	}
+	var retry pgtype.Timestamptz
+	if out.Failures+1 < maxGiftSendFailures {
+		retry = pgtype.Timestamptz{Time: now.Add(giftRetryDelay), Valid: true}
+	}
+	r, err := q.MarkBirthdayGiftFailed(ctx, store.MarkBirthdayGiftFailedParams{RetryAt: retry, CouponID: g.ID})
+	if err != nil {
+		return GiftSendFailure{}, fmt.Errorf("ghi lỗi gửi quà sinh nhật: %w", err)
+	}
+	out.Failures = int(r.SendFailures)
+	if r.RetryAt.Valid {
+		t := r.RetryAt.Time
+		out.RetryAt = &t
 	}
 	return out, nil
 }

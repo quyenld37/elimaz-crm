@@ -490,7 +490,9 @@ func (e *env) pendingGifts(onlyConsent bool) map[uuid.UUID]promotion.BirthdayGif
 	if err := e.app(func(tx pgx.Tx) error {
 		var err error
 		if onlyConsent {
-			gs, err = promotion.BirthdayOutbox(e.t.Context(), tx, bdNow(), 100)
+			var p promotion.OutboxPage
+			p, err = promotion.BirthdayOutbox(e.t.Context(), tx, bdNow(), promotion.OutboxQuery{Limit: 100})
+			gs = p.Items
 		} else {
 			gs, err = promotion.ListBirthdayTodo(e.t.Context(), tx, bdNow(), 100)
 		}

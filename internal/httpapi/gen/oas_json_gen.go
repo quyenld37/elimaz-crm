@@ -85736,6 +85736,683 @@ func (s *WebBirthdayBatchRequest) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *WebBirthdayGiftFailure) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *WebBirthdayGiftFailure) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("code")
+		e.Str(s.Code)
+	}
+	{
+		e.FieldStart("failures")
+		e.Int32(s.Failures)
+	}
+	{
+		if s.RetryAt.Set {
+			e.FieldStart("retryAt")
+			s.RetryAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		e.FieldStart("given")
+		e.Bool(s.Given)
+	}
+}
+
+var jsonFieldsNameOfWebBirthdayGiftFailure = [4]string{
+	0: "code",
+	1: "failures",
+	2: "retryAt",
+	3: "given",
+}
+
+// Decode decodes WebBirthdayGiftFailure from json.
+func (s *WebBirthdayGiftFailure) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode WebBirthdayGiftFailure to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "code":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Code = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"code\"")
+			}
+		case "failures":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int32()
+				s.Failures = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"failures\"")
+			}
+		case "retryAt":
+			if err := func() error {
+				s.RetryAt.Reset()
+				if err := s.RetryAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"retryAt\"")
+			}
+		case "given":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.Given = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"given\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode WebBirthdayGiftFailure")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfWebBirthdayGiftFailure) {
+					name = jsonFieldsNameOfWebBirthdayGiftFailure[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *WebBirthdayGiftFailure) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *WebBirthdayGiftFailure) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *WebBirthdayImportItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *WebBirthdayImportItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("phone")
+		s.Phone.Encode(e)
+	}
+	{
+		if s.FullName.Set {
+			e.FieldStart("fullName")
+			s.FullName.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("day")
+		e.Int32(s.Day)
+	}
+	{
+		e.FieldStart("month")
+		e.Int32(s.Month)
+	}
+	{
+		e.FieldStart("zalo")
+		e.Bool(s.Zalo)
+	}
+	{
+		e.FieldStart("mail")
+		e.Bool(s.Mail)
+	}
+	{
+		if s.Email.Set {
+			e.FieldStart("email")
+			s.Email.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("stopToken")
+		e.Str(s.StopToken)
+	}
+	{
+		e.FieldStart("savedAt")
+		json.EncodeDateTime(e, s.SavedAt)
+	}
+	{
+		if s.StoppedAt.Set {
+			e.FieldStart("stoppedAt")
+			s.StoppedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.LegacyDelivered.Set {
+			e.FieldStart("legacyDelivered")
+			s.LegacyDelivered.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfWebBirthdayImportItem = [11]string{
+	0:  "phone",
+	1:  "fullName",
+	2:  "day",
+	3:  "month",
+	4:  "zalo",
+	5:  "mail",
+	6:  "email",
+	7:  "stopToken",
+	8:  "savedAt",
+	9:  "stoppedAt",
+	10: "legacyDelivered",
+}
+
+// Decode decodes WebBirthdayImportItem from json.
+func (s *WebBirthdayImportItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode WebBirthdayImportItem to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "phone":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Phone.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"phone\"")
+			}
+		case "fullName":
+			if err := func() error {
+				s.FullName.Reset()
+				if err := s.FullName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fullName\"")
+			}
+		case "day":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int32()
+				s.Day = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"day\"")
+			}
+		case "month":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int32()
+				s.Month = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"month\"")
+			}
+		case "zalo":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Zalo = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"zalo\"")
+			}
+		case "mail":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Bool()
+				s.Mail = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mail\"")
+			}
+		case "email":
+			if err := func() error {
+				s.Email.Reset()
+				if err := s.Email.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"email\"")
+			}
+		case "stopToken":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Str()
+				s.StopToken = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stopToken\"")
+			}
+		case "savedAt":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.SavedAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"savedAt\"")
+			}
+		case "stoppedAt":
+			if err := func() error {
+				s.StoppedAt.Reset()
+				if err := s.StoppedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stoppedAt\"")
+			}
+		case "legacyDelivered":
+			if err := func() error {
+				s.LegacyDelivered.Reset()
+				if err := s.LegacyDelivered.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"legacyDelivered\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode WebBirthdayImportItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b10111101,
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfWebBirthdayImportItem) {
+					name = jsonFieldsNameOfWebBirthdayImportItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *WebBirthdayImportItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *WebBirthdayImportItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *WebBirthdayImportReport) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *WebBirthdayImportReport) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("inserted")
+		e.Int32(s.Inserted)
+	}
+	{
+		e.FieldStart("skipped")
+		e.Int32(s.Skipped)
+	}
+	{
+		e.FieldStart("stopped")
+		e.Int32(s.Stopped)
+	}
+	{
+		e.FieldStart("conflicts")
+		e.ArrStart()
+		for _, elem := range s.Conflicts {
+			e.Int32(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfWebBirthdayImportReport = [4]string{
+	0: "inserted",
+	1: "skipped",
+	2: "stopped",
+	3: "conflicts",
+}
+
+// Decode decodes WebBirthdayImportReport from json.
+func (s *WebBirthdayImportReport) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode WebBirthdayImportReport to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "inserted":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int32()
+				s.Inserted = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"inserted\"")
+			}
+		case "skipped":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int32()
+				s.Skipped = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"skipped\"")
+			}
+		case "stopped":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int32()
+				s.Stopped = int32(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stopped\"")
+			}
+		case "conflicts":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Conflicts = make([]int32, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int32
+					v, err := d.Int32()
+					elem = int32(v)
+					if err != nil {
+						return err
+					}
+					s.Conflicts = append(s.Conflicts, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"conflicts\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode WebBirthdayImportReport")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfWebBirthdayImportReport) {
+					name = jsonFieldsNameOfWebBirthdayImportReport[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *WebBirthdayImportReport) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *WebBirthdayImportReport) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *WebBirthdayImportRequest) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *WebBirthdayImportRequest) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("items")
+		e.ArrStart()
+		for _, elem := range s.Items {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfWebBirthdayImportRequest = [1]string{
+	0: "items",
+}
+
+// Decode decodes WebBirthdayImportRequest from json.
+func (s *WebBirthdayImportRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode WebBirthdayImportRequest to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "items":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Items = make([]WebBirthdayImportItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem WebBirthdayImportItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Items = append(s.Items, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"items\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode WebBirthdayImportRequest")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfWebBirthdayImportRequest) {
+					name = jsonFieldsNameOfWebBirthdayImportRequest[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *WebBirthdayImportRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *WebBirthdayImportRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *WebBirthdayOutbox) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -85752,10 +86429,17 @@ func (s *WebBirthdayOutbox) encodeFields(e *jx.Encoder) {
 		}
 		e.ArrEnd()
 	}
+	{
+		if s.NextCursor.Set {
+			e.FieldStart("nextCursor")
+			s.NextCursor.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfWebBirthdayOutbox = [1]string{
+var jsonFieldsNameOfWebBirthdayOutbox = [2]string{
 	0: "items",
+	1: "nextCursor",
 }
 
 // Decode decodes WebBirthdayOutbox from json.
@@ -85784,6 +86468,16 @@ func (s *WebBirthdayOutbox) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"items\"")
+			}
+		case "nextCursor":
+			if err := func() error {
+				s.NextCursor.Reset()
+				if err := s.NextCursor.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"nextCursor\"")
 			}
 		default:
 			return d.Skip()
@@ -89976,19 +90670,26 @@ func (s *WebCouponImportItem) encodeFields(e *jx.Encoder) {
 			s.BatchName.Encode(e)
 		}
 	}
+	{
+		if s.BoundPhone.Set {
+			e.FieldStart("boundPhone")
+			s.BoundPhone.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfWebCouponImportItem = [10]string{
-	0: "code",
-	1: "discountKind",
-	2: "value",
-	3: "maxDiscount",
-	4: "minSubtotal",
-	5: "validFrom",
-	6: "validTo",
-	7: "givenAt",
-	8: "used",
-	9: "batchName",
+var jsonFieldsNameOfWebCouponImportItem = [11]string{
+	0:  "code",
+	1:  "discountKind",
+	2:  "value",
+	3:  "maxDiscount",
+	4:  "minSubtotal",
+	5:  "validFrom",
+	6:  "validTo",
+	7:  "givenAt",
+	8:  "used",
+	9:  "batchName",
+	10: "boundPhone",
 }
 
 // Decode decodes WebCouponImportItem from json.
@@ -90107,6 +90808,16 @@ func (s *WebCouponImportItem) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"batchName\"")
+			}
+		case "boundPhone":
+			if err := func() error {
+				s.BoundPhone.Reset()
+				if err := s.BoundPhone.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"boundPhone\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)

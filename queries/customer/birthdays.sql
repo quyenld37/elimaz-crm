@@ -28,3 +28,27 @@ RETURNING tenant_id, customer_id, stopped_at;
 SELECT customer_id, stopped_at
 FROM customer.birthday_profiles
 WHERE stop_token = @stop_token;
+
+-- name: ImportBirthdayProfile :many
+-- Hồ sơ sinh nhật cũ của website (Task 491): giữ mã dừng, lúc đăng ký, lúc dừng, cờ đơn cũ. Khách đã có hồ sơ hay mã
+-- dừng đã thuộc hồ sơ khác → không chèn (0 dòng), bên gọi đọc lại để phân loại.
+INSERT INTO customer.birthday_profiles (tenant_id, customer_id, phone, day, month, consent_zalo, consent_mail, email,
+                                        stop_token, stopped_at, legacy_delivered, source, created_at, updated_at)
+VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, @customer_id, @phone, @day, @month, @consent_zalo,
+        @consent_mail, sqlc.narg(email)::text, @stop_token, sqlc.narg(stopped_at)::timestamptz, @legacy_delivered,
+        'import', @saved_at, @now)
+ON CONFLICT DO NOTHING
+RETURNING tenant_id, customer_id;
+
+-- name: BirthdayProfileToken :one
+-- Mã dừng và lúc dừng của hồ sơ của khách (phân loại mục nhập không chèn được).
+SELECT stop_token, stopped_at
+FROM customer.birthday_profiles
+WHERE customer_id = @customer_id;
+
+-- name: StopBirthdayProfileOf :many
+-- Dừng nhận tin hồ sơ của khách lúc at (website ghi khách đã dừng); đã dừng → 0 dòng.
+UPDATE customer.birthday_profiles
+SET stopped_at = @at, updated_at = @now
+WHERE customer_id = @customer_id AND stopped_at IS NULL
+RETURNING tenant_id, customer_id;

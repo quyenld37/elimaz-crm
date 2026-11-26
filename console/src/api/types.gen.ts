@@ -3296,6 +3296,7 @@ export type WebCouponImportItem = {
     givenAt?: string;
     used?: boolean;
     batchName?: string;
+    boundPhone?: PhoneInput;
 };
 
 export type WebCouponImportReport = {
@@ -4834,6 +4835,75 @@ export type WebBirthdayOutboxItem = BirthdayGift & {
 
 export type WebBirthdayOutbox = {
     items: Array<WebBirthdayOutboxItem>;
+    /**
+     * Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+     */
+    nextCursor?: string;
+};
+
+export type WebBirthdayGiftFailure = {
+    code: string;
+    /**
+     * Số lần website đã báo lỗi
+     */
+    failures: number;
+    /**
+     * Lúc quà quay lại outbox; không có khi hết lượt tự gửi hay quà đã trao
+     */
+    retryAt?: string;
+    /**
+     * Quà đã trao hay đã dùng (lần gọi này không đổi gì)
+     */
+    given: boolean;
+};
+
+export type WebBirthdayImportRequest = {
+    items: Array<WebBirthdayImportItem>;
+};
+
+export type WebBirthdayImportItem = {
+    phone: PhoneInput;
+    /**
+     * Tên khách (chỉ dùng khi phải tạo khách mới; trống → "Khách website")
+     */
+    fullName?: string;
+    day: number;
+    month: number;
+    zalo: boolean;
+    mail: boolean;
+    email?: string;
+    /**
+     * Mã dừng nhận tin của website (giữ nguyên)
+     */
+    stopToken: string;
+    /**
+     * Lúc khách đăng ký trên website (luật đăng ký trước tối thiểu)
+     */
+    savedAt: string;
+    /**
+     * Lúc khách đã dừng nhận tin trên website
+     */
+    stoppedAt?: string;
+    /**
+     * Khách đã có đơn web giao thành công trên website cũ
+     */
+    legacyDelivered?: boolean;
+};
+
+export type WebBirthdayImportReport = {
+    inserted: number;
+    /**
+     * Hồ sơ đã có cùng mã dừng (nhập lại)
+     */
+    skipped: number;
+    /**
+     * Hồ sơ đang dừng nhận tin do lần nhập này
+     */
+    stopped: number;
+    /**
+     * Vị trí mục (từ 0) không giữ được mã dừng (khách đã có hồ sơ khác mã, hay mã thuộc khách khác)
+     */
+    conflicts: Array<number>;
 };
 
 export type ChannelAccountStatus = 'active' | 'degraded' | 'disconnected';
@@ -13341,6 +13411,7 @@ export type WebBirthdayOutboxData = {
     path?: never;
     query?: {
         limit?: number;
+        cursor?: string;
     };
     url: '/api/v1/web/birthdays/outbox';
 };
@@ -13362,6 +13433,78 @@ export type WebBirthdayOutboxResponses = {
 };
 
 export type WebBirthdayOutboxResponse = WebBirthdayOutboxResponses[keyof WebBirthdayOutboxResponses];
+
+export type WebBirthdayGiftFailedData = {
+    body?: never;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        code: string;
+    };
+    query?: never;
+    url: '/api/v1/web/birthdays/gifts/{code}/failed';
+};
+
+export type WebBirthdayGiftFailedErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebBirthdayGiftFailedError = WebBirthdayGiftFailedErrors[keyof WebBirthdayGiftFailedErrors];
+
+export type WebBirthdayGiftFailedResponses = {
+    /**
+     * Số lần lỗi và lúc quà quay lại outbox
+     */
+    200: WebBirthdayGiftFailure;
+};
+
+export type WebBirthdayGiftFailedResponse = WebBirthdayGiftFailedResponses[keyof WebBirthdayGiftFailedResponses];
+
+export type WebImportBirthdaysData = {
+    body: WebBirthdayImportRequest;
+    headers: {
+        /**
+         * Khóa chống trùng của yêu cầu ghi (ADR-41); gửi lại cùng khóa trả cùng kết quả.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/birthdays/import';
+};
+
+export type WebImportBirthdaysErrors = {
+    /**
+     * Tạm bận, thử lại sau
+     */
+    503: Error;
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebImportBirthdaysError = WebImportBirthdaysErrors[keyof WebImportBirthdaysErrors];
+
+export type WebImportBirthdaysResponses = {
+    /**
+     * Kết quả nhập
+     */
+    200: WebBirthdayImportReport;
+};
+
+export type WebImportBirthdaysResponse = WebImportBirthdaysResponses[keyof WebImportBirthdaysResponses];
 
 export type WebImportCouponsData = {
     body: WebCouponImportRequest;

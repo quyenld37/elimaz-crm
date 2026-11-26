@@ -5634,7 +5634,10 @@ paths:
       summary: Quà sinh nhật website cần gửi tự động (Zalo, email) — chỉ khách đồng ý kênh đó, chưa dừng nhận tin (Task 468)
       description: |
         Quà chưa trao, chưa dùng, còn hạn, cũ nhất trước. Website gửi tin (link dừng dùng stopToken) rồi gọi
-        webMarkCouponGiven; mã đã trao rời danh sách (QĐ40).
+        webMarkCouponGiven; mã đã trao rời danh sách (QĐ40). Task 491: phân trang theo con trỏ (còn trang sau thì có
+        nextCursor, gửi lại nguyên ở cursor; con trỏ sai → 400 invalid_input). Quà website báo gửi lỗi
+        (webBirthdayGiftFailed) rời danh sách tới retryAt; lỗi lần thứ 3 thì không vào danh sách nữa (nhân viên nhắn
+        tay ở "Cần nhắn"), nên quà lỗi không chặn quà mới.
       x-auth: service_key
       x-permission: web.coupons.issue
       parameters:
@@ -5645,6 +5648,11 @@ paths:
             format: int32
             minimum: 1
             maximum: 500
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            maxLength: 200
       responses:
         "200":
           description: Quà cần gửi
@@ -5654,6 +5662,68 @@ paths:
                 $ref: "#/components/schemas/WebBirthdayOutbox"
         default:
           $ref: "#/components/responses/Error"
+  /api/v1/web/birthdays/gifts/{code}/failed:
+    post:
+      operationId: webBirthdayGiftFailed
+      summary: Website báo quà sinh nhật trong outbox gửi lỗi (không kênh nào tới khách) (Task 491)
+      description: |
+        Mỗi lần gọi (khóa chống trùng khác nhau) tính một lần lỗi. Lỗi lần 1, 2 → quà rời outbox 6 giờ (retryAt) rồi
+        quay lại; lỗi lần 3 → không vào outbox nữa (không retryAt), vẫn ở "Cần nhắn" cho nhân viên. Quà đã trao hay đã
+        dùng → không đổi gì (given true). Mã không phải quà sinh nhật hay không có → 404 not_found.
+      x-auth: service_key
+      x-permission: web.coupons.issue
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9-]{3,32}$"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Số lần lỗi và lúc quà quay lại outbox
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebBirthdayGiftFailure"
+        "503":
+          $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
+  /api/v1/web/birthdays/import:
+    post:
+      operationId: webImportBirthdays
+      summary: Nhập hồ sơ sinh nhật cũ của website giữ nguyên mã dừng nhận tin (tối đa 500 mỗi lần) (Task 491)
+      description: |
+        Mỗi mục: tìm khách theo SĐT (chưa có → tạo khách mới, tên trống → "Khách website"); khách chưa có hồ sơ → hồ sơ
+        nguồn import giữ stopToken (link dừng cũ vẫn dùng được với webBirthdayStop), savedAt, stoppedAt,
+        legacyDelivered (inserted). Khách đã có hồ sơ cùng mã dừng → skipped. Khách đã có hồ sơ với mã khác (đăng ký
+        lần đầu thắng) hay mã dừng đã thuộc khách khác → vị trí mục (từ 0) trong conflicts, không đổi hồ sơ; riêng
+        stoppedAt của website vẫn dừng hồ sơ của khách đó. stopped: số hồ sơ đang dừng do lần nhập này. SĐT, mã dừng
+        trùng trong lần nhập, ngày sai, mail mà không email → 400 invalid_input; SĐT sai → 422 invalid_phone; không nhập
+        mục nào.
+      x-auth: service_key
+      x-permission: web.birthdays.write
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebBirthdayImportRequest"
+      responses:
+        "200":
+          description: Kết quả nhập
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebBirthdayImportReport"
+        "503":
+          $ref: "#/components/responses/RetryLater"
+        default:
+          $ref: "#/components/responses/Error"
   /api/v1/web/coupons/import:
     post:
       operationId: webImportCoupons
@@ -5661,7 +5731,9 @@ paths:
       description: |
         Mỗi mã dùng một lần, chỉ kênh web, lô loại imported theo batchName (trống → "Mã nhập từ website"). percent:
         value là phần trăm nguyên 1–100 của website (CRM lưu phần vạn). used true → mã đã dùng hết. Mã trùng trong
-        cùng lần nhập hay điều khoản sai → 400 invalid_input, không nhập mã nào.
+        cùng lần nhập hay điều khoản sai → 400 invalid_input, không nhập mã nào. boundPhone (Task 491, tùy chọn): mã
+        chỉ dùng cho đơn của SĐT đó (mã sinh nhật); là một phần điều khoản khi nhập lại (khác → conflicts); SĐT sai → 422
+        invalid_phone.
       x-auth: service_key
       x-permission: web.coupons.issue
       parameters:
@@ -13784,6 +13856,8 @@ components:
         batchName:
           type: string
           maxLength: 120
+        boundPhone:
+          $ref: "#/components/schemas/PhoneInput"
     WebCouponImportReport:
       type: object
       required: [inserted, skipped, conflicts]
@@ -16542,6 +16616,101 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/WebBirthdayOutboxItem"
+        nextCursor:
+          type: string
+          description: Có khi còn trang sau; gửi lại nguyên ở tham số cursor
+    WebBirthdayGiftFailure:
+      type: object
+      required: [code, failures, given]
+      properties:
+        code:
+          type: string
+        failures:
+          type: integer
+          format: int32
+          description: Số lần website đã báo lỗi
+        retryAt:
+          type: string
+          format: date-time
+          description: Lúc quà quay lại outbox; không có khi hết lượt tự gửi hay quà đã trao
+        given:
+          type: boolean
+          description: Quà đã trao hay đã dùng (lần gọi này không đổi gì)
+    WebBirthdayImportRequest:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/WebBirthdayImportItem"
+    WebBirthdayImportItem:
+      type: object
+      additionalProperties: false
+      required: [phone, day, month, zalo, mail, stopToken, savedAt]
+      properties:
+        phone:
+          $ref: "#/components/schemas/PhoneInput"
+        fullName:
+          type: string
+          maxLength: 200
+          description: Tên khách (chỉ dùng khi phải tạo khách mới; trống → "Khách website")
+        day:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 31
+        month:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 12
+        zalo:
+          type: boolean
+        mail:
+          type: boolean
+        email:
+          type: string
+          maxLength: 200
+        stopToken:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{16,100}$"
+          description: Mã dừng nhận tin của website (giữ nguyên)
+        savedAt:
+          type: string
+          format: date-time
+          description: Lúc khách đăng ký trên website (luật đăng ký trước tối thiểu)
+        stoppedAt:
+          type: string
+          format: date-time
+          description: Lúc khách đã dừng nhận tin trên website
+        legacyDelivered:
+          type: boolean
+          description: Khách đã có đơn web giao thành công trên website cũ
+    WebBirthdayImportReport:
+      type: object
+      required: [inserted, skipped, stopped, conflicts]
+      properties:
+        inserted:
+          type: integer
+          format: int32
+        skipped:
+          type: integer
+          format: int32
+          description: Hồ sơ đã có cùng mã dừng (nhập lại)
+        stopped:
+          type: integer
+          format: int32
+          description: Hồ sơ đang dừng nhận tin do lần nhập này
+        conflicts:
+          type: array
+          items:
+            type: integer
+            format: int32
+          description: Vị trí mục (từ 0) không giữ được mã dừng (khách đã có hồ sơ khác mã, hay mã thuộc khách khác)
     # --- M4: hộp chat, Live (Task 143). Nội dung tin, comment, tên khách là dữ liệu cá nhân: không ghi log. Không
     # trường nào mang token Page.
     ChannelAccountStatus:

@@ -1161,6 +1161,10 @@ type WebAvailabilityRes interface {
 	webAvailabilityRes()
 }
 
+type WebBirthdayGiftFailedRes interface {
+	webBirthdayGiftFailedRes()
+}
+
 type WebBirthdayOutboxRes interface {
 	webBirthdayOutboxRes()
 }
@@ -1223,6 +1227,10 @@ type WebHomeBannersRes interface {
 
 type WebHomeLooksRes interface {
 	webHomeLooksRes()
+}
+
+type WebImportBirthdaysRes interface {
+	webImportBirthdaysRes()
 }
 
 type WebImportCouponsRes interface {

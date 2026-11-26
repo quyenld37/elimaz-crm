@@ -217,3 +217,32 @@ func TestWebImportCoupons_API(t *testing.T) {
 		t.Fatalf("khóa thiếu quyền: %d", rec.Code)
 	}
 }
+
+// [WB05] Mã nhập gắn SĐT (boundPhone, Task 491): báo giá với đúng SĐT → giảm; SĐT khác → bound_other; SĐT gắn mã sai →
+// 422 invalid_phone, không nhập.
+func TestWebImportCoupons_BoundPhone(t *testing.T) {
+	t.Parallel()
+	c := newCouponWeb(t)
+	now := time.Now().Truncate(time.Second)
+	item := importItem("SN-SDT", "fixed", 40000, now.Add(-time.Hour), now.Add(240*time.Hour),
+		fmt.Sprintf(`,"boundPhone":%q`, phone(61)))
+	if r := decodeOK[importReport](t, "nhập", c.postIdem(c.issueKey, "b1", couponsPath+"/import",
+		`{"items":[`+item+`]}`)); r.Inserted != 1 {
+		t.Fatalf("nhập: %+v", r)
+	}
+	p := c.product("PSDT", "[]")
+	v := p.Variants[0].ID
+	c.stock(v, 5)
+	if q := c.quote(c.key, fmt.Sprintf(`{"lines":[%s],"shippingFee":30000,"couponCode":"SN-SDT","customerPhone":%q}`,
+		quoteLine(v, 1, 350000), phone(61))); q.Coupon == nil || !q.Coupon.Applied {
+		t.Fatalf("đúng SĐT: %+v", q.Coupon)
+	}
+	if q := c.quote(c.key, fmt.Sprintf(`{"lines":[%s],"shippingFee":30000,"couponCode":"SN-SDT","customerPhone":%q}`,
+		quoteLine(v, 1, 350000), phone(62))); q.Coupon == nil || q.Coupon.Applied || q.Coupon.Reason != "bound_other" {
+		t.Fatalf("SĐT khác: %+v", q.Coupon)
+	}
+	bad := importItem("SN-SAI", "fixed", 40000, now.Add(-time.Hour), now.Add(240*time.Hour), `,"boundPhone":"0012345678"`)
+	if rec := c.postIdem(c.issueKey, "b2", couponsPath+"/import", `{"items":[`+bad+`]}`); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("SĐT sai: %d %s", rec.Code, rec.Body)
+	}
+}

@@ -80,7 +80,7 @@ func (h *handler) WebImportCoupons(ctx context.Context, req *gen.WebCouponImport
 			Code: it.Code, DiscountKind: string(it.DiscountKind), Value: it.Value,
 			MaxDiscount: int64(it.MaxDiscount.Value), MinSubtotal: int64(it.MinSubtotal.Value),
 			ValidFrom: it.ValidFrom, ValidTo: it.ValidTo, GivenAt: optPtr[time.Time](it.GivenAt), Used: it.Used.Or(false),
-			BatchName: it.BatchName.Value,
+			BatchName: it.BatchName.Value, BoundPhone: string(it.BoundPhone.Or("")),
 		})
 	}
 	out, err := h.webCouponWrite(ctx, "nhập mã của website", func(tx pgx.Tx, _ promotion.Writer, u identity.AuthUser) (any, error) {

@@ -35,23 +35,26 @@ FOR UPDATE;
 
 -- name: InsertImportedCoupons :many
 -- Mã nhập từ website: mỗi mã dùng một lần (max_uses 1), used[i] 1 = đã dùng trên website; max_discounts[i] 0 = không
--- trần; given_ats[i] rỗng = chưa trao. Mã đã có → bỏ qua (bên gọi so điều khoản). Trả các mã đã chèn.
+-- trần; given_ats[i] rỗng = chưa trao; bound_phones[i] rỗng = không gắn SĐT (Task 491). Mã đã có → bỏ qua (bên gọi so
+-- điều khoản). Trả các mã đã chèn.
 INSERT INTO promotion.coupons (tenant_id, code, batch_id, name, discount_kind, value, max_discount, min_subtotal,
-                               channels, max_uses, used_count, valid_from, valid_to, given_at, origin, created_by)
+                               channels, max_uses, used_count, valid_from, valid_to, given_at, origin, created_by,
+                               bound_phone)
 SELECT NULLIF(current_setting('app.tenant_id', true), '')::uuid, (sqlc.arg(codes)::text[])[i]::citext,
        (sqlc.arg(batch_ids)::uuid[])[i], (sqlc.arg(names)::text[])[i], (sqlc.arg(discount_kinds)::text[])[i],
        (sqlc.arg(vals)::bigint[])[i], NULLIF((sqlc.arg(max_discounts)::bigint[])[i], 0),
        (sqlc.arg(min_subtotals)::bigint[])[i], sqlc.arg(channels)::text[], 1, (sqlc.arg(used)::int[])[i],
        (sqlc.arg(valid_froms)::timestamptz[])[i], (sqlc.arg(valid_tos)::timestamptz[])[i],
-       NULLIF((sqlc.arg(given_ats)::text[])[i], '')::timestamptz, 'web_import', @created_by::uuid
+       NULLIF((sqlc.arg(given_ats)::text[])[i], '')::timestamptz, 'web_import', @created_by::uuid,
+       NULLIF((sqlc.arg(bound_phones)::text[])[i], '')
 FROM generate_series(1, cardinality(sqlc.arg(codes)::text[])) AS i
 ON CONFLICT (tenant_id, code) DO NOTHING
 RETURNING code::text AS code;
 
 -- name: CouponTermsByCodes :many
--- Điều khoản của các mã có sẵn (so với mã nhập trùng).
+-- Điều khoản của các mã có sẵn (so với mã nhập trùng), kể cả SĐT gắn mã (rỗng: không gắn).
 SELECT code::text AS code, discount_kind, value, coalesce(max_discount, 0)::bigint AS max_discount, min_subtotal,
-       valid_from, valid_to
+       valid_from, valid_to, coalesce(bound_phone, '')::text AS bound_phone
 FROM promotion.coupons
 WHERE code = ANY(sqlc.arg(codes)::text[]::citext[]);
 
