@@ -22,8 +22,8 @@ func Adapter(cfg config.Config) channel.MessagingAdapter { //nolint:ireturn // R
 // thì nil thật (không phải nil có kiểu). Không được cmd nối riêng: nguồn vào ingest và worker theo channel.Registry qua
 // Adapter.
 func Source(cfg config.Config) webhooks.Source { //nolint:ireturn // nguồn webhook là interface của nền tảng
-	if c := fromConfig(cfg); c != nil {
-		return c
+	if a := Adapter(cfg); a != nil {
+		return a
 	}
 	return nil
 }

@@ -21,53 +21,88 @@ import (
 // Writer.SetSendMode khi chuyển sang enabled; worker gửi qua Alerter sau commit (không gọi Telegram trong tx).
 const SendModeAlertKind = "channel.send_mode_alert"
 
+// SubscribeAlertKind là lệnh cảnh báo "Page không đăng ký nhận tin được" (key channel-subscribe:<id>, mức gấp), ghi
+// trong tx kết thúc lệnh subscribe_page thất bại (Task 149).
+const SubscribeAlertKind = "channel.subscribe_alert"
+
 const (
-	sendModeAlertTimeout = 10 * time.Second
-	severityNormal       = "normal"
-	reasonBadPayload     = "bad_payload"
+	alertTimeout     = 10 * time.Second
+	severityNormal   = "normal"
+	severityUrgent   = "urgent"
+	reasonBadPayload = "bad_payload"
 )
 
-type sendModeAlertPayload struct {
+// alertPayload là payload của lệnh cảnh báo theo tài khoản kênh: chỉ mã, kênh, tên Page (công khai), không token.
+type alertPayload struct {
 	AccountID uuid.UUID `json:"accountId"`
 	Channel   string    `json:"channel"`
+	Name      string    `json:"name,omitempty"`
 }
 
-func sendModeAlertKind() queue.Kind {
-	return commands.CommandKind(SendModeAlertKind, 0, sendModeAlertTimeout)
+func alertKind(name string) queue.Kind {
+	return commands.CommandKind(name, 0, alertTimeout)
+}
+
+// enqueueAlert ghi lệnh cảnh báo kind cho tài khoản a (dedupe: khóa chống trùng trong loại).
+func enqueueAlert(ctx context.Context, tx pgx.Tx, kind string, a ChannelAccount, dedupe string) error {
+	tenant := a.TenantID
+	if _, _, err := queue.NewQueue().Enqueue(ctx, tx, alertKind(kind), queue.NewJob{
+		TenantID: &tenant, Payload: alertPayload{AccountID: a.ID, Channel: a.Channel, Name: a.Name}, DedupeKey: dedupe,
+	}); err != nil {
+		return fmt.Errorf("ghi lệnh %s: %w", kind, err)
+	}
+	return nil
 }
 
 // enqueueSendModeAlert ghi lệnh cảnh báo cho tài khoản a vừa sang enabled (mỗi version một lệnh).
 func enqueueSendModeAlert(ctx context.Context, tx pgx.Tx, a ChannelAccount) error {
-	tenant := a.TenantID
-	if _, _, err := queue.NewQueue().Enqueue(ctx, tx, sendModeAlertKind(), queue.NewJob{
-		TenantID: &tenant, Payload: sendModeAlertPayload{AccountID: a.ID, Channel: a.Channel},
-		DedupeKey: "send-mode:" + a.ID.String() + ":" + strconv.Itoa(int(a.Version)),
-	}); err != nil {
-		return fmt.Errorf("ghi lệnh cảnh báo chế độ gửi: %w", err)
-	}
-	return nil
+	return enqueueAlert(ctx, tx, SendModeAlertKind, a, "send-mode:"+a.ID.String()+":"+strconv.Itoa(int(a.Version)))
+}
+
+// enqueueSubscribeAlert ghi lệnh cảnh báo cho tài khoản a khi lệnh đăng ký jobID thất bại hẳn (mỗi lệnh một cảnh báo).
+func enqueueSubscribeAlert(ctx context.Context, tx pgx.Tx, a ChannelAccount, jobID uuid.UUID) error {
+	return enqueueAlert(ctx, tx, SubscribeAlertKind, a, "channel-subscribe:"+a.ID.String()+":"+jobID.String())
 }
 
 // NewSendModeAlertCommand trả lệnh SendModeAlertKind: gửi cảnh báo key "send-mode:<accountId>", mức thường, văn bản
 // chỉ có kênh và mã tài khoản, qua alertjobs.Notify (Alerter nil → rejected; Notify lỗi → log, not_sent, tự gửi lại).
 // cmd/crm đăng ký cùng các lệnh cảnh báo khác (dùng chung Alerter).
 func NewSendModeAlertCommand(a observability.Alerter, logger *slog.Logger) commands.Handler { //nolint:ireturn // Runner nhận Handler
-	return sendModeAlert{a: a, log: logger}
+	return accountAlert{
+		kind: SendModeAlertKind, key: "send-mode:", severity: severityNormal, a: a, log: logger,
+		text: func(p alertPayload) string {
+			return fmt.Sprintf("Tài khoản kênh %s (%s) vừa chuyển sang gửi thật: nhân viên đã gửi được tin ra ngoài", p.AccountID, p.Channel)
+		},
+	}
 }
 
-type sendModeAlert struct {
-	a   observability.Alerter
-	log *slog.Logger
+// NewSubscribeAlertCommand trả lệnh SubscribeAlertKind: cảnh báo gấp key "channel-subscribe:<accountId>", văn bản có
+// tên Page, kênh, mã tài khoản (không token); như NewSendModeAlertCommand.
+func NewSubscribeAlertCommand(a observability.Alerter, logger *slog.Logger) commands.Handler { //nolint:ireturn // Runner nhận Handler
+	return accountAlert{
+		kind: SubscribeAlertKind, key: "channel-subscribe:", severity: severityUrgent, a: a, log: logger,
+		text: func(p alertPayload) string {
+			return fmt.Sprintf("Page %s (%s, tài khoản %s) không đăng ký nhận tin được: quản trị cần kết nối lại Page",
+				p.Name, p.Channel, p.AccountID)
+		},
+	}
 }
 
-func (sendModeAlert) Kind() queue.Kind       { return sendModeAlertKind() }
-func (sendModeAlert) AutoRetryNotSent() bool { return true }
+// accountAlert là một lệnh cảnh báo theo tài khoản kênh: key = tiền tố + mã tài khoản.
+type accountAlert struct {
+	kind, key, severity string
+	text                func(alertPayload) string
+	a                   observability.Alerter
+	log                 *slog.Logger
+}
 
-func (s sendModeAlert) Execute(ctx context.Context, j queue.Job) (commands.Outcome, error) {
-	var p sendModeAlertPayload
+func (s accountAlert) Kind() queue.Kind     { return alertKind(s.kind) }
+func (accountAlert) AutoRetryNotSent() bool { return true }
+
+func (s accountAlert) Execute(ctx context.Context, j queue.Job) (commands.Outcome, error) {
+	var p alertPayload
 	if err := json.Unmarshal(j.Payload, &p); err != nil || p.AccountID == uuid.Nil {
 		return commands.Outcome{Status: commands.StatusRejected, Reason: reasonBadPayload}, nil
 	}
-	text := fmt.Sprintf("Tài khoản kênh %s (%s) vừa chuyển sang gửi thật: nhân viên đã gửi được tin ra ngoài", p.AccountID, p.Channel)
-	return alertjobs.Notify(ctx, s.a, s.log, "send-mode:"+p.AccountID.String(), severityNormal, text), nil
+	return alertjobs.Notify(ctx, s.a, s.log, s.key+p.AccountID.String(), s.severity, s.text(p)), nil
 }

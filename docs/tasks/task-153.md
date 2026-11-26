@@ -225,3 +225,24 @@ Gộp `m4` (9820e65, có Task 148 adapter Facebook và Task 169 nhắc việc, c
 Meta thì `/hooks/facebook` được đăng ký thật vào ingest và worker (đúng ý Quyết định 1 của 148); e2e chỉ qua `go vet`.
 
 Kết luận: ĐẠT
+
+## Lượt sửa gộp m4
+
+**Bối cảnh:** gộp `m4` (đã có Task 149: kết nối, ngắt kết nối Page; lệnh `channel.subscribe_page`, `channel.unsubscribe_page`; `channel.WebhookFields`) vào task-153 bằng `git merge --no-commit m4`. Test của lần gộp trước xanh nhưng jscpd báo đoạn trùng mới ở `internal/adapters/facebook/wiring.go` dòng 14–19.
+
+**Xung đột và cách sửa:**
+- `cmd/crm/wire_m4_test.go` (xung đột nội dung): HEAD (153) kiểm mỗi nguồn có đúng một handler vào; m4 (149) kiểm lệnh M4 là đúng hai lệnh đăng ký, hủy đăng ký webhook Page và cấm handler vào. Giữ cả hai: kiểm handler vào theo nguồn (153) **và** danh sách lệnh (149); chỉ còn cấm luồng nền. Gộp hai lời chú thích. Hàm test vượt ngưỡng gocognit (23 > 20) nên tách hai hàm phụ trong test: `m4InboundSources`, `m4CommandKinds` (chỉ đọc tên, không đổi điều kiện kiểm).
+- `internal/adapters/facebook/wiring.go` (jscpd): thân `Adapter` và `Source` cùng lặp `if c := fromConfig(cfg); c != nil { return c }; return nil`. `Source` giờ dùng lại `Adapter(cfg)` (MessagingAdapter nhúng webhooks.Source), vẫn trả nil thật khi tắt. Không còn cần `facebook.SubscribedFields` (149 đã bỏ, dùng `channel.WebhookFields`); nhánh 153 không dùng tên đó.
+- Không có tên khai trùng giữa hai nhánh; mã sinh (`channel/internal/store`) chỉ đến từ m4, không đổi nguồn SQL nên không chạy `make gen`.
+
+**Bằng chứng:**
+
+| Kiểm | Lệnh | Kết quả |
+|---|---|---|
+| Build, vet | `go build ./... && go vet ./cmd/crm/ ./internal/adapters/facebook/` | OK |
+| Test gói chạm | `go test -race -count=1 ./cmd/crm/ ./internal/adapters/facebook/... ./internal/modules/channel/... ./internal/httpapi/` | ok cmd/crm, ok facebook, ok channel, ok httpapi |
+| Test kiến trúc | `go test -count=1 ./tests/arch/` | ok (35.3s; lần đầu FAIL TestLintCleanOnRealCode do gocognit, đã sửa) |
+| Lint | `golangci-lint run ./cmd/crm/... ./internal/adapters/facebook/...` | 0 issues |
+| Mã trùng | `make jscpd` | Found 0 clones (so mốc nền, 0 mới) |
+
+**Reviewer (lượt sửa gộp m4):** ĐẠT. Không có phát hiện phải sửa. `Source` dùng lại `Adapter` vẫn trả nil thật khi tắt (`source_test.go:39`); hai hàm phụ trong `wire_m4_test.go` giữ đúng điều kiện của 153 (handler vào theo nguồn) và 149 (lệnh Page đúng thứ tự); mã sinh channel lấy nguyên từ m4, không cần `make gen`.
