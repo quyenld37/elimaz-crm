@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/catalog/internal/article"
 	"elimaz.com.vn/crm/internal/modules/catalog/internal/store"
@@ -57,6 +58,7 @@ func (w Writer) CreateProduct(ctx context.Context, tx pgx.Tx, in ProductInput, a
 	row, err := q.InsertProduct(ctx, store.InsertProductParams{
 		ID: in.ID, TenantID: actor.TenantID, SellerID: p.SellerID, Code: p.Code, Name: p.Name, NameSearch: textnorm.Fold(p.Name),
 		Description: p.Description, Article: stored, Status: string(p.Status),
+		CreatedAt: pgtype.Timestamptz{Time: in.CreatedAt, Valid: !in.CreatedAt.IsZero()},
 	})
 	if err != nil {
 		return Product{}, fmt.Errorf("ghi mẫu: %w", mapWriteError(err))

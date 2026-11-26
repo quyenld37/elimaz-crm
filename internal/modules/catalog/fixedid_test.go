@@ -2,12 +2,46 @@ package catalog_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/modules/catalog"
 )
+
+// Ngày tạo đặt trước (Task 511: seed-web-fixture đặt created_at = mốc + position giây cho sắp xếp «Mới nhất» của
+// website): CreatedAt khác rỗng giữ đúng giờ đó; rỗng → now() của transaction như mặc định cột.
+func TestCreateWithFixedCreatedAt(t *testing.T) {
+	t.Parallel()
+	e := newCatalogEnv(t)
+	at := time.Date(2026, 1, 1, 0, 0, 5, 0, time.UTC)
+	in := dam01(e.seller)
+	in.CreatedAt, in.Variants = at, in.Variants[:1]
+	fixed := e.mustCreate(in)
+	auto := dam01(e.seller)
+	auto.Code, auto.Variants = "dam02", auto.Variants[1:2]
+	auto.Variants[0].SKU = "DAM02-DO-M"
+	plain := e.mustCreate(auto)
+	var gotFixed, gotPlain, now time.Time
+	if err := e.app(func(tx pgx.Tx) error {
+		if err := tx.QueryRow(t.Context(), "SELECT created_at FROM catalog.products WHERE id = $1", fixed.ID).Scan(&gotFixed); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		if err := tx.QueryRow(t.Context(), "SELECT created_at FROM catalog.products WHERE id = $1", plain.ID).Scan(&gotPlain); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		return tx.QueryRow(t.Context(), "SELECT now()").Scan(&now)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !gotFixed.Equal(at) {
+		t.Fatalf("created_at đặt trước = %s, mong %s", gotFixed, at)
+	}
+	if gotPlain.Before(now.Add(-time.Hour)) || gotPlain.After(now) {
+		t.Fatalf("created_at rỗng = %s, mong now() của database (%s)", gotPlain, now)
+	}
+}
 
 // Id đặt trước (Task 218: lệnh seed-web-fixture tạo bản ghi đúng id UUID v5 mà website tính từ id fixture): danh mục,
 // mẫu, biến thể (khi tạo mẫu và khi thêm sau) giữ đúng id; ID rỗng → database tự sinh như cũ.

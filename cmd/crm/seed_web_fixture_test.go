@@ -149,7 +149,18 @@ func TestRunSeedWebFixture_Refusals(t *testing.T) {
 	if err := runSeedWebFixture(t.Context(), config.Config{Env: "production", Role: config.RoleMigrate}, args, &out, log); !errors.Is(err, errSeedFixtureProduction) {
 		t.Fatalf("production: %v", err)
 	}
-	for _, a := range [][]string{{}, {"--file", fixturePath}, {"--staff-email", "a@b.c"}, append(slices.Clone(args), "thừa"), {"--la", "x"}} {
+	usage := [][]string{{}, {"--file", fixturePath}, {"--staff-email", "a@b.c"}, append(slices.Clone(args), "thừa"), {"--la", "x"}}
+	// Cờ hãng trên web sai (Task 511): phí ngoài 0–trần, phí không số, phí không kèm tên, tên rỗng.
+	for _, extra := range [][]string{
+		{"--web-carrier", "Hãng giao hàng A", "--web-carrier-fee", "-1"},
+		{"--web-carrier", "Hãng giao hàng A", "--web-carrier-fee", "500001"},
+		{"--web-carrier", "Hãng giao hàng A", "--web-carrier-fee", "x"},
+		{"--web-carrier-fee", "30000"},
+		{"--web-carrier", "  "},
+	} {
+		usage = append(usage, append(slices.Clone(args), extra...))
+	}
+	for _, a := range usage {
 		if err := runSeedWebFixture(t.Context(), dev, a, &out, log); !errors.Is(err, errSeedFixtureUsage) {
 			t.Errorf("%v: mong errSeedFixtureUsage, có %v", a, err)
 		}
@@ -212,6 +223,17 @@ func (e *seedEnv) seed(raw []byte) seedReport {
 		e.t.Fatalf("seed: %v", err)
 	}
 	return rep
+}
+
+// seedSample seed tệp mẫu và trả lỗi (ca lỗi: lệnh phải lùi cả transaction).
+func (e *seedEnv) seedSample() error {
+	e.t.Helper()
+	fx, err := parseWebFixture(readFixture(e.t))
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	_, err = e.seeder.seed(e.t.Context(), e.s.Owner, e.actor, fx)
+	return err
 }
 
 func (e *seedEnv) app(fn func(tx pgx.Tx) error) {
@@ -390,11 +412,7 @@ func TestSeedWebFixture_AdminUnitConflict(t *testing.T) {
 		VALUES ('101', 'province', NULL, 'Tỉnh thật', 'tinh that', DATE '2025-07-01', 'test')`); err != nil {
 		t.Fatal(err)
 	}
-	fx, err := parseWebFixture(readFixture(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := e.seeder.seed(t.Context(), e.s.Owner, e.actor, fx); !errors.Is(err, errAdminUnitConflict) {
+	if err := e.seedSample(); !errors.Is(err, errAdminUnitConflict) {
 		t.Fatalf("mong errAdminUnitConflict, có %v", err)
 	}
 	if n := e.count("SELECT count(*) FROM catalog.products"); n != 0 {
@@ -476,6 +494,16 @@ func TestRunSeedWebFixture_Command(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "tạo 0; sửa 0;") {
 		t.Fatalf("chạy lại phải 0 thay đổi: %q", out.String())
+	}
+	out.Reset()
+	if err := runSeedWebFixture(t.Context(), cfg, append(slices.Clone(args), "--web-carrier", "Hãng giao hàng A"), &out, log); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "sửa carrier_account 1, carrier_location 4, web_carrier_settings 1;") {
+		t.Fatalf("--web-carrier phải bật hãng giả: %q", out.String())
+	}
+	if n := s.CountIn(t, tenant, "SELECT count(*) FROM fulfillment.channel_carrier_settings WHERE fallback_fee = 30000 AND preferred_account_id IS NOT NULL"); n != 1 {
+		t.Fatalf("cài đặt hãng trên web sau lệnh: %d dòng", n)
 	}
 }
 

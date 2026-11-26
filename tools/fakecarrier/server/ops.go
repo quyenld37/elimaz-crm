@@ -90,11 +90,20 @@ type quote struct {
 }
 
 // quote (POST /v1/quote): hai dịch vụ std, fast (hoặc đúng service hỏi); cân nặng ≤ 0, tiền âm, thiếu tỉnh nhận → 422.
+// Options.QuoteFee > 0: chỉ dịch vụ std với đúng phí đó (hỏi dịch vụ khác → danh sách rỗng).
 func (s *Server) quote(w http.ResponseWriter, r *http.Request) {
 	var in quoteReq
 	if err := decode(r, &in); err != nil || in.WeightGrams <= 0 || in.COD < 0 || in.DeclaredValue < 0 ||
 		in.FeeOnRefuse < 0 || in.ToProvince == "" {
 		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "invalid_quote"})
+		return
+	}
+	if fee := s.cfg.QuoteFee; fee > 0 {
+		out := []quote{}
+		if in.Service == "" || in.Service == "std" {
+			out = append(out, quote{Service: "std", Name: "Tiêu chuẩn", Total: fee, Breakdown: map[string]int64{"main": fee}, ExpectedDays: 3})
+		}
+		writeJSON(w, http.StatusOK, map[string][]quote{"quotes": out})
 		return
 	}
 	main := int64(quoteBase + quotePerHalfKg*((max(in.WeightGrams, halfKg)-1)/halfKg))

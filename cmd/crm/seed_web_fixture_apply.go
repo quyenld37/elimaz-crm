@@ -13,6 +13,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/customer"
+	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/inventory"
 	"elimaz.com.vn/crm/internal/modules/promotion"
@@ -35,11 +36,14 @@ var errAdminUnitConflict = errors.New("mã đơn vị hành chính thử đã c�
 var attrCodeSep = regexp.MustCompile(`[^a-z0-9]+`)
 
 // webFixtureSeeder ghi tệp fixture qua public API của catalog, promotion, inventory, customer (mỗi Writer tự ghi sự
-// kiện, báo hiệu, audit như khi nhân viên sửa). Bus nil: không báo hiệu.
+// kiện, báo hiệu, audit như khi nhân viên sửa). Bus nil: không báo hiệu. Carrier.Name khác rỗng: bật hãng giả trên
+// web qua Fulfillment (Task 511).
 type webFixtureSeeder struct {
-	Events *events.Registry
-	Queue  queue.JobQueue
-	Bus    realtime.Bus
+	Events      *events.Registry
+	Queue       queue.JobQueue
+	Bus         realtime.Bus
+	Fulfillment *fulfillment.Service
+	Carrier     webCarrierSeed
 }
 
 // fixtureApply là một lần chạy thân transaction (dựng mới mỗi lần RetryTx chạy lại).
@@ -55,7 +59,8 @@ type fixtureApply struct {
 
 // seed ghi fx trong một transaction tenant của actor trên pool chủ bảng owner, thứ tự khóa ADR-46: địa giới (không
 // khóa), catalog (người bán, danh mục, thuộc tính, giá trị, mẫu theo id tăng dần: mẫu → phân loại → biến thể),
-// promotion (mã), inventory (kho, một phiếu điều chỉnh mỗi 500 dòng). So rồi mới ghi: chạy lại cùng tệp → 0 thay đổi.
+// fulfillment (hãng giả trên web khi có cờ: tài khoản → mã địa giới → cài đặt kênh web), promotion (mã), inventory (kho, một phiếu
+// điều chỉnh mỗi 500 dòng). So rồi mới ghi: chạy lại cùng tệp → 0 thay đổi.
 // Mẫu, biến thể thuộc người bán mặc định của tenant (người bán mà đường web dùng), không phải seller.id của tệp.
 func (s webFixtureSeeder) seed(ctx context.Context, owner *db.DB, actor identity.AuthUser, fx webFixture) (seedReport, error) {
 	var rep seedReport
@@ -96,6 +101,9 @@ func (a *fixtureApply) run(ctx context.Context, fx webFixture, s webFixtureSeede
 		if err := a.product(ctx, p); err != nil {
 			return fmt.Errorf("mẫu %s: %w", p.Key, err)
 		}
+	}
+	if err := a.webCarrier(ctx, s.Carrier, s.Fulfillment, fx.Locations); err != nil {
+		return err
 	}
 	if err := a.coupons(ctx, fx.Coupons, promotion.Writer{Realtime: s.Bus, Events: s.Events, Queue: s.Queue}); err != nil {
 		return err
@@ -248,7 +256,10 @@ func (a *fixtureApply) product(ctx context.Context, fp fixtureProduct) error {
 }
 
 func (a *fixtureApply) createProduct(ctx context.Context, fp fixtureProduct) error {
-	in := catalog.ProductInput{ID: fp.ID, SellerID: a.seller, Code: fp.Code, Name: fp.Name, Status: catalog.StatusActive}
+	in := catalog.ProductInput{
+		ID: fp.ID, CreatedAt: fixtureCreatedAt(fp.Position), SellerID: a.seller, Code: fp.Code, Name: fp.Name,
+		Status: catalog.StatusActive,
+	}
 	for _, v := range fp.Variants {
 		in.Variants = append(in.Variants, variantInput(v))
 	}

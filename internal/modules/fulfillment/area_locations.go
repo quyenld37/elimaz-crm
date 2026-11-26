@@ -313,21 +313,8 @@ func (c locationsCommand) OnDone(ctx context.Context, j queue.Job, result json.R
 	if err := json.Unmarshal(result, &res); err != nil {
 		return fmt.Errorf("đọc kết quả đồng bộ địa giới: %w", err)
 	}
-	rows := slices.Clone(res.Rows)
-	slices.SortFunc(rows, func(a, b locationRow) int {
-		return cmp.Or(strings.Compare(a.Level, b.Level), strings.Compare(a.OurCode, b.OurCode))
-	})
-	if len(rows) > 0 {
-		arg := store.UpsertCarrierLocationsParams{CarrierKey: res.CarrierKey, SyncedAt: res.SyncedAt}
-		for _, r := range rows {
-			arg.Levels = append(arg.Levels, r.Level)
-			arg.OurCodes = append(arg.OurCodes, r.OurCode)
-			arg.CarrierCodes = append(arg.CarrierCodes, r.CarrierCode)
-			arg.CarrierNames = append(arg.CarrierNames, r.CarrierName)
-		}
-		if err := store.New(tx).UpsertCarrierLocations(ctx, arg); err != nil {
-			return fmt.Errorf("ghi địa giới theo hãng: %w", err)
-		}
+	if err := upsertLocations(ctx, store.New(tx), res.CarrierKey, res.SyncedAt, res.Rows); err != nil {
+		return fmt.Errorf("ghi địa giới theo hãng: %w", err)
 	}
 	if res.Next == "" {
 		return nil
@@ -338,6 +325,67 @@ func (c locationsCommand) OnDone(ctx context.Context, j queue.Job, result json.R
 	return err
 }
 
+// SeedLocation là một mã địa giới thử cho EnsureSeedLocations: mã CRM, tên, cấp (Ward false: tỉnh).
+type SeedLocation struct {
+	Code, Name string
+	Ward       bool
+}
+
+// EnsureSeedLocations ghi mã của hãng carrierKey cho các mã địa giới thử locs với mã hãng = mã CRM (hãng giả
+// tools/fakecarrier dùng đúng mã của CRM) trong tx của bên gọi (ngữ cảnh tenant), chỉ dòng thiếu hay mã hãng khác; trả
+// số dòng đã ghi (chạy lại: 0). Chỉ cho lệnh seed-web-fixture và test (Task 511): địa giới thử của bộ e2e website
+// không có ở danh mục của hãng nên đồng bộ thật (command.carrier.locations) không khớp được. Khóa: chỉ dòng
+// carrier_locations theo (level, our_code) tăng dần (nhóm 8).
+func EnsureSeedLocations(ctx context.Context, tx pgx.Tx, carrierKey string, locs []SeedLocation) (int, error) {
+	q := store.New(tx)
+	have, err := q.ListCarrierLocationCodes(ctx, carrierKey)
+	if err != nil {
+		return 0, fmt.Errorf("đọc mã địa giới của hãng: %w", err)
+	}
+	cur := locations.NewMap(rowsOf(have))
+	var rows []locationRow
+	for _, l := range locs {
+		level := levelProvince
+		if l.Ward {
+			level = levelWard
+		}
+		if c, ok := cur.Carrier(level, l.Code); !ok || c != l.Code {
+			rows = append(rows, locationRow{level, l.Code, l.Code, l.Name})
+		}
+	}
+	if err := upsertLocations(ctx, q, carrierKey, time.Now().UTC(), rows); err != nil {
+		return 0, fmt.Errorf("ghi địa giới thử của hãng: %w", err)
+	}
+	return len(rows), nil
+}
+
+// upsertLocations ghi các dòng mã hãng (bản sao sắp theo level, our_code tăng dần: thứ tự khóa); rỗng → không ghi.
+func upsertLocations(ctx context.Context, q *store.Queries, carrierKey string, at time.Time, rows []locationRow) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	rows = slices.Clone(rows)
+	slices.SortFunc(rows, func(a, b locationRow) int {
+		return cmp.Or(strings.Compare(a.Level, b.Level), strings.Compare(a.OurCode, b.OurCode))
+	})
+	arg := store.UpsertCarrierLocationsParams{CarrierKey: carrierKey, SyncedAt: at}
+	for _, r := range rows {
+		arg.Levels = append(arg.Levels, r.Level)
+		arg.OurCodes = append(arg.OurCodes, r.OurCode)
+		arg.CarrierCodes = append(arg.CarrierCodes, r.CarrierCode)
+		arg.CarrierNames = append(arg.CarrierNames, r.CarrierName)
+	}
+	return q.UpsertCarrierLocations(ctx, arg) //nolint:wrapcheck // hai bên gọi bọc theo việc của mình
+}
+
+func rowsOf(rs []store.ListCarrierLocationCodesRow) []locations.Row {
+	out := make([]locations.Row, 0, len(rs))
+	for _, r := range rs {
+		out = append(out, locations.Row{Level: r.Level, OurCode: r.OurCode, CarrierCode: r.CarrierCode})
+	}
+	return out
+}
+
 // LocationMap đọc một lần mọi mã của hãng carrierKey trong tx (ngữ cảnh tenant của bên gọi) và trả bảng trong bộ nhớ
 // cho mọi lần tra trong transaction đó (không giữ giữa các transaction nên không bao giờ cũ hơn tx). Mã chưa khớp →
 // Carrier trả false: bên gọi trả address_unmapped (Task M3-12, M3-13).
@@ -346,11 +394,7 @@ func (*Service) LocationMap(ctx context.Context, tx pgx.Tx, carrierKey string) (
 	if err != nil {
 		return nil, fmt.Errorf("đọc mã địa giới của hãng: %w", err)
 	}
-	out := make([]locations.Row, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, locations.Row{Level: r.Level, OurCode: r.OurCode, CarrierCode: r.CarrierCode})
-	}
-	return locations.NewMap(out), nil
+	return locations.NewMap(rowsOf(rows)), nil
 }
 
 // UnmappedLocation là một mã địa giới của CRM chưa có mã của hãng; ParentCode rỗng với tỉnh.

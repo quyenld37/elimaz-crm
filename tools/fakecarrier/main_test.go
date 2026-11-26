@@ -18,4 +18,15 @@ func TestLoadConfig(t *testing.T) {
 	if _, err := loadConfig(env(map[string]string{"PORT": "x"})); err == nil {
 		t.Fatal("PORT sai mà không lỗi")
 	}
+	if c.quoteFee != 0 {
+		t.Fatalf("mặc định phí cố định = %d, muốn 0 (công thức)", c.quoteFee)
+	}
+	if c, err := loadConfig(env(map[string]string{"FAKECARRIER_QUOTE_FEE": "30000"})); err != nil || c.quoteFee != 30000 {
+		t.Fatalf("FAKECARRIER_QUOTE_FEE=30000 = %d %v", c.quoteFee, err)
+	}
+	for _, v := range []string{"0", "-1", "3e4", "x"} {
+		if _, err := loadConfig(env(map[string]string{"FAKECARRIER_QUOTE_FEE": v})); err == nil {
+			t.Errorf("FAKECARRIER_QUOTE_FEE=%q mà không lỗi", v)
+		}
+	}
 }

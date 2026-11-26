@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 
 	"elimaz.com.vn/crm/internal/modules/catalog"
+	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/metrics"
@@ -39,10 +40,19 @@ func fixtureNamespace() uuid.UUID { return uuid.MustParse(fixtureNamespaceText) 
 
 const fixtureVersion = 1
 
+// fixtureCreatedAt là ngày tạo của mẫu ở vị trí position của tệp: mốc cố định 2026-01-01 00:00 UTC + position giây
+// (đặc tả website: sắp xếp «Mới nhất» ổn định theo tệp; position lớn hơn là mới hơn).
+func fixtureCreatedAt(position int) time.Time {
+	return time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC).Add(time.Duration(position) * time.Second)
+}
+
+// defaultWebCarrierFee là phí mặc định của --web-carrier-fee: phí ship của bộ e2e website (30.000 đ nội thành thử).
+const defaultWebCarrierFee = 30000
+
 var (
 	errSeedFixtureProduction = errors.New("lệnh seed-web-fixture chỉ chạy trên dev, test, staging")
 	errSeedFixtureUsage      = errors.New("cách gọi: `CRM_ROLE=migrate crm seed-web-fixture --file <tệp json> " +
-		"--staff-email <email nhân viên ghi audit>`")
+		"--staff-email <email nhân viên ghi audit> [--web-carrier <tên hãng trên web> [--web-carrier-fee <đồng>]]`")
 	// errBadFixture: tệp không đúng định dạng version 1 (kiểm hết trước khi mở database, không ghi gì).
 	errBadFixture = errors.New("tệp fixture sai")
 )
@@ -334,8 +344,14 @@ func runSeedWebFixture(ctx context.Context, cfg config.Config, args []string, st
 	fs.SetOutput(io.Discard)
 	file := fs.String("file", "", "tệp JSON do website xuất")
 	email := fs.String("staff-email", "", "email nhân viên ghi audit")
+	carrierName := fs.String("web-carrier", "", "tên hãng giả hiện trên website (rỗng: không bật)")
+	carrierFee := fs.Int64("web-carrier-fee", defaultWebCarrierFee, "phí ship (đồng) của hãng giả, làm phí dự phòng")
 	if err := fs.Parse(args); err != nil || fs.NArg() != 0 || *file == "" || *email == "" {
 		return errSeedFixtureUsage
+	}
+	carrier, err := parseWebCarrierFlags(fs, *carrierName, *carrierFee)
+	if err != nil {
+		return err
 	}
 	if cfg.Role != config.RoleMigrate || cfg.Migrate == nil {
 		return errSeedRole
@@ -362,7 +378,11 @@ func runSeedWebFixture(ctx context.Context, cfg config.Config, args []string, st
 	if err != nil {
 		return err
 	}
-	rep, err := webFixtureSeeder{Events: mods.Events, Queue: queue.NewQueue(), Bus: hub}.seed(ctx, owner, actor, fx)
+	seeder := webFixtureSeeder{Events: mods.Events, Queue: queue.NewQueue(), Bus: hub, Carrier: carrier}
+	if mods.M3.Fulfillment != nil {
+		seeder.Fulfillment = mods.M3.Fulfillment.Service
+	}
+	rep, err := seeder.seed(ctx, owner, actor, fx)
 	if err != nil {
 		return err
 	}
@@ -370,6 +390,22 @@ func runSeedWebFixture(ctx context.Context, cfg config.Config, args []string, st
 		actor.TenantID, rep.line(rep.Created), rep.line(rep.Updated), fx.imageCount())
 	logger.Info("seed-web-fixture xong", slog.String("tenant_id", actor.TenantID.String()), slog.Int("changes", rep.Total()))
 	return nil
+}
+
+// parseWebCarrierFlags kiểm cờ hãng: tên không rỗng sau khi bỏ khoảng trắng (khi có cờ), phí 0–trần phí dự phòng của
+// fulfillment, --web-carrier-fee chỉ đi kèm --web-carrier.
+func parseWebCarrierFlags(fs *flag.FlagSet, name string, fee int64) (webCarrierSeed, error) {
+	set := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	switch {
+	case !set["web-carrier"] && set["web-carrier-fee"],
+		set["web-carrier"] && blank(name),
+		fee < 0 || fee > fulfillment.MaxWebFallbackFee:
+		return webCarrierSeed{}, errSeedFixtureUsage
+	case !set["web-carrier"]:
+		return webCarrierSeed{}, nil
+	}
+	return webCarrierSeed{Name: strings.TrimSpace(name), Fee: fee}, nil
 }
 
 func (fx webFixture) imageCount() int {
