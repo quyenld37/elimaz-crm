@@ -13,8 +13,6 @@ markConversationRead
 setConversationStatus
 replyToComment
 sendPrivateReply
-resendMessage
-discardMessage
 hideComment
 unhideComment
 listFollowUps

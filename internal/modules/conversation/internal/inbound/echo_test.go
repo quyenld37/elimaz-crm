@@ -77,7 +77,8 @@ func (e *env) insertQueued(c uuid.UUID, ref uuid.UUID, status string) {
 }
 
 // Echo của CRM (app_id = META_APP_ID) có metadata = client_ref của tin queued, checking hay in_doubt → đúng tin đó
-// thành sent có mã ngoài; không thêm dòng. Tin đã failed không bị đổi (echo thành own_echo_unmatched).
+// thành sent có mã ngoài; không thêm dòng. Tin đã failed, expired, discarded cũng thành sent (sự thật thắng, Task 157):
+// echo chứng minh Meta đã gửi.
 func TestEchoOwnMatchesClientRef(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -110,7 +111,7 @@ func TestEchoOwnMatchesClientRef(t *testing.T) {
 		t.Errorf("chưa đọc = %d, mong 1", after.Unread)
 	}
 
-	for _, status := range []string{"checking", "in_doubt", "failed"} {
+	for _, status := range []string{"checking", "in_doubt", "failed", "expired", "discarded"} {
 		r := uuid.New()
 		e.insertQueued(c.ID, r, status)
 		mid := "mid-own-" + status
@@ -128,9 +129,6 @@ func TestEchoOwnMatchesClientRef(t *testing.T) {
 				AND origin = 'own_echo_unmatched'`, mid).Scan(&unmatched)
 		})
 		wantSent, wantUnmatched := 1, 0
-		if status == "failed" {
-			wantSent, wantUnmatched = 0, 1
-		}
 		if gotStatus != wantSent || unmatched != wantUnmatched {
 			t.Errorf("%s: sent %d, own_echo_unmatched %d; mong %d, %d", status, gotStatus, unmatched, wantSent, wantUnmatched)
 		}

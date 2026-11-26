@@ -128,6 +128,39 @@ func (q *Queries) GetOutgoingMessage(ctx context.Context, id uuid.UUID) (GetOutg
 	return i, err
 }
 
+const getRecoverableMessageConversation = `-- name: GetRecoverableMessageConversation :one
+SELECT conversation_id
+FROM conversation.messages
+WHERE id = $1
+  AND direction = 'out'
+  AND kind = 'message'
+  AND origin IN ('staff', 'automation')
+`
+
+// Hội thoại của tin cần gửi lại hay bỏ (không khóa; khóa hội thoại trước, rồi tin).
+func (q *Queries) GetRecoverableMessageConversation(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getRecoverableMessageConversation, id)
+	var conversation_id uuid.UUID
+	err := row.Scan(&conversation_id)
+	return conversation_id, err
+}
+
+const getSendLookup = `-- name: GetSendLookup :one
+
+SELECT (external_id IS NOT NULL OR send_status = 'sent')::boolean AS confirmed
+FROM conversation.messages
+WHERE id = $1
+`
+
+// Không rõ đã gửi, chưa gửi được: chờ echo, gửi lại, bỏ (Task 157; kế hoạch M4-17).
+// Tra lại lệnh gửi in_doubt (Looker): tin đã có mã ngoài (echo đã khớp) hay đã sent thì kênh đã nhận.
+func (q *Queries) GetSendLookup(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, getSendLookup, id)
+	var confirmed bool
+	err := row.Scan(&confirmed)
+	return confirmed, err
+}
+
 const insertOutgoingMessage = `-- name: InsertOutgoingMessage :one
 INSERT INTO conversation.messages (tenant_id, conversation_id, channel_account_id, client_ref, direction, kind, origin,
                                    body, attachments, sender_staff_id, send_status, sent_at)
@@ -196,6 +229,44 @@ func (q *Queries) LockConversationForSend(ctx context.Context, id uuid.UUID) (Lo
 	return i, err
 }
 
+const lockConversationsDueReveal = `-- name: LockConversationsDueReveal :many
+SELECT c.id
+FROM conversation.conversations AS c
+WHERE c.id IN (SELECT m.conversation_id
+               FROM conversation.messages AS m
+               WHERE m.send_status = 'checking'
+                 AND m.send_checking_since < $1
+               LIMIT $2)
+ORDER BY c.id
+FOR UPDATE OF c
+`
+
+type LockConversationsDueRevealParams struct {
+	Before pgtype.Timestamptz
+	Lim    int32
+}
+
+// Lịch send_reveal: khóa (mã tăng dần, ADR-46 nhóm 6) các hội thoại có tin checking từ trước mốc before.
+func (q *Queries) LockConversationsDueReveal(ctx context.Context, arg LockConversationsDueRevealParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, lockConversationsDueReveal, arg.Before, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockOutgoingMessage = `-- name: LockOutgoingMessage :one
 SELECT id, conversation_id, channel_account_id, send_status, fail_reason
 FROM conversation.messages
@@ -225,6 +296,50 @@ func (q *Queries) LockOutgoingMessage(ctx context.Context, id uuid.UUID) (LockOu
 	return i, err
 }
 
+const lockRecoverableMessage = `-- name: LockRecoverableMessage :one
+SELECT id, conversation_id, channel_account_id, origin, body, attachments, send_status, fail_reason, sent_at,
+       command_job_id
+FROM conversation.messages
+WHERE id = $1
+  AND direction = 'out'
+  AND kind = 'message'
+  AND origin IN ('staff', 'automation')
+FOR UPDATE
+`
+
+type LockRecoverableMessageRow struct {
+	ID               uuid.UUID
+	ConversationID   uuid.UUID
+	ChannelAccountID uuid.UUID
+	Origin           string
+	Body             pgtype.Text
+	Attachments      []byte
+	SendStatus       pgtype.Text
+	FailReason       pgtype.Text
+	SentAt           time.Time
+	CommandJobID     pgtype.UUID
+}
+
+// Khóa tin nhân viên/tự động gửi ra (sau khi đã khóa hội thoại) để gửi lại hay bỏ: trạng thái, lý do, nội dung, ảnh,
+// nguồn, mã lệnh.
+func (q *Queries) LockRecoverableMessage(ctx context.Context, id uuid.UUID) (LockRecoverableMessageRow, error) {
+	row := q.db.QueryRow(ctx, lockRecoverableMessage, id)
+	var i LockRecoverableMessageRow
+	err := row.Scan(
+		&i.ID,
+		&i.ConversationID,
+		&i.ChannelAccountID,
+		&i.Origin,
+		&i.Body,
+		&i.Attachments,
+		&i.SendStatus,
+		&i.FailReason,
+		&i.SentAt,
+		&i.CommandJobID,
+	)
+	return i, err
+}
+
 const markConversationBlocked = `-- name: MarkConversationBlocked :exec
 UPDATE conversation.conversations
 SET blocked_by_user = true,
@@ -236,6 +351,28 @@ WHERE id = $1
 func (q *Queries) MarkConversationBlocked(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, markConversationBlocked, id)
 	return err
+}
+
+const markMessageDiscarded = `-- name: MarkMessageDiscarded :execrows
+UPDATE conversation.messages
+SET send_status         = 'discarded',
+    send_checking_since = NULL
+WHERE id = $1
+  AND send_status = $2
+`
+
+type MarkMessageDiscardedParams struct {
+	ID         uuid.UUID
+	FromStatus pgtype.Text
+}
+
+// Nhân viên gửi lại hay bỏ: tin còn ở trạng thái from (đã kiểm khi khóa) thành discarded; 0 dòng = đã đổi.
+func (q *Queries) MarkMessageDiscarded(ctx context.Context, arg MarkMessageDiscardedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markMessageDiscarded, arg.ID, arg.FromStatus)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const markOwnMessageSent = `-- name: MarkOwnMessageSent :execrows
@@ -306,6 +443,70 @@ func (q *Queries) NoteSendRejection(ctx context.Context, arg NoteSendRejectionPa
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const relabelExternalEcho = `-- name: RelabelExternalEcho :execrows
+UPDATE conversation.messages
+SET origin = 'own_echo_unmatched'
+WHERE channel_account_id = $1
+  AND external_id = $2
+  AND origin = 'page_external'
+  AND direction = 'out'
+`
+
+type RelabelExternalEchoParams struct {
+	ChannelAccountID uuid.UUID
+	ExternalID       pgtype.Text
+}
+
+// Echo đọc qua hỏi bù (không app id, không metadata → page_external) mang đúng mã ngoài kênh vừa trả cho lệnh gửi: là
+// echo của chính tin đó, đổi nhãn thành own_echo_unmatched để DeleteUnmatchedEcho gộp (tệp task-157, Quyết định 5).
+func (q *Queries) RelabelExternalEcho(ctx context.Context, arg RelabelExternalEchoParams) (int64, error) {
+	result, err := q.db.Exec(ctx, relabelExternalEcho, arg.ChannelAccountID, arg.ExternalID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const revealInDoubtMessages = `-- name: RevealInDoubtMessages :many
+UPDATE conversation.messages
+SET send_status = 'in_doubt'
+WHERE conversation_id = ANY ($1::uuid[])
+  AND send_status = 'checking'
+  AND send_checking_since < $2
+RETURNING conversation_id, channel_account_id
+`
+
+type RevealInDoubtMessagesParams struct {
+	ConversationIds []uuid.UUID
+	Before          pgtype.Timestamptz
+}
+
+type RevealInDoubtMessagesRow struct {
+	ConversationID   uuid.UUID
+	ChannelAccountID uuid.UUID
+}
+
+// Tin checking quá 60 giây chưa thấy echo của các hội thoại đã khóa thành in_doubt ("không rõ đã gửi chưa").
+func (q *Queries) RevealInDoubtMessages(ctx context.Context, arg RevealInDoubtMessagesParams) ([]RevealInDoubtMessagesRow, error) {
+	rows, err := q.db.Query(ctx, revealInDoubtMessages, arg.ConversationIds, arg.Before)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RevealInDoubtMessagesRow{}
+	for rows.Next() {
+		var i RevealInDoubtMessagesRow
+		if err := rows.Scan(&i.ConversationID, &i.ChannelAccountID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setMessageCommandJob = `-- name: SetMessageCommandJob :exec

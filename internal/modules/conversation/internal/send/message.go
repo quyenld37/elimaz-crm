@@ -152,7 +152,7 @@ func insert(ctx context.Context, tx pgx.Tx, env Env, u identity.AuthUser, convID
 		return Message{}, err
 	}
 	return Message{
-		ID: id, ConversationID: convID, ClientRef: ref, SenderStaffID: u.UserID, Body: text, Attachments: atts,
-		SendStatus: statusQueued, SentAt: now,
+		ID: id, ConversationID: convID, ClientRef: ref, SenderStaffID: u.UserID, Origin: originStaff, Body: text,
+		Attachments: atts, SendStatus: statusQueued, SentAt: now,
 	}, nil
 }

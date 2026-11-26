@@ -1,5 +1,7 @@
 // Package send là phần của module conversation: gửi tin, trả lời comment, nhắn riêng, ẩn comment; không rõ đã gửi (Task 156, 157, 158).
 //
+// Không rõ đã gửi, chưa gửi được (Task 157): indoubt.go (Looker, lịch send_reveal), resend.go (gửi lại, bỏ).
+//
 // Gửi tin (Task 156): API Send khóa hội thoại, hỏi SendPolicy của adapter, chèn tin queued và ghi lệnh
 // command.fb.send_message (hạn 3 phút) trong transaction của bên gọi; lệnh hỏi lại chính sách, lấy lượt gửi của Page
 // rồi gọi kênh ngoài mọi transaction; kết quả (sent, failed, expired, checking) ghi trong transaction của Runner.
@@ -18,6 +20,7 @@ import (
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime"
+	"elimaz.com.vn/crm/internal/platform/schedules"
 )
 
 // KindSendMessage là lệnh gửi một tin của nhân viên ra kênh (tên theo kế hoạch M4; dùng cho mọi adapter trong
@@ -45,6 +48,7 @@ const (
 	statusChecking = "checking"
 	kindInbox      = "inbox"
 	originAuto     = "automation"
+	originStaff    = "staff"
 	attachImage    = "image"
 	attachReady    = "ready"
 )
@@ -108,16 +112,24 @@ type Attachment struct {
 	FileID *uuid.UUID `json:"fileId"`
 }
 
-// Message là tin nhân viên vừa gửi (trạng thái queued).
+// Message là tin nhân viên vừa gửi (queued), hay tin vừa bỏ (discarded, Task 157). Origin: staff hay automation;
+// FailReason: mã lý do (cột fail_reason), rỗng khi không có.
 type Message struct {
 	ID, ConversationID, ClientRef, SenderStaffID uuid.UUID
+	Origin                                       string
 	Body                                         string
 	Attachments                                  []Attachment
 	SendStatus                                   string
+	FailReason                                   string
 	SentAt                                       time.Time
 }
 
-// Parts là phần chạy nền của phần send: lệnh gửi tin.
+// Parts là phần chạy nền của phần send: lệnh gửi tin (có Looker tra lại in_doubt), lịch send_reveal và việc của nó
+// (Task 157).
 func Parts(d deps.Deps) deps.Parts {
-	return deps.Parts{Commands: []commands.Handler{newSendCommand(d)}}
+	return deps.Parts{
+		Commands:  []commands.Handler{newSendCommand(d)},
+		Jobs:      []queue.Handler{revealHandler{d: d}},
+		Schedules: []schedules.Schedule{revealSchedule()},
+	}
 }

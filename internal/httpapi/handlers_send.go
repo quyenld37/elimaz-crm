@@ -22,11 +22,29 @@ import (
 func (h *handler) SendMessage(ctx context.Context, req *gen.SendMessageRequest, params gen.SendMessageParams,
 ) (gen.SendMessageRes, error) {
 	in := conversation.SendInput{Text: req.Text.Or(""), AttachmentFileID: optUUID(req.AttachmentFileId), HumanAgent: req.HumanAgent.Or(false)}
-	env := conversation.SendEnv{Registry: h.d.Channels, Queue: queue.NewQueue(), Bus: h.d.Realtime}
-	out, err := h.refusableWrite(ctx, http.StatusCreated, isConversationRefusal, "gửi tin", func(tx pgx.Tx, u identity.AuthUser) (any, error) {
-		m, err := conversation.SendMessage(ctx, tx, env, u, params.ID, in, h.now())
+	m, err := h.writeChatMessage(ctx, http.StatusCreated, "gửi tin", func(tx pgx.Tx, u identity.AuthUser) (conversation.Message, error) {
+		return conversation.SendMessage(ctx, tx, h.sendEnv(), u, params.ID, in, h.now())
+	})
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// sendEnv là phụ thuộc của đường gửi tin: bộ adapter kênh, hàng đợi, bus báo hiệu.
+func (h *handler) sendEnv() conversation.SendEnv {
+	return conversation.SendEnv{Registry: h.d.Channels, Queue: queue.NewQueue(), Bus: h.d.Realtime}
+}
+
+// writeChatMessage chạy fn trong đường ghi có khóa chống trùng của hộp chat (lỗi nghiệp vụ không lưu) và trả tin của
+// nó dưới dạng ChatMessage với mã status; what là việc đang làm (bọc lỗi).
+func (h *handler) writeChatMessage(ctx context.Context, status int, what string,
+	fn func(tx pgx.Tx, u identity.AuthUser) (conversation.Message, error),
+) (*gen.ChatMessage, error) {
+	out, err := h.refusableWrite(ctx, status, isConversationRefusal, what, func(tx pgx.Tx, u identity.AuthUser) (any, error) {
+		m, err := fn(tx, u)
 		if err != nil {
-			return nil, err //nolint:wrapcheck // sentinel của conversation, đổi sang HTTP ở errors_conversation.go
+			return nil, err
 		}
 		return chatMessageOut(m), nil
 	})
@@ -36,15 +54,22 @@ func (h *handler) SendMessage(ctx context.Context, req *gen.SendMessageRequest, 
 	return out.(*gen.ChatMessage), nil //nolint:forcetypeassert // fn trên trả *gen.ChatMessage
 }
 
-// chatMessageOut là thân ChatMessage của tin nhân viên vừa gửi.
+// chatMessageOut là thân ChatMessage của tin nhân viên vừa gửi hay vừa bỏ (Task 157: nguồn, mã lý do lỗi của tin cũ).
 func chatMessageOut(m conversation.Message) *gen.ChatMessage {
+	origin := gen.MessageOriginStaff
+	if m.Origin != "" {
+		origin = gen.MessageOrigin(m.Origin)
+	}
 	out := &gen.ChatMessage{
 		ID: m.ID, ConversationId: m.ConversationID, Direction: gen.MessageDirectionOut, Kind: gen.MessageKindMessage,
-		Origin: gen.MessageOriginStaff, Attachments: make([]gen.ChatAttachment, 0, len(m.Attachments)),
+		Origin: origin, Attachments: make([]gen.ChatAttachment, 0, len(m.Attachments)),
 		SendStatus: gen.NewOptMessageSendStatus(gen.MessageSendStatus(m.SendStatus)), SentAt: m.SentAt,
 	}
 	if m.Body != "" {
 		out.Body = gen.NewOptString(m.Body)
+	}
+	if m.FailReason != "" {
+		out.FailReason = gen.NewOptString(m.FailReason)
 	}
 	for _, a := range m.Attachments {
 		att := gen.ChatAttachment{Type: a.Type, Status: a.Status}

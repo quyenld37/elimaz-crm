@@ -83,43 +83,52 @@ func (q *Queries) BumpConversationOutbound(ctx context.Context, arg BumpConversa
 }
 
 const confirmOwnEcho = `-- name: ConfirmOwnEcho :one
+WITH prev AS (SELECT p.id, p.send_status
+              FROM conversation.messages AS p
+              WHERE p.client_ref = $4
+                AND p.channel_account_id = $3
+                AND p.send_status IN ('queued', 'checking', 'in_doubt', 'failed', 'expired', 'discarded')
+              FOR UPDATE)
 UPDATE conversation.messages AS m
-SET external_id = $1,
-    send_status = 'sent',
-    sent_at     = $2
-WHERE m.client_ref = $3
-  AND m.channel_account_id = $4
-  AND m.send_status IN ('queued', 'checking', 'in_doubt')
+SET external_id         = $1,
+    send_status         = 'sent',
+    sent_at             = $2,
+    fail_reason         = NULL,
+    send_checking_since = NULL
+FROM prev
+WHERE m.id = prev.id
   AND NOT EXISTS (SELECT 1
                   FROM conversation.messages AS o
-                  WHERE o.channel_account_id = $4
+                  WHERE o.channel_account_id = $3
                     AND o.external_id = $1)
-RETURNING m.id, m.conversation_id
+RETURNING m.id, m.conversation_id, prev.send_status::text AS prev_status
 `
 
 type ConfirmOwnEchoParams struct {
 	ExternalID       pgtype.Text
 	SentAt           time.Time
-	ClientRef        pgtype.UUID
 	ChannelAccountID uuid.UUID
+	ClientRef        pgtype.UUID
 }
 
 type ConfirmOwnEchoRow struct {
 	ID             uuid.UUID
 	ConversationID uuid.UUID
+	PrevStatus     string
 }
 
-// Echo của CRM: tin client_ref đang chờ (queued, checking, in_doubt) thành sent với mã ngoài mid, sent_at = mốc của
-// kênh. Không đổi khi mid đã thuộc dòng khác (giữ unique, không vòng thử lại). Trả mã tin, mã hội thoại.
+// Echo của CRM: tin client_ref chưa sent (queued, checking, in_doubt; cả failed, expired, discarded — sự thật thắng,
+// Task 157) thành sent với mã ngoài mid, sent_at = mốc của kênh. Không đổi khi mid đã thuộc dòng khác (giữ unique,
+// không vòng thử lại). Trả mã tin, mã hội thoại, trạng thái trước đó.
 func (q *Queries) ConfirmOwnEcho(ctx context.Context, arg ConfirmOwnEchoParams) (ConfirmOwnEchoRow, error) {
 	row := q.db.QueryRow(ctx, confirmOwnEcho,
 		arg.ExternalID,
 		arg.SentAt,
-		arg.ClientRef,
 		arg.ChannelAccountID,
+		arg.ClientRef,
 	)
 	var i ConfirmOwnEchoRow
-	err := row.Scan(&i.ID, &i.ConversationID)
+	err := row.Scan(&i.ID, &i.ConversationID, &i.PrevStatus)
 	return i, err
 }
 
