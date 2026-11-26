@@ -234,3 +234,60 @@ func TestList_Search(t *testing.T) {
 		t.Fatalf("không khớp: %d dòng, lỗi %v", len(rows), err)
 	}
 }
+
+// [Task 501] Dòng danh sách, chi tiết, hội thoại của khách mang thẻ bài (giờ đăng, đường dẫn, ảnh) và cờ khách tiềm
+// năng mới (CH08): created_customer + hồ sơ không gộp + chưa có đơn nào (kể cả nháp). Khách có đơn nháp, khách có hồ
+// sơ khác gộp vào, khách đã gộp vào hồ sơ khác, hội thoại không tạo khách → false.
+func TestList_PostCardAndNewLead(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	u := e.user("co-moi@elimaz.test", uuid.Nil, "conversation.read")
+	posted := time.Date(2026, 11, 19, 8, 0, 0, 0, time.UTC)
+	post := e.post(e.pageA, "post-anh", "post", &posted)
+	img := uuid.New()
+	e.exec(`UPDATE conversation.posts SET permalink = 'https://www.facebook.com/post-anh', snippet = 'Áo len',
+		image_file_id = $2 WHERE id = $1`, post, img)
+	fresh, withDraft, rootOf, merged, old := e.customer("Mới", ""), e.customer("Có nháp", ""), e.customer("Gốc", ""),
+		e.customer("Đã gộp", ""), e.customer("Cũ", "")
+	e.exec(`UPDATE customer.customers SET root_id = $1 WHERE id = $2`, rootOf, merged)
+	e.order(withDraft, "DH0000501", "draft", 100, time.Now())
+	at := time.Date(2026, 11, 20, 3, 0, 0, 0, time.UTC)
+	mk := func(cust uuid.UUID, created bool, i int) uuid.UUID {
+		id := e.conv(conv{page: e.pageA, customer: cust, kind: "comment", post: &post, at: at.Add(time.Duration(i) * time.Second)})
+		e.exec(`UPDATE conversation.conversations SET created_customer = $2 WHERE id = $1`, id, created)
+		return id
+	}
+	want := map[uuid.UUID]bool{
+		mk(fresh, true, 0): true, mk(withDraft, true, 1): false, mk(rootOf, true, 2): false, mk(merged, true, 3): false,
+		mk(old, false, 4): false,
+	}
+	rows, _, err := e.list(u, conversation.ListFilter{})
+	if err != nil || len(rows) != len(want) {
+		t.Fatalf("danh sách: %d dòng (lỗi %v)", len(rows), err)
+	}
+	for _, r := range rows {
+		if r.NewLead != want[r.ID] {
+			t.Errorf("hội thoại %s: NewLead = %v, muốn %v", r.ID, r.NewLead, want[r.ID])
+		}
+		if r.PostPostedAt == nil || !r.PostPostedAt.Equal(posted) || r.PostPermalink != "https://www.facebook.com/post-anh" ||
+			r.PostImageFileID == nil || *r.PostImageFileID != img || r.PostSnippet != "Áo len" {
+			t.Errorf("thẻ bài: %+v", r.CustomerConversation)
+		}
+	}
+	for id, w := range want {
+		var c conversation.Conversation
+		if err := e.read(func(tx pgx.Tx) (err error) {
+			c, err = conversation.Get(t.Context(), tx, u, id)
+			return err //nolint:wrapcheck // test
+		}); err != nil || c.NewLead != w || c.PostImageFileID == nil || c.PostPostedAt == nil || c.PostPermalink == "" {
+			t.Errorf("chi tiết %s: %+v (lỗi %v)", id, c.CustomerConversation, err)
+		}
+	}
+	var group []conversation.CustomerConversation
+	if err := e.read(func(tx pgx.Tx) (err error) {
+		group, _, err = conversation.ListCustomerConversations(t.Context(), tx, u, fresh, nil, 0)
+		return err //nolint:wrapcheck // test
+	}); err != nil || len(group) != 1 || !group[0].NewLead || group[0].PostImageFileID == nil || group[0].PostPermalink == "" {
+		t.Errorf("hội thoại của khách: %+v (lỗi %v)", group, err)
+	}
+}

@@ -29,10 +29,11 @@ func TestFetchProfileAndPost(t *testing.T) {
 	}
 	post, err := e.ch.FetchPost(t.Context(), e.acc, e.cred, testPostID)
 	if err != nil || post.ID != testPostID || post.Snippet != "Áo thun mới về" || post.Permalink != "https://www.facebook.com/"+testPostID ||
+		post.PictureURL != "https://scontent.fbcdn.net/post.jpg" ||
 		!post.CreatedTime.Equal(time.Date(2026, 11, 19, 8, 0, 0, 0, time.UTC)) {
 		t.Errorf("bài: %+v, %v", post, err)
 	}
-	if q := e.fg.Calls(testPostID)[0].Query.Get("fields"); q != "permalink_url,message,created_time,status_type" {
+	if q := e.fg.Calls(testPostID)[0].Query.Get("fields"); q != "permalink_url,message,created_time,status_type,full_picture" {
 		t.Errorf("fields bài = %q", q)
 	}
 	if _, err := e.ch.FetchPost(t.Context(), e.acc, e.cred, "khong_co"); e.ch.ClassifyError(err) != channel.ErrorPermanent {

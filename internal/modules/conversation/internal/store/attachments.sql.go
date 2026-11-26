@@ -14,10 +14,13 @@ import (
 
 const conversationHasFile = `-- name: ConversationHasFile :one
 SELECT c.channel_account_id,
-       EXISTS (SELECT 1
-               FROM conversation.messages m
-               WHERE m.conversation_id = c.id
-                 AND m.attachments @> jsonb_build_array(jsonb_build_object('fileId', ($1::uuid)::text))) AS has_file
+       (EXISTS (SELECT 1
+                FROM conversation.messages m
+                WHERE m.conversation_id = c.id
+                  AND m.attachments @> jsonb_build_array(jsonb_build_object('fileId', ($1::uuid)::text)))
+        OR EXISTS (SELECT 1
+                   FROM conversation.posts p
+                   WHERE p.tenant_id = c.tenant_id AND p.id = c.post_id AND p.image_file_id = $1::uuid))::boolean AS has_file
 FROM conversation.conversations c
 WHERE c.id = $2
 `
@@ -32,7 +35,8 @@ type ConversationHasFileRow struct {
 	HasFile          bool
 }
 
-// Page của hội thoại id và có tin nào của hội thoại mang tệp file_id trong danh sách đính kèm không.
+// Page của hội thoại id và có tin nào của hội thoại mang tệp file_id trong danh sách đính kèm không, hay file_id là
+// ảnh bài của hội thoại comment (Task 501).
 func (q *Queries) ConversationHasFile(ctx context.Context, arg ConversationHasFileParams) (ConversationHasFileRow, error) {
 	row := q.db.QueryRow(ctx, conversationHasFile, arg.FileID, arg.ID)
 	var i ConversationHasFileRow
@@ -92,6 +96,18 @@ func (q *Queries) GetMessageAttachments(ctx context.Context, id uuid.UUID) (GetM
 		&i.Attachments,
 	)
 	return i, err
+}
+
+const markConversationCreatedCustomer = `-- name: MarkConversationCreatedCustomer :exec
+UPDATE conversation.conversations
+SET created_customer = true
+WHERE id = $1
+`
+
+// Hội thoại id đã tạo hồ sơ khách của nó (CH08 "Khách tiềm năng mới", Task 501).
+func (q *Queries) MarkConversationCreatedCustomer(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markConversationCreatedCustomer, id)
+	return err
 }
 
 const patchPendingAttachment = `-- name: PatchPendingAttachment :one

@@ -157,6 +157,9 @@ export function FollowUps({ pageId, search, now: nowMs, grants }: FollowUpsProps
                 <span className="cv-r">
                   <span className="cv-t">{since(r.lastStaffMessageAt, nowMs)}</span>
                 </span>
+                {r.lastStaffSnippet !== undefined && (
+                  <span className="cv-s ellip" style={{ gridColumn: "2 / -1" }}>{`Bạn: ${r.lastStaffSnippet}`}</span>
+                )}
                 <span className="cv-m">
                   <span className="clock">{left(r.windowEndsAt, nowMs)}</span>
                 </span>

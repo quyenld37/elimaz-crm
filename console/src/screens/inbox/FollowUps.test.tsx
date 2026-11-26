@@ -29,6 +29,7 @@ function fake() {
           pageId: P1,
           customer: { id: "c5", name: "Vũ Thị Lan Anh" },
           lastStaffMessageAt: hoursAgo(5),
+          lastStaffSnippet: "Dạ mẫu này còn màu đen và be ạ",
           windowEndsAt: hoursAhead(19),
         },
       ],
@@ -50,11 +51,21 @@ function fake() {
 
 it("CH16: bật 'Khách chưa trả lời' → danh sách listFollowUps (afterHours 3), URL có followup=1", async () => {
   const f = fake();
+  f.followUps.push({
+    conversationId: convId(6),
+    pageId: P1,
+    customer: { id: "c6", name: "Đỗ Minh Quân" },
+    lastStaffMessageAt: hoursAgo(4),
+    windowEndsAt: hoursAhead(20),
+  });
   const { router } = renderScreens(screens, "/inbox");
   fireEvent.click(await screen.findByRole("button", { name: "Khách chưa trả lời" }));
   const list = await screen.findByRole("list", { name: "Khách chưa trả lời" });
   expect(within(list).getByText("Vũ Thị Lan Anh")).toBeTruthy();
   expect(within(list).getByText("Còn 19 giờ để nhắn")).toBeTruthy();
+  // Task 501: đoạn tin cuối của shop ("Bạn: …"); tin cuối không chữ (ảnh) → không có dòng.
+  expect(within(list).getByText("Bạn: Dạ mẫu này còn màu đen và be ạ")).toBeTruthy();
+  expect(within(list).getAllByText(/^Bạn: /)).toHaveLength(1);
   expect(f.followUpCalls.at(-1)?.get("afterHours")).toBe("3");
   expect(router.state.location.search).toContain("followup=1");
   fireEvent.change(screen.getByRole("combobox", { name: "Im lặng quá" }), { target: { value: "6" } });

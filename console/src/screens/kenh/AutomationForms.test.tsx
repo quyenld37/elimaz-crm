@@ -14,6 +14,21 @@ const renderPage = () => renderScreens(screens, `/settings/pages/${P1}`);
 const block = async (title: string) => screen.findByRole("region", { name: new RegExp(`^${title}`) });
 const ruleWrites = (kind: string) => t.fake.writes.filter((w) => w.path.endsWith(`/automation-rules/${kind}`));
 
+/** Bấm Lưu của khối b, chờ đúng một lần ghi quy tắc kind, trả thân của nó. */
+async function saveRule(b: HTMLElement, kind: string) {
+  fireEvent.click(within(b).getByRole("button", { name: "Lưu" }));
+  await waitFor(() => {
+    expect(ruleWrites(kind)).toHaveLength(1);
+  });
+  return ruleWrites(kind)[0]?.body;
+}
+
+/** Mở "+ Chọn bài" của khối b, trả danh sách bài. */
+async function openPosts(b: HTMLElement) {
+  fireEvent.click(within(b).getByRole("button", { name: "+ Chọn bài" }));
+  return within(b).findByRole("list", { name: "Bài của Page" });
+}
+
 describe("Tin chào: nút trả lời nhanh", () => {
   it("nút 21 ký tự → báo lỗi tại ô trước khi gửi, không thêm, không gửi", async () => {
     renderPage();
@@ -96,6 +111,18 @@ describe("Tự trả lời comment", () => {
     expect(t.fake.writes).toHaveLength(0);
   });
 
+  it("Task 501: 'Chỉ bài chọn' mà chưa chọn bài → báo tại ô, không gửi; chọn bài → gửi postIds; 'Mọi bài' → postIds rỗng", async () => {
+    renderPage();
+    const b = await block("Tự trả lời comment");
+    fireEvent.click(within(b).getByRole("radio", { name: "Chỉ bài chọn" }));
+    fireEvent.click(within(b).getByRole("button", { name: "Lưu" }));
+    expect(within(b).getByText("Chọn ít nhất một bài, hoặc chọn Mọi bài.")).toBeTruthy();
+    expect(ruleWrites("auto_reply_comment")).toHaveLength(0);
+    const list = await openPosts(b);
+    fireEvent.click(within(list).getByRole("button", { name: "Chọn bài Minigame tháng 11" }));
+    expect(await saveRule(b, "auto_reply_comment")).toMatchObject({ config: { postIds: ["p_game"] } });
+  });
+
   it("chọn mẫu tin riêng → gửi privateMessage.templateId", async () => {
     renderPage();
     const b = await block("Tự trả lời comment");
@@ -139,6 +166,24 @@ describe("Tự ẩn, nhắn lại", () => {
         config: { kind: "auto_hide", mode: "all", exceptPostIds: [] },
         expectedVersion: 4,
       });
+    });
+  });
+
+  it("Task 501: Tự ẩn '+ Chọn bài' → danh sách bài của Page (Tải thêm), chọn hai bài, bỏ một; Lưu gửi exceptPostIds", async () => {
+    renderPage();
+    const b = await block("Tự ẩn comment");
+    const list = await openPosts(b);
+    fireEvent.click(within(list).getByRole("button", { name: "Chọn bài Bài ghim: bảng size" }));
+    fireEvent.click(within(b).getByRole("button", { name: "Tải thêm bài" }));
+    fireEvent.click(await within(list).findByRole("button", { name: "Chọn bài p_cu" }));
+    fireEvent.click(within(list).getByRole("button", { name: "Chọn bài Minigame tháng 11" }));
+    expect(within(list).queryByRole("button", { name: "Chọn bài Bài ghim: bảng size" })).toBeNull();
+    fireEvent.click(within(b).getByRole("button", { name: "Bỏ bài Minigame tháng 11" }));
+    expect(within(b).getByText("Trừ các bài (2/200)")).toBeTruthy();
+    expect(await saveRule(b, "auto_hide")).toEqual({
+      enabled: true,
+      config: { kind: "auto_hide", mode: "phone_only", exceptPostIds: ["p_size", "p_cu"] },
+      expectedVersion: 4,
     });
   });
 

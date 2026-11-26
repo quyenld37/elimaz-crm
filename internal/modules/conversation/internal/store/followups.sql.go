@@ -85,12 +85,12 @@ func (q *Queries) ListEnabledRulesOfKind(ctx context.Context, kind string) ([]Li
 const listFollowUpCandidates = `-- name: ListFollowUpCandidates :many
 
 SELECT c.id, c.channel_account_id, c.customer_id, cu.full_name AS customer_name, c.last_customer_message_at,
-       s.id AS staff_message_id, s.sent_at AS staff_message_at
+       s.id AS staff_message_id, s.sent_at AS staff_message_at, s.body AS staff_message_body
 FROM conversation.conversations AS c
 JOIN customer.customers_v AS cu ON cu.id = c.customer_id
 JOIN customer.customers_v AS root ON root.id = cu.root_id
 JOIN LATERAL (
-    SELECT m.id, m.sent_at
+    SELECT m.id, m.sent_at, m.body
     FROM conversation.messages AS m
     WHERE m.tenant_id = c.tenant_id
       AND m.conversation_id = c.id
@@ -148,6 +148,7 @@ type ListFollowUpCandidatesRow struct {
 	LastCustomerMessageAt pgtype.Timestamptz
 	StaffMessageID        uuid.UUID
 	StaffMessageAt        time.Time
+	StaffMessageBody      pgtype.Text
 }
 
 // Nhắn lại khách chưa trả lời (Task 168; kế hoạch M4-28, CH16). Mọi câu chạy trong tx tenant.
@@ -156,7 +157,7 @@ type ListFollowUpCandidatesRow struct {
 // thất bại, không phải tin page_external sau tin tự động bị bỏ của cùng lần khách im) mới hơn tin khách cuối và cũ hơn @silent_before; cửa sổ 24 giờ còn mở tới sau @window_after. Cửa sổ đóng sớm
 // trước (index conversations_page_status lọc Page, trạng thái; tin cuối đọc theo messages_conversation). @rule_id khác
 // NULL (lịch): bỏ hội thoại mà tin nhân viên cuối đã có lượt của quy tắc đó (unique của automation_runs), để lô không
-// bị chiếm bởi hội thoại đã xử lý.
+// bị chiếm bởi hội thoại đã xử lý. Kèm nội dung tin nhân viên cuối (đoạn "Bạn: …" của màn, Task 501).
 func (q *Queries) ListFollowUpCandidates(ctx context.Context, arg ListFollowUpCandidatesParams) ([]ListFollowUpCandidatesRow, error) {
 	rows, err := q.db.Query(ctx, listFollowUpCandidates,
 		arg.AllPages,
@@ -181,6 +182,7 @@ func (q *Queries) ListFollowUpCandidates(ctx context.Context, arg ListFollowUpCa
 			&i.LastCustomerMessageAt,
 			&i.StaffMessageID,
 			&i.StaffMessageAt,
+			&i.StaffMessageBody,
 		); err != nil {
 			return nil, err
 		}

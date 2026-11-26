@@ -73,10 +73,11 @@ SET body       = sqlc.narg(body)::text,
 WHERE id = @id;
 
 -- name: InsertRevisionState :exec
--- Ghi một dòng lịch sử (chỉ ghi thêm): nội dung trước khi đổi, trạng thái ẩn, xóa sau khi đổi, nguồn đổi.
-INSERT INTO conversation.message_revisions (tenant_id, message_id, body, is_hidden, removed, source)
+-- Ghi một dòng lịch sử (chỉ ghi thêm): nội dung trước khi đổi, trạng thái ẩn, xóa sau khi đổi, nguồn đổi, lý do tự ẩn
+-- (phone | all, chỉ dòng nguồn automation; Task 501).
+INSERT INTO conversation.message_revisions (tenant_id, message_id, body, is_hidden, removed, source, reason)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, @message_id, sqlc.narg(body)::text, @is_hidden,
-        @removed, @source);
+        @removed, @source, sqlc.narg(reason)::text);
 
 -- name: MessagePage :one
 -- Page (tài khoản kênh) của tin id, không khóa; ghi chú nội bộ không có lịch sử nên không trả.

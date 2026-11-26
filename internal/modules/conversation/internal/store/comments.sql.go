@@ -134,9 +134,9 @@ func (q *Queries) InsertPostIfMissing(ctx context.Context, arg InsertPostIfMissi
 }
 
 const insertRevisionState = `-- name: InsertRevisionState :exec
-INSERT INTO conversation.message_revisions (tenant_id, message_id, body, is_hidden, removed, source)
+INSERT INTO conversation.message_revisions (tenant_id, message_id, body, is_hidden, removed, source, reason)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2::text, $3,
-        $4, $5)
+        $4, $5, $6::text)
 `
 
 type InsertRevisionStateParams struct {
@@ -145,9 +145,11 @@ type InsertRevisionStateParams struct {
 	IsHidden  pgtype.Bool
 	Removed   pgtype.Bool
 	Source    string
+	Reason    pgtype.Text
 }
 
-// Ghi một dòng lịch sử (chỉ ghi thêm): nội dung trước khi đổi, trạng thái ẩn, xóa sau khi đổi, nguồn đổi.
+// Ghi một dòng lịch sử (chỉ ghi thêm): nội dung trước khi đổi, trạng thái ẩn, xóa sau khi đổi, nguồn đổi, lý do tự ẩn
+// (phone | all, chỉ dòng nguồn automation; Task 501).
 func (q *Queries) InsertRevisionState(ctx context.Context, arg InsertRevisionStateParams) error {
 	_, err := q.db.Exec(ctx, insertRevisionState,
 		arg.MessageID,
@@ -155,6 +157,7 @@ func (q *Queries) InsertRevisionState(ctx context.Context, arg InsertRevisionSta
 		arg.IsHidden,
 		arg.Removed,
 		arg.Source,
+		arg.Reason,
 	)
 	return err
 }

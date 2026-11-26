@@ -12,6 +12,83 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const listPagePosts = `-- name: ListPagePosts :many
+SELECT id, external_id, kind, snippet, created_time, permalink
+FROM conversation.posts
+WHERE channel_account_id = $1
+  AND id < $2::uuid
+ORDER BY id DESC
+LIMIT $3::int
+`
+
+type ListPagePostsParams struct {
+	ChannelAccountID uuid.UUID
+	BeforeID         uuid.UUID
+	Lim              int32
+}
+
+type ListPagePostsRow struct {
+	ID          uuid.UUID
+	ExternalID  string
+	Kind        string
+	Snippet     pgtype.Text
+	CreatedTime pgtype.Timestamptz
+	Permalink   pgtype.Text
+}
+
+// Bài của Page (Task 501: chọn bài ngoại lệ tự ẩn, bài của tự trả lời comment), mới gặp trước theo id (uuidv7), trang
+// theo id trước @before_id.
+func (q *Queries) ListPagePosts(ctx context.Context, arg ListPagePostsParams) ([]ListPagePostsRow, error) {
+	rows, err := q.db.Query(ctx, listPagePosts, arg.ChannelAccountID, arg.BeforeID, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPagePostsRow{}
+	for rows.Next() {
+		var i ListPagePostsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ExternalID,
+			&i.Kind,
+			&i.Snippet,
+			&i.CreatedTime,
+			&i.Permalink,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setPostImage = `-- name: SetPostImage :one
+UPDATE conversation.posts
+SET image_file_id = $1
+WHERE channel_account_id = $2
+  AND external_id = $3
+  AND image_file_id IS NULL
+RETURNING id
+`
+
+type SetPostImageParams struct {
+	FileID           pgtype.UUID
+	ChannelAccountID uuid.UUID
+	ExternalID       string
+}
+
+// Ảnh bài (Task 501): đặt image_file_id của bài (Page, mã ngoài) khi bài chưa có ảnh; đã có ảnh → 0 dòng (không ghi
+// tệp mới).
+func (q *Queries) SetPostImage(ctx context.Context, arg SetPostImageParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, setPostImage, arg.FileID, arg.ChannelAccountID, arg.ExternalID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const upsertPost = `-- name: UpsertPost :one
 
 INSERT INTO conversation.posts (tenant_id, channel_account_id, external_id, kind, permalink, snippet, created_time,

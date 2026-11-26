@@ -6287,26 +6287,31 @@ func (s *ChatCustomerRef) SetAvatarUrl(val OptURI) {
 
 // Ref: #/components/schemas/ChatMessage
 type ChatMessage struct {
-	ID              uuid.UUID              `json:"id"`
-	ConversationId  uuid.UUID              `json:"conversationId"`
-	Direction       MessageDirection       `json:"direction"`
-	Kind            MessageKind            `json:"kind"`
-	Origin          MessageOrigin          `json:"origin"`
-	Body            OptString              `json:"body"`
-	Attachments     []ChatAttachment       `json:"attachments"`
-	QuickReplies    []QuickReply           `json:"quickReplies"`
-	Sender          OptActor               `json:"sender"`
-	SenderName      OptString              `json:"senderName"`
-	SendStatus      OptMessageSendStatus   `json:"sendStatus"`
-	FailReason      OptString              `json:"failReason"`
-	IsHidden        bool                   `json:"isHidden"`
-	Removed         bool                   `json:"removed"`
-	EditedCount     int32                  `json:"editedCount"`
-	PrivateReply    OptChatPrivateReplyRef `json:"privateReply"`
-	ParentMessageId OptUUID                `json:"parentMessageId"`
-	SentAt          time.Time              `json:"sentAt"`
-	DeliveredAt     OptDateTime            `json:"deliveredAt"`
-	ReadAt          OptDateTime            `json:"readAt"`
+	ID             uuid.UUID            `json:"id"`
+	ConversationId uuid.UUID            `json:"conversationId"`
+	Direction      MessageDirection     `json:"direction"`
+	Kind           MessageKind          `json:"kind"`
+	Origin         MessageOrigin        `json:"origin"`
+	Body           OptString            `json:"body"`
+	Attachments    []ChatAttachment     `json:"attachments"`
+	QuickReplies   []QuickReply         `json:"quickReplies"`
+	Sender         OptActor             `json:"sender"`
+	SenderName     OptString            `json:"senderName"`
+	SendStatus     OptMessageSendStatus `json:"sendStatus"`
+	FailReason     OptString            `json:"failReason"`
+	IsHidden       bool                 `json:"isHidden"`
+	// Chỉ khi isHidden (Task 501): ai ẩn lần gần nhất — tự ẩn vì có SĐT (auto_phone),
+	// tự ẩn mọi comment (auto_all), tự ẩn không rõ chế độ (automation, comment ẩn
+	// trước Task 501), nhân viên trong CRM (staff), ẩn trên Facebook ngoài CRM (page_external).
+	// Không có: chưa rõ (ẩn sẵn khi CRM đọc về).
+	HiddenReason    OptChatMessageHiddenReason `json:"hiddenReason"`
+	Removed         bool                       `json:"removed"`
+	EditedCount     int32                      `json:"editedCount"`
+	PrivateReply    OptChatPrivateReplyRef     `json:"privateReply"`
+	ParentMessageId OptUUID                    `json:"parentMessageId"`
+	SentAt          time.Time                  `json:"sentAt"`
+	DeliveredAt     OptDateTime                `json:"deliveredAt"`
+	ReadAt          OptDateTime                `json:"readAt"`
 }
 
 // GetID returns the value of ID.
@@ -6372,6 +6377,11 @@ func (s *ChatMessage) GetFailReason() OptString {
 // GetIsHidden returns the value of IsHidden.
 func (s *ChatMessage) GetIsHidden() bool {
 	return s.IsHidden
+}
+
+// GetHiddenReason returns the value of HiddenReason.
+func (s *ChatMessage) GetHiddenReason() OptChatMessageHiddenReason {
+	return s.HiddenReason
 }
 
 // GetRemoved returns the value of Removed.
@@ -6474,6 +6484,11 @@ func (s *ChatMessage) SetIsHidden(val bool) {
 	s.IsHidden = val
 }
 
+// SetHiddenReason sets the value of HiddenReason.
+func (s *ChatMessage) SetHiddenReason(val OptChatMessageHiddenReason) {
+	s.HiddenReason = val
+}
+
 // SetRemoved sets the value of Removed.
 func (s *ChatMessage) SetRemoved(val bool) {
 	s.Removed = val
@@ -6516,6 +6531,72 @@ func (*ChatMessage) replyToCommentRes()      {}
 func (*ChatMessage) sendMessageRes()         {}
 func (*ChatMessage) sendPrivateReplyRes()    {}
 func (*ChatMessage) unhideCommentRes()       {}
+
+// Chỉ khi isHidden (Task 501): ai ẩn lần gần nhất — tự ẩn vì có SĐT (auto_phone),
+// tự ẩn mọi comment (auto_all), tự ẩn không rõ chế độ (automation, comment ẩn
+// trước Task 501), nhân viên trong CRM (staff), ẩn trên Facebook ngoài CRM (page_external).
+// Không có: chưa rõ (ẩn sẵn khi CRM đọc về).
+type ChatMessageHiddenReason string
+
+const (
+	ChatMessageHiddenReasonAutoPhone    ChatMessageHiddenReason = "auto_phone"
+	ChatMessageHiddenReasonAutoAll      ChatMessageHiddenReason = "auto_all"
+	ChatMessageHiddenReasonAutomation   ChatMessageHiddenReason = "automation"
+	ChatMessageHiddenReasonStaff        ChatMessageHiddenReason = "staff"
+	ChatMessageHiddenReasonPageExternal ChatMessageHiddenReason = "page_external"
+)
+
+// AllValues returns all ChatMessageHiddenReason values.
+func (ChatMessageHiddenReason) AllValues() []ChatMessageHiddenReason {
+	return []ChatMessageHiddenReason{
+		ChatMessageHiddenReasonAutoPhone,
+		ChatMessageHiddenReasonAutoAll,
+		ChatMessageHiddenReasonAutomation,
+		ChatMessageHiddenReasonStaff,
+		ChatMessageHiddenReasonPageExternal,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ChatMessageHiddenReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ChatMessageHiddenReasonAutoPhone:
+		return []byte(s), nil
+	case ChatMessageHiddenReasonAutoAll:
+		return []byte(s), nil
+	case ChatMessageHiddenReasonAutomation:
+		return []byte(s), nil
+	case ChatMessageHiddenReasonStaff:
+		return []byte(s), nil
+	case ChatMessageHiddenReasonPageExternal:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ChatMessageHiddenReason) UnmarshalText(data []byte) error {
+	switch ChatMessageHiddenReason(data) {
+	case ChatMessageHiddenReasonAutoPhone:
+		*s = ChatMessageHiddenReasonAutoPhone
+		return nil
+	case ChatMessageHiddenReasonAutoAll:
+		*s = ChatMessageHiddenReasonAutoAll
+		return nil
+	case ChatMessageHiddenReasonAutomation:
+		*s = ChatMessageHiddenReasonAutomation
+		return nil
+	case ChatMessageHiddenReasonStaff:
+		*s = ChatMessageHiddenReasonStaff
+		return nil
+	case ChatMessageHiddenReasonPageExternal:
+		*s = ChatMessageHiddenReasonPageExternal
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
 
 // Ref: #/components/schemas/ChatOrderRef
 type ChatOrderRef struct {
@@ -6602,6 +6683,13 @@ func (s *ChatOrderRef) SetVersion(val int64) {
 type ChatPostRef struct {
 	ID      uuid.UUID `json:"id"`
 	Snippet OptString `json:"snippet"`
+	// Giờ đăng bài trên kênh (chưa đọc được bài → không có).
+	PostedAt OptDateTime `json:"postedAt"`
+	// Đường dẫn bài trên kênh ("Mở bài").
+	Permalink OptURI `json:"permalink"`
+	// Ảnh bài đã chép về CRM (Task 501); đường dẫn 5 phút lấy bằng getAttachmentUrl
+	// của hội thoại comment trên bài.
+	ImageFileId OptUUID `json:"imageFileId"`
 }
 
 // GetID returns the value of ID.
@@ -6614,6 +6702,21 @@ func (s *ChatPostRef) GetSnippet() OptString {
 	return s.Snippet
 }
 
+// GetPostedAt returns the value of PostedAt.
+func (s *ChatPostRef) GetPostedAt() OptDateTime {
+	return s.PostedAt
+}
+
+// GetPermalink returns the value of Permalink.
+func (s *ChatPostRef) GetPermalink() OptURI {
+	return s.Permalink
+}
+
+// GetImageFileId returns the value of ImageFileId.
+func (s *ChatPostRef) GetImageFileId() OptUUID {
+	return s.ImageFileId
+}
+
 // SetID sets the value of ID.
 func (s *ChatPostRef) SetID(val uuid.UUID) {
 	s.ID = val
@@ -6622,6 +6725,21 @@ func (s *ChatPostRef) SetID(val uuid.UUID) {
 // SetSnippet sets the value of Snippet.
 func (s *ChatPostRef) SetSnippet(val OptString) {
 	s.Snippet = val
+}
+
+// SetPostedAt sets the value of PostedAt.
+func (s *ChatPostRef) SetPostedAt(val OptDateTime) {
+	s.PostedAt = val
+}
+
+// SetPermalink sets the value of Permalink.
+func (s *ChatPostRef) SetPermalink(val OptURI) {
+	s.Permalink = val
+}
+
+// SetImageFileId sets the value of ImageFileId.
+func (s *ChatPostRef) SetImageFileId(val OptUUID) {
+	s.ImageFileId = val
 }
 
 // Ref: #/components/schemas/ChatPrivateReplyRef
@@ -9030,7 +9148,11 @@ type ConversationSummary struct {
 	LastSnippet   OptString          `json:"lastSnippet"`
 	Post          OptChatPostRef     `json:"post"`
 	HasOpenDraft  bool               `json:"hasOpenDraft"`
-	Version       int32              `json:"version"`
+	// Khách tiềm năng mới (CH08, Task 501): hồ sơ khách được tạo tự động từ chính
+	// hội thoại này (người lạ nhắn, comment lần đầu), chưa gộp vào hồ sơ khác và
+	// chưa có đơn nào (kể cả đơn nháp).
+	NewLead OptBool `json:"newLead"`
+	Version int32   `json:"version"`
 }
 
 // GetID returns the value of ID.
@@ -9091,6 +9213,11 @@ func (s *ConversationSummary) GetPost() OptChatPostRef {
 // GetHasOpenDraft returns the value of HasOpenDraft.
 func (s *ConversationSummary) GetHasOpenDraft() bool {
 	return s.HasOpenDraft
+}
+
+// GetNewLead returns the value of NewLead.
+func (s *ConversationSummary) GetNewLead() OptBool {
+	return s.NewLead
 }
 
 // GetVersion returns the value of Version.
@@ -9156,6 +9283,11 @@ func (s *ConversationSummary) SetPost(val OptChatPostRef) {
 // SetHasOpenDraft sets the value of HasOpenDraft.
 func (s *ConversationSummary) SetHasOpenDraft(val bool) {
 	s.HasOpenDraft = val
+}
+
+// SetNewLead sets the value of NewLead.
+func (s *ConversationSummary) SetNewLead(val OptBool) {
+	s.NewLead = val
 }
 
 // SetVersion sets the value of Version.
@@ -11056,7 +11188,9 @@ type CreateOrderRequest struct {
 	// Lên đơn trong khung chat (M4, Task 176): đơn lưu hội thoại này; máy chủ tự lấy
 	// Page của hội thoại, người bán của Page (áp làm người bán của đơn, ADR-29) và
 	// kênh facebook (thay channel đã gửi). Cần conversation.read trên Page của hội thoại,
-	// không thì 404 not_found.
+	// không thì 404 not_found. Khách của đơn phải là customerId cùng nhóm hồ sơ với
+	// khách của hội thoại (Task 501); gửi customer (khách mới, tìm theo SĐT) hay customerId
+	// nhóm khác → 422 conversation_customer_mismatch.
 	ConversationId OptUUID         `json:"conversationId"`
 	Channel        OptOrderChannel `json:"channel"`
 	ExternalRef    OptString       `json:"externalRef"`
@@ -14390,6 +14524,7 @@ func (*ErrorStatusCode) listOrderRequestsRes()           {}
 func (*ErrorStatusCode) listOrderShipmentsRes()          {}
 func (*ErrorStatusCode) listOrderShippingAccountsRes()   {}
 func (*ErrorStatusCode) listOrdersRes()                  {}
+func (*ErrorStatusCode) listPagePostsRes()               {}
 func (*ErrorStatusCode) listPendingDraftsRes()           {}
 func (*ErrorStatusCode) listPermissionsRes()             {}
 func (*ErrorStatusCode) listProductsRes()                {}
@@ -15461,7 +15596,10 @@ type FollowUpItem struct {
 	PageId             uuid.UUID       `json:"pageId"`
 	Customer           ChatCustomerRef `json:"customer"`
 	LastStaffMessageAt time.Time       `json:"lastStaffMessageAt"`
-	WindowEndsAt       time.Time       `json:"windowEndsAt"`
+	// Đoạn đầu (tối đa 120 ký tự) tin người thật cuối của Page, hiện là Bạn: …
+	// (Task 501); tin ảnh → không có.
+	LastStaffSnippet OptString `json:"lastStaffSnippet"`
+	WindowEndsAt     time.Time `json:"windowEndsAt"`
 }
 
 // GetConversationId returns the value of ConversationId.
@@ -15482,6 +15620,11 @@ func (s *FollowUpItem) GetCustomer() ChatCustomerRef {
 // GetLastStaffMessageAt returns the value of LastStaffMessageAt.
 func (s *FollowUpItem) GetLastStaffMessageAt() time.Time {
 	return s.LastStaffMessageAt
+}
+
+// GetLastStaffSnippet returns the value of LastStaffSnippet.
+func (s *FollowUpItem) GetLastStaffSnippet() OptString {
+	return s.LastStaffSnippet
 }
 
 // GetWindowEndsAt returns the value of WindowEndsAt.
@@ -15507,6 +15650,11 @@ func (s *FollowUpItem) SetCustomer(val ChatCustomerRef) {
 // SetLastStaffMessageAt sets the value of LastStaffMessageAt.
 func (s *FollowUpItem) SetLastStaffMessageAt(val time.Time) {
 	s.LastStaffMessageAt = val
+}
+
+// SetLastStaffSnippet sets the value of LastStaffSnippet.
+func (s *FollowUpItem) SetLastStaffSnippet(val OptString) {
+	s.LastStaffSnippet = val
 }
 
 // SetWindowEndsAt sets the value of WindowEndsAt.
@@ -20915,6 +21063,52 @@ func (o OptChannelFeatures) Get() (v ChannelFeatures, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptChannelFeatures) Or(d ChannelFeatures) ChannelFeatures {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptChatMessageHiddenReason returns new OptChatMessageHiddenReason with value set to v.
+func NewOptChatMessageHiddenReason(v ChatMessageHiddenReason) OptChatMessageHiddenReason {
+	return OptChatMessageHiddenReason{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptChatMessageHiddenReason is optional ChatMessageHiddenReason.
+type OptChatMessageHiddenReason struct {
+	Value ChatMessageHiddenReason
+	Set   bool
+}
+
+// IsSet returns true if OptChatMessageHiddenReason was set.
+func (o OptChatMessageHiddenReason) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptChatMessageHiddenReason) Reset() {
+	var v ChatMessageHiddenReason
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptChatMessageHiddenReason) SetTo(v ChatMessageHiddenReason) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptChatMessageHiddenReason) Get() (v ChatMessageHiddenReason, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptChatMessageHiddenReason) Or(d ChatMessageHiddenReason) ChatMessageHiddenReason {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -29554,6 +29748,160 @@ func (s *PackingResultResult) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/PagePost
+type PagePost struct {
+	ID uuid.UUID `json:"id"`
+	// Mã bài trên kênh (giá trị của exceptPostIds, postIds trong quy tắc tự động).
+	ExternalId string       `json:"externalId"`
+	Kind       PagePostKind `json:"kind"`
+	Snippet    OptString    `json:"snippet"`
+	PostedAt   OptDateTime  `json:"postedAt"`
+	Permalink  OptURI       `json:"permalink"`
+}
+
+// GetID returns the value of ID.
+func (s *PagePost) GetID() uuid.UUID {
+	return s.ID
+}
+
+// GetExternalId returns the value of ExternalId.
+func (s *PagePost) GetExternalId() string {
+	return s.ExternalId
+}
+
+// GetKind returns the value of Kind.
+func (s *PagePost) GetKind() PagePostKind {
+	return s.Kind
+}
+
+// GetSnippet returns the value of Snippet.
+func (s *PagePost) GetSnippet() OptString {
+	return s.Snippet
+}
+
+// GetPostedAt returns the value of PostedAt.
+func (s *PagePost) GetPostedAt() OptDateTime {
+	return s.PostedAt
+}
+
+// GetPermalink returns the value of Permalink.
+func (s *PagePost) GetPermalink() OptURI {
+	return s.Permalink
+}
+
+// SetID sets the value of ID.
+func (s *PagePost) SetID(val uuid.UUID) {
+	s.ID = val
+}
+
+// SetExternalId sets the value of ExternalId.
+func (s *PagePost) SetExternalId(val string) {
+	s.ExternalId = val
+}
+
+// SetKind sets the value of Kind.
+func (s *PagePost) SetKind(val PagePostKind) {
+	s.Kind = val
+}
+
+// SetSnippet sets the value of Snippet.
+func (s *PagePost) SetSnippet(val OptString) {
+	s.Snippet = val
+}
+
+// SetPostedAt sets the value of PostedAt.
+func (s *PagePost) SetPostedAt(val OptDateTime) {
+	s.PostedAt = val
+}
+
+// SetPermalink sets the value of Permalink.
+func (s *PagePost) SetPermalink(val OptURI) {
+	s.Permalink = val
+}
+
+type PagePostKind string
+
+const (
+	PagePostKindPost    PagePostKind = "post"
+	PagePostKindLive    PagePostKind = "live"
+	PagePostKindAd      PagePostKind = "ad"
+	PagePostKindUnknown PagePostKind = "unknown"
+)
+
+// AllValues returns all PagePostKind values.
+func (PagePostKind) AllValues() []PagePostKind {
+	return []PagePostKind{
+		PagePostKindPost,
+		PagePostKindLive,
+		PagePostKindAd,
+		PagePostKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PagePostKind) MarshalText() ([]byte, error) {
+	switch s {
+	case PagePostKindPost:
+		return []byte(s), nil
+	case PagePostKindLive:
+		return []byte(s), nil
+	case PagePostKindAd:
+		return []byte(s), nil
+	case PagePostKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PagePostKind) UnmarshalText(data []byte) error {
+	switch PagePostKind(data) {
+	case PagePostKindPost:
+		*s = PagePostKindPost
+		return nil
+	case PagePostKindLive:
+		*s = PagePostKindLive
+		return nil
+	case PagePostKindAd:
+		*s = PagePostKindAd
+		return nil
+	case PagePostKindUnknown:
+		*s = PagePostKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/PagePostPage
+type PagePostPage struct {
+	Items      []PagePost `json:"items"`
+	NextCursor OptString  `json:"nextCursor"`
+}
+
+// GetItems returns the value of Items.
+func (s *PagePostPage) GetItems() []PagePost {
+	return s.Items
+}
+
+// GetNextCursor returns the value of NextCursor.
+func (s *PagePostPage) GetNextCursor() OptString {
+	return s.NextCursor
+}
+
+// SetItems sets the value of Items.
+func (s *PagePostPage) SetItems(val []PagePost) {
+	s.Items = val
+}
+
+// SetNextCursor sets the value of NextCursor.
+func (s *PagePostPage) SetNextCursor(val OptString) {
+	s.NextCursor = val
+}
+
+func (*PagePostPage) listPagePostsRes() {}
+
 // Ref: #/components/schemas/PageSettings
 type PageSettings struct {
 	ChannelAccountId        uuid.UUID       `json:"channelAccountId"`
@@ -29894,7 +30242,12 @@ func (*PaymentPage) listOrderPaymentsRes() {}
 
 // Ref: #/components/schemas/PendingDraft
 type PendingDraft struct {
-	OrderId                 uuid.UUID        `json:"orderId"`
+	OrderId uuid.UUID `json:"orderId"`
+	// Hội thoại comment chứa comment được chốt (Task 501).
+	ConversationId uuid.UUID `json:"conversationId"`
+	// Hộp thư của khách trên Page của phiên (nơi tin xin địa chỉ được gửi, khách
+	// trả địa chỉ); chưa có → không có (màn mở conversationId).
+	InboxConversationId     OptUUID          `json:"inboxConversationId"`
 	OrderCode               string           `json:"orderCode"`
 	Customer                ChatCustomerRef  `json:"customer"`
 	Items                   []LiveDraftItem  `json:"items"`
@@ -29910,6 +30263,16 @@ type PendingDraft struct {
 // GetOrderId returns the value of OrderId.
 func (s *PendingDraft) GetOrderId() uuid.UUID {
 	return s.OrderId
+}
+
+// GetConversationId returns the value of ConversationId.
+func (s *PendingDraft) GetConversationId() uuid.UUID {
+	return s.ConversationId
+}
+
+// GetInboxConversationId returns the value of InboxConversationId.
+func (s *PendingDraft) GetInboxConversationId() OptUUID {
+	return s.InboxConversationId
 }
 
 // GetOrderCode returns the value of OrderCode.
@@ -29965,6 +30328,16 @@ func (s *PendingDraft) GetCanRemind() RemindAllowed {
 // SetOrderId sets the value of OrderId.
 func (s *PendingDraft) SetOrderId(val uuid.UUID) {
 	s.OrderId = val
+}
+
+// SetConversationId sets the value of ConversationId.
+func (s *PendingDraft) SetConversationId(val uuid.UUID) {
+	s.ConversationId = val
+}
+
+// SetInboxConversationId sets the value of InboxConversationId.
+func (s *PendingDraft) SetInboxConversationId(val OptUUID) {
+	s.InboxConversationId = val
 }
 
 // SetOrderCode sets the value of OrderCode.

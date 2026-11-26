@@ -4,6 +4,7 @@
 //   người bán của Page), khách của hội thoại, nguồn đơn tự điền.
 // - Hoàn tất đơn nháp: đọc đơn (getOrder) → OrderForm chế độ sửa, confirmAfterSave: updateOrder (chỉ trường đổi,
 //   version) rồi confirmOrder với version mới nhất; 409 version_conflict → "Có người vừa sửa, tải lại", không tự gửi lại.
+// - Tin khách mới nhất trông như địa chỉ → nút "Lấy địa chỉ từ tin HH:MM của khách" trong form (HV26, Task 501).
 // - Lưu xong → gợi ý một chạm "Gắn nhãn Đã lên đơn" (TagSuggestion).
 // - Khung lên đơn đang mở → nhịp tim "drafting_order" mỗi 20 giây (hạn máy chủ 30 giây, Task 163).
 // - Không có order.create ở kho (toàn shop hay theo kho) → khóa sẵn kèm lý do (HV28), máy chủ vẫn kiểm.
@@ -21,8 +22,10 @@ import { ApiError, errorMessage, unwrap } from "../../../app/errors";
 import { useWriteAction } from "../../../app/idempotency";
 import { queryKey } from "../../../app/queryClient";
 import { useOrder } from "../../don/orderData";
+import { latestMessagesQuery } from "../conversation/messageWrites";
 import { OrderForm } from "../../len-don/OrderForm";
 import { CONVERSATION_TOPIC } from "../useConversationList";
+import { addressSuggestion, type AddressSuggestion } from "./addressRules";
 import { OpenDrafts } from "./OpenDrafts";
 import { canCreateOrder, canOnPage, cardKey, hasPermission } from "./sidePanelData";
 import { TagSuggestion } from "./TagSuggestion";
@@ -41,6 +44,13 @@ export interface OrderPanelProps {
 }
 
 type Mode = { kind: "new" } | { kind: "draft"; id: string } | null;
+
+/** Gợi ý địa chỉ từ trang tin mới nhất của hội thoại (bản đệm chung với dòng tin); chưa tải, lỗi, không có → undefined. */
+function useAddressSuggestion(conversationId: string): AddressSuggestion | undefined {
+  const q = useQuery(latestMessagesQuery(conversationId));
+  const [openedAt] = useState(() => Date.now());
+  return (q.data === undefined ? null : addressSuggestion(q.data.items, openedAt)) ?? undefined;
+}
 
 /** Gửi nhịp tim drafting_order khi active (mỗi lần một khóa mới, Q9); lỗi bỏ qua (chỉ là tín hiệu). */
 function useDraftingHeartbeat(conversationId: string, active: boolean) {
@@ -68,7 +78,11 @@ function NewOrder({
   conversationId,
   customer,
   onCreated,
-}: Pick<OrderPanelProps, "conversationId" | "customer"> & { onCreated: (o: Order) => void }) {
+  address,
+}: Pick<OrderPanelProps, "conversationId" | "customer"> & {
+  onCreated: (o: Order) => void;
+  address: AddressSuggestion | undefined;
+}) {
   const ctx = useQuery({
     queryKey: queryKey(CONVERSATION_TOPIC, "order-context", conversationId),
     queryFn: () => unwrap(getConversationOrderContext({ path: { id: conversationId } })),
@@ -86,6 +100,7 @@ function NewOrder({
     <OrderForm
       conversationId={ctx.data.conversationId}
       initialCustomer={customer}
+      addressFromMessage={address}
       {...(src === undefined || src === null ? {} : { initialTrafficSourceId: src })}
       onCreated={onCreated}
     />
@@ -97,7 +112,15 @@ function NewOrder({
  * realtime (dựng lại form làm mất phần đang gõ); "Tải lại đơn nháp" lấy bản mới làm bản chụp. updateOrder thành công mà
  * confirmOrder lỗi: bản chụp đổi sang đơn vừa lưu (version mới) để lần bấm sau không gặp version_conflict của chính mình.
  */
-function CompleteDraft({ id, onConfirmed }: { id: string; onConfirmed: (o: Order) => void }) {
+function CompleteDraft({
+  id,
+  onConfirmed,
+  address,
+}: {
+  id: string;
+  onConfirmed: (o: Order) => void;
+  address: AddressSuggestion | undefined;
+}) {
   const draft = useOrder(id);
   const [snap, setSnap] = useState<Order | null>(null);
   // Lần đầu có dữ liệu: chụp lại ngay trong lần vẽ (mẫu "điều chỉnh state khi dữ liệu đổi" của React).
@@ -145,6 +168,7 @@ function CompleteDraft({ id, onConfirmed }: { id: string; onConfirmed: (o: Order
       )}
       <OrderForm
         key={`${snap.id}-${String(snap.version ?? 0)}`}
+        addressFromMessage={address}
         edit={{
           order: snap,
           confirmAfterSave: true,
@@ -162,6 +186,7 @@ export function OrderPanel({ conversationId, pageId, customer, drafts, grants }:
   const qc = useQueryClient();
   const [mode, setMode] = useState<Mode>(null);
   const [saved, setSaved] = useState<Order | null>(null);
+  const address = useAddressSuggestion(conversationId);
   const canCreate = canCreateOrder(grants);
   const canComplete = hasPermission(grants, "order.update") && hasPermission(grants, "order.confirm");
   const canTag = canOnPage(grants, "conversation.reply", pageId);
@@ -239,8 +264,10 @@ export function OrderPanel({ conversationId, pageId, customer, drafts, grants }:
             <span className="xs muted">Đơn tự gắn với hội thoại này và Page của nó.</span>
           </div>
         )}
-        {mode?.kind === "new" && <NewOrder conversationId={conversationId} customer={customer} onCreated={done} />}
-        {mode?.kind === "draft" && <CompleteDraft id={mode.id} onConfirmed={done} />}
+        {mode?.kind === "new" && (
+          <NewOrder conversationId={conversationId} customer={customer} onCreated={done} address={address} />
+        )}
+        {mode?.kind === "draft" && <CompleteDraft id={mode.id} onConfirmed={done} address={address} />}
       </section>
     </>
   );

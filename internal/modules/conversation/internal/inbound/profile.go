@@ -57,9 +57,13 @@ type profileResult struct {
 	Avatar *storedFile `json:"avatar,omitempty"`
 }
 
-// OnNewCustomer xếp lệnh đọc hồ sơ kênh (tên, ảnh đại diện) cho khách customerID vừa tạo từ tin vào của hội thoại
-// conversationID (tenant tenantID); DedupeKey là mã khách (một lệnh mỗi khách).
+// OnNewCustomer đánh dấu hội thoại conversationID đã tạo khách customerID (created_customer, CH08, Task 501) và xếp
+// lệnh đọc hồ sơ kênh (tên, ảnh đại diện) cho khách vừa tạo từ tin vào của hội thoại (tenant tenantID); DedupeKey là
+// mã khách (một lệnh mỗi khách). Hội thoại đã khóa dòng bởi Upsert…Conversation của bên gọi (nhóm 6).
 func OnNewCustomer(ctx context.Context, tx pgx.Tx, q queue.JobQueue, tenantID, customerID, conversationID uuid.UUID) error {
+	if err := store.New(tx).MarkConversationCreatedCustomer(ctx, conversationID); err != nil {
+		return fmt.Errorf("đánh dấu hội thoại tạo khách: %w", err)
+	}
 	if _, _, err := q.Enqueue(ctx, tx, FetchProfileKind(), queue.NewJob{
 		TenantID: &tenantID, Payload: profilePayload{CustomerID: customerID, ConversationID: conversationID},
 		DedupeKey: customerID.String(),
@@ -160,11 +164,20 @@ func (c fetchProfile) source(ctx context.Context, tx pgx.Tx, convID uuid.UUID) (
 
 // avatar tải ảnh đại diện rawURL (≤ 2 MiB, JPEG/PNG/WebP, không rỗng) lên bucket private; mọi lỗi → nil (bỏ qua ảnh).
 func (c fetchProfile) avatar(ctx context.Context, tenant uuid.UUID, ad channel.MessagingAdapter, rawURL string) *storedFile {
+	return storeChannelImage(ctx, c.d.Files, tenant, ad, rawURL, maxAvatarBytes)
+}
+
+// storeChannelImage tải ảnh rawURL qua bộ tải của kênh ad (≤ maxBytes, JPEG/PNG/WebP nhận dạng theo nội dung, không
+// rỗng) lên bucket private ở ServerKey (ảnh của kênh, không qua imager: ảnh đại diện, ảnh bài); rawURL rỗng, kênh không
+// tải được, không có kho tệp, mọi lỗi → nil (bên gọi bỏ qua ảnh). Dòng tệp do OnDone của lệnh ghi (files.Register).
+func storeChannelImage(ctx context.Context, fs files.FileStore, tenant uuid.UUID, ad channel.MessagingAdapter, rawURL string,
+	maxBytes int64,
+) *storedFile {
 	dl, ok := ad.(channel.AttachmentDownloader)
-	if rawURL == "" || !ok || c.d.Files == nil {
+	if rawURL == "" || !ok || fs == nil {
 		return nil
 	}
-	rc, info, err := dl.Download(ctx, rawURL, maxAvatarBytes)
+	rc, info, err := dl.Download(ctx, rawURL, maxBytes)
 	if err != nil {
 		return nil
 	}
@@ -174,7 +187,7 @@ func (c fetchProfile) avatar(ctx context.Context, tenant uuid.UUID, ad channel.M
 	if err != nil || info.Size <= 0 || !slices.Contains(imageTypes(), mt) {
 		return nil
 	}
-	if err := c.d.Files.Put(ctx, files.BucketPrivate, files.ServerKey(tenant, id), rc, info.Size, mt); err != nil &&
+	if err := fs.Put(ctx, files.BucketPrivate, files.ServerKey(tenant, id), rc, info.Size, mt); err != nil &&
 		!errors.Is(err, files.ErrObjectExists) {
 		return nil
 	}

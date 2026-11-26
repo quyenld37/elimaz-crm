@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/adapters/fake"
 	"elimaz.com.vn/crm/internal/modules/channel"
@@ -82,5 +83,57 @@ func TestCommentFakechatNoFetch(t *testing.T) {
 	}
 	if n := e.staff.Count(t, `SELECT count(*) FROM platform.jobs WHERE kind = $1`, inbound.FetchPostKind); n != 0 {
 		t.Errorf("lệnh đọc bài của kênh giả = %d, mong 0", n)
+	}
+}
+
+// [Task 501] Ảnh bài: lệnh đọc bài tải full_picture (≤ 5 MiB, JPEG/PNG/WebP, chỉ qua bộ tải của kênh) lên bucket private,
+// ghi posts.image_file_id và dòng tệp chat_post_image ready. Bài không ảnh → NULL; ảnh tải lỗi hay không phải ảnh →
+// bài vẫn có đường dẫn, đoạn trích, image_file_id NULL, lệnh không dead.
+func TestFetchPostStoresPicture(t *testing.T) {
+	t.Parallel()
+	post3, post4 := pageExt1+"_900000000000003", pageExt1+"_900000000000004"
+	fg := fakegraphFor(t)
+	png := append([]byte("\x89PNG\r\n\x1a\n"), make([]byte, 64)...)
+	cdn := map[string][]byte{
+		"https://scontent.fbcdn.net/p1.png": png,
+		"https://scontent.fbcdn.net/p3.txt": []byte("không phải ảnh"),
+	}
+	for id, pic := range map[string]string{
+		post1: "https://scontent.fbcdn.net/p1.png", post2: "", post3: "https://scontent.fbcdn.net/p3.txt",
+		post4: "https://scontent.fbcdn.net/khong-co.jpg",
+	} {
+		p := fakePost(id, "Bài "+id)
+		p.PictureURL = pic
+		fg.AddPost(p)
+	}
+	e := newEnvWith(t, fg, withCDN(t, cdn))
+	for i, post := range []string{post1, post2, post3, post4} {
+		e.sendComment(commentEv("add", post, "c"+post, "", "u-7", "Lan", "Chốt", i))
+	}
+	e.drain()
+	e.noDeadJobs()
+	images := map[string]*uuid.UUID{}
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		rows, err := tx.Query(t.Context(), `SELECT external_id, image_file_id FROM conversation.posts WHERE permalink IS NOT NULL`)
+		if err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var ext string
+			var id *uuid.UUID
+			if err := rows.Scan(&ext, &id); err != nil {
+				return err //nolint:wrapcheck // test
+			}
+			images[ext] = id
+		}
+		return rows.Err()
+	})
+	if len(images) != 4 || images[post1] == nil || images[post2] != nil || images[post3] != nil || images[post4] != nil {
+		t.Fatalf("ảnh bài = %v", images)
+	}
+	if n := e.staff.CountIn(t, e.tenant, `SELECT count(*) FROM platform.files WHERE id = $1 AND purpose = 'chat_post_image'
+		AND status = 'ready' AND bucket = 'private' AND declared_type = 'image/png'`, *images[post1]); n != 1 {
+		t.Fatalf("dòng tệp ảnh bài = %d", n)
 	}
 }

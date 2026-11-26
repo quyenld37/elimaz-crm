@@ -48,10 +48,11 @@ func Get(ctx context.Context, tx pgx.Tx, actor identity.AuthUser, id uuid.UUID) 
 			Status: r.Status, AssigneeID: assign.PtrUUID(r.AssigneeID), Tags: make([]Tag, 0, len(tags)),
 			UnreadCount: r.UnreadCount, LastMessageAt: r.LastMessageAt, LastSnippet: r.LastSnippet.String,
 			PostID: assign.PtrUUID(r.PostID), PostSnippet: r.PostSnippet.String, HasOpenDraft: r.HasOpenDraft,
-			Version: r.Version,
+			NewLead: r.NewLead, Version: r.Version,
 		},
 		AssigneeName: r.AssigneeName, LastCustomerMessageAt: assign.OptTime(r.LastCustomerMessageAt), BlockedByUser: r.BlockedByUser,
 	}
+	c.SetPostCard(r.PostCreatedTime, r.PostPermalink, r.PostImageFileID)
 	for _, t := range tags {
 		c.Tags = append(c.Tags, Tag(t))
 	}

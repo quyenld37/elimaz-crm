@@ -1146,6 +1146,13 @@ type Handler interface {
 	//
 	// GET /api/v1/orders
 	ListOrders(ctx context.Context, params ListOrdersParams) (ListOrdersRes, error)
+	// ListPagePosts implements listPagePosts operation.
+	//
+	// Bài viết CRM đã gặp trên Page (có comment), mới gặp trước; để chọn bài ngoại
+	// lệ tự ẩn, bài của tự trả lời comment (Task 501).
+	//
+	// GET /api/v1/channels/{id}/posts
+	ListPagePosts(ctx context.Context, params ListPagePostsParams) (ListPagePostsRes, error)
 	// ListPendingDrafts implements listPendingDrafts operation.
 	//
 	// Đơn nháp "đã chốt, thiếu địa chỉ" của phiên live (Task 173).

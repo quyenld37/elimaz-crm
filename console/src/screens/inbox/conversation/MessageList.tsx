@@ -7,12 +7,10 @@ import { useEffect, useRef, useState } from "react";
 import { listMessages, markConversationRead, type ChatMessage, type ChatPostRef } from "../../../api";
 import { errorMessage, unwrap } from "../../../app/errors";
 import { useWriteAction } from "../../../app/idempotency";
-import type { RealtimeMeta } from "../../../app/queryClient";
 import { lastInbound, mergeMessages } from "./conversationRules";
 import { MessageBubble, type BubbleContext } from "./MessageBubble";
-import { idem, messagesKey } from "./messageWrites";
-
-const PAGE = 50;
+import { PostCard } from "./PostCard";
+import { MESSAGE_PAGE, idem, latestMessagesQuery } from "./messageWrites";
 
 /** Tin cũ hơn đã tải bằng "Xem tin cũ hơn" (trang nối nhau), kèm con trỏ của trang kế. */
 interface Older {
@@ -30,12 +28,7 @@ export interface MessageListProps {
 
 export function MessageList({ ctx, unreadCount, post }: MessageListProps) {
   const id = ctx.conversationId;
-  const meta: RealtimeMeta = { realtimeEntity: id };
-  const latest = useQuery({
-    queryKey: messagesKey(id),
-    queryFn: () => unwrap(listMessages({ path: { id }, query: { limit: PAGE } })),
-    meta,
-  });
+  const latest = useQuery(latestMessagesQuery(id));
   const [older, setOlder] = useState<Older>({ pages: [], cursor: undefined, loading: false, error: null });
   const startedOlder = older.pages.length > 0;
   const cursor = startedOlder ? older.cursor : latest.data?.olderCursor;
@@ -44,7 +37,7 @@ export function MessageList({ ctx, unreadCount, post }: MessageListProps) {
     if (cursor === undefined || older.loading) return;
     setOlder((o) => ({ ...o, loading: true, error: null }));
     try {
-      const p = await unwrap(listMessages({ path: { id }, query: { before: cursor, limit: PAGE } }));
+      const p = await unwrap(listMessages({ path: { id }, query: { before: cursor, limit: MESSAGE_PAGE } }));
       setOlder((o) => ({ pages: [p.items, ...o.pages], cursor: p.olderCursor, loading: false, error: null }));
     } catch (e) {
       setOlder((o) => ({ ...o, loading: false, error: e }));
@@ -88,17 +81,7 @@ export function MessageList({ ctx, unreadCount, post }: MessageListProps) {
           {errorMessage(older.error)}
         </p>
       )}
-      {post !== undefined && (
-        <div className="post">
-          <span className="thumb" aria-hidden="true">
-            Bài
-          </span>
-          <div className="grow">
-            <b className="ellip">{post.snippet ?? "Bài viết trên Page"}</b>
-            <span className="xs muted">Comment trên bài này</span>
-          </div>
-        </div>
-      )}
+      {post !== undefined && <PostCard conversationId={id} post={post} />}
       {latest.isPending && <p className="muted">Đang tải tin…</p>}
       {latest.isError && (
         <div className="box box-err" role="alert">

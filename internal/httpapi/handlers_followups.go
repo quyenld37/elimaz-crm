@@ -34,11 +34,15 @@ func (h *handler) ListFollowUps(ctx context.Context, params gen.ListFollowUpsPar
 	}
 	out := &gen.FollowUpList{Items: make([]gen.FollowUpItem, 0, len(items))}
 	for _, f := range items {
-		out.Items = append(out.Items, gen.FollowUpItem{
+		it := gen.FollowUpItem{
 			ConversationId: f.ConversationID, PageId: f.PageID,
 			Customer:           gen.ChatCustomerRef{ID: f.CustomerID, Name: f.CustomerName},
 			LastStaffMessageAt: f.LastStaffMessageAt, WindowEndsAt: f.WindowEndsAt,
-		})
+		}
+		if f.LastStaffSnippet != "" {
+			it.LastStaffSnippet = gen.NewOptString(f.LastStaffSnippet)
+		}
+		out.Items = append(out.Items, it)
 	}
 	return out, nil
 }

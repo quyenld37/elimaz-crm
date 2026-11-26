@@ -251,7 +251,7 @@ export function InboxPage() {
             </>
           )}
         </div>
-        <div className="pane-conv">
+        <div className="pane-conv" id="hoi-thoai">
           {open ? (
             <Suspense fallback={<p className="pane-b muted">Đang mở hội thoại…</p>}>
               <ConversationPane conversationId={conversationId} backTo={`/inbox${search}`} />

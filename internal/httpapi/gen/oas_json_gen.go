@@ -14335,6 +14335,12 @@ func (s *ChatMessage) encodeFields(e *jx.Encoder) {
 		e.Bool(s.IsHidden)
 	}
 	{
+		if s.HiddenReason.Set {
+			e.FieldStart("hiddenReason")
+			s.HiddenReason.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("removed")
 		e.Bool(s.Removed)
 	}
@@ -14372,7 +14378,7 @@ func (s *ChatMessage) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfChatMessage = [20]string{
+var jsonFieldsNameOfChatMessage = [21]string{
 	0:  "id",
 	1:  "conversationId",
 	2:  "direction",
@@ -14386,13 +14392,14 @@ var jsonFieldsNameOfChatMessage = [20]string{
 	10: "sendStatus",
 	11: "failReason",
 	12: "isHidden",
-	13: "removed",
-	14: "editedCount",
-	15: "privateReply",
-	16: "parentMessageId",
-	17: "sentAt",
-	18: "deliveredAt",
-	19: "readAt",
+	13: "hiddenReason",
+	14: "removed",
+	15: "editedCount",
+	16: "privateReply",
+	17: "parentMessageId",
+	18: "sentAt",
+	19: "deliveredAt",
+	20: "readAt",
 }
 
 // Decode decodes ChatMessage from json.
@@ -14555,8 +14562,18 @@ func (s *ChatMessage) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"isHidden\"")
 			}
+		case "hiddenReason":
+			if err := func() error {
+				s.HiddenReason.Reset()
+				if err := s.HiddenReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hiddenReason\"")
+			}
 		case "removed":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Bool()
 				s.Removed = bool(v)
@@ -14568,7 +14585,7 @@ func (s *ChatMessage) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"removed\"")
 			}
 		case "editedCount":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int32()
 				s.EditedCount = int32(v)
@@ -14600,7 +14617,7 @@ func (s *ChatMessage) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"parentMessageId\"")
 			}
 		case "sentAt":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.SentAt = v
@@ -14642,8 +14659,8 @@ func (s *ChatMessage) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [3]uint8{
 		0b01011111,
-		0b01110000,
-		0b00000010,
+		0b11010000,
+		0b00000100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -14685,6 +14702,52 @@ func (s *ChatMessage) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ChatMessage) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ChatMessageHiddenReason as json.
+func (s ChatMessageHiddenReason) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ChatMessageHiddenReason from json.
+func (s *ChatMessageHiddenReason) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ChatMessageHiddenReason to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ChatMessageHiddenReason(v) {
+	case ChatMessageHiddenReasonAutoPhone:
+		*s = ChatMessageHiddenReasonAutoPhone
+	case ChatMessageHiddenReasonAutoAll:
+		*s = ChatMessageHiddenReasonAutoAll
+	case ChatMessageHiddenReasonAutomation:
+		*s = ChatMessageHiddenReasonAutomation
+	case ChatMessageHiddenReasonStaff:
+		*s = ChatMessageHiddenReasonStaff
+	case ChatMessageHiddenReasonPageExternal:
+		*s = ChatMessageHiddenReasonPageExternal
+	default:
+		*s = ChatMessageHiddenReason(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ChatMessageHiddenReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ChatMessageHiddenReason) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -14904,11 +14967,32 @@ func (s *ChatPostRef) encodeFields(e *jx.Encoder) {
 			s.Snippet.Encode(e)
 		}
 	}
+	{
+		if s.PostedAt.Set {
+			e.FieldStart("postedAt")
+			s.PostedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.Permalink.Set {
+			e.FieldStart("permalink")
+			s.Permalink.Encode(e)
+		}
+	}
+	{
+		if s.ImageFileId.Set {
+			e.FieldStart("imageFileId")
+			s.ImageFileId.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfChatPostRef = [2]string{
+var jsonFieldsNameOfChatPostRef = [5]string{
 	0: "id",
 	1: "snippet",
+	2: "postedAt",
+	3: "permalink",
+	4: "imageFileId",
 }
 
 // Decode decodes ChatPostRef from json.
@@ -14941,6 +15025,36 @@ func (s *ChatPostRef) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"snippet\"")
+			}
+		case "postedAt":
+			if err := func() error {
+				s.PostedAt.Reset()
+				if err := s.PostedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"postedAt\"")
+			}
+		case "permalink":
+			if err := func() error {
+				s.Permalink.Reset()
+				if err := s.Permalink.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"permalink\"")
+			}
+		case "imageFileId":
+			if err := func() error {
+				s.ImageFileId.Reset()
+				if err := s.ImageFileId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"imageFileId\"")
 			}
 		default:
 			return d.Skip()
@@ -20604,12 +20718,18 @@ func (s *ConversationSummary) encodeFields(e *jx.Encoder) {
 		e.Bool(s.HasOpenDraft)
 	}
 	{
+		if s.NewLead.Set {
+			e.FieldStart("newLead")
+			s.NewLead.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("version")
 		e.Int32(s.Version)
 	}
 }
 
-var jsonFieldsNameOfConversationSummary = [13]string{
+var jsonFieldsNameOfConversationSummary = [14]string{
 	0:  "id",
 	1:  "pageId",
 	2:  "kind",
@@ -20622,7 +20742,8 @@ var jsonFieldsNameOfConversationSummary = [13]string{
 	9:  "lastSnippet",
 	10: "post",
 	11: "hasOpenDraft",
-	12: "version",
+	12: "newLead",
+	13: "version",
 }
 
 // Decode decodes ConversationSummary from json.
@@ -20772,8 +20893,18 @@ func (s *ConversationSummary) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"hasOpenDraft\"")
 			}
+		case "newLead":
+			if err := func() error {
+				s.NewLead.Reset()
+				if err := s.NewLead.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"newLead\"")
+			}
 		case "version":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int32()
 				s.Version = int32(v)
@@ -20795,7 +20926,7 @@ func (s *ConversationSummary) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11011111,
-		0b00011001,
+		0b00101001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -34714,17 +34845,24 @@ func (s *FollowUpItem) encodeFields(e *jx.Encoder) {
 		json.EncodeDateTime(e, s.LastStaffMessageAt)
 	}
 	{
+		if s.LastStaffSnippet.Set {
+			e.FieldStart("lastStaffSnippet")
+			s.LastStaffSnippet.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("windowEndsAt")
 		json.EncodeDateTime(e, s.WindowEndsAt)
 	}
 }
 
-var jsonFieldsNameOfFollowUpItem = [5]string{
+var jsonFieldsNameOfFollowUpItem = [6]string{
 	0: "conversationId",
 	1: "pageId",
 	2: "customer",
 	3: "lastStaffMessageAt",
-	4: "windowEndsAt",
+	4: "lastStaffSnippet",
+	5: "windowEndsAt",
 }
 
 // Decode decodes FollowUpItem from json.
@@ -34782,8 +34920,18 @@ func (s *FollowUpItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"lastStaffMessageAt\"")
 			}
+		case "lastStaffSnippet":
+			if err := func() error {
+				s.LastStaffSnippet.Reset()
+				if err := s.LastStaffSnippet.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"lastStaffSnippet\"")
+			}
 		case "windowEndsAt":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.WindowEndsAt = v
@@ -34804,7 +34952,7 @@ func (s *FollowUpItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00101111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -45336,6 +45484,39 @@ func (s *OptChannelFeatures) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes ChatMessageHiddenReason as json.
+func (o OptChatMessageHiddenReason) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes ChatMessageHiddenReason from json.
+func (o *OptChatMessageHiddenReason) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptChatMessageHiddenReason to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptChatMessageHiddenReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptChatMessageHiddenReason) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ChatPostRef as json.
 func (o OptChatPostRef) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -55197,6 +55378,352 @@ func (s *PackingResultResult) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *PagePost) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *PagePost) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		json.EncodeUUID(e, s.ID)
+	}
+	{
+		e.FieldStart("externalId")
+		e.Str(s.ExternalId)
+	}
+	{
+		e.FieldStart("kind")
+		s.Kind.Encode(e)
+	}
+	{
+		if s.Snippet.Set {
+			e.FieldStart("snippet")
+			s.Snippet.Encode(e)
+		}
+	}
+	{
+		if s.PostedAt.Set {
+			e.FieldStart("postedAt")
+			s.PostedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.Permalink.Set {
+			e.FieldStart("permalink")
+			s.Permalink.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfPagePost = [6]string{
+	0: "id",
+	1: "externalId",
+	2: "kind",
+	3: "snippet",
+	4: "postedAt",
+	5: "permalink",
+}
+
+// Decode decodes PagePost from json.
+func (s *PagePost) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PagePost to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := json.DecodeUUID(d)
+				s.ID = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "externalId":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.ExternalId = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"externalId\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "snippet":
+			if err := func() error {
+				s.Snippet.Reset()
+				if err := s.Snippet.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"snippet\"")
+			}
+		case "postedAt":
+			if err := func() error {
+				s.PostedAt.Reset()
+				if err := s.PostedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"postedAt\"")
+			}
+		case "permalink":
+			if err := func() error {
+				s.Permalink.Reset()
+				if err := s.Permalink.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"permalink\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode PagePost")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfPagePost) {
+					name = jsonFieldsNameOfPagePost[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *PagePost) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PagePost) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes PagePostKind as json.
+func (s PagePostKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes PagePostKind from json.
+func (s *PagePostKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PagePostKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch PagePostKind(v) {
+	case PagePostKindPost:
+		*s = PagePostKindPost
+	case PagePostKindLive:
+		*s = PagePostKindLive
+	case PagePostKindAd:
+		*s = PagePostKindAd
+	case PagePostKindUnknown:
+		*s = PagePostKindUnknown
+	default:
+		*s = PagePostKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s PagePostKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PagePostKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *PagePostPage) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *PagePostPage) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("items")
+		e.ArrStart()
+		for _, elem := range s.Items {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		if s.NextCursor.Set {
+			e.FieldStart("nextCursor")
+			s.NextCursor.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfPagePostPage = [2]string{
+	0: "items",
+	1: "nextCursor",
+}
+
+// Decode decodes PagePostPage from json.
+func (s *PagePostPage) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PagePostPage to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "items":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Items = make([]PagePost, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem PagePost
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Items = append(s.Items, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"items\"")
+			}
+		case "nextCursor":
+			if err := func() error {
+				s.NextCursor.Reset()
+				if err := s.NextCursor.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"nextCursor\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode PagePostPage")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfPagePostPage) {
+					name = jsonFieldsNameOfPagePostPage[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *PagePostPage) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PagePostPage) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *PageSettings) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -55989,6 +56516,16 @@ func (s *PendingDraft) encodeFields(e *jx.Encoder) {
 		json.EncodeUUID(e, s.OrderId)
 	}
 	{
+		e.FieldStart("conversationId")
+		json.EncodeUUID(e, s.ConversationId)
+	}
+	{
+		if s.InboxConversationId.Set {
+			e.FieldStart("inboxConversationId")
+			s.InboxConversationId.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("orderCode")
 		e.Str(s.OrderCode)
 	}
@@ -56036,18 +56573,20 @@ func (s *PendingDraft) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfPendingDraft = [11]string{
+var jsonFieldsNameOfPendingDraft = [13]string{
 	0:  "orderId",
-	1:  "orderCode",
-	2:  "customer",
-	3:  "items",
-	4:  "grandTotal",
-	5:  "expiresAt",
-	6:  "claimedBy",
-	7:  "claimedAt",
-	8:  "ask",
-	9:  "customerRepliedAfterAsk",
-	10: "canRemind",
+	1:  "conversationId",
+	2:  "inboxConversationId",
+	3:  "orderCode",
+	4:  "customer",
+	5:  "items",
+	6:  "grandTotal",
+	7:  "expiresAt",
+	8:  "claimedBy",
+	9:  "claimedAt",
+	10: "ask",
+	11: "customerRepliedAfterAsk",
+	12: "canRemind",
 }
 
 // Decode decodes PendingDraft from json.
@@ -56071,8 +56610,30 @@ func (s *PendingDraft) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"orderId\"")
 			}
-		case "orderCode":
+		case "conversationId":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := json.DecodeUUID(d)
+				s.ConversationId = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"conversationId\"")
+			}
+		case "inboxConversationId":
+			if err := func() error {
+				s.InboxConversationId.Reset()
+				if err := s.InboxConversationId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"inboxConversationId\"")
+			}
+		case "orderCode":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.OrderCode = string(v)
@@ -56084,7 +56645,7 @@ func (s *PendingDraft) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"orderCode\"")
 			}
 		case "customer":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Customer.Decode(d); err != nil {
 					return err
@@ -56094,7 +56655,7 @@ func (s *PendingDraft) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"customer\"")
 			}
 		case "items":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Items = make([]LiveDraftItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -56112,7 +56673,7 @@ func (s *PendingDraft) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"items\"")
 			}
 		case "grandTotal":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.GrandTotal.Decode(d); err != nil {
 					return err
@@ -56132,7 +56693,7 @@ func (s *PendingDraft) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"expiresAt\"")
 			}
 		case "claimedBy":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.ClaimedBy.Decode(d); err != nil {
 					return err
@@ -56142,7 +56703,7 @@ func (s *PendingDraft) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"claimedBy\"")
 			}
 		case "claimedAt":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.ClaimedAt = v
@@ -56154,7 +56715,7 @@ func (s *PendingDraft) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"claimedAt\"")
 			}
 		case "ask":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.Ask.Decode(d); err != nil {
 					return err
@@ -56164,7 +56725,7 @@ func (s *PendingDraft) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ask\"")
 			}
 		case "customerRepliedAfterAsk":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.CustomerRepliedAfterAsk = bool(v)
@@ -56176,7 +56737,7 @@ func (s *PendingDraft) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"customerRepliedAfterAsk\"")
 			}
 		case "canRemind":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.CanRemind.Decode(d); err != nil {
 					return err
@@ -56195,8 +56756,8 @@ func (s *PendingDraft) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11011111,
-		0b00000111,
+		0b01111011,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

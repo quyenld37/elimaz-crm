@@ -45,7 +45,7 @@ func (c *Channel) FetchProfile(ctx context.Context, _ channel.ChannelAccount, cr
 	return channel.Profile{Name: strings.TrimSpace(out.FirstName + " " + out.LastName), AvatarURL: out.ProfilePic}, nil
 }
 
-// FetchPost đọc bài viết postID (đường dẫn, nội dung trích tối đa 200 ký tự, giờ đăng, loại).
+// FetchPost đọc bài viết postID (đường dẫn, nội dung trích tối đa 200 ký tự, giờ đăng, loại, ảnh full_picture).
 func (c *Channel) FetchPost(ctx context.Context, _ channel.ChannelAccount, cred channel.Credentials, postID string) (channel.PostInfo, error) {
 	var out struct {
 		ID          string   `json:"id"`
@@ -53,8 +53,9 @@ func (c *Channel) FetchPost(ctx context.Context, _ channel.ChannelAccount, cred 
 		Message     string   `json:"message"`
 		CreatedTime flexTime `json:"created_time"`
 		StatusType  string   `json:"status_type"`
+		Picture     string   `json:"full_picture"`
 	}
-	q := url.Values{"fields": {"permalink_url,message,created_time,status_type"}}
+	q := url.Values{"fields": {"permalink_url,message,created_time,status_type,full_picture"}}
 	if _, err := c.client.Do(ctx, http.MethodGet, postID, cred.AccessToken, q, nil, &out); err != nil {
 		return channel.PostInfo{}, err
 	}
@@ -64,7 +65,7 @@ func (c *Channel) FetchPost(ctx context.Context, _ channel.ChannelAccount, cred 
 	}
 	return channel.PostInfo{
 		ID: id, Kind: out.StatusType, Permalink: out.Permalink, Snippet: truncate(out.Message, snippetRunes),
-		CreatedTime: out.CreatedTime.t,
+		CreatedTime: out.CreatedTime.t, PictureURL: out.Picture,
 	}, nil
 }
 

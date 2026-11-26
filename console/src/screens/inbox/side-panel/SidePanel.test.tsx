@@ -37,6 +37,23 @@ function tomorrowAt(h: number): string {
 }
 
 describe("khung bên phải đủ phần (trạng thái A)", () => {
+  it("Task 501: CH08 newLead → chip 'Khách tiềm năng mới' ở thẻ khách; HV02 nút '‹ Hội thoại' (chỉ điện thoại) về #hoi-thoai", async () => {
+    stubSide(sideFake({ detail: detail({ newLead: true }) }));
+    renderSide(<SidePanel conversationId={CONV} />);
+    const khach = within(await screen.findByRole("region", { name: "Khách" }));
+    expect((await khach.findByText("Khách tiềm năng mới")).classList.contains("chip")).toBe(true);
+    const back = screen.getByRole("link", { name: "‹ Hội thoại" });
+    expect(back.getAttribute("href")).toBe("#hoi-thoai");
+    expect(back.classList.contains("only-phone")).toBe(true);
+  });
+
+  it("Task 501: không newLead → không có chip", async () => {
+    stubSide(sideFake());
+    renderSide(<SidePanel conversationId={CONV} />);
+    expect(await screen.findByText("Trần Thị Thu Hà", { selector: "b" })).toBeTruthy();
+    expect(screen.queryByText("Khách tiềm năng mới")).toBeNull();
+  });
+
   it("thẻ khách, đơn gần đây, nhãn, người phụ trách, nhắc việc, gọi điện", async () => {
     stubSide(
       sideFake({ detail: detail({ tags: [{ id: TAG_SIZE, name: "Hỏi size", color: "soft", sort: 1, version: 1 }] }) }),

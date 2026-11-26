@@ -2,9 +2,15 @@ package inbound_test
 
 import (
 	"bytes"
+	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -23,6 +29,8 @@ import (
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/events"
 	"elimaz.com.vn/crm/internal/platform/fieldcrypt"
+	"elimaz.com.vn/crm/internal/platform/files"
+	"elimaz.com.vn/crm/internal/platform/files/filestest"
 	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
@@ -79,8 +87,46 @@ type env struct {
 	// runner chạy lệnh của inbound (fetch_post) khi env dựng với máy Meta giả (newEnvWith); nil: lệnh giữ pending.
 	runner *commands.Runner
 	// deps là phụ thuộc handler vào dùng (lấy lại Parts trong test).
-	deps   deps.Deps
+	deps deps.Deps
+	// files là kho tệp trong bộ nhớ khi env dựng với withCDN (nil: không có kho tệp).
+	files  files.FileStore
 	worker *queue.Worker
+}
+
+// envOptions là tùy chọn của newEnvWith.
+type envOptions struct {
+	cdn   map[string][]byte
+	store files.FileStore
+}
+
+type envOption func(*envOptions)
+
+// withCDN: adapter facebook tải tệp từ bảng cdn (URL → nội dung; URL lạ → lỗi) thay vì mạng (DNS của máy Meta giả
+// không phân giải tên CDN), kho tệp trong bộ nhớ.
+func withCDN(t *testing.T, cdn map[string][]byte) envOption {
+	t.Helper()
+	store := filestest.MemFileStore(t)
+	return func(o *envOptions) { o.cdn, o.store = cdn, store }
+}
+
+// cdnChannel là adapter facebook với Download đọc từ bảng files (loại nhận dạng theo nội dung như adapter thật).
+type cdnChannel struct {
+	*facebook.Channel
+	files map[string][]byte
+}
+
+func (c cdnChannel) Download(_ context.Context, rawURL string, maxBytes int64) (io.ReadCloser, channel.DownloadInfo, error) {
+	b, ok := c.files[rawURL]
+	if !ok {
+		return nil, channel.DownloadInfo{}, errors.New("cdn giả: không có tệp")
+	}
+	if int64(len(b)) > maxBytes {
+		return nil, channel.DownloadInfo{}, errors.New("cdn giả: quá lớn")
+	}
+	sum := sha256.Sum256(b)
+	return io.NopCloser(bytes.NewReader(b)), channel.DownloadInfo{
+		ContentType: http.DetectContentType(b), Size: int64(len(b)), SHA256: hex.EncodeToString(sum[:]),
+	}, nil
 }
 
 func newEnv(t *testing.T) *env {
@@ -94,7 +140,7 @@ const fgToken = "EAAG-page-1-token"
 // newEnvWith là newEnv; fg khác nil: adapter facebook gọi máy Meta giả fg (Page 1 có trên fg với token fgToken, token
 // lưu mã hóa ở tài khoản Page 1), d.Registry có hai adapter (handler vào xếp lệnh đọc bài), worker chạy lệnh của
 // inbound.
-func newEnvWith(t *testing.T, fg *fakegraph.Server) *env {
+func newEnvWith(t *testing.T, fg *fakegraph.Server, opts ...envOption) *env {
 	t.Helper()
 	staff := testkit.OpenStaff(t)
 	e := &env{t: t, staff: staff, tenant: staff.Tenant(t, "A"), bus: &realtimetest.RecordingBus{}, reg: metrics.NewRegistry(), logs: &syncBuffer{}}
@@ -112,8 +158,16 @@ func newEnvWith(t *testing.T, fg *fakegraph.Server) *env {
 	}
 	fb, fk := facebook.New(fbOpts), fake.New(secret32)
 	sources := []webhooks.Source{fb, fk}
+	var o envOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+	var fbAdapter channel.MessagingAdapter = fb
+	if o.cdn != nil {
+		fbAdapter, d.Files, e.files = cdnChannel{Channel: fb, files: o.cdn}, o.store, o.store
+	}
 	if fg != nil {
-		reg, err := channel.NewRegistry(fb, fk)
+		reg, err := channel.NewRegistry(fbAdapter, fk)
 		// Khóa mã hóa token thử: 32 byte của secret32.
 		kr, kerr := fieldcrypt.ParseKeyring(logging.Secret("k1:" + base64.StdEncoding.EncodeToString([]byte(secret32))))
 		if err != nil || kerr != nil {

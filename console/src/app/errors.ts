@@ -188,6 +188,8 @@ export const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   page_not_accessible: "Tài khoản chưa có quyền nhắn tin và kiểm duyệt trên Page này",
   private_reply_used: "Comment này đã được nhắn riêng một lần, không nhắn riêng thêm được",
   seller_mismatch: "Sản phẩm không thuộc người bán của Page này",
+  conversation_customer_mismatch:
+    "Khách của đơn không phải khách của hội thoại này. Lên đơn cho khách của hội thoại, hoặc gộp hồ sơ trước",
   send_not_allowed: "Không gửi được lúc này: đã quá thời hạn trả lời của Facebook hoặc khách đã chặn Page",
   template_variable_missing: "Mẫu trả lời thiếu thông tin để điền. Kiểm tra khách, đơn rồi thử lại",
 };

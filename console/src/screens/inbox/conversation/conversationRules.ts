@@ -199,3 +199,17 @@ export function mergeMessages(pages: readonly (readonly ChatMessage[])[]): ChatM
     return t !== 0 ? t : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
 }
+
+/** Lý do ẩn comment (ChatMessage.hiddenReason, Task 501) → đoạn đầu câu dưới chip "Đã ẩn trên Page". */
+const HIDDEN_REASON_TEXT: Readonly<Record<NonNullable<ChatMessage["hiddenReason"]>, string>> = {
+  auto_phone: "tự ẩn vì có SĐT",
+  auto_all: "tự ẩn (ẩn mọi comment)",
+  automation: "tự ẩn theo cài đặt",
+  staff: "nhân viên ẩn trong CRM",
+  page_external: "ẩn trên Facebook ngoài CRM",
+};
+
+/** "tự ẩn vì có SĐT; " theo lý do ẩn; không có lý do → "". */
+export function hiddenNote(reason: ChatMessage["hiddenReason"]): string {
+  return reason === undefined ? "" : `${HIDDEN_REASON_TEXT[reason]}; `;
+}

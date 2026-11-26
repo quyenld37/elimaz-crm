@@ -3,7 +3,6 @@
 import type {
   ChannelAccount,
   ClaimLiveCommentResult,
-  ConversationSummary,
   Grant,
   LiveComment,
   LiveCommentContext,
@@ -146,6 +145,7 @@ export function pending(i: number, p: Partial<PendingDraft> = {}): PendingDraft 
   return {
     orderId: `0195f3b2-0000-7000-8003-${hex(0x100000 + i)}`,
     orderCode: `DH000${String(1240 + i)}`,
+    conversationId: `0195f3b2-0000-7000-8004-${hex(0x100000 + i)}`,
     customer: { id: custId(i), name: `Khách ${String(i)}` },
     items: [{ variantId: "0195f3b2-0000-7000-8000-00000000b001", name: "Đầm lụa be L", quantity: 1 }],
     grandTotal: 1_290_000,
@@ -174,7 +174,6 @@ export interface LiveFake extends WriteQueue {
   confirmedCount: number;
   settings: Partial<PageSettings>;
   templates: ReplyTemplate[];
-  conversations: ConversationSummary[];
   /** Kết quả nhắc theo mã đơn (thiếu → queued). */
   remindOutcomes: Record<string, RemindOutcome>;
   /** Số có thể bán của HITS[0..2] ở kho chính. */
@@ -243,7 +242,6 @@ export function installLiveFake(p: Partial<LiveFake> = {}): LiveFake {
     confirmedCount: 0,
     settings: { askAddressTemplateId: TPL },
     templates: [template()],
-    conversations: [],
     remindOutcomes: {},
     available: [5, 0, 1],
     ...p,
@@ -288,7 +286,6 @@ export function installLiveFake(p: Partial<LiveFake> = {}): LiveFake {
       }
       if (/^\/api\/v1\/live-comments\/[^/]+\/context$/.test(path)) return reply(f.ctx);
       if (/^\/api\/v1\/conversations\/[^/]+\/presence$/.test(path)) return reply({ items: f.presence });
-      if (/^\/api\/v1\/customers\/[^/]+\/conversations$/.test(path)) return reply({ items: f.conversations });
       return reply(NOT_FOUND, 404);
     },
     (f, path, body) => {

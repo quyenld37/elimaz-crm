@@ -2,7 +2,7 @@
 // docs/mockups/m4/khung-ben-phai.html trạng thái A–C; HV24–HV31). Thứ tự theo mockup: thẻ khách (chỉ số M2, gợi ý gộp,
 // đơn gần đây, không liên hệ), đơn nháp đang mở và lên đơn, nhãn, người phụ trách, nhắc việc, gọi điện. Quyền hộp chat
 // xét theo Page của hội thoại (canOnPage); quyền khách, đơn xét toàn shop như máy chủ. Lúc đang tải, lỗi: không vẽ như
-// khách rỗng.
+// khách rỗng. Điện thoại (HV02): khung nằm dưới hội thoại, nút "‹ Hội thoại" về đầu hội thoại (#hoi-thoai, Task 501).
 import { useQuery } from "@tanstack/react-query";
 import { getCustomer } from "../../../api";
 import { errorMessage, unwrap } from "../../../app/errors";
@@ -60,9 +60,13 @@ export default function SidePanel({ conversationId }: SidePanelProps) {
   const p = profile.data;
   return (
     <div className="side">
+      <a className="btn btn-quiet only-phone" href="#hoi-thoai" style={{ margin: "8px 0" }}>
+        ‹ Hội thoại
+      </a>
       <section aria-label="Khách">
         <CustomerCard
           card={c}
+          newLead={d.conversation.newLead === true}
           profile={p}
           canWriteCustomer={hasPermission(grants, "customer.write")}
           conversationId={conversationId}

@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -70,6 +71,7 @@ func TestFollowUpsAPI_List(t *testing.T) {
 	staffAt, _ := time.Parse(time.RFC3339Nano, it["lastStaffMessageAt"].(string)) //nolint:forcetypeassert // test
 	ends, _ := time.Parse(time.RFC3339Nano, it["windowEndsAt"].(string))          //nolint:forcetypeassert // test
 	if it["conversationId"] != a.String() || it["pageId"] != e.pageA.String() || cust["name"] != "Chị An" ||
+		it["lastStaffSnippet"] != "Dạ còn ạ" ||
 		time.Since(staffAt) < 4*time.Hour-time.Minute || time.Until(ends) < 19*time.Hour-time.Minute ||
 		time.Until(ends) > 19*time.Hour+time.Minute {
 		t.Fatalf("mục = %v", it)
@@ -93,6 +95,33 @@ func TestFollowUpsAPI_List(t *testing.T) {
 		if rec := serveAs(e.srv, e.keys, http.MethodGet, "/api/v1/follow-ups"+q, chManager, "", ""); rec.Code != http.StatusBadRequest {
 			t.Errorf("%s: %d %s", q, rec.Code, rec.Body.String())
 		}
+	}
+}
+
+// [Task 501] lastStaffSnippet là đoạn đầu 120 ký tự (cắt theo ký tự, không giữa chữ có dấu) của tin người thật cuối
+// của Page; tin cuối là ảnh (không chữ) → không có trường.
+func TestFollowUpsAPI_LastStaffSnippet(t *testing.T) {
+	t.Parallel()
+	e := newChAPIEnv(t)
+	a := fuConversation(t, e, e.pageA, "psid-a", "Chị An")
+	b := fuConversation(t, e, e.pageA, "psid-b", "Chị Bình")
+	long := strings.Repeat("ạ", 130)
+	at := time.Now().UTC().Add(-3 * time.Hour)
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(), `INSERT INTO conversation.messages (tenant_id, conversation_id, channel_account_id,
+			direction, kind, origin, body, send_status, sent_at) VALUES ($1, $2, $3, 'out', 'message', 'staff', $4, 'sent', $5),
+			($1, $6, $3, 'out', 'message', 'staff', NULL, 'sent', $5)`, e.tenant, a, e.pageA, long, at, b)
+		return err //nolint:wrapcheck // test
+	})
+	rec := serveAs(e.srv, e.keys, http.MethodGet, "/api/v1/follow-ups", chManager, "", "")
+	items, _ := decodeJSON(t, rec)["items"].([]any)
+	got := map[string]any{}
+	for _, it := range items {
+		m := it.(map[string]any)                                  //nolint:forcetypeassert // test
+		got[m["conversationId"].(string)] = m["lastStaffSnippet"] //nolint:forcetypeassert // test
+	}
+	if len(got) != 2 || got[a.String()] != strings.Repeat("ạ", 120) || got[b.String()] != nil {
+		t.Fatalf("lastStaffSnippet = %v (%s)", got, rec.Body.String())
 	}
 }
 

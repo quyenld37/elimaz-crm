@@ -86,6 +86,24 @@ it("dòng tin nhắn: Page · Tin nhắn, nhãn tối đa 3 rồi +n, 99+, Của
   expect(quan.queryByLabelText(/chưa đọc/)).toBeNull();
 });
 
+it("CH08 (Task 501): newLead → chip 'Khách tiềm năng mới' trước nhãn, ở dòng tin nhắn và dòng comment; không newLead → không", () => {
+  renderList([
+    conv(1, { customer: { id: "c1", name: "Lê Hà My" }, newLead: true }),
+    conv(2, {
+      customer: { id: "c2", name: "Hoàng Văn Nam" },
+      kind: "comment",
+      newLead: true,
+      post: { id: "post1", snippet: "Áo khoác dạ dáng dài" },
+    }),
+    conv(3, { customer: { id: "c3", name: "Đỗ Minh Quân" } }),
+  ]);
+  expect(rowOf("Lê Hà My").getByText("Khách tiềm năng mới").classList.contains("chip")).toBe(true);
+  const nam = rowOf("Hoàng Văn Nam");
+  expect(nam.getByText("Khách tiềm năng mới")).toBeTruthy();
+  expect(nam.getByText("· Chưa ai nhận")).toBeTruthy();
+  expect(rowOf("Đỗ Minh Quân").queryByText("Khách tiềm năng mới")).toBeNull();
+});
+
 it("tên khách 60 ký tự liền: giữ nguyên chữ, ô tên cắt một dòng (ellip), dòng là lưới có cột co được", () => {
   expect(NAME_60.length).toBe(60);
   renderList([conv(1, { customer: { id: "c1", name: NAME_60 }, unreadCount: 3 })]);

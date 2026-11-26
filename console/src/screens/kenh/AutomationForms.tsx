@@ -33,6 +33,7 @@ import {
   quickReplyError,
   replyLineError,
 } from "./kenhRules";
+import { PostPicker } from "./PostPicker";
 import { Block, Cnt, NumField, OnOff, Seg, useBlock, type BlockState } from "./settingsKit";
 
 /** uuid rỗng: "chưa chọn mẫu" của nhắn lại chưa cấu hình (Task 165 quyết định 5). */
@@ -124,16 +125,22 @@ const HIDE_MODES: readonly { value: HideMode; label: string }[] = [
 ];
 
 export function AutoHideForm(p: RuleFormProps) {
-  const b = useBlock(p.rule, (r) => ({ mode: r.enabled ? hideOf(r).mode : ("off" satisfies HideMode) }));
+  const b = useBlock(p.rule, (r) => ({
+    mode: r.enabled ? hideOf(r).mode : ("off" satisfies HideMode),
+    except: [...hideOf(r).exceptPostIds],
+  }));
   const s = useRuleSave(p, b);
-  const except = hideOf(b.base).exceptPostIds;
   return (
     <Block
       title="Tự ẩn comment"
       aside={<span className="xs muted">Tính năng: Ẩn comment</span>}
       {...s.blockProps}
       onSave={() => {
-        void s.save(b.base, b.inputs.mode !== "off", { ...hideOf(b.base), mode: b.inputs.mode });
+        void s.save(b.base, b.inputs.mode !== "off", {
+          ...hideOf(b.base),
+          mode: b.inputs.mode,
+          exceptPostIds: b.inputs.except,
+        });
       }}
     >
       <Seg
@@ -142,14 +149,22 @@ export function AutoHideForm(p: RuleFormProps) {
         options={HIDE_MODES}
         disabled={!p.canEdit}
         onChange={(mode) => {
-          b.setInputs(() => ({ mode }));
+          b.setInputs((x) => ({ ...x, mode }));
         }}
       />
       <p className="hint">
         Comment bị ẩn trên Page (khách khác không thấy SĐT) nhưng vẫn hiện đủ trong Hộp chat. Không bao giờ ẩn comment
         của chính Page.
       </p>
-      {except.length > 0 && <p className="small muted">Trừ {String(except.length)} bài đã chọn.</p>}
+      <PostPicker
+        pageId={p.pageId}
+        label="Trừ các bài"
+        value={b.inputs.except}
+        disabled={!p.canEdit}
+        onChange={(except) => {
+          b.setInputs((x) => ({ ...x, except }));
+        }}
+      />
     </Block>
   );
 }
@@ -182,8 +197,11 @@ interface ReplyInputs {
   pmText: string;
   hours: string;
   includeLive: boolean;
+  /** "Chỉ bài chọn" (postIds khác rỗng) hay "Mọi bài" (Task 501). */
+  onlyChosen: boolean;
+  postIds: string[];
 }
-type ReplyErrors = Partial<Record<"replies" | "pm" | "hours", string>> & { lines?: (string | null)[] };
+type ReplyErrors = Partial<Record<"replies" | "pm" | "hours" | "posts", string>> & { lines?: (string | null)[] };
 
 export function AutoReplyForm(p: RuleFormProps) {
   const b = useBlock(p.rule, (r): ReplyInputs => {
@@ -195,6 +213,8 @@ export function AutoReplyForm(p: RuleFormProps) {
       pmText: c.privateMessage?.text ?? "",
       hours: String(c.perUserPerPostHours),
       includeLive: c.includeLive,
+      onlyChosen: c.postIds.length > 0,
+      postIds: [...c.postIds],
     };
   });
   const s = useRuleSave(p, b);
@@ -212,6 +232,7 @@ export function AutoReplyForm(p: RuleFormProps) {
     if (v.replies.length === 0) e.replies = "Cần ít nhất một câu trả lời.";
     const hours = intInRange(v.hours, 1, 72);
     if (hours === null) e.hours = "Nhập số giờ từ 1 đến 72.";
+    if (v.onlyChosen && v.postIds.length === 0) e.posts = "Chọn ít nhất một bài, hoặc chọn Mọi bài.";
     let privateMessage: AutoReplyCommentConfig["privateMessage"];
     if (v.pm === "text") {
       const n = charCount(v.pmText.trim());
@@ -228,6 +249,7 @@ export function AutoReplyForm(p: RuleFormProps) {
       replies: v.replies.map((x) => x.trim()),
       perUserPerPostHours: hours,
       includeLive: v.includeLive,
+      postIds: v.onlyChosen ? v.postIds : [],
     };
     if (privateMessage === undefined) delete config.privateMessage;
     else config.privateMessage = privateMessage;
@@ -337,10 +359,40 @@ export function AutoReplyForm(p: RuleFormProps) {
           {errs.pm !== undefined && <span className="field-err">{errs.pm}</span>}
         </label>
       )}
-      <p className="small muted">
-        {c.postIds.length > 0 ? `Áp cho ${String(c.postIds.length)} bài đã chọn` : "Áp cho mọi bài"}
-        {c.exceptPostIds.length > 0 ? `, trừ ${String(c.exceptPostIds.length)} bài` : ""}.
-      </p>
+      <div className="radios" role="radiogroup" aria-label="Áp cho bài">
+        {[
+          { on: false, label: "Mọi bài" },
+          { on: true, label: "Chỉ bài chọn" },
+        ].map((o) => (
+          <label key={o.label} className="check">
+            <input
+              type="radio"
+              name={`ap-${p.pageId}`}
+              checked={v.onlyChosen === o.on}
+              disabled={!p.canEdit}
+              onChange={() => {
+                set((x) => ({ ...x, onlyChosen: o.on }));
+              }}
+            />{" "}
+            {o.label}
+          </label>
+        ))}
+      </div>
+      {v.onlyChosen && (
+        <PostPicker
+          pageId={p.pageId}
+          label="Các bài áp dụng"
+          value={v.postIds}
+          disabled={!p.canEdit}
+          error={errs.posts}
+          onChange={(postIds) => {
+            set((x) => ({ ...x, postIds }));
+          }}
+        />
+      )}
+      {c.exceptPostIds.length > 0 && (
+        <p className="small muted">{`Trừ ${String(c.exceptPostIds.length)} bài (giữ nguyên khi lưu).`}</p>
+      )}
       <label className="field">
         <span>Mỗi người mỗi bài chỉ một lần trong (giờ, 1–72)</span>
         <input

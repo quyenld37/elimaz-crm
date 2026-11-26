@@ -36,13 +36,17 @@ ORDER BY a.created_at, a.id;
 
 -- name: GetConversationRow :one
 -- Một hội thoại kèm tên khách (customers_v), tên người phụ trách (users_v), đoạn bài viết, có đơn nháp đang mở
--- (ord.orders_v) — dữ liệu của chi tiết hội thoại.
+-- (ord.orders_v), thẻ bài, khách tiềm năng mới (như ConversationRowExtras, Task 501) — dữ liệu của chi tiết hội thoại.
 SELECT c.id, c.channel_account_id, c.customer_id, c.kind, c.status, c.assignee_id, c.post_id, c.last_message_at,
        c.last_customer_message_at, c.unread_count, c.last_snippet, c.blocked_by_user, c.version,
        coalesce(cu.full_name, '')::text AS customer_name,
        coalesce(u.display_name, '')::text AS assignee_name,
-       p.snippet AS post_snippet,
-       EXISTS (SELECT 1 FROM ord.orders_v AS o WHERE o.conversation_id = c.id AND o.status = 'draft') AS has_open_draft
+       p.snippet AS post_snippet, p.created_time AS post_created_time, p.permalink AS post_permalink, p.image_file_id AS post_image_file_id,
+       EXISTS (SELECT 1 FROM ord.orders_v AS o WHERE o.conversation_id = c.id AND o.status = 'draft') AS has_open_draft,
+       (c.created_customer
+        AND NOT EXISTS (SELECT 1 FROM customer.customers_v AS g
+                        WHERE g.root_id = cu.root_id AND g.id <> c.customer_id)
+        AND NOT EXISTS (SELECT 1 FROM ord.orders_v AS ao WHERE ao.customer_id = c.customer_id))::boolean AS new_lead
 FROM conversation.conversations AS c
 LEFT JOIN customer.customers_v AS cu ON cu.id = c.customer_id
 LEFT JOIN identity.users_v AS u ON u.id = c.assignee_id

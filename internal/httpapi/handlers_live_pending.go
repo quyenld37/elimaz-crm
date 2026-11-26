@@ -35,7 +35,7 @@ func (h *handler) ListPendingDrafts(ctx context.Context, params gen.ListPendingD
 	}
 	for _, r := range l.Items {
 		d := gen.PendingDraft{
-			OrderId: r.OrderID, OrderCode: r.OrderCode, Customer: gen.ChatCustomerRef{ID: r.CustomerID, Name: r.CustomerName},
+			OrderId: r.OrderID, ConversationId: r.ConversationID, OrderCode: r.OrderCode, Customer: gen.ChatCustomerRef{ID: r.CustomerID, Name: r.CustomerName},
 			Items: make([]gen.LiveDraftItem, 0, len(r.Items)), GrandTotal: gen.Money(r.GrandTotal),
 			ClaimedBy: gen.Actor{ID: r.ClaimedBy, Name: r.ClaimedByName}, ClaimedAt: r.ClaimedAt,
 			Ask:                     gen.AskAddressResult{Status: gen.AskAddressResultStatus(r.Ask.Status)},
@@ -43,6 +43,9 @@ func (h *handler) ListPendingDrafts(ctx context.Context, params gen.ListPendingD
 		}
 		if r.ExpiresAt != nil {
 			d.ExpiresAt = gen.NewOptDateTime(*r.ExpiresAt)
+		}
+		if r.InboxConversationID != nil {
+			d.InboxConversationId = gen.NewOptUUID(*r.InboxConversationID)
 		}
 		if r.Ask.Reason != "" {
 			d.Ask.Reason = gen.NewOptString(r.Ask.Reason)

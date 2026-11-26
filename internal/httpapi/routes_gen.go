@@ -90,6 +90,7 @@ var Routes = []Route{
 	{Method: "POST", Pattern: "POST /api/v1/channels/{id}/live-sessions", OperationID: "startLiveSessionManually", Permission: "live.operate", Write: true, IdempotencyMode: "required", Auth: "access"},
 	{Method: "GET", Pattern: "GET /api/v1/channels/{id}/page-settings", OperationID: "getPageSettings", Permission: "conversation.read", Auth: "access"},
 	{Method: "PUT", Pattern: "PUT /api/v1/channels/{id}/page-settings", OperationID: "updatePageSettings", Permission: "conversation.settings", Write: true, IdempotencyMode: "required", Auth: "access"},
+	{Method: "GET", Pattern: "GET /api/v1/channels/{id}/posts", OperationID: "listPagePosts", Permission: "conversation.read", Auth: "access"},
 	{Method: "PUT", Pattern: "PUT /api/v1/channels/{id}/send-mode", OperationID: "setChannelSendMode", Permission: "channel.manage", Write: true, IdempotencyMode: "required", Auth: "access"},
 	{Method: "GET", Pattern: "GET /api/v1/cod-statements", OperationID: "listCodStatements", Permission: "cash.cod.read", Auth: "access"},
 	{Method: "POST", Pattern: "POST /api/v1/cod-statements", OperationID: "importCodStatement", Permission: "cash.statements.import", Write: true, IdempotencyMode: "required", Auth: "access"},

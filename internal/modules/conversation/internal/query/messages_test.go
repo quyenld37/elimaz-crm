@@ -324,3 +324,58 @@ func TestMessages_QuickReplies(t *testing.T) {
 		t.Fatalf("nút: %+v", qr)
 	}
 }
+
+// [Task 501] HiddenReason của comment đang ẩn theo dòng lịch sử ẩn cuối (sau lần hiện cuối, bỏ dòng nguồn customer);
+// dòng tự ẩn (automation) được ưu tiên hơn dòng page_external cùng đợt (webhook "hide" do chính lệnh tự ẩn gây ra):
+// automation + phone → auto_phone; automation + all → auto_all; automation không lý do → automation; staff → staff;
+// page_external → page_external; ẩn rồi hiện → không ẩn, không lý do; ẩn sẵn không có lịch sử → rỗng.
+func TestMessages_HiddenReason(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	u := e.user("co-an@elimaz.test", uuid.Nil, "conversation.read")
+	cm := e.conv(conv{page: e.pageA, customer: e.customer("Khách ẩn", ""), kind: "comment"})
+	base := time.Date(2026, 11, 20, 3, 0, 0, 0, time.UTC)
+	type rev struct {
+		hidden         bool
+		source, reason string
+	}
+	cases := []struct {
+		name   string
+		hidden bool
+		revs   []rev
+		want   string
+	}{
+		{"phone", true, []rev{{true, "page_external", ""}, {true, "automation", "phone"}, {true, "customer", ""}}, "auto_phone"},
+		{"all", true, []rev{{true, "automation", "all"}, {true, "page_external", ""}}, "auto_all"},
+		{"cũ", true, []rev{{true, "automation", ""}}, "automation"},
+		{"staff", true, []rev{{true, "automation", "phone"}, {false, "staff", ""}, {true, "staff", ""}}, "staff"},
+		{"page", true, []rev{{true, "page_external", ""}}, "page_external"},
+		{"hiện lại", false, []rev{{true, "automation", "phone"}, {false, "staff", ""}}, ""},
+		{"ẩn sẵn", true, nil, ""},
+	}
+	ids := make([]uuid.UUID, len(cases))
+	for i, c := range cases {
+		ids[i] = e.msg(msg{
+			conv: cm, page: e.pageA, ext: "h-" + c.name, kind: "comment", at: base.Add(time.Duration(i) * time.Second),
+			hidden: c.hidden,
+		})
+		for j, r := range c.revs {
+			var reason *string
+			if r.reason != "" {
+				reason = &r.reason
+			}
+			e.exec(`INSERT INTO conversation.message_revisions (tenant_id, message_id, body, is_hidden, removed, source,
+				reason, recorded_at) VALUES (current_setting('app.tenant_id')::uuid, $1, 'nội dung', $2, false, $3, $4, $5)`,
+				ids[i], r.hidden, r.source, reason, base.Add(time.Duration(10+j)*time.Second))
+		}
+	}
+	p, err := e.messages(u, cm, nil, nil, 0)
+	if err != nil || len(p.Items) != len(cases) {
+		t.Fatalf("tin: %d (lỗi %v)", len(p.Items), err)
+	}
+	for i, c := range cases {
+		if m := p.Items[i]; m.ID != ids[i] || m.IsHidden != c.hidden || m.HiddenReason != c.want {
+			t.Errorf("%s: ẩn=%v lý do=%q, muốn %q", c.name, m.IsHidden, m.HiddenReason, c.want)
+		}
+	}
+}
