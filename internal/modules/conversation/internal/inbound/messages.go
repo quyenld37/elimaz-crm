@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/channel"
+	"elimaz.com.vn/crm/internal/modules/conversation/internal/deps"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/store"
 	"elimaz.com.vn/crm/internal/platform/webhooks"
 )
@@ -23,10 +23,6 @@ const (
 	placeholderName = "Khách Facebook"
 	// referralBody là tin hệ thống khi khách mở hội thoại từ quảng cáo hay liên kết (Q34: không nới cửa sổ 24 giờ).
 	referralBody = "Khách đến từ quảng cáo hoặc liên kết"
-	// snippetRunes là độ dài đoạn trích tin cuối của hội thoại.
-	snippetRunes = 80
-	// attachmentSnippet là đoạn trích của tin chỉ có tệp đính kèm.
-	attachmentSnippet = "[Tệp đính kèm]"
 )
 
 // Giá trị cột của conversation.messages.
@@ -80,7 +76,7 @@ func (h *handler) messageReceived(ctx context.Context, tx pgx.Tx, e webhooks.Inb
 		return fmt.Errorf("ghi tin vào: %w", err)
 	}
 	if _, err := q.BumpConversationInbound(ctx, store.BumpConversationInboundParams{
-		At: at, Snippet: text(snippet(p.Text, len(p.Attachments) > 0)), ID: convID,
+		At: at, Snippet: text(deps.Snippet(p.Text, len(p.Attachments) > 0)), ID: convID,
 	}); err != nil {
 		return fmt.Errorf("cập nhật hội thoại sau tin vào: %w", err)
 	}
@@ -143,19 +139,6 @@ func pendingAttachments(refs []channel.AttachmentRef) ([]byte, error) {
 		return nil, fmt.Errorf("mã hóa danh sách đính kèm: %w", err)
 	}
 	return b, nil
-}
-
-// snippet là đoạn trích tin cuối: snippetRunes ký tự đầu của nội dung (bỏ khoảng trắng hai đầu); không có chữ mà có
-// đính kèm → attachmentSnippet; không gì → NULL.
-func snippet(body string, hasAttachments bool) string {
-	s := strings.TrimSpace(body)
-	if s == "" && hasAttachments {
-		return attachmentSnippet
-	}
-	if r := []rune(s); len(r) > snippetRunes {
-		return string(r[:snippetRunes])
-	}
-	return s
 }
 
 // text là pgtype.Text, chuỗi rỗng → NULL.

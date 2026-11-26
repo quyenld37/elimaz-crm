@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"elimaz.com.vn/crm/internal/modules/channel"
+	"elimaz.com.vn/crm/internal/modules/conversation/internal/deps"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/store"
 	"elimaz.com.vn/crm/internal/platform/webhooks"
 )
@@ -63,7 +64,7 @@ func (h *handler) echo(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, p cha
 		return fmt.Errorf("ghi tin Page gửi: %w", err)
 	}
 	if err := q.BumpConversationOutbound(ctx, store.BumpConversationOutboundParams{
-		At: at, Snippet: text(snippet(p.Text, len(p.Attachments) > 0)), ID: convID,
+		At: at, Snippet: text(deps.Snippet(p.Text, len(p.Attachments) > 0)), ID: convID,
 	}); err != nil {
 		return fmt.Errorf("cập nhật hội thoại sau tin Page gửi: %w", err)
 	}

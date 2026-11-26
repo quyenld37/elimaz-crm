@@ -3,6 +3,7 @@ package facebook
 import (
 	"context"
 	"net/http"
+	"time"
 	"unicode/utf8"
 
 	"elimaz.com.vn/crm/internal/modules/channel"
@@ -19,6 +20,8 @@ const (
 	tagHumanAgent       = "HUMAN_AGENT"
 	quickReplyKindText  = "text"
 	attachmentKindImage = "image"
+	// slowDownWait là thời gian giãn tối thiểu sau một lần gửi khi mức dùng của Meta từ 80% (tệp task-156, Quyết định 5).
+	slowDownWait = time.Second
 )
 
 // Thân POST {page-id}/messages của Send API.
@@ -72,25 +75,25 @@ func (c *Channel) Send(ctx context.Context, acc channel.ChannelAccount, cred cha
 		var out struct {
 			ID string `json:"id"`
 		}
-		_, err := c.client.Do(ctx, http.MethodPost, cmd.CommentID+"/comments", cred.AccessToken, nil, map[string]string{"message": cmd.Text}, &out)
-		return sentOrError(err, out.ID, "")
+		meta, err := c.client.Do(ctx, http.MethodPost, cmd.CommentID+"/comments", cred.AccessToken, nil, map[string]string{"message": cmd.Text}, &out)
+		return sentOrError(meta, err, out.ID, "")
 	case channel.PurposeHide:
 		var out struct {
 			Success bool `json:"success"`
 		}
-		_, err := c.client.Do(ctx, http.MethodPost, cmd.CommentID, cred.AccessToken, nil, map[string]bool{"is_hidden": *cmd.Hidden}, &out)
+		meta, err := c.client.Do(ctx, http.MethodPost, cmd.CommentID, cred.AccessToken, nil, map[string]bool{"is_hidden": *cmd.Hidden}, &out)
 		if err == nil && !out.Success {
 			return channel.SendOutcome{Status: channel.OutcomeUnknown, Detail: "Facebook không xác nhận đã ẩn/hiện"}, nil
 		}
-		return sentOrError(err, cmd.CommentID, "")
+		return sentOrError(meta, err, cmd.CommentID, "")
 	case channel.PurposeMessage, channel.PurposePrivateReply:
 	}
 	var out struct {
 		RecipientID string `json:"recipient_id"`
 		MessageID   string `json:"message_id"`
 	}
-	_, err := c.client.Do(ctx, http.MethodPost, acc.ExternalID+"/messages", cred.AccessToken, nil, messageBody(cmd), &out)
-	return sentOrError(err, out.MessageID, out.RecipientID)
+	meta, err := c.client.Do(ctx, http.MethodPost, acc.ExternalID+"/messages", cred.AccessToken, nil, messageBody(cmd), &out)
+	return sentOrError(meta, err, out.MessageID, out.RecipientID)
 }
 
 // messageBody dựng thân Send API của tin hay nhắn riêng đã kiểm.
@@ -167,15 +170,20 @@ func validateContent(cmd channel.OutboundCommand) string {
 	return ""
 }
 
-// sentOrError: không lỗi → sent kèm mã của Meta (thiếu mã thì không chắc đã gửi → unknown); lỗi → outcome.
-func sentOrError(err error, externalID, recipientID string) (channel.SendOutcome, error) {
+// sentOrError: không lỗi → sent kèm mã của Meta (thiếu mã thì không chắc đã gửi → unknown) và, khi Meta báo mức dùng
+// từ 80% hay thời gian chờ, RetryAfter = thời gian bên gọi nên giãn lần gửi sau (tối thiểu slowDownWait); lỗi → outcome.
+func sentOrError(meta Meta, err error, externalID, recipientID string) (channel.SendOutcome, error) {
 	if err != nil {
 		return outcome(err)
 	}
 	if externalID == "" {
 		return channel.SendOutcome{Status: channel.OutcomeUnknown, Detail: "Facebook không trả mã tin"}, nil
 	}
-	return channel.SendOutcome{Status: channel.OutcomeSent, ExternalID: externalID, RecipientID: recipientID}, nil
+	o := channel.SendOutcome{Status: channel.OutcomeSent, ExternalID: externalID, RecipientID: recipientID}
+	if meta.Usage.ShouldSlowDown() {
+		o.RetryAfter = max(meta.Usage.RegainAfter, slowDownWait)
+	}
+	return o, nil
 }
 
 // outcome đổi lỗi Graph sang kết quả gửi theo lớp (Classify); Detail là câu tiếng Việt của Reason (không mang message

@@ -219,6 +219,11 @@ func domainErrorSnapshot() []snapshotCase {
 		{"conversation.ErrAlreadyAssigned", conversation.ErrAlreadyAssigned, http.StatusConflict, "already_assigned"},
 		{"conversation.ErrTagNameTaken", conversation.ErrTagNameTaken, http.StatusConflict, "already_exists"},
 		{"conversation.ErrInvalidInput", conversation.ErrInvalidInput, http.StatusUnprocessableEntity, "invalid_input"},
+		// Gửi tin (M4, Task 156).
+		{"conversation.ErrSendInvalid", conversation.ErrSendInvalid, http.StatusBadRequest, "invalid_input"},
+		{"conversation.ErrChannelReadOnly", conversation.ErrChannelReadOnly, http.StatusConflict, "channel_read_only"},
+		{"conversation.ErrAttachmentNotReady", conversation.ErrAttachmentNotReady, http.StatusUnprocessableEntity, "attachment_not_ready"},
+		{"conversation.ErrAttachmentRejected", conversation.ErrAttachmentRejected, http.StatusUnprocessableEntity, "attachment_rejected"},
 		{"weborders.ErrBadLimit", weborders.ErrBadLimit, http.StatusBadRequest, "bad_request"},
 		{"weborders.ErrNotFound", weborders.ErrNotFound, http.StatusNotFound, "not_found"},
 		{"webcatalog.ErrBadLimit", webcatalog.ErrBadLimit, http.StatusBadRequest, "bad_request"},

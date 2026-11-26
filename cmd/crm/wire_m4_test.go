@@ -5,12 +5,13 @@ import (
 	"testing"
 
 	"elimaz.com.vn/crm/internal/modules/channel"
+	"elimaz.com.vn/crm/internal/modules/conversation"
 	"elimaz.com.vn/crm/internal/platform/config"
 )
 
 // wireM4: kênh nhắn tin giả fakechat (Task 145) có ngoài production; kênh Facebook khi Meta bật và có app secret (Task
 // 148, nối ở Task 153); production không cấu hình Meta thì không có kênh nào. Mỗi nguồn có đúng một handler vào của
-// conversation (Task 153); lệnh: chỉ đăng ký, hủy đăng ký webhook của Page (Task 149); chưa có luồng nền; lịch là
+// conversation (Task 153); lệnh: đăng ký, hủy đăng ký webhook của Page (Task 149), gửi tin (Task 156); chưa có luồng nền; lịch là
 // conversation.presence_cleanup (Task 163) và conversation.reminders (Task 169), mỗi lịch một handler cùng Kind; ingest
 // vẫn dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
 func TestWireM4_Frame(t *testing.T) {
@@ -41,7 +42,7 @@ func TestWireM4_Frame(t *testing.T) {
 		if len(p.Background) != 0 {
 			t.Errorf("%s: khung M4 chưa được có luồng nền: %+v", c.cfg.Env, p)
 		}
-		if cmds := m4CommandKinds(p); !slices.Equal(cmds, []string{channel.SubscribePageKind, channel.UnsubscribePageKind}) {
+		if cmds := m4CommandKinds(p); !slices.Equal(cmds, []string{channel.SubscribePageKind, channel.UnsubscribePageKind, conversation.SendMessageKind}) {
 			t.Errorf("%s: lệnh M4 = %v", c.cfg.Env, cmds)
 		}
 		checkM4Schedules(t, c.cfg.Env, p)

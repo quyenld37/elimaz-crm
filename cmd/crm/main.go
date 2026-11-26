@@ -29,6 +29,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/catalog"
 	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/modules/content"
+	"elimaz.com.vn/crm/internal/modules/conversation"
 	"elimaz.com.vn/crm/internal/modules/customer"
 	"elimaz.com.vn/crm/internal/modules/fulfillment"
 	"elimaz.com.vn/crm/internal/modules/identity"
@@ -171,10 +172,11 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	// Mốc sau gọi files.RegisterPurpose ở đây, trước lần kiểm này: customer_import (M2, Task M2-13), carrier_label và
 	// cod_statement (M3, Task M3-04).
 	customer.RegisterFilePurposes()
-	fulfillment.RegisterFilePurposes() // carrier_label (M3, Task M3-04, 0306)
-	cash.RegisterFilePurposes()        // cod_statement (M3, Task M3-04, 0306)
-	order.RegisterFilePurposes()       // order_request_photo (M5, Task 195, 0504)
-	content.RegisterFilePurposes()     // web_banner (M5, Task 453, 0521)
+	fulfillment.RegisterFilePurposes()  // carrier_label (M3, Task M3-04, 0306)
+	cash.RegisterFilePurposes()         // cod_statement (M3, Task M3-04, 0306)
+	order.RegisterFilePurposes()        // order_request_photo (M5, Task 195, 0504)
+	content.RegisterFilePurposes()      // web_banner (M5, Task 453, 0521)
+	conversation.RegisterFilePurposes() // chat_outgoing (M4, Task 156, 0413)
 	if cfg.Role == config.RoleAPI || cfg.Role == config.RoleWorker {
 		if err := files.CheckPurposes(ctx, d); err != nil {
 			return fmt.Errorf("kiểm mục đích tệp: %w", err)
@@ -405,6 +407,8 @@ func alertSchedules(plan *schedules.Registry, d *db.DB, cfg config.Config, logge
 		// Cảnh báo Page bắt đầu gửi thật (kế hoạch M4, Task 145): lệnh do channel.Writer.SetSendMode ghi.
 		channel.NewSendModeAlertCommand(alerter, logger),
 		channel.NewSubscribeAlertCommand(alerter, logger),
+		// Cảnh báo token Page hỏng (Task 156): lệnh do channel.ReportAuthFailure ghi khi gửi tin nhận lỗi token.
+		channel.NewAuthAlertCommand(alerter, logger),
 	}, nil
 }
 

@@ -122,7 +122,8 @@ const (
 	OutcomeUnknown  OutcomeStatus = "unknown"
 )
 
-// SendOutcome là kết quả chi tiết của Send. Detail đã lọc dữ liệu cá nhân.
+// SendOutcome là kết quả chi tiết của Send. Detail đã lọc dữ liệu cá nhân. RetryAfter: not_sent → chờ chừng này rồi
+// mới gửi lại; sent → kênh xin giãn lần gửi sau của tài khoản chừng này (mức dùng cao, Task 156).
 type SendOutcome struct {
 	Status                  OutcomeStatus
 	ExternalID, RecipientID string

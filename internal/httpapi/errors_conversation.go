@@ -14,6 +14,10 @@ import (
 const (
 	codeAssigneeNotAllowed = "assignee_not_allowed"
 	codeAlreadyAssigned    = "already_assigned"
+	codeChannelReadOnly    = "channel_read_only"    // Page chỉ xem (Task 156, MO03)
+	codeSendNotAllowed     = "send_not_allowed"     // chính sách gửi của kênh không cho (Task 156, CH09)
+	codeAttachmentNotReady = "attachment_not_ready" // ảnh gửi kèm chưa xử lý xong (Task 156)
+	codeAttachmentRejected = "attachment_rejected"  // tệp gửi kèm sai mục đích hay bị từ chối (Task 156)
 )
 
 // conversationError đổi lỗi nghiệp vụ của hộp chat sang mã HTTP. ErrNotFound: không có, hay trên Page người gọi không
@@ -33,14 +37,38 @@ func conversationError(err error) (status int, code string, ok bool) {
 		{conversation.ErrAlreadyAssigned, http.StatusConflict, codeAlreadyAssigned},
 		{conversation.ErrTagNameTaken, http.StatusConflict, codeAlreadyExists},
 		{conversation.ErrInvalidInput, http.StatusUnprocessableEntity, codeInvalidInput},
+		// Gửi tin (Task 156): yêu cầu sai → 400; Page chỉ xem → 409; ảnh chưa xong, sai mục đích → 422 (kênh không cho
+		// gửi: thân chi tiết ở conversationDetail).
+		{conversation.ErrSendInvalid, http.StatusBadRequest, codeInvalidInput},
+		{conversation.ErrChannelReadOnly, http.StatusConflict, codeChannelReadOnly},
+		{conversation.ErrAttachmentNotReady, http.StatusUnprocessableEntity, codeAttachmentNotReady},
+		{conversation.ErrAttachmentRejected, http.StatusUnprocessableEntity, codeAttachmentRejected},
 	})
 }
 
+// conversationDetail: send_not_allowed kèm denyReason và until (hạn của cửa sổ, hay hạn 7 ngày còn gửi được bằng thẻ
+// nhân viên); chỉ mã, mốc, không nội dung.
+func conversationDetail(err error) (errorBody, int, bool) {
+	e, ok := errors.AsType[*conversation.SendNotAllowedError](err)
+	if !ok {
+		return errorBody{}, 0, false
+	}
+	reason := string(e.Reason)
+	body := errorBody{Error: codeSendNotAllowed, DenyReason: &reason}
+	if e.Until != nil {
+		u := e.Until.UTC()
+		body.Until = &u
+	}
+	return body, http.StatusConflict, true
+}
+
 // isConversationRefusal: lỗi nghiệp vụ của đường ghi hộp chat (kể cả khách không có của customer; Page không có của
-// channel, nguồn đơn đã tắt của order và nhãn chung thiếu quyền toàn shop, Task 160) — không lưu theo khóa chống trùng.
+// channel, nguồn đơn đã tắt của order và nhãn chung thiếu quyền toàn shop, Task 160; kênh không cho gửi, Task 156) —
+// không lưu theo khóa chống trùng.
 func isConversationRefusal(err error) bool {
 	_, _, ok := conversationError(err)
 	_, _, chOK := channelError(err)
 	_, _, ordOK := orderError(err)
-	return ok || chOK || ordOK || isCustomerRefusal(err) || errors.Is(err, errForbiddenTarget)
+	_, _, detailed := conversationDetail(err)
+	return ok || chOK || ordOK || detailed || isCustomerRefusal(err) || errors.Is(err, errForbiddenTarget)
 }

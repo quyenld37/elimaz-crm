@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/ogenerrors"
@@ -83,6 +84,9 @@ type errorBody struct {
 	// Chỉ có ở quote_changed (Task 194): báo giá CRM hiện tại (WebQuote); item_unavailable: biến thể không bán được.
 	Quote      json.RawMessage `json:"quote,omitempty"`
 	VariantIDs []string        `json:"variantIds,omitempty"`
+	// Chỉ có ở send_not_allowed (M4, Task 156): lý do chính sách gửi của kênh và hạn cửa sổ.
+	DenyReason *string    `json:"denyReason,omitempty"`
+	Until      *time.Time `json:"until,omitempty"`
 }
 
 // writeError ghi lỗi theo dạng duy nhất {"error": "<mã>", "request_id": "<id>"}; không bao giờ có vết lỗi.
@@ -227,6 +231,9 @@ func detailedError(err error) (errorBody, int, bool) {
 		return errorBody{Error: codeStatementDuplicate, StatementID: &id}, http.StatusConflict, true
 	}
 	if body, status, ok := webOrderDetail(err); ok {
+		return body, status, true
+	}
+	if body, status, ok := conversationDetail(err); ok {
 		return body, status, true
 	}
 	if e, ok := errors.AsType[*order.SettingOutOfRangeError](err); ok {
