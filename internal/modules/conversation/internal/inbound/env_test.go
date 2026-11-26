@@ -153,6 +153,12 @@ func at(sec int) time.Time {
 // enqueue ghi một sự kiện vào của nguồn source như webhook đã tách (khóa chống trùng dedupe, thứ tự theo Page + người).
 func (e *env) enqueue(source, typ, dedupe, page, user string, occurred time.Time, payload any) {
 	e.t.Helper()
+	e.enqueueFrom(source, webhooks.ViaWebhook, typ, dedupe, page, user, occurred, payload)
+}
+
+// enqueueFrom như enqueue, sự kiện tới qua đường via (webhook, hỏi bù, đọc comment…).
+func (e *env) enqueueFrom(source, via, typ, dedupe, page, user string, occurred time.Time, payload any) {
+	e.t.Helper()
 	body, err := json.Marshal(payload)
 	if err != nil {
 		e.t.Fatal(err)
@@ -161,7 +167,7 @@ func (e *env) enqueue(source, typ, dedupe, page, user string, occurred time.Time
 		Type: typ, DedupeKey: dedupe, OrderKey: source + ":" + page + ":" + user, OccurredAt: occurred, Payload: body,
 	}
 	if err := tenancy.WithTenant(e.t.Context(), e.staff.App, e.tenant, func(tx pgx.Tx) error {
-		_, err := webhooks.EnqueueInbound(e.t.Context(), tx, queue.NewQueue(), e.tenant, source, ev, time.Now().UTC(), webhooks.ViaWebhook)
+		_, err := webhooks.EnqueueInbound(e.t.Context(), tx, queue.NewQueue(), e.tenant, source, ev, time.Now().UTC(), via)
 		return err //nolint:wrapcheck // test
 	}); err != nil {
 		e.t.Fatal(err)

@@ -76,6 +76,8 @@ func (h *handler) Handle(ctx context.Context, e webhooks.Inbound, tx pgx.Tx) err
 		err = with(e, func(p channel.MessagePayload) error { return h.referral(ctx, tx, e, p) })
 	case channel.EventCommentChanged:
 		err = with(e, func(p channel.CommentPayload) error { return h.comment(ctx, tx, e, p) })
+	case channel.EventPolicyEnforcement:
+		err = HandlePolicy(ctx, tx, h.d, h.source, e)
 	default:
 		h.ignore(e.Type)
 		return nil
@@ -102,8 +104,10 @@ func (h *handler) ignore(label string) {
 }
 
 // account đọc tài khoản Page pageID của nguồn và ghi mốc có sự kiện vào (nhóm 3 ADR-46, trước mọi khóa khác của đường
-// vào). Tài khoản read_only, disconnected vẫn trả về (vẫn lưu tin). Không có trong shop → ok = false, đếm
-// inbound_ignored{account_missing}.
+// vào). Chỉ sự kiện tới qua webhook (Via = webhooks.ViaWebhook) mới ghi mốc last_webhook_at; comment qua webhook ghi
+// cả mốc feed (last_feed_at, chế độ đọc comment auto của Task 150). Sự kiện hỏi bù, đọc comment, lịch sử không ghi
+// mốc: nếu ghi sẽ che mất "im lặng bất thường" (Task 150). Tài khoản read_only, disconnected vẫn trả về (vẫn lưu tin).
+// Không có trong shop → ok = false, đếm inbound_ignored{account_missing}.
 func (h *handler) account(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, pageID string) (channel.ChannelAccount, bool, error) {
 	acc, err := channel.AccountByExternal(ctx, tx, h.source, pageID)
 	if errors.Is(err, channel.ErrAccountNotFound) {
@@ -113,8 +117,10 @@ func (h *handler) account(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, pa
 	if err != nil {
 		return channel.ChannelAccount{}, false, err //nolint:wrapcheck // channel đã bọc việc đang làm
 	}
-	if err := channel.NoteInbound(ctx, tx, acc.ID, e.ReceivedAt, false); err != nil {
-		return channel.ChannelAccount{}, false, err //nolint:wrapcheck // channel đã bọc việc đang làm
+	if e.Via == webhooks.ViaWebhook {
+		if err := channel.NoteInbound(ctx, tx, acc.ID, e.ReceivedAt, e.Type == channel.EventCommentChanged); err != nil {
+			return channel.ChannelAccount{}, false, err //nolint:wrapcheck // channel đã bọc việc đang làm
+		}
 	}
 	return acc, true, nil
 }

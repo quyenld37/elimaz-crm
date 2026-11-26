@@ -38,9 +38,37 @@ func (h *handler) ListChannelAccounts(ctx context.Context) (gen.ListChannelAccou
 	}
 	out := &gen.ChannelAccountList{Items: make([]gen.ChannelAccount, 0, len(items))}
 	for _, a := range items {
-		out.Items = append(out.Items, *channelAccountOut(a))
+		o := channelAccountOut(a)
+		if ad, ok := h.d.Channels.Lookup(a.Channel); ok {
+			f := ad.Features()
+			o.Features = gen.NewOptChannelFeatures(gen.ChannelFeatures{
+				Messages: true, Comments: f.Comments, LiveComments: f.LiveComments, PrivateReply: f.PrivateReply,
+				HideComment: f.HideComment, QuickReplies: f.QuickReplies, HumanAgent: f.HumanAgent,
+			})
+		}
+		out.Items = append(out.Items, *o)
 	}
 	return out, nil
+}
+
+// RunChannelHealthCheck (POST /api/v1/channels/{id}/health-check, Task 150): ghi ngay một lệnh kiểm sức khỏe Page; kết
+// quả về qua báo hiệu channel.status khi lệnh chạy xong.
+//
+//nolint:ireturn // chữ ký do ogen sinh (gen.Handler)
+func (h *handler) RunChannelHealthCheck(ctx context.Context, params gen.RunChannelHealthCheckParams) (gen.RunChannelHealthCheckRes, error) {
+	w := channel.Writer{Realtime: h.d.Realtime, RequestID: RequestID(ctx)}
+	out, err := h.refusableWrite(ctx, http.StatusAccepted, isChannelRefusal, "ghi lệnh kiểm sức khỏe Page",
+		func(tx pgx.Tx, _ identity.AuthUser) (any, error) {
+			a, err := w.RequestHealthCheck(ctx, tx, params.ID)
+			if err != nil {
+				return nil, err //nolint:wrapcheck // channel đã bọc; lỗi nghiệp vụ đổi ở errors_channel.go
+			}
+			return channelAccountOut(a), nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	return out.(*gen.ChannelAccount), nil //nolint:forcetypeassert // fn trên trả *gen.ChannelAccount
 }
 
 // SetChannelSendMode (PUT /api/v1/channels/{id}/send-mode).

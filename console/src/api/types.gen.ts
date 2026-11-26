@@ -4857,6 +4857,32 @@ export type ChannelAccount = {
     subscribedFields: Array<string>;
     tokenCheckedAt?: string;
     version: number;
+    features?: ChannelFeatures;
+};
+
+/**
+ * Tính năng kênh hỗ trợ (theo adapter của kênh; chủ shop 26/11): màn hình ẩn phần kênh không có
+ */
+export type ChannelFeatures = {
+    /**
+     * Tin nhắn hộp thư
+     */
+    messages: boolean;
+    comments: boolean;
+    liveComments: boolean;
+    /**
+     * Nhắn riêng người comment
+     */
+    privateReply: boolean;
+    hideComment: boolean;
+    /**
+     * Nút trả lời nhanh
+     */
+    quickReplies: boolean;
+    /**
+     * Thẻ nhân viên (Human Agent)
+     */
+    humanAgent: boolean;
 };
 
 export type ChannelAccountList = {

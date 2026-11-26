@@ -7,7 +7,7 @@ import (
 )
 
 // Channel là adapter kênh Facebook (khóa Key), hiện thực đủ channel.MessagingAdapter cùng các interface tùy chọn
-// ProfileFetcher, PostFetcher, HistoryFetcher, AttachmentDownloader, Connector. Phần vào (webhooks.Source: bước GET
+// ProfileFetcher, PostFetcher, HistoryFetcher, AttachmentDownloader, Connector, CommentPoller (Task 150). Phần vào (webhooks.Source: bước GET
 // xác minh, chữ ký trên thân thô, tách gói) là Task 147; phần ra (SendPolicy, Send, Lookup, HealthCheck, Backfill, đọc
 // hồ sơ, bài, lịch sử, kết nối Page) là Task 148, mọi lời gọi Meta đi qua Graph client. Tên không phải Adapter vì hàm
 // nối Adapter(cfg) của Task 143 đã dùng tên đó (tệp task 147, Quyết định 6). Dùng được từ nhiều goroutine.

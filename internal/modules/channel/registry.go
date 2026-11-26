@@ -42,3 +42,11 @@ func (r *Registry) Get(key string) (MessagingAdapter, bool) { //nolint:ireturn /
 
 // Keys trả khóa mọi adapter, theo thứ tự chữ.
 func (r *Registry) Keys() []string { return slices.Clone(r.keys) }
+
+// Lookup trả adapter của key; r nil (kênh chưa bật ở tiến trình) → ok = false.
+func (r *Registry) Lookup(key string) (MessagingAdapter, bool) { //nolint:ireturn // adapter là interface của kênh
+	if r == nil {
+		return nil, false
+	}
+	return r.Get(key)
+}

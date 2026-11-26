@@ -95,7 +95,7 @@ func (c sendCommand) OnDone(ctx context.Context, j queue.Job, raw json.RawMessag
 }
 
 // OnTerminal (trong transaction đổi lệnh sang dead, expired, in_doubt), chỉ đổi tin còn queued: dead → failed (giữ mã
-// lý do lệnh đã ghi; blocked_by_user → hội thoại bị chặn; auth → channel.ReportAuthFailure, nhóm 3 nên gọi trước khi
+// lý do lệnh đã ghi; blocked_by_user → hội thoại bị chặn; auth → channel.Writer.ReportTokenInvalid, nhóm 3 nên gọi trước khi
 // khóa hội thoại); expired → expired; in_doubt → checking, send_checking_since = now (Task 157 tiếp). Báo hiệu khi đổi.
 func (c sendCommand) OnTerminal(ctx context.Context, j queue.Job, status string, tx pgx.Tx) error {
 	m, ok, err := target(ctx, tx, j)
@@ -108,7 +108,7 @@ func (c sendCommand) OnTerminal(ctx context.Context, j queue.Job, status string,
 	case queue.StatusDead:
 		set.SendStatus = pgtype.Text{String: statusFailed, Valid: true}
 		if m.FailReason.String == reasonAuth {
-			if err := channel.ReportAuthFailure(ctx, tx, m.ChannelAccountID, j.ID.String()); err != nil {
+			if err := (channel.Writer{Realtime: c.d.Bus}).ReportTokenInvalid(ctx, tx, m.ChannelAccountID); err != nil {
 				return err //nolint:wrapcheck // channel đã bọc việc đang làm
 			}
 		}

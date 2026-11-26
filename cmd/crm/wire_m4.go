@@ -71,7 +71,7 @@ func wireM4(cfg config.Config, d m4Deps) (m4Parts, error) {
 		Keys:       keys,
 		Inbound:    conversation.InboundHandlers(vd),
 		Commands:   background.Collect(channel.CommandHandlers(cd), conversation.CommandHandlers(vd)),
-		Jobs:       conversation.JobHandlers(vd),
+		Jobs:       background.Collect(channel.JobHandlers(cd), conversation.JobHandlers(vd)),
 		Schedules:  background.Collect(channel.Schedules(cd), conversation.Schedules(vd)),
 		Background: conversation.Background(vd),
 	}

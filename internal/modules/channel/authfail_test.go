@@ -14,24 +14,25 @@ import (
 	"elimaz.com.vn/crm/internal/testkit"
 )
 
-// ReportAuthFailure (Task 156): tài khoản active → degraded lý do token_invalid kèm đúng 1 lệnh cảnh báo gấp; báo lần
-// nữa (đã degraded vì token) → không thêm cảnh báo; tài khoản không có → ErrAccountNotFound. Lệnh cảnh báo gửi key
+// ReportTokenInvalid (Task 156, gộp với đường kiểm sức khỏe của Task 150): tài khoản active → degraded lý do
+// token_invalid kèm đúng 1 lệnh cảnh báo gấp; báo lần nữa (đã degraded vì mất quyền) → không thêm cảnh báo; Page đã
+// ngắt → giữ disconnected, không cảnh báo; tài khoản không có → ErrAccountNotFound. Lệnh cảnh báo gửi key
 // channel-auth:<id>, mức urgent, có tên Page, không token.
-func TestReportAuthFailure(t *testing.T) {
+func TestReportTokenInvalid(t *testing.T) {
 	t.Parallel()
 	s := testkit.OpenStaff(t)
 	tenant := s.Tenant(t, "A")
 	id := s.ChannelAccount(t, tenant, "facebook", "page-auth", "Page Auth")
-	report := func(acc uuid.UUID, ref string) error {
+	report := func(acc uuid.UUID) error {
 		var err error
 		s.Exec(t, tenant, func(tx pgx.Tx) error {
-			err = channel.ReportAuthFailure(t.Context(), tx, acc, ref) // lỗi trả về ngoài, không lùi tx
+			err = channel.Writer{}.ReportTokenInvalid(t.Context(), tx, acc) // lỗi trả về ngoài, không lùi tx
 			return nil
 		})
 		return err //nolint:wrapcheck // test
 	}
-	for i, ref := range []string{"job-1", "job-2"} {
-		if err := report(id, ref); err != nil {
+	for i := range 2 {
+		if err := report(id); err != nil {
 			t.Fatalf("lần %d: %v", i+1, err)
 		}
 	}
@@ -44,7 +45,23 @@ func TestReportAuthFailure(t *testing.T) {
 		channel.AuthAlertKind).Scan(&alerts); err != nil || alerts != 1 {
 		t.Fatalf("%d lệnh cảnh báo, muốn 1 (%v)", alerts, err)
 	}
-	if err := report(uuid.New(), "x"); !errors.Is(err, channel.ErrAccountNotFound) {
+	gone := s.ChannelAccount(t, tenant, "facebook", "page-gone", "Page Gone")
+	s.Exec(t, tenant, func(tx pgx.Tx) error {
+		_, err := channel.MarkStatus(t.Context(), tx, gone, channel.StatusDisconnected, "")
+		return err //nolint:wrapcheck // test
+	})
+	if err := report(gone); err != nil {
+		t.Fatalf("Page đã ngắt: %v", err)
+	}
+	if n := s.CountIn(t, tenant, `SELECT count(*) FROM channel.channel_accounts WHERE id = $1 AND status = 'disconnected'`,
+		gone); n != 1 {
+		t.Fatal("Page đã ngắt bị đổi trạng thái")
+	}
+	if err := s.Owner.Pool.QueryRow(t.Context(), `SELECT count(*) FROM platform.jobs WHERE kind = $1`,
+		channel.AuthAlertKind).Scan(&alerts); err != nil || alerts != 1 {
+		t.Fatalf("Page đã ngắt: %d lệnh cảnh báo, muốn 1 (%v)", alerts, err)
+	}
+	if err := report(uuid.New()); !errors.Is(err, channel.ErrAccountNotFound) {
 		t.Fatalf("tài khoản không có: %v", err)
 	}
 

@@ -5,7 +5,9 @@ import (
 	"errors"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -31,14 +33,38 @@ type connEnv struct {
 	kr      *fieldcrypt.Keyring
 	bus     *realtimetest.RecordingBus
 	cmds    []commands.Handler
+	jobs    []queue.Handler
 	worker  *queue.Worker
+	// clock là đồng hồ của Deps (lịch sức khỏe, im lặng); mặc định giờ thật.
+	clock *testClock
+}
+
+// testClock là đồng hồ test đặt được; an toàn khi worker đọc từ goroutine khác.
+type testClock struct {
+	mu sync.Mutex
+	at time.Time
+}
+
+func (c *testClock) Now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.at.IsZero() {
+		return time.Now()
+	}
+	return c.at
+}
+
+func (c *testClock) Set(t time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.at = t
 }
 
 func newConnEnv(t *testing.T) *connEnv {
 	t.Helper()
 	e := &connEnv{
 		chEnv: newChEnv(t), adapter: channeltest.NewConnectorAdapter("facebook"), kr: testKeyring(t),
-		bus: &realtimetest.RecordingBus{},
+		bus: &realtimetest.RecordingBus{}, clock: &testClock{},
 	}
 	e.actor = identity.AuthUser{TenantID: e.tenant, UserID: e.staff.User(t, e.tenant, "chu@elimaz.test", "active")}
 	// Page giả khác kênh chỉ để testkit tạo người bán own; lấy seller_id của nó.
@@ -47,7 +73,8 @@ func newConnEnv(t *testing.T) *connEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.cmds = channel.CommandHandlers(channel.Deps{DB: e.staff.App, Queue: queue.NewQueue(), Bus: e.bus, Registry: reg, Keys: e.kr})
+	d := channel.Deps{DB: e.staff.App, Queue: queue.NewQueue(), Bus: e.bus, Registry: reg, Keys: e.kr, Now: e.clock.Now}
+	e.cmds, e.jobs = channel.CommandHandlers(d), channel.JobHandlers(d)
 	runner := commands.NewRunner(e.staff.App, e.cmds)
 	e.worker = queue.NewWorker(e.staff.App, nil, queue.WorkerOptions{WorkerID: "channel-connect/" + uuid.NewString(), Commands: runner})
 	return e
@@ -103,8 +130,14 @@ func (e *connEnv) count(q string, args ...any) int {
 
 func (e *connEnv) jobStatuses(kind string) []string {
 	e.t.Helper()
+	return e.jobColumn("status", kind)
+}
+
+// jobColumn trả cột col (biểu thức SQL cố định của test) của các việc kind thuộc tenant e, theo thứ tự ghi.
+func (e *connEnv) jobColumn(col, kind string) []string {
+	e.t.Helper()
 	rows, err := e.staff.Owner.Pool.Query(e.t.Context(),
-		`SELECT status FROM platform.jobs WHERE tenant_id = $1 AND kind = $2 ORDER BY created_at, id`, e.tenant, kind)
+		`SELECT `+col+` FROM platform.jobs WHERE tenant_id = $1 AND kind = $2 ORDER BY created_at, id`, e.tenant, kind)
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -357,14 +390,9 @@ func TestSubscribe_AuthDeadAlerts(t *testing.T) {
 	if got := e.account(a.ID); got.Status != channel.StatusDegraded || got.StatusReason == "" {
 		t.Fatalf("sau đăng ký lỗi = %+v", got)
 	}
-	var payloads []string
-	rows, err := e.staff.Owner.Pool.Query(t.Context(), `SELECT payload::text FROM platform.jobs WHERE tenant_id = $1 AND kind = $2`,
-		e.tenant, channel.SubscribeAlertKind)
-	if err == nil {
-		payloads, err = pgx.CollectRows(rows, pgx.RowTo[string])
-	}
-	if err != nil || len(payloads) != 1 || strings.Contains(payloads[0], "EAAB") {
-		t.Fatalf("lệnh cảnh báo = %v, %v", payloads, err)
+	payloads := e.jobColumn("payload::text", channel.SubscribeAlertKind)
+	if len(payloads) != 1 || strings.Contains(payloads[0], "EAAB") {
+		t.Fatalf("lệnh cảnh báo = %v", payloads)
 	}
 	n := &recNotifier{}
 	out, err := channel.NewSubscribeAlertCommand(n, nil).Execute(t.Context(), queue.Job{Payload: json.RawMessage(payloads[0])})

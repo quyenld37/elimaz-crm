@@ -57,8 +57,14 @@ type subscribeResult struct {
 	Skipped bool     `json:"skipped,omitempty"`
 }
 
-func pageCommandKind(name string) queue.Kind {
-	return commands.CommandKind(name, pageCommandExpiry, pageCommandTimeout)
+// accountCommandKind là Kind của lệnh theo tài khoản của channel: đọc comment định kỳ sống 2 phút (kỳ sau có lệnh mới),
+// lệnh khác 1 giờ; hạn một lần chạy 30 s.
+func accountCommandKind(name string) queue.Kind {
+	expiry := pageCommandExpiry
+	if name == CommentPollKind {
+		expiry = commentPollExpiry
+	}
+	return commands.CommandKind(name, expiry, pageCommandTimeout)
 }
 
 // enqueueAccountCommand ghi lệnh kind (SubscribePageKind, UnsubscribePageKind) cho tài khoản a trong tx (mỗi lần một
@@ -68,9 +74,14 @@ func enqueueAccountCommand(ctx context.Context, tx pgx.Tx, a ChannelAccount, kin
 	if err != nil {
 		return fmt.Errorf("sinh khóa lệnh %s: %w", kind, err)
 	}
+	return enqueueKeyed(ctx, tx, a, kind, a.ID.String()+":"+n.String(), accountPayload{AccountID: a.ID})
+}
+
+// enqueueKeyed ghi lệnh kind của channel cho tài khoản a trong tx với khóa chống trùng dedupe (đã có → không thêm).
+func enqueueKeyed(ctx context.Context, tx pgx.Tx, a ChannelAccount, kind, dedupe string, payload any) error {
 	tenant := a.TenantID
-	if _, _, err := queue.NewQueue().Enqueue(ctx, tx, pageCommandKind(kind), queue.NewJob{
-		TenantID: &tenant, Payload: accountPayload{AccountID: a.ID}, DedupeKey: a.ID.String() + ":" + n.String(),
+	if _, _, err := queue.NewQueue().Enqueue(ctx, tx, accountCommandKind(kind), queue.NewJob{
+		TenantID: &tenant, Payload: payload, DedupeKey: dedupe,
 	}); err != nil {
 		return fmt.Errorf("ghi lệnh %s: %w", kind, err)
 	}
@@ -90,7 +101,7 @@ func (c pageCommand) name() string {
 	return UnsubscribePageKind
 }
 
-func (c pageCommand) Kind() queue.Kind     { return pageCommandKind(c.name()) }
+func (c pageCommand) Kind() queue.Kind     { return accountCommandKind(c.name()) }
 func (pageCommand) AutoRetryNotSent() bool { return true }
 
 // current: lệnh chỉ còn ý nghĩa khi tài khoản đang ở trạng thái này (subscribe: chưa ngắt; unsubscribe: đã ngắt).
@@ -98,37 +109,43 @@ func (c pageCommand) current(a ChannelAccount) bool {
 	return (a.Status == StatusDisconnected) != c.subscribe
 }
 
-// target là tài khoản, token và adapter của một lần chạy; skip = trạng thái đã đổi, không làm gì.
+// target là tài khoản, token và adapter của một lần chạy; skip = trạng thái đã đổi, không làm gì; credErr là lỗi đọc
+// token (ErrNoCredentials, giải mã hỏng) để bên gọi tự quyết.
 type target struct {
-	acc  ChannelAccount
-	cred Credentials
-	ad   MessagingAdapter
-	conn Connector
-	skip bool
+	acc     ChannelAccount
+	cred    Credentials
+	ad      MessagingAdapter
+	conn    Connector
+	skip    bool
+	credErr error
 }
 
-// load đọc tài khoản và token của j trong một transaction ngắn (ngoài mọi lời gọi mạng). out khác rỗng: kết quả cuối
-// (bỏ qua, từ chối, chưa gửi) mà Execute trả ngay.
-func (c pageCommand) load(ctx context.Context, j queue.Job) (target, *commands.Outcome) {
+// accountOf đọc mã tài khoản của payload j; payload hỏng hay thiếu tenant → kết quả từ chối.
+func accountOf(j queue.Job) (uuid.UUID, *commands.Outcome) {
 	var p accountPayload
 	if err := json.Unmarshal(j.Payload, &p); err != nil || p.AccountID == uuid.Nil {
-		return target{}, &commands.Outcome{Status: commands.StatusRejected, Reason: reasonBadPayload}
+		return uuid.Nil, &commands.Outcome{Status: commands.StatusRejected, Reason: reasonBadPayload}
 	}
 	if j.TenantID == nil {
-		return target{}, &commands.Outcome{Status: commands.StatusRejected, Reason: reasonNoTenant}
+		return uuid.Nil, &commands.Outcome{Status: commands.StatusRejected, Reason: reasonNoTenant}
 	}
+	return p.AccountID, nil
+}
+
+// loadTarget đọc tài khoản id và token của nó trong một transaction ngắn của tenant của j (ngoài mọi lời gọi mạng).
+// current sai → skip, không đọc token. out khác rỗng: không đọc được tài khoản (từ chối, chưa gửi).
+func loadTarget(ctx context.Context, d Deps, j queue.Job, id uuid.UUID, current func(ChannelAccount) bool) (target, *commands.Outcome) {
 	var t target
-	var credErr error
-	err := tenancy.WithTenant(ctx, c.d.DB, *j.TenantID, func(tx pgx.Tx) (err error) {
-		t, credErr = target{}, nil // RetryTx có thể chạy lại
-		if t.acc, err = Account(ctx, tx, p.AccountID); err != nil {
+	err := tenancy.WithTenant(ctx, d.DB, *j.TenantID, func(tx pgx.Tx) (err error) {
+		t = target{} // RetryTx có thể chạy lại
+		if t.acc, err = Account(ctx, tx, id); err != nil {
 			return err
 		}
-		if !c.current(t.acc) {
+		if !current(t.acc) {
 			t.skip = true
 			return nil
 		}
-		t.cred, credErr = CredentialsFor(ctx, tx, c.d.Keys, p.AccountID)
+		t.cred, t.credErr = CredentialsFor(ctx, tx, d.Keys, id)
 		return nil
 	})
 	switch {
@@ -136,14 +153,29 @@ func (c pageCommand) load(ctx context.Context, j queue.Job) (target, *commands.O
 		return target{}, &commands.Outcome{Status: commands.StatusRejected, Reason: reasonNoAccount}
 	case err != nil:
 		return target{}, &commands.Outcome{Status: commands.StatusNotSent, Reason: reasonReadFailed}
+	}
+	return t, nil
+}
+
+// load đọc tài khoản và token của j (loadTarget) cùng Connector của kênh. out khác rỗng: kết quả cuối (bỏ qua, từ chối,
+// chưa gửi) mà Execute trả ngay.
+func (c pageCommand) load(ctx context.Context, j queue.Job) (target, *commands.Outcome) {
+	id, out := accountOf(j)
+	if out != nil {
+		return target{}, out
+	}
+	t, out := loadTarget(ctx, c.d, j, id, c.current)
+	switch {
+	case out != nil:
+		return t, out
 	case t.skip:
 		return t, &commands.Outcome{Status: commands.StatusDone, Result: mustJSON(subscribeResult{Skipped: true})}
-	case errors.Is(credErr, ErrNoCredentials) && !c.subscribe:
+	case errors.Is(t.credErr, ErrNoCredentials) && !c.subscribe:
 		// Đã ngắt mà không còn token: không còn gì để hủy bằng token này.
 		return t, &commands.Outcome{Status: commands.StatusDone}
-	case errors.Is(credErr, ErrNoCredentials):
+	case errors.Is(t.credErr, ErrNoCredentials):
 		return t, &commands.Outcome{Status: commands.StatusRejected, Reason: reasonNoCredentials}
-	case credErr != nil:
+	case t.credErr != nil:
 		return t, &commands.Outcome{Status: commands.StatusRejected, Reason: reasonUnreadable}
 	}
 	ad, conn, err := connector(c.d.Registry, t.acc.Channel)
