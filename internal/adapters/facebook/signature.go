@@ -15,14 +15,14 @@ const SignatureHeader = "X-Hub-Signature-256"
 // X-Hub-Signature (sha1), hex sai hay app secret rỗng → false.
 func (c *Channel) VerifySignature(raw []byte, h http.Header) bool {
 	hexSig, ok := strings.CutPrefix(h.Get(SignatureHeader), "sha256=")
-	if !ok || c.appSecret == "" {
+	if !ok || c.o.AppSecret == "" {
 		return false
 	}
 	got, err := hex.DecodeString(hexSig)
 	if err != nil {
 		return false
 	}
-	mac := hmac.New(sha256.New, []byte(c.appSecret))
+	mac := hmac.New(sha256.New, []byte(c.o.AppSecret))
 	mac.Write(raw)
 	return hmac.Equal(got, mac.Sum(nil))
 }

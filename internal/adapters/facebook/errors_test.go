@@ -11,7 +11,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/channel"
 )
 
-// TestClassify: mỗi dòng của bảng phân loại trong kế hoạch Task 146 một ca (14 ca), cùng lý do và câu tiếng Việt.
+// TestClassify: mỗi dòng của bảng phân loại trong kế hoạch Task 146 một ca (14 ca) và hai ca HTTP không JSON (408, 413) sửa ở Task 148, cùng lý do và câu tiếng Việt.
 func TestClassify(t *testing.T) {
 	t.Parallel()
 	const (
@@ -44,6 +44,8 @@ func TestClassify(t *testing.T) {
 		{"100 tham số sai", &facebook.GraphError{HTTPStatus: 400, Code: 100, Sent: facebook.MaybeSent}, channel.ErrorPermanent, "", "Facebook từ chối (mã 100)"},
 		{"5xx không JSON", &facebook.GraphError{HTTPStatus: 503, Sent: facebook.MaybeSent}, channel.ErrorUnknown, "", unknown},
 		{"hết giờ sau khi gửi trọn", &facebook.GraphError{Sent: facebook.MaybeSent}, channel.ErrorUnknown, "", unknown},
+		{"408 không JSON (tầng giữa hết giờ)", &facebook.GraphError{HTTPStatus: 408, Sent: facebook.MaybeSent}, channel.ErrorUnknown, "", unknown},
+		{"4xx khác không JSON", &facebook.GraphError{HTTPStatus: 413, Sent: facebook.MaybeSent}, channel.ErrorPermanent, "", "Facebook từ chối (HTTP 413)"},
 		{"mã lạ", &facebook.GraphError{HTTPStatus: 400, Code: 9999, Sent: facebook.MaybeSent}, channel.ErrorPermanent, "", "Facebook từ chối (mã 9999)"},
 	}
 	for _, tc := range cases {
@@ -103,5 +105,21 @@ func TestGraphError_MessageScrubbed(t *testing.T) {
 	err := facebook.NewGraphErrorForTest(400, 100, 0, "OAuthException", "tr1", "Gọi 0912345678 tại 12 Lý Thường Kiệt")
 	if got := err.Error(); strings.Contains(got, "0912345678") || strings.Contains(err.Message, "0912345678") {
 		t.Fatalf("lộ SĐT: %q / %q", got, err.Message)
+	}
+}
+
+// Lỗi dựng yêu cầu (thân không mã hóa được) là lỗi của mã: permanent, không gọi Meta (ghi chú reviewer Task 146).
+func TestDo_BuildErrorPermanent(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, "")
+	_, err := e.c.Do(t.Context(), "POST", testPageID+"/messages", testToken, nil, map[string]any{"x": make(chan int)}, nil)
+	if got := facebook.Classify(err); got != channel.ErrorPermanent {
+		t.Errorf("lỗi dựng yêu cầu: %s (%v), mong permanent", got, err)
+	}
+	if _, text := facebook.Reason(err); text != "Không dựng được yêu cầu gửi Facebook" {
+		t.Errorf("câu lý do = %q", text)
+	}
+	if n := len(e.fg.Calls("")); n != 0 {
+		t.Errorf("máy giả nhận %d lời gọi, mong 0", n)
 	}
 }

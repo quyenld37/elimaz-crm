@@ -15,14 +15,14 @@ import (
 	"elimaz.com.vn/crm/internal/platform/logging"
 )
 
-const (
-	webhookAppSecret = "0123456789abcdef0123456789abcdef"
-	testVerifyToken  = "verify-token-thu-0123456789abcdef0123"
-)
+const testVerifyToken = "verify-token-thu-0123456789abcdef0123"
 
-func newAdapter() *facebook.Channel {
-	return facebook.New(logging.Secret(webhookAppSecret), logging.Secret(testVerifyToken))
+// inbound dựng adapter chỉ để dùng phần vào (không gọi Graph): app secret và verify token.
+func inbound(appSecret, verifyToken string) *facebook.Channel {
+	return facebook.New(facebook.Options{AppSecret: logging.Secret(appSecret), VerifyToken: logging.Secret(verifyToken)})
 }
+
+func newAdapter() *facebook.Channel { return inbound(testAppSecret, testVerifyToken) }
 
 // sign trả header X-Hub-Signature-256 của raw ký bằng secret như Meta.
 func sign(raw []byte, secret string) http.Header {
@@ -38,6 +38,15 @@ func fixture(t testing.TB, name string) []byte {
 	b, err := os.ReadFile(filepath.Join("testdata", name))
 	if err != nil {
 		t.Fatal(err)
+	}
+	return b
+}
+
+// mustRead đọc fixture testdata/name ở chỗ không có testing.TB (Harness của channeltest).
+func mustRead(name string) []byte {
+	b, err := os.ReadFile(filepath.Join("testdata", name))
+	if err != nil {
+		panic(err)
 	}
 	return b
 }
@@ -69,7 +78,7 @@ func TestChallenge(t *testing.T) {
 		}
 	}
 	// Vai trò không có verify token (worker): mọi bước GET đều sai, kể cả token rỗng gửi lên.
-	empty := facebook.New(logging.Secret(webhookAppSecret), "")
+	empty := inbound(testAppSecret, "")
 	if _, ok := empty.Challenge(q("subscribe", "", "1")); ok {
 		t.Error("verify token rỗng không được khớp token rỗng")
 	}
@@ -80,24 +89,24 @@ func TestVerifySignature(t *testing.T) {
 	t.Parallel()
 	a := newAdapter()
 	raw := fixture(t, "message_text.json")
-	if !a.VerifySignature(raw, sign(raw, webhookAppSecret)) {
+	if !a.VerifySignature(raw, sign(raw, testAppSecret)) {
 		t.Fatal("chữ ký đúng phải đạt")
 	}
 	// Đổi một byte bất kỳ của thân → sai (contract (4)).
 	for _, i := range []int{0, len(raw) / 2, len(raw) - 1} {
 		bad := append([]byte(nil), raw...)
 		bad[i] ^= 0x01
-		if a.VerifySignature(bad, sign(raw, webhookAppSecret)) {
+		if a.VerifySignature(bad, sign(raw, testAppSecret)) {
 			t.Errorf("đổi byte %d vẫn đạt", i)
 		}
 	}
 	if a.VerifySignature(raw, http.Header{}) {
 		t.Error("thiếu header phải sai")
 	}
-	if a.VerifySignature(raw, sign(raw, webhookAppSecret+"0")) {
+	if a.VerifySignature(raw, sign(raw, testAppSecret+"0")) {
 		t.Error("ký bằng secret khác phải sai")
 	}
-	m := hmac.New(sha1.New, []byte(webhookAppSecret))
+	m := hmac.New(sha1.New, []byte(testAppSecret))
 	m.Write(raw)
 	sha1Only := http.Header{}
 	sha1Only.Set("X-Hub-Signature", "sha1="+hex.EncodeToString(m.Sum(nil)))
@@ -112,7 +121,7 @@ func TestVerifySignature(t *testing.T) {
 		}
 	}
 	// Không có app secret (cấu hình thiếu): không chữ ký nào đạt, kể cả HMAC bằng khóa rỗng.
-	if facebook.New("", testVerifyToken).VerifySignature(raw, sign(raw, "")) {
+	if inbound("", testVerifyToken).VerifySignature(raw, sign(raw, "")) {
 		t.Error("app secret rỗng phải luôn sai")
 	}
 }
