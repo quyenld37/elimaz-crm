@@ -370,6 +370,44 @@ func (q *Queries) ListLiveSessionsOfAccount(ctx context.Context, channelAccountI
 	return items, nil
 }
 
+const liveCommentIDsOfSession = `-- name: LiveCommentIDsOfSession :many
+SELECT m.external_id::text AS external_id
+FROM conversation.messages AS m
+JOIN conversation.posts AS p ON p.id = m.post_id
+WHERE m.channel_account_id = $1
+  AND m.is_live
+  AND m.external_id IS NOT NULL
+  AND p.channel_account_id = $1
+  AND p.external_id = ANY($2::text[])
+`
+
+type LiveCommentIDsOfSessionParams struct {
+	ChannelAccountID uuid.UUID
+	Posts            []string
+}
+
+// Mã comment is_live của phiên đã thành tin: tin trên bài của Page có mã là mã bài, mã live hay mã video của phiên
+// (như MatchLiveComment). Đối chiếu cuối phiên gộp với comment vừa đọc lại của Meta.
+func (q *Queries) LiveCommentIDsOfSession(ctx context.Context, arg LiveCommentIDsOfSessionParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, liveCommentIDsOfSession, arg.ChannelAccountID, arg.Posts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var external_id string
+		if err := rows.Scan(&external_id); err != nil {
+			return nil, err
+		}
+		items = append(items, external_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const matchLiveComment = `-- name: MatchLiveComment :one
 SELECT id
 FROM conversation.live_sessions
@@ -460,6 +498,46 @@ func (q *Queries) RenewLiveLease(ctx context.Context, arg RenewLiveLeaseParams) 
 	var status string
 	err := row.Scan(&status)
 	return status, err
+}
+
+const setLiveActiveSource = `-- name: SetLiveActiveSource :execrows
+UPDATE conversation.live_sessions
+SET active_source = $1::text
+WHERE id = $2
+  AND status = 'live'
+`
+
+type SetLiveActiveSourceParams struct {
+	ActiveSource string
+	ID           uuid.UUID
+}
+
+// Nguồn comment đang dùng của phiên còn live (Task 171: sse hay poll, chỉ để hiển thị và theo dõi).
+func (q *Queries) SetLiveActiveSource(ctx context.Context, arg SetLiveActiveSourceParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setLiveActiveSource, arg.ActiveSource, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setLiveReconciled = `-- name: SetLiveReconciled :exec
+UPDATE conversation.live_sessions
+SET meta_comment_count = $1::int,
+    reconciled_at      = $2
+WHERE id = $3
+`
+
+type SetLiveReconciledParams struct {
+	MetaCommentCount int32
+	ReconciledAt     pgtype.Timestamptz
+	ID               uuid.UUID
+}
+
+// Kết quả đối chiếu cuối phiên (Task 171): số comment Meta đếm và lúc đối chiếu.
+func (q *Queries) SetLiveReconciled(ctx context.Context, arg SetLiveReconciledParams) error {
+	_, err := q.db.Exec(ctx, setLiveReconciled, arg.MetaCommentCount, arg.ReconciledAt, arg.ID)
+	return err
 }
 
 const upsertLiveSession = `-- name: UpsertLiveSession :one

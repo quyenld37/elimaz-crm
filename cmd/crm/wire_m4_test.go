@@ -41,8 +41,9 @@ func TestWireM4_Frame(t *testing.T) {
 		if inbound := m4InboundSources(p); !slices.Equal(inbound, c.keys) && len(inbound)+len(c.keys) != 0 {
 			t.Errorf("%s: handler vào của nguồn %v, muốn %v", c.cfg.Env, inbound, c.keys)
 		}
-		if len(p.Background) != 0 {
-			t.Errorf("%s: khung M4 chưa được có luồng nền: %+v", c.cfg.Env, p)
+		// Luồng nền đọc comment live (Task 171) chỉ khi có kênh Facebook.
+		if wantBg := len(slices.DeleteFunc(slices.Clone(c.keys), func(k string) bool { return k != "facebook" })); len(p.Background) != wantBg {
+			t.Errorf("%s: %d luồng nền, muốn %d", c.cfg.Env, len(p.Background), wantBg)
 		}
 		wantCmds := []string{
 			channel.SubscribePageKind, channel.UnsubscribePageKind, channel.HealthCheckKind, channel.BackfillKind,
@@ -56,6 +57,7 @@ func TestWireM4_Frame(t *testing.T) {
 		if slices.Contains(c.keys, "facebook") {
 			wantCmds = append(wantCmds, "command.fb.live_detect") // Task 170: nhận biết live bằng hỏi định kỳ
 		}
+		wantCmds = append(wantCmds, "command.fb.live_reconcile") // Task 171: đối chiếu comment cuối phiên, mọi cấu hình
 		if cmds := m4CommandKinds(p); !slices.Equal(cmds, wantCmds) {
 			t.Errorf("%s: lệnh M4 = %v", c.cfg.Env, cmds)
 		}

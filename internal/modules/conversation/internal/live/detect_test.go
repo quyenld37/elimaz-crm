@@ -138,12 +138,13 @@ func TestDetectCommand_PollFindsAndEndsSessions(t *testing.T) {
 		t.Errorf("Lookup = %q %v", st, err)
 	}
 	p := live.Parts(e.d)
-	if len(p.Commands) != 1 || len(p.Schedules) != 1 || p.Schedules[0].Name != live.DetectSchedule ||
+	if len(p.Commands) != 2 || p.Commands[1].Kind().Name != live.ReconcileCommandName || len(p.Background) != 0 || len(p.Schedules) != 1 || p.Schedules[0].Name != live.DetectSchedule ||
 		p.Schedules[0].Every != 30*time.Second || !p.Schedules[0].PerTenant ||
 		p.Schedules[0].Kind.Name != live.DetectCommandName || p.Commands[0].Kind().Name != live.DetectCommandName {
 		t.Errorf("Parts: %+v", p)
 	}
-	if p := live.Parts(newLiveEnv(t).d); len(p.Commands)+len(p.Schedules)+len(p.Background) != 0 {
+	// Không có kênh nhận biết live: chỉ lệnh đối chiếu (Task 171, luôn có).
+	if p := live.Parts(newLiveEnv(t).d); len(p.Commands) != 1 || len(p.Schedules)+len(p.Background) != 0 {
 		t.Errorf("không có kênh nhận biết live: %+v", p)
 	}
 }

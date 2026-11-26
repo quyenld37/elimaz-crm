@@ -74,7 +74,8 @@ func TestInbound_PolicyEnforcementRouted(t *testing.T) {
 }
 
 // Gộp 170 + 153/154: handler vào chuyển live.status cho LiveStatus (phiên live detected_by webhook); comment khách trên
-// bài của phiên (mã video) ghi is_live và phát báo hiệu live.comments theo phiên; comment trên bài khác không phải live.
+// bài của phiên (mã video) ghi is_live và phát báo hiệu live.comments theo phiên (chỉ số live_comment_to_signal_ms,
+// Task 171); comment trên bài khác không phải live.
 func TestInbound_LiveStatusAndLiveComment(t *testing.T) {
 	t.Parallel()
 	fg := fakegraphFor(t)
@@ -109,5 +110,15 @@ func TestInbound_LiveStatusAndLiveComment(t *testing.T) {
 	}
 	if n != 1 {
 		t.Fatalf("báo hiệu live.comments của phiên = %d, muốn 1", n)
+	}
+	// Task 171: độ trễ từ created_time của Meta tới báo hiệu live.comments (một mẫu: chỉ comment live).
+	samples := 0
+	for _, r := range e.reg.Drain() {
+		if r.Name == "live_comment_to_signal_ms" && r.Label == facebook.Key {
+			samples += int(r.Count)
+		}
+	}
+	if samples != 1 {
+		t.Errorf("chỉ số live_comment_to_signal_ms: %d mẫu, muốn 1", samples)
 	}
 }

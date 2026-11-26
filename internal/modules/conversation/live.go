@@ -2,6 +2,7 @@ package conversation
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -9,6 +10,8 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/live"
 	"elimaz.com.vn/crm/internal/modules/identity"
+	"elimaz.com.vn/crm/internal/platform/commands"
+	"elimaz.com.vn/crm/internal/platform/observability"
 )
 
 // Phiên live (Task 170; Q3, Q5, LV01, LV10). Hiện thực ở internal/live: ba đường nhận biết (webhook live_videos, lịch
@@ -47,4 +50,11 @@ func EndLiveManually(ctx context.Context, tx pgx.Tx, u identity.AuthUser, id uui
 // ListLiveSessions trả phiên trên các Page u được đọc, lọc trạng thái (rỗng = mọi trạng thái) và mốc bắt đầu từ since.
 func ListLiveSessions(ctx context.Context, tx pgx.Tx, u identity.AuthUser, status string, since *time.Time) ([]LiveSession, error) {
 	return live.List(ctx, tx, u, status, since) //nolint:wrapcheck // sentinel của phần
+}
+
+// NewLiveAlertCommand trả lệnh cảnh báo của phiên live conversation.live_alert (live-source: luồng comment hỏng, đã
+// chuyển sang hỏi định kỳ; live-missing: đối chiếu cuối phiên thiếu comment), mức thường, văn bản chỉ có mã phiên và
+// con số; cmd/crm đăng ký cùng các lệnh cảnh báo khác (dùng chung Alerter).
+func NewLiveAlertCommand(a observability.Alerter, logger *slog.Logger) commands.Handler { //nolint:ireturn // Runner nhận Handler
+	return live.NewAlertCommand(a, logger)
 }

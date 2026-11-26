@@ -33,6 +33,9 @@ const permConversationRead identity.Permission = "conversation.read"
 const (
 	metricIgnored         = "inbound_ignored"      // nhãn: loại sự kiện chưa xử lý hay lý do bỏ qua
 	metricWebhookToSignal = "webhook_to_signal_ms" // nhãn: nguồn; từ lúc CRM nhận tới lúc phát báo hiệu
+	// metricLiveToSignal: nhãn nguồn; từ created_time của Meta tới lúc phát báo hiệu live.comments (mục tiêu p95 < 3 s,
+	// 02 mục 2; đo ở E4, Task 171).
+	metricLiveToSignal = "live_comment_to_signal_ms"
 )
 
 // handler là handler sự kiện vào của một nguồn kênh nhắn tin (Task 153): tin, echo, đã nhận, đã xem, cảm xúc, sửa,

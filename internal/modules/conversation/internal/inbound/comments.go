@@ -147,15 +147,26 @@ func (h *handler) afterCommentInserted(ctx context.Context, tx pgx.Tx, e webhook
 			return err
 		}
 		if session != nil {
-			if err := live.OnComment(ctx, tx, h.d.Bus, e.TenantID, acc.ID, *session); err != nil {
-				return err //nolint:wrapcheck // live đã bọc việc đang làm
-			}
-			if err := onLiveComment(ctx, tx, msgID); err != nil {
+			if err := h.liveComment(ctx, tx, e, acc, p, msgID, *session); err != nil {
 				return err
 			}
 		}
 	}
 	return h.publish(ctx, tx, e, acc, convID)
+}
+
+// liveComment chạy cho comment khách mới msgID của phiên live session: báo hiệu live.comments (Task 170), độ trễ từ
+// created_time của Meta tới báo hiệu (Task 171), hook chốt (Task 172).
+func (h *handler) liveComment(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, acc channel.ChannelAccount,
+	p channel.CommentPayload, msgID, session uuid.UUID,
+) error {
+	if err := live.OnComment(ctx, tx, h.d.Bus, e.TenantID, acc.ID, session); err != nil {
+		return err //nolint:wrapcheck // live đã bọc việc đang làm
+	}
+	if h.d.Metrics != nil && !p.CreatedAt.IsZero() {
+		h.d.Metrics.Observe(metricLiveToSignal, float64(h.now().Sub(p.CreatedAt).Milliseconds()), h.source)
+	}
+	return onLiveComment(ctx, tx, msgID)
 }
 
 // bumpForComment cập nhật hội thoại đã khóa sau comment vừa chèn: comment khách như tin vào (chưa đọc + 1), comment

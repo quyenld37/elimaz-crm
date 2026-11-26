@@ -87,6 +87,7 @@ type state struct {
 	comments     map[string]*Comment
 	lives        map[string]*LiveVideo
 	liveComments map[string][]*Comment
+	liveTotals   map[string]int
 	messages     []*Message
 	privateUsed  map[string]bool
 	subscribed   map[string][]string
@@ -103,7 +104,7 @@ func newState() state {
 	return state{
 		pages: map[string]*Page{}, users: map[string]*User{}, tokens: map[string]*tokenInfo{},
 		profiles: map[string]*Profile{}, posts: map[string]*Post{}, comments: map[string]*Comment{},
-		lives: map[string]*LiveVideo{}, liveComments: map[string][]*Comment{}, privateUsed: map[string]bool{},
+		lives: map[string]*LiveVideo{}, liveComments: map[string][]*Comment{}, liveTotals: map[string]int{}, privateUsed: map[string]bool{},
 		subscribed: map[string][]string{}, files: map[string]file{}, redirects: map[string]string{},
 	}
 }

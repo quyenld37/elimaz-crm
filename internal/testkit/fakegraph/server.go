@@ -53,6 +53,8 @@ type Call struct {
 	Token        string
 	ProofOK      bool
 	Header       http.Header
+	// At là lúc máy giả nhận yêu cầu.
+	At time.Time
 }
 
 // Server là máy Meta giả. Tạo bằng New (test, httptest TLS) hoặc NewHandler (tools/fakegraph).
@@ -156,7 +158,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	token := tokenOf(r)
 	c := Call{
 		Method: r.Method, Path: path, Versioned: versioned, Query: r.URL.Query(), Body: body, Token: token,
-		Header: r.Header.Clone(),
+		Header: r.Header.Clone(), At: time.Now(),
 	}
 	c.ProofOK = token != "" && hmac.Equal([]byte(r.URL.Query().Get("appsecret_proof")), []byte(s.Proof(token)))
 	s.mu.Lock()

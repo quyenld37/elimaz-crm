@@ -108,7 +108,8 @@ type Observation struct {
 
 // UpsertSession ghi một lần thấy phiên (ba đường nhận biết dùng chung, Q5): live → tạo phiên hay giữ phiên có sẵn
 // (trùng (Page, live_video_id) chỉ bổ sung mã còn thiếu); ended → phiên đang live của video chuyển ended. Trạng thái
-// không bao giờ đi ngược ended → live. ok = false khi kết thúc một phiên chưa biết hay đã kết thúc (không làm gì).
+// không bao giờ đi ngược ended → live; phiên vừa chuyển ended ghi lệnh đối chiếu cuối phiên (Task 171). ok = false
+// khi kết thúc một phiên chưa biết hay đã kết thúc (không làm gì).
 func UpsertSession(ctx context.Context, tx pgx.Tx, o Observation) (s Session, ok bool, err error) {
 	q := store.New(tx)
 	if o.State == StatusEnded {
@@ -121,7 +122,11 @@ func UpsertSession(ctx context.Context, tx pgx.Tx, o Observation) (s Session, ok
 		if err != nil {
 			return Session{}, false, fmt.Errorf("kết thúc phiên live: %w", err)
 		}
-		return sessionFrom(r), true, nil
+		s := sessionFrom(r)
+		if err := enqueueReconcile(ctx, tx, s); err != nil {
+			return Session{}, false, err
+		}
+		return s, true, nil
 	}
 	r, err := q.UpsertLiveSession(ctx, store.UpsertLiveSessionParams{
 		ChannelAccountID: o.AccountID, LiveVideoID: o.LiveVideoID, VideoID: textOf(o.VideoID),
@@ -228,7 +233,8 @@ func StartManual(ctx context.Context, tx pgx.Tx, u identity.AuthUser, accountID 
 	return s, err
 }
 
-// EndManual kết thúc tay phiên id (cần live.operate trên Page của phiên); đã kết thúc thì trả nguyên phiên.
+// EndManual kết thúc tay phiên id (cần live.operate trên Page của phiên) và ghi lệnh đối chiếu cuối phiên; đã kết
+// thúc thì trả nguyên phiên.
 func EndManual(ctx context.Context, tx pgx.Tx, u identity.AuthUser, id uuid.UUID, now time.Time) (Session, error) {
 	q := store.New(tx)
 	cur, err := q.GetLiveSession(ctx, id)
@@ -242,14 +248,17 @@ func EndManual(ctx context.Context, tx pgx.Tx, u identity.AuthUser, id uuid.UUID
 		return Session{}, err //nolint:wrapcheck // sentinel của phần (404)
 	}
 	r, err := q.EndLiveSession(ctx, store.EndLiveSessionParams{EndedAt: tsOf(now), ID: id})
-	if errors.Is(err, pgx.ErrNoRows) {
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
 		if r, err = q.GetLiveSession(ctx, id); err != nil {
 			return Session{}, fmt.Errorf("đọc lại phiên live: %w", err)
 		}
-	} else if err != nil {
+		return sessionFrom(r), nil
+	case err != nil:
 		return Session{}, fmt.Errorf("kết thúc phiên live: %w", err)
 	}
-	return sessionFrom(r), nil
+	s := sessionFrom(r)
+	return s, enqueueReconcile(ctx, tx, s)
 }
 
 // List trả phiên trên các Page u được đọc (conversation.read), lọc trạng thái (rỗng = mọi trạng thái) và mốc bắt đầu

@@ -32,6 +32,25 @@ func (s *Server) PushLiveComment(videoID string, c Comment) {
 	}
 }
 
+// AddLiveComment thêm một comment live chỉ đọc được qua {live-video-id}/comments: không đẩy tới luồng SSE nào (như
+// comment Meta không phát qua luồng lẫn webhook).
+func (s *Server) AddLiveComment(videoID string, c Comment) {
+	if c.ParentID == "" {
+		c.ParentID = videoID
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.st.liveComments[videoID] = append(s.st.liveComments[videoID], &c)
+}
+
+// SetLiveCommentTotal đặt summary.total_count của {live-video-id}/comments là n (thay cho số comment máy giả có), như
+// Meta đếm cả comment không liệt kê được.
+func (s *Server) SetLiveCommentTotal(videoID string, n int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.st.liveTotals[videoID] = n
+}
+
 // DropStream đóng mọi luồng SSE đang mở của videoID (như Meta cắt luồng).
 func (s *Server) DropStream(videoID string) {
 	s.mu.Lock()

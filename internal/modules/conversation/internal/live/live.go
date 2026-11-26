@@ -1,23 +1,26 @@
 // Package live là phần của module conversation: phiên live: khóa thuê, nguồn comment, chốt đơn, đơn nháp thiếu địa chỉ (Task 170–173).
 package live
 
-import "elimaz.com.vn/crm/internal/modules/conversation/internal/deps"
+import (
+	"elimaz.com.vn/crm/internal/modules/channel"
+	"elimaz.com.vn/crm/internal/modules/conversation/internal/deps"
+)
 
 // Parts là phần chạy nền của phần live: lệnh command.fb.live_detect và lịch live.detect khi bộ adapter có kênh nhận
-// biết được live (Task 170); bộ quản lý luồng đọc comment khi có nguồn comment (Task 171 cắm nguồn Facebook).
+// biết được live (Task 170); lệnh đối chiếu cuối phiên command.fb.live_reconcile luôn có (phiên nào kết thúc cũng ghi
+// lệnh; kênh không đọc được comment live thì lệnh từ chối, không treo chờ), và khi có kênh đọc được comment live
+// (channel.LiveSource, Task 171) thêm bộ quản lý luồng đọc comment bằng FBSource. Lệnh cảnh báo conversation.live_alert
+// cần Alerter nên cmd/crm đăng ký cùng các lệnh cảnh báo khác (conversation.NewLiveAlertCommand).
 func Parts(d deps.Deps) deps.Parts {
 	var p deps.Parts
-	if canDetect(d.Registry) {
+	if anyAdapter[detector](d.Registry) {
 		c := NewDetectCommand(d)
 		p.Commands = append(p.Commands, c)
 		p.Schedules = append(p.Schedules, DetectScheduleFor(c))
 	}
-	if src := commentSource(d); src != nil {
-		p.Background = append(p.Background, NewManager(d, src, Options{}).Run)
+	p.Commands = append(p.Commands, NewReconcileCommand(d))
+	if anyAdapter[channel.LiveSource](d.Registry) {
+		p.Background = append(p.Background, NewManager(d, NewSource(d, SourceOptions{}), Options{}).Run)
 	}
 	return p
 }
-
-// commentSource trả nguồn comment live của bộ adapter; chưa có nguồn thật (Task 171) → nil, không chạy bộ quản lý
-// (nhận phiên mà không đọc được chỉ giữ khóa vô ích).
-func commentSource(deps.Deps) CommentSource { return nil } //nolint:ireturn // nguồn là interface phía dùng

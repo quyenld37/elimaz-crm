@@ -14,9 +14,10 @@ import (
 )
 
 // Không có bộ adapter: không handler vào, luồng nền. Có bộ adapter: mỗi adapter đúng một handler vào cùng khóa
-// (Task 153). Lệnh luôn có command.fb.fetch_attachment, command.fb.fetch_profile (Task 155, chỉ đọc) và
-// command.fb.send_message (Task 156; không có adapter thì lệnh từ chối tin còn chờ), thêm command.fb.fetch_post (Task
-// 154), command.fb.live_detect và lịch live.detect (Task 170) khi có adapter Facebook. Phần chạy nền luôn có lịch
+// (Task 153). Lệnh luôn có command.fb.fetch_attachment, command.fb.fetch_profile (Task 155, chỉ đọc),
+// command.fb.send_message (Task 156; không có adapter thì lệnh từ chối tin còn chờ) và command.fb.live_reconcile
+// (Task 171), thêm command.fb.fetch_post (Task 154), command.fb.live_detect và lịch live.detect (Task 170), một luồng
+// nền đọc comment live (Task 171) khi có adapter Facebook. Phần chạy nền luôn có lịch
 // conversation.presence_cleanup (Task 163), conversation.reminders (Task 169) mỗi 60 s và channel.comment_poll (Task
 // 150, đọc comment định kỳ) mỗi 30 s, theo tenant, đúng một handler cùng Kind.
 func TestWiring(t *testing.T) {
@@ -49,6 +50,9 @@ func TestWiring(t *testing.T) {
 	}
 	d.Registry = reg
 	checkCommands(t, d)
+	if n := len(conversation.Background(d)); n != 1 {
+		t.Errorf("luồng nền khi có Facebook: %d, mong 1 (đọc comment live)", n)
+	}
 	var detect []schedules.Schedule
 	for _, s := range conversation.Schedules(d) {
 		if s.Name == "live.detect" {
@@ -62,15 +66,17 @@ func TestWiring(t *testing.T) {
 
 // checkCommands: lệnh của conversation theo thứ tự đăng ký: command.fb.fetch_attachment, command.fb.fetch_profile
 // (luôn có, Task 155), command.fb.fetch_post (khi có adapter Facebook), command.fb.send_message hạn 3 phút (luôn có),
-// command.fb.live_detect (khi có adapter Facebook).
+// command.fb.live_detect (khi có adapter Facebook), command.fb.live_reconcile (luôn có, Task 171).
 func checkCommands(t *testing.T, d conversation.Deps) {
 	t.Helper()
 	fb := d.Registry != nil && slices.Contains(d.Registry.Keys(), facebook.Key)
-	want := []string{"command.fb.fetch_attachment", "command.fb.fetch_profile", conversation.SendMessageKind}
+	want := []string{
+		"command.fb.fetch_attachment", "command.fb.fetch_profile", conversation.SendMessageKind, "command.fb.live_reconcile",
+	}
 	if fb {
 		want = []string{
 			"command.fb.fetch_attachment", "command.fb.fetch_profile", "command.fb.fetch_post", conversation.SendMessageKind,
-			"command.fb.live_detect",
+			"command.fb.live_detect", "command.fb.live_reconcile",
 		}
 	}
 	var got []string
