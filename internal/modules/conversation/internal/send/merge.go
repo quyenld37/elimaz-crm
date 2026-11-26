@@ -51,29 +51,54 @@ func lock(ctx context.Context, tx pgx.Tx, m store.GetOutgoingMessageRow) (store.
 // mốc của kênh, đã nhận, đã xem, cảm xúc của nó; đặt tin sent kèm mã ngoài; báo hiệu. result nil (done do tra lại hay
 // người quyết) → tin sent, giữ mã ngoài đã có.
 func (c sendCommand) OnDone(ctx context.Context, j queue.Job, raw json.RawMessage, tx pgx.Tx) error {
+	return c.done(ctx, j, raw, tx, c.settleSent)
+}
+
+// settleFunc đặt tin m của lệnh j sent với mã ngoài ext (rỗng: giữ mã đã có).
+type settleFunc func(ctx context.Context, tx pgx.Tx, j queue.Job, m store.GetOutgoingMessageRow, ext string) error
+
+// done là OnDone của lệnh có tin: begin rồi settle với mã ngoài của kết quả.
+func (c sendCommand) done(ctx context.Context, j queue.Job, raw json.RawMessage, tx pgx.Tx, settle settleFunc) error {
+	res, m, ok, err := c.begin(ctx, j, raw, tx)
+	if err != nil || !ok {
+		return err
+	}
+	return settle(ctx, tx, j, m, res.ExternalID)
+}
+
+// begin là phần đầu của OnDone mọi lệnh ra kênh: đọc kết quả, tin của lệnh (ok = false: không còn gì để đổi); kênh
+// xin giãn → NoteBlockedUntil (nhóm 3, trước mọi khóa nhóm 5, 6).
+func (c sendCommand) begin(ctx context.Context, j queue.Job, raw json.RawMessage, tx pgx.Tx,
+) (result, store.GetOutgoingMessageRow, bool, error) {
 	var res result
 	if len(raw) > 0 {
 		if err := json.Unmarshal(raw, &res); err != nil {
-			return fmt.Errorf("đọc kết quả lệnh gửi: %w", err)
+			return res, store.GetOutgoingMessageRow{}, false, fmt.Errorf("đọc kết quả lệnh gửi: %w", err)
 		}
 	}
 	m, ok, err := target(ctx, tx, j)
 	if err != nil || !ok {
-		return err
+		return res, m, false, err
 	}
-	now := c.now().UTC()
 	if res.SlowDownMs > 0 {
-		if err := channel.NoteBlockedUntil(ctx, tx, m.ChannelAccountID, now.Add(time.Duration(res.SlowDownMs)*time.Millisecond)); err != nil {
-			return err //nolint:wrapcheck // channel đã bọc việc đang làm
+		until := c.now().UTC().Add(time.Duration(res.SlowDownMs) * time.Millisecond)
+		if err := channel.NoteBlockedUntil(ctx, tx, m.ChannelAccountID, until); err != nil {
+			return res, m, false, err //nolint:wrapcheck // channel đã bọc việc đang làm
 		}
 	}
+	return res, m, true, nil
+}
+
+// settleSent khóa hội thoại, tin m; xóa dòng own_echo_unmatched cùng mã ext (echo không metadata tới trước) và chép
+// mốc, đã nhận, đã xem, cảm xúc của nó; đặt tin sent kèm mã ngoài (ext rỗng: giữ mã đã có); báo hiệu.
+func (c sendCommand) settleSent(ctx context.Context, tx pgx.Tx, j queue.Job, m store.GetOutgoingMessageRow, ext string) error {
 	if _, err := lock(ctx, tx, m); err != nil {
 		return err
 	}
 	q := store.New(tx)
-	mark := store.MarkOwnMessageSentParams{SentAt: now, ID: m.ID}
-	if res.ExternalID != "" {
-		mark.ExternalID = pgtype.Text{String: res.ExternalID, Valid: true}
+	mark := store.MarkOwnMessageSentParams{SentAt: c.now().UTC(), ID: m.ID}
+	if ext != "" {
+		mark.ExternalID = pgtype.Text{String: ext, Valid: true}
 		echoes, err := q.DeleteUnmatchedEcho(ctx, store.DeleteUnmatchedEchoParams{
 			ChannelAccountID: m.ChannelAccountID, ExternalID: mark.ExternalID,
 		})
@@ -84,12 +109,20 @@ func (c sendCommand) OnDone(ctx context.Context, j queue.Job, raw json.RawMessag
 			mark.SentAt, mark.DeliveredAt, mark.ReadAt, mark.Reactions = e.SentAt.UTC(), e.DeliveredAt, e.ReadAt, e.Reactions
 		}
 	}
-	n, err := q.MarkOwnMessageSent(ctx, mark)
+	return c.markSent(ctx, tx, j, m, mark)
+}
+
+// markSent đặt tin m (đã khóa) sent theo mark rồi báo hiệu; không đổi dòng nào (echo có metadata đã đặt sent trước) →
+// không báo.
+func (c sendCommand) markSent(ctx context.Context, tx pgx.Tx, j queue.Job, m store.GetOutgoingMessageRow,
+	mark store.MarkOwnMessageSentParams,
+) error {
+	n, err := store.New(tx).MarkOwnMessageSent(ctx, mark)
 	if err != nil {
 		return fmt.Errorf("đặt tin đã gửi: %w", err)
 	}
 	if n == 0 {
-		return nil // echo có metadata đã đặt sent trước
+		return nil
 	}
 	return publish(ctx, tx, c.d.Bus, *j.TenantID, m.ChannelAccountID, m.ConversationID)
 }

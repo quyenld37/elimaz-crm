@@ -178,16 +178,33 @@ func (e *env) exec(sql string, args ...any) {
 
 func (e *env) env() send.Env { return send.Env{Registry: e.d.Registry, Queue: e.d.Queue, Bus: e.bus} }
 
+// inTx chạy fn trong một transaction tenant A của crm_app và trả kết quả của nó.
+func inTx[T any](e *env, fn func(tx pgx.Tx) (T, error)) (T, error) { //nolint:ireturn // T là kiểu cụ thể của bên gọi
+	e.t.Helper()
+	var out T
+	err := tenancy.WithTenant(e.t.Context(), e.staff.App, e.tenant, func(tx pgx.Tx) error {
+		var err error
+		out, err = fn(tx)
+		return err
+	})
+	return out, err //nolint:wrapcheck // test
+}
+
 // send gửi in vào hội thoại conv bằng nhân viên của env, trong một transaction tenant.
 func (e *env) send(conv uuid.UUID, in send.Input) (send.Message, error) {
 	e.t.Helper()
-	var m send.Message
-	err := tenancy.WithTenant(e.t.Context(), e.staff.App, e.tenant, func(tx pgx.Tx) error {
-		var err error
-		m, err = send.Send(e.t.Context(), tx, e.env(), e.user, conv, in, e.clock.Now())
-		return err //nolint:wrapcheck // test
+	return inTx(e, func(tx pgx.Tx) (send.Message, error) {
+		return send.Send(e.t.Context(), tx, e.env(), e.user, conv, in, e.clock.Now())
 	})
-	return m, err //nolint:wrapcheck // test
+}
+
+// resolve tra lại mọi lệnh in_doubt của send, đòi đúng want lệnh ra done.
+func (e *env) resolve(want int) {
+	e.t.Helper()
+	done, _, _, err := commands.ResolveInDoubt(e.t.Context(), e.staff.App, send.Parts(e.d).Commands, 10)
+	if err != nil || done != want {
+		e.t.Fatalf("ResolveInDoubt = %d, %v; muốn %d", done, err, want)
+	}
 }
 
 // mustSend như send, lỗi thì dừng.

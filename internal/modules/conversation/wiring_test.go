@@ -61,23 +61,28 @@ func TestWiring(t *testing.T) {
 }
 
 // checkCommands: lệnh của conversation theo thứ tự đăng ký: command.fb.fetch_attachment, command.fb.fetch_profile
-// (luôn có, Task 155), command.fb.fetch_post (khi có adapter Facebook), command.fb.send_message hạn 3 phút (luôn có),
-// command.fb.live_detect (khi có adapter Facebook).
+// (luôn có, Task 155), command.fb.fetch_post (khi có adapter Facebook), command.fb.send_message hạn 3 phút, ba lệnh
+// comment của Task 158 (luôn có), command.fb.live_detect (khi có adapter Facebook).
 func checkCommands(t *testing.T, d conversation.Deps) {
 	t.Helper()
 	fb := d.Registry != nil && slices.Contains(d.Registry.Keys(), facebook.Key)
-	want := []string{"command.fb.fetch_attachment", "command.fb.fetch_profile", conversation.SendMessageKind}
+	reads := []string{"command.fb.fetch_attachment", "command.fb.fetch_profile"}
+	sends := []string{
+		conversation.SendMessageKind, conversation.ReplyCommentKind, conversation.PrivateReplyKind,
+		conversation.HideCommentKind,
+	}
+	want := append(slices.Clone(reads), sends...)
 	if fb {
-		want = []string{
-			"command.fb.fetch_attachment", "command.fb.fetch_profile", "command.fb.fetch_post", conversation.SendMessageKind,
-			"command.fb.live_detect",
-		}
+		want = append(append(append(slices.Clone(reads), "command.fb.fetch_post"), sends...), "command.fb.live_detect")
 	}
 	var got []string
 	for _, h := range conversation.CommandHandlers(d) {
 		got = append(got, h.Kind().Name)
-		if h.Kind().Name == conversation.SendMessageKind && h.Kind().Policy.ExpiresAfter != 3*time.Minute {
-			t.Errorf("lệnh %s hạn %v, mong 3 phút", conversation.SendMessageKind, h.Kind().Policy.ExpiresAfter)
+		if exp, ok := map[string]time.Duration{
+			conversation.SendMessageKind: 3 * time.Minute, conversation.ReplyCommentKind: 5 * time.Minute,
+			conversation.PrivateReplyKind: 5 * time.Minute, conversation.HideCommentKind: time.Hour,
+		}[h.Kind().Name]; ok && h.Kind().Policy.ExpiresAfter != exp {
+			t.Errorf("lệnh %s hạn %v, mong %v", h.Kind().Name, h.Kind().Policy.ExpiresAfter, exp)
 		}
 	}
 	if !slices.Equal(got, want) {

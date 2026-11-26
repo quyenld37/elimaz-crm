@@ -19,6 +19,7 @@ const (
 	codeSendNotAllowed          = "send_not_allowed"          // chính sách gửi của kênh không cho (Task 156, CH09)
 	codeAttachmentNotReady      = "attachment_not_ready"      // ảnh gửi kèm, tệp đính kèm chưa xử lý xong (Task 156, 155)
 	codeAttachmentRejected      = "attachment_rejected"       // tệp sai mục đích hay bị kho tệp từ chối (Task 156, 155)
+	codePrivateReplyUsed        = "private_reply_used"        // comment đã được nhắn riêng (Task 158, CH05)
 )
 
 // conversationError đổi lỗi nghiệp vụ của hộp chat sang mã HTTP. ErrNotFound: không có, hay trên Page người gọi không
@@ -54,6 +55,9 @@ func conversationError(err error) (status int, code string, ok bool) {
 		{conversation.ErrChannelReadOnly, http.StatusConflict, codeChannelReadOnly},
 		{conversation.ErrAttachmentNotReady, http.StatusUnprocessableEntity, codeAttachmentNotReady},
 		{conversation.ErrAttachmentRejected, http.StatusUnprocessableEntity, codeAttachmentRejected},
+		// Comment (Task 158): đã nhắn riêng → 409; không phải comment của khách trong hội thoại → 422.
+		{conversation.ErrPrivateReplyUsed, http.StatusConflict, codePrivateReplyUsed},
+		{conversation.ErrNotCustomerComment, http.StatusUnprocessableEntity, codeInvalidInput},
 	})
 }
 

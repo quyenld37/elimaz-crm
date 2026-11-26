@@ -36,12 +36,15 @@ func (h *handler) SendMessage(ctx context.Context, req *gen.SendMessageRequest, 
 	return out.(*gen.ChatMessage), nil //nolint:forcetypeassert // fn trên trả *gen.ChatMessage
 }
 
-// chatMessageOut là thân ChatMessage của tin nhân viên vừa gửi.
+// chatMessageOut là thân ChatMessage của tin nhân viên vừa gửi (tin, câu trả lời comment, tin riêng: Kind, comment cha).
 func chatMessageOut(m conversation.Message) *gen.ChatMessage {
 	out := &gen.ChatMessage{
-		ID: m.ID, ConversationId: m.ConversationID, Direction: gen.MessageDirectionOut, Kind: gen.MessageKindMessage,
+		ID: m.ID, ConversationId: m.ConversationID, Direction: gen.MessageDirectionOut, Kind: gen.MessageKind(m.Kind),
 		Origin: gen.MessageOriginStaff, Attachments: make([]gen.ChatAttachment, 0, len(m.Attachments)),
 		SendStatus: gen.NewOptMessageSendStatus(gen.MessageSendStatus(m.SendStatus)), SentAt: m.SentAt,
+	}
+	if m.ParentMessageID != nil {
+		out.ParentMessageId = gen.NewOptUUID(*m.ParentMessageID)
 	}
 	if m.Body != "" {
 		out.Body = gen.NewOptString(m.Body)

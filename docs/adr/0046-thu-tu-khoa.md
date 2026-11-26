@@ -102,9 +102,11 @@ trước (sự kiện vận đơn đổi đơn và tồn) khóa dòng nhóm trư
 - `customer` tìm-hoặc-tạo theo danh tính kênh (M4 Task 152, 05 mục 1): `customer.Writer.FindOrCreateByIdentity` lấy
   `pg_advisory_xact_lock` theo (tenant, loại, phạm vi, giá trị) (`queries/customer/channel_identity.sql`
   `LockChannelIdentity`, khóa `customer.channel_identity:<tenant>:<loại>:<phạm vi>:<giá trị>`) **trước mọi khóa dòng
-  của nhóm 5**; bên gọi (đường tin vào, comment của M4) không giữ dòng nào từ nhóm 5 trở về sau trước khi gọi. Chỉ đường này
-  lấy khóa đó: tin nhắn và comment đầu tiên của cùng một người chạy lần lượt, ra một hồ sơ. Sau đó: đọc chủ danh tính
-  không khóa → (chưa có) tạo khách, danh tính là dòng mới.
+  của nhóm 5**; bên gọi (đường tin vào, comment của M4) không giữ dòng nào từ nhóm 5 trở về sau trước khi gọi. Hai đường
+  lấy khóa đó: đường này (tin nhắn và comment đầu tiên của cùng một người chạy lần lượt, ra một hồ sơ) và
+  `customer.Writer.AttachChannelIdentity` (M4 Task 158, OnDone của lệnh nhắn riêng gắn PSID người nhận cho hồ sơ có
+  sẵn: khóa tư vấn → khóa dòng khách, sau `NoteBlockedUntil` nhóm 3, trước hội thoại, tin nhóm 6). Sau đó: đọc chủ danh
+  tính không khóa → (chưa có) tạo khách, danh tính là dòng mới.
 
 ## Luật cho mốc sau (Q-X4, C14)
 

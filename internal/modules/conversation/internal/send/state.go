@@ -40,26 +40,28 @@ const (
 	reasonNoAdapter     = "no_adapter"      // tiến trình không có adapter của kênh
 	reasonNoAttachment  = "attachment_gone" // ảnh không còn biến thể công khai
 	reasonInDoubt       = "in_doubt"        // không rõ kênh đã nhận chưa
-	reasonExpiredQueued = "expired"         // quá 3 phút chưa gửi được
+	reasonExpiredQueued = "expired"         // quá hạn chờ của lệnh mà chưa gửi được
 )
 
 // failTexts là câu tiếng Việt của từng mã lý do (màn hình hiện dưới tin).
 //
 //nolint:gochecknoglobals // bảng tra hằng, chỉ đọc
 var failTexts = map[string]string{
-	string(channel.DenyWindowClosed):   "Đã quá 24 giờ kể từ tin cuối của khách: Facebook không cho gửi tin thường",
-	string(channel.DenyBlockedByUser):  "Khách đã chặn tin nhắn từ Page",
-	string(channel.DenyReadOnly):       "Page đang ở chế độ chỉ xem, tin chưa được gửi",
-	string(channel.DenyNoPermission):   "Page chưa có quyền gửi tin (cần kết nối lại Page)",
-	string(channel.DenyCommentRemoved): "Comment đã bị xóa",
-	reasonAuth:                         "Token của Page hết hiệu lực: quản trị cần kết nối lại Page",
-	reasonRateLimited:                  "Facebook đang giới hạn số tin gửi, thử lại sau ít phút",
-	reasonNotSent:                      "Chưa gửi được tới Facebook",
-	reasonRejected:                     "Facebook từ chối tin này",
-	reasonNoAdapter:                    "Kênh của Page chưa được bật trên máy chủ",
-	reasonNoAttachment:                 "Ảnh không còn trên kho tệp",
-	reasonInDoubt:                      "Không rõ tin đã tới khách chưa",
-	reasonExpiredQueued:                "Quá 3 phút chưa gửi được",
+	string(channel.DenyWindowClosed):        "Đã quá 24 giờ kể từ tin cuối của khách: Facebook không cho gửi tin thường",
+	string(channel.DenyBlockedByUser):       "Khách đã chặn tin nhắn từ Page",
+	string(channel.DenyReadOnly):            "Page đang ở chế độ chỉ xem, tin chưa được gửi",
+	string(channel.DenyNoPermission):        "Page chưa có quyền gửi tin (cần kết nối lại Page)",
+	string(channel.DenyCommentRemoved):      "Comment đã bị xóa",
+	string(channel.DenyPrivateReplyUsed):    "Comment này đã được nhắn riêng: Facebook chỉ cho một tin riêng mỗi comment",
+	string(channel.DenyPrivateReplyExpired): "Đã quá 7 ngày kể từ lúc comment: Facebook không cho nhắn riêng",
+	reasonAuth:                              "Token của Page hết hiệu lực: quản trị cần kết nối lại Page",
+	reasonRateLimited:                       "Facebook đang giới hạn số tin gửi, thử lại sau ít phút",
+	reasonNotSent:                           "Chưa gửi được tới Facebook",
+	reasonRejected:                          "Facebook từ chối tin này",
+	reasonNoAdapter:                         "Kênh của Page chưa được bật trên máy chủ",
+	reasonNoAttachment:                      "Ảnh không còn trên kho tệp",
+	reasonInDoubt:                           "Không rõ tin đã tới khách chưa",
+	reasonExpiredQueued:                     "Quá hạn chờ (tin 3 phút, trả lời comment và nhắn riêng 5 phút) mà chưa gửi được",
 }
 
 // FailReasonText trả câu tiếng Việt của mã lý do code (fail_reason của tin); mã lạ → câu chung.
