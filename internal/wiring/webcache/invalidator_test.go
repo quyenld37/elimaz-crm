@@ -185,7 +185,7 @@ func bumpsByTenant(calls []call) map[uuid.UUID]map[cache.Space]bool {
 	return out
 }
 
-// waitFullResync chờ tới khi mọi tenant trong tenants đã được BumpSpace đủ 10 space.
+// waitFullResync chờ tới khi mọi tenant trong tenants đã được BumpSpace đủ mọi space (cache.Spaces).
 func waitFullResync(t *testing.T, rc *fakeRC, tenants ...uuid.UUID) {
 	t.Helper()
 	var seen []call
@@ -207,9 +207,9 @@ func waitFullResync(t *testing.T, rc *fakeRC, tenants ...uuid.UUID) {
 func TestInvalidator_SystemResync(t *testing.T) {
 	e := newEnv(t)
 	t1, t2 := e.staff.Tenant(t, "A"), e.staff.Tenant(t, "B")
-	if len(cache.Spaces()) != 14 {
-		t.Fatalf("có %d space, kế hoạch có 14 (Task 452 thêm campaigns, Task 456 thêm web_intake, Task 453 thêm banners, "+
-			"Task 454 thêm looks)",
+	if len(cache.Spaces()) != 15 {
+		t.Fatalf("có %d space, kế hoạch có 15 (Task 452 thêm campaigns, Task 456 thêm web_intake, Task 453 thêm banners, "+
+			"Task 454 thêm looks, Task 512 thêm birthday_settings)",
 			len(cache.Spaces()))
 	}
 	bus, rc := &pushBus{}, newFakeRC()

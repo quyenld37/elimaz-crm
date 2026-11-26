@@ -1169,6 +1169,10 @@ type WebBirthdayOutboxRes interface {
 	webBirthdayOutboxRes()
 }
 
+type WebBirthdaySettingsRes interface {
+	webBirthdaySettingsRes()
+}
+
 type WebBirthdayStopRes interface {
 	webBirthdayStopRes()
 }

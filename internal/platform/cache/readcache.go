@@ -39,6 +39,8 @@ const (
 	SpaceBanners Space = "banners"
 	// SpaceLooks: bộ phối cho website (Task 454; trang chủ và mọi bộ mở bằng link), làm mới theo content.looks.changed.
 	SpaceLooks Space = "looks"
+	// SpaceBirthdaySettings: cài đặt quà sinh nhật cho website (Task 512), chỉ hết hạn (lưu cài đặt không phát sự kiện).
+	SpaceBirthdaySettings Space = "birthday_settings"
 )
 
 // Spaces trả mọi vùng của bộ đệm đọc (resync làm mới tất cả).
@@ -46,7 +48,7 @@ func Spaces() []Space {
 	all := [...]Space{
 		SpaceProduct, SpaceProductsPage, SpaceTaxonomy, SpaceAvailability, SpaceFlash, SpaceLocations,
 		SpaceSold30, SpaceCarriers, SpaceShipQuote, SpaceEstimates, SpaceCampaigns, SpaceWebIntake,
-		SpaceBanners, SpaceLooks,
+		SpaceBanners, SpaceLooks, SpaceBirthdaySettings,
 	}
 	return all[:]
 }

@@ -13386,6 +13386,37 @@ export type WebBirthdayStopResponses = {
 
 export type WebBirthdayStopResponse = WebBirthdayStopResponses[keyof WebBirthdayStopResponses];
 
+export type WebBirthdaySettingsData = {
+    body?: never;
+    headers?: {
+        /**
+         * ETag của lần đọc trước (website, Task 190)
+         */
+        'If-None-Match'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/web/birthdays/settings';
+};
+
+export type WebBirthdaySettingsErrors = {
+    /**
+     * Lỗi; không bao giờ có vết lỗi
+     */
+    default: Error;
+};
+
+export type WebBirthdaySettingsError = WebBirthdaySettingsErrors[keyof WebBirthdaySettingsErrors];
+
+export type WebBirthdaySettingsResponses = {
+    /**
+     * Cài đặt quà sinh nhật
+     */
+    200: BirthdaySettingsFields;
+};
+
+export type WebBirthdaySettingsResponse = WebBirthdaySettingsResponses[keyof WebBirthdaySettingsResponses];
+
 export type WebSubmitFeedbackData = {
     body: WebFeedbackRequest;
     headers: {

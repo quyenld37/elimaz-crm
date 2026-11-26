@@ -27397,6 +27397,92 @@ func (s *Server) handleWebBirthdayOutboxRequest(args [0]string, argsEscaped bool
 	}
 }
 
+// handleWebBirthdaySettingsRequest handles webBirthdaySettings operation.
+//
+// Task 512. Đúng các số CRM dùng khi phát quà (promotion.birthday_settings, Task 468); chưa
+// lưu lần nào → mặc định của CRM (enabled false). Không có người sửa, version.
+// Bộ đệm 60 s.
+//
+// GET /api/v1/web/birthdays/settings
+func (s *Server) handleWebBirthdaySettingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: WebBirthdaySettingsOperation,
+			ID:   "webBirthdaySettings",
+		}
+	)
+	params, err := decodeWebBirthdaySettingsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response WebBirthdaySettingsRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    WebBirthdaySettingsOperation,
+			OperationSummary: "Cài đặt quà sinh nhật CRM đang dùng để phát quà (thẻ quà trên trang kết quả đơn của website); có ETag",
+			OperationID:      "webBirthdaySettings",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "If-None-Match",
+					In:   "header",
+				}: params.IfNoneMatch,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = WebBirthdaySettingsParams
+			Response = WebBirthdaySettingsRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackWebBirthdaySettingsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.WebBirthdaySettings(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.WebBirthdaySettings(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeWebBirthdaySettingsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleWebBirthdayStopRequest handles webBirthdayStop operation.
 //
 // Mã dừng lạ → 404 not_found.

@@ -2011,6 +2011,14 @@ type Handler interface {
 	//
 	// GET /api/v1/web/birthdays/outbox
 	WebBirthdayOutbox(ctx context.Context, params WebBirthdayOutboxParams) (WebBirthdayOutboxRes, error)
+	// WebBirthdaySettings implements webBirthdaySettings operation.
+	//
+	// Task 512. Đúng các số CRM dùng khi phát quà (promotion.birthday_settings, Task 468); chưa
+	// lưu lần nào → mặc định của CRM (enabled false). Không có người sửa, version.
+	// Bộ đệm 60 s.
+	//
+	// GET /api/v1/web/birthdays/settings
+	WebBirthdaySettings(ctx context.Context, params WebBirthdaySettingsParams) (WebBirthdaySettingsRes, error)
 	// WebBirthdayStop implements webBirthdayStop operation.
 	//
 	// Mã dừng lạ → 404 not_found.
