@@ -185,12 +185,15 @@ func TestDo_SentState(t *testing.T) {
 	}
 }
 
-// TestDo_HangAfterReadTimesOut: máy giả nhận rồi treo 11 s → client bỏ sau đúng hạn 10 s, kết quả không rõ.
+// TestDo_HangAfterReadTimesOut: máy giả nhận rồi treo (tới khi bên gọi bỏ, tối đa serverHang) → client bỏ sau đúng hạn
+// 10 s, kết quả không rõ. Task 498: trước đây máy giả treo 11 s, chỉ hơn hạn client 1 s; tiến trình bị dừng hơn 1 s khi
+// máy tải (race, 2 lõi) thì hai bộ đếm cùng chín, máy giả trả lời trước khi client thấy hạn → lỗi <nil> (ci-task 172).
 func TestDo_HangAfterReadTimesOut(t *testing.T) {
 	t.Parallel()
+	const serverHang = time.Minute // hơn hạn 10 s của client nhiều lần: một lần dừng tiến trình không đảo thứ tự hai hạn
 	e := newEnv(t, "")
 	path := testPageID + "/messages"
-	e.fg.HangAfterRead(path, 11*time.Second)
+	e.fg.HangAfterRead(path, serverHang)
 	start := time.Now()
 	_, err := e.c.Do(t.Context(), http.MethodPost, path, testToken, nil, sendBody("chào"), nil)
 	took := time.Since(start)
@@ -201,9 +204,9 @@ func TestDo_HangAfterReadTimesOut(t *testing.T) {
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("mong lỗi hết hạn, có %v", err)
 	}
-	// Hạn 10 s là của client (máy giả treo 11 s), nên không thể bỏ sớm hơn; trần 20 s chỉ là chốt chống treo
-	// (không lấy giờ thật làm tiêu chí đúng/sai, CLAUDE.md "Bẫy đã gặp", Task 400).
-	if took < 9500*time.Millisecond || took > 20*time.Second {
+	// Hạn 10 s là của client (đặt sau start), nên không thể bỏ sớm hơn; trần serverHang chỉ là chốt chống treo (quá nó
+	// thì máy giả đã tự trả lời; không lấy giờ thật làm tiêu chí đúng/sai, CLAUDE.md "Bẫy đã gặp", Task 400).
+	if took < 10*time.Second || took >= serverHang {
 		t.Fatalf("bỏ sau %v, mong theo hạn 10 s", took)
 	}
 	if len(e.fg.Calls(path)) != 1 {

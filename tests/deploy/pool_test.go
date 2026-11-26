@@ -24,10 +24,15 @@ import (
 // Task 495 (Chung-CI3, chủ shop 26/11: "máy t sử dụng để xử lý các task, còn chạy test thì dùng trong bể"): thứ tự mới
 // blacksmith (4) → ubicloud (3, hết ở 1.100 phút tính ×1) → github (3) → vps (1); mac 0 chỗ trong lượt chọn bình thường,
 // chỉ là dự phòng cuối (--local-only, hay mọi bể từ xa đều bị loại) và khi đó in "== DỰ PHÒNG CUỐI: chạy trên máy Mac".
+// Task 498 (Chung-CI4, chủ shop 26/11: "thằng vps chậm thế chắc ignore đi"): vps mặc định 0 chỗ, không bao giờ được
+// chọn; CRM_CI_POOL_SLOTS=vps=1 bật lại (test luật vps dưới đây bật nó).
 
 const lastResort = "== DỰ PHÒNG CUỐI: chạy trên máy Mac (lý do: "
 
-// remotePools: các bể từ xa và số chỗ mặc định.
+// vpsOn bật lại bể vps (mặc định 0 chỗ từ Task 498) cho test luật của vps.
+const vpsOn = "CRM_CI_POOL_SLOTS=vps=1"
+
+// remotePools: các bể từ xa và số chỗ khi bật (vps mặc định 0, Task 498).
 func remotePools() map[string]int {
 	return map[string]int{"blacksmith": 4, "ubicloud": 3, "github": 3, "vps": 1}
 }
@@ -183,6 +188,7 @@ func (p poolEnv) ledger(t *testing.T, lines ...string) {
 
 func TestPool_FastestFreeFirst(t *testing.T) {
 	p := newPoolEnv(t)
+	p.env = append(p.env, vpsOn)
 	steps := []struct {
 		name, want string
 		hold       func()
@@ -190,7 +196,7 @@ func TestPool_FastestFreeFirst(t *testing.T) {
 		{"trống hết: blacksmith", "blacksmith", func() {}},
 		{"blacksmith đủ 4 chỗ: ubicloud (không phải mac)", "ubicloud", func() { p.holdAll(t, "blacksmith", 4) }},
 		{"ubicloud đủ 3 chỗ: github", "github", func() { p.holdAll(t, "ubicloud", 3) }},
-		{"github đủ 3 chỗ, 3 gói: vps", "vps", func() { p.holdAll(t, "github", 3) }},
+		{"github đủ 3 chỗ, 3 gói, vps bật: vps", "vps", func() { p.holdAll(t, "github", 3) }},
 	}
 	for _, s := range steps {
 		s.hold()
@@ -232,9 +238,10 @@ func TestPool_WaitsForFirstFreeSlot(t *testing.T) {
 	}
 }
 
-// vps (3 lõi, toàn bộ 40 phút) chỉ nhận tập gói ≤ 15 và không ALL; không bể nào nhận được thì mã 3.
+// vps (3 lõi, toàn bộ 40 phút) khi được bật chỉ nhận tập gói ≤ 15 và không ALL; không bể nào nhận được thì mã 3.
 func TestPool_VPSOnlySmallSets(t *testing.T) {
 	p := newPoolEnv(t)
+	p.env = append(p.env, vpsOn)
 	p.markDown(t, "blacksmith", time.Now().Add(time.Hour))
 	p.markDown(t, "ubicloud", time.Now().Add(time.Hour))
 	p.markDown(t, "github", time.Now().Add(time.Hour))
@@ -263,13 +270,42 @@ func TestPool_VPSOnlySmallSets(t *testing.T) {
 	}
 }
 
+// Task 498: vps mặc định tắt — không được chọn kể cả khi mọi bể khác bị loại và tập gói nhỏ (báo lý do bỏ, cách bật);
+// CRM_CI_POOL_SLOTS=vps=1 bật lại; ép CRM_CI_RUNNER=vps khi đang tắt: mã 2, không chạy; status báo 0 chỗ.
+func TestPool_VPSOffByDefault(t *testing.T) {
+	p := newPoolEnv(t)
+	for _, pool := range []string{"blacksmith", "ubicloud", "github"} {
+		p.markDown(t, pool, time.Now().Add(time.Hour))
+	}
+	out, code := p.run(t, nil, append([]string{"run", "--no-mac", "--count", "1"}, echoRunner()...)...)
+	if code != 3 || strings.Contains(out, "RUNNER=") || !strings.Contains(out, "bỏ bể vps: tắt mặc định ("+vpsOn+" bật lại)") {
+		t.Errorf("vps tắt mặc định: không chọn vps dù 1 gói và mọi bể khác hỏng, báo lý do: %d\n%s", code, out)
+	}
+	out, code = p.run(t, nil, append([]string{"run", "--count", "1"}, echoRunner()...)...)
+	if code != 0 || gotRunner(t, out) != "mac" || !strings.Contains(out, lastResort) {
+		t.Errorf("vps tắt, mọi bể khác hỏng: mac dự phòng cuối, không vps: %d\n%s", code, out)
+	}
+	out, code = p.run(t, []string{vpsOn}, append([]string{"run", "--no-mac", "--count", "1"}, echoRunner()...)...)
+	if code != 0 || gotRunner(t, out) != "vps" {
+		t.Errorf("%s: chọn lại vps: %d\n%s", vpsOn, code, out)
+	}
+	out, code = p.run(t, []string{"CRM_CI_RUNNER=vps"}, append([]string{"run", "--count", "1"}, echoRunner()...)...)
+	if code != 2 || strings.Contains(out, "bể máy:") || !strings.Contains(out, vpsOn) {
+		t.Errorf("ép vps khi đang tắt: mã 2, không chạy, chỉ cách bật: %d\n%s", code, out)
+	}
+	out, _ = p.run(t, nil, "status")
+	if !strings.Contains(out, "vps: 0/0 chỗ bận") {
+		t.Errorf("status: vps 0 chỗ:\n%s", out)
+	}
+}
+
 // CRM_CI_RUNNER ép đúng một bể: bỏ qua tạm hỏng, sổ phút, luật vps; bể đó đầy thì chờ chính nó.
 func TestPool_ForcedRunner(t *testing.T) {
 	p := newPoolEnv(t)
 	p.markDown(t, "github", time.Now().Add(time.Hour))
-	out, code := p.run(t, []string{"CRM_CI_RUNNER=vps"}, append([]string{"run", "--all"}, echoRunner()...)...)
+	out, code := p.run(t, []string{"CRM_CI_RUNNER=vps", vpsOn}, append([]string{"run", "--all"}, echoRunner()...)...)
 	if code != 0 || gotRunner(t, out) != "vps" {
-		t.Errorf("ép vps với ALL: %d\n%s", code, out)
+		t.Errorf("ép vps (đã bật) với ALL: %d\n%s", code, out)
 	}
 	out, _ = p.run(t, []string{"CRM_CI_RUNNER=github"}, append([]string{"run", "--count", "1"}, echoRunner()...)...)
 	if gotRunner(t, out) != "github" {
@@ -344,9 +380,9 @@ func TestPool_MonthlyMinutesBudget(t *testing.T) {
 	if _, code := p.run(t, nil, "record", "--runner", "github", "--run", "78", "--minutes", "1600"); code != 0 {
 		t.Fatal("record github")
 	}
-	out, _ = p.run(t, nil, append([]string{"run", "--count", "2"}, echoRunner()...)...)
+	out, _ = p.run(t, []string{vpsOn}, append([]string{"run", "--count", "2"}, echoRunner()...)...)
 	if gotRunner(t, out) != "vps" {
-		t.Errorf("blacksmith, ubicloud, github hết phút: vps:\n%s", out)
+		t.Errorf("blacksmith, ubicloud, github hết phút, vps bật: vps:\n%s", out)
 	}
 	// ALL (vps không nhận) mà mọi bể khác hết phút: dự phòng cuối trên mac, nói rõ lý do.
 	out, _ = p.run(t, nil, append([]string{"run", "--all"}, echoRunner()...)...)
@@ -404,16 +440,16 @@ func TestPool_InfraErrorMarksDownAndMovesOn(t *testing.T) {
 	q := newPoolEnv(t)
 	all3 := []string{"--", "sh", "-c", `echo "RUNNER=$CRM_CI_RUNNER"; exit 3`}
 	out, code = q.run(t, nil, append([]string{"run", "--no-mac", "--count", "1"}, all3...)...)
-	if code != 3 || strings.Count(out, "RUNNER=") != 4 {
-		t.Errorf("blacksmith, ubicloud, github, vps đều mã 3: thử mỗi bể một lần rồi trả 3: %d\n%s", code, out)
+	if code != 3 || strings.Count(out, "RUNNER=") != 3 || strings.Contains(out, "RUNNER=vps") {
+		t.Errorf("blacksmith, ubicloud, github đều mã 3 (vps tắt): thử mỗi bể một lần rồi trả 3: %d\n%s", code, out)
 	}
 	// Không --no-mac: mọi bể từ xa lỗi hạ tầng → dự phòng cuối trên mac đúng một lần, rồi trả mã của mac.
 	z := newPoolEnv(t)
 	remote3 := []string{"--", "sh", "-c", `echo "RUNNER=$CRM_CI_RUNNER"; [ "$CRM_CI_RUNNER" = mac ] && exit 0; exit 3`}
 	out, code = z.run(t, nil, append([]string{"run", "--count", "1"}, remote3...)...)
-	if code != 0 || strings.Count(out, "RUNNER=") != 5 || !strings.Contains(out, "RUNNER=mac") ||
+	if code != 0 || strings.Count(out, "RUNNER=") != 4 || !strings.Contains(out, "RUNNER=mac") ||
 		!strings.Contains(out, lastResort) || !strings.Contains(out, "vừa lỗi hạ tầng") {
-		t.Errorf("bốn bể từ xa mã 3 → mac dự phòng cuối (in lý do): %d\n%s", code, out)
+		t.Errorf("ba bể từ xa đang bật mã 3 → mac dự phòng cuối (in lý do): %d\n%s", code, out)
 	}
 	out, code = z.run(t, nil, append([]string{"run", "--count", "1"}, all3...)...)
 	if code != 3 || strings.Count(out, "RUNNER=") != 1 || !strings.Contains(out, "RUNNER=mac") {

@@ -31,6 +31,10 @@ import (
 // hangGuard là chốt chống treo khi chờ một sự kiện; không phải tiêu chí đúng/sai về thời gian.
 const hangGuard = 30 * time.Second
 
+// valkeyTestOpTimeout là hạn mỗi lệnh Valkey của test (Task 498, như Task 496 ở các gói khác): hạn 50 ms của mã chạy thật
+// hết khi máy chạy test tải nặng, lệnh rơi về PostgreSQL (nguồn không phải bộ đệm) hay lần xóa khóa lỗi → test đỏ oan.
+const valkeyTestOpTimeout = 2 * time.Second
+
 // sourceCache ghi nguồn của lần GetOrLoad gần nhất.
 type sourceCache struct {
 	cache.ReadCache
@@ -149,7 +153,8 @@ func newCrossRole(t *testing.T, rec *invalidations) *crossRole {
 	c.staff.DrainJobs(t, c.worker)
 	runHub(t, c.hub)
 	if rec == nil {
-		wc, err := newWebCache(t.Context(), config.Config{ValkeyCacheURL: vk.URL("crm_cache")}, c.staff.App, c.hub, nil, quiet)
+		wc, err := newWebCache(t.Context(), config.Config{ValkeyCacheURL: vk.URL("crm_cache")}, c.staff.App, c.hub, nil, quiet,
+			valkeyTestOpTimeout)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -157,7 +162,7 @@ func newCrossRole(t *testing.T, rec *invalidations) *crossRole {
 		c.rc = &sourceCache{ReadCache: wc.rc}
 	} else {
 		// Như newWebCache, nhưng Invalidator xóa khóa qua rec (ghi lại từng lần xóa).
-		conn, err := cache.Dial(t.Context(), vk.URL("crm_cache"), cache.DialOptions{Name: "cache"})
+		conn, err := cache.Dial(t.Context(), vk.URL("crm_cache"), cache.DialOptions{Name: "cache", OpTimeout: valkeyTestOpTimeout})
 		if err != nil {
 			t.Fatal(err)
 		}

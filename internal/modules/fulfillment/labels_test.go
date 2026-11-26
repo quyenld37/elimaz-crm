@@ -95,10 +95,39 @@ func (e *labelEnv) shippedOf(seller uuid.UUID) (order.Order, fulfillment.Shipmen
 	se := *e.shipEnv
 	se.seller, se.account = seller, e.shop.AccountOf(seller)
 	o, _, s := se.shipped(1)
-	if s.TrackingCode == "" {
-		e.t.Fatalf("vận đơn %s chưa có mã hãng", s.ID)
+	return o, e.awaitCreated(s)
+}
+
+// awaitCreateRounds là trần số vòng chờ lệnh tạo của awaitCreated (chốt chống treo, không phải tiêu chí đúng/sai).
+const awaitCreateRounds = 20
+
+// awaitCreated chờ theo điều kiện tới khi lệnh tạo của vận đơn s kết thúc và trả vận đơn đã có mã hãng (Task 498:
+// TestLabels_RetryThenTerminal đỏ "chưa có mã hãng" khi máy tải). drain (DrainDue) chỉ bù đồng hồ PostgreSQL lùi tới
+// 0,5 s; máy tải nặng thì đồng hồ máy ảo Docker có thể lùi hơn, lệnh tạo vừa ghi còn "chưa tới hạn" nên drain dừng
+// trước khi chạy nó. Còn pending: đưa đúng lệnh đó về hạn rồi drain lại (không dùng DrainJobs: nó đưa mọi việc hẹn về
+// hạn, cả lịch tra trạng thái, làm đổi vận đơn của test nhãn). Lệnh đã kết thúc mà không có mã (in_doubt, dead) là lỗi
+// thật: đỏ kèm trạng thái và lỗi của lệnh.
+func (e *labelEnv) awaitCreated(s fulfillment.Shipment) fulfillment.Shipment {
+	e.t.Helper()
+	for round := 0; s.TrackingCode == ""; round++ {
+		var status, lastErr string
+		e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+			return tx.QueryRow(e.t.Context(), `SELECT j.status, coalesce(j.last_error, '')
+				FROM fulfillment.shipments s JOIN platform.jobs j ON j.id = s.create_job_id WHERE s.id = $1`,
+				s.ID).Scan(&status, &lastErr)
+		})
+		if status != "pending" || round == awaitCreateRounds {
+			e.t.Fatalf("vận đơn %s chưa có mã hãng: lệnh tạo %s (%s), sau %d vòng chờ", s.ID, status, lastErr, round)
+		}
+		e.staff.Exec(e.t, e.tenant, func(tx pgx.Tx) error {
+			_, err := tx.Exec(e.t.Context(), `UPDATE platform.jobs SET run_at = now() - interval '1 second'
+				WHERE status = 'pending' AND id = (SELECT create_job_id FROM fulfillment.shipments WHERE id = $1)`, s.ID)
+			return err //nolint:wrapcheck // test
+		})
+		e.drain()
+		s = e.shipment(s.ID)
 	}
-	return o, s
+	return s
 }
 
 // shippedN tạo n đơn 1 cái có vận đơn đã có mã hãng của người bán chính; trả mã vận đơn.
@@ -335,6 +364,41 @@ func TestLabels_BadFiles(t *testing.T) {
 		if n := len(e.store.Versions(files.BucketPrivate, files.ServerKey(e.tenant, out.Batches[0].ID))); n != 0 {
 			t.Fatalf("%s: có %d tệp trên kho, muốn 0", c.name, n)
 		}
+	}
+}
+
+// Task 498: lệnh tạo còn "chưa tới hạn" theo đồng hồ PostgreSQL sau drain (giả lập đồng hồ lùi quá lề 0,5 s của
+// DrainDue bằng run_at + 1 phút) → awaitCreated đưa đúng lệnh đó về hạn, chạy, trả vận đơn có mã hãng; việc hẹn khác
+// (không phải lệnh tạo) giữ lịch.
+func TestLabels_AwaitCreatedPastClockStep(t *testing.T) {
+	t.Parallel()
+	e := newLabelEnv(t, true)
+	o, _ := e.order(1)
+	s := e.mustCreateShipment(o.ID)
+	other := uuid.New()
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(t.Context(), `UPDATE platform.jobs SET run_at = now() + interval '1 minute'
+			WHERE id = (SELECT create_job_id FROM fulfillment.shipments WHERE id = $1)`, s.ID); err != nil {
+			return err //nolint:wrapcheck // test
+		}
+		_, err := tx.Exec(t.Context(), `INSERT INTO platform.jobs (id, kind, mode, on_lease_expired, max_attempts, dedupe_key, run_at)
+			VALUES ($1, 'test.hen', 'transactional', 'retry', 1, $2, now() + interval '1 minute')`, other, other.String())
+		return err //nolint:wrapcheck // test
+	})
+	e.drain()
+	if got := e.shipment(s.ID); got.TrackingCode != "" {
+		t.Fatalf("lệnh tạo chưa tới hạn mà drain đã chạy: %+v", got)
+	}
+	if got := e.awaitCreated(e.shipment(s.ID)); got.TrackingCode == "" {
+		t.Fatalf("awaitCreated trả vận đơn chưa có mã: %+v", got)
+	}
+	var late bool
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(t.Context(), `SELECT status = 'pending' AND run_at > now() FROM platform.jobs WHERE id = $1`,
+			other).Scan(&late)
+	})
+	if !late {
+		t.Fatal("awaitCreated chỉ được đưa lệnh tạo về hạn, việc hẹn khác phải giữ lịch")
 	}
 }
 
