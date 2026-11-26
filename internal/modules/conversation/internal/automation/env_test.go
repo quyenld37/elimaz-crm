@@ -1,8 +1,6 @@
 package automation_test
 
 import (
-	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"log/slog"
 	"slices"
@@ -22,8 +20,6 @@ import (
 	"elimaz.com.vn/crm/internal/platform/commands"
 	"elimaz.com.vn/crm/internal/platform/config"
 	"elimaz.com.vn/crm/internal/platform/events"
-	"elimaz.com.vn/crm/internal/platform/fieldcrypt"
-	"elimaz.com.vn/crm/internal/platform/logging"
 	"elimaz.com.vn/crm/internal/platform/metrics"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/realtime/realtimetest"
@@ -31,11 +27,10 @@ import (
 	"elimaz.com.vn/crm/internal/platform/webhooks"
 	"elimaz.com.vn/crm/internal/testkit"
 	"elimaz.com.vn/crm/internal/testkit/fakegraph"
+	"elimaz.com.vn/crm/internal/testkit/fbtest"
 )
 
 const (
-	appID     = "1626301872631379"
-	appSecret = "0123456789abcdef0123456789abcdef"
 	pageExt   = "104000000000165"
 	pageToken = "EAAB-page-token-165"
 	postA     = pageExt + "_900000000000001"
@@ -60,39 +55,23 @@ type env struct {
 
 func newEnv(t *testing.T) *env {
 	t.Helper()
-	staff := testkit.OpenStaff(t)
-	e := &env{t: t, staff: staff, tenant: staff.Tenant(t, "A")}
-	e.fg = fakegraph.New(t, fakegraph.Options{AppID: appID, AppSecret: appSecret})
-	e.fg.AddPage(fakegraph.Page{ID: pageExt, Name: "Shop thử", Token: pageToken})
+	fbe := fbtest.New(t, fbtest.Options{PageID: pageExt, PageToken: pageToken})
+	staff, reg, kr := fbe.Staff, fbe.Registry, fbe.Keys
+	e := &env{t: t, staff: staff, tenant: fbe.Tenant, page: fbe.Page, fg: fbe.Graph}
 	for _, p := range []string{postA, postB} {
 		e.fg.AddPost(fakegraph.Post{
 			ID: p, PageID: pageExt, Message: "Bài bán hàng", PermalinkURL: "https://www.facebook.com/" + p,
 			Created: time.Now().Add(-time.Hour).UTC(),
 		})
 	}
-	fb := facebook.New(facebook.Options{
-		BaseURL: e.fg.URL(), StreamingBaseURL: e.fg.URL(), Version: "v26.0", AppID: appID,
-		AppSecret: logging.Secret(appSecret), VerifyToken: logging.Secret(appSecret + appSecret), HTTP: e.fg.Client(),
-	})
-	reg, err := channel.NewRegistry(fb)
-	if err != nil {
-		t.Fatal(err)
-	}
-	kr, err := fieldcrypt.ParseKeyring(logging.Secret("k1:" + base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32))))
-	if err != nil {
-		t.Fatal(err)
-	}
-	e.page = staff.ChannelAccount(t, e.tenant, facebook.Key, pageExt, "Shop thử")
 	e.user = staff.User(t, e.tenant, "quanly@elimaz.test", "active")
 	staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(t.Context(), `UPDATE channel.channel_accounts SET send_mode = 'enabled'`); err != nil {
-			return err //nolint:wrapcheck // test
-		}
-		return channel.StoreCredentials(t.Context(), tx, kr, e.page, pageToken, "page_user")
+		_, err := tx.Exec(t.Context(), `UPDATE channel.channel_accounts SET send_mode = 'enabled'`)
+		return err //nolint:wrapcheck // test
 	})
 	e.d = deps.Deps{
 		DB: staff.App, Queue: queue.NewQueue(), Bus: &realtimetest.RecordingBus{}, Events: events.NewRegistry(),
-		Metrics: metrics.NewRegistry(), Registry: reg, Keys: kr, Config: config.Config{Meta: config.MetaConfig{AppID: appID}},
+		Metrics: metrics.NewRegistry(), Registry: reg, Keys: kr, Config: config.Config{Meta: config.MetaConfig{AppID: fbtest.AppID}},
 	}
 	e.worker = e.newWorker("w-1")
 	return e

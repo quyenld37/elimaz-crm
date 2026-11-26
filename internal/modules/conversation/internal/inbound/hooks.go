@@ -10,6 +10,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/assign"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/automation"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/deps"
+	"elimaz.com.vn/crm/internal/modules/conversation/internal/history"
 	"elimaz.com.vn/crm/internal/platform/webhooks"
 )
 
@@ -17,12 +18,19 @@ import (
 // và cập nhật hội thoại, trước báo hiệu). Nhắn lại khách (Task 168) không cần hook: danh sách tự loại hội thoại khách
 // đã trả lời.
 
-// onNewConversation chạy khi hội thoại (inbox hay comment) vừa được tạo: giao xoay vòng nếu Page bật (assign.RoundRobin, Task 160;
-// nối ở Task 159; chưa có người phụ trách là điều kiện bên trong); lấy lịch sử tin cũ (history.OnNewConversation, Task
-// 164) thêm sau. Sự kiện conversation.assigned ghi bằng sổ sự kiện, hàng đợi của đường vào; báo hiệu do đường vào phát.
-func (h *handler) onNewConversation(ctx context.Context, tx pgx.Tx, id uuid.UUID) error {
+// onNewConversation chạy khi hội thoại id (inbox: hộp thư; ngược lại comment) của Page acc vừa được tạo: giao xoay vòng
+// nếu Page bật (assign.RoundRobin, Task 160; nối ở Task 159; chưa có người phụ trách là điều kiện bên trong), rồi hội
+// thoại hộp thư lấy lịch sử tin cũ (history.OnNewConversation, Task 164). Sự kiện conversation.assigned ghi bằng sổ sự
+// kiện, hàng đợi của đường vào; báo hiệu do đường vào phát.
+func (h *handler) onNewConversation(ctx context.Context, tx pgx.Tx, acc channel.ChannelAccount, id uuid.UUID, inbox bool) error {
 	rr := assign.RoundRobin{W: assign.Writer{Events: h.d.Events, Queue: h.d.Queue}}
-	return rr.OnNewConversation(ctx, tx, id) //nolint:wrapcheck // assign đã bọc việc đang làm
+	if err := rr.OnNewConversation(ctx, tx, id); err != nil {
+		return err //nolint:wrapcheck // assign đã bọc việc đang làm
+	}
+	if !inbox {
+		return nil
+	}
+	return history.OnNewConversation(ctx, tx, h.d, acc, id) //nolint:wrapcheck // history đã bọc việc đang làm
 }
 
 // onInboxMessage chạy sau mỗi tin khách mới (inserted: hội thoại vừa tạo): lời chào tự động

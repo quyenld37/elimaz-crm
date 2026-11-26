@@ -57,7 +57,8 @@ func TestWireM4_Frame(t *testing.T) {
 		// Task 165: tự ẩn comment, mọi cấu hình.
 		wantCmds = append(wantCmds, "command.fb.auto_hide_comment")
 		if slices.Contains(c.keys, "facebook") {
-			wantCmds = append(wantCmds, "command.fb.live_detect") // Task 170: nhận biết live bằng hỏi định kỳ
+			wantCmds = append(wantCmds, "command.fb.live_detect")   // Task 170: nhận biết live bằng hỏi định kỳ
+			wantCmds = append(wantCmds, "command.fb.fetch_history") // Task 164: lịch sử tin (kênh đọc được lịch sử)
 		}
 		if cmds := m4CommandKinds(p); !slices.Equal(cmds, wantCmds) {
 			t.Errorf("%s: lệnh M4 = %v", c.cfg.Env, cmds)
@@ -100,7 +101,8 @@ func checkM4Schedules(t *testing.T, env string, facebook bool, p m4Parts) {
 	if facebook {
 		want = append(want, "live.detect")
 	}
-	want = append(want, "conversation.presence_cleanup", "conversation.reminders", "channel.comment_poll")
+	want = append(want, "conversation.presence_cleanup", "conversation.reminders", "channel.comment_poll",
+		"conversation.retention") // Task 164: dọn theo hạn giữ
 	jobs := len(want)
 	if facebook {
 		jobs--

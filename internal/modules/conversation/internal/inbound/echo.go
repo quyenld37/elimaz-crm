@@ -51,11 +51,11 @@ func (h *handler) echo(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, p cha
 	}
 	refs := p.Attachments
 	if origin == originOwnEchoUnmatched {
-		refs = withoutURLs(refs) // ảnh CRM vừa gửi: đã có tệp, Task 156 gộp rồi xóa dòng này (tệp task-155, Quyết định 5)
+		refs = deps.WithoutURLs(refs) // ảnh CRM vừa gửi: đã có tệp, Task 156 gộp rồi xóa dòng này (tệp task-155, Quyết định 5)
 	}
-	atts, err := pendingAttachments(refs)
+	atts, err := deps.PendingAttachments(refs)
 	if err != nil {
-		return err
+		return err //nolint:wrapcheck // deps đã bọc việc đang làm
 	}
 	msgID, err := q.InsertInboundMessage(ctx, store.InsertInboundMessageParams{
 		ConversationID: convID, ChannelAccountID: acc.ID, ExternalID: text(p.MID), Direction: dirOut, Kind: kindMessage,
@@ -78,16 +78,6 @@ func (h *handler) echo(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, p cha
 		}
 	}
 	return h.publish(ctx, tx, e, acc, convID)
-}
-
-// withoutURLs là bản sao refs không có URL (mục giữ pending, không lệnh tải).
-func withoutURLs(refs []channel.AttachmentRef) []channel.AttachmentRef {
-	out := make([]channel.AttachmentRef, len(refs))
-	for i, r := range refs {
-		r.URL = ""
-		out[i] = r
-	}
-	return out
 }
 
 // confirmOwn khớp echo của CRM có metadata = client_ref với tin chưa sent (ConfirmOwnEcho) và báo hiệu; tin cũ đã bị

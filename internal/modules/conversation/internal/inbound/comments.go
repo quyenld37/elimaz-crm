@@ -91,9 +91,9 @@ func (h *handler) insertComment(ctx context.Context, tx pgx.Tx, e webhooks.Inbou
 	if p.PhotoURL != "" {
 		refs = []channel.AttachmentRef{{Type: "image", URL: p.PhotoURL}}
 	}
-	atts, err := pendingAttachments(refs)
+	atts, err := deps.PendingAttachments(refs)
 	if err != nil {
-		return err
+		return err //nolint:wrapcheck // deps đã bọc việc đang làm
 	}
 	dir, origin := dirIn, originCustomer
 	if p.FromPage {
@@ -209,7 +209,7 @@ func (h *handler) commentThread(ctx context.Context, tx pgx.Tx, e webhooks.Inbou
 		}
 	}
 	if row.Inserted {
-		if err := h.onNewConversation(ctx, tx, row.ID); err != nil {
+		if err := h.onNewConversation(ctx, tx, acc, row.ID, false); err != nil {
 			return uuid.Nil, uuid.Nil, false, err
 		}
 	}

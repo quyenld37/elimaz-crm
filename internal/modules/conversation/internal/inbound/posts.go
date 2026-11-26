@@ -64,14 +64,7 @@ type fetchPostResult struct {
 
 // canFetchPosts cho biết adapter của nguồn source đọc được bài.
 func canFetchPosts(r *channel.Registry, source string) bool {
-	if r == nil {
-		return false
-	}
-	a, ok := r.Get(source)
-	if !ok {
-		return false
-	}
-	_, ok = a.(channel.PostFetcher)
+	_, ok := deps.AdapterAs[channel.PostFetcher](r, source)
 	return ok
 }
 

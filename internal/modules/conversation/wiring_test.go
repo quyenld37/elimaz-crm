@@ -16,10 +16,11 @@ import (
 // Không có bộ adapter: không handler vào, luồng nền. Có bộ adapter: mỗi adapter đúng một handler vào cùng khóa
 // (Task 153). Lệnh luôn có command.fb.fetch_attachment, command.fb.fetch_profile (Task 155, chỉ đọc) và
 // command.fb.send_message (Task 156; không có adapter thì lệnh từ chối tin còn chờ), thêm command.fb.fetch_post (Task
-// 154), command.fb.live_detect và lịch live.detect (Task 170) khi có adapter Facebook. Phần chạy nền luôn có lịch
-// conversation.send_reveal mỗi 15 s (Task 157), conversation.presence_cleanup (Task 163), conversation.reminders (Task
-// 169) mỗi 60 s và channel.comment_poll (Task 150, đọc comment định kỳ) mỗi 30 s, theo tenant, đúng một handler cùng
-// Kind.
+// 154), command.fb.live_detect và lịch live.detect (Task 170), command.fb.fetch_history (Task 164, đọc được lịch sử)
+// khi có adapter Facebook. Phần chạy nền luôn có lịch conversation.send_reveal mỗi 15 s (Task 157),
+// conversation.presence_cleanup (Task 163), conversation.reminders (Task 169) mỗi 60 s, channel.comment_poll (Task 150,
+// đọc comment định kỳ) mỗi 30 s và conversation.retention (Task 164, dọn theo hạn giữ) mỗi giờ, theo tenant, đúng một
+// handler cùng Kind.
 func TestWiring(t *testing.T) {
 	t.Parallel()
 	d := conversation.Deps{}
@@ -42,8 +43,8 @@ func TestWiring(t *testing.T) {
 	}
 	checkCommands(t, d)
 	checkReminders(t, d)
-	// Có adapter Facebook: thêm lệnh command.fb.fetch_post (đọc bài, Task 154) và command.fb.live_detect cùng lịch
-	// live.detect 30 s theo tenant (nhận biết live, Task 170).
+	// Có adapter Facebook: thêm lệnh command.fb.fetch_post (đọc bài, Task 154), command.fb.live_detect cùng lịch
+	// live.detect 30 s theo tenant (nhận biết live, Task 170) và command.fb.fetch_history (đọc lịch sử, Task 164).
 	reg, err = channel.NewRegistry(fake.New("0123456789abcdef0123456789abcdef"), facebook.New(facebook.Options{}))
 	if err != nil {
 		t.Fatal(err)
@@ -63,8 +64,8 @@ func TestWiring(t *testing.T) {
 
 // checkCommands: lệnh của conversation theo thứ tự đăng ký: command.fb.fetch_attachment, command.fb.fetch_profile
 // (luôn có, Task 155), command.fb.fetch_post (khi có adapter Facebook), command.fb.send_message hạn 3 phút, ba lệnh
-// comment của Task 158 (luôn có), command.fb.auto_hide_comment (luôn có, Task 165), command.fb.live_detect (khi có
-// adapter Facebook).
+// comment của Task 158 (luôn có), command.fb.auto_hide_comment (luôn có, Task 165), command.fb.live_detect,
+// command.fb.fetch_history (khi có adapter Facebook, Task 170, 164).
 // autoHideKind là lệnh ẩn comment của quy tắc auto_hide (Task 165).
 const autoHideKind = "command.fb.auto_hide_comment"
 
@@ -78,7 +79,8 @@ func checkCommands(t *testing.T, d conversation.Deps) {
 	}
 	want := append(slices.Clone(reads), sends...)
 	if fb {
-		want = append(append(append(slices.Clone(reads), "command.fb.fetch_post"), sends...), "command.fb.live_detect")
+		want = append(append(append(slices.Clone(reads), "command.fb.fetch_post"), sends...), "command.fb.live_detect",
+			conversation.FetchHistoryKind)
 	}
 	var got []string
 	for _, h := range conversation.CommandHandlers(d) {
@@ -98,7 +100,10 @@ func checkCommands(t *testing.T, d conversation.Deps) {
 func checkReminders(t *testing.T, d conversation.Deps) {
 	t.Helper()
 	s, j := conversation.Schedules(d), conversation.JobHandlers(d)
-	want := []string{conversation.SendRevealSchedule, conversation.PresenceCleanupSchedule, "conversation.reminders", "channel.comment_poll"}
+	want := []string{
+		conversation.SendRevealSchedule, conversation.PresenceCleanupSchedule, "conversation.reminders", "channel.comment_poll",
+		conversation.RetentionSchedule,
+	}
 	if len(s) != len(want) || len(j) != len(want) {
 		t.Fatalf("lịch %+v, việc %d", s, len(j))
 	}
@@ -109,6 +114,8 @@ func checkReminders(t *testing.T, d conversation.Deps) {
 			every = 30 * time.Second
 		case conversation.SendRevealSchedule:
 			every = 15 * time.Second
+		case conversation.RetentionSchedule:
+			every = time.Hour
 		}
 		if s[i].Name != name || !s[i].PerTenant || s[i].Every != every || j[i].Kind().Name != s[i].Kind.Name {
 			t.Errorf("lịch %d = %+v, việc %q; muốn %s", i, s[i], j[i].Kind().Name, name)

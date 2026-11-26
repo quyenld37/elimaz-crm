@@ -183,7 +183,7 @@ func (c fetchAttachment) source(ctx context.Context, tx pgx.Tx, p attachmentPayl
 	case err != nil:
 		return source{}, fmt.Errorf("đọc tin cần tải tệp: %w", err)
 	}
-	var items []pendingAttachment
+	var items []deps.PendingAttachment
 	if err := json.Unmarshal(m.Attachments, &items); err != nil || p.Index < 0 || p.Index >= len(items) ||
 		items[p.Index].Status != attPending || items[p.Index].URL == "" {
 		return source{gone: true}, nil //nolint:nilerr // cột hỏng hay mục đã xong = không còn gì để tải

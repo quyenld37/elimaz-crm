@@ -64,6 +64,11 @@ trước (sự kiện vận đơn đổi đơn và tồn) khóa dòng nhóm trư
   thoại vừa chèn chưa đường nào khác chờ được (trừ lần chèn trùng luồng, vốn không giữ `page_settings`) và không đường
   nào giữ `page_settings` rồi chờ `conversations` (lưu cài đặt Page chỉ khóa `page_settings`). Đường mới nào giữ
   `page_settings` rồi khóa hội thoại phải xem lại ngoại lệ này. Gắn nhãn: `tags` (FOR SHARE) → `conversation_tag_links`.
+- **Dọn hội thoại theo hạn giữ (M4, Task 164):** khóa trước mọi hội thoại của lô (`FOR UPDATE`, `id` tăng dần), rồi
+  xóa `message_revisions`, `messages`, rồi xóa trong một câu các hội thoại đã khóa còn rỗng kèm
+  `conversation_tag_links`, `conversation_assignments` (sau `messages` — ngược thứ tự bảng của nhóm 6, được phép vì đó
+  chỉ là dòng của hội thoại đang giữ khóa: đường nào thêm nhãn, phân công cũng chờ khóa hội thoại), cuối cùng
+  `platform.files` (12b, `id` tăng dần).
 - **Khách trước hội thoại (C11, M4):** mọi đường của M4 khóa khách (nhóm 5) trước hội thoại (nhóm 6), kể cả đường chốt
   đơn từ comment live (khách gốc → hội thoại theo `id` tăng dần → đơn).
 - Hai đường chính đã khớp bảng: lượt mua flash sale của ADR-40 khóa `flash_sale_claims` (10) → `flash_sale_units`
