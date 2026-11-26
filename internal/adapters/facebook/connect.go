@@ -111,10 +111,10 @@ func (c *Channel) PageToken(ctx context.Context, token logging.Secret, pageID st
 	return logging.Secret(out.AccessToken), out.info(), nil
 }
 
-// Subscribe đăng ký app CRM nhận webhook của Page với fields (nil: đủ 11 trường SubscribedFields).
+// Subscribe đăng ký app CRM nhận webhook của Page với fields (nil: đủ 11 trường channel.WebhookFields).
 func (c *Channel) Subscribe(ctx context.Context, acc channel.ChannelAccount, cred channel.Credentials, fields []string) error {
 	if fields == nil {
-		fields = SubscribedFields()
+		fields = channel.WebhookFields()
 	}
 	body := map[string]string{"subscribed_fields": strings.Join(fields, ",")}
 	_, err := c.client.Do(ctx, http.MethodPost, acc.ExternalID+"/subscribed_apps", cred.AccessToken, nil, body, nil)

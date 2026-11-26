@@ -42,10 +42,14 @@ func TestRegistry(t *testing.T) {
 	}
 }
 
-// Khung Task 143: chưa vùng nào có lệnh, lịch.
-func TestWiringEmpty(t *testing.T) {
+// Task 149: vùng đăng ký webhook có đúng hai lệnh (đăng ký, hủy đăng ký); chưa vùng nào có lịch.
+func TestWiringCommands(t *testing.T) {
 	t.Parallel()
-	if len(channel.CommandHandlers(channel.Deps{})) != 0 || len(channel.Schedules(channel.Deps{})) != 0 {
-		t.Error("khung channel chưa được có lệnh, lịch")
+	var names []string
+	for _, h := range channel.CommandHandlers(channel.Deps{}) {
+		names = append(names, h.Kind().Name)
+	}
+	if !slices.Equal(names, []string{channel.SubscribePageKind, channel.UnsubscribePageKind}) || len(channel.Schedules(channel.Deps{})) != 0 {
+		t.Errorf("lệnh của channel = %v, lịch = %d", names, len(channel.Schedules(channel.Deps{})))
 	}
 }

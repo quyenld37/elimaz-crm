@@ -435,3 +435,58 @@ func (q *Queries) SetSendMode(ctx context.Context, arg SetSendModeParams) (int32
 	err := row.Scan(&version)
 	return version, err
 }
+
+const setSubscribedFields = `-- name: SetSubscribedFields :execrows
+UPDATE channel.channel_accounts
+SET subscribed_fields = $1, updated_at = now()
+WHERE id = $2
+`
+
+type SetSubscribedFieldsParams struct {
+	SubscribedFields []string
+	ID               uuid.UUID
+}
+
+func (q *Queries) SetSubscribedFields(ctx context.Context, arg SetSubscribedFieldsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setSubscribedFields, arg.SubscribedFields, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const upsertAccount = `-- name: UpsertAccount :one
+INSERT INTO channel.channel_accounts (tenant_id, seller_id, channel, external_id, name)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (tenant_id, channel, external_id) DO UPDATE
+SET name = EXCLUDED.name, status = 'active', status_reason = NULL, updated_at = now()
+RETURNING id, (xmax = 0) AS inserted
+`
+
+type UpsertAccountParams struct {
+	TenantID   uuid.UUID
+	SellerID   uuid.UUID
+	Channel    string
+	ExternalID string
+	Name       string
+}
+
+type UpsertAccountRow struct {
+	ID       uuid.UUID
+	Inserted bool
+}
+
+// Kết nối Page (Task 149): mới → read_only, active (mặc định của bảng); đã có → đổi tên, về active, xóa lý do; giữ
+// send_mode, seller_id, version. inserted = true khi là dòng mới. Khóa dòng (ADR-46 nhóm 3).
+func (q *Queries) UpsertAccount(ctx context.Context, arg UpsertAccountParams) (UpsertAccountRow, error) {
+	row := q.db.QueryRow(ctx, upsertAccount,
+		arg.TenantID,
+		arg.SellerID,
+		arg.Channel,
+		arg.ExternalID,
+		arg.Name,
+	)
+	var i UpsertAccountRow
+	err := row.Scan(&i.ID, &i.Inserted)
+	return i, err
+}
