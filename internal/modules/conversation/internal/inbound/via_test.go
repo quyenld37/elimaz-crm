@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"elimaz.com.vn/crm/internal/adapters/facebook"
@@ -69,5 +70,44 @@ func TestInbound_PolicyEnforcementRouted(t *testing.T) {
 	})
 	if status != channel.StatusDegraded || reason != "meta_policy:block" {
 		t.Fatalf("trạng thái = %s %s; muốn degraded meta_policy:block", status, reason)
+	}
+}
+
+// Gộp 170 + 153/154: handler vào chuyển live.status cho LiveStatus (phiên live detected_by webhook); comment khách trên
+// bài của phiên (mã video) ghi is_live và phát báo hiệu live.comments theo phiên; comment trên bài khác không phải live.
+func TestInbound_LiveStatusAndLiveComment(t *testing.T) {
+	t.Parallel()
+	fg := fakegraphFor(t)
+	fg.AddPost(fakePost(post1, "Live xả hàng"))
+	fg.AddPost(fakePost(post2, "Váy hoa"))
+	e := newEnvWith(t, fg)
+	e.enqueueVia(webhooks.ViaWebhook, channel.EventLiveStatus, "l:lv1:LIVE", pageExt1, channel.LiveStatusPayload{
+		PageID: pageExt1, LiveVideoID: "lv1", VideoID: post1, Status: "LIVE", Title: "Xả hàng", At: at(0),
+	})
+	var session uuid.UUID
+	var by string
+	e.staff.Exec(t, e.tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(t.Context(), `SELECT id, detected_by FROM conversation.live_sessions
+			WHERE channel_account_id = $1 AND live_video_id = 'lv1' AND status = 'live'`, e.page1).Scan(&session, &by)
+	})
+	if session == uuid.Nil || by != "webhook" {
+		t.Fatalf("phiên live = %v %q; muốn một phiên detected_by webhook", session, by)
+	}
+	e.sendComment(commentEv("add", post1, "lc1", "", "u-9", "Mai", "Chốt 1", 1))
+	e.sendComment(commentEv("add", post2, "nc1", "", "u-9", "Mai", "Còn không?", 2))
+	if m, ok := e.commentRow("lc1"); !ok || !m.Live {
+		t.Fatalf("comment trên bài của phiên live: %+v, %v; muốn is_live", m, ok)
+	}
+	if m, ok := e.commentRow("nc1"); !ok || m.Live {
+		t.Fatalf("comment trên bài thường: %+v, %v; muốn không is_live", m, ok)
+	}
+	n := 0
+	for _, s := range e.bus.Signals() {
+		if s.Topic == "live.comments" && s.Entity.ID == session.String() {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("báo hiệu live.comments của phiên = %d, muốn 1", n)
 	}
 }

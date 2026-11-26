@@ -28,6 +28,8 @@ func conversationError(err error) (status int, code string, ok bool) {
 		{conversation.ErrNotFound, http.StatusNotFound, codeNotFound},
 		{conversation.ErrReminderInvalid, http.StatusBadRequest, codeInvalidInput},
 		{conversation.ErrCallInvalid, http.StatusBadRequest, codeInvalidInput},
+		{conversation.ErrLiveVideoInvalid, http.StatusBadRequest, codeInvalidInput},
+		{conversation.ErrLiveStatusInvalid, http.StatusBadRequest, codeInvalidInput},
 		{conversation.ErrReminderClosed, http.StatusConflict, codeVersionConflict},
 		{conversation.ErrReminderAssignForbidden, http.StatusForbidden, codeForbidden},
 		{conversation.ErrAssigneeNotAllowed, http.StatusUnprocessableEntity, codeAssigneeNotAllowed},

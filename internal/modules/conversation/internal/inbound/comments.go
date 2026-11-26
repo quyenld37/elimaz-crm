@@ -12,6 +12,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/deps"
+	"elimaz.com.vn/crm/internal/modules/conversation/internal/live"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/store"
 	"elimaz.com.vn/crm/internal/platform/queue"
 	"elimaz.com.vn/crm/internal/platform/webhooks"
@@ -82,9 +83,9 @@ func (h *handler) insertComment(ctx context.Context, tx pgx.Tx, e webhooks.Inbou
 		return err
 	}
 	st := initialState(p, at)
-	live, err := isLiveComment(ctx, tx, postID, at)
+	session, err := live.IsLiveComment(ctx, tx, acc.ID, p.PostID) // Task 170: phiên live chứa bài, nil = không phải live
 	if err != nil {
-		return err
+		return err //nolint:wrapcheck // live đã bọc việc đang làm
 	}
 	var refs []channel.AttachmentRef
 	if p.PhotoURL != "" {
@@ -102,7 +103,7 @@ func (h *handler) insertComment(ctx context.Context, tx pgx.Tx, e webhooks.Inbou
 	msgID, err := q.InsertComment(ctx, store.InsertCommentParams{
 		ConversationID: convID, ChannelAccountID: acc.ID, ExternalID: text(p.CommentID), Direction: dir, Origin: origin,
 		ParentExternalID: text(parentRef(p)), PostID: pgtype.UUID{Bytes: postID, Valid: true}, Body: st.body,
-		Attachments: atts, SenderName: text(p.FromName), IsHidden: st.hidden, IsLive: live, RemovedAt: st.removed,
+		Attachments: atts, SenderName: text(p.FromName), IsHidden: st.hidden, IsLive: session != nil, RemovedAt: st.removed,
 		EditedAt: st.editedAt, SentAt: at,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -119,13 +120,14 @@ func (h *handler) insertComment(ctx context.Context, tx pgx.Tx, e webhooks.Inbou
 	if err != nil {
 		return fmt.Errorf("ghi comment vào: %w", err)
 	}
-	return h.afterCommentInserted(ctx, tx, e, acc, p, msgID, convID, st, refs, live)
+	return h.afterCommentInserted(ctx, tx, e, acc, p, msgID, convID, st, refs, session)
 }
 
 // afterCommentInserted là phần sau khi chèn comment mới msgID: dòng lịch sử của sự kiện tới trước add (không biết nội
-// dung trước đó: body NULL), cập nhật hội thoại, đính kèm, hook tự động và live (comment khách chưa xóa), báo hiệu.
+// dung trước đó: body NULL), cập nhật hội thoại, đính kèm, hook tự động và live (comment khách chưa xóa thuộc phiên
+// session: báo hiệu live.comments của Task 170 và hook chốt của Task 172), báo hiệu.
 func (h *handler) afterCommentInserted(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, acc channel.ChannelAccount,
-	p channel.CommentPayload, msgID, convID uuid.UUID, st commentState, refs []channel.AttachmentRef, live bool,
+	p channel.CommentPayload, msgID, convID uuid.UUID, st commentState, refs []channel.AttachmentRef, session *uuid.UUID,
 ) error {
 	if p.Verb != verbAdd {
 		if err := h.revision(ctx, tx, p, msgID, pgtype.Text{}, st); err != nil {
@@ -144,7 +146,10 @@ func (h *handler) afterCommentInserted(ctx context.Context, tx pgx.Tx, e webhook
 		if err := onCommentCreated(ctx, tx, msgID); err != nil {
 			return err
 		}
-		if live {
+		if session != nil {
+			if err := live.OnComment(ctx, tx, h.d.Bus, e.TenantID, acc.ID, *session); err != nil {
+				return err //nolint:wrapcheck // live đã bọc việc đang làm
+			}
 			if err := onLiveComment(ctx, tx, msgID); err != nil {
 				return err
 			}

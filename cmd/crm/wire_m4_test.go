@@ -52,10 +52,13 @@ func TestWireM4_Frame(t *testing.T) {
 			wantCmds = append(wantCmds, "command.fb.fetch_post") // Task 154: đọc bài của comment (kênh đọc được bài)
 		}
 		wantCmds = append(wantCmds, conversation.SendMessageKind) // Task 156: gửi tin, mọi cấu hình
+		if slices.Contains(c.keys, "facebook") {
+			wantCmds = append(wantCmds, "command.fb.live_detect") // Task 170: nhận biết live bằng hỏi định kỳ
+		}
 		if cmds := m4CommandKinds(p); !slices.Equal(cmds, wantCmds) {
 			t.Errorf("%s: lệnh M4 = %v", c.cfg.Env, cmds)
 		}
-		checkM4Schedules(t, c.cfg.Env, p)
+		checkM4Schedules(t, c.cfg.Env, slices.Contains(c.keys, "facebook"), p)
 	}
 	if _, err := wireM4(config.Config{FieldEncKeys: "sai"}, m4Deps{}); err == nil {
 		t.Error("FIELD_ENC_KEYS sai dạng phải là lỗi khởi động")
@@ -82,21 +85,40 @@ func m4CommandKinds(p m4Parts) []string {
 }
 
 // checkM4Schedules: lịch của M4 đúng tên, đúng thứ tự, chạy theo từng tenant (trừ channel.graph_version, một việc
-// không tenant), mỗi lịch một handler cùng Kind.
-func checkM4Schedules(t *testing.T, env string, p m4Parts) {
+// không tenant), mỗi lịch một handler cùng Kind: việc nền (p.Jobs, cùng thứ tự), riêng live.detect (Task 170, chỉ khi
+// có kênh Facebook) ghi lệnh ra ngoài nên handler là lệnh command.fb.live_detect trong p.Commands.
+func checkM4Schedules(t *testing.T, env string, facebook bool, p m4Parts) {
 	t.Helper()
-	want := []string{
-		channel.HealthSchedule, channel.SilenceSchedule, channel.BackfillSchedule, channel.GraphVersionSchedule,
-		"conversation.presence_cleanup", "conversation.reminders", "channel.comment_poll",
+	want := []string{channel.HealthSchedule, channel.SilenceSchedule, channel.BackfillSchedule, channel.GraphVersionSchedule}
+	if facebook {
+		want = append(want, "live.detect")
 	}
-	if len(p.Schedules) != len(want) || len(p.Jobs) != len(want) {
+	want = append(want, "conversation.presence_cleanup", "conversation.reminders", "channel.comment_poll")
+	jobs := len(want)
+	if facebook {
+		jobs--
+	}
+	if len(p.Schedules) != len(want) || len(p.Jobs) != jobs {
 		t.Errorf("%s: lịch, việc nền của M4: %+v, %d handler", env, p.Schedules, len(p.Jobs))
 		return
 	}
+	j := 0
 	for i, name := range want {
+		s := p.Schedules[i]
 		perTenant := name != channel.GraphVersionSchedule
-		if p.Schedules[i].Name != name || p.Schedules[i].PerTenant != perTenant || p.Jobs[i].Kind().Name != p.Schedules[i].Kind.Name {
-			t.Errorf("%s: lịch %d = %+v, việc %q; muốn %s", env, i, p.Schedules[i], p.Jobs[i].Kind().Name, name)
+		if s.Name != name || s.PerTenant != perTenant {
+			t.Errorf("%s: lịch %d = %+v; muốn %s", env, i, s, name)
+			continue
 		}
+		if name == "live.detect" {
+			if !slices.Contains(m4CommandKinds(p), s.Kind.Name) {
+				t.Errorf("%s: lịch live.detect ghi lệnh %q không có handler", env, s.Kind.Name)
+			}
+			continue
+		}
+		if p.Jobs[j].Kind().Name != s.Kind.Name {
+			t.Errorf("%s: lịch %d = %+v, việc %q; muốn %s", env, i, s, p.Jobs[j].Kind().Name, name)
+		}
+		j++
 	}
 }

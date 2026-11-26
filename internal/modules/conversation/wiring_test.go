@@ -10,13 +10,14 @@ import (
 	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/modules/conversation"
 	"elimaz.com.vn/crm/internal/platform/queue"
+	"elimaz.com.vn/crm/internal/platform/schedules"
 )
 
 // Không có bộ adapter: không handler vào, luồng nền. Có bộ adapter: mỗi adapter đúng một handler vào cùng khóa
 // (Task 153). Lệnh luôn có command.fb.send_message (Task 156; không có adapter thì lệnh từ chối tin còn chờ), thêm
-// command.fb.fetch_post khi có adapter đọc được bài (Task 154). Phần chạy nền luôn có lịch
-// conversation.presence_cleanup (Task 163), conversation.reminders (Task 169) mỗi 60 s và channel.comment_poll
-// (Task 150, đọc comment định kỳ) mỗi 30 s, theo tenant, đúng một handler cùng Kind.
+// command.fb.fetch_post (Task 154), command.fb.live_detect và lịch live.detect (Task 170) khi có adapter Facebook.
+// Phần chạy nền luôn có lịch conversation.presence_cleanup (Task 163), conversation.reminders (Task 169) mỗi 60 s và
+// channel.comment_poll (Task 150, đọc comment định kỳ) mỗi 30 s, theo tenant, đúng một handler cùng Kind.
 func TestWiring(t *testing.T) {
 	t.Parallel()
 	d := conversation.Deps{}
@@ -39,33 +40,43 @@ func TestWiring(t *testing.T) {
 	}
 	checkCommands(t, d)
 	checkReminders(t, d)
-	// Có adapter đọc được bài (facebook, Task 154): thêm đúng lệnh command.fb.fetch_post.
+	// Có adapter Facebook: thêm lệnh command.fb.fetch_post (đọc bài, Task 154) và command.fb.live_detect cùng lịch
+	// live.detect 30 s theo tenant (nhận biết live, Task 170).
 	reg, err = channel.NewRegistry(fake.New("0123456789abcdef0123456789abcdef"), facebook.New(facebook.Options{}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	d.Registry = reg
-	if cmds := conversation.CommandHandlers(d); len(cmds) != 2 || cmds[0].Kind().Name != "command.fb.fetch_post" {
-		t.Errorf("lệnh khi có adapter đọc bài: %d", len(cmds))
-	}
 	checkCommands(t, d)
+	var detect []schedules.Schedule
+	for _, s := range conversation.Schedules(d) {
+		if s.Name == "live.detect" {
+			detect = append(detect, s)
+		}
+	}
+	if len(detect) != 1 || detect[0].Kind.Name != "command.fb.live_detect" || !detect[0].PerTenant || detect[0].Every != 30*time.Second {
+		t.Errorf("lịch live.detect khi có Facebook: %+v", detect)
+	}
 }
 
-// checkCommands: lệnh cuối của conversation là command.fb.send_message, hạn 3 phút; ngoài nó chỉ có
-// command.fb.fetch_post khi có adapter đọc được bài.
+// checkCommands: lệnh của conversation theo thứ tự đăng ký: command.fb.fetch_post (khi có adapter Facebook),
+// command.fb.send_message hạn 3 phút (luôn có), command.fb.live_detect (khi có adapter Facebook).
 func checkCommands(t *testing.T, d conversation.Deps) {
 	t.Helper()
-	cs := conversation.CommandHandlers(d)
-	want := 1
-	if d.Registry != nil && slices.Contains(d.Registry.Keys(), facebook.Key) {
-		want = 2
+	fb := d.Registry != nil && slices.Contains(d.Registry.Keys(), facebook.Key)
+	want := []string{conversation.SendMessageKind}
+	if fb {
+		want = []string{"command.fb.fetch_post", conversation.SendMessageKind, "command.fb.live_detect"}
 	}
-	if len(cs) != want {
-		t.Fatalf("lệnh: %d, mong %d", len(cs), want)
+	var got []string
+	for _, h := range conversation.CommandHandlers(d) {
+		got = append(got, h.Kind().Name)
+		if h.Kind().Name == conversation.SendMessageKind && h.Kind().Policy.ExpiresAfter != 3*time.Minute {
+			t.Errorf("lệnh %s hạn %v, mong 3 phút", conversation.SendMessageKind, h.Kind().Policy.ExpiresAfter)
+		}
 	}
-	last := cs[len(cs)-1].Kind()
-	if last.Name != conversation.SendMessageKind || last.Policy.ExpiresAfter != 3*time.Minute {
-		t.Errorf("lệnh cuối: %s, mong %s hạn 3 phút", last.Name, conversation.SendMessageKind)
+	if !slices.Equal(got, want) {
+		t.Errorf("lệnh: %v, mong %v", got, want)
 	}
 }
 

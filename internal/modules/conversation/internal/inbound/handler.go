@@ -78,6 +78,8 @@ func (h *handler) Handle(ctx context.Context, e webhooks.Inbound, tx pgx.Tx) err
 		err = with(e, func(p channel.CommentPayload) error { return h.comment(ctx, tx, e, p) })
 	case channel.EventPolicyEnforcement:
 		err = HandlePolicy(ctx, tx, h.d, h.source, e)
+	case channel.EventLiveStatus:
+		err = LiveStatus(ctx, tx, h.source, e)
 	default:
 		h.ignore(e.Type)
 		return nil

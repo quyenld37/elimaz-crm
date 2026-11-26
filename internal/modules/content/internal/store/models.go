@@ -626,6 +626,31 @@ type ConversationConversationsV struct {
 	CreatedAt             time.Time
 }
 
+type ConversationLiveSession struct {
+	ID               uuid.UUID
+	TenantID         uuid.UUID
+	ChannelAccountID uuid.UUID
+	PostID           *uuid.UUID
+	LiveVideoID      string
+	VideoID          pgtype.Text
+	PostExternalID   pgtype.Text
+	Status           string
+	Title            pgtype.Text
+	StartedAt        time.Time
+	EndedAt          *time.Time
+	LeaseOwner       pgtype.Text
+	LeaseUntil       *time.Time
+	LastCommentAt    *time.Time
+	ReceivedCount    int32
+	MetaCommentCount pgtype.Int4
+	ReconciledAt     *time.Time
+	SourceMode       string
+	ActiveSource     pgtype.Text
+	DetectedBy       string
+	Version          int32
+	CreatedAt        time.Time
+}
+
 type ConversationMessage struct {
 	ID                uuid.UUID
 	TenantID          uuid.UUID
