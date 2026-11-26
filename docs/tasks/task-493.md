@@ -150,3 +150,9 @@ mutation.md. Sửa thêm luật dò nhánh gốc (m4 đi tiếp) gặp khi chạ
 Lượt 2 (sau khi gộp m4): Kết luận: ĐẠT. Không có phát hiện phải sửa. Ghi chú không bắt buộc: task tách từ m4 rồi tự gộp
 main mới hơn thì dò ra main (chỉ chạy nhiều test hơn, không bỏ sót); Ctrl-C trong lúc tìm run thì run đã dispatch không
 bị hủy (hiếm); CLAUDE.md chưa nêu mã 2 (đã thêm).
+
+## Áp bản vá ci-task và hook Stop nhẹ (điều phối viên M4, 26/11)
+- Chủ shop OK rõ (26/11 ~14:40, "Đổi ngay cả hai"): áp `scripts/ci/ci-task-tu-xa.patch` lên `scripts/agent/ci-task.sh`; `scripts/agent/stop-check.sh` chỉ còn build + vet gói bị ảnh hưởng (+ test-guard, kiểm tệp task); lint, test, mã sinh, dò trùng, màn hình do ci-task kiểm (từ xa). CLAUDE.md, docs/quy-trinh-lam-viec.md sửa theo.
+- Bằng chứng: hook mới 15 s, chặn đúng lỗi biên dịch thử; ci-task từ xa trên m4 XANH, run https://github.com/quyenld37/elimaz-crm/actions/runs/45777409679 (plan 10 s, static 22 phút 6 giây, test tests/deploy 7 phút; 31 phút tính tiền).
+- Soát độc lập (agent, chỉ đọc): ĐẠT — đường lùi về máy vẫn chạy đủ cổng tĩnh qua static-gates.sh; dấu xanh chỉ ghi khi xanh; mã 2/3 lùi về máy; không có lối XANH mà bỏ test; bash 3.2/BSD dùng được; TestCITaskPatch_Applies qua (bản vá ngược áp được). Khác nhỏ: hook giờ vet cả tests/e2e (chỉ biên dịch).
+- Còn lại: job static 22 phút trên runner GitHub 2 lõi là phần chậm nhất và tốn phút → Task 494 chuyển static sang Blacksmith.

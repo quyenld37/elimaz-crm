@@ -27,7 +27,7 @@ Quy trình đầy đủ: `docs/quy-trinh-lam-viec.md`. Mỗi task một phiên s
    - **Soát thiết kế:** chỉ những câu ở mục 5, 6 của quy trình liên quan tới phần sẽ chạm (database, tiền, quyền, hàng đợi…).
 3. Test thất bại trước, rồi code cho qua, rồi dọn code. Thay đổi cấu trúc (dời, đổi tên, tách) và thay đổi hành vi ở hai commit khác nhau.
 4. Sửa định nghĩa một ký hiệu thì sửa mọi chỗ dùng trong cùng task (đổi tên dùng rename của gopls). Chuyển sang cách mới thì **xóa** cách cũ, không bọc cách cũ trong một điều kiện.
-5. Trước khi báo xong: hook Stop tự chạy build, vet, lint, test của gói đổi và gói phụ thuộc. Không qua thì sửa tiếp. Hook chặn tới lần thứ 8 liền thì dừng và báo chủ shop, không tìm cách vượt hook.
+5. Trước khi báo xong: hook Stop tự chạy build và vet của gói đổi và gói phụ thuộc (chủ shop 26/11: máy chỉ chạy nhanh; lint, test, mã sinh, dò trùng do `scripts/agent/ci-task.sh` kiểm, mặc định chạy từ xa). Không qua thì sửa tiếp. Hook chặn tới lần thứ 8 liền thì dừng và báo chủ shop, không tìm cách vượt hook.
 6. Điền bảng bằng chứng: tiêu chí → tên test → lệnh đã chạy → trích kết quả. "Mọi test đều qua" một mình không phải bằng chứng.
 7. Task có mã: stage đúng các tệp sẽ commit bằng `git add <tệp>` (lệnh riêng, không `-A`), rồi chạy agent `reviewer` (nó review `git diff --cached`). Hook tự ghi dấu duyệt gắn với đúng phần mã đã stage; sửa mã sau đó thì phải stage và review lại. Chép kết luận vào mục Reviewer của tệp task. Chỉ sửa phát hiện ảnh hưởng tính đúng; bỏ qua phong cách. Task chỉ đổi tài liệu, cấu hình: không cần reviewer.
 8. `git commit -m "..."` (không kèm đường dẫn, không `-a`, không `--no-verify`; git hook chặn khi tệp task chưa đủ hoặc chưa có dấu duyệt), rồi `scripts/agent/finish-task.sh`, rồi báo chủ shop bằng tiếng Việt.

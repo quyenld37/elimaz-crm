@@ -122,7 +122,7 @@ Ghi trong tệp task **trước khi sửa**, theo bốn tầng:
 | Tầng | Câu hỏi | Cách tìm |
 |---|---|---|
 | Ký hiệu Go | Hàm, kiểu xuất ra ngoài nào sẽ đổi? Bao nhiêu chỗ đang dùng? | Công cụ `LSP` (`findReferences`, `incomingCalls`); không chỉ tìm theo chữ |
-| Gói | Gói nào phụ thuộc gói sẽ sửa? | `go list`; hook Stop tự test các gói này |
+| Gói | Gói nào phụ thuộc gói sẽ sửa? | `go list`; ci-task tự test các gói này (hook Stop chỉ build, vet) |
 | Hợp đồng API | Operation nào đổi? Có phá vỡ không? Màn hình nào dùng? | `openapi.yaml`, oasdiff, `tsc` trên client sinh lại |
 | Dữ liệu | Bảng, cột, câu sqlc nào bị chạm? Migration ở pha mở rộng hay thu hẹp? | `queries/`, migration, `sqlc vet` |
 
@@ -150,7 +150,7 @@ Không tạo gói `util`, `common`, `helpers`, `shared`. Chỉ gộp hai đoạn
 | Máy chặn (không qua thì không xong) | Agent tự giác, reviewer kiểm sau |
 |---|---|
 | Sửa tay mã sinh, migration đã commit (hook trước khi sửa) | Ghi Ảnh hưởng, Tái dùng trước khi code |
-| Lỗi biên dịch, `go vet`, lint, test của gói đổi và gói phụ thuộc (hook Stop) | Test viết trước code |
+| Lỗi biên dịch, `go vet` (hook Stop); lint, test của gói đổi và gói phụ thuộc (ci-task, chạy từ xa) | Test viết trước code |
 | Mã sinh lệch nguồn; oasdiff thay đổi phá vỡ chưa duyệt (`make ci`) | Mở phiên mới cho mỗi task |
 | Test bị xóa, tắt, bớt câu kiểm chưa ghi lý do | Theo danh sách kiểm mục 5, 6 |
 | Module nhập sai ranh giới; SQL ngoài sqlc hay `*_dynsql.go`; chế độ simple protocol của pgx (test kiến trúc, linter) | Không làm thêm việc ngoài task |
@@ -255,7 +255,7 @@ Phiên mới và subagent **không nhớ cuộc trò chuyện**. Chúng chỉ bi
 | Hook SessionStart | `scripts/agent/session-start.sh` | Nhắc task đang chạy và luật bắt buộc ở mỗi phiên mới, sau `/clear`, sau khi nén |
 | Hook chặn sửa | `scripts/agent/guard-edit.sh` | Không sửa tay mã sinh, migration đã commit; không sửa cấu hình quy trình (`.claude/`, `scripts/agent/`, `.githooks/`, `.git/`, `<git-dir>/crm-task-state (ngoài git từ 18/11)`) |
 | Hook lệnh shell | `scripts/agent/bashguard.py` | Phân tích lệnh thật: chặn push (mọi cách viết), `commit -a/--amend/--no-verify`, commit kèm đường dẫn, gộp `git add` với `git commit`, đổi `core.hooksPath`, `bash -c`; lệnh nhắc tới phần cấu hình quy trình chỉ qua khi mọi lệnh trong đó là lệnh đọc hoặc script quy trình được phép (danh sách cho phép); reviewer chỉ được chạy lệnh đọc |
-| Hook khi dừng | `scripts/agent/stop-check.sh` | Build, vet, lint, test gói đổi và gói phụ thuộc, mã sinh không lệch, dò trùng, test không bị xóa; "Dừng để hỏi" là lối ra hợp lệ |
+| Hook khi dừng | `scripts/agent/stop-check.sh` | Build, vet gói đổi và gói phụ thuộc, test không bị xóa (chủ shop 26/11: lint, test, mã sinh, dò trùng chuyển sang ci-task chạy từ xa); "Dừng để hỏi" là lối ra hợp lệ |
 | Dấu duyệt reviewer | `review-stamp.sh` (hook `SubagentStop` cho agent `reviewer`) | Khi reviewer kết luận `## Kết luận: ĐẠT`, hook ghi dấu vào `<git-dir>/crm-review/<mã băm phần mã đã stage>`, trỏ tới bản ghi hội thoại của reviewer; agent không ghi dấu này |
 | Cổng commit | `.githooks/pre-commit` (git hook, chạy với mọi cách gọi commit) | Commit có mã cần: task đang làm, tệp task đủ mục, dấu duyệt khớp đúng phần mã đã stage (sửa mã sau review là phải review lại); `stamp_check.py` kiểm dấu trỏ tới bản ghi thật của agent `reviewer`, có chạy `git diff --cached`, câu cuối là ĐẠT |
 | Chặn mở sai thư mục | `Thời trang/.claude/hooks/crm-wrong-folder.sh` | Phiên mở ở thư mục cha không sửa được mã CRM |
