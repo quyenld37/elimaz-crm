@@ -160,11 +160,20 @@ func (c fetchProfile) source(ctx context.Context, tx pgx.Tx, convID uuid.UUID) (
 
 // avatar tải ảnh đại diện rawURL (≤ 2 MiB, JPEG/PNG/WebP, không rỗng) lên bucket private; mọi lỗi → nil (bỏ qua ảnh).
 func (c fetchProfile) avatar(ctx context.Context, tenant uuid.UUID, ad channel.MessagingAdapter, rawURL string) *storedFile {
+	return storeChannelImage(ctx, c.d.Files, tenant, ad, rawURL, maxAvatarBytes)
+}
+
+// storeChannelImage tải ảnh rawURL qua bộ tải của kênh ad (≤ maxBytes, JPEG/PNG/WebP nhận dạng theo nội dung, không
+// rỗng) lên bucket private ở ServerKey (ảnh của kênh, không qua imager: ảnh đại diện, ảnh bài); rawURL rỗng, kênh không
+// tải được, không có kho tệp, mọi lỗi → nil (bên gọi bỏ qua ảnh). Dòng tệp do OnDone của lệnh ghi (files.Register).
+func storeChannelImage(ctx context.Context, fs files.FileStore, tenant uuid.UUID, ad channel.MessagingAdapter, rawURL string,
+	maxBytes int64,
+) *storedFile {
 	dl, ok := ad.(channel.AttachmentDownloader)
-	if rawURL == "" || !ok || c.d.Files == nil {
+	if rawURL == "" || !ok || fs == nil {
 		return nil
 	}
-	rc, info, err := dl.Download(ctx, rawURL, maxAvatarBytes)
+	rc, info, err := dl.Download(ctx, rawURL, maxBytes)
 	if err != nil {
 		return nil
 	}
@@ -174,7 +183,7 @@ func (c fetchProfile) avatar(ctx context.Context, tenant uuid.UUID, ad channel.M
 	if err != nil || info.Size <= 0 || !slices.Contains(imageTypes(), mt) {
 		return nil
 	}
-	if err := c.d.Files.Put(ctx, files.BucketPrivate, files.ServerKey(tenant, id), rc, info.Size, mt); err != nil &&
+	if err := fs.Put(ctx, files.BucketPrivate, files.ServerKey(tenant, id), rc, info.Size, mt); err != nil &&
 		!errors.Is(err, files.ErrObjectExists) {
 		return nil
 	}
