@@ -37,11 +37,13 @@ const (
 	outcomeBucketWait = "send_bucket_empty"
 )
 
-// result là kết quả lệnh đã gửi (lưu ở jobs.result, truyền cho OnDone): mã tin của kênh và thời gian kênh xin giãn
-// (mức dùng của Page cao, tệp task-156, Quyết định 5).
+// result là kết quả lệnh đã gửi (lưu ở jobs.result, truyền cho OnDone): mã tin của kênh, người nhận kênh báo (chỉ lệnh
+// nhắn riêng: PSID để gắn danh tính, Task 158) và thời gian kênh xin giãn (mức dùng của Page cao, tệp task-156, Quyết
+// định 5). Không nội dung.
 type result struct {
-	ExternalID string `json:"externalId,omitempty"`
-	SlowDownMs int64  `json:"slowDownMs,omitempty"`
+	ExternalID  string `json:"externalId,omitempty"`
+	RecipientID string `json:"recipientId,omitempty"`
+	SlowDownMs  int64  `json:"slowDownMs,omitempty"`
 }
 
 // sendCommand là lệnh command.fb.send_message: Execute (ngoài transaction), OnDone, OnTerminal (merge.go).
@@ -73,16 +75,28 @@ type prepared struct {
 // JPEG lớn nhất của ảnh; (2) lấy lượt gửi của Page (hết → not_sent chờ đúng thời gian nạp, không tiêu lượt);
 // (3) gọi kênh. Lỗi của chính CRM trước khi gọi kênh → not_sent (chưa gửi gì, tự thử lại), không bao giờ in_doubt.
 func (c sendCommand) Execute(ctx context.Context, j queue.Job) (commands.Outcome, error) {
+	return c.run(ctx, j, func(ctx context.Context, tx pgx.Tx, p payload, now time.Time) (prepared, string, error) {
+		return c.prepare(ctx, tx, p.MessageID, now)
+	})
+}
+
+// prepareFunc đọc mọi thứ cần gọi kênh cho payload p trong transaction chỉ đọc tx (xem sendCommand.prepare).
+type prepareFunc func(ctx context.Context, tx pgx.Tx, p payload, now time.Time) (prepared, string, error)
+
+// run là thân chung của lệnh ra kênh (gửi tin, trả lời comment, nhắn riêng, ẩn/hiện): prep trong transaction chỉ đọc
+// (lỗi → not_sent; outcomeNotQueued → rejected không đổi tin; mã khác → ghi vào tin, rejected), lấy lượt gửi của Page,
+// gọi kênh, đổi kết quả bằng outcome.
+func (c sendCommand) run(ctx context.Context, j queue.Job, prep prepareFunc) (commands.Outcome, error) {
 	var p payload
 	if err := json.Unmarshal(j.Payload, &p); err != nil || p.MessageID == uuid.Nil || j.TenantID == nil {
 		return commands.Outcome{Status: commands.StatusRejected, Reason: outcomeBadPayload}, nil
 	}
 	tenant, now := *j.TenantID, c.now().UTC()
-	var prep prepared
+	var pr prepared
 	var refusal string
 	err := tenancy.WithTenant(ctx, c.d.DB, tenant, func(tx pgx.Tx) error {
 		var err error
-		prep, refusal, err = c.prepare(ctx, tx, p.MessageID, now) // gán lại mỗi lần chạy
+		pr, refusal, err = prep(ctx, tx, p, now) // gán lại mỗi lần chạy
 		return err
 	})
 	switch {
@@ -93,7 +107,7 @@ func (c sendCommand) Execute(ctx context.Context, j queue.Job) (commands.Outcome
 	case refusal != "":
 		return c.refuse(ctx, tenant, p.MessageID, refusal), nil
 	}
-	ok, wait, err := channel.AcquireSendToken(ctx, c.d.DB, tenant, prep.acc.ID, now)
+	ok, wait, err := channel.AcquireSendToken(ctx, c.d.DB, tenant, pr.acc.ID, now)
 	switch {
 	case err != nil:
 		return commands.Outcome{Status: commands.StatusNotSent, Reason: outcomeBucket}, nil
@@ -103,10 +117,13 @@ func (c sendCommand) Execute(ctx context.Context, j queue.Job) (commands.Outcome
 		}, nil
 	}
 	if c.d.Metrics != nil {
-		c.d.Metrics.Observe(metricClickToAPI, float64(c.now().Sub(prep.clickedAt).Milliseconds()), prep.acc.Channel)
+		c.d.Metrics.Observe(metricClickToAPI, float64(c.now().Sub(pr.clickedAt).Milliseconds()), pr.acc.Channel)
 	}
-	out, sendErr := prep.adapter.Send(ctx, prep.acc, prep.cred, prep.cmd)
-	return c.outcome(ctx, tenant, p.MessageID, prep.adapter, out, sendErr), nil
+	out, sendErr := pr.adapter.Send(ctx, pr.acc, pr.cred, pr.cmd)
+	if pr.cmd.Purpose != channel.PurposePrivateReply {
+		out.RecipientID = "" // PSID chỉ cần cho nhắn riêng (gắn danh tính, OnDone); không lưu thừa ở jobs.result
+	}
+	return c.outcome(ctx, tenant, p.MessageID, pr.adapter, out, sendErr), nil
 }
 
 // outcome đổi kết quả của kênh sang kết quả lệnh; lý do bị từ chối, chưa gửi được ghi vào tin để OnTerminal dùng.
@@ -115,7 +132,9 @@ func (c sendCommand) outcome(ctx context.Context, tenant, msgID uuid.UUID, ad ch
 ) commands.Outcome {
 	switch out.Status {
 	case channel.OutcomeSent:
-		raw, err := json.Marshal(result{ExternalID: out.ExternalID, SlowDownMs: out.RetryAfter.Milliseconds()})
+		raw, err := json.Marshal(result{
+			ExternalID: out.ExternalID, RecipientID: out.RecipientID, SlowDownMs: out.RetryAfter.Milliseconds(),
+		})
 		if err != nil { // chuỗi và số, không lỗi; phòng hờ thì không rõ đã gửi
 			return commands.Outcome{Status: commands.StatusUnknown, Reason: "encode_result"}
 		}
@@ -175,27 +194,11 @@ func (c sendCommand) prepare(ctx context.Context, tx pgx.Tx, msgID uuid.UUID, no
 	if err != nil {
 		return prepared{}, "", fmt.Errorf("đọc hội thoại cần gửi: %w", err)
 	}
-	acc, err := channel.Account(ctx, tx, m.ChannelAccountID)
-	if err != nil {
-		return prepared{}, "", err //nolint:wrapcheck // channel đã bọc việc đang làm
-	}
-	var ad channel.MessagingAdapter
-	if c.d.Registry != nil {
-		ad, _ = c.d.Registry.Get(acc.Channel)
-	}
-	if ad == nil {
-		return prepared{}, reasonNoAdapter, nil
-	}
-	pol := ad.SendPolicy(state(conv, acc, m.Origin == originAuto), now)
-	if !pol.Allowed {
-		return prepared{}, string(pol.Reason), nil
-	}
-	cred, err := channel.CredentialsFor(ctx, tx, c.d.Keys, acc.ID)
-	switch {
-	case errors.Is(err, channel.ErrNoCredentials), errors.Is(err, channel.ErrNoKeyring):
-		return prepared{}, string(channel.DenyNoPermission), nil
-	case err != nil:
-		return prepared{}, reasonAuth, nil // bản mã không giải được: token phải nhập lại
+	pr, pol, refusal, err := c.channelFor(ctx, tx, m.ChannelAccountID, func(acc channel.ChannelAccount) channel.ConversationState {
+		return state(conv, acc, m.Origin == originAuto)
+	}, now)
+	if err != nil || refusal != "" {
+		return prepared{}, refusal, err
 	}
 	cmd := channel.OutboundCommand{
 		Purpose: channel.PurposeMessage, RecipientID: conv.ExternalThreadRef, Text: m.Body.String, Mode: pol.Mode,
@@ -207,7 +210,8 @@ func (c sendCommand) prepare(ctx context.Context, tx pgx.Tx, msgID uuid.UUID, no
 	if cmd.Text == "" && cmd.ImageURL == "" {
 		return prepared{}, reasonNoAttachment, nil
 	}
-	return prepared{acc: acc, adapter: ad, cred: cred, cmd: cmd, clickedAt: m.SentAt}, "", nil
+	pr.cmd, pr.clickedAt = cmd, m.SentAt
+	return pr, "", nil
 }
 
 // imageURL trả đường dẫn công khai của biến thể JPEG lớn nhất (bộ kích thước mới nhất) của ảnh đầu tiên trong cột

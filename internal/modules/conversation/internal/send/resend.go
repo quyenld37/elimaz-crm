@@ -197,8 +197,9 @@ func Discard(ctx context.Context, tx pgx.Tx, env Env, u identity.AuthUser, id uu
 	if err := json.Unmarshal(r.msg.Attachments, &atts); err != nil || atts == nil {
 		atts = []Attachment{}
 	}
+	// Kind: LockRecoverableMessage chỉ lấy tin kind message.
 	return Message{
-		ID: r.msg.ID, ConversationID: r.conv.ID, Origin: r.msg.Origin, Body: r.msg.Body.String, Attachments: atts,
-		SendStatus: statusDiscarded, FailReason: r.msg.FailReason.String, SentAt: r.msg.SentAt,
+		ID: r.msg.ID, ConversationID: r.conv.ID, Origin: r.msg.Origin, Kind: kindMessage,
+		Body: r.msg.Body.String, Attachments: atts, SendStatus: statusDiscarded, FailReason: r.msg.FailReason.String, SentAt: r.msg.SentAt,
 	}, nil
 }

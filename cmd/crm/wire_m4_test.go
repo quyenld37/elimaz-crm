@@ -13,9 +13,9 @@ import (
 // 148, nối ở Task 153); production không cấu hình Meta thì không có kênh nào. Mỗi nguồn có đúng một handler vào của
 // conversation (Task 153); lệnh: đăng ký, hủy đăng ký webhook của Page (Task 149), kiểm sức khỏe, hỏi bù, đọc
 // comment (Task 150), tải tệp đính kèm, đọc hồ sơ khách (Task 155), đọc bài khi có kênh Facebook (Task 154), gửi tin
-// (Task 156); chưa có luồng nền; lịch là bốn lịch sức khỏe kênh (Task 150), conversation.presence_cleanup (Task 163),
-// conversation.reminders (Task 169), channel.comment_poll (Task 150), mỗi lịch một handler cùng Kind; ingest vẫn dựng
-// được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
+// (Task 156), trả lời, nhắn riêng, ẩn comment (Task 158); chưa có luồng nền; lịch là bốn lịch sức khỏe kênh (Task
+// 150), conversation.presence_cleanup (Task 163), conversation.reminders (Task 169), channel.comment_poll (Task 150),
+// mỗi lịch một handler cùng Kind; ingest vẫn dựng được (m4Deps rỗng). FIELD_ENC_KEYS sai dạng → lỗi khởi động.
 func TestWireM4_Frame(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
@@ -52,7 +52,8 @@ func TestWireM4_Frame(t *testing.T) {
 		if slices.Contains(c.keys, "facebook") {
 			wantCmds = append(wantCmds, "command.fb.fetch_post") // Task 154: đọc bài của comment (kênh đọc được bài)
 		}
-		wantCmds = append(wantCmds, conversation.SendMessageKind) // Task 156: gửi tin, mọi cấu hình
+		wantCmds = append(wantCmds, conversation.SendMessageKind, // Task 156: gửi tin, mọi cấu hình
+			conversation.ReplyCommentKind, conversation.PrivateReplyKind, conversation.HideCommentKind) // Task 158
 		// Task 165: tự ẩn comment, mọi cấu hình.
 		wantCmds = append(wantCmds, "command.fb.auto_hide_comment")
 		if slices.Contains(c.keys, "facebook") {

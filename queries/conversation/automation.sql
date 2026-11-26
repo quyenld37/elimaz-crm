@@ -72,14 +72,6 @@ FROM conversation.messages
 WHERE id = @id
   AND kind = 'comment';
 
--- name: LockCommentByID :one
--- Khóa comment id (sau khi đã khóa hội thoại của nó) để đổi trạng thái ẩn.
-SELECT id, conversation_id, body, is_hidden, removed_at, edited_at
-FROM conversation.messages
-WHERE id = @id
-  AND kind = 'comment'
-FOR UPDATE;
-
 -- name: ConversationCustomer :one
 -- Khách của hội thoại (không khóa).
 SELECT customer_id

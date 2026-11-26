@@ -17,12 +17,13 @@ import (
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/store"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/platform/files"
-	"elimaz.com.vn/crm/internal/platform/queue"
 )
 
-// payload là payload của lệnh gửi: chỉ mã tin (không nội dung, không PSID, không token).
+// payload là payload của lệnh ra kênh: chỉ mã tin (không nội dung, không PSID, không token); Hidden: trạng thái muốn
+// đặt của lệnh ẩn/hiện comment (Task 158).
 type payload struct {
 	MessageID uuid.UUID `json:"messageId"`
+	Hidden    *bool     `json:"hidden,omitempty"`
 }
 
 // Send gửi tin của nhân viên u vào hội thoại hộp thư conversationID lúc now, trong tx tenant của bên gọi (WriteTx).
@@ -66,21 +67,11 @@ func Send(ctx context.Context, tx pgx.Tx, env Env, u identity.AuthUser, conversa
 
 // allowed hỏi SendPolicy của adapter của Page cho tin thường của nhân viên.
 func allowed(reg *channel.Registry, c conversationRow, acc channel.ChannelAccount, humanAgent bool, now time.Time) error {
-	if acc.SendMode != channel.SendModeEnabled {
-		return ErrReadOnly
+	pol, err := policyFor(reg, acc, state(c, acc, false), now)
+	if err != nil {
+		return err
 	}
-	var ad channel.MessagingAdapter
-	if reg != nil {
-		ad, _ = reg.Get(acc.Channel)
-	}
-	if ad == nil {
-		return &NotAllowedError{Reason: channel.DenyNoPermission}
-	}
-	pol := ad.SendPolicy(state(c, acc, false), now)
-	switch {
-	case !pol.Allowed:
-		return &NotAllowedError{Reason: pol.Reason, Until: pol.Until}
-	case pol.Mode == channel.SendHumanAgent && !humanAgent:
+	if pol.Mode == channel.SendHumanAgent && !humanAgent {
 		return &NotAllowedError{Reason: channel.DenyWindowClosed, Until: pol.Until}
 	}
 	return nil
@@ -130,29 +121,15 @@ func insert(ctx context.Context, tx pgx.Tx, env Env, u identity.AuthUser, convID
 	if err != nil {
 		return Message{}, fmt.Errorf("ghi tin gửi: %w", err)
 	}
-	snip := deps.Snippet(text, len(atts) > 0)
-	if err := q.BumpConversationOutbound(ctx, store.BumpConversationOutboundParams{
-		At: now, Snippet: pgtype.Text{String: snip, Valid: snip != ""}, ID: convID,
-	}); err != nil {
-		return Message{}, fmt.Errorf("cập nhật hội thoại sau khi gửi: %w", err)
-	}
 	tenant := acc.TenantID
-	jobID, _, err := env.Queue.Enqueue(ctx, tx, CommandKind(), queue.NewJob{
-		TenantID: &tenant, Payload: payload{MessageID: id}, DedupeKey: id.String(),
-	})
-	if err != nil {
-		return Message{}, fmt.Errorf("ghi lệnh gửi tin: %w", err)
-	}
-	if err := q.SetMessageCommandJob(ctx, store.SetMessageCommandJobParams{
-		CommandJobID: pgtype.UUID{Bytes: jobID, Valid: true}, ID: id,
-	}); err != nil {
-		return Message{}, fmt.Errorf("gắn lệnh gửi vào tin: %w", err)
+	if err := queueOutgoing(ctx, tx, env.Queue, CommandKind(), tenant, convID, id, deps.Snippet(text, len(atts) > 0), now); err != nil {
+		return Message{}, err
 	}
 	if err := publish(ctx, tx, env.Bus, tenant, acc.ID, convID); err != nil {
 		return Message{}, err
 	}
 	return Message{
-		ID: id, ConversationID: convID, ClientRef: ref, SenderStaffID: u.UserID, Origin: originStaff, Body: text,
-		Attachments: atts, SendStatus: statusQueued, SentAt: now,
+		ID: id, ConversationID: convID, ClientRef: ref, SenderStaffID: u.UserID, Origin: originStaff, Kind: kindMessage,
+		Body: text, Attachments: atts, SendStatus: statusQueued, SentAt: now,
 	}, nil
 }

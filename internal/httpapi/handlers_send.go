@@ -54,16 +54,20 @@ func (h *handler) writeChatMessage(ctx context.Context, status int, what string,
 	return out.(*gen.ChatMessage), nil //nolint:forcetypeassert // fn trên trả *gen.ChatMessage
 }
 
-// chatMessageOut là thân ChatMessage của tin nhân viên vừa gửi hay vừa bỏ (Task 157: nguồn, mã lý do lỗi của tin cũ).
+// chatMessageOut là thân ChatMessage của tin nhân viên vừa gửi hay vừa bỏ (tin, câu trả lời comment, tin riêng: Kind,
+// comment cha; Task 157: nguồn, mã lý do lỗi của tin cũ).
 func chatMessageOut(m conversation.Message) *gen.ChatMessage {
 	origin := gen.MessageOriginStaff
 	if m.Origin != "" {
 		origin = gen.MessageOrigin(m.Origin)
 	}
 	out := &gen.ChatMessage{
-		ID: m.ID, ConversationId: m.ConversationID, Direction: gen.MessageDirectionOut, Kind: gen.MessageKindMessage,
+		ID: m.ID, ConversationId: m.ConversationID, Direction: gen.MessageDirectionOut, Kind: gen.MessageKind(m.Kind),
 		Origin: origin, Attachments: make([]gen.ChatAttachment, 0, len(m.Attachments)),
 		SendStatus: gen.NewOptMessageSendStatus(gen.MessageSendStatus(m.SendStatus)), SentAt: m.SentAt,
+	}
+	if m.ParentMessageID != nil {
+		out.ParentMessageId = gen.NewOptUUID(*m.ParentMessageID)
 	}
 	if m.Body != "" {
 		out.Body = gen.NewOptString(m.Body)

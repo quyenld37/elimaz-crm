@@ -46,7 +46,7 @@ func TestSendRecoveryAPI(t *testing.T) {
 
 	drop := sendOne("Tin bỏ", "expired")
 	got = mustOK(t, "discardMessage", e.send(http.MethodPost, "/api/v1/messages/"+drop+"/discard", chatSaleA, ""), http.StatusOK)
-	if got["sendStatus"] != "discarded" || got["id"] != drop || got["body"] != "Tin bỏ" {
+	if got["sendStatus"] != "discarded" || got["id"] != drop || got["body"] != "Tin bỏ" || got["kind"] != "message" {
 		t.Fatalf("bỏ tin = %v", got)
 	}
 	sent := sendOne("Tin đã gửi", "sent")

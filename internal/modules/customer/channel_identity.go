@@ -107,6 +107,19 @@ func (w Writer) createFromChannel(ctx context.Context, tx pgx.Tx, in ChannelIden
 // validChannelIdentity: Kind là IdentityFBPSID; Scope, Value 1–200 ký tự không khoảng trắng; DisplayName là tên hợp lệ.
 // Trả bản đã bỏ khoảng trắng hai đầu.
 func validChannelIdentity(in ChannelIdentity) (ChannelIdentity, error) {
+	out, err := validChannelKey(in)
+	if err != nil {
+		return ChannelIdentity{}, err
+	}
+	if out.DisplayName, err = validName(in.DisplayName); err != nil {
+		return ChannelIdentity{}, err
+	}
+	return out, nil
+}
+
+// validChannelKey: Kind là IdentityFBPSID; Scope, Value 1–200 ký tự không khoảng trắng. Trả bản đã bỏ khoảng trắng
+// hai đầu (tên không kiểm).
+func validChannelKey(in ChannelIdentity) (ChannelIdentity, error) {
 	if IdentityKind(in.Kind) != IdentityFBPSID {
 		return ChannelIdentity{}, ErrInvalidInput
 	}
@@ -117,8 +130,44 @@ func validChannelIdentity(in ChannelIdentity) (ChannelIdentity, error) {
 			return ChannelIdentity{}, ErrInvalidInput
 		}
 	}
-	if out.DisplayName, err = validName(in.DisplayName); err != nil {
-		return ChannelIdentity{}, err
-	}
 	return out, nil
+}
+
+// AttachChannelIdentity gắn thêm danh tính kênh in (Kind fb_psid, Scope mã Page, Value PSID; DisplayName bỏ qua) cho hồ
+// sơ có sẵn customerID trong tx của bên gọi (Task 158: tin riêng trả comment tới PSID khác mã người comment). Khóa tư
+// vấn theo (tenant, Kind, Scope, Value) như FindOrCreateByIdentity, rồi khóa dòng khách (ADR-46 nhóm 5). Đã thuộc nhóm
+// của customerID → attached = false, không ghi gì; thuộc nhóm khác → *IdentityTakenError kèm gốc của chủ (không bao giờ
+// gộp). Gắn mới → audit customer.identity.add (chỉ loại), báo hiệu customer.changed. Không có hồ sơ → ErrNotFound; đầu
+// vào sai → ErrInvalidInput.
+func (w Writer) AttachChannelIdentity(ctx context.Context, tx pgx.Tx, customerID uuid.UUID, in ChannelIdentity, a Actor,
+) (attached bool, err error) {
+	if err := w.check(); err != nil {
+		return false, err
+	}
+	if in, err = validChannelKey(in); err != nil {
+		return false, err
+	}
+	if err := store.New(tx).LockChannelIdentity(ctx, store.LockChannelIdentityParams{
+		Kind: in.Kind, Scope: in.Scope, Value: in.Value,
+	}); err != nil {
+		return false, fmt.Errorf("khóa danh tính kênh: %w", err)
+	}
+	cust, err := lockOwner(ctx, tx, customerID)
+	if err != nil {
+		return false, err
+	}
+	id, _, taken, err := insertIdentity(ctx, tx, customerID, IdentityKind(in.Kind), in.Scope, in.Value, SourceChat, a)
+	switch {
+	case err != nil:
+		return false, err
+	case taken != nil && taken.rootID == cust.RootID:
+		return false, nil
+	case taken != nil:
+		return false, &IdentityTakenError{OwnerRootID: taken.rootID}
+	}
+	if err := w.audit(ctx, tx, cust.TenantID, a, "customer.identity.add", customerID, nil,
+		map[string]any{"identity_id": id.ID.String(), "kind": string(id.Kind)}); err != nil {
+		return false, err
+	}
+	return true, w.signal(ctx, tx, cust.TenantID, cust.RootID)
 }

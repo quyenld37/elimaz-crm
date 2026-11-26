@@ -260,38 +260,6 @@ func (q *Queries) LockAutomationRule(ctx context.Context, arg LockAutomationRule
 	return i, err
 }
 
-const lockCommentByID = `-- name: LockCommentByID :one
-SELECT id, conversation_id, body, is_hidden, removed_at, edited_at
-FROM conversation.messages
-WHERE id = $1
-  AND kind = 'comment'
-FOR UPDATE
-`
-
-type LockCommentByIDRow struct {
-	ID             uuid.UUID
-	ConversationID uuid.UUID
-	Body           pgtype.Text
-	IsHidden       bool
-	RemovedAt      pgtype.Timestamptz
-	EditedAt       pgtype.Timestamptz
-}
-
-// Khóa comment id (sau khi đã khóa hội thoại của nó) để đổi trạng thái ẩn.
-func (q *Queries) LockCommentByID(ctx context.Context, id uuid.UUID) (LockCommentByIDRow, error) {
-	row := q.db.QueryRow(ctx, lockCommentByID, id)
-	var i LockCommentByIDRow
-	err := row.Scan(
-		&i.ID,
-		&i.ConversationID,
-		&i.Body,
-		&i.IsHidden,
-		&i.RemovedAt,
-		&i.EditedAt,
-	)
-	return i, err
-}
-
 const saveAutomationRule = `-- name: SaveAutomationRule :one
 INSERT INTO conversation.automation_rules (tenant_id, channel_account_id, kind, config, enabled, updated_by)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3::jsonb, $4,

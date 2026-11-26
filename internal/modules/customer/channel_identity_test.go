@@ -140,3 +140,61 @@ func TestFindOrCreateByIdentityRace(t *testing.T) {
 		t.Errorf("số danh tính: %d", c)
 	}
 }
+
+func (e *writeEnv) attach(customerID uuid.UUID, in customer.ChannelIdentity) (bool, error) {
+	var got bool
+	err := e.try(e.tenant, func(tx pgx.Tx) error {
+		var err error
+		got, err = e.w.AttachChannelIdentity(e.t.Context(), tx, customerID, in, customer.Actor{Type: customer.ActorSystem})
+		return err //nolint:wrapcheck // test
+	})
+	return got, err
+}
+
+// Task 158: gắn PSID mới cho hồ sơ có sẵn (tên bỏ qua) → 1 danh tính nguồn chat, audit customer.identity.add không chứa
+// PSID; gắn lại → attached = false, không thêm; PSID của hồ sơ khác → *IdentityTakenError gốc của chủ, không gộp; đầu
+// vào sai → ErrInvalidInput; hồ sơ không có → ErrNotFound.
+func TestAttachChannelIdentity(t *testing.T) {
+	t.Parallel()
+	e := newWriteEnv(t)
+	a := e.create(customer.CreateInput{FullName: "Chị Hoa"})
+	in := customer.ChannelIdentity{Kind: string(customer.IdentityFBPSID), Scope: "page1", Value: "p-55"}
+	if ok, err := e.attach(a.ID, in); err != nil || !ok {
+		t.Fatalf("gắn lần đầu: %v, %v", ok, err)
+	}
+	if n := e.count(`SELECT count(*) FROM customer.customer_identities WHERE customer_id = $1 AND kind = 'fb_psid'
+		AND scope = 'page1' AND value = 'p-55' AND source = 'chat'`, a.ID); n != 1 {
+		t.Fatalf("danh tính: %d", n)
+	}
+	if n := e.count(`SELECT count(*) FROM identity.audit_logs WHERE entity_id = $1 AND action = 'customer.identity.add'`,
+		a.ID.String()); n != 1 {
+		t.Errorf("audit: %d", n)
+	}
+	if n := e.count(`SELECT count(*) FROM identity.audit_logs WHERE entity_id = $1 AND row_to_json(audit_logs)::text LIKE '%p-55%'`,
+		a.ID.String()); n != 0 {
+		t.Errorf("audit chứa PSID: %d", n)
+	}
+	if ok, err := e.attach(a.ID, in); err != nil || ok {
+		t.Fatalf("gắn lại: %v, %v", ok, err)
+	}
+	b := e.create(customer.CreateInput{FullName: "Chị Khác"})
+	_, err := e.attach(b.ID, in)
+	if te, ok := errors.AsType[*customer.IdentityTakenError](err); !ok || te.OwnerRootID != a.ID {
+		t.Fatalf("PSID đã có chủ: %v", err)
+	}
+	if n := e.count(`SELECT count(*) FROM customer.customer_merges`); n != 0 {
+		t.Errorf("không được gộp: %d", n)
+	}
+	for name, bad := range map[string]customer.ChannelIdentity{
+		"loại khác":    {Kind: "phone", Scope: "page1", Value: "p-56"},
+		"thiếu Page":   {Kind: string(customer.IdentityFBPSID), Value: "p-56"},
+		"khoảng trắng": {Kind: string(customer.IdentityFBPSID), Scope: "page1", Value: "p 56"},
+	} {
+		if _, err := e.attach(a.ID, bad); !errors.Is(err, customer.ErrInvalidInput) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	if _, err := e.attach(uuid.New(), customer.ChannelIdentity{Kind: "fb_psid", Scope: "page1", Value: "p-57"}); !errors.Is(err, customer.ErrNotFound) {
+		t.Errorf("hồ sơ không có: %v", err)
+	}
+}

@@ -198,6 +198,15 @@ func (e *env) send(conv uuid.UUID, in send.Input) (send.Message, error) {
 	})
 }
 
+// resolveDone tra lại mọi lệnh in_doubt của send, đòi đúng want lệnh ra done.
+func (e *env) resolveDone(want int) {
+	e.t.Helper()
+	done, _, _, err := commands.ResolveInDoubt(e.t.Context(), e.staff.App, send.Parts(e.d).Commands, 10)
+	if err != nil || done != want {
+		e.t.Fatalf("ResolveInDoubt = %d, %v; muốn %d", done, err, want)
+	}
+}
+
 // mustSend như send, lỗi thì dừng.
 func (e *env) mustSend(conv uuid.UUID, in send.Input) send.Message {
 	e.t.Helper()
