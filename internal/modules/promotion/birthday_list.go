@@ -161,17 +161,20 @@ func pendingGifts(ctx context.Context, tx pgx.Tx, now time.Time, p store.Pending
 }
 
 // GiftSendFailure là trạng thái lỗi gửi của một quà: số lần lỗi, lúc quay lại outbox (nil: hết lượt tự gửi hay đã
-// trao), Given khi quà đã trao hay đã dùng (lần báo này không đổi gì).
+// trao), Given khi quà đã trao hay đã dùng (lần báo này không đổi gì), Changed khi lần báo này đã ghi thêm một lần lỗi
+// (false: đã trao hay đã hết lượt; bên gọi không ghi audit, Task 510).
 type GiftSendFailure struct {
 	CouponID uuid.UUID
 	Code     string
 	Failures int
 	RetryAt  *time.Time
 	Given    bool
+	Changed  bool
 }
 
 // MarkBirthdaySendFailed ghi một lần website gửi quà code lỗi lúc now (không kênh nào tới khách): lỗi lần 1, 2 → quà
-// rời outbox tới now + 6 giờ; lần 3 → không vào outbox nữa. Quà đã trao hay đã dùng → không đổi gì. Khóa mã trước quà
+// rời outbox tới now + 6 giờ; lần 3 → không vào outbox nữa; báo thêm sau lần 3 → không đổi gì, trả như lần 3. Quà đã
+// trao hay đã dùng → không đổi gì. Khóa mã trước quà
 // (ADR-46 nhóm 10). Mã không phải quà sinh nhật hay không có → ErrNotFound.
 func MarkBirthdaySendFailed(ctx context.Context, tx pgx.Tx, code string, now time.Time) (GiftSendFailure, error) {
 	q := store.New(tx)
@@ -198,7 +201,7 @@ func MarkBirthdaySendFailed(ctx context.Context, tx pgx.Tx, code string, now tim
 	if err != nil {
 		return GiftSendFailure{}, fmt.Errorf("ghi lỗi gửi quà sinh nhật: %w", err)
 	}
-	out.Failures = int(r.SendFailures)
+	out.Failures, out.Changed = int(r.SendFailures), true
 	if r.RetryAt.Valid {
 		t := r.RetryAt.Time
 		out.RetryAt = &t

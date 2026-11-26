@@ -38,7 +38,7 @@ func importItem(phone string, n int) customer.BirthdayImport {
 // Nhập hồ sơ sinh nhật cũ của website (giữ mã dừng): SĐT mới → khách mới (tên rỗng → "Khách website"), hồ sơ nguồn
 // import giữ mã dừng, lúc đăng ký, lúc dừng, cờ đơn cũ; link dừng cũ dừng được hồ sơ CRM. SĐT đã có hồ sơ (lần đầu
 // thắng) → conflicts (vị trí mục), mã cũ không thay; website ghi đã dừng → hồ sơ CRM cũng dừng. Mã dừng của khách khác →
-// conflicts. Nhập lại → skipped, không thêm dòng, không dừng lại. Audit chỉ tên trường.
+// rejected (stop_token_taken), không tạo khách (Task 510). Nhập lại → skipped, không thêm dòng, không dừng lại. Audit chỉ tên trường.
 func TestImportBirthdays_KeepsLegacyStopToken(t *testing.T) {
 	t.Parallel()
 	e := newWriteEnv(t)
@@ -61,7 +61,8 @@ func TestImportBirthdays_KeepsLegacyStopToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Inserted != 2 || r.Skipped != 0 || r.Stopped != 2 || !slices.Equal(r.Conflicts, []int{2, 3}) {
+	if r.Inserted != 2 || r.Skipped != 0 || r.Stopped != 2 || !slices.Equal(r.Conflicts, []int{2}) ||
+		!slices.Equal(r.Rejected, takenAt(3)) {
 		t.Fatalf("báo cáo: %+v", r)
 	}
 	if n := e.count(`SELECT count(*) FROM customer.birthday_profiles_v p WHERE p.stop_token = $1 AND p.source = 'import'
@@ -95,10 +96,11 @@ func TestImportBirthdays_KeepsLegacyStopToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if again.Inserted != 0 || again.Skipped != 2 || again.Stopped != 0 || !slices.Equal(again.Conflicts, []int{2, 3}) {
+	if again.Inserted != 0 || again.Skipped != 2 || again.Stopped != 0 || !slices.Equal(again.Conflicts, []int{2}) ||
+		!slices.Equal(again.Rejected, takenAt(3)) {
 		t.Fatalf("nhập lại: %+v", again)
 	}
-	if n := e.count(`SELECT count(*) FROM customer.customers`); n != 4 {
+	if n := e.count(`SELECT count(*) FROM customer.customers`); n != 3 {
 		t.Fatalf("số khách: %d", n)
 	}
 	if n := e.count(`SELECT count(*) FROM identity.audit_logs WHERE action = 'customer.birthday.import'`); n != 2 {
@@ -107,6 +109,67 @@ func TestImportBirthdays_KeepsLegacyStopToken(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM identity.audit_logs WHERE row_to_json(audit_logs)::text LIKE '%912000%'
 		OR row_to_json(audit_logs)::text LIKE '%WebStopToken%' OR row_to_json(audit_logs)::text LIKE '%a@example%'`); n != 0 {
 		t.Errorf("audit chứa SĐT, mã dừng hay email: %d", n)
+	}
+}
+
+func takenAt(pos ...int) []customer.BirthdayImportRejection {
+	out := make([]customer.BirthdayImportRejection, 0, len(pos))
+	for _, p := range pos {
+		out = append(out, customer.BirthdayImportRejection{Index: p, Reason: customer.ImportRejectStopTokenTaken})
+	}
+	return out
+}
+
+// Task 510: mục có mã dừng đã thuộc hồ sơ của khách khác bị từ chối (rejected, lý do stop_token_taken), không ghi gì:
+// SĐT mới → không tạo khách, định danh, audit tạo khách; SĐT của khách có sẵn (chưa có hồ sơ) → khách giữ nguyên, không
+// hồ sơ, website ghi đã dừng cũng không dừng hồ sơ của chủ mã. Mục hợp lệ cùng lần nhập (đứng trước, sau mục bị từ chối
+// theo SĐT) vẫn vào. Nhập lại → cùng kết quả, số khách không đổi.
+func TestImportBirthdays_TakenTokenCreatesNoCustomer(t *testing.T) {
+	t.Parallel()
+	e := newWriteEnv(t)
+	owner, _, err := e.registerBirthday(customer.BirthdayInput{Phone: "0912000301", FullName: "Chủ mã", Day: 1, Month: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, _, err := e.registerBirthday(customer.BirthdayInput{Phone: "0912000309", FullName: "Chủ mã 2", Day: 2, Month: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.create(customer.CreateInput{FullName: "Chưa có hồ sơ", Phone: "0912000303"})
+	customers := `SELECT count(*) FROM customer.customers`
+	before := e.count(customers)
+	stoppedAt := time.Date(2026, 9, 2, 1, 0, 0, 0, time.UTC)
+	newPhone := importItem("0912000302", 1)
+	newPhone.StopToken = e.stopToken(owner.CustomerID)
+	oldPhone := importItem("0912000303", 2)
+	oldPhone.StopToken, oldPhone.StoppedAt = e.stopToken(other.CustomerID), &stoppedAt
+	items := []customer.BirthdayImport{importItem("0912000300", 3), newPhone, oldPhone, importItem("0912000304", 4)}
+
+	for round := range 2 {
+		r, err := e.importBirthdays(items)
+		if err != nil {
+			t.Fatal(err)
+		}
+		inserted, skipped := 2, 0
+		if round == 1 {
+			inserted, skipped = 0, 2
+		}
+		if r.Inserted != inserted || r.Skipped != skipped || r.Stopped != 0 || len(r.Conflicts) != 0 ||
+			!slices.Equal(r.Rejected, takenAt(1, 2)) {
+			t.Fatalf("lượt %d: %+v", round, r)
+		}
+		if n := e.count(customers); n != before+2 {
+			t.Fatalf("lượt %d: số khách %d, trước %d (chỉ 2 mục hợp lệ tạo khách)", round, n, before)
+		}
+	}
+	if n := e.count(`SELECT count(*) FROM customer.customer_identities WHERE value = '+84912000302'`); n != 0 {
+		t.Fatalf("định danh SĐT của mục bị từ chối: %d", n)
+	}
+	if n := e.count(`SELECT count(*) FROM customer.birthday_profiles WHERE stopped_at IS NOT NULL`); n != 0 {
+		t.Fatalf("hồ sơ bị dừng: %d", n)
+	}
+	if n := e.count(`SELECT count(*) FROM customer.birthday_profiles WHERE phone = '+84912000303'`); n != 0 {
+		t.Fatal("khách có sẵn bị tạo hồ sơ")
 	}
 }
 

@@ -23023,6 +23023,38 @@ func (s *WebBirthdayImportItem) Validate() error {
 	return nil
 }
 
+func (s *WebBirthdayImportRejection) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Reason.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s WebBirthdayImportRejectionReason) Validate() error {
+	switch s {
+	case "stop_token_taken":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *WebBirthdayImportReport) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -23037,6 +23069,34 @@ func (s *WebBirthdayImportReport) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "conflicts",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Rejected == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Rejected {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "rejected",
 			Error: err,
 		})
 	}
