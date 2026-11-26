@@ -79,7 +79,7 @@ func newFBLatency(t *testing.T) *fbLatency {
 	keys := cfaccesstest.AccessKeyServer(t)
 	token := func(email string, page uuid.UUID) string {
 		u := staff.User(t, tenant, email, "active")
-		staff.Grant(t, tenant, u, []string{"conversation.read"}, identity.ScopePage, page.String())
+		staff.Grant(t, tenant, u, []string{"conversation.read", "realtime.subscribe"}, identity.ScopePage, page.String())
 		return keys.Sign(cfaccesstest.AccessClaims{Email: email, AUD: fbLatencyAUD, MFA: []string{"mfa"}})
 	}
 	token1, token2 := token("nv1@elimaz.test", page1), token("nv2@elimaz.test", page2)
