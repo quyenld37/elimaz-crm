@@ -1,8 +1,6 @@
 # Operation M4 tạm trả 501 not_implemented (kế hoạch M4, Task 143): một operationId mỗi dòng. Task hiện thực
 # operation xóa dòng của mình (TestM4Contract_StatusCodes đỏ khi operation đã làm mà còn dòng, hay trả 501 mà
 # không có dòng). Đóng mốc (Task 182) đòi tệp này không còn dòng nào.
-listAutomationRules
-updateAutomationRule
 replyToComment
 sendPrivateReply
 resendMessage

@@ -143,7 +143,7 @@ func (h *handler) afterCommentInserted(ctx context.Context, tx pgx.Tx, e webhook
 		}
 	}
 	if !p.FromPage && !st.removed.Valid {
-		if err := onCommentCreated(ctx, tx, msgID); err != nil {
+		if err := onCommentCreated(ctx, tx, h.d, e, acc, p, msgID, convID, session != nil); err != nil {
 			return err
 		}
 		if session != nil {
