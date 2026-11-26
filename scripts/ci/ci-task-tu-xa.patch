@@ -7,6 +7,10 @@
 # Task 494: thêm bộ điều phối máy (scripts/ci/pool.py): ci-task giữ một chỗ trống nhanh nhất (blacksmith → mac → github
 # → vps ≤ 15 gói) rồi chạy bên trong chỗ đó; mac = chạy máy như cũ (chung lượt run-in-slot); bể từ xa lỗi hạ tầng (mã 3)
 # thì bộ điều phối chọn bể khác; CRM_CI_RUNNER ép bể. Bản vá này thay hẳn bản của Task 493 (cùng gốc ci-task.sh chưa vá).
+# Thứ tự bể hiện tại (Task 495, 498; nguồn đúng là docstring của scripts/ci/pool.py): blacksmith → ubicloud → github; vps
+# tắt mặc định (CRM_CI_POOL_SLOTS=vps=1 bật lại); mac chỉ dự phòng cuối. Chú thích trong phần diff dưới (dòng +) vẫn ghi
+# thứ tự của Task 494 vì bản vá đã áp: sửa dòng + thì bản vá ngược không còn khớp ci-task.sh (TestCITaskPatch_Applies);
+# chủ shop sửa chú thích đầu ci-task.sh bằng tay rồi làm lại bản vá.
 diff --git a/scripts/agent/ci-task.sh b/scripts/agent/ci-task.sh
 --- a/scripts/agent/ci-task.sh
 +++ b/scripts/agent/ci-task.sh

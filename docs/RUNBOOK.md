@@ -496,7 +496,7 @@ không tạo tệp. Lịch đề xuất: chủ nhật 04:00 giờ Việt Nam và
 - `.github/workflows/ci.yml`: job `ci` (`make ci-tools`, `make db-up`, `make ci`), `image` (dựng một lần
   `crm:<mã commit>` và `make image-check`), `console-e2e` (`make console-e2e`), `mutation` (chỉ chạy bằng tay: `gh workflow run ci.yml --ref main`, Task 493 bỏ lịch tuần vì tốn phút). Test từ xa của task: `.github/workflows/test-remote.yml` qua `scripts/ci/remote-test.sh`; máy chạy do
   `scripts/ci/pool.py` chọn (Task 494, 495): blacksmith → ubicloud (`ubicloud-standard-2`, dừng ở 1.100 phút/tháng) →
-  github → vps; máy Mac chỉ dự phòng cuối (dòng `== DỰ PHÒNG CUỐI: chạy trên máy Mac (lý do: …)`). Xem chỗ bận và sổ
+  github (vps tắt mặc định từ Task 498, `CRM_CI_POOL_SLOTS=vps=1` bật lại); máy Mac chỉ dự phòng cuối (dòng `== DỰ PHÒNG CUỐI: chạy trên máy Mac (lý do: …)`). Xem chỗ bận và sổ
   phút: `python3 scripts/ci/pool.py status`.
   Luật của tệp nằm ở `tests/deploy/ci_test.go`. Chưa chạy trên GitHub: cần chủ shop OK tạo repo, push, branch
   protection, đẩy image lên registry.

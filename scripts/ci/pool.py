@@ -8,12 +8,14 @@ Năm bể, mỗi bể có số chỗ; một lượt (ci-task, merge-test) giữ 
   ubicloud    3 chỗ  runner ubicloud-standard-2 (2 vCPU); chủ shop không muốn trả tiền (cutoff 1 USD/tháng ở console
                      không chặn cứng) → tính ×1, hết ở 1.100
   github      3 chỗ  ubuntu-24.04 2 lõi; 2.000 phút/tháng chung với website → hết ở 1.600
-  vps         1 chỗ  runner tự cài elimaz-vps, 3 lõi (toàn bộ 40 phút): chỉ nhận ≤ 15 gói và không ALL; không tính phút
+  vps         0 chỗ  runner tự cài elimaz-vps, 3 lõi (toàn bộ 40 phút): TẮT mặc định (Task 498, chủ shop 26/11: "thằng vps
+                     chậm thế chắc ignore đi"); CRM_CI_POOL_SLOTS=vps=1 bật lại (1 chỗ), khi đó chỉ nhận ≤ 15 gói và
+                     không ALL; không tính phút
   mac         0 chỗ  máy dev: KHÔNG chạy test trong lượt chọn bình thường; chỉ là DỰ PHÒNG CUỐI (1 chỗ, CHUNG tệp khóa với
                      scripts/agent/run-in-slot.py) khi --local-only (không chạy được từ xa) hay mọi bể từ xa đều bị loại
                      (tạm hỏng, hết phút, không nhận lượt đó, vừa lỗi hạ tầng). Khi đó in đúng một dòng
                      "== DỰ PHÒNG CUỐI: chạy trên máy Mac (lý do: …)" để điều phối viên báo chủ shop.
-Chọn chỗ TRỐNG theo thứ tự blacksmith → ubicloud → github → vps; hết chỗ thì chờ chỗ đầu tiên trống ở bất kỳ bể nào
+Chọn chỗ TRỐNG theo thứ tự blacksmith → ubicloud → github (→ vps khi bật); hết chỗ thì chờ chỗ đầu tiên trống ở bất kỳ bể nào
 (bể từ xa chỉ đầy, không hỏng: chờ, không rơi về mac).
 Giữ chỗ bằng flock trên <dir>/crm-runner-<bể>.<n>.lock (mac: CRM_TEST_SLOT_LOCK, mặc định ~/Library/Caches/
 crm-test-slot.lock); lệnh con kế thừa khóa, hệ điều hành nhả khi mọi tiến trình giữ nó đã thoát (kể cả bị giết).
@@ -44,9 +46,10 @@ POOLS = [  # thứ tự chọn
     ("blacksmith", 4),
     ("ubicloud", 3),
     ("github", 3),
-    ("vps", 1),
+    ("vps", 0),  # tắt mặc định (Task 498): chậm; CRM_CI_POOL_SLOTS=vps=1 bật lại
     ("mac", 0),  # máy dev không chạy test trong lượt chọn bình thường (Task 495); chỉ dự phòng cuối, MAC_LAST_RESORT chỗ
 ]
+DEFAULT_SLOTS = dict(POOLS)
 SLOTS = dict(POOLS)  # CRM_CI_POOL_SLOTS="blacksmith=1,github=2" đổi số chỗ (đo, bớt tải một bể); 0 là tắt bể đó
 MAC_LAST_RESORT = 1  # số chỗ mac khi dự phòng cuối / --local-only / ép mac; CRM_CI_POOL_SLOTS có "mac=N" thì là N
 REMOTE = ("blacksmith", "ubicloud", "github", "vps")
@@ -65,6 +68,13 @@ def load_slots():
             SLOTS[name] = int(n)
             if name == "mac":
                 MAC_LAST_RESORT = int(n)
+
+
+def off_reason(pool):
+    """Lý do bể 0 chỗ: tắt mặc định (vps, Task 498) kèm cách bật, hay tắt bằng CRM_CI_POOL_SLOTS."""
+    if DEFAULT_SLOTS[pool] == 0 and pool != "mac":  # mac 0 chỗ mặc định vẫn là dự phòng cuối, không phải tắt
+        return f"tắt mặc định (CRM_CI_POOL_SLOTS={pool}=1 bật lại)"
+    return "tắt (CRM_CI_POOL_SLOTS)"
 
 
 def slots(pool, last_resort=False):
@@ -167,7 +177,7 @@ def eligible(args, forced, tried):
             continue
         if SLOTS[pool] == 0:
             if pool != "mac":  # mac 0 chỗ là mặc định (chỉ dự phòng cuối), không báo
-                skipped[pool] = "tắt (CRM_CI_POOL_SLOTS)"
+                skipped[pool] = off_reason(pool)
             continue
         if pool == "mac" and args.no_mac:
             skipped[pool] = "bản cần test không phải thư mục này"
@@ -254,7 +264,7 @@ def cmd_run(args):
     if forced and args.local_only and forced != "mac":
         say(f"== CRM_CI_RUNNER={forced} bị bỏ: chỉ chạy được ở máy")
     if forced and not args.local_only and slots(forced, forced == "mac") == 0:
-        say(f"CRM_CI_RUNNER={forced}: bể đang tắt (CRM_CI_POOL_SLOTS)")
+        say(f"CRM_CI_RUNNER={forced}: bể đang {off_reason(forced)}")
         return 2
     if forced == "mac" and args.no_mac and not args.local_only:
         say("CRM_CI_RUNNER=mac: bản cần test không phải thư mục làm việc này")

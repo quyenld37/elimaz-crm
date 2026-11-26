@@ -516,7 +516,7 @@ func serveHTTP(ctx context.Context, cfg config.Config, d *db.DB, reg *metrics.Re
 			return err
 		}
 		defer web.stop() // sau khi máy chủ HTTP tắt: ghi nốt last_used_at, đóng Valkey
-		wc, err := newWebCache(ctx, cfg, d, hub, reg, logger)
+		wc, err := newWebCache(ctx, cfg, d, hub, reg, logger, 0)
 		if err != nil {
 			return err
 		}

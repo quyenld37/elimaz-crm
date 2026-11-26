@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Cổng tĩnh của một task (Task 493): một danh sách dùng chung cho job static của .github/workflows/test-remote.yml và
 # scripts/agent/ci-task.sh (bản vá scripts/ci/ci-task-tu-xa.patch). Giống phần cổng tĩnh ci-task chạy từ 18/11: build,
-# vet, lint, gen-check và sqlc-vet khi đổi nguồn của chúng, catalog-check, jscpd, gitleaks, oasdiff và test-guard so với
+# vet, lint, gen-check và sqlc-vet khi đổi nguồn của chúng, catalog-check, jscpd, gitleaks (BASE..HEAD), oasdiff và test-guard so với
 # BASE, vuln khi đổi go.mod, console-check khi đổi console, test kiến trúc.
 # Dùng: static-gates.sh BASE    In "STATIC XANH" (thoát 0) hoặc "STATIC ĐỎ: <cổng…>" (thoát 1).
 # CI_STATIC_DRY=1: chỉ in "RUN <lệnh>" từng cổng sẽ chạy (test của tests/deploy).
@@ -27,7 +27,9 @@ if has "$gen_in"; then step gen-check make gen-check; else echo "== gen-check: b
 if has '^(queries/|migrations/|sqlc\.yaml)'; then step sqlc-vet make sqlc-vet; else echo "== sqlc-vet: bỏ (không đổi SQL, schema, sqlc.yaml)"; fi
 step catalog-check make catalog-check
 step jscpd make jscpd
-step gitleaks make gitleaks
+# Chỉ lịch sử của lượt (BASE..HEAD) và thư mục làm việc: runner lấy mã fetch-depth 0 nên có cả nhánh tạm ci/* của phiên
+# khác (26/11: ci/task-180-* làm đỏ merge-test của 173); lịch sử trước BASE đã quét ở lượt của chính nó (Task 498).
+step gitleaks make gitleaks GITLEAKS_LOG_OPTS="$base..HEAD"
 step oasdiff make oasdiff OASDIFF_BASE=-base-ref="$base"
 step test-guard scripts/agent/test-guard.sh "$base"
 if has '^(go\.mod|go\.sum)$'; then step vuln make vuln; fi

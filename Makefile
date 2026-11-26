@@ -210,6 +210,9 @@ ci-tools: ## Cài golangci-lint, govulncheck, sqlc, ogen, oasdiff, gitleaks, gre
 	go install github.com/go-gremlins/gremlins/cmd/gremlins@$(strip $(GREMLINS_VERSION))
 	npm install -g --no-audit --no-fund jscpd@$(strip $(JSCPD_VERSION))
 
-gitleaks: ## Không có bí mật trong lịch sử git và thư mục làm việc
-	gitleaks git --no-banner --redact .
+# GITLEAKS_LOG_OPTS giới hạn phần lịch sử gitleaks git quét (cờ --log-opts, vd "BASE..HEAD" ở cổng tĩnh của một lượt,
+# Task 498: runner có cả nhánh tạm ci/* của phiên khác); trống: mọi nhánh (nghĩa của make ci).
+GITLEAKS_LOG_OPTS ?=
+gitleaks: ## Không có bí mật trong lịch sử git (mọi nhánh, hay GITLEAKS_LOG_OPTS) và thư mục làm việc
+	gitleaks git --no-banner --redact $(if $(GITLEAKS_LOG_OPTS),--log-opts="$(GITLEAKS_LOG_OPTS)" ).
 	gitleaks dir --no-banner --redact .

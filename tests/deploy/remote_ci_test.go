@@ -492,7 +492,7 @@ func TestStaticGates_Steps(t *testing.T) {
 	commit(t, dir, "internal/x/x.go")
 	out := staticDry(t, dir, base)
 	for _, want := range []string{
-		"make build", "make vet", "make lint", "make catalog-check", "make jscpd", "make gitleaks",
+		"make build", "make vet", "make lint", "make catalog-check", "make jscpd", "make gitleaks GITLEAKS_LOG_OPTS=" + base + "..HEAD",
 		"make oasdiff OASDIFF_BASE=-base-ref=" + base, "scripts/agent/test-guard.sh " + base, "make --no-print-directory test-part RACE=./tests/arch/...",
 	} {
 		if !strings.Contains(out, want) {
@@ -512,6 +512,68 @@ func TestStaticGates_Steps(t *testing.T) {
 		if !strings.Contains(out, "RUN "+want) {
 			t.Errorf("đổi queries, go.mod, console thì phải chạy %q:\n%s", want, out)
 		}
+	}
+}
+
+// Task 498 (Chung-CI4): runner lấy mã với fetch-depth 0 nên có mọi nhánh, kể cả nhánh tạm ci/* của phiên khác (26/11:
+// ci/task-180-* làm đỏ merge-test của 173). Cổng tĩnh chỉ quét lịch sử của lượt (BASE..HEAD) và thư mục làm việc; bí
+// mật nằm trong BASE..HEAD (kể cả đã xóa ở commit sau) vẫn đỏ; make gitleaks không biến giữ nghĩa cũ (mọi nhánh).
+// Chạy đúng các dòng `make -n gitleaks` in ra, bằng gitleaks thật, trong một repo thử.
+func TestGitleaks_ScansOnlyRunRange(t *testing.T) {
+	dir := newRepo(t)
+	base := git(t, dir, "rev-parse", "HEAD")
+	put := func(file, content string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, file), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		git(t, dir, "add", "-A")
+		git(t, dir, "commit", "-q", "-m", "thử "+file)
+	}
+	// Chuỗi dạng khóa GitHub dựng lúc chạy, không nằm trong mã (gitleaks của repo không thấy).
+	token := "ghp_" + randAlnum(t, 36)
+	git(t, dir, "checkout", "-q", "-b", "ci/task-khac")
+	put("leak.txt", "GH_TOKEN: "+token+"\n")
+	git(t, dir, "checkout", "-q", "main")
+	commit(t, dir, "b.txt")
+	recipe := func(args ...string) string {
+		t.Helper()
+		out := makeDry(t, append([]string{"gitleaks"}, args...)...)
+		if !strings.Contains(out, "gitleaks git") || !strings.Contains(out, "gitleaks dir") {
+			t.Fatalf("make gitleaks phải quét lịch sử git và thư mục làm việc:\n%s", out)
+		}
+		return out
+	}
+	run := func(script string) (string, int) {
+		t.Helper()
+		cmd := exec.CommandContext(t.Context(), "bash", "-e", "-c", script)
+		cmd.Dir = dir
+		return outputAndCode(t, cmd)
+	}
+	ranged := recipe("GITLEAKS_LOG_OPTS=" + base + "..HEAD")
+	if !strings.Contains(ranged, `--log-opts="`+base+`..HEAD"`) {
+		t.Fatalf("GITLEAKS_LOG_OPTS phải tới gitleaks git --log-opts:\n%s", ranged)
+	}
+	if out, code := run(ranged); code != 0 {
+		t.Errorf("bí mật chỉ ở nhánh ci/* của phiên khác: lượt BASE..HEAD phải xanh, có mã %d:\n%s", code, out)
+	}
+	all := recipe()
+	if strings.Contains(all, "--log-opts") {
+		t.Errorf("make gitleaks không biến: quét mọi nhánh như cũ (không --log-opts):\n%s", all)
+	}
+	if out, code := run(all); code == 0 {
+		t.Errorf("make gitleaks không biến phải thấy bí mật ở nhánh khác (nghĩa cũ của make ci):\n%s", out)
+	}
+	// Bí mật trong phần của lượt, đã xóa ở commit sau (thư mục làm việc sạch): vẫn đỏ, không in giá trị.
+	put("leak.txt", "GH_TOKEN: "+token+"\n")
+	git(t, dir, "rm", "-q", "leak.txt")
+	git(t, dir, "commit", "-q", "-m", "xóa")
+	out, code := run(ranged)
+	if code == 0 {
+		t.Errorf("bí mật trong BASE..HEAD (đã xóa sau đó) phải đỏ:\n%s", out)
+	}
+	if strings.Contains(out, token) {
+		t.Error("gitleaks in ra chính giá trị bí mật (thiếu --redact)")
 	}
 }
 
