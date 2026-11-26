@@ -246,3 +246,83 @@ describe("Hồ sơ khách", () => {
     expect(screen.getByRole("heading", { name: "Trần Thị Thu Hà", level: 1 })).toBeTruthy();
   });
 });
+
+describe("hội thoại và cuộc gọi trong dòng thời gian (C7, Task 176)", () => {
+  const P1 = "0195f3b2-0000-7000-8000-00000000a001";
+  const CV1 = "0195f3b2-0000-7000-8000-000000010001";
+  const CV2 = "0195f3b2-0000-7000-8000-000000010002";
+
+  it("mục conversation hiện tên Page và liên kết mở hội thoại; mục call hiện kết quả; không có nội dung tin", async () => {
+    fake.channels = [
+      {
+        id: P1,
+        channel: "facebook",
+        externalId: "256660660862565",
+        name: "ELIMAZ Official",
+        status: "active",
+        sendMode: "enabled",
+        humanAgentEnabled: false,
+        subscribedFields: [],
+        version: 1,
+      },
+    ];
+    fake.timeline = [
+      {
+        at: "2026-11-20T03:10:00Z",
+        kind: "call",
+        refId: "c1",
+        actor: { id: "u3", name: "Trần Minh An" },
+        summary: { outcome: "no_answer", conversationId: CV1 },
+      },
+      {
+        at: "2026-11-19T03:00:00Z",
+        kind: "conversation",
+        refId: CV1,
+        summary: { conversationId: CV1, pageId: P1, kind: "inbox" },
+      },
+      {
+        at: "2026-11-18T03:00:00Z",
+        kind: "conversation",
+        refId: CV2,
+        summary: { conversationId: CV2, pageId: "0195f3b2-0000-7000-8000-00000000a009", kind: "comment" },
+      },
+    ];
+    renderAt(`/khach/${C1}`);
+    await screen.findByRole("heading", { name: "Dòng thời gian" });
+    const tl = card("Dòng thời gian");
+    const inbox = await within(tl).findByText(/Hội thoại tin nhắn · ELIMAZ Official/);
+    expect(
+      within(inbox.closest("li") ?? tl)
+        .getByRole("link", { name: "Mở hội thoại" })
+        .getAttribute("href"),
+    ).toBe(`/inbox/${CV1}`);
+    const comment = within(tl).getByText(/Hội thoại comment/);
+    expect(
+      within(comment.closest("li") ?? tl)
+        .getByRole("link", { name: "Mở hội thoại" })
+        .getAttribute("href"),
+    ).toBe(`/inbox/${CV2}`);
+    const callRow = within(tl)
+      .getByText(/Cuộc gọi · Không nghe máy/)
+      .closest("li");
+    expect(callRow?.textContent).toContain("Trần Minh An");
+    expect(within(tl).getAllByRole("listitem")).toHaveLength(3);
+  });
+
+  it("người xem không có quyền hộp chat (đọc tên Page lỗi) → vẫn hiện mục, không có tên Page", async () => {
+    fake.failReads = [/^\/api\/v1\/channels$/];
+    fake.timeline = [
+      {
+        at: "2026-11-19T03:00:00Z",
+        kind: "conversation",
+        refId: CV1,
+        summary: { conversationId: CV1, pageId: P1, kind: "inbox" },
+      },
+    ];
+    renderAt(`/khach/${C1}`);
+    await screen.findByRole("heading", { name: "Dòng thời gian" });
+    const tl = card("Dòng thời gian");
+    expect(await within(tl).findByText(/Hội thoại tin nhắn/)).toBeTruthy();
+    expect(within(tl).queryByText(/ELIMAZ Official/)).toBeNull();
+  });
+});

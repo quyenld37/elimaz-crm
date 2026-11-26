@@ -11052,9 +11052,14 @@ type CreateOrderRequest struct {
 	// Ghi chú cho hãng vận chuyển (ghi chú nội bộ là addOrderNote).
 	CarrierNote OptString `json:"carrierNote"`
 	// Nhân viên phụ trách.
-	CareBy      OptUUID         `json:"careBy"`
-	Channel     OptOrderChannel `json:"channel"`
-	ExternalRef OptString       `json:"externalRef"`
+	CareBy OptUUID `json:"careBy"`
+	// Lên đơn trong khung chat (M4, Task 176): đơn lưu hội thoại này; máy chủ tự lấy
+	// Page của hội thoại, người bán của Page (áp làm người bán của đơn, ADR-29) và
+	// kênh facebook (thay channel đã gửi). Cần conversation.read trên Page của hội thoại,
+	// không thì 404 not_found.
+	ConversationId OptUUID         `json:"conversationId"`
+	Channel        OptOrderChannel `json:"channel"`
+	ExternalRef    OptString       `json:"externalRef"`
 	// Dấu giới thiệu (affiliate, P2); chỉ chuỗi.
 	ReferralRef OptCreateOrderRequestReferralRef `json:"referralRef"`
 }
@@ -11117,6 +11122,11 @@ func (s *CreateOrderRequest) GetCarrierNote() OptString {
 // GetCareBy returns the value of CareBy.
 func (s *CreateOrderRequest) GetCareBy() OptUUID {
 	return s.CareBy
+}
+
+// GetConversationId returns the value of ConversationId.
+func (s *CreateOrderRequest) GetConversationId() OptUUID {
+	return s.ConversationId
 }
 
 // GetChannel returns the value of Channel.
@@ -11192,6 +11202,11 @@ func (s *CreateOrderRequest) SetCarrierNote(val OptString) {
 // SetCareBy sets the value of CareBy.
 func (s *CreateOrderRequest) SetCareBy(val OptUUID) {
 	s.CareBy = val
+}
+
+// SetConversationId sets the value of ConversationId.
+func (s *CreateOrderRequest) SetConversationId(val OptUUID) {
+	s.ConversationId = val
 }
 
 // SetChannel sets the value of Channel.

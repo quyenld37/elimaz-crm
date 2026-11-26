@@ -489,6 +489,10 @@ export type CreateOrderRequest = {
      * Nhân viên phụ trách
      */
     careBy?: string;
+    /**
+     * Lên đơn trong khung chat (M4, Task 176): đơn lưu hội thoại này; máy chủ tự lấy Page của hội thoại, người bán của Page (áp làm người bán của đơn, ADR-29) và kênh facebook (thay channel đã gửi). Cần conversation.read trên Page của hội thoại, không thì 404 not_found.
+     */
+    conversationId?: string;
     channel?: OrderChannel;
     externalRef?: string;
     /**

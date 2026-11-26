@@ -1,14 +1,19 @@
 // Dòng thời gian của cả nhóm khách và ô thêm ghi chú (mockup khach-ho-so.html trạng thái A, B). Dòng thời gian đọc
 // getCustomerTimeline (đơn, đổi trạng thái đơn, ghi chú, gộp, hoàn tác gộp, nhãn; mới nhất trước, "Xem cũ hơn" theo con
 // trỏ); summary không có SĐT, địa chỉ. Ghi chú chỉ thêm, không sửa, không xóa (addCustomerNote, cần customer.write).
-import { useQueryClient } from "@tanstack/react-query";
+// M4 (C7, Task 176): mục conversation (tên Page, liên kết mở /inbox/:id) và call (kết quả cuộc gọi, người gọi); máy chủ
+// không trả nội dung tin, ghi chú cuộc gọi. Tên Page đọc listChannelAccounts (chỉ khi có mục hội thoại; đọc lỗi thì bỏ
+// tên Page, vẫn hiện mục).
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
-import { addCustomerNote, type Customer, type OrderStatus, type TimelineItem } from "../../api";
+import { addCustomerNote, listChannelAccounts, type Customer, type OrderStatus, type TimelineItem } from "../../api";
 import { errorMessage, unwrap } from "../../app/errors";
 import { useWriteAction } from "../../app/idempotency";
+import { queryKey } from "../../app/queryClient";
 import { shortTime } from "../../app/time";
 import { STATUS_TEXT } from "../don/labels";
+import { conversationKindText, outcomeText } from "../inbox/side-panel/labels";
 import { formatMoney } from "../products/productRules";
 import { headers, reloadCustomers, timelineKey, useTimeline } from "./customerData";
 
@@ -23,8 +28,11 @@ function mergeText(i: TimelineItem, c: Customer): string {
   return "Gộp hồ sơ vào một khách khác";
 }
 
-/** Nội dung một mục; null khi loại mục màn chưa biết (M4 thêm loại mới, C7). */
-function body(i: TimelineItem, c: Customer): ReactNode {
+/** Chủ đề realtime của tài khoản kênh (máy chủ: channel.TopicStatus; cùng khóa với màn Hộp chat). */
+const CHANNEL_TOPIC = "channel.status";
+
+/** Nội dung một mục; null khi loại mục màn chưa biết. pages: tên Page theo mã (mục hội thoại, C7). */
+function body(i: TimelineItem, c: Customer, pages: ReadonlyMap<string, string>): ReactNode {
   const s = i.summary ?? {};
   switch (i.kind) {
     case "order_created": {
@@ -66,6 +74,19 @@ function body(i: TimelineItem, c: Customer): ReactNode {
       return <b>Hoàn tác một lần gộp</b>;
     case "tag":
       return <b>{`Gắn nhãn "${s.name ?? ""}" (${s.source === "rule" ? "theo quy tắc" : "gắn tay"})`}</b>;
+    case "conversation": {
+      const page = pages.get(s.pageId ?? "");
+      return (
+        <>
+          <b>{conversationKindText(s.kind) + (page === undefined ? "" : ` · ${page}`)}</b>{" "}
+          <Link className="cell-a" to={`/inbox/${s.conversationId ?? i.refId}`}>
+            Mở hội thoại
+          </Link>
+        </>
+      );
+    }
+    case "call":
+      return <b>{`Cuộc gọi · ${outcomeText(s.outcome ?? "")}`}</b>;
     default:
       return null;
   }
@@ -73,7 +94,15 @@ function body(i: TimelineItem, c: Customer): ReactNode {
 
 export function CustomerTimeline({ customer }: { customer: Customer }) {
   const tl = useTimeline(customer.rootId);
-  const items = (tl.data?.pages.flatMap((p) => p.items) ?? []).filter((i) => body(i, customer) !== null);
+  const all = tl.data?.pages.flatMap((p) => p.items) ?? [];
+  const hasConversation = all.some((i) => i.kind === "conversation");
+  const accounts = useQuery({
+    queryKey: queryKey(CHANNEL_TOPIC, "accounts"),
+    enabled: hasConversation,
+    queryFn: () => unwrap(listChannelAccounts()),
+  });
+  const pages = new Map((accounts.data?.items ?? []).map((a) => [a.id, a.name]));
+  const items = all.filter((i) => body(i, customer, pages) !== null);
   const n = customer.memberIds.length;
   return (
     <div className="card">
@@ -93,7 +122,7 @@ export function CustomerTimeline({ customer }: { customer: Customer }) {
             <li key={`${i.kind}-${i.refId}`}>
               <span className="at">{timeText(i.at)}</span>
               <div>
-                {body(i, customer)}
+                {body(i, customer, pages)}
                 {i.actor !== undefined && (
                   <>
                     {" "}

@@ -25257,6 +25257,12 @@ func (s *CreateOrderRequest) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.ConversationId.Set {
+			e.FieldStart("conversationId")
+			s.ConversationId.Encode(e)
+		}
+	}
+	{
 		if s.Channel.Set {
 			e.FieldStart("channel")
 			s.Channel.Encode(e)
@@ -25276,7 +25282,7 @@ func (s *CreateOrderRequest) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCreateOrderRequest = [15]string{
+var jsonFieldsNameOfCreateOrderRequest = [16]string{
 	0:  "customer",
 	1:  "customerId",
 	2:  "intent",
@@ -25289,9 +25295,10 @@ var jsonFieldsNameOfCreateOrderRequest = [15]string{
 	9:  "trafficSourceId",
 	10: "carrierNote",
 	11: "careBy",
-	12: "channel",
-	13: "externalRef",
-	14: "referralRef",
+	12: "conversationId",
+	13: "channel",
+	14: "externalRef",
+	15: "referralRef",
 }
 
 // Decode decodes CreateOrderRequest from json.
@@ -25430,6 +25437,16 @@ func (s *CreateOrderRequest) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"careBy\"")
+			}
+		case "conversationId":
+			if err := func() error {
+				s.ConversationId.Reset()
+				if err := s.ConversationId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"conversationId\"")
 			}
 		case "channel":
 			if err := func() error {
