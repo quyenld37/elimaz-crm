@@ -17,17 +17,11 @@ setConversationStatus
 getAttachmentUrl
 replyToComment
 sendPrivateReply
-addConversationNote
 listMessageRevisions
 resendMessage
 discardMessage
 hideComment
 unhideComment
-listReplyTemplates
-createReplyTemplate
-updateReplyTemplate
-deleteReplyTemplate
-renderReplyTemplate
 listFollowUps
 listLiveSessions
 endLiveSessionManually

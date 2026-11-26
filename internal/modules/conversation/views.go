@@ -8,4 +8,7 @@ const (
 	ViewConversations = "conversation.conversations_v"
 	// ViewTags: tenant_id, id, name, color, sort; chỉ nhãn chưa xóa (M7 báo cáo sẵn sàng).
 	ViewTags = "conversation.tags_v"
+	// ViewReplyTemplates: tenant_id, id, channel_account_id, shortcut, title, created_at; chỉ mẫu chưa xóa, không có
+	// thân (M7 báo cáo sẵn sàng, Task 161).
+	ViewReplyTemplates = "conversation.reply_templates_v"
 )

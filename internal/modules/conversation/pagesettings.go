@@ -16,6 +16,7 @@ import (
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/access"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/assign"
 	"elimaz.com.vn/crm/internal/modules/conversation/internal/store"
+	"elimaz.com.vn/crm/internal/modules/conversation/internal/templates"
 	"elimaz.com.vn/crm/internal/modules/identity"
 	"elimaz.com.vn/crm/internal/modules/order"
 	"elimaz.com.vn/crm/internal/platform/db"
@@ -117,7 +118,7 @@ func readSettings(ctx context.Context, tx pgx.Tx, pageID uuid.UUID) (PageSetting
 // UpdatePageSettings lưu cài đặt của Page pageID khi expectedVersion khớp (0: chưa có dòng) — cần conversation.settings
 // trên Page. Kiểm: khung giờ live đúng dạng, From < To, không chồng nhau; nguồn đơn mới đổi còn bật
 // (order.ErrTrafficSourceInactive); người trong xoay vòng active và có conversation.read trên Page; mẫu xin địa chỉ
-// phải null cho tới khi có bảng mẫu (Task 161). Sai → ErrInvalidInput. Audit conversation.page_settings_updated (tên
+// (nếu có) còn sống và là mẫu chung hay mẫu của đúng Page này (Task 161). Sai → ErrInvalidInput. Audit conversation.page_settings_updated (tên
 // trường đổi), báo hiệu conversation.changed thực thể page_settings.
 func (w Writer) UpdatePageSettings(ctx context.Context, tx pgx.Tx, actor identity.AuthUser, pageID uuid.UUID,
 	in PageSettingsInput, expectedVersion int32,
@@ -192,12 +193,11 @@ func writeSettings(ctx context.Context, q *store.Queries, pageID uuid.UUID, in P
 	return nil
 }
 
-// validSettingsShape kiểm phần không cần database: giới hạn số, chế độ đọc comment, mẫu xin địa chỉ, khung giờ live.
+// validSettingsShape kiểm phần không cần database: giới hạn số, chế độ đọc comment, khung giờ live.
 func validSettingsShape(in PageSettingsInput) error {
 	if in.AutomationMaxAgeMinutes < minMaxAge || in.AutomationMaxAgeMinutes > maxMaxAge ||
 		!slices.Contains([]string{"auto", "on", "off"}, in.CommentPollMode) ||
-		len(in.RoundRobinUserIDs) > maxRoundRobin || len(in.LiveSlots) > maxLiveSlots ||
-		in.AskAddressTemplateID != nil { // chưa có bảng mẫu trả lời (Task 161): chưa kiểm được → không nhận
+		len(in.RoundRobinUserIDs) > maxRoundRobin || len(in.LiveSlots) > maxLiveSlots {
 		return ErrInvalidInput
 	}
 	return ValidLiveSlots(in.LiveSlots)
@@ -225,7 +225,8 @@ func ValidLiveSlots(slots []LiveSlot) error {
 	return nil
 }
 
-// checkReferences kiểm nguồn đơn mới (chưa có trong cur) còn bật và người trong xoay vòng có quyền trên Page.
+// checkReferences kiểm nguồn đơn mới (chưa có trong cur) còn bật, người trong xoay vòng có quyền trên Page và mẫu xin
+// địa chỉ dùng được trên Page.
 func checkReferences(ctx context.Context, tx pgx.Tx, pageID uuid.UUID, cur, in PageSettingsInput) error {
 	old := map[uuid.UUID]bool{}
 	for _, id := range sources(cur) {
@@ -244,6 +245,15 @@ func checkReferences(ctx context.Context, tx pgx.Tx, pageID uuid.UUID, cur, in P
 		ok, err := assign.Eligible(ctx, tx, pageID, u)
 		if err != nil {
 			return err //nolint:wrapcheck // assign đã bọc
+		}
+		if !ok {
+			return ErrInvalidInput
+		}
+	}
+	if in.AskAddressTemplateID != nil {
+		ok, err := templates.UsableOnPage(ctx, tx, *in.AskAddressTemplateID, pageID)
+		if err != nil {
+			return err //nolint:wrapcheck // templates đã bọc
 		}
 		if !ok {
 			return ErrInvalidInput

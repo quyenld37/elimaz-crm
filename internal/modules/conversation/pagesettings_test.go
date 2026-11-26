@@ -25,7 +25,7 @@ func validSettings(src uuid.UUID, users ...uuid.UUID) conversation.PageSettingsI
 }
 
 // Cài đặt Page: chưa lưu → mặc định version 0; hai khung giờ chồng nhau, nguồn đơn lạ/đã tắt, người xoay vòng không có
-// quyền trên Page, mẫu xin địa chỉ (chưa có bảng mẫu) → lỗi; hợp lệ → version 1 rồi 2, audit, báo hiệu; version cũ →
+// quyền trên Page → lỗi; hợp lệ → version 1 rồi 2, audit, báo hiệu; version cũ →
 // ErrVersionConflict; sale chỉ đọc → ErrNotFound; Page không có → channel.ErrAccountNotFound.
 func TestPageSettings(t *testing.T) {
 	t.Parallel()
@@ -64,8 +64,6 @@ func TestPageSettings(t *testing.T) {
 	badSource := validSettings(src, u1)
 	badSource.CommentTrafficSourceID = &off
 	unknown := validSettings(uuid.New(), u1)
-	tmpl := validSettings(src, u1)
-	tmpl.AskAddressTemplateID = &src
 	for _, c := range []struct {
 		name string
 		in   conversation.PageSettingsInput
@@ -76,7 +74,6 @@ func TestPageSettings(t *testing.T) {
 		{"nguồn đã tắt", badSource, order.ErrTrafficSourceInactive},
 		{"nguồn lạ", unknown, order.ErrTrafficSourceInactive},
 		{"người xoay vòng không có quyền trên Page", validSettings(src, outsider), conversation.ErrInvalidInput},
-		{"mẫu xin địa chỉ", tmpl, conversation.ErrInvalidInput},
 	} {
 		if _, err := put(c.in, 0); !errors.Is(err, c.want) {
 			t.Errorf("%s: %v, muốn %v", c.name, err, c.want)
@@ -115,6 +112,63 @@ func (e *tagEnv) putAs(email string, page uuid.UUID, in conversation.PageSetting
 		return err //nolint:wrapcheck // test
 	})
 	return out, err
+}
+
+// Mẫu xin địa chỉ (Task 161 thay chốt "chưa có bảng mẫu" của Task 160): mẫu không có, đã xóa, riêng của Page khác →
+// ErrInvalidInput; mẫu chung và mẫu riêng của đúng Page → lưu được, đọc lại đúng id; bỏ mẫu (nil) → lưu được.
+func TestPageSettings_AskAddressTemplate(t *testing.T) {
+	t.Parallel()
+	e := newTagEnv(t)
+	src := e.s.TrafficSource(t, e.tenant, "Hộp thư", true)
+	shared := e.template(nil, "xin-dia-chi")
+	own := e.template(&e.page1, "dc-page1")
+	other := e.template(&e.page2, "dc-page2")
+	gone := e.template(nil, "da-xoa")
+	e.deleteTemplate(gone)
+	with := func(id *uuid.UUID) conversation.PageSettingsInput {
+		in := validSettings(src)
+		in.AskAddressTemplateID = id
+		return in
+	}
+	for name, id := range map[string]uuid.UUID{"không có": uuid.New(), "đã xóa": gone, "của Page khác": other} {
+		if _, err := e.putAs(chatManager, e.page1, with(&id), 0); !errors.Is(err, conversation.ErrInvalidInput) {
+			t.Errorf("mẫu %s: %v, muốn ErrInvalidInput", name, err)
+		}
+	}
+	for v, id := range []*uuid.UUID{&shared, &own, nil} {
+		got, err := e.putAs(chatManager, e.page1, with(id), int32(v))
+		if err != nil || got.Version != int32(v)+1 || (id == nil) != (got.AskAddressTemplateID == nil) ||
+			(id != nil && *got.AskAddressTemplateID != *id) {
+			t.Fatalf("lưu mẫu %v (lần %d): %+v %v", id, v+1, got, err)
+		}
+	}
+}
+
+// template tạo mẫu trả lời (page nil = mẫu chung) bằng quản lý toàn shop, trả id.
+func (e *tagEnv) template(page *uuid.UUID, shortcut string) uuid.UUID {
+	e.t.Helper()
+	u := convtest.Load(e.t, e.s, chatManager)
+	var id uuid.UUID
+	if err := e.write(func(tx pgx.Tx, _ conversation.Writer) error {
+		tp, err := conversation.TemplateWriter{}.Create(e.t.Context(), tx, u, conversation.TemplateInput{
+			PageID: page, Shortcut: shortcut, Title: "Xin địa chỉ", Body: "Chị cho em xin địa chỉ nhận hàng ạ",
+		})
+		id = tp.ID
+		return err //nolint:wrapcheck // test
+	}); err != nil {
+		e.t.Fatalf("tạo mẫu %s: %v", shortcut, err)
+	}
+	return id
+}
+
+func (e *tagEnv) deleteTemplate(id uuid.UUID) {
+	e.t.Helper()
+	u := convtest.Load(e.t, e.s, chatManager)
+	if err := e.write(func(tx pgx.Tx, _ conversation.Writer) error {
+		return conversation.TemplateWriter{}.Delete(e.t.Context(), tx, u, id)
+	}); err != nil {
+		e.t.Fatalf("xóa mẫu: %v", err)
+	}
 }
 
 // Hằng của phần assign trùng hằng công khai của gói gốc.
