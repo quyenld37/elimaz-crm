@@ -69,10 +69,17 @@ func TestWiring(t *testing.T) {
 // checkCommands: lệnh của conversation theo thứ tự đăng ký: command.fb.fetch_attachment, command.fb.fetch_profile
 // (luôn có, Task 155), command.fb.fetch_post (khi có adapter Facebook), command.fb.send_message hạn 3 phút, ba lệnh
 // comment của Task 158 (luôn có), command.fb.auto_hide_comment (luôn có, Task 165), command.fb.auto_send hạn 5 phút
-// (luôn có, Task 167), command.fb.live_detect (khi có adapter Facebook, Task 170), command.fb.live_reconcile (luôn có,
-// Task 171), command.fb.fetch_history (khi có adapter Facebook, Task 164).
-// autoHideKind là lệnh ẩn comment của quy tắc auto_hide (Task 165).
-const autoHideKind = "command.fb.auto_hide_comment"
+// (luôn có, Task 167), command.fb.auto_reply_comment, command.fb.auto_private_reply (luôn có, Task 166),
+// command.fb.live_detect (khi có adapter Facebook, Task 170), command.fb.live_reconcile (luôn có, Task 171),
+// command.fb.fetch_history (khi có adapter Facebook, Task 164).
+// autoHideKind là lệnh ẩn comment của quy tắc auto_hide (Task 165); autoReplyKind, autoPrivateKind là lệnh tự trả lời
+// comment, tự nhắn riêng (Task 166); prepareAutoPrivateKind là việc chuẩn bị tin riêng tự động (không có lịch).
+const (
+	autoHideKind           = "command.fb.auto_hide_comment"
+	autoReplyKind          = "command.fb.auto_reply_comment"
+	autoPrivateKind        = "command.fb.auto_private_reply"
+	prepareAutoPrivateKind = "task.conversation.auto_private_reply"
+)
 
 // autoSendKind là lệnh gửi tin tự động (tin chào, Task 167).
 const autoSendKind = "command.fb.auto_send"
@@ -83,7 +90,7 @@ func checkCommands(t *testing.T, d conversation.Deps) {
 	reads := []string{"command.fb.fetch_attachment", "command.fb.fetch_profile"}
 	sends := []string{
 		conversation.SendMessageKind, conversation.ReplyCommentKind, conversation.PrivateReplyKind,
-		conversation.HideCommentKind, autoHideKind, autoSendKind,
+		conversation.HideCommentKind, autoHideKind, autoSendKind, autoReplyKind, autoPrivateKind,
 	}
 	want := append(append(slices.Clone(reads), sends...), "command.fb.live_reconcile")
 	if fb {
@@ -96,6 +103,7 @@ func checkCommands(t *testing.T, d conversation.Deps) {
 		if exp, ok := map[string]time.Duration{
 			conversation.SendMessageKind: 3 * time.Minute, conversation.ReplyCommentKind: 5 * time.Minute,
 			conversation.PrivateReplyKind: 5 * time.Minute, conversation.HideCommentKind: time.Hour,
+			autoReplyKind: 5 * time.Minute, autoPrivateKind: 5 * time.Minute,
 		}[h.Kind().Name]; ok && h.Kind().Policy.ExpiresAfter != exp {
 			t.Errorf("lệnh %s hạn %v, mong %v", h.Kind().Name, h.Kind().Policy.ExpiresAfter, exp)
 		}
@@ -110,7 +118,12 @@ func checkCommands(t *testing.T, d conversation.Deps) {
 
 func checkReminders(t *testing.T, d conversation.Deps) {
 	t.Helper()
-	s, j := conversation.Schedules(d), conversation.JobHandlers(d)
+	s, all := conversation.Schedules(d), conversation.JobHandlers(d)
+	// Việc không có lịch: chuẩn bị tin riêng tự động (Task 166), đúng một handler.
+	j := slices.DeleteFunc(slices.Clone(all), func(h queue.Handler) bool { return h.Kind().Name == prepareAutoPrivateKind })
+	if len(all)-len(j) != 1 {
+		t.Errorf("việc chuẩn bị tin riêng tự động: %d handler, mong 1", len(all)-len(j))
+	}
 	want := []string{
 		conversation.SendRevealSchedule, conversation.PresenceCleanupSchedule, "conversation.reminders", "channel.comment_poll",
 		conversation.RetentionSchedule,

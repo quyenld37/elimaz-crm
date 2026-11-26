@@ -187,6 +187,20 @@ func (q *Queries) GetConversationThread(ctx context.Context, id uuid.UUID) (GetC
 	return i, err
 }
 
+const getMessageCommandJob = `-- name: GetMessageCommandJob :one
+SELECT command_job_id::uuid
+FROM conversation.messages
+WHERE id = $1
+`
+
+// Lệnh vừa gắn vào tin id (tin tự động, Task 166: mã lệnh ghi vào lượt quy tắc).
+func (q *Queries) GetMessageCommandJob(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getMessageCommandJob, id)
+	var command_job_id uuid.UUID
+	err := row.Scan(&command_job_id)
+	return command_job_id, err
+}
+
 const getOutgoingAction = `-- name: GetOutgoingAction :one
 SELECT id, conversation_id, channel_account_id, client_ref, kind, parent_external_id, body, send_status, sent_at
 FROM conversation.messages
@@ -227,8 +241,8 @@ const insertOutgoingAction = `-- name: InsertOutgoingAction :one
 INSERT INTO conversation.messages (tenant_id, conversation_id, channel_account_id, client_ref, direction, kind, origin,
                                    parent_external_id, post_id, body, sender_staff_id, send_status, sent_at)
 VALUES (NULLIF(current_setting('app.tenant_id', true), '')::uuid, $1, $2, $3,
-        'out', $4, 'staff', $5, $6::uuid, $7, $8, 'queued',
-        $9)
+        'out', $4, $5, $6, $7::uuid, $8, $9, 'queued',
+        $10)
 RETURNING id
 `
 
@@ -237,6 +251,7 @@ type InsertOutgoingActionParams struct {
 	ChannelAccountID uuid.UUID
 	ClientRef        pgtype.UUID
 	Kind             string
+	Origin           string
 	ParentExternalID pgtype.Text
 	PostID           pgtype.UUID
 	Body             pgtype.Text
@@ -245,13 +260,15 @@ type InsertOutgoingActionParams struct {
 }
 
 // Câu trả lời comment (kind comment, trong hội thoại comment, kèm bài) hay tin riêng (kind private_reply, trong hội
-// thoại hộp thư) của nhân viên, chờ lệnh (queued); parent_external_id là mã comment được trả lời.
+// thoại hộp thư) của nhân viên (origin staff) hay của quy tắc tự động (origin automation, Task 166), chờ lệnh
+// (queued); parent_external_id là mã comment được trả lời.
 func (q *Queries) InsertOutgoingAction(ctx context.Context, arg InsertOutgoingActionParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, insertOutgoingAction,
 		arg.ConversationID,
 		arg.ChannelAccountID,
 		arg.ClientRef,
 		arg.Kind,
+		arg.Origin,
 		arg.ParentExternalID,
 		arg.PostID,
 		arg.Body,
