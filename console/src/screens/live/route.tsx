@@ -1,44 +1,49 @@
-// Màn Live (kế hoạch M4 Task 37; mockup docs/mockups/m4/live.html, thieu-dia-chi.html). Task 174 dựng đường, mục menu
-// (nhóm "Hộp chat", khung.js) và nạp lười tệp khung; Task 177 làm nội dung. /live/thieu-dia-chi là mục menu (mọi phiên),
-// /live/:sessionId/thieu-dia-chi là danh sách của một phiên.
-import { lazy, Suspense } from "react";
+// Màn Live và Đã chốt, thiếu địa chỉ (kế hoạch M4 Task 177; tự đăng ký, quy ước src/app/loadScreens.ts). Nhóm menu
+// "Hộp chat" (khung docs/mockups/m4/khung.js). Cần live.operate (người không có quyền Live không thấy mục, mockup trạng
+// thái B) và conversation.read (mọi API đọc của màn); tạo/sửa đơn khi chốt máy chủ kiểm riêng, nút tự khóa.
 import type { ScreenRoute } from "../../app/loadScreens";
-
-const LiveScreen = lazy(() => import("./index"));
-
-const page = (title: string) => (
-  <Suspense fallback={null}>
-    <LiveScreen title={title} />
-  </Suspense>
-);
+import { LivePage } from "./LivePage";
+import { PendingDraftsPage } from "./PendingDraftsPage";
 
 export const screens: readonly ScreenRoute[] = [
-  { path: "/live", label: "Live", group: "Hộp chat", permission: "live.operate", order: 20, element: page("Live") },
   {
-    path: "/live/thieu-dia-chi",
-    label: "Đã chốt, thiếu địa chỉ",
+    path: "/live",
+    label: "Live",
     group: "Hộp chat",
     permission: "live.operate",
-    order: 30,
-    element: page("Đã chốt, thiếu địa chỉ"),
+    alsoRequires: ["conversation.read"],
+    also: ["/live/:sessionId"],
+    order: 20,
+    element: <LivePage />,
   },
-  // Trang ẩn đứng sau /live/thieu-dia-chi: currentScreen lấy màn khớp đầu tiên theo order.
   {
     path: "/live/:sessionId",
     label: "Phiên live",
     group: "Hộp chat",
     permission: "live.operate",
+    alsoRequires: ["conversation.read"],
     hidden: true,
-    order: 910,
-    element: page("Live"),
+    order: 820,
+    element: <LivePage />,
   },
   {
-    path: "/live/:sessionId/thieu-dia-chi",
+    path: "/live/thieu-dia-chi",
     label: "Đã chốt, thiếu địa chỉ",
     group: "Hộp chat",
     permission: "live.operate",
+    alsoRequires: ["conversation.read"],
+    also: ["/live/:sessionId/thieu-dia-chi"],
+    order: 30,
+    element: <PendingDraftsPage />,
+  },
+  {
+    path: "/live/:sessionId/thieu-dia-chi",
+    label: "Đã chốt, thiếu địa chỉ của phiên",
+    group: "Hộp chat",
+    permission: "live.operate",
+    alsoRequires: ["conversation.read"],
     hidden: true,
-    order: 920,
-    element: page("Đã chốt, thiếu địa chỉ"),
+    order: 830,
+    element: <PendingDraftsPage />,
   },
 ];
