@@ -8,13 +8,14 @@
 # Task 493 (26/11): mặc định chạy TỪ XA trên GitHub Actions (scripts/ci/remote-test.sh, workflow test-remote.yml) khi có
 # remote origin và gh dùng được — không xếp hàng lượt test của máy; CRM_CI_REMOTE=0 ép chạy máy; không chạy được từ xa
 # (mất mạng, gh lỗi) thì tự lùi về chạy máy như cũ. CRM_BASE_BRANCH chọn nhánh gốc (mặc định dò: m4 hay main).
+# Task 494 (26/11): máy chạy do bộ điều phối scripts/ci/pool.py chọn — chỗ trống nhanh nhất blacksmith → mac (máy này,
+# chung lượt với run-in-slot.py, ưu tiên thấp như cũ) → github → vps (chỉ ≤ 15 gói); hết chỗ thì chờ chỗ đầu tiên
+# trống. CRM_CI_RUNNER=blacksmith|mac|github|vps ép bể.
 set -u
 cd "${CLAUDE_PROJECT_DIR:-$(pwd)}" || exit 1
 . scripts/ci/lib.sh
 mode=$(ci_mode)
 [ "${CI_TASK_E2E:-0}" = 1 ] && mode="local CI_TASK_E2E=1 (e2e chỉ chạy ở máy)"
-# 21/11: chạy máy thì cả cổng kiểm chạy trong lượt test duy nhất của máy, ưu tiên thấp (scripts/agent/run-in-slot.py).
-if [ "${mode%% *}" != remote ] && [ "${CRM_TEST_SLOT_HELD:-}" != 1 ]; then exec python3 scripts/agent/run-in-slot.py bash "$0" "$@"; fi
 . scripts/agent/lib.sh
 export HIGH_RISK_DIRS PATH="$HOME/go/bin:$PATH"
 base_branch=$(ci_base_branch)
@@ -62,8 +63,22 @@ test_plan() {
 }
 plan=$(test_plan)
 
-if [ "${mode%% *}" = remote ]; then
-  # Từ xa: cổng tĩnh (job static) và test (ma trận tối đa 6 phần) chạy song song trên GitHub cho đúng tree hiện tại.
+# Task 494: giữ một chỗ của bộ điều phối rồi chạy lại chính script này bên trong chỗ đó (CRM_CI_POOL_HELD=1,
+# CRM_CI_RUNNER=<bể>). Bể từ xa không chạy được (mã 3) thì bộ điều phối đánh dấu tạm hỏng và chọn bể khác. Luôn in một
+# dòng CI-TASK (bên chờ dò dòng này).
+if [ "${CRM_CI_POOL_HELD:-}" != 1 ]; then
+  case "$plan" in
+    all*) size=(--all) ;;
+    *) size=(--count "$(printf '%s\n' "$plan" | sed -n -E 's/^(race|plain) //p' | wc -w | tr -d ' ')") ;;
+  esac
+  only=(); [ "${mode%% *}" = remote ] || only=(--local-only)
+  python3 scripts/ci/pool.py run "${size[@]}" ${only[@]+"${only[@]}"} -- bash "$0" "$@"; rc=$?
+  case $rc in 0|1) ;; *) echo "CI-TASK ĐỎ: không máy nào chạy được (bộ điều phối thoát $rc, xem các dòng ở trên)" ;; esac
+  exit "$rc"
+fi
+
+if [ "${CRM_CI_RUNNER:-mac}" != mac ]; then
+  # Từ xa: cổng tĩnh (job static) và test (ma trận theo máy) chạy song song trên máy đã chọn cho đúng tree hiện tại.
   tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
   case "$plan" in
     skip*) : > "$tmp/pkgs"; : > "$tmp/race" ;;
@@ -73,9 +88,10 @@ if [ "${mode%% *}" = remote ]; then
   echo "== test từ xa: ${plan:-không gói nào}"
   CRM_CI_STATIC=true scripts/ci/remote-test.sh "$now_tree" "$base" "$tmp/pkgs" "$tmp/race"; rc=$?
   case $rc in
-    0) echo "$now_tree" > "$stamp"; echo "CI-TASK XANH (từ xa, so với điểm tách nhánh $base)"; exit 0 ;;
-    2|3) echo "== không chạy được từ xa (mã $rc, xem dòng ở trên): lùi về chạy máy như cũ"
-       rm -rf "$tmp"; CRM_CI_REMOTE=0 exec bash "$0" "$@" ;;
+    0) echo "$now_tree" > "$stamp"; echo "CI-TASK XANH (từ xa trên $CRM_CI_RUNNER, so với điểm tách nhánh $base)"; exit 0 ;;
+    3) echo "== không chạy được từ xa trên $CRM_CI_RUNNER (mã 3, xem dòng ở trên)"; exit 3 ;;
+    2) echo "== remote-test.sh sai tham số (mã 2, xem dòng ở trên): lùi về chạy máy như cũ"
+       rm -rf "$tmp"; CRM_CI_REMOTE=0 CRM_CI_POOL_HELD='' CRM_CI_RUNNER='' exec bash "$0" "$@" ;;
     *) echo "CI-TASK ĐỎ: từ xa (cổng tĩnh hay test, xem các dòng lỗi ở trên)"; exit 1 ;;
   esac
 fi
