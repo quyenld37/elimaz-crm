@@ -7,7 +7,6 @@ updatePageSettings
 listAssignableUsers
 listAutomationRules
 updateAutomationRule
-startLiveSessionManually
 listConversations
 countConversations
 getConversation
@@ -43,8 +42,6 @@ updateReplyTemplate
 deleteReplyTemplate
 renderReplyTemplate
 listFollowUps
-listLiveSessions
-endLiveSessionManually
 listLiveComments
 listPendingDrafts
 remindPendingDrafts
