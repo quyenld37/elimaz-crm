@@ -10,6 +10,9 @@
 #   tệp -race    gói chạy -race (như trên); bỏ trống hay tệp rỗng: không gói nào -race.
 # Biến: CRM_CI_STATIC=true|false (mặc định true: chạy cổng tĩnh), CRM_CI_LABEL (tên nhánh ci/<nhãn>, mặc định tên thư
 # mục worktree), TASK_FILE (tệp task cho test-guard; mặc định task đang chạy của worktree), CRM_GH (lệnh gh), CRM_CI_POLL (giây giữa hai lần tìm run).
+# Task 494: CRM_CI_RUNNER=github|blacksmith|vps chọn máy (mặc định github; scripts/ci/pool.py đặt biến này khi chọn bể);
+# run nằm hàng chờ quá CRM_CI_START_TIMEOUT giây (mặc định 180) mà không job nào bắt đầu thì hủy, mã 3 (bộ điều phối
+# đánh dấu bể tạm hỏng, chọn bể khác); phút của mỗi run ghi vào sổ của bộ điều phối (pool.py record).
 # Không đổi nhánh nào: commit tạm dựng bằng git commit-tree, đẩy -f lên refs/heads/ci/<nhãn>, xóa khi xong (cả khi lỗi).
 # Thoát 0: xanh. 1: đỏ (in các dòng FAIL của job đỏ). 2: sai tham số. 3: không chạy được từ xa (gh, mạng) — bên gọi lùi
 # về chạy máy.
@@ -17,6 +20,12 @@ set -u
 gh=${CRM_GH:-gh}
 poll=${CRM_CI_POLL:-5}
 static=${CRM_CI_STATIC:-true}
+runner=${CRM_CI_RUNNER:-github}
+here=$(cd "$(dirname "$0")" && pwd)
+case $runner in
+  github|blacksmith|vps) ;;
+  *) echo "CRM_CI_RUNNER=$runner không phải máy từ xa (github, blacksmith, vps)" >&2; exit 2 ;;
+esac
 [ $# -ge 3 ] || { echo "Dùng: remote-test.sh <tree|commit> <base> <tệp gói> [tệp gói -race]" >&2; exit 2; }
 src=$1 base_ref=$2 pkg_file=$3 race_file=${4:-}
 cd "$(git rev-parse --show-toplevel)" || exit 2
@@ -66,7 +75,7 @@ git push -q -f origin "$sha:refs/heads/$branch" || infra "git push lỗi"
 pushed=1
 
 "$gh" workflow run test-remote.yml --ref "$branch" -f base="$base" -f packages="$pkgs" -f race_packages="$race" \
-  -f static="$static" -f task_file="$task_file" || infra "gh workflow run lỗi"
+  -f static="$static" -f task_file="$task_file" -f runner="$runner" || infra "gh workflow run lỗi"
 
 for _ in $(seq 1 36); do
   id=$("$gh" run list --workflow test-remote.yml --branch "$branch" --event workflow_dispatch --limit 20 \
@@ -75,6 +84,14 @@ for _ in $(seq 1 36); do
   sleep "$poll"
 done
 [ -n "$id" ] || infra "không tìm thấy run của $sha"
+echo "== run $id trên $runner: chờ job đầu tiên bắt đầu"
+# Bắt đầu: run đã xong (mọi job bỏ qua) hay một job đang chạy / đã chạy xong (không tính job bỏ qua).
+started='.status == "completed" or ([.jobs[]? | select(.status == "in_progress" or (.status == "completed" and .conclusion != "skipped"))] | length > 0)'
+start_timeout=${CRM_CI_START_TIMEOUT:-180} t0=$SECONDS
+until [ "$("$gh" run view "$id" --json status,jobs 2>/dev/null | jq -r "$started" 2>/dev/null)" = true ]; do
+  [ $((SECONDS - t0)) -ge "$start_timeout" ] && infra "run $id không bắt đầu sau $start_timeout giây (không máy $runner nào nhận)"
+  sleep "$poll"
+done
 echo "== run $id đang chạy (chờ tới khi xong)"
 # gh run watch có lúc thoát khi run chưa xong (lỗi mạng chập chờn, 26/11): hỏi lại trạng thái, chờ tiếp; bỏ cuộc (mã 3)
 # sau CRM_CI_WATCH_TRIES lần liền không đọc được hay run vẫn chưa xong.
@@ -96,7 +113,8 @@ ran='.jobs[] | select(.conclusion != "skipped" and (.startedAt // "") > "2000" a
 printf '%s' "$view" | jq -r "$ran"' | "   \(.name): \(.conclusion), \($d / 60 | floor) phút \($d % 60) giây"'
 printf '%s' "$view" | jq -r '.jobs[] | select(.conclusion == "skipped") | "   \(.name): bỏ qua"'
 minutes=$(printf '%s' "$view" | jq "[$ran"' | $d / 60 | ceil] | add // 0')
-echo "== phút tính tiền (làm tròn lên từng job): $minutes phút"
+echo "== phút máy (làm tròn lên từng job): $minutes phút trên $runner"
+python3 "$here/pool.py" record --runner "$runner" --run "$id" --minutes "$minutes" || echo "== không ghi được sổ phút" >&2
 
 if [ "$conclusion" = success ]; then echo "REMOTE-TEST XANH $url"; exit 0; fi
 echo "== các dòng lỗi của job đỏ:"

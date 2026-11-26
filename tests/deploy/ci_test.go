@@ -29,6 +29,7 @@ type workflow struct {
 
 type job struct {
 	If          string            `yaml:"if"`
+	RunsOn      any               `yaml:"runs-on"`
 	Timeout     int               `yaml:"timeout-minutes"`
 	Strategy    map[string]any    `yaml:"strategy"`
 	Outputs     map[string]string `yaml:"outputs"`
@@ -40,6 +41,7 @@ type job struct {
 
 type step struct {
 	Name string            `yaml:"name"`
+	If   string            `yaml:"if"`
 	Uses string            `yaml:"uses"`
 	Run  string            `yaml:"run"`
 	With map[string]any    `yaml:"with"`

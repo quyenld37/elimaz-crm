@@ -4,11 +4,13 @@
 # chạy từ xa mặc định (không lấy lượt run-in-slot) qua scripts/ci/remote-test.sh với tree hiện tại; CRM_CI_REMOTE=0
 # ép chạy máy; từ xa không chạy được (mã 3) thì lùi về chạy máy; cổng tĩnh dùng chung scripts/ci/static-gates.sh.
 # Giữ nguyên dòng 'CI-TASK XANH …' / 'CI-TASK ĐỎ: …' và dấu crm-ci-test-xanh.
+# Task 494: thêm bộ điều phối máy (scripts/ci/pool.py): ci-task giữ một chỗ trống nhanh nhất (blacksmith → mac → github
+# → vps ≤ 15 gói) rồi chạy bên trong chỗ đó; mac = chạy máy như cũ (chung lượt run-in-slot); bể từ xa lỗi hạ tầng (mã 3)
+# thì bộ điều phối chọn bể khác; CRM_CI_RUNNER ép bể. Bản vá này thay hẳn bản của Task 493 (cùng gốc ci-task.sh chưa vá).
 diff --git a/scripts/agent/ci-task.sh b/scripts/agent/ci-task.sh
-index 6f14de6b..c0d8ec4e
 --- a/scripts/agent/ci-task.sh
 +++ b/scripts/agent/ci-task.sh
-@@ -2,44 +2,27 @@
+@@ -2,44 +2,28 @@
  # Cổng kiểm của MỘT task trước khi review (thay make ci trong phiên làm task; chủ shop yêu cầu tăng tốc 18/11).
  # Chạy đủ mọi cổng tĩnh như make ci; test chỉ chạy gói đổi + gói phụ thuộc + cả bộ vùng rủi ro cao nếu chạm
  # (-race chỉ gói sửa trực tiếp, Task 473); migration mới chỉ thêm → gói dùng đối tượng nó chạm; migration thu hẹp hay
@@ -20,6 +22,9 @@ index 6f14de6b..c0d8ec4e
 +# Task 493 (26/11): mặc định chạy TỪ XA trên GitHub Actions (scripts/ci/remote-test.sh, workflow test-remote.yml) khi có
 +# remote origin và gh dùng được — không xếp hàng lượt test của máy; CRM_CI_REMOTE=0 ép chạy máy; không chạy được từ xa
 +# (mất mạng, gh lỗi) thì tự lùi về chạy máy như cũ. CRM_BASE_BRANCH chọn nhánh gốc (mặc định dò: m4 hay main).
++# Task 494 (26/11): máy chạy do bộ điều phối scripts/ci/pool.py chọn — chỗ trống nhanh nhất blacksmith → mac (máy này,
++# chung lượt với run-in-slot.py, ưu tiên thấp như cũ) → github → vps (chỉ ≤ 15 gói); hết chỗ thì chờ chỗ đầu tiên
++# trống. CRM_CI_RUNNER=blacksmith|mac|github|vps ép bể.
  set -u
  cd "${CLAUDE_PROJECT_DIR:-$(pwd)}" || exit 1
 -# 21/11: cả cổng kiểm chạy trong lượt test duy nhất của máy, ưu tiên thấp (scripts/agent/run-in-slot.py) — phiên khác chờ tới lượt.
@@ -27,8 +32,6 @@ index 6f14de6b..c0d8ec4e
 +. scripts/ci/lib.sh
 +mode=$(ci_mode)
 +[ "${CI_TASK_E2E:-0}" = 1 ] && mode="local CI_TASK_E2E=1 (e2e chỉ chạy ở máy)"
-+# 21/11: chạy máy thì cả cổng kiểm chạy trong lượt test duy nhất của máy, ưu tiên thấp (scripts/agent/run-in-slot.py).
-+if [ "${mode%% *}" != remote ] && [ "${CRM_TEST_SLOT_HELD:-}" != 1 ]; then exec python3 scripts/agent/run-in-slot.py bash "$0" "$@"; fi
  . scripts/agent/lib.sh
  export HIGH_RISK_DIRS PATH="$HOME/go/bin:$PATH"
 -base=$(git merge-base HEAD main 2>/dev/null || echo main)
@@ -67,7 +70,7 @@ index 6f14de6b..c0d8ec4e
  # Lần chạy lại chỉ test phần đổi từ lần test xanh trước (20/11, chủ shop: "chỉ test những case ảnh hưởng"). Gói không
  # bị phần đổi chạm (trực tiếp hay qua phụ thuộc) có mã và test y hệt bản đã xanh nên kết quả không đổi. Dấu xanh là
  # mã cây (git write-tree) của bản đã test, lưu riêng cho từng worktree; merge-task.sh cũng đọc dấu này.
-@@ -50,47 +33,77 @@ tchanged=$changed; tnote=""; tbase=$base
+@@ -50,47 +34,92 @@
  if [ -n "$now_tree" ] && [ -f "$stamp" ] && old=$(cat "$stamp") && git cat-file -e "$old^{tree}" 2>/dev/null; then
    tchanged=$(git diff --name-only "$old" "$now_tree"); tnote=", chỉ phần đổi từ lần test xanh trước"; tbase=$old
  fi
@@ -128,8 +131,26 @@ index 6f14de6b..c0d8ec4e
 +}
 +plan=$(test_plan)
 +
-+if [ "${mode%% *}" = remote ]; then
-+  # Từ xa: cổng tĩnh (job static) và test (ma trận tối đa 6 phần) chạy song song trên GitHub cho đúng tree hiện tại.
++# Task 494: giữ một chỗ của bộ điều phối rồi chạy lại chính script này bên trong chỗ đó (CRM_CI_POOL_HELD=1,
++# CRM_CI_RUNNER=<bể>). Bể từ xa không chạy được (mã 3) thì bộ điều phối đánh dấu tạm hỏng và chọn bể khác. Luôn in một
++# dòng CI-TASK (bên chờ dò dòng này).
++if [ "${CRM_CI_POOL_HELD:-}" != 1 ]; then
++  case "$plan" in
++    all*) size=(--all) ;;
++    *) size=(--count "$(printf '%s\n' "$plan" | sed -n -E 's/^(race|plain) //p' | wc -w | tr -d ' ')") ;;
++  esac
++  only=(); [ "${mode%% *}" = remote ] || only=(--local-only)
++  python3 scripts/ci/pool.py run "${size[@]}" ${only[@]+"${only[@]}"} -- bash "$0" "$@"; rc=$?
++  case $rc in 0|1) ;; *) echo "CI-TASK ĐỎ: không máy nào chạy được (bộ điều phối thoát $rc, xem các dòng ở trên)" ;; esac
++  exit "$rc"
+ fi
+-# Test cấu hình quy trình và Makefile (Task 401): giữ bước riêng này dù từ Task 478 affected.py đã chọn test đọc tệp dữ
+-# liệu theo đường dẫn — test deploy đọc nhiều tệp qua glob, tên dựng lúc chạy, affected.py không bắt hết.
+-if printf '%s\n' "$tchanged" | grep -E -q '^(Makefile|tools/versions\.mk|scripts/|\.github/|\.githooks/|docker/)'; then
+-  step "test deploy (đổi Makefile/scripts/docker)" go test -count=1 ./tests/deploy/...
++
++if [ "${CRM_CI_RUNNER:-mac}" != mac ]; then
++  # Từ xa: cổng tĩnh (job static) và test (ma trận theo máy) chạy song song trên máy đã chọn cho đúng tree hiện tại.
 +  tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 +  case "$plan" in
 +    skip*) : > "$tmp/pkgs"; : > "$tmp/race" ;;
@@ -139,16 +160,13 @@ index 6f14de6b..c0d8ec4e
 +  echo "== test từ xa: ${plan:-không gói nào}"
 +  CRM_CI_STATIC=true scripts/ci/remote-test.sh "$now_tree" "$base" "$tmp/pkgs" "$tmp/race"; rc=$?
 +  case $rc in
-+    0) echo "$now_tree" > "$stamp"; echo "CI-TASK XANH (từ xa, so với điểm tách nhánh $base)"; exit 0 ;;
-+    2|3) echo "== không chạy được từ xa (mã $rc, xem dòng ở trên): lùi về chạy máy như cũ"
-+       rm -rf "$tmp"; CRM_CI_REMOTE=0 exec bash "$0" "$@" ;;
++    0) echo "$now_tree" > "$stamp"; echo "CI-TASK XANH (từ xa trên $CRM_CI_RUNNER, so với điểm tách nhánh $base)"; exit 0 ;;
++    3) echo "== không chạy được từ xa trên $CRM_CI_RUNNER (mã 3, xem dòng ở trên)"; exit 3 ;;
++    2) echo "== remote-test.sh sai tham số (mã 2, xem dòng ở trên): lùi về chạy máy như cũ"
++       rm -rf "$tmp"; CRM_CI_REMOTE=0 CRM_CI_POOL_HELD='' CRM_CI_RUNNER='' exec bash "$0" "$@" ;;
 +    *) echo "CI-TASK ĐỎ: từ xa (cổng tĩnh hay test, xem các dòng lỗi ở trên)"; exit 1 ;;
 +  esac
  fi
--# Test cấu hình quy trình và Makefile (Task 401): giữ bước riêng này dù từ Task 478 affected.py đã chọn test đọc tệp dữ
--# liệu theo đường dẫn — test deploy đọc nhiều tệp qua glob, tên dựng lúc chạy, affected.py không bắt hết.
--if printf '%s\n' "$tchanged" | grep -E -q '^(Makefile|tools/versions\.mk|scripts/|\.github/|\.githooks/|docker/)'; then
--  step "test deploy (đổi Makefile/scripts/docker)" go test -count=1 ./tests/deploy/...
 +
 +# Chạy máy. Cổng tĩnh (một danh sách với job static của GitHub): scripts/ci/static-gates.sh.
 +slog=$(mktemp)
@@ -162,7 +180,7 @@ index 6f14de6b..c0d8ec4e
 +if [ -n "$fail" ] && [ "${CI_TASK_FULL:-0}" != 1 ]; then
 +  echo "== test: bỏ lần này (cổng tĩnh đỏ:$fail) — sửa các cổng đỏ rồi chạy lại ci-task, test chạy ở lần đó"
 +  echo "CI-TASK ĐỎ:$fail"; exit 1
- fi
++fi
 +fail_before=$fail
 +alltests() { go list ./... | noe2e; }
 +while read -r kind rest; do

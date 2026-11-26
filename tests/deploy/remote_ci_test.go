@@ -529,7 +529,9 @@ case "$1 $2" in
     echo "[{\"databaseId\":99,\"headSha\":\"0000000000000000000000000000000000000000\"},{\"databaseId\":42,\"headSha\":\"$sha\"}]" ;;
   "run watch") [ "${FAKE_RESULT:-success}" = success ] ;;
   "run cancel") exit 0 ;;
-  "run view") n=$(cat "$FAKE_LOG.views" 2>/dev/null || echo 0); echo $((n+1)) > "$FAKE_LOG.views"
+  "run view") if [[ " $* " == *" status,jobs "* ]]; then
+      if [ "${FAKE_QUEUED:-0}" = 1 ]; then echo '{"status":"queued","jobs":[{"status":"queued","conclusion":""}]}'; else echo '{"status":"in_progress","jobs":[{"status":"in_progress","conclusion":""}]}'; fi; exit 0; fi
+    n=$(cat "$FAKE_LOG.views" 2>/dev/null || echo 0); echo $((n+1)) > "$FAKE_LOG.views"
     if [[ " $* " != *" --log-failed "* ]] && [ "$n" -lt "${FAKE_PENDING_VIEWS:-0}" ]; then echo '{"conclusion":"","url":"u","jobs":[]}'; exit 0; fi
     if [[ " $* " == *" --log-failed "* ]]; then printf 'test (2)\tgo test\t--- FAIL: TestHong (0.01s)\ntest (2)\tgo test\tok   elimaz.com.vn/crm/x 1.0s\n'; else
     echo "{\"conclusion\":\"${FAKE_RESULT:-success}\",\"url\":\"https://example.invalid/run/42\",\"jobs\":[{\"name\":\"static\",\"conclusion\":\"${FAKE_RESULT:-success}\",\"startedAt\":\"2026-11-26T01:00:00Z\",\"completedAt\":\"2026-11-26T01:04:30Z\"}]}"; fi ;;
@@ -538,8 +540,8 @@ esac
 `
 
 type remoteEnv struct {
-	dir, bare, log string
-	env            []string
+	dir, bare, log, pool string
+	env                  []string
 }
 
 func newRemoteEnv(t *testing.T) remoteEnv {
@@ -553,7 +555,7 @@ func newRemoteEnv(t *testing.T) remoteEnv {
 		t.Fatal(err)
 	}
 	log := filepath.Join(t.TempDir(), "gh.log")
-	return remoteEnv{dir: dir, bare: bare, log: log, env: []string{
+	return remoteEnv{dir: dir, bare: bare, log: log, pool: t.TempDir(), env: []string{
 		"CRM_GH=" + filepath.Join(bin, "gh"), "FAKE_LOG=" + log, "FAKE_BARE=" + bare, "CRM_CI_LABEL=t1",
 		"CRM_CI_POLL=0", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1",
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t",
@@ -564,7 +566,10 @@ func (r remoteEnv) run(t *testing.T, extra []string, args ...string) (string, in
 	t.Helper()
 	cmd := exec.CommandContext(t.Context(), "bash", append([]string{filepath.Join(repoRoot(t), "scripts/ci/remote-test.sh")}, args...)...)
 	cmd.Dir = r.dir
-	cmd.Env = append(append(os.Environ(), r.env...), extra...)
+	env := slices.DeleteFunc(os.Environ(), func(kv string) bool {
+		return strings.HasPrefix(kv, "CRM_CI_RUNNER=") || strings.HasPrefix(kv, "CRM_CI_POOL_")
+	})
+	cmd.Env = append(append(append(env, "CRM_CI_POOL_DIR="+r.pool), r.env...), extra...)
 	out, err := cmd.CombinedOutput()
 	var ee *exec.ExitError
 	switch {
@@ -759,5 +764,151 @@ func TestCITaskPatch_Applies(t *testing.T) {
 	}
 	if check(patch) != nil && check("-R", patch) != nil {
 		t.Errorf("%s không áp được lên scripts/agent/ci-task.sh (cũng chưa áp sẵn)", patch)
+	}
+	// Task 494: ci-task giữ chỗ qua bộ điều phối và luôn in một dòng CI-TASK (bên chờ dò dòng này) kể cả khi không máy
+	// nào chạy được.
+	b, err := os.ReadFile("../../" + patch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"+  python3 scripts/ci/pool.py run ", "CI-TASK ĐỎ: không máy nào chạy được", `CRM_CI_RUNNER:-mac}" != mac`} {
+		if !strings.Contains(string(b), want) {
+			t.Errorf("bản vá thiếu %q", want)
+		}
+	}
+}
+
+// ---- Task 494: chọn máy chạy (input runner), sổ phút, hạn bắt đầu run
+
+// Input runner chọn máy cho cả static, plan, test: blacksmith (4 vCPU), github (ubuntu-24.04), vps (runner tự cài
+// elimaz-vps). vps có sẵn dịch vụ test trên 127.0.0.1 (PostgreSQL 5600, S3 20600/21600, OTLP 4600): không dựng compose,
+// không khôi phục cache (Go cache, công cụ giữ lại trên máy). Số phần: blacksmith ≤ 2 (một máy đã 6,5 phút toàn bộ),
+// vps 1 (một job một lúc), github ≤ 6.
+func TestRemoteWorkflow_RunnerInput(t *testing.T) {
+	w := readWorkflowFile(t, remoteWorkflow)
+	d, _ := w.On["workflow_dispatch"].(map[string]any)
+	inputs, _ := d["inputs"].(map[string]any)
+	in, _ := inputs["runner"].(map[string]any)
+	if in["default"] != "github" || in["type"] != "choice" || fmt.Sprint(in["options"]) != "[github blacksmith vps]" {
+		t.Errorf("input runner: choice github|blacksmith|vps, mặc định github; đang là %v", in)
+	}
+	for _, name := range []string{"static", "plan", "test"} {
+		ro := fmt.Sprint(needJob(t, w, name).RunsOn)
+		for _, want := range []string{"inputs.runner", "blacksmith-4vcpu-ubuntu-2404", `"self-hosted","elimaz-vps"`, "ubuntu-24.04"} {
+			if !strings.Contains(ro, want) {
+				t.Errorf("job %s: runs-on thiếu %q: %s", name, want, ro)
+			}
+		}
+	}
+	for k, port := range map[string]string{"CRM_PG_PORT": "5600", "CRM_S3_PORT": "20600", "CRM_S3_OFFSITE_PORT": "21600", "CRM_OTLP_PORT": "4600"} {
+		if v := w.Env[k]; !strings.Contains(v, "inputs.runner == 'vps'") || !strings.Contains(v, "'"+port+"'") {
+			t.Errorf("env %s trên vps phải là %s (dịch vụ chạy sẵn), đang là %q", k, port, v)
+		}
+	}
+	for _, name := range []string{"static", "test"} {
+		checkVPSSteps(t, name, needJob(t, w, name))
+	}
+	checkMaxParts(t, needJob(t, w, "plan"))
+}
+
+// checkVPSSteps: trên vps không dựng compose, không khôi phục cache của GitHub (giữ trên máy).
+func checkVPSSteps(t *testing.T, name string, j job) {
+	t.Helper()
+	dbUp := indexOf(j, regexp.MustCompile(`^make db-up\b`))
+	if dbUp < 0 || !strings.Contains(j.Steps[dbUp].If, "inputs.runner != 'vps'") {
+		t.Errorf("job %s: make db-up bỏ trên vps (không chạy docker compose up ở đó)", name)
+	}
+	for _, s := range j.Steps {
+		if strings.HasPrefix(s.Uses, "actions/cache@") && !strings.Contains(s.If, "inputs.runner != 'vps'") {
+			t.Errorf("job %s: %s không khôi phục cache trên vps (công cụ, cache lint giữ trên máy)", name, s.Name)
+		}
+		if strings.HasPrefix(s.Uses, "actions/setup-go@") && !strings.Contains(fmt.Sprint(s.With["cache"]), "inputs.runner != 'vps'") {
+			t.Errorf("job %s: setup-go không khôi phục Go cache trên vps (đã có trên máy), with.cache = %v", name, s.With["cache"])
+		}
+	}
+}
+
+func checkMaxParts(t *testing.T, plan job) {
+	t.Helper()
+	if indexOf(plan, regexp.MustCompile(`--max-parts "\$MAX_PARTS"`)) < 0 {
+		t.Error("job plan: số phần tối đa lấy từ MAX_PARTS")
+	}
+	var mp string
+	for _, s := range plan.Steps {
+		if v, ok := s.Env["MAX_PARTS"]; ok {
+			mp = v
+		}
+	}
+	for _, want := range []string{"inputs.runner == 'blacksmith' && '2'", "inputs.runner == 'vps' && '1'", "'6'"} {
+		if !strings.Contains(mp, want) {
+			t.Errorf("MAX_PARTS thiếu %q: %q", want, mp)
+		}
+	}
+}
+
+// Máy tự cài (vps) không có cache của GitHub: install-tools.sh bỏ cài khi đã có dấu đúng khóa công cụ.
+func TestInstallTools_StampSkipsReinstall(t *testing.T) {
+	b, err := os.ReadFile("../../scripts/ci/install-tools.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{".ci-tools-", "make ci-tools"} {
+		if !strings.Contains(string(b), want) {
+			t.Errorf("install-tools.sh thiếu %q", want)
+		}
+	}
+	w := readWorkflowFile(t, remoteWorkflow)
+	for _, name := range []string{"static", "test"} {
+		j := needJob(t, w, name)
+		inst := indexOf(j, regexp.MustCompile(`install-tools\.sh .*steps\.toolkey\.outputs\.key`))
+		if inst < 0 {
+			t.Errorf("job %s: install-tools.sh nhận khóa công cụ (dấu đã cài trên vps)", name)
+		}
+		// make ci-tools cài jscpd bằng npm; vps không có Node sẵn (lượt 26/11 đỏ "npm: command not found").
+		node := slices.IndexFunc(j.Steps, func(s step) bool { return strings.HasPrefix(s.Uses, "actions/setup-node@") })
+		if node < 0 || node > inst {
+			t.Errorf("job %s: setup-node trước install-tools.sh (npm cho jscpd)", name)
+		}
+	}
+}
+
+// remote-test.sh gửi đúng máy (CRM_CI_RUNNER; mặc định github; mac không phải máy từ xa → mã 2) và ghi sổ phút của
+// bộ điều phối (blacksmith ×2).
+func TestRemoteTest_RunnerAndLedger(t *testing.T) {
+	r := newRemoteEnv(t)
+	base := git(t, r.dir, "rev-parse", "HEAD")
+	if out, code := r.run(t, []string{"CRM_CI_RUNNER=blacksmith"}, "HEAD", base, "ALL"); code != 0 {
+		t.Fatalf("%d\n%s", code, out)
+	}
+	log, _ := os.ReadFile(r.log)
+	if !strings.Contains(string(log), "runner=blacksmith") {
+		t.Errorf("phải gửi runner=blacksmith:\n%s", log)
+	}
+	led, _ := os.ReadFile(filepath.Join(r.pool, "crm-runner-minutes.tsv"))
+	if !strings.Contains(string(led), "\tblacksmith\t42\t5\t10\t") {
+		t.Errorf("sổ phút phải có run 42 blacksmith 5 phút máy, 10 phút tính (4m30s làm tròn lên, ×2):\n%s", led)
+	}
+	if out, code := r.run(t, nil, "HEAD", base, "ALL"); code != 0 {
+		t.Fatalf("%d\n%s", code, out)
+	}
+	if log, _ := os.ReadFile(r.log); !strings.Contains(string(log), "runner=github") {
+		t.Errorf("mặc định runner=github:\n%s", log)
+	}
+	if out, code := r.run(t, []string{"CRM_CI_RUNNER=mac"}, "HEAD", base, "ALL"); code != 2 {
+		t.Errorf("CRM_CI_RUNNER=mac: không chạy từ xa, mã 2; có %d:\n%s", code, out)
+	}
+}
+
+// Run nằm hàng chờ quá hạn (không máy nào nhận: runner tắt, hết chỗ): hủy run, mã 3 để bộ điều phối chuyển bể khác.
+func TestRemoteTest_NotStartedInTimeExit3(t *testing.T) {
+	r := newRemoteEnv(t)
+	base := git(t, r.dir, "rev-parse", "HEAD")
+	out, code := r.run(t, []string{"FAKE_QUEUED=1", "CRM_CI_START_TIMEOUT=1"}, "HEAD", base, "ALL")
+	if code != 3 || !strings.Contains(out, "không bắt đầu") {
+		t.Fatalf("run không bắt đầu: muốn mã 3, có %d:\n%s", code, out)
+	}
+	log, _ := os.ReadFile(r.log)
+	if !strings.Contains(string(log), "gh run cancel 42") || strings.Contains(string(log), "run watch") {
+		t.Errorf("phải hủy run 42 và không chờ nó:\n%s", log)
 	}
 }

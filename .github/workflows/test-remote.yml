@@ -2,6 +2,9 @@
 # test của máy dev. Chỉ chạy bằng tay qua scripts/ci/remote-test.sh (đẩy commit tạm lên ci/<worktree> rồi gh workflow
 # run), không chạy theo push. Gói Free 2.000 phút/tháng, runner 2 lõi: chia gói tối đa 6 phần, ít gói thì ít phần; không
 # dựng image, không e2e, không Playwright. Luật của tệp này: tests/deploy/remote_ci_test.go.
+# Task 494: input runner chọn máy (scripts/ci/pool.py chọn bể trống): blacksmith (4 vCPU, tối đa 2 phần), github
+# (ubuntu-24.04, tối đa 6 phần), vps (runner tự cài elimaz-vps, một job một lúc, 1 phần; dịch vụ test chạy sẵn trên
+# 127.0.0.1 nên không dựng compose; Go cache và công cụ giữ trên máy nên không khôi phục cache của GitHub).
 name: test-remote
 
 on:
@@ -36,6 +39,12 @@ on:
         required: false
         default: ""
         type: string
+      runner:
+        description: "máy chạy: github (ubuntu-24.04), blacksmith (4 vCPU), vps (self-hosted elimaz-vps)"
+        required: false
+        default: github
+        type: choice
+        options: [github, blacksmith, vps]
 
 permissions:
   contents: read
@@ -48,11 +57,17 @@ env:
   COMPOSE_PROJECT: crm-ci
   GOTOOLCHAIN: local
   NODE_VERSION: "26"
+  # Cổng dịch vụ test: compose dev dựng trong job (mặc định của Makefile), hay dịch vụ chạy sẵn trên vps.
+  CRM_PG_PORT: ${{ inputs.runner == 'vps' && '5600' || '5442' }}
+  CRM_S3_PORT: ${{ inputs.runner == 'vps' && '20600' || '8333' }}
+  CRM_S3_OFFSITE_PORT: ${{ inputs.runner == 'vps' && '21600' || '8334' }}
+  CRM_OTLP_PORT: ${{ inputs.runner == 'vps' && '4600' || '4318' }}
+  CRM_JAEGER_UI_PORT: ${{ inputs.runner == 'vps' && '17600' || '16686' }}
 
 jobs:
   static:
     if: github.event_name == 'workflow_dispatch' && inputs.static == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ fromJSON(inputs.runner == 'vps' && '["self-hosted","elimaz-vps"]' || inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || '"ubuntu-24.04"') }}
     timeout-minutes: 40
     env:
       BASE: ${{ inputs.base }}
@@ -65,6 +80,7 @@ jobs:
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: go.mod
+          cache: ${{ inputs.runner != 'vps' }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -73,6 +89,7 @@ jobs:
         run: echo "key=$(make -n --no-print-directory ci-tools | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
       - name: Cache công cụ đã ghim
         id: tools
+        if: inputs.runner != 'vps'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -80,14 +97,16 @@ jobs:
             ~/.npm-global
           key: ci-tools-${{ runner.os }}-${{ steps.toolkey.outputs.key }}
       - name: Cache golangci-lint
+        if: inputs.runner != 'vps'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/golangci-lint
           key: golangci-${{ runner.os }}-${{ hashFiles('go.sum', '.golangci.yml') }}-${{ github.run_id }}
           restore-keys: golangci-${{ runner.os }}-${{ hashFiles('go.sum', '.golangci.yml') }}-
       - name: Cài công cụ đã ghim (make ci-tools, bỏ qua khi cache trúng)
-        run: scripts/ci/install-tools.sh "${{ steps.tools.outputs.cache-hit }}"
-      - name: PostgreSQL 18, Jaeger, SeaweedFS của compose dev (sqlc-vet, tests/arch)
+        run: scripts/ci/install-tools.sh "${{ steps.tools.outputs.cache-hit }}" "${{ steps.toolkey.outputs.key }}"
+      - name: PostgreSQL 18, Jaeger, SeaweedFS của compose dev (sqlc-vet, tests/arch); vps có sẵn
+        if: inputs.runner != 'vps'
         run: make db-up
       - name: Cổng tĩnh
         run: |
@@ -98,7 +117,7 @@ jobs:
 
   plan:
     if: github.event_name == 'workflow_dispatch' && inputs.packages != ''
-    runs-on: ubuntu-24.04
+    runs-on: ${{ fromJSON(inputs.runner == 'vps' && '["self-hosted","elimaz-vps"]' || inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || '"ubuntu-24.04"') }}
     timeout-minutes: 10
     outputs:
       matrix: ${{ steps.split.outputs.matrix }}
@@ -109,9 +128,10 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - name: Chia gói thành tối đa 6 phần cân bằng (scripts/ci/test-times.txt)
+      - name: Chia gói thành phần cân bằng (scripts/ci/test-times.txt; tối đa 2 blacksmith, 1 vps, 6 github)
         id: split
         env:
+          MAX_PARTS: ${{ inputs.runner == 'blacksmith' && '2' || inputs.runner == 'vps' && '1' || '6' }}
           PACKAGES: ${{ inputs.packages }}
           RACE: ${{ inputs.race_packages }}
           STATIC: ${{ inputs.static }}
@@ -123,7 +143,7 @@ jobs:
           pkgs=$(expand "$PACKAGES") || exit 1
           race=$(expand "$RACE" | tr '\n' ' ') || exit 1
           m=$(printf '%s\n' "$pkgs" | python3 scripts/ci/split_packages.py --times scripts/ci/test-times.txt \
-            --max-parts 6 --min-seconds 120 --race "$race")
+            --max-parts "$MAX_PARTS" --min-seconds 120 --race "$race")
           echo "matrix=$m" >> "$GITHUB_OUTPUT"
           echo "count=$(printf '%s' "$m" | jq length)" >> "$GITHUB_OUTPUT"
           printf '%s' "$m" | jq -r '.[] | "phần \(.part): ~\(.seconds) s, race: \(.race | split(" ") | map(select(. != "")) | length) gói, thường: \(.plain | split(" ") | map(select(. != "")) | length) gói"'
@@ -131,7 +151,7 @@ jobs:
   test:
     needs: plan
     if: needs.plan.outputs.count != '0'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ fromJSON(inputs.runner == 'vps' && '["self-hosted","elimaz-vps"]' || inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || '"ubuntu-24.04"') }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -146,11 +166,17 @@ jobs:
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: go.mod
+          cache: ${{ inputs.runner != 'vps' }}
+      # make ci-tools cài jscpd bằng npm: vps không có sẵn Node (lượt 26/11 đỏ "npm: command not found").
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
       - name: Khóa cache công cụ (băm đúng các lệnh của make ci-tools)
         id: toolkey
         run: echo "key=$(make -n --no-print-directory ci-tools | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
       - name: Cache công cụ đã ghim
         id: tools
+        if: inputs.runner != 'vps'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -158,13 +184,14 @@ jobs:
             ~/.npm-global
           key: ci-tools-${{ runner.os }}-${{ steps.toolkey.outputs.key }}
       - name: Cài công cụ đã ghim (oasdiff, sqlc… cho test của tools/, tests/; bỏ qua khi cache trúng)
-        run: scripts/ci/install-tools.sh "${{ steps.tools.outputs.cache-hit }}"
-      - name: PostgreSQL 18, Jaeger, SeaweedFS của compose dev; kéo sẵn image Valkey
+        run: scripts/ci/install-tools.sh "${{ steps.tools.outputs.cache-hit }}" "${{ steps.toolkey.outputs.key }}"
+      - name: PostgreSQL 18, Jaeger, SeaweedFS của compose dev (vps có sẵn)
+        if: inputs.runner != 'vps'
+        run: make db-up
+      - name: Kéo sẵn image Valkey (chỉ kéo, không dựng container)
         # testkit.StartValkey lấy mã container từ đầu ra gộp của `docker run -d`: máy chưa có image thì dòng "Pulling…"
         # lẫn vào và test đầu tiên đỏ "docker port valkey" (lượt ALL 26/11; việc phát hiện thêm của Task 493).
-        run: |
-          make db-up
-          docker compose -p "$COMPOSE_PROJECT" -f docker/compose.dev.yml --profile valkey pull -q valkey-cache
+        run: docker compose -p "$COMPOSE_PROJECT" -f docker/compose.dev.yml --profile valkey pull -q valkey-cache
       - name: go test (qua make để có đủ biến test như make test)
         env:
           RACE: ${{ matrix.race }}
