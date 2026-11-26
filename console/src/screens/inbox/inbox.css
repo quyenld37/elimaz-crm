@@ -340,3 +340,24 @@
     padding: var(--space-md) 0;
   }
 }
+
+/* Khách chưa trả lời (Inbox trạng thái D, CH16) */
+.fu {
+  display: grid;
+  gap: 12px;
+}
+.fu-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.fu-row > .field {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.fu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
