@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"elimaz.com.vn/crm/internal/adapters/facebook"
 	"elimaz.com.vn/crm/internal/adapters/fake"
 	"elimaz.com.vn/crm/internal/modules/channel"
 	"elimaz.com.vn/crm/internal/modules/conversation"
@@ -33,6 +34,15 @@ func TestWiring(t *testing.T) {
 		t.Errorf("lệnh, luồng nền: %d, mong 0", n)
 	}
 	checkReminders(t, d)
+	// Có adapter đọc được bài (facebook, Task 154): thêm đúng lệnh command.fb.fetch_post.
+	reg, err = channel.NewRegistry(fake.New("0123456789abcdef0123456789abcdef"), facebook.New(facebook.Options{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.Registry = reg
+	if cmds := conversation.CommandHandlers(d); len(cmds) != 1 || cmds[0].Kind().Name != "command.fb.fetch_post" {
+		t.Errorf("lệnh khi có adapter đọc bài: %d", len(cmds))
+	}
 }
 
 func checkReminders(t *testing.T, d conversation.Deps) {

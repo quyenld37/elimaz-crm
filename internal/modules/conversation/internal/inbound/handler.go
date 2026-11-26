@@ -36,7 +36,7 @@ const (
 )
 
 // handler là handler sự kiện vào của một nguồn kênh nhắn tin (Task 153): tin, echo, đã nhận, đã xem, cảm xúc, sửa,
-// đến từ quảng cáo. Comment, live, chính sách do task sau thêm nhánh.
+// đến từ quảng cáo; comment thêm, sửa, xóa, ẩn, hiện (Task 154). Live, chính sách do task sau thêm nhánh.
 type handler struct {
 	d        deps.Deps
 	source   string
@@ -78,6 +78,8 @@ func (h *handler) Handle(ctx context.Context, e webhooks.Inbound, tx pgx.Tx) err
 		err = with(e, func(p channel.EditPayload) error { return h.edit(ctx, tx, e, p) })
 	case channel.EventMessageReferral:
 		err = with(e, func(p channel.MessagePayload) error { return h.referral(ctx, tx, e, p) })
+	case channel.EventCommentChanged:
+		err = with(e, func(p channel.CommentPayload) error { return h.comment(ctx, tx, e, p) })
 	default:
 		h.ignore(e.Type)
 		return nil
@@ -125,13 +127,9 @@ func (h *handler) account(ctx context.Context, tx pgx.Tx, e webhooks.Inbound, pa
 // khóa dòng); inserted = hội thoại vừa tạo. Khách, hội thoại vừa tạo gọi hook của task sau.
 func (h *handler) thread(ctx context.Context, tx pgx.Tx, acc channel.ChannelAccount, user string, at time.Time,
 ) (id uuid.UUID, inserted bool, err error) {
-	w := customer.Writer{Events: h.d.Events, Queue: h.d.Queue, Realtime: h.d.Bus}
-	cc, err := w.FindOrCreateByIdentity(ctx, tx, customer.ChannelIdentity{
-		Kind: string(customer.IdentityFBPSID), Scope: acc.ExternalID, Value: user, DisplayName: placeholderName,
-		NameIsPlaceholder: true,
-	}, customer.Actor{Type: customer.ActorSystem}, h.now().UTC())
+	cc, err := h.customerFor(ctx, tx, acc, user, "")
 	if err != nil {
-		return uuid.Nil, false, err //nolint:wrapcheck // customer đã bọc việc đang làm
+		return uuid.Nil, false, err
 	}
 	row, err := store.New(tx).UpsertInboxConversation(ctx, store.UpsertInboxConversationParams{
 		ChannelAccountID: acc.ID, CustomerID: cc.CustomerID, ExternalThreadRef: user, At: at.UTC(),
@@ -150,6 +148,24 @@ func (h *handler) thread(ctx context.Context, tx pgx.Tx, acc channel.ChannelAcco
 		}
 	}
 	return row.ID, row.Inserted, nil
+}
+
+// customerFor tìm hoặc tạo khách theo PSID user của Page acc (nhóm 5 ADR-46, khóa tư vấn danh tính trước). name rỗng →
+// tên tạm placeholderName (tin nhắn); khác rỗng → tên thật kênh gửi kèm (comment). Chỉ dùng tên khi tạo mới.
+func (h *handler) customerFor(ctx context.Context, tx pgx.Tx, acc channel.ChannelAccount, user, name string,
+) (customer.ChannelCustomer, error) {
+	in := customer.ChannelIdentity{
+		Kind: string(customer.IdentityFBPSID), Scope: acc.ExternalID, Value: user, DisplayName: name,
+	}
+	if name == "" {
+		in.DisplayName, in.NameIsPlaceholder = placeholderName, true
+	}
+	w := customer.Writer{Events: h.d.Events, Queue: h.d.Queue, Realtime: h.d.Bus}
+	cc, err := w.FindOrCreateByIdentity(ctx, tx, in, customer.Actor{Type: customer.ActorSystem}, h.now().UTC())
+	if err != nil {
+		return customer.ChannelCustomer{}, err //nolint:wrapcheck // customer đã bọc việc đang làm
+	}
+	return cc, nil
 }
 
 // publish phát conversation.changed cho hội thoại id (đòi conversation.read trên Page; chỉ đi khi tx commit) và ghi
