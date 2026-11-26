@@ -62,14 +62,16 @@ func (s *Server) meAccounts(w http.ResponseWriter, ti *tokenInfo) {
 	data := []map[string]any{}
 	for _, pid := range ti.user.PageIDs {
 		if p := s.st.pages[pid]; p != nil {
-			data = append(data, map[string]any{
-				"id": p.ID, "name": p.Name, "access_token": p.Token,
-				"tasks": []string{"MANAGE", "MODERATE", "MESSAGING", "ANALYZE", "ADVERTISE", "CREATE_CONTENT"},
-			})
+			data = append(data, map[string]any{"id": p.ID, "name": p.Name, "access_token": p.Token, "tasks": pageTasks()})
 		}
 	}
 	s.mu.Unlock()
 	writeJSON(w, map[string]any{"data": data})
+}
+
+// pageTasks là vai trò của người dùng quản trị trên mọi Page của máy giả (me/accounts và đọc {page-id}).
+func pageTasks() []string {
+	return []string{"MANAGE", "MODERATE", "MESSAGING", "ANALYZE", "ADVERTISE", "CREATE_CONTENT"}
 }
 
 func (s *Server) debugToken(w http.ResponseWriter, c *Call) {
@@ -110,7 +112,7 @@ func (s *Server) page(w http.ResponseWriter, c *Call, ti *tokenInfo, id, edge st
 		s.mu.Lock()
 		p := *s.st.pages[id]
 		s.mu.Unlock()
-		writeJSON(w, map[string]any{"id": p.ID, "name": p.Name, "access_token": p.Token})
+		writeJSON(w, map[string]any{"id": p.ID, "name": p.Name, "access_token": p.Token, "tasks": pageTasks()})
 	case "subscribed_apps":
 		s.subscribedApps(w, c, id)
 	case "messages":

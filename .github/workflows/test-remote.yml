@@ -47,6 +47,11 @@ on:
         default: github
         type: choice
         options: [github, blacksmith, ubicloud, vps]
+      loadtest:
+        description: "bài thử tải M4 (Task 180): live | chaos, kèm :<thời lượng> khi chạy khói (vd live:1m); rỗng: không chạy"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -207,4 +212,39 @@ jobs:
             echo '<details><summary>thời gian từng gói</summary>'; echo; echo '```'
             grep -E '^(ok|FAIL)[[:space:]]' test.log | awk '{print $2, $3}' | sed 's/s$//'; echo '```'; echo '</details>'
           } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
+
+  # Task 180: bài thử tải M4 (loadtest/fb_run.sh) ở máy đã chọn; chủ shop 26/11: máy Mac không chạy tải nặng. Vai trò CRM
+  # chạy như tiến trình trên máy (không dựng image); PostgreSQL, SeaweedFS của compose dev dựng trong job. Không chạy trên
+  # vps: dịch vụ ở đó dùng chung, bài chaos dừng PostgreSQL.
+  loadtest:
+    if: github.event_name == 'workflow_dispatch' && inputs.loadtest != '' && inputs.runner != 'vps'
+    runs-on: ${{ fromJSON(inputs.runner == 'blacksmith' && '"blacksmith-4vcpu-ubuntu-2404"' || inputs.runner == 'ubicloud' && '"ubicloud-standard-2"' || '"ubuntu-24.04"') }}
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+      - name: PostgreSQL 18, SeaweedFS của compose dev
+        run: make db-up
+      - name: k6 v2.0.0 (ghim, kiểm sha256), psql
+        run: |
+          curl -sSfL -o /tmp/k6.tgz https://github.com/grafana/k6/releases/download/v2.0.0/k6-v2.0.0-linux-amd64.tar.gz
+          echo "2ae87d976f6cdba17185bdd980d8819a3a98e9092c6f0638cd58272ecefc8b90  /tmp/k6.tgz" | sha256sum -c
+          tar -xzf /tmp/k6.tgz -C /tmp && sudo install /tmp/k6-v2.0.0-linux-amd64/k6 /usr/local/bin/k6
+          command -v psql >/dev/null || { sudo apt-get update -q && sudo apt-get install -yq postgresql-client; }
+      - name: Bài thử tải
+        env:
+          SPEC: ${{ inputs.loadtest }}
+        run: |
+          MODE=${SPEC%%:*}
+          case "$SPEC" in *:*) export DURATION=${SPEC#*:} ;; esac
+          set -o pipefail
+          loadtest/fb_run.sh "$MODE" 2>&1 | tee loadtest.log
+          rc=${PIPESTATUS[0]}
+          out=$(ls -d loadtest/out/fb-* | tail -1)
+          { echo "### Thử tải M4: $SPEC"; cat "$out/report.md" 2>/dev/null || tail -60 loadtest.log; } >> "$GITHUB_STEP_SUMMARY"
+          for f in chaos.log chaos.csv live.csv k6-live.txt k6-staff.txt; do [ -f "$out/$f" ] && { echo "== $f"; cat "$out/$f"; }; done
+          if [ "$rc" != 0 ]; then for r in ingest api worker; do echo "== $r.log (đuôi)"; grep -v webcache "$out/$r.log" | tail -30; done; fi
           exit "$rc"

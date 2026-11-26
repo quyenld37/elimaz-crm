@@ -922,3 +922,60 @@ func TestRemoteTest_NotStartedInTimeExit3(t *testing.T) {
 		t.Errorf("phải hủy run 42 và không chờ nó:\n%s", log)
 	}
 }
+
+// Task 180 (thử tải M4): bài thử tải chạy ở bể từ xa (chủ shop 26/11: máy Mac không chạy tải nặng). Input loadtest
+// (live|chaos, kèm ":<thời lượng>" khi chạy khói) bật job loadtest: dựng PostgreSQL, SeaweedFS của compose dev trong
+// job, cài k6 ghim phiên bản có kiểm sha256, chạy loadtest/fb_run.sh, in bảng chấm vào tóm tắt. Không chạy trên vps
+// (dịch vụ chạy sẵn dùng chung: bài chaos dừng PostgreSQL), không dựng image (vai trò chạy như tiến trình trên máy).
+func TestRemoteWorkflow_LoadtestJob(t *testing.T) {
+	w := readWorkflowFile(t, remoteWorkflow)
+	d, _ := w.On["workflow_dispatch"].(map[string]any)
+	inputs, _ := d["inputs"].(map[string]any)
+	if in, _ := inputs["loadtest"].(map[string]any); in == nil || in["default"] != "" {
+		t.Errorf("input loadtest phải có, mặc định rỗng (không chạy tải): %v", in)
+	}
+	j := needJob(t, w, "loadtest")
+	if !strings.Contains(j.If, "github.event_name == 'workflow_dispatch'") || !strings.Contains(j.If, "inputs.loadtest != ''") {
+		t.Errorf("job loadtest chỉ chạy khi dispatch có inputs.loadtest, if đang là %q", j.If)
+	}
+	if !strings.Contains(j.If, "inputs.runner != 'vps'") {
+		t.Errorf("job loadtest không chạy trên vps (bài chaos dừng PostgreSQL dùng chung), if đang là %q", j.If)
+	}
+	if ro := fmt.Sprint(j.RunsOn); !strings.Contains(ro, "blacksmith-4vcpu-ubuntu-2404") || !strings.Contains(ro, "ubuntu-24.04") {
+		t.Errorf("job loadtest: runs-on theo inputs.runner: %s", ro)
+	}
+	dbUp := indexOf(j, regexp.MustCompile(`^make db-up\b`))
+	k6 := indexOf(j, regexp.MustCompile(`sha256sum -c`))
+	run := indexOf(j, regexp.MustCompile(`loadtest/fb_run\.sh "\$MODE"`))
+	if dbUp < 0 || k6 < 0 || run < 0 || dbUp > run || k6 > run {
+		t.Errorf("job loadtest: make db-up (%d), cài k6 có kiểm sha256 (%d) rồi loadtest/fb_run.sh \"$MODE\" (%d)", dbUp, k6, run)
+	}
+	if k6 >= 0 && !regexp.MustCompile(`k6/releases/download/v\d+\.\d+\.\d+/`).MatchString(j.Steps[k6].Run) {
+		t.Errorf("k6 phải ghim phiên bản: %s", j.Steps[k6].Run)
+	}
+	if run >= 0 && !strings.Contains(j.Steps[run].Run, "GITHUB_STEP_SUMMARY") {
+		t.Error("job loadtest: bảng chấm (report.md) phải vào tóm tắt của run")
+	}
+}
+
+func TestRemoteTest_LoadtestInput(t *testing.T) {
+	r := newRemoteEnv(t)
+	base := git(t, r.dir, "rev-parse", "HEAD")
+	empty := r.pkgFile(t, "")
+	if out, code := r.run(t, []string{"CRM_CI_LOADTEST=live:1m", "CRM_CI_STATIC=false"}, "HEAD", base, empty); code != 0 {
+		t.Fatalf("%d\n%s", code, out)
+	}
+	if log, _ := os.ReadFile(r.log); !strings.Contains(string(log), "-f loadtest=live:1m") {
+		t.Errorf("phải gửi loadtest=live:1m:\n%s", log)
+	}
+	if out, code := r.run(t, nil, "HEAD", base, "ALL"); code != 0 {
+		t.Fatalf("%d\n%s", code, out)
+	}
+	log, _ := os.ReadFile(r.log)
+	if last := string(log)[strings.LastIndex(string(log), "workflow run"):]; !regexp.MustCompile(`-f loadtest=(\s|$)`).MatchString(last) {
+		t.Errorf("mặc định loadtest rỗng:\n%s", last)
+	}
+	if out, code := r.run(t, []string{"CRM_CI_LOADTEST=soak"}, "HEAD", base, empty); code != 2 {
+		t.Errorf("CRM_CI_LOADTEST lạ: mã 2, có %d:\n%s", code, out)
+	}
+}

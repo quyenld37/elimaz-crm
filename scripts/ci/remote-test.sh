@@ -13,6 +13,8 @@
 # Task 494: CRM_CI_RUNNER=github|blacksmith|ubicloud|vps chọn máy (ubicloud: Task 495) (mặc định github; scripts/ci/pool.py đặt biến này khi chọn bể);
 # run nằm hàng chờ quá CRM_CI_START_TIMEOUT giây (mặc định 180) mà không job nào bắt đầu thì hủy, mã 3 (bộ điều phối
 # đánh dấu bể tạm hỏng, chọn bể khác); phút của mỗi run ghi vào sổ của bộ điều phối (pool.py record).
+# Task 180: CRM_CI_LOADTEST=live|chaos[:<thời lượng>] chạy thêm job loadtest (bài thử tải M4, loadtest/fb_run.sh) ở máy
+# đã chọn; thường đi cùng tệp gói rỗng và CRM_CI_STATIC=false. Bảng chấm nằm trong tóm tắt của run.
 # Không đổi nhánh nào: commit tạm dựng bằng git commit-tree, đẩy -f lên refs/heads/ci/<nhãn>, xóa khi xong (cả khi lỗi).
 # Thoát 0: xanh. 1: đỏ (in các dòng FAIL của job đỏ). 2: sai tham số. 3: không chạy được từ xa (gh, mạng) — bên gọi lùi
 # về chạy máy.
@@ -21,10 +23,15 @@ gh=${CRM_GH:-gh}
 poll=${CRM_CI_POLL:-5}
 static=${CRM_CI_STATIC:-true}
 runner=${CRM_CI_RUNNER:-github}
+loadtest=${CRM_CI_LOADTEST:-}
 here=$(cd "$(dirname "$0")" && pwd)
 case $runner in
   github|blacksmith|ubicloud|vps) ;;
   *) echo "CRM_CI_RUNNER=$runner không phải máy từ xa (github, blacksmith, ubicloud, vps)" >&2; exit 2 ;;
+esac
+case $loadtest in
+  ""|live|chaos|live:[0-9]*[smh]|chaos:[0-9]*[smh]) ;;
+  *) echo "CRM_CI_LOADTEST=$loadtest không phải live|chaos[:<thời lượng>]" >&2; exit 2 ;;
 esac
 [ $# -ge 3 ] || { echo "Dùng: remote-test.sh <tree|commit> <base> <tệp gói> [tệp gói -race]" >&2; exit 2; }
 src=$1 base_ref=$2 pkg_file=$3 race_file=${4:-}
@@ -75,7 +82,7 @@ git push -q -f origin "$sha:refs/heads/$branch" || infra "git push lỗi"
 pushed=1
 
 "$gh" workflow run test-remote.yml --ref "$branch" -f base="$base" -f packages="$pkgs" -f race_packages="$race" \
-  -f static="$static" -f task_file="$task_file" -f runner="$runner" || infra "gh workflow run lỗi"
+  -f static="$static" -f task_file="$task_file" -f runner="$runner" -f loadtest="$loadtest" || infra "gh workflow run lỗi"
 
 for _ in $(seq 1 36); do
   id=$("$gh" run list --workflow test-remote.yml --branch "$branch" --event workflow_dispatch --limit 20 \
