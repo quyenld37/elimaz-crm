@@ -461,16 +461,17 @@ type ChannelChannelAccountsV struct {
 }
 
 type ChannelOauthSession struct {
-	ID           uuid.UUID
-	TenantID     uuid.UUID
-	UserID       uuid.UUID
-	StateHash    []byte
-	UserTokenEnc []byte
-	UserTokenKid pgtype.Text
-	Pages        []byte
-	ExpiresAt    time.Time
-	UsedAt       *time.Time
-	CreatedAt    time.Time
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	UserID        uuid.UUID
+	StateHash     []byte
+	UserTokenEnc  []byte
+	UserTokenKid  pgtype.Text
+	Pages         []byte
+	ExpiresAt     time.Time
+	UsedAt        *time.Time
+	CreatedAt     time.Time
+	FbUserRefHash pgtype.Text
 }
 
 type ChannelSendBucket struct {
@@ -1922,6 +1923,14 @@ type PlatformBackupRun struct {
 	FinishedAt      time.Time
 	DurationSeconds pgtype.Int4
 	Detail          pgtype.Text
+}
+
+type PlatformDataDeletionRequest struct {
+	Code        string
+	Source      string
+	UserRefHash string
+	ReceivedAt  time.Time
+	CompletedAt *time.Time
 }
 
 type PlatformDomainEvent struct {

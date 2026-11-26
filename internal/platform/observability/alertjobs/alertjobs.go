@@ -59,6 +59,17 @@ func NewDigestCommand(d *db.DB, a observability.Alerter, logger *slog.Logger) co
 	}}
 }
 
+// NewScheduledCommand trả lệnh (mode command, Runner gọi ngoài transaction) của một lịch name chu kỳ every gửi cảnh
+// báo: run(ctx, giờ chạy) trả kết quả (ghi vào result) hoặc lỗi; lỗi → log một lần rồi not_sent (Telegram 429 → chờ
+// đúng thời gian Telegram yêu cầu), chạy lại trong hạn một kỳ. Kind "task.<name>". Bên gọi định nghĩa lịch cùng Kind.
+//
+// Khi nào không dùng: lệnh cảnh báo do module ghi trong transaction nghiệp vụ (không phải lịch) dùng Notify.
+func NewScheduledCommand(name string, every time.Duration, logger *slog.Logger, //nolint:ireturn // Runner nhận Handler
+	run func(ctx context.Context, now time.Time) (any, error),
+) commands.Handler {
+	return scheduled{name: name, every: every, log: logger, run: run}
+}
+
 type scheduled struct {
 	name  string
 	every time.Duration

@@ -26,6 +26,20 @@ func (q *Queries) DeleteExpiredOAuthSessions(ctx context.Context, now time.Time)
 	return result.RowsAffected(), nil
 }
 
+const deleteOAuthSessionsByUserRef = `-- name: DeleteOAuthSessionsByUserRef :execrows
+DELETE FROM channel.oauth_sessions
+WHERE fb_user_ref_hash = $1::text
+`
+
+// Callback xóa dữ liệu của Meta (Task 179): xóa mọi phiên của người dùng app có băm này (tenant của tx).
+func (q *Queries) DeleteOAuthSessionsByUserRef(ctx context.Context, userRefHash string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteOAuthSessionsByUserRef, userRefHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getOAuthPages = `-- name: GetOAuthPages :one
 SELECT tenant_id, user_id, user_token_enc, user_token_kid, pages, expires_at
 FROM channel.oauth_sessions
@@ -84,24 +98,27 @@ func (q *Queries) GetOAuthStart(ctx context.Context, stateHash []byte) (GetOAuth
 
 const insertOAuthSession = `-- name: InsertOAuthSession :exec
 
-INSERT INTO channel.oauth_sessions (id, tenant_id, user_id, state_hash, user_token_enc, user_token_kid, pages, expires_at)
+INSERT INTO channel.oauth_sessions (id, tenant_id, user_id, state_hash, user_token_enc, user_token_kid, pages, expires_at,
+    fb_user_ref_hash)
 VALUES ($1, current_setting('app.tenant_id')::uuid, $2, $3, $4::bytea,
-    $5::text, $6, $7)
+    $5::text, $6, $7, $8::text)
 `
 
 type InsertOAuthSessionParams struct {
-	ID           uuid.UUID
-	UserID       uuid.UUID
-	StateHash    []byte
-	UserTokenEnc []byte
-	UserTokenKid pgtype.Text
-	Pages        []byte
-	ExpiresAt    time.Time
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	StateHash     []byte
+	UserTokenEnc  []byte
+	UserTokenKid  pgtype.Text
+	Pages         []byte
+	ExpiresAt     time.Time
+	FbUserRefHash pgtype.Text
 }
 
 // Phiên đăng nhập Facebook trong tab (kế hoạch M4, Task 149). Hai loại dòng: dòng "start" (user_token_enc NULL, hạn 15
 // phút, state_hash là băm của state gửi cho Meta) và dòng "phiên Page" do exchange chèn (token người dùng mã hóa, danh
 // sách Page, hạn 30 phút). Mọi câu chạy trong tx tenant của bên gọi (RLS).
+// fb_user_ref_hash: hex SHA-256 của mã người dùng app (phiên Page, Task 179); NULL ở dòng start.
 func (q *Queries) InsertOAuthSession(ctx context.Context, arg InsertOAuthSessionParams) error {
 	_, err := q.db.Exec(ctx, insertOAuthSession,
 		arg.ID,
@@ -111,6 +128,7 @@ func (q *Queries) InsertOAuthSession(ctx context.Context, arg InsertOAuthSession
 		arg.UserTokenKid,
 		arg.Pages,
 		arg.ExpiresAt,
+		arg.FbUserRefHash,
 	)
 	return err
 }

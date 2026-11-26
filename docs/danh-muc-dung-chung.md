@@ -266,12 +266,57 @@ type MetaConfig struct {
 	HooksPublicBaseURL string
 
 	AttachmentHosts []string
+
+	DataUseCheckupDue time.Time
 }
 type MigrateConfig struct {
 	OwnerURL string
 }
 type Role string
 func ParseRole(s string) (Role, error)
+```
+
+## `internal/platform/datadeletion` (gói `datadeletion`)
+
+Package datadeletion là callback xóa dữ liệu của Meta (kế hoạch M4, Task 179; spec 02 mục 5; Q30): ingest nhận yêu cầu (Endpoint: kiểm chữ ký, ghi platform.data_deletion_requests hoặc tệp tạm, trả mã xác nhận và trang trạng thái); worker chạy việc platform.data_deletion (Processor) gọi các Deleter do module đăng ký ở mọi tenant rồi đánh dấu xong.
+
+**Khi nào không dùng:** Chỉ cho yêu cầu xóa dữ liệu do nhà cung cấp gửi tới (callback xóa của Meta, Task 179): không dùng để xóa dữ liệu khách theo yêu cầu của khách (việc của module customer, Q30). Không đọc, ghi platform.data_deletion_requests ở gói khác; module thêm phần xóa bằng một Deleter truyền vào NewProcessor ở cmd/crm (chạy lại được, không gọi mạng, chỉ xóa trong tenant của tx). Không lưu hay log mã người dùng gốc: chỉ UserRefHash.
+
+```go
+func UserRefHash(id string) string
+type Deleter func(ctx context.Context, tx pgx.Tx, userRefHash string) (int64, error)
+type Drainer struct {
+	Spool  *Spool
+	DB     *db.DB
+	Logger *slog.Logger
+}
+func (d *Drainer) Run(ctx context.Context)
+type Endpoint struct {
+}
+func NewEndpoint(o EndpointOptions) (*Endpoint, error)
+func (e *Endpoint) Register(mux *http.ServeMux)
+type EndpointOptions struct {
+	DB    *db.DB
+	Spool *Spool
+
+	Source string
+
+	BaseURL string
+
+	Parse  func(signedRequest string) (string, error)
+	Logger *slog.Logger
+}
+type Processor struct {
+}
+func NewProcessor(deleters ...Deleter) *Processor
+func (p *Processor) Handle(ctx context.Context, _ queue.Job, tx pgx.Tx) (json.RawMessage, error)
+func (*Processor) Kind() queue.Kind
+func (p *Processor) Schedule() schedules.Schedule
+type Spool struct {
+	Dir string
+}
+func (s *Spool) Drain(ctx context.Context, d *db.DB) (n int, err error)
+func (s *Spool) Write(r request) error
 ```
 
 ## `internal/platform/db` (gói `db`)
@@ -746,6 +791,7 @@ Package observability phục vụ các điểm kiểm sức khỏe của tiến 
 **Khi nào không dùng:** Không đặt kiểm tra nghiệp vụ hay dữ liệu khách vào /health/*. Không gọi Notify trong RetryTx hay handler transactional của hàng đợi (gọi mạng): gửi cảnh báo từ lệnh (commands.Handler) như alertjobs.NewAlertsCommand (gói con: observability không được nhập commands, queue vì queue nhập observability). Văn bản cảnh báo chỉ mang tên luật, số lượng, kind, mã bản ghi: không đọc payload, last_error. Không dùng Alerter để báo cho khách (C7).
 
 ```go
+func AlertSentWithin(ctx context.Context, d *db.DB, key string, window time.Duration) (bool, error)
 func CheckRules(ctx context.Context, d *db.DB, a Alerter, o RuleOptions) ([]string, error)
 func DigestDue(now time.Time) bool
 func Fingerprint(err error, frames []runtime.Frame) string
@@ -1133,6 +1179,7 @@ func PutRoute(ctx context.Context, tx pgx.Tx, kind, key string) error
 func Resolve(ctx context.Context, d *db.DB, kind, externalKey string) (uuid.UUID, bool, error)
 func ResolveTx(ctx context.Context, tx pgx.Tx, kind, externalKey string) (uuid.UUID, bool, error)
 func SeedTenant(ctx context.Context, owner *db.DB, name string) (uuid.UUID, error)
+func SetTenant(ctx context.Context, tx pgx.Tx, tenantID uuid.UUID) error
 func WithTenant(ctx context.Context, d *db.DB, tenantID uuid.UUID, fn func(pgx.Tx) error, o ...db.TxOptions) error
 ```
 

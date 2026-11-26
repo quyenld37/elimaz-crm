@@ -18,6 +18,7 @@ import (
 
 	"elimaz.com.vn/crm/internal/modules/channel/internal/store"
 	"elimaz.com.vn/crm/internal/platform/config"
+	"elimaz.com.vn/crm/internal/platform/datadeletion"
 	"elimaz.com.vn/crm/internal/platform/fieldcrypt"
 	"elimaz.com.vn/crm/internal/platform/logging"
 )
@@ -72,15 +73,16 @@ func StartOAuth(ctx context.Context, tx pgx.Tx, userID uuid.UUID, now time.Time)
 	if _, err := q.DeleteExpiredOAuthSessions(ctx, now); err != nil {
 		return "", fmt.Errorf("dọn phiên đăng nhập hết hạn: %w", err)
 	}
-	if err := insertSession(ctx, q, uuid.Must(uuid.NewV7()), userID, stateHash(state), nil, "", []oauthPage{}, now.Add(oauthStartTTL)); err != nil {
+	if err := insertSession(ctx, q, uuid.Must(uuid.NewV7()), userID, stateHash(state), nil, "", []oauthPage{},
+		now.Add(oauthStartTTL), ""); err != nil {
 		return "", err
 	}
 	return state, nil
 }
 
-// insertSession chèn một dòng phiên (tenant của ngữ cảnh tx).
+// insertSession chèn một dòng phiên (tenant của ngữ cảnh tx); userRefHash rỗng (dòng start) → NULL.
 func insertSession(ctx context.Context, q *store.Queries, id, userID uuid.UUID, hash, tokenEnc []byte, kid string,
-	pages []oauthPage, expires time.Time,
+	pages []oauthPage, expires time.Time, userRefHash string,
 ) error {
 	pj, err := json.Marshal(pages)
 	if err != nil {
@@ -89,6 +91,7 @@ func insertSession(ctx context.Context, q *store.Queries, id, userID uuid.UUID, 
 	if err := q.InsertOAuthSession(ctx, store.InsertOAuthSessionParams{
 		ID: id, UserID: userID, StateHash: hash, UserTokenEnc: tokenEnc,
 		UserTokenKid: pgtype.Text{String: kid, Valid: kid != ""}, Pages: pj, ExpiresAt: expires,
+		FbUserRefHash: pgtype.Text{String: userRefHash, Valid: userRefHash != ""},
 	}); err != nil {
 		return fmt.Errorf("ghi phiên đăng nhập Facebook: %w", err)
 	}
@@ -130,15 +133,15 @@ func CheckOAuthState(ctx context.Context, tx pgx.Tx, userID uuid.UUID, state str
 }
 
 // SaveOAuthPages đánh dấu dòng start startID đã dùng (đúng userID, còn hạn lúc now, chưa dùng; không thì
-// ErrOAuthStateInvalid) rồi lưu phiên Page: token người dùng userToken mã hóa bằng kr, danh sách pages, hạn now + 30
-// phút. Trả id phiên Page (sessionId).
-func SaveOAuthPages(ctx context.Context, tx pgx.Tx, kr *fieldcrypt.Keyring, startID, userID uuid.UUID,
-	userToken logging.Secret, pages []PageInfo, now time.Time,
+// ErrOAuthStateInvalid) rồi lưu phiên Page của login: token người dùng mã hóa bằng kr, danh sách Page, băm mã người
+// dùng app (datadeletion.UserRefHash, để xóa theo yêu cầu của Meta), hạn now + 30 phút. Trả id phiên Page (sessionId).
+func SaveOAuthPages(ctx context.Context, tx pgx.Tx, kr *fieldcrypt.Keyring, startID, userID uuid.UUID, login OAuthLogin,
+	now time.Time,
 ) (uuid.UUID, error) {
 	switch {
 	case kr == nil:
 		return uuid.Nil, ErrNoKeyring
-	case userToken == "":
+	case login.Token == "" || login.AppUserID == "":
 		return uuid.Nil, ErrInvalidCredentials
 	}
 	now = now.UTC()
@@ -151,18 +154,19 @@ func SaveOAuthPages(ctx context.Context, tx pgx.Tx, kr *fieldcrypt.Keyring, star
 		return uuid.Nil, fmt.Errorf("đánh dấu phiên đăng nhập đã dùng: %w", err)
 	}
 	id := uuid.Must(uuid.NewV7())
-	plain := []byte(userToken)
+	plain := []byte(login.Token)
 	ct, kid, err := kr.Seal(plain, sessionAAD(tenantID, id))
 	clear(plain)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("mã hóa token người dùng: %w", err)
 	}
-	ps := make([]oauthPage, 0, len(pages))
-	for _, p := range pages {
+	ps := make([]oauthPage, 0, len(login.Pages))
+	for _, p := range login.Pages {
 		ps = append(ps, oauthPage(p))
 	}
 	// state_hash của dòng phiên Page: băm của byte ngẫu nhiên không lộ ra ngoài (cột bắt buộc, duy nhất).
-	if err := insertSession(ctx, q, id, userID, stateHash(rand.Text()), ct, kid, ps, now.Add(oauthPagesTTL)); err != nil {
+	if err := insertSession(ctx, q, id, userID, stateHash(rand.Text()), ct, kid, ps, now.Add(oauthPagesTTL),
+		datadeletion.UserRefHash(login.AppUserID)); err != nil {
 		return uuid.Nil, err
 	}
 	return id, nil
